@@ -177,12 +177,29 @@ function Every({ d, filter, setFilter }: { d: AllInvestments; filter: Filter; se
   );
 }
 
+const NUM_WORD = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten"];
+/** Pack C3: "Two shares read Weak: APOLLO and GLENMARK, both 44"; up to three names, then "and N more". */
+export function watchTitle(n: number, word: string, rows: { symbol: string; score: number | null }[]) {
+  const head = `${NUM_WORD[n] ?? n} ${n === 1 ? "share reads" : "shares read"} ${word}`;
+  if (!rows.length) return head;
+  const shown = rows.slice(0, 3), more = rows.length - shown.length, names = shown.map((r) => r.symbol);
+  const list = more ? `${names.join(", ")} and ${more} more` : names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names[0];
+  const sc = shown.map((r) => r.score).filter((v): v is number => v != null).map((v) => Math.round(v));
+  const scores = more || sc.length !== shown.length ? "" : sc.length === 1 ? `, ${sc[0]}` : sc.every((v) => v === sc[0]) ? `, ${sc.length === 2 ? "both" : "all"} ${sc[0]}` : `, ${sc.slice(0, -1).join(", ")} and ${sc.at(-1)}`;
+  return `${head}: ${list}${scores}`;
+}
+
 // ------------------------------------------------------------------------------------------------ step 5
 function HealthStep({ d }: { d: AllInvestments }) {
   const h = d.health, model = MODEL_NAME[d.plan === "gold" ? "prism" : "iq"];
-  const weak = h.shares ? h.shares.bands.filter((b) => !["Strong", "Healthy", "Average", "Mixed"].includes(b.label)).reduce((a, b) => a + b.count, 0) : 0;
+  const LOW = h.shares ? h.shares.bands.map((b) => b.label).filter((l) => !["Strong", "Healthy", "Average", "Mixed"].includes(l)) : [];
+  const weakRows = h.shares ? d.shares.filter((r) => r.label && LOW.includes(r.label)).sort((a, b) => (a.score ?? 0) - (b.score ?? 0) || a.symbol.localeCompare(b.symbol)) : [];
+  const weak = h.shares ? h.shares.bands.filter((b) => LOW.includes(b.label)).reduce((a, b) => a + b.count, 0) : 0;
+  const weakShare = h.shares ? h.shares.bands.filter((b) => LOW.includes(b.label)).reduce((a, b) => a + b.share, 0) : 0;
   const notes: Note[] = [];
-  if (h.shares) notes.push({ kind: weak ? "watch" : "good", title: weak ? `${weak} ${weak === 1 ? "share reads" : "shares read"} ${d.plan === "gold" ? "Weak or Poor" : "Watch"}` : `No share reads ${d.plan === "gold" ? "Weak or Poor" : "Watch"}`, text: <>{model} reads each company's own filings and prices; {pctOf(h.shares.topTwoShare)} of your shares sit in its top two bands.</> });
+  const lowWord = [...new Set(weakRows.map((r) => r.label!))].join(" or ") || LOW.join(" or ");
+  if (h.shares) notes.push({ kind: weak ? "watch" : "good", title: weak ? watchTitle(weak, lowWord, weakRows) : `No share reads ${LOW.join(" or ") || (d.plan === "gold" ? "Weak or Poor" : "Watch")}`,
+    text: <>{model} reads each company's own filings and prices. {d.byValue ? "By value" : "By count"}, {weak ? <>{pctOf(weakShare)} of your shares {weak === 1 ? "reads" : "read"} {lowWord}; </> : null}{pctOf(h.shares.topTwoShare)} {weak ? "sit" : "of your shares sit"} in its top two bands.</> });
   if (h.funds && !h.funds.locked) notes.push({ kind: "insight", title: h.funds.lowest ? `${h.funds.lowest.name} is the lowest Mutual Fund Score, ${nf(h.funds.lowest.score, 0)}` : "No fund has a Mutual Fund Score yet", text: "Mutual Fund Score reads each fund's performance, risk, cost and quality against its own category." });
   if (h.etfs && h.etfs.costPerLakh != null) notes.push({ kind: "good", title: `ETFs cost about ₹${nf(h.etfs.costPerLakh, 0)} a year on ₹1 lakh`, text: <>The weighted yearly cost is {pctOf(h.etfs.ter, 2)}.{h.etfs.widestGap ? <> The widest gap between price and value is {h.etfs.widestGap.symbol}, {chg(h.etfs.widestGap.premium, 2)}.</> : null}</> });
   return (
