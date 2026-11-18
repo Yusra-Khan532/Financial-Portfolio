@@ -2,13 +2,18 @@
 :host,.sl-root{--page:#f3eee2;--card:#FDFBF6;--line:#DDD3BD;--line2:#eee6d4;--ink:#1a1915;--body:#3a382f;--muted:#6b665a;--teal:#0e6471;--teal2:#08434c;
   --up:#0f6b3a;--upbg:#e1f2e7;--dn:#a8342b;--dnbg:#fbe3e0;--amb:#8a5200;--ambbg:#fcefd2;--tintbg:#e2f0f2;--quant:#a15c07;--gold:#7a5b16;--hb4a788:#b4a788;--hd9c38d:#d9c38d;--hfbf3dd:#fbf3dd;--hffffff:#ffffff;--hece4d2:#ece4d2;--hefe8da:#efe8da;--hf7f3ea:#f7f3ea;--h5b574f:#5b574f;--hd7c9a6:#d7c9a6;--h4a3a1a:#4a3a1a;--h1c1a15:#1c1a15;--h34322b:#34322b;--hf3eee2:#f3eee2;--he3dac6:#e3dac6;--hfff8e8:#fff8e8;--heef5f4:#eef5f4;--hcfc6b2:#cfc6b2;--hfffdf8:#fffdf8;--hefe9db:#efe9db;--hc59b3b:#c59b3b;--h8d8571:#8d8571;--h4d4a42:#4d4a42;--h17262e:#17262e;--hf4f1ea:#f4f1ea;--h7fb0ea:#7fb0ea;--h22343d:#22343d;--h33464f:#33464f;--he8eef0:#e8eef0;--h14243a:#14243a;--he4ecf7:#e4ecf7;--h7a5b16:#7a5b16;--hfaf7f0:#faf7f0;--hc59b3b:#c59b3b;--h0f6b3a:#0f6b3a;--h8d8571:#8d8571;--ha8342b:#a8342b;--hb7791f:#b7791f;--hefe8da:#efe8da;}
 :host([data-theme=dark]),:host([data-theme=dark]) .sl-root{--page:#0a0d0c;--pageX:#262521;--card:#191814;--line:#403e3a;--line2:#2f2d28;--ink:#dddbd5;--body:#c7c4b9;--muted:#a19c90;--teal:#7ee0ef;--teal2:#9de9f5;--up:#84eeb5;--upbg:#222623;--dn:#e06a60;--dnbg:#251e1d;--amb:#ffc065;--ambbg:#2c2921;--tintbg:#212526;--quant:#f7ad52;--gold:#e7c478;--hb4a788:#7c6f4e;--hd9c38d:#7d652a;--hfbf3dd:#26241e;--hffffff:#121212;--hece4d2:#312f2a;--hefe8da:#2b2a26;--hf7f3ea:#211f1c;--h5b574f:#aaa69e;--hd7c9a6:#514d41;--h4a3a1a:#dfcca5;--h1c1a15:#dedad3;--h34322b:#cac7bf;--hf3eee2:#262521;--he3dac6:#3a3833;--hfff8e8:#201d17;--heef5f4:#1c1f1e;--hcfc6b2:#4c4943;--hfffdf8:#181611;--hefe9db:#2b2a26;--hc59b3b:#c49a3a;--h8d8571:#8e8672;--h4d4a42:#b6b2aa;--h17262e:#c0d4df;--hf4f1ea:#21201e;--h7fb0ea:#174d8d;--h22343d:#b4cad5;--h33464f:#a5bbc5;--he8eef0:#212323;--h14243a:#b3c8e5;--he4ecf7:#1e2024;--h7a5b16:#e7c478;--hfaf7f0:#1d1b18;--h0f6b3a:#84eeb5;--ha8342b:#d35b52;--hb7791f:#dfa043;color-scheme:dark}
-/* Task #231 (19 Nov 2026): dark mode on the site's one sage green (site-green.css, tasks #161 and #206). The page above is drawn in a shadow root, so the site's
-   green tokens never reached it and it stayed on the old near-black: the page now lets the site's green show through, and every surface, line and tint is a step of
-   the same green (the values of site-green.css). Muted text, the soft grey and the loss red are lighter so each stays at least 4.5:1 on every surface (stressLab231.test.ts). */
-:host([data-theme=dark]),:host([data-theme=dark]) .sl-root{--page:transparent;--pageX:#2A4439;--card:#273F35;--line:#36594A;--line2:#2E4A3E;
-  --upbg:#325444;--dnbg:#3A4339;--ambbg:#414E3B;--tintbg:#304F48;--hfbf3dd:#3E4F3D;--hffffff:#2A4439;--hece4d2:#2E4A3E;--hefe8da:#36594A;--hf7f3ea:#2A4439;--hf3eee2:#2A453A;
-  --he3dac6:#3A5F4F;--hfff8e8:#34483A;--heef5f4:#2C4940;--hcfc6b2:#46725F;--hfffdf8:#284136;--hefe9db:#2E4A3E;--hf4f1ea:#2A4439;--he8eef0:#2A4439;--he4ecf7:#304A47;--hfaf7f0:#284136;--hd7c9a6:#46725F;
-  --muted:#BDB8AC;--h5b574f:#C2BEB6;--dn:#F4948B}
+/* Task #231 (19 Nov 2026): dark mode on the site's one green (site-green.css, tasks #161, #206 and #227). The page above is drawn in a shadow root with its own
+   palette, so it stayed on the old near-black: now the page lets the site's green show through, and every surface, line and tint READS the site's own green
+   tokens (custom properties reach into a shadow root), so it follows site-green.css whenever that changes; the fallbacks are today's values. Muted text,
+   the soft grey and the loss red are lighter, so each stays at least 4.5:1 on every surface (stressLab231.test.ts). */
+:host([data-theme=dark]),:host([data-theme=dark]) .sl-root{--page:transparent;--pageX:var(--s2,#14241D);--card:var(--s1,#0D1B15);--line:var(--border,#254135);--line2:var(--s3,#1C3128);
+  --upbg:color-mix(in srgb,#84eeb5 12%,var(--s1,#0D1B15));--dnbg:color-mix(in srgb,#e06a60 14%,var(--s1,#0D1B15));--ambbg:color-mix(in srgb,#ffc065 12%,var(--s1,#0D1B15));
+  --tintbg:color-mix(in srgb,#7ee0ef 10%,var(--s1,#0D1B15));--hfbf3dd:color-mix(in srgb,#e7c478 12%,var(--s1,#0D1B15));--hfff8e8:color-mix(in srgb,#e7c478 7%,var(--s1,#0D1B15));
+  --heef5f4:color-mix(in srgb,#7ee0ef 6%,var(--s1,#0D1B15));--he4ecf7:color-mix(in srgb,#7fb0ea 10%,var(--s1,#0D1B15));
+  --hffffff:var(--s2,#14241D);--hece4d2:var(--bg-selected,#20372D);--hefe8da:var(--border,#254135);--hf7f3ea:var(--s2,#14241D);--hf3eee2:var(--s3,#1C3128);
+  --he3dac6:var(--border-strong,#39604F);--hfffdf8:var(--s1,#0D1B15);--hefe9db:var(--bg-selected,#20372D);--hf4f1ea:var(--s2,#14241D);--he8eef0:var(--s2,#14241D);
+  --hfaf7f0:var(--s1,#0D1B15);--hcfc6b2:var(--border-strong,#39604F);--hd7c9a6:var(--border-strong,#39604F);
+  --muted:#C3D0C7;--h5b574f:#C2BEB6;--dn:#F4948B}
 *{box-sizing:border-box}
 .sl-root{margin:0;background:var(--page);color:var(--body);font:400 14px/1.5 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
 a{color:var(--teal)}
