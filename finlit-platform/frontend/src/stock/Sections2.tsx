@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { TabGroup } from "../components/TabGroup";
 import { Icon } from "../lib/icons";
 
 import { LineChart } from "../charts/LineChart";
@@ -93,6 +94,10 @@ export function DividendsSection({ e, price, r }: { e?: Events; price?: number |
           <div><span className="label">Years paid in a row</span><b className="dk-v">{streak} of {fy.dps.length}</b><div className="dk-dots">{fy.dps.map((x, i) => <i key={i} className={x > 0 ? "on" : ""} title={`${fy.periods[i]}: ₹${nf(x, 2)}`} />)}</div></div>
         </div>
       </div>
+      {/* Task #216 (README 3.17): one tab group: Dividend history · What it would pay you · Exchange announcements. The sections bar's "Announcements"
+          links to #announcements, which opens the third tab. */}
+      <TabGroup label="Dividends and events" views={[
+        { key: "history", label: "Dividend history", content: <>
       <div className="div3">
         <div className="card acc" style={{ "--ac": "var(--gold)" } as React.CSSProperties}>
           <div className="card-h"><h3><span className="ci"><Icon name="bars" /></span>Dividend per share<ChartHelp id="div-dps" /></h3><span className="s">₹ per financial year</span></div>
@@ -109,6 +114,8 @@ export function DividendsSection({ e, price, r }: { e?: Events; price?: number |
           {payHist.filter((x) => x != null).length > 1 ? <LineChart periods={r!.history.periods} series={[{ key: "payout", label: "Payout", color: "var(--c2)", values: payHist }]} fmt={(x) => nf(x, 0) + "%"} area height={300} /> : <p className="muted">Not enough history to chart.</p>}
         </div>
       </div>
+        </> },
+        { key: "pay", label: "What it would pay you", content: <>
       <div className="div3">
         <div className="card acc dv-calc" style={{ "--ac": "var(--gold)" } as React.CSSProperties}>
           <div className="card-h"><h3><span className="ci"><Icon name="wallet" /></span>What would it pay you?<ChartHelp id="div-calc" /></h3><span className="s">Drag or type</span></div>
@@ -127,7 +134,9 @@ export function DividendsSection({ e, price, r }: { e?: Events; price?: number |
           <div className="payouts">{recent.map((d, i) => <div className="pay" key={d.date + d.amount} style={{ animationDelay: `${i * 70}ms` }}><div className="pc">₹{nf(d.amount ?? 0, d.amount && d.amount % 1 ? 2 : 0)}</div><div><b>{d.type === "interim_dividend" ? "Interim" : d.type === "special_dividend" ? "Special" : "Final"}</b><span>{dateIN(d.date)}</span></div></div>)}</div>
         </div>
       </div>
-      <div className="card acc dv-news" id="announcements" style={{ "--ac": "var(--info)", marginTop: 16 } as React.CSSProperties}>
+        </> },
+        { key: "news", label: "Exchange announcements", content: <>
+      <div className="card acc dv-news" id="announcements" style={{ "--ac": "var(--info)" } as React.CSSProperties}>
         <div className="card-h"><h3><span className="ci"><Icon name="notes" /></span>Exchange announcements</h3><span className="s">Routine filings hidden</span></div>
         <ol className="tl">{e.announcements.slice(0, 6).map((a) => {
           const ok = a.link && /^https?:\/\//.test(a.link);
@@ -135,6 +144,8 @@ export function DividendsSection({ e, price, r }: { e?: Events; price?: number |
           return <li key={a.date + a.description.slice(0, 30)}><span className="tl-d">{dateIN(a.date, { day: "numeric", month: "short" })}</span><Tag className="tl-b" {...(ok ? { href: a.link!, target: "_blank", rel: "noopener noreferrer" } : {})}><span className="chip ghost">{a.category}</span><span className="tl-t">{a.description}</span>{ok && <span className="tl-go" aria-hidden="true">↗</span>}</Tag></li>;
         })}{!e.announcements.length && <li><span className="muted">No recent announcements.</span></li>}</ol>
       </div>
+        </> },
+      ]} />
     </section>
   );
 }

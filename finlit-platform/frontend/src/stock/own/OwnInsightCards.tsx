@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DropChev } from "../../components/DropChev";
 import { TONE, type InsightCard, type OwnInsights } from "../../lib/ownView";
 
 /** The tone is always an icon and a word, never colour alone. */
@@ -20,12 +21,11 @@ export function OwnInsightCards({ ins, why, stale }: { ins?: OwnInsights; why?: 
     <>
       <div className="ow-cards">
         {cards.map((c) => (
-          <div key={c.id} className={`ow-icard t-${c.tone}`} title={c.text}>
-            <ToneTag tone={c.tone} />
-            <div className="ow-ct">{c.title}</div>
-            <div className="ow-cs">{c.stat}</div>
-            <span className="sr-only">{c.text}</span>
-          </div>
+          // task #216 (README 3.12): each card is a drop-down: tone, title and figures in the summary, the full sentence inside
+          <details key={c.id} className={`ow-icard xdd t-${c.tone}`}>
+            <summary><ToneTag tone={c.tone} /><DropChev /><div className="ow-ct">{c.title}</div><div className="ow-cs">{c.stat}</div></summary>
+            <p className="ow-cx">{c.text}</p>
+          </details>
         ))}
       </div>
       {more && rest.length > 0 && (
@@ -40,7 +40,7 @@ export function OwnInsightCards({ ins, why, stale }: { ins?: OwnInsights; why?: 
     <section className="ow-card" aria-labelledby="ow-says">
       <div className="ow-sec-h">
         <h3 id="ow-says">What changed, in short</h3>
-        <span className="ow-small ow-muted">{ins?.as_of ? `Latest filing, ${ins.as_of} · ` : ""}same 21 rules for every stock · <a href="#method">how we read it</a></span>
+        <span className="ow-small ow-muted">{ins?.as_of ? `Latest filing, ${ins.as_of} · ` : ""}same 21 rules for every stock</span>
       </div>
       {body}
     </section>

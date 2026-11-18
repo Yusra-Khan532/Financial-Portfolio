@@ -21,14 +21,15 @@ const wrap = (el: React.ReactElement) => render(<MemoryRouter>{el}</MemoryRouter
 afterEach(cleanup);
 
 describe("What changed, in short", () => {
-  it("shows three cards with the tone as icon and word, a title and one number; the full text is for screen readers and tooltips", () => {
+  it("shows three cards with the tone as icon and word, a title and one number; each opens to its full sentence (task #216, README 3.12)", () => {
     const { container } = wrap(<OwnInsightCards ins={full} />);
     const cards = container.querySelectorAll(".ow-icard");
     expect(cards).toHaveLength(3);
     expect(cards[0].textContent).toContain("Worth knowing"); expect(cards[0].textContent).toContain("Indian funds buying what foreign funds sell"); expect(cards[0].textContent).toContain("Indian +1.4 pts, foreign −2.0 pts in a year");
     expect(cards[1].textContent).toContain("Supportive"); expect(cards[1].querySelector(".ow-glyph")?.textContent).toBe("+");
-    expect(cards[0].getAttribute("title")).toBe(ins.cards![0].text);
-    expect(cards[0].querySelector(".sr-only")?.textContent).toBe(ins.cards![0].text);
+    expect(cards[0].tagName).toBe("DETAILS"); expect(cards[0].querySelector("summary .xdd-chev")).toBeTruthy();
+    expect(cards[0].querySelector(".ow-cx")?.textContent).toBe(ins.cards![0].text);
+    expect(cards[0].querySelector("summary")!.textContent).toContain("Indian +1.4 pts, foreign −2.0 pts in a year");   // tone, title and figures in the summary
     expect(container.querySelector(".ow-glyph")?.getAttribute("aria-hidden")).toBe("true");
   });
   it("keeps the rest behind Show more, and Show fewer closes them", () => {
@@ -60,14 +61,17 @@ describe("What changed, in short", () => {
 });
 
 describe("the section", () => {
-  it("draws the five parts in the designed order with the footer", () => {
+  it("draws the parts in the designed order with the footer: owners first, then the tab group (task #216, README 3.12)", () => {
     const { container } = wrap(<OwnershipSection o={o} ins={full} />);
     const t = container.textContent!;
-    const order = ["What changed, in short", "Owners today", "Who bought and who sold", "How the shareholding pattern changed", "Also from the filing", "Largest institutional holders"].map((x) => t.indexOf(x));
+    const order = ["Owners today", "Who bought and who sold", "What changed, in short", "How the shareholding pattern changed", "Also from the filing", "Largest institutional holders"].map((x) => t.indexOf(x));
     expect(order.every((x) => x >= 0)).toBe(true); expect([...order].sort((a, b) => a - b)).toEqual(order);
     expect(t).toContain("pts = percentage points of the company. From quarterly shareholding filings. Information only, not advice.");
     expect(container.querySelector("#ownership")).toBeTruthy();
     expect(container.querySelector(".own-yr2")).toBeTruthy();
+    const tabs = [...container.querySelectorAll('[role="tablist"][aria-label="Ownership"] [role="tab"]')].map((x) => x.textContent);
+    expect(tabs).toEqual(["1What changed", "2Pattern over time", "3Filing facts & top holders"]);
+    expect(container.querySelector(".ow-row")!.compareDocumentPosition(container.querySelector(".ctabs")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
   it("the donut shows the promoters in the centre, and hovering a name or a slice changes it", () => {
     const { container } = wrap(<OwnershipSection o={o} ins={full} />);
@@ -214,7 +218,9 @@ describe("Also from the filing and the largest institutional holders", () => {
   it("shows the four facts and the named holders from the stored insights", () => {
     const { container } = wrap(<OwnFacts ins={full} />);
     const facts = [...container.querySelectorAll(".ow-fact")].map((f) => f.textContent);
-    expect(facts).toEqual(["Shareholders50.7 lakh+15% in a year", "Promoter shares pledged0.0%None pledged", "Shares outstanding1,353 croreUnchanged in a year", "Shares under lock-in0.0%No lock-in"]);
+    expect(facts).toEqual(["Shareholdersi50.7 lakh+15% in a year", "Promoter shares pledgedi0.0%None pledged", "Shares outstandingi1,353 croreUnchanged in a year", "Shares under lock-ini0.0%No lock-in"]);
+    // task #216 (README 1.4): the four new i buttons, with the pack's texts
+    expect([...container.querySelectorAll(".ow-fact button.info")].map((b) => b.getAttribute("aria-label"))).toEqual(["What is Shareholders?", "What is Promoter shares pledged?", "What is Shares outstanding?", "What is Shares under lock-in?"]);
     const holders = [...container.querySelectorAll(".ow-holder")].map((h) => h.textContent);
     expect(holders[0]).toBe("Life Insurance Corporation of India6.94% →7.11%"); expect(holders).toHaveLength(4);
     expect(container.textContent).toContain("1% or more · a year ago → now");

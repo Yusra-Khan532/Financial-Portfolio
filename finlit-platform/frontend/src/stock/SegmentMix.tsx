@@ -8,6 +8,7 @@ import {
   type ChartModel, type SortKey, type TableRow,
 } from "../lib/segmentMix";
 import { ChartZoom } from "../components/ChartZoom";
+import { TabGroup, type TabView } from "../components/TabGroup";
 
 type Mode = "revenue" | "share";
 const rs = (n: number | null | undefined) => (n == null ? "—" : "₹" + cr(n) + " Cr");
@@ -133,8 +134,8 @@ export function SegmentHistory({ seg }: { seg?: Segments }) {
   const latest = seg.periods[seg.periods.length - 1] || "";
   const ins = seg.insights;
   const many = model.years.length >= 2;
-  return (
-    <div className="mx">
+  // Task #216 (README 3.16): the three parts are one highlighted tab group: How the mix has changed · Segment trends · Insights (only the parts there are).
+  const views: TabView[] = [{ key: "mix", label: "How the mix has changed", content: <>
       <ChartZoom label="How the segment mix has changed" className="cz-r">
       <div className="mx-h">
         <h4>How the mix has changed</h4>
@@ -153,21 +154,21 @@ export function SegmentHistory({ seg }: { seg?: Segments }) {
         </>
       ) : null}
       </ChartZoom>
-
-      {many && (
-        <>
+    </> }];
+  if (many) views.push({ key: "trends", label: "Segment trends", content: <>
           <div className="mx-h"><h4>Segment trends</h4></div>
           <TrendTable rows={rows} latest={latest} sort={sort} setSort={setSort} />
-        </>
-      )}
-
-      {ins && status === "ok" && (ins.sentences.length > 0 || ins.cautions.length > 0) && (
+    </> });
+  if (ins && status === "ok" && (ins.sentences.length > 0 || ins.cautions.length > 0)) views.push({ key: "insights", label: "Insights", content: <>
         <div className="mx-ins">
           <h4><Icon name="info" /> Insights</h4>
           {ins.sentences.length > 0 && <ul>{ins.sentences.map((s) => <li key={s}>{s}</li>)}</ul>}
           {ins.cautions.length > 0 && <div className="mx-caut"><b><Icon name="alert" /> Read with care</b><ul>{ins.cautions.map((c) => <li key={c}>{c}</li>)}</ul></div>}
         </div>
-      )}
+    </> });
+  return (
+    <div className="mx">
+      {views.length > 1 ? <TabGroup label="Segments" variant="highlighted" views={views} /> : views[0].content}
       {!ins && many && status === "ok" && <p className="mx-foot faint">Growth rates and trend tags appear here once this report is refreshed.</p>}
       <p className="mx-foot faint">{ins?.basis || "Shares are of the sum of the segment revenues, which can differ from reported revenue because inter-segment sales are removed."} Information only, not advice.</p>
     </div>

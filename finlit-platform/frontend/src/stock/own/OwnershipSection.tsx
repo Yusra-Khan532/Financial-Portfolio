@@ -3,6 +3,7 @@ import type { Ownership } from "../../lib/api";
 import { CMP_OPTIONS, movesFor, seriesFromOwnership, seriesFromTable, slicesAt, type OwnInsights, type OwnSeries } from "../../lib/ownView";
 import { ownershipYears, parsePeriod, selectionInfo } from "../../lib/ownershipYears";
 import { SectionHead } from "../Sections";
+import { TabGroup } from "../../components/TabGroup";
 import { OwnershipYearPicker } from "../OwnershipYearPicker";
 import { OwnCharts } from "./OwnCharts";
 import { OwnFacts } from "./OwnFacts";
@@ -42,13 +43,17 @@ export function OwnershipSection({ o, ins, insWhy }: { o?: Ownership; ins?: OwnI
         <OwnershipYearPicker years={years.map((y) => y.year)} selected={cur?.year ?? null} onPick={(y) => { const f = years.find((z) => z.year === y); if (f) setPick(f.index); }}
           cap={{ now: when, then: moves.from === when ? null : moves.from, basis: "chosen comparison", isLatest, year: info.year, isYearLatest: info.isYearLatest, yearLatest: info.yearLatest }} />
       )}
-      <OwnInsightCards ins={ins} why={insWhy} stale={stale} />
+      {/* Task #216 (README 3.12): "Owners today" and "Who bought and who sold" come first, on their own; then one tab group: What changed · Pattern over
+          time · Filing facts & top holders. */}
       <div className="ow-row">
         <OwnersToday slices={slicesAt(series, idx)} when={when} isLatest={isLatest} />
         <OwnMoves moves={moves} q={q} sel={idx} onQ={setQ} />
       </div>
-      <OwnCharts series={series} />
-      <OwnFacts ins={stale ? undefined : ins} />
+      <TabGroup label="Ownership" views={[
+        { key: "changed", label: "What changed", content: <OwnInsightCards ins={ins} why={insWhy} stale={stale} /> },
+        { key: "pattern", label: "Pattern over time", content: <OwnCharts series={series} /> },
+        { key: "facts", label: "Filing facts & top holders", content: <OwnFacts ins={stale ? undefined : ins} /> },
+      ]} />
       <p className="ow-foot">pts = percentage points of the company. From quarterly shareholding filings. Information only, not advice.</p>
     </section>
   );
