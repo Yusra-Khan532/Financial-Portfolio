@@ -16,6 +16,8 @@ import { around, enterpriseValue, expectedValue, fairValue, growthMarginGrid, ma
 import "../styles/dcf.css";   // the company search bar and its result list are the DCF page's (task #111): this page showed them unstyled when opened first
 import "../styles/reverse.css";
 import { Info } from "../components/Info";
+import { CoLogo } from "../components/CoLogo";
+import { QUICK_PICKS, pushRvRecent, readRvRecent, type Recent } from "../lib/rvPick";
 
 type Company = { symbol: string; name: string | null; sector: string | null; price: number | null; priceAsOf: string | null; marketCap: number | null; shares: { diluted: number | null; implied: number | null }; netDebt: { value: number | null; period: string | null } };
 const MODES: { id: SolveMode; label: string; field: keyof RvInputs }[] = [
@@ -133,6 +135,9 @@ export function ReverseValuationPage() {
   const fin = useSection<Financials>(sym ?? "", "financials", !!sym && has("gold"));
   const hist = useMemo(() => historyOf(fin.data), [fin.data]);
   const c = co.data;
+  // task #182: quick picks and the companies last opened here, as on profit and revenue forecasting; a company joins the list once its figures load
+  const [recent, setRecent] = useState<Recent[]>(() => readRvRecent());
+  useEffect(() => { if (c?.symbol) setRecent(pushRvRecent(c.symbol, c.name)); }, [c?.symbol, c?.name]);
 
   const [mode, setMode] = useState<SolveMode>("growth");
   const [info, setInfo] = useState<"how" | "why" | "method" | null>(null);
@@ -213,6 +218,14 @@ export function ReverseValuationPage() {
             <SearchFilters variant="panel" facets={sf.facets} value={sf.filter} onChange={sf.setFilter} count={sf.count} />
             {(q.trim() || sf.on) && hits.length > 0 && <ul className="dcf-hits" aria-label="Matching companies">{hits.map((h) => <li key={h[0]}><button onClick={() => { setSym(h[0]); setQ(""); }}><b>{h[1]}</b><span className="mono faint">{h[0]}</span></button></li>)}</ul>}
             {sf.idx.data && hits.length === 0 && (sf.on ? <FilterNote filter={sf.filter} q={q.trim()} onChange={sf.setFilter} hidden={sf.hidden(q)} /> : q.trim() && <p className="faint">No listed company matches “{q.trim()}”.</p>)}
+            {!q.trim() && !sf.on && <div className="rv-picks">
+              <div className="rv-pr"><span className="rv-pl" id="rv-qp">Quick picks</span>
+                <ul aria-labelledby="rv-qp">{QUICK_PICKS.map((p) => <li key={p.symbol}><button type="button" className={"rv-chip" + (sym?.toUpperCase() === p.symbol ? " on" : "")} aria-pressed={sym?.toUpperCase() === p.symbol} onClick={() => setSym(p.symbol)}>
+                  <CoLogo symbol={p.symbol} name={p.name} size={20} inline /><b>{p.name}</b></button></li>)}</ul></div>
+              {recent.filter((r) => r.symbol !== sym?.toUpperCase()).length > 0 && <div className="rv-pr"><span className="rv-pl" id="rv-rc">Last searched</span>
+                <ul aria-labelledby="rv-rc">{recent.filter((r) => r.symbol !== sym?.toUpperCase()).map((r) => <li key={r.symbol}><button type="button" className="rv-chip" onClick={() => setSym(r.symbol)}>
+                  <CoLogo symbol={r.symbol} name={r.name} size={20} inline /><b>{r.name}</b><small className="mono faint">{r.symbol}</small></button></li>)}</ul></div>}
+            </div>}
             {!sym && <p className="muted rv-empty">Choose a listed company to start. Its price, market value, net debt, shares and the last years of revenue and operating profit are loaded for you; every field stays editable.</p>}
             {(co.isFetching || fin.isFetching) && <p className="muted" aria-live="polite">Loading {sym}…</p>}
             {co.isError && <p className="formerr" role="alert">{(co.error?.body?.detail as string) || "Could not load this company's figures."}</p>}
