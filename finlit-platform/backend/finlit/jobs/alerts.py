@@ -1,4 +1,6 @@
-"""Telling the founder without SSH: an in-app notification for every admin and an email, at most once per 6 hours per problem."""
+"""Telling the founder without SSH: an in-app notification for every admin (the bell, linking to /console), at most once per 6 hours per problem.
+No email (the owner, 19 Nov 2026): the site's mail allowance is small (about 100 a day on the free plan) and is kept for members' password-reset links,
+so job and data-health alerts never send email; they stay in the bell and on the Admin Console's Data health tab."""
 from __future__ import annotations
 
 import asyncio
@@ -66,7 +68,6 @@ class Notifier:
         except Exception:
             log.exception("could not read the admin list for the alert %s", subject)
             return
-        link = f"{self.site_url}/console" if self.site_url else "/console"
         for a in admins:
             try:
                 async with self.pool.acquire() as conn:
@@ -75,10 +76,7 @@ class Notifier:
                     await conn.execute("INSERT INTO notifications (user_id, kind, title, body, link, push) VALUES ($1, 'system', $2, $3, '/console', false)", a["id"], subject[:200], body[:1000])
             except Exception:
                 log.exception("in-app notification failed")
-            try:
-                await self.mailer.send(a["email"], f"[FinLit] {subject}", f"{body}\n\nOpen the admin console: {link}\n(Data health tab). You get one message per problem, another only if it changes or after 24 hours, and one when it is resolved.")
-            except Exception:
-                log.exception("alert email failed")
+            # no email here (the owner, 19 Nov 2026): the mail allowance is kept for password-reset links; the bell above is the alert
 
     async def alert(self, key: str, subject: str, body: str, now: Optional[datetime] = None) -> bool:
         if not self._deduped:

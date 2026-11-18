@@ -14,7 +14,7 @@ No system can promise zero failures (see "What cannot be guaranteed" at the end)
 |---|---|
 | The admin switch "Heavy data loads" was OFF for a long time, every job skipped silently | The switch is a **time-boxed pause** (30 min default, 2 h, 12 h; longer needs a confirmation). It ends by itself; an old "off" with no expiry is read as "paused until 30 minutes after it was first seen". Results, calendars, quotes, alerts and report builds ignore it. The status shows who/until when. |
 | Skips were only visible in a Redis note | Every non-start has a recorded reason: `job_runs` row (status `skipped`), `job_state.state_reason`, `GET /api/jobs/status`, admin banner. |
-| Technical scores were 19 days old with nobody noticing | **Data-freshness invariants** (section 5) look at the newest DATA DATE, not at job success; a stale dataset forces its job to run now and alerts the founder by email and in-app. |
+| Technical scores were 19 days old with nobody noticing | **Data-freshness invariants** (section 5) look at the newest DATA DATE, not at job success; a stale dataset forces its job to run now and alerts the founder in-app. |
 | Three heavy jobs at once on 2 GB | Bulk jobs run strictly **one at a time** (`BULK_CONCURRENCY`, default 1), niced, `oom_score_adj +500`, after a memory/CPU gate. |
 | Exact-minute slots lost the whole slot when a round was late | Nothing is a slot any more: each minute the supervisor asks "is it **due**?" (SLA breached, window open and not yet done, interval passed). A late supervisor finds the job still due. |
 | A failed / OOM-killed / hung job waited for the next calendar slot | Retry after **30 min, then 60, then 120** (reset by a success); a hung job is killed by the watchdog and retried the same way; after 5 failures in a row the job is "held", the founder is alerted, and it is **still retried every 2 hours**. |
@@ -44,7 +44,7 @@ start.sh (deploy/start.sh) -> nohup deploy/scheduler.sh
 | `pause.py` | The time-boxed pause (`mf_meta` key `switch:loads`), legacy migration, expiry. |
 | `freshness.py` | Data-freshness invariants per dataset (section 5). |
 | `canary.py` | Daily value self-check against fresh provider calls (section 6). |
-| `alerts.py` | In-app notification + email to every admin, once per 6 h per problem; the web-process heartbeat watcher. |
+| `alerts.py` | In-app notification to every admin (no email), once per 6 h per problem; the web-process heartbeat watcher. |
 | `status.py` | `GET /api/jobs/status`. |
 | `probes.py`, `signals.py`, `cli.py` | cheap "is there work?" questions, Redis facts/lock/heartbeat, the `supervise` command. |
 
@@ -179,7 +179,7 @@ Holidays are not guessed: the expected session is `expected_session()` (latest w
 
 ## 7. Alerts without SSH
 
-The founder is emailed (`ADMIN_EMAIL` account, every active admin) and gets an in-app notification (link `/console`), at most **once per 6 hours per problem** (Redis key `jobs:alert:<problem>`; in-process fallback if Redis is down), when:
+Every active admin gets an in-app notification (the bell, link `/console`), at most **once per 6 hours per problem**. **No email** (the owner, 19 Nov 2026): the mail allowance (about 100 a day, free plan) is kept for members' password-reset links, so job and data alerts are in the bell and on the Data health tab only. They are raised (Redis key `jobs:alert:<problem>`; in-process fallback if Redis is down), when:
 
 * a job is overdue by more than 1.5 x its SLA (`overdue:<job>`);
 * a job fails 3 times in a row (`failing:<job>`; after 5 it is "held" and retried every 2 h);
