@@ -8,6 +8,7 @@ import { nf } from "../lib/format";
 import { KIND_LOWER, KIND_MARK, KIND_NAME, KIND_TAB, MODEL_NAME, betaTxt, chg, joinWords, kindsHeld, lower, pctOf, rupees, splitLine, type AllInvestments, type Company, type Kind, type KindMoney, type Tab } from "../lib/myInvest";
 import { MarketFall } from "../portfolio/pack/MarketFall";
 import "../portfolio/pack/market-fall.css";
+import "../styles/sectors-pack.css";   // task #235: the fall picture's section heading and its ⓘ
 import { BandStrip, KeyFigures, Notes, ScoreWord, SecHead, ShowAll, Stack, type Note } from "./parts";
 
 export const ALL_SECTIONS = [
@@ -55,8 +56,8 @@ export function AllTogether({ d, money, toTab, openQty }: { d: AllInvestments; m
 
 // ------------------------------------------------------------------------------------------------ step 1
 function Money({ d, money, kinds, toTab, openQty }: { d: AllInvestments; money: MoneyAll; kinds: Kind[]; toTab: (t: Tab) => void; openQty: () => void }) {
-  const inv = (m: KindMoney | undefined) => (m && m.full ? <>{rupees(m.invested)}{m.full < m.n ? <small>{m.full} of {m.n}</small> : null}</> : "—");
-  const gl = (m: KindMoney | undefined) => (m && m.full ? <><b className={tone(m.gain)}>{m.gain >= 0 ? "+" : "−"}{rupees(Math.abs(m.gain))}</b><small className={tone(m.gain)}>{chg((m.gain / m.invested) * 100)}</small></> : "—");
+  const inv = (m: KindMoney | undefined) => (m && m.full ? <>{rupees(m.invested)}{m.full < m.n ? <small className="mi-sub">{m.full} of {m.n} with a buy price</small> : null}</> : "—");
+  const gl = (m: KindMoney | undefined) => (m && m.full ? <><b className={tone(m.gain)}>{m.gain >= 0 ? "+" : "−"}{rupees(Math.abs(m.gain))}</b><small className={"mi-sub " + tone(m.gain)}>{chg((m.gain / m.invested) * 100)}</small></> : "—");
   const val = (k: Kind) => (d.byValue ? rupees(d.cards[k].value ?? 0) : null);
   return (
     <section className="card mi-step">

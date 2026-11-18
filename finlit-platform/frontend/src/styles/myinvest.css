@@ -211,3 +211,8 @@
 .mi .mi-tb tfoot td.mi-muted { white-space: normal; min-width: 220px; font-weight: 400; font-size: var(--fs-caption); }
 .mi .cl-openall { background: var(--s1); border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; font: 600 var(--fs-caption)/16px var(--sans); color: var(--text); cursor: pointer; }
 .mi .cl-openall:hover { border-color: var(--border-strong); }
+
+/* task #235 (pack C3): the line under a figure in Step 1 (how many have a buy price, the gain in %) */
+.mi-tb td small.mi-sub { display: block; font-size: 12px; font-weight: 600; color: var(--muted); }
+.mi-tb td small.mi-sub.mi-up { color: var(--gain); } .mi-tb td small.mi-sub.mi-down { color: var(--loss); }
+.mi-dark .x-up { color: #7fe0ad; font-weight: 700; } .mi-dark .x-dn { color: #ffa4a8; font-weight: 700; }   /* task #235: the gain on the dark hero */
