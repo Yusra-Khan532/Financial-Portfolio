@@ -16,7 +16,7 @@ import {
   requiredMonthly, rupees, short, toInput, toQuery, type SipState, type TaxRules,
 } from "../lib/sip";
 import "../styles/sip.css";
-import { ChartZoom } from "../components/ChartZoom";
+import { ChartZoom, useZoomHeight } from "../components/ChartZoom";
 
 const reduced = () => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
@@ -135,7 +135,8 @@ function GrowthChart({ s, band }: { s: SipState; band: Band }) {
     return () => ro.disconnect();
   }, []);
   // drawn at the size it is shown, so labels stay readable on a phone instead of shrinking with the picture
-  const W = width, H = width < 600 ? 250 : 320, L = width < 600 ? 50 : 64, R = 14, T = 24, B = 30;
+  const [, H] = useZoomHeight<SVGSVGElement>(width < 600 ? 250 : 320, svg);   // task #167: in full screen it fills the height too
+  const W = width, L = width < 600 ? 50 : 64, R = 14, T = 24, B = 30;
   const n = r.n || 1;
   const top = Math.max(r.value, band ? band.hi[band.hi.length - 1] : 0, 1);
   const ticks = niceTicks(0, top, 5);

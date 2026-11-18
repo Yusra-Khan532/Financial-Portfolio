@@ -15,8 +15,9 @@ import { ChartZoom } from "../components/ChartZoom";
 const inr = (n: number) => (n < 0 ? MINUS : "") + "₹" + nf(Math.abs(n), 0);
 
 function CumulativeLine({ data }: { data: PortfolioReport["charts"]["cumulativeRealizedPnl"] }) {
-  const { wrap, svg } = useChart((s, W, first) => {
-    const H = W < 520 ? 240 : 320, pl = 4, pr = 60, pt = 14, pb = 26, n = data.length;
+  const { wrap, svg } = useChart((s, W, first, fill) => {
+    const H = Math.max(W < 520 ? 240 : 320, fill ?? 0),   // task #167: fills the full-screen view
+      pl = 4, pr = 60, pt = 14, pb = 26, n = data.length;
     if (n < 2) return;
     s.setAttribute("viewBox", `0 0 ${W} ${H}`); s.style.height = H + "px";
     const v = data.map((d) => d.realizedPnl), lo = Math.min(0, ...v), hi = Math.max(...v) * 1.05;

@@ -5,7 +5,7 @@ import { niceTicks } from "../lib/etf";
 import { MINUS, dateIN, nf } from "../lib/format";
 import { calendar, diiGap, grp, inr, level, type Cal, type Pt, type SideKey } from "../lib/flowsMath";
 import type { FlowDay } from "../lib/flows";
-import { ChartZoom } from "./ChartZoom";
+import { ChartZoom, useZoomHeight } from "./ChartZoom";
 
 export function useWidth(min = 300): [React.RefObject<HTMLDivElement | null>, number] {
   const ref = useRef<HTMLDivElement>(null), [w, setW] = useState(900);
@@ -37,7 +37,8 @@ export type LineSeries = { key: string; label: string; color: string; pts: Pt[];
 export function LineChart({ series, height = 320, label, zero = true }: { series: LineSeries[]; height?: number; label: string; zero?: boolean }) {
   const [box, W] = useWidth(), svg = useRef<SVGSVGElement>(null), [hover, setHover] = useState<number | null>(null);
   const dual = series.some((s) => s.axis === "r");
-  const H = W < 560 ? Math.round(height * 0.8) : height, L = W < 560 ? 46 : 62, R = dual ? (W < 560 ? 46 : 62) : 14, T = 14, B = 26;
+  const [, H] = useZoomHeight<SVGSVGElement>(W < 560 ? Math.round(height * 0.8) : height, svg);   // task #167: in full screen it fills the height too
+  const L = W < 560 ? 46 : 62, R = dual ? (W < 560 ? 46 : 62) : 14, T = 14, B = 26;
   const live = series.filter((s) => s.pts.length);
   const m = useMemo(() => {
     const all = live.flatMap((s) => s.pts.map((p) => t(p[0])));

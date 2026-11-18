@@ -13,10 +13,11 @@ import { ChartZoom } from "../components/ChartZoom";
 export function IntradayChart({ data, showVol }: { data: Intraday; showVol: boolean }) {
   const tip = useRef<HTMLDivElement>(null);
   const s = data.series!;
-  const { wrap, svg } = useChart((svgEl, W, first) => {
+  const { wrap, svg } = useChart((svgEl, W, first, fill) => {
     const n = s.t.length;
     if (n < 2) return;
-    const H = W < 520 ? 260 : 470, pl = 4, pr = 56, pt = 16, pb = 28, volH = showVol ? 46 : 0, iw = W - pl - pr;
+    // task #167: in the full-screen view the chart fills the height (fill), else its own height
+    const H = Math.max(W < 520 ? 260 : 470, fill ?? 0), pl = 4, pr = 56, pt = 16, pb = 28, volH = showVol ? 46 : 0, iw = W - pl - pr;
     svgEl.setAttribute("viewBox", `0 0 ${W} ${H}`); svgEl.style.height = H + "px";
     let hi = 0, lo = 0; s.h.forEach((p, i) => { if (p > s.h[hi]) hi = i; }); s.l.forEach((p, i) => { if (p < s.l[lo]) lo = i; });
     let mn = Math.min(s.l[lo], ...s.c), mx = Math.max(s.h[hi], ...s.c); const pad = (mx - mn) * 0.1 || mx * 0.002; mn -= pad; mx += pad;

@@ -12,7 +12,7 @@ import { dateIN, MINUS, nf } from "../lib/format";
 import { niceTicks } from "../lib/etf";
 import { RANGES, align, corrWords, correlation, cut, fmt, frac, heat, signed, toCsv, useMacro, type Card, type Macro, type Pt, type RangeKey, type SeriesOut } from "../lib/macro";
 import "../styles/macro.css";
-import { ChartZoom } from "../components/ChartZoom";
+import { ChartZoom, useZoomHeight } from "../components/ChartZoom";
 
 const TONE = { up: "var(--loss)", down: "var(--gain)", flat: "var(--muted)" } as const;
 // for these a rise is a worry (prices, joblessness); for the others it is a good sign
@@ -81,7 +81,8 @@ function Chart({ lines, series, months, normalize = false, height = 300 }: { lin
   }, []);
   const data = useMemo(() => lines.map((l) => cut(series[l.key]?.points || [], months)), [lines, series, months]);
   const all = data.flat();
-  const H = W < 560 ? Math.round(height * 0.82) : height, L = W < 560 ? 44 : 56, R = 16, T = 18, B = 28;
+  const [, H] = useZoomHeight<SVGSVGElement>(W < 560 ? Math.round(height * 0.82) : height, svg);   // task #167: in full screen it fills the height too
+  const L = W < 560 ? 44 : 56, R = 16, T = 18, B = 28;
   if (!all.length) return <p className="mc-empty">No data for this range.</p>;
   const t = (d: string) => Date.parse(d + "T00:00:00Z");
   const t0 = Math.min(...all.map((p) => t(p[0]))), t1 = Math.max(...all.map((p) => t(p[0])));
