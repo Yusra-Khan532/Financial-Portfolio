@@ -10,6 +10,7 @@ Placement: this router is included BEFORE finlit.mf's, whose /api/mf/{code} woul
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 from typing import Any, Dict, List, Optional
@@ -28,6 +29,7 @@ from .scorehist import part_word, part_words
 from .sheets import PILLAR_NAMES, PILLARS, WEIGHTS
 
 router = APIRouter(prefix="/api/mf")
+log = logging.getLogger(__name__)
 
 DISCLAIMER = "Describes the fund's health from its past NAVs, costs and holdings; not a recommendation. Information only, not investment advice."
 METHOD_URL = "/methodology/mf-score"
@@ -45,8 +47,23 @@ NOT_SCORED = {
 }
 
 
+LANDING_FUND = 122639   # task #239: Parag Parikh Flexi Cap Fund, Direct plan, Growth, the landing page's sample fund (MF_LANDING_FUND overrides; "off" shows none)
+
+
+def landing_fund() -> Optional[int]:
+    """The scheme the landing page's Mutual Fund Score card shows (task #239), or None when switched off."""
+    v = os.getenv("MF_LANDING_FUND", "").strip().lower()
+    if v in ("off", "none", "0"):
+        return None
+    return int(v) if v.isdigit() else LANDING_FUND
+
+
 def showcase() -> set:
-    return {int(x) for x in os.getenv("MF_SCORE_SHOWCASE", "").replace(" ", "").split(",") if x.isdigit()}
+    """Schemes whose score every visitor may see: MF_SCORE_SHOWCASE, plus the landing page's sample fund (task #239: as the landing page's
+    Prism company is open on its own report, the sample fund's score is open on its own page, so the card's button leads to the same figures)."""
+    out = {int(x) for x in os.getenv("MF_SCORE_SHOWCASE", "").replace(" ", "").split(",") if x.isdigit()}
+    lf = landing_fund()
+    return out | {lf} if lf else out
 
 
 async def may_see(request: Request, code: Optional[int] = None) -> bool:
@@ -326,3 +343,33 @@ async def category_median(request: Request, row) -> Dict[str, Any]:
     r1 = lambda v: None if v is None else round(float(v), 1)  # noqa: E731
     return {**part_words(m["perf"], m["risk"], m["cost"], m["quality"]), "final": r1(m["final"]), "n": m["n"],
             "plan": row["plan"], "categoryLabel": _sub_label(row["category"]) if row["kind"] == "mf" else "Exchange-traded funds"}
+
+
+SHOWCASE_MAX_AGE = 300   # seconds a browser or proxy may keep the landing card's reading (a score is worked out at most once a day)
+_PART_COL = {"performance": "perf", "risk": "risk", "cost": "cost", "quality": "quality"}
+
+
+@router.get("/score-showcase")
+async def score_showcase(request: Request) -> JSONResponse:
+    """The landing page's Mutual Fund Score card (task #239, as /api/prism/showcase is for FinLit Prism): the newest stored score of the sample fund
+    (landing_fund), open to every visitor like that fund's own score. Only the card figures: the score, its label, the four parts (figure and word),
+    the fund's name, plan and category, and the day it was worked out; never the measures or the reasons. No rated score: 404 with the reason."""
+    code = landing_fund()
+    if code is None:
+        return JSONResponse({"status": "none", "detail": "No sample fund is set."}, status_code=404, headers={"Cache-Control": "no-store"})
+    try:
+        async with request.app.state.store.pool.acquire() as conn:
+            r = await _row(conn, f"mf:{code}")
+            name = await conn.fetchval("SELECT name FROM mf_schemes WHERE code = $1", code)
+    except Exception as exc:
+        log.warning("mf score showcase not read: %s", type(exc).__name__)
+        return JSONResponse({"status": "unavailable", "detail": "The sample score cannot be read right now."}, status_code=503,
+                            headers={"Cache-Control": "no-store", "Retry-After": "60"})
+    if r is None or r["final"] is None or not r["label"]:
+        return JSONResponse({"status": "none", "detail": "No rated Mutual Fund Score is stored for the sample fund yet."}, status_code=404, headers={"Cache-Control": "no-store"})
+    one = lambda v: None if v is None else round(float(v), 1)  # noqa: E731
+    body = {"code": code, "name": name or f"Scheme {code}", "plan": r["plan"], "category": r["category"], "categoryLabel": _sub_label(r["category"]),
+            "final": one(r["final"]), "label": r["label"], "status": r["status"], "runDate": r["run_date"].isoformat(),
+            "parts": [{"key": p, "name": PILLAR_NAMES[p], "points": one(r[_PART_COL[p]]), "reading": part_word(r[_PART_COL[p]])} for p in PILLARS],
+            "disclaimer": DISCLAIMER}
+    return JSONResponse(body, headers={"Cache-Control": f"public, max-age={SHOWCASE_MAX_AGE}"})
