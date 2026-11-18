@@ -93,7 +93,7 @@ def compile_patterns() -> Dict[Tuple[str, str], Pattern[str]]:
     pats: Dict[Tuple[str, str], Pattern[str]] = {}
     for bucket, concepts in DIRECTORY.items():
         for c in concepts:
-            caps = [a for a in c["aliases"] if a.isupper() and len(a) <= 5]
+            caps = [a for a in c["aliases"] if a.isupper() and len(a) <= 5 and a.lower() not in TOO_BROAD]
             words = [a for a in c["aliases"] if a not in caps and a.lower() not in TOO_BROAD]
             alts = ([r"(?-i:" + _pattern(a) + ")" for a in caps] + [_pattern(a) for a in sorted(words, key=len, reverse=True)])
             if alts:
@@ -112,6 +112,8 @@ def compile_buckets() -> Dict[str, Tuple[Pattern[str], List[str]]]:
         alts: List[Tuple[str, str]] = []
         for c in concepts:
             for a in c["aliases"]:
+                if a.lower() in TOO_BROAD:
+                    continue
                 if a.isupper() and len(a) <= 5:
                     alts.append((r"(?-i:" + _pattern(a) + ")", c["name"]))
                 elif a.lower() not in TOO_BROAD:

@@ -100,6 +100,38 @@ def test_every_filing_gets_an_event_themes_and_tone():
     assert SG.tag("Press Release", "Fine chemicals plant output")["event"] != "legal"
 
 
+def test_filing_themes_come_from_what_the_filing_says_not_the_company_name_or_nse_label():
+    """Found live on the first night (18 Nov 2026): 66 filings under Renewable Energy & Power from company names ("Emmvee Photovoltaic Power
+    Ltd", "Om Power Transmission Ltd") and NSE's label "Capacity addition" (filed for hotel rooms and hospital beds too)."""
+    from finlit.discovery import signals as SG
+    t = lambda c, h, co=None: SG.tag(c, h, None, co)   # noqa: E731
+    assert t("Capacity addition", "Hindustan Zinc Limited has informed the Exchange about Capacity addition", "Hindustan Zinc Limited")["themes"] == {}
+    assert t("Schedule of meet", "Emmvee Photovoltaic Power Limited has informed the Exchange about Schedule of meet", "Emmvee Photovoltaic Power Limited")["themes"] == {}
+    assert t("Transcript", "Om Power Transmission Limited has informed the Exchange about Transcript")["themes"] == {}     # no company field: the name pattern
+    pv = t("Bagging/Receiving of orders/contracts", "Ashoka Buildcon Limited has informed the Exchange about Receipt of Letter of Acceptance (LOA) for "
+           "Solar PV Power Plant in Bhutan", "Ashoka Buildcon Limited")
+    assert pv["event"] == "order" and "Renewable Energy & Power" in pv["themes"]
+    wind = t("Capacity addition", "JSW Energy Limited has informed the Exchange about commissioning of 300 MW wind turbine capacity", "JSW Energy Limited")
+    assert sorted(wind["themes"]) == ["Renewable Energy & Power"]                                            # "MW" alone is no data centre
+    pr = t("Press Release", 'Press Release: Delta Ltd has informed the Exchange regarding a press release dated November 17, 2026, titled '
+           '"Delta wins Rs 200 crore defence order for radar systems"', "Delta Ltd")
+    assert pr["event"] == "order" and pr["tone"] == 1 and sorted(pr["themes"]) == ["Defence & Aerospace"]
+    assert SG.subject_of('Press Release: Delta Ltd has informed the Exchange regarding a press release dated November 17, 2026, titled "Delta wins"',
+                         "Press Release", "Delta Ltd") == "Delta wins"
+
+
+async def test_changed_rules_retag_every_stored_filing_once(store):  # noqa: F811
+    from finlit.discovery import signals as SG
+    await seed(store)
+    await store.redis.delete(SG.VERSION_KEY)
+    first = await SG.tag_new(store)
+    assert first["retagged"] and first["tagged"] == 5                    # the 500-day-old filing is outside the 180 days
+    again = await SG.tag_new(store)
+    assert not again["retagged"] and again["tagged"] == 0
+    await store.redis.set(SG.VERSION_KEY, "old")
+    assert (await SG.tag_new(store))["tagged"] == 5
+
+
 def test_primary_secondary_evidence_and_status():
     text = ("Company overview and highlights of the quarter for our shareholders, with the business segments described in detail below. " * 2 +
             "We commissioned a 2 GW TOPCon solar cell line in Q2 FY27. Solar module capacity is now 5 GW. Bifacial modules lead sales. "
