@@ -10,6 +10,7 @@ import { useBasis, type Basis } from "../lib/basis";
 import { SectionHead, yearGaps } from "./Sections";
 import { TabGroup } from "../components/TabGroup";
 import { badgeOf, insightLine, lastIndex, shortPeriod, yoyChange, type Tone } from "../lib/trendInsight";
+import { IndustryCard, industryKeyLine, useIndustryRead } from "./IndustryCard";
 
 const crf = (v: number) => (v < 0 ? MINUS : "") + (Math.abs(v) >= 1000 ? cr(Math.abs(v)) : nf(v, Math.abs(v) < 10 && v !== 0 ? 1 : 0));
 const pctf = (v: number) => num(v, 1) + "%";
@@ -44,6 +45,7 @@ function readQuarter(q: Table) {
 
 /* ============== Latest quarter results ============== */
 export function QuarterSection({ f }: { f?: Financials }) {
+  const ind = useIndustryRead(f?.meta.symbol);   // task #222: the company against its industry this quarter (Latest results -> Industries)
   const q = f?.quarterly.pl;
   if (!f || !q || q.periods.length < 2) return null;
   const n = q.periods.length, last = n - 1, yoy = n >= 5 ? n - 5 : -1;
@@ -71,10 +73,11 @@ export function QuarterSection({ f }: { f?: Financials }) {
           <div className="qt-d"><Delta v={chg(t.v[last], yoy >= 0 ? t.v[yoy] : null)} label="vs year ago" /><Delta v={chg(t.v[last], t.v[last - 1])} label="vs last quarter" /></div>
           <MiniBars labels={q.periods.slice(-8)} series={[{ key: t.k, label: t.k, values: t.v.slice(-8), color: t.c }]} fmt={t.bar} height={116} highlight={7 - (t.v.slice(-8).length < 8 ? 8 - t.v.slice(-8).length : 0)} />
         </div>))}</div>
-      {(() => { const k = readQuarter(q); return (k.good.length || k.bad.length) ? (
+      <IndustryCard read={ind} />
+      {(() => { const k = readQuarter(q), line = industryKeyLine(ind); return (k.good.length || k.bad.length || line) ? (
         <div className="kq">
           <div className="card acc kq-c" style={{ "--ac": "var(--gain)" } as React.CSSProperties}><div className="card-h"><h3><span className="ci"><Icon name="check" /></span>Key takeaways</h3></div>
-            {k.good.length ? <ul>{k.good.map((t) => <li key={t}>{t}</li>)}</ul> : <p className="muted">Nothing stands out on the upside this quarter.</p>}</div>
+            {k.good.length || line ? <ul>{k.good.map((t) => <li key={t}>{t}</li>)}{line && <li className="aiq-take">{line}</li>}</ul> : <p className="muted">Nothing stands out on the upside this quarter.</p>}</div>
           <div className="card acc kq-c" style={{ "--ac": "var(--loss)" } as React.CSSProperties}><div className="card-h"><h3><span className="ci"><Icon name="alert" /></span>Key risks and red flags</h3></div>
             {k.bad.length ? <ul>{k.bad.map((t) => <li key={t}>{t}</li>)}</ul> : <p className="muted">No red flags in the reported numbers this quarter.</p>}</div>
         </div>) : null; })()}
