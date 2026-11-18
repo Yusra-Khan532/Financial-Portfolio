@@ -159,3 +159,12 @@ def test_the_shares_beta_is_the_equity_portfolios_own_figure():
     want = metrics.market_measures(r, rn, np.array([0.75, 0.25]))
     assert got["beta"] == want["beta"] and got["vol"] == want["vol"] and got["max_fall"] == want["max_fall"]
     assert set(got["each"]) == {"AAA", "BBB"} and got["each"]["AAA"] is not None
+
+
+def test_235_prism_labels_in_capitals_count_in_their_band():
+    """Task #235 (the 18 Nov pack, live bug E2): Prism stores "HEALTHY"; every share used to read "Not rated" here and "No share reads Weak" was said
+    while two read Weak."""
+    c = calc.band_counts(["HEALTHY", "STRONG", "WEAK", "WEAK", "NOT RATED", None], [1] * 6, ("Strong", "Healthy", "Average", "Weak", "Poor"))
+    assert [(b["label"], b["count"]) for b in c["bands"]] == [("Strong", 1), ("Healthy", 1), ("Average", 0), ("Weak", 2), ("Poor", 0)]
+    assert c["notRated"]["count"] == 2
+    assert calc.word_case("AVERAGE") == "Average" and calc.word_case(None) is None

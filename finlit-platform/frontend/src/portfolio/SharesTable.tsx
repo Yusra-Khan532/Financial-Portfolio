@@ -11,7 +11,8 @@ import {
 import { SIZE_WORD, plural, short2 } from "./derive";
 import { TABLE_FOOT } from "./words";
 import type { Meta, Mode, PageObject } from "./types";
-import { PEER_WORD, prismWord, type Share } from "../lib/equityPack";
+import { PEER_WORD, type Share } from "../lib/equityPack";
+import { prismBandWord } from "../lib/scoreBands";
 import { Tip } from "../components/sectors/pack/Common";
 import { nseLevels } from "../lib/nseTaxonomy";
 import { capBucket } from "../lib/capBuckets";
@@ -126,7 +127,7 @@ export function SharesTable(p: Props) {
     if (c.id === "price") return <td key={c.id} className="r">{h.price == null ? <Dash why="No price in the stored report." /> : priceText(h.price)}</td>;
     if (c.id === "change") return <td key={c.id} className="r">{h.changePct == null ? <Dash why="No change in the stored report." /> : <span className={h.changePct > 0 ? "pfx-up" : h.changePct < 0 ? "pfx-down" : ""}>{changeText(h.changePct)}</span>}</td>;
     if (c.id === "cap") return <td key={c.id} className="r">{h.marketCapCr == null ? <Dash why="No market cap in the stored report." /> : `₹${money(h.marketCapCr)} Cr`}</td>;
-    if (c.id === "score") { const v = scoreOf(h, model).value; return <td key={c.id} className="c"><span className="eq-ps"><Chip v={v} big why={scoreWhy(h, model) || undefined} />{v != null && <small className={"eq-pw " + (v >= 70 ? "hi" : v >= 50 ? "mid" : "lo")}>{model === "prism" ? prismWord(v) : wordKey(scoreOf(h, model).word)}</small>}</span></td>; }
+    if (c.id === "score") { const v = scoreOf(h, model).value; return <td key={c.id} className="c"><span className="eq-ps"><Chip v={v} big why={scoreWhy(h, model) || undefined} />{v != null && <small className={"eq-pw " + (v >= 70 ? "hi" : v >= 50 ? "mid" : "lo")}>{model === "prism" ? prismBandWord(v, h.prism?.label) : wordKey(scoreOf(h, model).word)}</small>}</span></td>; }
     if (c.id.startsWith("f_")) { const k = c.id.slice(2) as keyof NonNullable<Ready["finlit"]>["pillars"]; return <td key={c.id} className={("c " + g).trim()}><WordChip v={h.finlit?.pillars[k]} word={h.finlit?.pillarWords?.[k]} why={k === "balance" ? "No balance-sheet pillar: banks and lenders are scored without it, or the report has too few figures." : `${c.label}: not scored yet`} /></td>; }
     if (c.id.startsWith("p_")) { const k = c.id.slice(2), d = parts.find((x) => x.id === k); return <td key={c.id} className={("c " + g).trim()}><PartChip v={d?.get(h)} why={`${c.label}: not scored for this company`} /></td>; }
     if (c.id.startsWith("t_")) return <td key={c.id} className={g || undefined}><TrendCell t={h.prism?.[c.id.slice(2) as "shortTerm" | "longTerm"]} /></td>;

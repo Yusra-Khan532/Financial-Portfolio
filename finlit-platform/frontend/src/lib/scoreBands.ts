@@ -103,3 +103,13 @@ export function goldDots(prism: PrismInput): GoldDot[] | null {
     return { ...base, value: v, band, label: `${d.name} ${fmtScore(v)}: ${BAND_NAME[band]}, ${w.word.toLowerCase()}${prism.techAsOf ? `, as of ${asOfText(prism.techAsOf)}` : ""}` };
   });
 }
+
+/** Task #235 (the 18 Nov pack, live bug E2): FinLit Prism's five words and their edges, the server's own (mfscore.engine.LABELS: 80 Strong, 65 Healthy,
+ *  50 Average, 35 Weak, else Poor). One helper for every page, so a score reads the same word everywhere; a stored label is used as it is. */
+export const PRISM_EDGES: [number, string][] = [[80, "Strong"], [65, "Healthy"], [50, "Average"], [35, "Weak"], [0, "Poor"]];
+export function prismBandWord(v: number | null | undefined, label?: string | null): string | null {
+  if (label && label.toUpperCase() !== "NOT RATED") return label.charAt(0).toUpperCase() + label.slice(1).toLowerCase();
+  if (v == null || !Number.isFinite(v)) return null;
+  const s = Math.round(v * 10) / 10;
+  return (PRISM_EDGES.find(([e]) => s >= e) ?? PRISM_EDGES[PRISM_EDGES.length - 1])[1];
+}

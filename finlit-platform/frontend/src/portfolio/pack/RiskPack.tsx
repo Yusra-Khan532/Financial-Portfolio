@@ -5,7 +5,7 @@ import { BENCHMARKS } from "../useScore";
 import { useState } from "react";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
-import { apiSend, type ApiError } from "../../lib/api";
+import { apiSend, type ApiError, busyRetry } from "../../lib/api";
 import { CoLogo } from "../../components/CoLogo";
 import { Scroll, Section, Tip } from "../../components/sectors/pack/Common";
 import { Insights } from "./EquityPack";
@@ -17,7 +17,7 @@ import "./risk-pack.css";
 /** The risk answer for the saved list (Silver and Gold). */
 export function usePortfolioRisk(symbols: string[], enabled: boolean) {
   const key = [...symbols].sort().join(",");
-  return useQuery<RiskAnswer, ApiError>({ queryKey: ["portfolio-risk", key], queryFn: () => apiSend<RiskAnswer>("POST", "/api/portfolio/risk", { symbols }), enabled: enabled && symbols.length > 0, retry: false, staleTime: 300_000 });
+  return useQuery<RiskAnswer, ApiError>({ queryKey: ["portfolio-risk", key], queryFn: () => apiSend<RiskAnswer>("POST", "/api/portfolio/risk", { symbols }), enabled: enabled && symbols.length > 0, ...busyRetry, staleTime: 300_000 });
 }
 const b2 = (v: number | null | undefined) => (v == null ? "–" : v.toFixed(2));
 const pc = (v: number) => `${v.toFixed(1)}%`;

@@ -4,6 +4,7 @@
 // Describes the list; never advice.
 import type { Card } from "./pulsePack";
 import { trendBand } from "./prismTechnical";
+import { prismBandWord } from "./scoreBands";
 
 const MINUS = "−";
 const NUM = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
@@ -28,7 +29,8 @@ export type Share = {
 const plural = (why: string) => why.replace(/^has /, "have ").replace(/^is /, "are ").replace(/^trades /, "trade ");
 export const PEER_WORD: Record<PeerLabel, string> = { leader: "Leader", in_line: "In line", laggard: "Laggard" };
 const strongP = (v: number | null) => v != null && v >= 70, weakP = (v: number | null) => v != null && v < 50;
-export const prismWord = (v: number | null) => (v == null ? null : v >= 70 ? "Healthy" : v >= 50 ? "Average" : "Weak");
+/** Task #235 (E2): the same five words as the server (lib/scoreBands). */
+export const prismWord = (v: number | null) => prismBandWord(v);
 
 // ------------------------------------------------------------------------------------------------ Your shares: the three cards
 export function sharesCards(shares: Share[], day: string): Card[] {

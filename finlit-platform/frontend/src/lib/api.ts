@@ -234,3 +234,7 @@ export const useQuotesFor = (symbols: string[]) => {
     queryKey: ["search-quotes", "for", key], queryFn: () => apiGet(`/api/search/quotes?symbols=${encodeURIComponent(key)}`), enabled: !!key, staleTime: 30_000, refetchInterval: 60_000, retry: 1,
   });
 };
+
+/** Task #235 (the 18 Nov pack, live bug E4): retry an answer the server gave while busy (503, 429) up to 3 times, waiting longer each time (1, 2, 4 s);
+ *  any other error is shown at once. For pages that send several requests together. */
+export const busyRetry = { retry: (n: number, e: ApiError) => (e?.status === 503 || e?.status === 429) && n < 3, retryDelay: (n: number) => Math.min(8000, 1000 * 2 ** n) };
