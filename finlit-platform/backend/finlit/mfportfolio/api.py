@@ -314,12 +314,75 @@ async def fund_risk(request: Request, ctx: Ctx = Depends(member_ctx)):
     bd, bv = risk.window(sorted(bench), [bench[d] for d in sorted(bench)], end)
     bench_swing = risk.swing(risk.returns(bv), risk.per_year(bd))
     list_swing = risk.swing(risk.returns(lv), risk.per_year(ld)) if len(lv) >= risk.MIN_DAYS else None
-    return reply({"count": len(funds), "basis": "value" if valued else "equal", "funds": funds,
+    own = await own_benchmarks(request, schemes, hist, [f["code"] for f in funds], [float(units[c] * Decimal(str(schemes[c]["nav"]))) if valued else 1.0 for c in hist], end)
+    if own is not None:
+        by = {r["code"]: r for r in own.pop("funds")}
+        for f in funds:
+            f.update(by.get(f["code"], {}))
+    return reply({"count": len(funds), "basis": "value" if valued else "equal", "funds": funds, "own": own,
                   "bench": {"name": "NIFTY 500", "swing": risk.r1(bench_swing), "worstFall": risk.r1(risk.worst_fall(bv)), "from": date.fromordinal(bd[0]).isoformat(), "to": date.fromordinal(bd[-1]).isoformat()},
                   "list": {"swing": risk.r1(list_swing), "worstFall": risk.r1(risk.worst_fall(lv)) if len(lv) >= risk.MIN_DAYS else None,
                            "level": risk.list_level(list_swing, bench_swing, funds),
                            "why": None if list_swing is not None else "Your funds share less than a year of NAV days, so the whole list cannot be followed as one line yet."},
                   "disclaimer": DISCLAIMER})
+
+
+# Task #183 part 2 (pack 02 "Benchmark for each SEBI category"): each fund against its own category's benchmark, from index closes (mfportfolio.bench).
+GOLD_ETF_SQL = ("SELECT s.code FROM mf_schemes s JOIN mf_history h ON h.code = s.code WHERE s.active AND s.name ILIKE '%gold%' AND (s.name ILIKE '%etf%' OR s.name ILIKE '%bees%') "
+                "ORDER BY s.aum_lakh DESC NULLS LAST, s.code LIMIT 1")
+
+
+def type_of(tab: str, key: str, label: str) -> str:
+    """The fund type the beta build groups by: Large cap, Mid cap, Small cap, Thematic, Hybrid, Liquid, Debt, Other."""
+    if tab == "equity":
+        return {"sectoral-thematic": "Thematic", "small-cap": "Small cap", "mid-cap": "Mid cap", "large-cap": "Large cap", "large-mid-cap": "Large & mid cap"}.get(key, "Diversified equity")
+    if tab == "hybrid":
+        return "Arbitrage" if key == "arbitrage" else "Hybrid"
+    if tab == "debt":
+        return "Liquid" if key in ("liquid", "overnight", "money-market") else "Debt"
+    return "Index & other" if key in ("index-funds", "fof-domestic", "etf") else label or "Other"
+
+
+async def own_benchmarks(request: Request, schemes: Dict[int, Dict[str, Any]], hist: Dict[int, Tuple[List[int], List[float]]], order: List[int],
+                         weights: List[float], end: int) -> Optional[Dict[str, Any]]:
+    """Each fund's beta, R² and down / up moves against its own benchmark over the past year of weekly closes, its share of the list's risk, and the list's
+    own-benchmark beta (with and without liquid funds), its Nifty 500 beta and its 10 worst weeks. None when nothing could be read."""
+    from .. import indices, portfolios
+    from ..mf import unpack_series
+    from . import bench
+    funds, codes = [], set()
+    for c in order:
+        s = schemes[c]
+        tab, key, label = mf.classify(s["category"]) if s.get("category") else ("other", "other", "")
+        split = None
+        if key == "multi-asset":
+            port = await portfolios.get_portfolio(request.app.state.store.pool, c)
+            split = ((port or {}).get("summary") or {}).get("assetSplit")
+        b = bench.benchmark_for(tab, key, s["name"] or "", split)
+        codes |= {leg for leg, _ in b["legs"] if leg not in ("DEBT", "GOLD")}
+        days, navs = hist[c]
+        funds.append({"code": c, "bench": b, "days": days, "navs": navs, "type": type_of(tab, key, label)})
+    codes.add(bench.NIFTY500[0])
+    closes: Dict[str, Tuple[List[int], List[float]]] = {}
+    for code in sorted(codes):
+        try:
+            raw = await indices._cached(request.app, f"idx:px:{code}", 6 * 3600, lambda code=code: indices._fetch_levels(request.app, code))
+        except Exception:
+            raw = None
+        rows = indices.shape_levels(raw, 2)["rows"] if raw else []
+        if rows:
+            closes[code] = ([date.fromisoformat(r["d"]).toordinal() for r in rows], [float(r["c"]) for r in rows])
+    gold = None
+    if any(leg == "GOLD" for f in funds for leg, _ in f["bench"]["legs"]):
+        async with request.app.state.store.pool.acquire() as conn:
+            gc = await conn.fetchval(GOLD_ETF_SQL)
+            h = await conn.fetchrow("SELECT blob, d0 FROM mf_history WHERE code = $1", gc) if gc else None
+        gold = unpack_series(bytes(h["blob"]), h["d0"].toordinal()) if h is not None else None
+    out = bench.build(funds, closes, gold, end, weights)
+    tw = sum(weights) or 1.0
+    for f, row, w in zip(funds, out["funds"], weights):
+        row.update(type=f["type"], listShare=round(w / tw * 100, 1))
+    return out
 
 
 # ------------------------------------------------------------------------------------------------------------------------ writing

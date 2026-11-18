@@ -595,6 +595,33 @@ async def test_risk_figures_are_silver_and_come_from_the_navs_against_the_nifty_
     assert all("cut" not in k and "band" not in k for k in lvl), "the cut-offs stay on the server"
 
 
+async def test_task_183_each_fund_against_its_own_category_benchmark(app):   # pack 02 "Benchmark for each SEBI category", COMMON-RULES 8
+    import json
+    import time
+    await _risk_data(app)
+    raw = json.loads(await app.state.store.redis.get("idx:px:NIF500"))
+    for code in ("NIF100", "NIFSMA250"):                     # the large-cap and small-cap indices move as the test index does
+        await app.state.store.redis.set(f"idx:px:{code}", json.dumps({"t": time.time(), "v": raw["v"]}))
+    silver = await signed_in(app, "own183@example.com", plan="silver")
+    assert (await add(silver, BASE + 1, "100")).status_code == 201       # Alpha Bluechip: large cap, NAV 150 -> worth 15,000
+    assert (await add(silver, BASE + 5, "50")).status_code == 201        # Delta Small Cap: twice its index, NAV 60 -> worth 3,000
+    body = (await silver.get(URL + "/risk")).json()
+    by = {f["code"]: f for f in body["funds"]}
+    a, d = by[BASE + 1], by[BASE + 5]
+    assert (a["benchmark"], a["betaOwn"], a["explained"], a["band"]["key"], a["type"]) == ("Nifty 100", 1.0, 100, "similar", "Large cap")
+    # twice the index each day compounds to a little over twice it each week (Friday to Friday): about 2.03, explained almost fully
+    assert (d["benchmark"], d["band"]["key"], d["type"]) == ("Nifty Smallcap 250", "very_high", "Small cap") and d["betaOwn"] == pytest.approx(2.0, abs=0.05) and d["explained"] >= 99
+    assert d["upPer100"] == pytest.approx(200, abs=8) and d["standIn"] is False and d["compared"] is True
+    assert d["downPer100"] is None                                       # the test index rose every week of the past year: no down weeks to read
+    assert (a["listShare"], d["listShare"]) == (83.3, 16.7)
+    own = body["own"]["list"]
+    assert own["betaOwn"] == pytest.approx((15000 * 1.0 + 3000 * d["betaOwn"]) / 18000, abs=0.006) and own["betaExLiquid"] == own["betaOwn"] and own["liquidShare"] == 0.0
+    assert own["beta500"] == pytest.approx(own["betaOwn"], abs=0.02)        # both funds follow the same index here
+    assert own["fall10"]["own"] == pytest.approx(-10 * own["betaOwn"], abs=0.06) and own["worst10"]["list"] == pytest.approx(own["betaOwn"] * own["worst10"]["nifty500"], abs=0.1)
+    assert a["riskShare"] + d["riskShare"] == pytest.approx(100, abs=0.11)
+    assert body["own"]["to"] <= body["bench"]["to"]                       # the past year of weekly closes ends at the last whole week
+
+
 async def test_risk_says_why_when_the_nifty_500_history_is_missing(app, monkeypatch):
     await _risk_data(app, with_bench=False)
     from finlit import indices
