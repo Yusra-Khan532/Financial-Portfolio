@@ -1,13 +1,15 @@
 // Task #135 (dashboard pack 06, section 3): "Your mutual funds at a glance" and "Your ETFs at a glance", beside "Your shares at a glance". The fund figures are the
 // MF portfolio page's own (its holdings, FundPulse scores, overlap, stocks underneath and risk answers, all cached and shared with that page). Task #195: the ETF
-// panel is a one-line strip with an empty ring until ETFs are added. Descriptive only; information only.
+// panel is a one-line strip until ETFs are added; task #223: a full card from the ETF portfolio once they are. Descriptive only; information only.
 import { useMemo } from "react";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet, type ApiError } from "../../lib/api";
 import { useUI } from "../../lib/ui";
 import { useMfPortfolio, useMfSpread } from "../../lib/mfPortfolio";
-import { useEtfPortfolio } from "../../lib/etfPortfolio";
+import { useEtfPortfolio, useEtfRisk } from "../../lib/etfPortfolio";
+import { etfGlance, type EtfGlance } from "../../lib/etfPack";
+import "../../styles/dash223.css";
 import { shortFund, type MfRisk } from "../../lib/mfPack";
 import { fundBandLine, mfGlance } from "../../lib/dashInvest";
 import { MINUS, nf } from "../../lib/format";
@@ -73,19 +75,65 @@ export function FundsGlance() {
   );
 }
 
-/** Task #195: "Your ETFs at a glance" as a one-line strip with an empty ring ("— NONE YET") until ETFs are added. ETFs have no score of their own yet, so with ETFs
- *  in the ETF portfolio the strip says how many there are and opens that page. */
+/** Task #223 (dashboard pack of 18 Nov, D2): "Your ETFs at a glance" is one card the size of the funds card, fed from the ETF portfolio: a ring of what the ETFs
+ *  track with the count inside, the mix bar and its legend, the risk level, and four key figures (yearly cost, price against NAV, swing a year, what they
+ *  follow), each the ETF page's own figure. ETFs have no FinLit score, so there is no score ring. With no ETFs it stays a short strip. */
+/** Each kind's colour, from styles/dash223.css (a lighter shade in the dark theme so the legend stays readable). */
+const MIX_SLUG: Record<string, string> = { "Indian shares": "in", "shares abroad": "ab", gold: "au", silver: "ag", blend: "bl", debt: "dt", liquid: "lq", other: "ot" };
+const MIX_COLOUR = new Proxy({} as Record<string, string>, { get: (_t, k: string) => `var(--eg-${MIX_SLUG[k] ?? "ot"})` });
+function MixRing({ g }: { g: EtfGlance }) {
+  const R = 62, C = 2 * Math.PI * R, gap = g.mix.length > 1 ? 3 : 0;
+  let at = 0;
+  return (
+    <svg width="152" height="152" viewBox="0 0 160 160" aria-hidden="true">
+      <circle cx="80" cy="80" r={R} fill="none" stroke="var(--s2)" strokeWidth="18" />
+      {g.mix.map((m) => { const len = (m.share / 100) * C; const el = <circle key={m.key} cx="80" cy="80" r={R} fill="none" stroke={MIX_COLOUR[m.key]} strokeWidth="18"
+        strokeDasharray={`${Math.max(0, len - gap)} ${C}`} strokeDashoffset={-at} transform="rotate(-90 80 80)" />; at += len; return el; })}
+      <text x="80" y="78" textAnchor="middle" className="eg-n">{g.n}</text>
+      <text x="80" y="100" textAnchor="middle" className="eg-u">{g.n === 1 ? "ETF" : "ETFs"}</text>
+    </svg>);
+}
 export function EtfsGlance() {
   const { has } = useUI();
-  const q = useEtfPortfolio(has("silver"));
-  const n = q.data?.count ?? 0;
-  return (
+  const silver = has("silver");
+  const q = useEtfPortfolio(silver);
+  const n = q.data?.items.filter((e) => !e.gone).length ?? 0;
+  const rk = useEtfRisk(silver && n > 0, String(n));
+  const rkWhy = rk.isError ? "The risk figures could not be worked out just now" : null;
+  const g = useMemo(() => (q.data && n ? etfGlance(q.data, rk.data, rkWhy) : null), [q.data, n, rk.data, rkWhy]);
+  // no ETFs (or no ETF portfolio on this plan): the short strip
+  if (!silver || (!q.isLoading && !q.isError && !n)) return (
     <section className="dsh-card dsh-strip dsh-strip1" aria-labelledby="dsh-etfglance">
-      <ScoreRing parts={[]} score={null} size={56} />
       <h2 id="dsh-etfglance" className="t">Your ETFs at a glance</h2>
-      <p className="m">{n > 0 ? `${n} ${n === 1 ? "ETF" : "ETFs"} in your ETF portfolio. ETFs have no score of their own yet; what they track, their yearly cost and their price against NAV are on the ETF portfolio page.`
-        : "No ETFs added yet. Add them to see what they track, their yearly cost and their price against NAV."}</p>
-      <Link className="dsh-btn" to={n > 0 || has("silver") ? "/etf-portfolio" : "/etfs"}>{n > 0 ? "Open the ETF portfolio →" : has("silver") ? "Add ETFs →" : "See ETFs →"}</Link>
-    </section>
+      <p className="m">{silver ? "No ETFs added yet. Add them to see what they track, their yearly cost and their price against NAV." : "The ETF portfolio is part of Silver: add your ETFs to see what they track, their yearly cost and their price against NAV."}</p>
+      <Link className="dsh-btn" to={silver ? "/etf-portfolio" : "/etfs"}>{silver ? "Add your ETFs on the ETF portfolio page →" : "See ETFs →"}</Link>
+    </section>);
+  const dash = (why?: string | null) => <span title={why ?? "Not available yet"}>—</span>;
+  const wait = q.isLoading || !g;
+  return (
+    <Card id="etfglance" className="dsh-pg dsh-fg dsh-eg" title="Your ETFs at a glance"
+      sub={g ? `${g.n} ${g.n === 1 ? "ETF" : "ETFs"}${g.asOf ? ` · NSE closes of ${g.asOf}` : ""} · from your ETF portfolio` : "From your ETF portfolio"}>
+      {q.isError ? <p className="dsh-note" role="alert">Your ETFs could not be read just now. <Link to="/etf-portfolio">Open the ETF portfolio</Link>.</p> : (
+      <div className="eg-row">
+        <div className="dsh-pg-ringw" role="img" aria-label={g ? `What your ${g.n} ETFs track: ${g.mix.map((m) => `${m.n} ${m.key}`).join(" · ")}` : "Loading your ETFs"}>
+          {g ? <MixRing g={g} /> : <i className="skeleton eg-sk" />}</div>
+        <div className="eg-mid">
+          <p className="dsh-lh first">What they track</p>
+          {g ? <>
+            <div className="dsh-pg-mix" role="img" aria-label={g.mix.map((m) => `${m.n} ${m.key}`).join(" · ")}>{g.mix.map((m) => <i key={m.key} style={{ width: `${m.share}%`, background: MIX_COLOUR[m.key] }} />)}</div>
+            <p className="dsh-pg-legend" aria-hidden="true">{g.mix.map((m) => <span key={m.key}><b style={{ color: MIX_COLOUR[m.key] }}>{m.n}</b> {m.key}</span>)}</p>
+          </> : dash()}
+          <p className="dsh-lh">Risk level</p>
+          <p className="eg-risk">{rk.isLoading || wait ? <i className="skeleton sk-n" /> : g!.level ? <><b className={g!.level.higher ? "eg-hi" : "eg-lv"}>{g!.level.word}</b> {g!.level.rest}</> : dash(g!.levelWhy)}</p>
+        </div>
+        <dl className="dsh-fg-kv eg-kv">
+          <div><dt>Yearly cost</dt><dd>{wait ? <i className="skeleton sk-n" /> : g!.cost ?? dash("No expense ratio is published for these ETFs in our sources")}</dd></div>
+          <div><dt>Price against NAV</dt><dd>{wait ? <i className="skeleton sk-n" /> : g!.nav ?? dash("No NAV for the day of the last close")}</dd></div>
+          <div><dt>Swing a year</dt><dd>{rk.isLoading || wait ? <i className="skeleton sk-n" /> : g!.swing ?? dash(g!.levelWhy ?? "Not enough price history yet")}</dd></div>
+          <div><dt>What they follow</dt><dd>{wait ? <i className="skeleton sk-n" /> : g!.indexes}</dd></div>
+        </dl>
+      </div>)}
+      <Link className="dsh-link foot" to="/etf-portfolio">Open the ETF portfolio →</Link>
+    </Card>
   );
 }

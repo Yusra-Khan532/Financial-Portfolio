@@ -101,3 +101,35 @@ export function sameIndexText(d: EtfPortfolio, inside: Inside | undefined, trade
       text: `${es.length === 2 ? "Both" : "All"} follow the ${r.label}. The only differences are ${list(parts)}.` };
   });
 }
+
+/** Task #223 (dashboard pack of 18 Nov, D2): "Your ETFs at a glance" on the dashboard, from the ETF portfolio's own figures. Every figure is the one the
+ *  ETF page's tiles and Risk view show (etfTiles and /risk); nothing new is worked out here. Mix shares follow the page's weights (equal until quantities
+ *  are in, then by value). */
+export type GlanceMix = { key: string; n: number; share: number };
+export type EtfGlance = {
+  n: number; asOf: string | null; mix: GlanceMix[]; level: { word: string; rest: string; higher: boolean } | null; levelWhy: string | null;
+  cost: string | null; nav: string | null; swing: string | null; indexes: string;
+};
+export const MIX_ORDER = ["Indian shares", "shares abroad", "gold", "silver", "blend", "debt", "liquid", "other"];
+export function etfGlance(d: EtfPortfolio, rk: EtfRisk | undefined, rkWhy: string | null): EtfGlance {
+  const xs = live(d), tiles = etfTiles(d, rk, rkWhy), t = (k: string) => tiles.find((x) => x.k === k)!;
+  const n = xs.length, eq = n ? 1 / n : 0;
+  const mix = MIX_ORDER.map((key) => {
+    const es = xs.filter((e) => kindOf(e) === key);
+    const w = d.basis === "value" ? es.reduce((a, e) => a + wOf(e), 0) : es.length * eq;
+    return { key, n: es.length, share: Math.round(w * 1000) / 10 };
+  }).filter((m) => m.n > 0);
+  const lv = rk?.list.level;
+  const cost = yearlyCost(d), nav = t("Price against value"), swing = rk?.list.swing, bench = rk?.bench.swing;
+  const pc = (x: number) => `${x < 0 ? MINUS : ""}${Math.abs(x).toFixed(1)}%`;
+  const priced = xs.map((e) => e.priceDate).filter(Boolean).sort().pop() ?? d.asOf ?? null;
+  return {
+    n, asOf: priced ? dayMonth(priced) : null, mix,
+    level: lv ? { word: lv.word, rest: `${lv.word === "About the same" ? "as" : "than"} the Nifty 500${lv.because ? `, ${lv.because}` : ""}`, higher: /higher/i.test(lv.word) } : null,
+    levelWhy: lv ? null : rk?.list.why ?? rkWhy ?? null,
+    cost: cost.avg == null ? null : `${cost.avg.toFixed(2)}% a year · about ₹${Math.round(cost.avg * 1000).toLocaleString("en-IN")} on ₹1 lakh`,
+    nav: nav.v === "–" ? null : `${nav.v} · ${nav.sub.replace(/ of their NAV on [^;]*/, "").replace(/;.*$/, "")}`,
+    swing: swing == null ? null : `${pc(swing)}${bench != null ? ` · Nifty 500 ${pc(bench)}` : ""}`,
+    indexes: t("What they track").v,
+  };
+}

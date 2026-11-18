@@ -39,11 +39,23 @@ export function healthText(h: InvRow["health"]): { text: string; band: "g" | "o"
   return { text: `Health ${Math.round(h.score)}${h.label ? " · " + h.label : ""}`, band };
 }
 
-/** "0.12% below NAV" / "0.18% above NAV" / "At NAV" for an ETF. */
+/** "−0.13% vs NAV" / "+0.03% vs NAV" for an ETF: its last close against the NAV of the same day (task #223, dashboard pack of 18 Nov, D1). */
 export function navText(p: number | null | undefined): string {
   if (p == null) return "—";
-  if (Math.abs(p) < 0.005) return "At NAV";
-  return `${Math.abs(p).toFixed(2)}% ${p < 0 ? "below" : "above"} NAV`;
+  const r = Math.round(p * 100) / 100;
+  return `${r > 0 ? "+" : r < 0 ? "\u2212" : ""}${Math.abs(r).toFixed(2)}% vs NAV`;
+}
+
+/** Task #223 (D1): the ETF portfolio's ETFs as rows of "Your investments today", with the figures the ETF portfolio page shows. */
+export function etfRows(items: { symbol: string; name: string | null; gone: boolean; price?: number | null; changePct?: number | null; ret1y?: number | null; ret1yWhy?: string | null;
+  premium?: number | null; premiumWhy?: string | null; priceDate?: string | null; value?: number | null }[]): InvRow[] {
+  return items.filter((e) => !e.gone).map((e) => ({
+    key: "etf:" + e.symbol, kind: "etf" as const, symbol: e.symbol, name: e.name || e.symbol, sub: [e.name || "", "held"].filter(Boolean).join(" · "),
+    href: `/etfs/${encodeURIComponent(e.symbol)}`, alertHref: "/alerts",
+    price: e.price ?? null, priceWhy: e.price == null ? "No traded price held yet" : undefined,
+    day: e.changePct ?? null, y1: e.ret1y ?? null, y1Why: e.ret1y == null ? e.ret1yWhy ?? "Listed less than a year, or no price a year ago" : undefined,
+    premium: e.premium ?? null, value: e.value ?? null,
+  }));
 }
 
 /** The line under the heading: "4 on your watchlist · 14 shares · 3 mutual funds · prices and NAVs of 13 Nov". */
