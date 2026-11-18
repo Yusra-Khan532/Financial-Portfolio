@@ -55,6 +55,7 @@ from .premium import gateway_token
 from .technical_wording import rating_word, relabel_technical
 from .prism_candles import mark_down, supplied_candles
 from .prism_public import public_report, public_summary
+from .prism_view import card_view, freshness_view, page_view
 from . import prism_screen
 from . import prism_benchmarks
 
@@ -107,8 +108,12 @@ CALM = f"{PRISM_NAME} could not finish this calculation just now. Please try aga
 NOT_CONNECTED = f"{PRISM_NAME} is not connected right now. Please try again later."
 
 
+# Report answers are never kept by a shared cache or a CDN (task #220, README 4.4).
+REPORT_CACHE = {"Cache-Control": "private, no-store"}
+
+
 def _reply(body: Dict[str, Any], status: int = 200, retry: Optional[int] = None) -> JSONResponse:
-    headers = {**NO_STORE, "Retry-After": str(retry)} if retry else NO_STORE
+    headers = {**NO_STORE, **REPORT_CACHE, "Retry-After": str(retry)} if retry else {**NO_STORE, **REPORT_CACHE}
     return JSONResponse(body, status_code=status, headers=headers)
 
 
@@ -256,12 +261,11 @@ async def _stored(store, symbol: str, statement: str):
 
 def _shape(row, cached: bool, refreshing: bool = False) -> Dict[str, Any]:
     """The PrismReport of a stored row: the reader view, whether it came from storage, and until when its PDF can be downloaded."""
-    until = row["pdf_until"]
-    live = until is not None and until > datetime.now(timezone.utc)
     report = json.loads(row["report"])
     if isinstance(report.get("technicalAssessment"), dict):       # reports stored before the mapping existed carry the model's raw words
         report["technicalAssessment"] = relabel_technical(report["technicalAssessment"])
-    return {**public_report(report), "cached": cached, "pdfAvailableUntil": until.isoformat() if live else None, "technical": _tech_state(row, refreshing)}
+    # task #220 (README 4.1 to 4.3): what leaves the server is built from the allow-list of what the page renders, rounded as it shows
+    return page_view({**public_report(report), "cached": cached, "technical": _tech_state(row, refreshing)})
 
 
 def _tech_state(row, refreshing: bool = False) -> Dict[str, Any]:
@@ -567,6 +571,73 @@ async def _count(request: Request, ctx: Ctx) -> Tuple[Optional[str], Optional[in
     return key, None
 
 
+# Task #220 (Prism report handover, README 4.4): limits on the report feed itself, checked here and never only on the page.
+PLAN_REPORTS = {"gold": 10, "equity_portfolio": 10, "platinum": 20}   # different reports a member may open in an Indian day
+BURST_USER = (8, 60)          # report answers per account per minute (a person reading opens one or two)
+BURST_IP = (20, 60)           # ...and per address, for several accounts behind one script
+RECALC_LIMIT = (3, 600)       # Recalculate presses per account in ten minutes
+SWEEP_SYMBOLS = 8             # different companies in SWEEP_SECONDS that mark an account for review (never blocked automatically)
+SWEEP_SECONDS = 3600
+SWEEP_KEY = "prism:review"    # hash: account -> what was seen, for the administrators
+
+
+def _plan_reports(plan: Optional[str]) -> Optional[int]:
+    return PLAN_REPORTS.get((plan or "").lower())
+
+
+async def _guard(request: Request, ctx: Ctx, symbol: str, statement: str, recalc: bool = False) -> Optional[JSONResponse]:
+    """The server's own limits on full reports: a short burst limit per account and per address, a tighter one on Recalculate, the plan's
+    reports a day (a report opened again the same day does not count again; the free example companies do not count), and a flag for review
+    when an account opens many different companies in a short time. Administrators are not limited. None when the request may go on."""
+    if ctx.role == "admin":
+        return None
+    app = request.app
+    limiter = getattr(app.state, "limiter", None)
+    who = ctx.user_id or "ip:" + ip_of(request)
+    busy = f"Too many {PRISM_NAME} reports were asked for in a short time. Please wait a minute and try again."
+    if limiter is not None:
+        for scope, key, (limit, window) in (("prism-burst-user", who, BURST_USER), ("prism-burst-ip", ip_of(request), BURST_IP)):
+            allowed, wait = await limiter.hit(scope, key, limit, window, fail_open=True)
+            if not allowed:
+                return _reply({"status": "limit", "code": "burst", "detail": busy}, 429, wait or 60)
+        if recalc:
+            allowed, wait = await limiter.hit("prism-recalc", who, *RECALC_LIMIT, fail_open=False)
+            if not allowed:
+                return _reply({"status": "limit", "code": "recalculate", "detail": f"Recalculate was pressed several times in a few minutes. Please try again in {max(1, (wait or 60) // 60)} minutes."}, 429, wait or 60)
+    redis = app.state.store.redis
+    report = f"{symbol}:{statement}"
+    try:
+        allowance = _plan_reports(ctx.plan)
+        if allowance is not None and symbol not in app.state.settings.showcase_symbols:
+            now = datetime.now(timezone.utc)
+            day = f"prism:opened:{who}:{now.astimezone(IST):%Y%m%d}"
+            if not await redis.sismember(day, report):
+                if await redis.scard(day) >= allowance:
+                    return _reply({"status": "limit", "code": "daily",
+                                   "detail": f"You have opened today's {allowance} {PRISM_NAME} reports on your plan. The reports you opened today stay open; new ones open again after midnight (IST)."},
+                                  429, _until_midnight(now))
+                await redis.sadd(day, report)
+                await redis.expire(day, 2 * 86400)
+        await _watch_sweep(redis, who, symbol)
+    except Exception as exc:            # Redis down: the burst limits above still answer; a reader is never refused for our storage
+        log.warning("prism report limits unavailable: %s", type(exc).__name__)
+    return None
+
+
+async def _watch_sweep(redis, who: str, symbol: str) -> None:
+    """Remember the companies an account opened in the last hour; at SWEEP_SYMBOLS or more, record the account for review (and log it once a day)."""
+    now = time.time()
+    key = f"prism:sweep:{who}"
+    await redis.zadd(key, {symbol: now})
+    await redis.zremrangebyscore(key, 0, now - SWEEP_SECONDS)
+    await redis.expire(key, SWEEP_SECONDS + 60)
+    seen = await redis.zcard(key)
+    if seen >= SWEEP_SYMBOLS:
+        await redis.hset(SWEEP_KEY, who, json.dumps({"companies": int(seen), "withinSeconds": SWEEP_SECONDS, "at": datetime.now(timezone.utc).isoformat()}))
+        if await redis.set(f"prism:review-logged:{who}", "1", nx=True, ex=86400):
+            log.warning("prism: account %s opened %d different reports within %d minutes; recorded for review", who, seen, SWEEP_SECONDS // 60)
+
+
 # ------------------------------------------------------------------ routes
 @router.get("/status")
 async def prism_status(request: Request) -> JSONResponse:
@@ -642,16 +713,20 @@ async def latest(request: Request, symbol: str = Query("", max_length=40), state
     wanted = target(symbol, statement)
     if not wanted:
         return _bad("Choose a company symbol and a statement basis (consolidated or standalone).")
-    _, refusal = await _access(request, wanted[0], full=view != "summary")
+    ctx, refusal = await _access(request, wanted[0], full=view != "summary")
     if refusal:
         return refusal
+    if view != "summary":
+        refusal = await _guard(request, ctx, *wanted)
+        if refusal:
+            return refusal
     row = await _stored(request.app.state.store, *wanted)
     if row is None or hidden_model(row["report"]):
         return _reply({"status": "none", "detail": f"No current-model {PRISM_NAME} report is available. A fresh calculation is needed."}, 404)
     refreshing = await _refresh_stale_technical(request.app, wanted[0], row)
     from . import scorelive
     fresh = await scorelive.on_open_prism(request.app, wanted[0], wanted[1], row)    # behind a newer quarter or a completed session: recalculated in the background, the stored one shown with its date
-    body = {"summary": {**public_summary(_summary(row, refreshing)), "freshness": fresh}} if view == "summary" else {**_shape(row, cached=True, refreshing=refreshing), "freshness": fresh}
+    body = {"summary": {**card_view(public_summary(_summary(row, refreshing))), "freshness": fresh}} if view == "summary" else {**_shape(row, cached=True, refreshing=refreshing), "freshness": freshness_view(fresh)}
     return _reply(body)
 
 
@@ -740,6 +815,9 @@ async def create(request: Request) -> JSONResponse:
         return _bad("Choose a company symbol and a statement basis (consolidated or standalone).")
     symbol, statement = wanted
     ctx, refusal = await _access(request, symbol)
+    if refusal:
+        return refusal
+    refusal = await _guard(request, ctx, symbol, statement, recalc=body.get("refresh") is True)
     if refusal:
         return refusal
     if ctx.authed:

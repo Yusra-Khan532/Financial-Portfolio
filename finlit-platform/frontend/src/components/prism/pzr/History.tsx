@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { MINUS, nf } from "../../../lib/format";
 import {
-  growthPercent, incomeNote, incomeWord, statementWord, trendSentence,
+  growthPercent, reportIncomeNote, incomeWord, statementWord, trendSentence,
   type PrismHistory, type PrismReport, type Trend,
 } from "../../../lib/prism";
 import { periodLabel, ratioPct, yoy, type Series } from "../../../lib/prismReport";
@@ -141,7 +141,7 @@ export function HistoryCharts({ report }: { report: PrismReport }) {
   const hasQ = (report.financialHistory?.quarterly || []).filter((r) => r.sales != null || r.profit != null).length >= 2;
   const hasA = report.trends.length > 0 || (report.financialHistory?.annual?.length ?? 0) > 0;
   const [basis, setBasis] = useState<Basis>(hasA ? "annual" : "quarterly");
-  const income = incomeWord(report.rating.group), note = incomeNote(report.rating.group);
+  const income = incomeWord(report.rating.group), note = reportIncomeNote(report.rating);
   const s = useMemo(() => seriesFor(report, basis), [report, basis]);
   const step = 12, per = basis === "annual" ? "year" : "quarter";
   const trendOf = (label: string, key: "revenue" | "profit" | "eps", v: Series) => trendSentence(label, v.map((p) => ({ period: periodLabel(p.period), revenue: key === "revenue" ? p.value : null, profit: key === "profit" ? p.value : null, eps: key === "eps" ? p.value : null })), key);

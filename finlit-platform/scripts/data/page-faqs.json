@@ -320,7 +320,7 @@
    },
    {
     "q": "Is there a limit on calculations?",
-    "a": "Yes. Each member can calculate 20 ratings a day."
+    "a": "Yes. On the Gold plan you can open 10 different reports a day; a report you opened earlier the same day does not count again. Each member can also calculate 20 ratings a day, and Recalculate can be pressed a few times in ten minutes."
    },
    {
     "q": "What does “100% of inputs available” mean?",

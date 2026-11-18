@@ -38,6 +38,8 @@ export type PrismMetric = {
   status: FactorState; statusLabel: string; weight?: number; share?: number;
   details: {
     basis?: string; note?: string | null; current?: number | null; previous?: number | null; years?: number; availableYears?: number;
+    /** The streak factor's sentence, written on the server (task #220: the counts behind it are not sent). */
+    streakText?: string;
     good?: number; slips?: number; judged?: number; medianYoY?: number | null; lossFill?: boolean; latestLoss?: boolean;
     operatingLoss?: boolean; opMarginNow?: number; growthUsed?: number; growthRaw?: number; growthBasis?: string; growthKind?: string; [k: string]: unknown;
   };
@@ -50,12 +52,14 @@ export type PrismLoss = {
   tier: string | null; cap?: number | null; rawFundamental?: number | null;
 };
 export type PrismRating = {
-  modelVersion?: string; baselineVersion?: string; fillVersion?: string; group: ModelGroup | string;
+  modelVersion?: string; baselineVersion?: string; fillVersion?: string;
+  /** The peer group code; no longer sent (task #220). `incomeNote` carries the one sentence the page needed it for. */
+  group?: ModelGroup | string; incomeNote?: string | null;
   final: number | null; label: PrismLabel; status: PrismStatusWord;
   /** Internal category scores; they can exist for NOT RATED, which never shows them. */
-  parts: Record<PartKey, number | null>; partWeights?: Record<PartKey, number>; coverage: Record<PartKey, number>;
+  parts: Record<PartKey, number | null>; partWeights?: Record<PartKey, number>; coverage?: Record<PartKey, number>;
   /** Weighted overall coverage, 0-1. Completeness of the inputs, not a probability. */
-  confidence: number; judgedQuarters: number; dataIntegrityStatus: "PASS" | "REVIEW REQUIRED";
+  confidence: number; judgedQuarters?: number; dataIntegrityStatus: "PASS" | "REVIEW REQUIRED";
   metrics: PrismMetric[]; loss?: PrismLoss; lossCapped?: boolean; valuationCapped?: boolean;
   adjustments?: { metric: string; part: PartKey }[];
   alerts?: string[]; headline?: string;
@@ -97,7 +101,7 @@ export type TechnicalStamp = { asOf: string | null; calculatedAt: string | null;
 export type PrismReport = {
   id: string; createdAt: string; completedAt: string; statementType: Statement; state?: string;
   company: { symbol: string; name: string; industry?: string | null; sector?: string | null; description?: string | null };
-  rating: PrismRating; inputMeta: PrismInputMeta; warnings: string[]; sources: unknown[]; trends: Trend[];
+  rating: PrismRating; inputMeta?: PrismInputMeta; warnings: string[]; sources?: unknown[]; trends: Trend[];
   benchmark: PrismBenchmark; review?: PrismReview; financialHistory?: PrismHistory;
   /** The technical (short-term / long-term) assessment: additive and independent of `rating`. Absent from older reports; read it with parseTechnical (lib/prismTechnical.ts). */
   technicalAssessment?: unknown;
@@ -107,7 +111,7 @@ export type PrismReport = {
   /** True when served from storage instead of a fresh calculation. */
   cached: boolean;
   /** When the PDF of this calculation stops being downloadable (the signed snapshot lives 30 minutes); null once it has. */
-  pdfAvailableUntil: string | null;
+  pdfAvailableUntil?: string | null;
 };
 export type PrismServiceStatus = { name: string; available: boolean; reason: string | null; modelVersion: string | null };
 
@@ -195,6 +199,8 @@ export function standing(row: Pick<PrismMetric, "status" | "reading" | "points">
 export const isRated = (r: Pick<PrismRating, "status">) => r.status !== "NOT RATED";
 /** The model calls this line "Sales" for every company (site-api premium_data.revenue). What it is differs by sector, so a neutral note says so. */
 export const incomeWord = (_group?: string) => "Sales";
+/** The note under the history tables: sent by the server since task #220 (`rating.incomeNote`); worked out from an older report's group code. */
+export const reportIncomeNote = (r: Pick<PrismRating, "incomeNote" | "group">): string | null => r.incomeNote !== undefined ? r.incomeNote : incomeNote(r.group ?? "");
 export const incomeNote = (group: string): string | null =>
   group === "BANK" || group === "NBFC" ? "For banks and NBFCs the model's sales line is net interest income: interest earned less interest paid."
   : group === "INSURANCE" ? "For insurers the model's sales line is net premium earned." : null;
@@ -221,6 +227,7 @@ const crore = (v: number | null | undefined) => (v == null ? "—" : "₹" + (v 
 export function factorDetail(row: PrismMetric, group: string): string | null {
   const d = row.details || {};
   const income = row.metric.startsWith("SALES") ? incomeWord(group).toLowerCase() : "net profit";
+  if (row.metric.endsWith("_STREAK") && typeof d.streakText === "string") return d.streakText;
   if (row.metric.endsWith("_STREAK") && d.judged != null) {
     if (!d.judged) return "No comparable quarters yet.";
     const good = d.good ?? 0;
@@ -391,7 +398,10 @@ export function prismProblem(err: unknown, now = Date.now()): Problem {
     const secs = e?.body.retryAfter || 0;
     const at = secs ? new Date(now + secs * 1000) : undefined;
     const when = at ? ` You can try again in ${waitWords(secs)}, at ${clock(at)} IST.` : " Please try again a little later.";
-    return { kind: "limit", title: "Calculation limit reached", text: (detail ? detail.replace(/\.?$/, ".") : "Each member can calculate 20 Prism ratings a day, and only two run at once.") + when, retryAt: at };
+    // task #220: the server says which limit was reached (today's reports, too many at once, Recalculate) in `code`
+    const code = (e?.body as { code?: string } | undefined)?.code;
+    const title = code === "daily" ? "Today's reports are used" : code === "burst" ? "Too many reports at once" : code === "recalculate" ? "Recalculate limit reached" : "Calculation limit reached";
+    return { kind: "limit", title, text: (detail ? detail.replace(/\.?$/, ".") : "Each member can calculate 20 Prism ratings a day, and only two run at once.") + when, retryAt: at };
   }
   if (status >= 500) return { kind: "unavailable", title: `${PRISM_NAME} is not available right now`, text: "The rating service or a data provider did not answer. Please try again in a few minutes." };
   if (!status) return { kind: "offline", title: "The connection was interrupted", text: "We could not reach FinLit. Check your connection and try again." };

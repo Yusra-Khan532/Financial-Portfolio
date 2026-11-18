@@ -2,7 +2,7 @@
 // ratios, valuation against the benchmark, the notes and one boxed disclaimer. The method (weights, points, cut-offs, rules) stays on the server.
 // NOT RATED never shows category scores. Layout lives in styles/prism-report.css (pzr-*).
 import { Icon } from "../../lib/icons";
-import { PRISM_NAME, PRISM_NOTE, incomeNote, incomeWord, notRatedReason, prismReview } from "../../lib/prism";
+import { PRISM_NAME, PRISM_NOTE, reportIncomeNote, incomeWord, notRatedReason, prismReview } from "../../lib/prism";
 import { istTime, LabelChip, StatusChip, type ReportActions } from "./pzr/Hero";
 import { CardTop } from "./pzr/CardTop";
 export { reportRef } from "./pzr/CardTop";
@@ -46,7 +46,7 @@ export function PrismReportView({ report, actions = {}, example = false }: { rep
       <section className="pzr-sec" aria-labelledby="pzr-h-hist">
         <header className="pzr-sh"><h3 id="pzr-h-hist">Financial history</h3><p>From the company's filings, on the same statement basis as the score.</p></header>
         <HistoryCharts report={report} />
-        {report.financialHistory && <HistoryTables history={report.financialHistory} income={income} note={incomeNote(report.rating.group)} benchmark={report.benchmark} />}
+        {report.financialHistory && <HistoryTables history={report.financialHistory} income={income} note={reportIncomeNote(report.rating)} benchmark={report.benchmark} />}
       </section>
       <Peers report={report} />
       <Notes report={report} notes={review.notes} />
