@@ -1,7 +1,7 @@
 // A sticky bar of section buttons for a long calculator page (task #189, DCF calculator; the same behaviour as Reverse valuation's bar, task #183): each
 // button scrolls smoothly to its section without hiding or changing anything, an (i) beside it explains the section, the section on screen is marked in
 // emerald green, and a section that does not exist yet (no result) is greyed out with the reason. On a phone the row scrolls sideways with faded edges.
-// A section inside a closed <details> is opened before scrolling. Styles: styles/section-nav.css (snav-).
+// A section inside a closed <details> is opened before scrolling. Styles: styles/section-nav.css (jumpbar-).
 import { useEffect, useRef, useState } from "react";
 import { Info } from "./Info";
 import { Icon } from "../lib/icons";
@@ -39,8 +39,8 @@ export function SectionNav({ items, scope, label = "Sections of this page" }: { 
   // the bar's height, for pages that keep their own sticky parts below it
   useEffect(() => {
     const el = bar.current; if (!el || typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(() => document.documentElement.style.setProperty("--snav-h", el.offsetHeight + "px"));
-    ro.observe(el); return () => { ro.disconnect(); document.documentElement.style.removeProperty("--snav-h"); };
+    const ro = new ResizeObserver(() => document.documentElement.style.setProperty("--jumpbar-h", el.offsetHeight + "px"));
+    ro.observe(el); return () => { ro.disconnect(); document.documentElement.style.removeProperty("--jumpbar-h"); };
   }, []);
   const edges = () => { const el = row.current; if (el) setEdge({ l: el.scrollLeft > 2, r: el.scrollLeft + el.clientWidth < el.scrollWidth - 2 }); };
   useEffect(() => {   // keep the marked button in view on a phone
@@ -62,11 +62,11 @@ export function SectionNav({ items, scope, label = "Sections of this page" }: { 
     addEventListener("scrollend", settle, { once: true }); window.setTimeout(settle, reduced() ? 60 : 1200);
   };
   return (
-    <nav ref={bar} className="snav" aria-label={label}>
-      <div ref={row} className={"snav-row" + (edge.l ? " fl" : "") + (edge.r ? " fr" : "")} onScroll={edges}>
+    <nav ref={bar} className="jumpbar" aria-label={label}>
+      <div ref={row} className={"jumpbar-row" + (edge.l ? " fl" : "") + (edge.r ? " fr" : "")} onScroll={edges}>
         {items.map((n) => (
-          <div key={n.id} className={"snav-i" + (on === n.id ? " on" : "") + (n.off ? " off" : "")} data-id={n.id}>
-            <button type="button" className="snav-b" aria-current={on === n.id ? "true" : undefined} aria-disabled={n.off ? true : undefined}
+          <div key={n.id} className={"jumpbar-i" + (on === n.id ? " on" : "") + (n.off ? " off" : "")} data-id={n.id}>
+            <button type="button" className="jumpbar-b" aria-current={on === n.id ? "true" : undefined} aria-disabled={n.off ? true : undefined}
               title={n.off ?? `Go to ${n.label}`} onClick={() => (n.off ? undefined : go(n))}>{n.icon && <Icon name={n.icon} />}<span>{n.label}</span></button>
             <Info g={{ key: "snav-" + n.id, label: n.label, what: n.about, note: n.off ?? undefined } as Glossary} />
           </div>))}
