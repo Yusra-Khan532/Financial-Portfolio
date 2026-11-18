@@ -40,6 +40,8 @@ class FakeStream:
 
     def __aiter__(self):
         async def gen():
+            if self.turn.get("web"):                                # the provider runs a web search inside this turn
+                yield NS(type="content_block_start", content_block=NS(type="server_tool_use", name="web_search"))
             for t in self.turn.get("text", []):
                 yield NS(type="text", text=t)
         return gen()
@@ -159,7 +161,7 @@ def test_descriptive_sentences_are_not_taken_for_advice(text):
 
 def test_the_instructions_keep_the_founders_rules():
     s = service.SYSTEM
-    for must in ("must come from a tool result", "never advise", "Silver or Gold", "Never guess", "Do not add a disclaimer"):
+    for must in ("must come from a tool result or a web search result", "never advise", "Silver or Gold", "Never guess", "Do not add a disclaimer"):
         assert must in s
     assert service.DISCLAIMER == "Describes the company's financial health from its filings and prices; not a recommendation. Information only, not investment advice."
 
@@ -423,3 +425,46 @@ async def test_a_company_named_in_the_question_is_read_first_even_off_its_page(a
     _, ev = await ask(m, "how is reliance industries doing?")
     assert ("status", {"text": "Reading the company page (RELIANCE)"}) in ev
     assert "<company_card" in client.calls[0]["messages"][-1]["content"] and len(client.calls) == 1
+
+
+
+# ------------------------------------------------------------------------------------------------------------------ answer every question (18 Nov 2026)
+# Founder: "what is future prospect of reliance" was answered "not available" while Claude itself answered from the web. Now FinLit's data comes first,
+# the web for the rest, in a few simple lines; analysts' ratings and targets from the web are never passed on.
+
+def test_the_web_is_one_of_the_tools_last_with_two_searches_at_most_and_india_first():
+    d = T.definitions()
+    assert d[-1] == {"type": "web_search_20250305", "name": "web_search", "max_uses": 2,
+                     "user_location": {"type": "approximate", "country": "IN", "timezone": "Asia/Kolkata"}}
+    assert [x["name"] for x in d[:-1]] == [t.name for t in T.TOOLS]                 # FinLit's own tools unchanged, in the same order
+
+
+def test_the_instructions_answer_every_question_shortly_and_never_pass_on_ratings():
+    s = service.SYSTEM
+    for must in ("Always give a real answer", "Never reply only that something is \"not available\"", "find it on the web",
+                 "future prospects", "Under 90 words", "at most 4 short bullet points", "Sources: ", "never pass on analysts'", "target prices"):
+        assert must in s, must
+    assert "say briefly that FinLit AI answers questions about those" not in s                  # no more turning questions away
+    assert service.MAX_TOKENS <= 1000
+
+
+async def test_a_web_search_shows_searching_and_a_paused_turn_carries_on():
+    client = FakeClient([{"web": True, "stop": "pause_turn"},
+                         {"text": ["Reliance plans to list Jio and is building a new energy business. ", "Sources: Economic Times"]}])
+    res, events = await collect(client, FakeGateway({}), "what is future prospect of reliance")
+    assert ("status", {"text": "Searching the web"}) in events
+    assert len(client.calls) == 2 and client.calls[1]["messages"][-1]["role"] == "assistant"      # the paused turn is sent back as it was
+    assert res["text"].startswith("Reliance plans to list Jio") and res["stop"] == "end_turn"
+
+
+@pytest.mark.parametrize("text", ["One consensus snapshot rated the stock a buy, with an average target of 1,690 INR.",
+                                  "Brokers have a target price of Rs 1,800.", "Analysts' target of Rs 1,690 implies upside."])
+async def test_analyst_ratings_and_targets_from_the_web_are_withdrawn(text):
+    res, events = await collect(FakeClient([{"web": True, "text": [text]}]), FakeGateway({}))
+    assert res["stop"] == "withdrawn" and events[-1] == ("replace", {"text": service.WITHDRAWN})
+
+
+@pytest.mark.parametrize("text", ["Reliance plans to list Jio Platforms; its new energy arm is starting.", "Headwinds: weak refining margins. Sources: Mint",
+                                  "FIIs were net buyers of Rs 1,200 crore on 14 Nov 2026."])
+def test_plain_news_is_not_taken_for_advice(text):
+    assert not service.reads_like_advice(text)

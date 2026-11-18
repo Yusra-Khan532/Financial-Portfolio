@@ -6,10 +6,11 @@ import suggestions from "../content/questionSuggestions.json";
 
 export type CategoryId = "company" | "market" | "concepts" | "platform";
 export const CATEGORIES: { id: CategoryId; title: string; sub: string; icon: string }[] = [
-  { id: "company", title: "Explore a company", sub: "Financials, ratios, risks", icon: "building" },
-  { id: "market", title: "Market & economy", sub: "Trends, sectors, policies", icon: "line" },
-  { id: "concepts", title: "Investment concepts", sub: "P/E, DCF, valuation etc.", icon: "book" },
-  { id: "platform", title: "Platform & tools", sub: "Screener, scores, features", icon: "table" },
+  // task #201: the four primary entry cards, named as the team wrote them
+  { id: "company", title: "Explore a Company", sub: "Financials, ratios, risks", icon: "building" },
+  { id: "market", title: "Markets & Economy", sub: "Trends, sectors, policies", icon: "line" },
+  { id: "concepts", title: "Financial Concepts", sub: "P/E, DCF, valuation and more", icon: "book" },
+  { id: "platform", title: "Explore FinLit Tools", sub: "Screeners, scores, features", icon: "table" },
 ];
 
 /** The company tabs, and which of the 12 question groups each one holds. "Suggested" is the five most asked questions. */

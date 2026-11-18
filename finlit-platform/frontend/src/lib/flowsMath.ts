@@ -138,6 +138,28 @@ export function calendar(days: FlowDay[], s: SideKey, weeks = 53): Cal {
   const scale = mags.length ? mags[Math.min(mags.length - 1, Math.floor(mags.length * 0.92))] : 1;
   return { cells, cols: weeks, months, scale };
 }
+/** Task #167: the calendar in the enlarged dialog. A year of weeks in one row leaves squares of ~22px and the lower half of the screen empty, so the
+ *  weeks are stacked in bands (e.g. 4 months a row), as many as make the day squares largest in the room there is (w × h, px). Rows then stretch to
+ *  fill the height, but a day is never drawn more than 1.5× taller than wide. `wd` is the weekday column, `lab` a band's month line, `gap` the cell gap. */
+export function calBands(cols: number, w: number, h: number, wd = 34, lab = 20, gap = 3, bandGap = 14): { n: number; k: number; cw: number; rh: number } {
+  let best = { n: 1, k: cols, cw: 0, rh: 0 }, bestScore = -1;
+  for (let n = 1; n <= 6 && cols > 0; n++) {
+    const k = Math.ceil(cols / n), cw = (w - wd - (k - 1) * gap) / k, rh = (h - n * lab - (n - 1) * bandGap - n * 4 * gap) / (n * 5);
+    const score = Math.min(cw, rh);
+    if (score > bestScore + 0.5) { bestScore = score; best = { n, k, cw, rh }; }
+  }
+  return { ...best, rh: Math.max(4, Math.min(best.rh, best.cw * 1.5)) };
+}
+/** A band's month labels: the months that start inside it, plus the month already under way at its first column (unless one starts within 3 weeks). */
+export function bandMonths(cal: Cal, start: number, end: number): { col: number; label: string }[] {
+  // a month that starts in a band's last two weeks is named at the start of the next band instead, so it is not named twice
+  const inside = cal.months.filter((m) => m.col >= start && m.col < end && (end >= cal.cols || m.col < end - 2)).map((m) => ({ col: m.col - start, label: m.label }));
+  if (start > 0 && !inside.some((m) => m.col < 3)) {
+    const first = cal.cells.find((c) => c.col === start);
+    if (first) inside.unshift({ col: 0, label: MON[new Date(first.d + "T00:00:00Z").getUTCMonth()] });
+  }
+  return inside;
+}
 /** -4..4: sign is direction, size is how big against the scale (the 92nd percentile of that side's calendar). 0 = nothing/flat/unknown. */
 export function level(v: number | null, scale: number): number {
   if (v == null || v === 0 || scale <= 0) return 0;

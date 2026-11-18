@@ -1,0 +1,23 @@
+/* Task #215: the forecast card at the right of section 06's heading (scoped to .fcst) */
+.sh-r:has(> .fcst) { flex: 0 1 560px; min-width: 0; align-items: stretch; }
+.fcst { width: 100%; padding: 14px 16px 12px; border: 1px solid color-mix(in srgb, var(--p-growth) 45%, var(--border)); border-radius: 14px; background: color-mix(in srgb, var(--p-growth) 6%, var(--s1)); text-align: left; }
+.fcst .fcst-t { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; font: 700 var(--fs-14, 14px) var(--sans); color: var(--text); }
+.fcst .fcst-t svg { width: 16px; height: 16px; color: var(--p-growth); }
+.fcst .fcst-g { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.fcst .fcst-h { min-width: 0; padding: 0 14px; } .fcst .fcst-h:first-child { padding-left: 0; } .fcst .fcst-h + .fcst-h { border-left: 1px solid var(--border); padding-right: 0; }
+.fcst .fcst-l { margin: 0; font: 500 var(--fs-12, 12px) var(--sans); color: var(--muted); }
+.fcst .fcst-v { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 4px 0 0; }
+.fcst .fcst-v b { font: 700 var(--fs-21, 21px)/1.2 var(--sans); color: var(--p-growth); white-space: nowrap; } .fcst .fcst-v b.fcst-na { color: var(--muted); }
+.fcst .fcst-c { padding: 2px 8px; border: 1px solid currentColor; border-radius: 999px; font: 600 var(--fs-11, 11px) var(--sans); white-space: nowrap; }
+.fcst .up { color: var(--gain); } .fcst .down { color: var(--loss); } .fcst .na { color: var(--muted); }
+.fcst .fcst-y { margin: 4px 0 8px; font: 400 var(--fs-12, 12px)/1.4 var(--sans); color: var(--muted); }
+.fcst .fcst-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.fcst .fcst-chips button { min-height: 28px; padding: 3px 8px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--s1); color: var(--text); font: 600 var(--fs-12, 12px) var(--sans); cursor: pointer; white-space: nowrap; }
+.fcst .fcst-chips button span { font-weight: 600; }
+.fcst .fcst-chips button[aria-pressed="true"] { border-color: var(--c1, #2a78d6); background: var(--c1, #2a78d6); color: #fff; } .fcst .fcst-chips button[aria-pressed="true"] span { color: #fff; }
+.fcst .fcst-n { margin: 10px 0 0; font: 400 var(--fs-11, 11px) var(--sans); color: var(--faint); }
+@media (pointer: coarse) { .fcst .fcst-chips button { min-height: 36px; } }
+@media (max-width: 1180px) { .sh:has(.fcst) { flex-wrap: wrap; } .sh-r:has(> .fcst) { flex: 1 1 100%; } }
+@media (max-width: 480px) { .fcst .fcst-g { grid-template-columns: minmax(0, 1fr); gap: 12px; } .fcst .fcst-h, .fcst .fcst-h + .fcst-h { padding: 0; border-left: 0; } .fcst .fcst-h + .fcst-h { padding-top: 12px; border-top: 1px solid var(--border); } }
+@media (min-width: 1181px) { .sh:has(> .sh-r > .fcst) { flex-wrap: nowrap; } .sh:has(> .sh-r > .fcst) > .sh-l { flex: 1 1 auto; min-width: 0; } }
+@media (min-width: 1181px) { .sh-r:has(> .fcst) { flex: 0 0 min(580px, 54%); } }

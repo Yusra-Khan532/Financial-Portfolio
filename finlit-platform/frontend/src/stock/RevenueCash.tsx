@@ -7,7 +7,7 @@ import { MINUS } from "../lib/format";
 import { useUI } from "../lib/ui";
 import { basisNote, fmtCr, fmtPct, isLenderLike, revenueCash, type Basis, type RevenueCash as Model, type Severity, type Status, type Warning, type Year } from "../lib/revenueCash";
 import "../styles/revenue-cash.css";
-import { ChartZoom } from "../components/ChartZoom";
+import { ChartZoom, useZoomHeight } from "../components/ChartZoom";
 
 export const DISCLAIMER = "Describes cash conversion from the company's filings; not a recommendation. Information only, not investment advice.";
 const SEV_MARK: Record<Severity, string> = { Critical: "■", High: "◆", Moderate: "◇", Positive: "●" };
@@ -169,7 +169,8 @@ export function Trend({ years }: { years: Year[] }) {
   const [on, setOn] = useState<number | null>(null);
   const [table, setTable] = useState(false);
   const tid = "rcx-tb" + useId().replace(/[^a-zA-Z0-9_-]/g, "");
-  const narrow = W < 480, H = narrow ? 230 : 250, ml = 46, mr = narrow ? 74 : 122, mt = 14, mb = 28;
+  const [svgRef, H] = useZoomHeight<SVGSVGElement>(W < 480 ? 230 : 250);   // task #167: in full screen it fills the height too
+  const narrow = W < 480, ml = 46, mr = narrow ? 74 : 122, mt = 14, mb = 28;
   const rev = years.map((y) => y.revenueGrowth), ocf = years.map((y) => y.ocfMargin);
   const vals = [...rev, ...ocf].filter((v): v is number => v != null);
   const ticks = niceTicks(vals.length ? Math.min(...vals) : 0, vals.length ? Math.max(...vals) : 1);
@@ -195,7 +196,7 @@ export function Trend({ years }: { years: Year[] }) {
   return (
     <ChartZoom label={"Revenue growth and operating cash flow margin"}>
     <div className="rcx-chart" ref={ref}>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="group" aria-label={aria}>
+      <svg ref={svgRef} width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="group" aria-label={aria}>
         {ticks.map((t) => <g key={t}><line className={t === 0 ? "rcx-zero" : "rcx-gl"} x1={ml} x2={ml + pw} y1={y(t)} y2={y(t)} /><text className="rcx-ax" x={ml - 8} y={y(t) + 4} textAnchor="end">{t === 0 ? "0%" : fmtPct(t, Math.abs(t) < 10 && t % 1 !== 0 ? 1 : 0)}</text></g>)}
         {years.map((yr, i) => <text key={yr.period} className="rcx-ax" x={x(i)} y={H - 8} textAnchor="middle">{yr.period}</text>)}
         {on != null && <line className="rcx-guide" x1={x(on)} x2={x(on)} y1={mt} y2={mt + ph} />}

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { MINUS, nf } from "../lib/format";
 import { coverTicks, useWidth } from "./RoeLines";
-import { ChartZoom } from "../components/ChartZoom";
+import { ChartZoom, useZoomHeight } from "../components/ChartZoom";
 
 export type WfBar = { key: string; label: [string, string]; narrow?: [string, string]; value: number; kind: "total" | "delta" };
 
@@ -9,7 +9,8 @@ export type WfBar = { key: string; label: [string, string]; narrow?: [string, st
 export function Waterfall({ bars, ariaLabel, height = 250 }: { bars: WfBar[]; ariaLabel: string; height?: number }) {
   const [wrap, W] = useWidth();
   const [hv, setHv] = useState<number | null>(null);
-  const n = bars.length, H = height, pl = 42, pr = 8, pt = 32, pb = 40;   // pt leaves room above the tallest bar for its number (it used to be clamped onto the bar)
+  const [svgRef, H] = useZoomHeight<SVGSVGElement>(height);   // task #167: in full screen it fills the height too
+  const n = bars.length, pl = 42, pr = 8, pt = 32, pb = 40;   // pt leaves room above the tallest bar for its number (it used to be clamped onto the bar)
   let run = 0;
   const geo = bars.map((b) => { const from = b.kind === "total" ? 0 : run, to = b.kind === "total" ? b.value : run + b.value; run = to; return { from, to }; });
   const all = geo.flatMap((g) => [g.from, g.to]), lo = Math.min(0, ...all), hi = Math.max(...all, 1), ticks = coverTicks(lo, hi), top = ticks[ticks.length - 1], bot = Math.min(lo, ticks[0]);
@@ -19,7 +20,7 @@ export function Waterfall({ bars, ariaLabel, height = 250 }: { bars: WfBar[]; ar
   return (
     <ChartZoom label={"Bridge chart"}>
     <div className="mb dp-chart" ref={wrap} onMouseLeave={() => setHv(null)}>
-      <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} role="img" aria-label={ariaLabel}>
+      <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width={W} height={H} role="img" aria-label={ariaLabel}>
         {ticks.map((t) => <g key={t}><line x1={pl} x2={W - pr} y1={Y(t)} y2={Y(t)} stroke="var(--border)" strokeWidth={t === 0 ? 1.4 : 1} /><text x={pl - 6} y={Y(t) + 3.5} textAnchor="end" fontSize="11" fill="var(--faint)" fontFamily="IBM Plex Mono, monospace">{(t < 0 ? MINUS : "") + nf(t, 0)}</text></g>)}
         {bars.map((b, i) => {
           const g = geo[i], y1 = Y(Math.max(g.from, g.to)), y2 = Y(Math.min(g.from, g.to)), fill = b.kind === "total" ? "var(--info)" : b.value >= 0 ? "var(--gain)" : "var(--loss)";
