@@ -5,7 +5,7 @@ import { cleanup, render, screen, fireEvent, within } from "@testing-library/rea
 import { MemoryRouter } from "react-router";
 import { ExploreTools } from "./ExploreTools";
 import { BUCKETS, FIGURE, SHORT } from "../lib/platformTools";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 afterEach(() => { cleanup(); history.replaceState(null, "", "#"); document.body.style.overflow = ""; });
@@ -227,5 +227,13 @@ describe("Correlation Chart card, task #179 (the team's wording, word for word)"
     expect(c.what).toBe("Discover how financial metrics move together across companies.");
     expect(c.points).toEqual(["Compare relationships between two measures.", "View regression trends when statistically valid.", "Add companies to compare their positions."]);
     expect(c.link).toBe("/graphs/advanced");
+  });
+});
+
+// task #236: the six group cards have no coloured line along their top (the team's red boxes)
+describe("task #236: no top line on the group cards", () => {
+  it("explore-tools.css draws nothing before a group card", () => {
+    const css = readFileSync(join(__dirname, "../styles/explore-tools.css"), "utf8");
+    expect(css).not.toMatch(/\.xt-row::?before/);
   });
 });
