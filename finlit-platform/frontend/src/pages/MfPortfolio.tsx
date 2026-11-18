@@ -28,6 +28,7 @@ import { FundsTable } from "../mf/pack/MfFunds";
 import { MF_SECS, fundsCards, listBox, mfTiles, mixCards, riskCards } from "../lib/mfTop";
 import { KeyFigures, SectionsBar, TopGrid, jumpTo } from "../portfolio/pack/PageTop";
 import { ListBox } from "../mf/pack/MfTop";
+import { InShort, SOURCES } from "../mf/pack/MfShort";
 import { MixTab, type Big, type Reading } from "../mf/pack/MfMix";
 import "../portfolio/pack/pagetop.css";
 import "../styles/sectors-pack.css";
@@ -163,7 +164,7 @@ function ImportFile({ onDone }: { onDone: (msg: string) => void }) {
 /* --------------------------------------------------------------- page */
 
 export function MfPortfolioPage() {
-  useDocTitle("MF portfolio", "How healthy your mutual funds are, how much they overlap, what sits inside them, and how risky they are together.");
+  useDocTitle("MF portfolio", "How healthy your mutual funds are, what sits inside them, how alike they are, and how risky they are together.");
   const { plan, has, toast } = useUI();
   const silver = has("silver");
   const q = useMfPortfolio(silver), w = useMfWrites(), sp = useMfSpread(silver && !!q.data && q.data.count > 0);
@@ -201,11 +202,11 @@ export function MfPortfolioPage() {
 
   return (
     <div className="wrap ipo mp sp mfp">
-      <Gate tier="silver" title="Track your mutual funds" points={["How healthy each fund is (FundPulse on Gold)", "How much your funds overlap, and the stocks underneath", "Each fund's swing, worst fall and beta against the Nifty 500", "Import your CAS PDF, or Excel / CSV statements"]}>
+      <Gate tier="silver" title="Track your mutual funds" points={["How healthy each fund is: the Fund Health Score and its four parts", "What sits inside your funds, and how alike they are", "Each fund against its own benchmark, and the list together", "Import your CAS PDF, or Excel / CSV statements, read by ISIN"]}>
         <header className="sp-head mfp-head">
           <div><p className="mfp-plan"><span>{TIER[plan].n}</span></p><h1>MF portfolio</h1>
-            <p className="sp-desc">How healthy your mutual funds are, how much they overlap, what sits inside them, and how risky they are together.</p>
-            <nav className="mfp-links" aria-label="Related pages"><Link className="sp-link" to="/holdings">Equity portfolio →</Link><Link className="sp-link" to="/funds/compare">Compare funds →</Link><Link className="sp-link" to="/fund-score-screener">FinLit FundPulse →</Link></nav></div>
+            <p className="sp-desc">How healthy your mutual funds are, what sits inside them, how alike they are, and how risky they are together. Start with names; add units when you want the figures to follow your money.</p>
+            <nav className="mfp-links" aria-label="Related pages"><Link className="sp-link" to="/holdings">Equity portfolio →</Link><Link className="sp-link" to="/etf-portfolio">ETF portfolio →</Link><Link className="sp-link" to="/funds/compare">Compare funds →</Link><Link className="sp-link" to="/methodology/mf-score">Fund Health Score →</Link></nav></div>
           <section className="mfp-add" aria-label="Add funds">
             <AddFund disabled={false} onDone={toast} />
             <div className="mfp-add2"><button type="button" className="btn" aria-expanded={importing} onClick={() => setImporting((v) => !v)}>Import a file</button>
@@ -214,6 +215,7 @@ export function MfPortfolioPage() {
                 onClear={async () => { await w.clear.mutateAsync(); }}
                 onUndo={async () => { try { await w.undoClear.mutateAsync(); } catch (x) { if ((x as { status?: number }).status === 410) throw new Error("The clear is final: Undo is only possible for 10 seconds."); throw x; } }} />
               <span>{d ? `${d.count} of ${limit} funds` : ""}</span></div>
+            <p className="pfx-note mfp-isinnote">CAS statements, Excel or CSV. Each fund is read by its ISIN, which names the exact plan and option; a row without an ISIN is matched by name and shown for you to confirm.</p>
           </section>
         </header>
         {units && d && <UnitsDialog hs={d.holdings} onClose={() => setUnits(false)} onDone={toast} />}
@@ -250,9 +252,11 @@ export function MfPortfolioPage() {
             {rk.data && rk.data.count > 0 && <RiskTab rk={rk.data} />}
           </>}
           </div>
+          <InShort sp={sp.data} rk={rk.data} />
         </>}
       </Gate>
       <details className="sp-sec sp-fold mfp-disc"><summary><span><b className="sp-ft">Disclaimer</b><small>What this page is, and is not</small></span><span className="sp-show">Show ▾</span></summary><PortfolioDisclaimer kind="mf" /></details>
+      <p className="mfp-foot">{SOURCES}</p>
     </div>
   );
 }

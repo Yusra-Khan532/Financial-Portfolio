@@ -23,7 +23,7 @@ const ZOOM = [
   // markets, flows, macro, sectors
   "pages/Markets.tsx", "components/FlowsCharts.tsx", "pages/Macro.tsx",
   // funds, MF, ETFs
-  "mf/FundChart.tsx", "mf/H2HChart.tsx", "mf/Radar.tsx", "mf/ScoreHistory.tsx", "mf/ScoreCompare.tsx", "mf/screen/Graphics.tsx", "pages/FundInsights.tsx", "pages/Funds.tsx", "pages/MfPortfolio.tsx", "etf/EtfChart.tsx", "etf/Detail.tsx", "etf/Compare.tsx",
+  "mf/FundChart.tsx", "mf/H2HChart.tsx", "mf/Radar.tsx", "mf/ScoreHistory.tsx", "mf/ScoreCompare.tsx", "mf/screen/Graphics.tsx", "pages/FundInsights.tsx", "pages/Funds.tsx", "etf/EtfChart.tsx", "etf/Detail.tsx", "etf/Compare.tsx",
   // portfolio, dashboard, calculators, tools
   "pages/Portfolio.tsx", "holdings/HoldingsSection.tsx", "components/dashboard/MarketToday.tsx", "pages/SipCalculator.tsx", "pages/EpsCalculator.tsx", "pages/Dcf.tsx",
   "pages/Fundamentals.tsx", "pages/OptionChain.tsx", "pages/Ipo.tsx", "components/AdvScatter.tsx", "components/TableZoom.tsx",
