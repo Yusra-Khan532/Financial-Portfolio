@@ -412,4 +412,4 @@ async def test_finlit_ai_reads_discovery_through_the_page_route():
     bad = await TT.run(Gw(), "get_discovery", {"theme": "Tulips"})
     assert bad["error"]
     assert "get_discovery" in service.SYSTEM and TT.label("get_discovery", {}) == "Reading Discovery"
-    assert P.page_links([("get_discovery", {})]) == []          # Discovery is a section of the FinLit AI panel, not a page: no "Read on FinLit" link
+    assert P.page_links([("get_discovery", {})]) == [{"to": "/discovery", "label": "Discovery"}]   # task #241: Discovery is a page
