@@ -31,7 +31,8 @@ def test_catalogue_matches_the_front_end():
     assert keys == set(eng.METRICS), keys ^ set(eng.METRICS)
 
 
-async def test_price_alert_fires_once_on_a_crossing_and_lands_in_the_notification_centre(app):
+async def test_price_alert_fires_once_on_a_crossing_and_lands_in_the_notification_centre(app, monkeypatch):
+    monkeypatch.setattr("finlit.mailpolicy.ALERT_EMAILS", True)   # the email path, kept for when alert emails are switched back on (mailpolicy.py)
     c = await signed_in(app, "a@example.com")
     await set_price(app, 1100)
     r = await c.post("/api/alerts", json=body())

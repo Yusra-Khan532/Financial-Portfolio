@@ -387,7 +387,8 @@ async def test_score_history_needs_silver_for_other_companies_and_data_health_is
         await c.aclose()
 
 
-async def test_target_price_alert_fires_once_on_a_crossing(app):
+async def test_target_price_alert_fires_once_on_a_crossing(app, monkeypatch):
+    monkeypatch.setattr("finlit.mailpolicy.ALERT_EMAILS", True)   # the email path, kept for when alert emails are switched back on (mailpolicy.py)
     from finlit.alerts import check_alerts
     pool = app.state.store.pool
     c = await signed_in(app, "b@example.com", plan="silver")
@@ -492,7 +493,8 @@ async def test_portfolio_is_saved_per_plan_and_validated(app):
         await c.aclose()
 
 
-async def test_screen_alert_emails_only_new_matches(app):
+async def test_screen_alert_emails_only_new_matches(app, monkeypatch):
+    monkeypatch.setattr("finlit.mailpolicy.ALERT_EMAILS", True)   # the email path, kept for when alert emails are switched back on (mailpolicy.py)
     from finlit.screens import check_screens, matches
     pool = app.state.store.pool
     assert matches({"pe": 15, "sector": "IT", "band": "strong", "overall": 80}, {"ranges": {"pe": {"max": 20}}, "sectors": ["IT"], "bands": ["strong"]})
@@ -516,8 +518,9 @@ async def test_screen_alert_emails_only_new_matches(app):
     await c.aclose()
 
 
-async def test_tell_me_when_a_company_joins_names_joins_and_leaves_in_the_inbox_and_by_email_and_a_quiet_screen_sends_nothing(app):
+async def test_tell_me_when_a_company_joins_names_joins_and_leaves_in_the_inbox_and_by_email_and_a_quiet_screen_sends_nothing(app, monkeypatch):
     """Task #64, file 04: a screen saved with "Tell me when a company joins" sends the companies that joined or left after each check; one saved with Save screen stays quiet."""
+    monkeypatch.setattr("finlit.mailpolicy.ALERT_EMAILS", True)   # the email path, kept for when alert emails are switched back on (mailpolicy.py)
     from finlit.screens import check_screens, matches, screen_mail
     pool = app.state.store.pool
     assert matches({"market_cap": 60000}, {"caps": ["Large"]}) and not matches({"market_cap": 20000}, {"caps": ["Large"]}) and matches({"market_cap": 20000}, {"caps": ["Mid", "Large"]})
@@ -557,7 +560,8 @@ async def test_tell_me_when_a_company_joins_names_joins_and_leaves_in_the_inbox_
     await c.aclose(); await silver.aclose()
 
 
-async def test_weekly_digest_is_opt_in_and_sent_once_a_week(app):
+async def test_weekly_digest_is_opt_in_and_sent_once_a_week(app, monkeypatch):
+    monkeypatch.setattr("finlit.mailpolicy.ALERT_EMAILS", True)   # the email path, kept for when alert emails are switched back on (mailpolicy.py)
     from datetime import date, timedelta
     from finlit.digest import send_digests
     pool = app.state.store.pool

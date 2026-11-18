@@ -209,7 +209,8 @@ async def test_the_endpoint_is_public_read_only_and_never_cached(ingested):
 
 
 # ------------------------------------------------------------------------------------------------ alerts and the lock
-async def test_alerts_reach_every_admin_in_app_and_by_email_once_per_six_hours(app):  # noqa: F811
+async def test_alerts_reach_every_admin_in_app_once_per_six_hours_and_never_by_email(app):  # noqa: F811
+    """The owner, 19 Nov 2026: the mail allowance is kept for password-reset links, so an alert is in the bell only, never an email."""
     store = app.state.store
     await (await make_admin(app, "alert-boss@example.com")).aclose()
     await store.redis.flushdb()
@@ -223,7 +224,10 @@ async def test_alerts_reach_every_admin_in_app_and_by_email_once_per_six_hours(a
         notes = await conn.fetch("SELECT n.title, n.kind, n.link FROM notifications n JOIN users u ON u.id = n.user_id WHERE u.email = 'alert-boss@example.com' AND n.kind = 'system'")
         mails = await conn.fetch("SELECT subject, body FROM outbox WHERE to_email = 'alert-boss@example.com' AND subject LIKE '[FinLit]%'")
     assert len(notes) == 2 and notes[0]["link"] == "/console"
-    assert len(mails) == 2 and "Open the admin console: https://finlit.example/console" in mails[0]["body"]
+    assert len(mails) == 0                                                                        # no email for a job or data alert
+    await n.resolve("overdue:results")                                                            # nor for its "resolved" notice
+    async with store.pool.acquire() as conn:
+        assert await conn.fetchval("SELECT count(*) FROM outbox WHERE to_email = 'alert-boss@example.com' AND subject LIKE '[FinLit]%'") == 0
 
 
 async def test_the_web_process_notices_a_dead_supervisor(store):

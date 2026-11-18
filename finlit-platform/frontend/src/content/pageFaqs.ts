@@ -1087,7 +1087,7 @@ export const PAGE_FAQS: PageFaq[] = [
    },
    {
     "q": "How will I be told?",
-    "a": "In the app (your notifications), and by email or in your browser if you choose. Mobile app alerts are coming soon."
+    "a": "In the app (your notifications), and in your browser if you choose. Mobile app alerts are coming soon."
    },
    {
     "q": "Once or every time?",
