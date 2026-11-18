@@ -168,6 +168,7 @@
 .aif-acts { margin: 10px 0 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .aif-acts a { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: 10px; color: var(--text); font: 600 var(--fs-13) var(--sans); text-decoration: none; }
 .aif-acts a:hover, .aif-acts a:focus-visible { border-color: var(--aif-g, var(--gold)); } .aif-acts svg { width: 13px; height: 13px; }
+.aif-acts-l { flex-basis: 100%; font: 600 var(--fs-11) var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }   /* task #218: "Read on FinLit" over the pages a written answer read */
 .aif-a { display: grid; gap: 6px; }
 .aif-a-pts { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .aif-a-pts li { position: relative; padding-left: 16px; line-height: 1.5; overflow-wrap: anywhere; }

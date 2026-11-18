@@ -15,9 +15,12 @@ export const dayLabel = (iso: string) => {
   const base = d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: d.getFullYear() === t.getFullYear() ? undefined : "numeric" });
   return diff === 0 ? `Today · ${base}` : diff === 1 ? `Tomorrow · ${base}` : diff === -1 ? `Yesterday · ${base}` : base;
 };
-export const docType = (i: FeedItem): string => {
+/** What the Documents page calls a filing. Task #218: NSE files meeting notices as "Analysts/Institutional Investor Meet/Con. Call Updates", so "investor" or
+ *  "analyst" alone no longer makes an investor presentation (8 of Reliance's 9 "presentations" were such notices); a transcript is checked before a
+ *  presentation. FinLit AI uses the same rule (backend finlit/ask/pages.py doc_type), so the page and the AI agree. */
+export const docType = (i: Pick<FeedItem, "category" | "title">): string => {
   const s = `${i.category || ""} ${i.title}`.toLowerCase();
-  return /annual report|integrated report/.test(s) ? "Annual report" : /presentation|investor|analyst/.test(s) ? "Investor presentation" : /transcript|concall|earnings call/.test(s) ? "Call transcript" : /prospectus|offer document|rhp|drhp/.test(s) ? "Offer document" : /result/.test(s) ? "Results filing" : "Other filing";
+  return /annual report|integrated report/.test(s) ? "Annual report" : /transcript|concall|earnings call/.test(s) ? "Call transcript" : /presentation/.test(s) ? "Investor presentation" : /prospectus|offer document|\brhp\b|\bdrhp\b/.test(s) ? "Offer document" : /result/.test(s) ? "Results filing" : "Other filing";
 };
 
 /** What to call a feed row: the ticker, except for BSE-only companies whose "ticker" is a number such as 539984; then the name. */
