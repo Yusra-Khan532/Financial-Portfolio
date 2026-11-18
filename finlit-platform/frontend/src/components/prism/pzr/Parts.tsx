@@ -57,7 +57,7 @@ function PartCard({ k, index, report, review, rows }: { k: PartKey; index: numbe
       <ThresholdBar value={score} color={color} />
       <span className="pzr-part-ln">
         {lines.map((l, i) => <span key={i}>{l}</span>)}
-        <span>{pctWhole(rating.coverage[k])} of its inputs available{missing ? `; ${missing} estimated or missing` : ""}.</span>
+        <span>{pctWhole(rating.coverage?.[k])} of its inputs available{missing ? `; ${missing} estimated or missing` : ""}.</span>
       </span>
       {rated && (strength || drag) && <span className="pzr-part-tf">
         {strength && <span className="pos"><em>Top strength</em>{strength.label} <small>{factorValue(strength)}</small></span>}

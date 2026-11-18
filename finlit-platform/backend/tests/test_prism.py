@@ -28,7 +28,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from finlit import prism, prism_technical as pt
+from finlit import prism, prism_technical as pt, prism_view
 from finlit.prism_public import direction_of, leaks, public_report, reading_of
 from finlit.api import create_app
 from finlit.auth.service import cookie_name, create_session
@@ -159,7 +159,7 @@ async def test_only_gold_and_administrators_reach_prism_and_showcase_is_open(env
     for c in (await member(app, "basic"), await member(app, "silver")):
         for r in (await generate(c), await c.get("/api/prism/reports/latest?symbol=TCS")):
             assert r.status_code == 403 and r.json()["status"] == "plan_required" and r.json()["plan"] == "gold"
-            assert r.headers["cache-control"] == "no-store"
+            assert r.headers["cache-control"] == "private, no-store"
     assert fake.reports == []                                               # refused before any calculation
     assert (await generate(await member(app, "gold"))).status_code == 200
     assert (await generate(await member(app, "basic", role="admin"), "INFY")).status_code == 200
@@ -178,7 +178,7 @@ async def test_the_full_report_needs_a_sign_in_and_the_stock_page_card_does_not(
               await visitor.get("/api/prism/history?symbol=RELIANCE")):
         assert r.status_code == 401 and r.json()["status"] == "sign_in_required" and "rating" not in r.json()
     card = await visitor.get("/api/prism/reports/latest?symbol=RELIANCE&view=summary")     # the public stock page's small card
-    assert card.status_code == 200 and card.json()["summary"]["final"] == SNAPSHOT["rating"]["final"]
+    assert card.status_code == 200 and card.json()["summary"]["final"] == round(SNAPSHOT["rating"]["final"], 1)
     assert len(fake.reports) == 1
 
 
@@ -234,20 +234,22 @@ async def test_internal_fields_are_stripped_and_the_full_snapshot_is_kept_for_th
     assert r.status_code == 200 and body["cached"] is False
     for key in prism.INTERNAL:
         assert key in SNAPSHOT and key not in body                     # present in the real document, never sent to the browser
-    assert "modelVersion" not in body["rating"] and body["review"] == SNAPSHOT["review"]
+    assert "modelVersion" not in body["rating"] and set(body["review"]) == {"parts", "notes"}          # task #220: the review as the page shows it
+    assert [p["key"] for p in body["review"]["parts"]] == [p["key"] for p in SNAPSHOT["review"]["parts"]]
     assert leaks(body) == []                                           # no weight, point, cut-off or version reaches the browser
     assert {m["reading"] for m in body["rating"]["metrics"]} <= {"very_strong", "strong", "middle", "weak", "very_weak", None}
     for shown, source in zip(body["rating"]["metrics"], SNAPSHOT["rating"]["metrics"]):
-        assert shown["reading"] == reading_of(source.get("points")) and shown.get("value") == source.get("value")
-    assert body["rating"]["metrics"] and body["trends"] and body["inputMeta"]
-    until = datetime.fromisoformat(body["pdfAvailableUntil"])
-    assert timedelta(minutes=29) < until - datetime.now(timezone.utc) <= timedelta(minutes=30)
+        assert shown["reading"] == reading_of(source.get("points"))
+        assert shown.get("value") == (None if source.get("value") is None else round(source["value"], 0 if source.get("unit") == "quarters" else 2))
+    assert body["rating"]["metrics"] and body["trends"]
+    assert "inputMeta" not in body and "pdfAvailableUntil" not in body and "sources" not in body            # task #220: not rendered, not sent
     row = await app.state.store.pool.fetchrow("SELECT * FROM prism_reports WHERE symbol = 'TCS' AND statement = 'consolidated'")
     stored = json.loads(row["report"])
     assert row["id"] == body["id"] and row["model_version"] == prism.REQUIRED_MODEL_VERSION and row["label"] == "AVERAGE" and row["status"] == "RATED"
     assert row["final"] == pytest.approx(SNAPSHOT["rating"]["final"])
     assert not set(prism.INTERNAL) & set(stored) and "cached" not in stored
-    assert body["financialHistory"] == stored["financialHistory"] == prism.reader_view(SNAPSHOT)["financialHistory"]
+    assert stored["financialHistory"] == prism.reader_view(SNAPSHOT)["financialHistory"]
+    assert len(body["financialHistory"]["annual"]) == len(stored["financialHistory"]["annual"])              # sent rounded as the page shows
     assert (await gold.get("/api/prism/reports/latest?symbol=TCS")).json()["financialHistory"] == body["financialHistory"]
     kept = json.loads(await app.state.store.redis.get(f"prism:snap:{body['id']}"))
     assert kept["snapshot"]["snapshotReceipt"] and kept["snapshot"]["calculationTrace"] and kept["sub"].startswith("prism:")
@@ -370,10 +372,12 @@ async def test_technical_assessment_is_served_stored_and_kept_whole_for_the_pdf(
     app, fake = env
     gold = await member(app, "gold")
     body = (await generate(gold)).json()
-    assert body["technicalAssessment"] == public_report({"technicalAssessment": prism.technical_view(TECH)})["technicalAssessment"]
+    assert body["technicalAssessment"] == prism_view._technical(public_report({"technicalAssessment": prism.technical_view(TECH)})["technicalAssessment"])
     assert not SECRET_KEYS & keys_anywhere(body["technicalAssessment"]) and leaks(body["technicalAssessment"]) == []
     for key in ("shortTerm", "longTerm"):                              # each signal shows its direction only
-        for shown, source in zip(body["technicalAssessment"][key]["factors"], TECH[key]["factors"]):
+        live = [f for f in TECH[key]["factors"] if f.get("status") != "disabled"]       # task #220: a switched-off signal is not sent
+        assert len(body["technicalAssessment"][key]["factors"]) == len(live)
+        for shown, source in zip(body["technicalAssessment"][key]["factors"], live):
             assert "signal" not in shown and shown["direction"] == (direction_of(source["signal"]) if source["status"] == "available" else None)
     stored = json.loads((await app.state.store.pool.fetchrow("SELECT report FROM prism_reports WHERE symbol = 'TCS'"))["report"])
     assert stored["technicalAssessment"] == prism.technical_view(TECH)  # stored whole: the server keeps the points for its own use
@@ -397,10 +401,10 @@ async def test_stored_report_is_reused_for_six_hours_unless_refreshed(env):
     fresh = (await generate(gold, refresh=True)).json()
     assert fresh["cached"] is False and fresh["id"] != first["id"] and len(fake.reports) == 2
     latest = (await gold.get("/api/prism/reports/latest?symbol=tcs")).json()
-    assert latest["id"] == fresh["id"] and latest["cached"] is True and latest["pdfAvailableUntil"]
+    assert latest["id"] == fresh["id"] and latest["cached"] is True and "pdfAvailableUntil" not in latest
     await app.state.store.pool.execute("UPDATE prism_reports SET generated_at = now() - interval '7 hours', pdf_until = now() - interval '6 hours'")
     old = (await gold.get("/api/prism/reports/latest?symbol=TCS")).json()
-    assert old["pdfAvailableUntil"] is None                              # the snapshot of a stored report has expired
+    assert "pdfAvailableUntil" not in old                                # task #220: there are no PDFs, so the date is not sent
     # Opening a stored report older than six hours may already start a refresh behind the page, so by the time this request arrives the new report can be there (cached: True):
     # what matters is that the old report was replaced by a newly calculated one, exactly once.
     again = (await generate(gold)).json()
@@ -505,7 +509,7 @@ async def test_site_backend_errors_are_mapped(env, answer, status, code, caplog)
     fake.answer = answer
     with caplog.at_level(logging.ERROR, logger="finlit.prism"):
         r = await generate(await member(app, "gold"))
-    assert r.status_code == status and r.json()["status"] == code and r.headers["cache-control"] == "no-store"
+    assert r.status_code == status and r.json()["status"] == code and r.headers["cache-control"] == "private, no-store"
     assert "boom" not in r.text and "providers" not in r.text            # upstream internals are not passed on
     if status == 429:
         assert r.headers["retry-after"] == "7"
@@ -617,18 +621,18 @@ async def test_summary_view_is_small_and_has_what_the_stock_page_needs(env):
     full = (await generate(gold)).json()
     r = await gold.get("/api/prism/reports/latest?symbol=TCS&view=summary")
     s = r.json()["summary"]
-    assert list(r.json()) == ["summary"] and r.headers["cache-control"] == "no-store"
+    assert list(r.json()) == ["summary"] and r.headers["cache-control"] == "private, no-store"
     assert set(s) == {"id", "final", "label", "status", "confidence", "parts", "generatedAt", "technical", "topPros", "topCons", "freshness"}
     assert leaks(s) == []                                                  # no part weights and no model version
     assert s["id"] == full["id"] and s["final"] == full["rating"]["final"] and s["label"] == "AVERAGE" and s["status"] == "RATED"
-    assert s["parts"] == SNAPSHOT["rating"]["parts"]
+    assert s["parts"] == {k: round(v, 1) for k, v in SNAPSHOT["rating"]["parts"].items()}
     assert len(s["topPros"]) == 2 and len(s["topCons"]) == 2 and all(isinstance(x, str) and x for x in s["topPros"] + s["topCons"])
     assert len(r.content) < len(json.dumps(full)) / 5
     assert (await gold.get("/api/prism/reports/latest?symbol=TCS&view=other")).status_code == 422
     assert (await client(app).get("/api/prism/reports/latest?symbol=TCS&view=summary")).status_code == 403
 
 
-async def test_a_technical_part_passes_through_untouched(env):
+async def test_a_part_the_page_does_not_show_stays_off_the_report_but_reaches_the_card(env):
     app, fake = env
     real = fake.snapshot
 
@@ -640,7 +644,7 @@ async def test_a_technical_part_passes_through_untouched(env):
     fake.snapshot = with_technical
     gold = await member(app, "gold")
     report = (await generate(gold)).json()
-    assert report["rating"]["parts"]["technical"] == 61.5 and "partWeights" not in report["rating"]
+    assert set(report["rating"]["parts"]) == {"fundamental", "valuation", "quality", "risk"} and "partWeights" not in report["rating"]   # task #220 allow-list
     s = (await gold.get("/api/prism/reports/latest?symbol=TCS&view=summary")).json()["summary"]
     assert s["parts"]["technical"] == 61.5 and "partWeights" not in s
 
@@ -1137,3 +1141,97 @@ async def test_history_route_is_gold_only_ordered_and_honest_about_its_start(env
     assert refused.status_code == 403 and refused.json()["status"] == "plan_required" and "points" not in refused.text     # the server enforces the plan
     assert (await gold.get("/api/prism/history?symbol=bad%20symbol")).status_code == 422      # the module's own answer for a bad symbol
     assert (await client(app).get("/api/prism/history?symbol=HISTRT")).status_code in (401, 403)
+
+
+# ------------------------------------------------------------------ task #220: the report feed sends only what the page shows, and limits itself
+FORBIDDEN_220 = {"group", "good", "judged", "slips", "medianYoY", "lossFill", "loss", "tier", "lossCapped", "valuationCapped", "trendMultiplier",
+                 "coverage", "judgedQuarters", "completeness", "inputMeta", "sources", "pdfAvailableUntil", "severity", "availableYears", "options",
+                 "stageCapped", "uncappedScore", "dailyBars", "usableDailyBars", "sharesCr", "adjustments", "alerts", "headline", "strengths",
+                 "weaknesses", "flags"}
+
+
+def _decimals(v) -> int:
+    t = repr(v)
+    return len(t.split(".")[1]) if isinstance(v, float) and "." in t and "e" not in t else 0
+
+
+async def test_220_the_feed_is_an_allow_list_with_no_internal_field(env):
+    app, fake = env
+    gold = await member(app, "gold")
+    body = (await gold.get("/api/prism/reports/latest?symbol=TCS")).json() if (await generate(gold)).status_code == 200 else None
+    assert body and not FORBIDDEN_220 & keys_anywhere(body)
+    assert set(body) <= {"id", "createdAt", "completedAt", "statementType", "company", "rating", "review", "warnings", "trends", "benchmark",
+                         "financialHistory", "technicalAssessment", "technical", "cached", "freshness"}
+    for h in ("shortTerm", "longTerm"):                          # a switched-off signal never leaves the server
+        assert all(f["status"] != "disabled" for f in body["technicalAssessment"][h]["factors"])
+    streaks = [m for m in body["rating"]["metrics"] if m["metric"].endswith("_STREAK")]
+    assert streaks and all(set(m["details"]) <= {"streakText"} for m in streaks)
+    assert all(m["details"]["streakText"].endswith("comparable quarters.") or m["details"]["streakText"] == "No comparable quarters yet." for m in streaks if m["details"])
+
+
+async def test_220_every_number_is_rounded_as_the_page_shows_it(env):
+    app, fake = env
+    gold = await member(app, "gold")
+    body = (await generate(gold)).json()
+    r = body["rating"]
+    assert _decimals(r["final"]) <= 1 and all(_decimals(v) <= 1 for v in r["parts"].values()) and _decimals(r["confidence"]) <= 2
+    assert all(_decimals(m["value"]) <= 2 for m in r["metrics"] if m["value"] is not None)
+    for h in ("shortTerm", "longTerm"):
+        s = body["technicalAssessment"][h]["score"]
+        assert s is None or isinstance(s, int)                   # the page shows +22, not 22.3958
+    o = body["technicalAssessment"]["observations"]
+    assert _decimals(o.get("slope150Pct")) <= 1 and _decimals(o.get("beta")) <= 2
+    assert "freshStage2" not in o or o.get("stage") == 2
+    for t in body["trends"]:
+        assert all(_decimals(t[k]) <= 2 for k in ("revenue", "profit", "eps") if t[k] is not None)
+
+
+async def test_220_report_answers_are_private_and_never_stored(env):
+    app, fake = env
+    gold = await member(app, "gold")
+    for r in (await generate(gold), await gold.get("/api/prism/reports/latest?symbol=TCS"), await gold.get("/api/prism/reports/latest?symbol=ZZZZ")):
+        assert r.headers["cache-control"] == "private, no-store"
+
+
+async def test_220_plan_allows_n_different_reports_a_day_and_says_so_with_429(env, monkeypatch):
+    app, fake = env
+    monkeypatch.setitem(prism.PLAN_REPORTS, "gold", 2)
+    gold = await member(app, "gold")
+    assert (await generate(gold, "TCS")).status_code == 200 and (await generate(gold, "INFY")).status_code == 200
+    assert (await gold.get("/api/prism/reports/latest?symbol=TCS")).status_code == 200          # a report opened today does not count again
+    r = await generate(gold, "WIPRO")
+    assert r.status_code == 429 and r.json()["code"] == "daily" and "2 FinLit Prism reports" in r.json()["detail"] and 0 < int(r.headers["retry-after"]) <= 86400
+    assert (await gold.get("/api/prism/reports/latest?symbol=WIPRO")).status_code == 429
+    assert (await generate(gold, "RELIANCE")).status_code == 200                                # the free example company does not count
+    admin = await member(app, "gold", role="admin")
+    for s in ("TCS", "INFY", "WIPRO"):
+        assert (await generate(admin, s)).status_code == 200                                    # administrators are not limited
+
+
+async def test_220_burst_limit_per_account_and_recalculate_limit(env, monkeypatch):
+    app, fake = env
+    monkeypatch.setattr(prism, "BURST_USER", (3, 60))
+    gold = await member(app, "gold")
+    assert (await generate(gold)).status_code == 200
+    for _ in range(2):
+        assert (await gold.get("/api/prism/reports/latest?symbol=TCS")).status_code == 200
+    r = await gold.get("/api/prism/reports/latest?symbol=TCS")
+    assert r.status_code == 429 and r.json()["code"] == "burst" and int(r.headers["retry-after"]) <= 60
+    monkeypatch.setattr(prism, "BURST_USER", (50, 60))
+    monkeypatch.setattr(prism, "RECALC_LIMIT", (1, 600))
+    other = await member(app, "gold")
+    assert (await generate(other, refresh=True)).status_code == 200
+    r = await generate(other, refresh=True)
+    assert r.status_code == 429 and r.json()["code"] == "recalculate"
+
+
+async def test_220_an_account_opening_many_companies_quickly_is_recorded_for_review_not_blocked(env, monkeypatch):
+    app, fake = env
+    monkeypatch.setattr(prism, "SWEEP_SYMBOLS", 3)
+    gold = await member(app, "gold")
+    for s in ("TCS", "INFY"):
+        assert (await generate(gold, s)).status_code == 200
+    assert await app.state.store.redis.hget(prism.SWEEP_KEY, gold.user_id) is None
+    assert (await generate(gold, "WIPRO")).status_code == 200                                   # not blocked
+    seen = json.loads(await app.state.store.redis.hget(prism.SWEEP_KEY, gold.user_id))
+    assert seen["companies"] == 3 and seen["withinSeconds"] == prism.SWEEP_SECONDS

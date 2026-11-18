@@ -108,7 +108,7 @@ describe("history series", () => {
 describe("report rendering", () => {
   it("shows a fifth part card and arc by itself when the model sends a technical part", () => {
     const r = JSON.parse(JSON.stringify(E)) as PrismReport;
-    r.rating.parts.technical = 61.2; r.rating.coverage.technical = 1;
+    r.rating.parts.technical = 61.2; r.rating.coverage!.technical = 1;
     const html = renderToStaticMarkup(<MemoryRouter><PrismReportView report={r} /></MemoryRouter>);
     expect(html).toMatch(/Technical 61 of 100: [A-Za-z]+\./);       // the fifth component of the ring, without a weight
     expect(html).not.toContain("Counts for");

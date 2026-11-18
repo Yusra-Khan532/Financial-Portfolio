@@ -64,7 +64,7 @@ function PartSection({ part, index, report, review, filter, sort }: { part: Revi
       {rows.length ? (
         <>
           <div className="pzr-fr-head" aria-hidden="true"><span>Factor</span><span>Value</span><span>Position</span><span>Reading</span><span>Status</span></div>
-          <ul className="pzr-fl" aria-label={`${partInfo(part.key).name} factors`}>{rows.map((r) => <Row key={r.metric} row={r} review={review} part={part.key} group={rating.group} />)}</ul>
+          <ul className="pzr-fl" aria-label={`${partInfo(part.key).name} factors`}>{rows.map((r) => <Row key={r.metric} row={r} review={review} part={part.key} group={rating.group ?? ""} />)}</ul>
         </>
       ) : <p className="pzr-empty">{all.length ? `No ${FILTER_WORD[filter].toLowerCase()} in this part.` : "No factors are listed for this part."}</p>}
     </section>
