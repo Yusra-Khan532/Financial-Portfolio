@@ -13,6 +13,33 @@ const Ctx = createContext<Zoom>({ inside: false, zoomed: false });
 /** True while the chart is drawn in the enlarged dialog (charts with a fixed height can grow). */
 export const useChartZoomed = () => useContext(Ctx).zoomed;
 
+/** For a chart drawn at a fixed pixel height (task #167: in the enlarged dialog such charts kept their small height, leaving the lower half of the
+ *  screen empty). Put `ref` on the box that holds the drawing (the svg's own wrapper) and draw at the returned height: `base` in the page; in the
+ *  dialog, the room the dialog has left once the chart's title, buttons, legend and notes are counted, so the chart fills the screen. Never smaller than `base`.
+ *  It watches the box itself rather than the zoom context, so it also works for a chart that renders its own <ChartZoom> around it. */
+export function useZoomHeight<T extends Element = HTMLDivElement>(base: number, target?: React.RefObject<T | null>): [React.RefObject<T | null>, number] {
+  const own = useRef<T>(null), ref = target ?? own;   // a chart that already keeps a ref on its svg passes it here
+  const [h, setH] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    let watched: HTMLElement | null = null;
+    const fit = () => {
+      const body = el.closest<HTMLElement>(".cz-body"), host = body?.querySelector<HTMLElement>(".cz-host");
+      if (body !== watched) { if (watched) ro.unobserve(watched); watched = body ?? null; if (body) ro.observe(body); }
+      if (!body || !host) { setH(0); return; }   // back in the page
+      const zoom = parseFloat(getComputedStyle(host).getPropertyValue("zoom")) || 1;   // the dialog's own +/− zoom scales the host
+      const others = (host.getBoundingClientRect().height - el.getBoundingClientRect().height) / zoom;   // everything in the dialog but the drawing
+      const room = Math.floor(body.clientHeight / zoom - others - 8);
+      setH((o) => (Math.abs(o - room) > 2 ? room : o));
+    };
+    const ro = new ResizeObserver(fit);   // the box changes size when the chart moves into the dialog and back
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ref]);
+  return [ref, h > base ? h : base];
+}
+
 /** For a chart that is handed its pixel width by its page: put `ref` on a full-width box around the chart and draw at `width`.
  *  In the page it is `base`; in the enlarged dialog it is the dialog's width, so the chart redraws at the big size. */
 export function useZoomWidth(base: number): [React.RefObject<HTMLDivElement | null>, number] {

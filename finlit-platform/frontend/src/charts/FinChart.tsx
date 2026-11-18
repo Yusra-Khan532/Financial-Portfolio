@@ -15,7 +15,7 @@ export { axisUnit };
 /** Statement charts: P&L (revenue bars, profit bars, margin line), balance-sheet funding stack, cash-flow groups. */
 export function FinChart({ kind, pl, bs, cf, ql }: { kind: FinKind; pl: Table; bs: Table; cf: Table; ql: Table }) {
   const tip = useRef<HTMLDivElement>(null);
-  const { wrap, svg } = useChart((s, W, first) => {
+  const { wrap, svg } = useChart((s, W, first, fill) => {   // fill (task #167): the full-screen view's room, used by every chart below
     const small = W < 560;
     const showTip = (html: (d: HTMLElement) => void, i: number, step: number, x0: number, H: number) => {
       const t = tip.current; if (!t) return;
@@ -38,7 +38,7 @@ export function FinChart({ kind, pl, bs, cf, ql }: { kind: FinKind; pl: Table; b
       // one value per period even when a line is missing (a row the provider does not report would otherwise draw NaN)
       const rev = labels.map((_, i) => v0(get(t, "revenue")[i])), np = labels.map((_, i) => v0(get(t, "net_profit")[i]));
       const margins = rev.map((r, i) => (r && Number.isFinite(np[i] / r) ? (np[i] / r) * 100 : 0));
-      const H = small ? 320 : 360; s.setAttribute("viewBox", `0 0 ${W} ${H}`); s.style.height = H + "px";
+      const H = Math.max(small ? 320 : 360, fill ?? 0); s.setAttribute("viewBox", `0 0 ${W} ${H}`); s.style.height = H + "px";
       const pl_ = 50, pr = 46, step = (W - pl_ - pr) / n, bw = Math.min(54, step * 0.52), topH = H * 0.44, botT = topH + 40, botH = H - botT - 28;
       const rmx = niceTicks(Math.max(...rev, 1)).top, nmx = niceTicks(Math.max(...np.map(Math.abs), 1)).top, mmx = Math.max(...margins.map(Math.abs), 1) * 1.2;
       const gRev = vgrad(s, css("--c2"), 0.9, 0.35), gGold = vgrad(s, css("--c1"), 1, 0.55), gNp = vgrad(s, css("--c3"), 0.9, 0.35), gLoss = vgrad(s, css("--loss"), 0.9, 0.4);
@@ -61,7 +61,7 @@ export function FinChart({ kind, pl, bs, cf, ql }: { kind: FinKind; pl: Table; b
       labels.forEach((_, i) => el("circle", { cx: pl_ + step * (i + 0.5), cy: botT + (1 - Math.max(0, margins[i]) / mmx) * botH, r: 4.5, fill: css("--c4"), stroke: css("--s1"), "stroke-width": 2 }, s));
       hoverBands(n, pl_, step, H, (i, d) => { line(d, labels[i], "faint"); line(d, `Revenue ₹${cr(rev[i])} Cr`, "", "b"); line(d, `Net profit ₹${num(np[i], 0)} Cr · margin ${nf(margins[i], 1)}%`, "muted"); });
     } else if (kind === "bs") {
-      const labels = bs.periods, n = labels.length, H = 320; s.setAttribute("viewBox", `0 0 ${W} ${H}`); s.style.height = H + "px";
+      const labels = bs.periods, n = labels.length, H = Math.max(320, fill ?? 0); s.setAttribute("viewBox", `0 0 ${W} ${H}`); s.style.height = H + "px";
       const pl_ = 50, pr = 16, pt = 22, pb = 28, step = (W - pl_ - pr) / n, bw = Math.min(64, step * 0.56);
       const eq = get(bs, "total_equity").map(v0), bo = get(bs, "borrowings").map(v0), ta = get(bs, "total_assets").map(v0);
       const oth = ta.map((a, i) => Math.max(0, a - eq[i] - bo[i])), mx = niceTicks(Math.max(...ta, 1)).top, bu = axisUnit(mx);
@@ -76,7 +76,7 @@ export function FinChart({ kind, pl, bs, cf, ql }: { kind: FinKind; pl: Table; b
       });
       hoverBands(n, pl_, step, H, (i, d) => { line(d, `${labels[i]} · funded by`, "faint"); line(d, `₹${cr(ta[i])} Cr`, "", "b"); parts.forEach(([nm, arr]) => line(d, `${nm} ₹${cr(arr[i])} Cr`, "muted", "div")); });
     } else {
-      const labels = cf.periods, n = labels.length, H = 320; s.setAttribute("viewBox", `0 0 ${W} ${H}`); s.style.height = H + "px";
+      const labels = cf.periods, n = labels.length, H = Math.max(320, fill ?? 0); s.setAttribute("viewBox", `0 0 ${W} ${H}`); s.style.height = H + "px";
       const pl_ = 50, pr = 16, pt = 22, pb = 28, step = (W - pl_ - pr) / n, bw = Math.min(24, step * 0.2);
       const op = get(cf, "operating").map(v0), inv = get(cf, "investing").map(v0), fin = get(cf, "financing").map(v0), fcf = get(cf, "free_cash_flow").map(v0);
       const all = [...op, ...inv, ...fin, ...fcf], { lo: mn, hi: mx } = niceRange(Math.min(...all, 0), Math.max(...all, 1)), cu = axisUnit(Math.max(Math.abs(mn), mx));

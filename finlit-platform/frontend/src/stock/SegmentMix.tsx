@@ -7,7 +7,7 @@ import {
   axisCr, axisPct, cagrText, chartModel, chartSummary, mixStatus, niceTicks, pp, sortRows, stackTop, tableRows,
   type ChartModel, type SortKey, type TableRow,
 } from "../lib/segmentMix";
-import { ChartZoom } from "../components/ChartZoom";
+import { ChartZoom, useZoomHeight } from "../components/ChartZoom";
 
 type Mode = "revenue" | "share";
 const rs = (n: number | null | undefined) => (n == null ? "—" : "₹" + cr(n) + " Cr");
@@ -25,7 +25,8 @@ function MixChart({ model, mode }: { model: ChartModel; mode: Mode }) {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const n = model.years.length, H = w < 480 ? 250 : 290, pl = mode === "revenue" ? 44 : 40, pr = 8, pt = 10, pb = 26;
+  const [svgRef, H] = useZoomHeight<SVGSVGElement>(w < 480 ? 250 : 290);   // task #167: in full screen it fills the height too
+  const n = model.years.length, pl = mode === "revenue" ? 44 : 40, pr = 8, pt = 10, pb = 26;
   const top = Math.max(...model.years.map((_, i) => stackTop(model, i, mode)), 0);
   const ticks = mode === "share" ? niceTicks(Math.max(100, top), 4) : niceTicks(top, 4);
   const max = ticks[ticks.length - 1] || 1;
@@ -36,7 +37,7 @@ function MixChart({ model, mode }: { model: ChartModel; mode: Mode }) {
   const fmt = mode === "revenue" ? axisCr : axisPct;
   return (
     <div className="mx-chart" ref={box} onMouseLeave={() => setHv(null)}>
-      <svg width={w} height={H} viewBox={`0 0 ${w} ${H}`} role="img" aria-label={chartSummary(model)}>
+      <svg ref={svgRef} width={w} height={H} viewBox={`0 0 ${w} ${H}`} role="img" aria-label={chartSummary(model)}>
         {ticks.map((t) => <g key={t}><line x1={pl} x2={w - pr} y1={Y(t)} y2={Y(t)} stroke="var(--border)" strokeWidth={t === 0 ? 1.2 : 1} /><text x={pl - 6} y={Y(t) + 3.5} textAnchor="end" fontSize="11" fill="var(--faint)" fontFamily="IBM Plex Mono, monospace">{fmt(t)}</text></g>)}
         {model.years.map((y, i) => {
           let acc = 0;
