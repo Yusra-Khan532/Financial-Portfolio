@@ -15,7 +15,7 @@
 .pcx-ic { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; color: var(--ac); background: color-mix(in srgb, var(--ac) 16%, transparent); border: 1px solid color-mix(in srgb, var(--ac) 28%, transparent); }
 .pcx-ic svg { width: 24px; height: 24px; }
 .pcx-ht { min-width: 0; }
-.pcx-hrow { display: flex; align-items: center; gap: 10px; }
+.pcx-nw { white-space: nowrap; }   /* task #230: the heading's "i" stays right after its last word, never alone at the far right */
 .pcx-ht h3 { margin: 0; font: 500 24px/1.2 var(--serif); letter-spacing: .05em; text-transform: uppercase; color: var(--text); }
 .pcx-ht p { margin: 4px 0 0; font-size: 14px; line-height: 1.45; color: var(--muted); }
 .pcx-note { display: flex; align-items: flex-start; gap: 10px; margin: 0; padding: 12px 14px; border-radius: 12px; font-size: var(--fs-13); line-height: 1.5; color: var(--muted); background: color-mix(in srgb, #5B7BE8 9%, rgba(var(--dk-w), .02)); border: 1px solid color-mix(in srgb, #5B7BE8 20%, var(--border)); }
