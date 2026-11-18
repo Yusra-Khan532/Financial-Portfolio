@@ -12,6 +12,7 @@ from ..mcp.gateway import Gateway, ToolError
 from ..mcp.schema import SYMBOL_SCHEMA, ArgError, clean_symbol, validate
 from ..mcp.server import envelope
 from ..mcp.tools import TOOLS as MCP_TOOLS, Out, Tool
+from . import pages as P
 
 # A tool result is kept under about 3,000 tokens (the MCP server allows 100 KB): smaller is faster and cheaper, and the biggest list is cut with a note.
 RESULT_CAP = 12_000
@@ -170,7 +171,7 @@ MINE = [
     Tool("get_my_funds", "My mutual funds", "This member's own mutual fund portfolio on FinLit: the funds, units, value, and how the funds are spread and overlap, as their plan shows it.", {}, get_my_funds),
     Tool("get_my_watchlists", "My watchlists", "The names of this member's watchlists on FinLit and the companies in each.", {}, get_my_watchlists),
 ]
-TOOLS: List[Tool] = [*PAGE, *MCP_TOOLS, *MINE]
+TOOLS: List[Tool] = [*PAGE, *P.TOOLS, *MCP_TOOLS, *MINE]   # P: the other FinLit pages (task #218)
 BY_NAME: Dict[str, Tool] = {t.name: t for t in TOOLS}
 # What the panel says while a tool runs ("Reading RELIANCE's ratios…")
 DOING = {"search_stocks": "Finding the company", "get_stock_quote": "Reading the latest price", "get_batch_quotes": "Reading the latest prices",
@@ -181,7 +182,7 @@ DOING = {"search_stocks": "Finding the company", "get_stock_quote": "Reading the
          "search_funds": "Finding the fund", "get_fund_details": "Reading the fund details", "list_etfs": "Reading the ETF list", "get_etf": "Reading the ETF",
          "get_data_freshness": "Checking how fresh the data is", "get_my_portfolio": "Reading your portfolio", "get_my_funds": "Reading your mutual funds",
          "get_my_watchlists": "Reading your watchlists", "get_company_card": "Reading the company page", "get_finlit_prism": "Reading FinLit Prism",
-         "get_company_section": "Reading the company page"}
+         "get_company_section": "Reading the company page", **P.DOING}
 
 
 # The web, for what FinLit's data does not hold (founder, 18 Nov 2026: answer every question, as Claude does, in a few simple lines). Run by the provider;
@@ -215,7 +216,7 @@ async def run(gw: Gateway, name: str, args: Any) -> Dict[str, Any]:
         return {"text": "The arguments must be an object.", "error": True}
     try:
         clean, notes = validate(args, tool.listing()["inputSchema"])
-        out = await asyncio.wait_for(tool.handler(gw, clean), timeout=20)
+        out = await asyncio.wait_for(tool.handler(gw, clean), timeout=P.TIMEOUTS.get(name, 20))
         env = envelope(name, out, notes, RESULT_CAP)
     except ArgError as e:
         return {"text": f"Invalid arguments: {e}", "error": True}

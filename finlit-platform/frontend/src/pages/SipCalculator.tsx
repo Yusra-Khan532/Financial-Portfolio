@@ -3,7 +3,7 @@
 // an equity capital-gains estimate, a fund's real past return as the assumption, and a link that reopens the same plan.
 // All arithmetic lives in lib/sip.ts (pure and tested); this page only collects inputs and draws. Information only, not advice.
 import { PageHeader } from "../components/PageHeader";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useDocTitle } from "../lib/title";
@@ -104,9 +104,12 @@ function Donut({ invested, gain, value }: { invested: number; gain: number; valu
   const r = 70, c = 2 * Math.PI * r, total = Math.max(1, invested + Math.max(0, gain));
   const inv = (invested / total) * c;
   const shown = useGlide(value);
+  const [dref, zh] = useZoomHeight<HTMLDivElement>(0);   // task #167: in the enlarged dialog the ring grows to the room there is, centred, its figures scaled with it
+  const [size, setSize] = useState(240);   // the ring's drawn width: the room's height, or less on a narrow screen
+  useLayoutEffect(() => { const w = dref.current?.clientWidth; if (w && Math.abs(w - size) > 1) setSize(w); });
   return (
     <ChartZoom label={"Invested amount and wealth gained"}>
-    <div className="sip-donut">
+    <div className={"sip-donut" + (zh > 240 ? " fit" : "")} ref={dref} style={zh > 240 ? { width: `min(${zh}px, 100%)`, transform: `translateY(${Math.max(0, Math.floor((zh - size) / 2))}px)`,   /* centred in a tall dialog; a transform, so the room it is measured from does not change */ ["--sd" as string]: size / 240 } : undefined}>
       <svg viewBox="0 0 180 180" role="img" aria-label={`Invested ${rupees(invested)}, gained ${rupees(gain)}`}>
         <defs><linearGradient id="sipGain" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="var(--gold-2)" /><stop offset="1" stopColor="var(--gold-deep)" /></linearGradient></defs>
         <circle cx="90" cy="90" r={r} className="sip-d-bg" />

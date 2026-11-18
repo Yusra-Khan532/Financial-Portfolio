@@ -1,14 +1,14 @@
-import { Suspense, lazy, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router";
 import { faqForPath } from "../lib/pageFaqs";
 import { SECOND } from "../lib/questionBank";
 import { answerCompany, generalAnswer, matchQuestion, searchListed, type Match } from "../lib/askAnswers";
 import { apiGet, type SearchIndex } from "../lib/api";
-import { AskRefused, askAi, useAskQuota, type AskTurn } from "../lib/askAi";
+import { AskRefused, askAi, safePages, useAskQuota, type AskTurn } from "../lib/askAi";
 import { useAuth } from "../lib/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  CATEGORIES, QUARTERS, SEGMENTS, TABS, categoryQuestions, isLenderSector, financialYears, quarterQuestion, quarterTrendQuestion, related, tabQuestions,
+  CATEGORIES, MARKET_QUESTIONS, QUARTERS, SEGMENTS, TABS, categoryQuestions, isLenderSector, financialYears, quarterQuestion, quarterTrendQuestion, related, tabQuestions,
   type CategoryId, type Q, type TabId,
 } from "../lib/askFlow";
 import { Icon } from "../lib/icons";
@@ -16,14 +16,13 @@ import { Link } from "react-router";
 import { TOPICS, clearRecent, loadRecent, loadSaved, pushRecent, searchQuestions, toggleSaved } from "../lib/askExplorer";
 import { STARTERS } from "../lib/questionBank";
 import "../styles/ask-ai.css";
+import { CoLogo } from "./CoLogo";
+import { AnswerText } from "./AnswerText";
+import { QUICK_PICKS } from "../lib/outlookPick";
 import type { FundCtx } from "../lib/askFunds";
 import type { Answer } from "../lib/askAnswers";
 const AskFunds = lazy(() => import("./AskFunds").then((m) => ({ default: m.AskFunds })));   // task #203: the 1,391 fund questions load only when the theme opens
 
-/** An answer's text with its **bold** figures drawn bold (task #203: the fund answers mark the numbers that matter). Text only: nothing is read as HTML. */
-export function Rich({ text }: { text: string }): ReactNode {
-  return text.split(/(\*\*[^*\n]+\*\*)/g).map((part, i) => (part.length > 4 && part.startsWith("**") && part.endsWith("**") ? <b key={i}>{part.slice(2, -2)}</b> : part));
-}
 /** The theme card on the start screen (the other four are lib/askFlow.ts CATEGORIES). */
 const FUNDS_CARD = { id: "funds", title: "Mutual funds & ETFs", sub: "Funds, returns, costs, ETFs", icon: "pie" } as const;
 
@@ -31,7 +30,7 @@ import { OPEN_AI } from "./assistantEvents";
 export { OPEN_AI };
 /** `ai`: a written answer from FinLit AI (task #211): what it is reading while the words have not come yet, the disclaimer once done, a refusal, or the note
  *  that written answers are part of Silver and Gold (Basic and visitors keep the listed questions: founder, 17 Nov 2026). */
-type Msg = { role: "user" | "assistant"; content: string; link?: { to: string; label: string }; suggest?: Q[]; ai?: { status?: string; disclaimer?: string; error?: boolean; plans?: boolean } };
+type Msg = { role: "user" | "assistant"; content: string; link?: { to: string; label: string }; actions?: { to: string; label: string }[]; suggest?: Q[]; ai?: { status?: string; disclaimer?: string; error?: boolean; plans?: boolean } };
 type View = "home" | "segments" | "topic" | "company" | "chat" | "history" | "saved" | "funds";
 
 let indexPromise: Promise<SearchIndex> | null = null;
@@ -80,7 +79,10 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
   const lender = isLenderSector(sector);
 
   useEffect(() => { const o = () => setOpen(true); addEventListener(OPEN_AI, o); return () => removeEventListener(OPEN_AI, o); }, []);   // the "Ask FinLit AI" button in the header bar
-  useEffect(() => { end.current?.scrollIntoView?.({ block: "end" }); }, [msgs, view, tab, open, busy, found]);
+  useEffect(() => {   // the conversation keeps its newest message in view; every other screen opens at its top (task #201: the start screen used to open scrolled down, its top cut off)
+    if (view === "chat") end.current?.scrollIntoView?.({ block: "end" });
+    else end.current?.closest(".ai-body")?.scrollTo?.({ top: 0 });
+  }, [msgs, view, tab, open, busy, found]);
   useEffect(() => {   // Esc closes the panel (a dialog must)
     if (!open) return;
     const k = (e: KeyboardEvent) => { if (e.key !== "Escape") return; if (big) setBig(false); else setOpen(false); };   // Esc leaves the full window first
@@ -136,7 +138,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
         if (e.type === "status") patch((m) => ({ ...m, ai: { ...m.ai, status: e.text } }));
         else if (e.type === "text") patch((m) => ({ ...m, content: m.content + e.text, ai: { ...m.ai, status: undefined } }));
         else if (e.type === "replace") patch((m) => ({ ...m, content: e.text, ai: { ...m.ai, status: undefined } }));
-        else if (e.type === "done") patch((m) => ({ ...m, ai: { disclaimer: e.disclaimer } }));
+        else if (e.type === "done") patch((m) => { const pages = safePages(e.pages); return { ...m, ai: { disclaimer: e.disclaimer }, ...(pages.length ? { actions: pages } : {}) }; });   // task #218: the FinLit pages the answer read
         else if (e.type === "error") patch((m) => ({ ...m, content: m.content ? `${m.content}\n\n${e.text}` : e.text, ai: { error: true } }));
       });
     } catch (err) {
@@ -171,7 +173,8 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
       let second = found.second;
       if (found.id === "C.11.Q39" && second) { const hit = (await findCompanies(second).catch(() => []))[0]; second = hit ? hit.symbol : second.toUpperCase(); }
       const a = await answerCompany(found.id, found.sym, { second, quarter: found.quarter, fy: found.fy });
-      setMsgs((m) => [...m, { role: "assistant", content: a.text, link: a.link }]);
+      const sym = encodeURIComponent(found.sym);   // task #201: clear next steps after an answer about a company
+      setMsgs((m) => [...m, { role: "assistant", content: a.text, link: a.link, actions: [{ to: `/graphs?c=${sym}`, label: "View in Chart Builder" }, { to: `/compare?c=${sym}`, label: "Compare with peers" }] }]);
     } catch { setMsgs((m) => [...m, { role: "assistant", content: "This answer could not be put together just now. Please try again, or open the company report." }]); }
     finally { setBusy(false); }
   };
@@ -202,6 +205,26 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
   // with written answers on, a sentence that is not a listed question goes to FinLit AI as typed; without them, its closest listed question is asked
   const send = (e: React.FormEvent) => { e.preventDefault(); const t = text.trim(); if (!t) return; const top = searchListed(t, company, 1)[0]; void ask(generalAnswer(t) || matchQuestion(t, company) || aiReady || aiPlan || !top ? t : top.text, view === "chat" ? back : view); };
   const typed = text.trim().length >= 2 && !text.includes(SECOND) ? searchListed(text, company, 5) : [];   // the typing box searches the listed questions
+  /** Task #201: the start screen's search, above the cards: ask anything at once, with a few things to try. On the start screen it is the one box (the box at the
+   *  bottom is hidden there), and the listed questions that match show under it. */
+  const TRY: { label: string; go: () => void }[] = [
+    { label: "Reliance financials", go: () => goCompany("RELIANCE", "financials") },
+    { label: "P/E ratio", go: () => void ask("What is P/E and how is it used?", "home") },
+    { label: "Sector outlook", go: () => void ask(MARKET_QUESTIONS[3].text, "home") },
+    { label: "Red flags", go: () => void ask("What are the key red flags in the financials?", "home") },
+  ];
+  const askBox = (
+    <div className="aif-askw">
+      <form className="aif-ask" onSubmit={send} role="search">
+        <Icon name="search" />
+        <input value={text} onChange={(e) => setText(e.target.value)} maxLength={300} aria-label="Ask FinLit AI anything"
+          placeholder="Ask anything about a company, sector or investment concept…" autoComplete="off" />
+        <button disabled={busy || !text.trim()} aria-label="Ask"><Icon name="arrow" /></button>
+      </form>
+      {typed.length > 0 && <ul className="aif-typed aif-typed-top" aria-label="Listed questions that match">{typed.map((q) => <li key={q.id + q.text}><button type="button" onClick={() => tapQ(q)}><Icon name="search" /><span>{q.text}</span></button></li>)}</ul>}
+      <p className="aif-try"><span>Try asking</span>{TRY.map((t) => <button key={t.label} type="button" onClick={t.go}>{t.label}</button>)}</p>
+    </div>);
+  const moreThemes = <p className="aif-more"><span>More themes</span><button type="button" onClick={() => setView("funds")}><Icon name={FUNDS_CARD.icon} />{FUNDS_CARD.title}</button></p>;
 
   return (
     <>
@@ -240,12 +263,13 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
                 <circle cx="48" cy="53" r="6.5" fill="currentColor" /><circle cx="72" cy="53" r="6.5" fill="currentColor" />
                 <rect x="14" y="44" width="8" height="18" rx="4" fill="currentColor" fillOpacity=".7" /><rect x="98" y="44" width="8" height="18" rx="4" fill="currentColor" fillOpacity=".7" /></svg>
                 <h2>Hi, I’m <em>FinLit AI</em></h2><p>Your investing &amp; market research assistant</p></div>
+              {askBox}
               <ul className="aif-cats" aria-label="What would you like to explore?">
                 {CATEGORIES.map((c) => (
                   <li key={c.id}><button type="button" className={"aif-cat aif-c-" + c.id} onClick={() => { if (c.id === "company") { if (company) setView("company"); else setView("segments"); } else { setCategory(c.id); setView("topic"); } }}>
                     <Icon name={c.icon} /><b>{c.title}</b><small>{c.sub}</small><i className="aif-go" aria-hidden="true"><Icon name="arrow" /></i></button></li>))}
-                <li><button type="button" className="aif-cat aif-c-funds" onClick={() => setView("funds")}><Icon name={FUNDS_CARD.icon} /><b>{FUNDS_CARD.title}</b><small>{FUNDS_CARD.sub}</small><i className="aif-go" aria-hidden="true"><Icon name="arrow" /></i></button></li>
               </ul>
+              {moreThemes}
               <div className="aif-ex">
                 <div className="aif-exh"><h3><Icon name="spark" /> Choose a question to ask</h3>
                   <label className="aif-exs"><Icon name="search" /><span className="sr-only">Search questions</span><input type="search" value={exq} onChange={(e) => setExq(e.target.value)} placeholder="Search questions (e.g., P/E, cash flow, DuPont)" autoComplete="off" /></label></div>
@@ -262,12 +286,13 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
             </>}
             {view === "home" && !big && <>
               <div className="bub bot aif-hi"><b>Hi, I'm FinLit AI</b><span>How can I help you today?</span></div>
+              {askBox}
               <ul className="aif-cats" aria-label="What would you like to explore?">
                 {CATEGORIES.map((c) => (
                   <li key={c.id}><button type="button" className="aif-cat" onClick={() => { if (c.id === "company") { if (company) setView("company"); else setView("segments"); } else { setCategory(c.id); setView("topic"); } }}>
                     <Icon name={c.icon} /><b>{c.title}</b><small>{c.sub}</small></button></li>))}
-                <li><button type="button" className="aif-cat" onClick={() => setView("funds")}><Icon name={FUNDS_CARD.icon} /><b>{FUNDS_CARD.title}</b><small>{FUNDS_CARD.sub}</small></button></li>
               </ul>
+              {moreThemes}
               {pageFaq && <><p className="aif-label">Questions about this page</p><ul className="aif-qs" aria-label={`Questions about ${pageFaq.title}`}>
                 {pageFaq.items.slice(0, 4).map((it) => <li key={it.q}><button type="button" className="aif-q" onClick={() => askPage(it.q, it.a)}><Icon name="chat" /><span>{it.q}</span><Icon name="arrow" /></button></li>)}</ul></>}
             </>}
@@ -301,6 +326,8 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
                 {findErr && <p className="aif-err" role="status">{findErr}</p>}
                 {found.length > 0 && <ul className="aif-found" aria-label="Matching companies">{found.map((c) => <li key={c.symbol}><button type="button" onClick={() => goCompany(c.symbol, pendingTab)}><b>{c.symbol}</b><span>{c.name}</span></button></li>)}</ul>}
                 {!found.length && find.trim().length >= 2 && !findErr && <p className="aif-none">No company matches “{find.trim()}”.</p>}
+                {!find.trim() && <><p className="aif-label">Or choose from popular companies</p>
+                  <ul className="aif-pops" aria-label="Popular companies">{QUICK_PICKS.map((c) => <li key={c.symbol}><button type="button" onClick={() => goCompany(c.symbol, pendingTab)}><CoLogo symbol={c.symbol} name={c.name} size={28} inline /><span>{c.name}</span></button></li>)}</ul></>}
               </div>}
             </>}
 
@@ -359,10 +386,11 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
             </>}
 
             {view === "chat" && <>
-              {msgs.map((m, i) => <div key={i} className={"bub " + (m.role === "user" ? "me" : "bot") + (m.ai?.error ? " aif-bub-err" : "")} style={{ whiteSpace: "pre-wrap" }} aria-busy={!!m.ai?.status || undefined}>{m.ai?.status && !m.content ? <span className="aif-reading" role="status"><i />{m.ai.status}…</span> : m.role === "assistant" ? <Rich text={m.content} /> : m.content}
+              {msgs.map((m, i) => <div key={i} className={"bub " + (m.role === "user" ? "me" : "bot") + (m.ai?.error ? " aif-bub-err" : "")} style={m.role === "user" ? { whiteSpace: "pre-wrap" } : undefined} aria-busy={!!m.ai?.status || undefined}>{m.ai?.status && !m.content ? <span className="aif-reading" role="status"><i />{m.ai.status}…</span> : m.role === "assistant" ? <AnswerText text={m.content} /> : m.content}
                 {m.ai?.disclaimer && <small className="aif-disc">{m.ai.disclaimer}</small>}
                 {m.ai?.plans && <Link className="aif-ans-link" to="/plans" onClick={() => { if (!big) setOpen(false); }}>See the plans <Icon name="arrow" /></Link>}{m.role === "user" && <button type="button" className={"aif-save" + (saved.includes(m.content) ? " on" : "")} aria-pressed={saved.includes(m.content)} aria-label={saved.includes(m.content) ? "Remove this question from saved" : "Save this question"} title={saved.includes(m.content) ? "Saved" : "Save this question"} onClick={() => setSaved((l) => toggleSaved(l, m.content))}><Icon name="star" /></button>}
                 {m.link && <Link className="aif-ans-link" to={m.link.to} onClick={() => { if (!big) setOpen(false); }}>{m.link.label} <Icon name="arrow" /></Link>}
+                {m.actions && <p className="aif-acts">{m.ai && <span className="aif-acts-l">Read on FinLit</span>}{m.actions.map((a) => <Link key={a.to} to={a.to} onClick={() => { if (!big) setOpen(false); }}>{a.label} <Icon name="arrow" /></Link>)}</p>}
                 {m.suggest && m.suggest.length > 0 && <ul className="aif-qs aif-sugq" aria-label="Closest listed questions">{m.suggest.map((q) => row(q))}</ul>}</div>)}
               {busy && !msgs[msgs.length - 1]?.ai && <div className="bub bot typing" role="status" aria-label="Putting the answer together from FinLit's figures"><i /><i /><i /></div>}
               {!busy && msgs.length > 0 && relatedQs.length > 0 && <div className="aif-rel"><p className="aif-label">Related questions</p>
@@ -373,8 +401,8 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
             </>}
             <div ref={end} />
           </div>
-          {typed.length > 0 && <ul className="aif-typed" aria-label="Listed questions that match">{typed.map((q) => <li key={q.id + q.text}><button type="button" onClick={() => tapQ(q)}><Icon name="search" /><span>{q.text}</span></button></li>)}</ul>}
-          <form onSubmit={send}>
+          {view !== "home" && typed.length > 0 && <ul className="aif-typed" aria-label="Listed questions that match">{typed.map((q) => <li key={q.id + q.text}><button type="button" onClick={() => tapQ(q)}><Icon name="search" /><span>{q.text}</span></button></li>)}</ul>}
+          <form onSubmit={send} hidden={view === "home"}>
             <input ref={field} value={text} onChange={(e) => setText(e.target.value)} maxLength={300}
               placeholder={aiReady ? (company && view !== "home" ? `Ask anything about ${company}` : "Ask about a company, a fund or the market") : company && view !== "home" ? `Search ${company}'s questions (e.g. debt, dividend, P/E)` : "Search the questions (e.g. P/E, cash flow, debt)"}
               aria-label={aiReady ? "Your question for FinLit AI" : "Search the listed questions"} />

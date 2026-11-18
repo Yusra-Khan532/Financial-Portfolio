@@ -8,7 +8,7 @@ import "../styles/macro-outlook.css";
 import { GROUP_ICON, arrow, companyRows, driverText, indicatorsForReasons, insufficientText, pct, reasonsOf, shortName, signed, useCompanyMacro, useMacroHistory, useSectorImpact,
   MACRO_RANGES, macroSummary, macroWindow, readings, type MacroRange, type HistoryPoint,
   type CompanyMacro, type Driver, type Indicator, type Item, type Reason, type SectorRow, type Tone } from "../lib/macroOutlook";
-import { ChartZoom } from "../components/ChartZoom";
+import { ChartZoom, useZoomHeight } from "../components/ChartZoom";
 import { DropChev } from "../components/DropChev";
 
 
@@ -134,14 +134,16 @@ function Interpretation({ c }: { c: CompanyMacro }) {
    solid dot is calculated on the day, a hollow one reconstructed from stored data. */
 export function Chart({ points }: { points: HistoryPoint[] }) {
   const pts = readings(points);
-  const W = 520, H = 230, L = 34, R = 14, T = 14, B = 26;
+  // task #167: in the enlarged dialog it draws as tall as the room left (its viewBox is scaled to the width, so the room is turned into viewBox units)
+  const [ref, zh] = useZoomHeight<SVGSVGElement>(0), sw = ref.current?.clientWidth ?? 0;
+  const W = 520, H = zh > 0 && sw > 0 ? Math.max(230, Math.floor((zh * W) / sw)) : 230, L = 34, R = 14, T = 14, B = 26;
   const x = (i: number) => L + (pts.length < 2 ? (W - L - R) / 2 : (i / (pts.length - 1)) * (W - L - R));
   const y = (v: number) => T + (1 - v / 100) * (H - T - B);
   const path = pts.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.score!).toFixed(1)}`).join(" ");
   const n = pts.length, every = Math.max(1, Math.ceil(n / 8)), last = n - 1;
   const label = n ? `Score history: ${when(pts[0].date)} to ${when(pts[last].date)}, latest ${Math.round(pts[last].score!)} out of 100; 50 is neutral.` : "No score history yet.";
   return (
-    <svg className="mo-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label}>
+    <svg ref={ref} className="mo-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label}>
       <rect x={L} y={y(100)} width={W - L - R} height={y(50) - y(100)} className="above" /><rect x={L} y={y(50)} width={W - L - R} height={y(0) - y(50)} className="below" />
       <text x={L + 6} y={y(100) + 14} className="zt pos">Above 50 helps the sector</text><text x={L + 6} y={y(0) - 6} className="zt neg">Below 50 weighs on it</text>
       {[0, 25, 50, 75, 100].map((g) => <g key={g}><line x1={L} x2={W - R} y1={y(g)} y2={y(g)} className={g === 50 ? "mid" : "grid"} /><text x={L - 6} y={y(g) + 3} textAnchor="end" className="ax">{g}</text></g>)}

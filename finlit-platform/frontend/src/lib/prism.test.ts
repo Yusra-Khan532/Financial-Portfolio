@@ -249,3 +249,29 @@ describe("not-rated reasons", () => {
     expect(inputsLine(thin)).toMatchObject({ ok: true, note: null });
   });
 });
+
+// Task #220 (Prism report handover, README 4): the feed sends the streak sentence and the income note, never the counts or the group code.
+import { factorDetail as fd220, reportIncomeNote as rin220 } from "./prism";
+describe("task #220: the page reads the server's finished sentences", () => {
+  it("a streak factor shows the server's sentence; no growth-quarter counts are needed", () => {
+    const row = { part: "fundamental", metric: "SALES_STREAK", label: "Sales streak", value: 10, unit: "quarters", status: "A", statusLabel: "Actual", fallbackFor: null,
+      details: { streakText: "10 growth quarters across 10 of 10 comparable quarters." } } as unknown as Parameters<typeof fd220>[0];
+    expect(fd220(row, "")).toBe("10 growth quarters across 10 of 10 comparable quarters.");
+  });
+  it("the income note comes from the report; an older report's group code still gives it", () => {
+    expect(rin220({ incomeNote: "For insurers the model's sales line is net premium earned." })).toMatch(/insurers/);
+    expect(rin220({ incomeNote: null, group: "BANK" })).toBeNull();
+    expect(rin220({ group: "BANK" })).toMatch(/banks and NBFCs/);
+  });
+});
+describe("task #220: a refused report says which limit it met", () => {
+  it("today's reports, too many at once, Recalculate", async () => {
+    const { ApiError } = await import("./api");
+    const { prismProblem } = await import("./prism");
+    const mk = (code: string) => new ApiError(429, { status: "limit", code, detail: "Server words." } as never);
+    expect(prismProblem(mk("daily")).title).toBe("Today's reports are used");
+    expect(prismProblem(mk("burst")).title).toBe("Too many reports at once");
+    expect(prismProblem(mk("recalculate")).title).toBe("Recalculate limit reached");
+    expect(prismProblem(mk("daily")).text).toMatch(/^Server words\./);
+  });
+});

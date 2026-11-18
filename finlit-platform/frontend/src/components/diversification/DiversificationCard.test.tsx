@@ -151,4 +151,15 @@ describe("task #181: the card looks like the boxes above it, with its name highl
     const base = /\.dv \{ --dv-hue[^}]*\}/.exec(css)![0];
     expect(base).not.toMatch(/background:|border:|border-radius:|padding:/);       // the .card styles are not overridden
   });
+  it("rework (18 Nov): the names in the list are plain chips, nothing reads as selected, and green is left only on the title's bar", async () => {
+    const fs = await import("node:fs");
+    const css = fs.readFileSync("src/components/diversification/diversification.css", "utf8");
+    const last = (sel: string) => { const all = [...css.matchAll(new RegExp(sel.replace(/[.()]/g, "\\$&") + " \\{([^}]*)\\}", "g"))]; return all[all.length - 1]?.[1] ?? ""; };
+    expect(last(".dv-chips button")).toMatch(/border-color: var\(--border-strong\); background: var\(--s1\)/);   // the RELIANCE x and IOC x chips: neutral, like the boxes
+    expect(last(".dv-chips button.off")).toMatch(/border-color: var\(--border-strong\); background: transparent/);
+    expect(last(".dv-try.on")).toBe(" border-color: var(--border-strong); ");                                    // an open "Try a different list" is not outlined green
+    expect(css).toMatch(/--dv-hue: var\(--gold\); --border-control: var\(--border-strong\); --focus-ring: var\(--gold\)/);   // data bars and icon: the site's gold accent
+    const greens = css.split("\n").filter((l) => l.includes("var(--gain)") && !l.trimStart().startsWith("/*") && !l.startsWith("   "));
+    expect(greens).toEqual([".dv-head > div:first-child { border-left: 4px solid var(--gain); padding-left: 16px; }"]);   // only the highlighted name
+  });
 });

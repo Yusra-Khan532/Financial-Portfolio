@@ -23,7 +23,7 @@ const ZOOM = [
   // markets, flows, macro, sectors
   "pages/Markets.tsx", "components/FlowsCharts.tsx", "pages/Macro.tsx",
   // funds, MF, ETFs
-  "mf/FundChart.tsx", "mf/H2HChart.tsx", "mf/Radar.tsx", "mf/ScoreHistory.tsx", "mf/ScoreCompare.tsx", "mf/screen/Graphics.tsx", "pages/FundInsights.tsx", "pages/Funds.tsx", "pages/MfPortfolio.tsx", "etf/EtfChart.tsx", "etf/Detail.tsx", "etf/Compare.tsx",
+  "mf/FundChart.tsx", "mf/H2HChart.tsx", "mf/Radar.tsx", "mf/ScoreHistory.tsx", "mf/ScoreCompare.tsx", "mf/screen/Graphics.tsx", "pages/FundInsights.tsx", "pages/Funds.tsx", "etf/EtfChart.tsx", "etf/Detail.tsx", "etf/Compare.tsx",
   // portfolio, dashboard, calculators, tools
   "pages/Portfolio.tsx", "holdings/HoldingsSection.tsx", "components/dashboard/MarketToday.tsx", "pages/SipCalculator.tsx", "pages/EpsCalculator.tsx", "pages/Dcf.tsx",
   "pages/Fundamentals.tsx", "pages/OptionChain.tsx", "pages/Ipo.tsx", "components/AdvScatter.tsx", "components/TableZoom.tsx",
@@ -38,6 +38,7 @@ const OWN: { file: string; needle: RegExp; why: string }[] = [
 
 /** Drawings with nothing to enlarge: sparklines, gauges and rings that show one figure, decorative art, icons, tiny inline bars. */
 const EXEMPT: Record<string, string> = {
+  "components/AnswerText.tsx": "a small sketch of a series inside a FinLit AI answer (task #201); every figure is also in the answer's own text, so enlarging adds nothing",
   "components/ExploreTools.tsx": "decorative corner art on the six platform group cards; no data",
   "components/screener/presets/ScreensStrip.tsx": "the Ready-made screens strip's crown and group icons (task #64, N-38); no data",
   "components/SideRail.tsx": "the folded side menu's group icons (the final pages pack); no data",

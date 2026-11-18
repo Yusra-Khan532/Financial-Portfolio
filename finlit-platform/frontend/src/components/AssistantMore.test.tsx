@@ -31,7 +31,7 @@ const open = (path = "/stocks/reliance", sector?: string) => {
 
 describe("flow data", () => {
   it("has the four landing categories, the four segments and the five company tabs", () => {
-    expect(CATEGORIES.map((c) => c.title)).toEqual(["Explore a company", "Market & economy", "Investment concepts", "Platform & tools"]);
+    expect(CATEGORIES.map((c) => c.title)).toEqual(["Explore a Company", "Markets & Economy", "Financial Concepts", "Explore FinLit Tools"]);   // task #201: the team's names
     expect(SEGMENTS.map((s) => s.title)).toEqual(["Financial performance", "Valuation & returns", "Business & segment analysis", "Outlook & risks"]);
     expect(TABS.map((t) => t.label)).toEqual(["Suggested questions", "Financials", "Valuation", "Business", "Outlook & Risks"]);
   });
@@ -141,17 +141,20 @@ describe("Assistant on a company page", () => {
 });
 
 describe("Assistant away from a company page", () => {
-  it("starts with the greeting and the five categories (task #203 added Mutual funds & ETFs)", () => {
+  it("starts with the greeting, a search box above the four primary cards, things to try, and Mutual funds & ETFs under More themes (tasks #201, #203)", () => {
     open("/about");
     expect(screen.getByText("Hi, I'm FinLit AI")).toBeTruthy();
     const cats = within(screen.getByRole("list", { name: "What would you like to explore?" })).getAllByRole("button");
-    expect(cats).toHaveLength(5);
-    expect(cats[4].textContent).toMatch(/Mutual funds & ETFs/);
+    expect(cats.map((b) => b.querySelector("b")!.textContent)).toEqual(["Explore a Company", "Markets & Economy", "Financial Concepts", "Explore FinLit Tools"]);
+    const box = screen.getByLabelText("Ask FinLit AI anything");
+    expect(box.compareDocumentPosition(cats[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();   // the search sits above the cards
+    expect(screen.getAllByRole("button", { name: /^(Reliance financials|P\/E ratio|Sector outlook|Red flags)$/ })).toHaveLength(4);
+    expect(screen.getByRole("button", { name: /Mutual funds & ETFs/ })).toBeTruthy();
     expect((screen.getByLabelText("Search the listed questions") as HTMLInputElement).placeholder).toBe("Search the questions (e.g. P/E, cash flow, debt)");
   });
   it("Explore a company -> segment -> search a company -> that company's tab", async () => {
     open("/about");
-    fireEvent.click(screen.getByRole("button", { name: /Explore a company/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Explore a Company/ }));
     expect(within(screen.getByRole("list", { name: "Choose a segment" })).getAllByRole("button")).toHaveLength(4);
     fireEvent.click(screen.getByRole("button", { name: /Valuation & returns/ }));
     fireEvent.change(screen.getByLabelText("Which company?"), { target: { value: "reli" } });
@@ -160,14 +163,14 @@ describe("Assistant away from a company page", () => {
   });
   it("Investment concepts and Platform & tools answer at once from the written answers, without the model", async () => {
     open("/about");
-    fireEvent.click(screen.getByRole("button", { name: /Investment concepts/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Financial Concepts/ }));
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "What is the difference between a mutual fund and an ETF?" })); });
     expect(ask).not.toHaveBeenCalled();
     expect(screen.getByText(/ETF trades on the stock exchange/)).toBeTruthy();
   });
   it("Market & economy questions answer at once from written text, with no model call (task #138)", async () => {
     open("/about");
-    fireEvent.click(screen.getByRole("button", { name: /Market & economy/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Markets & Economy/ }));
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: /FII and DII flows/ })); });
     expect(ask).not.toHaveBeenCalled();
     expect(screen.getByText(/net amounts these groups put into or took out of Indian shares/)).toBeTruthy();
@@ -176,7 +179,7 @@ describe("Assistant away from a company page", () => {
   });
   it("the back arrow returns one step", () => {
     open("/about");
-    fireEvent.click(screen.getByRole("button", { name: /Explore a company/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Explore a Company/ }));
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
     expect(screen.getByText("Hi, I'm FinLit AI")).toBeTruthy();
   });
@@ -222,6 +225,17 @@ describe("written answers from FinLit AI (task #211)", () => {
     expect(screen.getByText("Reliance's debt to equity was 0.41 in FY2026.")).toBeTruthy();
     expect(screen.getByText("Information only, not investment advice.")).toBeTruthy();
     expect(ask).not.toHaveBeenCalled();
+  });
+  it("a written answer ends with links to the FinLit pages it read, this site's pages only (task #218)", async () => {
+    ai.user = { id: "u1" }; ai.quota = { enabled: true, signedIn: true, limit: 50, used: 12, left: 38, resets: "2026-12-01" };
+    ai.events = [{ type: "text", text: "Reliance's investor presentation of 30 Oct 2026 gives Jio's ARPU as Rs 210 (page 3)." },
+      { type: "done", disclaimer: "Information only, not investment advice.", sources: ["get_company_card", "read_company_document"],
+        pages: [{ to: "/stocks/RELIANCE", label: "RELIANCE company report" }, { to: "/documents", label: "Documents" }, { to: "https://evil.example", label: "Elsewhere" }, { to: "//evil.example", label: "Elsewhere" }] }];
+    open();
+    await typeAndSend("Your question for FinLit AI", "What does the latest investor presentation say about Jio's ARPU?");
+    const row = document.querySelector(".aif-acts")!;
+    expect(within(row as HTMLElement).getByText("Read on FinLit")).toBeTruthy();
+    expect([...row.querySelectorAll("a")].map((a) => [a.getAttribute("href"), a.textContent?.trim()])).toEqual([["/stocks/RELIANCE", "RELIANCE company report"], ["/documents", "Documents"]]);
   });
   it("a listed question still answers at once from FinLit's figures, without using a written answer", async () => {
     ai.user = { id: "u1" }; ai.quota = { enabled: true, signedIn: true, limit: 50, used: 0, left: 50, resets: "2026-12-01" };

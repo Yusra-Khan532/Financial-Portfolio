@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { niceTicks } from "../lib/etf";
 import { MINUS, dateIN, nf } from "../lib/format";
-import { calendar, diiGap, grp, inr, level, type Cal, type Pt, type SideKey } from "../lib/flowsMath";
+import { bandMonths, calBands, calendar, diiGap, grp, inr, level, type Cal, type Pt, type SideKey } from "../lib/flowsMath";
 import type { FlowDay } from "../lib/flows";
 import { ChartZoom, useZoomHeight } from "./ChartZoom";
 
@@ -146,6 +146,7 @@ export function MiniBars({ rows, name }: { rows: { d: string; v: number | null }
 
 // ------------------------------------------------------------------------------------------------------------- calendar
 const WD = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+const fitFirst = (cal: Cal) => (cal.cells.length ? Math.min(...cal.cells.map((c) => c.col)) : 0);
 export function CalendarHeat({ days, side, selected, onSelect, name, publishedFrom }: { days: FlowDay[]; side: SideKey; selected: string | null; onSelect: (d: string) => void; name: string; publishedFrom?: string | null }) {
   const cal: Cal = useMemo(() => calendar(days, side), [days, side]);
   const labels = useMemo(() => new Map(cal.cells.map((c) => {
@@ -165,22 +166,39 @@ export function CalendarHeat({ days, side, selected, onSelect, name, publishedFr
     if (next) { e.preventDefault(); focusDate(next); }
   };
   const tabbable = selected && byDate.has(selected) ? selected : dates[dates.length - 1];
+  // task #167: in the enlarged dialog the weeks are stacked in bands that fill the screen (lib/flowsMath calBands); in the page, one row of 53 weeks
+  const [zref, zh] = useZoomHeight<HTMLDivElement>(0), [zw, setZw] = useState(0);
+  useEffect(() => {
+    const el = zref.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => setZw(Math.round(el.clientWidth)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [zref]);
+  // the bands cover only the weeks that have days (the data can start inside the year), so no band is drawn empty
+  const first = fitFirst(cal), fit = zh > 0 && zw > 0 ? calBands(cal.cols - first, zw, zh) : null;
+  const k = fit ? fit.k : cal.cols, bands = fit ? Array.from({ length: fit.n }, (_, b) => [first + b * k, Math.min(cal.cols, first + (b + 1) * k)] as const).filter(([a, z]) => z > a) : [[0, cal.cols] as const];
+  const cols = `repeat(${k}, minmax(0, 1fr))`;
+  const cell = (c: Cal["cells"][number], start: number) => {
+    const l = level(c.v, cal.scale);
+    return <button key={c.d} type="button" data-d={c.d} data-l={l} data-n={c.v == null ? (side === "dii" && diiGap(c.d, publishedFrom) === "unpublished" ? 2 : 1) : undefined} className={"fl-cell" + (selected === c.d ? " sel" : "")} style={{ gridColumn: c.col - start + 1, gridRow: c.row + 1 }} tabIndex={c.d === tabbable ? 0 : -1}
+      aria-pressed={selected === c.d} aria-label={labels.get(c.d)!.aria} title={labels.get(c.d)!.title}
+      onClick={() => onSelect(c.d)} onKeyDown={(e) => key(e, c.d)} />;
+  };
   return (
-    <ChartZoom label={`${name} flow calendar`} className="cz-top"><div className="fl-cal" data-chart>
+    <ChartZoom label={`${name} flow calendar`} className="cz-top"><div className={"fl-cal" + (fit ? " fit" : "")} data-chart ref={zref} style={fit ? { ["--fl-rh" as string]: `${Math.floor(fit.rh)}px` } : undefined}>
       <div className="fl-cal-sc" ref={scroller}>
         <div className="fl-cal-in" role="group" aria-label={`${name} flow by day for the last year. Press a day to read its figures. Arrow keys move between days.`}>
-          <div className="fl-cal-m" style={{ gridTemplateColumns: `repeat(${cal.cols}, minmax(0, 1fr))` }}>{cal.months.map((m) => <span key={m.col} style={{ gridColumn: `${m.col + 1} / span 4` }}>{m.label}</span>)}</div>
-          <div className="fl-cal-body">
-            <div className="fl-cal-wd">{WD.map((w, i) => <span key={w} style={{ visibility: i % 2 === 0 ? "visible" : "hidden" }}>{w}</span>)}</div>
-            <div className="fl-cal-g" style={{ gridTemplateColumns: `repeat(${cal.cols}, minmax(0, 1fr))` }}>
-              {cal.cells.map((c) => {
-                const l = level(c.v, cal.scale);
-                return <button key={c.d} type="button" data-d={c.d} data-l={l} data-n={c.v == null ? (side === "dii" && diiGap(c.d, publishedFrom) === "unpublished" ? 2 : 1) : undefined} className={"fl-cell" + (selected === c.d ? " sel" : "")} style={{ gridColumn: c.col + 1, gridRow: c.row + 1 }} tabIndex={c.d === tabbable ? 0 : -1}
-                  aria-pressed={selected === c.d} aria-label={labels.get(c.d)!.aria} title={labels.get(c.d)!.title}
-                  onClick={() => onSelect(c.d)} onKeyDown={(e) => key(e, c.d)} />;
-              })}
-            </div>
-          </div>
+          {bands.map(([start, end]) => (
+            <div className="fl-cal-band" key={start}>
+              <div className="fl-cal-m" style={{ gridTemplateColumns: cols }}>{(fit ? bandMonths(cal, start, end) : cal.months).map((m) => <span key={m.col} style={{ gridColumn: `${m.col + 1} / span ${Math.max(1, Math.min(4, (fit ? end - start : cal.cols) - m.col))}` }}>{m.label}</span>)}</div>
+              <div className="fl-cal-body">
+                <div className="fl-cal-wd">{WD.map((w, i) => <span key={w} style={{ visibility: i % 2 === 0 ? "visible" : "hidden" }}>{w}</span>)}</div>
+                <div className="fl-cal-g" style={{ gridTemplateColumns: cols }}>
+                  {cal.cells.filter((c) => c.col >= start && c.col < end).map((c) => cell(c, start))}
+                </div>
+              </div>
+            </div>))}
         </div>
       </div>
     </div></ChartZoom>

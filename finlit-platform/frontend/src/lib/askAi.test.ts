@@ -1,6 +1,6 @@
 // Task #211: the streamed answer's events are read in pieces as they arrive; a piece cut in the middle waits for the rest, a broken one is skipped.
 import { describe, expect, it } from "vitest";
-import { parseSse } from "./askAi";
+import { parseSse, safePages } from "./askAi";
 
 describe("parseSse", () => {
   it("reads finished events and keeps an unfinished one for the next piece", () => {
@@ -12,5 +12,15 @@ describe("parseSse", () => {
   });
   it("skips a broken event instead of showing it", () => {
     expect(parseSse("event: text\ndata: {not json\n\nevent: text\ndata: {\"text\":\"ok\"}\n\n").events).toEqual([{ type: "text", text: "ok" }]);
+  });
+});
+
+describe("safePages (task #218: the FinLit pages an answer read)", () => {
+  it("keeps this site's own pages, once each, at most four, and nothing else", () => {
+    expect(safePages([{ to: "/macro", label: "India economy" }, { to: "/macro", label: "again" }, { to: "https://x.example", label: "x" }, { to: "//x.example", label: "x" },
+      { to: "/a b", label: "space" }, { to: "/glossary", label: "" }, { to: "/glossary", label: "Glossary" }, { to: "/news", label: "News" }, { to: "/fii-dii", label: "FII" }, { to: "/results", label: "R" }]))
+      .toEqual([{ to: "/macro", label: "India economy" }, { to: "/glossary", label: "Glossary" }, { to: "/news", label: "News" }, { to: "/fii-dii", label: "FII" }]);
+    expect(safePages(undefined)).toEqual([]);
+    expect(safePages("x")).toEqual([]);
   });
 });

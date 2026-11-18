@@ -35,6 +35,8 @@ export function useZoomHeight<T extends Element = HTMLDivElement>(base: number, 
     };
     const ro = new ResizeObserver(fit);   // the box changes size when the chart moves into the dialog and back
     ro.observe(el);
+    // a drawing that keeps its size in the dialog (a ring of fixed width) never resizes itself, so the host it moves with is watched too
+    const host = el.closest(".cz-host"); if (host) ro.observe(host);
     return () => ro.disconnect();
   }, [ref]);
   return [ref, h > base ? h : base];
