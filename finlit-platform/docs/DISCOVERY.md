@@ -58,3 +58,12 @@ and NSE's archive drops the connection with no answer for a non-browser agent. S
 company brief could not read NSE files either. Now: `.in` links are read from `nsearchives.nseindia.com` (the same file), NSE files are asked for with
 the browser agent the NSE API calls already use (robots.txt still read and obeyed), a dropped connection is retried through the exchange relay when one
 is set, and presentations and annual reports have a 40 MB cap (a 16.5 MB presentation was seen; transcripts keep 15 MB).
+
+## First night on the live site (18 Nov 2026) and the fix that followed
+
+The first run read 98 presentations with 1 failed download (the NSE fix works on the server) and placed 66 companies. Checking the filings showed
+66 under "Renewable Energy & Power" and no company: the themes were read from the whole headline, so company names ("Emmvee Photovoltaic Power
+Ltd", "Om Power Transmission Ltd") and NSE's own label "Capacity addition" (filed for hotel rooms and hospital beds too) counted. Now a filing's
+themes and stage come only from what it says about the business (`signals.subject_of`: the headline without the company's name, NSE's boilerplate
+and its category label); "MW" alone no longer means a data centre; "wins ... order" is an order win. A change of the tagging rules re-tags every
+stored filing once (`TAG_VERSION`, database only).
