@@ -156,13 +156,16 @@ export function RatiosSection({ r, lender = false, sector, industry, labels }: {
       <Plain>Ratios turn big numbers into fair comparisons. The meters below show where each one sits against common rules of thumb. Zones are a starting point: always compare with companies in the same industry.</Plain>
       <div className="mtr-grid">{meters.map((m) => <Meter key={m.key} m={m} r={r} on={cur?.key === m.key} onSel={() => setSel(m.key)} />)}</div>
       {cur && <p className="mtr-say" aria-live="polite"><b>{r.latest[cur.key].label}</b> {cur.say(r.latest[cur.key].value)}</p>}
-      {/* task #216 (README 3.9): the meters stay above; the rest is one tab group with the Key view badge */}
-      <TabGroup label="Ratios" variant="key" hint="Profitability ratios shown here" views={[
-        { key: "profit", label: "Profitability ratios", content: <>
-      <div className="card acc" style={{ margin: "0 0 8px", "--ac": "var(--p-profit)" } as React.CSSProperties}>
-        <div className="card-h"><h3><span className="ci"><Icon name="gauge" /></span>Profitability ratios<ChartHelp id="profit-ratios" /></h3><span className="chip ghost">Annual · 8 years</span></div>
-        <ProfitabilityRatios periods={hist.periods} rows={hist.rows as Record<string, (number | null)[]>} />
-      </div>
+      {/* task #216 (README 3.9): the meters stay above; the rest is one tab group with the Key view badge. Task #222 (owner, 18 Nov: "in 09 swap 1st and 3rd tabs - bring ratio history to the front"): it opens on Ratio history */}
+      <TabGroup label="Ratios" variant="key" hint="Ratio history shown here" views={[
+        { key: "history", label: "Ratio history", content: <>
+      <Gate tier="gold" title="Detailed ratio analysis" points={["Every ratio with its history", "Quality, growth, solvency and efficiency", "Full multi-year table"]}>
+        <div className="card acc" style={{ marginTop: 16, "--ac": "var(--p-profit)" } as React.CSSProperties}>
+          <div className="card-h"><h3><span className="ci"><Icon name="table" /></span>Ratio history<ChartHelp id="ratio-history" /></h3><TierChip tier="gold" /></div>
+          <HistoryTable r={r} profile={{ sector, industry, subIndustry: labels?.[2] }} />
+          <ValuationHistory r={r} />
+        </div>
+      </Gate>
         </> },
         { key: "today", label: "All ratios today", content: <>
       <div className="grid g3">
@@ -186,14 +189,11 @@ export function RatiosSection({ r, lender = false, sector, industry, labels }: {
       </div>
       <p className="faint" style={{ fontSize: 12, margin: "10px 2px 0" }}>▲ higher is usually better · ▼ lower is usually better</p>
         </> },
-        { key: "history", label: "Ratio history", content: <>
-      <Gate tier="gold" title="Detailed ratio analysis" points={["Every ratio with its history", "Quality, growth, solvency and efficiency", "Full multi-year table"]}>
-        <div className="card acc" style={{ marginTop: 16, "--ac": "var(--p-profit)" } as React.CSSProperties}>
-          <div className="card-h"><h3><span className="ci"><Icon name="table" /></span>Ratio history<ChartHelp id="ratio-history" /></h3><TierChip tier="gold" /></div>
-          <HistoryTable r={r} profile={{ sector, industry, subIndustry: labels?.[2] }} />
-          <ValuationHistory r={r} />
-        </div>
-      </Gate>
+        { key: "profit", label: "Profitability ratios", content: <>
+      <div className="card acc" style={{ margin: "0 0 8px", "--ac": "var(--p-profit)" } as React.CSSProperties}>
+        <div className="card-h"><h3><span className="ci"><Icon name="gauge" /></span>Profitability ratios<ChartHelp id="profit-ratios" /></h3><span className="chip ghost">Annual · 8 years</span></div>
+        <ProfitabilityRatios periods={hist.periods} rows={hist.rows as Record<string, (number | null)[]>} />
+      </div>
         </> },
       ]} />
     </section>

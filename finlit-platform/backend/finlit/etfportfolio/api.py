@@ -33,6 +33,7 @@ from pydantic import BaseModel, Field, field_validator
 from .. import etf, etf_vs_index
 from ..auth.entitlements import LIMITS, has, sees_all
 from ..auth.routes import Ctx, fail, limit, secure_ctx
+from ..mfportfolio import bench as wk
 from ..mfportfolio import risk
 from . import DISCLAIMER, calc
 
@@ -95,7 +96,17 @@ async def lock_member(conn, user_id: str) -> None:
 
 
 async def held_of(conn, user_id: str) -> List[Dict[str, Any]]:
-    return [{"symbol": r["symbol"], "qty": r["qty"]} for r in await conn.fetch("SELECT symbol, qty FROM etf_holdings WHERE user_id = $1 ORDER BY created_at, symbol", user_id)]
+    return [{"symbol": r["symbol"], "qty": r["qty"], "isin": r["isin"]}
+            for r in await conn.fetch("SELECT symbol, qty, isin FROM etf_holdings WHERE user_id = $1 ORDER BY created_at, symbol", user_id)]
+
+
+def resolve(text: str, by: Dict[str, dict]) -> Optional[str]:
+    """Task #183 (COMMON-RULES 9): an ETF named by its NSE symbol or by its ISIN -> its symbol, or None."""
+    t = (text or "").strip().upper()
+    if ISIN.match(t):
+        return next((s for s, r in by.items() if (r.get("isin") or "").upper() == t), None)
+    s = sym_of(t)
+    return s if SYMBOL.match(s) and s in by else None
 
 
 # ------------------------------------------------------------------------------------------------------------------------ the data each ETF needs
@@ -107,6 +118,35 @@ async def etf_rows(app) -> Dict[str, dict]:
 
 async def facts_for(app, isin: str) -> Dict[str, Any]:
     return await etf_vs_index.facts_of(app.state.store.pool, isin)
+
+
+TER_PCT = re.compile(r"(-?\d+(?:\.\d+)?)\s*%")
+
+
+async def ter_for(app, isin: Optional[str]) -> Dict[str, Any]:
+    """Task #183: the ETF's yearly expense ratio from AMFI's TER file (or the fund house's own page where AMFI has none), joined by ISIN through AMFI's
+    scheme list, the same fact the MF pages show. An ETF has one plan, so whichever plan carries a figure is its cost."""
+    if not isin:
+        return {"value": None, "why": TER_WHY}
+    try:
+        from .. import disclosure
+        async with app.state.store.pool.acquire() as conn:
+            code = await conn.fetchval("SELECT code FROM mf_schemes WHERE isin = $1 OR isin_reinvest = $1 ORDER BY (isin = $1) DESC, active DESC, code LIMIT 1", isin)
+        got = await disclosure.get_facts(app.state.store.pool, code) if code is not None else None
+    except Exception:
+        log.warning("expense ratio unavailable for %s", isin, exc_info=True)
+        return {"value": None, "why": "The expense ratio could not be read right now."}
+    got = got if isinstance(got, dict) else {}
+    figs = []
+    for k in ("terDirect", "terRegular", "ter"):
+        f = got.get(k)
+        m = TER_PCT.search(str(f.get("value"))) if isinstance(f, dict) and f.get("value") is not None else None
+        if m:
+            figs.append({"value": round(float(m.group(1)), 2), "asOf": f.get("asOf"), "source": f.get("source"), "why": None})
+    if figs:            # AMFI's TER file first (the pack's source); a fund house's own page only where AMFI has no figure
+        return next((f for f in figs if str(f["source"] or "").startswith("AMFI")), figs[0])
+    why = next((f["unavailable"] for f in (got.get("terDirect"), got.get("terRegular")) if isinstance(f, dict) and f.get("unavailable")), None)
+    return {"value": None, "why": why or ("This ETF is not in AMFI's scheme list." if code is None else TER_WHY)}
 
 
 async def index_keys(app) -> Dict[str, Tuple[str, str]]:
@@ -185,7 +225,7 @@ def _ter(f: Dict[str, Any]) -> Dict[str, Any]:
     return {"value": etf_vs_index._pct_of(t.get("value")), "asOf": t.get("asOf"), "source": t.get("source"), "why": t.get("why") if t.get("value") is None else None}
 
 
-def _view(sym: str, qty: Optional[Decimal], r: Optional[dict], f: Dict[str, Any], idx: Optional[Tuple[str, str]]) -> Dict[str, Any]:
+def _view(sym: str, qty: Optional[Decimal], r: Optional[dict], f: Dict[str, Any], idx: Optional[Tuple[str, str]], ter: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     if r is None:
         return {"symbol": sym, "name": None, "gone": True, "why": GONE, "qty": fnum(qty), "tracks": {"key": None, "label": None, "basis": None}}
     v = etf.row_view(r)
@@ -196,10 +236,10 @@ def _view(sym: str, qty: Optional[Decimal], r: Optional[dict], f: Dict[str, Any]
         "symbol": sym, "name": v["name"], "gone": False, "isin": v["isin"], "fundHouse": v["fundHouse"], "assetClass": v["assetClass"], "group": etf.GROUPS.get(v["assetClass"] or ""),
         "category": v["category"], "categoryLabel": v["categoryLabel"], "benchmark": bm, "tracks": tracks, "qty": fnum(qty),
         "price": v["price"], "previousClose": v["previousClose"], "changePct": v["changePct"], "priceDate": v["priceDate"],
-        "ret1y": v["ret1y"], "ret1yWhy": why.get("ret_1y"), "ret5y": v["ret5y"], "ret5yWhy": why.get("ret_5y"),
-        "nav": v["nav"], "navDate": v["navDate"], "premium": v["premium"], "premiumWhy": why.get("nav_premium") or (None if v["premium"] is not None else "No NAV for the day of the last close."),
+        "ret1y": v["ret1y"], "ret1yWhy": why.get("ret_1y"), "ret3y": v["ret3y"], "ret3yWhy": why.get("ret_3y"), "ret5y": v["ret5y"], "ret5yWhy": why.get("ret_5y"),
+        "nav": v["nav"], "navDate": v["navDate"], "navBehind": bool(v["navDate"] and v["priceDate"] and v["navDate"] < v["priceDate"]), "premium": v["premium"], "premiumWhy": why.get("nav_premium") or (None if v["premium"] is not None else "No NAV for the day of the last close."),
         "avgTurnover": v["avgTurnover"], "avgTurnoverWhy": None if v["avgTurnover"] is not None else "No trades in the last 20 sessions.",
-        "ter": _ter(f), "firstDate": v["firstDate"],
+        "ter": ter if ter is not None else _ter(f), "firstDate": v["firstDate"], "type": calc.type_of(v["category"], v["assetClass"], why.get("ret_1y")),
     }
 
 
@@ -213,8 +253,9 @@ async def list_etfs(request: Request, ctx: Ctx = Depends(member_ctx)):
         return reply({**base, "items": [], "basis": "equal", "repeats": [], "asOf": None})
     by, idx = await asyncio.gather(etf_rows(app), index_keys(app))
     rows = {h["symbol"]: by.get(h["symbol"]) for h in held}
-    facts = await asyncio.gather(*[facts_for(app, r["isin"]) if r else asyncio.sleep(0, {}) for r in rows.values()])
-    items = [_view(h["symbol"], h["qty"], rows[h["symbol"]], f, idx.get(h["symbol"])) for h, f in zip(held, facts)]
+    facts, ters = await asyncio.gather(asyncio.gather(*[facts_for(app, r["isin"]) if r else asyncio.sleep(0, {}) for r in rows.values()]),
+                                       asyncio.gather(*[ter_for(app, r.get("isin")) if r else asyncio.sleep(0, None) for r in rows.values()]))
+    items = [_view(h["symbol"], h["qty"], rows[h["symbol"]], f, idx.get(h["symbol"]), t) for h, f, t in zip(held, facts, ters)]
     tracked = [i for i in items if not i["gone"] and i["tracks"]["basis"] == "index"]
     tracks = await asyncio.gather(*[tracking_for(request, i["symbol"]) for i in tracked])
     by_sym = {i["symbol"]: t for i, t in zip(tracked, tracks)}
@@ -258,7 +299,7 @@ async def inside(request: Request, ctx: Ctx = Depends(member_ctx)):
         files.append({"symbol": e["symbol"], "asOf": (p or {}).get("asOf"), "source": (p or {}).get("source"), "why": None if p and p.get("holdings") else why or "No monthly portfolio file found for this ETF yet."})
     isins = sorted({h["isin"] for e in etfs for h in (e["holdings"] or []) if h.get("isin") and h.get("assetClass") == "equity" and not calc.abroad(h["isin"], e["assetClass"])})
     sizes = await size_of_isins(app, isins) if isins else {}
-    top = calc.top_stocks(etfs)
+    top = calc.top_stocks(etfs, indian_only=True)          # task #183: the top 8 Indian holdings; holdings abroad sit in abroadTop
     syms = sorted({t["symbol"] for t in top if t["symbol"] and not t["abroad"]})
     gold = is_gold(ctx)
     scores = await scores_for(app, syms, gold)
@@ -269,10 +310,24 @@ async def inside(request: Request, ctx: Ctx = Depends(member_ctx)):
         t["scoreWhy"] = "Not compared: listed abroad" if t["abroad"] else None if t["score"] else "Not rated yet"
     mix = calc.asset_mix(etfs)
     size = calc.size_mix(etfs, lambda isin: sizes.get(isin or ""))
+    lt = calc.look_through(etfs, lambda isin: sizes.get(isin or ""))
+    for cells in lt["lookThrough"].values():          # task #183: the grid's chips carry the plan's reading of each company
+        for c in cells.values():
+            for st in c["stocks"]:
+                st["score"] = None
+    cell_syms = sorted({st["symbol"] for cells in lt["lookThrough"].values() for c in cells.values() for st in c["stocks"] if st["symbol"]} - set(syms))
+    scores.update(await scores_for(app, cell_syms, gold) if cell_syms else {})
+    for cells in lt["lookThrough"].values():
+        for c in cells.values():
+            for st in c["stocks"]:
+                st["score"] = scores.get(st["symbol"] or "")
+    per_etf_split = [{"symbol": e["symbol"], "assetClass": e["assetClass"], "split": e["split"], "type": calc.type_of(e["row"].get("category"), e["assetClass"])} for e in etfs]
     dates = sorted({f["asOf"] for f in files if f["asOf"]})
     return reply({"count": len(etfs), "basis": basis, "files": files, "asOf": dates[-1] if dates else None, "mix": {k: round(v * 100, 1) for k, v in mix["shares"].items()},
                   "mixFromType": mix["fromType"], "size": {k: round(v * 100, 1) for k, v in size.items()} if size else None,
-                  "overlap": calc.overlap(etfs), "top": top, "scoreModel": "prism" if gold else "iq", "disclaimer": DISCLAIMER})
+                  "overlap": calc.overlap(etfs), "top": top, "scoreModel": "prism" if gold else "iq",
+                  "knownShares": round(lt["knownShares"], 4), "lookThrough": lt["lookThrough"], "sectorMacro": lt["sectorMacro"], "perEtf": lt["perEtf"],
+                  "abroadTop": calc.abroad_top(etfs), "etfs": per_etf_split, "disclaimer": DISCLAIMER})
 
 
 @router.get("/risk")
@@ -310,6 +365,13 @@ async def etf_risk(request: Request, ctx: Ctx = Depends(member_ctx)):
         level["because"] = level["because"].replace("funds", "ETFs")
     elif level and level["word"] in ("Lower", "A little lower") and len(parts) >= 2:
         level["because"] = "because your ETFs do not move together"      # no one ETF swings less than the index: the list is calmer than its parts
+    own = own_figures(etfs, hist, bench, end)
+    by_own = {r["code"]: r for r in own["funds"]}
+    for o in out:
+        r = by_own.get(o["symbol"]) or {}
+        o.update(type=r.get("type"), compared=r.get("compared", False), betaPast=r.get("betaOwn"), explained=r.get("explained"), band=r.get("band"),
+                 downPer100=r.get("downPer100"), upPer100=r.get("upPer100"), oneYear=r.get("oneYear"), benchOneYear=r.get("benchOneYear"), riskShare=r.get("riskShare"),
+                 differentAsset=bool(r.get("saysLittle")), betaWhy=r.get("why"), weeks=r.get("weeks"))
     moving = {s: v for s, v in series.items() if not next(o for o in out if o["symbol"] == s)["liquid"]}
     left_out = [o["symbol"] for o in out if o["liquid"]]
     w = {e["symbol"]: e["w"] for e in etfs if e["symbol"] in series}
@@ -318,8 +380,38 @@ async def etf_risk(request: Request, ctx: Ctx = Depends(member_ctx)):
                   "list": {"swing": risk.r1(list_swing), "worstFall": risk.r1(risk.worst_fall(lv)) if ok else None, "fallsTaken": risk.r1(risk.falls_taken(lf, lb), 0) if ok else None,
                            "beta": risk.r1(risk.beta(lf, lb), 2) if ok else None, "level": level,
                            "why": None if ok else "Your ETFs share less than a year of trading days, so the whole list cannot be followed as one line yet."},
+                  "own": {"from": own["from"], "to": own["to"], "list": own["list"]},
                   "together": {**calc.together(moving, end), "leftOut": left_out}, "adds": calc.variance_shares(series, w, end) if series else {"shares": {}, "why": "No price history."},
                   "disclaimer": DISCLAIMER})
+
+
+NIFTY500_BENCH = {"compared": True, "name": "Nifty 500", "legs": [("NIF500", 1.0)], "standIn": False, "why": None, "kind": "index"}
+LIQUID_BENCH = {"compared": False, "name": "Not compared", "legs": [], "standIn": False, "kind": "none",
+                "why": "A liquid ETF earns the overnight rate and follows no share index, so it counts as 0 in the list's beta."}
+
+
+def own_figures(etfs: List[Dict[str, Any]], hist: List[Tuple[List[int], List[float], Optional[str]]], bench: Dict[int, float], end: int) -> Dict[str, Any]:
+    """Task #183 (COMMON-RULES 8): every ETF against the Nifty 500 on weekly closes over the past year (an index ETF's beta against its own index is about
+    1 by design): beta, R², down and up weeks (hidden where R² is under 0.2: a different asset), each one's share of the list's risk, the list's beta
+    (liquid counts 0), without liquid, Indian share ETFs only, and the list's combined weekly return against the Nifty 500 for "if the market fell 10%"."""
+    bd = sorted(bench)
+    funds = []
+    for e, (days, closes, _why) in zip(etfs, hist):
+        r = e["row"]
+        t = calc.type_of(r.get("category"), r.get("asset_class"), (etf._jsond(r.get("reasons")) or {}).get("ret_1y"))
+        funds.append({"code": e["symbol"], "type": t, "days": days, "navs": closes, "bench": LIQUID_BENCH if t["key"] == "liquid" else NIFTY500_BENCH})
+    got = wk.build(funds, {"NIF500": (bd, [bench[d] for d in bd])}, None, end, weights=[e["w"] for e in etfs])
+    for f, row in zip(funds, got["funds"]):
+        row["type"] = f["type"]
+    lst = got["list"]
+    tw = sum(e["w"] for e in etfs) or 1.0
+    ind = [(e["w"] / tw, row) for e, row in zip(etfs, got["funds"]) if row["type"]["key"] == "indian"]
+    ind_beta = (sum(w * r["betaOwn"] for w, r in ind) / sum(w for w, _ in ind)) if ind and all(r["betaOwn"] is not None for _, r in ind) else None
+    lst["betaIndian"] = wk.r2(ind_beta)
+    lst["betaIndianBand"] = wk.band_of(ind_beta)
+    lst["fall10"]["indian"] = wk.r2(-10 * ind_beta, 1) if ind_beta is not None else None
+    lst["leftOutOfFall"] = [row["code"] for row in got["funds"] if row["type"]["key"] in ("gold", "silver", "abroad") or row.get("saysLittle")]
+    return got
 
 
 # ------------------------------------------------------------------------------------------------------------------------ writing
@@ -365,9 +457,12 @@ def checked_qty(v: Any) -> Optional[Decimal]:
 @router.post("", status_code=201)
 async def add_etf(request: Request, body: AddIn, ctx: Ctx = Depends(member_ctx)):
     await limit(request, "etfpw", ctx.user_id, 120, 600)
-    sym, qty = sym_of(body.symbol), checked_qty(body.qty)
-    if not SYMBOL.match(sym) or sym not in await etf_rows(request.app):
-        raise fail(404, "unknown_etf", "No ETF with that symbol.")
+    qty = checked_qty(body.qty)
+    by = await etf_rows(request.app)
+    sym = resolve(body.symbol, by)
+    if sym is None:
+        raise fail(404, "unknown_etf", "No ETF with that symbol or ISIN.")
+    isin = by[sym].get("isin") or None
     cap = cap_for(ctx)
     async with request.app.state.store.pool.acquire() as conn:
         async with conn.transaction():
@@ -379,8 +474,8 @@ async def add_etf(request: Request, body: AddIn, ctx: Ctx = Depends(member_ctx))
                 return reply({"status": "saved", "symbol": sym, "merged": True}, 201)
             if await conn.fetchval("SELECT count(*) FROM etf_holdings WHERE user_id = $1", ctx.user_id) >= cap:
                 raise fail(403, "plan_limit", f"Your plan includes {cap} ETFs. Remove one to add another.")
-            await conn.execute("INSERT INTO etf_holdings (user_id, symbol, qty) VALUES ($1, $2, $3)", ctx.user_id, sym, qty)
-    return reply({"status": "saved", "symbol": sym, "merged": False}, 201)
+            await conn.execute("INSERT INTO etf_holdings (user_id, symbol, qty, isin) VALUES ($1, $2, $3, $4)", ctx.user_id, sym, qty, isin)
+    return reply({"status": "saved", "symbol": sym, "isin": isin, "merged": False}, 201)
 
 
 @router.put("/quantities")
@@ -405,6 +500,47 @@ async def delete_all(request: Request, ctx: Ctx = Depends(member_ctx)):
     async with request.app.state.store.pool.acquire() as conn:
         n = int((await conn.execute("DELETE FROM etf_holdings WHERE user_id = $1", ctx.user_id)).split()[-1])
     return reply({"status": "deleted", "removed": n})
+
+
+# ---- Task #183 (COMMON-RULES 10): Clear portfolio. The cleared ETFs (symbol, ISIN, quantity) are held on the server for the Undo window, then the clear is
+# final. The equity and MF portfolios, watchlists and alerts are never touched.
+CLEAR_UNDO_SECONDS = 10
+CLEAR_HOLD_SECONDS = CLEAR_UNDO_SECONDS + 5    # a little longer than the Undo button shows, so a click in its last second still lands
+
+
+def _clear_key(user_id: str) -> str:
+    return f"etfclear:{user_id}"
+
+
+@router.post("/clear")
+async def clear_etfs(request: Request, ctx: Ctx = Depends(member_ctx)):
+    """Empty the member's ETF portfolio, holding what was there for the Undo window."""
+    await limit(request, "etfpw", ctx.user_id, 120, 600)
+    async with request.app.state.store.pool.acquire() as conn:
+        async with conn.transaction():
+            await lock_member(conn, ctx.user_id)
+            held = await held_of(conn, ctx.user_id)
+            snap = [{"symbol": h["symbol"], "isin": h["isin"], "qty": str(h["qty"]) if h["qty"] is not None else None} for h in held]
+            await request.app.state.store.redis.set(_clear_key(ctx.user_id), json.dumps(snap), ex=CLEAR_HOLD_SECONDS)
+            await conn.execute("DELETE FROM etf_holdings WHERE user_id = $1", ctx.user_id)
+    return reply({"status": "cleared", "removed": len(snap), "undoSeconds": CLEAR_UNDO_SECONDS})
+
+
+@router.post("/undo-clear")
+async def undo_clear_etfs(request: Request, ctx: Ctx = Depends(member_ctx)):
+    """Put back exactly what Clear portfolio removed (the same ETFs and quantities), while the Undo window is open; after it the clear is final."""
+    await limit(request, "etfpw", ctx.user_id, 120, 600)
+    held = await request.app.state.store.redis.getdel(_clear_key(ctx.user_id))
+    if held is None:
+        raise fail(410, "undo_expired", "The clear is final: Undo is only possible for 10 seconds.")
+    snap = json.loads(held)
+    async with request.app.state.store.pool.acquire() as conn:
+        async with conn.transaction():
+            await lock_member(conn, ctx.user_id)
+            for h in snap:                   # an ETF the member added again inside the window keeps theirs: nothing is doubled
+                await conn.execute("INSERT INTO etf_holdings (user_id, symbol, qty, isin) VALUES ($1, $2, $3, $4) ON CONFLICT (user_id, symbol) DO NOTHING",
+                                   ctx.user_id, h["symbol"], Decimal(h["qty"]) if h["qty"] is not None else None, h.get("isin"))
+    return reply({"status": "restored", "restored": len(snap)})
 
 
 @router.delete("/{symbol}")
@@ -531,6 +667,6 @@ async def import_commit(request: Request, body: CommitIn, ctx: Ctx = Depends(mem
                     await conn.execute("UPDATE etf_holdings SET qty = $3, updated_at = now() WHERE user_id = $1 AND symbol = $2", ctx.user_id, s, q)
                     replaced += 1
                 else:
-                    await conn.execute("INSERT INTO etf_holdings (user_id, symbol, qty) VALUES ($1, $2, $3)", ctx.user_id, s, q)
+                    await conn.execute("INSERT INTO etf_holdings (user_id, symbol, qty, isin) VALUES ($1, $2, $3, $4)", ctx.user_id, s, q, by[s].get("isin") or None)
                     added += 1
     return reply({"status": "saved", "added": added, "replaced": replaced, "skipped": skipped}, 201)

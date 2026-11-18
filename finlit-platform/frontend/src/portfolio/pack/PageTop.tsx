@@ -26,7 +26,7 @@ export function TopGrid<T extends string = TabKey>({ score, tiles, onOpen, label
         <div key={t.id} className={"eqt-tile eqt-" + t.tone} role="link" tabIndex={0} aria-label={`${t.k}: ${t.v}. ${t.link}`} onClick={() => onOpen(t.id)}
           onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(t.id); } }}>
           <p className="eqt-k">{t.k}<span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}><Tip text={t.help} how={t.how} label={`About “${t.k}”`} /></span></p>
-          <p className="eqt-v">{t.v}</p>
+          <p className="eqt-v">{t.v}{t.tag && <span className="eqt-tag">{t.tag}</span>}</p>
           <p className="eqt-x">{t.sub}</p>
           <span className="eqt-go">{t.link} →</span>
         </div>))}

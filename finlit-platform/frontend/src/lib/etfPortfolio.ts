@@ -14,10 +14,12 @@ export type EtfRow = {
   symbol: string; name: string | null; gone: boolean; why?: string; isin?: string; fundHouse?: string | null; assetClass?: string | null; group?: string | null;
   category?: string | null; categoryLabel?: string | null; benchmark?: string | null; tracks: Track; twice: boolean; qty: number | null; value?: number | null; weight?: number | null;
   price?: number | null; previousClose?: number | null; changePct?: number | null; priceDate?: string | null;
-  ret1y?: number | null; ret1yWhy?: string | null; ret5y?: number | null; ret5yWhy?: string | null;
-  nav?: number | null; navDate?: string | null; premium?: number | null; premiumWhy?: string | null; avgTurnover?: number | null; avgTurnoverWhy?: string | null;
+  ret1y?: number | null; ret1yWhy?: string | null; ret3y?: number | null; ret3yWhy?: string | null; ret5y?: number | null; ret5yWhy?: string | null;
+  /** task #183: Indian shares, gold, silver, shares abroad, debt or liquid (payout or growth for liquid ETFs) */ type?: EtfType;
+  nav?: number | null; navDate?: string | null; /** the NAV is dated before the last close */ navBehind?: boolean; premium?: number | null; premiumWhy?: string | null; avgTurnover?: number | null; avgTurnoverWhy?: string | null;
   ter?: Fig; tracking?: Fig; firstDate?: string | null;
 };
+export type EtfType = { key: "indian" | "gold" | "silver" | "abroad" | "debt" | "liquid"; word: string; badge: string; payout: boolean | null };
 export type Repeat = { key: string; label: string; symbols: string[] };
 export type EtfPortfolio = { plan: string; limit: number; count: number; items: EtfRow[]; basis: "value" | "equal"; repeats: Repeat[]; asOf: string | null; missingQty?: string[]; disclaimer: string };
 
@@ -27,14 +29,26 @@ export type Inside = {
   count: number; why?: string; basis: "value" | "equal"; files: { symbol: string; asOf: string | null; source: string | null; why: string | null }[]; asOf: string | null;
   mix: Record<"indian" | "abroad" | "gold" | "silver" | "debt", number>; mixFromType: string[]; size: Record<"Large" | "Mid" | "Small" | "Not sized", number> | null;
   overlap: { symbols: string[]; pairs: { a: string; b: string; pct: number; n: number }[] }; top: Top[]; scoreModel: "prism" | "iq";
+  /** task #183: the look-through grid over Indian shares (the MF page's shape), each share ETF's own split, holdings abroad apart */
+  knownShares?: number; lookThrough?: Record<"macro" | "sector", Record<string, LtCell>>; sectorMacro?: Record<string, string>;
+  perEtf?: Record<string, Record<"macro" | "sector" | "size", Record<string, number>>>; abroadTop?: Record<string, { name: string; isin: string | null; pct: number }[]>;
+  etfs?: { symbol: string; assetClass: string | null; split: Record<string, number> | null; type: EtfType }[];
 };
+export type LtCell = { w: number; n: number; stocks: { name: string; symbol: string | null; w: number; score?: { model: "prism" | "iq"; score: number | null; label: string | null } | null }[] };
+export type Band = { key: "less" | "defensive" | "similar" | "more" | "high" | "very_high"; word: string };
 export type EtfRisk = {
   count: number; why?: string; basis: "value" | "equal";
-  etfs: { symbol: string; category: string; liquid: boolean; weight: number; swing: number | null; worstFall: number | null; beta: number | null; fallsTaken: number | null; why: string | null }[];
+  etfs: { symbol: string; category: string; liquid: boolean; weight: number; swing: number | null; worstFall: number | null; beta: number | null; fallsTaken: number | null; why: string | null;
+    years?: number | null; from?: string | null; to?: string | null;
+    /** task #183: against the Nifty 500 on weekly closes, past year */ type?: EtfType; compared?: boolean; betaPast?: number | null; explained?: number | null; band?: Band | null;
+    downPer100?: number | null; upPer100?: number | null; oneYear?: number | null; benchOneYear?: number | null; riskShare?: number | null; differentAsset?: boolean; betaWhy?: string | null }[];
   bench: { name: string; swing: number | null; worstFall: number | null; from: string; to: string };
   list: { swing: number | null; worstFall: number | null; fallsTaken: number | null; beta: number | null; level: { word: string; vs: string; because: string | null } | null; why: string | null };
   together: { symbols: string[]; pairs: { a: string; b: string; r: number | null; weeks: number; why: string | null }[]; from: string | null; to: string | null; leftOut: string[] };
   adds: { shares: Record<string, number>; why: string | null; from?: string; to?: string };
+  own?: { from: string; to: string; list: { betaOwn: number | null; betaOwnBand: Band | null; betaExLiquid: number | null; betaExLiquidBand: Band | null; beta500: number | null; beta500Band: Band | null;
+    betaIndian: number | null; betaIndianBand: Band | null; liquidShare: number | null; worst10: { list: number | null; nifty500: number | null };
+    fall10: { own: number | null; nifty500: number | null; indian: number | null }; leftOutOfFall: string[] } };
 };
 
 const retry = (n: number, e: ApiError) => e.status >= 500 && n < 2;
@@ -54,7 +68,8 @@ export function useEtfWrites() {
     add: useMutation({ mutationFn: (b: { symbol: string; qty?: string | null }) => apiSend<{ symbol: string; merged: boolean }>("POST", BASE, b), onSuccess: done }),
     quantities: useMutation({ mutationFn: (items: { symbol: string; qty: string | null }[]) => apiSend<{ updated: number }>("PUT", BASE + "/quantities", { items }), onSuccess: done }),
     remove: useMutation({ mutationFn: (symbol: string) => apiSend("DELETE", `${BASE}/${encodeURIComponent(symbol)}`), onSuccess: done }),
-    clear: useMutation({ mutationFn: () => apiSend<{ removed: number }>("DELETE", BASE), onSuccess: done }),
+    clear: useMutation({ mutationFn: () => apiSend<{ removed: number; undoSeconds: number }>("POST", BASE + "/clear"), onSuccess: done }),
+    undoClear: useMutation({ mutationFn: () => apiSend<{ restored: number }>("POST", BASE + "/undo-clear"), onSuccess: done }),
     preview: useMutation({ mutationFn: (rows: RawRow[]) => apiSend<Preview>("POST", BASE + "/import-preview", { rows }) }),
     commit: useMutation({ mutationFn: (b: { items: { symbol: string; qty: number | null }[]; existing: "skip" | "replace" }) =>
       apiSend<{ added: number; replaced: number; skipped: number }>("POST", BASE + "/import-commit", b), onSuccess: done }),
