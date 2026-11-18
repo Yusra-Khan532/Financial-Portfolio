@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from ..discovery.keywords import BUCKETS as DISCOVERY_THEMES
+from .knowledge import TOPICS as FINANCE_TOPICS
 from ..mcp.gateway import Gateway, ToolError
 from ..mcp.schema import SYMBOL_SCHEMA, clean_symbol
 from ..mcp.tools import Out, Tool
@@ -345,6 +346,14 @@ async def get_discovery(gw: Gateway, a: Dict[str, Any]) -> Out:
                       "tone (+1, 0, -1). sector: NSE's macro sector, sector and industry. Describe these; never call a company a pick."])
 
 
+
+# ------------------------------------------------------------------------------------------------ the finance reference (task #240)
+async def get_finance_framework(gw: Gateway, a: Dict[str, Any]) -> Out:
+    from . import knowledge as KN
+    data = KN.framework(a.get("topic"), a.get("sector"))
+    return Out(data, source="FinLit's finance reference (the measures that matter, how each is read, the sector-specific measures, the source order)",
+               notes=["This holds no company's figures: read those with FinLit's tools (get_company_card, get_company_section) and give their period."])
+
 TOOLS: List[Tool] = [
     Tool("get_superinvestors", "Superinvestor portfolios", "FinLit's Superinvestor portfolios page: named investors (people and firms) who hold 1% or more of listed companies, "
          "from the companies' filings. Without `investor`: the list, largest first, with their top holdings and what changed. With `investor` (a name such as "
@@ -380,6 +389,14 @@ TOOLS: List[Tool] = [
           "symbol": dict(SYMBOL_SCHEMA, description="A company symbol (optional)"),
           "sector": {"type": "string", "maxLength": 80, "description": "An NSE macro sector, e.g. Industrials, Information Technology (optional)"},
           "limit": {"type": "integer", "minimum": 1, "maximum": 30, "default": 15}}, get_discovery),
+    Tool("get_finance_framework", "Finance reference", "FinLit's finance reference: which measures matter for a topic (income statement, balance "
+         "sheet, cash flow, growth, earnings quality, valuation, profitability, liquidity and leverage, efficiency, ownership, valuation methods, "
+         "investment reasoning, portfolio, technical, funds, fixed income, macro, corporate actions, governance and risk) or for a sector (banks, "
+         "NBFCs, insurers, AMCs, IT, FMCG, autos, pharma, real estate, telecom, energy, metals, capital goods), how each is read and its traps, "
+         "the answer patterns and the order of sources. Use it for 'what matters for ...', 'how to read ...', 'is a P/E of ... high' questions.",
+         {"topic": {"type": "string", "enum": list(FINANCE_TOPICS)},
+          "sector": {"type": "string", "maxLength": 80, "description": "A sector, industry or kind of company, e.g. Private Sector Bank, NBFC, IT services"}},
+         get_finance_framework),
     Tool("screen_by_finlit_score", "Score screeners", "FinLit's Basic stock screener (FinLit IQ, Silver) and Advanced stock screener (FinLit Prism, Gold): companies by their "
          "FinLit score, highest first, optionally within a score range, a sector or industry, and a minimum size. The member's plan decides which score they see.",
          {"score": {"type": "string", "enum": ["iq", "prism"], "description": "iq: FinLit IQ (Basic screener); prism: FinLit Prism (Advanced screener)"},
@@ -392,7 +409,7 @@ TOOLS: List[Tool] = [
 TIMEOUTS = {"read_company_document": DOC_TIMEOUT + 5}
 DOING = {"get_superinvestors": "Reading Superinvestor portfolios", "get_india_economy": "Reading the India economy page", "lookup_glossary": "Reading the Glossary",
          "get_insights_and_blogs": "Reading Insights & blog", "get_news_and_filings": "Reading News & filings",
-         "read_company_document": "Reading the document", "screen_by_finlit_score": "Running the score screener", "get_discovery": "Reading Discovery"}
+         "read_company_document": "Reading the document", "screen_by_finlit_score": "Running the score screener", "get_discovery": "Reading Discovery", "get_finance_framework": "Reading FinLit's finance reference"}
 
 
 # ------------------------------------------------------------------------------------------------ "aligned with the web pages": links under the answer

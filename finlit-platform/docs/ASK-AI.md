@@ -121,3 +121,22 @@ tools on copies of the live site's answers, a real PDF, the links), `frontend/sr
 `get_discovery` (in `ask/pages.py`) reads `/api/discovery`: companies grouped by the themes their newest investor presentation talks about
 (docs/DISCOVERY.md). The instructions send "which companies are into ..." questions to it, with the caution that a keyword mention alone is not proof of
 a material business. The same nightly reading fixed `read_company_document` for NSE's files (`.in` links, NSE's archive refusing a non-browser agent).
+
+## The finance reference (task #240, 19 Nov 2026)
+
+The team asked to train FinLit AI on `FinLit_AI_Finance_Training_Parameters_and_Sources.pdf`. The reference itself says how (its sections 1
+and 14): curated knowledge retrieval for concepts, structured data for changing figures, evaluated examples for behaviour; fine-tuning is no
+substitute for current data and comes only after evaluated examples exist (and the provider's small model cannot be retrained by us). So:
+
+- `ask/knowledge.py` holds the reference in FinLit's words: 19 families of measures (statements, growth, earnings quality, valuation,
+  profitability, leverage, efficiency, ownership, valuation methods, reasoning, portfolio, technical, funds, fixed income, macro, corporate
+  actions, governance and risk), each with how it is read and its traps; 13 sector families with their own measures (banks: NIM, CASA,
+  GNPA/NNPA, PCR, CRAR; NBFCs; insurers; AMCs and exchanges; IT; FMCG; autos; pharma; real estate; telecom and media; capital goods; energy;
+  metals and chemicals), found from NSE's own sector and industry names; the source order (primary, secondary, education); the answer
+  patterns; the quality checklist. It holds no company's figures.
+- The tool `get_finance_framework` (topic or sector) returns it; the instructions (`SYSTEM_RULES`) add: the sector's own measures, never a
+  valuation ratio alone, never standalone and consolidated mixed, source and period with every figure, facts apart from estimates, no invented
+  filings or scores, and the web in the reference's order (NSE, BSE, SEBI, RBI, MOSPI, AMFI, Nifty Indices, the company's reports first).
+- `scripts/ask_eval.py`: the reference's example questions asked of the real model, each answer checked against the checklist (run by hand
+  on the server: `docker compose -f deploy/aws/docker-compose.aws.yml exec api python scripts/ask_eval.py`). When the set passes over time and
+  enough good examples exist, the reference's next step (fine-tuning on stable patterns) can be weighed; it is not needed for current data.
