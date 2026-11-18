@@ -23,7 +23,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 
@@ -32,7 +32,7 @@ from ..auth.entitlements import LIMITS, has, sees_all
 from ..auth.routes import Ctx, fail, limit, secure_ctx
 from ..mfscore.api import NOT_SCORED
 from .. import mf_fill
-from . import DISCLAIMER, SCORE_DISCLAIMER
+from . import book, DISCLAIMER, SCORE_DISCLAIMER
 from .calc import NO_RETURNS, allocation, concentration, num, summarize, value_holding
 from .match import Index, match_row
 from .parse import Clean, Rejected, clean_folio, clean_row, strict_lot
@@ -90,16 +90,38 @@ async def scheme_index(request: Request) -> Index:
 
 # ------------------------------------------------------------------------------------------------------------------------ reading
 
-async def holdings_of(conn, user_id: str) -> List[Dict[str, Any]]:
+async def holdings_of(conn, user_id: str, pf: Optional[str] = None, raw: bool = False, sold: bool = False) -> List[Dict[str, Any]]:
+    """The member's funds. Task #235: each holding's `lines` are every buy and sale as stored (platform, side); its `lots` are what is left of each buy,
+    first in, first out within each platform (book.open_lots), so every figure follows the units still held. With `pf`, one platform: a fund held there,
+    or (in the first platform) a fund only followed. A fund sold in full is left out unless `sold` (the list, for its Sold lines). `raw` keeps the stored
+    lines as the lots (Clear portfolio's snapshot)."""
     rows = await conn.fetch(
-        "SELECT h.id, h.code, h.folio, h.isin, l.id AS lot_id, l.units, l.invested, l.bought_on FROM mf_holdings h LEFT JOIN mf_holding_lots l ON l.holding_id = h.id "
-        "WHERE h.user_id = $1 ORDER BY h.created_at, h.id, l.bought_on NULLS LAST, l.created_at, l.id", user_id)
+        "SELECT h.id, h.code, h.folio, h.isin, l.id AS lot_id, l.units, l.invested, l.bought_on, l.pf, l.side, l.pos FROM mf_holdings h LEFT JOIN mf_holding_lots l ON l.holding_id = h.id "
+        "WHERE h.user_id = $1 ORDER BY h.created_at, h.id, l.pos, l.bought_on NULLS LAST, l.created_at, l.id", user_id)
     out: Dict[Any, Dict[str, Any]] = {}
     for r in rows:
         h = out.setdefault(r["id"], {"id": str(r["id"]), "code": r["code"], "folio": r["folio"], "isin": r["isin"], "lots": []})
         if r["lot_id"] is not None:        # a fund that is only followed (no units given) has no purchase lines
-            h["lots"].append({"id": str(r["lot_id"]), "units": r["units"], "invested": r["invested"], "bought_on": r["bought_on"]})
-    return list(out.values())
+            h["lots"].append({"id": str(r["lot_id"]), "units": r["units"], "invested": r["invested"], "bought_on": r["bought_on"], "pf": r["pf"], "side": r["side"], "pos": r["pos"]})
+    held = list(out.values())
+    if raw:
+        return held
+    first = None
+    if pf and pf != "all":
+        accs = await book.platforms_of(conn, user_id)
+        first = accs[0]["id"] if accs else book.DEFAULT_PF
+    keep = []
+    for h in held:
+        h["lines"] = h["lots"]
+        h["lots"] = book.open_lots(h["lines"], None if not pf or pf == "all" else pf)
+        if pf and pf != "all" and not h["lots"] and not (not h["lines"] and pf == first):
+            continue
+        if h["lines"] and not h["lots"]:
+            if not sold:
+                continue               # every unit sold (in this platform): out of the figures
+            h["soldInFull"] = True     # kept for its lines: the Sold list
+        keep.append(h)
+    return keep
 
 
 def _scheme_fields(s: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -149,13 +171,14 @@ async def scores_for(conn, codes: List[int]) -> Dict[int, Dict[str, Any]]:
 LOCKED_SCORE = {"locked": True, "final": None, "label": None, "status": None, "reason": None, "parts": None, "runDate": None, "inherited": None}
 
 
-async def build_view(request: Request, ctx: Ctx) -> Dict[str, Any]:
+async def build_view(request: Request, ctx: Ctx, pf: Optional[str] = None) -> Dict[str, Any]:
     # Task #183 (COMMON-RULES 3): the Fund Health Score and its four parts are for every plan that has the MF portfolio ("Mutual Fund + ETF and up", which
     # is Silver and up until that plan exists). The page is Silver and up (member_ctx), so every member here sees them. Only the trend underneath stays Gold.
     gold = True
     async with request.app.state.store.pool.acquire() as conn:
-        held = await holdings_of(conn, ctx.user_id)
-        codes = sorted({h["code"] for h in held})
+        both = await holdings_of(conn, ctx.user_id, pf, sold=True)
+        held = [h for h in both if not h.get("soldInFull")]
+        codes = sorted({h["code"] for h in both})
         schemes = {r["code"]: dict(r) for r in await conn.fetch(f"SELECT {SCHEME_COLS} FROM mf_schemes WHERE code = ANY($1::int[])", codes)} if codes else {}  # nosec B608 - fixed column list; codes are bound
         data_date = await conn.fetchval("SELECT max(nav_date) FROM mf_schemes WHERE active")
         scores = await scores_for(conn, codes) if gold and codes else {}
@@ -166,20 +189,28 @@ async def build_view(request: Request, ctx: Ctx) -> Dict[str, Any]:
         row["isin"] = h.get("isin") or row.get("isin")          # the stored ISIN (task #183); a scheme AMFI lists without one says so
         row["isinWhy"] = None if row["isin"] else "AMFI's NAV file gives no ISIN for this scheme."
         row["score"] = scores.get(h["code"]) if gold else LOCKED_SCORE
+        row["lines"] = [_line(l) for l in h.get("lines", [])]      # task #235: every buy and sale as stored, for the page's buys and Sold list
         rows.append(row)
+    sold = [{"id": h["id"], "code": h["code"], "folio": h["folio"], "name": (schemes.get(h["code"]) or {}).get("name"), "lines": [_line(l) for l in h["lines"]]}
+            for h in both if h.get("soldInFull")]
     total = sum((Decimal(str(r["current"])) for r in rows if r["current"] is not None), Decimal(0))   # weight = share of the value of all valued funds
     for r in rows:
         r["weight"] = num(Decimal(str(r["current"])) / total * 100, 1) if r["current"] is not None and total > 0 else None
         r["weightWhy"] = None if r["weight"] is not None else (r["currentWhy"] or "The portfolio has no value yet.")
     summary = summarize(rows, score_locked=not gold)
     return {"plan": "gold" if is_gold(ctx) else ctx.plan, "scoreLocked": not gold, "limit": cap_for(ctx), "count": len(rows), "dataDate": data_date.isoformat() if data_date else None,
-            "holdings": rows, "summary": summary, "allocation": allocation(rows), "concentration": concentration(rows),
+            "holdings": rows, "sold": sold, "summary": summary, "allocation": allocation(rows), "concentration": concentration(rows),
             "disclaimer": DISCLAIMER, "scoreDisclaimer": SCORE_DISCLAIMER}
 
 
+def _line(l: Dict[str, Any]) -> Dict[str, Any]:
+    return {"id": l["id"], "units": num(l["units"], 4), "invested": num(l["invested"]), "boughtOn": l["bought_on"].isoformat() if l["bought_on"] else None,
+            "pf": l.get("pf") or book.DEFAULT_PF, "side": l.get("side") or "buy"}
+
+
 @router.get("")
-async def list_holdings(request: Request, ctx: Ctx = Depends(member_ctx)):
-    return reply(await build_view(request, ctx))
+async def list_holdings(request: Request, ctx: Ctx = Depends(member_ctx), pf: Optional[str] = Query(None, pattern=r"^(all|[a-z0-9]{1,16})$")):
+    return reply(await build_view(request, ctx, pf))
 
 
 # ------------------------------------------------------------------------------------------------------------------------ diversification
@@ -245,13 +276,13 @@ async def trend_block(request: Request, funds: List[Dict[str, Any]], top: List[D
 
 
 @router.get("/diversification")
-async def diversification(request: Request, ctx: Ctx = Depends(member_ctx)):
+async def diversification(request: Request, ctx: Ctx = Depends(member_ctx), pf: Optional[str] = Query(None, pattern=r"^(all|[a-z0-9]{1,16})$")):
     """How spread the member's funds are: words and plain figures only. The levels and bands that give the overall word stay here."""
     from .. import portfolios
     from .spread import public_view, spread
     store = request.app.state.store
     async with store.pool.acquire() as conn:
-        held = await holdings_of(conn, ctx.user_id)
+        held = await holdings_of(conn, ctx.user_id, pf)
         codes = sorted({h["code"] for h in held})
         if not codes:
             return reply({"count": 0, "why": "Add funds to see how spread they are."})
@@ -290,7 +321,7 @@ async def diversification(request: Request, ctx: Ctx = Depends(member_ctx)):
 
 
 @router.get("/risk")
-async def fund_risk(request: Request, ctx: Ctx = Depends(member_ctx)):
+async def fund_risk(request: Request, ctx: Ctx = Depends(member_ctx), pf: Optional[str] = Query(None, pattern=r"^(all|[a-z0-9]{1,16})$")):
     """Each fund's swing, worst fall, beta and share of the NIFTY 500's falls, from its daily NAV over the last three years, and the list's risk level against
     the NIFTY 500 (Silver and Gold, as the page). Plain figures and words only; the cut-offs behind the level stay in mfportfolio.risk."""
     from .. import indices
@@ -303,7 +334,7 @@ async def fund_risk(request: Request, ctx: Ctx = Depends(member_ctx)):
     bench = {date.fromisoformat(r["d"]).toordinal(): float(r["c"]) for r in rows}
     end = max(bench)
     async with store.pool.acquire() as conn:
-        held = await holdings_of(conn, ctx.user_id)
+        held = await holdings_of(conn, ctx.user_id, pf)
         codes = sorted({h["code"] for h in held})
         if not codes:
             return reply({"count": 0, "why": "Add funds to see their risk figures."})
@@ -405,6 +436,8 @@ class LotIn(BaseModel):
     invested: Union[str, int, float, None] = None
     avgCost: Union[str, int, float, None] = None
     boughtOn: Union[str, None] = Field(default=None, max_length=40)
+    pf: str = Field(default=book.DEFAULT_PF, pattern=r"^[a-z0-9]{1,16}$")      # task #235: the platform
+    side: Literal["buy", "sell"] = "buy"                                         # task #235: a sale's amount is what it was sold for (units × sell NAV)
 
     @field_validator("units", "invested", "avgCost")
     @classmethod
@@ -464,17 +497,21 @@ async def add_holding(request: Request, body: AddIn, ctx: Ctx = Depends(member_c
             elif await conn.fetchval("SELECT count(*) FROM mf_holding_lots WHERE holding_id = $1", hid) >= MAX_LOTS:
                 raise fail(403, "plan_limit", f"A holding keeps up to {MAX_LOTS} purchases.")
             if not follow:
-                await conn.execute("INSERT INTO mf_holding_lots (holding_id, units, invested, bought_on) VALUES ($1, $2, $3, $4)", hid, units, invested, bought)
+                await conn.execute("INSERT INTO mf_holding_lots (holding_id, units, invested, bought_on, pf, side, pos) VALUES ($1, $2, $3, $4, $5, $6, "
+                                   "(SELECT COALESCE(max(pos) + 1, 0) FROM mf_holding_lots WHERE holding_id = $1))", hid, units, invested, bought, body.pf, body.side)
             await conn.execute("UPDATE mf_holdings SET updated_at = now() WHERE id = $1", hid)
     mf_fill.fill_in_background(request.app.state.store, [body.code])    # a fund with no returns yet gets them now, not at the next nightly run
     return reply({"status": "saved", "id": str(hid), "merged": merged}, 201)
+
+
+book.register(router, member_ctx, lock_member, reply)   # task #235: GET and PUT /book (the platforms), before "/{hid}" so "book" is not read as an id
 
 
 @router.put("/{hid}")
 async def update_holding(request: Request, hid: str, body: UpdateIn, ctx: Ctx = Depends(member_ctx)):
     await limit(request, "mfpw", ctx.user_id, 120, 600)
     h = uid_of(hid)
-    lots = [lot_of(l) for l in body.lots]
+    lots = [(*lot_of(l), l.pf, l.side) for l in body.lots]
     async with request.app.state.store.pool.acquire() as conn:
         async with conn.transaction():
             await lock_member(conn, ctx.user_id)
@@ -487,7 +524,8 @@ async def update_holding(request: Request, hid: str, body: UpdateIn, ctx: Ctx = 
                     raise fail(409, "duplicate_holding", "You already hold this fund under that folio. Edit that holding instead.")
                 await conn.execute("UPDATE mf_holdings SET folio = $2 WHERE id = $1", h, folio)
             await conn.execute("DELETE FROM mf_holding_lots WHERE holding_id = $1", h)
-            await conn.executemany("INSERT INTO mf_holding_lots (holding_id, units, invested, bought_on) VALUES ($1, $2, $3, $4)", [(h, u, i, d) for u, i, d in lots])
+            await conn.executemany("INSERT INTO mf_holding_lots (holding_id, units, invested, bought_on, pf, side, pos) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+                                   [(h, u, i, d, p, sd, n) for n, (u, i, d, p, sd) in enumerate(lots)])
             await conn.execute("UPDATE mf_holdings SET updated_at = now() WHERE id = $1", h)
     return reply({"status": "saved", "id": str(h)})
 
@@ -514,7 +552,7 @@ def _clear_key(user_id: str) -> str:
 
 def _lot_json(l: Dict[str, Any]) -> Dict[str, Any]:
     return {"units": str(l["units"]) if l["units"] is not None else None, "invested": str(l["invested"]) if l["invested"] is not None else None,
-            "boughtOn": l["bought_on"].isoformat() if l["bought_on"] else None}
+            "boughtOn": l["bought_on"].isoformat() if l["bought_on"] else None, "pf": l.get("pf") or book.DEFAULT_PF, "side": l.get("side") or "buy", "pos": l.get("pos") or 0}
 
 
 @router.post("/clear")
@@ -524,7 +562,7 @@ async def clear_holdings(request: Request, ctx: Ctx = Depends(member_ctx)):
     async with request.app.state.store.pool.acquire() as conn:
         async with conn.transaction():
             await lock_member(conn, ctx.user_id)
-            held = await holdings_of(conn, ctx.user_id)
+            held = await holdings_of(conn, ctx.user_id, raw=True)
             snap = [{"code": h["code"], "isin": h.get("isin"), "folio": h["folio"], "lots": [_lot_json(l) for l in h["lots"]]} for h in held]
             await request.app.state.store.redis.set(_clear_key(ctx.user_id), json.dumps(snap), ex=CLEAR_HOLD_SECONDS)
             await conn.execute("DELETE FROM mf_holdings WHERE user_id = $1", ctx.user_id)
@@ -550,8 +588,9 @@ async def undo_clear_holdings(request: Request, ctx: Ctx = Depends(member_ctx)):
                 for l in h["lots"]:
                     if l["units"] is None:
                         continue
-                    await conn.execute("INSERT INTO mf_holding_lots (holding_id, units, invested, bought_on) VALUES ($1, $2, $3, $4)", hid, Decimal(l["units"]),
-                                       Decimal(l["invested"]) if l["invested"] is not None else None, date.fromisoformat(l["boughtOn"]) if l["boughtOn"] else None)
+                    await conn.execute("INSERT INTO mf_holding_lots (holding_id, units, invested, bought_on, pf, side, pos) VALUES ($1, $2, $3, $4, $5, $6, $7)", hid, Decimal(l["units"]),
+                                       Decimal(l["invested"]) if l["invested"] is not None else None, date.fromisoformat(l["boughtOn"]) if l["boughtOn"] else None,
+                                       l.get("pf") or book.DEFAULT_PF, l.get("side") or "buy", l.get("pos") or 0)
     return reply({"status": "restored", "restored": len(snap)})
 
 

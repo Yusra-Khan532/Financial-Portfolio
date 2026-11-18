@@ -38,6 +38,8 @@ async def schemes(app):  # noqa: F811
         await conn.execute("DROP TABLE IF EXISTS mf_holding_lots, mf_holdings CASCADE")
         await conn.execute(MIGRATION.read_text())
         await conn.execute((MIGRATION.parent / "108_mf_holdings_isin.sql").read_text())   # task #183: each holding stored with its ISIN
+        await conn.execute("DROP TABLE IF EXISTS mf_books CASCADE")
+        await conn.execute((MIGRATION.parent / "113_mf_book.sql").read_text())   # task #235: each line's platform and side
         await conn.execute("DELETE FROM mf_scores WHERE code >= $1", BASE)
         await conn.execute("DELETE FROM mf_schemes WHERE code >= $1", BASE)
         for c, name, plan, opt, isin, nav, active, cat, r1, r3, r5, ter, aum in SCHEMES:
