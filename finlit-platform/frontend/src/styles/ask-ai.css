@@ -4,10 +4,10 @@
 .aif.full > header { padding-left: max(16px, calc((100% - 920px) / 2 + 8px)); padding-right: max(16px, calc((100% - 920px) / 2 + 8px)); }
 .aif.full > form, .aif.full > .ai-fine { width: min(920px, 100%); margin-left: auto; margin-right: auto; box-sizing: border-box; }
 .aif.full .ai-body { width: min(920px, 100%); margin: 0 auto; box-sizing: border-box; padding: 20px 24px; }
-.aif.full .bub { max-width: 78%; font-size: 16px; } .aif.full .aif-cats { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.aif.full .bub { max-width: 78%; font-size: 16px; } .aif.full .aif-cats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .aif.full .aif-qs { grid-template-columns: repeat(2, minmax(0, 1fr)); } .aif.full .aif-qchips { max-width: 480px; }
 .aif .aif-full { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; border: 0; background: var(--s1); color: var(--text); cursor: pointer; } .aif .aif-full:hover { background: var(--gold-soft); }
-@media (max-width: 720px) { .aif.full .aif-cats { grid-template-columns: 1fr 1fr; } .aif.full .aif-cats > li:last-child:nth-child(odd) { grid-column: 1 / -1; } .aif.full .aif-qs { grid-template-columns: minmax(0, 1fr); } .aif.full .bub { max-width: 92%; } .aif.full .ai-body { padding: 14px; } }
+@media (max-width: 720px) { .aif.full .aif-cats { grid-template-columns: 1fr 1fr; } .aif.full .aif-qs { grid-template-columns: minmax(0, 1fr); } .aif.full .bub { max-width: 92%; } .aif.full .ai-body { padding: 14px; } }
 .aif header { gap: 10px; justify-content: flex-start; }
 .aif header .aif-title { flex: 1; min-width: 0; } .aif header .aif-title span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .aif header .aif-title + * { margin-left: auto; }
@@ -18,8 +18,6 @@
 .aif-label { margin: 6px 0 2px; font: 700 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .aif ul { list-style: none; margin: 0; padding: 0; }
 .aif-cats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.aif-cats > li:last-child:nth-child(odd) { grid-column: 1 / -1; }   /* task #203: the fifth card (Mutual funds & ETFs) takes the whole row in two columns */
-@media (min-width: 721px) { .aif.full .aif-cats > li:last-child:nth-child(odd) { grid-column: auto; } }
 .aif-cat { width: 100%; height: 100%; display: grid; gap: 4px; justify-items: start; text-align: left; padding: 12px; border-radius: 14px; border: 1px solid var(--border-strong); background: var(--s2); color: var(--text); cursor: pointer; }
 .aif-cat:hover, .aif-seg:hover, .aif-q:hover { border-color: var(--gold); background: var(--gold-soft); }
 .aif-cat svg { width: 20px; height: 20px; color: var(--gold); } .aif-cat b { font-size: 14px; } .aif-cat small { color: var(--muted); font-size: 12px; line-height: 1.35; }
@@ -127,7 +125,7 @@
 
 /* Task #138: answers come from written text and FinLit's figures (no model). A link under an answer to the page it comes from; the listed questions that
    match what is typed, above the box; the closest questions offered when a typed text matches none exactly. */
-.aif-ans-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; font-size: var(--fs-13); font-weight: 600; color: var(--aif-g, var(--gold)); text-decoration: none; white-space: normal; }
+.aif-ans-link { display: flex; width: fit-content; align-items: center; gap: 6px; margin-top: 10px; font-size: var(--fs-13); font-weight: 600; color: var(--aif-g, var(--gold)); text-decoration: none; white-space: normal; }
 .aif-ans-link:hover, .aif-ans-link:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
 .aif-ans-link svg { width: 14px; height: 14px; }
 .aif-sugq { margin: 10px 0 0; white-space: normal; }
@@ -145,3 +143,39 @@
 .bub .aif-disc { display: block; margin-top: 8px; font-size: 12px; line-height: 1.4; color: var(--muted); white-space: normal; }
 .bub.aif-bub-err { color: var(--muted); }
 .ai-fine .aif-left { white-space: normal; }
+
+/* ---- task #201: the start screen and the answers ---- */
+.aif-askw { display: grid; gap: 10px; margin: 6px 0 14px; }
+.ai form.aif-ask { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 6px 0 16px; border-top-width: 1.5px; border: 1.5px solid color-mix(in srgb, var(--aif-g, var(--gold)) 55%, var(--border)); border-radius: 16px; background: var(--s1); box-shadow: 0 10px 28px -20px color-mix(in srgb, var(--aif-g, var(--gold)) 70%, transparent); }
+.ai form.aif-ask:focus-within { border-color: var(--aif-g, var(--gold)); }
+.ai form.aif-ask > svg { flex: none; width: 18px; height: 18px; color: var(--muted); }
+.ai form.aif-ask input { flex: 1; min-width: 0; height: 48px; padding: 0; border: 0 !important; border-radius: 0; outline: 0; box-shadow: none !important; background: none !important; color: var(--text); font: var(--fs-16) var(--sans); }   /* the panel's own ".ai form input" box is not drawn inside this one */
+.ai form.aif-ask button { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 12px; background: var(--aif-g, var(--gold)); color: var(--bg); cursor: pointer; }
+.ai form.aif-ask button:disabled { opacity: .45; cursor: default; }
+.ai form.aif-ask button svg { width: 16px; height: 16px; }
+.aif-typed.aif-typed-top { border: 1px solid var(--border); border-radius: 12px; padding: 6px; background: var(--s1); }
+.aif-try { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: var(--fs-13); color: var(--muted); }
+.aif-try span, .aif-more span { margin-right: 2px; }
+.aif-try button, .aif-more button { min-height: 32px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--s2); color: var(--text); font: 500 var(--fs-13) var(--sans); cursor: pointer; }
+.aif-try button:hover, .aif-more button:hover { border-color: var(--aif-g, var(--gold)); }
+.aif-try button:focus-visible, .aif-more button:focus-visible, .aif-ask button:focus-visible, .aif-pops button:focus-visible { outline: 2px solid var(--aif-g, var(--gold)); outline-offset: 2px; }
+.aif-more { margin: 10px 0 4px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: var(--fs-13); color: var(--muted); }
+.aif-more button { display: inline-flex; align-items: center; gap: 6px; } .aif-more button svg { width: 15px; height: 15px; color: var(--aif-g, var(--gold)); }
+.aif.full .aif-cat small { padding-right: 38px; }   /* the corner arrow never sits on the sub-line */
+.aif-pops { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.aif-pops button { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 14px 4px 6px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--s1); color: var(--text); font: 600 var(--fs-13) var(--sans); cursor: pointer; }
+.aif-pops button:hover { border-color: var(--aif-g, var(--gold)); }
+.aif-acts { margin: 10px 0 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.aif-acts a { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: 10px; color: var(--text); font: 600 var(--fs-13) var(--sans); text-decoration: none; }
+.aif-acts a:hover, .aif-acts a:focus-visible { border-color: var(--aif-g, var(--gold)); } .aif-acts svg { width: 13px; height: 13px; }
+.aif-a { display: grid; gap: 6px; }
+.aif-a-pts { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.aif-a-pts li { position: relative; padding-left: 16px; line-height: 1.5; overflow-wrap: anywhere; }
+.aif-a-pts li::before { content: ""; position: absolute; left: 3px; top: .62em; width: 6px; height: 6px; border-radius: 50%; background: var(--aif-g, var(--gold)); }
+.aif-a-n { font-weight: 700; color: var(--text); white-space: nowrap; }
+.aif-a-src { margin: 4px 0 0; font-size: var(--fs-12); color: var(--muted); }
+.aif-a-disc { margin: 0; font-size: var(--fs-12); color: var(--muted); font-style: italic; }
+.aif-a-bars { display: block; width: 100%; max-width: 460px; height: auto; margin: 8px 0 2px; }
+.aif-a-axis { stroke: var(--border-strong); stroke-width: 1; }
+.aif-a-bar { fill: color-mix(in srgb, var(--aif-g, var(--gold)) 45%, transparent); } .aif-a-bar.on { fill: var(--aif-g, var(--gold)); } .aif-a-bar.neg { fill: color-mix(in srgb, var(--loss) 60%, transparent); }
+.aif-a-v { font: 600 var(--fs-11) var(--mono); fill: var(--text); } .aif-a-l { font: 500 var(--fs-11) var(--sans); fill: var(--muted); }
