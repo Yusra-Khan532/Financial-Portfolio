@@ -34,3 +34,16 @@ describe("Chart builder cards (task #39)", () => {
     expect(css).toContain(".gx-cell .csay { margin: auto 0 0; }");
   });
 });
+
+describe("Chart builder: each description opens on its own (task #225)", () => {
+  it("cards keep their own height, so opening one chart's reading never grows or moves another", () => {
+    const css = readFileSync(join(__dirname, "../styles/graphs.css"), "utf8");
+    const grid = [...css.matchAll(/\.gx-grid \{([^}]*)\}/g)].map((m) => m[1]).join(";");
+    expect(grid).toMatch(/align-items: start/);                                    // before: the row stretched every card to the tallest
+    const says = readFileSync(join(__dirname, "ChartSays.tsx"), "utf8");
+    expect(says).toContain('<details className="csay" open={open}');                // each panel is its own <details>: no shared open state
+    const studio = readFileSync(join(__dirname, "../pages/GraphStudio.tsx"), "utf8");
+    expect(studio).not.toMatch(/<ChartReading[^>]*\bopen=/);                        // the builder never opens readings together
+  });
+});
+

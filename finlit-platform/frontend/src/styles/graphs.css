@@ -66,6 +66,9 @@
 .gx-cell header .gx-zoom svg { width: 18px; height: 18px; }
 .gx-cell .gx-body, .gx-cell .gx-r { flex: none; }
 .gx-cell .csay { margin: auto 0 0; }
+/* Task #225: each chart keeps its own height. The grid used to stretch every card in a row to the tallest one, so opening one chart's
+   "What does the chart say?" grew its neighbours too and pushed their closed panels down, leaving a gap. Each panel's open state is its own (<details>). */
+.gx-grid { align-items: start; }
 .gx-cell .gx-body { margin-bottom: 12px; }
 .gx-cell .csay > summary { min-height: 56px; }
 .gx-cell .csay-t small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
