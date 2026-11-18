@@ -27,10 +27,10 @@ export function stepInView(tops: { id: string; top: number }[], line: number): s
   return cur;
 }
 
-export function StepsBar({ steps, label = "Sections", menu }: { steps: Step[]; label?: string; menu?: MenuGroup[] }) {
+export function StepsBar({ steps, label = "Sections", menu, lead }: { steps: Step[]; label?: string; menu?: MenuGroup[]; /** task #235 (pack B12): shown at the left once the bar sticks */ lead?: ReactNode }) {
   const [active, setActive] = useState<string | null>(steps[0]?.id ?? null);
   const [open, setOpen] = useState(false);
-  const [top, setTop] = useState(0);
+  const [top, setTop] = useState(0), [stuck, setStuck] = useState(false);
   const bar = useRef<HTMLDivElement>(null), btn = useRef<HTMLButtonElement>(null), pop = useRef<HTMLDivElement>(null);
   const popId = "stb-" + useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const key = steps.map((s) => s.id).join(",");
@@ -41,6 +41,12 @@ export function StepsBar({ steps, label = "Sections", menu }: { steps: Step[]; l
     fix(); addEventListener("resize", fix);
     return () => removeEventListener("resize", fix);
   }, []);
+  // Task #235 (pack B12): "stuck" once the bar reaches its place under the header, so the switcher at its left shows.
+  useEffect(() => {
+    if (!lead) return;
+    const on = () => { const el = bar.current?.parentElement; if (!el) return; setStuck(el.getBoundingClientRect().top <= headerHeight() + 1 && scrollY > 0); };
+    on(); addEventListener("scroll", on, { passive: true }); return () => removeEventListener("scroll", on);
+  }, [lead]);
   // Underline the step in view.
   useEffect(() => {
     let t = 0;
@@ -77,7 +83,8 @@ export function StepsBar({ steps, label = "Sections", menu }: { steps: Step[]; l
   const go = (id: string, step: string) => { setOpen(false); setActive(step); scrollTo(id); };
   return (
     <div className="stb-wrap" style={{ top }}>
-      <nav className="stb" ref={bar} aria-label={label}>
+      <nav className={"stb sw-host" + (stuck && lead ? " x-sw-on" : "")} ref={bar} aria-label={label}>
+        {lead}
         <button type="button" ref={btn} className="stb-all" aria-haspopup="true" aria-expanded={open} aria-controls={popId} onClick={() => setOpen(!open)}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" focusable="false"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
           All sections

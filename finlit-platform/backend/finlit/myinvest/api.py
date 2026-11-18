@@ -61,6 +61,9 @@ class ShareIn(BaseModel):
 class Body(BaseModel):
     model_config = ConfigDict(extra="forbid")
     shares: List[ShareIn] = Field(default_factory=list, max_length=500)
+    # task #235 (pack C3): one account across the three pages: its MF platform and its ETF account ("none": the account has no funds or ETFs; omitted: all)
+    mfPf: Optional[str] = Field(default=None, pattern=r"^(all|none|[a-z0-9]{1,16})$")
+    etfPf: Optional[str] = Field(default=None, pattern=r"^(all|none|[a-z0-9]{1,16})$")
 
 
 def _ord(t: str) -> Optional[int]:
@@ -134,12 +137,16 @@ async def _peers(store) -> Dict[str, str]:
     return {}
 
 
-async def _etfs(app, user_id: str) -> Tuple[List[Dict[str, Any]], List[str]]:
+async def _etfs(app, user_id: str, pf: Optional[str] = None) -> Tuple[List[Dict[str, Any]], List[str]]:
     """The member's ETFs as the ETF portfolio reads them: [{symbol, name, qty, price, chg1y, premium, ter, tracks, holdings, asOf, days, closes}], and the
     symbols no longer listed."""
     from ..etfportfolio import api as ep
+    from ..etfportfolio import book as eb
+    if pf == "none":
+        return [], []
     async with app.state.store.pool.acquire() as conn:
-        held = await ep.held_of(conn, user_id)
+        held = await ep.held_of(conn, user_id, pf)
+        cost = eb.open_cost(await eb.lots_of(conn, user_id), None if not pf or pf == "all" else pf)   # task #235: what the units still held cost
     if not held:
         return [], []
     by, idx = await asyncio.gather(ep.etf_rows(app), ep.index_keys(app))
@@ -156,7 +163,8 @@ async def _etfs(app, user_id: str) -> Tuple[List[Dict[str, Any]], List[str]]:
                     "chg1d": v["changePct"], "chg1y": v["ret1y"], "premium": v["premium"], "ter": v["ter"]["value"], "assetClass": r.get("asset_class"),
                     "category": r.get("category"), "categoryLabel": v["categoryLabel"], "tracks": v["tracks"], "holdings": (port or {}).get("holdings") or [],
                     "assetSplit": ((port or {}).get("summary") or {}).get("assetSplit"), "asOf": (port or {}).get("asOf"),
-                    "fileWhy": None if port and port.get("holdings") else why or "No monthly portfolio file found for this ETF yet.", "days": days, "closes": closes, "historyWhy": hwhy})
+                    "fileWhy": None if port and port.get("holdings") else why or "No monthly portfolio file found for this ETF yet.", "days": days, "closes": closes, "historyWhy": hwhy,
+                    "invested": float(cost[h["symbol"]]) if cost.get(h["symbol"]) is not None and h["qty"] else None})
     return out, gone
 
 
@@ -186,12 +194,12 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
     known = [s for s in symbols if s in facts]
     prices = await div._prices(app, known) if known else {}
     async with store.pool.acquire() as conn:
-        held = await holdings_of(conn, ctx.user_id)
+        held = [] if body.mfPf == "none" else await holdings_of(conn, ctx.user_id, body.mfPf)
         codes = sorted({h["code"] for h in held})
         schemes = {r["code"]: dict(r) for r in await conn.fetch(f"SELECT {SCHEME_COLS} FROM mf_schemes WHERE code = ANY($1::int[])", codes)} if codes else {}  # nosec B608 - fixed column list; codes are bound
         navs = {c: await nav_history(conn, schemes[c]) for c in codes if c in schemes}
         fscores = await scores_for(conn, codes) if gold and codes else {}
-    etfs, etf_gone = await _etfs(app, ctx.user_id)
+    etfs, etf_gone = await _etfs(app, ctx.user_id, body.etfPf)
     peer_raw, bench_rows = await asyncio.gather(_peers(store), _bench(app))
     bench = {date.fromisoformat(r["d"]).toordinal(): float(r["c"]) for r in bench_rows}
     end = max(bench) if bench else None
@@ -209,6 +217,7 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
                        "chg1d": (last / prev - 1) * 100 if last and prev else None, "chg1y": _year_change(days, vals), "mcap": calc._num(f.get("mcap"))})
 
     units: Dict[int, Decimal] = defaultdict(Decimal)
+    paid: Dict[int, Optional[Decimal]] = defaultdict(Decimal)        # task #235 (pack C3): what the units still held cost; None when a buy has no amount
     unknown_units = set()
     for h in held:
         for lot in h["lots"]:
@@ -216,6 +225,7 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
                 unknown_units.add(h["code"])
             else:
                 units[h["code"]] += Decimal(str(lot["units"]))
+                paid[h["code"]] = None if paid[h["code"]] is None or lot["invested"] is None else paid[h["code"]] + Decimal(str(lot["invested"]))
     funds: List[Dict[str, Any]] = []
     for c in codes:
         s = schemes.get(c)
@@ -230,7 +240,7 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
                       "chg1y": _year_change(days, vals), "ter": calc._num(float(s["ter"])) if s.get("ter") is not None else None,
                       "holdings": (port or {}).get("holdings") or [], "assetSplit": ((port or {}).get("summary") or {}).get("assetSplit"), "asOf": (port or {}).get("asOf"),
                       "score": sc.get("final"), "label": sc.get("label"), "parts": sc.get("parts"), "scoreWhy": None if not gold or sc.get("final") is not None else sc.get("reason"),
-                      "days": days, "closes": vals})
+                      "days": days, "closes": vals, "invested": float(paid[c]) if paid.get(c) is not None and units.get(c) and c not in unknown_units else None})
 
     split = calc.split_parts(shares, funds, etfs)
     companies = calc.look_through(shares, funds, etfs, split)
@@ -335,11 +345,11 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
                    "value": calc.r(s["qty"] * s["price"]) if s["qty"] and s["price"] else None, "of": calc.r(split["part"]["shares"] * w * 100),
                    "alsoIn": next(({"funds": calc.r(c["funds"]), "etfs": calc.r(c["etfs"]), "all": calc.r(c["all"]), "via": [fund_name.get(x, str(x)) for x in c["viaFunds"]] + c["viaEtfs"]}
                                    for c in companies if c["symbol"] == s["symbol"] and c["ways"] > 1), None)} for s, w in zip(shares, split["shares"]["w"])]
-    out_funds = [{**{k: f[k] for k in ("code", "name", "short", "type", "units", "nav", "navDate", "ter", "asOf", "score", "label", "parts", "scoreWhy", "beta", "swing", "worstFall", "riskWhy")},
+    out_funds = [{**{k: f[k] for k in ("code", "name", "short", "type", "units", "nav", "navDate", "ter", "asOf", "score", "label", "parts", "scoreWhy", "beta", "swing", "worstFall", "riskWhy", "invested")},
                   "chg1y": calc.r(f["chg1y"]), "value": calc.r(f["units"] * f["nav"]) if f["units"] and f["nav"] else None, "of": calc.r(split["part"]["funds"] * w * 100),
                   "file": bool(f["holdings"]), "equityLines": sum(1 for h in f["holdings"] if (h.get("assetClass") or "equity") == "equity")}
                  for f, w in zip(funds, split["funds"]["w"])]
-    out_etfs = [{**{k: e[k] for k in ("symbol", "name", "isin", "qty", "price", "priceDate", "chg1d", "chg1y", "premium", "ter", "categoryLabel", "asOf", "fileWhy", "beta", "swing", "worstFall", "riskWhy")},
+    out_etfs = [{**{k: e[k] for k in ("symbol", "name", "isin", "qty", "price", "priceDate", "chg1d", "chg1y", "premium", "ter", "categoryLabel", "asOf", "fileWhy", "beta", "swing", "worstFall", "riskWhy", "invested")},
                  "tracks": e["tracks"].get("label"), "twice": e["symbol"] in twice, "value": calc.r(e["qty"] * e["price"]) if e["qty"] and e["price"] else None,
                  "of": calc.r(split["part"]["etfs"] * w * 100), "file": bool(e["holdings"])} for e, w in zip(etfs, split["etfs"]["w"])]
     out_companies = [{"symbol": c["symbol"], "name": c["name"], "abroad": c["abroad"], "macro": calc.LISTED_ABROAD if c["abroad"] else ((classes.get(c["symbol"] or "") or {}).get("macro_sector") or c["macro"] or calc.NOT_CLASSIFIED),

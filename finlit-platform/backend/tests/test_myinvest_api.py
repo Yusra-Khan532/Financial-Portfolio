@@ -110,3 +110,29 @@ async def test_bad_bodies_are_refused(app):  # noqa: F811
     assert b["unknown"] == ["NOTALISTEDCO"]                                                            # not a company FinLit lists: said, never guessed
     assert (await c.post(URL, json={"shares": [{"symbol": "bad symbol!", "qty": 1}]})).status_code == 422
     assert (await c.post(URL, json={"shares": [{"symbol": "TCS", "qty": 1, "price": 5}]})).status_code == 422
+
+
+async def test_235_one_account_across_the_three_pages_and_what_was_invested(app):  # noqa: F811
+    """Task #235 (pack C3): the accounts filter: the MF platform and the ETF account of one account; what the units still held cost, first in, first out."""
+    from test_etf_book_235 import book_tables  # noqa: F401  (the ETF book tables)
+    async with app.state.store.pool.acquire() as conn:
+        await conn.execute("DROP TABLE IF EXISTS etf_lots, etf_books CASCADE")
+        from pathlib import Path
+        await conn.execute((Path(mi.__file__).parent.parent / "migrations" / "112_etf_book.sql").read_text())
+    c = await signed_in(app, "s@example.com", plan="silver")
+    hid = (await add(c, BASE + 1, "100", invested="10000", boughtOn="2025-01-10", pf="upstox")).json()["id"]
+    await c.put(f"/api/me/mf-portfolio/{hid}", json={"lots": [{"units": "100", "invested": "10000", "boughtOn": "2025-01-10", "pf": "upstox"},
+                                                            {"units": "40", "avgCost": "120", "boughtOn": "2025-05-10", "pf": "upstox", "side": "sell"}]})
+    accs = [{"id": "upstox", "name": "Upstox"}, {"id": "dhan", "name": "Dhan"}]
+    lots = [{"id": "n1", "symbol": "NIFTYBEES", "pf": "dhan", "side": "buy", "qty": "10", "price": "250", "date": "2025-01-01"},
+            {"id": "m1", "symbol": "MON100", "pf": "upstox", "side": "buy", "qty": "5", "price": "300", "date": "2025-01-01"},
+            {"id": "m2", "symbol": "MON100", "pf": "upstox", "side": "buy", "qty": "5", "date": "2025-02-01"}]
+    assert (await c.put(ETF_URL + "/book", json={"portfolios": accs, "lots": lots})).status_code == 200
+    b = (await c.post(URL, json={"shares": []})).json()
+    assert [(f["units"], f["invested"]) for f in b["funds"]] == [(60.0, 6000.0)]                      # 60 left of the 100 bought for 10,000
+    assert {e["symbol"]: e["invested"] for e in b["etfs"]} == {"NIFTYBEES": 2500.0, "MON100": None}    # a buy with no price: not known
+    up = (await c.post(URL, json={"shares": [], "mfPf": "upstox", "etfPf": "upstox"})).json()
+    assert up["counts"] == {"shares": 0, "funds": 1, "etfs": 1} and up["etfs"][0]["symbol"] == "MON100"
+    dhan = (await c.post(URL, json={"shares": [], "mfPf": "none", "etfPf": "dhan"})).json()
+    assert dhan["counts"] == {"shares": 0, "funds": 0, "etfs": 1} and dhan["etfs"][0]["invested"] == 2500.0
+    assert (await c.post(URL, json={"shares": [], "mfPf": "Bad!"})).status_code == 422

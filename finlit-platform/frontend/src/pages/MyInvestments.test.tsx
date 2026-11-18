@@ -36,7 +36,7 @@ describe("task #137: All my investments (15 Nov pack)", () => {
     mount(); await screen.findByText("Where your money sits");
     expect(st.body).toEqual({ shares: [{ symbol: "HDFCBANK", qty: 40 }, { symbol: "INFY", qty: null }] });
     expect(screen.getByRole("heading", { level: 1, name: "All my investments" })).toBeTruthy();
-    expect(text()).toContain("6 shares · 3 mutual funds · 3 ETFs · quantities for 12 of 12");
+    expect(text()).toContain("6 shares · 3 mutual funds · 3 ETFs · buy prices for 0 of 12");   // task #235 (pack C3): the count names how many holdings have a buy price
     expect(text()).toContain("Nothing is sent to a broker");
     for (const name of ["Equity portfolio", "MF portfolio", "ETF portfolio", "How it is counted"]) expect(screen.getAllByRole("link", { name }).length).toBeGreaterThan(0);
   });
@@ -208,11 +208,11 @@ describe("task #137: All my investments (15 Nov pack)", () => {
     mount(); await screen.findByText("Where your money sits");
     expect(text()).toContain("What this means, in short");
     expect(text()).toContain("All my investments · 8 questions");
-    expect(text()).toContain("Why is there no profit or loss here?");
+    expect(text()).toContain("How is profit or loss worked out?");
     expect(text()).toContain("Information only, not investment advice.");
     expect(text()).toMatch(/NSE closing prices to/);
     expect(text()).not.toMatch(/download|CSV/i);
-    expect(text().toLowerCase()).not.toMatch(/\b(buy|sell|hold on|accumulate|add more|reduce|target price|top pick|multibagger)\b/);
+    expect(text().toLowerCase()).not.toMatch(/\b(buy(?! prices?\b)|sell|hold on|accumulate|add more|reduce|target price|top pick|multibagger)\b/);   // task #235: "buy price" names a cost, not advice
   });
   it("filters: the four company filters pick the right rows", () => {
     const c = withQty().companies;

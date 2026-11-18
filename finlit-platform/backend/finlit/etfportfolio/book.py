@@ -75,6 +75,38 @@ def open_units(lots: List[Dict[str, Any]], pf: Optional[str] = None) -> Dict[str
     return out
 
 
+def open_cost(lots: List[Dict[str, Any]], pf: Optional[str] = None) -> Dict[str, Optional[Decimal]]:
+    """What the units still held of each ETF cost, first in, first out within each account (None when a buy still held has no price). Task #235, C3."""
+    out: Dict[str, Optional[Decimal]] = {}
+    groups: Dict[Tuple[str, str], List[Tuple[int, Dict[str, Any]]]] = {}
+    for i, l in enumerate(lots):
+        if pf is not None and l["pf"] != pf:
+            continue
+        groups.setdefault((l["symbol"], l["pf"]), []).append((i, l))
+    for (sym, _p), rows in groups.items():
+        key = lambda t: (t[1]["date"] or dt.date.max, 0 if t[1]["side"] == "buy" else 1, t[0])   # noqa: E731
+        live: List[List[Any]] = []          # [units left, price]
+        for _i, l in sorted(rows, key=key):
+            q = Decimal(l["qty"])
+            if l["side"] == "buy":
+                live.append([q, l["price"]])
+                continue
+            if q > sum((b[0] for b in live), Decimal(0)) + EPS:
+                continue
+            while q > EPS and live:
+                take = min(live[0][0], q)
+                live[0][0] -= take
+                q -= take
+                if live[0][0] <= EPS:
+                    live.pop(0)
+        cost: Optional[Decimal] = Decimal(0)
+        for u, p in live:
+            cost = None if cost is None or p is None else cost + u * Decimal(p)
+        prev = out.get(sym, Decimal(0))
+        out[sym] = None if prev is None or cost is None else prev + cost
+    return out
+
+
 async def lots_of(conn, user_id: str) -> List[Dict[str, Any]]:
     return [dict(r) for r in await conn.fetch(
         "SELECT id, symbol, pf, side, qty, price, bought_on AS date, pos FROM etf_lots WHERE user_id = $1 ORDER BY pos, created_at, id", user_id)]

@@ -12,12 +12,14 @@ const AV = ["#0e6471", "#4b4fc4", "#b5541c", "#2f5a9e", "#9a6b12", "#7a3e8e", "#
 const initial = (s: string) => s.trim().charAt(0).toUpperCase() || "?";
 
 function figsLine(f: PfFigs, noun: [string, string]) {
+  if (f.n < 0) return null;   // not read yet (All my investments reads one account at a time)
   return <>{f.n} {f.n === 1 ? noun[0] : noun[1]}{f.withQty ? ` · ${lk(f.now)}` : ""}{f.gainPct != null && <> · <span className={tone(f.gainPct)}>{pct(f.gainPct)}</span></>}</>;
 }
 
-export function PortfoliosBar({ list, cur, onPick, figs, onAdd, onRename, onRemove, noun = ["share", "shares"], sub = "One tab for each broker account. All accounts adds them up and scores them as one list." }: {
+export function PortfoliosBar({ list, cur, onPick, figs, onAdd, onRename, onRemove, noun = ["share", "shares"], sub = "One tab for each broker account. All accounts adds them up and scores them as one list.", readOnly }: {
   list: PfInfo[]; cur: string | "all"; onPick: (id: string | "all") => void; figs: (id: string | "all") => PfFigs; onAdd: () => void;
   onRename: (id: string, name: string) => string | null; onRemove: (id: string) => void; noun?: [string, string]; sub?: string;
+  /** All my investments: the accounts come from the three portfolio pages, so they are added, renamed and removed there */ readOnly?: boolean;
 }) {
   const tabs: (PfInfo & { ini: string; av: string })[] = [{ id: "all", name: "All accounts", ini: "∑", av: "#3a3f4b" }, ...list.map((p, i) => ({ ...p, ini: initial(p.name), av: AV[i % AV.length] }))];
   const [mode, setMode] = useState<"" | "ren" | "rm">(""), [name, setName] = useState(""), [err, setErr] = useState("");
@@ -32,13 +34,13 @@ export function PortfoliosBar({ list, cur, onPick, figs, onAdd, onRename, onRemo
   return (
     <section className="acc-bar" aria-labelledby="acc-k">
       <div className="acc-h"><div><p className="acc-k" id="acc-k">Your portfolios</p><p className="acc-sub">{sub}</p></div>
-        {sel && <div className="acc-act"><button type="button" onClick={() => { setMode("ren"); setName(sel.name); setErr(""); }}>Rename</button>
+        {sel && !readOnly && <div className="acc-act"><button type="button" onClick={() => { setMode("ren"); setName(sel.name); setErr(""); }}>Rename</button>
           {list.length > 1 && <button type="button" className="acc-rm" onClick={() => setMode("rm")}>Remove portfolio</button>}</div>}</div>
       <div className="acc-tabs" role="tablist" aria-label="Your portfolios" ref={box}>
         {tabs.map((t, i) => { const f = figs(t.id), on = t.id === cur;
           return <button key={t.id} type="button" role="tab" className="acc-t" data-acc={t.id} aria-selected={on} tabIndex={on ? 0 : -1} onClick={() => onPick(t.id)} onKeyDown={(e) => key(e, i)}>
             <span className="acc-av" style={{ ["--av" as string]: t.av }} aria-hidden="true">{t.ini}</span><b>{t.name}</b><small>{figsLine(f, noun)}</small></button>; })}
-        <button type="button" className="acc-add" onClick={onAdd} disabled={list.length >= MAX_PF} title={list.length >= MAX_PF ? `Up to ${MAX_PF} portfolios` : undefined}>+ Add portfolio</button>
+        {!readOnly && <button type="button" className="acc-add" onClick={onAdd} disabled={list.length >= MAX_PF} title={list.length >= MAX_PF ? `Up to ${MAX_PF} portfolios` : undefined}>+ Add portfolio</button>}
       </div>
       {sel && mode === "ren" && <form className="acc-confirm ren" onSubmit={(e) => { e.preventDefault(); const why = onRename(sel.id, name); if (why) setErr(why); else setMode(""); }}>
         <label htmlFor="acc-ren">New name</label><input id="acc-ren" value={name} maxLength={40} onChange={(e) => setName(e.target.value)} autoFocus />
