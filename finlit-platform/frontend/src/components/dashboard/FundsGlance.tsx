@@ -8,7 +8,7 @@ import { apiGet, type ApiError } from "../../lib/api";
 import { useUI } from "../../lib/ui";
 import { useMfPortfolio, useMfSpread } from "../../lib/mfPortfolio";
 import { useEtfPortfolio, useEtfRisk } from "../../lib/etfPortfolio";
-import { etfGlance, type EtfGlance } from "../../lib/etfPack";
+import { etfGlance, type EtfGlance } from "../../lib/etfGlance";
 import "../../styles/dash223.css";
 import { shortFund, type MfRisk } from "../../lib/mfPack";
 import { fundBandLine, mfGlance } from "../../lib/dashInvest";
@@ -79,7 +79,7 @@ export function FundsGlance() {
  *  track with the count inside, the mix bar and its legend, the risk level, and four key figures (yearly cost, price against NAV, swing a year, what they
  *  follow), each the ETF page's own figure. ETFs have no FinLit score, so there is no score ring. With no ETFs it stays a short strip. */
 /** Each kind's colour, from styles/dash223.css (a lighter shade in the dark theme so the legend stays readable). */
-const MIX_SLUG: Record<string, string> = { "Indian shares": "in", "shares abroad": "ab", gold: "au", silver: "ag", blend: "bl", debt: "dt", liquid: "lq", other: "ot" };
+const MIX_SLUG: Record<string, string> = { indian: "in", abroad: "ab", gold: "au", silver: "ag", debt: "dt", liquid: "lq" };
 const MIX_COLOUR = new Proxy({} as Record<string, string>, { get: (_t, k: string) => `var(--eg-${MIX_SLUG[k] ?? "ot"})` });
 function MixRing({ g }: { g: EtfGlance }) {
   const R = 62, C = 2 * Math.PI * R, gap = g.mix.length > 1 ? 3 : 0;
@@ -115,13 +115,13 @@ export function EtfsGlance() {
       sub={g ? `${g.n} ${g.n === 1 ? "ETF" : "ETFs"}${g.asOf ? ` · NSE closes of ${g.asOf}` : ""} · from your ETF portfolio` : "From your ETF portfolio"}>
       {q.isError ? <p className="dsh-note" role="alert">Your ETFs could not be read just now. <Link to="/etf-portfolio">Open the ETF portfolio</Link>.</p> : (
       <div className="eg-row">
-        <div className="dsh-pg-ringw" role="img" aria-label={g ? `What your ${g.n} ETFs track: ${g.mix.map((m) => `${m.n} ${m.key}`).join(" · ")}` : "Loading your ETFs"}>
+        <div className="dsh-pg-ringw" role="img" aria-label={g ? `What your ${g.n} ETFs track: ${g.mix.map((m) => `${m.n} ${m.word}`).join(" · ")}` : "Loading your ETFs"}>
           {g ? <MixRing g={g} /> : <i className="skeleton eg-sk" />}</div>
         <div className="eg-mid">
           <p className="dsh-lh first">What they track</p>
           {g ? <>
-            <div className="dsh-pg-mix" role="img" aria-label={g.mix.map((m) => `${m.n} ${m.key}`).join(" · ")}>{g.mix.map((m) => <i key={m.key} style={{ width: `${m.share}%`, background: MIX_COLOUR[m.key] }} />)}</div>
-            <p className="dsh-pg-legend" aria-hidden="true">{g.mix.map((m) => <span key={m.key}><b style={{ color: MIX_COLOUR[m.key] }}>{m.n}</b> {m.key}</span>)}</p>
+            <div className="dsh-pg-mix" role="img" aria-label={g.mix.map((m) => `${m.n} ${m.word}`).join(" · ")}>{g.mix.map((m) => <i key={m.key} style={{ width: `${m.share}%`, background: MIX_COLOUR[m.key] }} />)}</div>
+            <p className="dsh-pg-legend" aria-hidden="true">{g.mix.map((m) => <span key={m.key}><b style={{ color: MIX_COLOUR[m.key] }}>{m.n}</b> {m.word}</span>)}</p>
           </> : dash()}
           <p className="dsh-lh">Risk level</p>
           <p className="eg-risk">{rk.isLoading || wait ? <i className="skeleton sk-n" /> : g!.level ? <><b className={g!.level.higher ? "eg-hi" : "eg-lv"}>{g!.level.word}</b> {g!.level.rest}</> : dash(g!.levelWhy)}</p>

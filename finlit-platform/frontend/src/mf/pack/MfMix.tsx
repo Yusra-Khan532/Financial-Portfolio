@@ -18,24 +18,26 @@ const SIZES = ["Large", "Mid", "Small"] as const;
 const SIZE_HEAD: Record<string, [string, string]> = { Large: ["Large", "above ₹50,000 Cr"], Mid: ["Mid", "₹10,000–50,000 Cr"], Small: ["Small", "below ₹10,000 Cr"], Unsized: ["Not sized", "abroad or not matched"] };
 const p1 = (x: number) => `${(x * 100).toFixed(1)}%`;
 const p0 = (x: number) => `${Math.round(x * 100)}%`;
-const tone = (w: string | null | undefined) => (/strong|healthy/i.test(w || "") ? "g" : /average|mixed|fair/i.test(w || "") ? "m" : /weak|poor|watch/i.test(w || "") ? "b" : "n");
+export const tone = (w: string | null | undefined) => (/strong|healthy/i.test(w || "") ? "g" : /average|mixed|fair/i.test(w || "") ? "m" : /weak|poor|watch/i.test(w || "") ? "b" : "n");
 const LKEY = "finlit-mf-level";
-const readLevel = (): Level => { try { return localStorage.getItem(LKEY) === "sector" ? "sector" : "macro"; } catch { return "macro"; } };
+const readLevel = (key: string): Level => { try { return localStorage.getItem(key) === "sector" ? "sector" : "macro"; } catch { return "macro"; } };
+/** The look-through grid's shape, shared with the ETF page (task #183 part 3). */
+type Grid = { lookThrough?: MfSpread["lookThrough"] };
 
-/** One setting for both grids, kept in this browser (pack: "one setting for both, kept per member"). */
-export function useLevel(): [Level, (l: Level) => void] {
-  const [l, setL] = useState<Level>(readLevel);
-  return [l, (v: Level) => { setL(v); try { localStorage.setItem(LKEY, v); } catch { /* not kept */ } }];
+/** One setting for both grids, kept in this browser (pack: "one setting for both, kept per member"). `key`: one per page. */
+export function useLevel(key = LKEY): [Level, (l: Level) => void] {
+  const [l, setL] = useState<Level>(() => readLevel(key));
+  return [l, (v: Level) => { setL(v); try { localStorage.setItem(key, v); } catch { /* not kept */ } }];
 }
 
-function LevelSwitch({ level, onLevel, sp }: { level: Level; onLevel: (l: Level) => void; sp: MfSpread }) {
+export function LevelSwitch({ level, onLevel, sp }: { level: Level; onLevel: (l: Level) => void; sp: Grid }) {
   const n = (lv: Level) => new Set(Object.keys(sp.lookThrough?.[lv] ?? {}).map((k) => k.split("|")[0]).filter((s) => s !== "Listed abroad" && s !== "Not classified")).size;
   return <div className="sp-view mfm-lv" role="group" aria-label="Group the shares by">{(["macro", "sector"] as Level[]).map((l) =>
     <button key={l} type="button" className={"sp-vbtn" + (level === l ? " on" : "")} aria-pressed={level === l} onClick={() => onLevel(l)}>{l === "macro" ? "Macro sector" : "Sector"} · {l === "macro" ? 12 : 22}<span className="sr-only"> ({n(l)} in your funds)</span></button>)}</div>;
 }
 
 /** The grid's rows: each sector's cells by size, its total, biggest first. Exported for tests. */
-export function gridRows(sp: MfSpread, level: Level) {
+export function gridRows(sp: Grid, level: Level) {
   const cells = sp.lookThrough?.[level] ?? {};
   const rows = new Map<string, Record<string, { w: number; n: number; stocks: { name: string; symbol: string | null; w: number }[] }>>();
   for (const [k, c] of Object.entries(cells)) { const [name, size] = k.split("|"); const r = rows.get(name) ?? {}; r[size] = c; rows.set(name, r); }
@@ -43,7 +45,7 @@ export function gridRows(sp: MfSpread, level: Level) {
     .sort((a, b) => b.total - a.total);
 }
 
-function Cell({ c, max, readingOf }: { c?: { w: number; n: number; stocks: { name: string; symbol: string | null; w: number }[] }; max: number; readingOf: (s: string | null) => Reading }) {
+export function Cell({ c, max, readingOf }: { c?: { w: number; n: number; stocks: { name: string; symbol: string | null; w: number }[] }; max: number; readingOf: (s: string | null) => Reading }) {
   const [open, setOpen] = useState(false);
   if (!c || c.w <= 0) return <td className="mfm-c empty" />;
   const show = open ? c.stocks : c.stocks.slice(0, 4), rest = c.stocks.length - 4;

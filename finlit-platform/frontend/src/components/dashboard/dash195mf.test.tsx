@@ -15,7 +15,8 @@ vi.mock("../../lib/mfPortfolio", () => ({
   useMfSpread: () => ({ isLoading: false, data: null }),
 }));
 // task #223 (D2): the ETF portfolio of 17 Nov from the pack: two share ETFs, gold and silver, equal weights until quantities are in
-const ETF = (symbol: string, assetClass: string, key: string, ter: number, premium: number) => ({ symbol, name: symbol + " ETF", gone: false, assetClass, tracks: { key, label: key, basis: "index" },
+const TYPE: Record<string, { key: string; word: string }> = { equity: { key: "indian", word: "Indian shares" }, gold: { key: "gold", word: "Gold" }, silver: { key: "silver", word: "Silver" } };
+const ETF = (symbol: string, assetClass: string, key: string, ter: number, premium: number) => ({ symbol, name: symbol + " ETF", gone: false, assetClass, type: TYPE[assetClass], tracks: { key, label: key, basis: "index" },
   twice: false, qty: null, weight: 25, price: 100, changePct: 0.1, priceDate: "2026-11-17", ret1y: 5, premium, navDate: "2026-11-17", ter: { value: ter } });
 const ETFS = [ETF("MID150BEES", "equity", "nifty-midcap-150", 0.21, -0.13), ETF("SMALL250", "equity", "nifty-smallcap-250", 0.35, 0.07), ETF("GOLDBEES", "gold", "gold", 0.79, 0.03), ETF("SILVERBEES", "silver", "silver", 0.65, -0.07)];
 vi.mock("../../lib/etfPortfolio", () => ({

@@ -38,6 +38,7 @@ const OWN: { file: string; needle: RegExp; why: string }[] = [
 
 /** Drawings with nothing to enlarge: sparklines, gauges and rings that show one figure, decorative art, icons, tiny inline bars. */
 const EXEMPT: Record<string, string> = {
+  "stock/IndustryCard.tsx": "section 05's Against its industry card (task #222): small bullet bars and table bars read with their printed figures, as the owner's pack draws them; no enlarge arrow in the pack",
   "components/AnswerText.tsx": "a small sketch of a series inside a FinLit AI answer (task #201); every figure is also in the answer's own text, so enlarging adds nothing",
   "components/ExploreTools.tsx": "decorative corner art on the six platform group cards; no data",
   "components/screener/presets/ScreensStrip.tsx": "the Ready-made screens strip's crown and group icons (task #64, N-38); no data",

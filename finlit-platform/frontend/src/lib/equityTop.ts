@@ -5,7 +5,7 @@ import type { Share } from "./equityPack";
 import { trendBand } from "./prismTechnical";
 
 export type TabKey = "portfolio" | "diversification" | "risk";
-export type TopTile = { id: TabKey; k: string; v: string; sub: string; link: string; tone: "good" | "info" | "watch"; help: string; how: string };
+export type TopTile = { id: TabKey; k: string; v: string; sub: string; link: string; tone: "good" | "info" | "watch"; help: string; how: string; /** a small tag after the figure (ETF: "NIFTY 50 TWICE") */ tag?: string };
 export type KeyCard = { tone: "good" | "info" | "watch" | "warn"; k: string; v: string; text: string; go: string; to: string };
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
