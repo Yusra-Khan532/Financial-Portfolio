@@ -56,7 +56,7 @@ describe("Mutual Fund Screener page", () => {
     fireEvent.click(p);
     await waitFor(() => expect(screen.getByTestId("loc").textContent).toContain("tags=defence"));
     expect(screen.getByRole("button", { name: /Defence and aerospace funds/ }).getAttribute("aria-pressed")).toBe("true");
-    expect((screen.getByRole("button", { name: /FundPulse 65\+/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: /Mutual Fund Score 65\+/ }) as HTMLButtonElement).disabled).toBe(true);
   });
   it("shows the no-data count and the groups that need a data source, disabled and explained", async () => {
     mount("/funds/screener?rng=ter:0:1");

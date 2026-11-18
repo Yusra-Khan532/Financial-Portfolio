@@ -1,4 +1,4 @@
-"""Task #132 and the site rule "no cut-offs, weights, formulas or look-back lengths on pages": the FundPulse texts never name a look-back window, and texts
+"""Task #132 and the site rule "no cut-offs, weights, formulas or look-back lengths on pages": the Mutual Fund Score texts never name a look-back window, and texts
 already stored by an earlier scoring run are cleaned on the way out."""
 import json
 import re
