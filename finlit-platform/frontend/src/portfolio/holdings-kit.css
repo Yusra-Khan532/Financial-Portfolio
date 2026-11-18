@@ -186,7 +186,7 @@ table.only-s tr.x-tot { display: none; }
 
 /* task #235 (pack B10): the Analysing bar on Diversification and Risk */
 .x-axbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0 0 14px; padding: 10px 12px; border-radius: 14px; background: color-mix(in srgb, var(--text) 5%, var(--s1)); border: 1px solid var(--border); }
-.x-axk { font: 800 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
+.x-axk { font: 800 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
 .x-axc { border: 1px solid var(--border); background: var(--s1); border-radius: 999px; min-height: 32px; padding: 0 14px; font: 700 13px var(--sans); color: var(--text); cursor: pointer; }
 .x-axc[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
 .x-axc:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
