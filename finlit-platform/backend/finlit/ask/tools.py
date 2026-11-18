@@ -184,12 +184,19 @@ DOING = {"search_stocks": "Finding the company", "get_stock_quote": "Reading the
          "get_company_section": "Reading the company page"}
 
 
+# The web, for what FinLit's data does not hold (founder, 18 Nov 2026: answer every question, as Claude does, in a few simple lines). Run by the provider;
+# at most two searches an answer keeps it fast and its cost small, and the location makes results Indian first.
+WEB_SEARCH = {"type": "web_search_20250305", "name": "web_search", "max_uses": 2,
+              "user_location": {"type": "approximate", "country": "IN", "timezone": "Asia/Kolkata"}}
+
+
 def definitions() -> List[Dict[str, Any]]:
-    """The tool list sent to Claude: always the same order and text, so the cached prompt prefix stays valid."""
-    out = []
+    """The tool list sent to Claude: always the same order and text, so the cached prompt prefix stays valid. FinLit's tools first, the web last."""
+    out: List[Dict[str, Any]] = []
     for t in TOOLS:
         schema = t.listing()["inputSchema"]
         out.append({"name": t.name, "description": DESCRIBE.get(t.name, t.description), "input_schema": schema})
+    out.append(dict(WEB_SEARCH))
     return out
 
 
