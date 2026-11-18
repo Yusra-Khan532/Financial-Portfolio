@@ -143,11 +143,11 @@ def test_name_analysis_agrees_across_styles():
     assert analyse("Alpha Bluechip Fund (Formerly known as Old Name Fund) - Regular - Dividend")[1:] == ("Regular", "IDCW")
 
 
-def test_amfi_code_wins_then_isin():
+def test_isin_decides_first_then_amfi_code():   # task #183 (COMMON-RULES 9): the ISIN first; the AMFI code when there is no ISIN, or AMFI's list lacks it
     r = m(amfi="100001", name="")
     assert (r.status, r.via, r.scheme.code) == ("matched", "amfi", 100001)
     r = m(amfi="100001.0", isin="INF000A01011")
-    assert (r.status, r.via, r.scheme.code) == ("matched", "amfi", 100001)
+    assert (r.status, r.via, r.scheme.code) == ("matched", "isin", 100001)
     r = m(isin="INF000B01012", name="whatever fund")
     assert r.status == "choose"                                     # the name does not look like the ISIN's scheme: the member checks
     r = m(isin="INF000B01012", name="Beta Flexi Cap Fund")

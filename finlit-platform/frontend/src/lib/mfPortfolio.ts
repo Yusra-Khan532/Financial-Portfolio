@@ -3,7 +3,6 @@
 // Nothing here gives buy, sell, hold, switch or redeem advice. Information only, not investment advice.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiSend, type ApiError } from "./api";
-import { csvText } from "./format";
 import type { RawRow } from "./mfStatement";
 
 export const MF_PORTFOLIO_NAME = "MF portfolio";
@@ -16,10 +15,14 @@ export type Lot = { id: string; units: number; invested: number | null; boughtOn
 export type ScoreBlock = {
   locked: boolean; final: number | null; label: string | null; status: string | null; reason: string | null; runDate: string | null;
   parts: Record<PartKey, number | null> | null; inherited: { name: string; why: string } | null;
+  /** The server's word for each part (Strong / Fair / Weak, task #183): the page never cuts the numbers itself. */
+  words?: Record<PartKey, string> | null;
+  /** The fund's place in its category ("13 of 28 in category"); for an IDCW option, its Growth plan's. */
+  rank?: { rank: number; of: number; scope: string | null; categoryLabel: string | null } | null;
 };
 export type Holding = {
   id: string; code: number; folio: string; units: number | null; lots: Lot[]; followed?: boolean;
-  name: string | null; amc: string | null; plan: string | null; option: string | null; category: string | null; categoryLabel: string | null; active: boolean; isin?: string | null;
+  name: string | null; amc: string | null; plan: string | null; option: string | null; category: string | null; categoryLabel: string | null; active: boolean; isin?: string | null; isinWhy?: string | null;
   nav: number | null; navDate: string | null; navStale: boolean; navNote: string | null;
   invested: number | null; investedWhy: string | null; current: number | null; currentWhy: string | null;
   gain: number | null; gainPct: number | null; gainWhy: string | null;
@@ -60,7 +63,8 @@ export function useMfWrites() {
     add: useMutation({ mutationFn: (b: Partial<LotInput> & { code: number; folio?: string; follow?: boolean }) => apiSend<{ id: string; merged: boolean }>("POST", "/api/me/mf-portfolio", b), onSuccess: done }),
     update: useMutation({ mutationFn: (b: { id: string; folio?: string; lots: LotInput[] }) => apiSend("PUT", `/api/me/mf-portfolio/${b.id}`, { folio: b.folio, lots: b.lots }), onSuccess: done }),
     remove: useMutation({ mutationFn: (id: string) => apiSend("DELETE", `/api/me/mf-portfolio/${id}`), onSuccess: done }),
-    clear: useMutation({ mutationFn: () => apiSend<{ status: string; removed: number }>("DELETE", "/api/me/mf-portfolio"), onSuccess: done }),   // "Remove all" (task #127)
+    clear: useMutation({ mutationFn: () => apiSend<{ status: string; removed: number; undoSeconds: number }>("POST", "/api/me/mf-portfolio/clear"), onSuccess: done }),   // Clear portfolio (task #183): held 10 s for Undo
+    undoClear: useMutation({ mutationFn: () => apiSend<{ status: string; restored: number }>("POST", "/api/me/mf-portfolio/undo-clear"), onSuccess: done }),
     preview: useMutation({ mutationFn: (rows: RawRow[]) => apiSend<Preview>("POST", "/api/me/mf-portfolio/import-preview", { rows }) }),
     commit: useMutation({ mutationFn: (b: { items: CommitItem[]; existing: "skip" | "replace" }) => apiSend<CommitResult>("POST", "/api/me/mf-portfolio/import-commit", b), onSuccess: done }),
   };
@@ -118,28 +122,6 @@ export function sortHoldings(rows: Holding[], key: SortKey, dir: "asc" | "desc")
 /** Words for the concentration level (the tile's tag). */
 export const LEVEL_WORD: Record<NonNullable<Concentration["level"]>, string> = { concentrated: "Concentrated", moderate: "Fairly spread", spread: "Well spread" };
 
-// ------------------------------------------------------------------------------------------------------------------ CSV
-
-const plain = (v: number | null | undefined, d = 2) => (v == null ? "" : v.toFixed(d));
-/** Every blank cell has its reason in the last column, so the file explains itself outside the page. */
-export function toCsv(rows: Holding[], scoreLocked: boolean): string {
-  const head = ["Fund", "Fund house", "Plan", "Option", "Category", "NAV", "NAV date", "1Y return %", "3Y return % a year", "5Y return % a year",
-    "Expense ratio %", "Fund size (Rs crore)", ...(scoreLocked ? [] : ["FundPulse", "Label", "Performance", "Risk", "Cost", "Quality"]), "Notes"];
-  const lines = [head.map(q).join(",")];
-  for (const h of rows) {
-    const why: string[] = [];
-    const note = (label: string, v: unknown, reason: string | null | undefined) => { if (v == null && reason) why.push(`${label}: ${reason}`); };
-    note("Returns", h.returns.r1y ?? h.returns.r3y ?? h.returns.r5y, h.returns.why); note("Expense ratio", h.ter, h.terWhy); note("Fund size", h.aum, h.aumWhy);
-    if (!scoreLocked) note("FundPulse", h.score.final, h.score.reason);
-    if (h.navNote) why.push(h.navNote);
-    const score = scoreLocked ? [] : [plain(h.score.final, 1), h.score.label || "", ...(["performance", "risk", "cost", "quality"] as PartKey[]).map((k) => plain(h.score.parts?.[k], 1))];
-    lines.push([h.name || `Scheme ${h.code}`, h.amc || "", h.plan || "", h.option || "", h.categoryLabel || "", plain(h.nav, 4), h.navDate || "", plain(h.returns.r1y), plain(h.returns.r3y), plain(h.returns.r5y), plain(h.ter), plain(h.aum), ...score, why.join(" | ")].map(q).join(","));
-  }
-  return lines.join("\r\n") + "\r\n";
-}
-const q = (s: string) => `"${csvText(String(s)).replace(/"/g, '""')}"`;
-export const csvFileName = (d = new Date()) => `finlit-mf-portfolio-${d.toISOString().slice(0, 10)}.csv`;
-
 // ------------------------------------------------------------------------------------------------------------------ small text helpers
 
 /** "₹1,23,456" for money: whole rupees, Indian grouping, true minus sign. */
@@ -183,8 +165,14 @@ export type MfSpread = {
   trendLocked?: boolean; trend?: MfTrend;
   overlap: { a: number; b: number; pct: number; n: number }[];
   together: { codes: number[]; C: number[][]; weeks: number; from: string | null; to: string | null };
-  coverage: { funds: number; disclosed: number; missing: number[] };
-  funds: { code: number; name: string; amc: string; category: string; weight: number; holdingsAsOf: string | null; why: string | null }[];
+  coverage: { funds: number; disclosed: number; missing: number[]; notMatched?: number };
+  /** Task #183: the look-through grid. Keys "Macro sector|Large" (or "Sector|Small", "…|Unsized"); w = share of the whole list; every company per cell. */
+  lookThrough?: Record<"macro" | "sector", Record<string, { w: number; n: number; stocks: { name: string; symbol: string | null; w: number }[] }>>;
+  /** Each NSE sector's macro sector. */
+  sectorMacro?: Record<string, string>;
+  /** Each fund's split of its own money: by macro sector, by sector and by size (fractions of the fund). */
+  perFund?: Record<string, { macro: Record<string, number>; sector: Record<string, number>; size: Record<string, number> }>;
+  funds: { code: number; name: string; amc: string; category: string; weight: number; holdingsAsOf: string | null; why: string | null; assetSplit?: { equity?: number; debt?: number; cash?: number; other?: number } | null }[];
 };
 export const useMfSpread = (enabled: boolean) => useQuery<MfSpread, ApiError>({ queryKey: [...KEY, "spread"], queryFn: () => apiGet<MfSpread>("/api/me/mf-portfolio/diversification"), enabled, staleTime: 60_000, retry: (n, e) => e.status >= 500 && n < 2 });
 

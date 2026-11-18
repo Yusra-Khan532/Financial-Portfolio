@@ -37,6 +37,7 @@ async def schemes(app):  # noqa: F811
         # the shared test fixture drops `users` (and with it the foreign keys onto it) but not our tables: make them again from the migration itself
         await conn.execute("DROP TABLE IF EXISTS mf_holding_lots, mf_holdings CASCADE")
         await conn.execute(MIGRATION.read_text())
+        await conn.execute((MIGRATION.parent / "108_mf_holdings_isin.sql").read_text())   # task #183: each holding stored with its ISIN
         await conn.execute("DELETE FROM mf_scores WHERE code >= $1", BASE)
         await conn.execute("DELETE FROM mf_schemes WHERE code >= $1", BASE)
         for c, name, plan, opt, isin, nav, active, cat, r1, r3, r5, ter, aum in SCHEMES:
@@ -71,7 +72,7 @@ async def test_visitors_and_basic_are_refused_silver_and_gold_are_not(app):
     assert (await (await signed_in(app, "s@example.com", plan="silver")).get(URL)).status_code == 200
 
 
-async def test_the_score_is_gold_and_the_server_decides(app):
+async def test_the_health_score_is_for_every_member_with_the_page(app):   # task #183, COMMON-RULES 3: "Mutual Fund + ETF and up" = Silver and up for now
     silver = await signed_in(app, "s@example.com", plan="silver")
     gold = await signed_in(app, "g@example.com", plan="gold")
     for c in (silver, gold):
@@ -79,18 +80,15 @@ async def test_the_score_is_gold_and_the_server_decides(app):
         assert (await add(c, BASE + 2, "10", invested="1000")).status_code == 201
     s = await silver.get(URL)
     assert s.headers["cache-control"] == "private, no-store" and "Cookie" in s.headers["vary"]
-    body = s.json()
-    assert body["scoreLocked"] is True and body["summary"]["score"] == {"locked": True, "value": None, "label": None, "why": None}
-    for h in body["holdings"]:                     # returns and values come, the score does not: locked, with null fields
-        assert h["score"] == mfp.LOCKED_SCORE and h["current"] and h["returns"]["r1y"] is not None
-    raw = s.text
-    for number in ("83.0", "61.5", "85.0", "Strong", "Average"):
-        assert number not in raw, f"{number} leaked to a Silver response"
-    g = (await gold.get(URL)).json()
-    assert g["scoreLocked"] is False
-    one = next(h for h in g["holdings"] if h["code"] == BASE + 1)["score"]
-    assert one["final"] == 83.0 and one["label"] == "Strong" and one["parts"] == {"performance": 80.0, "risk": 85.0, "cost": 90.0, "quality": 77.0} and one["status"] == "RATED"
-    assert g["summary"]["score"]["value"] is not None and g["summary"]["score"]["label"] in ("Strong", "Healthy", "Average")
+    for body in (s.json(), (await gold.get(URL)).json()):
+        assert body["scoreLocked"] is False
+        one = next(h for h in body["holdings"] if h["code"] == BASE + 1)["score"]
+        assert one["final"] == 83.0 and one["label"] == "Strong" and one["parts"] == {"performance": 80.0, "risk": 85.0, "cost": 90.0, "quality": 77.0} and one["status"] == "RATED"
+        assert one["words"] == {"performance": "Strong", "risk": "Strong", "cost": "Strong", "quality": "Strong"}       # the server's words (70+ Strong, 50-69 Fair)
+        two = next(h for h in body["holdings"] if h["code"] == BASE + 2)["score"]
+        assert two["words"] == {"performance": "Fair", "risk": "Fair", "cost": "Weak", "quality": "Strong"}
+        assert body["summary"]["score"]["value"] is not None and body["summary"]["score"]["label"] in ("Strong", "Healthy", "Average")
+    assert s.json()["plan"] == "silver"
 
 
 async def test_admin_sees_everything_and_is_not_limited_like_silver(app):
@@ -100,15 +98,17 @@ async def test_admin_sees_everything_and_is_not_limited_like_silver(app):
     assert body["scoreLocked"] is False and body["limit"] == 500 and body["holdings"][0]["score"]["final"] == 83.0
 
 
-async def test_a_downgraded_member_keeps_the_holdings_and_loses_the_score(app):
+async def test_a_downgraded_member_keeps_the_holdings(app):   # Silver still sees the Health Score (task #183); Basic loses the page, never the funds
     c = await signed_in(app, "g@example.com", plan="gold")
     await add(c, BASE + 1)
     assert (await c.get(URL)).json()["holdings"][0]["score"]["final"] == 83.0
+    for plan, status in (("silver", 200), ("basic", 403)):
+        async with app.state.store.pool.acquire() as conn:
+            await conn.execute("UPDATE users SET plan = $1 WHERE email = 'g@example.com'", plan)
+        await app.state.store.redis.flushdb()
+        assert (await c.get(URL)).status_code == status
     async with app.state.store.pool.acquire() as conn:
-        await conn.execute("UPDATE users SET plan = 'silver' WHERE email = 'g@example.com'")
-    await app.state.store.redis.flushdb()
-    body = (await c.get(URL)).json()
-    assert body["count"] == 1 and body["holdings"][0]["score"]["locked"] is True and body["holdings"][0]["score"]["final"] is None
+        assert await conn.fetchval("SELECT count(*) FROM mf_holdings h JOIN users u ON u.id = h.user_id WHERE u.email = 'g@example.com'") == 1
 
 
 async def test_a_gold_fund_with_no_score_says_why(app):
@@ -202,6 +202,36 @@ async def test_remove_all_needs_a_member(app, anon):   # noqa: F811
     assert (await anon.delete(URL)).status_code in (401, 403)
     basic = await signed_in(app, "all-basic@example.com", plan="basic")
     assert (await basic.delete(URL)).status_code == 403
+
+
+async def test_task_183_clear_portfolio_holds_the_list_for_undo_then_is_final(app):   # COMMON-RULES 10
+    a = await signed_in(app, "clr-a@example.com", plan="silver")
+    b = await signed_in(app, "clr-b@example.com", plan="silver")
+    assert (await a.post(URL, json={"code": BASE + 1, "folio": "111", "units": "10.5", "invested": "1500", "boughtOn": "2024-01-15"})).status_code == 201
+    assert (await a.post(URL, json={"code": BASE + 1, "folio": "111", "units": "2", "invested": "300", "boughtOn": "2025-02-01"})).status_code == 201
+    assert (await a.post(URL, json={"code": BASE + 5, "follow": True})).status_code == 201
+    await add(b, BASE + 1)
+    before = sorted(((h["code"], h["folio"], h["isin"], h["units"], h["invested"], len(h["lots"])) for h in (await a.get(URL)).json()["holdings"]), key=str)
+    r = await a.post(f"{URL}/clear")
+    assert r.status_code == 200 and r.json() == {"status": "cleared", "removed": 2, "undoSeconds": 10}
+    assert (await a.get(URL)).json()["count"] == 0 and (await b.get(URL)).json()["count"] == 1     # another member's funds are untouched
+    r = await a.post(f"{URL}/undo-clear")
+    assert r.status_code == 200 and r.json()["restored"] == 2
+    after = sorted(((h["code"], h["folio"], h["isin"], h["units"], h["invested"], len(h["lots"])) for h in (await a.get(URL)).json()["holdings"]), key=str)
+    assert after == before                                                                    # exactly as it was: funds, ISINs, folios, purchases
+    assert (await a.post(f"{URL}/undo-clear")).status_code == 410                              # one Undo only
+    assert (await a.post(f"{URL}/clear")).status_code == 200
+    async with app.state.store.pool.acquire() as conn:
+        uid = await conn.fetchval("SELECT id::text FROM users WHERE email = $1", "clr-a@example.com")
+    await app.state.store.redis.delete(f"mfclear:{uid}")                                      # the window has passed
+    r = await a.post(f"{URL}/undo-clear")
+    assert r.status_code == 410 and "The clear is final" in r.text and (await a.get(URL)).json()["count"] == 0
+
+
+async def test_task_183_clear_portfolio_needs_a_member(app, anon):   # noqa: F811
+    assert (await anon.post(f"{URL}/clear")).status_code in (401, 403)
+    basic = await signed_in(app, "clr-basic@example.com", plan="basic")
+    assert (await basic.post(f"{URL}/clear")).status_code == 403 and (await basic.post(f"{URL}/undo-clear")).status_code == 403
 
 
 async def test_deleting_the_account_deletes_the_holdings(app):
@@ -459,6 +489,17 @@ async def test_a_fund_can_be_added_with_no_units_and_is_followed_with_its_score_
     assert mixed["summary"]["valued"] == 1 and next(x for x in mixed["holdings"] if x["code"] == BASE + 2)["current"] == 1400.0
 
 
+async def test_task_183_each_holding_is_stored_and_read_by_its_isin(app):   # COMMON-RULES 9: added, imported or followed, a holding keeps the scheme's ISIN
+    c = await signed_in(app, "isin183@example.com", plan="silver")
+    assert (await c.post(URL, json={"code": BASE + 1, "follow": True})).status_code == 201
+    assert (await c.post(f"{URL}/import-commit", json={"items": [{"code": BASE + 5, "folio": "", "units": 10, "invested": None, "boughtOn": None}]})).status_code == 201
+    async with app.state.store.pool.acquire() as conn:
+        stored = {r["code"]: r["isin"] for r in await conn.fetch("SELECT code, isin FROM mf_holdings WHERE code = ANY($1::int[])", [BASE + 1, BASE + 5])}
+    assert stored == {BASE + 1: "INF000A01011", BASE + 5: "INF000D01013"}
+    rows = {h["code"]: h for h in (await c.get(URL)).json()["holdings"]}
+    assert rows[BASE + 1]["isin"] == "INF000A01011" and rows[BASE + 1]["isinWhy"] is None and rows[BASE + 5]["isin"] == "INF000D01013"
+
+
 async def test_a_missing_units_figure_is_still_refused_unless_following_was_asked_for(app):
     c = await signed_in(app, "nofollow@example.com", plan="silver")
     assert (await c.post(URL, json={"code": BASE + 1})).status_code == 422
@@ -483,6 +524,8 @@ async def test_diversification_is_silver_words_only_and_names_funds_without_hold
     assert body["overall"] in ("Widely spread", "Spread", "Partly spread", "Concentrated")
     assert all("level" not in x for x in body["readings"].values()), "the bands must stay on the server"
     assert {f["code"] for f in body["funds"]} == {BASE + 1, BASE + 5} and all(f["why"] for f in body["funds"])
+    assert all("assetSplit" in f for f in body["funds"])                     # task #183: each fund's own split, for "What your money is in"
+    assert {"lookThrough", "sectorMacro", "perFund"} <= set(body) and body["coverage"]["notMatched"] == 0
     assert body["coverage"]["missing"] == sorted([BASE + 1, BASE + 5])
 
 
@@ -553,6 +596,33 @@ async def test_risk_figures_are_silver_and_come_from_the_navs_against_the_nifty_
     assert all("cut" not in k and "band" not in k for k in lvl), "the cut-offs stay on the server"
 
 
+async def test_task_183_each_fund_against_its_own_category_benchmark(app):   # pack 02 "Benchmark for each SEBI category", COMMON-RULES 8
+    import json
+    import time
+    await _risk_data(app)
+    raw = json.loads(await app.state.store.redis.get("idx:px:NIF500"))
+    for code in ("NIF100", "NIFSMA250"):                     # the large-cap and small-cap indices move as the test index does
+        await app.state.store.redis.set(f"idx:px:{code}", json.dumps({"t": time.time(), "v": raw["v"]}))
+    silver = await signed_in(app, "own183@example.com", plan="silver")
+    assert (await add(silver, BASE + 1, "100")).status_code == 201       # Alpha Bluechip: large cap, NAV 150 -> worth 15,000
+    assert (await add(silver, BASE + 5, "50")).status_code == 201        # Delta Small Cap: twice its index, NAV 60 -> worth 3,000
+    body = (await silver.get(URL + "/risk")).json()
+    by = {f["code"]: f for f in body["funds"]}
+    a, d = by[BASE + 1], by[BASE + 5]
+    assert (a["benchmark"], a["betaOwn"], a["explained"], a["band"]["key"], a["type"]) == ("Nifty 100", 1.0, 100, "similar", "Large cap")
+    # twice the index each day compounds to a little over twice it each week (Friday to Friday): about 2.03, explained almost fully
+    assert (d["benchmark"], d["band"]["key"], d["type"]) == ("Nifty Smallcap 250", "very_high", "Small cap") and d["betaOwn"] == pytest.approx(2.0, abs=0.05) and d["explained"] >= 99
+    assert d["upPer100"] == pytest.approx(200, abs=8) and d["standIn"] is False and d["compared"] is True
+    assert d["downPer100"] is None                                       # the test index rose every week of the past year: no down weeks to read
+    assert (a["listShare"], d["listShare"]) == (83.3, 16.7)
+    own = body["own"]["list"]
+    assert own["betaOwn"] == pytest.approx((15000 * 1.0 + 3000 * d["betaOwn"]) / 18000, abs=0.006) and own["betaExLiquid"] == own["betaOwn"] and own["liquidShare"] == 0.0
+    assert own["beta500"] == pytest.approx(own["betaOwn"], abs=0.02)        # both funds follow the same index here
+    assert own["fall10"]["own"] == pytest.approx(-10 * own["betaOwn"], abs=0.06) and own["worst10"]["list"] == pytest.approx(own["betaOwn"] * own["worst10"]["nifty500"], abs=0.1)
+    assert a["riskShare"] + d["riskShare"] == pytest.approx(100, abs=0.11)
+    assert body["own"]["to"] <= body["bench"]["to"]                       # the past year of weekly closes ends at the last whole week
+
+
 async def test_risk_says_why_when_the_nifty_500_history_is_missing(app, monkeypatch):
     await _risk_data(app, with_bench=False)
     from finlit import indices
@@ -564,3 +634,15 @@ async def test_risk_says_why_when_the_nifty_500_history_is_missing(app, monkeypa
     assert (await add(silver, BASE + 1, "100")).status_code == 201
     r = await silver.get(URL + "/risk")
     assert r.status_code == 503 and "NIFTY 500" in r.json()["detail"]["detail"]
+
+
+async def test_task_183_sizes_follow_the_rupee_rule(app):   # COMMON-RULES: large above ₹50,000 Cr, mid above ₹10,000 Cr, small below; an edge belongs to the band below
+    from finlit.mfportfolio.api import size_ranks
+    rows = [("ZZLARGE", "INE0ZZ101011", 50000.01), ("ZZEDGE", "INE0ZZ201011", 50000.0), ("ZZMID", "INE0ZZ301011", 10000.5), ("ZZSMALL", "INE0ZZ401011", 9999.0)]
+    async with app.state.store.pool.acquire() as conn:
+        for sym, isin, mc in rows:
+            await conn.execute("INSERT INTO companies (symbol, name) VALUES ($1, $1) ON CONFLICT DO NOTHING", sym)
+            await conn.execute("INSERT INTO listing_quotes (symbol, market_cap) VALUES ($1, $2) ON CONFLICT (symbol) DO UPDATE SET market_cap = EXCLUDED.market_cap", sym, mc)
+            await conn.execute("INSERT INTO disclosure_isin (isin, symbol) VALUES ($1, $2) ON CONFLICT (isin) DO UPDATE SET symbol = EXCLUDED.symbol", isin, sym)
+        got = await size_ranks(conn, [r[1] for r in rows] + ["INE0ZZ999999"])
+    assert got == {"INE0ZZ101011": "Large", "INE0ZZ201011": "Mid", "INE0ZZ301011": "Mid", "INE0ZZ401011": "Small"}
