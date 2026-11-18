@@ -10,6 +10,8 @@ export type ChartHelpEntry = {
   y?: string;
   read: string;
   why: string;
+  /** "How to use it" in place of "How to read it" and "Why it matters" (task #222: 18 News and filings, a list rather than a chart). */
+  use?: string;
 };
 
 /** Quarter or financial-year columns, depending on the Quarterly / Annual switch above the trend cards. */
@@ -258,6 +260,12 @@ export const CHART_HELP: Record<string, ChartHelpEntry> = {
     y: "On the return bars, the holding period, such as 1 month or 1 year.",
     read: "RSI below 30 means the price has recently fallen a lot and above 70 means it has risen a lot. Price above its averages points to an upward trend. 'n/a' means the history is too short for that period.",
     why: "It shows whether recent price action has been strong or weak, which helps you understand the trend without predicting it.",
+  },
+  "news-filings": {   // task #222 (19 Nov pack S1): 18 News and filings, a list, so "How to use it"
+    title: "Exchange filings",
+    what: "Listed companies must tell the stock exchange about results, dividends, share issues, large orders and other events. These are the company's own filings to NSE, as filed.",
+    use: "Pick a group to see only those filings. Open a filing to read the company's document on the NSE website. Routine compliance certificates are hidden until you show them.",
+    read: "", why: "",
   },
   "div-dps": {
     title: "Dividend per share",

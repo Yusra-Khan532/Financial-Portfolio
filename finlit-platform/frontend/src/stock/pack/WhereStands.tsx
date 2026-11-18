@@ -1,7 +1,7 @@
 // "Where <company> stands" (final pages pack, board 17): its industry, its peers, its own price and its risk, one question per tab. It replaces the report's
 // "Where its industry stands" (Sector & peers) and "Where this stock stands among its peers" (Leadership) sections. Every figure is the server's: the stock's sector
 // reading, its industry page, Sector Rotation, the peer reading and its history, the price and Prism; the words come from lib/standsPack. Describes; never advice.
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { CoLogo } from "../../components/CoLogo";
 import { LockedBlock } from "../../components/sectors/Parts";
@@ -18,6 +18,7 @@ import { scoreView, usePlanModel, usePlanPrism } from "../../lib/planScore";
 import { LABEL, groupWord, headline, industryCards, ordinal, peerCards, priceCards, riskCards, rotationLine } from "../../lib/standsPack";
 import "../../styles/sectors-pack.css";
 import "../../styles/industry-pack.css";
+import { median, shortList } from "../../lib/standsList";
 import "./stands.css";
 import { SectionHead } from "../Sections";
 
@@ -121,12 +122,30 @@ function IndustryTab({ name, symbol, sec, locked, page, rot }: { name: string; s
     {locked ? <LockedBlock plan="gold" title="Where the stock ranks inside its industry is part of the Gold plan">Open to everyone: the industry's state and its place against other industries. Gold adds this stock's 6-month rank among its industry's counted stocks.</LockedBlock>
       : <div className="sp-sec">
         <h3 className="ws-h3">Inside its industry: 6-month return<Tip text={`Inside its industry. Where ${name}'s 6-month return falls among the actively traded stocks of its NSE industry.`} /></h3>
-        {stocks ? <><p className="sp-sub">The {stocks.length} counted {ind} stocks, best first. {name} in red.</p>
-          <ol className="ws-bars">{stocks.map((x) => { const v = x.return_6m_pct ?? 0, me = x.symbol === symbol; return (
-            <li key={x.symbol} className={me ? "me" : ""}><Link to={`/stocks/${x.symbol}`}>{x.symbol}</Link><span className="ws-axis"><i className={v >= 0 ? "pos" : "neg"} style={{ width: `${(Math.abs(v) / max) * 50}%` }} /></span><b className={v >= 0 ? "sp-good" : "sp-red"}>{sp(x.return_6m_pct)}</b></li>); })}</ol></>
-          : sec.in_group === false ? <p className="sp-note">{sec.note ?? `${name} is not counted in its industry's breadth, so it has no rank inside it.`}</p> : <p className="sp-note">The industry's stock list is loading.</p>}
+        {stocks ? <IndustryList stocks={stocks} symbol={symbol} name={name} ind={ind} max={max} /> : null}
+          {!stocks && (sec.in_group === false ? <p className="sp-note">{sec.note ?? `${name} is not counted in its industry's breadth, so it has no rank inside it.`}</p> : <p className="sp-note">The industry's stock list is loading.</p>)}
       </div>}
   </>);
+}
+
+/** "Inside its industry" (task #222, 19 Nov pack B2): the short list by default for more than 15 stocks (lib/standsList.ts), the rank line, rank numbers,
+ *  bars across the full width, and "Show all N" (two columns from 900 px); collapsing scrolls back to the box when its top has left the screen. */
+export function IndustryList({ stocks, symbol, name, ind, max }: { stocks: RankedStock[]; symbol: string; name: string; ind: string; max: number }) {
+  const [all, setAll] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const n = stocks.length, meI = stocks.findIndex((x) => x.symbol === symbol), me = meI >= 0 ? stocks[meI] : null, med = median(stocks.map((x) => x.return_6m_pct));
+  const items = shortList(n, meI, all);
+  const toggle = () => { const on = !all; setAll(on); if (!on && box.current && box.current.getBoundingClientRect().top < 0) box.current.scrollIntoView({ block: "start" }); };
+  return (<div ref={box}>
+    <p className="sp-sub">The {n} counted {ind} stocks, best first. {name} in red.</p>
+    <p className="ws-sum">{me ? <><b>{symbol} {ordinal(meI + 1)} of {n}</b> · {sp(me.return_6m_pct)} </> : null}{med != null && <span>{me ? "· " : ""}industry median {sp(med)}</span>}</p>
+    <ol className={"ws-bars" + (n > 15 ? " long" : "") + (all ? " all" : "")}>{items.map((it, j) => {
+      if (it.kind === "gap") return <li key={"gap" + j} className="rk-gap" aria-hidden="true">{it.n} more</li>;
+      const x = stocks[it.i], v = x.return_6m_pct ?? 0, mine = x.symbol === symbol;
+      return <li key={x.symbol} className={mine ? "me" : ""}><span className="ws-rk">{it.i + 1}</span><Link to={`/stocks/${x.symbol}`}>{x.symbol}</Link><span className="ws-axis"><i className={v >= 0 ? "pos" : "neg"} style={{ width: `${(Math.abs(v) / max) * 50}%` }} /></span><b className={v >= 0 ? "sp-good" : "sp-red"}>{sp(x.return_6m_pct)}</b></li>;
+    })}</ol>
+    {n > 15 && <button type="button" className="ws-all" aria-expanded={all} onClick={toggle}>{all ? "Show fewer" : `Show all ${n}`}</button>}
+  </div>);
 }
 
 // ------------------------------------------------------------------------------------------------ Against peers

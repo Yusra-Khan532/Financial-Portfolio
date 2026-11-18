@@ -30,9 +30,11 @@ describe("panel keyboard rule", () => {
 });
 
 describe("sections bar numbers and the plan's Scores line (task #216, README 1.8)", () => {
-  it("numbers every section 01 to 18; Scores and Announcements have none", () => {
-    expect(NAV.map(([id]) => sectionNo(id)).filter(Boolean)).toEqual(Array.from({ length: 18 }, (_, i) => String(i + 1).padStart(2, "0")));
+  it("numbers every section 01 to 19; Scores has none; Announcements is gone, 18 is News & filings, 02 reads Economy (task #222, 19 Nov pack)", () => {
+    expect(NAV.map(([id]) => sectionNo(id)).filter(Boolean)).toEqual(Array.from({ length: 19 }, (_, i) => String(i + 1).padStart(2, "0")));
     expect([sectionNo("prism"), sectionNo("announcements")]).toEqual([null, null]);
+    expect(NAV.map(([id]) => id)).not.toContain("announcements");
+    expect(NAV.filter(([id]) => ["macro", "dividends", "news", "community"].includes(id)).map(([id, l]) => `${sectionNo(id)} ${l}`)).toEqual(["02 Economy", "17 Dividends", "18 News & filings", "19 Discussions"]);
   });
   it("Gold and Platinum read only FinLit Prism on the Scores line; Silver only the FinLit IQ", () => {
     expect(navFor("prism")[0][3]).toBe("The FinLit Prism score: financial health and the technical view, side by side");

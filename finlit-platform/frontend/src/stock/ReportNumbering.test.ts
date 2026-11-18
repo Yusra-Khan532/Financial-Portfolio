@@ -12,9 +12,9 @@ const numbered = () => {
 };
 
 describe("company report numbering", () => {
-  it("has the sections 01 to 18, each number once, in one unbroken run", () => {
+  it("has the sections 01 to 19, each number once, in one unbroken run (task #222, 19 Nov: 18 News and filings, 19 Community)", () => {
     const nums = [...new Set(numbered().map(([n]) => n))].sort((a, b) => a - b);
-    expect(nums).toEqual(Array.from({ length: 18 }, (_, i) => i + 1));
+    expect(nums).toEqual(Array.from({ length: 19 }, (_, i) => i + 1));
   });
   it("no longer has the Historical trend section or its menu entry", () => {
     expect(numbered().some(([, t]) => /Historical trend/i.test(t))).toBe(false);
@@ -23,9 +23,9 @@ describe("company report numbering", () => {
   });
   it("every main section has its number, in the order of the page", () => {
     const m = new Map(numbered().map(([n, t]) => [t.split(" · ")[0], n]));
-    const want: [string, number][] = [["Company overview", 1], ["Macro and sector outlook", 2], ["What's going well and what to watch", 3], ["Price & technicals", 4], ["Latest quarter", 5], ["Financials", 6], ["Trends", 7],
+    const want: [string, number][] = [["Company overview", 1], ["Economy and sector", 2], ["What's going well and what to watch", 3], ["Price & technicals", 4], ["Latest quarter", 5], ["Financials", 6], ["Trends", 7],
       ["Chart lab", 8], ["Ratios", 9], ["DuPont analysis", 10], ["Earnings & cash quality", 11], ["Ownership", 12], ["Peers", 13], ["Sector, peers and risk", 14], ["Gold insights", 15],
-      ["Segments", 16], ["Dividends & events", 17], ["Community", 18]];   // task #216: Where it stands is 14; live 17 "Pros, cons & Prism history" is gone
+      ["Segments", 16], ["Dividends", 17], ["News and filings", 18], ["Community", 19]];   // task #222 (19 Nov pack S1, S2)   // task #216: Where it stands is 14; live 17 "Pros, cons & Prism history" is gone
     for (const [t, n] of want) expect(m.get(t), t).toBe(n);
   });
   it("Where it stands replaces Sector & peers and Leadership, after Peers and before Gold insights, in the report and in the section bar", () => {

@@ -78,7 +78,50 @@ def corporate_actions(dividend_payload: Any, actions_payload: Any = None) -> Lis
             "forFY": _for_fiscal_year(kind, when),
         })
     out.sort(key=lambda r: r["date"], reverse=True)
+    _fill_missing_adjustments(out)
     return out
+
+
+def _ratio_factor(ratio: Any) -> Optional[float]:
+    """'2:1' / '1:2' / '2-for-1' / '1:5' (old face value to new) -> how many shares one becomes (the larger side over the smaller), or None."""
+    import re
+    if not ratio:
+        return None
+    nums = [float(x) for x in re.findall(r"\d+(?:\.\d+)?", str(ratio))][:2]
+    if len(nums) != 2 or min(nums) <= 0:
+        return None
+    return max(nums) / min(nums)
+
+
+def _fill_missing_adjustments(actions: List[dict]) -> None:
+    """Task #222 (19 Nov pack, D1): FinEdge sends adj_amount 0 for a dividend paid AFTER the latest split (TD Power's ₹0.65 interim of 18 Nov 2026, after
+    the 2-for-1 split of 24 Aug 2026), which made the year's dividend ₹0. A paid dividend whose adjustment is missing or 0 is worked out here: its amount
+    divided by the product of the split and bonus factors dated after it (an empty product is 1, so a dividend after the last split keeps its amount).
+    A split or bonus without a ratio (FinEdge sends none for TD Power's two splits) gets its factor from FinEdge's own adjustments of the dividends
+    before it (2-for-1 in Aug 2026 and 5-for-1 in Oct 2022 for TD Power). A valid adjustment from FinEdge is never changed."""
+    changes = [a for a in actions if a["type"] in ("split", "bonus")]          # newest first, as `actions`
+    divs = [a for a in actions if a["type"].endswith("dividend")]
+    if not any((d.get("amount") or 0) > 0 and not (d.get("adjustedAmount") or 0) > 0 for d in divs):
+        return
+    later = 1.0                                                                 # the product of the factors of the changes newer than the one in hand
+    factors: Dict[str, Optional[float]] = {}
+    for ch in changes:
+        f = _ratio_factor(ch.get("ratio"))
+        if f is None:                                                           # FinEdge's factor on the newest dividend before this change, over the later changes'
+            before = next((d for d in divs if d["date"] < ch["date"] and (d.get("amount") or 0) > 0 and (d.get("adjustedAmount") or 0) > 0), None)
+            if before is not None:
+                f = round(before["amount"] / before["adjustedAmount"] / later, 3)
+        factors[ch["date"] + ch["type"]] = f
+        later *= f or 1.0
+    for d in divs:
+        if (d.get("amount") or 0) > 0 and not (d.get("adjustedAmount") or 0) > 0:
+            after = [factors[c["date"] + c["type"]] for c in changes if c["date"] > d["date"]]
+            if any(f is None for f in after):
+                continue                                                        # a later change of unknown size: leave it rather than guess
+            prod = 1.0
+            for f in after:
+                prod *= f
+            d["adjustedAmount"] = rnd(d["amount"] / prod, 4)
 
 
 def _for_fiscal_year(kind: str, paid: date) -> Optional[str]:
