@@ -72,7 +72,7 @@ async def test_visitors_and_basic_are_refused_silver_and_gold_are_not(app):
     assert (await (await signed_in(app, "s@example.com", plan="silver")).get(URL)).status_code == 200
 
 
-async def test_the_score_is_gold_and_the_server_decides(app):
+async def test_the_health_score_is_for_every_member_with_the_page(app):   # task #183, COMMON-RULES 3: "Mutual Fund + ETF and up" = Silver and up for now
     silver = await signed_in(app, "s@example.com", plan="silver")
     gold = await signed_in(app, "g@example.com", plan="gold")
     for c in (silver, gold):
@@ -80,18 +80,15 @@ async def test_the_score_is_gold_and_the_server_decides(app):
         assert (await add(c, BASE + 2, "10", invested="1000")).status_code == 201
     s = await silver.get(URL)
     assert s.headers["cache-control"] == "private, no-store" and "Cookie" in s.headers["vary"]
-    body = s.json()
-    assert body["scoreLocked"] is True and body["summary"]["score"] == {"locked": True, "value": None, "label": None, "why": None}
-    for h in body["holdings"]:                     # returns and values come, the score does not: locked, with null fields
-        assert h["score"] == mfp.LOCKED_SCORE and h["current"] and h["returns"]["r1y"] is not None
-    raw = s.text
-    for number in ("83.0", "61.5", "85.0", "Strong", "Average"):
-        assert number not in raw, f"{number} leaked to a Silver response"
-    g = (await gold.get(URL)).json()
-    assert g["scoreLocked"] is False
-    one = next(h for h in g["holdings"] if h["code"] == BASE + 1)["score"]
-    assert one["final"] == 83.0 and one["label"] == "Strong" and one["parts"] == {"performance": 80.0, "risk": 85.0, "cost": 90.0, "quality": 77.0} and one["status"] == "RATED"
-    assert g["summary"]["score"]["value"] is not None and g["summary"]["score"]["label"] in ("Strong", "Healthy", "Average")
+    for body in (s.json(), (await gold.get(URL)).json()):
+        assert body["scoreLocked"] is False
+        one = next(h for h in body["holdings"] if h["code"] == BASE + 1)["score"]
+        assert one["final"] == 83.0 and one["label"] == "Strong" and one["parts"] == {"performance": 80.0, "risk": 85.0, "cost": 90.0, "quality": 77.0} and one["status"] == "RATED"
+        assert one["words"] == {"performance": "Strong", "risk": "Strong", "cost": "Strong", "quality": "Strong"}       # the server's words (70+ Strong, 50-69 Fair)
+        two = next(h for h in body["holdings"] if h["code"] == BASE + 2)["score"]
+        assert two["words"] == {"performance": "Fair", "risk": "Fair", "cost": "Weak", "quality": "Strong"}
+        assert body["summary"]["score"]["value"] is not None and body["summary"]["score"]["label"] in ("Strong", "Healthy", "Average")
+    assert s.json()["plan"] == "silver"
 
 
 async def test_admin_sees_everything_and_is_not_limited_like_silver(app):
@@ -101,15 +98,17 @@ async def test_admin_sees_everything_and_is_not_limited_like_silver(app):
     assert body["scoreLocked"] is False and body["limit"] == 500 and body["holdings"][0]["score"]["final"] == 83.0
 
 
-async def test_a_downgraded_member_keeps_the_holdings_and_loses_the_score(app):
+async def test_a_downgraded_member_keeps_the_holdings(app):   # Silver still sees the Health Score (task #183); Basic loses the page, never the funds
     c = await signed_in(app, "g@example.com", plan="gold")
     await add(c, BASE + 1)
     assert (await c.get(URL)).json()["holdings"][0]["score"]["final"] == 83.0
+    for plan, status in (("silver", 200), ("basic", 403)):
+        async with app.state.store.pool.acquire() as conn:
+            await conn.execute("UPDATE users SET plan = $1 WHERE email = 'g@example.com'", plan)
+        await app.state.store.redis.flushdb()
+        assert (await c.get(URL)).status_code == status
     async with app.state.store.pool.acquire() as conn:
-        await conn.execute("UPDATE users SET plan = 'silver' WHERE email = 'g@example.com'")
-    await app.state.store.redis.flushdb()
-    body = (await c.get(URL)).json()
-    assert body["count"] == 1 and body["holdings"][0]["score"]["locked"] is True and body["holdings"][0]["score"]["final"] is None
+        assert await conn.fetchval("SELECT count(*) FROM mf_holdings h JOIN users u ON u.id = h.user_id WHERE u.email = 'g@example.com'") == 1
 
 
 async def test_a_gold_fund_with_no_score_says_why(app):

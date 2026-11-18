@@ -122,8 +122,10 @@ def _scheme_fields(s: Optional[Dict[str, Any]]) -> Dict[str, Any]:
 
 
 async def scores_for(conn, codes: List[int]) -> Dict[int, Dict[str, Any]]:
-    """Gold only: the Health Score of each scheme from mf_scores (an IDCW option carries its Growth plan's score, a scheme with none says why)."""
-    from ..mfscore.api import resolve_mf
+    """The Health Score of each scheme from mf_scores (an IDCW option carries its Growth plan's score, a scheme with none says why), with the API's word for
+    each part (Strong / Fair / Weak, mfscore.part_word: the page never cuts the numbers itself) and its category rank."""
+    from ..mfscore.api import rank_view, resolve_mf
+    from ..mfscore.scorehist import part_word
     rows = {r["code"]: dict(r) for r in await conn.fetch("SELECT * FROM mf_scores WHERE key = ANY($1::text[])", [f"mf:{c}" for c in codes])}
     out: Dict[int, Dict[str, Any]] = {}
     for c in codes:
@@ -139,6 +141,8 @@ async def scores_for(conn, codes: List[int]) -> Dict[int, Dict[str, Any]]:
                   "inherited": inherited}
         if out[c]["parts"]:
             out[c]["parts"] = {"performance": out[c]["parts"]["perf"], "risk": out[c]["parts"]["risk"], "cost": out[c]["parts"]["cost"], "quality": out[c]["parts"]["quality"]}
+            out[c]["words"] = {k: part_word(row[{"performance": "perf"}.get(k, k)]) for k in ("performance", "risk", "cost", "quality")}   # task #183: the API's words
+        out[c]["rank"] = rank_view(row) if rated and "rank" in row else None
     return out
 
 
@@ -146,7 +150,9 @@ LOCKED_SCORE = {"locked": True, "final": None, "label": None, "status": None, "r
 
 
 async def build_view(request: Request, ctx: Ctx) -> Dict[str, Any]:
-    gold = is_gold(ctx)
+    # Task #183 (COMMON-RULES 3): the Fund Health Score and its four parts are for every plan that has the MF portfolio ("Mutual Fund + ETF and up", which
+    # is Silver and up until that plan exists). The page is Silver and up (member_ctx), so every member here sees them. Only the trend underneath stays Gold.
+    gold = True
     async with request.app.state.store.pool.acquire() as conn:
         held = await holdings_of(conn, ctx.user_id)
         codes = sorted({h["code"] for h in held})
@@ -166,7 +172,7 @@ async def build_view(request: Request, ctx: Ctx) -> Dict[str, Any]:
         r["weight"] = num(Decimal(str(r["current"])) / total * 100, 1) if r["current"] is not None and total > 0 else None
         r["weightWhy"] = None if r["weight"] is not None else (r["currentWhy"] or "The portfolio has no value yet.")
     summary = summarize(rows, score_locked=not gold)
-    return {"plan": "gold" if gold else ctx.plan, "scoreLocked": not gold, "limit": cap_for(ctx), "count": len(rows), "dataDate": data_date.isoformat() if data_date else None,
+    return {"plan": "gold" if is_gold(ctx) else ctx.plan, "scoreLocked": not gold, "limit": cap_for(ctx), "count": len(rows), "dataDate": data_date.isoformat() if data_date else None,
             "holdings": rows, "summary": summary, "allocation": allocation(rows), "concentration": concentration(rows),
             "disclaimer": DISCLAIMER, "scoreDisclaimer": SCORE_DISCLAIMER}
 
