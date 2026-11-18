@@ -77,6 +77,8 @@ CAUTION = ("A keyword mention by itself is not proof of material business exposu
 NUM_RE = re.compile(r"\d")
 MIN_DISTINCT, MIN_TOTAL = 2, 5        # the notes: "Require breadth, or a lot of repetition, to avoid one-word noise"
 MAX_PAGES = 80                        # the notes read the first 80 pages
+SIGNAL_BUCKETS = {"Corporate Catalysts & Growth Signals"}
+RULES_VERSION = 2                     # bump when the scoring changes: every stored presentation is read again with the new rules (job, bounded per night)
 DIRECTORY = json.loads((Path(__file__).with_name("directory.json")).read_text(encoding="utf-8"))["buckets"]
 # Related terms of the PDF that are ordinary words in any deck (a power plant's "MW", a test's "trials"): kept in the directory, not matched alone.
 TOO_BROAD = {"mw", "trials", "certification", "navigation", "nodes", "payload", "propulsion", "transformers", "hvac"}
@@ -251,8 +253,11 @@ def classify(text: str) -> dict:
     if not scores:
         return {"status": "no_bucket_match", **empty}
     buckets = list(scores)
-    top = buckets[0]
-    secondary = [b for b in buckets[1:] if scores[b]["score"] >= 0.5 * scores[top]["score"]]
+    # "Corporate Catalysts & Growth Signals" (order book, JV, M&A, guidance) are events every deck names, not a line of business: seen live on the first
+    # night (43 of 133 companies). A business theme that qualifies is the primary; the catalysts stay as a secondary theme.
+    business = [b for b in buckets if b not in SIGNAL_BUCKETS]
+    top = business[0] if business else buckets[0]
+    secondary = [b for b in buckets if b != top and (scores[b]["score"] >= 0.5 * scores[top]["score"] or b in SIGNAL_BUCKETS)]
     for b in [top, *secondary]:
         scores[b]["stage"] = theme_stage(text, list(scores[b]["terms"]), b)
         scores[b]["verify"] = sorted({VERIFY[(b, t)] for t in scores[b]["terms"] if VERIFY.get((b, t))})[:3]

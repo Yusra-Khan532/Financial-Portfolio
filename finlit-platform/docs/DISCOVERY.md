@@ -67,3 +67,8 @@ Ltd", "Om Power Transmission Ltd") and NSE's own label "Capacity addition" (file
 themes and stage come only from what it says about the business (`signals.subject_of`: the headline without the company's name, NSE's boilerplate
 and its category label); "MW" alone no longer means a data centre; "wins ... order" is an order win. A change of the tagging rules re-tags every
 stored filing once (`TAG_VERSION`, database only).
+
+The same first night showed "Corporate Catalysts & Growth Signals" (order book, JV, M&A, guidance) as the main theme of 43 of 133 companies:
+events every deck names, not a line of business. Now a business theme that qualifies is the primary and the catalysts stay a secondary theme
+(alone, they are still shown). `keywords.RULES_VERSION` (migration 111, `discovery_companies.rules`): when the scoring changes, the job reads the
+older presentations again, after the new ones, bounded per night.

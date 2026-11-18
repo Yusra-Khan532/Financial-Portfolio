@@ -100,6 +100,33 @@ def test_every_filing_gets_an_event_themes_and_tone():
     assert SG.tag("Press Release", "Fine chemicals plant output")["event"] != "legal"
 
 
+def test_a_business_theme_is_primary_and_corporate_catalysts_stay_secondary():
+    """Seen live on the first night: 43 of 133 companies had "Corporate Catalysts & Growth Signals" (order book, JV, M&A) as their main theme."""
+    text = ("Company overview and highlights for shareholders, segments in detail. " * 4 +
+            "Order book of Rs 4,000 crore. Order inflow of Rs 900 crore. Strategic partnership and a joint venture signed. Letter of award received. "
+            "Revenue guidance raised. We commissioned a 2 GW TOPCon solar cell line in Q2 FY27. Solar module capacity is now 5 GW.")
+    r = K.classify(text)
+    assert K.analyse(text) and list(K.analyse(text))[0] == "Corporate Catalysts & Growth Signals"     # it scores highest ...
+    assert r["primary"] == "Solar Technology" and "Corporate Catalysts & Growth Signals" in r["secondary"]   # ... but the business is primary
+    only = K.classify("Company overview and highlights for shareholders, segments in detail. " * 4 + "Order book of Rs 4,000 crore. Joint venture signed.")
+    assert only["primary"] == "Corporate Catalysts & Growth Signals"                                 # alone, it is still shown
+
+
+async def test_presentations_read_with_older_rules_are_read_again_after_new_ones(store):  # noqa: F811
+    await seed(store)
+    await D.run(store, fetcher=exchange())
+    assert await D.pending(store) == []
+    async with store.pool.acquire() as conn:
+        await conn.execute("UPDATE discovery_companies SET rules = 1 WHERE symbol = 'BSHIELD'")
+        await conn.execute("INSERT INTO feed_items (kind, title, symbol, company, link, item_date, category, auto, dedupe) VALUES ('document', "
+                           "'Investor Presentation', 'NEWCO', 'New Co Ltd', 'https://nsearchives.nseindia.in/corporate/NEWCO_SOLAR.pdf', $1::date - 30, "
+                           "'Investor Presentation', true, 'newco')", TODAY)
+    assert [d["symbol"] for d in await D.pending(store)] == ["NEWCO", "BSHIELD"]                     # the new one first, then the re-read
+    await D.run(store, fetcher=exchange())
+    async with store.pool.acquire() as conn:
+        assert await conn.fetchval("SELECT min(rules) FROM discovery_companies") == K.RULES_VERSION
+
+
 def test_filing_themes_come_from_what_the_filing_says_not_the_company_name_or_nse_label():
     """Found live on the first night (18 Nov 2026): 66 filings under Renewable Energy & Power from company names ("Emmvee Photovoltaic Power
     Ltd", "Om Power Transmission Ltd") and NSE's label "Capacity addition" (filed for hotel rooms and hospital beds too)."""

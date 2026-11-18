@@ -38,24 +38,25 @@ SELECT d.* FROM docs d
 LEFT JOIN discovery_companies c ON c.symbol = d.symbol
 WHERE c.symbol IS NULL OR c.doc_link <> d.link
    OR (c.status = 'error' AND c.read_at < now() - make_interval(hours => $2::int))
-ORDER BY d.item_date DESC, d.symbol
+   OR c.rules < $4
+ORDER BY (c.symbol IS NOT NULL AND c.doc_link = d.link), d.item_date DESC, d.symbol   -- new presentations before re-reads
 LIMIT $3
 """
 
 UPSERT_SQL = """
 INSERT INTO discovery_companies (symbol, company, doc_title, doc_date, doc_link, status, primary_bucket, secondary, scores, evidence, pages,
-                                 stage, tone, tone_label, read_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11, $12, $13, $14, now())
+                                 stage, tone, tone_label, rules, read_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11, $12, $13, $14, $15, now())
 ON CONFLICT (symbol) DO UPDATE SET company = EXCLUDED.company, doc_title = EXCLUDED.doc_title, doc_date = EXCLUDED.doc_date, doc_link = EXCLUDED.doc_link,
     status = EXCLUDED.status, primary_bucket = EXCLUDED.primary_bucket, secondary = EXCLUDED.secondary, scores = EXCLUDED.scores,
-    evidence = EXCLUDED.evidence, pages = EXCLUDED.pages, stage = EXCLUDED.stage, tone = EXCLUDED.tone, tone_label = EXCLUDED.tone_label,
+    evidence = EXCLUDED.evidence, pages = EXCLUDED.pages, stage = EXCLUDED.stage, tone = EXCLUDED.tone, tone_label = EXCLUDED.tone_label, rules = EXCLUDED.rules,
     read_at = now()
 """
 
 
 async def pending(store, limit: Optional[int] = None) -> List[Dict[str, Any]]:
     async with store.pool.acquire() as conn:
-        rows = await conn.fetch(PENDING_SQL, LOOKBACK_DAYS, RETRY_FAILED_H, limit)   # LIMIT NULL = every row
+        rows = await conn.fetch(PENDING_SQL, LOOKBACK_DAYS, RETRY_FAILED_H, limit, K.RULES_VERSION)   # LIMIT NULL = every row
     return [dict(r) for r in rows]
 
 
@@ -64,7 +65,7 @@ async def save(store, doc: Dict[str, Any], result: Dict[str, Any], pages: Option
         await conn.execute(UPSERT_SQL, doc["symbol"], doc.get("company"), doc.get("title"), doc.get("item_date"), doc["link"], result["status"],
                            result.get("primary"), list(result.get("secondary") or []), json.dumps(result.get("scores") or {}),
                            json.dumps(result.get("evidence") or []), pages, (result.get("stage") or {}).get("stage"),
-                           (result.get("tone") or {}).get("score"), (result.get("tone") or {}).get("label"))
+                           (result.get("tone") or {}).get("score"), (result.get("tone") or {}).get("label"), K.RULES_VERSION)
 
 
 async def read_one(fetcher: Fetcher, link: str) -> tuple[Dict[str, Any], Optional[int]]:
