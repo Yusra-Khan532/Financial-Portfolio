@@ -21,7 +21,7 @@ describe("MF portfolio live fixes (M1)", () => {
     expect(MF_PORTFOLIO_FAQ.items.find((i) => i.q === "Can I export my list?")!.a).toMatch(/^No\. The portfolio pages have no download/);
   });
   it("says why IDCW returns are blank, and that a liquid fund counts as a full share until units are added", () => {
-    expect(page).toContain("The fund's Growth plan shows the full return.");
+    expect(readFileSync(resolve(__dirname, "./MfFunds.tsx"), "utf8")).toContain("The fund's Growth plan shows the full return.");   // inside Your funds since M5
     expect(MF_PORTFOLIO_FAQ.items.find((i) => /liquid fund/.test(i.q))!.a).toMatch(/every fund counts the same, so a liquid fund is a full share of the list/);
   });
 });

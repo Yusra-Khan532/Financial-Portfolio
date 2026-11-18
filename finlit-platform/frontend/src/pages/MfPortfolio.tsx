@@ -13,7 +13,7 @@ import { UnitsDialog } from "../mf/pack/UnitsDialog";
 import { statementFromFile, FIELD_LABEL, type Statement } from "../lib/mfStatement";
 import { PdfPasswordError, isPdf } from "../lib/holdingsPdf";
 import {
-  STATUS_WORD, commitItems, crores, initialDecisions, pct1, reviewCounts, rupees, searchFunds, sortHoldings,
+  STATUS_WORD, commitItems, initialDecisions, reviewCounts, rupees, searchFunds, sortHoldings,
   useMfPortfolio, useMfSpread, useMfWrites, type Decision, type Fund, type Holding, type Preview, type ReviewRow,
   shares, typeOf,
 } from "../lib/mfPortfolio";
@@ -28,7 +28,8 @@ import { useUniverse } from "../lib/screener";
 import { capBucket } from "../lib/capBuckets";
 import type { Leadership } from "../lib/leadership";
 import { type MfRisk, type Under } from "../lib/mfPack";
-import { FundsSection, ListRisk, MfTabs, UnderSection, type MfView } from "../mf/pack/MfPack";
+import { ListRisk, MfTabs, UnderSection, type MfView } from "../mf/pack/MfPack";
+import { FundsTable } from "../mf/pack/MfFunds";
 import { MF_SECS, fundsCards, listBox, mfTiles, mixCards, riskCards } from "../lib/mfTop";
 import { KeyFigures, SectionsBar, TopGrid, jumpTo } from "../portfolio/pack/PageTop";
 import { ListBox } from "../mf/pack/MfTop";
@@ -39,7 +40,6 @@ import "../mf/pack/mf-pack.css";
 
 const K = ["var(--k1)", "var(--k2)", "var(--k3)", "var(--k7)", "var(--k5)", "var(--k4)", "var(--k6)", "var(--k8)", "var(--k1)"];
 const errText = (e: unknown) => ((e as { body?: { detail?: string } })?.body?.detail) || (e instanceof Error ? e.message : "Something went wrong. Please try again.");
-const Dash = ({ why }: { why?: string | null }) => <span className="pf-dash" title={why || undefined} aria-label={why ? `Not shown. ${why}` : "Not available"} tabIndex={why ? 0 : undefined}>–</span>;
 
 /* --------------------------------------------------------------- fund search */
 function FundSearch({ onPick, placeholder = "Search a fund by name or ISIN…" }: { onPick: (f: Fund) => void; placeholder?: string }) {
@@ -166,12 +166,11 @@ function ImportFile({ onDone }: { onDone: (msg: string) => void }) {
 }
 
 /* --------------------------------------------------------------- page */
-const pctOrDash = (v: number | null | undefined, why?: string | null) => (v == null ? <Dash why={why} /> : pct1(v));
 const NOT_RANKED: Record<string, string> = { history: "has under a year of prices", liquidity: "trades too thinly to rank fairly", stale: "has no recent prices", group: "has no peer group", hidden: "is not ranked", pending: "is waiting for its first weekly reading" };
 
 export function MfPortfolioPage() {
   useDocTitle("MF portfolio", "How healthy your mutual funds are, how much they overlap, what sits inside them, and how risky they are together.");
-  const { plan, has, toast, upgrade } = useUI();
+  const { plan, has, toast } = useUI();
   const silver = has("silver");
   const q = useMfPortfolio(silver), w = useMfWrites(), sp = useMfSpread(silver && !!q.data && q.data.count > 0);
   const rk = useQuery<MfRisk, ApiError>({ queryKey: ["mf-portfolio", "risk", q.data?.count ?? 0], queryFn: () => apiGet<MfRisk>("/api/me/mf-portfolio/risk"), enabled: silver && !!q.data && q.data.count > 0, staleTime: 5 * 60_000, retry: false });
@@ -179,9 +178,9 @@ export function MfPortfolioPage() {
   const view = (["mix", "risk"].includes(params.get("view") || "") ? params.get("view") : "funds") as MfView;
   const setView = (v: MfView, scroll = false) => { const n = new URLSearchParams(params); if (v === "funds") n.delete("view"); else n.set("view", v); setParams(n, { replace: true }); if (scroll) setTimeout(() => document.getElementById("mfp-tabsbox")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0); };
   const [units, setUnits] = useState(false);
-  const [importing, setImporting] = useState(params.get("tab") === "import"), [cols, setCols] = useState<"risk" | "returns">("risk");
+  const [importing, setImporting] = useState(params.get("tab") === "import");
   const [group, setGroup] = useState<string>("All funds");   // the group tab (the categories under it are shown for reading only, they are not a filter)
-  const d = q.data, locked = d ? d.scoreLocked : !has("gold");
+  const d = q.data;
   const all = useMemo(() => d?.holdings ?? [], [d]);
   const catOf = (h: Holding) => h.categoryLabel || "Other";
   const inGroup = useMemo(() => (group === "All funds" ? all : all.filter((h) => typeOf(h.category) === group)), [all, group]);
@@ -189,7 +188,7 @@ export function MfPortfolioPage() {
   const pie = useMemo(() => shares(inGroup, (h) => (group === "All funds" ? typeOf(h.category) : catOf(h))), [inGroup, group]);
   const rows = useMemo(() => sortHoldings(all, "name", "asc"), [all]);
   const groups = useMemo(() => ["All funds", ...["Equity", "Hybrid", "Debt", "Solution oriented", "Others"].filter((g) => all.some((h) => typeOf(h.category) === g))], [all]);
-  const noReturns = all.filter((h) => h.returns.r1y == null && h.returns.r3y == null && h.returns.r5y == null).length;
+  const noReturns = all.filter((h) => !/idcw|dividend/i.test(h.option || "") && h.returns.r1y == null && h.returns.r3y == null && h.returns.r5y == null && !h.returns.why).length;   // IDCW and funds with a stated reason are not "being worked out"
   const [polls, setPolls] = useState(0);
   useEffect(() => {   // returns of a just-added fund are filled in within seconds: look again a few times so the numbers appear without a reload
     if (noReturns === 0 || polls >= 6) return;
@@ -197,7 +196,6 @@ export function MfPortfolioPage() {
     return () => clearTimeout(t);
   }, [noReturns, polls, q]);
   const limit = d?.limit ?? limitsFor(plan).mf_holdings;
-  const unlock = () => upgrade("gold", "The FinLit FundPulse is part of Gold.");
 
   // the largest stocks underneath: NSE's industry from the fund files (task #192), FinLit size from the stock list, how each did against its peers from its weekly reading
   const uni = useUniverse(), byU = useMemo(() => new Map((uni.data?.rows ?? []).map((r) => [r.symbol, r])), [uni.data]);
@@ -249,18 +247,13 @@ export function MfPortfolioPage() {
             cards={view === "funds" ? fundsCards(all, sp.data) : view === "mix" ? mixCards(sp.data) : riskCards(rk.data)} />
           <div id="mfp-panel" role="tabpanel" aria-labelledby={`mfp-tab-${view}`}>
           {view === "funds" && <>
-            <FundsSection hs={rows} rk={rk.data} rkErr={rk.isError ? errText(rk.error) : null} sp={sp.data} locked={locked} onUnlock={unlock} cols={cols} onCols={setCols}
-              extra={(h) => <>
-                <td className="r">{h.nav == null ? <Dash why="This scheme has no NAV yet." /> : <><b>{rupees(h.nav)}</b><small className={"mfp-sub" + (h.navStale ? " warn" : "")} title={h.navNote || undefined}>{h.navDate ? dateIN(h.navDate) : ""}</small></>}</td>
-                {(["r1y", "r3y", "r5y"] as const).map((k) => <td key={k} className="r">{pctOrDash(h.returns[k], h.returns.why || h.returns.partialWhy)}</td>)}
-                <td className="r">{pctOrDash(h.ter, h.terWhy)}</td><td className="r">{h.aum == null ? <Dash why={h.aumWhy} /> : crores(h.aum)}</td></>}
-              actions={(h) => <button className="btn" aria-label={`Remove ${h.name}`} title={`Remove ${h.name}`} onClick={async () => { try { await w.remove.mutateAsync(h.id); toast("Fund removed."); } catch (x) { toast(errText(x)); } }}>✕</button>} />
-            {all.some((h) => h.option && /idcw|dividend/i.test(h.option)) && <p className="sp-note mfp-idcw" role="note">IDCW options show no 1, 3 or 5 year return: each payout lowers the NAV, so the change in NAV would understate what was earned. The fund's Growth plan shows the full return.</p>}
-            {cols === "returns" && noReturns > 0 && <p className="sp-note" role="status">1Y, 3Y and 5Y returns are being worked out now for {noReturns} of your funds (from the fund's published NAV history). They appear here by themselves within a minute or two. A fund younger than a year has no 1Y return, and one younger than 3 or 5 years has no 3Y or 5Y return.</p>}
-            {sp.isPending && <p className="sp-note" aria-busy="true">Reading the stocks inside your funds…</p>}
-            {sp.data && sp.data.count > 0 && under.length > 0 && <UnderSection under={under} sp={sp.data} n={d.count} />}
+            {rk.isError && <p className="sp-note" role="status">{errText(rk.error)}</p>}
+            <FundsTable hs={rows} rk={rk.data} sp={sp.data} listLabel={d.summary.score.label}
+              actions={(h) => <button type="button" className="mff-rm" aria-label={`Remove ${h.name}`} onClick={async () => { try { await w.remove.mutateAsync(h.id); toast("Fund removed."); } catch (x) { toast(errText(x)); } }}>Remove</button>} />
+            {noReturns > 0 && <p className="sp-note" role="status">1Y, 3Y and 5Y returns are being worked out now for {noReturns} of your funds (from the fund's published NAV history). They appear here by themselves within a minute or two. A fund younger than a year has no 1Y return, and one younger than 3 or 5 years has no 3Y or 5Y return.</p>}
           </>}
           {view === "mix" && <>
+            {sp.data && sp.data.count > 0 && under.length > 0 && <UnderSection under={under} sp={sp.data} n={d.count} />}
             <section className="sp-sec mp-cat" aria-label="Your funds by category">
               <h2>Your funds by type</h2>
               <div className="mp-cat-tabs" role="tablist">{groups.map((g) => <button key={g} role="tab" aria-selected={group === g} className={group === g ? "on" : ""} onClick={() => setGroup(g)}>{g}</button>)}</div>
