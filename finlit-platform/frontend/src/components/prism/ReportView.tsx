@@ -8,6 +8,7 @@ import { CardTop } from "./pzr/CardTop";
 export { reportRef } from "./pzr/CardTop";
 import { FactorExplorer } from "./pzr/Factors";
 import { PRISM_DISCLAIMER, PzHead } from "./pzr/Shell";
+import { TabGroup } from "../TabGroup";
 import { Notes, Peers } from "./pzr/Health";
 import { HistoryCharts, HistoryTables } from "./pzr/History";
 import { Technical } from "./pzr/Technical";
@@ -46,8 +47,15 @@ export function PrismReportView({ report, actions = {}, example = false }: { rep
       <Technical report={report} onRecalculate={actions.onRecalculate} />
       <section className="pzr-sec pzs" id="history" aria-labelledby="pzr-h-hist">
         <PzHead no="03" id="pzr-h-hist" title="Financial history" desc="From the company's filings, on the same statement basis as the score." />
-        <HistoryCharts report={report} />
-        {report.financialHistory && <HistoryTables history={report.financialHistory} income={income} note={reportIncomeNote(report.rating)} benchmark={report.benchmark} />}
+        {/* task #220 (README 3.3): four tabs; Charts keeps its Annual | Quarterly switch and tools */}
+        {report.financialHistory ? (
+          <TabGroup label="Financial history" sticky views={[
+            { key: "charts", label: "Charts", content: <HistoryCharts report={report} /> },
+            { key: "quarterly", label: "Quarterly results", content: <HistoryTables part="quarterly" history={report.financialHistory} income={income} note={reportIncomeNote(report.rating)} benchmark={report.benchmark} /> },
+            { key: "annual", label: "Annual results", content: <HistoryTables part="annual" history={report.financialHistory} income={income} note={reportIncomeNote(report.rating)} benchmark={report.benchmark} /> },
+            { key: "ratios", label: "Key financial ratios", content: <HistoryTables part="ratios" history={report.financialHistory} income={income} note={reportIncomeNote(report.rating)} benchmark={report.benchmark} /> },
+          ]} />
+        ) : <HistoryCharts report={report} />}
       </section>
       <Peers report={report} />
       <Notes report={report} notes={review.notes} />

@@ -3,7 +3,7 @@
 // Everything shown is read from the stored report (rating, technicalAssessment); the rules (words, bands, captions) are in prismCardLogic.ts and lib/.
 // Meaning is always in words and shapes (the status word, the number, the arrows); colour only decorates. The ring and the bars are hidden from screen
 // readers because every component and horizon carries its numbers and words in its own accessible name. Styles: styles/prism-card.css (classes pcx-*).
-import { useId, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Icon } from "../lib/icons";
 import { BAND_RULE, bandInk, bandVar, partHint, scoreBand, trendBand as toneBand, type ScoreBand } from "../lib/scoreBands";
 import { TECH_NOTE, bandWidths, fmtScore, ratingWord, scalePos, trendAlignment, type TechAssessment, type TechHorizon, type TrendTone, type VerdictTone } from "../lib/prismTechnical";
@@ -21,9 +21,11 @@ export const TIP_ROOM = 340;
 export const nearRightEdge = (left: number, width = typeof innerWidth === "number" ? innerWidth : 0) => left - 8 + TIP_ROOM > width - 12;
 /** A small "i" that explains itself on hover and on keyboard focus. The text is also its accessible name. Near the right edge it opens to the left. */
 export function InfoTip({ text, end = false }: { text: string; end?: boolean }) {
-  const [near, setNear] = useState(false);
-  const check = (e: React.SyntheticEvent<HTMLSpanElement>) => setNear(nearRightEdge(e.currentTarget.getBoundingClientRect().left));
-  return <span className={"pcx-i" + (end || near ? " end" : "")} tabIndex={0} role="img" aria-label={text} onMouseEnter={check} onFocus={check}>i<span className="pcx-tip" aria-hidden="true">{text}</span></span>;
+  const [near, setNear] = useState(false), ref = useRef<HTMLSpanElement>(null);
+  const check = () => { const el = ref.current; if (el && el.getBoundingClientRect().width) setNear(nearRightEdge(el.getBoundingClientRect().left)); };
+  // on load and resize as well as on hover: a hidden tip that opens to the right must never widen the page (README 1.5)
+  useEffect(() => { check(); addEventListener("resize", check); return () => removeEventListener("resize", check); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+  return <span ref={ref} className={"pcx-i" + (end || near ? " end" : "")} tabIndex={0} role="img" aria-label={text} onMouseEnter={check} onFocus={check}>i<span className="pcx-tip" aria-hidden="true">{text}</span></span>;
 }
 
 /* ------------------------------------------------------------------ the segmented ring */
@@ -154,15 +156,17 @@ function HorizonPanel({ title, h, index }: { title: string; h: TechHorizon; inde
   );
 }
 
-export function TechnicalSection({ a, report, onRecalculate, busy }: { a: TechAssessment | null; report: PrismLatest; onRecalculate?: () => void; busy?: boolean }) {
+/** `bare` (task #220, README 3.2): only the two trend cards and the alignment card, with `after` under the alignment card; the Prism report's 02
+ *  renders this same component again instead of a copy. */
+export function TechnicalSection({ a, report, onRecalculate, busy, bare = false, after }: { a: TechAssessment | null; report: PrismLatest; onRecalculate?: () => void; busy?: boolean; bare?: boolean; after?: ReactNode }) {
   const al = a ? trendAlignment(a.shortTerm.score, a.longTerm.score) : null;
   return (
     <section className="pcx-sec tech" aria-label="Technical analysis, separate from the Prism score">
-      <header className="pcx-sh">
+      {!bare && <header className="pcx-sh">
         <span className="pcx-ic" aria-hidden="true"><Icon name="line" /></span>
         <div className="pcx-ht"><div className="pcx-hrow"><h3>Technical analysis</h3><InfoTip text={TECH_NOTE} /></div><p>{TECH_SUBTITLE}</p></div>
         <p className="pcx-note"><Icon name="info" /><span>{TECH_SEPARATE_NOTE}</span></p>
-      </header>
+      </header>}
       {a ? (
         <>
           <div className="pcx-tp" role="group" aria-label="Technical view, separate from the Prism score: short term and long term">
@@ -178,7 +182,8 @@ export function TechnicalSection({ a, report, onRecalculate, busy }: { a: TechAs
               <span className="pcx-at"><b>{al.label}</b><small>{alignSentence(al)}</small></span>
             </div>
           )}
-          <TechAsOf asOf={report.technical?.asOf ?? a.asOf} stale={report.technical?.stale} refreshing={report.technical?.refreshing} />
+          {after}
+          {!bare && <TechAsOf asOf={report.technical?.asOf ?? a.asOf} stale={report.technical?.stale} refreshing={report.technical?.refreshing} />}
         </>
       ) : <div className="pcx-tq"><PrismTechRow report={report} onRecalculate={onRecalculate} busy={busy} /></div>}
     </section>
