@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import sample from "./fixtures/flows.sample.json";
 import type { FlowDay, Flows } from "./flows";
-import { absorption, ageLabel, calendar, combined, corrWords, cumulative, diiState, filterDays, grp, indexCorrelation, inr, level, monthGrid, movingAverage, percentileOf, rangeRows, runs, sinceMonths, sortDays, splitOf, summarize, toCsv, topRuns, totalSince } from "./flowsMath";
+import { absorption, ageLabel, bandMonths, calBands, calendar, combined, corrWords, cumulative, diiState, filterDays, grp, indexCorrelation, inr, level, monthGrid, movingAverage, percentileOf, rangeRows, runs, sinceMonths, sortDays, splitOf, summarize, toCsv, topRuns, totalSince } from "./flowsMath";
 
 const F = sample as unknown as Flows;
 const noDii: Flows = { ...F, days: F.days.map((d) => ({ ...d, dii: null })), latest: { ...F.latest!, dii: null, combinedNet: null }, streaks: { fii: F.streaks.fii, dii: null }, last30: { ...F.last30, dii: null }, coverage: { ...F.coverage, diiSessions: 0 }, monthly: F.monthly.map((m) => ({ ...m, dii: null })), yearly: F.yearly.map((y) => ({ ...y, dii: null })) };
@@ -115,5 +115,28 @@ describe("flowsMath", () => {
     expect(a).toMatch(/offset|opposite/); expect(a).toMatch(/bigger than \d+% of the/); expect(a).toMatch(/Over the last 30 sessions/);
     expect(b).not.toMatch(/DIIs were net/); expect(b).toMatch(/DII figures are not available/);
     for (const t of [a, b]) expect(t).not.toMatch(/\b(should|will rise|will fall|buy now|recommend|expect)\b/i);
+  });
+});
+
+describe("calendar in the enlarged dialog (task #167)", () => {
+  it("stacks the weeks in bands so the day squares are largest and the rows fill the height", () => {
+    const desk = calBands(53, 1300, 700);   // a desktop dialog: one row of 53 weeks would give ~20px squares
+    expect(desk.n).toBeGreaterThan(1);
+    expect(Math.min(desk.cw, desk.rh)).toBeGreaterThan(40);
+    expect(desk.n * desk.k).toBeGreaterThanOrEqual(53);
+    const phone = calBands(53, 340, 640);
+    expect(phone.n).toBeGreaterThanOrEqual(3);
+    expect(phone.cw).toBeGreaterThan(16);
+    expect(calBands(53, 3000, 120).n).toBe(1);   // a very wide, short room keeps one row
+    for (const f of [desk, phone]) expect(f.rh).toBeLessThanOrEqual(f.cw * 1.5 + 0.01);   // never a tall strip
+  });
+  it("labels each band with its months, carrying the month under way into a band that starts mid-month", () => {
+    const days = Array.from({ length: 260 }, (_, i) => new Date(Date.UTC(2025, 10, 17) + i * 864e5).toISOString().slice(0, 10))
+      .filter((d) => { const w = new Date(d + "T00:00:00Z").getUTCDay(); return w > 0 && w < 6; }).map((d) => ({ d, fii: 1, dii: 1 }) as unknown as FlowDay);
+    const cal = calendar(days, "fii");
+    const k = 18, second = bandMonths(cal, k, 2 * k);
+    expect(second[0].col).toBe(0);
+    expect(second.every((m) => m.col >= 0 && m.col < k)).toBe(true);
+    expect(bandMonths(cal, 0, k).map((m) => m.label)).toEqual(cal.months.filter((m) => m.col < k).map((m) => m.label));
   });
 });

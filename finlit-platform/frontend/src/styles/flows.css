@@ -144,3 +144,9 @@ button.fl-chip { cursor: pointer; color: var(--text); } button.fl-chip:hover { b
 .fl-avail i { display: inline-block; width: 14px; height: 4px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
 .fl-avail b { flex-basis: 100%; font-weight: 600; color: var(--text); }
 .fl-tog .fl-since { margin-left: 2px; }
+/* Task #167: the calendar in the enlarged dialog: weeks stacked in bands that fill the screen (FlowsCharts CalendarHeat, lib/flowsMath calBands) */
+.fl-cal-band + .fl-cal-band { margin-top: 14px; }
+.fl-cal.fit .fl-cal-sc { overflow: visible; padding-bottom: 0; } .fl-cal.fit .fl-cal-in { min-width: 0; }
+.fl-cal.fit .fl-cal-m { margin-bottom: 4px; }
+.fl-cal.fit .fl-cal-g { grid-template-rows: repeat(5, var(--fl-rh)); } .fl-cal.fit .fl-cal-wd { grid-template-rows: repeat(5, var(--fl-rh)); }
+.fl-cal.fit .fl-cell { aspect-ratio: auto; height: 100%; border-radius: 4px; }

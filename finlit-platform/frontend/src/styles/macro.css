@@ -112,3 +112,4 @@
 .mc-heat th[scope="row"], .mc-t tbody th { text-transform: none; letter-spacing: 0; border: 0; font: 500 14px var(--sans); color: var(--text); background: var(--s1); }
 .mc-t tbody th { border-bottom: 1px solid var(--border); background: none; } .mc-heat th[scope="row"] { font-size: 13px; }
 .mc-heat tbody tr { border: 0; } .mc-heat td, .mc-heat th { border: 0; }
+.mc-hw.fit { overflow: auto; } .mc-hw.fit .mc-heat { height: 100%; }   /* task #167: rows stretch to fill the enlarged dialog */

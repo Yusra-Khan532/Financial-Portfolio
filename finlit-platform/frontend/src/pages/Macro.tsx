@@ -12,7 +12,7 @@ import { dateIN, MINUS, nf } from "../lib/format";
 import { niceTicks } from "../lib/etf";
 import { RANGES, align, corrWords, correlation, cut, fmt, frac, heat, signed, toCsv, useMacro, type Card, type Macro, type Pt, type RangeKey, type SeriesOut } from "../lib/macro";
 import "../styles/macro.css";
-import { ChartZoom } from "../components/ChartZoom";
+import { ChartZoom, useZoomHeight } from "../components/ChartZoom";
 
 const TONE = { up: "var(--loss)", down: "var(--gain)", flat: "var(--muted)" } as const;
 // for these a rise is a worry (prices, joblessness); for the others it is a good sign
@@ -81,7 +81,8 @@ function Chart({ lines, series, months, normalize = false, height = 300 }: { lin
   }, []);
   const data = useMemo(() => lines.map((l) => cut(series[l.key]?.points || [], months)), [lines, series, months]);
   const all = data.flat();
-  const H = W < 560 ? Math.round(height * 0.82) : height, L = W < 560 ? 44 : 56, R = 16, T = 18, B = 28;
+  const [, H] = useZoomHeight<SVGSVGElement>(W < 560 ? Math.round(height * 0.82) : height, svg);   // task #167: in full screen it fills the height too
+  const L = W < 560 ? 44 : 56, R = 16, T = 18, B = 28;
   if (!all.length) return <p className="mc-empty">No data for this range.</p>;
   const t = (d: string) => Date.parse(d + "T00:00:00Z");
   const t0 = Math.min(...all.map((p) => t(p[0]))), t1 = Math.max(...all.map((p) => t(p[0])));
@@ -200,6 +201,7 @@ function TargetWatch({ m }: { m: Macro }) {
 function Heatmap({ m }: { m: Macro }) {
   const divs = m.cpiDivisions.filter((d) => d.points.length), months = [...new Set(divs.flatMap((d) => d.points.map((p) => p[0])))].sort().slice(-12);
   const [hot, setHot] = useState<string | null>(null);
+  const [hw, zh] = useZoomHeight<HTMLDivElement>(0);   // task #167: in the enlarged dialog the rows stretch to fill the screen
   if (!divs.length) return null;
   const last = months[months.length - 1], rank = [...divs].sort((a, b) => (new Map(b.points).get(last) ?? -99) - (new Map(a.points).get(last) ?? -99));
   const short = (s: string) => s.replace(/, water, electricity, gas and other fuels/, ", water and fuels").replace(/Furnishings, household equipment and routine household maintenance/, "Furnishings and household").replace(/Information and communication/, "Information and comms").replace(/Recreation, sport and culture/, "Recreation and culture").replace(/Restaurants and accommodation services/, "Restaurants and hotels").replace(/Personal care, social protection and miscellaneous goods and services/, "Personal care and others").replace(/Paan, tobacco and intoxicants/, "Paan, tobacco");
@@ -207,7 +209,7 @@ function Heatmap({ m }: { m: Macro }) {
     <section className="mc-panel" aria-labelledby="mcHeat">
       <div className="mc-ph"><h2 id="mcHeat">What is getting dearer</h2><span className="mc-chip">CPI by division, all India, year on year</span></div>
       <p className="mc-note">Each row is one group of household spending. Blue is below 2%, green is under the 4% target, amber is above target, red is above the 6% limit. Sorted by the latest month.</p>
-      <ChartZoom label="What is getting dearer: CPI by division" className="cz-top"><div className="mc-hw" data-chart><table className="mc-heat">
+      <ChartZoom label="What is getting dearer: CPI by division" className="cz-top"><div className={"mc-hw" + (zh > 0 ? " fit" : "")} data-chart ref={hw} style={zh > 0 ? { height: zh } : undefined}><table className="mc-heat">
         <thead><tr><th>Division</th>{months.map((d) => <th key={d}>{dateIN(d, { month: "short" })}<small>{d.slice(2, 4)}</small></th>)}</tr></thead>
         <tbody>{rank.map((d) => { const mp = new Map(d.points); return (
           <tr key={d.key} className={hot === d.key ? "on" : ""} onMouseEnter={() => setHot(d.key)} onMouseLeave={() => setHot(null)}>
