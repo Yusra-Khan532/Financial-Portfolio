@@ -21,9 +21,9 @@ export const HOLD_COLS = 8;    // Qty · Avg buy price · Invested · Latest pri
 
 
 /** The band row and the column names of the holding groups (they follow Share and Size). */
-export function HoldingHeads({ sortHead }: { sortHead: (id: string, label: string, cls: string) => ReactNode }) {
+export function HoldingHeads({ sortHead, price = "Latest price", today = "Today" }: { sortHead: (id: string, label: string, cls: string) => ReactNode; price?: string; today?: string }) {
   return <>{sortHead("qty", "Qty", "r x-c1 x-gs cg-h")}{sortHead("avg", "Avg buy price", "r x-c1 cg-h")}{sortHead("invested", "Invested", "r x-c1 cg-h")}
-    {sortHead("price", "Latest price", "r x-c2 x-gs cg-h")}{sortHead("change", "Today", "r x-c2 cg-h")}{sortHead("now", "Value now", "r x-c2 cg-h")}
+    {sortHead("price", price, "r x-c2 x-gs cg-h")}{sortHead("change", today, "r x-c2 cg-h")}{sortHead("now", "Value now", "r x-c2 cg-h")}
     {sortHead("gain", "₹", "r x-c3 x-gs cg-h")}{sortHead("gainPct", "%", "r x-c3 cg-h")}</>;
 }
 export const GroupBand = () => <><th colSpan={3} className="x-g x-g1 cg-h">What you paid</th><th colSpan={3} className="x-g x-g2 cg-h">What it is worth now</th><th colSpan={2} className="x-g x-g3 cg-h">Gain or loss</th></>;

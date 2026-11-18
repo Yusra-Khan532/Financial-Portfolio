@@ -6,6 +6,7 @@
 import { useState } from "react";
 import { Scroll, Section, Tip } from "../../components/sectors/pack/Common";
 import { Insights } from "../../portfolio/pack/EquityPack";
+import { MarketFall } from "../../portfolio/pack/MarketFall";
 import { RANGE_EDGES, RANGE_SUB, type RangeKey } from "../../lib/eqRisk";
 import type { Card } from "../../lib/pulsePack";
 import type { Band, EtfPortfolio, EtfRisk, Inside } from "../../lib/etfPortfolio";
@@ -25,7 +26,7 @@ const num = (n: number) => NUM[n] ?? String(n);
 const day = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 const TYPE_ORDER = ["indian", "gold", "silver", "abroad", "debt", "liquid"];
 const TYPE_LINE: Record<string, string> = { gold: "moves on the gold price", silver: "moves on the silver price", abroad: "moves on markets abroad", debt: "moves on interest rates", liquid: "overnight rate, counts as 0" };
-type P = { rk: EtfRisk; d: EtfPortfolio; ins?: Inside };
+type P = { rk: EtfRisk; d: EtfPortfolio; ins?: Inside; value?: { now: number; name?: string } | null };
 
 /** The ETFs grouped by type for the beta build: count, average beta (within the type, weighted by the list), share of the list, what it adds. Exported for tests. */
 export function byType(rk: EtfRisk) {
@@ -183,25 +184,20 @@ export function RiskShareSection({ rk }: { rk: EtfRisk }) {
 }
 
 // ------------------------------------------------------------------------------------------------ 5 If the market fell 10%
-export function FallSection({ rk }: { rk: EtfRisk }) {
-  const o = rk.own?.list, w = (v: number | null | undefined) => (v == null ? 0 : Math.min(100, (-v / 25) * 100));
-  const out = new Set(o?.leftOutOfFall ?? []);
-  const each = rk.etfs.filter((e) => e.betaPast != null && e.compared !== false && !out.has(e.symbol)).map((e) => ({ k: e.symbol, v: Math.round(-10 * (e.betaPast as number) * 10) / 10 })).sort((a, b) => a.v - b.v);
-  const lakh = (v: number | null | undefined) => (v == null ? "–" : `₹${(Math.round(Math.abs(v) * 100) * 100).toLocaleString("en-IN")}`);   // v% of ₹10 lakh
+export function FallSection({ rk, value }: { rk: EtfRisk; value?: { now: number; name?: string } | null }) {
+  const o = rk.own?.list, out = new Set(o?.leftOutOfFall ?? []);
   const groups = byType(rk).filter((g) => (g.adds ?? 0) > 0), top = groups[0];
   const items: Card[] = o?.betaOwn != null && top ? [{ kind: "insight", title: "What moves the beta", text: `${top.word} adds the most to the list's beta (${b2(top.adds)} of ${b2(o.betaOwn)}). ${byType(rk).filter((g) => g.key !== top.key).map((g) => `${g.word} ${b2(g.adds)}`).join(", ")}.` }] : [];
-  const ind = rk.etfs.filter((e) => e.type?.key === "indian").length;
-  return (
-    <Section id="etp-fall" hide title="If the market fell 10%" help="A rough size guide from past betas: beta times 10%, past year of weekly prices." how="The rupee line puts it on ₹10 lakh. Real falls are uneven; this is not a forecast." sub="A rough size guide from past betas. Real falls are uneven; this is not a forecast.">
-      <div className="eqr-fall"><div><b>If the Nifty 500 fell 10%</b><small>your list, beta {b2(o?.betaOwn)}</small></div><span className="eqr-fb"><i style={{ width: `${w(o?.fall10.own)}%` }} /><s style={{ left: "40%" }} /></span><b>about {sp(o?.fall10.own)}</b></div>
-      {ind > 0 && <div className="eqr-fall"><div><b>Indian share ETFs only</b><small>average beta {b2(o?.betaIndian)}</small></div><span className="eqr-fb"><i style={{ width: `${w(o?.fall10.indian)}%` }} /><s style={{ left: "40%" }} /></span><b>about {sp(o?.fall10.indian)}</b></div>}
-      <p className="sp-cap">Each ETF, if the Nifty 500 fell 10%</p>
-      {each.map((x) => <div key={x.k} className="eqr-fall sm"><div>{x.k}</div><span className="eqr-fb"><i style={{ width: `${w(x.v)}%` }} /></span><b className="sp-red">{sp(x.v)}</b></div>)}
-      {out.size > 0 && <p className="sp-note">{[...out].join(" and ")} {out.size === 1 ? "is" : "are"} left out: the Nifty 500 explains too little of {out.size === 1 ? "its" : "their"} moves to size a fall.</p>}
-      <p className="eqr-rupee">On ₹10 lakh, a 10% fall in the Nifty 500 has meant roughly {lakh(o?.fall10.own)} for this list.</p>
-      <Insights items={items} scope="etf.fall" />
-    </Section>
-  );
+  const ind = rk.etfs.filter((e) => e.type?.key === "indian").length, metal = rk.etfs.some((e) => e.type?.key === "gold" || e.type?.key === "silver");
+  // task #235 (pack C4, C5): the same picture as the Equity page, against the Nifty 500, with the size of the fall and the rupee line on the account's value now
+  return <MarketFall id="etp-fall" what="Nifty 500" idx="Nifty 500" value={value ?? null}
+    worst={rk.bench.worstFall != null && rk.bench.worstFall < 0 ? { pct: -rk.bench.worstFall, line: "the Nifty 500’s worst in 3 years" } : null}
+    scenarios={[{ label: "The whole list", beta: o?.betaOwn ?? null, src: `Your ETFs' beta against the Nifty 500 ${b2(o?.betaOwn)}, past year of weekly prices`, parts: true },
+      ...(ind > 0 ? [{ label: "Indian share ETFs only", beta: o?.betaIndian ?? null, src: `The Indian share ETFs' average beta ${b2(o?.betaIndian)}`, parts: false }] : [])]}
+    market={{ label: "Nifty 500", sub: "the index" }} list={{ label: "Your ETFs", sub: rk.basis === "value" ? "by value" : "each counts the same" }}
+    parts={rk.etfs.filter((e) => e.betaPast != null && e.compared !== false && !out.has(e.symbol)).map((e) => ({ label: e.symbol, beta: e.betaPast as number, sub: `${Math.round(e.weight)}% of the list` }))}
+    extraNote={[metal ? "Gold and silver ETFs do not follow the index closely, so their bars say little." : "", out.size ? `${[...out].join(" and ")} ${out.size === 1 ? "is" : "are"} left out: the Nifty 500 explains too little of ${out.size === 1 ? "its" : "their"} moves to size a fall.` : ""].filter(Boolean).join(" ")}
+    after={<Insights items={items} scope="etf.fall" />} />;
 }
 
 // ------------------------------------------------------------------------------------------------ 6 Each ETF's risk
@@ -230,6 +226,6 @@ export function EachEtfSection({ rk, d, ins }: P) {
   );
 }
 
-export function RiskTab({ rk, d, ins }: P) {
-  return <><GlanceSection rk={rk} /><BuildSection rk={rk} d={d} /><N500Section rk={rk} d={d} /><RiskShareSection rk={rk} /><FallSection rk={rk} /><EachEtfSection rk={rk} d={d} ins={ins} /></>;
+export function RiskTab({ rk, d, ins, value }: P) {
+  return <><GlanceSection rk={rk} /><BuildSection rk={rk} d={d} /><N500Section rk={rk} d={d} /><FallSection rk={rk} value={value} /><RiskShareSection rk={rk} /><EachEtfSection rk={rk} d={d} ins={ins} /></>;
 }

@@ -108,9 +108,14 @@ describe("Risk analytics (pack 03 §4)", () => {
     expect(tr("GOLDBEES").querySelectorAll("td.r")[1].textContent).toBe("–");
     const risk = [...document.querySelectorAll(".eqr-rs tbody td:last-child")].map((t) => parseFloat(t.textContent!));
     expect(Math.round(risk.reduce((a, b) => a + b, 0))).toBe(100);
-    expect(screen.getByText("about −6.3%")).toBeTruthy(); expect(screen.getByText("about −9.8%")).toBeTruthy();
-    expect(screen.getByText(/GOLDBEES and MON100 are left out: the Nifty 500 explains too little of their moves to size a fall\./)).toBeTruthy();
-    expect(screen.getByText("On ₹10 lakh, a 10% fall in the Nifty 500 has meant roughly ₹63,000 for this list.")).toBeTruthy();
+    // task #235 (pack C4): the fall as the Equity page's picture, against the Nifty 500
+    expect(document.querySelector(".fx-big b")!.textContent).toBe("−6.3%");
+    expect(document.querySelector(".fx-rs")!.textContent).toBe("In rupees−₹63,000on ₹10 lakh");
+    fireEvent.click(screen.getByRole("button", { name: "Indian share ETFs only" }));
+    expect(document.querySelector(".fx-big b")!.textContent).toBe("−9.8%");
+    expect(document.querySelector(".fx-note")!.textContent).toMatch(/GOLDBEES and MON100 are left out: the Nifty 500 explains too little of their moves to size a fall\./);
+    expect(document.querySelector(".fx-note")!.textContent).toMatch(/Gold and silver ETFs do not follow the index closely/);
+    expect(screen.getByRole("heading", { name: /If the Nifty 500 fell 10%/ })).toBeTruthy();
     const each = [...document.querySelectorAll(".eqr-each tbody tr")];
     expect(each.find((r) => r.textContent!.startsWith("MON100"))!.textContent).toMatch(/\+20\.8% against its NAV · Moves on its own market · More risk than its share$/);
     expect(each.find((r) => r.textContent!.startsWith("HDFCSML250"))!.textContent).toMatch(/Holdings file not loaded/);

@@ -12,6 +12,7 @@ export type FallPart = { label: string; beta: number; sub: string };
 export type FallProps = {
   id: string; scenarios: FallScenario[]; parts: FallPart[]; market?: { label: string; sub: string }; list?: { label: string; sub: string };
   worst?: { pct: number; line: string } | null; value: { now: number; name?: string } | null; idx?: string; after?: ReactNode; extraNote?: string;
+  /** the heading's word: "market" (Equity) or "Nifty 500" (MF, ETF, All my investments) */ what?: string;
 };
 
 const f1 = (v: number) => `${v < 0 ? "−" : v > 0 ? "+" : ""}${Math.abs(v).toFixed(1)}%`;
@@ -41,7 +42,7 @@ export function MarketFall(p: FallProps) {
   const bars = [{ k: "mkt", label: mk.label, sub: mk.sub, v: -F }, ...(x.big != null ? [{ k: "list", label: ls.label, sub: ls.sub, v: x.big }] : []),
     ...x.parts.map((q) => ({ k: "part " + (x.deep(q.fall) ? "deep" : "soft"), label: q.label, sub: q.sub, v: q.fall }))];
   return (
-    <Section id={p.id} hide title={`If the market fell ${fs(F)}%`} help="A rough size guide from past betas: each part falls about its beta times the market's fall." how="Pick the size of the fall above the cards. The rupee line uses the value now of the portfolio you picked, or ₹10 lakh until quantities are in. Real falls are uneven; this is not a forecast."
+    <Section id={p.id} hide title={`If the ${p.what ?? "market"} fell ${fs(F)}%`} help="A rough size guide from past betas: each part falls about its beta times the market's fall." how="Pick the size of the fall above the cards. The rupee line uses the value now of the portfolio you picked, or ₹10 lakh until quantities are in. Real falls are uneven; this is not a forecast."
       sub="A rough size guide from past betas. Real falls are uneven; this is not a forecast.">
       <div className={"fx" + (x.d.parts ? "" : " fx-noparts")}>
         <div className="fx-top"><div className="fx-size" role="group" aria-label="Size of the fall"><span>Size of the fall</span>
