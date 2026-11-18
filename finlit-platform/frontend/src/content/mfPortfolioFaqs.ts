@@ -11,6 +11,7 @@ export const MF_PORTFOLIO_FAQ: PageFaq = {
     { q: "How do the groups and the pie chart work?", a: "Pick a group (Equity, Hybrid, Debt, Solution oriented, Others or All funds). They sit under Mix & overlap. The pie chart shows the share of your funds in each type, or in each category of the group you picked. The categories and their fund counts are for reading only; Your funds always lists every fund." },
     { q: "What happens when the same fund appears twice?", a: "A fund appears once in your list. A line repeated in a file is counted once, and a fund you already follow is skipped." },
     { q: "How many funds can I add?", a: "The page shows your count against your plan's limit, for example 3 of 30 on Silver and 500 on Gold." },
-    { q: "Can I export my list?", a: "Yes. Select Export CSV; every blank cell carries its reason in the Notes column. Information only, not investment advice." },
+    { q: "Can I export my list?", a: "No. The portfolio pages have no download (team decision, 15 Nov 2026); your list stays in your account." },
+    { q: "Why does a liquid fund pull the risk figures down?", a: "Until you add units, every fund counts the same, so a liquid fund is a full share of the list. It barely moves, so the list's swing, worst fall and beta come out lower than for the other funds alone. The page shows the list's beta with and without the liquid fund. Information only, not investment advice." },
   ],
 };

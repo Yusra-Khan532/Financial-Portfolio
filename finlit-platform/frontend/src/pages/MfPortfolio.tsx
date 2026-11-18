@@ -6,14 +6,13 @@ import { Gate } from "../components/Gate";
 import { Donut } from "../charts/Atlas";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
-import { useUI } from "../lib/ui";
+import { TIER, useUI } from "../lib/ui";
 import { limitsFor } from "../lib/auth";
 import { RemoveAll } from "../components/RemoveAll";
-import { saveFile } from "../stock/derive";
 import { statementFromFile, FIELD_LABEL, type Statement } from "../lib/mfStatement";
 import { PdfPasswordError, isPdf } from "../lib/holdingsPdf";
 import {
-  STATUS_WORD, commitItems, crores, csvFileName, initialDecisions, pct1, reviewCounts, rupees, searchFunds, sortHoldings, toCsv,
+  STATUS_WORD, commitItems, crores, initialDecisions, pct1, reviewCounts, rupees, searchFunds, sortHoldings,
   useMfPortfolio, useMfSpread, useMfWrites, type Decision, type Fund, type Holding, type Preview, type ReviewRow,
   shares, typeOf,
 } from "../lib/mfPortfolio";
@@ -210,7 +209,7 @@ export function MfPortfolioPage() {
     <div className="wrap ipo mp sp mfp">
       <Gate tier="silver" title="Track your mutual funds" points={["How healthy each fund is (FundPulse on Gold)", "How much your funds overlap, and the stocks underneath", "Each fund's swing, worst fall and beta against the Nifty 500", "Import your CAS PDF, or Excel / CSV statements"]}>
         <header className="sp-head mfp-head">
-          <div><p className="mfp-plan"><span>Silver</span></p><h1>MF portfolio</h1>
+          <div><p className="mfp-plan"><span>{TIER[plan].n}</span></p><h1>MF portfolio</h1>
             <p className="sp-desc">How healthy your mutual funds are, how much they overlap, what sits inside them, and how risky they are together.</p>
             <nav className="mfp-links" aria-label="Related pages"><Link className="sp-link" to="/holdings">Equity portfolio →</Link><Link className="sp-link" to="/funds/compare">Compare funds →</Link><Link className="sp-link" to="/fund-score-screener">FinLit FundPulse →</Link></nav></div>
           <section className="mfp-add" aria-label="Add funds">
@@ -233,12 +232,12 @@ export function MfPortfolioPage() {
           <div id="mfp-panel" role="tabpanel" aria-labelledby={`mfp-tab-${view}`}>
           {view === "funds" && <>
             <FundsSection hs={rows} rk={rk.data} rkErr={rk.isError ? errText(rk.error) : null} sp={sp.data} locked={locked} onUnlock={unlock} cols={cols} onCols={setCols}
-              tools={<><button className="btn" onClick={() => saveFile(csvFileName(), toCsv(rows, locked), "text/csv;charset=utf-8")}>Export CSV</button></>}
               extra={(h) => <>
                 <td className="r">{h.nav == null ? <Dash why="This scheme has no NAV yet." /> : <><b>{rupees(h.nav)}</b><small className={"mfp-sub" + (h.navStale ? " warn" : "")} title={h.navNote || undefined}>{h.navDate ? dateIN(h.navDate) : ""}</small></>}</td>
                 {(["r1y", "r3y", "r5y"] as const).map((k) => <td key={k} className="r">{pctOrDash(h.returns[k], h.returns.why || h.returns.partialWhy)}</td>)}
                 <td className="r">{pctOrDash(h.ter, h.terWhy)}</td><td className="r">{h.aum == null ? <Dash why={h.aumWhy} /> : crores(h.aum)}</td></>}
               actions={(h) => <button className="btn" aria-label={`Remove ${h.name}`} title={`Remove ${h.name}`} onClick={async () => { try { await w.remove.mutateAsync(h.id); toast("Fund removed."); } catch (x) { toast(errText(x)); } }}>✕</button>} />
+            {all.some((h) => h.option && /idcw|dividend/i.test(h.option)) && <p className="sp-note mfp-idcw" role="note">IDCW options show no 1, 3 or 5 year return: each payout lowers the NAV, so the change in NAV would understate what was earned. The fund's Growth plan shows the full return.</p>}
             {cols === "returns" && noReturns > 0 && <p className="sp-note" role="status">1Y, 3Y and 5Y returns are being worked out now for {noReturns} of your funds (from the fund's published NAV history). They appear here by themselves within a minute or two. A fund younger than a year has no 1Y return, and one younger than 3 or 5 years has no 3Y or 5Y return.</p>}
             {sp.isPending && <p className="sp-note" aria-busy="true">Reading the stocks inside your funds…</p>}
             {sp.data && sp.data.count > 0 && under.length > 0 && <UnderSection under={under} sp={sp.data} n={d.count} />}

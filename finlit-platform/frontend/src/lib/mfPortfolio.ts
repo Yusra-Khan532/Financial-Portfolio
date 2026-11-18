@@ -3,7 +3,6 @@
 // Nothing here gives buy, sell, hold, switch or redeem advice. Information only, not investment advice.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiSend, type ApiError } from "./api";
-import { csvText } from "./format";
 import type { RawRow } from "./mfStatement";
 
 export const MF_PORTFOLIO_NAME = "MF portfolio";
@@ -117,28 +116,6 @@ export function sortHoldings(rows: Holding[], key: SortKey, dir: "asc" | "desc")
 
 /** Words for the concentration level (the tile's tag). */
 export const LEVEL_WORD: Record<NonNullable<Concentration["level"]>, string> = { concentrated: "Concentrated", moderate: "Fairly spread", spread: "Well spread" };
-
-// ------------------------------------------------------------------------------------------------------------------ CSV
-
-const plain = (v: number | null | undefined, d = 2) => (v == null ? "" : v.toFixed(d));
-/** Every blank cell has its reason in the last column, so the file explains itself outside the page. */
-export function toCsv(rows: Holding[], scoreLocked: boolean): string {
-  const head = ["Fund", "Fund house", "Plan", "Option", "Category", "NAV", "NAV date", "1Y return %", "3Y return % a year", "5Y return % a year",
-    "Expense ratio %", "Fund size (Rs crore)", ...(scoreLocked ? [] : ["FundPulse", "Label", "Performance", "Risk", "Cost", "Quality"]), "Notes"];
-  const lines = [head.map(q).join(",")];
-  for (const h of rows) {
-    const why: string[] = [];
-    const note = (label: string, v: unknown, reason: string | null | undefined) => { if (v == null && reason) why.push(`${label}: ${reason}`); };
-    note("Returns", h.returns.r1y ?? h.returns.r3y ?? h.returns.r5y, h.returns.why); note("Expense ratio", h.ter, h.terWhy); note("Fund size", h.aum, h.aumWhy);
-    if (!scoreLocked) note("FundPulse", h.score.final, h.score.reason);
-    if (h.navNote) why.push(h.navNote);
-    const score = scoreLocked ? [] : [plain(h.score.final, 1), h.score.label || "", ...(["performance", "risk", "cost", "quality"] as PartKey[]).map((k) => plain(h.score.parts?.[k], 1))];
-    lines.push([h.name || `Scheme ${h.code}`, h.amc || "", h.plan || "", h.option || "", h.categoryLabel || "", plain(h.nav, 4), h.navDate || "", plain(h.returns.r1y), plain(h.returns.r3y), plain(h.returns.r5y), plain(h.ter), plain(h.aum), ...score, why.join(" | ")].map(q).join(","));
-  }
-  return lines.join("\r\n") + "\r\n";
-}
-const q = (s: string) => `"${csvText(String(s)).replace(/"/g, '""')}"`;
-export const csvFileName = (d = new Date()) => `finlit-mf-portfolio-${d.toISOString().slice(0, 10)}.csv`;
 
 // ------------------------------------------------------------------------------------------------------------------ small text helpers
 

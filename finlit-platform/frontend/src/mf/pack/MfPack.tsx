@@ -39,7 +39,7 @@ const HEALTH_TONE = (w: string | null) => (/strong|healthy/i.test(w || "") ? "sp
 /** Your funds: three cards, then each fund's category, FundPulse and risk figures (or, on the second view, its NAV, returns and costs). */
 export function FundsSection({ hs, rk, rkErr, sp, locked, onUnlock, cols, onCols, extra, actions, tools }: {
   hs: Holding[]; rk: MfRisk | undefined; rkErr: string | null; sp: MfSpread | undefined; locked: boolean; onUnlock: () => void; cols: "risk" | "returns"; onCols: (c: "risk" | "returns") => void;
-  extra: (h: Holding) => React.ReactNode; actions: (h: Holding) => React.ReactNode; tools: React.ReactNode;
+  extra: (h: Holding) => React.ReactNode; actions: (h: Holding) => React.ReactNode; tools?: React.ReactNode;
 }) {
   const by = new Map((rk?.funds ?? []).map((f) => [f.code, f]));
   return (
