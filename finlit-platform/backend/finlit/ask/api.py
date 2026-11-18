@@ -231,7 +231,7 @@ async def record(store, result: Dict[str, Any]) -> None:
         u = result["usage"]
         async with store.redis.pipeline(transaction=False) as p:
             p.hincrby(k, "questions", 1)
-            for f in ("input", "output", "cache_read", "cache_write"):
+            for f in ("input", "output", "cache_read", "cache_write", "web_searches"):
                 p.hincrby(k, f, int(u.get(f, 0)))
             p.expire(k, 120 * 86400)
             await p.execute()

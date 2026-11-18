@@ -27,6 +27,21 @@ The month is the calendar month in India; the count renews on the 1st. An admini
    no disclaimer of its own (the panel shows the standard one under every answer). A finished answer that reads like advice (`service.ADVICE`: "you
    should buy", "target price", "multibagger", "top pick", "best stock" ...) is withdrawn and replaced by a plain notice.
 
+## Answer every question, in a few lines (18 Nov 2026)
+
+The founder asked "what is future prospect of reliance": FinLit AI replied that the forecast was not available and gave the sector outlook, while
+Claude itself answered from the web. Founder: answer what is asked, from the web when FinLit's data does not hold it, in simple words and few lines;
+denying an answer is embarrassing.
+
+- FinLit's data first (company cards and tools); the web (`web_search`, run by the provider, at most 2 searches an answer, results India first) for
+  everything else: prospects, plans, news, management commentary, the wider economy, general questions.
+- Style: the direct answer in one sentence, then at most 4 short bullets, under 90 words; "Sources: ..." in one line when the web was used.
+- Never passed on from the web: analysts' buy / sell / hold ratings, target prices, price forecasts (instructions, and the final check withdraws an
+  answer that has them).
+- The panel says "Searching the web" while a search runs. Daily usage counts web searches (`ask:usage:<day>` field `web_searches`).
+- Cost: the provider charges about $10 per 1,000 web searches (under Rs 1 a search), on top of the tokens; most company questions are answered from
+  FinLit's data without one.
+
 ## Reading the company page (rework, 18 Nov 2026)
 
 The founder asked "prism score of jsw steels?" on JSW Steel's page and was told "FinLit has no prism score". Cause: the first tools were the MCP tools,
