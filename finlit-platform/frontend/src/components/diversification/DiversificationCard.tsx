@@ -109,7 +109,7 @@ export function DiversificationCard({ symbols, listLabel, candidates = [], whatI
   );
 
   return (
-    <section className="dv" aria-labelledby="dv-title" data-testid="diversification-card">
+    <section className="card dv" aria-labelledby="dv-title" data-testid="diversification-card">
       <header className="dv-head"><div><p className="dv-eyebrow">Diversification</p><h2 id="dv-title">How spread out these stocks are</h2></div><p className="dv-side">{W.SIDE_NOTE}</p></header>
       <div className="dv-listrow">
         <CurrentList names={live.map((x) => nameOf.get(x) || x)} count={live.length} />

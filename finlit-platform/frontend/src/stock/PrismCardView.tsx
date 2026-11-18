@@ -138,10 +138,13 @@ function HorizonPanel({ title, h, index }: { title: string; h: TechHorizon; inde
       <span className="pcx-sc" aria-hidden="true">
         <span className="pcx-zones">{widths.map((x, i) => <i key={i} className={"z" + (i + 1)} style={{ width: `${x}%` }} />)}</span>
         {edges.map((e) => <u key={e} style={{ left: `${e}%` }} />)}
+        {/* task #216 (README 2.2): the bar fills from 0 to the reading, green above 0 and red below, with a mark at 0 */}
+        {has && <b className={"pcx-tfill " + ((h.score ?? 0) >= 0 ? "up" : "down")} style={{ left: `${Math.min(scalePos(0), scalePos(h.score))}%`, width: `${Math.abs(scalePos(h.score) - scalePos(0))}%` }} />}
+        <s className="pcx-zero" style={{ left: `${scalePos(0)}%` }} />
         {has && <em style={{ left: `${scalePos(h.score)}%` }} />}
       </span>
-      <span className="pcx-sl" aria-hidden="true"><span>Strong downtrend</span><span>Sideways</span><span>Strong uptrend</span></span>
-      {sig && <p className={"pcx-sg" + (h.availableCount < h.requiredCount ? " warn" : "")}>{sig}</p>}
+      <span className="pcx-sl" aria-hidden="true"><span>Strong downtrend</span><span>Sideways · 0</span><span>Strong uptrend</span></span>
+      {sig && <p className={"pcx-sg" + (h.availableCount < h.requiredCount ? " warn" : " all")}><Icon name={h.availableCount < h.requiredCount ? "info" : "check"} />{sig}</p>}
     </div>
   );
 }

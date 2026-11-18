@@ -1,6 +1,6 @@
 // The forum's building blocks, shared by the forum pages (/forum) and the "Community discussions" section of each company report:
 // writing gates, the composer, discussion cards and lists, and the Reddit-style thread with nested comments.
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useContext, createContext, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, apiGet, useQuotesFor } from "../../lib/api";
@@ -49,12 +49,16 @@ export function useCompanyQuotes(symbols: string[]) {
   return quoteMap(useQuotesFor(symbols).data);
 }
 
+/** Task #216 (README 3.19): the company report shows a "Join the conversation" header above the join form; the forum pages do not. */
+export const JoinHead = createContext(false);
 /** Choose the public name (once) and accept the guidelines. */
 function JoinForm() {
+  const head = useContext(JoinHead);
   const qc = useQueryClient();
   const [handle, setHandle] = useState(""), [ok, setOk] = useState(false);
   const m = useMutation({ mutationFn: () => send("POST", "/api/forum/profile", { handle, accept: ok }), onSuccess: () => qc.invalidateQueries({ queryKey: ["forum", "me"] }) });
   return (
+    <>{head && <div className="fo-joinh"><span className="fo-joinh-i" aria-hidden="true">✦</span><div><b>Join the conversation</b><span>Pick a public name once, then post, reply and vote.</span></div></div>}
     <form className="fo-form" onSubmit={(e: FormEvent) => { e.preventDefault(); m.mutate(); }}>
       <label>Choose a public name (shown instead of your email or account name; it cannot be changed later)
         <input value={handle} onChange={(e) => setHandle(e.target.value)} maxLength={20} autoComplete="off" /></label>
@@ -62,7 +66,7 @@ function JoinForm() {
         <span>I have read the <Link to="/forum/guidelines">community guidelines</Link> and understand nothing here is investment advice.</span></label>
       <button className="btn primary" disabled={!validHandle(handle) || !ok || m.isPending}>Join the discussion</button>
       {m.isError && <div className="fo-err" role="alert">{msg(m.error)}</div>}
-    </form>
+    </form></>
   );
 }
 
