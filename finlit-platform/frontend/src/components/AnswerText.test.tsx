@@ -33,6 +33,21 @@ describe("AnswerText (task #201)", () => {
     expect(seriesOf("FY24 ₹9.14 L Cr, FY25 12%, FY26 ₹10 Cr")).toBeNull();   // mixed units: no chart
     expect(seriesOf("FY25 ₹9.80 L Cr and FY26 ₹10.76 L Cr")).toBeNull();     // two points: no chart
   });
+  it("labels every bar when the figures fit, and every other one (always the latest) on a narrow phone chart", () => {
+    const q8 = "Quarters: Dec 2024 ₹2.44 L Cr, Mar 2025 ₹2.65 L Cr, Jun 2025 ₹2.49 L Cr, Sep 2025 ₹2.59 L Cr, Dec 2025 ₹2.69 L Cr, Mar 2026 ₹2.99 L Cr, Jun 2026 ₹3.12 L Cr, Sep 2026 ₹3.33 L Cr";
+    const wide = render(<AnswerText text={q8} />).container;   // 440px wide before it is measured: all eight fit
+    expect(wide.querySelectorAll(".aif-a-l")).toHaveLength(8);
+    const RO = globalThis.ResizeObserver;
+    globalThis.ResizeObserver = class { constructor(private cb: () => void) {} observe() { this.cb(); } disconnect() {} unobserve() {} } as unknown as typeof ResizeObserver;
+    const gbr = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function () { return { width: 252, height: 64, top: 0, left: 0, right: 252, bottom: 64, x: 0, y: 0, toJSON() {} } as DOMRect; };
+    try {
+      const narrow = render(<AnswerText text={q8} />).container;
+      expect([...narrow.querySelectorAll(".aif-a-l")].map((t) => t.textContent)).toEqual(["Mar ’25", "Sep ’25", "Mar ’26", "Sep ’26"]);
+      expect([...narrow.querySelectorAll(".aif-a-l")].pop()!.getAttribute("text-anchor")).toBe("end");   // pinned inside the right edge
+      expect(narrow.querySelectorAll("rect")).toHaveLength(8);   // every bar is still drawn
+    } finally { globalThis.ResizeObserver = RO; Element.prototype.getBoundingClientRect = gbr; }
+  });
   it("keeps the answer's own **bold** and • bullets, and never reads text as HTML", () => {
     const { container } = render(<AnswerText text={"• **Parag Parikh Flexi Cap Fund**: <b>x</b> 6.67%\n• second"} />);
     expect(container.querySelectorAll(".aif-a-pts > li")).toHaveLength(2);

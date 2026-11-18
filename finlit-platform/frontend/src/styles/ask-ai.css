@@ -175,7 +175,7 @@
 .aif-a-n { font-weight: 700; color: var(--text); white-space: nowrap; }
 .aif-a-src { margin: 4px 0 0; font-size: var(--fs-12); color: var(--muted); }
 .aif-a-disc { margin: 0; font-size: var(--fs-12); color: var(--muted); font-style: italic; }
-.aif-a-bars { display: block; width: 100%; max-width: 420px; height: auto; margin: 8px 0 2px; }
+.aif-a-bars { display: block; width: 100%; max-width: 460px; height: auto; margin: 8px 0 2px; }
 .aif-a-axis { stroke: var(--border-strong); stroke-width: 1; }
 .aif-a-bar { fill: color-mix(in srgb, var(--aif-g, var(--gold)) 45%, transparent); } .aif-a-bar.on { fill: var(--aif-g, var(--gold)); } .aif-a-bar.neg { fill: color-mix(in srgb, var(--loss) 60%, transparent); }
-.aif-a-v { font: 600 9px var(--mono); fill: var(--text); } .aif-a-l { font: 500 9px var(--sans); fill: var(--muted); }
+.aif-a-v { font: 600 var(--fs-11) var(--mono); fill: var(--text); } .aif-a-l { font: 500 var(--fs-11) var(--sans); fill: var(--muted); }

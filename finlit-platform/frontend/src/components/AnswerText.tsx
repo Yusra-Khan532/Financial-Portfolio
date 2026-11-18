@@ -3,7 +3,7 @@
 // include relevant sources"). Every answer is plain text: each line becomes a bullet, figures with a unit (₹, %, ×, crore) are bold, the source and the
 // disclaimer sit apart under the points, and a line that is a series of years or quarters ("FY22 ₹7.22 L Cr, FY23 ₹8.93 L Cr, …") also gets a small bar
 // chart. Nothing is read as HTML: the text is split and drawn as React text. Styles: styles/ask-ai.css (aif-a-).
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 const MINUS = "−";
 /** A figure worth bold: money, a percentage, a multiple or a crore/lakh amount (a bare year or count is left plain). */
@@ -36,19 +36,33 @@ export function seriesOf(line: string): { points: SeriesPoint[]; unit: string } 
 }
 
 function Bars({ points, unit }: { points: SeriesPoint[]; unit: string }) {
-  const W = 300, H = 92, top = 14, bottom = 18, max = Math.max(...points.map((p) => p.value), 0), min = Math.min(...points.map((p) => p.value), 0), span = max - min || 1;
+  // drawn at its real width, so the 11px labels stay 11px on a phone; when a bar is too narrow for its figures, every other one is labelled (the latest always is)
+  const ref = useRef<SVGSVGElement>(null), [W, setW] = useState(440);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => { const w = Math.round(el.getBoundingClientRect().width); if (w > 0) setW(w); });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const H = 112, top = 20, bottom = 20, max = Math.max(...points.map((p) => p.value), 0), min = Math.min(...points.map((p) => p.value), 0), span = max - min || 1;
   const bw = W / points.length, zero = top + (max / span) * (H - top - bottom);
+  // about 6.6px a character at 11px: the widest label or figure, with a little air, against the width of one bar
+  const need = Math.max(...points.map((p) => Math.max(p.text.length, p.label.replace(/^([A-Z][a-z]{2})\w*\s\d{2}(\d{2})$/, "$1 ’$2").length))) * 6.6 + 6;
+  const step = need > W / points.length ? 2 : 1, shown = (i: number) => (points.length - 1 - i) % step === 0;
   const short = (l: string) => l.replace(/^([A-Z][a-z]{2})\w*\s(\d{2})(\d{2})$/, "$1 ’$3");   // "Dec 2024" -> "Dec ’24", so eight quarters fit
   return (
-    <svg className="aif-a-bars" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={points.map((p) => `${p.label} ${p.text}${unit.replace("₹", "")}`).join(", ")}>
+    <svg ref={ref} className="aif-a-bars" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={points.map((p) => `${p.label} ${p.text}${unit.replace("₹", "")}`).join(", ")}>
       <line x1="0" x2={W} y1={zero} y2={zero} className="aif-a-axis" />
       {points.map((p, i) => {
         const y = top + ((max - Math.max(p.value, 0)) / span) * (H - top - bottom), h = Math.max(1, (Math.abs(p.value) / span) * (H - top - bottom));
         const last = i === points.length - 1;
+        // on a narrow chart the end labels are pinned inside its edges, so "Sep ’26" is never cut off
+        const tight = need > bw, cx = i * bw + bw / 2, ax = tight && last ? W - 1 : tight && i === 0 ? 1 : cx, anchor = tight && last ? "end" : tight && i === 0 ? "start" : "middle";
         return (<g key={p.label + i}>
           <rect x={i * bw + bw * 0.18} y={p.value >= 0 ? y : zero} width={bw * 0.64} height={h} rx="2" className={"aif-a-bar" + (last ? " on" : "") + (p.value < 0 ? " neg" : "")} />
-          <text x={i * bw + bw / 2} y={p.value >= 0 ? y - 3 : zero + h + 10} textAnchor="middle" className="aif-a-v">{p.text}</text>
-          <text x={i * bw + bw / 2} y={H - 4} textAnchor="middle" className="aif-a-l">{short(p.label)}</text>
+          {shown(i) && <text x={cx} y={p.value >= 0 ? y - 4 : zero + h + 12} textAnchor="middle" className="aif-a-v">{p.text}</text>}
+          {shown(i) && <text x={ax} y={H - 4} textAnchor={anchor} className="aif-a-l">{short(p.label)}</text>}
         </g>);
       })}
     </svg>);
