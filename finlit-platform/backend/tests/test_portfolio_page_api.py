@@ -9,10 +9,18 @@ from finlit.portfolio_page import api as pf_api
 from test_auth import app, new_client, signed_in  # noqa: F401
 from test_integration import ingested, make_settings, store  # noqa: F401
 from test_diversification_calc import SAMPLE
-from test_diversification_api import seed, _clock  # noqa: F401  (seed data + fixed clock)
+from test_diversification_api import seed as _seed, _clock  # noqa: F401  (seed data + fixed clock)
 
 pytestmark = pytest.mark.integration
 URL = "/api/portfolio/page"
+
+
+async def seed(app, classes=None):  # noqa: F811
+    """The diversification seed (it clears the stored NSE classification of these symbols), plus `classes` (symbol -> macro sector) when given."""
+    await _seed(app)
+    async with app.state.store.pool.acquire() as conn:
+        for sym, macro in (classes or {}).items():
+            await conn.execute("INSERT INTO company_classification (symbol, macro_sector, sector, industry, source, rule_version) VALUES ($1, $2, $2, $2, 'test', 1)", sym, macro)
 
 
 async def test_only_share_names_are_accepted(app):  # noqa: F811
@@ -148,3 +156,13 @@ async def test_task_183_risk_by_size_each_share_against_its_own_index(app):  # n
     assert sum(s["n"] for s in j["sizes"]) == j["counted"] == len(counted)
     assert j["betas"]["weighted"] == round(sum((s["avgBeta"] or 0) * s["listShare"] / 100 for s in j["sizes"]), 2) or abs(j["betas"]["weighted"] - sum((s["avgBeta"] or 0) * s["listShare"] / 100 for s in j["sizes"])) < 0.02
     assert j["glance"]["list"]["swing"] > 0 and j["glance"]["nifty"]["worstFall"] <= 0 and j["glance"]["worst10"]["nifty"] < 0
+
+
+async def test_task_183_card_and_page_agree_when_nse_levels_are_stored(app):  # noqa: F811
+    """With NSE's stored macro sectors for part of the list, the Diversification card and the page read the same levels, so their scores still agree."""
+    await seed(app, {s: "Financial Services" for s in list(SAMPLE)[:4]})
+    silver = await signed_in(app, "s183c@example.com", plan="silver")
+    page = (await silver.post(URL, json={"symbols": SAMPLE})).json()
+    card = (await silver.post("/api/diversification", json={"symbols": SAMPLE})).json()
+    assert [page["meta"][s]["nse"]["macro_sector"] for s in list(SAMPLE)[:4]] == ["Financial Services"] * 4
+    assert card["score"]["value"] == page["page"]["score"]["score"] and card["score"]["sectorSpread"] == page["page"]["score"]["sector_spread"]
