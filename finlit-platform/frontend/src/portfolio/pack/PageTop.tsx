@@ -2,6 +2,7 @@
 // row (three cards, foldable, remembers open or closed per tab in this browser; each button jumps to its section and flashes it), and the sticky sections
 // bar (numbered chips with arrows for the open tab, the one in view underlined; All sections lists every section of the three tabs).
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router";
 import { Tip } from "../../components/sectors/pack/Common";
 import type { KeyCard, TabKey, TopTile } from "../../lib/equityTop";
@@ -91,7 +92,7 @@ export function useHeaderHeight() {
 }
 
 export function SectionsBar<T extends string = TabKey>({ tab, all, onTab, lead }: { tab: T; all: Record<T, { label: string; secs: Sec[] }>; onTab: (t: T, then?: string) => void; lead?: ReactNode }) {
-  const secs = all[tab].secs, [on, setOn] = useState(secs[0]?.[0] ?? ""), [menu, setMenu] = useState(false), [stuck, setStuck] = useState(false), bar = useRef<HTMLElement>(null);
+  const secs = all[tab].secs, [on, setOn] = useState(secs[0]?.[0] ?? ""), [menu, setMenu] = useState(false), [at, setAt] = useState({ top: 0, left: 0 }), [stuck, setStuck] = useState(false), bar = useRef<HTMLElement>(null);
   useHeaderHeight();
   useEffect(() => {   // "stuck": the bar has reached its sticky place under the header
     const on = () => { const el = bar.current; if (!el) return; const top = parseFloat(getComputedStyle(el).top) || 0; setStuck(el.getBoundingClientRect().top <= top + 1 && scrollY > 0); };
@@ -105,7 +106,10 @@ export function SectionsBar<T extends string = TabKey>({ tab, all, onTab, lead }
     els.forEach((e) => io.observe(e));
     return () => io.disconnect();
   }, [tab, secs.map((s) => s[0]).join()]);   // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (!menu) return; const close = () => setMenu(false); addEventListener("click", close); return () => removeEventListener("click", close); }, [menu]);
+  useEffect(() => {
+    if (!menu) return; const y0 = scrollY, close = () => setMenu(false), sc = () => { if (Math.abs(scrollY - y0) > 40) setMenu(false); };
+    addEventListener("click", close); addEventListener("scroll", sc, { passive: true }); return () => { removeEventListener("click", close); removeEventListener("scroll", sc); };
+  }, [menu]);
   useEffect(() => {   // task #235 (pack B12): the current chip scrolls into view beside the switchers, not under them
     const el = bar.current, c = el?.querySelector<HTMLElement>(".eqt-chip[aria-current=true]"); if (!el || !c) return;
     const sw = stuck ? el.querySelector<HTMLElement>(":scope > .x-sw")?.offsetWidth ?? 0 : 0, l = c.offsetLeft - el.offsetLeft, r = l + c.offsetWidth;
@@ -114,9 +118,10 @@ export function SectionsBar<T extends string = TabKey>({ tab, all, onTab, lead }
   return (
     <nav ref={bar} className={"eqt-bar" + (stuck ? " stuck" : "") + (stuck && lead ? " x-sw-on" : "")} aria-label="Sections on this tab">
       {lead}
-      <span className="eqt-allw"><button type="button" className="eqt-all" aria-expanded={menu} aria-haspopup="true" onClick={(e) => { e.stopPropagation(); setMenu((m) => !m); }}>All sections</button>
-        {menu && <div className="eqt-menu" role="menu">{(Object.keys(all) as T[]).map((t) => <div key={t}><p>{all[t].label}</p>
-          {all[t].secs.map(([id, label], i) => <button key={id} type="button" role="menuitem" onClick={() => { setMenu(false); if (t === tab) { setOn(id); jumpTo(id); } else onTab(t, id); }}><span className="eqt-n">{i + 1}</span>{label}</button>)}</div>)}</div>}</span>
+      <span className="eqt-allw"><button type="button" className="eqt-all" aria-expanded={menu} aria-haspopup="true" onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); setAt({ top: Math.round(r.bottom), left: Math.round(Math.max(12, Math.min(r.left, innerWidth - 332))) }); setMenu((m) => !m); }}>All sections</button>
+        {/* task #235: the menu renders into the page body, because the stuck bar's backdrop blur clipped a fixed menu inside the bar */}
+        {menu && createPortal(<div className="eqt-menu" role="menu" style={{ top: at.top, left: at.left }} onClick={(e) => e.stopPropagation()}>{(Object.keys(all) as T[]).map((t) => <div key={t}><p>{all[t].label}</p>
+          {all[t].secs.map(([id, label], i) => <button key={id} type="button" role="menuitem" onClick={() => { setMenu(false); if (t === tab) { setOn(id); jumpTo(id); } else onTab(t, id); }}><span className="eqt-n">{i + 1}</span>{label}</button>)}</div>)}</div>, document.body)}</span>
       {secs.map(([id, label], i) => <span key={id} className="eqt-chipw">{i > 0 && <span className="eqt-arrow" aria-hidden="true">→</span>}
         <button type="button" className="eqt-chip" aria-current={on === id ? "true" : undefined} onClick={() => { setOn(id); jumpTo(id); }}><span className="eqt-n">{i + 1}</span>{label}</button></span>)}
     </nav>
