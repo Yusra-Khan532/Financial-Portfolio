@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { labelEvery } from "../lib/chartAxis";
-import { ChartZoom } from "../components/ChartZoom";
+import { ChartZoom, useZoomHeight } from "../components/ChartZoom";
 
 /** Width of the element in px (a default before it is measured, and where ResizeObserver does not exist). */
 export function useWidth(initial = 600) {
@@ -41,7 +41,8 @@ export function RoeLines({ labels, series, fmt, flags, notes, height = 230, aria
 }) {
   const [wrap, W] = useWidth();
   const [hv, setHv] = useState<number | null>(null);
-  const n = labels.length, H = height, pl = 46, pr = 10, pt = 14, pb = 26;
+  const [svgRef, H] = useZoomHeight<SVGSVGElement>(height);   // task #167: in full screen it fills the height too
+  const n = labels.length, pl = 46, pr = 10, pt = 14, pb = 26;
   const vals = series.flatMap((s) => s.values.filter((v): v is number => v != null));
   const lo = Math.min(0, ...vals), hi = Math.max(...vals, 1), ticks = coverTicks(lo, hi), top = ticks[ticks.length - 1], bot = Math.min(lo, ticks[0]);
   const X = (i: number) => pl + (i + 0.5) * ((W - pl - pr) / n), Y = (v: number) => pt + (1 - (v - bot) / (top - bot || 1)) * (H - pt - pb);
@@ -50,7 +51,7 @@ export function RoeLines({ labels, series, fmt, flags, notes, height = 230, aria
   return (
     <ChartZoom label={"Return on equity by year"}>
     <div className="mb dp-chart" ref={wrap} onMouseLeave={() => setHv(null)}>
-      <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} role="img" aria-label={ariaLabel}>
+      <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width={W} height={H} role="img" aria-label={ariaLabel}>
         {ticks.map((t) => <g key={t}><line x1={pl} x2={W - pr} y1={Y(t)} y2={Y(t)} stroke="var(--border)" strokeWidth={t === 0 ? 1.4 : 1} /><text x={pl - 6} y={Y(t) + 3.5} textAnchor="end" fontSize="11" fill="var(--faint)" fontFamily="IBM Plex Mono, monospace">{fmt(t)}</text></g>)}
         {hv != null && <rect x={X(hv) - (W - pl - pr) / n / 2} y={pt} width={(W - pl - pr) / n} height={H - pt - pb} fill="var(--row-hover)" />}
         {series.map((s) => (

@@ -118,7 +118,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
         {/* 14 Nov file N-24 / N-33: no "not scored yet" ring and no sector box above the list (they were drawn for admin accounts); "Not scored yet" stays on each row */}
         <div className="sx-stick"><Toolbar q={s.q} setQ={s.setQ} searchLabel="Search company name, sector or keyword" buttons={[
           { id: "cap", label: "Market cap", active: draft.caps.length, onClick: () => showPanel("cap") },
-          { id: "sector", label: "Sector", active: draft.sectors.length + draft.industries.length, onClick: () => showPanel("sector") },
+          { id: "sector", label: "Macro sector & industry", active: draft.sectors.length + draft.industries.length, onClick: () => showPanel("sector") },
           { id: "score", label: "Score filters", active: Math.max(0, filterCount - draft.caps.length - draft.sectors.length - draft.industries.length), onClick: () => showPanel("score") }]}
           sort={<>{columnsMenu}<SortMenu value={sortVal} options={sortOpts.map(([k, d, l]) => ({ v: `${k}:${d}`, label: l }))}
             onPick={(v) => { const [k, d] = v.split(":"); s.go({ sort: { key: k as SortKey, dir: Number(d) as 1 | -1 }, page: 0 }); }} /></>} /></div>
@@ -133,7 +133,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
               <FilterGroup id="cap" title="Market cap" defaultOpen active={draft.caps.length}>
                 <div role="group" aria-label="Market cap size">{CAPS.map((c) => <CheckRow key={c} label={`${c} cap`} count={facets.caps[c]} checked={draft.caps.includes(c)} onChange={() => setDraft((d) => ({ ...d, caps: s.toggle(d.caps, c) }))} />)}</div>
               </FilterGroup>
-              <FilterGroup id="sector" title="Sector and industry" defaultOpen active={draft.sectors.length + draft.industries.length}>
+              <FilterGroup id="sector" title="Macro sector and industry" defaultOpen active={draft.sectors.length + draft.industries.length}>
                 <SectorTree tree={facets.tree} picked={draft.industries} set={(next) => setDraft((d) => ({ ...d, industries: next }))} loading={isLoading} />
                 {draft.sectors.length > 0 && <ul className="fgx-list" aria-label="From an older link">{draft.sectors.map((x) => (     /* an old link's label filter stays visible until cleared */
                   <li key={x}><CheckRow label={x} checked onChange={() => setDraft((d) => ({ ...d, sectors: s.toggle(d.sectors, x) }))} /></li>))}</ul>}

@@ -8,7 +8,7 @@ import {
 } from "../../../lib/prism";
 import { periodLabel, ratioPct, yoy, type Series } from "../../../lib/prismReport";
 import { ChartTable, ShowTable, useWidth } from "../PrismCharts";
-import { ChartZoom } from "../../../components/ChartZoom";
+import { ChartZoom, useZoomHeight } from "../../../components/ChartZoom";
 
 type Basis = "annual" | "quarterly";
 type Pt = { period: string; value: number | null; growth?: number | null };
@@ -42,7 +42,8 @@ function Chart({ kind, title, unitNote, data, color, concl, valueText, tableHead
 }) {
   const [box, W] = useWidth<HTMLDivElement>(320);
   const [table, setTable] = useState(false);
-  const H = 190, M = { t: 26, r: 12, b: 26, l: 12 };
+  const [svgRef, H] = useZoomHeight<SVGSVGElement>(190);   // task #167: in full screen it fills the height too
+  const M = { t: 26, r: 12, b: 26, l: 12 };
   const vals = data.map((d) => d.value).filter((v): v is number => v != null);
   const enough = vals.length >= 2;
   const pad = kind === "line" && vals.length ? (Math.max(...vals) - Math.min(...vals) || 1) * 0.18 : 0;
@@ -67,7 +68,7 @@ function Chart({ kind, title, unitNote, data, color, concl, valueText, tableHead
       <div ref={box} className="pzr-ch-b" tabIndex={enough ? 0 : -1} role="group" aria-label={`${title}. Use the left and right arrow keys to read each ${basis === "annual" ? "year" : "quarter"}.`} {...(enough ? scrub.props : {})}>
         {!enough ? <p className="pzr-empty">Not enough reported {basis === "annual" ? "years" : "quarters"} for a chart.</p> : (
           <>
-            <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={concl}>
+            <svg ref={svgRef} width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={concl}>
               {lo <= 0 && hi >= 0 && <line x1={M.l} x2={M.l + iw} y1={Y(0)} y2={Y(0)} className="pzr-zero" />}
               {kind === "bars" ? data.map((d, i) => {
                 if (d.value == null) return <g key={d.period}><text x={X(i)} y={Y(0) - 6} textAnchor="middle" className="pzr-gap">n/a</text></g>;

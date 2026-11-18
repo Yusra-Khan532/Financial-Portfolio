@@ -1,6 +1,6 @@
-// The Sector and industry filter of the Basic and Advanced stock screeners (task #64, 14 Nov file, N-28 / N-34): NSE's sectors first, each with its count,
-// and its industries under it. Ticking a sector picks all its industries; opening it picks some. A search box filters sectors and industries at once.
-// The same 12 sectors and 59 industries the Stock screener uses.
+// The Macro sector and industry filter of the Basic and Advanced stock screeners (task #64, 14 Nov file, N-28 / N-34): NSE's 12 macro sectors first, each
+// with its count, and its industries under it. Ticking a macro sector picks all its industries; opening it picks some. A search box filters both at once.
+// The same 12 macro sectors and 59 industries the Stock screener uses. Named by the level of their values (task #64, from #192: 12 = macro sector).
 import { useEffect, useRef, useState } from "react";
 import type { SectorNode } from "../../lib/scoreScreen";
 import { SearchBox } from "./FilterGroup";
@@ -25,12 +25,12 @@ export function SectorTree({ tree, picked, set, loading }: { tree: SectorNode[];
     set(all ? picked.filter((n) => !names.includes(n)) : [...new Set([...picked, ...names])]);
   };
   const toggleInd = (n: string) => set(picked.includes(n) ? picked.filter((x) => x !== n) : [...picked, n]);
-  if (!tree.length) return <p className="fgx-none">{loading ? "Loading sectors…" : "No sectors loaded yet."}</p>;
+  if (!tree.length) return <p className="fgx-none">{loading ? "Loading macro sectors…" : "No macro sectors loaded yet."}</p>;
   return (
     <div className="sxt">
-      <p className="sxt-hint">{tree.length} sectors, with their {nInd} industries under them. Tick a sector for all its industries, or open it to pick some.</p>
-      <SearchBox value={q} onChange={setQ} placeholder="Search sector or industry" label="Search sectors and industries" />
-      <ul className="sxt-list" aria-label="Sectors and industries">
+      <p className="sxt-hint">{tree.length} macro sectors, with their {nInd} industries under them. Tick a macro sector for all its industries, or open it to pick some.</p>
+      <SearchBox value={q} onChange={setQ} placeholder="Search macro sector or industry" label="Search macro sectors and industries" />
+      <ul className="sxt-list" aria-label="Macro sectors and industries">
         {shown.map((s) => {
           const names = s.industries.map((i) => i.name), all = names.length > 0 && names.every((n) => picked.includes(n)), some = names.some((n) => picked.includes(n));
           const isOpen = !!t || (open[s.sector] ?? some);

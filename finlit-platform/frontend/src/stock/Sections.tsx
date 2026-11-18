@@ -20,6 +20,7 @@ import { useUI, type Plan } from "../lib/ui";
 import { Plain } from "../components/Plain";
 import { ChartZoom } from "../components/ChartZoom";
 import { TabGroup } from "../components/TabGroup";
+import { ForecastCard } from "./ForecastCard";
 
 const css = (v: string) => `var(${v})`;
 /** Section header (task #216, compact): the number large (40 px; 32 on phones), a thin rule, the eyebrow with the plan badge, the title (24 px), and under it
@@ -220,7 +221,7 @@ export function FinancialsSection({ f: page }: { f?: Financials }) {
   const last = tbl.periods.length - 1;
   return (
     <section className="block" style={{ "--sc": "var(--p-growth)" } as React.CSSProperties}>
-      <SectionHead id="financials" no="06 · Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow, quarterly and yearly" sub={`${f.meta.statement === "consolidated" ? "Consolidated" : "Standalone"}, ₹ crore. L Cr = lakh crore. FY = April–March.`} color="--p-growth" />
+      <SectionHead id="financials" no="06 · Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow, quarterly and yearly" sub={`${f.meta.statement === "consolidated" ? "Consolidated" : "Standalone"}, ₹ crore. L Cr = lakh crore. FY = April–March.`} color="--p-growth" aside={<ForecastCard f={f} />} />
       {(() => { const [rv, np, , mg] = tiles; return rv.delta != null && np.delta != null ? <Plain tone={np.delta >= 0 ? "good" : "warn"}>Sales {rv.delta >= 0 ? "grew" : "fell"} {nf(Math.abs(rv.delta), 1)}% last year and profit {np.delta >= 0 ? "rose" : "fell"} {nf(Math.abs(np.delta), 1)}%.{typeof mg.value === "number" && <> Out of every ₹100 of sales, about ₹{nf(mg.value, 1)} is kept as profit.</>}</Plain> : null; })()}
       <div className="grid g4" style={{ marginBottom: 16 }}>
         {tiles.map((t) => (

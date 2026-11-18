@@ -13,7 +13,7 @@ import { niceTicks } from "../../lib/etf";
 import { RANGES, lastN, useLevels } from "../../lib/markets";
 import { useGold } from "../../lib/premium";
 import { Card, Seg, tone, useWidth } from "./parts";
-import { ChartZoom } from "../../components/ChartZoom";
+import { ChartZoom, useZoomHeight } from "../../components/ChartZoom";
 
 const sgn = (v: number | null | undefined, d = 2) => (v == null ? MINUS : (v > 0 ? "+" : v < 0 ? MINUS : "") + nf(Math.abs(v), d) + "%");
 const pts = (v: number | null | undefined) => (v == null ? "" : ` (${v > 0 ? "+" : v < 0 ? MINUS : ""}${nf(Math.abs(v))})`);
@@ -26,7 +26,8 @@ function IndexChart({ items }: { items: { code: string; close: number | null; ch
   const [hv, setHv] = useState<number | null>(null);
   const n = RANGES.find((r) => r[0] === range)![1], live = items.find((r) => r.code === code);
   const rows = useMemo(() => lastN(q.data?.rows || [], n), [q.data, n]);
-  const H = 240, L = 56, R = 12, T = 14, B = 28;
+  const [svgRef, H] = useZoomHeight<SVGSVGElement>(240);   // task #167: in full screen it fills the height too
+  const L = 56, R = 12, T = 14, B = 28;
   const controls = (
     <div className="dsh-chart-c">
       <Seg label="Index" value={code} options={CHARTS} onChange={(c) => { setCode(c); setHv(null); }} />
@@ -53,7 +54,7 @@ function IndexChart({ items }: { items: { code: string; close: number | null; ch
       {controls}
       <div className="dsh-chart-s"><b>{nf(live?.close ?? last)}</b><span className={tone(day)}>{sgn(day)} today</span><em>{range} {sgn(chg(last, v[0]))} · daily closes, {label(rows[0].d)} to {label(rows[rows.length - 1].d)}</em></div>
       <div className="dsh-chart-b">
-        <svg viewBox={`0 0 ${W} ${H}`} role="img" tabIndex={0} aria-label={`${CHARTS.find((c) => c[0] === code)![1]} daily closing level, ${range}. Use the left and right arrow keys to read each day.`} onPointerMove={move} onPointerLeave={() => setHv(null)} onKeyDown={key}>
+        <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} role="img" tabIndex={0} aria-label={`${CHARTS.find((c) => c[0] === code)![1]} daily closing level, ${range}. Use the left and right arrow keys to read each day.`} onPointerMove={move} onPointerLeave={() => setHv(null)} onKeyDown={key}>
           <defs><linearGradient id="dshfill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor={color} stopOpacity=".18" /><stop offset="1" stopColor={color} stopOpacity="0" /></linearGradient></defs>
           {ticks.map((t) => <g key={t} className="grid"><line x1={L} x2={W - R} y1={Y(t)} y2={Y(t)} /><text x={L - 8} y={Y(t) + 4} textAnchor="end">{nf(t, 0)}</text></g>)}
           {xs.map((i) => <text key={i} className="xt" x={X(i)} y={H - 8} textAnchor={i === 0 ? "start" : i === rows.length - 1 ? "end" : "middle"}>{label(rows[i].d)}</text>)}

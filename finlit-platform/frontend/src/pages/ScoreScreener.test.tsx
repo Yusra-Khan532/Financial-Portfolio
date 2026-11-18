@@ -367,12 +367,15 @@ describe("Basic stock screener page", () => {
   it("the Sector and industry filter lists sectors first with their counts, then each sector's industries, with a search box (14 Nov N-28)", () => {
     open();
     expect(screen.queryByLabelText("Sector mix of the result")).toBeNull();                        // N-24: no sector box above the list
-    const tree = within(screen.getByRole("list", { name: "Sectors and industries" }));
+    const tree = within(screen.getByRole("list", { name: "Macro sectors and industries" }));
+    // task #64 (from #192): the 12 are NSE's macro sectors, and the line says so
+    expect(screen.getByText(/^\d+ macro sectors, with their \d+ industries under them\. Tick a macro sector for all its industries/)).toBeTruthy();
+    expect(screen.queryByText(/^\d+ sectors, with their/)).toBeNull();
     expect(sector("Metals").closest(".sxt-srow")!.querySelector(".fgx-n")!.textContent).toBe("14");
     expect(tree.queryByRole("list", { name: "Metals industries" })).toBeNull();                      // closed until opened
     fireEvent.click(tree.getByRole("button", { name: "Open Metals's industries" }));
     expect(within(tree.getByRole("list", { name: "Metals industries" })).getByRole("checkbox", { name: /^Metals/ })).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Search sectors and industries"), { target: { value: "pharm" } });
+    fireEvent.change(screen.getByLabelText("Search macro sectors and industries"), { target: { value: "pharm" } });
     expect(screen.getAllByRole("checkbox", { name: /all its industries$/ }).map((c) => c.getAttribute("aria-label"))).toEqual(["Pharma: all its industries"]);
   });
 });
@@ -444,7 +447,7 @@ describe("Basic stock screener: no Prism", () => {
 
   it("a group header shows 'n active' for its filters and counts beside options are real", () => {
     open("?ind=IT&ind=Auto&cap=Large");
-    expect(within(document.querySelector("aside")!).getByRole("button", { name: /^Sector and industry.*2 active/ })).toBeTruthy();
+    expect(within(document.querySelector("aside")!).getByRole("button", { name: /^Macro sector and industry.*2 active/ })).toBeTruthy();
     expect(within(screen.getByLabelText("Score screener filters")).getByRole("button", { name: /^Market cap.*1 active/ })).toBeTruthy();
     // 22 companies: the draft counts follow the other filters (Large cap + sector are skipped for their own group)
     const large = screen.getByRole("checkbox", { name: /^Large cap/ }).closest("label")!;

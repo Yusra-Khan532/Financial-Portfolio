@@ -3,7 +3,7 @@ import { useWidth } from "../components/prism/PrismCharts";
 import { axisUnit, buildSeries, chartDomain, changeVs, chartCsv, chartSummary, fmtChange, fmtCr, labelIndices, tableRows, tooltipText, type Series } from "../lib/outlookChart";
 import { KIND_LABEL, type Kind } from "../lib/outlook";
 import { saveFile } from "../stock/derive";
-import { ChartZoom } from "../components/ChartZoom";
+import { ChartZoom, useZoomHeight } from "../components/ChartZoom";
 
 export { buildSeries };
 
@@ -18,13 +18,14 @@ export function OutlookChart({ kind, symbol, series, who, horizonLabel }: { kind
   const [ref, width] = useWidth<HTMLDivElement>(640);
   const [active, setActive] = useState<number | null>(null);
   const [table, setTable] = useState(false);
+  const [plot, zoomH] = useZoomHeight<HTMLDivElement>(width < 520 ? 270 : 310);   // task #167: in full screen the chart fills the height too
   const color = COLOR[kind], name = KIND_LABEL[kind];
   const pts = series.points, n = pts.length;
   const vals = pts.flatMap((p) => [p.value, p.alt]).filter((v): v is number => v != null);
   if (n < 1 || !vals.length) return <p className="ol-empty">No reported {name.toLowerCase()} figures are stored for this company, so there is nothing to chart.</p>;
 
   const dom = chartDomain(vals), unit = axisUnit(Math.max(...vals.map(Math.abs), Math.abs(dom.min), Math.abs(dom.max)), dom.step);
-  const W = Math.max(280, width), H = W < 520 ? 270 : 310;
+  const W = Math.max(280, width), H = zoomH;
   const pl = 14 + Math.max(...dom.ticks.map((t) => unit.fmt(t).length)) * 6.6, pr = W < 520 ? 14 : 22, pt = 30, pb = 30, pw = W - pl - pr;
   const X = (i: number) => (n === 1 ? pl + pw / 2 : pl + (i * pw) / (n - 1));
   const Y = (v: number) => pt + (1 - (v - dom.min) / (dom.max - dom.min || 1)) * (H - pt - pb);
@@ -65,7 +66,7 @@ export function OutlookChart({ kind, symbol, series, who, horizonLabel }: { kind
           <button type="button" className="ol-link" onClick={() => saveFile(`FinLit-${symbol}-${kind}-estimate.csv`, chartCsv(kind, symbol, series, who, horizonLabel), "text/csv;charset=utf-8")}>Download CSV</button>
         </div>
       </div>
-      <div className="ol-plot" tabIndex={0} role="group" aria-label={`${name} chart. Use the left and right arrow keys to read one year at a time.`} aria-describedby={`${uid}-sum`}
+      <div className="ol-plot" ref={plot} tabIndex={0} role="group" aria-label={`${name} chart. Use the left and right arrow keys to read one year at a time.`} aria-describedby={`${uid}-sum`}
         onKeyDown={key} onFocus={() => setActive((a) => a ?? Math.max(0, series.lastActual))} onBlur={() => setActive(null)} onPointerLeave={() => setActive(null)}>
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={summary}>
           <text x={4} y={14} textAnchor="start" className="ol-ax" fill="var(--faint)">{unit.name}</text>
