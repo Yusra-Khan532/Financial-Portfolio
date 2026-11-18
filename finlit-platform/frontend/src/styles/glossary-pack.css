@@ -30,7 +30,7 @@
 .gp-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0 0 14px; }
 .gp-tab { display: flex; flex-direction: column; gap: 2px; padding: 12px 16px; border: 1px solid var(--sp-line); border-radius: 12px; background: var(--gp-row); color: var(--sp-ink); text-align: left; cursor: pointer; }
 .gp-tab b { font: 600 16px var(--sans); } .gp-tab small { font-size: 13px; color: var(--sp-mute); }
-.gp-tab[aria-pressed="true"] { background: var(--gp-teal); border-color: var(--gp-teal); color: #fff; } .gp-tab[aria-pressed="true"] small { color: rgba(255, 255, 255, .85); }
+.gp-tab[aria-pressed="true"] { background: color-mix(in srgb, var(--gp-teal) 82%, #000); border-color: var(--gp-teal); color: #fff; }   /* task #227: white text at AA on the teal */ .gp-tab[aria-pressed="true"] small { color: #fff; }
 .gp-tab:hover:not([aria-pressed="true"]) { border-color: var(--gp-teal); }
 
 /* topics on the left, the letter's terms on the right */

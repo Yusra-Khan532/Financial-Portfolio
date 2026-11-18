@@ -265,3 +265,7 @@ abbr.qr-na:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; 
 .qr-find input { flex: 1; min-width: 0; height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--s2); color: var(--text); font-size: 14px; }
 .qr-findnote { margin: 8px 0 0; font-size: 14px; }
 @media (max-width: 1000px) { .qr-widebtn { display: none; } }
+/* task #227: in light mode the group colours are too light for 12px header text (green 2.7:1); the header text takes a darker step of its colour */
+:root[data-theme="light"] .qr-t thead tr.qr-grp th.qg1 { color: color-mix(in srgb, var(--qg1) 70%, var(--text)); }
+:root[data-theme="light"] .qr-t thead tr.qr-grp th.qg2 { color: color-mix(in srgb, var(--qg2) 55%, var(--text)); }
+:root[data-theme="light"] .qr-t thead tr.qr-grp th.qg3 { color: color-mix(in srgb, var(--qg3) 60%, var(--text)); }
