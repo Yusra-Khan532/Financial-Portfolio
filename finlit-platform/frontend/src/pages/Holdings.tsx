@@ -12,6 +12,7 @@ import { useSearchIndex } from "../lib/api";
 import { isinMap } from "../lib/searchFilters";
 import { useUniverse } from "../lib/screener";
 import { portfolio, usePortfolio, type PState } from "../lib/portfolio";
+import { buysOf, historyActions, type Buy } from "../lib/buyHistory";
 import { ClearPortfolio } from "../components/ClearPortfolio";
 import { clearPortfolioServer, undoClearPortfolioServer } from "../lib/account";
 import { PdfImport } from "../components/PdfImport";
@@ -49,7 +50,8 @@ import "../styles/dashboard.css";
 import "../portfolio/pack/equity-pack.css";
 
 /** Equity portfolio: give it the names of the shares you own (typed, pasted or from a broker file) and it describes the list: how strong each share is, where the list sits by
- *  sector and size, what moves together, where the risk comes from and how the list has moved against the NIFTY 50. Names only: quantities, prices and dates are never asked for.
+ *  sector and size, what moves together, where the risk comes from and how the list has moved against the NIFTY 50. Names are enough; task #217 adds each share's buy history
+ *  (date, quantity and price of every buy, the total quantity and the average price), entered by the member under the share.
  *  Every figure and every sentence comes from POST /api/portfolio/page (the handover pack's engine) and POST /api/portfolio/overview (live price and the plan's scores). */
 
 /** The sections of each tab, in reading order (task #183): the sections bar numbers them; All sections lists the three tabs. */
@@ -88,13 +90,16 @@ export function HoldingsPage() {
   const [choices, setChoices] = useState<Choices>(() => loadChoices());
   const pick = (c: Choices) => { setChoices(c); saveChoices(c); };
   const qtyBySymbol = useMemo(() => { const m = new Map<string, number>(); st.holdings.forEach((h) => { if (h.owned && h.qty > 0) m.set(h.symbol, (m.get(h.symbol) ?? 0) + h.qty); }); return m; }, [st.holdings]);
-  const onQty = (sym: string, qty: number | null) => {
-    const mine = st.holdings.filter((h) => h.symbol === sym);
-    if (!mine.length) return;
-    const [first, ...others] = mine;
-    others.forEach((h) => portfolio.remove(h.id));                                  // one line per share once a quantity is typed
-    portfolio.update(first.id, qty ? { qty, owned: true } : { qty: 1, owned: false });
-  };
+  // task #217: each share's buy history (lib/buyHistory: the first buy fills the name-only line, removing the last turns it back into a name). A bare quantity,
+  // from a statement import, is set only on a share with no buys: it never replaces a buy history (the old box kept one line per share and deleted the rest).
+  const acts = useMemo(() => historyActions(() => portfolio.get().holdings, portfolio), []);
+  const onQty = (sym: string, qty: number | null) => { acts.setQty(sym, qty); };
+  const history = useMemo(() => ({
+    buysOf: (sym: string) => buysOf(st.holdings, sym),
+    add: (sym: string, b: Omit<Buy, "id">) => { acts.add(sym, b); toast(`Buy added to ${sym}.`); },
+    edit: (id: string, b: Omit<Buy, "id">) => { acts.edit(id, b); toast("Buy changed."); },
+    remove: (id: string) => { acts.remove(id); toast("Buy removed."); },
+  }), [st.holdings, acts]);   // eslint-disable-line react-hooks/exhaustive-deps
   const scoreOn = model === "prism" && !DEMO;
   const sc = usePortfolioScore(symbols.map((s) => ({ symbol: s, qty: qtyBySymbol.get(s) ?? null })), choices, scoreOn);
   const byOv = useMemo(() => new Map((ov.data?.holdings || []).map((h) => [h.symbol, h])), [ov.data]);
@@ -229,7 +234,7 @@ export function HoldingsPage() {
 
         {empty ? <div className="card dw-empty"><span className="dw-ei"><Icon name="wallet" /></span><b>No shares yet</b><p>Add a share by its name, symbol or ISIN, or upload the holdings file from your broker. {DEMO ? "" : <>You can also <Link to="/watchlist">start from your watchlist</Link>.</>}</p><span className="eq-empty-go"><button type="button" className="pfx-solid" onClick={() => addBox.current?.focus()}>Add a share</button><button type="button" className="pfx-btn" onClick={() => file.current?.click()}>Upload broker file</button></span></div> : model && <>
           <TopGrid tiles={top} onOpen={(t) => setView(t, true)}
-            score={scoreOn ? (sc.data && !sc.data.locked ? <ScoreBox total={sc.data.total ?? null} band={sc.data.band} needsQty={!!sc.data.needsQuantities} onAddQty={() => { setView("portfolio"); setTimeout(() => document.querySelector<HTMLInputElement>(".x-qty input")?.focus(), 50); }} />
+            score={scoreOn ? (sc.data && !sc.data.locked ? <ScoreBox total={sc.data.total ?? null} band={sc.data.band} needsQty={!!sc.data.needsQuantities} onAddQty={() => { setView("portfolio"); setTimeout(() => { const sym = symbols[0]; if (sym) { dispatchEvent(new CustomEvent("bh-open", { detail: sym })); setTimeout(() => document.querySelector<HTMLInputElement>(`#bh-${sym} .bh-add input[inputmode]`)?.focus(), 80); } }, 50); }} />
               : <ScoreCard a={sc.data} state={sc.isError ? "error" : sc.isPending ? "loading" : "ready"} error={sc.error?.body?.detail} />) : <ScoreLocked />} />
           {scoreOn && <details className="sp-sec sp-fold" open={showChoices} onToggle={(e) => setShowChoices((e.currentTarget as HTMLDetailsElement).open)}>
             <summary><span><b className="sp-ft">Make the score yours</b><small>All optional: horizon, risk comfort, goal and the index to compare with. They stay in this browser.</small></span><span className="sp-show">{showChoices ? "Hide ▴" : "Show ▾"}</span></summary>
@@ -243,7 +248,7 @@ export function HoldingsPage() {
           <div id="eq-panel" role="tabpanel" aria-labelledby={`eq-tab-${view}`}>
           {view === "portfolio" && <KeyFigures tab="portfolio" sub={`Your ${plural(lines.length, "share")} at a glance`} cards={portfolioCards(shares, model, (sc.data?.readings as { valuation?: { word?: string } } | undefined)?.valuation?.word ?? null)} />}
           {view === "portfolio" && <>
-            <SharesTable qtyOf={(sym) => qtyBySymbol.get(sym) ?? null} onQty={onQty} lines={lines} meta={meta} page={page} mode={mode} colors={colors} model={model} tab={tab} period={period} limit={cap} state={ov.isError ? "error" : ov.isPending && !DEMO ? "loading" : "ready"}
+            <SharesTable history={history} qtyOf={(sym) => qtyBySymbol.get(sym) ?? null} onQty={onQty} lines={lines} meta={meta} page={page} mode={mode} colors={colors} model={model} tab={tab} period={period} limit={cap} state={ov.isError ? "error" : ov.isPending && !DEMO ? "loading" : "ready"}
               errorText={DEMO ? "Scores are not available in the demo preview." : ov.error?.body?.detail} onTab={(t) => go(t)} onPeriod={(pd) => go("financials", pd)}
               peerOf={(sym) => shareOf.get(sym)} day={day} cards={tab === "overview" ? <div className="eq-cards"><Insights items={sharesCards(shares, day)} scope="eq.shares" /></div> : null}
               actions={(sym) => <button className="pfx-x" aria-label={`Remove ${sym}`} title={`Remove ${sym}`} onClick={() => { st.holdings.filter((h) => h.symbol === sym).forEach((h) => portfolio.remove(h.id)); toast(`${sym} removed.`); }}>×</button>} />

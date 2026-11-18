@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { nf } from "../lib/format";
+import { buysOf } from "../lib/buyHistory";
 import { portfolio, usePortfolio } from "../lib/portfolio";
 import { useMfPortfolio, useMfWrites } from "../lib/mfPortfolio";
 import { useEtfWrites } from "../lib/etfPortfolio";
@@ -28,7 +29,10 @@ export function QtyDialog({ d, onClose }: { d: AllInvestments; onClose: () => vo
   const mfw = useMfWrites(), etw = useEtfWrites(), qc = useQueryClient();
   const price = useMemo(() => Object.fromEntries(d.shares.map((s) => [s.symbol, s.price])), [d.shares]);
   const rows: Row[] = useMemo(() => [
-    ...holdings.map((h) => ({ key: "s:" + h.id, kind: "shares" as const, name: h.symbol.toUpperCase(), sub: price[h.symbol.toUpperCase()] != null ? `Last price ₹${nf(price[h.symbol.toUpperCase()]!, 2)}` : "No price on file", price: price[h.symbol.toUpperCase()] ?? null, init: h.qty > 0 ? String(h.qty) : "" })),
+    // task #217: one line per share; a share with several buys shows their total and is changed in its buy history on the Equity portfolio
+    ...[...new Set(holdings.map((h) => h.symbol.toUpperCase()))].map((sym) => { const hs = holdings.filter((h) => h.symbol.toUpperCase() === sym), h = hs[0], buys = buysOf(holdings, sym);
+      return { key: "s:" + h.id, kind: "shares" as const, name: sym, sub: price[sym] != null ? `Last price ₹${nf(price[sym]!, 2)}` : "No price on file", price: price[sym] ?? null,
+        init: buys.length > 1 ? String(buys.reduce((a, b) => a + b.qty, 0)) : h.qty > 0 ? String(h.qty) : "", locked: buys.length > 1 ? `${buys.length} buys: change them in the buy history on the Equity portfolio` : undefined }; }),
     ...(mf.data?.holdings ?? []).map((h) => ({ key: "f:" + h.id, kind: "funds" as const, name: h.name ?? String(h.code), sub: h.nav != null ? `NAV ₹${nf(h.nav, 2)}${h.folio ? " · folio " + h.folio : ""}` : "No NAV on file", price: h.nav,
       init: h.units != null && h.units > 0 ? String(h.units) : "", locked: h.lots.length > 1 ? `${h.lots.length} purchases: change them on the MF portfolio` : undefined })),
     ...d.etfs.map((e) => ({ key: "e:" + e.symbol, kind: "etfs" as const, name: e.symbol, sub: e.price != null ? `Last price ₹${nf(e.price, 2)}` : "No price on file", price: e.price, init: e.qty ? String(e.qty) : "" })),

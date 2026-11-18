@@ -468,8 +468,12 @@ async def test_portfolio_is_saved_per_plan_and_validated(app):
     assert (await silver.get("/api/me/state")).json()["portfolio"]["holdings"][0]["symbol"] == "RELIANCE"
     for bad in ({"id": "h2", "symbol": "TCS", "qty": 0, "price": 1}, {"id": "h2", "symbol": "A;B", "qty": 1, "price": 1}, {"id": "h2", "symbol": "TCS", "qty": 1, "price": 1, "date": "tomorrow"}):
         assert (await silver.put("/api/me/portfolio", json={"holdings": [bad]})).status_code == 422
-    many = {"holdings": [{"id": f"h{i}", "symbol": "TCS", "qty": 1, "price": 1} for i in range(31)]}
-    assert (await silver.put("/api/me/portfolio", json=many)).json()["detail"]["status"] == "plan_limit"
+    buys = {"holdings": [{"id": f"h{i}", "symbol": "TCS", "qty": 1, "price": 100 + i, "date": "2025-01-15", "owned": True} for i in range(31)]}
+    assert (await silver.put("/api/me/portfolio", json=buys)).status_code == 200            # task #217: 31 buys of one share are one share of the 30
+    many = {"holdings": [{"id": f"h{i}", "symbol": f"STK{chr(65 + i // 26)}{chr(65 + i % 26)}", "qty": 1, "price": 1} for i in range(31)]}
+    r = (await silver.put("/api/me/portfolio", json=many)).json()["detail"]
+    assert r["status"] == "plan_limit" and "30 shares" in r["detail"]
+    assert (await silver.put("/api/me/portfolio", json={"holdings": [{"id": f"h{i}", "symbol": "TCS", "qty": 1, "price": 1} for i in range(501)]})).status_code == 422   # rows stay capped
     dup = {"holdings": [{"id": "x", "symbol": "TCS", "qty": 1, "price": 1}, {"id": "x", "symbol": "INFY", "qty": 1, "price": 1}]}
     assert (await silver.put("/api/me/portfolio", json=dup)).status_code == 422
     for c in (basic, silver):
