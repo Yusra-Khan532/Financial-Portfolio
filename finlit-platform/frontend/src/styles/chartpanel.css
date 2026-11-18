@@ -16,14 +16,14 @@
 .cp-leg { font-size: 12px; color: var(--muted, #6b7280); font-variant-numeric: tabular-nums; min-height: 16px; }
 .cp-c { position: relative; min-height: 360px; flex: 1 1 360px; }
 .cp-m { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--muted, #6b7280); }
-.cp-f { font-size: 11px; color: var(--muted, #6b7280); margin: 0; }
+.cp-f { font-size: 12px; color: var(--muted, #6b7280); margin: 0; }
 .cp-r { align-self: flex-start; }
 @media (max-width: 700px) { .cp { top: 56px; right: 0; left: 0; bottom: 0; width: auto; border-radius: 12px 12px 0 0; } }
 tr.cp-row > td { background: color-mix(in srgb, var(--gold, #b8892b) 9%, transparent); }
 .scr-t tbody tr { cursor: pointer; }
 .cp-facts { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0; }
 .cp-facts > div { display: flex; flex-direction: column; }
-.cp-facts dt { font-size: 11px; color: var(--muted, #6b7280); }
+.cp-facts dt { font-size: 12px; color: var(--muted, #6b7280); }
 .cp-facts dd { margin: 0; font-size: 14px; font-weight: 600; }
 .psx-t tbody tr { cursor: pointer; }
 .cc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; list-style: none; margin: 8px 0; padding: 0; }
@@ -47,5 +47,5 @@ tr.cp-row > td { background: color-mix(in srgb, var(--gold, #b8892b) 9%, transpa
 .cp-meas { font-size: 13px; font-weight: 600; color: var(--text); background: var(--gold-soft, var(--s2)); border-radius: 8px; padding: 6px 10px; }
 .cp-leg div { white-space: normal; line-height: 1.5; }
 .cp-score { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 8px; }
-.cp-score li { border: 1px solid var(--border); border-radius: 10px; padding: 6px 10px; display: flex; flex-direction: column; background: var(--s2, transparent); } .cp-score small { color: var(--muted); font-size: 11px; } .cp-score b { font-size: 18px; } .cp-score em { font-style: normal; font-size: 11px; color: var(--muted); }
+.cp-score li { border: 1px solid var(--border); border-radius: 10px; padding: 6px 10px; display: flex; flex-direction: column; background: var(--s2, transparent); } .cp-score small { color: var(--muted); font-size: 12px; } .cp-score b { font-size: 18px; } .cp-score em { font-style: normal; font-size: 12px; color: var(--muted); }
 .cp-c { overflow: hidden; }

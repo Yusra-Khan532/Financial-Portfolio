@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Task #195: "Your mutual funds at a glance" draws the shared Prism ring with one arc per fund, each filled to its FundPulse (29 / 100 POOR with one fund),
+// Task #195: "Your mutual funds at a glance" draws the shared Prism ring with one arc per fund, each filled to its Mutual Fund Score (29 / 100 POOR with one fund),
 // and the link to the MF portfolio sits at the bottom; "Your ETFs at a glance" is a one-line strip with an empty ring until ETFs are added.
 import { cleanup, render } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";

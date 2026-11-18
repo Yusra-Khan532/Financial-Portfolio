@@ -26,7 +26,7 @@ export const WIDGETS: { id: string; label: string; nav?: string; blurb: string; 
   { id: "mystocks", label: "Your investments today", blurb: "Your shares, watchlist and mutual funds: price or NAV, the day's move, 1 year, the FinLit reading and alerts. The biggest moves come first.", min: "basic", size: "full", step: 1 },
   { id: "say", label: "What your stocks say", blurb: "One card per signal from your shares' latest results and prices, with the names in a dropdown.", min: "basic", size: "full", step: 1 },
   { id: "portfolio", label: "Your shares at a glance", blurb: "Average FinLit Prism score, score bands, the average of each Prism part and the sector and size spread of the shares you hold.", min: "basic", size: "half", step: 1 },
-  { id: "mfglance", label: "Your mutual funds at a glance", blurb: "The average FundPulse, overlap, the biggest stock underneath and how much your funds swing, from the MF portfolio.", min: "basic", size: "half", step: 1 },
+  { id: "mfglance", label: "Your mutual funds at a glance", blurb: "The average Mutual Fund Score, overlap, the biggest stock underneath and how much your funds swing, from the MF portfolio.", min: "basic", size: "half", step: 1 },
   { id: "etfglance", label: "Your ETFs at a glance", nav: "Your ETFs", blurb: "What your ETFs track, their yearly cost and price against NAV, from the ETF portfolio.", min: "basic", size: "full", step: 1 },
   { id: "movers", label: "Watchlist movers", blurb: "Biggest moves among the stocks you follow.", min: "silver", size: "half", step: 2 },
   { id: "second", label: "Worth a second look", blurb: "Strong FinLit IQs trading below their usual valuation.", min: "silver", size: "half", step: 2 },

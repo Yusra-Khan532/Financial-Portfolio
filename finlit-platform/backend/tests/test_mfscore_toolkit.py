@@ -1,4 +1,4 @@
-"""FinLit FundPulse, part 1: the toolkit (spec Section 4), the zero rules of Appendix Z that live there, group mapping, tracking families,
+"""Mutual Fund Score, part 1: the toolkit (spec Section 4), the zero rules of Appendix Z that live there, group mapping, tracking families,
 risk-o-meter wording, the exit-load step table and the month-end history figures. Every expected number is worked by hand in the test."""
 
 import math

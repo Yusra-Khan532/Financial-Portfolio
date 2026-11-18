@@ -15,7 +15,7 @@
 .aif .aif-change { width: auto; height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: 600 12px var(--sans); cursor: pointer; white-space: nowrap; }
 .aif .aif-change:hover { border-color: var(--gold); }
 .aif-hi { display: grid; gap: 2px; } .aif-hi b { font: 400 20px/1.2 var(--serif); } .aif-hi span { color: var(--muted); }
-.aif-label { margin: 6px 0 2px; font: 700 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.aif-label { margin: 6px 0 2px; font: 700 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .aif ul { list-style: none; margin: 0; padding: 0; }
 .aif-cats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .aif-cat { width: 100%; height: 100%; display: grid; gap: 4px; justify-items: start; text-align: left; padding: 12px; border-radius: 14px; border: 1px solid var(--border-strong); background: var(--s2); color: var(--text); cursor: pointer; }
@@ -28,7 +28,7 @@
 .aif-seg b { display: block; font-size: 14px; } .aif-seg small { display: block; color: var(--muted); font-size: 12px; }
 .aif-seg > svg:first-child, .aif-q > svg:first-child { width: 18px; height: 18px; color: var(--gold); } .aif-seg > svg:last-child, .aif-q > svg:last-child { width: 14px; height: 14px; color: var(--muted); }
 .aif-q span { min-width: 0; }
-.aif-find { display: grid; gap: 6px; } .aif-find label { font: 700 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.aif-find { display: grid; gap: 6px; } .aif-find label { font: 700 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .aif-find input { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--s2); color: var(--text); font: 14px var(--sans); }
 .aif-found { display: grid; gap: 4px; } .aif-found button { width: 100%; display: flex; gap: 10px; align-items: baseline; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--s1); color: var(--text); text-align: left; cursor: pointer; } .aif-found button:hover { border-color: var(--gold); } .aif-found span { color: var(--muted); font-size: 13px; }
 .aif-none, .aif-err { margin: 0; color: var(--muted); font-size: 13px; }
@@ -40,7 +40,7 @@
 .aif-qtr { margin-bottom: 10px; display: grid; gap: 8px; }
 .aif-qchips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .aif-qchips button { display: grid; gap: 1px; justify-items: center; padding: 8px 4px; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--s2); color: var(--text); cursor: pointer; } .aif-qchips button:hover { border-color: var(--gold); background: var(--gold-soft); }
-.aif-qchips b { font-size: 16px; } .aif-qchips small { color: var(--muted); font-size: 11px; }
+.aif-qchips b { font-size: 16px; } .aif-qchips small { color: var(--muted); font-size: 12px; }
 .aif-qtrend { display: inline-flex; align-items: center; gap: 6px; justify-self: start; padding: 6px 2px; border: 0; background: none; color: var(--gold-deep, var(--gold)); font: 600 13px var(--sans); cursor: pointer; } .aif-qtrend svg { width: 14px; height: 14px; }
 .aif-rel { display: grid; gap: 6px; margin-top: 4px; }
 .aif button:focus-visible, .aif input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
@@ -168,7 +168,7 @@
 .aif-acts { margin: 10px 0 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .aif-acts a { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: 10px; color: var(--text); font: 600 var(--fs-13) var(--sans); text-decoration: none; }
 .aif-acts a:hover, .aif-acts a:focus-visible { border-color: var(--aif-g, var(--gold)); } .aif-acts svg { width: 13px; height: 13px; }
-.aif-acts-l { flex-basis: 100%; font: 600 var(--fs-11) var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }   /* task #218: "Read on FinLit" over the pages a written answer read */
+.aif-acts-l { flex-basis: 100%; font: 600 var(--fs-12) var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }   /* task #218: "Read on FinLit" over the pages a written answer read */
 .aif-a { display: grid; gap: 6px; }
 .aif-a-pts { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .aif-a-pts li { position: relative; padding-left: 16px; line-height: 1.5; overflow-wrap: anywhere; }
@@ -179,7 +179,7 @@
 .aif-a-bars { display: block; width: 100%; max-width: 460px; height: auto; margin: 8px 0 2px; }
 .aif-a-axis { stroke: var(--border-strong); stroke-width: 1; }
 .aif-a-bar { fill: color-mix(in srgb, var(--aif-g, var(--gold)) 45%, transparent); } .aif-a-bar.on { fill: var(--aif-g, var(--gold)); } .aif-a-bar.neg { fill: color-mix(in srgb, var(--loss) 60%, transparent); }
-.aif-a-v { font: 600 var(--fs-11) var(--mono); fill: var(--text); } .aif-a-l { font: 500 var(--fs-11) var(--sans); fill: var(--muted); }
+.aif-a-v { font: 600 var(--fs-12) var(--mono); fill: var(--text); } .aif-a-l { font: 500 var(--fs-12) var(--sans); fill: var(--muted); }
 /* Task #226 (team, 18 Nov: "UI issue in chatbot, align it properly"): in the full window the top row (back arrow, full-window, help, close) was laid
    over the conversation with no background, so the first question ran into the buttons and older messages slid under them, and the back arrow sat at a
    fixed place instead of at the conversation's edge. It is now a row of its own above the conversation, on the conversation's width: the back arrow

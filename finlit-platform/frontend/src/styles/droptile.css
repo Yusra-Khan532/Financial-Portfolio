@@ -2,7 +2,7 @@
    site's scale only (styles/typescale.css). The panel floats (absolute), so opening it never changes the tile's height or its neighbours'. */
 .dtl { position: relative; display: flex; flex-direction: column; gap: 6px; min-width: 0; height: 100%; padding: 14px 16px 12px; border: 1px solid var(--border); border-top: 3px solid var(--dtl-accent, var(--text)); border-radius: 14px; background: var(--s1); }
 .dtl-green { --dtl-accent: var(--gain); } .dtl-blue { --dtl-accent: #2F5A9E; } :root[data-theme="dark"] .dtl-blue { --dtl-accent: #9DB8E6; } .dtl-gold { --dtl-accent: var(--gold-deep, var(--gold)); } .dtl-red { --dtl-accent: var(--loss); } .dtl-ink { --dtl-accent: var(--text); }
-.dtl-k { margin: 0; font: 700 var(--fs-label)/var(--lh-11) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.dtl-k { margin: 0; font: 700 var(--fs-label)/var(--lh-12) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .dtl-v { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 0; }
 .dtl-n { font: 600 var(--fs-kpi)/var(--lh-24) var(--sans); font-variant-numeric: tabular-nums; color: var(--text); }
 .dtl-n.dtl-good { color: var(--gain); } .dtl-n.dtl-mixed { color: var(--gold-deep, var(--gold)); } .dtl-n.dtl-bad { color: var(--loss); }
@@ -16,7 +16,7 @@
 .dtl-panel { position: absolute; z-index: 30; top: calc(100% - 6px); left: 0; width: max(100%, 300px); max-width: min(420px, calc(100vw - 32px)); padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--s1); box-shadow: 0 12px 32px rgb(0 0 0 / .18); font: 400 var(--fs-small)/var(--lh-13) var(--sans); color: var(--text); }
 .dtl-panel[hidden] { display: none; }
 .dtl-panel table { width: 100%; border-collapse: collapse; }
-.dtl-panel th { padding: 4px 6px; border-bottom: 1px solid var(--border); text-align: left; font: 700 var(--fs-label)/var(--lh-11) var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.dtl-panel th { padding: 4px 6px; border-bottom: 1px solid var(--border); text-align: left; font: 700 var(--fs-label)/var(--lh-12) var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .dtl-panel td { padding: 5px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
 .dtl-panel td.r, .dtl-panel th.r { text-align: right; font-variant-numeric: tabular-nums; }
 .dtl-panel tr:last-child td { border-bottom: 0; }

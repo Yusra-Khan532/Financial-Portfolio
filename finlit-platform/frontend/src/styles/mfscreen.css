@@ -37,11 +37,11 @@
 /* ---- filter panel pieces */
 .mfs-sh { margin: 20px 0 6px; padding-top: 14px; border-top: 1px solid var(--border); font: 600 14px/1.3 var(--sans); color: var(--text); letter-spacing: .01em; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }   /* each sub-section of a filter group reads as its own block (was 12.5px muted grey) */
 .mfs-sh:first-child { margin-top: 2px; padding-top: 0; border-top: 0; }
-.mfs-tag { font: 500 11px var(--sans); color: var(--faint); border: 1px solid var(--border-strong); border-radius: 999px; padding: 0 7px; }
+.mfs-tag { font: 500 12px var(--sans); color: var(--faint); border: 1px solid var(--border-strong); border-radius: 999px; padding: 0 7px; }
 .mfs-sub { display: block; color: var(--faint); font-size: 12px; font-weight: 400; }
 .mfs-opts { max-height: 300px; }
 .mfs-chips, .mfs-pre { display: flex; justify-content: flex-start; }
-.mfs-chips button small { margin-left: 6px; color: var(--faint); font: 500 11px var(--mono); }
+.mfs-chips button small { margin-left: 6px; color: var(--faint); font: 500 12px var(--mono); }
 .mfs-chips button.is-on small { color: var(--muted); }
 .mfs-chips button.is-zero { opacity: .5; }
 .mfs-chips button.has-set { border-color: var(--gold); }
@@ -86,7 +86,7 @@
 .mfs-th:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--gold); outline-offset: 2px; background: var(--gold); }
 .mfs-th:focus-visible::-moz-range-thumb { outline: 2px solid var(--gold); outline-offset: 2px; background: var(--gold); }
 .mfs-th.hi { z-index: 3; }
-.mfs-axis { display: flex; justify-content: space-between; padding: 0 2px; color: var(--faint); font: 500 11px var(--mono); }
+.mfs-axis { display: flex; justify-content: space-between; padding: 0 2px; color: var(--faint); font: 500 12px var(--mono); }
 .mfs-mm { display: flex; align-items: center; gap: 8px; color: var(--faint); font-size: 13px; flex-wrap: wrap; }
 .mfs-box { width: 96px; height: 36px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: 14px var(--mono); min-width: 0; }
 .mfs-box:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
@@ -108,7 +108,7 @@
 .mfs-table th.mfs-n small { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 3px; color: var(--faint); font: 400 12px var(--sans); align-items: center; }
 .mfs-table .mfs-nav { color: var(--faint); } .mfs-cat { color: var(--faint); }
 .mfs-table.is-loading tbody { opacity: .55; transition: opacity .15s; }
-.mfs-table .mf-sort { background: none; border: 0; color: inherit; font: inherit; cursor: pointer; padding: 0; } .mfs-table .mf-sort:hover { color: var(--text); } .mfs-table .mf-sort i { font-style: normal; font-size: var(--fs-11); margin-left: 4px; color: var(--gold); }
+.mfs-table .mf-sort { background: none; border: 0; color: inherit; font: inherit; cursor: pointer; padding: 0; } .mfs-table .mf-sort:hover { color: var(--text); } .mfs-table .mf-sort i { font-style: normal; font-size: var(--fs-12); margin-left: 4px; color: var(--gold); }
 .mfs-table tr.mf-stopped > * { opacity: .7; }
 .mfs-pages { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 14px 0 4px; }
 .mfs-empty { padding: 30px 12px; text-align: center; display: grid; gap: 10px; justify-items: center; } .mfs-empty h2 { margin: 0; font: 600 20px var(--serif, Georgia, serif); }
@@ -123,7 +123,7 @@
 @media (max-width: 900px) { .mfs-glance { grid-template-columns: minmax(0, 1fr); } }
 .mfs-fig { margin: 0; } .mfs-fig figcaption { font-size: 12px; line-height: 1.45; margin-top: 4px; }
 .mfs-sc { width: 100%; height: auto; display: block; overflow: visible; }
-.mfs-sc text { fill: var(--muted); font: 11px var(--sans); } .mfs-sc .ttl { fill: var(--faint); font-size: var(--fs-11); }
+.mfs-sc text { fill: var(--muted); font: 12px var(--sans); } .mfs-sc .ttl { fill: var(--faint); font-size: var(--fs-12); }
 .mfs-sc .gr { stroke: var(--border); stroke-width: 1; } .mfs-sc .ax0 { stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 5 4; }   /* task #131: the 0% line, dashed */
 .mfs-sc a:focus-visible { outline: none; } .mfs-sc a:focus-visible .dot { stroke: var(--text); stroke-width: 2; }
 .mfs-gl-none { margin: 0; font-size: 13px; }
@@ -172,7 +172,7 @@
 .mfs-fl-track::before { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--border-strong); }
 .mfs-fl-track i { position: absolute; top: 2px; height: 10px; border-radius: 3px; }
 .mfs-fl-track i.up { left: 50%; background: var(--gain); } .mfs-fl-track i.down { right: 50%; background: var(--loss); }
-.mfs-fl-track em { position: absolute; top: -14px; font: 600 11px var(--sans); letter-spacing: .02em; color: var(--muted); font-style: normal; white-space: nowrap; }
+.mfs-fl-track em { position: absolute; top: -14px; font: 600 12px var(--sans); letter-spacing: .02em; color: var(--muted); font-style: normal; white-space: nowrap; }
 .mfs-fl-track em.up { right: 0; } .mfs-fl-track em.down { left: 0; }
 .mfs-fl-v { text-align: right; font: 600 13px var(--mono); } .mfs-fl-v.up { color: var(--gain); } .mfs-fl-v.down { color: var(--loss); }
 .mfs-fl-note { margin: 8px 0 0; font-size: 12px; line-height: 1.45; }
@@ -191,7 +191,7 @@
 .mfs-active .mfs-dchip { background: var(--s2); }
 .mfs-glance-wrap { margin: 0 0 18px; }
 .mfs-glance-wrap .mfs-glance-h { margin: 0 0 10px; }
-.mfs-table .mfs-nh { display: inline-flex; align-items: center; gap: 10px; } .mfs-tick-h { font: 500 11px var(--sans); color: var(--faint); }
+.mfs-table .mfs-nh { display: inline-flex; align-items: center; gap: 10px; } .mfs-tick-h { font: 500 12px var(--sans); color: var(--faint); }
 .mfs-table .mfs-nrow { display: flex; gap: 10px; align-items: flex-start; } .mfs-nm { min-width: 0; display: block; }
 .mfs-tick { flex: none; width: 18px; height: 18px; margin-top: 2px; accent-color: var(--text); cursor: pointer; }
 .mfs-table th.mfs-hs, .mfs-table td.mfs-hs { text-align: left; }
@@ -202,7 +202,7 @@
 .mfs-tray-l { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 260px; min-width: 0; }
 .mfs-tray-c { display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px 4px 10px; border-radius: 999px; background: color-mix(in srgb, var(--bg, #fff) 16%, transparent); font-size: 13px; }
 .mfs-tray-c button { border: 0; background: none; color: inherit; font-size: 16px; line-height: 1; padding: 0 4px; cursor: pointer; min-width: 24px; min-height: 24px; }
-.mfs-tray-b { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; } .mfs-tray-b small { font-size: 12px; opacity: .8; }
+.mfs-tray-b { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; } .mfs-tray-b small { font-size: 12px; }
 .mfs-tray .btn:not(.primary) { background: transparent; color: inherit; border-color: color-mix(in srgb, var(--bg, #fff) 40%, transparent); }
 @media (max-width: 640px) { .mfs-tray .btn { min-height: 44px; } .mfs-tick { width: 22px; height: 22px; } }
 /* the fund's name and its line in normal case, as the design draws them (a site-wide table rule set row headings in capitals) */

@@ -2,7 +2,7 @@
 // reads the member's three lists (Equity portfolio, MF portfolio, ETF portfolio) and their quantities, and looks through each fund and ETF to the companies
 // inside. It keeps no list of its own: a change on a portfolio page shows here after a refresh. Layout: header, summary row (dark box + one tile per kind),
 // four tabs (All together · Equity · Mutual funds · ETFs), the numbered sections bar of the open tab, then "What this means, in short", the disclaimer,
-// the FAQ and the sources. Plans: Silver and Gold (shares with FinLit IQ on Silver, FinLit Prism on Gold; FinLit FundPulse on Gold). Describes; never advises.
+// the FAQ and the sources. Plans: Silver and Gold (shares with FinLit IQ on Silver, FinLit Prism on Gold; Mutual Fund Score on Gold). Describes; never advises.
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router";
 import { Gate } from "../components/Gate";
@@ -124,7 +124,7 @@ function Summary({ d, toTab, openQty }: { d: AllInvestments; toTab: (t: Tab) => 
 
 const TILE_INFO: Record<Kind, [string, string]> = {
   shares: ["The shares on your Equity portfolio: their part of everything, their average score, beta and 1-year change.", "The band strip counts your shares in each band of the score your plan shows."],
-  funds: ["The funds on your MF portfolio: their part of everything, average FinLit FundPulse, beta and 1-year change.", "Each fund keeps its own FundPulse band; the strip counts them."],
+  funds: ["The funds on your MF portfolio: their part of everything, average Mutual Fund Score, beta and 1-year change.", "Each fund keeps its own Mutual Fund Score band; the strip counts them."],
   etfs: ["The ETFs on your ETF portfolio: their part of everything, yearly cost, beta and 1-year change.", "The strip shows the kinds of ETF you hold."],
 };
 function Tile({ d, k, go }: { d: AllInvestments; k: Kind; go: () => void }) {
@@ -133,7 +133,7 @@ function Tile({ d, k, go }: { d: AllInvestments; k: Kind; go: () => void }) {
     <button type="button" className="mi-tile empty" onClick={go}><p className="mi-cap">{KIND_NAME[k]}</p><p className="mi-small">None on your {k === "shares" ? "Equity" : k === "funds" ? "MF" : "ETF"} portfolio yet{k === "etfs" ? ": the other tabs leave ETFs out" : ""}.</p><span className="mi-link">Open {KIND_NAME[k]} →</span></button>);
   const model = MODEL_NAME[c.scoreModel ?? "iq"];
   const read: ReactNode = k === "shares" ? <>{c.count} shares · Average {model} {c.score ?? "—"} · Beta {betaTxt(c.beta)} · {chg(c.chg1y)} in a year</>
-    : k === "funds" ? <>{c.count} {c.count === 1 ? "fund" : "funds"} · {c.scoreLocked ? "FundPulse on Gold" : c.score != null ? `${c.count === 1 ? "FinLit FundPulse" : "Average FundPulse"} ${c.score}${(c.count === 1 ? d.funds[0]?.label : c.scoreWord) ? " · " + (c.count === 1 ? d.funds[0].label : c.scoreWord) : ""}` : "No FundPulse yet"} · Beta {betaTxt(c.beta)} · {chg(c.chg1y)} in a year</>
+    : k === "funds" ? <>{c.count} {c.count === 1 ? "fund" : "funds"} · {c.scoreLocked ? "Mutual Fund Score on Gold" : c.score != null ? `${c.count === 1 ? "Mutual Fund Score" : "Average Mutual Fund Score"} ${c.score}${(c.count === 1 ? d.funds[0]?.label : c.scoreWord) ? " · " + (c.count === 1 ? d.funds[0].label : c.scoreWord) : ""}` : "No Mutual Fund Score yet"} · Beta {betaTxt(c.beta)} · {chg(c.chg1y)} in a year</>
     : <>{c.count} ETFs · Cost {c.ter != null ? pctOf(c.ter, 2) : "—"} a year · Beta {betaTxt(c.beta)} · {chg(c.chg1y)} in a year{c.repeats?.length ? ` · ${joinWords(c.repeats.map((r) => r.label ?? ""))} held twice` : ""}</>;
   return (
     <div className="mi-tile" onClick={go}>
@@ -141,7 +141,7 @@ function Tile({ d, k, go }: { d: AllInvestments; k: Kind; go: () => void }) {
       <p className="mi-tile-v">{d.byValue && c.value != null ? rupees(c.value) : `${c.count} ${k === "funds" ? (c.count === 1 ? "fund" : "funds") : k === "etfs" ? "ETFs" : "shares"}`}</p>
       <p className="mi-small">{read}</p>
       {k === "etfs" ? (c.types?.length ? <div className="mi-band" role="img" aria-label={"By type: " + c.types.map((t) => `${t.count} ${t.label}`).join(", ")}>{c.types.map((t, i) => <i key={t.label} className={"t-type" + (i % 4)} style={{ flexGrow: t.count }} title={`${t.label}: ${t.count}`}>{t.count}</i>)}</div> : null)
-        : c.bands ? <BandStrip label={k === "shares" ? `Shares by ${model}` : "Funds by FundPulse"} bands={c.bands} notRated={k === "shares" ? d.health.shares?.notRated : (d.health.funds && !d.health.funds.locked ? d.health.funds.notRated : undefined)} /> : null}
+        : c.bands ? <BandStrip label={k === "shares" ? `Shares by ${model}` : "Funds by Mutual Fund Score"} bands={c.bands} notRated={k === "shares" ? d.health.shares?.notRated : (d.health.funds && !d.health.funds.locked ? d.health.funds.notRated : undefined)} /> : null}
       {k === "etfs" && c.types?.length ? <p className="mi-small">{c.types.map((t) => `${t.count} ${t.label}`).join(" · ")}</p> : null}
       <p className="mi-cap">{c.firstIs === "largest" ? "Largest" : "On your list"}</p>
       <p className="mi-small">{c.first.map((x) => x.name).join(" · ")}{c.count > 3 ? ` · +${c.count - 3} more` : ""}</p>
@@ -172,7 +172,7 @@ const FAQ: [string, string][] = [
   ["Why is there no profit or loss here?", "FinLit does not ask what you paid on this page, so it cannot work out a gain against cost. The 1-year change is how what you hold now has moved over the past year. Your gains are on each portfolio page."],
   ["Why is a company counted more than one way?", "You can own it directly and also through a fund or an ETF. The company table adds the ways together so you see your real share of it; Held shows D (direct), F (through a fund) and E (through an ETF)."],
   ["Why is the beta against the Nifty 500?", "Shares, funds and ETFs each have their own benchmark on their own pages. To add them up, this page measures every kind against one yardstick, the Nifty 500. Beta together is the sum of each kind's share of money times its beta."],
-  ["What does my plan show here?", "Silver: shares read with FinLit IQ, funds and ETFs. Gold: shares read with FinLit Prism, and each fund's FinLit FundPulse."],
+  ["What does my plan show here?", "Silver: shares read with FinLit IQ, funds and ETFs. Gold: shares read with FinLit Prism, and each fund's Mutual Fund Score."],
   ["Is anything sent to my broker?", "No. The lists stay in your FinLit account; nothing is sent to a broker."],
 ];
 function Faq() {

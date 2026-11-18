@@ -32,7 +32,7 @@
 .qb-sugg button b, .qb-opts button b { font-weight: 600; } .qb-sugg button small, .qb-opts button small { color: var(--muted); font-size: 12px; margin-right: auto; min-width: 0; overflow-wrap: anywhere; }
 .qb-sugg button.on, .qb-opts button.on, .qb-sugg button:hover, .qb-opts button:hover { background: var(--gold-soft); }
 .qb-hint { padding: 2px 10px; color: var(--faint); } .qb-none { padding: 10px; font-size: 13px; }
-.qb-lk { display: inline-flex; align-items: center; gap: 4px; font: 700 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--gold); background: var(--gold-soft); border-radius: 999px; padding: 3px 8px; margin-left: auto; white-space: nowrap; } .qb-lk svg { width: 11px; height: 11px; }
+.qb-lk { display: inline-flex; align-items: center; gap: 4px; font: 700 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--gold); background: var(--gold-soft); border-radius: 999px; padding: 3px 8px; margin-left: auto; white-space: nowrap; } .qb-lk svg { width: 11px; height: 11px; }
 
 /* problems */
 .qb-probs { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
@@ -42,7 +42,7 @@
 .qb-pi svg { width: 20px; height: 20px; } .qb-p.error .qb-pi { color: var(--loss); } .qb-p.warning .qb-pi { color: var(--warn); }
 .qb-pw { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: var(--fs-13); }
 .qb-pw code { font: 600 13px var(--mono); background: var(--s3); padding: 2px 7px; border-radius: 6px; overflow-wrap: anywhere; max-width: 100%; }
-.qb-kind { margin-left: auto; font: 700 11px var(--sans); text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.qb-kind { margin-left: auto; font: 700 12px var(--sans); text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
 .qb-p p { margin: 6px 0 0; font-size: 14px; line-height: 1.55; }
 .qb-fx { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; } .qb-fx:empty { display: none; }
 .qb-fix { border: 1px solid var(--gold); background: var(--gold-soft); color: var(--text); border-radius: 999px; padding: 6px 12px; font: 600 13px var(--sans); cursor: pointer; min-height: 32px; }

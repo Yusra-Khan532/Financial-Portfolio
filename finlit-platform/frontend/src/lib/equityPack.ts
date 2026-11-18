@@ -20,6 +20,8 @@ export type PeerLabel = "leader" | "in_line" | "laggard";
 export type Share = {
   symbol: string; industry: string | null; size: Size | null; chg: number | null; prism: number | null; prismWord: string | null; valuation: number | null; risk: number | null;
   st: number | null; lt: number | null; below52: number | null; m1: number | null;
+  /** Task #235 (pack B15): the trend words beside the scores ("Strong uptrend"). */
+  stWord?: string | null; ltWord?: string | null;
   /** Silver (task #183): the FinLit IQ, the server's word for it, and its technical pillar. */
   iq?: number | null; iqWord?: string | null; iqTech?: number | null;
   peer: { label: PeerLabel; raw: PeerLabel | null; rank: number; of: number; group: string; vs: number | null; bench: string; direction: "gaining" | "weakening" | null } | null;

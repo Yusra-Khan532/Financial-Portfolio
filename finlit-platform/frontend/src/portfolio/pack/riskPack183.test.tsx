@@ -46,11 +46,19 @@ describe("how the beta is built, and reading a beta (E73–E78)", () => {
   it("adds each size's part to the size-weighted beta, and shows the three beta figures", () => {
     view(<BetaBuild r={R} />);
     expect(document.querySelector(".eqr-sum")!.textContent).toMatch(/1\.82.*0\.10 \+ 0\.14 \+ 1\.58/);
+    // task #235 (pack B4): two cards always shown, then four tabs with By size open
+    expect(document.querySelector(".eqb-sum")!.textContent).toMatch(/Your list's beta1\.82.*Has moved about 18\.2% when its benchmarks moved 10%.*What adds up to 1\.82.*Small β 1\.98 × 80% = 1\.58/);
+    expect(screen.getAllByRole("tab").map((t) => `${t.querySelector("b")!.textContent}${t.getAttribute("aria-selected") === "true" ? "*" : ""}`)).toEqual(["By size*", "Where your shares sit", "Three ways to measure", "How it is worked out"]);
+    expect(document.querySelector(".eqr-steps")).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: /How it is worked out/ }));
+    expect(document.querySelector(".eqr-sum")).toBeNull();
     expect(Array.from(document.querySelectorAll(".eqr-steps b")).map((b) => b.textContent)).toEqual(["Sort by size", "Match a benchmark", "Beta for each share", "Average by size", "Weight by the list"]);
+    fireEvent.click(screen.getByRole("tab", { name: /Three ways to measure/ }));
     expect(Array.from(document.querySelectorAll(".eqr-b3 .eqr-v b")).map((b) => b.textContent)).toEqual(["1.82", "1.86", "1.13"]);
   });
   it("filters by size, lists at most 6 names per range with Show all, and places a tapped share on the scale", () => {
     view(<BetaBuild r={R} />);
+    fireEvent.click(screen.getByRole("tab", { name: /Where your shares sit/ }));
     const vh = document.querySelector(".eqr-range.r-very_high")!;
     expect(vh.querySelectorAll("li")).toHaveLength(6);
     fireEvent.click(within(vh as HTMLElement).getByRole("button", { name: "Show all 8 ▾" }));
@@ -80,8 +88,27 @@ describe("each size, the risk split, a 10% fall (E79–E81)", () => {
   });
   it("sizes a 10% fall from the betas and puts it on ₹10 lakh", () => {
     expect(fallLines(R)).toMatchObject({ weighted: -18.2, nifty: -11.3, rupee: "On ₹10 lakh, a 10% fall in every size index has meant roughly ₹1.82 lakh; a 10% fall in the Nifty 50 alone, roughly ₹1.13 lakh." });
-    view(<Fall10 r={R} />);
-    expect(screen.getByText("about −18.2%")).toBeTruthy(); expect(screen.getByText("about −11.3%")).toBeTruthy();
+    view(<Fall10 r={R} />);   // task #235 (pack B8): the two-card picture
+    const big = () => document.querySelector(".fx-big b")!.textContent;
+    expect(big()).toBe("−18.2%"); expect(screen.getByText("8.2 pts more than the market’s 10%")).toBeTruthy();
+    expect(document.querySelector(".fx-rs")!.textContent).toBe("In rupees−₹1.82 Lon ₹10 lakh");
+    fireEvent.click(screen.getByRole("button", { name: "Only the Nifty 50 falls" }));
+    expect(big()).toBe("−11.3%"); expect(document.querySelector(".fx")!.className).toContain("fx-noparts");
+  });
+  it("picks the size of the fall: 5%, 10% on load, the Nifty 50's worst in 3 years (the Risk tab's own figure), 20% (pack B8 v3)", () => {
+    view(<Fall10 r={R} value={{ now: 274_000, name: "Dhan" }} />);
+    const sizes = () => Array.from(document.querySelectorAll(".fx-size button")).map((b) => `${b.textContent}${b.getAttribute("aria-pressed") === "true" ? "*" : ""}`);
+    expect(sizes()).toEqual(["5%", "10%*", "14.9%the Nifty 50’s worst in 3 years", "20%"]);
+    expect(screen.getByRole("heading", { name: /If the market fell 10%/ })).toBeTruthy();
+    expect(document.querySelector(".fx-rs small")!.textContent).toBe("on your ₹2.74 L value now in Dhan");
+    fireEvent.click(document.querySelectorAll(".fx-size button")[2]);
+    expect(screen.getByRole("heading", { name: /If the market fell 14.9%/ })).toBeTruthy();
+    expect(document.querySelector(".fx-big b")!.textContent).toBe("−27.1%");   // 1.82 × 14.9
+    expect(document.querySelector(".fx-rs b")!.textContent).toBe("−₹74,254");   // 2,74,000 × 27.1%
+    expect(document.querySelector(".fx-note")!.textContent).toMatch(/^The market’s 14.9% fall\./);
+    const bars = document.querySelector(".fx-ch")!.getAttribute("aria-label")!;
+    expect(bars).toMatch(/^If the market fell 14.9%: Market −14.9%; Your list −27.1%; Large −14.2%/);
+    expect(document.querySelector(".fx-c.part")!.className).toContain("soft");   // Large 0.95: shallower than the market, amber
   });
 });
 

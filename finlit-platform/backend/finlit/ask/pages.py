@@ -354,7 +354,7 @@ TOOLS: List[Tool] = [
     Tool("get_india_economy", "India economy", "FinLit's India economy page: inflation (CPI, WPI, by spending group), GDP, IIP, jobs, the RBI's policy rates and decisions, "
          "the rupee, forex reserves, money supply and crude oil, each with its period and publisher, plus the page's own plain-words insights.", {}, get_india_economy),
     Tool("lookup_glossary", "Glossary", "FinLit's Glossary: what a term means, why it matters, how to use it, the formula, and how FinLit uses it (for example P/E, ROCE, "
-         "FinLit Prism, FundPulse, free cash flow). Use it for 'what is', 'what does ... mean' questions so the answer uses FinLit's own wording.",
+         "FinLit Prism, Mutual Fund Score, free cash flow). Use it for 'what is', 'what does ... mean' questions so the answer uses FinLit's own wording.",
          {"term": {"type": "string", "minLength": 1, "maxLength": 80, "description": "The term asked about"}}, lookup_glossary, ["term"]),
     Tool("get_insights_and_blogs", "Insights & blog", "FinLit's Insights & blog page: the research notes and explainers FinLit has published. With `query`: the matching posts, "
          "the best one with its text.", {"query": {"type": "string", "maxLength": 80, "description": "Words to look for"}}, get_insights_and_blogs),

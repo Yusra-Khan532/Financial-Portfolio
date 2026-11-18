@@ -143,8 +143,8 @@ describe("task #159: three landing cards", () => {
     expect(card("stock-screener").badge).toBe("SILVER");
     expect(card("company-report").badge).toBe("SILVER");
   });
-  it("the fund score card is called FinLit FundPulse", () => {
-    expect(card("fund-health-score").title).toBe("FinLit FundPulse");
+  it("the fund score card is called Mutual Fund Score", () => {
+    expect(card("fund-health-score").title).toBe("Mutual Fund Score");
     expect(card("fund-health-score").badge).toBe("GOLD");
   });
   it("the company report card says what the team wrote", () => {

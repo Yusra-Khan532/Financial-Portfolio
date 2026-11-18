@@ -61,7 +61,7 @@
    clarity." with a drawn underline, a light green main button, three features with round icons and a glowing curve along the bottom. */
 .hh-strip { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 0 0 clamp(26px, 4vw, 52px); font: 400 20px/1.25 var(--serif); color: var(--hh-hero-text); text-align: center; flex-wrap: wrap; }
 .hh-strip::before, .hh-strip::after { content: ""; flex: 0 1 110px; height: 1px; background: var(--hh-hero-line); }
-.hh-strip i { font-style: normal; color: var(--hh-g); opacity: .8; } .hh-strip em { font-style: normal; color: var(--hh-g); }
+.hh-strip i { font-style: normal; color: var(--hh-g); } .hh-strip em { font-style: normal; color: var(--hh-g); }
 .hh-top h1 { color: var(--hh-hero-text); }
 :root .hh .btn.hh-go:not(.primary) { border: 0; background: var(--hh-g-fill); color: var(--hh-on-g); box-shadow: 0 12px 28px -14px var(--hh-glow); }
 :root .hh .btn.hh-go:not(.primary):hover { filter: brightness(1.06); }
@@ -100,7 +100,7 @@
 /* Task #150 (14 Nov 2026): the FinLit Prism band's green is the background of the whole landing page in dark mode. It is one background on the page itself,
    held in place while the page scrolls, so every band (hero, the platform, Prism, plans) sits on the same green with no seam between them. Light mode is unchanged. */
 /* Task #206 (18 Nov 2026): the page itself takes the site's sage (styles/site-green.css); the hero keeps its own deep green-black panel (task #121). */
-:root[data-theme="dark"] .hh { --hh-hero-a: #1B4A34; --hh-hero-b: #0C2619; background: #23392F radial-gradient(110% 120% at 80% 0%, rgba(93, 153, 127, .42), #23392F 72%) fixed; }
+:root[data-theme="dark"] .hh { --hh-hero-a: #1B4A34; --hh-hero-b: #0C2619; background: #173125 radial-gradient(110% 120% at 80% 0%, rgba(93, 153, 127, .30), #173125 72%) fixed; }
 :root[data-theme="dark"] .hh .hh-top,
 :root[data-theme="dark"] .hh .xt,
 :root[data-theme="dark"] .hh .hpz,

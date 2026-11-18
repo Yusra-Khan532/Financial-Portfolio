@@ -2,13 +2,14 @@
    --hh- tokens of human-home.css), two feature items (task #149), and the Prism card drawn as the team's picture: cream, larger than the old picture (up to the
    page's full width). Hover or focus lights a feature item and its block in gold (the team's second picture). Font sizes stay on the type scale. */
 .hpz { --hpz-cream: #FBF7EE; --hpz-line: #E6DCC6; --hpz-ink: #1C1A15; --hpz-mute: #5B574D;
-  --hpz-gold: #B7791F; --hpz-gold-bg: #FBEFD5; --hpz-gold-fill: #E0A030;
+  --hpz-gold: #865A14; --hpz-gold-bg: #FBEFD5;   /* task #227: gold text 5.3:1 on its chip (was #B7791F, 3.2:1) */
+  --hpz-gold-fill: #E0A030;
   --hpz-red: #B42318; --hpz-red-bg: #FBE3E1; --hpz-red-fill: #D9483B;
   --hpz-green: #1E7A44; --hpz-green-bg: #E3F2E8; --hpz-green-fill: #2E9A5A;
   --hpz-glow: #E8C46A;
   position: relative; overflow: hidden; padding: clamp(40px, 5.5vw, 72px) 0 clamp(36px, 5vw, 64px); color: var(--hh-hero-text);
   background: radial-gradient(120% 90% at 85% 0%, var(--hh-hero-a), var(--hh-hero-b) 70%); }
-:root[data-theme="dark"] .hpz { background: radial-gradient(110% 120% at 80% 0%, rgba(93, 153, 127, .42), #23392F 72%); }   /* the page's sage (task #206), one band with no seam (task #150) */   /* the team's picture: a green band, a little lighter than the hero's green-black */
+:root[data-theme="dark"] .hpz { background: radial-gradient(110% 120% at 80% 0%, rgba(93, 153, 127, .30), #173125 72%); }   /* the page's sage (task #206), one band with no seam (task #150) */   /* the team's picture: a green band, a little lighter than the hero's green-black */
 .hpz-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(24px, 4vw, 56px); align-items: center; margin-bottom: clamp(24px, 3.4vw, 40px); }
 .hpz-pill { display: inline-flex; align-items: center; margin: 0 0 14px; padding: 4px 12px; border: 1px solid var(--hh-g); border-radius: 999px; font: 700 12px var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--hh-g); }
 .hpz-title h2 { margin: 0; max-width: 27ch; font: 400 clamp(28px, 3vw, 40px)/1.15 var(--serif); letter-spacing: -.01em; color: var(--hh-hero-text); text-wrap: balance; }

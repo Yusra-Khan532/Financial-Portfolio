@@ -34,7 +34,7 @@
 .h2h-period .seg { padding: 4px; border-radius: 14px; }
 .h2h-period .seg button { flex-direction: column; gap: 0; padding: 7px 26px; border-radius: 10px; line-height: 1.15; }
 .h2h-period .seg button b { font-size: var(--fs-16); font-weight: 700; }
-.h2h-period .seg button small { font-size: 11px; font-weight: 500; opacity: .75; }
+.h2h-period .seg button small { font-size: 12px; font-weight: 500; }
 .h2h .seg button:disabled { opacity: .4; cursor: not-allowed; }
 
 /* ---- "Compare what matters": the four dimension cards ---- */
@@ -118,9 +118,9 @@
 .h2h-rb-bar { position: absolute; top: 3px; bottom: 3px; border-radius: 99px; min-width: 4px; }
 .h2h-rb-med { position: absolute; top: -3px; width: 5px; height: 24px; margin-left: -2.5px; border-radius: 3px; background: #fff; border: 1.5px solid var(--text); box-sizing: border-box; }
 .h2h-rb-vals { display: flex; gap: 12px; align-items: baseline; font-size: var(--fs-13); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.h2h-rb-vals b { color: var(--text); font-size: 14px; } .h2h-rb-vals b small { font-size: 11px; font-weight: 400; color: var(--faint); }
+.h2h-rb-vals b { color: var(--text); font-size: 14px; } .h2h-rb-vals b small { font-size: 12px; font-weight: 400; color: var(--faint); }
 .h2h-rb-row.axis { margin-top: -4px; }
-.h2h-rb-scale { position: relative; height: 16px; font-size: 11px; color: var(--faint); }
+.h2h-rb-scale { position: relative; height: 16px; font-size: 12px; color: var(--faint); }
 .h2h-rb-scale span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
 .h2h-rb-scale span:first-child { transform: none; } .h2h-rb-scale span:last-child { transform: translateX(-100%); }
 

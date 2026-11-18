@@ -145,7 +145,7 @@ export function SharesTable(p: Props) {
     const name = l.name || (isReady(h) ? h.name : "") || m?.name || "";
     const weak = ov && scoreOf(h, model).band === "lo";
     return (
-      <tr key={l.symbol} className={[indent ? "ind" : "", weak ? "eq-weakrow" : ""].join(" ").trim() || undefined}>
+      <tr key={l.symbol} data-sym={l.symbol} className={[indent ? "ind" : "", weak ? "eq-weakrow" : ""].join(" ").trim() || undefined}>
         <td className="pfx-name"><Link to={`/stocks/${l.symbol}`} className="pfx-co"><CoLogo symbol={l.symbol} size={22} inline /><b>{l.symbol}</b></Link>{letter.has(l.symbol) && <span className="pfx-letter sm" title={`Group ${letter.get(l.symbol)}`}>{letter.get(l.symbol)}</span>}<small>{pk ? (pk.industry ?? name) : name}</small></td>
         {ov && <td>{sizeOf(l.symbol) ?? MINUS}</td>}
         {ov && (p.lots ? <HoldingRowCells p={p.lots} symbol={l.symbol} priceCell={isReady(h) ? cell(h, PRICE_COL) : <td className="x-c2 x-gs cg-h" />} changeCell={isReady(h) ? cell(h, CHANGE_COL) : <td className="x-c2 cg-h" />} />

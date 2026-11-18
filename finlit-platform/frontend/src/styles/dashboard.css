@@ -20,7 +20,7 @@
 
 /* greeting */
 .dsh-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 4px 4px 8px; }
-.dsh-kicker { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--d-acc); }
+.dsh-kicker { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--d-acc); }
 .dsh h1 { margin: 6px 0 4px; font: 600 32px/1.15 var(--font-serif, "Source Serif 4", Georgia, serif); color: var(--d-ink); }
 .dsh-meta { margin: 0; font-size: 14px; color: var(--d-mut2); }
 .dsh-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -58,7 +58,7 @@
 .dsh-fine { margin: 0; padding: 0 4px; font-size: 12px; color: var(--d-mut); }
 .dsh-sk { display: flex; flex-direction: column; gap: 8px; }
 .dsh-lh { margin: 16px 0 6px; font-size: 12px; font-weight: 600; color: var(--d-mut2); } .dsh-lh.first { margin-top: 4px; }
-.dsh-new { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--d-acc); border: 1px solid var(--d-line); border-radius: 999px; padding: 3px 10px; }
+.dsh-new { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--d-acc); border: 1px solid var(--d-line); border-radius: 999px; padding: 3px 10px; }
 .dsh-dot { display: inline-block; width: 8px; height: 8px; border-radius: 4px; background: var(--d-mut); margin-right: 6px; } .dsh-dot.on { background: var(--d-up); }
 .dsh-empty { padding: 8px 0; } .dsh-empty b { font-size: 16px; } .dsh-empty p { margin: 4px 0 12px; color: var(--d-mut2); }
 .dsh-search { width: 100%; max-width: 420px; height: 40px; text-align: left; padding: 0 12px; border-radius: 10px; border: 1px solid var(--d-line); background: var(--d-field); color: var(--d-mut); font: 400 14px var(--font-sans, Inter, sans-serif); cursor: pointer; }
@@ -276,7 +276,7 @@
   box-shadow: 0 1px 2px rgba(28, 26, 21, 0.12);
 }
 .dsh-ys-tabs .n {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   padding: 1px 6px;
   border-radius: 999px;
@@ -293,7 +293,7 @@
   gap: 8px;
 }
 .dsh-held {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   line-height: 1;
   padding: 3px 8px;
@@ -388,7 +388,7 @@
 .dsh-fbars-x {
   grid-template-columns: 34px minmax(0, 1fr) auto;
   margin-top: 4px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--d-mut);
 }
 
@@ -614,7 +614,7 @@
 .dsh-ic-g.up .dsh-ic-gl { color: var(--gain); } .dsh-ic-g.down .dsh-ic-gl { color: var(--loss); }
 .dsh-ic-g ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .dsh-ichip { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 3px 10px; border-radius: 99px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: 600 var(--fs-12)/1.2 var(--sans); text-decoration: none; }
-.dsh-ichip small { font: 500 var(--fs-11)/1 var(--mono); color: var(--muted); }
+.dsh-ichip small { font: 500 var(--fs-12)/1 var(--mono); color: var(--muted); }
 .dsh-ic-g.up .dsh-ichip { border-color: color-mix(in srgb, var(--gain) 45%, transparent); background: var(--gain-soft); }
 .dsh-ic-g.down .dsh-ichip { border-color: color-mix(in srgb, var(--loss) 45%, transparent); background: var(--loss-soft); }
 .dsh-ichip:hover { border-color: var(--gold); }
@@ -625,7 +625,7 @@
 @media (min-width: 760px) {
   .dsh-inv .dsh-st-h, .dsh-inv .dsh-st-r { grid-template-columns: minmax(200px, 2.2fr) minmax(96px, .8fr) minmax(96px, .9fr) minmax(76px, .7fr) minmax(76px, .7fr) minmax(150px, 1.3fr) minmax(76px, .7fr); }
 }
-.dsh-ty { display: inline-block; padding: 3px 8px; border-radius: 6px; font: 700 var(--fs-11)/1.2 var(--sans); letter-spacing: .06em; text-transform: uppercase; background: var(--d-tile); color: var(--d-mut); white-space: nowrap; }
+.dsh-ty { display: inline-block; padding: 3px 8px; border-radius: 6px; font: 700 var(--fs-12)/1.2 var(--sans); letter-spacing: .06em; text-transform: uppercase; background: var(--d-tile); color: var(--d-mut); white-space: nowrap; }
 .dsh-ty.share { background: color-mix(in srgb, #2F5A9E 14%, transparent); color: #2F5A9E; }
 .dsh-ty.mf { background: var(--gain-soft); color: var(--gain); }
 .dsh-ty.etf { background: color-mix(in srgb, #2F5F66 16%, transparent); color: #2F5F66; }

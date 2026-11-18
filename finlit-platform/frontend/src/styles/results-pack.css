@@ -53,7 +53,7 @@
 .rs-cardbar { display: flex; justify-content: flex-end; margin: 0 0 8px; }
 /* the quarter dropdown */
 .rs-qdd { position: relative; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.rs-qlab { font: 600 var(--fs-label)/var(--lh-11) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--sp-mute); }
+.rs-qlab { font: 600 var(--fs-label)/var(--lh-12) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--sp-mute); }
 .rs-qbtn { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; min-height: 40px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--sp-panel);
   font: 400 var(--fs-small)/1.2 var(--sans); color: var(--sp-mute); cursor: pointer; text-align: left; }
 .rs-qbtn b { font: 700 var(--fs-body)/1 var(--sans); color: var(--sp-ink); } .rs-qbtn .c { padding-left: 10px; border-left: 1px solid var(--sp-line); }
@@ -104,7 +104,7 @@
 .rs-gh h3 { margin: 0; font: 600 var(--fs-card-title)/var(--lh-18) var(--serif); } .rs-gh p { margin: 2px 0 0; font-size: var(--fs-small); }
 .rs-ghide { flex: none; } .rs-gnone { margin: 10px 0 0; font-size: var(--fs-small); }
 .rs-gbody { display: grid; gap: 18px; margin-top: 14px; }
-.rs-glab { margin: 0 0 8px; font: 700 var(--fs-label)/var(--lh-11) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--sp-mute); }
+.rs-glab { margin: 0 0 8px; font: 700 var(--fs-label)/var(--lh-12) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--sp-mute); }
 .rs-glab span { font: 400 var(--fs-caption)/var(--lh-12) var(--sans); letter-spacing: 0; text-transform: none; }
 .rs-gstack { display: flex; height: 12px; gap: 2px; border-radius: 99px; overflow: hidden; background: var(--s2); } .rs-gstack i { display: block; height: 100%; min-width: 3px; }
 .rs-gsz { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 10px 0 0; padding: 0; list-style: none; }
