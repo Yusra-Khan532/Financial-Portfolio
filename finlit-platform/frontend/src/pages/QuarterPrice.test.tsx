@@ -192,10 +192,13 @@ describe("the table columns", () => {
     st.resp = resp({ total: 1, rows: [mk()], priceStrip: { companies: 157, have52: 150, near52: 34, haveAth: 140, nearAth: 12 } });
     open();
     expect(screen.getByText(/companies are within 5% of their 52-week high/).textContent).toContain("34 of 150 companies are within 5% of their 52-week high; 12 of 140 are within 5% of their all-time high.");
+    // task #224 (A1): every heading's first click is high to low, the second low to high, the third the page's own order
+    fireEvent.click(screen.getByRole("button", { name: /Below 52-week high/ }));
+    expect(lastParams()).toMatchObject({ sort: "below52", dir: "desc" });
     fireEvent.click(screen.getByRole("button", { name: /Below 52-week high/ }));
     expect(lastParams()).toMatchObject({ sort: "below52", dir: "asc" });
     fireEvent.click(screen.getByRole("button", { name: /Below 52-week high/ }));
-    expect(lastParams()).toMatchObject({ sort: "below52", dir: "desc" });
+    expect(lastParams()).toMatchObject({ sort: "date", dir: "desc" });
   });
   it("Basic sees a dash and the Silver message, not a figure", () => {
     st.plan = "basic";

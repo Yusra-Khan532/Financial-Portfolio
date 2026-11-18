@@ -1,5 +1,7 @@
 import { titleOf } from "../lib/companyLabel";
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
+import { SortTh } from "../components/SortTh";
+import { nextSort, type SortState } from "../lib/tableSort";
 import { Link, useSearchParams } from "react-router";
 import { SIDE, SplitDivider, useSideWidth } from "../components/SplitDivider";
 import { Icon } from "../lib/icons";
@@ -36,6 +38,9 @@ const SORTS: [string, string, boolean][] = [   // value, label, needs Silver
   ["marginChange", "Net margin change", true], ["gap", "Sales vs profit gap", true], ["revenue", "Revenue", true], ["netProfit", "Net profit", true],
   ["below52", "Below 52-week high", true], ["belowAth", "Below all-time high", true],
 ];
+/** Task #224: the sorts a table heading can choose that the Sort-by list does not hold, named in that list while they are on. */
+const HEAD_WORD: Record<string, string> = { company: "Company name", revenueQoQ: "Revenue growth (QoQ)", operatingProfit: "Operating profit", opYoY: "Operating profit growth (YoY)",
+  opQoQ: "Operating profit growth (QoQ)", opm: "Operating margin", profitQoQ: "Profit growth (QoQ)", npm: "Net margin", eps: "EPS", verdict: "Verdict" };
 const INDICES: [string, string][] = [["NIFTY50", "NIFTY 50"], ["NIFTY100", "NIFTY 100"], ["NIFTY500", "NIFTY 500"]];
 const STATUSES: [string, string][] = [["", "Any status"], ["declared", "Figures in"], ["awaiting", "Report being updated"], ["due", "Due"]];
 const CAPS = [["", "Any size"], ["Large", "Large cap"], ["Mid", "Mid cap"], ["Small", "Small cap"]];
@@ -102,14 +107,6 @@ function Detail({ r, fiscal, line }: { r: QRow; fiscal?: string; line: string })
   );
 }
 
-function SortTh({ k, first, sort, dir, onSort }: { k: PriceKey; first: boolean; sort?: string; dir?: "asc" | "desc"; onSort: (v: string) => void }) {
-  const v = k === "w52" ? "below52" : "belowAth", on = sort === v, label = k === "w52" ? "Below 52-week high" : "Below all-time high";
-  return (
-    <th scope="col" className={"qg4" + (first ? " qgs" : "")} aria-sort={on ? (dir === "asc" ? "ascending" : "descending") : "none"}>
-      <button type="button" className="qr-sorth" onClick={() => onSort(v)} title={`Sort by distance below the ${PRICE_WORD[k]}; click again to reverse`}>{label}<span aria-hidden="true">{on ? (dir === "asc" ? " ↑" : " ↓") : ""}</span></button>
-    </th>
-  );
-}
 
 const rsv = (v: number | null | undefined) => (v == null ? "" : "Rs" + nf(v, 2));
 const dayOf = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
@@ -271,7 +268,17 @@ export function QuarterResultsPage() {
     if (SORTS.find((s) => s[0] === v)?.[2] && !silver) return need("Sorting by growth and margin is part of the Silver plan.");
     set({ sort: v, dir: v === "date" || v === "marketCap" || v.endsWith("YoY") || v === "gap" || v === "revenue" || v === "netProfit" || v === "marginChange" ? "desc" : "asc" });
   };
-  const sortBy = (v: string) => (f.sort === v ? set({ dir: f.dir === "asc" ? "desc" : "asc" }) : setSort(v));
+  // task #224 (results pack of 18 Nov, A1): every heading sorts, on the server, so the order covers every page. First click: numbers high to low, the company
+  // name A to Z; second click: the other way; third: back to the page's own order (the most recently declared first). Figures need Silver, as before.
+  const TEXT_KEYS = new Set(["company"]);
+  const headSort: SortState = f.sort && f.sort !== "date" ? { key: f.sort, dir: TEXT_KEYS.has(f.sort) ? (f.dir === "asc" ? "desc" : "asc") : (f.dir === "asc" ? "asc" : "desc") } : null;
+  const onHead = (k: string) => {
+    const nx = nextSort(headSort, k);
+    if (!nx) return set({ sort: "date", dir: "desc" });
+    if (!["company", "marketCap"].includes(k) && !silver) return need("Sorting by results figures is part of the Silver plan.");
+    set({ sort: k, dir: TEXT_KEYS.has(k) ? (nx.dir === "desc" ? "asc" : "desc") : nx.dir });
+  };
+  const QH = (k: string, l: ReactNode, cls?: string, after?: ReactNode, rowSpan?: number) => <SortTh key={k} k={k} label={l} className={cls} after={after} rowSpan={rowSpan} sort={headSort} onSort={onHead} />;
   const setScope = (scope: "all" | "watchlist" | "portfolio") => {
     if (scope !== "all" && !user) return need("Sign in to see only your watchlist or portfolio.");
     set({ scope });
@@ -395,7 +402,7 @@ export function QuarterResultsPage() {
             <button className="btn" type="submit">Find</button>
           </form>
           <label className="wl-sel"><span>Sort by</span>
-            <select value={f.sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort by">{SORTS.map(([v, l, s]) => <option key={v} value={v}>{l}{s && !silver ? " (Silver)" : ""}</option>)}</select></label>
+            <select value={f.sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort by">{SORTS.map(([v, l, s]) => <option key={v} value={v}>{l}{s && !silver ? " (Silver)" : ""}</option>)}{f.sort && !SORTS.some(([v]) => v === f.sort) && <option value={f.sort}>{HEAD_WORD[f.sort] ?? "The column you chose"}</option>}</select></label>
           <button type="button" className="btn qr-dir" aria-label={f.dir === "desc" ? "Highest first" : "Lowest first"} onClick={() => set({ dir: f.dir === "desc" ? "asc" : "desc" })}>{grouped ? (f.dir === "desc" ? "Newest first" : "Oldest first") : f.dir === "desc" ? "High to low" : "Low to high"}</button>
           <span className="qr-flagged"><label className="sw"><input type="checkbox" checked={!!f.flagged} onChange={(e) => (silver ? set({ flagged: e.target.checked }) : need("The sales-and-profit flag is part of the Silver plan."))} /><span aria-hidden="true" /><b>Only flagged</b></label><ChartHelp id="qr-gap" /></span>
           <button type="button" className="btn qr-csv" onClick={exportCsv}><Icon name="table" /> CSV{silver ? "" : " (Silver)"}</button>
@@ -434,8 +441,9 @@ export function QuarterResultsPage() {
           <HScroll label="results table" className="qr-scroll">
             <table className="qtt qr-t">
               <thead>
-                <tr className="qr-grp"><th rowSpan={2} scope="col">Company</th><th colSpan={3} scope="colgroup" className="qg1 qgs">Revenue</th><th colSpan={4} scope="colgroup" className="qg2 qgs">Operating profit</th><th colSpan={4} scope="colgroup" className="qg3 qgs">Net profit</th><th rowSpan={2} scope="col" className="qgs">EPS</th><th rowSpan={2} scope="col" className="qgs">Verdict<ChartHelp id="qr-verdict" /></th><th colSpan={2} scope="colgroup" className="qg4 qgs">Price position</th></tr>
-                <tr><th scope="col" className="qg1 qgs">Rs Cr</th><th scope="col" className="qg1">YoY</th><th scope="col" className="qg1">QoQ</th><th scope="col" className="qg2 qgs">Rs Cr</th><th scope="col" className="qg2">YoY</th><th scope="col" className="qg2">QoQ</th><th scope="col" className="qg2">OPM</th><th scope="col" className="qg3 qgs">Rs Cr</th><th scope="col" className="qg3">YoY</th><th scope="col" className="qg3">QoQ</th><th scope="col" className="qg3">NPM</th>{PRICE_KEYS.map((k, i) => <SortTh key={k} k={k} first={i === 0} sort={f.sort} dir={f.dir} onSort={sortBy} />)}</tr>
+                <tr className="qr-grp">{QH("company", "Company", undefined, undefined, 2)}<th colSpan={3} scope="colgroup" className="qg1 qgs">Revenue</th><th colSpan={4} scope="colgroup" className="qg2 qgs">Operating profit</th><th colSpan={4} scope="colgroup" className="qg3 qgs">Net profit</th>{QH("eps", "EPS", "qgs", undefined, 2)}{QH("verdict", "Verdict", "qgs", <ChartHelp id="qr-verdict" />, 2)}<th colSpan={2} scope="colgroup" className="qg4 qgs">Price position</th></tr>
+                <tr>{QH("revenue", "Rs Cr", "qg1 qgs")}{QH("revenueYoY", "YoY", "qg1")}{QH("revenueQoQ", "QoQ", "qg1")}{QH("operatingProfit", "Rs Cr", "qg2 qgs")}{QH("opYoY", "YoY", "qg2")}{QH("opQoQ", "QoQ", "qg2")}{QH("opm", "OPM", "qg2")}{QH("netProfit", "Rs Cr", "qg3 qgs")}{QH("profitYoY", "YoY", "qg3")}{QH("profitQoQ", "QoQ", "qg3")}{QH("npm", "NPM", "qg3")}
+                  {PRICE_KEYS.map((k, i) => QH(k === "w52" ? "below52" : "belowAth", k === "w52" ? "Below 52-week high" : "Below all-time high", "qg4" + (i === 0 ? " qgs" : "")))}</tr>
               </thead>
               <tbody>{body}</tbody>
             </table>

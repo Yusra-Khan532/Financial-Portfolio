@@ -37,7 +37,7 @@ const open = (at = "/results") => render(<QueryClientProvider client={new QueryC
 describe("Results calendar (pack 10, 15 Nov changes: task #193)", () => {
   it("has the view switch, four calendar tiles with dropdowns (the quarter tiles are gone), the one-line quarter link, the calendar, the day and the week ahead", () => {
     open();
-    expect(within(screen.getByRole("group", { name: "View" })).getByRole("link", { name: "Calendar" }).getAttribute("aria-current")).toBe("page");
+    expect(within(screen.getByRole("navigation", { name: /Choose a view/ })).getByRole("link", { name: /^Calendar/ }).getAttribute("aria-current")).toBe("page");
     expect(document.querySelectorAll(".rsc-tiles .dtl").length).toBe(4);
     expect(document.querySelectorAll(".ip-tile").length).toBe(0);
     expect([...document.querySelectorAll(".rsc-tiles .dtl-k")].map((x) => x.textContent)).toEqual(["Declared so far", "Due in the next 7 days", "Your companies", "Last full day · SAT 7 NOV"]);
@@ -78,7 +78,7 @@ describe("Results calendar (pack 10, 15 Nov changes: task #193)", () => {
     open();
     const week = document.getElementById("rs-week")!.closest("section")!;
     expect(within(week).getByRole("heading", { name: /Coming up this week · 2 companies/ })).toBeTruthy();
-    expect([...week.querySelectorAll("thead th")].map((t) => t.textContent?.replace(/i$/, ""))).toEqual(["Day", "Company", "Industry", "Size", "Market value", "Industry so far", "Typical profit growth"]);
+    expect([...week.querySelectorAll("thead th")].map((t) => t.textContent?.replace(/i$/, "").replace(/[↕▲▼]/g, "").replace(/i$/, ""))).toEqual(["Day", "Company", "Industry", "Size", "Market value", "Industry so far", "Typical profit growth"]);
     expect(within(week).getByText("BLSPOLY")).toBeTruthy();                                         // its figures are in, its board date is still to come
     expect(within(week).getByText("Figures already filed")).toBeTruthy();
     expect(within(week).getByText("103 of 148 reported")).toBeTruthy();

@@ -95,8 +95,9 @@ describe("the Industries table", () => {
     const t = document.querySelector("table.rs-it") as HTMLElement;
     const [bands, cols] = within(t).getAllByRole("row");
     expect(Array.from(bands.querySelectorAll("th.kit-band")).map((x) => x.textContent)).toEqual(["Results this quarter", "Share prices now", "Together"]);
-    expect(Array.from(cols.querySelectorAll("th")).map((x) => x.textContent)).toEqual(["Group", "Vs marketi", "Revenue growthi", "Profit growthi", "Beat their industryi", "Sector Rotationi", "Sector Pulsei", "Results and pricesi"]);
+    expect(Array.from(cols.querySelectorAll("th")).map((x) => x.textContent?.replace(/[↕▲▼]/g, ""))).toEqual(["Group", "Vs marketi", "Revenue growthi", "Profit growthi", "Beat their industryi", "Sector Rotationi", "Sector Pulsei", "Results and pricesi"]);
     expect(t.textContent).not.toMatch(/Doing well|Agree\?|Share prices[^ ]/);
+    expect(cols.querySelectorAll("th[aria-sort] button.ts-b")).toHaveLength(8);   // task #224: every heading sorts
   });
   it("opens Finance under its own row by default, one row at a time, by click, Enter or Space", () => {
     view();
