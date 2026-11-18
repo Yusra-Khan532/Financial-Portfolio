@@ -178,6 +178,16 @@ describe("task #137: All my investments (15 Nov pack)", () => {
     expect(st.sends.find(([, p]) => p === "/api/me/etf-portfolio/quantities")?.[2]).toEqual({ items: [{ symbol: "NIFTYBEES", qty: "300" }, { symbol: "GOLDBEES", qty: "400" }, { symbol: "MON100", qty: "40" }] });
     await waitFor(() => expect(st.sends.filter(([, p]) => p === "/api/me/all-investments").length).toBeGreaterThan(before));
   });
+  it("#217: a share with several buys is one line, showing their total, and is changed in its buy history on the Equity portfolio", async () => {
+    portfolio.add({ symbol: "HDFCBANK", qty: 10, price: 1600, date: "2026-01-02", owned: true });
+    portfolio.update(portfolio.get().holdings[0].id, { owned: true, price: 1500, date: "2025-05-01" });
+    st.answer = noQty();
+    mount(); await screen.findByText("Where your money sits");
+    fireEvent.click(screen.getAllByRole("button", { name: "Add quantities" })[0]);
+    const dlg = await screen.findByRole("dialog", { name: "Quantities" });
+    expect(within(dlg).getAllByText("HDFCBANK")).toHaveLength(1);
+    expect(within(dlg).getByText("2 buys: change them in the buy history on the Equity portfolio")).toBeTruthy();
+  });
   it("D24, D25: Silver reads shares with FinLit IQ, Gold with FinLit Prism; Basic sees the plan gate", async () => {
     const s = withQty(); s.plan = "silver"; st.answer = s; st.plan = "silver";
     mount(); await screen.findByText("Every company you own, counted once");

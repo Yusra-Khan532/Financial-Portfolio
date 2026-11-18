@@ -841,8 +841,9 @@ async def put_watchlist(request: Request, body: WatchlistIn, ctx: Ctx = Depends(
 async def put_portfolio(request: Request, body: PortfolioIn, ctx: Ctx = Depends(secure_ctx)):
     need_plan(ctx, "silver")
     cap = limits_for(ctx.plan)["holdings"]
-    if len(body.holdings) > cap:
-        raise fail(403, "plan_limit", f"Your plan includes {cap} holdings.", plan="gold")
+    shares = len({h.symbol for h in body.holdings})          # task #217: the limit counts shares; each buy of a share is its own row (at most 500 rows)
+    if shares > cap:
+        raise fail(403, "plan_limit", f"Your plan includes {cap} shares.", plan="gold")
     ids = [h.id for h in body.holdings]
     if len(set(ids)) != len(ids):
         raise fail(422, "duplicate_holding")
