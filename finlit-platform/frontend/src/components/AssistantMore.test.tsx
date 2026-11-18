@@ -226,6 +226,17 @@ describe("written answers from FinLit AI (task #211)", () => {
     expect(screen.getByText("Information only, not investment advice.")).toBeTruthy();
     expect(ask).not.toHaveBeenCalled();
   });
+  it("a written answer ends with links to the FinLit pages it read, this site's pages only (task #218)", async () => {
+    ai.user = { id: "u1" }; ai.quota = { enabled: true, signedIn: true, limit: 50, used: 12, left: 38, resets: "2026-12-01" };
+    ai.events = [{ type: "text", text: "Reliance's investor presentation of 30 Oct 2026 gives Jio's ARPU as Rs 210 (page 3)." },
+      { type: "done", disclaimer: "Information only, not investment advice.", sources: ["get_company_card", "read_company_document"],
+        pages: [{ to: "/stocks/RELIANCE", label: "RELIANCE company report" }, { to: "/documents", label: "Documents" }, { to: "https://evil.example", label: "Elsewhere" }, { to: "//evil.example", label: "Elsewhere" }] }];
+    open();
+    await typeAndSend("Your question for FinLit AI", "What does the latest investor presentation say about Jio's ARPU?");
+    const row = document.querySelector(".aif-acts")!;
+    expect(within(row as HTMLElement).getByText("Read on FinLit")).toBeTruthy();
+    expect([...row.querySelectorAll("a")].map((a) => [a.getAttribute("href"), a.textContent?.trim()])).toEqual([["/stocks/RELIANCE", "RELIANCE company report"], ["/documents", "Documents"]]);
+  });
   it("a listed question still answers at once from FinLit's figures, without using a written answer", async () => {
     ai.user = { id: "u1" }; ai.quota = { enabled: true, signedIn: true, limit: 50, used: 0, left: 50, resets: "2026-12-01" };
     open();

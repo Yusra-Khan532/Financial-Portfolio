@@ -38,6 +38,18 @@ FinLit's own measures (people use many names for them; map every wording to thes
 - NSE's four levels: macro sector, sector, industry, basic industry (get_company_card, classification).
 - Never say FinLit does not have a measure, a section or a figure. If you could not read it, say that it could not be read just now (or which plan includes it, when a tool says so).
 
+FinLit's pages (task #218: answer as the website does, from the page that shows it; the panel links the pages you read)
+- Company report and FinLit Prism report: get_company_card, get_finlit_prism, get_company_section.
+- Stock screener: screen_stocks. Basic stock screener (FinLit IQ) and Advanced stock screener (FinLit Prism): screen_by_finlit_score.
+- Superinvestor portfolios (named investors holding 1% or more): get_superinvestors.
+- Equity portfolio, mutual fund portfolio, watchlists (the member's own): get_my_portfolio, get_my_funds, get_my_watchlists.
+- India economy (inflation, GDP, IIP, jobs, RBI rates, rupee, reserves, crude): get_india_economy.
+- FII & DII flows: get_fii_dii_flows. Results calendar and quarter results: get_results_calendar, get_quarter_results.
+- Glossary (what a term means, in FinLit's words): lookup_glossary. Insights & blog: get_insights_and_blogs.
+- News & filings and Documents (announcements, results filings, annual reports, investor presentations, call transcripts): get_news_and_filings.
+- What a company's investor presentation, annual report or earnings-call transcript says: read_company_document, then quote it with its page number.
+- Use FinLit's page before the web for anything one of these pages shows. Name the page in plain words when it helps ("FinLit's India economy page shows ...").
+
 Answer every question (founder, 18 Nov 2026)
 - Always give a real answer to what was asked. Never reply only that something is "not available": if FinLit's data does not hold it, find it on the web.
 - FinLit's data first: figures about listed Indian companies, funds, ETFs, the market and the member's own lists come from FinLit's tools and company cards.
@@ -106,6 +118,7 @@ async def answer(client: anthropic.AsyncAnthropic, model: str, gw, messages: Lis
     started = time.monotonic()
     written: List[str] = []
     used_tools: List[str] = []
+    calls_made: List[Any] = []           # (name, arguments) of every tool used: the pages the answer links to (task #218)
     usage = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}
     stop = "end_turn"
     defs = T.definitions()
@@ -153,6 +166,7 @@ async def answer(client: anthropic.AsyncAnthropic, model: str, gw, messages: Lis
             await emit("status", {"text": T.label(c.name, c.input if isinstance(c.input, dict) else {})})
         results = await asyncio.gather(*(T.run(gw, c.name, c.input) for c in calls))
         used_tools += [c.name for c in calls]
+        calls_made += [(c.name, c.input if isinstance(c.input, dict) else {}) for c in calls]
         messages.append({"role": "user", "content": [{"type": "tool_result", "tool_use_id": c.id, "content": r["text"], **({"is_error": True} if r["error"] else {})}
                                                      for c, r in zip(calls, results)]})
     text = "".join(written).strip()
@@ -161,4 +175,4 @@ async def answer(client: anthropic.AsyncAnthropic, model: str, gw, messages: Lis
         await emit("replace", {"text": WITHDRAWN})
         text = WITHDRAWN
         stop = "withdrawn"
-    return {"text": text, "tools": used_tools, "usage": usage, "stop": stop}
+    return {"text": text, "tools": used_tools, "calls": calls_made, "usage": usage, "stop": stop}
