@@ -146,7 +146,7 @@ async def test_silver_reads_the_page_but_cannot_run_compare_or_ask_for_a_peer(ap
 
 async def test_a_bank_and_a_small_company_say_why_they_are_not_covered(app):  # noqa: F811
     silver = await signed_in(app, "sc@example.com", plan="silver")
-    for sym, words in (("BANKX", "financial companies"), ("SMALLCO", "large and mid caps")):
+    for sym, words in (("BANKX", "financial companies"), ("SMALLCO", "large, mid and small caps for now (a market value of Rs 10,000 Cr or more), not micro caps")):   # task #262: SMALLCO (Rs 500 Cr) is a micro cap
         r = await silver.get(f"/api/stress/{sym}/page")
         d = r.json()
         assert r.status_code == 404 and words in json.dumps(d), (sym, d)

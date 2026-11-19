@@ -37,7 +37,7 @@ GOLD_RE = re.compile(r"\b(gold|silver)\b", re.I)
 ABROAD_RE = re.compile(r"\b(foreign|overseas|international|global|nasdaq|s&p|us equity|world)\b", re.I)
 TYPE_BUCKET = {"gold": "gold", "silver": "gold", "debt": "debt", "liquid": "debt", "international": "abroad"}   # an ETF whose kind fixes what it holds
 
-# Company sizes by FinLit's fixed amounts (README step 3): large above Rs 50,000 Cr, small below Rs 10,000 Cr.
+# Company sizes by FinLit's one rupee rule (finlit/sizes.py, task #262): large above Rs 75,000 Cr, mid 25,000-75,000, small 10,000-25,000, micro below 10,000.
 from ..sizes import SIZES as _FOUR, size_of as _size_of
 SIZES = _FOUR + ("Listed abroad", "Not sized")   # task #262: four sizes (finlit/sizes.py), then the two that are not sized by FinLit
 

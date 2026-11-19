@@ -37,7 +37,7 @@ def syms(body):
 # ---------------------------------------------------------------------------------------------------------------- registry
 def test_registry_shape_names_and_rules():
     live = [p for p in ADVANCED if p.status == "live" and p.kind not in ("pattern", "gainers")]       # the eleven Chart patterns screens are checked in their own test
-    assert len(live) == 33 and [p.id for p in ADVANCED if p.status == "blocked"] == ["psu-stocks"] and len(QUICK_VIEWS) == 4
+    assert len(live) == 34 and [p.id for p in ADVANCED if p.status == "blocked"] == ["psu-stocks"] and len(QUICK_VIEWS) == 4
     assert len({p.id for p in ALL}) == len(ALL)
     for p in ALL:
         text = (p.name + " " + p.card_text).lower()
@@ -52,11 +52,11 @@ def test_registry_shape_names_and_rules():
                 assert analyze(line, "gold").ok, (p.id, line)
             for rule, _ in c.effect.get("derived_add", ()):
                 expr.parse(rule)
-    tops = [BY_ID[f"highest-rated-{k}"] for k in ("large", "mid", "small")]
+    tops = [BY_ID[f"highest-rated-{k}"] for k in ("large", "mid", "small", "micro")]   # task #262: four sizes, four top screens
     assert all(p.limit == 10 and p.top10 and p.sector_cap == 3 and abs(sum(w for _, w in p.rank_score) - 1.0) < 1e-9 for p in tops)
-    assert [p.prism_filters["zrmin"] for p in tops] == [50, 50, 50] and all(p.prism_filters["zmin"] == 65 and p.prism_filters["zqmin"] == 50 for p in tops)
-    assert all(p.limit == 25 for p in live[3:]) and tops[0].card_text.startswith("Large caps with a strong Prism rating")
-    assert [p.id for p in live][3:] == ["momentum-leaders", "at-52-week-high", "both-views-positive", "consistent-growers", "emerging-tech", "sector-themes", "quality-fair-price",
+    assert [p.prism_filters["zrmin"] for p in tops] == [50, 50, 50, 50] and all(p.prism_filters["zmin"] == 65 and p.prism_filters["zqmin"] == 50 for p in tops)
+    assert [p.id for p in live][:4] == [p.id for p in tops] and all(p.limit == 25 for p in live[4:]) and tops[0].card_text.startswith("Large caps with a strong Prism rating")
+    assert [p.id for p in live][4:] == ["momentum-leaders", "at-52-week-high", "both-views-positive", "consistent-growers", "emerging-tech", "sector-themes", "quality-fair-price",
                                          "quality-off-highs", "value-with-quality", "low-risk-compounders", "low-volatility", "higher-risk-list", "setup-pre-breakout", "setup-breakout-pullback", "setup-ema9-consolidation", "rating-upgrades",
                                          "strong-results", "dividend-payers", "turnarounds", "rating-downgrades", "institutions-buying", "promoter-buying", "fresh-results", "weak-results",   # task #243 round 3a
                                          "sector-leaders-leading", "sector-rebound-leaders", "sector-early-leaders", "sector-setups-behind", "sector-turning-up", "sector-results-leading"]   # round 3b
@@ -148,11 +148,12 @@ def test_percentile_of_a_value_among_a_bucket_ties_and_non_members():
 
 
 def uni(extra=()):
-    """100 large, 150 mid and 30 small companies of Rs 1,000 Cr or more, each with the figures every Top 10 gate and input reads."""
+    """100 large, 150 mid and 30 small companies of Rs 1,000 Cr or more, each with the figures every Top 10 gate and input reads.
+    Task #262 rupee rule: large 100,000-90,100 Cr (above 75,000), mid 60,000-45,100 Cr (25,000-75,000), small 20,000-19,710 Cr (10,000-25,000)."""
     def m(mc, i): return dict(market_cap=mc, pct_from_high=10, ret_3m=5 + i % 9, ret_6m=8 + i % 7, ret_1y=15 + i % 11, high_52w=120, low_52w=100)
     rows = [row(f"L{i:03d}", mcap=100000 - i * 100, sector=f"SecL{i % 30}", **m(100000 - i * 100, i)) for i in range(100)]
-    rows += [row(f"M{i:03d}", mcap=20000 - i * 10, sector=f"SecM{i % 30}", **m(20000 - i * 10, i)) for i in range(150)]
-    rows += [row(f"X{i:03d}", mcap=3000 - i * 10, sector=f"SecX{i % 20}", **m(3000 - i * 10, i)) for i in range(30)]
+    rows += [row(f"M{i:03d}", mcap=60000 - i * 100, sector=f"SecM{i % 30}", **m(60000 - i * 100, i)) for i in range(150)]
+    rows += [row(f"X{i:03d}", mcap=20000 - i * 10, sector=f"SecX{i % 20}", **m(20000 - i * 10, i)) for i in range(30)]
     return rows + list(extra)
 
 
@@ -498,7 +499,7 @@ def buni(n_large=100, n_mid=60):
     def m(mc, i): return dict(market_cap=mc, pct_from_high=10, ret_3m=5 + i % 9, ret_6m=8 + i % 7, ret_1y=15 + i % 11, fundamental_score=70 + i % 10, pillar_technical=60 + i % 10, pillar_quality=60,
                               pillar_growth=60, pillar_profitability=60, pillar_balance=60, overall=70, is_bank=0)
     rows = [row(f"L{i:03d}", sector=f"SecL{i % 30}", **m(100000 - i * 100, i)) for i in range(n_large)]
-    rows += [row(f"M{i:03d}", sector=f"SecM{i % 30}", **m(20000 - i * 10, i)) for i in range(n_mid)]
+    rows += [row(f"M{i:03d}", sector=f"SecM{i % 30}", **m(60000 - i * 100, i)) for i in range(n_mid)]   # task #262: mid is Rs 25,000-75,000 Cr
     return rows
 
 
@@ -509,13 +510,13 @@ def edit(r, **kw):
 
 def test_basic_registry_has_the_fourteen_cards_all_on_the_basic_tab():
     basic = [p for p in PRESETS if p.tab == "basic" and p.kind not in ("pattern", "gainers")]
-    assert [p.id for p in basic] == ["basic-top-large", "basic-top-mid", "basic-top-small", "basic-strong-both", "basic-strong-business-lagging", "basic-strong-trend-weaker-business",
+    assert [p.id for p in basic] == ["basic-top-large", "basic-top-mid", "basic-top-small", "basic-top-micro", "basic-strong-both", "basic-strong-business-lagging", "basic-strong-trend-weaker-business",
                                      "basic-strong-all-four", "basic-growth-leaders", "basic-profitable-debt-light", "basic-quality-compounders", "basic-momentum-leaders", "basic-near-high",
                                      "basic-quality-off-highs", "basic-emerging-tech", "basic-sector-themes", "basic-caution-list",
                                      "basic-setup-pre-breakout", "basic-setup-breakout-pullback", "basic-setup-ema9-consolidation",
                                      "basic-iq-upgrades", "basic-strong-results", "basic-dividend-payers", "basic-iq-downgrades", "basic-institutions-buying",
                                      "basic-promoter-buying", "basic-fresh-results", "basic-weak-results"]   # task #243: the eight new Basic screens
-    assert [p.id for p in basic if p.status != "live"] == [] and sum(1 for p in basic if p.top10) == 3
+    assert [p.id for p in basic if p.status != "live"] == [] and sum(1 for p in basic if p.top10) == 4   # task #262: a Top 10 for each of the four sizes
     for p in basic:
         text = " ".join(p.how_it_works).lower()
         assert "prism" not in text and "prism" not in p.card_text.lower(), p.id       # the Basic tab never names a Prism field
@@ -543,13 +544,16 @@ def test_basic_top_gates_sector_cap_and_the_bank_balance_sheet_blank():
 
 
 def test_basic_small_cap_needs_a_healthy_balance_sheet_and_one_thousand_crore():
-    rows = buni(100, 150)
-    smalls = [row(f"X{i:03d}", sector=f"SecX{i}", market_cap=3000 - i * 10, pct_from_high=10, ret_3m=5, ret_6m=8, ret_1y=15, fundamental_score=70 + i % 5, pillar_technical=60, pillar_quality=60,
-                  pillar_growth=60, pillar_profitability=60, pillar_balance=62 if i else 61, overall=70, is_bank=0) for i in range(20)]
-    smalls.append(row("MICRO", sector="Other", market_cap=400, pct_from_high=10, ret_3m=5, ret_6m=8, ret_1y=15, fundamental_score=90, pillar_technical=90, pillar_quality=90, pillar_growth=90,
-                      pillar_profitability=90, pillar_balance=90, overall=90, is_bank=0))
-    body = engine.run(frame(rows + smalls), BY_ID["basic-top-small"])
-    assert body["count"] == 19 and "X000" not in body["exportRows"][0]["symbol"] and "MICRO" not in [r["symbol"] for r in body["exportRows"]]
+    # task #262: Small is now Rs 10,000-25,000 Cr and Micro (the old Small) below 10,000 Cr; both keep the Healthy balance sheet line, and the
+    # Rs 1,000 Cr floor is checked on Micro, the only size that reaches below it
+    for pid, top in (("basic-top-small", 20000), ("basic-top-micro", 3000)):
+        rows = buni(100, 150)
+        smalls = [row(f"X{i:03d}", sector=f"SecX{i}", market_cap=top - i * 10, pct_from_high=10, ret_3m=5, ret_6m=8, ret_1y=15, fundamental_score=70 + i % 5, pillar_technical=60, pillar_quality=60,
+                      pillar_growth=60, pillar_profitability=60, pillar_balance=62 if i else 61, overall=70, is_bank=0) for i in range(20)]
+        smalls.append(row("MICRO", sector="Other", market_cap=400, pct_from_high=10, ret_3m=5, ret_6m=8, ret_1y=15, fundamental_score=90, pillar_technical=90, pillar_quality=90, pillar_growth=90,
+                          pillar_profitability=90, pillar_balance=90, overall=90, is_bank=0))
+        body = engine.run(frame(rows + smalls), BY_ID[pid])
+        assert body["count"] == 19 and "X000" not in body["exportRows"][0]["symbol"] and "MICRO" not in [r["symbol"] for r in body["exportRows"]], pid
 
 
 def test_basic_two_sided_cards_blank_allowed_and_cautions():

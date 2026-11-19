@@ -87,16 +87,16 @@ def test_a_fund_or_etf_without_a_file_is_named():
 
 
 def test_macro_sectors_and_fixed_size_amounts():
-    """B5 and L9: the 12 macro sectors (NSE's place first, the fund file's line second); sizes large above Rs 50,000 Cr, small below Rs 10,000 Cr."""
+    """B5 and L9: the 12 macro sectors (NSE's place first, the fund file's line second); sizes on the site's one rule (task #262): large above Rs 75,000 Cr, mid 25,000-75,000, small 10,000-<25,000, micro below 10,000."""
     split = calc.split_parts(SH, FU, ET)
     comp = calc.look_through(SH, FU, ET, split)
     sec = {x["sector"]: x for x in calc.macro_sectors(comp, {"HDFCBANK": "Financial Services", "TCS": "Information Technology"})}
     assert math.isclose(sec["Financial Services"]["all"], 44.0) and math.isclose(sec["Information Technology"]["all"], 20 + 1.0)
     assert sec["Listed abroad"]["funds"] == 0.4 and not sec["Listed abroad"]["named"]
-    assert [calc.size_of(x) for x in (60000, 50000, 20000, 10000, 9999, None)] == ["Large", "Mid", "Mid", "Mid", "Small", None]
+    assert [calc.size_of(x) for x in (80000, 75000, 25000, 24999, 10000, 9999, None)] == ["Large", "Mid", "Mid", "Small", "Small", "Micro", None]
     caps = {"HDFCBANK": 1_200_000, "TCS": 1_300_000, "INFY": 9000}
     sizes = {x["size"]: x for x in calc.company_sizes(comp, lambda c: caps.get(c["symbol"]))}
-    assert math.isclose(sizes["Large"]["all"], 64.0) and math.isclose(sizes["Small"]["all"], 1.0) and sizes["Listed abroad"]["all"] == 0.4
+    assert math.isclose(sizes["Large"]["all"], 64.0) and math.isclose(sizes["Micro"]["all"], 1.0) and sizes["Small"]["all"] == 0 and sizes["Listed abroad"]["all"] == 0.4
 
 
 def test_beta_together_is_the_sum_of_share_times_beta_and_the_risk_share_follows():

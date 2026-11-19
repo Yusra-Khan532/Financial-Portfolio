@@ -75,7 +75,7 @@ async def test_sample_list_through_the_endpoint(app):  # noqa: F811
         assert j["score"] == {**EXPECTED["score"], "value": 68, "unrounded": 68.0, "coMovement": 66, "effectiveSectors": 4.4} and j["scoreVersion"] == "1" and j["horizon"] == "weekly"
         assert j["headline"] == {**EXPECTED["headline"], "effectiveStocks": 5.9, "effectiveStocksRounded": 6} and j["clusters"] == EXPECTED["clusters"]
         assert j["asOf"]["fromWeek"] == "2023-W45" and j["asOf"]["toWeek"] == "2026-W44" and j["asOf"]["label"] == "Nov 2023 – Oct 2026"
-        assert j["spread"]["sectors"][0] == {"name": "Financial services", "count": 6} and j["spread"]["size"] == {"Large": 15, "Mid": 0, "Small": 0}
+        assert j["spread"]["sectors"][0] == {"name": "Financial services", "count": 6} and j["spread"]["size"] == {"Large": 15, "Mid": 0, "Small": 0, "Micro": 0}
         assert j["spread"]["groups"] == [{"name": "Tata", "symbols": ["TCS", "TATASTEEL"]}]      # Bajaj and Reliance have one stock each: not a concentration
         assert j["market"]["betaEqual"] == 0.96 and j["recentVsLongRun"]["recent"]["effectiveStocks"] == 6.78
         assert j["excluded"] == [] and "Vary" in r.headers and r.headers["cache-control"] == "private, no-store"

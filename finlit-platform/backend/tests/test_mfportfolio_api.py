@@ -640,13 +640,14 @@ async def test_risk_says_why_when_the_nifty_500_history_is_missing(app, monkeypa
     assert r.status_code == 503 and "NIFTY 500" in r.json()["detail"]["detail"]
 
 
-async def test_task_183_sizes_follow_the_rupee_rule(app):   # COMMON-RULES: large above ₹50,000 Cr, mid above ₹10,000 Cr, small below; an edge belongs to the band below
+async def test_task_183_sizes_follow_the_rupee_rule(app):   # task #262 (finlit/sizes.py): large above ₹75,000 Cr, mid ₹25,000-75,000 (both edges Mid), small ₹10,000-<25,000, micro below
     from finlit.mfportfolio.api import size_ranks
-    rows = [("ZZLARGE", "INE0ZZ101011", 50000.01), ("ZZEDGE", "INE0ZZ201011", 50000.0), ("ZZMID", "INE0ZZ301011", 10000.5), ("ZZSMALL", "INE0ZZ401011", 9999.0)]
+    rows = [("ZZLARGE", "INE0ZZ101011", 75000.01), ("ZZEDGE", "INE0ZZ201011", 75000.0), ("ZZMID", "INE0ZZ301011", 25000.0), ("ZZSMALL", "INE0ZZ401011", 10000.0),
+            ("ZZMICRO", "INE0ZZ501011", 9999.0)]
     async with app.state.store.pool.acquire() as conn:
         for sym, isin, mc in rows:
             await conn.execute("INSERT INTO companies (symbol, name) VALUES ($1, $1) ON CONFLICT DO NOTHING", sym)
             await conn.execute("INSERT INTO listing_quotes (symbol, market_cap) VALUES ($1, $2) ON CONFLICT (symbol) DO UPDATE SET market_cap = EXCLUDED.market_cap", sym, mc)
             await conn.execute("INSERT INTO disclosure_isin (isin, symbol) VALUES ($1, $2) ON CONFLICT (isin) DO UPDATE SET symbol = EXCLUDED.symbol", isin, sym)
         got = await size_ranks(conn, [r[1] for r in rows] + ["INE0ZZ999999"])
-    assert got == {"INE0ZZ101011": "Large", "INE0ZZ201011": "Mid", "INE0ZZ301011": "Mid", "INE0ZZ401011": "Small"}
+    assert got == {"INE0ZZ101011": "Large", "INE0ZZ201011": "Mid", "INE0ZZ301011": "Mid", "INE0ZZ401011": "Small", "INE0ZZ501011": "Micro"}

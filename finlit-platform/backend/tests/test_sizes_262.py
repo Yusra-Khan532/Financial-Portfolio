@@ -72,7 +72,7 @@ async def test_the_migration_moves_saved_small_to_micro_and_marks_the_screen(app
         await conn.execute(sql)                                                            # a second run changes nothing
     back = (await c.get("/api/me/state")).json()["screens"]
     assert back[0]["state"]["caps"] == ["Large", "Micro"] and back[0]["sizesMoved"] == "2026-11-20" and back[0]["notify"] is True
-    assert "sizesMoved" not in back[1] and back[2]["state"]["caps"] == ["Mid"] and "sizesMoved" not in back[2]
+    assert back[1].get("sizesMoved") is None and back[2]["state"]["caps"] == ["Mid"] and back[2].get("sizesMoved") is None
     assert (await c.put("/api/me/screens", json={"screens": back})).status_code == 200   # the marked screen saves back as it is
     assert json.dumps((await c.get("/api/me/state")).json()["screens"][0]).count("Micro") == 1
     await c.aclose()

@@ -121,7 +121,7 @@
    "FEDERALBNK": {
     "name": "The Federal Bank Ltd",
     "sector": "Financial Services",
-    "size": "M",
+    "size": "L",
     "mcap_cr": 84157.67,
     "prism": {
      "final": 64,
@@ -225,7 +225,7 @@
    "PERSISTENT": {
     "name": "Persistent Systems Ltd",
     "sector": "Information Technology",
-    "size": "M",
+    "size": "L",
     "mcap_cr": 96393.14,
     "prism": {
      "final": 71,
@@ -238,7 +238,7 @@
    "COFORGE": {
     "name": "Coforge Ltd",
     "sector": "Information Technology",
-    "size": "M",
+    "size": "L",
     "mcap_cr": 91633.7,
     "prism": {
      "final": 66,
@@ -277,7 +277,7 @@
    "DRREDDY": {
     "name": "Dr Reddy's Laboratories Ltd",
     "sector": "Healthcare",
-    "size": "M",
+    "size": "L",
     "mcap_cr": 114075.78,
     "prism": {
      "final": 36,
@@ -303,7 +303,7 @@
    "LUPIN": {
     "name": "Lupin Ltd",
     "sector": "Healthcare",
-    "size": "M",
+    "size": "L",
     "mcap_cr": 90698.89,
     "prism": {
      "final": 94,
@@ -433,7 +433,7 @@
    "KINGFA": {
     "name": "Kingfa Science & Technology (India) Ltd",
     "sector": "Capital Goods",
-    "size": "S",
+    "size": "X",
     "mcap_cr": 8173.52,
     "prism": {
      "final": 68,
@@ -511,7 +511,7 @@
    "TIPSMUSIC": {
     "name": "Tips Music Ltd",
     "sector": "Media, Entertainment & Publication",
-    "size": "S",
+    "size": "X",
     "mcap_cr": 9786.16,
     "prism": {
      "final": 77,
@@ -2608,20 +2608,23 @@
   },
   "size_weight": {
    "eq": {
-    "L": 77.5,
-    "M": 15.0,
-    "S": 7.5
+    "L": 90.0,
+    "M": 2.5,
+    "X": 5.0,
+    "S": 2.5
    },
    "mc": {
-    "L": 96.47,
-    "M": 3.32,
-    "S": 0.2
+    "L": 99.48,
+    "M": 0.31,
+    "X": 0.11,
+    "S": 0.09
    }
   },
   "size_count": {
-   "L": 31,
-   "M": 6,
-   "S": 3
+   "L": 36,
+   "X": 2,
+   "M": 1,
+   "S": 1
   },
   "share_weight": {
    "eq": {
@@ -2880,7 +2883,7 @@
     "rule": "C4",
     "section": "where",
     "priority": 50,
-    "text": "Large caps are 96.5% of the list when sized by company value.",
+    "text": "Large caps are 99.5% of the list when sized by company value.",
     "mode": "mc"
    },
    {
