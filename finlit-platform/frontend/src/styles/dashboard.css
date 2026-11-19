@@ -626,10 +626,12 @@
   .dsh-inv .dsh-st-h, .dsh-inv .dsh-st-r { grid-template-columns: minmax(200px, 2.2fr) minmax(96px, .8fr) minmax(96px, .9fr) minmax(76px, .7fr) minmax(76px, .7fr) minmax(150px, 1.3fr) minmax(76px, .7fr); }
 }
 .dsh-ty { display: inline-block; padding: 3px 8px; border-radius: 6px; font: 700 var(--fs-12)/1.2 var(--sans); letter-spacing: .06em; text-transform: uppercase; background: var(--d-tile); color: var(--d-mut); white-space: nowrap; }
-.dsh-ty.share { background: color-mix(in srgb, #2F5A9E 14%, transparent); color: #2F5A9E; }
-.dsh-ty.mf { background: var(--gain-soft); color: var(--gain); }
-.dsh-ty.etf { background: color-mix(in srgb, #2F5F66 16%, transparent); color: #2F5F66; }
-:root[data-theme="dark"] .dsh-ty.share { color: #9DB8E6; } :root[data-theme="dark"] .dsh-ty.etf { color: #8FC7CC; }
+/* Task #244: the type label's colour classes carry their own prefix. A bare "mf" class picked up the fund pages' wrapper rule (.mf { padding-bottom: 72px }
+   in mf.css) once those styles were loaded, which turned MUTUAL FUND into a tall box with its text at the top. */
+.dsh-ty.dsh-ty-share { background: color-mix(in srgb, #2F5A9E 14%, transparent); color: #2F5A9E; }
+.dsh-ty.dsh-ty-mf { background: var(--gain-soft); color: var(--gain); }
+.dsh-ty.dsh-ty-etf { background: color-mix(in srgb, #2F5F66 16%, transparent); color: #2F5F66; }
+:root[data-theme="dark"] .dsh-ty.dsh-ty-share { color: #9DB8E6; } :root[data-theme="dark"] .dsh-ty.dsh-ty-etf { color: #8FC7CC; }
 .dsh-inv .y1 { font-weight: 600; } .dsh-inv .y1.up { color: var(--d-up, var(--gain)); } .dsh-inv .y1.down { color: var(--d-down, var(--loss)); }
 .dsh-pill.dsh-hs { white-space: nowrap; }
 .dsh-pill.dsh-hs.g { background: var(--gain-soft); color: var(--gain); } .dsh-pill.dsh-hs.o { background: var(--warn-soft); color: var(--warn); } .dsh-pill.dsh-hs.r { background: var(--loss-soft); color: var(--loss); }

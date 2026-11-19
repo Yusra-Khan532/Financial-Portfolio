@@ -192,7 +192,7 @@ export function MyStocks({ followed, loading, watch = new Set(), held = new Set(
             return (
               <div className="dsh-st-r" role="row" key={r.key} data-kind={r.kind}>
                 <div className="nm" role="cell"><span className="dsh-ys-sym">{r.symbol && <CoLogo symbol={r.symbol} name={r.name} size={22} inline />}<Link to={r.href}>{r.kind === "mf" ? r.name : r.symbol && !/^\d+$/.test(r.symbol) ? r.symbol : r.name}</Link></span><small>{r.sub}</small></div>
-                <div className="ty" role="cell"><span className={"dsh-ty " + r.kind}>{KIND_TAG[r.kind]}</span></div>
+                <div className="ty" role="cell"><span className={"dsh-ty dsh-ty-" + r.kind}>{KIND_TAG[r.kind]}</span></div>
                 <div className="dsh-pr r" role="cell" title={r.priceWhy}>{r.price != null ? "₹" + nf(r.price, r.kind === "mf" ? 4 : 2) : (r.kind === "mf" ? fundDetail.some((d) => d.isLoading) : quotes.isLoading) ? <i className="skeleton sk-n" /> : "—"}</div>
                 <div className={"ch r " + tone(r.day)} role="cell" title={r.dayWhy}>{r.day != null ? pct(r.day, 2) : (r.kind === "mf" ? fundDetail.some((d) => d.isLoading) : quotes.isLoading) ? <i className="skeleton sk-n" /> : "—"}</div>
                 <div className={"y1 r " + tone(r.y1)} role="cell" title={r.y1Why}>{pct(r.y1)}</div>
