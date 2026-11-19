@@ -471,7 +471,9 @@ def own_columns(preset: Preset) -> list:
 
 
 def _row(fr: Frame, preset: Preset, i: int, pos: int, extra: Sequence[str] = ()) -> dict:
-    row: Dict[str, Any] = {"symbol": fr.symbols[i], "name": fr.t.name[i], "exchange": fr.listed.get(fr.symbols[i]), "position": pos}
+    row: Dict[str, Any] = {"symbol": fr.symbols[i], "name": fr.t.name[i], "exchange": fr.listed.get(fr.symbols[i]), "position": pos,
+                           # task #243 (pack v4): the open screen's "F&O stocks only" and "Liquid only" filters read these (not shown as columns)
+                           "fno": fr.get(i, "fno"), "turnover20_cr": _fmt(fr.get(i, "turnover20_cr"), "num1")}
     cols = list(preset.columns) + [Col(k, l, f, a) for k, l, f, a, _ in standard_columns(preset) if k not in {c.key for c in preset.columns}]
     for c in cols:
         if c.key == "rank":

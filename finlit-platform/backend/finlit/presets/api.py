@@ -58,11 +58,34 @@ def _list_text(p: Preset, cached: dict | None) -> str | None:
     return f"Top {p.limit} of {n} that pass" if p.top10 else None      # the other screens page through everything that passes: the count says it all
 
 
+NEW_DAYS = 14      # task #243: a new screen's card carries the NEW tag ("new screen") for two weeks after its first run
+
+
+def _is_new(p: Preset, today: Optional[_date] = None) -> bool:
+    if not p.added:
+        return False
+    return 0 <= ((today or _date.today()) - _date.fromisoformat(p.added)).days <= NEW_DAYS
+
+
+def _about(p: Preset) -> Optional[dict]:
+    """The i beside the screen's name (pack v4): what it shows, and three points on how to use it."""
+    return {"shows": p.about[0], "use": list(p.about[1])} if p.about else None
+
+
+def _with_meta(body: dict, p: Preset) -> dict:
+    """Task #243: the i beside the name, the screen's own notes (first in the notes line), and whether it is new."""
+    body["about"], body["isNew"] = _about(p), _is_new(p)
+    if p.notes:
+        body["notes"] = list(p.notes) + [n for n in (body.get("notes") or []) if n not in p.notes]
+    return body
+
+
 def _card(p: Preset, gold: bool, cached: dict | None) -> dict:
     live = p.status == "live" and p.kind != "quickview"
     return {"id": p.id, "name": p.name, "group": p.group, "cardText": render_card(p, (cached or {}).get("of", {}).get("n") if cached else None), "count": cached["count"] if (gold and cached) else None, "listText": _list_text(p, cached) if gold else None,
             "asOf": cached["asOf"] if (gold and cached) else None, "status": p.status, "blockedReason": p.blocked_reason, "chips": _chips(p), "howItWorks": list(p.how_it_works),
-            "locked": not gold, "tab": p.tab, "kind": p.kind, "handledBy": "frontend" if p.kind == "quickview" else "server", "computed": bool(live and cached), "disclaimer": DISCLAIMER}
+            "locked": not gold, "tab": p.tab, "kind": p.kind, "handledBy": "frontend" if p.kind == "quickview" else "server", "computed": bool(live and cached), "disclaimer": DISCLAIMER,
+            "about": _about(p), "isNew": _is_new(p)}
 
 
 async def _resolve(request: Request, pid: str):
@@ -182,7 +205,7 @@ async def _body(request: Request, p: Preset, active: List[str]) -> dict:
                "asOf": snap["session"], "benchSincePct": history._pct(b0, b1), "list": figs}      # L1: the date picked, everywhere
         out.pop("listText", None)
         out["columns"] = _bands_now(_history_columns(out.get("columns") or [], p, then=True))
-        return out
+        return _with_meta(out, p)
     body = await service.get_result(store, p, active)
     if body is None:
         raise fail(503, "computing", "This screen is being prepared. Try again in a few seconds.")
@@ -201,7 +224,7 @@ async def _body(request: Request, p: Preset, active: List[str]) -> dict:
         log.warning("saved-list figures not added for %s", p.id, exc_info=True)
     body["columns"] = _bands_now(body.get("columns") or [])
     body["name"] = p.name          # a list stored under an older name is served with today's (14 Nov N-35)
-    return body
+    return _with_meta(body, p)
 
 
 FIGURE = {"setups": ("From 52-week high", "pct_from_high"), "top-gainers": ("Since it joined", "since")}
@@ -361,7 +384,8 @@ def _bar(request: Request) -> dict:
     qp = request.query_params
     rating = qp.get("rating") or ("healthy" if qp.get("strong") == "1" else "")
     return {"q": (qp.get("q") or "").strip().lower()[:60], "size": set(qp.getlist("size")), "sector": set(qp.getlist("sector")),
-            "rating": rating if rating in ("healthy", "strong") else "", "new": qp.get("new") == "1", "ahead": qp.get("ahead") == "1", "nse": qp.get("nse") == "1"}
+            "rating": rating if rating in ("healthy", "strong") else "", "new": qp.get("new") == "1", "ahead": qp.get("ahead") == "1", "nse": qp.get("nse") == "1",
+            "fno": qp.get("fno") == "1", "liquid": qp.get("liquid") == "1"}
 
 
 def _tests(f: dict, new_day: Optional[str]) -> Dict[str, object]:
@@ -380,7 +404,23 @@ def _tests(f: dict, new_day: Optional[str]) -> Dict[str, object]:
         t["ahead"] = lambda r: isinstance(r.get("since_added_pct"), (int, float)) and isinstance(r.get("bench_since_added_pct"), (int, float)) and r["since_added_pct"] > r["bench_since_added_pct"]
     if f["nse"]:
         t["nse"] = lambda r: not _bse_only(r)
+    if f.get("fno"):
+        t["fno"] = _fno_on
+    if f.get("liquid"):
+        t["liquid"] = _liquid
     return t
+
+
+LIQUID_CR = 10.0     # pack v4: "Liquid only" = 20-session average value traded of Rs 10 Cr or more
+
+
+def _fno_on(r: dict) -> bool:
+    return r.get("fno") == 1
+
+
+def _liquid(r: dict) -> bool:
+    v = r.get("turnover20_cr")
+    return isinstance(v, (int, float)) and v >= LIQUID_CR
 
 
 def _passes(r: dict, tests: Dict[str, object], skip: str = "") -> bool:
@@ -399,11 +439,12 @@ def _facets(rows: List[dict], tests: Optional[Dict[str, object]] = None, new_day
                 sizes[z] = sizes.get(z, 0) + 1
         if _passes(r, tests, "sector") and r.get("sector"):
             sectors[r["sector"]] = sectors.get(r["sector"], 0) + 1
-    probe = _tests({"q": "", "size": set(), "sector": set(), "rating": "", "new": True, "ahead": True, "nse": True}, new_day)
+    probe = _tests({"q": "", "size": set(), "sector": set(), "rating": "", "new": True, "ahead": True, "nse": True, "fno": True, "liquid": True}, new_day)
     n = lambda key, fn: sum(1 for r in rows if _passes(r, tests, key) and fn(r))       # noqa: E731
     return {"sizes": sizes, "sectors": sorted(sectors.items(), key=lambda kv: (-kv[1], kv[0]))[:80],
             "strong": n("rating", _strong), "strongOnly": n("rating", _strong_only), "anyRating": n("rating", lambda r: True),
-            "new": n("new", probe["new"]), "ahead": n("ahead", probe["ahead"]), "nse": n("nse", probe["nse"]), "bse": sum(1 for r in rows if _bse_only(r))}
+            "new": n("new", probe["new"]), "ahead": n("ahead", probe["ahead"]), "nse": n("nse", probe["nse"]), "bse": sum(1 for r in rows if _bse_only(r)),
+            "fno": n("fno", probe["fno"]), "liquid": n("liquid", probe["liquid"])}
 
 
 def _filtered(request: Request, rows: List[dict], new_day: Optional[str] = None) -> List[dict]:

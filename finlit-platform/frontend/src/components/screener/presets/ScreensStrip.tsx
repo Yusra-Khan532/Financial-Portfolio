@@ -78,8 +78,8 @@ export function Card({ p, group, on, planName, onPick, past }: { p: Preset; grou
   return (
     <button type="button" className={"rms-card" + (feat ? " is-feat" : "") + (top ? " is-top10" : "") + (on ? " is-on" : "") + (blocked ? " is-blocked" : "")}
       aria-pressed={blocked ? undefined : on} aria-disabled={blocked || undefined} title={blocked ? p.blockedReason || "Coming soon" : p.cardText} onClick={onPick}>
-      <span className="rms-t">{top && <Crown size={14} />}{p.name}{top && <span className="rms-tag">Top 10</span>}</span>
-      <span className="rms-m">{line}</span>
+      <span className="rms-t">{top && <Crown size={14} />}{p.name}{top && <span className="rms-tag">Top 10</span>}{p.isNew && <span className="rms-new">NEW</span>}</span>
+      <span className="rms-m">{line}{p.isNew && !blocked && <> · <span className="rms-nw">new screen</span></>}</span>
       <span className="rms-go" aria-hidden="true">{on ? "●" : "→"}</span>
     </button>);
 }

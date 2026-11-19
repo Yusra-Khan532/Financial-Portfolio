@@ -54,7 +54,7 @@ READY: List[Ready] = [
     Ready("divgrow", "Reliable dividend growers", "Paid dividends in 6 of 6 years, growing, yield above 1%", "silver", "silver",
           _r(div_years=(6, None), dps_cagr=(5, None), dividend_yield=(1, None))),
     Ready("buying", "Promoters and funds buying", "Promoters and institutions both added to their stake this year", "silver", "silver",
-          _r(own_promoters_chg_1y=(0.25, None), own_inst_chg_1y=(0.5, None))),
+          _r(own_promoters_chg_1y=(0.25, 10), own_inst_chg_1y=(0.5, None))),     # task #243 D3: a promoter rise above 10 points is a merger or reclassification, not buying
     Ready("resultsseason", "Results-season standouts", "Latest quarter: sales up 20%+ and profit up 25%+ on the year-ago quarter, market cap ₹1,000 Cr or more", "silver", "silver",
           _r(q_sales_yoy=(20, None), q_profit_yoy=(25, None), market_cap=(1000, None))),
     Ready("steadydiv", "Steady dividend payers", "Yield 2.5%+, paid in all of the last 6 years, payout 75% or less, at most 1 red flag, market cap ₹1,000 Cr or more", "silver", "silver",

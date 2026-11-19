@@ -10,7 +10,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { nf, MINUS } from "../../../lib/format";
-import type { BarFilter, HistorySession, LeftMode, LeftRow, PresetDetail, Rating } from "../../../lib/presets";
+import { NO_BAR, type BarFilter, type HistorySession, type LeftMode, type LeftRow, type PresetDetail, type Rating } from "../../../lib/presets";
 import { PsxInfo } from "./PsxInfo";
 import { Shine } from "./ScreensStrip";
 import "../../../styles/screens243.css";
@@ -76,7 +76,9 @@ export function DateBar({ sessions, asOn, setAsOn, list }: { sessions: HistorySe
             </li>))}
         </ul>}
       </span>
-      <span className={"psx3-pill" + (past ? " is-past" : "")}>{past ? <>Past list · as it stood after the {day(cur)} close</> : <><i aria-hidden="true" />Latest list · after the {day(cur)} close</>}</span>
+      <span className={"psx3-pill" + (past ? " is-past" : "")}>{past ? <>Past list · as it stood after the {day(cur)} close</> : sessions.filter((s) => s.saved).length === 1
+        ? <><i aria-hidden="true" />New screen · first list, after the {day(cur)} close</>          /* task #243 (pack R5): the screen's only saved list */
+        : <><i aria-hidden="true" />Latest list · after the {day(cur)} close</>}</span>
       {figs && <span className="psx3-figs" aria-live="polite"><b>{nf(figs.count, 0)}</b> {figs.count === 1 ? "company" : "companies"}
         {figs.prev ? <> · <span className="psx3-j">+{nf(figs.joined ?? 0, 0)} joined</span> · {nf(figs.left ?? 0, 0)} left since {day(figs.prev)}</> : <> · first saved list</>}</span>}
       <PsxInfo text={INFO_PAST} label="List as on" />
@@ -121,7 +123,7 @@ export function FilterMenus({ d, f, basic, onAddRule }: { d: PresetDetail; f: Fi
   const flip = <T,>(xs: T[], x: T) => (xs.includes(x) ? xs.filter((y) => y !== x) : [...xs, x]);
   const sectors = fc.sectors.filter(([n]) => !find.trim() || n.toLowerCase().includes(find.trim().toLowerCase()));
   const ratingNarrows = (fc.strong ?? 0) < (fc.anyRating ?? Infinity) || !!bar.rating;
-  const nMore = (bar.fresh ? 1 : 0) + (bar.ahead ? 1 : 0) + (bar.nse ? 1 : 0);
+  const nMore = (bar.fresh ? 1 : 0) + (bar.ahead ? 1 : 0) + (bar.nse ? 1 : 0) + (bar.fno ? 1 : 0) + (bar.liquid ? 1 : 0);
   const rw = RATING_WORD(basic);
   return (<>
     {(sizes.length > 1 || bar.sizes.length > 0) && (
@@ -143,6 +145,9 @@ export function FilterMenus({ d, f, basic, onAddRule }: { d: PresetDetail; f: Fi
     <Dropdown label={nMore ? `More filters · ${nMore}` : "More filters"} on={nMore > 0} wide>
       <Opt checked={bar.fresh} onChange={() => set({ ...bar, fresh: !bar.fresh })} label="New on this list" n={fc.new} desc="Joined since the previous saved list." />
       <Opt checked={bar.ahead} onChange={() => set({ ...bar, ahead: !bar.ahead })} label="Ahead of NIFTY 500 since added" n={fc.ahead} desc="Since added is above NIFTY 500 over the same days." />
+      {/* task #243 (pack v4): on every screen of both pages */}
+      <Opt checked={!!bar.fno} onChange={() => set({ ...bar, fno: !bar.fno })} label="F&O stocks only" n={fc.fno} desc="Stocks with futures and options contracts on NSE." />
+      <Opt checked={!!bar.liquid} onChange={() => set({ ...bar, liquid: !bar.liquid })} label="Liquid only" n={fc.liquid} desc="An average of ₹10 Cr or more traded a day over the last 20 sessions." />
       {((fc.bse ?? 0) > 0 || bar.nse) && <Opt checked={bar.nse} onChange={() => set({ ...bar, nse: !bar.nse })} label="NSE-listed only" n={fc.nse} desc={`Leaves out the ${nf(fc.bse ?? 0, 0)} listed only on the BSE.`} />}
       <button type="button" className="psx3-addrule" onClick={onAddRule}>+ Add a rule on any figure</button>
     </Dropdown>
@@ -159,13 +164,15 @@ export function FilterChips({ f, basic }: { f: FilterSet; basic: boolean }) {
     ...(bar.rating ? [{ k: "r", label: `${basic ? "IQ" : "Prism"} ${RATING_WORD(basic)[bar.rating]}`, off: () => set({ ...bar, rating: "" as Rating }) }] : []),
     ...(bar.fresh ? [{ k: "n", label: "New on this list", off: () => set({ ...bar, fresh: false }) }] : []),
     ...(bar.ahead ? [{ k: "a", label: "Ahead of NIFTY 500", off: () => set({ ...bar, ahead: false }) }] : []),
+    ...(bar.fno ? [{ k: "f", label: "F&O stocks only", off: () => set({ ...bar, fno: false }) }] : []),
+    ...(bar.liquid ? [{ k: "l", label: "Liquid only", off: () => set({ ...bar, liquid: false }) }] : []),
     ...(bar.nse ? [{ k: "e", label: "NSE-listed only", off: () => set({ ...bar, nse: false }) }] : []),
   ];
   if (!chips.length) return null;
   return (
     <div className="psx3-chips" role="group" aria-label="Filters on">
       {chips.map((c) => <span key={c.k} className="psx3-chip">{c.label}<button type="button" onClick={c.off} aria-label={`Remove ${c.label}`}>×</button></span>)}
-      <button type="button" className="fgx-link" onClick={() => set({ q: "", sizes: [], sectors: [], rating: "", fresh: false, ahead: false, nse: false })}>Clear all</button>
+      <button type="button" className="fgx-link" onClick={() => set(NO_BAR)}>Clear all</button>
     </div>);
 }
 
@@ -206,7 +213,7 @@ export function LeftDrop({ rows, counts, asOn, latest, first, mode, setMode }: {
   const m = modes.includes(mode) ? mode : modes[0];
   const word: Record<LeftMode, string> = { on: `On ${day(d)}`, upto: `Up to ${day(d)}`, after: `After ${day(d)}` };
   const c = counts ?? { on: 0, upto: 0, after: 0 };
-  const summary = <>{!isFirst && <><b>{nf(c.on, 0)}</b> left on {day(d)} · {nf(c.upto, 0)} since {day(first)}</>}{past && <>{!isFirst && " · "}{nf(c.after, 0)} of its companies left after {day(d)}</>}{isFirst && !past && "None yet: this is the first saved list"}</>;
+  const summary = <>{!isFirst && <><b>{nf(c.on, 0)}</b> left on {day(d)} · {nf(c.upto, 0)} since {day(first)}</>}{past && <>{!isFirst && " · "}{nf(c.after, 0)} of its companies left after {day(d)}</>}{isFirst && !past && "None yet. This is the screen's first list."}</>;
   return (
     <details className="psx3-left">
       <summary><span className="psx3-lh">Left the list</span><span className="psx3-ls">{summary}</span></summary>
