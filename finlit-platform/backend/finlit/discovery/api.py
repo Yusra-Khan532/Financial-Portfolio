@@ -42,3 +42,16 @@ async def discovery_board(request: Request):
     from . import board
     data = await board.board(request.app.state.store)
     return JSONResponse(data, headers={"Cache-Control": "public, max-age=600"})
+
+
+@router.get("/company")
+async def discovery_company(request: Request, symbol: str = Query(..., max_length=20)):
+    """Task #260: the company panel's read (finlit/discovery/board.py company()): passages with their page, the presentation and filing PDFs."""
+    from . import board
+    symbol = symbol.strip().upper()
+    if not SYMBOL.fullmatch(symbol):
+        raise HTTPException(400, "bad symbol")
+    data = await board.company(request.app.state.store, symbol)
+    if data is None:
+        raise HTTPException(404, "Not placed on Discover")
+    return JSONResponse(data, headers={"Cache-Control": "public, max-age=600"})

@@ -272,6 +272,7 @@ def test_every_linked_page_is_a_page_of_the_website():
     app = (Path(__file__).resolve().parents[2] / "frontend" / "src" / "App.tsx").read_text(encoding="utf-8")
     import re
     routes = set(re.findall(r'path="([^"]+)"', app))
+    routes |= {r[:-2] for r in routes if r.endswith("/*")}       # a "discover/*" route answers /discover too (task #260)
     calls = [(t.name, {"symbol": "TCS", "kind": k, "score": s}) for t in T.TOOLS for k in ("news", "documents") for s in ("iq", "prism")]
     for link in P.page_links(calls[:4]) + [x for c in calls for x in P.page_links([c])]:
         path = link["to"].split("?")[0].strip("/")
