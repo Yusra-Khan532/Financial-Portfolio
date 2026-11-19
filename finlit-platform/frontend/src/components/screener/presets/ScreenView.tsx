@@ -8,7 +8,7 @@ import { Fragment, useCallback, useMemo, useRef, useState, type ReactNode } from
 import { useQuery } from "@tanstack/react-query";
 import { ChartPanel, type PanelRow } from "../ChartPanel";
 import { ChartCards } from "../ChartCards";
-import { NO_BAR, barCount, detailPath, useAsOn, usePresetHistory, usePresetLeft, type BarFilter, type LeftMode } from "../../../lib/presets";
+import { NO_BAR, barCount, detailPath, useAsOn, usePresetHistory, usePresetLeft, type BarFilter, type LeftMode, type ScreenAbout } from "../../../lib/presets";
 import { Link, useNavigate } from "react-router";
 import { ApiError, apiGet } from "../../../lib/api";
 import { Icon } from "../../../lib/icons";
@@ -238,16 +238,28 @@ function Frame({ route, name, cardText, children, how }: { route: PresetRoute; n
   const group = route.groups.find((g) => g.presets.some((p) => p.id === route.id));
   const eyebrow = `${route.tab === "basic" ? "Basic" : "Advanced"} · ${group?.name ?? "Prebuilt screen"}`;
   const [open, setOpen] = useState(false);
+  const card = group?.presets.find((p) => p.id === route.id);
   return (
     <section className="psx-screen card" aria-label={`Prebuilt screen: ${name}`}>
       <header className="psx-top psx3-top">
-        <div className="psx-tt"><span className="psx-eyebrow">{eyebrow}</span><h2>{group && isFeatured(group) && <Shine size={26} />}{name}</h2>{cardText && <p className="psx-card-text">{cardText}</p>}</div>
+        <div className="psx-tt"><span className="psx-eyebrow">{eyebrow}{card?.isNew && <span className="psx3-new">NEW</span>}</span>
+          <h2>{group && isFeatured(group) && <Shine size={26} />}{name}{card?.about && <PsxInfo label={name} text={<AboutNote a={card.about} />} />}</h2>
+          {cardText && <p className="psx-card-text">{cardText}</p>}</div>
         <div className="psx-act">{!!how?.length && <button type="button" className="btn" aria-expanded={open} aria-controls="psx3-how" onClick={() => setOpen((v) => !v)}>How this screen works ▾</button>}
           <button type="button" className="btn" onClick={route.clear}>Clear screen ✕</button></div>
       </header>
       {open && !!how?.length && <div id="psx3-how" className="psx-how psx3-how"><ul>{how.map((h) => <li key={h}>{h}</li>)}</ul></div>}
       {children}
     </section>);
+}
+/** Task #243 (pack v4, i notes): what a new screen shows, then three points on how to use it. Spans only: it sits inside the heading's popover. */
+export function AboutNote({ a }: { a: ScreenAbout }) {
+  return (
+    <span className="psx3-about">
+      <b>What it shows</b><span>{a.shows}</span>
+      <b>How to use it</b>
+      <span role="list">{a.use.map((u) => <span role="listitem" key={u}>{u}</span>)}</span>
+    </span>);
 }
 const Disclaimer = ({ text }: { text?: string }) => <p className="psx-disc" role="note">{text || DISCLAIMER}</p>;
 

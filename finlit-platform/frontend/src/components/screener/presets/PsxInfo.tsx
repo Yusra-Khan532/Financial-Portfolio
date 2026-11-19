@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 /** The i beside a heading: a real button that opens a small popover on a click, a tap or Enter, and closes on Escape, a tap outside or a second click. */
-export function PsxInfo({ text, label }: { text: string; label?: string }) {
+export function PsxInfo({ text, label }: { text: ReactNode; label?: string }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLSpanElement>(null), btn = useRef<HTMLButtonElement>(null);
   useEffect(() => {

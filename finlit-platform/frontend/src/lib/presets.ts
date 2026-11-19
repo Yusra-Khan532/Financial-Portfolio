@@ -13,7 +13,11 @@ export type Preset = {
   /** The strip's card (task #64, N-38), on the plan's own page only: a "Top 10 …" / "Highest-rated …" list; the figure the first three show;
    *  the first three companies on the stored list with that figure (null when the company has none); how many joined at the latest close. */
   top10?: boolean; figure?: string; first?: { symbol: string; name: string; value: number | null }[]; joined?: number;
+  /** Task #243 (pack v4): the i beside a new screen's name, and its NEW tag (two weeks after its first run). */
+  about?: ScreenAbout | null; isNew?: boolean;
 };
+/** "What it shows" in a sentence or two, then three "How to use it" points (task #243). */
+export type ScreenAbout = { shows: string; use: string[] };
 /** Advanced screens are Gold (Prism fields); Basic screens are Silver (FinLit score fields). */
 export type PresetTab = "advanced" | "basic";
 export const PLAN_OF: Record<PresetTab, "gold" | "silver"> = { advanced: "gold", basic: "silver" };
@@ -28,7 +32,7 @@ export type ThemeState = "in_play" | "emerging" | "fading" | "closest";
 export type Theme = { industry: string; state: ThemeState; breadth: number | null; marketBreadth?: number | null; r3?: number | null; rs3: number | null; members: number | null; small?: boolean; leaders: string[]; reason?: string | null };
 export type Miss = { symbol: string; name?: string | null; exchange?: string | null; failed: string[] };
 export type PresetDetail = {
-  id: string; name: string; asOf: string | null; count: number; shown: number; topCount?: number; asOn?: string; benchSincePct?: number | null; heading?: string | null; filtered?: number; facets?: { sizes: Record<string, number>; sectors: [string, number][]; strong: number; strongOnly?: number; anyRating?: number; new?: number; ahead?: number; nse?: number; bse?: number }; columns: PresetColumn[]; rows: PresetRow[]; themes?: Theme[]; closestMisses?: Miss[];
+  id: string; name: string; asOf: string | null; count: number; shown: number; topCount?: number; asOn?: string; benchSincePct?: number | null; heading?: string | null; filtered?: number; facets?: { sizes: Record<string, number>; sectors: [string, number][]; strong: number; strongOnly?: number; anyRating?: number; new?: number; ahead?: number; nse?: number; bse?: number; fno?: number; liquid?: number }; columns: PresetColumn[]; rows: PresetRow[]; themes?: Theme[]; closestMisses?: Miss[];
   howItWorks: string[]; cardText: string; disclaimer: string;
   /** "Top 10 of 40 that pass": what the list shows of the companies that pass. */
   listText?: string; notes?: string[]; rankScoreNote?: string; emptyText?: string; ratedCount?: number;
@@ -36,6 +40,8 @@ export type PresetDetail = {
   pageSize?: number; offset?: number; limit?: number; available?: number; hasMore?: boolean;
   /** Task #243 (pack P3, L1): the date bar's figures for the list shown, from the saved lists. */
   list?: { date: string; latest: string; count: number; joined: number | null; left: number | null; prev: string | null; first: string; rulesUpdated: boolean } | null;
+  /** Task #243 (pack v4): the i beside the name and whether the screen is new. */
+  about?: ScreenAbout | null; isNew?: boolean;
 };
 export const PAGE_SIZE = 25;
 /** The rows a page shows, as "26–50 of 76" (the numbers come from the response). */
@@ -103,12 +109,14 @@ export function usePresetList(enabled = true, tab: PresetTab = "advanced") {
 /** The open screen's filters (task #243, pack P4), applied by the server to the screen's own list: search; Market cap; Sector; rating (Strong or Healthy, or Strong
  *  only); New on this list (joined since the previous saved list); Ahead of NIFTY 500 since added; NSE-listed only. */
 export type Rating = "" | "healthy" | "strong";
-export type BarFilter = { q: string; sizes: string[]; sectors: string[]; rating: Rating; fresh: boolean; ahead: boolean; nse: boolean };
-export const NO_BAR: BarFilter = { q: "", sizes: [], sectors: [], rating: "", fresh: false, ahead: false, nse: false };
+/** Task #243 (pack v4): `fno` = F&O stocks only, `liquid` = Liquid only (20-session average value traded of Rs 10 Cr or more). Both optional so older callers still type-check. */
+export type BarFilter = { q: string; sizes: string[]; sectors: string[]; rating: Rating; fresh: boolean; ahead: boolean; nse: boolean; fno?: boolean; liquid?: boolean };
+export const NO_BAR: BarFilter = { q: "", sizes: [], sectors: [], rating: "", fresh: false, ahead: false, nse: false, fno: false, liquid: false };
 export const barParams = (b: BarFilter): string[] => [...(b.q.trim() ? ["q=" + encodeURIComponent(b.q.trim())] : []), ...b.sizes.map((x) => "size=" + encodeURIComponent(x)),
-  ...b.sectors.map((x) => "sector=" + encodeURIComponent(x)), ...(b.rating ? ["rating=" + b.rating] : []), ...(b.fresh ? ["new=1"] : []), ...(b.ahead ? ["ahead=1"] : []), ...(b.nse ? ["nse=1"] : [])];
+  ...b.sectors.map((x) => "sector=" + encodeURIComponent(x)), ...(b.rating ? ["rating=" + b.rating] : []), ...(b.fresh ? ["new=1"] : []), ...(b.ahead ? ["ahead=1"] : []), ...(b.nse ? ["nse=1"] : []),
+  ...(b.fno ? ["fno=1"] : []), ...(b.liquid ? ["liquid=1"] : [])];
 /** How many filters are on (the search box counts as one). */
-export const barCount = (b: BarFilter) => (b.q.trim() ? 1 : 0) + b.sizes.length + b.sectors.length + (b.rating ? 1 : 0) + (b.fresh ? 1 : 0) + (b.ahead ? 1 : 0) + (b.nse ? 1 : 0);
+export const barCount = (b: BarFilter) => (b.q.trim() ? 1 : 0) + b.sizes.length + b.sectors.length + (b.rating ? 1 : 0) + (b.fresh ? 1 : 0) + (b.ahead ? 1 : 0) + (b.nse ? 1 : 0) + (b.fno ? 1 : 0) + (b.liquid ? 1 : 0);
 export const detailPath = (id: string, chips: string[], offset = 0, limit?: number, asOn?: string | null, bar: BarFilter = NO_BAR) => {
   const q = chips.map((c) => "chip=" + encodeURIComponent(c));
   q.push(...barParams(bar));

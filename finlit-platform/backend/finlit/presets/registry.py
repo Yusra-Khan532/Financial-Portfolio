@@ -30,7 +30,7 @@ from typing import Dict, List, Mapping, Optional, Tuple
 from .seed import slug
 from .theme_map import SUBTHEMES as THEME_SUBS
 
-REGISTRY_VERSION = 15      # 15: no "breakout" (the group is New highs, task #64 14 Nov N-12), "parts" not "pillars", the screen-score line without how it is built (N-36); 14: Prism basics served, Sector themes on the NSE industries, plain order notes, lender cut-off at or above; 13: Top gainers; 12: the Chart patterns group (11 scans, both tabs); 11: fixes 9 to 14 (each input ranked once, every company that passes, Quality for lenders, FinLit IQ on Basic); 10: the Breakouts group on the version 2 rules (task #64); 9: sizes by rupee market cap, a Rs 1,000 Cr floor on every Advanced list, Sector themes on NSE industries, full ratings only by default on Rating upgrades; 7: the Setups group (pre-breakout; breakout then pulled back); 6: caps, tags and sector themes read the Sector LABEL (not the macro sector or the Industry); the two valuation views split at 50; the screens page by 25
+REGISTRY_VERSION = 16      # 16: task #243 round 3a (13 new screens; F&O and liquidity on every row); 15: no "breakout" (the group is New highs, task #64 14 Nov N-12), "parts" not "pillars", the screen-score line without how it is built (N-36); 14: Prism basics served, Sector themes on the NSE industries, plain order notes, lender cut-off at or above; 13: Top gainers; 12: the Chart patterns group (11 scans, both tabs); 11: fixes 9 to 14 (each input ranked once, every company that passes, Quality for lenders, FinLit IQ on Basic); 10: the Breakouts group on the version 2 rules (task #64); 9: sizes by rupee market cap, a Rs 1,000 Cr floor on every Advanced list, Sector themes on NSE industries, full ratings only by default on Rating upgrades; 7: the Setups group (pre-breakout; breakout then pulled back); 6: caps, tags and sector themes read the Sector LABEL (not the macro sector or the Industry); the two valuation views split at 50; the screens page by 25
 DISCLAIMER = "A screen narrows a list. It is not a recommendation."
 BANNED_WORDS = ("best", "buy", "multibagger", "sell", "top pick", "undervalued gem")   # in names and card text, never (spec p2: names describe, never advise)
 MCAP1000 = ("market_cap >= 1000", "Market cap Rs 1,000 Cr or more")
@@ -86,6 +86,11 @@ class Preset:
     sector_cap: int = 0       # at most this many companies from one Sector label in the list (0 = no cap)
     fill: Tuple[str, ...] = ()   # rule labels a company may fail and still fill a short list (badged "Trend not confirmed")
     list_text: str = ""       # what the card says about its list when it shows fewer than all that pass, e.g. "Top 10"
+    # Task #243 (pack v4, i notes): "What it shows" and the three "How to use it" points beside the screen's name, and the notes line under the toolbar.
+    # Both come from plain.json, like the card text. `added` is the day the screen first ran: the card carries a NEW tag for NEW_DAYS after it.
+    about: Tuple[str, Tuple[str, ...]] = ()
+    notes: Tuple[str, ...] = ()
+    added: str = ""
 
     @property
     def status(self) -> str:
@@ -357,7 +362,8 @@ QUICK_VIEWS: List[Preset] = [
 # ------------------------------------------------------------------------------------------------------------------------------ the Basic tab (Silver)
 # Built only from what the Basic score screener shows: the FinLit IQ, its pillars (Quality, Growth, Profitability, Balance sheet, Technical), the Growth & Profitability
 # score (the average of the four business pillars, needs 3 of 4), market cap, Sector, 52-week and return fields. Every rule is a "derived" rule with a plain-words label.
-BASIC_GROUP = {"top": "top-rated", "trend": "trend", "setups": "setups", "patterns": "chart-patterns", "gainers": "top-gainers", "growth": "growth", "themes": "themes", "value": "value-income", "safety": "safety"}
+BASIC_GROUP = {"top": "top-rated", "trend": "trend", "setups": "setups", "patterns": "chart-patterns", "gainers": "top-gainers", "growth": "growth", "themes": "themes", "value": "value-income", "safety": "safety",
+               "ownership": "ownership"}
 B_TECH = Col("pillar_technical", "Technical", "score")
 B_QUAL = Col("pillar_quality", "Quality", "score")
 B_GROW = Col("pillar_growth", "Growth", "score")
@@ -505,6 +511,81 @@ BASIC += [
            (RANK, STOCK, FINLIT, B_TECH) + _pcols(k) + (SECTOR, MCAP), (), (), False, None, (), k, "basic")
     for k in _SCANS]
 
+# ------------------------------------------------------------------------------------------------------------------------------ new screens (task #243, pack v3 R5 and v4)
+# Ten from version 3 (five a page) and three from version 4 on both pages. "Sound" = a Healthy or Strong Prism rating (Advanced: score 65 or more) or FinLit IQ
+# (Basic: 62 or more). The fields res_*, prism_before* / prism_change and iq_before* / iq_change are put on each company by presets/service.py (build_frame) from the
+# Latest results page and the score histories; a company without them fails the rule (unknown fails), it is never guessed.
+NEW_DAY = "2026-11-19"                      # the day these screens first ran: the cards carry a NEW tag for NEW_DAYS (presets/api.py)
+SOUND_IQ = IQ_HEALTHY
+C_SALES = Col("q_sales_yoy", "Sales vs a year ago", "pct")
+C_PROFIT = Col("q_profit_yoy", "Profit vs a year ago", "pct")
+C_DY = Col("dividend_yield", "Dividend yield (%)", "num2")
+C_DYRS = Col("div_years", "Years paid (of last 6)", "text")
+C_FII = Col("own_fii_chg_1q", "Foreign institutions (points)", "num2")
+C_DII = Col("own_dii_chg_1q", "Domestic institutions (points)", "num2")
+C_PC = Col("own_promoters_chg_1q", "Promoter stake change (points)", "num2")
+C_PS = Col("own_promoters", "Promoter stake (%)", "num1")
+C_RD = Col("res_declared", "Declared", "date")
+C_RV = Col("res_verdict", "Result", "text", "left")
+C_RS = Col("res_sales_yoy", "Sales vs a year ago", "pct")
+C_RP = Col("res_profit_yoy", "Profit vs a year ago", "pct")
+C_RN = Col("res_npm_change", "Net margin change (points)", "num1")
+C_PB, C_PBR, C_PBD, C_PCH = (Col("prism_before", "Prism before", "score"), Col("prism_before_rating", "Rating before", "text", "left"),
+                             Col("prism_before_day", "Scored on", "date"), Col("prism_change", "Change", "num1"))
+C_IB, C_IBR, C_IBD, C_ICH = (Col("iq_before", "FinLit IQ before", "score"), Col("iq_before_band", "Band before", "text", "left"),
+                             Col("iq_before_day", "Scored on", "date"), Col("iq_change", "Change", "num1"))
+R_STRONG_RES = (("q_sales_yoy >= 20", "Sales growth against the same quarter last year 20% or more"), ("q_profit_yoy >= 25", "Profit growth against the same quarter last year 25% or more"))
+R_DIVIDEND = (("dividend_yield >= 2", "Dividend yield 2% or more"), ("div_years >= 5", "A dividend in at least 5 of the last 6 years"))
+R_INST = (("own_fii_chg_1q >= 0.5", "Foreign institutions up 0.5 point or more last quarter"), ("own_dii_chg_1q >= 0.5", "Domestic institutions up 0.5 point or more last quarter"),
+          ("own_promoters_chg_1y >= -1", "Promoters down no more than 1 point in a year"))
+R_PROMOTER = (("own_promoters_chg_1q >= 0.5", "Promoter holding up 0.5 point or more last quarter"),
+              ("own_promoters_chg_1q <= 10", "A rise of no more than 10 points (larger jumps come from mergers or reclassification)"))
+R_FRESH = (("res_fresh = 1", "Results declared in the last week, with numbers loaded"), ("res_rank >= 5", "The Latest results page reads the quarter as Strong"))
+R_WEAK = (("res_fresh = 1", "Results declared in the last week, with numbers loaded"), ("res_rank <= 1", "The Latest results page reads the quarter as Poor or Loss"))
+SOUND_ADV = _m(rated=1, zmin=65)
+
+
+def _new(pid: str, name: str, group: str, tab: str, rules, rank, cols, pf: Optional[Mapping] = None) -> Preset:
+    cols = (RANK, STOCK) + tuple(cols) + (SECTOR, MCAP)
+    return Preset(pid, name, group, "", "rules", pf if pf is not None else _m(), "", tuple(rules), tuple(rank), 25, cols if tab == "basic" else with_status(cols), (), (), False, None,
+                  ("provisional",) if tab == "advanced" else (), "pack v4 (task #243)", tab, added=NEW_DAY)
+
+
+NEW_ADV: List[Preset] = [
+    _new("strong-results", "Strong results, sound rating", "growth", "advanced", R_STRONG_RES + (MCAP1000,), (("q_profit_yoy", "desc"), ("prism_final", "desc")), (C_SALES, C_PROFIT), SOUND_ADV),
+    _new("dividend-payers", "Dividend payers, sound rating", "value-income", "advanced", R_DIVIDEND + (MCAP1000,), (("dividend_yield", "desc"), ("prism_final", "desc")), (C_DY, C_DYRS), SOUND_ADV),
+    _new("turnarounds", "Turnarounds", "value-income", "advanced", (("prism_lt_score < 20", "Long-term technical pillar Sideways or lower (a company with no long-term view is left out)"), MCAP1000),
+         (("prism_st_score", "desc"), ("prism_final", "desc")), (W52,), _m(rated=1, zmin=65, st=20)),
+    _new("rating-downgrades", "Rating downgrades", "safety", "advanced", (("prism_band_down = 1 or prism_change <= -10", "Prism rating down a band, or score down 10 points or more"), MCAP1000),
+         (("prism_change", "asc"), ("prism_final", "desc")), (C_PB, C_PBR, C_PBD, C_PCH), _m(rated=1)),
+    _new("institutions-buying", "Institutions buying, sound rating", "ownership", "advanced", R_INST + (MCAP1000,), (("inst_chg_1q", "desc"), ("prism_final", "desc")), (C_FII, C_DII), SOUND_ADV),
+    _new("promoter-buying", "Promoter buying, sound rating", "ownership", "advanced", R_PROMOTER + (MCAP1000,), (("own_promoters_chg_1q", "desc"), ("prism_final", "desc")), (C_PC, C_PS), SOUND_ADV),
+    _new("fresh-results", "Fresh results: strong quarter, sound rating", "growth", "advanced", R_FRESH + (MCAP1000,), (("res_declared_n", "desc"), ("res_profit_yoy", "desc")),
+         (C_RD, C_RV, C_RS, C_RP, C_RN), SOUND_ADV),
+    _new("weak-results", "Weak results, sound rating", "safety", "advanced", R_WEAK + (MCAP1000,), (("res_profit_yoy", "asc"), ("res_declared_n", "desc")),
+         (C_RD, C_RV, C_RS, C_RP, C_RN), SOUND_ADV),
+]
+NEW_BASIC: List[Preset] = [
+    _new("basic-iq-upgrades", "FinLit IQ upgrades", BASIC_GROUP["top"], "basic", (("iq_band_up = 1 or iq_change >= 8", "FinLit IQ up a band, or up 8 points or more"), MC1000),
+         (("iq_change", "desc"), ("overall", "desc")), (FINLIT, C_IB, C_IBR, C_IBD, C_ICH)),
+    _new("basic-strong-results", "Strong results, sound FinLit IQ", BASIC_GROUP["growth"], "basic", (SOUND_IQ,) + R_STRONG_RES + (MC1000,), (("q_profit_yoy", "desc"), ("overall", "desc")),
+         (FINLIT, C_SALES, C_PROFIT)),
+    _new("basic-dividend-payers", "Dividend payers, sound FinLit IQ", BASIC_GROUP["value"], "basic", (SOUND_IQ,) + R_DIVIDEND + (MC1000,), (("dividend_yield", "desc"), ("overall", "desc")),
+         (FINLIT, C_DY, C_DYRS)),
+    _new("basic-iq-downgrades", "FinLit IQ downgrades", BASIC_GROUP["safety"], "basic", (("iq_band_down = 1 or iq_change <= -8", "FinLit IQ down a band, or down 8 points or more"), MC1000),
+         (("iq_change", "asc"), ("overall", "desc")), (FINLIT, C_IB, C_IBR, C_IBD, C_ICH)),
+    _new("basic-institutions-buying", "Institutions buying, sound FinLit IQ", BASIC_GROUP["ownership"], "basic", (SOUND_IQ,) + R_INST + (MC1000,), (("inst_chg_1q", "desc"), ("overall", "desc")),
+         (FINLIT, C_FII, C_DII)),
+    _new("basic-promoter-buying", "Promoter buying, sound FinLit IQ", BASIC_GROUP["ownership"], "basic", (SOUND_IQ,) + R_PROMOTER + (MC1000,), (("own_promoters_chg_1q", "desc"), ("overall", "desc")),
+         (FINLIT, C_PC, C_PS)),
+    _new("basic-fresh-results", "Fresh results: strong quarter, sound FinLit IQ", BASIC_GROUP["growth"], "basic", (SOUND_IQ,) + R_FRESH + (MC1000,), (("res_declared_n", "desc"), ("res_profit_yoy", "desc")),
+         (FINLIT, C_RD, C_RV, C_RS, C_RP, C_RN)),
+    _new("basic-weak-results", "Weak results, sound FinLit IQ", BASIC_GROUP["safety"], "basic", (SOUND_IQ,) + R_WEAK + (MC1000,), (("res_profit_yoy", "asc"), ("res_declared_n", "desc")),
+         (FINLIT, C_RD, C_RV, C_RS, C_RP, C_RN)),
+]
+PRESETS = PRESETS + NEW_ADV
+BASIC = BASIC + NEW_BASIC
+
 # Top gainers (Today, This week, This month): companies our screens listed, ranked by the rise since the day they joined. Stored nightly (presets/history.py).
 GAIN_WIN = (("day", "Today", "Companies that joined a screen of this page at the previous close, ranked by how far the price has risen since."),
             ("week", "This week", "Companies that joined a screen of this page at one of the last 5 closes, ranked by how far the price has risen since."),
@@ -534,7 +615,9 @@ def _plain(p: Preset) -> Preset:
     w = _PLAIN.get(p.id)
     if w is None:
         return _replace(p, how_it_works=())
-    return _replace(p, card_text=w["text"], how_it_works=tuple(w.get("how") or ()))
+    ab = w.get("about") or {}
+    about = (ab["shows"], tuple(ab["use"])) if ab.get("shows") and ab.get("use") else ()
+    return _replace(p, card_text=w["text"], how_it_works=tuple(w.get("how") or ()), about=about, notes=tuple(w.get("notes") or ()))
 
 
 PRESETS = [_plain(p) for p in PRESETS]
@@ -543,6 +626,7 @@ QUICK_VIEWS = [_plain(p) for p in QUICK_VIEWS]
 ADVANCED = [p for p in PRESETS if p.tab != "basic"]
 ALL: List[Preset] = PRESETS + QUICK_VIEWS
 BY_ID: Dict[str, Preset] = {p.id: p for p in ALL}
+NEW_ADV, NEW_BASIC = [BY_ID[p.id] for p in NEW_ADV], [BY_ID[p.id] for p in NEW_BASIC]     # with their plain words
 
 
 def render_card(p: Preset, n: Optional[int] = None) -> str:

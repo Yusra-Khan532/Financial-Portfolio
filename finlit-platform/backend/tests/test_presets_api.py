@@ -34,9 +34,9 @@ async def test_non_gold_gets_names_but_no_values(app, anon):  # noqa: F811
     r = await anon.get("/api/screener/presets")
     body = r.json()
     cards = [c for g in body["groups"] for c in g["presets"]]
-    assert r.status_code == 200 and len(cards) == 37 and (await anon.get("/api/screener/presets?tab=basic")).json()["groups"] and all(c["locked"] and c["count"] is None for c in cards) and cards[0]["name"]   # 37: task #243 (pack L12) leaves out PSU stocks, which cannot run yet
+    assert r.status_code == 200 and len(cards) == 45 and (await anon.get("/api/screener/presets?tab=basic")).json()["groups"] and all(c["locked"] and c["count"] is None for c in cards) and cards[0]["name"]   # 45: task #243 (pack L12) leaves out PSU stocks, which cannot run yet; round 3a adds 8 screens
     names = [g["name"] for g in body["groups"]]       # task #243 (pack R2): the featured groups first, then Prism views and the rest
-    assert names[:4] == ["Top rated", "Momentum", "Growth", "Themes"] and names[4] == "Prism views" and names[-1] == "Safety"   # Ownership comes back with its screens
+    assert names[:4] == ["Top rated", "Momentum", "Growth", "Themes"] and names[4] == "Prism views" and names[-1] == "Ownership"   # Ownership is back with its screens (task #243 round 3a)
     assert [g["featured"] for g in body["groups"]][:5] == [True, True, True, True, False]
     assert (await anon.get("/api/screener/presets/emerging-tech")).status_code == 403
     silver = await signed_in(app, "s@example.com", plan="silver")
@@ -127,7 +127,7 @@ async def test_basic_tab_screens_are_silver_and_advanced_stay_gold(app, store): 
     free = await signed_in(app, "bf@example.com", plan="basic")
     lst = (await silver.get("/api/screener/presets?tab=basic")).json()
     cards = [c for g in lst["groups"] for c in g["presets"]]
-    assert lst["tab"] == "basic" and len(cards) == 33 and all(c["tab"] == "basic" and c["locked"] is False for c in cards)
+    assert lst["tab"] == "basic" and len(cards) == 41 and all(c["tab"] == "basic" and c["locked"] is False for c in cards)
     assert all(c["locked"] for g in (await free.get("/api/screener/presets?tab=basic")).json()["groups"] for c in g["presets"])
     d = await silver.get("/api/screener/presets/basic-emerging-tech")
     assert d.status_code == 200 and d.json()["id"] == "basic-emerging-tech"

@@ -318,5 +318,311 @@
  "psu-stocks": {
   "text": "Public-sector companies with a good Prism score, ranked by Prism score.",
   "how": []
+ },
+ "strong-results": {
+  "text": "Sales and profit in the latest quarter well ahead of the same quarter last year, with a Healthy or Strong Prism rating.",
+  "how": [
+   "Companies of ₹1,000 Cr or more with a Healthy or Strong Prism rating.",
+   "Sales and profit in the latest quarter must both be well ahead of the same quarter a year earlier; profit has the higher bar.",
+   "Ordered by profit growth, the largest first."
+  ],
+  "notes": [
+   "Very large profit growth often comes from a small, or loss-making, year-ago quarter."
+  ],
+  "about": {
+   "shows": "Companies whose latest quarter grew sales and profit well ahead of the same quarter last year, and whose Prism rating is Healthy or Strong. The rating shows the quarter comes from a business that already scores well.",
+   "use": [
+    "Read Profit vs a year ago next to Sales vs a year ago: profit far ahead of sales often comes from a small or loss-making base.",
+    "Open the company report to see whether margins or one-off items drove the quarter.",
+    "Compare the Prism parts across the list to see what else sets the companies apart."
+   ]
+  }
+ },
+ "dividend-payers": {
+  "text": "A dividend in most of the last six years and a good yield today, with a Healthy or Strong Prism rating.",
+  "how": [
+   "Companies of ₹1,000 Cr or more with a Healthy or Strong Prism rating.",
+   "A dividend in at least five of the last six years, and a dividend yield well above the market's usual level.",
+   "Ordered by dividend yield, the highest first."
+  ],
+  "notes": [
+   "Yield is the last year's dividends against today's price, so it also rises when the price falls."
+  ],
+  "about": {
+   "shows": "Companies that paid a dividend in most of the last six years, with a good yield today and a Healthy or Strong Prism rating.",
+   "use": [
+    "Read Years paid with the yield: a high yield with few years paid is a shorter record.",
+    "A yield also rises when the price falls; switch on Returns in Columns to see the 1-year move.",
+    "Open the report to see the dividend history year by year."
+   ]
+  }
+ },
+ "institutions-buying": {
+  "text": "Foreign and domestic institutions both added to their stake last quarter, with a Healthy or Strong Prism rating.",
+  "how": [
+   "Companies of ₹1,000 Cr or more with a Healthy or Strong Prism rating.",
+   "Foreign institutions and domestic institutions each raised their holding last quarter, and the promoters cut theirs by no more than a little over the year.",
+   "Ordered by the two increases together, the largest first."
+  ],
+  "notes": [
+   "Holdings come from the quarterly shareholding filings, so they can be up to three months old."
+  ],
+  "about": {
+   "shows": "Companies where foreign and domestic institutions both raised their stake last quarter, while the promoters kept theirs, with a Healthy or Strong Prism rating.",
+   "use": [
+    "Compare the two columns: both kinds of institution adding is a broader change than one alone.",
+    "Holdings come from quarterly filings, so they can be up to three months old.",
+    "Open the report's ownership section to see the trend over several quarters."
+   ]
+  }
+ },
+ "turnarounds": {
+  "text": "A Healthy or Strong Prism rating and a short-term uptrend, while the long-term trend has not turned up yet.",
+  "how": [
+   "Companies of ₹1,000 Cr or more with a Healthy or Strong Prism rating.",
+   "The short-term technical pillar reads Uptrend or Strong uptrend; the long-term technical pillar reads Sideways or lower.",
+   "Ordered by the short-term technical pillar, the strongest first."
+  ],
+  "notes": [
+   "Companies with no long-term view yet (mostly recent listings) are left out."
+  ],
+  "about": {
+   "shows": "Companies with a Healthy or Strong Prism rating whose short-term trend has turned up while the long-term trend is still flat or down.",
+   "use": [
+    "Compare the two technical pillars: the gap between them is what puts a company on this list.",
+    "Below 52-week high shows how far the price is from its high.",
+    "Look again after the next saved lists: a turn that lasts lifts the long-term pillar too, and the company moves on to other screens."
+   ]
+  }
+ },
+ "rating-downgrades": {
+  "text": "Companies whose Prism rating moved down a band, or whose Prism score fell sharply, over the scores on file.",
+  "how": [
+   "Compares each company's Prism score today with its earliest score on file in the last 30 days, from the same scoring model.",
+   "A company is listed when its Prism rating moved down a band (for example Healthy to Average), or its score fell sharply without changing band.",
+   "Ordered by the change in score, the largest first."
+  ],
+  "notes": [
+   "A change to the scoring model can move many scores at once, so a score is compared only with earlier scores from the same model."
+  ],
+  "about": {
+   "shows": "Companies whose Prism rating fell a band, or whose score fell sharply, since the earliest score on file.",
+   "use": [
+    "Prism before and Change show where the score was and how far it fell.",
+    "Open the report to see which Prism part moved: growth, valuation, quality or risk.",
+    "Useful for checking companies you already follow."
+   ]
+  }
+ },
+ "promoter-buying": {
+  "text": "Promoters raised their stake last quarter, with a Healthy or Strong Prism rating.",
+  "how": [
+   "Companies of ₹1,000 Cr or more with a Healthy or Strong Prism rating.",
+   "The promoters' holding rose last quarter. Very large jumps are left out: they come from mergers or reclassification, not buying.",
+   "Ordered by the rise in the promoters' holding, the largest first."
+  ],
+  "notes": [
+   "Holdings come from the quarterly shareholding filings, so they can be up to three months old."
+  ],
+  "about": {
+   "shows": "Companies where the promoters raised their stake last quarter, with a Healthy or Strong Prism rating. Very large jumps that come from mergers or reclassification are left out.",
+   "use": [
+    "Read Promoter stake change with Promoter stake: a rise from a low base reads differently from one near the top.",
+    "Holdings come from quarterly filings, so they can be up to three months old.",
+    "Open the report's ownership section to see the trend."
+   ]
+  }
+ },
+ "fresh-results": {
+  "text": "Declared in the last week with a Strong result, and a Healthy or Strong Prism rating.",
+  "how": [
+   "Results declared in the last week up to the list's date, for companies of ₹1,000 Cr or more with numbers loaded.",
+   "The Latest results page reads the quarter as Strong, and the company has a Healthy or Strong Prism rating.",
+   "Newest results first, then the largest profit growth."
+  ],
+  "notes": [
+   "From the Latest results page. Late in a results season few companies declare, so these lists can be short."
+  ],
+  "about": {
+   "shows": "Companies that declared their quarterly results in the last week, where the Latest results page reads the quarter as Strong, and whose Prism rating is Healthy or Strong.",
+   "use": [
+    "Sort by Declared to see the newest results first.",
+    "Read Sales and Profit vs a year ago together: a big gap often points to a small base a year ago.",
+    "Open the Latest results page for the full quarter, and the report for the business."
+   ]
+  }
+ },
+ "weak-results": {
+  "text": "Declared in the last week with a Poor result or a loss, while the Prism rating still reads Healthy or Strong.",
+  "how": [
+   "Results declared in the last week up to the list's date, for companies of ₹1,000 Cr or more with numbers loaded.",
+   "The Latest results page reads the quarter as Poor or Loss, while the Prism rating is Healthy or Strong.",
+   "The Prism rating is built on longer history, so one weak quarter may not have moved it yet.",
+   "Ordered by the largest fall in profit."
+  ],
+  "notes": [
+   "From the Latest results page. Late in a results season few companies declare, so these lists can be short."
+  ],
+  "about": {
+   "shows": "Companies that declared a Poor quarter or a loss in the last week while their Prism rating still reads Healthy or Strong.",
+   "use": [
+    "The Prism rating is built on several years of figures, so one weak quarter may not have moved it yet. Check it again after the next scoring.",
+    "Net margin change shows whether costs or sales were behind the quarter.",
+    "Useful for checking companies you already follow."
+   ]
+  }
+ },
+ "basic-strong-results": {
+  "text": "Sales and profit in the latest quarter well ahead of the same quarter last year, with a Healthy or Strong FinLit IQ.",
+  "how": [
+   "Companies of ₹1,000 Cr or more with a Healthy or Strong FinLit IQ.",
+   "Sales and profit in the latest quarter must both be well ahead of the same quarter a year earlier; profit has the higher bar.",
+   "Ordered by profit growth, the largest first."
+  ],
+  "notes": [
+   "Very large profit growth often comes from a small, or loss-making, year-ago quarter."
+  ],
+  "about": {
+   "shows": "Companies whose latest quarter grew sales and profit well ahead of the same quarter last year, and whose FinLit IQ is Healthy or Strong. The rating shows the quarter comes from a business that already scores well.",
+   "use": [
+    "Read Profit vs a year ago next to Sales vs a year ago: profit far ahead of sales often comes from a small or loss-making base.",
+    "Open the company report to see whether margins or one-off items drove the quarter.",
+    "Compare the five FinLit IQ scores across the list to see what else sets the companies apart."
+   ]
+  }
+ },
+ "basic-dividend-payers": {
+  "text": "A dividend in most of the last six years and a good yield today, with a Healthy or Strong FinLit IQ.",
+  "how": [
+   "Companies of ₹1,000 Cr or more with a Healthy or Strong FinLit IQ.",
+   "A dividend in at least five of the last six years, and a dividend yield well above the market's usual level.",
+   "Ordered by dividend yield, the highest first."
+  ],
+  "notes": [
+   "Yield is the last year's dividends against today's price, so it also rises when the price falls."
+  ],
+  "about": {
+   "shows": "Companies that paid a dividend in most of the last six years, with a good yield today and a Healthy or Strong FinLit IQ.",
+   "use": [
+    "Read Years paid with the yield: a high yield with few years paid is a shorter record.",
+    "A yield also rises when the price falls; switch on Returns in Columns to see the 1-year move.",
+    "Open the report to see the dividend history year by year."
+   ]
+  }
+ },
+ "basic-institutions-buying": {
+  "text": "Foreign and domestic institutions both added to their stake last quarter, with a Healthy or Strong FinLit IQ.",
+  "how": [
+   "Companies of ₹1,000 Cr or more with a Healthy or Strong FinLit IQ.",
+   "Foreign institutions and domestic institutions each raised their holding last quarter, and the promoters cut theirs by no more than a little over the year.",
+   "Ordered by the two increases together, the largest first."
+  ],
+  "notes": [
+   "Holdings come from the quarterly shareholding filings, so they can be up to three months old."
+  ],
+  "about": {
+   "shows": "Companies where foreign and domestic institutions both raised their stake last quarter, while the promoters kept theirs, with a Healthy or Strong FinLit IQ.",
+   "use": [
+    "Compare the two columns: both kinds of institution adding is a broader change than one alone.",
+    "Holdings come from quarterly filings, so they can be up to three months old.",
+    "Open the report's ownership section to see the trend over several quarters."
+   ]
+  }
+ },
+ "basic-iq-upgrades": {
+  "text": "Companies whose FinLit IQ moved up a band, or rose sharply, over the scores on file.",
+  "how": [
+   "Compares each company's FinLit IQ today with its earliest score on file in the last 30 days, from the same scoring model.",
+   "A company is listed when its FinLit IQ moved up a band (for example Mixed to Healthy), or its score rose sharply without changing band.",
+   "Ordered by the change in score, the largest first."
+  ],
+  "notes": [
+   "A change to the scoring model can move many scores at once, so a score is compared only with earlier scores from the same model."
+  ],
+  "about": {
+   "shows": "Companies whose FinLit IQ moved up a band, or rose sharply, since the earliest score on file.",
+   "use": [
+    "FinLit IQ before and Change show where the score was and how far it rose.",
+    "Open the report to see which of the five scores moved.",
+    "A new scoring model can move many scores at once; the note under the toolbar explains this."
+   ]
+  }
+ },
+ "basic-iq-downgrades": {
+  "text": "Companies whose FinLit IQ moved down a band, or fell sharply, over the scores on file.",
+  "how": [
+   "Compares each company's FinLit IQ today with its earliest score on file in the last 30 days, from the same scoring model.",
+   "A company is listed when its FinLit IQ moved down a band (for example Healthy to Mixed), or its score fell sharply without changing band.",
+   "Ordered by the change in score, the largest first."
+  ],
+  "notes": [
+   "A change to the scoring model can move many scores at once, so a score is compared only with earlier scores from the same model."
+  ],
+  "about": {
+   "shows": "Companies whose FinLit IQ moved down a band, or fell sharply, since the earliest score on file.",
+   "use": [
+    "FinLit IQ before and Change show where the score was and how far it fell.",
+    "Open the report to see which of the five scores moved.",
+    "Useful for checking companies you already follow."
+   ]
+  }
+ },
+ "basic-promoter-buying": {
+  "text": "Promoters raised their stake last quarter, with a Healthy or Strong FinLit IQ.",
+  "how": [
+   "Companies of ₹1,000 Cr or more with a Healthy or Strong FinLit IQ.",
+   "The promoters' holding rose last quarter. Very large jumps are left out: they come from mergers or reclassification, not buying.",
+   "Ordered by the rise in the promoters' holding, the largest first."
+  ],
+  "notes": [
+   "Holdings come from the quarterly shareholding filings, so they can be up to three months old."
+  ],
+  "about": {
+   "shows": "Companies where the promoters raised their stake last quarter, with a Healthy or Strong FinLit IQ. Very large jumps that come from mergers or reclassification are left out.",
+   "use": [
+    "Read Promoter stake change with Promoter stake: a rise from a low base reads differently from one near the top.",
+    "Holdings come from quarterly filings, so they can be up to three months old.",
+    "Open the report's ownership section to see the trend."
+   ]
+  }
+ },
+ "basic-fresh-results": {
+  "text": "Declared in the last week with a Strong result, and a Healthy or Strong FinLit IQ.",
+  "how": [
+   "Results declared in the last week up to the list's date, for companies of ₹1,000 Cr or more with numbers loaded.",
+   "The Latest results page reads the quarter as Strong, and the company has a Healthy or Strong FinLit IQ.",
+   "Newest results first, then the largest profit growth."
+  ],
+  "notes": [
+   "From the Latest results page. Late in a results season few companies declare, so these lists can be short."
+  ],
+  "about": {
+   "shows": "Companies that declared their quarterly results in the last week, where the Latest results page reads the quarter as Strong, and whose FinLit IQ is Healthy or Strong.",
+   "use": [
+    "Sort by Declared to see the newest results first.",
+    "Read Sales and Profit vs a year ago together: a big gap often points to a small base a year ago.",
+    "Open the Latest results page for the full quarter, and the report for the business."
+   ]
+  }
+ },
+ "basic-weak-results": {
+  "text": "Declared in the last week with a Poor result or a loss, while the FinLit IQ still reads Healthy or Strong.",
+  "how": [
+   "Results declared in the last week up to the list's date, for companies of ₹1,000 Cr or more with numbers loaded.",
+   "The Latest results page reads the quarter as Poor or Loss, while the FinLit IQ is Healthy or Strong.",
+   "The FinLit IQ is built on longer history, so one weak quarter may not have moved it yet.",
+   "Ordered by the largest fall in profit."
+  ],
+  "notes": [
+   "From the Latest results page. Late in a results season few companies declare, so these lists can be short."
+  ],
+  "about": {
+   "shows": "Companies that declared a Poor quarter or a loss in the last week while their FinLit IQ still reads Healthy or Strong.",
+   "use": [
+    "The FinLit IQ is built on several years of figures, so one weak quarter may not have moved it yet. Check it again after the next scoring.",
+    "Net margin change shows whether costs or sales were behind the quarter.",
+    "Useful for checking companies you already follow."
+   ]
+  }
  }
 }
