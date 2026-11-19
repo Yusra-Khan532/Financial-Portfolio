@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
 from collections import OrderedDict
 from datetime import date, timedelta
@@ -22,6 +23,8 @@ from .knowledge import TOPICS as FINANCE_TOPICS
 from ..mcp.gateway import Gateway, ToolError
 from ..mcp.schema import SYMBOL_SCHEMA, clean_symbol
 from ..mcp.tools import Out, Tool
+
+log = logging.getLogger("finlit.ask")
 
 # ------------------------------------------------------------------------------------------------ Superinvestor portfolios (/superinvestors)
 SOURCE_SI = "FinLit's Superinvestor portfolios page (finlitventures.com/superinvestors): named holders of 1% or more, from the companies' shareholding filings"
@@ -299,7 +302,96 @@ SYNONYMS: List[Tuple[str, ...]] = [
     ("acquisition", "acquisitions", "merger", "m&a", "demerger"),
     ("ai", "artificial intelligence", "genai", "generative ai"),
     ("solar", "renewable", "renewables", "green energy", "new energy"),
+    # Task #254 rework (19 Nov): a bank's, an NBFC's and an insurer's own measures, as their results and decks write them
+    ("gnpa", "gross npa", "gross non-performing", "nnpa", "net npa", "net non-performing", "asset quality", "slippage", "slippages", "npa", "npas",
+     "provision coverage", "pcr", "credit cost", "credit costs", "stage 3", "gs3", "ns3"),
+    ("nim", "net interest margin", "net interest income", "nii", "core nim", "spread", "spreads", "cost of funds"),
+    ("casa", "current account", "savings account", "deposits", "deposit", "retail deposits"),
+    ("crar", "capital adequacy", "car", "cet1", "cet-1", "tier 1", "tier i", "tier-1", "solvency", "solvency ratio"),
+    ("advances", "loan book", "loans", "credit growth", "aum", "disbursement", "disbursements", "loan growth"),
+    ("cost to income", "cost-to-income", "cost income", "opex", "operating expenses"),
+    ("roa", "return on assets", "roe", "return on equity"),
+    # "red flags", "issues": the words a company's documents use for what went wrong or what to watch
+    ("red flag", "red flags", "risk", "risks", "concern", "concerns", "issue", "issues", "problem", "problems", "challenge", "challenges",
+     "headwind", "headwinds", "pressure", "decline", "declined", "slowdown", "stress", "weak", "weakness", "lower", "impact", "impacted"),
 ]
+# Task #254 rework: the measures a bank-like company is read for, added to the question when the company is a bank, an NBFC or an insurer
+BANK_TERMS = "GNPA NNPA NIM CASA CRAR credit cost advances deposits"
+# Each core measure of a bank, an NBFC or an insurer, as their results and decks write it. A bank-lens read takes the best page for every measure that
+# appears (task #254 rework: HDFC Bank's NIM sat on page 19 of 24 and was left out), each page cut to the lines that carry the measures.
+BANK_MEASURES: Dict[str, Tuple[str, ...]] = {
+    "GNPA/NNPA": ("gnpa", "nnpa", "gross npa", "net npa", "gross non-performing", "net non-performing", "gross non performing", "net non performing",
+                  "gross stage 3", "net stage 3", "gs3", "ns3"),
+    "NIM": ("net interest margin", "core nim", "nim"),
+    "CASA": ("casa",),
+    "CRAR/CAR": ("crar", "capital adequacy", "capital to risk", "cet1", "cet-1", "common equity tier", "tier 1", "tier i capital", "solvency ratio"),
+    "credit cost/provisions": ("credit cost", "provisions and contingencies", "provisions (other than tax)", "loan loss provision", "provisions"),
+    "PCR": ("provision coverage", "pcr"),
+    "cost-to-income": ("cost to income", "cost-to-income", "cost income ratio"),
+    "ROA": ("return on assets", "return on average assets", "roa"),
+    "advances growth": ("gross advances", "loans and advances", "advances", "loan book", "aum"),
+    "deposits growth": ("total deposits", "deposits"),
+}
+
+
+def bank_lens(question: str) -> bool:
+    """True when the read is for a bank, an NBFC or an insurer (the pre-fetch adds BANK_TERMS to the question for one)."""
+    return BANK_TERMS.lower() in (question or "").lower()
+
+
+def _measure_hits(page: str, words: Tuple[str, ...]) -> int:
+    p = page.lower()
+    return sum(len(re.findall(rf"(?<![a-z0-9]){re.escape(w)}(?![a-z0-9])", p)) for w in words)
+
+
+def _measure_lines(page: str, words: Tuple[str, ...], keep: int = 1) -> str:
+    """The lines of a page that name any of the words, with `keep` lines around each (a table's figures sit beside or under the name)."""
+    lines = [ln for ln in page.splitlines() if ln.strip()]
+    rx = re.compile(r"(?<![a-z0-9])(" + "|".join(re.escape(w) for w in words) + r")(?![a-z0-9])", re.I)
+    hit = {i for i, ln in enumerate(lines) if rx.search(ln)}
+    take = sorted({j for i in hit for j in range(max(0, i - keep), min(len(lines), i + keep + 1))})
+    out, last = [], -2
+    for j in take:
+        if j != last + 1 and out:
+            out.append("…")
+        ln = re.sub(r"[ \t]+", " ", lines[j]).strip()
+        if j in hit and len(ln) > 400:                           # a long run-on line: keep the stretch around the measure's name
+            m = rx.search(ln)
+            ln = "…" + ln[max(0, m.start() - 150): m.end() + 250] + "…"
+        elif j not in hit:
+            ln = ln[:200]                                        # a line beside a measure is context only: its start is enough
+        out.append(ln)
+        last = j
+    return "\n".join(out)
+
+
+def bank_pages(pages: List[str], chars: int) -> Tuple[List[Tuple[int, str]], Dict[str, int]]:
+    """For a bank-lens read: the best page for each core measure that appears (pages shared by measures are taken once), each cut to the lines
+    that carry its measures, in page order, within `chars`; then the measures each page covers. Returns ([(page number, text)], {measure: page})."""
+    best: Dict[str, int] = {}
+    for m, words in BANK_MEASURES.items():
+        scored = [(_measure_hits(p, words), i) for i, p in enumerate(pages)]
+        top = max(scored, default=(0, -1))
+        if top[0] > 0:
+            best[m] = top[1]
+    by_page: Dict[int, List[str]] = {}
+    for m, i in best.items():
+        by_page.setdefault(i, []).append(m)
+    out, used = [], 0
+    # the pages that carry the most measures first, so the figures most asked for are kept when room runs out; then put back in page order
+    for i in sorted(by_page, key=lambda i: (-len(by_page[i]), i)):
+        words = tuple(w for m in by_page[i] for w in BANK_MEASURES[m])
+        t = _measure_lines(pages[i], words)
+        if not t:
+            continue
+        t = t[: max(0, chars - used)]
+        if not t:
+            break
+        out.append((i + 1, t))
+        used += len(t)
+    out.sort()
+    kept = {n for n, _ in out}
+    return out, {m: i + 1 for m, i in best.items() if i + 1 in kept}
 SUMMARY_WORDS = ("highlights", "highlight", "key", "summary", "at a glance", "performance", "overview", "snapshot")
 GENERAL = re.compile(r"\b(what (does|did) (the |its |their )?(investor )?(presentation|deck|ppt|document|annual report|transcript|concall)\s*(say|says|tell|show)?"
                      r"|summari[sz]e|summary|overview|highlights|key points|main points|kya (bola|kaha|likha))\b", re.I)
@@ -453,11 +545,16 @@ def _cut(pages: List[str], ranked: List[int], n: int, chars: int) -> List[Tuple[
     return out
 
 
-async def _pages_of(link: str) -> List[str]:
-    async with _text_lock:
-        if link in _texts:
-            _texts.move_to_end(link)
-            return _texts[link]
+class DamagedFile(Exception):
+    """The exchange sent a file that does not open as a PDF (cut off or broken), twice: not a scan, so nothing is kept and the next question tries again."""
+
+    def __init__(self, link: str):
+        super().__init__(link)
+        self.link = link
+
+
+async def _download_pages(link: str) -> List[str]:
+    """One download and parse: the page texts, or [] when the file does not open as a PDF (cut off, broken, locked)."""
     from ..earnings.transcripts import DOC_PDF_BYTES, Blocked, FetchFailed, Fetcher, extract_pages
     f = Fetcher(budget=4, pause=0.0)
     try:
@@ -466,7 +563,28 @@ async def _pages_of(link: str) -> List[str]:
         raise ToolError(f"The exchange did not give the file just now ({e}). It can be opened from {link}") from None
     finally:
         await f.aclose()
-    pages = await asyncio.to_thread(extract_pages, pdf, MAX_PAGES_READ)
+    return await asyncio.to_thread(extract_pages, pdf, MAX_PAGES_READ)
+
+
+async def _pages_of(link: str) -> List[str]:
+    """The page texts of a file. A file that does not open, or opens with no text on any page, is downloaded once more before deciding (a broken
+    download from the exchange is common): the second copy is used when it has text; both opening with no text is a scan (kept in memory only);
+    otherwise the file came damaged (DamagedFile, nothing kept, so the next question tries again)."""
+    async with _text_lock:
+        if link in _texts:
+            _texts.move_to_end(link)
+            return _texts[link]
+    pages = await _download_pages(link)
+    if not any(p.strip() for p in pages):
+        log.info("ask: %s gave %s; downloading it once more", link[-60:], "pages with no text" if pages else "a file that does not open")
+        try:
+            again = await _download_pages(link)
+        except ToolError:
+            again = []
+        if any(p.strip() for p in again):
+            pages = again
+        elif not (pages and again):
+            raise DamagedFile(link)
     async with _text_lock:
         _texts[link] = pages
         while len(_texts) > 24:
@@ -474,8 +592,8 @@ async def _pages_of(link: str) -> List[str]:
     return pages
 
 
-async def _locate(gw: Gateway, sym: str, want: str, store: Any, window: Optional[Tuple[date, date, str]] = None
-                  ) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]], Optional[str]]:
+async def _locate(gw: Gateway, sym: str, want: str, store: Any, window: Optional[Tuple[date, date, str]] = None,
+                  found: Optional[List[Dict[str, Any]]] = None) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]], Optional[str]]:
     """The document of the kind asked for: the Documents list first (what the website shows; results filings come from News & filings > Results);
     then the database: for a presentation the one Discovery read, then any stored filing that says "presentation" in the last 400 days (task #255);
     for a call transcript, an annual report or a results filing, the stored filings of that kind (task #254). The newest, or, when the question
@@ -505,6 +623,8 @@ async def _locate(gw: Gateway, sym: str, want: str, store: Any, window: Optional
         docs.sort(key=lambda d: str(d.get("date") or ""), reverse=True)
     if not docs:
         return None, rows, None
+    if found is not None:          # task #254 rework: every candidate, newest first, so a covering letter can be passed over
+        found.extend(sorted(docs, key=lambda d: str(d.get("date") or ""), reverse=True))
     if window:
         hit = [d for d in docs if in_window(d, window)]
         if hit:
@@ -539,11 +659,70 @@ KIND_NOTES = {
 }
 
 
+# Task #254 rework (19 Nov, HDFC Bank): many filings the exchange lists as an "Investor presentation" (or a transcript) are only the company's covering
+# letter: one to three pages to the Listing Department under Regulation 30, saying the deck is enclosed or is on the company's website. Such a letter
+# must never be quoted as "the presentation".
+_LETTER = re.compile(r"listing department|corporate relationship department|dept\.? of corporate services|regulation 30|regulation 46|"
+                     r"pursuant to|please find (?:enclosed|attached)|we enclose|enclosed herewith|enclosed please find|kindly take (?:the same )?on record|"
+                     r"take the above on record|scrip (?:code|symbol)|dear sir|dear madam|yours (?:faithfully|truly|sincerely)|company secretary", re.I)
+_COMPANY_PDF = re.compile(r"https?://[^\s\"'<>)]+?\.pdf\b", re.I)
+EXCHANGE_HOSTS = ("nseindia.com", "bseindia.com")
+COVER_PAGES = 3
+COVER_CHARS = 6000
+
+
+def is_cover_letter(pages: List[str]) -> bool:
+    """A covering letter only: at most three short pages, written as a letter to the exchange (two or more letter phrases), with no deck or call
+    after it. A letter followed by the deck in the same file (most presentations: a letter, then 10 to 40 slides) is not a cover letter."""
+    texts = [p for p in pages if p and p.strip()]
+    if not texts or len(pages) > COVER_PAGES:
+        return False
+    body = " ".join(texts)
+    return len(body) <= COVER_CHARS and len(set(m.group(0).lower() for m in _LETTER.finditer(body))) >= 2
+
+
+def letter_links(pages: List[str]) -> Tuple[List[str], List[str]]:
+    """(direct PDF links on the company's own site, the other links) a covering letter names; the exchange's own links are left out."""
+    body = " ".join(pages)
+    pdfs = [u for u in dict.fromkeys(_COMPANY_PDF.findall(body)) if not any(h in u.lower() for h in EXCHANGE_HOSTS)]
+    urls = [u.rstrip(".,;") for u in dict.fromkeys(re.findall(r"https?://[^\s\"'<>)]+", body)) if u not in pdfs
+            and not any(h in u.lower() for h in EXCHANGE_HOSTS)]
+    return pdfs[:2], urls[:3]
+
+
+async def _real_document(store: Any, doc: Dict[str, Any], docs: List[Dict[str, Any]], sym: str, want: str
+                         ) -> Tuple[Dict[str, Any], List[str], str, Optional[Dict[str, Any]]]:
+    """The document to quote: `doc`, unless its file is only a covering letter. Then, in turn: (i) another filing of the same kind on the same day
+    (the deck filed separately), (ii) a PDF on the company's own site that the letter links to, (iii) the next newest filings of that kind (at most
+    two). Returns (document, its pages, where its text came from, the covering letter skipped or None). When every one is a letter, the newest letter
+    comes back with `letter` set, so the answer says so plainly."""
+    pages, origin = await _read_pages(store, doc, sym, want)
+    if not is_cover_letter(pages):
+        return doc, pages, origin, None
+    letter = {"title": doc.get("title"), "filed": doc.get("date"), "link": doc.get("link"), "pages": len(pages)}
+    pdfs, urls = letter_links(pages)
+    letter["links"] = pdfs + urls
+    same_day = [d for d in docs if d is not doc and d.get("link") != doc.get("link") and d.get("date") == doc.get("date")]
+    older = [d for d in docs if d is not doc and d.get("link") != doc.get("link") and str(d.get("date") or "") < str(doc.get("date") or "")]
+    tries: List[Dict[str, Any]] = same_day[:2] + [{**doc, "link": u, "title": f"{doc.get('title')} (the file on the company's site)", "from": "company site"}
+                                                 for u in pdfs[:1]] + older[:2]
+    for cand in tries:
+        try:
+            p2, o2 = await _read_pages(store, cand, sym, want)
+        except Exception:      # nosec B112 - one file the exchange or the company's site does not give must not stop the others
+            log.info("ask: %s %s: %s not read", sym, want, str(cand.get("link"))[-60:])
+            continue
+        if any(x.strip() for x in p2) and not is_cover_letter(p2):
+            return cand, p2, o2, letter
+    return doc, pages, origin, letter
+
+
 async def read_company_document(gw: Gateway, a: Dict[str, Any]) -> Out:
     sym, want = clean_symbol(a["symbol"]), DOC_KINDS[a["document"]]
     store = docstore.store_of(gw)
     window = period_window(a.get("period") or a.get("question") or "", want)
-    doc, rows, period_note = await _locate(gw, sym, want, store, window)
+    candidates: List[Dict[str, Any]] = []
+    doc, rows, period_note = await _locate(gw, sym, want, store, window, candidates)
     if doc is None:
         held = sorted({r["type"] for r in rows if r.get("type")})
         if not held and store is not None:
@@ -556,20 +735,57 @@ async def read_company_document(gw: Gateway, a: Dict[str, Any]) -> Out:
                    notes=[f"FinLit's {page} holds no {want.lower()} for {sym} filed in the last {days} days "
                           f"(filings appear as the company's announcements are loaded). {has} Say so plainly; the web may have the company's own copy."])
     try:
-        pages, origin = await _read_pages(store, doc, sym, want)
+        doc, pages, origin, letter = await _real_document(store, doc, candidates or [doc], sym, want)
+    except DamagedFile:
+        return Out({"symbol": sym, "document": want, "title": doc["title"], "filed": doc["date"], "link": doc["link"], "pages": 0, "text": [],
+                    "damagedFile": True}, as_of=doc["date"], source=SOURCE_FEED, routes=["/api/feed", doc["link"]],
+                   notes=([period_note] if period_note else []) + [
+                       f"The exchange sent a damaged file just now: the {want.lower()} ({doc['title']}, filed {doc['date']}) was downloaded twice and "
+                       "neither copy opens. It is not a scan, and FinLit will try again on the next question. Say so in one short clause, give the "
+                       f"link ({doc['link']}), and answer from the other documents and FinLit's own figures."])
     except asyncio.TimeoutError:
         raise ToolError(f"The exchange did not send the {want.lower()} ({doc['title']}, filed {doc['date']}) in time. It can be opened from {doc['link']}") from None
     found_by = " (the presentation FinLit's Discovery read; the Documents list shows newer filings only)" if doc.get("from") == "discovery" else ""
+    if doc.get("from") == "company site":
+        found_by = " (the file on the company's own site that the exchange filing's covering letter points to)"
     base = {"symbol": sym, "document": want, "title": doc["title"], "filed": doc["date"], "link": doc["link"], "pages": len(pages)}
     if window:
         base["period"] = window[2]
     src = f"{SOURCE_FEED}; the file itself, read from the exchange archive{found_by}"
     lead = [period_note] if period_note else []
+    if letter is not None and letter.get("link") == doc.get("link"):
+        # every filing found is only a covering letter (HDFC Bank's "presentation" of 17 Oct 2026: one page pointing to its website)
+        where = f" It points to {', '.join(letter['links'])}." if letter.get("links") else ""
+        return Out({**base, "text": [], "coverLetterOnly": True, "letterLinks": letter.get("links") or []}, as_of=doc["date"], source=src,
+                   routes=["/api/feed", doc["link"]],
+                   notes=lead + [f"The filing named '{want.lower()}' of {doc['date']} is only the company's covering letter ({len(pages)} page"
+                                 f"{'s' if len(pages) != 1 else ''}) to the exchange: the {want.lower()} itself is not in the exchange filing.{where} "
+                                 "Never call this letter the presentation and never quote it as the company's view. Read the results filing and the call "
+                                 "transcript of the same quarter instead (read_company_document), and the company's own investor-relations page on the web; "
+                                 "say plainly which document the figures come from."])
+    if letter is not None:
+        lead.append(f"The filing of {letter['filed']} ({letter['title']}) is only a covering letter, so this is the {want.lower()} read instead "
+                    f"({doc['title']}, {doc['date']}). Say so in one short clause when you quote it.")
     if not any(p.strip() for p in pages):
         return Out({**base, "text": []}, as_of=doc["date"], source=src, routes=["/api/feed"],
-                   notes=lead + ["The file has no readable text (it is a scan or images only); it can be opened from the link."])
-    chosen = best_pages(pages, a.get("question") or "", kind=want)
+                   notes=lead + ["The file is a scan: it was downloaded twice and both copies open with no text on any page (images only). Say so "
+                                 "plainly; it can be opened from the link."])
+    budget = int(a.get("max_chars") or 9000)                           # task #254 rework: several documents read at once share the room
+    q = a.get("question") or ""
+    measures: Dict[str, int] = {}
+    if bank_lens(q) and want in ("Results filing", "Investor presentation", "Annual report"):
+        # a bank, an NBFC or an insurer: the best page for each core measure first (cut to its lines), then the question's own pages in the room left
+        chosen, measures = bank_pages(pages, budget)
+        left = budget - sum(len(t) for _, t in chosen)
+        if left > 600:
+            have = {n for n, _ in chosen}
+            extra = [(n, t) for n, t in best_pages(pages, q, n=4, chars=left, kind=want) if n not in have]
+            chosen = sorted(chosen + extra[:2])
+    else:
+        chosen = best_pages(pages, q, n=6 if budget >= 6000 else 4, chars=budget, kind=want)
     text: List[Dict[str, Any]] = [{"page": n, "text": t} for n, t in chosen]
+    if measures:
+        base["measuresOnPages"] = measures                              # which page carries each bank measure
     if want == "Call transcript":                                      # who speaks on each page, as the page names them
         mgmt = management_of(pages)
         for row in text:
@@ -699,7 +915,9 @@ TOOLS: List[Tool] = [
          "project details, its annual report (strategy, risks, related parties) and the results filing behind FinLit's results figures.",
          {"symbol": dict(SYMBOL_SCHEMA), "document": {"type": "string", "enum": list(DOC_KINDS), "default": "investor_presentation"},
           "question": {"type": "string", "maxLength": 200, "description": "What to look for in the document"},
-          "period": {"type": "string", "maxLength": 40, "description": "Optional: the quarter or year asked about, e.g. 'Q2 FY27', 'September quarter', 'FY26'"}},
+          "period": {"type": "string", "maxLength": 40, "description": "Optional: the quarter or year asked about, e.g. 'Q2 FY27', 'September quarter', 'FY26'"},
+          "max_chars": {"type": "integer", "minimum": 1500, "maximum": 9000, "default": 9000,
+                        "description": "Optional: at most this many characters of pages (smaller when several documents are read together)"}},
          read_company_document, ["symbol"]),
     Tool("get_discovery", "Discovery", "FinLit AI's Discovery section: companies grouped by the themes their newest investor presentation talks about (AI, defence, "
          "solar, batteries, data centres, semiconductors, EV, nuclear, space and drones, and more: 21 themes), each with its keywords, the sentences that hold figures "

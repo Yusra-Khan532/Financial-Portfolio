@@ -1038,6 +1038,24 @@ async def refresh(store, settings=None, backfill_amc: Optional[str] = None, *, c
             await client.aclose()
 
 
+async def apply_nav_names(conn) -> int:
+    """Task #256: AMFI's NAV file leaves the Plan and Option columns blank for some fund houses and names those schemes only "HSBC Small Cap Fund", so plan
+    and option read "not stated" (and returns, chart and score were withheld). AMFI's scheme master names every code in full ("HSBC Small Cap Fund -
+    Direct Growth"; kept in mf_facts.nav_name by the disclosure job). Read the plan and option from that name, the same way as from the NAV file's own
+    name; only what the NAV file did not state is filled, never overwritten. Returns how many schemes changed."""
+    rows = await conn.fetch("SELECT s.code, s.plan, s.option_class, s.option_label, f.nav_name FROM mf_schemes s JOIN mf_facts f USING (code) "
+                            "WHERE f.nav_name IS NOT NULL AND (s.plan = 'Unspecified' OR s.option_label = 'Not stated')")
+    ups = []
+    for r in rows:
+        plan = r["plan"] if r["plan"] != "Unspecified" else clean_plan("", r["nav_name"])
+        oc, ol = (r["option_class"], r["option_label"]) if r["option_label"] != "Not stated" else clean_option("", r["nav_name"])
+        if (plan, oc, ol) != (r["plan"], r["option_class"], r["option_label"]):
+            ups.append((r["code"], plan, oc, ol))
+    if ups:
+        await conn.executemany("UPDATE mf_schemes SET plan = $2, option_class = $3, option_label = $4, updated_at = now() WHERE code = $1", ups)
+    return len(ups)
+
+
 async def apply_navall(store, parsed: Parsed, newest: date) -> dict:
     """Write an accepted file (see refresh). Everything is one transaction: a failure leaves the previous data exactly as it was."""
     drop_excluded(parsed)   # normally done by refresh already; a direct call must not store them either
@@ -1050,6 +1068,7 @@ async def apply_navall(store, parsed: Parsed, newest: date) -> dict:
         before = await conn.fetchval("SELECT count(*) FROM mf_schemes")
         prev_meta = await _meta(conn, "refresh") or {}
         await conn.execute(UPSERT, *[list(c) for c in cols])
+        named = await apply_nav_names(conn)   # task #256: plan and option from AMFI's scheme master where the NAV file states neither
         await conn.execute("UPDATE mf_schemes SET active = (nav_date IS NOT NULL AND nav_date >= $1::date - $2::int)", newest, ACTIVE_DAYS)
         # Schemes whose newest NAV is later than the last stored day of their history (every active scheme once the backfill has run): append it.
         # A scheme with no stored history yet gets its 1 and 5 year figures from refresh_anchors instead.
@@ -1079,7 +1098,7 @@ async def apply_navall(store, parsed: Parsed, newest: date) -> dict:
         total = await conn.fetchval("SELECT count(*) FROM mf_schemes")
         with_hist = await conn.fetchval("SELECT count(*) FROM mf_history")
         res = {"status": "ok", "navDate": newest.isoformat(), "schemesInFile": len(ss), "schemesStored": total, "newSchemes": total - before, "active": active,
-               "withHistory": with_hist, "historyAppended": appended, "skipped": parsed.skipped,
+               "withHistory": with_hist, "historyAppended": appended, "skipped": parsed.skipped, "planOptionFromMaster": named,
                "at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "_gap_since": gap_since}
         await _set_meta(conn, "refresh", {k: v for k, v in res.items() if not k.startswith("_")})
     return res

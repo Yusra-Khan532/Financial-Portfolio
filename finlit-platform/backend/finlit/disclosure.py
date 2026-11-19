@@ -122,6 +122,7 @@ class MasterRow:
     base_name: str
     launch: Optional[date]
     minimum: Optional[str]
+    nav_name: Optional[str] = None      # task #256: the full name with plan and option ("... - Direct Growth"), when the file has the column
 
 
 def parse_master(text: str) -> Dict[int, MasterRow]:
@@ -132,6 +133,7 @@ def parse_master(text: str) -> Dict[int, MasterRow]:
     if not all(k in head for k in need):
         return {}
     ci, ni, li, mi = head.index("code"), head.index("scheme name"), head.index("launch date"), head.index("scheme minimum amount")
+    vi = head.index("scheme nav name") if "scheme nav name" in head else None
     out: Dict[int, MasterRow] = {}
     for r in rd:
         if len(r) <= max(ci, ni, li, mi):
@@ -139,7 +141,8 @@ def parse_master(text: str) -> Dict[int, MasterRow]:
         code = r[ci].strip()
         if not code.isdigit() or not r[ni].strip():
             continue
-        out[int(code)] = MasterRow(int(code), re.sub(r"\s+", " ", r[ni].strip()), parse_amfi_date(r[li]), min_text(r[mi]))
+        nav_name = re.sub(r"\s+", " ", r[vi].strip()) if vi is not None and len(r) > vi and r[vi].strip() else None
+        out[int(code)] = MasterRow(int(code), re.sub(r"\s+", " ", r[ni].strip()), parse_amfi_date(r[li]), min_text(r[mi]), nav_name)
     return out
 
 
@@ -313,13 +316,14 @@ async def step_master(store, client, *, min_rows: int = MIN_MASTER_ROWS) -> dict
         return {"status": "refused", "why": f"AMFI's scheme master gave {len(rows)} schemes (expected at least {min_rows})"}
     async with store.pool.acquire() as conn:
         known = {r["code"] for r in await conn.fetch("SELECT code FROM mf_schemes")}
-        items = [(r.code, r.base_name, name_key(r.base_name), r.launch, r.minimum) for r in rows.values() if r.code in known]
+        items = [(r.code, r.base_name, name_key(r.base_name), r.launch, r.minimum, r.nav_name) for r in rows.values() if r.code in known]
         async with conn.transaction():
             await conn.executemany(
-                "INSERT INTO mf_facts (code, base_name, name_key, launch_date, min_text) VALUES ($1, $2, $3, $4, $5) "
+                "INSERT INTO mf_facts (code, base_name, name_key, launch_date, min_text, nav_name) VALUES ($1, $2, $3, $4, $5, $6) "
                 "ON CONFLICT (code) DO UPDATE SET base_name = EXCLUDED.base_name, name_key = EXCLUDED.name_key, launch_date = EXCLUDED.launch_date, "
-                "min_text = EXCLUDED.min_text, updated_at = now()", items)
-    return {"status": "ok", "schemes": len(items)}
+                "min_text = EXCLUDED.min_text, nav_name = COALESCE(EXCLUDED.nav_name, mf_facts.nav_name), updated_at = now()", items)
+            fixed = await mf.apply_nav_names(conn)   # task #256: a scheme the NAV file leaves without plan or option reads them from this name now
+    return {"status": "ok", "schemes": len(items), "planOptionFromMaster": fixed}
 
 
 async def store_ter(store, rows: Dict[str, TerRow], month: Optional[str], *, min_schemes: int = MIN_TER_SCHEMES, newer_only: bool = False) -> dict:
