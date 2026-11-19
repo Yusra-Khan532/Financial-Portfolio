@@ -81,13 +81,22 @@ table tfoot .x-tot th { text-align: left; text-transform: none; letter-spacing: 
 .x-tot-n { font-weight: 500; color: var(--muted); }
 
 /* B9 buys and B11 sales under a holding */
-.x-lotbtn { display: inline-grid; justify-items: end; gap: 1px; border: 1px solid color-mix(in srgb, #a16207 35%, var(--border)); background: var(--s1); border-radius: 9px; padding: 4px 10px; cursor: pointer; font: inherit; color: var(--text); min-width: 72px; }
-.x-lotbtn b { font: 700 14px var(--sans); }
-.x-lotbtn small { display: inline-flex; align-items: center; gap: 4px; font: 600 12px var(--sans); color: var(--xg1); white-space: nowrap; }
-.x-lotbtn small i { font-style: normal; transition: transform .15s; }
-.x-lotbtn[aria-expanded="true"] { background: #a16207; border-color: #a16207; color: #fff; } .x-lotbtn[aria-expanded="true"] small { color: #fff; } .x-lotbtn[aria-expanded="true"] small i { transform: rotate(180deg); }
-.x-lotbtn:hover { border-color: #a16207; } .x-lotbtn.bad { border-color: var(--loss); }
-.x-lotbtn:focus-visible, .x-need-b:focus-visible, .x-lotadd-b:focus-visible, .x-lot-x:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.x-nl { white-space: nowrap; }
+/* task #249: the buys drop-down next to the name: 18 x 18 px with negative vertical margins so the name line never gets taller; a 32 px tap area that takes no space */
+.x-namecv { display: inline-grid; place-items: center; vertical-align: middle; position: relative; width: 18px; height: 18px; margin: -3px 0 -3px 3px; padding: 0; cursor: pointer;
+  border: 1px solid color-mix(in srgb, #a16207 35%, var(--border)); background: var(--s1); color: var(--xg1); border-radius: 6px; font: inherit; line-height: 1; }
+.x-namecv::after { content: ""; position: absolute; inset: -7px; }
+.x-namecv.x-none { border-color: var(--border); color: var(--muted); }
+.x-namecv.bad { border-color: var(--loss); }
+.x-namecv svg { width: 11px; height: 11px; transition: transform .15s; }
+.x-namecv:hover { border-color: #a16207; color: #a16207; }
+.x-namecv[aria-expanded="true"] { background: #a16207; border-color: #a16207; color: #fff; }
+.x-namecv[aria-expanded="true"] svg { transform: rotate(180deg); }
+/* the quantity cell: plain text in the old button's box (same padding, a transparent border, the old button's width), so no column moves */
+.x-qtyt { display: inline-grid; justify-items: end; gap: 1px; min-width: 87.28px; padding: 4px 10px; border: 1px solid transparent; box-sizing: border-box; }
+.x-qtyt b { font: 700 14px var(--sans); }
+.x-qtyt small { font: 600 12px var(--sans); color: var(--muted); white-space: nowrap; }
+.x-namecv:focus-visible, .x-need-b:focus-visible, .x-lotadd-b:focus-visible, .x-lot-x:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .x-need-b { border: 1px dashed color-mix(in srgb, var(--gold) 70%, var(--border)); background: color-mix(in srgb, var(--gold) 8%, var(--s1)); border-radius: 8px; padding: 5px 9px; font: 600 12px var(--sans); color: var(--xg1); cursor: pointer; white-space: nowrap; }
 tr.x-open > td, tr.x-open > th { border-bottom-color: transparent !important; }
 tr.x-open > td:first-child { box-shadow: inset 3px 0 0 #a16207; }

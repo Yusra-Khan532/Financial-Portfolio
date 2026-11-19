@@ -33,7 +33,7 @@ const BOOK = { portfolios: ACCS, names: [], lots: [L("n1", "NIFTYBEES", "dhan", 
   L("n3", "NIFTYBEES", "dhan", "2025-08-01", 120, 280, "sell"), L("g1", "GOLDBEES", "upstox", "2025-03-01", 200, 60), L("m1", "MON100", "upstox", "2025-02-01", 10, 200),
   L("m2", "MON100", "upstox", "2025-09-01", 10, 260, "sell")] };
 const open = async (path = "/etf-portfolio") => { render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false, enabled: false } } })}><MemoryRouter initialEntries={[path]}><EtfPortfolioPage /></MemoryRouter></QueryClientProvider>);
-  await waitFor(() => expect(document.querySelector(".x-lotbtn")).toBeTruthy()); };
+  await waitFor(() => expect(document.querySelector(".x-namecv")).toBeTruthy()); };
 
 describe("ETF accounts, buys and sales (pack C2, C5, C6)", () => {
   it("the accounts bar lists All accounts, Dhan and Upstox with count, value and gain; one account reads its own ETFs", async () => {
@@ -52,7 +52,8 @@ describe("ETF accounts, buys and sales (pack C2, C5, C6)", () => {
     const heads = [...document.querySelectorAll("table.x-grp thead tr:last-child th")].map((t) => t.textContent!.replace(/[▲▼]/g, "").trim());
     expect(heads).toEqual(["ETF", "Tracks", "Qty", "Avg buy price", "Invested", "Price", "1 day", "Value now", "₹", "%", "1 year", "3 years", "5 years", "Expense ratioi"]);   // "i": the column's ⓘ
     const btn = screen.getByRole("button", { name: "Show the 2 buys · 1 sale of NIFTYBEES" });
-    expect(btn.textContent).toMatch(/^30/);
+    expect(btn.closest("span")!.className).toBe("x-nl");                                    // task #249: the drop-down follows the name
+    expect(btn.closest("tr")!.querySelector("td.x-qty")!.textContent).toMatch(/^30/);
     fireEvent.click(btn);
     const rows = [...document.querySelectorAll('tr.x-lot[data-lsym="NIFTYBEES"]')].map((r) => r.textContent);
     expect(rows[0]).toMatch(/all sold/); expect(rows[1]).toMatch(/30 left · 20 sold/); expect(rows[2]).toMatch(/FIFO: 2 buys/);

@@ -56,6 +56,7 @@ const EXEMPT: Record<string, string> = {
   "components/sectors/pack/IndustryPack.tsx": "an industry page as the final pages pack draws it (07): A year of <industry> scrolls sideways on a phone and has Hide, its numbers are in the story and a dropdown table, and the rank line is small; no enlarge arrow in the pack",
   "stock/pack/WhereStands.tsx": "Where the company stands as the final pages pack draws it (17): the breadth sparkline, the 6-month bars, the 12-month price line and the group-leader lines sit inside their tab with every figure written beside them; the pack has no enlarge arrow on them",
   "portfolio/ViewKit.tsx": "task #235: the view tabs' and the sticky switcher's line icons only; no chart",
+  "portfolio/HoldingCells.tsx": "task #249: only the chevron of the buys drop-down next to a holding's name; no chart",
   "portfolio/pack/DivPack.tsx": "task #235 (pack B3): the spread score's small ring sits inside its card with the score written in it and the two readings beside it; no enlarge arrow in the pack",
   "portfolio/pack/EquityPack.tsx": "the Equity portfolio as the final pages pack draws it (12-14): the score rings, the small group-leader lines and the bars sit inside cards with their figures written beside them; no enlarge arrow in the pack",
   "components/sectors/pack/PulseTable.tsx": "the Full table view as the final pages pack draws it (06): 6-month lines inside table rows and the Friday squares, which scroll sideways on a phone; no enlarge arrow in the pack",
