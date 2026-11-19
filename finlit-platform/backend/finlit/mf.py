@@ -24,7 +24,9 @@ from __future__ import annotations
 import array
 import asyncio
 import calendar
+import csv
 import functools
+import io
 import hashlib
 import json
 import logging
@@ -54,6 +56,12 @@ log = logging.getLogger("finlit.mf")
 router = APIRouter(prefix="/api/mf")
 
 NAVALL_URL = "https://portal.amfiindia.com/spages/NAVAll.txt"
+# AMFI's scheme master (19 Nov 2026): one row per scheme code with its full "Scheme NAV Name" ("HSBC Small Cap Fund - Direct Growth"). NAVAll leaves
+# Plan and Option blank for about 460 live schemes (HSBC's former L&T funds, many Motilal Oswal, ICICI, Mirae, DSP, UTI ...); the master names them.
+SCHEME_MASTER_URL = "https://portal.amfiindia.com/DownloadSchemeData_Po.aspx?mf=0"
+MASTER_MIN = 5000             # a master with fewer rows than this is not AMFI's full file: it is not used and the last good copy stays
+MASTER_META = "schememaster"  # mf_meta key: the last good master ({code: Scheme NAV Name}), used when a download fails
+PLAN_SOURCE_META = "plan_from_master"   # mf_meta key: the scheme codes whose plan or option came from the master (the fund page names the source)
 HISTORY_URL = "https://portal.amfiindia.com/DownloadNAVHistoryReport_Po.aspx"
 MIRROR_URL = "https://api.mfapi.in/mf"
 USER_AGENT = "FinLitVentures-MF/1.0 (+https://finlitventures.com; reads AMFI's public NAV files once a day)"
@@ -196,6 +204,8 @@ class Parsed:
     skipped: Dict[str, int] = field(default_factory=dict)   # what was left out or left blank, and how many
     header_ok: bool = False
     lines: int = 0
+    from_master: List[int] = field(default_factory=list)    # codes whose blank Plan or Option was read from AMFI's scheme master
+    blank_unresolved: int = 0                                # rows with a blank Plan or Option that the master could not name either
 
     def skip(self, why: str) -> None:
         self.skipped[why] = self.skipped.get(why, 0) + 1
@@ -283,9 +293,49 @@ def india_today() -> date:
     return datetime.now(IST).date()
 
 
-def parse_navall(text: str, today: Optional[date] = None) -> Parsed:
+def parse_scheme_master(text: str) -> Dict[int, str]:
+    """AMFI's scheme master (CSV) -> {scheme code: Scheme NAV Name}. The columns are found by their header names, so a reordered file still reads;
+    a row without a numeric code or a NAV name is left out. Never raises on a bad row."""
+    rows = csv.reader(io.StringIO(text.lstrip("﻿")))
+    head = next(rows, None) or []
+    names = [re.sub(r"\s+", " ", h).strip().lower() for h in head]
+    try:
+        i_code, i_nav = names.index("code"), names.index("scheme nav name")
+    except ValueError:
+        return {}
+    out: Dict[int, str] = {}
+    for r in rows:
+        if len(r) <= max(i_code, i_nav):
+            continue
+        code, nav_name = r[i_code].strip(), re.sub(r"\s+", " ", r[i_nav]).strip()
+        if code.isdigit() and nav_name:
+            out[int(code)] = nav_name
+    return out
+
+
+_PLAN_WORDS = re.compile(r"\b(?:direct|regular)\b(?:\s+plan)?|\bplan\b", re.I)
+
+
+def master_plan_option(nav_name: str, name: str) -> Tuple[str, str]:
+    """(plan text, option text) read from the master's Scheme NAV Name: the part after the scheme's own name ('HSBC Small Cap Fund - Direct Growth' ->
+    'Direct', 'Growth'; '... - Direct Plan - Annual Dividend Option' -> 'Direct', 'Annual Dividend Option'). Empty strings when it names neither."""
+    base = re.sub(r"\s+", " ", name).strip()
+    if nav_name.lower().startswith(base.lower()):
+        tail = nav_name[len(base):]
+    else:   # the master spells the scheme differently ('Motilal Oswal Large Cap Direct Plan IDCW' for 'Motilal Oswal Large Cap Fund'): its extra words
+        have = {w.lower() for w in re.findall(r"[A-Za-z0-9]+", base)}
+        tail = " ".join(w for w in re.findall(r"[A-Za-z0-9]+", nav_name) if w.lower() not in have)
+    tail = tail.strip(" -–")
+    plan = "Direct" if re.search(r"\bdirect\b", tail, re.I) else "Regular" if re.search(r"\bregular\b", tail, re.I) else ""
+    option = re.sub(r"\s+", " ", re.sub(r"\s[-–]\s", " - ", _PLAN_WORDS.sub(" ", tail))).strip(" -–")
+    option = re.sub(r"(\s-\s)+", " - ", option).strip(" -–")
+    return plan, option
+
+
+def parse_navall(text: str, today: Optional[date] = None, master: Optional[Dict[int, str]] = None) -> Parsed:
     """Parse NAVAll.txt (also the layout of the history download, minus the history-only columns). Never raises on a bad line: it is counted in `skipped`.
-    Schemes without a usable NAV are still listed (nav None). A line is left out only when it has no scheme code or the wrong number of fields."""
+    Schemes without a usable NAV are still listed (nav None). A line is left out only when it has no scheme code or the wrong number of fields.
+    `master` (AMFI's scheme master, {code: Scheme NAV Name}) fills a Plan or Option that NAVAll leaves blank; a value NAVAll states is never replaced."""
     out = Parsed()
     limit = latest_allowed(today)
     seen: Dict[int, int] = {}
@@ -325,8 +375,17 @@ def parse_navall(text: str, today: Optional[date] = None) -> Parsed:
         if nav is not None and nav_date is None:
             out.skip("NAV with an unreadable date")
             nav = None
-        plan = clean_plan(f[4], name)
-        opt, label = clean_option(f[5], name)
+        raw_plan, raw_opt = f[4], f[5]
+        if not (raw_plan and raw_opt):
+            m_plan, m_opt = master_plan_option(master[code], name) if master and code in master else ("", "")
+            used = (not raw_plan and bool(m_plan)) or (not raw_opt and bool(m_opt))
+            raw_plan, raw_opt = raw_plan or m_plan, raw_opt or m_opt
+            if used:
+                out.from_master.append(code)
+            if not (raw_plan and raw_opt):
+                out.blank_unresolved += 1
+        plan = clean_plan(raw_plan, name)
+        opt, label = clean_option(raw_opt, name)
         isin = f[1] if ISIN_RE.match(f[1]) else None
         isin2 = f[2] if ISIN_RE.match(f[2]) else None
         s = Scheme(code, name, amc, category, kind or "Open Ended", plan, opt, label, f"{amc_key(amc)}|{category}|{family_stem(name)}", isin, isin2,
@@ -798,6 +857,39 @@ async def fetch_navall(client: httpx.AsyncClient) -> str:
     return await _retry(go)
 
 
+async def fetch_scheme_master(client: httpx.AsyncClient) -> str:
+    async def go():
+        r = await client.get(SCHEME_MASTER_URL)
+        r.raise_for_status()
+        return r.content.decode("utf-8", "replace")
+    return await _retry(go)
+
+
+async def load_scheme_master(store, client: httpx.AsyncClient) -> Tuple[Dict[int, str], dict]:
+    """AMFI's scheme master for the nightly run: downloaded and kept in mf_meta when it is AMFI's full file; when the download fails or looks short,
+    the last good copy is used. Never raises: without any copy the run goes on with NAVAll alone (and says so in its result)."""
+    info: dict = {"source": None, "rows": 0}
+    try:
+        master = parse_scheme_master(await fetch_scheme_master(client))
+        if len(master) >= MASTER_MIN:
+            async with store.pool.acquire() as conn:
+                await _set_meta(conn, MASTER_META, {"at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "names": {str(k): v for k, v in master.items()}})
+            return master, {"source": "download", "rows": len(master)}
+        info["problem"] = f"the file had {len(master)} schemes (fewer than {MASTER_MIN}), so it was not used"
+    except Exception as exc:   # a missing master never stops the NAV refresh
+        info["problem"] = f"download failed ({exc.__class__.__name__})"
+        log.warning("mf refresh: AMFI scheme master not downloaded (%s); using the last good copy", exc.__class__.__name__)
+    try:
+        async with store.pool.acquire() as conn:
+            kept = await _meta(conn, MASTER_META) or {}
+        names = {int(k): v for k, v in (kept.get("names") or {}).items() if str(k).isdigit()}
+        if names:
+            return names, {**info, "source": f"stored copy of {kept.get('at')}", "rows": len(names)}
+    except Exception:
+        log.warning("mf refresh: the stored AMFI scheme master could not be read", exc_info=True)
+    return {}, info
+
+
 async def fetch_history(client: httpx.AsyncClient, frm: date, to: date, amc_id: Optional[int], wanted: set) -> Optional[Tuple[Dict[int, Tuple[array.array, array.array]], dict]]:
     """AMFI's NAV history for one fund house (or, without amc_id, every fund house) between two dates, read as a stream. Keeps only the `wanted` scheme codes.
     Returns ({code: (day numbers, NAVs)}, stats), or None when AMFI answers with its web form instead of data (no records for that selection)."""
@@ -1005,7 +1097,8 @@ async def refresh(store, settings=None, backfill_amc: Optional[str] = None, *, c
     client = client or make_client()
     try:
         text = await fetch_navall(client)
-        parsed = parse_navall(text)
+        master, master_info = await load_scheme_master(store, client)
+        parsed = parse_navall(text, master=master)
         pruned = await prune_excluded(store)   # rows of unlisted fund houses are removed first, so the checks below compare like with like
         dropped = drop_excluded(parsed)
         async with store.pool.acquire() as conn:
@@ -1023,6 +1116,12 @@ async def refresh(store, settings=None, backfill_amc: Optional[str] = None, *, c
         res = await apply_navall(store, parsed, newest)
         res["futureDatesCleared"] = future_fixed
         res["excludedSchemesSkipped"], res["excludedRowsPruned"] = dropped, pruned
+        res["schemeMaster"] = {**master_info, "planOrOptionFilled": len(parsed.from_master), "stillBlank": parsed.blank_unresolved}
+        try:   # the fund page names where a plan or option came from; a failure here never stops the run
+            async with store.pool.acquire() as conn:
+                await _set_meta(conn, PLAN_SOURCE_META, {"codes": sorted(parsed.from_master), "at": datetime.now(timezone.utc).isoformat(timespec="seconds")})
+        except Exception:
+            log.warning("mf refresh: the plan-source list was not saved", exc_info=True)
         res["gapDays"] = await _repair_gaps(store, client, res.pop("_gap_since", None), newest)
         if backfill_amc:
             res["backfill"] = await backfill(store, settings, amc=backfill_amc, client=client)
@@ -2216,7 +2315,12 @@ def returns_note(row, source: str, has_series: bool) -> Optional[str]:
     if row["option_class"] == "IDCW":
         return "Returns are not worked out for IDCW (dividend) options: each payout lowers the NAV, so NAV-to-NAV change would understate what an investor earned. See the Growth option of the same fund."
     if row["option_class"] != "Growth":
-        return "AMFI does not state a Growth option for this scheme, so NAV-to-NAV returns are not shown: any payout it made would be missing from them."
+        label = (row["option_label"] or "").strip()
+        if label and label != "Not stated":   # AMFI names an option, just not Growth or IDCW (bonus, unclaimed amounts, a cumulative option ...)
+            return (f"AMFI lists this as the \"{label}\" option, not a Growth option, so NAV-to-NAV returns are not shown: any payout it made would be "
+                    "missing from them.")
+        return ("Neither AMFI's NAV file nor its scheme master states whether this is a Growth or an IDCW option, so NAV-to-NAV returns are not shown: "
+                "any payout it made would be missing from them.")
     if not has_series:
         return "NAV history is fetched when a scheme is opened and could not be fetched right now, so the risk figures are missing; try again in a moment."
     return None
@@ -2229,6 +2333,7 @@ async def detail_payload(app, row) -> dict:
         kin = await conn.fetch("SELECT code, name, plan, option_class, option_label, nav, nav_date, active, isin FROM mf_schemes WHERE family = $1 AND code <> $2 ORDER BY plan, option_class, name LIMIT 40",
                                row["family"], row["code"])
         facts = await _facts(conn)
+        plan_source = await _plan_source(conn, row["code"])
     empty = {"value": None, "kind": "absolute", "from": None, "why": returns_note(row, source, bool(days))}
     ret = returns_json(m) if m else {k: {**empty, "kind": "cagr" if mo > 12 else "absolute"} for k, mo, _ in HORIZONS}
     if not m:
@@ -2247,7 +2352,20 @@ async def detail_payload(app, row) -> dict:
                         "points": len(days), "complete": complete, "note": note if source != "amfi" else None},
             "family": [{"code": k["code"], "name": k["name"], "plan": k["plan"], "optionClass": k["option_class"], "option": k["option_label"], "nav": k["nav"],
                         "navDate": iso(k["nav_date"]), "active": k["active"], "isin": k["isin"] or None} for k in kin],   # task #183: each option by its ISIN
-            "notAvailable": NOT_AVAILABLE, **facts}
+            "planSource": plan_source, "notAvailable": NOT_AVAILABLE, **facts}
+
+
+PLAN_FROM_NAVALL = "AMFI NAVAll file (its Plan and Option columns)"
+PLAN_FROM_MASTER = "AMFI scheme master (its Scheme NAV Name), as AMFI's NAV file leaves the plan and option blank for this scheme"
+
+
+async def _plan_source(conn, code: int) -> str:
+    """Where the page's plan and option come from: AMFI's NAV file, or (when it leaves them blank) AMFI's scheme master (kept by the nightly run)."""
+    try:
+        v = await _meta(conn, PLAN_SOURCE_META) or {}
+    except Exception:
+        return PLAN_FROM_NAVALL
+    return PLAN_FROM_MASTER if code in set(v.get("codes") or []) else PLAN_FROM_NAVALL
 
 
 async def _scheme(request: Request, code: int):

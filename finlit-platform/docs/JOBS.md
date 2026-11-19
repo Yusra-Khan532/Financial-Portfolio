@@ -166,6 +166,9 @@ How nothing else is affected: one bulk job at a time and the memory gate stay as
 | Mutual fund NAV | the last business day after 23:30 IST | one business day behind (could be an AMFI holiday) / two | mf |
 | Fund scores | run under 40 h ago | 80 h | score-mf |
 
+The `mf` job also reads AMFI's scheme master (`DownloadSchemeData_Po.aspx?mf=0`, 19 Nov 2026) to fill a Plan or Option that NAVAll leaves blank (about
+460 live schemes); a failed or short master download falls back to the last good copy kept in `mf_meta`, and never stops or slows the NAV refresh.
+
 Holidays are not guessed: the expected session is `expected_session()` (latest weekday whose session is complete, today from 16:00 IST), lowered to the newest session the technicals job actually found when that is older (a market holiday).
 
 **Stale = action**: the owning job is forced due now (bypassing windows and visitors, but not the admin pause or backoff), at most **2 times** per staleness episode and 10 minutes apart; if the data is still stale after the second run the founder is alerted ("FinLit data is stale: ..."). The counter clears when the data turns fresh.

@@ -662,7 +662,8 @@ async def test_missed_nights_are_filled_from_amfis_industry_wide_history(loaded)
         return httpx.Response(200, content=gap_text.encode())
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as c:
         res = await mf.refresh(loaded, None, client=c)
-    assert res["status"] == "ok" and res["gapDays"] == 8 and seen[1] == {"frmdt": "20-Oct-2026", "todt": "27-Oct-2026"}   # no mf=: every fund house at once
+    hist = [p for p in seen if "frmdt" in p]    # the scheme master (asked with mf=0) is read first in the run, then the history for the missed days
+    assert res["status"] == "ok" and res["gapDays"] == 8 and hist[0] == {"frmdt": "20-Oct-2026", "todt": "27-Oct-2026"}   # no mf=: every fund house at once
     async with loaded.pool.acquire() as conn:
         h = await conn.fetchrow("SELECT blob, d0, n FROM mf_history WHERE code = $1", LARGE)
     days, navs = mf.unpack_series(bytes(h["blob"]), h["d0"].toordinal())
