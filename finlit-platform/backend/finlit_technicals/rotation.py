@@ -18,7 +18,7 @@ equally, so a few large companies cannot dominate):
     Behind and slipping    strength 0 or below and change 0 or below
     Behind but gaining     strength 0 or below and change above 0
 
-A group moves to a new corner only after two weekly closes in it, so one week's wiggle does not count as a move.
+A group leaves its corner only after two weekly closes outside it (it then takes the corner of the latest close), so one week's wiggle does not count as a move.
 
 The rotation rank orders the groups each week by a 0-100 score: the 3, 6 and 12-month returns against the average
 industry (weights 0.3, 0.4, 0.3, each ranked across groups) make up three quarters, and the share of the group's
@@ -63,7 +63,7 @@ METHOD = {
     "strength": "6-month return of the group minus the average industry's, in points.",
     "change": "Last month's return of the group minus the average industry's, in points.",
     "corner": ("Strength above 0 is ahead, otherwise behind. Change above 0 is gaining, otherwise slowing (when ahead) "
-               "or slipping (when behind). A group moves to a new corner only after two weekly closes in it."),
+               "or slipping (when behind). A group leaves its corner only after two weekly closes outside it, and then takes the latest close's corner."),
     "breadth": "Share of the group's counted stocks above their 50-day average: 50% or more is broad, under 40% narrow.",
     "rank": ("A 0-100 score: the 3, 6 and 12-month returns against the average industry, ranked across groups and "
              "weighted 0.3, 0.4 and 0.3, make up three quarters; the breadth reading, ranked the same way, makes up "
@@ -143,26 +143,29 @@ def raw_corners(strength: pd.DataFrame, change: pd.DataFrame, middle: float) -> 
 
 
 def confirm(raw: pd.DataFrame, k: int = 2) -> pd.DataFrame:
-    """A group takes a new corner only after k consecutive weekly readings in it."""
+    """A group leaves its corner only after k consecutive weekly readings outside it, and then takes the corner of the latest reading.
+
+    One week's wiggle still does not count. Task #243 (data finding D2, 19 Nov 2026): the earlier rule asked for k readings in the SAME new corner, so a
+    group that flipped between two other corners (Banks: Ahead and gaining, Behind but gaining, Ahead and gaining) kept a corner none of its recent weeks
+    had, for 12 weeks, beside figures that read otherwise."""
     if k <= 1:
         return raw.copy()
     out = {}
     for g in raw.columns:
-        cur, cand, n, col = "", "", 0, []
+        cur, n, col = "", 0, []
         for v in raw[g].values:
             if v == "":
-                cur, cand, n = "", "", 0
+                cur, n = "", 0
                 col.append("")
                 continue
             if cur == "":
                 cur = v
             elif v == cur:
-                cand, n = "", 0
+                n = 0
             else:
-                n = n + 1 if v == cand else 1
-                cand = v
+                n += 1
                 if n >= k:
-                    cur, cand, n = v, "", 0
+                    cur, n = v, 0
             col.append(cur)
         out[g] = col
     return pd.DataFrame(out, index=raw.index)
