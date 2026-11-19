@@ -343,32 +343,56 @@ def _score(page: str, terms: List[Tuple[str, ...]]) -> int:
 # the words that mark a person from the company's management in a call transcript's list of participants.
 ANNUAL_SECTIONS = ("management discussion", "management's discussion", "md&a", "directors' report", "directors report", "board's report",
                    "boards' report", "risk", "segment", "notes to", "chairman", "message from", "key highlights", "at a glance")
-_MGMT_TITLE = (r"(chief [a-z ]{3,30}officer|cfo|ceo|coo|cto|managing director|joint managing director|executive director|whole[- ]?time director"
-               r"|chairman|chairperson|president|director|head[ -][a-z ]{3,30}|company secretary|investor relations)")
+_MGMT_TITLE = (r"(chief(?: [a-z &]{2,30}officer| [a-z &]{2,30})?|cfo|ceo|coo|cto|managing director|joint managing director|executive director"
+               r"|whole[- ]?time director|chairman|chairperson|president|director|head[ -][a-z ]{3,30}|company secretary|investor relations)")
 _SPEAKER = re.compile(r"^\s*([A-Z][A-Za-z.' ]{1,40}?)\s*:\s+\S", re.M)
+# Letterhead and cover-letter labels that look like a speaker's name ("Subject: ...", "Scrip code: ...") but are not.
+_NOT_SPEAKERS = {"reg off", "regd off", "regd. off", "registered office", "scrip symbol", "scrip code", "subject", "sub", "encls", "encl", "website",
+                 "email", "e-mail", "cin", "reg", "ref", "to", "date", "place", "tel", "fax", "phone", "note", "notes", "source", "page", "disclaimer",
+                 "q", "a", "dear sir", "dear sirs", "dear madam", "kind attn", "attn", "isin", "symbol", "series", "time", "venue", "duration"}
+
+
+def _nm(s: str) -> str:
+    """A name for matching: letters only, so "K.N. RADHAKRISHNAN" and "K. N. Radhakrishnan" are one person."""
+    return re.sub(r"[^a-z]", "", s.lower())
 
 
 def management_of(pages: List[str]) -> Dict[str, str]:
-    """A call transcript's management, {name: title}, from its first pages (the list of participants: "Name - Chief Financial Officer")."""
+    """A call transcript's management, {name: title}, from its first pages: the list of participants ("MANAGEMENT: MR. K.N. RADHAKRISHNAN - DIRECTOR
+    AND CHIEF EXECUTIVE OFFICER", "Name - Chief Financial Officer"); the moderator and the analysts are left out."""
     out: Dict[str, str] = {}
     for pg in pages[:3]:
-        for line in pg.splitlines():
-            m = re.match(rf"\s*(?:mr\.?|ms\.?|mrs\.?|dr\.?)?\s*([A-Z][A-Za-z.' ]{{1,40}}?)\s*[-–—:,|]\s*{_MGMT_TITLE}\b", line, re.I)
+        lines = pg.splitlines()
+        for k, line in enumerate(lines):
+            head = re.match(r"\s*(management|moderator|participants?|analysts?)\s*:\s*", line, re.I)
+            if head and head.group(1).lower() != "management":
+                continue
+            rest = line[head.end():] if head else line
+            m = re.match(rf"\s*(?:mr\.?|ms\.?|mrs\.?|dr\.?)?\s*([A-Z][A-Za-z.' ]{{1,40}}?)\s*[-–—:,|]\s*{_MGMT_TITLE}\b", rest, re.I)
             if m and m.group(1).strip().lower() not in ("moderator", "management", "participants"):
-                out[m.group(1).strip()] = m.group(2).strip()
+                title = re.sub(r"\s+", " ", rest[m.start(2):]).strip(" ,;|-–—")
+                nxt = lines[k + 1].strip() if k + 1 < len(lines) else ""
+                if not re.search(r"officer\b", title, re.I) and re.fullmatch(r"(?i)[a-z &]{0,30}officer\b[a-z &]{0,20}", nxt):
+                    title = f"{title} {nxt}"                     # a title that runs onto the next line ("CHIEF FINANCIAL / OFFICER")
+                out[m.group(1).strip()] = title[:60].strip(" ,;|-–—")
     return out
 
 
+def _title_of(who: str, mgmt: Dict[str, str]) -> Optional[str]:
+    w = _nm(who)
+    return next((t for n, t in mgmt.items() if w and (_nm(n) in w or w in _nm(n))), None) if len(w) >= 4 else None
+
+
 def speakers_on(page: str, mgmt: Dict[str, str]) -> List[str]:
-    """The speakers whose turns a transcript page shows, as it names them, with their title when they are management ("Rajesh Kumar (Chief Financial
-    Officer, management)"); an analyst or the moderator is named as the page names them."""
+    """The speakers whose turns a transcript page shows, as it names them, with their title when they are management ("Vikas Goel (Chief Financial
+    Officer, management)"); an analyst or the moderator is named as the page names them, and letterhead labels are left out."""
     out: List[str] = []
     for m in _SPEAKER.finditer(page):
         who = m.group(1).strip()
-        if who.lower() in ("note", "source", "page", "disclaimer", "q", "a") or len(who) < 3:
+        if who.lower().rstrip(".") in _NOT_SPEAKERS or len(who) < 3:
             continue
-        title = next((t for n, t in mgmt.items() if n.lower() in who.lower() or who.lower() in n.lower()), None)
-        label = f"{who} ({title}, management)" if title else (f"{who} (management)" if who.lower() == "management" else who)
+        title = _title_of(who, mgmt)
+        label = f"{who} ({title}, management)" if title else ("Management" if who.lower() == "management" else who)
         if label not in out:
             out.append(label)
     return out
@@ -377,7 +401,7 @@ def speakers_on(page: str, mgmt: Dict[str, str]) -> List[str]:
 def _kind_bonus(page: str, kind: Optional[str], mgmt: Dict[str, str]) -> int:
     p = page.lower()
     if kind == "Call transcript":         # management's own answers come before the analysts' questions and the moderator
-        return 4 if any(re.search(rf"(^|\n)\s*{re.escape(n.lower())}\s*:", p) for n in mgmt) or re.search(r"(^|\n)\s*management\s*:", p) else 0
+        return 4 if any(_title_of(m.group(1), mgmt) or m.group(1).strip().lower() == "management" for m in _SPEAKER.finditer(page)) else 0
     if kind == "Annual report":
         return 3 if any(w in p for w in ANNUAL_SECTIONS) else 0
     return 0
@@ -524,9 +548,11 @@ async def read_company_document(gw: Gateway, a: Dict[str, Any]) -> Out:
         if not held and store is not None:
             held = sorted({doc_type(h["category"], h["title"]) for h in await docstore.held(store, sym)})
         has = f"FinLit holds these documents for {sym}: {', '.join(held)}." if held else f"FinLit holds no company documents for {sym} yet."
-        return Out({"symbol": sym, "document": want, "found": False, "held": held, "searched": f"the last {docstore.KEEP_DAYS} days"},
+        days = docstore.KIND_DAYS.get(want, docstore.KEEP_DAYS)          # task #254: an annual report is looked for over two years
+        page = "News & filings page" if want == "Results filing" else "Documents page"
+        return Out({"symbol": sym, "document": want, "found": False, "held": held, "searched": f"the last {days} days"},
                    source=SOURCE_FEED, routes=["/api/feed"],
-                   notes=[f"FinLit's Documents page holds no {want.lower()} for {sym} filed in the last {docstore.KEEP_DAYS} days "
+                   notes=[f"FinLit's {page} holds no {want.lower()} for {sym} filed in the last {days} days "
                           f"(filings appear as the company's announcements are loaded). {has} Say so plainly; the web may have the company's own copy."])
     try:
         pages, origin = await _read_pages(store, doc, sym, want)
