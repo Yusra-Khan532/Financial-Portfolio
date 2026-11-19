@@ -69,7 +69,8 @@ describe("P4: filters", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("checkbox")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /More filters/ }));
-    expect(screen.getAllByRole("checkbox").map((c) => c.closest("label")!.querySelector("b")!.textContent)).toEqual(["New on this list", "Ahead of NIFTY 500 since added", "F&O stocks only", "Liquid only", "NSE-listed only"]);   // round 3a (pack v4) adds F&O and Liquid
+    expect(screen.getAllByRole("checkbox").map((c) => c.closest("label")!.querySelector("b")!.textContent)).toEqual(["New on this list", "Ahead of NIFTY 500 since added", "F&O stocks only", "Liquid only",
+      "Industry ahead and gaining", "Peer leaders only", "NSE-listed only"]);   // round 3a (pack v4) adds F&O and Liquid; round 3b the two sector filters (Advanced)
     expect(screen.getByRole("button", { name: "+ Add a rule on any figure" })).toBeTruthy();
     fireEvent.click(screen.getByRole("checkbox", { name: /New on this list/ }));
     fireEvent.keyDown(document, { key: "Escape" });

@@ -18,10 +18,15 @@ export type Preset = {
 };
 /** "What it shows" in a sentence or two, then three "How to use it" points (task #243). */
 export type ScreenAbout = { shows: string; use: string[] };
+/** Task #243 round 3b: one chip of a Sectors screen's industry board (counts add up to the list). `slug` is null for "No sector reading". */
+export type BoardChip = { slug: string | null; name: string; n: number; corner: string | null; rotation: string | null; pulse: string | null; pulseCode: string | null };
+/** Which date each kind of data on an Advanced screen is from (prices and scores, the Setups and Chart patterns lists, Sector Pulse, Sector Rotation). */
+export type DataDates = { prices: string | null; setups: string | null; sectors: string | null; rotation: string | null };
 /** Advanced screens are Gold (Prism fields); Basic screens are Silver (FinLit score fields). */
 export type PresetTab = "advanced" | "basic";
 export const PLAN_OF: Record<PresetTab, "gold" | "silver"> = { advanced: "gold", basic: "silver" };
-export type PresetGroup = { id: string; name: string; presets: Preset[]; /** Task #243: one of the featured groups (shown first, crowned). */ featured?: boolean };
+export type PresetGroup = { id: string; name: string; presets: Preset[]; /** Task #243: one of the featured groups (shown first, crowned). */ featured?: boolean;
+  /** Round 3b: Sectors (Advanced) is new and has a one-line intro over its cards, with an i. */ isNew?: boolean; intro?: string; about?: ScreenAbout };
 export type PresetList = { asOf: string | null; groups: PresetGroup[]; tab?: PresetTab };
 
 export type ColFormat = "text" | "num1" | "num2" | "pct" | "pct_down" | "score" | "cr" | "label" | "badge" | "date" | "since";
@@ -32,7 +37,7 @@ export type ThemeState = "in_play" | "emerging" | "fading" | "closest";
 export type Theme = { industry: string; state: ThemeState; breadth: number | null; marketBreadth?: number | null; r3?: number | null; rs3: number | null; members: number | null; small?: boolean; leaders: string[]; reason?: string | null };
 export type Miss = { symbol: string; name?: string | null; exchange?: string | null; failed: string[] };
 export type PresetDetail = {
-  id: string; name: string; asOf: string | null; count: number; shown: number; topCount?: number; asOn?: string; benchSincePct?: number | null; heading?: string | null; filtered?: number; facets?: { sizes: Record<string, number>; sectors: [string, number][]; strong: number; strongOnly?: number; anyRating?: number; new?: number; ahead?: number; nse?: number; bse?: number; fno?: number; liquid?: number }; columns: PresetColumn[]; rows: PresetRow[]; themes?: Theme[]; closestMisses?: Miss[];
+  id: string; name: string; asOf: string | null; count: number; shown: number; topCount?: number; asOn?: string; benchSincePct?: number | null; heading?: string | null; filtered?: number; facets?: { sizes: Record<string, number>; sectors: [string, number][]; strong: number; strongOnly?: number; anyRating?: number; new?: number; ahead?: number; nse?: number; bse?: number; fno?: number; liquid?: number; sag?: number; plead?: number }; columns: PresetColumn[]; rows: PresetRow[]; themes?: Theme[]; closestMisses?: Miss[];
   howItWorks: string[]; cardText: string; disclaimer: string;
   /** "Top 10 of 40 that pass": what the list shows of the companies that pass. */
   listText?: string; notes?: string[]; rankScoreNote?: string; emptyText?: string; ratedCount?: number;
@@ -40,6 +45,8 @@ export type PresetDetail = {
   pageSize?: number; offset?: number; limit?: number; available?: number; hasMore?: boolean;
   /** Task #243 (pack P3, L1): the date bar's figures for the list shown, from the saved lists. */
   list?: { date: string; latest: string; count: number; joined: number | null; left: number | null; prev: string | null; first: string; rulesUpdated: boolean } | null;
+  /** Round 3b: the industry board of a Sectors screen, and which date each kind of data is from (Advanced). */
+  industryBoard?: BoardChip[]; dataDates?: DataDates;
   /** Task #243 (pack v4): the i beside the name and whether the screen is new. */
   about?: ScreenAbout | null; isNew?: boolean;
 };
@@ -110,13 +117,15 @@ export function usePresetList(enabled = true, tab: PresetTab = "advanced") {
  *  only); New on this list (joined since the previous saved list); Ahead of NIFTY 500 since added; NSE-listed only. */
 export type Rating = "" | "healthy" | "strong";
 /** Task #243 (pack v4): `fno` = F&O stocks only, `liquid` = Liquid only (20-session average value traded of Rs 10 Cr or more). Both optional so older callers still type-check. */
-export type BarFilter = { q: string; sizes: string[]; sectors: string[]; rating: Rating; fresh: boolean; ahead: boolean; nse: boolean; fno?: boolean; liquid?: boolean };
-export const NO_BAR: BarFilter = { q: "", sizes: [], sectors: [], rating: "", fresh: false, ahead: false, nse: false, fno: false, liquid: false };
+export type BarFilter = { q: string; sizes: string[]; sectors: string[]; rating: Rating; fresh: boolean; ahead: boolean; nse: boolean; fno?: boolean; liquid?: boolean;
+  /** Round 3b (Advanced): Industry ahead and gaining, Peer leaders only, and the industry board's chip (the industry's address on Sector Pulse, with its name for the chip). */
+  sag?: boolean; plead?: boolean; ind?: { slug: string; name: string } | null };
+export const NO_BAR: BarFilter = { q: "", sizes: [], sectors: [], rating: "", fresh: false, ahead: false, nse: false, fno: false, liquid: false, sag: false, plead: false, ind: null };
 export const barParams = (b: BarFilter): string[] => [...(b.q.trim() ? ["q=" + encodeURIComponent(b.q.trim())] : []), ...b.sizes.map((x) => "size=" + encodeURIComponent(x)),
   ...b.sectors.map((x) => "sector=" + encodeURIComponent(x)), ...(b.rating ? ["rating=" + b.rating] : []), ...(b.fresh ? ["new=1"] : []), ...(b.ahead ? ["ahead=1"] : []), ...(b.nse ? ["nse=1"] : []),
-  ...(b.fno ? ["fno=1"] : []), ...(b.liquid ? ["liquid=1"] : [])];
+  ...(b.fno ? ["fno=1"] : []), ...(b.liquid ? ["liquid=1"] : []), ...(b.sag ? ["sag=1"] : []), ...(b.plead ? ["plead=1"] : []), ...(b.ind ? ["ind=" + encodeURIComponent(b.ind.slug)] : [])];
 /** How many filters are on (the search box counts as one). */
-export const barCount = (b: BarFilter) => (b.q.trim() ? 1 : 0) + b.sizes.length + b.sectors.length + (b.rating ? 1 : 0) + (b.fresh ? 1 : 0) + (b.ahead ? 1 : 0) + (b.nse ? 1 : 0) + (b.fno ? 1 : 0) + (b.liquid ? 1 : 0);
+export const barCount = (b: BarFilter) => (b.q.trim() ? 1 : 0) + b.sizes.length + b.sectors.length + (b.rating ? 1 : 0) + (b.fresh ? 1 : 0) + (b.ahead ? 1 : 0) + (b.nse ? 1 : 0) + (b.fno ? 1 : 0) + (b.liquid ? 1 : 0) + (b.sag ? 1 : 0) + (b.plead ? 1 : 0) + (b.ind ? 1 : 0);
 export const detailPath = (id: string, chips: string[], offset = 0, limit?: number, asOn?: string | null, bar: BarFilter = NO_BAR) => {
   const q = chips.map((c) => "chip=" + encodeURIComponent(c));
   q.push(...barParams(bar));

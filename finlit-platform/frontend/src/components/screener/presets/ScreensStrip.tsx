@@ -13,6 +13,7 @@ import { nf, MINUS } from "../../../lib/format";
 import { PLAN_OF, type Preset, type PresetGroup } from "../../../lib/presets";
 import { useUI } from "../../../lib/ui";
 import type { PresetRoute } from "./usePresetRoute";
+import { PsxInfo } from "./PsxInfo";
 import "../../../styles/presets.css";
 import "../../../styles/readyScreens.css";
 
@@ -104,7 +105,7 @@ export function ScreensStrip({ route, past }: { route: PresetRoute; past?: { day
     const feat = isFeatured(g), sel = shown?.id === g.id;
     return <button key={g.id} type="button" role="tab" id={`rms-gt-${g.id}`} aria-selected={sel} aria-controls="rms-panel"
       className={"rms-tab" + (feat ? " is-feat" : "") + (sel ? " is-on" : "") + (g.id === activeGroup ? " has-open" : "")} onClick={() => setPicked(g.id)}>
-      {feat ? <Shine /> : <GroupIcon group={g} />}{g.name} <b>{g.presets.length}</b>{g.id === "sectors" && <span className="rms-newtab">New</span>}</button>;
+      {feat ? <Shine /> : <GroupIcon group={g} />}{g.name} <b>{g.presets.length}</b>{(g.isNew ?? g.id === "sectors") && <span className="rms-newtab">New</span>}</button>;
   };
   const feat = groups.filter(isFeatured), more = groups.filter((g) => !isFeatured(g));
   return (
@@ -114,6 +115,9 @@ export function ScreensStrip({ route, past }: { route: PresetRoute; past?: { day
         {feat.length > 0 && <div className="rms-tgrp rms-tfeat" role="presentation"><span className="rms-tlab" aria-hidden="true">Featured</span>{feat.map(tab)}</div>}
         {more.length > 0 && <div className="rms-tgrp" role="presentation"><span className="rms-tlab" aria-hidden="true">More</span>{more.map(tab)}</div>}
       </div>
+      {shown?.intro && <p className="rms-intro">{shown.intro}{shown.about && <PsxInfo label={shown.name} text={
+        <span className="psx3-about"><b>What it shows</b><span>{shown.about.shows}</span><b>How to use it</b>
+          <span role="list">{shown.about.use.map((u) => <span role="listitem" key={u}>{u}</span>)}</span></span>} />}</p>}
       {shown && <div id="rms-panel" role="tabpanel" aria-labelledby={`rms-gt-${shown.id}`} className="rms-cards">
         {shown.presets.map((p) => <Card key={p.id} p={p} group={shown} on={route.id === p.id} planName={planName} past={route.id === p.id ? past : null} onPick={() => pick(p)} />)}
       </div>}

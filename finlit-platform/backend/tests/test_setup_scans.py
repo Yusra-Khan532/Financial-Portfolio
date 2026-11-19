@@ -97,6 +97,8 @@ def test_no_breakout_setup_or_entry_in_anything_a_reader_sees_on_the_screeners()
     for p in PRESETS:
         words = [p.name, p.card_text, *p.how_it_works, *(c.label for c in p.columns), *(t for _, t in p.derived)]
         words += [x for x in (plain_for(p.id) or {}).get("how", [])] + [(plain_for(p.id) or {}).get("text") or ""]
+        if p.group == "sectors":       # task #243 (pack v4) names "Setups with the sector behind them": "Setups" there is the group's own name (L14), capitalised
+            words = [(w or "").replace("Setups", "") for w in words]
         for w in words:
             assert not banned.search(w or ""), (p.id, w)
     names = {m.key: m.label for m in METRICS}

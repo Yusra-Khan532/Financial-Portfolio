@@ -293,7 +293,7 @@ SCALE: Dict[str, Tuple[float, float]] = {
 # "Now / 3Y avg / 5Y avg / 7Y avg" tabs: base filter -> the filter behind each tab
 VARIANTS: Dict[str, Dict[str, str]] = {b: {"now": b, "3y": f"{b}_avg_3y", "5y": f"{b}_avg_5y", "7y": f"{b}_avg_7y"} for b in ("pe", "pb", "ps")}
 # Stored beside the filters in `scores.metrics` but not a filter: which quarter q_revenue and the other q_* figures are for (yyyymmdd).
-INTERNAL_KEYS = {"q_period_end", "m_ver"}
+INTERNAL_KEYS = {"q_period_end", "m_ver", "volume_vs_avg_on"}   # volume_vs_avg_on: the session the volume ratio is measured at (task #243, D4)
 HIDDEN = {v for tabs in VARIANTS.values() for k, v in tabs.items() if k != "now"}   # shown only through their tabs
 RANK = {"basic": 0, "silver": 1, "gold": 2}
 

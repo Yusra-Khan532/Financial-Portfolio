@@ -53,6 +53,19 @@ def test_confirmation_needs_two_weekly_closes():
     assert RT.confirm(raw, 1)["g"].tolist() == raw["g"].tolist()
 
 
+def test_a_group_flipping_between_two_other_corners_leaves_its_old_one():
+    """Task #243, data finding D2: Banks read Ahead and gaining, Behind but gaining, Ahead and gaining on its last three weekly closes (strength +2.0,
+    change +2.5 on 6 Nov) and kept "Behind and slipping" for 12 weeks, because no new corner had two readings in a row. Two closes outside its corner
+    now move it, to the latest close's corner; a single week outside still does not."""
+    raw = pd.DataFrame({"banks": ["behind_slipping", "behind_slipping", "ahead_gaining", "behind_gaining", "ahead_gaining"],
+                        "realty": ["behind_slipping", "behind_slipping", "behind_slipping", "behind_slipping", "behind_gaining"]})
+    got = RT.confirm(raw, 2)
+    # 23 Oct: one week outside, no move; 30 Oct: the second close outside, so it takes that close's corner; 6 Nov: one week outside the new corner
+    assert got["banks"].tolist() == ["behind_slipping", "behind_slipping", "behind_slipping", "behind_gaining", "behind_gaining"]
+    assert got["realty"].tolist()[-1] == "behind_slipping"          # one week outside: no move yet
+    assert "leaves its corner only after two weekly closes outside it" in RT.METHOD["corner"]
+
+
 def test_relative_is_against_the_average_group():
     rot = RT.Rotation(groups=_groups())
     last = rot.weeks[-1]

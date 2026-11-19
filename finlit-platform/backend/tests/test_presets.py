@@ -37,7 +37,7 @@ def syms(body):
 # ---------------------------------------------------------------------------------------------------------------- registry
 def test_registry_shape_names_and_rules():
     live = [p for p in ADVANCED if p.status == "live" and p.kind not in ("pattern", "gainers")]       # the eleven Chart patterns screens are checked in their own test
-    assert len(live) == 27 and [p.id for p in ADVANCED if p.status == "blocked"] == ["psu-stocks"] and len(QUICK_VIEWS) == 4
+    assert len(live) == 33 and [p.id for p in ADVANCED if p.status == "blocked"] == ["psu-stocks"] and len(QUICK_VIEWS) == 4
     assert len({p.id for p in ALL}) == len(ALL)
     for p in ALL:
         text = (p.name + " " + p.card_text).lower()
@@ -58,7 +58,8 @@ def test_registry_shape_names_and_rules():
     assert all(p.limit == 25 for p in live[3:]) and tops[0].card_text.startswith("Large caps with a strong Prism rating")
     assert [p.id for p in live][3:] == ["momentum-leaders", "at-52-week-high", "both-views-positive", "consistent-growers", "emerging-tech", "sector-themes", "quality-fair-price",
                                          "quality-off-highs", "value-with-quality", "low-risk-compounders", "low-volatility", "higher-risk-list", "setup-pre-breakout", "setup-breakout-pullback", "setup-ema9-consolidation", "rating-upgrades",
-                                         "strong-results", "dividend-payers", "turnarounds", "rating-downgrades", "institutions-buying", "promoter-buying", "fresh-results", "weak-results"]   # task #243 round 3a
+                                         "strong-results", "dividend-payers", "turnarounds", "rating-downgrades", "institutions-buying", "promoter-buying", "fresh-results", "weak-results",   # task #243 round 3a
+                                         "sector-leaders-leading", "sector-rebound-leaders", "sector-early-leaders", "sector-setups-behind", "sector-turning-up", "sector-results-leading"]   # round 3b
     assert [p.id for p in QUICK_VIEWS] == ["strongsafe", "fairvalue", "weakvalue", "bothtech"] and "weak valuation" in BY_ID["weakvalue"].card_text      # 14 Nov N-35: the mock-up's order
     assert [p.name for p in QUICK_VIEWS] == ["Strong and safe", "Fair value", "Weak value", "Uptrend on both views"] and not any(re.search(r"\d", p.card_text) for p in QUICK_VIEWS)      # N-31: words, no cut-offs
     for p in PRESETS:     # a blocked card says it in plain words, never a developer's note

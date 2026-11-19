@@ -10,8 +10,8 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { nf, MINUS } from "../../../lib/format";
-import { NO_BAR, type BarFilter, type HistorySession, type LeftMode, type LeftRow, type PresetDetail, type Rating } from "../../../lib/presets";
-import { PsxInfo } from "./PsxInfo";
+import { NO_BAR, type BarFilter, type BoardChip, type HistorySession, type LeftMode, type LeftRow, type PresetDetail, type Rating } from "../../../lib/presets";
+import { INFO_BOARD, PsxInfo } from "./PsxInfo";
 import { Shine } from "./ScreensStrip";
 import "../../../styles/screens243.css";
 
@@ -123,7 +123,7 @@ export function FilterMenus({ d, f, basic, onAddRule }: { d: PresetDetail; f: Fi
   const flip = <T,>(xs: T[], x: T) => (xs.includes(x) ? xs.filter((y) => y !== x) : [...xs, x]);
   const sectors = fc.sectors.filter(([n]) => !find.trim() || n.toLowerCase().includes(find.trim().toLowerCase()));
   const ratingNarrows = (fc.strong ?? 0) < (fc.anyRating ?? Infinity) || !!bar.rating;
-  const nMore = (bar.fresh ? 1 : 0) + (bar.ahead ? 1 : 0) + (bar.nse ? 1 : 0) + (bar.fno ? 1 : 0) + (bar.liquid ? 1 : 0);
+  const nMore = (bar.fresh ? 1 : 0) + (bar.ahead ? 1 : 0) + (bar.nse ? 1 : 0) + (bar.fno ? 1 : 0) + (bar.liquid ? 1 : 0) + (bar.sag ? 1 : 0) + (bar.plead ? 1 : 0);
   const rw = RATING_WORD(basic);
   return (<>
     {(sizes.length > 1 || bar.sizes.length > 0) && (
@@ -148,6 +148,9 @@ export function FilterMenus({ d, f, basic, onAddRule }: { d: PresetDetail; f: Fi
       {/* task #243 (pack v4): on every screen of both pages */}
       <Opt checked={!!bar.fno} onChange={() => set({ ...bar, fno: !bar.fno })} label="F&O stocks only" n={fc.fno} desc="Stocks with futures and options contracts on NSE." />
       <Opt checked={!!bar.liquid} onChange={() => set({ ...bar, liquid: !bar.liquid })} label="Liquid only" n={fc.liquid} desc="An average of ₹10 Cr or more traded a day over the last 20 sessions." />
+      {/* task #243 round 3b (pack v4): Advanced only */}
+      {!basic && <Opt checked={!!bar.sag} onChange={() => set({ ...bar, sag: !bar.sag })} label="Industry ahead and gaining" n={fc.sag} desc="The company's industry is Ahead and gaining on Sector Rotation." />}
+      {!basic && <Opt checked={!!bar.plead} onChange={() => set({ ...bar, plead: !bar.plead })} label="Peer leaders only" n={fc.plead} desc="The company is a Leader against the other companies of its industry." />}
       {((fc.bse ?? 0) > 0 || bar.nse) && <Opt checked={bar.nse} onChange={() => set({ ...bar, nse: !bar.nse })} label="NSE-listed only" n={fc.nse} desc={`Leaves out the ${nf(fc.bse ?? 0, 0)} listed only on the BSE.`} />}
       <button type="button" className="psx3-addrule" onClick={onAddRule}>+ Add a rule on any figure</button>
     </Dropdown>
@@ -166,6 +169,9 @@ export function FilterChips({ f, basic }: { f: FilterSet; basic: boolean }) {
     ...(bar.ahead ? [{ k: "a", label: "Ahead of NIFTY 500", off: () => set({ ...bar, ahead: false }) }] : []),
     ...(bar.fno ? [{ k: "f", label: "F&O stocks only", off: () => set({ ...bar, fno: false }) }] : []),
     ...(bar.liquid ? [{ k: "l", label: "Liquid only", off: () => set({ ...bar, liquid: false }) }] : []),
+    ...(bar.sag ? [{ k: "g", label: "Industry ahead and gaining", off: () => set({ ...bar, sag: false }) }] : []),
+    ...(bar.plead ? [{ k: "p", label: "Peer leaders only", off: () => set({ ...bar, plead: false }) }] : []),
+    ...(bar.ind ? [{ k: "i", label: `Industry: ${bar.ind.name}`, off: () => set({ ...bar, ind: null }) }] : []),
     ...(bar.nse ? [{ k: "e", label: "NSE-listed only", off: () => set({ ...bar, nse: false }) }] : []),
   ];
   if (!chips.length) return null;
@@ -173,6 +179,27 @@ export function FilterChips({ f, basic }: { f: FilterSet; basic: boolean }) {
     <div className="psx3-chips" role="group" aria-label="Filters on">
       {chips.map((c) => <span key={c.k} className="psx3-chip">{c.label}<button type="button" onClick={c.off} aria-label={`Remove ${c.label}`}>×</button></span>)}
       <button type="button" className="fgx-link" onClick={() => set(NO_BAR)}>Clear all</button>
+    </div>);
+}
+
+/** Task #243 round 3b (pack v4, section 3): the industry board of a Sectors screen. One chip per industry on the list, with its count, Sector Rotation corner and
+ *  Sector Pulse state; the counts add up to the list. Picking a chip narrows the list (a filter chip shows it); picking it again shows every industry. */
+export function IndustryBoard({ board, on, onPick }: { board: BoardChip[]; on: string | null; onPick: (c: BoardChip) => void }) {
+  const total = board.reduce((a, c) => a + c.n, 0);
+  return (
+    <div className="psx3-board" role="group" aria-label={`Industries on this list: ${board.length}, ${total} ${total === 1 ? "company" : "companies"}`}>
+      <p className="psx3-bh"><b>Industries on this list</b> <span>{nf(board.length, 0)} · {nf(total, 0)} {total === 1 ? "company" : "companies"}</span><PsxInfo text={INFO_BOARD} label="the industry board" /></p>
+      <div className="psx3-bc">
+        {board.map((c) => {
+          const pressed = !!c.slug && on === c.slug;
+          return (
+            <button key={c.slug ?? "none"} type="button" className={"psx3-ind" + (pressed ? " is-on" : "") + (c.slug ? "" : " is-none")} aria-pressed={c.slug ? pressed : undefined} disabled={!c.slug}
+              onClick={() => onPick(c)}>
+              <span className="psx3-in"><b>{c.name}</b><span className="psx3-ic">{nf(c.n, 0)}</span></span>
+              {c.slug && <span className="psx3-im"><span className={"psx3-rot is-" + (c.corner ?? "")}>{c.rotation ?? `${MINUS} no rotation reading`}</span><span className={"psx3-pls is-" + (c.pulseCode ?? "")}>{c.pulse ?? MINUS}</span></span>}
+            </button>);
+        })}
+      </div>
     </div>);
 }
 

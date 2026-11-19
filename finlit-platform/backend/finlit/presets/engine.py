@@ -14,7 +14,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 from ..screener.ql import analyze, canonical
 from ..screener.qeval import Evaluator
 from . import derive, expr, themes
-from .registry import Col, DISCLAIMER, IDENTITY_KEYS, REGISTRY_VERSION, STD_ADVANCED, STD_BASIC, STD_RETURNS, Preset, render_card
+from .registry import Col, DISCLAIMER, IDENTITY_KEYS, REGISTRY_VERSION, STD_ADVANCED, STD_BASIC, STD_RETURNS, STD_SECTOR, Preset, render_card
 from .seed import THEME
 
 EXPORT_MAX = 2000        # rows kept per screen for paging (25 at a time) and for the CSV export; a screen that passes more says so
@@ -25,6 +25,8 @@ LEADER_FLOOR = 1000.0
 SCORED = ("RATED", "PROVISIONAL")
 CONFIRMED = 20.0            # "Prism-confirmed": both technical views at +20 or more (spec p6)
 NO_CHIPS = "none"           # ?chip=none is the explicit empty set
+SECTOR_ROW_KEYS = ("sr_slug", "sr_corner", "sr_weeks", "sr_pulse_code", "sr_rank", "sr_ranked", "sr_rank_4w", "sr_above50", "sr_rebound", "sr_ag", "sr_up", "sr_lead")
+SETUP_GROUPS = ("setups", "chart-patterns")
 
 
 class Blocked(Exception):
@@ -55,6 +57,7 @@ class Frame:
         self.growth = growth if growth is not None else derive.growth_scores(table)
         self.caps = caps if caps is not None else derive.outlier_caps(table)
         self.latest_q = table.latest_quarter()
+        self.sector_dates: Dict[str, Optional[str]] = {}     # task #243: the dates of the Sector Pulse board and the Rotation map the sector fields come from
         self.history_days = 0       # how many days apart the oldest and newest Prism history rows used by the rating-change fields are (set by build_frame)
         self.rank_scores: Dict[int, float] = {}      # set by run() for a screen that has a rank score
         self.patterns: Optional[dict] = None         # the nightly chart-pattern run (presets/patterns.py), None until one exists
@@ -459,7 +462,9 @@ def standard_columns(preset: Preset) -> List[Tuple[str, str, str, str, str]]:
     """The columns every list carries (key, label, format, align, band), then the returns behind their switch. Themes and Top gainers keep their own layouts."""
     if preset.kind in ("themes", "gainers"):
         return []
-    return list(STD_BASIC if preset.tab == "basic" else STD_ADVANCED) + list(STD_RETURNS)
+    if preset.tab == "basic":
+        return list(STD_BASIC) + list(STD_RETURNS)
+    return list(STD_ADVANCED) + list(STD_RETURNS) + list(STD_SECTOR)       # task #243: the Sector reading band, behind its switch in Columns
 
 
 def own_columns(preset: Preset) -> list:
@@ -474,6 +479,10 @@ def _row(fr: Frame, preset: Preset, i: int, pos: int, extra: Sequence[str] = ())
     row: Dict[str, Any] = {"symbol": fr.symbols[i], "name": fr.t.name[i], "exchange": fr.listed.get(fr.symbols[i]), "position": pos,
                            # task #243 (pack v4): the open screen's "F&O stocks only" and "Liquid only" filters read these (not shown as columns)
                            "fno": fr.get(i, "fno"), "turnover20_cr": _fmt(fr.get(i, "turnover20_cr"), "num1")}
+    if preset.tab != "basic":       # task #243 (pack v4): what the Sector reading cells, the industry board and the two sector filters read (not columns of their own)
+        z = fr.pz[i]
+        for k in SECTOR_ROW_KEYS:
+            row[k] = _fmt(z.get(k), "num1") if isinstance(z.get(k), float) else z.get(k)
     cols = list(preset.columns) + [Col(k, l, f, a) for k, l, f, a, _ in standard_columns(preset) if k not in {c.key for c in preset.columns}]
     for c in cols:
         if c.key == "rank":
@@ -545,6 +554,8 @@ def run(fr: Frame, preset: Preset, requested: Optional[Sequence[str]] = None) ->
     if preset.kind == "quickview":
         raise Blocked(preset)
     active = resolve_chips(preset, requested)
+    if preset.tab != "basic" and preset.group not in SETUP_GROUPS:
+        ensure_setups(fr)
     cfg = Config(preset, active)
     fr.rank_scores = rank_scores_of(fr, preset.rank_score, rank_member(preset)(fr)) if preset.rank_score else {}
     if preset.kind == "themes":
@@ -587,6 +598,9 @@ def run(fr: Frame, preset: Preset, requested: Optional[Sequence[str]] = None) ->
                 r["badges"] = r["badges"] + ["Industry limit"]
             rows.append(r)
     out = _base(fr, preset, cfg, active, len(idx), rows)
+    if preset.tab != "basic":       # task #243 (pack v4): which date each kind of data is from, said on the page
+        out["dataDates"] = {"prices": fr.as_of.isoformat(), "setups": (fr.patterns or {}).get("as_of"), "sectors": fr.sector_dates.get("sectors"),
+                            "rotation": fr.sector_dates.get("rotation")}
     note = rank_order_note(preset)
     if note:
         out["rankScoreNote"] = note
@@ -613,6 +627,26 @@ def run(fr: Frame, preset: Preset, requested: Optional[Sequence[str]] = None) ->
     if not preset.top10 and len(listed) > EXPORT_MAX:
         out["notes"] = out.get("notes", []) + [f"The first {EXPORT_MAX} of {len(listed)} companies are available to page through and export."]
     return out
+
+
+def ensure_setups(fr: Frame) -> None:
+    """Task #243 (pack v4): the Sectors screens and the Tailwinds column read which companies are on tonight's Setups and Chart patterns lists (Advanced). Worked out
+    once per frame from the same lists the page shows, so a screen served from a cold cache gives the nightly answer."""
+    if getattr(fr, "setups_marked", False):
+        return
+    fr.setups_marked = True
+    from . import sectorread
+    from .registry import ADVANCED
+    lists: Dict[str, List[str]] = {}
+    for p in ADVANCED:
+        if p.group not in SETUP_GROUPS or p.kind not in ("rules", "pattern"):
+            continue
+        try:
+            body = run(fr, p, [NO_CHIPS])
+        except Exception:
+            continue
+        lists[p.name] = [r["symbol"] for r in body.get("exportRows") or body.get("rows") or []]
+    sectorread.mark_setups(fr, lists)
 
 
 def run_pattern(fr: Frame, preset: Preset, cfg: Config, active: Sequence[str]) -> dict:
