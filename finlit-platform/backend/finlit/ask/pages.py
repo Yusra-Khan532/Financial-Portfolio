@@ -342,7 +342,8 @@ def _score(page: str, terms: List[Tuple[str, ...]]) -> int:
 # Task #254: an annual report's sections that answer most questions (management's discussion, the board's report, risks, segments, the notes), and
 # the words that mark a person from the company's management in a call transcript's list of participants.
 ANNUAL_SECTIONS = ("management discussion", "management's discussion", "md&a", "directors' report", "directors report", "board's report",
-                   "boards' report", "risk", "segment", "notes to", "chairman", "message from", "key highlights", "at a glance")
+                   "boards' report", "risks and concerns", "risk management", "risk factors", "segment information", "segment-wise", "segment results",
+                   "notes to the", "chairman's message", "chairman's letter", "message from the chairman", "key highlights", "at a glance")
 _MGMT_TITLE = (r"(chief(?: [a-z &]{2,30}officer| [a-z &]{2,30})?|cfo|ceo|coo|cto|managing director|joint managing director|executive director"
                r"|whole[- ]?time director|chairman|chairperson|president|director|head[ -][a-z ]{3,30}|company secretary|investor relations)")
 _SPEAKER = re.compile(r"^\s*([A-Z][A-Za-z.' ]{1,40}?)\s*:\s+\S", re.M)
