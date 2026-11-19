@@ -130,3 +130,38 @@ def test_every_price_range_sends_candles_and_the_9_20_50_200_day_lines(reliance_
         assert all(lo <= c <= hi for lo, c, hi in zip(s["l"], s["c"], s["h"]) if None not in (lo, c, hi)), rng
         if reliance_sections[f"price-{rng}"]["grain"] == "weekly":
             assert sum(1 for o, c in zip(s["o"], s["c"]) if o != c) > n // 2, rng      # real weekly candles, not open = close dots
+
+
+def test_a_dividend_after_the_latest_split_keeps_its_amount_and_earlier_ones_follow_the_inferred_ratios():
+    """Task #222 (19 Nov pack, D1): FinEdge sends adj_amount 0 for TD Power's ₹0.65 interim of 18 Nov 2026, paid after the 24 Aug 2026 split; it was
+    counted as ₹0 (FY27 0, yield 0.09%, '0 years running'). The factor of a dividend is the product of the splits and bonuses after it: none -> 1."""
+    payload = {"dividend": [
+        {"date": "18-Nov-2026", "amount": 0.65, "adj_amount": 0, "dividend_type": "Interim", "subject": "Interim Dividend"},
+        {"date": "05-Aug-2026", "amount": 1.1, "adj_amount": 0.55, "dividend_type": "Final", "subject": "Final Dividend"},
+        {"date": "06-Nov-2025", "amount": 1.0, "adj_amount": 0.5, "dividend_type": "Interim", "subject": "Interim Dividend"},
+        {"date": "19-Sep-2022", "amount": 3.5, "adj_amount": 0.35, "dividend_type": "Final", "subject": "Final Dividend"},
+    ]}
+    splits = [{"date": "24-Aug-2026", "subject": "Stock split", "ratio": None}, {"date": "31-Oct-2022", "subject": "Stock split", "ratio": None}]
+    a = {x["date"]: x for x in events.corporate_actions(payload, splits)}
+    assert a["2026-11-18"]["adjustedAmount"] == 0.65                 # after the last split: the amount itself
+    assert a["2026-08-05"]["adjustedAmount"] == 0.55 and a["2022-09-19"]["adjustedAmount"] == 0.35   # FinEdge's valid adjustments are kept
+    fy = events.dividends_by_fiscal_year(list(a.values()))
+    assert fy["dps"][fy["periods"].index("FY27")] == 0.65
+
+
+def test_a_missing_adjustment_before_a_split_uses_the_inferred_factor_and_an_unknown_one_is_left_alone():
+    payload = {"dividend": [
+        {"date": "05-Aug-2026", "amount": 1.1, "adj_amount": 0.55, "subject": "Final Dividend"},
+        {"date": "06-Nov-2025", "amount": 1.0, "adj_amount": 0, "subject": "Interim Dividend"},       # missing: 1.0 / 2 (the Aug 2026 split, inferred 2-for-1)
+    ]}
+    a = {x["date"]: x for x in events.corporate_actions(payload, [{"date": "24-Aug-2026", "subject": "Stock split"}])}
+    assert a["2025-11-06"]["adjustedAmount"] == 0.5
+    b = {x["date"]: x for x in events.corporate_actions({"dividend": [{"date": "06-Nov-2025", "amount": 1.0, "adj_amount": 0, "subject": "Dividend"}]},
+                                                         [{"date": "24-Aug-2026", "subject": "Bonus issue"}])}
+    assert b["2025-11-06"]["adjustedAmount"] == 0                    # a later bonus of unknown size: not guessed
+    assert {x["date"]: x for x in events.corporate_actions(payload, [{"date": "24-Aug-2026", "subject": "Split", "ratio": "1:2"}])}["2025-11-06"]["adjustedAmount"] == 0.5
+
+
+def test_no_split_after_any_dividend_leaves_every_figure_as_it_was():
+    payload = {"dividend": [{"date": "05-Jun-2026", "amount": 5.5, "adj_amount": 5.5, "subject": "Final Dividend"}, {"date": "14-Aug-2025", "amount": 10, "adj_amount": 5, "subject": "Dividend"}]}
+    assert [x["adjustedAmount"] for x in events.corporate_actions(payload, [{"date": "01-Jan-2020", "subject": "Stock split", "ratio": "2:1"}]) if x["type"].endswith("dividend")] == [5.5, 5]

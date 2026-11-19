@@ -31,10 +31,10 @@ describe("task #216 round 1: removals", () => {
     const src = visible(read("PrismCompare.tsx") + read("Hero.tsx") + read("ScoreCard.tsx"));
     expect(src).not.toContain("What supports and weighs"); expect(src).not.toMatch(/Show full breakdown|Hide full breakdown|PrismDetail|ScoreDetail|DashToggle/);
   });
-  it("live section 17 is gone from the page and the section bar; Community is 18; the score history sits under the Prism card", () => {
+  it("live section 17 is gone from the page and the section bar; Community is 19 (task #222 added 18 News and filings); the score history sits under the Prism card", () => {
     expect(read("StockPage.tsx")).not.toContain("MethodSection");
     expect(NAV.map(([id]) => id)).not.toContain("method");
-    expect(read("CommunitySection.tsx")).toContain('no="18 · Community"');
+    expect(read("CommunitySection.tsx")).toContain('no="19 · Community"');
     const hero = read("Hero.tsx");
     expect(hero.indexOf("<ScoreMovesCard")).toBeGreaterThan(hero.indexOf("<PrismCompare"));
   });

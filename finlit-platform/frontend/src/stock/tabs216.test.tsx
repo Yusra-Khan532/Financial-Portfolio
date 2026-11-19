@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 // Task #216 round 2 part 2 (company report handover, 17 Nov 2026): the tab groups of 11, 12, 16 and 17 (README 1.2, 3.11, 3.12, 3.16, 3.17), the sections
-// bar's "Announcements" opening 17's third tab, the 9 new i buttons with the pack's texts (1.4), every i button inside its tile (1.4), 12's year chips
+// bar's "Announcements" opening 17's third tab (since task #222 the filings are section 18, NewsSection), the 9 new i buttons with the pack's texts (1.4), every i button inside its tile (1.4), 12's year chips
 // looking like the tabs (1.5), and the drop-downs that had no round arrow (1.3).
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Events } from "../lib/api";
@@ -22,18 +22,18 @@ const EV: Events = {
   dividendsByFY: { periods: ["FY25", "FY26"], dps: [5.5, 6], dpsUnadjusted: [5.5, 6], basis: "Declared for each financial year" },
 };
 
-describe("17 Dividends & events (README 3.17)", () => {
-  it("is one tab group: Dividend history · What it would pay you · Exchange announcements; the KPI tiles stay above it", () => {
+describe("17 Dividends (README 3.17; task #222, 19 Nov pack S1: two views, the filings are their own section 18)", () => {
+  it("is one tab group of 2 views: Dividend history · What it would pay you; no Exchange announcements tab; the KPI tiles stay above it", () => {
     const { container } = render(<MemoryRouter><DividendsSection e={EV} price={1200} /></MemoryRouter>);
-    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["1Dividend history", "2What it would pay you", "3Exchange announcements"]);
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["1Dividend history", "2What it would pay you"]);
+    expect(screen.getByRole("tablist").getAttribute("aria-label")).toBe("Dividends");
+    expect(container.querySelector(".ctabs-h b")!.textContent).toBe("2 views");
     expect(container.querySelector(".dvk")!.compareDocumentPosition(container.querySelector(".ctabs")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(container.querySelector("#announcements")!.closest("[role=tabpanel]")!.hasAttribute("hidden")).toBe(true);
-  });
-  it("a link to #announcements (the sections bar's \"Announcements\") opens the third tab", () => {
-    render(<MemoryRouter><a href="#announcements">Announcements</a><DividendsSection e={EV} price={1200} /></MemoryRouter>);
-    fireEvent.click(screen.getByText("Announcements", { selector: "a" }));
-    expect(screen.getAllByRole("tab")[2].getAttribute("aria-selected")).toBe("true");
-    expect(document.getElementById("announcements")!.closest("[role=tabpanel]")!.hasAttribute("hidden")).toBe(false);
+    expect(container.querySelector("#announcements")).toBeNull();
+    expect([...container.querySelectorAll(".ct-next-k")].map((x) => x.textContent)).toEqual(["Next view · 1 of 2", "Back to the first view · 2 of 2"]);
+    const line = container.querySelector(".nf-x")!;
+    expect(line.textContent).toBe("Board decisions, record dates and other dividend notices are listed in 18 News and filings.");
+    expect(line.querySelector("a")!.getAttribute("href")).toBe("#news");
   });
   it("the sections bar waits for the hidden panel to open before it scrolls (no jump to the top of a hidden box)", () => {
     expect(src("StockPage.tsx")).toMatch(/if \(t && t\.closest\("\[hidden\]"\) && tries < 4\) \{ requestAnimationFrame\(\(\) => requestAnimationFrame\(\(\) => jump\(id, tries \+ 1\)\)\); return; \}/);

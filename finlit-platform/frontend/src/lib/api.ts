@@ -59,7 +59,7 @@ export type Action = { date: string; type: string; title: string; amount: number
 export type Announcement = { date: string; time: string | null; category: string; description: string; link: string | null };
 export type Events = {
   meta: Meta; actions: Action[]; dividendYieldTtm: number | null; announcements: Announcement[];
-  dividendsByFY: { periods: string[]; dps: number[]; dpsUnadjusted: number[]; basis: string };
+  dividendsByFY: { periods: string[]; dps: number[]; dpsUnadjusted: number[]; basis: string; partial?: string[]; endedFY?: string };
 };
 export type Segment = { name: string; revenue: number | null; ebit: number | null; sharePct: number | null; growthPct: number | null; includes?: string[] };
 export type SegmentTrend = "growing" | "declining" | "steady" | "new" | "discontinued" | "short";

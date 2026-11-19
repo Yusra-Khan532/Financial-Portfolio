@@ -22,6 +22,7 @@ import { CommunitySection, CommunityStrip } from "./CommunitySection";
 import { useStats } from "../lib/forum";
 import { MacroOutlookSection } from "./MacroOutlook";
 import { BusinessSection, DividendsSection, OwnershipSection } from "./Sections2";
+import { NewsSection } from "./NewsSection";
 import { CompanyBriefSection } from "./CompanyBrief";
 import { WhereStands } from "./pack/WhereStands";
 import { useDocTitle } from "../lib/title";
@@ -172,7 +173,7 @@ export function StockPage() {
         {/* What the company does comes first: someone who has never heard of it starts here, then the score, then the numbers. */}
         <ErrorBoundary section="This section"><BusinessSection s={s} /></ErrorBoundary>
         <ErrorBoundary section="Company brief"><CompanyBriefSection symbol={symbol} /></ErrorBoundary>
-        <ErrorBoundary section="Macro outlook"><MacroOutlookSection symbol={symbol} /></ErrorBoundary>
+        <ErrorBoundary section="Economy and sector"><MacroOutlookSection symbol={symbol} /></ErrorBoundary>
         <ErrorBoundary section="This section"><KeyFindings s={s} f={fin} lender={!!s.dataQuality.isBank} /></ErrorBoundary>
         <ErrorBoundary section="This section"><PriceSection s={s} symbol={symbol} ratios={ratios} /></ErrorBoundary>
         <PlFlagsLayer f={fin} lender={!!s.dataQuality.isBank} />
@@ -187,6 +188,7 @@ export function StockPage() {
         <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><InsightsSection s={s} r={ratios} tech={tech} /></ErrorBoundary></Defer>
         <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><SegmentsSection seg={seg} /></ErrorBoundary></Defer>
         <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><DividendsSection e={events} price={q?.price} r={ratios} /></ErrorBoundary></Defer>
+        <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><NewsSection e={events} name={s.profile.name} /></ErrorBoundary></Defer>
         <Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><CommunitySection symbol={symbol} name={s.profile.name} /></ErrorBoundary></Defer>
       </div>
       <div className="wrap"><p className="rp-plans" id="plans">Basic, Silver and Gold open more of every report: the scores, the checks and the full statements. <Link to="/pricing">Compare the plans</Link></p></div>

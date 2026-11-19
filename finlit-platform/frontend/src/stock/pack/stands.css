@@ -60,3 +60,23 @@
 @media (max-width: 1000px) { .ws-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 760px) { .ws-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ws-two { grid-template-columns: minmax(0, 1fr); } .ws-lead { font-size: 20px; } }
 @media (max-width: 480px) { .ws-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ws-biz { grid-template-columns: minmax(0, 1fr); } .ws-bars li { grid-template-columns: 84px minmax(0, 1fr) 56px; } }
+
+/* Task #222 (19 Nov pack B1, B2). B1: the Sector Pulse and Sector Rotation cards stretch to the taller one and their "Open … →" links sit on one line
+   (phones stack them, each at its own height). B2: "Inside its industry" uses the full width, with a rank column, the rank line, "N more" gap lines and
+   "Show all" (two columns from 900 px). */
+.ws-two { align-items: stretch; }
+.ws-two > .sp-sec { display: flex; flex-direction: column; }
+.ws-two > .sp-sec > .sp-link { margin-top: auto; padding-top: 14px; align-self: flex-start; }
+.ws-bars { max-width: none; }
+.ws-bars li { grid-template-columns: 26px 110px minmax(0, 1fr) 64px; }
+.ws-rk { font: 500 12px var(--mono, ui-monospace, monospace); color: var(--muted); text-align: right; }
+.ws-bars li a { text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-bars li.rk-gap { display: flex; align-items: center; gap: 10px; padding: 0 6px 0 34px; font: 600 12px var(--sans); color: var(--muted); background: none; }
+.ws-bars li.rk-gap::after { content: ""; flex: 1; border-top: 1px dashed var(--border); }
+.ws-sum { margin: 2px 0 4px; font-size: 13px; color: var(--text); }
+.ws-sum b { color: var(--sp-bad, #b42318); }
+.ws-sum span { color: var(--muted); }
+.ws-all { display: inline-flex; align-items: center; margin-top: 12px; padding: 6px 14px; border: 1px solid var(--border); border-radius: 999px; background: var(--s1); font: 600 13px var(--sans); color: var(--sp-info, #1f6f8b); cursor: pointer; }
+.ws-all:hover { border-color: currentColor; }
+@media (min-width: 900px) { .ws-bars.long.all { display: block; columns: 2; column-gap: 40px; } .ws-bars.long.all > li { break-inside: avoid; margin-bottom: 4px; } }
+@media (max-width: 560px) { .ws-bars li { grid-template-columns: 20px 100px minmax(0, 1fr) 54px; font-size: 12px; } }

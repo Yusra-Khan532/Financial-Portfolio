@@ -249,3 +249,26 @@ section.block .pr-nm b { white-space: normal; overflow: visible; text-overflow: 
 .ws-h2h .ws-six-s .dot.leader { background: var(--gain); } .ws-h2h .ws-six-s .dot.laggard { background: var(--loss); } .ws-h2h .ws-six-s .dot.in_line { background: var(--band-mid, #cc7a00); }
 .ws-h2h .ws-six-s .dot.me { box-shadow: 0 0 0 3px var(--text); z-index: 1; }
 @media (max-width: 760px) { .ws-h2h .ws-mv li { grid-template-columns: minmax(0, 1fr) auto; } .ws-h2h .ws-mv-b { grid-column: 1 / -1; } }
+/* Task #222 (19 Nov pack A): the header Rating tile shows the two technical views under FinLit Prism (reference/A-header-technical.css, on the type scale).
+   Above 900 px stacked in the tile; 520-900 px the tile spans the row, Prism left and Technical right with a dashed line; below 520 px stacked again. */
+.hx-d .hx-tech { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+.hx-d .hx-tech .hx-k { margin-bottom: 6px; }
+.hx-d .hxt-l { display: grid; gap: 6px; }
+.hx-d .hxt { display: grid; grid-template-columns: auto auto minmax(0, 1fr); align-items: center; column-gap: 8px; color: var(--text); text-decoration: none; border-radius: 8px; }
+.hx-d .hxd-strip .hxt b { display: inline-grid; place-items: center; min-width: 46px; height: 28px; padding: 0 6px; border-radius: 8px; font: 500 18px/1 var(--serif); font-variant-numeric: tabular-nums; color: var(--text); background: color-mix(in srgb, var(--pc) 16%, var(--s1)); border: 1px solid color-mix(in srgb, var(--pc) 45%, transparent); }
+.hx-d .hxt.pos { --pc: var(--band-hi); } .hx-d .hxt.neg { --pc: var(--band-lo); } .hx-d .hxt.mid { --pc: var(--band-mid); }
+.hx-d .hxt-k { font: 600 13px var(--sans); white-space: nowrap; }
+.hx-d .hxt-w { display: inline-flex; align-items: center; gap: 3px; font: 700 12px var(--sans); color: var(--tc); white-space: nowrap; }
+.hx-d .hxt-w i { font-style: normal; font-size: 12px; }
+.hx-d .hxt:hover .hxt-k { text-decoration: underline; text-underline-offset: 3px; }
+.hx-d .hxt:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+@media (max-width: 900px) {
+  .hx-d .hxd-strip > .hx-rate:has(.hx-tech) { grid-column: 1 / -1; display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 22px; align-items: start; }
+  .hx-d .hxd-strip > .hx-rate > :not(.hx-tech) { grid-column: 1; }
+  .hx-d .hxd-strip > .hx-rate > .hx-tech { grid-column: 2; grid-row: 1 / span 3; margin-top: 0; padding: 0 0 0 22px; border-top: 0; border-left: 1px dashed var(--border); }
+  .hx-d .hxd-strip > div:nth-last-child(-n+2) { border-bottom: 0; }
+}
+@media (max-width: 520px) {
+  .hx-d .hxd-strip > .hx-rate:has(.hx-tech) { display: block; }
+  .hx-d .hxd-strip > .hx-rate > .hx-tech { margin-top: 10px; padding: 10px 0 0; border-left: 0; border-top: 1px dashed var(--border); }
+}

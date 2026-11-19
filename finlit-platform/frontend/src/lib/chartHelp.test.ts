@@ -13,7 +13,8 @@ const sources = files(SRC).filter((f) => !/ChartHelp\.tsx$/.test(f)).map((f) => 
 describe("chart help registry", () => {
   it("has a real explanation for every entry", () => {
     for (const [id, e] of Object.entries(CHART_HELP)) {
-      for (const k of ["title", "what", "read", "why"] as const) expect(e[k].trim().length, `${id}.${k}`).toBeGreaterThan(k === "title" ? 3 : 10);
+      // a list's entry (task #222: 18 News and filings) has "How to use it" in place of "How to read it" and "Why it matters"
+      for (const k of (e.use !== undefined ? ["title", "what", "use"] : ["title", "what", "read", "why"]) as ("title" | "what" | "read" | "why" | "use")[]) expect((e[k] ?? "").trim().length, `${id}.${k}`).toBeGreaterThan(k === "title" ? 3 : 10);
       if (e.x !== undefined) expect(e.x.trim().length, `${id}.x`).toBeGreaterThan(5);
       if (e.y !== undefined) expect(e.y.trim().length, `${id}.y`).toBeGreaterThan(5);
     }

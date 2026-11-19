@@ -543,3 +543,14 @@ a.pr-row:hover, .pr-row.hot { transform: translateX(4px); border-color: color-mi
 .qtt tr.hl td, .qtt tr.sub.hl td { background: color-mix(in srgb, var(--gain) 14%, var(--s1)); font-weight: 800; color: var(--text); border-top: 1.5px solid color-mix(in srgb, var(--gain) 55%, var(--border)); border-bottom: 1.5px solid color-mix(in srgb, var(--gain) 55%, var(--border)); }
 .qtt tr.hl td:first-child, .qtt tr.sub.hl td:first-child { border-left: 4px solid var(--gain); border-radius: 10px 0 0 10px; } .qtt tr.hl td:last-child, .qtt tr.sub.hl td:last-child { border-radius: 0 10px 10px 0; }
 .qtt tr.sub.hl td.latest, .qtt tr.hl td.latest { background: color-mix(in srgb, var(--gain) 22%, var(--s1)); box-shadow: none; }
+/* Task #222 (19 Nov pack): 17, the year in progress ("so far", hatched, out of the average) and E1, the yield ring, scoped to 17 (the dashboard's .dk-ring
+   of dash-shared.css made it 38 px, too small for its figure): 64 px with the figure inside it. */
+.dbars .dcol.part i { opacity: .5; background-image: repeating-linear-gradient(135deg, transparent 0 5px, color-mix(in srgb, var(--s1) 55%, transparent) 5px 9px); }
+.dbars .dcol b.yoy.part { color: var(--muted); font-weight: 600; }
+.dk-dots i.part { opacity: .55; }
+.dbars .avgline b { background: var(--s1); padding: 1px 5px; border-radius: 5px; box-shadow: 0 0 0 1px color-mix(in srgb, var(--c2) 25%, transparent); }
+.dvk .dk-ring { position: relative; width: 64px; height: 64px; flex: 0 0 64px; }
+.dvk .dk-ring svg { width: 100%; height: 100%; transform: none; }
+.dvk .dk-ring b { position: absolute; inset: 0; display: grid; place-items: center; font: 500 14px/1 var(--serif); }
+.nf-x { margin: 14px 0 0; font-size: 13px; }
+.nf-x a { color: var(--text); font-weight: 600; text-underline-offset: 3px; }

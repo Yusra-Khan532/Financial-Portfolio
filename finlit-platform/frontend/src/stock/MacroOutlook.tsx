@@ -179,13 +179,25 @@ function HistoryPanel({ c }: { c: CompanyMacro }) {
     </div>);
 }
 
+const andList = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+/** 02's heading and sub-line (task #222, 19 Nov pack S2): one sector group, or several when the company is weighted across them. */
+export function macroHeading(c: { mapping?: { sectorName?: string | null; basis?: string | null } | null; segments?: { name: string }[] | null } | null | undefined): { title: string; sub: string } {
+  const lead = "How interest rates, credit, commodity prices and growth are affecting";
+  const many = c?.mapping?.basis && c.mapping.basis !== "primary" && (c.segments?.length ?? 0) > 1 ? c.segments!.map((s) => s.name) : null;
+  if (many) return { title: "Is the economy helping its sectors?", sub: `${lead} its sectors: ${andList(many)}.` };
+  const g = c?.mapping?.sectorName;
+  return { title: "Is the economy helping its sector?", sub: g ? `${lead} ${g}, this company's sector group.` : `${lead} this company's sector group.` };
+}
+
 export function MacroOutlookSection({ symbol }: { symbol: string }) {
   const q = useCompanyMacro(symbol);
   const c = q.data;
   const showImpact = !!c && (c.status === "ok" || c.status === "insufficient_data");
   const imp = useSectorImpact(showImpact && c?.mapping?.basis === "revenue_weighted");   // the full sector table is read only for a company that spans several sectors
 
-  const head = <SectionHead id="macro" no="02 · Macro and sector outlook" icon="globe" title="How the economy is moving for this company's outlook group" sub="Backdrop, indicator signals and what they mean; sector impact when the company spans several sectors." color="--p-growth" />;
+  // Task #222 (19 Nov pack S2): the heading in plain words, a question the 0-100 reading answers; the sub-line names the company's sector group(s)
+  const h = macroHeading(c);
+  const head = <SectionHead id="macro" no="02 · Economy and sector" icon="globe" title={h.title} sub={h.sub} color="--p-growth" />;
   let body: React.ReactNode;
   if (q.isLoading) body = <div className="mo-skel" aria-busy="true">Loading the macro outlook…</div>;
   else if (q.isError || !c) body = <p className="mo-note" role="status"><Icon name="alert" />The macro outlook is unavailable right now ({q.error?.status ?? "no answer"}). It reads stored results only; please try again shortly.</p>;
@@ -208,5 +220,5 @@ export function MacroOutlookSection({ symbol }: { symbol: string }) {
         <p className="mo-disc">{c.disclaimer}</p>
       </>);
   }
-  return <section className="block mo" aria-label="Macro and sector outlook" style={{ "--sc": "var(--p-growth)" } as React.CSSProperties}>{head}{body}</section>;
+  return <section className="block mo" aria-label="Economy and sector" style={{ "--sc": "var(--p-growth)" } as React.CSSProperties}>{head}{body}</section>;
 }
