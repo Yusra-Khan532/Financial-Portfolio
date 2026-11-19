@@ -2,6 +2,7 @@
 // Every figure is the server's, from Latest results -> Industries (GET /api/results/quarter): the company's row, its group's typical company (the median) and the
 // typical listed company. Nothing new is computed here beyond differences and positions on a bar. Describes; never advice.
 import type { Verdict } from "./resultsPack";
+import { sortLabel } from "./companyLabel";
 
 /** "About as fast as" means within 3 percentage points of the typical industry company. The rule itself is never shown on the page. */
 export const NEAR = 3;
@@ -57,7 +58,7 @@ export const VERDICT_RANK: Record<Verdict, number> = { Strong: 5, Good: 4, "In l
 export const verdictTone = (v: Verdict | null | undefined) => (v === "Strong" || v === "Good" ? "v-strong" : v === "In line" ? "v-inline" : v ? "v-poor" : "v-none");
 
 export type SortKey = "co" | "sz" | "rv" | "pf" | "vd";
-export type PeerRow = { symbol: string; size: string | null; rev: number | null; profit: number | null; verdict: Verdict | null };
+export type PeerRow = { symbol: string; name?: string | null; size: string | null; rev: number | null; profit: number | null; verdict: Verdict | null };
 const val = (r: PeerRow, k: SortKey): number | null =>
   k === "sz" ? (r.size ? SIZE_RANK[r.size] ?? null : null) : k === "rv" ? r.rev : k === "pf" ? r.profit : k === "vd" ? (r.verdict ? VERDICT_RANK[r.verdict] : null) : null;
 
@@ -68,7 +69,7 @@ export const nextDir = (cur: SortKey, curDir: "asc" | "desc", k: SortKey): "asc"
 export function sortPeers(rows: PeerRow[], k: SortKey, dir: "asc" | "desc"): PeerRow[] {
   const s = dir === "asc" ? 1 : -1;
   return rows.map((r, i) => ({ r, i })).sort((a, b) => {
-    if (k === "co") return a.r.symbol.localeCompare(b.r.symbol) * s || a.i - b.i;
+    if (k === "co") return sortLabel(a.r).localeCompare(sortLabel(b.r)) * s || a.i - b.i;
     const x = val(a.r, k), y = val(b.r, k);
     if (x == null || y == null) return x == null && y == null ? a.i - b.i : x == null ? 1 : -1;
     return (x - y) * s || a.i - b.i;

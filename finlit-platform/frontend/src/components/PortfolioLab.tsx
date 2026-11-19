@@ -12,6 +12,7 @@ export type PortfolioLabProps = {
 };
 
 import { scoreBand } from "../lib/scoreBands";
+import { coTitle, shortLabel } from "../lib/companyLabel";
 const lvl = scoreBand;   // one colour rule for every score: lib/scoreBands.ts
 const sg = (d: number | null) => (d == null ? "—" : d > 0 ? `+${d}` : d < 0 ? `−${Math.abs(d)}` : "0");
 const show = (v: number | null | undefined) => (v == null || !Number.isFinite(v) ? "—" : String(Math.round(v)));
@@ -54,7 +55,7 @@ export function PortfolioLab({ lines, universe }: PortfolioLabProps) {
         {gaps.length === 0 ? <p className="muted">No obvious gaps: your list touches the main sector groups and no pillar averages below 50.</p> :
           <ul className="pl-gaps">{gaps.map((g) => (
             <li key={g.id}><div><b>{g.label}</b><small className="muted">{g.reason}</small></div>
-              {g.pick ? <div className="pl-gp"><Link to={`/stocks/${g.pick.symbol}`}><CoLogo symbol={g.pick.symbol} size={20} inline /><b>{g.pick.symbol}</b></Link><span className={"ssp " + lvl(g.pick.overall)}>{show(g.pick.overall)}</span><small className="muted">top scored here</small></div> : <small className="faint">No scored company available yet</small>}</li>))}</ul>}
+              {g.pick ? <div className="pl-gp"><Link to={`/stocks/${g.pick.symbol}`}><CoLogo symbol={g.pick.symbol} size={20} inline /><b title={coTitle(g.pick)}>{shortLabel(g.pick)}</b></Link><span className={"ssp " + lvl(g.pick.overall)}>{show(g.pick.overall)}</span><small className="muted">top scored here</small></div> : <small className="faint">No scored company available yet</small>}</li>))}</ul>}
       </div>
 
       {/* 3. Stress view */}

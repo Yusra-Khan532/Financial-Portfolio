@@ -13,6 +13,7 @@ import { useUniverse } from "../lib/screener";
 import { AlertComposer, type Preset } from "../components/AlertComposer";
 import { demoCheck, demoNudge, demoReset, timeAgo, useAlerts, useNotices, type AlertRow, type Channel } from "../lib/alerts";
 import { LIVE_NOTE, METRICS, closeness, describe, fixedTarget, fmtValue, isEvent } from "../lib/alertCatalog";
+import { codeText } from "../lib/companyLabel";
 
 const QUICK: { t: string; d: string; icon: string; p: Preset }[] = [
   { t: "Price target", d: "Tell me when the price reaches a level", icon: "rupee", p: { metric: "price", op: "above" } },
@@ -43,7 +44,7 @@ function AlertCard({ a, onPatch, onRemove }: { a: AlertRow; onPatch: (p: { statu
   return (
     <article className={"card alx-c is-" + a.status}>
       <div className="alx-ch">
-        <Link className="alx-sym" to={`/stocks/${a.symbol}`}><CoLogo symbol={a.symbol} size={20} inline />{a.symbol}</Link>
+        <Link className="alx-sym" to={`/stocks/${a.symbol}`}><CoLogo symbol={a.symbol} size={20} inline />{codeText(a.symbol)}</Link>
         <span className={"alx-st " + tone}><i />{label}</span>
         <span className="alx-grow" />
         <span className="alx-chs" aria-label={"Notifies via " + shown(a.channels).map((c) => CH[c][1]).join(", ")}>{shown(a.channels).map((c) => <span key={c} title={CH[c][1]}><Icon name={CH[c][0]} /></span>)}</span>

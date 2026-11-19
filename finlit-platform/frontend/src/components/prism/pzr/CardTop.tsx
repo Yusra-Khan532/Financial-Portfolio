@@ -13,6 +13,7 @@ import { TopDisclaimer } from "./Shell";
 import "../../../styles/prism-compare.css";
 import "../../../styles/prism-card.css";
 import "../../../styles/prism-report.css";
+import { coLabel } from "../../../lib/companyLabel";
 
 const STATUS_NOTE: Record<PrismReport["rating"]["status"], string> = {
   RATED: "Enough of the data was available for a full rating.",
@@ -48,7 +49,7 @@ export function CardTop({ report, actions, example = false }: { report: PrismRep
       <header className="pzr-ct-h">
         <div>
           <h2>{report.company.name}</h2>
-          <p className="pzr-ct-sub"><b>{report.company.symbol}</b> · {statementWord(report.statementType)} statements · Calculated {istTime(report.completedAt || report.createdAt)}</p>
+          <p className="pzr-ct-sub"><b>{coLabel(report.company).code ?? report.company.symbol}</b> · {statementWord(report.statementType)} statements · Calculated {istTime(report.completedAt || report.createdAt)}</p>
           {!example && <Viewer report={report} />}
         </div>
         <div className="pzr-ct-chips"><StatusChip status={r.status} />{r.status !== "NOT RATED" && <LabelChip label={r.label} />}

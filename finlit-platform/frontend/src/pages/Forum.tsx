@@ -10,7 +10,7 @@ import { MINUS, nf } from "../lib/format";
 import { BOARD_NAME, DISCLAIMER, PLANS, forumMe, pickCompanies, send, type CompanyFilter, type ForumCompany, type QueueItem } from "../lib/forum";
 import { BoardNote, CompanyLogo, Disclaimer, ThreadList, ThreadView, msg, useCompanyQuotes } from "../components/forum/ForumParts";
 import "../styles/forum.css";
-import { coTitle, subLine, titleOf } from "../lib/companyLabel";
+import { codeText, coTitle, subLine, titleOf } from "../lib/companyLabel";
 
 export { Body } from "../components/forum/ForumParts";
 
@@ -171,7 +171,7 @@ function Moderation() {
       {q.data && !q.data.items.length && <p className="muted">Nothing waiting.</p>}
       {q.data?.items.map((i) => (
         <div className="fo-q" key={i.id}>
-          <div className="fo-meta"><b>{i.status}</b><span>{BOARD_NAME[i.plan]} board</span><span>{i.symbol}</span><span>{i.author.handle} ({i.author.email}){i.author.banned && " · paused"}</span><Link to={`/forum/t/${i.threadId}`}>open</Link></div>
+          <div className="fo-meta"><b>{i.status}</b><span>{BOARD_NAME[i.plan]} board</span><span>{codeText(i.symbol)}</span><span>{i.author.handle} ({i.author.email}){i.author.banned && " · paused"}</span><Link to={`/forum/t/${i.threadId}`}>open</Link></div>
           {i.title && <h3>{i.title}</h3>}<pre>{i.body}</pre>
           {i.flagReasons.length > 0 && <div className="fo-note">Held: {i.flagReasons.join("; ")}</div>}
           {i.reports.map((r, n) => <div key={n} className="fo-meta">Report by {r.by}: {r.reason}{r.note ? ` – ${r.note}` : ""}</div>)}

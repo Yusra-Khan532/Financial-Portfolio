@@ -21,6 +21,7 @@ import "../../styles/industry-pack.css";
 import { median, shortList } from "../../lib/standsList";
 import "./stands.css";
 import { SectionHead } from "../Sections";
+import { coTitle, shortLabel } from "../../lib/companyLabel";
 
 type Tab = "industry" | "peers" | "chart" | "risk";
 const sp = (x: number | null | undefined, dp = 1, unit = "%") => (x == null ? "–" : `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(dp)}${unit}`);
@@ -142,7 +143,7 @@ export function IndustryList({ stocks, symbol, name, ind, max }: { stocks: Ranke
     <ol className={"ws-bars" + (n > 15 ? " long" : "") + (all ? " all" : "")}>{items.map((it, j) => {
       if (it.kind === "gap") return <li key={"gap" + j} className="rk-gap" aria-hidden="true">{it.n} more</li>;
       const x = stocks[it.i], v = x.return_6m_pct ?? 0, mine = x.symbol === symbol;
-      return <li key={x.symbol} className={mine ? "me" : ""}><span className="ws-rk">{it.i + 1}</span><Link to={`/stocks/${x.symbol}`}>{x.symbol}</Link><span className="ws-axis"><i className={v >= 0 ? "pos" : "neg"} style={{ width: `${(Math.abs(v) / max) * 50}%` }} /></span><b className={v >= 0 ? "sp-good" : "sp-red"}>{sp(x.return_6m_pct)}</b></li>;
+      return <li key={x.symbol} className={mine ? "me" : ""}><span className="ws-rk">{it.i + 1}</span><Link to={`/stocks/${x.symbol}`} title={coTitle(x)}>{shortLabel(x)}</Link><span className="ws-axis"><i className={v >= 0 ? "pos" : "neg"} style={{ width: `${(Math.abs(v) / max) * 50}%` }} /></span><b className={v >= 0 ? "sp-good" : "sp-red"}>{sp(x.return_6m_pct)}</b></li>;
     })}</ol>
     {n > 15 && <button type="button" className="ws-all" aria-expanded={all} onClick={toggle}>{all ? "Show fewer" : `Show all ${n}`}</button>}
   </div>);

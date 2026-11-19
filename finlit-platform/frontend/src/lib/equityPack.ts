@@ -18,7 +18,7 @@ export type Size = "Large" | "Mid" | "Small";
 export type PeerLabel = "leader" | "in_line" | "laggard";
 /** One share as the pack reads it. `prism`: the total; `risk`: the Prism Risk part (higher means lower risk); `lt`/`st`: the Prism trend scores (−100 to 100). */
 export type Share = {
-  symbol: string; industry: string | null; size: Size | null; chg: number | null; prism: number | null; prismWord: string | null; valuation: number | null; risk: number | null;
+  symbol: string; name?: string | null; industry: string | null; size: Size | null; chg: number | null; prism: number | null; prismWord: string | null; valuation: number | null; risk: number | null;
   st: number | null; lt: number | null; below52: number | null; m1: number | null;
   /** Task #235 (pack B15): the trend words beside the scores ("Strong uptrend"). */
   stWord?: string | null; ltWord?: string | null;

@@ -14,6 +14,7 @@ import { RANGE_EDGES, RANGE_SUB, betaCards, glanceCards, glanceTiles, rangeCards
 import type { Share } from "../../lib/equityPack";
 import type { PageObject } from "../types";
 import "./risk-pack.css";
+import { codeText, coTitle, subLine, titleOf } from "../../lib/companyLabel";
 
 /** The risk answer for the saved list (Silver and Gold). */
 export function usePortfolioRisk(symbols: string[], enabled: boolean) {
@@ -101,7 +102,7 @@ export function BetaBuild({ r }: { r: RiskAnswer }) {
           <div key={x.key} className={"eqr-range r-" + x.key}><Chip band={{ key: x.key as RangeKey, word: r.ranges.find((y) => y.key === x.key)?.word ?? "" }} />
             <p className="eqr-mute">{x.key === "less" ? `below ${x.hi}` : x.key === "very_high" ? `above ${x.lo}` : `${x.lo.toFixed(2)} – ${x.hi.toFixed(2)}`}</p>
             <p className="eqr-n"><b>{x.who.length}</b> {x.who.length === 1 ? "share" : "shares"} · {Math.round(x.pct)}%</p><p className="eqr-mute">{RANGE_SUB[x.key as RangeKey]}</p>
-            <ul>{show.map((s) => <li key={s.symbol}><button type="button" className="eqr-nm" aria-pressed={pin === s.symbol} onClick={() => setPin(s.symbol)}><i className={"z-" + (SIZE_LETTER[s.size ?? ""] ?? "U")}>{SIZE_LETTER[s.size ?? ""] ?? "–"}</i>{s.symbol}</button><b>{b2(s.beta)}</b></li>)}</ul>
+            <ul>{show.map((s) => <li key={s.symbol}><button type="button" className="eqr-nm" aria-pressed={pin === s.symbol} onClick={() => setPin(s.symbol)}><i className={"z-" + (SIZE_LETTER[s.size ?? ""] ?? "U")}>{SIZE_LETTER[s.size ?? ""] ?? "–"}</i>{codeText(s.symbol)}</button><b>{b2(s.beta)}</b></li>)}</ul>
             {x.who.length > 6 && <button type="button" className="eq-more" aria-expanded={all} onClick={() => setOpen({ ...open, [x.key]: !all })}>{all ? "Show fewer ▴" : `Show all ${x.who.length} ▾`}</button>}</div>); })}</div>
       </div>}
       {tab === "three" && <>
@@ -173,7 +174,7 @@ export function EachShareRisk({ r, split, shares, gold }: { r: RiskAnswer; split
   const all = groups.every((g) => open.has(g.k)), flip = (k: string) => { const n = new Set(open); if (n.has(k)) n.delete(k); else n.add(k); setOpen(n); };
   const yrs = (s: RiskShare) => (s.years != null && s.years < 2.95 ? ` (${s.years.toFixed(1)} yrs)` : "");
   const row = (s: RiskShare) => { const x = byS.get(s.symbol), rk = split.byShare[s.symbol]; return (
-    <tr key={s.symbol}><td><Link to={`/stocks/${s.symbol}`} className="ip-sym"><CoLogo symbol={s.symbol} size={22} inline /><span><b>{s.symbol}</b><small>{s.sector ?? ""}</small></span></Link></td>
+    <tr key={s.symbol}><td><Link to={`/stocks/${s.symbol}`} className="ip-sym"><CoLogo symbol={s.symbol} size={22} inline /><span><b title={coTitle({ symbol: s.symbol, name: x?.name })}>{titleOf({ symbol: s.symbol, name: x?.name })}</b><small>{subLine({ symbol: s.symbol, name: x?.name }, s.sector ?? "") ?? ""}</small></span></Link></td>
       <td>{s.beta != null ? <><b>{b2(s.beta)}</b> <Chip band={s.band} /></> : <span className="sp-nil">{s.why === "Under a year of prices" ? "Under a year" : s.why ?? "–"}</span>}</td>
       <td className="r">{s.explained != null ? `${s.explained}%` : "–"}</td>
       <td className="r">{s.swing != null ? `${s.swing.toFixed(1)}%${yrs(s)}` : "–"}</td><td className="r">{s.worstFall != null ? `${signed(s.worstFall)}${yrs(s)}` : "–"}</td>

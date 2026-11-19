@@ -37,6 +37,7 @@ import { GROUP_START, navFor, sectionNo } from "../lib/sectionNav";
 import { usePlanModel } from "../lib/planScore";
 import { SectionsMenu } from "./SectionsMenu";
 import { PreparingReport, type PreparingMode } from "./PreparingReport";
+import { coTitle, shortLabel } from "../lib/companyLabel";
 
 
 /** The dot on the Earnings & cash tab: it needs the section's own models, so it is a small component of its own (drawn only once the report is there). */
@@ -157,7 +158,7 @@ export function StockPage() {
         <MiniBar s={s} on={stuck && !folded} />
         <div className="wrap">
           {stuck && folded && <a className="sn-co" href="#top" title="Back to the top" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); }}>
-            <b>{s.profile.symbol}</b><span className="sn-co-px">₹{s.quote.price == null ? "–" : nf(s.quote.price)}</span>
+            <b title={coTitle(s.profile)}>{shortLabel(s.profile)}</b><span className="sn-co-px">₹{s.quote.price == null ? "–" : nf(s.quote.price)}</span>
             {s.quote.changePct != null && <span className={"sn-co-chg " + (s.quote.changePct >= 0 ? "up" : "down")}>{signed(s.quote.changePct)}</span>}</a>}
 
           <SectionsMenu items={navItems} active={active} onPick={jump} />

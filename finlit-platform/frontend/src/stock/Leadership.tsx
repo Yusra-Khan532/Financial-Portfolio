@@ -9,6 +9,7 @@ import {
   LABEL_WORD, groupSourceLine, monthYear, pts, sectorBench, tone, useLeadership,
   type Direction, type LeadLabel, type LeadershipOn,
 } from "../lib/leadership";
+import { codeText } from "../lib/companyLabel";
 
 /** Leader / In line / Laggard. Describes past relative price performance only; never a recommendation. */
 export const LEAD_NOTE = "Describes past performance; not a recommendation.";
@@ -188,7 +189,7 @@ export function PeerRanking({ lead, self, extras }: { lead: LeadershipOn; self: 
             {shown.map((r) => (
               <tr key={r.symbol} className={(r.symbol === self ? "me " : "") + (r.label ? "" : "none")} onClick={() => r.symbol !== self && nav(`/stocks/${r.symbol}`)} aria-current={r.symbol === self ? "true" : undefined}>
                 <td className="n">{r.rank ?? "—"}</td>
-                <th scope="row" className="nm">{r.symbol === self ? <b>{r.name}<span className="you"> · this company</span></b> : <Link to={`/stocks/${r.symbol}`} onClick={(e) => e.stopPropagation()}>{r.name}</Link>}<span className="tk">{r.symbol}</span></th>
+                <th scope="row" className="nm">{r.symbol === self ? <b>{r.name}<span className="you"> · this company</span></b> : <Link to={`/stocks/${r.symbol}`} onClick={(e) => e.stopPropagation()}>{r.name}</Link>}<span className="tk">{codeText(r.symbol)}</span></th>
                 <td onClick={(e) => e.stopPropagation()}>{r.label ? <><ChipDetails row={r} lead={lead} own={r.symbol === self} />{r.direction && <span className={"ld-dir ld-dsm " + r.direction} title={dirWord(r.direction)}>{r.direction === "gaining" ? "▲" : "▼"}<span className="sr-only"> {dirWord(r.direction)}</span></span>}{r.thisWeek && <span className="ld-tw">This week: {LABEL_WORD[r.thisWeek]}</span>}</> : <span className="ld-nh">Not enough history</span>}</td>
                 <td className="r"><Pt v={r.rel52} /></td><td className="r"><Pt v={r.rel13} /></td><td className="r"><Pt v={r.rel52Market} /></td>
               </tr>
@@ -200,7 +201,7 @@ export function PeerRanking({ lead, self, extras }: { lead: LeadershipOn; self: 
       {(lead.notRanked?.length ?? 0) > 0 && (
         <details className="ld-nr xdd">
           <summary>Not ranked this week ({lead.notRanked!.length})<DropChev /></summary>
-          <ul>{lead.notRanked!.map((n) => <li key={n.symbol}><b>{n.name === n.symbol ? n.symbol : n.name}</b>{n.name !== n.symbol && <span className="tk">{n.symbol}</span>}<span className="why">{n.text}</span></li>)}</ul>
+          <ul>{lead.notRanked!.map((n) => <li key={n.symbol}><b>{n.name === n.symbol ? n.symbol : n.name}</b>{n.name !== n.symbol && <span className="tk">{codeText(n.symbol)}</span>}<span className="why">{n.text}</span></li>)}</ul>
         </details>
       )}
       <p className="ld-foot">{LEAD_NOTE} <Link to={EXPLAINER}>What the labels mean →</Link></p>

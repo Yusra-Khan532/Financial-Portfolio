@@ -21,6 +21,7 @@ import "../styles/dcf.css";
 import "../styles/eps.css";
 import { ChartZoom } from "../components/ChartZoom";
 import { growthTells, type Tells } from "../lib/epsGrowthTells";
+import { codeText } from "../lib/companyLabel";
 
 // ------------------------------------------------------------------------------------------------------------- form state
 type Form = { np: string; pd: string; sh: string; ds: string; px: string; m: "b" | "d"; g: string; pe: string; n: string; bg: string; bp: string; ug: string; up: string; sym: string };
@@ -123,7 +124,7 @@ function CompanyLoader({ initial, loaded, onLoad, onClear }: { initial: string |
       {failed && !busy && <p className="formerr" role="alert">Could not load this company's figures. Enter them by hand.</p>}
       {loaded && !busy && (
         <div className="dcf-src">
-          <p><b>{loaded.name}</b> <span className="mono faint">{loaded.symbol}</span> · {loaded.statement} statements</p>
+          <p><b>{loaded.name}</b> <span className="mono faint">{codeText(loaded.symbol)}</span> · {loaded.statement} statements</p>
           <ul>
             <li>Net profit and shares: {loaded.period ? `annual report for ${loaded.period}${loaded.periodEnd ? ` (year ended ${dateIN(loaded.periodEnd.slice(0, 10))})` : ""}` : "not available"}. Source: FinLit stored financial statements; net profit is profit attributable to the owners of the company, as EPS is.</li>
             <li>Price: latest stored quote{loaded.priceAsOf ? ` (${dateIN(loaded.priceAsOf.slice(0, 10))})` : ""}.</li>

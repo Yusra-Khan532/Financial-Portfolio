@@ -6,6 +6,7 @@ import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
 import { dayLabel, useFeed, type FeedItem } from "../lib/feed";
 import { useWatchlist } from "../lib/watchlist";
+import { coTitle, shortLabel } from "../lib/companyLabel";
 
 const RESULTS = "Quarterly results";
 /** A company's results filing: the exchange's own category or the headline names financial results, the quarter ended, or an integrated filing of financials. */
@@ -35,7 +36,7 @@ export function NewsPage() {
       {groups.map(([day, items]) => (
         <section key={day} className="feed-g"><h2>{dayLabel(day)}</h2>
           <div className="card feed-card"><ul className="feed-n">{items.map((i) => (
-            <li key={i.id}>{i.symbol ? <Link className="feed-sym" to={`/stocks/${i.symbol}`}><CoLogo symbol={i.symbol} size={18} inline />{i.symbol}</Link> : <span className="feed-sym alt">Market</span>}
+            <li key={i.id}>{i.symbol ? <Link className="feed-sym" to={`/stocks/${i.symbol}`} title={coTitle({ symbol: i.symbol, name: i.company })}><CoLogo symbol={i.symbol} size={18} inline />{shortLabel({ symbol: i.symbol, name: i.company })}</Link> : <span className="feed-sym alt">Market</span>}
               <div><p>{i.link ? <a href={i.link} target="_blank" rel="noopener noreferrer">{i.title}</a> : i.title}</p><small>{[i.category, i.company && i.symbol ? i.company : null, i.source].filter(Boolean).join(" · ")}</small>{i.summary && <p className="muted" style={{ margin: "4px 0 0", fontSize: 14 }}>{i.summary}</p>}</div></li>))}</ul></div></section>))}
     </div>
   );

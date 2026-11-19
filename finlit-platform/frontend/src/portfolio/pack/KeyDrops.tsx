@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import type { Share } from "../../lib/equityPack";
 import { trendBand } from "../../lib/prismTechnical";
 import { scoreBand } from "../../lib/scoreBands";
+import { coLabel, shortLabel } from "../../lib/companyLabel";
 
 const MINUS = "−";
 const sg = (n: number | null) => (n == null ? "—" : `${n > 0 ? "+" : n < 0 ? MINUS : ""}${Math.abs(Math.round(n))}`);
@@ -20,7 +21,7 @@ export function goToRow(sym: string) {
 }
 
 const Chip = ({ s, extra, tone }: { s: Share; extra?: string; tone?: "up" | "dn" }) => (
-  <button type="button" className={"x-kd-c" + (tone ? " " + tone : "")} title={`Go to ${s.symbol} in Your shares`} onClick={() => goToRow(s.symbol)}><b>{s.symbol}</b>{extra && <small>{extra}</small>}</button>
+  <button type="button" className={"x-kd-c" + (tone ? " " + tone : "")} title={`Go to ${shortLabel(s, 60)}${coLabel(s).code ? ` (${coLabel(s).code})` : ""} in Your shares`} onClick={() => goToRow(s.symbol)}><b>{shortLabel(s)}</b>{extra && <small>{extra}</small>}</button>
 );
 const Group = ({ k, n, note, children }: { k: string; n: number; note?: string; children: ReactNode }) => (n ? <div className="x-kd-g"><p className="x-kd-k">{k} <span>{n}</span></p>{note && <p className="x-kd-n">{note}</p>}<div className="x-kd-cs">{children}</div></div> : null);
 

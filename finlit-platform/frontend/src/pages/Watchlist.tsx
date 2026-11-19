@@ -31,7 +31,7 @@ import { saveFile } from "../stock/derive";
 import "../styles/sectors-pack.css";
 import "../styles/watchlist-pack.css";
 import { useClassifications } from "../lib/taxonomy";
-import { coTitle, subLine, titleOf } from "../lib/companyLabel";
+import { coTitle, isBseCode, shortLabel, subLine, titleOf } from "../lib/companyLabel";
 
 type SortKey = "peers" | "name" | "price" | "pe" | "roe" | "size" | "score";
 type Rich = Item & { row: Row };
@@ -49,7 +49,7 @@ function Add({ rows, taken, onAdd }: { rows: Row[]; taken: string[]; onAdd: (r: 
     <div className="wp-add" ref={box}>
       <input type="text" value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onKeyDown={(e) => { if (e.key === "Enter" && list[0]) { onAdd(list[0]); setQ(""); setOpen(false); } if (e.key === "Escape") setOpen(false); }}
         placeholder="Add a stock to this list" aria-label="Add a stock" aria-expanded={open && list.length > 0} aria-controls="wp-add-list" role="combobox" aria-autocomplete="list" />
-      {open && list.length > 0 && <ul id="wp-add-list" role="listbox" aria-label="Matching stocks">{list.map((r) => <li key={r.symbol}><button type="button" role="option" aria-selected="false" onClick={() => { onAdd(r); setQ(""); setOpen(false); }}>{r.symbol}<small>{r.name} · {r.sector}</small></button></li>)}</ul>}
+      {open && list.length > 0 && <ul id="wp-add-list" role="listbox" aria-label="Matching stocks">{list.map((r) => <li key={r.symbol}><button type="button" role="option" aria-selected="false" onClick={() => { onAdd(r); setQ(""); setOpen(false); }}>{titleOf(r)}<small>{isBseCode(r.symbol) && r.name ? subLine(r, r.sector) : <>{r.name} · {r.sector}</>}</small></button></li>)}</ul>}
     </div>
   );
 }
@@ -249,7 +249,7 @@ export function WatchlistPage() {
             {dis.length ? (
               <div className="wp-dis">{dis.map((x) => (
                 <div key={x.symbol} className="wp-dc">
-                  <div className="wp-dc-h"><Logo src={logos.get(x.symbol)?.logo} name={bySym.get(x.symbol)?.name || x.symbol} kind="stock" size={28} /><Link to={`/stocks/${x.symbol}`}>{x.symbol}</Link></div>
+                  <div className="wp-dc-h"><Logo src={logos.get(x.symbol)?.logo} name={bySym.get(x.symbol)?.name || x.symbol} kind="stock" size={28} /><Link to={`/stocks/${x.symbol}`} title={coTitle({ symbol: x.symbol, name: bySym.get(x.symbol)?.name })}>{shortLabel({ symbol: x.symbol, name: bySym.get(x.symbol)?.name })}</Link></div>
                   <div className="wp-rk"><div className={x.priceAhead ? "good" : "bad"}><span>Price rank</span><b>{x.price}</b></div><div className={x.priceAhead ? "bad" : "good"}><span>Business rank</span><b>{x.business}</b></div></div>
                   {x.line && <p>{x.line}</p>}
                 </div>))}</div>

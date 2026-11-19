@@ -11,6 +11,7 @@ import { FilterNote, SearchFilters, useIndexFilter } from "./SearchFilters";
 import { useUniverse } from "../lib/screener";
 import { askBrowserPermission, browserPermission, useAlerts, useCurrentValue, type Channel, type Created } from "../lib/alerts";
 import { GROUPS, LIVE_NOTE, METRICS, OP_LABEL, describe, fixedTarget, fmtValue, isEvent, type Op } from "../lib/alertCatalog";
+import { coTitle, subLine, titleOf } from "../lib/companyLabel";
 
 /** Search any listed company by name or ticker and pick one. */
 export function StockPicker({ value, onChange, id }: { value: string; onChange: (symbol: string, name?: string) => void; id?: string }) {
@@ -37,7 +38,7 @@ export function StockPicker({ value, onChange, id }: { value: string; onChange: 
       {open && sf.on && !hits.length && q.trim() && q.trim().toUpperCase() !== value && <div className="alx-dd"><FilterNote filter={sf.filter} q={q.trim()} onChange={sf.setFilter} hidden={sf.hidden(q)} /></div>}
       {open && hits.length > 0 && (
         <ul id={(id || "alx-st") + "-l"} className="alx-dd" role="listbox">
-          {hits.map((r, i) => <li key={r[0]} role="option" aria-selected={i === sel}><button type="button" className={i === sel ? "on" : ""} onMouseEnter={() => setSel(i)} onClick={() => pick(r)}><b>{r[0]}</b><small>{r[1]}</small></button></li>)}
+          {hits.map((r, i) => <li key={r[0]} role="option" aria-selected={i === sel}><button type="button" className={i === sel ? "on" : ""} onMouseEnter={() => setSel(i)} onClick={() => pick(r)}><b title={coTitle({ symbol: r[0], name: r[1] })}>{titleOf({ symbol: r[0], name: r[1] })}</b><small>{subLine({ symbol: r[0], name: r[1] }, r[1])}</small></button></li>)}
         </ul>
       )}
     </div>

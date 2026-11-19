@@ -13,7 +13,7 @@ import type { Board, GroupRow, IndustryPage, RankedStock } from "../../../lib/se
 import type { SectorHistory, StateKey } from "../../../lib/sectorHistory";
 import { COLOUR, MEANING, ORDER, WORD, groupsN, groupsSplit, bounceIndex, bouncedShort, byState, dayMon, fridayCards, fridays, howStrong, inTableFilter, isEarly, keyOf, risingOf, short, standoutCounts, statesAt, tableCards, toCsv, type Card, type TableFilter } from "../../../lib/pulsePack";
 import { BoxChip, Cards, InsideLine, InsightCard, Scroll, Spark, StateChip, Swatch, Tip, useAccount } from "./Common";
-import { coTitle, subLine, titleOf } from "../../../lib/companyLabel";
+import { coTitle, shortLabel, subLine, titleOf } from "../../../lib/companyLabel";
 
 const pct0 = (v: number | null | undefined) => (v == null ? "–" : `${Math.round(v)}%`);
 const signed = (v: number | null | undefined) => (v == null ? "–" : `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(1)}%`);
@@ -120,7 +120,7 @@ export function StandoutsFull({ b }: { b: Board }) {
         <div className="sp-sumc sp-watch-bg"><b>Early · {c.early}</b><Tip text="Early standout. The stock is at a 1-year high while its industry is somewhat below its own high." /><p>Industry somewhat below its high.</p></div>
       </div>
       <p className="sp-why"><b>Why it matters</b> These are the stocks holding up most strongly inside weak industries: a research list, not a recommendation.</p>
-      <ul className="sp-standlist">{shown.map((x) => { const s = howStrong(x); return <li key={x.symbol + x.group_slug}><Link to={`/stocks/${x.symbol}`}><b>{x.symbol}</b></Link> <span>{short(x.group)}</span><span className={"sp-q " + (s === "Strong" ? "sp-standout" : "sp-early-q")}>{s}</span></li>; })}</ul>
+      <ul className="sp-standlist">{shown.map((x) => { const s = howStrong(x); return <li key={x.symbol + x.group_slug}><Link to={`/stocks/${x.symbol}`}><b title={coTitle(x)}>{shortLabel(x)}</b></Link> <span>{short(x.group)}</span><span className={"sp-q " + (s === "Strong" ? "sp-standout" : "sp-early-q")}>{s}</span></li>; })}</ul>
       {f.length > 24 && <button type="button" className="sp-morebtn" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer ▴" : `Show the other ${f.length - 24} ▾`}</button>}
     </section>
   );

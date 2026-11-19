@@ -8,7 +8,7 @@ import { tileColour, tileLabel, TILE_COLOURS } from "../../lib/dashboard";
 import type { Row } from "../../lib/screener";
 import { Card, Seg, tone, useIsPhone, useWidth } from "./parts";
 import { CoLogo } from "../CoLogo";
-import { coTitle, subLine, titleOf } from "../../lib/companyLabel";
+import { coTitle, shortLabel, subLine, titleOf } from "../../lib/companyLabel";
 
 type Cell = { symbol: string; name: string; move: number | null; cap: number; price: number | null };
 const sgn = (v: number | null | undefined, d = 2) => (v == null ? MINUS : (v > 0 ? "+" : v < 0 ? MINUS : "") + nf(Math.abs(v), d) + "%");
@@ -27,12 +27,12 @@ function HeatTiles({ cells, h }: { cells: Cell[]; h: number }) {
   return (
     <div className="dsh-map" ref={box} style={{ height: h }} role="list" aria-label="Heat map: tile size is market value, colour is today's move" onPointerLeave={() => setTip((t) => (t?.pinned ? t : null))}>
       {tiles.map(({ x, y, w, h: th, item: c }) => {
-        const lab = tileLabel(c.symbol, w, th);
+        const lab = tileLabel(shortLabel(c, 14), w, th);
         const style = { left: x, top: y, width: w, height: th, background: tileColour(c.move) } as React.CSSProperties;
         const aria = `${c.name}: ${sgn(c.move)} today`;
         const hover = { onPointerEnter: (e: React.PointerEvent<HTMLElement>) => e.pointerType === "mouse" && show(c, e.currentTarget, false, e), onFocus: (e: React.FocusEvent<HTMLElement>) => show(c, e.currentTarget, false) };
         if (!lab) return <button key={c.symbol} type="button" role="listitem" className="t" style={style} aria-label={aria} {...hover} onClick={(e) => show(c, e.currentTarget, true)} />;
-        return <Link key={c.symbol} to={`/stocks/${c.symbol}`} role="listitem" className="t" style={style} aria-label={aria} {...hover}>{w >= 104 && th >= 66 && <span className="t-lg"><CoLogo symbol={c.symbol} name={c.name} size={20} /></span>}<b style={{ fontSize: lab.size }}>{c.symbol}</b>{lab.pct && <em>{sgn(c.move)}</em>}</Link>;
+        return <Link key={c.symbol} to={`/stocks/${c.symbol}`} role="listitem" className="t" style={style} aria-label={aria} {...hover}>{w >= 104 && th >= 66 && <span className="t-lg"><CoLogo symbol={c.symbol} name={c.name} size={20} /></span>}<b style={{ fontSize: lab.size }} title={coTitle(c)}>{shortLabel(c, 14)}</b>{lab.pct && <em>{sgn(c.move)}</em>}</Link>;
       })}
       {tip && <div className="dsh-htip" role="status" style={{ left: Math.max(8, Math.min(W - 196, tip.x + 12)), top: Math.max(4, Math.min(h - 96, tip.y + 12)) }}>
         <span className="dsh-htn"><CoLogo symbol={tip.c.symbol} name={tip.c.name} size={22} /><b title={coTitle(tip.c)}>{titleOf(tip.c)}</b></span><small>{subLine(tip.c, tip.c.name)}</small><span>{tip.c.price != null ? "₹" + nf(tip.c.price) : "No price"} · <i className={tone(tip.c.move)}>{sgn(tip.c.move)}</i></span>

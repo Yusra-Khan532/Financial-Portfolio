@@ -14,6 +14,7 @@ import {
   bulletScale, columnScale, edge, gapChip, keyLine, leadParts, nextDir, shortName, signed, sortPeers, verdictTone, type PeerRow, type SortKey,
 } from "../lib/industryCard";
 import "../styles/industry-card.css";
+import { coTitle, shortLabel } from "../lib/companyLabel";
 
 const AGREE_TEXT: Record<string, string> = {
   Agree: "Results and share prices point the same way.", Mixed: "Results are about average; read the price trend on its own.",
@@ -95,7 +96,7 @@ const HEADS: [SortKey, string][] = [["co", "Company"], ["sz", "Size"], ["rv", "R
 /** The biggest companies of the industry (v3): the sort bar, the pinned typical company, size and verdict chips, and growth bars with the industry tick. */
 function Peers({ r }: { r: IndustryRead }) {
   const ind = r.ind!, symbol = r.row!.symbol;
-  const base = useMemo<PeerRow[]>(() => (r.peers ?? []).map((p) => ({ symbol: p.symbol, size: p.cap, rev: p.revenueYoY, profit: p.profitYoY, verdict: p.verdict ?? null })), [r.peers]);
+  const base = useMemo<PeerRow[]>(() => (r.peers ?? []).map((p) => ({ symbol: p.symbol, name: p.name, size: p.cap, rev: p.revenueYoY, profit: p.profitYoY, verdict: p.verdict ?? null })), [r.peers]);
   const [sk, setSk] = useState<SortKey>("sz"), [dir, setDir] = useState<"asc" | "desc">("desc"), [chose, setChose] = useState(false);   // on load the headings rest (↕), as in the pack
   const rows = useMemo(() => sortPeers(base, sk, dir), [base, sk, dir]);
   const sortBy = (k: SortKey) => { setDir(nextDir(sk, dir, k)); setSk(k); setChose(true); };
@@ -131,7 +132,7 @@ function Peers({ r }: { r: IndustryRead }) {
               {cell(iR, rvS, iR, "Revenue growth")}{cell(iP, pfS, iP, "Profit growth")}<td /></tr>
             {rows.map((p) => (
               <tr key={p.symbol} className={"pr" + (p.symbol === symbol ? " me" : "")}>
-                <td><Link to={`/stocks/${encodeURIComponent(p.symbol)}`}><b>{p.symbol}</b></Link>{p.symbol === symbol && <em>This company</em>}</td>
+                <td><Link to={`/stocks/${encodeURIComponent(p.symbol)}`}><b title={coTitle(p)}>{shortLabel(p)}</b></Link>{p.symbol === symbol && <em>This company</em>}</td>
                 <td>{p.size ? <span className={"sz sz-" + p.size[0]}>{p.size}</span> : <span className="aiq-na">–</span>}</td>
                 {cell(p.rev, rvS, iR, "Revenue growth")}{cell(p.profit, pfS, iP, "Profit growth")}
                 <td>{p.verdict ? <span className={"vc " + verdictTone(p.verdict)}>{p.verdict}</span> : <span className="aiq-na">–</span>}</td>

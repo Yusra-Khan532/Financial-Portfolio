@@ -31,6 +31,7 @@ import {
 } from "../lib/advanced";
 import type { ChartHelpEntry } from "../lib/chartHelp";
 import "../styles/advcharts.css";
+import { codeText } from "../lib/companyLabel";
 
 const PRIORITY_1 = ["1.2", "1.9", "1.13", "1.19", "1.17"];   // section 1 "Priority checks", in the doc's order
 const COLORS = ["var(--k1)", "var(--k2)", "var(--k3)", "var(--k4)", "var(--k5)", "var(--k7)"];
@@ -454,7 +455,7 @@ function Companies({ st, set, lim, plan, upgrade, status, mode, single }: { st: 
         aria-activedescendant={open && hits[act] ? `${id}-o${act}` : undefined}
         onChange={(e) => { setQ(e.target.value); setOpen(true); setAct(0); }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
         onKeyDown={(e) => { if (e.key === "ArrowDown") { e.preventDefault(); setAct((a) => Math.min(hits.length - 1, a + 1)); } else if (e.key === "ArrowUp") { e.preventDefault(); setAct((a) => Math.max(0, a - 1)); } else if (e.key === "Enter" && hits[act]) { e.preventDefault(); add(hits[act].symbol); } else if (e.key === "Escape") { setQ(""); setOpen(false); } }} />
-      {open && (q.trim() || sf.on) && <ul id={`${id}-l`} role="listbox" aria-label="Companies">{hits.map((h, i) => <li key={h.symbol} id={`${id}-o${i}`} role="option" aria-selected={i === act} onMouseDown={(e) => { e.preventDefault(); add(h.symbol); }}>{h.name} <small>{h.symbol}</small></li>)}
+      {open && (q.trim() || sf.on) && <ul id={`${id}-l`} role="listbox" aria-label="Companies">{hits.map((h, i) => <li key={h.symbol} id={`${id}-o${i}`} role="option" aria-selected={i === act} onMouseDown={(e) => { e.preventDefault(); add(h.symbol); }}>{h.name} <small>{codeText(h.symbol)}</small></li>)}
         {!hits.length && <li className="faint" role="option" aria-selected={false} aria-disabled="true">{idx.isPending ? "Loading the company list…" : sf.on ? <FilterNote filter={sf.filter} q={q.trim()} onChange={sf.setFilter} hidden={sf.hidden(q)} /> : "No company matches."}</li>}</ul>}
       <SearchFilters variant="panel" className="sf-corner" facets={sf.facets} value={sf.filter} onChange={sf.setFilter} count={sf.count} />
       {!single && st.companies.length >= lim && <p className="faint adv-limit">Your plan shows {lim} companies per chart. <button className="adv-link" onClick={() => upgrade(nextPlan(plan), `Comparing more than ${lim} companies`)}>More with {plan === "basic" ? "Silver" : "Gold"}</button></p>}

@@ -11,6 +11,7 @@ import { ApiError, apiGet } from "../lib/api";
 import { useUI } from "../lib/ui";
 import { useDocTitle } from "../lib/title";
 import "../styles/superinvestors.css";
+import { coTitle, shortLabel } from "../lib/companyLabel";
 
 export type SiStatus = "new" | "added" | "reduced" | "exited" | "unchanged";
 export type SiHolding = { symbol: string; name: string; industry: string | null; sector: string | null; stakeNow: number | null; stakeYearAgo: number | null; changePts: number | null;
@@ -91,7 +92,7 @@ export function SuperinvestorsPage() {
                 <div className="si-who">
                   <Link to={`${BASE}/${r.key}`} className="si-name">{r.name}</Link>
                   <span className="si-sub">{r.companies} {r.companies === 1 ? "company" : "companies"} · {changesLine(r.changes)}</span>
-                  <span className="si-top">{r.top.map((h) => <span key={h.symbol} className="si-chip" title={h.name}>{h.symbol}{h.weightPct != null && <small> {h.weightPct.toFixed(0)}%</small>}</span>)}</span>
+                  <span className="si-top">{r.top.map((h) => <span key={h.symbol} className="si-chip" title={coTitle(h) ?? h.name}>{shortLabel(h)}{h.weightPct != null && <small> {h.weightPct.toFixed(0)}%</small>}</span>)}</span>
                 </div>
                 <div className="si-val"><b>{crore(r.valueCr)}</b><small>{r.valueCr == null ? "No market values today" : "value of the stakes today"}</small>{r.valueNote && <small className="si-note">{r.valueNote}</small>}</div>
               </li>))}</ol>}

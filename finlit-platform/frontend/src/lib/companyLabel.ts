@@ -41,5 +41,7 @@ export function subLine(r: Co, sub?: string | null): string | null {
 }
 /** The hover text for a label: the full name and code (or why the name is missing) for a BSE code; undefined for an NSE symbol, so its markup is unchanged. */
 export const coTitle = (r: Co): string | undefined => (isBseCode(r.symbol) ? coLabel(r).title : undefined);
+/** The symbol as a small tag beside a name that already leads: "BSE 526433" for a BSE code, the NSE symbol unchanged. */
+export const codeText = (symbol: string): string => (isBseCode(symbol) ? `BSE ${symbol}` : symbol);
 /** Sort key for a company column: the label that is shown. */
 export const sortLabel = (r: Co): string => coLabel(r).main.toLowerCase();

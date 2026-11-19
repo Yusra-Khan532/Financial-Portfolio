@@ -12,6 +12,7 @@ import { useSectorBoard } from "../../lib/sectors";
 import type { Row } from "../../lib/screener";
 import { MINUS, nf } from "../../lib/format";
 import { Card, Rows, tone } from "./parts";
+import { coTitle, shortLabel } from "../../lib/companyLabel";
 
 const median = (xs: number[]) => { if (!xs.length) return null; const s = [...xs].sort((a, b) => a - b), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
 const sgn = (v: number | null, d = 1) => (v == null ? "–" : `${v > 0 ? "+" : v < 0 ? MINUS : ""}${nf(Math.abs(v), d)}%`);
@@ -59,8 +60,8 @@ export function MarketRead({ rows, loading }: { rows: Row[]; loading: boolean })
               <thead><tr><th scope="col">Size</th><th scope="col" className="r">Companies</th><th scope="col" className="r">Rose</th><th scope="col" className="r">Fell</th><th scope="col" className="r">Typical move {day === "Today" ? "today" : day}</th><th scope="col" className="r">Typical move, 1 month</th></tr></thead>
               <tbody>{data.sizes.map((s) => <tr key={s.k}><th scope="row">{s.k}</th><td className="r">{s.n.toLocaleString("en-IN")}</td><td className="r up">{s.up.toLocaleString("en-IN")}</td><td className="r down">{s.down.toLocaleString("en-IN")}</td><td className={"r " + tone(s.day)}>{sgn(s.day, 2)}</td><td className={"r " + tone(s.month)}>{sgn(s.month)}</td></tr>)}</tbody></table>
             <p className="dsh-foot">Sizes by FinLit's rule: Large above ₹50,000 Cr, Mid ₹10,000–50,000 Cr, Small below ₹10,000 Cr. "Typical" is the middle company of each size.</p>
-            <div className="dsh-two"><div><div className="dsh-lh">Up 4% or more: {data.big.up.toLocaleString("en-IN")}</div>{tops.up.map((r) => <Link key={r.symbol} to={`/stocks/${r.symbol}`} className="dsh-mv"><b>{r.symbol}</b><span className="up">{sgn(r.change_pct, 2)}</span></Link>)}</div>
-              <div><div className="dsh-lh">Down 4% or more: {data.big.down.toLocaleString("en-IN")}</div>{tops.down.map((r) => <Link key={r.symbol} to={`/stocks/${r.symbol}`} className="dsh-mv"><b>{r.symbol}</b><span className="down">{sgn(r.change_pct, 2)}</span></Link>)}</div></div>
+            <div className="dsh-two"><div><div className="dsh-lh">Up 4% or more: {data.big.up.toLocaleString("en-IN")}</div>{tops.up.map((r) => <Link key={r.symbol} to={`/stocks/${r.symbol}`} className="dsh-mv"><b title={coTitle(r)}>{shortLabel(r)}</b><span className="up">{sgn(r.change_pct, 2)}</span></Link>)}</div>
+              <div><div className="dsh-lh">Down 4% or more: {data.big.down.toLocaleString("en-IN")}</div>{tops.down.map((r) => <Link key={r.symbol} to={`/stocks/${r.symbol}`} className="dsh-mv"><b title={coTitle(r)}>{shortLabel(r)}</b><span className="down">{sgn(r.change_pct, 2)}</span></Link>)}</div></div>
             <p className="dsh-foot">The biggest moves among companies above ₹1,000 Cr.</p>
           </>}
         </div>

@@ -24,6 +24,7 @@ import {
 import { With3D } from "../charts/With3D";
 import "../styles/dcf.css";
 import { ChartZoom } from "../components/ChartZoom";
+import { codeText } from "../lib/companyLabel";
 
 
 // ------------------------------------------------------------------------------------------------------------- form state
@@ -127,7 +128,7 @@ function CompanyLoader({ enabled, onLoad, loaded, initial }: { enabled: boolean;
       {company.isError && <p className="formerr" role="alert">{(company.error?.body?.detail as string) || "Could not load this company's figures."}</p>}
       {c && !company.isFetching && (
         <div className="dcf-src">
-          <p><b>{c.name ?? c.symbol}</b> <span className="mono faint">{c.symbol}</span>{c.sector ? ` · ${c.sector}` : ""} · {c.statement} statements</p>
+          <p><b>{c.name ?? c.symbol}</b> <span className="mono faint">{codeText(c.symbol)}</span>{c.sector ? ` · ${c.sector}` : ""} · {c.statement} statements</p>
           <ul>
             <li>Free cash flow ({c.fcf.latest?.period ?? "—"}): {crs(c.fcf.latest?.fcf)}; 3-year average {crs(c.fcf.avg3)}; 5-year average {crs(c.fcf.avg5)}{c.fcf.cagr5 != null ? `; 5-year growth ${pc(c.fcf.cagr5)} a year` : c.fcf.cagr3 != null ? `; 3-year growth ${pc(c.fcf.cagr3)} a year` : ""}.</li>
             <li>Net debt ({c.netDebt.period ?? "—"}): borrowings {crs(c.netDebt.borrowings)} − cash {crs(c.netDebt.cash)} = {crs(c.netDebt.value)}. Investments of {crs(c.netDebt.investments)} are not counted as cash; add the liquid part if you judge it surplus.</li>

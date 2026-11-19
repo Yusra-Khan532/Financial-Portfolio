@@ -15,6 +15,7 @@ import {
   type Card, type Holding,
 } from "../../../lib/pulsePack";
 import { BoxChip, Cards, InsideLine, InsightCard, Scroll, Section, Spark, StateChip, Swatch, Tip, useAccount, useShowAll } from "./Common";
+import { coTitle, shortLabel } from "../../../lib/companyLabel";
 
 const n0 = (v: number) => v.toLocaleString("en-IN");
 
@@ -296,7 +297,7 @@ export function Standouts({ b }: { b: Board }) {
           <Scroll label="standout stocks"><table className="sp-tb sp-stand">
             <thead><tr><th scope="col">Stock</th><th scope="col">Its industry</th><th scope="col">How strong<Tip text="Strong: the industry is far below its own high, so the stock stands out the most. Early: the industry is a little less far below its high." /></th><th scope="col">New high</th><th scope="col">Its industry is</th></tr></thead>
             <tbody>{(all ? f : f.slice(0, 8)).map((x) => { const r = b.rows.find((g) => g.slug === x.group_slug), s = howStrong(x); return (
-              <tr key={x.symbol + x.group_slug}><td><Link to={`/stocks/${x.symbol}`} className="sp-sym big"><CoLogo symbol={x.symbol} size={26} inline /><b>{x.symbol}</b></Link></td><td>{short(x.group)}</td>
+              <tr key={x.symbol + x.group_slug}><td><Link to={`/stocks/${x.symbol}`} className="sp-sym big"><CoLogo symbol={x.symbol} size={26} inline /><b title={coTitle(x)}>{shortLabel(x)}</b></Link></td><td>{short(x.group)}</td>
                 <td><span className="sp-chipw"><span className={"sp-chip " + (s === "Strong" ? "sp-st-bouncing" : "sp-st-sold_off")}>{s}</span><Tip text={s === "Strong" ? "Strong: its industry is far below its own 1-year high, so this stock stands out the most." : "Early: its industry is a little less far below its own 1-year high."} label={`About “${s}”`} /></span></td><td className="sp-good">{newHigh(x)}</td><td>{r?.index_vs_52w_high != null ? `${belowHigh(r.index_vs_52w_high)} its high` : "–"}</td></tr>); })}</tbody>
           </table></Scroll>
           {f.length > 8 && <button type="button" className="sp-morebtn" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer ▴" : `Show the other ${f.length - 8} standout stocks ▾`}</button>}
@@ -312,7 +313,7 @@ function SmallList({ slug, name }: { slug: string; name: string }) {
   if (q.isLoading) return <span className="sp-nil">Loading…</span>;
   if (q.data?.locked) return <span className="sp-nil">The stocks are part of the Silver plan.</span>;
   if (!q.data?.stocks?.length) return <span className="sp-nil">No listed stock carries this group's name in the screener today.</span>;
-  return <span className="sp-smalls" aria-label={`Stocks in ${name}`}>{q.data.stocks.map((s) => <Link key={s.symbol} to={`/stocks/${s.symbol}`} className="sp-sym"><CoLogo symbol={s.symbol} size={16} inline />{s.symbol}</Link>)}</span>;
+  return <span className="sp-smalls" aria-label={`Stocks in ${name}`}>{q.data.stocks.map((s) => <Link key={s.symbol} to={`/stocks/${s.symbol}`} className="sp-sym" title={coTitle(s)}><CoLogo symbol={s.symbol} size={16} inline />{shortLabel(s)}</Link>)}</span>;
 }
 export function CountedAndSmall({ b }: { b: Board }) {
   const u = b.universe, few = b.too_few_stocks ?? [], total = few.reduce((s, x) => s + x.stocks_counted, 0), acc = useAccount(b);
