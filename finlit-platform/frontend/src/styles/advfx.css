@@ -108,6 +108,10 @@
 .psx3-opt.is-off:hover { background: none; }
 .psx3-ddp .psx3-optl { max-height: 340px; overflow: auto; overscroll-behavior: contain; }
 .psx3-ddp .afx.afx-in { margin: -8px; min-width: min(440px, calc(100vw - 32px)); }
+@media (max-width: 760px) {   /* phone: these lists and the Prism score panel open as a bottom sheet */
+  .psx3-ddp:has(.psx3-lvh), .psx3-ddp:has(.afx-in) { position: fixed; left: 8px; right: 8px; top: auto; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); min-width: 0; max-width: none; max-height: 78vh; overflow: auto; z-index: 1200; }
+  .psx3-ddp .afx.afx-in { min-width: 0; }
+}
 /* an open Advanced screen (SPEC §2): three header rows, each at the real height of the rows above it (was 30px and 52px, fixed) */
 .psx3-t.psx3-hfix thead tr.psx3-k th { top: var(--hr1, 30px); }
 .psx3-t.psx3-hfix thead tr.psx3-c th { top: calc(var(--hr1, 30px) + var(--hr2, 22px)); }
