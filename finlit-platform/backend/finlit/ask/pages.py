@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from ..discovery.keywords import BUCKETS as DISCOVERY_THEMES
+from . import docstore
 from .knowledge import TOPICS as FINANCE_TOPICS
 from ..mcp.gateway import Gateway, ToolError
 from ..mcp.schema import SYMBOL_SCHEMA, clean_symbol
@@ -205,18 +206,93 @@ _texts: "OrderedDict[str, List[str]]" = OrderedDict()     # link -> page texts; 
 _text_lock = asyncio.Lock()
 
 
-def best_pages(pages: List[str], question: str, n: int = 4, chars: int = 9000) -> List[Tuple[int, str]]:
-    """The pages that hold the question's words most often (with the first page, which names the deck), in page order, within `chars`."""
-    words = [w for w in re.findall(r"[a-z0-9]+", (question or "").lower()) if len(w) > 3 and w not in {"what", "does", "with", "from", "about", "this",
-             "that", "latest", "investor", "presentation", "annual", "report", "transcript", "company", "their", "there", "which", "say", "says", "tell"}]
-    scored = sorted(range(len(pages)), key=lambda i: -sum(pages[i].lower().count(w) for w in words)) if words else list(range(len(pages)))
-    keep = sorted({0, *scored[: n if words else n + 2]})
+_STOP = {"what", "does", "with", "from", "about", "this", "that", "latest", "investor", "presentation", "presentations", "annual", "report",
+         "transcript", "company", "companies", "their", "there", "which", "says", "tell", "said", "deck", "concall", "call", "earnings", "management",
+         "kya", "hai", "batao", "bata", "mein", "main", "ki", "ka", "ke", "aur", "the", "and", "for", "its", "has", "have", "how", "much", "many", "ppt",
+         "document", "documents", "please", "give", "show", "share", "shares", "stock", "new", "their", "they", "them", "into", "over", "will"}
+# Words that mean the same thing in a company's documents (task #255): a question about "EV" finds the page that says "electric vehicles". Each group's
+# words are searched for together; a phrase counts as one word.
+SYNONYMS: List[Tuple[str, ...]] = [
+    ("ev", "evs", "electric vehicle", "electric vehicles", "electric mobility", "e-mobility", "two-wheeler electric"),
+    ("capex", "capital expenditure", "capital investment", "investment", "investments", "capacity expansion"),
+    ("order book", "orderbook", "order inflow", "order inflows", "orders", "order", "order pipeline"),
+    ("guidance", "outlook", "target", "targets", "expect", "expected", "aspiration"),
+    ("margin", "margins", "ebitda", "operating margin", "ebitda margin"),
+    ("revenue", "revenues", "sales", "turnover", "income from operations", "topline"),
+    ("debt", "borrowing", "borrowings", "net debt", "leverage", "loans"),
+    ("capacity", "capacities", "plant", "plants", "mw", "gw", "mtpa", "tpa", "facility", "facilities", "commissioning", "commissioned"),
+    ("profit", "profits", "pat", "net profit", "earnings"),
+    ("segment", "segments", "division", "business", "businesses", "vertical"),
+    ("export", "exports", "international", "overseas", "global"),
+    ("dividend", "dividends", "payout"),
+    ("acquisition", "acquisitions", "merger", "m&a", "demerger"),
+    ("ai", "artificial intelligence", "genai", "generative ai"),
+    ("solar", "renewable", "renewables", "green energy", "new energy"),
+]
+SUMMARY_WORDS = ("highlights", "highlight", "key", "summary", "at a glance", "performance", "overview", "snapshot")
+GENERAL = re.compile(r"\b(what (does|did) (the |its |their )?(investor )?(presentation|deck|ppt|document|annual report|transcript|concall)\s*(say|says|tell|show)?"
+                     r"|summari[sz]e|summary|overview|highlights|key points|main points|kya (bola|kaha|likha))\b", re.I)
+
+
+def _doc_stem(w: str) -> str:
+    """A light English stem: plural and verb endings dropped ('orders' -> 'order', 'expanding' -> 'expand'), so a word matches its forms."""
+    for suf in ("ies", "ing", "ed", "es", "s"):
+        if len(w) > len(suf) + 3 and w.endswith(suf):
+            return w[: -len(suf)] + ("y" if suf == "ies" else "")
+    return w
+
+
+def _terms(question: str) -> List[Tuple[str, ...]]:
+    """The question's search terms: each meaningful word (with its stem), plus every synonym group it belongs to, plus numbers and years as written."""
+    q = (question or "").lower()
+    out: List[Tuple[str, ...]] = []
+    for grp in SYNONYMS:
+        if any(re.search(rf"(?<![a-z0-9]){re.escape(g)}(?![a-z0-9])", q) for g in grp):
+            out.append(grp)
+    seen = {g for grp in out for g in grp}
+    for w in re.findall(r"[a-z0-9&]+", q):
+        if w in seen or w in _STOP:
+            continue
+        if re.fullmatch(r"(fy)?\d{2,4}", w) or len(w) >= 3:
+            out.append((w, _doc_stem(w)) if _doc_stem(w) != w else (w,))
+            seen.add(w)
+    return out
+
+
+def _score(page: str, terms: List[Tuple[str, ...]]) -> int:
+    p = page.lower()
+    total = 0
+    for grp in terms:
+        hits = sum(len(re.findall(rf"(?<![a-z0-9]){re.escape(g)}", p)) for g in grp)
+        total += min(hits, 12) + (3 if hits else 0)          # a page that names each thing asked about beats one that repeats a single word
+    return total
+
+
+def best_pages(pages: List[str], question: str, n: int = 6, chars: int = 9000) -> List[Tuple[int, str]]:
+    """The pages that answer the question (task #255: by meaning, not exact words: stems, a small finance synonym list, numbers and years), with the
+    first page (which names the deck), in page order, within `chars`. A general question ("what does the presentation say") takes the highlights,
+    summary and performance pages first."""
+    terms = _terms(question)
+    general = bool(GENERAL.search(question or "")) or not terms
+    order = list(range(len(pages)))
+    if general:
+        summ = [i for i in order if any(w in pages[i].lower() for w in SUMMARY_WORDS)]
+        rest = [i for i in order if i not in summ]
+        ranked = summ + rest
+        if terms:                                    # "what does it say about EV": the asked-about pages first, then the summaries
+            hit = sorted((i for i in order if _score(pages[i], terms)), key=lambda i: -_score(pages[i], terms))
+            ranked = hit + [i for i in ranked if i not in hit]
+    else:
+        ranked = sorted(order, key=lambda i: (-_score(pages[i], terms), i))
+        ranked = [i for i in ranked if _score(pages[i], terms)] or [i for i in order if any(w in pages[i].lower() for w in SUMMARY_WORDS)] or order
+    keep = sorted({0, *ranked[: max(1, n - 1)]})
+    per = max(600, chars // max(1, len(keep)))       # each kept page gets its share, so the first pages never crowd out the ones that answer
     out, used = [], 0
     for i in keep:
         t = re.sub(r"[ \t]+", " ", pages[i]).strip()
         if not t:
             continue
-        t = t[: max(0, chars - used)]
+        t = t[: max(0, min(per, chars - used))]
         if not t:
             break
         out.append((i + 1, t))
@@ -245,25 +321,67 @@ async def _pages_of(link: str) -> List[str]:
     return pages
 
 
+async def _locate(gw: Gateway, sym: str, want: str, store: Any) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]]]:
+    """The newest document of the kind asked for: the Documents list first (what the website shows); for a presentation, then the one Discovery read,
+    then any stored filing that says "presentation" in the last 400 days (task #255: TVSMOTOR's Documents list named none while one was on file).
+    Returns (document or None, the rows of the Documents list, to say what is there when nothing is)."""
+    try:
+        data = await gw.json("/api/feed", {"kind": "document", "symbol": sym, "limit": 150}, subject=f"The documents of {sym}")
+    except ToolError:
+        data = None
+        if store is None:
+            raise
+    rows = [r for r in (_feed_row(i) for i in (data or {}).get("items") or [])]
+    docs = [r for r in rows if r["type"] == want and r.get("link")]
+    if docs:
+        return docs[0], rows                                       # the newest
+    if want == "Investor presentation":
+        for found in (await docstore.discovery_presentation(store, sym), await docstore.feed_presentation(store, sym)):
+            if found and found.get("link"):
+                return found, rows
+    return None, rows
+
+
+async def _read_pages(store: Any, doc: Dict[str, Any], sym: str, want: str) -> Tuple[List[str], str]:
+    """The document's page texts and where they came from: kept text first (read earlier by FinLit AI or the Discovery job), then memory, then the
+    exchange (kept for next time)."""
+    kept = await docstore.get_pages(store, doc["link"])
+    if kept:
+        return kept, "kept"
+    in_memory = doc["link"] in _texts
+    pages = await asyncio.wait_for(_pages_of(doc["link"]), timeout=DOC_TIMEOUT)
+    if any(p.strip() for p in pages):
+        await docstore.put_pages(store, doc["link"], sym, want, doc.get("title"), doc.get("date"), pages)
+    return pages, "memory" if in_memory else "exchange"
+
+
 async def read_company_document(gw: Gateway, a: Dict[str, Any]) -> Out:
     sym, want = clean_symbol(a["symbol"]), DOC_KINDS[a["document"]]
-    data = await gw.json("/api/feed", {"kind": "document", "symbol": sym, "limit": 150}, subject=f"The documents of {sym}")
-    docs = [r for r in (_feed_row(i) for i in (data or {}).get("items") or []) if r["type"] == want and r.get("link")]
-    if not docs:
-        return Out({"symbol": sym, "document": want, "found": False}, source=SOURCE_FEED, routes=["/api/feed"],
-                   notes=[f"FinLit's Documents page holds no {want.lower()} for {sym} yet (filings appear as the company's announcements are loaded)."])
-    doc = docs[0]                                     # the newest
+    store = docstore.store_of(gw)
+    doc, rows = await _locate(gw, sym, want, store)
+    if doc is None:
+        held = sorted({r["type"] for r in rows if r.get("type")})
+        if not held and store is not None:
+            held = sorted({doc_type(h["category"], h["title"]) for h in await docstore.held(store, sym)})
+        has = f"FinLit holds these documents for {sym}: {', '.join(held)}." if held else f"FinLit holds no company documents for {sym} yet."
+        return Out({"symbol": sym, "document": want, "found": False, "held": held, "searched": f"the last {docstore.KEEP_DAYS} days"},
+                   source=SOURCE_FEED, routes=["/api/feed"],
+                   notes=[f"FinLit's Documents page holds no {want.lower()} for {sym} filed in the last {docstore.KEEP_DAYS} days "
+                          f"(filings appear as the company's announcements are loaded). {has} Say so plainly; the web may have the company's own copy."])
     try:
-        pages = await asyncio.wait_for(_pages_of(doc["link"]), timeout=DOC_TIMEOUT)
+        pages, origin = await _read_pages(store, doc, sym, want)
     except asyncio.TimeoutError:
         raise ToolError(f"The exchange did not send the {want.lower()} ({doc['title']}, filed {doc['date']}) in time. It can be opened from {doc['link']}") from None
+    found_by = " (the presentation FinLit's Discovery read; the Documents list shows newer filings only)" if doc.get("from") == "discovery" else ""
     base = {"symbol": sym, "document": want, "title": doc["title"], "filed": doc["date"], "link": doc["link"], "pages": len(pages)}
+    src = f"{SOURCE_FEED}; the file itself, read from the exchange archive{found_by}"
     if not any(p.strip() for p in pages):
-        return Out({**base, "text": []}, as_of=doc["date"], source=f"{SOURCE_FEED}; the file itself, from the exchange archive", routes=["/api/feed"],
+        return Out({**base, "text": []}, as_of=doc["date"], source=src, routes=["/api/feed"],
                    notes=["The file has no readable text (it is a scan or images only); it can be opened from the link."])
-    return Out({**base, "text": [{"page": n, "text": t} for n, t in best_pages(pages, a.get("question") or "")]}, as_of=doc["date"],
-               source=f"{SOURCE_FEED}; the file itself, read from the exchange archive", routes=["/api/feed", doc["link"]],
-               notes=["Quote what the document says and name its page; it is the company's own presentation of itself, not FinLit's view."])
+    return Out({**base, "text": [{"page": n, "text": t} for n, t in best_pages(pages, a.get("question") or "")], "read": origin}, as_of=doc["date"],
+               source=src, routes=["/api/feed", doc["link"]],
+               notes=["Quote what the document says and name its page, the date it was filed and its link; it is the company's own presentation of "
+                      "itself, not FinLit's view. This is the document's text: never say the presentation could not be read."])
 
 
 # ------------------------------------------------------------------------------------------------ the Basic and Advanced stock screeners (FinLit IQ / FinLit Prism)
