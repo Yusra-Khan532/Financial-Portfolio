@@ -6,7 +6,7 @@ import { useUniverse } from "../../lib/screener";
 import { useUI } from "../../lib/ui";
 import { useWatchlist, watch } from "../../lib/watchlist";
 import {
-  applyTop, toggleRangeBand, togglePRangeBand, isBandList, topPool, chipsFor, cloneFilters, concentration, emptyFilters, facetCounts, filtersKey, nextSort, pageOf, parseState, removeChip, serializeState, summarize, validate, withScores,
+  applyTop, fitLevels, iqGroupCounts, levelCounts, IQ_GROUPS, iqGroupOn, toggleRangeBand, togglePRangeBand, isBandList, topPool, chipsFor, cloneFilters, concentration, emptyFilters, facetCounts, filtersKey, nextSort, pageOf, parseState, removeChip, serializeState, summarize, validate, withScores,
   type Band, type BandKey, type PBand, type Filters, type IqLabel, type Item, type RangeKey, type Scope, type Sort, type SortKey, type State, type TechBand, type TechKey,
 } from "../../lib/scoreScreen";
 import { coverageFrom } from "../../lib/scorePrism";
@@ -44,7 +44,9 @@ export function useScreener(mode: Mode) {
   const techAsOf = (cover as { tech_as_of?: string | null } | null | undefined)?.tech_as_of ?? null;   // the newest bar date the technical columns hold: shown so an old technical view is never read as today's
   const prismAsOf = useMemo(() => cover?.as_of ?? (items.map((r) => r.prism_at).filter((d): d is string => !!d).sort().at(-1) ?? null), [cover, items]);
   const found = useMemo(() => { const k = q.trim().toLowerCase(); return k ? items.filter((r) => `${r.symbol} ${r.name ?? ""} ${r.sector ?? ""}`.toLowerCase().includes(k)) : items; }, [items, q]);   // the toolbar search narrows everything, the counts beside the options included
-  const facets = useMemo(() => facetCounts(found, draft), [found, draft]);   // each option's count respects every OTHER active filter (faceted search); the option's own group is left out so you can see what ticking another one would add
+  const facets = useMemo(() => facetCounts(found, draft), [found, draft]);
+  const levels = useMemo(() => levelCounts(found, draft), [found, draft]);         // task #257: the three linked lists, every NSE name with its count
+  const iqCounts = useMemo(() => iqGroupCounts(found, draft), [found, draft]);     // task #257: Strong or Healthy / Below Healthy / Not rated   // each option's count respects every OTHER active filter (faceted search); the option's own group is left out so you can see what ticking another one would add
   const rows = useMemo(() => applyTop(found, applied, sort), [found, appliedKey, sort]);   // eslint-disable-line react-hooks/exhaustive-deps
   const topOf = useMemo(() => topPool(found, applied), [found, appliedKey]);   // eslint-disable-line react-hooks/exhaustive-deps
   const sum = useMemo(() => summarize(rows), [rows]);
@@ -86,6 +88,14 @@ export function useScreener(mode: Mode) {
   const setPRangeBand = (k: RangeKey, b: PBand) => edit((d) => ({ ...d, ranges: { ...d.ranges, [k]: togglePRangeBand(d.ranges[k], b) } }));   // Prism's five bands (N-32)
   const setIqLabel = (l: IqLabel) => edit((d) => ({ ...d, iqLabels: toggle(d.iqLabels, l) }));
   const setTech = (k: TechKey, b: TechBand) => edit((d) => ({ ...d, tech: { ...d.tech, [k]: toggle(d.tech[k], b) } }));
+  /** Task #257 (SHARED §1): tick or untick a macro sector, sector or industry; a lower choice that no longer fits is taken off, and its names are returned for the message. */
+  const setLevel = (level: "macros" | "nsecs" | "industries", name: string): string[] => {
+    const next = fitLevels({ ...draft, [level]: toggle(draft[level], name) });
+    edit(() => next.f);
+    return next.dropped;
+  };
+  const clearLevel = (level: "macros" | "nsecs" | "industries") => edit((d) => fitLevels({ ...d, [level]: [] }).f);
+  const setIqGroup = (id: string) => { const g = IQ_GROUPS.find((x) => x.id === id)!; edit((d) => ({ ...d, iqLabels: iqGroupOn(d, g) ? d.iqLabels.filter((l) => !g.labels.includes(l)) : [...new Set([...d.iqLabels, ...g.labels])] })); };
 
   const togglePick = (s: string) => setPicked((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]));
   const pageSyms = pg.view.map((r) => r.symbol), allOnPage = pageSyms.length > 0 && pageSyms.every((s) => sel.includes(s)), someOnPage = pageSyms.some((s) => sel.includes(s));
@@ -107,7 +117,7 @@ export function useScreener(mode: Mode) {
 
   return {
     mode, data, isLoading, isError, has, upgrade, nav, state, applied, sort, size, draft, setDraft: setDraftLive, secQ, setSecQ, q, setQ, picked, setPicked, how, setHow, drawer, setDrawer,
-    silver, locked, gold, maxCompare, items: items as Item[], unscored, asOf, cover, prismAsOf, techAsOf, facets, rows, topOf, sum, mix, pg, chips, problems, bad, dirty, flush: () => apply(draft), sel, filterCount: chips.length,
+    silver, locked, gold, maxCompare, items: items as Item[], unscored, asOf, cover, prismAsOf, techAsOf, facets, levels, iqCounts, setLevel, clearLevel, setIqGroup, edit, rows, topOf, sum, mix, pg, chips, problems, bad, dirty, flush: () => apply(draft), sel, filterCount: chips.length,
     go, apply, clear, drop, toggle, setBand, setRange, setLabel, setIqLabel, setRangeBand, setPRangeBand, setTech, togglePick, allOnPage, headBox, toggleAll, addWatch, addSelected, sortBy,
   };
 }
