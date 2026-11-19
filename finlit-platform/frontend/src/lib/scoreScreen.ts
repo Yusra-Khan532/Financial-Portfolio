@@ -38,6 +38,12 @@ export const techBandOf = (score: number | null | undefined): TechBand | null =>
 export const trendWord = (score: number | null | undefined): string | null => (score == null ? null : ratingWord(null, score).word);
 
 export const CAPS: Cap[] = ["Large", "Mid", "Small"];
+/** Task #258 (SPEC §1): each size with its ₹ range, from the same lines `withScores` uses (the size lines themselves belong to task #262). */
+export const CAP_LINES = { largeAbove: 50_000, midFrom: 10_000 } as const;
+const crText = (n: number) => `₹${n.toLocaleString("en-IN")} Cr`;
+export const CAP_RANGE: Record<Cap, string> = {
+  Large: `Above ${crText(CAP_LINES.largeAbove)}`, Mid: `${crText(CAP_LINES.midFrom)} to ${CAP_LINES.largeAbove.toLocaleString("en-IN")} Cr`, Small: `Below ${crText(CAP_LINES.midFrom)}`,
+};
 export const BAND_KEYS: BandKey[] = ["f", "t", "o", "q", "g", "p", "b"];
 export const RANGE_KEYS: RangeKey[] = ["f", "t", "o", "q", "g", "p", "b", "dh", ...PRISM_RANGE_KEYS];
 /** "dh": how far the price is down from its 52-week high, in percent (0 = at the high). Shared by both screeners, since it is about the price, not a model (task #60). */
@@ -80,7 +86,7 @@ export function withScores(rows: Row[]): Item[] {
     const parts = FUNDAMENTAL.map((k) => r[k]).filter((v): v is number => v != null);
     const mc = r.market_cap;
     return { ...r, f: parts.length >= 3 ? Math.round(parts.reduce((a, b) => a + b, 0) / parts.length) : null, t: r.pillar_technical,
-      cap: mc == null || !(mc > 0) ? null : mc > 50_000 ? "Large" : mc >= 10_000 ? "Mid" : "Small" };
+      cap: mc == null || !(mc > 0) ? null : mc > CAP_LINES.largeAbove ? "Large" : mc >= CAP_LINES.midFrom ? "Mid" : "Small" };
   });
 }
 
@@ -521,6 +527,13 @@ export function scoreCounts(items: Item[], f: Filters) {
   }
   return { labels, trend };
 }
-/** How many Prism score filters are on (the "Prism score · N" button and the panel's "N on"). */
-export const prismOnCount = (f: Filters) => (f.labels.length ? 1 : 0) + PRISM_RANGE_KEYS.filter((k) => f.ranges[k].min != null || f.ranges[k].max != null).length + TECH_KEYS.filter((k) => f.trend[k].length || f.tech[k].length).length + (f.rated ? 1 : 0);
-export const withoutScoreFilters = (f: Filters): Filters => { const n = withoutPrismPreset(f); n.trend = { st: [], lt: [] }; return n; };
+/** How many filters of the Prism score panel are on (SPEC §3: the "Prism score · N" button and the panel's "N on"): the rating words, the five score ranges and
+ *  the two technical views in the five trend words. The header row's own "Technical view" (the older three bands) and "52-week high" count on their own buttons. */
+export const prismOnCount = (f: Filters) => f.labels.length + PRISM_RANGE_KEYS.filter((k) => f.ranges[k].min != null || f.ranges[k].max != null).length + f.trend.st.length + f.trend.lt.length + (f.rated ? 1 : 0);   // each ticked word and each range counts, as in the pack
+/** "Clear score filters": only the panel's own filters; every other filter stays. */
+export function withoutScoreFilters(f: Filters): Filters {
+  const n = cloneFilters(f);
+  n.labels = []; n.rated = false; n.trend = { st: [], lt: [] };
+  PRISM_RANGE_KEYS.forEach((k) => { n.ranges[k] = { min: null, max: null }; });
+  return n;
+}

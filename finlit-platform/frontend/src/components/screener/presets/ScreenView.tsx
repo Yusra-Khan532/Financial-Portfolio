@@ -23,6 +23,7 @@ import {
 } from "../../../lib/presets";
 import type { PresetRoute } from "./usePresetRoute";
 import "../../../styles/presets.css";
+import "../../../styles/advfx.css";   // task #258: the Advanced screen header fix (.psx3-hfix) and the header-row filters
 import { CoLogo } from "../../CoLogo";
 import { INFO, INFO_ASON_GAINERS, INFO_BAND_LIST, INFO_BAND_SCREEN, INFO_BAND_SECTOR, PsxInfo } from "./PsxInfo";
 import { isFeatured, Shine } from "./ScreensStrip";
@@ -176,7 +177,7 @@ function Table({ d, cols, rows, sort, setSort, basic, onDay, latest, picked, set
     return <td key={c.key} className={"psx-a-" + alignOf(c) + hatch}><CellValue v={v} f={c.format} k={c.key} /></td>;
   };
   return (
-    <table className="scr-t psx-t psx3-t">
+    <table className={"scr-t psx-t psx3-t" + (basic ? "" : " psx3-hfix")}>
       <caption className="sr">{d.name}: {rows.length} {rows.length === 1 ? "company" : "companies"} shown{first ? `, from number ${first + 1}` : ""}. Select a column heading to sort the shown rows.</caption>
       <thead>
         <tr className="psx3-g">

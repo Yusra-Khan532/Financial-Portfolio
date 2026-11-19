@@ -19,11 +19,15 @@ export function HScroll({ children, className = "", label = "table", tall = fals
       setMax(Math.max(0, el.scrollWidth - el.clientWidth)); setPos(el.scrollLeft); setScrolled(el.scrollLeft > 1);
       const rows = el.querySelector("table")?.tHead?.rows;     // a table with two header rows (the group names above the columns): the second row sticks under the first
       el.style.setProperty("--hr1", rows && rows.length > 1 ? `${rows[0].offsetHeight}px` : "0px");
+      el.style.setProperty("--hr2", rows && rows.length > 2 ? `${rows[1].offsetHeight}px` : "0px");   // task #258 (SHARED §5): a third header row sticks under the real height of the first two
     };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     if (el.firstElementChild) ro.observe(el.firstElementChild);
+    const head1 = el.querySelector("table")?.tHead?.rows[0];   // SHARED §5: re-measure when the first header row itself changes height (fonts, wrapping)
+    if (head1) ro.observe(head1);
+    if (typeof document !== "undefined" && document.fonts?.ready) document.fonts.ready.then(measure).catch(() => undefined);
     const onScroll = () => { setPos(el.scrollLeft); setScrolled(el.scrollLeft > 1); };
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => { ro.disconnect(); el.removeEventListener("scroll", onScroll); };
