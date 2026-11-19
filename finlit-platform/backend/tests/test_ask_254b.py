@@ -44,9 +44,14 @@ class Fetcher:
     def __init__(self, **kw):
         pass
 
+    queue: Dict[str, List[Any]] = {}          # url -> the next downloads, in turn (raw bytes for a broken file, else page texts)
+
     async def pdf(self, url, cap=None):
         from test_ask_pages import tiny_pdf
         Fetcher.asked.append(url)
+        if Fetcher.queue.get(url):
+            r = Fetcher.queue[url].pop(0)
+            return r if isinstance(r, bytes) else tiny_pdf(r)
         return tiny_pdf(Fetcher.files[url])
 
     async def aclose(self):
@@ -56,7 +61,7 @@ class Fetcher:
 @pytest.fixture
 def exchange(monkeypatch):
     P._texts.clear()
-    Fetcher.files, Fetcher.asked = {}, []
+    Fetcher.files, Fetcher.asked, Fetcher.queue = {}, [], {}
     monkeypatch.setattr("finlit.earnings.transcripts.Fetcher", Fetcher)
     return Fetcher
 
@@ -348,3 +353,84 @@ async def test_the_pricol_question_end_to_end_answers_even_when_the_provider_ref
     r, ev = await ask(m, "what is issue with pricol")
     assert r.status_code == 200 and ev[-1][0] == "done" and not any(e == "error" for e, _ in ev)
     assert any(e == "text" and "Pricol's results" in d["text"] for e, d in ev)
+
+
+# ---- a broken download is downloaded once more; only two clean copies with no text make a scan (coordinator, 19 Nov 2026) ----
+
+BROKEN = b"%PDF-1.4\n1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n% the file stops here"
+RESULTS_LINK = "https://nsearchives.nseindia.com/corporate/HDFCBANK_results.pdf"
+RESULTS_FEED = [{"kind": "result", "symbol": "HDFCBANK", "title": "HDFC Bank Limited has submitted to the Exchange, the financial results for the "
+                 "period ended September 30, 2026", "link": RESULTS_LINK, "date": "2026-10-17", "category": "Outcome of Board Meeting"}]
+
+
+async def read_results(question=f"red flags {P.BANK_TERMS}"):
+    return await T.run(gw_feed(RESULTS_FEED), "read_company_document", {"symbol": "HDFCBANK", "document": "results_filing", "question": question})
+
+
+async def test_a_broken_first_download_is_fetched_again_and_the_second_copy_is_read(exchange):
+    exchange.queue = {RESULTS_LINK: [BROKEN]}
+    exchange.files = {RESULTS_LINK: bank_filing()}
+    r = await read_results()
+    assert exchange.asked == [RESULTS_LINK, RESULTS_LINK]
+    assert not r["error"] and "3.16%" in r["text"] and "damaged" not in r["text"] and "scan" not in r["text"]
+
+
+async def test_two_broken_downloads_say_the_exchange_sent_a_damaged_file_and_nothing_is_kept(exchange):
+    exchange.queue = {RESULTS_LINK: [BROKEN, BROKEN]}
+    exchange.files = {RESULTS_LINK: bank_filing()}
+    r = await read_results()
+    assert not r["error"] and '"damagedFile":true' in r["text"].replace(" ", "")
+    assert "damaged file just now" in r["text"] and "is a scan" not in r["text"]
+    assert RESULTS_LINK not in P._texts                                  # not remembered: the next question downloads it again
+    r2 = await read_results()
+    assert exchange.asked.count(RESULTS_LINK) == 3 and "3.16%" in r2["text"]
+
+
+async def test_one_empty_copy_then_a_good_one_is_read_not_called_a_scan(exchange):
+    exchange.queue = {RESULTS_LINK: [["", ""]]}
+    exchange.files = {RESULTS_LINK: bank_filing()}
+    r = await read_results()
+    assert "3.16%" in r["text"] and "scan" not in r["text"]
+
+
+async def test_only_two_clean_copies_with_no_text_are_called_a_scan(exchange):
+    exchange.files = {RESULTS_LINK: ["", ""]}
+    r = await read_results()
+    assert exchange.asked == [RESULTS_LINK, RESULTS_LINK]
+    assert not r["error"] and "is a scan" in r["text"] and "downloaded twice" in r["text"] and "damaged" not in r["text"]
+
+
+async def test_an_empty_or_failed_parse_is_never_kept_in_document_pages():
+    from finlit.ask import docstore
+
+    class NoPool:
+        @property
+        def pool(self):
+            raise AssertionError("an empty parse must not reach the database")
+    for pages in ([], ["", "  \n"], None):
+        assert await docstore.put_pages(NoPool(), RESULTS_LINK, "HDFCBANK", "Results filing", "t", "2026-10-17", pages) is False
+
+
+async def test_an_empty_parse_is_not_written_by_the_read_either(exchange, monkeypatch):
+    from finlit.ask import docstore
+    kept = []
+
+    async def put(store, link, *a):
+        kept.append(link)
+        return True
+
+    async def none(*a, **k):
+        return None
+    monkeypatch.setattr(docstore, "store_of", lambda gw: object())
+    monkeypatch.setattr(docstore, "get_pages", none)
+    monkeypatch.setattr(docstore, "put_pages", put)
+    exchange.files = {RESULTS_LINK: ["", ""]}
+    await read_results()
+    exchange.queue = {RESULTS_LINK: [BROKEN, BROKEN]}
+    P._texts.clear()
+    await read_results()
+    assert kept == []
+    exchange.files = {RESULTS_LINK: bank_filing()}
+    P._texts.clear()
+    await read_results()
+    assert kept == [RESULTS_LINK]

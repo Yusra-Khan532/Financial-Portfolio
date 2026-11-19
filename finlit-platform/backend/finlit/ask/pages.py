@@ -545,11 +545,16 @@ def _cut(pages: List[str], ranked: List[int], n: int, chars: int) -> List[Tuple[
     return out
 
 
-async def _pages_of(link: str) -> List[str]:
-    async with _text_lock:
-        if link in _texts:
-            _texts.move_to_end(link)
-            return _texts[link]
+class DamagedFile(Exception):
+    """The exchange sent a file that does not open as a PDF (cut off or broken), twice: not a scan, so nothing is kept and the next question tries again."""
+
+    def __init__(self, link: str):
+        super().__init__(link)
+        self.link = link
+
+
+async def _download_pages(link: str) -> List[str]:
+    """One download and parse: the page texts, or [] when the file does not open as a PDF (cut off, broken, locked)."""
     from ..earnings.transcripts import DOC_PDF_BYTES, Blocked, FetchFailed, Fetcher, extract_pages
     f = Fetcher(budget=4, pause=0.0)
     try:
@@ -558,7 +563,28 @@ async def _pages_of(link: str) -> List[str]:
         raise ToolError(f"The exchange did not give the file just now ({e}). It can be opened from {link}") from None
     finally:
         await f.aclose()
-    pages = await asyncio.to_thread(extract_pages, pdf, MAX_PAGES_READ)
+    return await asyncio.to_thread(extract_pages, pdf, MAX_PAGES_READ)
+
+
+async def _pages_of(link: str) -> List[str]:
+    """The page texts of a file. A file that does not open, or opens with no text on any page, is downloaded once more before deciding (a broken
+    download from the exchange is common): the second copy is used when it has text; both opening with no text is a scan (kept in memory only);
+    otherwise the file came damaged (DamagedFile, nothing kept, so the next question tries again)."""
+    async with _text_lock:
+        if link in _texts:
+            _texts.move_to_end(link)
+            return _texts[link]
+    pages = await _download_pages(link)
+    if not any(p.strip() for p in pages):
+        log.info("ask: %s gave %s; downloading it once more", link[-60:], "pages with no text" if pages else "a file that does not open")
+        try:
+            again = await _download_pages(link)
+        except ToolError:
+            again = []
+        if any(p.strip() for p in again):
+            pages = again
+        elif not (pages and again):
+            raise DamagedFile(link)
     async with _text_lock:
         _texts[link] = pages
         while len(_texts) > 24:
@@ -710,6 +736,13 @@ async def read_company_document(gw: Gateway, a: Dict[str, Any]) -> Out:
                           f"(filings appear as the company's announcements are loaded). {has} Say so plainly; the web may have the company's own copy."])
     try:
         doc, pages, origin, letter = await _real_document(store, doc, candidates or [doc], sym, want)
+    except DamagedFile:
+        return Out({"symbol": sym, "document": want, "title": doc["title"], "filed": doc["date"], "link": doc["link"], "pages": 0, "text": [],
+                    "damagedFile": True}, as_of=doc["date"], source=SOURCE_FEED, routes=["/api/feed", doc["link"]],
+                   notes=([period_note] if period_note else []) + [
+                       f"The exchange sent a damaged file just now: the {want.lower()} ({doc['title']}, filed {doc['date']}) was downloaded twice and "
+                       "neither copy opens. It is not a scan, and FinLit will try again on the next question. Say so in one short clause, give the "
+                       f"link ({doc['link']}), and answer from the other documents and FinLit's own figures."])
     except asyncio.TimeoutError:
         raise ToolError(f"The exchange did not send the {want.lower()} ({doc['title']}, filed {doc['date']}) in time. It can be opened from {doc['link']}") from None
     found_by = " (the presentation FinLit's Discovery read; the Documents list shows newer filings only)" if doc.get("from") == "discovery" else ""
@@ -735,7 +768,8 @@ async def read_company_document(gw: Gateway, a: Dict[str, Any]) -> Out:
                     f"({doc['title']}, {doc['date']}). Say so in one short clause when you quote it.")
     if not any(p.strip() for p in pages):
         return Out({**base, "text": []}, as_of=doc["date"], source=src, routes=["/api/feed"],
-                   notes=lead + ["The file has no readable text (it is a scan or images only); it can be opened from the link."])
+                   notes=lead + ["The file is a scan: it was downloaded twice and both copies open with no text on any page (images only). Say so "
+                                 "plainly; it can be opened from the link."])
     budget = int(a.get("max_chars") or 9000)                           # task #254 rework: several documents read at once share the room
     q = a.get("question") or ""
     measures: Dict[str, int] = {}
