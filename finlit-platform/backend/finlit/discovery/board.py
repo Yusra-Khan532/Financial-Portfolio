@@ -191,7 +191,12 @@ async def board(store) -> Dict[str, Any]:
 
     return {"updated": last.isoformat() if last else None, "companies": len(out_rows), "read": sum(stat.values()), "days": NEWS_DAYS,
             "rows": out_rows, "themes": list(themes.values()), "tfil": tfil, "efil": efil, "events": list(EVENTS), "eventsTracked": sorted(set(S.EVENT_LABEL) & set(EVENTS)),
-            "caution": K.CAUTION}
+            "caution": K.CAUTION, "method": _method()}
+
+
+def _method() -> str:
+    from .service import METHOD
+    return METHOD
 
 
 _VERIFY: Dict[str, List[str]] = {}
