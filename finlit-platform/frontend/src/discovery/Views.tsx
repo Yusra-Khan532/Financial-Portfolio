@@ -5,7 +5,7 @@ import { Link } from "react-router";
 import { prefs, usePrefs } from "../lib/prefs";
 import { I } from "./Info";
 import { useDsc } from "./ctx";
-import { CompanyTable, Corner, Evs, Prism, Stage, Trend } from "./CompanyTable";
+import { CompanyTable, Corner, Evs, Locked, Prism, Stage, Trend } from "./CompanyTable";
 import { BRIEF_CARDS, CORNERS, EVENTS, RECORD_FROM, STAGES, STAGE_CLASS, evBiz, fmtDate, pct, short, slug, stat, tone, type BoardTheme, type Corner as CornerT, type DRow } from "./model";
 
 const pctOf = (n: number, of: number) => (of ? Math.round((n / of) * 100) : 0);
@@ -38,7 +38,7 @@ function ThemeCard({ t, rows }: { t: BoardTheme; rows: DRow[] }) {
     <div className="n">{s.n}<small>companies{t.also ? ` · ${t.also} more mention it` : ""}</small></div>
     <StageBar rows={rows} />
     <div className="dsc-kv"><Kv l="3-month median" v={pct(s.m3)} cls={tone(s.m3)} /><Kv l="1-year median" v={pct(s.m1y)} cls={tone(s.m1y)} />
-      <Kv l="In a long-term uptrend" v={`${s.up} of ${s.n}`} /><Kv l="Filings, 90 days" v={t.news.filings} /></div>
+      <Kv l="In a long-term uptrend" v={c.prismOpen ? `${s.up} of ${s.n}` : <Locked />} /><Kv l="Filings, 90 days" v={t.news.filings} /></div>
     <div className="dsc-ex">{yours ? <span className="dsc-yours">{yours} of yours · </span> : null}{top ? `Highest Prism: ${top}` : c.prismOpen ? "No company here has a Prism score yet" : "Prism: part of Gold"}</div>
   </a>;
 }
@@ -55,7 +55,7 @@ export function ThemesView() {
   const merged = b.themes.flatMap((t) => t.merged.map((m) => [m, t.label] as const));
   return <>
     <div className="dsc-toolbar"><p>{spec.length} themes from the companies’ own investor presentations, then {broad.length} broad groups. Each card shows the stage mix <I k="stage" />, the median move <I k="median" /> and how many are in a long-term uptrend <I k="uptrend" />. Open one for its companies, latest filings and what to check.</p>
-      <label>Sort by <select value={sort} onChange={(e) => setSort(e.target.value as TSort)}><option value="n">Most companies</option><option value="m3">3-month median</option><option value="up">Share in an uptrend</option><option value="f">Most filings, 90 days</option></select></label></div>
+      <label>Sort by <select value={sort} onChange={(e) => setSort(e.target.value as TSort)}><option value="n">Most companies</option><option value="m3">3-month median</option>{c.prismOpen && <option value="up">Share in an uptrend</option>}<option value="f">Most filings, 90 days</option></select></label></div>
     <StageLegend />
     <div className="dsc-grid">{spec.map((t) => <ThemeCard key={t.name} t={t} rows={byTheme.get(t.name)!} />)}</div>
     {broad.length > 0 && <><div className="dsc-secth"><h3>Broad groups</h3><I k="broad" /></div>
@@ -83,7 +83,7 @@ export function ThemePage({ theme }: { theme: string }) {
       <Kpi l="Companies" v={s.n} small={yours.length ? `${yours.length} of yours` : c.signedIn ? "none of yours" : undefined} />
       <Kpi l="3-month median" i="median" v={pct(s.m3)} cls={tone(s.m3)} />
       <Kpi l="1-year median" v={pct(s.m1y)} cls={tone(s.m1y)} />
-      <Kpi l="In a long-term uptrend" i="uptrend" v={s.up} small={`of ${s.n} (${pctOf(s.up, s.n)}%)`} />
+      <Kpi l="In a long-term uptrend" i="uptrend" v={c.prismOpen ? s.up : <Locked />} small={c.prismOpen ? `of ${s.n} (${pctOf(s.up, s.n)}%)` : "part of Gold"} />
       <Kpi l="Filings, 90 days" v={t.news.filings} small={`${t.news.positive} positive, ${t.news.negative} negative tone`} />
     </div>
     <div className="dsc-two">
@@ -109,7 +109,7 @@ export function EventsView() {
       const rows = c.d.rows.filter((r) => r.ev[e.k]), s = stat(rows), yours = rows.filter((r) => c.onList(r.s)).length;
       const ex = rows.slice().sort((x, y) => (y.ev[e.k] - x.ev[e.k]) || ((y.pr ?? 0) - (x.pr ?? 0))).slice(0, 3).map((r) => short(r.n)).join(", ");
       return <a key={e.k} className="dsc-cd" href={"#change-" + e.k}><h3>{e.t}</h3><div className="n">{s.n}<small>companies · {b.days} days</small></div>
-        <div className="dsc-kv"><Kv l="3-month median" v={pct(s.m3)} cls={tone(s.m3)} /><Kv l="In a long-term uptrend" v={`${s.up} of ${s.n}`} /></div>
+        <div className="dsc-kv"><Kv l="3-month median" v={pct(s.m3)} cls={tone(s.m3)} /><Kv l="In a long-term uptrend" v={c.prismOpen ? `${s.up} of ${s.n}` : <Locked />} /></div>
         <div className="dsc-ex">{yours ? <span className="dsc-yours">{yours} of yours · </span> : null}{ex || "No such filing in this window"}</div></a>;
     })}</div>
     <div className="dsc-secth"><h3>From company briefs</h3><I k="brief" /></div>
@@ -135,7 +135,7 @@ export function EventPage({ k }: { k: string }) {
     <Crumb to="#what-changed" label="What changed" here={e.t} />
     <div className="dsc-dh"><div><h2>{e.t}</h2><p>{s.n} companies {e.d} in the last {b.days} days. Sorted by how many such filings each made.</p></div><div className="dsc-dha"><Jump /></div></div>
     <div className="dsc-kpis"><Kpi l="Companies" v={s.n} /><Kpi l="3-month median" i="median" v={pct(s.m3)} cls={tone(s.m3)} /><Kpi l="1-year median" v={pct(s.m1y)} cls={tone(s.m1y)} />
-      <Kpi l="In a long-term uptrend" i="uptrend" v={s.up} small={`of ${s.n}`} /></div>
+      <Kpi l="In a long-term uptrend" i="uptrend" v={c.prismOpen ? s.up : <Locked />} small={c.prismOpen ? `of ${s.n}` : "part of Gold"} /></div>
     {lat.length > 0 && <div className="dsc-panel dsc-mb"><h3>Latest of these filings</h3><ul className="dsc-fl">{lat.map((f) => <li key={f.s + f.d + f.t}><b>{short(c.by.get(f.s)?.n ?? c.d.uni.get(f.s)?.name ?? f.n)}</b> · {f.t}<small>{fmtDate(f.d)} · {f.el}</small></li>)}</ul></div>}
     <CompanyTable title={"Companies with " + e.t.toLowerCase()} base={rows} defaultSort="ev" event={k} />
   </>;
@@ -158,7 +158,7 @@ function SectorCard({ m, rows }: { m: string; rows: DRow[] }) {
   return <a className="dsc-cd" href={"#sector-" + slug(m)}><h3>{m}</h3><div className="n">{s.n}<small>companies · {n} {n === 1 ? "industry" : "industries"}</small></div>
     <div className="dsc-bar mid" aria-hidden="true">{t3.map(([t, k], i) => <i key={t} style={{ flex: k, background: SECTOR_COLORS[i] }} />)}{rest > 0 ? <i style={{ flex: rest, background: "var(--border)" }} /> : null}</div>
     <div className="dsc-leg">{t3.map(([t, k], i) => <span key={t}><i style={{ background: SECTOR_COLORS[i] }} />{lab(t)} {k}</span>)}</div>
-    <div className="dsc-kv"><Kv l="3-month median" v={pct(s.m3)} cls={tone(s.m3)} /><Kv l="In a long-term uptrend" v={`${s.up} of ${s.n}`} /></div>
+    <div className="dsc-kv"><Kv l="3-month median" v={pct(s.m3)} cls={tone(s.m3)} /><Kv l="In a long-term uptrend" v={c.prismOpen ? `${s.up} of ${s.n}` : <Locked />} /></div>
     <div className="dsc-rot"><span>Industries:</span>{(Object.keys(CORNERS) as CornerT[]).filter((k) => cc[k]).map((k) => <span key={k}><i className={"dsc-c-" + k} />{cc[k]} {CORNERS[k].toLowerCase()}</span>)}
       {!Object.keys(cc).length && <span>no Sector Rotation reading</span>}</div></a>;
 }
@@ -197,7 +197,7 @@ export function SectorPage({ m }: { m: string }) {
     <Crumb to="#sectors" label="Sectors" here={m} />
     <div className="dsc-dh"><div><h2>{m}</h2><p>{s.n} companies in {inds.size} {inds.size === 1 ? "industry" : "industries"}, placed in {tl.length} themes.</p></div><div className="dsc-dha"><Jump /></div></div>
     <div className="dsc-kpis"><Kpi l="Companies" v={s.n} /><Kpi l="3-month median" i="median" v={pct(s.m3)} cls={tone(s.m3)} /><Kpi l="1-year median" v={pct(s.m1y)} cls={tone(s.m1y)} />
-      <Kpi l="In a long-term uptrend" i="uptrend" v={s.up} small={`of ${s.n}`} /></div>
+      <Kpi l="In a long-term uptrend" i="uptrend" v={c.prismOpen ? s.up : <Locked />} small={c.prismOpen ? `of ${s.n}` : "part of Gold"} /></div>
     <div className="dsc-panel dsc-mb"><h3>Industries in this sector</h3>
       <div className="dsc-tw"><table className="dsc-ind"><thead><tr><th scope="col">Industry</th><th scope="col" className="r">Companies</th><th scope="col">Sector Rotation <I k="corner" /></th><th scope="col" className="r">Rank <I k="rank" /></th>
         <th scope="col">Sector Pulse <I k="pulse" /></th><th scope="col" className="r">3-month median</th><th scope="col" className="r">Uptrend</th><th scope="col">Largest specific theme</th></tr></thead>
@@ -206,7 +206,7 @@ export function SectorPage({ m }: { m: string }) {
           rs.forEach((r) => { t[r.th] = (t[r.th] || 0) + 1; });
           const ts = Object.entries(t).sort((a, b) => b[1] - a[1]), tt = ts.find(([x]) => !theme(x)?.broad) ?? ts[0];
           return <tr key={i}><td>{i}</td><td className="r">{rs.length}</td><td><Corner r={ro} /></td><td className="r num">{ro.rk ? `${ro.rk} of ${ro.of}` : "−"}</td>
-            <td>{ro.pulse ?? <span className="dsc-na">No reading</span>}</td><td className={"r num " + tone(st.m3)}>{pct(st.m3)}</td><td className="r num">{st.up} of {st.n}</td>
+            <td>{ro.pulse ?? <span className="dsc-na">No reading</span>}</td><td className={"r num " + tone(st.m3)}>{pct(st.m3)}</td><td className="r num">{c.prismOpen ? `${st.up} of ${st.n}` : <Locked />}</td>
             <td>{tt ? <><a className="dsc-linkish" href={"#theme-" + slug(tt[0])}>{theme(tt[0])?.short ?? tt[0]}</a> <span className="dsc-na">{tt[1]}</span></> : null}</td></tr>;
         })}</tbody></table></div>
       <p className="dsc-foot">Sector Rotation and Sector Pulse readings of {c.d.rotLabel ?? (fmtDate(c.d.rotDate) || "the latest week")}. An industry with no reading has too few liquid stocks, or no NSE group.</p></div>

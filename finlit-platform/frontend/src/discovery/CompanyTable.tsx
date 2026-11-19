@@ -80,9 +80,11 @@ export function CompanyTable({ title, base, defaultSort = "pr", event }: { title
       <button key={r.s} type="button" className="dsc-chip" onClick={() => { set({ q: r.n, page: 0 }); c.toggleOpen(r.s, true); }}>{short(r.n)}{c.isHeld(r.s) ? "" : " ★"}</button>))}</div>}
     <div className="dsc-views" role="group" aria-label="Ready-made views"><span className="dsc-lab">Ready-made views</span><I k="views" />
       {LENSES.map((l) => {
-        const on = S.lenses.includes(l.k), n = unlens.filter(l.f).length, off = l.k === "leader" && !c.d.leaders;
-        return <button key={l.k} type="button" className="dsc-ln" aria-pressed={on} disabled={off && !on} title={off ? "The peer labels are not published yet" : undefined}
-          onClick={() => set({ lenses: on ? S.lenses.filter((x) => x !== l.k) : [...S.lenses, l.k], page: 0 })}>{l.t}<span className="dsc-c">{off ? "−" : n}</span></button>;
+        // task #251: the trend and Prism views need readings this plan does not include; they say so, never "0" (a blank shows its reason)
+        const gold = (l.k === "uptrend" || l.k === "prism") && !c.prismOpen;
+        const on = S.lenses.includes(l.k), n = unlens.filter(l.f).length, off = (l.k === "leader" && !c.d.leaders) || gold;
+        return <button key={l.k} type="button" className="dsc-ln" aria-pressed={on} disabled={off && !on} title={gold ? "FinLit Prism and the technical views are part of Gold" : off ? "The peer labels are not published yet" : undefined}
+          onClick={() => set({ lenses: on ? S.lenses.filter((x) => x !== l.k) : [...S.lenses, l.k], page: 0 })}>{l.t}<span className="dsc-c">{gold ? "Gold" : off ? "−" : n}</span></button>;
       })}</div>
     <div className="dsc-fbar">
       <input type="search" placeholder="Search in this list" aria-label="Search in this list" value={S.q} onChange={(e) => set({ q: e.target.value, page: 0 })} />

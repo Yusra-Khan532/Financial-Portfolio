@@ -159,6 +159,22 @@ describe("#251: the table", () => {
     fireEvent.change(screen.getByRole("combobox", { name: "Long-term trend" }), { target: { value: "none" } });
     expect(document.querySelector(".dsc-tb tbody")!.textContent).toMatch(/Gold/);
   });
+  it("a plan without the trends never reads '0 of N in a long-term uptrend': the counts and the trend views say Gold (found on the live page, 19 Nov)", async () => {
+    st.plan = "silver"; await show();
+    const ups = () => [...document.querySelectorAll(".dsc-kv span, .dsc-kpi")].filter((e) => /long-term uptrend/i.test(e.textContent || "")).map((e) => e.textContent);
+    expect(ups().length).toBeGreaterThan(0);
+    ups().forEach((t) => { expect(t).not.toMatch(/\d+ of \d+/); expect(t).toMatch(/Gold/); });
+    expect(screen.queryByRole("option", { name: "Share in an uptrend" })).toBeNull();
+    cleanup(); await show("#sectors");
+    ups().forEach((t) => expect(t).toMatch(/Gold/));
+    cleanup(); await show("#all-companies");
+    for (const v of [/Long-term uptrend/, /Prism strong or healthy/]) {
+      const b = screen.getByRole("button", { name: v });
+      expect(b.hasAttribute("disabled")).toBe(true); expect(b.textContent).toMatch(/Gold$/);
+    }
+    cleanup(); st.plan = "gold"; await show();
+    expect(ups().some((t) => /\d+ of \d+/.test(t || ""))).toBe(true);                       // Gold still sees the counts
+  });
   it("sorting, paging and the rules behind the views", () => {
     const rows = joinRows(BOARD, UNI.rows as never, [], [], undefined);
     const S = { ...freshT("pr") };
