@@ -262,9 +262,11 @@ def test_end_to_end_a_recent_listing_gets_a_provisional_long_term_score_and_an_o
 
 @pytest.mark.young
 def test_a_young_listing_is_scored_as_on_the_chart_provisional_and_in_the_models_rows():
+    import subprocess
     from backend import premium_technical as PT
-    if PT._young_runtime() is None:
-        pytest.skip("finlit_technicals' Python (with pandas) is not installed here")
+    runtime = PT._young_runtime()
+    if runtime is None or subprocess.run([runtime[0], "-c", "import numpy, pandas"], capture_output=True, check=False).returncode != 0:
+        pytest.skip("finlit_technicals' Python (with numpy and pandas) is not installed here (the site-api CI job installs only the site's requirements)")
     bars = candles(186)
     marks = benchmarks(candles(700))
     young = PT.young_assessment(bars, marks, 17.36)
