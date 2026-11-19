@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from ..mcp.gateway import Gateway, ToolError
 from ..mcp.schema import SYMBOL_SCHEMA, ArgError, clean_symbol, validate
@@ -191,13 +191,18 @@ WEB_SEARCH = {"type": "web_search_20250305", "name": "web_search", "max_uses": 2
               "user_location": {"type": "approximate", "country": "IN", "timezone": "Asia/Kolkata"}}
 
 
-def definitions() -> List[Dict[str, Any]]:
-    """The tool list sent to Claude: always the same order and text, so the cached prompt prefix stays valid. FinLit's tools first, the web last."""
+def definitions(web_domains: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+    """The tool list sent to Claude: always the same order and text, so the cached prompt prefix stays valid. FinLit's tools first, the web last.
+    `web_domains` (task #253): for a question of one clear type, the web search keeps to that type's sites from the team's directory (the
+    provider's allowed_domains). Only the last entry changes, so each type has one cached prefix of its own and an open search keeps the usual one."""
     out: List[Dict[str, Any]] = []
     for t in TOOLS:
         schema = t.listing()["inputSchema"]
         out.append({"name": t.name, "description": DESCRIBE.get(t.name, t.description), "input_schema": schema})
-    out.append(dict(WEB_SEARCH))
+    web = dict(WEB_SEARCH)
+    if web_domains:
+        web["allowed_domains"] = list(dict.fromkeys(web_domains))
+    out.append(web)
     return out
 
 

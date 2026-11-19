@@ -163,6 +163,124 @@ SOURCES = {
                   "TradingView (charts)", "FRED and SEC EDGAR (US data and filings)"],
     "education": ["SEBI investor site (investor.sebi.gov.in)", "CFA Institute", "Investopedia (plain definitions, not evidence)", "Investor.gov"],
 }
+# ------------------------------------------------------------------------------------------------ the team's source directory (task #253)
+# FinLit_AI_Finance_Economics_Resources.pdf (19 Nov 2026): "if question is for broader economy then it should be trained separately; if its related to
+# financials refer to finlit company page and moneycontrol and for daily news look moneycontrol.com; and so on". Its "How to use": official regulators,
+# exchanges, company filings and statistical agencies first; educational and research sites for explanations; commercial data platforms and news as
+# secondary. Its data-use note: FinLit AI only searches and links these live pages and names them; it never copies, stores or trains on their content.
+# Each entry: (name, domain, what it is useful for, standing). Standing: primary | education | research | secondary.
+Site = Dict[str, str]
+
+
+def _s(name: str, domain: str, useful: str, standing: str) -> Site:
+    return {"name": name, "domain": domain, "useful": useful, "standing": standing}
+
+
+DIRECTORY: Dict[str, Dict[str, Any]] = {
+    "education": {"title": "Financial knowledge and education", "sites": [
+        _s("Investopedia", "investopedia.com", "Finance concepts, ratios, valuation, derivatives and investing terminology", "education"),
+        _s("Corporate Finance Institute (CFI)", "corporatefinanceinstitute.com", "Financial modelling, accounting, corporate finance and analysis", "education"),
+        _s("Wall Street Prep", "wallstreetprep.com", "DCF, financial modelling, valuation and investment banking concepts", "education"),
+        _s("CFA Institute", "cfainstitute.org", "Equity, fixed income, portfolio management, ethics and economics", "education"),
+        _s("Khan Academy: Economics and Finance", "khanacademy.org", "Foundational economics, accounting and personal finance", "education"),
+        _s("FINRA Investor Education", "finra.org", "Investment products, securities and investor education", "education"),
+        _s("Federal Reserve", "federalreserve.gov", "Monetary policy, central banking and financial-system information", "primary"),
+    ]},
+    "india_markets": {"title": "Indian financial markets and regulators", "sites": [
+        _s("SEBI", "sebi.gov.in", "Securities regulations, circulars, disclosures and investor protection", "primary"),
+        _s("NSE India", "nseindia.com", "Indian equities, indices, market structure and corporate announcements", "primary"),
+        _s("BSE India", "bseindia.com", "Listed-company disclosures, filings and market information", "primary"),
+        _s("Reserve Bank of India (RBI)", "rbi.org.in", "Monetary policy, banking, inflation, interest rates and financial stability", "primary"),
+        _s("RBI Database on Indian Economy (DBIE)", "data.rbi.org.in", "Indian macroeconomic, banking and financial time series", "primary"),
+        _s("Ministry of Statistics and Programme Implementation", "mospi.gov.in", "GDP, CPI, IIP and official economic statistics", "primary"),
+        _s("Department of Economic Affairs", "dea.gov.in", "Economic policy, government reports and macroeconomic material", "primary"),
+        _s("NISM", "nism.ac.in", "Indian securities markets, mutual funds and investment education", "education"),
+        _s("AMFI", "amfiindia.com", "Mutual funds, NAV, AUM, categories and industry statistics", "primary"),
+    ]},
+    "company_financials": {"title": "Company financials and fundamental analysis", "sites": [
+        _s("Screener.in", "screener.in", "Indian company financials, ratios, quarterly results and screening", "secondary"),
+        _s("Moneycontrol", "moneycontrol.com", "Company results, financial ratios, market information and news", "secondary"),
+        _s("Tickertape", "tickertape.in", "Stock fundamentals, valuation metrics and financial data", "secondary"),
+        _s("Trendlyne", "trendlyne.com", "Financial analysis, forecasts, ownership and corporate actions", "secondary"),
+        _s("AnnualReports", "annualreports.com", "Company annual reports and historical disclosures", "secondary"),
+        _s("SEC EDGAR", "sec.gov", "US company filings including 10-K, 10-Q and related disclosures", "primary"),
+    ]},
+    "economics": {"title": "Economics and macroeconomic research", "sites": [
+        _s("IMF Data", "imf.org", "GDP, inflation, fiscal indicators and global economic datasets", "primary"),
+        _s("World Bank Data", "data.worldbank.org", "Global development, economic and country-level indicators", "primary"),
+        _s("FRED", "fred.stlouisfed.org", "Historical interest rates, inflation, employment and economic series", "primary"),
+        _s("OECD Data", "oecd.org", "Economic policy, productivity, taxation and comparative indicators", "primary"),
+        _s("UN Data", "data.un.org", "International economic, demographic and social statistics", "primary"),
+        _s("Bank for International Settlements (BIS)", "bis.org", "Global banking, monetary policy and financial stability research", "primary"),
+        _s("National Bureau of Economic Research (NBER)", "nber.org", "Academic research papers in economics and finance", "research"),
+        _s("Our World in Data", "ourworldindata.org", "Long-run economic, demographic and social trends", "research"),
+    ]},
+    "valuation": {"title": "Valuation and investment research", "sites": [
+        _s("Aswath Damodaran (NYU)", "pages.stern.nyu.edu", "DCF, cost of capital, valuation, risk premiums and industry multiples", "research"),
+        _s("Morningstar", "morningstar.com", "Equity research, fund analysis and investment research", "secondary"),
+        _s("Multpl", "multpl.com", "Historical market valuation data and P/E ratios", "secondary"),
+        _s("Value Line", "valueline.com", "Company analysis and investment research", "secondary"),
+        _s("GuruFocus", "gurufocus.com", "Valuation, financial ratios and historical fundamentals", "secondary"),
+        _s("Alpha Architect", "alphaarchitect.com", "Factor investing and quantitative investment research", "research"),
+        _s("SSRN", "papers.ssrn.com", "Academic finance, economics and investment research", "research"),
+    ]},
+    "news": {"title": "Financial news and business intelligence", "sites": [
+        _s("Moneycontrol News", "moneycontrol.com", "Indian stock-market and corporate news", "secondary"),
+        _s("Mint", "livemint.com", "Indian business, corporate and financial news", "secondary"),
+        _s("Economic Times", "economictimes.indiatimes.com", "Corporate developments, markets and economic news", "secondary"),
+        _s("Business Standard", "business-standard.com", "Indian economy, policy and company analysis", "secondary"),
+        _s("Reuters Markets", "reuters.com", "Global markets and financial developments", "secondary"),
+        _s("Bloomberg Markets", "bloomberg.com", "Global markets, companies and economic developments", "secondary"),
+        _s("CNBC", "cnbc.com", "Global business, markets and economic updates", "secondary"),
+    ]},
+    "sector": {"title": "Sector-specific sources", "sites": [
+        _s("IRDAI", "irdai.gov.in", "Insurance regulation, industry data and disclosures", "primary"),
+        _s("NABARD", "nabard.org", "Rural finance, agricultural credit and development banking", "primary"),
+        _s("CDSCO", "cdsco.gov.in", "Indian drug regulation and pharmaceutical approvals", "primary"),
+        _s("US FDA", "fda.gov", "Drug, medical-device and regulatory information", "primary"),
+        _s("International Energy Agency (IEA)", "iea.org", "Energy markets, policy, supply and demand outlooks", "research"),
+        _s("Central Electricity Authority (CEA)", "cea.nic.in", "Indian power-sector statistics, reports and planning", "primary"),
+        _s("Indian Bureau of Mines", "ibm.gov.in", "Mineral production, mining statistics and industry information", "primary"),
+        _s("US Geological Survey (USGS)", "usgs.gov", "Minerals, commodities and geological data", "primary"),
+        _s("RERA / Ministry of Housing", "rera.mohua.gov.in", "Real-estate regulatory framework and state RERA links", "primary"),
+        _s("National Housing Bank (NHB)", "nhb.org.in", "Housing finance and housing-market research", "primary"),
+        _s("Society of Indian Automobile Manufacturers (SIAM)", "siam.in", "Indian automobile industry statistics and reports", "secondary"),
+        _s("Automotive Component Manufacturers Association (ACMA)", "acma.in", "Automotive component industry data and reports", "secondary"),
+        _s("NASSCOM", "nasscom.in", "Indian IT and technology industry research", "secondary"),
+    ]},
+}
+# The sector-specific sites by FinLit's sector families (SECTORS above), plus rural and farm finance, which has no family of its own.
+SECTOR_SOURCES: Dict[str, List[str]] = {
+    "insurance": ["irdai.gov.in"], "pharma": ["cdsco.gov.in", "fda.gov"], "energy_power": ["cea.nic.in", "iea.org"],
+    "metals_chemicals": ["ibm.gov.in", "usgs.gov"], "real_estate": ["rera.mohua.gov.in", "nhb.org.in"], "nbfc": ["nhb.org.in"],
+    "auto": ["siam.in", "acma.in"], "it": ["nasscom.in"], "rural_agri": ["nabard.org"],
+}
+# The directory's "Suggested FinLit AI knowledge-base structure".
+KB_STRUCTURE = [
+    ("Finance concepts", "definitions, formulas, worked examples and FAQs"),
+    ("Fundamental analysis", "financial statements, ratios, sector benchmarks and company filings"),
+    ("Valuation", "DCF, PE, PEG, EV/EBITDA, cost of capital and peer comparisons"),
+    ("Economics", "GDP, inflation, interest rates, fiscal policy and macroeconomic time series"),
+    ("Sector intelligence", "industry-specific operating metrics, regulations and business drivers"),
+    ("Corporate intelligence", "annual reports, quarterly results, investor presentations and exchange announcements"),
+]
+DATA_USE = ("A site being reachable does not give the right to copy, redistribute or train on its content: FinLit AI only searches these live pages, "
+            "quotes briefly and names and links the site; it stores none of their content.")
+
+
+def site_name(domain: str) -> str:
+    """The directory's name for a domain (the first entry that lists it), or the domain itself."""
+    for cat in DIRECTORY.values():
+        for s in cat["sites"]:
+            if s["domain"] == domain:
+                return s["name"]
+    return domain
+
+
+def all_domains() -> List[str]:
+    return [s["domain"] for cat in DIRECTORY.values() for s in cat["sites"]]
+
+
 PATTERNS = [
     ("What does ROCE (or any ratio) mean?", "Define it, give the formula and its variant, how to read it and its limits."),
     ("Why did profit fall while revenue rose?", "Look at margins, costs, finance cost, depreciation, tax, exceptional items and segment mix, from the results."),
@@ -203,6 +321,8 @@ def framework(topic: Optional[str] = None, sector: Optional[str] = None) -> Dict
         out["sectors"] = {k: v["title"] for k, v in SECTORS.items()}
     out["answerPatterns"] = [{"question": q, "how": a} for q, a in PATTERNS]
     out["sources"] = SOURCES
+    from .routing import ROUTES              # task #253: the team's directory, by kind of question (imported here: routing imports this module)
+    out["sourcesByType"] = {k: {"finlitFirst": r["finlit"], "web": [site_name(d) for d in r["sites"]]} for k, r in ROUTES.items()}
     out["checklist"] = CHECKLIST
     return out
 
@@ -213,4 +333,5 @@ SYSTEM_RULES = """How to answer finance questions (the team's finance reference,
 - Never judge a valuation ratio alone: a P/E, P/B or EV/EBITDA is read against growth, quality, peers and the company's own history.
 - Never mix standalone and consolidated figures; say which one each figure is. Give the source and the period of each figure.
 - Keep facts apart from estimates and your own reasoning ("the filing shows ...", "this suggests ..."). Never invent a filing, a news item or a FinLit score; say plainly when data is missing.
-- Web sources, in this order: primary (NSE, BSE, SEBI, RBI, MOSPI, AMFI, Nifty Indices, the company's own reports), then secondary sites (Moneycontrol, Screener, Trendlyne and others), checked against filings for important figures."""
+- Web sources, in this order: primary (NSE, BSE, SEBI, RBI, MOSPI, AMFI, Nifty Indices, the company's own reports), then secondary sites (Moneycontrol, Screener, Trendlyne and others), checked against filings for important figures.
+- By kind of question (the team's source directory): the economy from FinLit's India economy page, then RBI, MOSPI, the Department of Economic Affairs, IMF, World Bank, FRED, OECD and BIS; a company's financials from FinLit's company page, then Moneycontrol, Screener, Tickertape, Trendlyne, NSE and BSE; daily news from FinLit's News & filings, then Moneycontrol, Mint, Economic Times, Business Standard, Reuters and CNBC; terms from FinLit's glossary, then Investopedia, CFI, CFA Institute, Khan Academy and NISM; valuation methods from Damodaran, Morningstar, Multpl, GuruFocus and SSRN; rules from SEBI and RBI; mutual funds from FinLit's fund pages, then AMFI; a sector from its own body (IRDAI, CDSCO, US FDA, CEA, IEA, Indian Bureau of Mines, USGS, RERA, NHB, SIAM, ACMA, NASSCOM, NABARD)."""
