@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { dateIN } from "../lib/format";
-import { aumBucket, pctText, tone, type FundDetail, type FundFacts } from "../lib/mf";
+import { aumBucket, pctText, scoreReason, tone, type FundDetail, type FundFacts } from "../lib/mf";
 import { rankText, scoreText, useFundScore } from "../lib/mfScore";
 import { bandOf } from "../lib/mfScore";
 import { bandVar } from "../lib/scoreBands";
@@ -40,7 +40,7 @@ export function FundGlance({ d, facts, factsLoading }: { d: FundDetail; facts?: 
     { k: "score", label: "Mutual Fund Score",
       value: q.isLoading ? "…" : !s || s.notOffered ? "—" : s.locked ? "Locked" : s.final == null ? "—" : <span style={{ color: bandVar(bandOf(s.final)) }}>{scoreText(s.final)}</span>,
       sub: q.isLoading ? "Loading…" : !s ? "Not available right now" : s.notOffered ? "Not given for this kind of fund" : s.locked ? <>Part of a paid plan · <Link to="/plans">See plans</Link></>
-        : s.final == null ? (s.status === "NOT SCORED" ? "Not scored" : "Not rated") + (s.reason ? `: ${s.reason}` : "")
+        : s.final == null ? (s.status === "NOT SCORED" ? "Not scored" : "Not rated") + (scoreReason(s.reason) ? `: ${scoreReason(s.reason)}` : "")
         : [s.label, s.rank ? rankText(s.rank, s.family) : null].filter(Boolean).join(" · ") },
     { k: "r5", label: "5 years a year", value: pct(r5.value), sub: r5.value == null ? r5.why || "Not enough history" : `NAV, ${plan} · ${d.option}` },
     { k: "r1", label: "1 year", value: pct(r1.value), sub: r1.value == null ? r1.why || "Not enough history" : "NAV change" },

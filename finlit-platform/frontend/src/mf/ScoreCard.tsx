@@ -9,6 +9,7 @@ import {
 } from "../lib/mfScore";
 import { BAND_NAME, bandVar } from "../lib/scoreBands";
 import { dateIN } from "../lib/format";
+import { scoreReason } from "../lib/mf";
 import { ScoreBreakdown } from "./ScoreBreakdown";
 import { PEER_KIND_WORD, type CategoryMedian } from "../lib/mfScoreUp";
 import { ScoreAlertButton } from "./ScoreAlertButton";
@@ -109,7 +110,7 @@ export function ScoreBody({ s }: { s: FundScore }) {
           </div>
         </div>
         <div className="mfs-side">
-          {rated ? <Pillars s={s} /> : <p className="mfs-nr" role="status"><b>{s.status === "NOT SCORED" ? "Not scored" : "Not rated"}:</b> {s.reason}</p>}
+          {rated ? <Pillars s={s} /> : <p className="mfs-nr" role="status"><b>{s.status === "NOT SCORED" ? "Not scored" : "Not rated"}:</b> {scoreReason(s.reason)}</p>}
         </div>
         {rated && <Facts s={s} />}
       </div>
