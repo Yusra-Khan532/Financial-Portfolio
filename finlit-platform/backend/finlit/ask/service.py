@@ -48,7 +48,7 @@ FinLit's pages (task #218: answer as the website does, from the page that shows 
 - FII & DII flows: get_fii_dii_flows. Results calendar and quarter results: get_results_calendar, get_quarter_results.
 - Glossary (what a term means, in FinLit's words): lookup_glossary. Insights & blog: get_insights_and_blogs.
 - News & filings and Documents (announcements, results filings, annual reports, investor presentations, call transcripts): get_news_and_filings.
-- What a company's investor presentation, annual report or earnings-call transcript says (also its own guidance, plans, capex, order book, segments): read_company_document. When its result is already in the conversation, answer from it. Quote what it says with the page number, and give the date it was filed and its link. When read_company_document returned the document's text, never say you cannot open or access the presentation.
+- What a company's investor presentation, earnings-call transcript, annual report or results filing says (also its own guidance, plans, capex, order book, segments, what management said on the call, its strategy and risks): read_company_document, with the document and the period asked. When its result is already in the conversation, answer from it. Quote what it says with the document, the page number, the date it was filed and its link; for a call, name the speaker as the page shows it, and never present an analyst's question as management's view. For a quarter's numbers use FinLit's own results and name the filing as their source. When read_company_document returned the document's text, never say you cannot open or access it.
 - Discovery (companies by the themes their investor presentations talk about: AI, defence, solar, batteries, data centres, EV, nuclear, drones ...): get_discovery. Say that a keyword mention alone is not proof of a material business.
 - Use FinLit's page before the web for anything one of these pages shows. Name the page in plain words when it helps ("FinLit's India economy page shows ...").
 
@@ -115,25 +115,50 @@ def summary_question(symbol: str) -> str:
 # Task #255 ("chatbot is still not taking investor presentation data"): a question about what a company's own document says is answered from the
 # document, read BEFORE the model starts, so the answer never depends on the model choosing to read it. English and the usual Hinglish wordings.
 _TRANSCRIPT = re.compile(r"\b(con-?\s?calls?|earnings[- ]calls?|analysts?'? calls?|transcripts?|management (said|says|told|commentary|ne kaha|ne bola)"
-                         r"|call (mein|me|pe) (kya|management))\b", re.I)
-_ANNUAL = re.compile(r"\b(annual reports?|integrated reports?)\b", re.I)
+                         r"|call (mein|me|pe|par) (kya|management)|(on|in) the (earnings |results |analyst )?call|what did (the )?management"
+                         r"|management('s)? (view|tone|remarks|comments?)|management kya)\b", re.I)
+_ANNUAL = re.compile(r"\b(annual reports?|integrated reports?|chairman'?s? (letter|message|speech|statement)|chairperson'?s? (letter|message)"
+                     r"|risk factors?|related[- ]party|directors'? report|board'?s'? report|md\s?&\s?a|management discussion"
+                     r"|long[- ]term strategy|corporate strategy|strategic priorities)\b", re.I)
+# Task #254: the results the company filed, by name or by the quarter they are for.
+_RESULTS = re.compile(r"\b(results? filing|financial results|quarterly (results|numbers|filing)|results? (for|of) (the )?(quarter|q[1-4]|june|september|december|march)"
+                      r"|q[1-4]\s*(fy\s*'?\d{2,4})?\s*(results?|numbers|filing|profit|revenue|sales|ebitda|margin)"
+                      r"|(june|september|sept|december|march) quarter|quarter (ended|ending)|(latest|last|this|recent) (quarter'?s? )?results"
+                      r"|nateeje|results? (mein|me) kya)\b", re.I)
+_BOTH = re.compile(r"\b(compare|comparison|vs\.?|versus|both|all (the |its |their )?documents|every document|saare documents|sab documents|dono)\b", re.I)
 _PRESENTATION = re.compile(r"\b(investor[- ]?presentations?|presentations?|decks?|ppts?|pptx|slides?|investor (meet|day) (deck|slides))\b", re.I)
 _IP = re.compile(r"\bIPs?\b")                                         # "IP" in capitals only: never the word "ip" inside other text
 _OWN_WORDS = re.compile(r"\b(guidance|outlook|capex|capital expenditure|order ?book|order inflows?|expansion plans?|new plants?|capacity (addition|expansion)"
                         r"|segment[- ]?(wise|mix|revenue|breakup|break-up)|future plans?|growth plans?|plans? (for|of) (fy|20)\d*|kya plan|plan kya)\b", re.I)
 
 
-def document_intent(question: str) -> Optional[str]:
-    """Which of the company's own documents the question is about ("investor_presentation", "call_transcript", "annual_report"), or None. A question about
-    the company's own plans, guidance, capex or order book is read from its newest investor presentation."""
+def document_intents(question: str) -> List[str]:
+    """The company documents the question is about, the one to read first first (task #254): a call transcript for what management said, an annual
+    report for strategy, risks, related parties or the chairman's letter, a presentation for the company's own deck, plans, guidance, capex or order
+    book, a results filing for a quarter's results. A question that compares documents, or asks about all of them, reads two (the presentation and
+    the call when it names no other pair). Empty when the question is about no document."""
     q = question or ""
-    if _TRANSCRIPT.search(q):
-        return "call_transcript"
-    if _ANNUAL.search(q):
-        return "annual_report"
-    if _PRESENTATION.search(q) or _IP.search(q) or _OWN_WORDS.search(q):
-        return "investor_presentation"
-    return None
+    named = [k for k, rx in (("call_transcript", _TRANSCRIPT), ("annual_report", _ANNUAL)) if rx.search(q)]
+    if _PRESENTATION.search(q) or _IP.search(q):
+        named.append("investor_presentation")
+    if _RESULTS.search(q):
+        named.append("results_filing")
+    if len(named) >= 2 and (_BOTH.search(q) or re.search(r"\b(and|aur|&)\b", q, re.I)):
+        return named[:2]                                  # "compare what they said in the presentation and on the call"
+    if re.search(r"\b(all|every|saare|sab)\b.{0,16}\bdocuments?\b", q, re.I):
+        pair = named + [k for k in ("investor_presentation", "call_transcript") if k not in named]
+        return pair[:2]
+    if named:
+        return named[:1]
+    if _OWN_WORDS.search(q):
+        return ["investor_presentation"]
+    return []
+
+
+def document_intent(question: str) -> Optional[str]:
+    """The first document the question is about (see document_intents), or None."""
+    kinds = document_intents(question)
+    return kinds[0] if kinds else None
 
 
 PREFETCH_ID = "toolu_prefetch_document"
@@ -142,9 +167,18 @@ PREFETCH_ID = "toolu_prefetch_document"
 def with_prefetch(messages: List[Dict[str, Any]], name: str, args: Dict[str, Any], result: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Adds a tool read made before the model started, in the same shape as the model's own call and its result: the model sees the document's text
     as if it had asked for it (and may still ask again)."""
-    messages.append({"role": "assistant", "content": [{"type": "tool_use", "id": PREFETCH_ID, "name": name, "input": args}]})
-    messages.append({"role": "user", "content": [{"type": "tool_result", "tool_use_id": PREFETCH_ID, "content": result["text"],
-                                                  **({"is_error": True} if result["error"] else {})}]})
+    return with_prefetches(messages, [(name, args, result)])
+
+
+def with_prefetches(messages: List[Dict[str, Any]], reads: List[Any]) -> List[Dict[str, Any]]:
+    """Task #254: one or more reads made before the model started (name, arguments, result), as one turn of the model's calls and one turn of their
+    results, the way the model itself asks for several tools at once. The first read keeps the id PREFETCH_ID."""
+    if not reads:
+        return messages
+    ids = [PREFETCH_ID if i == 0 else f"{PREFETCH_ID}_{i + 1}" for i in range(len(reads))]
+    messages.append({"role": "assistant", "content": [{"type": "tool_use", "id": t, "name": n, "input": a} for t, (n, a, _) in zip(ids, reads)]})
+    messages.append({"role": "user", "content": [{"type": "tool_result", "tool_use_id": t, "content": r["text"], **({"is_error": True} if r["error"] else {})}
+                                                 for t, (_, _, r) in zip(ids, reads)]})
     return messages
 
 

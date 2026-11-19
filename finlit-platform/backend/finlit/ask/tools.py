@@ -208,6 +208,8 @@ def definitions(web_domains: Optional[List[str]] = None) -> List[Dict[str, Any]]
 
 def label(name: str, args: Dict[str, Any]) -> str:
     what = DOING.get(name, "Reading FinLit data")
+    if name == "read_company_document" and isinstance(args, dict) and args.get("document") in P.DOC_KINDS:   # task #254: which document
+        what = f"Reading the {P.DOC_KINDS[args['document']].lower()}"
     sym = args.get("symbol") if isinstance(args, dict) else None
     return f"{what} ({str(sym).upper()[:20]})" if isinstance(sym, str) and sym else what
 

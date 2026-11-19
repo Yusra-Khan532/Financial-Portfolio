@@ -195,24 +195,26 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
         # Task #255: a question about what a company's own document says (its investor presentation, call transcript, annual report, its guidance or
         # plans) reads that document now, beside the cards, so the answer always starts from the document. The company the question names comes
         # first, then the page's company; with no company there is nothing to read.
-        doc_kind = service.document_intent(question) if kind == "question" else None
+        # Task #254: the right document for the question (a call transcript, an annual report, a results filing or the presentation), and both when
+        # the question compares two of them; the period the question names goes with it.
+        doc_kinds = service.document_intents(question) if kind == "question" else []
         doc_sym = (named or ([body.symbol] if body.symbol else []) or [None])[0]
-        doc_args = {"symbol": doc_sym, "document": doc_kind, "question": question[:200]} if doc_kind and doc_sym else None
-        if doc_args:
-            yield sse("status", {"text": tools.label("read_company_document", doc_args)})
-        jobs = [tools.run(gw, "get_company_card", {"symbol": s}) for s in want[:2]] + ([tools.run(gw, "read_company_document", doc_args)] if doc_args else [])
+        doc_reads = [{"symbol": doc_sym, "document": k, "question": question[:200]} for k in doc_kinds] if doc_sym else []
+        for d in doc_reads:
+            yield sse("status", {"text": tools.label("read_company_document", d)})
+        jobs = [tools.run(gw, "get_company_card", {"symbol": s}) for s in want[:2]] + [tools.run(gw, "read_company_document", d) for d in doc_reads]
         got = await asyncio.gather(*jobs)
-        doc_res = got[-1] if doc_args else None
-        got = got[:-1] if doc_args else got
+        doc_res = got[len(got) - len(doc_reads):] if doc_reads else []
+        got = got[: len(got) - len(doc_reads)]
         cards = [g["text"] for g in got if not g["error"]]
         card = "\n".join(cards) or None
         # Task #253: the kind of question (the economy, a company's financials, daily news, a term, valuation, rules, funds, a sector) decides which
         # of FinLit's tools come first and which of the team's sites the web search keeps to. The AI summary is about the page's company only.
         kinds = routing.classify(question, named_company=bool(named), on_company_page=bool(body.symbol)) if kind == "question" else []
         messages = service.build_messages([t.model_dump() for t in body.history], question, body.symbol, plan_key(ctx), card, routing.note(kinds))
-        prefetched = [("read_company_document", doc_args)] if doc_args and doc_res is not None else []
+        prefetched = [("read_company_document", d) for d in doc_reads]
         if prefetched:
-            service.with_prefetch(messages, "read_company_document", doc_args, doc_res)
+            service.with_prefetches(messages, [("read_company_document", d, r) for d, r in zip(doc_reads, doc_res)])
         result: Optional[Dict[str, Any]] = None
         err: Optional[Dict[str, str]] = None
         task = asyncio.create_task(service.answer(client_for(st.anthropic_api_key), st.ask_model, gw, messages, emit, prefetched,
