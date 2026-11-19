@@ -81,10 +81,10 @@ describe("Discovery (task #221)", () => {
     expect(within(second).getByText("No exchange filing in 90 days")).toBeTruthy();
     expect(within(second).queryByRole("link", { name: /Investor presentation/ })).toBeNull();      // only the exchanges' own links are opened
     expect(screen.getByRole("link", { name: "Acme Solar Ltd" }).getAttribute("href")).toBe("/stocks/ACMESOLAR");
-    const fil = screen.getByRole("list", { name: "Filings: Defence & Aerospace" });
-    expect(within(fil).getByRole("img", { name: "Tone: positive" })).toBeTruthy();
-    expect(within(fil).getByText(/Bharat Shield Ltd/).parentElement!.textContent).toContain("Order win · 17 Nov 2026");
-    expect(within(fil).getByRole("link", { name: /received orders worth Rs 400 crore/ }).getAttribute("href")).toBe("https://nsearchives.nseindia.com/corporate/o.pdf");
+    // task #250: the list of every exchange filing that names the theme is not shown (it ignored the sector picked; the team: "no need to show this list")
+    expect(screen.queryByRole("list", { name: "Filings: Defence & Aerospace" })).toBeNull();
+    expect(screen.queryByText(/Exchange filings that name/)).toBeNull();
+    expect(screen.queryByText(/received orders worth Rs 400 crore/)).toBeNull();
     expect(screen.getByText("What to verify in the presentation")).toBeTruthy();
     expect(screen.getByText(/Verify procurement stage, trials, orders/)).toBeTruthy();
     expect(screen.getByText(/not proof of material business exposure/)).toBeTruthy();
