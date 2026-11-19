@@ -3,7 +3,7 @@
 // technical pillar, Overall is the FinLit IQ as stored. A missing score is null and never passes a score filter or counts as zero.
 import { scoreBand } from "./scoreBands";
 import type { Row } from "./screener";
-import { NSE_INDUSTRIES, NSE_MACROS, NSE_SECTORS } from "./nseTree";
+import { NSE_INDUSTRY, NSE_MACRO, NSE_SECTORS as NSE_SECTOR_NAMES, nseLevels } from "./nseTaxonomy";
 import { ratingWord, scoreBand as trendTone } from "./prismTechnical";
 import { LABEL_WORD, LABEL_SLUG, PRISM_LABELS, PRISM_NAMES, PRISM_RANGE_KEYS, labelFromSlug, prismRangeValue, hasPrism, type PrismCol, type PrismLabel, type PrismRangeKey } from "./scorePrism";
 
@@ -11,7 +11,7 @@ export type Cap = "Large" | "Mid" | "Small";
 export type Band = "low" | "mixed" | "healthy" | "high";   // Watch, Mixed, Healthy, Strong (an older link or saved screen may say "mid": Mixed and Healthy together)
 export type Pillar = "pillar_quality" | "pillar_growth" | "pillar_profitability" | "pillar_balance";
 /** `ret_3m`, `ret_6m` and `pct_from_high` feed the optional 52-week and return columns: read from the stored screener numbers, blank without enough price history. */
-export type Item = Row & { cap: Cap | null; /** Leader / In line / Laggard among its peers (Gold list only, while the label is switched on), and "3 of 13 IT peers". */ lead?: "leader" | "in_line" | "laggard" | null; lead_line?: string | null; f: number | null; t: number | null; ret_3m?: number | null; ret_6m?: number | null; pct_from_high?: number | null };
+export type Item = Row & { cap: Cap | null; /** task #257: NSE's three levels (macro sector 12, sector 22, industry 59) from the company's industry; null when NSE has not classified it */ lv: { industry: string; sector: string; macro: string } | null; /** Leader / In line / Laggard among its peers (Gold list only, while the label is switched on), and "3 of 13 IT peers". */ lead?: "leader" | "in_line" | "laggard" | null; lead_line?: string | null; f: number | null; t: number | null; ret_3m?: number | null; ret_6m?: number | null; pct_from_high?: number | null };
 export type BandKey = "f" | "t" | "o" | "q" | "g" | "p" | "b";   // o: the overall FinLit IQ ("Total FinLit IQ Score" row of the Basic panel)
 export type RangeKey = "f" | "t" | "o" | "q" | "g" | "p" | "b" | "dh" | PrismRangeKey;   // q g p b: the four pillars (min and max boxes in the Basic screener)
 export type SortKey = "name" | "price" | "market_cap" | "sector" | "f" | "t" | "overall" | Pillar | PrismCol | "ret_3m" | "ret_6m" | "return_1y" | "pct_from_high";
@@ -85,7 +85,7 @@ export function withScores(rows: Row[]): Item[] {
   return rows.map((r) => {
     const parts = FUNDAMENTAL.map((k) => r[k]).filter((v): v is number => v != null);
     const mc = r.market_cap;
-    return { ...r, f: parts.length >= 3 ? Math.round(parts.reduce((a, b) => a + b, 0) / parts.length) : null, t: r.pillar_technical,
+    return { ...r, lv: levelsOf(r), f: parts.length >= 3 ? Math.round(parts.reduce((a, b) => a + b, 0) / parts.length) : null, t: r.pillar_technical,
       cap: mc == null || !(mc > 0) ? null : mc > CAP_LINES.largeAbove ? "Large" : mc >= CAP_LINES.midFrom ? "Mid" : "Small" };
   });
 }
@@ -103,23 +103,23 @@ export type Filters = {
   caps: Cap[]; sectors: string[];
   /** NSE industries (any of these): the Sector and industry filter (14 Nov N-28 / N-34). `sectors` above is the old filter on the company's own label, kept so old links still work. */
   industries: string[];
+  /** NSE's macro sectors (12) and sectors (22) (#257, #258): three linked lists with `industries`, AND across the three, OR inside one */
+  macros: string[]; nsecs: string[];
   bands: Record<BandKey, Band[]>;
   ranges: Record<RangeKey, Range>;
   labels: PrismLabel[];     // FinLit Prism rating labels (any of these)
   iqLabels: IqLabel[];      // Basic screener: FinLit IQ rating chips (any of these), on the overall FinLit IQ
   rated: boolean;           // only companies that have a Prism score
   tech: Record<TechKey, TechBand[]>;   // Prism short-term and long-term technical views (any of these bands)
-  /** Task #258 (20 Nov handoff, SHARED §1): NSE's macro sectors (12) and sectors (22), any of these; AND across the three levels (with `industries`), OR inside one. */
-  macros: string[]; nsecs: string[];
   /** Task #258 (SPEC §3): the two technical views in the five trend words (the older three-band `tech` stays for old links and the Prism presets). */
   trend: Record<TechKey, Trend5[]>;
   top: number | null;      // keep only the first N by FinLit IQ among the companies that pass every other filter (the Top 10 quick views)
 };
 export const emptyFilters = (): Filters => ({
-  caps: [], sectors: [], industries: [],
+  caps: [], sectors: [], industries: [], macros: [], nsecs: [],
   bands: { f: [], t: [], o: [], q: [], g: [], p: [], b: [] },
   ranges: Object.fromEntries(RANGE_KEYS.map((k) => [k, { min: null, max: null }])) as Filters["ranges"],
-  labels: [], iqLabels: [], rated: false, tech: { st: [], lt: [] }, top: null, macros: [], nsecs: [], trend: { st: [], lt: [] },
+  labels: [], iqLabels: [], rated: false, tech: { st: [], lt: [] }, top: null, trend: { st: [], lt: [] },
 });
 export const cloneFilters = (f: Filters): Filters => ({ caps: [...f.caps], sectors: [...f.sectors], industries: [...(f.industries ?? [])], bands: Object.fromEntries(BAND_KEYS.map((k) => [k, [...f.bands[k]]])) as Filters["bands"],
   ranges: Object.fromEntries(RANGE_KEYS.map((k) => [k, { ...f.ranges[k] }])) as Filters["ranges"], labels: [...f.labels], iqLabels: [...f.iqLabels], rated: f.rated, tech: { st: [...f.tech.st], lt: [...f.tech.lt] }, top: f.top,
@@ -187,15 +187,16 @@ const rangeValue = (r: Item, k: RangeKey) => (k === "dh" ? r.pct_from_high ?? nu
 const bandValue = (r: Item, k: BandKey) => (k === "f" ? r.f : k === "t" ? r.t : k === "o" ? r.overall : r[PILLARS.find((x) => x.k === k)!.col]);
 
 /** True when the company passes every filter. `skip` leaves one group out (used for the live counts beside the size and sector options). */
-export type Skip = "caps" | "sectors" | "macro" | "nsec" | "ind" | "labels" | "trend:st" | "trend:lt";
+export type Skip = "caps" | "sectors" | "macro" | "nsec" | "ind" | "iq" | "labels" | "trend:st" | "trend:lt";
 export function passes(r: Item, f: Filters, skip?: Skip): boolean {
   if (skip !== "caps" && f.caps.length && !(r.cap && f.caps.includes(r.cap))) return false;
   if (skip !== "sectors" && f.sectors.length && !(r.sector && f.sectors.includes(r.sector))) return false;
+  // the three NSE levels (#257 and #258): one rule for both screeners, on the company's `lv`
   if (skip !== "sectors" && skip !== "ind" && f.industries?.length) { const i = industryOf(r); if (!(i && f.industries.includes(i))) return false; }
-  if (skip !== "macro" && f.macros?.length) { const m = macroOf(r); if (!(m && f.macros.includes(m))) return false; }
-  if (skip !== "nsec" && f.nsecs?.length && !(r.cls_sector && f.nsecs.includes(r.cls_sector))) return false;
+  if (skip !== "macro" && f.macros?.length && !(r.lv && f.macros.includes(r.lv.macro))) return false;
+  if (skip !== "nsec" && f.nsecs?.length && !(r.lv && f.nsecs.includes(r.lv.sector))) return false;
   if (f.rated && !hasPrism(r)) return false;
-  if (f.iqLabels.length && !f.iqLabels.includes(iqLabelOf(r.overall))) return false;
+  if (skip !== "iq" && f.iqLabels.length && !f.iqLabels.includes(iqLabelOf(r.overall))) return false;
   if (skip !== "labels" && f.labels.length && !f.labels.includes(ratingOf(r))) return false;
   if (!TECH_KEYS.every((k) => { const b = techBandOf(r[k === "st" ? "prism_st_score" : "prism_lt_score"]); return !f.tech[k].length || (b != null && f.tech[k].includes(b)); })) return false;
   if (!TECH_KEYS.every((k) => { if (skip === `trend:${k}` || !f.trend?.[k]?.length) return true; const b = trend5Of(r[k === "st" ? "prism_st_score" : "prism_lt_score"]); return b != null && f.trend[k].includes(b); })) return false;
@@ -224,6 +225,37 @@ export function sectorTree(items: Item[], f: Filters): SectorNode[] {
   }
   return [...by.entries()].map(([sector, m]) => ({ sector, n: [...m.values()].reduce((a, b) => a + b, 0), industries: [...m.entries()].map(([name, n]) => ({ name, n })).sort((a, b) => a.name.localeCompare(b.name)) }))
     .sort((a, b) => a.sector.localeCompare(b.sector));
+}
+
+/** Task #257 (SHARED §1, SPEC §1-2): the three linked lists. Every NSE name of a level is listed (12, 22, 59), narrowed only by the parent level picked
+ *  (a macro sector narrows Sector and Industry, a sector narrows Industry); each count is the companies that pass every OTHER filter (its own level left
+ *  out), so it follows what is set. `on` is false for a name no company passes now (shown greyed, "Not on this list" in an open screen). */
+export type LevelOpt = { name: string; n: number; on: boolean };
+export type Levels = { macro: LevelOpt[]; sector: LevelOpt[]; industry: LevelOpt[] };
+const INDUSTRY_NAMES = Object.keys(NSE_INDUSTRY);
+export const sectorsOf = (macros: string[]): string[] => (macros.length ? NSE_SECTOR_NAMES.filter((s) => INDUSTRY_NAMES.some((i) => NSE_INDUSTRY[i][0] === s && macros.includes(NSE_INDUSTRY[i][1]))) : [...NSE_SECTOR_NAMES]);
+export const industriesOf = (macros: string[], secs: string[]) => INDUSTRY_NAMES.filter((i) => (!secs.length || secs.includes(NSE_INDUSTRY[i][0])) && (!macros.length || macros.includes(NSE_INDUSTRY[i][1]))).sort((a, b) => a.localeCompare(b));
+export function levelCounts(items: Item[], f: Filters): Levels {
+  const count = (skip: Skip, key: (r: Item) => string | null) => { const m = new Map<string, number>(); for (const r of items) { const k = key(r); if (k && passes(r, f, skip)) m.set(k, (m.get(k) ?? 0) + 1); } return m; };
+  const mac = count("macro", (r) => r.lv?.macro ?? null), sec = count("nsec", (r) => r.lv?.sector ?? null), ind = count("ind", (r) => r.lv?.industry ?? null);
+  const opts = (names: readonly string[], m: Map<string, number>) => names.map((name) => ({ name, n: m.get(name) ?? 0, on: (m.get(name) ?? 0) > 0 })).sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
+  return { macro: opts(NSE_MACRO, mac), sector: opts(sectorsOf(f.macros ?? []), sec), industry: opts(industriesOf(f.macros ?? [], f.nsecs ?? []), ind) };
+}
+/** Picking at one level takes off a lower-level choice that no longer fits (SHARED §1): returns the new filters and the names taken off. */
+export function fitLevels(f: Filters): { f: Filters; dropped: string[] } {
+  const n = cloneFilters(f), okSec = sectorsOf(n.macros), okInd = industriesOf(n.macros, n.nsecs);
+  const dropped = [...n.nsecs.filter((s) => !okSec.includes(s)), ...n.industries.filter((i) => NSE_INDUSTRY[i] && !okInd.includes(i))];
+  n.nsecs = n.nsecs.filter((s) => okSec.includes(s)); n.industries = n.industries.filter((i) => !NSE_INDUSTRY[i] || okInd.includes(i));
+  return { f: n, dropped };
+}
+/** SPEC §3: the Basic FinLit IQ rating in three groups, on the FinLit IQ's own words (Strong or Healthy, Below Healthy, Not rated); kept as `iqLabels`. */
+export const IQ_GROUPS: { id: string; label: string; labels: IqLabel[] }[] = [
+  { id: "good", label: "Strong or Healthy", labels: ["strong", "healthy"] }, { id: "below", label: "Below Healthy", labels: ["mixed", "watch"] }, { id: "nr", label: "Not rated", labels: ["notrated"] }];
+export const iqGroupOn = (f: Filters, g: (typeof IQ_GROUPS)[number]) => g.labels.every((l) => f.iqLabels.includes(l));
+export function iqGroupCounts(items: Item[], f: Filters): Record<string, number> {
+  const out: Record<string, number> = Object.fromEntries(IQ_GROUPS.map((g) => [g.id, 0]));
+  for (const r of items) if (passes(r, f, "iq")) { const l = iqLabelOf(r.overall), g = IQ_GROUPS.find((x) => x.labels.includes(l)); if (g) out[g.id]++; }
+  return out;
 }
 
 // ---------- validation ----------
@@ -290,7 +322,7 @@ export function chipsFor(f: Filters): Chip[] {
   f.sectors.forEach((s) => out.push({ id: "sector:" + s, label: s }));
   (f.macros ?? []).forEach((s) => out.push({ id: "macro:" + s, label: `Macro sector: ${s}` }));
   (f.nsecs ?? []).forEach((s) => out.push({ id: "nsec:" + s, label: `Sector: ${s}` }));
-  (f.industries ?? []).forEach((s) => out.push({ id: "ind:" + s, label: s }));
+  (f.industries ?? []).forEach((s) => out.push({ id: "ind:" + s, label: NSE_INDUSTRY[s] ? `Industry: ${s}` : s }));
   BAND_KEYS.forEach((k) => { if (f.bands[k].length) out.push({ id: "band:" + k, label: `${NAMES[k]}: ${BAND_ORDER.filter((b) => f.bands[k].includes(b)).map((b) => BANDS[b].word).join(", ")}` }); });
   RANGE_KEYS.forEach((k) => { const r = f.ranges[k]; if (r.min != null || r.max != null) {
     const pb = (PRISM_RANGE_KEYS as readonly string[]).includes(k) ? rangeToPBands(r) : [];   // a Prism part set by its band chips reads as the band names, never the cut-offs (N-31)
@@ -308,7 +340,7 @@ export function removeChip(f: Filters, id: string): Filters {
   if (id === "caps") n.caps = [];
   else if (id.startsWith("sector:")) n.sectors = n.sectors.filter((s) => s !== id.slice(7));
   else if (id.startsWith("ind:")) n.industries = n.industries.filter((s) => s !== id.slice(4));
-  else if (id.startsWith("macro:")) n.macros = n.macros.filter((s) => s !== id.slice(6));
+  else if (id.startsWith("macro:")) return fitLevels({ ...n, macros: n.macros.filter((s) => s !== id.slice(6)) }).f;
   else if (id.startsWith("nsec:")) n.nsecs = n.nsecs.filter((s) => s !== id.slice(5));
   else if (id.startsWith("trend:")) n.trend[id.slice(6) as TechKey] = [];
   else if (id.startsWith("band:")) n.bands[id.slice(5) as BandKey] = [];
@@ -458,17 +490,43 @@ export function serializeState(s: State, scope: Scope = "all"): URLSearchParams 
 export const filtersKey = (f: Filters) => serializeState({ filters: f, sort: DEFAULT_SORT, size: 25, page: 0 }).toString();
 
 // ---------- task #258 (20 Nov handoff): NSE's three levels, the five trend words and the Prism rating words ----------
-const NSE_SECTOR_SET = new Set(NSE_SECTORS.map((s) => s.name)), NSE_MACRO_SET = new Set(NSE_MACROS);
-const IND_PARENT = new Map(NSE_INDUSTRIES.map((i) => [i.name, i]));
-/** The company's NSE industry (59) and macro sector (12): the stored classification first, else the Stock screener's own pair (whose `nse_sector` is the macro sector). */
-export const industryOf = (r: Pick<Item, "cls_industry" | "nse_industry">): string | null => r.cls_industry ?? r.nse_industry ?? null;
-export const macroOf = (r: Pick<Item, "cls_macro" | "nse_sector">): string | null => r.cls_macro ?? r.nse_sector ?? null;
+// The linked-level rules are #257's (`lv`, levelCounts, fitLevels): both screeners share them; these are thin views for the Advanced page and its open screens.
+const NSE_SECTOR_SET = new Set<string>(NSE_SECTOR_NAMES), NSE_MACRO_SET = new Set<string>(NSE_MACRO);
+/** The company's NSE levels, named as the site's one taxonomy names them (nseTaxonomy.ts), from the stored classification's industry (task #192) or else the
+ *  Stock screener's; the stored triple only when the taxonomy does not know the industry. One set of names, so the lists and the rows always match. */
+export function levelsOf(r: Pick<Row, "cls_macro" | "cls_sector" | "cls_industry" | "nse_industry">): { industry: string; sector: string; macro: string } | null {
+  const lv = nseLevels(r.cls_industry ?? r.nse_industry) ?? nseLevels(r.nse_industry);
+  if (lv) return lv;
+  return r.cls_industry && r.cls_sector && r.cls_macro ? { industry: r.cls_industry, sector: r.cls_sector, macro: r.cls_macro } : null;
+}
+export const industryOf = (r: Item): string | null => r.lv?.industry ?? r.nse_industry ?? null;
 /** "Commodities › Metals & Mining › Ferrous Metals": the full path, shown on hover (SPEC §4); null for a company in no NSE industry. */
-export function nsePath(r: Item): string | null {
-  const i = industryOf(r);
-  if (!i) return null;
-  const p = IND_PARENT.get(i);
-  return [macroOf(r) ?? p?.macro, r.cls_sector ?? p?.sector, i].filter(Boolean).join(" › ");
+export const nsePath = (r: Item): string | null => (r.lv ? `${r.lv.macro} › ${r.lv.sector} › ${r.lv.industry}` : null);
+export type Level = "macro" | "nsec" | "ind";
+const LEVEL_KEY = { macro: "macros", nsec: "nsecs", ind: "industries" } as const;
+const LEVEL_OF = { macro: "macro", nsec: "sector", ind: "industry" } as const;
+/** One list's options (every name, narrowed by the parent picked), most companies first: #257's levelCounts. */
+export const levelOptions = (items: Item[], f: Filters, level: Level): LevelOpt[] => levelCounts(items, f)[LEVEL_OF[level]];
+/** Ticks or unticks one option; #257's fitLevels takes off a lower pick that no longer fits, and the line the page shows says so. */
+export function pickLevel(f: Filters, level: Level, name: string): { filters: Filters; message: string | null } {
+  const k = LEVEL_KEY[level], cur = f[k];
+  const r = fitLevels({ ...cloneFilters(f), [k]: cur.includes(name) ? cur.filter((x) => x !== name) : [...cur, name] });
+  return { filters: r.f, message: r.dropped.length ? `${r.dropped.join(", ")} ${r.dropped.length === 1 ? "was" : "were"} taken off: not inside your other choice.` : null };
+}
+/** The same on the three lists alone (an open screen keeps them in its own filter state). */
+export type NsePicks = { macros: string[]; nsecs: string[]; industries: string[] };
+export const nameKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+export function pickNse(sel: NsePicks, level: Level, name: string): { sel: NsePicks; message: string | null } {
+  const r = pickLevel({ ...emptyFilters(), ...sel }, level, name);
+  return { sel: { macros: r.filters.macros, nsecs: r.filters.nsecs, industries: r.filters.industries }, message: r.message };
+}
+/** SPEC §2: every name of a level narrowed only by the parents picked, those on the list first by count, then the rest ("Not on this list"). */
+export function screenLevel(sel: NsePicks, level: Level, counts: [string, number][] | undefined): { on: LevelOpt[]; off: string[]; all: number } {
+  // facets come from the stored classification (NSE's spelling, "Oil, Gas & ..."): matched to the taxonomy's names without case, commas or spacing
+  const names: string[] = level === "macro" ? [...NSE_MACRO] : level === "nsec" ? sectorsOf(sel.macros) : industriesOf(sel.macros, sel.nsecs);
+  const byKey = new Map((counts ?? []).map(([k, n]) => [nameKey(k), n])), c = new Map(names.map((x) => [x, byKey.get(nameKey(x)) ?? 0]));
+  const on = names.filter((x) => (c.get(x) ?? 0) > 0).map((name) => ({ name, n: c.get(name)!, on: true })).sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
+  return { on, off: names.filter((x) => !(c.get(x) ?? 0)).sort((a, b) => a.localeCompare(b)), all: names.length };
 }
 
 /** SPEC §3: the five trend words of the two technical views, from the same edges as the Prism card. */
@@ -485,47 +543,6 @@ function parseTrend5(s: string | null): Trend5[] { const w = (s || "").split(","
 export const ratingOfScore = (v: number | null | undefined): PrismLabel => (v == null || !Number.isFinite(v) ? "NOT RATED" : v >= 80 ? "STRONG" : v >= 65 ? "HEALTHY" : v >= 50 ? "AVERAGE" : v >= 35 ? "WEAK" : "POOR");
 export const ratingOf = (r: Item): PrismLabel => ratingOfScore(r.prism_final);
 
-/** SHARED §1: the three linked lists. Each option of a level, narrowed only by the parents picked, with the companies it would leave given every other filter; most first. */
-export type Level = "macro" | "nsec" | "ind";
-export type LevelOpt = { name: string; n: number };
-export function levelNames(f: Filters, level: Level): string[] {
-  if (level === "macro") return [...NSE_MACROS];
-  if (level === "nsec") return NSE_SECTORS.filter((s) => !f.macros.length || f.macros.includes(s.macro)).map((s) => s.name);
-  return NSE_INDUSTRIES.filter((i) => (!f.macros.length || f.macros.includes(i.macro)) && (!f.nsecs.length || f.nsecs.includes(i.sector))).map((i) => i.name);
-}
-export const levelOf = (r: Item, level: Level): string | null => (level === "macro" ? macroOf(r) : level === "nsec" ? r.cls_sector ?? IND_PARENT.get(industryOf(r) ?? "")?.sector ?? null : industryOf(r));
-export function levelOptions(items: Item[], f: Filters, level: Level): LevelOpt[] {
-  const counts = new Map<string, number>();
-  for (const r of items) { if (!passes(r, f, level)) continue; const v = levelOf(r, level); if (v) counts.set(v, (counts.get(v) ?? 0) + 1); }
-  return levelNames(f, level).map((name) => ({ name, n: counts.get(name) ?? 0 })).sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
-}
-/** Ticks or unticks one option. A pick at a lower level that no longer fits a parent picked is taken off, and the line the page shows says so. */
-export type NsePicks = { macros: string[]; nsecs: string[]; industries: string[] };
-/** The same rule on the three lists alone (an open screen keeps them in its own filter state). */
-export function pickNse(sel: NsePicks, level: Level, name: string): { sel: NsePicks; message: string | null } {
-  const n: NsePicks = { macros: [...sel.macros], nsecs: [...sel.nsecs], industries: [...sel.industries] }, key = level === "macro" ? "macros" : level === "nsec" ? "nsecs" : "industries";
-  n[key] = n[key].includes(name) ? n[key].filter((x) => x !== name) : [...n[key], name];
-  const off: string[] = [];
-  if (n.macros.length) n.nsecs = n.nsecs.filter((s) => { const ok = n.macros.includes(NSE_SECTORS.find((x) => x.name === s)?.macro ?? ""); if (!ok) off.push(s); return ok; });
-  n.industries = n.industries.filter((i) => {
-    const p = IND_PARENT.get(i);
-    const ok = !p || ((!n.macros.length || n.macros.includes(p.macro)) && (!n.nsecs.length || n.nsecs.includes(p.sector)));
-    if (!ok) off.push(i);
-    return ok;
-  });
-  return { sel: n, message: off.length ? `${off.join(", ")} ${off.length === 1 ? "was" : "were"} taken off: not inside your other choice.` : null };
-}
-export function pickLevel(f: Filters, level: Level, name: string): { filters: Filters; message: string | null } {
-  const r = pickNse(f, level, name), n = cloneFilters(f);
-  n.macros = r.sel.macros; n.nsecs = r.sel.nsecs; n.industries = r.sel.industries;
-  return { filters: n, message: r.message };
-}
-/** SPEC §2: every name of a level narrowed only by the parents picked, those on the list first by count, then the rest ("Not on this list"). */
-export function screenLevel(sel: NsePicks, level: Level, counts: [string, number][] | undefined): { on: LevelOpt[]; off: string[]; all: number } {
-  const names = levelNames({ ...emptyFilters(), ...sel }, level), c = new Map(counts ?? []);
-  const on = names.filter((x) => (c.get(x) ?? 0) > 0).map((name) => ({ name, n: c.get(name)! })).sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
-  return { on, off: names.filter((x) => !(c.get(x) ?? 0)).sort((a, b) => a.localeCompare(b)), all: names.length };
-}
 /** SPEC §3: the counts beside the rating words and the trend words, each given every other filter. */
 export function scoreCounts(items: Item[], f: Filters) {
   const labels = Object.fromEntries(PRISM_LABELS.map((l) => [l, 0])) as Record<PrismLabel, number>;

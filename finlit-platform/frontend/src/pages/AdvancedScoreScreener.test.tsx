@@ -54,25 +54,25 @@ describe("Advanced stock screener (Gold)", () => {
   it("ticking a filter updates the rows and the count beside Columns and Sort by itself, and Clear all restores them", async () => {
     open();
     expect(screen.queryByLabelText("Summary")).toBeNull();                         // the five stat boxes are gone (task #64, V-2)
-    const count = () => document.querySelector(".afx-count")!.textContent;
+    const count = () => document.querySelector(".hf-count")!.textContent;   // the shared header-row layout (#257): the count sits on the results card with Columns and Sort
     expect(count()).toBe("6 companies");
     fireEvent.click(screen.getByRole("button", { name: "Macro sector" }));
     fireEvent.click(within(screen.getByRole("dialog", { name: /^Macro sector/ })).getByRole("checkbox", { name: /^Financial Services/ }));
     await waitFor(() => expect(symbols()).toEqual(["AAA", "BBB"]));
     expect(screen.getByRole("button", { name: "Macro sector, 1 on" })).toBeTruthy();
-    expect(count()).toBe("2 companies");
+    expect(count()).toBe("2 companies match these filters");
     expect(screen.queryByText(/not rated yet\./)).toBeNull(); expect(screen.queryByLabelText("Sector mix of the result")).toBeNull();     // N-33: no ring, no sector box
     expect(loc()).toContain("macro=Financial+Services");
     expect(screen.getByRole("button", { name: "Remove filter Macro sector: Financial Services" })).toBeTruthy();
     fireEvent.click(within(screen.getByLabelText("Active filters")).getByRole("button", { name: "Clear all" }));
     await waitFor(() => expect(count()).toBe("6 companies"));
-    expect(screen.queryByLabelText("Active filters")).toBeNull();
+    expect(document.querySelector(".hf-empty")!.textContent).toBe("No filters yet: every company is listed.");
   });
 
   it("task #258 SPEC §1: no left panel; the filters sit in one header row in the pack's order, and the table takes the full width", () => {
     open();
     expect(document.querySelector("aside.scr-side, .sx-fbtn, .scr-split")).toBeNull();
-    expect(document.querySelector(".scr.sx-full")).toBeTruthy();
+    expect(document.querySelector(".scr.hf-full")).toBeTruthy();
     const row = screen.getByRole("toolbar", { name: "Filters" });
     expect([...row.querySelectorAll(".fx-btn")].map((b) => b.querySelector(".fx-l")!.firstChild!.textContent)).toEqual(["Market cap", "Macro sector", "Sector", "Industry", "Prism score", "Technical view", "52-week high"]);
     expect(screen.queryByRole("button", { name: /Macro sector & industr/ })).toBeNull();
@@ -242,7 +242,7 @@ describe("Advanced stock screener (Gold)", () => {
   it("ignores FinLit-score parameters in the address", () => {
     open("?f=high&omin=90&sort=overall");
     expect(symbols()).toHaveLength(6);
-    expect(screen.queryByLabelText("Active filters")).toBeNull();
+    expect(document.querySelector(".hf-empty")).toBeTruthy();   // no filter read from the FinLit-score parameters
   });
 
   it("selects, compares up to 4 and adds to the watchlist", () => {

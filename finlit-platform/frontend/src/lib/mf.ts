@@ -84,12 +84,15 @@ export function pctText(v: number | null | undefined, d = 2, plus = true): strin
 export const tone = (v: number | null | undefined) => (v == null || v === 0 ? "" : v > 0 ? "pos" : "neg");
 export const dayText = (iso: string | null | undefined) => (iso ? dateIN(iso) : "—");
 
+/** A score reason without a leading "Not scored:" / "Not scored yet:" / "Not rated:" (the page prints that label itself, so it never reads twice). */
+export const scoreReason = (reason: string | null | undefined): string => (reason || "").replace(/^\s*not\s+(?:scored(?:\s+yet)?|rated)\s*:\s*/i, "").trim();
+
 /** The reason a scheme has no return figures at all, in words (the server sends a short code). */
 export function noReturnsText(code: FundRow["noReturns"]): string {
   switch (code) {
     case "stopped": return "This scheme has stopped publishing NAVs.";
     case "idcw": return "Returns are not worked out for IDCW (payout) options: each payout lowers the NAV. See the Growth option of the same fund.";
-    case "unstated": return "AMFI does not state a Growth option for this scheme, so NAV-to-NAV returns could miss payouts.";
+    case "unstated": return "Neither AMFI's NAV file nor its scheme master states a Growth option for this scheme, so NAV-to-NAV returns could miss payouts.";
     case "no_history": return "NAV history for this scheme is not loaded yet.";
     case "short": return "Not enough NAV history yet.";
     default: return "";

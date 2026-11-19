@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TILE_COLOURS, contrast, pickIndices, scopeStocks, dedupeFilings, filingLine, filingTag, firstName, greetingWord, moveBlock, resultLines, shortDay, shorten, tileColour, tileLabel, titleCase, yoyLabel, yoyOf } from "./dashboard";
+import { pickIndices, scopeStocks, dedupeFilings, filingLine, filingTag, firstName, greetingWord, moveBlock, resultLines, shortDay, shorten, titleCase, yoyLabel, yoyOf } from "./dashboard";
 import { DASH_STEPS, WIDGETS, migrateLayout, normaliseLayout, stepGroups } from "./prefs";
 import type { FeedItem } from "./feed";
 import type { IndexRow } from "./indices";
@@ -10,22 +10,6 @@ const item = (o: Partial<FeedItem>): FeedItem => ({ id: 1, kind: "result", title
 describe("greeting", () => {
   it("capitalises the first name", () => { expect(firstName("pranjal kumar")).toBe("Pranjal"); expect(firstName("  ")).toBe(""); expect(firstName("", "anita.rao@x.in")).toBe("Anita"); });
   it("says the time of day", () => { expect([greetingWord(9), greetingWord(12), greetingWord(16), greetingWord(17), greetingWord(23)]).toEqual(["Good morning", "Good afternoon", "Good afternoon", "Good evening", "Good evening"]); });
-});
-
-describe("heat-map tile colours", () => {
-  it("maps the seven bands", () => {
-    expect([-3, -2, -1, -0.75, -0.3, 0, 0.1, 0.5, 0.75, 1.9, 2, 5].map(tileColour)).toEqual([TILE_COLOURS[0], TILE_COLOURS[0], TILE_COLOURS[1], TILE_COLOURS[2], TILE_COLOURS[2], TILE_COLOURS[3], TILE_COLOURS[3], TILE_COLOURS[4], TILE_COLOURS[5], TILE_COLOURS[5], TILE_COLOURS[6], TILE_COLOURS[6]]);
-    expect(tileColour(null)).toBe(TILE_COLOURS[3]);
-  });
-  it("keeps white text at 4.5:1 or better on every tile", () => { for (const c of TILE_COLOURS) expect(contrast("#FFFFFF", c)).toBeGreaterThanOrEqual(4.5); });
-  it("labels by size and never below 11px", () => {
-    expect(tileLabel("RELIANCE", 300, 200)).toEqual({ size: 16, pct: true });
-    expect(tileLabel("TCS", 80, 50)?.size).toBe(13);
-    expect(tileLabel("ADANIPORTS", 80, 50)).toBeNull();                 // 13px does not fit; 11px does not either at 80px
-    expect(tileLabel("BEL", 38, 40)?.size).toBe(11);
-    expect(tileLabel("RELIANCE", 30, 40)).toBeNull();
-    expect(tileLabel("TCS", 80, 20)).toEqual({ size: 11, pct: false });
-  });
 });
 
 describe("year on year", () => {

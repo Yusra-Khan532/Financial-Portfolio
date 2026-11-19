@@ -423,6 +423,11 @@ async def _with_classification(store, body: dict) -> dict:
     return body
 
 
+def _name_key(s) -> str:
+    """A level name without case, commas or spacing: NSE's file writes "Oil, Gas & Consumable Fuels", the site's taxonomy "Oil Gas & Consumable Fuels"."""
+    return re.sub(r"[^a-z0-9]", "", str(s or "").lower())
+
+
 RATING_SLUGS = ("strong", "healthy", "average", "weak", "poor", "notrated")
 TREND5 = ("su", "u", "s", "d", "sd")
 _TREND_OF = {"strongpos": "su", "pos": "u", "neutral": "s", "neg": "d", "strongneg": "sd"}
@@ -503,11 +508,11 @@ def _tests(f: dict, new_day: Optional[str]) -> Dict[str, object]:
     if f.get("ind"):
         ind = f["ind"]; t["ind"] = lambda r: r.get("sr_slug") == ind
     if f.get("macro"):
-        t["macro"] = lambda r: r.get("cls_macro") in f["macro"]
+        want_m = {_name_key(x) for x in f["macro"]}; t["macro"] = lambda r: _name_key(r.get("cls_macro")) in want_m
     if f.get("nsec"):
-        t["nsec"] = lambda r: r.get("cls_sector") in f["nsec"]
+        want_s = {_name_key(x) for x in f["nsec"]}; t["nsec"] = lambda r: _name_key(r.get("cls_sector")) in want_s
     if f.get("indu"):
-        t["indu"] = lambda r: r.get("cls_industry") in f["indu"]
+        want_i = {_name_key(x) for x in f["indu"]}; t["indu"] = lambda r: _name_key(r.get("cls_industry")) in want_i
     if f.get("pl"):
         t["pl"] = lambda r: _rating_of(r) in f["pl"]
     for k, (lo, hi) in (f.get("ranges") or {}).items():

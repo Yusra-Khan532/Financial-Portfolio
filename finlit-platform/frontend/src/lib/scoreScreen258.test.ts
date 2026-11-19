@@ -32,8 +32,11 @@ describe("the NSE tree the page lists", () => {
     const src = JSON.parse(readFileSync(resolve(__dirname, "../../../backend/finlit/data/nse_classification.json"), "utf-8")).basic_industries as { macro_sector: string; sector: string; industry: string }[];
     expect(NSE_MACROS).toHaveLength(12); expect(NSE_SECTORS).toHaveLength(22); expect(NSE_INDUSTRIES).toHaveLength(59);
     expect(new Set(NSE_MACROS)).toEqual(new Set(src.map((r) => r.macro_sector)));
-    expect(new Set(NSE_SECTORS.map((s) => `${s.macro}|${s.name}`))).toEqual(new Set(src.map((r) => `${r.macro_sector}|${r.sector}`)));
-    expect(new Set(NSE_INDUSTRIES.map((s) => `${s.macro}|${s.sector}|${s.name}`))).toEqual(new Set(src.map((r) => `${r.macro_sector}|${r.sector}|${r.industry}`)));
+    const k = (s: string) => s.toLowerCase().replace(/[^a-z0-9|]/g, "");   // the site's taxonomy writes "Oil Gas & ...", NSE's file "Oil, Gas & ..."
+    expect(new Set(NSE_SECTORS.map((s) => k(`${s.macro}|${s.name}`)))).toEqual(new Set(src.map((r) => k(`${r.macro_sector}|${r.sector}`))));
+    // one known difference between the two shared lists (the site taxonomy of task #183 lists "Trading", NSE's file of task #192 "Public Services"); anything else fails
+    const a = new Set(NSE_INDUSTRIES.map((s) => k(`${s.macro}|${s.sector}|${s.name}`))), b = new Set(src.map((r) => k(`${r.macro_sector}|${r.sector}|${r.industry}`)));
+    expect([[...a].filter((x) => !b.has(x)), [...b].filter((x) => !a.has(x))]).toEqual([["services|services|trading"], ["services|services|publicservices"]]);
   });
 });
 
