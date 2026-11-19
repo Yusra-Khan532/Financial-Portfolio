@@ -166,17 +166,14 @@ export function Appearance() {
           {(["comfortable", "compact"] as const).map((d) => <button key={d} aria-pressed={p.density === d} onClick={() => prefs.set({ density: d })}>{d === "comfortable" ? "Comfortable" : "Compact"}</button>)}
         </div>
         <h2 style={{ marginTop: 22 }}>Price alerts</h2>
-        <label className="sw"><input type="checkbox" checked={p.alerts} onChange={(e) => prefs.set({ alerts: e.target.checked })} /><span aria-hidden="true" /><b>Email me when a watchlist stock crosses its target price</b></label>
-        <p className="muted" style={{ marginTop: 6 }}>Set a target on any stock in your <Link to="/watchlist">watchlist</Link> (Silver and Gold). You get one email when the price crosses it, at most once a day per stock.</p>
-        <label className="sw" style={{ marginTop: 14 }}><input type="checkbox" checked={p.screenAlerts} onChange={(e) => prefs.set({ screenAlerts: e.target.checked })} /><span aria-hidden="true" /><b>Email me when a company newly matches one of my saved screens</b></label>
+        <label className="sw"><input type="checkbox" checked={p.alerts} onChange={(e) => prefs.set({ alerts: e.target.checked })} /><span aria-hidden="true" /><b>Tell me when a watchlist stock crosses its target price</b></label>
+        <p className="muted" style={{ marginTop: 6 }}>Set a target on any stock in your <Link to="/watchlist">watchlist</Link> (Silver and Gold). You get one notification (the bell) when the price crosses it, at most once a day per stock.</p>
+        <label className="sw" style={{ marginTop: 14 }}><input type="checkbox" checked={p.screenAlerts} onChange={(e) => prefs.set({ screenAlerts: e.target.checked })} /><span aria-hidden="true" /><b>Tell me when a company newly matches one of my saved screens</b></label>
         <label className="sw" style={{ marginTop: 14 }}><input type="checkbox" checked={p.profitGap} onChange={(e) => prefs.set({ profitGap: e.target.checked })} /><span aria-hidden="true" /><b>Tell me when a watchlist company's revenue and profit move 15 or more points apart (Silver and Gold)</b></label>
         <p className="muted" style={{ marginTop: 6 }}>Checked after each day's data. One pop-up and bell notification per company and quarter, when its latest quarter's sales growth and profit growth, each against the same quarter last year, differ by 15 percentage points or more.</p>
         <label className="sw" style={{ marginTop: 14 }}><input type="checkbox" checked={p.rotationCorner} onChange={(e) => prefs.set({ rotationCorner: e.target.checked })} /><span aria-hidden="true" /><b>Tell me when the industry of a watchlist stock moves to another corner on Sector Rotation (Silver and Gold)</b></label>
         <label className="sw" style={{ marginTop: 14 }}><input type="checkbox" checked={p.rotationRank} onChange={(e) => prefs.set({ rotationRank: e.target.checked })} /><span aria-hidden="true" /><b>Tell me when the industry of a watchlist stock climbs or falls 5 or more places in 4 weeks (Silver and Gold)</b></label>
         <p className="muted" style={{ marginTop: 6 }}>Sent once, after a week's last session, so a corner change is the confirmed one. It describes how the industry's returns compare with the average industry; it is information, not advice.</p>
-        <h2 style={{ marginTop: 22 }}>Weekly email</h2>
-        <label className="sw"><input type="checkbox" checked={p.digest} onChange={(e) => prefs.set({ digest: e.target.checked })} /><span aria-hidden="true" /><b>Send me “your week ahead” every Sunday</b></label>
-        <p className="muted" style={{ marginTop: 6 }}>Result dates for your stocks, IPOs that are open, your biggest movers and score changes. Off until you switch it on; one email a week at most.</p>
         <p className="muted" style={{ marginTop: 16 }}>Choose which widgets your dashboard shows, and in what order, from the <Link to="/dashboard?edit=1">dashboard</Link>.</p>
         <button className="btn" onClick={() => prefs.reset()}>Reset to the FinLit default</button>
       </section>
@@ -192,7 +189,7 @@ function PlanTab() {
   const req = useMutation({ mutationFn: (p: "silver" | "gold") => acct.requestPlan(p, note.trim() || undefined), onSuccess: () => refresh() });
   const rows: [Plan, string[]][] = [
     ["basic", ["Screener, comparison of 2 companies, glossary, latest quarter, financials, ratios, peers, charts"]],
-    ["silver", ["FinLit IQ and five-pillar scorecard", "Parameter history", "Watchlist: 3 lists, 30 stocks", "Model-based comparison tabs", "Data export", "Portfolio tracker (30 holdings) with import", "Saved-screen alerts and the weekly email"]],
+    ["silver", ["FinLit IQ and five-pillar scorecard", "Parameter history", "Watchlist: 3 lists, 30 stocks", "Model-based comparison tabs", "Data export", "Portfolio tracker (30 holdings) with import", "Saved-screen alerts"]],
     ["gold", ["Advanced scoring and full ratio history", "Technical analysis and segments", "Model-based screener filters", "Compare up to 4 companies", "Watchlist: up to 50 lists, 1,000 stocks", "FinLit Prism financial-health rating with PDF", "Equity research reports (Later)"]],
   ];
   return (

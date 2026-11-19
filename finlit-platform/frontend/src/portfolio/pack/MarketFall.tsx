@@ -13,6 +13,7 @@ export type FallProps = {
   id: string; scenarios: FallScenario[]; parts: FallPart[]; market?: { label: string; sub: string }; list?: { label: string; sub: string };
   worst?: { pct: number; line: string } | null; value: { now: number; name?: string } | null; idx?: string; after?: ReactNode; extraNote?: string;
   /** the heading's word: "market" (Equity) or "Nifty 500" (MF, ETF, All my investments) */ what?: string;
+  /** no rupee line at all (All my investments shows no ₹ until quantities are in) */ noRupees?: boolean;
 };
 
 const f1 = (v: number) => `${v < 0 ? "−" : v > 0 ? "+" : ""}${Math.abs(v).toFixed(1)}%`;
@@ -52,7 +53,7 @@ export function MarketFall(p: FallProps) {
           <p className="fx-k">{ls.label} would fall about</p>
           <p className="fx-big"><b>{x.big == null ? "—" : f1(x.big)}</b></p>
           {x.chip && <p className="fx-vs"><span className={"fx-chip " + x.chip.cls}>{x.chip.text}</span></p>}
-          {x.rs && <div className="fx-rs"><span className="fx-rs-k">In rupees</span><b>{x.rs.v}</b><small>{x.rs.x}</small></div>}
+          {x.rs && !p.noRupees && <div className="fx-rs"><span className="fx-rs-k">In rupees</span><b>{x.rs.v}</b><small>{x.rs.x}</small></div>}
           <p className="fx-src">{x.d.beta == null ? "Not enough prices for a beta yet." : x.d.src}</p>
         </div>
         <div className="fx-r"><p className="fx-k">How deep each part would fall</p>

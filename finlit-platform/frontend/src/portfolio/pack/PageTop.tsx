@@ -116,7 +116,7 @@ export function SectionsBar<T extends string = TabKey>({ tab, all, onTab, lead }
     if (l < el.scrollLeft + sw) el.scrollLeft = Math.max(0, l - sw - 8); else if (r > el.scrollLeft + el.clientWidth) el.scrollLeft = r - el.clientWidth + 8;
   }, [on, stuck]);
   return (
-    <nav ref={bar} className={"eqt-bar" + (stuck ? " stuck" : "") + (stuck && lead ? " x-sw-on" : "")} aria-label="Sections on this tab">
+    <nav ref={bar} className={"eqt-bar sw-host" + (stuck ? " stuck" : "") + (stuck && lead ? " x-sw-on" : "")} aria-label="Sections on this tab">
       {lead}
       <span className="eqt-allw"><button type="button" className="eqt-all" aria-expanded={menu} aria-haspopup="true" onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); setAt({ top: Math.round(r.bottom), left: Math.round(Math.max(12, Math.min(r.left, innerWidth - 332))) }); setMenu((m) => !m); }}>All sections</button>
         {/* task #235: the menu renders into the page body, because the stuck bar's backdrop blur clipped a fixed menu inside the bar */}
