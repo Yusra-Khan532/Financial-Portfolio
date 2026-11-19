@@ -41,7 +41,11 @@ log = logging.getLogger("finlit.prism.candles")
 PROVIDER = "Dhan"
 INDEX_CODES = ("NIF50", "NIFMID100", "NIFSMA100", "NIF500")     # the site's benchmarks; ids come from indices.DHAN_INDEX, checked against dhan_indices
 HISTORY_DAYS = 365 * 6 + 20          # six years, as the model's FinEdge history; the long relative-strength rule needs 505 aligned sessions
-STOCK_MIN, INDEX_MIN, MAX_AGE_DAYS, MAX_ROWS = 252, 505, 10, 2000
+# STOCK_MIN: the shortest history the model's short-term signals read (EMA 50 and ADX). Until 19 Nov 2026 it was 252 (a year), so every company
+# listed in the last year (Fractal Analytics, the Vedanta demerged companies, every recent IPO) had its candles thrown away here and in the site
+# backend, the model fell back to FinEdge, which holds little or nothing for them, and both horizons showed "Not available". The model itself says
+# which signals need more history and withholds only what it must (site-api/backend/premium_technical.py).
+STOCK_MIN, INDEX_MIN, MAX_AGE_DAYS, MAX_ROWS = 50, 505, 10, 2000
 CALL_GAP = 0.34                      # about 3 data calls a second, paced in THIS process only; Dhan's limit is per account and the quote jobs share it (DhanClient.daily does not pace)
 RANGE_TOLERANCE = 0.0005             # mirrors technical_series.RANGE_TOLERANCE in the site backend: an open/close this fraction outside [low, high] is rounding, not a bad candle
 MAX_DAILY_MOVE = 0.40                # a close more than 40% from the previous close is an unadjusted split or bad data: the series is not sent
@@ -111,9 +115,13 @@ def collapse_repeats(rows: List[dict]) -> List[dict]:
     return out
 
 
-def clean_reason(rows: List[dict], expected: date, minimum: int, quote_price: Optional[float] = None) -> Tuple[Optional[List[list]], str]:
+def clean_reason(rows: List[dict], expected: date, minimum: int, quote_price: Optional[float] = None,
+                 keep_breaks: bool = False) -> Tuple[Optional[List[list]], str]:
     """Dhan's rows ({"day","open","high","low","close","volume"}) as [date, o, h, l, c, v], or (None, the reason) unless the whole series is
-    complete, consistent and plausible. Rows after the last completed session are dropped (today's partial candle)."""
+    complete, consistent and plausible. Rows after the last completed session are dropped (today's partial candle).
+    `keep_breaks` (the stock series for the Prism technical view): a close-to-close move over MAX_DAILY_MOVE does not reject the series; it is
+    sent whole and the site backend uses only the sessions after the last such move, and says so (premium_supplied_candles). Vedanta's close fell
+    60% on 4 May 2026, its demerger ex-date, which Dhan does not adjust; the rule threw its whole history away."""
     if not rows or len(rows) > MAX_ROWS:
         return None, "no rows or too many"
     rows = collapse_repeats(rows)
@@ -140,9 +148,12 @@ def clean_reason(rows: List[dict], expected: date, minimum: int, quote_price: Op
             out.append([day.isoformat(), o, h, l, c, v])
     if len(out) < minimum or not 0 <= (expected - date.fromisoformat(out[-1][0])).days <= MAX_AGE_DAYS:
         return None, "too few sessions or the last session is too old"
-    for before, after in zip(out, out[1:]):
+    for i, (before, after) in enumerate(zip(out, out[1:])):
         if abs(after[4] / before[4] - 1) > MAX_DAILY_MOVE:
-            return None, f"close moves more than {MAX_DAILY_MOVE:.0%} in a day on {after[0]} (unadjusted split or bad data)"
+            if not keep_breaks:
+                return None, f"close moves more than {MAX_DAILY_MOVE:.0%} in a day on {after[0]} (unadjusted split or bad data)"
+            if len(out) - (i + 1) < minimum:      # what the site backend would keep after this move is too short (it checks again)
+                return None, f"close moves more than {MAX_DAILY_MOVE:.0%} in a day on {after[0]} and fewer than {minimum} sessions follow"
     if _num(quote_price) and quote_price > 0 and abs(out[-1][4] / quote_price - 1) > MAX_QUOTE_GAP:
         return None, f"last close is more than {MAX_QUOTE_GAP:.0%} from the quote price"
     return out, ""
@@ -172,7 +183,7 @@ async def _gap() -> None:
 
 
 async def _fetch(client: DhanClient, segment: str, security_id: str, instrument: str, now: datetime, expected: date, minimum: int,
-                 quote_price: Optional[float] = None) -> Tuple[Optional[List[list]], bool]:
+                 quote_price: Optional[float] = None, keep_breaks: bool = False) -> Tuple[Optional[List[list]], bool]:
     """(the clean series or None, whether the call itself failed). A series Dhan answered but that is doubtful is (None, False)."""
     start = now.astimezone(IST).date() - timedelta(days=HISTORY_DAYS)
     end = now.astimezone(IST).date() + timedelta(days=1)          # Dhan's end date is not included
@@ -182,7 +193,7 @@ async def _fetch(client: DhanClient, segment: str, security_id: str, instrument:
     except (DhanError, httpx.HTTPError, ValueError, TypeError, OverflowError, OSError) as exc:
         log.warning("prism candles: Dhan %s/%s failed: %s", segment, security_id, type(exc).__name__)
         return None, True
-    got, reason = clean_reason(rows, expected, minimum, quote_price)
+    got, reason = clean_reason(rows, expected, minimum, quote_price, keep_breaks)
     if got is None:
         log.warning("prism candles: Dhan %s/%s not used (%d rows): %s", segment, security_id, len(rows or []), reason)
     return got, False
@@ -280,7 +291,7 @@ async def supplied_candles(state: Any, symbol: str, now: Optional[datetime] = No
         if sec:
             calls += 1
             quote = await _quote_price(store, symbol) if quote_price is STORED_QUOTE else quote_price
-            rows, failed = await _fetch(client, sec[0], sec[1], "EQUITY", now, expected, STOCK_MIN, quote)
+            rows, failed = await _fetch(client, sec[0], sec[1], "EQUITY", now, expected, STOCK_MIN, quote, keep_breaks=True)
             failures += failed
             if rows:
                 out["stock"] = {"provider": PROVIDER, "candles": rows}
@@ -315,7 +326,7 @@ async def supplied_candles(state: Any, symbol: str, now: Optional[datetime] = No
     return out or None
 
 
-PATTERN_MIN = 25      # sessions the chart-pattern scans need (finlit/presets/patterns.py); the Prism technical view needs STOCK_MIN
+PATTERN_MIN = 25      # sessions the chart-pattern scans need (finlit/presets/patterns.py); the Prism technical view needs STOCK_MIN (50)
 
 
 async def pattern_candles(state: Any, symbol: str, now: Optional[datetime] = None) -> Optional[List[list]]:

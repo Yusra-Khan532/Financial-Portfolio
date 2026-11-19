@@ -4,6 +4,7 @@ Includes dependencies used by scores even where their settings were grouped unde
 trade-plan inputs. Excludes entry/exit plans, targets, sizing and backtests.
 """
 import statistics
+from datetime import date
 
 try:
     from .technical_series import ema, sma, rma, rsi, macd, atr_adx, obv, rolling, percentrank, linreg, weekly_closes, benchmark_pack, relative_strength
@@ -50,7 +51,9 @@ def scoring_signals(bars, benchmarks, shares_cr, as_of):
     stage = stages[-1]
     meta.update(stage=stage, freshStage2=fresh[-1], slope150Pct=slopes[-1]*100 if slopes[-1] is not None else None)
     sg = lambda condition: 1. if condition else -1.
-    if n>=200 and adx[-1] is not None:
+    # Task #247: these rows read EMA 9/20/50, ADX and MACD, which exist from about 50 sessions; only the RSI row's price regime reads EMA 200. They
+    # used to start at 200 sessions, so a company listed in the last ten months had no short-term score at all.
+    if n>=50 and adx[-1] is not None and e[50][-1] is not None:
         mult = 1. if adx[-1]>25 else .5 if adx[-1]<20 else .75
         meta.update(adx=adx[-1], trendMultiplier=mult)    # the trend factor the first three short-term rows are multiplied by
         st["ema_stack"] = ((sg(e[9][-1]>e[20][-1])+sg(e[20][-1]>e[50][-1]))/2*mult, f"EMA 9 / 20 / 50: {e[9][-1]:.2f} / {e[20][-1]:.2f} / {e[50][-1]:.2f}; ADX {adx[-1]:.1f}.")
@@ -58,7 +61,9 @@ def scoring_signals(bars, benchmarks, shares_cr, as_of):
         line, signal, histogram = macd(c)
         st["macd"] = ((sg(line[-1]>signal[-1])+sg(histogram[-1]>histogram[-2]))/2*mult, f"MACD {line[-1]:.2f}; signal {signal[-1]:.2f}; histogram {'rising' if histogram[-1]>histogram[-2] else 'flat or falling'}.")
         r = rsi(c)[-1]
-        if r is not None:
+        if e[200][-1] is None:
+            pass                                   # the regime needs EMA 200: left to history_gaps below, which says how many sessions
+        elif r is not None:
             bullish = c[-1]>e[200][-1] and e[50][-1]>e[200][-1]
             bearish = c[-1]<e[200][-1] and e[50][-1]<e[200][-1]
             bull = -.5 if r>80 else .5 if r>75 else 1. if r>=55 else .5 if r>=45 else 0. if r>=40 else -1.
@@ -198,4 +203,29 @@ def scoring_signals(bars, benchmarks, shares_cr, as_of):
     else:
         for target in (st,lt):
             target["leadership"] = (None, "A complete aligned 252-session stock/index window is unavailable.")
+    meta["historyGaps"] = history_gaps(st, lt, n, bars[0]["date"])
     return st, lt, meta
+
+
+# Task #247: the daily sessions each signal reads before it exists (from the formulas above and technical_series): a company with fewer has the
+# signal missing for that reason alone, said plainly, and a horizon whose only gaps are these can be shown as provisional (premium_technical).
+HISTORY_NEED = {
+    "st": {"ema_stack": 50, "price_ema20": 50, "macd": 50, "rsi": 200, "obv": 50, "extension": 50, "consolidation": 50, "gap": 50, "sfp": 50,
+           "value_migration": 50, "candles": 50, "squeeze": 146, "leadership": 25, "rs_rating": 252},
+    "lt": {"stage": 200, "rs_rating": 505, "leadership": 252, "price_ema200": 220, "volume_persistence": 200, "sfp": 50, "ema200_slope": 220,
+           "ema50_200": 220, "weekly_rsi": 175, "weekly_macd": 175, "structure": 252, "obv_trend": 220, "ema100_200": 220},
+}
+
+
+def history_gaps(st, lt, n, first):
+    """{"st": [keys], "lt": [keys]}: the signals missing only because the stock has fewer than the sessions they read. Each gets that reason."""
+    d = date.fromisoformat(first) if isinstance(first, str) else first
+    since = f"{d.day} {d.strftime('%b %Y')}" if d else "its first session"
+    out = {}
+    for name, target in (("st", st), ("lt", lt)):
+        out[name] = []
+        for key, need in HISTORY_NEED[name].items():
+            if n < need and (key not in target or target[key][0] is None):
+                target[key] = (None, f"Needs at least {need} sessions of daily prices; this company has {n}, from {since}.")
+                out[name].append(key)
+    return out

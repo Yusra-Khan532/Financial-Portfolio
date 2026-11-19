@@ -9,11 +9,15 @@ A supplied series is the FIRST choice for its own series when it is complete and
   * every row is [YYYY-MM-DD, open, high, low, close, volume] with finite numbers, open/high/low/close > 0, volume >= 0 and
     low <= min(open, close) <= max(open, close) <= high; one bad row rejects the whole series (no gap is kept, none is filled);
   * dates strictly increasing (no duplicates); rows after the model's last completed session (16:00 IST rule, `as_of`) are dropped;
-  * stock: >= 252 rows and the last within 10 calendar days of `as_of`; index: >= 505 rows, the same freshness, and every
+  * stock: >= 50 rows (the shortest history the short-term signals read; 252 until 19 Nov 2026, task #247: every company listed in the last
+    year lost its candles) and the last within 10 calendar days of `as_of`; index: >= 505 rows, the same freshness, and every
     one of the stock's last 505 session dates present (as for FinEdge/Upstox index history);
   * one series never mixes providers: a series is either wholly supplied or wholly from the fallback;
   * plausibility: no close-to-close move over 40% in a day (a split or bonus that was not adjusted shows up as one), and, for the stock,
     a last close within 15% of the quote price when there is one. A series that fails is unusable (the fallback runs) and the reason is logged.
+    For the stock (task #247), a move over 40% does not throw the whole series away: only the sessions after the last such move are used, when at
+    least 50 remain, and the assessment says so in its notes. Vedanta's close fell 60% on 4 May 2026, its demerger ex-date, which is not adjusted:
+    the prices before it do not compare with the prices after it, and nothing is filled or rescaled.
 Nothing here raises for bad input: unusable data simply means "use the fallback".
 """
 import logging
@@ -30,7 +34,7 @@ except ImportError:
 
 PROVIDER = "Dhan"
 MAX_ROWS = 2000                 # six years is about 1,550 sessions; anything larger is not what the research API sends
-STOCK_MIN, INDEX_MIN, MAX_AGE_DAYS = 252, 505, 10
+STOCK_MIN, INDEX_MIN, MAX_AGE_DAYS = 50, 505, 10
 MAX_DAILY_MOVE = 0.40           # a close more than 40% away from the previous close is not a plausible adjusted series
 MAX_QUOTE_GAP = 0.15            # the stock's last close more than 15% from the quote price: the series and the quote are not the same stock/price basis
 DATE_TEXT = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
@@ -53,8 +57,10 @@ def _date(text):
     return day if day.isoformat() == text else None
 
 
-def check_series(series, as_of, minimum, quote_price=None):
-    """(clean bars [{date, open, high, low, close, volume}], None) or (None, the reason the series is not wholly valid)."""
+def check_series(series, as_of, minimum, quote_price=None, cut_breaks=False, info=None):
+    """(clean bars [{date, open, high, low, close, volume}], None) or (None, the reason the series is not wholly valid).
+    `cut_breaks` (the stock): after a close-to-close move over MAX_DAILY_MOVE, only the bars after the last such move are kept (when at least
+    `minimum` remain); `info` (a dict), when given, receives "break": that move (`last_break`), or None."""
     if not isinstance(series, dict):
         return None, "not an object"
     if series.get("provider") != PROVIDER:
@@ -87,7 +93,13 @@ def check_series(series, as_of, minimum, quote_price=None):
             fixed += (h, l) != (row[2], row[3])
     if fixed:
         log.info("supplied candles: %d candle(s) had an open or close within %.2f%% outside the high-low range and were fitted to it", fixed, 100 * 0.0005)
-    if len(bars) < minimum or not 0 <= (as_of - date.fromisoformat(bars[-1]["date"])).days <= MAX_AGE_DAYS:
+    if cut_breaks:
+        brk = last_break(bars)
+        if info is not None:
+            info["break"] = brk
+        if brk is not None:
+            bars = bars[brk["index"]:]
+    if not bars or len(bars) < minimum or not 0 <= (as_of - date.fromisoformat(bars[-1]["date"])).days <= MAX_AGE_DAYS:
         return None, "too few sessions or the last session is too old"
     for before, after in zip(bars, bars[1:]):
         if abs(after["close"] / before["close"] - 1) > MAX_DAILY_MOVE:
@@ -97,9 +109,18 @@ def check_series(series, as_of, minimum, quote_price=None):
     return bars, None
 
 
-def parse_series(series, as_of, minimum, quote_price=None, label="series"):
+def last_break(bars):
+    """The last close-to-close move over MAX_DAILY_MOVE in `bars`: {"index" (of the first bar after it), "date", "from", "to", "movePct"}, or None."""
+    for i in range(len(bars) - 1, 0, -1):
+        before, after = bars[i - 1]["close"], bars[i]["close"]
+        if abs(after / before - 1) > MAX_DAILY_MOVE:
+            return {"index": i, "date": bars[i]["date"], "from": before, "to": after, "movePct": (after / before - 1) * 100}
+    return None
+
+
+def parse_series(series, as_of, minimum, quote_price=None, label="series", cut_breaks=False, info=None):
     """Clean bars or None when the series is not wholly valid; the reason is logged."""
-    bars, reason = check_series(series, as_of, minimum, quote_price)
+    bars, reason = check_series(series, as_of, minimum, quote_price, cut_breaks, info)
     if bars is None and series is not None:
         log.warning("supplied candles: %s not used: %s", label, reason)
     return bars
@@ -117,12 +138,23 @@ def quote_price_from_raw(raw):
 
 def supplied_price_input(supplied, as_of, quote_price=None):
     """The technical price input for the stock from supplied candles, or None. `quote_price` (when known) must be within 15% of the last close."""
-    bars = parse_series(supplied.get("stock") if isinstance(supplied, dict) else None, as_of, STOCK_MIN, quote_price, "stock")
+    info = {}
+    bars = parse_series(supplied.get("stock") if isinstance(supplied, dict) else None, as_of, STOCK_MIN, quote_price, "stock", cut_breaks=True, info=info)
     if bars is None:
         return None
-    return {"bars": bars, "provider": PROVIDER, "throughDate": as_of.isoformat(),
-            "notes": ["Daily candles use one Dhan series, which Dhan adjusts for splits and bonus issues. "
-                      "That adjustment has not been independently verified against FinEdge's adjusted closing-price history."]}
+    notes = ["Daily candles use one Dhan series, which Dhan adjusts for splits and bonus issues. "
+             "That adjustment has not been independently verified against FinEdge's adjusted closing-price history."]
+    brk = info.get("break")          # task #247: where the series was cut, said plainly
+    if brk is not None:
+        notes.append(f"Daily prices before {_day(brk['date'])} are not used: the close moved {brk['movePct']:+.1f}% that day ({brk['from']:,.2f} to {brk['to']:,.2f}), "
+                     "as an unadjusted corporate action (such as a demerger or a split) or a data error does, so earlier prices do not compare with later ones. "
+                     f"The view uses the {len(bars)} sessions since.")
+    return {"bars": bars, "provider": PROVIDER, "throughDate": as_of.isoformat(), "notes": notes}
+
+
+def _day(iso):
+    d = date.fromisoformat(iso)
+    return f"{d.day} {d.strftime('%b %Y')}"
 
 
 def supplied_benchmarks(supplied, as_of, required_dates):

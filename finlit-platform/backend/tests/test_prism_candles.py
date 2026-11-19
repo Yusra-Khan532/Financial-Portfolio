@@ -435,3 +435,19 @@ async def test_candles_are_fetched_before_a_calculation_slot_is_taken(store, mon
     async with app.router.lifespan_context(app):
         status, _, _ = await prism._execute(app, "prism:visitor", "TCS", "consolidated", None, False)
     assert seen == [prism.SLOTS] and status in (200, 404, 422, 502, 503)
+
+
+def test_a_recent_listing_and_a_demerger_break_are_sent_for_the_prism_view():
+    """Task #247: FRACTAL (186 sessions) and VAML (107) were refused here as 'too few sessions' (the minimum was a year), and Vedanta's whole
+    series for its 60% close-to-close fall on 4 May 2026 (the demerger ex-date, not adjusted). Now a series of STOCK_MIN (50) sessions is sent, and
+    for the stock a break is kept for the site backend, which uses only the sessions after it and says so."""
+    assert pc.STOCK_MIN == 50 and pc.STOCK_MIN >= pc.PATTERN_MIN
+    got, why = pc.clean_reason(scaled(107), LAST, pc.STOCK_MIN)
+    assert got is not None and len(got) == 107, why
+    assert pc.clean_reason(scaled(49), LAST, pc.STOCK_MIN)[0] is None                       # under the shortest history the model reads
+    demerger = scaled(600, split_at=460, factor=2.5)                                         # -60% overnight, 140 sessions after it
+    assert pc.clean_reason(demerger, LAST, pc.STOCK_MIN)[0] is None                          # indices and the scans: still refused
+    kept, why = pc.clean_reason(demerger, LAST, pc.STOCK_MIN, keep_breaks=True)
+    assert kept is not None and len(kept) == 600, why                                        # sent whole: the site backend cuts and says where
+    late = scaled(600, split_at=570, factor=2.5)                                             # only 30 sessions after it: nothing the model can use
+    assert pc.clean_reason(late, LAST, pc.STOCK_MIN, keep_breaks=True)[0] is None
