@@ -8,6 +8,7 @@ import { searchMetrics } from "../lib/metricSearch";
 import { useCompareMetrics } from "../lib/compareApi";
 import { DEFAULT_KEYS, MAX_PICK, MAX_PICK_PHONE, NAME_MAX, STARTERS, bestWorst, cleanKeys, useSavedSets, useSetsSync } from "../lib/compareSets";
 import "../styles/compare.css";
+import { coTitle, subLine, titleOf } from "../lib/companyLabel";
 
 type Flat = MetricInfo & { group: string; groupLabel: string };
 const UNIT_NAME: Record<string, string> = { Cr: "₹ crore", Rs: "₹", "%": "percent", x: "times (×)", d: "days", n: "count", pts: "points", flag: "yes / no" };
@@ -152,7 +153,7 @@ export function CompareCustom({ companies, keysParam, onKeys }: { companies: { s
             <HScroll className="cx-scroll" label="comparison table">
               <table className="cx-t" style={{ "--n": symbols.length } as React.CSSProperties}>
                 <caption className="sr">Comparison of {symbols.join(", ")} on {metrics.length} measures</caption>
-                <thead><tr><th scope="col">Measure</th>{res.data.companies.map((c, i) => <th scope="col" key={c.symbol} className={"k" + i}><i className={"mk k" + i} /><b>{c.symbol}</b><small>{c.name !== c.symbol ? c.name : ""}</small></th>)}</tr></thead>
+                <thead><tr><th scope="col">Measure</th>{res.data.companies.map((c, i) => <th scope="col" key={c.symbol} className={"k" + i}><i className={"mk k" + i} /><b title={coTitle(c)}>{titleOf(c)}</b><small>{subLine(c, c.name !== c.symbol ? c.name : "") ?? ""}</small></th>)}</tr></thead>
                 {groupsOut.map((g) => (
                   <tbody key={g.id}>
                     <tr className="cx-gr"><th scope="colgroup" colSpan={symbols.length + 1}>{g.label}</th></tr>

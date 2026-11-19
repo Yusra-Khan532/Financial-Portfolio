@@ -14,6 +14,7 @@ import {
   type Statement,
 } from "../../../lib/prism";
 import { partVar } from "../../../lib/prismReport";
+import { coTitle, subLine, titleOf } from "../../../lib/companyLabel";
 
 /** The prism mark: white light entering a glass prism and leaving as four bands, one per part. */
 export function PrismMark({ size = 220 }: { size?: number }) {
@@ -57,7 +58,7 @@ export function Picker({ statement, big = false }: { statement: Statement; setSt
           onKeyDown={(e) => { if (e.key === "ArrowDown") { e.preventDefault(); setCur((c) => Math.min(hits.length - 1, c + 1)); } else if (e.key === "ArrowUp") { e.preventDefault(); setCur((c) => Math.max(0, c - 1)); } else if (e.key === "Enter") { e.preventDefault(); submit(); } else if (e.key === "Escape") setOpen(false); }} />
         <SearchFilters variant="panel" className="sf-inline" facets={sf.facets} value={sf.filter} onChange={sf.setFilter} count={sf.count} />
         {open && (hits.length > 0 || (typed && sf.data)) && <div className="pm-sug" id="pz-sug" role="listbox">
-          {hits.map((h, i) => <button key={h.symbol} type="button" role="option" aria-selected={i === cur} className={i === cur ? "on" : ""} onMouseDown={(e) => e.preventDefault()} onClick={() => go(h.symbol)}><b>{h.symbol}</b><small>{h.name}</small></button>)}
+          {hits.map((h, i) => <button key={h.symbol} type="button" role="option" aria-selected={i === cur} className={i === cur ? "on" : ""} onMouseDown={(e) => e.preventDefault()} onClick={() => go(h.symbol)}><b title={coTitle(h)}>{titleOf(h)}</b><small>{subLine(h, h.name)}</small></button>)}
           {typed && <div onMouseDown={(e) => e.preventDefault()}>
             {sf.on && !hits.length && <FilterNote filter={sf.filter} q={typed} onChange={sf.setFilter} hidden={hidden} />}
             {sf.on && hits.length > 0 && <HiddenRows hidden={hidden} filter={sf.filter} onChange={sf.setFilter} />}

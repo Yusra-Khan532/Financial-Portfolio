@@ -6,12 +6,13 @@ import { BAND_NAME, portfolioInsights, type InsightLine, type ShareNote } from "
 
 /** Plain-language read of the portfolio (equal-weight). Informational only, not investment advice. */
 import { scoreBand } from "../lib/scoreBands";
+import { coTitle, shortLabel } from "../lib/companyLabel";
 const lvl = scoreBand;   // one colour rule for every score: lib/scoreBands.ts
 const BAND_C: Record<string, string> = { strong: "var(--v-strong)", healthy: "var(--k1)", mixed: "var(--k4)", watch: "var(--v-weak)" };
 
 function Names({ items }: { items: ShareNote[] }) {
   return <ul className="pi-list">{items.map((s) => (
-    <li key={s.symbol}><Link to={`/stocks/${s.symbol}`}><CoLogo symbol={s.symbol} size={20} inline /><b>{s.symbol}</b></Link><span className={"band-dot " + s.band}>{s.score} · {BAND_NAME[s.band]}</span><small className="muted">{s.note}</small></li>))}</ul>;
+    <li key={s.symbol}><Link to={`/stocks/${s.symbol}`}><CoLogo symbol={s.symbol} size={20} inline /><b title={coTitle(s)}>{shortLabel(s)}</b></Link><span className={"band-dot " + s.band}>{s.score} · {BAND_NAME[s.band]}</span><small className="muted">{s.note}</small></li>))}</ul>;
 }
 
 export function PortfolioInsights({ lines }: { lines: InsightLine[] }) {

@@ -11,6 +11,7 @@ import { TrendCard } from "../Spread";
 import type { Card } from "../../lib/pulsePack";
 import type { MfSpread } from "../../lib/mfPortfolio";
 import { shortFund } from "../../lib/mfPack";
+import { coTitle, subLine, titleOf } from "../../lib/companyLabel";
 
 export type Level = "macro" | "sector";
 export type Reading = { word: string | null; score: number | null } | null;
@@ -252,7 +253,7 @@ export function BiggestSection({ rows, sp, readingOf, gold, mfOnly }: { rows: Bi
       sub={`The ${rows.length} largest holdings across your funds, and which funds hold them. Reading: ${mfOnly ? "names only on this plan" : gold ? "FinLit Prism" : "FinLit IQ"}.`}>
       <Scroll label="biggest stocks underneath"><table className="sp-tb mfm-big kit-grid"><thead><tr><th scope="col">Stock</th><th scope="col">Macro sector</th><th scope="col">Size</th><th scope="col" className="r">Of your funds</th><th scope="col">Held by</th><th scope="col">{gold ? "FinLit Prism" : "FinLit IQ"}</th></tr></thead>
         <tbody>{shown.map((r) => { const rd = readingOf(r.symbol); return <tr key={r.symbol ?? r.name}>
-          <th scope="row">{r.symbol ? <Link to={`/stocks/${r.symbol}`}>{r.symbol}</Link> : r.name}<small className="mfp-sub">{r.name}</small></th><td>{r.macro ?? "–"}</td><td>{r.size ? <span className="mfm-sz">{r.size[0]}</span> : "–"}</td>
+          <th scope="row">{r.symbol ? <Link to={`/stocks/${r.symbol}`} title={coTitle({ symbol: r.symbol, name: r.name })}>{titleOf({ symbol: r.symbol, name: r.name })}</Link> : r.name}<small className="mfp-sub">{r.symbol ? subLine({ symbol: r.symbol, name: r.name }, r.name) : r.name}</small></th><td>{r.macro ?? "–"}</td><td>{r.size ? <span className="mfm-sz">{r.size[0]}</span> : "–"}</td>
           <td className="r">{(r.w * 100).toFixed(2)}%</td><td><span className="mfm-held">{r.funds.map((c) => <span key={c}>{nm(c)}</span>)}</span></td>
           <td>{mfOnly ? <Link to="/plans" className="mfm-lock">🔒 Silver</Link> : rd?.score != null ? <span className="mff-score"><b className={"mff-num " + tone(rd.word)}>{Math.round(rd.score)}</b> <span className={"mff-w " + tone(rd.word)}>{rd.word}</span></span> : <span className="sp-note">Not rated</span>}</td></tr>; })}</tbody></table></Scroll>
       {rows.length > 5 && <button type="button" className="eq-more" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer ▴" : `Show all ${rows.length} ▾`}</button>}

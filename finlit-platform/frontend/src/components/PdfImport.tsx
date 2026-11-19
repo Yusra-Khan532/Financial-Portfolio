@@ -3,6 +3,7 @@ import type { SearchIndex, SearchRow } from "../lib/api";
 import type { Found } from "../lib/holdingsMatch";
 import { PdfPasswordError, isSure, readPdfHoldings, type PdfFinds, type PdfFound } from "../lib/holdingsPdf";
 import "../styles/pdfimport.css";
+import { coTitle, subLine, titleOf } from "../lib/companyLabel";
 
 const WHY: Record<Found["how"], { label: string }> = {
   exact: { label: "Exact match" },
@@ -84,7 +85,7 @@ export function PdfImport({ file, index, search, held, heldQty, room, onAdd, onC
           <label className={"pdfi-row" + (sure ? "" : " warn") + (done ? " done" : "")} key={f.symbol} role="listitem">
             <input type="checkbox" checked={!!pick[f.symbol] && !done} disabled={done} onChange={(e) => setPick({ ...pick, [f.symbol]: e.target.checked })} />
             <span className="in" title="The words in your PDF">{f.input}</span><span aria-hidden="true">→</span>
-            <span className="co"><b>{f.symbol}</b> <small>{f.name}</small>{f.qty != null && <span className="pdfi-qty">{shares(f.qty)}{f.accounts && f.accounts > 1 ? ` in ${f.accounts} demat accounts` : ""}</span>}</span>
+            <span className="co"><b title={coTitle(f)}>{titleOf(f)}</b> <small>{subLine(f, f.name)}</small>{f.qty != null && <span className="pdfi-qty">{shares(f.qty)}{f.accounts && f.accounts > 1 ? ` in ${f.accounts} demat accounts` : ""}</span>}</span>
             <span className="tag">{already ? heldTag(f) : tagOf(f)}</span>
           </label>);
       })}</div>

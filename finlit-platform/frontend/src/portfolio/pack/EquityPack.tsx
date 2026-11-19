@@ -20,6 +20,7 @@ import { useAuth } from "../../lib/auth";
 import type { Card } from "../../lib/pulsePack";
 import type { TrendRead } from "../../lib/mfPortfolio";
 import { VIEW_COLOR, VIEW_ICON, ViewTabsKit, type ViewDef } from "../ViewKit";
+import { coTitle, shortLabel } from "../../lib/companyLabel";
 
 
 // ------------------------------------------------------------------------------------------------ the score
@@ -101,7 +102,7 @@ export function PeersSection({ shares }: { shares: Share[] }) {
     const xs = shares.filter((s) => s.peer?.label === label).sort((a, b) => a.peer!.rank / a.peer!.of - b.peer!.rank / b.peer!.of), open = !!all[label];
     return (
       <div className={"eq-pc eq-pc-" + tone}><p className="eq-pc-h"><b>{title}</b><span>{xs.length}</span></p>
-        <ul id={"eq-pc-" + label}>{(open ? xs : xs.slice(0, 3)).map((s) => <li key={s.symbol}><b>{s.symbol}</b> · {s.peer!.rank} of {s.peer!.of} {s.peer!.group}<small>{peerLine(s)}</small></li>)}</ul>
+        <ul id={"eq-pc-" + label}>{(open ? xs : xs.slice(0, 3)).map((s) => <li key={s.symbol}><b title={coTitle(s)}>{shortLabel(s)}</b> · {s.peer!.rank} of {s.peer!.of} {s.peer!.group}<small>{peerLine(s)}</small></li>)}</ul>
         {xs.length > 3 && <button type="button" className="eq-more" aria-expanded={open} aria-controls={"eq-pc-" + label} onClick={() => setAll({ ...all, [label]: !open })}>{open ? "Show fewer ▴" : `Show all ${xs.length} ▾`}</button>}
         {!xs.length && <p className="sp-note">None.</p>}</div>);
   };
@@ -157,7 +158,7 @@ function LeaderCompare({ shares }: { shares: Share[] }) {
         <div className="eq-lc">{pairs.map(({ x, a, b }, i) => { const lo = Math.min(...a.v, ...b.v), hi = Math.max(...a.v, ...b.v); return (
           <div key={x.mine.symbol} className="eq-lc-c">
             <p className="sp-note">Peer group: {x.mine.peer!.group}</p>
-            <p className="eq-lc-t"><b className="sp-red">{x.mine.symbol}</b> vs group #1 <b className="sp-good">{x.top.symbol}</b></p>
+            <p className="eq-lc-t"><b className="sp-red" title={coTitle(x.mine)}>{shortLabel(x.mine)}</b> vs group #1 <b className="sp-good" title={coTitle(x.top)}>{shortLabel(x.top)}</b></p>
             <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`₹1 lakh a year ago: ${rupee(info[i].mine)} in ${x.mine.symbol}, ${rupee(info[i].theirs)} in ${x.top.symbol}`}>
               <line x1={0} x2={W} y1={H - ((100 - lo) / (hi - lo || 1)) * H} y2={H - ((100 - lo) / (hi - lo || 1)) * H} className="eq-lc-base" />
               <path d={line(b.v, lo, hi)} className="eq-lc-top" fill="none" /><path d={line(a.v, lo, hi)} className="eq-lc-me" fill="none" />

@@ -10,6 +10,7 @@ import { THRESHOLDS, arcSegments, partVar } from "../../../lib/prismReport";
 import { fmtScore, parseTechnical, ratingWord, scalePos, type TechHorizon, type TrendTone } from "../../../lib/prismTechnical";
 import { TECH_SEPARATE_NOTE, horizonCaption } from "../../../stock/prismCardLogic";
 import { BAND_RULE } from "../../../lib/scoreBands";
+import { codeText } from "../../../lib/companyLabel";
 
 export const istTime = (iso: string | null | undefined, withDate = true) => {
   if (!iso) return "—";
@@ -157,7 +158,7 @@ export function Hero({ report, actions }: { report: PrismReport; actions: Report
           <p className="pzr-kick"><Icon name="prism" />{PRISM_NAME} · Financial health</p>
           <h2>{company.name}</h2>
           <p className="pzr-meta">
-            <span className="pzr-sym">{company.symbol}</span>
+            <span className="pzr-sym">{codeText(company.symbol)}</span>
             <span>{company.industry || company.sector || "Industry unavailable"}</span>
             <span>{statementWord(report.statementType)} statements</span>
           </p>

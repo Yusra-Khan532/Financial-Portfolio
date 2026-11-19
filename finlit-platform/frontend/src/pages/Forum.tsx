@@ -10,6 +10,7 @@ import { MINUS, nf } from "../lib/format";
 import { BOARD_NAME, DISCLAIMER, PLANS, forumMe, pickCompanies, send, type CompanyFilter, type ForumCompany, type QueueItem } from "../lib/forum";
 import { BoardNote, CompanyLogo, Disclaimer, ThreadList, ThreadView, msg, useCompanyQuotes } from "../components/forum/ForumParts";
 import "../styles/forum.css";
+import { codeText, coTitle, subLine, titleOf } from "../lib/companyLabel";
 
 export { Body } from "../components/forum/ForumParts";
 
@@ -132,7 +133,7 @@ function Thread() {
       <nav className="fo-crumb" aria-label="Breadcrumb"><Link to="/forum">Discussion forums</Link>{t && <><span aria-hidden="true">›</span><Link to={`/forum/c/${t.symbol}`}>{t.company}</Link></>}<span aria-hidden="true" className="fo-crumb-last">›</span><span aria-current="page" className="fo-crumb-last">Discussion</span></nav>
       <div className="fo-notes"><BoardNote compact /><Disclaimer compact /></div>
       {tid > 0 ? <ThreadView id={tid} onBack={t ? () => nav(`/forum/c/${t.symbol}`) : undefined} backLabel={t ? `All ${t.company} discussions` : undefined}
-        header={(th) => <p className="fo-t-co"><Link to={`/forum/c/${th.symbol}`}><b>{th.symbol}</b> {th.company}</Link> · <Link to={`/stocks/${th.symbol}`}>Research report</Link></p>} />
+        header={(th) => <p className="fo-t-co"><Link to={`/forum/c/${th.symbol}`}><b title={coTitle({ symbol: th.symbol, name: th.company })}>{titleOf({ symbol: th.symbol, name: th.company })}</b> {subLine({ symbol: th.symbol, name: th.company }, th.company)}</Link> · <Link to={`/stocks/${th.symbol}`}>Research report</Link></p>} />
         : <div className="fo-empty"><b>This discussion is not available.</b></div>}
     </div>
   );
@@ -170,7 +171,7 @@ function Moderation() {
       {q.data && !q.data.items.length && <p className="muted">Nothing waiting.</p>}
       {q.data?.items.map((i) => (
         <div className="fo-q" key={i.id}>
-          <div className="fo-meta"><b>{i.status}</b><span>{BOARD_NAME[i.plan]} board</span><span>{i.symbol}</span><span>{i.author.handle} ({i.author.email}){i.author.banned && " · paused"}</span><Link to={`/forum/t/${i.threadId}`}>open</Link></div>
+          <div className="fo-meta"><b>{i.status}</b><span>{BOARD_NAME[i.plan]} board</span><span>{codeText(i.symbol)}</span><span>{i.author.handle} ({i.author.email}){i.author.banned && " · paused"}</span><Link to={`/forum/t/${i.threadId}`}>open</Link></div>
           {i.title && <h3>{i.title}</h3>}<pre>{i.body}</pre>
           {i.flagReasons.length > 0 && <div className="fo-note">Held: {i.flagReasons.join("; ")}</div>}
           {i.reports.map((r, n) => <div key={n} className="fo-meta">Report by {r.by}: {r.reason}{r.note ? ` – ${r.note}` : ""}</div>)}

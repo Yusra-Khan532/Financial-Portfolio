@@ -11,6 +11,7 @@ import { useUniverse } from "../lib/screener";
 import { useDocTitle } from "../lib/title";
 import { GoldLock, PremiumHead } from "./Premium";
 import { ChartHelp } from "../components/ChartHelp";
+import { coTitle, subLine, titleOf } from "../lib/companyLabel";
 
 const KEYS = ["pe", "pb", "roe", "roce", "operating_margin", "net_margin", "debt_to_equity", "current_ratio", "dividend_yield"];
 
@@ -69,7 +70,7 @@ export function PremiumReportPage() {
       <div className="wrap" style={{ paddingBottom: 56 }}>
         <div className="pm-search pm-noprint" style={{ marginBottom: 24 }}><Icon name="search" />
           <input ref={box} value={text} onChange={(e) => { setText(e.target.value); setOpen(true); }} onBlur={() => setTimeout(() => setOpen(false), 150)} placeholder="Choose a company, for example RELIANCE" aria-label="Choose a company" />
-          {open && sug.length > 0 && <div className="pm-sug" role="listbox">{sug.map((r) => <button key={r.symbol} role="option" aria-selected={false} onMouseDown={(e) => e.preventDefault()} onClick={() => { setText(""); nav(`/premium/report/${r.symbol}`); }}><b>{r.symbol}</b><small>{r.name}</small></button>)}</div>}</div>
+          {open && sug.length > 0 && <div className="pm-sug" role="listbox">{sug.map((r) => <button key={r.symbol} role="option" aria-selected={false} onMouseDown={(e) => e.preventDefault()} onClick={() => { setText(""); nav(`/premium/report/${r.symbol}`); }}><b title={coTitle(r)}>{titleOf(r)}</b><small>{subLine(r, r.name)}</small></button>)}</div>}</div>
         {recent.length > 0 && <div className="pm-recent pm-noprint" aria-label="Recently viewed"><span className="faint">Recent</span>{recent.map((x) => <Link key={x} className={"fchip" + (x === symbol?.toUpperCase() ? " on" : "")} to={`/premium/report/${x}`}>{x}</Link>)}</div>}
         {symbol ? <Report key={symbol} symbol={symbol.toUpperCase()} /> : <div className="pm-empty"><b>Choose a company to build its report.</b><p>Try <Link to="/premium/report/RELIANCE">RELIANCE</Link>, <Link to="/premium/report/TCS">TCS</Link> or <Link to="/premium/report/HDFCBANK">HDFCBANK</Link>.</p></div>}
       </div>

@@ -294,6 +294,8 @@
 .pfx .tw { overflow-x: auto; position: relative; }
 .pfx-table .pfx-sec { white-space: normal; align-items: flex-start; } .pfx-table .pfx-sec > span { overflow: visible; }
 .pfx-name small { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* task #246: a BSE-only company leads with its name, longer than a symbol: it wraps onto a second line inside the cell instead of widening the column */
+.pfx-name .pfx-co b { display: inline-block; max-width: 190px; white-space: normal; overflow-wrap: anywhere; vertical-align: middle; line-height: 18px; }
 .pfx-table th, .pfx-table td { padding: 12px 8px; }
 .pfx-table .pfx-sort { text-align: right; } .pfx-table th:not(.r) .pfx-sort { text-align: left; }
 .pfx-table td:nth-child(2) { max-width: 170px; }

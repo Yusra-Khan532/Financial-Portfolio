@@ -23,6 +23,7 @@ import { sp, type VRow } from "../../../lib/resultsPack";
 import { VerdictCell } from "./ResultsPack";
 import { useNseName } from "../../../lib/taxonomy";
 import "../../../styles/table-grid.css";
+import { coTitle, shortLabel, sortLabel } from "../../../lib/companyLabel";
 
 export type Ind = { name: string; companies: number; declared: number; withNumbers?: number; medianRevenueYoY?: number | null; medianProfitYoY?: number | null; medianNpmChange?: number | null;
   revenueUpShare?: number | null; profitUpShare?: number | null; marginUpShare?: number | null; beat?: number; judged?: number; beatShare?: number | null; vsMarket?: "Ahead" | "In line" | "Behind" | null;
@@ -74,7 +75,7 @@ function Drawer({ i, rot, pulse }: { i: Ind; rot: RotationRow | undefined; pulse
   const nse = useNseName();   // the group's name in NSE's spelling (Sector Pulse drops NSE's commas)
   const q = useQuarterResults({ industry: i.name, status: "declared", sort: "marketCap", dir: "desc", limit: 10 });
   const rows = (q.data?.rows ?? []) as VRow[], m = i.market, a = agreeOf(i.vsMarket, rot?.corner);
-  const big = useTableSort(rows, (r, k): SortVal => ({ company: r.symbol, size: r.cap, rev: r.revenueYoY, profit: r.profitYoY, verdict: r.verdict } as Record<string, SortVal>)[k]);
+  const big = useTableSort(rows, (r, k): SortVal => ({ company: sortLabel(r), size: r.cap, rev: r.revenueYoY, profit: r.profitYoY, verdict: r.verdict } as Record<string, SortVal>)[k]);
   const typ = useTableSort([["Revenue growth YoY", i.medianRevenueYoY, m?.medianRevenueYoY], ["Profit growth YoY", i.medianProfitYoY, m?.medianProfitYoY], ["Margin change", i.medianNpmChange, m?.medianNpmChange]] as [string, number | null | undefined, number | null | undefined][],
     (r, k): SortVal => (k === "fig" ? r[0] : k === "ind" ? r[1] : r[2]));
   const tone = (v: number | null | undefined) => (v == null ? "" : v >= 0 ? "sp-good" : "sp-red");
@@ -98,7 +99,7 @@ function Drawer({ i, rot, pulse }: { i: Ind; rot: RotationRow | undefined; pulse
         <p className="sp-cap">Biggest companies that declared</p>
         {q.data?.locked ? <p className="sp-note">Each company's verdict is part of the Silver plan.</p> : !rows.length ? <p className="sp-note">{q.isLoading ? "Loading…" : "No company has declared yet."}</p> :
           <div className="rs-dr-scroll" role="region" aria-label="Biggest companies that declared" tabIndex={0}><table className="sp-tb rs-big kit-grid"><thead><tr>{(["company:Company", "size:Size", "rev:Rev.:r", "profit:Profit:r", "verdict:Verdict"]).map((c) => { const [k, l, cls] = c.split(":"); return <SortTh key={k} k={k} label={l} className={cls} sort={big.sort} onSort={big.toggle} />; })}</tr></thead>
-            <tbody>{big.sorted.map((r) => <tr key={r.symbol}><td><Link to={`/stocks/${r.symbol}#quarter`}><b>{r.symbol}</b></Link></td><td>{r.cap ?? "–"}</td><td className={"r " + tone(r.revenueYoY)}>{sp(r.revenueYoY)}</td><td className={"r " + tone(r.profitYoY)}>{r.loss && r.profitYoY == null ? "loss" : sp(r.profitYoY)}</td><td>{r.verdict ? <span className={"rs-v rs-v-" + r.verdict.toLowerCase().replace(" ", "")}>{r.verdict}</span> : <VerdictCell r={r} />}</td></tr>)}</tbody></table></div>}
+            <tbody>{big.sorted.map((r) => <tr key={r.symbol}><td><Link to={`/stocks/${r.symbol}#quarter`}><b title={coTitle(r)}>{shortLabel(r)}</b></Link></td><td>{r.cap ?? "–"}</td><td className={"r " + tone(r.revenueYoY)}>{sp(r.revenueYoY)}</td><td className={"r " + tone(r.profitYoY)}>{r.loss && r.profitYoY == null ? "loss" : sp(r.profitYoY)}</td><td>{r.verdict ? <span className={"rs-v rs-v-" + r.verdict.toLowerCase().replace(" ", "")}>{r.verdict}</span> : <VerdictCell r={r} />}</td></tr>)}</tbody></table></div>}
         <Link className="sp-link" to={`/results/quarter?industry=${encodeURIComponent(i.name)}`}>All {i.declared} companies in {nse(i.name)} →</Link>
       </div>
     </div>

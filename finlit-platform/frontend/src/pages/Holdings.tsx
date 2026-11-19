@@ -52,6 +52,7 @@ import "../styles/sectors-pack.css";
 import "../styles/industry-pack.css";
 import "../styles/dashboard.css";
 import "../portfolio/pack/equity-pack.css";
+import { coTitle, subLine, titleOf } from "../lib/companyLabel";
 
 /** Equity portfolio: give it the names of the shares you own (typed, pasted or from a broker file) and it describes the list: how strong each share is, where the list sits by
  *  sector and size, what moves together, where the risk comes from and how the list has moved against the NIFTY 50. Names are enough; task #217 adds each share's buy history
@@ -204,7 +205,7 @@ export function HoldingsPage() {
     const h = l.ov && l.ov.status === "ready" ? l.ov : null, u = by.get(l.symbol), feed = leadList.data, ld = feed && feed.available ? feed.rows[l.symbol] : undefined, pr = h?.prism;
     const size = (capBucket(h?.marketCapCr ?? u?.market_cap ?? null)?.label.replace(" cap", "") ?? null) as Size | null;
     const peer = ld && ld.available ? { label: ld.label, raw: ld.rawLabel ?? null, rank: ld.rank, of: ld.ranked, group: ld.group, vs: ld.rel52 == null ? null : ld.rel52 * 100, bench: ld.sectorKind === "index" ? ld.sector ?? "its sector index" : "peer average", direction: ld.direction ?? null } : null;
-    return { symbol: l.symbol, industry: h?.sector ?? meta[l.symbol]?.sector ?? null, size, chg: h?.changePct ?? null, prism: pr?.final ?? null, prismWord: pr?.label ?? null, valuation: pr?.parts?.valuation ?? null, risk: pr?.parts?.risk ?? null,
+    return { symbol: l.symbol, name: l.name || h?.name || meta[l.symbol]?.name || u?.name || null, industry: h?.sector ?? meta[l.symbol]?.sector ?? null, size, chg: h?.changePct ?? null, prism: pr?.final ?? null, prismWord: pr?.label ?? null, valuation: pr?.parts?.valuation ?? null, risk: pr?.parts?.risk ?? null,
       st: pr?.shortTerm?.score ?? null, lt: pr?.longTerm?.score ?? null, stWord: pr?.shortTerm?.word ?? null, ltWord: pr?.longTerm?.word ?? null, below52: (u as { pct_from_high?: number | null } | undefined)?.pct_from_high ?? null, m1: u?.return_1m ?? null, iq: h?.finlit?.overall ?? null, iqWord: h?.finlit?.word ?? null, iqTech: h?.finlit?.pillars?.technical ?? null, peer, notCompared: ld && !ld.available ? NOT_RANKED[ld.reason] ?? "is not ranked" : leadList.data && !leadList.data.available ? NOT_RANKED[leadList.data.reason] ?? "is not ranked" : null };
   }), [lines, by, leadList.data, meta]);   // eslint-disable-line react-hooks/exhaustive-deps
   const shareOf = useMemo(() => new Map(shares.map((x) => [x.symbol, x])), [shares]);
@@ -268,7 +269,7 @@ export function HoldingsPage() {
               toast([fresh.length ? `Added ${fresh.length} ${fresh.length === 1 ? "share" : "shares"} from the PDF${withQty ? `, ${withQty === fresh.length ? "each" : withQty} with its quantity` : ""}` : "", set.length ? `quantity set for ${set.length}` : ""].filter(Boolean).join("; ") + "."); }} />}
           {readBy && <p className="pfx-note eq-isin-src" role="status">{readBy}</p>}
           {checks.length > 0 && <div className="pf-miss eq-isin" role="status"><b>Please check {checks.length === 1 ? "this line" : `these ${checks.length} lines`} (not added yet):</b>{checks.length > 1 && <button type="button" className="pfx-btn eq-addall" onClick={() => { const room = Math.max(0, cap - allSymbols.length), take = checks.filter((c) => !inTarget.has(c.symbol)).slice(0, room); portfolio.addMany(take.map((c) => ({ symbol: c.symbol, qty: 1, price: 0, isin: c.isin || isinOf?.get(c.symbol), ...pfField(goTo) }))); setChecks([]); toast(`Added ${take.length} ${take.length === 1 ? "share" : "shares"}.`); }}>Add all {checks.length}</button>}
-            <ul>{checks.slice(0, 20).map((c) => <li key={c.symbol + (c.isin || c.input)}><span>{c.input}{c.isin && c.input !== c.isin ? ` (${c.isin})` : ""} → <b>{c.symbol}</b> {c.name}. <small>{c.note}.</small></span>
+            <ul>{checks.slice(0, 20).map((c) => <li key={c.symbol + (c.isin || c.input)}><span>{c.input}{c.isin && c.input !== c.isin ? ` (${c.isin})` : ""} → <b title={coTitle(c)}>{titleOf(c)}</b> {subLine(c, c.name)}. <small>{c.note}.</small></span>
               <button type="button" className="pfx-btn" onClick={() => addChecked(c)}>Add {c.symbol}</button></li>)}</ul></div>}
           {skipped.length > 0 && <div className="pf-miss eq-isin" role="status"><b>Not added ({skipped.length}):</b>
             <ul>{skipped.slice(0, 20).map((x) => <li key={x.isin}><span>{x.input}{x.input !== x.isin ? ` (${x.isin})` : ""}: {x.note}</span></li>)}</ul>{skipped.length > 20 && <small>and {skipped.length - 20} more.</small>}</div>}
@@ -288,7 +289,7 @@ export function HoldingsPage() {
 
         {empty ? <div className="card dw-empty"><span className="dw-ei"><Icon name="wallet" /></span><b>No shares yet</b><p>Add a share by its name, symbol or ISIN, or upload the holdings file from your broker. {DEMO ? "" : <>You can also <Link to="/watchlist">start from your watchlist</Link>.</>}</p><span className="eq-empty-go"><button type="button" className="pfx-solid" onClick={() => addBox.current?.focus()}>Add a share</button><button type="button" className="pfx-btn" onClick={() => file.current?.click()}>Upload broker file</button></span>
           {money.nSales > 0 && <MoneyRow t={money} onAdd={openFor} />}
-          {sold.length > 0 && <SoldList items={sold} all={cur === "all" && pfList.length > 1} pfName={pfName} onRemoveSale={(id) => portfolio.remove(id)} />}</div> : model && <>
+          {sold.length > 0 && <SoldList items={sold} all={cur === "all" && pfList.length > 1} pfName={pfName} nameOf={(sym) => meta[sym]?.name ?? sym} onRemoveSale={(id) => portfolio.remove(id)} />}</div> : model && <>
           <TopGrid tiles={top} onOpen={(t) => setView(t, true)}
             score={scoreOn ? (sc.data && !sc.data.locked ? <ScoreBox total={sc.data.total ?? null} band={sc.data.band} shares={symbols.length} missing={symbols.filter((x) => !qtyBySymbol.get(x)).length}
               onAddQty={() => { const sym = symbols.find((x) => !qtyBySymbol.get(x)); if (sym) openFor(sym, "qty"); }} />
@@ -309,7 +310,7 @@ export function HoldingsPage() {
               errorText={DEMO ? "Scores are not available in the demo preview." : ov.error?.body?.detail} onTab={(t) => go(t)} onPeriod={(pd) => go("financials", pd)}
               peerOf={(sym) => shareOf.get(sym)} day={day} cards={tab === "overview" ? <div className="eq-cards"><Insights items={sharesCards(shares, day)} scope="eq.shares" /></div> : null}
               actions={(sym) => <button className="pfx-x" aria-label={`Remove ${sym}`} title={`Remove ${sym}${cur === "all" ? "" : ` from ${pfName(cur)}`}`} onClick={() => { st.holdings.filter((h) => h.symbol === sym && (cur === "all" || pfOf(h) === cur)).forEach((h) => portfolio.remove(h.id)); toast(`${sym} removed.`); }}>×</button>} />
-            <SoldList items={sold} all={cur === "all" && pfList.length > 1} pfName={pfName} onRemoveSale={(id, sym) => { portfolio.remove(id); setOpenLots((c) => new Set([...c, sym]));
+            <SoldList items={sold} all={cur === "all" && pfList.length > 1} pfName={pfName} nameOf={(sym) => meta[sym]?.name ?? sym} onRemoveSale={(id, sym) => { portfolio.remove(id); setOpenLots((c) => new Set([...c, sym]));
               setTimeout(() => { const r = document.getElementById(`lots-${sym}`)?.previousElementSibling as HTMLElement | null; r?.classList.add("x-flash"); r?.scrollIntoView?.({ behavior: "smooth", block: "center" }); setTimeout(() => r?.classList.remove("x-flash"), 2300); }, 150); }} />
             <SizeFold counts={sizeCount} />
             {/* Trends, Peers and Group leaders: Gold only (FinLit Prism); Silver sees a dashed lock card for each (the pack) */}

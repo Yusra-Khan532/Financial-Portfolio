@@ -17,6 +17,7 @@ import { useDocTitle } from "../lib/title";
 import { GoldLock, PremiumHead } from "./Premium";
 import { ChartHelp } from "../components/ChartHelp";
 import { ChartZoom } from "../components/ChartZoom";
+import { coTitle, subLine, titleOf } from "../lib/companyLabel";
 
 type Pt = { period: string; value: number | null; change?: number | null };
 type HRow = { category?: string; label?: string; unit?: string; history?: Pt[]; children?: HRow[] };
@@ -244,7 +245,7 @@ export function FundamentalsPage() {
               }}
               placeholder="Search a company or symbol, for example RELIANCE" aria-label="Search a company" role="combobox" aria-expanded={open && sug.length > 0} aria-controls="pm-sug" aria-autocomplete="list"
               aria-activedescendant={open && sug[active] ? `pm-o-${sug[active].symbol}` : undefined} />
-            {open && sug.length > 0 && <div className="pm-sug" id="pm-sug" role="listbox">{sug.map((r, i) => <button key={r.symbol} id={`pm-o-${r.symbol}`} role="option" aria-selected={i === active} className={i === active ? "on" : ""} onMouseDown={(e) => e.preventDefault()} onClick={() => choose(r.symbol)}><b>{r.symbol}</b><small>{r.name}</small><small style={{ marginLeft: "auto" }}>{r.sector || ""}</small></button>)}</div>}</div>
+            {open && sug.length > 0 && <div className="pm-sug" id="pm-sug" role="listbox">{sug.map((r, i) => <button key={r.symbol} id={`pm-o-${r.symbol}`} role="option" aria-selected={i === active} className={i === active ? "on" : ""} onMouseDown={(e) => e.preventDefault()} onClick={() => choose(r.symbol)}><b title={coTitle(r)}>{titleOf(r)}</b><small>{subLine(r, r.name)}</small><small style={{ marginLeft: "auto" }}>{r.sector || ""}</small></button>)}</div>}</div>
           <div className="pm-seg" role="group" aria-label="Statement type">{(["consolidated", "standalone"] as const).map((s) => <button key={s} aria-pressed={statement === s} onClick={() => set({ s: s === "consolidated" ? "" : s })}>{s === "consolidated" ? "Consolidated" : "Standalone"}</button>)}</div>
           <div className="pm-seg" role="group" aria-label="Period">{(["yearly", "quarterly"] as const).map((s) => <button key={s} aria-pressed={period === s} onClick={() => set({ p: s === "yearly" ? "" : s })}>{s === "yearly" ? "Yearly" : "Quarterly"}</button>)}</div>
         </div>

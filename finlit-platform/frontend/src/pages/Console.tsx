@@ -16,6 +16,7 @@ import { AmfiImport } from "../components/admin/AmfiImport";
 import { MacroAdmin } from "../components/admin/MacroAdmin";
 import { BriefAdmin } from "../components/admin/BriefAdmin";
 import { fundJobLine, fundPollMs } from "../lib/fundJobs";
+import { codeText } from "../lib/companyLabel";
 
 const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" }) : "—");
 const stamp = (iso: string) => new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -201,7 +202,7 @@ function Health() {
           </>
         )}
       </div>
-      {h.recentProblems.length > 0 && <div className="tw"><table className="qtt"><thead><tr><th>Company</th><th>Result</th><th>When</th><th>Detail</th></tr></thead><tbody>{h.recentProblems.map((p, i) => <tr key={i}><td><b>{p.symbol}</b></td><td>{p.status}</td><td>{stamp(p.at)}</td><td className="mono">{p.detail}</td></tr>)}</tbody></table></div>}
+      {h.recentProblems.length > 0 && <div className="tw"><table className="qtt"><thead><tr><th>Company</th><th>Result</th><th>When</th><th>Detail</th></tr></thead><tbody>{h.recentProblems.map((p, i) => <tr key={i}><td><b>{codeText(p.symbol)}</b></td><td>{p.status}</td><td>{stamp(p.at)}</td><td className="mono">{p.detail}</td></tr>)}</tbody></table></div>}
     </section>
     </>
   );

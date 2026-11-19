@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "../lib/api";
 import { Icon } from "../lib/icons";
+import { codeText } from "../lib/companyLabel";
 
 /** Discovery (task #221): companies grouped by the themes their newest investor presentation talks about (backend finlit/discovery, GET /api/discovery),
  *  bucketed as the Investor Presentation Keyword Directory (each keyword with its related terms and what to verify). Upgrade (owner, 18 Nov 2026):
@@ -103,7 +104,7 @@ export function AskDiscovery({ onLeave }: { onLeave?: () => void }) {
         {!t.companies?.length && <p className="aif-none">No company's presentation has this as its main theme{sector ? ` in ${sector}` : ""} yet.</p>}
         <ul className="aid-cos" aria-label={`Companies: ${theme}`}>
           {(t.companies ?? []).map((c) => <li key={c.symbol} className="aid-co">
-            <p className="aid-coh"><Link to={`/stocks/${encodeURIComponent(c.symbol)}`} onClick={onLeave}><b>{c.company ?? c.symbol}</b> <span>{c.symbol}</span></Link>
+            <p className="aid-coh"><Link to={`/stocks/${encodeURIComponent(c.symbol)}`} onClick={onLeave}><b>{c.company ?? c.symbol}</b> <span>{codeText(c.symbol)}</span></Link>
               <span className={"aid-st aid-st-" + (STAGE_CLASS[c.stageLabel] ?? "na")} title="The most advanced stage the company's own sentences on this theme show">{c.stageLabel}</span></p>
             {(c.sector.macro || c.sector.industry) && <p className="aid-sec">{[c.sector.macro, c.sector.sector !== c.sector.macro ? c.sector.sector : null, c.sector.industry !== c.sector.sector ? c.sector.industry : null].filter(Boolean).join(" › ")}</p>}
             {c.keywords.length > 0 && <p className="aid-kw" aria-label="Keywords found">{c.keywords.map((k) => <span key={k}>{k}</span>)}</p>}

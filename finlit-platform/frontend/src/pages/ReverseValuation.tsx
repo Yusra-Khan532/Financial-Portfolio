@@ -18,6 +18,7 @@ import "../styles/reverse.css";
 import { Info } from "../components/Info";
 import { CoLogo } from "../components/CoLogo";
 import { QUICK_PICKS, pushRvRecent, readRvRecent, type Recent } from "../lib/rvPick";
+import { codeText } from "../lib/companyLabel";
 
 type Company = { symbol: string; name: string | null; sector: string | null; price: number | null; priceAsOf: string | null; marketCap: number | null; shares: { diluted: number | null; implied: number | null }; netDebt: { value: number | null; period: string | null } };
 const MODES: { id: SolveMode; label: string; field: keyof RvInputs }[] = [
@@ -229,7 +230,7 @@ export function ReverseValuationPage() {
             {!sym && <p className="muted rv-empty">Choose a listed company to start. Its price, market value, net debt, shares and the last years of revenue and operating profit are loaded for you; every field stays editable.</p>}
             {(co.isFetching || fin.isFetching) && <p className="muted" aria-live="polite">Loading {sym}…</p>}
             {co.isError && <p className="formerr" role="alert">{(co.error?.body?.detail as string) || "Could not load this company's figures."}</p>}
-            {c && <div className="rv-head"><div><b>{c.name ?? c.symbol}</b> <span className="mono faint">{c.symbol}</span>{c.sector && <small>{c.sector}</small>}</div><div className="rv-px"><b>{rs(c.price, 2)}</b><small>Mkt cap {rs(c.marketCap)} Cr · EV {rs(inputs ? marketEv(inputs) : null)} Cr{c.priceAsOf ? ` · ${c.priceAsOf.slice(0, 10)}` : ""}</small></div></div>}
+            {c && <div className="rv-head"><div><b>{c.name ?? c.symbol}</b> <span className="mono faint">{codeText(c.symbol)}</span>{c.sector && <small>{c.sector}</small>}</div><div className="rv-px"><b>{rs(c.price, 2)}</b><small>Mkt cap {rs(c.marketCap)} Cr · EV {rs(inputs ? marketEv(inputs) : null)} Cr{c.priceAsOf ? ` · ${c.priceAsOf.slice(0, 10)}` : ""}</small></div></div>}
             {c && !fin.isFetching && !hist && <p className="formerr" role="alert">This company has no yearly revenue and operating profit in our data, so a reverse valuation cannot be built. Banks, insurers and companies without a profit history need other models.</p>}
           </section>
 

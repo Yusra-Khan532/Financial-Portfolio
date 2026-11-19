@@ -13,6 +13,7 @@ import { traded } from "../../lib/etf";
 import type { Card } from "../../lib/pulsePack";
 import type { EtfPortfolio, EtfRisk, Inside } from "../../lib/etfPortfolio";
 import { live, movesLike } from "../../lib/etfTop";
+import { coTitle, subLine, titleOf } from "../../lib/companyLabel";
 
 const SIZES = ["Large", "Mid", "Small"] as const;
 const SIZE_HEAD: Record<string, [string, string]> = { Large: ["Large", "above ₹50,000 Cr"], Mid: ["Mid", "₹10,000–50,000 Cr"], Small: ["Small", "below ₹10,000 Cr"], Unsized: ["Not sized", "not matched to a listed company"] };
@@ -223,7 +224,7 @@ export function LargestSection({ ins }: { ins: Inside }) {
       sub={`The ${rows.length} largest Indian holdings across your ETFs, with their ${model} reading.`}>
       <Scroll label="largest stocks underneath"><table className="sp-tb mfm-big kit-grid"><thead><tr><th scope="col">Stock</th><th scope="col">Macro sector</th><th scope="col">Size</th><th scope="col" className="r">Of your ETFs</th><th scope="col">Held by</th><th scope="col">{model}</th></tr></thead>
         <tbody>{shown.map((r) => <tr key={r.isin ?? r.name}>
-          <th scope="row">{r.symbol ? <Link to={`/stocks/${r.symbol}`}>{r.symbol}</Link> : r.name}<small className="mfp-sub">{r.name}</small></th><td>{(r.symbol && macroOf.get(r.symbol)) ?? r.industry ?? "–"}</td><td>{r.size ? <span className="mfm-sz">{r.size[0]}</span> : "–"}</td>
+          <th scope="row">{r.symbol ? <Link to={`/stocks/${r.symbol}`} title={coTitle({ symbol: r.symbol, name: r.name })}>{titleOf({ symbol: r.symbol, name: r.name })}</Link> : r.name}<small className="mfp-sub">{r.symbol ? subLine({ symbol: r.symbol, name: r.name }, r.name) : r.name}</small></th><td>{(r.symbol && macroOf.get(r.symbol)) ?? r.industry ?? "–"}</td><td>{r.size ? <span className="mfm-sz">{r.size[0]}</span> : "–"}</td>
           <td className="r">{r.w.toFixed(2)}%</td><td><span className="mfm-held">{r.etfs.map((s) => <span key={s}>{s}</span>)}</span></td>
           <td>{r.score?.score != null ? <span className="mff-score"><b className={"mff-num " + tone(r.score.label)}>{Math.round(r.score.score)}</b> <span className={"mff-w " + tone(r.score.label)}>{r.score.label ? r.score.label.charAt(0) + r.score.label.slice(1).toLowerCase() : ""}</span></span> : <span className="sp-note">{r.scoreWhy ?? "Not rated"}</span>}</td></tr>)}</tbody></table></Scroll>
       {rows.length > 5 && <button type="button" className="eq-more" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer ▴" : `Show all ${rows.length} ▾`}</button>}

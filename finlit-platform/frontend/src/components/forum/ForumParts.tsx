@@ -9,6 +9,7 @@ import { Logo } from "../search/parts";
 import { BOARD_NAME, DISCLAIMER, ago, buildTree, draftProblem, forumMe, linkify, pageWindow, send, validHandle, type CommentSort, type Node, type Page, type Post } from "../../lib/forum";
 import "../../styles/search.css";
 import "../../styles/forum.css";
+import { coTitle, subLine, titleOf } from "../../lib/companyLabel";
 
 export const msg = (e: unknown) => (e instanceof ApiError ? e.body.detail || e.body.status || "Failed" : "Could not reach the server.");
 const here = () => (typeof window !== "undefined" ? window.location.pathname + window.location.search : "/forum");
@@ -131,7 +132,7 @@ export function ThreadCard({ t, to, onOpen, showCompany = false, onChange }: { t
     <li className="fo-card">
       <Vote p={t} onChange={onChange} />
       <Link className="fo-card-main" to={to} onClick={onOpen ? (e) => { e.preventDefault(); onOpen(t.id); } : undefined}>
-        {showCompany && <span className="fo-card-co"><b>{t.symbol}</b> {t.company}</span>}
+        {showCompany && <span className="fo-card-co"><b title={coTitle({ symbol: t.symbol, name: t.company })}>{titleOf({ symbol: t.symbol, name: t.company })}</b> {subLine({ symbol: t.symbol, name: t.company }, t.company)}</span>}
         <h3>{t.title}</h3>
         {t.body && <p>{t.body}</p>}
         <span className="fo-card-meta"><Avatar name={t.author.handle} /><span>{t.author.handle}{t.author.staff && <em className="fo-staff">FinLit team</em>}</span>

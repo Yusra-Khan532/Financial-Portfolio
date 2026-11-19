@@ -18,6 +18,7 @@ import type { IndustryPage, RankedStock } from "../../../lib/sectors";
 import type { IndustryYear } from "../../../lib/sectorExtra";
 import type { RotationCard } from "../../../lib/rotation";
 import type { StateKey } from "../../../lib/sectorHistory";
+import { coTitle, subLine, titleOf } from "../../../lib/companyLabel";
 
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -176,7 +177,7 @@ export function StocksInd({ p }: { p: IndustryPage }) {
           <th scope="col">Size<Tip text="FinLit's size scale: Large above ₹50,000 Cr, Mid ₹10,000–50,000 Cr, Small below ₹10,000 Cr." /></th>
           <th scope="col">Vs its peers<Tip text="Leader, In line, Laggard: each share's price over the last 12 months against similar companies and its sector index. It describes the past, not the future. A dash means the stock is not in a FinLit peer group." /></th></tr></thead>
         <tbody>{shown.map((s, i) => { const t = tierWord(s); return (
-          <tr key={s.symbol}><td>{s.rank_6m ?? i + 1}</td><td><Link to={`/stocks/${s.symbol}`} className="ip-sym"><CoLogo symbol={s.symbol} name={s.name} size={24} inline /><span><b>{s.symbol}</b><small>{s.name}</small></span></Link></td>
+          <tr key={s.symbol}><td>{s.rank_6m ?? i + 1}</td><td><Link to={`/stocks/${s.symbol}`} className="ip-sym"><CoLogo symbol={s.symbol} name={s.name} size={24} inline /><span><b title={coTitle(s)}>{titleOf(s)}</b><small>{subLine(s, s.name)}</small></span></Link></td>
             <td className={"r " + ((s.return_6m_pct ?? 0) >= 0 ? "sp-good" : "sp-red")}>{signed(s.return_6m_pct)}</td>
             <td>{s.quarter_name ? <span className={"sp-q sp-q" + (s.quarter ?? 0)}>{s.quarter_name}</span> : "–"}</td>
             <td>{t ? <span className={"sp-chip " + (t === "Strong" ? "sp-st-bouncing" : "sp-st-sold_off")}>{t}</span> : "–"}</td>
@@ -193,7 +194,7 @@ export function NotCountedInd({ p }: { p: IndustryPage }) {
   return (
     <details className="sp-sec sp-fold">
       <summary><span><b className="sp-ft">Not counted: {n} {name} stocks</b><small>Too small, too thinly traded or too recently listed to count in the reading</small></span><span className="sp-show">Show ▾</span></summary>
-      {p.not_counted ? <><p className="sp-note">{p.not_counted.text}</p><ul className="ip-nc">{p.not_counted.stocks.map((s) => <li key={s.symbol}><Link to={`/stocks/${s.symbol}`}><b>{s.symbol}</b> {s.name}</Link></li>)}</ul></>
+      {p.not_counted ? <><p className="sp-note">{p.not_counted.text}</p><ul className="ip-nc">{p.not_counted.stocks.map((s) => <li key={s.symbol}><Link to={`/stocks/${s.symbol}`}><b title={coTitle(s)}>{titleOf(s)}</b> {subLine(s, s.name)}</Link></li>)}</ul></>
         : <LockedBlock plan={p.locked?.not_counted ?? "silver"} title="The list of stocks that are not counted is part of the Silver plan">It names each stock of this industry that is left out of the readings.</LockedBlock>}
     </details>
   );

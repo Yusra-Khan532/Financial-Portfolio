@@ -5,6 +5,7 @@ import { ledgerOf, pfOf, soldInFull, type Money } from "../lib/ledger";
 import type { Holding } from "../lib/portfolio";
 import { dfmt, dshort, inr, pct, qf, sinr, tone } from "./money";
 import "./holdings-kit.css";
+import { coTitle, isBseCode, titleOf } from "../lib/companyLabel";
 
 export function MoneyRow({ t, onAdd, noun = ["share", "shares"], today = true, nameOf = (s: string) => s }: { t: Money; onAdd: (symbol: string, what: "qty" | "price") => void; noun?: [string, string]; today?: boolean; nameOf?: (symbol: string) => string }) {
   if (!t.n && !t.nSales) return null;
@@ -44,7 +45,7 @@ export function soldOf(hs: Holding[], pf: string | "all"): SoldItem[] {
   return out.sort((a, b) => (b.d1 > a.d1 ? 1 : b.d1 < a.d1 ? -1 : 0));
 }
 
-export function SoldList({ items, all, pfName, onRemoveSale, noun = ["share", "shares"] }: { items: SoldItem[]; all: boolean; pfName: (id: string) => string; onRemoveSale: (id: string, symbol: string) => void; noun?: [string, string] }) {
+export function SoldList({ items, all, pfName, onRemoveSale, noun = ["share", "shares"], nameOf = (s: string) => s }: { items: SoldItem[]; all: boolean; pfName: (id: string) => string; onRemoveSale: (id: string, symbol: string) => void; noun?: [string, string]; /** Task #246: a share's company name, so a BSE-only share shows its name first. */ nameOf?: (symbol: string) => string }) {
   const [open, setOpen] = useState(false), [more, setMore] = useState<Set<string>>(new Set());
   if (!items.length) return null;
   const ok = items.every((x) => x.booked != null), tot = items.reduce((a, x) => a + (x.booked ?? 0), 0);
@@ -57,7 +58,7 @@ export function SoldList({ items, all, pfName, onRemoveSale, noun = ["share", "s
         <thead><tr><th scope="col">{noun[0].charAt(0).toUpperCase() + noun[0].slice(1)}</th>{all && <th scope="col">Account</th>}<th scope="col" className="r">Bought</th><th scope="col" className="r">Sold for</th>
           <th scope="col" className="r">Booked</th><th scope="col" className="r">%</th><th scope="col">Held</th><th scope="col"><span className="sr-only">Buys and sales</span></th></tr></thead>
         <tbody>{items.map((x) => { const k = `${x.pf}:${x.symbol}`, op = more.has(k);
-          return [<tr key={k}><td><b>{x.symbol}</b><small>{x.buys} {x.buys === 1 ? "buy" : "buys"} · {x.sales} {x.sales === 1 ? "sale" : "sales"}</small></td>
+          return [<tr key={k}><td><b title={noun[0] === "share" ? coTitle({ symbol: x.symbol, name: nameOf(x.symbol) !== x.symbol ? nameOf(x.symbol) : null }) : undefined}>{noun[0] === "share" ? titleOf({ symbol: x.symbol, name: nameOf(x.symbol) !== x.symbol ? nameOf(x.symbol) : null }) : x.symbol}</b><small>{noun[0] === "share" && isBseCode(x.symbol) && nameOf(x.symbol) !== x.symbol ? `BSE ${x.symbol} · ` : ""}{x.buys} {x.buys === 1 ? "buy" : "buys"} · {x.sales} {x.sales === 1 ? "sale" : "sales"}</small></td>
             {all && <td data-l="Account"><span className="acc-tag">{pfName(x.pf)}</span></td>}
             <td className="r" data-l="Bought">{inr(x.bc)}<small>{qf(x.bq)} bought</small></td><td className="r" data-l="Sold for">{inr(x.sg)}<small>{qf(x.sq)} sold</small></td>
             <td className="r" data-l="Booked"><b className={tone(x.booked)}>{sinr(x.booked)}</b></td>

@@ -5,6 +5,7 @@ import { useThemeKey } from "../../lib/ui";
 import { CoLogo } from "../CoLogo";
 import type { Draw, PanelRow } from "./ChartPanel";
 import "../../styles/chartpanel.css";
+import { coTitle, subLine, titleOf } from "../../lib/companyLabel";
 
 /** The Charts view of a screen: nine cards a page, each with a 6-month daily chart (loaded when it scrolls into view), the pattern drawn when the screen found one, and its facts
  *  in one line. A card opens the same chart panel as a table row. */
@@ -47,7 +48,7 @@ export function ChartCards({ rows, onOpen }: { rows: (CardRow & { facts?: [strin
       {rows.map((r) => (
         <li key={r.symbol}>
           <button type="button" className="cc-card" onClick={() => onOpen(r)} aria-label={`Open the ${r.name || r.symbol} chart`}>
-            <span className="cc-h"><CoLogo symbol={r.symbol} name={r.name} size={24} /><span><b>{r.symbol}</b><small>{r.name}</small></span></span>
+            <span className="cc-h"><CoLogo symbol={r.symbol} name={r.name} size={24} /><span><b title={coTitle(r)}>{titleOf(r)}</b><small>{subLine(r, r.name)}</small></span></span>
             <MiniChart symbol={r.symbol} draw={r.draw} />
             <span className="cc-f">{r.facts?.filter(([, v]) => v != null).map(([k, v]) => `${k} ${v}`).join(" · ") || r.sector || ""}</span>
           </button>

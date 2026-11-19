@@ -11,6 +11,7 @@ import { Icon } from "../../../lib/icons";
 import { PRISM_NAME, score1, type PrismReport } from "../../../lib/prism";
 import { LabelChip } from "./Hero";
 import "../../../styles/prism220.css";
+import { coTitle, shortLabel } from "../../../lib/companyLabel";
 
 /** The disclaimer, the same at the top and in the footer; its last sentence is the proprietary one (README 1.4). */
 export const PRISM_DISCLAIMER = "This report describes the company's financial health from its filings and market prices, with estimates where information is missing. The FinLit Prism score is calculated from many parameters, and not all of them are shown in this report. It is not an investment recommendation or a prediction of future returns. The FinLit Prism model, its parameters and how it combines them are proprietary to FinLit Ventures.";
@@ -115,7 +116,7 @@ export function PrismSecNav({ report }: { report: PrismReport }) {
     <div className={"pzn" + (past ? " xcmp" : "")} id="secnav" ref={ref}>
       <div className="pzn-in">
         <a className="pzn-co" href="#prism" onClick={jump("prism")} title="Back to the score card" aria-hidden={!past} tabIndex={past ? 0 : -1}>
-          <b>{report.company.symbol}</b><span className="pzn-k">Prism</span>
+          <b title={coTitle(report.company)}>{shortLabel(report.company)}</b><span className="pzn-k">Prism</span>
           {rated ? <><span className="pzn-v">{score1(r.final)}</span><LabelChip label={r.label} /></> : <span className="pzn-k">Not rated</span>}
         </a>
         <nav ref={navRef} aria-label={`${PRISM_NAME} report sections`}>

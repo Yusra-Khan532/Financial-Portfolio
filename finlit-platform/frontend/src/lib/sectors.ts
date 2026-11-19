@@ -56,7 +56,7 @@ export type GroupRow = {
 export type MarketNow = { date: string; nifty50: number | null; nifty50_200d_average: number | null; pct_vs_200d: number | null; above_200d: boolean | null; note: string | null;
   /** "200-day exponential average": the name to print for the average. */
   average_label?: string };
-export type LeaderFlag = { symbol: string; group: string; group_slug: string; tier: string; tier_code?: number; sessions_ago: number; new_today: boolean; quarter: number | null; state: StateName; when?: string };
+export type LeaderFlag = { symbol: string; name?: string | null; group: string; group_slug: string; tier: string; tier_code?: number; sessions_ago: number; new_today: boolean; quarter: number | null; state: StateName; when?: string };
 export type Universe = { date: string; stocks_with_industry_traded: number; meet_rules: number; counted_in_groups_with_reading: number; not_counted: number; text?: string };
 export type StudyFigures = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 export type Board = {

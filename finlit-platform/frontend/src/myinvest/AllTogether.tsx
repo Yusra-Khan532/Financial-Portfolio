@@ -10,6 +10,7 @@ import { MarketFall } from "../portfolio/pack/MarketFall";
 import "../portfolio/pack/market-fall.css";
 import "../styles/sectors-pack.css";   // task #235: the fall picture's section heading and its ⓘ
 import { BandStrip, KeyFigures, Notes, ScoreWord, SecHead, ShowAll, Stack, type Note } from "./parts";
+import { coTitle, subLine, titleOf } from "../lib/companyLabel";
 
 export const ALL_SECTIONS = [
   { id: "mi-money", label: "Your money" }, { id: "mi-made", label: "Made of" }, { id: "mi-sectors", label: "Sectors and sizes" },
@@ -161,7 +162,7 @@ function Every({ d, filter, setFilter }: { d: AllInvestments; filter: Filter; se
           <thead><tr><th scope="col">Company</th><th scope="col">All together</th><th scope="col">Held</th><th scope="col" className="r">Direct</th><th scope="col" className="r">Through funds</th><th scope="col" className="r">Through ETFs</th><th scope="col">Size</th><th scope="col">{model}</th><th scope="col">Against peers</th></tr></thead>
           <tbody>{shown.map((c) => (
             <tr key={(c.symbol ?? "") + c.name}>
-              <th scope="row">{c.symbol ? <Link to={`/stocks/${encodeURIComponent(c.symbol)}`}><b>{c.symbol}</b></Link> : <b>{c.name}</b>}<small>{c.symbol ? c.name + " · " : ""}{c.macro}</small>{c.via.length > 0 && <small className="mi-via">{c.via.join(" · ")}</small>}</th>
+              <th scope="row">{c.symbol ? <Link to={`/stocks/${encodeURIComponent(c.symbol)}`}><b title={coTitle({ symbol: c.symbol, name: c.name })}>{titleOf({ symbol: c.symbol, name: c.name })}</b></Link> : <b>{c.name}</b>}<small>{c.symbol ? (subLine({ symbol: c.symbol, name: c.name }, c.name) ?? "") + " · " : ""}{c.macro}</small>{c.via.length > 0 && <small className="mi-via">{c.via.join(" · ")}</small>}</th>
               <td className="mi-allc"><span className="mi-mini"><i style={{ width: `${(c.all / max) * 100}%` }} /></span><b>{pctOf(c.all, 2)}</b></td>
               <td><span className="mi-held">{(["D", "F", "E"] as const).map((m) => <i key={m} aria-hidden={c.held.includes(m) ? undefined : true} className={c.held.includes(m) ? "on m" + m : ""} title={{ D: "Direct", F: "Through a fund", E: "Through an ETF" }[m]}>{m}</i>)}</span></td>
               <td className="r">{c.direct ? pctOf(c.direct, 2) : "—"}</td><td className="r">{c.funds ? pctOf(c.funds, 2) : "—"}</td><td className="r">{c.etfs ? pctOf(c.etfs, 2) : "—"}</td>
