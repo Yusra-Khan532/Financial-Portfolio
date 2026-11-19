@@ -89,12 +89,12 @@ export function useScreener(mode: Mode) {
   const setIqLabel = (l: IqLabel) => edit((d) => ({ ...d, iqLabels: toggle(d.iqLabels, l) }));
   const setTech = (k: TechKey, b: TechBand) => edit((d) => ({ ...d, tech: { ...d.tech, [k]: toggle(d.tech[k], b) } }));
   /** Task #257 (SHARED §1): tick or untick a macro sector, sector or industry; a lower choice that no longer fits is taken off, and its names are returned for the message. */
-  const setLevel = (level: "macros" | "secs" | "industries", name: string): string[] => {
+  const setLevel = (level: "macros" | "nsecs" | "industries", name: string): string[] => {
     const next = fitLevels({ ...draft, [level]: toggle(draft[level], name) });
     edit(() => next.f);
     return next.dropped;
   };
-  const clearLevel = (level: "macros" | "secs" | "industries") => edit((d) => fitLevels({ ...d, [level]: [] }).f);
+  const clearLevel = (level: "macros" | "nsecs" | "industries") => edit((d) => fitLevels({ ...d, [level]: [] }).f);
   const setIqGroup = (id: string) => { const g = IQ_GROUPS.find((x) => x.id === id)!; edit((d) => ({ ...d, iqLabels: iqGroupOn(d, g) ? d.iqLabels.filter((l) => !g.labels.includes(l)) : [...new Set([...d.iqLabels, ...g.labels])] })); };
 
   const togglePick = (s: string) => setPicked((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]));

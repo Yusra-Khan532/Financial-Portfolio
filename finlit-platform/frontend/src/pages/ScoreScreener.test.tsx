@@ -380,7 +380,7 @@ describe("Basic stock screener page", () => {
     await waitFor(() => expect(loc()).toBe("/score-screener?ind=Banks"));
     p = panel("Macro sector"); fireEvent.click(opt(p, "Commodities"));                             // Banks is not inside Commodities: taken off, with a message
     expect(p.getByRole("status").textContent).toBe("Banks was taken off: not inside your other choice.");
-    await waitFor(() => expect(loc()).toBe("/score-screener?mac=Commodities"));
+    await waitFor(() => expect(loc()).toBe("/score-screener?macro=Commodities"));
     closePanel();
     p = panel("Industry");
     expect(p.getAllByRole("checkbox").map((c) => c.closest("label")!.querySelector("span")!.textContent)).toContain("Ferrous Metals");

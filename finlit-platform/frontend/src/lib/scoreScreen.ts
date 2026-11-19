@@ -98,7 +98,7 @@ export type Filters = {
   /** NSE industries (any of these): the Sector and industry filter (14 Nov N-28 / N-34). `sectors` above is the old filter on the company's own label, kept so old links still work. */
   industries: string[];
   /** task #257 (SHARED §1): NSE's macro sectors (12) and sectors (22): three linked lists with `industries`, AND across the three, OR inside one */
-  macros: string[]; secs: string[];
+  macros: string[]; nsecs: string[];
   bands: Record<BandKey, Band[]>;
   ranges: Record<RangeKey, Range>;
   labels: PrismLabel[];     // FinLit Prism rating labels (any of these)
@@ -108,12 +108,12 @@ export type Filters = {
   top: number | null;       // keep only the first N by FinLit IQ among the companies that pass every other filter (the Top 10 quick views)
 };
 export const emptyFilters = (): Filters => ({
-  caps: [], sectors: [], industries: [], macros: [], secs: [],
+  caps: [], sectors: [], industries: [], macros: [], nsecs: [],
   bands: { f: [], t: [], o: [], q: [], g: [], p: [], b: [] },
   ranges: Object.fromEntries(RANGE_KEYS.map((k) => [k, { min: null, max: null }])) as Filters["ranges"],
   labels: [], iqLabels: [], rated: false, tech: { st: [], lt: [] }, top: null,
 });
-export const cloneFilters = (f: Filters): Filters => ({ caps: [...f.caps], sectors: [...f.sectors], industries: [...(f.industries ?? [])], macros: [...(f.macros ?? [])], secs: [...(f.secs ?? [])], bands: Object.fromEntries(BAND_KEYS.map((k) => [k, [...f.bands[k]]])) as Filters["bands"],
+export const cloneFilters = (f: Filters): Filters => ({ caps: [...f.caps], sectors: [...f.sectors], industries: [...(f.industries ?? [])], macros: [...(f.macros ?? [])], nsecs: [...(f.nsecs ?? [])], bands: Object.fromEntries(BAND_KEYS.map((k) => [k, [...f.bands[k]]])) as Filters["bands"],
   ranges: Object.fromEntries(RANGE_KEYS.map((k) => [k, { ...f.ranges[k] }])) as Filters["ranges"], labels: [...f.labels], iqLabels: [...f.iqLabels], rated: f.rated, tech: { st: [...f.tech.st], lt: [...f.tech.lt] }, top: f.top });
 
 /** Each band runs up to, but not including, the start of the next one, so a fractional score (44.6) is in a band and never between two. */
@@ -178,13 +178,13 @@ const rangeValue = (r: Item, k: RangeKey) => (k === "dh" ? r.pct_from_high ?? nu
 const bandValue = (r: Item, k: BandKey) => (k === "f" ? r.f : k === "t" ? r.t : k === "o" ? r.overall : r[PILLARS.find((x) => x.k === k)!.col]);
 
 /** True when the company passes every filter. `skip` leaves one group out (used for the live counts beside the size and sector options). */
-export type Skip = "caps" | "sectors" | "mac" | "sec" | "ind" | "iq";
+export type Skip = "caps" | "sectors" | "macro" | "nsec" | "ind" | "iq";
 export function passes(r: Item, f: Filters, skip?: Skip): boolean {
   if (skip !== "caps" && f.caps.length && !(r.cap && f.caps.includes(r.cap))) return false;
   if (skip !== "sectors" && f.sectors.length && !(r.sector && f.sectors.includes(r.sector))) return false;
   if (skip !== "sectors" && skip !== "ind" && f.industries?.length && !(r.nse_industry && f.industries.includes(r.lv?.industry ?? r.nse_industry))) return false;
-  if (skip !== "mac" && f.macros?.length && !(r.lv && f.macros.includes(r.lv.macro))) return false;
-  if (skip !== "sec" && f.secs?.length && !(r.lv && f.secs.includes(r.lv.sector))) return false;
+  if (skip !== "macro" && f.macros?.length && !(r.lv && f.macros.includes(r.lv.macro))) return false;
+  if (skip !== "nsec" && f.nsecs?.length && !(r.lv && f.nsecs.includes(r.lv.sector))) return false;
   if (f.rated && !hasPrism(r)) return false;
   if (skip !== "iq" && f.iqLabels.length && !f.iqLabels.includes(iqLabelOf(r.overall))) return false;
   if (f.labels.length && !(isLabel(r.prism_label) && f.labels.includes(r.prism_label))) return false;
@@ -226,15 +226,15 @@ export const sectorsOf = (macros: string[]): string[] => (macros.length ? NSE_SE
 export const industriesOf = (macros: string[], secs: string[]) => INDUSTRY_NAMES.filter((i) => (!secs.length || secs.includes(NSE_INDUSTRY[i][0])) && (!macros.length || macros.includes(NSE_INDUSTRY[i][1]))).sort((a, b) => a.localeCompare(b));
 export function levelCounts(items: Item[], f: Filters): Levels {
   const count = (skip: Skip, key: (r: Item) => string | null) => { const m = new Map<string, number>(); for (const r of items) { const k = key(r); if (k && passes(r, f, skip)) m.set(k, (m.get(k) ?? 0) + 1); } return m; };
-  const mac = count("mac", (r) => r.lv?.macro ?? null), sec = count("sec", (r) => r.lv?.sector ?? null), ind = count("ind", (r) => r.lv?.industry ?? null);
+  const mac = count("macro", (r) => r.lv?.macro ?? null), sec = count("nsec", (r) => r.lv?.sector ?? null), ind = count("ind", (r) => r.lv?.industry ?? null);
   const opts = (names: readonly string[], m: Map<string, number>) => names.map((name) => ({ name, n: m.get(name) ?? 0, on: (m.get(name) ?? 0) > 0 })).sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
-  return { macro: opts(NSE_MACRO, mac), sector: opts(sectorsOf(f.macros ?? []), sec), industry: opts(industriesOf(f.macros ?? [], f.secs ?? []), ind) };
+  return { macro: opts(NSE_MACRO, mac), sector: opts(sectorsOf(f.macros ?? []), sec), industry: opts(industriesOf(f.macros ?? [], f.nsecs ?? []), ind) };
 }
 /** Picking at one level takes off a lower-level choice that no longer fits (SHARED §1): returns the new filters and the names taken off. */
 export function fitLevels(f: Filters): { f: Filters; dropped: string[] } {
-  const n = cloneFilters(f), okSec = sectorsOf(n.macros), okInd = industriesOf(n.macros, n.secs);
-  const dropped = [...n.secs.filter((s) => !okSec.includes(s)), ...n.industries.filter((i) => NSE_INDUSTRY[i] && !okInd.includes(i))];
-  n.secs = n.secs.filter((s) => okSec.includes(s)); n.industries = n.industries.filter((i) => !NSE_INDUSTRY[i] || okInd.includes(i));
+  const n = cloneFilters(f), okSec = sectorsOf(n.macros), okInd = industriesOf(n.macros, n.nsecs);
+  const dropped = [...n.nsecs.filter((s) => !okSec.includes(s)), ...n.industries.filter((i) => NSE_INDUSTRY[i] && !okInd.includes(i))];
+  n.nsecs = n.nsecs.filter((s) => okSec.includes(s)); n.industries = n.industries.filter((i) => !NSE_INDUSTRY[i] || okInd.includes(i));
   return { f: n, dropped };
 }
 /** SPEC §3: the Basic FinLit IQ rating in three groups, on the FinLit IQ's own words (Strong or Healthy, Below Healthy, Not rated); kept as `iqLabels`. */
@@ -309,8 +309,8 @@ export function chipsFor(f: Filters): Chip[] {
   const out: Chip[] = [];
   if (f.caps.length) out.push({ id: "caps", label: `Market cap: ${CAPS.filter((c) => f.caps.includes(c)).join(", ")}` });
   f.sectors.forEach((s) => out.push({ id: "sector:" + s, label: s }));
-  (f.macros ?? []).forEach((s) => out.push({ id: "mac:" + s, label: `Macro sector: ${s}` }));
-  (f.secs ?? []).forEach((s) => out.push({ id: "sec:" + s, label: `Sector: ${s}` }));
+  (f.macros ?? []).forEach((s) => out.push({ id: "macro:" + s, label: `Macro sector: ${s}` }));
+  (f.nsecs ?? []).forEach((s) => out.push({ id: "nsec:" + s, label: `Sector: ${s}` }));
   (f.industries ?? []).forEach((s) => out.push({ id: "ind:" + s, label: NSE_INDUSTRY[s] ? `Industry: ${s}` : s }));
   BAND_KEYS.forEach((k) => { if (f.bands[k].length) out.push({ id: "band:" + k, label: `${NAMES[k]}: ${BAND_ORDER.filter((b) => f.bands[k].includes(b)).map((b) => BANDS[b].word).join(", ")}` }); });
   RANGE_KEYS.forEach((k) => { const r = f.ranges[k]; if (r.min != null || r.max != null) {
@@ -328,8 +328,8 @@ export function removeChip(f: Filters, id: string): Filters {
   if (id === "caps") n.caps = [];
   else if (id.startsWith("sector:")) n.sectors = n.sectors.filter((s) => s !== id.slice(7));
   else if (id.startsWith("ind:")) n.industries = n.industries.filter((s) => s !== id.slice(4));
-  else if (id.startsWith("mac:")) return fitLevels({ ...n, macros: n.macros.filter((s) => s !== id.slice(4)) }).f;
-  else if (id.startsWith("sec:")) n.secs = n.secs.filter((s) => s !== id.slice(4));
+  else if (id.startsWith("macro:")) return fitLevels({ ...n, macros: n.macros.filter((s) => s !== id.slice(6)) }).f;
+  else if (id.startsWith("nsec:")) n.nsecs = n.nsecs.filter((s) => s !== id.slice(5));
   else if (id.startsWith("band:")) n.bands[id.slice(5) as BandKey] = [];
   else if (id.startsWith("range:")) n.ranges[id.slice(6) as RangeKey] = { min: null, max: null };
   else if (id === "labels") n.labels = [];
@@ -423,9 +423,9 @@ export function parseState(p: URLSearchParams, scope: Scope = "all"): State {
   const caps = (p.get("cap") || "").split(",");
   f.caps = CAPS.filter((c) => caps.includes(c));
   const sec = [...new Set(p.getAll("sector").filter(Boolean))];
-  f.secs = sec.filter((x) => (NSE_SECTORS as readonly string[]).includes(x));      // task #257: ?sector=Capital+Goods is NSE's sector (22) ...
+  f.nsecs = sec.filter((x) => (NSE_SECTORS as readonly string[]).includes(x));      // task #257: ?sector=Capital+Goods is NSE's sector (22) ...
   f.sectors = sec.filter((x) => !(NSE_SECTORS as readonly string[]).includes(x));  // ... any other name is the older label filter, so old links keep working
-  f.macros = [...new Set(p.getAll("mac").filter((x) => (NSE_MACRO as readonly string[]).includes(x)))];
+  f.macros = [...new Set(p.getAll("macro").filter((x) => (NSE_MACRO as readonly string[]).includes(x)))];
   f.industries = [...new Set(p.getAll("ind").filter(Boolean))];
   const finlit = scope !== "advanced", prism = scope !== "basic";
   BAND_KEYS.forEach((k) => { f.bands[k] = finlit ? parseBands(p.get(BAND_PARAM[k]) ?? (k === "q" && isBandList(p.get("q")) ? p.get("q") : null)) : []; });
@@ -453,8 +453,8 @@ export function parseState(p: URLSearchParams, scope: Scope = "all"): State {
 export function serializeState(s: State): URLSearchParams {
   const p = new URLSearchParams(), f = s.filters;
   if (f.caps.length) p.set("cap", CAPS.filter((c) => f.caps.includes(c)).join(","));
-  (f.macros ?? []).forEach((x) => p.append("mac", x));
-  (f.secs ?? []).forEach((x) => p.append("sector", x));
+  (f.macros ?? []).forEach((x) => p.append("macro", x));
+  (f.nsecs ?? []).forEach((x) => p.append("sector", x));
   f.sectors.forEach((x) => p.append("sector", x));
   f.industries.forEach((x) => p.append("ind", x));
   BAND_KEYS.forEach((k) => { if (f.bands[k].length) p.set(BAND_PARAM[k], BAND_ORDER.filter((b) => f.bands[k].includes(b)).join(",")); });

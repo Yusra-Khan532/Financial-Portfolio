@@ -77,12 +77,12 @@ export function HeaderFilters({ s, levelNote }: { s: Screener; levelNote?: (drop
     return () => { document.removeEventListener("keydown", key); document.removeEventListener("mousedown", out); };
   }, [open]);   // eslint-disable-line react-hooks/exhaustive-deps
   const d = s.draft, sc = scoreCount(s);
-  const pick = (level: "macros" | "secs" | "industries") => (name: string) => {
+  const pick = (level: "macros" | "nsecs" | "industries") => (name: string) => {
     const dropped = s.setLevel(level, name);
     setNote(dropped.length ? (levelNote?.(dropped) ?? `${dropped.join(", ")} ${dropped.length === 1 ? "was" : "were"} taken off: not inside your other choice.`) : null);
   };
   const B: { id: Panel; label: string; n: number; title?: string }[] = [
-    { id: "cap", label: "Market cap", n: d.caps.length }, { id: "mac", label: "Macro sector", n: d.macros.length }, { id: "sec", label: "Sector", n: d.secs.length },
+    { id: "cap", label: "Market cap", n: d.caps.length }, { id: "mac", label: "Macro sector", n: d.macros.length }, { id: "sec", label: "Sector", n: d.nsecs.length },
     { id: "ind", label: "Industry", n: d.industries.length }, { id: "iq", label: sc ? `FinLit IQ · ${sc}` : "FinLit IQ", n: 0 }, { id: "high", label: "52-week high", n: highActive(s) }];
   const body: Record<Panel, () => ReactNode> = {
     cap: () => (<>
@@ -92,7 +92,7 @@ export function HeaderFilters({ s, levelNote }: { s: Screener; levelNote?: (drop
       <div className="hf-pf"><button type="button" className="hf-lnk" onClick={() => s.setDraft((x) => ({ ...x, caps: [] }))} disabled={!d.caps.length}>Clear</button><span>Counts follow the other filters</span></div>
     </>),
     mac: () => <LevelList title="Macro sector" all={12} opts={s.levels.macro} picked={d.macros} onPick={pick("macros")} onClear={() => s.clearLevel("macros")} note={note} />,
-    sec: () => <LevelList title="Sector" all={22} opts={s.levels.sector} picked={d.secs} onPick={pick("secs")} onClear={() => s.clearLevel("secs")} note={note} />,
+    sec: () => <LevelList title="Sector" all={22} opts={s.levels.sector} picked={d.nsecs} onPick={pick("nsecs")} onClear={() => s.clearLevel("nsecs")} note={note} />,
     ind: () => <LevelList title="Industry" all={59} opts={s.levels.industry} picked={d.industries} onPick={pick("industries")} onClear={() => s.clearLevel("industries")} note={note} />,
     iq: () => (s.locked ? <div className="hf-lock"><b>Score filters are part of Silver</b><span>Filter by the FinLit IQ and its five scores with Silver.</span>
       <button type="button" className="btn primary" onClick={() => s.upgrade("silver", "Score filters come with the Silver plan.")}>Unlock with Silver</button></div> : <ScorePanel s={s} />),
