@@ -19,7 +19,7 @@ describe("More filters: F&O stocks only and Liquid only", () => {
     render(<F />);
     fireEvent.click(screen.getByRole("button", { name: /More filters/ }));
     const labels = screen.getAllByRole("checkbox").map((c) => c.closest("label")!.textContent);
-    expect(labels.slice(2)).toEqual(["F&O stocks onlyStocks with futures and options contracts on NSE.218", "Liquid onlyAn average of ₹10 Cr or more traded a day over the last 20 sessions.853"]);
+    expect(labels.slice(2, 4)).toEqual(["F&O stocks onlyStocks with futures and options contracts on NSE.218", "Liquid onlyAn average of ₹10 Cr or more traded a day over the last 20 sessions.853"]);      // round 3b: the two sector filters follow on Advanced
     fireEvent.click(screen.getByRole("checkbox", { name: /F&O stocks only/ }));
     fireEvent.click(screen.getByRole("checkbox", { name: /Liquid only/ }));
     expect(screen.getByRole("button", { name: /More filters · 2/ })).toBeTruthy();

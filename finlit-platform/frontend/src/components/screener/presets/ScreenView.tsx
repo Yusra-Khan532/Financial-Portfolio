@@ -4,7 +4,7 @@
 // bar (P3), the toolbar and the filters that are on (P4), the notes line, the table with three heading rows (P5), the selection bar (P6, only with a selection),
 // the pager (P7), Left the list (P8, a drop-down) and the disclaimer; Expand table opens the whole list over the window (P10).
 import { titleOf, subOf, codeNote, exchangeTag } from "../../../lib/companyLabel";
-import { Fragment, useCallback, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChartPanel, type PanelRow } from "../ChartPanel";
 import { ChartCards } from "../ChartCards";
@@ -24,9 +24,9 @@ import {
 import type { PresetRoute } from "./usePresetRoute";
 import "../../../styles/presets.css";
 import { CoLogo } from "../../CoLogo";
-import { INFO, INFO_ASON_GAINERS, INFO_BAND_LIST, INFO_BAND_SCREEN, PsxInfo } from "./PsxInfo";
+import { INFO, INFO_ASON_GAINERS, INFO_BAND_LIST, INFO_BAND_SCREEN, INFO_BAND_SECTOR, PsxInfo } from "./PsxInfo";
 import { isFeatured, Shine } from "./ScreensStrip";
-import { DateBar, Dropdown, ExpandLayer, FilterChips, FilterMenus, LeftDrop, Opt, SelectionBar, day } from "./ScreenParts";
+import { DateBar, Dropdown, ExpandLayer, FilterChips, FilterMenus, IndustryBoard, LeftDrop, Opt, SelectionBar, day } from "./ScreenParts";
 
 /** What Top gainers says while fewer than two closes are stored (task #64, D-2: the handover's words). */
 export const GAINERS_EMPTY = "No company has joined a list since FinLit began storing lists on 11 Nov 2026. Top gainers fills in from the next close.";
@@ -91,19 +91,20 @@ function ThemeCards({ themes, on, onPick }: { themes: Theme[]; on: string | null
 // ---------- the table (pack P5) ----------
 const HIDDEN = new Set(["symbol", "name", "stock", "badges", "rank", "position", "sector", "ret_1d"]);   // shown inside the Company and Price cells, not as columns of their own
 const sizeOf = (r: PresetRow) => { const m = r.market_cap; return typeof m !== "number" ? null : m > 50000 ? "Large" : m >= 10000 ? "Mid" : "Small"; };
-type Group = "price" | "score" | "returns" | "list" | "after" | "screen";
+type Group = "price" | "score" | "returns" | "list" | "after" | "sector" | "screen";
 const groupOf = (c: PresetColumn): Group => {
   const b = (c.band ?? "").toLowerCase();
   return b.startsWith("price") ? "price" : b === "finlit prism" || b === "finlit iq" || b === "technical views" || b === "technical" ? "score" : b === "returns" ? "returns"
-    : b === "on this list" ? "list" : b === "after this list" ? "after" : "screen";
+    : b === "on this list" ? "list" : b === "after this list" ? "after" : b === "sector reading" ? "sector" : "screen";
 };
 type Kind = "score" | "fund" | "tech";
 const kindOf = (c: PresetColumn): Kind | null => groupOf(c) !== "score" ? null : c.key === "prism_final" || c.key === "overall" ? "score" : /_(st|lt)_score$|^pillar_technical$/.test(c.key) ? "tech" : "fund";
 const TECH_KEYS = /_(st|lt)_score$/;
 const runs = <T,>(xs: T[], key: (x: T) => string) => xs.reduce<{ k: string; n: number }[]>((acc, x) => { const k = key(x); if (acc.length && acc[acc.length - 1].k === k) acc[acc.length - 1].n++; else acc.push({ k, n: 1 }); return acc; }, []);
 
-export type ColsOn = { cap: boolean; fund: boolean; tech: boolean; returns: boolean; latest: boolean };
-export const COLS_DEFAULT: ColsOn = { cap: true, fund: true, tech: true, returns: false, latest: false };
+/** `sector`: the Sector reading band (task #243 round 3b, Advanced only): off by default, on when a Sectors screen opens. */
+export type ColsOn = { cap: boolean; fund: boolean; tech: boolean; returns: boolean; latest: boolean; sector?: boolean };
+export const COLS_DEFAULT: ColsOn = { cap: true, fund: true, tech: true, returns: false, latest: false, sector: false };
 
 /** The columns shown (pack P4.5): the screen's columns less those switched off; the Returns group and Latest price only when switched on. */
 export function shownColumns(cols: PresetColumn[], on: ColsOn, past: boolean): PresetColumn[] {
@@ -113,6 +114,7 @@ export function shownColumns(cols: PresetColumn[], on: ColsOn, past: boolean): P
     if (k === "fund") return on.fund;
     if (k === "tech") return on.tech;
     if (groupOf(c) === "returns") return on.returns;
+    if (groupOf(c) === "sector") return !!on.sector;
     return true;
   });
   if (past && on.latest && !out.some((c) => c.key === "price_latest")) {
@@ -123,13 +125,14 @@ export function shownColumns(cols: PresetColumn[], on: ColsOn, past: boolean): P
 }
 
 /** Group heading words, each naming its date (pack P5, L1). */
-function groupLabel(g: Group, basic: boolean, onDay: string, latest: string): string {
+function groupLabel(g: Group, basic: boolean, onDay: string, latest: string, sectorDay = ""): string {
   switch (g) {
     case "price": return `Price · ${onDay}`;
     case "score": return `${basic ? "FinLit IQ" : "FinLit Prism"} · ${onDay}`;
     case "returns": return `Returns · ${onDay}`;
     case "list": return `On this list · as on ${onDay}`;
     case "after": return `After this list · to ${latest}`;
+    case "sector": return sectorDay ? `Sector reading · ${sectorDay}` : "Sector reading";
     default: return "This screen";
   }
 }
@@ -162,6 +165,13 @@ function Table({ d, cols, rows, sort, setSort, basic, onDay, latest, picked, set
       return <td key={c.key} className={"psx-a-right" + hatch} title={sum}>{typeof v === "number" ? <span className={"psx3-ret " + (v > 0.05 ? "up" : v < -0.05 ? "dn" : "flat")}>{signed(v)}%</span> : <CellValue v={v} f={c.format} />}
         {typeof bench === "number" && <small className="psx-bench">NIFTY 500 {signed(bench)}%</small>}</td>;
     }
+    if (c.key === "sr_industry" && typeof v === "string") return <td key={c.key} className="psx-a-left psx3-sr"><b>{v}</b>
+      {typeof r.sr_rank === "number" && <small>rank {nf(r.sr_rank, 0)}{typeof r.sr_ranked === "number" ? ` of ${nf(r.sr_ranked, 0)}` : ""}{typeof r.sr_rank_4w === "number" && r.sr_rank_4w !== 0 ? ` · ${r.sr_rank_4w > 0 ? "▲" : "▼"}${nf(Math.abs(r.sr_rank_4w), 0)} in 4 wk` : ""}</small>}</td>;
+    if (c.key === "sr_rotation" && typeof v === "string") return <td key={c.key} className="psx-a-left psx3-sr"><span className={"psx3-rot is-" + String(r.sr_corner ?? "")}>{v.split(" · ")[0]}</span>{v.includes(" · ") && <small>{v.split(" · ")[1]} in it</small>}</td>;
+    if (c.key === "sr_pulse" && typeof v === "string") return <td key={c.key} className="psx-a-left psx3-sr"><span className={"psx3-pls is-" + String(r.sr_pulse_code ?? "")}>{v}</span>
+      <small>{[typeof r.sr_above50 === "number" ? `${nf(r.sr_above50, 0)}% above 50-day` : null, typeof r.sr_rebound === "string" ? `thrust ${r.sr_rebound}` : null].filter(Boolean).join(" · ")}</small></td>;
+    if (c.key === "sr_peer" && typeof v === "string") return <td key={c.key} className="psx-a-left"><span className={"psx3-peer is-" + v.toLowerCase().replace(/\s+/g, "-")}>{v}</span></td>;
+    if (c.key === "sr_tailwinds" && typeof v === "number") return <td key={c.key} className="psx-a-right"><span className={"psx3-tw is-" + Math.round(v)} title={`${nf(v, 0)} of the 4 facts line up`}>{nf(v, 0)}<small> of 4</small></span></td>;
     if (c.key === "added_on") return <td key={c.key} className="psx-a-left">{typeof v === "string" ? day(v) : <CellValue v={v} f="text" />}{r.added_baseline === true && <small className="psx3-sub">first saved list</small>}</td>;
     return <td key={c.key} className={"psx-a-" + alignOf(c) + hatch}><CellValue v={v} f={c.format} k={c.key} /></td>;
   };
@@ -171,8 +181,8 @@ function Table({ d, cols, rows, sort, setSort, basic, onDay, latest, picked, set
       <thead>
         <tr className="psx3-g">
           <th scope="colgroup" colSpan={3} className="psx3-stk psx3-gc">Company</th>
-          {groups.map((g, i) => <th key={g.k + i} scope="colgroup" colSpan={g.n} className={"psx3-g-" + g.k}>{groupLabel(g.k as Group, basic, onDay, latest)}
-            {g.k === "list" && <PsxInfo text={INFO_BAND_LIST} label="On this list" />}{g.k === "screen" && <PsxInfo text={INFO_BAND_SCREEN} label="This screen" />}</th>)}
+          {groups.map((g, i) => <th key={g.k + i} scope="colgroup" colSpan={g.n} className={"psx3-g-" + g.k}>{groupLabel(g.k as Group, basic, onDay, latest, day(d.dataDates?.sectors ?? null))}
+            {g.k === "list" && <PsxInfo text={INFO_BAND_LIST} label="On this list" />}{g.k === "sector" && <PsxInfo text={INFO_BAND_SECTOR} label="Sector reading" />}{g.k === "screen" && <PsxInfo text={INFO_BAND_SCREEN} label="This screen" />}</th>)}
           <th scope="colgroup" aria-label="Chart and report" /></tr>
         <tr className="psx3-k">
           <th colSpan={3} className="psx3-stk" aria-hidden="true" />
@@ -280,11 +290,13 @@ export function ScreenView({ route }: { route: PresetRoute }) {
   const [bar, setBarState] = useState<BarFilter>(NO_BAR);
   const [picked, setPicked] = useState<string[]>([]);
   const [sort, setSortState] = useState<SortState>(null);
-  const [cols, setCols] = useState(COLS_DEFAULT), [view, setView] = useState<"table" | "charts">("table"), [cards, setCards] = useState(9);
+  const groupId = route.groups.find((g) => g.presets.some((p) => p.id === id))?.id ?? null;
+  const [cols, setCols] = useState<ColsOn>({ ...COLS_DEFAULT, sector: groupId === "sectors" }), [view, setView] = useState<"table" | "charts">("table"), [cards, setCards] = useState(9);
   const [expand, setExpand] = useState(false), [leftMode, setLeftMode] = useState<LeftMode>("on");
   const [theme, setTheme] = useState<string | null>(null);
   const [chart, setChart] = useState<PanelRow | null>(null);
   const top = useRef<HTMLDivElement>(null);
+  useEffect(() => { setCols((c) => ({ ...c, sector: groupId === "sectors" })); setBarState((b) => (b.ind ? { ...b, ind: null } : b)); }, [id, groupId]);   // a Sectors screen opens with the Sector reading on
   const enabled = listReady && !unknown && !blocked && !lockedList;
   const q = usePresetDetail(id, chips, enabled, offset, asOn, bar);
   const hist = usePresetHistory(id, chips, enabled && preset?.kind !== "themes");
@@ -346,7 +358,8 @@ export function ScreenView({ route }: { route: PresetRoute }) {
   const newDay = d?.list?.prev ? d.list.date : null;
   const sessions = hist.data?.sessions ?? [];
   const emptyNames = shown.filter((c) => empty.has(c.key)).map((c) => c.label);
-  const fullCols = shownColumns(allCols, { cap: true, fund: true, tech: true, returns: true, latest: past }, past);
+  const fullCols = shownColumns(allCols, { cap: true, fund: true, tech: true, returns: true, latest: past, sector: !basic }, past);
+  const dates = d?.dataDates, sectorsScreen = groupId === "sectors";
   const nOn = barCount(bar);
   const tableProps = { d: d!, sort, setSort, basic, onDay, latest: latestDay, picked, setPicked, openChart: (r: PresetRow) => setChart(openRow(r)), chartOn: chart?.symbol, newDay, empty } as const;
   return (
@@ -379,12 +392,17 @@ export function ScreenView({ route }: { route: PresetRoute }) {
               <Opt checked={cols.fund} onChange={() => setCols({ ...cols, fund: !cols.fund })} label={basic ? "The FinLit IQ parts" : "4 fundamental pillars"} />
               <Opt checked={cols.tech} onChange={() => setCols({ ...cols, tech: !cols.tech })} label={basic ? "Technical pillar" : "2 technical pillars"} />
               <Opt checked={cols.returns} onChange={() => setCols({ ...cols, returns: !cols.returns })} label="Returns and 52-week high" desc="+4 columns" />
+              {!basic && <Opt checked={!!cols.sector} onChange={() => setCols({ ...cols, sector: !cols.sector })} label="Sector reading" desc="+5 columns" />}
               {past && <Opt checked={cols.latest} onChange={() => setCols({ ...cols, latest: !cols.latest })} label={`Latest price (${latestDay})`} />}
             </Dropdown>
             <span className="psx3-seg2" role="group" aria-label="Table or charts"><button type="button" aria-pressed={view === "table"} onClick={() => setView("table")}>Table</button><button type="button" aria-pressed={view === "charts"} onClick={() => setView("charts")}>Charts</button></span>
           </span>}
         </div>)}
       {(banded || d?.facets) && <FilterChips f={{ bar, set: setBar }} basic={basic} />}
+      {!basic && !!d?.industryBoard?.length && <IndustryBoard board={d.industryBoard} on={bar.ind?.slug ?? null}
+        onPick={(c) => setBar({ ...bar, ind: !c.slug || bar.ind?.slug === c.slug ? null : { slug: c.slug, name: c.name } })} />}
+      {sectorsScreen && dates && <p className="psx3-dates" role="note">Data as of: prices and scores {day(dates.prices)}{dates.setups ? ` · Setups and Chart patterns lists ${day(dates.setups)}` : ""}
+        {dates.sectors ? ` · Sector Pulse ${day(dates.sectors)}` : " · Sector Pulse not loaded"}{dates.rotation ? ` · Sector Rotation ${day(dates.rotation)}` : ""}</p>}
       {(d?.heading || !!d?.notes?.length || emptyNames.length > 0 || (past && typeof d?.benchSincePct === "number")) && (
         <div className="psx-notes" role="note">
           {d?.heading && <p>{d.heading}</p>}
