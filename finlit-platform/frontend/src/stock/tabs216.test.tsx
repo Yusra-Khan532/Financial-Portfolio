@@ -105,7 +105,8 @@ describe("sections bar company chip (README 1.8)", () => {
     expect(p).toContain("setFolded(bt < -70); if (bt < 130) setStuck(true); else if (bt > 200) setStuck(false);");
     expect(p).toContain("<MiniBar s={s} on={stuck && !folded} />");
     expect(p).toMatch(/\{stuck && folded && <a className="sn-co" href="#top" title="Back to the top"/);
-    expect(p).toMatch(/<b>\{s\.profile\.symbol\}<\/b><span className="sn-co-px">₹/);
+    // task #246: the chip leads with the company's short name for a BSE-only company (its code in the title); an NSE symbol is unchanged
+    expect(p).toMatch(/<b title=\{coTitle\(s\.profile\)\}>\{shortLabel\(s\.profile\)\}<\/b><span className="sn-co-px">₹/);
     expect(c).toMatch(/@media \(max-width: 640px\) \{ \.secnav \.sn-co-chg \{ display: none; \} \}/);
     expect(p).not.toMatch(/\.scrollIntoView\(/);   // the tracker never calls scrollIntoView (1.8)
   });
