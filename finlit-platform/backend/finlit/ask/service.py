@@ -99,6 +99,18 @@ def reads_like_advice(text: str) -> bool:
     return bool(ADVICE.search(text or ""))
 
 
+def summary_question(symbol: str) -> str:
+    """The AI summary under the FinLit Prism cards of the company page (task #228). The team, 19 Nov 2026: "it is just showing numbers, i dont want
+    it to show numbrrs but meaning of it". So: what the rating means, in words, with the reasons behind it; no scores and no other figures. Written
+    here, never by the browser: the summary allowance (quota kind "summary") can only ever ask this."""
+    return (f"Explain in plain words what the FinLit Prism rating of {symbol} shown on this page means. Do not repeat the scores, percentages or any "
+            "other numbers, and do not list the parts with their figures: say what they mean. In four to six short sentences, no headings, no "
+            "tables: what the overall rating says about the business; what is strong and why, and what is weak and why, using the reasons behind "
+            "the parts (the rating's topPros and topCons, for example sales and profit growing or slowing, margins, borrowing, cash backing, the share "
+            "price against earnings and its own history); what the Risk part means in practice (a higher Risk score means lower risk); and what the "
+            "short-term and the long-term price trends mean together. Describe, never advise.")
+
+
 def context_line(page_symbol: Optional[str], plan: str) -> str:
     """The volatile part (today's date, the page the member is on, their plan) goes in the message, after the cached prefix."""
     today = datetime.now(IST).strftime("%d %b %Y")

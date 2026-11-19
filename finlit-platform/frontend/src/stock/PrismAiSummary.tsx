@@ -1,47 +1,73 @@
 // Task #228 (18 Nov 2026, the team's picture of the company page's FinLit Prism block): "give a AI summary button for this just below it".
-// The button sits under the two cards (Fundamental analysis and Technical analysis). A Silver or Gold member gets FinLit AI's written summary of
-// this card, streamed in place (one question of the month's allowance, the same /api/ask the FinLit AI panel uses, so the plan and the quota
-// apply as everywhere). A visitor or a Basic member, or anyone when written answers are off or the month's questions are used, gets an instant
-// summary written from the card's own figures, said plainly as such, with the note that written answers are part of Silver and Gold.
-// Describes; never advises: the AI's own checks apply, and the card summary only restates the card.
+// Team note, 19 Nov 2026: "it is just showing numbers, i dont want it to show numbrrs but meaning of it; also give limit for this AI summarize limit
+// to 10 keeping it seperate from chatbot question limit".
+// The button sits under the two cards (Fundamental analysis and Technical analysis). A Silver or Gold member gets FinLit AI's summary of what the
+// card means, in words (the server writes what is asked: backend ask/service.summary_question), streamed in place, using one of the month's
+// 10 AI summaries, counted apart from the FinLit AI questions. Anyone else, or when written answers are off or the summaries are used, gets an
+// instant summary of what the card means, written from the card itself, said plainly as such. Neither repeats the scores: they are on the card.
+// Describes; never advises: the AI's own checks apply, and the card summary only puts the card into words.
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
-import { AskRefused, askAi, type AskQuota } from "../lib/askAi";
+import { AskRefused, askSummary, type AskQuota } from "../lib/askAi";
 import { apiGet } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Icon } from "../lib/icons";
-import { fmtScore, ratingWord, verdictView, type TechAssessment } from "../lib/prismTechnical";
+import { trendBand, verdictView, type TechAssessment, type TrendBand } from "../lib/prismTechnical";
 import { AnswerText } from "../components/AnswerText";
 import { partWord, type CardPart } from "./prismCardLogic";
-import { LABEL, type PrismLatest } from "./PrismCard";
+import { type PrismLatest } from "./PrismCard";
 
 const DISCLAIMER = "Describes the company's financial health from its filings and prices; not a recommendation. Information only, not investment advice.";
-const one = (v: number) => (Math.round(v * 10) / 10).toFixed(1);
 
-/** The card in a few plain sentences, from its own figures only (no model): the overall score, the strongest and weakest parts, the others, and the
- *  technical view. Exported for the tests. */
+type Tone = "good" | "mixed" | "weak";
+const toneOf = (v: number): Tone => { const t = partWord(v)[1]; return t === "strong" || t === "healthy" ? "good" : t === "mixed" ? "mixed" : "weak"; };
+/** What each band of each part means, in the words of what the model measures (prismCardLogic PART_LINE). A higher Risk score means lower risk. */
+const MEANING: Record<string, Record<Tone, string>> = {
+  fundamental: { good: "sales and profit have grown steadily, with sound margins", mixed: "sales and profit growth and margins are middling",
+    weak: "sales and profit growth has been slow or uneven, or margins are thin" },
+  valuation: { good: "the share price looks modest against its earnings and its own history", mixed: "the share price is roughly in line with its earnings and its own history",
+    weak: "the share price looks high against its earnings and its own history" },
+  quality: { good: "borrowing is under control, interest is well covered and profits are backed by cash", mixed: "borrowing, interest cover, returns and cash backing are middling",
+    weak: "borrowing is heavy, interest cover or returns are thin, or profits are not well backed by cash" },
+  risk: { good: "the share price has moved calmly, with smaller falls, ample trading and few pledged shares", mixed: "price swings, falls and trading activity are moderate",
+    weak: "the share price swings widely or has fallen sharply, trading is thin or shares are pledged" },
+};
+const OVERALL: Record<string, string> = {
+  STRONG: "read as strong overall: most of what FinLit Prism measures is sound",
+  HEALTHY: "read as healthy overall: more of what FinLit Prism measures is sound than weighs on it",
+  AVERAGE: "read as mixed overall: some parts are sound while others weigh on it",
+  WEAK: "read as weak overall: more of what FinLit Prism measures weighs on it than is sound",
+  POOR: "read as poor overall: most of what FinLit Prism measures weighs on it",
+};
+const SHORT: Record<TrendBand, string> = { positive: "the price has been rising over the last few weeks", neutral: "the price has moved sideways over the last few weeks",
+  negative: "the price has been falling over the last few weeks" };
+const LONG: Record<TrendBand, string> = { positive: "the longer trend over months is up", neutral: "the longer trend over months is flat", negative: "the longer trend over months is down" };
+const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+const list = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join("; ")}; and ${xs[xs.length - 1]}`);
+
+/** What the card means, in a few plain sentences, from the card itself (no model) and without its numbers (they are on the card): the overall
+ *  reading, what is sound, what is in between, what weighs on it, and the price trends. Exported for the tests. */
 export function cardSummary(name: string, r: PrismLatest["rating"], parts: CardPart[], a: TechAssessment | null): string[] {
   const out: string[] = [];
-  if (r.status === "NOT RATED" || r.final == null) out.push(`${name} has no overall FinLit Prism rating at the moment: too little of the data it needs is available.`);
-  else out.push(`${name}: FinLit Prism ${one(r.final)} out of 100, ${LABEL[r.label][0]}${r.status === "PROVISIONAL" ? " (a provisional rating: some data is missing)" : ""}.`);
-  const scored = parts.filter((p) => p.key !== "technical" && p.value != null) as (CardPart & { value: number })[];
-  if (scored.length) {
-    const sorted = [...scored].sort((x, y) => y.value - x.value), hi = sorted[0], lo = sorted[sorted.length - 1];
-    const say = (p: CardPart & { value: number }) => `${p.name} ${Math.round(p.value)} (${partWord(p.value)[0]})`;
-    if (sorted.length > 1 && hi.value !== lo.value) {
-      out.push(`Strongest part: ${say(hi)}. Weakest: ${say(lo)}.`);
-      const rest = scored.filter((p) => p !== hi && p !== lo);   // the others in the card's own order
-      if (rest.length) out.push(`${rest.map(say).join(", ")}.`);
-    } else out.push(`${sorted.map(say).join(", ")}.`);
-    if (scored.some((p) => p.key === "risk")) out.push("A higher Risk score means lower risk.");
+  if (r.status === "NOT RATED" || r.final == null || !OVERALL[r.label]) out.push(`${name} has no overall FinLit Prism rating at the moment: too little of the data it needs is available.`);
+  else out.push(`${name}'s business and finances ${OVERALL[r.label]}.${r.status === "PROVISIONAL" ? " This is a first view: some of the data it needs is missing." : ""}`);
+  const four = parts.filter((p) => p.key !== "technical" && MEANING[p.key]);
+  const by = (t: Tone) => four.filter((p) => p.value != null && toneOf(p.value) === t).map((p) => `${MEANING[p.key][t]} (${p.name})`);
+  const good = by("good"), mixed = by("mixed"), weak = by("weak");
+  if (good.length) out.push(`What is sound: ${list(good)}.`);
+  if (mixed.length) out.push(`In between: ${list(mixed)}.`);
+  if (weak.length) out.push(`What weighs on it: ${list(weak)}.`);
+  const none = four.filter((p) => p.value == null).map((p) => p.name);
+  if (none.length && r.status !== "NOT RATED") out.push(`Not enough data yet for ${none.join(", ")}.`);
+  if (a) {
+    const st = trendBand(a.shortTerm.score), lt = trendBand(a.longTerm.score);
+    if (st && lt) {
+      const v = verdictView(a);
+      out.push(`Price trend: ${SHORT[st]}, ${st === lt ? "and" : "while"} ${LONG[lt]}${v.tone !== "na" ? ` (${v.word.toLowerCase()})` : ""}.`);
+    } else if (st || lt) out.push(`Price trend: ${st ? SHORT[st] : "the short-term view is not available"}; ${lt ? LONG[lt] : "the long-term view is not available"}.`);
   }
-  if (a && (a.shortTerm.score != null || a.longTerm.score != null)) {
-    const h = (x: TechAssessment["shortTerm"]) => (x.score == null ? "not available" : `${fmtScore(x.score)} (${ratingWord(x.rating, x.score).word})`);
-    const v = verdictView(a);
-    out.push(`Technical view: short term ${h(a.shortTerm)}, long term ${h(a.longTerm)}${v.tone !== "na" ? `: ${v.word.toLowerCase()}` : ""}.`);
-  }
-  return out;
+  return out.map(cap);
 }
 
 /** The session, or null where the page is drawn without the sign-in context (a preview, the card's own tests): then it acts as for a visitor. */
@@ -50,6 +76,8 @@ function useViewer(): ReturnType<typeof useAuth> | null {
 }
 
 type State = { kind: "idle" } | { kind: "ai"; text: string; status: string | null; done: boolean; error: string | null } | { kind: "card"; note: string };
+
+const renews = (iso: string) => { const d = new Date(`${iso}T00:00:00`); return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }); };
 
 export function PrismAiSummary({ symbol, name, r, parts, a }: { symbol: string; name: string; r: PrismLatest["rating"]; parts: CardPart[]; a: TechAssessment | null }) {
   const auth = useViewer(), user = auth?.user ?? null, plan = auth?.plan ?? "basic";
@@ -60,22 +88,22 @@ export function PrismAiSummary({ symbol, name, r, parts, a }: { symbol: string; 
   useEffect(() => () => ctl.current?.abort(), []);
   const q = quota.data;
   const paid = user?.role === "admin" || plan === "silver" || plan === "gold";
-  const canAi = !!user && paid && !!q?.enabled && (q.left ?? 0) > 0;
+  const sq = q?.summary;   // the AI summaries of the month (10), apart from the questions
+  const canAi = !!user && paid && !!q?.enabled && (sq?.left ?? 0) > 0;
 
   const fallback = (why: string) => setState({ kind: "card", note: why });
   const run = async () => {
     if (!canAi) {
-      fallback(!q?.enabled && user && paid ? "FinLit AI's written answers are not switched on right now, so this summary is written from the card's own figures."
-        : user && paid ? "You have used this month's FinLit AI questions, so this summary is written from the card's own figures."
-          : "This summary is written from the card's own figures. A written summary from FinLit AI is part of the Silver and Gold plans.");
+      fallback(!q?.enabled && user && paid ? "FinLit AI's written answers are not switched on right now, so this summary is written from the card itself."
+        : user && paid ? `You have used this month's ${sq?.limit ?? 10} AI summaries${sq?.resets ? ` (they renew on ${renews(sq.resets)})` : ""}, so this summary is written from the card itself. Your FinLit AI questions are counted separately.`
+          : "This summary is written from the card itself. An AI summary from FinLit AI (10 a month) is part of the Silver and Gold plans.");
       return;
     }
     ctl.current?.abort();
     const c = new AbortController(); ctl.current = c;
     setState({ kind: "ai", text: "", status: "Reading the FinLit Prism card", done: false, error: null });
-    const question = `Summarise the FinLit Prism rating of ${name} (${symbol}) shown on this page: the overall score and its label, the four parts (strongest and weakest) and the technical view (short and long term), in a few short lines.`;
     try {
-      await askAi(question, [], symbol, (e) => {
+      await askSummary(symbol, (e) => {
         if (e.type === "status") setState((s) => (s.kind === "ai" ? { ...s, status: e.text } : s));
         else if (e.type === "text") setState((s) => (s.kind === "ai" ? { ...s, text: s.text + e.text, status: null } : s));
         else if (e.type === "replace") setState((s) => (s.kind === "ai" ? { ...s, text: e.text } : s));
@@ -85,18 +113,18 @@ export function PrismAiSummary({ symbol, name, r, parts, a }: { symbol: string; 
       void quota.refetch();
     } catch (err) {
       if (c.signal.aborted) return;
-      fallback(err instanceof AskRefused ? `${err.message} Meanwhile, this summary is written from the card's own figures.` : "FinLit AI could not be reached just now, so this summary is written from the card's own figures.");
+      fallback(err instanceof AskRefused ? `${err.message} Meanwhile, this summary is written from the card itself.` : "FinLit AI could not be reached just now, so this summary is written from the card itself.");
     }
   };
 
-  const left = canAi && q?.left != null ? ` · ${q.left} of ${q.limit} FinLit AI questions left this month` : "";
+  const left = canAi && sq ? ` · ${sq.left} of ${sq.limit} AI summaries left this month, apart from your FinLit AI questions` : "";
   return (
     <div className="pai" aria-live="polite">
       <p className="pai-row">
         <button type="button" className="btn pai-btn" onClick={() => void run()} disabled={state.kind === "ai" && !state.done} aria-expanded={state.kind !== "idle"}>
           <Icon name="spark" />{state.kind === "ai" && !state.done ? "Writing the summary…" : state.kind === "idle" ? "AI summary" : "Summarise again"}
         </button>
-        <small className="pai-hint">{canAi ? `A few lines from FinLit AI on this card${left}` : "A few lines on this card"}</small>
+        <small className="pai-hint">{canAi ? `What this card means, in a few lines from FinLit AI${left}` : "What this card means, in a few lines"}</small>
       </p>
       {state.kind === "ai" && (
         <div className="pai-box" role="region" aria-label={`AI summary of the FinLit Prism rating of ${name}`}>

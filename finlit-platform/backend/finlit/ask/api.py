@@ -22,7 +22,7 @@ from typing import Any, AsyncIterator, Dict, List, Literal, Optional
 import anthropic
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ..auth.entitlements import sees_all
 from ..auth.routes import fail, ip_of, limit, secure_ctx
@@ -45,10 +45,24 @@ class Turn(BaseModel):
 
 
 class AskIn(BaseModel):
+    """kind "summary" (task #228): the AI summary of the FinLit Prism card of `symbol`, counted apart from the questions; the server writes its
+    question (service.summary_question), so it takes no question and no history."""
     model_config = ConfigDict(extra="forbid")
-    question: str = Field(min_length=2, max_length=500)
+    kind: Literal["question", "summary"] = "question"
+    question: str = Field(default="", max_length=500)
     history: List[Turn] = Field(default_factory=list, max_length=12)
     symbol: Optional[str] = Field(default=None, max_length=20)
+
+    @model_validator(mode="after")
+    def by_kind(self) -> "AskIn":
+        if self.kind == "summary":
+            if not self.symbol:
+                raise ValueError("a summary needs the company's symbol")
+            if self.history or self.question.strip():
+                raise ValueError("a summary takes no question and no history")
+        elif len(self.question.strip()) < 2:
+            raise ValueError("question is too short")
+        return self
 
     @field_validator("symbol")
     @classmethod
@@ -91,9 +105,10 @@ def sse(event: str, data: Dict[str, Any]) -> bytes:
 
 
 def cache_key(model: str, ctx: Ctx, body: AskIn) -> str:
-    q = re.sub(r"\s+", " ", body.question.strip().lower())
+    q = re.sub(r"\s+", " ", (service.summary_question(body.symbol or "") if body.kind == "summary" else body.question).strip().lower())
     h = hashlib.sha256(f"{q}|{body.symbol or ''}".encode()).hexdigest()[:32]
-    return f"ask:answer:{model}:{plan_key(ctx)}:{datetime.now(service.IST).date().isoformat()}:{h}"
+    kind = "summary:" if body.kind == "summary" else ""
+    return f"ask:answer:{kind}{model}:{plan_key(ctx)}:{datetime.now(service.IST).date().isoformat()}:{h}"
 
 
 @router.get("/quota")
@@ -103,9 +118,10 @@ async def get_quota(request: Request):
     ctx = await current(request)
     if not ctx.authed:
         return JSONResponse({"enabled": bool(st.anthropic_api_key), "signedIn": False}, headers=NO_STORE)
-    m = quota.month_of()
-    n = await quota.used(request.app.state.store.pool, ctx.user_id, m)
-    return JSONResponse({"enabled": bool(st.anthropic_api_key), "signedIn": True, "plan": ctx.plan, **quota.status(quota.allowance(ctx), n, m)}, headers=NO_STORE)
+    m, pool = quota.month_of(), request.app.state.store.pool
+    n, ns = await quota.used(pool, ctx.user_id, m), await quota.used(pool, ctx.user_id, m, "summary")
+    return JSONResponse({"enabled": bool(st.anthropic_api_key), "signedIn": True, "plan": ctx.plan, **quota.status(quota.allowance(ctx), n, m),
+                         "summary": quota.status(quota.allowance(ctx, "summary"), ns, m)}, headers=NO_STORE)   # task #228: AI summaries, counted apart
 
 
 @router.post("")
@@ -114,7 +130,11 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
     if not st.anthropic_api_key:
         raise fail(503, "not_enabled", "FinLit AI's written answers are not switched on yet. The listed questions still answer at once.")
     store = request.app.state.store
-    month, cap = quota.month_of(), quota.allowance(ctx)
+    kind = body.kind
+    month, cap = quota.month_of(), quota.allowance(ctx, kind)
+    question = service.summary_question(body.symbol or "") if kind == "summary" else body.question.strip()
+    if cap <= 0 and kind == "summary":
+        raise fail(403, "plan_required", "AI summaries from FinLit AI are part of the Silver and Gold plans (10 a month).", plan="silver")
     if cap <= 0:      # Basic (founder, 17 Nov 2026): the listed questions only, which answer in the browser and never reach this endpoint
         raise fail(403, "plan_required", "Written answers from FinLit AI are part of the Silver plan (50 a month) and the Gold plan (100 a month). "
                    "The listed questions answer at once on every plan.", plan="silver")
@@ -129,7 +149,7 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
         except Exception:
             hit = None
     if hit is not None:
-        n = await quota.used(store.pool, ctx.user_id, month)
+        n = await quota.used(store.pool, ctx.user_id, month, kind)
         cached = json.loads(hit)
 
         async def replay() -> AsyncIterator[bytes]:
@@ -138,7 +158,11 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
             yield sse("done", {"disclaimer": service.DISCLAIMER, "sources": cached.get("tools", []), "pages": cached.get("pages", [])})
         return StreamingResponse(replay(), media_type="text/event-stream", headers={**NO_STORE, "X-Accel-Buffering": "no"})
 
-    n = await quota.take(store.pool, ctx.user_id, cap, month)
+    n = await quota.take(store.pool, ctx.user_id, cap, month, kind)
+    if n is None and kind == "summary":
+        nxt = quota.next_month(month).strftime("%d %b %Y")
+        raise fail(429, "quota_used", f"You have used all {cap} AI summaries of this month. They renew on {nxt}. Your FinLit AI questions are counted "
+                   "separately.", **quota.status(cap, cap, month))
     if n is None:
         nxt = quota.next_month(month).strftime("%d %b %Y")
         more = " Gold includes 100 a month." if ctx.plan == "silver" else ""
@@ -163,14 +187,14 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
         yield sse("meta", {**quota.status(cap, n, month), "cached": False})
         # The company of the page, and the companies the question names: their cards first (what the page shows, as this member), so the model
         # starts with the facts whatever the wording, and answers in one round.
-        want = ([body.symbol] if body.symbol else []) + await companies.named_in(gw, body.question, 2, skip=body.symbol)
+        want = ([body.symbol] if body.symbol else []) + (await companies.named_in(gw, question, 2, skip=body.symbol) if kind == "question" else [])
         cards: List[str] = []
         for sym in want[:2]:
             yield sse("status", {"text": tools.label("get_company_card", {"symbol": sym})})
         got = await asyncio.gather(*(tools.run(gw, "get_company_card", {"symbol": s}) for s in want[:2]))
         cards = [g["text"] for g in got if not g["error"]]
         card = "\n".join(cards) or None
-        messages = service.build_messages([t.model_dump() for t in body.history], body.question.strip(), body.symbol, plan_key(ctx), card)
+        messages = service.build_messages([t.model_dump() for t in body.history], question, body.symbol, plan_key(ctx), card)
         result: Optional[Dict[str, Any]] = None
         err: Optional[Dict[str, str]] = None
         task = asyncio.create_task(service.answer(client_for(st.anthropic_api_key), st.ask_model, gw, messages, emit))
@@ -205,7 +229,7 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
         if err:
             if not wrote:
                 try:
-                    await quota.give_back(store.pool, ctx.user_id, month)
+                    await quota.give_back(store.pool, ctx.user_id, month, kind)
                 except Exception:
                     log.exception("ask: could not give the question back")
             yield sse("error", err)
