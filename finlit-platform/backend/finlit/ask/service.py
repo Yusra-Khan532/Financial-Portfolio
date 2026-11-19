@@ -57,6 +57,7 @@ Answer every question (founder, 18 Nov 2026)
 - FinLit's data first: figures about listed Indian companies, funds, ETFs, the market and the member's own lists come from FinLit's tools and company cards.
 - The web (web_search) for everything FinLit's data does not hold: a company's future prospects, plans, new businesses, management commentary, news and recent events, products, the wider economy or world, and general questions. Search once with a precise query (twice at most), then answer from what you found.
 - Combine both when it helps: FinLit's figures, then what recent news says.
+- Each kind of question has its own sources (the team's source directory): a note with the question names FinLit's tools to use first and the sites to prefer on the web. Follow it. Say which site a web figure came from, with its date ("RBI, 6 Nov 2026").
 
 Facts
 - Every figure you give (price, ratio, growth, holding, flow, NAV, date) must come from a tool result or a web search result in this conversation. Never use figures from memory.
@@ -154,17 +155,20 @@ def context_line(page_symbol: Optional[str], plan: str) -> str:
     return f"[Today is {today} (India). The member's plan: {plan.title()}.{page}]"
 
 
-def build_messages(history: List[Dict[str, str]], question: str, page_symbol: Optional[str], plan: str, card: Optional[str] = None) -> List[Dict[str, Any]]:
+def build_messages(history: List[Dict[str, str]], question: str, page_symbol: Optional[str], plan: str, card: Optional[str] = None,
+                   route_note: str = "") -> List[Dict[str, Any]]:
     """`card`: the company card of the page the member is on, read before the model starts (one round fewer, and every wording of a question about
-    the company's rating, price or classification is answered from what the page shows)."""
+    the company's rating, price or classification is answered from what the page shows). `route_note` (task #253): which of FinLit's tools and which
+    of the team's sites this kind of question is answered from; it goes with the question, after the cached prefix."""
     msgs: List[Dict[str, Any]] = [{"role": m["role"], "content": m["content"]} for m in history]
     page = f"\n\n<company_card source=\"FinLit company page, read just now as this member\">\n{card}\n</company_card>" if card else ""
-    msgs.append({"role": "user", "content": f"{context_line(page_symbol, plan)}{page}\n\n{question}"})
+    route = f"\n{route_note}" if route_note else ""
+    msgs.append({"role": "user", "content": f"{context_line(page_symbol, plan)}{route}{page}\n\n{question}"})
     return msgs
 
 
 async def answer(client: anthropic.AsyncAnthropic, model: str, gw, messages: List[Dict[str, Any]], emit: Emit,
-                 prefetched: Optional[List[Any]] = None) -> Dict[str, Any]:
+                 prefetched: Optional[List[Any]] = None, web_domains: Optional[List[str]] = None) -> Dict[str, Any]:
     """Runs the conversation until Claude has written its answer. Emits ("status", {text}), ("text", {text}) and, when an answer is withdrawn,
     ("replace", {text}). Returns {"text", "tools", "usage", "stop"}; raises on an API failure (the caller decides what the member sees).
     `prefetched`: (name, arguments) of tools read before the model started (task #255), counted with the answer's sources and pages."""
@@ -174,7 +178,7 @@ async def answer(client: anthropic.AsyncAnthropic, model: str, gw, messages: Lis
     calls_made: List[Any] = list(prefetched or [])   # (name, arguments) of every tool used: the pages the answer links to (task #218)
     usage = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}
     stop = "end_turn"
-    defs = T.definitions()
+    defs = T.definitions(web_domains)        # task #253: a question of one clear type searches only that type's sites
     system = [{"type": "text", "text": SYSTEM, "cache_control": {"type": "ephemeral"}}]   # tools + system: the same for every member
     for rnd in range(MAX_ROUNDS + 1):
         last = rnd == MAX_ROUNDS

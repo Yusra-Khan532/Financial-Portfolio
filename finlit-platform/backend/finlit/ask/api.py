@@ -27,7 +27,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from ..auth.entitlements import sees_all
 from ..auth.routes import fail, ip_of, limit, secure_ctx
 from ..auth.service import VIEW_AS_HEADER, Ctx, cookie_name, current
-from . import companies, pages, quota, service, tools
+from . import companies, pages, quota, routing, service, tools
 from .gateway import MemberGateway
 
 log = logging.getLogger("finlit.ask")
@@ -206,13 +206,17 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
         got = got[:-1] if doc_args else got
         cards = [g["text"] for g in got if not g["error"]]
         card = "\n".join(cards) or None
-        messages = service.build_messages([t.model_dump() for t in body.history], question, body.symbol, plan_key(ctx), card)
+        # Task #253: the kind of question (the economy, a company's financials, daily news, a term, valuation, rules, funds, a sector) decides which
+        # of FinLit's tools come first and which of the team's sites the web search keeps to. The AI summary is about the page's company only.
+        kinds = routing.classify(question, named_company=bool(named), on_company_page=bool(body.symbol)) if kind == "question" else []
+        messages = service.build_messages([t.model_dump() for t in body.history], question, body.symbol, plan_key(ctx), card, routing.note(kinds))
         prefetched = [("read_company_document", doc_args)] if doc_args and doc_res is not None else []
         if prefetched:
             service.with_prefetch(messages, "read_company_document", doc_args, doc_res)
         result: Optional[Dict[str, Any]] = None
         err: Optional[Dict[str, str]] = None
-        task = asyncio.create_task(service.answer(client_for(st.anthropic_api_key), st.ask_model, gw, messages, emit, prefetched))
+        task = asyncio.create_task(service.answer(client_for(st.anthropic_api_key), st.ask_model, gw, messages, emit, prefetched,
+                                                  routing.web_domains(kinds)))
         try:
             while not task.done() or out:
                 while out:
