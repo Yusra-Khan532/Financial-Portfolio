@@ -5,7 +5,7 @@ export type NavItem = [id: string, label: string, icon: string, hint: string];
 export const NAV: NavItem[] = [
   ["prism", "Scores", "gauge", "The FinLit IQ and the FinLit Prism score, side by side"],
   ["business", "Company", "building", "What the company does and how it earns"],
-  ["macro", "Macro outlook", "globe", "How the economy is moving for the sector: score, drivers and indicators"],
+  ["macro", "Economy", "globe", "Is the economy helping its sector? The reading, its drivers and indicators"],
   ["notes", "Strengths & watch-outs", "notes", "Every red flag, watch item and strength in one list, each linking to its section"],
   ["price", "Price", "line", "Price chart, returns and technical levels"],
   ["quarter", "Quarter", "notes", "The latest quarter against a year ago"],
@@ -20,18 +20,18 @@ export const NAV: NavItem[] = [
   ["sector", "Where it stands", "activity", "Its industry, its peers, its own price and its risk, one question per tab"],
   ["insights", "What to watch", "crown", "Triggers to watch and where the company fits"],
   ["segments", "Segments", "pie", "Where the revenue comes from"],
-  ["dividends", "Dividends", "coins", "Dividends, splits, bonuses and events"],
-  ["announcements", "Announcements", "notes", "Exchange announcements, routine filings hidden"],
+  ["dividends", "Dividends", "coins", "Dividend history and what it would pay you"],
+  ["news", "News & filings", "notes", "Everything the company has filed with NSE, by group; routine filings hidden"],
   ["community", "Discussions", "users", "What members are discussing about this company: read, reply or start one"],
 ];
 
 /** The first section of each reading group: the bar draws a thin separator before it. */
 export const GROUP_START = new Set(["price", "quarter", "ratios", "ownership", "insights", "dividends", "community"]);
 
-/** Task #216 (README 1.8): each chip and each "All sections" line shows its section number ("01 Company" … "18 Discussions"); Scores and Announcements
- *  (which opens 17's third tab) have none. */
+/** Task #216 (README 1.8): each chip and each "All sections" line shows its section number ("01 Company" … "19 Discussions"); Scores has none.
+ *  Task #222 (19 Nov pack): 18 is News and filings (#news), its own section; Discussions is 19. */
 const NUMBERS: Record<string, string> = { business: "01", macro: "02", notes: "03", price: "04", quarter: "05", financials: "06", trends: "07", charts: "08", ratios: "09",
-  dupont: "10", earnings: "11", ownership: "12", peers: "13", sector: "14", insights: "15", segments: "16", dividends: "17", community: "18" };
+  dupont: "10", earnings: "11", ownership: "12", peers: "13", sector: "14", insights: "15", segments: "16", dividends: "17", news: "18", community: "19" };
 export const sectionNo = (id: string): string | null => NUMBERS[id] ?? null;
 /** The Scores line follows the plan (one score per screen): Gold and Platinum speak only of FinLit Prism, Silver only of the FinLit IQ. */
 const SCORES_HINT = { prism: "The FinLit Prism score: financial health and the technical view, side by side", iq: "The FinLit IQ: the overall score and its five pillars" } as const;

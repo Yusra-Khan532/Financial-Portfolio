@@ -20,6 +20,7 @@ import { TradingFacts } from "./TradingFacts";
 import { NameDots } from "./HeaderScore";
 import { useReportHeader } from "./useReportHeader";
 import { useClassification } from "../lib/taxonomy";
+import { fmtScore, ratingWord } from "../lib/prismTechnical";
 import { CoLogo } from "../components/CoLogo";
 
 const KPI_SPEC: [key: string, label: string, icon: string, color: string][] = [
@@ -68,7 +69,7 @@ export function Hero({ s, ratios, jump }: { s: Summary; ratios?: Ratios; jump: (
             </div></span>
           </div>
           <div className="hxd-strip">
-            <div><span className="hx-k">Rating</span><RatingCell s={s} effPlan={effPlan} seesAll={seesAll} prismIn={prismIn} /></div>
+            <div className="hx-rate"><span className="hx-k">Rating</span><RatingCell s={s} effPlan={effPlan} seesAll={seesAll} prismIn={prismIn} /><TechRows effPlan={effPlan} seesAll={seesAll} prismIn={prismIn} /></div>
             <div className="hxpeer"><span className="hx-k">Against peers</span><LeadLine symbol={p.symbol} jump={jump} /></div>
             <div><span className="hx-k">Market cap</span><b>{p.marketCapCr != null ? marketCapLine(p.marketCapCr)?.replace(/^Market cap /, "") : "Not reported"}</b></div>
             <div><span className="hx-k">Listed as</span><div className="tags"><span className="tag tk">{p.nse || p.symbol}</span><span className="tag">NSE</span>{p.bse && <span className="tag mono">BSE {p.bse}</span>}</div></div>
@@ -122,6 +123,31 @@ export function RatingCell({ s, effPlan, seesAll, prismIn }: { s: Summary; effPl
       <span className="hpz-n">{n}</span><span className="hpz-of">/100</span>{v.word && <span className="hpz-w">{v.word}{prism && v.provisional ? " · provisional" : ""}</span>}
       <span className="hpz-m">{prism ? "FinLit Prism" : "FinLit IQ"}</span>
     </span>
+  );
+}
+
+/** Task #222 (the owner, 18 Nov: "add both technical score where the prism score is at the top"; 19 Nov pack A): under the FinLit Prism score, a dashed line,
+ *  "Technical", and the short and long term views, each with the same figure, arrow, word and band colour as the Prism card's technical side (the same
+ *  data and helpers, never worked out again). Each row links to the Prism card. Shown only where the Prism card's technical side is shown. */
+const TECH_ROW_TONE: Record<string, "pos" | "neg" | "mid"> = { strongpos: "pos", pos: "pos", neutral: "mid", neg: "neg", strongneg: "neg" };
+const TECH_ROW_SHAPE: Record<string, string> = { strongpos: "▲▲", pos: "▲", neutral: "◆", neg: "▼", strongneg: "▼▼" };
+const TECH_ROW_INK: Record<string, string> = { pos: "var(--band-hi-ink)", neg: "var(--band-lo-ink)", mid: "var(--band-mid-ink)" };
+export function TechRows({ effPlan, seesAll, prismIn }: { effPlan: Plan; seesAll: boolean; prismIn: PrismInput }) {
+  const v = badgeView(effPlan, seesAll, { overall: null, word: null }, prismIn);
+  if (v.kind !== "prism" || prismIn.kind !== "report") return null;
+  const rows = ([["Short term", "5–20 sessions", prismIn.short], ["Long term", "6–18 months", prismIn.long]] as const)
+    .map(([k, span, t]) => ({ k, span, t, w: t ? ratingWord(t.rating, t.score) : null }))
+    .filter((r) => r.t && r.t.score != null && r.w && r.w.tone !== "na");
+  if (!rows.length) return null;
+  return (
+    <div className="hx-tech"><span className="hx-k">Technical</span>
+      <div className="hxt-l" role="list" aria-label="Technical scores">{rows.map(({ k, span, t, w }) => {
+        const tone = TECH_ROW_TONE[w!.tone] ?? "mid", score = fmtScore(t!.score);
+        return <a key={k} role="listitem" className={"hxt " + tone} href="#prism" aria-label={`Technical ${k.toLowerCase()} ${score}, ${w!.word}`}
+          title={`Technical ${k.toLowerCase()}, ${span}. Shown separately; not part of the FinLit Prism score.`}>
+          <b>{score}</b><span className="hxt-k">{k}</span><span className="hxt-w" style={{ "--tc": TECH_ROW_INK[tone] } as React.CSSProperties}><i aria-hidden="true">{TECH_ROW_SHAPE[w!.tone]}</i>{w!.word}</span></a>;
+      })}</div>
+    </div>
   );
 }
 

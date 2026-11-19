@@ -34,6 +34,7 @@ export const SECTIONS: NavSection[] = [
       i("/advanced-score-screener", "Advanced stock screener", "Every listed company with its FinLit Prism rating: four financial-health parts and two technical views", "layers", { gold: true }),
       i("/query-builder", "Query builder", "Type a rule like P/E < 15, get the companies; save baskets", "notes"),
       i("/superinvestors", "Superinvestor portfolios", "What named investors of 1% or more hold, from company filings", "users", { newUntil: "2026-12-17" }),
+      i("/discovery", "Discovery", "Companies by the themes their investor presentations talk about: AI, defence, solar, batteries and more", "globe", { newUntil: "2026-12-19" }),
     ] },
     { title: "Analyse a company", items: [
       i("/research", "Company report", "A report for every listed company: score, financials, ratios", "search"),

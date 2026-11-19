@@ -440,6 +440,8 @@ def page_links(calls: Iterable[Tuple[str, Dict[str, Any]]]) -> List[Dict[str, st
             add("/documents" if args.get("kind") == "documents" else "/news", "Documents" if args.get("kind") == "documents" else "News & filings")
         elif name == "read_company_document":
             add("/documents", "Documents")
+        elif name == "get_discovery":
+            add("/discovery", "Discovery")   # task #241: Discovery is a page now
         elif name == "screen_by_finlit_score":
             add("/advanced-score-screener" if args.get("score") == "prism" else "/score-screener",
                 "Advanced stock screener" if args.get("score") == "prism" else "Basic stock screener")
