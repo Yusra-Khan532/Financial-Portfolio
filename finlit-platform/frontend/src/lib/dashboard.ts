@@ -30,33 +30,12 @@ export const longDay = (d: Date = new Date()) => {
 export const istHour = (d: Date = new Date()) => +d.toLocaleString("en-GB", { hour: "2-digit", hour12: false, timeZone: "Asia/Kolkata" }) % 24;
 export const istToday = (d: Date = new Date()) => d.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
 
-// ---------------------------------------------------------------------------------------------------------------- heat-map tiles
-/** Seven tile colours, white text on each at 4.5:1 or better: <= -2%, -2 to -0.75, -0.75 to -0.1, flat (+-0.1), 0.1 to 0.75, 0.75 to 2, >= 2%. */
-export const TILE_COLOURS = ["#8E2620", "#A12E26", "#B5473D", "#6B6455", "#2E7D57", "#1F6B49", "#17583B"] as const;
-export const NO_PRICE_TILE = "#6B6455";
-export function tileColour(change: number | null | undefined): string {
-  if (change == null || !Number.isFinite(change)) return NO_PRICE_TILE;
-  if (change <= -2) return TILE_COLOURS[0];
-  if (change < -0.75) return TILE_COLOURS[1];
-  if (change < -0.1) return TILE_COLOURS[2];
-  if (change <= 0.1) return TILE_COLOURS[3];
-  if (change < 0.75) return TILE_COLOURS[4];
-  if (change < 2) return TILE_COLOURS[5];
-  return TILE_COLOURS[6];
-}
+// ---------------------------------------------------------------------------------------------------------------- colour contrast
+// (The heat-map colours and labels moved to components/dashboard/heatmapLogic.ts, task #261.)
 const lin = (c: number) => { const v = c / 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
 const lum = (hex: string) => { const n = parseInt(hex.replace("#", ""), 16); return 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255); };
 /** WCAG contrast ratio of two #rrggbb colours. */
 export const contrast = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
-
-export type TileLabel = { size: 11 | 13 | 16; pct: boolean } | null;
-/** What a tile of w x h pixels says: the ticker at 16px on big tiles, 13px, or 11px at the least; the move (12px) under it when the height allows. null = no label at all (the hover or tap card names the tile), never a smaller font. */
-export function tileLabel(ticker: string, w: number, h: number): TileLabel {
-  const fits = (size: number) => ticker.length * size * 0.68 + 12 <= w;     // bold capitals run about 0.68 of the font size per letter
-  const size = w >= 150 && h >= 84 && fits(16) ? 16 : h >= 30 && fits(13) ? 13 : h >= 18 && fits(11) ? 11 : null;
-  if (!size) return null;
-  return { size, pct: h >= size + 12 + 16 && w >= 56 };
-}
 
 // ---------------------------------------------------------------------------------------------------------------- year on year
 /** Latest quarter against the same quarter a year earlier. `base <= 0` has no meaningful percentage (a loss a year ago), and a gap that is not about a year (a missing quarter) is refused. */

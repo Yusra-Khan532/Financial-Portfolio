@@ -110,7 +110,7 @@ export function Dashboard() {
       case "mfglance": return <FundsGlance pf={pick.param.mf} />;
       case "etfglance": return <EtfsGlance pf={pick.param.etf} />;
       case "stress": return <Stress followed={followed} loading={loadingFollowed} />;
-      case "heatmap": return <IndexHeatmap rows={rows} loading={loadingRows} />;
+      case "heatmap": return <IndexHeatmap rows={rows} loading={loadingRows} asOf={uni.data?.asOf} />;
       case "resultstoday": return <ResultsToday symbols={symbols} />;
       case "filings": return <Filings symbols={symbols} />;
       case "ipos": return <Ipos />;
