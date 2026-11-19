@@ -367,6 +367,8 @@ async def test_the_page_route_lists_themes_then_one_theme_then_one_company(store
             assert len(d["themes"]) == 21 and d["companies"] == 2 and "not proof of material business exposure" in d["caution"]
             solar = next(t for t in d["themes"] if t["name"] == "Solar Technology")
             assert solar["primary"] == 1 and solar["preview"] == ["Acme Solar Ltd"] and "companies" not in solar
+            assert set(solar["tone"]) == {"label", "positive", "mixed", "negative", "rated"}       # task #245: the theme's tone chip
+            assert next(t for t in d["themes"] if t["name"] == "Nuclear Energy")["tone"]["label"] is None   # no company: no tone, never a guess
             one = (await c.get("/api/discovery", params={"theme": "Defence & Aerospace"})).json()
             t = next(t for t in one["themes"] if t["name"] == "Defence & Aerospace")
             co = t["companies"][0]
@@ -386,6 +388,17 @@ async def test_the_page_route_lists_themes_then_one_theme_then_one_company(store
             assert [f["eventLabel"] for f in sh["filings"]] == ["Order win", "Investor meet / presentation", "Credit rating"] and sh["sectorOf"]["macro"] == "Industrials"
             assert (await c.get("/api/discovery", params={"theme": "Tulips"})).status_code == 404
             assert (await c.get("/api/discovery", params={"symbol": "<x>"})).status_code == 400
+
+
+def test_a_themes_tone_is_positive_only_when_nine_in_ten_read_positive():
+    """Task #245: the tone chip of a theme card (Positive, Mixed, Negative), from its companies' own presentations; none when none was rated."""
+    from finlit.discovery.service import theme_tone
+    co = lambda *ls: [{"tone": {"label": x}} for x in ls]   # noqa: E731
+    assert theme_tone(co(*["Positive"] * 9, "Mixed")) == {"label": "Positive", "positive": 9, "mixed": 1, "negative": 0, "rated": 10}
+    assert theme_tone(co(*["Positive"] * 8, "Mixed", "Negative"))["label"] == "Mixed"
+    assert theme_tone(co("Positive", "Negative", "Negative"))["label"] == "Negative"
+    assert theme_tone(co("Too few words to tell", None))["label"] is None and theme_tone([])["rated"] == 0
+    assert theme_tone(co("Positive", "Positive", "Too few words to tell"))["label"] == "Positive"   # only rated ones count
 
 
 def test_the_job_is_registered_bulk_nightly_resumable_and_never_weakened():

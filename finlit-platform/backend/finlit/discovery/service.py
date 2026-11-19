@@ -153,6 +153,17 @@ def _row(r: Dict[str, Any], sec: Dict[str, Dict[str, Any]], news: Dict[str, Dict
             "readAt": r["read_at"].isoformat() if r["read_at"] else None}
 
 
+def theme_tone(companies: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Task #245: a theme's tone from its companies' own presentations. Positive when at least 9 in 10 of the rated ones read Positive, Negative when
+    the negative ones outnumber the positive, else Mixed (every theme's average sits above the company Positive line, so an average would mark them
+    all Positive). None when no presentation was rated (too few words)."""
+    labels = [(c.get("tone") or {}).get("label") for c in companies]
+    pos, neg, mix = labels.count("Positive"), labels.count("Negative"), labels.count("Mixed")
+    rated = pos + neg + mix
+    label = None if not rated else "Negative" if neg > pos else "Positive" if pos * 10 >= rated * 9 else "Mixed"
+    return {"label": label, "positive": pos, "mixed": mix, "negative": neg, "rated": rated}
+
+
 def _signal(r: Dict[str, Any]) -> Dict[str, Any]:
     return {"symbol": r["symbol"], "date": r["item_date"].isoformat(), "event": r["event"], "eventLabel": S.EVENT_LABEL.get(r["event"], "Other filing"),
             "tone": r["tone"], "themes": list(r["themes"] or []), "stage": K.STAGE_LABEL.get(r["stage"] or ""), "title": r["title"], "link": r["link"]}
@@ -201,7 +212,7 @@ async def overview(store, theme: Optional[str] = None, symbol: Optional[str] = N
         for c in prim:
             stages[c["stageLabel"]] = stages.get(c["stageLabel"], 0) + 1
         base = {"name": name, "primary": len(prim), "secondary": len(also), "sectors": dict(sorted(sectors.items(), key=lambda kv: -kv[1])),
-                "stages": stages, "news": theme_news.get(name) or {"filings": 0, "positive": 0, "negative": 0}}
+                "stages": stages, "news": theme_news.get(name) or {"filings": 0, "positive": 0, "negative": 0}, "tone": theme_tone(prim)}
         if not symbol and theme != name:      # the list of themes: counts and the first names only (the page opens one theme at a time)
             themes.append({**base, "preview": [c["company"] or c["symbol"] for c in prim[:3]]})
             continue

@@ -245,5 +245,3 @@
 .aid-verify { font-size: var(--fs-13); } .aid-verify summary { cursor: pointer; font-weight: 600; min-height: 32px; display: flex; align-items: center; }
 .aid-verify ul { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 4px; color: var(--text); }
 /* Task #241: Discovery as a page: the same view with a page's room */
-.disc-page { padding-top: 8px; padding-bottom: 40px; }
-.disc-page .aid-themes { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
