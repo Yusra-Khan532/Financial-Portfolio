@@ -7,6 +7,7 @@ import { answerFundQ, filled, findEtfs, findFunds, loadFundBank, searchFundQs, s
 import { FUND_TEXT } from "../lib/askFundsText";
 import type { Answer } from "../lib/askAnswers";
 import "../styles/ask-funds.css";
+import { coTitle, subLine, titleOf } from "../lib/companyLabel";
 
 const SLOT_WORD: Record<Slot, string> = { fund: "Which fund?", fund2: "And the second fund?", etf: "Which ETF?" };
 
@@ -28,7 +29,7 @@ function Pick({ slot, onPick }: { slot: Slot; onPick: (p: Picked | PickedEtf) =>
         placeholder={slot === "etf" ? "An ETF symbol or name, e.g. NIFTYBEES or gold" : "A fund name, scheme code or ISIN, e.g. Parag Parikh Flexi Cap"} />
       {err && <p className="aif-err" role="status">{err}</p>}
       {hits.length > 0 && <ul className="afq-hits" aria-label="Matches">{hits.map((h) => <li key={"code" in h ? h.code : h.symbol}><button type="button" onClick={() => onPick(h)}>
-        {"code" in h ? <><b>{h.name}</b><small>{[h.plan, h.option].filter(Boolean).join(" · ")}</small></> : <><b>{h.symbol}</b><small>{h.name}</small></>}</button></li>)}</ul>}
+        {"code" in h ? <><b>{h.name}</b><small>{[h.plan, h.option].filter(Boolean).join(" · ")}</small></> : <><b title={coTitle(h)}>{titleOf(h)}</b><small>{subLine(h, h.name)}</small></>}</button></li>)}</ul>}
       {!hits.length && term.trim().length >= 2 && !err && <p className="aif-none">Nothing matches “{term.trim()}”.</p>}
     </div>
   );

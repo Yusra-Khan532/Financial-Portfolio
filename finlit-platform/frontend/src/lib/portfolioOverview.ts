@@ -6,6 +6,7 @@ import { apiSend, type ApiError, busyRetry } from "./api";
 import { MINUS, csvText, nf, capSize } from "./format";
 import { marketCapText, scoreBand, type ScoreBand } from "./scoreBands";
 import { LABEL_WORD, PRISM_PARTS, type PrismLabel } from "./scorePrism";
+import { sortLabel } from "./companyLabel";
 
 export type Model = "finlit" | "prism";
 export type PlanName = "basic" | "silver" | "gold";
@@ -142,7 +143,7 @@ const statementOf = (h: Ready, p: Period) => h.financials[p];
 const stmt = (k: "revenue" | "other_income" | "operating_profit" | "finance_costs" | "net_profit" | "eps" | "tax_ratio", p: Period) => (h: Ready) => csvFig(statementOf(h, p)[k]);
 
 const shareCols: Col[] = [
-  { id: "share", label: "Share", hint: "Name, symbol and sector", sort: (h) => h.symbol, csv: (h) => h.symbol },
+  { id: "share", label: "Share", hint: "Name, symbol and sector", sort: (h) => sortLabel(h), csv: (h) => h.symbol },
 ];
 const scoreCol = (model: Model): Col => ({
   id: "score", label: model === "prism" ? "Prism score" : "FinLit IQ", num: true, hint: model === "prism" ? "FinLit Prism, 0 to 100" : "FinLit IQ, 0 to 100",

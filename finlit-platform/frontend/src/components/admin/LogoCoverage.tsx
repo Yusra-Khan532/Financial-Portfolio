@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, apiGet, apiSend } from "../../lib/api";
 import { useUI } from "../../lib/ui";
+import { coTitle, subLine, titleOf } from "../../lib/companyLabel";
 
 type Missing = { items: { symbol: string; name: string; marketCapCr: number | null; status: string; reason: string }[]; companies: number; withLogo: number; top500WithLogo: number; top500: number };
 const MAX_BYTES = 64 * 1024;
@@ -31,7 +32,7 @@ function Row({ r, onDone }: { r: Missing["items"][number]; onDone: () => void })
   });
   return (
     <tr>
-      <td><b>{r.symbol}</b><br /><small className="muted">{r.name}</small></td>
+      <td><b title={coTitle(r)}>{titleOf(r)}</b><br /><small className="muted">{subLine(r, r.name)}</small></td>
       <td className="num">{r.marketCapCr == null ? "—" : r.marketCapCr.toLocaleString("en-IN")}</td>
       <td><small>{r.reason}</small>{err && <div className="formerr" role="alert">{err}</div>}</td>
       <td>

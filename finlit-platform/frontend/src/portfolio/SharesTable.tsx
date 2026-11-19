@@ -16,6 +16,7 @@ import { prismBandWord } from "../lib/scoreBands";
 import { Tip } from "../components/sectors/pack/Common";
 import { nseLevels } from "../lib/nseTaxonomy";
 import { capBucket } from "../lib/capBuckets";
+import { coTitle, sortLabel, subLine, titleOf } from "../lib/companyLabel";
 import { GroupBand, HOLD_COLS, HoldingHeads, HoldingRowCells, LotRows, TotalRow, holdingFigs, type LotsProps } from "./HoldingCells";
 
 const SHORT_LABEL: Record<string, string> = { fundamental: "G&P", valuation: "Val.", quality: "Qual.", risk: "Risk", growth: "Growth", profitability: "Profit.", balance: "Balance", technical: "Tech." };
@@ -94,7 +95,7 @@ export function SharesTable(p: Props) {
   const levelOf = (l: Line) => { const ind = isReady(l.ov) ? l.ov.industry : null, x = nseLevels(ind); return x ? x[level] : `${LEVEL_WORD[level]} not given`; };
 
   // every heading sorts both ways: the model's columns, and Share, Size, Qty and Value (task #183)
-  const extra: Record<string, (l: Line) => number | string | null> = { share: (l) => l.symbol, size: (l) => (sizeOf(l.symbol) ? SIZE_ORDER[sizeOf(l.symbol) as string] : null), qty: (l) => p.qtyOf(l.symbol), value: valueOf,
+  const extra: Record<string, (l: Line) => number | string | null> = { share: (l) => sortLabel({ symbol: l.symbol, name: l.name || (isReady(l.ov) ? l.ov.name : null) || meta[l.symbol]?.name }), size: (l) => (sizeOf(l.symbol) ? SIZE_ORDER[sizeOf(l.symbol) as string] : null), qty: (l) => p.qtyOf(l.symbol), value: valueOf,
     ...(p.lots ? { avg: (l: Line) => holdingFigs(p.lots!, l.symbol).a?.avg ?? null, invested: (l: Line) => holdingFigs(p.lots!, l.symbol).a?.invested ?? null,
       now: (l: Line) => holdingFigs(p.lots!, l.symbol).now, gain: (l: Line) => holdingFigs(p.lots!, l.symbol).gain, gainPct: (l: Line) => holdingFigs(p.lots!, l.symbol).gainPct,
       qty: (l: Line) => holdingFigs(p.lots!, l.symbol).a?.qty ?? null, price: (l: Line) => priceOf(l), change: (l: Line) => (isReady(l.ov) ? l.ov.changePct : null) } : {}), rest: (l) => rest[l.symbol] ?? null };
@@ -146,7 +147,7 @@ export function SharesTable(p: Props) {
     const weak = ov && scoreOf(h, model).band === "lo";
     return (
       <tr key={l.symbol} data-sym={l.symbol} className={[indent ? "ind" : "", weak ? "eq-weakrow" : ""].join(" ").trim() || undefined}>
-        <td className="pfx-name"><Link to={`/stocks/${l.symbol}`} className="pfx-co"><CoLogo symbol={l.symbol} size={22} inline /><b>{l.symbol}</b></Link>{letter.has(l.symbol) && <span className="pfx-letter sm" title={`Group ${letter.get(l.symbol)}`}>{letter.get(l.symbol)}</span>}<small>{pk ? (pk.industry ?? name) : name}</small></td>
+        <td className="pfx-name"><Link to={`/stocks/${l.symbol}`} className="pfx-co"><CoLogo symbol={l.symbol} size={22} inline /><b title={coTitle({ symbol: l.symbol, name })}>{titleOf({ symbol: l.symbol, name })}</b></Link>{letter.has(l.symbol) && <span className="pfx-letter sm" title={`Group ${letter.get(l.symbol)}`}>{letter.get(l.symbol)}</span>}<small>{subLine({ symbol: l.symbol, name }, pk ? (pk.industry ?? name) : name)}</small></td>
         {ov && <td>{sizeOf(l.symbol) ?? MINUS}</td>}
         {ov && (p.lots ? <HoldingRowCells p={p.lots} symbol={l.symbol} priceCell={isReady(h) ? cell(h, PRICE_COL) : <td className="x-c2 x-gs cg-h" />} changeCell={isReady(h) ? cell(h, CHANGE_COL) : <td className="x-c2 cg-h" />} />
           : <><td className="r x-qty"><input type="number" inputMode="decimal" min="0" step="any" placeholder="Qty" aria-label={`Quantity of ${l.symbol} you own`} defaultValue={p.qtyOf(l.symbol) ?? ""}

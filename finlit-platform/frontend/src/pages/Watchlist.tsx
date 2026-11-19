@@ -31,6 +31,7 @@ import { saveFile } from "../stock/derive";
 import "../styles/sectors-pack.css";
 import "../styles/watchlist-pack.css";
 import { useClassifications } from "../lib/taxonomy";
+import { coTitle, subLine, titleOf } from "../lib/companyLabel";
 
 type SortKey = "peers" | "name" | "price" | "pe" | "roe" | "size" | "score";
 type Rich = Item & { row: Row };
@@ -212,7 +213,7 @@ export function WatchlistPage() {
                               <td><div className="wp-co">
                                 <input type="checkbox" checked={sel.includes(i.symbol)} onChange={() => toggleSel(i.symbol)} aria-label={`Select ${i.symbol} to compare`} />
                                 <Logo src={lg?.logo} name={i.name} kind="stock" size={30} />
-                                <Link to={`/stocks/${i.symbol}`} onClick={(e) => openSample(e, r)}><b>{i.symbol}</b><small>{i.name}</small></Link>
+                                <Link to={`/stocks/${i.symbol}`} onClick={(e) => openSample(e, r)}><b title={coTitle(i)}>{titleOf(i)}</b><small>{subLine(i, i.name)}</small></Link>
                               </div></td>
                               <td className="wp-ind">{i.industry || <span className="faint" title="This company is not in NSE's industry lists">Not classified</span>}</td>
                               <td className="r wp-px"><b>{fmt(METRICS.price, r.price)}</b>{i.change != null && <span className={i.change >= 0 ? "wp-up" : "wp-dn"}>{(i.change > 0 ? "+" : i.change < 0 ? "−" : "") + nf(Math.abs(i.change), 2)}%</span>}</td>

@@ -12,6 +12,7 @@ import type { RotationMap, RotationRow } from "../../../lib/rotation";
 import type { GroupRow, IndustryPage, RankedStock } from "../../../lib/sectors";
 import { BOXES, BOX_HELP, BOX_MEANING, breadthWord, byBox, climbers26, fullCards, inRotFilter, lastMonth, move, nextBox, pc, rankAgo, rotationCsv, rowSummary, sixMonthRankCards, sixMonths, threeMonths, twelveWeekCards, type Box, type RotFilter } from "../../../lib/rotationPack";
 import { RankLine } from "./RotationSimple";
+import { coTitle, subLine, titleOf } from "../../../lib/companyLabel";
 
 export const FullCardsRot = ({ m }: { m: RotationMap }) => <Cards items={fullCards(m)} />;
 
@@ -20,7 +21,7 @@ function Opened({ r }: { r: RotationRow }) {
   const q = useQuery<IndustryPage, ApiError>({ queryKey: ["sector", r.slug], queryFn: () => apiGet<IndustryPage>(`/api/sectors/${encodeURIComponent(r.slug)}`), staleTime: 300_000, retry: false });
   const stocks = ((q.data?.stocks as RankedStock[] | null) ?? []).filter((s) => s.return_6m_pct != null);
   const best = stocks.slice(0, 5), weak = stocks.length > 5 ? stocks.slice(-3).filter((s) => !best.includes(s)) : [];
-  const li = (s: RankedStock) => <li key={s.symbol}><Link to={`/stocks/${s.symbol}`}><b>{s.symbol}</b> <span>{s.name}</span></Link><b className={(s.return_6m_pct ?? 0) >= 0 ? "sp-good" : "sp-red"}>{signed(s.return_6m_pct)}</b></li>;
+  const li = (s: RankedStock) => <li key={s.symbol}><Link to={`/stocks/${s.symbol}`}><b title={coTitle(s)}>{titleOf(s)}</b> <span>{subLine(s, s.name)}</span></Link><b className={(s.return_6m_pct ?? 0) >= 0 ? "sp-good" : "sp-red"}>{signed(s.return_6m_pct)}</b></li>;
   return (
     <div className="rp-open">
       <p>{rowSummary(r)} <Link to={`/sectors/${r.slug}`} className="sp-link">Open the {short(r.name)} page →</Link></p>

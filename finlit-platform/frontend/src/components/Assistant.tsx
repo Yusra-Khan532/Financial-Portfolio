@@ -28,6 +28,7 @@ const AskDiscovery = lazy(() => import("./AskDiscovery").then((m) => ({ default:
 const FUNDS_CARD = { id: "funds", title: "Mutual funds & ETFs", sub: "Funds, returns, costs, ETFs", icon: "pie" } as const;
 
 import { OPEN_AI } from "./assistantEvents";
+import { coTitle, subLine, titleOf } from "../lib/companyLabel";
 export { OPEN_AI };
 /** `ai`: a written answer from FinLit AI (task #211): what it is reading while the words have not come yet, the disclaimer once done, a refusal, or the note
  *  that written answers are part of Silver and Gold (Basic and visitors keep the listed questions: founder, 17 Nov 2026). */
@@ -327,7 +328,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
                 <label htmlFor="aif-find">Which company?</label>
                 <input id="aif-find" type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Search a company (e.g. Reliance, TCS)" autoComplete="off" />
                 {findErr && <p className="aif-err" role="status">{findErr}</p>}
-                {found.length > 0 && <ul className="aif-found" aria-label="Matching companies">{found.map((c) => <li key={c.symbol}><button type="button" onClick={() => goCompany(c.symbol, pendingTab)}><b>{c.symbol}</b><span>{c.name}</span></button></li>)}</ul>}
+                {found.length > 0 && <ul className="aif-found" aria-label="Matching companies">{found.map((c) => <li key={c.symbol}><button type="button" onClick={() => goCompany(c.symbol, pendingTab)}><b title={coTitle(c)}>{titleOf(c)}</b><span>{subLine(c, c.name)}</span></button></li>)}</ul>}
                 {!found.length && find.trim().length >= 2 && !findErr && <p className="aif-none">No company matches “{find.trim()}”.</p>}
                 {!find.trim() && <><p className="aif-label">Or choose from popular companies</p>
                   <ul className="aif-pops" aria-label="Popular companies">{QUICK_PICKS.map((c) => <li key={c.symbol}><button type="button" onClick={() => goCompany(c.symbol, pendingTab)}><CoLogo symbol={c.symbol} name={c.name} size={28} inline /><span>{c.name}</span></button></li>)}</ul></>}

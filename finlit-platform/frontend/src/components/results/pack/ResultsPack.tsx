@@ -19,6 +19,7 @@ import { growthTone, industryLines } from "../../../lib/resultsCalendar";
 import "../../../styles/table-grid.css";   // the shared grid table (kit-grid / kit-bands) of the tables below; imported here so every page that draws them has it
 
 const n0 = (v: number) => v.toLocaleString("en-IN");
+import { coTitle, subLine, titleOf } from "../../../lib/companyLabel";
 const cr = (v: number | null | undefined) => (v == null ? "–" : Math.abs(v) >= 100 ? n0(Math.round(v)) : v.toFixed(1));
 const tone = (v: number | null | undefined) => (v == null ? "" : v > 0 ? "sp-good" : v < 0 ? "sp-red" : "");
 
@@ -132,7 +133,7 @@ export function ResultsTable({ rows, label, mine }: { rows: VRow[]; label: strin
           {H("rev", "₹ Cr", "r")}{H("revYoY", "YoY", "r")}{H("revQoQ", "QoQ", "r")}{H("np", "₹ Cr", "r")}{H("npYoY", "YoY", "r")}{H("npQoQ", "QoQ", "r")}{H("npm", "Now", "r")}{H("npmChg", "Change", "r")}{H("verdict", "Verdict")}</tr>
       </thead>
       <tbody>{sorted.map((r) => (
-        <tr key={r.symbol}><td><Link to={`/stocks/${r.symbol}#quarter`} className="ip-sym"><CoLogo symbol={r.symbol} name={r.name} size={22} inline /><span><b>{r.symbol}</b><small>{r.name}</small></span></Link>{mine?.has(r.symbol) && <em className="rp-yours"> · Yours</em>}</td>
+        <tr key={r.symbol}><td><Link to={`/stocks/${r.symbol}#quarter`} className="ip-sym"><CoLogo symbol={r.symbol} name={r.name} size={22} inline /><span><b title={coTitle(r)}>{titleOf(r)}</b><small>{subLine(r, r.name)}</small></span></Link>{mine?.has(r.symbol) && <em className="rp-yours"> · Yours</em>}</td>
           <td className="rs-ind"><IndustryCell name={r.industry} /></td><td>{r.cap ?? "–"}</td>
           <td className="r">{cr(r.revenue)}</td><td className={"r " + tone(r.revenueYoY)}>{sp(r.revenueYoY)}</td><td className={"r " + tone(r.revenueQoQ)}>{sp(r.revenueQoQ)}</td>
           <td className="r">{r.loss ? <span className="sp-red">{cr(r.netProfit)}</span> : cr(r.netProfit)}</td><td className={"r " + tone(r.profitYoY)}>{r.loss && r.profitYoY == null ? "loss" : sp(r.profitYoY)}</td><td className={"r " + tone(r.profitQoQ)}>{sp(r.profitQoQ)}</td>
@@ -234,7 +235,7 @@ export function ComingUp({ resp, inds, dueMine, followed, mine, locked }: { resp
             const x = industryLines(r.industry).set ? by.get(r.industry ?? "") : undefined;
             const v = x?.medianProfitYoY;
             return <tr key={r.symbol}><td className="rs-day">{dayShort(r.date)}</td>
-              <td><Link to={`/stocks/${r.symbol}`} className="ip-sym"><CoLogo symbol={r.symbol} name={r.name} size={22} inline /><span><b>{r.symbol}</b><small>{r.name}</small></span></Link>{mine.has(r.symbol) && <em className="rp-yours"> · Yours</em>}
+              <td><Link to={`/stocks/${r.symbol}`} className="ip-sym"><CoLogo symbol={r.symbol} name={r.name} size={22} inline /><span><b title={coTitle(r)}>{titleOf(r)}</b><small>{subLine(r, r.name)}</small></span></Link>{mine.has(r.symbol) && <em className="rp-yours"> · Yours</em>}
                 {r.hasNumbers && <small className="rsc-early" title="The company's figures for the quarter are already filed, ahead of the board-meeting date it announced">Figures already filed</small>}</td>
               <td className="rs-ind"><ComingIndustry name={r.industry} /></td><td>{r.cap ?? <span className="sp-nil" title="The size follows the market value, which is not known for this company yet">–</span>}</td><td className="r">{!r.marketCap ? <span className="sp-nil" title="No market value is known for this company yet (no traded price in our data)">–</span> : `₹${n0(Math.round(r.marketCap))} Cr`}</td>
               <td className="rs-sofar">{x && x.companies ? <span className="rsc-sofar"><i aria-hidden="true"><u style={{ width: `${Math.min(100, (x.declared / x.companies) * 100)}%` }} /></i>{n0(x.declared)} of {n0(x.companies)} reported</span> : <span className="sp-nil">Too few results to compare yet</span>}</td>

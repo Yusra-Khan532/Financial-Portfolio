@@ -6,6 +6,7 @@ import { HScroll } from "../components/HScroll";
 import { nf } from "../lib/format";
 import { MODEL_NAME, betaTxt, chg, joinWords, pctOf, rupees, type AllInvestments, type Kind } from "../lib/myInvest";
 import { GoLink, KeyFigures, Notes, ScoreWord, SecHead, ShowAll, Stack, type Note } from "./parts";
+import { coTitle, subLine, titleOf } from "../lib/companyLabel";
 
 export const EQ_SECTIONS = [{ id: "mi-eq-list", label: "Your shares" }, { id: "mi-eq-spread", label: "Spread" }, { id: "mi-eq-risk", label: "Risk" }, { id: "mi-eq-also", label: "Also in funds and ETFs" }];
 export const MF_SECTIONS = [{ id: "mi-mf-list", label: "Your funds" }, { id: "mi-mf-inside", label: "Inside" }, { id: "mi-mf-risk", label: "Risk" }];
@@ -58,7 +59,7 @@ export function EquityTab({ d }: { d: AllInvestments }) {
         <HScroll label="Your shares" className="mi-freeze">
           <table className="mi-tb">
             <thead><tr><th scope="col">Share</th><th scope="col">Macro sector</th><th scope="col">Size</th><th scope="col">{model}</th><th scope="col">Against peers</th><th scope="col" className="r">1 day</th><th scope="col" className="r">1 year</th>{d.byValue && <th scope="col" className="r">Value</th>}<th scope="col" className="r">Of everything</th></tr></thead>
-            <tbody>{shown.map((x) => <tr key={x.symbol}><th scope="row"><Link to={`/stocks/${encodeURIComponent(x.symbol)}`}><b>{x.symbol}</b></Link><small>{x.name}</small>{x.alsoIn && <span className="mi-tag">Also in funds/ETFs</span>}</th>
+            <tbody>{shown.map((x) => <tr key={x.symbol}><th scope="row"><Link to={`/stocks/${encodeURIComponent(x.symbol)}`}><b title={coTitle(x)}>{titleOf(x)}</b></Link><small>{subLine(x, x.name)}</small>{x.alsoIn && <span className="mi-tag">Also in funds/ETFs</span>}</th>
               <td>{x.macro}</td><td>{x.size ?? <span className="mi-muted">Not sized</span>}</td><td><ScoreWord v={x.score} label={x.label} /></td><td><span className={"mi-peer p-" + x.peer.replace(/\s/g, "").toLowerCase()}>{x.peer}</span></td>
               <td className={"r " + tone(x.chg1d)}>{chg(x.chg1d, 2)}</td><td className={"r " + tone(x.chg1y)}>{chg(x.chg1y)}</td>{d.byValue && <td className="r">{x.value != null ? rupees(x.value) : "—"}</td>}<td className="r">{pctOf(x.of, 2)}</td></tr>)}</tbody>
           </table>
@@ -82,7 +83,7 @@ export function EquityTab({ d }: { d: AllInvestments }) {
         <SecHead id="mi-eq-also" n={4} title="Also inside your funds and ETFs" line="Shares you hold directly that a fund or ETF holds too: your real part of each, all ways added." info={["Each share you hold directly that also sits inside one of your funds or ETFs.", "All together adds the direct part and what comes through funds and ETFs."]} />
         {also.length ? <HScroll label="Also inside your funds and ETFs"><table className="mi-tb">
           <thead><tr><th scope="col">Share</th><th scope="col" className="r">Direct</th><th scope="col" className="r">Through funds</th><th scope="col" className="r">Through ETFs</th><th scope="col" className="r">All together</th><th scope="col">Held by</th></tr></thead>
-          <tbody>{also.map((x) => <tr key={x.symbol}><th scope="row"><b>{x.symbol}</b><small>{x.name}</small></th><td className="r">{pctOf(x.of, 2)}</td><td className="r">{x.alsoIn!.funds ? pctOf(x.alsoIn!.funds, 2) : "—"}</td><td className="r">{x.alsoIn!.etfs ? pctOf(x.alsoIn!.etfs, 2) : "—"}</td>
+          <tbody>{also.map((x) => <tr key={x.symbol}><th scope="row"><b title={coTitle(x)}>{titleOf(x)}</b><small>{subLine(x, x.name)}</small></th><td className="r">{pctOf(x.of, 2)}</td><td className="r">{x.alsoIn!.funds ? pctOf(x.alsoIn!.funds, 2) : "—"}</td><td className="r">{x.alsoIn!.etfs ? pctOf(x.alsoIn!.etfs, 2) : "—"}</td>
             <td className="r"><b>{pctOf(x.alsoIn!.all, 2)}</b>{x.of > 0 ? <small> ({nf(x.alsoIn!.all / x.of, 2)}× direct)</small> : null}</td><td><span className="mi-chips">{x.alsoIn!.via.map((v) => <i key={v}>{v}</i>)}</span></td></tr>)}</tbody></table></HScroll>
           : <p className="mi-small">None of your shares sits inside your funds or ETFs.</p>}
       </section>

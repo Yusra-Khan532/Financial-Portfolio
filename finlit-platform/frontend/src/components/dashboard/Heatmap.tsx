@@ -8,6 +8,7 @@ import { tileColour, tileLabel, TILE_COLOURS } from "../../lib/dashboard";
 import type { Row } from "../../lib/screener";
 import { Card, Seg, tone, useIsPhone, useWidth } from "./parts";
 import { CoLogo } from "../CoLogo";
+import { coTitle, subLine, titleOf } from "../../lib/companyLabel";
 
 type Cell = { symbol: string; name: string; move: number | null; cap: number; price: number | null };
 const sgn = (v: number | null | undefined, d = 2) => (v == null ? MINUS : (v > 0 ? "+" : v < 0 ? MINUS : "") + nf(Math.abs(v), d) + "%");
@@ -34,7 +35,7 @@ function HeatTiles({ cells, h }: { cells: Cell[]; h: number }) {
         return <Link key={c.symbol} to={`/stocks/${c.symbol}`} role="listitem" className="t" style={style} aria-label={aria} {...hover}>{w >= 104 && th >= 66 && <span className="t-lg"><CoLogo symbol={c.symbol} name={c.name} size={20} /></span>}<b style={{ fontSize: lab.size }}>{c.symbol}</b>{lab.pct && <em>{sgn(c.move)}</em>}</Link>;
       })}
       {tip && <div className="dsh-htip" role="status" style={{ left: Math.max(8, Math.min(W - 196, tip.x + 12)), top: Math.max(4, Math.min(h - 96, tip.y + 12)) }}>
-        <span className="dsh-htn"><CoLogo symbol={tip.c.symbol} name={tip.c.name} size={22} /><b>{tip.c.symbol}</b></span><small>{tip.c.name}</small><span>{tip.c.price != null ? "₹" + nf(tip.c.price) : "No price"} · <i className={tone(tip.c.move)}>{sgn(tip.c.move)}</i></span>
+        <span className="dsh-htn"><CoLogo symbol={tip.c.symbol} name={tip.c.name} size={22} /><b title={coTitle(tip.c)}>{titleOf(tip.c)}</b></span><small>{subLine(tip.c, tip.c.name)}</small><span>{tip.c.price != null ? "₹" + nf(tip.c.price) : "No price"} · <i className={tone(tip.c.move)}>{sgn(tip.c.move)}</i></span>
         {tip.c.cap > 0 && <small>Market value ₹{Math.round(tip.c.cap).toLocaleString("en-IN")} Cr</small>}
         {tip.pinned && <Link to={`/stocks/${tip.c.symbol}`}>Open {tip.c.symbol} →</Link>}</div>}
     </div>
@@ -49,7 +50,7 @@ function List({ cells }: { cells: Cell[] }) {
   return (
     <div className="dsh-hl" role="table" aria-label="Stocks of the index">
       <div className="h" role="row"><span role="columnheader">{head("symbol", "Ticker")}</span><span role="columnheader" className="r">{head("price", "Price", "r")}</span><span role="columnheader" className="r">{head("move", "Today", "r")}</span></div>
-      {rows.map((c) => <Link key={c.symbol} to={`/stocks/${c.symbol}`} className="row" role="row"><span role="cell" className="dsh-hc"><CoLogo symbol={c.symbol} name={c.name} size={22} /><span><b>{c.symbol}</b><small>{c.name !== c.symbol ? c.name : ""}</small></span></span><span role="cell" className="r">{c.price != null ? "₹" + nf(c.price) : "—"}</span><span role="cell" className={"r " + tone(c.move)}>{sgn(c.move)}</span></Link>)}
+      {rows.map((c) => <Link key={c.symbol} to={`/stocks/${c.symbol}`} className="row" role="row"><span role="cell" className="dsh-hc"><CoLogo symbol={c.symbol} name={c.name} size={22} /><span><b title={coTitle(c)}>{titleOf(c)}</b><small>{subLine(c, c.name !== c.symbol ? c.name : "") ?? ""}</small></span></span><span role="cell" className="r">{c.price != null ? "₹" + nf(c.price) : "—"}</span><span role="cell" className={"r " + tone(c.move)}>{sgn(c.move)}</span></Link>)}
     </div>
   );
 }

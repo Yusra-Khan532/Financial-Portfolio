@@ -13,6 +13,7 @@ import type { Board, GroupRow, IndustryPage, RankedStock } from "../../../lib/se
 import type { SectorHistory, StateKey } from "../../../lib/sectorHistory";
 import { COLOUR, MEANING, ORDER, WORD, groupsN, groupsSplit, bounceIndex, bouncedShort, byState, dayMon, fridayCards, fridays, howStrong, inTableFilter, isEarly, keyOf, risingOf, short, standoutCounts, statesAt, tableCards, toCsv, type Card, type TableFilter } from "../../../lib/pulsePack";
 import { BoxChip, Cards, InsideLine, InsightCard, Scroll, Spark, StateChip, Swatch, Tip, useAccount } from "./Common";
+import { coTitle, subLine, titleOf } from "../../../lib/companyLabel";
 
 const pct0 = (v: number | null | undefined) => (v == null ? "–" : `${Math.round(v)}%`);
 const signed = (v: number | null | undefined) => (v == null ? "–" : `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(1)}%`);
@@ -182,7 +183,7 @@ function Opened({ r, rising }: { r: GroupRow; rising: (number | null)[] }) {
             <th scope="col">Vs peers<Tip text="Leader, In line, Laggard. Each share's price over the last 12 months is compared with similar companies and with its sector index. Leader: among the strongest of its group and ahead of the index. Laggard: among the weakest and behind it. It describes the past, not the future. A dash means the stock is not in a FinLit peer group." /></th>
             <th scope="col">Standout<Tip text="At a new 1-year high while its industry is still well below its own high." /></th></tr></thead>
           <tbody>{shown.map((s, i) => s == null ? <tr key="mid" className="sp-mid-row"><td colSpan={7}>… {stocks.length - 15} more in the middle: open the industry page to see all {stocks.length} …</td></tr> : (
-            <tr key={s.symbol}><td>{s.rank_6m ?? i + 1}</td><td><Link to={`/stocks/${s.symbol}`} className="sp-sym"><CoLogo symbol={s.symbol} name={s.name} size={20} inline /><b>{s.symbol}</b> <span className="sp-coname">{s.name}</span></Link></td>
+            <tr key={s.symbol}><td>{s.rank_6m ?? i + 1}</td><td><Link to={`/stocks/${s.symbol}`} className="sp-sym"><CoLogo symbol={s.symbol} name={s.name} size={20} inline /><b title={coTitle(s)}>{titleOf(s)}</b> <span className="sp-coname">{subLine(s, s.name)}</span></Link></td>
               <td>{cap(s.symbol)}</td><td className={"r " + ((s.return_6m_pct ?? 0) >= 0 ? "sp-good" : "sp-red")}>{signed(s.return_6m_pct)}</td>
               <td>{s.quarter_name ? <span className={"sp-q sp-q" + (s.quarter ?? 0)}>{s.quarter_name}</span> : "–"}</td>
               <td>{s.peer_label ? <span className={"sp-q sp-peer-" + s.peer_label.toLowerCase().replace(/\s+/g, "")}>{s.peer_label}</span> : q.data?.locked?.peer_label ? <span className="sp-nil" title="Part of the Gold plan">Gold</span> : "–"}</td>
