@@ -1,67 +1,120 @@
-// Discovery (task #241: its own page under Find stocks), laid out as the 19 Nov Discover pack (task #251, which replaces #245's layout by the owner's
-// decision of 19 Nov 2026): it opens on Themes; Themes · What changed · Sectors · All companies are tabs; each theme, event and sector has its own page and
-// address (#theme-ai-and-genai, #change-order, #sector-industrials) with a breadcrumb, so Back works and a link can be shared. "Your names in Discover"
-// shows the member's portfolio and watchlist names. Data: GET /api/discovery/board plus FinLit's readings per plan (discovery/model.ts).
-// Describes what companies say and file; never a pick. Styles: discovery/discover.css (class prefix dsc-).
+// Discover (task #241: its own page under Find stocks; task #251: the 19 Nov pack; task #260: the 20 Nov pack, which this page follows).
+//   §1 the page head of the screeners (eyebrow "Research · Find stocks", "Discover" with a New tag, the as-of pill, two links into "Questions about this
+//      page"), the count chips and "Find a company in Discover"
+//   §2 "Your names in Discover" · §3 the four views in the site's "ways to look" strip · §4–§10 the views, the pages and the company table
+//   §14 one real path per view (/discover, /discover/themes/<slug>, /discover/changes, /discover/sectors/<macro>[/<sector>], /discover/industries/<i>,
+//      /discover/companies), the table's filters in the query string; /discovery and its old #theme-... addresses land on the same pages.
+// Data: GET /api/discovery/board plus FinLit's readings per plan (discovery/model.ts). Describes what companies say and file; never a pick.
+// Styles: discovery/discover.css (class prefix dsc-), on the page head of styles/sectors-pack.css and styles/screeners243.css (xsh-).
 import { useEffect, useMemo, useRef, useState } from "react";
-import { PageHeader } from "../components/PageHeader";
+import { Link, Navigate, useLocation } from "react-router";
 import { useDocTitle } from "../lib/title";
 import { Icon } from "../lib/icons";
+import { faqAnchor } from "../components/PageFaqs";
+import { DISCOVER_FAQ } from "../content/discoverFaqs";
 import { DiscoverProvider, useDsc } from "../discovery/ctx";
 import { I, RotDate } from "../discovery/Info";
-import { EVENTS, fmtDate, short, slug, useDiscover } from "../discovery/model";
-import { AllView, EventPage, EventsView, SectorPage, SectorsView, ThemePage, ThemesView, YourNames } from "../discovery/Views";
+import { BASE, EVENTS, VIEW_PATH, fmtDate, legacyPath, short, themePath, useDiscover, type View } from "../discovery/model";
+import { AllView, EventPage, EventsView, IndustryPage, MacroPage, SectorsView, ThemePage, ThemesView, YourNames } from "../discovery/Views";
+import "../styles/sectors-pack.css";
+import "../styles/screeners243.css";
 import "../discovery/discover.css";
 
+/** /discovery (task #241's address) and its hash routes open the same page on /discover. */
+export function DiscoveryRedirect() {
+  const { hash, search } = useLocation();
+  return <Navigate to={legacyPath(hash) + search} replace />;
+}
+
 export function DiscoveryPage() {
-  useDocTitle("Discovery", "Companies grouped by the themes their own investor presentations talk about (AI, defence, solar, batteries, data centres, EVs and more), with the stage, recent filings, FinLit's readings, NSE sectors, Sector Rotation and Sector Pulse. Information only, not advice.");
+  useDocTitle("Discover", "Companies grouped by what they are building: the themes their own investor presentations talk about (AI, defence, solar, batteries, data centres, EVs and more), with the stage, recent filings, NSE sectors and industries, Sector Rotation, Sector Pulse and FinLit's readings. Information only, not advice.");
   const d = useDiscover();
   return <DiscoverProvider d={d}><RotDate.Provider value={d.rotLabel ?? (fmtDate(d.rotDate) || "the latest week")}><Page /></RotDate.Provider></DiscoverProvider>;
 }
 
+const qAnchor = (q: string) => faqAnchor(DISCOVER_FAQ.id, DISCOVER_FAQ.items.findIndex((x) => x.q === q));
+export const Q_PLACED = "How is a company placed in a theme?";
+export const Q_BUY = "Does Discover tell me what to buy?";
+
+function Head() {
+  const c = useDsc(), b = c.d.board, { pathname, search } = useLocation();
+  const asOf = [b?.updated ? `Presentations to ${fmtDate(b.updated)}` : null, c.d.pricesAsOf ? `prices and scores: ${fmtDate(c.d.pricesAsOf)} close` : null].filter(Boolean).join(" · ");
+  return <header className="sp sp-head xsh dsc-head" aria-labelledby="dsc-h1">
+    <p className="sp-eyebrow">Research · Find stocks</p>
+    <div className="xsh-h1"><h1 id="dsc-h1">Discover</h1><span className="dsc-new">New</span></div>
+    <p className="sp-desc">Find companies by what they are building. Each company sits in the theme its newest investor presentation talks about most, with its recent exchange filings, its sector and FinLit’s readings beside it.</p>
+    <div className="sp-head-bar xsh-bar">
+      {asOf && <span className="xsh-date"><i aria-hidden="true" />{asOf}</span>}
+      <Link className="sp-link xsh-link" to={{ pathname, search, hash: qAnchor(Q_PLACED) }}>How is a company placed? →</Link>
+      <Link className="sp-link xsh-link" to={{ pathname, search, hash: qAnchor(Q_BUY) }}>Does Discover tell me what to buy? →</Link>
+    </div>
+  </header>;
+}
+
 function Page() {
   const c = useDsc(), b = c.d.board;
-  const meta = b ? <span className="dsc-meta">
-    <span className="dsc-chip">{b.companies.toLocaleString("en-IN")} companies placed<I k="placed" /></span>
-    {b.updated && <span className="dsc-chip">Presentations read to {fmtDate(b.updated)}</span>}
-    <span className="dsc-chip">Filings of the last {b.days} days</span>
-    {c.d.pricesAsOf && <span className="dsc-chip">Prices and scores of {fmtDate(c.d.pricesAsOf)}</span>}
-    <a className="dsc-linkish" href="#dsc-how" onClick={(e) => { e.preventDefault(); const el = document.getElementById("dsc-how") as HTMLDetailsElement | null; if (el) { el.open = true; el.scrollIntoView({ block: "start" }); } }}>How it is built</a>
-  </span> : undefined;
+  return <div className="wrap dsc-page">
+    <Head />
+    {b && <div className="dsc-under">
+      <div className="dsc-meta">
+        <span className="dsc-chip">{b.companies.toLocaleString("en-IN")} companies placed<I k="placed" /></span>
+        <span className="dsc-chip">{new Set(c.d.rows.map((r) => r.th)).size} themes</span>
+        <span className="dsc-chip">Filings of the last {b.days} days</span>
+      </div>
+      <Find />
+    </div>}
+    {c.d.isError ? <p className="dsc-empty" role="alert">Discover could not be loaded just now. Please try again in a moment.</p>
+      : !b ? <p className="dsc-empty" aria-busy="true">Loading Discover…</p>
+      : <Body />}
+  </div>;
+}
+
+// §3 the four views: the site's "ways to look" strip (portfolio pack, "How the list moves together · 3 ways to look · tap one")
+const VIEW_ICON: Record<View, string> = { themes: "spark", "what-changed": "activity", sectors: "grid", "all-companies": "table" };
+function Ways() {
+  const c = useDsc(), r = c.route;
+  const ways: [View, string, number, string][] = [
+    ["themes", "Themes", new Set(c.d.rows.map((x) => x.th)).size, "What companies are building"],
+    ["what-changed", "What changed", EVENTS.length, `Filings of the last ${c.d.board?.days ?? 90} days`],
+    ["sectors", "Sectors", c.sectors.length, "NSE sectors and industries"],
+    ["all-companies", "All companies", c.d.rows.length, "Every company in one table"],
+  ];
   return <>
-    <PageHeader wrap eyebrow="Research" title="Discovery" links={["/screener", "/superinvestors", "/research"]} learn={false}
-      description="Find companies by what they are building. Each company sits in the theme its newest investor presentation talks about most, with its recent exchange filings and FinLit’s readings beside it."
-      meta={meta}>{b ? <Find /> : null}</PageHeader>
-    <div className="wrap dsc-page">
-      {c.d.isError ? <p className="dsc-empty" role="alert">Discovery could not be loaded just now. Please try again in a moment.</p>
-        : !b ? <p className="dsc-empty" aria-busy="true">Loading Discovery…</p>
-        : <Body />}
-    </div>
+    <p className="x2-k dsc-wk" aria-hidden="true">Explore Discover <small>{ways.length} ways to look · tap one</small></p>
+    <nav className="dsc-ways" aria-label="Discover views">{ways.map(([k, l, n, line]) => {
+      const on = r.view === k;
+      return <Link key={k} to={VIEW_PATH[k]} className="dsc-way" aria-current={on ? "page" : undefined} data-on={on || undefined}>
+        <span className="dsc-wic" aria-hidden="true"><Icon name={VIEW_ICON[k]} /></span>
+        <span className="dsc-wtx"><span className="dsc-wl">{l}<span className="dsc-wn">{n.toLocaleString("en-IN")}</span></span><span className="dsc-wd">{line}</span></span>
+      </Link>;
+    })}</nav>
   </>;
 }
 
 function Body() {
   const c = useDsc(), r = c.route, b = c.d.board!;
-  const detail = !!(r.theme || r.event || r.sector);
+  const detail = !!(r.theme || r.event || r.macro || r.industry);
   const top = useRef<HTMLDivElement>(null), first = useRef(true);
-  useEffect(() => { if (first.current) { first.current = false; return; } top.current?.scrollIntoView?.({ block: "start" }); }, [r.theme, r.event, r.sector, r.view]);
-  const tabs: [string, string, number][] = [["themes", "Themes", new Set(c.d.rows.map((x) => x.th)).size], ["what-changed", "What changed", EVENTS.length],
-    ["sectors", "Sectors", c.sectors.length], ["all-companies", "All companies", c.d.rows.length]];
+  const where = [r.view, r.theme, r.event, r.macro, r.sector, r.industry].join("|");
+  useEffect(() => { if (first.current) { first.current = false; return; } top.current?.scrollIntoView?.({ block: "start" }); }, [where]);
   return <>
     {!detail && <YourNames />}
-    <div ref={top} className="dsc-tabs" role="tablist" aria-label="Discovery views">{tabs.map(([k, l, n]) => (
-      <button key={k} type="button" role="tab" aria-selected={r.view === k} onClick={() => c.go("#" + k)}>{l}<span className="n">{n}</span></button>))}</div>
+    <div ref={top} className="dsc-anchor" />
+    <Ways />
     <div className="dsc-view">
-      {r.theme ? <ThemePage key={r.theme} theme={r.theme} /> : r.event ? <EventPage key={r.event} k={r.event} /> : r.sector ? <SectorPage key={r.sector} m={r.sector} />
+      {r.theme ? <ThemePage key={r.theme} theme={r.theme} />
+        : r.event ? <EventPage key={r.event} k={r.event} />
+        : r.industry ? <IndustryPage key={r.industry} ind={r.industry} />
+        : r.macro ? <MacroPage key={r.macro + (r.sector ?? "")} m={r.macro} sc={r.sector} />
         : r.view === "what-changed" ? <EventsView /> : r.view === "sectors" ? <SectorsView /> : r.view === "all-companies" ? <AllView /> : <ThemesView />}
     </div>
-    <p className="dsc-caution"><Icon name="info" /> {b.caution}</p>
+    <p className="dsc-caution"><Icon name="info" /> {b.caution} Describes the company’s financial health from its filings and prices; not a recommendation. Information only, not investment advice.</p>
     <details className="dsc-how" id="dsc-how"><summary>How it is built</summary><p>{b.method}</p>
-      <p>FinLit Prism, the two technical views, prices and market value come from FinLit’s own nightly figures, as your plan shows them. Sector Rotation and Sector Pulse readings are weekly ({c.d.rotLabel ?? "latest week"}).</p></details>
+      <p>FinLit Prism, the two technical views, prices and market value come from FinLit’s own nightly figures, as your plan shows them. Sector Rotation is read weekly and Sector Pulse daily; each reading shows its date.</p></details>
   </>;
 }
 
-/** "Find a company in Discover": opens the company on its theme page, details open. Names of yours that are not placed say so. */
+/** "Find a company in Discover": Enter opens the first; picking one opens that company in its theme's table, details open. Names of yours that are not placed say so. */
 function Find() {
   const c = useDsc();
   const [q, setQ] = useState(""), [act, setAct] = useState(0);
@@ -69,17 +122,17 @@ function Find() {
   const hits = useMemo(() => {
     const s = q.trim().toLowerCase();
     if (!s) return { hits: [], mine: [] as string[] };
-    const hits = c.d.rows.filter((r) => r.n.toLowerCase().includes(s) || r.s.toLowerCase().includes(s)).slice(0, 8);
+    const hits = c.d.rows.filter((r) => r.n.toLowerCase().includes(s) || r.s.toLowerCase().includes(s))
+      .sort((a, b) => Number(!a.s.toLowerCase().startsWith(s) && !a.n.toLowerCase().startsWith(s)) - Number(!b.s.toLowerCase().startsWith(s) && !b.n.toLowerCase().startsWith(s))).slice(0, 8);
     const mine = [...c.held, ...c.watched].filter((x, i, a) => a.indexOf(x) === i && !c.by.has(x) && (x.toLowerCase().includes(s) || (c.d.uni.get(x)?.name ?? "").toLowerCase().includes(s)));
     return { hits, mine };
   }, [q, c]);
   useEffect(() => { const f = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setQ(""); }; document.addEventListener("mousedown", f); return () => document.removeEventListener("mousedown", f); }, []);
   const pick = (s: string) => {
     const r = c.by.get(s); if (!r) return;
-    const k = "theme-" + slug(r.th);
-    c.setT(k, { q: r.n, page: 0 }); c.toggleOpen(s, true); setQ("");
-    c.go("#" + k);
-    setTimeout(() => document.getElementById("dsc-tbl-top")?.scrollIntoView?.({ block: "start" }), 60);
+    c.toggleOpen(s, true); setQ("");
+    c.go(themePath(r.th), { q: r.n });
+    setTimeout(() => document.getElementById("dsc-tbl-top")?.scrollIntoView?.({ block: "start" }), 80);
   };
   const open = q.trim().length > 0;
   return <div className="dsc-find" ref={box}>
@@ -97,3 +150,4 @@ function Find() {
     </div>}
   </div>;
 }
+export { BASE };

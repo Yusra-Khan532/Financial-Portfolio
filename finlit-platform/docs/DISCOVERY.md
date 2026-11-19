@@ -72,3 +72,20 @@ The same first night showed "Corporate Catalysts & Growth Signals" (order book, 
 events every deck names, not a line of business. Now a business theme that qualifies is the primary and the catalysts stay a secondary theme
 (alone, they are still shown). `keywords.RULES_VERSION` (migration 111, `discovery_companies.rules`): when the scoring changes, the job reads the
 older presentations again, after the new ones, bounded per night.
+
+## The Discover page (task #260, the 20 Nov 2026 Discover pack)
+
+The page lives at `/discover` (menu: Research › Find stocks › Discover, after Query builder). One real path per view, so every page can be linked:
+`/discover` (Themes), `/discover/themes/<slug>`, `/discover/changes`, `/discover/changes/<key>`, `/discover/sectors`, `/discover/sectors/<macro>`,
+`/discover/sectors/<macro>/<sector>`, `/discover/industries/<industry>`, `/discover/companies`. The company table's filters, sort and page are in the
+query string (`?stage=Operating&size=mid&mac=Industrials&v=uptrend&sort=r3m&page=2`). The old `/discovery` address and its `#theme-...` hashes land on
+the same pages. Code: `frontend/src/pages/Discovery.tsx`, `frontend/src/discovery/` (model, views, table and panel, styles `dsc-`).
+
+Reads: `GET /api/discovery/board` (every placed company with its NSE macro sector, sector and industry, the latest event filing with its PDF, the latest
+filings per event and per theme), and, when a company's row is opened, `GET /api/discovery/company?symbol=` (`board.company()`): the words that placed
+it, every passage FinLit kept with whether it names the theme and its PDF page, the presentation's PDF and its filings of 90 days with their PDFs. The
+passages go through the pack's quote rule (`discovery/quotes.py`, a port of the pack's `quote-rule.js`), run on the stored evidence and on the
+presentation's page texts that the job keeps (`document_pages`, task #255), so a page number is shown wherever the page text is kept. Only the
+exchanges' own files are linked. Sizes are FinLit's four sizes (`frontend/src/lib/companySize.ts`, SHARED §2); Pulse and Rotation are in the shared
+words with their reading date and a red "N days old" tag after a week. Without Gold, Prism, Short term and Long term are locked, and so are the two
+ready-made views that filter on them (the pack's open decision, decided on 20 Nov 2026: their counts would reveal the readings).
