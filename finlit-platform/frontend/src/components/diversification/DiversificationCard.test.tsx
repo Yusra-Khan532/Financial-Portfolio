@@ -155,11 +155,20 @@ describe("task #181: the card looks like the boxes above it, with its name highl
     const fs = await import("node:fs");
     const css = fs.readFileSync("src/components/diversification/diversification.css", "utf8");
     const last = (sel: string) => { const all = [...css.matchAll(new RegExp(sel.replace(/[.()]/g, "\\$&") + " \\{([^}]*)\\}", "g"))]; return all[all.length - 1]?.[1] ?? ""; };
-    expect(last(".dv-chips button")).toMatch(/border-color: var\(--border-strong\); background: var\(--s1\)/);   // the RELIANCE x and IOC x chips: neutral, like the boxes
+    expect(css).toContain("\n.dv-chips button { border-color: transparent; border-radius: 8px; background: var(--s1); }");   // rework 2 (19 Nov): plain tags, no border
     expect(last(".dv-chips button.off")).toMatch(/border-color: var\(--border-strong\); background: transparent/);
     expect(last(".dv-try.on")).toBe(" border-color: var(--border-strong); ");                                    // an open "Try a different list" is not outlined green
     expect(css).toMatch(/--dv-hue: var\(--gold\); --border-control: var\(--border-strong\); --focus-ring: var\(--gold\)/);   // data bars and icon: the site's gold accent
     const greens = css.split("\n").filter((l) => l.includes("var(--gain)") && !l.trimStart().startsWith("/*") && !l.startsWith("   "));
-    expect(greens).toEqual([".dv-head > div:first-child { border-left: 4px solid var(--gain); padding-left: 16px; }"]);   // only the highlighted name
+    expect(greens).toEqual([".dv-head > div:first-child { border-left: 4px solid var(--gain); padding-left: 16px; }"]);   // the base rule; rework 2 recolours it below
+  });
+  it("rework 2 (19 Nov: still too much of the site hue, the UI issue persists): the title bar is gold, and in dark mode every box, line and chip inside is neutral grey", async () => {
+    const fs = await import("node:fs");
+    const css = fs.readFileSync("src/components/diversification/diversification.css", "utf8");
+    const tail = css.slice(css.indexOf("Task #181 rework 2"));
+    expect(tail).toContain(".dv-head > div:first-child { border-left-color: var(--gold); }");
+    expect(tail).toContain(':root[data-theme="dark"] .dv { --bg-subtle: rgba(255, 255, 255, .035); --dv-line: rgba(255, 255, 255, .10); --border-strong: rgba(255, 255, 255, .18); --border-control: rgba(255, 255, 255, .18); }');
+    expect(tail).toContain(':root[data-theme="dark"] .dv-chips button { background: rgba(255, 255, 255, .06); }');
+    expect(tail).not.toMatch(/var\(--gain\)|var\(--border\)|var\(--s[123]\)[^;]*;[^}]*dark/);          // nothing in the rework draws in the site's hue
   });
 });
