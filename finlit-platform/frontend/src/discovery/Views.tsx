@@ -26,7 +26,7 @@ function Kpi({ l, v, i, small, cls }: { l: string; v: React.ReactNode; i?: Param
 function Crumb({ to, label, here }: { to: string; label: string; here: string }) {
   return <nav className="dsc-crumb" aria-label="Breadcrumb"><a href={to}>{label}</a><span aria-hidden="true">›</span><span aria-current="page">{here}</span></nav>;
 }
-const Jump = () => <button type="button" className="dsc-btn" onClick={() => document.getElementById("dsc-tbl-top")?.scrollIntoView({ block: "start" })}>Companies ↓</button>;
+const Jump = () => <button type="button" className="dsc-btn" onClick={() => document.getElementById("dsc-tbl-top")?.scrollIntoView?.({ block: "start" })}>Companies ↓</button>;
 const highest = (rows: DRow[]) => rows.filter((r) => r.pr != null).sort((a, b) => (b.pr ?? 0) - (a.pr ?? 0)).slice(0, 3).map((r) => short(r.n)).join(", ");
 
 // ------------------------------------------------------------------------------------------------ Themes
@@ -34,7 +34,7 @@ type TSort = "n" | "m3" | "up" | "f";
 function ThemeCard({ t, rows }: { t: BoardTheme; rows: DRow[] }) {
   const c = useDsc(), s = stat(rows), yours = rows.filter((r) => c.onList(r.s)).length, top = highest(rows);
   return <a className="dsc-cd" href={"#theme-" + slug(t.name)}>
-    <div className="top"><h3>{t.label}</h3>{t.broad && <span className="dsc-flg">Broad</span>}</div>
+    <div className="dsc-top"><h3>{t.label}</h3>{t.broad && <span className="dsc-flg">Broad</span>}</div>
     <div className="n">{s.n}<small>companies{t.also ? ` · ${t.also} more mention it` : ""}</small></div>
     <StageBar rows={rows} />
     <div className="dsc-kv"><Kv l="3-month median" v={pct(s.m3)} cls={tone(s.m3)} /><Kv l="1-year median" v={pct(s.m1y)} cls={tone(s.m1y)} />
@@ -116,7 +116,7 @@ export function EventsView() {
         <div className="dsc-ex">{yours ? <span className="dsc-yours">{yours} of yours · </span> : null}{ex || "No such filing in this window"}</div></a>;
     })}</div>
     <div className="dsc-secth"><h3>From company briefs</h3><I k="brief" /></div>
-    <div className="dsc-grid">{BRIEF_CARDS.map((x) => <a key={x.k} className="dsc-cd dashed" href={"#change-" + x.k}><div className="top"><h3>{x.t}</h3><span className="dsc-flg teal">From briefs</span></div>
+    <div className="dsc-grid">{BRIEF_CARDS.map((x) => <a key={x.k} className="dsc-cd dashed" href={"#change-" + x.k}><div className="dsc-top"><h3>{x.t}</h3><span className="dsc-flg teal">From briefs</span></div>
       <div className="n">0<small>companies so far</small></div><div className="dsc-ex dsc-wrap">No full company brief with these items is published yet. They appear here, each with its page, as briefs are published.</div></a>)}</div>
     <div className="dsc-secth"><h3>How each group has done since companies joined it</h3><I k="record" /><span className="dsc-flg teal">Starts on launch</span></div>
     <div className="dsc-tw"><table className="dsc-rec"><thead><tr><th scope="col">Group</th><th scope="col" className="r">1 month later</th><th scope="col" className="r">3 months</th><th scope="col" className="r">6 months</th><th scope="col" className="r">12 months</th><th scope="col" className="r">Nifty 500, same days</th></tr></thead>
@@ -214,7 +214,7 @@ export function SectorPage({ m }: { m: string }) {
         })}</tbody></table></div>
       <p className="dsc-foot">Sector Rotation and Sector Pulse readings of {c.d.rotLabel ?? (fmtDate(c.d.rotDate) || "the latest week")}. An industry with no reading has too few liquid stocks, or no NSE group.</p></div>
     <div className="dsc-panel dsc-mb"><h3>Themes in this sector</h3><div className="dsc-hbars">{tl.map(([t, k]) => <div key={t} className="dsc-hb">
-      <button type="button" aria-pressed={cell === t} onClick={() => { c.setT(tKey, { cell: cell === t ? null : t, page: 0 }); document.getElementById("dsc-tbl-top")?.scrollIntoView({ block: "start" }); }}>{theme(t)?.label ?? t}</button>
+      <button type="button" aria-pressed={cell === t} onClick={() => { c.setT(tKey, { cell: cell === t ? null : t, page: 0 }); document.getElementById("dsc-tbl-top")?.scrollIntoView?.({ block: "start" }); }}>{theme(t)?.label ?? t}</button>
       <span className="t"><i style={{ width: `${(k / tmax) * 100}%` }} /></span><b>{k}</b></div>)}</div></div>
     <CompanyTable title={"Companies in " + m} base={rows} />
   </>;

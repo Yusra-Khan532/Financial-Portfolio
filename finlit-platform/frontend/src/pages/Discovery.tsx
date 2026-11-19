@@ -30,7 +30,7 @@ function Page() {
   </span> : undefined;
   return <>
     <PageHeader wrap eyebrow="Research" title="Discovery" links={["/screener", "/superinvestors", "/research"]} learn={false}
-      description="Find companies by what they are building. Each company sits in the theme its newest investor presentation talks about most, with its recent exchange filings and FinLit’s scores beside it."
+      description="Find companies by what they are building. Each company sits in the theme its newest investor presentation talks about most, with its recent exchange filings and FinLit’s readings beside it."
       meta={meta}>{b ? <Find /> : null}</PageHeader>
     <div className="wrap dsc-page">
       {c.d.isError ? <p className="dsc-empty" role="alert">Discovery could not be loaded just now. Please try again in a moment.</p>
@@ -44,7 +44,7 @@ function Body() {
   const c = useDsc(), r = c.route, b = c.d.board!;
   const detail = !!(r.theme || r.event || r.sector);
   const top = useRef<HTMLDivElement>(null), first = useRef(true);
-  useEffect(() => { if (first.current) { first.current = false; return; } top.current?.scrollIntoView({ block: "start" }); }, [r.theme, r.event, r.sector, r.view]);
+  useEffect(() => { if (first.current) { first.current = false; return; } top.current?.scrollIntoView?.({ block: "start" }); }, [r.theme, r.event, r.sector, r.view]);
   const tabs: [string, string, number][] = [["themes", "Themes", new Set(c.d.rows.map((x) => x.th)).size], ["what-changed", "What changed", EVENTS.length],
     ["sectors", "Sectors", c.sectors.length], ["all-companies", "All companies", c.d.rows.length]];
   return <>
@@ -79,7 +79,7 @@ function Find() {
     const k = "theme-" + slug(r.th);
     c.setT(k, { q: r.n, page: 0 }); c.toggleOpen(s, true); setQ("");
     c.go("#" + k);
-    setTimeout(() => document.getElementById("dsc-tbl-top")?.scrollIntoView({ block: "start" }), 60);
+    setTimeout(() => document.getElementById("dsc-tbl-top")?.scrollIntoView?.({ block: "start" }), 60);
   };
   const open = q.trim().length > 0;
   return <div className="dsc-find" ref={box}>
