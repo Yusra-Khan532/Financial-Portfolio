@@ -1244,3 +1244,30 @@ def test_220_streak_summaries_no_longer_repeat_the_growth_quarters_line():
     assert any(i["summary"] == "Consistent year-on-year sales growth." for i in items)
     streaks = [m for m in view["rating"]["metrics"] if m["metric"].endswith("_STREAK")]
     assert all("comparable quarters" in m["details"]["streakText"] for m in streaks)    # said once, in the line under it
+
+
+def _young():
+    """A young listing (task #247): both horizons scored as the ST/LT indicator scores it on the chart, provisional, youngListing."""
+    t = _tech(False)
+    for h in ("shortTerm", "longTerm"):
+        t[h].update(provisional=True, youngListing=True, provisionalNote="Young listing: this company has 107 sessions of daily prices.")
+    return t
+
+
+async def test_a_young_listings_scores_go_on_the_card_search_and_the_scores_list(env):
+    """Task #247, the team on 19 Nov 2026: search showed '-' for Short and Long for VAML, VOGL and VEDPOWER. A young listing's scores are the
+    indicator's own (as on TradingView), so the card, the daily refresh and the scores list carry them; a partial provisional score still does not."""
+    rating = {"status": "RATED", "parts": {"fundamental": 50, "valuation": 60, "quality": 70, "risk": 80}}
+    card = prism.card_of({"rating": rating, "technicalAssessment": _young()})
+    assert card["st"]["score"] == 40.0 and card["lt"]["score"] == 55.0
+    _, applied = pt._apply({"rating": rating}, None, prism.technical_view(_young()), "2026-11-19T18:30:00")
+    assert applied["st"]["score"] == 40.0 and applied["lt"]["score"] == 55.0
+    assert prism.technical_view(_young())["longTerm"]["youngListing"] is True
+    app, _ = env
+    gold = await member(app, "gold")
+    async with app.state.store.pool.acquire() as conn:
+        report = {"rating": {"final": 39.0, "status": "RATED", "parts": rating["parts"]}, "technicalAssessment": _young()}
+        await conn.execute("INSERT INTO prism_reports (symbol, statement, id, report, final, label, status) VALUES ('YNG','consolidated',$1,$2::jsonb,39,'X','RATED')",
+                           uuid.uuid4().hex, json.dumps(report))
+    got = (await gold.get("/api/prism/scores?symbols=YNG")).json()["scores"]["YNG"]
+    assert got["shortTerm"]["score"] == 40.0 and got["longTerm"]["score"] == 55.0

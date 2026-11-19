@@ -378,6 +378,11 @@ async def test_the_page_route_lists_themes_then_one_theme_then_one_company(store
             assert co["filings"]["count"] == 3 and co["filings"]["positive"] == 1 and co["filings"]["negative"] == 1
             assert t["sectors"] == {"Industrials": 1} and t["news"]["filings"] >= 1 and t["verify"]
             assert [f["event"] for f in t["recentFilings"]] == ["order"] and t["recentFilings"][0]["company"] == "Bharat Shield Ltd"
+            # task #250: a theme seen in one sector lists only that sector's filings (Bharat Shield is Industrials, not Power)
+            pw = (await c.get("/api/discovery", params={"theme": "Defence & Aerospace", "sector": "Power"})).json()
+            assert next(x for x in pw["themes"] if x["name"] == "Defence & Aerospace")["recentFilings"] == []
+            ind_t = (await c.get("/api/discovery", params={"theme": "Defence & Aerospace", "sector": "Industrials"})).json()
+            assert [f["symbol"] for f in next(x for x in ind_t["themes"] if x["name"] == "Defence & Aerospace")["recentFilings"]] == ["BSHIELD"]
             ind = (await c.get("/api/discovery", params={"sector": "Industrials"})).json()
             assert ind["companies"] == 1 and list(ind["bySector"]) == ["Industrials"]
             assert (await c.get("/api/discovery", params={"sector": "<script>"})).status_code == 400

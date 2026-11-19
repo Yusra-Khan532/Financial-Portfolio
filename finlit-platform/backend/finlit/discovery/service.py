@@ -188,9 +188,12 @@ async def overview(store, theme: Optional[str] = None, symbol: Optional[str] = N
         theme_news = {r["t"]: {"filings": r["n"], "positive": r["pos"], "negative": r["neg"]} for r in await conn.fetch(
             "SELECT t, count(*)::int AS n, count(*) FILTER (WHERE tone > 0)::int AS pos, count(*) FILTER (WHERE tone < 0)::int AS neg "
             "FROM discovery_signals, unnest(themes) AS t WHERE item_date >= current_date - $1::int GROUP BY t", NEWS_DAYS)}
+        # task #250: with sector=, only filings of that sector's companies (it used to list every company's filings under a sector's view of a theme)
         recent = [dict(r) for r in await conn.fetch(
-            "SELECT * FROM discovery_signals WHERE $1::text = ANY(themes) AND item_date >= current_date - $2::int ORDER BY item_date DESC, feed_id DESC LIMIT 25",
-            theme, NEWS_DAYS)] if theme else []
+            "SELECT s.* FROM discovery_signals s LEFT JOIN company_classification c ON c.symbol = s.symbol "
+            "WHERE $1::text = ANY(s.themes) AND s.item_date >= current_date - $2::int AND ($3::text IS NULL OR c.macro_sector = $3::text) "
+            "ORDER BY s.item_date DESC, s.feed_id DESC LIMIT 25",
+            theme, NEWS_DAYS, sector)] if theme else []
         mine = [dict(r) for r in await conn.fetch(
             "SELECT * FROM discovery_signals WHERE symbol = $1 AND item_date >= current_date - $2::int ORDER BY item_date DESC, feed_id DESC LIMIT 25",
             symbol.upper(), NEWS_DAYS)] if symbol else []

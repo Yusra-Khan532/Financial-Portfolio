@@ -390,6 +390,13 @@ def _fresh(row) -> bool:
             and not stale_model(row["report"]) and not stale_classification(row["report"]) and not stale_revenue(row["report"]))
 
 
+def card_counts(part: Dict[str, Any]) -> bool:
+    """Whether a horizon's score goes on the card (what search, the lists and the screeners read). Task #247 (19 Nov 2026, the team: the search showed
+    '-' for VAML, VOGL, VEDPOWER): a young listing's score is the ST/LT indicator's own score, as on TradingView, so it does; only a partial provisional
+    score (some signals left out of its weights) stays on the company page alone."""
+    return part.get("provisional") is not True or part.get("youngListing") is True
+
+
 def card_of(view: Dict[str, Any]) -> Dict[str, Any]:
     """The few figures the Advanced score screener lists (migration 070): the four category scores (none for a company the model did not rate),
     the short and long term technical scores with the model's rating word, and the confidence. Copied exactly; the words are relabelled on reading."""
@@ -398,7 +405,7 @@ def card_of(view: Dict[str, Any]) -> Dict[str, Any]:
 
     def horizon(key: str) -> Dict[str, Any]:
         part = technical.get(key) if isinstance(technical.get(key), dict) else {}
-        if part.get("provisional") is True:      # a provisional score (a recent listing) is shown on the company page only; the screeners treat it as not available
+        if not card_counts(part):               # a partial provisional score is shown on the company page only; the screeners treat it as not available
             return {"score": None, "rating": None}
         return {"score": part.get("score"), "rating": part.get("rating")}
     return {"parts": None if rating.get("status") == "NOT RATED" else rating.get("parts"), "st": horizon("shortTerm"), "lt": horizon("longTerm"),
@@ -768,8 +775,10 @@ def _num(path: str) -> str:
 
 _SCORES_SQL = ("SELECT DISTINCT ON (symbol) symbol, statement, final, label, status, generated_at, "  # nosec B608: built only from constant names, never from a request value
                + ", ".join(f"{_num('rating,parts,' + k)} AS p_{k}" for k in _PARTS) + ", "
-               + ", ".join(f"CASE WHEN report #>> '{{technicalAssessment,{h},provisional}}' = 'true' THEN NULL ELSE {_num('technicalAssessment,' + h + ',score')} END AS {h.lower()}_score, "
-                           f"CASE WHEN report #>> '{{technicalAssessment,{h},provisional}}' = 'true' THEN NULL ELSE report #>> '{{technicalAssessment,{h},rating}}' END AS {h.lower()}_rating"
+               + ", ".join(f"CASE WHEN report #>> '{{technicalAssessment,{h},provisional}}' = 'true' AND report #>> '{{technicalAssessment,{h},youngListing}}' IS DISTINCT FROM 'true' "
+                           f"THEN NULL ELSE {_num('technicalAssessment,' + h + ',score')} END AS {h.lower()}_score, "
+                           f"CASE WHEN report #>> '{{technicalAssessment,{h},provisional}}' = 'true' AND report #>> '{{technicalAssessment,{h},youngListing}}' IS DISTINCT FROM 'true' "
+                           f"THEN NULL ELSE report #>> '{{technicalAssessment,{h},rating}}' END AS {h.lower()}_rating"   # task #247: card_counts
                            for h in ("shortTerm", "longTerm"))
                + ", COALESCE(card->>'technicalBarDate', report #>> '{technicalAssessment,asOf}') AS tech_bar, COALESCE(card->>'technicalAt', report->>'technicalCalculatedAt') AS tech_at"
                + " FROM prism_reports WHERE symbol = ANY($1::text[]) ORDER BY symbol, (statement = 'consolidated') DESC")
