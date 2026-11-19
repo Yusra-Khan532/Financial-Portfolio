@@ -4,6 +4,7 @@
 // bar (P3), the toolbar and the filters that are on (P4), the notes line, the table with three heading rows (P5), the selection bar (P6, only with a selection),
 // the pager (P7), Left the list (P8, a drop-down) and the disclaimer; Expand table opens the whole list over the window (P10).
 import { titleOf, subOf, codeNote, exchangeTag } from "../../../lib/companyLabel";
+import { nseLevels } from "../../../lib/nseTaxonomy";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChartPanel, type PanelRow } from "../ChartPanel";
@@ -90,6 +91,13 @@ function ThemeCards({ themes, on, onPick }: { themes: Theme[]; on: string | null
 
 // ---------- the table (pack P5) ----------
 const HIDDEN = new Set(["symbol", "name", "stock", "badges", "rank", "position", "sector", "ret_1d"]);   // shown inside the Company and Price cells, not as columns of their own
+/** Task #257 (SPEC 4): on Basic, the name's line, then the industry (one of NSE's 59) and size, e.g. "Auto Components · Small cap", with "macro sector › sector ›
+ *  industry" on hover. A company NSE does not place says "Industry not classified". */
+function IndLine({ r }: { r: PresetRow }) {
+  const lv = nseLevels(typeof r.nse_industry === "string" ? r.nse_industry : null), z = sizeOf(r);
+  return <><small className="psx3-nml">{[subOf(r), exchangeTag(r)].filter(Boolean).join(" · ")}</small>
+    <small className="psx3-indl" title={lv ? `${lv.macro} › ${lv.sector} › ${lv.industry}` : "NSE does not place this company in one of its 59 industries"}>{[lv?.industry ?? "Industry not classified", z && `${z} cap`].filter(Boolean).join(" · ")}</small></>;
+}
 const sizeOf = (r: PresetRow) => { const m = r.market_cap; return typeof m !== "number" ? null : m > 50000 ? "Large" : m >= 10000 ? "Mid" : "Small"; };
 type Group = "price" | "score" | "returns" | "list" | "after" | "sector" | "screen";
 const groupOf = (c: PresetColumn): Group => {
@@ -207,7 +215,7 @@ function Table({ d, cols, rows, sort, setSort, basic, onDay, latest, picked, set
             <td className="psx3-stk psx3-co psx-stock"><Link to={`/stocks/${encodeURIComponent(r.symbol)}`} className="psx-co"><CoLogo symbol={r.symbol} name={r.name} size={24} />
               <span className="psx-cn"><span className="psx3-cl"><b title={codeNote(r)}>{titleOf(r)}</b>{isNew && <span className="psx3-tag new">New</span>}{(r.badges ?? []).some((b) => b.toLowerCase() === "provisional") && <span className="psx3-tag prov">Provisional</span>}
                 {(r.badges ?? []).filter((b) => b.toLowerCase() !== "provisional").map((b) => <Badge key={b} text={b} />)}</span>
-                <small>{[subOf(r), sizeOf(r) && `${sizeOf(r)} cap`, exchangeTag(r)].filter(Boolean).join(" · ")}</small></span></Link></td>
+                {basic ? <IndLine r={r} /> : <small>{[subOf(r), sizeOf(r) && `${sizeOf(r)} cap`, exchangeTag(r)].filter(Boolean).join(" · ")}</small>}</span></Link></td>
             {cols.map((c) => cell(r, c))}
             <td className="psx-a-left psx-act"><button type="button" className="psx-ci" aria-label={`Open the ${r.symbol} chart`} onClick={() => openChart(r)}><Icon name="line" /></button>
               <Link to={`/stocks/${encodeURIComponent(r.symbol)}`} className="psx-ci" aria-label={`Open the ${r.symbol} report`}><Icon name="notes" /></Link></td>

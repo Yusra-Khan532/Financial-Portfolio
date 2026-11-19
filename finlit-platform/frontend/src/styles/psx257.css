@@ -1,0 +1,27 @@
+/* Task #257 (Basic screener pack, SPEC 2 and 3): the Basic open screen's Macro sector, Sector, Industry and FinLit IQ menus, and the industry line under a
+   company's name. New class names only (psx3-lv*, psx3-rg*, psx3-indl); sizes on the type scale; colours from the theme tokens, so light and dark follow. */
+.psx3-lvh { margin: 4px 8px 2px; font: 400 13px var(--sans); color: var(--muted); }
+.psx3-lvh b { font-weight: 700; color: var(--text); }
+.psx3-lvn { margin: 2px 8px; padding: 6px 8px; border-radius: 8px; background: color-mix(in srgb, var(--warn) 12%, transparent); color: var(--text); font: 400 13px var(--sans); }
+.psx3-lvoff { margin: 8px 8px 2px; padding-top: 8px; border-top: 1px solid var(--border); font: 700 12px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+.psx3-opt.is-off { cursor: default; color: var(--faint); }
+.psx3-opt.is-off:hover { background: none; }
+.psx3-opt.is-off b { font-weight: 400; color: var(--faint); }
+.psx3-lvc { justify-self: start; margin: 4px 8px 0; }
+.psx3-rgs { display: grid; gap: 6px; padding: 2px 8px; }
+.psx3-rg { display: grid; grid-template-columns: minmax(0, 1fr) 64px 12px 64px; align-items: center; gap: 6px; font: 400 14px var(--sans); color: var(--text); }
+.psx3-rg i { font-style: normal; text-align: center; color: var(--muted); }
+.psx3-rg input { width: 100%; min-height: 32px; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--bg, transparent); color: var(--text); font: 400 14px var(--sans); }
+.psx3-rg input:focus-visible, .psx3-lvc:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.psx3-lvf { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 6px; padding: 8px 8px 2px; border-top: 1px solid var(--border); font: 400 12px var(--sans); color: var(--muted); }
+.psx-co small.psx3-indl { color: var(--muted); }
+.psx-co small.psx3-indl, .psx-co small.psx3-nml { justify-self: start; text-align: left; max-width: min(100%, 200px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.psx3-rg input::placeholder { color: var(--faint); }
+/* On a phone the Basic open screen's menus open as a bottom sheet over a dimmed page (as the all-companies view's filters do), so none runs off the screen */
+.psx3-sback { display: none; }
+@media (max-width: 640px) {
+  .psx3-sback { display: block; position: fixed; inset: 0; z-index: calc(var(--z-dropdown, 200) - 1); background: var(--ov-backdrop); }
+  .psx3-ddp.psx3-sheet { position: fixed; left: 0; right: 0; top: auto; bottom: 0; min-width: 0; max-width: none; max-height: 78vh; overflow: auto; border-radius: 16px 16px 0 0;
+    padding: 12px 12px calc(12px + env(safe-area-inset-bottom)); }
+  .psx3-ddp.psx3-sheet .psx3-optl { max-height: none; }
+}

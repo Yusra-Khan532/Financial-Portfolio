@@ -7,7 +7,7 @@ import io
 import logging
 import math
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Request, Response
 
@@ -17,6 +17,7 @@ from ..auth.service import current
 from datetime import date as _date
 
 from ..screener.data import get_table
+from .. import taxonomy
 from . import engine, history, savedlists, service
 from .registry import ALL, BY_ID, DISCLAIMER, FEATURED_GROUPS, GROUPS, Preset, render_card
 
@@ -400,7 +401,53 @@ def _bar(request: Request) -> dict:
             "rating": rating if rating in ("healthy", "strong") else "", "new": qp.get("new") == "1", "ahead": qp.get("ahead") == "1", "nse": qp.get("nse") == "1",
             "fno": qp.get("fno") == "1", "liquid": qp.get("liquid") == "1",
             # task #243 (pack v4, Advanced): Industry ahead and gaining, Peer leaders only, and the industry board's chip (an industry's address on Sector Pulse)
-            "sag": qp.get("sag") == "1", "plead": qp.get("plead") == "1", "ind": (qp.get("ind") or "").strip().lower()[:80]}
+            "sag": qp.get("sag") == "1", "plead": qp.get("plead") == "1", "ind": (qp.get("ind") or "").strip().lower()[:80],
+            # task #257 (Basic screener pack, SPEC 2 and SHARED 1): NSE's three levels, by name; OR inside a level, AND across levels
+            "mac": set(qp.getlist("mac")[:12]), "nsec": set(qp.getlist("nsec")[:22]), "nind": set(qp.getlist("nind")[:59]),
+            # task #257 (SPEC 3): the FinLit IQ panel: rating groups (good = Strong or Healthy, below = Below Healthy, nr = Not rated) and 0-100 score ranges
+            "iqg": {g for g in qp.getlist("iqg") if g in IQ_GROUP_OF.values()}, "rng": _ranges(qp)}
+
+
+# The FinLit IQ's rating bands (Strong 78+, Healthy 62+, Mixed 45+, Watch below; frontend lib/scoreScreen iqLabelOf) in the panel's three groups.
+IQ_GROUP_OF = {"strong": "good", "healthy": "good", "mixed": "below", "watch": "below", "notrated": "nr"}
+SCORE_FIELD = {"o": "overall", "q": "pillar_quality", "g": "pillar_growth", "p": "pillar_profitability", "b": "pillar_balance", "t": "pillar_technical"}
+
+
+def iq_group(r: dict) -> str:
+    v = r.get("overall")
+    if not isinstance(v, (int, float)):
+        return "nr"
+    return "good" if v >= 62 else "below"
+
+
+def _ranges(qp) -> Dict[str, Tuple[Optional[float], Optional[float]]]:
+    """`omin=60&omax=90` and the same for q, g, p, b, t: each end clamped to 0-100; an empty or unreadable end is no limit."""
+    out: Dict[str, Tuple[Optional[float], Optional[float]]] = {}
+    for k in SCORE_FIELD:
+        ends = []
+        for e in ("min", "max"):
+            try:
+                v = float(qp.get(k + e) or "nan")
+            except ValueError:
+                v = math.nan
+            ends.append(None if math.isnan(v) else min(100.0, max(0.0, v)))
+        if ends[0] is not None or ends[1] is not None:
+            out[k] = (ends[0], ends[1])
+    return out
+
+
+def _in_range(r: dict, field: str, lo: Optional[float], hi: Optional[float]) -> bool:
+    v = r.get(field)
+    return isinstance(v, (int, float)) and (lo is None or v >= lo) and (hi is None or v <= hi)
+
+
+def nse_levels(industry: Optional[str]) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    """(macro sector, sector, industry) of an NSE industry name, from NSE's own lists (taxonomy.tree); all None when it is not one of NSE's 59."""
+    e = taxonomy.tree()["by"]["industry"].get(taxonomy.key(industry)) if industry else None
+    return (e["macro_sector"], e["sector"], e["industry"]) if e else (None, None, None)
+
+
+LEVEL_KEYS = (("mac", 0), ("nsec", 1), ("nind", 2))
 
 
 def _tests(f: dict, new_day: Optional[str]) -> Dict[str, object]:
@@ -429,6 +476,13 @@ def _tests(f: dict, new_day: Optional[str]) -> Dict[str, object]:
         t["plead"] = _peer_leader
     if f.get("ind"):
         ind = f["ind"]; t["ind"] = lambda r: r.get("sr_slug") == ind
+    if f.get("iqg"):
+        groups = f["iqg"]; t["iqg"] = lambda r: iq_group(r) in groups
+    for k, (lo, hi) in (f.get("rng") or {}).items():
+        t["r" + k] = (lambda field, lo, hi: lambda r: _in_range(r, field, lo, hi))(SCORE_FIELD[k], lo, hi)
+    for k, lv in LEVEL_KEYS:
+        if f.get(k):
+            t[k] = (lambda names, lv: lambda r: nse_levels(r.get("nse_industry"))[lv] in names)(f[k], lv)
     return t
 
 
@@ -482,13 +536,22 @@ def _facets(rows: List[dict], tests: Optional[Dict[str, object]] = None, new_day
                 sizes[z] = sizes.get(z, 0) + 1
         if _passes(r, tests, "sector") and r.get("sector"):
             sectors[r["sector"]] = sectors.get(r["sector"], 0) + 1
+    # task #257: each of NSE's three levels, counted with the other filters on (its own level left out), so the lists can show every name with its count
+    levels: Dict[str, Dict[str, int]] = {k: {} for k, _ in LEVEL_KEYS}
+    for r in rows:
+        lv = nse_levels(r.get("nse_industry"))
+        for k, j in LEVEL_KEYS:
+            if lv[j] and _passes(r, tests, k):
+                levels[k][lv[j]] = levels[k].get(lv[j], 0) + 1
     probe = _tests({"q": "", "size": set(), "sector": set(), "rating": "", "new": True, "ahead": True, "nse": True, "fno": True, "liquid": True, "sag": True, "plead": True, "ind": ""}, new_day)
     n = lambda key, fn: sum(1 for r in rows if _passes(r, tests, key) and fn(r))       # noqa: E731
     return {"sizes": sizes, "sectors": sorted(sectors.items(), key=lambda kv: (-kv[1], kv[0]))[:80],
             "strong": n("rating", _strong), "strongOnly": n("rating", _strong_only), "anyRating": n("rating", lambda r: True),
             "new": n("new", probe["new"]), "ahead": n("ahead", probe["ahead"]), "nse": n("nse", probe["nse"]), "bse": sum(1 for r in rows if _bse_only(r)),
             "fno": n("fno", probe["fno"]), "liquid": n("liquid", probe["liquid"]),
-            "sag": n("sag", probe["sag"]), "plead": n("plead", probe["plead"])}
+            "sag": n("sag", probe["sag"]), "plead": n("plead", probe["plead"]),
+            "macros": levels["mac"], "nseSectors": levels["nsec"], "industries": levels["nind"],
+            "iqGroups": {g: n("iqg", lambda r, g=g: iq_group(r) == g) for g in ("good", "below", "nr")}}
 
 
 def _filtered(request: Request, rows: List[dict], new_day: Optional[str] = None) -> List[dict]:

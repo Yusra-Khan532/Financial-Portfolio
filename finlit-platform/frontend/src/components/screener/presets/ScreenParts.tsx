@@ -10,10 +10,13 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { nf, MINUS } from "../../../lib/format";
-import { NO_BAR, type BarFilter, type BoardChip, type HistorySession, type LeftMode, type LeftRow, type PresetDetail, type Rating } from "../../../lib/presets";
+import { NO_BAR, SCORE_KEYS, iqCount, type ScoreKey, type BarFilter, type BoardChip, type HistorySession, type LeftMode, type LeftRow, type PresetDetail, type Rating } from "../../../lib/presets";
 import { INFO_BOARD, PsxInfo } from "./PsxInfo";
+import { NSE_MACRO } from "../../../lib/nseTaxonomy";
+import { industriesOf, sectorsOf } from "../../../lib/scoreScreen";
 import { Shine } from "./ScreensStrip";
 import "../../../styles/screens243.css";
+import "../../../styles/psx257.css";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 /** "16 Nov" from "2026-11-16". */
@@ -87,7 +90,7 @@ export function DateBar({ sessions, asOn, setAsOn, list }: { sessions: HistorySe
 }
 
 /** A pill drop-down of the toolbar (pack P4): the label says what is on; ticking keeps it open; Esc or a click outside closes it and returns focus. */
-export function Dropdown({ label, on, children, wide }: { label: ReactNode; on: boolean; children: ReactNode; wide?: boolean }) {
+export function Dropdown({ label, on, children, wide, sheet }: { label: ReactNode; on: boolean; children: ReactNode; wide?: boolean; /** task #257: on a phone, opens as a bottom sheet (Basic) */ sheet?: boolean }) {
   const [open, setOpen] = useState(false);
   const btn = useRef<HTMLButtonElement>(null), panel = useRef<HTMLDivElement>(null), pid = useId();
   useEffect(() => {
@@ -100,7 +103,8 @@ export function Dropdown({ label, on, children, wide }: { label: ReactNode; on: 
   return (
     <span className="psx3-dd">
       <button ref={btn} type="button" className={"psx3-ddb" + (on ? " is-on" : "")} aria-expanded={open} aria-controls={pid} onClick={() => setOpen((v) => !v)}>{label} <span aria-hidden="true">▾</span></button>
-      {open && <div ref={panel} id={pid} className={"psx3-ddp" + (wide ? " is-wide" : "")} role="group">{children}</div>}
+      {open && sheet && <div className="psx3-sback" aria-hidden="true" />}
+      {open && <div ref={panel} id={pid} className={"psx3-ddp" + (wide ? " is-wide" : "") + (sheet ? " psx3-sheet" : "")} role="group">{children}</div>}
     </span>);
 }
 
@@ -114,7 +118,70 @@ export function Opt({ type = "checkbox", name, checked, onChange, label, n, desc
 export type FilterSet = { bar: BarFilter; set: (b: BarFilter) => void };
 const RATING_WORD = (basic: boolean): Record<Exclude<Rating, "">, string> => ({ healthy: "Strong or Healthy", strong: basic ? "Strong only" : "Strong only" });
 
-/** P4: Market cap ▾ · Sector ▾ · rating ▾ · More filters ▾, from the screen's facets. */
+// ---------- Task #257 (Basic screener pack, SPEC 2 and 3, SHARED 1): the Basic open screen's Macro sector, Sector, Industry and FinLit IQ menus ----------
+const LEVEL = { macs: { title: "Macro sector", all: 12, fc: "macros" }, nsecs: { title: "Sector", all: 22, fc: "nseSectors" }, ninds: { title: "Industry", all: 59, fc: "industries" } } as const;
+type LevelKey = keyof typeof LEVEL;
+const IQ_GROUP_WORDS: [string, string][] = [["good", "Strong or Healthy"], ["below", "Below Healthy"], ["nr", "Not rated"]];
+export const SCORE_WORD: Record<ScoreKey, string> = { o: "FinLit IQ", q: "Quality", g: "Growth", p: "Profitability", b: "Balance sheet", t: "Technical" };
+/** NSE's names for a level, narrowed only by the parent level picked (SPEC 2: "All 12, 22 and 59 are listed, narrowed only by the parent level picked"). */
+const namesOf = (k: LevelKey, b: BarFilter): string[] => k === "macs" ? [...NSE_MACRO] : k === "nsecs" ? sectorsOf(b.macs ?? []) : industriesOf(b.macs ?? [], b.nsecs ?? []);
+/** Ticks or unticks a name; a lower-level choice that no longer sits inside the new parent choice is taken off and named (SHARED 1). */
+export function pickLevel(b: BarFilter, k: LevelKey, name: string): { bar: BarFilter; dropped: string[] } {
+  const cur = b[k] ?? [], next: BarFilter = { ...b, [k]: cur.includes(name) ? cur.filter((x) => x !== name) : [...cur, name] };
+  const okSec = sectorsOf(next.macs ?? []), secs = (next.nsecs ?? []).filter((x) => okSec.includes(x));
+  const okInd = industriesOf(next.macs ?? [], secs);          // read after the sectors that no longer fit are taken off, so they do not narrow Industry
+  const dropped = [...(next.nsecs ?? []).filter((x) => !okSec.includes(x)), ...(next.ninds ?? []).filter((x) => !okInd.includes(x))];
+  return { bar: { ...next, nsecs: secs, ninds: (next.ninds ?? []).filter((x) => okInd.includes(x)) }, dropped };
+}
+
+function LevelMenu({ k, d, f }: { k: LevelKey; d: PresetDetail; f: FilterSet }) {
+  const { bar, set } = f, L = LEVEL[k], counts = d.facets?.[L.fc] ?? {}, picked = bar[k] ?? [];
+  const [find, setFind] = useState(""), [note, setNote] = useState<string | null>(null);
+  const q = find.trim().toLowerCase(), names = namesOf(k, bar).filter((n) => !q || n.toLowerCase().includes(q));
+  const on = names.filter((n) => (counts[n] ?? 0) > 0 || picked.includes(n)).sort((a, b) => (counts[b] ?? 0) - (counts[a] ?? 0) || a.localeCompare(b));
+  const off = names.filter((n) => !on.includes(n));
+  const onList = namesOf(k, bar).filter((n) => (counts[n] ?? 0) > 0).length;
+  const pick = (n: string) => { const r = pickLevel(bar, k, n); set(r.bar); setNote(r.dropped.length ? `${r.dropped.join(", ")} ${r.dropped.length === 1 ? "was" : "were"} taken off: not inside your other choice.` : null); };
+  return (
+    <Dropdown label={picked.length ? `${L.title} · ${picked.length}` : L.title} on={picked.length > 0} wide sheet>
+      <p className="psx3-lvh"><b>{L.title} · all {L.all}</b> — {onList} on this list</p>
+      <input className="psx3-find" type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder={`Find a ${L.title.toLowerCase()}`} aria-label={`Find a ${L.title.toLowerCase()}`} />
+      {note && <p className="psx3-lvn" role="status">{note}</p>}
+      <div className="psx3-optl">
+        {on.map((n) => <Opt key={n} checked={picked.includes(n)} onChange={() => pick(n)} label={n} n={counts[n] ?? 0} />)}
+        {off.length > 0 && <p className="psx3-lvoff">Not on this list · {off.length}</p>}
+        {off.map((n) => <label key={n} className="psx3-opt is-off" aria-disabled="true"><input type="checkbox" checked={false} disabled readOnly /><span><b>{n}</b></span><em>0</em></label>)}
+        {!names.length && <p className="psx3-none">No {L.title.toLowerCase()} matches “{find.trim()}”.</p>}
+      </div>
+      {picked.length > 0 && <button type="button" className="fgx-link psx3-lvc" onClick={() => { set({ ...bar, [k]: [] }); setNote(null); }}>Clear</button>}
+    </Dropdown>);
+}
+
+const clampScore = (v: string): number | null => { if (v.trim() === "") return null; const n = Number(v); return Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : null; };
+function IqMenu({ d, f }: { d: PresetDetail; f: FilterSet }) {
+  const { bar, set } = f, n = iqCount(bar), g = bar.iqg ?? [], counts = d.facets?.iqGroups ?? {};
+  const setR = (k: ScoreKey, end: "min" | "max", v: string) => { const r = { min: null, max: null, ...bar.rng?.[k] }; set({ ...bar, rng: { ...bar.rng, [k]: { ...r, [end]: clampScore(v) } } }); };
+  return (
+    <Dropdown label={n ? `FinLit IQ · ${n}` : "FinLit IQ"} on={n > 0} wide sheet>
+      <p className="psx3-lvh"><b>Rating</b></p>
+      <div role="group" aria-label="FinLit IQ rating">
+        {IQ_GROUP_WORDS.map(([id, w]) => { const c = counts[id] ?? 0, on = g.includes(id);
+          return !c && !on ? <label key={id} className="psx3-opt is-off" aria-disabled="true"><input type="checkbox" checked={false} disabled readOnly /><span><b>{w}</b></span><em>0</em></label>
+            : <Opt key={id} checked={on} onChange={() => set({ ...bar, iqg: on ? g.filter((x) => x !== id) : [...g, id] })} label={w} n={c} />; })}
+      </div>
+      <p className="psx3-lvh"><b>Score range</b> — 0 to 100, higher is better</p>
+      <div className="psx3-rgs">
+        {SCORE_KEYS.map((k) => { const r = bar.rng?.[k];
+          return <div key={k} className="psx3-rg" role="group" aria-label={`${SCORE_WORD[k]} range`}><span>{SCORE_WORD[k]}</span>
+            <input type="number" inputMode="numeric" min={0} max={100} placeholder="0" aria-label={`${SCORE_WORD[k]} from`} value={r?.min ?? ""} onChange={(e) => setR(k, "min", e.target.value)} />
+            <i aria-hidden="true">–</i>
+            <input type="number" inputMode="numeric" min={0} max={100} placeholder="100" aria-label={`${SCORE_WORD[k]} to`} value={r?.max ?? ""} onChange={(e) => setR(k, "max", e.target.value)} /></div>; })}
+      </div>
+      <div className="psx3-lvf"><button type="button" className="fgx-link" disabled={!n} onClick={() => set({ ...bar, iqg: [], rng: {} })}>Clear score filters</button><span>{n ? `${n} on` : "Counts are for this list"}</span></div>
+    </Dropdown>);
+}
+
+/** P4: Market cap ▾ · Sector ▾ · rating ▾ · More filters ▾, from the screen's facets. On Basic (task #257): Market cap · Macro sector · Sector · Industry · FinLit IQ · More filters. */
 export function FilterMenus({ d, f, basic, onAddRule }: { d: PresetDetail; f: FilterSet; basic: boolean; onAddRule: () => void }) {
   const { bar, set } = f, fc = d.facets;
   const [find, setFind] = useState("");
@@ -127,22 +194,23 @@ export function FilterMenus({ d, f, basic, onAddRule }: { d: PresetDetail; f: Fi
   const rw = RATING_WORD(basic);
   return (<>
     {(sizes.length > 1 || bar.sizes.length > 0) && (
-      <Dropdown label={bar.sizes.length ? `Market cap · ${bar.sizes.length === 1 ? bar.sizes[0] : bar.sizes.length}` : "Market cap"} on={bar.sizes.length > 0}>
+      <Dropdown label={bar.sizes.length ? `Market cap · ${bar.sizes.length === 1 ? bar.sizes[0] : bar.sizes.length}` : "Market cap"} on={bar.sizes.length > 0} sheet={basic}>
         {sizes.map((z) => <Opt key={z} checked={bar.sizes.includes(z)} onChange={() => set({ ...bar, sizes: flip(bar.sizes, z) })} label={`${z} cap`} n={fc.sizes[z] ?? 0} />)}
       </Dropdown>)}
-    {fc.sectors.length > 0 && (
+    {basic && <>{(["macs", "nsecs", "ninds"] as const).map((k) => <LevelMenu key={k} k={k} d={d} f={f} />)}<IqMenu d={d} f={f} /></>}
+    {!basic && fc.sectors.length > 0 && (
       <Dropdown label={bar.sectors.length ? `Sector · ${bar.sectors.length}` : "Sector"} on={bar.sectors.length > 0} wide>
         <input className="psx3-find" type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find a sector" aria-label="Find a sector" />
         <div className="psx3-optl">{sectors.map(([n, c]) => <Opt key={n} checked={bar.sectors.includes(n)} onChange={() => set({ ...bar, sectors: flip(bar.sectors, n) })} label={n} n={c} />)}
           {!sectors.length && <p className="psx3-none">No sector on this list matches.</p>}</div>
       </Dropdown>)}
-    {ratingNarrows && (
+    {!basic && ratingNarrows && (
       <Dropdown label={bar.rating ? `${basic ? "IQ rating" : "Prism rating"} · ${rw[bar.rating]}` : basic ? "IQ rating" : "Prism rating"} on={!!bar.rating}>
         <Opt type="radio" name="psx3-rating" checked={!bar.rating} onChange={() => set({ ...bar, rating: "" })} label="Any rating" n={fc.anyRating} />
         <Opt type="radio" name="psx3-rating" checked={bar.rating === "healthy"} onChange={() => set({ ...bar, rating: "healthy" })} label={rw.healthy} n={fc.strong} />
         {!basic && <Opt type="radio" name="psx3-rating" checked={bar.rating === "strong"} onChange={() => set({ ...bar, rating: "strong" })} label={rw.strong} n={fc.strongOnly} />}
       </Dropdown>)}
-    <Dropdown label={nMore ? `More filters · ${nMore}` : "More filters"} on={nMore > 0} wide>
+    <Dropdown label={nMore ? `More filters · ${nMore}` : "More filters"} on={nMore > 0} wide sheet={basic}>
       <Opt checked={bar.fresh} onChange={() => set({ ...bar, fresh: !bar.fresh })} label="New on this list" n={fc.new} desc="Joined since the previous saved list." />
       <Opt checked={bar.ahead} onChange={() => set({ ...bar, ahead: !bar.ahead })} label="Ahead of NIFTY 500 since added" n={fc.ahead} desc="Since added is above NIFTY 500 over the same days." />
       {/* task #243 (pack v4): on every screen of both pages */}
@@ -173,6 +241,11 @@ export function FilterChips({ f, basic }: { f: FilterSet; basic: boolean }) {
     ...(bar.plead ? [{ k: "p", label: "Peer leaders only", off: () => set({ ...bar, plead: false }) }] : []),
     ...(bar.ind ? [{ k: "i", label: `Industry: ${bar.ind.name}`, off: () => set({ ...bar, ind: null }) }] : []),
     ...(bar.nse ? [{ k: "e", label: "NSE-listed only", off: () => set({ ...bar, nse: false }) }] : []),
+    // task #257: each level's names, each rating group and each score range adds a chip
+    ...(["macs", "nsecs", "ninds"] as const).flatMap((k) => (bar[k] ?? []).map((n) => ({ k: k + n, label: `${LEVEL[k].title}: ${n}`, off: () => set(pickLevel(bar, k, n).bar) }))),
+    ...(bar.iqg ?? []).map((id) => ({ k: "iq" + id, label: `FinLit IQ: ${IQ_GROUP_WORDS.find((x) => x[0] === id)?.[1] ?? id}`, off: () => set({ ...bar, iqg: (bar.iqg ?? []).filter((x) => x !== id) }) })),
+    ...SCORE_KEYS.filter((k) => bar.rng?.[k] && (bar.rng[k]!.min != null || bar.rng[k]!.max != null)).map((k) => ({ k: "rg" + k,
+      label: `${SCORE_WORD[k]} ${bar.rng![k]!.min ?? 0}–${bar.rng![k]!.max ?? 100}`, off: () => set({ ...bar, rng: { ...bar.rng, [k]: { min: null, max: null } } }) })),
   ];
   if (!chips.length) return null;
   return (

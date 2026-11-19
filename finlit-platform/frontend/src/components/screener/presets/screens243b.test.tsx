@@ -88,9 +88,10 @@ describe("P4: filters", () => {
     fireEvent.click(within(chips).getByRole("button", { name: "Clear all" }));
     expect(screen.queryByRole("group", { name: "Filters on" })).toBeNull();
     cleanup();
-    render(<F basic />);
-    fireEvent.click(screen.getByRole("button", { name: /IQ rating/ }));
-    expect(screen.getAllByRole("radio")).toHaveLength(2);
+    render(<F basic />);      // task #257: Basic's rating menu is now the FinLit IQ panel (screens257.test.tsx); no radios, no "Strong only"
+    expect(screen.queryByRole("button", { name: /IQ rating/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /^FinLit IQ/ }));
+    expect(screen.queryAllByRole("radio")).toHaveLength(0); expect(screen.queryByText("Strong only")).toBeNull();
   });
 });
 

@@ -37,7 +37,9 @@ export type ThemeState = "in_play" | "emerging" | "fading" | "closest";
 export type Theme = { industry: string; state: ThemeState; breadth: number | null; marketBreadth?: number | null; r3?: number | null; rs3: number | null; members: number | null; small?: boolean; leaders: string[]; reason?: string | null };
 export type Miss = { symbol: string; name?: string | null; exchange?: string | null; failed: string[] };
 export type PresetDetail = {
-  id: string; name: string; asOf: string | null; count: number; shown: number; topCount?: number; asOn?: string; benchSincePct?: number | null; heading?: string | null; filtered?: number; facets?: { sizes: Record<string, number>; sectors: [string, number][]; strong: number; strongOnly?: number; anyRating?: number; new?: number; ahead?: number; nse?: number; bse?: number; fno?: number; liquid?: number; sag?: number; plead?: number }; columns: PresetColumn[]; rows: PresetRow[]; themes?: Theme[]; closestMisses?: Miss[];
+  id: string; name: string; asOf: string | null; count: number; shown: number; topCount?: number; asOn?: string; benchSincePct?: number | null; heading?: string | null; filtered?: number; facets?: { sizes: Record<string, number>; sectors: [string, number][]; strong: number; strongOnly?: number; anyRating?: number; new?: number; ahead?: number; nse?: number; bse?: number; fno?: number; liquid?: number; sag?: number; plead?: number;
+    /** task #257: each NSE level's names with their counts (the other filters on, its own level left out), and the FinLit IQ rating groups' counts */
+    macros?: Record<string, number>; nseSectors?: Record<string, number>; industries?: Record<string, number>; iqGroups?: Record<string, number> }; columns: PresetColumn[]; rows: PresetRow[]; themes?: Theme[]; closestMisses?: Miss[];
   howItWorks: string[]; cardText: string; disclaimer: string;
   /** "Top 10 of 40 that pass": what the list shows of the companies that pass. */
   listText?: string; notes?: string[]; rankScoreNote?: string; emptyText?: string; ratedCount?: number;
@@ -119,13 +121,24 @@ export type Rating = "" | "healthy" | "strong";
 /** Task #243 (pack v4): `fno` = F&O stocks only, `liquid` = Liquid only (20-session average value traded of Rs 10 Cr or more). Both optional so older callers still type-check. */
 export type BarFilter = { q: string; sizes: string[]; sectors: string[]; rating: Rating; fresh: boolean; ahead: boolean; nse: boolean; fno?: boolean; liquid?: boolean;
   /** Round 3b (Advanced): Industry ahead and gaining, Peer leaders only, and the industry board's chip (the industry's address on Sector Pulse, with its name for the chip). */
-  sag?: boolean; plead?: boolean; ind?: { slug: string; name: string } | null };
-export const NO_BAR: BarFilter = { q: "", sizes: [], sectors: [], rating: "", fresh: false, ahead: false, nse: false, fno: false, liquid: false, sag: false, plead: false, ind: null };
+  sag?: boolean; plead?: boolean; ind?: { slug: string; name: string } | null;
+  /** Task #257 (Basic screener pack, SPEC 2 and 3): NSE's Macro sector, Sector and Industry by name (OR inside a level, AND across), and the FinLit IQ panel's
+   *  rating groups (good = Strong or Healthy, below = Below Healthy, nr = Not rated) and 0-100 ranges for the FinLit IQ (o) and its five scores (q g p b t). */
+  macs?: string[]; nsecs?: string[]; ninds?: string[]; iqg?: string[]; rng?: Partial<Record<ScoreKey, { min: number | null; max: number | null }>> };
+export type ScoreKey = "o" | "q" | "g" | "p" | "b" | "t";
+export const SCORE_KEYS: ScoreKey[] = ["o", "q", "g", "p", "b", "t"];
+const rngOn = (b: BarFilter) => SCORE_KEYS.filter((k) => b.rng?.[k] && (b.rng[k]!.min != null || b.rng[k]!.max != null));
+export const NO_BAR: BarFilter = { q: "", sizes: [], sectors: [], rating: "", fresh: false, ahead: false, nse: false, fno: false, liquid: false, sag: false, plead: false, ind: null, macs: [], nsecs: [], ninds: [], iqg: [], rng: {} };
 export const barParams = (b: BarFilter): string[] => [...(b.q.trim() ? ["q=" + encodeURIComponent(b.q.trim())] : []), ...b.sizes.map((x) => "size=" + encodeURIComponent(x)),
   ...b.sectors.map((x) => "sector=" + encodeURIComponent(x)), ...(b.rating ? ["rating=" + b.rating] : []), ...(b.fresh ? ["new=1"] : []), ...(b.ahead ? ["ahead=1"] : []), ...(b.nse ? ["nse=1"] : []),
-  ...(b.fno ? ["fno=1"] : []), ...(b.liquid ? ["liquid=1"] : []), ...(b.sag ? ["sag=1"] : []), ...(b.plead ? ["plead=1"] : []), ...(b.ind ? ["ind=" + encodeURIComponent(b.ind.slug)] : [])];
+  ...(b.fno ? ["fno=1"] : []), ...(b.liquid ? ["liquid=1"] : []), ...(b.sag ? ["sag=1"] : []), ...(b.plead ? ["plead=1"] : []), ...(b.ind ? ["ind=" + encodeURIComponent(b.ind.slug)] : []),
+  ...(b.macs ?? []).map((x) => "mac=" + encodeURIComponent(x)), ...(b.nsecs ?? []).map((x) => "nsec=" + encodeURIComponent(x)), ...(b.ninds ?? []).map((x) => "nind=" + encodeURIComponent(x)),
+  ...(b.iqg ?? []).map((x) => "iqg=" + x), ...rngOn(b).flatMap((k) => [...(b.rng![k]!.min != null ? [`${k}min=${b.rng![k]!.min}`] : []), ...(b.rng![k]!.max != null ? [`${k}max=${b.rng![k]!.max}`] : [])])];
 /** How many filters are on (the search box counts as one). */
-export const barCount = (b: BarFilter) => (b.q.trim() ? 1 : 0) + b.sizes.length + b.sectors.length + (b.rating ? 1 : 0) + (b.fresh ? 1 : 0) + (b.ahead ? 1 : 0) + (b.nse ? 1 : 0) + (b.fno ? 1 : 0) + (b.liquid ? 1 : 0) + (b.sag ? 1 : 0) + (b.plead ? 1 : 0) + (b.ind ? 1 : 0);
+export const barCount = (b: BarFilter) => (b.q.trim() ? 1 : 0) + b.sizes.length + b.sectors.length + (b.rating ? 1 : 0) + (b.fresh ? 1 : 0) + (b.ahead ? 1 : 0) + (b.nse ? 1 : 0) + (b.fno ? 1 : 0) + (b.liquid ? 1 : 0) + (b.sag ? 1 : 0) + (b.plead ? 1 : 0) + (b.ind ? 1 : 0)
+  + (b.macs?.length ?? 0) + (b.nsecs?.length ?? 0) + (b.ninds?.length ?? 0) + (b.iqg?.length ?? 0) + rngOn(b).length;
+/** How many FinLit IQ filters are on (the button says "FinLit IQ · 2"): each rating group ticked and each score with a range. */
+export const iqCount = (b: BarFilter) => (b.iqg?.length ?? 0) + rngOn(b).length;
 export const detailPath = (id: string, chips: string[], offset = 0, limit?: number, asOn?: string | null, bar: BarFilter = NO_BAR) => {
   const q = chips.map((c) => "chip=" + encodeURIComponent(c));
   q.push(...barParams(bar));

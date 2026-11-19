@@ -478,7 +478,10 @@ def own_columns(preset: Preset) -> list:
 def _row(fr: Frame, preset: Preset, i: int, pos: int, extra: Sequence[str] = ()) -> dict:
     row: Dict[str, Any] = {"symbol": fr.symbols[i], "name": fr.t.name[i], "exchange": fr.listed.get(fr.symbols[i]), "position": pos,
                            # task #243 (pack v4): the open screen's "F&O stocks only" and "Liquid only" filters read these (not shown as columns)
-                           "fno": fr.get(i, "fno"), "turnover20_cr": _fmt(fr.get(i, "turnover20_cr"), "num1")}
+                           "fno": fr.get(i, "fno"), "turnover20_cr": _fmt(fr.get(i, "turnover20_cr"), "num1"),
+                           # task #257 (Basic screener pack, SPEC 2): the company's NSE industry (one of 59), which the open screen's Macro sector, Sector and
+                           # Industry filters and the line under the name read; null when NSE has none for it
+                           "nse_industry": fr.industry.get(fr.symbols[i])}
     if preset.tab != "basic":       # task #243 (pack v4): what the Sector reading cells, the industry board and the two sector filters read (not columns of their own)
         z = fr.pz[i]
         for k in SECTOR_ROW_KEYS:
