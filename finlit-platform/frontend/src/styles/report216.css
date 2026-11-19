@@ -89,6 +89,8 @@ section.block .own-chip:focus-visible { outline: 2px solid var(--c1); }
 .hx-d .hx-name { margin: 0; font: 500 var(--fs-32, 32px)/1.1 var(--font-serif, Georgia, serif); letter-spacing: -.01em; color: var(--text); overflow-wrap: anywhere; }
 .hx-d .hxd-px { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
 .hx-d .hx-price { font: 500 var(--fs-32, 32px)/1 var(--font-serif, Georgia, serif); color: var(--text); font-variant-numeric: tabular-nums; }
+/* task #252: the ₹ sits on the figures' baseline (it was raised .38em by a global rule), muted, with a hair of space */
+.hx-d .hx-price .hx-rs { color: var(--muted); margin-right: .06em; font-weight: 500; vertical-align: baseline; }
 .hx-d .hxd-px .cov-note { flex-basis: 100%; font-size: var(--fs-12); color: var(--muted); }
 .hx-d .hx-acts .actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
 .hx-d .hx-acts .btn { flex-direction: column; height: auto; min-height: 52px; min-width: 58px; padding: 6px 8px; gap: 3px; justify-content: center; position: relative; }
