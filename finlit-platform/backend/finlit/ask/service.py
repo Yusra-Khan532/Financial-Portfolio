@@ -48,7 +48,7 @@ FinLit's pages (task #218: answer as the website does, from the page that shows 
 - FII & DII flows: get_fii_dii_flows. Results calendar and quarter results: get_results_calendar, get_quarter_results.
 - Glossary (what a term means, in FinLit's words): lookup_glossary. Insights & blog: get_insights_and_blogs.
 - News & filings and Documents (announcements, results filings, annual reports, investor presentations, call transcripts): get_news_and_filings.
-- What a company's investor presentation, annual report or earnings-call transcript says: read_company_document, then quote it with its page number.
+- What a company's investor presentation, annual report or earnings-call transcript says (also its own guidance, plans, capex, order book, segments): read_company_document. When its result is already in the conversation, answer from it. Quote what it says with the page number, and give the date it was filed and its link. When read_company_document returned the document's text, never say you cannot open or access the presentation.
 - Discovery (companies by the themes their investor presentations talk about: AI, defence, solar, batteries, data centres, EV, nuclear, drones ...): get_discovery. Say that a keyword mention alone is not proof of a material business.
 - Use FinLit's page before the web for anything one of these pages shows. Name the page in plain words when it helps ("FinLit's India economy page shows ...").
 
@@ -111,6 +111,42 @@ def summary_question(symbol: str) -> str:
             "short-term and the long-term price trends mean together. Describe, never advise.")
 
 
+# Task #255 ("chatbot is still not taking investor presentation data"): a question about what a company's own document says is answered from the
+# document, read BEFORE the model starts, so the answer never depends on the model choosing to read it. English and the usual Hinglish wordings.
+_TRANSCRIPT = re.compile(r"\b(con-?\s?calls?|earnings[- ]calls?|analysts?'? calls?|transcripts?|management (said|says|told|commentary|ne kaha|ne bola)"
+                         r"|call (mein|me|pe) (kya|management))\b", re.I)
+_ANNUAL = re.compile(r"\b(annual reports?|integrated reports?)\b", re.I)
+_PRESENTATION = re.compile(r"\b(investor[- ]?presentations?|presentations?|decks?|ppts?|pptx|slides?|investor (meet|day) (deck|slides))\b", re.I)
+_IP = re.compile(r"\bIPs?\b")                                         # "IP" in capitals only: never the word "ip" inside other text
+_OWN_WORDS = re.compile(r"\b(guidance|outlook|capex|capital expenditure|order ?book|order inflows?|expansion plans?|new plants?|capacity (addition|expansion)"
+                        r"|segment[- ]?(wise|mix|revenue|breakup|break-up)|future plans?|growth plans?|plans? (for|of) (fy|20)\d*|kya plan|plan kya)\b", re.I)
+
+
+def document_intent(question: str) -> Optional[str]:
+    """Which of the company's own documents the question is about ("investor_presentation", "call_transcript", "annual_report"), or None. A question about
+    the company's own plans, guidance, capex or order book is read from its newest investor presentation."""
+    q = question or ""
+    if _TRANSCRIPT.search(q):
+        return "call_transcript"
+    if _ANNUAL.search(q):
+        return "annual_report"
+    if _PRESENTATION.search(q) or _IP.search(q) or _OWN_WORDS.search(q):
+        return "investor_presentation"
+    return None
+
+
+PREFETCH_ID = "toolu_prefetch_document"
+
+
+def with_prefetch(messages: List[Dict[str, Any]], name: str, args: Dict[str, Any], result: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Adds a tool read made before the model started, in the same shape as the model's own call and its result: the model sees the document's text
+    as if it had asked for it (and may still ask again)."""
+    messages.append({"role": "assistant", "content": [{"type": "tool_use", "id": PREFETCH_ID, "name": name, "input": args}]})
+    messages.append({"role": "user", "content": [{"type": "tool_result", "tool_use_id": PREFETCH_ID, "content": result["text"],
+                                                  **({"is_error": True} if result["error"] else {})}]})
+    return messages
+
+
 def context_line(page_symbol: Optional[str], plan: str) -> str:
     """The volatile part (today's date, the page the member is on, their plan) goes in the message, after the cached prefix."""
     today = datetime.now(IST).strftime("%d %b %Y")
@@ -127,13 +163,15 @@ def build_messages(history: List[Dict[str, str]], question: str, page_symbol: Op
     return msgs
 
 
-async def answer(client: anthropic.AsyncAnthropic, model: str, gw, messages: List[Dict[str, Any]], emit: Emit) -> Dict[str, Any]:
+async def answer(client: anthropic.AsyncAnthropic, model: str, gw, messages: List[Dict[str, Any]], emit: Emit,
+                 prefetched: Optional[List[Any]] = None) -> Dict[str, Any]:
     """Runs the conversation until Claude has written its answer. Emits ("status", {text}), ("text", {text}) and, when an answer is withdrawn,
-    ("replace", {text}). Returns {"text", "tools", "usage", "stop"}; raises on an API failure (the caller decides what the member sees)."""
+    ("replace", {text}). Returns {"text", "tools", "usage", "stop"}; raises on an API failure (the caller decides what the member sees).
+    `prefetched`: (name, arguments) of tools read before the model started (task #255), counted with the answer's sources and pages."""
     started = time.monotonic()
     written: List[str] = []
-    used_tools: List[str] = []
-    calls_made: List[Any] = []           # (name, arguments) of every tool used: the pages the answer links to (task #218)
+    used_tools: List[str] = [n for n, _ in (prefetched or [])]
+    calls_made: List[Any] = list(prefetched or [])   # (name, arguments) of every tool used: the pages the answer links to (task #218)
     usage = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}
     stop = "end_turn"
     defs = T.definitions()

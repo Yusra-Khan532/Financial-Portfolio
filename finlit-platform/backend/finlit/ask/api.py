@@ -187,17 +187,32 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
         yield sse("meta", {**quota.status(cap, n, month), "cached": False})
         # The company of the page, and the companies the question names: their cards first (what the page shows, as this member), so the model
         # starts with the facts whatever the wording, and answers in one round.
-        want = ([body.symbol] if body.symbol else []) + (await companies.named_in(gw, question, 2, skip=body.symbol) if kind == "question" else [])
+        named = await companies.named_in(gw, question, 2, skip=body.symbol) if kind == "question" else []
+        want = ([body.symbol] if body.symbol else []) + named
         cards: List[str] = []
         for sym in want[:2]:
             yield sse("status", {"text": tools.label("get_company_card", {"symbol": sym})})
-        got = await asyncio.gather(*(tools.run(gw, "get_company_card", {"symbol": s}) for s in want[:2]))
+        # Task #255: a question about what a company's own document says (its investor presentation, call transcript, annual report, its guidance or
+        # plans) reads that document now, beside the cards, so the answer always starts from the document. The company the question names comes
+        # first, then the page's company; with no company there is nothing to read.
+        doc_kind = service.document_intent(question) if kind == "question" else None
+        doc_sym = (named or ([body.symbol] if body.symbol else []) or [None])[0]
+        doc_args = {"symbol": doc_sym, "document": doc_kind, "question": question[:200]} if doc_kind and doc_sym else None
+        if doc_args:
+            yield sse("status", {"text": tools.label("read_company_document", doc_args)})
+        jobs = [tools.run(gw, "get_company_card", {"symbol": s}) for s in want[:2]] + ([tools.run(gw, "read_company_document", doc_args)] if doc_args else [])
+        got = await asyncio.gather(*jobs)
+        doc_res = got[-1] if doc_args else None
+        got = got[:-1] if doc_args else got
         cards = [g["text"] for g in got if not g["error"]]
         card = "\n".join(cards) or None
         messages = service.build_messages([t.model_dump() for t in body.history], question, body.symbol, plan_key(ctx), card)
+        prefetched = [("read_company_document", doc_args)] if doc_args and doc_res is not None else []
+        if prefetched:
+            service.with_prefetch(messages, "read_company_document", doc_args, doc_res)
         result: Optional[Dict[str, Any]] = None
         err: Optional[Dict[str, str]] = None
-        task = asyncio.create_task(service.answer(client_for(st.anthropic_api_key), st.ask_model, gw, messages, emit))
+        task = asyncio.create_task(service.answer(client_for(st.anthropic_api_key), st.ask_model, gw, messages, emit, prefetched))
         try:
             while not task.done() or out:
                 while out:
