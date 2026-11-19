@@ -345,7 +345,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
             </>}
 
             {view === "discovery" && <>
-              <div className="aif-h"><h2>Discovery</h2><p>Themes from companies' own investor presentations: AI, defence, solar, batteries, data centres, EVs, nuclear, drones and more.</p></div>
+              <div className="aif-h"><h2>Discovery</h2><p>Themes from companies' own investor presentations: AI, defence, solar, batteries, data centres, EVs, nuclear, drones and more. <Link to="/discovery" onClick={() => setOpen(false)}>Open the full page</Link></p></div>
               <Suspense fallback={<p className="aif-none" role="status">Loading…</p>}><AskDiscovery onLeave={() => setOpen(false)} /></Suspense>
             </>}
 
