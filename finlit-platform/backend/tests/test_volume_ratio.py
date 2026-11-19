@@ -20,3 +20,17 @@ def test_the_latest_session_against_the_median_of_the_20_before_it():
 def test_too_few_sessions_or_no_candle_gives_no_ratio():
     assert "volume_vs_avg" not in compute(sections([1000.0] * 5))
     assert "volume_vs_avg" not in compute(sections([], quote_volume=5000.0))
+
+
+def test_d4_the_ratio_is_measured_at_the_latest_session_the_nse_file_covers():
+    """Task #243, data finding D4: the NSE file is brought up to date by the weekly sector run, so the last sessions' full-day volume can be blank. The ratio
+    then uses the latest session that has one (at most 7 sessions back) and says which session that is; it was blank for most companies on 18 Nov."""
+    days = [f"2026-10-{d:02d}" for d in range(1, 29)]
+    vols = [1000.0] * 20 + [2000.0] + [None] * 7
+    s = sections(vols)
+    s["price"]["daily"]["t"] = days
+    m = compute(s)
+    assert m["volume_vs_avg"] == 2.0 and m["avg_volume_20d"] == 1000.0
+    assert m["volume_vs_avg_on"] == 20261021.0                  # the 21st session, the last with a full-day volume
+    s2 = sections([1000.0] * 20 + [2000.0] + [None] * 8)         # more than 7 sessions without one: no ratio, never an old one passed off as current
+    assert "volume_vs_avg" not in compute(s2)
