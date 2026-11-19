@@ -23,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 # (question, page symbol or None, checks): each check is (name, hard?, test on the answer text and the tools used)
 Check = Tuple[str, bool, Callable[[str, List[str]], bool]]
 NUM = re.compile(r"\d")
+SUMMARY = "@summary:"     # a case whose question is the AI summary of the company's Prism card (task #228), written by the server
 
 
 def has(*words: str) -> Callable[[str, List[str]], bool]:
@@ -47,6 +48,13 @@ CASES: List[Tuple[str, Any, List[Check]]] = [
         ("compares results with expectations, guidance or margins", True, any_of(r"expect", r"guidance", r"margin", r"estimate"))]),
     ("Is ITC a value trap?", "ITC", [("describes evidence, gives no verdict", True, any_of(r"growth", r"cash", r"debt|leverage", r"valuation|P/E")),
                                      ("no advice words", True, lambda t, _u: not re.search(r"\b(buy|sell|avoid|accumulate)\b", t, re.I))]),
+    # Task #228: the AI summary under the Prism cards (the server's own question, service.summary_question). The team: "i dont want it to show
+    # numbrrs but meaning of it".
+    (SUMMARY + "RELIANCE", "RELIANCE", [
+        ("no scores", True, lambda t, _u: not re.search(r"\b\d{1,3}(\.\d+)?\s*(/|out of)\s*100\b|\bscor\w*\s+(of\s+)?[+−-]?\d|\(\d{1,3}\)|[+−-]\d{1,3}\b", t, re.I)),
+        ("no figures at all", False, lambda t, _u: not NUM.search(t)),
+        ("says what the parts mean", True, any_of(r"valuation|price.{0,40}earnings", r"borrow|debt|cash", r"growth|margin|profit")),
+        ("says what the trends mean", True, any_of(r"trend", r"short.term", r"long.term"))]),
 ]
 GLOBAL: List[Check] = [
     ("no advice (the final check)", True, lambda t, _u: not re.search(r"\byou should (buy|sell|hold|invest)|target price|multibagger|top pick", t, re.I)),
@@ -76,7 +84,8 @@ async def main() -> int:
             async def emit(_e: str, _d: Dict[str, Any]) -> None:
                 return None
             try:
-                res = await service.answer(client, st.ask_model, gw, service.build_messages([], q, sym, "gold"), emit)
+                asked = service.summary_question(q[len(SUMMARY):]) if q.startswith(SUMMARY) else q
+                res = await service.answer(client, st.ask_model, gw, service.build_messages([], asked, sym, "gold"), emit)
             except Exception as e:   # one failed question is reported, the rest still run
                 report.append({"question": q, "error": type(e).__name__})
                 continue

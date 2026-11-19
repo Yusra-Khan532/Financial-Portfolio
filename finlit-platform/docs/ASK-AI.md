@@ -2,11 +2,11 @@
 
 Founder's decisions (17 Nov 2026): Claude Haiku (lowest cost), answers only from FinLit's data, plan limits respected, fast.
 
-| Plan | Written answers a month | Listed (predefined) questions |
-|---|---|---|
-| Visitor, Basic | **0** (the panel offers the closest listed questions and says written answers are Silver and Gold) | yes, instant |
-| Silver | **50** | yes, instant |
-| Gold | **100** | yes, instant |
+| Plan | Written answers a month | AI summaries of the Prism card a month (task #228, counted apart) | Listed (predefined) questions |
+|---|---|---|---|
+| Visitor, Basic | **0** (the panel offers the closest listed questions and says written answers are Silver and Gold) | **0** (the summary in words from the card itself) | yes, instant |
+| Silver | **50** | **10** | yes, instant |
+| Gold | **100** | **10** | yes, instant |
 
 The month is the calendar month in India; the count renews on the 1st. An administrator counts as Gold (or as the plan previewed with "view as").
 
@@ -96,6 +96,17 @@ is in `frontend/src/lib/feed.ts docType` and `pages.doc_type`.
 - The same first question on the same page, plan and day is answered from Redis for 30 minutes, at once and without using the allowance (never for
   questions about the member's own lists).
 - One client per process keeps its connection to the provider open.
+
+## AI summary of the FinLit Prism card (task #228)
+
+The "AI summary" button under the two FinLit Prism cards of the company page (`frontend/src/stock/PrismAiSummary.tsx`) sends
+`POST /api/ask {"kind": "summary", "symbol"}`: no question and no history. The server writes what is asked (`ask/service.summary_question`): what the
+rating means, in words, with the reasons behind it (the card's topPros and topCons), and no scores or other numbers (the team, 19 Nov 2026: "i dont want
+it to show numbrrs but meaning of it"). It uses the month's **AI summaries** (10 on Silver and Gold; table `ai_summary_usage`, migration 114), never
+the questions, and the questions never use it; `GET /api/ask/quota` returns both (`summary: {limit, used, left, resets}`). The same summary of the same
+company, plan and day comes from the cache without using one. When FinLit AI is not used (a visitor or Basic, written answers off, the summaries used),
+the button shows what the card means in words, written from the card itself (`cardSummary`), again without numbers. `scripts/ask_eval.py` checks
+FinLit AI's summary has no scores.
 
 ## Allowance, failures and cost
 

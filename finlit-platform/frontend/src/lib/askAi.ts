@@ -6,7 +6,9 @@ import { API_BASE, apiGet, apiUrl, csrfToken, errorBody, type ApiError } from ".
 import { viewAsHeader } from "./adminView";
 import { useAuth } from "./auth";
 
-export type AskQuota = { enabled: boolean; signedIn: boolean; plan?: string; limit?: number; used?: number; left?: number; resets?: string };
+export type AskAllowance = { limit: number; used: number; left: number; resets: string };
+/** `summary` (task #228): the AI summaries of the FinLit Prism card, 10 a month on Silver and Gold, counted apart from the questions. */
+export type AskQuota = { enabled: boolean; signedIn: boolean; plan?: string; limit?: number; used?: number; left?: number; resets?: string; summary?: AskAllowance };
 export type AskTurn = { role: "user" | "assistant"; content: string };
 export type AskEvent =
   | { type: "meta"; limit: number; used: number; left: number; resets: string; cached: boolean }
@@ -59,11 +61,20 @@ export function parseSse(buffer: string): { events: AskEvent[]; rest: string } {
 
 /** Sends one question and calls `on` for every event as it arrives. Throws AskRefused when the server refuses before answering. */
 export async function askAi(question: string, history: AskTurn[], symbol: string | null, on: (e: AskEvent) => void, signal?: AbortSignal): Promise<void> {
+  return send({ question, history: history.slice(-6), ...(symbol ? { symbol } : {}) }, on, signal);
+}
+
+/** Task #228: the AI summary of the company's FinLit Prism card: what it means, in words. The server writes what is asked; it uses one of the
+ *  month's AI summaries (10 on Silver and Gold), never one of the questions. */
+export async function askSummary(symbol: string, on: (e: AskEvent) => void, signal?: AbortSignal): Promise<void> {
+  return send({ kind: "summary", symbol }, on, signal);
+}
+
+async function send(body: Record<string, unknown>, on: (e: AskEvent) => void, signal?: AbortSignal): Promise<void> {
   const headers: Record<string, string> = { "Content-Type": "application/json", Accept: "text/event-stream", ...viewAsHeader() };
   const token = csrfToken();
   if (token) headers["X-CSRF-Token"] = token;
-  const res = await fetch(apiUrl("/api/ask"), { method: "POST", headers, credentials: API_BASE ? "include" : "same-origin", signal,
-    body: JSON.stringify({ question, history: history.slice(-6), ...(symbol ? { symbol } : {}) }) });
+  const res = await fetch(apiUrl("/api/ask"), { method: "POST", headers, credentials: API_BASE ? "include" : "same-origin", signal, body: JSON.stringify(body) });
   if (!res.ok || !res.body) {
     let body: AskRefused["body"] = {};
     try { body = errorBody(await res.json()) as AskRefused["body"]; } catch { /* not JSON */ }

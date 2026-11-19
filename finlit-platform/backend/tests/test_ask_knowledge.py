@@ -76,3 +76,10 @@ def test_the_evaluation_set_checks_what_the_reference_asks():
     assert any(h and not ok for _n, h, ok in bad)
     trap = run("Is ITC a value trap?", "Avoid it: buy something else.")
     assert any(h and not ok for _n, h, ok in trap)
+    # task #228: FinLit AI's summary of the Prism card says what it means, never the scores
+    summ = next(q for q in qs if q.startswith(ev.SUMMARY))
+    numbers = run(summ, "Reliance scores 58.1 out of 100 (Average). Risk 86, Valuation 35. Short term +38, long term −32.")
+    assert any(n == "no scores" and not ok for n, _h, ok in numbers)
+    words = run(summ, "Reliance's finances are sound: borrowing is low and cash backs its profits; the share price looks high against its earnings. "
+                      "The price has risen over recent weeks while the longer trend is down.")
+    assert all(ok for _n, h, ok in words if h)
