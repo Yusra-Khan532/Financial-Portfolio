@@ -68,14 +68,29 @@ async def save(store, doc: Dict[str, Any], result: Dict[str, Any], pages: Option
                            (result.get("tone") or {}).get("score"), (result.get("tone") or {}).get("label"), K.RULES_VERSION)
 
 
-async def read_one(fetcher: Fetcher, link: str) -> tuple[Dict[str, Any], Optional[int]]:
-    """Download, take the text of the first pages (the notes: 80), classify. A file the exchange did not give is status "error" with the reason."""
+async def read_one(fetcher: Fetcher, link: str, keep: Optional[List[str]] = None) -> tuple[Dict[str, Any], Optional[int]]:
+    """Download, take the text of the first pages (the notes: 80), classify. A file the exchange did not give is status "error" with the reason.
+    `keep` (task #255) receives the page texts, so FinLit AI can quote the presentation without asking the exchange again."""
     try:
         pdf = await fetcher.pdf(link, DOC_PDF_BYTES)
     except (Blocked, FetchFailed) as e:
         return {"status": "error", "reason": str(e)}, None
     pages = await asyncio.to_thread(extract_pages, pdf, K.MAX_PAGES)
+    if keep is not None:
+        keep[:] = pages
     return K.classify("\n".join(pages)), len(pages)
+
+
+async def keep_pages(store, doc: Dict[str, Any], pages: List[str]) -> bool:
+    """Task #255: the presentation's text for FinLit AI (ask/docstore). Never stops or slows the run: a fault is logged and the run goes on."""
+    if not pages or not any(p.strip() for p in pages):
+        return False
+    try:
+        from ..ask import docstore
+        return await docstore.put_pages(store, doc["link"], doc["symbol"], "Investor presentation", doc.get("title"), doc.get("item_date"), pages)
+    except Exception:
+        log.warning("discovery: %s: the presentation's text was not kept", doc.get("symbol"), exc_info=True)
+        return False
 
 
 async def run(store, limit: int = 300, max_minutes: float = 40.0, symbols: Optional[List[str]] = None, fetcher: Optional[Fetcher] = None) -> Dict[str, Any]:
@@ -93,13 +108,14 @@ async def run(store, limit: int = 300, max_minutes: float = 40.0, symbols: Optio
     f = fetcher or Fetcher(budget=limit * 2 + 10)
     counts: Dict[str, int] = {}
     errors: List[str] = []
-    done = 0
+    done = kept = 0
     try:
         for doc in todo[:limit]:
             if (time.monotonic() - started) / 60 >= max_minutes:
                 break
+            texts: List[str] = []
             try:
-                result, n = await read_one(f, doc["link"])
+                result, n = await read_one(f, doc["link"], texts)
             except BudgetSpent:
                 break
             except Exception as e:                       # a broken file never stops the run: recorded with the reason, tried again after a day
@@ -108,12 +124,20 @@ async def run(store, limit: int = 300, max_minutes: float = 40.0, symbols: Optio
             if result["status"] == "error" and len(errors) < 20:
                 errors.append(f"{doc['symbol']}: {result.get('reason')}")
             await save(store, doc, result, n)
+            if await keep_pages(store, doc, texts):
+                kept += 1
             counts[result["status"]] = counts.get(result["status"], 0) + 1
             done += 1
     finally:
         if own:
             await f.aclose()
-    res = {"filings": tagged, "pending": len(todo), "read": done, "unreached": max(0, len(todo) - done), "statuses": counts, "errors": errors,
+    try:                                   # kept texts older than 400 days go, a bounded batch per run; a fault never stops the run
+        from ..ask import docstore
+        pruned = await docstore.prune(store)
+    except Exception:
+        log.warning("discovery: kept texts not pruned", exc_info=True)
+        pruned = 0
+    res = {"filings": tagged, "pending": len(todo), "read": done, "textsKept": kept, "textsPruned": pruned, "unreached": max(0, len(todo) - done), "statuses": counts, "errors": errors,
            "minutes": round((time.monotonic() - started) / 60, 1)}
     try:
         await store.redis.set(RUN_KEY, json.dumps(res), ex=7 * 86400)

@@ -30,6 +30,17 @@ software systems solutions products foods agro paints tyres motors ports airline
 _SAME = {"pharmaceutical": "pharma", "pharmaceuticals": "pharma", "and": "&"}     # words people shorten ("Sun Pharma", "Adani Ports & SEZ")
 
 
+# Task #255: the short names people use for the best-known companies ("what does Reliance's presentation say", "tvs ki ppt"). Each is the company the
+# market means by that word; used only when its symbol is in the company list, after the full names (a longer name, e.g. "reliance power", wins).
+ALIASES = {"reliance": "RELIANCE", "ril": "RELIANCE", "tvs": "TVSMOTOR", "tvs motors": "TVSMOTOR", "hul": "HINDUNILVR", "l&t": "LT", "larsen": "LT",
+           "sbi": "SBIN", "airtel": "BHARTIARTL", "m&m": "M&M", "mahindra": "M&M", "infy": "INFY", "kotak": "KOTAKBANK", "maruti": "MARUTI",
+           "nestle": "NESTLEIND", "bajaj finance": "BAJFINANCE", "bajaj auto": "BAJAJ-AUTO", "hdfc bank": "HDFCBANK", "icici bank": "ICICIBANK",
+           "axis bank": "AXISBANK", "itc": "ITC", "tcs": "TCS", "wipro": "WIPRO", "ongc": "ONGC", "ntpc": "NTPC", "bel": "BEL", "hal": "HAL",
+           "bhel": "BHEL", "irctc": "IRCTC", "zomato": "ETERNAL", "eternal": "ETERNAL", "paytm": "PAYTM", "nykaa": "NYKAA", "titan": "TITAN",
+           "asian paints": "ASIANPAINT", "ultratech": "ULTRACEMCO", "jsw steel": "JSWSTEEL", "tata steel": "TATASTEEL", "tata motors": "TMCV",
+           "sun pharma": "SUNPHARMA", "dr reddy": "DRREDDY", "dr reddys": "DRREDDY", "adani ports": "ADANIPORTS", "adani green": "ADANIGREEN"}
+
+
 def norm(text: str) -> str:
     """Lower case words with punctuation dropped: 'Larsen & Toubro Ltd.' -> 'larsen & toubro ltd'; 'Sun Pharmaceutical' -> 'sun pharma'."""
     return " ".join(_SAME.get(w, w) for w in _WORD.findall((text or "").lower()))
@@ -60,6 +71,14 @@ def index_from(rows: List[list]) -> Tuple[List[Tuple[str, str, bool]], set]:
                 short.setdefault(" ".join(w[:2]), set()).add(sym)
     full = {k for k, _, _ in names}
     names += [(k, next(iter(v)), True) for k, v in short.items() if len(v) == 1 and k not in full and len(k) >= 8]   # only when no other company starts the same way
+    # Task #255: a distinctive first word only one listed company starts with ("sansera" for Sansera Engineering), as a loose name
+    first: Dict[str, set] = {}
+    for key, sym, _ in list(names):
+        w = key.split()
+        if len(w) >= 2:
+            first.setdefault(w[0], set()).add(sym)
+    taken_keys = {k for k, _, _ in names}
+    names += [(w, next(iter(v)), True) for w, v in first.items() if len(v) == 1 and len(w) >= 6 and w not in COMMON and w not in taken_keys]
     names.sort(key=lambda x: -len(x[0]))              # longest first, so "tata motors" is tried before "tata"
     return names, {str(r[0]).upper() for r in rows}
 
@@ -88,6 +107,13 @@ def find(question: str, names: List[Tuple[str, str, bool]], symbols: set, limit:
         if hit and not any(key in t for t in taken) and sym not in found:
             found.append(sym)
             taken.append(key)
+    for alias, sym in sorted(ALIASES.items(), key=lambda x: -len(x[0])):
+        if len(found) >= limit:
+            break
+        english = f" {alias} on " in exact or f" {alias} upon " in exact        # "reliance on imports" is the English word, not the company
+        if sym in symbols and sym not in found and not english and (f" {alias} " in exact or f" {alias} " in plural) and not any(alias in t for t in taken):
+            found.append(sym)
+            taken.append(alias)
     for tok in re.findall(r"[A-Za-z0-9&]+", question or ""):
         if len(found) >= limit:
             break
