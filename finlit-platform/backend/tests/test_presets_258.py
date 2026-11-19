@@ -79,3 +79,27 @@ def test_classification_is_joined_onto_each_row_once():
     assert (a["cls_macro"], a["cls_sector"], a["cls_industry"]) == ("Energy", "Oil, Gas & Consumable Fuels", "Petroleum Products")
     assert (b["cls_macro"], b["cls_sector"], b["cls_industry"]) == (None, None, None) and body["rows"][0] is a
     api._CLS.update({"at": 0.0, "map": {}})
+
+
+# ---------------------------------------------------------------------------------------------------------------- SPEC §5: size screens name their range
+def test_size_screens_name_their_range_from_the_site_size_lines(monkeypatch):
+    from finlit.presets import registry
+    from finlit.screener import data
+    assert registry.BY_ID["highest-rated-large"].card_text.startswith("Large caps (above ₹50,000 Cr) with")
+    assert registry.BY_ID["highest-rated-mid"].card_text.startswith("Mid caps (₹10,000–50,000 Cr) with")
+    assert registry.BY_ID["highest-rated-small"].how_it_works[0].startswith("Small caps (below ₹10,000 Cr) of ₹1,000 Cr")
+    assert not any("{range}" in p.card_text or any("{range}" in h for h in p.how_it_works) for p in registry.ALL)
+    # the lines are read from the data (task #262 owns them): new lines and a Micro size change the words with no other edit
+    monkeypatch.setattr(data, "LARGE_MIN_CR", 75000.0)
+    monkeypatch.setattr(data, "MID_MIN_CR", 25000.0)
+    monkeypatch.setattr(data, "SMALL_MIN_CR", 10000.0, raising=False)
+    assert [registry.size_range(b) for b in ("Large", "Mid", "Small", "Micro")] == ["above ₹75,000 Cr", "₹25,000–75,000 Cr", "₹10,000–25,000 Cr", "below ₹10,000 Cr"]
+
+
+def test_highest_rated_micro_caps_waits_for_a_micro_size():
+    from finlit.presets import registry
+    from finlit.screener.catalog import CAPS
+    assert ("highest-rated-micro" in registry.BY_ID) == ("Micro" in CAPS) == registry.has_size("Micro")
+    assert "highest-rated-micro" in registry._PLAIN                          # its words are ready for the day the size appears
+    top = [p.id for p in registry.ADVANCED if p.group == "top-rated"]
+    assert top[:3] == ["highest-rated-large", "highest-rated-mid", "highest-rated-small"]
