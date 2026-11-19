@@ -63,7 +63,7 @@ describe("task #137: All my investments (15 Nov pack)", () => {
     mount(); await screen.findByText("Where your money sits");
     expect(text()).toContain("Each kind counts the same (⅓ each) until you add quantities, so this split is not your money.");
     expect(text()).toContain("12 holdings");
-    const money = text().replace(/₹50,000 Cr|₹10,000(–50,000)? Cr|₹[\d,]+ a year on ₹1 lakh|₹1 lakh/g, "");
+    const money = text().replace(/₹75,000 Cr|₹25,000–75,000 Cr|₹10,000(–25,000)? Cr|₹[\d,]+ a year on ₹1 lakh|₹1 lakh/g, "")   // the four size lines (task #262) are not money;
     expect(money).not.toMatch(/₹/);                                           // no rupee value of the member's money anywhere
     expect(screen.getAllByText("On your list").length).toBe(3);               // the tiles list holdings, never "Largest"
     expect(screen.getAllByRole("button", { name: "Add quantities" }).length).toBeGreaterThan(1);

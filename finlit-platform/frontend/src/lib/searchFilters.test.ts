@@ -11,13 +11,14 @@ const idx: SearchIndex = {
   ],
   sectors: ["Information Technology", "Financial Services"],
   sec: [0, 1, 0, 0, 1, -1, 0, 0, -1, 0],
-  mc: [250000, 90000, 200000, 2000, 500, 300000, 0, 50001, 0, 12000],
+  mc: [250000, 90000, 200000, 2000, 500, 300000, 0, 75001, 0, 30000],
 };
 
 describe("size bands", () => {
   it("uses the portfolio checker's bands, edges going to the band whose range ends there", () => {
-    expect(bandOf(200001)?.id).toBe("large"); expect(bandOf(50001)?.id).toBe("large"); expect(bandOf(50000)?.id).toBe("mid");
-    expect(bandOf(10001)?.id).toBe("mid"); expect(bandOf(10000)?.id).toBe("small"); expect(bandOf(500)?.id).toBe("small"); expect(bandOf(1)?.id).toBe("small");
+    // task #262: the four sizes; 75,000 and 25,000 are Mid, 10,000 is Small
+    expect(bandOf(200001)?.id).toBe("large"); expect(bandOf(75001)?.id).toBe("large"); expect(bandOf(75000)?.id).toBe("mid");
+    expect(bandOf(25000)?.id).toBe("mid"); expect(bandOf(24999)?.id).toBe("small"); expect(bandOf(10000)?.id).toBe("small"); expect(bandOf(9999)?.id).toBe("micro"); expect(bandOf(1)?.id).toBe("micro");
   });
   it("has no band for an unknown value (0, null, undefined), so it is never shown under a wrong one", () => {
     expect(bandOf(0)).toBeNull(); expect(bandOf(null)).toBeNull(); expect(bandOf(undefined)).toBeNull();
@@ -31,7 +32,7 @@ describe("facets come from the data", () => {
     expect(f.total).toBe(9);
   });
   it("counts every band and the companies left out when a filter is on", () => {
-    expect(Object.fromEntries(f.caps.map((c) => [c.id, c.n]))).toEqual({ large: 5, mid: 1, small: 2 });
+    expect(Object.fromEntries(f.caps.map((c) => [c.id, c.n]))).toEqual({ large: 5, mid: 1, small: 0, micro: 2 });   // with 1 unknown: 5 + 1 + 0 + 2 + 1 = the 9 companies
     expect(f.unknown).toEqual({ sector: 1, cap: 1 });
   });
   it("is cached per index and works on plain rows (screener rows)", () => {
@@ -48,9 +49,9 @@ describe("filtering", () => {
     expect(passesValues(null, null, NO_FILTER)).toBe(true);
     expect(passesValues(null, 500000, { sector: null, cap: "large" })).toBe(true);
     expect(passesValues(null, 500000, { sector: "Power", cap: null })).toBe(false);
-    expect(passesValues("Power", 0, { sector: null, cap: "small" })).toBe(false);
+    expect(passesValues("Power", 0, { sector: null, cap: "micro" })).toBe(false);
     expect(passes(idx, 0, { sector: "Information Technology", cap: "large" })).toBe(true);
-    expect(passes(idx, 3, { sector: "Information Technology", cap: "large" })).toBe(false);   // 2,000 is Small cap
+    expect(passes(idx, 3, { sector: "Information Technology", cap: "large" })).toBe(false);   // 2,000 is Micro cap
   });
   it("sector only: that sector's companies, largest market value first", () => {
     const r = filterStocks(idx, "", { sector: "Information Technology", cap: null }, 40);
@@ -58,7 +59,8 @@ describe("filtering", () => {
   });
   it("band only", () => {
     expect(filterStocks(idx, "", { sector: null, cap: "large" }, 40).rows.map((x) => x[0])).toEqual(["FFF", "AAA", "CCC", "BBB", "HHH"]);
-    expect(filterStocks(idx, "", { sector: null, cap: "small" }, 40).rows.map((x) => x[0])).toEqual(["DDD", "EEE"]);
+    expect(filterStocks(idx, "", { sector: null, cap: "micro" }, 40).rows.map((x) => x[0])).toEqual(["DDD", "EEE"]);
+    expect(filterStocks(idx, "", { sector: null, cap: "small" }, 40).rows).toEqual([]);
   });
   it("sector and band together", () => {
     const r = filterStocks(idx, "", { sector: "Information Technology", cap: "large" }, 40);

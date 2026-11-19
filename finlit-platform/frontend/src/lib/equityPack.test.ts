@@ -9,11 +9,11 @@ describe("Portfolio tab", () => {
   it("writes the three cards above the table", () => {
     const c = sharesCards([
       sh("TECHM", { peer: peer("leader", 1, 13), prism: 77, below52: 1.6 }),
-      sh("KINGFA", { size: "Small", chg: -12.6 }), sh("MARINE", { size: "Small", chg: -11.0 }), sh("AEROFLEX", { size: "Small", chg: -10.6 }),
+      sh("KINGFA", { size: "Small", chg: -12.6 }), sh("MARINE", { size: "Micro", chg: -11.0 }), sh("AEROFLEX", { size: "Small", chg: -10.6 }),
       sh("APOLLO", { prism: 44, lt: 40 }), sh("GLENMARK", { prism: 45, lt: 35 }),
     ], "Friday");
     expect(c[0]).toEqual({ kind: "good", title: "TECHM is your strongest all-rounder", text: "First of 13 IT peers, healthy Prism (77), uptrend in both the short and long term, and near its 1-year high." });
-    expect(c[1]).toEqual({ kind: "warning", title: "3 shares fell 10% or more on Friday", text: "KINGFA −12.6%, MARINE −11.0% and AEROFLEX −10.6%. All three are small companies, which tend to swing more." });
+    expect(c[1]).toEqual({ kind: "warning", title: "3 shares fell 10% or more on Friday", text: "KINGFA −12.6%, MARINE −11.0% and AEROFLEX −10.6%. All three are small or micro companies, which tend to swing more." });
     expect(c[2]).toEqual({ kind: "watch", title: "Weak Prism, strong price: APOLLO and GLENMARK", text: "Both have weak business scores (44 and 45) and rising prices: the price has run ahead of the business." });   // task #183 A8: plain, no "but", no advice
   });
   it("against their peers: the sentence and the cards", () => {
@@ -41,12 +41,12 @@ describe("Portfolio tab", () => {
 describe("Diversification and Risk analytics", () => {
   it("spread cards", () => {
     const c = spreadCards({ "Software & Consulting": 28.6, "Refineries & Marketing": 14.3, Pharma: 7.1 }, { "Software & Consulting": ["TECHM", "PERSISTENT", "INFY", "ZENSARTECH"], "Refineries & Marketing": ["RELIANCE", "CHENNPETRO"], Pharma: ["GLENMARK"] },
-      { Large: 6, Mid: 4, Small: 4 }, [{ members: ["TECHM", "PERSISTENT", "INFY", "ZENSARTECH"], avg: 0.63, name: "Software & Consulting" }]);
+      { Large: 6, Mid: 4, Small: 3, Micro: 1 }, [{ members: ["TECHM", "PERSISTENT", "INFY", "ZENSARTECH"], avg: 0.63, name: "Software & Consulting" }]);
     expect(c[0].text).toBe("Apart from software & consulting (4 shares) and refineries & marketing (2 shares), every industry in the list has just one share.");
     expect(c[1]).toEqual({ kind: "watch", title: "Software & Consulting is 29% of the list", text: "TECHM, PERSISTENT, INFY and ZENSARTECH tend to move together. A bad month for software & consulting hits four shares at once." });
-    const part = spreadCards({ Banks: 33 }, { Banks: ["HDFCBANK", "ICICIBANK", "SBIN", "BAJFINANCE"] }, { Large: 4, Mid: 0, Small: 0 }, [{ members: ["HDFCBANK", "ICICIBANK"], avg: 0.56, name: "Banks" }]);
+    const part = spreadCards({ Banks: 33 }, { Banks: ["HDFCBANK", "ICICIBANK", "SBIN", "BAJFINANCE"] }, { Large: 4, Mid: 0, Small: 0, Micro: 0 }, [{ members: ["HDFCBANK", "ICICIBANK"], avg: 0.56, name: "Banks" }]);
     expect(part.find((x) => x.title === "Banks is 33% of the list")?.text).toBe("HDFCBANK, ICICIBANK, SBIN and BAJFINANCE are in the same industry. A bad month for banks hits four shares at once.");
-    expect(c[2]).toEqual({ kind: "insight", title: "Balanced by size", text: "6 large, 4 mid and 4 small companies. Large companies steady the list; the small ones add most of the swings." });
+    expect(c[2]).toEqual({ kind: "insight", title: "Balanced by size", text: "6 large, 4 mid, 3 small and 1 micro companies. Large companies steady the list; the small and micro ones add most of the swings." });
   });
   it("risk at a glance and its cards", () => {
     const l = riskLead({ beta: 1.06, vol: 23.3, vol_nifty: 14.4, max_fall: -18.5, max_fall_nifty: -14.8, worst10_list: -3.9, worst10_nifty: -3.2 }, { symbols: ["APOLLO", "MARINE", "AEROFLEX"], risk: 40, money: 21.3 });
@@ -55,7 +55,7 @@ describe("Diversification and Risk analytics", () => {
     const c = riskCards([sh("APOLLO", { risk: 32, prism: 44 }), sh("KINGFA", { size: "Small", chg: -12.6, risk: 80 }), sh("MARINE", { size: "Small", chg: -11, risk: 50 }), sh("AEROFLEX", { size: "Small", chg: -10.6, risk: 63 }),
       sh("GLENMARK", { risk: 93 }), sh("RELIANCE", { risk: 86 }), sh("TECHM", { risk: 83 }), sh("TIPSMUSIC", { risk: 83 })], { APOLLO: 14.8 }, { APOLLO: 7.1 }, "Friday");
     expect(c[0]).toEqual({ kind: "warning", title: "APOLLO is the riskiest share", text: "Prism Risk 32 and a weak business score (44). It is 7% of the list but 15% of the ups and downs." });
-    expect(c[1].title).toBe("Three small-company falls on Friday");
+    expect(c[1].title).toBe("Three smaller-company falls on Friday");
     expect(c[2].title).toBe("Five shares steady the list");
     expect(standsOut(sh("MARINE", { m1: -17.5, chg: -11.0, below52: 19.8 }), true, "Friday")).toBe("Big price swings · Fell 18% last month · −11.0% on Friday");
     expect(standsOut(sh("INFY", { m1: 16.6, chg: 1, below52: 31.7 }), false, "Friday")).toBe("Far below its 1-year high");

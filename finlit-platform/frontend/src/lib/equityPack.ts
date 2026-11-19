@@ -14,7 +14,10 @@ const list = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1
 export const sp = (v: number | null | undefined, d = 1) => (v == null ? "–" : `${v > 0 ? "+" : v < 0 ? MINUS : ""}${Math.abs(v).toFixed(d)}%`);
 const pc = (x: number) => `${Math.round(x)}%`;
 
-export type Size = "Large" | "Mid" | "Small";
+export type Size = "Large" | "Mid" | "Small" | "Micro";   // FinLit's four sizes (lib/capBuckets.ts)
+// task #262: the cards below that spoke of "small companies" meant below ₹10,000 Cr under the old rule; with four sizes they speak of Small and
+// Micro together ("smaller companies", below ₹25,000 Cr), since both swing more than large ones and the point of each card is the same.
+const isSmaller = (z: Size | null | undefined) => z === "Small" || z === "Micro";
 export type PeerLabel = "leader" | "in_line" | "laggard";
 /** One share as the pack reads it. `prism`: the total; `risk`: the Prism Risk part (higher means lower risk); `lt`/`st`: the Prism trend scores (−100 to 100). */
 export type Share = {
@@ -41,7 +44,7 @@ export function sharesCards(shares: Share[], day: string): Card[] {
   if (allRound) { const p = allRound.peer!; out.push({ kind: "good", title: `${allRound.symbol} is your strongest all-rounder`, text: `${p.rank === 1 ? "First" : `${p.rank}${["th", "st", "nd", "rd"][p.rank % 10] ?? "th"}`} of ${p.of} ${p.group} peers, ${prismWord(allRound.prism)!.toLowerCase()} Prism (${Math.round(allRound.prism!)}), uptrend in both the short and long term${allRound.below52 != null && allRound.below52 <= 5 ? ", and near its 1-year high" : ""}.` }); }
   const on = day === "Today" ? "today" : `on ${day}`;
   const fell = shares.filter((s) => s.chg != null && s.chg <= -10).sort((a, b) => a.chg! - b.chg!);
-  if (fell.length) { const small = fell.every((s) => s.size === "Small"); out.push({ kind: "warning", title: `${fell.length === 1 ? "One share" : `${fell.length} shares`} fell 10% or more ${on}`, text: `${list(fell.map((s) => `${s.symbol} ${sp(s.chg)}`))}.${small ? ` ${fell.length === 1 ? "It is a small company" : `All ${num(fell.length)} are small companies`}, which tend to swing more.` : ""}` }); }
+  if (fell.length) { const small = fell.every((s) => isSmaller(s.size)); out.push({ kind: "warning", title: `${fell.length === 1 ? "One share" : `${fell.length} shares`} fell 10% or more ${on}`, text: `${list(fell.map((s) => `${s.symbol} ${sp(s.chg)}`))}.${small ? ` ${fell.length === 1 ? "It is a small or micro company" : `All ${num(fell.length)} are small or micro companies`}, which tend to swing more.` : ""}` }); }
   const runAhead = shares.filter((s) => weakP(s.prism) && trendBand(s.lt) === "positive");
   if (runAhead.length) out.push({ kind: "watch", title: `Weak Prism, strong price: ${list(runAhead.map((s) => s.symbol))}`, text: `${runAhead.length === 1 ? "It has a weak business score" : `${runAhead.length === 2 ? "Both" : "All"} have weak business scores`} (${list(runAhead.map((s) => String(Math.round(s.prism!))))}) and ${runAhead.length === 1 ? "a rising price" : "rising prices"}: the price has run ahead of the business.` });
   return out;
@@ -100,8 +103,9 @@ export function spreadCards(weights: Record<string, number>, counts: Record<stri
   const top = Object.entries(weights).sort((a, b) => b[1] - a[1])[0];
   // "tend to move together" only when every share of that industry is in the same pack; otherwise they are only in the same industry.
   if (top && top[1] >= 20) { const pack = packs.find((p) => p.name === top[0] && (counts[top[0]] ?? []).every((m) => p.members.includes(m))); out.push({ kind: "watch", title: `${top[0]} is ${pc(top[1])} of the list`, text: `${list(counts[top[0]] ?? [])}${pack ? " tend to move together" : " are in the same industry"}. A bad month for ${top[0].toLowerCase()} hits ${num((counts[top[0]] ?? []).length)} shares at once.` }); }
-  const { Large: l = 0, Mid: m = 0, Small: s = 0 } = sizeCount;
-  out.push({ kind: "insight", title: l && m && s ? "Balanced by size" : "Leaning to one size", text: `${l} large, ${m} mid and ${s} small companies.${l && s ? " Large companies steady the list; the small ones add most of the swings." : ""}` });
+  const { Large: l = 0, Mid: m = 0, Small: s = 0, Micro: x = 0 } = sizeCount;
+  // "balanced": large, mid and smaller (Small or Micro) companies all present, as before
+  out.push({ kind: "insight", title: l && m && (s || x) ? "Balanced by size" : "Leaning to one size", text: `${l} large, ${m} mid, ${s} small and ${x} micro companies.${l && (s || x) ? " Large companies steady the list; the small and micro ones add most of the swings." : ""}` });
   return out;
 }
 
@@ -127,9 +131,9 @@ export function riskCards(shares: Share[], shareRisk: Record<string, number>, sh
   const rated = shares.filter((s) => s.risk != null).sort((a, b) => a.risk! - b.risk!);
   const worst = rated[0];
   if (worst && worst.risk! < 50) out.push({ kind: "warning", title: `${worst.symbol} is the riskiest share`, text: `Prism Risk ${Math.round(worst.risk!)}${weakP(worst.prism) ? ` and a weak business score (${Math.round(worst.prism!)})` : ""}.${shareRisk[worst.symbol] != null ? ` It is ${pc(shareMoney[worst.symbol] ?? 0)} of the list but ${pc(shareRisk[worst.symbol])} of the ups and downs.` : ""}` });
-  const fell = shares.filter((s) => s.chg != null && s.chg <= -10 && s.size === "Small");
+  const fell = shares.filter((s) => s.chg != null && s.chg <= -10 && isSmaller(s.size));
   const on = day === "Today" ? "today" : `on ${day}`;
-  if (fell.length) out.push({ kind: "watch", title: `${cap(num(fell.length))} small-company ${fell.length === 1 ? "fall" : "falls"} ${on}`, text: `${list(fell.map((s) => s.symbol))} ${fell.length === 1 ? "fell" : "each fell"} more than 10% in one day. Small companies can move this much on little news.` });
+  if (fell.length) out.push({ kind: "watch", title: `${cap(num(fell.length))} smaller-company ${fell.length === 1 ? "fall" : "falls"} ${on}`, text: `${list(fell.map((s) => s.symbol))} ${fell.length === 1 ? "fell" : "each fell"} more than 10% in one day. Small and micro companies can move this much on little news.` });
   const steady = rated.filter((s) => s.risk! >= 80).sort((a, b) => a.symbol.localeCompare(b.symbol));
   if (steady.length) out.push({ kind: "good", title: `${cap(num(steady.length))} ${steady.length === 1 ? "share steadies" : "shares steady"} the list`, text: `${list(steady.map((s) => s.symbol))} ${steady.length === 1 ? "has" : "each have"} a Prism Risk score of ${Math.floor(Math.min(...steady.map((s) => s.risk!)))} or more.` });
   return out;

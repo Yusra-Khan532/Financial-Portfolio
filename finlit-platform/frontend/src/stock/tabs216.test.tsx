@@ -62,7 +62,7 @@ describe("11, 12 and 16 (README 3.11, 3.12, 3.16)", () => {
 describe("i buttons (README 1.4)", () => {
   it("the 9 new i buttons carry the pack's texts word for word", () => {
     expect(Object.keys(NEW_I)).toEqual(["Size", "Style", "Income", "Momentum", "Where it fits", "Shareholders", "Promoter shares pledged", "Shares outstanding", "Shares under lock-in"]);
-    expect(NEW_I.Size).toBe("FinLit’s fixed size bands: large above ₹50,000 Cr, small below ₹10,000 Cr, mid in between.");
+    expect(NEW_I.Size).toBe("FinLit’s fixed size bands: large above ₹75,000 Cr, mid ₹25,000–75,000 Cr, small ₹10,000–25,000 Cr, micro below ₹10,000 Cr.");
     expect(NEW_I["Shares under lock-in"]).toBe("Shares that cannot be sold yet, usually after an IPO or a preferential issue.");
     expect(newInfo("Momentum")).toEqual({ key: "i216-momentum", label: "Momentum", what: "Oversold, neutral or overbought, from the 14-day RSI." });
     expect(newInfo("P/E")).toBeNull();   // the site's own i buttons keep their own texts

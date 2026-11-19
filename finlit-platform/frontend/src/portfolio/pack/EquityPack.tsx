@@ -213,8 +213,8 @@ export function InShort({ items }: { items: Reading[] }) {
 export function SizeFold({ counts }: { counts: Record<Size, number> }) {
   return (
     <details className="sp-sec sp-fold">
-      <summary><span><b className="sp-ft">Company size: how FinLit defines it</b><small>{counts.Large ?? 0} large · {counts.Mid ?? 0} mid · {counts.Small ?? 0} small in your list</small></span><span className="sp-show">Show ▾</span></summary>
-      <p className="sp-note">FinLit uses three sizes everywhere on the site, by market value: <b>Large</b> above ₹50,000 Cr, <b>Mid</b> ₹10,000 to 50,000 Cr, <b>Small</b> below ₹10,000 Cr. A company moves between sizes as its market value changes.</p>
+      <summary><span><b className="sp-ft">Company size: how FinLit defines it</b><small>{counts.Large ?? 0} large · {counts.Mid ?? 0} mid · {counts.Small ?? 0} small · {counts.Micro ?? 0} micro in your list</small></span><span className="sp-show">Show ▾</span></summary>
+      <p className="sp-note">FinLit uses four sizes everywhere on the site, by market value: <b>Large</b> above ₹75,000 Cr, <b>Mid</b> ₹25,000 to 75,000 Cr, <b>Small</b> ₹10,000 to 25,000 Cr, <b>Micro</b> below ₹10,000 Cr. A company moves between sizes as its market value changes.</p>
     </details>
   );
 }

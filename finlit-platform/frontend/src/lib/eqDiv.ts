@@ -4,8 +4,9 @@
 import type { Card } from "./pulsePack";
 
 export type Level = "macro" | "sector";
-export type Size3 = "Large" | "Mid" | "Small";
-export const SIZES3: Size3[] = ["Large", "Mid", "Small"];
+// FinLit's company sizes (lib/capBuckets.ts). The names Size3 / SIZES3 are kept for their importers; there are four sizes since task #262.
+export type Size3 = "Large" | "Mid" | "Small" | "Micro";
+export const SIZES3: Size3[] = ["Large", "Mid", "Small", "Micro"];
 const NUM = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
 const num = (n: number) => (n <= 12 ? NUM[n] : String(n));
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -83,7 +84,7 @@ export function groupCard(members: string[], avg: number, order: string[], corr:
   return { name: secs.join(" + "), cross, bets: effective(members.length, avg), withOwn: cross ? mean(own) : null, sizeWord };
 }
 
-/** Company size against company size: within each size (and how many independent shares it moves like), the 3 × 3 grid, and where the 30 closest pairs come from. */
+/** Company size against company size: within each size (and how many independent shares it moves like), the 4 × 4 grid, and where the 30 closest pairs come from. */
 export function sizeFigures(order: string[], corr: number[][], sizeOf: (s: string) => Size3 | null, closest = 30) {
   const known = order.filter((s) => sizeOf(s)), heat = heatOf(known, subMatrix(order, corr, known), (s) => sizeOf(s) as string);
   const within = SIZES3.map((k) => { const n = heat.count[k] ?? 0, avg = heat.cell(k, k).avg; return { k, n, avg, eff: effective(n, avg) }; });
@@ -102,11 +103,11 @@ function subMatrix(order: string[], corr: number[][], keep: string[]): number[][
   return at.map((i) => at.map((j) => corr[i][j]));
 }
 
-/** The 3 × size grid ("Where your list sits"): one row per macro sector, the shares in each size, each cell's share of the list, the row's share, and totals that add
+/** The sector × size grid ("Where your list sits"): one row per macro sector, the shares in each size, each cell's share of the list, the row's share, and totals that add
  *  to 100%. Shares without a size band are counted in the row total and named under the grid. */
 export function whereGrid(symbols: string[], sectorOf: (s: string) => string, sizeOf: (s: string) => Size3 | null) {
   const N = symbols.length, rows = new Map<string, Record<Size3, string[]> & { all: string[] }>();
-  for (const s of symbols) { const r = rows.get(sectorOf(s)) ?? rows.set(sectorOf(s), { Large: [], Mid: [], Small: [], all: [] }).get(sectorOf(s))!; r.all.push(s); const z = sizeOf(s); if (z) r[z].push(s); }
+  for (const s of symbols) { const r = rows.get(sectorOf(s)) ?? rows.set(sectorOf(s), { Large: [], Mid: [], Small: [], Micro: [], all: [] }).get(sectorOf(s))!; r.all.push(s); const z = sizeOf(s); if (z) r[z].push(s); }
   const out = [...rows].map(([name, r]) => ({ name, cells: SIZES3.map((k) => ({ k, who: r[k], pct: N ? (r[k].length / N) * 100 : 0 })), n: r.all.length, pct: N ? (r.all.length / N) * 100 : 0 }))
     .sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
   const cols = SIZES3.map((k) => { const n = symbols.filter((s) => sizeOf(s) === k).length; return { k, n, pct: N ? (n / N) * 100 : 0 }; });
@@ -115,14 +116,14 @@ export function whereGrid(symbols: string[], sectorOf: (s: string) => string, si
 
 // ------------------------------------------------------------------------------------------------ the words
 /** Key figures of the Diversification analytics tab: Concentration, Hidden packs, Moves like (the pack). */
-export function divKeyCards(a: { top: { name: string; n: number; pct: number; sectorNames: string[] } | null; N: number; groups: number; cross: number; eff: number; counted: number; small: { n: number; avg: number | null } | null; sameAvg: number | null }) {
+export function divKeyCards(a: { top: { name: string; n: number; pct: number; sectorNames: string[] } | null; N: number; groups: number; cross: number; eff: number; counted: number; small: { n: number; avg: number | null; k?: Size3 } | null; sameAvg: number | null }) {
   const out: { tone: "good" | "info" | "watch" | "warn"; k: string; v: string; text: string; go: string; to: string }[] = [];
   if (a.top) out.push({ tone: a.top.pct >= 30 ? "watch" : "good", k: "Concentration", v: `${a.top.name} · ${pc(a.top.pct)}`, go: "See sectors", to: "eq-sectors",
     text: `${a.top.n} of ${a.N} shares by count${a.top.sectorNames.length === 1 ? `, all of them ${a.top.sectorNames[0]} at sector level` : a.top.sectorNames.length ? `, across ${num(a.top.sectorNames.length)} sectors` : ""}.` });
   if (a.groups) out.push({ tone: a.cross ? "warn" : "good", k: "Hidden packs", v: `${a.cross} of ${a.groups} ${a.groups === 1 ? "group" : "groups"}`, go: "See the groups", to: "eq-groups",
     text: a.cross ? "Groups that move together cross sector lines, so the labels make the list look more spread than it is." : "Every group that moves together sits inside one sector, so the sector labels tell the story." });
   out.push({ tone: "info", k: "Moves like", v: `${a.eff.toFixed(1)} of ${a.counted}`, go: "See company sizes", to: "eq-sizes",
-    text: `independent shares.${a.small && a.small.n > 1 && a.small.avg != null && a.sameAvg != null && a.small.avg > a.sameAvg ? ` Your ${a.small.n} small companies move together more closely (${two(a.small.avg)}) than shares inside one sector.` : ""}` });
+    text: `independent shares.${a.small && a.small.n > 1 && a.small.avg != null && a.sameAvg != null && a.small.avg > a.sameAvg ? ` Your ${a.small.n} ${(a.small.k ?? "Small").toLowerCase()} companies move together more closely (${two(a.small.avg)}) than shares inside one sector.` : ""}` });
   return out;
 }
 /** The three things to know under "Do your sectors move together?". */
@@ -135,11 +136,12 @@ export function sectorCards(ties: { name: string; n: number; avg: number }[], he
   if (ones.length) out.push({ kind: "insight", title: ones.length === 1 ? "One share is a thin sample" : `${cap(num(ones.length))} ${word}s have one share each`, text: `${list(ones)} ${ones.length === 1 ? "is" : "are"} read from a single share, so ${ones.length === 1 ? "its row says" : "their rows say"} more about that share than about the ${word}.` });
   return out;
 }
-/** The three things to know under "Do small, mid and large companies move together?". */
+/** The three things to know under "Do companies of each size move together?". A tight pack of Small or Micro companies is a "watch" (task #262:
+ *  the old "Small", below ₹10,000 Cr, is Micro now, and today's Small swings the same way, so both count). */
 export function sizeCards(f: ReturnType<typeof sizeFigures>): Card[] {
   const out: Card[] = [], w = f.within.filter((x) => x.n > 1 && x.avg != null).sort((a, b) => (b.avg as number) - (a.avg as number));
   const top = f.mix[0];
-  if (w[0]) out.push({ kind: w[0].k === "Small" && (w[0].avg as number) >= 0.4 ? "watch" : "insight", title: (w[0].avg as number) >= 0.4 ? `${w[0].k} companies move as a pack` : `${w[0].k} companies move together most`, text: `Your ${w[0].n} ${w[0].k.toLowerCase()} companies average ${two(w[0].avg)} with each other: ${w[0].n} shares move like about ${w[0].eff.toFixed(1)} independent ones.` });
+  if (w[0]) out.push({ kind: (w[0].k === "Small" || w[0].k === "Micro") && (w[0].avg as number) >= 0.4 ? "watch" : "insight", title: (w[0].avg as number) >= 0.4 ? `${w[0].k} companies move as a pack` : `${w[0].k} companies move together most`, text: `Your ${w[0].n} ${w[0].k.toLowerCase()} companies average ${two(w[0].avg)} with each other: ${w[0].n} shares move like about ${w[0].eff.toFixed(1)} independent ones.` });
   if (w.length > 1) { const lo = w[w.length - 1]; out.push({ kind: "good", title: `${lo.k} companies spread the risk most`, text: `They average ${two(lo.avg)} with each other: ${lo.n} shares move like about ${lo.eff.toFixed(1)} independent ones.` }); }
   if (top && f.closest) { const lean = (top.top / f.closest) * 100 > top.allShare + 10;
     out.push({ kind: "insight", title: `${top.top} of the ${f.closest} closest pairs: ${top.k.toLowerCase()}`, text: lean ? `Only ${pc(top.allShare)} of all pairs are ${top.k.toLowerCase()}, so the closest pairs lean that way.` : `${cap(pc(top.allShare))} of all pairs are ${top.k.toLowerCase()}, so the closest pairs follow the list's own mix.` }); }

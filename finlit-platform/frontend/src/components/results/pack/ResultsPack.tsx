@@ -2,6 +2,7 @@
 // the Calendar / Industries / Companies switch, the KPI tiles Latest results keeps (the calendar has its own four, CalendarTiles.tsx, task #193), the month calendar
 // with each day's declared or due count, one day's declared results with their own day picker and verdicts, and every company due in the next seven days with its
 // industry so far. Figures and verdicts are the server's (GET /api/results/quarter, /api/results/calendar); words from lib/resultsPack. Never advice.
+import { SIZE_RULE_TEXT } from "../../../lib/capBuckets";
 import { useMemo, useState } from "react";
 import { Icon } from "../../../lib/icons";
 import { SortTh } from "../../SortTh";
@@ -129,7 +130,7 @@ export function ResultsTable({ rows, label, mine }: { rows: VRow[]; label: strin
     <Scroll label={label}><table className="sp-tb rs-t kit-grid">
       <thead>
         <tr className="kit-bands"><th colSpan={3} aria-hidden="true" /><th colSpan={3} scope="colgroup" className="kit-band kit-b-blue"><span>Revenue<Tip text={YOY} /></span></th><th colSpan={3} scope="colgroup" className="kit-band kit-b-green"><span>Net profit<Tip text={YOY} /></span></th><th colSpan={2} scope="colgroup" className="kit-band kit-b-gold"><span>Profit margin<Tip text="Margin change. Net profit as a share of revenue, compared with a year ago, in percentage points. Up means each ₹100 of sales left more profit." /></span></th><th scope="colgroup" className="kit-band kit-b-dark"><span>Vs its industry<Tip text={HOW_JUDGED} /></span></th></tr>
-        <tr>{H("company", "Company")}{H("industry", "Industry")}{H("size", "Size", undefined, <Tip text="Company size. FinLit uses three sizes everywhere, by market value: Large above ₹50,000 Cr, Mid ₹10,000 to 50,000 Cr, Small below ₹10,000 Cr." />)}
+        <tr>{H("company", "Company")}{H("industry", "Industry")}{H("size", "Size", undefined, <Tip text={`Company size. FinLit uses four sizes everywhere, by market value: ${SIZE_RULE_TEXT}.`} />)}
           {H("rev", "₹ Cr", "r")}{H("revYoY", "YoY", "r")}{H("revQoQ", "QoQ", "r")}{H("np", "₹ Cr", "r")}{H("npYoY", "YoY", "r")}{H("npQoQ", "QoQ", "r")}{H("npm", "Now", "r")}{H("npmChg", "Change", "r")}{H("verdict", "Verdict")}</tr>
       </thead>
       <tbody>{sorted.map((r) => (
@@ -227,7 +228,7 @@ export function ComingUp({ resp, inds, dueMine, followed, mine, locked }: { resp
         {cards.length > 0 && <div className="rsc-cards">{cards.length > 1 && <div className="rsc-openall"><OpenAll scope="rsc-week" n={cards.length} /></div>}<DashCards items={cards} scope="rsc-week" /></div>}
         <Scroll label="results due this week"><table className="sp-tb rs-t kit-grid rsc-week-t">
           <colgroup><col style={{ width: 112 }} /><col /><col style={{ width: 200 }} /><col style={{ width: 72 }} /><col style={{ width: 120 }} /><col style={{ width: 230 }} /><col style={{ width: 150 }} /></colgroup>
-          <thead><tr>{H("day", "Day")}{H("company", "Company")}{H("industry", "Industry")}{H("size", "Size", undefined, <Tip text="FinLit's three sizes, by market value: Large above ₹50,000 Cr, Mid ₹10,000 to 50,000 Cr, Small below ₹10,000 Cr." />)}
+          <thead><tr>{H("day", "Day")}{H("company", "Company")}{H("industry", "Industry")}{H("size", "Size", undefined, <Tip text={`FinLit's four sizes, by market value: ${SIZE_RULE_TEXT}.`} />)}
             {H("mcap", "Market value", "r", <Tip text="Market value. The price of one share times the number of shares: what the whole company is worth on the stock market." />)}
             {H("sofar", "Industry so far", undefined, <Tip text="So far. How many of the industry's companies have already declared this quarter. The picture can change as more of them report." />)}
             {H("typ", "Typical profit growth", "r", <Tip text="The middle company of the industry's declared results (the median), net profit against a year ago. Green above +0.5%, red below −0.5%, grey between." />)}</tr></thead>

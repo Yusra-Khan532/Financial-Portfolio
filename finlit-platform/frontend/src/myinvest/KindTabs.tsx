@@ -71,7 +71,7 @@ export function EquityTab({ d }: { d: AllInvestments }) {
         <SecHead id="mi-eq-spread" n={2} title="How your shares are spread" line="By macro sector and by company size, your shares only (by count)." info={["How your own shares split across NSE's macro sectors and company sizes.", "Counted by number of shares; All together step 3 counts through funds and ETFs too."]} />
         <div className="mi-two">
           <ul className="mi-hbars">{byMacro.map(([k, n]) => <li key={k}><span className="mi-hb-l">{k}</span><span className="mi-hb-b"><i className="k-shares" style={{ width: `${(n / byMacro[0][1]) * 100}%` }} /></span><b>{n}</b></li>)}</ul>
-          <ul className="mi-hbars">{(["Large", "Mid", "Small"] as const).map((z) => { const n = s.filter((x) => x.size === z).length; return <li key={z}><span className="mi-hb-l">{z}</span><span className="mi-hb-b"><i className="k-shares" style={{ width: `${(n / Math.max(1, s.length)) * 100}%` }} /></span><b>{n}</b></li>; })}
+          <ul className="mi-hbars">{(["Large", "Mid", "Small", "Micro"] as const).map((z) => { const n = s.filter((x) => x.size === z).length; return <li key={z}><span className="mi-hb-l">{z}</span><span className="mi-hb-b"><i className="k-shares" style={{ width: `${(n / Math.max(1, s.length)) * 100}%` }} /></span><b>{n}</b></li>; })}
             {s.some((x) => !x.size) && <li><span className="mi-hb-l">Not sized</span><span className="mi-hb-b" /><b>{s.filter((x) => !x.size).length}</b></li>}</ul>
         </div>
       </section>

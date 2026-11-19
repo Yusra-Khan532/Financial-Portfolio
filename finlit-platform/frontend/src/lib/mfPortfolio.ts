@@ -163,7 +163,7 @@ export type MfSpread = {
     overlap: SpreadReading & { top: { a: number; b: number; pct: number; n: number } | null }; theme: SpreadReading & { theme: string | null; funds: number[] };
     houses: SpreadReading & { top: string; count: number }; assets: SpreadReading & { equityShare: number } };
   mix: { shares: number; sharesUnknown: number; debt: number; other: number };
-  size: { Large: number; Mid: number; Small: number; Other: number };
+  size: { Large: number; Mid: number; Small: number; Micro?: number; Other: number };   // FinLit's four sizes (Micro since task #262)
   /** NSE's industries (task #192), largest first; "Listed abroad" and "Not classified" are lines of their own */
   industries: { name: string; share: number }[];
   topStocks: { name: string; symbol: string | null; industry: string | null; w: number; funds: number[]; prism?: { score: number | null; label: string | null; st: string | null; lt: string | null } | null }[];

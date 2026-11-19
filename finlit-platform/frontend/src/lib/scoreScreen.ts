@@ -2,11 +2,13 @@
 // No score is computed differently here than on the stock page: Business is the average of the four business pillars, Technical is the
 // technical pillar, Overall is the FinLit IQ as stored. A missing score is null and never passes a score filter or counts as zero.
 import { scoreBand } from "./scoreBands";
+import { capBucket, SIZE_SHORTS, type SizeShort } from "./capBuckets";
+import { migrateSmall } from "./sizeMigration";
 import type { Row } from "./screener";
 import { ratingWord, scoreBand as trendTone } from "./prismTechnical";
 import { LABEL_WORD, LABEL_SLUG, PRISM_LABELS, PRISM_NAMES, PRISM_RANGE_KEYS, isLabel, labelFromSlug, prismRangeValue, hasPrism, type PrismCol, type PrismLabel, type PrismRangeKey } from "./scorePrism";
 
-export type Cap = "Large" | "Mid" | "Small";
+export type Cap = SizeShort;
 export type Band = "low" | "mixed" | "healthy" | "high";   // Watch, Mixed, Healthy, Strong (an older link or saved screen may say "mid": Mixed and Healthy together)
 export type Pillar = "pillar_quality" | "pillar_growth" | "pillar_profitability" | "pillar_balance";
 /** `ret_3m`, `ret_6m` and `pct_from_high` feed the optional 52-week and return columns: read from the stored screener numbers, blank without enough price history. */
@@ -36,7 +38,7 @@ export const techBandOf = (score: number | null | undefined): TechBand | null =>
 /** The site's descriptive word for a technical score (never the model's own word). */
 export const trendWord = (score: number | null | undefined): string | null => (score == null ? null : ratingWord(null, score).word);
 
-export const CAPS: Cap[] = ["Large", "Mid", "Small"];
+export const CAPS: Cap[] = [...SIZE_SHORTS];
 export const BAND_KEYS: BandKey[] = ["f", "t", "o", "q", "g", "p", "b"];
 export const RANGE_KEYS: RangeKey[] = ["f", "t", "o", "q", "g", "p", "b", "dh", ...PRISM_RANGE_KEYS];
 /** "dh": how far the price is down from its 52-week high, in percent (0 = at the high). Shared by both screeners, since it is about the price, not a model (task #60). */
@@ -73,13 +75,13 @@ export const level = scoreBand;
 export const bandName = (v: number | null) => (v == null ? null : v >= 78 ? "Strong" : v >= 62 ? "Healthy" : v >= 45 ? "Mixed" : "Watch");
 
 /** Business score = the average of the four business pillars (needs at least three); Technical = the price-trend pillar.
- *  Size is by market value, one scale for the whole site: Large above ₹50,000 Cr, Mid ₹10,000 to 50,000 Cr, Small below ₹10,000 Cr (no size without a market cap). */
+ *  Size is by market value, one scale for the whole site (lib/capBuckets.ts): Large above ₹75,000 Cr, Mid ₹25,000–75,000 Cr, Small ₹10,000–25,000 Cr, Micro below ₹10,000 Cr (no size without a market cap). */
 export function withScores(rows: Row[]): Item[] {
   return rows.map((r) => {
     const parts = FUNDAMENTAL.map((k) => r[k]).filter((v): v is number => v != null);
     const mc = r.market_cap;
     return { ...r, f: parts.length >= 3 ? Math.round(parts.reduce((a, b) => a + b, 0) / parts.length) : null, t: r.pillar_technical,
-      cap: mc == null || !(mc > 0) ? null : mc > 50_000 ? "Large" : mc >= 10_000 ? "Mid" : "Small" };
+      cap: mc == null || !(mc > 0) ? null : capBucket(mc)?.short ?? null };
   });
 }
 
@@ -189,7 +191,7 @@ export const applyFilters = (items: Item[], f: Filters) => items.filter((r) => p
 
 /** Counts shown beside each size and sector option: companies that pass every other filter in the draft, so the numbers follow what you are setting. */
 export function facetCounts(items: Item[], f: Filters) {
-  const caps = { Large: 0, Mid: 0, Small: 0 } as Record<Cap, number>;
+  const caps = { Large: 0, Mid: 0, Small: 0, Micro: 0 } as Record<Cap, number>;
   for (const r of items) if (r.cap && passes(r, f, "caps")) caps[r.cap]++;
   const m = new Map<string, number>();
   for (const r of items) if (r.sector) { if (passes(r, f, "sectors")) m.set(r.sector, (m.get(r.sector) || 0) + 1); else if (!m.has(r.sector)) m.set(r.sector, 0); }
@@ -376,11 +378,17 @@ const PRISM_PARAMS = [...PRISM_RANGE_KEYS.flatMap((k) => [k + "min", k + "max", 
 /** True when an address carries anything the Advanced screener owns (a Prism filter, or a sort on a Prism column): old shared links of the single page. */
 export const hasPrismParams = (p: URLSearchParams) => PRISM_PARAMS.some((k) => p.has(k)) || PRISM_SORT.some((k) => p.get("sort") === k);
 
+/** The address marker of a size filter written under the four-size rule (a "Small" without it is from an older link). */
+export const SIZE_PARAM = "sz";
+/** True for an address from before 20 Nov 2026 whose size filter says Small (below ₹10,000 Cr then, Micro now). */
+export const isOldSizeLink = (p: URLSearchParams) => p.get(SIZE_PARAM) !== "4" && (p.get("cap") || "").split(",").includes("Small");
+
 /** Reads the address. Unknown or broken values are ignored, so a hand-edited link never breaks the page. Old links (?cap=Large&sector=X&f=high) still work. */
 export function parseState(p: URLSearchParams, scope: Scope = "all"): State {
   const f = emptyFilters();
+  // a link from before the four sizes (20 Nov 2026) has no size marker: its "Small" meant below ₹10,000 Cr, which is Micro now (sizeMigration.ts)
   const caps = (p.get("cap") || "").split(",");
-  f.caps = CAPS.filter((c) => caps.includes(c));
+  f.caps = CAPS.filter((c) => (isOldSizeLink(p) ? migrateSmall(caps) : caps).includes(c));
   f.sectors = [...new Set(p.getAll("sector").filter(Boolean))];
   f.industries = [...new Set(p.getAll("ind").filter(Boolean))];
   const finlit = scope !== "advanced", prism = scope !== "basic";
@@ -409,6 +417,7 @@ export function parseState(p: URLSearchParams, scope: Scope = "all"): State {
 export function serializeState(s: State): URLSearchParams {
   const p = new URLSearchParams(), f = s.filters;
   if (f.caps.length) p.set("cap", CAPS.filter((c) => f.caps.includes(c)).join(","));
+  if (f.caps.includes("Small")) p.set(SIZE_PARAM, "4");   // marks a new-rule "Small" so the link is never read as an old one
   f.sectors.forEach((x) => p.append("sector", x));
   f.industries.forEach((x) => p.append("ind", x));
   BAND_KEYS.forEach((k) => { if (f.bands[k].length) p.set(BAND_PARAM[k], BAND_ORDER.filter((b) => f.bands[k].includes(b)).join(",")); });

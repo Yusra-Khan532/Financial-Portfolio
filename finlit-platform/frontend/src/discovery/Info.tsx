@@ -18,7 +18,7 @@ export function infoText(k: InfoKey, rotDate: string): ReactNode {
     case "r3m": return <>Price change over the last 3 months.</>;
     case "r1y": return <>Price change over the last 12 months.</>;
     case "high": return <>How far the last close is below the highest close of the last 52 weeks. “At the high” means within 0.05%.</>;
-    case "mc": return <>Market value in ₹ crore. Size bands on this page: Large ₹1 lakh cr and above, Mid ₹30,000 cr to ₹1 lakh cr, Small ₹5,000 to ₹30,000 cr, Micro below ₹5,000 cr.</>;
+    case "mc": return <>Market value in ₹ crore. Sizes by FinLit’s rule, the same on every page: Large above ₹75,000 Cr, Mid ₹25,000–75,000 Cr, Small ₹10,000–25,000 Cr, Micro below ₹10,000 Cr.</>;
     case "corner": return <>Where the company’s industry sits in <b>Sector Rotation</b> (reading of {rotDate}): <b>Ahead and gaining</b>, <b>Ahead but slowing</b>, <b>Behind but gaining</b> or <b>Behind and slipping</b>, against the Nifty 500.</>;
     case "rank": return <>The industry’s rank among the 37 groups Sector Rotation ranks, 1 being the strongest against the Nifty 500.</>;
     case "pulse": return <><b>Sector Pulse</b> state of the industry: Thrust C / Thrust CAP (a broad rebound), Confirmed (most stocks trending up), Washout (heavily sold), Fading, Neutral.</>;

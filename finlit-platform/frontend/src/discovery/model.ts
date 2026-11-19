@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "../lib/api";
 import { useUniverse, type Row as URow } from "../lib/screener";
 import { useRotationMap, type RotationRow } from "../lib/rotation";
+import { capBucket, type CapId } from "../lib/capBuckets";
 import { useSectorBoard } from "../lib/sectors";
 import { useLeadershipList } from "../lib/leadership";
 
@@ -54,7 +55,10 @@ export const BANDS = ["Strong", "Healthy", "Average", "Weak", "Poor"] as const;
 export const RECORD_FROM = "2026-11-19";
 
 export const slug = (s: string) => s.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-export const sizeOf = (mc: number | null): string | null => (mc == null ? null : mc >= 100000 ? "L" : mc >= 30000 ? "M" : mc >= 5000 ? "S" : "X");
+// The page's own ₹1 lakh / 30,000 / 5,000 Cr bands are retired (task #262): sizes follow the site's one rule in lib/capBuckets.ts. The table's
+// size filter keeps its one-letter codes (L, M, S, X), so each code is now the shared bucket of the same name.
+const SIZE_CODE: Record<CapId, string> = { large: "L", mid: "M", small: "S", micro: "X" };
+export const sizeOf = (mc: number | null): string | null => { const b = capBucket(mc); return b ? SIZE_CODE[b.id] : null; };
 export const isUp = (r: Pick<DRow, "lt">) => !!r.lt && /uptrend/i.test(r.lt) && !/down/i.test(r.lt);
 export const evBiz = (r: Pick<DRow, "ev">) => ["order", "capacity", "partnership", "mna"].reduce((a, k) => a + (r.ev[k] || 0), 0);
 export const short = (n: string) => n.replace(/ (Ltd|Limited)\.?$/, "");

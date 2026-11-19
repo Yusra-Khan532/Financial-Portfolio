@@ -6,7 +6,7 @@ import { useUniverse } from "../../lib/screener";
 import { useUI } from "../../lib/ui";
 import { useWatchlist, watch } from "../../lib/watchlist";
 import {
-  applyTop, toggleRangeBand, togglePRangeBand, isBandList, topPool, chipsFor, cloneFilters, concentration, emptyFilters, facetCounts, filtersKey, nextSort, pageOf, parseState, removeChip, serializeState, summarize, validate, withScores,
+  applyTop, toggleRangeBand, togglePRangeBand, isBandList, topPool, chipsFor, cloneFilters, concentration, emptyFilters, facetCounts, filtersKey, nextSort, pageOf, parseState, isOldSizeLink, removeChip, serializeState, summarize, validate, withScores,
   type Band, type BandKey, type PBand, type Filters, type IqLabel, type Item, type RangeKey, type Scope, type Sort, type SortKey, type State, type TechBand, type TechKey,
 } from "../../lib/scoreScreen";
 import { coverageFrom } from "../../lib/scorePrism";
@@ -25,6 +25,7 @@ export function useScreener(mode: Mode) {
   const scope: Scope = mode;
   const state = useMemo(() => parseState(params, scope), [params.toString(), scope]);   // eslint-disable-line react-hooks/exhaustive-deps
   const { filters: applied, sort, size } = state;
+  const [sizeMoved] = useState(() => isOldSizeLink(params));   // task #262: an old link's size "Small" was read as Micro (the note beside Market cap says so)
   const latest = useRef(state); latest.current = state;   // the newest address state: a delayed apply (the live-filter effect) must not rebuild the address from an older sort
   const [draft, setDraft] = useState<Filters>(() => cloneFilters(applied));
   const [secQ, setSecQ] = useState(""), [q, setQ] = useState(() => (isBandList(params.get("q")) ? "" : params.get("q") ?? ""));   // q: the toolbar search; it narrows the table and is kept in the address as ?q=
@@ -108,7 +109,7 @@ export function useScreener(mode: Mode) {
   return {
     mode, data, isLoading, isError, has, upgrade, nav, state, applied, sort, size, draft, setDraft: setDraftLive, secQ, setSecQ, q, setQ, picked, setPicked, how, setHow, drawer, setDrawer,
     silver, locked, gold, maxCompare, items: items as Item[], unscored, asOf, cover, prismAsOf, techAsOf, facets, rows, topOf, sum, mix, pg, chips, problems, bad, dirty, flush: () => apply(draft), sel, filterCount: chips.length,
-    go, apply, clear, drop, toggle, setBand, setRange, setLabel, setIqLabel, setRangeBand, setPRangeBand, setTech, togglePick, allOnPage, headBox, toggleAll, addWatch, addSelected, sortBy,
+    sizeMoved, go, apply, clear, drop, toggle, setBand, setRange, setLabel, setIqLabel, setRangeBand, setPRangeBand, setTech, togglePick, allOnPage, headBox, toggleAll, addWatch, addSelected, sortBy,
   };
 }
 export type Screener = ReturnType<typeof useScreener>;

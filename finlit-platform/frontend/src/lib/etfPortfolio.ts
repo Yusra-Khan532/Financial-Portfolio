@@ -27,7 +27,7 @@ export type Top = { name: string; isin: string | null; symbol: string | null; /*
   score: { model: "prism" | "iq"; score: number | null; label: string | null } | null; scoreWhy: string | null };
 export type Inside = {
   count: number; why?: string; basis: "value" | "equal"; files: { symbol: string; asOf: string | null; source: string | null; why: string | null }[]; asOf: string | null;
-  mix: Record<"indian" | "abroad" | "gold" | "silver" | "debt", number>; mixFromType: string[]; size: Record<"Large" | "Mid" | "Small" | "Not sized", number> | null;
+  mix: Record<"indian" | "abroad" | "gold" | "silver" | "debt", number>; mixFromType: string[]; size: (Record<"Large" | "Mid" | "Small" | "Not sized", number> & { Micro?: number }) | null;   // Micro: the fourth size (task #262)
   overlap: { symbols: string[]; pairs: { a: string; b: string; pct: number; n: number }[] }; top: Top[]; scoreModel: "prism" | "iq";
   /** task #183: the look-through grid over Indian shares (the MF page's shape), each share ETF's own split, holdings abroad apart */
   knownShares?: number; lookThrough?: Record<"macro" | "sector", Record<string, LtCell>>; sectorMacro?: Record<string, string>;

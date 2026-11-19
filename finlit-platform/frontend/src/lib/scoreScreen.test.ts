@@ -30,11 +30,11 @@ describe("scores per company", () => {
     const [a] = withScores([row("A", { pillar_technical: 37, overall: 51 })]);
     expect([a.t, a.overall]).toEqual([37, 51]);
   });
-  it("size is by market value in rupees crore: Large above 50,000, Mid 10,000 to 50,000, Small below; no market cap means no size", () => {
-    const rows = [50_001, 50_000, 49_999, 10_000, 9_999, 1].map((v, i) => row("S" + i, { market_cap: v }));
+  it("size is by market value in rupees crore (task #262): Large above 75,000, Mid 25,000 to 75,000, Small 10,000 to 25,000, Micro below; no market cap means no size", () => {
+    const rows = [75_001, 75_000, 25_000, 10_000, 9_999, 1, 24_999].map((v, i) => row("S" + i, { market_cap: v }));
     rows.push(row("NOCAP", { market_cap: null }), row("ZERO", { market_cap: 0 }), row("NOPRICE", { price: null, market_cap: 5e6 }));
     const by = Object.fromEntries(withScores(rows).map((r) => [r.symbol, r.cap]));
-    expect([by.S0, by.S1, by.S2, by.S3, by.S4, by.S5]).toEqual(["Large", "Mid", "Mid", "Mid", "Small", "Small"]);
+    expect([by.S0, by.S1, by.S2, by.S3, by.S4, by.S5, by.S6]).toEqual(["Large", "Mid", "Mid", "Small", "Micro", "Micro", "Small"]);
     expect([by.NOCAP, by.ZERO, by.NOPRICE]).toEqual([null, null, "Large"]);              // a price is not needed any more: the size is the market value's
   });
 });
@@ -103,7 +103,7 @@ describe("applying filters", () => {
     expect(syms(applyFilters(x, f))).toEqual(["G"]);
   });
   it("size filter is multi-select", () => {
-    const x = withScores([row("L", { market_cap: 60_000 }), row("M", { market_cap: 20_000 })]);
+    const x = withScores([row("L", { market_cap: 80_000 }), row("M", { market_cap: 30_000 }), row("X", { market_cap: 5_000 })]);
     const f = emptyFilters(); f.caps = ["Large", "Mid"];
     expect(applyFilters(x, f)).toHaveLength(2);
   });
@@ -373,18 +373,18 @@ describe("colour rule", () => {
 });
 
 
-describe("Top 10 large / mid / small caps by FinLit IQ", () => {
-  // 320 companies: market caps 3200 down to 10 (so ranks 1-100 are Large, 101-250 Mid, 251+ Small), each with an IQ; a few are given none.
+describe("Top 10 large / mid / small / micro caps by FinLit IQ", () => {
+  // 320 companies on the four ₹ sizes (task #262): 1-99 Large, 100-199 Mid, 200-259 Small, 260+ Micro, each with an IQ; a few are given none.
   const row = (i: number, o: Partial<Row> = {}): Row => ({
     symbol: "S" + String(i).padStart(3, "0"), name: "S" + i, sector: "X", overall: 50 + (i % 41), band: null, pillar_quality: 40 + (i % 7), pillar_growth: 50, pillar_profitability: 50, pillar_balance: 50, pillar_technical: 50,
-    price: 100, market_cap: i < 100 ? 90000 - i * 10 : i < 250 ? 30000 - i * 10 : 9000 - i * 10, pe: null, pb: null, roe: null, roce: null, dividend_yield: null, debt_to_equity: null, sales_cagr: null, profit_cagr: null,
+    price: 100, market_cap: i < 100 ? 90000 - i * 10 : i < 200 ? 30000 - i * 10 : i < 260 ? 20000 - i * 10 : 9000 - i * 10, pe: null, pb: null, roe: null, roce: null, dividend_yield: null, debt_to_equity: null, sales_cagr: null, profit_cagr: null,
     operating_margin: null, change_pct: null, return_1m: null, return_1y: null, scored: true, ...o,
   } as Row);
   const rows: Row[] = Array.from({ length: 320 }, (_, i) => row(i + 1)).map((r, i) => (i % 53 === 0 ? { ...r, overall: null, scored: false } : r));
   const items = scoresOf(rows);
-  type Cap3 = "Large" | "Mid" | "Small";
+  type Cap3 = "Large" | "Mid" | "Small" | "Micro";
   const topOf = (cap: Cap3) => ({ ...emptyFilters(), caps: [cap], top: TOP_N });   // what an old shared link (?top=10&cap=...) sets
-  const TOP_PRESETS = (["Large", "Mid", "Small"] as Cap3[]).map((cap) => ({ cap }));
+  const TOP_PRESETS = (["Large", "Mid", "Small", "Micro"] as Cap3[]).map((cap) => ({ cap }));
 
   it("each shows exactly ten companies of its own size class, highest FinLit IQ first, none without an IQ", () => {
     for (const p of TOP_PRESETS) {

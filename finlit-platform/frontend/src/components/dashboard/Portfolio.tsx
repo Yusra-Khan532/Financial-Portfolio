@@ -1,13 +1,13 @@
 // Your equity at a glance (task #248; was "Your shares at a glance", task #135, and "Your portfolio at a glance" before), as the final pages pack draws it (04): the shares in the member's Equity portfolio, read with FinLit Prism like the Equity portfolio
 // page (task #195: the average score in the shared Prism ring, one arc per Prism part; score colours; the average of each Prism part in the same bands; a card on the
 // weak spot) and their spread across sectors and company sizes.
-// Sizes by FinLit's rule (Large above ₹50,000 Cr, Mid ₹10,000–50,000 Cr, Small below), as on every page of the pack. Descriptive only; information only.
+// Sizes by FinLit's rule (lib/capBuckets.ts: Large, Mid, Small, Micro), as on every page of the pack. Descriptive only; information only.
 import { useMemo } from "react";
 import { Link } from "react-router";
 import type { Row } from "../../lib/screener";
 import { useUI } from "../../lib/ui";
 import { Card, Rows } from "./parts";
-import { capBucket } from "../../lib/capBuckets";
+import { capBucket, SIZE_SHORTS, type SizeShort } from "../../lib/capBuckets";
 import { portfolioCard } from "../../lib/dashPack";
 import { Tip } from "../sectors/pack/Common";
 import { DashCards } from "./DashCards";
@@ -23,8 +23,8 @@ export const colourOf = (v: number | null) => { const b = bandWord(v).band; retu
 /** The score bar in band words (task #135: the model's cut-offs stay on the server): "6 strong or healthy · 6 average · 2 weak or poor". */
 export const bandLine = (c: Glance["colours"]) => [`${c.g} strong or healthy`, `${c.o} average`, `${c.r} weak or poor`, ...(c.n ? [`${c.n} without a score`] : [])].join(" · ");
 
-export function finlitSizes(rows: Row[]): Map<string, "Large" | "Mid" | "Small"> {
-  return new Map(rows.filter((r) => capBucket(r.market_cap)).map((r) => [r.symbol, capBucket(r.market_cap)!.label.replace(" cap", "") as "Large" | "Mid" | "Small"] as const));
+export function finlitSizes(rows: Row[]): Map<string, SizeShort> {
+  return new Map(rows.filter((r) => capBucket(r.market_cap)).map((r) => [r.symbol, capBucket(r.market_cap)!.short] as const));
 }
 
 export type Glance = {
@@ -46,7 +46,7 @@ export function glance(held: string[], rows: Row[]): Glance {
     count: held.length, scored: finals.filter((v) => v != null).length, avgPrism: avg(finals), colours,
     parts: PARTS.map(([k, label, key]) => ({ key, label, value: avg(mine.map((r) => num(r[k]))) })),
     sectors: sectors.size, largest: largest ? { name: largest[0], count: largest[1] } : null,
-    sizes: (["Large", "Mid", "Small"] as const).filter((l) => sizes.get(l)).map((l) => ({ label: l, count: sizes.get(l)! })),
+    sizes: SIZE_SHORTS.filter((l) => sizes.get(l)).map((l) => ({ label: l, count: sizes.get(l)! })),
   };
 }
 

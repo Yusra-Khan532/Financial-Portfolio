@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import { CoLogo } from "../CoLogo";
 import { Link } from "react-router";
 import { useQueries } from "@tanstack/react-query";
-import { capBucket } from "../../lib/capBuckets";
+import { capBucket, SIZE_RULE_TEXT } from "../../lib/capBuckets";
 import type { Leadership } from "../../lib/leadership";
 import { dayWord, myStockSignals, type MyStock, type Signal } from "../../lib/dashPack";
 import { useIndices } from "../../lib/indices";
@@ -119,7 +119,7 @@ export function MyStocks({ followed, loading, watch = new Set(), held = new Set(
   const finOf = new Map(allSyms.map((s, i) => [s, finsAll[i]])), leadOf = new Map(allSyms.map((s, i) => [s, leads[i]]));
   const fins = syms.map((s) => finOf.get(s)!);
   const idx = useIndices(), day = dayWord(new Date(), idx.data?.asOf ?? null);
-  const sizeOf = (s: string) => (capBucket(caps.get(s) ?? null)?.label.replace(" cap", "") ?? null) as MyStock["size"];
+  const sizeOf = (s: string): MyStock["size"] => capBucket(caps.get(s) ?? null)?.short ?? null;
   const { alerts } = useAlerts();
   const latestEnd = finsAll.map((f) => f.data?.quarterly?.pl?.periodEnds?.slice(-1)[0]).filter(Boolean).sort().pop();
   const priced = [...qm.values()].map((q) => q.date).filter(Boolean).sort().pop();
@@ -160,7 +160,7 @@ export function MyStocks({ followed, loading, watch = new Set(), held = new Set(
           : <div className="dsh-empty"><b>Your watchlist is empty</b><p>Follow a few stocks to see their price, score and latest results here.</p><Link className="dsh-btn" to="/watchlist">Add stocks</Link></div>
       ) : (
         <div className="dsh-st" role="table" id={LIST_ID} aria-label={tab === "portfolio" ? "Stocks in your portfolio" : tab === "watchlist" ? "Stocks on your watchlist" : "Stocks you follow and hold"}>
-          <div className="dsh-st-h" role="row"><span role="columnheader">Stock</span><span role="columnheader">Size<Tip text="FinLit's size scale: Large above ₹50,000 Cr, Mid ₹10,000–50,000 Cr, Small below ₹10,000 Cr." /></span><span role="columnheader" className="r">Price</span>
+          <div className="dsh-st-h" role="row"><span role="columnheader">Stock</span><span role="columnheader">Size<Tip text={`FinLit's size scale: ${SIZE_RULE_TEXT}.`} /></span><span role="columnheader" className="r">Price</span>
             <span role="columnheader" className="r">{day}<Tip text={day === "Today" ? "The share price move today." : `The share price move on ${day}, the latest trading day.`} /></span>
             <span role="columnheader">{model === "prism" ? "FinLit Prism" : "FinLit IQ"}<Tip text={model === "prism" ? "FinLit Prism rates each company's financial health from 0 to 100." : "FinLit IQ rates each company's financial health from 0 to 100."} /></span>
             <span role="columnheader">Vs its peers<Tip text="Leader, In line or Laggard: the share price over the last year against similar companies and the sector index, with its place among them. It describes the past, not the future." /></span>
@@ -237,7 +237,7 @@ export function Signals({ followed, caps = new Map() }: { followed: Followed[]; 
     if (loading) return [];
     const items: MyStock[] = syms.map((s, i) => {
       const pl = fins[i]?.data?.quarterly?.pl, np = pl ? yoyLabel(pl.rows.net_profit, pl.periodEnds) : null, l = leads[i]?.data;
-      return { symbol: s, name: followed[i]?.name ?? null, chg: qm.get(s)?.chg ?? null, size: (capBucket(caps.get(s) ?? null)?.label.replace(" cap", "") ?? null) as MyStock["size"],
+      return { symbol: s, name: followed[i]?.name ?? null, chg: qm.get(s)?.chg ?? null, size: capBucket(caps.get(s) ?? null)?.short ?? null,
         profit: np?.pct ?? null, profitText: np?.text ?? null, reported: !!np && (np.pct != null || np.text != null),
         peer: !l ? null : l.available ? (l.label === "in_line" ? "inline" : l.label) : "unranked" };
     });

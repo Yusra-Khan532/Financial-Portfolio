@@ -136,7 +136,7 @@ function Sectors({ d }: { d: AllInvestments }) {
         <div>
           <p className="mi-cap">Company sizes</p>
           <ul className="mi-hbars">{d.sizes.map((s) => <li key={s.size}><span className="mi-hb-l">{s.size}</span><span className="mi-hb-b">{SRC.map(([k, w, c]) => s[k] > 0 ? <i key={k} className={c} style={{ width: `${(s[k] / Math.max(1, ...d.sizes.map((z) => z.all))) * 100}%` }} title={`${w}: ${pctOf(s[k], 2)}`} /> : null)}</span><b>{pctOf(s.all)}</b></li>)}</ul>
-          <p className="mi-small">FinLit's fixed sizes: large above ₹50,000 Cr, mid ₹10,000–50,000 Cr, small below ₹10,000 Cr of market value.</p>
+          <p className="mi-small">FinLit's fixed sizes: large above ₹75,000 Cr, mid ₹25,000–75,000 Cr, small ₹10,000–25,000 Cr, micro below ₹10,000 Cr of market value.</p>
         </div>
       </div>
       <ul className="mi-key">{SRC.map(([, w, c]) => <li key={c}><i className={c} aria-hidden="true" />{w}</li>)}<li className="mi-muted">% of everything you hold</li></ul>

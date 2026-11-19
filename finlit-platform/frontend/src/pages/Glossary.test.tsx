@@ -74,8 +74,8 @@ describe("Glossary, as the pack draws it", () => {
   });
   it("opens one term on its own address", () => {
     open("/glossary/company-size-bands-mega-cap-to-nano-cap");   // a renamed term keeps its old address, so links already shared still open it
-    expect(screen.getByRole("heading", { level: 2, name: "Company size (Large, Mid, Small)" })).toBeTruthy();
-    expect(screen.getByText(/FinLit no longer uses mega, micro or nano labels\./)).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 2, name: "Company size (Large, Mid, Small, Micro)" })).toBeTruthy();
+    expect(screen.getByText(/FinLit does not use mega or nano labels\./)).toBeTruthy();
     expect(screen.getByRole("link", { name: "All 450 glossary terms" })).toBeTruthy();
   });
 });

@@ -7,8 +7,8 @@ import { useHideable } from "../../Hideable";
 
 const n0 = (v: number) => v.toLocaleString("en-IN");
 const share = (n: number, of: number) => (of ? `${((n / of) * 100).toFixed(1)}%` : "–");
-/** Size colours as the pack draws them: Large bronze, Mid blue, Small green, Not classified grey. */
-const SIZE_C: Record<string, string> = { Large: "#8A6A25", Mid: "#2A78D6", Small: "#1F6B49", "Not classified": "#B5AC98" };
+/** Size colours as the pack draws them: Large bronze, Mid blue, Small green, Micro violet (the site's --k7 chart token, task #262), Not classified grey. */
+const SIZE_C: Record<string, string> = { Large: "#8A6A25", Mid: "#2A78D6", Small: "#1F6B49", Micro: "var(--k7)", "Not classified": "#B5AC98" };
 /** Seven macro sectors and "Others", in the pack's order of colours. */
 const SECTOR_C = ["#2A78D6", "#1FA37A", "#E0662E", "#6B4FD0", "#D9719B", "#E3A008", "#127A80"], OTHERS_C = "#B5AC98";
 
@@ -39,7 +39,7 @@ export function GlanceCard({ dist, growth, locked, fills }: { dist: QDistributio
       </div>
       {!total ? <p className="muted rs-gnone">{dist ? "No companies in this view." : ""}</p> : <div className="rs-gbody">
         <div className="rs-gblock">
-          <p className="rs-glab">By size <span>· Large above ₹50,000 Cr · Mid ₹10,000–50,000 Cr · Small below</span></p>
+          <p className="rs-glab">By size <span>· Large above ₹75,000 Cr · Mid ₹25,000–75,000 Cr · Small ₹10,000–25,000 Cr · Micro below</span></p>
           <Stack parts={sizes} label="Companies by size" />
           <ul className="rs-gsz">{sizes.map((s) => <li key={s.name}><span className="d" style={{ background: s.c }} aria-hidden="true" /><span className="n">{s.name}</span><b>{n0(s.n)}</b><small>{share(s.n, total)}</small></li>)}</ul>
         </div>
@@ -57,7 +57,7 @@ export function GlanceCard({ dist, growth, locked, fills }: { dist: QDistributio
           </div>
         </div>
       </div>}
-      <p className="muted rs-gfoot">Sizes are the site's own Large, Mid and Small bands; a company without a band is Not classified. Macro sectors are NSE's. Informational only, not a recommendation.</p>
+      <p className="muted rs-gfoot">Sizes are the site's own Large, Mid, Small and Micro bands; a company without a band is Not classified. Macro sectors are NSE's. Informational only, not a recommendation.</p>
     </section>
   );
 }

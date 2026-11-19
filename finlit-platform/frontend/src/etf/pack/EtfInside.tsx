@@ -1,7 +1,7 @@
 // Task #183 part 3 (ETF portfolio, pack 03 §3 and "Changes of 15 Nov (afternoon)"): the What's inside tab, in the pack's order.
 // 1 What they own (macro sector · 12 | sector · 22 × size look-through over Indian shares, chips with the plan's reading, "+N more ▾"; the MF page's grid) →
 // three sub-tabs: What your money is in (2 Money in: the list's asset bar and one bar per ETF, holdings abroad apart; 3 Sectors inside each share ETF) ·
-// How ETFs move together (4 the correlation grid without liquid ETFs and a pair reader; 5 Shared stocks and "Same index twice") · Small, mid and large (6) →
+// How ETFs move together (4 the correlation grid without liquid ETFs and a pair reader; 5 Shared stocks and "Same index twice") · Large, mid, small and micro (6) →
 // 7 Largest stocks underneath (5, then Show all 8). Figures are the server's (/inside, /risk); this file only draws and words them. Describes; never advice.
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
@@ -15,8 +15,8 @@ import type { EtfPortfolio, EtfRisk, Inside } from "../../lib/etfPortfolio";
 import { live, movesLike } from "../../lib/etfTop";
 import { coTitle, subLine, titleOf } from "../../lib/companyLabel";
 
-const SIZES = ["Large", "Mid", "Small"] as const;
-const SIZE_HEAD: Record<string, [string, string]> = { Large: ["Large", "above ₹50,000 Cr"], Mid: ["Mid", "₹10,000–50,000 Cr"], Small: ["Small", "below ₹10,000 Cr"], Unsized: ["Not sized", "not matched to a listed company"] };
+const SIZES = ["Large", "Mid", "Small", "Micro"] as const;   // FinLit's four sizes (lib/capBuckets.ts, task #262)
+const SIZE_HEAD: Record<string, [string, string]> = { Large: ["Large", "above ₹75,000 Cr"], Mid: ["Mid", "₹25,000–75,000 Cr"], Small: ["Small", "₹10,000–25,000 Cr"], Micro: ["Micro", "below ₹10,000 Cr"], Unsized: ["Not sized", "not matched to a listed company"] };
 const p1 = (x: number) => `${(x * 100).toFixed(1)}%`;
 const p0 = (x: number) => `${Math.round(x * 100)}%`;
 const month = (iso: string | null | undefined) => (iso ? new Date(iso + "T00:00:00").toLocaleDateString("en-IN", { month: "long" }) : "latest");
@@ -57,7 +57,8 @@ export function OwnSection({ d, ins, level, onLevel }: Props & { level: Level; o
   const macroOf = (n: string) => ins.sectorMacro?.[n];
   const miss = missingShares(d, ins), large = colTot("Large") / (known || 1), top = rows[0];
   const cards: Card[] = [];
-  if (known) cards.push({ kind: large >= 0.7 ? "insight" : "watch", title: large >= 0.7 ? "Large companies lead" : "Not only large companies", text: `${p0(large)} of the Indian shares inside your ETFs are in companies above ₹50,000 Cr, ${p0(colTot("Small") / (known || 1))} below ₹10,000 Cr.` });
+  // task #262: "Large" is above ₹75,000 Cr now (the 70% line is unchanged); the second figure was "below ₹10,000 Cr", the old Small, which is the Micro column now
+  if (known) cards.push({ kind: large >= 0.7 ? "insight" : "watch", title: large >= 0.7 ? "Large companies lead" : "Not only large companies", text: `${p0(large)} of the Indian shares inside your ETFs are in companies above ₹75,000 Cr, ${p0(colTot("Micro") / (known || 1))} below ₹10,000 Cr.` });
   if (top) cards.push({ kind: "watch", title: `${top.name} is the biggest block`, text: `${p1(top.total)} of your list sits in ${top.name}, through ${top.n} companies across your ETFs.` });
   if (miss.length) cards.push({ kind: "insight", title: miss.length === 1 ? "One file is missing" : `${word(miss.length)} files are missing`, text: `${miss.join(" and ")}'s monthly ${miss.length === 1 ? "file is" : "files are"} not loaded yet, so ${miss.length === 1 ? "it is" : "they are"} left out of this grid, not spread over the others.` });
   return (
@@ -178,23 +179,23 @@ function SharedSection({ d, ins, rk }: Props) {
   );
 }
 
-// ------------------------------------------------------------------------------------------------ sub-tab 3: small, mid and large
+// ------------------------------------------------------------------------------------------------ sub-tab 3: large, mid, small and micro
 function SizesSection({ d, ins }: Props) {
   const etfs = live(d).filter((e) => e.type?.key === "indian"), miss = new Set(missingShares(d, ins)), tot = ins.size;
-  const row = (sz: Record<string, number>, scale = 1) => { const l = (sz.Large ?? 0) * scale, m = (sz.Mid ?? 0) * scale, s = (sz.Small ?? 0) * scale, u = ((sz.Unsized ?? sz["Not sized"] ?? 0)) * scale, o = Math.max(0, 1 - l - m - s - u);
-    return <span className="mfm-stack">{([["L", l, "Large"], ["M", m, "Mid"], ["S", s, "Small"], ["U", u, "Not sized"], ["O", o, "Cash and other"]] as [string, number, string][]).map(([c, v, n]) => v > 0.005 ?
+  const row = (sz: Record<string, number>, scale = 1) => { const l = (sz.Large ?? 0) * scale, m = (sz.Mid ?? 0) * scale, s = (sz.Small ?? 0) * scale, x = (sz.Micro ?? 0) * scale, u = ((sz.Unsized ?? sz["Not sized"] ?? 0)) * scale, o = Math.max(0, 1 - l - m - s - x - u);
+    return <span className="mfm-stack">{([["L", l, "Large"], ["M", m, "Mid"], ["S", s, "Small"], ["X", x, "Micro"], ["U", u, "Not sized"], ["O", o, "Cash and other"]] as [string, number, string][]).map(([c, v, n]) => v > 0.005 ?
       <i key={c} className={"mfm-z" + c} style={{ width: `${v * 100}%` }} title={`${n} ${p0(v)}`}>{v > 0.08 ? p0(v) : ""}</i> : null)}</span>; };
   const cards: Card[] = [];
   const mid = etfs.find((e) => /mid/i.test(e.tracks.label || "") && (ins.perEtf?.[e.symbol]?.size?.Large ?? 0) > 0.5);
-  if (mid) cards.push({ kind: "insight", title: "The midcap ETF is mostly large here", text: `${mid.symbol} reads ${p0(ins.perEtf![mid.symbol].size.Large ?? 0)} large and ${p0(ins.perEtf![mid.symbol].size.Mid ?? 0)} mid on FinLit's ₹ sizes: its index picks companies by rank (101st to 250th), and most of them are above ₹50,000 Cr.` });
-  if (miss.size) cards.push({ kind: "watch", title: "Small companies are missing from the view", text: `${[...miss].join(" and ")}'s holdings are not loaded, so the small companies ${miss.size === 1 ? "it holds are" : "they hold are"} not in the list total.` });
+  if (mid) cards.push({ kind: "insight", title: "The midcap ETF is mostly large here", text: `${mid.symbol} reads ${p0(ins.perEtf![mid.symbol].size.Large ?? 0)} large and ${p0(ins.perEtf![mid.symbol].size.Mid ?? 0)} mid on FinLit's ₹ sizes: its index picks companies by rank (101st to 250th), and most of them are above ₹75,000 Cr.` });
+  if (miss.size) cards.push({ kind: "watch", title: "Smaller companies are missing from the view", text: `${[...miss].join(" and ")}'s holdings are not loaded, so the smaller companies ${miss.size === 1 ? "it holds are" : "they hold are"} not in the list total.` });
   return (
-    <Section id="etp-sizes" hide title="Company sizes inside each share ETF" help="The Indian shares inside each share ETF by company size, on FinLit's ₹ rule: large above ₹50,000 Cr, mid ₹10,000 to 50,000 Cr, small below ₹10,000 Cr." how="One bar per share ETF; the last bar adds up the Indian shares inside your loaded ETFs."
-      sub="Large: above ₹50,000 Cr market value. Mid: ₹10,000 to 50,000 Cr. Small: below ₹10,000 Cr. FinLit uses these amounts on every page; SEBI's fund categories rank companies instead, so a fund's category and its sizes here can differ.">
+    <Section id="etp-sizes" hide title="Company sizes inside each share ETF" help="The Indian shares inside each share ETF by company size, on FinLit's ₹ rule: large above ₹75,000 Cr, mid ₹25,000 to 75,000 Cr, small ₹10,000 to 25,000 Cr, micro below ₹10,000 Cr." how="One bar per share ETF; the last bar adds up the Indian shares inside your loaded ETFs."
+      sub="Large: above ₹75,000 Cr market value. Mid: ₹25,000 to 75,000 Cr. Small: ₹10,000 to 25,000 Cr. Micro: below ₹10,000 Cr. FinLit uses these amounts on every page; SEBI's fund categories rank companies instead, so a fund's category and its sizes here can differ.">
       <div className="mfm-fbars">{etfs.map((e) => <div key={e.symbol} className="mfm-fb"><b>{e.symbol}<small className="mfp-sub">{e.tracks.label}</small></b>
         {ins.perEtf?.[e.symbol] ? row(ins.perEtf[e.symbol].size) : <span className="mfm-stack etp-none">Holdings not loaded yet</span>}</div>)}
-        {tot && <div className="mfm-fb total"><b>Indian shares inside your loaded ETFs</b>{row({ Large: tot.Large / 100, Mid: tot.Mid / 100, Small: tot.Small / 100, Unsized: (tot["Not sized"] ?? 0) / 100 })}</div>}</div>
-      <p className="sp-note"><i className="mfm-key mfm-zL" /> Large · <i className="mfm-key mfm-zM" /> Mid · <i className="mfm-key mfm-zS" /> Small · <i className="mfm-key mfm-zO" /> Cash and other.</p>
+        {tot && <div className="mfm-fb total"><b>Indian shares inside your loaded ETFs</b>{row({ Large: tot.Large / 100, Mid: tot.Mid / 100, Small: tot.Small / 100, Micro: (tot.Micro ?? 0) / 100, Unsized: (tot["Not sized"] ?? 0) / 100 })}</div>}</div>
+      <p className="sp-note"><i className="mfm-key mfm-zL" /> Large · <i className="mfm-key mfm-zM" /> Mid · <i className="mfm-key mfm-zS" /> Small · <i className="mfm-key mfm-zX" /> Micro · <i className="mfm-key mfm-zO" /> Cash and other.</p>
       <Insights items={cards} scope="etf.sizes" />
     </Section>
   );
@@ -206,7 +207,7 @@ const SUB_OF: Record<string, Sub> = { "etp-money": "hold", "etp-secin": "hold", 
 export function InsideSubTabs(p: Props & { level: Level; onLevel: (l: Level) => void }) {
   const [sub, setSub] = useState<Sub>("hold");
   useEffect(() => { const on = (e: Event) => { const s = SUB_OF[(e as CustomEvent).detail as string]; if (s) setSub(s); }; addEventListener("eq-jump", on); return () => removeEventListener("eq-jump", on); }, []);
-  const TABS: [Sub, string, string][] = [["hold", "What your money is in", "Shares, gold, debt and sectors"], ["move", "How ETFs move together", "Price moves and shared stocks"], ["size", "Small, mid and large", "Company sizes inside each ETF"]];
+  const TABS: [Sub, string, string][] = [["hold", "What your money is in", "Shares, gold, debt and sectors"], ["move", "How ETFs move together", "Price moves and shared stocks"], ["size", "Large, mid, small and micro", "Company sizes inside each ETF"]];
   return <>
     <div className="eqd-subbar mfm-subtabs" role="tablist" aria-label="What's inside views">{TABS.map(([k, t, s]) => <button key={k} type="button" role="tab" aria-selected={sub === k} className={sub === k ? "on" : ""} onClick={() => setSub(k)}><b>{t}</b><small>{s}</small></button>)}</div>
     {sub === "hold" && <><MoneySection {...p} /><SectorsInside {...p} /></>}

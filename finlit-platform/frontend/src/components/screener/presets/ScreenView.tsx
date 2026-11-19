@@ -3,6 +3,7 @@
 // Task #243 (screeners update pack v4, 18 Nov 2026), section P: one order of parts (P1): the header (P2, a shining crown on a featured group's screens), the date
 // bar (P3), the toolbar and the filters that are on (P4), the notes line, the table with three heading rows (P5), the selection bar (P6, only with a selection),
 // the pager (P7), Left the list (P8, a drop-down) and the disclaimer; Expand table opens the whole list over the window (P10).
+import { capBucket } from "../../../lib/capBuckets";
 import { titleOf, subOf, codeNote, exchangeTag } from "../../../lib/companyLabel";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -90,7 +91,7 @@ function ThemeCards({ themes, on, onPick }: { themes: Theme[]; on: string | null
 
 // ---------- the table (pack P5) ----------
 const HIDDEN = new Set(["symbol", "name", "stock", "badges", "rank", "position", "sector", "ret_1d"]);   // shown inside the Company and Price cells, not as columns of their own
-const sizeOf = (r: PresetRow) => { const m = r.market_cap; return typeof m !== "number" ? null : m > 50000 ? "Large" : m >= 10000 ? "Mid" : "Small"; };
+const sizeOf = (r: PresetRow) => { const m = r.market_cap; return typeof m !== "number" || !(m > 0) ? null : capBucket(m)?.short ?? null; };   // the site's one rule (lib/capBuckets.ts)
 type Group = "price" | "score" | "returns" | "list" | "after" | "sector" | "screen";
 const groupOf = (c: PresetColumn): Group => {
   const b = (c.band ?? "").toLowerCase();

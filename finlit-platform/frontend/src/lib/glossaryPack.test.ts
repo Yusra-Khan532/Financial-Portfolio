@@ -31,13 +31,13 @@ describe("the pack's figures", () => {
 describe("board 03: the change list is applied", () => {
   it("the seven new terms and the five renamed ones are there, and the old names are gone", () => {
     for (const n of ["Stock stages (Accumulation, Advancing, Distribution, Declining)", "Stocks rising (industry breadth)", "Last bounce", "Result verdict (Strong, Good, Weak, Poor)", "Moves like (independent bets)", "Moves with the rest", "Portfolio score and diversification score"]) expect(T(n)?.change, n).toBe("new");
-    for (const n of ["Company size (Large, Mid, Small)", "Industry states (Sold off, Bouncing back, Rising together, Losing steam, No clear signal)", "Bouncing back (and Bouncing back after a crash)", "Crash (capitulation)", "Standout (strong and early)"]) expect(T(n)?.change, n).toBe("updated");
+    for (const n of ["Company size (Large, Mid, Small, Micro)", "Industry states (Sold off, Bouncing back, Rising together, Losing steam, No clear signal)", "Bouncing back (and Bouncing back after a crash)", "Crash (capitulation)", "Standout (strong and early)"]) expect(T(n)?.change, n).toBe("updated");
     for (const old of ["Company size bands (mega cap to nano cap)", "Sector signal states (Washout, Thrust, Confirmed, Fading)", "Breadth thrust (C and CAP)", "Capitulation and higher-low share", "Leader flag"]) expect(TERMS.some((t) => t.term === old), old).toBe(false);
   });
   it("the three before-and-after examples read as the pack's After", () => {
-    const size = T("Company size (Large, Mid, Small)"), prism = T("FinLit Prism"), lead = T("Leader label (Leader, In line, Laggard)");
-    expect(size.meaning).toBe("FinLit sorts every listed company into three sizes by its market value: Large above ₹50,000 crore, Mid from ₹10,000 crore to ₹50,000 crore, and Small below ₹10,000 crore.");
-    expect(size.finlit).toBe("The same three sizes are used on every FinLit page: the screener, Markets pages, portfolios, watchlists and company reports. FinLit no longer uses mega, micro or nano labels.");
+    const size = T("Company size (Large, Mid, Small, Micro)"), prism = T("FinLit Prism"), lead = T("Leader label (Leader, In line, Laggard)");
+    expect(size.meaning).toBe("FinLit sorts every listed company into four sizes by its market value: Large above ₹75,000 crore, Mid from ₹25,000 crore to ₹75,000 crore, Small from ₹10,000 crore to ₹25,000 crore, and Micro below ₹10,000 crore.");
+    expect(size.finlit).toBe("The same four sizes are used on every FinLit page: the screener, Markets pages, portfolios, watchlists and company reports. Until 20 Nov 2026 there were three; what was Small then (below ₹10,000 crore) is now Micro. FinLit does not use mega or nano labels.");
     expect(prism.meaning).toBe("FinLit's advanced financial-health rating of a listed company, part of the Gold plan. It scores four parts from the company's filings and prices (Growth & Profitability, Valuation, Quality and Risk) and combines them into a score out of 100 with a label: Strong, Healthy, Average, Weak or Poor.");
     expect(prism.formula).toBe("");
     expect(prism.finlit).toBe("Prism is separate from the FinLit IQ and the two can disagree. Each part is weighed by industry group, with rules for losses and weak businesses; the weights stay inside the model. Every Prism report can be saved as a PDF.");

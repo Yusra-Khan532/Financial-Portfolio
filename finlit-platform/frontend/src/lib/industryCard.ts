@@ -52,7 +52,7 @@ export function columnScale(values: (number | null | undefined)[]): { pos: (v: n
   return { pos, zero, bar: (v) => { const p = pos(v); return { left: Math.min(p, zero), width: Math.abs(p - zero) }; } };
 }
 
-export const SIZE_RANK: Record<string, number> = { Large: 3, Mid: 2, Small: 1 };
+export const SIZE_RANK: Record<string, number> = { Large: 4, Mid: 3, Small: 2, Micro: 1 };   // sort order of the four sizes, biggest first
 export const VERDICT_RANK: Record<Verdict, number> = { Strong: 5, Good: 4, "In line": 3, Weak: 2, Poor: 1, Loss: 0 };
 /** The verdict's colour class: Strong and Good green, In line amber, Weak, Poor and Loss red. */
 export const verdictTone = (v: Verdict | null | undefined) => (v === "Strong" || v === "Good" ? "v-strong" : v === "In line" ? "v-inline" : v ? "v-poor" : "v-none");

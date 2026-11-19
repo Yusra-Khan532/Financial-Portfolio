@@ -52,9 +52,10 @@ describe("portfolioInsights", () => {
   });
 
   it("market-cap mix and missing values", () => {
-    const m = portfolioInsights([L({ symbol: "A", market_cap: 150000 }), L({ symbol: "B", market_cap: 40000 }), L({ symbol: "C", market_cap: 900 }), L({ symbol: "D", market_cap: null, sector: null })]);
+    const m = portfolioInsights([L({ symbol: "A", market_cap: 150000 }), L({ symbol: "B", market_cap: 40000 }), L({ symbol: "C", market_cap: 900 }), L({ symbol: "D", market_cap: null, sector: null }), L({ symbol: "E", market_cap: 12000 })]);
     const c = m.diversification!.caps;
-    expect([c.large, c.mid, c.small, c.unknown]).toEqual([1, 1, 1, 1]);
+    expect([c.large, c.mid, c.small, c.micro, c.unknown]).toEqual([1, 1, 1, 1, 1]);   // task #262: four sizes + not known = all five
+    expect(c.line).toBe("Company size: 20% large, 20% mid, 20% small, 20% micro, 20% size unknown.");
     expect(m.diversification!.unknownSector).toBe(1); expect(m.diversification!.sectorCount).toBe(1); noBad(m);
   });
 

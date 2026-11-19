@@ -127,7 +127,7 @@
 #aiq .aiq-t .gb u { position: absolute; top: -2px; bottom: -2px; width: 1px; background: var(--muted); }
 #aiq .aiq-na { color: var(--muted); }
 #aiq .sz { display: inline-block; padding: 2px 8px; border-radius: 999px; font: 700 var(--fs-12) var(--sans); border: 1px solid; }
-#aiq .sz-L { --c: #1d4ed8; } #aiq .sz-M { --c: #7c3aed; } #aiq .sz-S { --c: #b45309; }
+#aiq .sz-L { --c: #1d4ed8; } #aiq .sz-M { --c: #7c3aed; } #aiq .sz-S { --c: #b45309; } #aiq .sz-X { --c: var(--k3); }   /* Micro (task #262): the site's teal chart token; violet is Mid here */
 :root[data-theme="dark"] #aiq .sz-L { --c: #8fb2ff; } :root[data-theme="dark"] #aiq .sz-M { --c: #c4a7ff; } :root[data-theme="dark"] #aiq .sz-S { --c: #f4b56a; }
 #aiq .sz { color: var(--c); border-color: color-mix(in srgb, var(--c) 35%, transparent); background: color-mix(in srgb, var(--c) 8%, transparent); }
 #aiq .vc { display: inline-block; padding: 2px 9px; border-radius: 999px; font: 700 var(--fs-12) var(--sans); }

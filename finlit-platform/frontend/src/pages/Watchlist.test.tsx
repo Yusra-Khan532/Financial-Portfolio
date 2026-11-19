@@ -61,7 +61,7 @@ describe("Watchlists, as the pack draws it", () => {
   it("shows the five tiles with the pack's words from the real figures", () => {
     open();
     const tile = (k: string) => screen.getByText(k, { selector: ".wp-tile > span" }).parentElement as HTMLElement;
-    expect(tile("Stocks").textContent).toBe("Stocks32 small · 1 mid company");
+    expect(tile("Stocks").textContent).toBe("Stocks32 micro · 1 small company");   // task #262: four sizes
     expect(tile("On Friday").textContent).toBe("On Friday1 up · 2 downWHEELS −3.5%, LOTUSDEV −0.1%, SSWL +1.5%");
     expect(tile("Average FinLit IQ").textContent).toBe("Average FinLit IQ71All three Healthy");
     expect(within(tile("Against peers")).getByText("2 lead")).toBeTruthy();
@@ -84,10 +84,10 @@ describe("Watchlists, as the pack draws it", () => {
     const groupRows = within(table()).getAllByRole("columnheader").filter((h) => h.getAttribute("scope") === "colgroup").map((h) => h.textContent);
     expect(groupRows).toEqual(["Leaders2 stocks", "Not compared1 stock"]);
     const w = rowOf("WHEELS");
-    for (const t of ["Auto Components", "₹2,321.00", "−3.49%", "30.0×", "12.9%", "Small", "73", "Healthy", "Leader", "2 of 20 Auto Parts: OEM"]) expect(within(w).getByText(t)).toBeTruthy();
+    for (const t of ["Auto Components", "₹2,321.00", "−3.49%", "30.0×", "12.9%", "Micro", "73", "Healthy", "Leader", "2 of 20 Auto Parts: OEM"]) expect(within(w).getByText(t)).toBeTruthy();
     expect(within(rowOf("LOTUSDEV")).getByText("Not compared")).toBeTruthy();
     expect(within(rowOf("LOTUSDEV")).getByText("Under a year of prices")).toBeTruthy();
-    expect(within(rowOf("LOTUSDEV")).getByText("Mid")).toBeTruthy();
+    expect(within(rowOf("LOTUSDEV")).getByText("Small")).toBeTruthy();
     // within Leaders, the peer rank orders the rows (2nd, then 3rd)
     expect(within(table()).getAllByRole("link").map((a) => a.querySelector("b")?.textContent)).toEqual(["WHEELS", "SSWL", "LOTUSDEV"]);
   });
@@ -154,8 +154,8 @@ describe("what the founder asked to keep", () => {
     fireEvent.click(within(table()).getByRole("button", { name: "Price" }));
     expect(within(table()).getAllByRole("link").map((a) => a.querySelector("b")?.textContent)).toEqual(["SSWL", "WHEELS", "LOTUSDEV"]);
     fireEvent.click(within(screen.getByRole("group", { name: "Group by" })).getByRole("button", { name: "Size" }));
-    expect(screen.getByText("Grouped by company size: Large, Mid and Small.")).toBeTruthy();
-    expect(within(table()).getAllByRole("columnheader").filter((h) => h.getAttribute("scope") === "colgroup").map((h) => h.textContent)).toEqual(["Mid1 stock", "Small2 stocks"]);
+    expect(screen.getByText("Grouped by company size: Large, Mid, Small and Micro.")).toBeTruthy();
+    expect(within(table()).getAllByRole("columnheader").filter((h) => h.getAttribute("scope") === "colgroup").map((h) => h.textContent)).toEqual(["Small1 stock", "Micro2 stocks"]);
   });
   it("list management: a new list, rename and delete", () => {
     st.gold = true; open();

@@ -40,7 +40,7 @@ describe("the card shows the sample list as the addendum's sample report does", 
     expect(screen.getByText("About 4.4 effective sectors out of 8 that score in full. 6 of the 15 stocks are in financial services.")).toBeTruthy();
     expect(screen.getAllByRole("radio").map((r) => r.textContent)).toEqual(expect.arrayContaining(["Weekly · 3 years", "Monthly · 5 years", "Yearly · indicative"]));
     expect(screen.getByText("Weekly prices, Nov 2023 – Oct 2026. Describes how these stocks have moved together in the past; it is information, not a recommendation, and these relationships can change.")).toBeTruthy();
-    expect(screen.getByText("Size: 15 large caps · 0 mid · 0 small")).toBeTruthy();
+    expect(screen.getByText("Size: 15 large caps · 0 mid · 0 small · 0 micro")).toBeTruthy();
     expect(screen.getByText("Business groups: Tata 2 (TCS, Tata Steel)")).toBeTruthy();
     expect(screen.getByText("Over the last year these stocks have moved like about 7 independent ones, the same as over 3 years. No pair's correlation has changed by 0.30 or more.")).toBeTruthy();
     expect(screen.getByText("If equal amounts were held, Information technology would be 20.0% of the amount but 23.7% of the risk.")).toBeTruthy();

@@ -31,6 +31,9 @@
 .eqd-seg button[aria-pressed="true"] { background: var(--sp-panel); color: var(--sp-ink); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
 .eqd-k3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 12px 0 16px; }
 @media (max-width: 760px) { .eqd-k3 { grid-template-columns: minmax(0, 1fr); } }
+.eqd-k3.eqd-k4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }   /* the four company sizes (task #262) */
+@media (max-width: 960px) { .eqd-k3.eqd-k4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .eqd-k3.eqd-k4 { grid-template-columns: minmax(0, 1fr); } }
 .eqd-kpi { padding: 12px 14px; border: 1px solid var(--sp-line); border-radius: 12px; background: var(--sp-panel); }
 .eqd-kpi .sp-cap { display: flex; align-items: center; gap: 4px; margin: 0 0 4px; } .eqd-kpi b { display: block; font: 400 var(--fs-kpi)/var(--lh-24) var(--serif); color: var(--sp-ink); } .eqd-kpi small { font-size: var(--fs-caption); color: var(--sp-mute); }
 .eqd-two { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; align-items: start; }

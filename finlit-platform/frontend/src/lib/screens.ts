@@ -1,14 +1,17 @@
 // Saved screener filters. Kept in this browser and mirrored to the account when signed in (see lib/sync.tsx).
 import { useSyncExternalStore } from "react";
 import type { State } from "./screener";
+import { migrateStoredScreens } from "./sizeMigration";
 
 /** `notify`: "Tell me when a company joins" (task #64, file 04): true sends a message after each close naming the companies that joined or left; false keeps the screen
  *  quiet; a screen saved before the choice existed has none, and the server keeps emailing it as before. */
-export type SavedScreen = { name: string; state: State; notify?: boolean };
+/** `sizesMoved` (task #262): set by the server on a screen whose size filter it moved from Small to Micro on 20 Nov 2026; kept as sent. */
+export type SavedScreen = { name: string; state: State; notify?: boolean; sizesMoved?: string | null };
 const KEY = "finlit-saved-screens";
 function read(): SavedScreen[] { try { const v = JSON.parse(localStorage.getItem(KEY) || "[]"); return Array.isArray(v) ? v : []; } catch { return []; } }
 
-let list: SavedScreen[] = typeof localStorage === "undefined" ? [] : read();
+// task #262: a screen saved before 20 Nov 2026 with size "Small" (below ₹10,000 Cr then) is moved to "Micro" once (sizeMigration.ts)
+let list: SavedScreen[] = typeof localStorage === "undefined" ? [] : migrateStoredScreens(KEY, read());
 const subs = new Set<() => void>();
 let onSave: ((s: SavedScreen[]) => void) | null = null;
 const commit = (next: SavedScreen[], remote = false) => {

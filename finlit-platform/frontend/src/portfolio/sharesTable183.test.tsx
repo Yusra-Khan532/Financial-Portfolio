@@ -88,9 +88,9 @@ describe("views", () => {
     fireEvent.click(within(sw).getByRole("button", { name: /^Industry/ }));
     expect(rows().some((r) => r?.includes("Electrical Equipment") && r.includes("moves together .80"))).toBe(true);
   });
-  it("By company size: group rows plus three size cards", () => {
+  it("By company size: group rows plus four size cards (task #262), adding up to the list", () => {
     open("prism", "size");
-    expect([...document.querySelectorAll(".eq-sizecard")].map((c) => c.textContent)).toEqual(["Large cap3 shares75% of the list · average Prism 62", "Mid cap0 shares0% of the list", "Small cap1 share25% of the list · average Prism 50"]);
-    expect([...document.querySelectorAll(".pfx-secrow b")].map((b) => b.textContent)).toEqual(["Large", "Small"]);
+    expect([...document.querySelectorAll(".eq-sizecard")].map((c) => c.textContent)).toEqual(["Large cap3 shares75% of the list · average Prism 62", "Mid cap0 shares0% of the list", "Small cap0 shares0% of the list", "Micro cap1 share25% of the list · average Prism 50"]);
+    expect([...document.querySelectorAll(".pfx-secrow b")].map((b) => b.textContent)).toEqual(["Large", "Micro"]);
   });
 });

@@ -351,7 +351,7 @@ const identity: Fn = (sym, d) => {
   return out([named.length ? `${sym} (${p.name ?? sym}) is in NSE's ${named.slice(0, -1).join(", ")}${named.length > 1 ? " and " : ""}${named[named.length - 1]}.`
     : `${sym} (${p.name ?? sym}): its NSE classification is not known.`,
     c?.note && c.source ? c.note : c?.note ? c.note.replace(/^Not classified: /, "Not classified by NSE's lists: ") : null,
-    isNum(mc) ? `With a market cap of ${rs(mc)} it is a ${(capSize(mc) ?? "–").toLowerCase()} company (Large above ₹50,000 Cr, Mid ₹10,000–50,000 Cr, Small below ₹10,000 Cr).` : "Its market cap is not held.", "Source: FinLit company profile and prices."]);
+    isNum(mc) ? `With a market cap of ${rs(mc)} it is a ${(capSize(mc) ?? "–").toLowerCase()} company (Large above ₹75,000 Cr, Mid ₹25,000–75,000 Cr, Small ₹10,000–25,000 Cr, Micro below ₹10,000 Cr).` : "Its market cap is not held.", "Source: FinLit company profile and prices."]);
 };
 const sectorRank: Fn = (sym, d) => {
   const items: J[] = (d.peers?.items ?? []).filter((x: J) => isNum(x.market_cap)), mc = d.summary?.quote?.marketCapCr;

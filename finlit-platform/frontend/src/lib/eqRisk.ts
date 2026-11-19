@@ -5,9 +5,9 @@ import type { Card } from "./pulsePack";
 
 export type RangeKey = "less" | "defensive" | "similar" | "more" | "high" | "very_high";
 export type Band = { key: RangeKey; word: string } | null;
-export type RiskShare = { symbol: string; size: "Large" | "Mid" | "Small" | null; sector: string | null; benchmark: string | null; beta: number | null; explained: number | null; band: Band; why: string | null;
+export type RiskShare = { symbol: string; size: "Large" | "Mid" | "Small" | "Micro" | null; sector: string | null; benchmark: string | null; beta: number | null; explained: number | null; band: Band; why: string | null;
   swing: number | null; worstFall: number | null; years: number | null; oneYear: number | null };
-export type RiskSize = { size: "Large" | "Mid" | "Small"; benchmark: string; n: number; avgBeta: number | null; band: Band; listShare: number; adds: number | null; oneYear: number | null; benchOneYear: number | null; downPer100: number | null; upPer100: number | null };
+export type RiskSize = { size: "Large" | "Mid" | "Small" | "Micro"; benchmark: string; n: number; avgBeta: number | null; band: Band; listShare: number; adds: number | null; oneYear: number | null; benchOneYear: number | null; downPer100: number | null; upPer100: number | null };
 export type RiskAnswer = {
   to: string; from: string; counted: number; shares: RiskShare[]; sizes: RiskSize[]; unknown: string[]; missingIndex: string[];
   betas: { weighted: number | null; blended: number | null; nifty: number | null; weightedBand: Band; blendedBand: Band; niftyBand: Band };
@@ -67,8 +67,12 @@ export function riskKeyCards(r: RiskAnswer, riskBySize: Record<string, { list: n
 /** The three things to know under Risk at a glance. */
 export function glanceCards(r: RiskAnswer, riskBySize: Record<string, { list: number; risk: number }>): Card[] {
   const out: Card[] = [];
-  const sm = riskBySize.Small;
-  if (sm && sm.risk > 50) out.push({ kind: "warning", title: "Small companies carry over half the risk", text: `They are ${Math.round(sm.list)}% of the list and ${Math.round(sm.risk)}% of its ups and downs.` });
+  // task #262: this card meant the old Small (below ₹10,000 Cr). With four sizes it reads Small and Micro together (below ₹25,000 Cr), the
+  // smaller companies whose share of the risk the card is about; with only one of them in the list the sentence names that one.
+  const parts = (["Small", "Micro"] as const).filter((k) => riskBySize[k]);
+  const sm = parts.length ? parts.reduce((a, k) => ({ list: a.list + riskBySize[k].list, risk: a.risk + riskBySize[k].risk }), { list: 0, risk: 0 }) : null;
+  const who = parts.length === 2 ? "Small and micro companies" : parts[0] === "Micro" ? "Micro companies" : "Small companies";
+  if (sm && sm.risk > 50) out.push({ kind: "warning", title: `${who} carry over half the risk`, text: `They are ${Math.round(sm.list)}% of the list and ${Math.round(sm.risk)}% of its ups and downs.` });
   const top = [...r.shares].filter((s) => s.beta != null).sort((a, b) => (b.beta as number) - (a.beta as number)).slice(0, 3);
   if (top.length && (top[0].beta as number) > 1.35) out.push({ kind: "watch", title: "The highest betas", text: `${list(top.map((s) => `${s.symbol} (${b2(s.beta)} against ${s.benchmark})`))}.` });
   const lg = r.sizes.find((s) => s.size === "Large");
@@ -95,7 +99,7 @@ export function rangeCards(shares: RiskShare[]) {
 export function betaCards(r: RiskAnswer): Card[] {
   const out: Card[] = [];
   const { weighted: w, blended: b, nifty: n } = r.betas;
-  if (w != null && n != null) out.push({ kind: "insight", title: "Two ways to read beta", text: `Against each share's own market the list reads ${b2(w)}; against the Nifty 50 alone it reads ${b2(n)}. ${n < w ? "Small and mid companies move less in step with the Nifty 50, so it reads lower." : "The Nifty 50 reading is the one to use for what a Nifty 50 fall has meant."}` });
+  if (w != null && n != null) out.push({ kind: "insight", title: "Two ways to read beta", text: `Against each share's own market the list reads ${b2(w)}; against the Nifty 50 alone it reads ${b2(n)}. ${n < w ? "Mid, small and micro companies move less in step with the Nifty 50, so it reads lower." : "The Nifty 50 reading is the one to use for what a Nifty 50 fall has meant."}` });
   out.push({ kind: "watch", title: "A low beta is not always low risk", text: "A share can move little with its market and still swing a lot on its own news. The swing and worst fall columns show that side." });
   out.push({ kind: "good", title: "Weights follow your money later", text: "Today every share counts the same. Once quantities are in, the sizes are weighted by the money in each." });
   if (b != null && w != null && Math.abs(b - w) > 0.15) out[out.length - 1] = { kind: "insight", title: "The blended figure checks the size-weighted one", text: `Against a benchmark blended in your list's proportions the list reads ${b2(b)}, ${b > w ? "a little above" : "a little below"} the size-weighted ${b2(w)}.` };

@@ -124,7 +124,7 @@ html[data-theme="dark"] .mff-num.m, html[data-theme="dark"] .mff-chip.m, html[da
 .mfm-stack.big { height: 46px; margin-bottom: 12px; }
 .mfm-stack i { display: flex; flex-direction: column; justify-content: center; padding: 0 6px; overflow: hidden; white-space: nowrap; font: 600 12px/1.2 var(--sans); font-style: normal; color: #fff; }
 .mfm-stack.big i b { font-size: 14px; } .mfm-stack.big i small { font-weight: 400; font-size: 12px; }
-.mfm-s, .mfm-zL { background: #1f6b6b; } .mfm-d, .mfm-zM { background: #8fa8a6; } .mfm-o { background: #b8892f; } .mfm-zS { background: #c9a35a; }
+.mfm-s, .mfm-zL { background: #1f6b6b; } .mfm-d, .mfm-zM { background: #8fa8a6; } .mfm-o { background: #b8892f; } .mfm-zS { background: #c9a35a; } .mfm-zX { background: var(--k7); color: #fff; }   /* Micro: the site's violet chart token (task #262) */
 .mfm-u, .mfm-zU, .mfm-zO { background: repeating-linear-gradient(135deg, #9aa3ad 0 6px, #b7bec6 6px 12px); color: #20262c !important; }
 .mfm-zO { background: #c4cbd2; }
 .mfm-fbars { display: grid; gap: 8px; } .mfm-fb { display: grid; grid-template-columns: minmax(140px, 220px) minmax(0, 1fr); gap: 10px; align-items: center; font-size: 13px; }
