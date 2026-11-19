@@ -96,8 +96,8 @@ async def get_pages(store: Any, link: str) -> Optional[List[str]]:
 async def put_pages(store: Any, link: str, symbol: str, kind: str, title: Optional[str], filed: Any, pages: List[str]) -> bool:
     """Keeps the text of a document read just now, and (task #254) only the newest document of each kind per company: older ones of the same kind
     and company go once a newer one is kept. False (logged) when it could not be kept; the caller goes on."""
-    if store is None or not link or not pages:
-        return False
+    if store is None or not link or not any(isinstance(p, str) and p.strip() for p in pages or []):
+        return False                  # a failed or empty parse is never kept, so the next question downloads the file again
     sym, day = (symbol or "").upper(), _day(filed)
     try:
         async with store.pool.acquire() as conn:
