@@ -104,7 +104,7 @@ a { color: inherit; }
 .label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
 .eyebrow { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .18em; color: var(--gold); }
 .mono { font-family: var(--mono); }
-.px .rs { font-size: var(--fs-24); } .rs { color: var(--muted); margin-right: .06em; vertical-align: .38em; font-weight: 500; }
+/* task #252: the raised ".rs" rupee rule is gone; the company price styles its own ₹ (report216.css .hx-rs), on the baseline */
 .unit { font-size: var(--fs-13); color: var(--muted); font-weight: 500; margin-left: .12em; }
 .pos { color: var(--gain); } .neg { color: var(--loss); } .muted { color: var(--muted); } .faint { color: var(--faint); }
 .ico { width: 18px; height: 18px; flex: none; }
