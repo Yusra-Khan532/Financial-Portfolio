@@ -3,9 +3,10 @@
 // otherwise A to Z. Pure functions, so the order and the readings are tested. Descriptive only.
 
 export type InvKind = "share" | "mf" | "etf" | "watch";
-export const KIND_TAG: Record<InvKind, string> = { share: "Share", mf: "Mutual fund", etf: "ETF", watch: "Watchlist" };
+export const KIND_TAG: Record<InvKind, string> = { share: "Equity", mf: "Mutual fund", etf: "ETF", watch: "Watchlist" };
 
 export type InvRow = {
+  /** task #248: the chosen portfolios that hold it ("held in Dhan"), when the kind has two or more */ acct?: string[];
   key: string; kind: InvKind; name: string; sub: string; href: string; alertHref: string;
   symbol?: string; code?: number;
   price: number | null; priceWhy?: string;

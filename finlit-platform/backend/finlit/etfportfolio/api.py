@@ -38,6 +38,8 @@ from ..mfportfolio import risk
 from . import DISCLAIMER, book, calc
 
 log = logging.getLogger("finlit.etfportfolio")
+PF_QUERY = r"^(all|[a-z0-9]{1,16}(,[a-z0-9]{1,16}){0,9})$"   # task #248: one account, or up to ten joined by commas
+
 router = APIRouter(prefix="/api/me/etf-portfolio")
 NO_STORE = {"Cache-Control": "private, no-store", "Vary": "Cookie"}
 MAX_IMPORT_ROWS = 2000
@@ -247,7 +249,7 @@ def _view(sym: str, qty: Optional[Decimal], r: Optional[dict], f: Dict[str, Any]
 
 
 @router.get("")
-async def list_etfs(request: Request, ctx: Ctx = Depends(member_ctx), pf: Optional[str] = Query(None, pattern=r"^(all|[a-z0-9]{1,16})$")):
+async def list_etfs(request: Request, ctx: Ctx = Depends(member_ctx), pf: Optional[str] = Query(None, pattern=PF_QUERY)):
     app = request.app
     async with app.state.store.pool.acquire() as conn:
         held = await held_of(conn, ctx.user_id, pf)
@@ -289,7 +291,7 @@ async def _weighted(request: Request, ctx: Ctx, pf: Optional[str] = None) -> Tup
 
 
 @router.get("/inside")
-async def inside(request: Request, ctx: Ctx = Depends(member_ctx), pf: Optional[str] = Query(None, pattern=r"^(all|[a-z0-9]{1,16})$")):
+async def inside(request: Request, ctx: Ctx = Depends(member_ctx), pf: Optional[str] = Query(None, pattern=PF_QUERY)):
     """What sits inside the ETFs, from each fund house's monthly portfolio file."""
     app = request.app
     etfs, _by, basis = await _weighted(request, ctx, pf)
@@ -334,7 +336,7 @@ async def inside(request: Request, ctx: Ctx = Depends(member_ctx), pf: Optional[
 
 
 @router.get("/risk")
-async def etf_risk(request: Request, ctx: Ctx = Depends(member_ctx), pf: Optional[str] = Query(None, pattern=r"^(all|[a-z0-9]{1,16})$")):
+async def etf_risk(request: Request, ctx: Ctx = Depends(member_ctx), pf: Optional[str] = Query(None, pattern=PF_QUERY)):
     """Each ETF's swing, worst fall, beta and share of the Nifty 500's falls from its daily closes over three years (the MF portfolio's sums), the list's
     risk level against the Nifty 500, how alike the weekly moves were over the last year, and each ETF's share of the list's swings."""
     app = request.app

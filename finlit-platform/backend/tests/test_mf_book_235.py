@@ -25,6 +25,7 @@ def test_open_lots_first_in_first_out_with_the_cost_cut_in_proportion():
     left = {l["id"]: (l["units"], l["invested"]) for l in book.open_lots(lots)}
     assert left == {"b": (Decimal(30), Decimal("360.00")), "d": (Decimal(10), Decimal(100))}
     assert [l["id"] for l in book.open_lots(lots, "coin")] == ["d"]
+    assert {l["id"] for l in book.open_lots(lots, "coin,groww")} == {"b", "d"} and book.pf_set("all") is None   # task #248: several platforms
 
 
 async def test_platforms_sales_and_one_platform_at_a_time(app):  # noqa: F811
@@ -47,6 +48,12 @@ async def test_platforms_sales_and_one_platform_at_a_time(app):  # noqa: F811
     assert sorted((h["code"], h["units"]) for h in coin["holdings"]) == [(BASE + 1, 20.0), (BASE + 5, 10.0)]
     assert (await c.get(URL + "/diversification?pf=coin")).status_code == 200
     assert (await c.get(URL + "?pf=Bad")).status_code == 422
+    # task #248: the dashboard's Showing picker asks for several platforms at once: each first in, first out on its own, then added
+    both = (await c.get(URL + "?pf=groww,coin")).json()
+    assert sorted((h["code"], h["units"]) for h in both["holdings"]) == [(BASE + 1, 50.0), (BASE + 5, 10.0)]
+    assert (await c.get(URL + "/diversification?pf=groww,coin")).status_code == 200
+    assert (await c.get(URL + "/risk?pf=coin,groww")).status_code != 422        # accepted (the stand-in schemes have no NAV history, so risk answers 503 here)
+    assert (await c.get(URL + "?pf=groww,")).status_code == 422 and (await c.get(URL + "?pf=" + ",".join(["a"] * 11))).status_code == 422
 
 
 async def test_a_fund_sold_in_full_leaves_the_figures_and_stays_for_the_sold_list(app):  # noqa: F811

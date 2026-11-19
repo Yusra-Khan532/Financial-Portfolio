@@ -153,6 +153,12 @@ async def test_csrf_and_origin_are_enforced(app):
     no_origin = await c.put("/api/me/prefs", json={"palette": "gold"}, headers={"Origin": ""})
     assert no_origin.status_code == 403
     assert (await c.put("/api/me/prefs", json={"palette": "gold"})).status_code == 200
+    # task #248: the dashboard's portfolio choice is kept with the account (the same on every device) and checked
+    pick = {"equity": ["dhan", "upstox"], "mf": "all", "etf": ["main"]}
+    assert (await c.put("/api/me/prefs", json={"palette": "gold", "dashPortfolios": pick})).status_code == 200
+    assert (await c.get("/api/me/state")).json()["prefs"]["dashPortfolios"] == pick
+    for bad in ({"equity": []}, {"equity": ["<x>"]}, {"mf": "some"}, {"etf": [f"a{i}" for i in range(11)]}):
+        assert (await c.put("/api/me/prefs", json={"palette": "gold", "dashPortfolios": bad})).status_code == 422, bad
     assert body  # silence unused
     await c.aclose()
 

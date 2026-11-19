@@ -37,6 +37,8 @@ from .calc import NO_RETURNS, allocation, concentration, num, summarize, value_h
 from .match import Index, match_row
 from .parse import Clean, Rejected, clean_folio, clean_row, strict_lot
 
+PF_QUERY = r"^(all|[a-z0-9]{1,16}(,[a-z0-9]{1,16}){0,9})$"   # task #248: one platform, or up to ten joined by commas
+
 router = APIRouter(prefix="/api/me/mf-portfolio")
 NO_STORE = {"Cache-Control": "private, no-store", "Vary": "Cookie"}
 MAX_IMPORT_ROWS = 2000
@@ -114,7 +116,7 @@ async def holdings_of(conn, user_id: str, pf: Optional[str] = None, raw: bool = 
     for h in held:
         h["lines"] = h["lots"]
         h["lots"] = book.open_lots(h["lines"], None if not pf or pf == "all" else pf)
-        if pf and pf != "all" and not h["lots"] and not (not h["lines"] and pf == first):
+        if pf and pf != "all" and not h["lots"] and not (not h["lines"] and first in (book.pf_set(pf) or ())):
             continue
         if h["lines"] and not h["lots"]:
             if not sold:
@@ -209,7 +211,7 @@ def _line(l: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @router.get("")
-async def list_holdings(request: Request, ctx: Ctx = Depends(member_ctx), pf: Optional[str] = Query(None, pattern=r"^(all|[a-z0-9]{1,16})$")):
+async def list_holdings(request: Request, ctx: Ctx = Depends(member_ctx), pf: Optional[str] = Query(None, pattern=PF_QUERY)):
     return reply(await build_view(request, ctx, pf))
 
 
@@ -276,7 +278,7 @@ async def trend_block(request: Request, funds: List[Dict[str, Any]], top: List[D
 
 
 @router.get("/diversification")
-async def diversification(request: Request, ctx: Ctx = Depends(member_ctx), pf: Optional[str] = Query(None, pattern=r"^(all|[a-z0-9]{1,16})$")):
+async def diversification(request: Request, ctx: Ctx = Depends(member_ctx), pf: Optional[str] = Query(None, pattern=PF_QUERY)):
     """How spread the member's funds are: words and plain figures only. The levels and bands that give the overall word stay here."""
     from .. import portfolios
     from .spread import public_view, spread
@@ -321,7 +323,7 @@ async def diversification(request: Request, ctx: Ctx = Depends(member_ctx), pf: 
 
 
 @router.get("/risk")
-async def fund_risk(request: Request, ctx: Ctx = Depends(member_ctx), pf: Optional[str] = Query(None, pattern=r"^(all|[a-z0-9]{1,16})$")):
+async def fund_risk(request: Request, ctx: Ctx = Depends(member_ctx), pf: Optional[str] = Query(None, pattern=PF_QUERY)):
     """Each fund's swing, worst fall, beta and share of the NIFTY 500's falls, from its daily NAV over the last three years, and the list's risk level against
     the NIFTY 500 (Silver and Gold, as the page). Plain figures and words only; the cut-offs behind the level stay in mfportfolio.risk."""
     from .. import indices

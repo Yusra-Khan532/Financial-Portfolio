@@ -36,12 +36,18 @@ class BookIn(BaseModel):
     portfolios: List[Platform] = Field(default_factory=list, max_length=10)
 
 
+def pf_set(pf: Optional[str]) -> Optional[frozenset]:
+    """Task #248: `pf` is one platform id, several joined by commas (the dashboard's Showing picker), or None / "all" for every platform."""
+    return None if not pf or pf == "all" else frozenset(pf.split(","))
+
+
 def open_lots(lots: List[Dict[str, Any]], pf: Optional[str] = None) -> List[Dict[str, Any]]:
     """What is left of each buy, first in, first out within each platform; pf None keeps every platform. A buy's cost is cut in proportion to what is left."""
     groups: Dict[str, List[Any]] = {}
+    pfs = pf_set(pf)
     for i, l in enumerate(lots):
         p = l.get("pf") or DEFAULT_PF
-        if pf is not None and p != pf:
+        if pfs is not None and p not in pfs:
             continue
         groups.setdefault(p, []).append((i, l))
     out: List[Dict[str, Any]] = []

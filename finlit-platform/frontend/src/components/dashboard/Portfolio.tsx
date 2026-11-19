@@ -1,4 +1,4 @@
-// Your shares at a glance (task #135; was "Your portfolio at a glance"), as the final pages pack draws it (04): the shares in the member's Equity portfolio, read with FinLit Prism like the Equity portfolio
+// Your equity at a glance (task #248; was "Your shares at a glance", task #135, and "Your portfolio at a glance" before), as the final pages pack draws it (04): the shares in the member's Equity portfolio, read with FinLit Prism like the Equity portfolio
 // page (task #195: the average score in the shared Prism ring, one arc per Prism part; score colours; the average of each Prism part in the same bands; a card on the
 // weak spot) and their spread across sectors and company sizes.
 // Sizes by FinLit's rule (Large above ₹50,000 Cr, Mid ₹10,000–50,000 Cr, Small below), as on every page of the pack. Descriptive only; information only.
@@ -54,7 +54,7 @@ export function PortfolioGlance({ held, rows, loading }: { held: string[]; rows:
   const g = useMemo(() => glance(held, rows), [held, rows]);
   const { has } = useUI();
   if (!held.length) return (
-    <Card id="portfolio" title="Your shares at a glance">
+    <Card id="portfolio" title="Your equity at a glance">
       <div className="dsh-empty"><b>No shares added yet</b><p>Add the shares you hold to see their average score, score colours and sector spread.</p><Link className="dsh-btn" to="/holdings">Add your shares</Link></div>
     </Card>
   );
@@ -62,7 +62,7 @@ export function PortfolioGlance({ held, rows, loading }: { held: string[]; rows:
   const w = (n: number) => `${(n / total) * 100}%`;
   const sizeLine = g.sizes.map((s) => `${s.count} ${s.label.toLowerCase()}`).join(", ");
   return (
-    <Card id="portfolio" title={<>Your shares at a glance<Tip text="Average Prism score. FinLit Prism rates each company's financial health from 0 to 100. This is the average across your shares." label="About “Your shares at a glance”" /></>} className="dsh-pg"
+    <Card id="portfolio" title={<>Your equity at a glance<Tip text="Average Prism score. FinLit Prism rates each company's financial health from 0 to 100. This is the average across your shares." label="About “Your equity at a glance”" /></>} className="dsh-pg"
       sub={`${g.count} ${g.count === 1 ? "share" : "shares"} · read with FinLit Prism, like the Equity portfolio page`}>
       {loading ? <Rows n={3} h={40} /> : <>
         {g.scored === 0 ? (has("gold")

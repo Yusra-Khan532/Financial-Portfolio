@@ -16,7 +16,7 @@ import re
 import secrets
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
-from typing import Annotated, Any, Dict, List, Literal, Optional
+from typing import Annotated, Any, Dict, List, Literal, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field, StringConstraints, field_validator, model_validator
@@ -277,6 +277,16 @@ class Widget(BaseModel):
     size: Literal["quarter", "third", "half", "full"] = "half"   # quarter: the dashboard's tools row (task #195)
 
 
+# task #248: which portfolios the dashboard's Step 1 reads, per kind: "all", or up to ten portfolio ids (the Equity, MF and ETF pages' own ids)
+PfChoice = Union[Literal["all"], Annotated[List[Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{1,40}$")]], Field(min_length=1, max_length=10)]]
+
+
+class DashPortfolios(BaseModel):
+    equity: PfChoice = "all"
+    mf: PfChoice = "all"
+    etf: PfChoice = "all"
+
+
 class PrefsIn(BaseModel):
     theme: Optional[Literal["light", "dark"]] = None
     palette: Literal["gold", "champagne", "bronze", "graphite", "midnight", "emerald"] = "gold"
@@ -291,6 +301,7 @@ class PrefsIn(BaseModel):
     dashV: int = Field(default=0, ge=0, le=99)   # the dashboard layout version the member's layout follows (task #195: 2); the site moves an older layout once
     # industries the member watches from an industry page ("Add to watch", final pages pack 07): their Sector Rotation alerts come too (finlit/rotation_alerts.py)
     sectorWatch: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,79}$")]] = Field(default_factory=list, max_length=60)
+    dashPortfolios: Optional[DashPortfolios] = None   # task #248: the dashboard's Showing bar; none means All accounts everywhere
 
 
 # ------------------------------------------------------------------ helpers
