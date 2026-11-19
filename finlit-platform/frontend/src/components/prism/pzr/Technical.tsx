@@ -155,8 +155,10 @@ export function Technical({ report, onRecalculate }: { report: PrismReport; onRe
         {!al && <p className="pzt-vd2">{ALIGN_NA}: a combined trend needs both scores.</p>}
         {([["Short term", a.shortTerm], ["Long term", a.longTerm]] as const).filter(([, h]) => h.provisional).map(([n, h]) => (
           <p key={n} className="pzt-vd2 pzt-prov"><Icon name="info" /><span><span className="sr-only">Provisional score: a recent listing. </span><b>{n} is provisional.</b> {h.provisionalNote ?? "The relative-strength rating needs about two years of prices, so this score uses the other signals only."}</span></p>))}
-        {([["Short term", a.shortTerm], ["Long term", a.longTerm]] as const).filter(([, h]) => h.score == null && h.status === "incomplete").map(([n]) => (
-          <p key={n + "-w"} className="pzt-vd2"><b>{n}: not available, score withheld.</b> A score is shown only when every signal it needs is available; the missing ones are listed below.</p>))}
+        {([["Short term", a.shortTerm], ["Long term", a.longTerm]] as const).filter(([, h]) => h.score == null && h.status === "incomplete").map(([n, h]) => (
+          h.historyNote   /* task #247: withheld only because the price history is short: say how long and when it is shown */
+            ? <p key={n + "-w"} className="pzt-vd2"><b>{n}: not available yet.</b> {h.historyNote.replace(/^Not available yet: /, "")}</p>
+            : <p key={n + "-w"} className="pzt-vd2"><b>{n}: not available, score withheld.</b> A score is shown only when every signal it needs is available; the missing ones are listed below.</p>))}
       </div>
       <Missing a={a} />
       <TabGroup label="Technical view" sticky views={[

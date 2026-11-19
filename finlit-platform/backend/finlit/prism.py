@@ -90,7 +90,8 @@ HISTORY = ("quarterly", "annual", "latest")   # the parts of calculationTrace th
 # sourceCodeSha256. Each factor's weight IS passed on now (the indicator publishes them; the breakdown table shows weight and points, see
 # docs/technicals/README.md); the older model note said weights are not shown, and removing "weight" here removes the column again.
 TECH_TOP = ("modelVersion", "status", "asOf", "provider", "dailyBars", "usableDailyBars", "fresh", "sharesCr")   # sharesCr: the shares (crore) that chose the benchmark, kept so the daily refresh (prism_technical.py) chooses the same one
-TECH_HORIZON = ("score", "rating", "status", "horizon", "availableCount", "requiredCount", "stageCapped", "uncappedScore", "provisional", "provisionalNote")
+TECH_HORIZON = ("score", "rating", "status", "horizon", "availableCount", "requiredCount", "stageCapped", "uncappedScore", "provisional", "provisionalNote",
+                "historyNote", "youngListing")      # task #247: why a short history is withheld, and a young listing scored as on the chart
 TECH_FACTOR = ("key", "label", "signal", "status", "detail", "weight")
 TECH_SOURCE = ("provider", "asOf", "bars")
 

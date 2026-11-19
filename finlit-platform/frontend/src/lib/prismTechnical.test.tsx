@@ -363,3 +363,14 @@ describe("a provisional long-term score (a recent listing)", () => {
     expect(t).not.toMatch(/provisional/i);
   });
 });
+
+describe("task #247: young listing and history notes", () => {
+  it("passes the young-listing flag with a score and the history note only when there is none", () => {
+    const young = parseTechnical({ status: "ready", shortTerm: { score: 49, rating: "Buy", status: "ready", provisional: true, provisionalNote: "Young listing: …", youngListing: true, factors: [] },
+      longTerm: { score: null, status: "incomplete", historyNote: "Not available yet: this company has 107 sessions of daily prices, from 15 Jun 2026. This view is shown from about 252 sessions, about 145 more trading sessions.", factors: [] } });
+    expect(young?.shortTerm.youngListing).toBe(true);
+    expect(young?.shortTerm.historyNote).toBeNull();
+    expect(young?.longTerm.youngListing).toBe(false);
+    expect(young?.longTerm.historyNote).toMatch(/^Not available yet: this company has 107 sessions/);
+  });
+});

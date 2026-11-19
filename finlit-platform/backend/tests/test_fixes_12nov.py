@@ -262,7 +262,7 @@ def test_a_recent_listing_gives_the_scans_its_candles_though_it_has_under_a_year
             days.append(d)
         d -= timedelta(days=1)
     rows = [{"day": x, "open": 100.0 + i, "high": 102.0 + i, "low": 99.0 + i, "close": 101.0 + i, "volume": 1000} for i, x in enumerate(sorted(days))]
-    assert pc.clean_reason(rows, end, pc.STOCK_MIN)[0] is None                       # the Prism view still needs a year
+    assert pc.clean_reason(rows, end, pc.STOCK_MIN)[0] is None                       # the Prism view needs STOCK_MIN (50) sessions (task #247)
     got, why = pc.clean_reason(rows, end, pc.PATTERN_MIN)
     assert got is not None and len(got) == 40 and got[-1][0] == "2026-11-13", why
     bad = [dict(r) for r in rows]

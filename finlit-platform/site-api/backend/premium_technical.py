@@ -4,8 +4,13 @@ Pine defines formulas; FinEdge, calculations and Upstox supply the observations.
 No missing signal is filled or silently removed from the denominator.
 """
 from datetime import date, timedelta
+from pathlib import Path
 import hashlib
 import json
+import logging
+import os
+import shutil
+import subprocess
 
 try:
     from .technical_series import ema, rma, rsi, macd, atr_adx, obv, weekly_closes, fit_range
@@ -140,16 +145,46 @@ def combine_verdict(st, lt):
     return {"label": labels[a][b], "tone": tones[a][b]}
 
 
-# The long-term relative-strength rating ranks the stock's own 252-session excess return against the 252 sessions before it, so it needs about 504 daily
-# candles (two years). A company listed more recently than that cannot have it, and without it the long-term score used to be withheld altogether.
+# A short price history (a recent listing, a demerged company, or history cut after an unadjusted corporate action). The long-term relative-strength
+# rating ranks the stock's own 252-session excess return against the 252 sessions before it, so it needs about 505 daily candles (two years); other
+# signals need 50 to 252 (technical_scoring.HISTORY_NEED). Task #247 (19 Nov 2026, Fractal Analytics and the Vedanta demerged companies): a horizon
+# whose ONLY missing signals are ones the company's history is too short for, with at least PROVISIONAL_MIN_SHARE of the weight available (and, for
+# the long term, the market stage known), is worked out from the available signals' weights and marked provisional. Any other gap still withholds it.
 PROVISIONAL_BELOW_BARS = 505
-PROVISIONAL_NOTE = ("Provisional: the relative-strength rating needs about two years of daily prices and this company has less, so this score uses the other "
-                    "{n} signals and counts their weights only. It is shown as provisional and is not used by the screeners.")
+PROVISIONAL_MIN_SHARE = 0.75
+PROVISIONAL_NOTE = ("Provisional: this company has {bars} sessions of daily prices; {missing}. So this score uses the other {n} signals and counts their "
+                    "weights only. It is shown as provisional and is not used by the screeners.")
+HISTORY_NOTE = ("Not available yet: this company has {bars} sessions of daily prices, from {since}. This view is shown from about {need} sessions, "
+                "about {more} more trading sessions.")
 
 
-def summarise_signals(specs, signals, sector_enabled=False, value_enabled=True, stage=None, allow_provisional=False):
-    """Only explicitly disabled options leave the PDF denominator. `allow_provisional` (long term only, a short price history): when the relative-strength rating is
-    the ONE signal missing and the market stage is known, the score is worked out from the other signals' weights and marked provisional. Every other gap still withholds it."""
+def _needs_text(rows, needs):
+    """'the relative strength rating needs 505' / 'the daily RSI needs 200 and the relative strength rating needs 252'."""
+    parts = []
+    for row in rows:
+        label = row["label"] if row["label"][:2].isupper() else row["label"][0].lower() + row["label"][1:]
+        parts.append(f"the {label} needs {needs[row['key']]}" if needs and row["key"] in needs else f"the {label} needs a longer history")
+    return parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + " and " + parts[-1]
+
+
+def ready_from(specs, needs, sector_enabled=False, value_enabled=True, has_stage=False):
+    """The fewest sessions from which every signal this horizon has can exist with at least PROVISIONAL_MIN_SHARE of the weight (and the stage)."""
+    enabled = [(key, weight) for key, _label, weight, _rule in specs
+               if not ((key == "sector" and not sector_enabled) or (key == "value_migration" and not value_enabled))]
+    total = sum(weight for _key, weight in enabled)
+    for need in sorted({needs.get(key, 0) for key, _w in enabled}):
+        share = sum(weight for key, weight in enabled if needs.get(key, 0) <= need) / total
+        if share >= PROVISIONAL_MIN_SHARE and (not has_stage or needs.get("stage", 0) <= need):
+            return need
+    return None
+
+
+def summarise_signals(specs, signals, sector_enabled=False, value_enabled=True, stage=None, allow_provisional=False, history_gaps=(), bars=None,
+                      since=None, needs=None):
+    """Only explicitly disabled options leave the PDF denominator. `allow_provisional` (a short price history): when every missing signal is in
+    `history_gaps` (the history is too short for it), at least PROVISIONAL_MIN_SHARE of the weight is available and, where the horizon has a market
+    stage, it is known, the score is worked out from the available signals' weights and marked provisional. Every other gap still withholds it.
+    A horizon withheld only for its history gets `historyNote` (from `needs`: when it will be shown)."""
     rows = []
     for key, label, weight, rule in specs:
         disabled = (key == "sector" and not sector_enabled) or (key == "value_migration" and not value_enabled)
@@ -169,7 +204,15 @@ def summarise_signals(specs, signals, sector_enabled=False, value_enabled=True, 
     if has_stage and stage not in (1, 2, 3, 4):
         complete = False
     stage_ok = not has_stage or stage in (1, 2, 3, 4)
-    provisional = (not complete) and allow_provisional and stage_ok and [row["key"] for row in enabled if row["signal"] is None] == ["rs_rating"]
+    missing = [row for row in enabled if row["signal"] is None]
+    only_history = bool(missing) and all(row["key"] in set(history_gaps) for row in missing)
+    share = sum(row["weight"] for row in known) / denominator if denominator else 0
+    provisional = (not complete) and allow_provisional and stage_ok and only_history and share >= PROVISIONAL_MIN_SHARE
+    history_note = None
+    if not complete and not provisional and only_history and bars is not None and needs:
+        need = ready_from(specs, needs, sector_enabled, value_enabled, has_stage)
+        if need is not None and need > bars:
+            history_note = HISTORY_NOTE.format(bars=bars, since=since or "its first session", need=need, more=need - bars)
     if provisional:
         denominator = sum(row["weight"] for row in known)
     raw_score = 100 * sum(row["weight"] * row["signal"] for row in known) / denominator if (complete or provisional) else None
@@ -178,7 +221,75 @@ def summarise_signals(specs, signals, sector_enabled=False, value_enabled=True, 
     return {"score": score, "rating": score_rating(score),
             "status": "ready" if (complete or provisional) else "incomplete", "availableCount": len(known), "requiredCount": len(enabled),
             "stageCapped": capped, **({"uncappedScore": raw_score} if capped else {}),
-            **({"provisional": True, "provisionalNote": PROVISIONAL_NOTE.format(n=len(known))} if provisional else {}), "factors": rows}
+            **({"provisional": True, "provisionalNote": PROVISIONAL_NOTE.format(bars=bars if bars is not None else "fewer", missing=_needs_text(missing, needs), n=len(known))} if provisional else {}),
+            **({"historyNote": history_note} if history_note else {}), "factors": rows}
+
+
+# Task #247: a stock whose history is shorter than the model's full window (PROVISIONAL_BELOW_BARS) is scored exactly as the ST/LT v14.3 indicator
+# scores it on the chart (finlit_technicals.young: young-listing mode, a row with no value read as its formula reads it, the full divisor), in a
+# short-lived process of the research API's Python (it has pandas and numpy; this process does not load them). If that is not possible, the strict
+# view below is used (provisional where only history is short, else withheld with the reason).
+YOUNG_SECONDS = 30
+log = logging.getLogger("premium.technical")
+YOUNG_NOTE = ("Young listing: this company has {bars} sessions of daily prices, from {since}. As on the chart, the indicator's short-history rule is "
+              "used: the rows that need a longer history (EMA 200, the 52-week figures, the relative-strength ratings, the market stage) read what they "
+              "can for now, and a reading with no value yet counts as the formula counts it (0 or -1); the divisor stays the same. Shown as provisional "
+              "and not used by the screeners.")
+
+
+def _young_runtime():
+    """(python, folder holding finlit_technicals) or None."""
+    here = Path(__file__).resolve()
+    roots = [os.environ.get("FINLIT_TECHNICALS_DIR"), str(here.parents[2] / "backend"), str(here.parents[2])]
+    root = next((r for r in roots if r and (Path(r) / "finlit_technicals" / "young.py").is_file()), None)
+    if root is None:
+        return None
+    pythons = [os.environ.get("FINLIT_TECHNICALS_PYTHON"), str(Path(root) / ".venv" / "bin" / "python"), "/usr/local/bin/python3", shutil.which("python3")]
+    py = next((x for x in pythons if x and Path(x).is_file()), None)
+    return (py, root) if py else None
+
+
+def young_assessment(bars, benchmarks, shares_cr):
+    """finlit_technicals.young's answer for these bars, or None (the reason is logged)."""
+    runtime = _young_runtime()
+    if runtime is None:
+        log.warning("young-listing scores unavailable: finlit_technicals or its Python was not found")
+        return None
+    payload = {"bars": [{k: row[k] for k in ("date", "open", "high", "low", "close", "volume")} for row in bars],
+               "benchmarks": {name: [{"date": row["date"], "close": row["close"]} for row in value.get("bars") or [] if row.get("close") is not None]
+                              for name, value in (benchmarks or {}).items() if isinstance(value, dict) and value.get("bars")},
+               "sharesCr": shares_cr}
+    try:
+        done = subprocess.run([runtime[0], "-m", "finlit_technicals.young"], input=json.dumps(payload), capture_output=True, text=True,
+                              timeout=YOUNG_SECONDS, cwd=runtime[1], check=False)   # nosec B603 - fixed module, our own interpreter, no shell
+        out = json.loads(done.stdout or "{}")
+    except (OSError, subprocess.SubprocessError, ValueError) as exc:
+        log.warning("young-listing scores failed: %s", type(exc).__name__)
+        return None
+    if done.returncode != 0 or not isinstance(out, dict) or "error" in out or out.get("stScore") is None or out.get("ltScore") is None:
+        log.warning("young-listing scores not used: %s", (out.get("error") if isinstance(out, dict) else None) or done.stderr[-300:])
+        return None
+    return out
+
+
+def young_horizon(specs, rows, score, note, horizon, stage_capped=False, uncapped=None):
+    """One horizon in the shape summarise_signals gives, from the indicator's rows (in the model's order and labels)."""
+    by_key = {}
+    for row in rows:
+        by_key.setdefault(row["key"], row)          # "sector" appears once per horizon
+    factors = []
+    for key, label, weight, _rule in specs:
+        row = by_key.get(key)
+        on = bool(row and row.get("on"))
+        signal = num(row.get("signal")) if on else None
+        factors.append({"key": key, "label": label, "weight": weight, "signal": signal,
+                        "status": "disabled" if not on else "available" if signal is not None else "unavailable",
+                        "detail": "Optional factor is switched off." if not on else (row.get("reading") or "")})
+    enabled = [f for f in factors if f["status"] != "disabled"]
+    complete = [f for f in enabled if f["status"] == "available" and "n/a" not in f["detail"]]
+    return {"score": score, "rating": score_rating(score), "status": "ready", "availableCount": len(complete), "requiredCount": len(enabled),
+            "stageCapped": stage_capped, **({"uncappedScore": uncapped} if stage_capped else {}), "provisional": True, "provisionalNote": note,
+            "youngListing": True, "factors": factors}
 
 
 def build_technical_assessment(price_input, as_of, benchmarks=None, shares_cr=None):
@@ -186,14 +297,45 @@ def build_technical_assessment(price_input, as_of, benchmarks=None, shares_cr=No
         from .technical_scoring import scoring_signals
     except ImportError:
         from technical_scoring import scoring_signals
+    try:
+        from .technical_scoring import HISTORY_NEED
+        from .premium_supplied_candles import last_break
+    except ImportError:
+        from technical_scoring import HISTORY_NEED
+        from premium_supplied_candles import last_break
     bars = price_input.get("bars", [])
     last_bad = max((i for i,row in enumerate(bars) if any(row.get(k) is None for k in ("open","high","low","close","volume"))), default=-1)
     valid = bars[last_bad+1:]
+    notes = list(price_input.get("notes", []))
+    # Task #247: one close-to-close move over 40% (an unadjusted demerger or split, or bad data; Vedanta on 4 May 2026) splits the series into two
+    # price bases that do not compare. Whatever the provider, only the sessions after the last such move are scored, and that is said.
+    brk = last_break(valid) if len(valid) > 1 else None
+    if brk is not None:
+        valid = valid[brk["index"]:]
+        d = date.fromisoformat(brk["date"])
+        cut = f"Daily prices before {d.day} {d.strftime('%b %Y')} are not used: the close moved {brk['movePct']:+.1f}% that day"
+        if not any(note.startswith("Daily prices before") for note in notes):
+            notes.append(cut + ", as an unadjusted corporate action (such as a demerger or a split) or a data error does. "
+                         f"The view uses the {len(valid)} sessions since.")
     fresh = bool(valid) and 0 <= (as_of-date.fromisoformat(valid[-1]["date"])).days <= 10
     st, lt, observations = scoring_signals(valid, benchmarks or {}, shares_cr, as_of) if fresh else ({},{},{})
-    short = summarise_signals(ST,st)
-    long = summarise_signals(LT,lt,stage=observations.get("stage"),allow_provisional=len(valid) < PROVISIONAL_BELOW_BARS)
-    notes = list(price_input.get("notes", []))
+    gaps = observations.pop("historyGaps", {}) if isinstance(observations, dict) else {}
+    short_history = len(valid) < PROVISIONAL_BELOW_BARS
+    since = None
+    if valid:
+        first = date.fromisoformat(valid[0]["date"])
+        since = f"{first.day} {first.strftime('%b %Y')}"
+    young = young_assessment(valid, benchmarks, shares_cr) if fresh and short_history and len(valid) >= 2 else None
+    if young is not None:
+        note = YOUNG_NOTE.format(bars=len(valid), since=since)
+        short = young_horizon(ST, young["st"], young["stScore"], note, "st")
+        capped = bool(young.get("gated")) and young.get("uncappedLt") is not None and young["uncappedLt"] > young["ltScore"]
+        long = young_horizon(LT, young["lt"], young["ltScore"], note, "lt", capped, young.get("uncappedLt"))
+        observations = {**observations, "stage": young.get("stage"), "youngListing": True, "benchmark": young.get("benchmark") or observations.get("benchmark")}
+    else:
+        common = dict(allow_provisional=short_history, bars=len(valid) if fresh else None, since=since)
+        short = summarise_signals(ST,st,history_gaps=gaps.get("st",()),needs=HISTORY_NEED["st"],**common)
+        long = summarise_signals(LT,lt,stage=observations.get("stage"),history_gaps=gaps.get("lt",()),needs=HISTORY_NEED["lt"],**common)
     used_names = observations.get("benchmarksUsed", list((benchmarks or {}).keys()))
     for name, value in (benchmarks or {}).items():
         if name not in used_names:

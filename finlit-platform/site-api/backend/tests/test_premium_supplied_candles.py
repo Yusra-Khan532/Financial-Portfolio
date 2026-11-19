@@ -237,22 +237,29 @@ def test_a_legitimate_split_adjusted_series_is_accepted():
     assert len(bars) == 600 and all(abs(b["close"] / a["close"] - 1) < .4 for a, b in zip(bars, bars[1:]))
 
 
-def test_a_genuine_unadjusted_split_is_refused_and_the_reason_is_logged(caplog):
-    with caplog.at_level("WARNING"):
-        assert supplied_mod.supplied_price_input(split_series(unadjusted=True), ASOF) is None
-    assert "more than 40% in a day" in caplog.text and "stock" in caplog.text
-    # a 2:1 bonus issue (price halves) and a 1:10 split too
-    assert supplied_mod.supplied_price_input(split_series(True, 2), ASOF) is None
-    assert supplied_mod.supplied_price_input(split_series(True, 10), ASOF) is None
+def test_an_unadjusted_break_keeps_only_the_sessions_after_it_and_says_so():
+    """Task #247: Vedanta's close fell 60% on 4 May 2026 (its demerger ex-date, not adjusted). One such move used to throw the whole series away (the
+    Prism view then had nothing); now only the sessions after the last such move are used, nothing is rescaled, and the note says where and why."""
+    got = supplied_mod.supplied_price_input(split_series(unadjusted=True), ASOF)          # a 1:5 split left unadjusted at row 400 of 600
+    assert got is not None and len(got["bars"]) == 200
+    sup = split_series(unadjusted=True)
+    assert got["bars"][0]["date"] == sup["stock"]["candles"][400][0] and got["bars"][0]["close"] == sup["stock"]["candles"][400][4]
+    note = got["notes"][-1]
+    assert note.startswith("Daily prices before ") and "the close moved -80.0% that day" in note and "demerger" in note and "200 sessions since" in note
+    for factor in (2, 10):                                                                  # a 2:1 bonus issue (price halves), a 1:10 split
+        assert len(supplied_mod.supplied_price_input(split_series(True, factor), ASOF)["bars"]) == 200
+    assert supplied_mod.supplied_price_input(split_series(True, 5, at=560), ASOF) is None  # fewer than 50 sessions after it: nothing usable
+    assert "Daily prices before" not in " ".join(supplied_mod.supplied_price_input(split_series(unadjusted=False), ASOF)["notes"])
 
 
-@pytest.mark.parametrize("factor,usable", [(1.39, True), (1.41, False), (0.61, True), (0.59, False)])
-def test_the_daily_move_limit_is_forty_percent_either_way(factor, usable):
+@pytest.mark.parametrize("factor,cut", [(1.39, False), (1.41, True), (0.61, False), (0.59, True)])
+def test_the_daily_move_limit_is_forty_percent_either_way(factor, cut):
     sup = payload()
     for row in sup["stock"]["candles"][300:]:
         row[1:5] = [value * factor for value in row[1:5]]
     # (the first row after the jump is the only large move; 100+299 -> x factor)
-    assert (supplied_mod.supplied_price_input(sup, ASOF) is not None) is usable
+    bars = supplied_mod.supplied_price_input(sup, ASOF)["bars"]
+    assert len(bars) == (300 if cut else 600)
 
 
 def test_an_index_series_with_an_implausible_move_is_left_out():

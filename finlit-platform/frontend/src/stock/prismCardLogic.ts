@@ -73,8 +73,10 @@ export const techEdgePos = (): number[] => TECH_EDGES.map((e) => scalePos(e));
 /** "5–20 sessions" and "6–18 months" come from the report itself; nothing is assumed when it does not say. */
 export const horizonCaption = (h: Pick<TechHorizon, "horizon">): string | null => h.horizon?.trim() || null;
 /** "14 of 14 signals available", or null when the report counts none. */
-export function signalsLine(h: Pick<TechHorizon, "availableCount" | "requiredCount">): string | null {
-  return h.requiredCount > 0 ? `${h.availableCount} of ${h.requiredCount} signals available` : null;
+export function signalsLine(h: Pick<TechHorizon, "availableCount" | "requiredCount"> & { youngListing?: boolean }): string | null {
+  if (h.requiredCount <= 0) return null;
+  // task #247: a young listing is scored on every row as the indicator reads it; the count is of the rows with a full reading
+  return h.youngListing ? `${h.availableCount} of ${h.requiredCount} signals complete · young listing` : `${h.availableCount} of ${h.requiredCount} signals available`;
 }
 /** What a screen reader hears for one horizon panel. */
 export function horizonLabel(title: string, h: TechHorizon): string {
