@@ -403,14 +403,18 @@ describe("Basic stock screener: no Prism", () => {
     expect(heads).not.toContain("Sector");                                                // the sector sits under the company name
     expect(document.querySelector(".sx-secn")!.textContent).toBe("Banks");
   });
-  it("the header is one line: the name, the plan, the score date, How FinLit IQ works and a link to the Advanced stock screener (Gold) (task #64, B-4)", () => {
+  it("the site's page header: eyebrow, the name with its plan, the description, the four screener boxes, the score date, How FinLit IQ works (task #243, pack H)", () => {
     open();
-    const head = document.querySelector(".sx-h1row")!;
-    expect(head.querySelector("h1")!.textContent).toBe("Basic stock screener"); expect(head.textContent).toMatch(/Silver/i);
-    expect(head.textContent).toMatch(/Scores: /);
-    expect(document.querySelector(".sx-here, .pzs-explain, .sx-colopt")).toBeNull();      // no separate box, no "What the FinLit IQ means" fold, no columns row
-    const a = screen.getByRole("link", { name: /Advanced stock screener \(Gold\)/ });
-    expect(a.getAttribute("href")).toBe("/advanced-score-screener");
+    const head = document.querySelector("header.sp-head.xsh")!;
+    expect(head.querySelector(".sp-eyebrow")!.textContent).toBe("Research · Find stocks");
+    expect(head.querySelector("h1")!.textContent).toBe("Basic stock screener"); expect(head.querySelector(".tier")!.textContent).toMatch(/Silver/i);
+    expect(head.querySelector(".sp-desc")!.textContent).toMatch(/^Every listed company with its FinLit IQ/);   // was screen-reader only
+    expect(head.querySelector(".xsh-date")!.textContent).toMatch(/^Scores: /);
+    expect(within(head as HTMLElement).getByRole("button", { name: "How FinLit IQ works →" })).toBeTruthy();
+    const boxes = within(head as HTMLElement).getByRole("navigation", { name: "Screeners" });
+    expect(within(boxes).getByRole("link", { name: "Basic stock screener" }).getAttribute("aria-current")).toBe("page");
+    expect(within(boxes).getByRole("link", { name: "Advanced stock screener" }).getAttribute("href")).toBe("/advanced-score-screener");
+    expect(document.querySelector(".sx-here, .pzs-explain, .sx-colopt, nav.fst, section.sx-head")).toBeNull();   // no old tab strip or head card
   });
   it("Silver sees the scores, Basic sees the locked state as before", () => {
     st.plan = "silver"; open();

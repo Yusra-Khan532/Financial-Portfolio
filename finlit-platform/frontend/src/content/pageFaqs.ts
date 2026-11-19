@@ -127,6 +127,10 @@ export const PAGE_FAQS: PageFaq[] = [
    {
     "q": "Can I compare or export companies?",
     "a": "Yes. Tick 2 to 4 companies and choose Compare, or add them to a watchlist. You can export the companies you selected or the whole result."
+   },
+   {
+    "q": "Which screener should I use?",
+    "a": "Use this Basic stock screener (Silver) to sort and filter every company by the FinLit IQ and its five scores, or to open a ready-made screen. The Stock screener combines many rules on figures such as P/E, debt and returns, the Advanced stock screener (Gold) uses the FinLit Prism rating with its four parts and two technical views, and the Query builder lets you type rules such as P/E < 15 instead of clicking."
    }
   ]
  },
@@ -166,6 +170,10 @@ export const PAGE_FAQS: PageFaq[] = [
    {
     "q": "What do the Quick views do?",
     "a": "They set common filters in one click: Prism strong and lower risk, Strong Growth & Profitability at a fair valuation, Uptrend on both technical views, and Growth & Profitability strong but valuation weak."
+   },
+   {
+    "q": "Which screener should I use?",
+    "a": "Use this Advanced stock screener (Gold) to sort and filter every company by the FinLit Prism rating, its four parts and its two technical views, or to open a ready-made screen. The Stock screener combines many rules on figures such as P/E, debt and returns, and the Query builder lets you type rules such as P/E < 15 instead of clicking."
    }
   ]
  },

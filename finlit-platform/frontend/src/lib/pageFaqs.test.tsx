@@ -13,9 +13,9 @@ const src = (p: string) => resolve(__dirname, "..", p);
 const json = JSON.parse(readFileSync(resolve(__dirname, "../../../scripts/data/page-faqs.json"), "utf8")) as (typeof PAGE_FAQS[number] & { declared: number })[];
 
 describe("page FAQ data (built from the PDF by scripts/build-page-faqs.py)", () => {
-  it("has 32 pages and 227 questions (the PDF's 228, less the company report's download question, task #216)", () => {
+  it("has 32 pages and 229 questions (the PDF's 228, less the company report's download question, task #216, plus \"Which screener should I use?\" on Basic and Advanced, task #243)", () => {
     expect(PAGE_FAQS).toHaveLength(32);
-    expect(PAGE_FAQS.reduce((n, f) => n + f.items.length, 0)).toBe(227);
+    expect(PAGE_FAQS.reduce((n, f) => n + f.items.length, 0)).toBe(229);
   });
   it("every page has the number of questions its 'N questions' line declares", () => {
     expect(json).toHaveLength(32);
@@ -100,7 +100,7 @@ describe("<PageFaqs />", () => {
   it("the All FAQs hub lists every set grouped by section", () => {
     render(<MemoryRouter><FaqsPage /></MemoryRouter>);
     expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(32);
-    expect(screen.getAllByRole("button").filter((b) => b.hasAttribute("aria-controls"))).toHaveLength(227);
+    expect(screen.getAllByRole("button").filter((b) => b.hasAttribute("aria-controls"))).toHaveLength(229);
     expect(screen.getByRole("heading", { level: 2, name: "Gold dashboards" })).toBeTruthy();
     cleanup();
   });
@@ -135,8 +135,8 @@ describe("FAQ upgrades", () => {
     const box = screen.getByRole("searchbox");
     fireEvent.change(box, { target: { value: "sector" } });
     const n = screen.getAllByRole("button").filter((b) => b.hasAttribute("aria-controls")).length;
-    expect(n).toBeGreaterThan(0); expect(n).toBeLessThan(227);
-    expect(screen.getByRole("status").textContent).toBe(`${n} of 227 questions match`);
+    expect(n).toBeGreaterThan(0); expect(n).toBeLessThan(229);
+    expect(screen.getByRole("status").textContent).toBe(`${n} of 229 questions match`);
     fireEvent.change(box, { target: { value: "zzzqqq" } });
     expect(screen.getByRole("status").textContent).toContain("No question matches");
     cleanup();

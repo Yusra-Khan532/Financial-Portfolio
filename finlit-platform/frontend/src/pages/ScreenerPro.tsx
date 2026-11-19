@@ -25,9 +25,9 @@ import { supports3d, whenIdle } from "../three/support";
 import { rankMetrics } from "../lib/metricSearch";
 import { CheckRow, SearchBox } from "../components/screener/FilterGroup";
 import { Donut, SectorBars } from "../components/screener/PageParts";
-import { FindStocksTabs } from "../components/screener/FindStocksTabs";
+import { ScreenerHead, STOCK_DESC } from "../components/screener/ScreenerHead";
 import { ChartPanel, type PanelRow } from "../components/screener/ChartPanel";
-import { ReadyScreens } from "../components/screener/ReadyScreens";
+import { PanelTabs, ReadyOn, ReadyScreens, type PanelTab } from "../components/screener/ReadyScreens";
 import { RuleCard, startRange } from "../components/screener/RuleCard";
 import { RulePicker } from "../components/screener/RulePicker";
 import { RuleFigures } from "../components/screener/RuleFigures";
@@ -72,9 +72,18 @@ const SHORT: Record<string, string> = { price: "LTP", market_cap: "Market cap", 
 const UNIT_LINE: Record<string, string> = { "%": "%", x: "×", Cr: "₹ Cr", Rs: "₹", d: "days", pts: "points", flag: "yes / no", n: "" };
 /** Task #141: the two technical views (Gold) run from −100 to +100; the pill is green for an uptrend, red for a downtrend, plain for sideways (same edges as the Prism card). */
 const TECH_COLS = ["prism_st_score", "prism_lt_score"];
-const TECH_HEAD: Record<string, string> = { prism_st_score: "Short\u2011term technical", prism_lt_score: "Long\u2011term technical" };   // non-breaking hyphen: the head never splits "Long-" / "term"
+const TECH_HEAD: Record<string, string> = { prism_st_score: "Short term", prism_lt_score: "Long term" };   // task #243 (pack T1): the group heading names the technical pillars   // non-breaking hyphen: the head never splits "Long-" / "term"
 const TECH_PILL: Record<string, string> = { pos: "healthy", neutral: "", neg: "watch" };
-const unitLine = (k: string, m: MetricInfo | undefined) => (k === "price" ? "₹ · 1 day" : TECH_COLS.includes(k) ? "−100 to +100" : m ? UNIT_LINE[m.unit] ?? "" : "");
+const unitLine = (k: string, m: MetricInfo | undefined) => (k === "price" ? "₹ · 1 day" : k === "prism_st_score" ? "weeks" : k === "prism_lt_score" ? "months" : k === "market_cap" ? "₹ Cr" : m ? UNIT_LINE[m.unit] ?? "" : "");
+/** Task #243 (pack T1): the standard columns in named groups, each a run of neighbouring columns of one kind (Market cap, the Prism or FinLit IQ score,
+ *  the two technical pillars, anything else). */
+type Band = { kind: "size" | "score" | "tech" | "other"; n: number };
+const kindOf = (k: string): Band["kind"] => (k === "market_cap" ? "size" : TECH_COLS.includes(k) ? "tech" : k === "prism_final" || k === "overall" ? "score" : "other");
+export function bandsOf(keys: string[]): Band[] {
+  const out: Band[] = [];
+  for (const k of keys) { const kind = kindOf(k), last = out[out.length - 1]; if (last && last.kind === kind) last.n++; else out.push({ kind, n: 1 }); }
+  return out;
+}
 const BAND_WORD: Record<string, string> = { strong: "Strong", healthy: "Healthy", mixed: "Mixed", watch: "Watch", average: "Average", weak: "Weak", poor: "Poor" };
 /** A Prism rating word on the chip colours the FinLit IQ chip already uses (green, amber, red). */
 const PRISM_CLASS: Record<string, string> = { strong: "strong", healthy: "healthy", average: "mixed", weak: "watch", poor: "watch" };
@@ -125,6 +134,7 @@ export function ScreenerPro() {
   const [saveOpen, setSaveOpen] = useState<null | "save" | "tell">(null), [saveName, setSaveName] = useState("");
   const [from, setFrom] = useState<string | null>(null);     // the ready-made screen the rules started from
   const [folds, setFolds] = useState<Record<string, boolean>>({});
+  const [ptab, setPtab] = useState<PanelTab>("rules");   // task #243 (pack S): the left panel's three tabs, Your rules open on load
   // Your rules can be minimized (task #140): on a phone it starts closed; on a wide screen it starts open unless the reader minimized it last time (kept in this browser).
   const [rulesOpen, setRulesOpenState] = useState(() => !narrow() && !rulesMinStored());
   const setRulesOpen = (open: boolean) => {
@@ -265,7 +275,7 @@ export function ScreenerPro() {
     toast(was ? `${s.label} turned off: only its own filters went.` : n > 1 || nActive ? `${s.label} added its filters to yours (${n} ${n === 1 ? "screen" : "screens"} on). Turn it off to take away only its own.` : `${s.label} is on. Its filters are under Your rules; add your own on top.`);
   };
   const allOff = () => { setF((x) => ({ ...x, on: [] })); setPg({ k: "", p: 0 }); toast("All ready-made screens are off. Your own rules stay."); };
-  const openSaved = (s: SavedScreen) => { const n = norm(s.state as Partial<PState>); setF(n); setOrder(Object.keys(n.ranges).map(baseOf)); if (n.sort) setSort({ key: n.sort, dir: n.dir || "desc" }); if (n.cols?.length) pickCols(n.cols); setFrom(s.name); toast(`Opened “${s.name}”.`); };
+  const openSaved = (s: SavedScreen) => { const n = norm(s.state as Partial<PState>); setF(n); setPtab("rules");   /* task #243: its rules show in Your rules */ setOrder(Object.keys(n.ranges).map(baseOf)); if (n.sort) setSort({ key: n.sort, dir: n.dir || "desc" }); if (n.cols?.length) pickCols(n.cols); setFrom(s.name); toast(`Opened “${s.name}”.`); };
   // Save screen keeps it quiet; "Tell me when a company joins" saves it with messages on: after each close the member gets a message (the site's inbox; no e-mail since 19 Nov 2026)
   // naming the companies that joined or left it (file 04 §9). Messages need an account, so a visitor is asked to sign in first.
   const save = () => {
@@ -333,22 +343,22 @@ export function ScreenerPro() {
   return (
     <>
       <div className="wrap ssw" style={{ paddingTop: 22 }}>
-        <section className="card ssw-head">
-          <div className="ssw-h1row"><h1 title="Filter every listed company by size, valuation, growth, debt, ownership and price trend. Start from a ready-made screen or add your own rules; the list updates as you go.">Stock screener</h1>
-            {asOfLine && <span className="ssw-asof">{asOfLine}</span>}</div>
-          <FindStocksTabs bare />
-        </section>
+        {/* task #243 (pack H): the site's page header with the four screener boxes */}
+        <ScreenerHead title="Stock screener" desc={STOCK_DESC} date={asOfLine} />
 
-        <ReadyScreens plan={plan} prism={prismOnly} on={f.on ?? []} total={res.data ? total : null} onToggle={toggleScreen} onAllOff={allOff} saved={saved} onOpenSaved={openSaved} onDeleteSaved={(n) => { screens.remove(n); toast(`Deleted “${n}”.`); }} ask={ask}
-          onNotify={user ? (n, on) => { screens.setNotify(n, on); toast(on ? `Messages on for “${n}”: after each close we name the companies that join or leave it.` : `Messages off for “${n}”.`); } : undefined} />
 
         <button type="button" className={"btn ssw-rtoggle" + (rulesOpen ? "" : " min")} aria-expanded={rulesOpen} aria-controls="ssw-rules" onClick={() => setRulesOpen(!rulesOpen)}>
-          Your rules{nActive + nWaiting ? ` (${nActive + nWaiting})` : ""} · {res.data ? `${nf(total, 0)} companies` : "…"} <i aria-hidden="true">{rulesOpen ? "▴" : "▾"}</i></button>
+          Screens and rules{nActive + nWaiting ? ` (${nActive + nWaiting})` : ""}{onScreens.length ? ` · ${onScreens.length} ${onScreens.length === 1 ? "screen" : "screens"} on` : ""} · {res.data ? `${nf(total, 0)} companies` : "…"} <i aria-hidden="true">{rulesOpen ? "▴" : "▾"}</i></button>
 
         <div className={"ssw-work" + (rulesOpen ? "" : " rules-min")} style={{ "--side-w": `${sideW || SIDE.def}px` } as React.CSSProperties}>
-          <aside id="ssw-rules" className={"card ssw-rules" + (rulesOpen ? " open" : "")} aria-label="Your rules">
-            <div className="ssw-rh"><h2>Your rules</h2>{(nActive > 0 || rules.length > 0) && <button type="button" className="lnk" onClick={clearAll}>Clear all</button>}
-              <button type="button" className="ssw-rmin" onClick={minimizeRules} aria-controls="ssw-rules" aria-expanded={rulesOpen} aria-label="Minimize Your rules" title="Minimize Your rules (your rules stay on)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button></div>
+          <aside id="ssw-rules" className={"card ssw-rules" + (rulesOpen ? " open" : "")} aria-label="Screens and rules">
+            {/* task #243 (pack S, v3): a calm header row (the label and the minimise button), then the three tabs on their own row */}
+            <div className="ssw-rh xsp-rh"><h2>Screens and rules</h2>
+              <button type="button" className="ssw-rmin" onClick={minimizeRules} aria-controls="ssw-rules" aria-expanded={rulesOpen} aria-label="Minimize Screens and rules" title="Minimize Screens and rules (your rules stay on)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button></div>
+            <PanelTabs tab={ptab} setTab={setPtab} nOn={onScreens.length} nReady={ready.data?.screens.length ?? null} />
+            <div role="tabpanel" id="xsp-p-rules" aria-labelledby="xsp-t-rules" hidden={ptab !== "rules"} className="xsp-panel">
+            {(nActive > 0 || rules.length > 0) && <p className="xsp-clear"><button type="button" className="lnk" onClick={clearAll}>Clear all</button></p>}
+            <ReadyOn screens={onScreens} onOff={(id) => { const x = onScreens.find((o) => o.id === id); if (x) toggleScreen(x); }} />
             {nWaiting > 0 && <p className="ssw-wait" role="status">{nWaiting} {nWaiting === 1 ? "rule has" : "rules have"} no range yet: set one on {nWaiting === 1 ? "its card" : "their cards"} to narrow the list.</p>}
             {nActive === 0 || !funnel.length
               ? <p className="ssw-funnel-0">All {listed} companies. Each rule narrows the list; this line then shows how many are left after each one.</p>
@@ -356,8 +366,8 @@ export function ScreenerPro() {
             {cat.isError && <div className="state"><p>The filters are not available right now. Please try again in a moment.</p><button className="btn" onClick={() => cat.refetch()}>Try again</button></div>}
             {cat.isLoading && <div className="skeleton" style={{ height: 320 }} />}
             {data && <>
-              <div className="ssw-sec"><h3>Size</h3>
-                <div className="ssw-chips" role="group" aria-label="Company size">{data.caps.map((c) => <button key={c.name} type="button" className="ssw-chip" aria-pressed={F.caps.includes(c.name)} onClick={() => toggle("caps", c.name)}>{c.name} <span>{nf(c.n, 0)}</span></button>)}</div>
+              <div className="ssw-sec"><h3>Market cap</h3>
+                <div className="ssw-chips" role="group" aria-label="Market cap">{data.caps.map((c) => <button key={c.name} type="button" className="ssw-chip" aria-pressed={F.caps.includes(c.name)} onClick={() => toggle("caps", c.name)}>{c.name} <span>{nf(c.n, 0)}</span></button>)}</div>
                 <p className="ssw-note">Large above ₹50,000 Cr · Mid ₹10,000–50,000 Cr · Small below ₹10,000 Cr</p></div>
               <div className="ssw-sec"><h3>Industry and index</h3>
                 <Fold id="industry" title="Industry" summary={nSector ? `Industry: ${nSector} picked` : "All industries"} open={folds.industry ?? nSector > 0} setOpen={(o) => setFolds((x) => ({ ...x, industry: o }))}>
@@ -372,8 +382,7 @@ export function ScreenerPro() {
                   <ul className="ssw-groups">{numGroups.map((g) => { const on = g.metrics.filter((m) => rules.includes(m.key) || F.ranges[m.key]).length;
                     return <li key={g.id}><button type="button" onClick={() => setPicker({ group: g.id })} aria-label={`${g.label}: ${g.n} filters${on ? `, ${on} on` : ""}`}>
                       <span>{g.label}</span>{on > 0 && <em>{on} on</em>}<small>{g.n}</small></button></li>; })}
-                    <li>{crGold ? <button type="button" onClick={() => openRatio()}><span>Custom ratio</span><small>{ratios.length ? `${ratios.length} on` : "build"}</small></button>
-                      : <Link to="/plans#gold" className="ssw-crlock-li" aria-label="Custom ratio: comes with Gold and Platinum. See what Gold adds"><span>Custom ratio</span><small><Icon name="lock" /></small></Link>}</li></ul>
+                    </ul>
                 </div>
                 {onScreens.filter((x) => !x.state).map((x) => <div key={x.id} className="ssr-rule ssr-model" role="group" aria-label={`Screen on the ${prismOnly ? "FinLit Prism" : "FinLit IQ"}: ${x.label}`}><div className="ssr-rt"><b>{x.label}</b>
                   <button type="button" className="ssr-x" aria-label={`Turn off ${x.label}`} onClick={() => toggleScreen(x)}>×</button></div>
@@ -395,6 +404,15 @@ export function ScreenerPro() {
                   <p id="ssw-type-h">Names or short forms (pe, pb, roe, roce, debt, yield, mcap, price, sales3y, profit3y, 1d, 1m, 3m, 6m, 1y, high, {prismOnly ? "prism" : "iq"}) with &lt; or &gt;. Press Enter. For “or” and brackets use the <Link to="/query-builder">Query builder</Link>.</p>
                   {typedErr.map((m) => <p key={m} className="ssw-err" role="alert">{m}</p>)}
                 </form>
+              </div>
+            </>}
+            </div>
+            <div role="tabpanel" id="xsp-p-ready" aria-labelledby="xsp-t-ready" hidden={ptab !== "ready"} className="xsp-panel">
+              <ReadyScreens plan={plan} prism={prismOnly} on={f.on ?? []} total={res.data ? total : null} onToggle={toggleScreen} onAllOff={allOff} saved={saved} onOpenSaved={openSaved} onDeleteSaved={(n) => { screens.remove(n); toast(`Deleted “${n}”.`); }} ask={ask}
+          onNotify={user ? (n, on) => { screens.setNotify(n, on); toast(on ? `Messages on for “${n}”: after each close we name the companies that join or leave it.` : `Messages off for “${n}”.`); } : undefined} />
+            </div>
+            <div role="tabpanel" id="xsp-p-ratio" aria-labelledby="xsp-t-ratio" hidden={ptab !== "ratio"} className="xsp-panel xsp-ratio">
+              <p className="xsp-ratio-in">Make your own figure. Divide one figure by another, such as cash by market cap. It becomes a column you can sort, and a filter when you set a condition. Up to 3 at a time.</p>
                 {crGold ? <div className="ssw-rl" role="group" aria-label="Custom ratio">
                   <b>Custom ratio</b>
                   <small>Divide one figure by another, such as cash by market cap. It becomes a column, and a filter if you set a condition. Up to 3 at a time.</small>
@@ -408,8 +426,7 @@ export function ScreenerPro() {
                   <small>Divide one figure by another, such as cash by market cap or borrowings by market cap, and screen on the result. Custom ratios come with Gold and Platinum.</small>
                   <Link to="/plans#gold" className="btn ssw-rb">See what Gold adds</Link>
                 </div>}
-              </div>
-            </>}
+            </div>
             <button type="button" className="btn primary ssw-rdone" onClick={minimizeRules}>Show {res.data ? `${nf(total, 0)} companies` : "the results"}</button>
           </aside>
           {rulesOpen && <SplitDivider width={sideW || SIDE.def} set={resizeRules} />}
@@ -447,9 +464,10 @@ export function ScreenerPro() {
                     <button type="button" className="btn" onClick={() => removeStep(tight.key)}>Remove {stepName(tight.key)}</button></div>}
                   <TableZoom label="Stock screener results"><HScroll className={"scr-tw ssw-tw" + (res.isFetching ? " is-busy" : "")} label="results table" tall controls={false}><table className="scr-t ssw-t">
                     <thead>
-                      <tr className="ssw-band"><th className="stick">Company</th>{stdCount > 0 && <th colSpan={stdCount}>{stdCount} {stdCount === 1 ? "column" : "columns"}</th>}{ruleCount > 0 && <th colSpan={ruleCount} className="rb">Your rules</th>}{ratios.length > 0 && <th colSpan={ratios.length} className="cr-th">Custom ratios</th>}<th aria-label="Report" /></tr>
+                      <tr className="ssw-band"><th className="stick">Company</th>{bandsOf(shown.filter((k) => base.includes(k))).map((b, i) => <th key={i} colSpan={b.n} className={"xst-b-" + b.kind}>{
+                        b.kind === "size" ? "Market cap" : b.kind === "tech" ? <>{prismOnly ? "FinLit Prism · " : ""}{b.n} technical {b.n === 1 ? "pillar" : "pillars"}<small>−100 to +100</small></> : b.kind === "score" ? (prismOnly ? "FinLit Prism" : "FinLit IQ") : `${b.n} ${b.n === 1 ? "column" : "columns"}`}</th>)}{ruleCount > 0 && <th colSpan={ruleCount} className="rb">Your rules</th>}{ratios.length > 0 && <th colSpan={ratios.length} className="cr-th">Custom ratios</th>}<th aria-label="Report" /></tr>
                       <tr className="ssw-hd"><th className="stick" aria-sort={sort.key === "name" ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}><button onClick={() => sortBy("name")}>Company <span className="ar">{sort.key === "name" ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button><small>Name · size</small></th>
-                        {shown.map((k) => { const m = byKey.get(k), isRule = !base.includes(k); return <th key={k} className={isRule ? "rb" : ""} aria-sort={sort.key === k ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}>
+                        {shown.map((k) => { const m = byKey.get(k), isRule = !base.includes(k); return <th key={k} className={isRule ? "rb" : "xst-c-" + kindOf(k)} aria-sort={sort.key === k ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}>
                           <button onClick={() => sortBy(k)} title={m?.say} aria-label={`Sort by ${m?.label}`}>{SHORT[k] ?? TECH_HEAD[k] ?? m?.label} <span className="ar">{sort.key === k ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button><small>{unitLine(k, m)}</small></th>; })}
                         {ratios.map((r) => <th key={r.id} className="cr-th"><button onClick={() => sortBy(r.id)} title={`${byKey.get(r.num)?.label ?? r.num} ÷ ${byKey.get(r.den)?.label ?? r.den}`} aria-label={`Sort by ${ratioLabel(r)}`}>{ratioLabel(r)} <span className="ar">{sort.key === r.id ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button></th>)}
                         <th className="ssw-rep"><span className="sr">Report</span></th></tr></thead>
@@ -459,9 +477,9 @@ export function ScreenerPro() {
                         {shown.map((k) => { const m = byKey.get(k), v = r.v[k], isRule = !base.includes(k);
                           if (k === "price") { const d = r.v.ret_1d; return <td key={k} className={isRule ? "rb" : ""}>{v == null ? "–" : fmtMetric(m!, v)}{d != null && <small className={"ssw-ch " + (d > 0 ? "up" : d < 0 ? "dn" : "")}>{(d > 0 ? "+" : d < 0 ? "−" : "") + nf(Math.abs(d), 1)}%</small>}</td>; }
                           if (k === "prism_final") return <td key={k} className={"ssw-iq" + (isRule ? " rb" : "")}>{v == null ? "–" : <><span className={"ssw-sc " + (PRISM_CLASS[r.pband ?? ""] ?? "")}>{Math.round(v)}</span>{r.pband && <small>{BAND_WORD[r.pband] ?? r.pband}</small>}</>}</td>;
-                          if (TECH_COLS.includes(k)) { const w = trendWord(v), b = techBandOf(v); return <td key={k} className={"ssw-iq" + (isRule ? " rb" : "")} title={v == null ? "No short or long price-trend reading yet for this company." : `${w} (${v > 0 ? "+" : v < 0 ? "−" : ""}${nf(Math.abs(v), 0)} on a scale of −100 to +100), from the latest prices`}>{v == null || !w || !b ? "–" : <><span className={"ssw-sc " + TECH_PILL[b]}>{(v > 0 ? "+" : v < 0 ? "−" : "") + nf(Math.abs(v), 0)}</span><small>{w}</small></>}</td>; }
+                          if (TECH_COLS.includes(k)) { const w = trendWord(v), b = techBandOf(v); return <td key={k} className={"ssw-iq" + (isRule ? " rb" : " xst-c-tech")} title={v == null ? "No short or long price-trend reading yet for this company." : `${w} (${v > 0 ? "+" : v < 0 ? "−" : ""}${nf(Math.abs(v), 0)} on a scale of −100 to +100), from the latest prices`}>{v == null || !w || !b ? "–" : <><span className={"ssw-sc " + TECH_PILL[b]}>{(v > 0 ? "+" : v < 0 ? "−" : "") + nf(Math.abs(v), 0)}</span><small>{w}</small></>}</td>; }
                           if (k === "overall") return <td key={k} className={"ssw-iq" + (isRule ? " rb" : "")}>{v == null ? "–" : <><span className={"ssw-sc " + (r.band ?? "")}>{Math.round(v)}</span>{r.band && <small>{BAND_WORD[r.band] ?? r.band}</small>}</>}</td>;
-                          return <td key={k} className={[tone(k, v), isRule ? "rb" : ""].filter(Boolean).join(" ")} title={v == null ? emptyReason(k, r.full) : undefined}>{v == null || !m ? "–" : fmtMetric(m, v)}</td>; })}
+                          return <td key={k} className={[tone(k, v), isRule ? "rb" : "xst-c-" + kindOf(k)].filter(Boolean).join(" ")} title={v == null ? emptyReason(k, r.full) : undefined}>{v == null || !m ? "–" : fmtMetric(m, v)}</td>; })}
                         {ratios.map((r2) => { const v = r.r?.[r2.id]; return <td key={r2.id} className="cr-td" title={v == null ? "No value: a figure is missing, or the bottom figure is zero or less" : undefined}>{v == null ? "–" : `${nf(v, Math.abs(v) >= 100 ? 1 : 2)}${r2.show === "pct" ? "%" : "×"}`}</td>; })}
                         <td className="ssw-rep"><Link to={`/stocks/${encodeURIComponent(r.symbol)}`} aria-label={`Open the report of ${r.name || r.symbol}`} title="Open the company report"><Icon name="notes" /></Link></td>
                       </tr>))}

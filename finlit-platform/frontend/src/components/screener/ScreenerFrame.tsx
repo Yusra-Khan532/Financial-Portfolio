@@ -16,11 +16,10 @@ import type { Plan } from "../../lib/ui";
 import { CheckRow, FgxFocus, FilterGroup } from "./FilterGroup";
 import { SectorTree } from "./SectorTree";
 import { SortMenu, Toolbar } from "./PageParts";
-import { TierChip } from "../Gate";
 import "../../styles/fgx.css";
 import type { PageHeaderProps } from "../PageHeader";
 import { Dash } from "./cells";
-import { FindStocksTabs } from "./FindStocksTabs";
+import { ScreenerHead } from "./ScreenerHead";
 import type { Screener } from "./useScreener";
 import { CoLogo } from "../CoLogo";
 import { ChartPanel, type PanelRow } from "./ChartPanel";
@@ -60,13 +59,13 @@ type Props = {
   /** The plan badge in the title card. */ tier: Plan;
   /** Columns offered in the "Sort by" list (beside Stock name and Market cap). */ sortChoices: { key: SortKey; label: string }[];
   /** The header's key figures, quick links and illustration (real data only). */ head?: Pick<PageHeaderProps, "stats" | "links" | "art" | "meta">;
-  /** The header line (task #64, B-4 / V-4): the data date in words, the name of the "How … works" dialog and a link to the other screener. */
-  dateLine?: string | null; howTitle?: string; headLink?: ReactNode;
+  /** The head bar (task #243, pack H): the data date in words and the name of the "How … works" dialog; the screener boxes replace the link to the other screener. */
+  dateLine?: string | null; howTitle?: string;
   /** The Columns menu in the toolbar (the 52-week and return columns). */ columnsMenu?: ReactNode;
   /** A tag after the company name (Leader / In line / Laggard on the Advanced page). */ leadTag?: (r: Screener["pg"]["view"][number]) => ReactNode;
 };
 const narrow = () => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(max-width: 1000px)").matches;
-export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, screens, filters, lead, beforeTable, errorTitle, groupHead, columnHeads, cells, colSpan, plain, how, tier, sortChoices, dateLine, howTitle = "How scores work", headLink, columnsMenu, leadTag }: Props) {
+export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, screens, filters, lead, beforeTable, errorTitle, groupHead, columnHeads, cells, colSpan, plain, how, tier, sortChoices, dateLine, howTitle = "How scores work", columnsMenu, leadTag }: Props) {
   const [sideW, setSide] = useSideWidth(splitKey);
   const { draft, setDraft, facets, drawer, setDrawer, sort, size, pg, rows, sel, bad, dirty, isLoading, isError, chips, filterCount, maxCompare } = s;
   const [chart, setChart] = useState<PanelRow | null>(null);
@@ -107,12 +106,8 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
   return (
     <>
       <div className="wrap scr-wrap sx-root" style={{ paddingTop: 22 }} ref={wrapRef}>
-        <FindStocksTabs />
-        <section className="card sx-head" aria-labelledby="sx-h1">
-          <div className="sx-h1row"><h1 id="sx-h1" title={typeof intro === "string" ? intro : undefined}>{title}</h1><TierChip tier={tier} />{dateLine && <span className="sx-asof">{dateLine}</span>}
-            <span className="sx-hsp" /><button type="button" className="fgx-link" onClick={() => s.setHow(true)}><Icon name="info" /> {howTitle}</button>{headLink}</div>
-          <p className="sr">{intro}</p>
-        </section>
+        {/* task #243 (pack H): the site's page header with the four screener boxes, in place of the tab strip and the head card */}
+        <ScreenerHead title={title} tier={tier} desc={intro} date={dateLine} how={{ label: howTitle, open: () => s.setHow(true) }} />
         {screens}
         {beforeTable}
         {/* 14 Nov file N-24 / N-33: no "not scored yet" ring and no sector box above the list (they were drawn for admin accounts); "Not scored yet" stays on each row */}

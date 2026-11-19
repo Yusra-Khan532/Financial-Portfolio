@@ -1,4 +1,5 @@
 import { ScreenerFrame, SortTh, GroupRow } from "../components/screener/ScreenerFrame";
+import { ADVANCED_DESC } from "../components/screener/ScreenerHead";
 import { HowDialog } from "../components/screener/controls";
 import { FilterGroup } from "../components/screener/FilterGroup";
 import { HighFilter, highActive } from "../components/screener/HighFilter";
@@ -38,7 +39,7 @@ function Advanced() {
 
   return (
     <ScreenerFrame s={s} splitKey="score-adv" eyebrow="Advanced stock screener" title="Advanced stock screener" sideLabel="Advanced stock screener filters" errorTitle="The advanced stock screener is unavailable right now"
-      intro={<>The advanced model for the whole market: the <b>Prism score</b>, its four financial-health parts (Growth & Profitability, Valuation, Quality, Risk) and two technical views, short term and long term. Filter, sort and compare.</>}
+      intro={ADVANCED_DESC}
       dateLine={dateLine} howTitle="How FinLit Prism works" columnsMenu={<ColumnsMenu on={priceCols} set={setPriceCols} />}
       leadTag={(r) => r.lead ? <span className={"sxl-tag " + r.lead} title={`${LEAD_WORD[r.lead]} among its peers on 52-week price performance${r.lead_line ? ` (${r.lead_line})` : ""}. Describes past price performance only.`}>{LEAD_WORD[r.lead]}</span> : null}
       tier="gold" sortChoices={[{ key: "prism_final", label: "Prism score" }, ...PRISM_PARTS.map((x) => ({ key: x.col, label: x.label })), { key: "prism_st_score", label: "Short term" }, { key: "prism_lt_score", label: "Long term" }]}
