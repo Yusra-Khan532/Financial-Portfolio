@@ -59,7 +59,7 @@ export function useScreener(mode: Mode) {
   const withQ = (p: URLSearchParams) => { if (q.trim()) p.set("q", q.trim()); return p; };
   const wantSort = useRef<Sort | null>(null);   // the sort a quick view asked for, kept until the address shows it (the router applies an address change a moment later; a delayed apply must not undo it)
   useEffect(() => { if (wantSort.current && wantSort.current.key === sort.key && wantSort.current.dir === sort.dir) wantSort.current = null; }, [sort.key, sort.dir]);
-  const go = (next: Partial<State>) => { if (next.sort) wantSort.current = null; setParams(withQ(serializeState({ ...latest.current, ...(wantSort.current ? { sort: wantSort.current } : {}), ...next })), { replace: true }); };
+  const go = (next: Partial<State>) => { if (next.sort) wantSort.current = null; setParams(withQ(serializeState({ ...latest.current, ...(wantSort.current ? { sort: wantSort.current } : {}), ...next }, scope)), { replace: true }); };
   useEffect(() => {   // keep ?q= in step with the search box (a new search starts again from page 1)
     const t = setTimeout(() => setParams(() => {
       const prev = live.current, cur = prev.get("q") ?? "", want = q.trim();   // the latest address, not the one this render closed over (that would undo a filter applied a moment ago)
