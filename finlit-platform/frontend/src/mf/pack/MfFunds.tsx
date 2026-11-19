@@ -8,7 +8,7 @@ import { Insights } from "../../portfolio/pack/EquityPack";
 import type { Card } from "../../lib/pulsePack";
 import { crores, pct1, rupees, typeOf, type Holding, type MfSpread } from "../../lib/mfPortfolio";
 import { fundName, type FundRisk, type MfRisk } from "../../lib/mfPack";
-import { GroupBand, HoldingHeads, HoldingRowCells, LotRows, TotalRow, holdingFigs, type LotsProps } from "../../portfolio/HoldingCells";
+import { GroupBand, HoldingHeads, HoldingRowCells, LotRows, LotToggle, TotalRow, holdingFigs, type LotsProps } from "../../portfolio/HoldingCells";
 import { keyOf } from "../../lib/mfBook";
 
 export type FundsView = "overview" | "returns" | "risk" | "type";
@@ -96,13 +96,13 @@ export function FundsTable({ hs, rk, sp, actions, listLabel, lots }: { hs: Holdi
       <button type="button" className="mff-sort" onClick={() => setSort({ k: c.k, dir: on && sort.dir === 1 ? -1 : 1 })}>{c.label}{on ? (sort.dir === 1 ? " ▲" : " ▼") : ""}</button>
       {c.help && <Tip text={c.help[0]} how={c.help[1]} />}</th>;
   };
-  const fundCell = (h: Holding) => (
+  const fundCell = (h: Holding, buys = false) => (
     <th scope="row"><Link to={`/funds/${h.code}`} className="mfp-fund">{fundName(h.name) || `Scheme ${h.code}`}</Link>
       <small className="mfp-sub">{[shortHouse(h.amc), h.plan, optShort(h.option)].filter(Boolean).join(" · ")}{h.folio ? ` · folio ${h.folio}` : ""}</small>
-      <small className="mfp-isin" title={h.isin ? "ISIN: names the exact plan and option" : h.isinWhy ?? undefined}>{h.isin ?? "No ISIN"}</small>{view === "overview" && actions(h)}</th>);
+      <small className="mfp-isin" title={h.isin ? "ISIN: names the exact plan and option" : h.isinWhy ?? undefined}>{h.isin ?? "No ISIN"}{buys && lots && <LotToggle p={lots} symbol={keyOf(h.id)} />}</small>{view === "overview" && actions(h)}</th>);
   const navCell = (h: Holding, cls = "r") => <td className={cls}>{h.nav == null ? "–" : <><b>{rupees(h.nav, true)}</b><small className="mfp-sub">{h.navDate ? shortDate(h.navDate) : ""}</small></>}</td>;
   const overviewRow = (h: Holding) => { const s = h.score; const row = (
-    <tr key={h.id} className={TONE(s.label) === "b" ? "mff-weak" : undefined}>{fundCell(h)}
+    <tr key={h.id} className={TONE(s.label) === "b" ? "mff-weak" : undefined}>{fundCell(h, true)}
       <td>{h.categoryLabel || "–"}{themeTag(h) && <span className="mff-tag">{themeTag(h)}</span>}</td>
       {lots ? <HoldingRowCells p={lots} symbol={keyOf(h.id)} priceCell={navCell(h, "r x-c2 x-gs cg-h")} changeCell={null} /> : navCell(h)}
       <td className="mff-sc">{s.final == null ? <span className="sp-note" title={s.reason || undefined}>{STATUS(s.status) || "No score"}</span> : <span className="mff-score"><b className={"mff-num " + TONE(s.label)}>{Math.round(s.final)}</b> <span className={"mff-w " + TONE(s.label)}>{cap(s.label)}</span></span>}</td>

@@ -40,16 +40,31 @@ export function holdingFigs(p: LotsProps, symbol: string) {
   return { a, px, ch, now, gain, gainPct: gain != null && a?.invested ? (gain / a.invested) * 100 : null, today: now != null && ch != null ? now - now / (1 + ch / 100) : null };
 }
 
+/** The buys label read out and shown: "2 buys", "2 buys · 1 sale". */
+const buysLabel = (a: Agg) => `${a.nBuys} ${a.nBuys === 1 ? "buy" : "buys"}${a.nSales + a.bad ? ` · ${a.nSales + a.bad} ${a.nSales + a.bad === 1 ? "sale" : "sales"}` : ""}`;
+
+/** Task #249 (portfolio buys update, 19 Nov): the small drop-down next to a holding's name. It opens and closes the holding's buy and sale rows (the same
+ *  state and rows the quantity button opened before). Equity and ETF: after the name link; MF: at the end of the ISIN line. */
+export function LotToggle({ p, symbol }: { p: LotsProps; symbol: string }) {
+  const a = aggOf(p.holdings, symbol, p.cur);
+  if (!a) return null;
+  const on = p.open.has(symbol), nm = p.nameOf?.(symbol) ?? symbol;
+  const aria = a.nBuys > 0 ? `${on ? "Hide" : "Show"} the ${buysLabel(a)} of ${nm}` : `Add a buy of ${nm}`;
+  return <button type="button" className={"x-namecv" + (a.nBuys ? "" : " x-none") + (a.bad ? " bad" : "")} aria-expanded={on} aria-controls={`lots-${symbol}`} aria-label={aria}
+    onClick={() => p.onOpen(symbol, !on)}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg></button>;
+}
+
 /** The holding's eight cells (pack B7, B9, B11). */
 export function HoldingRowCells({ p, symbol, priceCell, changeCell }: { p: LotsProps; symbol: string; priceCell: ReactNode; changeCell: ReactNode }) {
-  const f = holdingFigs(p, symbol), a = f.a, on = p.open.has(symbol);
+  const f = holdingFigs(p, symbol), a = f.a;
   if (!a) return <><td className="x-c1 x-gs cg-h" /><td className="x-c1 cg-h" /><td className="x-c1 cg-h" />{priceCell}{!p.mf && changeCell}<td className="x-c2 cg-h" /><td className="x-c3 x-gs cg-h" /><td className="x-c3 cg-h" /></>;
-  const lbl = `${a.nBuys} ${a.nBuys === 1 ? "buy" : "buys"}${a.nSales + a.bad ? ` · ${a.nSales + a.bad} ${a.nSales + a.bad === 1 ? "sale" : "sales"}` : ""}`;
+  const lbl = buysLabel(a);
   const booked = a.nSales && a.bookedOk ? <small className={"x-bkd " + tone(a.booked)}>{sinr(a.booked)} booked</small> : null;
   const priceMissing = a.ledgers.some((l) => l.buys.some((b) => b.left > 0 && !(b.row.price > 0)));
   return <>
-    <td className="r x-qty x-c1 x-gs cg-h"><button type="button" className={"x-lotbtn" + (a.bad ? " bad" : "")} aria-expanded={on} aria-controls={`lots-${symbol}`} aria-label={`${on ? "Hide" : "Show"} the ${lbl} of ${p.nameOf?.(symbol) ?? symbol}`} onClick={() => p.onOpen(symbol, !on)}>
-      <b>{a.qty == null ? MINUS : uq(p, a.qty)}</b><small>{a.nBuys ? lbl : "Add buys"}<i aria-hidden="true">▾</i></small></button></td>
+    {/* task #249: the buys open from the drop-down next to the name (LotToggle); the quantity cell is plain text in the old button's box */}
+    <td className="r x-qty x-c1 x-gs cg-h"><span className="x-ro x-qtyt"><b>{a.qty == null ? MINUS : uq(p, a.qty)}</b><small>{a.nBuys ? lbl : "no buys"}</small></span></td>
     <td className="r x-avg x-c1 cg-h">{a.qty === 0 ? <span className="x-ro"><b>{MINUS}</b><small>all sold</small></span>
       : a.avg != null ? <span className="x-ro"><b>{inr(a.avg, p.mf ? 4 : 2)}</b><small>{a.nSales ? "average of what is left" : `average of ${a.nBuys}`}</small></span>
       : a.nBuys ? <button type="button" className="x-need-b" onClick={() => p.onOpen(symbol, true)} title={priceMissing ? "A buy has no price yet" : undefined}>{p.mf ? "add a buy NAV" : "add a buy price"}</button>

@@ -74,8 +74,10 @@ describe("holding columns, buys and sales (B7, B9, B11)", () => {
     const heads = [...document.querySelectorAll("thead tr:last-child th")].map((t) => (t.querySelector("button")?.childNodes[0]?.textContent ?? "").trim()).filter(Boolean);
     expect(heads.slice(0, 10)).toEqual(["Share", "Size", "Qty", "Avg buy price", "Invested", "Latest price", "Today", "Value now", "₹", "%"]);
     const btn = screen.getByRole("button", { name: "Hide the 4 buys · 1 sale of TIPSMUSIC" });
-    expect(btn.textContent).toBe("404 buys · 1 sale▾");
     const row = btn.closest("tr")!;
+    expect(btn.closest("td")!.className).toBe("pfx-name");                                  // task #249: the drop-down sits next to the name
+    expect(row.querySelector("td.x-qty")!.textContent).toBe("404 buys · 1 sale");           // the quantity cell is plain text
+    expect(row.querySelector("td.x-qty button")).toBeNull();
     expect(row.querySelector("td.x-avg")!.textContent).toBe("₹612.40average of what is left");
     expect(row.querySelector("td.x-gl")!.textContent).toMatch(/\+₹3,504\+₹2,612 booked/);          // 40 × 700 − 24,496 open; 2,612 booked
   });

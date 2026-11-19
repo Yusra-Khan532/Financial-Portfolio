@@ -61,7 +61,8 @@ describe("MF platforms, buys and sales (pack C1, C5, C6)", () => {
     expect(heads).toEqual(["Units", "Avg buy NAV", "Invested", "Latest NAV", "Value now", "₹", "%"]);
     // first in, first out in Groww: the sale of 12 uses the 10.123 of Jan 24 and 1.877 of Jun 24; 3.123 + 2.5 left in Groww, 12 in Coin
     const btn = screen.getByRole("button", { name: "Show the 5 buys · 1 sale of ICICI Prudential FMCG Fund" });
-    expect(btn.querySelector("b")!.textContent).toBe("17.623");
+    expect(btn.closest("small")!.className).toBe("mfp-isin");                               // task #249: the drop-down ends the ISIN line
+    expect(btn.closest("tr")!.querySelector("td.x-qty b")!.textContent).toBe("17.623");
     fireEvent.click(btn);
     const rows = [...document.querySelectorAll('tr.x-lot[data-lsym="AAA"]')];
     expect(rows).toHaveLength(6);

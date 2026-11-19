@@ -10,7 +10,7 @@ import { Insights } from "../../portfolio/pack/EquityPack";
 import type { Card } from "../../lib/pulsePack";
 import type { EtfPortfolio, EtfRisk, EtfRow } from "../../lib/etfPortfolio";
 import { byType } from "../../lib/etfTop";
-import { GroupBand, HoldingHeads, HoldingRowCells, LotRows, TotalRow, holdingFigs, type LotsProps } from "../../portfolio/HoldingCells";
+import { GroupBand, HoldingHeads, HoldingRowCells, LotRows, LotToggle, TotalRow, holdingFigs, type LotsProps } from "../../portfolio/HoldingCells";
 
 export type EtfView = "returns" | "trading" | "risk" | "type";
 type Risk = EtfRisk["etfs"][number];
@@ -79,8 +79,8 @@ export function EtfsTable({ d, rk, actions, lots }: { d: EtfPortfolio; rk: EtfRi
   const th = (c: Col) => { const on = sort.k === c.k;
     return <th key={c.k} scope="col" className={c.num ? "r" : undefined} aria-sort={on ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
       <button type="button" className="mff-sort" onClick={() => setSort({ k: c.k, dir: on && sort.dir === 1 ? -1 : 1 })}>{c.label}{on ? (sort.dir === 1 ? " ▲" : " ▼") : ""}</button>{c.help && <Tip text={c.help[0]} how={c.help[1]} />}</th>; };
-  const etfCell = (e: EtfRow) => (<>
-    <th scope="row"><Link to={`/etfs/${encodeURIComponent(e.symbol)}`} className="mfp-fund">{e.symbol}</Link><small className="mfp-sub">{e.name}</small>
+  const etfCell = (e: EtfRow, buys = false) => (<>
+    <th scope="row"><span className="x-nl"><Link to={`/etfs/${encodeURIComponent(e.symbol)}`} className="mfp-fund">{e.symbol}</Link>{buys && lots && <LotToggle p={lots} symbol={e.symbol} />}</span><small className="mfp-sub">{e.name}</small>
       <small className="mfp-isin" title="ISIN: names the exact ETF">{e.isin ?? "No ISIN"}</small>{view === "returns" && actions(e)}</th>
     <td>{e.tracks.label ?? "–"}{e.twice && <span className="mff-tag etp-twice" title="Two ETFs in your list follow this index">TWICE</span>}</td></>);
   const sortHead = (id: string, _label: string, cls: string) => { const c = cols.find((x) => x.k === id)!, on = sort.k === id;
@@ -88,7 +88,7 @@ export function EtfsTable({ d, rk, actions, lots }: { d: EtfPortfolio; rk: EtfRi
       <button type="button" className="mff-sort" onClick={() => setSort({ k: id, dir: on && sort.dir === 1 ? -1 : 1 })}>{c.label}{on ? (sort.dir === 1 ? " ▲" : " ▼") : ""}</button></th>; };
   const rets = (e: EtfRow) => <><td className="r"><Ret v={e.ret1y} why={e.ret1yWhy} /></td><td className="r"><Ret v={e.ret3y} why={e.ret3yWhy} /></td><td className="r"><Ret v={e.ret5y} why={e.ret5yWhy} /></td>
     <td className="r">{e.ter?.value == null ? <Dash why={e.ter?.why} /> : `${e.ter.value.toFixed(2)}%`}</td></>;
-  const retRow = (e: EtfRow) => lots ? [<tr key={e.symbol}>{etfCell(e)}<HoldingRowCells p={lots} symbol={e.symbol} priceCell={<td className="r x-c2 x-gs cg-h"><b>{rupee(e.price)}</b></td>}
+  const retRow = (e: EtfRow) => lots ? [<tr key={e.symbol}>{etfCell(e, true)}<HoldingRowCells p={lots} symbol={e.symbol} priceCell={<td className="r x-c2 x-gs cg-h"><b>{rupee(e.price)}</b></td>}
       changeCell={<td className="r x-c2 cg-h"><Ret v={e.changePct} /></td>} />{rets(e)}</tr>,
     lots.open.has(e.symbol) && <LotRows key={e.symbol + ":lots"} p={lots} symbol={e.symbol} lead={2} rest={4} />]
     : <tr key={e.symbol}>{etfCell(e)}<td className="r"><b>{rupee(e.price)}</b></td><td className="r"><Ret v={e.changePct} /></td>
