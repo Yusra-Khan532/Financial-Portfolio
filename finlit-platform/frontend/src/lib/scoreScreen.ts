@@ -500,8 +500,10 @@ export function levelOptions(items: Item[], f: Filters, level: Level): LevelOpt[
   return levelNames(f, level).map((name) => ({ name, n: counts.get(name) ?? 0 })).sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
 }
 /** Ticks or unticks one option. A pick at a lower level that no longer fits a parent picked is taken off, and the line the page shows says so. */
-export function pickLevel(f: Filters, level: Level, name: string): { filters: Filters; message: string | null } {
-  const n = cloneFilters(f), key = level === "macro" ? "macros" : level === "nsec" ? "nsecs" : "industries";
+export type NsePicks = { macros: string[]; nsecs: string[]; industries: string[] };
+/** The same rule on the three lists alone (an open screen keeps them in its own filter state). */
+export function pickNse(sel: NsePicks, level: Level, name: string): { sel: NsePicks; message: string | null } {
+  const n: NsePicks = { macros: [...sel.macros], nsecs: [...sel.nsecs], industries: [...sel.industries] }, key = level === "macro" ? "macros" : level === "nsec" ? "nsecs" : "industries";
   n[key] = n[key].includes(name) ? n[key].filter((x) => x !== name) : [...n[key], name];
   const off: string[] = [];
   if (n.macros.length) n.nsecs = n.nsecs.filter((s) => { const ok = n.macros.includes(NSE_SECTORS.find((x) => x.name === s)?.macro ?? ""); if (!ok) off.push(s); return ok; });
@@ -511,7 +513,18 @@ export function pickLevel(f: Filters, level: Level, name: string): { filters: Fi
     if (!ok) off.push(i);
     return ok;
   });
-  return { filters: n, message: off.length ? `${off.join(", ")} ${off.length === 1 ? "was" : "were"} taken off: not inside your other choice.` : null };
+  return { sel: n, message: off.length ? `${off.join(", ")} ${off.length === 1 ? "was" : "were"} taken off: not inside your other choice.` : null };
+}
+export function pickLevel(f: Filters, level: Level, name: string): { filters: Filters; message: string | null } {
+  const r = pickNse(f, level, name), n = cloneFilters(f);
+  n.macros = r.sel.macros; n.nsecs = r.sel.nsecs; n.industries = r.sel.industries;
+  return { filters: n, message: r.message };
+}
+/** SPEC §2: every name of a level narrowed only by the parents picked, those on the list first by count, then the rest ("Not on this list"). */
+export function screenLevel(sel: NsePicks, level: Level, counts: [string, number][] | undefined): { on: LevelOpt[]; off: string[]; all: number } {
+  const names = levelNames({ ...emptyFilters(), ...sel }, level), c = new Map(counts ?? []);
+  const on = names.filter((x) => (c.get(x) ?? 0) > 0).map((name) => ({ name, n: c.get(name)! })).sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
+  return { on, off: names.filter((x) => !(c.get(x) ?? 0)).sort((a, b) => a.localeCompare(b)), all: names.length };
 }
 /** SPEC §3: the counts beside the rating words and the trend words, each given every other filter. */
 export function scoreCounts(items: Item[], f: Filters) {

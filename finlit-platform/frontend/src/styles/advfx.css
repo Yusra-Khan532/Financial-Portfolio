@@ -99,6 +99,15 @@
 .sx-hfix thead th { z-index: 4; }
 .sx-hfix thead th.stick, .sx-hfix thead th.fz1, .sx-hfix thead th.fz2, .sx-hfix thead th.fz3 { z-index: 6; }
 .sx-hfix tbody td.stick, .sx-hfix tbody td.fz1, .sx-hfix tbody td.fz2, .sx-hfix tbody td.fz3 { z-index: 2; }
+/* SPEC §2: an open Advanced screen lists all 12 / 22 / 59; those not on the list are greyed and not clickable */
+.psx3-lvh { margin: 2px 4px 6px; font: 700 12px/1.3 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.psx3-lvh span { font-weight: 500; letter-spacing: 0; text-transform: none; margin-left: 4px; }
+.psx3-taken { margin: 0 4px 6px; font: 600 13px/1.4 var(--sans); color: var(--text); background: var(--s2); border-radius: 8px; padding: 5px 8px; }
+.psx3-offh { margin: 8px 6px 4px; padding-top: 8px; border-top: 1px dashed var(--border); font: 700 12px/1.3 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.psx3-opt.is-off { opacity: .5; cursor: default; }
+.psx3-opt.is-off:hover { background: none; }
+.psx3-ddp .psx3-optl { max-height: 340px; overflow: auto; overscroll-behavior: contain; }
+.psx3-ddp .afx.afx-in { margin: -8px; min-width: min(440px, calc(100vw - 32px)); }
 /* an open Advanced screen (SPEC §2): three header rows, each at the real height of the rows above it (was 30px and 52px, fixed) */
 .psx3-t.psx3-hfix thead tr.psx3-k th { top: var(--hr1, 30px); }
 .psx3-t.psx3-hfix thead tr.psx3-c th { top: calc(var(--hr1, 30px) + var(--hr2, 22px)); }
