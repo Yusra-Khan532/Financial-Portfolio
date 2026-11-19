@@ -171,7 +171,7 @@ function Table({ d, cols, rows, sort, setSort, basic, onDay, latest, picked, set
     if (c.key === "sr_pulse" && typeof v === "string") return <td key={c.key} className="psx-a-left psx3-sr"><span className={"psx3-pls is-" + String(r.sr_pulse_code ?? "")}>{v}</span>
       <small>{[typeof r.sr_above50 === "number" ? `${nf(r.sr_above50, 0)}% above 50-day` : null, typeof r.sr_rebound === "string" ? `thrust ${r.sr_rebound}` : null].filter(Boolean).join(" · ")}</small></td>;
     if (c.key === "sr_peer" && typeof v === "string") return <td key={c.key} className="psx-a-left"><span className={"psx3-peer is-" + v.toLowerCase().replace(/\s+/g, "-")}>{v}</span></td>;
-    if (c.key === "sr_tailwinds" && typeof v === "number") return <td key={c.key} className="psx-a-right"><span className={"psx3-tw is-" + Math.round(v)} title={`${nf(v, 0)} of the 4 facts line up`}>{nf(v, 0)}<small> of 4</small></span></td>;
+    if (c.key === "sr_tailwinds" && typeof v === "number") return <td key={c.key} className="psx-a-right"><span className={"psx3-twn is-" + Math.round(v)} title={`${nf(v, 0)} of the 4 facts line up`}>{nf(v, 0)}<small> of 4</small></span></td>;
     if (c.key === "added_on") return <td key={c.key} className="psx-a-left">{typeof v === "string" ? day(v) : <CellValue v={v} f="text" />}{r.added_baseline === true && <small className="psx3-sub">first saved list</small>}</td>;
     return <td key={c.key} className={"psx-a-" + alignOf(c) + hatch}><CellValue v={v} f={c.format} k={c.key} /></td>;
   };

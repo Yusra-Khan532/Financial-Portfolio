@@ -75,4 +75,5 @@
 @media (max-width: 560px) { .rms { padding: 12px 12px 10px; } .rms-cards { grid-template-columns: minmax(0, 1fr); } .rms-hd p { display: none; } }
 
 /* task #243 round 3b: the Sectors tab's one-line intro over its cards, with an i */
-.rms-intro { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; font: 400 13px/1.45 var(--sans); color: var(--muted); }
+.rms-intro { margin: 10px 0 0; font: 400 13px/1.45 var(--sans); color: var(--muted); }
+.rms-intro .psx-ib { display: inline-flex; vertical-align: middle; margin-left: 6px; }

@@ -196,9 +196,9 @@
 :root[data-theme="dark"] .psx3-rot.is-ahead_slowing, :root[data-theme="dark"] .psx3-pls.is-fading { color: #E9C46A; background: rgba(233, 185, 73, .16); }
 :root[data-theme="dark"] .psx3-rot.is-behind_gaining { color: #9CC3FF; background: rgba(47, 111, 192, .22); }
 :root[data-theme="dark"] .psx3-rot.is-behind_slipping, :root[data-theme="dark"] .psx3-pls.is-washout, :root[data-theme="dark"] .psx3-peer.is-laggard { color: #F2A0A6; background: rgba(217, 114, 124, .18); }
-.psx3-tw { display: inline-flex; align-items: baseline; gap: 2px; min-width: 46px; justify-content: flex-end; font: 700 14px/1.4 var(--sans); }
-.psx3-tw small { font: 400 12px var(--sans); color: var(--muted); }
-.psx3-tw.is-3, .psx3-tw.is-4 { color: #1F6B49; } :root[data-theme="dark"] .psx3-tw.is-3, :root[data-theme="dark"] .psx3-tw.is-4 { color: #7FD8A6; }
+.psx3-twn { display: inline-flex; align-items: baseline; gap: 2px; min-width: 46px; justify-content: flex-end; font: 700 14px/1.4 var(--sans); }
+.psx3-twn small { font: 400 12px var(--sans); color: var(--muted); }
+.psx3-twn.is-3, .psx3-twn.is-4 { color: #1F6B49; } :root[data-theme="dark"] .psx3-twn.is-3, :root[data-theme="dark"] .psx3-twn.is-4 { color: #7FD8A6; }
 .psx3-board { margin: 10px 0 4px; }
 .psx3-bh { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 0 0 6px; font: 400 13px/1.4 var(--sans); color: var(--muted); }
 .psx3-bh b { color: var(--text); font-weight: 700; }
@@ -213,3 +213,6 @@
 .psx3-im { display: flex; flex-wrap: wrap; gap: 4px; }
 .psx3-dates { margin: 6px 0 0; font: 400 12px/1.45 var(--sans); color: var(--muted); }
 @media (max-width: 560px) { .psx3-ind { flex: 1 1 100%; } .psx3-sr small { white-space: normal; } }
+/* The Chart cell keeps its two buttons on one line: presets.css makes .psx-act a wrapping flex box, which on a table cell stacked the buttons out of their row */
+.psx3-t td.psx-act { display: table-cell; white-space: nowrap; }
+.psx3-t td.psx-act > * + * { margin-left: 6px; }
