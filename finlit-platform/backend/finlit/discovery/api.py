@@ -33,3 +33,12 @@ async def discovery(request: Request, theme: Optional[str] = Query(default=None,
         raise HTTPException(400, "bad sector")
     data = await service.overview(request.app.state.store, theme=theme, symbol=symbol, sector=sector)
     return JSONResponse(data, headers={"Cache-Control": "public, max-age=600"})
+
+
+@router.get("/board")
+async def discovery_board(request: Request):
+    """Task #251: the Discover page's one read (finlit/discovery/board.py): every placed company as a compact row, the themes as shown, the latest filings
+    per theme and per event. Open on every plan, like the route above; the page joins FinLit's own readings per plan from the routes that already gate them."""
+    from . import board
+    data = await board.board(request.app.state.store)
+    return JSONResponse(data, headers={"Cache-Control": "public, max-age=600"})
