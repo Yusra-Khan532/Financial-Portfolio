@@ -506,7 +506,11 @@ async def test_a_company_named_in_the_question_is_read_first_even_off_its_page(a
     m = await signed_in(app, "nm@example.com", plan="silver")
     _, ev = await ask(m, "how is reliance industries doing?")
     assert ("status", {"text": "Reading the company page (RELIANCE)"}) in ev
-    assert "<company_card" in client.calls[0]["messages"][-1]["content"] and len(client.calls) == 1
+    # task #254 rework (the owner, 19 Nov 2026): the card goes with the question, then the company's own documents read first (presentation,
+    # results filing, call transcript), as one turn of reads, before the model's first turn
+    msgs = client.calls[0]["messages"]
+    assert "<company_card" in msgs[-3]["content"] and len(client.calls) == 1
+    assert [b["input"]["document"] for b in msgs[-2]["content"]] == ["investor_presentation", "results_filing", "call_transcript"]
 
 
 
@@ -524,10 +528,12 @@ def test_the_web_is_one_of_the_tools_last_with_two_searches_at_most_and_india_fi
 def test_the_instructions_answer_every_question_shortly_and_never_pass_on_ratings():
     s = service.SYSTEM
     for must in ("Always give a real answer", "Never reply only that something is \"not available\"", "find it on the web",
-                 "future prospects", "Under 90 words", "at most 4 short bullet points", "Sources: ", "never pass on analysts'", "target prices"):
+                 "future prospects", "short paragraphs of 2 to 4 sentences", "Few or no bullet points", "Sources: ", "never pass on analysts'",
+                 "target prices"):
         assert must in s, must
     assert "say briefly that FinLit AI answers questions about those" not in s                  # no more turning questions away
-    assert service.MAX_TOKENS <= 1000
+    assert "Under 90 words" not in s and "at most 4 short bullet points" not in s                # the owner, 19 Nov 2026: prose, not points
+    assert service.MAX_TOKENS <= 1200
 
 
 async def test_a_web_search_shows_searching_and_a_paused_turn_carries_on():

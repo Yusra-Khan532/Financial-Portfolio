@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
 from collections import OrderedDict
 from datetime import date, timedelta
@@ -22,6 +23,8 @@ from .knowledge import TOPICS as FINANCE_TOPICS
 from ..mcp.gateway import Gateway, ToolError
 from ..mcp.schema import SYMBOL_SCHEMA, clean_symbol
 from ..mcp.tools import Out, Tool
+
+log = logging.getLogger("finlit.ask")
 
 # ------------------------------------------------------------------------------------------------ Superinvestor portfolios (/superinvestors)
 SOURCE_SI = "FinLit's Superinvestor portfolios page (finlitventures.com/superinvestors): named holders of 1% or more, from the companies' shareholding filings"
@@ -299,7 +302,21 @@ SYNONYMS: List[Tuple[str, ...]] = [
     ("acquisition", "acquisitions", "merger", "m&a", "demerger"),
     ("ai", "artificial intelligence", "genai", "generative ai"),
     ("solar", "renewable", "renewables", "green energy", "new energy"),
+    # Task #254 rework (19 Nov): a bank's, an NBFC's and an insurer's own measures, as their results and decks write them
+    ("gnpa", "gross npa", "gross non-performing", "nnpa", "net npa", "net non-performing", "asset quality", "slippage", "slippages", "npa", "npas",
+     "provision coverage", "pcr", "credit cost", "credit costs", "stage 3", "gs3", "ns3"),
+    ("nim", "net interest margin", "net interest income", "nii", "core nim", "spread", "spreads", "cost of funds"),
+    ("casa", "current account", "savings account", "deposits", "deposit", "retail deposits"),
+    ("crar", "capital adequacy", "car", "cet1", "cet-1", "tier 1", "tier i", "tier-1", "solvency", "solvency ratio"),
+    ("advances", "loan book", "loans", "credit growth", "aum", "disbursement", "disbursements", "loan growth"),
+    ("cost to income", "cost-to-income", "cost income", "opex", "operating expenses"),
+    ("roa", "return on assets", "roe", "return on equity"),
+    # "red flags", "issues": the words a company's documents use for what went wrong or what to watch
+    ("red flag", "red flags", "risk", "risks", "concern", "concerns", "issue", "issues", "problem", "problems", "challenge", "challenges",
+     "headwind", "headwinds", "pressure", "decline", "declined", "slowdown", "stress", "weak", "weakness", "lower", "impact", "impacted"),
 ]
+# Task #254 rework: the measures a bank-like company is read for, added to the question when the company is a bank, an NBFC or an insurer
+BANK_TERMS = "GNPA NNPA NIM CASA CRAR credit cost advances deposits"
 SUMMARY_WORDS = ("highlights", "highlight", "key", "summary", "at a glance", "performance", "overview", "snapshot")
 GENERAL = re.compile(r"\b(what (does|did) (the |its |their )?(investor )?(presentation|deck|ppt|document|annual report|transcript|concall)\s*(say|says|tell|show)?"
                      r"|summari[sz]e|summary|overview|highlights|key points|main points|kya (bola|kaha|likha))\b", re.I)
@@ -474,8 +491,8 @@ async def _pages_of(link: str) -> List[str]:
     return pages
 
 
-async def _locate(gw: Gateway, sym: str, want: str, store: Any, window: Optional[Tuple[date, date, str]] = None
-                  ) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]], Optional[str]]:
+async def _locate(gw: Gateway, sym: str, want: str, store: Any, window: Optional[Tuple[date, date, str]] = None,
+                  found: Optional[List[Dict[str, Any]]] = None) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]], Optional[str]]:
     """The document of the kind asked for: the Documents list first (what the website shows; results filings come from News & filings > Results);
     then the database: for a presentation the one Discovery read, then any stored filing that says "presentation" in the last 400 days (task #255);
     for a call transcript, an annual report or a results filing, the stored filings of that kind (task #254). The newest, or, when the question
@@ -505,6 +522,8 @@ async def _locate(gw: Gateway, sym: str, want: str, store: Any, window: Optional
         docs.sort(key=lambda d: str(d.get("date") or ""), reverse=True)
     if not docs:
         return None, rows, None
+    if found is not None:          # task #254 rework: every candidate, newest first, so a covering letter can be passed over
+        found.extend(sorted(docs, key=lambda d: str(d.get("date") or ""), reverse=True))
     if window:
         hit = [d for d in docs if in_window(d, window)]
         if hit:
@@ -539,11 +558,70 @@ KIND_NOTES = {
 }
 
 
+# Task #254 rework (19 Nov, HDFC Bank): many filings the exchange lists as an "Investor presentation" (or a transcript) are only the company's covering
+# letter: one to three pages to the Listing Department under Regulation 30, saying the deck is enclosed or is on the company's website. Such a letter
+# must never be quoted as "the presentation".
+_LETTER = re.compile(r"listing department|corporate relationship department|dept\.? of corporate services|regulation 30|regulation 46|"
+                     r"pursuant to|please find (?:enclosed|attached)|we enclose|enclosed herewith|enclosed please find|kindly take (?:the same )?on record|"
+                     r"take the above on record|scrip (?:code|symbol)|dear sir|dear madam|yours (?:faithfully|truly|sincerely)|company secretary", re.I)
+_COMPANY_PDF = re.compile(r"https?://[^\s\"'<>)]+?\.pdf\b", re.I)
+EXCHANGE_HOSTS = ("nseindia.com", "bseindia.com")
+COVER_PAGES = 3
+COVER_CHARS = 6000
+
+
+def is_cover_letter(pages: List[str]) -> bool:
+    """A covering letter only: at most three short pages, written as a letter to the exchange (two or more letter phrases), with no deck or call
+    after it. A letter followed by the deck in the same file (most presentations: a letter, then 10 to 40 slides) is not a cover letter."""
+    texts = [p for p in pages if p and p.strip()]
+    if not texts or len(pages) > COVER_PAGES:
+        return False
+    body = " ".join(texts)
+    return len(body) <= COVER_CHARS and len(set(m.group(0).lower() for m in _LETTER.finditer(body))) >= 2
+
+
+def letter_links(pages: List[str]) -> Tuple[List[str], List[str]]:
+    """(direct PDF links on the company's own site, the other links) a covering letter names; the exchange's own links are left out."""
+    body = " ".join(pages)
+    pdfs = [u for u in dict.fromkeys(_COMPANY_PDF.findall(body)) if not any(h in u.lower() for h in EXCHANGE_HOSTS)]
+    urls = [u.rstrip(".,;") for u in dict.fromkeys(re.findall(r"https?://[^\s\"'<>)]+", body)) if u not in pdfs
+            and not any(h in u.lower() for h in EXCHANGE_HOSTS)]
+    return pdfs[:2], urls[:3]
+
+
+async def _real_document(store: Any, doc: Dict[str, Any], docs: List[Dict[str, Any]], sym: str, want: str
+                         ) -> Tuple[Dict[str, Any], List[str], str, Optional[Dict[str, Any]]]:
+    """The document to quote: `doc`, unless its file is only a covering letter. Then, in turn: (i) another filing of the same kind on the same day
+    (the deck filed separately), (ii) a PDF on the company's own site that the letter links to, (iii) the next newest filings of that kind (at most
+    two). Returns (document, its pages, where its text came from, the covering letter skipped or None). When every one is a letter, the newest letter
+    comes back with `letter` set, so the answer says so plainly."""
+    pages, origin = await _read_pages(store, doc, sym, want)
+    if not is_cover_letter(pages):
+        return doc, pages, origin, None
+    letter = {"title": doc.get("title"), "filed": doc.get("date"), "link": doc.get("link"), "pages": len(pages)}
+    pdfs, urls = letter_links(pages)
+    letter["links"] = pdfs + urls
+    same_day = [d for d in docs if d is not doc and d.get("link") != doc.get("link") and d.get("date") == doc.get("date")]
+    older = [d for d in docs if d is not doc and d.get("link") != doc.get("link") and str(d.get("date") or "") < str(doc.get("date") or "")]
+    tries: List[Dict[str, Any]] = same_day[:2] + [{**doc, "link": u, "title": f"{doc.get('title')} (the file on the company's site)", "from": "company site"}
+                                                 for u in pdfs[:1]] + older[:2]
+    for cand in tries:
+        try:
+            p2, o2 = await _read_pages(store, cand, sym, want)
+        except Exception:      # nosec B112 - one file the exchange or the company's site does not give must not stop the others
+            log.info("ask: %s %s: %s not read", sym, want, str(cand.get("link"))[-60:])
+            continue
+        if any(x.strip() for x in p2) and not is_cover_letter(p2):
+            return cand, p2, o2, letter
+    return doc, pages, origin, letter
+
+
 async def read_company_document(gw: Gateway, a: Dict[str, Any]) -> Out:
     sym, want = clean_symbol(a["symbol"]), DOC_KINDS[a["document"]]
     store = docstore.store_of(gw)
     window = period_window(a.get("period") or a.get("question") or "", want)
-    doc, rows, period_note = await _locate(gw, sym, want, store, window)
+    candidates: List[Dict[str, Any]] = []
+    doc, rows, period_note = await _locate(gw, sym, want, store, window, candidates)
     if doc is None:
         held = sorted({r["type"] for r in rows if r.get("type")})
         if not held and store is not None:
@@ -556,19 +634,35 @@ async def read_company_document(gw: Gateway, a: Dict[str, Any]) -> Out:
                    notes=[f"FinLit's {page} holds no {want.lower()} for {sym} filed in the last {days} days "
                           f"(filings appear as the company's announcements are loaded). {has} Say so plainly; the web may have the company's own copy."])
     try:
-        pages, origin = await _read_pages(store, doc, sym, want)
+        doc, pages, origin, letter = await _real_document(store, doc, candidates or [doc], sym, want)
     except asyncio.TimeoutError:
         raise ToolError(f"The exchange did not send the {want.lower()} ({doc['title']}, filed {doc['date']}) in time. It can be opened from {doc['link']}") from None
     found_by = " (the presentation FinLit's Discovery read; the Documents list shows newer filings only)" if doc.get("from") == "discovery" else ""
+    if doc.get("from") == "company site":
+        found_by = " (the file on the company's own site that the exchange filing's covering letter points to)"
     base = {"symbol": sym, "document": want, "title": doc["title"], "filed": doc["date"], "link": doc["link"], "pages": len(pages)}
     if window:
         base["period"] = window[2]
     src = f"{SOURCE_FEED}; the file itself, read from the exchange archive{found_by}"
     lead = [period_note] if period_note else []
+    if letter is not None and letter.get("link") == doc.get("link"):
+        # every filing found is only a covering letter (HDFC Bank's "presentation" of 17 Oct 2026: one page pointing to its website)
+        where = f" It points to {', '.join(letter['links'])}." if letter.get("links") else ""
+        return Out({**base, "text": [], "coverLetterOnly": True, "letterLinks": letter.get("links") or []}, as_of=doc["date"], source=src,
+                   routes=["/api/feed", doc["link"]],
+                   notes=lead + [f"The filing named '{want.lower()}' of {doc['date']} is only the company's covering letter ({len(pages)} page"
+                                 f"{'s' if len(pages) != 1 else ''}) to the exchange: the {want.lower()} itself is not in the exchange filing.{where} "
+                                 "Never call this letter the presentation and never quote it as the company's view. Read the results filing and the call "
+                                 "transcript of the same quarter instead (read_company_document), and the company's own investor-relations page on the web; "
+                                 "say plainly which document the figures come from."])
+    if letter is not None:
+        lead.append(f"The filing of {letter['filed']} ({letter['title']}) is only a covering letter, so this is the {want.lower()} read instead "
+                    f"({doc['title']}, {doc['date']}). Say so in one short clause when you quote it.")
     if not any(p.strip() for p in pages):
         return Out({**base, "text": []}, as_of=doc["date"], source=src, routes=["/api/feed"],
                    notes=lead + ["The file has no readable text (it is a scan or images only); it can be opened from the link."])
-    chosen = best_pages(pages, a.get("question") or "", kind=want)
+    budget = int(a.get("max_chars") or 9000)                           # task #254 rework: several documents read at once share the room
+    chosen = best_pages(pages, a.get("question") or "", n=6 if budget >= 6000 else 4, chars=budget, kind=want)
     text: List[Dict[str, Any]] = [{"page": n, "text": t} for n, t in chosen]
     if want == "Call transcript":                                      # who speaks on each page, as the page names them
         mgmt = management_of(pages)
@@ -699,7 +793,9 @@ TOOLS: List[Tool] = [
          "project details, its annual report (strategy, risks, related parties) and the results filing behind FinLit's results figures.",
          {"symbol": dict(SYMBOL_SCHEMA), "document": {"type": "string", "enum": list(DOC_KINDS), "default": "investor_presentation"},
           "question": {"type": "string", "maxLength": 200, "description": "What to look for in the document"},
-          "period": {"type": "string", "maxLength": 40, "description": "Optional: the quarter or year asked about, e.g. 'Q2 FY27', 'September quarter', 'FY26'"}},
+          "period": {"type": "string", "maxLength": 40, "description": "Optional: the quarter or year asked about, e.g. 'Q2 FY27', 'September quarter', 'FY26'"},
+          "max_chars": {"type": "integer", "minimum": 1500, "maximum": 9000, "default": 9000,
+                        "description": "Optional: at most this many characters of pages (smaller when several documents are read together)"}},
          read_company_document, ["symbol"]),
     Tool("get_discovery", "Discovery", "FinLit AI's Discovery section: companies grouped by the themes their newest investor presentation talks about (AI, defence, "
          "solar, batteries, data centres, semiconductors, EV, nuclear, space and drones, and more: 21 themes), each with its keywords, the sentences that hold figures "

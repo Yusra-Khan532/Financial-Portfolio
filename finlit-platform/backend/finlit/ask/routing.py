@@ -61,7 +61,18 @@ _SECTORS: Dict[str, re.Pattern] = {
     "rural_agri": re.compile(r"\b(agri|agriculture|agricultural|rural|farm|farmers?|crops?|kharif|rabi|msp|nabard|monsoon)\b", re.I),
 }
 
-TYPES = ("economy", "financials", "news", "concept", "valuation", "regulation", "funds")
+# Task #254 rework (19 Nov): a question about one company's state of affairs ("what is issue with pricol", "red flags of HDFC Bank", "how is TCS doing")
+_ISSUE = re.compile(r"\b(issues?|problems?|red ?flags?|risks?|concerns?|worr(?:y|ies)|challenges?|headwinds?|trouble|weak(?:ness)?|wrong|negatives?|cons"
+                    r"|how is \S+(?: \S+)? doing|what(?:'s| is) happening|kya (?:problem|dikkat|issue)|dikkat|pareshani|business model|outlook|prospects?"
+                    r"|strengths?|positives?|pros|health)\b", re.I)
+
+TYPES = ("company", "economy", "financials", "news", "concept", "valuation", "regulation", "funds")
+# Task #254 rework (the owner, 19 Nov): the order a company question is answered from. The system prompt states it once; the note repeats it per question.
+COMPANY_ORDER = ["the company's investor presentation", "its results (the results filing, with FinLit's results figures)",
+                 "its earnings calls (the call transcript)", "news and the web pages of the team's directory (Moneycontrol first)",
+                 "FinLit's company report (the company card, its sections, FinLit Prism)", "any other FinLit page"]
+COMPANY_SITES = ["moneycontrol.com", "economictimes.indiatimes.com", "livemint.com", "business-standard.com", "screener.in", "trendlyne.com",
+                 "tickertape.in", "nseindia.com", "bseindia.com"]
 
 
 def classify(question: str, named_company: bool = False, on_company_page: bool = False) -> List[str]:
@@ -89,8 +100,15 @@ def classify(question: str, named_company: bool = False, on_company_page: bool =
             got.add("financials")
         elif meaning:
             got.add("concept")
+    # Task #254 rework: a question that names a company is about that company, whatever its first words ("what is issue with pricol" is not a
+    # question for a meaning: it once kept the web search to the glossary sites). On a company's page, a question about its issues, risks, health
+    # or business is about that company too.
+    if named_company or (on_company_page and _ISSUE.search(q)) or ("financials" in got and (named_company or on_company_page)):
+        got.add("company")
     if meaning and not got:
         got.add("concept")
+    if named_company:
+        got.discard("concept")
     # A question for a meaning inside a field ("what is the repo rate", "SIP kya hai", "what is DCF") belongs to that field: its sites explain it.
     if "concept" in got and got & {"economy", "valuation", "regulation", "funds"}:
         got.discard("concept")
@@ -101,6 +119,9 @@ def classify(question: str, named_company: bool = False, on_company_page: bool =
 
 # ------------------------------------------------------------------------------------------------ 2. where each kind is answered from
 ROUTES: Dict[str, Dict[str, object]] = {
+    "company": {"label": "a company",
+                "finlit": ["read_company_document", "get_company_card", "get_company_section", "get_finlit_prism"],
+                "sites": COMPANY_SITES},
     "economy": {"label": "the economy",
                 "finlit": ["get_india_economy"],
                 "sites": ["rbi.org.in", "data.rbi.org.in", "mospi.gov.in", "dea.gov.in", "imf.org", "data.worldbank.org", "fred.stlouisfed.org",
@@ -146,10 +167,12 @@ def _label_of(kind: str) -> str:
 
 
 def web_domains(kinds: List[str]) -> Optional[List[str]]:
-    """The sites the web search keeps to: those of the one kind the question is; None (an open search) when it is several kinds or none."""
-    if len(kinds) != 1:
+    """The sites the web search keeps to: those of the one kind the question is; None (an open search) when it is several kinds or none.
+    A company question with its financials or news is still one kind (the company): the company's sites."""
+    core = [k for k in kinds if k not in ("financials", "news")] if "company" in kinds else list(kinds)
+    if len(core) != 1:
         return None
-    return _sites_of(kinds[0])
+    return _sites_of(core[0])
 
 
 def note(kinds: List[str]) -> str:
@@ -158,9 +181,16 @@ def note(kinds: List[str]) -> str:
         return ""
     parts = []
     for k in kinds:
-        tools = ", ".join(_tools_of(k))
+        if "company" in kinds and k in ("financials", "news"):
+            continue                                           # inside the company's order below
         sites = ", ".join(f"{site_name(d)} ({d})" for d in _sites_of(k))
+        if k == "company":
+            order = "; ".join(f"({i}) {s}" for i, s in enumerate(COMPANY_ORDER, 1))
+            parts.append(f"a company: answer in this order of sources: {order}. The company's own documents already read are with the question; "
+                         f"on the web prefer {sites}")
+            continue
+        tools = ", ".join(_tools_of(k))
         parts.append(f"{_label_of(k)}: FinLit first ({tools}); then on the web prefer {sites}")
-    scope = " The web search keeps to these sites." if len(kinds) == 1 else ""
+    scope = " The web search keeps to these sites." if web_domains(kinds) else ""
     return ("[Sources for this question (the team's source directory). " + "; ".join(parts) + "." + scope
             + " Name the site and the date of every figure taken from the web.]")

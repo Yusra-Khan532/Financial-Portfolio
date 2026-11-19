@@ -24,7 +24,7 @@ log = logging.getLogger("finlit.ask")
 IST = ZoneInfo("Asia/Kolkata")
 MAX_ROUNDS = 4          # tool rounds before the answer must be written
 DEADLINE = 40.0         # seconds for the whole answer (a web search takes a few)
-MAX_TOKENS = 900        # a short answer: the instructions ask for under 90 words
+MAX_TOKENS = 1100       # a short answer: at most three short paragraphs (the owner, 19 Nov 2026)
 DISCLAIMER = "Describes the company's financial health from its filings and prices; not a recommendation. Information only, not investment advice."
 WITHDRAWN = ("This answer was withdrawn because it read like investment advice, which FinLit does not give. Ask for the figures instead, for example "
              "\"What are TCS's margins and sales growth over five years?\"")
@@ -59,6 +59,14 @@ Answer every question (founder, 18 Nov 2026)
 - Combine both when it helps: FinLit's figures, then what recent news says.
 - Each kind of question has its own sources (the team's source directory): a note with the question names FinLit's tools to use first and the sites to prefer on the web. Follow it. Say which site a web figure came from, with its date ("RBI, 6 Nov 2026").
 
+A question about a company (the owner, 19 Nov 2026): the order of sources
+- Answer from these sources in this order: (1) the company's investor presentation, (2) its results (the results filing, with FinLit's results figures), (3) its earnings calls (the call transcript), (4) news and the web pages of the team's directory (Moneycontrol first), (5) FinLit's company report (the company card, its sections, FinLit Prism), (6) any other FinLit page.
+- The company's own documents are read before you start and come with the question (read_company_document results). Lead with what they say, then the results, then the call, then the news, then FinLit's reading. Add the web and FinLit's pages for what the documents do not hold.
+- A filing that is only a covering letter (the tool says coverLetterOnly) is not the presentation: never quote it or call it the presentation. Say in a short clause that the exchange filing held only the covering letter, and use the results filing, the call transcript and the web instead.
+- Never send the member to "go and check" or "look for" a figure you were able to read: give the figure, with its source and date.
+- Questions about red flags, issues, problems, risks, concerns or a company's health: answer with the figures you read (what the documents, the results and the call say went wrong or needs watching; FinLit Prism's negatives; the company card's watch-outs; shareholding and pledge changes; debt and cash flow), framed as what the figures show and what to watch, never as a verdict or advice.
+- Banks, NBFCs and insurers: use their own measures (banks: GNPA and NNPA, net interest margin, CASA ratio, capital adequacy (CRAR / CET1), credit cost and provision coverage, advances and deposit growth, cost-to-income, ROA; NBFCs: AUM and disbursement growth, stage 3 assets, credit cost, capital adequacy, cost of funds; insurers: premium growth, VNB margin, solvency, persistency). Take them from the results filing, the presentation and the call, then the web. Never call a bank's income "sales": say total income or net interest income.
+
 Facts
 - Every figure you give (price, ratio, growth, holding, flow, NAV, date) must come from a tool result or a web search result in this conversation. Never use figures from memory.
 - Give each figure its period or date as the tool states it ("ROE 9.2% in FY2026", "price Rs 1,484 at 15:30 on 14 Nov 2026"). Amounts are in Rs crore unless the tool says otherwise. The Indian financial year runs April to March.
@@ -78,10 +86,12 @@ Describe, never advise
 - From the web, never pass on analysts' or brokers' buy / sell / hold ratings, target prices or price forecasts, even when a source gives them. Describe the business instead: its plans, growth drivers, risks and what to watch.
 - If asked for advice ("should I buy X?", "which is the best fund?"), say that FinLit does not give advice, and offer the facts that help them judge for themselves (and fetch them).
 
-Style (short, simple, effective)
-- Start with the direct answer in one plain sentence. Then at most 4 short bullet points. Under 90 words in all, unless the member asks for detail.
-- Simple everyday words; explain a term in a few words if you must use it. No headings, no tables, no long paragraphs.
-- When you used the web, end with one line: "Sources: " and the names of the sites (for example "Sources: Economic Times, Reliance AGM 2026").
+Style (the owner, 19 Nov 2026: authentic, explanatory prose, less content)
+- Write in short paragraphs of 2 to 4 sentences, at most 3 paragraphs for most questions. Start with the direct answer.
+- Few or no bullet points: use bullets only for a genuine list, such as figures side by side, and then at most 3 or 4.
+- Every figure carries its source and date in the sentence, for example "Sansera's Q2 FY27 presentation (5 Nov 2026, p.10) says capex was ...", "the results filing for the September quarter (filed 18 Oct 2026) shows ...".
+- No filler, no repetition of the question, no headings, no tables. Simple everyday words; explain a term in a few words if you must use it.
+- When you used the web, end with one line: "Sources: " and the names of the sites (for example "Sources: Moneycontrol, 18 Nov 2026").
 - Write in the language the member writes in (English or Hindi).
 - Do not add a disclaimer; the app adds one.
 - Any other question (outside markets): answer it briefly too, from the web when needed, in the same short style.
@@ -155,6 +165,32 @@ def document_intents(question: str) -> List[str]:
     return []
 
 
+# Task #254 rework (the owner, 19 Nov 2026): a question about a company reads, before the model starts and in this order, the company's newest investor
+# presentation, its results filing and its call transcript (an annual report too when the question asks for one). Each read is bounded (its best pages,
+# within COMPANY_DOC_CHARS) and they run together, so the answer starts from the company's own words.
+COMPANY_DOCS = ["investor_presentation", "results_filing", "call_transcript"]
+COMPANY_DOC_CHARS = 4500          # each of the three documents; one document asked for by name keeps the full 9,000
+ISSUE_WORDS = re.compile(r"\b(issues?|problems?|red ?flags?|risks?|concerns?|worr(?:y|ies)|challenges?|headwinds?|trouble|weak(?:ness)?|wrong|negatives?"
+                         r"|cons|health|business model|kya (?:problem|dikkat|issue)|dikkat|pareshani)\b", re.I)
+BANK_LIKE = re.compile(r"\b(bank|banks|banking|nbfc|non[- ]banking|finance company|financial services|housing finance|insurance|insurer|microfinance"
+                       r"|lending|lender)\b", re.I)
+
+
+def company_documents(question: str, kinds: List[str]) -> List[str]:
+    """The documents to read before the model starts: for a company question, the presentation, the results filing and the call transcript, in that
+    order (plus the annual report when the question names it); otherwise the documents the question names (document_intents)."""
+    named = document_intents(question)
+    if "company" not in kinds:
+        return named
+    return COMPANY_DOCS + [k for k in named if k not in COMPANY_DOCS]
+
+
+def bank_like(card_text: Optional[str]) -> bool:
+    """True when the company card names a bank, an NBFC or an insurer (its NSE sector or industry)."""
+    return bool(card_text) and bool(re.search(r'"(?:macroSector|sector|industry|basicIndustry|isBank)"\s*:\s*(?:"[^"]*(?:bank|financ|insur|nbfc|lend)[^"]*"|true)',
+                                              card_text or "", re.I))
+
+
 def document_intent(question: str) -> Optional[str]:
     """The first document the question is about (see document_intents), or None."""
     kinds = document_intents(question)
@@ -201,6 +237,15 @@ def build_messages(history: List[Dict[str, str]], question: str, page_symbol: Op
     return msgs
 
 
+def _drop_web_blocks(messages: List[Dict[str, Any]]) -> None:
+    """Removes the web search's own blocks (server_tool_use, web_search_tool_result) from earlier turns, for a request sent without the web search."""
+    for m in messages:
+        c = m.get("content")
+        if isinstance(c, list):
+            kept = [b for b in c if (b.get("type") if isinstance(b, dict) else getattr(b, "type", "")) not in ("server_tool_use", "web_search_tool_result")]
+            m["content"] = kept or [{"type": "text", "text": "(the web search was not used)"}]
+
+
 async def answer(client: anthropic.AsyncAnthropic, model: str, gw, messages: List[Dict[str, Any]], emit: Emit,
                  prefetched: Optional[List[Any]] = None, web_domains: Optional[List[str]] = None) -> Dict[str, Any]:
     """Runs the conversation until Claude has written its answer. Emits ("status", {text}), ("text", {text}) and, when an answer is withdrawn,
@@ -224,20 +269,49 @@ async def answer(client: anthropic.AsyncAnthropic, model: str, gw, messages: Lis
                                       output_config={"effort": "low"}, cache_control={"type": "ephemeral"})
         if last:
             params["tool_choice"] = {"type": "none"}          # out of rounds: write the answer from what has been read
-        async with client.messages.stream(**params) as stream:
-            async def pump():
-                async for event in stream:
-                    if event.type == "text" and event.text:
-                        written.append(event.text)
-                        await emit("text", {"text": event.text})
-                    elif event.type == "content_block_start" and getattr(event.content_block, "type", "") == "server_tool_use":
-                        await emit("status", {"text": "Searching the web"})
+        timed_out = False
+        msg = None
+        # Task #254 rework ("what is issue with pricol" failed twice): when the provider refuses the request because of the web search (a site of the
+        # kept-to list it will not search, for example), the same round is asked again with an open web search, then without the web: the answer is
+        # written from what was read, never replaced by "could not answer". Only a round that has written nothing yet is asked again.
+        for attempt in range(3):
+            had = len(written)
             try:
-                await asyncio.wait_for(pump(), timeout=left)
-            except asyncio.TimeoutError:
-                stop = "deadline"
+                async with client.messages.stream(**params) as stream:
+                    async def pump():
+                        async for event in stream:
+                            if event.type == "text" and event.text:
+                                written.append(event.text)
+                                await emit("text", {"text": event.text})
+                            elif event.type == "content_block_start" and getattr(event.content_block, "type", "") == "server_tool_use":
+                                await emit("status", {"text": "Searching the web"})
+                    try:
+                        await asyncio.wait_for(pump(), timeout=left)
+                    except asyncio.TimeoutError:
+                        timed_out = True
+                    else:
+                        msg = await stream.get_final_message()
                 break
-            msg = await stream.get_final_message()
+            except anthropic.BadRequestError as e:
+                if len(written) != had or attempt == 2:
+                    raise
+                why = str(getattr(e, "message", e))[:300]
+                if web_domains and any(d.get("allowed_domains") for d in defs if isinstance(d, dict)):
+                    log.warning("ask: the provider refused the kept-to web search (%s); asking again with an open search", why)
+                    defs = T.definitions(None)
+                elif any(d.get("name") == "web_search" for d in defs if isinstance(d, dict)):
+                    log.warning("ask: the provider refused the request with the web search (%s); asking again without the web", why)
+                    defs = [d for d in defs if not (isinstance(d, dict) and d.get("name") == "web_search")]
+                else:
+                    raise
+                params["tools"] = defs
+                if not any(isinstance(d, dict) and d.get("name") == "web_search" for d in defs):
+                    # messages may hold earlier web-search blocks; without the tool they must not be sent back as calls to it
+                    _drop_web_blocks(messages)
+        if timed_out:
+            stop = "deadline"
+            break
+        assert msg is not None
         u = msg.usage
         usage["input"] += u.input_tokens or 0
         usage["output"] += u.output_tokens or 0
