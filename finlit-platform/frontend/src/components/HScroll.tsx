@@ -28,9 +28,13 @@ export function HScroll({ children, className = "", label = "table", tall = fals
     const head1 = el.querySelector("table")?.tHead?.rows[0];   // SHARED §5: re-measure when the first header row itself changes height (fonts, wrapping)
     if (head1) ro.observe(head1);
     if (typeof document !== "undefined" && document.fonts?.ready) document.fonts.ready.then(measure).catch(() => undefined);
+    // task #259 (pack 03 §1: "when the table re-renders"): a new set of columns replaces the header row; watch the new one and measure again
+    const mo = new MutationObserver(() => { const r = el.querySelector("table")?.tHead?.rows?.[0]; if (r) ro.observe(r); measure(); });
+    const head = el.querySelector("table")?.tHead;
+    if (head) mo.observe(head, { childList: true, subtree: true });
     const onScroll = () => { setPos(el.scrollLeft); setScrolled(el.scrollLeft > 1); };
     el.addEventListener("scroll", onScroll, { passive: true });
-    return () => { ro.disconnect(); el.removeEventListener("scroll", onScroll); };
+    return () => { ro.disconnect(); mo.disconnect(); el.removeEventListener("scroll", onScroll); };
   }, []);
   useEffect(() => {
     if (!pinBelow) return;
