@@ -120,7 +120,7 @@ class _Conn:
         self.p, self.i = prism_rows, iq_rows
 
     async def fetch(self, sql, *args):
-        assert "model_version IS NOT DISTINCT FROM" in sql or "model = 'v1'" in sql        # the same scoring model only
+        assert "model_version IS NOT DISTINCT FROM" in sql or "d.model = b.model" in sql        # the same scoring model as the newest row only
         return self.p if "prism_history" in sql else self.i
 
     async def __aenter__(self):

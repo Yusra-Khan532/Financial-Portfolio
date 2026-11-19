@@ -121,7 +121,7 @@ def move_fields(prefix: str, now: Optional[float], before: Optional[float], day,
 
 async def _score_moves(store, prism: Dict[str, dict], as_of: date, iq_now: Dict[str, float]) -> None:
     """Prism: today's score is the card's; the score before is the earliest daily row of the same model_version as the newest row. FinLit IQ: today's is the table's
-    `overall`; the score before is the earliest row of score_history for model v1 (consolidated first). Both look back MOVE_DAYS days."""
+    `overall`; the score before is the earliest row of score_history of the same model as its newest row (consolidated first). Both look back MOVE_DAYS days."""
     try:
         async with store.pool.acquire() as conn:
             prows = await conn.fetch(
@@ -132,9 +132,11 @@ async def _score_moves(store, prism: Dict[str, dict], as_of: date, iq_now: Dict[
                               ORDER BY d.symbol, d.day ASC)
                    SELECT a.symbol, a.day, a.final FROM a JOIN b USING (symbol) WHERE b.day > a.day""", as_of, MOVE_DAYS)
             irows = await conn.fetch(
-                """WITH d AS (SELECT DISTINCT ON (symbol, day) symbol, day, overall FROM score_history WHERE model = 'v1' AND overall IS NOT NULL AND day >= $1::date - $2::int
-                              ORDER BY symbol, day, (statement = 'consolidated') DESC)
-                   SELECT DISTINCT ON (symbol) symbol, day, overall FROM d ORDER BY symbol, day ASC""", as_of, MOVE_DAYS)
+                """WITH d AS (SELECT DISTINCT ON (symbol, day) symbol, day, overall, model FROM score_history WHERE overall IS NOT NULL AND day >= $1::date - $2::int
+                              ORDER BY symbol, day, (statement = 'consolidated') DESC),
+                        b AS (SELECT DISTINCT ON (symbol) symbol, model FROM d ORDER BY symbol, day DESC)
+                   SELECT DISTINCT ON (d.symbol) d.symbol, d.day, d.overall FROM d JOIN b ON b.symbol = d.symbol AND d.model = b.model
+                   ORDER BY d.symbol, d.day ASC""", as_of, MOVE_DAYS)
     except Exception:
         log.warning("score histories not read: the before / change fields stay blank", exc_info=True)
         return
