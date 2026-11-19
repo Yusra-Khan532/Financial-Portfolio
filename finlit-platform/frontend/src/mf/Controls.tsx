@@ -1,7 +1,7 @@
 // The list's controls: search, filters, the column picker and the page buttons.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../lib/icons";
-import { COLUMNS, DEFAULT_COLS, PAGE_DEFAULTS, SIZES, activeFilterCount, cleanNum, pageWindow, type ColId, type FundFilters, type ListQuery } from "../lib/mf";
+import { COLUMNS, DEFAULT_COLS, SIZES, tabDefaults, activeFilterCount, cleanNum, pageWindow, type ColId, type FundFilters, type ListQuery } from "../lib/mf";
 import { Pick, type PickItem } from "./Pick";
 
 const RANGES: { k: "1y" | "5y"; label: string }[] = [{ k: "1y", label: "1 year return (total)" }, { k: "5y", label: "5 year return, per year (CAGR)" }];
@@ -48,7 +48,7 @@ export function Controls({ q, text, onText, set, filters, loading }: { q: ListQu
         <Seg label="Option" value={q.option} onChange={(v) => set({ option: v })} options={[["", "Growth"], ["IDCW", "IDCW"], ["Other", "Not stated"], ["All", "All"]]} />
         <button type="button" className={"btn mf-rangebtn" + (ranged ? " on" : "")} aria-expanded={more} aria-controls="mf-ranges" onClick={() => setMore((m) => !m)}>Return range{ranged ? " · on" : ""} <span aria-hidden="true">{more ? "▴" : "▾"}</span></button>
         <label className="mf-check mf-stopck"><input type="checkbox" checked={q.stopped} onChange={(e) => set({ stopped: e.target.checked })} /> Include schemes that stopped publishing NAVs</label>
-        {n > 0 && <button type="button" className="mf-linkbtn" onClick={() => set({ amc: "", plan: PAGE_DEFAULTS.plan, option: "", stopped: false, min1y: "", max1y: "", min5y: "", max5y: "" })}>Clear {n} filter{n > 1 ? "s" : ""}</button>}
+        {n > 0 && <button type="button" className="mf-linkbtn" onClick={() => set({ amc: "", ...tabDefaults(q.tab), stopped: false, min1y: "", max1y: "", min5y: "", max5y: "" })}>Clear {n} filter{n > 1 ? "s" : ""}</button>}
       </div>
       {more && (
         <div className="mf-ranges" id="mf-ranges">

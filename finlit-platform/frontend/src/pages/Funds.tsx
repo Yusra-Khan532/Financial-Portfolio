@@ -10,7 +10,7 @@ import { dateIN, nf } from "../lib/format";
 import {
   AUM_BUCKETS, CHECKS, EMPTY_QUERY, RETURN_LABELS, TRAY_MAX, catNames, categoryShort, compareUrl, effectiveQuery, navFull, navText, parseIds, parseQuery, pctText, queryToParams, readCols, rememberName, rowSortValue, subCats, tone, trayName,
   useFundCompare, useFundDetail, useFundFacts, useFundFilters, useFundList, useFundPortfolio, useHotList, useTray, writeCols,
-  type ColId, type CompareFund, type FundDetail, type FundRow, type ListQuery, type RangeKey, type SortKey,
+  tabDefaults, type ColId, type CompareFund, type FundDetail, type FundRow, type ListQuery, type RangeKey, type SortKey,
 } from "../lib/mf";
 import { keyLabel, selectionTitle, tabLabel } from "../lib/mfCategories";
 import { ColumnPicker, Controls, Pager } from "../mf/Controls";
@@ -189,7 +189,7 @@ export function FundListPage() {
             <small>Every scored fund with its Mutual Fund Score and four parts: filter by category, cost, size and age, see category leaderboards and compare.</small></span>
           <span className="evi-promo-go" aria-hidden="true">Open →</span>
         </Link>
-        <CategoryPicker q={q} subs={subs} loading={filt.isLoading} onTab={(tab) => set({ tab, cats: null })} onCats={(cats) => set({ cats })} />
+        <CategoryPicker q={q} subs={subs} loading={filt.isLoading} onTab={(tab) => set({ tab, cats: null, ...tabDefaults(tab) })} onCats={(cats) => set({ cats })} />
         <Controls q={q} text={text} onText={setText} set={set} filters={filt.data} loading={list.isFetching} />
 
         <div className="mf-bar" id="mf-list">
@@ -200,7 +200,7 @@ export function FundListPage() {
           <p className="mf-count" role="status" aria-live="polite">
             {ready ? (hot.data ? <>The <b>{hot.data.items.length}</b> schemes kept ready for instant opening, from every category.</> : "Loading…")
               : none ? "No category ticked."
-                : d ? <>Showing <b>{d.total.toLocaleString("en-IN")}</b> scheme{d.total === 1 ? "" : "s"}{q.tab === "all" ? "" : " in the chosen categories"}{d.total === 0 ? " (none match)" : ""}</> : "Loading schemes…"}
+                : d ? <>Showing <b>{d.total.toLocaleString("en-IN")}</b> scheme{d.total === 1 ? "" : "s"}{q.tab === "all" ? (q.plan === "" && q.option === "All" ? " · every plan and option" : "") : " in the chosen categories"}{d.total === 0 ? " (none match)" : ""}</> : "Loading schemes…"}
             {!ready && t && !q.stopped && <span className="faint"> · {(t.schemes - t.active).toLocaleString("en-IN")} older schemes have stopped publishing and are hidden</span>}
             {facts?.dataDate && <span className="faint"> · NAVs up to {dateIN(facts.dataDate)}</span>}
           </p>
@@ -221,7 +221,7 @@ export function FundListPage() {
           <div className="card" aria-busy="true"><div className="skeleton" style={{ height: 420 }} /></div>
         ) : d.total === 0 ? (
           <div className="pm-empty mf-empty"><b>No schemes match.</b><p>Try fewer filters or a shorter search. Spaces and small typos do not matter.{q.tab !== "all" && " The search covers the chosen categories only."}</p>
-            {q.tab !== "all" && q.q && <button className="btn primary" onClick={() => set({ tab: "all", cats: null })}>Search every category</button>}{" "}
+            {q.tab !== "all" && q.q && <button className="btn primary" onClick={() => set({ tab: "all", cats: null, ...tabDefaults("all") })}>Search every category</button>}{" "}
             <button className="btn" onClick={() => { setText(""); setSp(new URLSearchParams(), { replace: true }); }}>Clear search and filters</button></div>
         ) : (
           <>
