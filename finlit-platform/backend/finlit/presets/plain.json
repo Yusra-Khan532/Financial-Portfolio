@@ -655,9 +655,9 @@
   }
  },
  "sector-rebound-leaders": {
-  "text": "The strongest stocks of industries that are bouncing back after a sell-off, with a short-term trend that has turned up.",
+  "text": "The strongest stocks of industries that are bouncing back after a broad fall, with a short-term trend that has turned up.",
   "how": [
-   "The industry is Bouncing back or Bouncing back after a crash on Sector Pulse: after a sell-off, most of its stocks turned up together in a short space of time.",
+   "The industry is Bouncing back or Bouncing back after a crash on Sector Pulse: after a broad fall, most of its stocks turned up together in a short space of time.",
    "The company is in the top quarter of its industry by 6-month return, whose short-term technical pillar reads Uptrend or Strong uptrend.",
    "Ordered by the short-term technical pillar, then by Tailwinds."
   ],
@@ -665,7 +665,7 @@
    "The sector reading comes from the weekly Sector Pulse and Sector Rotation run; the page says which date it is from."
   ],
   "about": {
-   "shows": "The strongest stocks of industries that are bouncing back after a sell-off, whose own short-term trend has turned up.",
+   "shows": "The strongest stocks of industries that are bouncing back after a broad fall, whose own short-term trend has turned up.",
    "use": [
     "Pulse says how recent the bounce is: a broad bounce from a few sessions ago is a newer reading than one from weeks ago.",
     "Check the long-term technical pillar: a bounce inside a long-term downtrend reads differently from one inside an uptrend.",

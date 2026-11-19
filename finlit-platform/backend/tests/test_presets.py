@@ -55,7 +55,7 @@ def test_registry_shape_names_and_rules():
     tops = [BY_ID[f"highest-rated-{k}"] for k in ("large", "mid", "small")]
     assert all(p.limit == 10 and p.top10 and p.sector_cap == 3 and abs(sum(w for _, w in p.rank_score) - 1.0) < 1e-9 for p in tops)
     assert [p.prism_filters["zrmin"] for p in tops] == [50, 50, 50] and all(p.prism_filters["zmin"] == 65 and p.prism_filters["zqmin"] == 50 for p in tops)
-    assert all(p.limit == 25 for p in live[3:]) and tops[0].card_text.startswith("Large caps with a strong Prism rating")
+    assert all(p.limit == 25 for p in live[3:]) and tops[0].card_text.startswith("Large caps (above ₹50,000 Cr) with a strong Prism rating")   # task 258 (SPEC §5): the card names its range
     assert [p.id for p in live][3:] == ["momentum-leaders", "at-52-week-high", "both-views-positive", "consistent-growers", "emerging-tech", "sector-themes", "quality-fair-price",
                                          "quality-off-highs", "value-with-quality", "low-risk-compounders", "low-volatility", "higher-risk-list", "setup-pre-breakout", "setup-breakout-pullback", "setup-ema9-consolidation", "rating-upgrades",
                                          "strong-results", "dividend-payers", "turnarounds", "rating-downgrades", "institutions-buying", "promoter-buying", "fresh-results", "weak-results",   # task #243 round 3a

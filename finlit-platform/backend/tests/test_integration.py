@@ -81,7 +81,7 @@ async def test_summary_served_with_etag_and_304(api):
     assert again.status_code == 304 and again.content == b""
 
 
-async def test_screener_universe(api):
+async def test_screener_universe(api, store):
     r = await api.get("/api/screener/universe")
     assert r.status_code == 200 and r.headers["cache-control"].startswith("private") and "Cookie" in r.headers["vary"]
     rows = {x["symbol"]: x for x in r.json()["rows"]}
@@ -102,14 +102,13 @@ async def test_screener_universe(api):
         assert (x["nse_sector"] is None) == (x["nse_industry"] is None), x["symbol"]
         if x["nse_industry"]:
             assert sector_of.get(x["nse_industry"]) == x["nse_sector"], x["symbol"]
-    # task #258 (SHARED §1): the three NSE levels from the stored classification, each consistent with NSE's tree (an industry sits in one sector, a sector in one macro sector)
-    from finlit import taxonomy
-    by = taxonomy.tree()["by"]
+    # task #258 (SHARED §1): the three NSE levels come from the stored classification (task #192), exactly as stored; null for a company it does not hold.
+    # (Compared with the table, not with NSE's tree: other test files store made-up classifications in the same test database.)
     assert all({"cls_macro", "cls_sector", "cls_industry"} <= set(x) for x in rows.values())
-    placed = [x for x in rows.values() if x["cls_industry"]]
-    for x in placed:
-        ind = by["industry"][taxonomy.key(x["cls_industry"])]
-        assert ind["sector"] == x["cls_sector"] and ind["macro_sector"] == x["cls_macro"], x["symbol"]
+    async with store.pool.acquire() as conn:
+        held = {x["symbol"]: (x["macro_sector"] or None, x["sector"] or None, x["industry"] or None) for x in await conn.fetch("SELECT symbol, macro_sector, sector, industry FROM company_classification")}
+    for x in rows.values():
+        assert (x["cls_macro"], x["cls_sector"], x["cls_industry"]) == held.get(x["symbol"], (None, None, None)), x["symbol"]
 
 
 async def test_every_section_and_range(api):
