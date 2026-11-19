@@ -36,7 +36,7 @@ export const pfAvatar = (list: PfInfo[], id: string) => (id === "all" ? { ini: "
 
 /** The first section still on screen under the sticky bar, and where it is, so a change above it can be undone by scrolling (B12: "the reader keeps their place"). */
 function anchor() {
-  const head = document.querySelector("header.top")?.getBoundingClientRect().bottom ?? 0, bar = document.querySelector(".eqt-bar")?.getBoundingClientRect().height ?? 0;
+  const head = document.querySelector("header.top")?.getBoundingClientRect().bottom ?? 0, bar = document.querySelector(".sw-host")?.getBoundingClientRect().height ?? 0;
   const lim = Math.max(0, head) + bar + 8;
   for (const e of Array.from(document.querySelectorAll<HTMLElement>("main section, main h2"))) { if (!e.getClientRects().length) continue; const r = e.getBoundingClientRect(); if (r.bottom > lim) return { e, t: r.top }; }
   return null;

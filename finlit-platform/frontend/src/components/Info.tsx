@@ -40,7 +40,7 @@ export function InfoProvider({ children }: { children: ReactNode }) {
       {children}
       <div className="pop" role="tooltip" ref={ref} hidden={!state} onMouseEnter={enter} onMouseLeave={exit}>
         {state && (<>
-          <b>{state.g.label}</b>{state.g.what}
+          <b>{capFirst(state.g.label)}</b>{state.g.what}
           {state.g.lines && <ul className="pop-lines">{state.g.lines.map((l, i) => <li key={i}>{l}</li>)}</ul>}
           {state.g.read && <div className="hr">{state.g.read}</div>}
           {state.g.formula && <div className="fx">{state.g.formula}</div>}
@@ -50,6 +50,10 @@ export function InfoProvider({ children }: { children: ReactNode }) {
     </Ctx.Provider>
   );
 }
+
+/** Task #234: an i button's heading starts with a capital letter ("The Sensitivity tab"). A label may be written to read inside a sentence, as the
+ *  button's spoken name "What is the Sensitivity tab?" does, so only the heading is capitalised. */
+export const capFirst = (s: string | null | undefined) => (s ? s.charAt(0).toLocaleUpperCase("en-IN") + s.slice(1) : "");
 
 /** Show (or, with null, hide) the shared explanation popover next to any element: for triggers that are not the (i) button, such as a table figure. */
 export const useInfoPop = () => useContext(Ctx);

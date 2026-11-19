@@ -29,6 +29,8 @@ const QUICK: { t: string; d: string; icon: string; p: Preset }[] = [
   { t: "Profit milestone", d: "Quarterly net profit above a level", icon: "coins", p: { metric: "q_net_profit", op: "above" } },
 ];
 const METRIC_ICON: Record<string, string> = { price: "rupee", move_abs: "activity", volume_x: "bars", rsi14: "gauge", from_high52: "growth", overall: "quality", pe: "percent", result_soon: "calendar", news_keyword: "notes", promoter_chg: "users", q_net_profit: "coins" };
+/** The channels an alert really uses: never email, which is off (the owner, 19 Nov 2026), even on an alert saved with it before. */
+const shown = (chs: Channel[]) => chs.filter((c) => c !== "email");
 const CH: Record<Channel, [string, string]> = { app: ["bell", "In-app"], email: ["mail", "Email"], browser: ["activity", "Browser"] };
 const STATE = { active: ["Active", "ok"], paused: ["Paused", "mute"], done: ["Triggered", "gold"] } as const;
 type Tab = "mine" | "fired";
@@ -44,7 +46,7 @@ function AlertCard({ a, onPatch, onRemove }: { a: AlertRow; onPatch: (p: { statu
         <Link className="alx-sym" to={`/stocks/${a.symbol}`}><CoLogo symbol={a.symbol} size={20} inline />{a.symbol}</Link>
         <span className={"alx-st " + tone}><i />{label}</span>
         <span className="alx-grow" />
-        <span className="alx-chs" aria-label={"Notifies via " + a.channels.map((c) => CH[c][1]).join(", ")}>{a.channels.map((c) => <span key={c} title={CH[c][1]}><Icon name={CH[c][0]} /></span>)}</span>
+        <span className="alx-chs" aria-label={"Notifies via " + shown(a.channels).map((c) => CH[c][1]).join(", ")}>{shown(a.channels).map((c) => <span key={c} title={CH[c][1]}><Icon name={CH[c][0]} /></span>)}</span>
       </div>
       <h3><span className="alx-ci"><Icon name={METRIC_ICON[a.metric] || "bell"} /></span>{describe(a)}</h3>
       {!ev && (
@@ -104,7 +106,7 @@ function AlertDrawer({ open, onClose, preset }: { open: boolean; onClose: () => 
 }
 
 export function AlertsPage() {
-  useDocTitle("Alerts", "Get told when a price, signal, score, ratio, result or filing crosses the line you set: in the app, by email or in your browser.");
+  useDocTitle("Alerts", "Get told when a price, signal, score, ratio, result or filing crosses the line you set: in the app or in your browser.");
   const { user } = useAuth();
   const { plan, upgrade, toast } = useUI();
   const [params] = useSearchParams();
@@ -138,7 +140,7 @@ export function AlertsPage() {
   return (
     <div className="wrap alx">
       <PageHeader plan="free" title="Alerts" art="calendar" links={["/watchlist", "/holdings", "/results"]}
-        description={<>Get notified when a stock meets your conditions: price, technical, ratio, score or news. You are told in the app, and by email or in your browser if you choose. For information only, not investment advice.</>}
+        description={<>Get notified when a stock meets your conditions: price, technical, ratio, score or news. You are told in the app (the bell), and in your browser if you choose. For information only, not investment advice.</>}
         actions={<div className="alx-ha">
           <span className="alx-used" title={`${plan[0].toUpperCase() + plan.slice(1)} plan`}><b>{used}</b> / {limit} alerts used{plan !== "gold" && used >= limit - 1 && <button className="alx-link" onClick={() => upgrade(plan === "basic" ? "silver" : "gold", "More alerts")}>Get more</button>}</span>
           <button className="btn primary alx-new-btn" onClick={() => setDrawer(true)}><span aria-hidden="true">+</span> Create alert</button>

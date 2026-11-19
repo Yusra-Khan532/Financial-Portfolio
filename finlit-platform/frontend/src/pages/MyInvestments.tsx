@@ -3,7 +3,8 @@
 // inside. It keeps no list of its own: a change on a portfolio page shows here after a refresh. Layout: header, summary row (dark box + one tile per kind),
 // four tabs (All together · Equity · Mutual funds · ETFs), the numbered sections bar of the open tab, then "What this means, in short", the disclaimer,
 // the FAQ and the sources. Plans: Silver and Gold (shares with FinLit IQ on Silver, FinLit Prism on Gold; Mutual Fund Score on Gold). Describes; never advises.
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router";
 import { Gate } from "../components/Gate";
 import { StepsBar, type MenuGroup, type Step } from "../components/StepsBar";
@@ -11,7 +12,12 @@ import { nf } from "../lib/format";
 import { usePortfolio } from "../lib/portfolio";
 import { useDocTitle } from "../lib/title";
 import { useUI } from "../lib/ui";
-import { KINDS, KIND_NAME, KIND_TAB, MODEL_NAME, betaTxt, chg, dateShort, joinWords, kindsHeld, lower, pctOf, rupees, splitLine, useAllInvestments, type AllInvestments, type Kind, type Tab } from "../lib/myInvest";
+import { KINDS, KIND_NAME, KIND_TAB, MODEL_NAME, betaTxt, chg, dateShort, joinWords, kindsHeld, lower, moneyByKind, pctOf, rupees, splitLine, useAllInvestments, type AccountPick, type AllInvestments, type Kind, type KindMoney, type Tab } from "../lib/myInvest";
+import { apiGet } from "../lib/api";
+import { DEFAULT_PF, type Holding, type Portfolio } from "../lib/portfolio";
+import { PortfoliosBar } from "../portfolio/Portfolios";
+import { StickySwitch, VIEW_ICON, ViewTabsKit, type ViewDef } from "../portfolio/ViewKit";
+import "../portfolio/holdings-kit.css";
 import { ALL_SECTIONS, AllTogether } from "../myinvest/AllTogether";
 import { EQ_SECTIONS, ETF_SECTIONS, EquityTab, EtfTab, MF_SECTIONS, MfTab } from "../myinvest/KindTabs";
 import { BandStrip, I } from "../myinvest/parts";
@@ -25,6 +31,22 @@ const TABS: { id: Tab; label: string; sub: string; sections: { id: string; label
   { id: "etf", label: "ETFs", sub: "What they track, cost and how close to value", sections: ETF_SECTIONS },
 ];
 const isTab = (v: string | null): v is Tab => TABS.some((t) => t.id === v);
+/** Pack B2 and C3: the four views, each with its colour and icon (All together #134e4a, Equity #0e6471, Mutual funds #9a6b12, ETFs #2f5a9e). */
+const VIEW_LOOK: Record<Tab, [string, ReactNode, string]> = { all: ["#134e4a", VIEW_ICON.pie, "All together"], equity: ["#0e6471", VIEW_ICON.case, "Equity"], mf: ["#9a6b12", VIEW_ICON.pulse, "Mutual funds"], etf: ["#2f5a9e", VIEW_ICON.case, "ETFs"] };
+const VIEWS: ViewDef<Tab>[] = TABS.map((t) => ({ id: t.id, label: t.label, short: VIEW_LOOK[t.id][2], sub: t.sub, color: VIEW_LOOK[t.id][0], icon: VIEW_LOOK[t.id][1] }));
+
+/** Task #235 (pack C3): the accounts from the three portfolio pages, one tab per name (Upstox on the Equity page and Upstox on the ETF page are one account). */
+type Acc = { id: string; name: string; eq: string[]; mf: string | null; etf: string | null };
+function accountsOf(eqPfs: Portfolio[] | undefined, hs: Holding[], mf: Portfolio[] | undefined, etf: Portfolio[] | undefined, d: AllInvestments | undefined): Acc[] {
+  if (!eqPfs?.length && !mf?.length && !etf?.length) return [];   // no named accounts on any page: nothing to pick between
+  const out = new Map<string, Acc>();
+  const put = (p: Portfolio, k: "eq" | "mf" | "etf") => { const key = p.name.trim().toLowerCase(); const a = out.get(key) ?? { id: "a-" + key.replace(/[^a-z0-9]+/g, "-").slice(0, 30), name: p.name.trim(), eq: [], mf: null, etf: null };
+    if (k === "eq") a.eq.push(p.id); else a[k] = p.id; out.set(key, a); };
+  (eqPfs?.length ? eqPfs : hs.length ? [{ id: DEFAULT_PF, name: "My portfolio" }] : []).forEach((p) => put(p, "eq"));
+  (mf?.length ? mf : d?.counts.funds ? [{ id: DEFAULT_PF, name: "My funds" }] : []).forEach((p) => put(p, "mf"));
+  (etf?.length ? etf : d?.counts.etfs ? [{ id: DEFAULT_PF, name: "My ETFs" }] : []).forEach((p) => put(p, "etf"));
+  return [...out.values()];
+}
 
 export function MyInvestmentsPage() {
   useDocTitle("All my investments", "Your shares, mutual funds and ETFs in one place: how much you have, what it is made of, what you really own underneath, how healthy and how risky it is all together. Information only, not investment advice.");
@@ -39,10 +61,23 @@ export function MyInvestmentsPage() {
 
 function Body() {
   const { has } = useUI();
-  const { holdings } = usePortfolio();
-  const q = useAllInvestments(holdings, has("silver"));
-  const d = q.data;
+  const { holdings, portfolios } = usePortfolio();
+  const silver = has("silver");
+  const qAll = useAllInvestments(holdings, silver);
+  const mfB = useQuery({ queryKey: ["mf-portfolio", "book"], queryFn: () => apiGet<{ portfolios: Portfolio[] }>("/api/me/mf-portfolio/book"), enabled: silver, staleTime: 60_000, retry: false });
+  const etfB = useQuery({ queryKey: ["etf-portfolio", "book"], queryFn: () => apiGet<{ portfolios: Portfolio[] }>("/api/me/etf-portfolio/book"), enabled: silver, staleTime: 60_000, retry: false });
+  const accs = useMemo(() => accountsOf(portfolios, holdings, mfB.data?.portfolios, etfB.data?.portfolios, qAll.data), [portfolios, holdings, mfB.data, etfB.data, qAll.data]);
   const [params, setParams] = useSearchParams();
+  const acc = accs.find((a) => a.id === params.get("acc")) ?? null;
+  const pick: AccountPick | null = acc && accs.length > 1 ? { eq: acc.eq, mf: acc.mf ?? "none", etf: acc.etf ?? "none" } : null;
+  const qPick = useAllInvestments(holdings, silver && !!pick, pick);
+  const q = pick ? qPick : qAll;
+  const d = q.data;
+  const hsIn = pick?.eq ? holdings.filter((h) => pick.eq!.includes(h.pf ?? DEFAULT_PF)) : holdings;
+  const money = useMemo(() => (d ? moneyByKind(d, hsIn) : null), [d, hsIn]);
+  const setAcc = (id: string) => setParams((p) => { const n = new URLSearchParams(p); if (id === "all") n.delete("acc"); else n.set("acc", id); return n; }, { replace: true });
+  const accFigs = (id: string) => { const dd = id === "all" ? qAll.data : id === acc?.id ? d : undefined; if (!dd) return { n: -1, now: 0, withQty: 0, gainPct: null };
+    const m = moneyByKind(dd, id === "all" ? holdings : hsIn).all; return { n: m.n, now: m.now, withQty: m.now ? m.n : 0, gainPct: m.full && m.invested ? (m.gain / m.invested) * 100 : null }; };
   const tab: Tab = isTab(params.get("tab")) ? (params.get("tab") as Tab) : "all";
   const [qty, setQty] = useState(false);
   const toTab = (t: Tab, scroll?: string) => {
@@ -53,24 +88,25 @@ function Body() {
   const menu: MenuGroup[] = TABS.map((t) => ({ title: t.label, items: t.sections.map((s, i) => ({ id: s.id, label: `${i + 1} · ${s.label}`, go: () => toTab(t.id, s.id) })) }));
   return (
     <>
-      <Header d={d} loading={q.isLoading} openQty={() => setQty(true)} />
+      <Header d={d} money={money} loading={q.isLoading} openQty={() => setQty(true)} />
+      {accs.length > 1 && <PortfoliosBar readOnly list={accs} cur={acc?.id ?? "all"} onPick={setAcc} figs={accFigs} onAdd={() => {}} onRename={() => null} onRemove={() => {}} noun={["holding", "holdings"]}
+        sub="Every account from your three portfolio pages, by name. Picking one shows only its shares, funds and ETFs. Add, rename or remove an account on its portfolio page." />}
       {q.isLoading && <div className="skeleton mi-skel" aria-busy="true" aria-label="Reading your three lists" />}
       {q.isError && <div className="state" role="alert"><h2>Could not read your investments</h2><p>{q.error?.message || "Please try again in a moment."} <button className="btn" onClick={() => q.refetch()}>Try again</button></p></div>}
       {d && kindsHeld(d).length === 0 && (
         <section className="card mi-empty"><h2>Nothing to read yet</h2><p>Add shares on the <Link to="/holdings">Equity portfolio</Link>, funds on the <Link to="/mf-portfolio">MF portfolio</Link> or ETFs on the <Link to="/etf-portfolio">ETF portfolio</Link>. This page reads the three lists; it keeps no list of its own.</p></section>)}
       {d && kindsHeld(d).length > 0 && <>
-        <Summary d={d} toTab={toTab} openQty={() => setQty(true)} />
-        <div className="mi-tabs" id="mi-tabs" role="tablist" aria-label="All my investments">
-          {TABS.map((t) => <button key={t.id} type="button" role="tab" id={`mi-t-${t.id}`} aria-selected={tab === t.id} aria-controls={`mi-p-${t.id}`} onClick={() => toTab(t.id)}><b>{t.label}</b><small>{t.sub}</small></button>)}
-        </div>
-        <StepsBar key={tab} steps={steps} menu={menu} label={`Sections of ${TABS.find((t) => t.id === tab)?.label}`} />
+        <Summary d={d} money={money} name={acc?.name ?? null} toTab={toTab} openQty={() => setQty(true)} />
+        <div className="mi-tabs-k pfx" id="mi-tabs"><ViewTabsKit defs={VIEWS} view={tab} onView={(t) => toTab(t)} label="All my investments" idp="mi-t" panel={`mi-p-${tab}`} what="everything" /></div>
+        <StepsBar key={tab} steps={steps} menu={menu} label={`Sections of ${TABS.find((t) => t.id === tab)?.label}`}
+          lead={<StickySwitch list={accs.length > 1 ? accs : []} cur={acc?.id ?? "all"} onPick={setAcc} figs={accFigs} defs={VIEWS} view={tab} onView={(t) => toTab(t)} tabsId="mi-tabs" noun={["holding", "holdings"]} />} />
         <div role="tabpanel" id={`mi-p-${tab}`} aria-labelledby={`mi-t-${tab}`} className="mi-panel">
-          {tab === "all" && <AllTogether d={d} toTab={toTab} openQty={() => setQty(true)} />}
+          {tab === "all" && <AllTogether d={d} money={money} toTab={toTab} openQty={() => setQty(true)} />}
           {tab === "equity" && <EquityTab d={d} />}
           {tab === "mf" && <MfTab d={d} />}
           {tab === "etf" && <EtfTab d={d} />}
         </div>
-        <InShort d={d} />
+        <InShort d={d} money={money} />
         {(d.unknown.length > 0 || d.gone.length > 0) && <p className="mi-small mi-note">{d.unknown.length > 0 && <>Not read: {d.unknown.join(", ")} (not a company FinLit lists). </>}{d.gone.length > 0 && <>No longer listed: {d.gone.join(", ")}.</>}</p>}
       </>}
       <details className="card mi-fold"><summary><span><b>Disclaimer</b><small>What this page is, and is not</small></span><span className="mi-chev" aria-hidden="true" /></summary>
@@ -82,7 +118,7 @@ function Body() {
   );
 }
 
-function Header({ d, loading, openQty }: { d?: AllInvestments; loading: boolean; openQty: () => void }) {
+function Header({ d, money, loading, openQty }: { d?: AllInvestments; money: Record<Kind | "all", KindMoney> | null; loading: boolean; openQty: () => void }) {
   const [imp, setImp] = useState(false);
   return (
     <header className="card mi-head">
@@ -98,20 +134,22 @@ function Header({ d, loading, openQty }: { d?: AllInvestments; loading: boolean;
           <span className="mi-pop"><button type="button" className="btn" aria-expanded={imp} onClick={() => setImp(!imp)}>Import a broker file</button>
             {imp && <span className="mi-pop-m" role="menu"><Link role="menuitem" to="/holdings">Shares: broker file on the Equity portfolio</Link><Link role="menuitem" to="/mf-portfolio?tab=import">Mutual funds: CAS or statement on the MF portfolio</Link><Link role="menuitem" to="/etf-portfolio?tab=import">ETFs: broker file on the ETF portfolio</Link></span>}</span>
         </div>
-        <p className="mi-count" aria-live="polite">{d ? <>{nf(d.counts.shares, 0)} share{d.counts.shares === 1 ? "" : "s"} · {nf(d.counts.funds, 0)} mutual fund{d.counts.funds === 1 ? "" : "s"} · {nf(d.counts.etfs, 0)} ETF{d.counts.etfs === 1 ? "" : "s"} · quantities for {d.quantities.have} of {d.quantities.of}</> : loading ? "Reading your three lists…" : ""}</p>
+        <p className="mi-count" aria-live="polite">{d ? <>{nf(d.counts.shares, 0)} share{d.counts.shares === 1 ? "" : "s"} · {nf(d.counts.funds, 0)} mutual fund{d.counts.funds === 1 ? "" : "s"} · {nf(d.counts.etfs, 0)} ETF{d.counts.etfs === 1 ? "" : "s"} · {money && d.byValue ? `buy prices for ${money.all.full} of ${money.all.n}` : `quantities for ${d.quantities.have} of ${d.quantities.of}`}</> : loading ? "Reading your three lists…" : ""}</p>
         <p className="mi-small">This page reads your three portfolio lists. Add or remove a holding on its own page and it changes here. Nothing is sent to a broker.</p>
       </div>
     </header>
   );
 }
 
-function Summary({ d, toTab, openQty }: { d: AllInvestments; toTab: (t: Tab) => void; openQty: () => void }) {
+function Summary({ d, money, name, toTab, openQty }: { d: AllInvestments; money: Record<Kind | "all", KindMoney> | null; name: string | null; toTab: (t: Tab) => void; openQty: () => void }) {
+  const m = money?.all;
   const kinds = kindsHeld(d), n = kinds.reduce((a, k) => a + d.counts[k], 0);
   return (
     <div className="mi-sum">
       <div className="mi-dark" onClick={() => toTab("all")}>
         <p className="mi-cap">All your investments<I k="All your investments" what="Everything on your three lists together." read={d.byValue ? "The total is quantity × last price or NAV; the 1-year change is on what you hold now." : "Without quantities the split shows each kind counting the same; it is not your money."} /></p>
-        {d.byValue ? <><p className="mi-dark-v">{rupees(d.total ?? 0)}</p><p className="mi-dark-l">{chg(d.chg1y)} over 1 year, on what you hold now</p></>
+        {d.byValue ? <><p className="mi-dark-v">{rupees(d.total ?? 0)}</p>
+          <p className="mi-dark-l">{name ? `${name}: value now. ` : "Value now. "}{m && m.full ? <><span className={m.gain >= 0 ? "x-up" : "x-dn"}>{m.gain >= 0 ? "+" : "−"}{rupees(Math.abs(m.gain))} ({chg((m.gain / m.invested) * 100)})</span> on {rupees(m.invested)} invested{m.full < m.n ? `, ${m.full} of ${m.n} holdings with a buy price` : ""}.</> : null} {chg(d.chg1y)} over 1 year, on what you hold now.</p></>
           : <><p className="mi-dark-v">{n} holdings</p><p className="mi-dark-l">{splitLine(d)}</p></>}
         <div className="mi-stack dark" aria-hidden="true">{kinds.map((k) => <i key={k} className={"k-" + k} style={{ flexGrow: d.cards[k].share }} />)}</div>
         <ul className="mi-dkey">{kinds.map((k) => <li key={k}><i className={"k-" + k} aria-hidden="true" />{pctOf(d.cards[k].share, 0)} {KIND_NAME[k]}{d.byValue && d.cards[k].value != null ? ` · ${rupees(d.cards[k].value!)}` : ""}</li>)}</ul>
@@ -150,11 +188,12 @@ function Tile({ d, k, go }: { d: AllInvestments; k: Kind; go: () => void }) {
   );
 }
 
-function InShort({ d }: { d: AllInvestments }) {
+function InShort({ d, money }: { d: AllInvestments; money: Record<Kind | "all", KindMoney> | null }) {
+  const m = money?.all, share = (k: Kind) => (d.total ? Math.round((d.cards[k].value ?? 0) / d.total * 100) : 0);
   const twice = d.companies.filter((c) => c.held.length > 1), top = twice[0];
   const mix = d.madeOf.rows.filter((r) => r.all > 0).map((r) => `${lower(r.label)} ${pctOf(r.all, 0)}`);
   const lines: [string, string][] = [
-    ["Data", d.byValue ? `Values use your quantities for all ${d.quantities.of} holdings.` : `${splitLine(d)} Quantities for ${d.quantities.have} of ${d.quantities.of}.${d.madeOf.notLoaded.length ? ` ${joinWords(d.madeOf.notLoaded.map((x) => x.name))}: file not loaded yet.` : ""}`],
+    ["Data", d.byValue ? `By value now: shares ${share("shares")}%, mutual funds ${share("funds")}%, ETFs ${share("etfs")}%.${m && m.full ? ` ${m.gain >= 0 ? "+" : "−"}${rupees(Math.abs(m.gain))} (${chg((m.gain / m.invested) * 100)}) on ${rupees(m.invested)} invested; buy prices for ${m.full} of ${m.n}.` : ""}` : `${splitLine(d)} Quantities for ${d.quantities.have} of ${d.quantities.of}.${d.madeOf.notLoaded.length ? ` ${joinWords(d.madeOf.notLoaded.map((x) => x.name))}: file not loaded yet.` : ""}`],
     ["Held twice", twice.length ? `${twice.length} ${twice.length === 1 ? "company is" : "companies are"} held more than one way, led by ${top.symbol ?? top.name} (${pctOf(top.all, 2)} of everything, ${top.held.length} ways).` : "No company is held more than one way."],
     ["Mix", mix.length ? joinWords(mix) + "." : "—"],
     ["Risk", d.risk.beta != null ? `Together Beta ${betaTxt(d.risk.beta)} against the Nifty 500: ${d.risk.band?.toLowerCase()}.${d.risk.largest ? ` ${KIND_NAME[d.risk.largest]} carry ${pctOf(d.risk.parts.find((p) => p.kind === d.risk.largest)?.riskShare, 0)} of the market risk on ${pctOf(d.risk.parts.find((p) => p.kind === d.risk.largest)?.money, 0)} of the money.` : ""}` : d.risk.why ?? "—"],
@@ -169,7 +208,7 @@ const FAQ: [string, string][] = [
   ["Where do the numbers come from?", "Your three portfolio lists and their quantities; NSE closing prices for shares and ETFs; AMFI NAVs and costs for funds; each fund house's monthly portfolio file for what sits inside a fund or ETF; the Nifty 500 from NSE."],
   ["Why do I need quantities?", "Without them FinLit cannot know how much money is in each holding. Until you add them, each kind (shares, funds, ETFs) counts the same and so does each holding inside it, and the page says so. The figures then describe your lists, not your money."],
   ["How are funds and ETFs looked through?", "Each fund's and ETF's latest monthly file lists what it holds. Your share of a company through a fund is your share of that fund times the company's weight in it; the same for ETFs. Every line of each file is counted. A fund or ETF whose file is not loaded yet is named and counted as \"File not loaded yet\"."],
-  ["Why is there no profit or loss here?", "FinLit does not ask what you paid on this page, so it cannot work out a gain against cost. The 1-year change is how what you hold now has moved over the past year. Your gains are on each portfolio page."],
+  ["How is profit or loss worked out?", "From the average buy price of each holding, which you type in on its portfolio page or which comes with a broker file or CAS: gain or loss is value now minus quantity × average buy price. A holding without a buy price is left out of the gain and listed so you can add one. Dividends, charges and taxes are not included. Nothing is sent to your broker."],
   ["Why is a company counted more than one way?", "You can own it directly and also through a fund or an ETF. The company table adds the ways together so you see your real share of it; Held shows D (direct), F (through a fund) and E (through an ETF)."],
   ["Why is the beta against the Nifty 500?", "Shares, funds and ETFs each have their own benchmark on their own pages. To add them up, this page measures every kind against one yardstick, the Nifty 500. Beta together is the sum of each kind's share of money times its beta."],
   ["What does my plan show here?", "Silver: shares read with FinLit IQ, funds and ETFs. Gold: shares read with FinLit Prism, and each fund's Mutual Fund Score."],

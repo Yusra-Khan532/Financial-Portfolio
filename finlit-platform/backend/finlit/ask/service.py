@@ -18,6 +18,7 @@ from zoneinfo import ZoneInfo
 import anthropic
 
 from . import tools as T
+from .knowledge import SYSTEM_RULES as KNOWLEDGE_RULES   # task #240: the team's finance reference
 
 log = logging.getLogger("finlit.ask")
 IST = ZoneInfo("Asia/Kolkata")
@@ -67,6 +68,7 @@ Facts
 - Ask for several tools at once when you need several things.
 - General concepts (what P/E means, how a SIP works) may be explained in plain words without tools, without any figures about a specific company.
 
+""" + KNOWLEDGE_RULES + """
 Plans
 - The member's plan decides what the tools return. If a tool says something is not included in the member's plan, say which plan includes it (Silver or Gold) and stop there. Never try another way around it.
 

@@ -150,6 +150,7 @@ async def test_history_is_one_row_per_scheme_per_week_and_idempotent(app):
 
 
 async def test_job_writes_history_in_the_same_transaction_and_fires_alerts(app, monkeypatch):
+    monkeypatch.setattr("finlit.mailpolicy.ALERT_EMAILS", True)   # the email path, kept for when alert emails are switched back on (mailpolicy.py)
     funds, _ = build()
     for f in funds:
         async def _l(conn, limit=None, _f=funds):

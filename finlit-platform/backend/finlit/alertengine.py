@@ -13,6 +13,7 @@ from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
 
 from .analytics.indicators import ema, rsi
+from . import mailpolicy
 from .auth.mailer import Mailer
 
 log = logging.getLogger("finlit.alertengine")
@@ -248,7 +249,7 @@ async def deliver(conn, mailer: Mailer, site_url: str, user: Dict[str, Any], a: 
     await conn.execute("INSERT INTO notifications (user_id, alert_id, symbol, kind, title, body, link, push) VALUES ($1, $2, $3, 'alert', $4, $5, $6, $7)",
                        user["id"], a["id"], a["symbol"], title, body, link, "browser" in channels)
     prefs = json.loads(user["prefs"]) if isinstance(user["prefs"], str) else (user["prefs"] or {})
-    if "email" in channels and prefs.get("alerts") is not False:
+    if mailpolicy.ALERT_EMAILS and "email" in channels and prefs.get("alerts") is not False:   # alert emails are off (mailpolicy.py)
         subject, text = email_body(title, body, f"{site_url}{link}")
         try:
             await mailer.send(user["email"], subject, text)
