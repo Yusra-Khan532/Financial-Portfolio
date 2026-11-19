@@ -54,12 +54,18 @@ class BookIn(BaseModel):
     lots: List[Lot] = Field(default_factory=list, max_length=MAX_LOTS)
 
 
+def pf_set(pf: Optional[str]) -> Optional[frozenset]:
+    """Task #248: `pf` is one account id, several joined by commas (the dashboard's Showing picker), or None / "all" for every account."""
+    return None if not pf or pf == "all" else frozenset(pf.split(","))
+
+
 def open_units(lots: List[Dict[str, Any]], pf: Optional[str] = None) -> Dict[str, Decimal]:
     """The units still held of each ETF, first in, first out within each account; pf None adds every account. A sale larger than what was held is ignored."""
     out: Dict[str, Decimal] = {}
+    pfs = pf_set(pf)
     groups: Dict[Tuple[str, str], List[Tuple[int, Dict[str, Any]]]] = {}
     for i, l in enumerate(lots):
-        if pf is not None and l["pf"] != pf:
+        if pfs is not None and l["pf"] not in pfs:
             continue
         groups.setdefault((l["symbol"], l["pf"]), []).append((i, l))
     for (sym, _p), rows in groups.items():
@@ -78,9 +84,10 @@ def open_units(lots: List[Dict[str, Any]], pf: Optional[str] = None) -> Dict[str
 def open_cost(lots: List[Dict[str, Any]], pf: Optional[str] = None) -> Dict[str, Optional[Decimal]]:
     """What the units still held of each ETF cost, first in, first out within each account (None when a buy still held has no price). Task #235, C3."""
     out: Dict[str, Optional[Decimal]] = {}
+    pfs = pf_set(pf)
     groups: Dict[Tuple[str, str], List[Tuple[int, Dict[str, Any]]]] = {}
     for i, l in enumerate(lots):
-        if pf is not None and l["pf"] != pf:
+        if pfs is not None and l["pf"] not in pfs:
             continue
         groups.setdefault((l["symbol"], l["pf"]), []).append((i, l))
     for (sym, _p), rows in groups.items():
@@ -118,7 +125,8 @@ async def accounts_of(conn, user_id: str) -> List[Dict[str, Any]]:
 
 
 async def held_in(conn, user_id: str, pf: str) -> List[Dict[str, Any]]:
-    """The ETFs held in one account and their open units there. An ETF with no buys stored (followed, or a quantity from before) belongs to the first account."""
+    """The ETFs held in one account (or several, task #248) and their open units there. An ETF with no buys stored (followed, or a quantity from before)
+    belongs to the first account."""
     lots = await lots_of(conn, user_id)
     units = open_units(lots, pf)
     accs = await accounts_of(conn, user_id)
@@ -131,7 +139,7 @@ async def held_in(conn, user_id: str, pf: str) -> List[Dict[str, Any]]:
             q = units.get(r["symbol"])
             if q is not None and q > 0:
                 out.append({"symbol": r["symbol"], "qty": q.quantize(Decimal("0.0001")), "isin": r["isin"]})
-        elif pf == first:
+        elif first in (pf_set(pf) or ()):
             out.append({"symbol": r["symbol"], "qty": r["qty"], "isin": r["isin"]})
     return out
 

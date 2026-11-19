@@ -21,13 +21,14 @@ import { ScoreRing } from "../ScoreRing";
 
 const signed = (v: number | null | undefined, d = 1) => (v == null ? "—" : `${v > 0 ? "+" : v < 0 ? MINUS : ""}${nf(Math.abs(v), d)}%`);
 
-export function FundsGlance() {
+/** `pf` (task #248): the platforms the dashboard's Showing bar picked ("all", one id, or ids joined by commas). */
+export function FundsGlance({ pf = "all" }: { pf?: string }) {
   const { has } = useUI();
   const silver = has("silver");
-  const q = useMfPortfolio(silver);
+  const q = useMfPortfolio(silver, pf);
   const n = q.data?.count ?? 0;
-  const sp = useMfSpread(silver && n > 0);
-  const rk = useQuery<MfRisk, ApiError>({ queryKey: ["mf-portfolio", "risk", n], queryFn: () => apiGet<MfRisk>("/api/me/mf-portfolio/risk"), enabled: silver && n > 0, staleTime: 5 * 60_000, retry: false });
+  const sp = useMfSpread(silver && n > 0, pf);
+  const rk = useQuery<MfRisk, ApiError>({ queryKey: ["mf-portfolio", "risk", n, pf], queryFn: () => apiGet<MfRisk>("/api/me/mf-portfolio/risk" + (pf === "all" ? "" : `?pf=${encodeURIComponent(pf)}`)), enabled: silver && n > 0, staleTime: 5 * 60_000, retry: false });
   const d = q.data;
   const g = useMemo(() => d ? mfGlance(d.holdings.map((h) => ({ code: h.code, name: h.name, weight: h.weight, r1y: h.returns.r1y, score: h.score.final, label: h.score.label, locked: h.score.locked, parts: h.score.parts })),
     { value: d.summary.score.value, label: d.summary.score.label, locked: d.summary.score.locked }) : null, [d]);
@@ -93,12 +94,13 @@ function MixRing({ g }: { g: EtfGlance }) {
       <text x="80" y="100" textAnchor="middle" className="eg-u">{g.n === 1 ? "ETF" : "ETFs"}</text>
     </svg>);
 }
-export function EtfsGlance() {
+/** `pf` (task #248): the accounts the dashboard's Showing bar picked ("all", one id, or ids joined by commas). */
+export function EtfsGlance({ pf = "all" }: { pf?: string }) {
   const { has } = useUI();
   const silver = has("silver");
-  const q = useEtfPortfolio(silver);
+  const q = useEtfPortfolio(silver, pf);
   const n = q.data?.items.filter((e) => !e.gone).length ?? 0;
-  const rk = useEtfRisk(silver && n > 0, String(n));
+  const rk = useEtfRisk(silver && n > 0, String(n), pf);
   const rkWhy = rk.isError ? "The risk figures could not be worked out just now" : null;
   const g = useMemo(() => (q.data && n ? etfGlance(q.data, rk.data, rkWhy) : null), [q.data, n, rk.data, rkWhy]);
   // no ETFs (or no ETF portfolio on this plan): the short strip

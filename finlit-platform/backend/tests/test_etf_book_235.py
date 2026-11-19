@@ -35,6 +35,7 @@ def test_open_units_first_in_first_out_within_each_account():
     assert book.open_units(lots) == {"NIFTYBEES": Decimal(60), "GOLDBEES": Decimal(0)}
     assert book.open_units(lots, "dhan") == {"NIFTYBEES": Decimal(30)}
     assert book.open_units(lots, "upstox") == {"NIFTYBEES": Decimal(30), "GOLDBEES": Decimal(0)}
+    assert book.open_units(lots, "dhan,upstox") == book.open_units(lots)                   # task #248: several accounts, each FIFO on its own
 
 
 async def test_a_quantity_from_before_reads_as_one_buy_and_saving_the_book_keeps_the_figures(app):  # noqa: F811
@@ -59,6 +60,9 @@ async def test_a_quantity_from_before_reads_as_one_buy_and_saving_the_book_keeps
     assert sorted((i["symbol"], i["qty"]) for i in up["items"]) == [("GOLDBEES", 200.0), ("NIFTYBEES", 20.0)]
     assert (await c.get(URL + "/inside?pf=dhan")).json()["count"] == 1
     assert (await c.get(URL + "?pf=BAD!")).status_code == 422
+    two = (await c.get(URL + "?pf=dhan,upstox")).json()                                     # task #248: the dashboard's Showing picker
+    assert {i["symbol"]: i["qty"] for i in two["items"]} == {"NIFTYBEES": 50.0, "GOLDBEES": 200.0}
+    assert (await c.get(URL + "/risk?pf=upstox,dhan")).status_code == 200 and (await c.get(URL + "/inside?pf=dhan,upstox")).json()["count"] == 2
     b = (await c.get(URL + "/book")).json()
     assert [a["name"] for a in b["portfolios"]] == ["Dhan", "Upstox"] and len(b["lots"]) == 5 and b["lots"][2] == {
         "id": "n3", "symbol": "NIFTYBEES", "pf": "dhan", "side": "sell", "qty": 120.0, "price": 280.0, "date": "2025-08-01"}

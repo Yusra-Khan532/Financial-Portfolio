@@ -6,7 +6,12 @@ import { isPalette, type PaletteId } from "./palettes";
 export type Density = "comfortable" | "compact";
 export type WidgetSize = "quarter" | "third" | "half" | "full";
 export type WidgetPref = { id: string; on: boolean; size: WidgetSize };
-export type Prefs = { palette: PaletteId; density: Density; alerts: boolean; screenAlerts: boolean; profitGap: boolean; rotationCorner: boolean; rotationRank: boolean; digest: boolean; dashboard: WidgetPref[]; /** industries watched from an industry page ("Add to watch"): their Sector Rotation alerts come too */ sectorWatch: string[]; /** which version of the dashboard layout `dashboard` follows (task #195: 2) */ dashV: number };
+export type Prefs = { palette: PaletteId; density: Density; alerts: boolean; screenAlerts: boolean; profitGap: boolean; rotationCorner: boolean; rotationRank: boolean; digest: boolean; dashboard: WidgetPref[]; /** industries watched from an industry page ("Add to watch"): their Sector Rotation alerts come too */ sectorWatch: string[]; /** which version of the dashboard layout `dashboard` follows (task #195: 2) */ dashV: number;
+  /** task #248: which portfolios the dashboard's Step 1 reads, per kind ("all", or portfolio ids) */ dashPortfolios: DashPortfolios };
+export type PfChoice = "all" | string[];
+export type DashPortfolios = { equity: PfChoice; mf: PfChoice; etf: PfChoice };
+const PF_ID = /^[A-Za-z0-9_-]{1,40}$/;
+const pfChoice = (v: unknown): PfChoice => { const ids = Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === "string" && PF_ID.test(x)))].slice(0, 10) : []; return ids.length ? ids : "all"; };
 
 /** Task #195 (dashboard pack, 15 Nov 2026): the dashboard reads as five numbered steps, in this order, on every screen size (they replace the phone's My stocks / Market / News tabs).
  *  A block always sits in its own step; the member's order applies inside a step, and a step whose blocks are all switched off is not shown. */
@@ -50,7 +55,7 @@ export const WIDGETS: { id: string; label: string; nav?: string; blurb: string; 
 /** The layout version this build draws (task #195). A layout saved under an older version is moved to it once (`migrateLayout`). */
 export const DASH_V = 2;
 const defaultLayout = (): WidgetPref[] => WIDGETS.map((w) => ({ id: w.id, on: !w.off, size: w.size }));
-const DEFAULTS: Prefs = { palette: "gold", density: "comfortable", alerts: true, screenAlerts: true, profitGap: true, rotationCorner: true, rotationRank: false, digest: false, dashboard: defaultLayout(), sectorWatch: [], dashV: DASH_V };
+const DEFAULTS: Prefs = { palette: "gold", density: "comfortable", alerts: true, screenAlerts: true, profitGap: true, rotationCorner: true, rotationRank: false, digest: false, dashboard: defaultLayout(), sectorWatch: [], dashV: DASH_V, dashPortfolios: { equity: "all", mf: "all", etf: "all" } };
 
 const KEY = "finlit-prefs-v1";
 const SIZES: readonly WidgetSize[] = ["quarter", "third", "half", "full"];
@@ -83,7 +88,8 @@ export function stepGroups<T extends { id: string }>(blocks: T[]): { step: (type
   return DASH_STEPS.map((step) => ({ step, blocks: blocks.filter((b) => stepOf.get(b.id) === step.n) })).filter((g) => g.blocks.length > 0);
 }
 function normalise(raw: Partial<Prefs> | null | undefined): Prefs {
-  return { palette: isPalette(raw?.palette) ? raw!.palette! : "gold", density: raw?.density === "compact" ? "compact" : "comfortable", alerts: raw?.alerts !== false, screenAlerts: raw?.screenAlerts !== false, profitGap: raw?.profitGap !== false, rotationCorner: raw?.rotationCorner !== false, rotationRank: raw?.rotationRank === true, digest: raw?.digest === true, dashboard: (raw?.dashV ?? 0) >= DASH_V ? normaliseLayout(raw?.dashboard) : migrateLayout(raw?.dashboard), dashV: DASH_V, sectorWatch: [...new Set((Array.isArray(raw?.sectorWatch) ? raw!.sectorWatch : []).filter((x): x is string => typeof x === "string" && /^[a-z0-9][a-z0-9-]{0,79}$/.test(x)))].slice(0, 60) };
+  return { palette: isPalette(raw?.palette) ? raw!.palette! : "gold", density: raw?.density === "compact" ? "compact" : "comfortable", alerts: raw?.alerts !== false, screenAlerts: raw?.screenAlerts !== false, profitGap: raw?.profitGap !== false, rotationCorner: raw?.rotationCorner !== false, rotationRank: raw?.rotationRank === true, digest: raw?.digest === true, dashboard: (raw?.dashV ?? 0) >= DASH_V ? normaliseLayout(raw?.dashboard) : migrateLayout(raw?.dashboard), dashV: DASH_V, sectorWatch: [...new Set((Array.isArray(raw?.sectorWatch) ? raw!.sectorWatch : []).filter((x): x is string => typeof x === "string" && /^[a-z0-9][a-z0-9-]{0,79}$/.test(x)))].slice(0, 60),
+    dashPortfolios: { equity: pfChoice(raw?.dashPortfolios?.equity), mf: pfChoice(raw?.dashPortfolios?.mf), etf: pfChoice(raw?.dashPortfolios?.etf) } };
 }
 function read(): Prefs { try { return normalise(JSON.parse(localStorage.getItem(KEY) || "null")); } catch { return normalise(null); } }
 

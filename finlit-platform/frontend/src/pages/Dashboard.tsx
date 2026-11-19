@@ -32,14 +32,19 @@ import { Buckets, CommoditiesW, DcfW, Locked, Movers, Results, SecondLook } from
 import { SetupChip, useSetup } from "../components/dashboard/Setup";
 import { Customise } from "../components/dashboard/Customise";
 import { DashCardsProvider } from "../components/dashboard/DashCards";
+import { ShowingBar } from "../components/dashboard/ShowingBar";
+import { useDashPick, type PickKind } from "../lib/dashPick";
 import { PageFaqs } from "../components/PageFaqs";
 import "../styles/sectors-pack.css";
 import "../styles/dashboard.css";
 
+/** Task #248: the Step 1 blocks that read the member's portfolios; the Showing bar sits above them when any is on. */
+const PICKED = new Set(["mystocks", "say", "portfolio", "mfglance", "etfglance"]);
+
 export function Dashboard() {
   useDocTitle("Dashboard", "Your FinLit dashboard: your stocks today, the market, results and filings, arranged your way.");
   const { user, ready, seesAll } = useAuth();
-  const { plan } = useUI();
+  const { plan, has } = useUI();
   const p = usePrefs();
   const wl = useWatchlist();
   const mine = useMyCompanies();
@@ -56,13 +61,20 @@ export function Dashboard() {
     for (const s of [...wl.lists.flatMap((l) => l.symbols), ...pf.holdings.map((h) => h.symbol)]) if (!seen.has(s)) { seen.add(s); out.push({ symbol: s, name: bySym.get(s)?.name ?? null }); }
     return out;
   }, [mine.companies, wl, pf.holdings, bySym]);
+  // task #248: Step 1 reads only the portfolios picked in its Showing bar; Steps 2 to 5 keep reading everything followed and held
+  const pick = useDashPick(has("silver"));
+  const followedPick = useMemo<Followed[]>(() => {
+    if (pick.choice.equity === "all") return followed;
+    const keep = new Set([...mine.companies.filter((c) => c.followed).map((c) => c.symbol), ...wl.lists.flatMap((l) => l.symbols), ...pick.holdings.map((h) => h.symbol)]);
+    return followed.filter((f) => keep.has(f.symbol));
+  }, [followed, pick.choice.equity, pick.holdings, mine.companies, wl]);
+  const heldPick = useMemo(() => new Set(pick.holdings.map((h) => h.symbol.toUpperCase())), [pick.holdings]);
+  // task #235: what is left of each share, first in, first out within each portfolio, added across the picked ones (a name only, or a share sold in full, has none)
+  const qtyPick = useMemo(() => { const m = new Map<string, number>(); for (const s of heldPick) { const q = aggOf(pick.holdings, s, "all")?.qty; if (q) m.set(s, q); } return m; }, [pick.holdings, heldPick]);
   const watchSet = useMemo(() => new Set(wl.lists.flatMap((l) => l.symbols)), [wl]);
-  const heldSet = useMemo(() => new Set(pf.holdings.map((h) => h.symbol.toUpperCase())), [pf.holdings]);
   const items = followed.map((f) => bySym.get(f.symbol)).filter((r): r is Row => !!r);
   const caps = useMemo(() => new Map(rows.map((r) => [r.symbol, r.market_cap])), [rows]);
   const oneYear = useMemo(() => new Map(rows.map((r) => [r.symbol, r.return_1y ?? null])), [rows]);   // task #135: the 1 year column
-  // task #235: what is left of each share, first in, first out within each portfolio, added across them (a name only, or a share sold in full, has none)
-  const qty = useMemo(() => { const m = new Map<string, number>(); for (const s of new Set(pf.holdings.map((h) => h.symbol.toUpperCase()))) { const q = aggOf(pf.holdings, s, "all")?.qty; if (q) m.set(s, q); } return m; }, [pf.holdings]);
   const names = useMemo(() => new Map(rows.map((r) => [r.symbol, r.name])), [rows]);
   const symbols = useMemo(() => followed.map((f) => f.symbol), [followed]);
   const setup = useSetup(followed.length, p.palette, plan);
@@ -86,16 +98,17 @@ export function Dashboard() {
     if (RANK[plan] < RANK[w.min]) return <Card id={id} title={w.label}><Locked tier={w.min} label={w.label} /></Card>;
     const legacy = (el: React.ReactNode) => <Card id={id} title={w.label}>{el}</Card>;
     switch (id) {
-      case "mystocks": return <MyStocks followed={followed} loading={loadingFollowed} watch={watchSet} held={heldSet} caps={caps} oneYear={oneYear} qty={qty} />;
-      case "say": return <Signals followed={followed} caps={caps} />;
+      case "mystocks": return <MyStocks followed={followedPick} loading={loadingFollowed} watch={watchSet} held={heldPick} caps={caps} oneYear={oneYear} qty={qtyPick}
+        mfPf={pick.param.mf} etfPf={pick.param.etf} heldIn={pick.heldIn} showing={pick.showing} eqPicked={pick.choice.equity === "all" ? null : pick.param.equity} />;
+      case "say": return <Signals followed={followedPick} caps={caps} />;
       case "market": return <MarketToday />;
       case "snapshot": return <Snapshot rows={rows} loading={loadingRows} />;
       case "sectors": return <Sectors rows={rows} loading={loadingRows} />;
       case "marketread": return <MarketRead rows={rows} loading={loadingRows} />;
       case "flows": return <Flows />;
-      case "portfolio": return <PortfolioGlance held={[...heldSet]} rows={rows} loading={loadingRows} />;
-      case "mfglance": return <FundsGlance />;
-      case "etfglance": return <EtfsGlance />;
+      case "portfolio": return <PortfolioGlance held={[...heldPick]} rows={rows} loading={loadingRows} />;
+      case "mfglance": return <FundsGlance pf={pick.param.mf} />;
+      case "etfglance": return <EtfsGlance pf={pick.param.etf} />;
       case "stress": return <Stress followed={followed} loading={loadingFollowed} />;
       case "heatmap": return <IndexHeatmap rows={rows} loading={loadingRows} />;
       case "resultstoday": return <ResultsToday symbols={symbols} />;
@@ -112,6 +125,7 @@ export function Dashboard() {
       default: return null;
     }
   };
+  const kinds: PickKind[] = has("silver") ? ["equity", "mf", "etf"] : ["equity"];   // the MF and ETF portfolios are Silver and up
   const name = firstName(user.name, user.email);
   const state = idx.data ? marketWhen(new Date(), idx.data.marketOpen, idx.data.asOf ?? null) : [];   // pack 04: "Market opens at 9:15 · Figures from Friday's close"
   const sub = [longDay(), ...state, followed.length ? `You follow ${followed.length} stock${followed.length === 1 ? "" : "s"}` : loadingFollowed ? null : "You follow no stocks yet"].filter(Boolean).join(" · ");
@@ -128,6 +142,7 @@ export function Dashboard() {
       <div className="dsh-grid" id="dsh-grid">
         {groups.map((g) => [
           <StepHeading key={"step-" + g.step.id} id={`dsh-s-${g.step.id}`} n={g.step.n} title={g.step.title} line={g.step.line} />,
+          ...(g.blocks.some((b) => PICKED.has(b.id)) ? [<div key="dsh-show" className="dsh-cell full" data-block="show"><ShowingBar pick={pick} kinds={kinds} /></div>] : []),
           ...g.blocks.map((w) => <div key={w.id} id={`dsh-b-${w.id}`} className={"dsh-cell " + w.size} data-block={w.id}>{body(w.id)}</div>),
         ])}
         {!shown.length && <Card id="empty" title="Nothing to show here"><p className="dsh-note">Every block is switched off. <button type="button" className="dsh-link" onClick={() => setEdit(true)}>Open Customise</button> to turn some on.</p></Card>}
