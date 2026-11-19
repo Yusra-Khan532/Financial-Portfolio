@@ -33,8 +33,9 @@ export const SECTIONS: NavSection[] = [
       i("/score-screener", "Basic stock screener", "Every listed company with its FinLit IQ, filtered by size, sector and score", "quality"),
       i("/advanced-score-screener", "Advanced stock screener", "Every listed company with its FinLit Prism rating: four financial-health parts and two technical views", "layers", { gold: true }),
       i("/query-builder", "Query builder", "Type a rule like P/E < 15, get the companies; save baskets", "notes"),
+      // task #260 (SHARED §6 of the 20 Nov pack): Discover sits after Query builder, with the green New tag and the pack's line
+      i("/discover", "Discover", "Companies by what they are building: themes, filings, sectors", "globe", { newUntil: "2026-12-20" }),
       i("/superinvestors", "Superinvestor portfolios", "What named investors of 1% or more hold, from company filings", "users", { newUntil: "2026-12-17" }),
-      i("/discovery", "Discovery", "Companies by the themes their investor presentations talk about: AI, defence, solar, batteries and more", "globe", { newUntil: "2026-12-19" }),
     ] },
     { title: "Analyse a company", items: [
       i("/research", "Company report", "A report for every listed company: score, financials, ratios", "search"),
@@ -55,7 +56,7 @@ export const SECTIONS: NavSection[] = [
     ] },
   ] },
   { id: "markets", label: "Markets", groups: [{ items: [
-    i("/sectors", "Sector Pulse", "Which NSE industries are in a washout, a rebound or fading", "activity"),
+    i("/sectors", "Sector Pulse", "Which NSE industries are sold off, bouncing back or losing steam", "activity"),   // SHARED §3 (20 Nov pack): the shared Pulse words
     i("/sectors/rotation", "Sector Rotation", "Which NSE industries are pulling ahead of the average industry, and which are falling behind", "activity"),
     i("/fii-dii", "FII & DII flows", "Institutional buying and selling, streaks and history", "bars"),
     i("/macro", "India economy", "Inflation, growth, interest rates and reserves", "activity"),

@@ -31,7 +31,8 @@ SHORT = {"Industrial Manufacturing & Capex": "Manufacturing", "Corporate Catalys
 # The events of "What changed" (signals.py sorts every filing into one): the business ones first, as the pack lists them.
 EVENTS = ("order", "capacity", "partnership", "mna", "fundraise", "rating", "management", "legal")
 NEWS_DAYS = 90
-FILINGS_PER_EVENT = 8
+FILINGS_PER_EVENT = 12      # task #260: the page shows four, then "Show N more"
+FILINGS_PER_THEME = 12
 QUOTES = 2
 
 _PRESS = re.compile(r"^a press release dated [^,]+, \d{4}, titled\s*[\"“']?", re.I)
@@ -106,6 +107,14 @@ def group_slugs(symbols: List[str]) -> Dict[str, str]:
         return {}
 
 
+_SAFE = re.compile(r"^https://([a-z0-9-]+\.)*(nseindia\.(com|in)|bseindia\.com)/", re.I)
+
+
+def safe_link(u: Optional[str]) -> bool:
+    """Only the exchanges' own files are linked from Discover (a filing or a presentation)."""
+    return bool(u) and bool(_SAFE.match(str(u)))
+
+
 def _signal(r: Dict[str, Any], names: Dict[str, str]) -> Dict[str, Any]:
     return {"s": r["symbol"], "n": names.get(r["symbol"]) or r["symbol"], "d": r["item_date"].isoformat(), "e": r["event"],
             "el": S.EVENT_LABEL.get(r["event"], "Other filing"), "t": clean_title(r["title"]), "l": r["link"]}
@@ -145,7 +154,7 @@ async def board(store) -> Dict[str, Any]:
         n, events = ev.get(r["symbol"], (0, {}))
         out_rows.append({"s": r["symbol"], "n": names[r["symbol"]], "th": main, "sec": also, "st": st,
                          "tone": round(float(r["tone"]), 2) if r["tone"] is not None else None, "fc": n or 0,
-                         "ev": {k: v for k, v in events.items() if k in EVENTS}, "mac": c.get("macro_sector"), "ind": c.get("industry"),
+                         "ev": {k: v for k, v in events.items() if k in EVENTS}, "mac": c.get("macro_sector"), "sc": c.get("sector"), "ind": c.get("industry"),
                          "dd": r["doc_date"].isoformat() if r["doc_date"] else None, "pg": r["pages"], "grp": groups.get(r["symbol"])})
 
     # themes: the stored buckets, merged as shown; counts from the rows, so a merged theme adds up
@@ -169,6 +178,8 @@ async def board(store) -> Dict[str, Any]:
                 themes[t]["also"] += 1
 
     efil: Dict[str, List[Dict[str, Any]]] = {}
+    thfil: Dict[str, List[Dict[str, Any]]] = {}
+    theme_by_sym = {r["s"]: r["th"] for r in out_rows}
     seen = set()
     latest: Dict[str, Dict[str, Any]] = {}
     for x in recent:
@@ -183,13 +194,64 @@ async def board(store) -> Dict[str, Any]:
         # name only companies placed on Discover
         if x["event"] in EVENTS and x["symbol"] in names and len(efil.setdefault(x["event"], [])) < FILINGS_PER_EVENT:
             efil[x["event"]].append(sig)
+        # task #260 (SPEC §5.4 "Latest filings in this theme"): event filings of the companies whose MAIN theme it is, never of a company of another
+        # theme that merely names it (task #250)
+        th = theme_by_sym.get(x["symbol"])
+        if th and x["event"] in EVENTS and len(thfil.setdefault(th, [])) < FILINGS_PER_THEME:
+            thfil[th].append(sig)
     for r in out_rows:
         if r["s"] in latest:
             r["lf"] = {k: latest[r["s"]][k] for k in ("d", "el", "t")}
+            if safe_link(latest[r["s"]].get("l")):      # task #260: "Open the filing ↗" opens the exchange's own PDF
+                r["lf"]["l"] = latest[r["s"]]["l"]
 
     return {"updated": last.isoformat() if last else None, "companies": len(out_rows), "read": sum(stat.values()), "days": NEWS_DAYS,
-            "rows": out_rows, "themes": list(themes.values()), "efil": efil, "events": list(EVENTS), "eventsTracked": sorted(set(S.EVENT_LABEL) & set(EVENTS)),
+            "rows": out_rows, "themes": list(themes.values()), "efil": efil, "thfil": thfil, "events": list(EVENTS), "eventsTracked": sorted(set(S.EVENT_LABEL) & set(EVENTS)),
             "caution": K.CAUTION, "method": _method()}
+
+
+async def company(store, symbol: str) -> Optional[Dict[str, Any]]:
+    """Task #260 (SPEC §10, §13): what the company panel needs that the board does not carry. The presentation (date, pages read, its PDF), the words
+    that placed the company, every passage FinLit kept with whether it names the theme and its PDF page (the quote rule of quotes.py, run on the stored
+    evidence and on the presentation's stored page texts), and its filings of the last 90 days with the exchange PDF of each. None when not placed."""
+    from ..ask import docstore
+    from . import quotes as Q
+    sym = symbol.strip().upper()
+    async with store.pool.acquire() as conn:
+        r = await conn.fetchrow("SELECT symbol, primary_bucket, scores, evidence, doc_title, doc_date, doc_link, pages FROM discovery_companies "
+                                "WHERE symbol = $1 AND primary_bucket IS NOT NULL", sym)
+        if not r:
+            return None
+        fil = [dict(x) for x in await conn.fetch(
+            "SELECT symbol, item_date, event, title, link FROM discovery_signals WHERE symbol = $1 AND item_date >= current_date - $2::int "
+            "ORDER BY item_date DESC, feed_id DESC LIMIT 40", sym, NEWS_DAYS)]
+    scores = r["scores"] if isinstance(r["scores"], dict) else (json.loads(r["scores"]) if r["scores"] else {})
+    top = scores.get(r["primary_bucket"]) or {}
+    words = list((top.get("terms") or {}).keys())
+    ev = [str(x) for x in _list(r["evidence"])]
+    pages = await docstore.get_pages(store, r["doc_link"]) if r["doc_link"] else None
+    extra: List[str] = []
+    if pages:
+        pats = [K.PATTERNS[(r["primary_bucket"], t)] for t in words if (r["primary_bucket"], t) in K.PATTERNS]
+        for s in K.sentences("\n\n".join(pages)):
+            if 40 <= len(s) <= 600 and not K.chart_like(s) and any(p.search(s) for p in pats):
+                extra.append(s)
+                if len(extra) >= 24:
+                    break
+    seen = set()
+    filings = []
+    for x in fil:
+        key = (x["item_date"], x["title"])
+        if key in seen:
+            continue
+        seen.add(key)
+        filings.append({"d": x["item_date"].isoformat(), "e": x["event"], "el": S.EVENT_LABEL.get(x["event"], "Other filing"), "t": clean_title(x["title"]),
+                        "l": x["link"] if safe_link(x["link"]) else None})
+    return {"symbol": sym, "theme": theme_of(r["primary_bucket"]), "words": words,
+            "passages": Q.passages(ev, words, pages, extra),
+            "document": {"title": r["doc_title"], "date": r["doc_date"].isoformat() if r["doc_date"] else None, "pages": r["pages"],
+                         "link": r["doc_link"] if safe_link(r["doc_link"]) else None, "pagesKept": bool(pages)},
+            "filings": filings[:12]}
 
 
 def _method() -> str:

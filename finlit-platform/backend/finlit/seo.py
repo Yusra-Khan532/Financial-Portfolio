@@ -45,8 +45,9 @@ PUBLIC: Dict[str, Page] = {
     "companies": Page("All Listed Indian Companies, A to Z | FinLit", "Browse every listed Indian company from A to Z with its sector, and open its financial statements, ratios, peers and ownership. Free to start.",
                       "Listed Indian companies, A to Z", "Every listed Indian company in one alphabetical directory. Pick a letter, then open a company to see its statements, ratios, growth, peers and ownership.", "Companies"),
     "research": Page("Stock Research: Company Reports for Indian Stocks | FinLit", "Browse research on listed Indian companies: statements, ratios, peers, ownership and a plain-English reading of each company's financial health.", "Stock research", "Company reports for listed Indian stocks, built from filings and prices.", "Research"),
-    "discovery": Page("Discovery: Indian Companies by Theme (AI, Defence, Solar, EV) | FinLit", "Listed Indian companies grouped by the themes their own investor presentations talk about: AI, defence, solar, batteries, data centres, EVs, nuclear and drones.",
-                      "Discovery", "Companies grouped by the themes their newest investor presentation talks about, with the stage their own words show, the tone, recent exchange filings and the NSE sector. A keyword mention by itself is not proof of a material business. Information only, not investment advice.", "Discovery"),
+    # task #260: the page's address is /discover (its views and pages under it); /discovery redirects there and is kept out of the index (PRIVATE)
+    "discover": Page("Discover: Indian Companies by What They Build | FinLit", "Listed Indian companies grouped by the themes their own investor presentations talk about: AI, defence, solar, batteries, data centres, EVs and more.",
+                     "Discover", "Companies grouped by what they are building: the theme their newest investor presentation talks about most, the stage their own words show, recent exchange filings, NSE sectors and industries, Sector Rotation and Sector Pulse. A keyword mention by itself is not proof of a material business. Information only, not investment advice.", "Discover"),
     "superinvestors": Page("Superinvestor Portfolios: Named Investors' Stocks | FinLit", "See what named investors own in listed Indian companies: every stake of 1% or more from company filings, its value today, sector split and the year's changes.",
                            "Superinvestor portfolios", "What named investors own, from the companies' own shareholding filings: every public shareholder named with 1% or more in at least two listed companies, with the value of each stake today and what changed over the year. Information only, not investment advice.", "Superinvestor portfolios"),
     "screener": Page("Stock Screener India: Filter Stocks by Ratio | FinLit", "Screen listed Indian stocks by more than 170 ratios and scores, save your screens and see why each company passes. Free to start.", "Stock screener for Indian stocks", "Filter every listed Indian company by ratios, growth, size and score.", "Stock screener"),
@@ -90,7 +91,8 @@ PUBLIC: Dict[str, Page] = {
 # Pages a visitor reaches only after signing in, or that have no content of their own: kept out of search results.
 PRIVATE = ("account", "dashboard", "console", "admin", "login", "verify-email", "forgot-password", "reset-password", "watchlist", "holdings", "mf-portfolio", "etf-portfolio", "my-investments", "alerts", "baskets",
            "query-builder", "premium", "portfolio", "feedback", "forum", "graphs", "advanced-score-screener", "outlook", "results/quarter", "funds/screener", "funds/compare",
-           "funds/insights", "etfs/compare", "etfs/compare-index-funds", "sectors/rotation", "sectors/capital-goods", "research/stress-lab", "reverse-valuation")
+           "funds/insights", "etfs/compare", "etfs/compare-index-funds", "sectors/rotation", "sectors/capital-goods", "research/stress-lab", "reverse-valuation",
+           "discovery")      # task #260: the old address of Discover, now a redirect to /discover
 # Addresses that carry a value in the last part and are answered with a generic head (their content is checked in the app).
 PARAM_PREFIXES = ("funds", "etfs", "prism", "sectors", "blog", "legal", "outlook", "premium/report", "graphs/advanced", "account", "forum", "research/stress-lab", "superinvestors")
 
@@ -115,6 +117,8 @@ def is_known(path: str) -> Optional[bool]:
         return None
     if p.startswith("companies/"):
         return None if p.count("/") == 1 and p.split("/")[1] in DIR_LETTERS else False
+    if p.startswith("discover/") and 1 <= p.count("/") <= 3:     # task #260: /discover/themes/<slug>, /discover/sectors/<macro>/<sector> ...
+        return True
     return any(p.startswith(x + "/") and p.count("/") == x.count("/") + 1 for x in PARAM_PREFIXES)
 
 
