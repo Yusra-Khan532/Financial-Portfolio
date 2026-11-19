@@ -315,7 +315,20 @@ async def listing(request: Request):
             card["first"] = _first3(p, cached, table)
             if joined is not None and p.kind != "gainers" and cached.get("asOf"):
                 card["joined"] = joined.get((p.id, engine.chip_key([c.id for c in p.chips if c.default]), str(cached["asOf"])[:10]), 0)
-    return _json({"tab": tab, "asOf": as_of, "groups": [{"id": g, "name": n, "featured": g in FEATURED_GROUPS, "presets": by_group[g]} for g, n in GROUPS if by_group[g]]})
+    return _json({"tab": tab, "asOf": as_of, "groups": [{"id": g, "name": n, "featured": g in FEATURED_GROUPS, "presets": by_group[g], **GROUP_EXTRA.get(g, {})}
+                                                        for g, n in GROUPS if by_group[g]]})
+
+
+# Task #243 (pack v4): the Sectors tab (Advanced only) is new, and has a one-line intro over its cards with an i.
+GROUP_EXTRA: Dict[str, dict] = {"sectors": {
+    "isNew": True,
+    "intro": "Screens that read each company's industry: where it stands on Sector Rotation and Sector Pulse, and how the company compares with its peers.",
+    "about": {"shows": "Sector Rotation places each industry against the average industry: Ahead and gaining, Ahead but slowing, Behind but gaining or Behind and slipping. "
+                       "Sector Pulse reads how many of an industry's stocks are rising: Washout, Thrust C, Thrust CAP, Confirmed or Fading. "
+                       "The peer label compares a company with the others in its industry: Leader, In line or Laggard.",
+              "use": ["Pick a screen by the question it answers: leaders in strong industries, the first stocks to rise in weak ones, or setups with the industry behind them.",
+                      "Columns, then Sector reading, adds the same five readings to any Advanced screen.",
+                      "The sector reading comes from a weekly run: the page says which date it is from."]}}}
 
 
 BADGE_GROUPS = ("top-rated", "themes")      # the screens a company page names: the highest-rated lists and the themes (a value or safety screen would read as a verdict on one company)
@@ -385,7 +398,9 @@ def _bar(request: Request) -> dict:
     rating = qp.get("rating") or ("healthy" if qp.get("strong") == "1" else "")
     return {"q": (qp.get("q") or "").strip().lower()[:60], "size": set(qp.getlist("size")), "sector": set(qp.getlist("sector")),
             "rating": rating if rating in ("healthy", "strong") else "", "new": qp.get("new") == "1", "ahead": qp.get("ahead") == "1", "nse": qp.get("nse") == "1",
-            "fno": qp.get("fno") == "1", "liquid": qp.get("liquid") == "1"}
+            "fno": qp.get("fno") == "1", "liquid": qp.get("liquid") == "1",
+            # task #243 (pack v4, Advanced): Industry ahead and gaining, Peer leaders only, and the industry board's chip (an industry's address on Sector Pulse)
+            "sag": qp.get("sag") == "1", "plead": qp.get("plead") == "1", "ind": (qp.get("ind") or "").strip().lower()[:80]}
 
 
 def _tests(f: dict, new_day: Optional[str]) -> Dict[str, object]:
@@ -408,7 +423,35 @@ def _tests(f: dict, new_day: Optional[str]) -> Dict[str, object]:
         t["fno"] = _fno_on
     if f.get("liquid"):
         t["liquid"] = _liquid
+    if f.get("sag"):
+        t["sag"] = _sector_ahead
+    if f.get("plead"):
+        t["plead"] = _peer_leader
+    if f.get("ind"):
+        ind = f["ind"]; t["ind"] = lambda r: r.get("sr_slug") == ind
     return t
+
+
+def _sector_ahead(r: dict) -> bool:
+    return r.get("sr_ag") == 1
+
+
+def _peer_leader(r: dict) -> bool:
+    return r.get("sr_lead") == 1
+
+
+def _board(rows: List[dict], tests: Dict[str, object]) -> List[dict]:
+    """The industry board of a Sectors screen: one chip per industry on the list (after the other filters), with its count, rotation corner and Pulse state.
+    The counts add up to the list; a company with no sector reading is counted under "No sector reading"."""
+    by: Dict[str, dict] = {}
+    for r in rows:
+        if not _passes(r, tests, "ind"):
+            continue
+        slug = r.get("sr_slug") or ""
+        b = by.setdefault(slug, {"slug": slug or None, "name": r.get("sr_industry") or "No sector reading", "n": 0, "corner": r.get("sr_corner"),
+                                 "rotation": (r.get("sr_rotation") or "").split(" · ")[0] or None, "pulse": r.get("sr_pulse"), "pulseCode": r.get("sr_pulse_code")})
+        b["n"] += 1
+    return sorted(by.values(), key=lambda b: (b["slug"] is None, -b["n"], str(b["name"])))
 
 
 LIQUID_CR = 10.0     # pack v4: "Liquid only" = 20-session average value traded of Rs 10 Cr or more
@@ -439,12 +482,13 @@ def _facets(rows: List[dict], tests: Optional[Dict[str, object]] = None, new_day
                 sizes[z] = sizes.get(z, 0) + 1
         if _passes(r, tests, "sector") and r.get("sector"):
             sectors[r["sector"]] = sectors.get(r["sector"], 0) + 1
-    probe = _tests({"q": "", "size": set(), "sector": set(), "rating": "", "new": True, "ahead": True, "nse": True, "fno": True, "liquid": True}, new_day)
+    probe = _tests({"q": "", "size": set(), "sector": set(), "rating": "", "new": True, "ahead": True, "nse": True, "fno": True, "liquid": True, "sag": True, "plead": True, "ind": ""}, new_day)
     n = lambda key, fn: sum(1 for r in rows if _passes(r, tests, key) and fn(r))       # noqa: E731
     return {"sizes": sizes, "sectors": sorted(sectors.items(), key=lambda kv: (-kv[1], kv[0]))[:80],
             "strong": n("rating", _strong), "strongOnly": n("rating", _strong_only), "anyRating": n("rating", lambda r: True),
             "new": n("new", probe["new"]), "ahead": n("ahead", probe["ahead"]), "nse": n("nse", probe["nse"]), "bse": sum(1 for r in rows if _bse_only(r)),
-            "fno": n("fno", probe["fno"]), "liquid": n("liquid", probe["liquid"])}
+            "fno": n("fno", probe["fno"]), "liquid": n("liquid", probe["liquid"]),
+            "sag": n("sag", probe["sag"]), "plead": n("plead", probe["plead"])}
 
 
 def _filtered(request: Request, rows: List[dict], new_day: Optional[str] = None) -> List[dict]:
@@ -461,9 +505,13 @@ def _page(request: Request, body: dict) -> dict:
     avail = body.get("exportRows") or body["rows"]
     lst = body.get("list") or {}
     new_day = lst.get("date") if lst.get("prev") else None          # the first saved list has no "new": nothing to compare with
-    facets = _facets(avail, _tests(_bar(request), new_day), new_day)
+    tests = _tests(_bar(request), new_day)
+    facets = _facets(avail, tests, new_day)
+    board = _board(avail, tests) if BY_ID.get(str(body.get("id"))) is not None and BY_ID[str(body["id"])].group == "sectors" else None
     avail = _filtered(request, avail, new_day)
     body = {**body, "facets": facets, "filtered": len(avail)} if len(avail) != len(body.get("exportRows") or body["rows"]) or facets else body
+    if board is not None:
+        body = {**body, "industryBoard": board}
     offset = _int(request, "offset", 0, 0, engine.EXPORT_MAX)
     limit = _int(request, "limit", body["pageSize"], 1, engine.EXPORT_MAX)
     rows = avail[offset:offset + limit]

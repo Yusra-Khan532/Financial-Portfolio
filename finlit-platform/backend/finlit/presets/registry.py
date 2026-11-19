@@ -381,6 +381,10 @@ STD_ADVANCED = STD_PRICE + (("prism_final", "Prism", "score", "right", "FinLit P
                             ("prism_st_score", "Short term", "score", "right", "Technical views"), ("prism_lt_score", "Long term", "score", "right", "Technical views"))
 STD_RETURNS = (("ret_3m", "3-month return", "pct", "right", "Returns"), ("ret_6m", "6-month return", "pct", "right", "Returns"), ("ret_1y", "1-year return", "pct", "right", "Returns"),
                ("pct_from_high", "Down from 52-week high", "pct_down", "right", "Returns"))
+# Task #243 (pack v4, section 3): Columns ▾ → Sector reading on every Advanced screen (off by default; the Sectors screens open with it on). Words to read, each sorts.
+STD_SECTOR = (("sr_industry", "Industry", "text", "left", "Sector reading"), ("sr_rotation", "Rotation", "text", "left", "Sector reading"),
+              ("sr_pulse", "Pulse", "text", "left", "Sector reading"), ("sr_peer", "Vs peers", "text", "left", "Sector reading"),
+              ("sr_tailwinds", "Tailwinds", "text", "right", "Sector reading"))
 IDENTITY_KEYS = ("rank", "name", "sector")
 B_BASE = (RANK, STOCK, FINLIT, B_TECH)
 B_TAIL = (R3M, R6M, R1Y, W52, SECTOR, MCAP)
@@ -586,6 +590,40 @@ NEW_BASIC: List[Preset] = [
 PRESETS = PRESETS + NEW_ADV
 BASIC = BASIC + NEW_BASIC
 
+# ------------------------------------------------------------------------------------------------------------------------------ Sectors (task #243, pack v4, Advanced only)
+# Built on the site's own Sector Rotation corners, Sector Pulse states and leader flags, and the peer labels, as the live sector release holds them (presets/sectorread.py
+# puts the sr_* fields on each company). A company outside every counted group has no reading and fails these rules: it is never guessed.
+C_SFLAG = Col("sr_flag", "Leader flag", "text", "left")
+C_SQ = Col("sr_q6m_name", "Place in its industry by 6-month return", "text", "left")
+C_SR4 = Col("sr_rank_4w", "Industry ranks climbed in 4 weeks", "num1")
+C_SSET = Col("sr_setups", "List it is on", "text", "left")
+R_SEC_LEADING = ("sr_ag = 1 or sr_up = 1", "Industry Ahead and gaining on Sector Rotation, or in Thrust C, Thrust CAP or Confirmed on Sector Pulse")
+R_SEC_LEADER = ("sr_lead = 1", "Peer label Leader")
+SECTOR_ADV: List[Preset] = [
+    _new("sector-leaders-leading", "Leaders in leading sectors", "sectors", "advanced",
+         (("sr_ag = 1", "Industry Ahead and gaining on Sector Rotation"), R_SEC_LEADER, ("prism_lt_score >= 20", "Long-term technical pillar +20 or more")),
+         (("sr_tailwinds", "desc"), ("prism_lt_score", "desc")), (), _m()),
+    _new("sector-rebound-leaders", "Rebound leaders", "sectors", "advanced",
+         (("sr_thrust = 1", "Industry in Thrust C or Thrust CAP on Sector Pulse"), ("sr_q6m = 1", "Top quarter of its industry by 6-month return"),
+          ("prism_st_score >= 20", "Short-term technical pillar +20 or more")),
+         (("prism_st_score", "desc"), ("sr_tailwinds", "desc")), (C_SQ,), _m()),
+    _new("sector-early-leaders", "Early leaders in weak sectors", "sectors", "advanced",
+         (("sr_flagged = 1", "A Sector Pulse leader flag: a 52-week closing high while its industry is still well below its own high (Full flag or Early flag)"),),
+         (("sr_tailwinds", "desc"), ("prism_st_score", "desc")), (C_SFLAG,), _m()),
+    _new("sector-setups-behind", "Setups with the sector behind them", "sectors", "advanced",
+         (("sr_on_setup = 1", "On one of the 3 Setups or 11 Chart patterns lists tonight"), R_SEC_LEADING),
+         (("sr_tailwinds", "desc"), ("prism_st_score", "desc")), (C_SSET,), _m()),
+    _new("sector-turning-up", "Leaders in sectors turning up", "sectors", "advanced",
+         (("sr_bg = 1", "Industry Behind but gaining on Sector Rotation"), R_SEC_LEADER, ("prism_st_score >= 20", "Short-term technical pillar +20 or more")),
+         (("sr_rank_4w", "desc"), ("prism_st_score", "desc")), (C_SR4,), _m()),
+    _new("sector-results-leading", "Strong results in leading sectors", "sectors", "advanced",
+         (("res_fresh = 1", "Results declared in the last week, with numbers loaded"), ("res_rank >= 4", "The Latest results page reads the quarter as Strong or Good"),
+          R_SEC_LEADER, R_SEC_LEADING),
+         (("res_rank", "desc"), ("res_profit_yoy", "desc")), (C_RD, C_RV, C_RS, C_RP, C_RN), _m()),
+]
+SECTOR_IDS = tuple(p.id for p in SECTOR_ADV)
+PRESETS = PRESETS + SECTOR_ADV
+
 # Top gainers (Today, This week, This month): companies our screens listed, ranked by the rise since the day they joined. Stored nightly (presets/history.py).
 GAIN_WIN = (("day", "Today", "Companies that joined a screen of this page at the previous close, ranked by how far the price has risen since."),
             ("week", "This week", "Companies that joined a screen of this page at one of the last 5 closes, ranked by how far the price has risen since."),
@@ -627,6 +665,7 @@ ADVANCED = [p for p in PRESETS if p.tab != "basic"]
 ALL: List[Preset] = PRESETS + QUICK_VIEWS
 BY_ID: Dict[str, Preset] = {p.id: p for p in ALL}
 NEW_ADV, NEW_BASIC = [BY_ID[p.id] for p in NEW_ADV], [BY_ID[p.id] for p in NEW_BASIC]     # with their plain words
+SECTOR_ADV = [BY_ID[p.id] for p in SECTOR_ADV]     # task #243 round 3b: with their plain words
 
 
 def render_card(p: Preset, n: Optional[int] = None) -> str:

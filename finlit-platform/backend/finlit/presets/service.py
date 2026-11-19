@@ -13,7 +13,7 @@ import orjson
 from .. import prism_screen
 from ..prism_candles import expected_session
 from ..screener.data import get_table
-from . import derive, engine, history as hist_mod, industry as ind_mod, patterns as pat_mod, theme_map, themes
+from . import derive, engine, history as hist_mod, industry as ind_mod, patterns as pat_mod, sectorread, theme_map, themes
 from .registry import ALL, REGISTRY_VERSION, Preset
 
 log = logging.getLogger("finlit.presets")
@@ -51,6 +51,8 @@ async def build_frame(store, persist: bool = False, now: Optional[datetime] = No
     await _score_moves(store, prism, as_of, {s: table.cols["overall"][i] for s, i in table.pos.items()} if "overall" in table.cols else {})
     for sym, f in (await _recent_results(store, as_of)).items():
         prism.setdefault(sym, {}).update(f)
+    reading = sectorread.load()          # task #243 (pack v4): the Sector reading, from the live Sector Pulse and Rotation release (the job runs on weekend nights)
+    sectorread.mark(prism, reading)
     clean = ind_mod.derive(zip(table.symbols, table.industry), overrides)
     nse = nse_industries()
     industry = {s: nse[s] for s in table.symbols if s in nse}      # NSE industry, one level (task 64, fix 6); the site's own cleaned label is still stored in industry_clean
@@ -59,6 +61,7 @@ async def build_frame(store, persist: bool = False, now: Optional[datetime] = No
     ev = themes.evaluate(table, themes.by_nse_industry(table, industry), themes.history_from_rows(hist_rows))      # grouped by the 58 NSE industries (fix 6)
     fr = engine.Frame(table, prism, as_of, tags, industry, ev, listed=listed)
     fr.history_days = history_days
+    fr.sector_dates = {"sectors": (reading or {}).get("date"), "rotation": (reading or {}).get("rotationDate")}
     fr.patterns = await pat_mod.load(store)          # the nightly chart-pattern run (None until the first one has been made)
     if persist:
         await _persist(store, fr, clean, ev, pos)
