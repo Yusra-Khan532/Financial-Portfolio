@@ -187,34 +187,42 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
         yield sse("meta", {**quota.status(cap, n, month), "cached": False})
         # The company of the page, and the companies the question names: their cards first (what the page shows, as this member), so the model
         # starts with the facts whatever the wording, and answers in one round.
-        named = await companies.named_in(gw, question, 2, skip=body.symbol) if kind == "question" else []
+        try:
+            named = await companies.named_in(gw, question, 2, skip=body.symbol) if kind == "question" else []
+        except Exception:          # task #254 rework: the company list unreadable means none named, never a failed answer
+            log.warning("ask: the companies the question names could not be read", exc_info=True)
+            named = []
         want = ([body.symbol] if body.symbol else []) + named
-        cards: List[str] = []
         for sym in want[:2]:
             yield sse("status", {"text": tools.label("get_company_card", {"symbol": sym})})
-        # Task #255: a question about what a company's own document says (its investor presentation, call transcript, annual report, its guidance or
-        # plans) reads that document now, beside the cards, so the answer always starts from the document. The company the question names comes
-        # first, then the page's company; with no company there is nothing to read.
-        # Task #254: the right document for the question (a call transcript, an annual report, a results filing or the presentation), and both when
-        # the question compares two of them; the period the question names goes with it.
-        doc_kinds = service.document_intents(question) if kind == "question" else []
-        doc_sym = (named or ([body.symbol] if body.symbol else []) or [None])[0]
-        doc_reads = [{"symbol": doc_sym, "document": k, "question": question[:200]} for k in doc_kinds] if doc_sym else []
-        for d in doc_reads:
-            yield sse("status", {"text": tools.label("read_company_document", d)})
-        jobs = [tools.run(gw, "get_company_card", {"symbol": s}) for s in want[:2]] + [tools.run(gw, "read_company_document", d) for d in doc_reads]
-        got = await asyncio.gather(*jobs)
-        doc_res = got[len(got) - len(doc_reads):] if doc_reads else []
-        got = got[: len(got) - len(doc_reads)]
+        got = await asyncio.gather(*[tools.run(gw, "get_company_card", {"symbol": s}) for s in want[:2]])
         cards = [g["text"] for g in got if not g["error"]]
         card = "\n".join(cards) or None
-        # Task #253: the kind of question (the economy, a company's financials, daily news, a term, valuation, rules, funds, a sector) decides which
-        # of FinLit's tools come first and which of the team's sites the web search keeps to. The AI summary is about the page's company only.
+        # Task #253: the kind of question (a company, the economy, a company's financials, daily news, a term, valuation, rules, funds, a sector)
+        # decides which sources come first and which of the team's sites the web search keeps to. The AI summary is about the page's company only.
         kinds = routing.classify(question, named_company=bool(named), on_company_page=bool(body.symbol)) if kind == "question" else []
+        # Task #255 / #254: a question about what a company's own document says reads that document now. Task #254 rework (the owner, 19 Nov
+        # 2026): any question about a company reads its newest presentation, results filing and call transcript first, in that order, each bounded
+        # to its best pages; a question about its issues, risks or health also reads FinLit Prism and the ownership changes. The company the
+        # question names comes first, then the page's company; with no company there is nothing to read.
+        doc_kinds = service.company_documents(question, kinds) if kind == "question" else []
+        doc_sym = (named or ([body.symbol] if body.symbol else []) or [None])[0]
+        lens = question
+        if doc_sym and service.bank_like(got[want.index(doc_sym)]["text"] if doc_sym in want[:2] and not got[want.index(doc_sym)]["error"] else None):
+            lens = f"{question[:150]} {pages.BANK_TERMS}"          # a bank, an NBFC or an insurer is read for its own measures
+        doc_reads = [{"symbol": doc_sym, "document": k, "question": lens[:200], "max_chars": c}
+                     for k, c in zip(doc_kinds, service.document_shares(doc_kinds, lens != question))] if doc_sym else []
+        extra: List[Any] = []
+        if doc_sym and "company" in kinds and service.ISSUE_WORDS.search(question):
+            extra = [("get_finlit_prism", {"symbol": doc_sym}), ("get_company_section", {"symbol": doc_sym, "section": "ownership_insights"})]
+        for d in doc_reads:
+            yield sse("status", {"text": tools.label("read_company_document", d)})
+        reads = [("read_company_document", d) for d in doc_reads] + extra
+        res = await asyncio.gather(*[tools.run(gw, n, a) for n, a in reads]) if reads else []
         messages = service.build_messages([t.model_dump() for t in body.history], question, body.symbol, plan_key(ctx), card, routing.note(kinds))
-        prefetched = [("read_company_document", d) for d in doc_reads]
+        prefetched = list(reads)
         if prefetched:
-            service.with_prefetches(messages, [("read_company_document", d, r) for d, r in zip(doc_reads, doc_res)])
+            service.with_prefetches(messages, [(n, a, r) for (n, a), r in zip(reads, res)])
         result: Optional[Dict[str, Any]] = None
         err: Optional[Dict[str, str]] = None
         task = asyncio.create_task(service.answer(client_for(st.anthropic_api_key), st.ask_model, gw, messages, emit, prefetched,
