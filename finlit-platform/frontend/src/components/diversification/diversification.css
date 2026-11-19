@@ -168,3 +168,14 @@
 .dv-chips button.off { border-color: var(--border-strong); background: transparent; color: var(--muted); }
 .dv-try.on { border-color: var(--border-strong); }
 .dv-try:hover { border-color: var(--gold); }
+/* Task #181 rework 2 (team, 19 Nov: "still too much" of the site hue "and still ui issue persists"). The accent bar beside the title takes the site's gold;
+   in dark mode every box, line and chip inside the card is a neutral grey over the card (the card itself stays as the boxes above it); the names in the
+   list are plain tags (no border, small radius), so none of them reads as a selected button. */
+.dv-head > div:first-child { border-left-color: var(--gold); }
+:root[data-theme="dark"] .dv { --bg-subtle: rgba(255, 255, 255, .035); --dv-line: rgba(255, 255, 255, .10); --border-strong: rgba(255, 255, 255, .18); --border-control: rgba(255, 255, 255, .18); }
+:root[data-theme="dark"] .dv-cur, :root[data-theme="dark"] .dv-cur-n, :root[data-theme="dark"] .dv-try { border-color: rgba(255, 255, 255, .14); }
+:root[data-theme="dark"] .dv-cur-n { background: rgba(255, 255, 255, .05); }
+.dv-chips button { border-color: transparent; border-radius: 8px; background: var(--s1); }
+:root[data-theme="dark"] .dv-chips button { background: rgba(255, 255, 255, .06); }
+.dv-chips button:hover { border-color: var(--border-strong); }
+.dv-chips button.off { border-color: var(--border-strong); background: transparent; }
