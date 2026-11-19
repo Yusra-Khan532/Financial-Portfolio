@@ -30,12 +30,7 @@ const fmtDate = (d: string | null) => (d ? new Date(d + (d.length === 10 ? "T00:
 /** Only the exchanges' own archive links are opened from here (the backend reads nothing else either). */
 const safeDoc = (u: string | null) => !!u && /^https:\/\/([a-z0-9-]+\.)*(nseindia\.(com|in)|bseindia\.com)\//i.test(u);
 const plural = (n: number, one: string, many = one + "s") => `${n.toLocaleString("en-IN")} ${n === 1 ? one : many}`;
-const toneWord = (t: number) => (t > 0 ? "positive" : t < 0 ? "negative" : "neutral");
 const STAGE_CLASS: Record<string, string> = { Operating: "op", "Under execution": "ex", Planned: "pl", "MoU / pilot": "mou" };
-
-function ToneDot({ t }: { t: number }) {
-  return <span className={"aid-dot aid-" + toneWord(t)} role="img" aria-label={`Tone: ${toneWord(t)}`} />;
-}
 
 function FilingsLine({ f }: { f: { filings?: number; count?: number; positive: number; negative: number } }) {
   const n = f.filings ?? f.count ?? 0;
@@ -123,10 +118,6 @@ export function AskDiscovery({ onLeave }: { onLeave?: () => void }) {
         </ul>
         {(t.alsoMentions?.length ?? 0) > 0 && <><p className="aif-label">Also mention {theme}</p>
           <p className="aid-also">{t.alsoMentions!.map((c, i) => <span key={c.symbol}>{i ? ", " : ""}<Link to={`/stocks/${encodeURIComponent(c.symbol)}`} onClick={onLeave}>{c.company ?? c.symbol}</Link> <small>(main theme: {c.primary}; {c.stageLabel.toLowerCase()})</small></span>)}</p></>}
-        {(t.recentFilings?.length ?? 0) > 0 && <><p className="aif-label">Exchange filings that name {theme} (90 days)</p>
-          <ul className="aid-fil" aria-label={`Filings: ${theme}`}>{t.recentFilings!.map((f, i) => <li key={i}>
-            <ToneDot t={f.tone} /><span><b>{f.company ?? f.symbol}</b> · {f.eventLabel} · {fmtDate(f.date)}{f.stage ? ` · ${f.stage}` : ""}
-              <small>{safeDoc(f.link) ? <a href={f.link!} target="_blank" rel="noopener noreferrer">{f.title}</a> : f.title}</small></span></li>)}</ul></>}
         {(t.verify?.length ?? 0) > 0 && <details className="aid-verify"><summary>What to verify in the presentation</summary><ul>{t.verify!.map((v) => <li key={v}>{v}</li>)}</ul></details>}
       </>}
       <p className="aid-note"><Icon name="info" /> {caution}</p>

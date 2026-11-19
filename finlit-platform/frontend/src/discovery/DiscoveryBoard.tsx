@@ -209,9 +209,6 @@ export function ThemeView({ d, theme, sector, go }: { d: Discovery; theme: strin
         {list.length > limit && <p className="dsb-more"><button type="button" onClick={() => setLimit(limit + COMPANIES_SHOWN * 2)}>Show {Math.min(COMPANIES_SHOWN * 2, list.length - limit)} more</button></p>}
         {(t.alsoMentions?.length ?? 0) > 0 && <section className="dsb-card dsb-plain"><h3>Also mention {theme}</h3>
           <p className="dsb-also">{t.alsoMentions!.map((c, i) => <span key={c.symbol}>{i ? ", " : ""}<Link to={`/stocks/${encodeURIComponent(c.symbol)}`}>{c.company ?? c.symbol}</Link> <small>(main theme: {c.primary}; {c.stageLabel.toLowerCase()})</small></span>)}</p></section>}
-        {(t.recentFilings?.length ?? 0) > 0 && <section className="dsb-card dsb-plain"><h3>Exchange filings that name {theme}, last 90 days</h3>
-          <ul className="dsb-fil">{t.recentFilings!.map((f, i) => <li key={i}><span className={"dsb-dot " + (f.tone > 0 ? "pos" : f.tone < 0 ? "neg" : "neu")} role="img" aria-label={`Tone: ${f.tone > 0 ? "positive" : f.tone < 0 ? "negative" : "neutral"}`} />
-            <span><b>{f.company ?? f.symbol}</b> · {f.eventLabel} · {fmtDate(f.date)}{f.stage ? ` · ${f.stage}` : ""}<small>{safeDoc(f.link) ? <a href={f.link!} target="_blank" rel="noopener noreferrer">{f.title}</a> : f.title}</small></span></li>)}</ul></section>}
         {(t.verify?.length ?? 0) > 0 && <details className="dsb-card dsb-plain dsb-verify"><summary>What to verify in the presentation</summary><ul>{t.verify!.map((v) => <li key={v}>{v}</li>)}</ul></details>}
       </>}
       <Notes d={one.data ?? d} />

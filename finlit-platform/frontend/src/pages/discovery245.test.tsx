@@ -30,7 +30,8 @@ const ONE = (sector: string | null) => ({ ...ALL, sector, themes: THEMES.map((t)
   stages: { Operating: 1, "Under execution": 1, "Not stated": 1 },
   companies: [CO("BALUFORGE", "Balu Forge Industries Ltd", "Operating", 0.72), CO("ADISOFT", "Adisoft Technologies Ltd", "Under execution", 0.66),
     CO("EPACKPEB", "EPack Prefab Technologies Ltd", "Not stated", null, { filings: { count: 0, positive: 0, negative: 0, events: {} }, document: { title: null, date: null, link: "http://evil.example/x.pdf", pages: null }, keywords: ["Capacity expansion"], evidence: [] })],
-  alsoMentions: [], recentFilings: [], verify: ["Look for capacity figures"] }) });
+  alsoMentions: [], verify: ["Look for capacity figures"],
+  recentFilings: [{ symbol: "HCLTECH", company: "HCL Technologies Ltd", date: "2026-11-17", event: "other", eventLabel: "Other filing", tone: 0, themes: [], stage: null, title: "HCLTech and Cohere partner", link: null }] }) });
 const asked: string[] = [];
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), apiGet: vi.fn(async (p: string) => {
   asked.push(p); const u = new URL(p, "http://x");
@@ -148,6 +149,11 @@ describe("Discovery, one theme (screenshot 2)", () => {
     expect(document.querySelector(".dsb")!.textContent).not.toMatch(/\[[A-Z]+\]|undefined|NaN/);
     fireEvent.click(within(c).getByRole("button", { name: /What they say/ }));
     expect(c.querySelector(".dsb-say")!.textContent).toContain("no sentence with a figure");
+  });
+  it("task #250: the list of exchange filings that name the theme is not shown, even when the server sends one", async () => {
+    await open("/discovery?theme=Industrial+Manufacturing+%26+Capex&sector=Industrials");
+    await waitFor(() => expect(document.querySelector(".dsb-co")).toBeTruthy());
+    expect(document.body.textContent).not.toMatch(/Exchange filings that name|HCLTech and Cohere/);
   });
   it("All themes goes back; the caution stays on every view", async () => {
     await open("/discovery?theme=Industrial+Manufacturing+%26+Capex");
