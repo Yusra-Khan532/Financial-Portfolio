@@ -45,7 +45,7 @@ const Panel = () => { const r = usePresetRoute(); return <PresetPanel route={r} 
 const Page = () => { const r = usePresetRoute(); return r.id ? <PresetPage route={r} basics={<span>basics</span>} /> : <Panel />; };
 const mount = (qs = "") => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={["/advanced-score-screener" + qs]}><Page /><Where /></MemoryRouter></QueryClientProvider>);
 const loc = () => screen.getByTestId("loc").textContent || "";
-const rowSyms = () => within(screen.getByRole("table")).getAllByRole("row").slice(1).map((r) => r.querySelector("b")?.textContent);
+const rowSyms = () => [...screen.getByRole("table").querySelectorAll("tbody tr")].map((r) => r.querySelector("b")?.textContent);   // task #243: three heading rows
 
 describe("grouped panel", () => {
   it("orders the groups as the spec does, the page's Prism views last, and opens the first group", async () => {
@@ -105,10 +105,10 @@ describe("screen view", () => {
     expect(screen.getByText("86 match")).toBeTruthy();
     expect(screen.getByText("showing 3")).toBeTruthy();
     expect(screen.getByText(/as of 31 Oct 2026/)).toBeTruthy();
-    expect(screen.getByText("How this screen works")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "How this screen works ▾" })).toBeTruthy();      // task #243 (P2): in the header, opens the rules
     expect(screen.getByText("A screen narrows a list. It is not a recommendation.")).toBeTruthy();
     expect(screen.getByText("Prism-confirmed")).toBeTruthy();
-    expect(screen.getByRole("link", { name: /AAA/ }).getAttribute("href")).toBe("/stocks/AAA");
+    expect(screen.getAllByRole("link", { name: /AAA/ })[0].getAttribute("href")).toBe("/stocks/AAA");   // the company, then its report
     expect(within(rowOf("BBB")).getAllByLabelText("not available").length).toBe(1);   // a missing value is a dash, not 0
   });
   it("sorts the shown rows client-side, missing values last", async () => {
@@ -137,18 +137,20 @@ describe("screen view", () => {
     expect(calls).toContain("/api/screener/presets/large?chip=trend");
   });
   it("a BSE-only company shows its name with the exchange and code, and NSE-listed only leaves it out", async () => {
-    detail.large = [200, { ...DETAIL, rows: [{ symbol: "AAA", name: "Alpha Ltd", exchange: "NSE", badges: [] }, { symbol: "543914", name: "Delta Small Ltd", exchange: "BSE", badges: [] }] }];
+    detail.large = [200, { ...DETAIL, rows: [{ symbol: "AAA", name: "Alpha Ltd", exchange: "NSE", badges: [] }, { symbol: "543914", name: "Delta Small Ltd", exchange: "BSE", badges: [] }],
+      facets: { sizes: { Large: 2 }, sectors: [], strong: 2, anyRating: 2, new: 0, ahead: 0, nse: 1, bse: 1 } }];
     mount("?preset=large");
     await screen.findByRole("table");
     expect(screen.getByText("Delta Small Ltd")).toBeTruthy(); expect(screen.getByText("BSE only, code 543914")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "NSE-listed only" }));
-    expect(rowSyms()).toEqual(["AAA"]);
+    fireEvent.click(screen.getByRole("button", { name: /More filters/ }));                    // task #243 (P4): NSE-listed only sits in More filters and runs on the server
+    fireEvent.click(screen.getByRole("checkbox", { name: /NSE-listed only/ }));
+    await waitFor(() => expect(calls.at(-1)).toContain("nse=1"));
   });
   it("an empty result says so and lists the closest misses with the rule missed", async () => {
     mount("?preset=debt");
     expect(await screen.findByText("No company meets every rule today.")).toBeTruthy();
     expect(screen.getByText(/Debt to equity above 0.1/)).toBeTruthy();
-    expect(screen.getByText("Closest to qualifying")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /closest to qualifying/i })).toBeTruthy();
     expect(screen.queryByRole("table")).toBeNull();
   });
   it("theme cards filter the table to that theme's leaders", async () => {
@@ -164,7 +166,7 @@ describe("screen view", () => {
   it("an unknown screen id gets a calm message; Clear screen returns to the panel", async () => {
     mount("?preset=nope");
     expect(await screen.findByText("We could not find that screen")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Clear screen" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear screen ✕" }));
     expect(loc()).toBe("/advanced-score-screener");
     expect(await screen.findByRole("button", { name: /Top rated/ })).toBeTruthy();
   });
@@ -177,7 +179,7 @@ describe("screen view", () => {
     expect(screen.queryByRole("table")).toBeNull();
   });
 });
-const rowOf = (s: string) => screen.getByRole("link", { name: new RegExp(s) }).closest("tr")!;
+const rowOf = (s: string) => screen.getAllByRole("link", { name: new RegExp(s) })[0].closest("tr")!;
 
 describe("lib", () => {
   it("orders groups and drops empty ones", () => {
@@ -260,16 +262,16 @@ describe("results page by 25 (issue 30.b)", () => {
     expect(pager.textContent).toMatch(/Showing 1.25 of 60/);
     expect(rowSyms()).toHaveLength(25);
     expect((within(pager).getByRole("button", { name: "Previous 25" }) as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.click(within(pager).getByRole("button", { name: "Show next 25" }));
+    fireEvent.click(within(pager).getByRole("button", { name: "Next 25" }));
     await screen.findByText("Stock 26");
     expect(calls.some((c) => /presets\/large\?offset=25/.test(c) || /offset=25/.test(c))).toBe(true);
     expect(screen.getByRole("navigation", { name: "Pages of this screen" }).textContent).toMatch(/Showing 26.50 of 60/);
-    expect(within(screen.getByRole("table")).getAllByRole("row")[1].querySelector("td")?.textContent).toBe("26");
-    fireEvent.click(screen.getByRole("button", { name: "Show next 10" }));
+    expect(screen.getByRole("table").querySelector("tbody tr td.psx-n")?.textContent).toBe("26");     // the # column (task #243: after the selection box)
+    fireEvent.click(screen.getByRole("button", { name: "Next 25" }));                         // pack P7: "Previous 25 and Next 25"; the last page shows the 10 left
     await screen.findByText("Stock 51");
     const last = screen.getByRole("navigation", { name: "Pages of this screen" });
     expect(last.textContent).toMatch(/Showing 51.60 of 60/);
-    expect((within(last).getByRole("button", { name: /Show next/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect((within(last).getByRole("button", { name: "Next 25" }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(within(last).getByRole("button", { name: "Previous 25" }));
     await screen.findByText("Stock 26");
   });

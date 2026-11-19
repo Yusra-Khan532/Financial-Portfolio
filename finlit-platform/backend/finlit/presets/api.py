@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import csv
 import io
+import logging
 import math
 import re
-from typing import List
+from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Request, Response
 
@@ -16,9 +17,10 @@ from ..auth.service import current
 from datetime import date as _date
 
 from ..screener.data import get_table
-from . import engine, history, service
+from . import engine, history, savedlists, service
 from .registry import ALL, BY_ID, DISCLAIMER, FEATURED_GROUPS, GROUPS, Preset, render_card
 
+log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/screener/presets")
 gainers_router = APIRouter(prefix="/api/screener/gainers")
 API_ONLY = ("exportRows",)
@@ -102,14 +104,46 @@ def _bands_now(cols: List[dict]) -> List[dict]:
 
 
 def _history_columns(cols: List[dict], p: Preset, then: bool) -> List[dict]:
-    """The On this list band: Added and Since added (Since then when a past day is shown), after the standard columns and before This screen's own."""
-    if p.kind in ("themes", "gainers") or any(c["key"] in ("added_on", "since_added_pct", "since_then_pct") for c in cols):
+    """The On this list band (Added, Since added) after the standard columns and before This screen's own, on EVERY date; a past date adds one column, Since then,
+    in its own "After this list" band, and never drops one (task #243, pack P5.1 and L3)."""
+    if p.kind in ("themes", "gainers"):
         return cols
-    extra = [{"key": "added_on", "label": "Added", "format": "date", "align": "left", "band": "On this list"} if not then else None,
-             {"key": "since_then_pct" if then else "since_added_pct", "label": "Since then" if then else "Since added", "format": "since", "align": "right", "band": "On this list"}]
-    extra = [c for c in extra if c]
+    cols = [c for c in cols if c.get("key") not in ("added_on", "since_added_pct", "since_then_pct")]
+    extra = [{"key": "added_on", "label": "Added", "format": "date", "align": "left", "band": "On this list"},
+             {"key": "since_added_pct", "label": "Since added", "format": "since", "align": "right", "band": "On this list"}]
+    if then:
+        extra.append({"key": "since_then_pct", "label": "Since then", "format": "since", "align": "right", "band": "After this list"})
     at = next((n for n, c in enumerate(cols) if c.get("band") == "This screen"), len(cols))          # after the standard columns, before this screen's own
     return cols[:at] + extra + cols[at:]
+
+
+SAVED_KEYS = ("added_on", "lists_on", "added_baseline", "since_added_pct", "price_added", "price_on", "bench_since_added_pct", "since_then_pct", "price_latest", "bench_since_then_pct")
+
+
+async def _saved_figures(store, p: Preset, active: List[str], rows: List[dict], day: _date) -> Optional[dict]:
+    """Task #243 (pack L): Added, Since added (and Since then on a past date) on every row, worked out only from the screen's saved lists (savedlists.py), and the
+    date bar's figures for that day. None when the screen has no saved list for the day."""
+    sl = await savedlists.load(store, p.id, engine.chip_key(active))
+    if day not in sl.days:
+        return None
+    bench = await history._bench(store, _date.today())
+    latest = sl.days[-1]
+    t = None
+    if day != latest:
+        try:
+            t = await get_table(store)
+        except Exception:
+            t = None
+    for r in rows:
+        sym = r.get("symbol")
+        lp = sl.on(latest).get(sym)
+        if lp is None and t is not None and sym in t.pos and "price" in t.cols:      # no longer on the latest list: the latest close
+            v = t.cols["price"][t.pos[sym]]
+            lp = v if v == v else None
+        r.update(savedlists.row_figures(sl, sym, day, lp, bench))
+    j, l, prev = savedlists.joined_left(sl, day)
+    return {"date": day.isoformat(), "latest": latest.isoformat(), "count": sl.counts.get(day, len(sl.on(day))), "joined": len(j) if prev else None,
+            "left": len(l) if prev else None, "prev": prev.isoformat() if prev else None, "first": sl.days[0].isoformat(), "rulesUpdated": bool(sl.rules_changed.get(day))}
 
 
 async def _gainers_body(request: Request, p: Preset) -> dict:
@@ -139,37 +173,32 @@ async def _body(request: Request, p: Preset, active: List[str]) -> dict:
         if snap is None:
             raise fail(404, "no_history", "This screen has no stored list for that day.")
         base = await service.get_result(store, p, active) or {}
-        latest = {}
-        t = await get_table(store)
         for r in snap["rows"]:
-            i = t.pos.get(r["symbol"])
-            latest[r["symbol"]] = t.cols["price"][i] if i is not None and "price" in t.cols and t.cols["price"][i] == t.cols["price"][i] else None
-            c0 = r.pop("_close", None)
-            r["since_then_pct"] = None if not c0 or not latest[r["symbol"]] else round((latest[r["symbol"]] / c0 - 1) * 100, 2)
+            r.pop("_close", None)
+        figs = await _saved_figures(store, p, active, snap["rows"], as_on)
         bench = await history._bench(store, as_on)
-        b0, b1 = history._bench_at(bench, as_on.isoformat()), history._bench_at(bench, _date.today().isoformat())
+        b0, b1 = history._bench_at(bench, as_on.isoformat()), history._bench_at(bench, (figs or {}).get("latest") or _date.today().isoformat())
         out = {**base, "rows": snap["rows"], "exportRows": snap["rows"], "count": snap["count"], "shown": len(snap["rows"]), "asOn": snap["session"],
-               "benchSincePct": history._pct(b0, b1)}
+               "asOf": snap["session"], "benchSincePct": history._pct(b0, b1), "list": figs}      # L1: the date picked, everywhere
         out.pop("listText", None)
         out["columns"] = _bands_now(_history_columns(out.get("columns") or [], p, then=True))
         return out
     body = await service.get_result(store, p, active)
     if body is None:
         raise fail(503, "computing", "This screen is being prepared. Try again in a few seconds.")
-    try:       # Added and Since added on every row (the stored spells; nothing is worked out on the page)
-        t = await get_table(store)
-        latest = {r["symbol"]: (t.cols["price"][t.pos[r["symbol"]]] if r["symbol"] in t.pos else None) for r in (body.get("exportRows") or body.get("rows") or [])}
-        bench = await history._bench(store, _date.today())
+    try:       # Added and Since added on every row, from the saved lists (task #243, pack L); nothing is worked out on the page
         rows = body.get("exportRows") or body.get("rows") or []
-        await history.enrich(store, p.id, engine.chip_key(active), rows, {k: v for k, v in latest.items() if v == v}, bench, _date.fromisoformat(body["asOf"]))
-        if body.get("exportRows") is not None and body.get("rows") is not body["exportRows"]:
-            by = {r["symbol"]: r for r in rows}
-            for r in body.get("rows") or []:
-                if r["symbol"] in by:
-                    r.update({k: by[r["symbol"]][k] for k in ("added_on", "since_added_pct", "bench_since_added_pct") if k in by[r["symbol"]]})
+        figs = await _saved_figures(store, p, active, rows, _date.fromisoformat(str(body["asOf"])[:10]))
+        if figs is not None:
+            body["list"] = figs
+            if body.get("exportRows") is not None and body.get("rows") is not body["exportRows"]:
+                by = {r["symbol"]: r for r in rows}
+                for r in body.get("rows") or []:
+                    if r["symbol"] in by:
+                        r.update({k: v for k, v in by[r["symbol"]].items() if k in SAVED_KEYS})
         body["columns"] = _history_columns(body.get("columns") or [], p, then=False)
     except Exception:
-        pass
+        log.warning("saved-list figures not added for %s", p.id, exc_info=True)
     body["columns"] = _bands_now(body.get("columns") or [])
     body["name"] = p.name          # a list stored under an older name is served with today's (14 Nov N-35)
     return body
@@ -316,38 +345,71 @@ def _strong(r: dict) -> bool:
     return (isinstance(iq, (int, float)) and iq >= 62) or (isinstance(pr, (int, float)) and pr >= 65)
 
 
-def _facets(rows: List[dict]) -> dict:
-    """What the filter bar offers for this screen's list: counts by size and by sector (the list as the screen made it, before the bar's own filters)."""
-    sizes, sectors = {}, {}
+def _strong_only(r: dict) -> bool:
+    """Prism Strong (80 or more) on Advanced, the FinLit IQ's Strong band (78 or more) on Basic."""
+    iq, pr = r.get("overall"), r.get("prism_final")
+    return (isinstance(pr, (int, float)) and pr >= 80) or (pr is None and isinstance(iq, (int, float)) and iq >= 78)
+
+
+def _bse_only(r: dict) -> bool:
+    return str(r.get("exchange") or "").upper() == "BSE"
+
+
+# Task #243 (pack P4): the open screen's filters. Each one is a test on a row; the drop-downs offer each option with the number of rows it would leave, given the
+# OTHER filters that are on. "New on this list" = joined since the previous saved list; "Ahead of NIFTY 500 since added" = Since added above NIFTY 500 over the same days.
+def _bar(request: Request) -> dict:
+    qp = request.query_params
+    rating = qp.get("rating") or ("healthy" if qp.get("strong") == "1" else "")
+    return {"q": (qp.get("q") or "").strip().lower()[:60], "size": set(qp.getlist("size")), "sector": set(qp.getlist("sector")),
+            "rating": rating if rating in ("healthy", "strong") else "", "new": qp.get("new") == "1", "ahead": qp.get("ahead") == "1", "nse": qp.get("nse") == "1"}
+
+
+def _tests(f: dict, new_day: Optional[str]) -> Dict[str, object]:
+    t: Dict[str, object] = {}
+    if f["q"]:
+        q = f["q"]; t["q"] = lambda r: q in str(r.get("symbol", "")).lower() or q in str(r.get("name", "")).lower() or q in str(r.get("sector", "")).lower()
+    if f["size"]:
+        t["size"] = lambda r: _size_of(r) in f["size"]
+    if f["sector"]:
+        t["sector"] = lambda r: r.get("sector") in f["sector"]
+    if f["rating"]:
+        t["rating"] = _strong_only if f["rating"] == "strong" else _strong
+    if f["new"]:
+        t["new"] = lambda r: bool(new_day) and r.get("added_on") == new_day and not r.get("added_baseline")
+    if f["ahead"]:
+        t["ahead"] = lambda r: isinstance(r.get("since_added_pct"), (int, float)) and isinstance(r.get("bench_since_added_pct"), (int, float)) and r["since_added_pct"] > r["bench_since_added_pct"]
+    if f["nse"]:
+        t["nse"] = lambda r: not _bse_only(r)
+    return t
+
+
+def _passes(r: dict, tests: Dict[str, object], skip: str = "") -> bool:
+    return all(fn(r) for k, fn in tests.items() if k != skip)       # type: ignore[operator]
+
+
+def _facets(rows: List[dict], tests: Optional[Dict[str, object]] = None, new_day: Optional[str] = None) -> dict:
+    """What the filters offer for this screen's list: each option's count is the rows it would leave with the other filters that are on."""
+    tests = tests or {}
+    sizes: Dict[str, int] = {}
+    sectors: Dict[str, int] = {}
     for r in rows:
-        z = _size_of(r)
-        if z:
-            sizes[z] = sizes.get(z, 0) + 1
-        if r.get("sector"):
+        if _passes(r, tests, "size"):
+            z = _size_of(r)
+            if z:
+                sizes[z] = sizes.get(z, 0) + 1
+        if _passes(r, tests, "sector") and r.get("sector"):
             sectors[r["sector"]] = sectors.get(r["sector"], 0) + 1
-    return {"sizes": sizes, "sectors": sorted(sectors.items(), key=lambda kv: (-kv[1], kv[0]))[:80], "strong": sum(1 for r in rows if _strong(r))}
+    probe = _tests({"q": "", "size": set(), "sector": set(), "rating": "", "new": True, "ahead": True, "nse": True}, new_day)
+    n = lambda key, fn: sum(1 for r in rows if _passes(r, tests, key) and fn(r))       # noqa: E731
+    return {"sizes": sizes, "sectors": sorted(sectors.items(), key=lambda kv: (-kv[1], kv[0]))[:80],
+            "strong": n("rating", _strong), "strongOnly": n("rating", _strong_only), "anyRating": n("rating", lambda r: True),
+            "new": n("new", probe["new"]), "ahead": n("ahead", probe["ahead"]), "nse": n("nse", probe["nse"]), "bse": sum(1 for r in rows if _bse_only(r))}
 
 
-def _filtered(request: Request, rows: List[dict]) -> List[dict]:
-    """The filter bar: search, size, sector and Only Strong or Healthy, applied to the screen's own list. Order and ranks stay as the screen made them."""
-    q = (request.query_params.get("q") or "").strip().lower()[:60]
-    sizes = set(request.query_params.getlist("size"))
-    secs = set(request.query_params.getlist("sector"))
-    strong = request.query_params.get("strong") == "1"
-    if not (q or sizes or secs or strong):
-        return rows
-    out = []
-    for r in rows:
-        if q and q not in str(r.get("symbol", "")).lower() and q not in str(r.get("name", "")).lower() and q not in str(r.get("sector", "")).lower():
-            continue
-        if sizes and _size_of(r) not in sizes:
-            continue
-        if secs and r.get("sector") not in secs:
-            continue
-        if strong and not _strong(r):
-            continue
-        out.append(r)
-    return out
+def _filtered(request: Request, rows: List[dict], new_day: Optional[str] = None) -> List[dict]:
+    """The open screen's filters, applied to the screen's own list. Order and ranks stay as the screen made them."""
+    tests = _tests(_bar(request), new_day)
+    return rows if not tests else [r for r in rows if _passes(r, tests)]
 
 
 def _page(request: Request, body: dict) -> dict:
@@ -356,8 +418,10 @@ def _page(request: Request, body: dict) -> dict:
     if "pageSize" not in body:
         return body
     avail = body.get("exportRows") or body["rows"]
-    facets = _facets(avail)
-    avail = _filtered(request, avail)
+    lst = body.get("list") or {}
+    new_day = lst.get("date") if lst.get("prev") else None          # the first saved list has no "new": nothing to compare with
+    facets = _facets(avail, _tests(_bar(request), new_day), new_day)
+    avail = _filtered(request, avail, new_day)
     body = {**body, "facets": facets, "filtered": len(avail)} if len(avail) != len(body.get("exportRows") or body["rows"]) or facets else body
     offset = _int(request, "offset", 0, 0, engine.EXPORT_MAX)
     limit = _int(request, "limit", body["pageSize"], 1, engine.EXPORT_MAX)
@@ -378,13 +442,30 @@ async def history_route(request: Request, pid: str):
     p, ctx, active = await _resolve(request, pid)
     if p.kind == "gainers":
         return _json({"id": p.id, "sessions": await history.gainer_sessions(request.app.state.store, p.tab, p.id.rsplit("-", 1)[-1])})
-    return _json({"id": p.id, "sessions": await history.sessions(request.app.state.store, p.id, engine.chip_key(active))})
+    store = request.app.state.store      # task #243 (pack P3, L7): every saved list with joined / left, and the trading days with no saved list
+    sl = await savedlists.load(store, p.id, engine.chip_key(active))
+    return _json({"id": p.id, "sessions": savedlists.sessions_view(sl, await history._bench(store, _date.today()))})
 
 
 @router.get("/{pid}/left")
 async def left_route(request: Request, pid: str):
     p, ctx, active = await _resolve(request, pid)
-    return _json({"id": p.id, "left": await history.left_list(request.app.state.store, p.id, engine.chip_key(active))})
+    store, key = request.app.state.store, engine.chip_key(active)      # task #243 (pack P8, L9, L15): follows the date picked, only from saved lists
+    sl = await savedlists.load(store, p.id, key)
+    if not sl.days:
+        return _json({"id": p.id, "date": None, "left": [], "counts": {"on": 0, "upto": 0, "after": 0}})
+    day = _as_on(request) or sl.days[-1]
+    if day not in sl.days:
+        raise fail(404, "no_history", "This screen has no stored list for that day.")
+    mode = request.query_params.get("mode") or "on"
+    if mode not in ("on", "upto", "after"):
+        raise fail(422, "bad_mode", "mode must be on, upto or after.")
+    reasons = await savedlists.reasons_for(store, p.id, key)
+    rows = savedlists.left_rows(sl, day, mode, reasons)
+    for r in rows:
+        r["sessions"] = r["lists_on"]       # the older name the page read
+    counts = {m: len(savedlists.left_rows(sl, day, m)) for m in ("on", "upto", "after")}
+    return _json({"id": p.id, "date": day.isoformat(), "first": sl.days[0].isoformat(), "mode": mode, "left": rows, "counts": counts})
 
 
 @router.get("/{pid}/export")
