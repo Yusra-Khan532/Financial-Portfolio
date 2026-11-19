@@ -40,7 +40,7 @@ export function DateBar({ sessions, asOn, setAsOn, list }: { sessions: HistorySe
   const latest = sessions.find((s) => s.status === "latest" || s.saved !== false) ?? sessions[0];
   const cur = asOn ?? latest?.date ?? null, past = !!asOn && asOn !== latest?.date;
   const pickable = (s: HistorySession) => s.saved !== false;
-  useEffect(() => { if (open) { const i = Math.max(0, sessions.findIndex((s) => s.date === cur)); setAct(i); box.current?.focus(); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (open) { const i = Math.max(0, sessions.findIndex((s) => s.date === cur)); setAct(i); box.current?.focus({ preventScroll: true }); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!open) return;
     const out = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node) && !btn.current?.contains(e.target as Node)) setOpen(false); };
@@ -71,7 +71,7 @@ export function DateBar({ sessions, asOn, setAsOn, list }: { sessions: HistorySe
         {open && <ul ref={box} id={lid} role="listbox" tabIndex={-1} className="psx3-dl" aria-label="Saved lists" aria-activedescendant={`${lid}-${act}`} onKeyDown={onKey}>
           {sessions.map((s, i) => (
             <li key={s.date} id={`${lid}-${i}`} role="option" aria-selected={s.date === cur} aria-disabled={!pickable(s) || undefined}
-              className={(i === act ? "is-act" : "") + (pickable(s) ? "" : " is-off")} onMouseEnter={() => setAct(i)} onClick={() => choose(s)}>
+              className={(i === act ? "is-act" : "") + (pickable(s) ? "" : " is-off")} onMouseMove={() => { if (act !== i) setAct(i); }} onClick={() => choose(s)}>
               <b>{label(s)}</b><span className="psx3-dn">{s.count == null ? MINUS : nf(s.count, 0)}</span><small>{statusLine(s)}</small>
             </li>))}
         </ul>}
