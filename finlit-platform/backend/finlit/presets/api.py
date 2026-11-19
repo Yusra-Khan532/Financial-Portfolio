@@ -373,7 +373,8 @@ def _int(request: Request, name: str, default: int, lo: int, hi: int) -> int:
 
 def _size_of(r: dict) -> str | None:
     mc = r.get("market_cap")
-    return None if not isinstance(mc, (int, float)) else ("Large" if mc > 50000 else "Mid" if mc >= 10000 else "Small")
+    from ..sizes import size_of
+    return size_of(mc) if isinstance(mc, (int, float)) else None
 
 
 def _strong(r: dict) -> bool:

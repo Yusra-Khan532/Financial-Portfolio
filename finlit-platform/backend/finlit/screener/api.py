@@ -50,7 +50,7 @@ class Cats(BaseModel):
     sector: List[str] = Field(default_factory=list, max_length=40)
     industry: List[str] = Field(default_factory=list, max_length=60)
     index: List[str] = Field(default_factory=list, max_length=20)
-    cap: List[Literal["Large", "Mid", "Small"]] = Field(default_factory=list, max_length=3)
+    cap: List[Literal["Large", "Mid", "Small", "Micro"]] = Field(default_factory=list, max_length=4)   # task #262: four sizes
     # the rating words of the plan's score: FinLit IQ's below Gold (strong, healthy, mixed, watch), FinLit Prism's for Gold (strong, healthy, average, weak, poor).
     # Task #142: only the IQ words were accepted, so a Gold member who picked Average, Weak or Poor got a refused request ("The screener is unavailable").
     band: List[BandWord] = Field(default_factory=list, max_length=5)

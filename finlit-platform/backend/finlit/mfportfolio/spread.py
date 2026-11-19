@@ -64,7 +64,7 @@ def by_isin(holdings: Optional[List[Dict[str, Any]]]) -> Tuple[Optional[List[Dic
 
 def spread(funds: List[Dict[str, Any]], size_of: Callable[[Optional[str], Optional[str]], Optional[str]]) -> Dict[str, Any]:
     """funds: [{code, name, amc, category, units?, nav?, holdings: [...] | None, assetSplit: {...} | None, series: {t, v} | None}]
-    size_of(isin, symbol) -> 'Large' | 'Mid' | 'Small' | None"""
+    size_of(isin, symbol) -> 'Large' | 'Mid' | 'Small' | 'Micro' | None"""
     not_matched = 0
     for f in funds:
         f["holdings"], n = by_isin(f.get("holdings"))
@@ -77,7 +77,7 @@ def spread(funds: List[Dict[str, Any]], size_of: Callable[[Optional[str], Option
     disclosed = [f for f in funds if f.get("holdings")]
     stocks: Dict[str, Dict[str, Any]] = {}
     industries: Dict[str, Dict[str, Any]] = {}
-    size = {"Large": 0.0, "Mid": 0.0, "Small": 0.0, "Other": 0.0}
+    size = {"Large": 0.0, "Mid": 0.0, "Small": 0.0, "Micro": 0.0, "Other": 0.0}   # task #262: four sizes
     grid: Dict[str, Dict[str, Dict[str, Any]]] = {"macro": {}, "sector": {}}
     sec_macro: Dict[str, str] = {}
     per_fund: Dict[int, Dict[str, Dict[str, float]]] = {}

@@ -168,7 +168,7 @@ class Table:
         self.n_full = sum(self.full)
         self.pos = {s: i for i, s in enumerate(self.symbols)}
         self._fp: Optional[str] = None
-        # size by market value in rupees crore, one scale for the whole site (task 64, fix 2): Large above 50,000 Cr, Mid 10,000 to 50,000 Cr, Small below 10,000 Cr; no size without a market cap
+        # size by market value in rupees crore, one rule for the whole site (finlit/sizes.py, task #262): Large, Mid, Small, Micro; no size without a market cap
         self.cap: List[Optional[str]] = [size_of(self.cols["market_cap"][i]) for i in range(n)]
         # against-the-sector valuation
         by_sector: Dict[str, List[int]] = {}
@@ -343,14 +343,7 @@ _lock = asyncio.Lock()
 _lock_loop: Any = None
 _refreshing: Optional[asyncio.Task] = None
 SCORE_COLS = ("symbol", "name", "sector", "macro_sector", "industry", "band", "metrics") + tuple(sorted(set(LEGACY.values())))
-LARGE_MIN_CR, MID_MIN_CR = 50_000.0, 10_000.0
-
-
-def size_of(market_cap: Optional[float]) -> Optional[str]:
-    """Large, Mid or Small by market value in rupees crore (Large above 50,000, Mid 10,000 to 50,000, Small below 10,000); None when there is no market cap."""
-    if market_cap is None or market_cap != market_cap or market_cap <= 0:
-        return None
-    return CAPS[0] if market_cap > LARGE_MIN_CR else CAPS[1] if market_cap >= MID_MIN_CR else CAPS[2]
+from ..sizes import size_of   # task #262: one rule for the whole site (Large > 75,000 Cr, Mid 25,000-75,000, Small 10,000-25,000, Micro < 10,000)
 
 
 QUOTE_COLS = ("price", "change_pct", "market_cap", "high52", "low52", "volume")

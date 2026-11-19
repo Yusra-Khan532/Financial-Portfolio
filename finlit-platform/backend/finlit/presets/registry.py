@@ -139,7 +139,7 @@ PROVISIONAL = Chip("include-provisional", "Include provisional", "Also lists com
                    _m(prism_set={"status": None}), ("Provisional ratings are included, with a Provisional badge.",))
 TURNING_UP = Chip("turning-up", "Turning up", "Keeps only names where the short-term technical view is no longer negative: the price has stopped falling.", False,
                   _m(derived_add=(("prism_st_score >= 0", "Short-term technical view 0 or more"),)), ("Turning up: the short-term technical view must be 0 or more.",))
-ALL_CAPS = Chip("all-caps", "All caps", "Also lists small caps (the default is large and mid caps).", False, _m(derived_drop=("is_large_mid = 1",)), ("All caps: small caps are included.",))
+ALL_CAPS = Chip("all-caps", "All caps", "Also lists small and micro caps (the default is large and mid caps).", False, _m(derived_drop=("is_large_mid = 1",)), ("All caps: small and micro caps are included.",))   # task #262: four sizes
 FAST_G = Chip("fast-growers", "Fast growers", "Asks for stronger growth and profitability.", False, _m(prism_set={"zfmin": 85}), ("Fast growers: Prism Growth & Profitability 85 or more.",))
 SHOW_ALL_THEME = Chip("show-all-theme", "Show all theme members", "Drops the Growth & Profitability and Risk gates: every theme member of Rs 1,000 Cr or more is listed.", False,
                       _m(derived_drop=("has_prism = 0 or (prism_fundamental >= 50 and prism_risk >= 40)",)), ("Every theme member of Rs 1,000 Cr or more is listed, whatever its Growth & Profitability and Risk.",))
@@ -151,9 +151,15 @@ TOP_RANK = (("prism_final", 0.55), ("prism_lt_score", 0.40), ("prism_st_score", 
 TOP_ORDER = (("rank_score", "desc"), ("prism_quality", "desc"), ("prism_final", "desc"), ("market_cap", "desc"))   # fix 12: exact ties go to the larger market cap
 
 
+def _size_words(bucket: str) -> str:
+    """The size sentence of a size screen, on the site's one ₹ rule (finlit/sizes.py, task #262; the old text named market-cap ranks)."""
+    from ..sizes import RANGE
+    return f"Only {bucket.lower()} caps: a market value {RANGE[bucket]}, as the site sizes every company."
+
+
 def _top(n: int, bucket: str, label: str) -> Preset:
     filters = {"cap": bucket, "rated": 1, "status": "RATED", "zmin": 65, "zqmin": 50, "zrmin": 50}      # fix 12: Healthy or Strong only; one Risk minimum for every size
-    how = [f"Only {label} caps: companies ranked {'1 to 100' if bucket == 'Large' else '101 to 250' if bucket == 'Mid' else '251 onward'} by market cap, as the site buckets them.",
+    how = [_size_words(bucket),
            "Only companies with a full Prism rating (Provisional ratings appear only with the Include provisional chip, with their badge). Market cap Rs 1,000 Cr or more.",
            "Healthy or Strong on Prism, with sound quality and risk, a firm long-term trend and a price not far below its 52-week high.",
            "The strongest ten come first, at most three from one Sector label, then every other company that passes, ranked by the same score.",
@@ -169,6 +175,7 @@ PRESETS: List[Preset] = [
     _top(1, "Large", "large"),
     _top(2, "Mid", "mid"),
     _top(3, "Small", "small"),
+    _top(4, "Micro", "micro"),   # task #262: the pack's "Highest-rated micro caps"
 
     Preset("momentum-leaders", "Momentum leaders", "trend", "Rated stocks in an uptrend near their 52-week high, ranked by 3-, 6- and 12-month returns against the market.", "rules",
            _m(zmin=50, rated=1, lt=20),
@@ -407,10 +414,10 @@ def _bal(minimum: int, blank: str = "any") -> Tuple[str, str]:
 
 
 def _bt(bucket: str, label: str) -> Preset:
-    small = bucket == "Small"
+    small = bucket in ("Small", "Micro")   # the stricter Balance sheet line was for companies below ₹10,000 Cr (today's Micro) and stays for Small
     rules = (IQ_HEALTHY, ("pillar_technical >= 45", "Technical out of Watch"), Q_FIT(45, "out of Watch"), _bal(62 if small else 45, "bank"), ("pct_from_high <= 30", "No more than 30% below the 52-week high"),
              MC1000) + B_FULL
-    how = (f"Only {label} caps: companies ranked {'1 to 100' if bucket == 'Large' else '101 to 250' if bucket == 'Mid' else '251 onward'} by market cap, as the site buckets them. Market cap Rs 1,000 Cr or more.",
+    how = (_size_words(bucket) + " Market cap Rs 1,000 Cr or more.",
            "FinLit IQ Healthy or Strong, Technical and Quality out of Watch, a Balance sheet " + ("Healthy" if small else "out of Watch") + " (a blank is allowed for banks), no more than 30% below the 52-week high and a full year of prices.",
            f"The {label} caps with the highest FinLit IQ come first, at most three from one Sector label, then every other company that passes, in FinLit IQ order.", B_NOTE)
     return Preset(f"basic-top-{label}", f"Top 10 {label} caps", BASIC_GROUP["top"], f"{label.title()} caps with a strong FinLit IQ. The 10 highest come first, then every other company that passes.", "rules",
@@ -423,7 +430,7 @@ def _bp(pid, name, group, text, rules, rank, cols, how, **kw) -> Preset:
 
 B_THEME_RULES = (MC1000, ("pillar_growth >= 62", "Growth Healthy or Strong"), _bal(45))
 BASIC: List[Preset] = [
-    _bt("Large", "large"), _bt("Mid", "mid"), _bt("Small", "small"),
+    _bt("Large", "large"), _bt("Mid", "mid"), _bt("Small", "small"), _bt("Micro", "micro"),   # task #262: the pack's "Top 10 micro caps"
     _bp("basic-strong-both", "Strong on both", "top", "FinLit IQ and Technical both Strong.",
         (IQ_STRONG, ("pillar_technical >= 78", "Technical Strong"), MC1000) + B_FULL, (("overall", "desc"),),
         B_BASE + B_TAIL, ("FinLit IQ Strong and Technical Strong, with a full year of prices.", "Market cap Rs 1,000 Cr or more.", "Ranked by FinLit IQ.")),

@@ -34,7 +34,7 @@ router = APIRouter(prefix="/api/portfolio")
 SYMBOL = re.compile(r"^[A-Z0-9&_.\-]{1,24}$")
 MAX_SYMBOLS = 500
 CACHE_SECONDS = 6 * 3600
-CACHE_VERSION = "v2"   # v2 (task #183): the engine's sector is NSE's macro sector; meta carries the three NSE levels
+CACHE_VERSION = "v3"   # v2 (task #183): the engine's sector is NSE's macro sector; meta carries the three NSE levels. v3 (task #262): four sizes on the ₹ rule
 TILT_LOCKED = div.TILT_LOCKED
 NO_STORE = {"Cache-Control": "private, no-store", "Vary": "Cookie"}
 
@@ -138,7 +138,7 @@ async def page(request: Request, body: PageIn, ctx: Ctx = Depends(member_ctx)) -
 
 @router.post("/risk")
 async def risk_page(request: Request, body: PageIn, ctx: Ctx = Depends(member_ctx)) -> Response:
-    """Risk analytics by company size (task #183 W8): each share against its own size index (Nifty 50, Midcap 150, Smallcap 250) from index closes, the
+    """Risk analytics by company size (task #183 W8): each share against its own size index (Nifty 50, Midcap 150, Smallcap 250, Microcap 250) from index closes, the
     size-weighted, blended and Nifty 50 betas, each size against its index, and swing and worst fall over 3 years of daily closes. Silver and Gold."""
     app = request.app
     allowed, retry = await app.state.limiter.hit("portfolio_page", ip_of(request), 30, 60, fail_open=False)
@@ -149,7 +149,7 @@ async def risk_page(request: Request, body: PageIn, ctx: Ctx = Depends(member_ct
     from . import risk_sizes
     symbols = body.symbols
     week = div.unfinished_week(div.now_ist())
-    key = "pfrisk:" + ":".join(["v1", week, hashlib.sha1(",".join(sorted(symbols)).encode()).hexdigest()[:24]])   # nosec B324 - cache key
+    key = "pfrisk:" + ":".join(["v2", week, hashlib.sha1(",".join(sorted(symbols)).encode()).hexdigest()[:24]])   # nosec B324 - cache key
     redis = app.state.store.redis
     try:
         cached = await redis.get(key)
@@ -216,7 +216,7 @@ class ScoreIn(BaseModel):
     horizon: Literal["lt1", "1-3", "3-5", "gt5"] = "3-5"
     risk: Literal["low", "medium", "high"] = "medium"
     goal: Literal["grow", "income", "protect"] = "grow"
-    benchmark: Literal["NIF50", "NIF500", "NIFMID150", "NIFSMA250"] = "NIF50"
+    benchmark: Literal["NIF50", "NIF500", "NIFMID150", "NIFSMA250", "NIFMIC250"] = "NIF50"
 
     @field_validator("items")
     @classmethod

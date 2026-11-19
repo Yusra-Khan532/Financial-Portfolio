@@ -1136,7 +1136,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_oi.add_argument("--limit", type=int, default=120, help="premium calls per run")
     p_oi.add_argument("--concurrency", type=int, default=3, help="premium calls at the same time")
     p_oi.add_argument("symbols", nargs="*", help="only these companies")
-    p_st = sub.add_parser("refresh-stress", help="nightly, after the statements and the macro refresh: builds and stores the Stress Lab page and company pack of every covered company (large and mid caps that are not financials), largest first, resumable (docs/STRESS.md)")
+    p_st = sub.add_parser("refresh-stress", help="nightly, after the statements and the macro refresh: builds and stores the Stress Lab page and company pack of every covered company (₹10,000 Cr or more: large, mid and small caps that are not financials), largest first, resumable (docs/STRESS.md)")
     p_st.add_argument("--max-minutes", type=float, default=40.0, help="start no new company after this many minutes")
     p_st.add_argument("--limit", type=int, default=None, help="at most this many companies in this run")
     p_st.add_argument("--force", action="store_true", help="rebuild companies already built today")

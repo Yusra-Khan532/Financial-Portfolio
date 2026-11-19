@@ -40,14 +40,14 @@ OPERATORS = [
 ]
 # Starter queries. Every one is checked against the real catalogue by the tests, so none can name a ratio we do not have.
 EXAMPLES = [
-    {"id": "large-profitable", "title": "Large and profitable", "about": "Big companies earning a good return on the owners' money.", "query": "Market cap > 50000 Cr\nROE > 15"},
+    {"id": "large-profitable", "title": "Large and profitable", "about": "Big companies earning a good return on the owners' money.", "query": "Size = large\nROE > 15"},
     {"id": "quality", "title": "Quality compounders", "about": "High return on capital, steady growth, little debt.", "query": "ROCE > 20\nSales growth 5 years > 12\nDebt to equity < 0.5"},
     {"id": "low-debt-growth", "title": "Low debt, growing profit", "about": "Profit compounding for 5 years while borrowing little.", "query": "Debt to equity < 0.3\nProfit growth 5 years > 15\nInterest coverage > 5"},
     {"id": "value", "title": "Value", "about": "Priced low against earnings and book value, with a decent return.", "query": "P/E < 15 AND P/B < 2 AND ROE > 12"},
     {"id": "dividend", "title": "High dividend", "about": "Pays out a good yield without stretching its profit.", "query": "Dividend yield > 3\nDividend payout < 70\nDebt to equity < 1"},
     {"id": "own-history", "title": "Cheaper than its own past", "about": "P/E below its own 5-year average.", "query": "P/E < P/E 5 year average\nROE > 12"},
     {"id": "promoters", "title": "Promoters hold a lot", "about": "High promoter holding and a dividend paid.", "query": "Promoter holding > 60\nPays a dividend = yes"},
-    {"id": "small-clean", "title": "Small and clean", "about": "Small companies with low debt and a high return on capital.", "query": "Market cap < 5000 Cr AND Debt to equity < 0.5 AND ROCE > 18"},
+    {"id": "small-clean", "title": "Micro and clean", "about": "Micro caps (below ₹10,000 Cr) with low debt and a high return on capital.", "query": "Size = micro AND Debt to equity < 0.5 AND ROCE > 18"},   # task #262
     {"id": "either", "title": "Cheap or fast-growing", "about": "Shows OR with brackets: either a low P/E or fast sales growth, with low debt.", "query": "(P/E < 12 OR Sales growth 3 years > 25)\nDebt to equity < 1"},
 ]
 

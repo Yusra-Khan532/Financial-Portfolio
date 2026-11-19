@@ -34,7 +34,7 @@ def matches(row: Dict[str, Any], state: Dict[str, Any], members: Dict[str, set] 
     raw = row.get("metrics")
     metrics = json.loads(raw) if isinstance(raw, str) else (raw or {})
     caps = state.get("caps") or []
-    if caps:       # size on the rupee scale, as on the page (Large above 50,000 Cr, Mid 10,000 to 50,000, Small below)
+    if caps:       # size on the site's one ₹ rule (finlit/sizes.py, task #262: Large, Mid, Small, Micro); a screen saved before 20 Nov is migrated on load
         from .screener.data import size_of
         mc = metrics.get("market_cap", row.get("market_cap"))
         if size_of(float(mc) if mc is not None else None) not in caps:

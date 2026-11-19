@@ -956,8 +956,55 @@ class Analysis:
         return self.root is not None and not any(p.severity == "error" for p in self.problems)
 
 
+# Task #262: a typed size ("Size = micro", "size is small cap") stands for its market-value range on the site's one rule (finlit/sizes.py), so the four
+# sizes can be typed as words. The words are swapped for the range before parsing; problem positions are mapped back to what the member typed.
+SIZE_WORD = re.compile(r"\b(?:company\s+)?size\s*(?:=|is)\s*(large|mid|small|micro)(?:[\s-]*caps?)?\b", re.I)
+
+
+def size_range(word: str) -> str:
+    from ..sizes import LARGE_ABOVE, MID_FROM, SMALL_FROM
+    big, mid, small = (int(x) for x in (LARGE_ABOVE, MID_FROM, SMALL_FROM))
+    return {"large": f"Market cap > {big} Cr", "mid": f"(Market cap >= {mid} Cr AND Market cap <= {big} Cr)",
+            "small": f"(Market cap >= {small} Cr AND Market cap < {mid} Cr)", "micro": f"Market cap < {small} Cr"}[word.lower()]
+
+
+def expand_sizes(text: str) -> Tuple[str, List[Tuple[int, int, int, int]]]:
+    """The text with each typed size swapped for its range, and the swaps as (typed start, typed end, new start, new end)."""
+    out, spans, last, shift = [], [], 0, 0
+    for m in SIZE_WORD.finditer(text):
+        rep = size_range(m.group(1))
+        out.append(text[last:m.start()]); out.append(rep)
+        spans.append((m.start(), m.end(), m.start() + shift, m.start() + shift + len(rep)))
+        shift += len(rep) - (m.end() - m.start())
+        last = m.end()
+    out.append(text[last:])
+    return "".join(out), spans
+
+
+def _back(pos: int, spans: List[Tuple[int, int, int, int]]) -> int:
+    """A position in the expanded text, as a position in the typed text."""
+    for a, b, na, nb in reversed(spans):
+        if pos >= nb:
+            return pos - (nb - na) + (b - a)
+        if pos >= na:
+            return a if pos == na else b
+    return pos
+
+
 def analyze(text: str, plan: str = "gold") -> Analysis:
-    """Parse and check a query for a member on `plan`. Every problem is returned together, sorted by position."""
+    """Parse and check a query for a member on `plan`. Every problem is returned together, sorted by position. Typed sizes are read as their ranges."""
+    typed = text
+    text, spans = expand_sizes(text) if SIZE_WORD.search(text) else (text, [])
+    a = _analyze(text, plan)
+    if not spans:
+        return a
+    for p in a.problems:
+        p.start, p.end = _back(p.start, spans), _back(p.end, spans)
+        p.fixes = [{**f, "start": _back(f["start"], spans), "end": _back(f["end"], spans)} for f in p.fixes]
+    return Analysis(typed, a.root, a.problems)
+
+
+def _analyze(text: str, plan: str = "gold") -> Analysis:
     if len(text) > MAX_CHARS:
         return Analysis(text, None, [Problem("too_long", f"This query is {len(text):,} characters long; the limit is {MAX_CHARS:,}. Shorten it or split it into two baskets.",
                                              MAX_CHARS, len(text))])

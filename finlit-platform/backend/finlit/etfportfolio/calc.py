@@ -122,7 +122,7 @@ def abroad(isin: Optional[str], asset_class: Optional[str]) -> bool:
 
 def size_mix(etfs: Sequence[Dict[str, Any]], size_of: Callable[[Optional[str]], Optional[str]]) -> Optional[Dict[str, Any]]:
     """Large / Mid / Small among the Indian shares the ETFs hold, weighted; None when no Indian shares are known."""
-    sizes = {"Large": 0.0, "Mid": 0.0, "Small": 0.0, "Not sized": 0.0}
+    sizes = {"Large": 0.0, "Mid": 0.0, "Small": 0.0, "Micro": 0.0, "Not sized": 0.0}   # task #262: four sizes
     for e in etfs:
         for h in e.get("holdings") or []:
             if h.get("assetClass") != "equity" or not h.get("pct") or abroad(h.get("isin"), e.get("assetClass")):

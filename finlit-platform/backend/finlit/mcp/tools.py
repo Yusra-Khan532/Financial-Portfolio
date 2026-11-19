@@ -480,7 +480,7 @@ def build_tools() -> List[Tool]:
         Tool("screen_stocks", "Stock screener", "Filter listed companies on the free FinLit screener metrics (market cap, price, P/E, ROE, ROCE, margins, growth, debt, returns). Each filter is {min, max} in the metric's unit.",
              {"filters": {"type": "object", "propertyNames": {"enum": keys}, "additionalProperties": {"type": "object", "properties": {"min": {"type": "number"}, "max": {"type": "number"}}, "additionalProperties": False},
                           "description": "Metric name to {min, max}. Metrics: " + ", ".join(keys)},
-              "sector": {"type": "string", "maxLength": 80, "description": "Sector name"}, "cap": {"type": "string", "enum": ["Large", "Mid", "Small"], "description": "Company size"},
+              "sector": {"type": "string", "maxLength": 80, "description": "Sector name"}, "cap": {"type": "string", "enum": ["Large", "Mid", "Small", "Micro"], "description": "Company size by full market value at the last close: Large above ₹75,000 Cr, Mid ₹25,000-75,000 Cr, Small ₹10,000-25,000 Cr, Micro below ₹10,000 Cr"},
               "query": {"type": "string", "maxLength": 60, "description": "Part of a name or symbol"},
               "sort_by": {"type": "string", "enum": ["market_cap", "price", "pe", "roe", "roce", "name", "symbol", *[k for k in keys if k not in ("market_cap", "price", "pe", "roe", "roce")]], "default": "market_cap"},
               "order": {"type": "string", "enum": ["asc", "desc"], "default": "desc"}, "limit": lim(10, 25, "How many rows (the free screener shows at most 25)")}, screen_stocks),

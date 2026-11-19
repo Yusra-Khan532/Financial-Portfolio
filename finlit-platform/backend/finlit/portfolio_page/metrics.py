@@ -12,7 +12,7 @@ This module turns a list of shares into everything the page shows:
 Inputs are plain pandas objects so it can sit behind any API:
   weekly_close : DataFrame, index = week-ending dates (Friday), columns = NSE symbols, adjusted closes
   nifty_close  : Series, same index, NIFTY 50 closes
-  meta         : {symbol: {"name", "sector", "size" ("L"|"M"|"S"; "U" = not known), "mcap_cr", "prism": {...} (kept for the caller, not used here)}}
+  meta         : {symbol: {"name", "sector", "size" ("L"|"M"|"S"|"X" for Micro; "U" = not known), "mcap_cr", "prism": {...} (kept for the caller, not used here)}}
 
 Requires numpy, pandas and scipy. Python 3.9+.
 """
@@ -228,7 +228,7 @@ def rules(f: dict) -> List[dict]:
     if f["sector_count"] <= 2:
         say("C3", "where", 85, f"All {n} shares are in {f['sector_count']} sector{'s' if f['sector_count'] > 1 else ''}.")
     if n >= 8:
-        missing = [nm for k, nm in (("M", "mid caps"), ("S", "small caps"), ("L", "large caps")) if f["size_count"].get(k, 0) == 0]
+        missing = [nm for k, nm in (("M", "mid caps"), ("S", "small caps"), ("X", "micro caps"), ("L", "large caps")) if f["size_count"].get(k, 0) == 0]   # task #262
         if missing:
             say("C4", "where", 30, f"There are no {join_names(missing)} in the list.", "eq")
     # --- What moves together --------------------------------------------------------------------------------

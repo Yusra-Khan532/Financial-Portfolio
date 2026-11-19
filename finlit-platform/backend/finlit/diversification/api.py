@@ -131,7 +131,7 @@ def _build(prices: dict, index_rows: List[dict], symbols: List[str], facts: Dict
     sectors = {s: sec.macro_sector((facts.get(s) or {}).get("sector"), s) for s in symbols}
     sectors = {s: v for s, v in sectors.items() if v != sec.UNMAPPED}                 # calc names the missing ones 'Not classified'
     groups = {s: g for s in symbols for g in [sec.business_group(s)] if g}
-    sizes = {s: calc.size_band((facts.get(s) or {}).get("rank")) for s in symbols}
+    sizes = {s: calc.size_band((facts.get(s) or {}).get("mcap")) for s in symbols}   # task #262: by ₹ market value, four sizes
     mcap = {s: (facts.get(s) or {}).get("mcap") for s in symbols}
     names = {s: (facts.get(s) or {}).get("name") or s for s in symbols}
     px = dict(prices)
@@ -193,7 +193,7 @@ async def diversification(request: Request, body: DiversificationIn) -> Response
     symbols = body.symbols
     now = now_ist()
     week, month = unfinished_week(now), f"{now.year}-{now.month:02d}"
-    key = "div:v3:" + ":".join([week, body.horizon, hashlib.sha1(",".join(sorted(symbols)).encode()).hexdigest()[:24]])   # nosec B324 - cache key
+    key = "div:v4:" + ":".join([week, body.horizon, hashlib.sha1(",".join(sorted(symbols)).encode()).hexdigest()[:24]])   # nosec B324 - cache key
     redis = app.state.store.redis
     try:
         cached = await redis.get(key)
