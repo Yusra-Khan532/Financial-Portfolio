@@ -302,6 +302,8 @@ class PrefsIn(BaseModel):
     # industries the member watches from an industry page ("Add to watch", final pages pack 07): their Sector Rotation alerts come too (finlit/rotation_alerts.py)
     sectorWatch: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,79}$")]] = Field(default_factory=list, max_length=60)
     dashPortfolios: Optional[DashPortfolios] = None   # task #248: the dashboard's Showing bar; none means All accounts everywhere
+    # task #251: themes the member follows on Discover (their slugs). Stored with the account; no alert reads them yet.
+    followThemes: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,79}$")]] = Field(default_factory=list, max_length=40)
 
 
 # ------------------------------------------------------------------ helpers
