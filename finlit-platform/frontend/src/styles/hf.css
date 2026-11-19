@@ -1,0 +1,73 @@
+/* Task #257: the Basic screener's header-row filters (components/screener/HeaderFilters.tsx). Class prefix hf-. Tokens only, so light and dark follow. */
+.hf { position: relative; min-width: 0; flex: 1 1 auto; }
+.hf-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.hf-w { position: relative; flex: none; }
+.hf-b { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text);
+  font: 600 14px var(--sans); cursor: pointer; white-space: nowrap; }
+.hf-b:hover { border-color: var(--gold); }
+.hf-b.on { border-color: var(--gold); background: var(--gold-soft); }
+.hf-b[aria-expanded="true"] { border-color: var(--text); box-shadow: 0 0 0 1px var(--text); }
+.hf-n { padding: 0 7px; border-radius: 999px; font: 700 12px var(--sans); background: var(--gold); color: var(--on-gold, #1A1405); }
+.hf-c { width: 7px; height: 7px; border: solid currentColor; border-width: 0 1.6px 1.6px 0; transform: translateY(-2px) rotate(45deg); opacity: .7; }
+.hf-b[aria-expanded="true"] .hf-c { transform: translateY(1px) rotate(-135deg); }
+.hf-b:focus-visible, .hf-p button:focus-visible, .hf-p input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.hf-p { position: absolute; z-index: 60; top: calc(100% + 6px); left: 0; width: 340px; max-width: calc(100vw - 32px); max-height: min(70vh, 560px); overflow: auto;
+  padding: 14px; border-radius: 14px; border: 1px solid var(--border); background: var(--s1); box-shadow: 0 22px 44px -20px rgba(0, 0, 0, .45); display: grid; gap: 10px; }
+.hf-w:nth-last-child(-n+2) .hf-p { left: auto; right: 0; }
+.hf-p-iq { width: 400px; }
+:root[data-theme="dark"] .hf-p { background: var(--s3); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .hf-p { background: var(--s3); } }
+.hf-x { position: absolute; top: 6px; right: 8px; border: 0; background: none; color: var(--muted); font: 400 24px/1 var(--sans); cursor: pointer; padding: 4px 8px; }
+.hf-ph { display: grid; gap: 2px; padding-right: 28px; }
+.hf-ph b { font: 700 14px var(--sans); color: var(--text); }
+.hf-ph small { font: 400 12px var(--sans); color: var(--muted); }
+.hf-h { margin: 4px 0 0; font: 700 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.hf-h span { text-transform: none; letter-spacing: 0; font-weight: 400; margin-left: 6px; }
+.hf-find { min-height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--s2); color: var(--text); font: 400 14px var(--sans); }
+.hf-note { margin: 0; padding: 8px 10px; border-radius: 8px; background: var(--warn-soft); color: var(--text); font: 400 13px/1.4 var(--sans); }
+.hf-opts { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 300px; overflow: auto; }
+.hf-opts label, .hf-band { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 8px; cursor: pointer; font: 500 14px var(--sans); color: var(--text); }
+.hf-opts label:hover, .hf-band:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+.hf-opts input, .hf-band input { width: 17px; height: 17px; flex: none; accent-color: var(--gold); }
+.hf-opts label span { flex: 1; min-width: 0; display: grid; }
+.hf-opts label em { font: 400 12px var(--sans); color: var(--muted); font-style: normal; }
+.hf-opts small, .hf-band small { margin-left: auto; font: 500 12px var(--sans); color: var(--muted); font-variant-numeric: tabular-nums; }
+.hf-off { opacity: .45; cursor: not-allowed !important; }
+.hf-none { padding: 8px; color: var(--muted); font: 400 13px var(--sans); }
+.hf-bands { display: grid; gap: 2px; }
+.hf-rgs { display: grid; gap: 6px; }
+.hf-rg { display: grid; grid-template-columns: 1fr 64px 12px 64px; align-items: center; gap: 6px; font: 500 14px var(--sans); color: var(--text); }
+.hf-rg input { min-height: 34px; width: 100%; padding: 0 8px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--s2); color: var(--text); font: 500 14px var(--sans); text-align: center; }
+.hf-rg input[aria-invalid="true"] { border-color: var(--loss); }
+.hf-rg i { text-align: center; color: var(--muted); font-style: normal; }
+.hf-err { grid-column: 1 / -1; color: var(--loss); font: 400 12px var(--sans); font-style: normal; }
+.hf-pf { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-top: 8px; border-top: 1px solid var(--border); font: 400 12px var(--sans); color: var(--muted); }
+.hf-lnk { border: 0; background: none; color: var(--gold); font: 600 13px var(--sans); cursor: pointer; padding: 4px 0; }
+.hf-lnk:disabled { color: var(--faint); cursor: default; }
+.hf-back { display: none; }
+
+/* active filters under the header row */
+.hf-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 0; min-height: 28px; }
+.hf-chips .fchip { margin: 0; }
+.hf-empty { margin: 0; font: 400 13px var(--sans); color: var(--muted); }
+.hf-clear { border: 0; background: none; color: var(--gold); font: 600 13px var(--sans); cursor: pointer; padding: 4px 6px; }
+
+/* phone: the row scrolls sideways; each filter opens as a bottom sheet */
+@media (max-width: 640px) {
+  .hf-row { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  .hf-row::-webkit-scrollbar { display: none; }
+  .hf-p, .hf-p-iq, .hf-w:nth-last-child(-n+2) .hf-p { position: fixed; left: 0; right: 0; top: auto; bottom: 0; width: auto; max-width: none; max-height: 78vh; border-radius: 18px 18px 0 0; z-index: 1001; }
+  .hf-back { display: block; position: fixed; inset: 0; z-index: 1000; background: var(--ov-backdrop); }   /* the shared dim token (styles/overlay.css) */
+}
+
+/* the frame in header-row mode (ScreenerFrame headerFilters): no side panel, the table takes the full width */
+.scr.hf-full { grid-template-columns: minmax(0, 1fr); }
+.scr.hf-full > .scr-main { grid-column: 1; }
+.hf-tool { flex-wrap: nowrap; align-items: center; }
+.hf-tool > :first-child { flex: 0 1 280px; min-width: 180px; }
+.hf-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
+.hf-count { margin: 0; font: 600 14px var(--sans); color: var(--text); }
+.hf-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.hf-lock { margin: 0; display: grid; gap: 8px; font: 400 13px/1.45 var(--sans); color: var(--muted); }
+@media (max-width: 760px) { .hf-tool { flex-wrap: wrap; } .hf-tool > :first-child { flex: 1 1 100%; } }

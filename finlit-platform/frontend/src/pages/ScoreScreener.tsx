@@ -46,7 +46,7 @@ function Basic() {
       intro={BASIC_DESC}
       dateLine={asOf ? `Scores: ${dateIN(asOf)}` : null} howTitle="How FinLit IQ works"
       columnsMenu={<ColumnsMenu on={priceCols} set={setPriceCols} />}
-      tier="silver" sortChoices={[{ key: "overall", label: "FinLit IQ" }, { key: "t", label: "Technical" }, ...PILLARS.map((x) => ({ key: x.col, label: x.label }))]}
+      tier="silver" headerFilters sortChoices={[{ key: "overall", label: "FinLit IQ" }, { key: "t", label: "Technical" }, ...PILLARS.map((x) => ({ key: x.col, label: x.label }))]}
       presets={null} screens={<ScreensStrip route={route} />}
       filters={locked ? (<>
         <FilterGroup id="score" icon="bars" title={IQ_TITLE} defaultOpen hint={IQ_SUB}>
