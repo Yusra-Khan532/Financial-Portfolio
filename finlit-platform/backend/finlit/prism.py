@@ -309,11 +309,13 @@ CLASSIFICATION_VERSION = 3
 # 3.6.17: rebuilds reports stored by 3.6.16 when the standalone statements could not be read.
 # 3.6.18: out-of-date consolidated statements switch to standalone; provider failures on the company's own data stop the calculation.
 # 3.6.19: CAGR ladders (5, 4, 3, 2 years); PEG growth skips a missing or negative window (owner, 17 November 2026).
-REQUIRED_MODEL_VERSION = "3.6.19"
+# 3.6.20: interest cover is FinEdge's reported trailing-12-month interest coverage (the company report's figure) and is scored for every
+# non-financial company, low-debt ones included (owner, task #199).
+REQUIRED_MODEL_VERSION = "3.6.20"
 # Reports of these older versions stay ON SCREEN (with their date) while they are rebuilt, instead of being hidden: a hidden report makes every page
 # open wait for a live calculation (as after 3.6.16-3.6.18). They are still out of date everywhere else (stale_model): a calculation never reuses
 # one, opening one rebuilds it in the background, and the nightly job rebuilds them. Older versions than these stay hidden.
-SHOWN_WHILE_REBUILDING = ("3.6.18",)
+SHOWN_WHILE_REBUILDING = ("3.6.18", "3.6.19")
 CLASSIFICATION_MARK = "model group"      # in the rating's alerts of a report withheld by the classification check, before and after the fix
 # Mirrors REVENUE_VERSION in site-api/backend/premium_model_config.py (a test keeps them equal). Version 2 (17 November 2026): insurers' revenue
 # (premium earned) is read, and a company with no consolidated statements uses its standalone ones. Only the reports that can change are rebuilt

@@ -1,7 +1,7 @@
 """FinLit v3.6.1 configuration supplied by the project owner.
 Group fill values are the supplied 13–14 October 2026 snapshot, not live medians.
 """
-MODEL_VERSION = "3.6.19"
+MODEL_VERSION = "3.6.20"
 BASELINE_VERSION = "3.6.1-simple"
 FILL_VERSION = "2026-10-14"
 QUARTERS_JUDGED = 10
@@ -87,7 +87,9 @@ CAGR_MIN_YEARS = 1              # At least two consecutive annual observations.
 PROFIT_TURNAROUND_POINTS = 70   # v3.6: only when the latest figure is a profit
 LOSS_NARROWED_POINTS = 30       # v3.6: still a loss, but smaller than before
 CASH_LOSS_POINTS = {"cash_positive": 50, "cash_negative": 0}   # v3.6: cash conversion when 3-year profit <= 0
-IC_NOT_APPLICABLE_DE = 0.1      # v3.6: interest cover is dropped when debt/equity is below this
+# v3.6 left interest cover unscored for non-financial companies with debt / equity below this. Retired by the owner in 3.6.20 (task #199: interest cover
+# is scored for every company); None means retired. Kept as a setting only so the historical reference checks can reproduce the original rule.
+IC_LOW_DEBT_UNSCORED_BELOW = None
 PEG_CORE_GROUPS = ("LIGHT", "MFG", "HEAVY", "UTILITY", "REALTY", "BANK", "NBFC", "INSURANCE")    # PEG always used when P/E and positive profit growth exist. BANK added at the owner's request (October 2026): banks such as Kotak lost PEG to the six-quarter rule. Every other group added at the owner's request (29 Oct 2026): Reliance (HEAVY) showed PEG as not applicable with real earnings and growth
 # v3.6 fill for a metric with no data: the lower of the group median and 50 (FILL_DEFAULT).
 # Medians of actual points across 1,146 NSE stocks (m-cap >= Rs 2,000 Cr), 13-14 Oct 2026; only those below 50 listed.
@@ -110,6 +112,8 @@ NOT_RATED_BELOW = 0.50          # data confidence below this -> NOT RATED
 PROVISIONAL_MIN_QUARTERS = 6    # fewer comparable quarters than this -> PROVISIONAL
 PEG_MIN_PROFIT_STREAK = 6             # used only if a group is taken out of PEG_CORE_GROUPS: PEG then needs this many ACTUAL good quarters
 PEG_GROWTH_CAP = 40                   # % growth used in PEG is capped here
+# 3.6.20 (owner, 19 November 2026, task #199): interest cover is FinEdge's reported trailing-12-month interest coverage (the company report's
+# figure), else the latest full year's calculation, and it is scored for every company: the v3.6 rule that dropped it below debt / equity 0.1 is retired.
 # 3.6.19 (owner, 17 November 2026): Sales and Profit CAGR use 5 years, then 4, 3, 2 (then what exists); PEG growth is the EPS CAGR over 5 years,
 # and when that is missing or negative over 4, 3, then 2; with no EPS at all the net profit CAGR the same way (premium_engine.growth_ladder).
 # Revenue names, version 2 (17 November 2026; inputMeta.revenueVersion, REVENUE_VERSION below): insurers. General and health insurers report their revenue as premium earned (FinEdge `premiumEarned`), which the

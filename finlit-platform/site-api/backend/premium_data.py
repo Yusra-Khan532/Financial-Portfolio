@@ -270,6 +270,19 @@ def adapt_inputs(raw, symbol, as_of, statement_type):
         d['financial_leverage_source'] = 'FinEdge reported financial leverage' if reported is not None else 'Calculated from total assets and equity on the same balance-sheet date' if computed is not None else 'Upstox reported financial leverage' if d['financial_leverage'] is not None else None
         if d['financial_leverage_source']:
             provenance['financial_leverage'] = {d['financial_leverage_source']}
+    # Interest cover (3.6.20, task #199): FinEdge's reported interest coverage, the company report's figure (section 9): the trailing-12-month row
+    # first, else the latest dated year. Non-financial groups only (lenders use their own (PBT + interest) / interest in place of capital adequacy).
+    d["interest_cover_reported"], d["interest_cover_source"] = None, None
+    if group not in ("BANK", "NBFC", "INSURANCE"):
+        li_rows = [row for row in items(raw.get("liquidity"), "ratios", "data") if isinstance(row, dict) and first(row, "interestCoverage") is not None]
+        ttm = next((row for row in li_rows if str(row.get("header") or "").strip().upper() == "TTM"), None)
+        yearly_rows = sorted((row for row in li_rows if row is not ttm and field_date(row) and field_date(row) <= as_of), key=field_date, reverse=True)
+        pick = ttm or (yearly_rows[0] if yearly_rows else None)
+        if pick is not None:
+            d["interest_cover_reported"] = first(pick, "interestCoverage")
+            d["interest_cover_source"] = ("FinEdge reported interest coverage (trailing 12 months)" if pick is ttm
+                                          else f"FinEdge reported interest coverage (year to {field_date(pick).isoformat()})")
+            provenance["interest_cover"] = {d["interest_cover_source"]}
     summary = dated(items(raw.get("summary"), "summary"))
     distribution = dated(items(raw.get("distribution"), "distributions"))
     declaration = dated(items(raw.get("declaration"), "declaration"))

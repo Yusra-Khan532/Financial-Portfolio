@@ -71,11 +71,9 @@ def factor(row, group):
     if cagr_years:
         label += f" ({cagr_years}-year)"
     item = {"metric": metric, "label": label, "valueText": value_text(row)}
-    if metric=='FINANCIAL_LEVERAGE' and row.get('details',{}).get('source'):
+    if metric in ('FINANCIAL_LEVERAGE', 'INTEREST_COVER') and row.get('details',{}).get('source'):
         item['comparisonText'] = 'Source: ' + row['details']['source'] + '.'
     if state == "N":
-        if row.get("details", {}).get("shownNotScored"):
-            return "notApplicable", dict(item, summary="Shown for information; not scored because debt / equity is below 0.1 (borrowing is too small for interest cover to matter).")
         return "notApplicable", dict(item, summary="Not applicable to this assessment.")
     if state in ("F", "L") or row.get("points") is None:
         if row.get("details",{}).get("invalid"):
