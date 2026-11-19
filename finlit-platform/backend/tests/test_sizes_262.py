@@ -27,7 +27,7 @@ def test_old_small_filters_read_micro_and_keep_their_companies():
     assert sizes.migrate_small(["Large", "small cap", "Mid", "Small"]) == ["Large", "Micro", "Mid"]
     # a company the old Small held (below ₹10,000 Cr) is in the migrated filter; one of ₹15,000 Cr (old Mid, new Small) is not
     assert sizes.size_of(8000) in sizes.migrate_small(["Small"]) and sizes.size_of(15000) not in sizes.migrate_small(["Small"])
-    sql = (pathlib.Path(__file__).parents[1] / "finlit" / "migrations" / "116_four_sizes.sql").read_text()
+    sql = (pathlib.Path(__file__).parents[1] / "finlit" / "migrations" / "117_four_sizes.sql").read_text()
     assert '\'"Small"\'::jsonb THEN \'"Micro"\'::jsonb' in sql and "sizesMoved" in sql
 
 
@@ -66,7 +66,7 @@ async def test_the_migration_moves_saved_small_to_micro_and_marks_the_screen(app
     screens = {"screens": [{"name": "Old small", "state": {"caps": ["Large", "Small"]}, "notify": True}, {"name": "No size", "state": {"ranges": {"pe": {"max": 20}}}},
                            {"name": "Mid only", "state": {"caps": ["Mid"]}}]}
     assert (await c.put("/api/me/screens", json=screens)).status_code == 200
-    sql = (pathlib.Path(__file__).parents[1] / "finlit" / "migrations" / "116_four_sizes.sql").read_text()
+    sql = (pathlib.Path(__file__).parents[1] / "finlit" / "migrations" / "117_four_sizes.sql").read_text()
     async with app.state.store.pool.acquire() as conn:
         await conn.execute(sql)
         await conn.execute(sql)                                                            # a second run changes nothing
