@@ -20,9 +20,9 @@ export function PsxInfo({ text, label }: { text: string; label?: string }) {
 
 /** What each column and heading means: the texts of screen-history-spec.md, section 6. */
 export const INFO: Record<string, string> = {
-  added_on: "The date this company joined this list. If it left and came back, the date of its latest return.",
-  since_added_pct: "How the share price has moved since the close of the day it was added, with NIFTY 500 over the same days. Past moves do not show what comes next.",
-  since_then_pct: "How the share price has moved from the close of the day you picked to the latest close, with NIFTY 500 over the same days.",
+  added_on: "The first saved list of this company's current run: it has been on every saved list since. A change to the screen's rules does not restart it. If it left and came back, the run starts again.",
+  since_added_pct: "How the share price has moved while on this list: from the price saved on the Added day to the price on this list's date, covering all the days in between, each day's move compounded. NIFTY 500 sits under it, over the same days. Past moves do not show what comes next.",
+  since_then_pct: "What happened after this list: from the price on the day you picked to the latest list's price, with NIFTY 500 over the same days.",
   joined: "The date the company first joined a screen of this page in the period.",
   screen: "The screen it joined first, and any other screen it joined in the period.",
   closeJoined: "The closing price on the day it joined.",

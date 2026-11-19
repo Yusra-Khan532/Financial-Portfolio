@@ -28,12 +28,14 @@ export type ThemeState = "in_play" | "emerging" | "fading" | "closest";
 export type Theme = { industry: string; state: ThemeState; breadth: number | null; marketBreadth?: number | null; r3?: number | null; rs3: number | null; members: number | null; small?: boolean; leaders: string[]; reason?: string | null };
 export type Miss = { symbol: string; name?: string | null; exchange?: string | null; failed: string[] };
 export type PresetDetail = {
-  id: string; name: string; asOf: string | null; count: number; shown: number; topCount?: number; asOn?: string; benchSincePct?: number | null; heading?: string | null; filtered?: number; facets?: { sizes: Record<string, number>; sectors: [string, number][]; strong: number }; columns: PresetColumn[]; rows: PresetRow[]; themes?: Theme[]; closestMisses?: Miss[];
+  id: string; name: string; asOf: string | null; count: number; shown: number; topCount?: number; asOn?: string; benchSincePct?: number | null; heading?: string | null; filtered?: number; facets?: { sizes: Record<string, number>; sectors: [string, number][]; strong: number; strongOnly?: number; anyRating?: number; new?: number; ahead?: number; nse?: number; bse?: number }; columns: PresetColumn[]; rows: PresetRow[]; themes?: Theme[]; closestMisses?: Miss[];
   howItWorks: string[]; cardText: string; disclaimer: string;
   /** "Top 10 of 40 that pass": what the list shows of the companies that pass. */
   listText?: string; notes?: string[]; rankScoreNote?: string; emptyText?: string; ratedCount?: number;
   /** Paging (every screen but the Top 10 lists and the theme view): `pageSize` is 25; `offset` the first row's place in the ranked list (0-based); `available` how many rows can be paged to. */
   pageSize?: number; offset?: number; limit?: number; available?: number; hasMore?: boolean;
+  /** Task #243 (pack P3, L1): the date bar's figures for the list shown, from the saved lists. */
+  list?: { date: string; latest: string; count: number; joined: number | null; left: number | null; prev: string | null; first: string; rulesUpdated: boolean } | null;
 };
 export const PAGE_SIZE = 25;
 /** The rows a page shows, as "26–50 of 76" (the numbers come from the response). */
@@ -98,10 +100,15 @@ export function usePresetList(enabled = true, tab: PresetTab = "advanced") {
   });
 }
 /** `offset` and `limit` page a long screen (the first page leaves them out, so it is the cached answer as sent). */
-/** The filter bar of a screen: search, size chips, sector and Only Strong or Healthy (applied by the server to the screen's own list). */
-export type BarFilter = { q: string; sizes: string[]; sectors: string[]; strong: boolean };
-export const NO_BAR: BarFilter = { q: "", sizes: [], sectors: [], strong: false };
-export const barParams = (b: BarFilter): string[] => [...(b.q.trim() ? ["q=" + encodeURIComponent(b.q.trim())] : []), ...b.sizes.map((x) => "size=" + encodeURIComponent(x)), ...b.sectors.map((x) => "sector=" + encodeURIComponent(x)), ...(b.strong ? ["strong=1"] : [])];
+/** The open screen's filters (task #243, pack P4), applied by the server to the screen's own list: search; Market cap; Sector; rating (Strong or Healthy, or Strong
+ *  only); New on this list (joined since the previous saved list); Ahead of NIFTY 500 since added; NSE-listed only. */
+export type Rating = "" | "healthy" | "strong";
+export type BarFilter = { q: string; sizes: string[]; sectors: string[]; rating: Rating; fresh: boolean; ahead: boolean; nse: boolean };
+export const NO_BAR: BarFilter = { q: "", sizes: [], sectors: [], rating: "", fresh: false, ahead: false, nse: false };
+export const barParams = (b: BarFilter): string[] => [...(b.q.trim() ? ["q=" + encodeURIComponent(b.q.trim())] : []), ...b.sizes.map((x) => "size=" + encodeURIComponent(x)),
+  ...b.sectors.map((x) => "sector=" + encodeURIComponent(x)), ...(b.rating ? ["rating=" + b.rating] : []), ...(b.fresh ? ["new=1"] : []), ...(b.ahead ? ["ahead=1"] : []), ...(b.nse ? ["nse=1"] : [])];
+/** How many filters are on (the search box counts as one). */
+export const barCount = (b: BarFilter) => (b.q.trim() ? 1 : 0) + b.sizes.length + b.sectors.length + (b.rating ? 1 : 0) + (b.fresh ? 1 : 0) + (b.ahead ? 1 : 0) + (b.nse ? 1 : 0);
 export const detailPath = (id: string, chips: string[], offset = 0, limit?: number, asOn?: string | null, bar: BarFilter = NO_BAR) => {
   const q = chips.map((c) => "chip=" + encodeURIComponent(c));
   q.push(...barParams(bar));
@@ -124,15 +131,20 @@ const asOnListeners = new Set<() => void>();
 const readAsOn = (): string | null => { try { return sessionStorage.getItem(AS_ON_KEY); } catch { return null; } };
 export const setAsOn = (d: string | null) => { try { if (d) sessionStorage.setItem(AS_ON_KEY, d); else sessionStorage.removeItem(AS_ON_KEY); } catch { /* private window: the pick lasts for this page only */ } asOnListeners.forEach((f) => f()); };
 export const useAsOn = (): [string | null, (d: string | null) => void] => [useSyncExternalStore((f) => { asOnListeners.add(f); return () => { asOnListeners.delete(f); }; }, readAsOn, () => null), setAsOn];
-export type HistorySession = { date: string; count: number; rulesUpdated: boolean };
+/** One option of the date menu (task #243, pack P3): a saved list with its count and joined / left against the previous one, or a trading day with no saved list. */
+export type HistorySession = { date: string; count: number | null; rulesUpdated: boolean; joined?: number | null; left?: number | null; prev?: string | null;
+  status?: "latest" | "saved" | "rules" | "first" | "not_saved"; saved?: boolean };
 export function usePresetHistory(id: string | null, chips: string[], enabled: boolean) {
   return useQuery<{ sessions: HistorySession[] }, ApiError>({ queryKey: ["preset-history", id, [...chips].sort().join(",")], enabled: enabled && !!id, staleTime: 600_000, retry: false,
     queryFn: () => apiGet(`/api/screener/presets/${encodeURIComponent(id!)}/history` + (chips.length ? "?" + chips.map((c) => "chip=" + encodeURIComponent(c)).join("&") : "")) });
 }
-export type LeftRow = { symbol: string; added_on: string; left_on: string; sessions: number | null; change_pct: number | null; reason: string };
-export function usePresetLeft(id: string | null, chips: string[], enabled: boolean) {
-  return useQuery<{ left: LeftRow[] }, ApiError>({ queryKey: ["preset-left", id, [...chips].sort().join(",")], enabled: enabled && !!id, staleTime: 600_000, retry: false,
-    queryFn: () => apiGet(`/api/screener/presets/${encodeURIComponent(id!)}/left` + (chips.length ? "?" + chips.map((c) => "chip=" + encodeURIComponent(c)).join("&") : "")) });
+export type LeftRow = { symbol: string; added_on: string | null; left_on: string; sessions: number | null; lists_on?: number; change_pct: number | null; reason: string | null };
+export type LeftMode = "on" | "upto" | "after";
+/** Left the list (task #243, pack P8): follows the date picked; built only from saved lists. */
+export function usePresetLeft(id: string | null, chips: string[], enabled: boolean, asOn: string | null = null, mode: LeftMode = "on") {
+  return useQuery<{ left: LeftRow[]; date: string | null; first?: string; mode?: LeftMode; counts?: Record<LeftMode, number> }, ApiError>({
+    queryKey: ["preset-left", id, [...chips].sort().join(","), asOn, mode], enabled: enabled && !!id, staleTime: 600_000, retry: false, placeholderData: keepPreviousData,
+    queryFn: () => apiGet(`/api/screener/presets/${encodeURIComponent(id!)}/left?` + [...chips.map((c) => "chip=" + encodeURIComponent(c)), ...(asOn ? ["as_on=" + encodeURIComponent(asOn)] : []), "mode=" + mode].join("&")) });
 }
 
 // ---------- the table ----------
