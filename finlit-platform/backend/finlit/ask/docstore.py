@@ -25,9 +25,41 @@ WHERE f.kind = 'document' AND f.symbol = $1 AND f.link LIKE 'https://%'
   AND (coalesce(f.category, '') || ' ' || f.title) !~* 'annual report|integrated report|transcript|concall|earnings call'
 ORDER BY f.item_date DESC, f.id DESC LIMIT 1
 """
+# Task #254: the newest stored filing of any other kind the Documents page shows (call transcript, annual report, results filing), straight from the
+# database, for when the Documents list (newest filings only) does not reach it. An annual report is filed once a year, so its window is two years.
+KIND_RULES = {
+    "Call transcript": ("document", r"transcript|concall|earnings call", r"annual report|integrated report"),
+    "Annual report": ("document", r"annual report|integrated report", r"intimation|notice of (agm|annual general)|book closure|record date|newspaper"),
+    "Results filing": ("result", r"financial results|outcome of board meeting|results for the (quarter|period|year)",
+                       r"board meeting for results|intimation|con\.? ?call|analyst|recording|transcript|press release|newspaper"),
+}
+KIND_DAYS = {"Annual report": 760}
+FEED_KIND_SQL = """
+SELECT f.title, f.item_date, f.link, f.category FROM feed_items f
+WHERE f.kind = $2 AND f.symbol = $1 AND f.link LIKE 'https://%'
+  AND f.item_date >= current_date - $5::int
+  AND (coalesce(f.category, '') || ' ' || f.title) ~* $3
+  AND (coalesce(f.category, '') || ' ' || f.title) !~* $4
+ORDER BY f.item_date DESC, f.id DESC LIMIT 12
+"""
 HELD_SQL = """
 SELECT coalesce(category, '') AS category, title, item_date FROM feed_items
 WHERE kind = 'document' AND symbol = $1 AND item_date >= current_date - $2::int ORDER BY item_date DESC LIMIT 200
+"""
+
+
+# The same company and kind, filed before the document just kept (bounded: one company's rows of one kind).
+OLDER_SQL = "DELETE FROM document_pages WHERE symbol = $1 AND kind = $2 AND filed < $3 AND link <> $4"
+# Kept documents filed (or, with no date, read) more than $1 days ago, at most $2 a time, except each company's newest annual report (task #254: a
+# yearly document stays until the next one arrives).
+PRUNE_SQL = """
+DELETE FROM document_pages WHERE link IN (
+  SELECT d.link FROM document_pages d
+  WHERE coalesce(d.filed, d.read_at::date) < current_date - $1::int
+    AND NOT (d.kind = 'Annual report' AND NOT EXISTS (
+      SELECT 1 FROM document_pages n WHERE n.symbol = d.symbol AND n.kind = 'Annual report'
+        AND coalesce(n.filed, n.read_at::date) > coalesce(d.filed, d.read_at::date)))
+  LIMIT $2)
 """
 
 
@@ -62,15 +94,19 @@ async def get_pages(store: Any, link: str) -> Optional[List[str]]:
 
 
 async def put_pages(store: Any, link: str, symbol: str, kind: str, title: Optional[str], filed: Any, pages: List[str]) -> bool:
-    """Keeps the text of a document read just now. False (logged) when it could not be kept; the caller goes on."""
+    """Keeps the text of a document read just now, and (task #254) only the newest document of each kind per company: older ones of the same kind
+    and company go once a newer one is kept. False (logged) when it could not be kept; the caller goes on."""
     if store is None or not link or not pages:
         return False
+    sym, day = (symbol or "").upper(), _day(filed)
     try:
         async with store.pool.acquire() as conn:
             await conn.execute(
                 "INSERT INTO document_pages (link, symbol, kind, title, filed, pages, read_at) VALUES ($1,$2,$3,$4,$5,$6::jsonb,now()) "
                 "ON CONFLICT (link) DO UPDATE SET symbol=$2, kind=$3, title=$4, filed=$5, pages=$6::jsonb, read_at=now()",
-                link, (symbol or "").upper(), kind, title, _day(filed), json.dumps(pages))
+                link, sym, kind, title, day, json.dumps(pages))
+            if day is not None:
+                await conn.execute(OLDER_SQL, sym, kind, day, link)
         return True
     except Exception:
         log.warning("document pages not kept for %s", link, exc_info=True)
@@ -109,6 +145,23 @@ async def feed_presentation(store: Any, symbol: str) -> Optional[Dict[str, Any]]
     return {"title": r["title"], "date": str(r["item_date"]) if r["item_date"] else None, "link": r["link"], "from": "documents"}
 
 
+async def feed_documents(store: Any, symbol: str, kind: str) -> List[Dict[str, Any]]:
+    """Task #254: the stored filings of one kind (call transcript, annual report, results filing) for the company, newest first, from the database
+    (the Documents list the tool reads first returns the newest filings only). Empty without a database or on a fault (logged)."""
+    rule = KIND_RULES.get(kind)
+    if store is None or rule is None:
+        return []
+    feed_kind, want, avoid = rule
+    try:
+        async with store.pool.acquire() as conn:
+            rows = await conn.fetch(FEED_KIND_SQL, symbol.upper(), feed_kind, want, avoid, KIND_DAYS.get(kind, KEEP_DAYS))
+    except Exception:
+        log.warning("%s filings not read for %s", kind.lower(), symbol, exc_info=True)
+        return []
+    return [{"title": r["title"], "date": str(r["item_date"]) if r["item_date"] else None, "link": r["link"], "category": r["category"],
+             "from": "documents"} for r in rows]
+
+
 async def held(store: Any, symbol: str) -> List[Dict[str, Any]]:
     """The documents FinLit holds for the company in the last 400 days ({category, title, date}), to say what there is when no presentation is."""
     if store is None:
@@ -123,14 +176,13 @@ async def held(store: Any, symbol: str) -> List[Dict[str, Any]]:
 
 
 async def prune(store: Any, days: int = KEEP_DAYS, batch: int = PRUNE_BATCH) -> int:
-    """Removes kept documents filed (or, with no date, read) more than `days` ago, at most `batch` at a time. 0 on any fault (logged)."""
+    """Removes kept documents filed (or, with no date, read) more than `days` ago, at most `batch` at a time, keeping each company's newest annual report
+    however old (task #254). 0 on any fault (logged)."""
     if store is None:
         return 0
     try:
         async with store.pool.acquire() as conn:
-            res = await conn.execute(
-                "DELETE FROM document_pages WHERE link IN (SELECT link FROM document_pages "
-                "WHERE coalesce(filed, read_at::date) < current_date - $1::int LIMIT $2)", days, batch)
+            res = await conn.execute(PRUNE_SQL, days, batch)
         return int(str(res).split()[-1]) if res else 0
     except Exception:
         log.warning("document pages not pruned", exc_info=True)

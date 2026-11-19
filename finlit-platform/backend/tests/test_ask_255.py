@@ -111,8 +111,8 @@ async def test_the_documents_text_reaches_the_model_before_its_first_turn_as_a_t
 
 def test_the_instructions_say_to_quote_the_page_date_and_link_and_never_that_it_cannot_open_the_presentation():
     s = service.SYSTEM
-    assert "Quote what it says with the page number, and give the date it was filed and its link" in s
-    assert "never say you cannot open or access the presentation" in s
+    assert "Quote what it says with the document, the page number, the date it was filed and its link" in s     # task #254: every document
+    assert "never say you cannot open or access it" in s
 
 
 # ------------------------------------------------------------------------------------------------ 2 and 3: where the document is found, and kept text
@@ -381,7 +381,7 @@ async def test_on_a_company_page_a_presentation_question_reads_the_kept_presenta
     try:
         r, ev = await ask(m, "What does the investor presentation say?", symbol="ZZTEST")
         assert r.status_code == 200 and ev[-1][0] == "done"
-        assert ("status", {"text": T.label("read_company_document", {"symbol": "ZZTEST"})}) in ev        # the member sees "Reading the document"
+        assert ("status", {"text": T.label("read_company_document", {"symbol": "ZZTEST", "document": "investor_presentation"})}) in ev   # "Reading the investor presentation"
         first = client.calls[0]["messages"]
         assert first[-2]["content"][0]["name"] == "read_company_document"
         res = first[-1]["content"][0]

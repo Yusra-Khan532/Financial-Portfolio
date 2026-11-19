@@ -12,6 +12,7 @@ import asyncio
 import json
 import re
 from collections import OrderedDict
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -199,7 +200,77 @@ async def get_news_and_filings(gw: Gateway, a: Dict[str, Any]) -> Out:
 
 
 # ------------------------------------------------------------------------------------------------ the text of a document (Documents > Investor presentation ...)
-DOC_KINDS = {"investor_presentation": "Investor presentation", "annual_report": "Annual report", "call_transcript": "Call transcript"}
+DOC_KINDS = {"investor_presentation": "Investor presentation", "annual_report": "Annual report", "call_transcript": "Call transcript",
+             "results_filing": "Results filing"}      # task #254: the quarterly results the company filed (News & filings > Results)
+
+
+def is_results_filing(r: Dict[str, Any]) -> bool:
+    """Task #254: a results filing is the board-meeting outcome or financial results the company filed (with its PDF), not the notice of the meeting,
+    a call or its recording, or a press release: the rule docstore.KIND_RULES["Results filing"] applies in the database."""
+    s = f"{r.get('category') or ''} {r.get('title') or ''}".lower()
+    if not str(r.get("link") or "").startswith("https://"):
+        return False
+    if re.search(r"board meeting for results|intimation|con\.? ?call|analyst|recording|transcript|press release|newspaper", s):
+        return False
+    return bool(re.search(r"financial results|outcome of board meeting|results for the (quarter|period|year)", s))
+
+
+# ------------------------------------------------------------------------------------------------ the period a question asks about (task #254)
+_MONTH_Q = {"june": 6, "jun": 6, "september": 9, "sept": 9, "sep": 9, "december": 12, "dec": 12, "march": 3, "mar": 3}
+_QEND = {1: (6, 30), 2: (9, 30), 3: (12, 31), 4: (3, 31)}
+QUARTER_FILE_DAYS = 75        # results, calls and decks of a quarter are filed within about two months of its end (60 days for the year's last)
+ANNUAL_FILE_DAYS = 270        # an annual report follows the year's end by a few months (the AGM is due within six)
+
+
+def period_window(text: str, kind: str, today: Optional[date] = None) -> Optional[Tuple[date, date, str]]:
+    """The filing dates a document of the period the question names would carry, with the period in words: "Q2 FY27", "the September quarter
+    (2026)", "quarter ended 30 September 2026", "FY26", "2025-26". None when the question names no period ("latest", "last quarter")."""
+    q, today = (text or "").lower(), today or date.today()
+
+    def quarter(end: date, label: str) -> Tuple[date, date, str]:
+        return end + timedelta(days=1), end + timedelta(days=QUARTER_FILE_DAYS), label
+
+    def last_end(month: int, day: int) -> date:          # the latest quarter end on or before today with that month
+        y = today.year if (month, day) <= (today.month, today.day) else today.year - 1
+        return date(y, month, day)
+
+    m = re.search(r"\bq([1-4])\s*[- ]?\s*(?:fy\s*'?(\d{2}|\d{4}))?", q)
+    if m:
+        n = int(m.group(1))
+        if m.group(2):
+            fy = int(m.group(2)) % 100 + 2000
+            mo, d = _QEND[n]
+            end = date(fy if n == 4 else fy - 1, mo, d)
+            return quarter(end, f"Q{n} FY{fy % 100:02d}")
+        mo, d = _QEND[n]
+        end = last_end(mo, d)
+        fy = end.year + (1 if mo != 3 else 0)
+        return quarter(end, f"Q{n} FY{fy % 100:02d}")
+    m = re.search(r"\b(june|jun|september|sept|sep|december|dec|march|mar)\s+(?:quarter|qtr)(?:\s+(?:of\s+)?(20\d\d))?", q) \
+        or re.search(r"\bquarter (?:ended|ending)\s+(?:\d{1,2}(?:st|nd|rd|th)?\s+)?(june|jun|september|sept|sep|december|dec|march|mar)\w*,?\s*(?:\d{1,2},?\s*)?(20\d\d)?", q)
+    if m:
+        mo = _MONTH_Q[m.group(1)]
+        d = 30 if mo in (6, 9) else 31
+        end = date(int(m.group(2)), mo, d) if m.group(2) else last_end(mo, d)
+        return quarter(end, f"the quarter ended {end.day} {end.strftime('%B')} {end.year}")
+    # A year alone: the annual report of that year; for results and calls, the year's last quarter (filed with the year's figures). In a
+    # presentation question a year is the year of a plan or a target ("capex for FY27", "FY30 aspiration"), never the filing's, so it is not a period.
+    m = re.search(r"\bfy\s*'?(\d{2}|\d{4})\b", q) or re.search(r"\b(20\d\d)\s*[-–/]\s*(\d{2})\b", q)
+    if m and kind != "Investor presentation":
+        fy = (int(m.group(2)) + 2000) if m.lastindex == 2 else int(m.group(1)) % 100 + 2000
+        end = date(fy, 3, 31)
+        if kind == "Annual report":
+            return end + timedelta(days=1), end + timedelta(days=ANNUAL_FILE_DAYS), f"FY{fy % 100:02d}"
+        return quarter(end, f"Q4 FY{fy % 100:02d} (the year's last quarter)")
+    return None
+
+
+def in_window(doc: Dict[str, Any], w: Tuple[date, date, str]) -> bool:
+    try:
+        d = date.fromisoformat(str(doc.get("date") or "")[:10])
+    except ValueError:
+        return False
+    return w[0] <= d <= w[1]
 DOC_TIMEOUT = 30.0          # seconds to download and read one PDF
 MAX_PAGES_READ = 120
 _texts: "OrderedDict[str, List[str]]" = OrderedDict()     # link -> page texts; the newest 24 documents stay in memory
@@ -268,13 +339,90 @@ def _score(page: str, terms: List[Tuple[str, ...]]) -> int:
     return total
 
 
-def best_pages(pages: List[str], question: str, n: int = 6, chars: int = 9000) -> List[Tuple[int, str]]:
+# Task #254: an annual report's sections that answer most questions (management's discussion, the board's report, risks, segments, the notes), and
+# the words that mark a person from the company's management in a call transcript's list of participants.
+ANNUAL_SECTIONS = ("management discussion", "management's discussion", "md&a", "directors' report", "directors report", "board's report",
+                   "boards' report", "risks and concerns", "risk management", "risk factors", "segment information", "segment-wise", "segment results",
+                   "notes to the", "chairman's message", "chairman's letter", "message from the chairman", "key highlights", "at a glance")
+_MGMT_TITLE = (r"(chief(?: [a-z &]{2,30}officer| [a-z &]{2,30})?|cfo|ceo|coo|cto|managing director|joint managing director|executive director"
+               r"|whole[- ]?time director|chairman|chairperson|president|director|head[ -][a-z ]{3,30}|company secretary|investor relations)")
+_SPEAKER = re.compile(r"^\s*([A-Z][A-Za-z.' ]{1,40}?)\s*:\s+\S", re.M)
+# Letterhead and cover-letter labels that look like a speaker's name ("Subject: ...", "Scrip code: ...") but are not.
+_NOT_SPEAKERS = {"reg off", "regd off", "regd. off", "registered office", "scrip symbol", "scrip code", "subject", "sub", "encls", "encl", "website",
+                 "email", "e-mail", "cin", "reg", "ref", "to", "date", "place", "tel", "fax", "phone", "note", "notes", "source", "page", "disclaimer",
+                 "q", "a", "dear sir", "dear sirs", "dear madam", "kind attn", "attn", "isin", "symbol", "series", "time", "venue", "duration"}
+
+
+def _nm(s: str) -> str:
+    """A name for matching: letters only, so "K.N. RADHAKRISHNAN" and "K. N. Radhakrishnan" are one person."""
+    return re.sub(r"[^a-z]", "", s.lower())
+
+
+def management_of(pages: List[str]) -> Dict[str, str]:
+    """A call transcript's management, {name: title}, from its first pages: the list of participants ("MANAGEMENT: MR. K.N. RADHAKRISHNAN - DIRECTOR
+    AND CHIEF EXECUTIVE OFFICER", "Name - Chief Financial Officer"); the moderator and the analysts are left out."""
+    out: Dict[str, str] = {}
+    for pg in pages[:3]:
+        lines = pg.splitlines()
+        for k, line in enumerate(lines):
+            head = re.match(r"\s*(management|moderator|participants?|analysts?)\s*:\s*", line, re.I)
+            if head and head.group(1).lower() != "management":
+                continue
+            rest = line[head.end():] if head else line
+            m = re.match(rf"\s*(?:mr\.?|ms\.?|mrs\.?|dr\.?)?\s*([A-Z][A-Za-z.' ]{{1,40}}?)\s*[-–—:,|]\s*{_MGMT_TITLE}\b", rest, re.I)
+            if m and m.group(1).strip().lower() not in ("moderator", "management", "participants"):
+                title = re.sub(r"\s+", " ", rest[m.start(2):]).strip(" ,;|-–—")
+                nxt = lines[k + 1].strip() if k + 1 < len(lines) else ""
+                if not re.search(r"officer\b", title, re.I) and re.fullmatch(r"(?i)[a-z &]{0,30}officer\b[a-z &]{0,20}", nxt):
+                    title = f"{title} {nxt}"                     # a title that runs onto the next line ("CHIEF FINANCIAL / OFFICER")
+                out[m.group(1).strip()] = title[:60].strip(" ,;|-–—")
+    return out
+
+
+def _title_of(who: str, mgmt: Dict[str, str]) -> Optional[str]:
+    w = _nm(who)
+    return next((t for n, t in mgmt.items() if w and (_nm(n) in w or w in _nm(n))), None) if len(w) >= 4 else None
+
+
+def speakers_on(page: str, mgmt: Dict[str, str]) -> List[str]:
+    """The speakers whose turns a transcript page shows, as it names them, with their title when they are management ("Vikas Goel (Chief Financial
+    Officer, management)"); an analyst or the moderator is named as the page names them, and letterhead labels are left out."""
+    out: List[str] = []
+    for m in _SPEAKER.finditer(page):
+        who = m.group(1).strip()
+        if who.lower().rstrip(".") in _NOT_SPEAKERS or len(who) < 3:
+            continue
+        title = _title_of(who, mgmt)
+        label = f"{who} ({title}, management)" if title else ("Management" if who.lower() == "management" else who)
+        if label not in out:
+            out.append(label)
+    return out
+
+
+def _kind_bonus(page: str, kind: Optional[str], mgmt: Dict[str, str]) -> int:
+    p = page.lower()
+    if kind == "Call transcript":         # management's own answers come before the analysts' questions and the moderator
+        return 4 if any(_title_of(m.group(1), mgmt) or m.group(1).strip().lower() == "management" for m in _SPEAKER.finditer(page)) else 0
+    if kind == "Annual report":
+        return 3 if any(w in p for w in ANNUAL_SECTIONS) else 0
+    return 0
+
+
+def best_pages(pages: List[str], question: str, n: int = 6, chars: int = 9000, kind: Optional[str] = None) -> List[Tuple[int, str]]:
     """The pages that answer the question (task #255: by meaning, not exact words: stems, a small finance synonym list, numbers and years), with the
     first page (which names the deck), in page order, within `chars`. A general question ("what does the presentation say") takes the highlights,
-    summary and performance pages first."""
+    summary and performance pages first. Task #254: in a call transcript the pages where management answers come first; in an annual report its
+    main sections (management's discussion, the board's report, risks, segments, the notes)."""
     terms = _terms(question)
     general = bool(GENERAL.search(question or "")) or not terms
     order = list(range(len(pages)))
+    mgmt = management_of(pages) if kind == "Call transcript" else {}
+    if kind in ("Call transcript", "Annual report"):
+        def scored(i: int) -> int:
+            s = _score(pages[i], terms) if terms else 0
+            return s + _kind_bonus(pages[i], kind, mgmt) if (s or general) else 0
+        ranked = sorted((i for i in order if scored(i)), key=lambda i: (-scored(i), i)) or order
+        return _cut(pages, ranked, n, chars)
     if general:
         summ = [i for i in order if any(w in pages[i].lower() for w in SUMMARY_WORDS)]
         rest = [i for i in order if i not in summ]
@@ -285,6 +433,11 @@ def best_pages(pages: List[str], question: str, n: int = 6, chars: int = 9000) -
     else:
         ranked = sorted(order, key=lambda i: (-_score(pages[i], terms), i))
         ranked = [i for i in ranked if _score(pages[i], terms)] or [i for i in order if any(w in pages[i].lower() for w in SUMMARY_WORDS)] or order
+    return _cut(pages, ranked, n, chars)
+
+
+def _cut(pages: List[str], ranked: List[int], n: int, chars: int) -> List[Tuple[int, str]]:
+    """The first page and the best-ranked ones, in page order, each with its share of `chars`."""
     keep = sorted({0, *ranked[: max(1, n - 1)]})
     per = max(600, chars // max(1, len(keep)))       # each kept page gets its share, so the first pages never crowd out the ones that answer
     out, used = [], 0
@@ -321,25 +474,44 @@ async def _pages_of(link: str) -> List[str]:
     return pages
 
 
-async def _locate(gw: Gateway, sym: str, want: str, store: Any) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]]]:
-    """The newest document of the kind asked for: the Documents list first (what the website shows); for a presentation, then the one Discovery read,
-    then any stored filing that says "presentation" in the last 400 days (task #255: TVSMOTOR's Documents list named none while one was on file).
-    Returns (document or None, the rows of the Documents list, to say what is there when nothing is)."""
+async def _locate(gw: Gateway, sym: str, want: str, store: Any, window: Optional[Tuple[date, date, str]] = None
+                  ) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]], Optional[str]]:
+    """The document of the kind asked for: the Documents list first (what the website shows; results filings come from News & filings > Results);
+    then the database: for a presentation the one Discovery read, then any stored filing that says "presentation" in the last 400 days (task #255);
+    for a call transcript, an annual report or a results filing, the stored filings of that kind (task #254). The newest, or, when the question
+    names a period, the one filed for it; with none for that period, the newest and a note saying so.
+    Returns (document or None, the rows of the Documents list, to say what is there when nothing is, a note or None)."""
+    results = want == "Results filing"
     try:
-        data = await gw.json("/api/feed", {"kind": "document", "symbol": sym, "limit": 150}, subject=f"The documents of {sym}")
+        data = await gw.json("/api/feed", {"kind": "result" if results else "document", "symbol": sym, "limit": 150},
+                             subject=f"The {'results filings' if results else 'documents'} of {sym}")
     except ToolError:
         data = None
         if store is None:
             raise
-    rows = [r for r in (_feed_row(i) for i in (data or {}).get("items") or [])]
-    docs = [r for r in rows if r["type"] == want and r.get("link")]
-    if docs:
-        return docs[0], rows                                       # the newest
-    if want == "Investor presentation":
-        for found in (await docstore.discovery_presentation(store, sym), await docstore.feed_presentation(store, sym)):
-            if found and found.get("link"):
-                return found, rows
-    return None, rows
+    items = (data or {}).get("items") or []
+    rows = [r for r in (_feed_row(i) for i in items)]
+    if results:
+        docs = [{**r, "type": want} for r in rows if is_results_filing(r)]
+    else:
+        docs = [r for r in rows if r["type"] == want and r.get("link")]
+    if not docs or window:
+        if want == "Investor presentation":
+            more = [f for f in (await docstore.discovery_presentation(store, sym), await docstore.feed_presentation(store, sym)) if f and f.get("link")]
+        else:
+            more = await docstore.feed_documents(store, sym, want)
+        seen = {d["link"] for d in docs}
+        docs += [f for f in more if f.get("link") and f["link"] not in seen]
+        docs.sort(key=lambda d: str(d.get("date") or ""), reverse=True)
+    if not docs:
+        return None, rows, None
+    if window:
+        hit = [d for d in docs if in_window(d, window)]
+        if hit:
+            return hit[0], rows, None
+        return docs[0], rows, (f"FinLit holds no {want.lower()} of {sym} filed for {window[2]}; this is the newest one, filed {docs[0].get('date')}. "
+                               f"Say so plainly before quoting it.")
+    return docs[0], rows, None                                          # the newest
 
 
 async def _read_pages(store: Any, doc: Dict[str, Any], sym: str, want: str) -> Tuple[List[str], str]:
@@ -355,18 +527,33 @@ async def _read_pages(store: Any, doc: Dict[str, Any], sym: str, want: str) -> T
     return pages, "memory" if in_memory else "exchange"
 
 
+# What the AI is told about each kind of document it quotes (task #254): whose words they are, and how to quote them.
+KIND_NOTES = {
+    "Investor presentation": "It is the company's own presentation of itself, not FinLit's view.",
+    "Call transcript": ("These are the words said on the company's earnings call. Name who said each thing as the page names the speaker (for example "
+                        "'Management (CFO): ...'); a question from an analyst or the moderator is not management's view. Never put words in management's "
+                        "mouth: quote or describe only what the page shows."),
+    "Annual report": "It is the company's own annual report: say which section a quote comes from when the page names it.",
+    "Results filing": ("It is the results the company filed with the exchange. For the figures use FinLit's own results (get_quarter_results, the "
+                       "company card) and quote this filing as their source; say when a figure differs between the two."),
+}
+
+
 async def read_company_document(gw: Gateway, a: Dict[str, Any]) -> Out:
     sym, want = clean_symbol(a["symbol"]), DOC_KINDS[a["document"]]
     store = docstore.store_of(gw)
-    doc, rows = await _locate(gw, sym, want, store)
+    window = period_window(a.get("period") or a.get("question") or "", want)
+    doc, rows, period_note = await _locate(gw, sym, want, store, window)
     if doc is None:
         held = sorted({r["type"] for r in rows if r.get("type")})
         if not held and store is not None:
             held = sorted({doc_type(h["category"], h["title"]) for h in await docstore.held(store, sym)})
         has = f"FinLit holds these documents for {sym}: {', '.join(held)}." if held else f"FinLit holds no company documents for {sym} yet."
-        return Out({"symbol": sym, "document": want, "found": False, "held": held, "searched": f"the last {docstore.KEEP_DAYS} days"},
+        days = docstore.KIND_DAYS.get(want, docstore.KEEP_DAYS)          # task #254: an annual report is looked for over two years
+        page = "News & filings page" if want == "Results filing" else "Documents page"
+        return Out({"symbol": sym, "document": want, "found": False, "held": held, "searched": f"the last {days} days"},
                    source=SOURCE_FEED, routes=["/api/feed"],
-                   notes=[f"FinLit's Documents page holds no {want.lower()} for {sym} filed in the last {docstore.KEEP_DAYS} days "
+                   notes=[f"FinLit's {page} holds no {want.lower()} for {sym} filed in the last {days} days "
                           f"(filings appear as the company's announcements are loaded). {has} Say so plainly; the web may have the company's own copy."])
     try:
         pages, origin = await _read_pages(store, doc, sym, want)
@@ -374,14 +561,26 @@ async def read_company_document(gw: Gateway, a: Dict[str, Any]) -> Out:
         raise ToolError(f"The exchange did not send the {want.lower()} ({doc['title']}, filed {doc['date']}) in time. It can be opened from {doc['link']}") from None
     found_by = " (the presentation FinLit's Discovery read; the Documents list shows newer filings only)" if doc.get("from") == "discovery" else ""
     base = {"symbol": sym, "document": want, "title": doc["title"], "filed": doc["date"], "link": doc["link"], "pages": len(pages)}
+    if window:
+        base["period"] = window[2]
     src = f"{SOURCE_FEED}; the file itself, read from the exchange archive{found_by}"
+    lead = [period_note] if period_note else []
     if not any(p.strip() for p in pages):
         return Out({**base, "text": []}, as_of=doc["date"], source=src, routes=["/api/feed"],
-                   notes=["The file has no readable text (it is a scan or images only); it can be opened from the link."])
-    return Out({**base, "text": [{"page": n, "text": t} for n, t in best_pages(pages, a.get("question") or "")], "read": origin}, as_of=doc["date"],
-               source=src, routes=["/api/feed", doc["link"]],
-               notes=["Quote what the document says and name its page, the date it was filed and its link; it is the company's own presentation of "
-                      "itself, not FinLit's view. This is the document's text: never say the presentation could not be read."])
+                   notes=lead + ["The file has no readable text (it is a scan or images only); it can be opened from the link."])
+    chosen = best_pages(pages, a.get("question") or "", kind=want)
+    text: List[Dict[str, Any]] = [{"page": n, "text": t} for n, t in chosen]
+    if want == "Call transcript":                                      # who speaks on each page, as the page names them
+        mgmt = management_of(pages)
+        for row in text:
+            who = speakers_on(pages[row["page"] - 1], mgmt)
+            if who:
+                row["speakers"] = who
+        if mgmt:
+            base["management"] = [f"{n} ({t})" for n, t in mgmt.items()]
+    return Out({**base, "text": text, "read": origin}, as_of=doc["date"], source=src, routes=["/api/feed", doc["link"]],
+               notes=lead + [f"Quote what the document says and name its page, the date it was filed and its link. {KIND_NOTES[want]} "
+                             f"This is the document's text: never say the {want.lower()} could not be read."])
 
 
 # ------------------------------------------------------------------------------------------------ the Basic and Advanced stock screeners (FinLit IQ / FinLit Prism)
@@ -493,11 +692,15 @@ TOOLS: List[Tool] = [
           "type": {"type": "string", "enum": ["Annual report", "Investor presentation", "Call transcript", "Offer document", "Results filing", "Other filing"],
                    "description": "For documents: one type only (optional)"},
           "limit": {"type": "integer", "minimum": 1, "maximum": 30, "default": 12}}, get_news_and_filings),
-    Tool("read_company_document", "Read a company document", "Reads the text of a company's newest investor presentation, annual report or earnings-call transcript "
-         "from FinLit's Documents page (the file the company filed with the exchange) and returns the pages that answer the question, with the page numbers "
-         "and the link. Use it for 'what does the investor presentation say about ...', the company's own guidance, plans, segment or project details.",
+    Tool("read_company_document", "Read a company document", "Reads the text of a company's investor presentation, earnings-call transcript, annual report or "
+         "results filing from FinLit's Documents and News & filings pages (the file the company filed with the exchange) and returns the pages that answer "
+         "the question, with the page numbers, the speakers of a call and the link. The newest by default, or the one of the period asked. Use it for "
+         "'what does the investor presentation say about ...', 'what did management say on the call', the company's own guidance, plans, segment or "
+         "project details, its annual report (strategy, risks, related parties) and the results filing behind FinLit's results figures.",
          {"symbol": dict(SYMBOL_SCHEMA), "document": {"type": "string", "enum": list(DOC_KINDS), "default": "investor_presentation"},
-          "question": {"type": "string", "maxLength": 200, "description": "What to look for in the document"}}, read_company_document, ["symbol"]),
+          "question": {"type": "string", "maxLength": 200, "description": "What to look for in the document"},
+          "period": {"type": "string", "maxLength": 40, "description": "Optional: the quarter or year asked about, e.g. 'Q2 FY27', 'September quarter', 'FY26'"}},
+         read_company_document, ["symbol"]),
     Tool("get_discovery", "Discovery", "FinLit AI's Discovery section: companies grouped by the themes their newest investor presentation talks about (AI, defence, "
          "solar, batteries, data centres, semiconductors, EV, nuclear, space and drones, and more: 21 themes), each with its keywords, the sentences that hold figures "
          "and the presentation's link, the stage (operating, under execution, planned, MoU / pilot), the tone of its words, its NSE sector, and the "
