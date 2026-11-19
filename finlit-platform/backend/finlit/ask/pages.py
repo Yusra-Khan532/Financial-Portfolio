@@ -317,6 +317,81 @@ SYNONYMS: List[Tuple[str, ...]] = [
 ]
 # Task #254 rework: the measures a bank-like company is read for, added to the question when the company is a bank, an NBFC or an insurer
 BANK_TERMS = "GNPA NNPA NIM CASA CRAR credit cost advances deposits"
+# Each core measure of a bank, an NBFC or an insurer, as their results and decks write it. A bank-lens read takes the best page for every measure that
+# appears (task #254 rework: HDFC Bank's NIM sat on page 19 of 24 and was left out), each page cut to the lines that carry the measures.
+BANK_MEASURES: Dict[str, Tuple[str, ...]] = {
+    "GNPA/NNPA": ("gnpa", "nnpa", "gross npa", "net npa", "gross non-performing", "net non-performing", "gross non performing", "net non performing",
+                  "gross stage 3", "net stage 3", "gs3", "ns3"),
+    "NIM": ("net interest margin", "core nim", "nim"),
+    "CASA": ("casa",),
+    "CRAR/CAR": ("crar", "capital adequacy", "capital to risk", "cet1", "cet-1", "common equity tier", "tier 1", "tier i capital", "solvency ratio"),
+    "credit cost/provisions": ("credit cost", "provisions and contingencies", "provisions (other than tax)", "loan loss provision", "provisions"),
+    "PCR": ("provision coverage", "pcr"),
+    "cost-to-income": ("cost to income", "cost-to-income", "cost income ratio"),
+    "ROA": ("return on assets", "return on average assets", "roa"),
+    "advances growth": ("gross advances", "loans and advances", "advances", "loan book", "aum"),
+    "deposits growth": ("total deposits", "deposits"),
+}
+
+
+def bank_lens(question: str) -> bool:
+    """True when the read is for a bank, an NBFC or an insurer (the pre-fetch adds BANK_TERMS to the question for one)."""
+    return BANK_TERMS.lower() in (question or "").lower()
+
+
+def _measure_hits(page: str, words: Tuple[str, ...]) -> int:
+    p = page.lower()
+    return sum(len(re.findall(rf"(?<![a-z0-9]){re.escape(w)}(?![a-z0-9])", p)) for w in words)
+
+
+def _measure_lines(page: str, words: Tuple[str, ...], keep: int = 1) -> str:
+    """The lines of a page that name any of the words, with `keep` lines around each (a table's figures sit beside or under the name)."""
+    lines = [ln for ln in page.splitlines() if ln.strip()]
+    rx = re.compile(r"(?<![a-z0-9])(" + "|".join(re.escape(w) for w in words) + r")(?![a-z0-9])", re.I)
+    hit = {i for i, ln in enumerate(lines) if rx.search(ln)}
+    take = sorted({j for i in hit for j in range(max(0, i - keep), min(len(lines), i + keep + 1))})
+    out, last = [], -2
+    for j in take:
+        if j != last + 1 and out:
+            out.append("…")
+        ln = re.sub(r"[ \t]+", " ", lines[j]).strip()
+        if j in hit and len(ln) > 400:                           # a long run-on line: keep the stretch around the measure's name
+            m = rx.search(ln)
+            ln = "…" + ln[max(0, m.start() - 150): m.end() + 250] + "…"
+        elif j not in hit:
+            ln = ln[:200]                                        # a line beside a measure is context only: its start is enough
+        out.append(ln)
+        last = j
+    return "\n".join(out)
+
+
+def bank_pages(pages: List[str], chars: int) -> Tuple[List[Tuple[int, str]], Dict[str, int]]:
+    """For a bank-lens read: the best page for each core measure that appears (pages shared by measures are taken once), each cut to the lines
+    that carry its measures, in page order, within `chars`; then the measures each page covers. Returns ([(page number, text)], {measure: page})."""
+    best: Dict[str, int] = {}
+    for m, words in BANK_MEASURES.items():
+        scored = [(_measure_hits(p, words), i) for i, p in enumerate(pages)]
+        top = max(scored, default=(0, -1))
+        if top[0] > 0:
+            best[m] = top[1]
+    by_page: Dict[int, List[str]] = {}
+    for m, i in best.items():
+        by_page.setdefault(i, []).append(m)
+    out, used = [], 0
+    # the pages that carry the most measures first, so the figures most asked for are kept when room runs out; then put back in page order
+    for i in sorted(by_page, key=lambda i: (-len(by_page[i]), i)):
+        words = tuple(w for m in by_page[i] for w in BANK_MEASURES[m])
+        t = _measure_lines(pages[i], words)
+        if not t:
+            continue
+        t = t[: max(0, chars - used)]
+        if not t:
+            break
+        out.append((i + 1, t))
+        used += len(t)
+    out.sort()
+    kept = {n for n, _ in out}
+    return out, {m: i + 1 for m, i in best.items() if i + 1 in kept}
 SUMMARY_WORDS = ("highlights", "highlight", "key", "summary", "at a glance", "performance", "overview", "snapshot")
 GENERAL = re.compile(r"\b(what (does|did) (the |its |their )?(investor )?(presentation|deck|ppt|document|annual report|transcript|concall)\s*(say|says|tell|show)?"
                      r"|summari[sz]e|summary|overview|highlights|key points|main points|kya (bola|kaha|likha))\b", re.I)
@@ -662,8 +737,21 @@ async def read_company_document(gw: Gateway, a: Dict[str, Any]) -> Out:
         return Out({**base, "text": []}, as_of=doc["date"], source=src, routes=["/api/feed"],
                    notes=lead + ["The file has no readable text (it is a scan or images only); it can be opened from the link."])
     budget = int(a.get("max_chars") or 9000)                           # task #254 rework: several documents read at once share the room
-    chosen = best_pages(pages, a.get("question") or "", n=6 if budget >= 6000 else 4, chars=budget, kind=want)
+    q = a.get("question") or ""
+    measures: Dict[str, int] = {}
+    if bank_lens(q) and want in ("Results filing", "Investor presentation", "Annual report"):
+        # a bank, an NBFC or an insurer: the best page for each core measure first (cut to its lines), then the question's own pages in the room left
+        chosen, measures = bank_pages(pages, budget)
+        left = budget - sum(len(t) for _, t in chosen)
+        if left > 600:
+            have = {n for n, _ in chosen}
+            extra = [(n, t) for n, t in best_pages(pages, q, n=4, chars=left, kind=want) if n not in have]
+            chosen = sorted(chosen + extra[:2])
+    else:
+        chosen = best_pages(pages, q, n=6 if budget >= 6000 else 4, chars=budget, kind=want)
     text: List[Dict[str, Any]] = [{"page": n, "text": t} for n, t in chosen]
+    if measures:
+        base["measuresOnPages"] = measures                              # which page carries each bank measure
     if want == "Call transcript":                                      # who speaks on each page, as the page names them
         mgmt = management_of(pages)
         for row in text:

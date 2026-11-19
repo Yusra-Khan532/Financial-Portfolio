@@ -185,6 +185,21 @@ def company_documents(question: str, kinds: List[str]) -> List[str]:
     return COMPANY_DOCS + [k for k in named if k not in COMPANY_DOCS]
 
 
+BANK_RESULTS_CHARS = 6500         # a bank's results filing carries its core measures (NPAs, NIM, CASA, CRAR ...): it gets the larger share
+
+
+def document_shares(kinds: List[str], bank: bool = False) -> List[int]:
+    """The characters each document read before the model may take: 9,000 for one document; COMPANY_DOC_CHARS each for several. For a bank, an NBFC
+    or an insurer the results filing takes BANK_RESULTS_CHARS and the others share the rest of the same total, so the context does not grow."""
+    if len(kinds) <= 1:
+        return [9000] * len(kinds)
+    if not bank or "results_filing" not in kinds:
+        return [COMPANY_DOC_CHARS] * len(kinds)
+    total = COMPANY_DOC_CHARS * len(kinds)
+    rest = max(1500, (total - BANK_RESULTS_CHARS) // (len(kinds) - 1))
+    return [BANK_RESULTS_CHARS if k == "results_filing" else rest for k in kinds]
+
+
 def bank_like(card_text: Optional[str]) -> bool:
     """True when the company card names a bank, an NBFC or an insurer (its NSE sector or industry)."""
     return bool(card_text) and bool(re.search(r'"(?:macroSector|sector|industry|basicIndustry|isBank)"\s*:\s*(?:"[^"]*(?:bank|financ|insur|nbfc|lend)[^"]*"|true)',

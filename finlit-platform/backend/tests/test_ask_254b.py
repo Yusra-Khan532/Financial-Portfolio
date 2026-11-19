@@ -120,6 +120,48 @@ def test_a_bank_question_finds_the_pages_with_its_own_measures():
     assert P.best_pages(DECK, "slippage and credit cost", n=2)[1][0] == 3
 
 
+def bank_filing() -> List[str]:
+    """A 24-page bank results filing as HDFC Bank's of 17 Oct 2026 is laid out: the NPA table early, NIM on page 19, CASA on 20, capital on 21."""
+    filler = "Segment information and other notes to the accounts. " * 60
+    pages = [f"Page {i}: {filler}" for i in range(1, 25)]
+    pages[0] = "Covering letter. Listing Department. Please find enclosed the results. Yours faithfully, Company Secretary"
+    pages[1] = "Analytical ratios\n(c) Gross NPAs 1.24%\n(d) % of Net NPAs to Net Advances 0.37%\n(v) Return on assets (average) 0.45%\n" + filler
+    pages[8] = "Expenditure\n7 Operating profit before provisions and contingencies 52,000\n8 Provisions (other than tax) and contingencies 2,700\n" + filler
+    pages[18] = filler + "\nNet interest income grew by 9.7% to Rs 346.2 billion.\nNet interest margin was at 3.16% on total assets.\n" + filler
+    pages[19] = "Deposits: total deposits grew 12.1%.\nCASA deposits were 34% of total deposits.\nGross advances grew 9.9%.\n" + filler
+    pages[20] = "Capital Adequacy:\nThe Bank's total Capital Adequacy Ratio (CAR) was 18.9%.\nCET1 was 16.9%.\nGross non-performing assets were 1.24%.\n" + filler
+    return pages
+
+
+def test_a_bank_read_takes_the_page_of_every_core_measure_even_late_ones_within_its_share():
+    pages = bank_filing()
+    chosen, measures = P.bank_pages(pages, service.BANK_RESULTS_CHARS)
+    assert measures["NIM"] == 19 and measures["CASA"] == 20 and measures["CRAR/CAR"] == 21 and measures["credit cost/provisions"] == 9
+    assert measures["GNPA/NNPA"] in (2, 21) and measures["ROA"] == 2
+    got = dict(chosen)
+    assert "Net interest margin was at 3.16%" in got[19] and "CASA deposits were 34%" in got[20] and "(CAR) was 18.9%" in got[21]
+    assert sum(len(t) for t in got.values()) <= service.BANK_RESULTS_CHARS
+    assert all(len(t) < 700 for t in got.values()) and len(bank_filing()[18]) > 6000   # each page is cut to the lines that carry its measures
+    assert [n for n, _ in P.best_pages(pages, "red flags", n=4, chars=service.COMPANY_DOC_CHARS)] != sorted(got)   # the old choice missed them
+
+
+async def test_the_bank_lens_read_names_which_page_carries_each_measure(exchange):
+    link = "https://nsearchives.nseindia.com/corporate/HDFCBANK_results.pdf"
+    exchange.files = {link: bank_filing()}
+    feed = [{"kind": "result", "symbol": "HDFCBANK", "title": "HDFC Bank Limited has submitted to the Exchange, the financial results for the period ended "
+             "September 30, 2026", "link": link, "date": "2026-10-17", "category": "Outcome of Board Meeting"}]
+    r = await T.run(gw_feed(feed), "read_company_document", {"symbol": "HDFCBANK", "document": "results_filing", "question": f"red flags {P.BANK_TERMS}",
+                                                           "max_chars": service.BANK_RESULTS_CHARS})
+    assert not r["error"] and '"NIM":19' in r["text"] and '"CASA":20' in r["text"] and "3.16%" in r["text"]
+
+
+def test_the_results_filing_of_a_bank_takes_the_larger_share_and_the_total_stays_the_same():
+    shares = service.document_shares(service.COMPANY_DOCS, bank=True)
+    assert shares == [3500, service.BANK_RESULTS_CHARS, 3500] and sum(shares) == service.COMPANY_DOC_CHARS * 3
+    assert service.document_shares(service.COMPANY_DOCS) == [service.COMPANY_DOC_CHARS] * 3
+    assert service.document_shares(["call_transcript"], bank=True) == [9000]
+
+
 @pytest.mark.parametrize("card,bank", [
     ('{"classification":{"macroSector":"Financial Services","sector":"Financial Services","industry":"Banks","basicIndustry":"Private Sector Bank"}}', True),
     ('{"classification":{"sector":"Financial Services","industry":"Finance","basicIndustry":"Non Banking Financial Company (NBFC)"}}', True),

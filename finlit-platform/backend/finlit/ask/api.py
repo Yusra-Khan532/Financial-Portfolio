@@ -210,8 +210,8 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
         lens = question
         if doc_sym and service.bank_like(got[want.index(doc_sym)]["text"] if doc_sym in want[:2] and not got[want.index(doc_sym)]["error"] else None):
             lens = f"{question[:150]} {pages.BANK_TERMS}"          # a bank, an NBFC or an insurer is read for its own measures
-        budget = service.COMPANY_DOC_CHARS if len(doc_kinds) > 1 else 9000
-        doc_reads = [{"symbol": doc_sym, "document": k, "question": lens[:200], "max_chars": budget} for k in doc_kinds] if doc_sym else []
+        doc_reads = [{"symbol": doc_sym, "document": k, "question": lens[:200], "max_chars": c}
+                     for k, c in zip(doc_kinds, service.document_shares(doc_kinds, lens != question))] if doc_sym else []
         extra: List[Any] = []
         if doc_sym and "company" in kinds and service.ISSUE_WORDS.search(question):
             extra = [("get_finlit_prism", {"symbol": doc_sym}), ("get_company_section", {"symbol": doc_sym, "section": "ownership_insights"})]
