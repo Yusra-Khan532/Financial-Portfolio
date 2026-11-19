@@ -324,7 +324,7 @@ GROUP_EXTRA: Dict[str, dict] = {"sectors": {
     "isNew": True,
     "intro": "Screens that read each company's industry: where it stands on Sector Rotation and Sector Pulse, and how the company compares with its peers.",
     "about": {"shows": "Sector Rotation places each industry against the average industry: Ahead and gaining, Ahead but slowing, Behind but gaining or Behind and slipping. "
-                       "Sector Pulse reads how many of an industry's stocks are rising: Washout, Thrust C, Thrust CAP, Confirmed or Fading. "
+                       "Sector Pulse reads how many of an industry's stocks are rising: Sold off, Bouncing back, Bouncing back after a crash, Rising together, Losing steam or No clear signal. "
                        "The peer label compares a company with the others in its industry: Leader, In line or Laggard.",
               "use": ["Pick a screen by the question it answers: leaders in strong industries, the first stocks to rise in weak ones, or setups with the industry behind them.",
                       "Columns, then Sector reading, adds the same five readings to any Advanced screen.",

@@ -55,7 +55,7 @@ export const SECTIONS: NavSection[] = [
     ] },
   ] },
   { id: "markets", label: "Markets", groups: [{ items: [
-    i("/sectors", "Sector Pulse", "Which NSE industries are in a washout, a rebound or fading", "activity"),
+    i("/sectors", "Sector Pulse", "Which NSE industries are sold off, bouncing back or losing steam", "activity"),
     i("/sectors/rotation", "Sector Rotation", "Which NSE industries are pulling ahead of the average industry, and which are falling behind", "activity"),
     i("/fii-dii", "FII & DII flows", "Institutional buying and selling, streaks and history", "bars"),
     i("/macro", "India economy", "Inflation, growth, interest rates and reserves", "activity"),

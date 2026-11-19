@@ -623,14 +623,14 @@ C_SFLAG = Col("sr_flag", "Leader flag", "text", "left")
 C_SQ = Col("sr_q6m_name", "Place in its industry by 6-month return", "text", "left")
 C_SR4 = Col("sr_rank_4w", "Industry ranks climbed in 4 weeks", "num1")
 C_SSET = Col("sr_setups", "List it is on", "text", "left")
-R_SEC_LEADING = ("sr_ag = 1 or sr_up = 1", "Industry Ahead and gaining on Sector Rotation, or in Thrust C, Thrust CAP or Confirmed on Sector Pulse")
+R_SEC_LEADING = ("sr_ag = 1 or sr_up = 1", "Industry Ahead and gaining on Sector Rotation, or Bouncing back, Bouncing back after a crash or Rising together on Sector Pulse")
 R_SEC_LEADER = ("sr_lead = 1", "Peer label Leader")
 SECTOR_ADV: List[Preset] = [
     _new("sector-leaders-leading", "Leaders in leading sectors", "sectors", "advanced",
          (("sr_ag = 1", "Industry Ahead and gaining on Sector Rotation"), R_SEC_LEADER, ("prism_lt_score >= 20", "Long-term technical pillar +20 or more")),
          (("sr_tailwinds", "desc"), ("prism_lt_score", "desc")), (), _m()),
     _new("sector-rebound-leaders", "Rebound leaders", "sectors", "advanced",
-         (("sr_thrust = 1", "Industry in Thrust C or Thrust CAP on Sector Pulse"), ("sr_q6m = 1", "Top quarter of its industry by 6-month return"),
+         (("sr_thrust = 1", "Industry Bouncing back or Bouncing back after a crash on Sector Pulse"), ("sr_q6m = 1", "Top quarter of its industry by 6-month return"),
           ("prism_st_score >= 20", "Short-term technical pillar +20 or more")),
          (("prism_st_score", "desc"), ("sr_tailwinds", "desc")), (C_SQ,), _m()),
     _new("sector-early-leaders", "Early leaders in weak sectors", "sectors", "advanced",

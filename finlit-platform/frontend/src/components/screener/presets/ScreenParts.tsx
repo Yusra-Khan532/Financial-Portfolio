@@ -14,6 +14,7 @@ import { NO_BAR, type BarFilter, type BoardChip, type HistorySession, type LeftM
 import { INFO_BOARD, PsxInfo } from "./PsxInfo";
 import { Shine } from "./ScreensStrip";
 import { AdvScreenMenus, advChips } from "./AdvScreenFilters";
+import { pulseSay, pulseWord } from "../../../lib/pulseWords";
 import "../../../styles/screens243.css";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -199,7 +200,7 @@ export function IndustryBoard({ board, on, onPick }: { board: BoardChip[]; on: s
             <button key={c.slug ?? "none"} type="button" className={"psx3-ind" + (pressed ? " is-on" : "") + (c.slug ? "" : " is-none")} aria-pressed={c.slug ? pressed : undefined} disabled={!c.slug}
               onClick={() => onPick(c)}>
               <span className="psx3-in"><b>{c.name}</b><span className="psx3-ic">{nf(c.n, 0)}</span></span>
-              {c.slug && <span className="psx3-im"><span className={"psx3-rot is-" + (c.corner ?? "")}>{c.rotation ?? `${MINUS} no rotation reading`}</span><span className={"psx3-pls is-" + (c.pulseCode ?? "")}>{c.pulse ?? MINUS}</span></span>}
+              {c.slug && <span className="psx3-im"><span className={"psx3-rot is-" + (c.corner ?? "")}>{c.rotation ?? `${MINUS} no rotation reading`}</span><span className={"psx3-pls is-" + (c.pulseCode ?? "")} title={pulseSay(c.pulseCode) ?? undefined}>{pulseWord(c.pulseCode, c.pulse) ?? MINUS}</span></span>}
             </button>);
         })}
       </div>

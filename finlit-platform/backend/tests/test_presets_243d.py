@@ -65,7 +65,7 @@ def syms(body):
 def test_every_company_gets_its_groups_reading_and_a_counted_one_its_own_place():
     by = sectorread.build(BOARD, ROT, PAGES)
     h = by["HDFCBANK"]
-    assert (h["sr_industry"], h["sr_rotation"], h["sr_pulse"], h["sr_above50"], h["sr_rebound"], h["sr_peer"]) == ("Banks", "Ahead and gaining · 3 wk", "Confirmed", 61.0, "12 sessions ago", "Leader")
+    assert (h["sr_industry"], h["sr_rotation"], h["sr_pulse"], h["sr_above50"], h["sr_rebound"], h["sr_peer"]) == ("Banks", "Ahead and gaining · 3 wk", "Rising together", 61.0, "12 sessions ago", "Leader")
     assert (h["sr_ag"], h["sr_up"], h["sr_thrust"], h["sr_lead"], h["sr_rank"], h["sr_rank_4w"]) == (1.0, 1.0, 0.0, 1.0, 4.0, 2.0)
     assert by["TINYBANK"]["sr_industry"] == "Banks" and by["TINYBANK"]["sr_peer"] is None          # not counted: the group's reading, no peer label
     assert by["BAJFIN"]["sr_flag"] == "Full flag" and by["NTPC"]["sr_flag"] == "Early flag" and by["SBIN"]["sr_flag"] is None
@@ -116,7 +116,7 @@ def test_any_advanced_screen_carries_the_sector_reading_and_its_dates():
     bands = [c for c in body["columns"] if c.get("band") == "Sector reading"]
     assert [c["label"] for c in bands] == ["Industry", "Rotation", "Pulse", "Vs peers", "Tailwinds"] == [x[1] for x in STD_SECTOR]
     r = body["rows"][0]
-    assert (r["sr_industry"], r["sr_rotation"], r["sr_pulse"], r["sr_peer"], r["sr_slug"], r["sr_rank"], r["sr_rank_4w"]) == ("Banks", "Ahead and gaining · 3 wk", "Confirmed", "Leader", "banks", 4.0, 2.0)
+    assert (r["sr_industry"], r["sr_rotation"], r["sr_pulse"], r["sr_peer"], r["sr_slug"], r["sr_rank"], r["sr_rank_4w"]) == ("Banks", "Ahead and gaining · 3 wk", "Rising together", "Leader", "banks", 4.0, 2.0)
     assert body["dataDates"] == {"prices": "2026-11-19", "setups": None, "sectors": "2026-11-06", "rotation": "2026-11-06"}
     basic = engine.run(engine.Frame(Table([row("X", overall=70)], {}, {}, None), {}, AS_OF), BY_ID["basic-strong-all-four"])
     assert not any(c.get("band") == "Sector reading" for c in basic["columns"]) and "dataDates" not in basic   # Basic gets no sector reading
@@ -142,7 +142,7 @@ def test_the_industry_board_adds_up_to_the_list_and_a_chip_narrows_it():
     out = api._page(_req(""), body)
     board = out["industryBoard"]
     assert sum(b["n"] for b in board) == out["available"] == 2
-    assert {(b["slug"], b["rotation"], b["pulse"]) for b in board} == {("finance", "Behind and slipping", "Thrust CAP"), ("power", "Behind but gaining", "Washout")}
+    assert {(b["slug"], b["rotation"], b["pulse"]) for b in board} == {("finance", "Behind and slipping", "Bouncing back after a crash"), ("power", "Behind but gaining", "Sold off")}
     narrowed = api._page(_req("ind=power"), body)
     assert [r["symbol"] for r in narrowed["rows"]] == ["NTPC"] and sum(b["n"] for b in narrowed["industryBoard"]) == 2   # the board still shows every chip
     assert "industryBoard" not in api._page(_req(""), engine.run(fr, BY_ID["momentum-leaders"]))
