@@ -18,6 +18,7 @@ def test_filing_titles_lose_the_exchange_boilerplate_and_a_cut_title_ends_with_a
     assert B.clean_title("HCLTech and Cohere partner to build and deliver sovereign AI '.") == "HCLTech and Cohere partner to build and deliver sovereign AI"
     assert B.clean_title("- order received worth Rs 120 crore") == "Order received worth Rs 120 crore"
     assert B.clean_title("Short and complete.") == "Short and complete."
+    assert B.clean_title("HCL Technologies Limited has informed the Exchange regarding 'HCLTech and Cohere partner to build sovereign AI'") == "HCLTech and Cohere partner to build sovereign AI"
     assert B.clean_title(None) == ""
 
 

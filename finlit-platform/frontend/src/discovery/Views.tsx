@@ -94,7 +94,7 @@ export function ThemePage({ theme }: { theme: string }) {
       <div className="dsc-panel"><h3>What to check <I k="check" /></h3>
         {t.verify.length ? <ul>{t.verify.slice(0, 5).map((v) => <li key={v}>{v}</li>)}</ul> : <p className="dsc-na">No checklist for this theme yet.</p>}
         <h3 className="dsc-mt">Latest filings in this theme</h3>
-        {fil.length ? <ul className="dsc-fl">{fil.map((f) => <li key={f.s + f.d + f.t}><b>{short(c.by.get(f.s)?.n ?? f.n)}</b> · {f.t}<small>{fmtDate(f.d)} · {f.el}</small></li>)}</ul>
+        {fil.length ? <ul className="dsc-fl">{fil.map((f) => <li key={f.s + f.d + f.t}><b>{short(c.by.get(f.s)?.n ?? c.d.uni.get(f.s)?.name ?? f.n)}</b> · {f.t}<small>{fmtDate(f.d)} · {f.el}</small></li>)}</ul>
           : <p className="dsc-na">No tagged filing in the last 90 days.</p>}</div>
     </div>
     <CompanyTable title={"Companies in " + t.label} base={rows} />
@@ -139,7 +139,7 @@ export function EventPage({ k }: { k: string }) {
     <div className="dsc-dh"><div><h2>{e.t}</h2><p>{s.n} companies {e.d} in the last {b.days} days. Sorted by how many such filings each made.</p></div><div className="dsc-dha"><Jump /></div></div>
     <div className="dsc-kpis"><Kpi l="Companies" v={s.n} /><Kpi l="3-month median" i="median" v={pct(s.m3)} cls={tone(s.m3)} /><Kpi l="1-year median" v={pct(s.m1y)} cls={tone(s.m1y)} />
       <Kpi l="In a long-term uptrend" i="uptrend" v={s.up} small={`of ${s.n}`} /></div>
-    {lat.length > 0 && <div className="dsc-panel dsc-mb"><h3>Latest of these filings</h3><ul className="dsc-fl">{lat.map((f) => <li key={f.s + f.d + f.t}><b>{short(c.by.get(f.s)?.n ?? f.n)}</b> · {f.t}<small>{fmtDate(f.d)} · {f.el}</small></li>)}</ul></div>}
+    {lat.length > 0 && <div className="dsc-panel dsc-mb"><h3>Latest of these filings</h3><ul className="dsc-fl">{lat.map((f) => <li key={f.s + f.d + f.t}><b>{short(c.by.get(f.s)?.n ?? c.d.uni.get(f.s)?.name ?? f.n)}</b> · {f.t}<small>{fmtDate(f.d)} · {f.el}</small></li>)}</ul></div>}
     <CompanyTable title={"Companies with " + e.t.toLowerCase()} base={rows} defaultSort="ev" event={k} />
   </>;
 }

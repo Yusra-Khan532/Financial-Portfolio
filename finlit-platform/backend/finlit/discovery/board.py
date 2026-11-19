@@ -36,7 +36,7 @@ FILINGS_PER_EVENT = 8
 QUOTES = 2
 
 _PRESS = re.compile(r"^a press release dated [^,]+, \d{4}, titled\s*[\"“']?", re.I)
-_LEAD = re.compile(r"^[\s\-–—·:'\"]+")
+_LEAD = re.compile(r"^[\s\-–—·:'\"‘“]+")
 _NUMBERED = re.compile(r"^\d+[.)]\s+")
 _TRAIL = re.compile(r"\s*['\"’”]\s*\.?\s*$")
 
@@ -50,7 +50,8 @@ def clean_title(t: Optional[str], cut: int = 78) -> str:
     """A filing title as a reader would write it: no "a press release dated ..., titled" prefix, no list numbering, no stray quote at the end; a title the
     exchange cut short ends with an ellipsis; the first letter is a capital."""
     raw = str(t or "").strip()
-    s = _PRESS.sub("", raw)
+    s = S.BOILER.sub("", raw)            # "<Company> Limited has informed the Exchange regarding ..." (NSE's headline wrapper)
+    s = _PRESS.sub("", s)
     s = _LEAD.sub("", s)
     s = _NUMBERED.sub("", s)
     s = _TRAIL.sub("", s).strip()
