@@ -886,6 +886,7 @@ def _premium_dashboard_inputs_resolved(symbol, statement_type, now, lean=True, s
         "asset_quality_basis": quarterly.get("assetQualityBasis"),
         "benchmarkObservations": annual.get("benchmarkObservations", []),
         "leverage": annual.get("leverage", {}), "secondaryLeverage": annual.get("secondaryLeverage"),
+        "liquidity": annual.get("liquidity", {}),
         "quote": {symbol: {"current_price": quote_data.get("price"), "tradetime": quote_data.get("timestamp"),
                             "market_cap": quote_data.get("marketCap"), "shares": quote_data.get("shares")}}}
     if basis_note:
@@ -4103,6 +4104,7 @@ def _fetch_stock_fundamentals(query: str, statement_type: str = "consolidated", 
         "benchmarkObservations": benchmark_observations}
     model_inputs["technicalPrices"] = resolved_prices.get("prices", {})
     model_inputs["leverage"] = ratio_payloads[1]
+    model_inputs["liquidity"] = ratio_payloads[2]       # FinEdge "li": interest coverage (TTM first), the company report's figure (task #199)
     model_inputs["secondaryLeverage"] = next((row.get("company_value") for row in upstox_ratio_payload
         if isinstance(row,dict) and re.sub(r'[^a-z]','',str(row.get('name','')).lower())=='financialleverage'),None) if isinstance(upstox_ratio_payload,list) else None
     if lean:

@@ -1,4 +1,4 @@
-"""PEG growth (model 3.6.12, current 3.6.19): EPS growth first, split/bonus adjusted; net profit growth only when there is no usable EPS CAGR."""
+"""PEG growth (model 3.6.12, current 3.6.20): EPS growth first, split/bonus adjusted; net profit growth only when there is no usable EPS CAGR."""
 import pytest
 from backend.premium_engine import score_company, split_adjusted_eps
 from backend.premium_model_config import MODEL_VERSION
@@ -19,7 +19,7 @@ def series(start, rate, n):
 
 
 def test_model_version_is_3_6_12():
-    assert MODEL_VERSION == "3.6.19"
+    assert MODEL_VERSION == "3.6.20"
 
 
 def test_peg_uses_eps_growth_not_profit_growth():

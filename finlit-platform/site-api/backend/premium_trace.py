@@ -89,7 +89,11 @@ def build_calculation_trace(d, rating, meta):
                 a,b = ('loans_now','loans_1y_ago') if metric=='LOAN_GROWTH' else ('net_worth','net_worth_1y_ago')
                 formula=f'({fmt(d.get(a))} / {fmt(d.get(b))} - 1) x 100 = {fmt(row["value"])}%. Exact same reporting date a year earlier.'
             elif metric=='DEBT_TO_EQUITY': formula=f'Total debt / book equity = {fmt(debt)} / {fmt(nw)} = {fmt(row["value"])}x.'
-            elif metric=='INTEREST_COVER': formula=f'(Annual PBT + interest cost) / interest cost = ({fmt(d.get("profit_before_tax"))} + {fmt(d.get("interest_cost"))}) / {fmt(d.get("interest_cost"))} = {fmt(row["value"])}x.'
+            elif metric=='INTEREST_COVER':
+                if str(info.get('source','')).startswith('FinEdge reported'):
+                    formula=f'{info["source"]}: {fmt(row["value"])}x, the same figure as the company report\'s interest coverage.'
+                else:
+                    formula=f'(Annual PBT + interest cost) / interest cost = ({fmt(d.get("profit_before_tax"))} + {fmt(d.get("interest_cost"))}) / {fmt(d.get("interest_cost"))} = {fmt(row["value"])}x.'
             elif metric=='FINANCIAL_LEVERAGE':
                 formula=f'Total assets / book equity from the same balance sheet = {fmt(d.get("total_assets"))} / {fmt(d.get("net_worth"))} = {fmt(row["value"])}x.'
                 if 'reported' in info.get('source',''):
@@ -151,7 +155,7 @@ def build_calculation_trace(d, rating, meta):
                      'Scale = clamp((value - worst) / (best - worst) x 100, 0, 100). Lower-is-better metrics have best below worst.',
                      'Component denominator excludes N and L metrics, retains filled and loss-rule metrics. Missing pledge still reduces input coverage.',
                      'PEG is used for every group whenever P/E and positive profit growth exist, with growth capped at 40%. Loss/non-positive-growth rules retain their weight.',
-                     'For non-financial groups, debt/equity below 0.1 excludes interest cover. BANK and NBFC use capital adequacy when available, otherwise interest cover in the same Quality slot. NBFCs with neither Gross NPA nor Net NPA use financial leverage (assets / equity) in those two slots. INSURANCE uses its configured Quality factors. Missing own valuation history substitutes an available positive industry median. Missing metrics use min(group median points, 50), except unknown pledge which is excluded.',
+                     'For non-financial groups, interest cover is the trailing-12-month interest coverage FinEdge reports (else the latest full year calculation) and is scored for every company (3.6.20). BANK and NBFC use capital adequacy when available, otherwise interest cover in the same Quality slot. NBFCs with neither Gross NPA nor Net NPA use financial leverage (assets / equity) in those two slots. INSURANCE uses its configured Quality factors. Missing own valuation history substitutes an available positive industry median. Missing metrics use min(group median points, 50), except unknown pledge which is excluded.',
                      'Current non-positive profit scores zero for profit growth and profit CAGR. A good profit-streak quarter must be profitable; a short loss-making record blends with zero. Non-positive current operating margin scores zero for margin change.',
                      'Loss severity and group family may cap Fundamental first. If Fundamental or Quality is then below 35, Valuation is capped at 60. Both adjustments are applied before the final weighted mean.',
                      'Coverage below 80% or fewer than 6 comparable quarters: provisional; below 50%: unrated. Data-quality review flags are displayed separately from the model rating; unverified group classification prevents a valid rating.']}

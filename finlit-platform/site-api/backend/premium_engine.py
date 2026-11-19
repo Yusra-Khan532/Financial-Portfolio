@@ -13,7 +13,7 @@ try:
         MODEL_VERSION, BASELINE_VERSION, FILL_VERSION, RATING_BANDS,
         QUARTERS_STORED, QUARTERS_JUDGED, POINTS_PER_GOOD_QUARTER,
         MISS_PENALTY, STREAK_MAGNITUDE_SHARE, PROFIT_TURNAROUND_POINTS,
-        LOSS_NARROWED_POINTS, CASH_LOSS_POINTS, IC_NOT_APPLICABLE_DE,
+        LOSS_NARROWED_POINTS, CASH_LOSS_POINTS, IC_LOW_DEBT_UNSCORED_BELOW,
         PEG_CORE_GROUPS, PEG_MIN_PROFIT_STREAK, PEG_GROWTH_CAP,
         EPS_SPLIT_BONUS_RATIOS, EPS_SPLIT_BONUS_TOLERANCE,
         PROVISIONAL_BELOW, NOT_RATED_BELOW, PROVISIONAL_MIN_QUARTERS,
@@ -29,7 +29,7 @@ except ImportError:
         MODEL_VERSION, BASELINE_VERSION, FILL_VERSION, RATING_BANDS,
         QUARTERS_STORED, QUARTERS_JUDGED, POINTS_PER_GOOD_QUARTER,
         MISS_PENALTY, STREAK_MAGNITUDE_SHARE, PROFIT_TURNAROUND_POINTS,
-        LOSS_NARROWED_POINTS, CASH_LOSS_POINTS, IC_NOT_APPLICABLE_DE,
+        LOSS_NARROWED_POINTS, CASH_LOSS_POINTS, IC_LOW_DEBT_UNSCORED_BELOW,
         PEG_CORE_GROUPS, PEG_MIN_PROFIT_STREAK, PEG_GROWTH_CAP,
         EPS_SPLIT_BONUS_RATIOS, EPS_SPLIT_BONUS_TOLERANCE,
         PROVISIONAL_BELOW, NOT_RATED_BELOW, PROVISIONAL_MIN_QUARTERS,
@@ -404,15 +404,20 @@ def score_company(d, group):
         de = ratio(debt, nw)
         put("DEBT_TO_EQUITY", de, explicit_points=0. if nw is not None and nw <= 0 else None)
         interest, pbt = num(d.get("interest_cost")), num(d.get("profit_before_tax"))
-        cover = (pbt + interest) / interest if pbt is not None and interest is not None and interest > 0 else None
-        if de is not None and de < IC_NOT_APPLICABLE_DE:
-            # Not scored (owner's v3.6 rule) but still worked out and shown, so the report agrees with the company page's interest coverage (3.6.14).
-            statuses["INTEREST_COVER"] = "N"
-            values["INTEREST_COVER"] = cover
-            details["INTEREST_COVER"] = {"note": f"Debt / equity is below {IC_NOT_APPLICABLE_DE:g}, so interest cover is shown for information and not scored",
-                                         "shownNotScored": cover is not None}
+        calculated = (pbt + interest) / interest if pbt is not None and interest is not None and interest > 0 else None
+        # 3.6.20 (owner, task #199): the interest cover is FinEdge's reported trailing-12-month interest coverage, the figure the
+        # company report shows (section 9), and it is scored for every company, low-debt ones included (the v3.6 rule that left it unscored below
+        # debt / equity 0.1 is retired). Without a reported figure, the latest full year's (PBT + interest) / interest is used, and the row says so.
+        reported = num(d.get("interest_cover_reported"))
+        if IC_LOW_DEBT_UNSCORED_BELOW is not None and de is not None and de < IC_LOW_DEBT_UNSCORED_BELOW:
+            statuses["INTEREST_COVER"] = "N"      # the retired v3.6 rule, reproduced only for the historical reference checks
+            details["INTEREST_COVER"] = {"note": f"Debt / equity is below {IC_LOW_DEBT_UNSCORED_BELOW:g}"}
+        elif reported is not None:
+            put("INTEREST_COVER", reported, detail={"source": d.get("interest_cover_source") or "FinEdge reported interest coverage (trailing 12 months)",
+                                                    "note": "Same figure as the company report's interest coverage."})
         else:
-            put("INTEREST_COVER", cover, explicit_points=100. if interest == 0 else None)
+            put("INTEREST_COVER", calculated, explicit_points=100. if interest == 0 else None,
+                detail={"source": "Calculated: latest full year (profit before tax + interest) / interest"} if calculated is not None or interest == 0 else None)
         value = ratio(annual_profit, annual_nw)
         put("ROE", value * 100 if value is not None else None, explicit_points=0. if annual_nw is not None and annual_nw <= 0 else None)
         p3 = complete_sum(d.get("net_profit_y", []), 3)
