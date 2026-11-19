@@ -376,6 +376,7 @@ export function FundDetailPage() {
             <li><span>NAV history on file</span><b>{d.history.points ? `${d.history.points.toLocaleString("en-IN")} daily NAVs, ${dateIN(d.history.from!)} to ${dateIN(d.history.to!)}` : "None yet"}</b></li>
             <li><span>History source</span><b>{d.history.source === "amfi" ? "AMFI's official NAV history" : d.history.source === "mirror" ? "Third-party mirror of AMFI data (api.mfapi.in)" : "—"}</b></li>
             <li><span>Latest NAV source</span><b>AMFI NAVAll file</b></li>
+            {d.planSource && <li><span>Plan and option source</span><b>{d.planSource}</b></li>}
           </ul>
         </div>
       </div>
