@@ -1,8 +1,8 @@
 """Discover (task #251, the 19 Nov Discover pack): everything the /discovery page draws in one public read, GET /api/discovery/board.
 
 One compact row per placed company (its main theme, the other themes it mentions, the stage, the tone, 90 days of exchange filings by event, its NSE
-classification and the Sector Pulse / Sector Rotation group it belongs to), each theme's counts and checks, and the latest filings per theme and per
-event (titles cleaned). The page joins it with FinLit's own readings it already reads (the screener universe, Sector Rotation, Sector Pulse), so each
+classification and the Sector Pulse / Sector Rotation group it belongs to), each theme's counts and checks, and the latest filings per event of the
+companies on the page (titles cleaned; no list of every filing that names a theme, task #250). The page joins it with FinLit's own readings it already reads (the screener universe, Sector Rotation, Sector Pulse), so each
 plan keeps seeing exactly what its plan shows elsewhere. A company's quotes and keywords come from GET /api/discovery?symbol= when its row is opened.
 
 Display rules of the pack (README "What a user runs into today", rows 7 and 13): "Renewable Power" is shown inside "Renewable Energy & Power"; the two
@@ -31,7 +31,6 @@ SHORT = {"Industrial Manufacturing & Capex": "Manufacturing", "Corporate Catalys
 # The events of "What changed" (signals.py sorts every filing into one): the business ones first, as the pack lists them.
 EVENTS = ("order", "capacity", "partnership", "mna", "fundraise", "rating", "management", "legal")
 NEWS_DAYS = 90
-FILINGS_PER_THEME = 8
 FILINGS_PER_EVENT = 8
 QUOTES = 2
 
@@ -169,7 +168,6 @@ async def board(store) -> Dict[str, Any]:
             if t in themes:
                 themes[t]["also"] += 1
 
-    tfil: Dict[str, List[Dict[str, Any]]] = {}
     efil: Dict[str, List[Dict[str, Any]]] = {}
     seen = set()
     latest: Dict[str, Dict[str, Any]] = {}
@@ -181,17 +179,16 @@ async def board(store) -> Dict[str, Any]:
         sig = _signal(x, names)
         if x["symbol"] in names and x["event"] in EVENTS and x["symbol"] not in latest:
             latest[x["symbol"]] = sig
-        for t in dict.fromkeys(theme_of(t) for t in (x["themes"] or [])):
-            if t in themes and len(tfil.setdefault(t, [])) < FILINGS_PER_THEME:
-                tfil[t].append(sig)
-        if x["event"] in EVENTS and len(efil.setdefault(x["event"], [])) < FILINGS_PER_EVENT:
+        # task #250 (the team, 19 Nov): no list of every filing that names a theme (it named companies of other themes and sectors); the event lists
+        # name only companies placed on Discover
+        if x["event"] in EVENTS and x["symbol"] in names and len(efil.setdefault(x["event"], [])) < FILINGS_PER_EVENT:
             efil[x["event"]].append(sig)
     for r in out_rows:
         if r["s"] in latest:
             r["lf"] = {k: latest[r["s"]][k] for k in ("d", "el", "t")}
 
     return {"updated": last.isoformat() if last else None, "companies": len(out_rows), "read": sum(stat.values()), "days": NEWS_DAYS,
-            "rows": out_rows, "themes": list(themes.values()), "tfil": tfil, "efil": efil, "events": list(EVENTS), "eventsTracked": sorted(set(S.EVENT_LABEL) & set(EVENTS)),
+            "rows": out_rows, "themes": list(themes.values()), "efil": efil, "events": list(EVENTS), "eventsTracked": sorted(set(S.EVENT_LABEL) & set(EVENTS)),
             "caution": K.CAUTION, "method": _method()}
 
 

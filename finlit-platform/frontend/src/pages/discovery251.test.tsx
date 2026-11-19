@@ -25,8 +25,7 @@ const T = (name: string, n: number, broad = false, label = name) => ({ name, lab
 const BOARD: Board = { updated: "2026-11-19T02:00:00", companies: 5, read: 9, days: 90, rows: ROWS,
   themes: [T("Industrial Manufacturing & Capex", 1, true, "Industrial manufacturing & capex"), T("Defence & Aerospace", 2), { ...T("Renewable Energy & Power", 1), merged: ["Renewable Power"] }, T("AI & GenAI", 1),
     T("Corporate Catalysts & Growth Signals", 0, true, "Corporate developments")],
-  tfil: { "Defence & Aerospace": [{ s: "BSHIELD", n: "Bharat Shield Ltd", d: "2026-11-17", e: "order", el: "Order win", t: "Order worth Rs 400 crore for radar systems", l: null }] },
-  efil: {}, events: ["order"], eventsTracked: ["order"], caution: "A keyword mention by itself is not proof of material business exposure.", method: "How it is built." };
+  efil: { order: [{ s: "BSHIELD", n: "Bharat Shield Ltd", d: "2026-11-17", e: "order", el: "Order win", t: "Order worth Rs 400 crore for radar systems", l: null }] }, events: ["order"], eventsTracked: ["order"], caution: "A keyword mention by itself is not proof of material business exposure.", method: "How it is built." };
 const UNI = { rows: [
   { symbol: "BSHIELD", name: "Bharat Shield Ltd", prism_final: 81, prism_label: "STRONG", prism_lt: "Uptrend", prism_st: "Uptrend", ret_3m: 5, return_1y: 20, pct_from_high: 4, market_cap: 40000 },
   { symbol: "RADAR", name: "Radar Works Ltd", prism_final: 52, prism_label: "AVERAGE", prism_lt: "Downtrend", ret_3m: -3, return_1y: -8, pct_from_high: 30, market_cap: 3000 },
@@ -87,11 +86,12 @@ describe("#251: the page and its addresses", () => {
     expect(screen.getByRole("heading", { level: 2, name: /Defence & Aerospace/ })).toBeTruthy();
     expect(document.querySelector(".dsc-mine")).toBeNull();                                // "Your names" hides on detail pages
     expect(document.querySelector(".dsc-yh")!.textContent).toMatch(/Yours here \(★ watchlist\):Bharat Shield/);
-    expect(document.body.textContent).toMatch(/Order worth Rs 400 crore for radar systems/);
+    expect(document.body.textContent).not.toMatch(/Latest filings in this theme/);          // task #250: that list is gone, and stays gone
     cleanup(); await show("#sector-industrials");
     expect(screen.getByRole("heading", { level: 2, name: "Industrials" })).toBeTruthy();
     cleanup(); await show("#change-order");
     expect(screen.getByRole("heading", { level: 2, name: "Order wins" })).toBeTruthy();
+    expect(document.body.textContent).toMatch(/Bharat Shield · Order worth Rs 400 crore for radar systems/);
     expect(parseRoute("#nothing", ["A"], ["B"])).toEqual({ view: "themes" });
   });
 });

@@ -64,5 +64,6 @@ async def test_the_board_lists_every_placed_company_once_with_its_theme_as_shown
     assert sum(t["n"] for t in d["themes"]) == d["companies"]                       # every company counted once, under its theme as shown
     broad = [t for t in d["themes"] if t["broad"]]
     assert {t["label"] for t in broad} == {"Corporate developments", "Industrial manufacturing & capex"}
-    assert d["efil"]["order"][0]["s"] == "BSHIELD" and d["tfil"].get("Defence & Aerospace")
+    assert d["efil"]["order"][0]["s"] == "BSHIELD" and "tfil" not in d                # task #250: no list of every filing that names a theme
+    assert all(f["s"] in rows for fs in d["efil"].values() for f in fs)            # only companies placed on Discover
     assert set(d["eventsTracked"]) == set(B.EVENTS)                                # every event card of the pack is a filing type signals.py sorts

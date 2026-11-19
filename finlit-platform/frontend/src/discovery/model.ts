@@ -20,7 +20,7 @@ export type BoardRow = {
 };
 export type BoardTheme = { name: string; label: string; short: string; broad: boolean; n: number; also: number; news: { filings: number; positive: number; negative: number }; verify: string[]; merged: string[] };
 export type Board = {
-  updated: string | null; companies: number; read: number; days: number; rows: BoardRow[]; themes: BoardTheme[]; tfil: Record<string, Filing[]>; efil: Record<string, Filing[]>;
+  updated: string | null; companies: number; read: number; days: number; rows: BoardRow[]; themes: BoardTheme[]; efil: Record<string, Filing[]>;
   events: string[]; eventsTracked: string[]; caution: string; method: string;
 };
 export type Corner = "ahead_gaining" | "ahead_slowing" | "behind_gaining" | "behind_slipping";

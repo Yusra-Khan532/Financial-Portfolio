@@ -71,7 +71,6 @@ export function ThemePage({ theme }: { theme: string }) {
   const secs: Record<string, number> = {};
   rows.forEach((r) => { const k = r.mac ?? "Not classified"; secs[k] = (secs[k] || 0) + 1; });
   const sl = Object.entries(secs).sort((a, x) => x[1] - a[1]).slice(0, 6), smax = sl[0]?.[1] ?? 1;
-  const fil = (b.tfil[theme] ?? []).slice(0, 6);
   const p = usePrefs(), id = slug(theme), following = p.followThemes.includes(id);
   const follow = () => prefs.set({ followThemes: following ? p.followThemes.filter((x) => x !== id) : [...p.followThemes, id] });
   return <>
@@ -93,9 +92,7 @@ export function ThemePage({ theme }: { theme: string }) {
           {n === "Not classified" ? <span title={n}>{n}</span> : <a href={"#sector-" + slug(n)} title={n}>{n}</a>}<span className="t"><i style={{ width: `${(k / smax) * 100}%` }} /></span><b>{k}</b></div>)}</div></div>
       <div className="dsc-panel"><h3>What to check <I k="check" /></h3>
         {t.verify.length ? <ul>{t.verify.slice(0, 5).map((v) => <li key={v}>{v}</li>)}</ul> : <p className="dsc-na">No checklist for this theme yet.</p>}
-        <h3 className="dsc-mt">Latest filings in this theme</h3>
-        {fil.length ? <ul className="dsc-fl">{fil.map((f) => <li key={f.s + f.d + f.t}><b>{short(c.by.get(f.s)?.n ?? c.d.uni.get(f.s)?.name ?? f.n)}</b> · {f.t}<small>{fmtDate(f.d)} · {f.el}</small></li>)}</ul>
-          : <p className="dsc-na">No tagged filing in the last 90 days.</p>}</div>
+</div>
     </div>
     <CompanyTable title={"Companies in " + t.label} base={rows} />
   </>;
