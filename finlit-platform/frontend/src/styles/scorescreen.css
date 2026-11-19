@@ -254,3 +254,8 @@
 .sx-root.sx-root .pzf-sh > button { font-size: 14px; font-weight: 600; border-radius: 8px; }
 :root:root .sx-root .ss-actions .btn.primary { border-radius: 8px; font-weight: 600; }
 @media (min-width: 761px) { .sx-root.sx-root .ss-foot select { font-size: 14px; } }   /* a phone keeps 16 px, so the select does not zoom the page */
+/* Task #257 (SHARED §5, the header that stays in place): the pinned header is moved with a transform (components/HScroll pinBelow), which made it a layer
+   with no z-index, so the body rows after it, the frozen cells first (z-index 3), painted over the column names while scrolling. The header gets its own
+   layer above the whole body, and the gaps in the coloured group row are opaque, so no row ever shows through or slides over it. */
+.tw-pin table.sx-t thead { position: relative; z-index: 7; }
+.tw-pin table.sx-t thead tr:not(.gh) th, .tw-pin table.sx-t thead .gh.tg-row th:not([data-g]) { background-color: var(--ov-surface); }   /* --s1 is see-through on the dark page bands; --ov-surface is always opaque (overlay.css) */

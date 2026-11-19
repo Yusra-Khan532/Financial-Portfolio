@@ -14,7 +14,8 @@ import { watch } from "../../lib/watchlist";
 import { SizeNote } from "../SizeNote";
 import { CAPS, PAGE_SIZES, pageList, type SortKey } from "../../lib/scoreScreen";
 import type { Plan } from "../../lib/ui";
-import { CheckRow, FgxFocus, FilterGroup } from "./FilterGroup";
+import { CheckRow, FgxFocus, FilterGroup, SearchBox } from "./FilterGroup";
+import { HeaderFilters } from "./HeaderFilters";
 import { SectorTree } from "./SectorTree";
 import { SortMenu, Toolbar } from "./PageParts";
 import "../../styles/fgx.css";
@@ -34,7 +35,7 @@ export function GroupRow({ groups }: { groups: { g: string; n: number; label: st
     <tr className="gh tg-row">
       <th colSpan={2} aria-hidden="true" className="tg-none fz1" />
       <th scope="colgroup" data-g="company" className="stick fz3 fz-last">Company</th>
-      <th scope="colgroup" colSpan={2} data-g="price"><span className="gh-lab">Price &amp; size</span></th>      {/* LTP and Market cap: two columns (a span of 3 pushed every band one column right, 14 Nov N-25 / N-37) */}
+      {/* LTP and Market cap: two columns (a span of 3 pushed every band one column right, 14 Nov N-25 / N-37) */}<th scope="colgroup" colSpan={2} data-g="price"><span className="gh-lab">Price &amp; size</span></th>
       {groups.map((x) => <th key={x.g} scope="colgroup" colSpan={x.n} data-g={x.g}><span className="gh-lab">{x.label}{x.sub && <span className="gh-sub">{x.sub}</span>}</span></th>)}
       <th aria-hidden="true" className="tg-none" />
     </tr>
@@ -64,9 +65,11 @@ type Props = {
   dateLine?: string | null; howTitle?: string;
   /** The Columns menu in the toolbar (the 52-week and return columns). */ columnsMenu?: ReactNode;
   /** A tag after the company name (Leader / In line / Laggard on the Advanced page). */ leadTag?: (r: Screener["pg"]["view"][number]) => ReactNode;
+  /** Task #257 (Basic screener, SPEC §1): no left panel; every filter opens from the header row, active filters sit under it as chips, and the table takes the full width. */
+  headerFilters?: boolean;
 };
 const narrow = () => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(max-width: 1000px)").matches;
-export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, screens, filters, lead, beforeTable, errorTitle, groupHead, columnHeads, cells, colSpan, plain, how, tier, sortChoices, dateLine, howTitle = "How scores work", columnsMenu, leadTag }: Props) {
+export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, screens, filters, lead, beforeTable, errorTitle, groupHead, columnHeads, cells, colSpan, plain, how, tier, sortChoices, dateLine, howTitle = "How scores work", columnsMenu, leadTag, headerFilters = false }: Props) {
   const [sideW, setSide] = useSideWidth(splitKey);
   const { draft, setDraft, facets, drawer, setDrawer, sort, size, pg, rows, sel, bad, dirty, isLoading, isError, chips, filterCount, maxCompare } = s;
   const [chart, setChart] = useState<PanelRow | null>(null);
@@ -112,14 +115,25 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
         {screens}
         {beforeTable}
         {/* 14 Nov file N-24 / N-33: no "not scored yet" ring and no sector box above the list (they were drawn for admin accounts); "Not scored yet" stays on each row */}
+        {headerFilters ? (<>
+          <div className="sx-stick hf-bar"><div className="fgx-tool hf-tool" role="search"><SearchBox value={s.q} onChange={s.setQ} placeholder="Search company name or symbol" label="Search company name or symbol" /><HeaderFilters s={s} /></div></div>
+          <div className="hf-chips" aria-label="Active filters">
+            {!chips.length && !qTrim ? <p className="hf-empty">No filters yet: every company is listed.</p> : <>
+              {qTrim && <button type="button" className="fchip" onClick={() => s.setQ("")} aria-label={`Remove search ${qTrim}`}>Search: {qTrim}<span aria-hidden="true">×</span></button>}
+              {chips.map((c) => <button type="button" key={c.id} className="fchip" onClick={() => s.drop(c.id)} aria-label={`Remove filter ${c.label}`}>{c.label}<span aria-hidden="true">×</span></button>)}
+              <button type="button" className="hf-clear" onClick={() => { s.setQ(""); s.clear(); }}>Clear all</button></>}
+          </div>
+        </>) : (
         <div className="sx-stick"><Toolbar q={s.q} setQ={s.setQ} searchLabel="Search company name, sector or keyword" buttons={[
           { id: "cap", label: "Market cap", active: draft.caps.length, onClick: () => showPanel("cap") },
           { id: "sector", label: "Macro sector & industry", active: draft.sectors.length + draft.industries.length, onClick: () => showPanel("sector") },
           { id: "score", label: "Score filters", active: Math.max(0, filterCount - draft.caps.length - draft.sectors.length - draft.industries.length), onClick: () => showPanel("score") }]}
           sort={<>{columnsMenu}<SortMenu value={sortVal} options={sortOpts.map(([k, d, l]) => ({ v: `${k}:${d}`, label: l }))}
             onPick={(v) => { const [k, d] = v.split(":"); s.go({ sort: { key: k as SortKey, dir: Number(d) as 1 | -1 }, page: 0 }); }} /></>} /></div>
-        <div className={"scr sx" + (drawer ? " sx-open" : "") + (collapsed ? " fgx-collapsed" : "")} style={{ "--side-w": `${sideW}px` } as React.CSSProperties}>
+        )}
+        <div className={"scr sx" + (headerFilters ? " hf-full" : "") + (drawer ? " sx-open" : "") + (collapsed ? " fgx-collapsed" : "")} style={{ "--side-w": `${sideW}px` } as React.CSSProperties}>
           {drawer && <div className="sx-back" onClick={() => setDrawer(false)} aria-hidden="true" />}
+          {!headerFilters && <>
           <aside className="scr-side card sx-side" aria-label={sideLabel} hidden={sideW === 0 || (collapsed && !drawer)}>
             <button type="button" className="sx-close btn" onClick={() => setDrawer(false)}>Close filters</button>
             <form onSubmit={(e) => { e.preventDefault(); s.apply(s.draft, true); }} onBlurCapture={(e) => { if ((e.target as HTMLElement).matches?.('input[type="number"]') && dirty && !bad) s.apply(); }} noValidate>
@@ -142,17 +156,20 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
             </form>
           </aside>
           <SplitDivider width={sideW} set={setSide} />
+          </>}
 
           <section className="scr-main card" aria-label="Results">
+            {headerFilters ? <div className="hf-top"><p className="hf-count" aria-live="polite">{isLoading ? "Loading companies…" : `${nf(rows.length, 0)} ${rows.length === 1 ? "company" : "companies"}${chips.length || qTrim ? " match these filters" : ""}`}</p>
+              <div className="hf-tools">{columnsMenu}<SortMenu value={sortVal} options={sortOpts.map(([k, d, l]) => ({ v: `${k}:${d}`, label: l }))} onPick={(v) => { const [k, d] = v.split(":"); s.go({ sort: { key: k as SortKey, dir: Number(d) as 1 | -1 }, page: 0 }); }} /></div></div> :
             <div className="sx-top">
               <button type="button" className="btn sx-fbtn" onClick={() => setDrawer(true)} aria-haspopup="dialog">Filters{filterCount > 0 && <span className="dotn">{filterCount}</span>}{dirty && <span className="sr"> (unsaved changes)</span>}</button>
-            </div>
+            </div>}
             {lead}
-            {(chips.length > 0 || !!qTrim) && <div className="scr-chips" aria-label="Active filters">{qTrim && <button type="button" className="fchip" onClick={() => s.setQ("")} aria-label={`Remove search ${qTrim}`}>Search: {qTrim}<span aria-hidden="true">×</span></button>}{chips.map((c) => <button type="button" key={c.id} className="fchip" onClick={() => s.drop(c.id)} aria-label={`Remove filter ${c.label}`}>{c.label}<span aria-hidden="true">×</span></button>)}<button type="button" className="alx-link" onClick={() => { s.setQ(""); s.clear(); }}>Clear all</button></div>}
+            {!headerFilters && (chips.length > 0 || !!qTrim) && <div className="scr-chips" aria-label="Active filters">{qTrim && <button type="button" className="fchip" onClick={() => s.setQ("")} aria-label={`Remove search ${qTrim}`}>Search: {qTrim}<span aria-hidden="true">×</span></button>}{chips.map((c) => <button type="button" key={c.id} className="fchip" onClick={() => s.drop(c.id)} aria-label={`Remove filter ${c.label}`}>{c.label}<span aria-hidden="true">×</span></button>)}<button type="button" className="alx-link" onClick={() => { s.setQ(""); s.clear(); }}>Clear all</button></div>}
             <p className="sr" role="status" aria-live="polite" aria-atomic="true">{isLoading || isError ? "" : `${nf(rows.length, 0)} ${rows.length === 1 ? "company matches" : "companies match"}${filterCount || qTrim ? " the current filters" : ""}.`}</p>
             {isError ? <div className="state"><h2>{errorTitle}</h2><p>Please try again in a moment.</p></div> : isLoading ? <div className="skeleton" style={{ height: 380 }} /> : (
               <>
-                <p className="sx-count" aria-live="polite">{sel.length ? `${nf(sel.length, 0)} selected` : `${nf(rows.length, 0)} ${rows.length === 1 ? "company" : "companies"} in this result`}</p>
+                {!headerFilters && <p className="sx-count" aria-live="polite">{sel.length ? `${nf(sel.length, 0)} selected` : `${nf(rows.length, 0)} ${rows.length === 1 ? "company" : "companies"} in this result`}</p>}
                 <TableZoom label="Score screener results"><HScroll className="scr-tw" label="results table" controls={false} pinBelow=".sx-stick"><table className="scr-t ss-t sx-t" ref={tableRef}>
                   <caption className="sr">Companies matching the filters, sorted by {(choices.find((c) => c.key === sort.key)?.label ?? String(sort.key).replace(/_/g, " ")).toLowerCase()}. Select a column heading to sort.</caption>
                   <thead>{groupHead}
@@ -168,7 +185,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
                     <tr key={r.symbol} className={(on ? "sx-sel " : "") + (chart?.symbol === r.symbol ? "cp-row" : "")} onClick={(e) => { if (!(e.target as HTMLElement).closest("input,a,button,select")) setChart(r); }}>
                       <td className="fz1"><input type="checkbox" checked={on} onChange={() => s.togglePick(r.symbol)} aria-label={`Select ${r.symbol}`} /></td>
                       <td className="sx-n fz2">{pg.page * size + i + 1}</td>
-                      <td className="stick fz3 fz-last"><Link to={`/stocks/${r.symbol}`} className="co"><CoLogo symbol={r.symbol} name={r.name} size={24} /><span><b title={codeNote(r)}>{titleOf(r)}</b>{leadTag?.(r)}{subOf(r) && <small>{subOf(r)}</small>}<small className="sx-secn">{r.sector || "Sector not listed"}</small></span></Link></td>
+                      <td className="stick fz3 fz-last"><Link to={`/stocks/${r.symbol}`} className="co"><CoLogo symbol={r.symbol} name={r.name} size={24} /><span><b title={codeNote(r)}>{titleOf(r)}</b>{leadTag?.(r)}{subOf(r) && <small>{subOf(r)}</small>}<small className="sx-secn" title={r.lv ? `${r.lv.macro} › ${r.lv.sector} › ${r.lv.industry}` : undefined}>{r.lv?.industry ?? r.sector ?? "Sector not listed"}</small></span></Link></td>
                       <td className="ss-px">{r.price != null ? nf(r.price) : <Dash why="no price yet" />}</td>
                       <td className="ss-mc">{r.market_cap != null ? <><span className="ss-mcv">₹{cr(r.market_cap)} Cr</span>{r.cap && <small className="sx-cap">{r.cap} cap</small>}</> : <Dash why="market value not available" />}</td>
                       {cells(r)}
