@@ -83,7 +83,9 @@ def classify(question: str, named_company: bool = False, on_company_page: bool =
     if _FUNDS.search(q):
         got.add("funds")
     if _FIN_TERMS.search(q):
-        if named_company or _OWN.search(q) or (on_company_page and not meaning):
+        # "its" points at a company's figures, except in a question about valuation methods or a market's multiple ("the Nifty P/E against its history")
+        own = bool(_OWN.search(q)) and "valuation" not in got
+        if named_company or own or (on_company_page and not meaning):
             got.add("financials")
         elif meaning:
             got.add("concept")
