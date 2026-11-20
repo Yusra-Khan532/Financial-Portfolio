@@ -1,6 +1,7 @@
 // Task #183 part 2 (MF portfolio, pack 02 §2 "Your funds"): the fund type strip, three things to know, the band filter (the API's label), and one table with
 // four views: Overview (Health Score, a divider, the four Health parts in the server's words with the number under each, status with the category rank),
 // Returns & costs, Risk (each fund against its own benchmark) and By fund type (groups that fold). Every heading sorts both ways. Describes; never advice.
+import { FilterRow, applyFilters, type Facet, type Picks } from "../../portfolio/kit/FilterRow";
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { Scroll, Section, Tip } from "../../components/sectors/pack/Common";
@@ -53,15 +54,23 @@ function Word({ w, n }: { w: string | null | undefined; n?: number | null }) {
 }
 
 /** `listLabel`: the server's word for the list's average score (its band function; the page never cuts the number itself). */
+const HEALTH_ORDER = ["Strong", "Healthy", "Average", "Weak", "Poor"];
+/** The table's filters (task #275, change 18): the fund type and the Health Score band, in the API's words. Exported for tests. */
+export const FACETS: Facet<Holding>[] = [
+  { key: "type", label: "Type", get: (h) => typeOf(h.category), order: ["Equity", "Hybrid", "Debt", "Solution oriented", "Others"] },
+  { key: "health", label: "Health", get: (h) => (h.score.label ? cap(h.score.label) : "No score"), order: [...HEALTH_ORDER, "No score"] },
+];
+export const fundText = (h: Holding) => [fundName(h.name), h.amc, h.isin, h.categoryLabel].filter(Boolean).join(" ");
+export const TABLE_VIEWS: [string, string][] = [["overview", "Overview"], ["returns", "Returns & costs"], ["risk", "Risk"], ["type", "By fund type"]];
+
 /** Task #235 (pack C1, C4, C5, C6): with `lots`, Overview shows each fund's money in three groups (What you paid · What it is worth now · Gain or loss: Units,
  *  Avg buy NAV, Invested · Latest NAV, Value now · ₹, %), each fund opens into its buys and sales (first in, first out within each platform; no Today:
  *  NAVs change once a day), and a total row sits at the foot. */
 export function FundsTable({ hs, rk, sp, actions, listLabel, lots }: { hs: Holding[]; rk: MfRisk | undefined; sp: MfSpread | undefined; actions: (h: Holding) => ReactNode; listLabel: string | null; lots?: LotsProps }) {
-  const [view, setView] = useState<FundsView>("overview"), [band, setBand] = useState<string>("All"), [sort, setSort] = useState<{ k: string; dir: 1 | -1 }>({ k: "name", dir: 1 });
+  const [view, setView] = useState<FundsView>("overview"), [picks, setPicks] = useState<Picks>({}), [fq, setFq] = useState(""), [sort, setSort] = useState<{ k: string; dir: 1 | -1 }>({ k: "name", dir: 1 });
   const [open, setOpen] = useState<Set<string>>(new Set(["Equity", "Hybrid", "Debt", "Solution oriented", "Others"]));
   const by = useMemo(() => new Map((rk?.funds ?? []).map((f) => [f.code, f])), [rk]);
   const theme = sp?.readings.theme, themeTag = (h: Holding) => (theme?.theme && theme.funds.length > 1 && theme.funds.includes(h.code) ? `${theme.theme} ×${theme.funds.length}` : null);
-  const words = ["Strong", "Healthy", "Average", "Weak", "Poor"].filter((w) => w === "Healthy" || w === "Average" || w === "Weak" || hs.some((h) => cap(h.score.label) === w));
   const COLS: Record<FundsView, Col[]> = {
     overview: [{ k: "name", label: "Fund", get: (h) => fundName(h.name) }, { k: "type", label: "Category · type", get: (h) => h.categoryLabel },
       { k: "nav", label: "NAV", num: true, get: (h) => h.nav }, { k: "score", label: "Score", num: true, get: (h) => h.score.final },
@@ -85,7 +94,8 @@ export function FundsTable({ hs, rk, sp, actions, listLabel, lots }: { hs: Holdi
       ...COLS.overview.slice(3)];
   }
   const cols = COLS[view === "type" ? "overview" : view];
-  const shown = hs.filter((h) => band === "All" || cap(h.score.label) === band);
+  // task #275 (change 18): Find a fund · Type ▾ · Health ▾ (the Healthy / Average / Weak / Poor row moved into it) · Columns, the shared filter row
+  const shown = applyFilters(hs, FACETS, picks, fq, fundText);
   const col = cols.find((c) => c.k === sort.k) ?? cols[0];
   const rows = [...shown].sort((a, b) => { const x = col.get(a, by.get(a.code)), y = col.get(b, by.get(b.code));
     if (x == null && y == null) return 0; if (x == null) return 1; if (y == null) return -1;
@@ -116,17 +126,15 @@ export function FundsTable({ hs, rk, sp, actions, listLabel, lots }: { hs: Holdi
   const avg = (xs: (number | null | undefined)[]) => { const v = xs.filter((x): x is number => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
   const listAvg = avg(hs.map((h) => h.score.final)), labelOf = () => listLabel;
   const risk = rk?.own?.list;
-  const strip = typeStrip(hs);
+  const strip = typeStrip(hs), stripShown = shown.length === hs.length ? strip : typeStrip(shown);
   return (
     <Section id="mfp-funds" title="Your funds" help="Each fund in your list with its Fund Health Score and four Health parts, its returns and costs, and its risk against its own benchmark." how="Pick a view on the right; click a heading to sort, again to reverse. A tinted row reads Weak."
       sub={`${hs.length} ${hs.length === 1 ? "fund" : "funds"}. Click a column heading to sort.`}
-      right={<div className="sp-view mff-views" role="group" aria-label="Table view">{([["overview", "Overview"], ["returns", "Returns & costs"], ["risk", "Risk"], ["type", "By fund type"]] as [FundsView, string][]).map(([k, l]) =>
-        <button key={k} type="button" className={"sp-vbtn" + (view === k ? " on" : "")} aria-pressed={view === k} onClick={() => { setView(k); setSort({ k: "name", dir: 1 }); }}>{l}</button>)}</div>}>
+>
       <div className="mff-strip">{strip.map((g) => <div key={g.type} className={"mff-g mff-" + g.type.toLowerCase().split(" ")[0]}><b>{g.type}</b> {g.n} · {g.share}%<small>{g.cats.join(" · ")}</small></div>)}</div>
       <Insights items={fundsInsights(hs, sp)} scope="mf.funds" />
-      {view !== "type" && <div className="mff-bands" role="group" aria-label="Show funds by Health Score band">{["All", ...words].map((w) => {
-        const n = w === "All" ? hs.length : hs.filter((h) => cap(h.score.label) === w).length;
-        return <button key={w} type="button" className={"mff-band" + (band === w ? " on" : "")} aria-pressed={band === w} onClick={() => setBand(w)}>{w} {n}</button>; })}</div>}
+      <FilterRow rows={hs} facets={FACETS} picks={picks} setPicks={setPicks} q={fq} setQ={setFq} text={fundText} find="Find a fund" noun={["fund", "funds"]} cols={TABLE_VIEWS} col={view}
+        setCol={(c) => { setView(c as FundsView); setSort({ k: "name", dir: 1 }); }} shown={shown.length} />
       {view === "overview" && <Scroll label="your funds"><table className={"sp-tb mff-t kit-grid" + (lots ? " x-grp" : "")}>
         <thead><tr className="mff-groups">{lots ? <><th colSpan={2} /><GroupBand mf /></> : <th colSpan={3} />}<th className="mff-gh">Health Score</th><th colSpan={4} className="mff-gh mff-div">Health parts<Tip text="Each part of the Fund Health Score against funds in the same category: performance, risk, cost and quality." how="Strong, Fair or Weak, with the part's number under it. A strong Risk part means lower risk." /></th><th className="mff-gh">Score</th><th /></tr>
           {lots ? <tr>{cols.slice(0, 2).map((c) => th(c))}<HoldingHeads mf sortHead={(id, _l, cls) => th(cols.find((c) => c.k === id)!, cls)} />{th(cols[9], "mff-sc")}{cols.slice(10, 14).map((c, i) => th(c, "c" + (i === 0 ? " mff-div" : "")))}{th(cols[14])}</tr>
@@ -149,9 +157,9 @@ export function FundsTable({ hs, rk, sp, actions, listLabel, lots }: { hs: Holdi
         <tfoot><tr><th scope="row">Your list</th><td className="r">{rk?.list.swing == null ? "–" : `${rk.list.swing.toFixed(1)}%`}</td><td className="r sp-red">{rk?.list.worstFall == null ? "–" : `−${Math.abs(rk.list.worstFall).toFixed(1)}%`}</td>
           <td className="r"><b>{b2(risk?.betaOwn)}</b> {risk?.betaOwnBand && <span className={"mff-rd r-" + risk.betaOwnBand.key}>{risk.betaOwnBand.word}</span>}</td><td>Each fund's own</td><td className="r">100%</td></tr>
           <tr><th scope="row">Nifty 500</th><td className="r">{rk?.bench.swing == null ? "–" : `${rk.bench.swing.toFixed(1)}%`}</td><td className="r sp-red">{rk?.bench.worstFall == null ? "–" : `−${Math.abs(rk.bench.worstFall).toFixed(1)}%`}</td><td className="r">1.00</td><td>–</td><td /></tr></tfoot></table></Scroll>}
-      {view === "type" && <div className="mff-types"><div className="mff-oa"><button type="button" className="eq-oa" onClick={() => setOpen(open.size ? new Set() : new Set(strip.map((g) => g.type)))}>{open.size ? "Close all" : "Open all"}</button></div>
+      {view === "type" && <div className="mff-types"><div className="mff-oa"><button type="button" className="eq-oa" onClick={() => setOpen(open.size ? new Set() : new Set(stripShown.map((g) => g.type)))}>{open.size ? "Close all" : "Open all"}</button></div>
         <Scroll label="funds by type"><table className="sp-tb mff-t kit-grid"><thead><tr><th scope="col">Fund</th><th scope="col">Category</th><th scope="col" className="r">Health Score</th><th scope="col" className="r">Swing a year · 3 yrs</th></tr></thead>
-          {strip.map((g) => { const its = hs.filter((h) => typeOf(h.category) === g.type), a = avg(its.map((h) => h.score.final)), sw = avg(its.map((h) => by.get(h.code)?.swing)), on = open.has(g.type);
+          {stripShown.map((g) => { const its = shown.filter((h) => typeOf(h.category) === g.type), a = avg(its.map((h) => h.score.final)), sw = avg(its.map((h) => by.get(h.code)?.swing)), on = open.has(g.type);
             return <tbody key={g.type}><tr className="mff-grow"><th scope="rowgroup" colSpan={4}><button type="button" aria-expanded={on} onClick={() => setOpen((o) => { const n = new Set(o); if (n.has(g.type)) n.delete(g.type); else n.add(g.type); return n; })}>
               <b>{g.type}</b> · {g.n} {g.n === 1 ? "fund" : "funds"} · {g.share}% of the list · average health {a == null ? "–" : Math.round(a)} · average swing {sw == null ? "–" : `${sw.toFixed(1)}%`} <span aria-hidden="true">{on ? "▴" : "▾"}</span></button></th></tr>
               {on && its.map((h) => { const f = by.get(h.code); return <tr key={h.id}>{fundCell(h)}<td>{h.categoryLabel}</td><td className="r">{h.score.final == null ? "–" : Math.round(h.score.final)}</td><td className="r">{f?.swing == null ? "–" : `${f.swing.toFixed(1)}%`}</td></tr>; })}</tbody>; })}

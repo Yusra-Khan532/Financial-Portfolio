@@ -27,10 +27,11 @@ function PfSelect({ pfs, value, onChange, id }: { pfs: PfOpt[]; value: string; o
   return <p className="ptk-dlg-pf"><label htmlFor={id}>Portfolio</label><select id={id} value={value} onChange={(e) => onChange(e.target.value)}>{pfs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></p>;
 }
 
-export function EditDialog({ symbol, holdings, pfs, pf0, ops, onRemove, onClose, newRow, noun = "holding" }: {
-  noun?: string; symbol: string; holdings: Holding[]; pfs: PfOpt[]; pf0: string; ops: Ops; onRemove: (pf: string) => void; onClose: () => void; newRow?: boolean;
+export function EditDialog({ symbol, holdings, pfs, pf0, ops, onRemove, onClose, newRow, noun = "holding", name, priceWord = "price" }: {
+  noun?: string; symbol: string; /** task #275: the name shown (the MF page's key is a holding id); the symbol by default */ name?: string; /** "price", or "NAV" for funds */ priceWord?: string; holdings: Holding[]; pfs: PfOpt[]; pf0: string; ops: Ops; onRemove: (pf: string) => void; onClose: () => void; newRow?: boolean;
 }) {
   useEsc(onClose);
+  const nm = name ?? symbol;
   const [pf, setPf] = useState(pf0), [err, setErr] = useState(""), [rm, setRm] = useState(false);
   const mine = (p: string) => holdings.filter((h) => h.symbol.toUpperCase() === symbol.toUpperCase() && h.owned && pfOf(h) === p);
   const start = (p: string): Draft[] => { const b = mine(p).filter((h) => h.side !== "sell" && h.qty > 0).map((h) => ({ id: h.id, qty: String(h.qty), price: h.price > 0 ? String(h.price) : "", date: h.date ?? "" }));
@@ -54,22 +55,22 @@ export function EditDialog({ symbol, holdings, pfs, pf0, ops, onRemove, onClose,
   return (
     <div className="acc-dlg" role="dialog" aria-modal="true" aria-labelledby="ptk-ed-h" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="acc-dlg-in ptk-dlg">
-        <h2 id="ptk-ed-h">Edit {symbol}</h2>
-        <p className="acc-dlg-p">Your buys of this {noun}. Add one for each purchase, or one line with the total quantity and the average price.</p>
+        <h2 id="ptk-ed-h">Edit {nm}</h2>
+        <p className="acc-dlg-p">Your buys of this {noun}. Add one for each purchase, or one line with the total quantity and the average {priceWord}.</p>
         <PfSelect pfs={pfs} value={pf} onChange={setPf} id="ptk-ed-pf" />
         <div className="ptk-buys">
           {rows.map((r, i) => <div key={r.id ?? "n" + i} className="ptk-buy">
-            <label className="ptk-fld"><span>Quantity<small>optional</small></span><input inputMode="decimal" placeholder="e.g. 50" aria-label={`Quantity in buy ${i + 1} of ${symbol}`} value={r.qty} onChange={(e) => set(i, "qty", e.target.value)} autoFocus={i === rows.length - 1} /></label>
-            <label className="ptk-fld"><span>Average buy price<small>optional</small></span><span className="ptk-rs"><i aria-hidden="true">₹</i><input inputMode="decimal" aria-label={`Average buy price in buy ${i + 1} of ${symbol}`} value={r.price} onChange={(e) => set(i, "price", e.target.value)} /></span></label>
-            <label className="ptk-fld ptk-fd"><span>Bought on<small>optional</small></span><input type="date" max={today()} aria-label={`Date of buy ${i + 1} of ${symbol}`} value={r.date} onChange={(e) => set(i, "date", e.target.value)} /></label>
-            <button type="button" className="ptk-x" aria-label={`Remove buy ${i + 1} of ${symbol}`} onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}>×</button>
+            <label className="ptk-fld"><span>Quantity<small>optional</small></span><input inputMode="decimal" placeholder="e.g. 50" aria-label={`Quantity in buy ${i + 1} of ${nm}`} value={r.qty} onChange={(e) => set(i, "qty", e.target.value)} autoFocus={i === rows.length - 1} /></label>
+            <label className="ptk-fld"><span>Average buy {priceWord}<small>optional</small></span><span className="ptk-rs"><i aria-hidden="true">₹</i><input inputMode="decimal" aria-label={`Average buy ${priceWord} in buy ${i + 1} of ${nm}`} value={r.price} onChange={(e) => set(i, "price", e.target.value)} /></span></label>
+            <label className="ptk-fld ptk-fd"><span>Bought on<small>optional</small></span><input type="date" max={today()} aria-label={`Date of buy ${i + 1} of ${nm}`} value={r.date} onChange={(e) => set(i, "date", e.target.value)} /></label>
+            <button type="button" className="ptk-x" aria-label={`Remove buy ${i + 1} of ${nm}`} onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}>×</button>
           </div>)}
         </div>
         <button type="button" className="ptk-link" onClick={() => setRows((rs) => [...rs, { qty: "", price: "", date: "" }])}>+ Add a buy</button>
         {sales.length > 0 && <div className="ptk-sales"><p className="ptk-k">Sales</p><ul>{sales.map((s) => <li key={s.id}>{s.date ? dfmt(s.date) : "No date"} · {qf(s.qty)} at {s.price > 0 ? inr(s.price, 2) : "—"}
-          <button type="button" className="ptk-x" aria-label={`Remove this sale of ${symbol}`} onClick={() => ops.remove(s.id)}>×</button></li>)}</ul></div>}
+          <button type="button" className="ptk-x" aria-label={`Remove this sale of ${nm}`} onClick={() => ops.remove(s.id)}>×</button></li>)}</ul></div>}
         {err && <p className="ptk-err" role="alert">{err}</p>}
-        {rm ? <div className="acc-confirm" role="alertdialog" aria-label={`Remove ${symbol}`}><span>Remove {symbol} and its buys and sales from {pfs.find((p) => p.id === pf)?.name ?? "this portfolio"}? Nothing changes at your broker.</span>
+        {rm ? <div className="acc-confirm" role="alertdialog" aria-label={`Remove ${nm}`}><span>Remove {nm} and its buys and sales from {pfs.find((p) => p.id === pf)?.name ?? "this portfolio"}? Nothing changes at your broker.</span>
           <button type="button" className="go del" onClick={() => { onRemove(pf); onClose(); }} autoFocus>Remove</button><button type="button" onClick={() => setRm(false)}>Cancel</button></div>
           : <p className="ptk-rmrow"><button type="button" className="ptk-link ptk-danger" onClick={() => setRm(true)}>Remove from this portfolio</button></p>}
         <div className="acc-dlg-b"><button type="button" onClick={onClose}>Cancel</button><button type="button" className="go" onClick={save}>Save</button></div>
@@ -87,8 +88,10 @@ export function salePreview(hs: Holding[], symbol: string, pf: string, qty: numb
   return { held: before.qty ?? 0, fig: l.sales.find((s) => s.row.id === "__preview") ?? null, buys: l.buys };
 }
 
-export function SellDialog({ symbol, holdings, pfs, pf0, ops, onClose, price }: { symbol: string; holdings: Holding[]; pfs: PfOpt[]; pf0: string; ops: Ops; onClose: () => void; price?: number | null }) {
+export function SellDialog({ symbol, holdings, pfs, pf0, ops, onClose, price, name, priceWord = "price" }: { symbol: string; holdings: Holding[]; pfs: PfOpt[]; pf0: string; ops: Ops; onClose: () => void; price?: number | null;
+  /** task #275: the name shown, and "NAV" for funds */ name?: string; priceWord?: string }) {
   useEsc(onClose);
+  const nm = name ?? symbol;
   const held = (p: string) => ledgerOf(holdings, symbol, p).qty ?? 0;
   const opts = pfs.filter((p) => held(p.id) > 0);
   const [pf, setPf] = useState(opts.some((p) => p.id === pf0) ? pf0 : opts[0]?.id ?? pf0), [qty, setQty] = useState(""), [px, setPx] = useState(price ? String(price) : ""), [err, setErr] = useState("");
@@ -107,13 +110,13 @@ export function SellDialog({ symbol, holdings, pfs, pf0, ops, onClose, price }: 
   return (
     <div className="acc-dlg" role="dialog" aria-modal="true" aria-labelledby="ptk-sl-h" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="acc-dlg-in ptk-dlg">
-        <h2 id="ptk-sl-h">Sell {symbol}</h2>
+        <h2 id="ptk-sl-h">Sell {nm}</h2>
         <p className="acc-dlg-p">Record a sale you made at your broker. It uses up the earliest buys first (first in, first out); what is left stays in the list. {qf(held(pf))} held{pfs.length > 1 ? ` in ${pfs.find((p) => p.id === pf)?.name}` : ""}.</p>
         <PfSelect pfs={opts} value={pf} onChange={setPf} id="ptk-sl-pf" />
         <div className="ptk-buy three">
-          <label className="ptk-fld"><span>Quantity sold</span><input inputMode="decimal" placeholder={`up to ${qf(held(pf))}`} aria-label={`Quantity of ${symbol} sold`} value={qty} onChange={(e) => setQty(e.target.value)} autoFocus /></label>
-          <label className="ptk-fld"><span>Sell price</span><span className="ptk-rs"><i aria-hidden="true">₹</i><input inputMode="decimal" aria-label={`Sell price of ${symbol}`} value={px} onChange={(e) => setPx(e.target.value)} /></span></label>
-          <label className="ptk-fld ptk-fd"><span>Sold on</span><input type="date" max={today()} aria-label={`Date of the sale of ${symbol}`} value={date} onChange={(e) => setDate(e.target.value)} /></label>
+          <label className="ptk-fld"><span>Quantity sold</span><input inputMode="decimal" placeholder={`up to ${qf(held(pf))}`} aria-label={`Quantity of ${nm} sold`} value={qty} onChange={(e) => setQty(e.target.value)} autoFocus /></label>
+          <label className="ptk-fld"><span>Sell {priceWord}</span><span className="ptk-rs"><i aria-hidden="true">₹</i><input inputMode="decimal" aria-label={`Sell ${priceWord} of ${nm}`} value={px} onChange={(e) => setPx(e.target.value)} /></span></label>
+          <label className="ptk-fld ptk-fd"><span>Sold on</span><input type="date" max={today()} aria-label={`Date of the sale of ${nm}`} value={date} onChange={(e) => setDate(e.target.value)} /></label>
         </div>
         {undated(pf) && !date && <p className="ptk-note">A buy has no date, so the sale is counted after it. Add the dates in Edit to place the sale on its day.</p>}
         <div className="ptk-fifo" aria-live="polite">

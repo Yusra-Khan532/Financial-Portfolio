@@ -17,6 +17,7 @@ import {
 } from "../lib/mfPortfolio";
 import { dateIN } from "../lib/format";
 import { AddSeveralDialog, FundGroupSearch, PlanOptionDialog, type FundGroup } from "../mf/pack/MfAdd";
+import { EditDialog, EditSell, SellDialog } from "../portfolio/kit/HoldingDialog";
 import "../styles/mf.css";
 import "../styles/mfportfolio.css";
 import "../styles/mfspread.css";
@@ -197,6 +198,20 @@ export function MfPortfolioPage() {
   const priceOf = (k: string) => navs.get(k)?.nav ?? null, changeOf = () => null;
   const acts = useMemo(() => lotActions(book.get, book.store), [book.get, book.store]);   // eslint-disable-line react-hooks/exhaustive-deps
   const [openLots, setOpenLots] = useState<Set<string>>(new Set()), [focus, setFocus] = useState<LotsProps["focus"]>(null);
+  // task #275 (change 3): Edit | Sell under each fund, in the shared dialogs (portfolio/kit), in place of Remove; Remove sits in Edit
+  const [dlg, setDlg] = useState<{ kind: "edit" | "sell"; k: string } | null>(null);
+  const dlgPfs = pfList.map((x) => ({ id: x.id, name: x.name }));
+  const pfOfFund = (k: string) => (cur !== "all" ? cur : aggOf(book.rows, k, "all")?.pfs[0] ?? goTo);
+  const holdingOf = (k: string) => (qAll.data?.holdings ?? []).find((h) => keyOf(h.id) === k);
+  const removeFund = async (k: string, pf: string) => {
+    const h = holdingOf(k); if (!h) return;
+    const elsewhere = pfList.length > 1 && book.rows.some((r) => r.symbol === k && r.owned && (r.pf ?? DEFAULT_PF) !== pf);
+    try {
+      if (elsewhere) { for (const r of book.rows.filter((x) => x.symbol === k && x.owned && (x.pf ?? DEFAULT_PF) === pf)) book.store.remove(r.id); toast(`Removed from ${pfName(pf)}.`); }
+      else { await w.remove.mutateAsync(h.id); toast("Fund removed."); }
+      setDlg(null);
+    } catch (x) { toast(errText(x)); }
+  };
   const lots: LotsProps = {
     holdings: book.rows, cur, pfName, nPortfolios: pfList.length, priceOf, changeOf, goTo, open: openLots, focus, mf: true, nameOf,
     onOpen: (k, on) => setOpenLots((c) => { const x = new Set(c); if (on) x.add(k); else x.delete(k); return x; }),
@@ -290,7 +305,7 @@ export function MfPortfolioPage() {
           {view === "funds" && <>
             {rk.isError && <p className="sp-note" role="status">{errText(rk.error)}</p>}
             <FundsTable hs={rows} rk={rk.data} sp={sp.data} listLabel={d.summary.score.label} lots={lots}
-              actions={(h) => <button type="button" className="mff-rm" aria-label={`Remove ${h.name}`} onClick={async () => { try { await w.remove.mutateAsync(h.id); toast("Fund removed."); } catch (x) { toast(errText(x)); } }}>Remove</button>} />
+              actions={(h) => { const k = keyOf(h.id); return <EditSell name={fundName(h.name) || `Scheme ${h.code}`} held={aggOf(book.rows, k, cur)?.qty ?? 0} onEdit={() => setDlg({ kind: "edit", k })} onSell={() => setDlg({ kind: "sell", k })} />; }} />
             <SoldList items={sold} all={cur === "all" && pfList.length > 1} pfName={pfName} onRemoveSale={(id) => book.store.remove(id)} noun={["fund", "funds"]} />
             {noReturns > 0 && <p className="sp-note" role="status">1Y, 3Y and 5Y returns are being worked out now for {noReturns} of your funds (from the fund's published NAV history). They appear here by themselves within a minute or two. A fund younger than a year has no 1Y return, and one younger than 3 or 5 years has no 3Y or 5Y return.</p>}
           </>}
@@ -307,6 +322,9 @@ export function MfPortfolioPage() {
           </div>
           <InShort sp={sp.data} rk={rk.data} />
         </>}
+      {dlg?.kind === "edit" && <EditDialog key={dlg.k} noun="fund" name={fundName(nameOf(dlg.k)) || nameOf(dlg.k)} priceWord="NAV" symbol={dlg.k} holdings={book.rows} pfs={dlgPfs} pf0={pfOfFund(dlg.k)} ops={book.store}
+          onRemove={(pf) => removeFund(dlg.k, pf)} onClose={() => setDlg(null)} />}
+        {dlg?.kind === "sell" && <SellDialog key={dlg.k} name={fundName(nameOf(dlg.k)) || nameOf(dlg.k)} priceWord="NAV" symbol={dlg.k} holdings={book.rows} pfs={dlgPfs} pf0={pfOfFund(dlg.k)} ops={book.store} price={priceOf(dlg.k)} onClose={() => setDlg(null)} />}
       </Gate>
       <details className="sp-sec sp-fold mfp-disc"><summary><span><b className="sp-ft">Disclaimer</b><small>What this page is, and is not</small></span><span className="sp-show">Show ▾</span></summary><PortfolioDisclaimer kind="mf" /></details>
       <p className="mfp-foot">{SOURCES}</p>

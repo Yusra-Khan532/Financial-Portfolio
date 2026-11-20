@@ -86,3 +86,39 @@ describe("MF platforms, buys and sales (pack C1, C5, C6)", () => {
     expect(st.put.at(-1)).toEqual({ path: "/api/me/mf-portfolio/bbb", body: { lots: [{ units: "25.5", avgCost: "200", boughtOn: "2025-02-02", pf: "coin", side: "buy" }] } });
   });
 });
+
+describe("task #275 (change 3): Edit | Sell under each fund, in the shared dialogs", () => {
+  it("shows Edit | Sell in place of Remove; Edit lists the fund's buys on a platform by name, with Avg buy NAV", async () => {
+    await show();
+    expect(screen.queryByRole("button", { name: /^Remove ICICI/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Edit ICICI Prudential FMCG Fund" }));
+    const dlg = screen.getByRole("dialog", { name: "Edit ICICI Prudential FMCG Fund" });
+    expect(within(dlg).getAllByLabelText(/^Quantity in buy/).map((i) => (i as HTMLInputElement).value)).toEqual(["10.123", "5", "2.5"]);   // Groww's three buys
+    expect(within(dlg).getByLabelText("Average buy NAV in buy 1 of ICICI Prudential FMCG Fund")).toBeTruthy();
+    fireEvent.change(within(dlg).getByLabelText("Portfolio"), { target: { value: "coin" } });
+    expect(within(dlg).getAllByLabelText(/^Quantity in buy/).map((i) => (i as HTMLInputElement).value)).toEqual(["8", "4"]);
+  });
+  it("Sell saves a sale line on the chosen platform (PUT the fund's lines)", async () => {
+    await show();
+    fireEvent.click(screen.getByRole("button", { name: "Sell Quant Small Cap Fund" }));
+    const dlg = screen.getByRole("dialog", { name: "Sell Quant Small Cap Fund" });
+    fireEvent.change(within(dlg).getByLabelText("Quantity of Quant Small Cap Fund sold"), { target: { value: "5" } });
+    fireEvent.change(within(dlg).getByLabelText("Sell NAV of Quant Small Cap Fund"), { target: { value: "260" } });
+    fireEvent.change(within(dlg).getByLabelText("Date of the sale of Quant Small Cap Fund"), { target: { value: "2026-11-18" } });
+    fireEvent.click(within(dlg).getByRole("button", { name: /^(Sell|Save|Record)/ }));
+    await waitFor(() => expect(st.put.some((p) => p.path === "/api/me/mf-portfolio/bbb")).toBe(true), { timeout: 3000 });
+    const body = st.put.filter((p) => p.path === "/api/me/mf-portfolio/bbb").at(-1)!.body as { lots: { units: string; side: string; pf: string }[] };
+    expect(body.lots).toContainEqual(expect.objectContaining({ units: "5", side: "sell", pf: "coin", avgCost: "260", boughtOn: "2026-11-18" }));
+  });
+  it("Remove from one platform keeps the fund's lines on the other", async () => {
+    await show();
+    fireEvent.click(screen.getByRole("button", { name: "Edit ICICI Prudential FMCG Fund" }));
+    const dlg = screen.getByRole("dialog", { name: "Edit ICICI Prudential FMCG Fund" });
+    fireEvent.change(within(dlg).getByLabelText("Portfolio"), { target: { value: "coin" } });
+    fireEvent.click(within(dlg).getByRole("button", { name: /Remove from/ }));
+    fireEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: /^Remove/ }));
+    await waitFor(() => expect(st.put.some((p) => p.path === "/api/me/mf-portfolio/aaa")).toBe(true), { timeout: 3000 });
+    const body = st.put.filter((p) => p.path === "/api/me/mf-portfolio/aaa").at(-1)!.body as { lots: { pf: string }[] };
+    expect(body.lots.map((l) => l.pf)).toEqual(["groww", "groww", "groww", "groww"]);       // three Groww buys and the Groww sale; Coin's two buys gone
+  });
+});
