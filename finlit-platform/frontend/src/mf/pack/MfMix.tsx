@@ -271,7 +271,7 @@ export function TrendUnder({ sp, gold }: { sp: MfSpread; gold: boolean }) {
   const rated = sp.trend.all.rated, n = sp.trend.all.n;
   return (
     <section className="sp-sec" aria-labelledby="mfp-trend"><details className="mfm-fold"><summary><span><h2 id="mfp-trend">Short- and long-term trend underneath</h2><small>{rated} of {n} stocks rated, by share of your funds. From FinLit Prism's technical views.</small></span><span className="sp-show">Show ▾</span></summary>
-      <TrendCard t={sp.trend} nm={(c) => shortFund(sp.funds.find((f) => f.code === c)?.name)} /></details></section>
+      <TrendCard matrix t={sp.trend} nm={(c) => shortFund(sp.funds.find((f) => f.code === c)?.name)} /></details></section>
   );
 }
 
