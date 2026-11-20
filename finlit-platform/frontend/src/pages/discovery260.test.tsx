@@ -117,6 +117,8 @@ describe("#260: the page and its addresses", () => {
     expect(screen.getByRole("heading", { level: 2, name: "Industrials" })).toBeTruthy();
     expect(document.querySelector(".dsc-kind")!.textContent).toBe("Macro sector · NSE");
     expect(screen.getByRole("heading", { name: "Sectors and industries" })).toBeTruthy();
+    expect(document.querySelector(".dsc-secrow small")!.textContent).toBe("2 industries");
+    expect(document.body.textContent).not.toMatch(/\b1 industries\b/);                   // found live: "1 industries"
     cleanup(); await show("/discover/sectors/industrials/capital-goods");
     expect(screen.getByRole("heading", { level: 2, name: "Capital Goods" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Industries in this sector" })).toBeTruthy();

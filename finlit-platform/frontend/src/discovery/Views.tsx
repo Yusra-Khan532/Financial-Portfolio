@@ -340,7 +340,7 @@ export function MacroPage({ m, sc }: { m: string; sc?: string }) {
       <div className="dsc-tw dsc-stick"><table className="dsc-ind"><thead>{IND_HEAD(sc ? "Industry" : "Sector › industry")}</thead>
         <tbody>{sc ? indRows(rows).map(([i, r]) => <IndRow key={i} ind={i} rows={r} sub={false} />)
           : secs.map(([sct]) => { const sr = rows.filter((r) => r.sct === sct), st = stat(sr); return [
-            <tr key={"s-" + sct} className="dsc-secrow"><td className="indc"><Link className="rowa" to={sectorPath(m, sct)}>{sct}</Link><small>{new Set(sr.map((r) => r.ind)).size} industries</small></td>
+            <tr key={"s-" + sct} className="dsc-secrow"><td className="indc"><Link className="rowa" to={sectorPath(m, sct)}>{sct}</Link><small>{((n) => `${n} ${n === 1 ? "industry" : "industries"}`)(new Set(sr.map((r) => r.ind).filter(Boolean)).size)}</small></td>
               <td className="r num">{sr.length}</td><td /><td className={"r num " + tone(st.m3)}>{pct(st.m3)}</td><td className="r num">{c.prismOpen ? `${st.up} of ${st.n}` : <Locked />}</td><td /><td /></tr>,
             ...indRows(sr).map(([i, r]) => <IndRow key={i} ind={i} rows={r} sub={false} cls="dsc-indrow" />)]; })}</tbody></table></div>
       <ReadingsNote /></div>
