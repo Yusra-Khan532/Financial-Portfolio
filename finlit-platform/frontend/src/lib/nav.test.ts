@@ -15,7 +15,7 @@ describe("site map", () => {
     expect(RESEARCH.groups[2].items.map((i) => i.label)).toEqual(["P/E, EPS & PEG calculator", "DCF valuation calculator", "Reverse valuation", "SIP calculator"]);
     expect(RESEARCH.groups[3].items.map((i) => i.label)).toEqual(["Chart builder", "Correlation charts"]);
     expect(names("markets")).toEqual(["Sector Pulse", "Sector Rotation", "FII & DII flows", "India economy", "Commodity prices"]);
-    expect(names("news")).toEqual(["Results calendar", "Latest results", "IPO calendar", "News & filings"]);
+    expect(names("news")).toEqual(["Results calendar", "Latest results", "Concall Monitor", "IPO calendar", "News & filings"]);   // task #278: Concall Monitor after Latest results
     expect(names("funds")).toEqual(["Mutual funds", "Mutual fund screener", "ETFs"]);
     expect(names("myfinlit")).toEqual(["Dashboard", "Watchlists", "All my investments", "Equity portfolio", "MF portfolio", "ETF portfolio", "Alerts"]);   // task #137: All my investments after Watchlists, as the pack draws it; task #136: ETF portfolio after MF portfolio
   });
