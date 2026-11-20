@@ -333,7 +333,7 @@ async def evaluate(pool, mailer: Mailer, site_url: str, kind: str = "all") -> in
     fired = 0
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT a.*, u.email, u.plan, u.id AS uid, s.prefs, s.watchlist AS s_watchlist, s.portfolio AS s_portfolio FROM alerts a JOIN users u ON u.id = a.user_id LEFT JOIN user_state s ON s.user_id = u.id "
+            "SELECT a.*, u.email, u.plan, u.id AS uid, s.prefs, s.watchlist AS s_watchlist, s.portfolio AS s_portfolio, s.invest_list AS s_invest FROM alerts a JOIN users u ON u.id = a.user_id LEFT JOIN user_state s ON s.user_id = u.id "
             "WHERE a.status = 'active' AND u.status = 'active' AND u.email_verified_at IS NOT NULL")
         todo = []
         for r in rows:
@@ -354,7 +354,7 @@ async def evaluate(pool, mailer: Mailer, site_url: str, kind: str = "all") -> in
             try:
                 if a["metric"] == "discover_filing":   # task #272: Discover's sorted filings, for one stock or a whole list (filingalerts.py)
                     from . import filingalerts
-                    fired += await filingalerts.run_alert(conn, deliver, mailer, site_url, user, a, {"watchlist": a.get("s_watchlist"), "portfolio": a.get("s_portfolio")})
+                    fired += await filingalerts.run_alert(conn, deliver, mailer, site_url, user, a, {"watchlist": a.get("s_watchlist"), "portfolio": a.get("s_portfolio"), "invest": a.get("s_invest")})
                     continue
                 if a["op"] == "event":
                     hits, top = await event_hits(conn, a)

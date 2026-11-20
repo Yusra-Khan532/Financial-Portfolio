@@ -59,6 +59,8 @@ export type Health = {
 export type AllInvestments = {
   plan: "silver" | "gold"; byValue: boolean; total: number | null; missing: Kind[]; counts: Record<Kind, number>; quantities: { have: number; of: number }; chg1y: number | null;
   cards: Record<Kind, Card>; madeOf: MadeOf; sectors: Sector[]; sizes: Size[]; companies: Company[]; filters: { all: number; twice: number; through: number; direct: number };
+  /** task #277 (change 19): the companies of What changed: held directly, or 0.1% or more of everything through funds and ETFs (server: calc.changes_list) */
+  changes?: { direct: string[]; through: string[] };
   health: Health; risk: Risk; shares: ShareRow[]; funds: FundRow[]; etfs: EtfRow[];
   sources: { pricesTo: string | null; navsTo: string | null; filesFrom: string | null; filesTo: string | null }; unknown: string[]; gone: string[]; disclaimer: string;
 };

@@ -88,7 +88,7 @@ function Body() {
   // task #277 (change 11): the page keeps its own Step 1–6 numbers; Key figures (after Step 4 on All together, after Step 1 elsewhere) carries a dot, not a number
   const steps: Step[] = (TABS.find((t) => t.id === tab)?.sections ?? []).flatMap((s, i) => {
     const st: Step = { id: s.id, n: i + 1, title: s.label, sections: [] };
-    return (tab === "all" ? s.id === "mi-every" : i === 0) ? [st, { id: "mi-kf", n: 0, title: "Key figures", sections: [] }] : [st];
+    return (tab === "all" ? s.id === "mi-every" : i === 0) ? [st, { id: "mi-kf", n: 0, title: "Key figures", sections: [] }, ...(tab === "all" ? [{ id: "what-changed", n: 0, title: "What changed", sections: [] }] : [])] : [st];
   });
   const menu: MenuGroup[] = TABS.map((t) => ({ title: t.label, items: t.sections.map((s, i) => ({ id: s.id, label: `${i + 1} · ${s.label}`, go: () => toTab(t.id, s.id) })) }));
   return (

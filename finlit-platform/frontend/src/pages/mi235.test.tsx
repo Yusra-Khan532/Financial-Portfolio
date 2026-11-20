@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import QTY from "../myinvest/sample-qty.json";
 
 const st = vi.hoisted(() => ({ bodies: [] as unknown[], answer: null as unknown }));
+vi.mock("../lib/auth", async (orig) => ({ ...(await orig<typeof import("../lib/auth")>()), useAuth: () => ({ user: null }) }));   // task #277: What changed asks for the last visit only when signed in
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()),
   apiSend: vi.fn(async (_m: string, p: string, body: unknown) => { if (p === "/api/me/all-investments") { st.bodies.push(body); return structuredClone(st.answer); } return {}; }),
   apiGet: vi.fn(async (p: string) => (p === "/api/me/mf-portfolio/book" ? { portfolios: [{ id: "groww", name: "Groww" }] } : p === "/api/me/etf-portfolio/book" ? { portfolios: [{ id: "up", name: "Upstox" }] } : {})) }));

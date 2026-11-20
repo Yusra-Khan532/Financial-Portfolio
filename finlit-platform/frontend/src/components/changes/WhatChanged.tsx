@@ -1,7 +1,7 @@
 // Task #272 (Watchlists and Alerts, 20 Nov pack): "What changed at these companies". One shared block for every list page: the Watchlists page mounts it
 // under the list (before "Price and business disagree"); the equity portfolio (task #274) and the other portfolio pages mount the same component with
 // their own companies, list switcher and page key. Data and rules: lib/whatChanged.ts. Styles: styles/what-changed.css (wc-). Describes, never advises.
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { Icon } from "../../lib/icons";
 import {
@@ -47,7 +47,8 @@ export function OrderWinNotice({ row, page }: { row: ChangeRow | null; page: str
 export function WhatChanged({ symbols, listName, listRef, page, lists, activeList, onPickList, nameOf, title = "What changed at these companies", sub, lede, foot, countLabel, alertLabel, className = "wp-sec wc", hId = "wc-h", id = "what-changed" }: {
   symbols: string[]; listName: string; listRef: string; page: string; lists?: ListTab[]; activeList?: string; onPickList?: (id: string) => void;
   nameOf?: (s: string) => string | undefined; title?: string;
-  /** task #276 (the portfolio pages): a line under each company, e.g. "0.36% of your ETFs · SMALL250" */ sub?: (s: string) => string | undefined;
+  /** task #276 (the portfolio pages): a line under each company, e.g. "0.36% of your ETFs · SMALL250"; task #277: how it is held ("D F E 2.36% of everything") */
+  sub?: (s: string) => ReactNode;
   /** the line under the title, in place of the count headline */ lede?: string; /** what the foot line starts with, before the filings line */ foot?: string;
   /** the label of the count, e.g. "Inside your ETFs" (default: the list's name) */ countLabel?: string; /** the list as the Alert me form names it */ alertLabel?: string;
   className?: string; hId?: string; id?: string;

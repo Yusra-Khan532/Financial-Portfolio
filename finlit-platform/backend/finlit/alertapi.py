@@ -97,13 +97,14 @@ async def alert_value(request: Request, symbol: str = Query(max_length=24), metr
 @router.get("/alerts/lists")
 async def alert_lists(request: Request, ctx: Ctx = Depends(secure_ctx)):
     """Task #272: the lists "Applies to: A list" offers (filingalerts.lists_of), with how many companies each holds. The ETFs' companies (task
-    #276) are offered when the member holds ETFs; the funds' come with the MF page (task #275)."""
+    #276) are offered when the member holds ETFs; task #277 adds the companies you own (All my investments' look-through: direct, or 0.1% or more
+    through funds and ETFs) once that page has been opened; the funds' own list comes with the MF page (task #275)."""
     async with request.app.state.store.pool.acquire() as conn:
-        st = await conn.fetchrow("SELECT watchlist, portfolio FROM user_state WHERE user_id = $1", ctx.user_id)
+        st = await conn.fetchrow("SELECT watchlist, portfolio, invest_list FROM user_state WHERE user_id = $1", ctx.user_id)
         etf = await fa.etf_list(conn, ctx.user_id)
-    lists = fa.lists_of(st["watchlist"] if st else None, st["portfolio"] if st else None)
+    lists = fa.lists_of(st["watchlist"] if st else None, st["portfolio"] if st else None, st["invest_list"] if st else None)
     if etf:
-        lists.insert(-1, etf)            # task #276: before "mine"
+        lists.insert(next((i for i, x in enumerate(lists) if x["ref"] == "mine"), len(lists)), etf)            # task #276: before "mine"
     return json_response({"lists": [{"ref": x["ref"], "label": x["label"], "count": len(x["symbols"])} for x in lists], "kinds": fa.KINDS})
 
 
@@ -168,9 +169,9 @@ async def create_alert(request: Request, body: AlertIn, ctx: Ctx = Depends(secur
     pool = request.app.state.store.pool
     async with pool.acquire() as conn:
         if list_ref:
-            st = await conn.fetchrow("SELECT watchlist, portfolio FROM user_state WHERE user_id = $1", ctx.user_id)
+            st = await conn.fetchrow("SELECT watchlist, portfolio, invest_list FROM user_state WHERE user_id = $1", ctx.user_id)
             ok = (await fa.etf_list(conn, ctx.user_id) if list_ref == "etf"            # task #276: the companies inside the member's ETFs
-                  else fa.resolve(st["watchlist"] if st else None, st["portfolio"] if st else None, list_ref))
+                  else fa.resolve(st["watchlist"] if st else None, st["portfolio"] if st else None, list_ref, st["invest_list"] if st else None))
             if not ok:
                 raise fail(404, "unknown_list", "That list could not be found. Open the page again and retry.")
         elif not await conn.fetchval("SELECT EXISTS(SELECT 1 FROM companies WHERE symbol = $1) OR EXISTS(SELECT 1 FROM scores WHERE symbol = $1)", body.symbol):
