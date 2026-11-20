@@ -32,7 +32,8 @@ const KF_KEY = "finlit.mi.keyfigures.hidden";
 const readHidden = () => { try { return localStorage.getItem(KF_KEY) === "1"; } catch { return false; } };
 export type KeyFig = { label: string; value: ReactNode; line: ReactNode; button: string; go: () => void; tone?: "red" | "plain"; info: [string, string] };
 /** Key figures: three cards (label, one key number, a line, a button to the section behind it) and one Hide, remembered in this browser. */
-export function KeyFigures({ items }: { items: KeyFig[] }) {
+export function KeyFigures({ items: all }: { items: (KeyFig | null)[] }) {
+  const items = all.filter((x): x is KeyFig => x != null);   // task #277 (live number fix 8): a card with nothing to say ("None") is skipped
   const [hidden, setHidden] = useState(readHidden);
   const flip = () => { const h = !hidden; setHidden(h); try { localStorage.setItem(KF_KEY, h ? "1" : "0"); } catch { /* private window: for this visit */ } };
   return (

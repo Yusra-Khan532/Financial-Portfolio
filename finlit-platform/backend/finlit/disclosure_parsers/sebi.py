@@ -12,7 +12,7 @@ import re
 from datetime import date, datetime, timedelta
 from typing import Dict, Iterable, Iterator, List, Optional, Tuple
 
-from .model import Holding, Portfolio, isin_ok, metal_class
+from .model import Holding, Portfolio, isin_ok
 
 MONTHS = {m: i for i, m in enumerate(["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"], 1)}
 _MON = r"(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)"
@@ -127,6 +127,7 @@ GRAND_ROW = re.compile(r"^\W*(grand\s*total|total\s*net\s*assets|net\s*assets\b|
 RATING_LIKE = re.compile(r"\b(aaa|aa\+?|aa-|a1\+|a1|a\+|sovereign|unrated|crisil|icra|care|ind\s?a|fitch|brickwork|acuite|nil)\b|^[ab]{1,3}[+-]?$", re.I)
 
 
+METAL_NAME = re.compile(r"\b(gold|silver)\b", re.I)     # task #277: a line of gold or silver held as the metal
 NA_TEXT = re.compile(r"^\s*(n\.?\s*a\.?|not applicable|-+)\s*$", re.I)
 OTHER_LABELS = frozenset(["foreign security", "foreign securities", "mutual funds", "mutual fund", "commodity", "commodities", "reit", "invit", "reits", "invits", "etf", "overseas etf",
                           "units of mutual fund", "foreign mutual fund", "overseas mutual fund", "gold", "silver", "others", "other"])
@@ -379,7 +380,9 @@ def parse_rows(rows: Iterable[List], source_name: str, source_url: str, as_of_hi
         cls = cur
         if CASH_NAME.search(name) and not isin_raw:
             cls = "cash"
-        cls = metal_class(name, isin_raw, cls)          # task #276: a silver or gold bullion row under a cash heading is the metal, not cash
+        elif METAL_NAME.search(name) and not isin_raw.startswith("INE"):
+            cls = "other"         # task #277 (fix 2): gold or silver held as the metal (a bar, or the scheme's own metal line, as Nippon's silver ETF files it under a
+                                  # cash-like heading) sits with the gold bars in "other", never in cash; a gold-loan bond has an Indian (INE) ISIN and keeps its class
         sec_probe = txt(cell(row, "sector"))
         deriv_row = in_deriv or bool(re.search(r"\b(futures?|options?|swaps?|derivatives?)\b", sec_probe, re.I))
         if deriv_row and cls != "cash" and pct < 0 and (not isin_raw or in_deriv):

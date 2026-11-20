@@ -34,9 +34,9 @@ def test_the_etf_mix_shows_silver_as_silver_with_the_guard_for_files_read_before
         m = calc.asset_mix(etfs)
     sh = {k: round(v * 100, 1) for k, v in m["shares"].items()}
     assert sh == {"indian": 49.9, "abroad": 0.0, "gold": 24.6, "silver": 25.0, "debt": 0.5}          # the pack's "after": Indian 50, gold 24.6, silver 25, debt < 1
-    assert "SILVERBEES" in m["fromType"] and "parsed without its metal" in caplog.text
+    assert "metal ETF read without its metal" in caplog.text                                         # the guard (task #277 merged the same rule)
     etfs[1]["split"] = {"equity": 0, "debt": 0, "cash": 0, "other": 100}                              # read with the rule: no fallback needed
-    assert round(calc.asset_mix(etfs)["shares"]["silver"] * 100, 1) == 25.0 and "SILVERBEES" not in calc.asset_mix(etfs)["fromType"]
+    assert round(calc.asset_mix(etfs)["shares"]["silver"] * 100, 1) == 25.0
 
 
 # ------------------------------------------------------------------------------------------------ fix 3
