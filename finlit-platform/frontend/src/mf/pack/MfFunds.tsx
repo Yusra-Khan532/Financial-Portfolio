@@ -63,10 +63,10 @@ export function FundsTable({ hs, rk, sp, actions, listLabel, lots }: { hs: Holdi
   const theme = sp?.readings.theme, themeTag = (h: Holding) => (theme?.theme && theme.funds.length > 1 && theme.funds.includes(h.code) ? `${theme.theme} ×${theme.funds.length}` : null);
   const words = ["Strong", "Healthy", "Average", "Weak", "Poor"].filter((w) => w === "Healthy" || w === "Average" || w === "Weak" || hs.some((h) => cap(h.score.label) === w));
   const COLS: Record<FundsView, Col[]> = {
-    overview: [{ k: "name", label: "Fund", get: (h) => fundName(h.name) }, { k: "type", label: "Type", get: (h) => h.categoryLabel },
+    overview: [{ k: "name", label: "Fund", get: (h) => fundName(h.name) }, { k: "type", label: "Category · type", get: (h) => h.categoryLabel },
       { k: "nav", label: "NAV", num: true, get: (h) => h.nav }, { k: "score", label: "Score", num: true, get: (h) => h.score.final },
       ...PARTS.map(([k, l]) => ({ k, label: l, num: true, get: (h: Holding) => h.score.parts?.[k] ?? null })), { k: "status", label: "Status", get: (h) => h.score.rank ? h.score.rank.rank / h.score.rank.of : null }],
-    returns: [{ k: "name", label: "Fund", get: (h) => fundName(h.name) }, { k: "type", label: "Type", get: (h) => h.categoryLabel },
+    returns: [{ k: "name", label: "Fund", get: (h) => fundName(h.name) }, { k: "type", label: "Category · type", get: (h) => h.categoryLabel },
       { k: "r1y", label: "1 year", num: true, get: (h) => h.returns.r1y }, { k: "r3y", label: "3 years, a year", num: true, get: (h) => h.returns.r3y }, { k: "r5y", label: "5 years, a year", num: true, get: (h) => h.returns.r5y },
       { k: "ter", label: "Expense ratio", num: true, help: ["What the fund charges a year, as a share of the money in it (AMFI's TER file).", "Lower keeps more of the fund's return for you."], get: (h) => h.ter },
       { k: "aum", label: "Fund size", num: true, get: (h) => h.aum }],
@@ -100,10 +100,12 @@ export function FundsTable({ hs, rk, sp, actions, listLabel, lots }: { hs: Holdi
     <th scope="row"><Link to={`/funds/${h.code}`} className="mfp-fund">{fundName(h.name) || `Scheme ${h.code}`}</Link>
       <small className="mfp-sub">{[shortHouse(h.amc), h.plan, optShort(h.option)].filter(Boolean).join(" · ")}{h.folio ? ` · folio ${h.folio}` : ""}</small>
       <small className="mfp-isin" title={h.isin ? "ISIN: names the exact plan and option" : h.isinWhy ?? undefined}>{h.isin ?? "No ISIN"}{buys && lots && <LotToggle p={lots} symbol={keyOf(h.id)} />}</small>{view === "overview" && actions(h)}</th>);
+  // task #275 (change 8): "Category · type": the category, then the fund type under it ("Sectoral / Thematic", "Equity")
+  const catCell = (h: Holding, tag = false) => <td>{h.categoryLabel || "–"}{tag && themeTag(h) && <span className="mff-tag">{themeTag(h)}</span>}{h.category && <small className="mfp-sub mff-type">{typeOf(h.category)}</small>}</td>;
   const navCell = (h: Holding, cls = "r") => <td className={cls}>{h.nav == null ? "–" : <><b>{rupees(h.nav, true)}</b><small className="mfp-sub">{h.navDate ? shortDate(h.navDate) : ""}</small></>}</td>;
   const overviewRow = (h: Holding) => { const s = h.score; const row = (
     <tr key={h.id} className={TONE(s.label) === "b" ? "mff-weak" : undefined}>{fundCell(h, true)}
-      <td>{h.categoryLabel || "–"}{themeTag(h) && <span className="mff-tag">{themeTag(h)}</span>}</td>
+      {catCell(h, true)}
       {lots ? <HoldingRowCells p={lots} symbol={keyOf(h.id)} priceCell={navCell(h, "r x-c2 x-gs cg-h")} changeCell={null} /> : navCell(h)}
       <td className="mff-sc">{s.final == null ? <span className="sp-note" title={s.reason || undefined}>{STATUS(s.status) || "No score"}</span> : <span className="mff-score"><b className={"mff-num " + TONE(s.label)}>{Math.round(s.final)}</b> <span className={"mff-w " + TONE(s.label)}>{cap(s.label)}</span></span>}</td>
       {PARTS.map(([k], i) => <td key={k} className={"c" + (i === 0 ? " mff-div" : "")}>{s.parts ? <Word w={s.words?.[k] ?? null} n={s.parts[k]} /> : "–"}</td>)}
@@ -134,7 +136,7 @@ export function FundsTable({ hs, rk, sp, actions, listLabel, lots }: { hs: Holdi
           {PARTS.map(([k], i) => { const v = avg(hs.map((h) => h.score.parts?.[k])); return <td key={k} className={"c" + (i === 0 ? " mff-div" : "")}><b>{v == null ? "–" : Math.round(v)}</b></td>; })}<td /></tr></tfoot>
       </table></Scroll>}
       {view === "returns" && <Scroll label="returns and costs"><table className="sp-tb mff-t kit-grid"><thead><tr>{cols.map((c) => th(c))}</tr></thead>
-        <tbody>{rows.map((h) => <tr key={h.id}>{fundCell(h)}<td>{h.categoryLabel || "–"}</td>
+        <tbody>{rows.map((h) => <tr key={h.id}>{fundCell(h)}{catCell(h)}
           {(["r1y", "r3y", "r5y"] as const).map((k) => <td key={k} className="r">{h.returns[k] == null ? <span className="pf-dash" title={h.returns.why || h.returns.partialWhy || undefined}>–</span> : pct1(h.returns[k])}</td>)}
           <td className="r">{h.ter == null ? <span className="pf-dash" title={h.terWhy || undefined}>–</span> : `${h.ter.toFixed(2)}%`}</td><td className="r">{h.aum == null ? <span className="pf-dash" title={h.aumWhy || undefined}>–</span> : crores(h.aum)}</td>
           </tr>)}</tbody></table></Scroll>}

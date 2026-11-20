@@ -16,6 +16,7 @@ import {
   useMfPortfolio, useMfSpread, useMfWrites, type Decision, type Fund, type Preview, type ReviewRow,
 } from "../lib/mfPortfolio";
 import { dateIN } from "../lib/format";
+import { AddSeveralDialog, FundGroupSearch, PlanOptionDialog, type FundGroup } from "../mf/pack/MfAdd";
 import "../styles/mf.css";
 import "../styles/mfportfolio.css";
 import "../styles/mfspread.css";
@@ -76,24 +77,17 @@ function FundSearch({ onPick, placeholder = "Search a fund by name or ISIN…" }
   );
 }
 
-/* --------------------------------------------------------------- add one */
-function AddFund({ disabled, onDone }: { disabled: boolean; onDone: (msg: string) => void }) {
-  const w = useMfWrites();
-  const [fund, setFund] = useState<Fund | null>(null), [err, setErr] = useState("");
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault(); setErr("");
-    if (!fund) { setErr("Choose a fund from the search first."); return; }
-    try {
-      const r = await w.add.mutateAsync({ code: fund.code, follow: true });    // the page lists funds with their score, returns and place in the charts; no holdings are kept
-      onDone(r.merged ? "That fund is already in your list." : "Fund added."); setFund(null);
-    } catch (x) { setErr(errText(x)); }
-  };
+/* --------------------------------------------------------------- add (task #275, change 1) */
+// One suggestion per fund; the plan and option are picked after, in a small step (mf/pack/MfAdd). "Add several" opens a table.
+function AddFund({ onDone, room }: { onDone: (msg: string) => void; room?: number }) {
+  const [picked, setPicked] = useState<FundGroup | null>(null), [several, setSeveral] = useState(false);
   return (
-    <form className="mp-form" onSubmit={submit}>
-      {fund ? <div className="mp-picked"><b>{fund.name}</b><small>{fund.amc} · {fund.plan} · {fund.option}</small><button type="button" className="btn" onClick={() => setFund(null)}>Change</button></div> : <FundSearch onPick={setFund} />}
-      {err && <p className="mp-err" role="alert">{err}</p>}
-      <button className="btn primary" disabled={disabled || w.add.isPending}>{w.add.isPending ? "Adding…" : "Add fund"}</button>
-    </form>
+    <div className="mp-form mfa-form">
+      <FundGroupSearch onPick={setPicked} />
+      <button type="button" className="btn" onClick={() => setSeveral(true)}>Add several</button>
+      {picked && <PlanOptionDialog g={picked} onClose={() => setPicked(null)} onDone={onDone} />}
+      {several && <AddSeveralDialog room={room} onClose={() => setSeveral(false)} onDone={onDone} />}
+    </div>
   );
 }
 
@@ -254,7 +248,7 @@ export function MfPortfolioPage() {
             <p className="sp-desc">How healthy your mutual funds are, what sits inside them, how alike they are, and how risky they are together. Start with names; add units when you want the figures to follow your money.</p>
             <nav className="mfp-links" aria-label="Related pages"><Link className="sp-link" to="/holdings">Equity portfolio →</Link><Link className="sp-link" to="/etf-portfolio">ETF portfolio →</Link><Link className="sp-link" to="/funds/compare">Compare funds →</Link><Link className="sp-link" to="/methodology/mf-score">Fund Health Score →</Link></nav></div>
           <section className="mfp-add" aria-label="Add funds">
-            <AddFund disabled={false} onDone={toast} />
+            <AddFund onDone={toast} room={d ? Math.max(0, limit - d.count) : undefined} />
             <div className="mfp-add2"><button type="button" className="btn" aria-expanded={importing} onClick={() => setImporting((v) => !v)}>Import a file</button>
               <button type="button" className="btn" onClick={addUnits} disabled={!d?.count}>Add units and buy NAVs</button>
               <ClearPortfolio count={d?.count ?? 0} noun="fund" kind="MF" className="btn" goes={["each fund's units, purchases and folio", "the figures worked out from them: health, mix, overlap and risk"]}
