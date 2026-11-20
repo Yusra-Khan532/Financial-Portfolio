@@ -13,7 +13,7 @@ export function jumpTo(id: string, retry = true) {
   if (retry) window.dispatchEvent(new CustomEvent("eq-jump", { detail: id }));
   const el = document.getElementById(id);
   if (!el) { if (retry) setTimeout(() => jumpTo(id, false), 80); return; }
-  el.scrollIntoView({ behavior: "smooth", block: "start" });
+  el.scrollIntoView?.({ behavior: "smooth", block: "start" });     // guarded: a test browser (jsdom) has no scrollIntoView
   el.classList.remove("eqt-flash"); void el.offsetWidth; el.classList.add("eqt-flash");
   setTimeout(() => el.classList.remove("eqt-flash"), 1600);
 }
