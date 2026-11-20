@@ -176,3 +176,15 @@ async def test_board_company_and_overview_agree_on_a_lenders_theme_label_and_eve
     assert len(shield["filings"]) == 13 and [f["e"] for f in shield["filings"]][:12] == ["management"] * 12
     assert shield["filings"][12]["e"] == "order" and shield["filings"][12]["t"].startswith("Order worth Rs 90 crore")
     assert shield["themeSlug"] == "defence-and-aerospace"
+
+
+async def test_a_changed_sorting_rule_counts_as_work_so_the_job_re_sorts_right_after_a_deploy(store):  # noqa: F811
+    """Live check (20 Nov): the stored filings waited for the job's next night window (20 h after its last run) to be sorted with tag version 3,
+    so Protean's appeal order sat under Capacity for a day. The supervisor's probe now says there is work when the stored sort is older."""
+    await store.redis.delete(D.RUN_KEY)
+    await store.redis.set(S.VERSION_KEY, "2")
+    assert await D.has_work(store) is True
+    await store.redis.set(S.VERSION_KEY, S.TAG_VERSION)
+    assert await D.has_work(store) is None                                           # nothing else known: the clock decides, as before
+    await S.tag_new(store)
+    assert (await store.redis.get(S.VERSION_KEY)) in (S.TAG_VERSION, S.TAG_VERSION.encode())
