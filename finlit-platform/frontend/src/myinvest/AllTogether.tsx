@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { HScroll } from "../components/HScroll";
 import { nf } from "../lib/format";
-import { KIND_LOWER, KIND_MARK, KIND_NAME, KIND_TAB, MODEL_NAME, betaTxt, chg, joinWords, kindsHeld, lower, pctOf, rupees, splitLine, type AllInvestments, type Company, type Kind, type KindMoney, type Tab } from "../lib/myInvest";
+import { KIND_LOWER, KIND_MARK, KIND_NAME, KIND_TAB, MODEL_NAME, betaTxt, betaWindowTxt, chg, joinWords, kindsHeld, lower, pctOf, rupees, splitLine, type AllInvestments, type Company, type Kind, type KindMoney, type Tab } from "../lib/myInvest";
 import { MarketFall } from "../portfolio/pack/MarketFall";
 import "../portfolio/pack/market-fall.css";
 import "../styles/sectors-pack.css";   // task #235: the fall picture's section heading and its ⓘ
@@ -179,15 +179,15 @@ function Every({ d, filter, setFilter }: { d: AllInvestments; filter: Filter; se
 }
 
 const NUM_WORD = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten"];
-/** Pack C3: "Two shares read Weak: APOLLO and GLENMARK, both 44"; up to three names, then "and N more". */
-export function watchTitle(n: number, word: string, rows: { symbol: string; score: number | null }[]) {
+/** Task #277 (live number fix 9): each name with its own score, and the company's name for a BSE-only code: "Three shares read Weak: GLENMARK 44, APOLLO 45
+ *  and ASM Technologies 47" (it read "GLENMARK, APOLLO and 526433, 44, 45 and 47"); up to three, then "and N more". */
+export function watchTitle(n: number, word: string, rows: { symbol: string; name?: string | null; score: number | null }[]) {
   const head = `${NUM_WORD[n] ?? n} ${n === 1 ? "share reads" : "shares read"} ${word}`;
   if (!rows.length) return head;
-  const shown = rows.slice(0, 3), more = rows.length - shown.length, names = shown.map((r) => r.symbol);
-  const list = more ? `${names.join(", ")} and ${more} more` : names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names[0];
-  const sc = shown.map((r) => r.score).filter((v): v is number => v != null).map((v) => Math.round(v));
-  const scores = more || sc.length !== shown.length ? "" : sc.length === 1 ? `, ${sc[0]}` : sc.every((v) => v === sc[0]) ? `, ${sc.length === 2 ? "both" : "all"} ${sc[0]}` : `, ${sc.slice(0, -1).join(", ")} and ${sc.at(-1)}`;
-  return `${head}: ${list}${scores}`;
+  const disp = (r: { symbol: string; name?: string | null }) => (/^\d{6}$/.test(r.symbol) && r.name ? r.name.replace(/\s+(Ltd|Limited)\.?$/i, "") : r.symbol);
+  const shown = rows.slice(0, 3).map((r) => (r.score != null ? `${disp(r)} ${Math.round(r.score)}` : disp(r))), more = rows.length - shown.length;
+  const list = more ? `${shown.join(", ")} and ${more} more` : shown.length > 1 ? `${shown.slice(0, -1).join(", ")} and ${shown.at(-1)}` : shown[0];
+  return `${head}: ${list}`;
 }
 
 // ------------------------------------------------------------------------------------------------ step 5
@@ -233,13 +233,13 @@ function RiskStep({ d }: { d: AllInvestments; money?: MoneyAll }) {
   ];
   return (
     <section className="card mi-step">
-      <SecHead id="mi-risk" n={6} title="How risky it is, all together" line="Against the Nifty 500, from past weekly prices (shares) and daily NAVs and prices (funds, ETFs). It describes the past; it is not a forecast." info={["How sensitive everything is to the market: each kind's beta against the Nifty 500, and beta together.", "Beta together = the sum of each kind's share of money × its beta. A kind's share of the market risk = its share × its beta ÷ beta together."]} />
+      <SecHead id="mi-risk" n={6} title="How risky it is, all together" line="Against the Nifty 500. Every beta is from weekly prices over the past year, as on each portfolio page; swings and falls from a high are from daily prices (shares weekly). It describes the past; it is not a forecast." info={["How sensitive everything is to the market: each kind's beta against the Nifty 500, and beta together.", "Beta together = the sum of each kind's share of money × its beta. A kind's share of the market risk = its share × its beta ÷ beta together."]} />
       <div className="mi-riskhead">
-        <article className="mi-rh-dark"><p className="mi-cap">All together · Beta against the Nifty 500</p><p className="mi-rh-v">{betaTxt(r.beta)}{r.band ? <small> · {r.band}</small> : null}</p><p>{r.beta != null ? `Similar moves: when the Nifty 500 moved 1%, this moved about ${nf(r.beta, 2)}%.` : r.why}</p></article>
+        <article className="mi-rh-dark"><p className="mi-cap">All together · Beta against the Nifty 500</p><p className="mi-rh-v">{betaTxt(r.beta)}{r.band ? <small> · {r.band}</small> : null}</p><p>{r.beta != null ? r.bandLine ?? `When the Nifty 500 moved 1%, this moved about ${nf(r.beta, 2)}%.` : r.why}</p></article>
         {kinds.map((k) => { const x = r.kinds[k]; return (
           <article key={k} className="mi-rh-k"><p className="mi-cap"><i className={"mi-dot k-" + k} aria-hidden="true" />{KIND_NAME[k]}</p><p className="mi-rh-v">{betaTxt(x?.beta)}</p>
             {r.parts.find((p) => p.kind === k)?.band ? <span className="mi-chip">{r.parts.find((p) => p.kind === k)?.band}</span> : null}
-            <p className="mi-small">{x?.swing != null ? `Swings ${pctOf(x.swing)} a year` : x?.why ?? "No swing figure yet"}</p></article>); })}
+            <p className="mi-small">{x?.beta != null ? `${betaWindowTxt(x.betaWindow)}. ` : ""}{x?.swing != null ? `Swings ${pctOf(x.swing)} a year` : x?.why ?? "No swing figure yet"}</p></article>); })}
       </div>
       <HScroll label="How risky it is">
         <table className="mi-tb">

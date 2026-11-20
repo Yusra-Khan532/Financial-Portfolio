@@ -43,6 +43,15 @@ SIZES = _FOUR + ("Listed abroad", "Not sized")   # task #262: four sizes (finlit
 
 # The owner's beta bands (README step 6): the edge is the upper limit of each band.
 BETA_BANDS = ((0.65, "Less sensitive"), (0.9, "Defensive"), (1.1, "Similar"), (1.35, "More sensitive"), (1.75, "High"), (math.inf, "Very high"))
+# Task #277 (live number fix 6): what each band says, so the word and the sentence under it come from the same band ("0.79 · Defensive" sat over "Similar moves")
+BAND_SAYS = {"Less sensitive": "moves much less than the market", "Defensive": "moves a little less than the market", "Similar": "moves about with the market",
+             "More sensitive": "moves more than the market", "High": "moves much more than the market", "Very high": "moves far more than the market"}
+
+
+def band_line(beta: Optional[float]) -> Optional[str]:
+    """"Defensive: moves a little less than the market. When the Nifty 500 moved 1%, this moved about 0.79%." (None without a beta)."""
+    w = beta_band(beta)
+    return None if w is None else f"{w}: {BAND_SAYS[w]}. When the Nifty 500 moved 1%, this moved about {beta:.2f}%."
 RISK_RED_POINTS = 10.0     # Key figures: "red when the risk share is more than 10 points above the money share"
 
 PEER_WORD = {"leader": "Leader", "in_line": "In line", "laggard": "Laggard"}
@@ -180,9 +189,11 @@ def line_bucket(h: Dict[str, Any], item_class: Optional[str]) -> str:
     cls = (h.get("assetClass") or "equity").lower()
     if cls == "equity":
         return "abroad" if abroad_isin(h.get("isin"), item_class) else "indian"
+    name = str(h.get("name") or "")
+    if GOLD_RE.search(name) and not str(h.get("isin") or "").startswith("INE"):
+        return "gold"         # task #277 (fix 2): a silver ETF's file can put its silver under a cash heading; the metal is gold and silver whatever its class says
     if cls in ("debt", "cash"):
         return "debt"
-    name = str(h.get("name") or "")
     if GOLD_RE.search(name):
         return "gold"
     if ABROAD_RE.search(name):
@@ -320,5 +331,5 @@ def risk_together(kinds: Dict[str, Dict[str, Any]], total: Optional[float]) -> D
         parts.append({"kind": k, "money": r(v["share"] * 100, 1), "beta": r(v["beta"]), "band": beta_band(v["beta"]), "riskShare": r(rs, 1),
                       "red": rs is not None and rs > v["share"] * 100 + RISK_RED_POINTS})
     top = max(parts, key=lambda p: p["riskShare"] or 0)
-    return {"beta": r(tog), "band": beta_band(tog), "why": None, "parts": parts, "largest": top["kind"],
+    return {"beta": r(tog), "band": beta_band(tog), "bandLine": band_line(r(tog)), "why": None, "parts": parts, "largest": top["kind"],
             "fall10": {"pct": r(-tog * 10, 1), "value": r(-total * tog * 0.10, 0) if total else None}}
