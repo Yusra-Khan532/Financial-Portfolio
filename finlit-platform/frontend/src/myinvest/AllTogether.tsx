@@ -9,7 +9,8 @@ import { KIND_LOWER, KIND_MARK, KIND_NAME, KIND_TAB, MODEL_NAME, betaTxt, betaWi
 import { MarketFall } from "../portfolio/pack/MarketFall";
 import "../portfolio/pack/market-fall.css";
 import "../styles/sectors-pack.css";   // task #235: the fall picture's section heading and its ⓘ
-import { BandStrip, KeyFigures, Notes, ScoreWord, SecHead, ShowAll, Stack, type Note } from "./parts";
+import { BandStrip, Notes, ScoreWord, SecHead, ShowAll, Stack, type Note } from "./parts";
+import { KeyFiguresSection } from "./KeyFigures277";
 import { FilterRow, HELD, NO_FILTER, SectionsMenu, countFilters, filterCompanies, type EveryFilter } from "./EveryFilters";
 import { coTitle, subLine, titleOf } from "../lib/companyLabel";
 
@@ -29,27 +30,15 @@ type MoneyAll = Record<Kind | "all", KindMoney> | null;
 export function AllTogether({ d, money, toTab, openQty, stickyLead }: { d: AllInvestments; money?: MoneyAll; toTab: (t: Tab) => void; openQty: () => void; /** task #277: the portfolio and views, shown in Step 4's row while it stays up */ stickyLead?: ReactNode }) {
   const [filter, setFilter] = useState<EveryFilter>(NO_FILTER);
   const kinds = kindsHeld(d);
-  const twice = d.companies.filter((c) => c.held.length > 1), three = twice.filter((c) => c.held.length === 3);
-  const top = d.companies[0];
-  const r = d.risk, lead = r.parts.find((p) => p.kind === r.largest);
   return (
     <>
-      <KeyFigures items={[
-        { label: "Held more than one way", value: `${twice.length} ${twice.length === 1 ? "company" : "companies"}`, info: ["Companies you own directly and through a fund or an ETF, or through more than one of them.", "Each is counted once in step 4, with the ways added up."],
-          line: twice.length ? <>{three.length ? <>{joinWords(three.slice(0, 3).map((c) => c.symbol ?? c.name))} three ways. </> : null}{joinWords(twice.filter((c) => c.held.length === 2).slice(0, 3).map((c) => c.symbol ?? c.name))}{twice.length - three.length > 0 ? " two ways." : ""}</> : "No company is held more than one way.",
-          button: "See which", go: () => { setFilter({ ...NO_FILTER, held: [HELD[0]] }); go("mi-every"); } },
-        { label: "Biggest single company", value: top ? <>{top.symbol ?? top.name} {pctOf(top.all)}</> : "—", info: ["The company that is the largest part of everything, counting what sits inside your funds and ETFs.", "The line splits it into direct, through funds and through ETFs, and names the next two."],
-          line: top ? <>{pctOf(top.direct)} direct, {pctOf(top.funds)} through funds, {pctOf(top.etfs)} through ETFs.{d.companies[1] ? <> Next: {joinWords(d.companies.slice(1, 3).map((c) => `${c.symbol ?? c.name} ${pctOf(c.all)}`))}.</> : null}</> : "Nothing looked through yet.",
-          button: "See every company", go: () => { setFilter(NO_FILTER); go("mi-every"); } },
-        { label: "Where the market risk comes from", value: lead && lead.riskShare != null ? <>{KIND_NAME[lead.kind]} · {pctOf(lead.riskShare, 0)}</> : "—", tone: lead?.red ? "red" : "plain",
-          info: ["The kind that carries the largest share of the market risk: its share of money × its beta, over beta together.", "Red when that share is more than 10 points above its share of the money."],
-          line: lead && r.beta != null ? <>of the market risk, on {pctOf(lead.money, 0)} of the money. Everything together: Beta {betaTxt(r.beta)} against the Nifty 500.</> : r.why ?? "No figure yet.", button: "See risk", go: () => go("mi-risk") },
-      ]} />
-
+      
       <Money d={d} money={money ?? null} kinds={kinds} toTab={toTab} openQty={openQty} />
       <MadeOf d={d} />
       <Sectors d={d} />
       <Every d={d} filter={filter} setFilter={setFilter} lead={stickyLead} />
+      {/* task #277 (change 9): Key figures after Step 4 */}
+      <KeyFiguresSection d={d} view="all" go={(w) => { if (w === "held") { setFilter({ ...NO_FILTER, held: [HELD[0]] }); go("mi-every"); } else go(w); }} />
       <HealthStep d={d} />
       <RiskStep d={d} money={money ?? null} />
     </>

@@ -46,3 +46,4 @@
 .stb-sl:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .stb-dot { display: inline-block; width: 7px; height: 7px; margin-left: 6px; border-radius: 50%; background: #c2410c; vertical-align: 2px; }
 @media (max-width: 760px) { .stb-sl { display: none; } }
+.stb-n.stb-n0 { background: none; color: currentColor; font-weight: 800; }   /* task #277: a step without a number (Key figures, What changed) carries a dot */
