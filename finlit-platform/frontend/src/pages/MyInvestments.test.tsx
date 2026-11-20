@@ -36,9 +36,11 @@ describe("task #137: All my investments (15 Nov pack)", () => {
     mount(); await screen.findByText("Where your money sits");
     expect(st.body).toEqual({ shares: [{ symbol: "HDFCBANK", qty: 40 }, { symbol: "INFY", qty: null }] });
     expect(screen.getByRole("heading", { level: 1, name: "All my investments" })).toBeTruthy();
-    expect(text()).toContain("6 shares · 3 mutual funds · 3 ETFs · buy prices for 0 of 12");   // task #235 (pack C3): the count names how many holdings have a buy price
+    expect(text()).toContain("6 shares · 3 funds · 3 ETFs");                    // task #277 (change 2): the title row counts the three lists
+    expect(text()).toContain("Money figures cover 0 of 12 holdings.");          // and the money box says what it covers (here: no buy price yet)
     expect(text()).toContain("Nothing is sent to a broker");
-    for (const name of ["Equity portfolio", "MF portfolio", "ETF portfolio", "How it is counted"]) expect(screen.getAllByRole("link", { name }).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: /^More: the three portfolio pages/ }));   // task #277: the page links sit in ⋯
+    for (const name of ["Equity portfolio", "MF portfolio", "ETF portfolio", "How it is counted"]) expect(screen.getAllByRole("menuitem", { name }).length).toBeGreaterThan(0);
   });
   it("B8: before the lists load, the header says it is reading them, never \"0 shares · …\"", () => {
     st.answer = new Promise(() => {});
@@ -55,7 +57,7 @@ describe("task #137: All my investments (15 Nov pack)", () => {
     mount(); await screen.findByText("Where your money sits");
     const d = withQty();
     expect(text()).toContain(rupees(d.total!));
-    expect(text()).toContain("over 1 year, on what you hold now");
+    expect(text()).toContain("value now");                                     // task #277: the money box (it replaces the dark box)
     expect(screen.getByRole("button", { name: "Edit quantities" })).toBeTruthy();
   });
   it("B1, B2, D8, D9: without quantities each kind counts the same (⅓), the split is not your money, and no ₹ value appears anywhere", async () => {
@@ -65,13 +67,13 @@ describe("task #137: All my investments (15 Nov pack)", () => {
     expect(text()).toContain("12 holdings");
     const money = text().replace(/₹75,000 Cr|₹25,000–75,000 Cr|₹10,000(–25,000)? Cr|₹[\d,]+ a year on ₹1 lakh|₹1 lakh/g, "")   // the four size lines (task #262) are not money;
     expect(money).not.toMatch(/₹/);                                           // no rupee value of the member's money anywhere
-    expect(screen.getAllByText("On your list").length).toBe(3);               // the tiles list holdings, never "Largest"
     expect(screen.getAllByRole("button", { name: "Add quantities" }).length).toBeGreaterThan(1);
   });
   it("D3, D4: four tabs; each tile opens its tab", async () => {
     mount(); await screen.findByText("Where your money sits");
-    expect(screen.getAllByRole("tab").map((t) => t.querySelector("b")!.textContent)).toEqual(["All together", "Equity", "Mutual funds", "ETFs"]);
-    fireEvent.click(screen.getByRole("button", { name: "Open Mutual funds →" }));
+    // task #277 (change 16): the four views drawn as tabs; the open one has a check, the others an arrow that opens them
+    expect(screen.getAllByRole("tab").map((t) => t.closest(".mi7-tile")!.querySelector(".mi7-tk")!.textContent)).toEqual(["All together", "Equity", "Mutual funds", "ETFs"]);
+    fireEvent.click(screen.getByRole("tab", { name: /^Go to Mutual funds/ }));
     await screen.findByRole("heading", { name: /^Your funds/ });
     expect(screen.getByRole("tab", { selected: true }).textContent).toContain("Mutual funds");
   });

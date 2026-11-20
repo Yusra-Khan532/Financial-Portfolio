@@ -2,7 +2,7 @@
 // (finlit/myinvest). The shares come from the Equity portfolio list in this browser and the account (sent as symbol and quantity only); the funds and ETFs
 // are read by the server from the member's MF portfolio and ETF portfolio. Every figure, weight, band and cut-off is worked out on the server; this file
 // only types the answer and writes numbers as words. Describes; never advises.
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { apiSend, type ApiError } from "./api";
 import { MINUS, nf } from "./format";
 import { DEFAULT_PF, type Holding } from "./portfolio";
@@ -34,9 +34,12 @@ export type SplitRow = { direct: number; funds: number; etfs: number; all: numbe
 export type Sector = SplitRow & { sector: string; named: boolean };
 export type Size = SplitRow & { size: string };
 export type Company = SplitRow & { symbol: string | null; name: string; abroad: boolean; macro: string; size: string | null; held: ("D" | "F" | "E")[]; via: string[]; score: number | null; label: string | null; peer: string };
-export type KindRisk = { beta: number | null; swing: number | null; worstFall: number | null; years: number | null; why: string | null; cover?: number; benchSwing?: number | null; benchWorstFall?: number | null };
+/** Task #277 (fix 4): the window a beta was worked out over ("vs Nifty 500 · weekly · past year"), printed under every beta on the page. */
+export type BetaWindow = { index: string; grain: string; window: string; weeks?: number; from?: string; to?: string };
+export const betaWindowTxt = (w: BetaWindow | null | undefined) => (w ? `vs ${w.index} · ${w.grain} · ${w.window}` : "vs Nifty 500 · weekly · past year");
+export type KindRisk = { beta: number | null; betaWindow?: BetaWindow | null; swing: number | null; worstFall: number | null; years: number | null; why: string | null; cover?: number; benchSwing?: number | null; benchWorstFall?: number | null };
 export type RiskPart = { kind: Kind; money: number | null; beta: number | null; band?: string | null; riskShare: number | null; red: boolean };
-export type Risk = { beta: number | null; band?: string | null; why: string | null; parts: RiskPart[]; largest?: Kind; fall10?: { pct: number | null; value: number | null };
+export type Risk = { beta: number | null; band?: string | null; /** task #277 (fix 6): the band word and its sentence, from one band */ bandLine?: string | null; why: string | null; parts: RiskPart[]; largest?: Kind; fall10?: { pct: number | null; value: number | null };
   kinds: Partial<Record<Kind, KindRisk>>; bench: { name: string; swing: number | null; worstFall: number | null; from: string; to: string } | null };
 export type ShareRow = { symbol: string; name: string; qty: number | null; price: number | null; priceDate: string | null; chg1d: number | null; chg1y: number | null; beta: number | null;
   score: number | null; label: string | null; macro: string; size: string | null; peer: string; value: number | null; of: number;
@@ -78,7 +81,8 @@ export const ALL_KEY = "all-investments";
 export type AccountPick = { eq: string[] | null; mf: string; etf: string };
 export const useAllInvestments = (hs: Holding[], enabled: boolean, pick?: AccountPick | null) => {
   const body = { ...sharesBody(pick?.eq ? hs.filter((h) => pick.eq!.includes(h.pf ?? DEFAULT_PF)) : hs), ...(pick ? { mfPf: pick.mf, etfPf: pick.etf } : {}) };
-  return useQuery<AllInvestments, ApiError>({ queryKey: [ALL_KEY, body], queryFn: () => apiSend<AllInvestments>("POST", "/api/me/all-investments", body), enabled, staleTime: 120_000, retry: 1 });
+  // task #277: switching account keeps the last figures on screen until the account's own arrive (the top and Your portfolios do not vanish meanwhile)
+  return useQuery<AllInvestments, ApiError>({ queryKey: [ALL_KEY, body], queryFn: () => apiSend<AllInvestments>("POST", "/api/me/all-investments", body), enabled, staleTime: 120_000, retry: 1, placeholderData: keepPreviousData });
 };
 
 /** ₹ in lakh or crore, as the design writes it ("₹14.2 L", "₹1.3 Cr", "₹61,400"). */

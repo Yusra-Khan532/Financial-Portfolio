@@ -106,6 +106,35 @@ def _shares_market(prices: Dict[str, Any], bench_rows: List[dict], symbols: List
     return {**{k: float(v) for k, v in m.items()}, "each": each, "short": list(short), "weeks": int(len(r)), "years": round(len(r) / 52, 1)}
 
 
+def beta500_weekly(series: List[Tuple[List[int], List[float]]], weights: List[float], bench: Dict[int, float], end: int) -> Dict[str, Any]:
+    """Task #277 (live number fix 4): one "beta against the Nifty 500" for every kind on this page, the one each portfolio page already headlines: weekly
+    closes over the past year (the MF and ETF pages' `beta500`, mfportfolio.bench.build). Each item's own beta, and the list's from its weighted weekly
+    changes over the weeks every item has one. The window goes with it, so the page can print it under the number."""
+    from ..mfportfolio import bench as mfb
+    weeks_at = mfb.fridays(end)
+    bd = sorted(bench)
+    n500 = mfb.changes(mfb.weekly(bd, [bench[d] for d in bd], weeks_at))
+    chs = [mfb.changes(mfb.weekly(d, v, weeks_at)) for d, v in series]
+    each = [mfb.r2(mfb.ols(c, n500)[0]) for c in chs]
+    tw = sum(weights) or 1.0
+    lw = [w / tw for w in weights]
+    rows = [i for i in range(len(n500)) if chs and all(c[i] is not None for c in chs)]
+    port: List[Optional[float]] = [None] * len(n500)
+    for i in rows:
+        port[i] = sum(lw[k] * chs[k][i] for k in range(len(chs)))   # type: ignore[operator]
+    b = mfb.ols(port, n500)[0] if len(rows) >= mfb.MIN_WEEKS else None
+    return {"beta": mfb.r2(b), "each": each, "window": {"index": "Nifty 500", "grain": "weekly", "window": "past year", "weeks": len(rows),
+            "from": date.fromordinal(weeks_at[0]).isoformat(), "to": date.fromordinal(weeks_at[-1]).isoformat()}}
+
+
+def _days_closes(p: Optional[Dict[str, Any]]) -> Tuple[List[int], List[float]]:
+    """A share's stored daily prices ({t: ISO dates, c: closes}) as day ordinals and closes."""
+    if not p or not p.get("t"):
+        return [], []
+    pairs = sorted((date.fromisoformat(str(t)[:10]).toordinal(), float(c)) for t, c in zip(p["t"], p["c"]) if c is not None and float(c) > 0)
+    return [d for d, _ in pairs], [c for _, c in pairs]
+
+
 def _list_risk(parts: List[Tuple[List[int], List[float], float]], end: int) -> Dict[str, Any]:
     """A fund or ETF list's swing a year and worst fall from a high, as its portfolio page works them out (daily, three years)."""
     ld, lv = mfrisk.list_series(parts, end) if parts else ([], [])
@@ -270,25 +299,31 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
             s_market = await asyncio.to_thread(_shares_market, prices, bench_rows, [s["symbol"] for s in shares], sw, week)
         except Exception as exc:
             log.warning("all-investments: share market figures failed: %s", type(exc).__name__)
-    for s in shares:
-        s["beta"] = (s_market or {}).get("each", {}).get(s["symbol"])
-    for items in (funds, etfs):
-        for f in items:
+    # task #277 (fix 4): every beta here is the one each kind's own page headlines (weekly, past year, against the Nifty 500), with its window
+    b500 = {k: beta500_weekly([_days_closes(prices.get(x["symbol"])) for x in items] if k == "shares" else [(x["days"], x["closes"]) for x in items],
+                              list(split[k]["w"]), bench, end) if bench and end and items else None
+            for k, items in (("shares", shares), ("funds", funds), ("etfs", etfs))}
+    for i, s in enumerate(shares):
+        s["beta"] = b500["shares"]["each"][i] if b500["shares"] else None
+    for kind, items in (("funds", funds), ("etfs", etfs)):
+        for i, f in enumerate(items):
             fig = mfrisk.fund_figures(f["days"], f["closes"], bench, end) if bench and f["days"] else {"beta": None, "swing": None, "worstFall": None, "why": None}
-            f.update(beta=fig["beta"], swing=fig["swing"], worstFall=fig["worstFall"], riskWhy=fig.get("why"))
+            f.update(beta=b500[kind]["each"][i] if b500[kind] else None, swing=fig["swing"], worstFall=fig["worstFall"], riskWhy=fig.get("why"))
     kind_risk: Dict[str, Dict[str, Any]] = {}
     if shares:
-        kind_risk["shares"] = {"beta": calc.r((s_market or {}).get("beta")), "swing": (s_market or {}).get("vol"), "worstFall": (s_market or {}).get("max_fall"),
+        kind_risk["shares"] = {"beta": (b500["shares"] or {}).get("beta"), "betaWindow": (b500["shares"] or {}).get("window"),
+                               "swing": (s_market or {}).get("vol"), "worstFall": (s_market or {}).get("max_fall"),
                                "years": (s_market or {}).get("years"), "benchSwing": (s_market or {}).get("vol_nifty"), "benchWorstFall": (s_market or {}).get("max_fall_nifty"),
                                "why": NO_BENCH if not bench_rows else None if s_market else "Needs about a year of weekly prices for your shares."}
     for kind, items in (("funds", funds), ("etfs", etfs)):
         if not items:
             continue
-        b, cover = calc.kind_beta([f["beta"] for f in items], split[kind]["w"])
+        b = (b500[kind] or {}).get("beta")
+        cover = round(sum(w for f, w in zip(items, split[kind]["w"]) if f["beta"] is not None) / (sum(split[kind]["w"]) or 1) * 100, 1)
         parts = [(f["days"], f["closes"], w) for f, w in zip(items, split[kind]["w"]) if f["swing"] is not None]
         lr = _list_risk(parts, end) if end else {"swing": None, "worstFall": None, "years": None}
-        kind_risk[kind] = {"beta": calc.r(b), "cover": cover, **lr, "why": NO_BENCH if not bench else None if b is not None else
-                           f"None of your {calc.PART_WORD[kind]} has a year of daily prices yet."}
+        kind_risk[kind] = {"beta": b, "betaWindow": (b500[kind] or {}).get("window"), "cover": cover, **lr, "why": NO_BENCH if not bench else None if b is not None else
+                           f"Your {calc.PART_WORD[kind]} do not share most of a year of weekly prices yet."}
     together = calc.risk_together({k: {"share": split["part"][k], "beta": v["beta"]} for k, v in kind_risk.items()}, split["total"])
     bench_fig = None
     if bench:
