@@ -18,6 +18,19 @@ LOOKBACK_DAYS = 180
 VERSION_KEY = "discovery:signals:version"
 
 # (event, label, tone, pattern over "category | headline"); the first match wins, so the specific ones come first.
+# Task #273 (the team, 20 Nov): an order FROM a tax, customs or appeal authority is a legal / regulatory filing, never an order win or capacity.
+# Nestle India (a VAT order from the Principal Commissioner), Lenskart (a customs demand) and Protean eGov (an Order-In-Appeal) were sorted as Capacity
+# ("commission" in "Commissioner") or Order wins. Read before every other event, over the headline with an order win's own tax words removed
+# ("worth Rs 120 crore (excluding GST)" stays an order win).
+TAX_WORDS = re.compile(r"\b(commissioner\w*|(?:income[- ])?tax(?:es|ation)?|gst|cgst|sgst|igst|vat|customs|excise|"
+                       r"demand (?:notice|order)s?|(?:raising|raised|confirming|confirmed|tax|gst|duty) (?:a |the )?demand|demand (?:of|for) (?:rs\.?|₹|inr)|"
+                       r"penalt(?:y|ies)|appeals?|appellate|order[- ]in[- ](?:appeal|original)|tribunals?|cestat|itat|nclat|gstat|show[- ]cause)\b", re.I)
+# an order win's own tax words and the tax lines of a results filing are not a tax order
+_NOT_TAX = re.compile(r"\(?\s*(?:excluding|exclusive of|inclusive of|including|incl\.?|excl\.?|plus|\+)\s*(?:applicable\s+)?(?:gst|taxes|tax|duties)"
+                      r"(?:\s+and\s+(?:duties|taxes|gst))?\s*\)?|\b(?:profit|loss|earnings|income) (?:before|after) tax(?:es)?\b|\b(?:pre|post)[- ]tax\b|"
+                      r"\btax[- ]free\b|\b(?:pat|pbt)\b", re.I)
+RESULTS_CATEGORY = re.compile(r"\bfinancial results?\b|\bresult updates?\b|\bintegrated filing.{0,12}financial", re.I)
+
 EVENTS: List[Tuple[str, str, int, re.Pattern]] = [
     ("default", "Default / payment delay", -1, re.compile(r"\b(default|delay in (?:payment|servicing)|non-payment|insolvency|ibc|nclt admit\w*)\b", re.I)),
     ("legal", "Legal / regulatory action", -1, re.compile(r"\b(penalt(?:y|ies)|show cause|litigation|fined|tax demand|demand order|sebi order|"
@@ -26,7 +39,7 @@ EVENTS: List[Tuple[str, str, int, re.Pattern]] = [
     ("order", "Order win", 1, re.compile(r"\b(bagging|receiving of orders?|orders? (?:received|win|won|bagged|worth)|contracts? (?:awarded|won|received|worth)|"
                                          r"letter of award|\bloa\b|work order|purchase order|l1 bidder|lowest bidder|"
                                          r"(?:wins?|won|bags?|bagged|secures?|secured|receives?|received)\b.{0,60}\b(?:orders?|contracts?))\b", re.I)),
-    ("capacity", "Capacity / commissioning", 1, re.compile(r"\b(commission\w*|commercial (?:production|operation)|capacity (?:expansion|addition)|"
+    ("capacity", "Capacity / commissioning", 1, re.compile(r"\b(commission(?:ed|ing)|commercial (?:production|operation)|capacity (?:expansion|addition)|"
                                                           r"new (?:plant|facility|unit)|capex|expansion project|start of production)\b", re.I)),
     ("mna", "Acquisition / merger", 0, re.compile(r"\b(acqui\w+|amalgamation|merger|scheme of arrangement|demerger|takeover|open offer|divest\w*|"
                                                   r"sale of (?:stake|business|undertaking)|slump sale)\b", re.I)),
@@ -53,7 +66,7 @@ RESIGN_TOP = re.compile(r"\bresign\w*\b.*\b(auditor|chief executive|ceo|cfo|chie
 # never from the company's own name ("Emmvee Photovoltaic Power Ltd", "Om Power Transmission Ltd") or NSE's category label ("Capacity addition" is
 # filed for hotel rooms and hospital beds too): found live on 18 Nov 2026, the first night's run.
 BOILER = re.compile(r"^.*?\bhas informed the exchange\s+(?:about|regarding|that|on)?\s*", re.I)
-TAG_VERSION = "2"     # bump to re-tag every stored filing once (the rules changed)
+TAG_VERSION = "3"     # task #273: tax / customs / appeal orders are legal; bump to re-tag every stored filing once (the rules changed)
 
 
 def subject_of(title: str, category: Optional[str], company: Optional[str] = None) -> str:
@@ -76,10 +89,15 @@ def tag(category: Optional[str], title: str, summary: Optional[str] = None, comp
     text = f"{category or ''} | {title or ''}"
     full = f"{text} {summary or ''}" if summary and summary != "None" else text
     event, label, t = OTHER
-    for name, lab, base, rx in EVENTS:
-        if rx.search(text):
-            event, label, t = name, lab, base
-            break
+    if category and RESULTS_CATEGORY.search(category):
+        event, label, t = "results", EVENT_LABEL["results"], 0     # task #273: NSE's results category wins over a loose word ("customer acquisition")
+    elif TAX_WORDS.search(_NOT_TAX.sub(" ", subject_of(title, category, company))):
+        event, label, t = "legal", EVENT_LABEL["legal"], -1        # task #273: a tax / customs / appeal order is legal, never an order win
+    else:
+        for name, lab, base, rx in EVENTS:
+            if rx.search(text):
+                event, label, t = name, lab, base
+                break
     if event == "rating":
         t = 1 if RATING_UP.search(full) else -1 if RATING_DOWN.search(full) else 0
     elif event == "management" and RESIGN_TOP.search(full):

@@ -46,6 +46,18 @@ def theme_of(name: Optional[str]) -> Optional[str]:
     return MERGE.get(name or "", name) if name else name
 
 
+def label_of(name: Optional[str]) -> Optional[str]:
+    """Task #273: a theme's one label, the one its card shows ("Corporate developments"), for every API and page."""
+    t = theme_of(name)
+    return DISPLAY.get(t, t) if t else None
+
+
+def theme_slug(name: Optional[str]) -> Optional[str]:
+    """The theme page's address part, as the page builds it (discovery/model.ts slug()): /discover/themes/<slug>."""
+    t = theme_of(name)
+    return re.sub(r"^-|-$", "", re.sub(r"[^a-z0-9]+", "-", t.lower().replace("&", "and"))) if t else None
+
+
 def clean_title(t: Optional[str], cut: int = 78) -> str:
     """A filing title as a reader would write it: no "a press release dated ..., titled" prefix, no list numbering, no stray quote at the end; a title the
     exchange cut short ends with an ellipsis; the first letter is a capital."""
@@ -123,7 +135,7 @@ def _signal(r: Dict[str, Any], names: Dict[str, str]) -> Dict[str, Any]:
 async def board(store) -> Dict[str, Any]:
     async with store.pool.acquire() as conn:
         rows = [dict(r) for r in await conn.fetch(
-            "SELECT symbol, company, primary_bucket, secondary, stage, tone, status, doc_date, pages, scores FROM discovery_companies "
+            "SELECT symbol, company, primary_bucket, secondary, stage, tone, status, doc_date, pages, scores, evidence FROM discovery_companies "
             "WHERE primary_bucket IS NOT NULL ORDER BY symbol")]
         stat = {r["status"]: r["n"] for r in await conn.fetch("SELECT status, count(*) AS n FROM discovery_companies GROUP BY status")}
         last = await conn.fetchval("SELECT max(read_at) FROM discovery_companies")
@@ -149,10 +161,13 @@ async def board(store) -> Dict[str, Any]:
     for r in rows:
         c = sec.get(r["symbol"]) or {}
         scores = r["scores"] if isinstance(r["scores"], dict) else (json.loads(r["scores"]) if r["scores"] else {})
-        top = scores.get(r["primary_bucket"]) or {}
-        st = (top.get("stage") or {}).get("label") or K.STAGE_LABEL.get(r.get("stage") or "", "Not stated")
-        main = theme_of(r["primary_bucket"])
-        also = [t for t in dict.fromkeys(theme_of(x) for x in _list(r["secondary"])) if t and t != main]
+        prim, second, moved = K.seat(r["primary_bucket"], _list(r["secondary"]), scores, [str(x) for x in _list(r["evidence"])], c.get("industry"))
+        if not prim:
+            continue                     # task #273: a lender whose only theme was a technology mention is not placed
+        top = scores.get(prim) or {}
+        st = (top.get("stage") or {}).get("label") or (K.STAGE_LABEL.get(r.get("stage") or "", "Not stated") if not moved else "Not stated")
+        main = theme_of(prim)
+        also = [t for t in dict.fromkeys(theme_of(x) for x in second) if t and t != main]
         n, events = ev.get(r["symbol"], (0, {}))
         out_rows.append({"s": r["symbol"], "n": names[r["symbol"]], "th": main, "sec": also, "st": st,
                          "tone": round(float(r["tone"]), 2) if r["tone"] is not None else None, "fc": n or 0,
@@ -163,7 +178,7 @@ async def board(store) -> Dict[str, Any]:
     themes: Dict[str, Dict[str, Any]] = {}
     for name in K.BUCKETS:
         t = theme_of(name)
-        o = themes.setdefault(t, {"name": t, "label": DISPLAY.get(t, t), "short": SHORT.get(t, DISPLAY.get(t, t)), "broad": t in BROAD,
+        o = themes.setdefault(t, {"name": t, "label": label_of(t), "slug": theme_slug(t), "short": SHORT.get(t, label_of(t)), "broad": t in BROAD,
                                   "n": 0, "also": 0, "news": {"filings": 0, "positive": 0, "negative": 0}, "verify": [], "merged": []})
         if name != t:
             o["merged"].append(name)
@@ -182,6 +197,7 @@ async def board(store) -> Dict[str, Any]:
     efil: Dict[str, List[Dict[str, Any]]] = {}
     thfil: Dict[str, List[Dict[str, Any]]] = {}
     theme_by_sym = {r["s"]: r["th"] for r in out_rows}
+    placed = set(theme_by_sym)
     seen = set()
     latest: Dict[str, Dict[str, Any]] = {}
     for x in recent:
@@ -190,11 +206,11 @@ async def board(store) -> Dict[str, Any]:
             continue
         seen.add(key)
         sig = _signal(x, names)
-        if x["symbol"] in names and x["event"] in EVENTS and x["symbol"] not in latest:
+        if x["symbol"] in placed and x["event"] in EVENTS and x["symbol"] not in latest:
             latest[x["symbol"]] = sig
         # task #250 (the team, 19 Nov): no list of every filing that names a theme (it named companies of other themes and sectors); the event lists
         # name only companies placed on Discover
-        if x["event"] in EVENTS and x["symbol"] in names and len(efil.setdefault(x["event"], [])) < FILINGS_PER_EVENT:
+        if x["event"] in EVENTS and x["symbol"] in placed and len(efil.setdefault(x["event"], [])) < FILINGS_PER_EVENT:
             efil[x["event"]].append(sig)
         # task #260 (SPEC §5.4 "Latest filings in this theme"): event filings of the companies whose MAIN theme it is, never of a company of another
         # theme that merely names it (task #250)
@@ -220,21 +236,28 @@ async def company(store, symbol: str) -> Optional[Dict[str, Any]]:
     from . import quotes as Q
     sym = symbol.strip().upper()
     async with store.pool.acquire() as conn:
-        r = await conn.fetchrow("SELECT symbol, primary_bucket, scores, evidence, doc_title, doc_date, doc_link, pages FROM discovery_companies "
+        r = await conn.fetchrow("SELECT symbol, primary_bucket, secondary, scores, evidence, doc_title, doc_date, doc_link, pages FROM discovery_companies "
                                 "WHERE symbol = $1 AND primary_bucket IS NOT NULL", sym)
         if not r:
             return None
+        industry = await conn.fetchval("SELECT industry FROM company_classification WHERE symbol = $1", sym)
+        # task #273 (fix 6): every filing of the 90 days (a company files a few dozen at most), so the latest of each kind is there too
         fil = [dict(x) for x in await conn.fetch(
             "SELECT symbol, item_date, event, title, link FROM discovery_signals WHERE symbol = $1 AND item_date >= current_date - $2::int "
-            "ORDER BY item_date DESC, feed_id DESC LIMIT 40", sym, NEWS_DAYS)]
+            "ORDER BY item_date DESC, feed_id DESC LIMIT 400", sym, NEWS_DAYS)]
     scores = r["scores"] if isinstance(r["scores"], dict) else (json.loads(r["scores"]) if r["scores"] else {})
-    top = scores.get(r["primary_bucket"]) or {}
-    words = list((top.get("terms") or {}).keys())
     ev = [str(x) for x in _list(r["evidence"])]
+    prim, _second, moved = K.seat(r["primary_bucket"], _list(r["secondary"]), scores, ev, industry)
+    if not prim:
+        return None                      # task #273: the board does not place it either
+    if moved:
+        ev = []                          # the kept sentences were about the technology mention, not the main theme
+    top = scores.get(prim) or {}
+    words = list((top.get("terms") or {}).keys())
     pages = await docstore.get_pages(store, r["doc_link"]) if r["doc_link"] else None
     extra: List[str] = []
     if pages:
-        pats = [K.PATTERNS[(r["primary_bucket"], t)] for t in words if (r["primary_bucket"], t) in K.PATTERNS]
+        pats = [K.PATTERNS[(prim, t)] for t in words if (prim, t) in K.PATTERNS]
         for s in K.sentences("\n\n".join(pages)):
             if 40 <= len(s) <= 600 and not K.chart_like(s) and any(p.search(s) for p in pats):
                 extra.append(s)
@@ -249,11 +272,18 @@ async def company(store, symbol: str) -> Optional[Dict[str, Any]]:
         seen.add(key)
         filings.append({"d": x["item_date"].isoformat(), "e": x["event"], "el": S.EVENT_LABEL.get(x["event"], "Other filing"), "t": clean_title(x["title"]),
                         "l": x["link"] if safe_link(x["link"]) else None})
-    return {"symbol": sym, "theme": theme_of(r["primary_bucket"]), "words": words,
+    # task #273 (fix 6): the newest 12, and the latest filing of every other kind, so each kind the board counts has its subject and its PDF
+    shown = filings[:12]
+    kinds = {f["e"] for f in shown}
+    for f in filings[12:]:
+        if f["e"] not in kinds:
+            kinds.add(f["e"])
+            shown.append(f)
+    return {"symbol": sym, "theme": theme_of(prim), "themeLabel": label_of(prim), "themeSlug": theme_slug(prim), "words": words,
             "passages": Q.passages(ev, words, pages, extra),
             "document": {"title": r["doc_title"], "date": r["doc_date"].isoformat() if r["doc_date"] else None, "pages": r["pages"],
                          "link": r["doc_link"] if safe_link(r["doc_link"]) else None, "pagesKept": bool(pages)},
-            "filings": filings[:12]}
+            "filings": shown}
 
 
 def _method() -> str:

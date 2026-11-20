@@ -24,10 +24,39 @@ _SEG_DROP = re.compile(r"investor (?:presentation|update|release)|quarterly resu
 _NUM_TOK = re.compile(r"^[\d.,%₹$()+\-–x×<>=]+$", re.I)
 STOPW = {"and", "the", "for", "with", "from", "of", "in", "on", "to", "new"}
 
+# Task #273 (fix 5): slide text whose words a PDF ran together or split ("rolled out to12,500+", "operat ional"). mend() repairs it where the text is
+# extracted (service.read_one) and again here, for the text stored before. Only safe cases: a short function word glued to a number, a number glued to
+# a word of four letters or more, and a word split before an ending that is not a word on its own.
+_GLUED_WORD_NUM = re.compile(r"\b(to|of|by|in|at|on|over|from|with|than|across|around|about|nearly|upto|till|and|for)(?=\d)", re.I)
+_GLUED_NUM_WORD = re.compile(r"(?<=\d)(\+?)(?=[a-z]{4,}\b)")
+_SPLIT_END = re.compile(r"\b([a-z]{3,}) (ional|ionally|ations?|ational|ments?|ness|ities|ity|ances?|ences?|ible|ively|ised|ized|ising|izing|ically|tions?|sions?)\b")
+
+
+def mend(t: str) -> str:
+    t = _GLUED_WORD_NUM.sub(r"\1 ", t)
+    t = _GLUED_NUM_WORD.sub(r"\1 ", t)
+    return _SPLIT_END.sub(r"\1\2", t)
+
+
+# Task #273 (fix 3): passages that are not about the business: a cover letter or its signature ("Yours sincerely, ... Company Secretary & Compliance
+# Officer M.No. ...": Apollo Micro Systems' third passage) and a person's biography (its first: the managing director). Skipped, never shown.
+_LETTER = re.compile(r"\byours (?:sincerely|faithfully|truly)\b|\bcompany secretary\b|\bcompliance officer\b|\bm\.?\s?no\.?\s*:?\s*[a-z]?\d{3,}|"
+                     r"\bmembership no\b|\bdear sir|\bkind(?:ly)? attn\b|\bthanking you\b|\bscrip code\b|\bencl(?:osures?)?\s*:", re.I)
+_BIO = re.compile(r"\b(?:he|she) (?:founded|co-founded|has over|has more than|holds|has been instrumental|was instrumental|joined|brings|is an? alumn|"
+                  r"is a (?:chartered|qualified|graduate|postgraduate|commerce|science|law)|has served|served as|was appointed)\b|"
+                  r"\b(?:years|decades) of (?:rich |extensive |varied )?experience\b|\balumn(?:us|a|i) of\b|\bholds an? (?:degree|bachelor|master|mba|phd|doctorate)\b|"
+                  r"^[A-Z][a-z]+(?: [A-Z][a-z.]+){1,3} \((?:managing director|chairman|chairperson|founder|co-founder|ceo|cfo|coo|whole[- ]time director|"
+                  r"executive director|independent director|director|president)[^)]*\)", re.I)
+
+
+def business(t: str) -> bool:
+    """False for a cover letter, a signature block or a person's biography (task #273)."""
+    return not (_LETTER.search(t) or _BIO.search(t))
+
 
 def clean_q(q: Any) -> Optional[Dict[str, str]]:
-    t = re.sub(r"\s+", " ", str(q or "")).strip()
-    if _DESIGN.search(t):
+    t = mend(re.sub(r"\s+", " ", str(q or "")).strip())
+    if _DESIGN.search(t) or not business(t):
         return None
     t = _COPY.sub(" ", t)
     t = _SPACED.sub(" ", t)

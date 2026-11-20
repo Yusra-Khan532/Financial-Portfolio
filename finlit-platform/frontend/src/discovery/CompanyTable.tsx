@@ -206,7 +206,7 @@ function RowGroup({ r, cols, hideTh }: { r: DRow; cols: string[]; hideTh: boolea
     cn: <td className="dsc-cnc"><RotChip cc={r.cc} cn={r.cn} />{r.pulse ? <PulseChip name={r.pulse} /> : null}</td>,
   };
   return <>
-    <tr className={o ? "dsc-open" : undefined}>{cols.map((k) => <Fragment key={k}>{cells[k]}</Fragment>)}</tr>
+    <tr className={o ? "dsc-open" : undefined} data-dsc-row={r.s}>{cols.map((k) => <Fragment key={k}>{cells[k]}</Fragment>)}</tr>
     {o && <tr className="dsc-det"><td colSpan={cols.length}><Panel r={r} /></td></tr>}
   </>;
 }

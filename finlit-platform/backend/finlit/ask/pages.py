@@ -874,6 +874,8 @@ async def get_discovery(gw: Gateway, a: Dict[str, Any]) -> Out:
         data["themes"] = [t for t in data.get("themes") or [] if t.get("companies") or t.get("alsoMentions")]
     return Out(data, as_of=data.get("updated"), source=SOURCE_DISCOVERY, routes=["/api/discovery"],
                notes=[CAUTION, "Each company is put in the theme its presentation scores highest (primary); 'alsoMentions' are companies where it is a secondary theme.",
+                      "Name each theme by its 'label' (as the Discover page shows it, e.g. 'Corporate developments'), not its internal 'name'. For a bank, finance "
+                      "company, broker or insurer a technology theme (AI, cloud ...) is only a mention unless its sentences show revenue, orders or a product.",
                       "stage: the most advanced stage the company's own sentences show (Operating, Under execution, Planned, MoU / pilot). tone: positive "
                       "minus negative finance words of the presentation (-1 to 1). filings: exchange filings of the last 90 days by event type, theme and "
                       "tone (+1, 0, -1). sector: NSE's macro sector, sector and industry. Describe these; never call a company a pick."])
