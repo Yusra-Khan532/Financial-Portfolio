@@ -389,6 +389,8 @@ async def test_score_history_needs_silver_for_other_companies_and_data_health_is
     await admin.post("/api/me/mfa/enable", json={"code": crypto.totp_code(secret, int(time.time()) // 30)})
     h = await admin.get("/api/admin/data-health")
     assert h.status_code == 200 and h.json()["loaded"] == 1
+    fg = h.json()["fundGaps"]                     # task #281: the fund data gaps are counted on the real tables (the query runs on the migrated schema)
+    assert fg is not None and len(fg["gaps"]) == 10 and all(0 <= g["count"] <= g["of"] <= fg["active"] for g in fg["gaps"])
     for c in (silver, admin):
         await c.aclose()
 

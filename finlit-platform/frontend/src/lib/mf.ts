@@ -52,7 +52,7 @@ export type FundDetail = Facts & {
   optionClass: FundRow["optionClass"]; option: string; active: boolean; nav: number | null; navDate: string | null; prevNav: number | null; prevDate: string | null; change: Change | null;
   returns: Record<"1m" | "6m" | "1y" | "3y" | "5y", Ret>; retDate?: string | null; risk: Risk; returnsNote: string | null; series: Partial<Record<RangeKey, Points>>; history: HistoryInfo;
   family: { code: number; name: string; plan: string; optionClass: string; option: string; nav: number | null; navDate: string | null; active: boolean }[];
-  notAvailable?: { items: string[]; why: string };
+  notAvailable?: { items: string[]; reasons?: Record<string, string>; why: string } | null;   // task #281: only what is missing for this scheme; null when nothing is
 };
 export type CompareFund = {
   code: number; name: string; amc: string; category: string; plan: string; option: string; optionClass: string; nav: number | null; navDate: string | null; change: Change | null;

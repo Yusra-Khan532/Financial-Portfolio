@@ -79,10 +79,51 @@ CACHE_HEADER = "public, max-age=300, stale-while-revalidate=3600"
 DISCLAIMER = "Information only. Not investment advice. Past returns do not guarantee future returns."
 SOURCE = "AMFI (Association of Mutual Funds in India), official NAV files"
 
-NOT_AVAILABLE = {
-    "items": ["Assets under management (AUM)", "Expense ratio (TER)", "Exit load", "Holdings", "Sector split", "Benchmark", "Fund manager", "Launch date", "Risk-o-meter"],
-    "why": "AMFI publishes AUM and expense ratio in separate monthly files, not in the NAV file, and the other items only in each fund house's factsheet. They are not loaded yet, so nothing is shown rather than a guess.",
-}
+# Task #281 round 5: the fund page's "not available" note names only what is missing for THIS scheme, each with its own reason (it used to list all nine items
+# for every fund, even ones whose AUM, expense ratio, holdings and launch date were on the page). (label, fact key) in the order the page shows them.
+NA_ITEMS = (("Assets under management (AUM)", "aum"), ("Expense ratio (TER)", "ter"), ("Exit load", "exitLoad"), ("Holdings", "holdings"),
+            ("Sector split", "sectors"), ("Benchmark", "benchmark"), ("Fund manager", "managers"), ("Launch date", "launchDate"), ("Risk-o-meter", "riskometer"))
+NA_WHY = "Only what is missing for this scheme is listed, each with the reason; nothing is shown in its place rather than a guess."
+NA_NO_FACTS = "The fund facts could not be read just now."
+NA_NO_PORTFOLIO = "No portfolio is published for this scheme in the sources loaded."
+
+
+def not_available(plan: Optional[str], facts: Optional[dict], portfolio: Optional[dict]) -> Optional[dict]:
+    """{items: [labels], reasons: {label: reason}, why} for the items missing for one scheme, or None when nothing is missing. `facts` is
+    disclosure.get_facts (each {value...} or {unavailable: reason}); `portfolio` is the latest monthly portfolio (holdings, sectors) or None."""
+    facts = facts if isinstance(facts, dict) else {}
+    own = "terDirect" if plan == "Direct" else "terRegular" if plan == "Regular" else None
+    reasons: Dict[str, str] = {}
+    for label, key in NA_ITEMS:
+        if key in ("holdings", "sectors"):
+            have = isinstance(portfolio, dict) and bool(portfolio.get("holdings")) if key == "holdings" else \
+                isinstance(portfolio, dict) and bool(portfolio.get("sectors") or portfolio.get("holdings"))
+            if not have:
+                reasons[label] = (portfolio or {}).get("unavailable") if isinstance(portfolio, dict) and portfolio.get("unavailable") else NA_NO_PORTFOLIO
+            continue
+        keys = [own] if (key == "ter" and own) else (["terDirect", "terRegular"] if key == "ter" else [key])
+        got = [facts.get(k) for k in keys]
+        if any(isinstance(g, dict) and g.get("value") not in (None, "") for g in got):
+            continue
+        why = next((g.get("unavailable") for g in got if isinstance(g, dict) and g.get("unavailable")), None)
+        reasons[label] = why or (NA_NO_FACTS if not facts else "Not published in the sources loaded for this scheme.")
+    if not reasons:
+        return None
+    return {"items": list(reasons), "reasons": reasons, "why": NA_WHY}
+
+
+async def scheme_not_available(app, row) -> Optional[dict]:
+    """not_available() for one stored scheme, read from the same facts and portfolio the fund page shows. Never raises: on an error the note says the facts
+    could not be read, for every item, rather than claiming the data is there."""
+    try:
+        from . import disclosure, portfolios
+        pool = app.state.store.pool
+        facts = await disclosure.get_facts(pool, row["code"])
+        port = await portfolios.get_portfolio(pool, row["code"])
+    except Exception:
+        log.warning("fund facts for the not-available note failed for %s", row["code"], exc_info=True)
+        return {"items": [lab for lab, _ in NA_ITEMS], "reasons": {lab: NA_NO_FACTS for lab, _ in NA_ITEMS}, "why": NA_WHY}
+    return not_available(row["plan"], facts, port)
 
 # Fund-house ids of AMFI's history download, from the dropdown on amfiindia.com/net-asset-value/nav-history (the page embeds the list; `parse_amc_ids` reads it).
 AMC_IDS: Dict[str, int] = {
@@ -703,6 +744,10 @@ def within(a: str, b: str, k: int) -> bool:
     return prev[-1] <= k
 
 
+JOINERS = frozenset({"and"})                     # a name's "&" is dropped by tokens(), so "and" is never required on either side
+OPTIONAL_WORDS = frozenset({"fund", "funds", "scheme", "the"})
+
+
 class SearchIndex:
     """Names and fund houses in memory (about 14,000 short strings) for typo- and space-tolerant search: 'hdfc mid cap', 'hdfcmidcap' and 'hdfc midcp' find HDFC Mid Cap."""
 
@@ -717,7 +762,7 @@ class SearchIndex:
             self.codes.append(code)
             self.names.append(name)
             self.toks.append(t)
-            self.compact.append("".join(t))
+            self.compact.append("".join(w for w in t if w not in JOINERS))   # 'Large & Mid Cap' and 'Large and Mid Cap' read alike
             vocab.update(w for w in t if len(w) >= 4)
         self.vocab = sorted(vocab)
         self._near: Dict[str, List[str]] = {}
@@ -735,6 +780,10 @@ class SearchIndex:
         qt = tokens(query)
         if not qt:
             return None
+        # task #281: "and" / "&" and filler words ("fund", "scheme") are optional: "Bank of India Banking and Financial Services Fund" finds "Bank of
+        # India Banking & Financial Services Fund", and "Nifty 50 ETF Fund" still finds an ETF named without "Fund". A query of only such words is kept.
+        kept = [t for t in qt if t not in JOINERS and t not in OPTIONAL_WORDS]
+        qt = kept or qt
         qc = "".join(qt)
         alts: List[List[Tuple[str, float]]] = []
         for t in qt:
@@ -2266,7 +2315,7 @@ async def detail_payload(app, row) -> dict:
                         "points": len(days), "complete": complete, "note": note if source != "amfi" else None},
             "family": [{"code": k["code"], "name": k["name"], "plan": k["plan"], "optionClass": k["option_class"], "option": k["option_label"], "nav": k["nav"],
                         "navDate": iso(k["nav_date"]), "active": k["active"], "isin": k["isin"] or None} for k in kin],   # task #183: each option by its ISIN
-            "notAvailable": NOT_AVAILABLE, **facts}
+            "notAvailable": await scheme_not_available(app, row), **facts}
 
 
 async def _scheme(request: Request, code: int):
@@ -2316,7 +2365,8 @@ async def compare(request: Request, ids: str = Query("", max_length=60), range: 
                 chart["series"].append({"code": f["code"], "t": [date.fromordinal(x).isoformat() for x in dd], "v": [round(x / v[i0] * 100, 4) for x in vv]})
         async with request.app.state.store.pool.acquire() as conn:
             facts = await _facts(conn)
-        return {"funds": funds, "chart": chart, "chartNote": None if chart else "A rebased chart needs NAV history for every fund over this range; try a shorter one.", "notAvailable": NOT_AVAILABLE, **facts}
+        return {"funds": funds, "chart": chart, "chartNote": None if chart else "A rebased chart needs NAV history for every fund over this range; try a shorter one.",
+                "notAvailable": None, **facts}   # task #281: the per-scheme note is on each fund's page (/api/mf/<code>); no fixed list here
     return await cached_json(request, "compare", f"{codes}|{range}", build)
 
 
