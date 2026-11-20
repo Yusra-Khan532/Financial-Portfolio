@@ -238,6 +238,16 @@ async def _run_done(pool, source: str, period: str) -> bool:
         return bool(await conn.fetchval("SELECT 1 FROM disclosure_runs WHERE source = $1 AND period = $2 AND status = 'done'", source, period))
 
 
+async def _file_done(pool, source: str, period: str) -> bool:
+    """A fund-house file is skipped only when it was read whole: every sheet matched a scheme and passed the checks. A file with an unmatched or rejected
+    sheet is read again on the next run (task #281: files marked done while a new scheme was not in AMFI's list yet kept that scheme without holdings
+    for good; Angel One's index funds, for one). Older markers wrote the run's running totals, so a nonzero count there also means 'read again'."""
+    async with pool.acquire() as conn:
+        return bool(await conn.fetchval(
+            "SELECT 1 FROM disclosure_runs WHERE source = $1 AND period = $2 AND status = 'done' "
+            "AND COALESCE((detail->>'unmapped')::int, 0) = 0 AND COALESCE((detail->>'rejected')::int, 0) = 0", source, period))
+
+
 async def _run_mark(pool, source: str, period: str, status: str, detail: dict) -> None:
     async with pool.acquire() as conn:
         await conn.execute(
@@ -773,9 +783,10 @@ async def step_amc(pool, client, adapter: Adapter, idx: Index, today: date, mont
                         if await conn.fetchval("SELECT 1 FROM disclosure_portfolios WHERE fkey = $1 AND as_of = $2", fam, ref.month_end):
                             stats["skipped_existing"] += 1
                             continue
-            elif not force and await _run_done(pool, adapter.key, period):
+            elif not force and await _file_done(pool, adapter.key, period):
                 stats["skipped_existing"] += 1
                 continue
+            before = (stats["sheets"], len(stats["rejected"]), len(stats["unmapped"]), len(stats["errors"]))
             path = os.path.join(tmp, "f.bin")
             try:
                 await download(client, ref.url, path)
@@ -783,11 +794,12 @@ async def step_amc(pool, client, adapter: Adapter, idx: Index, today: date, mont
                 stats["errors"].append(f"{ref.label}: {type(exc).__name__}: {str(exc)[:120]}")
                 continue
             stats["files"] += 1
+            parse_file = getattr(adapter, "parse_file", None)      # a fund house that publishes PDFs only brings its own reader (houses_e.py)
             try:
-                for mname, mpath in _members(path):
+                for mname, mpath in ([(os.path.basename(path), path)] if parse_file else _members(path)):
                     sink: list = []
                     try:
-                        process_workbook(mpath, ref, adapter, idx, stats, sink)
+                        (parse_file or process_workbook)(mpath, ref, adapter, idx, stats, sink)
                     except Exception as exc:
                         stats["errors"].append(f"{ref.label} / {mname}: {type(exc).__name__}: {str(exc)[:120]}")
                     for fam, p in sink:
@@ -803,8 +815,10 @@ async def step_amc(pool, client, adapter: Adapter, idx: Index, today: date, mont
                     os.remove(path)
                 except OSError:
                     pass
-            if not per_scheme and len(stats["errors"]) == 0:
-                await _run_mark(pool, adapter.key, period, "done", {"sheets": stats["sheets"], "rejected": len(stats["rejected"]), "unmapped": len(stats["unmapped"])})
+            if not per_scheme and len(stats["errors"]) == before[3]:
+                # this file's own counts: a file with an unmatched or rejected sheet stays due (see _file_done)
+                await _run_mark(pool, adapter.key, period, "done", {"sheets": stats["sheets"] - before[0], "rejected": len(stats["rejected"]) - before[1],
+                                                                     "unmapped": len(stats["unmapped"]) - before[2]})
             await asyncio.sleep(0.3)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
