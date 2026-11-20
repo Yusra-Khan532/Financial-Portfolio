@@ -413,7 +413,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
           {view !== "home" && typed.length > 0 && <ul className="aif-typed" aria-label="Listed questions that match">{typed.map((q) => <li key={q.id + q.text}><button type="button" onClick={() => tapQ(q)}><Icon name="search" /><span>{q.text}</span></button></li>)}</ul>}
           <form onSubmit={send} hidden={view === "home"}>
             <input ref={field} value={text} onChange={(e) => setText(e.target.value)} maxLength={300}
-              placeholder={aiReady ? (company && view !== "home" ? `Ask anything about ${company}` : "Ask about a company, a fund or the market") : company && view !== "home" ? `Search ${company}'s questions (e.g. debt, dividend, P/E)` : "Search the questions (e.g. P/E, cash flow, debt)"}
+              placeholder={aiReady ? (company && view !== "home" ? `Ask anything, not just ${company}` : "Ask about a company, a fund or the market") : company && view !== "home" ? `Search ${company}'s questions (e.g. debt, dividend, P/E)` : "Search the questions (e.g. P/E, cash flow, debt)"}
               aria-label={aiReady ? "Your question for FinLit AI" : "Search the listed questions"} />
             <button disabled={busy || !text.trim()} aria-label="Send"><Icon name="arrow" /></button>
           </form>

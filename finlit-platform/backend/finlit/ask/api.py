@@ -192,7 +192,29 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
         except Exception:          # task #254 rework: the company list unreadable means none named, never a failed answer
             log.warning("ask: the companies the question names could not be read", exc_info=True)
             named = []
-        want = ([body.symbol] if body.symbol else []) + named
+        # Task #279 (the team, 20 Nov 2026: "read the question clearly and not only the company report from where chatbot is opened"): the page's
+        # company is read only when the question is about it: it points at it ("this company", "this stock", "here"), or names no other company. A
+        # question naming another company ("why is icici low", asked on HCLTECH's page), or a word that starts several companies' names, is about
+        # that company; a follow-up with no company keeps the company the conversation was about.
+        page = body.symbol
+        if page and kind == "question" and not companies.points_at_page(question, strong_only=True):
+            other = bool(named)
+            if not other:
+                try:
+                    other = bool(await companies.other_group(gw, question, skip=page))
+                except Exception:
+                    other = False
+            if not other and body.history:          # "and its margins?" after "why is icici low": the company the conversation is about
+                last = next((t.content for t in reversed(body.history) if t.role == "user"), "")
+                try:
+                    before = await companies.named_in(gw, last, 2, skip=page)
+                except Exception:
+                    before = []
+                if before:
+                    named, other = before, True
+            if other:
+                page = None
+        want = ([page] if page else []) + named
         for sym in want[:2]:
             yield sse("status", {"text": tools.label("get_company_card", {"symbol": sym})})
         got = await asyncio.gather(*[tools.run(gw, "get_company_card", {"symbol": s}) for s in want[:2]])
@@ -200,13 +222,13 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
         card = "\n".join(cards) or None
         # Task #253: the kind of question (a company, the economy, a company's financials, daily news, a term, valuation, rules, funds, a sector)
         # decides which sources come first and which of the team's sites the web search keeps to. The AI summary is about the page's company only.
-        kinds = routing.classify(question, named_company=bool(named), on_company_page=bool(body.symbol)) if kind == "question" else []
+        kinds = routing.classify(question, named_company=bool(named), on_company_page=bool(page)) if kind == "question" else []
         # Task #255 / #254: a question about what a company's own document says reads that document now. Task #254 rework (the owner, 19 Nov
         # 2026): any question about a company reads its newest presentation, results filing and call transcript first, in that order, each bounded
         # to its best pages; a question about its issues, risks or health also reads FinLit Prism and the ownership changes. The company the
         # question names comes first, then the page's company; with no company there is nothing to read.
         doc_kinds = service.company_documents(question, kinds) if kind == "question" else []
-        doc_sym = (named or ([body.symbol] if body.symbol else []) or [None])[0]
+        doc_sym = (named or ([page] if page else []) or [None])[0]
         lens = question
         if doc_sym and service.bank_like(got[want.index(doc_sym)]["text"] if doc_sym in want[:2] and not got[want.index(doc_sym)]["error"] else None):
             lens = f"{question[:150]} {pages.BANK_TERMS}"          # a bank, an NBFC or an insurer is read for its own measures
@@ -219,7 +241,8 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
             yield sse("status", {"text": tools.label("read_company_document", d)})
         reads = [("read_company_document", d) for d in doc_reads] + extra
         res = await asyncio.gather(*[tools.run(gw, n, a) for n, a in reads]) if reads else []
-        messages = service.build_messages([t.model_dump() for t in body.history], question, body.symbol, plan_key(ctx), card, routing.note(kinds))
+        messages = service.build_messages([t.model_dump() for t in body.history], question, body.symbol, plan_key(ctx), card, routing.note(kinds),
+                                          page_is_subject=bool(page) or kind != "question")
         prefetched = list(reads)
         if prefetched:
             service.with_prefetches(messages, [(n, a, r) for (n, a), r in zip(reads, res)])
