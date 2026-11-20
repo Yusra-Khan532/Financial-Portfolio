@@ -257,8 +257,11 @@
   .ptk-sub3 > div { padding: 0 8px; } .ptk-sub3 b { font-size: 14px; } .ptk-sub3 small { font-size: 12px; }
   .ptk-cov { grid-template-columns: 1fr; gap: 8px; }
   .ptk-bar { flex-wrap: wrap; border-radius: 18px; }
-  .ptk-lead { flex: 1 1 100%; overflow-x: auto; scrollbar-width: none; border-right: 0; border-bottom: 1px solid var(--border); padding: 0 0 6px; }
+  .ptk-bar .ptk-lead { position: relative !important; flex: 1 1 100%; min-width: 0; overflow-x: auto; scrollbar-width: none;   /* task #275: scoped under .ptk-bar so view-kit's .x-sw { flex: none } cannot win by load order, and min-width 0, or the views widened the page on a phone */
+    border-right: 0; border-bottom: 1px solid var(--border); padding: 0 0 6px; }
   .ptk-lead::-webkit-scrollbar { display: none; }
+  /* task #275: four Columns choices (MF) do not fit beside "Columns:" on a phone: they scroll inside the row instead of widening the page */
+  .ptk-frow .ptk-cols { max-width: 100%; min-width: 0; overflow-x: auto; scrollbar-width: none; justify-content: flex-start; }
   .ptk-bsc { display: none; }
   .ptk-steps { flex-basis: 0; }
   .ptk-fsep { display: none; }

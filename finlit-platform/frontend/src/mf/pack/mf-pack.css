@@ -238,8 +238,8 @@ a.mfm-chip.mfm-chip-a:focus-visible { outline: 2px solid var(--gold); outline-of
 
 /* task #275 (change 16): Your funds' health on its 0–100 scale */
 .mfp-hc-w.strong, .mfp-hc-w.healthy { color: var(--band-hi); } .mfp-hc-w.average { color: var(--band-mid); } .mfp-hc-w.weak, .mfp-hc-w.poor { color: var(--band-lo); }
-.mfp-hc-scale { position: relative; margin: 30px 0 4px; }
+.mfp-hc-scale { position: relative; margin: 36px 0 4px; }
 .mfp-hc-bar { display: block; height: 10px; border-radius: 999px; background: linear-gradient(90deg, #c0392b 0%, #e67e22 30%, #e9b949 50%, #8bc34a 70%, #2e9d5b 100%); }
-.mfp-hc-m { position: absolute; bottom: 12px; transform: translateX(-50%); display: grid; justify-items: center; line-height: 1; }
+.mfp-hc-m { position: absolute; bottom: 100%; margin-bottom: 2px; transform: translateX(-50%); display: grid; justify-items: center; line-height: 1; }
 .mfp-hc-m b { font: 600 var(--fs-18)/1 var(--sans); } .mfp-hc-m i { font-style: normal; font-size: var(--fs-12); }
-.mfp-hc-t { display: flex; justify-content: space-between; margin-top: 4px; color: var(--muted); }
+.mfp-hc-t { display: flex; justify-content: space-between; margin-top: 4px; color: inherit; opacity: .78; }
