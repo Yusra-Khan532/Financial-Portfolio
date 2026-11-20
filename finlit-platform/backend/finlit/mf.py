@@ -259,6 +259,29 @@ def clean_option(raw: str, name: str) -> Tuple[str, str]:
     return "Other", "Not stated"
 
 
+_ETF_CAT = re.compile(r"\bETFs?\b|exchange\s+traded", re.I)
+_LIQUID_ETF = re.compile(r"liquid|overnight|1\s*d\s+rate", re.I)
+# "IDCW" anywhere, or "Dividend" as the option part after the last dash; never "Dividend" inside an index's name ("BSE 500 Dividend Leaders 50 ETF")
+_NAME_IDCW = re.compile(r"\b(?:idcw|idwc)\b|[\-–]\s*dividend(?:\s+option)?\s*$", re.I)
+
+
+def is_etf_category(category: str) -> bool:
+    """AMFI files every exchange traded fund under a category that names ETFs ("Other Scheme - Other ETFs", "Exchange Traded Funds (ETFs) - Equity ETF")."""
+    return bool(_ETF_CAT.search(category or ""))
+
+
+def etf_plan_option(name: str, option_class: str, option_label: str, nav: Optional[float] = None) -> Tuple[str, str, str]:
+    """Task #281: an ETF's units trade on the exchange; there is no Direct or Regular plan, and AMFI's columns for some fund houses still say "Regular Plan;
+    IDCW" (SBI's ETFs). Read as stated, those ETFs got no returns ("IDCW") and a plan they do not have. An ETF is a payout option only when AMFI lists a
+    separate IDCW code for it (the name says IDCW, e.g. "SBI NIFTY 1D Rate Liquid ETF - IDCW"), when AMFI's own column says IDCW for a liquid / overnight
+    ETF, or when a liquid / overnight ETF's NAV is held at exactly 1,000 (its income is paid out every day, so NAV-to-NAV change is not its return).
+    Every other ETF's NAV carries its whole return: it reads as Growth. Returns (plan, option class, label)."""
+    liquid = bool(_LIQUID_ETF.search(name or ""))
+    if _NAME_IDCW.search(name or "") or (liquid and (option_class == "IDCW" or (nav is not None and abs(nav - 1000.0) < 1e-9))):
+        return "Unspecified", "IDCW", "IDCW"
+    return "Unspecified", "Growth", "Growth"
+
+
 def _fold(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", unicodedata.normalize("NFKD", s or "").lower().replace("&", " and ")).strip()
 
@@ -359,6 +382,8 @@ def parse_navall(text: str, today: Optional[date] = None) -> Parsed:
             nav = None
         plan = clean_plan(f[4], name)
         opt, label = clean_option(f[5], name)
+        if is_etf_category(category):          # task #281: an ETF has no Direct / Regular plan and is not a payout option unless AMFI lists one
+            plan, opt, label = etf_plan_option(name, opt, label, nav)
         isin = f[1] if ISIN_RE.match(f[1]) else None
         isin2 = f[2] if ISIN_RE.match(f[2]) else None
         s = Scheme(code, name, amc, category, kind or "Open Ended", plan, opt, label, f"{amc_key(amc)}|{category}|{family_stem(name)}", isin, isin2,
@@ -1075,10 +1100,12 @@ async def apply_nav_names(conn) -> int:
     and option read "not stated" (and returns, chart and score were withheld). AMFI's scheme master names every code in full ("HSBC Small Cap Fund -
     Direct Growth"; kept in mf_facts.nav_name by the disclosure job). Read the plan and option from that name, the same way as from the NAV file's own
     name; only what the NAV file did not state is filled, never overwritten. Returns how many schemes changed."""
-    rows = await conn.fetch("SELECT s.code, s.plan, s.option_class, s.option_label, f.nav_name, f.base_name FROM mf_schemes s JOIN mf_facts f USING (code) "
+    rows = await conn.fetch("SELECT s.code, s.plan, s.option_class, s.option_label, s.category, f.nav_name, f.base_name FROM mf_schemes s JOIN mf_facts f USING (code) "
                             "WHERE f.nav_name IS NOT NULL AND (s.plan = 'Unspecified' OR s.option_label = 'Not stated')")
     ups = []
     for r in rows:
+        if is_etf_category(r["category"]):     # task #281: an ETF's plan and option are settled when the NAV file is read (etf_plan_option)
+            continue
         plan = r["plan"] if r["plan"] != "Unspecified" else clean_plan("", r["nav_name"])
         # task #281: the words after the scheme's own name, however AMFI joins them ("Fund-Regular Plan-Growth Option")
         oc, ol = (r["option_class"], r["option_label"]) if r["option_label"] != "Not stated" else option_from_nav_name(r["nav_name"], r["base_name"])

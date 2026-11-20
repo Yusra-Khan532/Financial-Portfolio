@@ -12,6 +12,43 @@ from finlit import mf
 from test_mf import needs_db, store  # noqa: F401  (fixtures)
 
 
+ETF_NAV = """Scheme Code;ISIN Div Payout/ ISIN Growth;ISIN Div Reinvestment;Scheme Name;Plan;Option;Net Asset Value;Date
+
+Open Ended Schemes(Other Scheme - Other  ETFs)
+
+SBI Mutual Fund
+
+135106;INF200KA1FS1;-;SBI Nifty 50 ETF;Regular Plan;IDCW;275.1981;19-Nov-2026
+134013;INF200KA1598;-;SBI Nifty Next 50 ETF;Regular Plan;IDCW;782.8085;19-Nov-2026
+152168;-;INF200KA13Z8;SBI NIFTY 1D Rate Liquid ETF - IDCW;Regular Plan;IDCW;1000.0000;19-Nov-2026
+153796;INF200KA14Z6;-;SBI NIFTY 1D Rate Liquid ETF - Growth;Regular Plan;Growth;1065.6113;19-Nov-2026
+
+Open Ended Schemes(Exchange Traded Funds (ETFs) - Equity ETF)
+
+Nippon India Mutual Fund
+
+140086;INF732E01037;-;Nippon India ETF Nifty 1D Rate Liquid BeES;Direct Plan;;1000.0000;19-Nov-2026
+128639;INF204KB1882;-;Nippon India ETF Nifty Dividend Opportunities 50;Direct Plan;;95.12;19-Nov-2026
+
+Open Ended Schemes(Equity Scheme - Large Cap Fund)
+
+SBI Mutual Fund
+
+119598;INF200K01QX4;-;SBI Large Cap Fund;Direct Plan;IDCW;80.1;19-Nov-2026
+"""
+
+
+def test_an_etf_has_no_plan_and_reads_as_growth_unless_it_pays_out():
+    from datetime import date
+    s = {x.code: (x.plan, x.option_class) for x in mf.parse_navall(ETF_NAV, today=date(2026, 11, 19)).schemes}
+    assert s[135106] == s[134013] == ("Unspecified", "Growth")              # AMFI's "Regular Plan; IDCW" for SBI's index ETFs: no plan, NAV is the return
+    assert s[128639] == ("Unspecified", "Growth")                            # "Dividend" in an index's name is not a payout option
+    assert s[153796] == ("Unspecified", "Growth")                            # an accumulating liquid ETF
+    assert s[152168] == ("Unspecified", "IDCW")                              # AMFI lists a separate IDCW code
+    assert s[140086] == ("Unspecified", "IDCW")                              # a liquid ETF held at 1,000: its income is paid out
+    assert s[119598] == ("Direct", "IDCW")                                   # a fund's own plan and option are untouched
+
+
 @pytest.mark.parametrize("nav_name,base,want", [
     ("Motilal Oswal Midcap Fund-Regular Plan-Growth Option", "Motilal Oswal Midcap Fund", ("Growth", "Growth")),
     ("Motilal Oswal Nasdaq 100 Fund of Fund- Regular Plan Growth", "Motilal Oswal Nasdaq 100 Fund of Fund", ("Growth", "Growth")),
