@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import { HScroll } from "../components/HScroll";
 import { useInfoPop } from "../components/Info";
 import {
-  COLUMNS, COL_GROUPS, aumBucket, aumText, costLevel, returnBand, categoryShort, checklistLines, navFull, navText, noReturnsText, terText,
+  COLUMNS, COL_GROUPS, GROWTH_RETURNS_LABEL, PLAN_SCORE_NOTE, aumBucket, aumText, costLevel, growthFigure, returnBand, categoryShort, checklistLines, navFull, navText, noReturnsText, terText,
   type ColDef, type ColId, type FundRow, type ListQuery, type PeerStats, type SortKey,
 } from "../lib/mf";
 import { dateIN } from "../lib/format";
@@ -59,7 +59,13 @@ function cell(c: ColDef, r: FundRow, peers?: Record<string, PeerStats>, scale: S
     case "change": return <span className="mf-rf"><Fig v={r.change} why={r.active ? "The previous NAV is not on file yet." : why} />{r.change == null && <small>{r.active ? "no previous NAV" : "stopped"}</small>}</span>;
     case "r1y": case "r3y": case "r5y": {
       const years = c.id === "r1y" ? 1 : c.id === "r3y" ? 3 : 5;
-      const v = r[c.id] ?? null;
+      const own = r[c.id] ?? null;
+      const g = own == null ? growthFigure(r, c.id) : null;   // task #281: an IDCW row shows its Growth option's return, labelled; never as its own
+      if (g != null && r.growthReturns) {
+        return <span className="mf-rf mf-grf" title={`${GROWTH_RETURNS_LABEL}: ${r.growthReturns.name} (${r.plan}, Growth). This option's own NAV change is not shown because payouts would make it wrong.`}>
+          <Fig v={g} why="" /><Bar v={g} max={scale[c.id] ?? 0} /><small className="mf-gr">{GROWTH_RETURNS_LABEL}</small></span>;
+      }
+      const v = own;
       const short = v == null ? shortWhy(r.noReturns, "Insufficient history") : "";
       const band = returnBand(c.id, v);
       return <span className="mf-rf"><Fig v={v} why={why || `Younger than ${years} year${years > 1 ? "s" : ""}, or no NAV near the start date.`} /><Bar v={v} max={scale[c.id] ?? 0} />{short && <small>{short}</small>}
@@ -85,7 +91,7 @@ function cell(c: ColDef, r: FundRow, peers?: Record<string, PeerStats>, scale: S
         return <span className="mf-aum" title={`Total expense ratio of the ${r.plan} plan, percent a year${r.terDate ? `, as of ${dateIN(r.terDate)}` : ""} (AMFI)`}>{terText(r.ter)}
           {cost && <small className={"mf-band c" + cost.step} title="Against the median of the same category and plan: low is 20% or more under it, high is 20% or more over it.">{cost.label} for category</small>}</span>;
       })();
-    case "score": return <ScoreCell item={scores?.map.get(r.code)} locked={!!scores?.locked} loading={!!scores?.loading} why={r.optionClass !== "Growth" ? "Not scored: IDCW and other options inherit the Growth plan's score, see the Growth plan." : !r.active ? "Not scored: stopped publishing NAVs." : "Not scored yet."} />;
+    case "score": return <ScoreCell item={scores?.map.get(r.code)} locked={!!scores?.locked} loading={!!scores?.loading} why={r.optionClass !== "Growth" ? "Not scored: IDCW and other options show the score of the Growth option of the same plan, and this fund has none scored." : !r.active ? "Not scored: stopped publishing NAVs." : "Not scored yet."} />;
     case "checklist": return <ChecklistCell r={r} peers={peers} />;
   }
 }
@@ -152,6 +158,7 @@ export function FundTable({ rows, cols, q, onSort, picked, onPick, peers }: {
             </tr>))}
         </tbody>
       </table>
+      {defs.some((c) => c.id === "score") && <p className="mf-plannote" data-testid="plan-note">{PLAN_SCORE_NOTE}</p>}
     </HScroll>
   );
 }

@@ -1962,6 +1962,41 @@ def why_no_returns(row) -> Optional[str]:
     return "no_history" if not row["has_hist"] else "short"
 
 
+GROWTH_SIBLING_SQL = """
+SELECT s.code AS of_code, g.code, g.name, g.r1y, g.r3y, g.r5y, g.metrics_date
+  FROM mf_schemes s
+  JOIN LATERAL (SELECT code, name, r1y, r3y, r5y, metrics_date FROM mf_schemes g
+                 WHERE g.family = s.family AND g.plan = s.plan AND g.option_class = 'Growth' AND g.active ORDER BY g.code LIMIT 1) g ON true
+ WHERE s.code = ANY($1::int[]) AND s.option_class <> 'Growth' AND s.plan IN ('Direct', 'Regular')
+"""
+GROWTH_RETURNS_LABEL = "Growth option's returns (before payouts)"
+NO_GROWTH_SIBLING = "No Growth option of the same fund and plan is publishing a NAV, so there are no returns to show for this option."
+
+
+async def growth_siblings(conn, codes: Sequence[int]) -> Dict[int, dict]:
+    """Task #281 (owner, 20 Nov 2026): an IDCW or other payout option has no NAV-to-NAV returns of its own (payouts would make them wrong), so its rows showed
+    a dash. The same fund's Growth option of the SAME plan (Direct with Direct, Regular with Regular) is shown instead, always labelled as the Growth option's
+    returns before payouts and never as this option's own NAV change. code -> {code, name, r1y, r3y, r5y, retDate, label}; a code with no such sibling is absent."""
+    if not codes:
+        return {}
+    out: Dict[int, dict] = {}
+    for r in await conn.fetch(GROWTH_SIBLING_SQL, list(codes)):
+        out[r["of_code"]] = {"code": r["code"], "name": r["name"], "r1y": rnd(r["r1y"]), "r3y": rnd(r["r3y"]), "r5y": rnd(r["r5y"]),
+                             "retDate": iso(r["metrics_date"]), "label": GROWTH_RETURNS_LABEL}
+    return out
+
+
+async def attach_growth_returns(conn, items: List[dict]) -> None:
+    """Put `growthReturns` on every non-Growth item (None, with `growthReturnsWhy`, when the fund has no Growth option of that plan)."""
+    want = [i["code"] for i in items if i.get("optionClass") != "Growth" and i.get("code")]
+    sib = await growth_siblings(conn, want)
+    for i in items:
+        if i.get("optionClass") != "Growth" and i.get("code"):
+            i["growthReturns"] = sib.get(i["code"])
+            if i["growthReturns"] is None:
+                i["growthReturnsWhy"] = NO_GROWTH_SIBLING
+
+
 def checklist_item(r) -> Optional[dict]:
     """The checklist of a list row: passed / checked, which passed (bits) and which could be checked (mask), and the peer group whose medians it used."""
     if r["chk_mask"] is None:
@@ -2134,7 +2169,8 @@ async def list_funds(request: Request, q: str = Query("", max_length=80), catego
             rows = await conn.fetch(f"SELECT {cols} FROM {src} ORDER BY {order} LIMIT {size} OFFSET {(page - 1) * size}", *args)  # nosec B608 - column list and sort come from fixed maps; size and page are range-checked integers
             facts = await _facts(conn)
             dash = await _meta(conn, "dashboard") or {}
-        items = [{**list_item(r), **({"x": extra_item(r)} if extra else {})} for r in rows]
+            items = [{**list_item(r), **({"x": extra_item(r)} if extra else {})} for r in rows]
+            await attach_growth_returns(conn, items)   # task #281: IDCW rows show their Growth option's returns, labelled as such
         want = {i["checklist"]["peer"] for i in items if i["checklist"]}
         peers = {k: v for k, v in (dash.get("peers") or {}).items() if k in want}
         return {"total": total, "page": page, "size": size, "pages": max(1, math.ceil(total / size)), "items": items, "peers": peers,
@@ -2297,6 +2333,7 @@ async def detail_payload(app, row) -> dict:
         kin = await conn.fetch("SELECT code, name, plan, option_class, option_label, nav, nav_date, active, isin FROM mf_schemes WHERE family = $1 AND code <> $2 ORDER BY plan, option_class, name LIMIT 40",
                                row["family"], row["code"])
         facts = await _facts(conn)
+        gsib = (await growth_siblings(conn, [row["code"]])).get(row["code"]) if row["option_class"] != "Growth" else None
     empty = {"value": None, "kind": "absolute", "from": None, "why": returns_note(row, source, bool(days))}
     ret = returns_json(m) if m else {k: {**empty, "kind": "cagr" if mo > 12 else "absolute"} for k, mo, _ in HORIZONS}
     if not m:
@@ -2315,6 +2352,7 @@ async def detail_payload(app, row) -> dict:
                         "points": len(days), "complete": complete, "note": note if source != "amfi" else None},
             "family": [{"code": k["code"], "name": k["name"], "plan": k["plan"], "optionClass": k["option_class"], "option": k["option_label"], "nav": k["nav"],
                         "navDate": iso(k["nav_date"]), "active": k["active"], "isin": k["isin"] or None} for k in kin],   # task #183: each option by its ISIN
+            "growthReturns": gsib, "growthReturnsWhy": NO_GROWTH_SIBLING if row["option_class"] != "Growth" and gsib is None else None,   # task #281
             "notAvailable": await scheme_not_available(app, row), **facts}
 
 
@@ -2365,6 +2403,7 @@ async def compare(request: Request, ids: str = Query("", max_length=60), range: 
                 chart["series"].append({"code": f["code"], "t": [date.fromordinal(x).isoformat() for x in dd], "v": [round(x / v[i0] * 100, 4) for x in vv]})
         async with request.app.state.store.pool.acquire() as conn:
             facts = await _facts(conn)
+            await attach_growth_returns(conn, funds)   # task #281: an IDCW option compared shows its Growth option's returns, labelled as such
         return {"funds": funds, "chart": chart, "chartNote": None if chart else "A rebased chart needs NAV history for every fund over this range; try a shorter one.",
                 "notAvailable": None, **facts}   # task #281: the per-scheme note is on each fund's page (/api/mf/<code>); no fixed list here
     return await cached_json(request, "compare", f"{codes}|{range}", build)
