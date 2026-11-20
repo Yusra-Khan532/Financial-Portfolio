@@ -490,6 +490,10 @@ NO_MINIMUM = ("The minimum amount AMFI lists is out of date for some schemes, so
               "site give the current minimum.")
 
 
+# Launch date rule (task #281, checked 20 Nov 2026): AMFI's scheme master and AMFI's scheme-details page give the same date (HSBC Small Cap Fund, formerly
+# L&T Emerging Businesses Fund: 22 Apr 2014 in both), which is the scheme's launch (offer opening). Some sites show the allotment date instead (12 May 2014),
+# and the first NAV comes a few days after that (15 May 2014). FinLit keeps AMFI's date and calls it the launch date; the two AMFI sources agree, so neither
+# overrides the other. A scheme whose AMFI code changed in a takeover keeps the original scheme's launch date (AMFI carries it over).
 def _launch_fact(me) -> dict:
     if me["launch_date"]:
         return {"value": me["launch_date"].isoformat(), "source": SRC_MASTER}
