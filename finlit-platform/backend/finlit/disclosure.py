@@ -48,7 +48,6 @@ SRC_EXCHANGE = "NSE trading rules"
 # Below these an answer is not the whole industry (a partial file, an error page that parsed): it is refused and nothing is stored.
 MIN_MASTER_ROWS = 8000
 MIN_TER_SCHEMES = 1500
-TER_KEEP_DAYS = 45      # a scheme missing from one TER file keeps its previous row this long (task #281)
 MIN_AUM_CODES = 3000
 TER_MAX = 5.0          # percent a year; SEBI's caps keep every real TER well under this
 AUM_PERIODS = ((1, 1), (1, 2), (2, 1), (2, 2))   # (fyId, periodId), newest first: AMFI may not have filled the newest quarter yet
@@ -324,8 +323,9 @@ async def step_master(store, client, *, min_rows: int = MIN_MASTER_ROWS) -> dict
         async with conn.transaction():
             await conn.executemany(
                 "INSERT INTO mf_facts (code, base_name, name_key, launch_date, min_text, nav_name) VALUES ($1, $2, $3, $4, $5, $6) "
-                "ON CONFLICT (code) DO UPDATE SET base_name = EXCLUDED.base_name, name_key = EXCLUDED.name_key, launch_date = EXCLUDED.launch_date, "
-                "min_text = EXCLUDED.min_text, nav_name = COALESCE(EXCLUDED.nav_name, mf_facts.nav_name), updated_at = now()", items)
+                "ON CONFLICT (code) DO UPDATE SET base_name = EXCLUDED.base_name, name_key = EXCLUDED.name_key, "
+                "launch_date = COALESCE(EXCLUDED.launch_date, mf_facts.launch_date), min_text = COALESCE(EXCLUDED.min_text, mf_facts.min_text), "   # task #281
+                "nav_name = COALESCE(EXCLUDED.nav_name, mf_facts.nav_name), updated_at = now()", items)
             fixed = await mf.apply_nav_names(conn)   # task #256: a scheme the NAV file leaves without plan or option reads them from this name now
     return {"status": "ok", "schemes": len(items), "planOptionFromMaster": fixed}
 
@@ -341,11 +341,10 @@ async def store_ter(store, rows: Dict[str, TerRow], month: Optional[str], *, min
             held = await conn.fetchval("SELECT max(ter_date) FROM mf_ter")
             if held and newest < held:
                 return {"status": "refused", "why": f"This file's newest day is {newest.isoformat()}, older than the figures already held ({held.isoformat()}); nothing was replaced"}
-        # Task #281: one night's file can lack whole fund houses (the live table held 2 094 schemes up to 8 Nov 2026 and no Nippon India row, while
-        # AMFI's file of 20 Nov has all 107 Nippon India rows). A scheme the new file does not name keeps its previous row, with its own older date,
-        # when that row is at most TER_KEEP_DAYS older than the new file; anything older is dropped (a closed scheme loses its figure).
-        prev = await conn.fetch("SELECT name_key, name, category, ter_regular, ter_direct, ter_date FROM mf_ter WHERE ter_date >= $1",
-                                newest - timedelta(days=TER_KEEP_DAYS))
+        # Task #281, owner's rule of 20 Nov 2026 ("if new data is missing, use the old data"): one night's file can lack whole fund houses (the live
+        # table held 2 094 schemes up to 8 Nov 2026 and no Nippon India row, while AMFI's file of 20 Nov has all 107 Nippon India rows). A scheme the
+        # new file does not name keeps its previous row with its own older date, which every page shows ("as of ..."); it is never blanked.
+        prev = await conn.fetch("SELECT name_key, name, category, ter_regular, ter_direct, ter_date FROM mf_ter")
         kept = [(p["name_key"], p["name"], p["category"], p["ter_regular"], p["ter_direct"], p["ter_date"]) for p in prev if p["name_key"] not in rows]
         async with conn.transaction():
             await conn.execute("DELETE FROM mf_ter")
@@ -371,8 +370,7 @@ async def store_aum(store, label: Optional[str], end: Optional[date], codes: Dic
                 return {"status": "refused", "why": f"This file is for {label} (ends {end.isoformat()}), older than the quarter already held ({held.isoformat()}); nothing was replaced"}
         known = {r["code"] for r in await conn.fetch("SELECT code FROM mf_schemes")}
         items = [(c, v, end, label) for c, v in codes.items() if c in known]
-        async with conn.transaction():   # one quarter replaces the other whole: a code AMFI no longer lists has no figure, never last quarter's
-            await conn.execute("UPDATE mf_facts SET aum_lakh = NULL, aum_end = NULL, aum_label = NULL WHERE aum_lakh IS NOT NULL")
+        async with conn.transaction():   # task #281, owner's rule: a code missing from the new quarter keeps its last quarter, with that quarter's end
             await conn.executemany(
                 "INSERT INTO mf_facts (code, aum_lakh, aum_end, aum_label) VALUES ($1, $2, $3, $4) "
                 "ON CONFLICT (code) DO UPDATE SET aum_lakh = EXCLUDED.aum_lakh, aum_end = EXCLUDED.aum_end, aum_label = EXCLUDED.aum_label, updated_at = now()",

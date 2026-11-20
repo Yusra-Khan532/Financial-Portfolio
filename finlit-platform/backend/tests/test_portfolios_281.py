@@ -200,7 +200,8 @@ def test_a_ter_row_dated_in_the_future_is_a_typo_and_skipped(tmp_path):
 
 
 @needs_db
-async def test_a_fund_house_missing_from_one_ter_file_keeps_its_recent_figures(store):  # noqa: F811
+async def test_a_fund_house_missing_from_one_ter_file_keeps_its_figures(store):  # noqa: F811
+    """Owner's rule (20 Nov 2026): a scheme a newer TER file does not name keeps its last row, with its own date, however old."""
     def row(name, day, reg):
         return d.TerRow(d.name_key(name), name, "Equity", reg, reg / 2, day)
     async with store.pool.acquire() as conn:
@@ -211,11 +212,12 @@ async def test_a_fund_house_missing_from_one_ter_file_keeps_its_recent_figures(s
     assert (await d.store_ter(store, first, "11-2026", min_schemes=1))["status"] == "ok"
     second = {r.key: r for r in (row("HSBC Small Cap Fund", date(2026, 11, 19), 1.77),)}
     res = await d.store_ter(store, second, "11-2026", min_schemes=1)
-    assert res["keptFromBefore"] == 1
+    assert res["keptFromBefore"] == 2
     async with store.pool.acquire() as conn:
         got = {r["name"]: (r["ter_regular"], r["ter_date"]) for r in await conn.fetch("SELECT name, ter_regular, ter_date FROM mf_ter")}
         await conn.execute("DELETE FROM mf_ter")
-    assert got == {"HSBC Small Cap Fund": (1.77, date(2026, 11, 19)), "Nippon India Small Cap Fund": (1.4, day1)}
+    assert got == {"HSBC Small Cap Fund": (1.77, date(2026, 11, 19)), "Nippon India Small Cap Fund": (1.4, day1),
+                   "Old Closed Fund": (2.0, day1 - timedelta(days=60))}
 
 
 # ------------------------------------------------------------------------------------------------------------ one expense ratio everywhere
