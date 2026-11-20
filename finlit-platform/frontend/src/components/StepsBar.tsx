@@ -106,7 +106,7 @@ export function StepsBar({ steps, label = "Sections", menu, lead, arrows = false
           <span className="stb-item" key={s.id}>
             {i > 0 && <span className="stb-arrow" aria-hidden="true">→</span>}
             <button type="button" className="stb-chip" data-step={s.id} aria-current={active === s.id ? "step" : undefined} onClick={() => go(s.id, s.id)}>
-              <span className="stb-n" aria-hidden="true">{s.n}</span>{s.title}{s.dot && <i className="stb-dot" role="img" aria-label="not seen yet" />}
+              {s.n > 0 ? <span className="stb-n" aria-hidden="true">{s.n}</span> : <span className="stb-n stb-n0" aria-hidden="true">·</span>}{s.title}{s.dot && <i className="stb-dot" role="img" aria-label="not seen yet" />}
             </button>
           </span>
         ))}
