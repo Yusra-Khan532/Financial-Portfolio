@@ -359,6 +359,7 @@ async def fund_risk(request: Request, ctx: Ctx = Depends(member_ctx), pf: Option
     bd, bv = risk.window(sorted(bench), [bench[d] for d in sorted(bench)], end)
     bench_swing = risk.swing(risk.returns(bv), risk.per_year(bd))
     list_swing = risk.swing(risk.returns(lv), risk.per_year(ld)) if len(lv) >= risk.MIN_DAYS else None
+    risk.list_swing_ok(list_swing, [(f["swing"], w) for f, (_d, _n, w) in zip([f for f in funds if f["swing"] is not None], parts)], "fund list")   # number fix 3's check
     own = await own_benchmarks(request, schemes, hist, [f["code"] for f in funds], [float(units[c] * Decimal(str(schemes[c]["nav"]))) if valued else 1.0 for c in hist], end)
     if own is not None:
         by = {r["code"]: r for r in own.pop("funds")}

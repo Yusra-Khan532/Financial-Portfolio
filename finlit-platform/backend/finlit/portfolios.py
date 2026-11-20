@@ -36,7 +36,7 @@ from . import taxonomy
 from .config import MF_EXCLUDED_AMCS
 from .disclosure_parsers import amfi
 from .disclosure_parsers.amcs import ADAPTERS, BROWSER_UA, MAX_BYTES, UA, Adapter, FileRef, month_ends
-from .disclosure_parsers.model import ASSET_CLASSES, Holding, Portfolio, Verdict, isin_ok, validate
+from .disclosure_parsers.model import ASSET_CLASSES, Holding, Portfolio, Verdict, isin_ok, metal_class, validate
 from .disclosure_parsers.sebi import NotAPortfolio, open_workbook, parse_rows
 
 log = logging.getLogger("finlit.portfolios")
@@ -167,7 +167,8 @@ def pack_holdings(hs: Sequence[Holding]) -> str:
 
 def unpack_holdings(raw) -> List[Holding]:
     arr = json.loads(raw) if isinstance(raw, str) else raw
-    return [Holding(a[0], a[1], a[2], CLS_BACK.get(a[3], "other"), a[4], a[5], a[6]) for a in arr]
+    # task #276: files stored before the metal-row rule are read with it too (SILVERBEES' silver was stored as cash)
+    return [Holding(a[0], a[1], a[2], metal_class(a[0], a[1], CLS_BACK.get(a[3], "other")), a[4], a[5], a[6]) for a in arr]
 
 
 async def store_portfolio(pool, fkey: str, amc: str, p: Portfolio) -> str:

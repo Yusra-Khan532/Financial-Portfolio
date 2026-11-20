@@ -15,10 +15,13 @@ Describes the past; not a forecast and not a recommendation. Information only, n
 
 from __future__ import annotations
 
+import logging
 import math
 import re
 from datetime import date, timedelta
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+
+log = logging.getLogger("finlit.etfportfolio.calc")
 
 MIX_KEYS = ("indian", "abroad", "gold", "silver", "debt")
 MIX_WORD = {"indian": "Indian shares", "abroad": "Shares abroad", "gold": "Gold", "silver": "Silver", "debt": "Debt or overnight lending"}
@@ -99,6 +102,12 @@ def asset_mix(etfs: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
             out[main] += e["w"]
             if main != "debt" and not a:
                 from_type.append(e["symbol"])
+            continue
+        if main in ("gold", "silver") and ((a.get("other") or 0) / t) < 0.5:
+            # task #276, number fix 2's guard: a metal ETF whose file was read without its metal counts wholly as its metal, and it is logged
+            log.warning("ETF mix: %s (%s) parsed without its metal: %s", e.get("symbol"), main, a)
+            out[main] += e["w"]
+            from_type.append(e["symbol"])
             continue
         low = ((a.get("debt") or 0) + (a.get("cash") or 0)) / t
         out["debt"] += e["w"] * low

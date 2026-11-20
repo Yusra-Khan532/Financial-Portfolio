@@ -296,6 +296,12 @@ async def test_183_every_etf_against_the_nifty_500_weekly_liquid_counts_0(app): 
     assert lst["fall10"]["indian"] == pytest.approx(-10 * lst["betaIndian"], abs=0.06) and lst["liquidShare"] == 20.0
     assert "GOLDBEES" in lst["leftOutOfFall"] and "NIFTYBEES" not in lst["leftOutOfFall"]
     assert b["own"]["to"] == "2026-11-13" and b["own"]["from"] == "2025-11-14"                                        # 52 Friday-to-Friday weeks
+    # task #276 (number fixes 4 and 5): the page's one beta carries its window, every index figure its window, and the 3-year daily list beta is renamed
+    assert e["NIFTYBEES"]["betaWindow"] == {"index": "Nifty 500", "grain": "weekly", "window": "1y", "from": "2025-11-14", "to": "2026-11-13"}
+    assert b["bench"]["grain"] == "daily" and b["bench"]["years"] > 0 and b["list"]["grain"] == "daily" and b["list"]["from"]
+    assert "beta" not in b["list"] and "betaDaily3y" in b["list"]
+    swings = [(x["swing"], x["weight"]) for x in b["etfs"] if x["swing"] is not None]
+    assert b["list"]["swing"] <= sum(s * w for s, w in swings) / sum(w for _, w in swings) + 0.5     # fix 3: never above the weighted average
 
 
 def test_183_type_of_reads_payout_or_growth_and_the_grid_leaves_out_what_is_abroad():

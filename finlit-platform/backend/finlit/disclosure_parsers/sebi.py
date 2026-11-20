@@ -12,7 +12,7 @@ import re
 from datetime import date, datetime, timedelta
 from typing import Dict, Iterable, Iterator, List, Optional, Tuple
 
-from .model import Holding, Portfolio, isin_ok
+from .model import Holding, Portfolio, isin_ok, metal_class
 
 MONTHS = {m: i for i, m in enumerate(["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"], 1)}
 _MON = r"(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)"
@@ -379,6 +379,7 @@ def parse_rows(rows: Iterable[List], source_name: str, source_url: str, as_of_hi
         cls = cur
         if CASH_NAME.search(name) and not isin_raw:
             cls = "cash"
+        cls = metal_class(name, isin_raw, cls)          # task #276: a silver or gold bullion row under a cash heading is the metal, not cash
         sec_probe = txt(cell(row, "sector"))
         deriv_row = in_deriv or bool(re.search(r"\b(futures?|options?|swaps?|derivatives?)\b", sec_probe, re.I))
         if deriv_row and cls != "cash" and pct < 0 and (not isin_raw or in_deriv):
