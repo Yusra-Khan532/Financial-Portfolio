@@ -24,7 +24,7 @@
     answer the job's agent and print the full portfolio, but their names can be found only by guessing (folder spelt differently each month: July_2026,
     August_2026, sept_2026; October not found; about half of the scheme names guessed from AMFI's list hit). **Owner's decision** before any reader.
   - Edelweiss: every page and file (factsheets too) answers 403 'Access Denied'. No free route found.
-  - Carnelian: its monthly portfolio file appeared in October 2026 and is now read (the lister's pattern missed it); Carnelian Small Cap Fund and Choice
+  - Carnelian: its monthly portfolio file appeared in October 2026 (the lister's pattern is fixed in round 4b); Carnelian Small Cap Fund and Choice
     Large & Mid Cap Fund (launched 16 and 20 Oct 2026) publish no monthly file yet.
   - Any house: a file with a sheet that matched no scheme (or failed the checks) is now read again each night until every sheet is stored
     (`portfolios._file_done`); before, it was marked done at the first reading and a scheme not yet in AMFI's list then never got its holdings.

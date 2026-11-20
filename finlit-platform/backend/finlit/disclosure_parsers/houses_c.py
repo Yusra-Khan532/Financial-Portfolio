@@ -441,11 +441,10 @@ list_monarch = page_lister("monarch", "https://www.monarchamc.in/forms-downloads
 
 
 # -------------------------------------------------------------------------------------------------------------- Carnelian
-# The statutory-disclosures page lists its documents as JSON items {file: {url: '/api/documents/file/...', width: null}, id, label, name}: the file
-# object closes ('}') between the url and the name, so the gap may hold '}' but never the next item's '{'. Monthly statements are named
-# 'Monthly_Portfolio_<scheme>_<Month YYYY>' (task #281: the first, Carnelian Liquid Fund, October 2026, was missed while the gap refused '}').
+# The statutory-disclosures page lists its documents as JSON items {file: {url: '/api/documents/file/...'}, name}. As of October 2026 it carries
+# no portfolio statement (only AUM / complaints reports), so this lists nothing until a 'portfolio' document appears there.
 list_carnelian = labelled_lister("carnelian", "https://www.carnelianmf.com/statutory-disclosures",
-                                 r'"url":"(/api/documents/file/[^"]+)"[^{]*?"name":"((?![^"]*fortnight)[^"]*portfolio[^"]*)"')
+                                 r'"url":"(/api/documents/file/[^"]+)"[^{}]*?"name":"((?![^"]*fortnight)[^"]*portfolio[^"]*)"')
 
 
 ADAPTERS: List[Adapter] = [

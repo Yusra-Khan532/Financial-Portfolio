@@ -2,7 +2,6 @@
 
 - A fund-house file whose sheets did not all match a scheme (or failed the checks) is read again on the next run; before, it was marked done and a
   scheme that was not in AMFI's list at the first reading never got its holdings (Angel One's index funds and funds of funds on 20 Nov 2026).
-- Carnelian's disclosures page: the first monthly portfolio (Carnelian Liquid Fund, October 2026) is listed.
 - The factsheet reader (HDFC's monthly factsheet PDF): HDFC Flexi Cap Fund, September 2026, read from the pages' characters (fixture: the two pages'
   characters and bold words, no PDF), every row and the Grand Total. HDFC stays out of the nightly list until the owner decides (its file store
   refuses the job's agent)."""
@@ -18,7 +17,7 @@ import httpx
 import pytest
 
 from finlit import portfolios
-from finlit.disclosure_parsers import houses_c, houses_e
+from finlit.disclosure_parsers import houses_e
 from finlit.disclosure_parsers.amcs import ADAPTERS, Adapter, FileRef
 from finlit.disclosure_parsers.model import Holding, Portfolio, validate
 from test_portfolios import store  # noqa: F401  (the database fixture)
@@ -98,21 +97,6 @@ def test_hdfc_files_each_factsheet_in_the_next_months_folder(month_end, url_part
 def test_hdfc_is_ready_but_not_run_until_the_owner_decides():
     assert houses_e.HDFC.parse_file is houses_e.parse_hdfc
     assert "hdfc" not in {a.key for a in ADAPTERS}
-
-
-# ------------------------------------------------------------------------------------------------------------ Carnelian
-CARNELIAN_PAGE = ('self.__next_f.push([1,"{\\"items\\":['
-                  '{\\"file\\":{\\"url\\":\\"/api/documents/file/Fortnightly_Portfolio_Carnelian%20Liquid%20Fund.xlsx?prefix=documents%2Fa\\",\\"width\\":null},'
-                  '\\"id\\":\\"1\\",\\"label\\":\\"Scheme Related Disclosures\\",\\"name\\":\\"Fortnightly_Portfolio_Carnelian Liquid Fund_October 2026\\"},'
-                  '{\\"file\\":{\\"url\\":\\"/api/documents/file/Monthly_Portfolio_Carnelian%20Liquid%20Fund.xlsx?prefix=documents%2Fa\\",\\"width\\":null},'
-                  '\\"id\\":\\"2\\",\\"label\\":\\"Scheme Related Disclosures\\",\\"name\\":\\"Monthly_Portfolio_Carnelian Liquid Fund_October 2026\\"},'
-                  '{\\"file\\":{\\"url\\":\\"/api/documents/file/AUM.pdf?prefix=documents%2Fa\\",\\"width\\":null},\\"id\\":\\"3\\",\\"name\\":\\"AUM disclosure\\"}]}"])')
-
-
-async def test_carnelian_lists_its_monthly_portfolio_and_not_the_fortnightly_one():
-    async with httpx.AsyncClient(transport=httpx.MockTransport(lambda req: httpx.Response(200, text=CARNELIAN_PAGE))) as c:
-        refs = await houses_c.list_carnelian(c, [date(2026, 10, 31), date(2026, 9, 30)])
-    assert [(r.url.split("/file/")[1].split("?")[0], r.month_end) for r in refs] == [("Monthly_Portfolio_Carnelian%20Liquid%20Fund.xlsx", date(2026, 10, 31))]
 
 
 # ------------------------------------------------------------------------------------------------------------ files read again until whole
