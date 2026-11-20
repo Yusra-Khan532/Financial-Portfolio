@@ -57,8 +57,8 @@ function PillarRow({ s, k, say }: { s: Screener; k: BandKey; say: string }) {
 export function IqScoreRows({ s, allStrong, setAllStrong }: { s: Screener; allStrong: boolean; setAllStrong: () => void }) {
   const on = s.draft.iqLabels;
   return (<div className="iq-rows">
-    <div className="iq-rating" role="group" aria-label="FinLit IQ rating">
-      <span className="iq-rl">Rating</span>
+    <div className="iq-rating" role="group" aria-label="FinLit IQ fundamental rating">
+      <span className="iq-rl">Fundamental rating</span>
       <div className="fgx-chips">
         {IQ_LABELS.map((l) => <button key={l} type="button" className={"fgx-chip" + (on.includes(l) ? " is-on" : "")} aria-pressed={on.includes(l)} title={IQ_LABEL_SAY[l]} onClick={() => s.setIqLabel(l)}>{on.includes(l) && <i aria-hidden="true">&#10003;</i>}{IQ_LABEL_WORD[l]}</button>)}
       </div>

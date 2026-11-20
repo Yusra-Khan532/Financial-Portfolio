@@ -95,8 +95,8 @@ function PrismDrop({ s, open, setOpen }: { s: Screener; open: Open; setOpen: (o:
     <Drop id="prism" open={open} setOpen={setOpen} label="Prism score" n={n} wide title="Prism score" desc="Describes financial health and price trend from filings and prices; not a recommendation."
       foot={<><button type="button" className="fx-lnk" disabled={!n} onClick={() => setDraft((d) => withoutScoreFilters(d))}>Clear score filters</button><span>{n ? `${n} on` : "Counts are for this list"}</span></>}>
       <div className="fx-list afx-sf">
-        <section className="afx-sfs" aria-labelledby="afx-rt"><h4 id="afx-rt">Rating</h4>
-          <div className="afx-bands" role="group" aria-label="Prism rating">
+        <section className="afx-sfs" aria-labelledby="afx-rt"><h4 id="afx-rt">Fundamental rating</h4>
+          <div className="afx-bands" role="group" aria-label="Prism fundamental rating">
             {PRISM_LABELS.map((l) => { const on = draft.labels.includes(l), cnt = c.labels[l];
               return <label key={l} className={"afx-bchk" + (!cnt && !on ? " fx-zero" : "")}><input type="checkbox" checked={on} disabled={!cnt && !on} onChange={() => s.setLabel(l)} /><span className={ratingCls(l)}>{LABEL_WORD[l]}</span><small>{nf(cnt, 0)}</small></label>; })}
           </div>
