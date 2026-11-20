@@ -156,3 +156,9 @@ html[data-theme="dark"] .mff-num.m, html[data-theme="dark"] .mff-chip.m, html[da
 .mfp-foot { margin: 14px 0 6px; text-align: center; font-size: 12px; line-height: 1.5; color: var(--muted); }
 @media (max-width: 640px) { .mfs-short dl > div { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
 .mfp-isinnote { margin: 8px 0 0; font-size: 12px; line-height: 1.5; color: var(--sp-mute); }
+/* task #275 (change 5): a company chip in the sector grid is a link to its company report */
+a.mfm-chip.mfm-chip-a { color: inherit; text-decoration: none; cursor: pointer; }
+a.mfm-chip.mfm-chip-a:hover { border-color: var(--gold); text-decoration: underline; text-underline-offset: 2px; }
+a.mfm-chip.mfm-chip-a:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+/* task #275 (number fix 4): the window under a beta, e.g. "vs Nifty 500 · weekly · past year" */
+.eqr-win { margin: 2px 0 0; font-size: var(--fs-caption); color: var(--sp-mute); letter-spacing: .01em; }

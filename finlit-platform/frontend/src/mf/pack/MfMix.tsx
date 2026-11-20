@@ -51,8 +51,11 @@ export function Cell({ c, max, readingOf }: { c?: { w: number; n: number; stocks
   if (!c || c.w <= 0) return <td className="mfm-c empty" />;
   const show = open ? c.stocks : c.stocks.slice(0, 4), rest = c.stocks.length - 4;
   return <td className="mfm-c" style={{ ["--mfm-a" as string]: String(Math.min(1, c.w / max) * 0.55) }}>
-    <span className="mfm-chips">{show.map((s) => { const r = readingOf(s.symbol); return <span key={s.symbol ?? s.name} className="mfm-chip" title={`${s.name}: ${p1(s.w)} of your list${r?.word ? ` · ${r.word}` : ""}`}>
-      <i className={"mfm-dot " + tone(r?.word)} aria-hidden="true" />{s.symbol ?? s.name.split(" ")[0]}</span>; })}
+    <span className="mfm-chips">{show.map((s) => { const r = readingOf(s.symbol); const tip = `${s.name}: ${p1(s.w)} of your list${r?.word ? ` · ${r.word}` : ""}`;
+      const inner = <><i className={"mfm-dot " + tone(r?.word)} aria-hidden="true" />{s.symbol ?? s.name.split(" ")[0]}</>;
+      // task #275 (change 5): a listed company's chip opens its company report; one with no listed symbol (an ISIN not matched) has no report and stays a label
+      return s.symbol ? <Link key={s.symbol} className="mfm-chip mfm-chip-a" to={`/stocks/${encodeURIComponent(s.symbol)}`} title={tip} aria-label={`${s.name}, ${p1(s.w)} of your list: open the company report`}>{inner}</Link>
+        : <span key={s.name} className="mfm-chip" title={`${tip} · no company report (not matched to a listed company)`}>{inner}</span>; })}
       {rest > 0 && <button type="button" className="eq-more" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "Show fewer ▴" : `+${rest} more ▾`}</button>}</span>
     <small className="mfm-cw">{p1(c.w)} · {c.n} {c.n === 1 ? "co" : "cos"}</small></td>;
 }

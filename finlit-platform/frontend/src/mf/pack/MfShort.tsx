@@ -20,8 +20,12 @@ export function shortLines(sp: MfSpread | undefined, rk: MfRisk | undefined): [s
       const [a, b, v] = best as unknown as [number, number, number], fa = sp.funds.find((f) => f.code === a), fb = sp.funds.find((f) => f.code === b);
       out.push(["Moves together", `Your ${t.codes.length === 4 ? "four" : t.codes.length} equity-type funds move like ${sp.readings.together.independent.toFixed(1)} independent funds. The closest pair is ${nm(a)} and ${nm(b)} (${v.toFixed(2)}), from ${fa?.category === fb?.category ? "the same category" : "different categories"}.`]);
     }
-    const tot = sp.size.Large + sp.size.Mid + sp.size.Small;
-    if (sp.knownShares > 0) out.push(["Inside", `${sp.knownShares >= 0.45 && sp.knownShares <= 0.55 ? "Half the list" : p0(sp.knownShares) + " of the list"} is in shares: ${p0(sp.size.Large / (tot || 1))} of those are in large companies and ${p0(sp.size.Small / (tot || 1))} in small, by FinLit's ₹ sizes.`]);
+    // task #275 (number fix 10): the four sizes, from the same totals as the grid above (it read "91% large and 4% small", sized by the 15 Nov rule)
+    const sz = { Large: sp.size.Large, Mid: sp.size.Mid, Small: sp.size.Small, Micro: sp.size.Micro ?? 0 };
+    const tot = sz.Large + sz.Mid + sz.Small + sz.Micro;
+    const parts = (["Large", "Mid", "Small", "Micro"] as const).filter((k) => Math.round((sz[k] / (tot || 1)) * 100) > 0).map((k) => `${p0(sz[k] / (tot || 1))} ${k.toLowerCase()}`);
+    const sizes = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : parts[0] ?? "";
+    if (sp.knownShares > 0 && tot > 0) out.push(["Inside", `${sp.knownShares >= 0.45 && sp.knownShares <= 0.55 ? "Half the list" : p0(sp.knownShares) + " of the list"} is in shares: ${sizes}, by FinLit's ₹ sizes (Large above ₹75,000 Cr, Mid ₹25,000–75,000 Cr, Small ₹10,000–25,000 Cr, Micro below ₹10,000 Cr).`]);
   }
   const o = rk?.own?.list;
   if (rk && o?.betaOwn != null) {
