@@ -65,6 +65,7 @@ export const SECTIONS: NavSection[] = [
   { id: "news", label: "News & events", groups: [{ items: [
     i("/results", "Results calendar", "Who reports quarterly results, and when", "calendar", { end: true }),
     i("/results/quarter", "Latest results", "Every company's newest quarter, newest first", "notes"),
+    i("/concalls", "Concall Monitor", "Earnings call recordings, transcripts, presentations and upcoming calls", "play", { newUntil: "2026-12-21" }),
     i("/ipo", "IPO calendar", "Issues open now, upcoming and listed", "activity"),
     i("/news", "News & filings", "Exchange filings and headlines", "notes"),
   ] }] },
