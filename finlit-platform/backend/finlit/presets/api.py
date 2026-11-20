@@ -9,6 +9,7 @@ import math
 import re
 from typing import Dict, List, Optional
 
+import orjson
 from fastapi import APIRouter, Request, Response
 
 from ..auth.entitlements import has, sees_all
@@ -222,9 +223,46 @@ async def _body(request: Request, p: Preset, active: List[str]) -> dict:
         body["columns"] = _history_columns(body.get("columns") or [], p, then=False)
     except Exception:
         log.warning("saved-list figures not added for %s", p.id, exc_info=True)
+    try:       # task #269: today's price and day change, the same as the company page, the search box and the dashboard
+        latest = await latest_prices(request.app)
+        seen = {id(r): r for r in (body.get("rows") or []) + (body.get("exportRows") or [])}
+        if overlay_prices(list(seen.values()), latest, str(body["asOf"])):
+            days = sorted({r["price_day"] for r in seen.values() if r.get("price_day")})
+            body["priceDay"] = days[-1] if days else None
+    except Exception:
+        log.warning("latest prices not added for %s", p.id, exc_info=True)
     body["columns"] = _bands_now(body.get("columns") or [])
     body["name"] = p.name          # a list stored under an older name is served with today's (14 Nov N-35)
     return _with_meta(body, p)
+
+
+async def latest_prices(app) -> Dict[str, tuple]:
+    """Task #269 (20 Nov 2026, the team: "the scores are different when we open it", APOLLOHOSP at 8,738 -0.9% on a screen and 9,141 +4.61% on its page): a
+    screen's list is built from last night's frame, so its price and day change were last night's close all day while the company page showed today's.
+    These are the latest prices the search box and the dashboard use (search.quote_rows: the stored report or the market-wide listing, whichever is newer,
+    with the trading day it belongs to), from their saved copy (rebuilt every 2 minutes). {symbol: (price, day change %, trading day)}."""
+    from .. import search
+    try:
+        raw = await app.state.store.redis.hget("search-quotes:silver", "body")
+    except Exception:
+        raw = None
+    if raw is None:
+        raw = (await search.build(app, "silver"))[0]
+    doc = orjson.loads(raw)
+    return {r[0]: (r[1], r[2], r[3]) for r in doc.get("rows") or [] if r[1] is not None and r[3]}
+
+
+def overlay_prices(rows: List[dict], latest: Dict[str, tuple], list_day: str) -> int:
+    """Each row's price and day change set to the latest when it is from the list's own trading day or later (an older one is never put over a newer
+    close); the row says which day its price is from (price_day). Whether a company is on the screen still follows the list's rules. Returns how many changed."""
+    n = 0
+    for r in rows:
+        q = latest.get(r.get("symbol"))
+        if q is None or q[2] < list_day[:10]:
+            continue
+        r["price"], r["ret_1d"], r["price_day"] = q[0], q[1], q[2]
+        n += 1
+    return n
 
 
 FIGURE = {"setups": ("From 52-week high", "pct_from_high"), "top-gainers": ("Since it joined", "since")}
