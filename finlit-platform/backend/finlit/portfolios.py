@@ -564,6 +564,19 @@ def exit_load_text(raw: str) -> Optional[str]:
     return "Nil" if _NIL.match(t) else t[:600]
 
 
+_RUPEES = re.compile(r"(\d{1,3}(?:,\d{2,3})+|\d+)(?:\.\d+)?")
+
+
+def min_amount(raw: str) -> Tuple[Optional[str], Optional[float]]:
+    """AMFI's free-text minimum ("Rs. 5,000 and in multiples of Re.1 thereafter", "5000") -> (tidied text, the first rupee amount or None)."""
+    t = re.sub(r"\s+", " ", raw or "").strip()
+    if not t or t.upper() in ("NA", "N.A.", "-"):
+        return None, None
+    m = _RUPEES.search(t)
+    v = float(m.group(1).replace(",", "")) if m else None
+    return t[:200], (v if v is not None and 0 < v <= 10_000_000 else None)
+
+
 async def step_loads(pool, client, idx: Index, today: date) -> dict:
     """Exit load text from AMFI's scheme details: one list call per fund house, then one call per scheme that matches an active scheme family here and has no
     load text from the last LOAD_MAX_AGE_DAYS days. Resumable: whatever was written stays; the next run asks only for the rest."""
@@ -589,7 +602,7 @@ async def step_loads(pool, client, idx: Index, today: date) -> dict:
 
     async def one(fam: str, cands: List[Tuple[str, str]]):
         nonlocal asked, blank
-        launch_done = False
+        launch_done = min_done = False
         for mf_id, sid in sorted(cands, key=lambda c: -int(c[1]) if c[1].isdigit() else 0)[:3]:   # the newest listing of a scheme first
             async with sem:
                 asked += 1
@@ -601,6 +614,10 @@ async def step_loads(pool, client, idx: Index, today: date) -> dict:
             if ld and not launch_done and date(1950, 1, 1) <= ld <= today:    # a second source for schemes the scheme master gives no clean launch date
                 facts.append((fam, "launch_details", today, {"date": ld.isoformat()}, SRC_DETAILS, "https://www.amfiindia.com/otherdata/scheme-details"))
                 launch_done = True
+            mn_text, mn = min_amount(str(d.get("Scheme_min_amt") or ""))
+            if mn_text and not min_done:   # stored, not shown: AMFI's minimum is out of date for some schemes (task #281)
+                facts.append((fam, "min_amount_amfi", today, {"text": mn_text, "rupees": mn}, SRC_DETAILS, "https://www.amfiindia.com/otherdata/scheme-details"))
+                min_done = True
             txt_ = exit_load_text(str(d.get("Scheme_load") or ""))
             if txt_:
                 facts.append((fam, "exitload", today, {"text": txt_}, SRC_DETAILS, "https://www.amfiindia.com/otherdata/scheme-details"))
