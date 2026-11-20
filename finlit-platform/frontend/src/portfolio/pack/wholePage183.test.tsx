@@ -52,7 +52,7 @@ describe("ⓘ popovers (H100)", () => {
     }
     for (const f of ["../../lib/eqRisk.ts", "../../lib/equityTop.ts"]) {
       const s = here(f);
-      expect((s.match(/\bhow: "/g) ?? []).length, f).toBe((s.match(/\bhelp: "/g) ?? []).length);
+      expect((s.match(/\bhow: ["`]/g) ?? []).length, f).toBe((s.match(/\bhelp: ["`]/g) ?? []).length);   // task #274: a help may be a template
     }
   });
 });
