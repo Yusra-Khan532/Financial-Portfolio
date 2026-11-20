@@ -7,7 +7,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import "../styles/steps-bar.css";
 
 export type StepSection = { id: string; label: string };
-export type Step = { id: string; n: number; title: string; line?: string; sections: StepSection[] };
+export type Step = { id: string; n: number; title: string; line?: string; sections: StepSection[]; /** task #277: a section the member has not seen (Key figures, What changed) carries a dot */ dot?: boolean };
 /** An optional menu for "All sections" grouped another way (all my investments: every tab's sections, grouped by tab); `go` runs instead of a scroll. */
 export type MenuGroup = { title: string; items: { id: string; label: string; go: () => void }[] };
 
@@ -27,7 +27,8 @@ export function stepInView(tops: { id: string; top: number }[], line: number): s
   return cur;
 }
 
-export function StepsBar({ steps, label = "Sections", menu, lead }: { steps: Step[]; label?: string; menu?: MenuGroup[]; /** task #235 (pack B12): shown at the left once the bar sticks */ lead?: ReactNode }) {
+export function StepsBar({ steps, label = "Sections", menu, lead, arrows = false }: { steps: Step[]; label?: string; menu?: MenuGroup[]; /** task #235 (pack B12): shown at the left once the bar sticks */ lead?: ReactNode;
+  /** task #277 (Equity file §11): the steps scroll inside the bar with ‹ › at its ends and a faded edge where steps are hidden; each arrow greys out at its end. Opt-in. */ arrows?: boolean }) {
   const [active, setActive] = useState<string | null>(steps[0]?.id ?? null);
   const [open, setOpen] = useState(false);
   const [top, setTop] = useState(0), [stuck, setStuck] = useState(false);
@@ -79,10 +80,21 @@ export function StepsBar({ steps, label = "Sections", menu, lead }: { steps: Ste
     return () => { document.removeEventListener("pointerdown", down, true); document.removeEventListener("keydown", esc); };
   }, [open]);
 
+  // task #277: whether steps are hidden at each end (measured on scroll and on any change of the bar's width)
+  const [edge, setEdge] = useState({ l: false, r: false });
+  useEffect(() => {
+    const b = bar.current; if (!arrows || !b) return;
+    const m = () => setEdge({ l: b.scrollLeft > 2, r: b.scrollLeft + b.clientWidth < b.scrollWidth - 2 });
+    m(); b.addEventListener("scroll", m, { passive: true });
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(m) : null; ro?.observe(b);
+    return () => { b.removeEventListener("scroll", m); ro?.disconnect(); };
+  }, [arrows, steps.length, stuck]);
+  const slide = (dir: number) => bar.current?.scrollBy({ left: dir * Math.max(160, (bar.current?.clientWidth ?? 600) * 0.6), behavior: "smooth" });
   if (!steps.length) return null;
   const go = (id: string, step: string) => { setOpen(false); setActive(step); scrollTo(id); };
   return (
-    <div className="stb-wrap" style={{ top }}>
+    <div className={"stb-wrap" + (arrows ? " stb-arw" + (edge.l ? " edge-l" : "") + (edge.r ? " edge-r" : "") : "")} style={{ top }}>
+      {arrows && (edge.l || edge.r) && <button type="button" className="stb-sl l" aria-label="Earlier steps" disabled={!edge.l} onClick={() => slide(-1)}>‹</button>}
       <nav className={"stb sw-host" + (stuck && lead ? " x-sw-on" : "")} ref={bar} aria-label={label}>
         {lead}
         <button type="button" ref={btn} className="stb-all" aria-haspopup="true" aria-expanded={open} aria-controls={popId} onClick={() => setOpen(!open)}>
@@ -94,11 +106,12 @@ export function StepsBar({ steps, label = "Sections", menu, lead }: { steps: Ste
           <span className="stb-item" key={s.id}>
             {i > 0 && <span className="stb-arrow" aria-hidden="true">→</span>}
             <button type="button" className="stb-chip" data-step={s.id} aria-current={active === s.id ? "step" : undefined} onClick={() => go(s.id, s.id)}>
-              <span className="stb-n" aria-hidden="true">{s.n}</span>{s.title}
+              <span className="stb-n" aria-hidden="true">{s.n}</span>{s.title}{s.dot && <i className="stb-dot" role="img" aria-label="not seen yet" />}
             </button>
           </span>
         ))}
       </nav>
+      {arrows && (edge.l || edge.r) && <button type="button" className="stb-sl r" aria-label="More steps" disabled={!edge.r} onClick={() => slide(1)}>›</button>}
       {open && (
         <div className="stb-pop" id={popId} ref={pop} role="dialog" aria-label="All sections">
           {menu ? menu.map((g) => (
