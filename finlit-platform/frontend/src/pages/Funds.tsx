@@ -8,7 +8,7 @@ import { visits } from "../lib/recentVisits";
 import { useDocTitle } from "../lib/title";
 import { dateIN, nf } from "../lib/format";
 import {
-  AUM_BUCKETS, CHECKS, EMPTY_QUERY, RETURN_LABELS, TRAY_MAX, catNames, categoryShort, compareUrl, effectiveQuery, navFull, navText, parseIds, parseQuery, pctText, queryToParams, readCols, rememberName, rowSortValue, subCats, tone, trayName,
+  AUM_BUCKETS, CHECKS, EMPTY_QUERY, GROWTH_RETURNS_LABEL, RETURN_LABELS, TRAY_MAX, catNames, growthFigure, categoryShort, compareUrl, effectiveQuery, navFull, navText, parseIds, parseQuery, pctText, queryToParams, readCols, rememberName, rowSortValue, subCats, tone, trayName,
   useFundCompare, useFundDetail, useFundFacts, useFundFilters, useFundList, useFundPortfolio, useHotList, useTray, writeCols,
   tabDefaults, type ColId, type CompareFund, type FundDetail, type FundRow, type ListQuery, type RangeKey, type SortKey,
 } from "../lib/mf";
@@ -408,6 +408,14 @@ function Picker({ ids, onAdd }: { ids: number[]; onAdd: (code: number) => void }
   );
 }
 
+/** Task #281: an IDCW option compared shows its same-plan Growth option's return, labelled as that option's (before payouts), never as its own. */
+function GrowthFig({ f, k }: { f: CompareFund; k: "r1y" | "r5y" }) {
+  const g = f.growthReturns;
+  if (!g || g[k] == null) return null;
+  return <span className="mf-grf" title={`${GROWTH_RETURNS_LABEL}: ${g.name} (${f.plan}, Growth). This option's own NAV change is not shown because payouts would make it wrong.`}>
+    <Fig v={g[k]} d={2} /><small className="mf-gr">{GROWTH_RETURNS_LABEL}</small></span>;
+}
+
 function CompareTable({ funds }: { funds: CompareFund[] }) {
   const notes: string[] = [];
   const mark = (why: string | null | undefined, who: string) => { if (!why) return null; const text = `${who}: ${why}`; let i = notes.indexOf(text); if (i < 0) { notes.push(text); i = notes.length - 1; } return String.fromCharCode(97 + (i % 26)); };
@@ -422,8 +430,8 @@ function CompareTable({ funds }: { funds: CompareFund[] }) {
     { label: <GTerm id="net-asset-value-nav">Latest NAV</GTerm>, cell: (f) => <>{navText(f.nav)}<small className="muted"> {f.navDate ? dateIN(f.navDate, { day: "numeric", month: "short" }) : ""}</small></> },
     { label: "Returns", head: true, cell: () => null },
     { label: RETURN_LABELS.d1, cell: (f) => val(f.change?.pct ?? null, f.active ? "The previous NAV is not on file yet." : "Stopped publishing NAVs.", shortName(f) + ", 1 day") },
-    { label: RETURN_LABELS.y1, cell: (f) => val(f.returns["1y"].value, f.returns["1y"].why, shortName(f) + ", 1 year") },
-    { label: RETURN_LABELS.y5, cell: (f) => val(f.returns["5y"].value, f.returns["5y"].why, shortName(f) + ", 5 year") },
+    { label: RETURN_LABELS.y1, cell: (f) => f.returns["1y"].value == null && growthFigure(f, "r1y") != null ? <GrowthFig f={f} k="r1y" /> : val(f.returns["1y"].value, f.returns["1y"].why, shortName(f) + ", 1 year") },
+    { label: RETURN_LABELS.y5, cell: (f) => f.returns["5y"].value == null && growthFigure(f, "r5y") != null ? <GrowthFig f={f} k="r5y" /> : val(f.returns["5y"].value, f.returns["5y"].why, shortName(f) + ", 5 year") },
     { label: "Risk", head: true, cell: () => null },
     { label: <><GTerm id="volatility">Volatility</GTerm> 1 year</>, cell: (f) => val(f.risk.vol1y.value, f.risk.vol1y.why, shortName(f) + ", volatility 1 year", { plain: true, plus: false }) },
     { label: <><GTerm id="volatility">Volatility</GTerm> 3 years</>, cell: (f) => val(f.risk.vol3y.value, f.risk.vol3y.why, shortName(f) + ", volatility 3 years", { plain: true, plus: false }) },

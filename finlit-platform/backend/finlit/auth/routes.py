@@ -1031,6 +1031,8 @@ async def admin_decline(request: Request, rid: int, ctx: Ctx = Depends(admin_ctx
 async def admin_data_health(request: Request, ctx: Ctx = Depends(admin_ctx)):
     body = await request.app.state.store.health()
     body["funds"] = await _funds_health(request.app.state.store.pool)
+    from .. import dataaudit
+    body["fundGaps"] = await dataaudit.fund_gaps(request.app.state.store.pool)   # task #281: every fund data gap, counted each time the panel opens
     from .. import integrity
     body["integrity"] = await integrity.last_result(request.app.state.store.pool)
     try:

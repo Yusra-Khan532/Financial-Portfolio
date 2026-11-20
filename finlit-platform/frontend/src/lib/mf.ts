@@ -27,7 +27,17 @@ export type FundRow = {
   // the category table's figures (an older cached answer may not carry them yet: treated as missing)
   sip3y?: number | null; sip5y?: number | null; fall3y?: number | null; aum?: number | null; aumAsOf?: string | null; aumKind?: "q" | "m" | null;
   ter?: number | null; terDate?: string | null; checklist?: Checklist | null;
+  // task #281: an IDCW / payout option's own returns stay empty (payouts); the Growth option of the same fund and plan is shown instead, always labelled
+  growthReturns?: GrowthReturns | null; growthReturnsWhy?: string | null;
 };
+export type GrowthReturns = { code: number; name: string; r1y: number | null; r3y: number | null; r5y: number | null; retDate: string | null; label: string };
+export const GROWTH_RETURNS_LABEL = "Growth option's returns (before payouts)";
+export const GROWTH_SCORE_LABEL = "Growth option's score";
+export const PLAN_SCORE_NOTE = "Scores compare Direct plans with Direct plans and Regular with Regular.";
+/** The Growth option's figure an IDCW row shows in place of its own empty one, or null (task #281). */
+export function growthFigure(r: { optionClass: string; growthReturns?: GrowthReturns | null }, k: "r1y" | "r3y" | "r5y"): number | null {
+  return r.optionClass !== "Growth" && r.growthReturns ? r.growthReturns[k] ?? null : null;
+}
 export type FundList = Facts & { total: number; page: number; size: number; pages: number; items: FundRow[]; peers?: Record<string, PeerStats>; checklist?: { checks: { key: string; rule: string }[]; minPeers: number } };
 export type HotList = Facts & { basis: string | null; items: FundRow[] };
 export type FilterCategory = {
@@ -54,11 +64,13 @@ export type FundDetail = Facts & {
   optionClass: FundRow["optionClass"]; option: string; active: boolean; nav: number | null; navDate: string | null; prevNav: number | null; prevDate: string | null; change: Change | null;
   returns: Record<"1m" | "6m" | "1y" | "3y" | "5y", Ret>; retDate?: string | null; risk: Risk; returnsNote: string | null; series: Partial<Record<RangeKey, Points>>; history: HistoryInfo;
   family: { code: number; name: string; plan: string; optionClass: string; option: string; nav: number | null; navDate: string | null; active: boolean }[];
-  notAvailable?: { items: string[]; why: string };
+  notAvailable?: { items: string[]; reasons?: Record<string, string>; why: string } | null;   // task #281: only what is missing for this scheme; null when nothing is
+  growthReturns?: GrowthReturns | null; growthReturnsWhy?: string | null;   // task #281: an IDCW option's same-plan Growth option, labelled
 };
 export type CompareFund = {
   code: number; name: string; amc: string; category: string; plan: string; option: string; optionClass: string; nav: number | null; navDate: string | null; change: Change | null;
   active: boolean; returns: FundDetail["returns"]; retDate?: string | null; risk: Risk; history: HistoryInfo;
+  growthReturns?: GrowthReturns | null; growthReturnsWhy?: string | null;
 };
 /** One fund fact: a value with its date and source, or the reason there is none. */
 export type FactVal = { value: string | number | string[] | null; asOf?: string | null; source?: string; unit?: string; note?: string } | { unavailable: string };
@@ -151,7 +163,7 @@ export const COL_GROUPS = { ret: "Returns", sip: "SIP returns (XIRR)" } as const
 export const COLUMNS: ColDef[] = [
   { id: "amc", label: "Fund house", hint: "The company that runs the scheme (also shown under the scheme's name)", sort: "amc", num: false },
   { id: "category", label: "Category", hint: "The group AMFI files the scheme in", sort: "category", num: false },
-  { id: "score", label: "Mutual Fund Score", hint: "Mutual Fund Score, 0 to 100 (Gold plan). Describes the fund's past health against similar funds; not a recommendation", sort: "score", num: true },
+  { id: "score", label: "Mutual Fund Score", hint: "Mutual Fund Score, 0 to 100 (Gold plan). Describes the fund's past health against similar funds; not a recommendation. Scores compare Direct plans with Direct plans and Regular with Regular", sort: "score", num: true },
   { id: "plan", label: "Plan", hint: "Direct or Regular", sort: null, num: false },
   { id: "option", label: "Option", hint: "Growth or IDCW (payout)", sort: null, num: false },
   { id: "nav", label: "NAV", hint: "Net asset value of one unit, latest", sort: "nav", num: true },

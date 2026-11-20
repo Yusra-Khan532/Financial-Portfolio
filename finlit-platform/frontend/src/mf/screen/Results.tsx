@@ -5,7 +5,7 @@
 import { Link } from "react-router";
 import { HScroll } from "../../components/HScroll";
 import { dateIN, MINUS, nf } from "../../lib/format";
-import { aumText, categoryShort, navText, noReturnsText, pctText, terText } from "../../lib/mf";
+import { GROWTH_RETURNS_LABEL, PLAN_SCORE_NOTE, aumText, categoryShort, growthFigure, navText, noReturnsText, pctText, terText } from "../../lib/mf";
 import { figureOf, type ScreenRow, type SQ } from "../../lib/mfScreen";
 import { NUM_BY, unitText } from "../../lib/mfScreenDefs";
 import { PlanChip } from "../Bits";
@@ -42,7 +42,16 @@ export function columnsFor(q: SQ): Col[] {
 
 export type ScoreProps = { gold: boolean; items: Map<number, ScoreItem>; loading: boolean };
 export type PickProps = { picked: number[]; onPick: (code: number) => void };
-const NO_SCORE = "This plan has no Mutual Fund Score yet (IDCW options, funds younger than three years and some categories are not scored).";
+const NO_SCORE = "This plan has no Mutual Fund Score yet (funds younger than a year and some categories are not scored; an IDCW option shows its same-plan Growth option's score when there is one).";
+const RET_IDS = new Set(["r1y", "r3y", "r5y"]);
+
+/** Task #281: an IDCW row's empty return shows its same-plan Growth option's figure, labelled as that option's (before payouts), never as its own. */
+function GrowthRet({ r, id }: { r: ScreenRow; id: "r1y" | "r3y" | "r5y" }) {
+  const g = growthFigure(r, id);
+  if (g == null || !r.growthReturns) return null;
+  return <span className="mf-grf" title={`${GROWTH_RETURNS_LABEL}: ${r.growthReturns.name} (${r.plan}, Growth). This option's own NAV change is not shown because payouts would make it wrong.`}>
+    {pctText(g, 1, false).replace("-", MINUS)}<small className="mf-gr">{GROWTH_RETURNS_LABEL}</small></span>;
+}
 
 export function ResultTable({ rows, q, onSort, loading, score, pick }: { rows: ScreenRow[]; q: SQ; onSort: (key: string) => void; loading: boolean; score: ScoreProps; pick: PickProps }) {
   const cols = columnsFor(q);
@@ -54,7 +63,7 @@ export function ResultTable({ rows, q, onSort, loading, score, pick }: { rows: S
         <thead>
           <tr>
             <th scope="col" className="mfs-n" aria-sort={sorted("name")}><span className="mfs-nh"><span className="mfs-tick-h" title="Tick up to 4 funds to compare them">Compare</span><button type="button" className="mf-sort" onClick={() => onSort("name")}>Fund{q.sort === "name" && <i aria-hidden="true">{q.dir === "asc" ? "▲" : "▼"}</i>}</button></span></th>
-            <th scope="col" className="mfs-hs" title="The Mutual Fund Score of this plan, 0 to 100, with its band" aria-sort={score.gold ? sorted("score") : undefined}>
+            <th scope="col" className="mfs-hs" title={`The Mutual Fund Score of this plan, 0 to 100, with its band. ${PLAN_SCORE_NOTE}`} aria-sort={score.gold ? sorted("score") : undefined}>
               {score.gold ? <button type="button" className="mf-sort" onClick={() => onSort("score")}>Mutual Fund Score{q.sort === "score" && <i aria-hidden="true">{q.dir === "asc" ? "▲" : "▼"}</i>}</button> : "Mutual Fund Score"}</th>
             {cols.map((c) => (
               <th key={c.id} scope="col" className="num" title={c.hint} aria-sort={sorted(c.sort)}>
@@ -72,10 +81,12 @@ export function ResultTable({ rows, q, onSort, loading, score, pick }: { rows: S
                 <small className="mfs-nav"><span className="mfs-cat" title={r.category}>{categoryShort(r.category)}</span>{r.nav != null && <> · NAV <span className="mono">{navText(r.nav)}</span>{r.navDate ? ` on ${dateIN(r.navDate, { day: "numeric", month: "short" })}` : ""}</>}</small></span></span>
               </th>
               <td className="mfs-hs"><ScoreCell item={score.items.get(r.code)} locked={!score.gold} why={NO_SCORE} loading={score.loading} /></td>
-              {cols.map((c) => { const t = c.cell(r); return <td key={c.id} className="num">{t ? t.replace("-", MINUS) : <span className="mf-na" title={c.why?.(r)} aria-label={`No figure. ${c.why?.(r) ?? ""}`}>—</span>}</td>; })}
+              {cols.map((c) => { const t = c.cell(r); const g = !t && RET_IDS.has(c.id) ? <GrowthRet r={r} id={c.id as "r1y" | "r3y" | "r5y"} /> : null;
+                return <td key={c.id} className="num">{t ? t.replace("-", MINUS) : growthFigure(r, c.id as "r1y") != null ? g : <span className="mf-na" title={c.why?.(r)} aria-label={`No figure. ${c.why?.(r) ?? ""}`}>—</span>}</td>; })}
             </tr>))}
         </tbody>
       </table>
+      <p className="mf-plannote" data-testid="plan-note">{PLAN_SCORE_NOTE}</p>
     </HScroll>
   );
 }

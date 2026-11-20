@@ -38,7 +38,8 @@ export type FundScore = {
   disclaimer: string; method: string; model: string;
 };
 export type ScoreItem = { code: number | null; symbol: string | null; plan: string; group: string | null; final: number | null; label: string | null; status: string | null; reason: string | null;
-  pillars: Record<string, string | null> | null; rank: number | null; rankOf: number | null; flags: string[]; confidence: number | null };
+  pillars: Record<string, string | null> | null; rank: number | null; rankOf: number | null; flags: string[]; confidence: number | null;
+  inherited?: { code: number; name: string; label: string; why: string } | null };   // task #281: an IDCW row's score is its same-plan Growth option's
 export type ScoreList = { locked: boolean; items: ScoreItem[]; total: number | null };
 /** One sub-category of the Funds dashboard: median of the scored Direct-plan funds, how many, and the counts in the three colour bands. */
 export type CategoryScore = { median: number; n: number; green: number; orange: number; red: number };
