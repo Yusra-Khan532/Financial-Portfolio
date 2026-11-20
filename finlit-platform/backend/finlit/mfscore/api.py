@@ -38,13 +38,20 @@ SYMBOL_RE = re.compile(r"^[A-Z0-9&_.\-]{1,24}$")
 SORTS = {"final": "final", "perf": "perf", "risk": "risk", "cost": "cost", "quality": "quality", "rank": "percentile", "name": "key"}
 LIST_COLS = "key, kind, code, symbol, plan, grp, sub, category, final, label, status, reason, perf, risk, cost, quality, rank, rank_of, rank_scope, percentile, flags, confidence, run_date"
 NOT_SCORED = {
-    "idcw": "Not scored: IDCW and other options inherit the Growth plan's score.",
+    "idcw": "Not scored: IDCW and other options show the score of the Growth option of the same plan, and this fund has no scored Growth option of this plan.",
     "inactive": "Not scored: this scheme has stopped publishing NAVs.",
     "no_plan": "Not scored: the plan (Direct or Regular) is not stated for this scheme.",
     "etf_no_price": "Not scored: this exchange-traded fund has no exchange price history loaded yet.",
     "etf_not_offered": "Mutual Fund Score is not given for exchange-traded funds.",
     "not_yet": "Not scored yet: the daily score run has not reached this scheme.",
 }
+
+# task #281 (owner, 20 Nov 2026): an IDCW / payout option shows its Growth option's score (same fund, same plan), labelled as that option's.
+INHERITED_LABEL = "Growth option's score"
+INHERITED_WHY = "This option pays out or has no Growth NAV of its own, so it shows the score of the Growth option of the same fund and plan."
+# Each plan is scored against its own plan's peers, so a Regular plan can score higher than its own Direct plan (Parag Parikh Flexi Cap, 20 Nov 2026:
+# Regular 62.0, Direct 58.3). The model is unchanged; the lists and the score's tooltip say so.
+PLAN_NOTE = "Scores compare Direct plans with Direct plans and Regular with Regular."
 
 
 LANDING_FUND = 122639   # task #239: Parag Parikh Flexi Cap Fund, Direct plan, Growth, the landing page's sample fund (MF_LANDING_FUND overrides; "off" shows none)
@@ -167,7 +174,7 @@ def payload(r: Dict[str, Any], *, inherited: Optional[Dict[str, Any]] = None) ->
         "family": b.get("family"), "nearIdentical": "NEAR_IDENTICAL" in (r["flags"] or []),
         "reasons": {"strengths": _plain_lines(reasons.get("strengths", [])), "watchouts": _plain_lines(reasons.get("watchouts", [])), "gaps": reasons.get("gaps", []),
                     "notApplicable": reasons.get("notApplicable", []), "substitutions": reasons.get("substitutions", [])},
-        "filled": {"n": n_f, "of": n_all}, "metrics": metrics if rated else [], "inherited": inherited, "model": r["model"], "disclaimer": DISCLAIMER, "method": METHOD_URL,
+        "filled": {"n": n_f, "of": n_all}, "metrics": metrics if rated else [], "inherited": inherited, "planNote": PLAN_NOTE, "model": r["model"], "disclaimer": DISCLAIMER, "method": METHOD_URL,
     }
 
 
@@ -252,14 +259,42 @@ async def scores(request: Request, group: str = Query("", max_length=12), catego
         if missing:
             async with request.app.state.store.pool.acquire() as conn:
                 info = {r["code"]: r for r in await conn.fetch("SELECT code, option_class, active, plan, category, isin FROM mf_schemes WHERE code = ANY($1::int[])", missing)}
+                # task #281: an IDCW / payout option shows the score of the Growth option of the same fund and plan, labelled as that option's
+                sib = {r["of_code"]: r for r in await conn.fetch(
+                    f"""SELECT s.code AS of_code, g.code AS g_code, g.name AS g_name, {', '.join('m.' + c.strip() for c in LIST_COLS.split(','))}
+                          FROM mf_schemes s
+                          JOIN LATERAL (SELECT code, name FROM mf_schemes g WHERE g.family = s.family AND g.plan = s.plan AND g.option_class = 'Growth' AND g.active
+                                         ORDER BY g.code LIMIT 1) g ON true
+                          JOIN mf_scores m ON m.key = 'mf:' || g.code
+                         WHERE s.code = ANY($1::int[]) AND s.option_class <> 'Growth' AND s.active""", missing)}  # nosec B608 - fixed column list; codes are a bound parameter
+            from ..mf import classify
+            from .groups import ETF_SUBS
             for c in missing:
                 s = info.get(c)
                 if s is None:
                     continue
+                if classify(s["category"] or "")[1] in ETF_SUBS:   # task #281: an ETF's AMFI code: the score is not given (not "IDCW" or "plan not stated")
+                    items.append({"code": c, "symbol": None, "plan": "ETF", "group": None, "final": None, "label": None, "status": None, "pillars": None, "rank": None,
+                                  "rankOf": None, "rankScope": None, "percentile": None, "flags": [], "confidence": None, "category": None,
+                                  "reason": NOT_SCORED["etf_not_offered"] if full else None, "notOffered": True})
+                    continue
+                g = sib.get(c)
+                if g is not None:
+                    open_ = full or g["g_code"] in seen
+                    it = {"code": c, "symbol": None, "plan": s["plan"], "group": g["grp"],
+                          "inherited": {"code": g["g_code"], "name": g["g_name"], "label": INHERITED_LABEL, "why": INHERITED_WHY}}
+                    if open_:
+                        it.update(final=g["final"], label=g["label"], status=g["status"], reason=g["reason"], pillars=part_words(g["perf"], g["risk"], g["cost"], g["quality"]),
+                                  rank=g["rank"], rankOf=g["rank_of"], rankScope=g["rank_scope"], percentile=None if g["percentile"] is None else int(g["percentile"]),
+                                  flags=list(g["flags"] or []), confidence=g["confidence"], category=g["category"])
+                    else:
+                        it.update(final=None, label=None, status=None, reason=None, pillars=None, rank=None, rankOf=None, rankScope=None, percentile=None, flags=[], confidence=None, category=None)
+                    items.append(it)
+                    continue
                 items.append({"code": c, "symbol": None, "plan": s["plan"], "group": None, "final": None, "label": None, "status": None, "pillars": None, "rank": None, "rankOf": None,
                               "rankScope": None, "percentile": None, "flags": [], "confidence": None, "category": None,
                               "reason": (NOT_SCORED["inactive"] if not s["active"] else NOT_SCORED["idcw"] if s["option_class"] != "Growth" else NOT_SCORED["no_plan"] if s["plan"] not in ("Direct", "Regular") else NOT_SCORED["not_yet"]) if full else None})
-    return _json({"locked": not full, "total": total if full else None, "runDate": run.isoformat() if run else None, "items": items, "disclaimer": DISCLAIMER, "method": METHOD_URL, "model": MODEL_VERSION})
+    return _json({"locked": not full, "total": total if full else None, "runDate": run.isoformat() if run else None, "items": items, "planNote": PLAN_NOTE, "disclaimer": DISCLAIMER, "method": METHOD_URL, "model": MODEL_VERSION})
 
 
 @router.get("/scores/categories")
@@ -283,24 +318,24 @@ async def resolve_mf(conn, code: int):
     s = await conn.fetchrow("SELECT code, name, family, plan, option_class, active, isin, category FROM mf_schemes WHERE code = $1", code)
     if s is None:
         return None, None, "unknown"
+    # an ETF category scheme: no Mutual Fund Score is given (checked first: an ETF has no Direct / Regular plan and is not an IDCW option, task #281)
+    from ..mf import classify
+    from .groups import ETF_SUBS
+    if classify(s["category"])[1] in ETF_SUBS:
+        return None, None, "etf_not_offered"
     if s["option_class"] != "Growth":
+        # task #281 (owner, 20 Nov 2026): the Growth option of the SAME plan only. Each plan is scored against its own plan's peers, so a Direct plan's
+        # score on a Regular IDCW row would compare unlike with unlike; with no Growth option of this plan the row says so instead.
         g = await conn.fetchrow("SELECT code, name FROM mf_schemes WHERE family = $1 AND plan = $2 AND option_class = 'Growth' AND active ORDER BY code LIMIT 1", s["family"], s["plan"])
-        if g is None:
-            g = await conn.fetchrow("SELECT code, name FROM mf_schemes WHERE family = $1 AND option_class = 'Growth' AND active ORDER BY (plan = 'Direct') DESC, code LIMIT 1", s["family"])
         if g:
             gr = await _row(conn, f"mf:{g['code']}")
             if gr:
-                return gr, {"code": g["code"], "name": g["name"], "why": "This option pays out or has no Growth NAV of its own, so it carries the score of the Growth plan of the same fund."}, None
+                return gr, {"code": g["code"], "name": g["name"], "label": INHERITED_LABEL, "why": INHERITED_WHY}, None
         return None, None, "idcw"
     if not s["active"]:
         return None, None, "inactive"
     if s["plan"] not in ("Direct", "Regular"):
         return None, None, "no_plan"
-    # an ETF category scheme: no Mutual Fund Score is given
-    from ..mf import classify
-    from .groups import ETF_SUBS
-    if classify(s["category"])[1] in ETF_SUBS:
-        return None, None, "etf_not_offered"
     return None, None, "not_yet"
 
 

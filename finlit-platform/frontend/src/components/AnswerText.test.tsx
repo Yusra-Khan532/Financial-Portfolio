@@ -2,7 +2,7 @@
 // Task #201: FinLit AI answers read as short points with the important figures in bold, the source and the disclaimer apart, and a small chart for a series.
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { AnswerText, seriesOf } from "./AnswerText";
+import { AnswerText, seriesOf, stanceOf } from "./AnswerText";
 
 afterEach(cleanup);
 const ANSWER = ["RELIANCE's revenue, last 5 years: FY22 ₹7.22 L Cr, FY23 ₹8.93 L Cr, FY24 ₹9.14 L Cr, FY25 ₹9.80 L Cr, FY26 ₹10.76 L Cr.",
@@ -53,5 +53,31 @@ describe("AnswerText (task #201)", () => {
     expect(container.querySelectorAll(".aif-a-pts > li")).toHaveLength(2);
     expect(container.querySelector("li b")!.textContent).toBe("Parag Parikh Flexi Cap Fund");
     expect(container.querySelector("li")!.textContent).toContain("<b>x</b>");
+  });
+});
+
+describe("task #270: the two-line stance at the end of an answer", () => {
+  const ANSWER = [
+    "India's economy is still growing solidly, but inflation has picked up. Real GDP grew 7.82% in Q1 FY27 (NSO/MoSPI).",
+    "CPI inflation rose to 6.09% in October 2026 (MoSPI, 31 Oct 2026), above the RBI's 6% upper limit.",
+    "**Stance: Cautiously negative (negative on inflation, positive on growth).**",
+    "Growth is holding up, but inflation above the RBI's band and higher rates weigh on spending and costs.",
+    "Sources: FinLit India economy page (MoSPI, RBI)",
+  ].join("\n");
+  it("draws the stance and its summary as one box after the points, before the sources; they are not bullets", () => {
+    const { container: c } = render(<AnswerText text={ANSWER} />);
+    expect([...c.querySelectorAll(".aif-a-pts li")].map((li) => li.textContent)).toHaveLength(2);
+    const box = c.querySelector(".aif-a-st")!;
+    expect(box.className).toBe("aif-a-st cneg");
+    expect(box.querySelector(".aif-a-st-h")!.textContent).toBe("Stance: Cautiously negative (negative on inflation, positive on growth)");
+    expect(box.querySelector(".aif-a-st-s")!.textContent).toBe("Growth is holding up, but inflation above the RBI's band and higher rates weigh on spending and costs.");
+    expect(box.compareDocumentPosition(c.querySelector(".aif-a-src")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+  it("reads the stance however it is marked, and an answer without one is drawn as before", () => {
+    expect(stanceOf(["- Stance: Mixed (strong growth, high valuation)", "One line."])).toEqual({ at: 0, word: "Mixed", why: "strong growth, high valuation", sum: "One line." });
+    expect(stanceOf(["**Stance: Positive.**"])).toEqual({ at: 0, word: "Positive", why: "", sum: null });
+    const { container: c } = render(<AnswerText text={"Reliance's P/E is 24.1x (15 Nov 2026).\nSources: FinLit"} />);
+    expect(c.querySelector(".aif-a-st")).toBeNull();
+    expect(c.querySelectorAll(".aif-a-pts li")).toHaveLength(1);
   });
 });

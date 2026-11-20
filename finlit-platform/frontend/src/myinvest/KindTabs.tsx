@@ -4,9 +4,10 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { HScroll } from "../components/HScroll";
 import { nf } from "../lib/format";
-import { MODEL_NAME, betaTxt, betaWindowTxt, chg, dateShort, joinWords, pctOf, rupees, type AllInvestments, type Kind } from "../lib/myInvest";
-import { GoLink, KeyFigures, Notes, ScoreWord, SecHead, ShowAll, Stack, type Note } from "./parts";
+import { MODEL_NAME, betaTxt, betaWindowTxt, chg, joinWords, pctOf, rupees, type AllInvestments, type Kind } from "../lib/myInvest";
+import { GoLink, Notes, ScoreWord, SecHead, ShowAll, Stack, type Note } from "./parts";
 import { coTitle, subLine, titleOf } from "../lib/companyLabel";
+import { KeyFiguresSection } from "./KeyFigures277";
 
 export const EQ_SECTIONS = [{ id: "mi-eq-list", label: "Your shares" }, { id: "mi-eq-spread", label: "Spread" }, { id: "mi-eq-risk", label: "Risk" }, { id: "mi-eq-also", label: "Also in funds and ETFs" }];
 export const MF_SECTIONS = [{ id: "mi-mf-list", label: "Your funds" }, { id: "mi-mf-inside", label: "Inside" }, { id: "mi-mf-risk", label: "Risk" }];
@@ -49,11 +50,6 @@ export function EquityTab({ d }: { d: AllInvestments }) {
   ];
   return (
     <>
-      <KeyFigures items={[
-        { label: "Against peers", value: <>{peers.Leader ?? 0} Leader · {peers["In line"] ?? 0} In line · {peers.Laggard ?? 0} Laggard</>, line: peers["Not compared"] ? `${peers["Not compared"]} not compared.` : "Every share is compared.", button: "See your shares", go: () => go("mi-eq-list"), info: ["How many of your shares led, kept in line with or lagged their peers over the past year of prices.", "Past price moves against the company's own industry group; not a view on the future."] },
-        { label: "Spread", value: byMacro[0] ? `${byMacro[0][0]}` : "—", line: byMacro[0] ? `${byMacro[0][1]} of ${s.length} shares; ${byMacro.length} macro sectors in all.` : "No macro sector yet.", button: "See the spread", go: () => go("mi-eq-spread"), info: ["The macro sector with the most of your shares, by count.", "More macro sectors means the list leans less on one part of the economy."] },
-        { label: "Risk", value: <>Beta {betaTxt(d.risk.kinds.shares?.beta)}</>, line: d.risk.kinds.shares?.swing != null ? `Swings ${pctOf(d.risk.kinds.shares.swing)} a year against ${pctOf(d.risk.kinds.shares.benchSwing)} for the Nifty 500.` : d.risk.kinds.shares?.why ?? "—", button: "See risk", go: () => go("mi-eq-risk"), info: ["The shares' beta and yearly swing against the Nifty 500.", "The same sum as the Equity portfolio's Risk analytics."] },
-      ]} />
       <section className="card mi-step">
         <SecHead id="mi-eq-list" n={1} title="Your shares" line={`${s.length} shares from your Equity portfolio, read with ${model}.`} info={["Each share on your Equity portfolio with its score, peers, moves and part of everything.", "Of everything is the share's direct part only; step 4 of All together adds what your funds and ETFs hold."]} />
         <HScroll label="Your shares" className="mi-freeze">
@@ -67,6 +63,8 @@ export function EquityTab({ d }: { d: AllInvestments }) {
         <ShowAll n={s.length} shown={shown.length} noun="shares" onClick={() => setAll(true)} />
         <Notes scope="eq" items={notes} />
       </section>
+      {/* task #277 (change 9): Key figures after Step 1 */}
+      <KeyFiguresSection d={d} view="equity" go={go} />
       <section className="card mi-step">
         <SecHead id="mi-eq-spread" n={2} title="How your shares are spread" line="By macro sector and by company size, your shares only (by count)." info={["How your own shares split across NSE's macro sectors and company sizes.", "Counted by number of shares; All together step 3 counts through funds and ETFs too."]} />
         <div className="mi-two">
@@ -93,14 +91,9 @@ export function EquityTab({ d }: { d: AllInvestments }) {
 }
 
 // ------------------------------------------------------------------------------------------------ Mutual funds
-const PART_WORD: Record<string, string> = { performance: "Performance", risk: "Risk", cost: "Cost", quality: "Quality" };
 export function MfTab({ d }: { d: AllInvestments }) {
   const f = d.funds, card = d.cards.funds;
   const types = Object.entries(f.reduce<Record<string, string[]>>((a, x) => { if (x.type) (a[x.type] ??= []).push(x.short); return a; }, {})).filter(([, v]) => v.length > 1);
-  const w = f.reduce((a, x) => a + x.of, 0) || 1;
-  const parts = Object.keys(PART_WORD).map((k) => { const xs = f.filter((x) => x.parts?.[k] != null); const tw = xs.reduce((a, x) => a + x.of, 0); return { k, v: tw ? xs.reduce((a, x) => a + (x.parts![k] as number) * x.of, 0) / tw : null }; }).filter((p) => p.v != null);
-  const weakest = parts.sort((a, b) => (a.v as number) - (b.v as number))[0];
-  const liquid = f.filter((x) => /liquid|overnight|money market/i.test(x.type ?? "")).reduce((a, x) => a + x.of, 0);
   const notes: Note[] = [
     card.overlap ? { kind: "insight", title: `${card.overlap.a} and ${card.overlap.b} overlap ${pctOf(card.overlap.pct, 0)}`, text: <>{card.overlap.n} companies sit in both; the overlap is the part of each fund's money in the same companies.</> } : { kind: "good", title: "No two funds hold the same companies", text: "Or there is only one fund with a loaded file." },
     d.plan === "gold" && f.some((x) => x.score != null) ? { kind: "insight", title: `Lowest Mutual Fund Score: ${[...f].filter((x) => x.score != null).sort((a, b) => a.score! - b.score!)[0].short}`, text: "Mutual Fund Score reads performance, risk, cost and quality against the fund's own category." } : { kind: "insight", title: "Mutual Fund Score is part of Gold", text: <>It reads each fund's performance, risk, cost and quality. <Link to="/plans">Compare plans</Link></> },
@@ -108,11 +101,6 @@ export function MfTab({ d }: { d: AllInvestments }) {
   ];
   return (
     <>
-      <KeyFigures items={[
-        types.length ? { label: "One theme twice", value: `${types.length} ${types.length === 1 ? "type" : "types"}`, line: joinWords(types.map(([t, v]) => `${t} ×${v.length}`)), button: "See your funds", go: () => go("mi-mf-list"), info: ["Fund types (category) you hold more than once.", "Two funds of one type often hold many of the same companies."] } : null,
-        { label: "Weakest health part", value: weakest ? `${PART_WORD[weakest.k]} · ${nf(weakest.v as number, 0)}` : d.plan === "gold" ? "—" : "Gold", line: weakest ? "The lowest of the four Mutual Fund Score parts, weighted across your funds." : d.plan === "gold" ? "No fund has a Mutual Fund Score yet." : "Mutual Fund Score is part of the Gold plan.", button: "See your funds", go: () => go("mi-mf-list"), info: ["Of Mutual Fund Score's four parts (performance, risk, cost, quality), the one your funds score lowest on, weighted.", "A low part is where your funds read weakest against their categories."] },
-        { label: "Liquid fund share", value: pctOf(liquid), line: `Of everything, in liquid, overnight and money market funds (${pctOf((liquid / w) * 100, 0)} of your funds).`, button: "See inside", go: () => go("mi-mf-inside"), info: ["How much of everything sits in liquid, overnight and money market funds.", "These hold short-term debt and cash and move little with the market."] },
-      ]} />
       <section className="card mi-step">
         <SecHead id="mi-mf-list" n={1} title="Your funds" line={`${f.length} funds from your MF portfolio.`} info={["Each fund on your MF portfolio with its type, Mutual Fund Score, 1-year change, cost and beta.", "Mutual Fund Score carries the fund's own band word; beta is against the Nifty 500."]} />
         <HScroll label="Your funds" className="mi-freeze"><table className="mi-tb">
@@ -122,6 +110,8 @@ export function MfTab({ d }: { d: AllInvestments }) {
             {d.byValue && <td className="r">{x.value != null ? rupees(x.value) : "—"}</td>}<td className="r">{pctOf(x.of, 2)}</td></tr>; })}</tbody></table></HScroll>
         <Notes scope="mf" items={notes} />
       </section>
+      {/* task #277 (change 9): Key figures after Step 1 */}
+      <KeyFiguresSection d={d} view="mf" go={go} />
       <Inside d={d} kind="funds" id="mi-mf-inside" title="What is inside your funds" />
       <KindRisk d={d} kind="funds" id="mi-mf-risk" n={3} />
       <GoLink to="/mf-portfolio" title="Open the full MF portfolio" line="Gains, Mutual Fund Score parts, mix, overlap and risk of each fund" />
@@ -164,13 +154,6 @@ export function EtfTab({ d }: { d: AllInvestments }) {
   ];
   return (
     <>
-      <KeyFigures items={[
-        rep.length ? { label: "Same index twice", value: `${rep.length}`, line: joinWords(rep.map((r) => `${r.label}: ${r.symbols.join(", ")}`)), button: "See your ETFs", go: () => go("mi-etf-list"), info: ["Indices or prices that two or more of your ETFs follow.", "Two ETFs on one index hold the same companies in the same weights."] } : null,
-        // task #277 (live number fix 7): the label follows the sign ("Far above its value: SILVERBEES −0.48%" was a discount); under 0.1% there is nothing to say
-        far && far.premium != null && Math.abs(far.premium) >= 0.1 ? { label: far.premium > 0 ? "Furthest above its value" : "Furthest below its value", value: `${far.symbol} ${chg(far.premium, 2)}`, tone: Math.abs(far.premium) >= 1 ? "red" : "plain",
-          line: `It traded ${nf(Math.abs(far.premium), 2)}% ${far.premium > 0 ? "above" : "below"} its NAV${far.priceDate ? ` on ${dateShort(far.priceDate)}` : ""}.`, button: "See your ETFs", go: () => go("mi-etf-list"), info: ["The largest gap between an ETF's last price and its NAV of the same day.", "Red at 1% or more: the price paid differs from the value of what it holds."] } : null,
-        { label: "Yearly cost", value: h?.ter != null ? pctOf(h.ter, 2) : "—", line: h?.costPerLakh != null ? `About ₹${nf(h.costPerLakh, 0)} a year on ₹1 lakh.` : "Not published yet.", button: "See your ETFs", go: () => go("mi-etf-list"), info: ["The weighted yearly cost (expense ratio) of your ETFs.", "It is taken from the ETF's value every day; lower leaves more of the return."] },
-      ]} />
       <section className="card mi-step">
         <SecHead id="mi-etf-list" n={1} title="Your ETFs" line={`${e.length} ETFs from your ETF portfolio.`} info={["Each ETF on your ETF portfolio: what it tracks, its price, moves, cost and price against value.", "Price against value in red at 1% or more."]} />
         <HScroll label="Your ETFs" className="mi-freeze"><table className="mi-tb">
@@ -180,6 +163,8 @@ export function EtfTab({ d }: { d: AllInvestments }) {
             <td className={"r" + (x.premium != null && Math.abs(x.premium) >= 1 ? " mi-down" : "")}>{chg(x.premium, 2)}</td>{d.byValue && <td className="r">{x.value != null ? rupees(x.value) : "—"}</td>}<td className="r">{pctOf(x.of, 2)}</td></tr>)}</tbody></table></HScroll>
         <Notes scope="etf" items={notes} />
       </section>
+      {/* task #277 (change 9): Key figures after Step 1 */}
+      <KeyFiguresSection d={d} view="etf" go={go} />
       <Inside d={d} kind="etfs" id="mi-etf-inside" title="What is inside your ETFs" />
       <KindRisk d={d} kind="etfs" id="mi-etf-risk" n={3} />
       <GoLink to="/etf-portfolio" title="Open the full ETF portfolio" line="Trading against value, tracking, overlap, company sizes and risk of each ETF" />

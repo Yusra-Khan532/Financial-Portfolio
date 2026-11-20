@@ -23,7 +23,7 @@ describe("2.1 header option D", () => {
     const order = ['className="hxd-top"', 'className="hxd-strip"', "<ClassPath", '<details className="hxd-more xdd">'].map((x) => h.indexOf(x));
     expect(order.every((x, i) => x > 0 && (i === 0 || x > order[i - 1]))).toBe(true);
     const strip = h.slice(h.indexOf('className="hxd-strip"'), h.indexOf("<ClassPath"));
-    expect([...strip.matchAll(/<span className="hx-k">([^<]+)<\/span>/g)].map((m) => m[1])).toEqual(["Rating", "Against peers", "Market cap", "Listed as"]);
+    expect([...strip.matchAll(/<span className="hx-k">([^<]+)<\/span>/g)].map((m) => m[1])).toEqual(["Fundamental rating", "Against peers", "Market cap", "Listed as"])   // task #280;
     expect(code("Hero.tsx")).not.toMatch(/Download/);
     expect(h).toMatch(/Trading details · \{asOf/);
     for (const b of ["Set alert", '{watch ? "Watching" : "Watchlist"}', "Value (DCF)", "Share"]) expect(h.slice(h.indexOf('className="hx-acts icons"'), h.indexOf('className="hxd-strip"'))).toContain(b);

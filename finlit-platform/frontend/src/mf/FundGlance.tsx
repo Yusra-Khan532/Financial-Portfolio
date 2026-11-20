@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { dateIN } from "../lib/format";
-import { aumBucket, pctText, scoreReason, tone, type FundDetail, type FundFacts } from "../lib/mf";
+import { GROWTH_RETURNS_LABEL, GROWTH_SCORE_LABEL, aumBucket, growthFigure, pctText, scoreReason, tone, type FundDetail, type FundFacts } from "../lib/mf";
 import { rankText, scoreText, useFundScore } from "../lib/mfScore";
 import { bandOf } from "../lib/mfScore";
 import { bandVar } from "../lib/scoreBands";
@@ -41,9 +41,12 @@ export function FundGlance({ d, facts, factsLoading }: { d: FundDetail; facts?: 
       value: q.isLoading ? "…" : !s || s.notOffered ? "—" : s.locked ? "Locked" : s.final == null ? "—" : <span style={{ color: bandVar(bandOf(s.final)) }}>{scoreText(s.final)}</span>,
       sub: q.isLoading ? "Loading…" : !s ? "Not available right now" : s.notOffered ? "Not given for this kind of fund" : s.locked ? <>Part of a paid plan · <Link to="/plans">See plans</Link></>
         : s.final == null ? (s.status === "NOT SCORED" ? "Not scored" : "Not rated") + (scoreReason(s.reason) ? `: ${scoreReason(s.reason)}` : "")
-        : [s.label, s.rank ? rankText(s.rank, s.family) : null].filter(Boolean).join(" · ") },
-    { k: "r5", label: "5 years a year", value: pct(r5.value), sub: r5.value == null ? r5.why || "Not enough history" : `NAV, ${plan} · ${d.option}` },
-    { k: "r1", label: "1 year", value: pct(r1.value), sub: r1.value == null ? r1.why || "Not enough history" : "NAV change" },
+        : [s.inherited ? GROWTH_SCORE_LABEL : null, s.label, s.rank ? rankText(s.rank, s.family) : null].filter(Boolean).join(" · ") },
+    // task #281: an IDCW option shows its same-plan Growth option's return, labelled as that option's; its own NAV change stays unshown (payouts)
+    { k: "r5", label: "5 years a year", value: pct(r5.value ?? growthFigure(d, "r5y")),
+      sub: r5.value != null ? `NAV, ${plan} · ${d.option}` : growthFigure(d, "r5y") != null ? GROWTH_RETURNS_LABEL : r5.why || "Not enough history" },
+    { k: "r1", label: "1 year", value: pct(r1.value ?? growthFigure(d, "r1y")),
+      sub: r1.value != null ? "NAV change" : growthFigure(d, "r1y") != null ? GROWTH_RETURNS_LABEL : r1.why || "Not enough history" },
     { k: "ter", label: "Expense ratio", value: terOwn.text ? terOwn.text.replace(/\s*a year$/, "") : "—",
       sub: wait ?? (terOwn.text ? <>a year, {plan}{terOther.text ? <> · {other} {terOther.text.replace(/\s*a year$/, "")}</> : null}</> : terOwn.why || "Not published") },
     { k: "aum", label: "Fund size", value: aum.text ? aum.text.replace(/\s*crore$/i, " Cr") : "—",

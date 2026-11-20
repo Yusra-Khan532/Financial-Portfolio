@@ -105,6 +105,43 @@ ADVICE = re.compile(
     r"|target price|price target|multibagger|top pick|must[- ]buy|good (?:time|stock|share|fund) to (?:buy|sell|invest)"
     r"|best (?:stock|share|fund|etf|company|investment)s?(?: to)?|(?:buy|sell) (?:now|today|at current levels)|(?:rated|rates|rating|rate) (?:the stock |the shares |it )?(?:as )?(?:an? )?(?:strong )?(?:buy|sell|hold|outperform|underperform)|(?:average|consensus|analysts?'?) (?:price )?target|target (?:of|range|price)|price forecast)\b", re.I)
 
+# Task #270 (the team, 20 Nov 2026): "do the two stance format for necessary questions i.e at the end just give a small 2 line summary of whatever you
+# have given as the ans". The team's example: "**Stance: Cautiously negative (bearish on inflation, cautiously positive on growth).**" then one line
+# that sums the answer up. A question asks for a reading (how something is doing, its health, outlook, risks, a comparison) when these words appear;
+# a lookup (one figure, a date, a list), a definition or how-to, a greeting, and a request for advice (which FinLit never gives) get no stance.
+STANCES = ("Positive", "Cautiously positive", "Mixed", "Cautiously negative", "Negative")
+_READING = re.compile(r"\b(how (?:is|are|was|were|has|have|did|does)\b.{0,60}\b(?:doing|done|performing|performed|placed|faring|fared|going|looking|shaping)|how'?s\b"
+                      r"|outlook|prospects?|health(?:y)?|in good shape|state of|condition of|overview|analy[sz]e|analysis|assess|review|evaluate|summar(?:y|ise|ize)"
+                      r"|strengths?|weakness(?:es)?|risks?|red flags?|concerns?|issues?|problems?|worries|warning signs?|good or bad|strong or weak|stance|sentiment"
+                      r"|view on|take on|compare|comparison|versus|\bvs\.?\b|better than|worse than|valuation|expensive|cheap|overvalued|undervalued"
+                      r"|growth story|future|what (?:do|does) (?:the )?(?:numbers|figures|results) (?:say|show)|kaisa|kaisi|kaise (?:chal|hai)|haal|kya haal|sahi hai)\b", re.I)
+_LOOKUP = re.compile(r"^\s*(?:what(?:'s| is) the (?:share |stock |current |latest )?(?:price|nav|ltp|market cap|p/?e|pb|roe|roce|dividend|52[- ]week)\b"
+                     r"|(?:what|who) (?:is|are|does) (?:a |an |the )?(?:meaning|definition)|what (?:is|are|does) (?:a |an )?[a-z/&\- ]{1,30}(?:mean|stand for)\b"
+                     r"|define\b|meaning of\b|explain (?:the )?term|how (?:do|can|to) (?:i|you|we)\b|when (?:is|are|was|does|did|will)\b|list\b|show me\b|give me (?:the )?list"
+                     r"|(?:hi|hello|hey|thanks|thank you)\b)", re.I)
+_ADVICE_Q = re.compile(r"\b(should i|shall i|can i buy|is it (?:a )?(?:good|right) (?:time|stock|buy)|buy or sell|worth buying|which (?:stock|share|fund|etf) (?:to|should)"
+                       r"|recommend|target|kharid(?:na|un|e)|bech(?:na|un|e))\b", re.I)
+
+
+def needs_stance(question: str) -> bool:
+    """Task #270: True when the question asks for a reading of something (the economy, a company, a fund, the market, a list), so the answer ends with
+    the two-line stance; False for a lookup, a definition or how-to, a greeting, or a request for advice."""
+    q = (question or "").strip()
+    if len(q) < 8 or _ADVICE_Q.search(q) or _LOOKUP.search(q):
+        return False
+    return bool(_READING.search(q))
+
+
+def stance_note(question: str) -> str:
+    """The note placed with a question that asks for a reading: how to end the answer (task #270). Empty otherwise."""
+    if not needs_stance(question):
+        return ""
+    return ("[Answer format for this question (the team, 20 Nov 2026): end the answer with two lines, before any \"Sources:\" line. Line 1, in bold: "
+            "\"**Stance: <one of " + ", ".join(STANCES) + "> (<what it rests on, in a few words, for example positive on growth, negative on "
+            "inflation>).**\" Line 2: one plain sentence of at most 30 words that sums up what the answer said. The stance describes what the figures "
+            "above show; it is never a call to buy, sell or hold, never a price forecast, and it uses no other words (no bullish, bearish, buy or avoid).]")
+
+
 Emit = Callable[[str, Dict[str, Any]], Awaitable[None]]
 
 
@@ -116,12 +153,13 @@ def summary_question(symbol: str) -> str:
     """The AI summary under the FinLit Prism cards of the company page (task #228). The team, 19 Nov 2026: "it is just showing numbers, i dont want
     it to show numbrrs but meaning of it". So: what the rating means, in words, with the reasons behind it; no scores and no other figures. Written
     here, never by the browser: the summary allowance (quota kind "summary") can only ever ask this."""
-    return (f"Explain in plain words what the FinLit Prism rating of {symbol} shown on this page means. Do not repeat the scores, percentages or any "
-            "other numbers, and do not list the parts with their figures: say what they mean. In four to six short sentences, no headings, no "
-            "tables: what the overall rating says about the business; what is strong and why, and what is weak and why, using the reasons behind "
-            "the parts (the rating's topPros and topCons, for example sales and profit growing or slowing, margins, borrowing, cash backing, the share "
-            "price against earnings and its own history); what the Risk part means in practice (a higher Risk score means lower risk); and what the "
-            "short-term and the long-term price trends mean together. Describe, never advise.")
+    # Task #228 rework 2 (the team, 20 Nov 2026): "make it in pointers its too big of a paragaph and highlight keywords".
+    return (f"Explain in plain words what the FinLit Prism rating of {symbol} shown on this page means, as 4 to 6 short pointers. Each pointer is one "
+            "line starting with \"- \", one idea, at most 20 words, and its key words in **bold** (for example **sound finances**, **valuation "
+            "looks high**). In this order: what the overall rating says about the business; what is strong and why; what is weak and why; the "
+            "valuation; what the Risk part means in practice (a higher Risk score means lower risk); and what the short-term and the long-term "
+            "price trends mean together (the rating's technical view). Use the reasons behind the parts (the rating's topPros and topCons). Do not "
+            "repeat the scores, percentages or any other numbers: say what they mean. No paragraph, no headings. Describe, never advise.")
 
 
 # Task #255 ("chatbot is still not taking investor presentation data"): a question about what a company's own document says is answered from the

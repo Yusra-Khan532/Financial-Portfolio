@@ -177,6 +177,7 @@ function Health() {
           Mutual funds: {h.funds.mf ? `${h.funds.mf.active} active of ${h.funds.mf.n} schemes, ${h.funds.mf.with_history} with history, last refresh ${h.funds.mf.last ? stamp(h.funds.mf.last) : "never"}` : "not set up"}.
         </p>
       )}
+      {h.fundGaps !== undefined && <FundGapsTable g={h.fundGaps} />}
       {h.clientIp && (
         <p className="muted">
           How this server sees you (used for rate limits and sign-in lockouts): <span className="mono">{h.clientIp.resolved}</span>
@@ -205,6 +206,20 @@ function Health() {
       {h.recentProblems.length > 0 && <div className="tw"><table className="qtt"><thead><tr><th>Company</th><th>Result</th><th>When</th><th>Detail</th></tr></thead><tbody>{h.recentProblems.map((p, i) => <tr key={i}><td><b>{codeText(p.symbol)}</b></td><td>{p.status}</td><td>{stamp(p.at)}</td><td className="mono">{p.detail}</td></tr>)}</tbody></table></div>}
     </section>
     </>
+  );
+}
+
+/** Task #281: what is missing for the active mutual fund schemes, gap by gap, with what to run. A gap shows here the morning after it appears. */
+export function FundGapsTable({ g }: { g: acct.FundGaps | null }) {
+  if (!g) return <p className="muted" data-testid="fund-gaps">Fund data gaps: could not be counted just now (the fund tables could not be read).</p>;
+  return (
+    <div data-testid="fund-gaps" style={{ marginTop: 14 }}>
+      <h3 style={{ margin: "0 0 6px", font: "600 16px var(--sans)" }}>Fund data gaps</h3>
+      <p className="muted">{g.active.toLocaleString("en-IN")} active schemes, counted {stamp(g.at)}. Each line counts the schemes missing that figure among the schemes it applies to.</p>
+      <div className="tw"><table className="qtt"><thead><tr><th>Gap</th><th>Schemes</th><th>Among</th><th>What to run or fix</th><th>Examples</th></tr></thead><tbody>
+        {g.gaps.map((r) => <tr key={r.key}><td><b>{r.label}</b></td><td className={r.count && r.key !== "new" ? "neg" : undefined}>{r.count.toLocaleString("en-IN")} of {r.of.toLocaleString("en-IN")}</td><td>{r.among}</td><td>{r.fix}</td><td className="muted mono">{r.examples.join(" | ")}</td></tr>)}
+      </tbody></table></div>
+    </div>
   );
 }
 

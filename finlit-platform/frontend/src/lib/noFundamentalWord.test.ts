@@ -17,7 +17,9 @@ const VISIBLE = /(["'`>])([^"'`<>\n]*\b[Ff]undamentals?\b[^"'`<>\n]*)(?=["'`<])/
 // (its "Combines fundamental and technical views..." strip was removed by task #149).
 // Task #183 (15 Nov 2026, the team's portfolio pack, its screenshots): the Equity portfolio's heading band reads "Fundamental pillars".
 // Task #243 (18 Nov 2026, the screeners pack v4, the owner's v3 request 8): the screen tables label the Prism columns "Score · 4 fundamental pillars · 2 technical pillars".
-const ALLOWED = /^(Fundamental|Fundamental pillars|4 fundamental pillars| fundamental |4 Fundamental Areas|Prism Fundamental score|Fundamental Score|Total Fundamental Score|Fundamental analysis|Cumulative fundamental score|Fundamental components|Filter stocks using our fundamental and technical scoring model\.|fundamentals?|prism_fundamental|stock-fundamentals|cmp-fundamentals|\/premium\/fundamentals.*|premium\/fundamentals|\/fundamentals.*|\.\/pages\/Fundamentals|.*\$\{.*|= \{ fundamental:.*)$/;
+// Task #280 (20 Nov 2026, the team's picture of the company header: "INSTEAD OF RATING MAKE IT FUNDAMENTAL RATING EVERYWHERE"): the label of the Prism and
+// FinLit IQ rating on the company header and the screeners' rating filters reads "Fundamental rating".
+const ALLOWED = /^(Fundamental rating|Prism fundamental rating|FinLit IQ fundamental rating|Fundamental|Fundamental pillars|4 fundamental pillars| fundamental |4 Fundamental Areas|Prism Fundamental score|Fundamental Score|Total Fundamental Score|Fundamental analysis|Cumulative fundamental score|Fundamental components|Filter stocks using our fundamental and technical scoring model\.|fundamentals?|prism_fundamental|stock-fundamentals|cmp-fundamentals|\/premium\/fundamentals.*|premium\/fundamentals|\/fundamentals.*|\.\/pages\/Fundamentals|.*\$\{.*|= \{ fundamental:.*)$/;
 
 describe("no 'Fundamental' on any page", () => {
   it("no visible string uses the word (only routes, ids and data keys keep it)", () => {

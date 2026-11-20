@@ -34,16 +34,17 @@ export type Inside = {
   perEtf?: Record<string, Record<"macro" | "sector" | "size", Record<string, number>>>; abroadTop?: Record<string, { name: string; isin: string | null; pct: number }[]>;
   etfs?: { symbol: string; assetClass: string | null; split: Record<string, number> | null; type: EtfType }[];
 };
-export type LtCell = { w: number; n: number; stocks: { name: string; symbol: string | null; w: number; score?: { model: "prism" | "iq"; score: number | null; label: string | null } | null }[] };
+export type LtCell = { w: number; n: number; stocks: { name: string; symbol: string | null; w: number; score?: { model: "prism" | "iq"; score: number | null; label: string | null } | null; /** task #276: the ETFs that hold it */ etfs?: string[] }[] };
 export type Band = { key: "less" | "defensive" | "similar" | "more" | "high" | "very_high"; word: string };
 export type EtfRisk = {
   count: number; why?: string; basis: "value" | "equal";
   etfs: { symbol: string; category: string; liquid: boolean; weight: number; swing: number | null; worstFall: number | null; beta: number | null; fallsTaken: number | null; why: string | null;
     years?: number | null; from?: string | null; to?: string | null;
     /** task #183: against the Nifty 500 on weekly closes, past year */ type?: EtfType; compared?: boolean; betaPast?: number | null; explained?: number | null; band?: Band | null;
-    downPer100?: number | null; upPer100?: number | null; oneYear?: number | null; benchOneYear?: number | null; riskShare?: number | null; differentAsset?: boolean; betaWhy?: string | null }[];
-  bench: { name: string; swing: number | null; worstFall: number | null; from: string; to: string };
-  list: { swing: number | null; worstFall: number | null; fallsTaken: number | null; beta: number | null; level: { word: string; vs: string; because: string | null } | null; why: string | null };
+    downPer100?: number | null; upPer100?: number | null; oneYear?: number | null; benchOneYear?: number | null; riskShare?: number | null; differentAsset?: boolean; betaWhy?: string | null;
+    /** task #276, number fix 4: the window of betaPast */ betaWindow?: { index?: string; grain: string; window: string; from?: string | null; to?: string | null } | null }[];
+  bench: { name: string; swing: number | null; worstFall: number | null; from: string; to: string; /** task #276, number fix 5 */ grain?: string; years?: number | null };
+  list: { swing: number | null; worstFall: number | null; fallsTaken: number | null; /** renamed betaDaily3y by task #276 (not shown) */ beta?: number | null; betaDaily3y?: number | null; grain?: string; level: { word: string; vs: string; because: string | null } | null; why: string | null };
   together: { symbols: string[]; pairs: { a: string; b: string; r: number | null; weeks: number; why: string | null }[]; from: string | null; to: string | null; leftOut: string[] };
   adds: { shares: Record<string, number>; why: string | null; from?: string; to?: string };
   own?: { from: string; to: string; list: { betaOwn: number | null; betaOwnBand: Band | null; betaExLiquid: number | null; betaExLiquidBand: Band | null; beta500: number | null; beta500Band: Band | null;

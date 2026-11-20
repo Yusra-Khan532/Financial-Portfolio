@@ -21,7 +21,7 @@ from .deploy_gate import LONG_CLASSES, hold_reason, read_hold
 from .due import DEGRADED_RETRY_MIN, HELD_RETRY_MIN, YIELD_RETRY_MIN, Ctx, JobState, Verdict, evaluate, retry_delay_min, sla_status
 from .reasons import PARTIAL_EXIT, explain, failed_steps
 from .registry import Job, JobsConfig, disabled_reason
-from .schedule import fmt_ist
+from .schedule import fmt_ist, shift_start
 
 log = logging.getLogger("finlit.jobs")
 TERM_GRACE_S = 20.0
@@ -226,7 +226,12 @@ class Supervisor:
         st = plan.states.get(job.name) or JobState(job=job.name, first_seen_at=now)
         ps = plan.states.get(p)
         if ps and ps.last_success_at and (st.last_success_at is None or ps.last_success_at > st.last_success_at):
-            return False          # newer input is already there: use it now; the next round of `p` is picked up next time
+            # newer input is already there: use it now; the next round of `p` is picked up next time. A nightly_inputs job (score-mf) inside the night
+            # shift counts only TONIGHT's run of `p`: last night's run is always newer than last night's score, so the score ran before the night's
+            # NAVs, facts and portfolios every night and scored a day-old picture (task #281, 20 Nov 2026).
+            start = shift_start(now) if job.nightly_inputs else None
+            if start is None or ps.last_success_at >= start:
+                return False
         if sla_status(job, st, now).breached:
             return False          # past its promise: run on what is there rather than wait for ever
         return True

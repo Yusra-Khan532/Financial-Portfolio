@@ -441,10 +441,11 @@ list_monarch = page_lister("monarch", "https://www.monarchamc.in/forms-downloads
 
 
 # -------------------------------------------------------------------------------------------------------------- Carnelian
-# The statutory-disclosures page lists its documents as JSON items {file: {url: '/api/documents/file/...'}, name}. As of October 2026 it carries
-# no portfolio statement (only AUM / complaints reports), so this lists nothing until a 'portfolio' document appears there.
+# The statutory-disclosures page lists its documents as JSON items {file: {url: '/api/documents/file/...', width}, id, label, name}. Task #281: the
+# first monthly portfolios appeared in November 2026 ('Monthly_Portfolio_Carnelian Liquid Fund_October 2026'), with the closing '}' of 'file' between
+# the url and the name, which the old pattern ([^{}]) did not cross; it may cross '}' but never '{' (the next item).
 list_carnelian = labelled_lister("carnelian", "https://www.carnelianmf.com/statutory-disclosures",
-                                 r'"url":"(/api/documents/file/[^"]+)"[^{}]*?"name":"((?![^"]*fortnight)[^"]*portfolio[^"]*)"')
+                                 r'"url":"(/api/documents/file/[^"]+)"[^{]*?"name":"((?![^"]*fortnight)[^"]*portfolio[^"]*)"')
 
 
 ADAPTERS: List[Adapter] = [

@@ -149,7 +149,7 @@ async def risk_page(request: Request, body: PageIn, ctx: Ctx = Depends(member_ct
     from . import risk_sizes
     symbols = body.symbols
     week = div.unfinished_week(div.now_ist())
-    key = "pfrisk:" + ":".join(["v2", week, hashlib.sha1(",".join(sorted(symbols)).encode()).hexdigest()[:24]])   # nosec B324 - cache key
+    key = "pfrisk:" + ":".join(["v3", week, hashlib.sha1(",".join(sorted(symbols)).encode()).hexdigest()[:24]])   # nosec B324 - cache key
     redis = app.state.store.redis
     try:
         cached = await redis.get(key)

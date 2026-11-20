@@ -296,6 +296,12 @@ async def test_183_every_etf_against_the_nifty_500_weekly_liquid_counts_0(app): 
     assert lst["fall10"]["indian"] == pytest.approx(-10 * lst["betaIndian"], abs=0.06) and lst["liquidShare"] == 20.0
     assert "GOLDBEES" in lst["leftOutOfFall"] and "NIFTYBEES" not in lst["leftOutOfFall"]
     assert b["own"]["to"] == "2026-11-13" and b["own"]["from"] == "2025-11-14"                                        # 52 Friday-to-Friday weeks
+    # task #276 (number fixes 4 and 5): the page's one beta carries its window, every index figure its window, and the 3-year daily list beta is renamed
+    assert e["NIFTYBEES"]["betaWindow"] == {"index": "Nifty 500", "grain": "weekly", "window": "1y", "from": "2025-11-14", "to": "2026-11-13"}
+    assert b["bench"]["grain"] == "daily" and b["bench"]["years"] > 0 and b["list"]["grain"] == "daily" and b["list"]["from"]
+    assert "beta" not in b["list"] and "betaDaily3y" in b["list"]
+    swings = [(x["swing"], x["weight"]) for x in b["etfs"] if x["swing"] is not None]
+    assert b["list"]["swing"] <= sum(s * w for s, w in swings) / sum(w for _, w in swings) + 0.5     # fix 3: never above the weighted average
 
 
 def test_183_type_of_reads_payout_or_growth_and_the_grid_leaves_out_what_is_abroad():
@@ -310,8 +316,8 @@ def test_183_type_of_reads_payout_or_growth_and_the_grid_leaves_out_what_is_abro
             {"symbol": "C", "w": 0.25, "assetClass": "equity", "holdings": None}]                     # no monthly file: left out, never spread
     lt = calc.look_through(etfs, lambda i: "Large" if i.endswith("1") else None)
     assert lt["knownShares"] == pytest.approx(0.5) and set(lt["perEtf"]) == {"A"}
-    assert lt["lookThrough"]["macro"] == {"Energy|Large": {"w": 0.3, "n": 1, "stocks": [{"name": "X", "symbol": "X", "w": 0.3}]},
-                                          "Energy|Unsized": {"w": 0.2, "n": 1, "stocks": [{"name": "Y", "symbol": "Y", "w": 0.2}]}}
+    assert lt["lookThrough"]["macro"] == {"Energy|Large": {"w": 0.3, "n": 1, "stocks": [{"name": "X", "symbol": "X", "w": 0.3, "etfs": ["A"]}]},
+                                          "Energy|Unsized": {"w": 0.2, "n": 1, "stocks": [{"name": "Y", "symbol": "Y", "w": 0.2, "etfs": ["A"]}]}}   # task #276: which ETFs hold each company
     assert lt["sectorMacro"] == {"Oil, Gas & Consumable Fuels": "Energy", "Power": "Energy"}
     assert calc.abroad_top(etfs) == {"B": [{"name": "Z", "isin": "US0000000001", "pct": 50.0}]}
 

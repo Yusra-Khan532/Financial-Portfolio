@@ -61,7 +61,8 @@ def test_closed_interval_blank_plan_zero_nav_and_old_rows_are_listed_honestly():
     assert (interval.scheme_type, interval.category) == ("Interval Fund", "Income") and interval.plan == "Unspecified" and interval.option_class == "Other"
     assert interval.nav == 10.0087785 and interval.isin is None and interval.isin_reinvest == "INF174KA1DD0"
     etf = by[151533]
-    assert etf.plan == "Unspecified" and etf.option_class == "Other" and etf.option_label == "Not stated"
+    # task #281: an ETF has no plan; this overnight ETF's NAV is held at 1,000 (its income is paid out daily), so it is a payout option, not "Not stated"
+    assert etf.plan == "Unspecified" and etf.option_class == "IDCW" and etf.option_label == "IDCW"
     zero = by[148304]   # a real segregated-portfolio row with NAV 0.0000: listed, but with no NAV and no NAV date
     assert zero.nav is None and zero.nav_date is None
     assert p.skipped == {"no usable NAV (N.A., dash, blank or zero)": 1}

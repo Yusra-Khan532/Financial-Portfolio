@@ -18,7 +18,7 @@ import asyncio
 import logging
 import re
 from collections import Counter, defaultdict
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -393,13 +393,21 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
                       "score": None if c["abroad"] or not c["symbol"] else (scores.get(c["symbol"]) or {}).get("score"),
                       "label": None if c["abroad"] or not c["symbol"] else calc.word_case((scores.get(c["symbol"]) or {}).get("label")),
                       "peer": calc.peer_word(peer_raw.get(c["symbol"] or ""), c["direct"] > 0)} for c in companies]
+    changes = calc.changes_list(companies)
+    if body.mfPf in (None, "all") and body.etfPf in (None, "all"):   # task #277 (change 19): all accounts: keep the list for the "All my investments" alert
+        try:
+            async with store.pool.acquire() as conn:
+                await conn.execute("INSERT INTO user_state (user_id, invest_list) VALUES ($1, $2::jsonb) ON CONFLICT (user_id) DO UPDATE SET invest_list = EXCLUDED.invest_list", ctx.user_id,
+                                   orjson.dumps({"at": datetime.now(timezone.utc).isoformat(), **changes}).decode())
+        except Exception:   # the page never fails because the alert list could not be kept
+            log.warning("myinvest: could not keep the What changed list", exc_info=True)
     have = sum(1 for s in shares if s["qty"]) + sum(1 for f in funds if f["units"]) + sum(1 for e in etfs if e["qty"])
     files = [f["asOf"] for f in funds + etfs if f.get("asOf")]
     body_out = {
         "plan": "gold" if gold else "silver", "byValue": split["byValue"], "total": calc.r(split["total"]), "missing": split["missing"],
         "counts": {"shares": len(shares), "funds": len(funds), "etfs": len(etfs)}, "quantities": {"have": have, "of": len(shares) + len(funds) + len(etfs)},
         "chg1y": calc.r(calc.weighted_mean([cards[k]["chg1y"] for k in calc.KINDS], [split["part"][k] for k in calc.KINDS])),
-        "cards": cards, "madeOf": made, "sectors": sectors, "sizes": sizes, "companies": out_companies, "filters": calc.filter_counts(companies),
+        "cards": cards, "madeOf": made, "sectors": sectors, "sizes": sizes, "companies": out_companies, "filters": calc.filter_counts(companies), "changes": changes,
         "health": health, "risk": {**together, "kinds": kind_risk, "bench": bench_fig},
         "shares": out_shares, "funds": out_funds, "etfs": out_etfs,
         "sources": {"pricesTo": max((s["priceDate"] for s in shares + etfs if s.get("priceDate")), default=None),

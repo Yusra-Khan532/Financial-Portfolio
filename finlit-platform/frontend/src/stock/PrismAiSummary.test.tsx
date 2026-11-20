@@ -45,40 +45,55 @@ afterEach(() => { cleanup(); auth = { user: null, plan: "basic" }; quota = undef
 const show = () => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter><PrismAiSummary symbol="RELIANCE" name="Reliance Industries Ltd" r={R} parts={PARTS} a={TECH} /></MemoryRouter></QueryClientProvider>);
 
 describe("AI summary under the FinLit Prism cards (task #228)", () => {
-  it("the card summary says what the card means, in words, with no numbers: the team's screenshot (58.1 Average, 58 / 35 / 79 / 86, +38 / −32)", () => {
-    const lines = cardSummary("Reliance Industries Ltd", R, PARTS, TECH);
-    expect(lines).toEqual([
-      "Reliance Industries Ltd's business and finances read as mixed overall: some parts are sound while others weigh on it.",
-      "What is sound: borrowing is under control, interest is well covered and profits are backed by cash (Quality); and the share price has moved calmly, with smaller falls, ample trading and few pledged shares (Risk).",
-      "In between: sales and profit growth and margins are middling (Growth & Profitability).",
-      "What weighs on it: the share price looks high against its earnings and its own history (Valuation).",
-      "Price trend: the price has been rising over the last few weeks, while the longer trend over months is down (bounce in a downtrend).",
+  it("the card summary is short pointers with bold labels and key words, in words, with no numbers: the team's card (58.1 Average, 58 / 35 / 79 / 86, +38 / −32)", () => {
+    // task #228 rework 2 (20 Nov 2026): "make it in pointers its too big of a paragaph and highlight keywords"
+    const ps = cardSummary("Reliance Industries Ltd", R, PARTS, TECH);
+    expect(ps).toEqual([
+      { head: "Overall", text: "Reliance Industries Ltd's business and finances read as mixed: some parts are sound while others weigh on it.", key: "read as mixed" },
+      { head: "Quality, sound", text: "Borrowing is under control, interest is well covered and profits are backed by cash." },
+      { head: "Risk, sound", text: "The share price has moved calmly, with smaller falls, ample trading and few pledged shares." },
+      { head: "Growth & Profitability, in between", text: "Sales and profit growth and margins are middling." },
+      { head: "Valuation, weighs on it", text: "The share price looks high against its earnings and its own history." },
+      { head: "Price trend", text: "The price has been rising over the last few weeks, while the longer trend over months is down (bounce in a downtrend).", key: "bounce in a downtrend" },
     ]);
-    expect(lines.join(" ")).not.toMatch(/\d/);                                   // "i dont want it to show numbrrs but meaning of it"
-    expect(lines.join(" ")).not.toMatch(FORBIDDEN);                              // the site's own advice words (wording file)
-    expect(lines.join(" ")).not.toMatch(/\b(recommend|best)\b/i);
+    const all = ps.map((p) => p.head + " " + p.text).join(" ");
+    expect(all).not.toMatch(/\d/);                                              // "i dont want it to show numbrrs but meaning of it"
+    expect(all).not.toMatch(FORBIDDEN);                                          // the site's own advice words (wording file)
+    expect(all).not.toMatch(/\b(recommend|best)\b/i);
+    for (const p of ps) expect(p.text.split(" ").length).toBeLessThanOrEqual(24);    // each pointer short, never a paragraph
   });
 
   it("every band of every part, a provisional or unrated card and missing trends all read in words, never in numbers", () => {
     for (const v of [10, 40, 55, 70, 90]) {
-      const lines = cardSummary("X", { ...(R as object), label: "STRONG", status: "PROVISIONAL" } as never, PARTS.map((p) => ({ ...p, value: v })), null);
-      expect(lines[0]).toBe("X's business and finances read as strong overall: most of what FinLit Prism measures is sound. This is a first view: some of the data it needs is missing.");
-      expect(lines.join(" ")).not.toMatch(/\d/);
-      expect(lines.join(" ")).not.toMatch(FORBIDDEN);
-      expect(lines).toHaveLength(2);                                             // all four parts in one group
+      const ps = cardSummary("X", { ...(R as object), label: "STRONG", status: "PROVISIONAL" } as never, PARTS.map((p) => ({ ...p, value: v })), null);
+      expect(ps[0]).toEqual({ head: "Overall", text: "X's business and finances read as strong: most of what FinLit Prism measures is sound. A first view: some of the data it needs is missing.", key: "read as strong" });
+      const all = ps.map((p) => p.head + " " + p.text).join(" ");
+      expect(all).not.toMatch(/\d/);
+      expect(all).not.toMatch(FORBIDDEN);
+      expect(ps).toHaveLength(5);                                                // the overall pointer and one for each part
     }
     const nr = cardSummary("X", { final: null, label: "NOT RATED", status: "NOT RATED", parts: {} } as never, PARTS.map((p) => ({ ...p, value: null })), null);
-    expect(nr).toEqual(["X has no overall FinLit Prism rating at the moment: too little of the data it needs is available."]);
+    expect(nr).toEqual([{ head: "Overall", text: "X has no overall FinLit Prism rating at the moment: too little of the data it needs is available." }]);
     const gap = cardSummary("X", R, [...PARTS.slice(0, 3), { ...PARTS[3], value: null }], { ...TECH, shortTerm: hz(null, "") } as never);
-    expect(gap).toContain("Not enough data yet for Risk.");
-    expect(gap[gap.length - 1]).toBe("Price trend: the short-term view is not available; the longer trend over months is down.");
+    expect(gap).toContainEqual({ head: "Not enough data yet", text: "Risk." });
+    expect(gap[gap.length - 1]).toEqual({ head: "Price trend", text: "The short-term view is not available; the longer trend over months is down." });
+  });
+
+  it("draws the pointers as a list with the labels and key words in bold", () => {
+    show();
+    fireEvent.click(screen.getByRole("button", { name: /AI summary/ }));
+    const box = screen.getByRole("region", { name: /Summary of the FinLit Prism rating of Reliance/ });
+    const items = box.querySelectorAll("ul.pai-list > li");
+    expect(items).toHaveLength(6);
+    expect([...box.querySelectorAll("ul.pai-list b")].map((b) => b.textContent)).toEqual(["Overall:", "read as mixed", "Quality, sound:", "Risk, sound:",
+      "Growth & Profitability, in between:", "Valuation, weighs on it:", "Price trend:", "bounce in a downtrend"]);
   });
 
   it("a visitor gets the card summary at once, said plainly, with the plans link and the disclaimer; FinLit AI is not asked", () => {
     show();
     fireEvent.click(screen.getByRole("button", { name: /AI summary/ }));
     const box = screen.getByRole("region", { name: /Summary of the FinLit Prism rating of Reliance/ });
-    expect(box.textContent).toContain("read as mixed overall");
+    expect(box.textContent).toContain("read as mixed");
     expect(box.textContent).not.toMatch(/58\.1|out of 100/);
     expect(box.textContent).toContain("An AI summary from FinLit AI (10 a month) is part of the Silver and Gold plans");
     expect(screen.getByRole("link", { name: "Compare plans" }).getAttribute("href")).toBe("/plans");
@@ -108,7 +123,7 @@ describe("AI summary under the FinLit Prism cards (task #228)", () => {
     fireEvent.click(screen.getByRole("button", { name: /AI summary/ }));
     const box = screen.getByRole("region", { name: /^Summary of/ });
     expect(box.textContent).toMatch(/You have used this month's 10 AI summaries \(they renew on 1 Dec 2026\), so this summary is written from the card itself\. Your FinLit AI questions are counted separately\./);
-    expect(box.textContent).toContain("read as mixed overall");
+    expect(box.textContent).toContain("read as mixed");
     expect(asked).toEqual([]);
   });
 

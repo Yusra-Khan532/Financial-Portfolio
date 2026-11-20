@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PULSE_TOOLTIP } from "../../../lib/pulseWords";
+import { useHoverOpen } from "../../../lib/hoverOpen";
 
-/** The i beside a heading: a real button that opens a small popover on a click, a tap or Enter, and closes on Escape, a tap outside or a second click. */
+/** The i beside a heading: a real button that opens a small popover on hover, keyboard focus, a click, a tap or Enter (task #265), and closes on leaving it,
+ *  Escape, a tap outside or a second click. */
 export function PsxInfo({ text, label }: { text: ReactNode; label?: string }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLSpanElement>(null), btn = useRef<HTMLButtonElement>(null);
@@ -12,10 +14,12 @@ export function PsxInfo({ text, label }: { text: ReactNode; label?: string }) {
     document.addEventListener("mousedown", away); document.addEventListener("touchstart", away); document.addEventListener("keydown", key, true);
     return () => { document.removeEventListener("mousedown", away); document.removeEventListener("touchstart", away); document.removeEventListener("keydown", key, true); };
   }, [open]);
+  const hover = useHoverOpen(open, () => setOpen(true), () => setOpen(false));
   return (
     <span className="psx-ib" ref={box}>
-      <button type="button" ref={btn} className="psx-i" aria-label={label ? `About ${label}` : "More about this"} aria-expanded={open} onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}>i</button>
-      {open && <span className="psx-ip" role="note">{text}</span>}
+      <button type="button" ref={btn} className="psx-i" aria-label={label ? `About ${label}` : "More about this"} aria-expanded={open} {...hover.trigger}
+        onClick={(e) => { e.stopPropagation(); hover.click(() => setOpen((v) => !v)); }}>i</button>
+      {open && <span className="psx-ip" role="note" {...hover.note}>{text}</span>}
     </span>);
 }
 

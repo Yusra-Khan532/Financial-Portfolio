@@ -172,3 +172,17 @@ def clean_for_store(p: Portfolio) -> int:
             h.isin = None
             n += 1
     return n
+
+
+# Task #276 (number fix 2, 20 Nov 2026): a bullion row is a metal holding, never cash. Nippon's SILVERBEES file lists its silver as one row, "Nippon
+# India Silver ETF" (its own INF ISIN), with no heading of its own, so it stayed under the "cash" heading above it (Triparty Repo) and the ETF read
+# "cash 100%": What your money is in showed "Overnight lending and debt 26%" and no silver. GOLDBEES' "GOLD 995 1KG BAR" sat under an "other" heading.
+METAL_ROW = re.compile(r"\b(gold|silver)\b", re.I)
+
+
+def metal_class(name: str, isin: "str | None", cls: str) -> str:
+    """'other' (where gold and silver bullion live) for a cash-classed row that names gold or silver and is not an Indian company's share or bond
+    (INE ISIN); every other row keeps its class."""
+    if cls == "cash" and METAL_ROW.search(name or "") and not (isin or "").startswith("INE"):
+        return "other"
+    return cls

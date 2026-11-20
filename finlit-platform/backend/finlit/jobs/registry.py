@@ -119,6 +119,7 @@ class Job:
     probe: Optional[str] = None
     min_gap_min: float = 30.0                       # probe-driven re-runs: at least this long after the last attempt
     prerequisites: Tuple[str, ...] = ()
+    nightly_inputs: bool = False                    # in the night shift, a prerequisite counts as delivered only if it succeeded TONIGHT (score-mf: task #281)
     resumable: bool = False
     max_attempts: int = 5
     honours_pause: bool = True
@@ -344,7 +345,8 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         Job("portfolios", ("refresh-portfolios",), cls="bulk", priority=50, max_runtime_min=120, weight_mb=200, group="funds", windows=night_morning,
             sla=Sla("hours", 26), resumable=True, gate=FUNDS_GATE, boot=True, what="fund holdings, sector split and exit loads (resumable)"),
         Job("score-mf", ("score-mf",), cls="bulk", priority=55, max_runtime_min=60, weight_mb=250, group="funds", windows=night_morning,
-            sla=Sla("hours", 26), prerequisites=("portfolios",), gate=FUNDS_GATE, boot=True, owns=("fund_scores",), what="Mutual Fund Score (after the portfolios)"),
+            sla=Sla("hours", 26), prerequisites=("mf", "facts", "portfolios"), nightly_inputs=True, gate=FUNDS_GATE, boot=True, owns=("fund_scores",),
+            what="Mutual Fund Score (each night after that night's NAVs, fund facts and portfolios)"),
         Job("mf-screen", ("refresh-mf-screen",), cls="bulk", priority=57, max_runtime_min=30, weight_mb=300, group="funds", windows=night_morning,
             sla=Sla("hours", 30), prerequisites=("facts", "industry", "portfolios"), gate=FUNDS_GATE, boot=True,
             what="Mutual Fund Screener figures: risk from month-end NAVs, ranks in category, exit load, portfolio and category-flow summaries, theme tags (database only; docs/MF-FILTERS.md)"),
@@ -394,7 +396,10 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         Job("mf", ("refresh-mf",), priority=23, max_runtime_min=20, weight_mb=180, group="funds",
             windows=(W("AFTER_CLOSE", 20, (21, 10)), W("NIGHT", 1.5), W("MORNING", 6)), sla=Sla("hours", 26), gate=FUNDS_GATE, owns=("mf_nav",),
             what="mutual fund NAVs (AMFI publishes by 11 pm)"),
-        Job("facts", ("refresh-facts",), priority=24, max_runtime_min=20, weight_mb=180, group="funds", windows=(W("AFTER_CLOSE", 20, (21, 10)), W("MORNING", 14)),
+        # task #281: a NIGHT window too, so the facts (plan and option from AMFI's scheme master, AUM, TER) are in before the night's score run;
+        # it ran only at 05:00 IST, an hour after score-mf, so a fixed fund (HSBC Small Cap, 20 Nov) waited a whole day for its score
+        Job("facts", ("refresh-facts",), priority=24, max_runtime_min=20, weight_mb=180, group="funds",
+            windows=(W("AFTER_CLOSE", 20, (21, 10)), W("NIGHT", 14), W("MORNING", 14)),
             sla=Sla("hours", 30), prerequisites=("mf",), gate=FUNDS_GATE, what="fund size, expense ratios, launch dates (AMFI)"),
         Job("industry", ("refresh-industry",), priority=25, max_runtime_min=20, weight_mb=180, group="funds", windows=(W("AFTER_CLOSE", 20, (19, 10)), W("MORNING", 14)),
             sla=Sla("hours", 30), gate=FUNDS_GATE, what="AMFI monthly category report"),

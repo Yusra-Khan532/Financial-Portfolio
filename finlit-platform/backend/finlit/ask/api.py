@@ -241,7 +241,7 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
             yield sse("status", {"text": tools.label("read_company_document", d)})
         reads = [("read_company_document", d) for d in doc_reads] + extra
         res = await asyncio.gather(*[tools.run(gw, n, a) for n, a in reads]) if reads else []
-        messages = service.build_messages([t.model_dump() for t in body.history], question, body.symbol, plan_key(ctx), card, routing.note(kinds),
+        messages = service.build_messages([t.model_dump() for t in body.history], question, body.symbol, plan_key(ctx), card, (routing.note(kinds) + ("\n" + service.stance_note(question) if kind == "question" and service.stance_note(question) else "")),   # task #270
                                           page_is_subject=bool(page) or kind != "question")
         prefetched = list(reads)
         if prefetched:

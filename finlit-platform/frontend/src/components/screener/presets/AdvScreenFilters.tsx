@@ -65,8 +65,8 @@ function PrismMenu({ d, bar, set }: { d: PresetDetail; bar: BarFilter; set: Set 
   return (
     <Dropdown label={n ? `Prism score · ${n}` : "Prism score"} on={n > 0} wide>
       <div className="afx afx-in">
-        <section className="afx-sfs"><h4>Rating</h4>
-          <div className="afx-bands" role="group" aria-label="Prism rating">
+        <section className="afx-sfs"><h4>Fundamental rating</h4>
+          <div className="afx-bands" role="group" aria-label="Prism fundamental rating">
             {PRISM_LABELS.map((l) => { const s = SLUG[l], on = (bar.pl ?? []).includes(s), c = fc?.ratings?.[s] ?? 0;
               return <label key={l} className={"afx-bchk" + (!c && !on ? " fx-zero" : "")}><input type="checkbox" checked={on} disabled={!c && !on} onChange={() => set({ ...bar, pl: flip(bar.pl, s) })} />
                 <span className={"afx-bw afx-bw-" + s}>{LABEL_WORD[l]}</span><small>{nf(c, 0)}</small></label>; })}
