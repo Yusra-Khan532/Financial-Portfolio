@@ -52,11 +52,10 @@ MIN_AUM_CODES = 3000
 TER_MAX = 5.0          # percent a year; SEBI's caps keep every real TER well under this
 AUM_PERIODS = ((1, 1), (1, 2), (2, 1), (2, 2))   # (fyId, periodId), newest first: AMFI may not have filled the newest quarter yet
 
-NO_EXIT_LOAD = ("Exit load is stated in each scheme's own documents (PDF, a different layout at every fund house); no free machine-readable "
-                "official source was found, so none is shown.")
+NO_EXIT_LOAD = ("Exit load comes from AMFI's scheme details, which has not been read for this scheme yet; the scheme's own documents state it.")
 NO_MANAGERS = ("Fund managers are named in each scheme's factsheet (PDF); no free machine-readable official source was found, so none is shown.")
-NO_BENCHMARK = "AMFI publishes the benchmark on its fund performance page, which our server cannot read yet; see the scheme's factsheet."
-NO_RISKOMETER = "AMFI publishes the risk-o-meter on its fund performance page, which our server cannot read yet; see the scheme's factsheet."
+NO_BENCHMARK = "AMFI publishes the benchmark on its fund performance page, which has not been read for this scheme yet; see the scheme's factsheet."
+NO_RISKOMETER = "AMFI publishes the risk-o-meter on its fund performance page, which has not been read for this scheme yet; see the scheme's factsheet."
 NO_TRACKING = "Tracking error is published in the fund house's monthly factsheet (PDF); no free machine-readable official source was found."
 NOT_LOADED = "AMFI's figures have not been loaded yet; they appear after the next nightly update."
 
