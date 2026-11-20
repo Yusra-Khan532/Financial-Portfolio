@@ -89,6 +89,8 @@
 /* Price and business disagree | Tell me when a label changes */
 .wp-pair { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; align-items: stretch; margin-bottom: 18px; }
 .wp-pair .wp-sec { margin: 0; }
+.wp-pair-1 { grid-template-columns: minmax(0, 1fr); }      /* task #272: Price and business disagree on its own row */
+.wp-pair-eq { grid-template-columns: repeat(2, minmax(0, 1fr)); }   /* task #272: the two "Tell me when" cards side by side */
 .wp-why { margin: 10px 0 0; display: flex; gap: 8px; align-items: baseline; font-size: 14px; line-height: 1.5; color: var(--sp-ink); }
 .wp-why b { flex: none; font: 800 12px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--sp-info); }
 .wp-dis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }

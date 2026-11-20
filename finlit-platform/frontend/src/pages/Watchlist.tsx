@@ -6,6 +6,8 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { AlertButton } from "../components/AlertComposer";
+import { ListFilesCard } from "../components/changes/AlertMe";
+import { FilingChip, OrderWinNotice, WhatChanged, useWhatChanged } from "../components/changes/WhatChanged";
 import { Gate } from "../components/Gate";
 import { PageFaqs } from "../components/PageFaqs";
 import { Cards, Scroll, Tip } from "../components/sectors/pack/Common";
@@ -107,6 +109,7 @@ export function WatchlistPage() {
   const idx = useIndices();
   const logos = quoteMap(useQuotesFor(list.symbols).data);
   const cls = useClassifications(list.symbols).data;   // NSE's industry of each stock (task #192): one request for the whole list
+  const wc = useWhatChanged(list.symbols, "watchlist");   // task #272: Discover's filings of the list, and what is new since the last visit
 
   const items: Rich[] = useMemo(() => list.symbols.map((s) => bySym.get(s)).filter((r): r is Row => !!r).map((r) => {
     const v = rowView(model, r);
@@ -185,6 +188,7 @@ export function WatchlistPage() {
               <div className="wp-empty">This list is empty. Type a stock in “Add a stock to this list”, or use Watchlist on any company report. Try one of these:
                 <div>{[...rows].sort((a, b) => (b.market_cap || 0) - (a.market_cap || 0)).slice(0, 6).map((r) => <button key={r.symbol} type="button" className="wp-pill" onClick={() => addStock(r)}>+ {r.symbol}</button>)}</div></div>
             ) : (<>
+              <OrderWinNotice row={wc.notice} page="watchlist" />
               <Cards items={cards} cols={Math.min(3, cards.length)} />
               <div className="wp-tw"><Scroll label={`${list.name}: your stocks, scrolls sideways`}>
                 <table className="wp-t" aria-label={`${list.name}: your stocks`}>
@@ -214,6 +218,7 @@ export function WatchlistPage() {
                                 <input type="checkbox" checked={sel.includes(i.symbol)} onChange={() => toggleSel(i.symbol)} aria-label={`Select ${i.symbol} to compare`} />
                                 <Logo src={lg?.logo} name={i.name} kind="stock" size={30} />
                                 <Link to={`/stocks/${i.symbol}`} onClick={(e) => openSample(e, r)}><b title={coTitle(i)}>{titleOf(i)}</b><small>{subLine(i, i.name)}</small></Link>
+                                <FilingChip row={wc.chip(i.symbol)} />
                               </div></td>
                               <td className="wp-ind">{i.industry || <span className="faint" title="This company is not in NSE's industry lists">Not classified</span>}</td>
                               <td className="r wp-px"><b>{fmt(METRICS.price, r.price)}</b>{i.change != null && <span className={i.change >= 0 ? "wp-up" : "wp-dn"}>{(i.change > 0 ? "+" : i.change < 0 ? "−" : "") + nf(Math.abs(i.change), 2)}%</span>}</td>
@@ -241,7 +246,10 @@ export function WatchlistPage() {
             </>)}
         </section>
 
-        <div className="wp-pair">
+        <WhatChanged symbols={list.symbols} listName={list.name} listRef={`watch:${list.id}`} page="watchlist" nameOf={(s) => bySym.get(s)?.name ?? undefined}
+          lists={st.lists.map((l) => ({ id: l.id, label: l.name, count: l.symbols.length }))} activeList={list.id} onPickList={setLid} />
+
+        <div className="wp-pair wp-pair-1">
           <section className="wp-sec" aria-labelledby="wp-dis">
             <h2 id="wp-dis">Price and business disagree<Tip text={PEER_HELP} label="About Price and business disagree" /></h2>
             <p className="wp-sub">{DISAGREE_SUB}</p>
@@ -255,6 +263,8 @@ export function WatchlistPage() {
                 </div>))}</div>
             ) : <p className="wp-empty">{leads ? "On this list, the price rank and the business rank agree for every stock that is compared with its peers." : "This shows once the weekly peer check is available for the stocks on this list."}</p>}
           </section>
+        </div>
+        <div className="wp-pair wp-pair-eq">
           <section className="wp-sec" aria-labelledby="wp-al">
             <h2 id="wp-al">Tell me when a label changes</h2>
             <p className="wp-sub">{ALERT_SUB}</p>
@@ -264,6 +274,7 @@ export function WatchlistPage() {
               {list.labelAlert && <p className="wp-on" role="status">On for this list: {ALERT_BTNS.find((b) => b.id === list.labelAlert)!.label.toLowerCase()}, sent after the weekly check.<button type="button" onClick={() => { wl.setLabelAlert(list.id, null); toast(`Alert switched off for “${list.name}”.`); }}>Switch off</button></p>}
             </div>
           </section>
+          <ListFilesCard listRef={`watch:${list.id}`} />
         </div>
 
         <p className="wp-plain"><b>In simple words:</b> {PLAIN}</p>

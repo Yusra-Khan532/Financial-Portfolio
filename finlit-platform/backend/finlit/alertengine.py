@@ -57,6 +57,8 @@ METRICS: Dict[str, M] = {
     "news_keyword":   dict(label="News or filing mentions", unit="", live=False, tier="basic", ops=("event",)),
     "new_filing":     dict(label="Any new filing", unit="", live=False, tier="silver", ops=("event",)),
     "result_soon":    dict(label="Results due within (days)", unit="days", live=False, tier="basic", ops=("event",)),
+    # task #272: a filing Discover sorts as one of its eight kinds (order win, capacity, ...), for one stock or a whole list (filingalerts.py)
+    "discover_filing": dict(label="A filing Discover sorts as…", unit="", live=False, tier="silver", ops=("event",)),
 }
 # the parts of the stored financials and ownership reports the alerts read, cut inside the database (a full report is ~40 KB, this ~1 KB)
 SNAP_SQL = ("SELECT symbol, section, CASE WHEN section = 'financials' THEN jsonb_build_object('quarterly', jsonb_build_object('pl', jsonb_build_object("
@@ -69,7 +71,7 @@ SCORE_COLUMNS = {"price", "change_pct", "return_1m", "return_1y", "overall", "pi
                  "pillar_technical", "pe", "pb", "dividend_yield", "market_cap", "roe", "roce", "operating_margin", "debt_to_equity"}
 TECH = {"rsi14", "ema50_gap", "ema200_gap", "volume_x", "from_high52", "from_low52"}
 SNAP = {"q_net_profit", "q_revenue", "rev_profit_gap", "promoter_chg", "fii_chg"}
-EVENTS = {"news_keyword", "new_filing", "result_soon"}
+EVENTS = {"news_keyword", "new_filing", "result_soon", "discover_filing"}
 FIXED_TARGET = {"circuit": {"above": 1.0, "below": -1.0}}   # metric -> op -> the only target it takes (set by the server)
 CHANNELS = ("app", "email", "browser")
 ALERT_LIMITS = {"basic": 3, "silver": 30, "gold": 300}
@@ -331,7 +333,7 @@ async def evaluate(pool, mailer: Mailer, site_url: str, kind: str = "all") -> in
     fired = 0
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT a.*, u.email, u.plan, u.id AS uid, s.prefs FROM alerts a JOIN users u ON u.id = a.user_id LEFT JOIN user_state s ON s.user_id = u.id "
+            "SELECT a.*, u.email, u.plan, u.id AS uid, s.prefs, s.watchlist AS s_watchlist, s.portfolio AS s_portfolio FROM alerts a JOIN users u ON u.id = a.user_id LEFT JOIN user_state s ON s.user_id = u.id "
             "WHERE a.status = 'active' AND u.status = 'active' AND u.email_verified_at IS NOT NULL")
         todo = []
         for r in rows:
@@ -350,6 +352,10 @@ async def evaluate(pool, mailer: Mailer, site_url: str, kind: str = "all") -> in
             user = {"id": a["uid"], "email": a["email"], "prefs": a["prefs"]}
             link = f"/stocks/{a['symbol']}"
             try:
+                if a["metric"] == "discover_filing":   # task #272: Discover's sorted filings, for one stock or a whole list (filingalerts.py)
+                    from . import filingalerts
+                    fired += await filingalerts.run_alert(conn, deliver, mailer, site_url, user, a, {"watchlist": a.get("s_watchlist"), "portfolio": a.get("s_portfolio")})
+                    continue
                 if a["op"] == "event":
                     hits, top = await event_hits(conn, a)
                     if hits:

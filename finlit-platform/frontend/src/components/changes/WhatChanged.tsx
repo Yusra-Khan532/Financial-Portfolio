@@ -1,0 +1,98 @@
+// Task #272 (Watchlists and Alerts, 20 Nov pack): "What changed at these companies". One shared block for every list page: the Watchlists page mounts it
+// under the list (before "Price and business disagree"); the equity portfolio (task #274) and the other portfolio pages mount the same component with
+// their own companies, list switcher and page key. Data and rules: lib/whatChanged.ts. Styles: styles/what-changed.css (wc-). Describes, never advises.
+import { useMemo, useState } from "react";
+import { Link } from "react-router";
+import { Icon } from "../../lib/icons";
+import {
+  DISCOVER_CHANGES, KINDS, KIND, chipFor, dayMonth, discoverLink, footnote, headline, newCount, orderWinNotice, rowsOf, tileCounts, useChanges, useLastVisit, type ChangeRow,
+} from "../../lib/whatChanged";
+import { AlertMeForm } from "./AlertMe";
+import "../../styles/what-changed.css";
+
+const FIRST = 6;
+
+/** The block's data for a page: the rows, the last visit, what is new. Pages call it too (for the chip and the order-win notice): one request either way. */
+export function useWhatChanged(symbols: string[], page: string) {
+  const q = useChanges(symbols);
+  const lastVisit = useLastVisit(page);
+  const rows = useMemo(() => rowsOf(q.data, lastVisit), [q.data, lastVisit]);
+  return { q, rows, lastVisit, newN: newCount(rows), chip: (s: string) => chipFor(rows, s), notice: orderWinNotice(rows) };
+}
+
+export type ListTab = { id: string; label: string; count: number };
+
+/** A small chip under a company with a filing since the last visit (an order win first); it opens the same Discover link. Rows keep their height. */
+export function FilingChip({ row }: { row: ChangeRow | null }) {
+  if (!row) return null;
+  return <Link className={"wc-chip " + (KIND[row.k]?.tone ?? "")} to={discoverLink(row.k, row.n)} title={row.t ?? undefined}>{KIND[row.k]?.row ?? "Filing"} · {dayMonth(row.d)}</Link>;
+}
+
+/** The green notice over the list for an order win since the last visit, with Details in Discover and ×. Closing it hides that filing for good. */
+export function OrderWinNotice({ row, page }: { row: ChangeRow | null; page: string }) {
+  const key = row ? `finlit-wc-ow-${page}-${row.s}-${row.d}` : "";
+  const [gone, setGone] = useState(() => { try { return !!key && localStorage.getItem(key) === "1"; } catch { return false; } });
+  if (!row || gone) return null;
+  const close = () => { try { localStorage.setItem(key, "1"); } catch { /* private window: closes for this visit */ } setGone(true); };
+  return (
+    <div className="wc-ow" role="status">
+      <span className="wc-owd" aria-hidden="true" />
+      <p><b>New order win · {row.n}</b>{row.t ? <> · {row.t}</> : null} <span>({dayMonth(row.d)})</span></p>
+      <Link to={discoverLink(row.k, row.n)}>Details in Discover ↗</Link>
+      <button type="button" onClick={close} aria-label="Close this notice">×</button>
+    </div>
+  );
+}
+
+export function WhatChanged({ symbols, listName, listRef, page, lists, activeList, onPickList, nameOf, title = "What changed at these companies" }: {
+  symbols: string[]; listName: string; listRef: string; page: string; lists?: ListTab[]; activeList?: string; onPickList?: (id: string) => void;
+  nameOf?: (s: string) => string | undefined; title?: string;
+}) {
+  const { q, rows, lastVisit, newN } = useWhatChanged(symbols, page);
+  const [kind, setKind] = useState<string | null>(null), [all, setAll] = useState(false), [alertOpen, setAlertOpen] = useState(false);
+  const tiles = tileCounts(rows);
+  const shown = kind ? rows.filter((r) => r.k === kind) : rows;
+  const list = all ? shown : shown.slice(0, FIRST);
+  const visit = dayMonth(lastVisit);
+  return (
+    <section className="wp-sec wc" id="what-changed" aria-labelledby="wc-h">
+      <h2 id="wc-h">{title}</h2>
+      <p className="wp-sub">{headline(q.data, symbols.length, listName)}</p>
+      {alertOpen && <AlertMeForm listRef={listRef} listLabel={listName} onClose={() => setAlertOpen(false)} />}
+      <div className="wc-bar">
+        {lists && lists.length > 1 && onPickList
+          ? <div className="wc-lists" role="group" aria-label="Which list">{lists.map((l) => <button key={l.id} type="button" className="wp-pill" aria-label={`What changed at the companies on ${l.label} (${l.count})`} aria-pressed={l.id === activeList} onClick={() => { onPickList(l.id); setKind(null); setAll(false); }}>{l.label} · {l.count}</button>)}</div>
+          : <b className="wc-ln">{listName} · {symbols.length} compan{symbols.length === 1 ? "y" : "ies"}</b>}
+        <span className="wc-st">{newN > 0 ? <><i className="wc-nd" aria-hidden="true" /><b>{newN} new</b> since your last visit on {visit}</> : lastVisit ? `Nothing new since your last visit on ${visit}` : "What is new shows from your next visit"}</span>
+        <span className="wc-grow" />
+        <Link className="wc-dl" to={DISCOVER_CHANGES}>What changed in Discover ↗</Link>
+        <button type="button" className="wc-am-btn" aria-expanded={alertOpen} onClick={() => setAlertOpen((v) => !v)}><Icon name="bell" />Alert me</button>
+      </div>
+      <div className="wc-tiles" role="group" aria-label="Filter by kind of filing">
+        {KINDS.map((k) => (
+          <button key={k.k} type="button" className={"wc-tile " + k.tone} aria-pressed={kind === k.k} onClick={() => { setKind(kind === k.k ? null : k.k); setAll(false); }}>
+            <span><i className={"wc-dot " + k.tone} aria-hidden="true" />{k.tile}</span><b>{tiles[k.k]}</b>
+          </button>))}
+      </div>
+      {q.isLoading && symbols.length > 0 ? <div className="skeleton" style={{ height: 160 }} aria-busy="true" aria-label="Loading what changed" />
+        : q.isError ? <p className="wp-empty">What changed could not be loaded just now. Your list is safe; try again in a minute. <button type="button" className="wc-lnk" onClick={() => q.refetch()}>Try again</button></p>
+        : !symbols.length ? <p className="wp-empty">Add companies to this list to see what they filed.</p>
+        : !shown.length ? <p className="wp-empty">{kind ? `No company on this list filed ${KIND[kind].tile.toLowerCase()} in the last ${q.data?.days ?? 90} days.` : `None of the companies on this list filed one of these in the last ${q.data?.days ?? 90} days.`}</p>
+        : <ul className="wc-rows" aria-label="Filings by company and kind">
+            {list.map((r) => (
+              <li key={r.s + r.k} className={r.fresh ? "is-new" : r.k === "order" ? "is-ow" : ""}>
+                <span className="wc-d">{r.t ? dayMonth(r.d) : "—"}</span>
+                <Link className="wc-co" to={`/stocks/${r.s}`}>{r.n}</Link>
+                <span className="wc-k"><i className={"wc-dot " + KIND[r.k].tone} aria-hidden="true" />{KIND[r.k].row}{r.count > 1 && <small> × {r.count}</small>}</span>
+                <span className="wc-t">{r.t ?? `${r.count} filing${r.count === 1 ? "" : "s"} in ${q.data?.days ?? 90} days · the subjects are in Discover`}{r.fresh > 0 && <em className="wc-new">New</em>}</span>
+                <span className="wc-ln2">
+                  {r.t && r.l && <a href={r.l} target="_blank" rel="noopener noreferrer">Filing ↗</a>}
+                  <Link to={discoverLink(r.k, r.n)}>Details in Discover ↗</Link>
+                </span>
+              </li>))}
+          </ul>}
+      {shown.length > FIRST && <button type="button" className="wc-more" aria-expanded={all} onClick={() => setAll((v) => !v)}>{all ? "Show fewer ▴" : `Show all ${shown.length} ▾`}</button>}
+      <p className="wc-note">{footnote(q.data, nameOf ?? (() => undefined))}</p>
+    </section>
+  );
+}

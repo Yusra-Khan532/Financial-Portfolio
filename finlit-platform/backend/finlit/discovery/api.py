@@ -44,6 +44,18 @@ async def discovery_board(request: Request):
     return JSONResponse(data, headers={"Cache-Control": "public, max-age=600"})
 
 
+@router.get("/changes")
+async def discovery_changes(request: Request, symbols: str = Query(..., max_length=6000)):
+    """Task #272: "What changed at these companies" for a list (finlit/discovery/changes.py). Public filings, open on every plan like the routes above;
+    the list in the address is the member's own, so the answer is cached privately by the browser only."""
+    from . import changes as C
+    syms = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+    if not syms or len(syms) > C.MAX_SYMBOLS or not all(SYMBOL.fullmatch(s) for s in syms):
+        raise HTTPException(400, "bad symbols")
+    data = await C.changes(request.app.state.store, syms)
+    return JSONResponse(data, headers={"Cache-Control": "private, max-age=300"})
+
+
 @router.get("/company")
 async def discovery_company(request: Request, symbol: str = Query(..., max_length=20)):
     """Task #260: the company panel's read (finlit/discovery/board.py company()): passages with their page, the presentation and filing PDFs."""

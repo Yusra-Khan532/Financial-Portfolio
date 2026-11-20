@@ -14,7 +14,11 @@ export type AlertRow = {
   id: string; symbol: string; metric: string; label: string; unit: string; op: Op; value: number | null; keyword: string | null; channels: Channel[];
   repeat: "once" | "every"; status: "active" | "paused" | "done"; note: string | null; lastValue: number | null; met: boolean | null;
   lastCheckedAt: string | null; lastFiredAt: string | null; firedCount: number; createdAt: string;
+  /** Task #272: a list alert's list (equity, equity:<account>, watch:<list id>, mine), its Discover kinds and "one summary a day". */
+  list?: string | null; kinds?: string[] | null; digest?: boolean;
 };
+/** Task #272: a list "Applies to: A list" offers (GET /api/alerts/lists). */
+export type AlertList = { ref: string; label: string; count: number };
 export type Notice = { id: number; alertId: string | null; symbol: string | null; kind: string; title: string; body: string; link: string | null; push: boolean; read: boolean; createdAt: string };
 /** What a pop-up card or browser notification says for a notice: its heading and the label of its button (null: no button). A stock alert says
  * "Alert triggered / View stock"; a fund alert "View fund"; a saved-screen update "Open screener"; a data-job notice for admins "Job alert" or
@@ -26,9 +30,11 @@ export function noticeLabels(n: Pick<Notice, "kind" | "title" | "link">): { head
   if (!link) return { head: n.kind === "alert" ? "Alert triggered" : "Notification", action: null };
   if (/^\/(funds|etfs)\//.test(link)) return { head: "Alert triggered", action: link.startsWith("/etfs/") ? "View ETF" : "View fund" };
   if (/^\/stocks\//.test(link)) return { head: "Alert triggered", action: "View stock" };
+  if (/^\/discover\//.test(link)) return { head: "New filing", action: "Details in Discover" };   // task #272: a filing alert
+  if (/#what-changed$/.test(link)) return { head: "Filings at your companies", action: "See What changed" };
   return { head: n.kind === "alert" ? "Alert triggered" : "Notification", action: "Open" };
 }
-export type NewAlert = { symbol: string; metric: string; op: Op; value: number | null; keyword?: string; channels: Channel[]; repeat: "once" | "every"; note?: string };
+export type NewAlert = { symbol: string; metric: string; op: Op; value: number | null; keyword?: string; channels: Channel[]; repeat: "once" | "every"; note?: string; list?: string; kinds?: string[]; digest?: boolean };
 export type Created = AlertRow & { alreadyMet?: boolean; current?: number | null };
 
 // ---------------------------------------------------------------- demo store (this browser only)
@@ -121,7 +127,8 @@ function demoCreate(plan: string, rows: Row[], b: NewAlert): Created {
   const current = isEvent(b.metric) ? null : demoValue(row, b.symbol, b.metric);
   const met = current != null && b.value != null && !isEvent(b.metric) ? isMet(b.op, current, b.value) : false;
   const a: AlertRow = { id: "d" + demo.seq++, symbol: b.symbol, metric: b.metric, label: METRICS[b.metric].label, unit: METRICS[b.metric].unit, op: b.op, value: b.value, keyword: b.metric === "news_keyword" ? kw : null,
-    channels: ["app", ...b.channels.filter((c) => c !== "app")] as Channel[], repeat: b.repeat, status: "active", note: b.note?.trim() || null, lastValue: current, met, lastCheckedAt: new Date().toISOString(), lastFiredAt: null, firedCount: 0, createdAt: new Date().toISOString() };
+    channels: ["app", ...b.channels.filter((c) => c !== "app")] as Channel[], repeat: b.repeat, status: "active", note: b.note?.trim() || null, lastValue: current, met, lastCheckedAt: new Date().toISOString(), lastFiredAt: null, firedCount: 0, createdAt: new Date().toISOString(),
+    list: b.list ?? null, kinds: b.kinds ?? null, digest: !!b.digest };
   demo.alerts.unshift(a); save();
   return { ...a, alreadyMet: met, current };
 }
@@ -184,6 +191,18 @@ export function useNotices() {
   }, [qc]);
   return { items, unread, markRead, clear, loading: !DEMO && q.isLoading };
 }
+
+/** Task #272: the lists "Applies to: A list" offers, resolved by the server from the member's saved portfolio and watchlists. */
+export function useAlertLists(enabled = true) {
+  const { user } = useAuth();
+  const q = useQuery({
+    queryKey: ["alert-lists"], enabled: enabled && !!user && !DEMO, staleTime: 60_000, retry: 1,
+    queryFn: () => apiGet<{ lists: AlertList[] }>("/api/alerts/lists", { cache: "reload" }).then((r) => r.lists),
+  });
+  return { lists: DEMO ? DEMO_LISTS : q.data ?? NO_LISTS, loading: !DEMO && q.isLoading };
+}
+const NO_LISTS: AlertList[] = [];
+const DEMO_LISTS: AlertList[] = [{ ref: "equity", label: "Equity portfolio", count: 0 }, { ref: "watch:main", label: "Watchlist · My watchlist", count: 0 }, { ref: "mine", label: "Everything I own and watch (equity portfolio and watchlists)", count: 0 }];
 
 /** The value a metric stands at right now (for "currently 31.2" in the form). */
 export function useCurrentValue(symbol: string, metric: string, rows?: Row[]) {

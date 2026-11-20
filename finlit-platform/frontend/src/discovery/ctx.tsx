@@ -44,7 +44,9 @@ export function DiscoverProvider({ d, children }: { d: Discover; children: React
   useEffect(() => {
     if (!openSym || !by.has(openSym)) return;
     setOpen((o) => (o.has(openSym) ? o : new Set(o).add(openSym)));
-    const t = setTimeout(() => document.querySelector(`[data-dsc-row="${CSS.escape(openSym)}"]`)?.scrollIntoView?.({ block: "center" }), 120);
+    // CSS.escape is missing in some environments (the test DOM); a symbol only needs its quotes and backslashes escaped inside [attr="…"]
+    const esc = typeof CSS !== "undefined" && typeof CSS.escape === "function" ? CSS.escape(openSym) : openSym.replace(/["\\]/g, "\\$&");
+    const t = setTimeout(() => document.querySelector(`[data-dsc-row="${esc}"]`)?.scrollIntoView?.({ block: "center" }), 120);
     return () => clearTimeout(t);
   }, [openSym, by]);
   const go = useCallback((path: string, patch?: Partial<TState>, sort?: string) => {
