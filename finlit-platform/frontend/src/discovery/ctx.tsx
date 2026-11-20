@@ -2,7 +2,7 @@
 // watchlist write (the plan limits of the Watchlists page), the address, and each page's table state.
 // Task #260 (SPEC §14): one real path per view and the table's filters, sort and page in the query string, so every page and every filtered list can be
 // linked and shared, and Back returns to the same view.
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { usePortfolio } from "../lib/portfolio";
 import { useWatchlist, watch } from "../lib/watchlist";
@@ -39,6 +39,14 @@ export function DiscoverProvider({ d, children }: { d: Discover; children: React
   const route = useMemo(() => parseRoute(loc.pathname, { themes, macros: sectors, sectors: [...tree.macroOf.keys()], industries }), [loc.pathname, themes, sectors, tree, industries]);
   const [open, setOpen] = useState<Set<string>>(new Set());
   const sp = useMemo(() => new URLSearchParams(loc.search), [loc.search]);
+  // task #273 (suggested): &open=<symbol> opens that company's row on arrival (the other pages link here with ?q=<name>&open=<symbol>)
+  const openSym = (sp.get("open") || "").trim().toUpperCase();
+  useEffect(() => {
+    if (!openSym || !by.has(openSym)) return;
+    setOpen((o) => (o.has(openSym) ? o : new Set(o).add(openSym)));
+    const t = setTimeout(() => document.querySelector(`[data-dsc-row="${CSS.escape(openSym)}"]`)?.scrollIntoView?.({ block: "center" }), 120);
+    return () => clearTimeout(t);
+  }, [openSym, by]);
   const go = useCallback((path: string, patch?: Partial<TState>, sort?: string) => {
     const search = patch ? "?" + writeT({ ...freshT(sort), ...patch }, sort).toString() : "";
     if (loc.pathname !== path || loc.search !== (search === "?" ? "" : search)) nav({ pathname: path, search: search === "?" ? "" : search });

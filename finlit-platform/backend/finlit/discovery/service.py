@@ -76,6 +76,8 @@ async def read_one(fetcher: Fetcher, link: str, keep: Optional[List[str]] = None
     except (Blocked, FetchFailed) as e:
         return {"status": "error", "reason": str(e)}, None
     pages = await asyncio.to_thread(extract_pages, pdf, K.MAX_PAGES)
+    from .quotes import mend
+    pages = [mend(p) for p in pages]          # task #273 (fix 5): split and glued words mended where the text is extracted
     if keep is not None:
         keep[:] = pages
     return K.classify("\n".join(pages)), len(pages)
@@ -177,6 +179,12 @@ def _row(r: Dict[str, Any], sec: Dict[str, Dict[str, Any]], news: Dict[str, Dict
             "readAt": r["read_at"].isoformat() if r["read_at"] else None}
 
 
+def _label(name: str) -> str:
+    """Task #273: the theme's one label (the card's), from board.label_of."""
+    from .board import label_of
+    return label_of(name) or name
+
+
 def theme_tone(companies: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Task #245: a theme's tone from its companies' own presentations. Positive when at least 9 in 10 of the rated ones read Positive, Negative when
     the negative ones outnumber the positive, else Mixed (every theme's average sits above the company Positive line, so an average would mark them
@@ -221,6 +229,15 @@ async def overview(store, theme: Optional[str] = None, symbol: Optional[str] = N
         mine = [dict(r) for r in await conn.fetch(
             "SELECT * FROM discovery_signals WHERE symbol = $1 AND item_date >= current_date - $2::int ORDER BY item_date DESC, feed_id DESC LIMIT 25",
             symbol.upper(), NEWS_DAYS)] if symbol else []
+    # task #273: the same main theme as the Discover page (keywords.seat: a lender's technology theme is only a mention without business sentences)
+    seated = []
+    for r in rows:
+        sc = r["scores"] if isinstance(r["scores"], dict) else json.loads(r["scores"] or "{}")
+        ev = r["evidence"] if isinstance(r["evidence"], list) else json.loads(r["evidence"] or "[]")
+        prim, second, moved = K.seat(r["primary_bucket"], list(r["secondary"] or []), sc, [str(x) for x in ev], (sec.get(r["symbol"]) or {}).get("industry"))
+        if prim:
+            seated.append({**r, "primary_bucket": prim, "secondary": second, **({"evidence": [], "status": "keyword_only_no_figures"} if moved else {})})
+    rows = seated
     if symbol:
         rows = [r for r in rows if r["symbol"] == symbol.upper()]
     if sector:
@@ -238,7 +255,7 @@ async def overview(store, theme: Optional[str] = None, symbol: Optional[str] = N
         stages: Dict[str, int] = {}
         for c in prim:
             stages[c["stageLabel"]] = stages.get(c["stageLabel"], 0) + 1
-        base = {"name": name, "primary": len(prim), "secondary": len(also), "sectors": dict(sorted(sectors.items(), key=lambda kv: -kv[1])),
+        base = {"name": name, "label": _label(name), "primary": len(prim), "secondary": len(also), "sectors": dict(sorted(sectors.items(), key=lambda kv: -kv[1])),
                 "stages": stages, "news": theme_news.get(name) or {"filings": 0, "positive": 0, "negative": 0}, "tone": theme_tone(prim)}
         if not symbol and theme != name:      # the list of themes: counts and the first names only (the page opens one theme at a time)
             themes.append({**base, "preview": [c["company"] or c["symbol"] for c in prim[:3]]})

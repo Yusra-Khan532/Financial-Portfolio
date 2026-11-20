@@ -21,7 +21,7 @@ import json
 import re
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Optional, Pattern, Tuple
+from typing import Any, Dict, List, Optional, Pattern, Sequence, Tuple
 
 BUCKETS: Dict[str, List[str]] = {
     "AI & GenAI": ["Artificial intelligence", "Generative AI", "GenAI", "Large language model", "LLM", "AI inference", "AI data centre", "GPU server",
@@ -272,3 +272,31 @@ def classify(text: str) -> dict:
     ev = evidence(text, list(scores[top]["terms"]), top, k=3)
     return {"status": "ok" if ev else "keyword_only_no_figures", "primary": top, "secondary": secondary, "scores": scores, "evidence": ev,
             "stage": scores[top]["stage"], "tone": tone(text)}
+
+
+# ------------------------------------------------------------------------------------------------ task #273: lenders and technology themes
+# The team, 20 Nov 2026: about 49 of the 176 companies with AI & GenAI as main theme were lenders and brokers (CreditAccess Grameen, Cholamandalam,
+# ICICI Bank ...): their decks name AI for their own operations, which is not an AI business. For a bank, a finance company, a broker or an insurer a
+# technology theme is only a MENTION, unless the sentences that placed it show revenue, orders or a product sold in that theme.
+FIN_INDUSTRIES = frozenset({"Banks", "Finance", "Capital Markets", "Insurance"})
+TECH_THEMES = frozenset({"AI & GenAI", "Cloud & Data Centres", "Cybersecurity & Connectivity", "Semiconductor & Electronics", "Space & Drone Technology"})
+BUSINESS = re.compile(r"\b(revenues?|income from|order(?:s| book| inflow| backlog)?\b(?! of (?:the|magnitude))|contracts?|licen[cs](?:e|es|ing)|subscriptions?|"
+                      r"monetis\w*|monetiz\w*|sold to|sells? to|selling to|(?:products?|platforms?|solutions?|services?) (?:for|to|sold to) "
+                      r"(?:clients|customers|enterprises|businesses|banks|insurers|other))\b", re.I)
+
+
+def seat(primary: Optional[str], secondary: Sequence[str], scores: Dict[str, Any], evidence: Sequence[str], industry: Optional[str]
+         ) -> Tuple[Optional[str], List[str], bool]:
+    """(main theme, other themes, moved) for one company as every Discover read shows it (board, company panel, overview, FinLit AI). Unchanged except
+    for a bank, finance company, broker or insurer whose main theme is a technology theme with no business sentence: that theme becomes a mention and
+    the strongest non-technology theme it qualified for is the main one (None when there is none: the company is not placed, the mention stays)."""
+    sec = [b for b in (secondary or []) if b != primary]
+    if not primary or industry not in FIN_INDUSTRIES or primary not in TECH_THEMES:
+        return primary, sec, False
+    if any(BUSINESS.search(str(s)) for s in (evidence or [])):
+        return primary, sec, False
+    ranked = sorted((b for b in (scores or {}) if b not in TECH_THEMES), key=lambda b: -float((scores.get(b) or {}).get("score") or 0))
+    business = [b for b in ranked if b not in SIGNAL_BUCKETS]
+    main = business[0] if business else (ranked[0] if ranked else None)
+    others = [primary, *[b for b in sec if b != main]]
+    return main, list(dict.fromkeys(others)), True
