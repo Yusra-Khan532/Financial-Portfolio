@@ -215,7 +215,12 @@ def split_category(line: str) -> Optional[Tuple[str, str]]:
     return kind, re.sub(r"\s+", " ", m.group(2)).strip()
 
 
-_IDCW = re.compile(r"idcw|dividend|income\s+distribution|payout|reinvest", re.I)
+_IDCW = re.compile(r"idcw|idwc|dividend|income\s+distribution|payout|reinvest", re.I)   # "IDWC" is AMFI's own typo for IDCW (task #281)
+# Task #281: "Cumulative" is the older word for the Growth option (FMPs, ICICI's ELSS series): units are never paid out. A plan for unclaimed redemption or
+# IDCW amounts holds money investors did not collect; it is not an option anybody invests in, so it is never read as IDCW or Growth.
+_GROWTH = re.compile(r"growth|cumulative", re.I)
+_UNCLAIMED = re.compile(r"unclaimed", re.I)
+UNCLAIMED = "Unclaimed amounts"
 
 
 def clean_plan(raw: str, name: str) -> str:
@@ -237,17 +242,44 @@ def clean_option(raw: str, name: str) -> Tuple[str, str]:
     AMFI's option column decides; the name is read only when the column is blank, and only its last ' - ' part (a fund can be called 'Dividend Yield Fund')."""
     raw = re.sub(r"\s+", " ", raw).strip()
     if raw:
+        if _UNCLAIMED.search(raw):
+            return "Other", raw
         if _IDCW.search(raw):
             return "IDCW", raw
-        if "growth" in raw.lower():
+        if _GROWTH.search(raw):
             return "Growth", raw
         return "Other", raw
     last = re.split(r"\s[-–]\s", name)[-1].strip().lower() if re.search(r"\s[-–]\s", name) else ""
+    if last and _UNCLAIMED.search(last):
+        return "Other", UNCLAIMED
     if last and _IDCW.search(last):
         return "IDCW", "IDCW"
-    if re.fullmatch(r"(direct |regular )?(plan )?growth( option| plan)?", last):
+    if re.fullmatch(r"(direct |regular )?(plan )?(growth|cumulative)( option| plan)?", last):
         return "Growth", "Growth"
     return "Other", "Not stated"
+
+
+def _fold(s: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", unicodedata.normalize("NFKD", s or "").lower().replace("&", " and ")).strip()
+
+
+def option_from_nav_name(nav_name: str, base_name: Optional[str]) -> Tuple[str, str]:
+    """Task #281: the option stated in AMFI's scheme master name ("Scheme NAV Name"). When that name starts with the scheme's own name ("Scheme Name"), the
+    words after it are only plan and option words, however they are joined ("Motilal Oswal Midcap Fund-Regular Plan-Growth Option", "... Fund- Regular Plan
+    Growth", "... Fund - Direct Plan Cumulative Option"), so they are read whole. Otherwise the name is read as the NAV file's name is (its last ' - ' part)."""
+    base, full = _fold(base_name or ""), _fold(nav_name)
+    if base and full.startswith(base + " "):
+        tail = full[len(base):].strip()
+        if _UNCLAIMED.search(tail):
+            return "Other", UNCLAIMED
+        if re.search(r"\bbonus\b", tail):                  # "Growth Plan - Bonus Option" is the bonus option, not the growth one
+            return "Other", "Bonus"
+        if _IDCW.search(tail):
+            return "IDCW", "IDCW"
+        if re.search(r"\b(growth|cumulative)\b", tail):
+            return "Growth", "Growth"
+        return "Other", "Not stated"
+    return clean_option("", nav_name)
 
 
 _FREQ = r"(?:monthly|quarterly|weekly|daily|annual|annually|yearly|half[ -]?yearly|fortnightly|periodic|bi[ -]?monthly)"
@@ -1043,12 +1075,13 @@ async def apply_nav_names(conn) -> int:
     and option read "not stated" (and returns, chart and score were withheld). AMFI's scheme master names every code in full ("HSBC Small Cap Fund -
     Direct Growth"; kept in mf_facts.nav_name by the disclosure job). Read the plan and option from that name, the same way as from the NAV file's own
     name; only what the NAV file did not state is filled, never overwritten. Returns how many schemes changed."""
-    rows = await conn.fetch("SELECT s.code, s.plan, s.option_class, s.option_label, f.nav_name FROM mf_schemes s JOIN mf_facts f USING (code) "
+    rows = await conn.fetch("SELECT s.code, s.plan, s.option_class, s.option_label, f.nav_name, f.base_name FROM mf_schemes s JOIN mf_facts f USING (code) "
                             "WHERE f.nav_name IS NOT NULL AND (s.plan = 'Unspecified' OR s.option_label = 'Not stated')")
     ups = []
     for r in rows:
         plan = r["plan"] if r["plan"] != "Unspecified" else clean_plan("", r["nav_name"])
-        oc, ol = (r["option_class"], r["option_label"]) if r["option_label"] != "Not stated" else clean_option("", r["nav_name"])
+        # task #281: the words after the scheme's own name, however AMFI joins them ("Fund-Regular Plan-Growth Option")
+        oc, ol = (r["option_class"], r["option_label"]) if r["option_label"] != "Not stated" else option_from_nav_name(r["nav_name"], r["base_name"])
         if (plan, oc, ol) != (r["plan"], r["option_class"], r["option_label"]):
             ups.append((r["code"], plan, oc, ol))
     if ups:
