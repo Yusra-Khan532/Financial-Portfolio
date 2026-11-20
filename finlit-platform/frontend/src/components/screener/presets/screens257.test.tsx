@@ -69,3 +69,12 @@ describe("an open Basic screen", () => {
     expect(barParams(b)).toEqual(["omin=60", "ptmax=80", "iqg=good,nr"]);
   });
 });
+
+describe("the line under a company's name (SPEC 4)", () => {
+  it("a long industry shortens on its own; the size is a separate part that always shows", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(`${process.cwd()}/src/components/screener/presets/ScreenView.tsx`, "utf8"), css = readFileSync(`${process.cwd()}/src/styles/psx257.css`, "utf8");
+    expect(src).toContain('<span className="psx3-indn">{ind ?? "Industry not classified"}</span>{z && <span className="psx3-indz"> · {z} cap</span>}');
+    expect(css).toMatch(/\.psx3-indn \{[^}]*text-overflow: ellipsis/); expect(css).toMatch(/\.psx3-indz \{ flex: none;/);
+  });
+});
