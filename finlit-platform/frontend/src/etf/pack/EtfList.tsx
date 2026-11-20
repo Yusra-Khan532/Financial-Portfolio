@@ -2,15 +2,19 @@
 // know, and one table with four views: Returns & cost (price, 1 day, 1, 3 and 5 years, expense ratio from AMFI; a list-average row), Trading (price vs NAV, red
 // at 1% or more; traded a day over 20 sessions; tracking difference; fund house), Risk (swing and worst fall over 3 years; beta against the Nifty 500 with its
 // reading, explained, share of the risk; a row for the list) and By type (groups that fold). ETF and Tracks always show, with a TWICE tag when two ETFs share an
-// index; every heading sorts both ways. Describes; never advice.
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+// index; every heading sorts both ways. Task #276 (20 Nov pack): the view, the sort and the rows (after Find and the filters) come from the page, which draws the
+// filter row above the table (FilterRow); the ETF column holds the symbol, name, ISIN and Edit | Sell (the dialogs replace Remove and the buys drop-down);
+// "Tracks · type" names the index and the type; every beta prints its window. Describes; never advice.
+import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
-import { Scroll, Section, Tip } from "../../components/sectors/pack/Common";
+import { Scroll, Tip } from "../../components/sectors/pack/Common";
+import { Section } from "../../portfolio/kit/KitSection";
+import { betaWindowText } from "../../lib/etfKeyFigs";
 import { Insights } from "../../portfolio/pack/EquityPack";
 import type { Card } from "../../lib/pulsePack";
 import type { EtfPortfolio, EtfRisk, EtfRow } from "../../lib/etfPortfolio";
 import { byType } from "../../lib/etfTop";
-import { GroupBand, HoldingHeads, HoldingRowCells, LotRows, LotToggle, TotalRow, holdingFigs, type LotsProps } from "../../portfolio/HoldingCells";
+import { GroupBand, HoldingHeads, HoldingRowCells, TotalRow, holdingFigs, type LotsProps } from "../../portfolio/HoldingCells";
 
 export type EtfView = "returns" | "trading" | "risk" | "type";
 type Risk = EtfRisk["etfs"][number];
@@ -42,14 +46,19 @@ export function etfsInsights(d: EtfPortfolio): Card[] {
 
 /** Task #235 (pack C2, C4, C5, C6): with `lots`, Returns & cost shows each ETF's money in three groups (What you paid · What it is worth now · Gain or loss),
  *  each ETF opens into its buys and sales (first in, first out within each account), and a total row sits at the foot. */
-export function EtfsTable({ d, rk, actions, lots }: { d: EtfPortfolio; rk: EtfRisk | undefined; actions: (e: EtfRow) => ReactNode; lots?: LotsProps }) {
-  const [view, setView] = useState<EtfView>("returns"), [sort, setSort] = useState<{ k: string; dir: 1 | -1 }>({ k: "name", dir: 1 });
-  const groups = byType(d), [open, setOpen] = useState<Set<string>>(() => new Set(groups.map((g) => g.key)));
+export type Sort = { k: string; dir: 1 | -1 };
+/** The second line of "Tracks · type": the ETF's type, or "Commodity" for gold and silver (whose index is the metal itself). */
+export const typeLine = (e: EtfRow) => (e.type?.key === "gold" || e.type?.key === "silver" ? "Commodity" : e.type?.word ?? "Indian shares");
+export const VIEWS: [EtfView, string][] = [["returns", "Returns & cost"], ["trading", "Trading"], ["risk", "Risk"], ["type", "By type"]];
+
+export function EtfsTable({ d, rk, rows, lots, view, sort, setSort, tools, actions, gone: goneAct }: {
+  d: EtfPortfolio; rk: EtfRisk | undefined; rows: EtfRow[]; lots?: LotsProps; view: EtfView; sort: Sort; setSort: (s: Sort) => void; tools: ReactNode;
+  /** Edit | Sell under each ETF */ actions: (e: EtfRow) => ReactNode; /** the Remove button of an ETF no longer in the data */ gone: (e: EtfRow) => ReactNode;
+}) {
+  const groups = byType({ ...d, items: rows }), [open, setOpen] = useState<Set<string>>(() => new Set(byType(d).map((g) => g.key)));
   const by = useMemo(() => new Map((rk?.etfs ?? []).map((r) => [r.symbol, r])), [rk]);
-  const xs = d.items.filter((e) => !e.gone), gone = d.items.filter((e) => e.gone);
-  // "See trading" in Key figures opens the Trading view (the sections bar's jump event)
-  useEffect(() => { const on = (e: Event) => { if ((e as CustomEvent).detail === "etp-trading") setView("trading"); }; addEventListener("eq-jump", on); return () => removeEventListener("eq-jump", on); }, []);
-  const base: Col[] = [{ k: "name", label: "ETF", get: (e) => e.symbol }, { k: "tracks", label: "Tracks", get: (e) => e.tracks.label }];
+  const xs = rows, gone = d.items.filter((e) => e.gone);
+  const base: Col[] = [{ k: "name", label: "ETF", get: (e) => e.symbol }, { k: "tracks", label: "Tracks · type", get: (e) => e.tracks.label }];
   const COLS: Record<Exclude<EtfView, "type">, Col[]> = {
     returns: [...base, { k: "price", label: "Price", num: true, get: (e) => e.price ?? null }, { k: "d1", label: "1 day", num: true, get: (e) => e.changePct ?? null },
       { k: "r1", label: "1 year", num: true, get: (e) => e.ret1y ?? null }, { k: "r3", label: "3 years", num: true, get: (e) => e.ret3y ?? null }, { k: "r5", label: "5 years", num: true, get: (e) => e.ret5y ?? null },
@@ -79,30 +88,27 @@ export function EtfsTable({ d, rk, actions, lots }: { d: EtfPortfolio; rk: EtfRi
   const th = (c: Col) => { const on = sort.k === c.k;
     return <th key={c.k} scope="col" className={c.num ? "r" : undefined} aria-sort={on ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
       <button type="button" className="mff-sort" onClick={() => setSort({ k: c.k, dir: on && sort.dir === 1 ? -1 : 1 })}>{c.label}{on ? (sort.dir === 1 ? " ▲" : " ▼") : ""}</button>{c.help && <Tip text={c.help[0]} how={c.help[1]} />}</th>; };
-  const etfCell = (e: EtfRow, buys = false) => (<>
-    <th scope="row"><span className="x-nl"><Link to={`/etfs/${encodeURIComponent(e.symbol)}`} className="mfp-fund">{e.symbol}</Link>{buys && lots && <LotToggle p={lots} symbol={e.symbol} />}</span><small className="mfp-sub">{e.name}</small>
-      <small className="mfp-isin" title="ISIN: names the exact ETF">{e.isin ?? "No ISIN"}</small>{view === "returns" && actions(e)}</th>
-    <td>{e.tracks.label ?? "–"}{e.twice && <span className="mff-tag etp-twice" title="Two ETFs in your list follow this index">TWICE</span>}</td></>);
+  const etfCell = (e: EtfRow) => (<>
+    <th scope="row"><span className="x-nl"><Link to={`/etfs/${encodeURIComponent(e.symbol)}`} className="mfp-fund">{e.symbol}</Link></span><small className="mfp-sub">{e.name}</small>
+      <small className="mfp-isin" title="ISIN: names the exact ETF">{e.isin ?? "No ISIN"}</small>{actions(e)}</th>
+    <td className="etp-tracks">{e.tracks.label ?? "–"}{e.twice && <span className="mff-tag etp-twice" title="Two ETFs in your list follow this index">TWICE</span>}<small className="mfp-sub">{typeLine(e)}</small></td></>);
   const sortHead = (id: string, _label: string, cls: string) => { const c = cols.find((x) => x.k === id)!, on = sort.k === id;
     return <th key={id} scope="col" className={cls} aria-sort={on ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
       <button type="button" className="mff-sort" onClick={() => setSort({ k: id, dir: on && sort.dir === 1 ? -1 : 1 })}>{c.label}{on ? (sort.dir === 1 ? " ▲" : " ▼") : ""}</button></th>; };
   const rets = (e: EtfRow) => <><td className="r"><Ret v={e.ret1y} why={e.ret1yWhy} /></td><td className="r"><Ret v={e.ret3y} why={e.ret3yWhy} /></td><td className="r"><Ret v={e.ret5y} why={e.ret5yWhy} /></td>
     <td className="r">{e.ter?.value == null ? <Dash why={e.ter?.why} /> : `${e.ter.value.toFixed(2)}%`}</td></>;
-  const retRow = (e: EtfRow) => lots ? [<tr key={e.symbol}>{etfCell(e, true)}<HoldingRowCells p={lots} symbol={e.symbol} priceCell={<td className="r x-c2 x-gs cg-h"><b>{rupee(e.price)}</b></td>}
-      changeCell={<td className="r x-c2 cg-h"><Ret v={e.changePct} /></td>} />{rets(e)}</tr>,
-    lots.open.has(e.symbol) && <LotRows key={e.symbol + ":lots"} p={lots} symbol={e.symbol} lead={2} rest={4} />]
+  const retRow = (e: EtfRow) => lots ? <tr key={e.symbol}>{etfCell(e)}<HoldingRowCells p={lots} symbol={e.symbol} priceCell={<td className="r x-c2 x-gs cg-h"><b>{rupee(e.price)}</b></td>}
+      changeCell={<td className="r x-c2 cg-h"><Ret v={e.changePct} /></td>} />{rets(e)}</tr>
     : <tr key={e.symbol}>{etfCell(e)}<td className="r"><b>{rupee(e.price)}</b></td><td className="r"><Ret v={e.changePct} /></td>
     <td className="r"><Ret v={e.ret1y} why={e.ret1yWhy} /></td><td className="r"><Ret v={e.ret3y} why={e.ret3yWhy} /></td><td className="r"><Ret v={e.ret5y} why={e.ret5yWhy} /></td>
     <td className="r">{e.ter?.value == null ? <Dash why={e.ter?.why} /> : `${e.ter.value.toFixed(2)}%`}</td></tr>;
-  const views: [EtfView, string][] = [["returns", "Returns & cost"], ["trading", "Trading"], ["risk", "Risk"], ["type", "By type"]];
   const own = rk?.own?.list;
   return (
     <Section id="etp-etfs" title="Your ETFs" help="Each ETF in your list: what it tracks, its price returns and cost, how it trades against its NAV, and its risk against the Nifty 500." how="Pick a view on the right; click a heading to sort, again to reverse. A TWICE tag: two ETFs follow the same index."
-      sub={`${xs.length} ${xs.length === 1 ? "ETF" : "ETFs"} · ${d.limit} on your plan.${d.asOf ? ` Prices of ${new Date(d.asOf + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.` : ""} Click a column heading to sort.`}
-      right={<div className="sp-view mff-views" id="etp-trading" role="group" aria-label="Table view">{views.map(([k, l]) =>
-        <button key={k} type="button" className={"sp-vbtn" + (view === k ? " on" : "")} aria-pressed={view === k} onClick={() => { setView(k); setSort({ k: "name", dir: 1 }); }}>{l}</button>)}</div>}>
-      <div className="mff-strip">{groups.map((g) => <div key={g.key} className={"mff-g etp-t-" + g.key}><b>{g.word}</b> {g.n} · {Math.round(g.share)}%<small>{g.symbols.join(" · ")}</small></div>)}</div>
-      <Insights items={etfsInsights(d)} scope="etf.list" />
+      sub={`${d.count} ${d.count === 1 ? "ETF" : "ETFs"} · ${d.limit} on your plan.${d.asOf ? ` Prices of ${new Date(d.asOf + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.` : ""} Click a column heading to sort.`}>
+      <div id="etp-zone">
+      {tools}
+      {!xs.length && <p className="sp-note" role="status">No ETF in your list matches the search and filters. Clear filters to see all {d.count}.</p>}
       {view === "returns" && lots && <Scroll label="returns and cost"><table className="sp-tb mff-t kit-grid x-grp">
         <thead><tr className="mff-groups"><th colSpan={2} /><GroupBand /><th colSpan={3} className="mff-gh mff-div">Price returns, total</th><th className="mff-gh">Cost</th></tr>
           <tr>{cols.slice(0, 2).map(th)}<HoldingHeads sortHead={sortHead} price="Price" today="1 day" />{cols.slice(10).map(th)}</tr></thead>
@@ -126,10 +132,10 @@ export function EtfsTable({ d, rk, actions, lots }: { d: EtfPortfolio; rk: EtfRi
         <thead><tr className="mff-groups"><th colSpan={2} /><th colSpan={2} className="mff-gh">3 years</th><th colSpan={2} className="mff-gh mff-div">Against the Nifty 500, 1 year</th><th className="mff-gh">Share</th></tr><tr>{cols.map(th)}</tr></thead>
         <tbody>{sorted(xs).map((e) => { const r = by.get(e.symbol); return <tr key={e.symbol}>{etfCell(e)}
           <td className="r">{pc(r?.swing)}</td><td className="r sp-red">{r?.worstFall == null ? "–" : pc(r.worstFall)}{r?.years != null && r.years < 2.95 && r.from ? <small className="mfp-sub">since {new Date(r.from + "T00:00:00").toLocaleDateString("en-IN", { month: "short", year: "numeric" })}</small> : null}</td>
-          <td className="r">{r?.compared === false ? <span className="sp-note">Not compared</span> : r?.betaPast == null ? <span className="sp-note">{r?.betaWhy ?? "Under a year"}</span> : <><b>{b2(r.betaPast)}</b> {r.band && <span className={"mff-rd r-" + r.band.key}>{r.band.word}</span>}</>}</td>
+          <td className="r">{r?.compared === false ? <span className="sp-note">Not compared</span> : r?.betaPast == null ? <span className="sp-note">{r?.betaWhy ?? "Under a year"}</span> : <><b>{b2(r.betaPast)}</b> {r.band && <span className={"mff-rd r-" + r.band.key}>{r.band.word}</span>}<small className="mfp-sub etp-win">{betaWindowText(r.betaWindow)}</small></>}</td>
           <td className="r">{r?.explained == null ? "–" : `${r.explained}%`}</td><td className="r">{r?.riskShare == null ? "–" : `${r.riskShare.toFixed(1)}%`}</td></tr>; })}</tbody>
         <tfoot><tr><th scope="row" colSpan={2}>Your list</th><td className="r">{pc(rk?.list.swing)}<small className="mfp-sub">3 years</small></td><td className="r sp-red">{pc(rk?.list.worstFall)}<small className="mfp-sub">3 years</small></td>
-          <td className="r"><b>{b2(own?.betaOwn)}</b> {own?.betaOwnBand && <span className={"mff-rd r-" + own.betaOwnBand.key}>{own.betaOwnBand.word}</span>}</td><td /><td className="r">100%</td></tr></tfoot></table></Scroll>}
+          <td className="r"><b>{b2(own?.beta500 ?? own?.betaOwn)}</b> {(own?.beta500Band ?? own?.betaOwnBand) && <span className={"mff-rd r-" + (own?.beta500Band ?? own?.betaOwnBand)!.key}>{(own?.beta500Band ?? own?.betaOwnBand)!.word}</span>}<small className="mfp-sub etp-win">{betaWindowText(rk?.etfs.find((x) => x.betaWindow)?.betaWindow)}</small></td><td /><td className="r">100%</td></tr></tfoot></table></Scroll>}
       {view === "type" && <div className="mff-types"><div className="mff-oa"><button type="button" className="eq-oa" onClick={() => setOpen(open.size ? new Set() : new Set(groups.map((g) => g.key)))}>{open.size ? "Close all" : "Open all"}</button></div>
         <Scroll label="ETFs by type"><table className={"sp-tb mff-t kit-grid" + (lots ? " x-grp" : "")}><thead>{lots ? <tr>{cols.slice(0, 2).map(th)}<HoldingHeads sortHead={sortHead} price="Price" today="1 day" />{cols.slice(10).map(th)}</tr> : <tr>{cols.map(th)}</tr>}</thead>
           {groups.map((g) => { const on = open.has(g.key), a = avg(g.etfs.map((e) => e.ret1y));
@@ -137,7 +143,9 @@ export function EtfsTable({ d, rk, actions, lots }: { d: EtfPortfolio; rk: EtfRi
               <b>{g.word}</b> · {g.n} {g.n === 1 ? "ETF" : "ETFs"} · {Math.round(g.share)}% of the list · average 1 year {a == null ? "–" : sp(a, 1)} <span aria-hidden="true">{on ? "▴" : "▾"}</span></button></th></tr>
               {on && sorted(g.etfs).map(retRow)}</tbody>; })}
         </table></Scroll></div>}
-      {gone.length > 0 && <p className="sp-note">No longer in our data: {gone.map((e) => <span key={e.symbol}>{e.symbol} {actions(e)} </span>)}</p>}
+      </div>
+      <Insights items={etfsInsights(d)} scope="etf.list" />
+      {gone.length > 0 && <p className="sp-note">No longer in our data: {gone.map((e) => <span key={e.symbol}>{e.symbol} {goneAct(e)} </span>)}</p>}
       <p className="sp-note">Price returns to the last close; 3 and 5 years are the total change, not a yearly rate. Dividends are not included. Expense ratios from AMFI's TER file{xs.some((e) => e.ter?.value == null) ? "; a dash names its reason" : ""}.</p>
     </Section>
   );

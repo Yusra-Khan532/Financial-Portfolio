@@ -9,6 +9,7 @@ Pure Python: no database, no network. Describes the past; not a forecast and not
 
 from __future__ import annotations
 
+import logging
 import math
 import re
 import statistics
@@ -21,6 +22,8 @@ MIN_DAYS = 240            # about a year of trading days (the list line and the 
 MIN_POINTS = 40           # the fewest NAVs a fund needs for its figures, and they must span about a year
 WINDOW = round(365.25 * YEARS)
 
+
+log = logging.getLogger("finlit.mfportfolio.risk")
 
 def window(days: Sequence[int], values: Sequence[float], end: int) -> Tuple[List[int], List[float]]:
     """The points of the last three years up to `end` (a date ordinal), oldest first, positive values only."""
@@ -104,22 +107,38 @@ def fund_figures(days: Sequence[int], navs: Sequence[float], bench: Dict[int, fl
 
 
 def list_series(funds: List[Tuple[Sequence[int], Sequence[float], float]], end: int) -> Tuple[List[int], List[float]]:
-    """The whole list as one line, chained from 100 over the days every fund has a NAV: from one such day to the next, each fund's change, weighted.
-    Days only some funds have are skipped, so funds with NAVs on different days are never mixed."""
-    pts = []
+    """The whole list as one line, chained from 100 over the window from each fund's RETURNS: on every day at least one fund moved, the weighted change
+    of the funds that have a price that day and the one before it, re-weighted over those funds (task #273's pack, number fix 3, 20 Nov 2026).
+    The line used to run only over the days EVERY fund had a price, so one young fund (SMALL250, listed Nov 2025) cut the whole list to its last
+    year while each fund's own swing covered three years: the ETF list read 25.3%, above every mix of its parts. Re-weighting keeps the full window
+    and a mix can never swing more than the weighted average of its parts (list_swing_ok)."""
+    steps: Dict[int, List[Tuple[float, float]]] = {}
     for days, navs, w in funds:
         d, v = window(days, navs, end)
-        pts.append((dict(zip(d, v)), w))
-    if not pts:
-        return [], []
-    common = sorted(set.intersection(*(set(m) for m, _ in pts)))
-    tw = sum(w for _, w in pts)
+        for i in range(1, len(d)):
+            steps.setdefault(d[i], []).append((w, v[i] / v[i - 1] - 1.0))
     out_d, out_v, level = [], [], 100.0
-    for d0, d1 in zip(common, common[1:]):
-        level *= 1.0 + sum(w * (m[d1] / m[d0] - 1.0) for m, w in pts) / tw
-        out_d.append(d1)
+    for day in sorted(steps):
+        tw = sum(w for w, _ in steps[day])
+        if tw <= 0:
+            continue
+        level *= 1.0 + sum(w * r for w, r in steps[day]) / tw
+        out_d.append(day)
         out_v.append(level)
     return out_d, out_v
+
+
+def list_swing_ok(list_swing: Optional[float], parts: List[Tuple[Optional[float], float]], who: str = "list") -> bool:
+    """The check of number fix 3: a mix cannot swing more than the weighted average of its parts' swings (0.5 points of rounding allowed). A breach is
+    logged, never shown silently."""
+    have = [(s, w) for s, w in parts if s is not None and w]
+    if list_swing is None or not have:
+        return True
+    cap = sum(s * w for s, w in have) / sum(w for _, w in have)
+    if list_swing > cap + 0.5:
+        log.error("%s swing %.1f is above the weighted average of its parts %.1f", who, list_swing, cap)
+        return False
+    return True
 
 
 def level_word(ratio: float) -> str:

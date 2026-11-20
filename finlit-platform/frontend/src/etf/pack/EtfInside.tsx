@@ -3,9 +3,10 @@
 // three sub-tabs: What your money is in (2 Money in: the list's asset bar and one bar per ETF, holdings abroad apart; 3 Sectors inside each share ETF) ·
 // How ETFs move together (4 the correlation grid without liquid ETFs and a pair reader; 5 Shared stocks and "Same index twice") · Large, mid, small and micro (6) →
 // 7 Largest stocks underneath (5, then Show all 8). Figures are the server's (/inside, /risk); this file only draws and words them. Describes; never advice.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
-import { Scroll, Section } from "../../components/sectors/pack/Common";
+import { Scroll } from "../../components/sectors/pack/Common";
+import { Section } from "../../portfolio/kit/KitSection";
 import { Insights } from "../../portfolio/pack/EquityPack";
 import { WideBox } from "../../portfolio/pack/DivPack";
 import { Cell, LevelSwitch, gridRows, tone, useLevel, type Level, type Reading } from "../../mf/pack/MfMix";
@@ -13,6 +14,7 @@ import { traded } from "../../lib/etf";
 import type { Card } from "../../lib/pulsePack";
 import type { EtfPortfolio, EtfRisk, Inside } from "../../lib/etfPortfolio";
 import { live, movesLike } from "../../lib/etfTop";
+import { metalGaps } from "../../lib/etfKeyFigs";
 import { coTitle, subLine, titleOf } from "../../lib/companyLabel";
 
 const SIZES = ["Large", "Mid", "Small", "Micro"] as const;   // FinLit's four sizes (lib/capBuckets.ts, task #262)
@@ -68,7 +70,7 @@ export function OwnSection({ d, ins, level, onLevel }: Props & { level: Level; o
       {rows.length ? <Scroll label="what your ETFs own"><table className="sp-tb mfm-g">
         <thead><tr><th scope="col">{level === "macro" ? "Macro sector" : "Sector"}</th>{sizes.map((s) => <th key={s} scope="col">{SIZE_HEAD[s][0]}<small>{SIZE_HEAD[s][1]}</small></th>)}<th scope="col" className="r">Of your list</th></tr></thead>
         <tbody>{shown.map((r) => <tr key={r.name}><th scope="row"><b>{r.name}</b>{level === "sector" && macroOf(r.name) && macroOf(r.name) !== r.name && <small>{macroOf(r.name)}</small>}</th>
-          {sizes.map((s) => <Cell key={s} c={r.cells[s]} max={max} readingOf={readingOf} />)}
+          {sizes.map((s) => <Cell key={s} c={r.cells[s]} max={max} readingOf={readingOf} link />)}
           <td className="r mfm-tot"><b>{p1(r.total)}</b><i className="mfm-bar"><u style={{ width: `${(r.total / (rows[0]?.total || 1)) * 100}%` }} /></i><small>{p0(r.total / (known || 1))} of the shares</small></td></tr>)}</tbody>
         <tfoot><tr><th scope="row">All {level === "macro" ? "macro sectors" : "sectors"} · {rows.length}</th>{sizes.map((s) => <td key={s}><b>{p1(colTot(s))}</b> of the list · {p0(colTot(s) / (known || 1))} of the shares</td>)}<td className="r"><b>{p1(known)}</b> in Indian shares</td></tr></tfoot>
       </table></Scroll> : <p className="sp-note">None of your ETFs holds Indian shares with a monthly file loaded.</p>}
@@ -92,6 +94,8 @@ const MAIN: Record<string, [string, string]> = { indian: ["Indian shares", "etp-
 export function etfSplit(ins: Inside, sym: string): { k: string; v: number; c: string }[] | null {
   const e = (ins.etfs ?? []).find((x) => x.symbol === sym), s = e?.split, t = e?.type?.key ?? "indian", [word, cls] = MAIN[t] ?? MAIN.indian;
   if (!s) return t === "indian" ? null : [{ k: word, v: 100, c: cls }];
+  // task #276, number fix 2: a gold or silver ETF read by its type on the server (its file was read without its metal) is all metal, as the list's mix counts it
+  if ((t === "gold" || t === "silver") && ins.mixFromType?.includes(sym)) return [{ k: word, v: 100, c: cls }];
   const pos = (x: number | undefined) => Math.max(0, x ?? 0), tot = pos(s.equity) + pos(s.debt) + pos(s.cash) + pos(s.other) || 1;
   const main = t === "indian" || t === "abroad" ? pos(s.equity) : t === "gold" || t === "silver" ? pos(s.other) + pos(s.equity) : pos(s.debt) + pos(s.cash) + pos(s.other);
   const v = Math.min(100, (main / tot) * 100), rest = 100 - v;
@@ -104,7 +108,8 @@ function MoneySection({ d, ins }: Props) {
   return (
     <Section id="etp-money" hide title="What your money is in" help="The list's money by asset, from each ETF's latest monthly file (an ETF without one by its type), then one bar per ETF." how="Each ETF counts like the list; the grey part of a bar is cash and other." sub={`Each ETF's latest monthly file, each ETF counting ${d.basis === "value" ? "by your money" : "the same"}.`}>
       <div className="etp-bar" role="img" aria-label={BAR.filter(([k]) => bar[k] > 0.05).map(([k, l]) => `${l} ${Math.round(bar[k])}%`).join(", ")}>{BAR.filter(([k]) => bar[k] > 0.05).map(([k, l, c]) => <i key={k} className={c} style={{ flexGrow: bar[k] }} title={`${l} ${Math.round(bar[k])}%`}>{bar[k] >= 8 ? `${Math.round(bar[k])}%` : ""}</i>)}</div>
-      <p className="sp-note etp-keys">{BAR.filter(([k]) => bar[k] > 0.05).map(([k, l, c]) => <span key={k}><i className={"mfm-key " + c} /> {l} {Math.round(bar[k])}%</span>)}</p>
+      <p className="sp-note etp-keys">{BAR.filter(([k]) => bar[k] > 0.05).map(([k, l, c]) => <span key={k}><i className={"mfm-key " + c} /> {l} {bar[k] < 0.5 ? "under 1" : Math.round(bar[k])}%</span>)}</p>
+      {metalGaps(d, ins).length > 0 && <p className="sp-note" role="status">Data to check: {metalGaps(d, ins).join(" and ")} {metalGaps(d, ins).length === 1 ? "is" : "are"} read without {metalGaps(d, ins).length === 1 ? "its" : "their"} metal in the fund house's file, so {metalGaps(d, ins).length === 1 ? "it shows" : "they show"} as debt and cash here.</p>}
       <div className="mfm-fbars">{live(d).map((e) => { const s = split(e.symbol); return <div key={e.symbol} className="mfm-fb"><b>{e.symbol}</b>
         {s ? <span className="mfm-stack">{s.map((x) => <i key={x.k} className={x.c} style={{ width: `${x.v}%` }} title={`${x.k} ${Math.round(x.v)}%`}>{x.v >= 12 ? `${x.k} ${Math.round(x.v)}%` : ""}</i>)}</span> : <span className="mfm-stack etp-none">Holdings not loaded yet</span>}</div>; })}</div>
       {abroad.map(([sym, hs]) => <div key={sym} className="etp-abroad"><p className="sp-cap">{sym}'s five largest holdings · listed abroad</p>
@@ -233,10 +238,11 @@ export function LargestSection({ ins }: { ins: Inside }) {
   );
 }
 
-export function InsideTab({ d, ins, rk }: Props) {
+export function InsideTab({ d, ins, rk, kf }: Props & { kf?: ReactNode }) {
   const [level, setLevel] = useLevel("finlit-etf-level");
   return <>
     <OwnSection d={d} ins={ins} rk={rk} level={level} onLevel={setLevel} />
+    {kf}
     <InsideSubTabs d={d} ins={ins} rk={rk} level={level} onLevel={setLevel} />
     {ins.top.length > 0 && <LargestSection ins={ins} />}
   </>;
