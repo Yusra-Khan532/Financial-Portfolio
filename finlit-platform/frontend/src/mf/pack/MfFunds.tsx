@@ -2,7 +2,7 @@
 // four views: Overview (Health Score, a divider, the four Health parts in the server's words with the number under each, status with the category rank),
 // Returns & costs, Risk (each fund against its own benchmark) and By fund type (groups that fold). Every heading sorts both ways. Describes; never advice.
 import { FilterRow, applyFilters, type Facet, type Picks } from "../../portfolio/kit/FilterRow";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode, useEffect } from "react";
 import { Link } from "react-router";
 import { Scroll, Section, Tip } from "../../components/sectors/pack/Common";
 import { Insights } from "../../portfolio/pack/EquityPack";
@@ -70,6 +70,9 @@ export function FundsTable({ hs, rk, sp, actions, listLabel, lots, stuck, lead }
   /** task #275 (change 11): inside the long table the filter row takes the view bar's place, with the picker, the views and Sections ▾ first */ stuck?: boolean; lead?: ReactNode }) {
   const [view, setView] = useState<FundsView>("overview"), [picks, setPicks] = useState<Picks>({}), [fq, setFq] = useState(""), [sort, setSort] = useState<{ k: string; dir: 1 | -1 }>({ k: "name", dir: 1 });
   const [open, setOpen] = useState<Set<string>>(new Set(["Equity", "Hybrid", "Debt", "Solution oriented", "Others"]));
+  // task #275 (change 9): "Show the Poor funds" in Key figures sets the Health filter here
+  useEffect(() => { const on = (e: Event) => { const d = (e as CustomEvent<{ key: string; v: string }>).detail; if (d?.key) { setPicks({ [d.key]: [d.v] }); setFq(""); setView("overview"); } };
+    addEventListener("mff-filter", on); return () => removeEventListener("mff-filter", on); }, []);
   const by = useMemo(() => new Map((rk?.funds ?? []).map((f) => [f.code, f])), [rk]);
   const theme = sp?.readings.theme, themeTag = (h: Holding) => (theme?.theme && theme.funds.length > 1 && theme.funds.includes(h.code) ? `${theme.theme} ×${theme.funds.length}` : null);
   const COLS: Record<FundsView, Col[]> = {

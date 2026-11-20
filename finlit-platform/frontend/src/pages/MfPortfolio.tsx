@@ -36,8 +36,14 @@ import { fundName, type MfRisk } from "../lib/mfPack";
 import { type MfView } from "../mf/pack/MfPack";
 import { RiskTab } from "../mf/pack/MfRisk";
 import { FundsTable } from "../mf/pack/MfFunds";
-import { MF_SECS, fundsCards, listBox, mfTiles, mixCards, riskCards } from "../lib/mfTop";
-import { KeyFigures, jumpTo } from "../portfolio/pack/PageTop";
+import { MF_SECS, listBox, mfTiles } from "../lib/mfTop";
+import { mfInsideCompanies, mfInsideLine, mfKeyFigures } from "../lib/mfKeyFigs";
+import { WhatChanged, useWhatChanged } from "../components/changes/WhatChanged";
+import { EYE, useHidden } from "../portfolio/kit/KitSection";
+import "../styles/what-changed.css";
+import { KeyFigsBox } from "../portfolio/kit/KeyFigsBox";
+import type { KfGo } from "../portfolio/kit/keyFigs";
+import { jumpTo } from "../portfolio/pack/PageTop";
 import { AddPortfolioDialog, GoTo, type PfInfo } from "../portfolio/Portfolios";
 import { SoldList, soldOf } from "../portfolio/MoneyRow";
 import { VIEW_COLOR } from "../portfolio/ViewKit";
@@ -227,11 +233,24 @@ export function MfPortfolioPage() {
   const [picked, setPicked] = useState<FundGroup | null>(null), [several, setSeveral] = useState(false);
   const pick: Pick = { list: pfList, cur, onPick: setCur, figs: pfFigs, noun: ["fund", "funds"] };
   const seen = useSeenViews("mf-portfolio", user?.id, view);
-  const steps: ViewSteps<MfView> = { funds: { label: MF_SECS.funds.label, steps: MF_SECS.funds.secs.map(([id, label]) => ({ id, label })) },
-    mix: { label: MF_SECS.mix.label, steps: MF_SECS.mix.secs.map(([id, label]) => ({ id, label })) }, risk: { label: MF_SECS.risk.label, steps: MF_SECS.risk.secs.map(([id, label]) => ({ id, label })) } };
+  // task #275 (change 19): What changed at the companies inside the funds, after Key figures; In short closes each view
+  const cos = useMemo(() => mfInsideCompanies(sp.data), [sp.data]);
+  const coBy = useMemo(() => new Map(cos.map((c) => [c.symbol, c])), [cos]);
+  const wc = useWhatChanged(cos.map((c) => c.symbol), "mf-portfolio");
+  const [wcHidden, setWcHidden] = useHidden("mfp-wc");
+  const SHORT = { id: "mfs-short-h", label: "In short" };
+  const steps: ViewSteps<MfView> = { funds: { label: MF_SECS.funds.label, steps: [...MF_SECS.funds.secs.map(([id, label]) => ({ id, label })), { id: "wc-h-mf", label: "What changed", ...(wc.newN ? { badge: `${wc.newN} new` } : {}) }, SHORT] },
+    mix: { label: MF_SECS.mix.label, steps: [...MF_SECS.mix.secs.map(([id, label]) => ({ id, label })), SHORT] }, risk: { label: MF_SECS.risk.label, steps: [...MF_SECS.risk.secs.map(([id, label]) => ({ id, label })), SHORT] } };
   const goTab = (t: MfView) => { setView(t); setTimeout(() => document.getElementById("mfp-tabsbox")?.scrollIntoView?.({ behavior: "smooth", block: "start" }), 50); };
   const onSec = (v: MfView, id: string) => { if (v !== view) { setView(v); setTimeout(() => jumpTo(id), 80); } else jumpTo(id); };
   const here = useStepInView(steps[view].steps.map((x) => x.id));
+  // task #275 (change 9, fix 8): Key figures under the main section of each view; a link to another view opens it first
+  const onGo = (g: KfGo) => {
+    if (g.kind === "sort" && g.arg.startsWith("health:")) { dispatchEvent(new CustomEvent("mff-filter", { detail: { key: "health", v: g.arg.slice(7) } })); setTimeout(() => jumpTo("mfp-funds"), 40); return; }
+    const t = (Object.keys(steps) as MfView[]).find((k) => steps[k].steps.some((x) => x.id === g.arg));
+    if (t && t !== view) { setView(t); setTimeout(() => jumpTo(g.arg), 80); } else jumpTo(g.arg);
+  };
+  const kf = (v: MfView, sub: string) => <KeyFigsBox id={`mfp-kf-${v}`} sub={sub} cards={mfKeyFigures(v, { hs: all, sp: sp.data, rk: rk.data, list: d ? { value: d.summary.score.value, label: d.summary.score.label } : undefined })} onGo={onGo} />;
   const lead: ReactNode = <><AccountPicker p={pick} compact /><ViewSeg defs={VIEW_DEFS.map((x) => (x.id === "risk" ? { ...x, label: "Risk" } : x))} view={view} onView={(v) => goTab(v)} seen={seen} />
     <SectionsMenu all={steps} view={view} onSec={onSec} here={here} label="Sections ▾" btnClass="ptk-btn ptk-secb" mode="view" /></>;
   const setView = (v: MfView, scroll = false) => { const n = new URLSearchParams(params); if (v === "funds") n.delete("view"); else n.set("view", v); setParams(n, { replace: true }); if (scroll) setTimeout(() => document.getElementById("mfp-tabsbox")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0); };
@@ -316,25 +335,34 @@ export function MfPortfolioPage() {
           {/* task #275 (changes 16 and 11): the score and the three views as tabs (Not opened yet, kept per member), then the view bar */}
           <ViewCards score={<HealthCard value={d.summary.score.value} label={d.summary.score.label} n={all.length} valued={box.valued} />} cards={cards} view={view} onView={(v) => setView(v)} seen={seen} tabsId="mfp-tabsbox" panel="mfp-panel" label="Your funds' health and the views" />
           <ViewBar pick={pick} defs={VIEW_DEFS} view={view} onView={(v) => setView(v)} seen={seen} all={steps} onSec={onSec} away={inTable} />
-          <KeyFigures store="finlit-mf-keyfig" tab={view} sub={view === "funds" ? `What matters most in your ${all.length} ${all.length === 1 ? "fund" : "funds"}` : view === "mix" ? "How alike your funds really are" : "Where the list's risk sits"}
-            cards={view === "funds" ? fundsCards(all, sp.data) : view === "mix" ? mixCards(sp.data) : riskCards(rk.data)} />
           <div id="mfp-panel" role="tabpanel" aria-labelledby={`mfp-tab-${view}`}>
           {view === "funds" && <>
             {rk.isError && <p className="sp-note" role="status">{errText(rk.error)}</p>}
             <FundsTable hs={rows} rk={rk.data} sp={sp.data} listLabel={d.summary.score.label} lots={lots} stuck={inTable} lead={lead}
               actions={(h) => { const k = keyOf(h.id); return <EditSell name={fundName(h.name) || `Scheme ${h.code}`} held={aggOf(book.rows, k, cur)?.qty ?? 0} onEdit={() => setDlg({ kind: "edit", k })} onSell={() => setDlg({ kind: "sell", k })} />; }} />
             <SoldList items={sold} all={cur === "all" && pfList.length > 1} pfName={pfName} onRemoveSale={(id) => book.store.remove(id)} noun={["fund", "funds"]} />
+            {kf("funds", `What your ${all.length === 1 ? "fund adds" : `${all.length} funds add`} up to, from the table above and the sections below.`)}
+            {wcHidden ? <section className="ptk-hz" aria-labelledby="wc-h-mf"><div className="ptk-hz-t"><h2 id="wc-h-mf">What changed at the companies inside your funds</h2><p>Hidden · From Discover: what the companies inside your funds filed in the last 90 days</p></div>
+              <button type="button" className="ptk-hz-b" aria-expanded="false" aria-label="Show: What changed at the companies inside your funds" onClick={() => setWcHidden(false)}>Show ▾</button></section>
+              : <div className="hz">
+                {sp.isPending ? <section className="sp-sec wc" aria-labelledby="wc-h-mf"><h2 id="wc-h-mf">What changed at the companies inside your funds</h2><p className="sp-note" aria-busy="true">Reading the companies inside your funds…</p></section>
+                  : sp.isError ? <section className="sp-sec wc" aria-labelledby="wc-h-mf"><h2 id="wc-h-mf">What changed at the companies inside your funds</h2><p className="sp-note" role="status">The companies inside your funds could not be read right now, so what they filed is not shown. {errText(sp.error)}</p></section>
+                  : <WhatChanged symbols={cos.map((c) => c.symbol)} listName="the companies inside your funds" countLabel="Inside your funds" listRef="mf" page="mf-portfolio" className="sp-sec wc ptk-wc" hId="wc-h-mf" id="what-changed"
+                    title="What changed at the companies inside your funds" nameOf={(x) => coBy.get(x)?.name} sub={(x) => { const c = coBy.get(x); return c ? mfInsideLine(c) : undefined; }}
+                    lede={`From Discover: companies that make up 0.3% or more of your funds and filed one of these in the last 90 days.${box.valued ? "" : " Each fund counts the same until you add units."}${!cos.length ? " None of your funds holds a company at 0.3% or more of the list." : ""}`}
+                    foot={`Holdings from each fund house's latest monthly file${sp.data?.funds?.find((f) => f.holdingsAsOf)?.holdingsAsOf ? ` (${dm(sp.data.funds.find((f) => f.holdingsAsOf)!.holdingsAsOf as string)} ${(sp.data.funds.find((f) => f.holdingsAsOf)!.holdingsAsOf as string).slice(0, 4)})` : ""}; smaller holdings than 0.3% of your funds are left out here and open in Discover with Only my names.`} />}
+                <button type="button" className="hz-btn hz-on" aria-expanded="true" aria-label="Hide: What changed at the companies inside your funds" onClick={() => setWcHidden(true)}>{EYE}Hide</button></div>}
             {noReturns > 0 && <p className="sp-note" role="status">1Y, 3Y and 5Y returns are being worked out now for {noReturns} of your funds (from the fund's published NAV history). They appear here by themselves within a minute or two. A fund younger than a year has no 1Y return, and one younger than 3 or 5 years has no 3Y or 5Y return.</p>}
           </>}
           {view === "mix" && <>
             {sp.isPending && <p className="sp-note" aria-busy="true">Working out how spread your funds are…</p>}
             {sp.isError && <p className="sp-note" role="status">How spread your funds are could not be worked out right now. {errText(sp.error)}</p>}
-            {sp.data && sp.data.count > 0 && <MixTab sp={sp.data} readingOf={readingOf} gold={has("gold")} big={big} />}
+            {sp.data && sp.data.count > 0 && <MixTab sp={sp.data} readingOf={readingOf} gold={has("gold")} big={big} kf={kf("mix", "What sits inside, from the sections above and below.")} />}
           </>}
           {view === "risk" && <>
             {rk.isPending && <p className="sp-note" aria-busy="true">Working out the risk figures…</p>}
             {rk.isError && <p className="sp-note" role="status">{errText(rk.error)}</p>}
-            {rk.data && rk.data.count > 0 && <RiskTab rk={rk.data} value={money.n && money.withQty === money.n ? { now: money.now, name: cur === "all" ? "All platforms" : pfName(cur) } : null} />}
+            {rk.data && rk.data.count > 0 && <RiskTab rk={rk.data} kf={kf("risk", "What the risk adds up to, from the figures above and the sections below.")} value={money.n && money.withQty === money.n ? { now: money.now, name: cur === "all" ? "All platforms" : pfName(cur) } : null} />}
           </>}
           <NextView k={VIEW_LABEL[NEXT_VIEW[view]]} what={VIEW_WHAT[NEXT_VIEW[view]]} color={VIEW_COLORS[NEXT_VIEW[view]]} onGo={() => goTab(NEXT_VIEW[view])} />
           </div>

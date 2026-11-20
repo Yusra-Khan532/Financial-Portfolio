@@ -183,3 +183,40 @@ async def test_276_the_etf_list_is_the_companies_inside_the_members_etfs_and_its
     n = (await c.get("/api/notifications")).json()["notifications"]
     assert len(n) == 1 and "line pipes" in n[0]["body"] and n[0]["body"].startswith("On your etf portfolio · companies inside your etfs")
     await c.aclose()
+
+
+async def test_275_the_mf_list_is_the_companies_inside_the_members_funds_and_its_alert_fires(app):
+    """Task #275 (change 19): "Alert me" on the MF portfolio's What changed sets one list alert on the companies that make up 0.3% or more of the member's
+    funds (each fund's latest monthly file through its family, each fund counting the same). Cash rows and companies under 0.3% are left out."""
+    import json as _json
+    c = await signed_in(app, "mflist@example.com", plan="gold")
+    uid = (await c.get("/api/auth/me")).json()["user"]["id"]
+    hold = {"fam-FMCGX": [["ITC Ltd", "INE154A01025", "Diversified FMCG", "e", 19.2, 1, 1], ["Small Ltd", "INE000S01011", "Food Products", "e", 0.4, 1, 1],
+                          ["Triparty Repo", None, None, "c", 3.0, None, None]],
+            "fam-LIQX": [["Treasury Bill", "IN002026X123", None, "d", 60.0, None, None]]}
+    async with app.state.store.pool.acquire() as conn:
+        for code, fam in ((991001, "fam-FMCGX"), (991002, "fam-LIQX")):
+            await conn.execute("INSERT INTO mf_schemes (code, name, amc, scheme_type, category, plan, option_class, family, isin) VALUES ($1, $2, 'ICICI', 'Open Ended', "
+                               "'Equity Scheme - Sectoral/ Thematic', 'Regular', 'Growth', $2, $3) ON CONFLICT (code) DO NOTHING", code, fam, f"INF{code}XX0")
+            await conn.execute("INSERT INTO disclosure_portfolios (fkey, as_of, amc, scheme_name, source, source_url, pct_total, n, holdings) VALUES "
+                               "($1, '2026-10-31', 'ICICI', $1, 'test', 'https://example.test', 100, 3, $2::jsonb) ON CONFLICT DO NOTHING", fam, _json.dumps(hold[fam]))
+            await conn.execute("INSERT INTO mf_holdings (user_id, code) VALUES ($1::uuid, $2)", uid, code)
+        for sym, isin, name in (("ITCX", "INE154A01025", "ITC Ltd"), ("SMALLX", "INE000S01011", "Small Ltd")):
+            await conn.execute("INSERT INTO companies (symbol, name) VALUES ($1, $2) ON CONFLICT (symbol) DO NOTHING", sym, name)
+            await conn.execute("INSERT INTO disclosure_isin (isin, symbol) VALUES ($1, $2) ON CONFLICT DO NOTHING", isin, sym)
+        lst = await fa.mf_list(conn, uid)
+    # two funds, each counting the same: ITC 19.2% x 1/2 = 9.6% stays; Small 0.4% x 1/2 = 0.2% is under 0.3%; the liquid fund holds no company
+    assert lst == {"ref": "mf", "label": "MF portfolio · companies inside your funds", "symbols": ["ITCX"]}
+    lists = (await c.get("/api/alerts/lists")).json()["lists"]
+    assert {"ref": "mf", "label": "MF portfolio · companies inside your funds", "count": 1} in lists and lists[-1]["ref"] == "mine"
+    r = await c.post("/api/alerts", json={"metric": "discover_filing", "op": "event", "list": "mf", "kinds": ["order", "fundraise"], "channels": ["app"]})
+    assert r.status_code == 201, r.text
+    assert fa.list_page("mf") == "/mf-portfolio#what-changed"
+    async with app.state.store.pool.acquire() as conn:
+        top = await fa.newest_signal(conn)
+    await add_signal(app, top + 1, "ITCX", "order", "Receipt of order worth Rs 120 crore")
+    await add_signal(app, top + 2, "SMALLX", "order", "Order worth Rs 2 crore")                                    # under 0.3% of the funds
+    assert await run(app) == 1
+    n = (await c.get("/api/notifications")).json()["notifications"]
+    assert len(n) == 1 and "Rs 120 crore" in n[0]["body"] and n[0]["body"].startswith("On your mf portfolio · companies inside your funds")
+    await c.aclose()

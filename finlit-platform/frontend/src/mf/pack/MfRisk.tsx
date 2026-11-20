@@ -2,7 +2,7 @@
 // built (by fund type, then Reading a beta and the three beta figures) → 3 Each fund against its own benchmark → 4 Share of the list vs share of the risk →
 // 5 If the market fell 10% → 6 Each fund's risk. The figures are the server's (/api/me/mf-portfolio/risk: mfportfolio/bench.py for the own-benchmark figures,
 // mfportfolio/risk.py for swing and worst fall); the beta ranges are the owner's table (COMMON-RULES 8). The Equity page's eqr- styles are shared. Never advice.
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Scroll, Section, Tip } from "../../components/sectors/pack/Common";
 import { Insights } from "../../portfolio/pack/EquityPack";
 import { MarketFall } from "../../portfolio/pack/MarketFall";
@@ -219,6 +219,6 @@ export function EachFundSection({ rk }: { rk: MfRisk }) {
   );
 }
 
-export function RiskTab({ rk, value }: { rk: MfRisk; value?: { now: number; name?: string } | null }) {
-  return <><GlanceSection rk={rk} /><BuildSection rk={rk} /><OwnBenchSection rk={rk} /><RiskShareSection rk={rk} /><FallSection rk={rk} value={value} /><EachFundSection rk={rk} /></>;
+export function RiskTab({ rk, value, kf }: { rk: MfRisk; value?: { now: number; name?: string } | null; /** task #275 (change 9): Key figures, under the main section */ kf?: ReactNode }) {
+  return <><GlanceSection rk={rk} />{kf}<BuildSection rk={rk} /><OwnBenchSection rk={rk} /><RiskShareSection rk={rk} /><FallSection rk={rk} value={value} /><EachFundSection rk={rk} /></>;
 }
