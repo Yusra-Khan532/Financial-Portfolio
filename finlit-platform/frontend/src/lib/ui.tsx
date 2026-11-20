@@ -74,5 +74,8 @@ export function useUI() {
   return ui;
 }
 
+/** The same, or null outside the provider (a part a test can render on its own, task #271). */
+export const useUIMaybe = () => useContext(Ctx);
+
 /** Re-render charts when the theme changes (they read CSS variables at draw time). */
 export const useThemeKey = () => useUI().theme;

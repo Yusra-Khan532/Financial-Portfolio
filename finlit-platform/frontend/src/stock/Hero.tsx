@@ -7,6 +7,7 @@ import { Link } from "react-router";
 import { Icon } from "../lib/icons";
 import { MINUS, dateIN, fmtUnit, nf, signed } from "../lib/format";
 import { useUI } from "../lib/ui";
+import { ThemeChips } from "./DiscoverThemes";
 import { Spark } from "../charts/Small";
 import { Gate } from "../components/Gate";
 import { PrismCompare } from "./PrismCompare";
@@ -75,6 +76,7 @@ export function Hero({ s, ratios, jump }: { s: Summary; ratios?: Ratios; jump: (
             <div><span className="hx-k">Listed as</span><div className="tags"><span className="tag tk">{p.nse || p.symbol}</span><span className="tag">NSE</span>{p.bse && <span className="tag mono">BSE {p.bse}</span>}</div></div>
           </div>
           <ClassPath symbol={p.symbol} fallback={p.industry} />
+          <ThemeChips symbol={p.symbol} name={p.name} jump={jump} />{/* task #271 (report pack 20 Nov, change 20a): Discover's themes for this company */}
           <TradingFacts s={s} part="warn" />
           <details className="hxd-more xdd"><summary>Trading details · {asOf && !Number.isNaN(+asOf) ? `NSE · ${dateIN(asOf.toISOString(), { day: "numeric", month: "short" })}, ${asOf.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })} IST` : "NSE"}<DropChev /></summary>
             <TradingList s={s} /></details>

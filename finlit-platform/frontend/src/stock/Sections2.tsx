@@ -6,6 +6,7 @@ import { LineChart } from "../charts/LineChart";
 import { cr, dateIN, nf, pct, signed } from "../lib/format";
 import type { Events, Ratios, Segments, Summary } from "../lib/api";
 import { SectionHead } from "./Sections";
+import { BuildCard } from "./DiscoverThemes";
 import { Plain } from "../components/Plain";
 import { ChartHelp } from "../components/ChartHelp";
 import { SegmentHistory } from "./SegmentMix";
@@ -53,6 +54,7 @@ export function BusinessSection({ s }: { s: Summary }) {
         </div>
         <div className="bstats">{stats.map(([ic, k, val, c], i) => <div className="bs" key={k} style={{ "--bc": v(c), animationDelay: `${i * 80}ms` } as React.CSSProperties}><span className="bs-i"><Icon name={ic} /></span><div className="label">{k}</div><div className="bs-v">{val}</div></div>)}</div>
       </div>
+      <BuildCard symbol={p.symbol} name={p.name} />{/* task #271 (report pack 20 Nov, change 20b): what its presentation says it is building (Discover) */}
     </section>
   );
 }
