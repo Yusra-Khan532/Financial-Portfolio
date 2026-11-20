@@ -232,7 +232,8 @@ td.latest { background: transparent; font-weight: 600; box-shadow: inset 0 -1px 
 th.latest { background: transparent; color: var(--gold); }
 tbody tr:hover td { background: var(--s2); }
 tr.tot td { border-top: 1px solid var(--text); font-weight: 600; }
-.tbl th, .pm-t th { background: transparent; border-bottom: 1px solid var(--text); }
+.tbl th { background: transparent; border-bottom: 1px solid var(--text); }
+.pm-t th { background: var(--s1); border-bottom: 1px solid var(--text); }   /* task #264: a pinned header (position: sticky above) stays solid, never see-through */
 .cmp th, .cmp td { border-bottom-color: var(--border); }
 .cmp thead th, .cmp th:first-child, .cmp td:first-child { background: var(--rep-a, #211F1A); }
 .cmp thead th.cur { background: var(--rep-a, #211F1A); }
