@@ -4,11 +4,6 @@
   "Jump to any section from the bar",
   "Every section explains itself. Each figure says what it means"
  ],
- "iq": [
-  "The FinLit IQ: one score out of 100. Built from five pillars",
-  "Quality, Growth, Profitability, Balance sheet, Technical. Each pillar is scored on its own",
-  "Strengths and watch-outs in plain words"
- ],
  "price": [
   "Pick a time range",
   "Switch the averages and volume on or off",
@@ -95,11 +90,6 @@
   "When companies report results",
   "Open IPOs and upcoming issues",
   "And company filings as they land"
- ],
- "iq-table": [
-  "Every listed company with its FinLit IQ",
-  "Sort by any pillar",
-  "Filter by size, sector and score"
  ],
  "outlook": [
   "Estimates from the company's own history and its sector",

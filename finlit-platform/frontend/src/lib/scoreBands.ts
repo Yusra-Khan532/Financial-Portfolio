@@ -1,10 +1,11 @@
-// The one colour rule for every FinLit IQ on the site, as the founder set it: green from 70, orange from 50 to under 70, red under 50,
-// grey when there is no score. Colour only decorates; the model's own word (Strong / Healthy / Mixed / Weak) and the number carry the meaning,
+// The one colour rule for every company score on the site, as the founder set it: green from 70, orange from 50 to under 70, red under 50,
+// grey when there is no score. Colour only decorates; the model's own word (Strong / Healthy / Average / Weak) and the number carry the meaning,
 // and the model's thresholds and labels are not changed here. Also: the market-cap line, and which score badge a plan may see.
 import { capSize, nf } from "./format";
 import { scoreTone } from "./prism";
 import { fmtScore, ratingWord, type TrendTone } from "./prismTechnical";
 import { FUND_PART_NAME } from "./prismNames";
+import { PLAN_FOR_PRISM } from "./planGates";
 
 export type ScoreBand = "hi" | "mid" | "lo" | "na";
 export const BAND_GREEN = 70, BAND_ORANGE = 50;
@@ -25,9 +26,12 @@ export function dotLabel(name: string, v: number | null | undefined, word?: stri
 }
 
 export type Plan = "basic" | "silver" | "gold";
-export type BadgeKind = "none" | "basic" | "prism";
-/** Which score badge a plan sees at the top of a stock page: Silver the basic FinLit IQ only, Gold the advanced Prism rating only, Basic none. */
-export const badgeFor = (plan: Plan, admin = false): BadgeKind => (plan === "gold" || admin ? "prism" : plan === "silver" ? "basic" : "none");
+export type BadgeKind = "none" | "prism";
+const PLAN_RANK: Record<Plan, number> = { basic: 0, silver: 1, gold: 2 };
+/** Whether a plan has FinLit Prism (task #283: FinLit's only company score). */
+export const planHasPrism = (plan: Plan, admin = false): boolean => admin || PLAN_RANK[plan] >= PLAN_RANK[PLAN_FOR_PRISM];
+/** Which score badge a plan sees at the top of a stock page: FinLit Prism for a plan that has it, none otherwise (a locked Prism chip says where it is). */
+export const badgeFor = (plan: Plan, admin = false): BadgeKind => (planHasPrism(plan, admin) ? "prism" : "none");
 
 /** "₹1,23,456 Cr" in Indian grouping; null when the market value is not known. */
 export const marketCapText = (cr: number | null | undefined) => (cr == null || !Number.isFinite(cr) || cr <= 0 ? null : `₹${nf(cr, 0)} Cr`);
@@ -43,15 +47,13 @@ export type PrismInput = { kind: "loading" | "none" | "hidden" | "locked" }
   | { kind: "report"; final: number | null; word: string; status: string; parts?: Partial<Record<string, number | null>>; short?: TechIn | null; long?: TechIn | null; reason?: string | null; techAsOf?: string | null };
 export type BadgeView =
   | { kind: "none" }
-  | { kind: "basic"; score: number | null; word: string | null; band: ScoreBand }
+  | { kind: "locked" }
   | { kind: "prism"; score: number; word: string; band: ScoreBand; provisional: boolean }
   | { kind: "prism-none" };
-/** What the badge at the top of the stock page shows. Silver: the basic FinLit IQ and nothing of Prism. Gold: the Prism rating and nothing of the basic score.
- *  Basic: no badge (the header is as it was). Gold with no stored (or no usable) rating: "not rated yet" with a link. While the rating loads, or when the server hides it, nothing. */
-export function badgeView(plan: Plan, admin: boolean, basic: { overall: number | null; word: string | null }, prism: PrismInput): BadgeView {
-  const kind = badgeFor(plan, admin);
-  if (kind === "none") return { kind };
-  if (kind === "basic") return { kind, score: basic.overall, word: basic.overall == null ? null : basic.word, band: scoreBand(basic.overall) };
+/** What the badge at the top of the stock page shows: the Prism rating for a plan with Prism, "locked" for others (a locked Prism chip, "FinLit Prism · see plans").
+ *  No stored (or no usable) rating: "not rated yet" with a link. While the rating loads, or when the server hides it, nothing. */
+export function badgeView(plan: Plan, admin: boolean, prism: PrismInput): BadgeView {
+  if (badgeFor(plan, admin) === "none") return { kind: "locked" };
   if (prism.kind === "none") return { kind: "prism-none" };
   if (prism.kind !== "report") return { kind: "none" };
   if (prism.final == null || prism.status === "NOT RATED") return { kind: "prism-none" };

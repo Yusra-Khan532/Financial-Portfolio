@@ -5,7 +5,7 @@ import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { HScroll } from "../components/HScroll";
 import { nf } from "../lib/format";
-import { KIND_LOWER, KIND_MARK, KIND_NAME, KIND_TAB, MODEL_NAME, betaTxt, betaWindowTxt, chg, joinWords, kindsHeld, lower, pctOf, rupees, splitLine, type AllInvestments, type Company, type Kind, type KindMoney, type Tab } from "../lib/myInvest";
+import { KIND_LOWER, KIND_MARK, KIND_NAME, KIND_TAB, SCORE_NAME, betaTxt, betaWindowTxt, chg, joinWords, kindsHeld, lower, pctOf, rupees, splitLine, type AllInvestments, type Company, type Kind, type KindMoney, type Tab } from "../lib/myInvest";
 import { MarketFall } from "../portfolio/pack/MarketFall";
 import "../portfolio/pack/market-fall.css";
 import "../styles/sectors-pack.css";   // task #235: the fall picture's section heading and its ⓘ
@@ -153,7 +153,7 @@ function Every({ d, filter, setFilter, lead }: { d: AllInvestments; filter: Ever
   const set = (f: EveryFilter) => { setFilter(f); setAll(false); window.setTimeout(() => document.getElementById("mi-every-t")?.scrollIntoView?.({ block: "nearest" }), 30); };
   const go = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   const max = Math.max(0.01, ...d.companies.map((c) => c.all));
-  const model = MODEL_NAME[d.plan === "gold" ? "prism" : "iq"];
+  const model = SCORE_NAME, scored = d.plan === "gold";
   return (
     <section className="card mi-step">
       <SecHead id="mi-every" n={4} title="Every company you own, counted once" line={<>{d.filters.all} companies: your {d.counts.shares} shares and every equity line of each fund's and ETF's file. The share is of everything you have. {d.byValue ? "" : "Each kind counts the same until you add quantities."}</>}
@@ -164,15 +164,15 @@ function Every({ d, filter, setFilter, lead }: { d: AllInvestments; filter: Ever
       <div id="mi-every-t" className="mi7-anchor" />
       <HScroll label="Every company you own" className="mi-freeze">
         <table className="mi-tb mi-co">
-          <thead><tr><th scope="col">Company</th><th scope="col">All together</th><th scope="col">Held</th><th scope="col" className="r">Direct</th><th scope="col" className="r">Through funds</th><th scope="col" className="r">Through ETFs</th><th scope="col">Size</th><th scope="col">{model}</th><th scope="col">Against peers</th></tr></thead>
-          <tbody>{!shown.length && <tr><td colSpan={9} className="mi7-none">No company matches these filters. <button type="button" className="mi7-lnk" onClick={() => set(NO_FILTER)}>Clear filters</button></td></tr>}{shown.map((c) => (
+          <thead><tr><th scope="col">Company</th><th scope="col">All together</th><th scope="col">Held</th><th scope="col" className="r">Direct</th><th scope="col" className="r">Through funds</th><th scope="col" className="r">Through ETFs</th><th scope="col">Size</th>{scored && <th scope="col">{model}</th>}<th scope="col">Against peers</th></tr></thead>
+          <tbody>{!shown.length && <tr><td colSpan={scored ? 9 : 8} className="mi7-none">No company matches these filters. <button type="button" className="mi7-lnk" onClick={() => set(NO_FILTER)}>Clear filters</button></td></tr>}{shown.map((c) => (
             <tr key={(c.symbol ?? "") + c.name}>
               <th scope="row">{c.symbol ? <Link to={`/stocks/${encodeURIComponent(c.symbol)}`}><b title={coTitle({ symbol: c.symbol, name: c.name })}>{titleOf({ symbol: c.symbol, name: c.name })}</b></Link> : <b>{c.name}</b>}<small>{c.symbol ? (subLine({ symbol: c.symbol, name: c.name }, c.name) ?? "") + " · " : ""}{c.macro}</small>{c.via.length > 0 && <small className="mi-via">{c.via.join(" · ")}</small>}</th>
               <td className="mi-allc"><span className="mi-mini"><i style={{ width: `${(c.all / max) * 100}%` }} /></span><b>{pctOf(c.all, 2)}</b></td>
               <td><span className="mi-held">{(["D", "F", "E"] as const).map((m) => <i key={m} aria-hidden={c.held.includes(m) ? undefined : true} className={c.held.includes(m) ? "on m" + m : ""} title={{ D: "Direct", F: "Through a fund", E: "Through an ETF" }[m]}>{m}</i>)}</span></td>
               <td className="r">{c.direct ? pctOf(c.direct, 2) : "—"}</td><td className="r">{c.funds ? pctOf(c.funds, 2) : "—"}</td><td className="r">{c.etfs ? pctOf(c.etfs, 2) : "—"}</td>
               <td>{c.abroad ? <span className="mi-muted">Listed abroad</span> : c.size ?? <span className="mi-muted">Not sized</span>}</td>
-              <td>{c.abroad ? <span className="mi-muted">Not rated: listed abroad</span> : <ScoreWord v={c.score} label={c.label} />}</td>
+              {scored && <td>{c.abroad ? <span className="mi-muted">Not rated: listed abroad</span> : <ScoreWord v={c.score} label={c.label} />}</td>}
               <td><span className={"mi-peer p-" + c.peer.replace(/\s/g, "").toLowerCase()}>{c.peer}</span></td>
             </tr>))}</tbody>
         </table>
@@ -197,20 +197,20 @@ export function watchTitle(n: number, word: string, rows: { symbol: string; name
 
 // ------------------------------------------------------------------------------------------------ step 5
 function HealthStep({ d }: { d: AllInvestments }) {
-  const h = d.health, model = MODEL_NAME[d.plan === "gold" ? "prism" : "iq"];
-  const LOW = h.shares ? h.shares.bands.map((b) => b.label).filter((l) => !["Strong", "Healthy", "Average", "Mixed"].includes(l)) : [];
+  const h = d.health, model = SCORE_NAME;
+  const LOW = h.shares ? h.shares.bands.map((b) => b.label).filter((l) => !["Strong", "Healthy", "Average"].includes(l)) : [];
   const weakRows = h.shares ? d.shares.filter((r) => r.label && LOW.includes(r.label)).sort((a, b) => (a.score ?? 0) - (b.score ?? 0) || a.symbol.localeCompare(b.symbol)) : [];
   const weak = h.shares ? h.shares.bands.filter((b) => LOW.includes(b.label)).reduce((a, b) => a + b.count, 0) : 0;
   const weakShare = h.shares ? h.shares.bands.filter((b) => LOW.includes(b.label)).reduce((a, b) => a + b.share, 0) : 0;
   const notes: Note[] = [];
   const lowWord = [...new Set(weakRows.map((r) => r.label!))].join(" or ") || LOW.join(" or ");
-  if (h.shares) notes.push({ kind: weak ? "watch" : "good", title: weak ? watchTitle(weak, lowWord, weakRows) : `No share reads ${LOW.join(" or ") || (d.plan === "gold" ? "Weak or Poor" : "Watch")}`,
+  if (h.shares) notes.push({ kind: weak ? "watch" : "good", title: weak ? watchTitle(weak, lowWord, weakRows) : `No share reads ${LOW.join(" or ") || "Weak or Poor"}`,
     text: <>{model} reads each company's own filings and prices. {d.byValue ? "By value" : "By count"}, {weak ? <>{pctOf(weakShare)} of your shares {weak === 1 ? "reads" : "read"} {lowWord}; </> : null}{pctOf(h.shares.topTwoShare)} {weak ? "sit" : "of your shares sit"} in its top two bands.</> });
   if (h.funds && !h.funds.locked) notes.push({ kind: "insight", title: h.funds.lowest ? `${h.funds.lowest.name} is the lowest Mutual Fund Score, ${nf(h.funds.lowest.score, 0)}` : "No fund has a Mutual Fund Score yet", text: "Mutual Fund Score reads each fund's performance, risk, cost and quality against its own category." });
   if (h.etfs && h.etfs.costPerLakh != null) notes.push({ kind: "good", title: `ETFs cost about ₹${nf(h.etfs.costPerLakh, 0)} a year on ₹1 lakh`, text: <>The weighted yearly cost is {pctOf(h.etfs.ter, 2)}.{h.etfs.widestGap ? <> The widest gap between price and value is {h.etfs.widestGap.symbol}, {chg(h.etfs.widestGap.premium, 2)}.</> : null}</> });
   return (
     <section className="card mi-step">
-      <SecHead id="mi-health" n={5} title="How healthy it is" line={`Each kind is read with its own measure: shares with ${model}, funds with Mutual Fund Score, ETFs by cost and price against value.`} info={["How each kind reads on its own measure; there is no single score for everything.", "Compare each card with its own bands only: a share's score and a fund's Mutual Fund Score are not the same scale."]} />
+      <SecHead id="mi-health" n={5} title="How healthy it is" line={`Each kind is read with its own measure: ${h.shares ? `shares with ${model}` : `shares with ${model} (see plans)`}, funds with Mutual Fund Score, ETFs by cost and price against value.`} info={["How each kind reads on its own measure; there is no single score for everything.", "Compare each card with its own bands only: a share's score and a fund's Mutual Fund Score are not the same scale."]} />
       <div className="mi-three">
         {h.shares && <article className="mi-hc"><p className="mi-cap">Shares · {model}</p><p className="mi-hv"><ScoreWord v={h.shares.score} label={h.shares.label} /></p>
           <BandStrip label={`Shares by ${model}`} bands={h.shares.bands} notRated={h.shares.notRated} />

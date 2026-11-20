@@ -308,7 +308,7 @@ function Row({ fs, it, gold, prism, q, today, id, active, index, best, onHover, 
         </span>
       </span>
       {it.kind !== "news" && <PriceChange price={it.price} chg={it.chg} date={it.date} today={today} unit={it.kind === "mf" ? "NAV ₹" : "₹"} />}
-      {it.kind === "stock" ? (gold ? <PrismChips state={stateOf(prism, it.sub)} /> : <ScoreRing score={it.score} band={it.band} />) : it.kind !== "news" ? <span className="gs-score gs-none gs-metric">{metricBadge(it)}</span> : null}
+      {it.kind === "stock" ? (gold ? <PrismChips state={stateOf(prism, it.sub)} /> : <ScoreRing band="locked" />) : it.kind !== "news" ? <span className="gs-score gs-none gs-metric">{metricBadge(it)}</span> : null}
       <span className={`gs-tag t-${it.kind}`}>{it.kind === "news" ? (it.tag || "News") : KIND_LABEL[it.kind]}{it.external && <svg viewBox="0 0 24 24" aria-label="opens the source"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" /></svg>}</span>
     </div>
   );
@@ -338,10 +338,8 @@ function Preview({ it, gold, prism, today, onOpen, onClose }: { it: Item; gold: 
       {it.kind === "stock" && gold && <PrismPreviewScores state={stateOf(prism, it.sub)} />}
       {it.kind === "stock" && !gold && (
         <div className="gs-pre-sc">
-          <ScoreRing score={it.score ?? sum?.score.overall} band={it.band ?? (sum?.score.band.key as Item["band"])} size={54} />
-          {sum?.score.pillars?.length ? (
-            <ul className="gs-pil">{sum.score.pillars.slice(0, 5).map((p) => <li key={p.key}><span>{p.label}</span><i><em style={{ width: `${p.score ?? 0}%` }} /></i><b>{p.score ?? MINUS}</b></li>)}</ul>
-          ) : <p className="gs-pre-note">{it.band === "locked" ? "The score and its five pillars are part of the Silver plan." : ready ? "Loading the report…" : "The full report is built the first time it is opened."}</p>}
+          <ScoreRing band="locked" size={54} />
+          <p className="gs-pre-note">FinLit Prism, FinLit's only company score, comes with a plan that has it. <a href="/plans">See plans</a>.</p>
         </div>
       )}
       {(it.kind === "mf" || it.kind === "etf") && (

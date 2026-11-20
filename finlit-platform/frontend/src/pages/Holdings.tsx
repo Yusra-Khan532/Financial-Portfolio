@@ -56,6 +56,7 @@ import "../styles/industry-pack.css";
 import "../styles/dashboard.css";
 import "../portfolio/pack/equity-pack.css";
 import { coTitle, subLine, titleOf } from "../lib/companyLabel";
+import { PLAN_FOR_PORTFOLIO } from "../lib/planGates";
 
 /** Equity portfolio: give it the names of the shares you own (typed, pasted or from a broker file) and it describes the list: how strong each share is, where the list sits by
  *  sector and size, what moves together, where the risk comes from and how the list has moved against the NIFTY 50. Names are enough; task #217 adds each share's buy history
@@ -82,7 +83,7 @@ export function HoldingsPage() {
   const { plan, toast } = useUI();
   const { seesAll } = useAuth();
   const qc = useQueryClient();
-  const model = modelFor(plan, seesAll);          // Silver: the basic FinLit IQ. Gold: FinLit Prism only. Basic: the page is gated.
+  const model = modelFor(plan, seesAll);          // Gold: FinLit Prism. Silver: no company score (task #283). Basic: the page is gated.
   const [params, setParams] = useSearchParams();
   const tab = parseTab(params.get("tab")), period = parsePeriod(params.get("period"));
   const go = (t: Tab, pd: Period = period) => setParams(withTab(params.toString(), t, pd), { replace: true });
@@ -232,7 +233,7 @@ export function HoldingsPage() {
     const size: Size | null = capBucket(h?.marketCapCr ?? u?.market_cap ?? null)?.short ?? null;
     const peer = ld && ld.available ? { label: ld.label, raw: ld.rawLabel ?? null, rank: ld.rank, of: ld.ranked, group: ld.group, vs: ld.rel52 == null ? null : ld.rel52 * 100, bench: ld.sectorKind === "index" ? ld.sector ?? "its sector index" : "peer average", direction: ld.direction ?? null } : null;
     return { symbol: l.symbol, name: l.name || h?.name || meta[l.symbol]?.name || u?.name || null, industry: h?.sector ?? meta[l.symbol]?.sector ?? null, size, chg: h?.changePct ?? null, prism: pr?.final ?? null, prismWord: pr?.label ?? null, valuation: pr?.parts?.valuation ?? null, risk: pr?.parts?.risk ?? null,
-      st: pr?.shortTerm?.score ?? null, lt: pr?.longTerm?.score ?? null, stWord: pr?.shortTerm?.word ?? null, ltWord: pr?.longTerm?.word ?? null, below52: (u as { pct_from_high?: number | null } | undefined)?.pct_from_high ?? null, m1: u?.return_1m ?? null, iq: h?.finlit?.overall ?? null, iqWord: h?.finlit?.word ?? null, iqTech: h?.finlit?.pillars?.technical ?? null, peer, notCompared: ld && !ld.available ? NOT_RANKED[ld.reason] ?? "is not ranked" : leadList.data && !leadList.data.available ? NOT_RANKED[leadList.data.reason] ?? "is not ranked" : null };
+      st: pr?.shortTerm?.score ?? null, lt: pr?.longTerm?.score ?? null, stWord: pr?.shortTerm?.word ?? null, ltWord: pr?.longTerm?.word ?? null, below52: (u as { pct_from_high?: number | null } | undefined)?.pct_from_high ?? null, m1: u?.return_1m ?? null, peer, notCompared: ld && !ld.available ? NOT_RANKED[ld.reason] ?? "is not ranked" : leadList.data && !leadList.data.available ? NOT_RANKED[leadList.data.reason] ?? "is not ranked" : null };
   }), [lines, by, leadList.data, meta]);   // eslint-disable-line react-hooks/exhaustive-deps
   const shareOf = useMemo(() => new Map(shares.map((x) => [x.symbol, x])), [shares]);
   const counts = useMemo(() => { const c: Record<string, string[]> = {}; ids.forEach((sym) => { const k = meta[sym]?.sector || `${sym} (not classified)`; (c[k] ??= []).push(sym); }); return c; }, [ids, meta]);
@@ -245,8 +246,9 @@ export function HoldingsPage() {
       const v = l === "macro" ? n?.macro_sector ?? t?.macro : l === "sector" ? n?.sector ?? t?.sector : n?.industry ?? t?.industry;
       return v || (l === "macro" ? meta[sym]?.sector : null) || "Not classified";
     };
-    const band = (sym: string) => { const x = shareOf.get(sym), w = (model === "prism" ? x?.prismWord : x?.iqWord)?.toUpperCase();
-      return !w ? null : w === "STRONG" || w === "HEALTHY" ? "g" : w === "AVERAGE" || w === "MIXED" ? "m" : w === "WEAK" || w === "POOR" || w === "WATCH" ? "b" : null; };
+    // task #283: the dot follows FinLit Prism on a plan with Prism; no dot otherwise
+    const band = (sym: string) => { const x = shareOf.get(sym), w = model === "prism" ? x?.prismWord?.toUpperCase() : null;
+      return !w ? null : w === "STRONG" || w === "HEALTHY" ? "g" : w === "AVERAGE" ? "m" : w === "WEAK" || w === "POOR" ? "b" : null; };
     return { page, symbols: ids, levelOf, sizeOf: (sym) => shareOf.get(sym)?.size ?? null, band, gold: model === "prism", nameOf: (sym) => meta[sym]?.name ?? sym };
   }, [page, ids, meta, byOv, shareOf, model]);
   // the Diversification analytics tile counts each NSE level (task #183 A4/A5): "9 macro sectors · 13 sectors · 22 industries · all four sizes"
@@ -256,7 +258,7 @@ export function HoldingsPage() {
 
   return (
     <div className="wrap ipo pfx sp eq">
-      <Gate tier="silver" title="Score your portfolio" points={["FinLit IQ and pillars for every share you own (Gold: FinLit Prism)", "How spread out the list is, and what moves together", "Share of risk and the NIFTY 50 comparison", "Import Excel, CSV or PDF statements"]}>
+      <Gate tier={PLAN_FOR_PORTFOLIO} title="Score your portfolio" points={["FinLit Prism for every share you own (Gold)", "How spread out the list is, and what moves together", "Share of risk and the NIFTY 50 comparison", "Import Excel, CSV or PDF statements"]}>
         <div className="pfx-flow">
         <header className="sp-head eq-head">
           <div><p className="eq-plan"><span>{TIER[plan].n}</span></p><h1>Equity portfolio</h1>

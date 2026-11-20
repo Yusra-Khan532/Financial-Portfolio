@@ -39,13 +39,11 @@ describe("columns by plan", () => {
     expect(document.querySelector("thead tr:last-child th.eq-div")?.textContent).toMatch(/^G&P/);
     expect(document.body.textContent).not.toMatch(/FinLit IQ/);
   });
-  it("Silver: the FinLit IQ, four fundamental pillars and one technical pillar, each with the report's word; a bank's balance sheet is '–'", () => {
+  it("Silver (task #283): no score column, no parts and none of the retired score's words", () => {
     open("finlit");
-    expect(heads()).toEqual(["Share", "Size", "Qty", "Value", "Latest price", "Today", "FinLit IQ", "Quality", "Growth", "Profitability", "Balance sheet", "Technical", "Moves with rest"]);
-    const icici = screen.getByText("ICICIBANK").closest("tr")!;
-    expect([...icici.querySelectorAll("td.c .pfx-sc")].map((c) => c.childNodes[0]?.textContent?.trim())).toEqual(["84", "Strong", "Mixed", "Healthy", "−", "Watch"]);
-    expect(icici.querySelectorAll("td.c .pfx-sc")[4].getAttribute("title")).toMatch(/^No balance-sheet pillar: banks and lenders/);   // the blank says why
-    expect(document.body.textContent).not.toMatch(/Prism/);
+    expect(heads()).toEqual(["Share", "Size", "Qty", "Value", "Latest price", "Today", "Moves with rest"]);
+    expect(document.querySelectorAll("td.c .pfx-sc")).toHaveLength(0);
+    expect(document.body.textContent).not.toMatch(/\bIQ\b|Mixed|Watch|Quality|Balance sheet/);
   });
 });
 
@@ -59,12 +57,12 @@ describe("sorting, filters and weak rows", () => {
     click("Size"); expect(order()[3]).toBe("KRN");                                                       // large, large, large, small
     expect(document.querySelector('th[aria-sort="ascending"]')?.textContent).toMatch(/^Size▲/);
   });
-  it("band filters follow the plan: Gold Strong / Healthy / Average / Weak, Silver Strong / Healthy / Mixed / Watch", () => {
+  it("band filters use FinLit Prism's words (Strong / Healthy / Average / Weak); a plan without Prism has none (task #283)", () => {
     open("prism");
     expect(within(screen.getByRole("group", { name: /Prism band/ })).getAllByRole("button").map((b) => b.textContent)).toEqual(["All 4", "Strong 1", "Healthy 1", "Average 1", "Weak 1"]);
     fireEvent.click(screen.getByRole("button", { name: "Weak 1" })); expect(order()).toEqual(["BHEL"]);
     cleanup(); open("finlit");
-    expect(within(screen.getByRole("group", { name: /FinLit IQ band/ })).getAllByRole("button").map((b) => b.textContent)).toEqual(["All 4", "Strong 1", "Healthy 1", "Mixed 1", "Watch 1"]);
+    expect(screen.queryByRole("group", { name: /band/ })).toBeNull();
   });
   it("weak rows get a light red tint", () => {
     open("prism");

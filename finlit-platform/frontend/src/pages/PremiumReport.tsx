@@ -6,7 +6,8 @@ import { useSection, useSummary, type Ownership, type Peers, type Ratios } from 
 import { cr, dateIN, fmtUnit, nf, signed, MINUS } from "../lib/format";
 import { pushRecent, readRecent, useGold, useSlashFocus } from "../lib/premium";
 import { Spark } from "../charts/Small";
-import { PILLAR_COLOR } from "../stock/derive";
+import { PRISM_PARTS, PART_LABEL, finalColor, usePrismScores } from "../lib/prismScores";
+import { prismWord } from "../lib/planScore";
 import { useUniverse } from "../lib/screener";
 import { useDocTitle } from "../lib/title";
 import { GoldLock, PremiumHead } from "./Premium";
@@ -18,6 +19,11 @@ const KEYS = ["pe", "pb", "roe", "roce", "operating_margin", "net_margin", "debt
 function Report({ symbol }: { symbol: string }) {
   useEffect(() => { pushRecent(symbol); }, [symbol]);
   const s = useSummary(symbol), r = useSection<Ratios>(symbol, "ratios"), o = useSection<Ownership>(symbol, "ownership"), p = useSection<Peers>(symbol, "peers");
+  // Task #283: FinLit Prism is FinLit's only company score; the report (Gold, like Prism) reads the stored Prism scores of the company and its peers
+  const peerSyms = useMemo(() => [symbol, ...(p.data?.items ?? []).slice(0, 8).map((x) => x.symbol)], [symbol, p.data]);
+  const pm = usePrismScores(peerSyms, true, 0);
+  const pz = pm[symbol], pzOk = pz && pz !== "error" && pz.rated && pz.final != null ? pz : null;
+  const pzOf = (sym: string) => { const x = pm[sym]; return x && x !== "error" && x.rated && x.final != null ? Math.round(x.final) : null; };
   useDocTitle(`${symbol} premium report`, `FinLit premium research report for ${symbol}.`);
   if (s.isError) return <div className="state"><h2>We could not build this report</h2><p>That company is not available yet. Choose another.</p></div>;
   if (s.isLoading || !s.data) return <div className="skeleton" style={{ height: 520 }} aria-busy="true" aria-label="Building report" />;
@@ -35,12 +41,12 @@ function Report({ symbol }: { symbol: string }) {
         <div className="pm-kpi"><small>Price</small><b>{q.price != null ? "₹" + nf(q.price) : MINUS}</b><i>{signed(q.changePct)} today</i></div>
         <div className="pm-kpi"><small>Market cap</small><b>{q.marketCapCr != null ? "₹" + cr(q.marketCapCr) + " Cr" : MINUS}</b></div>
         <div className="pm-kpi"><small>52-week range</small><b style={{ fontSize: 18 }}>{d.range52.low != null ? nf(d.range52.low) : MINUS} to {d.range52.high != null ? nf(d.range52.high) : MINUS}</b></div>
-        <div className="pm-kpi"><small>FinLit IQ · {d.score.band.label}</small><b>{d.score.overall != null ? Math.round(d.score.overall) : MINUS}<span className="faint" style={{ fontSize: 14 }}> / 100</span></b></div>
+        <div className="pm-kpi"><small>FinLit Prism{pzOk && prismWord(pzOk) ? ` · ${prismWord(pzOk)}` : ""}</small><b>{pzOk ? nf(pzOk.final as number, 1) : MINUS}<span className="faint" style={{ fontSize: 14 }}> / 100</span></b>{!pzOk && pz !== undefined && <i>{pz === "error" ? "Could not be loaded" : "Not rated yet"}</i>}</div>
       </div>
       {d.thesis && <><h2>Summary</h2><p style={{ lineHeight: 1.65 }}>{d.thesis}</p></>}
-      <h2>What drives the score <ChartHelp id="report-pillars" /></h2>
-      <div className="pm-pillars">{d.score.pillars.map((x) => <div className="pm-pillar" key={x.key}><span>{x.label} <small className="faint">· {x.band.label}</small></span>
-        <span className="tr" role="img" aria-label={`${x.label} ${x.score != null ? Math.round(x.score) : "not scored"} out of 100`}><i style={{ width: `${x.score ?? 0}%`, background: `var(${(PILLAR_COLOR as Record<string, string>)[x.key] || "--gold"})` }} /></span><b>{x.score != null ? Math.round(x.score) : MINUS}</b></div>)}</div>
+      {pzOk?.parts && <><h2>The FinLit Prism parts <ChartHelp id="report-pillars" /></h2>
+      <div className="pm-pillars">{PRISM_PARTS.map((k) => { const v = pzOk.parts?.[k] ?? null; return <div className="pm-pillar" key={k}><span>{PART_LABEL[k]}</span>
+        <span className="tr" role="img" aria-label={`${PART_LABEL[k]} ${v != null ? Math.round(v) : "not available"} out of 100`}><i style={{ width: `${v ?? 0}%`, background: finalColor(v) }} /></span><b>{v != null ? Math.round(v) : MINUS}</b></div>; })}</div></>}
       {(d.strengths.length > 0 || d.watchouts.length > 0) && <div style={{ display: "grid", gap: 18, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
         <div><h2>Strengths</h2><ul>{d.strengths.map((n) => <li key={n.key}><b>{n.title}.</b> {n.text}</li>)}</ul></div>
         <div><h2>Watch-outs</h2><ul>{d.watchouts.map((n) => <li key={n.key}><b>{n.title}.</b> {n.text}</li>)}</ul></div></div>}
@@ -50,8 +56,8 @@ function Report({ symbol }: { symbol: string }) {
       <h2>Who owns it</h2>
       {o.data?.latest?.length ? <HScroll className="" label="table"><table className="pm-t"><thead><tr><th>Holder group</th><th className="n">Share %</th><th className="n">Change in a year</th></tr></thead>
         <tbody>{o.data.latest.map((x) => <tr key={x.key}><td>{x.label}</td><td className="n">{x.value != null ? nf(x.value) : MINUS}</td><td className="n">{x.change1yPts != null ? signed(x.change1yPts, 2, " pts") : MINUS}</td></tr>)}</tbody></table></HScroll> : <p className="muted">Shareholding data is not available for this company yet.</p>}
-      {p.data?.items?.length ? <><h2>Peers</h2><HScroll className="" label="table"><table className="pm-t"><thead><tr><th>Company</th><th className="n">Score</th><th className="n">P/E</th></tr></thead>
-        <tbody>{p.data.items.slice(0, 8).map((x) => <tr key={x.symbol}><td><Link to={`/premium/report/${x.symbol}`}>{x.name || x.symbol}</Link></td><td className="n">{x.overall != null ? Math.round(x.overall) : MINUS}</td><td className="n">{x.pe != null ? nf(x.pe, 1) : MINUS}</td></tr>)}</tbody></table></HScroll></> : null}
+      {p.data?.items?.length ? <><h2>Peers</h2><HScroll className="" label="table"><table className="pm-t"><thead><tr><th>Company</th><th className="n">FinLit Prism</th><th className="n">P/E</th></tr></thead>
+        <tbody>{p.data.items.slice(0, 8).map((x) => <tr key={x.symbol}><td><Link to={`/premium/report/${x.symbol}`}>{x.name || x.symbol}</Link></td><td className="n">{pzOf(x.symbol) ?? MINUS}</td><td className="n">{x.pe != null ? nf(x.pe, 1) : MINUS}</td></tr>)}</tbody></table></HScroll></> : null}
       <p className="faint" style={{ marginTop: 28, fontSize: 13 }}>Prepared from company filings and market data. Scores are research, not a recommendation to buy or sell. General information, not investment advice. Past performance is not a guide to future returns.</p>
     </article>
   );

@@ -194,10 +194,10 @@ function PeersTab({ name, fullName, symbol, lead, peers, pe, score, cap }: { nam
   const others = (peers?.items ?? []).filter((x) => x.symbol !== symbol);
   const self = (peers?.items ?? []).find((x) => x.symbol === symbol) ?? { symbol, name: fullName, overall: score ?? null, pe: km("pe"), roe: km("roe"), market_cap: cap ?? km("market_cap") };
   const items = others.length ? [self, ...others] : [], me = self;
-  // task #216 (README 3.14): one score per screen: Gold and Platinum see FinLit Prism on these cards, Silver the FinLit IQ
+  // task #283: FinLit Prism on these cards for plans that have it; no score otherwise
   const model = usePlanModel();
   const pm = usePlanPrism(useMemo(() => items.slice(0, 6).map((x) => x.symbol), [items]), model);
-  const scoreOf = (x: { symbol: string; overall?: number | null }) => (model === "prism" ? scoreView("prism", { score: null }, pm[x.symbol]).score : x.overall ?? null);
+  const scoreOf = (x: { symbol: string }) => (model === "prism" ? scoreView(pm[x.symbol]).score : null);
   const val = { pe: me?.pe ?? km("pe"), roe: me?.roe ?? km("roe"), peers: items.filter((x) => x.symbol !== symbol).map((x) => ({ pe: x.pe ?? null, roe: x.roe ?? null })) };
   const top = lead.peers.find((p) => p.rank === 1);
   return (<>
@@ -212,9 +212,9 @@ function PeersTab({ name, fullName, symbol, lead, peers, pe, score, cap }: { nam
           <div className="ws-biz">{items.slice(0, 6).map((x) => (
             <Link key={x.symbol} to={`/stocks/${x.symbol}`} className={"ws-bc" + (x.symbol === symbol ? " me" : "")}>
               <span className="ip-sym"><CoLogo symbol={x.symbol} name={x.name ?? x.symbol} size={22} inline /><b>{x.name ?? x.symbol}</b></span>
-              <dl><div><dt>{model === "prism" ? "Prism" : "Score"}</dt><dd>{scoreOf(x) == null ? "–" : model === "prism" ? scoreOf(x)!.toFixed(1) : Math.round(scoreOf(x)!)}</dd></div><div><dt>P/E</dt><dd>{x.pe == null || x.pe <= 0 ? "–" : `${x.pe.toFixed(1)}×`}</dd></div><div><dt>ROE</dt><dd>{x.roe == null ? "–" : `${x.roe.toFixed(1)}%`}</dd></div><div><dt>Size</dt><dd>{size(x.market_cap)}</dd></div></dl>
+              <dl>{model && <div><dt>Prism</dt><dd>{scoreOf(x) == null ? "–" : scoreOf(x)!.toFixed(1)}</dd></div>}<div><dt>P/E</dt><dd>{x.pe == null || x.pe <= 0 ? "–" : `${x.pe.toFixed(1)}×`}</dd></div><div><dt>ROE</dt><dd>{x.roe == null ? "–" : `${x.roe.toFixed(1)}%`}</dd></div><div><dt>Size</dt><dd>{size(x.market_cap)}</dd></div></dl>
             </Link>))}</div>
-          <p className="sp-note">{model === "prism" ? "Prism is the FinLit Prism score, 0 to 100." : "Score is the FinLit IQ, 0 to 100."}</p></>
+          {model && <p className="sp-note">Prism is the FinLit Prism score, 0 to 100.</p>}</>
           : <p className="sp-note">No similar companies are listed for this industry yet.</p>}
       </div>
     </div>

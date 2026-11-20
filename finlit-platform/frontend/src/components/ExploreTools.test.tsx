@@ -149,7 +149,7 @@ describe("task #159: three landing cards", () => {
   });
   it("the company report card says what the team wrote", () => {
     expect(card("company-report").points).toEqual([
-      "FinLit IQ (5 pillars) and Prism (7 pillars): proprietary company scoring",
+      "FinLit Prism: four financial-health parts and two technical views",   // task #283 (the old line also miscounted Prism's parts)
       "Valuation comparison, sector leaders and laggards",
       "20 sections in total: financials, advanced ratios, charts, ownership and filings, and many more",
     ]);
@@ -183,7 +183,7 @@ describe("task #169: Reverse Valuation in Quant Lab", () => {
     for (const [id, group, title, badge, link, what] of want) { const c = at(id); expect([c.group, c.title, c.badge, c.link, c.what]).toEqual([group, title, badge, link, what]); expect(SHORT[id]).toBeTruthy(); }
     expect(at("mf-portfolio").points).toEqual(["Track latest NAV and historical returns", "Evaluate mutual fund health scores", "Compare 1, 3 and 5-year performance"]);
     expect(at("stress-lab").points).toEqual(["Test changes in crude, rupee and inflation", "Analyse the impact of interest rates and demand", "Explore possible earnings under different scenarios"]);
-    expect(at("browser-extension").points).toEqual(["Understand financial terms instantly", "View FinLit scores for listed companies", "Access FinLit IQ and Prism scores based on your plan"]);
+    expect(at("browser-extension").points).toEqual(["Understand financial terms instantly", "View FinLit scores for listed companies", "Access FinLit Prism scores on a plan that has it"]);
     view();
     const learn = document.querySelector('.xt-row[data-group="learn"]') as HTMLElement;
     expect(within(learn).getByRole("link", { name: /Insights & Blog/ }).getAttribute("href")).toBe("/blog");   // the directory row says Insights & Blog; the card carries the team's title

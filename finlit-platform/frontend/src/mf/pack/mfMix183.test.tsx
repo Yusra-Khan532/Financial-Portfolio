@@ -88,7 +88,8 @@ describe("Biggest stocks and the trend (M6, steps 8 and 9)", () => {
   it("shows 5, then all 10, with the reading by plan", () => {
     wrap(<BiggestSection rows={big} sp={SP} readingOf={() => ({ word: "Healthy", score: 70 })} gold={false} />);
     expect(document.querySelectorAll(".mfm-big tbody tr")).toHaveLength(5);
-    expect(screen.getAllByRole("columnheader").map((c) => c.textContent)).toContain("FinLit IQ");
+    expect(screen.getAllByRole("columnheader").map((c) => c.textContent)).toContain("FinLit Prism");
+    expect(screen.getAllByText("🔒 FinLit Prism · see plans").length).toBe(5);   // task #283: names only below Gold, never another score
     fireEvent.click(screen.getByRole("button", { name: "Show all 10 ▾" }));
     expect(document.querySelectorAll(".mfm-big tbody tr")).toHaveLength(10);
   });

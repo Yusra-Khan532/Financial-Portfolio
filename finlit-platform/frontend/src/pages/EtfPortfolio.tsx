@@ -48,6 +48,7 @@ import "../styles/industry-pack.css";
 import "../mf/pack/mf-pack.css";
 import "../styles/etfportfolio.css";
 import "../portfolio/kit/kit.css";
+import { PLAN_FOR_PORTFOLIO } from "../lib/planGates";
 
 const errText = (e: unknown) => ((e as { body?: { detail?: string } })?.body?.detail) || (e instanceof Error ? e.message : "Something went wrong. Please try again.");
 
@@ -152,7 +153,7 @@ export function EtfPortfolioPage() {
   useDocTitle("ETF portfolio", "What your ETFs track, what they cost, how close they trade to their value, what sits inside them and how risky they are together.");
   const { plan, has, toast } = useUI();
   const { user } = useAuth();
-  const silver = has("silver");
+  const silver = has(PLAN_FOR_PORTFOLIO);
   const [params, setParams] = useSearchParams();
   const qAll = useEtfPortfolio(silver), w = useEtfWrites();
   const book = useEtfBook(silver, (qAll.data?.items ?? []).filter((e) => !e.gone && e.qty == null).map((e) => e.symbol));
@@ -244,7 +245,7 @@ export function EtfPortfolioPage() {
   const dlgPfs = pfList.map((p) => ({ id: p.id, name: p.name }));
   return (
     <div className="wrap ipo mp sp mfp efp pfx">
-      <Gate tier="silver" title="Track your ETFs" points={["What each ETF tracks and costs, and how close it trades to its NAV", "What sits inside them: asset mix, overlap and the largest stocks", "Each ETF against the Nifty 500, and the list together", "Import a broker file, read by ISIN, then symbol"]}>
+      <Gate tier={PLAN_FOR_PORTFOLIO} title="Track your ETFs" points={["What each ETF tracks and costs, and how close it trades to its NAV", "What sits inside them: asset mix, overlap and the largest stocks", "Each ETF against the Nifty 500, and the list together", "Import a broker file, read by ISIN, then symbol"]}>
         <header className="ptk-head" id="etp-top">
           <div className="ptk-t1">
             <div className="ptk-ht"><h1>ETF portfolio</h1><p className="ptk-plan mfp-plan"><span>{TIER[plan].n}</span></p>

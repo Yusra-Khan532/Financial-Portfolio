@@ -28,7 +28,7 @@ describe("task #216 round 1: removals", () => {
     expect(faq.items.find((i) => i.q === "What can I do from the report?")!.a).toBe("Set an alert, add the company to a watchlist, value it in the DCF calculator, or share the report.");
   });
   it("the Prism card has no \"What supports and weighs on the rating\" and no \"Show full breakdown\", for any plan", () => {
-    const src = visible(read("PrismCompare.tsx") + read("Hero.tsx") + read("ScoreCard.tsx"));
+    const src = visible(read("PrismCompare.tsx") + read("Hero.tsx"));   // task #283: the old score card (ScoreCard.tsx) is gone
     expect(src).not.toContain("What supports and weighs"); expect(src).not.toMatch(/Show full breakdown|Hide full breakdown|PrismDetail|ScoreDetail|DashToggle/);
   });
   it("live section 17 is gone from the page and the section bar; Community is 19 (task #222 added 18 News and filings); the score history sits under the Prism card", () => {

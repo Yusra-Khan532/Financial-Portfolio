@@ -12,22 +12,21 @@ describe("score colour bands", () => {
     expect(dotLabel("Technical", null)).toBe("Technical: grey, not enough data");
   });
 });
-describe("plan badge", () => {
-  const basic = { overall: 72, word: "Healthy" };
-  it("chooses by plan", () => {
-    expect(["basic", "silver", "gold"].map((p) => badgeFor(p as never))).toEqual(["none", "basic", "prism"]);
+describe("plan badge (task #283: FinLit Prism is the only company score)", () => {
+  it("chooses by plan: Prism for a plan with Prism (and an administrator), none otherwise", () => {
+    expect(["basic", "silver", "gold"].map((p) => badgeFor(p as never))).toEqual(["none", "none", "prism"]);
     expect(badgeFor("basic", true)).toBe("prism");
   });
-  it("Silver sees only the basic score, never Prism", () => {
-    expect(badgeView("silver", false, basic, { kind: "report", final: 80, word: "Strong", status: "RATED" })).toEqual({ kind: "basic", score: 72, word: "Healthy", band: "hi" });
+  it("a plan without Prism gets the locked Prism chip, whatever the rating", () => {
+    expect(badgeView("silver", false, { kind: "report", final: 80, word: "Strong", status: "RATED" })).toEqual({ kind: "locked" });
+    expect(badgeView("basic", false, { kind: "none" })).toEqual({ kind: "locked" });
   });
-  it("Gold sees only Prism, never the basic score", () => {
-    expect(badgeView("gold", false, basic, { kind: "report", final: 54.5, word: "Average", status: "RATED" })).toEqual({ kind: "prism", score: 54.5, word: "Average", band: "mid", provisional: false });
-    expect(badgeView("gold", false, basic, { kind: "none" })).toEqual({ kind: "prism-none" });
-    expect(badgeView("gold", false, basic, { kind: "report", final: null, word: "Not rated", status: "NOT RATED" })).toEqual({ kind: "prism-none" });
-    expect(badgeView("gold", false, basic, { kind: "loading" })).toEqual({ kind: "none" });
+  it("Gold sees Prism", () => {
+    expect(badgeView("gold", false, { kind: "report", final: 54.5, word: "Average", status: "RATED" })).toEqual({ kind: "prism", score: 54.5, word: "Average", band: "mid", provisional: false });
+    expect(badgeView("gold", false, { kind: "none" })).toEqual({ kind: "prism-none" });
+    expect(badgeView("gold", false, { kind: "report", final: null, word: "Not rated", status: "NOT RATED" })).toEqual({ kind: "prism-none" });
+    expect(badgeView("gold", false, { kind: "loading" })).toEqual({ kind: "none" });
   });
-  it("Basic sees no badge", () => expect(badgeView("basic", false, basic, { kind: "none" })).toEqual({ kind: "none" }));
 });
 describe("header facts", () => {
   it("formats market cap in Indian units", () => {

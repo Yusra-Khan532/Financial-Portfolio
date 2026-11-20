@@ -2,6 +2,7 @@
 // so the same choices follow a member to a new device (and later to the mobile app).
 import { useSyncExternalStore } from "react";
 import { isPalette, type PaletteId } from "./palettes";
+import { PLAN_FOR_DASHBOARD, PLAN_FOR_PRISM } from "./planGates";
 
 export type Density = "comfortable" | "compact";
 export type WidgetSize = "quarter" | "third" | "half" | "full";
@@ -35,9 +36,9 @@ export const WIDGETS: { id: string; label: string; nav?: string; blurb: string; 
   { id: "portfolio", label: "Your shares at a glance", blurb: "Average FinLit Prism score, score bands, the average of each Prism part and the sector and size spread of the shares you hold.", min: "basic", size: "half", step: 1 },
   { id: "mfglance", label: "Your mutual funds at a glance", blurb: "The average Mutual Fund Score, overlap, the biggest stock underneath and how much your funds swing, from the MF portfolio.", min: "basic", size: "half", step: 1 },
   { id: "etfglance", label: "Your ETFs at a glance", nav: "Your ETFs", blurb: "What your ETFs track, their yearly cost and price against NAV, from the ETF portfolio.", min: "basic", size: "full", step: 1 },
-  { id: "movers", label: "Watchlist movers", blurb: "Biggest moves among the stocks you follow.", min: "silver", size: "half", step: 2 },
-  { id: "second", label: "Worth a second look", blurb: "Strong FinLit IQs trading below their usual valuation.", min: "silver", size: "half", step: 2 },
-  { id: "buckets", label: "Watchlist by band", blurb: "How your watchlist splits across score bands.", min: "gold", size: "full", step: 2 },
+  { id: "movers", label: "Watchlist movers", blurb: "Biggest moves among the stocks you follow.", min: PLAN_FOR_DASHBOARD, size: "half", step: 2 },
+  { id: "second", label: "Worth a second look", blurb: "Watchlist companies with a Strong or Healthy FinLit Prism score whose Prism Valuation part is 65 or more.", min: PLAN_FOR_PRISM, size: "half", step: 2 },
+  { id: "buckets", label: "Watchlist by band", blurb: "How your watchlist splits across the FinLit Prism bands: Strong, Healthy, Average and Weak.", min: PLAN_FOR_PRISM, size: "full", step: 2 },
   { id: "market", label: "Market today", blurb: "Index levels, the Nifty 50 / Sensex chart, and the prices and rates that move company profits.", min: "basic", size: "full", step: 3 },
   { id: "marketread", label: "What the market adds up to", nav: "What it adds up to", blurb: "Six readings of the day (breadth, big moves, which sizes lead, short and bigger trends, industries) and what they add up to.", min: "basic", size: "full", step: 3 },
   { id: "snapshot", label: "Market snapshot", blurb: "How many stocks rose and fell, and the biggest movers of Nifty 50, Nifty 500 or all stocks.", min: "basic", size: "half", step: 3 },

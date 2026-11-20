@@ -1,5 +1,5 @@
 // Task #277 (All my investments pack of 20 Nov 2026, change 18; the Equity file §18 for the filter row, §11 for the row that stays up inside the table):
-// Step 4's four "Show" buttons become one row: Find a company · Held ▾ · Size ▾ · FinLit Prism (FinLit IQ on Silver) ▾ · Against peers ▾, across every
+// Step 4's four "Show" buttons become one row: Find a company · Held ▾ · Size ▾ · FinLit Prism (Gold) ▾ · Against peers ▾, across every
 // company on the list. Several choices can be ticked; each says how many companies it would leave given the other filters; a set button turns dark and names
 // the pick ("Held: More than one way", "Size: 2 picked"); under the row "Showing n of N", one chip per choice with ×, and Clear filters. Esc closes a menu
 // and returns focus to its button; on a phone a menu opens as a bottom sheet. While the table is scrolled, the row stays up under the site header with the
@@ -11,7 +11,7 @@ export type EveryFilter = { q: string; held: string[]; size: string[]; prism: st
 export const NO_FILTER: EveryFilter = { q: "", held: [], size: [], prism: [], peer: [] };
 type FacetKey = "held" | "size" | "prism" | "peer";
 export const HELD = ["More than one way", "Only direct", "Only through funds and ETFs"] as const;
-const PRISM_WORDS = ["Strong", "Healthy", "Average", "Weak", "Poor"], IQ_WORDS = ["Strong", "Healthy", "Mixed", "Watch"];
+const PRISM_WORDS = ["Strong", "Healthy", "Average", "Weak", "Poor"];
 export const NO_READING = "No reading";
 
 /** What a company is under each filter. The three Held choices never overlap, so they add up to every company (QA of 21 Nov, item 4): "Only through funds
@@ -28,10 +28,10 @@ const matchesQ = (c: Company, q: string) => { const s = q.trim().toLowerCase(); 
 export function filterCompanies(rows: Company[], f: EveryFilter, skip?: FacetKey): Company[] {
   return rows.filter((c) => matchesQ(c, f.q) && FACETS.every((k) => k === skip || !f[k].length || valuesOf(c, k).some((v) => f[k].includes(v))));
 }
-export function choicesOf(k: FacetKey, plan: "gold" | "silver", rows: Company[]): string[] {
+export function choicesOf(k: FacetKey, _plan: "gold" | "silver", rows: Company[]): string[] {
   if (k === "held") return [...HELD];
   if (k === "size") return ["Large", "Mid", "Small", "Micro", "Not sized"];
-  if (k === "prism") { const base = plan === "gold" ? PRISM_WORDS : IQ_WORDS; const extra = [...new Set(rows.map((c) => c.label).filter((x): x is string => !!x && !base.includes(x)))]; return [...base, ...extra, NO_READING]; }
+  if (k === "prism") { const base = PRISM_WORDS; const extra = [...new Set(rows.map((c) => c.label).filter((x): x is string => !!x && !base.includes(x)))]; return [...base, ...extra, NO_READING]; }
   return ["Leader", "In line", "Laggard", "Not compared", "Not on your list"];
 }
 export const countFilters = (f: EveryFilter) => FACETS.reduce((a, k) => a + f[k].length, 0) + (f.q.trim() ? 1 : 0);
@@ -89,7 +89,7 @@ export function FilterRow({ rows, f, set, plan, lead, sections }: { rows: Compan
   }, []);
   useEffect(() => { document.documentElement.classList.toggle("mi7-rowup", stuck && !past); return () => document.documentElement.classList.remove("mi7-rowup"); }, [stuck, past]);   // the view bar comes back once the row has stepped away   // the view bar slides up while the row is up
   const shown = filterCompanies(rows, f).length, n = countFilters(f);
-  const modelWord = plan === "gold" ? "FinLit Prism" : "FinLit IQ";
+  const modelWord = "FinLit Prism";
   const find = <input className="mi7-find" type="search" placeholder="Find a company" aria-label="Find a company you own" value={f.q} onChange={(e) => set({ ...f, q: e.target.value })} />;
   return (<>
     <div ref={sentinel} className="mi7-sent" aria-hidden="true" />
@@ -99,7 +99,7 @@ export function FilterRow({ rows, f, set, plan, lead, sections }: { rows: Compan
       {stuck && !findOpen && !f.q ? <button type="button" className="mi7-fmag" aria-label="Find a company" onClick={() => setFindOpen(true)}>⌕</button> : find}
       <Facet k="held" title="Held" rows={rows} f={f} set={set} plan={plan} />
       <Facet k="size" title="Size" rows={rows} f={f} set={set} plan={plan} />
-      <Facet k="prism" title={modelWord} rows={rows} f={f} set={set} plan={plan} />
+      {plan === "gold" && <Facet k="prism" title={modelWord} rows={rows} f={f} set={set} plan={plan} />}
       <Facet k="peer" title="Against peers" rows={rows} f={f} set={set} plan={plan} />
       <span className="mi7-fcount" aria-live="polite">{n ? `Showing ${shown} of ${rows.length}` : `${rows.length} companies`}</span>
       {stuck && cols.length > 0 && <div className="mi7-fcols" aria-hidden="true">{cols.map((c, i) => <span key={i} style={{ left: c.l, width: c.w, textAlign: c.r ? "right" : "left" }}>{c.t}</span>)}</div>}

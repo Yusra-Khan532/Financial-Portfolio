@@ -541,7 +541,7 @@
 .dsh-line2.f > .hd .dsh-tag { flex: none; }
 .dsh-line2.f > .tx { padding-left: 30px; text-align: left; align-self: stretch; }
 
-/* Your stocks today as the final pages pack draws it (04): nine columns (stock, size, price, the day's move, FinLit IQ or Prism, vs its peers, revenue and profit
+/* Your stocks today as the final pages pack draws it (04): nine columns (stock, size, price, the day's move, FinLit Prism, vs its peers, revenue and profit
    against a year earlier, alert), a tinted header row with an (i) on each column, no lines between columns. Phones keep their own card layout (max-width 759px). */
 @media (min-width: 760px) {
   .dsh-st-h, .dsh-st-r { grid-template-columns: minmax(180px, 2fr) minmax(56px, .55fr) minmax(86px, .85fr) minmax(76px, .75fr) minmax(108px, 1fr) minmax(104px, 1fr) minmax(88px, .85fr) minmax(88px, .85fr) minmax(76px, .7fr); gap: 0 10px; }
