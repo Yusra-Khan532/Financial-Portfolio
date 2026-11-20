@@ -99,7 +99,7 @@ function IndLine({ r }: { r: PresetRow }) {
   const s = (k: string) => (typeof r[k] === "string" ? (r[k] as string) : null);
   const ind = s("cls_industry"), z = sizeOf(r), path = [s("cls_macro"), s("cls_sector"), ind].filter(Boolean).join(" › ");
   return <><small className="psx3-nml">{[subOf(r), exchangeTag(r)].filter(Boolean).join(" · ")}</small>
-    <small className="psx3-indl" title={ind ? path : "NSE does not place this company in one of its 59 industries"}>{[ind ?? "Industry not classified", z && `${z} cap`].filter(Boolean).join(" · ")}</small></>;
+    <small className="psx3-indl" title={ind ? path : "NSE does not place this company in one of its 59 industries"}><span className="psx3-indn">{ind ?? "Industry not classified"}</span>{z && <span className="psx3-indz"> · {z} cap</span>}</small></>;   // a long industry shortens; the size always shows
 }
 const sizeOf = (r: PresetRow) => { const m = r.market_cap; return typeof m !== "number" || !(m > 0) ? null : capBucket(m)?.short ?? null; };   // the site's one rule (lib/capBuckets.ts)
 type Group = "price" | "score" | "returns" | "list" | "after" | "sector" | "screen";
