@@ -14,6 +14,20 @@
 - **Left out on purpose (owner's decisions, October 2026):** HDFC (its service answers only requests carrying hdfcfund.com as Origin) and Kotak (captcha
   and bot check). Edelweiss and Navi are behind bot protection; Union's site is unreachable from the sandbox; Carnelian publishes no portfolio file yet.
   No adapter spoofs a header or goes around a challenge; keep it that way.
+- **Task #281 round 4a (20 Nov 2026), checked again from a fresh address with the job's own agent:**
+  - HDFC: www.hdfcfund.com 403 'Access Denied'; the monthly factsheet PDF on files.hdfcfund.com (it prints every scheme's full portfolio) also answers
+    the job's agent with 403. A reader for that factsheet is built and tested (`disclosure_parsers/houses_e.py`: September 2026, all 53 scheme
+    portfolios parse, match AMFI's list and add up to their own Grand Totals; HDFC Flexi Cap Fund 85 rows = 100.00) but is **not in the nightly list**.
+    **Owner's decision:** whether the job may read that factsheet with the browser-form agent the other fund-house readers send (no Origin, cookie or
+    challenge involved); if yes, add `HDFC` to `ADAPTERS` in houses_e.py, send `fetch_headers` for it and add `pdfplumber` to backend/requirements.txt.
+  - Kotak: every page answers with a Radware captcha. Its per-scheme factsheet PDFs (`kotakmf.com/factsheet/<month folder>/kotak/Download_pdf/...`)
+    answer the job's agent and print the full portfolio, but their names can be found only by guessing (folder spelt differently each month: July_2026,
+    August_2026, sept_2026; October not found; about half of the scheme names guessed from AMFI's list hit). **Owner's decision** before any reader.
+  - Edelweiss: every page and file (factsheets too) answers 403 'Access Denied'. No free route found.
+  - Carnelian: its monthly portfolio file appeared in October 2026 and is now read (the lister's pattern missed it); Carnelian Small Cap Fund and Choice
+    Large & Mid Cap Fund (launched 16 and 20 Oct 2026) publish no monthly file yet.
+  - Any house: a file with a sheet that matched no scheme (or failed the checks) is now read again each night until every sheet is stored
+    (`portfolios._file_done`); before, it was marked done at the first reading and a scheme not yet in AMFI's list then never got its holdings.
 - **Expense ratio (TER) from the fund houses' own pages (step `ter` of `refresh-portfolios`, `finlit/disclosure_parsers/ter.py`, Oct 2026):** AMFI's TER feed
   (`refresh-facts` step_ter, `mf_ter`) is empty because AMFI does not answer our AWS (Sydney) address range. SEBI makes every fund house publish scheme-wise,
   plan-wise TER daily, so the nightly job reads those pages and stores one family-keyed fact `ter` = `{regular, direct}` (percent a year, total TER) with the

@@ -273,5 +273,6 @@ from .houses_b import ADAPTERS as _HOUSES_B  # noqa: E402  (they import FileRef 
 from .houses_a import ADAPTERS as _HOUSES_A  # noqa: E402
 from .houses_c import ADAPTERS as _HOUSES_C  # noqa: E402
 from .houses_d import ADAPTERS as _HOUSES_D  # noqa: E402
+from .houses_e import ADAPTERS as _HOUSES_E  # noqa: E402  (fund houses read from their monthly factsheet PDF; task #281)
 
-ADAPTERS += _HOUSES_A + _HOUSES_B + _HOUSES_C + _HOUSES_D
+ADAPTERS += _HOUSES_A + _HOUSES_B + _HOUSES_C + _HOUSES_D + _HOUSES_E
