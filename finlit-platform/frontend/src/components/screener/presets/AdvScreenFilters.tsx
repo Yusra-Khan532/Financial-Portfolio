@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { MINUS, nf } from "../../../lib/format";
 import { NSE_INDUSTRIES, NSE_MACROS, NSE_SECTORS } from "../../../lib/nseTree";
-import { SCORE_RANGE_KEYS, barScoreCount, type BarFilter, type PresetDetail, type ScoreRangeKey } from "../../../lib/presets";
+import { SCORE_RANGE_KEYS, barScoreCount, type BarFilter, type BasicRangeKey, type PresetDetail, type ScoreRangeKey } from "../../../lib/presets";
 import { LABEL_WORD, PRISM_LABELS, PRISM_PARTS } from "../../../lib/scorePrism";
 import { TREND5, TREND5_WORD, pickNse, screenLevel, type Level } from "../../../lib/scoreScreen";
 import { Dropdown } from "./ScreenParts";
@@ -19,10 +19,13 @@ const SLUG: Record<string, string> = { STRONG: "strong", HEALTHY: "healthy", AVE
 const RANGES: { k: ScoreRangeKey; label: string; em?: string }[] = [
   { k: "z", label: "Prism" }, ...PRISM_PARTS.map((x) => ({ k: x.range as ScoreRangeKey, label: x.label, em: x.range === "zr" ? "high = low risk" : undefined })),
 ];
+/** Task #257 (Basic SPEC §3): the FinLit IQ panel's words, also used by the chips. */
+export const BASIC_RANGE_WORD: Record<BasicRangeKey, string> = { o: "FinLit IQ", pq: "Quality", pg: "Growth", pp: "Profitability", pb: "Balance sheet", pt: "Technical" };
+export const IQ_GROUP_WORD: Record<string, string> = { good: "Strong or Healthy", below: "Below Healthy", nr: "Not rated" };
 const flip = (xs: string[] | undefined, x: string) => ((xs ?? []).includes(x) ? (xs ?? []).filter((y) => y !== x) : [...(xs ?? []), x]);
 const clamp = (v: string): number | null => (v.trim() === "" || !Number.isFinite(Number(v)) ? null : Math.min(100, Math.max(0, Number(v))));
 
-function LevelMenu({ d, bar, set, def, taken, setTaken }: { d: PresetDetail; bar: BarFilter; set: Set; def: (typeof LEVELS)[number]; taken: string | null; setTaken: (m: string | null) => void }) {
+function LevelMenu({ d, bar, set, def, taken, setTaken, sheet }: { d: PresetDetail; bar: BarFilter; set: Set; def: (typeof LEVELS)[number]; taken: string | null; setTaken: (m: string | null) => void; sheet?: boolean }) {
   const [find, setFind] = useState("");
   const sel = { macros: bar.macros ?? [], nsecs: bar.nsecs ?? [], industries: bar.indus ?? [] };
   const picked = bar[def.key] ?? [];
@@ -37,7 +40,7 @@ function LevelMenu({ d, bar, set, def, taken, setTaken }: { d: PresetDetail; bar
     set({ ...bar, macros: r.sel.macros, nsecs: r.sel.nsecs, indus: r.sel.industries });
   };
   return (
-    <Dropdown label={picked.length ? `${def.title} · ${picked.length === 1 ? picked[0] : picked.length}` : def.title} on={picked.length > 0} wide>
+    <Dropdown label={picked.length ? `${def.title} · ${picked.length === 1 ? picked[0] : picked.length}` : def.title} on={picked.length > 0} wide sheet={sheet}>
       <h4 className="psx3-lvh">{def.title} · {all === def.all ? `all ${def.all}` : `${all} of ${def.all}`} <span>— {nf(on.length, 0)} on this list</span></h4>
       {taken && <p className="psx3-taken" role="status">{taken}</p>}
       <input className="psx3-find" type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder={`Find ${def.one}`} aria-label={`Find ${def.one}`} />
@@ -88,11 +91,18 @@ function PrismMenu({ d, bar, set }: { d: PresetDetail; bar: BarFilter; set: Set 
     </Dropdown>);
 }
 
-/** Macro sector · Sector · Industry · Prism score, between Market cap and More filters on an open Advanced screen. */
-export function AdvScreenMenus({ d, bar, set }: { d: PresetDetail; bar: BarFilter; set: Set }) {
+/** Macro sector · Sector · Industry: the three NSE lists of an open screen. Task #257: the Basic screen uses them too, opening as bottom sheets on a phone (`sheet`). */
+export function NseLevelMenus({ d, bar, set, sheet }: { d: PresetDetail; bar: BarFilter; set: Set; sheet?: boolean }) {
   const [taken, setTaken] = useState<{ level: Level; msg: string } | null>(null);
   return (<>
-    {LEVELS.map((def) => <LevelMenu key={def.level} d={d} bar={bar} set={set} def={def} taken={taken?.level === def.level ? taken.msg : null} setTaken={(m) => setTaken(m ? { level: def.level, msg: m } : null)} />)}
+    {LEVELS.map((def) => <LevelMenu key={def.level} d={d} bar={bar} set={set} def={def} sheet={sheet} taken={taken?.level === def.level ? taken.msg : null} setTaken={(m) => setTaken(m ? { level: def.level, msg: m } : null)} />)}
+  </>);
+}
+
+/** Macro sector · Sector · Industry · Prism score, between Market cap and More filters on an open Advanced screen. */
+export function AdvScreenMenus({ d, bar, set }: { d: PresetDetail; bar: BarFilter; set: Set }) {
+  return (<>
+    <NseLevelMenus d={d} bar={bar} set={set} />
     <PrismMenu d={d} bar={bar} set={set} />
   </>);
 }
@@ -106,9 +116,10 @@ export function advChips(bar: BarFilter, set: Set): { k: string; label: string; 
     ...(bar.indus ?? []).map((x) => ({ k: "d" + x, label: `Industry: ${x}`, off: () => set({ ...bar, indus: (bar.indus ?? []).filter((y) => y !== x) }) })),
     ...(bar.pl?.length ? [{ k: "pl", label: `Prism rating: ${bar.pl.map((s) => RW[s] ?? s).join(", ")}`, off: () => set({ ...bar, pl: [] }) }] : []),
     ...SCORE_RANGE_KEYS.filter((k) => bar.rg?.[k] && (bar.rg[k]![0] != null || bar.rg[k]![1] != null)).map((k) => {
-      const [lo, hi] = bar.rg![k]!, name = RANGES.find((x) => x.k === k)!.label;
+      const [lo, hi] = bar.rg![k]!, name = RANGES.find((x) => x.k === k)?.label ?? BASIC_RANGE_WORD[k as BasicRangeKey] ?? k;
       return { k: "rg" + k, label: `${name}: ${lo != null && hi != null ? `${lo} to ${hi}` : lo != null ? `${lo} or more` : `${hi} or less`}`, off: () => set({ ...bar, rg: { ...(bar.rg ?? {}), [k]: [null, null] } }) };
     }),
+    ...(bar.iqg?.length ? [{ k: "iqg", label: `FinLit IQ: ${bar.iqg.map((g) => IQ_GROUP_WORD[g] ?? g).join(", ")}`, off: () => set({ ...bar, iqg: [] }) }] : []),   // task #257 (Basic)
     ...(["st5", "lt5"] as const).filter((k) => bar[k]?.length).map((k) => ({ k, label: `${k === "st5" ? "Short term" : "Long term"}: ${(bar[k] ?? []).map((b) => TREND5_WORD[b as keyof typeof TREND5_WORD] ?? b).join(", ")}`, off: () => set({ ...bar, [k]: [] }) })),
   ];
 }

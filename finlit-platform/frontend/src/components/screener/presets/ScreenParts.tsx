@@ -14,6 +14,7 @@ import { NO_BAR, type BarFilter, type BoardChip, type HistorySession, type LeftM
 import { INFO_BOARD, PsxInfo } from "./PsxInfo";
 import { Shine } from "./ScreensStrip";
 import { AdvScreenMenus, advChips } from "./AdvScreenFilters";
+import { BasicScreenMenus } from "./BasicScreenFilters";
 import { pulseSay, pulseWord } from "../../../lib/pulseWords";
 import "../../../styles/screens243.css";
 
@@ -89,7 +90,7 @@ export function DateBar({ sessions, asOn, setAsOn, list }: { sessions: HistorySe
 }
 
 /** A pill drop-down of the toolbar (pack P4): the label says what is on; ticking keeps it open; Esc or a click outside closes it and returns focus. */
-export function Dropdown({ label, on, children, wide }: { label: ReactNode; on: boolean; children: ReactNode; wide?: boolean }) {
+export function Dropdown({ label, on, children, wide, sheet }: { label: ReactNode; on: boolean; children: ReactNode; wide?: boolean; /** task #257: on a phone, opens as a bottom sheet (Basic) */ sheet?: boolean }) {
   const [open, setOpen] = useState(false);
   const btn = useRef<HTMLButtonElement>(null), panel = useRef<HTMLDivElement>(null), pid = useId();
   useEffect(() => {
@@ -102,7 +103,8 @@ export function Dropdown({ label, on, children, wide }: { label: ReactNode; on: 
   return (
     <span className="psx3-dd">
       <button ref={btn} type="button" className={"psx3-ddb" + (on ? " is-on" : "")} aria-expanded={open} aria-controls={pid} onClick={() => setOpen((v) => !v)}>{label} <span aria-hidden="true">▾</span></button>
-      {open && <div ref={panel} id={pid} className={"psx3-ddp" + (wide ? " is-wide" : "")} role="group">{children}</div>}
+      {open && sheet && <span className="psx3-sback" aria-hidden="true" />}
+      {open && <div ref={panel} id={pid} className={"psx3-ddp" + (wide ? " is-wide" : "") + (sheet ? " psx3-sheet" : "")} role="group">{children}</div>}
     </span>);
 }
 
@@ -119,33 +121,18 @@ const RATING_WORD = (basic: boolean): Record<Exclude<Rating, "">, string> => ({ 
 /** P4: Market cap ▾ · Sector ▾ · rating ▾ · More filters ▾, from the screen's facets. */
 export function FilterMenus({ d, f, basic, onAddRule }: { d: PresetDetail; f: FilterSet; basic: boolean; onAddRule: () => void }) {
   const { bar, set } = f, fc = d.facets;
-  const [find, setFind] = useState("");
   if (!fc) return null;
   const sizes = (["Large", "Mid", "Small", "Micro"] as const).filter((z) => (fc.sizes[z] ?? 0) > 0 || bar.sizes.includes(z));
   const flip = <T,>(xs: T[], x: T) => (xs.includes(x) ? xs.filter((y) => y !== x) : [...xs, x]);
-  const sectors = fc.sectors.filter(([n]) => !find.trim() || n.toLowerCase().includes(find.trim().toLowerCase()));
-  const ratingNarrows = (fc.strong ?? 0) < (fc.anyRating ?? Infinity) || !!bar.rating;
   const nMore = (bar.fresh ? 1 : 0) + (bar.ahead ? 1 : 0) + (bar.nse ? 1 : 0) + (bar.fno ? 1 : 0) + (bar.liquid ? 1 : 0) + (bar.sag ? 1 : 0) + (bar.plead ? 1 : 0);
-  const rw = RATING_WORD(basic);
   return (<>
     {(sizes.length > 1 || bar.sizes.length > 0) && (
-      <Dropdown label={bar.sizes.length ? `Market cap · ${bar.sizes.length === 1 ? bar.sizes[0] : bar.sizes.length}` : "Market cap"} on={bar.sizes.length > 0}>
+      <Dropdown label={bar.sizes.length ? `Market cap · ${bar.sizes.length === 1 ? bar.sizes[0] : bar.sizes.length}` : "Market cap"} on={bar.sizes.length > 0} sheet={basic}>
         {sizes.map((z) => <Opt key={z} checked={bar.sizes.includes(z)} onChange={() => set({ ...bar, sizes: flip(bar.sizes, z) })} label={`${z} cap`} n={fc.sizes[z] ?? 0} />)}
       </Dropdown>)}
     {!basic && <AdvScreenMenus d={d} bar={bar} set={set} />}{/* task #258 (SPEC §2): Macro sector · Sector · Industry · Prism score on an Advanced screen */}
-    {basic && fc.sectors.length > 0 && (
-      <Dropdown label={bar.sectors.length ? `Sector · ${bar.sectors.length}` : "Sector"} on={bar.sectors.length > 0} wide>
-        <input className="psx3-find" type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find a sector" aria-label="Find a sector" />
-        <div className="psx3-optl">{sectors.map(([n, c]) => <Opt key={n} checked={bar.sectors.includes(n)} onChange={() => set({ ...bar, sectors: flip(bar.sectors, n) })} label={n} n={c} />)}
-          {!sectors.length && <p className="psx3-none">No sector on this list matches.</p>}</div>
-      </Dropdown>)}
-    {basic && ratingNarrows && (
-      <Dropdown label={bar.rating ? `${basic ? "IQ rating" : "Prism rating"} · ${rw[bar.rating]}` : basic ? "IQ rating" : "Prism rating"} on={!!bar.rating}>
-        <Opt type="radio" name="psx3-rating" checked={!bar.rating} onChange={() => set({ ...bar, rating: "" })} label="Any rating" n={fc.anyRating} />
-        <Opt type="radio" name="psx3-rating" checked={bar.rating === "healthy"} onChange={() => set({ ...bar, rating: "healthy" })} label={rw.healthy} n={fc.strong} />
-        {!basic && <Opt type="radio" name="psx3-rating" checked={bar.rating === "strong"} onChange={() => set({ ...bar, rating: "strong" })} label={rw.strong} n={fc.strongOnly} />}
-      </Dropdown>)}
-    <Dropdown label={nMore ? `More filters · ${nMore}` : "More filters"} on={nMore > 0} wide>
+    {basic && <BasicScreenMenus d={d} bar={bar} set={set} />}{/* task #257 (Basic SPEC §2, §3): Macro sector · Sector · Industry · FinLit IQ; the old Sector and IQ rating menus are replaced */}
+    <Dropdown label={nMore ? `More filters · ${nMore}` : "More filters"} on={nMore > 0} wide sheet={basic}>
       <Opt checked={bar.fresh} onChange={() => set({ ...bar, fresh: !bar.fresh })} label="New on this list" n={fc.new} desc="Joined since the previous saved list." />
       <Opt checked={bar.ahead} onChange={() => set({ ...bar, ahead: !bar.ahead })} label="Ahead of NIFTY 500 since added" n={fc.ahead} desc="Since added is above NIFTY 500 over the same days." />
       {/* task #243 (pack v4): on every screen of both pages */}
@@ -176,7 +163,7 @@ export function FilterChips({ f, basic }: { f: FilterSet; basic: boolean }) {
     ...(bar.plead ? [{ k: "p", label: "Peer leaders only", off: () => set({ ...bar, plead: false }) }] : []),
     ...(bar.ind ? [{ k: "i", label: `Industry: ${bar.ind.name}`, off: () => set({ ...bar, ind: null }) }] : []),
     ...(bar.nse ? [{ k: "e", label: "NSE-listed only", off: () => set({ ...bar, nse: false }) }] : []),
-    ...(basic ? [] : advChips(bar, set)),
+    ...advChips(bar, set),           // task #258; task #257: the Basic screen's levels, FinLit IQ groups and ranges too
   ];
   if (!chips.length) return null;
   return (

@@ -413,7 +413,7 @@ async def _classification(store) -> Dict[str, tuple]:
 
 
 async def _with_classification(store, body: dict) -> dict:
-    """Adds cls_macro / cls_sector / cls_industry to each row of an Advanced screen (None when NSE does not classify the company)."""
+    """Adds cls_macro / cls_sector / cls_industry to each row of a screen, Basic or Advanced (None when NSE does not classify the company)."""
     cls = await _classification(store)
     seen = set()
     for r in (body.get("exportRows") or []) + (body.get("rows") or []):
@@ -433,6 +433,17 @@ RATING_SLUGS = ("strong", "healthy", "average", "weak", "poor", "notrated")
 TREND5 = ("su", "u", "s", "d", "sd")
 _TREND_OF = {"strongpos": "su", "pos": "u", "neutral": "s", "neg": "d", "strongneg": "sd"}
 SCORE_RANGES = {"z": "prism_final", "zf": "prism_fundamental", "zv": "prism_valuation", "zq": "prism_quality", "zr": "prism_risk"}
+# Task #257 (Basic screener SPEC §3): a Basic screen's FinLit IQ panel: from-to ranges for the FinLit IQ and its five scores (same 0-100 boxes as above), and the
+# rating in three groups: good = Strong or Healthy (62 and above), below = Below Healthy, nr = Not rated (no FinLit IQ). The bands are lib/scoreScreen iqLabelOf's.
+SCORE_RANGES.update({"o": "overall", "pq": "pillar_quality", "pg": "pillar_growth", "pp": "pillar_profitability", "pb": "pillar_balance", "pt": "pillar_technical"})
+IQ_GROUPS = ("good", "below", "nr")
+
+
+def iq_group(r: dict) -> str:
+    v = r.get("overall")
+    if not isinstance(v, (int, float)) or isinstance(v, bool) or v != v:
+        return "nr"
+    return "good" if v >= 62 else "below"
 
 
 def _rating_of(r: dict) -> str:
@@ -479,7 +490,8 @@ def _bar(request: Request) -> dict:
             "macro": {x[:80] for x in qp.getlist("macro") if x}, "nsec": {x[:80] for x in qp.getlist("nsec") if x}, "indu": {x[:80] for x in qp.getlist("indu") if x},
             "pl": {x for x in ",".join(qp.getlist("pl")).split(",") if x in RATING_SLUGS},
             "ranges": {k: rg for k in SCORE_RANGES if (rg := _range_of(qp, k)) is not None},
-            "st5": {x for x in (qp.get("st5") or "").split(",") if x in TREND5}, "lt5": {x for x in (qp.get("lt5") or "").split(",") if x in TREND5}}
+            "st5": {x for x in (qp.get("st5") or "").split(",") if x in TREND5}, "lt5": {x for x in (qp.get("lt5") or "").split(",") if x in TREND5},
+            "iqg": {x for x in ",".join(qp.getlist("iqg")).split(",") if x in IQ_GROUPS}}
 
 
 def _tests(f: dict, new_day: Optional[str]) -> Dict[str, object]:
@@ -516,6 +528,8 @@ def _tests(f: dict, new_day: Optional[str]) -> Dict[str, object]:
         want_i = {_name_key(x) for x in f["indu"]}; t["indu"] = lambda r: _name_key(r.get("cls_industry")) in want_i
     if f.get("pl"):
         t["pl"] = lambda r: _rating_of(r) in f["pl"]
+    if f.get("iqg"):
+        t["iqg"] = lambda r: iq_group(r) in f["iqg"]
     for k, (lo, hi) in (f.get("ranges") or {}).items():
         col = SCORE_RANGES[k]
         t["rg_" + k] = lambda r, col=col, lo=lo, hi=hi: isinstance(r.get(col), (int, float)) and (lo is None or r[col] >= lo) and (hi is None or r[col] <= hi)
@@ -580,6 +594,7 @@ def _facets(rows: List[dict], tests: Optional[Dict[str, object]] = None, new_day
     # task #258 (SPEC §2, §3): each NSE level's values on this list with their counts (own level left out), and the counts of each rating and trend word
     levels: Dict[str, Dict[str, int]] = {"macros": {}, "nsecs": {}, "industries": {}}
     ratings = {s: 0 for s in RATING_SLUGS}
+    iq_groups = {g: 0 for g in IQ_GROUPS}
     trend = {"st": {s: 0 for s in TREND5}, "lt": {s: 0 for s in TREND5}}
     for r in rows:
         for key, test, col in (("macros", "macro", "cls_macro"), ("nsecs", "nsec", "cls_sector"), ("industries", "indu", "cls_industry")):
@@ -587,11 +602,13 @@ def _facets(rows: List[dict], tests: Optional[Dict[str, object]] = None, new_day
                 levels[key][r[col]] = levels[key].get(r[col], 0) + 1
         if _passes(r, tests, "pl"):
             ratings[_rating_of(r)] += 1
+        if _passes(r, tests, "iqg"):
+            iq_groups[iq_group(r)] += 1
         for k, col in (("st", "prism_st_score"), ("lt", "prism_lt_score")):
             w = _trend_of(r.get(col))
             if w and _passes(r, tests, k + "5"):
                 trend[k][w] += 1
-    return {**{k: sorted(v.items(), key=lambda kv: (-kv[1], kv[0])) for k, v in levels.items()}, "ratings": ratings, "trend": trend,
+    return {**{k: sorted(v.items(), key=lambda kv: (-kv[1], kv[0])) for k, v in levels.items()}, "ratings": ratings, "iqGroups": iq_groups, "trend": trend,
             "sizes": sizes, "sectors": sorted(sectors.items(), key=lambda kv: (-kv[1], kv[0]))[:80],
             "strong": n("rating", _strong), "strongOnly": n("rating", _strong_only), "anyRating": n("rating", lambda r: True),
             "new": n("new", probe["new"]), "ahead": n("ahead", probe["ahead"]), "nse": n("nse", probe["nse"]), "bse": sum(1 for r in rows if _bse_only(r)),
@@ -630,8 +647,9 @@ def _page(request: Request, body: dict) -> dict:
 async def detail(request: Request, pid: str):
     p, ctx, active = await _resolve(request, pid)
     body = await _body(request, p, active)
-    if p.tab != "basic":      # task #258: NSE's three levels on every row of an Advanced screen, for its Macro sector, Sector and Industry filters
-        body = await _with_classification(request.app.state.store, body)
+    # task #258: NSE's three levels on every row, for the open screen's Macro sector, Sector and Industry filters; task #257: on Basic screens too, where the
+    # line under a company's name is its industry and size
+    body = await _with_classification(request.app.state.store, body)
     body = _page(request, body)
     await service.log_usage(request.app.state.store, p.id, "open")
     return _json({k: v for k, v in body.items() if k not in API_ONLY})

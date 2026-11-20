@@ -39,7 +39,7 @@ export type Miss = { symbol: string; name?: string | null; exchange?: string | n
 export type PresetDetail = {
   id: string; name: string; asOf: string | null; count: number; shown: number; topCount?: number; asOn?: string; benchSincePct?: number | null; heading?: string | null; filtered?: number; facets?: { sizes: Record<string, number>; sectors: [string, number][]; strong: number; strongOnly?: number; anyRating?: number; new?: number; ahead?: number; nse?: number; bse?: number; fno?: number; liquid?: number; sag?: number; plead?: number;
     /** Task #258 (Advanced SPEC §2, §3): NSE's three levels on this list with their counts, and the counts of each Prism rating word and trend word. */
-    macros?: [string, number][]; nsecs?: [string, number][]; industries?: [string, number][]; ratings?: Record<string, number>; trend?: { st: Record<string, number>; lt: Record<string, number> } }; columns: PresetColumn[]; rows: PresetRow[]; themes?: Theme[]; closestMisses?: Miss[];
+    macros?: [string, number][]; nsecs?: [string, number][]; industries?: [string, number][]; ratings?: Record<string, number>; iqGroups?: Record<string, number>; trend?: { st: Record<string, number>; lt: Record<string, number> } }; columns: PresetColumn[]; rows: PresetRow[]; themes?: Theme[]; closestMisses?: Miss[];
   howItWorks: string[]; cardText: string; disclaimer: string;
   /** "Top 10 of 40 that pass": what the list shows of the companies that pass. */
   listText?: string; notes?: string[]; rankScoreNote?: string; emptyText?: string; ratedCount?: number;
@@ -124,17 +124,23 @@ export type BarFilter = { q: string; sizes: string[]; sectors: string[]; rating:
   sag?: boolean; plead?: boolean; ind?: { slug: string; name: string } | null;
   /** Task #258 (Advanced SPEC §2, §3): NSE's macro sectors, sectors and industries; the Prism rating words (strong ... notrated); from-to score ranges
    *  (z Prism, zf Growth & Profitability, zv Valuation, zq Quality, zr Risk); the two technical views in five words (su u s d sd). */
-  macros?: string[]; nsecs?: string[]; indus?: string[]; pl?: string[]; rg?: Partial<Record<ScoreRangeKey, [number | null, number | null]>>; st5?: string[]; lt5?: string[] };
-export type ScoreRangeKey = "z" | "zf" | "zv" | "zq" | "zr";
-export const SCORE_RANGE_KEYS: ScoreRangeKey[] = ["z", "zf", "zv", "zq", "zr"];
+  macros?: string[]; nsecs?: string[]; indus?: string[]; pl?: string[]; rg?: Partial<Record<ScoreRangeKey, [number | null, number | null]>>; st5?: string[]; lt5?: string[];
+  /** Task #257 (Basic SPEC §3): the FinLit IQ rating in three groups (good = Strong or Healthy, below = Below Healthy, nr = Not rated); its ranges are `rg`'s
+   *  o (FinLit IQ), pq Quality, pg Growth, pp Profitability, pb Balance sheet, pt Technical. */
+  iqg?: string[] };
+export type ScoreRangeKey = "z" | "zf" | "zv" | "zq" | "zr" | BasicRangeKey;
+export type BasicRangeKey = "o" | "pq" | "pg" | "pp" | "pb" | "pt";
+export const BASIC_RANGE_KEYS: BasicRangeKey[] = ["o", "pq", "pg", "pp", "pb", "pt"];
+export const SCORE_RANGE_KEYS: ScoreRangeKey[] = ["z", "zf", "zv", "zq", "zr", ...BASIC_RANGE_KEYS];
 const rangeOn = (b: BarFilter) => SCORE_RANGE_KEYS.filter((k) => b.rg?.[k] && (b.rg[k]![0] != null || b.rg[k]![1] != null));
 /** How many filters of the Prism score panel are on: each ticked word and each range, as on the all-companies view. */
-export const barScoreCount = (b: BarFilter) => (b.pl?.length ?? 0) + rangeOn(b).length + (b.st5?.length ?? 0) + (b.lt5?.length ?? 0);
+export const barScoreCount = (b: BarFilter) => (b.pl?.length ?? 0) + rangeOn(b).length + (b.st5?.length ?? 0) + (b.lt5?.length ?? 0) + (b.iqg?.length ?? 0);
 const advParams = (b: BarFilter): string[] => [
   ...(b.macros ?? []).map((x) => "macro=" + encodeURIComponent(x)), ...(b.nsecs ?? []).map((x) => "nsec=" + encodeURIComponent(x)), ...(b.indus ?? []).map((x) => "indu=" + encodeURIComponent(x)),
   ...(b.pl?.length ? ["pl=" + b.pl.join(",")] : []),
   ...rangeOn(b).flatMap((k) => { const [lo, hi] = b.rg![k]!; return [...(lo != null ? [`${k}min=${lo}`] : []), ...(hi != null ? [`${k}max=${hi}`] : [])]; }),
   ...(b.st5?.length ? ["st5=" + b.st5.join(",")] : []), ...(b.lt5?.length ? ["lt5=" + b.lt5.join(",")] : []),
+  ...(b.iqg?.length ? ["iqg=" + b.iqg.join(",")] : []),
 ];
 export const NO_BAR: BarFilter = { q: "", sizes: [], sectors: [], rating: "", fresh: false, ahead: false, nse: false, fno: false, liquid: false, sag: false, plead: false, ind: null };
 export const barParams = (b: BarFilter): string[] => [...(b.q.trim() ? ["q=" + encodeURIComponent(b.q.trim())] : []), ...b.sizes.map((x) => "size=" + encodeURIComponent(x)),
