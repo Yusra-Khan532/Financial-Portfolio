@@ -16,10 +16,12 @@ Describes the past; not a forecast and not a recommendation. Information only, n
 from __future__ import annotations
 
 import math
+import logging
 import re
 from datetime import date, timedelta
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
+log = logging.getLogger("finlit.etfportfolio")
 MIX_KEYS = ("indian", "abroad", "gold", "silver", "debt")
 MIX_WORD = {"indian": "Indian shares", "abroad": "Shares abroad", "gold": "Gold", "silver": "Silver", "debt": "Debt or overnight lending"}
 MAIN_BUCKET = {"equity": "indian", "hybrid": "indian", "international": "abroad", "gold": "gold", "silver": "silver", "debt": "debt"}
@@ -101,6 +103,12 @@ def asset_mix(etfs: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
                 from_type.append(e["symbol"])
             continue
         low = ((a.get("debt") or 0) + (a.get("cash") or 0)) / t
+        if main in ("gold", "silver") and low > 0.5:
+            # task #277 (fix 2): a gold or silver ETF whose file was read with most of its money in debt and cash was misread (Nippon's silver ETF files its
+            # silver under a cash heading); it counts wholly as its metal, as an ETF without a file does, and the misreading is logged
+            log.warning("metal ETF read without its metal", extra={"symbol": e.get("symbol"), "split": a})
+            out[main] += e["w"]
+            continue
         out["debt"] += e["w"] * low
         out[main] += e["w"] * (1 - low)
     return {"shares": out, "fromType": from_type}
@@ -162,6 +170,11 @@ def top_stocks(etfs: Sequence[Dict[str, Any]], n: int = 8, indian_only: bool = F
     return sorted(stocks.values(), key=lambda s: (-s["w"], s["name"] or ""))[:n]
 
 
+def _with_etfs(st: Dict[str, Any]) -> Dict[str, Any]:
+    by = st.get("by") or {}
+    return {**{k: v for k, v in st.items() if k != "by"}, "etfs": [s for s, _ in sorted(by.items(), key=lambda kv: -kv[1])]}
+
+
 def look_through(etfs: Sequence[Dict[str, Any]], size_of: Callable[[Optional[str]], Optional[str]]) -> Dict[str, Any]:
     """Task #183 (COMMON-RULES 8, the MF page's grid): the Indian shares inside the ETFs as (macro sector, size) and (NSE sector, size) cells, each with its
     weight in the list, its count and every company in it biggest first; each share ETF's own split by macro sector, sector and size; the list's share in
@@ -188,11 +201,13 @@ def look_through(etfs: Sequence[Dict[str, Any]], size_of: Callable[[Optional[str
             for lvl, name in (("macro", macro), ("sector", sector)):
                 cell = grid[lvl].setdefault(f"{name}|{sz}", {"w": 0.0, "stocks": {}})
                 cell["w"] += w
-                st = cell["stocks"].setdefault(k, {"name": h.get("name"), "symbol": h.get("stockSymbol"), "w": 0.0})
+                st = cell["stocks"].setdefault(k, {"name": h.get("name"), "symbol": h.get("stockSymbol"), "w": 0.0, "by": {}})
                 st["w"] += w
+                st["by"][e["symbol"]] = st["by"].get(e["symbol"], 0.0) + w      # task #276: which of the list's ETFs hold it, biggest first
                 fs[lvl][name] = fs[lvl].get(name, 0.0) + inside
     return {"knownShares": known,
-            "lookThrough": {lvl: {key: {"w": c["w"], "n": len(c["stocks"]), "stocks": sorted(c["stocks"].values(), key=lambda x: -x["w"])} for key, c in cells.items()}
+            "lookThrough": {lvl: {key: {"w": c["w"], "n": len(c["stocks"]), "stocks": [_with_etfs(x) for x in sorted(c["stocks"].values(), key=lambda x: -x["w"])]}
+                                  for key, c in cells.items()}
                             for lvl, cells in grid.items()},
             "sectorMacro": sec_macro,
             "perEtf": {sym: {lvl: dict(sorted(v.items(), key=lambda kv: -kv[1])) for lvl, v in parts.items()} for sym, parts in per.items()}}

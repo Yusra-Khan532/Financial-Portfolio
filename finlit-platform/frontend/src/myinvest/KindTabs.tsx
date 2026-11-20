@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { HScroll } from "../components/HScroll";
 import { nf } from "../lib/format";
-import { MODEL_NAME, betaTxt, chg, joinWords, pctOf, rupees, type AllInvestments, type Kind } from "../lib/myInvest";
+import { MODEL_NAME, betaTxt, betaWindowTxt, chg, dateShort, joinWords, pctOf, rupees, type AllInvestments, type Kind } from "../lib/myInvest";
 import { GoLink, KeyFigures, Notes, ScoreWord, SecHead, ShowAll, Stack, type Note } from "./parts";
 import { coTitle, subLine, titleOf } from "../lib/companyLabel";
 
@@ -25,7 +25,7 @@ function KindRisk({ d, kind, id, n, extra }: { d: AllInvestments; kind: Kind; id
       <SecHead id={id} n={n} title={`How risky ${name} are`} line={kind === "shares" ? "The Equity portfolio's own figures against the Nifty 500, from weekly prices." : "Daily NAVs and prices over three years, against the Nifty 500, as on the portfolio page."}
         info={[`How ${name} have moved with the market: beta, the yearly swing and the worst fall from a high.`, "Beta above 1 moved more than the Nifty 500, below 1 less. Past moves only."]} />
       <div className="mi-three">
-        <article className="mi-hc"><p className="mi-cap">Beta vs Nifty 500</p><p className="mi-hv"><b>{betaTxt(x?.beta)}</b>{p?.band ? <span className="mi-chip">{p.band}</span> : null}</p><p className="mi-small">{x?.beta == null ? x?.why ?? "No figure yet." : kind === "shares" ? "The same sum as the Equity portfolio's Risk analytics." : `Weighted over the ${kind === "funds" ? "funds" : "ETFs"} that have a year of prices${x.cover != null && x.cover < 100 ? ` (${pctOf(x.cover, 0)} of them)` : ""}.`}</p></article>
+        <article className="mi-hc"><p className="mi-cap">Beta vs Nifty 500</p><p className="mi-hv"><b>{betaTxt(x?.beta)}</b>{p?.band ? <span className="mi-chip">{p.band}</span> : null}</p><p className="mi-small">{x?.beta == null ? x?.why ?? "No figure yet." : <>{betaWindowTxt(x.betaWindow)}. The same figure as the {kind === "shares" ? "Equity" : kind === "funds" ? "MF" : "ETF"} portfolio page{x.cover != null && x.cover < 100 ? ` (${pctOf(x.cover, 0)} of them have a year of prices)` : ""}.</>}</p></article>
         <article className="mi-hc"><p className="mi-cap">Swing a year</p><p className="mi-hv"><b>{pctOf(x?.swing)}</b></p><p className="mi-small">{kind === "shares" ? `Nifty 500: ${pctOf(x?.benchSwing)}` : `Nifty 500: ${pctOf(b?.swing)}`}. Worst fall from a high: <b className="mi-down">{pctOf(x?.worstFall)}</b>{kind === "shares" ? ` (Nifty 500 ${pctOf(x?.benchWorstFall)})` : ` (Nifty 500 ${pctOf(b?.worstFall)})`}.</p></article>
         <article className="mi-hc"><p className="mi-cap">Part of all market risk</p><p className="mi-hv"><b className={p?.red ? "mi-down" : ""}>{pctOf(p?.riskShare)}</b></p><p className="mi-small">On {pctOf(p?.money)} of the money{d.byValue ? "" : " (each kind counts the same until you add quantities)"}.</p></article>
       </div>
@@ -109,7 +109,7 @@ export function MfTab({ d }: { d: AllInvestments }) {
   return (
     <>
       <KeyFigures items={[
-        { label: "One theme twice", value: types.length ? `${types.length} ${types.length === 1 ? "type" : "types"}` : "None", line: types.length ? joinWords(types.map(([t, v]) => `${t} ×${v.length}`)) : "Each fund is of a different type.", button: "See your funds", go: () => go("mi-mf-list"), info: ["Fund types (category) you hold more than once.", "Two funds of one type often hold many of the same companies."] },
+        types.length ? { label: "One theme twice", value: `${types.length} ${types.length === 1 ? "type" : "types"}`, line: joinWords(types.map(([t, v]) => `${t} ×${v.length}`)), button: "See your funds", go: () => go("mi-mf-list"), info: ["Fund types (category) you hold more than once.", "Two funds of one type often hold many of the same companies."] } : null,
         { label: "Weakest health part", value: weakest ? `${PART_WORD[weakest.k]} · ${nf(weakest.v as number, 0)}` : d.plan === "gold" ? "—" : "Gold", line: weakest ? "The lowest of the four Mutual Fund Score parts, weighted across your funds." : d.plan === "gold" ? "No fund has a Mutual Fund Score yet." : "Mutual Fund Score is part of the Gold plan.", button: "See your funds", go: () => go("mi-mf-list"), info: ["Of Mutual Fund Score's four parts (performance, risk, cost, quality), the one your funds score lowest on, weighted.", "A low part is where your funds read weakest against their categories."] },
         { label: "Liquid fund share", value: pctOf(liquid), line: `Of everything, in liquid, overnight and money market funds (${pctOf((liquid / w) * 100, 0)} of your funds).`, button: "See inside", go: () => go("mi-mf-inside"), info: ["How much of everything sits in liquid, overnight and money market funds.", "These hold short-term debt and cash and move little with the market."] },
       ]} />
@@ -165,8 +165,10 @@ export function EtfTab({ d }: { d: AllInvestments }) {
   return (
     <>
       <KeyFigures items={[
-        { label: "Same index twice", value: rep.length ? `${rep.length}` : "None", line: rep.length ? joinWords(rep.map((r) => `${r.label}: ${r.symbols.join(", ")}`)) : "Each ETF follows a different index.", button: "See your ETFs", go: () => go("mi-etf-list"), info: ["Indices or prices that two or more of your ETFs follow.", "Two ETFs on one index hold the same companies in the same weights."] },
-        { label: "Far above its value", value: far ? `${far.symbol} ${chg(far.premium, 2)}` : "—", tone: far && Math.abs(far.premium!) >= 1 ? "red" : "plain", line: "The ETF whose last price is furthest from its NAV.", button: "See your ETFs", go: () => go("mi-etf-list"), info: ["The largest gap between an ETF's last price and its NAV of the same day.", "Red at 1% or more: the price paid differs from the value of what it holds."] },
+        rep.length ? { label: "Same index twice", value: `${rep.length}`, line: joinWords(rep.map((r) => `${r.label}: ${r.symbols.join(", ")}`)), button: "See your ETFs", go: () => go("mi-etf-list"), info: ["Indices or prices that two or more of your ETFs follow.", "Two ETFs on one index hold the same companies in the same weights."] } : null,
+        // task #277 (live number fix 7): the label follows the sign ("Far above its value: SILVERBEES −0.48%" was a discount); under 0.1% there is nothing to say
+        far && far.premium != null && Math.abs(far.premium) >= 0.1 ? { label: far.premium > 0 ? "Furthest above its value" : "Furthest below its value", value: `${far.symbol} ${chg(far.premium, 2)}`, tone: Math.abs(far.premium) >= 1 ? "red" : "plain",
+          line: `It traded ${nf(Math.abs(far.premium), 2)}% ${far.premium > 0 ? "above" : "below"} its NAV${far.priceDate ? ` on ${dateShort(far.priceDate)}` : ""}.`, button: "See your ETFs", go: () => go("mi-etf-list"), info: ["The largest gap between an ETF's last price and its NAV of the same day.", "Red at 1% or more: the price paid differs from the value of what it holds."] } : null,
         { label: "Yearly cost", value: h?.ter != null ? pctOf(h.ter, 2) : "—", line: h?.costPerLakh != null ? `About ₹${nf(h.costPerLakh, 0)} a year on ₹1 lakh.` : "Not published yet.", button: "See your ETFs", go: () => go("mi-etf-list"), info: ["The weighted yearly cost (expense ratio) of your ETFs.", "It is taken from the ETF's value every day; lower leaves more of the return."] },
       ]} />
       <section className="card mi-step">

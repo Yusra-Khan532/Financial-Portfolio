@@ -8,19 +8,18 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router";
 import { Gate } from "../components/Gate";
 import { StepsBar, type MenuGroup, type Step } from "../components/StepsBar";
-import { nf } from "../lib/format";
 import { usePortfolio } from "../lib/portfolio";
 import { useDocTitle } from "../lib/title";
 import { useUI } from "../lib/ui";
-import { KINDS, KIND_NAME, KIND_TAB, MODEL_NAME, betaTxt, chg, dateShort, joinWords, kindsHeld, lower, moneyByKind, pctOf, rupees, splitLine, useAllInvestments, type AccountPick, type AllInvestments, type Kind, type KindMoney, type Tab } from "../lib/myInvest";
+import { KIND_NAME, betaTxt, chg, dateShort, joinWords, kindsHeld, lower, moneyByKind, pctOf, rupees, splitLine, useAllInvestments, type AccountPick, type AllInvestments, type Kind, type KindMoney, type Tab } from "../lib/myInvest";
 import { apiGet } from "../lib/api";
 import { DEFAULT_PF, type Holding, type Portfolio } from "../lib/portfolio";
-import { PortfoliosBar } from "../portfolio/Portfolios";
-import { StickySwitch, VIEW_ICON, ViewTabsKit, type ViewDef } from "../portfolio/ViewKit";
+import { StickySwitch, VIEW_ICON, type ViewDef } from "../portfolio/ViewKit";
 import "../portfolio/holdings-kit.css";
 import { ALL_SECTIONS, AllTogether } from "../myinvest/AllTogether";
+import { NextView, TopCard, ViewTiles, useViewsSeen, type AccRow } from "../myinvest/Top";
+import { aggOf } from "../lib/ledger";
 import { EQ_SECTIONS, ETF_SECTIONS, EquityTab, EtfTab, MF_SECTIONS, MfTab } from "../myinvest/KindTabs";
-import { BandStrip, I } from "../myinvest/parts";
 import { QtyDialog } from "../myinvest/QtyDialog";
 import "../styles/myinvest.css";
 
@@ -79,6 +78,8 @@ function Body() {
   const accFigs = (id: string) => { const dd = id === "all" ? qAll.data : id === acc?.id ? d : undefined; if (!dd) return { n: -1, now: 0, withQty: 0, gainPct: null };
     const m = moneyByKind(dd, id === "all" ? holdings : hsIn).all; return { n: m.n, now: m.now, withQty: m.now ? m.n : 0, gainPct: m.full && m.invested ? (m.gain / m.invested) * 100 : null }; };
   const tab: Tab = isTab(params.get("tab")) ? (params.get("tab") as Tab) : "all";
+  const seen = useViewsSeen(tab);
+  const accRows = useMemo(() => accRowsOf(accs, holdings, d, money), [accs, holdings, d, money]);
   const [qty, setQty] = useState(false);
   const toTab = (t: Tab, scroll?: string) => {
     setParams((p) => { const n = new URLSearchParams(p); if (t === "all") n.delete("tab"); else n.set("tab", t); return n; }, { replace: true });
@@ -88,23 +89,25 @@ function Body() {
   const menu: MenuGroup[] = TABS.map((t) => ({ title: t.label, items: t.sections.map((s, i) => ({ id: s.id, label: `${i + 1} · ${s.label}`, go: () => toTab(t.id, s.id) })) }));
   return (
     <>
-      <Header d={d} money={money} loading={q.isLoading} openQty={() => setQty(true)} />
-      {accs.length > 1 && <PortfoliosBar readOnly list={accs} cur={acc?.id ?? "all"} onPick={setAcc} figs={accFigs} onAdd={() => {}} onRename={() => null} onRemove={() => {}} noun={["holding", "holdings"]}
-        sub="Every account from your three portfolio pages, by name. Picking one shows only its shares, funds and ETFs. Add, rename or remove an account on its portfolio page." />}
+      {/* task #277 (changes 1, 2): the compact top: title row, the money box that says what it covers, Your portfolios (they replace the header card,
+          the accounts bar and the dark summary box) */}
+      <TopCard d={d} money={money} accs={accRows} cur={acc?.id ?? "all"} onPick={setAcc} openQty={() => setQty(true)} loading={q.isLoading} />
       {q.isLoading && <div className="skeleton mi-skel" aria-busy="true" aria-label="Reading your three lists" />}
       {q.isError && <div className="state" role="alert"><h2>Could not read your investments</h2><p>{q.error?.message || "Please try again in a moment."} <button className="btn" onClick={() => q.refetch()}>Try again</button></p></div>}
       {d && kindsHeld(d).length === 0 && (
         <section className="card mi-empty"><h2>Nothing to read yet</h2><p>Add shares on the <Link to="/holdings">Equity portfolio</Link>, funds on the <Link to="/mf-portfolio">MF portfolio</Link> or ETFs on the <Link to="/etf-portfolio">ETF portfolio</Link>. This page reads the three lists; it keeps no list of its own.</p></section>)}
       {d && kindsHeld(d).length > 0 && <>
-        <Summary d={d} money={money} name={acc?.name ?? null} toTab={toTab} openQty={() => setQty(true)} />
-        <div className="mi-tabs-k pfx" id="mi-tabs"><ViewTabsKit defs={VIEWS} view={tab} onView={(t) => toTab(t)} label="All my investments" idp="mi-t" panel={`mi-p-${tab}`} what="everything" /></div>
-        <StepsBar key={tab} steps={steps} menu={menu} label={`Sections of ${TABS.find((t) => t.id === tab)?.label}`}
+        {/* task #277 (change 16): the four views drawn as tabs; they replace the three kind tiles */}
+        <ViewTiles d={d} view={tab} onView={(t) => toTab(t)} seen={seen} />
+        <StepsBar key={tab} arrows steps={steps} menu={menu} label={`Sections of ${TABS.find((t) => t.id === tab)?.label}`}
           lead={<StickySwitch list={accs.length > 1 ? accs : []} cur={acc?.id ?? "all"} onPick={setAcc} figs={accFigs} defs={VIEWS} view={tab} onView={(t) => toTab(t)} tabsId="mi-tabs" noun={["holding", "holdings"]} />} />
         <div role="tabpanel" id={`mi-p-${tab}`} aria-labelledby={`mi-t-${tab}`} className="mi-panel">
-          {tab === "all" && <AllTogether d={d} money={money} toTab={toTab} openQty={() => setQty(true)} />}
+          {tab === "all" && <AllTogether d={d} money={money} toTab={toTab} openQty={() => setQty(true)}
+            stickyLead={<StickySwitch list={accs.length > 1 ? accs : []} cur={acc?.id ?? "all"} onPick={setAcc} figs={accFigs} defs={VIEWS} view={tab} onView={(t) => toTab(t)} tabsId="mi-tabs" noun={["holding", "holdings"]} />} />}
           {tab === "equity" && <EquityTab d={d} />}
           {tab === "mf" && <MfTab d={d} />}
           {tab === "etf" && <EtfTab d={d} />}
+          <NextView d={d} view={tab} onView={(t) => toTab(t)} />
         </div>
         <InShort d={d} money={money} />
         {(d.unknown.length > 0 || d.gone.length > 0) && <p className="mi-small mi-note">{d.unknown.length > 0 && <>Not read: {d.unknown.join(", ")} (not a company FinLit lists). </>}{d.gone.length > 0 && <>No longer listed: {d.gone.join(", ")}.</>}</p>}
@@ -118,74 +121,27 @@ function Body() {
   );
 }
 
-function Header({ d, money, loading, openQty }: { d?: AllInvestments; money: Record<Kind | "all", KindMoney> | null; loading: boolean; openQty: () => void }) {
-  const [imp, setImp] = useState(false);
-  return (
-    <header className="card mi-head">
-      <div className="mi-hl">
-        <p className="mi-tags"><span className="mi-tag new">New page</span>{d && <span className="mi-tag">{d.plan === "gold" ? "Gold · FinLit Prism" : "Silver · FinLit IQ"}</span>}</p>
-        <h1>All my investments</h1>
-        <p className="mi-lede">Your shares, mutual funds and ETFs read together: how much you have and where it sits, what it is made of, what you really own underneath, how healthy it is and how risky it is as a whole.</p>
-        <p className="mi-links"><Link to="/holdings">Equity portfolio</Link><Link to="/mf-portfolio">MF portfolio</Link><Link to="/etf-portfolio">ETF portfolio</Link><a href="#mi-faq">How it is counted</a></p>
-      </div>
-      <div className="mi-hr">
-        <div className="mi-acts">
-          <button type="button" className="btn primary" disabled={!d} onClick={openQty}>Add quantities</button>
-          <span className="mi-pop"><button type="button" className="btn" aria-expanded={imp} onClick={() => setImp(!imp)}>Import a broker file</button>
-            {imp && <span className="mi-pop-m" role="menu"><Link role="menuitem" to="/holdings">Shares: broker file on the Equity portfolio</Link><Link role="menuitem" to="/mf-portfolio?tab=import">Mutual funds: CAS or statement on the MF portfolio</Link><Link role="menuitem" to="/etf-portfolio?tab=import">ETFs: broker file on the ETF portfolio</Link></span>}</span>
-        </div>
-        <p className="mi-count" aria-live="polite">{d ? <>{nf(d.counts.shares, 0)} share{d.counts.shares === 1 ? "" : "s"} · {nf(d.counts.funds, 0)} mutual fund{d.counts.funds === 1 ? "" : "s"} · {nf(d.counts.etfs, 0)} ETF{d.counts.etfs === 1 ? "" : "s"} · {money && d.byValue ? `buy prices for ${money.all.full} of ${money.all.n}` : `quantities for ${d.quantities.have} of ${d.quantities.of}`}</> : loading ? "Reading your three lists…" : ""}</p>
-        <p className="mi-small">This page reads your three portfolio lists. Add or remove a holding on its own page and it changes here. Nothing is sent to a broker.</p>
-      </div>
-    </header>
-  );
-}
-
-function Summary({ d, money, name, toTab, openQty }: { d: AllInvestments; money: Record<Kind | "all", KindMoney> | null; name: string | null; toTab: (t: Tab) => void; openQty: () => void }) {
-  const m = money?.all;
-  const kinds = kindsHeld(d), n = kinds.reduce((a, k) => a + d.counts[k], 0);
-  return (
-    <div className="mi-sum">
-      <div className="mi-dark" onClick={() => toTab("all")}>
-        <p className="mi-cap">All your investments<I k="All your investments" what="Everything on your three lists together." read={d.byValue ? "The total is quantity × last price or NAV; the 1-year change is on what you hold now." : "Without quantities the split shows each kind counting the same; it is not your money."} /></p>
-        {d.byValue ? <><p className="mi-dark-v">{rupees(d.total ?? 0)}</p>
-          <p className="mi-dark-l">{name ? `${name}: value now. ` : "Value now. "}{m && m.full ? <><span className={m.gain >= 0 ? "x-up" : "x-dn"}>{m.gain >= 0 ? "+" : "−"}{rupees(Math.abs(m.gain))} ({chg((m.gain / m.invested) * 100)})</span> on {rupees(m.invested)} invested{m.full < m.n ? `, ${m.full} of ${m.n} holdings with a buy price` : ""}.</> : null} {chg(d.chg1y)} over 1 year, on what you hold now.</p></>
-          : <><p className="mi-dark-v">{n} holdings</p><p className="mi-dark-l">{splitLine(d)}</p></>}
-        <div className="mi-stack dark" aria-hidden="true">{kinds.map((k) => <i key={k} className={"k-" + k} style={{ flexGrow: d.cards[k].share }} />)}</div>
-        <ul className="mi-dkey">{kinds.map((k) => <li key={k}><i className={"k-" + k} aria-hidden="true" />{pctOf(d.cards[k].share, 0)} {KIND_NAME[k]}{d.byValue && d.cards[k].value != null ? ` · ${rupees(d.cards[k].value!)}` : ""}</li>)}</ul>
-        <p className="mi-dark-acts"><button type="button" className="btn mi-dark-b" onClick={(e) => { e.stopPropagation(); openQty(); }}>{d.byValue ? "Edit quantities" : "Add quantities"}</button><button type="button" className="mi-link light" onClick={(e) => { e.stopPropagation(); toTab("all"); }}>Open All together →</button></p>
-      </div>
-      {KINDS.map((k) => <Tile key={k} d={d} k={k} go={() => toTab(KIND_TAB[k])} />)}
-    </div>
-  );
-}
-
-const TILE_INFO: Record<Kind, [string, string]> = {
-  shares: ["The shares on your Equity portfolio: their part of everything, their average score, beta and 1-year change.", "The band strip counts your shares in each band of the score your plan shows."],
-  funds: ["The funds on your MF portfolio: their part of everything, average Mutual Fund Score, beta and 1-year change.", "Each fund keeps its own Mutual Fund Score band; the strip counts them."],
-  etfs: ["The ETFs on your ETF portfolio: their part of everything, yearly cost, beta and 1-year change.", "The strip shows the kinds of ETF you hold."],
-};
-function Tile({ d, k, go }: { d: AllInvestments; k: Kind; go: () => void }) {
-  const c = d.cards[k];
-  if (!c.count) return (
-    <button type="button" className="mi-tile empty" onClick={go}><p className="mi-cap">{KIND_NAME[k]}</p><p className="mi-small">None on your {k === "shares" ? "Equity" : k === "funds" ? "MF" : "ETF"} portfolio yet{k === "etfs" ? ": the other tabs leave ETFs out" : ""}.</p><span className="mi-link">Open {KIND_NAME[k]} →</span></button>);
-  const model = MODEL_NAME[c.scoreModel ?? "iq"];
-  const read: ReactNode = k === "shares" ? <>{c.count} shares · Average {model} {c.score ?? "—"} · Beta {betaTxt(c.beta)} · {chg(c.chg1y)} in a year</>
-    : k === "funds" ? <>{c.count} {c.count === 1 ? "fund" : "funds"} · {c.scoreLocked ? "Mutual Fund Score on Gold" : c.score != null ? `${c.count === 1 ? "Mutual Fund Score" : "Average Mutual Fund Score"} ${c.score}${(c.count === 1 ? d.funds[0]?.label : c.scoreWord) ? " · " + (c.count === 1 ? d.funds[0].label : c.scoreWord) : ""}` : "No Mutual Fund Score yet"} · Beta {betaTxt(c.beta)} · {chg(c.chg1y)} in a year</>
-    : <>{c.count} ETFs · Cost {c.ter != null ? pctOf(c.ter, 2) : "—"} a year · Beta {betaTxt(c.beta)} · {chg(c.chg1y)} in a year{c.repeats?.length ? ` · ${joinWords(c.repeats.map((r) => r.label ?? ""))} held twice` : ""}</>;
-  return (
-    <div className="mi-tile" onClick={go}>
-      <p className="mi-cap"><i className={"mi-dot k-" + k} aria-hidden="true" />{KIND_NAME[k]}<I k={KIND_NAME[k]} what={TILE_INFO[k][0]} read={TILE_INFO[k][1]} /><span className="mi-pill">{pctOf(c.share, 0)}</span></p>
-      <p className="mi-tile-v">{d.byValue && c.value != null ? rupees(c.value) : `${c.count} ${k === "funds" ? (c.count === 1 ? "fund" : "funds") : k === "etfs" ? "ETFs" : "shares"}`}</p>
-      <p className="mi-small">{read}</p>
-      {k === "etfs" ? (c.types?.length ? <div className="mi-band" role="img" aria-label={"By type: " + c.types.map((t) => `${t.count} ${t.label}`).join(", ")}>{c.types.map((t, i) => <i key={t.label} className={"t-type" + (i % 4)} style={{ flexGrow: t.count }} title={`${t.label}: ${t.count}`}>{t.count}</i>)}</div> : null)
-        : c.bands ? <BandStrip label={k === "shares" ? `Shares by ${model}` : "Funds by Mutual Fund Score"} bands={c.bands} notRated={k === "shares" ? d.health.shares?.notRated : (d.health.funds && !d.health.funds.locked ? d.health.funds.notRated : undefined)} /> : null}
-      {k === "etfs" && c.types?.length ? <p className="mi-small">{c.types.map((t) => `${t.count} ${t.label}`).join(" · ")}</p> : null}
-      <p className="mi-cap">{c.firstIs === "largest" ? "Largest" : "On your list"}</p>
-      <p className="mi-small">{c.first.map((x) => x.name).join(" · ")}{c.count > 3 ? ` · +${c.count - 3} more` : ""}</p>
-      <button type="button" className="mi-link" onClick={(e) => { e.stopPropagation(); go(); }}>Open {KIND_NAME[k]} →</button>
-    </div>
-  );
+/** Task #277 (change 2): one row per account under Your portfolios, with what it holds and, when its holdings have quantities and buy prices, its value and
+ *  gain. Shares are summed from the account's own buys; a fund or ETF account shows money only when it is the only one of its kind (the page's figures are its). */
+const AV = ["#0e6471", "#4b4fc4", "#7a5c1f", "#a23b72", "#2f5a9e", "#134e4a"];
+function accRowsOf(accs: Acc[], hs: Holding[], d: AllInvestments | undefined, money: Record<Kind | "all", KindMoney> | null): AccRow[] {
+  const mfAccs = accs.filter((a) => a.mf).length, etfAccs = accs.filter((a) => a.etf).length;
+  return accs.map((a, i) => {
+    const mine = hs.filter((h) => a.eq.includes(h.pf ?? DEFAULT_PF)), syms = [...new Set(mine.map((h) => h.symbol.toUpperCase()))];
+    let now = 0, inv = 0, priced = 0, valued = 0, n = 0;
+    for (const s of syms) {
+      const g = aggOf(mine, s, "all"), px = d?.shares.find((x) => x.symbol === s)?.price ?? null;
+      if (g && g.qty === 0 && g.nBuys > 0) continue;                       // sold in full
+      n++;
+      if (g?.qty && px) { now += g.qty * px; valued++; if (g.invested != null) { inv += g.invested; priced++; } }
+    }
+    const nf_ = a.mf ? (mfAccs === 1 ? d?.counts.funds ?? 0 : null) : 0, ne = a.etf ? (etfAccs === 1 ? d?.counts.etfs ?? 0 : null) : 0;
+    for (const [k, on] of [["funds", a.mf && mfAccs === 1], ["etfs", a.etf && etfAccs === 1]] as const) {
+      const m = money?.[k]; if (on && m && m.now > 0) { now += m.now; valued++; if (m.full === m.n) { inv += m.invested; priced += m.full; } }
+    }
+    const parts = [n ? `${n} ${n === 1 ? "share" : "shares"}` : "", nf_ ? `${nf_} ${nf_ === 1 ? "fund" : "funds"}` : a.mf && nf_ == null ? "funds" : "", ne ? `${ne} ETF${ne === 1 ? "" : "s"}` : a.etf && ne == null ? "ETFs" : ""].filter(Boolean);
+    return { id: a.id, name: a.name, sub: parts.join(" · ") || "nothing yet", value: valued ? now : null, gainPct: priced && priced === valued && inv ? ((now - inv) / inv) * 100 : null, color: AV[i % AV.length], initial: a.name.trim().charAt(0).toUpperCase() || "P" };
+  });
 }
 
 function InShort({ d, money }: { d: AllInvestments; money: Record<Kind | "all", KindMoney> | null }) {

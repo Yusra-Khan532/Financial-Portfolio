@@ -41,10 +41,10 @@ export const riskKeys = (r: RiskAnswer, split: ReturnType<typeof riskSplit>) => 
 export function RiskGlancePack({ r, split, compare }: { r: RiskAnswer; split: ReturnType<typeof riskSplit>; compare?: { value: string; onChange: (v: string) => void } }) {
   const short = r.shares.filter((s) => s.why === "Under a year of prices").map((s) => s.symbol), lede = riskLede(r);
   return (
-    <Section id="eq-rg" hide title="Risk at a glance" right={compare && <label className="eq-cmp">Compare with<select value={compare.value} onChange={(e) => compare.onChange(e.target.value)}>{BENCHMARKS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>} help="Four figures, each against the Nifty 50: the typical swing and the worst fall over 3 years of daily closes, the 10 worst weeks of the past year, and the beta weighted by size." how="Each figure sits beside the Nifty 50's; the line under it says whether the list has been bumpier or smoother."
-      sub={`If equal amounts were held · swing and worst fall: 3 years of daily prices; beta and weekly figures: the past year, to ${new Date(r.to + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} · beta for ${r.counted} ${r.counted === 1 ? "share" : "shares"}${short.length ? ` (${short.join(", ")} ${short.length === 1 ? "has" : "have"} under a year of prices)` : ""}`}>
+    <Section id="eq-rg" hide title="Risk at a glance" right={compare && <label className="eq-cmp">Compare with<select value={compare.value} onChange={(e) => compare.onChange(e.target.value)}>{BENCHMARKS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>} help="Four figures, each against the Nifty 50: the typical swing and the worst fall over 3 years (the shares from weekly closes, the Nifty 50 from daily closes), the 10 worst weeks of the past year, and the beta weighted by size." how="Each figure sits beside the Nifty 50's; the line under it says whether the list has been bumpier or smoother."
+      sub={`If equal amounts were held · swing and worst fall: 3 years of ${r.glance.list?.grain ?? "weekly"} prices; beta and weekly figures: the past year, to ${new Date(r.to + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} · beta for ${r.counted} ${r.counted === 1 ? "share" : "shares"}${short.length ? ` (${short.join(", ")} ${short.length === 1 ? "has" : "have"} under a year of prices)` : ""}`}>
       <p className="eqr-lede"><b>{lede.lead}</b> {lede.rest}</p>
-      <div className="eqr-tiles">{glanceTiles(r).map((t) => <div key={t.k} className="eqr-tile"><p className="sp-cap">{t.k}<Tip text={t.help} how={t.how} label={`About “${t.k}”`} /></p><p className="eqr-v"><b>{t.v}</b><small>{t.niftyWord ?? "Nifty 50"}: {t.nifty}</small></p><p className="eqr-sub">{t.sub}</p></div>)}</div>
+      <div className="eqr-tiles">{glanceTiles(r).map((t) => <div key={t.k} className="eqr-tile"><p className="sp-cap">{t.k}<Tip text={t.help} how={t.how} label={`About “${t.k}”`} /></p><p className="eqr-v"><b>{t.v}</b><small>{t.niftyWord ?? "Nifty 50"}: {t.nifty}</small></p><p className="eqr-sub">{t.sub}</p>{t.win && <p className="eqr-win">{t.win}</p>}</div>)}</div>
       {r.missingIndex.length > 0 && <p className="sp-note">Index closes not available right now for {r.missingIndex.join(", ")}: shares of that size have no beta until they are back.</p>}
       <Insights items={glanceCards(r, split.bySize)} scope="eq.rg" />
     </Section>
@@ -195,7 +195,7 @@ export function EachShareRisk({ r, split, shares, gold }: { r: RiskAnswer; split
           {open.has(g.k) && g.xs.map(row)}</tbody>)}
         {none.length > 0 && <tbody><tr className="eqr-g"><td colSpan={nCols}><b>No size band yet</b> · {none.map((s) => s.symbol).join(", ")}: no benchmark to compare with.</td></tr></tbody>}
       </table></Scroll>
-      <p className="sp-note">"What stands out" describes the figures; it is not advice. Swing and worst fall are over 3 years (fewer when a share has less, shown in brackets); betas, 1 year and share of risk are over the past year.</p>
+      <p className="sp-note">"What stands out" describes the figures; it is not advice. Swing and worst fall are over 3 years of weekly closes (fewer when a share has less, shown in brackets); betas, 1 year and share of risk are over the past year.</p>
     </Section>
   );
 }

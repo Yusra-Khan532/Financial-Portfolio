@@ -31,8 +31,14 @@ const view = (ui: React.ReactNode) => render(<MemoryRouter>{ui}</MemoryRouter>);
 describe("risk at a glance (E72)", () => {
   it("leads with the size-weighted reading and shows four figures, each against the Nifty 50, with its period", () => {
     expect(riskLede(R)).toEqual({ lead: "Part of your list moves more than its own market.", rest: "Weighted by size, the list has moved 1.82% for every 1% move in its benchmarks, and over 3 years it has swung 25.9% in a typical year against 13.1% for the Nifty 50." });
+    // task #274 (number fixes 1 and 5): each figure says its window, and the swing line gives the ratio, never "about twice" for 1.7
+    const g = glanceTiles({ ...R, glance: { ...R.glance, list: { ...R.glance.list!, swing: 22.6, grain: "weekly", years: 3 }, nifty: { ...R.glance.nifty, swing: 13.6, grain: "daily", years: 3 } } });
+    expect(g[0].sub).toBe("About 1.7 times as bumpy as the index.");
+    expect(g[0].win).toBe("List: 3 yrs, weekly · Nifty 50: 3 yrs, daily");
+    expect(g[0].help).toMatch(/weekly returns/);
+    expect(g[3].win).toMatch(/^vs each share's size index · weekly · past year, to /);
     expect(glanceTiles(R).map((t) => [t.k, t.v, t.nifty, t.sub])).toEqual([
-      ["Typical swing in a year · 3 yrs", "25.9%", "13.1%", "About twice as bumpy as the index."], ["Worst fall from a high · 3 yrs", "−24.6%", "−14.9%", "Deeper than the index."],
+      ["Typical swing in a year · 3 yrs", "25.9%", "13.1%", "About 2.0 times as bumpy as the index."], ["Worst fall from a high · 3 yrs", "−24.6%", "−14.9%", "Deeper than the index."],
       ["In the 10 worst weeks · past year", "−3.9%", "−2.7%", "Falls more when the market falls."], ["Beta, size-weighted", "1.82", "1.00", "More sensitive than its market (its own benchmarks)."]]);
     view(<RiskGlancePack r={R} split={split} />);
     expect(screen.getByText(/beta for 10 shares \(FRACTAL has under a year of prices\)/)).toBeTruthy();

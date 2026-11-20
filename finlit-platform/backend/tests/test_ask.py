@@ -556,3 +556,88 @@ async def test_analyst_ratings_and_targets_from_the_web_are_withdrawn(text):
                                   "FIIs were net buyers of Rs 1,200 crore on 14 Nov 2026."])
 def test_plain_news_is_not_taken_for_advice(text):
     assert not service.reads_like_advice(text)
+
+
+# ------------------------------------------------------------------------------------------------------------------ task #279 (20 Nov 2026)
+# The team: "we need to make it less contextual ... i can search anything anywhere irrespective of company too; read the question clearly and not
+# only the company report from where chatbot is opened". Asked on HCLTECH's page, "why is icici low on last quarter" was answered "I pulled HCLTech's
+# documents by mistake...": "icici" was not recognised, so HCLTECH's card and documents were read for a question about ICICI Bank.
+ICICI_ROWS = ROWS + [["ICICIBANK", "ICICI Bank Ltd"], ["ICICIPRULI", "ICICI Prudential Life Insurance Company Ltd"], ["ICICIGI", "ICICI Lombard General Insurance Company Ltd"],
+                     ["HDFCBANK", "HDFC Bank Ltd"], ["HDFCLIFE", "HDFC Life Insurance Company Ltd"], ["HCLTECH", "HCL Technologies Ltd"], ["RELIANCE", "Reliance Industries Ltd"],
+                     ["ADANIPORTS", "Adani Ports & Special Economic Zone Ltd"], ["ADANIGREEN", "Adani Green Energy Ltd"]]
+
+
+@pytest.mark.parametrize("q, want", [
+    ("why is icici low on last quarter", ["ICICIBANK"]), ("hdfc results", ["HDFCBANK"]), ("icici prudential new business", ["ICICIPRULI"]),
+    ("hdfc life VNB", ["HDFCLIFE"]), ("is lic cheap?", ["LICI"])])
+def test_the_short_names_people_use_find_the_company(q, want):
+    from finlit.ask.companies import find, index_from
+    names, symbols = index_from(ICICI_ROWS)
+    assert find(q, names, symbols) == want
+
+
+def test_a_word_that_starts_several_companies_marks_another_company_and_what_points_at_the_page():
+    from finlit.ask.companies import group_word, index_from, points_at_page
+    names, _ = index_from(ICICI_ROWS)
+    assert group_word("adani results this quarter", names, skip="HCLTECH") == "adani"
+    assert group_word("adani results", names, skip="ADANIPORTS") is None                 # on an Adani company's page, "adani" is that company
+    assert group_word("what is a good PE ratio?", names, skip="HCLTECH") is None
+    prism_rows = ICICI_ROWS + [["PRSMJOHNSN", "Prism Johnson Ltd"], ["PRISMX", "Prismx Global Ventures Ltd"], ["531735", "Prism Finance Ltd"]]
+    assert group_word("prism score?", index_from(prism_rows)[0], skip="RELIANCE") is None    # FinLit Prism, not the Prism companies
+    assert points_at_page("tell me about this company", strong_only=True) and points_at_page("how is it doing?")
+    assert not points_at_page("how is it doing?", strong_only=True) and not points_at_page("why is icici low on last quarter")
+
+
+def _index(rows):
+    import time
+    from finlit.ask import companies
+    names, symbols = companies.index_from(rows)
+    companies._cache.update(at=time.monotonic(), names=names, symbols=symbols)
+
+
+@pg
+async def test_a_question_about_another_company_is_answered_about_it_not_the_page(app):
+    """On RELIANCE's page, "why is icici low on last quarter": ICICI Bank's card and documents are read, never RELIANCE's, and the model is told the page
+    is not the subject. "tell me about this company" on the same page is about RELIANCE; "and its margins?" after the ICICI question stays on ICICI."""
+    await store_prism(app)
+    _index(ICICI_ROWS)
+    client = FakeClient([{"text": ["ICICI Bank's quarter."]}, {"text": ["Reliance."]}, {"text": ["ICICI margins."]}])
+    enable(app, client)
+    m = await signed_in(app, "ctx@example.com", plan="gold")
+    _, ev = await ask(m, "why is icici low on last quarter", symbol="RELIANCE")
+    statuses = [d["text"] for e, d in ev if e == "status"]
+    assert "Reading the company page (ICICIBANK)" in statuses and not any("RELIANCE" in s for s in statuses)
+    sent = json.dumps(client.calls[0]["messages"])
+    assert "do not bring RELIANCE into the answer" in sent and '"symbol": "RELIANCE"' not in sent and "85.4" not in sent
+    _, ev = await ask(m, "tell me about this company", symbol="RELIANCE")
+    assert "Reading the company page (RELIANCE)" in [d["text"] for e, d in ev if e == "status"]
+    assert "The member is on the page of RELIANCE." in json.dumps(client.calls[1]["messages"])
+    hist = [{"role": "user", "content": "why is icici low on last quarter"}, {"role": "assistant", "content": "ICICI Bank's quarter."}]
+    _, ev = await ask(m, "and its margins?", symbol="RELIANCE", history=hist)
+    statuses = [d["text"] for e, d in ev if e == "status"]
+    assert "Reading the company page (ICICIBANK)" in statuses and not any("RELIANCE" in s for s in statuses)
+
+
+def test_the_instructions_put_the_question_before_the_page():
+    s = service.SYSTEM
+    assert "Read the question for what it asks" in s and "never turned towards the page's company" in s and "Never describe your own steps" in s
+    line = service.context_line("HCLTECH", "gold", page_is_subject=False)
+    assert "opened FinLit AI on the page of HCLTECH, but this question is about something else" in line
+    assert "The member is on the page of HCLTECH." in service.context_line("HCLTECH", "gold")
+
+
+def test_the_ai_summary_is_pointers_with_bold_key_words_and_reads_the_technical_view():
+    """Task #228 rework 2 (20 Nov 2026): "make it in pointers its too big of a paragaph and highlight keywords"; the team's picture also shows "I could
+    not read the short-term and long-term technical views": the Prism summary FinLit AI reads carried only the technical view's dates."""
+    q = service.summary_question("RELIANCE")
+    assert "4 to 6 short pointers" in q and 'starting with "- "' in q and "at most 20 words" in q and "**bold**" in q and "No paragraph" in q
+    from finlit import prism
+    tech = {"shortTerm": {"score": 38.0, "rating": "Buy", "status": "ready"}, "longTerm": {"score": -32.0, "rating": "Reduce", "status": "ready"},
+            "verdict": {"label": "BOUNCE ONLY, DON'T INVEST", "tone": "caution"}}
+    got = prism._tech_scores({"technicalAssessment": tech})
+    assert got == {"shortTerm": {"score": 38.0, "rating": "Uptrend"}, "longTerm": {"score": -32.0, "rating": "Downtrend"}, "alignment": "Bounce in a downtrend"}
+    assert "Buy" not in json.dumps(got) and "INVEST" not in json.dumps(got)                  # the model's own words never leave the server
+    card = T._prism_card({"summary": {"final": 58.1, "label": "AVERAGE", "status": "RATED", "parts": {}, "technical": {"asOf": "2026-11-19", **got}}})
+    assert card["technical"] == {"shortTerm": {"score": 38.0, "rating": "Uptrend"}, "longTerm": {"score": -32.0, "rating": "Downtrend"},
+                                 "alignment": "Bounce in a downtrend", "asOf": "2026-11-19"}
+    assert prism._tech_scores({}) == {}

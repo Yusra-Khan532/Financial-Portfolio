@@ -65,11 +65,34 @@ def test_swing_and_worst_fall_over_three_years_and_the_ten_worst_weeks():
     s = rs.daily([d.date().isoformat() for d in FRIDAYS], path(NIFTY))
     f = rs.swing_and_fall(s, FRIDAYS[-1])
     x = s[s.index > FRIDAYS[-1] - pd.Timedelta(days=3 * 365)]
-    assert f["swing"] == pytest.approx(float(x.pct_change().dropna().std(ddof=1)) * math.sqrt(252) * 100)
+    # task #274 (number fix 1): these are WEEKLY closes, so a year has 52 of them (√52), not 252 (√252 put every swing 2.2 times too high)
+    assert f["grain"] == "weekly"
+    assert f["swing"] == pytest.approx(float(x.pct_change().dropna().std(ddof=1)) * math.sqrt(52) * 100)
     assert f["worstFall"] == pytest.approx(float((x / x.cummax() - 1).min() * 100)) and f["worstFall"] < 0 and f["years"] == pytest.approx(3.0, abs=0.1)
     out = rs.build({"BIG": series(path(1.5 * NIFTY))}, IDX, {"BIG": "Large"}, {})
     worst = np.sort(NIFTY[-52:])[:10]
     assert out["glance"]["worst10"] == {"list": round(float(np.mean(1.5 * worst)) * 100, 1), "nifty": round(float(np.mean(worst)) * 100, 1)}
+
+
+def test_task274_each_series_is_annualised_by_its_own_spacing_and_says_which():
+    """Number fix 1 (20 Nov pack): the shares' stored closes (price-MAX) are weekly and were annualised with √252: INFY read 59% for a true 27%. The index's closes
+    are daily and stay √252. Every swing carries its grain and years so the page can say what it rests on."""
+    days = pd.bdate_range(end=FRIDAYS[-1], periods=3 * 252)
+    rng = np.random.default_rng(7)
+    d = pd.Series(100 * np.cumprod(1 + rng.normal(0, 0.01, len(days))), index=days)
+    fd = rs.swing_and_fall(d, FRIDAYS[-1])
+    assert fd["grain"] == "daily" and fd["swing"] == pytest.approx(float(d[d.index > FRIDAYS[-1] - pd.Timedelta(days=3 * 365)].pct_change().dropna().std(ddof=1)) * math.sqrt(252) * 100)
+    w = d.resample("W-FRI").last()
+    fw = rs.swing_and_fall(w, FRIDAYS[-1])
+    assert fw["grain"] == "weekly"
+    assert 0.75 < fw["swing"] / fd["swing"] < 1.33          # the same prices read weekly or daily give about the same yearly swing; the old √252 gave about 2.2 times
+    assert rs.grain_of(pd.DatetimeIndex(pd.date_range("2024-01-31", periods=24, freq="ME"))) == "monthly"
+    out = rs.build({"BIG": series(path(1.5 * NIFTY))}, IDX, {"BIG": "Large"}, {})
+    assert out["glance"]["list"]["grain"] == "weekly" and out["glance"]["nifty"]["grain"] in ("weekly", "daily")
+    assert out["shares"][0]["grain"] == "weekly" and out["glance"]["list"]["years"] == pytest.approx(3.0, abs=0.1)
+    big = out["shares"][0]["swing"]
+    lst = out["glance"]["list"]["swing"]
+    assert lst == pytest.approx(big, rel=0.02)              # a list of one share swings as that share
 
 
 def test_no_nifty_is_an_error_and_a_share_with_no_prices_says_why():

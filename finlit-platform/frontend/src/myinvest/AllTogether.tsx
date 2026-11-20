@@ -1,15 +1,16 @@
 // All my investments, tab 1 "All together" (task #137, README "Tab 1"): Key figures, then six numbered steps: where your money sits, what it is made of,
 // sectors and company sizes, every company counted once, how healthy it is, how risky it is. Every figure comes from the server; the words here only describe
 // them. Without quantities every split says each kind counts the same and that it is not the member's money, and no ₹ value appears. Descriptive only.
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { HScroll } from "../components/HScroll";
 import { nf } from "../lib/format";
-import { KIND_LOWER, KIND_MARK, KIND_NAME, KIND_TAB, MODEL_NAME, betaTxt, chg, joinWords, kindsHeld, lower, pctOf, rupees, splitLine, type AllInvestments, type Company, type Kind, type KindMoney, type Tab } from "../lib/myInvest";
+import { KIND_LOWER, KIND_MARK, KIND_NAME, KIND_TAB, MODEL_NAME, betaTxt, betaWindowTxt, chg, joinWords, kindsHeld, lower, pctOf, rupees, splitLine, type AllInvestments, type Company, type Kind, type KindMoney, type Tab } from "../lib/myInvest";
 import { MarketFall } from "../portfolio/pack/MarketFall";
 import "../portfolio/pack/market-fall.css";
 import "../styles/sectors-pack.css";   // task #235: the fall picture's section heading and its ⓘ
 import { BandStrip, KeyFigures, Notes, ScoreWord, SecHead, ShowAll, Stack, type Note } from "./parts";
+import { FilterRow, HELD, NO_FILTER, SectionsMenu, countFilters, filterCompanies, type EveryFilter } from "./EveryFilters";
 import { coTitle, subLine, titleOf } from "../lib/companyLabel";
 
 export const ALL_SECTIONS = [
@@ -18,15 +19,15 @@ export const ALL_SECTIONS = [
 ];
 const go = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 const TOP = 10;
+/** Task #137's four "Show" choices, kept for the summary counts and old links; task #277 (change 18) filters Step 4 with the row in EveryFilters. */
 type Filter = "all" | "twice" | "through" | "direct";
-const FILTERS: [Filter, string][] = [["all", "All"], ["twice", "Held more than one way"], ["through", "Only through funds and ETFs"], ["direct", "Only direct"]];
 export const filterRows = (rows: Company[], f: Filter) =>
   f === "twice" ? rows.filter((r) => r.held.length > 1) : f === "through" ? rows.filter((r) => r.direct === 0) : f === "direct" ? rows.filter((r) => r.direct > 0 && r.held.length === 1) : rows;
 const MIX_CLS: Record<string, string> = { indian: "m-in", abroad: "m-ab", gold: "m-au", debt: "m-dc", other: "m-ot", notLoaded: "m-nl" };
 
 type MoneyAll = Record<Kind | "all", KindMoney> | null;
-export function AllTogether({ d, money, toTab, openQty }: { d: AllInvestments; money?: MoneyAll; toTab: (t: Tab) => void; openQty: () => void }) {
-  const [filter, setFilter] = useState<Filter>("all");
+export function AllTogether({ d, money, toTab, openQty, stickyLead }: { d: AllInvestments; money?: MoneyAll; toTab: (t: Tab) => void; openQty: () => void; /** task #277: the portfolio and views, shown in Step 4's row while it stays up */ stickyLead?: ReactNode }) {
+  const [filter, setFilter] = useState<EveryFilter>(NO_FILTER);
   const kinds = kindsHeld(d);
   const twice = d.companies.filter((c) => c.held.length > 1), three = twice.filter((c) => c.held.length === 3);
   const top = d.companies[0];
@@ -36,10 +37,10 @@ export function AllTogether({ d, money, toTab, openQty }: { d: AllInvestments; m
       <KeyFigures items={[
         { label: "Held more than one way", value: `${twice.length} ${twice.length === 1 ? "company" : "companies"}`, info: ["Companies you own directly and through a fund or an ETF, or through more than one of them.", "Each is counted once in step 4, with the ways added up."],
           line: twice.length ? <>{three.length ? <>{joinWords(three.slice(0, 3).map((c) => c.symbol ?? c.name))} three ways. </> : null}{joinWords(twice.filter((c) => c.held.length === 2).slice(0, 3).map((c) => c.symbol ?? c.name))}{twice.length - three.length > 0 ? " two ways." : ""}</> : "No company is held more than one way.",
-          button: "See which", go: () => { setFilter("twice"); go("mi-every"); } },
+          button: "See which", go: () => { setFilter({ ...NO_FILTER, held: [HELD[0]] }); go("mi-every"); } },
         { label: "Biggest single company", value: top ? <>{top.symbol ?? top.name} {pctOf(top.all)}</> : "—", info: ["The company that is the largest part of everything, counting what sits inside your funds and ETFs.", "The line splits it into direct, through funds and through ETFs, and names the next two."],
           line: top ? <>{pctOf(top.direct)} direct, {pctOf(top.funds)} through funds, {pctOf(top.etfs)} through ETFs.{d.companies[1] ? <> Next: {joinWords(d.companies.slice(1, 3).map((c) => `${c.symbol ?? c.name} ${pctOf(c.all)}`))}.</> : null}</> : "Nothing looked through yet.",
-          button: "See every company", go: () => { setFilter("all"); go("mi-every"); } },
+          button: "See every company", go: () => { setFilter(NO_FILTER); go("mi-every"); } },
         { label: "Where the market risk comes from", value: lead && lead.riskShare != null ? <>{KIND_NAME[lead.kind]} · {pctOf(lead.riskShare, 0)}</> : "—", tone: lead?.red ? "red" : "plain",
           info: ["The kind that carries the largest share of the market risk: its share of money × its beta, over beta together.", "Red when that share is more than 10 points above its share of the money."],
           line: lead && r.beta != null ? <>of the market risk, on {pctOf(lead.money, 0)} of the money. Everything together: Beta {betaTxt(r.beta)} against the Nifty 500.</> : r.why ?? "No figure yet.", button: "See risk", go: () => go("mi-risk") },
@@ -48,7 +49,7 @@ export function AllTogether({ d, money, toTab, openQty }: { d: AllInvestments; m
       <Money d={d} money={money ?? null} kinds={kinds} toTab={toTab} openQty={openQty} />
       <MadeOf d={d} />
       <Sectors d={d} />
-      <Every d={d} filter={filter} setFilter={setFilter} />
+      <Every d={d} filter={filter} setFilter={setFilter} lead={stickyLead} />
       <HealthStep d={d} />
       <RiskStep d={d} money={money ?? null} />
     </>
@@ -147,20 +148,25 @@ function Sectors({ d }: { d: AllInvestments }) {
 }
 
 // ------------------------------------------------------------------------------------------------ step 4
-function Every({ d, filter, setFilter }: { d: AllInvestments; filter: Filter; setFilter: (f: Filter) => void }) {
+function Every({ d, filter, setFilter, lead }: { d: AllInvestments; filter: EveryFilter; setFilter: (f: EveryFilter) => void; lead?: ReactNode }) {
   const [all, setAll] = useState(false);
-  const rows = filterRows(d.companies, filter), shown = all ? rows : rows.slice(0, TOP);
+  const rows = filterCompanies(d.companies, filter), filtered = countFilters(filter) > 0, shown = all || filtered ? rows : rows.slice(0, TOP);
+  const set = (f: EveryFilter) => { setFilter(f); setAll(false); window.setTimeout(() => document.getElementById("mi-every-t")?.scrollIntoView?.({ block: "nearest" }), 30); };
+  const go = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   const max = Math.max(0.01, ...d.companies.map((c) => c.all));
   const model = MODEL_NAME[d.plan === "gold" ? "prism" : "iq"];
   return (
     <section className="card mi-step">
       <SecHead id="mi-every" n={4} title="Every company you own, counted once" line={<>{d.filters.all} companies: your {d.counts.shares} shares and every equity line of each fund's and ETF's file. The share is of everything you have. {d.byValue ? "" : "Each kind counts the same until you add quantities."}</>}
         info={["Every company you own, once, with what you hold directly, through funds and through ETFs added up.", "All together is your real share of the company; Held shows the ways: D direct, F through a fund, E through an ETF."]} />
-      <div className="mi-filters" role="group" aria-label="Show">{FILTERS.map(([k, w]) => <button key={k} type="button" aria-pressed={filter === k} onClick={() => { setFilter(k); setAll(false); }}>{w} <b>{d.filters[k]}</b></button>)}</div>
+      {/* task #277 (change 18): one row of filters across every company, which stays up while the table is scrolled */}
+      <FilterRow rows={d.companies} f={filter} set={set} plan={d.plan === "gold" ? "gold" : "silver"} lead={lead}
+        sections={<SectionsMenu items={ALL_SECTIONS.map((x, i) => ({ id: x.id, n: i + 1, label: x.label }))} here="mi-every" go={go} all={() => go("mi-tabs")} />} />
+      <div id="mi-every-t" className="mi7-anchor" />
       <HScroll label="Every company you own" className="mi-freeze">
         <table className="mi-tb mi-co">
           <thead><tr><th scope="col">Company</th><th scope="col">All together</th><th scope="col">Held</th><th scope="col" className="r">Direct</th><th scope="col" className="r">Through funds</th><th scope="col" className="r">Through ETFs</th><th scope="col">Size</th><th scope="col">{model}</th><th scope="col">Against peers</th></tr></thead>
-          <tbody>{shown.map((c) => (
+          <tbody>{!shown.length && <tr><td colSpan={9} className="mi7-none">No company matches these filters. <button type="button" className="mi7-lnk" onClick={() => set(NO_FILTER)}>Clear filters</button></td></tr>}{shown.map((c) => (
             <tr key={(c.symbol ?? "") + c.name}>
               <th scope="row">{c.symbol ? <Link to={`/stocks/${encodeURIComponent(c.symbol)}`}><b title={coTitle({ symbol: c.symbol, name: c.name })}>{titleOf({ symbol: c.symbol, name: c.name })}</b></Link> : <b>{c.name}</b>}<small>{c.symbol ? (subLine({ symbol: c.symbol, name: c.name }, c.name) ?? "") + " · " : ""}{c.macro}</small>{c.via.length > 0 && <small className="mi-via">{c.via.join(" · ")}</small>}</th>
               <td className="mi-allc"><span className="mi-mini"><i style={{ width: `${(c.all / max) * 100}%` }} /></span><b>{pctOf(c.all, 2)}</b></td>
@@ -172,22 +178,22 @@ function Every({ d, filter, setFilter }: { d: AllInvestments; filter: Filter; se
             </tr>))}</tbody>
         </table>
       </HScroll>
-      <ShowAll n={rows.length} shown={shown.length} noun="companies" onClick={() => setAll(true)} />
+      {!filtered && <ShowAll n={rows.length} shown={shown.length} noun="companies" onClick={() => setAll(true)} />}
       <p className="mi-small">Holdings inside a fund or ETF can have changed since its fund house published the file{d.sources.filesTo ? ` (${d.sources.filesFrom === d.sources.filesTo ? d.sources.filesTo : `${d.sources.filesFrom} to ${d.sources.filesTo}`})` : ""}.</p>
     </section>
   );
 }
 
 const NUM_WORD = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten"];
-/** Pack C3: "Two shares read Weak: APOLLO and GLENMARK, both 44"; up to three names, then "and N more". */
-export function watchTitle(n: number, word: string, rows: { symbol: string; score: number | null }[]) {
+/** Task #277 (live number fix 9): each name with its own score, and the company's name for a BSE-only code: "Three shares read Weak: GLENMARK 44, APOLLO 45
+ *  and ASM Technologies 47" (it read "GLENMARK, APOLLO and 526433, 44, 45 and 47"); up to three, then "and N more". */
+export function watchTitle(n: number, word: string, rows: { symbol: string; name?: string | null; score: number | null }[]) {
   const head = `${NUM_WORD[n] ?? n} ${n === 1 ? "share reads" : "shares read"} ${word}`;
   if (!rows.length) return head;
-  const shown = rows.slice(0, 3), more = rows.length - shown.length, names = shown.map((r) => r.symbol);
-  const list = more ? `${names.join(", ")} and ${more} more` : names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names[0];
-  const sc = shown.map((r) => r.score).filter((v): v is number => v != null).map((v) => Math.round(v));
-  const scores = more || sc.length !== shown.length ? "" : sc.length === 1 ? `, ${sc[0]}` : sc.every((v) => v === sc[0]) ? `, ${sc.length === 2 ? "both" : "all"} ${sc[0]}` : `, ${sc.slice(0, -1).join(", ")} and ${sc.at(-1)}`;
-  return `${head}: ${list}${scores}`;
+  const disp = (r: { symbol: string; name?: string | null }) => (/^\d{6}$/.test(r.symbol) && r.name ? r.name.replace(/\s+(Ltd|Limited)\.?$/i, "") : r.symbol);
+  const shown = rows.slice(0, 3).map((r) => (r.score != null ? `${disp(r)} ${Math.round(r.score)}` : disp(r))), more = rows.length - shown.length;
+  const list = more ? `${shown.join(", ")} and ${more} more` : shown.length > 1 ? `${shown.slice(0, -1).join(", ")} and ${shown.at(-1)}` : shown[0];
+  return `${head}: ${list}`;
 }
 
 // ------------------------------------------------------------------------------------------------ step 5
@@ -233,13 +239,13 @@ function RiskStep({ d }: { d: AllInvestments; money?: MoneyAll }) {
   ];
   return (
     <section className="card mi-step">
-      <SecHead id="mi-risk" n={6} title="How risky it is, all together" line="Against the Nifty 500, from past weekly prices (shares) and daily NAVs and prices (funds, ETFs). It describes the past; it is not a forecast." info={["How sensitive everything is to the market: each kind's beta against the Nifty 500, and beta together.", "Beta together = the sum of each kind's share of money × its beta. A kind's share of the market risk = its share × its beta ÷ beta together."]} />
+      <SecHead id="mi-risk" n={6} title="How risky it is, all together" line="Against the Nifty 500. Every beta is from weekly prices over the past year, as on each portfolio page; swings and falls from a high are from daily prices (shares weekly). It describes the past; it is not a forecast." info={["How sensitive everything is to the market: each kind's beta against the Nifty 500, and beta together.", "Beta together = the sum of each kind's share of money × its beta. A kind's share of the market risk = its share × its beta ÷ beta together."]} />
       <div className="mi-riskhead">
-        <article className="mi-rh-dark"><p className="mi-cap">All together · Beta against the Nifty 500</p><p className="mi-rh-v">{betaTxt(r.beta)}{r.band ? <small> · {r.band}</small> : null}</p><p>{r.beta != null ? `Similar moves: when the Nifty 500 moved 1%, this moved about ${nf(r.beta, 2)}%.` : r.why}</p></article>
+        <article className="mi-rh-dark"><p className="mi-cap">All together · Beta against the Nifty 500</p><p className="mi-rh-v">{betaTxt(r.beta)}{r.band ? <small> · {r.band}</small> : null}</p><p>{r.beta != null ? r.bandLine ?? `When the Nifty 500 moved 1%, this moved about ${nf(r.beta, 2)}%.` : r.why}</p></article>
         {kinds.map((k) => { const x = r.kinds[k]; return (
           <article key={k} className="mi-rh-k"><p className="mi-cap"><i className={"mi-dot k-" + k} aria-hidden="true" />{KIND_NAME[k]}</p><p className="mi-rh-v">{betaTxt(x?.beta)}</p>
             {r.parts.find((p) => p.kind === k)?.band ? <span className="mi-chip">{r.parts.find((p) => p.kind === k)?.band}</span> : null}
-            <p className="mi-small">{x?.swing != null ? `Swings ${pctOf(x.swing)} a year` : x?.why ?? "No swing figure yet"}</p></article>); })}
+            <p className="mi-small">{x?.beta != null ? `${betaWindowTxt(x.betaWindow)}. ` : ""}{x?.swing != null ? `Swings ${pctOf(x.swing)} a year` : x?.why ?? "No swing figure yet"}</p></article>); })}
       </div>
       <HScroll label="How risky it is">
         <table className="mi-tb">

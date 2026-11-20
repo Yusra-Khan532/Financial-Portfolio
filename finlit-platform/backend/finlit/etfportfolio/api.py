@@ -364,6 +364,7 @@ async def etf_risk(request: Request, ctx: Ctx = Depends(member_ctx), pf: Optiona
     bench_swing = risk.swing(risk.returns(bv), risk.per_year(bd))
     ok = len(lv) >= risk.MIN_DAYS
     list_swing = risk.swing(risk.returns(lv), risk.per_year(ld)) if ok else None
+    risk.list_swing_ok(list_swing, [(o.get("swing"), o["weight"]) for o in out], "ETF list")      # task #276, number fix 3: logged, never hidden
     lf, lb = risk.paired(ld, lv, bench) if ok else ([], [])
     level = risk.list_level(list_swing, bench_swing, out)
     if level and level.get("because"):
@@ -376,14 +377,20 @@ async def etf_risk(request: Request, ctx: Ctx = Depends(member_ctx), pf: Optiona
         r = by_own.get(o["symbol"]) or {}
         o.update(type=r.get("type"), compared=r.get("compared", False), betaPast=r.get("betaOwn"), explained=r.get("explained"), band=r.get("band"),
                  downPer100=r.get("downPer100"), upPer100=r.get("upPer100"), oneYear=r.get("oneYear"), benchOneYear=r.get("benchOneYear"), riskShare=r.get("riskShare"),
-                 differentAsset=bool(r.get("saysLittle")), betaWhy=r.get("why"), weeks=r.get("weeks"))
+                 differentAsset=bool(r.get("saysLittle")), betaWhy=r.get("why"), weeks=r.get("weeks"),
+                 # task #276, number fix 4: the one beta the page shows, with its window ("vs Nifty 500 · weekly · past year")
+                 betaWindow={"index": "Nifty 500", "grain": "weekly", "window": "1y", "from": own["from"], "to": own["to"]} if r.get("betaOwn") is not None else None)
     moving = {s: v for s, v in series.items() if not next(o for o in out if o["symbol"] == s)["liquid"]}
     left_out = [o["symbol"] for o in out if o["liquid"]]
     w = {e["symbol"]: e["w"] for e in etfs if e["symbol"] in series}
     return reply({"count": len(out), "basis": basis, "etfs": out,
-                  "bench": {"name": "Nifty 500", "swing": risk.r1(bench_swing), "worstFall": risk.r1(risk.worst_fall(bv)), "from": date.fromordinal(bd[0]).isoformat(), "to": date.fromordinal(bd[-1]).isoformat()},
+                  # task #276, number fix 5: every index figure carries its window ("Nifty 500 14.4% · 3 yrs, daily")
+                  "bench": {"name": "Nifty 500", "swing": risk.r1(bench_swing), "worstFall": risk.r1(risk.worst_fall(bv)), "from": date.fromordinal(bd[0]).isoformat(), "to": date.fromordinal(bd[-1]).isoformat(),
+                            "grain": "daily", "years": round((bd[-1] - bd[0]) / 365.25, 1)},
                   "list": {"swing": risk.r1(list_swing), "worstFall": risk.r1(risk.worst_fall(lv)) if ok else None, "fallsTaken": risk.r1(risk.falls_taken(lf, lb), 0) if ok else None,
-                           "beta": risk.r1(risk.beta(lf, lb), 2) if ok else None, "level": level,
+                           "grain": "daily", "from": date.fromordinal(ld[0]).isoformat() if ok else None, "to": date.fromordinal(ld[-1]).isoformat() if ok else None,
+                           # number fix 4: the 3-year daily beta is not the page's beta (own.list.beta500, weekly, past year); renamed so no page reads it as one
+                           "betaDaily3y": risk.r1(risk.beta(lf, lb), 2) if ok else None, "level": level,
                            "why": None if ok else "Your ETFs share less than a year of trading days, so the whole list cannot be followed as one line yet."},
                   "own": {"from": own["from"], "to": own["to"], "list": own["list"]},
                   "together": {**calc.together(moving, end), "leftOut": left_out}, "adds": calc.variance_shares(series, w, end) if series else {"shares": {}, "why": "No price history."},

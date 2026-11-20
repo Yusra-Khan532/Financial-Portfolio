@@ -294,8 +294,25 @@ def _summary(row, refreshing: bool = False) -> Dict[str, Any]:
     parts = None if rating.get("status") == "NOT RATED" else rating.get("parts")   # a company the model did not rate shows no category scores
     return {"id": row["id"], "final": rating.get("final"), "label": rating.get("label"), "status": rating.get("status"),
             "confidence": rating.get("confidence"), "parts": parts, "partWeights": rating.get("partWeights"),
-            "generatedAt": row["generated_at"].isoformat(), "modelVersion": rating.get("modelVersion"), "technical": _tech_state(row, refreshing),
+            "generatedAt": row["generated_at"].isoformat(), "modelVersion": rating.get("modelVersion"),
+            "technical": {**_tech_state(row, refreshing), **_tech_scores(view)},
             "topPros": _lines(view, "pros"), "topCons": _lines(view, "cons")}
+
+
+def _tech_scores(view: Dict[str, Any]) -> Dict[str, Any]:
+    """Task #228 (20 Nov 2026): the short- and long-term technical scores with their reader-safe words, as the company page shows them. The summary
+    carried only the technical view's dates, so FinLit AI (ask/tools._prism_card reads shortTerm and longTerm here) said it "could not read" them."""
+    tech = technical_view(view.get("technicalAssessment"))
+    if not isinstance(tech, dict):
+        return {}
+    out: Dict[str, Any] = {}
+    for key in ("shortTerm", "longTerm"):
+        h = tech.get(key)
+        if isinstance(h, dict):
+            out[key] = {k: h.get(k) for k in ("score", "rating", "provisional", "youngListing") if k in h}
+    if isinstance(tech.get("verdict"), dict):
+        out["alignment"] = tech["verdict"].get("label")
+    return out
 
 
 # Mirrors CLASSIFICATION_VERSION in site-api/backend/premium_classification.py (a test keeps them equal). Bump both when the group rules change

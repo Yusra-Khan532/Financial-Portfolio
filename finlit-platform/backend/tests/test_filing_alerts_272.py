@@ -144,3 +144,42 @@ async def test_changes_read_names_unplaced_companies_and_counts_each_kind(app):
     assert d["notPlaced"] == [{"s": "WHEELS", "n": "WHEELS"}] or d["notPlaced"][0]["s"] == "WHEELS"
     assert (await c.get("/api/discovery/changes?symbols=bad sym")).status_code == 400
     await c.aclose()
+
+
+async def test_276_the_etf_list_is_the_companies_inside_the_members_etfs_and_its_alert_fires(app):
+    """Task #276: "Alert me" on the ETF portfolio's What changed sets one list alert on the companies that make up 0.3% or more of the member's ETFs
+    (each ETF's latest monthly file, weighted as the page weights them). SILVERBEES holds no company; its silver row (stored as cash) is not a company."""
+    import json as _json
+    c = await signed_in(app, "etflist@example.com", plan="gold")
+    uid = (await c.get("/api/auth/me")).json()["user"]["id"]
+    hold = {"INF204KB1V68": [["Welspun Corp Ltd", "INE191B01025", "Industrial Products", "e", 0.72, 1, 1], ["Tiny Ltd", "INE000T01011", "Finance", "e", 0.5, 1, 1],
+                             ["Triparty Repo", None, None, "c", 0.2, None, None]],
+            "INF204KC1402": [["Triparty Repo", None, None, "c", 0.23, None, None], ["Nippon India Silver ETF", "INF204KC1402", None, "c", 100.0, None, None]]}
+    async with app.state.store.pool.acquire() as conn:
+        for i, (sym, isin) in enumerate((("MID150X", "INF204KB1V68"), ("SILVERX", "INF204KC1402"))):
+            await conn.execute("INSERT INTO etf_funds (symbol, isin, instrument_key, exchange_name, display_name, price) VALUES ($1, $2, 'NSE_EQ|' || $2, $1, $1, 100) "
+                               "ON CONFLICT (symbol) DO NOTHING", sym, isin)
+            await conn.execute("INSERT INTO mf_schemes (code, name, amc, scheme_type, category, plan, option_class, family, isin) VALUES ($1, $2, 'Nippon', 'Open Ended', "
+                               "'Other Scheme - Other ETFs', 'Regular', 'Growth', $3, $4) ON CONFLICT (code) DO NOTHING", 990000 + i, sym, f"fam-{sym}", isin)
+            await conn.execute("INSERT INTO disclosure_portfolios (fkey, as_of, amc, scheme_name, source, source_url, pct_total, n, holdings) VALUES "
+                               "($1, '2026-10-31', 'Nippon', $2, 'test', 'https://example.test', 100, 3, $3::jsonb) ON CONFLICT DO NOTHING", f"fam-{sym}", sym, _json.dumps(hold[isin]))
+            await conn.execute("INSERT INTO etf_holdings (user_id, symbol, isin) VALUES ($1::uuid, $2, $3)", uid, sym, isin)
+        for sym, isin, name in (("WELCORP", "INE191B01025", "Welspun Corp Ltd"), ("TINYCO", "INE000T01011", "Tiny Ltd")):
+            await conn.execute("INSERT INTO companies (symbol, name) VALUES ($1, $2) ON CONFLICT (symbol) DO NOTHING", sym, name)
+            await conn.execute("INSERT INTO disclosure_isin (isin, symbol) VALUES ($1, $2) ON CONFLICT DO NOTHING", isin, sym)
+        lst = await fa.etf_list(conn, uid)
+    # equal weights (no units): Welspun 0.72% x 1/2 = 0.36% stays; Tiny 0.5% x 1/2 = 0.25% is under 0.3%
+    assert lst == {"ref": "etf", "label": "ETF portfolio · companies inside your ETFs", "symbols": ["WELCORP"]}
+    lists = (await c.get("/api/alerts/lists")).json()["lists"]
+    assert {"ref": "etf", "label": "ETF portfolio · companies inside your ETFs", "count": 1} in lists and lists[-1]["ref"] == "mine"
+    r = await c.post("/api/alerts", json={"metric": "discover_filing", "op": "event", "list": "etf", "kinds": ["order"], "channels": ["app"]})
+    assert r.status_code == 201, r.text
+    assert fa.list_page("etf") == "/etf-portfolio#what-changed"
+    async with app.state.store.pool.acquire() as conn:
+        top = await fa.newest_signal(conn)                                        # the alert counts only filings after this one
+    await add_signal(app, top + 1, "WELCORP", "order", "Receipt of order worth Rs 300 crore for line pipes")
+    await add_signal(app, top + 2, "TINYCO", "order", "Order worth Rs 5 crore")                                   # under 0.3% of the ETFs
+    assert await run(app) == 1
+    n = (await c.get("/api/notifications")).json()["notifications"]
+    assert len(n) == 1 and "line pipes" in n[0]["body"] and n[0]["body"].startswith("On your etf portfolio · companies inside your etfs")
+    await c.aclose()
