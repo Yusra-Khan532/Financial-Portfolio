@@ -44,14 +44,14 @@ const DATA = {
 beforeEach(() => { st.data = DATA; st.put = []; st.asked = []; vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} }); });
 afterEach(() => { cleanup(); localStorage.clear(); });
 const show = async () => { render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false, enabled: false } } })}><MemoryRouter initialEntries={["/mf-portfolio"]}><MfPortfolioPage /></MemoryRouter></QueryClientProvider>);
-  await waitFor(() => expect(document.querySelector('.acc-t[data-acc="groww"]')).toBeTruthy()); };
+  await waitFor(() => expect([...document.querySelectorAll(".ptk-plist .ptk-pn b")].some((b) => b.textContent === "Groww")).toBe(true)); };
 
 describe("MF platforms, buys and sales (pack C1, C5, C6)", () => {
   it("the platforms bar lists All accounts, Groww and Coin; picking one reads that platform", async () => {
     await show();
-    expect([...document.querySelectorAll(".acc-t b")].map((b) => b.textContent)).toEqual(["All accounts", "Groww", "Coin by Zerodha"]);
-    expect(screen.getByText("One tab for each place you hold funds: an app, a broker or the fund house.")).toBeTruthy();
-    fireEvent.click(screen.getByRole("tab", { name: /Coin by Zerodha/ }));
+    // task #275 (change 2): Your portfolios sits beside the money box, the largest first (Coin holds ₹11,240, Groww ₹2,924)
+    expect([...document.querySelectorAll(".ptk-plist .ptk-pn b")].map((b) => b.textContent)).toEqual(["All accounts", "Coin by Zerodha", "Groww"]);
+    fireEvent.click(within(screen.getByRole("radiogroup", { name: "Portfolio" })).getByRole("radio", { name: /Coin by Zerodha/ }));
     expect(st.asked).toContain("coin");
   });
   it("Overview has the three money groups without Today; a fund opens into its buys and sales with units to 3 decimals", async () => {
@@ -71,9 +71,11 @@ describe("MF platforms, buys and sales (pack C1, C5, C6)", () => {
     expect(document.querySelector("tr.x-lot .l-day")).toBeNull();                       // no Today: NAVs change once a day
     expect(document.querySelector("tr.x-tot")!.textContent).toMatch(/^Total · 2 funds in 2 portfolios/);
   });
-  it("three money tiles (no Today), the Sold list names the fund sold in full", async () => {
+  it("the money box (Today says its NAV change is not loaded), the booked gain, and the Sold list names the fund sold in full", async () => {
     await show();
-    expect([...document.querySelectorAll(".xm-row .xm-k")].map((k) => k.textContent)).toEqual(["Invested", "Value now", "Gain or loss", "Booked gain"]);
+    expect([...document.querySelectorAll(".ptk-sub3 .ptk-k")].map((k) => k.textContent)).toEqual(["Invested", "Today", "Gain or loss"]);
+    expect(document.querySelectorAll(".ptk-sub3 > div")[1].textContent).toBe("Today—the day's NAV change is not loaded");
+    expect(document.querySelector(".ptk-booked")!.textContent).toMatch(/^Booked gain: /);
     expect(document.querySelector(".x-sold-t")!.textContent).toMatch(/1 fund sold in full.*\+₹100 booked/);
   });
   it("a change is saved as the fund's lines, each with its platform and side", async () => {

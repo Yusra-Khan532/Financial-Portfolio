@@ -192,3 +192,21 @@ export function AddSeveralDialog({ onClose, onDone, room }: { onClose: () => voi
     </div>
   );
 }
+
+/** The shared add box (portfolio/kit AddBox) asks for suggestions while you type: one per fund (task #275, change 1), its plans and options in the line under
+ *  it. A pick opens the plan and option step; `groupOf` finds the fund behind a suggestion. */
+const lastGroups = new Map<string, FundGroup>();
+export const groupOf = (id: string) => lastGroups.get(id) ?? null;
+export function useFundGroupResults(q: string): { items: { id: string; title: string; sub: string; line?: string }[]; loading: boolean; error: boolean } {
+  const [st, setSt] = useState<{ q: string; groups: FundGroup[]; error: boolean }>({ q: "", groups: [], error: false }), [loading, setLoading] = useState(false);
+  useEffect(() => {
+    const t0 = q.trim();
+    if (t0.length < 2) { setSt({ q: "", groups: [], error: false }); setLoading(false); return; }
+    setLoading(true);
+    let live = true;
+    const t = setTimeout(() => searchFundRows(t0).then((r) => { if (!live) return; const g = groupFunds(r).slice(0, 8); g.forEach((x) => lastGroups.set(x.key, x)); setSt({ q: t0, groups: g, error: false }); })
+      .catch(() => { if (live) setSt({ q: t0, groups: [], error: true }); }).finally(() => { if (live) setLoading(false); }), 250);
+    return () => { live = false; clearTimeout(t); };
+  }, [q]);
+  return { items: st.groups.map((g) => ({ id: g.key, title: g.name, sub: `${g.amc}${g.category ? ` · ${g.category}` : ""}`, line: variantsLine(g) })), loading, error: st.error };
+}

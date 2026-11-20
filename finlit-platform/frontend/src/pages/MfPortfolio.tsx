@@ -1,5 +1,5 @@
 import { PortfolioDisclaimer } from "../components/PortfolioDisclaimer";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { capBucket } from "../lib/capBuckets";
 import { Link, useSearchParams } from "react-router";
@@ -16,8 +16,17 @@ import {
   useMfPortfolio, useMfSpread, useMfWrites, type Decision, type Fund, type Preview, type ReviewRow,
 } from "../lib/mfPortfolio";
 import { dateIN } from "../lib/format";
-import { AddSeveralDialog, FundGroupSearch, PlanOptionDialog, type FundGroup } from "../mf/pack/MfAdd";
+import { AddSeveralDialog, PlanOptionDialog, groupOf, useFundGroupResults, type FundGroup } from "../mf/pack/MfAdd";
 import { EditDialog, EditSell, SellDialog } from "../portfolio/kit/HoldingDialog";
+import { AddBox, MenuButton } from "../portfolio/kit/AddBox";
+import { TopMoney } from "../portfolio/kit/TopMoney";
+import { NextView, ViewCards, useSeenViews, type ViewCard } from "../portfolio/kit/ViewCards";
+import { AccountPicker, SectionsMenu, ViewBar, ViewSeg, useInside, useStepInView, type Pick, type ViewSteps } from "../portfolio/kit/ViewBar";
+import { Tip } from "../components/sectors/pack/Common";
+import { useAuth } from "../lib/auth";
+import { HealthCard } from "../mf/pack/MfTop";
+import { dm } from "../lib/etfKeyFigs";
+import "../portfolio/kit/kit.css";
 import "../styles/mf.css";
 import "../styles/mfportfolio.css";
 import "../styles/mfspread.css";
@@ -28,10 +37,10 @@ import { type MfView } from "../mf/pack/MfPack";
 import { RiskTab } from "../mf/pack/MfRisk";
 import { FundsTable } from "../mf/pack/MfFunds";
 import { MF_SECS, fundsCards, listBox, mfTiles, mixCards, riskCards } from "../lib/mfTop";
-import { KeyFigures, SectionsBar, TopGrid, jumpTo } from "../portfolio/pack/PageTop";
-import { AddPortfolioDialog, AnalysingBar, GoTo, PortfoliosBar, type PfInfo } from "../portfolio/Portfolios";
-import { MoneyRow, SoldList, soldOf } from "../portfolio/MoneyRow";
-import { StickySwitch, VIEW_COLOR, VIEW_ICON, ViewTabsKit, type ViewDef } from "../portfolio/ViewKit";
+import { KeyFigures, jumpTo } from "../portfolio/pack/PageTop";
+import { AddPortfolioDialog, GoTo, type PfInfo } from "../portfolio/Portfolios";
+import { SoldList, soldOf } from "../portfolio/MoneyRow";
+import { VIEW_COLOR } from "../portfolio/ViewKit";
 import type { LotsProps } from "../portfolio/HoldingCells";
 import { aggOf, lotActions, moneyOf } from "../lib/ledger";
 import { DEFAULT_PF } from "../lib/portfolio";
@@ -40,13 +49,6 @@ import "../portfolio/holdings-kit.css";
 
 /** Pack C1: the places a member holds funds. */
 export const PLATFORMS = ["Coin by Zerodha", "Groww", "Kuvera", "MF Central", "Paytm Money", "The fund house directly", "Upstox", "Zerodha", "Other"];
-/** The three views (task #235, pack B2 and C1): a colour and an icon each; the same list drives the sticky switcher (B12). */
-const mfViews = (n: number): ViewDef<MfView>[] => [
-  { id: "funds", label: "Your funds", short: "Your funds", sub: `${n ? `${n} ${n === 1 ? "fund" : "funds"}: h` : "H"}ealth, returns, costs and risk of each`, color: VIEW_COLOR.first, icon: VIEW_ICON.case },
-  { id: "mix", label: "Mix & overlap", short: "Mix & overlap", sub: "What they hold, how alike they are, company sizes", color: VIEW_COLOR.second, icon: VIEW_ICON.pie },
-  { id: "risk", label: "Risk analytics", short: "Risk", sub: "Each fund against its own benchmark, and the list together", color: VIEW_COLOR.risk, icon: VIEW_ICON.pulse },
-];
-import { ListBox } from "../mf/pack/MfTop";
 import { InShort, SOURCES } from "../mf/pack/MfShort";
 import { MixTab, type Big, type Reading } from "../mf/pack/MfMix";
 import "../portfolio/pack/pagetop.css";
@@ -74,20 +76,6 @@ function FundSearch({ onPick, placeholder = "Search a fund by name or ISIN…" }
           {!err && !busy && !items.length && <li className="none">No fund matches “{q}”.</li>}
           {items.map((f) => <li key={f.code} role="option" aria-selected="false"><button type="button" onClick={() => { onPick(f); setQ(""); setItems([]); }}><b>{f.name}</b><small>{f.amc} · {f.plan} · {f.option}{f.navDate ? ` · NAV ${dateIN(f.navDate)}` : ""}</small></button></li>)}
         </ul>)}
-    </div>
-  );
-}
-
-/* --------------------------------------------------------------- add (task #275, change 1) */
-// One suggestion per fund; the plan and option are picked after, in a small step (mf/pack/MfAdd). "Add several" opens a table.
-function AddFund({ onDone, room }: { onDone: (msg: string) => void; room?: number }) {
-  const [picked, setPicked] = useState<FundGroup | null>(null), [several, setSeveral] = useState(false);
-  return (
-    <div className="mp-form mfa-form">
-      <FundGroupSearch onPick={setPicked} />
-      <button type="button" className="btn" onClick={() => setSeveral(true)}>Add several</button>
-      {picked && <PlanOptionDialog g={picked} onClose={() => setPicked(null)} onDone={onDone} />}
-      {several && <AddSeveralDialog room={room} onClose={() => setSeveral(false)} onDone={onDone} />}
     </div>
   );
 }
@@ -175,6 +163,13 @@ function ImportFile({ onDone }: { onDone: (msg: string) => void }) {
 
 /* --------------------------------------------------------------- page */
 
+// task #275 (change 16): the three views, their colours and what each holds (the equity and ETF pages' view cards)
+const VIEW_LABEL: Record<MfView, string> = { funds: "Your funds", mix: "Mix & overlap", risk: "Risk analytics" };
+const VIEW_COLORS: Record<MfView, string> = { funds: VIEW_COLOR.first, mix: VIEW_COLOR.second, risk: VIEW_COLOR.risk };
+const VIEW_WHAT: Record<MfView, string> = { funds: "Inside: health, returns, costs and risk of each", mix: "Inside: what they own, overlap, sectors, sizes", risk: "Inside: beta, swings, falls, each fund" };
+const NEXT_VIEW: Record<MfView, MfView> = { funds: "mix", mix: "risk", risk: "funds" };
+const VIEW_DEFS = (Object.keys(VIEW_LABEL) as MfView[]).map((id) => ({ id, label: VIEW_LABEL[id], color: VIEW_COLORS[id] }));
+
 export function MfPortfolioPage() {
   useDocTitle("MF portfolio", "How healthy your mutual funds are, what sits inside them, how alike they are, and how risky they are together.");
   const { plan, has, toast } = useUI();
@@ -227,6 +222,18 @@ export function MfPortfolioPage() {
   // "Add units" (pack C1, C5): opens the first fund without units and focuses its empty box
   const addUnits = () => { const h = (q.data?.holdings ?? []).find((x) => !(aggOf(book.rows, keyOf(x.id), cur)?.qty)) ?? q.data?.holdings[0]; if (h) openFor(keyOf(h.id)); };
   const view = (["mix", "risk"].includes(params.get("view") || "") ? params.get("view") : "funds") as MfView;
+  // task #275 (changes 2, 16, 11): the shared top, view cards and view bar (portfolio/kit)
+  const { user } = useAuth();
+  const [picked, setPicked] = useState<FundGroup | null>(null), [several, setSeveral] = useState(false);
+  const pick: Pick = { list: pfList, cur, onPick: setCur, figs: pfFigs, noun: ["fund", "funds"] };
+  const seen = useSeenViews("mf-portfolio", user?.id, view);
+  const steps: ViewSteps<MfView> = { funds: { label: MF_SECS.funds.label, steps: MF_SECS.funds.secs.map(([id, label]) => ({ id, label })) },
+    mix: { label: MF_SECS.mix.label, steps: MF_SECS.mix.secs.map(([id, label]) => ({ id, label })) }, risk: { label: MF_SECS.risk.label, steps: MF_SECS.risk.secs.map(([id, label]) => ({ id, label })) } };
+  const goTab = (t: MfView) => { setView(t); setTimeout(() => document.getElementById("mfp-tabsbox")?.scrollIntoView?.({ behavior: "smooth", block: "start" }), 50); };
+  const onSec = (v: MfView, id: string) => { if (v !== view) { setView(v); setTimeout(() => jumpTo(id), 80); } else jumpTo(id); };
+  const here = useStepInView(steps[view].steps.map((x) => x.id));
+  const lead: ReactNode = <><AccountPicker p={pick} compact /><ViewSeg defs={VIEW_DEFS.map((x) => (x.id === "risk" ? { ...x, label: "Risk" } : x))} view={view} onView={(v) => goTab(v)} seen={seen} />
+    <SectionsMenu all={steps} view={view} onSec={onSec} here={here} label="Sections ▾" btnClass="ptk-btn ptk-secb" mode="view" /></>;
   const setView = (v: MfView, scroll = false) => { const n = new URLSearchParams(params); if (v === "funds") n.delete("view"); else n.set("view", v); setParams(n, { replace: true }); if (scroll) setTimeout(() => document.getElementById("mfp-tabsbox")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0); };
   const [importing, setImporting] = useState(params.get("tab") === "import");
   const d = q.data;
@@ -240,11 +247,16 @@ export function MfPortfolioPage() {
     return () => clearTimeout(t);
   }, [noReturns, polls, q]);
   const limit = d?.limit ?? limitsFor(plan).mf_holdings;
+  const full = !!d && d.count >= limit;
+  const inTable = useInside("mfp-zone", view === "funds" && (d?.count ?? 0) > 0);
+  // the money box names the funds without units (the book's key is a holding id)
+  const moneyNamed = { ...money, missing: money.missing.map((m) => ({ ...m, symbol: fundName(nameOf(m.symbol)) || nameOf(m.symbol) })) };
 
   // the largest stocks underneath: NSE's industry from the fund files (task #192), FinLit size from the stock list, how each did against its peers from its weekly reading
   const uni = useUniverse(), byU = useMemo(() => new Map((uni.data?.rows ?? []).map((r) => [r.symbol, r])), [uni.data]);
   const top = useMemo(() => sp.data?.topStocks ?? [], [sp.data]);
   const tiles = mfTiles(all, sp.data, rk.data), box = listBox(all, sp.data);
+  const cards: ViewCard<MfView>[] = tiles.map((t) => ({ id: t.id as MfView, k: t.k, v: t.v, x: t.sub, what: VIEW_WHAT[t.id as MfView], color: VIEW_COLORS[t.id as MfView], tone: t.tone as ViewCard<MfView>["tone"] }));
   // the plan's reading of a stock inside the funds (COMMON-RULES 3): FinLit Prism on Gold, FinLit IQ on Silver; the words are the server's
   const readingOf = (sym: string | null): Reading => { const u = sym ? byU.get(sym) : undefined; if (!u) return null;
     return has("gold") ? (u.prism_final != null ? { word: u.prism_label ? u.prism_label.charAt(0) + u.prism_label.slice(1).toLowerCase() : null, score: u.prism_final } : null)
@@ -253,31 +265,39 @@ export function MfPortfolioPage() {
     return { name: t.name, symbol: t.symbol, macro: u?.nse_sector ?? null, size: capBucket(mc)?.short ?? null, w: t.w, funds: t.funds }; }), [top, byU]);
   // a Key figures card that names "Add units" opens the dialog; one in another tab opens that tab first, then its section (the sections bar's jump)
   useEffect(() => { const on = (e: Event) => { if ((e as CustomEvent).detail === "mfp-units") addUnits(); }; addEventListener("eq-jump", on); return () => removeEventListener("eq-jump", on); }, []);
-  const goTab = (t: MfView, then?: string) => { setView(t); if (then) setTimeout(() => jumpTo(then), 60); };
 
   return (
     <div className="wrap ipo mp sp mfp">
       <Gate tier="silver" title="Track your mutual funds" points={["How healthy each fund is: the Fund Health Score and its four parts", "What sits inside your funds, and how alike they are", "Each fund against its own benchmark, and the list together", "Import your CAS PDF, or Excel / CSV statements, read by ISIN"]}>
-        <header className="sp-head mfp-head">
-          <div><p className="mfp-plan"><span>{TIER[plan].n}</span></p><h1>MF portfolio</h1>
-            <p className="sp-desc">How healthy your mutual funds are, what sits inside them, how alike they are, and how risky they are together. Start with names; add units when you want the figures to follow your money.</p>
-            <nav className="mfp-links" aria-label="Related pages"><Link className="sp-link" to="/holdings">Equity portfolio →</Link><Link className="sp-link" to="/etf-portfolio">ETF portfolio →</Link><Link className="sp-link" to="/funds/compare">Compare funds →</Link><Link className="sp-link" to="/methodology/mf-score">Fund Health Score →</Link></nav></div>
-          <section className="mfp-add" aria-label="Add funds">
-            <AddFund onDone={toast} room={d ? Math.max(0, limit - d.count) : undefined} />
-            <div className="mfp-add2"><button type="button" className="btn" aria-expanded={importing} onClick={() => setImporting((v) => !v)}>Import a file</button>
-              <button type="button" className="btn" onClick={addUnits} disabled={!d?.count}>Add units and buy NAVs</button>
-              <ClearPortfolio count={d?.count ?? 0} noun="fund" kind="MF" className="btn" goes={["each fund's units, purchases and folio", "the figures worked out from them: health, mix, overlap and risk"]}
-                onClear={async () => { await w.clear.mutateAsync(); }}
-                onUndo={async () => { try { await w.undoClear.mutateAsync(); } catch (x) { if ((x as { status?: number }).status === 410) throw new Error("The clear is final: Undo is only possible for 10 seconds."); throw x; } }} />
-              <span>{d ? `${d.count} of ${limit} funds` : ""}</span></div>
-            <p className="pfx-note mfp-isinnote">CAS statements, Excel or CSV. Each fund is read by its ISIN, which names the exact plan and option; a row without an ISIN is matched by name and shown for you to confirm.</p>
-          </section>
+        {/* task #275 (change 2): the compact top: title, plan, as-of and the add box in one row; the money box that says what it covers, and Your portfolios */}
+        <header className="ptk-head" id="mfp-top">
+          <div className="ptk-t1">
+            <div className="ptk-ht"><h1>MF portfolio</h1><p className="ptk-plan mfp-plan"><span>{TIER[plan].n}</span></p>
+              <Tip text="How healthy your mutual funds are, what sits inside them, how alike they are, and how risky they are together." how="Start with names; add units when you want the figures to follow your money. Each fund is read by its ISIN, which names the exact plan and option." label="About the MF portfolio" />
+              {d?.dataDate && <span className="ptk-asof">NAVs at close · {dm(d.dataDate)}</span>}</div>
+            <AddBox placeholder="Add a fund by name or ISIN" noun={["fund", "funds"]} useResults={useFundGroupResults} full={full} fullWhy={`Your plan holds ${limit} funds. Remove one to add another.`}
+              resolve={async () => null} onSeveral={async () => undefined} onSeveralOpen={() => setSeveral(true)}
+              onAdd={(sg) => { const g = groupOf(sg.id); if (g) setPicked(g); }}
+              menus={<>
+                <MenuButton label="Import ▾" aria="Import">{(close) => <>
+                  <button type="button" role="menuitem" onClick={() => { close(); setImporting(true); }}>A statement: CAS PDF, Excel or CSV</button>
+                  <p>Each fund is read by its ISIN, which names the exact plan and option; a row without an ISIN is matched by name and shown for you to confirm.</p></>}</MenuButton>
+                <MenuButton label="⋯" aria="More: other pages, units and Clear portfolio" className="ptk-btn" keep>{(close) => <>
+                  <button type="button" role="menuitem" disabled={!d?.count} onClick={() => { close(); addUnits(); }}>Add units and buy NAVs</button>
+                  <hr /><Link role="menuitem" to="/my-investments" onClick={close}>All my investments →</Link><Link role="menuitem" to="/holdings" onClick={close}>Equity portfolio →</Link>
+                  <Link role="menuitem" to="/etf-portfolio" onClick={close}>ETF portfolio →</Link><Link role="menuitem" to="/funds/compare" onClick={close}>Compare funds →</Link><hr />
+                  <ClearPortfolio count={d?.count ?? 0} noun="fund" kind="MF" className="btn" goes={["each fund's units, purchases and folio", "the figures worked out from them: health, mix, overlap and risk"]}
+                    onClear={async () => { await w.clear.mutateAsync(); }}
+                    onUndo={async () => { try { await w.undoClear.mutateAsync(); } catch (x) { if ((x as { status?: number }).status === 410) throw new Error("The clear is final: Undo is only possible for 10 seconds."); throw x; } }} />
+                  <p>{d ? `${d.count} ${d.count === 1 ? "fund" : "funds"} · ${limit} on your plan` : `${limit} on your plan`}</p></>}</MenuButton></>} />
+          </div>
+          {d && d.count > 0 && <TopMoney t={moneyNamed} all={all.map((h) => keyOf(h.id))} noun={["fund", "funds"]} pick={pick} onAddQty={addUnits} onAddPf={() => setAdding(true)} qtyWord="units" addLabel="Add units" todayKnown={false}
+            onRename={(id, name) => { const m = name.trim(); if (!m) return "Give the platform a name."; if (pfList.some((x) => x.id !== id && x.name.trim().toLowerCase() === m.toLowerCase())) return `You already have a platform called ${m}. Try another name, such as "${m} (joint)".`;
+              book.accounts.rename(id, m, pfList); toast("Platform renamed."); return null; }}
+            onRemove={(id) => { const name = pfName(id); book.accounts.remove(id, pfList); setCur("all"); toast(`${name} removed.`); }} />}
         </header>
-        {/* task #235 (pack C1): the platforms bar, the Add platform dialog and where new funds go */}
-        <PortfoliosBar list={pfList} cur={cur} onPick={setCur} figs={pfFigs} onAdd={() => setAdding(true)} noun={["fund", "funds"]} sub="One tab for each place you hold funds: an app, a broker or the fund house."
-          onRename={(id, name) => { const m = name.trim(); if (!m) return "Give the platform a name."; if (pfList.some((x) => x.id !== id && x.name.trim().toLowerCase() === m.toLowerCase())) return `You already have a platform called ${m}. Try another name, such as "${m} (joint)".`;
-            book.accounts.rename(id, m, pfList); toast("Platform renamed."); return null; }}
-          onRemove={(id) => { const name = pfName(id); book.accounts.remove(id, pfList); setCur("all"); toast(`${name} removed.`); }} />
+        {picked && <PlanOptionDialog g={picked} onClose={() => setPicked(null)} onDone={toast} />}
+        {several && <AddSeveralDialog room={d ? Math.max(0, limit - d.count) : undefined} onClose={() => setSeveral(false)} onDone={toast} />}
         <GoTo list={pfList} value={goTo} onChange={(id) => (cur === "all" ? setGoTo(id) : setCur(id))} noun="Funds" />
         {adding && <AddPortfolioDialog taken={pfList.map((x) => x.name)} kinds={PLATFORMS}
           start={[["empty", "An empty platform", "Add funds to it by name, then their buys."], ["file", "An app statement", "Brings each fund with its units; add the buy NAVs after."], ["cas", "A CAS from CAMS, KFintech or NSDL/CDSL", "Lists every folio with units and cost."]]}
@@ -289,22 +309,19 @@ export function MfPortfolioPage() {
         {q.isError && <div className="sp-sec" role="alert"><b>Your funds could not be loaded</b><p>{errText(q.error)}</p><button className="btn" onClick={() => q.refetch()}>Try again</button></div>}
         {d && !d.count && <section className="sp-sec mfp-empty" aria-labelledby="mfp-empty-h"><h2 id="mfp-empty-h">Your MF portfolio is empty</h2>
           <p className="sp-note">Add a fund by its name or ISIN, or import a statement (CAS PDF, Excel or CSV). {limit} funds fit in your plan.</p>
-          <div className="mfp-empty-b"><button type="button" className="btn primary" onClick={() => (document.querySelector(".mfp-add .mp-search input") as HTMLInputElement | null)?.focus()}>Add a fund</button>
+          <div className="mfp-empty-b"><button type="button" className="btn primary" onClick={() => (document.querySelector(".ptk-input input") as HTMLInputElement | null)?.focus()}>Add a fund</button>
             <button type="button" className="btn" onClick={() => setImporting(true)}>Import a statement</button></div></section>}
         {d && d.count > 0 && <>
-          <TopGrid score={<ListBox box={box} onUnits={addUnits} />} tiles={tiles} onOpen={(t) => setView(t, true)} label="Your MF portfolio at a glance" />
           {d.summary.notes.map((n) => <p key={n} className="sp-note" role="note">{n}</p>)}
-          <div id="mfp-tabsbox"><ViewTabsKit defs={mfViews(all.length)} view={view} onView={(v) => setView(v)} label="MF portfolio views" idp="mfp-tab" panel="mfp-panel" what="your funds" /></div>
-          <SectionsBar tab={view} all={MF_SECS} onTab={goTab}
-            lead={<StickySwitch list={pfList} cur={cur} onPick={setCur} figs={pfFigs} defs={mfViews(all.length)} view={view} onView={(v) => setView(v)} tabsId="mfp-tabsbox" noun={["fund", "funds"]} />} />
+          {/* task #275 (changes 16 and 11): the score and the three views as tabs (Not opened yet, kept per member), then the view bar */}
+          <ViewCards score={<HealthCard value={d.summary.score.value} label={d.summary.score.label} n={all.length} valued={box.valued} />} cards={cards} view={view} onView={(v) => setView(v)} seen={seen} tabsId="mfp-tabsbox" panel="mfp-panel" label="Your funds' health and the views" />
+          <ViewBar pick={pick} defs={VIEW_DEFS} view={view} onView={(v) => setView(v)} seen={seen} all={steps} onSec={onSec} away={inTable} />
           <KeyFigures store="finlit-mf-keyfig" tab={view} sub={view === "funds" ? `What matters most in your ${all.length} ${all.length === 1 ? "fund" : "funds"}` : view === "mix" ? "How alike your funds really are" : "Where the list's risk sits"}
             cards={view === "funds" ? fundsCards(all, sp.data) : view === "mix" ? mixCards(sp.data) : riskCards(rk.data)} />
           <div id="mfp-panel" role="tabpanel" aria-labelledby={`mfp-tab-${view}`}>
-          {view !== "funds" && <AnalysingBar list={pfList} cur={cur} onPick={setCur} n={all.length} noun={["fund", "funds"]} />}
-          {view === "funds" && <MoneyRow t={money} onAdd={(k) => openFor(k)} noun={["fund", "funds"]} today={false} nameOf={(k) => fundName(nameOf(k)) || nameOf(k)} />}
           {view === "funds" && <>
             {rk.isError && <p className="sp-note" role="status">{errText(rk.error)}</p>}
-            <FundsTable hs={rows} rk={rk.data} sp={sp.data} listLabel={d.summary.score.label} lots={lots}
+            <FundsTable hs={rows} rk={rk.data} sp={sp.data} listLabel={d.summary.score.label} lots={lots} stuck={inTable} lead={lead}
               actions={(h) => { const k = keyOf(h.id); return <EditSell name={fundName(h.name) || `Scheme ${h.code}`} held={aggOf(book.rows, k, cur)?.qty ?? 0} onEdit={() => setDlg({ kind: "edit", k })} onSell={() => setDlg({ kind: "sell", k })} />; }} />
             <SoldList items={sold} all={cur === "all" && pfList.length > 1} pfName={pfName} onRemoveSale={(id) => book.store.remove(id)} noun={["fund", "funds"]} />
             {noReturns > 0 && <p className="sp-note" role="status">1Y, 3Y and 5Y returns are being worked out now for {noReturns} of your funds (from the fund's published NAV history). They appear here by themselves within a minute or two. A fund younger than a year has no 1Y return, and one younger than 3 or 5 years has no 3Y or 5Y return.</p>}
@@ -319,6 +336,7 @@ export function MfPortfolioPage() {
             {rk.isError && <p className="sp-note" role="status">{errText(rk.error)}</p>}
             {rk.data && rk.data.count > 0 && <RiskTab rk={rk.data} value={money.n && money.withQty === money.n ? { now: money.now, name: cur === "all" ? "All platforms" : pfName(cur) } : null} />}
           </>}
+          <NextView k={VIEW_LABEL[NEXT_VIEW[view]]} what={VIEW_WHAT[NEXT_VIEW[view]]} color={VIEW_COLORS[NEXT_VIEW[view]]} onGo={() => goTab(NEXT_VIEW[view])} />
           </div>
           <InShort sp={sp.data} rk={rk.data} />
         </>}

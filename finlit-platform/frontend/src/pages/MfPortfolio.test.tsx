@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // MF portfolio, rebuilt from the 15 Nov pack (task #183 part 2): the page as a whole. The parts are tested in mf/pack/mf*183.test.tsx and lib/mfTop.test.ts.
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -43,24 +43,29 @@ vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/ap
 const show = (view = "funds") => render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={[`/mf-portfolio${view === "funds" ? "" : `?view=${view}`}`]}><MfPortfolioPage /></MemoryRouter></QueryClientProvider>);
 
 describe("MF portfolio page (task #183 part 2)", () => {
-  it("opens with the list box and one tile per tab, then the tabs, the sections bar and Key figures", () => {
+  it("task #275 (changes 2, 16, 11): the compact top, the health score and the three views as tabs, then the view bar and Key figures", () => {
     show();
-    expect(document.querySelector(".mfp-listbox")!.textContent).toMatch(/Your MF list.*4 funds.*Every fund counts the same until you add units|Each fund counts by the value/);
-    expect([...document.querySelectorAll(".eqt-tile .eqt-k")].map((t) => t.textContent)).toEqual(["Your fundsi", "Mix & overlapi", "Risk analyticsi"]);
-    expect(screen.getAllByRole("tab").filter((t) => t.closest(".xv-tabs")).map((t) => t.querySelector("b")?.textContent)).toEqual(["Your funds", "Mix & overlap", "Risk analytics"]);   // task #235: the platforms bar has tabs too
-    expect(screen.getByRole("navigation", { name: "Sections on this tab" }).textContent).toMatch(/All sections.*1Your funds/);
+    expect(screen.getByRole("heading", { level: 1, name: "MF portfolio" }).closest(".ptk-ht")).toBeTruthy();
+    expect(screen.getByRole("combobox", { name: /Add a fund by name or ISIN/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Add several" })).toBeTruthy();
+    expect(document.querySelector(".mfp-hc .ptk-sk")!.firstChild!.textContent).toBe("Your funds' health");
+    expect(within(screen.getByRole("tablist", { name: "Views" })).getAllByRole("tab").map((t) => t.querySelector(".ptk-vk")!.textContent)).toEqual(["Your funds", "Mix & overlap", "Risk analytics"]);
+    expect(document.querySelectorAll(".ptk-vnew").length).toBeGreaterThan(0);                                  // a view not opened yet says so
+    expect(screen.getByRole("navigation", { name: "Views and sections" }).textContent).toMatch(/All sections.*1Your funds/);
     expect(screen.queryByRole("heading", { name: "Key figures" })).toBeNull();      // no card has anything to say for this test list (no scores, theme or liquid fund): the row is left out
   });
   it("lists the funds in the new table, with Add units and Clear portfolio and no Remove all or download", () => {
     show();
     expect(screen.getByRole("heading", { name: /^Your funds/ })).toBeTruthy();
     expect([...document.querySelectorAll(".mff-t tbody th a")].map((a) => a.textContent)).toEqual(["Alpha Large Cap Fund", "Beta Large Cap Fund", "Delta Corporate Bond Fund", "Gamma Small Cap Fund"]);
-    expect(screen.getByRole("button", { name: "Add units and buy NAVs" })).toBeTruthy();   // task #235 (pack C1, C5): opens the first fund without units
+    fireEvent.click(screen.getByRole("button", { name: /^More: other pages, units and Clear portfolio/ }));    // task #275 (change 2): in the ⋯ menu of the title row
+    expect(screen.getByRole("menuitem", { name: "Add units and buy NAVs" })).toBeTruthy();   // task #235 (pack C1, C5): opens the first fund without units
     expect(screen.getByRole("button", { name: "Clear portfolio" })).toBeTruthy();
     expect(document.body.textContent).not.toMatch(/Remove all|Export CSV/);
   });
   it("says each fund is read by its ISIN, and ends with the sources and the closing words", () => {
     show();
+    fireEvent.click(screen.getByRole("button", { name: "Import" }));                                           // task #275 (change 2): Import ▾ in the title row
     expect(screen.getByText(/Each fund is read by its ISIN, which names the exact plan and option/)).toBeTruthy();
     const foot = document.querySelector(".mfp-foot")!;
     expect(foot.textContent).toMatch(/index levels from NSE\. Information only, not investment advice\.$/);

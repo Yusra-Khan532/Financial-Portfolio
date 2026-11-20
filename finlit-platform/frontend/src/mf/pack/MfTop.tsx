@@ -12,3 +12,19 @@ export function ListBox({ box, onUnits }: { box: ReturnType<typeof listBox>; onU
     </div>
   );
 }
+
+/** Task #275 (change 16): the score beside the views, "Your funds' health" on its 0–100 scale: the list's average Fund Health Score and its band, in the
+ *  server's words, with a marker on the scale. Until units are added every fund counts the same, and the card says so. */
+export function HealthCard({ value, label, n, valued }: { value: number | null; label: string | null; n: number; valued: boolean }) {
+  const w = label ? label.charAt(0) + label.slice(1).toLowerCase() : null, v = value == null ? null : Math.round(value);
+  return (
+    <div className="ptk-score mfp-hc">
+      <p className="ptk-sk">{n === 1 ? "Your fund's health" : "Your funds' health"}<Tip text="The Fund Health Score of your funds, from 0 to 100: performance, risk, cost and quality against funds in the same category. With more than one fund, their average." how="Higher reads healthier. Each fund's score and its four parts are in Your funds." /></p>
+      <p className="ptk-sline">{v == null ? "None of your funds has a Health Score yet" : <>{n === 1 ? "Your fund reads" : "Your funds read"} <b className={"mfp-hc-w " + (w ? w.toLowerCase() : "")}>{w ?? "–"}</b></>}</p>
+      {v != null && <div className="mfp-hc-scale" role="img" aria-label={`${v} of 100, ${w ?? "no band"}`}>
+        <span className="mfp-hc-m" style={{ left: `${Math.max(0, Math.min(100, v))}%` }}><b>{v}</b><i aria-hidden="true">▼</i></span>
+        <span className="mfp-hc-bar" aria-hidden="true" /><span className="mfp-hc-t" aria-hidden="true">{[0, 25, 50, 75, 100].map((t) => <small key={t}>{t}</small>)}</span></div>}
+      <p className="ptk-sx">{valued ? "Each fund counts by the value of your units." : "Add units to weight the score by value now."}</p>
+    </div>
+  );
+}

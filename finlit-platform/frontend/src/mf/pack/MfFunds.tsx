@@ -66,7 +66,8 @@ export const TABLE_VIEWS: [string, string][] = [["overview", "Overview"], ["retu
 /** Task #235 (pack C1, C4, C5, C6): with `lots`, Overview shows each fund's money in three groups (What you paid · What it is worth now · Gain or loss: Units,
  *  Avg buy NAV, Invested · Latest NAV, Value now · ₹, %), each fund opens into its buys and sales (first in, first out within each platform; no Today:
  *  NAVs change once a day), and a total row sits at the foot. */
-export function FundsTable({ hs, rk, sp, actions, listLabel, lots }: { hs: Holding[]; rk: MfRisk | undefined; sp: MfSpread | undefined; actions: (h: Holding) => ReactNode; listLabel: string | null; lots?: LotsProps }) {
+export function FundsTable({ hs, rk, sp, actions, listLabel, lots, stuck, lead }: { hs: Holding[]; rk: MfRisk | undefined; sp: MfSpread | undefined; actions: (h: Holding) => ReactNode; listLabel: string | null; lots?: LotsProps;
+  /** task #275 (change 11): inside the long table the filter row takes the view bar's place, with the picker, the views and Sections ▾ first */ stuck?: boolean; lead?: ReactNode }) {
   const [view, setView] = useState<FundsView>("overview"), [picks, setPicks] = useState<Picks>({}), [fq, setFq] = useState(""), [sort, setSort] = useState<{ k: string; dir: 1 | -1 }>({ k: "name", dir: 1 });
   const [open, setOpen] = useState<Set<string>>(new Set(["Equity", "Hybrid", "Debt", "Solution oriented", "Others"]));
   const by = useMemo(() => new Map((rk?.funds ?? []).map((f) => [f.code, f])), [rk]);
@@ -133,8 +134,9 @@ export function FundsTable({ hs, rk, sp, actions, listLabel, lots }: { hs: Holdi
 >
       <div className="mff-strip">{strip.map((g) => <div key={g.type} className={"mff-g mff-" + g.type.toLowerCase().split(" ")[0]}><b>{g.type}</b> {g.n} · {g.share}%<small>{g.cats.join(" · ")}</small></div>)}</div>
       <Insights items={fundsInsights(hs, sp)} scope="mf.funds" />
+      <div id="mfp-zone">
       <FilterRow rows={hs} facets={FACETS} picks={picks} setPicks={setPicks} q={fq} setQ={setFq} text={fundText} find="Find a fund" noun={["fund", "funds"]} cols={TABLE_VIEWS} col={view}
-        setCol={(c) => { setView(c as FundsView); setSort({ k: "name", dir: 1 }); }} shown={shown.length} />
+        setCol={(c) => { setView(c as FundsView); setSort({ k: "name", dir: 1 }); }} shown={shown.length} stuck={stuck} lead={lead} />
       {view === "overview" && <Scroll label="your funds"><table className={"sp-tb mff-t kit-grid" + (lots ? " x-grp" : "")}>
         <thead><tr className="mff-groups">{lots ? <><th colSpan={2} /><GroupBand mf /></> : <th colSpan={3} />}<th className="mff-gh">Health Score</th><th colSpan={4} className="mff-gh mff-div">Health parts<Tip text="Each part of the Fund Health Score against funds in the same category: performance, risk, cost and quality." how="Strong, Fair or Weak, with the part's number under it. A strong Risk part means lower risk." /></th><th className="mff-gh">Score</th><th /></tr>
           {lots ? <tr>{cols.slice(0, 2).map((c) => th(c))}<HoldingHeads mf sortHead={(id, _l, cls) => th(cols.find((c) => c.k === id)!, cls)} />{th(cols[9], "mff-sc")}{cols.slice(10, 14).map((c, i) => th(c, "c" + (i === 0 ? " mff-div" : "")))}{th(cols[14])}</tr>
@@ -164,6 +166,7 @@ export function FundsTable({ hs, rk, sp, actions, listLabel, lots }: { hs: Holdi
               <b>{g.type}</b> · {g.n} {g.n === 1 ? "fund" : "funds"} · {g.share}% of the list · average health {a == null ? "–" : Math.round(a)} · average swing {sw == null ? "–" : `${sw.toFixed(1)}%`} <span aria-hidden="true">{on ? "▴" : "▾"}</span></button></th></tr>
               {on && its.map((h) => { const f = by.get(h.code); return <tr key={h.id}>{fundCell(h)}<td>{h.categoryLabel}</td><td className="r">{h.score.final == null ? "–" : Math.round(h.score.final)}</td><td className="r">{f?.swing == null ? "–" : `${f.swing.toFixed(1)}%`}</td></tr>; })}</tbody>; })}
         </table></Scroll></div>}
+      </div>
       <p className="sp-note">Health parts: Strong, Fair or Weak against funds in the same category. A strong Risk part means lower risk. "Provisional": under 3 years of NAVs, so the score is trusted in proportion.</p>
       {hs.some((h) => h.score.inherited) && <p className="sp-note">IDCW options carry the score of the Growth plan of the same fund.</p>}
       {view === "returns" && hs.some(isIdcw) && <p className="sp-note mfp-idcw" role="note">IDCW options show no 1, 3 or 5 year return: each payout lowers the NAV, so the change in NAV would understate what was earned. The fund's Growth plan shows the full return.</p>}
