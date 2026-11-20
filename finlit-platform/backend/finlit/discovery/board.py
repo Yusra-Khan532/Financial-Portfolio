@@ -137,9 +137,11 @@ async def board(store) -> Dict[str, Any]:
         theme_news = {r["t"]: (r["n"], r["pos"], r["neg"]) for r in await conn.fetch(
             "SELECT t, count(*)::int AS n, count(*) FILTER (WHERE tone > 0)::int AS pos, count(*) FILTER (WHERE tone < 0)::int AS neg "
             "FROM discovery_signals, unnest(themes) AS t WHERE item_date >= current_date - $1::int GROUP BY t", NEWS_DAYS)}
+        # task #260 (live check, 20 Nov): the event filings of the placed companies over the whole 90 days. The newest 4,000 filings of every company
+        # (the old read) reached back only a few days, so 40 of 950 rows had a latest filing and most themes had no "Latest filings in this theme".
         recent = [dict(r) for r in await conn.fetch(
-            "SELECT symbol, item_date, event, title, link, themes FROM discovery_signals WHERE item_date >= current_date - $1::int "
-            "ORDER BY item_date DESC, feed_id DESC LIMIT 4000", NEWS_DAYS)]
+            "SELECT symbol, item_date, event, title, link, themes FROM discovery_signals WHERE symbol = ANY($1::text[]) AND event = ANY($2::text[]) "
+            "AND item_date >= current_date - $3::int ORDER BY item_date DESC, feed_id DESC", syms, list(EVENTS), NEWS_DAYS)]
     names = {r["symbol"]: (r["company"] or r["symbol"]) for r in rows}
     groups = group_slugs(syms)
 

@@ -13,13 +13,14 @@ export type PrismCoverage = { rated: number; provisional: number; not_rated: num
 export type Row = PrismFields & {
   symbol: string; name: string | null; sector: string | null; sample?: boolean; scored?: boolean;
   /** NSE's sector (12) and industry (59), as the Stock screener files a company; null when it is in neither list. */ nse_sector?: string | null; nse_industry?: string | null;
+  /** Task #258 (SHARED §1): NSE's macro sector (12), sector (22) and industry (59) from the stored classification; null when not classified. */ cls_macro?: string | null; cls_sector?: string | null; cls_industry?: string | null;
   overall: number | null; band: string | null;
   pillar_quality: number | null; pillar_growth: number | null; pillar_profitability: number | null; pillar_balance: number | null; pillar_technical: number | null;
   price: number | null; market_cap: number | null; pe: number | null; pb: number | null; roe: number | null; roce: number | null;
   dividend_yield: number | null; debt_to_equity: number | null; sales_cagr: number | null; profit_cagr: number | null;
   operating_margin: number | null; change_pct: number | null; return_1m: number | null; return_1y: number | null;
 };
-export type NumKey = Exclude<keyof Row, "symbol" | "name" | "sector" | "nse_sector" | "nse_industry" | "sample" | "band" | "scored" | keyof PrismFields>;
+export type NumKey = Exclude<keyof Row, "symbol" | "name" | "sector" | "nse_sector" | "nse_industry" | "cls_macro" | "cls_sector" | "cls_industry" | "sample" | "band" | "scored" | keyof PrismFields>;
 
 export function useUniverse(enabled = true) {
   return useQuery({

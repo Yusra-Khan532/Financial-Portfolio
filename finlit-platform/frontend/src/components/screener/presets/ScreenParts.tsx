@@ -13,6 +13,8 @@ import { nf, MINUS } from "../../../lib/format";
 import { NO_BAR, type BarFilter, type BoardChip, type HistorySession, type LeftMode, type LeftRow, type PresetDetail, type Rating } from "../../../lib/presets";
 import { INFO_BOARD, PsxInfo } from "./PsxInfo";
 import { Shine } from "./ScreensStrip";
+import { AdvScreenMenus, advChips } from "./AdvScreenFilters";
+import { pulseSay, pulseWord } from "../../../lib/pulseWords";
 import "../../../styles/screens243.css";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -130,13 +132,14 @@ export function FilterMenus({ d, f, basic, onAddRule }: { d: PresetDetail; f: Fi
       <Dropdown label={bar.sizes.length ? `Market cap · ${bar.sizes.length === 1 ? bar.sizes[0] : bar.sizes.length}` : "Market cap"} on={bar.sizes.length > 0}>
         {sizes.map((z) => <Opt key={z} checked={bar.sizes.includes(z)} onChange={() => set({ ...bar, sizes: flip(bar.sizes, z) })} label={`${z} cap`} n={fc.sizes[z] ?? 0} />)}
       </Dropdown>)}
-    {fc.sectors.length > 0 && (
+    {!basic && <AdvScreenMenus d={d} bar={bar} set={set} />}{/* task #258 (SPEC §2): Macro sector · Sector · Industry · Prism score on an Advanced screen */}
+    {basic && fc.sectors.length > 0 && (
       <Dropdown label={bar.sectors.length ? `Sector · ${bar.sectors.length}` : "Sector"} on={bar.sectors.length > 0} wide>
         <input className="psx3-find" type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find a sector" aria-label="Find a sector" />
         <div className="psx3-optl">{sectors.map(([n, c]) => <Opt key={n} checked={bar.sectors.includes(n)} onChange={() => set({ ...bar, sectors: flip(bar.sectors, n) })} label={n} n={c} />)}
           {!sectors.length && <p className="psx3-none">No sector on this list matches.</p>}</div>
       </Dropdown>)}
-    {ratingNarrows && (
+    {basic && ratingNarrows && (
       <Dropdown label={bar.rating ? `${basic ? "IQ rating" : "Prism rating"} · ${rw[bar.rating]}` : basic ? "IQ rating" : "Prism rating"} on={!!bar.rating}>
         <Opt type="radio" name="psx3-rating" checked={!bar.rating} onChange={() => set({ ...bar, rating: "" })} label="Any rating" n={fc.anyRating} />
         <Opt type="radio" name="psx3-rating" checked={bar.rating === "healthy"} onChange={() => set({ ...bar, rating: "healthy" })} label={rw.healthy} n={fc.strong} />
@@ -173,6 +176,7 @@ export function FilterChips({ f, basic }: { f: FilterSet; basic: boolean }) {
     ...(bar.plead ? [{ k: "p", label: "Peer leaders only", off: () => set({ ...bar, plead: false }) }] : []),
     ...(bar.ind ? [{ k: "i", label: `Industry: ${bar.ind.name}`, off: () => set({ ...bar, ind: null }) }] : []),
     ...(bar.nse ? [{ k: "e", label: "NSE-listed only", off: () => set({ ...bar, nse: false }) }] : []),
+    ...(basic ? [] : advChips(bar, set)),
   ];
   if (!chips.length) return null;
   return (
@@ -196,7 +200,7 @@ export function IndustryBoard({ board, on, onPick }: { board: BoardChip[]; on: s
             <button key={c.slug ?? "none"} type="button" className={"psx3-ind" + (pressed ? " is-on" : "") + (c.slug ? "" : " is-none")} aria-pressed={c.slug ? pressed : undefined} disabled={!c.slug}
               onClick={() => onPick(c)}>
               <span className="psx3-in"><b>{c.name}</b><span className="psx3-ic">{nf(c.n, 0)}</span></span>
-              {c.slug && <span className="psx3-im"><span className={"psx3-rot is-" + (c.corner ?? "")}>{c.rotation ?? `${MINUS} no rotation reading`}</span><span className={"psx3-pls is-" + (c.pulseCode ?? "")}>{c.pulse ?? MINUS}</span></span>}
+              {c.slug && <span className="psx3-im"><span className={"psx3-rot is-" + (c.corner ?? "")}>{c.rotation ?? `${MINUS} no rotation reading`}</span><span className={"psx3-pls is-" + (c.pulseCode ?? "")} title={pulseSay(c.pulseCode) ?? undefined}>{pulseWord(c.pulseCode, c.pulse) ?? MINUS}</span></span>}
             </button>);
         })}
       </div>

@@ -2,12 +2,12 @@
 // No score is computed differently here than on the stock page: Business is the average of the four business pillars, Technical is the
 // technical pillar, Overall is the FinLit IQ as stored. A missing score is null and never passes a score filter or counts as zero.
 import { scoreBand } from "./scoreBands";
-import { capBucket, SIZE_SHORTS, type SizeShort } from "./capBuckets";
+import { CAP_BUCKETS, capBucket, SIZE_SHORTS, type SizeShort } from "./capBuckets";
 import { migrateSmall } from "./sizeMigration";
 import type { Row } from "./screener";
-import { NSE_INDUSTRY, NSE_MACRO, NSE_SECTORS, nseLevels } from "./nseTaxonomy";
+import { NSE_INDUSTRY, NSE_MACRO, NSE_SECTORS as NSE_SECTOR_NAMES, nseLevels } from "./nseTaxonomy";
 import { ratingWord, scoreBand as trendTone } from "./prismTechnical";
-import { LABEL_WORD, LABEL_SLUG, PRISM_LABELS, PRISM_NAMES, PRISM_RANGE_KEYS, isLabel, labelFromSlug, prismRangeValue, hasPrism, type PrismCol, type PrismLabel, type PrismRangeKey } from "./scorePrism";
+import { LABEL_WORD, LABEL_SLUG, PRISM_LABELS, PRISM_NAMES, PRISM_RANGE_KEYS, labelFromSlug, prismRangeValue, hasPrism, type PrismCol, type PrismLabel, type PrismRangeKey } from "./scorePrism";
 
 export type Cap = SizeShort;
 export type Band = "low" | "mixed" | "healthy" | "high";   // Watch, Mixed, Healthy, Strong (an older link or saved screen may say "mid": Mixed and Healthy together)
@@ -40,6 +40,8 @@ export const techBandOf = (score: number | null | undefined): TechBand | null =>
 export const trendWord = (score: number | null | undefined): string | null => (score == null ? null : ratingWord(null, score).word);
 
 export const CAPS: Cap[] = [...SIZE_SHORTS];
+/** Task #258 (SPEC §1): each size with its ₹ range, from the site's one rule (lib/capBuckets.ts, task #262). */
+export const CAP_RANGE: Record<Cap, string> = Object.fromEntries(CAP_BUCKETS.map((b) => [b.short, b.range])) as Record<Cap, string>;
 export const BAND_KEYS: BandKey[] = ["f", "t", "o", "q", "g", "p", "b"];
 export const RANGE_KEYS: RangeKey[] = ["f", "t", "o", "q", "g", "p", "b", "dh", ...PRISM_RANGE_KEYS];
 /** "dh": how far the price is down from its 52-week high, in percent (0 = at the high). Shared by both screeners, since it is about the price, not a model (task #60). */
@@ -81,7 +83,7 @@ export function withScores(rows: Row[]): Item[] {
   return rows.map((r) => {
     const parts = FUNDAMENTAL.map((k) => r[k]).filter((v): v is number => v != null);
     const mc = r.market_cap;
-    return { ...r, lv: nseLevels(r.nse_industry), f: parts.length >= 3 ? Math.round(parts.reduce((a, b) => a + b, 0) / parts.length) : null, t: r.pillar_technical,
+    return { ...r, lv: levelsOf(r), f: parts.length >= 3 ? Math.round(parts.reduce((a, b) => a + b, 0) / parts.length) : null, t: r.pillar_technical,
       cap: mc == null || !(mc > 0) ? null : capBucket(mc)?.short ?? null };
   });
 }
@@ -99,7 +101,7 @@ export type Filters = {
   caps: Cap[]; sectors: string[];
   /** NSE industries (any of these): the Sector and industry filter (14 Nov N-28 / N-34). `sectors` above is the old filter on the company's own label, kept so old links still work. */
   industries: string[];
-  /** task #257 (SHARED §1): NSE's macro sectors (12) and sectors (22): three linked lists with `industries`, AND across the three, OR inside one */
+  /** NSE's macro sectors (12) and sectors (22) (#257, #258): three linked lists with `industries`, AND across the three, OR inside one */
   macros: string[]; nsecs: string[];
   bands: Record<BandKey, Band[]>;
   ranges: Record<RangeKey, Range>;
@@ -107,16 +109,19 @@ export type Filters = {
   iqLabels: IqLabel[];      // Basic screener: FinLit IQ rating chips (any of these), on the overall FinLit IQ
   rated: boolean;           // only companies that have a Prism score
   tech: Record<TechKey, TechBand[]>;   // Prism short-term and long-term technical views (any of these bands)
-  top: number | null;       // keep only the first N by FinLit IQ among the companies that pass every other filter (the Top 10 quick views)
+  /** Task #258 (SPEC §3): the two technical views in the five trend words (the older three-band `tech` stays for old links and the Prism presets). */
+  trend: Record<TechKey, Trend5[]>;
+  top: number | null;      // keep only the first N by FinLit IQ among the companies that pass every other filter (the Top 10 quick views)
 };
 export const emptyFilters = (): Filters => ({
   caps: [], sectors: [], industries: [], macros: [], nsecs: [],
   bands: { f: [], t: [], o: [], q: [], g: [], p: [], b: [] },
   ranges: Object.fromEntries(RANGE_KEYS.map((k) => [k, { min: null, max: null }])) as Filters["ranges"],
-  labels: [], iqLabels: [], rated: false, tech: { st: [], lt: [] }, top: null,
+  labels: [], iqLabels: [], rated: false, tech: { st: [], lt: [] }, top: null, trend: { st: [], lt: [] },
 });
-export const cloneFilters = (f: Filters): Filters => ({ caps: [...f.caps], sectors: [...f.sectors], industries: [...(f.industries ?? [])], macros: [...(f.macros ?? [])], nsecs: [...(f.nsecs ?? [])], bands: Object.fromEntries(BAND_KEYS.map((k) => [k, [...f.bands[k]]])) as Filters["bands"],
-  ranges: Object.fromEntries(RANGE_KEYS.map((k) => [k, { ...f.ranges[k] }])) as Filters["ranges"], labels: [...f.labels], iqLabels: [...f.iqLabels], rated: f.rated, tech: { st: [...f.tech.st], lt: [...f.tech.lt] }, top: f.top });
+export const cloneFilters = (f: Filters): Filters => ({ caps: [...f.caps], sectors: [...f.sectors], industries: [...(f.industries ?? [])], bands: Object.fromEntries(BAND_KEYS.map((k) => [k, [...f.bands[k]]])) as Filters["bands"],
+  ranges: Object.fromEntries(RANGE_KEYS.map((k) => [k, { ...f.ranges[k] }])) as Filters["ranges"], labels: [...f.labels], iqLabels: [...f.iqLabels], rated: f.rated, tech: { st: [...f.tech.st], lt: [...f.tech.lt] }, top: f.top,
+  macros: [...(f.macros ?? [])], nsecs: [...(f.nsecs ?? [])], trend: { st: [...(f.trend?.st ?? [])], lt: [...(f.trend?.lt ?? [])] } });
 
 /** Each band runs up to, but not including, the start of the next one, so a fractional score (44.6) is in a band and never between two. */
 export const inBands = (v: number | null, bands: Band[]) => !bands.length || (v != null && bands.some((b) => {
@@ -180,17 +185,19 @@ const rangeValue = (r: Item, k: RangeKey) => (k === "dh" ? r.pct_from_high ?? nu
 const bandValue = (r: Item, k: BandKey) => (k === "f" ? r.f : k === "t" ? r.t : k === "o" ? r.overall : r[PILLARS.find((x) => x.k === k)!.col]);
 
 /** True when the company passes every filter. `skip` leaves one group out (used for the live counts beside the size and sector options). */
-export type Skip = "caps" | "sectors" | "macro" | "nsec" | "ind" | "iq";
+export type Skip = "caps" | "sectors" | "macro" | "nsec" | "ind" | "iq" | "labels" | "trend:st" | "trend:lt";
 export function passes(r: Item, f: Filters, skip?: Skip): boolean {
   if (skip !== "caps" && f.caps.length && !(r.cap && f.caps.includes(r.cap))) return false;
   if (skip !== "sectors" && f.sectors.length && !(r.sector && f.sectors.includes(r.sector))) return false;
-  if (skip !== "sectors" && skip !== "ind" && f.industries?.length && !(r.nse_industry && f.industries.includes(r.lv?.industry ?? r.nse_industry))) return false;
+  // the three NSE levels (#257 and #258): one rule for both screeners, on the company's `lv`
+  if (skip !== "sectors" && skip !== "ind" && f.industries?.length) { const i = industryOf(r); if (!(i && f.industries.includes(i))) return false; }
   if (skip !== "macro" && f.macros?.length && !(r.lv && f.macros.includes(r.lv.macro))) return false;
   if (skip !== "nsec" && f.nsecs?.length && !(r.lv && f.nsecs.includes(r.lv.sector))) return false;
   if (f.rated && !hasPrism(r)) return false;
   if (skip !== "iq" && f.iqLabels.length && !f.iqLabels.includes(iqLabelOf(r.overall))) return false;
-  if (f.labels.length && !(isLabel(r.prism_label) && f.labels.includes(r.prism_label))) return false;
+  if (skip !== "labels" && f.labels.length && !f.labels.includes(ratingOf(r))) return false;
   if (!TECH_KEYS.every((k) => { const b = techBandOf(r[k === "st" ? "prism_st_score" : "prism_lt_score"]); return !f.tech[k].length || (b != null && f.tech[k].includes(b)); })) return false;
+  if (!TECH_KEYS.every((k) => { if (skip === `trend:${k}` || !f.trend?.[k]?.length) return true; const b = trend5Of(r[k === "st" ? "prism_st_score" : "prism_lt_score"]); return b != null && f.trend[k].includes(b); })) return false;
   return BAND_KEYS.every((k) => inBands(bandValue(r, k), f.bands[k])) && RANGE_KEYS.every((k) => inRange(rangeValue(r, k), f.ranges[k]));
 }
 export const applyFilters = (items: Item[], f: Filters) => items.filter((r) => passes(r, f));
@@ -224,7 +231,7 @@ export function sectorTree(items: Item[], f: Filters): SectorNode[] {
 export type LevelOpt = { name: string; n: number; on: boolean };
 export type Levels = { macro: LevelOpt[]; sector: LevelOpt[]; industry: LevelOpt[] };
 const INDUSTRY_NAMES = Object.keys(NSE_INDUSTRY);
-export const sectorsOf = (macros: string[]): string[] => (macros.length ? NSE_SECTORS.filter((s) => INDUSTRY_NAMES.some((i) => NSE_INDUSTRY[i][0] === s && macros.includes(NSE_INDUSTRY[i][1]))) : [...NSE_SECTORS]);
+export const sectorsOf = (macros: string[]): string[] => (macros.length ? NSE_SECTOR_NAMES.filter((s) => INDUSTRY_NAMES.some((i) => NSE_INDUSTRY[i][0] === s && macros.includes(NSE_INDUSTRY[i][1]))) : [...NSE_SECTOR_NAMES]);
 export const industriesOf = (macros: string[], secs: string[]) => INDUSTRY_NAMES.filter((i) => (!secs.length || secs.includes(NSE_INDUSTRY[i][0])) && (!macros.length || macros.includes(NSE_INDUSTRY[i][1]))).sort((a, b) => a.localeCompare(b));
 export function levelCounts(items: Item[], f: Filters): Levels {
   const count = (skip: Skip, key: (r: Item) => string | null) => { const m = new Map<string, number>(); for (const r of items) { const k = key(r); if (k && passes(r, f, skip)) m.set(k, (m.get(k) ?? 0) + 1); } return m; };
@@ -321,6 +328,7 @@ export function chipsFor(f: Filters): Chip[] {
   if (f.iqLabels.length) out.push({ id: "iqlabels", label: `FinLit IQ rating: ${IQ_LABELS.filter((l) => f.iqLabels.includes(l)).map((l) => IQ_LABEL_WORD[l]).join(", ")}` });
   if (f.labels.length) out.push({ id: "labels", label: `Prism rating: ${PRISM_LABELS.filter((l) => f.labels.includes(l)).map((l) => LABEL_WORD[l]).join(", ")}` });
   TECH_KEYS.forEach((k) => { if (f.tech[k].length) out.push({ id: "tech:" + k, label: `${TECH_NAMES[k]}: ${TECH_BAND_ORDER.filter((b) => f.tech[k].includes(b)).map((b) => TECH_BANDS[b].short).join(", ")}` }); });
+  TECH_KEYS.forEach((k) => { if (f.trend?.[k]?.length) out.push({ id: "trend:" + k, label: `${k === "st" ? "Short term" : "Long term"}: ${TREND5.filter((b) => f.trend[k].includes(b)).map((b) => TREND5_WORD[b]).join(", ")}` }); });
   if (f.rated) out.push({ id: "rated", label: "Only companies rated by Prism" });
   if (f.top != null) out.push({ id: "top", label: `Top ${f.top} by FinLit IQ` });
   return out;
@@ -332,6 +340,7 @@ export function removeChip(f: Filters, id: string): Filters {
   else if (id.startsWith("ind:")) n.industries = n.industries.filter((s) => s !== id.slice(4));
   else if (id.startsWith("macro:")) return fitLevels({ ...n, macros: n.macros.filter((s) => s !== id.slice(6)) }).f;
   else if (id.startsWith("nsec:")) n.nsecs = n.nsecs.filter((s) => s !== id.slice(5));
+  else if (id.startsWith("trend:")) n.trend[id.slice(6) as TechKey] = [];
   else if (id.startsWith("band:")) n.bands[id.slice(5) as BandKey] = [];
   else if (id.startsWith("range:")) n.ranges[id.slice(6) as RangeKey] = { min: null, max: null };
   else if (id === "labels") n.labels = [];
@@ -415,7 +424,7 @@ const parseTech = (s: string | null): TechBand[] => TECH_BAND_ORDER.filter((b) =
 export type Scope = "all" | "basic" | "advanced";
 const FINLIT_SORT: SortKey[] = ["f", "t", "overall", "pillar_quality", "pillar_growth", "pillar_profitability", "pillar_balance"];
 const PRISM_SORT: SortKey[] = ["prism_final", "prism_fundamental", "prism_valuation", "prism_quality", "prism_risk", "prism_st_score", "prism_lt_score"];
-const PRISM_PARAMS = [...PRISM_RANGE_KEYS.flatMap((k) => [k + "min", k + "max", k + "lt"]), "pl", "rated", "st", "lt"];
+const PRISM_PARAMS = [...PRISM_RANGE_KEYS.flatMap((k) => [k + "min", k + "max", k + "lt"]), "pl", "rated", "st", "lt", "st5", "lt5"];
 /** True when an address carries anything the Advanced screener owns (a Prism filter, or a sort on a Prism column): old shared links of the single page. */
 export const hasPrismParams = (p: URLSearchParams) => PRISM_PARAMS.some((k) => p.has(k)) || PRISM_SORT.some((k) => p.get("sort") === k);
 
@@ -427,13 +436,16 @@ export const isOldSizeLink = (p: URLSearchParams) => p.get(SIZE_PARAM) !== "4" &
 /** Reads the address. Unknown or broken values are ignored, so a hand-edited link never breaks the page. Old links (?cap=Large&sector=X&f=high) still work. */
 export function parseState(p: URLSearchParams, scope: Scope = "all"): State {
   const f = emptyFilters();
-  // a link from before the four sizes (20 Nov 2026) has no size marker: its "Small" meant below ₹10,000 Cr, which is Micro now (sizeMigration.ts)
-  const caps = (p.get("cap") || "").split(",");
-  f.caps = CAPS.filter((c) => (isOldSizeLink(p) ? migrateSmall(caps) : caps).includes(c));
-  const sec = [...new Set(p.getAll("sector").filter(Boolean))];
-  f.nsecs = sec.filter((x) => (NSE_SECTORS as readonly string[]).includes(x));      // task #257: ?sector=Capital+Goods is NSE's sector (22) ...
-  f.sectors = sec.filter((x) => !(NSE_SECTORS as readonly string[]).includes(x));  // ... any other name is the older label filter, so old links keep working
-  f.macros = [...new Set(p.getAll("macro").filter((x) => (NSE_MACRO as readonly string[]).includes(x)))];
+  // ?size=large,mid (task #258) or the older ?cap=Large. A ?cap= link from before the four sizes (20 Nov 2026) has no size marker: its "Small" meant
+  // below ₹10,000 Cr, which is Micro now (sizeMigration.ts); ?size= is written only on the four-size rule
+  const oldCaps = (p.get("cap") || "").split(",");
+  const caps = [...(isOldSizeLink(p) ? migrateSmall(oldCaps) : oldCaps), ...(p.get("size") || "").split(",").map((x) => x.charAt(0).toUpperCase() + x.slice(1).toLowerCase())];
+  f.caps = CAPS.filter((c) => caps.includes(c));
+  // ?sector=: a name from NSE's 22 sectors filters on NSE's sector (task #258); any other value is the older filter on the company's own label
+  const secs = [...new Set(p.getAll("sector").filter(Boolean))];
+  f.nsecs = secs.filter((x) => NSE_SECTOR_SET.has(x));
+  f.sectors = secs.filter((x) => !NSE_SECTOR_SET.has(x));
+  f.macros = [...new Set(p.getAll("macro").filter((x) => NSE_MACRO_SET.has(x)))];
   f.industries = [...new Set(p.getAll("ind").filter(Boolean))];
   const finlit = scope !== "advanced", prism = scope !== "basic";
   BAND_KEYS.forEach((k) => { f.bands[k] = finlit ? parseBands(p.get(BAND_PARAM[k]) ?? (k === "q" && isBandList(p.get("q")) ? p.get("q") : null)) : []; });
@@ -449,19 +461,20 @@ export function parseState(p: URLSearchParams, scope: Scope = "all"): State {
     f.labels = (p.get("pl") || "").split(",").map(labelFromSlug).filter((l): l is PrismLabel => !!l).sort((a, b) => PRISM_LABELS.indexOf(a) - PRISM_LABELS.indexOf(b));
     f.rated = p.get("rated") === "1";
     f.tech = { st: parseTech(p.get("st")), lt: parseTech(p.get("lt")) };
+    f.trend = { st: parseTrend5(p.get("st5")), lt: parseTrend5(p.get("lt5")) };
   }
   if (finlit) f.iqLabels = Array.from(new Set((p.get(IQ_LABEL_PARAM) || "").split(",").map((x) => (x === "average" ? "mixed" : x === "weak" || x === "poor" ? "watch" : x)))).filter((x): x is IqLabel => (IQ_LABELS as string[]).includes(x)).sort((a, b) => IQ_LABELS.indexOf(a) - IQ_LABELS.indexOf(b));
   if (finlit && Number(p.get("top")) === TOP_N) f.top = TOP_N;
   const key = SORT_KEYS.find((k) => k === p.get("sort") && !(scope === "basic" && PRISM_SORT.includes(k)) && !(scope === "advanced" && FINLIT_SORT.includes(k)));
   const sort: Sort = key ? { key, dir: p.get("dir") === "asc" ? 1 : p.get("dir") === "desc" ? -1 : firstDir(key) } : DEFAULT_SORT;
-  const size = PAGE_SIZES.find((n) => n === Number(p.get("size"))) ?? 25;
+  const size = PAGE_SIZES.find((n) => n === Number(p.get("rows") ?? p.get("size"))) ?? 25;   // rows per page: ?rows= (task #258, since ?size= names the market-cap sizes there), or a number in the older ?size=
   const page = Math.max(0, (Math.floor(Number(p.get("page"))) || 1) - 1);
   return { filters: f, sort, size, page };
 }
-export function serializeState(s: State): URLSearchParams {
+/** `scope` "advanced" writes the sizes as ?size=large,mid and the rows per page as ?rows= (task #258); the Basic screener keeps its ?cap= and ?size= addresses. */
+export function serializeState(s: State, scope: Scope = "all"): URLSearchParams {
   const p = new URLSearchParams(), f = s.filters;
-  if (f.caps.length) p.set("cap", CAPS.filter((c) => f.caps.includes(c)).join(","));
-  if (f.caps.includes("Small")) p.set(SIZE_PARAM, "4");   // marks a new-rule "Small" so the link is never read as an old one
+  if (f.caps.length) { const c = CAPS.filter((x) => f.caps.includes(x)); if (scope === "advanced") p.set("size", c.map((x) => x.toLowerCase()).join(",")); else { p.set("cap", c.join(",")); if (c.includes("Small")) p.set(SIZE_PARAM, "4"); } }   // sz=4 marks a four-size "Small" (task #262)
   (f.macros ?? []).forEach((x) => p.append("macro", x));
   (f.nsecs ?? []).forEach((x) => p.append("sector", x));
   f.sectors.forEach((x) => p.append("sector", x));
@@ -473,9 +486,89 @@ export function serializeState(s: State): URLSearchParams {
   if (f.rated) p.set("rated", "1");
   if (f.top != null) p.set("top", String(f.top));
   TECH_KEYS.forEach((k) => { if (f.tech[k].length) p.set(k, TECH_BAND_ORDER.filter((b) => f.tech[k].includes(b)).join(",")); });
+  TECH_KEYS.forEach((k) => { if (f.trend?.[k]?.length) p.set(k + "5", TREND5.filter((b) => f.trend[k].includes(b)).join(",")); });
   if (s.sort.key !== DEFAULT_SORT.key || s.sort.dir !== DEFAULT_SORT.dir) { p.set("sort", s.sort.key); p.set("dir", s.sort.dir === 1 ? "asc" : "desc"); }
-  if (s.size !== 25) p.set("size", String(s.size));
+  if (s.size !== 25) p.set(scope === "advanced" ? "rows" : "size", String(s.size));
   if (s.page > 0) p.set("page", String(s.page + 1));
   return p;
 }
 export const filtersKey = (f: Filters) => serializeState({ filters: f, sort: DEFAULT_SORT, size: 25, page: 0 }).toString();
+
+// ---------- task #258 (20 Nov handoff): NSE's three levels, the five trend words and the Prism rating words ----------
+// The linked-level rules are #257's (`lv`, levelCounts, fitLevels): both screeners share them; these are thin views for the Advanced page and its open screens.
+const NSE_SECTOR_SET = new Set<string>(NSE_SECTOR_NAMES), NSE_MACRO_SET = new Set<string>(NSE_MACRO);
+/** The company's NSE levels, named as the site's one taxonomy names them (nseTaxonomy.ts), from the stored classification's industry (task #192) or else the
+ *  Stock screener's; the stored triple only when the taxonomy does not know the industry. One set of names, so the lists and the rows always match. */
+export function levelsOf(r: Pick<Row, "cls_macro" | "cls_sector" | "cls_industry" | "nse_industry">): { industry: string; sector: string; macro: string } | null {
+  const lv = nseLevels(r.cls_industry ?? r.nse_industry) ?? nseLevels(r.nse_industry);
+  if (lv) return lv;
+  return r.cls_industry && r.cls_sector && r.cls_macro ? { industry: r.cls_industry, sector: r.cls_sector, macro: r.cls_macro } : null;
+}
+export const industryOf = (r: Item): string | null => r.lv?.industry ?? r.nse_industry ?? null;
+/** "Commodities › Metals & Mining › Ferrous Metals": the full path, shown on hover (SPEC §4); null for a company in no NSE industry. */
+export const nsePath = (r: Item): string | null => (r.lv ? `${r.lv.macro} › ${r.lv.sector} › ${r.lv.industry}` : null);
+export type Level = "macro" | "nsec" | "ind";
+const LEVEL_KEY = { macro: "macros", nsec: "nsecs", ind: "industries" } as const;
+const LEVEL_OF = { macro: "macro", nsec: "sector", ind: "industry" } as const;
+/** One list's options (every name, narrowed by the parent picked), most companies first: #257's levelCounts. */
+export const levelOptions = (items: Item[], f: Filters, level: Level): LevelOpt[] => levelCounts(items, f)[LEVEL_OF[level]];
+/** Ticks or unticks one option; #257's fitLevels takes off a lower pick that no longer fits, and the line the page shows says so. */
+export function pickLevel(f: Filters, level: Level, name: string): { filters: Filters; message: string | null } {
+  const k = LEVEL_KEY[level], cur = f[k];
+  const r = fitLevels({ ...cloneFilters(f), [k]: cur.includes(name) ? cur.filter((x) => x !== name) : [...cur, name] });
+  return { filters: r.f, message: r.dropped.length ? `${r.dropped.join(", ")} ${r.dropped.length === 1 ? "was" : "were"} taken off: not inside your other choice.` : null };
+}
+/** The same on the three lists alone (an open screen keeps them in its own filter state). */
+export type NsePicks = { macros: string[]; nsecs: string[]; industries: string[] };
+export const nameKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+export function pickNse(sel: NsePicks, level: Level, name: string): { sel: NsePicks; message: string | null } {
+  const r = pickLevel({ ...emptyFilters(), ...sel }, level, name);
+  return { sel: { macros: r.filters.macros, nsecs: r.filters.nsecs, industries: r.filters.industries }, message: r.message };
+}
+/** SPEC §2: every name of a level narrowed only by the parents picked, those on the list first by count, then the rest ("Not on this list"). */
+export function screenLevel(sel: NsePicks, level: Level, counts: [string, number][] | undefined): { on: LevelOpt[]; off: string[]; all: number } {
+  // facets come from the stored classification (NSE's spelling, "Oil, Gas & ..."): matched to the taxonomy's names without case, commas or spacing
+  const names: string[] = level === "macro" ? [...NSE_MACRO] : level === "nsec" ? sectorsOf(sel.macros) : industriesOf(sel.macros, sel.nsecs);
+  const byKey = new Map((counts ?? []).map(([k, n]) => [nameKey(k), n])), c = new Map(names.map((x) => [x, byKey.get(nameKey(x)) ?? 0]));
+  const on = names.filter((x) => (c.get(x) ?? 0) > 0).map((name) => ({ name, n: c.get(name)!, on: true })).sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
+  return { on, off: names.filter((x) => !(c.get(x) ?? 0)).sort((a, b) => a.localeCompare(b)), all: names.length };
+}
+
+/** SPEC §3: the five trend words of the two technical views, from the same edges as the Prism card. */
+export type Trend5 = "su" | "u" | "s" | "d" | "sd";
+export const TREND5: Trend5[] = ["su", "u", "s", "d", "sd"];
+export const TREND5_WORD: Record<Trend5, string> = { su: "Strong uptrend", u: "Uptrend", s: "Sideways", d: "Downtrend", sd: "Strong downtrend" };
+export function trend5Of(score: number | null | undefined): Trend5 | null {
+  const t = trendTone(score ?? null);
+  return t === "na" ? null : t === "strongpos" ? "su" : t === "pos" ? "u" : t === "neutral" ? "s" : t === "neg" ? "d" : "sd";
+}
+function parseTrend5(s: string | null): Trend5[] { const w = (s || "").split(","); return TREND5.filter((b) => w.includes(b)); }
+
+/** SHARED §4: the rating word of a Prism score. Strong 80 and above, Healthy 65 to 79, Average 50 to 64, Weak 35 to 49, Poor below 35; Not rated without a score. */
+export const ratingOfScore = (v: number | null | undefined): PrismLabel => (v == null || !Number.isFinite(v) ? "NOT RATED" : v >= 80 ? "STRONG" : v >= 65 ? "HEALTHY" : v >= 50 ? "AVERAGE" : v >= 35 ? "WEAK" : "POOR");
+export const ratingOf = (r: Item): PrismLabel => ratingOfScore(r.prism_final);
+
+/** SPEC §3: the counts beside the rating words and the trend words, each given every other filter. */
+export function scoreCounts(items: Item[], f: Filters) {
+  const labels = Object.fromEntries(PRISM_LABELS.map((l) => [l, 0])) as Record<PrismLabel, number>;
+  const trend = { st: Object.fromEntries(TREND5.map((b) => [b, 0])), lt: Object.fromEntries(TREND5.map((b) => [b, 0])) } as Record<TechKey, Record<Trend5, number>>;
+  for (const r of items) {
+    if (passes(r, f, "labels")) labels[ratingOf(r)]++;
+    for (const k of TECH_KEYS) {
+      if (!passes(r, f, `trend:${k}`)) continue;
+      const b = trend5Of(r[k === "st" ? "prism_st_score" : "prism_lt_score"]);
+      if (b) trend[k][b]++;
+    }
+  }
+  return { labels, trend };
+}
+/** How many filters of the Prism score panel are on (SPEC §3: the "Prism score · N" button and the panel's "N on"): the rating words, the five score ranges and
+ *  the two technical views in the five trend words. The header row's own "Technical view" (the older three bands) and "52-week high" count on their own buttons. */
+export const prismOnCount = (f: Filters) => f.labels.length + PRISM_RANGE_KEYS.filter((k) => f.ranges[k].min != null || f.ranges[k].max != null).length + f.trend.st.length + f.trend.lt.length + (f.rated ? 1 : 0);   // each ticked word and each range counts, as in the pack
+/** "Clear score filters": only the panel's own filters; every other filter stays. */
+export function withoutScoreFilters(f: Filters): Filters {
+  const n = cloneFilters(f);
+  n.labels = []; n.rated = false; n.trend = { st: [], lt: [] };
+  PRISM_RANGE_KEYS.forEach((k) => { n.ranges[k] = { min: null, max: null }; });
+  return n;
+}

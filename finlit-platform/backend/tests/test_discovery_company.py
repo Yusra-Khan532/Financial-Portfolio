@@ -82,3 +82,25 @@ async def test_board_rows_carry_the_sector_and_the_company_route_gives_passages_
     assert d["passages"][0]["names"] and d["passages"][0]["page"] is not None            # the passage that names the theme, with its page
     assert d["filings"][0]["l"] == "https://nsearchives.nseindia.com/corporate/BSHIELD_order.pdf" and d["filings"][0]["el"] == "Order win"
     assert missing.status_code == 404 and bad.status_code == 400
+
+
+async def test_a_placed_companys_older_filing_is_not_hidden_by_thousands_of_newer_filings_of_other_companies(store):  # noqa: F811
+    """Found on the live page (20 Nov): the board read the newest 4,000 filings of every company, which reached back only a few days, so 40 of 950 rows
+    had a latest filing and most themes had no "Latest filings in this theme". It now reads the placed companies' event filings over the 90 days."""
+    from finlit.api import create_app
+    await seed(store)
+    await D.run(store, fetcher=exchange())
+    async with store.pool.acquire() as conn:
+        await conn.execute("DELETE FROM discovery_signals")
+        await conn.execute("INSERT INTO discovery_signals (feed_id, symbol, item_date, event, title, link) VALUES "
+                           "(1, 'BSHIELD', current_date - 60, 'order', 'Order worth Rs 90 crore for radar systems', 'https://nsearchives.nseindia.com/corporate/old.pdf')")
+        await conn.execute("INSERT INTO discovery_signals (feed_id, symbol, item_date, event, title) "
+                           "SELECT 100 + g, 'NOTPLACED', current_date - 1, 'order', 'Other company order ' || g FROM generate_series(1, 4100) g")
+    app = create_app(make_settings(), store=store)
+    async with app.router.lifespan_context(app):
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c:
+            b = (await c.get("/api/discovery/board")).json()
+    row = next(x for x in b["rows"] if x["s"] == "BSHIELD")
+    assert row["lf"]["t"] == "Order worth Rs 90 crore for radar systems" and row["lf"]["l"].endswith("old.pdf")
+    assert [f["s"] for f in b["thfil"]["Defence & Aerospace"]] == ["BSHIELD"]
+    assert [f["s"] for f in b["efil"]["order"]] == ["BSHIELD"]                     # only companies placed on Discover (task #250)

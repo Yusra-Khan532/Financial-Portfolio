@@ -67,9 +67,13 @@ type Props = {
   /** A tag after the company name (Leader / In line / Laggard on the Advanced page). */ leadTag?: (r: Screener["pg"]["view"][number]) => ReactNode;
   /** Task #257 (Basic screener, SPEC §1): no left panel; every filter opens from the header row, active filters sit under it as chips, and the table takes the full width. */
   headerFilters?: boolean;
+  /** Task #258 (Advanced SPEC §1): the header row's own filters (the Advanced page's Market cap · Macro sector · Sector · Industry · Prism score · Technical view · 52-week high);
+   *  given, the page uses the same header-row layout as Basic (#257) with these filters in place of the FinLit IQ ones. */ topFilters?: ReactNode;
+  /** Task #258 (SPEC §4): the line under the company name, in place of the NSE industry alone (Advanced: industry · size). */ coLine?: (r: Screener["pg"]["view"][number]) => ReactNode;
 };
 const narrow = () => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(max-width: 1000px)").matches;
-export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, screens, filters, lead, beforeTable, errorTitle, groupHead, columnHeads, cells, colSpan, plain, how, tier, sortChoices, dateLine, howTitle = "How scores work", columnsMenu, leadTag, headerFilters = false }: Props) {
+export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, screens, filters, lead, beforeTable, errorTitle, groupHead, columnHeads, cells, colSpan, plain, how, tier, sortChoices, dateLine, howTitle = "How scores work", columnsMenu, leadTag, headerFilters: hfProp = false, topFilters, coLine }: Props) {
+  const headerFilters = hfProp || !!topFilters;   // one header-row layout for both screeners (#257 Basic, #258 Advanced)
   const [sideW, setSide] = useSideWidth(splitKey);
   const { draft, setDraft, facets, drawer, setDrawer, sort, size, pg, rows, sel, bad, dirty, isLoading, isError, chips, filterCount, maxCompare } = s;
   const [chart, setChart] = useState<PanelRow | null>(null);
@@ -116,7 +120,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
         {beforeTable}
         {/* 14 Nov file N-24 / N-33: no "not scored yet" ring and no sector box above the list (they were drawn for admin accounts); "Not scored yet" stays on each row */}
         {headerFilters ? (<>
-          <div className="sx-stick hf-bar"><div className="fgx-tool hf-tool" role="search"><SearchBox value={s.q} onChange={s.setQ} placeholder="Search company name or symbol" label="Search company name or symbol" /><HeaderFilters s={s} /></div></div>
+          <div className="sx-stick hf-bar"><div className="fgx-tool hf-tool" role="search"><SearchBox value={s.q} onChange={s.setQ} placeholder="Search company name or symbol" label="Search company name or symbol" />{topFilters ?? <HeaderFilters s={s} />}</div></div>
           <div className="hf-chips" aria-label="Active filters">
             {!chips.length && !qTrim ? <p className="hf-empty">No filters yet: every company is listed.</p> : <>
               {qTrim && <button type="button" className="fchip" onClick={() => s.setQ("")} aria-label={`Remove search ${qTrim}`}>Search: {qTrim}<span aria-hidden="true">×</span></button>}
@@ -170,7 +174,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
             {isError ? <div className="state"><h2>{errorTitle}</h2><p>Please try again in a moment.</p></div> : isLoading ? <div className="skeleton" style={{ height: 380 }} /> : (
               <>
                 {!headerFilters && <p className="sx-count" aria-live="polite">{sel.length ? `${nf(sel.length, 0)} selected` : `${nf(rows.length, 0)} ${rows.length === 1 ? "company" : "companies"} in this result`}</p>}
-                <TableZoom label="Score screener results"><HScroll className="scr-tw" label="results table" controls={false} pinBelow=".sx-stick"><table className="scr-t ss-t sx-t" ref={tableRef}>
+                <TableZoom label="Score screener results"><HScroll className="scr-tw" label="results table" controls={false} pinBelow=".sx-stick"><table className={"scr-t ss-t sx-t" + (headerFilters ? " sx-hfix" : "")} ref={tableRef}>
                   <caption className="sr">Companies matching the filters, sorted by {(choices.find((c) => c.key === sort.key)?.label ?? String(sort.key).replace(/_/g, " ")).toLowerCase()}. Select a column heading to sort.</caption>
                   <thead>{groupHead}
                   <tr>
@@ -185,7 +189,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
                     <tr key={r.symbol} className={(on ? "sx-sel " : "") + (chart?.symbol === r.symbol ? "cp-row" : "")} onClick={(e) => { if (!(e.target as HTMLElement).closest("input,a,button,select")) setChart(r); }}>
                       <td className="fz1"><input type="checkbox" checked={on} onChange={() => s.togglePick(r.symbol)} aria-label={`Select ${r.symbol}`} /></td>
                       <td className="sx-n fz2">{pg.page * size + i + 1}</td>
-                      <td className="stick fz3 fz-last"><Link to={`/stocks/${r.symbol}`} className="co"><CoLogo symbol={r.symbol} name={r.name} size={24} /><span><b title={codeNote(r)}>{titleOf(r)}</b>{leadTag?.(r)}{subOf(r) && <small>{subOf(r)}</small>}<small className="sx-secn" title={r.lv ? `${r.lv.macro} › ${r.lv.sector} › ${r.lv.industry}` : undefined}>{r.lv?.industry ?? r.sector ?? "Sector not listed"}</small></span></Link></td>
+                      <td className="stick fz3 fz-last"><Link to={`/stocks/${r.symbol}`} className="co"><CoLogo symbol={r.symbol} name={r.name} size={24} /><span><b title={codeNote(r)}>{titleOf(r)}</b>{leadTag?.(r)}{subOf(r) && <small>{subOf(r)}</small>}{coLine ? coLine(r) : <small className="sx-secn" title={r.lv ? `${r.lv.macro} › ${r.lv.sector} › ${r.lv.industry}` : undefined}>{r.lv?.industry ?? r.sector ?? "Sector not listed"}</small>}</span></Link></td>
                       <td className="ss-px">{r.price != null ? nf(r.price) : <Dash why="no price yet" />}</td>
                       <td className="ss-mc">{r.market_cap != null ? <><span className="ss-mcv">₹{cr(r.market_cap)} Cr</span>{r.cap && <small className="sx-cap">{r.cap} cap</small>}</> : <Dash why="market value not available" />}</td>
                       {cells(r)}

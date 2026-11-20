@@ -37,7 +37,9 @@ export type ThemeState = "in_play" | "emerging" | "fading" | "closest";
 export type Theme = { industry: string; state: ThemeState; breadth: number | null; marketBreadth?: number | null; r3?: number | null; rs3: number | null; members: number | null; small?: boolean; leaders: string[]; reason?: string | null };
 export type Miss = { symbol: string; name?: string | null; exchange?: string | null; failed: string[] };
 export type PresetDetail = {
-  id: string; name: string; asOf: string | null; count: number; shown: number; topCount?: number; asOn?: string; benchSincePct?: number | null; heading?: string | null; filtered?: number; facets?: { sizes: Record<string, number>; sectors: [string, number][]; strong: number; strongOnly?: number; anyRating?: number; new?: number; ahead?: number; nse?: number; bse?: number; fno?: number; liquid?: number; sag?: number; plead?: number }; columns: PresetColumn[]; rows: PresetRow[]; themes?: Theme[]; closestMisses?: Miss[];
+  id: string; name: string; asOf: string | null; count: number; shown: number; topCount?: number; asOn?: string; benchSincePct?: number | null; heading?: string | null; filtered?: number; facets?: { sizes: Record<string, number>; sectors: [string, number][]; strong: number; strongOnly?: number; anyRating?: number; new?: number; ahead?: number; nse?: number; bse?: number; fno?: number; liquid?: number; sag?: number; plead?: number;
+    /** Task #258 (Advanced SPEC §2, §3): NSE's three levels on this list with their counts, and the counts of each Prism rating word and trend word. */
+    macros?: [string, number][]; nsecs?: [string, number][]; industries?: [string, number][]; ratings?: Record<string, number>; trend?: { st: Record<string, number>; lt: Record<string, number> } }; columns: PresetColumn[]; rows: PresetRow[]; themes?: Theme[]; closestMisses?: Miss[];
   howItWorks: string[]; cardText: string; disclaimer: string;
   /** "Top 10 of 40 that pass": what the list shows of the companies that pass. */
   listText?: string; notes?: string[]; rankScoreNote?: string; emptyText?: string; ratedCount?: number;
@@ -119,13 +121,28 @@ export type Rating = "" | "healthy" | "strong";
 /** Task #243 (pack v4): `fno` = F&O stocks only, `liquid` = Liquid only (20-session average value traded of Rs 10 Cr or more). Both optional so older callers still type-check. */
 export type BarFilter = { q: string; sizes: string[]; sectors: string[]; rating: Rating; fresh: boolean; ahead: boolean; nse: boolean; fno?: boolean; liquid?: boolean;
   /** Round 3b (Advanced): Industry ahead and gaining, Peer leaders only, and the industry board's chip (the industry's address on Sector Pulse, with its name for the chip). */
-  sag?: boolean; plead?: boolean; ind?: { slug: string; name: string } | null };
+  sag?: boolean; plead?: boolean; ind?: { slug: string; name: string } | null;
+  /** Task #258 (Advanced SPEC §2, §3): NSE's macro sectors, sectors and industries; the Prism rating words (strong ... notrated); from-to score ranges
+   *  (z Prism, zf Growth & Profitability, zv Valuation, zq Quality, zr Risk); the two technical views in five words (su u s d sd). */
+  macros?: string[]; nsecs?: string[]; indus?: string[]; pl?: string[]; rg?: Partial<Record<ScoreRangeKey, [number | null, number | null]>>; st5?: string[]; lt5?: string[] };
+export type ScoreRangeKey = "z" | "zf" | "zv" | "zq" | "zr";
+export const SCORE_RANGE_KEYS: ScoreRangeKey[] = ["z", "zf", "zv", "zq", "zr"];
+const rangeOn = (b: BarFilter) => SCORE_RANGE_KEYS.filter((k) => b.rg?.[k] && (b.rg[k]![0] != null || b.rg[k]![1] != null));
+/** How many filters of the Prism score panel are on: each ticked word and each range, as on the all-companies view. */
+export const barScoreCount = (b: BarFilter) => (b.pl?.length ?? 0) + rangeOn(b).length + (b.st5?.length ?? 0) + (b.lt5?.length ?? 0);
+const advParams = (b: BarFilter): string[] => [
+  ...(b.macros ?? []).map((x) => "macro=" + encodeURIComponent(x)), ...(b.nsecs ?? []).map((x) => "nsec=" + encodeURIComponent(x)), ...(b.indus ?? []).map((x) => "indu=" + encodeURIComponent(x)),
+  ...(b.pl?.length ? ["pl=" + b.pl.join(",")] : []),
+  ...rangeOn(b).flatMap((k) => { const [lo, hi] = b.rg![k]!; return [...(lo != null ? [`${k}min=${lo}`] : []), ...(hi != null ? [`${k}max=${hi}`] : [])]; }),
+  ...(b.st5?.length ? ["st5=" + b.st5.join(",")] : []), ...(b.lt5?.length ? ["lt5=" + b.lt5.join(",")] : []),
+];
 export const NO_BAR: BarFilter = { q: "", sizes: [], sectors: [], rating: "", fresh: false, ahead: false, nse: false, fno: false, liquid: false, sag: false, plead: false, ind: null };
 export const barParams = (b: BarFilter): string[] => [...(b.q.trim() ? ["q=" + encodeURIComponent(b.q.trim())] : []), ...b.sizes.map((x) => "size=" + encodeURIComponent(x)),
   ...b.sectors.map((x) => "sector=" + encodeURIComponent(x)), ...(b.rating ? ["rating=" + b.rating] : []), ...(b.fresh ? ["new=1"] : []), ...(b.ahead ? ["ahead=1"] : []), ...(b.nse ? ["nse=1"] : []),
-  ...(b.fno ? ["fno=1"] : []), ...(b.liquid ? ["liquid=1"] : []), ...(b.sag ? ["sag=1"] : []), ...(b.plead ? ["plead=1"] : []), ...(b.ind ? ["ind=" + encodeURIComponent(b.ind.slug)] : [])];
+  ...(b.fno ? ["fno=1"] : []), ...(b.liquid ? ["liquid=1"] : []), ...(b.sag ? ["sag=1"] : []), ...(b.plead ? ["plead=1"] : []), ...(b.ind ? ["ind=" + encodeURIComponent(b.ind.slug)] : []), ...advParams(b)];
 /** How many filters are on (the search box counts as one). */
-export const barCount = (b: BarFilter) => (b.q.trim() ? 1 : 0) + b.sizes.length + b.sectors.length + (b.rating ? 1 : 0) + (b.fresh ? 1 : 0) + (b.ahead ? 1 : 0) + (b.nse ? 1 : 0) + (b.fno ? 1 : 0) + (b.liquid ? 1 : 0) + (b.sag ? 1 : 0) + (b.plead ? 1 : 0) + (b.ind ? 1 : 0);
+export const barCount = (b: BarFilter) => (b.q.trim() ? 1 : 0) + b.sizes.length + b.sectors.length + (b.rating ? 1 : 0) + (b.fresh ? 1 : 0) + (b.ahead ? 1 : 0) + (b.nse ? 1 : 0) + (b.fno ? 1 : 0) + (b.liquid ? 1 : 0) + (b.sag ? 1 : 0) + (b.plead ? 1 : 0) + (b.ind ? 1 : 0)
+  + (b.macros?.length ?? 0) + (b.nsecs?.length ?? 0) + (b.indus?.length ?? 0) + barScoreCount(b);
 export const detailPath = (id: string, chips: string[], offset = 0, limit?: number, asOn?: string | null, bar: BarFilter = NO_BAR) => {
   const q = chips.map((c) => "chip=" + encodeURIComponent(c));
   q.push(...barParams(bar));

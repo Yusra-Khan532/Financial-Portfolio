@@ -7,7 +7,7 @@ import { useUI } from "../../lib/ui";
 import { useWatchlist, watch } from "../../lib/watchlist";
 import {
   applyTop, fitLevels, iqGroupCounts, levelCounts, IQ_GROUPS, iqGroupOn, toggleRangeBand, togglePRangeBand, isBandList, topPool, chipsFor, cloneFilters, concentration, emptyFilters, facetCounts, filtersKey, nextSort, pageOf, parseState, isOldSizeLink, removeChip, serializeState, summarize, validate, withScores,
-  type Band, type BandKey, type PBand, type Filters, type IqLabel, type Item, type RangeKey, type Scope, type Sort, type SortKey, type State, type TechBand, type TechKey,
+  type Band, type BandKey, type PBand, type Filters, type IqLabel, type Item, type RangeKey, type Scope, type Sort, type SortKey, type State, type TechBand, type TechKey, type Trend5,
 } from "../../lib/scoreScreen";
 import { coverageFrom } from "../../lib/scorePrism";
 import type { PrismLabel } from "../../lib/scorePrism";
@@ -62,7 +62,7 @@ export function useScreener(mode: Mode) {
   const withQ = (p: URLSearchParams) => { if (q.trim()) p.set("q", q.trim()); return p; };
   const wantSort = useRef<Sort | null>(null);   // the sort a quick view asked for, kept until the address shows it (the router applies an address change a moment later; a delayed apply must not undo it)
   useEffect(() => { if (wantSort.current && wantSort.current.key === sort.key && wantSort.current.dir === sort.dir) wantSort.current = null; }, [sort.key, sort.dir]);
-  const go = (next: Partial<State>) => { if (next.sort) wantSort.current = null; setParams(withQ(serializeState({ ...latest.current, ...(wantSort.current ? { sort: wantSort.current } : {}), ...next })), { replace: true }); };
+  const go = (next: Partial<State>) => { if (next.sort) wantSort.current = null; setParams(withQ(serializeState({ ...latest.current, ...(wantSort.current ? { sort: wantSort.current } : {}), ...next }, scope)), { replace: true }); };
   useEffect(() => {   // keep ?q= in step with the search box (a new search starts again from page 1)
     const t = setTimeout(() => setParams(() => {
       const prev = live.current, cur = prev.get("q") ?? "", want = q.trim();   // the latest address, not the one this render closed over (that would undo a filter applied a moment ago)
@@ -89,6 +89,7 @@ export function useScreener(mode: Mode) {
   const setPRangeBand = (k: RangeKey, b: PBand) => edit((d) => ({ ...d, ranges: { ...d.ranges, [k]: togglePRangeBand(d.ranges[k], b) } }));   // Prism's five bands (N-32)
   const setIqLabel = (l: IqLabel) => edit((d) => ({ ...d, iqLabels: toggle(d.iqLabels, l) }));
   const setTech = (k: TechKey, b: TechBand) => edit((d) => ({ ...d, tech: { ...d.tech, [k]: toggle(d.tech[k], b) } }));
+  const setTrend = (k: TechKey, b: Trend5) => edit((d) => ({ ...d, trend: { ...d.trend, [k]: toggle(d.trend[k], b) } }));   // task #258: the five trend words
   /** Task #257 (SHARED §1): tick or untick a macro sector, sector or industry; a lower choice that no longer fits is taken off, and its names are returned for the message. */
   const setLevel = (level: "macros" | "nsecs" | "industries", name: string): string[] => {
     const next = fitLevels({ ...draft, [level]: toggle(draft[level], name) });
@@ -118,8 +119,8 @@ export function useScreener(mode: Mode) {
 
   return {
     mode, data, isLoading, isError, has, upgrade, nav, state, applied, sort, size, draft, setDraft: setDraftLive, secQ, setSecQ, q, setQ, picked, setPicked, how, setHow, drawer, setDrawer,
-    silver, locked, gold, maxCompare, items: items as Item[], unscored, asOf, cover, prismAsOf, techAsOf, facets, levels, iqCounts, setLevel, clearLevel, setIqGroup, edit, rows, topOf, sum, mix, pg, chips, problems, bad, dirty, flush: () => apply(draft), sel, filterCount: chips.length,
-    sizeMoved, go, apply, clear, drop, toggle, setBand, setRange, setLabel, setIqLabel, setRangeBand, setPRangeBand, setTech, togglePick, allOnPage, headBox, toggleAll, addWatch, addSelected, sortBy,
+    silver, locked, gold, maxCompare, items: items as Item[], found: found as Item[], unscored, asOf, cover, prismAsOf, techAsOf, facets, levels, iqCounts, setLevel, clearLevel, setIqGroup, edit, rows, topOf, sum, mix, pg, chips, problems, bad, dirty, flush: () => apply(draft), sel, filterCount: chips.length,
+    sizeMoved, go, apply, clear, drop, toggle, setBand, setRange, setLabel, setIqLabel, setRangeBand, setPRangeBand, setTech, setTrend, togglePick, allOnPage, headBox, toggleAll, addWatch, addSelected, sortBy,
   };
 }
 export type Screener = ReturnType<typeof useScreener>;
