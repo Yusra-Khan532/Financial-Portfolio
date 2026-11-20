@@ -203,14 +203,14 @@ export function HoldingsPage() {
   // below52: the screener table carries pct_from_high; the shared Row type does not name it
   const shares: Share[] = useMemo(() => lines.map((l) => {
     const h = l.ov && l.ov.status === "ready" ? l.ov : null, u = by.get(l.symbol), feed = leadList.data, ld = feed && feed.available ? feed.rows[l.symbol] : undefined, pr = h?.prism;
-    const size = (capBucket(h?.marketCapCr ?? u?.market_cap ?? null)?.label.replace(" cap", "") ?? null) as Size | null;
+    const size: Size | null = capBucket(h?.marketCapCr ?? u?.market_cap ?? null)?.short ?? null;
     const peer = ld && ld.available ? { label: ld.label, raw: ld.rawLabel ?? null, rank: ld.rank, of: ld.ranked, group: ld.group, vs: ld.rel52 == null ? null : ld.rel52 * 100, bench: ld.sectorKind === "index" ? ld.sector ?? "its sector index" : "peer average", direction: ld.direction ?? null } : null;
     return { symbol: l.symbol, name: l.name || h?.name || meta[l.symbol]?.name || u?.name || null, industry: h?.sector ?? meta[l.symbol]?.sector ?? null, size, chg: h?.changePct ?? null, prism: pr?.final ?? null, prismWord: pr?.label ?? null, valuation: pr?.parts?.valuation ?? null, risk: pr?.parts?.risk ?? null,
       st: pr?.shortTerm?.score ?? null, lt: pr?.longTerm?.score ?? null, stWord: pr?.shortTerm?.word ?? null, ltWord: pr?.longTerm?.word ?? null, below52: (u as { pct_from_high?: number | null } | undefined)?.pct_from_high ?? null, m1: u?.return_1m ?? null, iq: h?.finlit?.overall ?? null, iqWord: h?.finlit?.word ?? null, iqTech: h?.finlit?.pillars?.technical ?? null, peer, notCompared: ld && !ld.available ? NOT_RANKED[ld.reason] ?? "is not ranked" : leadList.data && !leadList.data.available ? NOT_RANKED[leadList.data.reason] ?? "is not ranked" : null };
   }), [lines, by, leadList.data, meta]);   // eslint-disable-line react-hooks/exhaustive-deps
   const shareOf = useMemo(() => new Map(shares.map((x) => [x.symbol, x])), [shares]);
   const counts = useMemo(() => { const c: Record<string, string[]> = {}; ids.forEach((sym) => { const k = meta[sym]?.sector || `${sym} (not classified)`; (c[k] ??= []).push(sym); }); return c; }, [ids, meta]);
-  const sizeCount = useMemo(() => { const c = { Large: 0, Mid: 0, Small: 0 } as Record<Size, number>; shares.forEach((x) => { if (x.size) c[x.size]++; }); return c; }, [shares]);
+  const sizeCount = useMemo(() => { const c = { Large: 0, Mid: 0, Small: 0, Micro: 0 } as Record<Size, number>; shares.forEach((x) => { if (x.size) c[x.size]++; }); return c; }, [shares]);
   // Diversification analytics (task #183 W7): each share's NSE levels (stored classification, else its industry's place in NSE's tree), size and score band
   const div: DivInput | null = useMemo(() => {
     if (!page) return null;
@@ -223,9 +223,9 @@ export function HoldingsPage() {
       return !w ? null : w === "STRONG" || w === "HEALTHY" ? "g" : w === "AVERAGE" || w === "MIXED" ? "m" : w === "WEAK" || w === "POOR" || w === "WATCH" ? "b" : null; };
     return { page, symbols: ids, levelOf, sizeOf: (sym) => shareOf.get(sym)?.size ?? null, band, gold: model === "prism", nameOf: (sym) => meta[sym]?.name ?? sym };
   }, [page, ids, meta, byOv, shareOf, model]);
-  // the Diversification analytics tile counts each NSE level (task #183 A4/A5): "9 macro sectors · 13 sectors · 22 industries · all three sizes"
+  // the Diversification analytics tile counts each NSE level (task #183 A4/A5): "9 macro sectors · 13 sectors · 22 industries · all four sizes"
   const lvN = (l: "macro" | "sector" | "industry") => (div ? new Set(ids.map((x) => div.levelOf(x, l))).size : undefined);
-  const top = topTiles(shares, page as never, model === "prism" ? "prism" : "finlit", { macro: lvN("macro"), sectors: lvN("sector"), industries: lvN("industry") ?? Object.keys(counts).length, sizes: (["Large", "Mid", "Small"] as Size[]).filter((k) => sizeCount[k]).length });
+  const top = topTiles(shares, page as never, model === "prism" ? "prism" : "finlit", { macro: lvN("macro"), sectors: lvN("sector"), industries: lvN("industry") ?? Object.keys(counts).length, sizes: (["Large", "Mid", "Small", "Micro"] as Size[]).filter((k) => sizeCount[k]).length });
   const riskSp = useMemo(() => (page && rk.data && div ? riskSplit(page, rk.data, (x) => div.levelOf(x, "macro")) : null), [page, rk.data, div]);
 
   return (

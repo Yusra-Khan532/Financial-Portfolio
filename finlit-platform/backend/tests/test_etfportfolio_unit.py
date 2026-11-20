@@ -77,7 +77,7 @@ def test_largest_stocks_weighted_with_the_etfs_that_hold_each_and_abroad_marked(
 def test_company_size_of_the_indian_shares_only():
     a = {"symbol": "A", "w": 1.0, "assetClass": "equity", "holdings": [H("INE1", 60), H("INE2", 40), H("US1", 10)]}
     s = calc.size_mix([a], lambda i: {"INE1": "Large", "INE2": "Mid"}.get(i or ""))
-    assert s == {"Large": 0.6, "Mid": 0.4, "Small": 0.0, "Not sized": 0.0}
+    assert s == {"Large": 0.6, "Mid": 0.4, "Small": 0.0, "Micro": 0.0, "Not sized": 0.0}
     assert calc.size_mix([{"symbol": "G", "w": 1, "assetClass": "gold", "holdings": None}], lambda i: None) is None
 
 

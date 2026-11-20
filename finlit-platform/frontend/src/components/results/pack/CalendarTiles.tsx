@@ -14,7 +14,7 @@ export function CalendarTiles({ kpi, ahead, week, lastDay, lastResp, mine, today
   kpi: QResp | undefined; ahead: CalDayOut[] | undefined; week: QResp | undefined; lastDay: string | null; lastResp: QResp | undefined;
   mine: { held: number; followed: number; reported: number; inQuarter: number; dueWeek: number; signedIn: boolean }; today: string;
 }) {
-  const sizes = { Large: useQuarterResults({ limit: 1, cap: "Large" }), Mid: useQuarterResults({ limit: 1, cap: "Mid" }), Small: useQuarterResults({ limit: 1, cap: "Small" }) };
+  const sizes = { Large: useQuarterResults({ limit: 1, cap: "Large" }), Mid: useQuarterResults({ limit: 1, cap: "Mid" }), Small: useQuarterResults({ limit: 1, cap: "Small" }), Micro: useQuarterResults({ limit: 1, cap: "Micro" }) };
   if (!kpi?.quarter) return <div className="sx-skel sp-sec" role="status" aria-label="Loading the calendar's tiles" />;
   const t = kpi.totals as VSummary, q = kpi.quarter, locked = !!kpi.locked;
   const share = t.companies ? (t.declared / t.companies) * 100 : 0, still = t.companies - t.declared;
@@ -36,11 +36,11 @@ export function CalendarTiles({ kpi, ahead, week, lastDay, lastResp, mine, today
           sub={`${share >= 99.95 || share < 0.05 ? Math.round(share) : share.toFixed(1)}% in · ${n0(still)} still due`} moreLabel="By size and week"
           more={<>
             <table><thead><tr><th>Size</th><th className="r">Declared</th><th className="r">Of</th></tr></thead>
-              <tbody>{(["Large", "Mid", "Small"] as const).map((k) => { const s = sizes[k].data?.totals; return <tr key={k}><td>{k}</td><td className="r">{s ? n0(s.declared) : "…"}</td><td className="r">{s ? n0(s.companies) : "…"}</td></tr>; })}</tbody></table>
+              <tbody>{(["Large", "Mid", "Small", "Micro"] as const).map((k) => { const s = sizes[k].data?.totals; return <tr key={k}><td>{k}</td><td className="r">{s ? n0(s.declared) : "…"}</td><td className="r">{s ? n0(s.companies) : "…"}</td></tr>; })}</tbody></table>
             <table><thead><tr><th>Week</th><th className="r">Declared</th></tr></thead>
               <tbody>{weeks.map((w) => <tr key={w.label}><td>{w.label}</td><td className="r">{n0(w.n)}</td></tr>)}
                 {early > 0 && <tr><td title="Their figures are filed although the board-meeting date they announced is still to come">Filed ahead of their date</td><td className="r">{n0(early)}</td></tr>}</tbody></table>
-            <p>Sizes by market value: Large above ₹50,000 Cr, Mid ₹10,000 to 50,000 Cr, Small below ₹10,000 Cr. A company counts as declared once its board-meeting date has passed or its figures are filed.</p>
+            <p>Sizes by market value: Large above ₹75,000 Cr, Mid ₹25,000 to 75,000 Cr, Small ₹10,000 to 25,000 Cr, Micro below ₹10,000 Cr. A company counts as declared once its board-meeting date has passed or its figures are filed.</p>
           </>} />
         <DropTile testId="tile-due" label="Due in the next 7 days" accent="blue" value={n0(dueN)} unit={dueN === 1 ? "company" : "companies"}
           sub={due.length ? byDayLine(due) : "No board meetings on results are announced for the next 7 days."} moreLabel="Who and when"

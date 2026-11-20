@@ -12,6 +12,7 @@ import { NSE_INDUSTRIES, NSE_MACROS, NSE_SECTORS } from "../../lib/nseTree";
 import { LABEL_WORD, PRISM_LABELS, PRISM_PARTS, type PrismRangeKey } from "../../lib/scorePrism";
 import { HighFilter, highActive } from "./HighFilter";
 import type { Screener } from "./useScreener";
+import { SizeNote } from "../SizeNote";
 import "../../styles/advfx.css";
 
 type Open = string | null;
@@ -152,5 +153,6 @@ export function AdvFilterBar({ s }: { s: Screener }) {
         </Drop>
       </div>
       {taken && open == null && <p className="afx-taken" role="status">{taken}</p>}
+      <SizeNote link={s.sizeMoved} />   {/* task #262: an old link's Small now reads Micro */}
     </div>);
 }

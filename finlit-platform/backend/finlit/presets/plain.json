@@ -2,7 +2,7 @@
  "basic-top-large": {
   "text": "Large caps with a Healthy or Strong FinLit IQ and a firm price trend. The 10 highest FinLit IQs come first, then every other company that passes.",
   "how": [
-   "Large caps (above ₹50,000 Cr) with a full year of prices.",
+   "Large caps (above ₹75,000 Cr) with a full year of prices.",
    "Each company needs a Healthy or Strong FinLit IQ, no Quality or Balance sheet score in Watch, a Technical score that is not weak, and a price not far below its 52-week high. Companies after an extreme one-year run are left out.",
    "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
    "The list is ordered by FinLit IQ. The 10 highest come first, at most three from one industry. Every other company that passes follows, in the same order."
@@ -11,7 +11,7 @@
  "basic-top-mid": {
   "text": "Mid caps with a Healthy or Strong FinLit IQ and a firm price trend. The 10 highest FinLit IQs come first, then every other company that passes.",
   "how": [
-   "Mid caps (₹10,000–50,000 Cr) with a full year of prices.",
+   "Mid caps (₹25,000–75,000 Cr) with a full year of prices.",
    "Each company needs a Healthy or Strong FinLit IQ, no Quality or Balance sheet score in Watch, a Technical score that is not weak, and a price not far below its 52-week high. Companies after an extreme one-year run are left out.",
    "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
    "The list is ordered by FinLit IQ. The 10 highest come first, at most three from one industry. Every other company that passes follows, in the same order."
@@ -20,7 +20,16 @@
  "basic-top-small": {
   "text": "Small caps with a Healthy or Strong FinLit IQ and a firm price trend. The 10 highest FinLit IQs come first, then every other company that passes.",
   "how": [
-   "Small caps (below ₹10,000 Cr) with a full year of prices.",
+   "Small caps (₹10,000–25,000 Cr) with a full year of prices.",
+   "Each company needs a Healthy or Strong FinLit IQ, no Quality or Balance sheet score in Watch, a Healthy balance sheet, a Technical score that is not weak, and a price not far below its 52-week high. Companies after an extreme one-year run are left out.",
+   "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
+   "The list is ordered by FinLit IQ. The 10 highest come first, at most three from one industry. Every other company that passes follows, in the same order."
+  ]
+ },
+ "basic-top-micro": {
+  "text": "Micro caps with a Healthy or Strong FinLit IQ and a firm price trend. The 10 highest FinLit IQs come first, then every other company that passes.",
+  "how": [
+   "Micro caps (below ₹10,000 Cr) with a full year of prices.",
    "Each company needs a Healthy or Strong FinLit IQ, no Quality or Balance sheet score in Watch, a Healthy balance sheet, a Technical score that is not weak, and a price not far below its 52-week high. Companies after an extreme one-year run are left out.",
    "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
    "The list is ordered by FinLit IQ. The 10 highest come first, at most three from one industry. Every other company that passes follows, in the same order."

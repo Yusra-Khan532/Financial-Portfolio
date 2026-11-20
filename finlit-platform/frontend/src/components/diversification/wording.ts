@@ -69,8 +69,8 @@ export function spreadSentence(d: Diversification): string {
 }
 export function sizeLine(d: Diversification): string {
   const z = d.spread.size;
-  const base = `Size: ${z.Large} large ${z.Large === 1 ? "cap" : "caps"} · ${z.Mid} mid · ${z.Small} small`;
-  return d.spread.sizeUnknown.length ? `${base} · ${d.spread.sizeUnknown.length} not ranked yet` : base;
+  const base = `Size: ${z.Large} large ${z.Large === 1 ? "cap" : "caps"} · ${z.Mid} mid · ${z.Small} small · ${z.Micro ?? 0} micro`;
+  return d.spread.sizeUnknown.length ? `${base} · ${d.spread.sizeUnknown.length} size not known yet` : base;
 }
 export function groupLine(d: Diversification): string {
   const g = d.spread.groups;

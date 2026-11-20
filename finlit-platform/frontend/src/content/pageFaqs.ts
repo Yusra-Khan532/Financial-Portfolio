@@ -113,8 +113,8 @@ export const PAGE_FAQS: PageFaq[] = [
     "a": "They apply common combinations in one click: Strong on both (Growth & Profitability and Technical both 78 or more), Strong growth & profitability with a weak trend, and a strong trend with a weaker Growth & Profitability score."
    },
    {
-    "q": "How is Large, Mid or Small cap decided?",
-    "a": "By market value, one scale for the whole site: Large cap above ₹50,000 Cr, Mid cap ₹10,000 to 50,000 Cr, Small cap below ₹10,000 Cr. A company with no market value has no size."
+    "q": "How is Large, Mid, Small or Micro cap decided?",
+    "a": "By market value, one scale for the whole site: Large cap above ₹75,000 Cr, Mid cap ₹25,000 to 75,000 Cr, Small cap ₹10,000 to 25,000 Cr, Micro cap below ₹10,000 Cr. A company with no market value has no size."
    },
    {
     "q": "Why is a company not scored?",
@@ -1069,7 +1069,7 @@ export const PAGE_FAQS: PageFaq[] = [
    },
    {
     "q": "Why can the size band differ from the screener?",
-    "a": "FinLit sizes a company by its market value in three bands: Large cap above ₹50,000 crore, Mid cap ₹10,000–50,000 crore and Small cap below ₹10,000 crore, so a company has the same size on every page. A mutual fund's own label can differ, because funds follow SEBI's ranking."
+    "a": "FinLit sizes a company by its market value in four bands: Large cap above ₹75,000 crore, Mid cap ₹25,000–75,000 crore, Small cap ₹10,000–25,000 crore and Micro cap below ₹10,000 crore, so a company has the same size on every page. A mutual fund's own label can differ, because funds follow SEBI's ranking."
    },
    {
     "q": "Can I export my list?",

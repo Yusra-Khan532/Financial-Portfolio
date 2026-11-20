@@ -1,6 +1,7 @@
 import { PortfolioDisclaimer } from "../components/PortfolioDisclaimer";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { capBucket } from "../lib/capBuckets";
 import { Link, useSearchParams } from "react-router";
 import { Gate } from "../components/Gate";
 import { Icon } from "../lib/icons";
@@ -240,7 +241,7 @@ export function MfPortfolioPage() {
     return has("gold") ? (u.prism_final != null ? { word: u.prism_label ? u.prism_label.charAt(0) + u.prism_label.slice(1).toLowerCase() : null, score: u.prism_final } : null)
       : (u.overall != null ? { word: u.band ? u.band.charAt(0).toUpperCase() + u.band.slice(1) : null, score: u.overall } : null); };
   const big: Big[] = useMemo(() => top.map((t) => { const u = t.symbol ? byU.get(t.symbol) : undefined, mc = u?.market_cap;
-    return { name: t.name, symbol: t.symbol, macro: u?.nse_sector ?? null, size: mc == null ? null : mc > 50000 ? "Large" : mc > 10000 ? "Mid" : "Small", w: t.w, funds: t.funds }; }), [top, byU]);
+    return { name: t.name, symbol: t.symbol, macro: u?.nse_sector ?? null, size: capBucket(mc)?.short ?? null, w: t.w, funds: t.funds }; }), [top, byU]);
   // a Key figures card that names "Add units" opens the dialog; one in another tab opens that tab first, then its section (the sections bar's jump)
   useEffect(() => { const on = (e: Event) => { if ((e as CustomEvent).detail === "mfp-units") addUnits(); }; addEventListener("eq-jump", on); return () => removeEventListener("eq-jump", on); }, []);
   const goTab = (t: MfView, then?: string) => { setView(t); if (then) setTimeout(() => jumpTo(then), 60); };

@@ -1,7 +1,8 @@
 """Risk analytics of the Equity portfolio by company size (task #183 W8, pack 01-equity-portfolio E72–E85).
 
 Each share is compared with the index of companies its own size, from index closes (never ETF prices): Large with the Nifty 50, Mid with the Nifty Midcap 150,
-Small with the Nifty Smallcap 250. Sizes are FinLit's rupee bands on the company's market value (Large above ₹50,000 Cr, Mid above ₹10,000 Cr, Small below).
+Small with the Nifty Smallcap 250, Micro with the Nifty Microcap 250 (task #262, the handoff's suggested micro benchmark). Sizes are FinLit's rupee bands on the
+company's market value (finlit/sizes.py: Large above ₹75,000 Cr, Mid ₹25,000-75,000 Cr, Small ₹10,000-25,000 Cr, Micro below ₹10,000 Cr).
 
 - Betas are over the past year of weekly closes (Friday to Friday): each share against its own size index (beta, R², the share of its moves its index explains),
   each size's average, the size-weighted beta of the list (each size's average beta times its share of the list), the list against a benchmark blended in the
@@ -22,9 +23,9 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-SIZE_INDEX = {"Large": ("NIF50", "Nifty 50"), "Mid": ("NIFMID150", "Nifty Midcap 150"), "Small": ("NIFSMA250", "Nifty Smallcap 250")}
-SIZES = ("Large", "Mid", "Small")
-LARGE_ABOVE, MID_ABOVE = 50000.0, 10000.0      # ₹ crore, the site's one size scale (lib/capBuckets.ts): a value on an edge belongs to the band below
+SIZE_INDEX = {"Large": ("NIF50", "Nifty 50"), "Mid": ("NIFMID150", "Nifty Midcap 150"), "Small": ("NIFSMA250", "Nifty Smallcap 250"),
+              "Micro": ("NIFMIC250", "Nifty Microcap 250")}
+from ..sizes import SIZES, size_of as _site_size   # noqa: E402  task #262: the site's one rule
 YEAR_WEEKS = 52
 MIN_WEEKS = 45                                  # a share needs most of a year of weekly closes for a beta
 DAYS_3Y = 3 * 365
@@ -33,9 +34,7 @@ BANDS: List[Tuple[float, str, str]] = [(0.65, "less", "Less sensitive"), (0.90, 
 
 
 def size_of(mcap_cr: Optional[float]) -> Optional[str]:
-    if mcap_cr is None or not math.isfinite(mcap_cr) or mcap_cr < 0:
-        return None
-    return "Large" if mcap_cr > LARGE_ABOVE else "Mid" if mcap_cr > MID_ABOVE else "Small"
+    return _site_size(mcap_cr)
 
 
 def band_of(beta: Optional[float]) -> Optional[Dict[str, str]]:
@@ -101,7 +100,7 @@ def r2(v: Optional[float], d: int = 2) -> Optional[float]:
 
 
 def build(prices: Dict[str, Optional[dict]], index_rows: Dict[str, List[dict]], sizes: Dict[str, Optional[str]], sectors: Dict[str, str]) -> Dict[str, Any]:
-    """prices: symbol -> {t, c} daily closes; index_rows: code -> [{d, c}] daily index closes (NIF50, NIFMID150, NIFSMA250); sizes: symbol -> Large/Mid/Small/None."""
+    """prices: symbol -> {t, c} daily closes; index_rows: code -> [{d, c}] daily index closes (NIF50, NIFMID150, NIFSMA250, NIFMIC250); sizes: symbol -> Large/Mid/Small/None."""
     idx = {code: daily([r["d"] for r in rows], [r["c"] for r in rows]) for code, rows in index_rows.items() if rows}
     nifty = idx.get("NIF50")
     if nifty is None or nifty.empty:

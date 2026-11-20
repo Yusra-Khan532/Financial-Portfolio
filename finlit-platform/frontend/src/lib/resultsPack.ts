@@ -54,9 +54,11 @@ export function dayCards(rows: VRow[], counts: Record<Verdict, number> | null | 
   if (nBad) out.push({ kind: "warning", title: `${nBad} ${nBad === 1 ? "was" : "were"} Poor or made a loss`, text: `${bad.slice(0, 5).map(nameOf).join(", ")}${nBad > 5 ? ` and ${nBad - 5} more` : ""}.` });
   const busy = [...week].filter((w) => w.n > total).sort((a, b) => b.n - a.n).slice(0, 2).sort((a, b) => a.date.localeCompare(b.date));
   if (total < 100 && busy.length) {
-    const small = rows.filter((r) => r.cap === "Small").length * 2 > rows.length;
+    // task #262: "small" here covers Small and Micro (the old Small was below ₹10,000 Cr, now Micro), the smaller companies the sentence is about
+    const isSmall = (c: string | null) => c === "Small" || c === "Micro";
+    const small = rows.filter((r) => isSmall(r.cap)).length * 2 > rows.length;
     // Task #193 bug 3: "Only 1 companies reported, most of them small". One company is "1 company", and "most of them" needs more than one.
-    const who = total === 1 ? `Only 1 company reported${rows[0]?.cap === "Small" ? ", a small one" : ""}` : `Only ${total} companies reported${small ? ", most of them small" : ""}`;
+    const who = total === 1 ? `Only 1 company reported${isSmall(rows[0]?.cap ?? null) ? ", a small one" : ""}` : `Only ${total} companies reported${small ? ", most of them small" : ""}`;
     out.push({ kind: "insight", title: `${wday(day)} is a light day`, text: `${who}. The big reporting days this week are ${list(busy.map((w) => wday(w.date)))}.` });
   } else if (total >= 100) {
     const large = rows.filter((r) => r.cap === "Large").length;

@@ -19,7 +19,8 @@ describe("the top of the page: the score and one tile per tab", () => {
     const g = topTiles(LIST, PAGE, "prism", { industries: 22, sizes: 3, macro: 9, sectors: 13 });
     expect(g.map((t) => [t.k, t.v])).toEqual([["Portfolio", "Fair · 60"], ["Diversification analytics", "74 · Fairly spread"], ["Risk analytics", "Above · β 1.31"]]);
     expect(g[0].sub).toBe("Holding strength: average Prism, 1 strong · 1 fair · 1 weak");
-    expect(g[1].sub).toBe("9 macro sectors · 13 sectors · 22 industries · all three sizes");
+    expect(g[1].sub).toBe("9 macro sectors · 13 sectors · 22 industries · three of the four sizes");
+    expect(topTiles(LIST, PAGE, "prism", { industries: 22, sizes: 4, macro: 9, sectors: 13 })[1].sub).toBe("9 macro sectors · 13 sectors · 22 industries · all four sizes");
     expect(g[2].sub).toBe("Against the index: bigger swings, 27.1% a year vs 14.4%");
     const s = topTiles(LIST, PAGE, "finlit", { industries: 22, sizes: 3 });
     expect([s[0].v, s[0].sub]).toEqual(["Healthy · 69", "Average FinLit IQ: 1 strong · 1 healthy · 1 mixed"]);

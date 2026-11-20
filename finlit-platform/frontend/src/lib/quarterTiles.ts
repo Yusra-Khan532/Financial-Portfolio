@@ -1,5 +1,5 @@
 // Latest results: the six quarter tiles and the quarter menu (task #194, pack finlit-latest-results-15nov). Each tile's number is coloured by what it says, carries the
-// change from the quarter before as a pill, and opens a "By size" table (Large / Mid / Small, and the quarter before for comparison). Every figure is the server's
+// change from the quarter before as a pill, and opens a "By size" table (Large / Mid / Small / Micro, and the quarter before for comparison). Every figure is the server's
 // (GET /api/results/quarter: `totals`, and `summary` with &cap=); this file only words them. Describes, never advises.
 import type { VSummary } from "./resultsPack";
 import { sp, VERDICTS } from "./resultsPack";
@@ -15,7 +15,7 @@ export type KitTileData = {
 
 const n0 = (v: number) => v.toLocaleString("en-IN");
 const pct = (v: number | null | undefined) => (v == null ? "–" : `${Math.round(v)}%`);
-export const SIZES = ["Large", "Mid", "Small"] as const;
+export const SIZES = ["Large", "Mid", "Small", "Micro"] as const;   // FinLit's four sizes (lib/capBuckets.ts, task #262)
 export type Size = (typeof SIZES)[number];
 /** The quarter before, as the tiles compare with it: its fiscal name, how many companies it has declared, and its totals (null while loading or on Basic). */
 export type Prev = { fiscal: string; declared: number; totals: VSummary | null } | null;
@@ -42,10 +42,11 @@ export function guideNote(prev: Prev, declared: number): string {
   if (!prev || prev.declared >= declared * 0.8) return "";
   return `${prev.fiscal} had only ${n0(prev.declared)} companies loaded, so the change against it is a guide, not exact.`;
 }
-/** For a typical (median) figure: says when small companies pull it down or up by 10 points or more against large ones; otherwise what "typical" means. */
-export function medianNote(large: number | null | undefined, small: number | null | undefined): string {
+/** For a typical (median) figure: says when the smallest companies pull it down or up by 10 points or more against large ones; otherwise what "typical" means.
+ *  `who`: the size word of the small end (task #262: the tiles pass Micro, below ₹10,000 Cr, the band the old "Small" covered, so the note keeps comparing the two ends). */
+export function medianNote(large: number | null | undefined, small: number | null | undefined, who = "Small"): string {
   if (large != null && small != null && Math.abs(large - small) >= 10)
-    return `Small companies pull the typical figure ${small < large ? "down" : "up"}: ${sp(small)} against ${sp(large)} for large ones.`;
+    return `${who} companies pull the typical figure ${small < large ? "down" : "up"}: ${sp(small)} against ${sp(large)} for large ones.`;
   return "The middle company in each group, so a few extreme results do not move it.";
 }
 const join = (...xs: string[]) => xs.filter(Boolean).join(" ");
@@ -75,7 +76,7 @@ export function quarterTiles(t: VSummary, prev: Prev, by: BySize, locked = false
   }
   const median = (key: "medianRevenueYoY" | "medianProfitYoY", label: string, n: number | null, help: string): KitTileData => ({
     key, label, value: sp(t[key]), tone: growthTone(t[key]), pill: pv ? pillOf(t[key], pv[key], pf) : null, sub: `vs a year ago · ${n == null ? "–" : n0(n)} companies`, help,
-    detailLabel: "By size", detail: { head: ["Size", label], rows: sizeTable(key, by, prev, (v) => sp(v)), note: join(sizesIn ? medianNote(by.Large?.[key], by.Small?.[key]) : "", guide) },
+    detailLabel: "By size", detail: { head: ["Size", label], rows: sizeTable(key, by, prev, (v) => sp(v)), note: join(sizesIn ? medianNote(by.Large?.[key], by.Micro?.[key], "Micro") : "", guide) },
   });
   const share = (key: "profitUpShare" | "marginUpShare" | "beatShare", k: string, label: string, sub: string, help?: string, extra = ""): KitTileData => ({
     key: k, label, value: pct(t[key]), tone: shareTone(t[key]), pill: pv ? pillOf(t[key], pv[key], pf) : null, sub, help,

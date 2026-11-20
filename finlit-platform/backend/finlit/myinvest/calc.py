@@ -37,9 +37,9 @@ GOLD_RE = re.compile(r"\b(gold|silver)\b", re.I)
 ABROAD_RE = re.compile(r"\b(foreign|overseas|international|global|nasdaq|s&p|us equity|world)\b", re.I)
 TYPE_BUCKET = {"gold": "gold", "silver": "gold", "debt": "debt", "liquid": "debt", "international": "abroad"}   # an ETF whose kind fixes what it holds
 
-# Company sizes by FinLit's fixed amounts (README step 3): large above Rs 50,000 Cr, small below Rs 10,000 Cr.
-LARGE_CR, SMALL_CR = 50000.0, 10000.0
-SIZES = ("Large", "Mid", "Small", "Listed abroad", "Not sized")
+# Company sizes by FinLit's one rupee rule (finlit/sizes.py, task #262): large above Rs 75,000 Cr, mid 25,000-75,000, small 10,000-25,000, micro below 10,000.
+from ..sizes import SIZES as _FOUR, size_of as _size_of
+SIZES = _FOUR + ("Listed abroad", "Not sized")   # task #262: four sizes (finlit/sizes.py), then the two that are not sized by FinLit
 
 # The owner's beta bands (README step 6): the edge is the upper limit of each band.
 BETA_BANDS = ((0.65, "Less sensitive"), (0.9, "Defensive"), (1.1, "Similar"), (1.35, "More sensitive"), (1.75, "High"), (math.inf, "Very high"))
@@ -250,20 +250,19 @@ def macro_sectors(companies: Sequence[Dict[str, Any]], macro_of: Dict[str, Optio
 
 
 def size_of(cap_cr: Optional[float]) -> Optional[str]:
-    if cap_cr is None or cap_cr <= 0:
-        return None
-    return "Large" if cap_cr > LARGE_CR else "Small" if cap_cr < SMALL_CR else "Mid"
+    """Large, Mid, Small or Micro on the site's one rule (finlit/sizes.py); None without a market value."""
+    return _size_of(cap_cr)
 
 
 def company_sizes(companies: Sequence[Dict[str, Any]], cap_of: Callable[[Dict[str, Any]], Optional[float]]) -> List[Dict[str, Any]]:
-    """Large / Mid / Small (plus Listed abroad and Not sized), each with % of everything from your shares, through funds and through ETFs."""
+    """Large / Mid / Small / Micro (plus Listed abroad and Not sized), each with % of everything from your shares, through funds and through ETFs."""
     by: Dict[str, Dict[str, float]] = {s: {"direct": 0.0, "funds": 0.0, "etfs": 0.0} for s in SIZES}
     for c in companies:
         s = "Listed abroad" if c["abroad"] else (size_of(cap_of(c)) or "Not sized")
-        c["size"] = s if s in ("Large", "Mid", "Small") else None
+        c["size"] = s if s in _FOUR else None
         for k in ("direct", "funds", "etfs"):
             by[s][k] += c[k]
-    return [{"size": s, **{k: round(v, 2) for k, v in d.items()}, "all": round(sum(d.values()), 2)} for s, d in by.items() if sum(d.values()) > 0 or s in ("Large", "Mid", "Small")]
+    return [{"size": s, **{k: round(v, 2) for k, v in d.items()}, "all": round(sum(d.values()), 2)} for s, d in by.items() if sum(d.values()) > 0 or s in _FOUR]
 
 
 # ------------------------------------------------------------------------------------------------ health (step 5)

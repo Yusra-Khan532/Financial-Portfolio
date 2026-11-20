@@ -13,7 +13,7 @@ import "../styles/sectors.css";
 import "../styles/sectors-pack.css";
 import "../styles/industry-pack.css";
 
-const DISCLAIMER = "Describes price data for NSE industries; not a recommendation to buy, sell or hold any security. Sources: NSE daily files and industry classification; company sizes by FinLit's rule (Large above ₹50,000 Cr, Mid ₹10,000–50,000 Cr, Small below ₹10,000 Cr). Prices adjusted for splits, bonuses and rights.";
+const DISCLAIMER = "Describes price data for NSE industries; not a recommendation to buy, sell or hold any security. Sources: NSE daily files and industry classification; company sizes by FinLit's rule (Large above ₹75,000 Cr, Mid ₹25,000–75,000 Cr, Small ₹10,000–25,000 Cr, Micro below ₹10,000 Cr). Prices adjusted for splits, bonuses and rights.";
 
 export function SectorIndustryPage() {
   const { slug = "" } = useParams();

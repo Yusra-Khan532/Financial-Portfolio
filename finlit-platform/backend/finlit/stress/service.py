@@ -17,10 +17,10 @@ from . import engine
 from . import page as P
 
 S = engine()
-LAUNCH_FLOOR_CR = 10000.0          # large and mid caps (the site's size scale), decided 11 Nov 2026
+LAUNCH_FLOOR_CR = 10000.0          # ₹10,000 Cr or more, decided 11 Nov 2026; on the four-size rule of 20 Nov (finlit/sizes.py, task #262) that is large, mid and small caps
 FINANCIAL = "Stress Lab does not cover financial companies yet."
 SHORT_HISTORY = "Stress Lab does not cover companies with under three years of results yet."
-NOT_SIZE = "Stress Lab covers large and mid caps for now (a market value of Rs 10,000 Cr or more)."
+NOT_SIZE = "Stress Lab covers large, mid and small caps for now (a market value of Rs 10,000 Cr or more), not micro caps."
 PAGE_TTL = 3600
 LIVE_BUILD_S = 8.0                  # a page with no stored copy yet is built live for at most this long; after that the reader gets the plain "being prepared" card
 PER_COMPANY_S = 150.0               # the nightly job's own time limit for one company (the statements come from the data provider)
@@ -487,7 +487,7 @@ async def save_failure(store, sym: str, kind: str, reason: str) -> None:
 
 
 async def covered_symbols(store) -> List[Tuple[str, float]]:
-    """The launch universe by the screener table's own rule (large and mid caps that are not banks, NBFCs or insurers), largest market value first."""
+    """The launch universe: ₹10,000 Cr or more (large, mid and small caps on the four-size rule) that are not banks, NBFCs or insurers, largest market value first."""
     table = await get_table(store)
     out = []
     for sym in table.pos:

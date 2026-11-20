@@ -6,7 +6,7 @@ import { MINUS, csvText, nf } from "./format";
 
 export type QStatus = "declared" | "awaiting" | "due" | "missing";
 export type QRow = {
-  date: string; symbol: string; name: string; sector: string | null; marketCap: number | null; cap: "Large" | "Mid" | "Small" | null; indices: string[];
+  date: string; symbol: string; name: string; sector: string | null; marketCap: number | null; cap: "Large" | "Mid" | "Small" | "Micro" | null; indices: string[];
   confirmed: boolean; periodEnd: string; loadedPeriodEnd: string | null; status: QStatus; awaiting: boolean; hasNumbers: boolean; locked: boolean;
   revenue: number | null; revenueYoY: number | null; revenueQoQ: number | null; operatingProfit: number | null; opYoY: number | null; opQoQ: number | null; opYoYWhy: string | null; opQoQWhy: string | null; opm: number | null;
   netProfit: number | null; profitYoY: number | null; profitQoQ: number | null; npm: number | null; npmChange: number | null; eps: number | null;

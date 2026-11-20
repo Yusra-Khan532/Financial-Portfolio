@@ -1,5 +1,5 @@
 // Task #183 W7: the Equity portfolio's Diversification analytics tab as the 15 Nov pack draws it (01-equity-portfolio, D50–D71): Where it sits (macro sector × size,
-// one chip per share), How spread out is the list?, three sub-tabs (how sectors move together · how stocks move together · small, mid and large), Share by share,
+// one chip per share), How spread out is the list?, three sub-tabs (how sectors move together · how stocks move together · large, mid, small and micro), Share by share,
 // and the style tilt (Gold). Figures from the server's page answer, worked out in lib/eqDiv. Every class is eqd-. Describes how prices moved; never advice.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Scroll, Section, Tip } from "../../components/sectors/pack/Common";
@@ -48,10 +48,10 @@ export function WideBox({ title, children }: { title: string; children: ReactNod
  *  each row's share of the list, and totals that add to 100% (D52, D53). */
 export function WhereSitsGrid({ d }: { d: DivInput }) {
   const g = useMemo(() => whereGrid(d.symbols, (s) => d.levelOf(s, "macro"), d.sizeOf), [d]);
-  const sizeLabel: Record<Size3, string> = { Large: "Large cap", Mid: "Mid cap", Small: "Small cap" };
+  const sizeLabel: Record<Size3, string> = { Large: "Large cap", Mid: "Mid cap", Small: "Small cap", Micro: "Micro cap" };
   return (
-    <Section id="eq-where" hide title="Where your list sits: macro sector and size" help="Each share in one row, its NSE macro sector, and one column, its size: large, mid or small." how="A deeper cell has more of your shares. The last column is the row's share of the list, if equal amounts were held; rows and columns each add to 100%."
-      sub={<>Each chip is one share; its dot shows the {d.gold ? "FinLit Prism" : "FinLit IQ"} band. Darker cells carry more of the list. Large above ₹50,000 Cr · Mid ₹10,000–50,000 Cr · Small below ₹10,000 Cr.</>}>
+    <Section id="eq-where" hide title="Where your list sits: macro sector and size" help="Each share in one row, its NSE macro sector, and one column, its size: large, mid, small or micro." how="A deeper cell has more of your shares. The last column is the row's share of the list, if equal amounts were held; rows and columns each add to 100%."
+      sub={<>Each chip is one share; its dot shows the {d.gold ? "FinLit Prism" : "FinLit IQ"} band. Darker cells carry more of the list. Large above ₹75,000 Cr · Mid ₹25,000–75,000 Cr · Small ₹10,000–25,000 Cr · Micro below ₹10,000 Cr.</>}>
       <Scroll label="where your list sits"><table className="eqd-ws">
         <thead><tr><th scope="col">Macro sector</th>{g.cols.map((c) => <th key={c.k} scope="col">{sizeLabel[c.k]} <span className="eqd-mute">· {c.n}</span></th>)}<th scope="col">Of the list</th></tr></thead>
         <tbody>{g.rows.map((r) => <tr key={r.name}><th scope="row">{r.name}</th>
@@ -73,11 +73,12 @@ export function SpreadPack({ d }: { d: DivInput }) {
   const macro = lv("macro"), sector = lv("sector"), ind = lv("industry");
   const top = Object.entries(d.symbols.reduce<Record<string, number>>((a, x) => { const k = d.levelOf(x, "macro"); a[k] = (a[k] ?? 0) + 1; return a; }, {})).sort((a, b) => b[1] - a[1])[0];
   const ones = Object.values(d.symbols.reduce<Record<string, number>>((a, x) => { const k = d.levelOf(x, "industry"); a[k] = (a[k] ?? 0) + 1; return a; }, {})).filter((v) => v === 1).length;
-  const sz = SIZES3.map((k) => d.symbols.filter((x) => d.sizeOf(x) === k).length);
+  const sz = SIZES3.map((k) => d.symbols.filter((x) => d.sizeOf(x) === k).length), sm = sz[2] + sz[3];
   const cards = [
     { kind: "good" as const, title: `Spread across ${macro} macro sectors, ${sector} sectors and ${ind} industries`, text: `${top && top[1] > 8 ? `Every macro sector except ${top[0].toLowerCase()} has 8 shares or fewer` : "No macro sector has more than 8 shares"}, and ${ones} of the ${ind} industries have just one share.` },
     ...(top && top[1] / d.symbols.length >= 0.25 ? [{ kind: "watch" as const, title: `${top[0]} is ${Math.round((top[1] / d.symbols.length) * 100)}% of the list`, text: `${top[1]} of ${d.symbols.length} shares sit in one macro sector, so they share its business cycle.` }] : []),
-    { kind: "insight" as const, title: sz[0] && sz[1] && sz[2] ? (sz[2] > sz[0] + sz[1] ? "Balanced by size, tilted small" : "Balanced by size") : "Leaning to one size", text: `${sz[0]} large, ${sz[1]} mid and ${sz[2]} small companies.${sz[0] && sz[2] ? " Large companies steady the list; the small ones add most of the swings." : ""}` },
+    // task #262: "small" here meant below ₹10,000 Cr; with four sizes the smaller side is Small and Micro together (sm), so the card reads as before
+    { kind: "insight" as const, title: sz[0] && sz[1] && sm ? (sm > sz[0] + sz[1] ? "Balanced by size, tilted to smaller companies" : "Balanced by size") : "Leaning to one size", text: `${sz[0]} large, ${sz[1]} mid, ${sz[2]} small and ${sz[3]} micro companies.${sz[0] && sm ? " Large companies steady the list; the small and micro ones add most of the swings." : ""}` },
   ];
   return (
     <Section id="eq-spread" hide title="How spread out is the list?" help="The diversification score, 0 to 100: how widely the shares spread across NSE's 12 macro sectors and how independently they move." how="Higher means more spread. Moves like counts shares that rise and fall together as one bet, so a list of many shares can still read as fewer."
@@ -111,7 +112,7 @@ export function SpreadPack({ d }: { d: DivInput }) {
 
 // ------------------------------------------------------------------------------------------------ 3–5 the three sub-tabs
 type Sub = "sectors" | "groups" | "sizes";
-const SUBS: [Sub, string, string, string][] = [["sectors", "eq-sectors", "How sectors move together", "Sector against sector"], ["groups", "eq-groups", "How stocks move together", "Groups found from prices"], ["sizes", "eq-sizes", "Small, mid and large", "Do company sizes move together?"]];
+const SUBS: [Sub, string, string, string][] = [["sectors", "eq-sectors", "How sectors move together", "Sector against sector"], ["groups", "eq-groups", "How stocks move together", "Groups found from prices"], ["sizes", "eq-sizes", "Large, mid, small and micro", "Do company sizes move together?"]];
 /** Three sub-tabs under one bar (D54). A jump to a sub-tab's section (Key figures, the sections bar) opens that sub-tab first. */
 export function DivSubTabs({ d }: { d: DivInput }) {
   const [sub, setSub] = useState<Sub>("sectors");
@@ -212,7 +213,7 @@ function SizesPanel({ d }: { d: DivInput }) {
   const f = useMemo(() => sizeFigures(d.page.order, d.page.corr, d.sizeOf), [d]);
   const maxTop = Math.max(1, ...f.mix.map((m) => m.top)), lead = f.mix[0];
   return (
-    <Section id="eq-sizes" hide title="Do small, mid and large companies move together?" help="How closely shares move with others of the same size, and with the other sizes, from weekly prices." how="0 means no link; 1 means they move as one. A size that moves closely with itself acts more like one bet."
+    <Section id="eq-sizes" hide title="Do large, mid, small and micro companies move together?" help="How closely shares move with others of the same size, and with the other sizes, from weekly prices." how="0 means no link; 1 means they move as one. A size that moves closely with itself acts more like one bet."
       sub="How closely shares move with others of the same size, and with the other sizes. 0 means no link; 1 means they move as one.">
       <div className="eqd-k3">{f.within.map((w) => <div key={w.k} className="eqd-kpi"><p className="sp-cap">{w.k} companies · {w.n} counted</p><b>{two(w.avg)}</b><small>{w.n > 1 && w.avg != null ? `with each other. ${w.n} shares move like about ${w.eff.toFixed(1)} independent ones.` : w.n === 1 ? "One share: nothing to compare it with." : "None in the list."}</small></div>)}</div>
       <div className="eqd-two">
@@ -285,9 +286,12 @@ export function divKeys(d: DivInput) {
   const counts = d.symbols.reduce<Record<string, string[]>>((a, s) => { (a[of(s)] ??= []).push(s); return a; }, {});
   const [name, who] = Object.entries(counts).sort((a, b) => b[1].length - a[1].length)[0] ?? [null, []];
   const groups = d.page.groups.map((g) => groupCard(g.members, g.avg_corr, d.page.order, d.page.corr, of, d.sizeOf));
-  const sm = sizeFigures(d.page.order, d.page.corr, d.sizeOf).within.find((x) => x.k === "Small") ?? null;
+  // task #262: the "move together more closely" note was about the old Small (below ₹10,000 Cr). With four sizes it reads the Small and the Micro
+  // groups and names the one that moves together most (each group by its own name), so the sentence stays about the list's smaller companies.
+  const sm = sizeFigures(d.page.order, d.page.corr, d.sizeOf).within.filter((x) => (x.k === "Small" || x.k === "Micro") && x.n > 1 && x.avg != null)
+    .sort((a, b) => (b.avg as number) - (a.avg as number))[0] ?? null;
   return divKeyCards({ top: name ? { name, n: who.length, pct: (who.length / Math.max(1, N)) * 100, sectorNames: [...new Set(who.map((s) => d.levelOf(s, "sector")))] } : null, N,
     groups: groups.length, cross: groups.filter((g) => g.cross).length, eff: d.page.score.effective_stocks, counted: d.page.order.length,
-    small: sm ? { n: sm.n, avg: sm.avg } : null, sameAvg: sameVsDiff(d.page.order, d.page.corr, of).same.avg });
+    small: sm ? { n: sm.n, avg: sm.avg, k: sm.k } : null, sameAvg: sameVsDiff(d.page.order, d.page.corr, of).same.avg });
 }
 export { averageLinkage, effective };

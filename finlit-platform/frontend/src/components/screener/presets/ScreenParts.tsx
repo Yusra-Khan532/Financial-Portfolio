@@ -121,7 +121,7 @@ export function FilterMenus({ d, f, basic, onAddRule }: { d: PresetDetail; f: Fi
   const { bar, set } = f, fc = d.facets;
   const [find, setFind] = useState("");
   if (!fc) return null;
-  const sizes = (["Large", "Mid", "Small"] as const).filter((z) => (fc.sizes[z] ?? 0) > 0 || bar.sizes.includes(z));
+  const sizes = (["Large", "Mid", "Small", "Micro"] as const).filter((z) => (fc.sizes[z] ?? 0) > 0 || bar.sizes.includes(z));
   const flip = <T,>(xs: T[], x: T) => (xs.includes(x) ? xs.filter((y) => y !== x) : [...xs, x]);
   const sectors = fc.sectors.filter(([n]) => !find.trim() || n.toLowerCase().includes(find.trim().toLowerCase()));
   const ratingNarrows = (fc.strong ?? 0) < (fc.anyRating ?? Infinity) || !!bar.rating;

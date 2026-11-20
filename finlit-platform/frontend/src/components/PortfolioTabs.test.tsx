@@ -44,7 +44,7 @@ describe("Overview tab", () => {
   });
   it("lists every share with a link to its page, the size word and the remove button", () => {
     const html = table(silver, "finlit", "overview");
-    expect(html).toContain('href="/stocks/RELIANCE"'); expect(html).toContain("Remove SAMPLEIT"); expect(html).toContain("Large cap"); expect(html).toContain("Small cap");
+    expect(html).toContain('href="/stocks/RELIANCE"'); expect(html).toContain("Remove SAMPLEIT"); expect(html).toContain("Large cap"); expect(html).toContain("Micro cap"); expect(html).toContain("Mid cap");   // task #262: SAMPLETEXT (₹1,850 Cr) is Micro, SAMPLEPHARMA (₹54,800 Cr) Mid
   });
   it("has the filter chips and search box, and no download (task #183: no downloads on the portfolio pages)", () => {
     const t = text(table(silver, "finlit", "overview"));

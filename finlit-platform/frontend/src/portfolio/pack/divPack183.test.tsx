@@ -24,12 +24,12 @@ const view = (ui: React.ReactNode) => render(<MemoryRouter>{ui}</MemoryRouter>);
 describe("the three sub-tabs (D54)", () => {
   it("open on click and on a jump to their section (Key figures, the sections bar)", () => {
     view(<DivSubTabs d={d} />);
-    expect(screen.getAllByRole("tab").map((t) => t.querySelector("b")!.textContent)).toEqual(["How sectors move together", "How stocks move together", "Small, mid and large"]);
+    expect(screen.getAllByRole("tab").map((t) => t.querySelector("b")!.textContent)).toEqual(["How sectors move together", "How stocks move together", "Large, mid, small and micro"]);
     expect(screen.getByRole("heading", { name: /Do your macro sectors move together\?/ })).toBeTruthy();
     fireEvent.click(screen.getByRole("tab", { name: /How stocks move together/ }));
     expect(screen.getByRole("heading", { name: /How stocks move together/ })).toBeTruthy();
     act(() => { window.dispatchEvent(new CustomEvent("eq-jump", { detail: "eq-sizes" })); });
-    expect(screen.getByRole("heading", { name: /Do small, mid and large companies move together\?/ })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /Do large, mid, small and micro companies move together\?/ })).toBeTruthy();
   });
   it("switches the sector panel between Macro sector and Sector, and reads a tapped cell (D56, D59)", () => {
     view(<DivSubTabs d={d} />);

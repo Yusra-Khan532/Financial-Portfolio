@@ -76,7 +76,8 @@ export function mixCards(sp: MfSpread | undefined): KeyCard[] {
     v: `${r.together.independent.toFixed(1)} of ${r.together.of}`, text: `${num(r.together.of).replace(/^./, (c) => c.toUpperCase())} equity-type funds with different labels behave like ${r.together.independent.toFixed(1)} independent funds.`, go: "See how they move", to: "mfp-move" });
   if (r.overlap.top) out.push({ tone: r.overlap.word === "Low" ? "good" : "watch", k: r.overlap.word === "Low" ? "Little overlap in stocks" : r.overlap.word === "Moderate" ? "Some overlap in stocks" : "Much overlap in stocks",
     v: `${pct(r.overlap.top.pct)} at most`, text: `The most two funds share is ${pct(r.overlap.top.pct)} of their money.`, go: "See shared stocks", to: "mfp-shared" });
-  const small = sp.size.Small * 100;
+  // task #262: "below ₹10,000 Cr" was the old Small; it is the Micro size now, so the figure reads Micro and keeps its meaning
+  const small = (sp.size.Micro ?? 0) * 100;
   out.push({ tone: "info", k: "Stocks underneath", v: String(r.underneath.stocks), text: `${r.underneath.inTwoOrMore} are held through two or more funds; ${pct(small)} of the shares sit in companies below ₹10,000 Cr.`, go: "See the biggest", to: "mfp-biggest" });
   return out;
 }

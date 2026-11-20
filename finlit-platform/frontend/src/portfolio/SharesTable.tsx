@@ -15,7 +15,7 @@ import { PEER_WORD, type Share } from "../lib/equityPack";
 import { prismBandWord } from "../lib/scoreBands";
 import { Tip } from "../components/sectors/pack/Common";
 import { nseLevels } from "../lib/nseTaxonomy";
-import { capBucket } from "../lib/capBuckets";
+import { capBucket, SIZE_SHORTS } from "../lib/capBuckets";
 import { coTitle, isBseCode, sortLabel, subLine, titleOf } from "../lib/companyLabel";
 import { GroupBand, HOLD_COLS, HoldingHeads, HoldingRowCells, LotRows, LotToggle, TotalRow, holdingFigs, type LotsProps } from "./HoldingCells";
 
@@ -67,7 +67,7 @@ type Props = {
   /** Task #235 (pack B7, B9, B11): each holding's buys and sales under it, the holding columns in three groups and the total row. */
   lots?: LotsProps;
 };
-const SIZE_ORDER: Record<string, number> = { Large: 0, Mid: 1, Small: 2 };
+const SIZE_ORDER: Record<string, number> = { Large: 0, Mid: 1, Small: 2, Micro: 3 };
 
 export function SharesTable(p: Props) {
   const { lines, meta, page, colors, model, tab, period } = p;
@@ -88,8 +88,8 @@ export function SharesTable(p: Props) {
   const secOf = (s: string) => meta[s]?.sector || `${s} (not classified)`;
   const sizeOf = (s: string) => { const l = lines.find((x) => x.symbol === s), cap = isReady(l?.ov) ? l!.ov.marketCapCr : null;   // FinLit's rupee bands on the company's own market value
     const peer = p.peerOf?.(s)?.size; if (peer) return peer;
-    const band = cap != null ? capBucket(cap)?.label.replace(" cap", "") : undefined; if (band) return band;
-    return meta[s] ? SIZE_WORD[meta[s].size] : null; };
+    const band = cap != null ? capBucket(cap)?.short : undefined; if (band) return band;
+    return meta[s] && meta[s].size !== "U" ? SIZE_WORD[meta[s].size].replace(" cap", "") : null; };
   const priceOf = (l: Line) => (isReady(l.ov) ? l.ov.price : null);
   const valueOf = (l: Line): number | null => { const qn = p.qtyOf(l.symbol), pr = isReady(l.ov) ? l.ov.price : null; return qn && pr ? qn * pr : null; };
   const levelOf = (l: Line) => { const ind = isReady(l.ov) ? l.ov.industry : null, x = nseLevels(ind); return x ? x[level] : `${LEVEL_WORD[level]} not given`; };
@@ -198,7 +198,7 @@ export function SharesTable(p: Props) {
     {cols.map((c) => head({ id: c.id, cls: groupCls(c.id), label: ov && (c.id.startsWith("p_") || c.id.startsWith("f_")) ? (model === "finlit" ? c.label : parts.find((d) => d.id === c.id.slice(2))?.short ?? c.label) : c.id === "score" ? (model === "prism" ? "Prism" : "FinLit IQ") : c.id === "t_shortTerm" ? "Short term" : c.id === "t_longTerm" ? "Long term" : c.id === "change" && p.day ? p.day : c.label.replace(/ \(.*\)$/, ""), hint: c.hint ? `${c.label}. ${c.hint}` : c.label, num: c.num && !c.id.startsWith("t_") }))}
     {ov && p.peerOf && <th scope="col" className="eq-div2">Vs its peers<Tip text="The share price over the last 12 months against similar companies and the sector index, with its place among them." how="Leader: among the strongest and ahead of the index. In line: in between. Laggard: among the weakest and behind it. It describes the past, not the future." /></th>}
     {ov && head({ id: "rest", label: "Moves with rest", hint: "A share's average correlation with the other shares in the list", num: true })}<th scope="col"><span className="sr-only">Actions</span></th></tr>);
-  const sizeCards = tab === "size" && (<div className="eq-sizecards">{(["Large", "Mid", "Small"] as const).map((k) => { const ms = lines.filter((l) => sizeOf(l.symbol) === k), a = mean(ms.map((l) => scoreOf(l.ov, model).value)); return (
+  const sizeCards = tab === "size" && (<div className="eq-sizecards">{SIZE_SHORTS.map((k) => { const ms = lines.filter((l) => sizeOf(l.symbol) === k), a = mean(ms.map((l) => scoreOf(l.ov, model).value)); return (
     <div key={k} className="eq-sizecard"><p className="eq-k">{k} cap</p><p className="eq-v">{plural(ms.length, "share")}</p><p className="eq-x">{lines.length ? `${Math.round((ms.length / lines.length) * 100)}% of the list` : ""}{a != null ? ` · average ${model === "prism" ? "Prism" : "FinLit IQ"} ${Math.round(a)}` : ""}</p></div>); })}</div>);
 
   return (

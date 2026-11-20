@@ -174,7 +174,7 @@ export function StocksInd({ p }: { p: IndustryPage }) {
         <thead><tr><th scope="col">#</th><th scope="col">Stock</th><th scope="col" className="r">6 months<Tip text="The share price change over the last 6 months." /></th>
           <th scope="col">In its industry<Tip text="Where the stock's 6-month return falls among the industry's counted stocks. Top quarter: the strongest 25%. Bottom quarter: the weakest 25%." /></th>
           <th scope="col">Standout<Tip text="At a new 1-year high while its industry is still well below its own high. Strong: the industry is far below its high. Early: a little less far." /></th>
-          <th scope="col">Size<Tip text="FinLit's size scale: Large above ₹50,000 Cr, Mid ₹10,000–50,000 Cr, Small below ₹10,000 Cr." /></th>
+          <th scope="col">Size<Tip text="FinLit's size scale: Large above ₹75,000 Cr, Mid ₹25,000–75,000 Cr, Small ₹10,000–25,000 Cr, Micro below ₹10,000 Cr." /></th>
           <th scope="col">Vs its peers<Tip text="Leader, In line, Laggard: each share's price over the last 12 months against similar companies and its sector index. It describes the past, not the future. A dash means the stock is not in a FinLit peer group." /></th></tr></thead>
         <tbody>{shown.map((s, i) => { const t = tierWord(s); return (
           <tr key={s.symbol}><td>{s.rank_6m ?? i + 1}</td><td><Link to={`/stocks/${s.symbol}`} className="ip-sym"><CoLogo symbol={s.symbol} name={s.name} size={24} inline /><span><b title={coTitle(s)}>{titleOf(s)}</b><small>{subLine(s, s.name)}</small></span></Link></td>

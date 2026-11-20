@@ -59,7 +59,11 @@ def test_the_glossary_does_not_spell_out_how_scores_are_made():
 
 
 def test_the_renamed_terms_keep_their_old_names_as_search_words():
-    old = {"Company size (Large, Mid, Small)": "Company size bands (mega cap to nano cap)", "Standout (strong and early)": "Leader flag"}
-    for new, was in old.items():
+    # task #262 renamed the two size terms again (four sizes); each keeps every name it had before as a search word
+    old = {"Company size (Large, Mid, Small, Micro)": ["Company size (Large, Mid, Small)", "Company size bands (mega cap to nano cap)"],
+           "Large cap, mid cap, small cap and micro cap": ["Large cap, mid cap and small cap"],
+           "Standout (strong and early)": ["Leader flag"]}
+    for new, olds in old.items():
         t = TERMS[new] if new in TERMS else next(x for x in TERMS.values() if x["term"] == new)
-        assert was in t["aliases"], (new, was)
+        for was in olds:
+            assert was in t["aliases"], (new, was)

@@ -85,10 +85,10 @@ def test_the_open_screens_filters_and_their_counts_given_the_other_filters():
     from types import SimpleNamespace
     from starlette.datastructures import QueryParams
     from finlit.presets import api
-    rows = [
-        {"symbol": "A", "sector": "Banks", "market_cap": 60000, "prism_final": 82, "added_on": "2026-11-17", "since_added_pct": 1.0, "bench_since_added_pct": 0.2},
-        {"symbol": "B", "sector": "Banks", "market_cap": 20000, "prism_final": 70, "added_on": "2026-11-13", "since_added_pct": -1.0, "bench_since_added_pct": 0.5},
-        {"symbol": "C", "sector": "IT", "market_cap": 5000, "prism_final": 50, "added_on": "2026-11-17", "since_added_pct": 3.0, "bench_since_added_pct": 0.2, "exchange": "BSE"},
+    rows = [   # task #262 rupee rule: A large (above 75,000 Cr), B mid (25,000-75,000), C small (10,000-25,000)
+        {"symbol": "A", "sector": "Banks", "market_cap": 100000, "prism_final": 82, "added_on": "2026-11-17", "since_added_pct": 1.0, "bench_since_added_pct": 0.2},
+        {"symbol": "B", "sector": "Banks", "market_cap": 40000, "prism_final": 70, "added_on": "2026-11-13", "since_added_pct": -1.0, "bench_since_added_pct": 0.5},
+        {"symbol": "C", "sector": "IT", "market_cap": 15000, "prism_final": 50, "added_on": "2026-11-17", "since_added_pct": 3.0, "bench_since_added_pct": 0.2, "exchange": "BSE"},
     ]
     req = lambda qs: SimpleNamespace(query_params=QueryParams(qs))      # noqa: E731
     pick = lambda qs: [r["symbol"] for r in api._filtered(req(qs), rows, "2026-11-17")]   # noqa: E731

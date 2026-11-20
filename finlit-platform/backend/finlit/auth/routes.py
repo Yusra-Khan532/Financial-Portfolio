@@ -231,7 +231,7 @@ class ScreenState(BaseModel):
     bands: List[Literal["strong", "healthy", "mixed", "watch", "average", "weak", "poor"]] = Field(default_factory=list, max_length=5)   # FinLit IQ's words or, for Gold, FinLit Prism's (task #142)
     industries: List[str] = Field(default_factory=list, max_length=60)
     indices: List[str] = Field(default_factory=list, max_length=20)
-    caps: List[Literal["Large", "Mid", "Small"]] = Field(default_factory=list, max_length=3)
+    caps: List[Literal["Large", "Mid", "Small", "Micro"]] = Field(default_factory=list, max_length=4)   # task #262: four sizes
     sort: Optional[str] = Field(default=None, max_length=40)
     dir: Optional[Literal["asc", "desc"]] = None
     cols: List[str] = Field(default_factory=list, max_length=14)
@@ -265,6 +265,7 @@ class Screen(BaseModel):
     name: str = Field(min_length=1, max_length=40)
     state: ScreenState
     notify: Optional[bool] = None   # "Tell me when a company joins" (file 04): True sends the messages, False keeps the screen quiet; a screen saved before has none and keeps its emails
+    sizesMoved: Optional[str] = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")   # task #262: the day a saved Small was moved to Micro (migration 116); the page shows a one-time note
 
 
 class ScreensIn(BaseModel):

@@ -9,6 +9,7 @@ import { DEMO } from "./demo";
 import { MINUS, nf } from "./format";
 import { csvRow, ticks } from "./graphData";
 import { priorIndex } from "./plFlags";
+import { migrateSmall } from "./sizeMigration";
 
 // ------------------------------------------------------------------ sections (route slugs)
 
@@ -59,7 +60,7 @@ const IXCODE = /^[A-Z0-9][A-Z0-9_&.-]{0,23}$/;
 const SYM = /^[A-Z0-9&_.-]{1,24}$/;
 const PAIR = /^(\d{1,2}\.\d{1,2}[a-z]?|custom)$/;
 const MID = /^[a-z][a-z0-9_]{0,31}$/;
-const CAPS = new Set(["Large", "Mid", "Small"]);
+const CAPS = new Set(["Large", "Mid", "Small", "Micro"]);   // FinLit's four sizes (lib/capBuckets.ts, task #262)
 const LENDERS = new Set<Lenders>(["auto", "exclude", "include", "only"]);
 
 /** base64url of UTF-8 text, and back (null on anything malformed). */
@@ -82,17 +83,22 @@ const posNum = (v: unknown): number | null => (typeof v === "number" && Number.i
 /** Universe filter to a short URL value; "" when it is the default (so plain links stay plain). */
 export function encodeUniverse(u: Universe): string {
   const o: Record<string, unknown> = {};
-  if (u.sector.length) o.s = u.sector; if (u.industry.length) o.i = u.industry; if (u.index.length) o.x = u.index; if (u.cap.length) o.c = u.cap;
+  if (u.sector.length) o.s = u.sector; if (u.industry.length) o.i = u.industry; if (u.index.length) o.x = u.index; if (u.cap.length) o.c = u.cap; if (u.cap.includes("Small")) o.z = 4;   // task #262: marks a four-size "Small"; a link without it is an old one
   if (u.mcapMin != null) o.mn = u.mcapMin; if (u.mcapMax != null) o.mx = u.mcapMax;
   if (u.lenders !== "auto") o.l = u.lenders; if (u.sameFy) o.f = 1;
   return Object.keys(o).length ? b64urlEncode(JSON.stringify(o)) : "";
+}
+/** True for a link from before 20 Nov 2026 whose size filter says Small (read as Micro now; task #262). */
+export function isOldSizeUniverse(raw: string | null): boolean {
+  const txt = raw ? b64urlDecode(raw) : null; if (!txt) return false;
+  try { const o = JSON.parse(txt); return !!o && o.z !== 4 && Array.isArray(o.c) && o.c.includes("Small"); } catch { return false; }
 }
 export function decodeUniverse(raw: string | null): Universe {
   if (!raw) return { ...EMPTY_UNIVERSE };
   const txt = b64urlDecode(raw); if (!txt) return { ...EMPTY_UNIVERSE };
   let o: Record<string, unknown>;
   try { const v = JSON.parse(txt); if (!v || typeof v !== "object" || Array.isArray(v)) return { ...EMPTY_UNIVERSE }; o = v; } catch { return { ...EMPTY_UNIVERSE }; }
-  return { sector: strList(o.s), industry: strList(o.i), index: strList(o.x, 10), cap: strList(o.c, 3).filter((c) => CAPS.has(c)),
+  return { sector: strList(o.s), industry: strList(o.i), index: strList(o.x, 10), cap: (o.z === 4 ? strList(o.c, 4) : migrateSmall(strList(o.c, 4))).filter((c) => CAPS.has(c)),   // an old link's Small (below ₹10,000 Cr) is Micro now
     mcapMin: posNum(o.mn), mcapMax: posNum(o.mx), lenders: LENDERS.has(o.l as Lenders) ? (o.l as Lenders) : "auto", sameFy: o.f === 1 };
 }
 

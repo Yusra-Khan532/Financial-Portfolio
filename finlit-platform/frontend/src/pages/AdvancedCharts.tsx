@@ -32,6 +32,8 @@ import {
 import type { ChartHelpEntry } from "../lib/chartHelp";
 import "../styles/advcharts.css";
 import { codeText } from "../lib/companyLabel";
+import { isOldSizeUniverse } from "../lib/advanced";
+import { SizeNote } from "../components/SizeNote";
 
 const PRIORITY_1 = ["1.2", "1.9", "1.13", "1.19", "1.17"];   // section 1 "Priority checks", in the doc's order
 const COLORS = ["var(--k1)", "var(--k2)", "var(--k3)", "var(--k4)", "var(--k5)", "var(--k7)"];
@@ -468,6 +470,7 @@ const shapeIcon = (i: number) => ["M7,2a5,5 0 1,0 0.01,0Z", "M2.5,2.5h9v9h-9Z", 
 function Filters({ st, set, pair, resp }: { st: AdvState; set: (p: Partial<AdvState>) => void; pair: CatPair | null; resp?: CrossResp }) {
   const f = useFacets();
   const u = st.universe;
+  const [sp] = useSearchParams(), [oldSize] = useState(() => isOldSizeUniverse(sp.get("u")));   // task #262: an old link's Small now reads Micro
   const forced = pair?.lenders === "excluded" || resp?.lenders?.forced;
   const setU = (patch: Partial<AdvState["universe"]>) => set({ universe: { ...u, ...patch } });
   const multi = (label: string, opts: { v: string; l: string }[], val: string[], on: (v: string[]) => void) => <div className="adv-field"><label>{label}
@@ -480,7 +483,7 @@ function Filters({ st, set, pair, resp }: { st: AdvState; set: (p: Partial<AdvSt
       {multi("Sector", (f.data?.sectors ?? []).map((s) => ({ v: s.name, l: `${s.name} (${s.n})` })), u.sector, (v) => setU({ sector: v }))}
       {multi("Industry", industries.map((s) => ({ v: s.name, l: `${s.name} (${s.n})` })), u.industry, (v) => setU({ industry: v }))}
       {multi("Index", (f.data?.indices ?? []).map((s) => ({ v: s.code, l: `${s.label} (${s.n})` })), u.index, (v) => setU({ index: v }))}
-      <fieldset className="adv-field"><legend>Size (SEBI band)</legend>{["Large", "Mid", "Small"].map((c) => <label key={c} className="adv-check"><input type="checkbox" checked={u.cap.includes(c)} onChange={(e) => setU({ cap: e.target.checked ? [...u.cap, c] : u.cap.filter((x) => x !== c) })} /> {c} cap</label>)}</fieldset>
+      <fieldset className="adv-field"><legend>Size (FinLit's ₹ bands)</legend>{["Large", "Mid", "Small", "Micro"].map((c) => <label key={c} className="adv-check"><input type="checkbox" checked={u.cap.includes(c)} onChange={(e) => setU({ cap: e.target.checked ? [...u.cap, c] : u.cap.filter((x) => x !== c) })} /> {c} cap</label>)}<SizeNote link={oldSize} /></fieldset>
       <div className="adv-field"><label>Market cap from (₹ Cr)<input type="number" min={0} inputMode="decimal" value={u.mcapMin ?? ""} onChange={(e) => setU({ mcapMin: e.target.value === "" ? null : Math.max(0, +e.target.value) })} /></label>
         <label>to (₹ Cr)<input type="number" min={0} inputMode="decimal" value={u.mcapMax ?? ""} onChange={(e) => setU({ mcapMax: e.target.value === "" ? null : Math.max(0, +e.target.value) })} /></label></div>
       <div className="adv-field"><label>Banks and lenders

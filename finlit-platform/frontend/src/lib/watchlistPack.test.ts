@@ -13,7 +13,7 @@ const PACK: Item[] = [
 
 describe("the five tiles", () => {
   it("say what the pack's tiles say", () => {
-    expect(stocksTile(PACK)).toEqual({ value: "3", sub: "2 small · 1 mid company" });
+    expect(stocksTile(PACK)).toEqual({ value: "3", sub: "2 micro · 1 small company" });   // task #262: below ₹10,000 Cr is Micro, ₹11,412 Cr Small
     expect(dayTile(PACK)).toEqual({ value: "1 up · 2 down", sub: "WHEELS −3.5%, LOTUSDEV −0.1%, SSWL +1.5%" });
     expect(dayName("2026-11-06", false)).toBe("On Friday");
     expect(dayName("2026-11-06", true)).toBe("Today");
@@ -26,8 +26,9 @@ describe("the five tiles", () => {
     expect(scoreTile(mixed)).toEqual({ value: "72", sub: "1 Mixed · 1 Healthy · 1 not scored yet" });
     expect(scoreTile([{ ...PACK[0], score: null }])).toEqual({ value: "—", sub: "Not scored yet" });
     expect(scoreTile([PACK[0], PACK[1]]).sub).toBe("Both Healthy");
-    expect(stocksTile([PACK[0]]).sub).toBe("1 small company");
-    expect(stocksTile([PACK[0], PACK[1]]).sub).toBe("2 small companies");
+    expect(stocksTile([PACK[0]]).sub).toBe("1 micro company");
+    expect(stocksTile([PACK[0], PACK[1]]).sub).toBe("2 micro companies");
+    expect(stocksTile([{ ...PACK[0], marketCap: 90000 }, { ...PACK[1], marketCap: 30000 }, PACK[2], { ...PACK[0], symbol: "X", marketCap: null }]).sub).toBe("1 large · 1 mid · 1 small company");
     expect(dayTile([]).sub).toBe("No price change yet");
     expect(peersTile([{ ...PACK[0], lead: null }]).sub).toBe("1 not compared (not checked yet)");
     expect(concentrationTile([]).value).toBe("—");
@@ -66,7 +67,8 @@ describe("the table", () => {
     expect(peerCell(PACK[0].lead)).toEqual({ chip: "Leader", tone: "good", line: "2 of 20 Auto Parts: OEM" });
     expect(peerCell(PACK[2].lead)).toEqual({ chip: "Not compared", tone: "none", line: "Under a year of prices" });
     expect(groups("peers", PACK).map(([k, v]) => [k, v.length])).toEqual([["Leaders", 2], ["Not compared", 1]]);
-    expect(groups("size", PACK).map(([k]) => k)).toEqual(["Mid", "Small"]);
+    expect(groups("size", PACK).map(([k]) => k)).toEqual(["Small", "Micro"]);
+    expect(groups("size", [...PACK, { ...PACK[0], symbol: "BIG", marketCap: 80000 }, { ...PACK[0], symbol: "NA", marketCap: null }]).map(([k]) => k)).toEqual(["Large", "Small", "Micro", "Size not known"]);
     expect(groups("industry", PACK).map(([k]) => k)).toEqual(["Auto Components", "Realty"]);   // NSE industries (task #192)
   });
 });

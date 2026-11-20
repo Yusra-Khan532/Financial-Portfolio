@@ -25,7 +25,7 @@ const b2 = (v: number | null | undefined) => (v == null ? "–" : v.toFixed(2));
 const pc = (v: number) => `${v.toFixed(1)}%`;
 const MAX = 2.5, at = (b: number) => `${(Math.max(0, Math.min(MAX, b)) / MAX) * 100}%`;
 const Chip = ({ band }: { band: RiskShare["band"] }) => (band ? <span className={"eqr-chip r-" + band.key}><i aria-hidden="true" />{band.word}</span> : null);
-const SIZE_LETTER: Record<string, string> = { Large: "L", Mid: "M", Small: "S" };
+const SIZE_LETTER: Record<string, string> = { Large: "L", Mid: "M", Small: "S", Micro: "X" };
 
 /** The page answer's risk shares (each share's part of the list's ups and downs; they add to 100%), by size, by macro sector and by share. */
 export function riskSplit(page: PageObject, r: RiskAnswer, sectorOf: (s: string) => string) {
@@ -52,10 +52,10 @@ export function RiskGlancePack({ r, split, compare }: { r: RiskAnswer; split: Re
 }
 
 // ------------------------------------------------------------------------------------------------ 2 How your list's beta is built + Reading a beta
-const STEPS: [string, string][] = [["Sort by size", "Large, mid or small by company value"], ["Match a benchmark", "Nifty 50 · Midcap 150 · Smallcap 250"], ["Beta for each share", "Against its own benchmark, weekly, one year"], ["Average by size", "One beta for each size"], ["Weight by the list", "By count now; by money once quantities are in"]];
-const BAR: Record<string, string> = { Large: "#2E7D57", Mid: "#C9A227", Small: "#B4362B" };
+const STEPS: [string, string][] = [["Sort by size", "Large, mid, small or micro by company value"], ["Match a benchmark", "Nifty 50 · Midcap 150 · Smallcap 250 · Microcap 250"], ["Beta for each share", "Against its own benchmark, weekly, one year"], ["Average by size", "One beta for each size"], ["Weight by the list", "By count now; by money once quantities are in"]];
+const BAR: Record<string, string> = { Large: "#2E7D57", Mid: "#C9A227", Small: "#B4362B", Micro: "var(--k7)" };   // Micro: the site's violet chart token (task #262)
 export function BetaBuild({ r }: { r: RiskAnswer }) {
-  const [tab, setTab] = useState<"size" | "where" | "three" | "how">("size"), [f, setF] = useState<"All" | "Large" | "Mid" | "Small">("All"), [pin, setPin] = useState<string | null>(null), [open, setOpen] = useState<Record<string, boolean>>({});
+  const [tab, setTab] = useState<"size" | "where" | "three" | "how">("size"), [f, setF] = useState<"All" | "Large" | "Mid" | "Small" | "Micro">("All"), [pin, setPin] = useState<string | null>(null), [open, setOpen] = useState<Record<string, boolean>>({});
   const sizes = r.sizes.filter((s) => s.n), w = r.betas.weighted;
   const shown = r.shares.filter((s) => s.beta != null && (f === "All" || s.size === f)), beta = f === "All" ? w : r.sizes.find((s) => s.size === f)?.avgBeta ?? null;
   const ranges = rangeCards(shown), picked = pin ? r.shares.find((s) => s.symbol === pin) : null;
@@ -90,7 +90,7 @@ export function BetaBuild({ r }: { r: RiskAnswer }) {
       </>}
       {tab === "where" && <div className="eqr-read" id="eq-read">
         <div className="eqr-read-h"><div><h3 className="eqr-h3">Reading a beta<Tip text="Where your list, each size and a tapped share sit on the six ranges of beta." how="A beta of 1 moves with its benchmark. 1.5 has moved about 15% when its benchmark moved 10%; 0.5 about 5%." /></h3><p className="sp-note">A beta of 1 moves with its benchmark. 1.5 has moved about 15% when its benchmark moved 10%; 0.5 about 5%.</p></div>
-          <div className="eqd-seg" role="group" aria-label="Which shares">{(["All", "Large", "Mid", "Small"] as const).map((k) => <button key={k} type="button" aria-pressed={f === k} onClick={() => { setF(k); setPin(null); }}>{k === "All" ? `All ${r.counted}` : k}</button>)}</div></div>
+          <div className="eqd-seg" role="group" aria-label="Which shares">{(["All", "Large", "Mid", "Small", "Micro"] as const).map((k) => <button key={k} type="button" aria-pressed={f === k} onClick={() => { setF(k); setPin(null); }}>{k === "All" ? `All ${r.counted}` : k}</button>)}</div></div>
         <div className="eqr-f4">{readingFigures(shown, beta).map((x) => <div key={x.k}><b>{x.v}</b><small>{x.k}</small></div>)}</div>
         <div className="eqr-scale"><div className="eqr-pins" style={{ height: `${pins.length * 26 + 6}px` }}>{pins.map((p, i) => <span key={p.k} className="eqr-pin" style={{ left: at(p.b), top: `${i * 26}px`, ["--stem" as string]: `${(pins.length - i) * 26 - 18}px` }}><b>{b2(p.b)}</b> {p.k}{p.band && <em> {p.band.word}</em>}</span>)}</div>
           <div className="eqr-bands">{RANGE_EDGES.map(([k, lo, hi]) => <span key={k} className={"r-" + k} style={{ width: `${((hi - lo) / MAX) * 100}%` }}>{r.ranges.find((x) => x.key === k)?.word}</span>)}</div>
@@ -108,8 +108,8 @@ export function BetaBuild({ r }: { r: RiskAnswer }) {
       {tab === "three" && <>
         <div className="eqr-b3">
           <div className="eqr-tile"><p className="sp-cap">Size-weighted beta<Tip text="Each share against its own size index; each size's average beta times its share of the list." how="The headline reading: 1 moves with its own benchmarks, above 1 more, below 1 less." /></p><p className="eqr-v"><b>{b2(r.betas.weighted)}</b><Chip band={r.betas.weightedBand} /></p><p className="eqr-sub">Each share against its own size index. The headline reading.</p></div>
-          <div className="eqr-tile"><p className="sp-cap">Against a blended benchmark<Tip text="The list against the three size indices mixed in its own proportions." how="It checks the size-weighted figure: close to it, the two agree." /></p><p className="eqr-v"><b>{b2(r.betas.blended)}</b><Chip band={r.betas.blendedBand} /></p><p className="eqr-sub">{sizes.map((s) => `${Math.round(s.listShare)}% ${s.benchmark}`).join(" + ")}. {r.betas.blended != null && r.betas.weighted != null && Math.abs(r.betas.blended - r.betas.weighted) <= 0.1 ? "Close to the size-weighted figure, which checks it." : "It checks the size-weighted figure."}</p></div>
-          <div className="eqr-tile"><p className="sp-cap">Against the Nifty 50 alone<Tip text="The list against the Nifty 50 only." how="The figure for what a Nifty 50 fall has meant. Small and mid companies move less in step with it." /></p><p className="eqr-v"><b>{b2(r.betas.nifty)}</b><Chip band={r.betas.niftyBand} /></p><p className="eqr-sub">Use this for "what if the Nifty 50 falls". Small and mid companies move less in step with it.</p></div>
+          <div className="eqr-tile"><p className="sp-cap">Against a blended benchmark<Tip text="The list against the size indices mixed in its own proportions." how="It checks the size-weighted figure: close to it, the two agree." /></p><p className="eqr-v"><b>{b2(r.betas.blended)}</b><Chip band={r.betas.blendedBand} /></p><p className="eqr-sub">{sizes.map((s) => `${Math.round(s.listShare)}% ${s.benchmark}`).join(" + ")}. {r.betas.blended != null && r.betas.weighted != null && Math.abs(r.betas.blended - r.betas.weighted) <= 0.1 ? "Close to the size-weighted figure, which checks it." : "It checks the size-weighted figure."}</p></div>
+          <div className="eqr-tile"><p className="sp-cap">Against the Nifty 50 alone<Tip text="The list against the Nifty 50 only." how="The figure for what a Nifty 50 fall has meant. Mid, small and micro companies move less in step with it." /></p><p className="eqr-v"><b>{b2(r.betas.nifty)}</b><Chip band={r.betas.niftyBand} /></p><p className="eqr-sub">Use this for "what if the Nifty 50 falls". Mid, small and micro companies move less in step with it.</p></div>
         </div>
       </>}
       {tab === "how" && <>
@@ -169,7 +169,7 @@ export function Fall10({ r, value }: { r: RiskAnswer; value?: { now: number; nam
 // ------------------------------------------------------------------------------------------------ 6 Each share's risk
 export function EachShareRisk({ r, split, shares, gold }: { r: RiskAnswer; split: ReturnType<typeof riskSplit>; shares: Share[]; gold: boolean }) {
   const [open, setOpen] = useState<Set<string>>(new Set()), byS = new Map(shares.map((s) => [s.symbol, s]));
-  const groups = (["Large", "Mid", "Small"] as const).map((k) => ({ k, sz: r.sizes.find((s) => s.size === k)!, xs: r.shares.filter((s) => s.size === k).sort((a, b) => (b.beta ?? -1) - (a.beta ?? -1)), risk: split.bySize[k]?.risk ?? 0 })).filter((g) => g.xs.length);
+  const groups = (["Large", "Mid", "Small", "Micro"] as const).map((k) => ({ k, sz: r.sizes.find((s) => s.size === k)!, xs: r.shares.filter((s) => s.size === k).sort((a, b) => (b.beta ?? -1) - (a.beta ?? -1)), risk: split.bySize[k]?.risk ?? 0 })).filter((g) => g.xs.length);
   const none = r.shares.filter((s) => !s.size);
   const all = groups.every((g) => open.has(g.k)), flip = (k: string) => { const n = new Set(open); if (n.has(k)) n.delete(k); else n.add(k); setOpen(n); };
   const yrs = (s: RiskShare) => (s.years != null && s.years < 2.95 ? ` (${s.years.toFixed(1)} yrs)` : "");

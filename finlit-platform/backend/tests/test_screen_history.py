@@ -47,8 +47,9 @@ def test_filter_bar_search_size_sector_and_strong_keep_the_screens_own_order():
     class Req:
         def __init__(self, **q):
             self.query_params = type("Q", (), {"get": lambda s, k, d=None: q.get(k, [d])[0] if k in q else d, "getlist": lambda s, k: q.get(k, [])})()
-    rows = [{"symbol": "AAA", "name": "Alpha", "sector": "IT", "market_cap": 90000, "overall": 80}, {"symbol": "BBB", "name": "Beta", "sector": "Auto", "market_cap": 20000, "overall": 50},
-            {"symbol": "CCC", "name": "Gamma", "sector": "IT", "market_cap": 3000, "overall": 70}]
+    # task #262 rupee rule: AAA large (above 75,000 Cr), BBB mid (25,000-75,000), CCC small (10,000-25,000)
+    rows = [{"symbol": "AAA", "name": "Alpha", "sector": "IT", "market_cap": 90000, "overall": 80}, {"symbol": "BBB", "name": "Beta", "sector": "Auto", "market_cap": 40000, "overall": 50},
+            {"symbol": "CCC", "name": "Gamma", "sector": "IT", "market_cap": 15000, "overall": 70}]
     assert [r["symbol"] for r in api._filtered(Req(size=["Large", "Small"]), rows)] == ["AAA", "CCC"]
     assert [r["symbol"] for r in api._filtered(Req(sector=["IT"], strong=["1"]), rows)] == ["AAA", "CCC"]
     assert [r["symbol"] for r in api._filtered(Req(q=["bet"]), rows)] == ["BBB"]

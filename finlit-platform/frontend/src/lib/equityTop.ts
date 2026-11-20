@@ -34,7 +34,7 @@ export function topTiles(shares: Share[], page: PageFigures, model: "prism" | "f
       help: "The average FinLit IQ of your shares, from 0 to 100, and how many read Strong, Healthy, Mixed or Watch.", how: "Higher reads stronger. Each share's word comes from its own FinLit IQ. Open the tab for each share." };
   }
   const parts = [spread.macro != null ? `${spread.macro} macro ${spread.macro === 1 ? "sector" : "sectors"}` : null, spread.sectors != null ? `${spread.sectors} ${spread.sectors === 1 ? "sector" : "sectors"}` : null,
-    `${spread.industries} ${spread.industries === 1 ? "industry" : "industries"}`, spread.sizes === 3 ? "all three sizes" : spread.sizes === 2 ? "two of the three sizes" : "one size"].filter(Boolean);
+    `${spread.industries} ${spread.industries === 1 ? "industry" : "industries"}`, spread.sizes === 4 ? "all four sizes" : spread.sizes === 3 ? "three of the four sizes" : spread.sizes === 2 ? "two of the four sizes" : "one size"].filter(Boolean);
   const m = page?.market.eq;
   return [portfolio,
     { id: "diversification", k: "Diversification analytics", v: page ? `${page.score.score} · ${page.score.band}` : "–", sub: parts.join(" · "), tone: "info", link: "Open Diversification analytics",

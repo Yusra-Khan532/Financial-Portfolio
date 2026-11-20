@@ -3,7 +3,8 @@
 // are Mid; exactly ₹10,000 Cr is Small. One stored `size` field per security is the source (task #262); a page reads it when the row carries it and
 // falls back to this same rule on the market value, so the two can never disagree.
 export type CompanySize = "large" | "mid" | "small" | "micro";
-export const SIZE_LINES = { largeAbove: 75000, midFrom: 25000, smallFrom: 10000 } as const;
+import { SIZE_LINES } from "./capBuckets";   // the one set of lines (lib/capBuckets.ts, the server's finlit/sizes.py)
+export { SIZE_LINES };
 export const SIZE_ORDER: CompanySize[] = ["large", "mid", "small", "micro"];
 export const SIZE_LABEL: Record<CompanySize, string> = { large: "Large cap", mid: "Mid cap", small: "Small cap", micro: "Micro cap" };
 export const SIZE_WORD: Record<CompanySize, string> = { large: "Large", mid: "Mid", small: "Small", micro: "Micro" };
@@ -11,7 +12,7 @@ export const SIZE_RANGE: Record<CompanySize, string> = { large: "Above ₹75,000
 
 /** The size of a market value (₹ crore), or null when it is not known (shown as "Not known"). */
 export function companySize(mcapCr: number | null | undefined): CompanySize | null {
-  if (mcapCr == null || !Number.isFinite(mcapCr) || mcapCr < 0) return null;
+  if (mcapCr == null || !Number.isFinite(mcapCr) || !(mcapCr > 0)) return null;   // as the server: no positive market value, no size
   if (mcapCr > SIZE_LINES.largeAbove) return "large";
   if (mcapCr >= SIZE_LINES.midFrom) return "mid";
   if (mcapCr >= SIZE_LINES.smallFrom) return "small";

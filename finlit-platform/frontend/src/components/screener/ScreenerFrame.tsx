@@ -11,6 +11,7 @@ import { ChartHelp } from "../ChartHelp";
 import { Icon } from "../../lib/icons";
 import { cr, nf } from "../../lib/format";
 import { watch } from "../../lib/watchlist";
+import { SizeNote } from "../SizeNote";
 import { CAPS, PAGE_SIZES, pageList, type SortKey } from "../../lib/scoreScreen";
 import type { Plan } from "../../lib/ui";
 import { CheckRow, FgxFocus, FilterGroup, SearchBox } from "./FilterGroup";
@@ -145,6 +146,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
               {presets && <FilterGroup id="quick" title="Quick views" defaultOpen hint={<>Ready-made score combinations. <ChartHelp id="score-filter" /></>}>{presets}</FilterGroup>}
               <FilterGroup id="cap" title="Market cap" defaultOpen active={draft.caps.length}>
                 <div role="group" aria-label="Market cap size">{CAPS.map((c) => <CheckRow key={c} label={`${c} cap`} count={facets.caps[c]} checked={draft.caps.includes(c)} onChange={() => setDraft((d) => ({ ...d, caps: s.toggle(d.caps, c) }))} />)}</div>
+                <SizeNote link={s.sizeMoved} />
               </FilterGroup>
               <FilterGroup id="sector" title="Macro sector and industry" defaultOpen active={draft.sectors.length + draft.industries.length}>
                 <SectorTree tree={facets.tree} picked={draft.industries} set={(next) => setDraft((d) => ({ ...d, industries: next }))} loading={isLoading} />

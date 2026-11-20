@@ -34,8 +34,8 @@ export function dayWord(now: Date, asOf: string | null): string {
 }
 
 // ------------------------------------------------------------------------------------------------ Your stocks today: the three cards
-export type MyStock = { symbol: string; name?: string | null; chg: number | null; size: "Large" | "Mid" | "Small" | null; profit: number | null; profitText: string | null; reported: boolean; peer: "leader" | "laggard" | "inline" | "unranked" | null };
-const SIZE_WORD = { Large: "large", Mid: "mid-sized", Small: "small" } as const;
+export type MyStock = { symbol: string; name?: string | null; chg: number | null; size: "Large" | "Mid" | "Small" | "Micro" | null; profit: number | null; profitText: string | null; reported: boolean; peer: "leader" | "laggard" | "inline" | "unranked" | null };
+const SIZE_WORD = { Large: "large", Mid: "mid-sized", Small: "small", Micro: "micro" } as const;
 /** Task #195 (dashboard pack, 15 Nov 2026), "What your stocks say": one card per signal. Each card has its kind, a short headline, one line of meaning, a count bar and
  *  a dropdown (its button word in `more`) with the names as chips, grouped and coloured, each with its figure. No sentence lists the symbols: the chips carry the names. */
 export type SignalPart = { n: number; word: string; tone: "up" | "down" | "none" };
@@ -150,11 +150,13 @@ export function marketRead(x: ReadIn): { lead: string; rest: string; tail: strin
     : up > down * 1.5 ? { k: "Big moves", badge: "Buying had the edge", tone: "good", head: `${n0(up)} up 4%+, ${n0(down)} down 4%+`, text: "Sharp rises outnumbered sharp falls.", base: `${n0(x.big.n)} stocks with a price ${on}` }
     : { k: "Big moves", badge: "Balanced", tone: "mixed", head: `${n0(up)} up 4%+, ${n0(down)} down 4%+`, text: "Sharp rises and sharp falls were close to even.", base: `${n0(x.big.n)} stocks with a price ${on}` });
   // 3 leadership
+  // task #262: `size.small` is the typical Micro company (below ₹10,000 Cr), the band the old "Small" covered, so the reading still sets the two ends
+  // of the scale against each other; the words say "micro" to match the four sizes.
   const L = x.size.large, S = x.size.small;
   if (L != null && S != null) {
     const d = L - S;
-    R.push(Math.abs(d) >= 2 ? { k: "Leadership", badge: d > 0 ? "Large companies lead" : "Small companies lead", tone: "good", head: `${sp(d > 0 ? L : S)} vs ${sp(d > 0 ? S : L)}`, text: `Over the last month the typical ${d > 0 ? "large" : "small"} company ${(d > 0 ? L : S) >= 0 ? "rose" : "fell"} ${Math.abs(d > 0 ? L : S).toFixed(1)}%; the typical ${d > 0 ? "small" : "large"} company ${(d > 0 ? S : L) >= 0 ? "rose" : "fell"} ${Math.abs(d > 0 ? S : L).toFixed(1)}%.`, base: `${n0(x.size.n)} listed companies, by size` }
-      : { k: "Leadership", badge: "No size leads", tone: "mixed", head: `${sp(L)} vs ${sp(S)}`, text: `Over the last month the typical large company moved ${sp(L)} and the typical small company ${sp(S)}.`, base: `${n0(x.size.n)} listed companies, by size` });
+    R.push(Math.abs(d) >= 2 ? { k: "Leadership", badge: d > 0 ? "Large companies lead" : "Micro companies lead", tone: "good", head: `${sp(d > 0 ? L : S)} vs ${sp(d > 0 ? S : L)}`, text: `Over the last month the typical ${d > 0 ? "large" : "micro"} company ${(d > 0 ? L : S) >= 0 ? "rose" : "fell"} ${Math.abs(d > 0 ? L : S).toFixed(1)}%; the typical ${d > 0 ? "micro" : "large"} company ${(d > 0 ? S : L) >= 0 ? "rose" : "fell"} ${Math.abs(d > 0 ? S : L).toFixed(1)}%.`, base: `${n0(x.size.n)} listed companies, by size` }
+      : { k: "Leadership", badge: "No size leads", tone: "mixed", head: `${sp(L)} vs ${sp(S)}`, text: `Over the last month the typical large company moved ${sp(L)} and the typical micro company ${sp(S)}.`, base: `${n0(x.size.n)} listed companies, by size` });
   }
   // 4 and 5: trends across the counted stocks
   const bb = boardBreadth(x.board), base = `${n0(x.board?.universe?.counted_in_groups_with_reading ?? bb?.n ?? 0)} actively traded stocks`;

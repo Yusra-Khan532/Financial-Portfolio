@@ -1168,16 +1168,17 @@
    ]
   },
   {
-   "term": "Company size (Large, Mid, Small)",
+   "term": "Company size (Large, Mid, Small, Micro)",
    "topic": "Market basics",
-   "meaning": "FinLit sorts every listed company into three sizes by its market value: Large above ₹50,000 crore, Mid from ₹10,000 crore to ₹50,000 crore, and Small below ₹10,000 crore.",
+   "meaning": "FinLit sorts every listed company into four sizes by its market value: Large above ₹75,000 crore, Mid from ₹25,000 crore to ₹75,000 crore, Small from ₹10,000 crore to ₹25,000 crore, and Micro below ₹10,000 crore.",
    "why": "Size affects how much a price swings and how easy the shares are to buy and sell.",
    "how": "Compare companies of the same size. Small companies often trade thinly, so their prices can move a lot on small orders.",
    "formula": "",
    "id": "company-size-bands-mega-cap-to-nano-cap",
    "letter": "C",
-   "finlit": "The same three sizes are used on every FinLit page: the screener, Markets pages, portfolios, watchlists and company reports. FinLit no longer uses mega, micro or nano labels.",
+   "finlit": "The same four sizes are used on every FinLit page: the screener, Markets pages, portfolios, watchlists and company reports. Until 20 Nov 2026 there were three; what was Small then (below ₹10,000 crore) is now Micro. FinLit does not use mega or nano labels.",
    "aliases": [
+    "Company size (Large, Mid, Small)",
     "Company size bands (mega cap to nano cap)",
     "Mega-cap",
     "Micro-cap",
@@ -1185,7 +1186,8 @@
     "Company size",
     "Size band",
     "Very small",
-    "Very large"
+    "Very large",
+    "Micro cap"
    ],
    "change": "updated"
   },
@@ -3608,21 +3610,23 @@
    ]
   },
   {
-   "term": "Large cap, mid cap and small cap",
+   "term": "Large cap, mid cap, small cap and micro cap",
    "topic": "Market basics",
-   "meaning": "The usual names for company size. On FinLit, large cap means a market value above ₹50,000 crore, mid cap ₹10,000 crore to ₹50,000 crore, and small cap below ₹10,000 crore.",
+   "meaning": "The usual names for company size. On FinLit, large cap means a market value above ₹75,000 crore, mid cap ₹25,000 crore to ₹75,000 crore, small cap ₹10,000 crore to ₹25,000 crore, and micro cap below ₹10,000 crore.",
    "why": "Smaller companies can grow faster but their prices swing more and their shares can be harder to sell.",
-   "how": "Check the size group before comparing returns or valuations; a small cap and a large cap are different kinds of bet.",
+   "how": "Check the size group before comparing returns or valuations; a micro cap and a large cap are different kinds of bet.",
    "formula": "",
    "id": "large-cap-mid-cap-and-small-cap",
    "letter": "L",
    "finlit": "Mutual fund categories follow SEBI's own rule, which ranks companies instead: the 100 largest are large cap and the next 150 mid cap. So a fund's \"mid cap\" label and a company's FinLit size can differ. See Company size.",
    "aliases": [
+    "Large cap, mid cap and small cap",
     "Large cap, mid cap",
     "small cap",
     "Large cap",
     "Mid cap",
-    "Size (AMFI)"
+    "Size (AMFI)",
+    "micro cap"
    ],
    "change": "updated"
   },
@@ -3931,7 +3935,7 @@
    "term": "Market capitalisation (market cap)",
    "topic": "Valuation",
    "meaning": "The total market value of a company: share price multiplied by the number of shares.",
-   "why": "It tells you how big the company is in the stock market's eyes and decides whether it is a large, mid or small cap.",
+   "why": "It tells you how big the company is in the stock market's eyes and decides whether it is a large, mid, small or micro cap.",
    "how": "₹16 lakh crore market cap means the market values the whole company at that amount today.",
    "formula": "Market cap = Share price × Shares outstanding",
    "id": "market-capitalisation-market-cap",

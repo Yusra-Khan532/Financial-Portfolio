@@ -62,7 +62,7 @@ def test_filter_engine():
     assert pick({}, {"sector": ["IT"]}, "a")[0] == "A10"
     assert pick({"flag_loss": {"min": 1}}) == ["A3"] and "A3" not in pick({"flag_loss": {"max": 0}})
     assert t.sort(t.match({}, {}), "pe", False)[-1] == t.pos["NOPE"]        # unknowns sort last either way
-    assert t.cap[t.pos["A11"]] == "Mid" and t.cap[t.pos["NOPE"]] == "Small"            # by market value in rupees crore (12,000 is Mid, 50 is Small)
+    assert t.cap[t.pos["A11"]] == "Small" and t.cap[t.pos["NOPE"]] == "Micro"          # by market value in rupees crore (task #262: 12,000 is Small, 50 is Micro)
 
 
 def test_custom_ratio_divides_two_figures_and_never_guesses():
@@ -79,7 +79,9 @@ def test_custom_ratio_divides_two_figures_and_never_guesses():
 
 def test_size_is_by_market_value_one_scale_with_no_size_without_a_market_cap():
     from finlit.screener.data import size_of
-    assert [size_of(v) for v in (50_001, 50_000, 49_999, 10_000, 9_999.9, 1, None, 0, float("nan"))] == ["Large", "Mid", "Mid", "Mid", "Small", "Small", None, None, None]
+    # task #262: Large above 75,000; Mid 25,000-75,000 (both lines Mid); Small 10,000-<25,000 (10,000 is Small); Micro below 10,000
+    vals = (75_001, 75_000, 49_999, 25_000, 24_999.9, 10_000, 9_999.9, 1, None, 0, -3, float("nan"))
+    assert [size_of(v) for v in vals] == ["Large", "Mid", "Mid", "Mid", "Small", "Small", "Micro", "Micro", None, None, None, None]
 
 
 async def _q(c, body):

@@ -861,7 +861,7 @@ def price_filter(rows: List[dict], spec: PriceSpec) -> Tuple[List[dict], Optiona
 
 
 TOP_SECTORS = 7
-CAP_ORDER = ("Large", "Mid", "Small")
+from .sizes import SIZES as CAP_ORDER   # task #262: Large, Mid, Small, Micro
 
 
 def distribution(rows: List[dict]) -> Dict[str, Any]:
@@ -1003,7 +1003,7 @@ def _dump(body: dict) -> Response:
 
 @router.get("/quarter")
 async def quarter_results(request: Request, quarter: str = Query("", max_length=7), q: str = Query("", max_length=60), sector: str = Query("", max_length=80), industry: str = Query("", max_length=80),
-                          cap: str = Query("", pattern="^(Large|Mid|Small)?$"), index: str = Query("", pattern="^(NIFTY50|NIFTY100|NIFTY500)?$"),
+                          cap: str = Query("", pattern="^(Large|Mid|Small|Micro)?$"), index: str = Query("", pattern="^(NIFTY50|NIFTY100|NIFTY500)?$"),
                           scope: str = Query("all", pattern="^(all|watchlist|portfolio)$"), flagged: bool = False,
                           status: str = Query("", pattern="^(declared|awaiting|due|missing|upcoming)?$"), sort: str = Query("date", max_length=20), dir: str = Query("desc", pattern="^(asc|desc)$"),
                           offset: int = Query(0, ge=0, le=20000), limit: int = Query(PAGE, ge=1, le=100),
@@ -1041,7 +1041,7 @@ async def quarter_results(request: Request, quarter: str = Query("", max_length=
 
 @router.get("/quarter/export")
 async def quarter_export(request: Request, quarter: str = Query("", max_length=7), q: str = Query("", max_length=60), sector: str = Query("", max_length=80), industry: str = Query("", max_length=80),
-                         cap: str = Query("", pattern="^(Large|Mid|Small)?$"), index: str = Query("", pattern="^(NIFTY50|NIFTY100|NIFTY500)?$"),
+                         cap: str = Query("", pattern="^(Large|Mid|Small|Micro)?$"), index: str = Query("", pattern="^(NIFTY50|NIFTY100|NIFTY500)?$"),
                          scope: str = Query("all", pattern="^(all|watchlist|portfolio)$"), flagged: bool = False,
                          status: str = Query("", pattern="^(declared|awaiting|due|missing)?$"), sort: str = Query("date", max_length=20), dir: str = Query("desc", pattern="^(asc|desc)$"),
                          on: str = Query("", alias="date", max_length=10), from_: str = Query("", alias="from", max_length=10), to: str = Query("", max_length=10),

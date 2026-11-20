@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional
 HORIZONS = ("lt1", "1-3", "3-5", "gt5")
 RISKS = ("low", "medium", "high")
 GOALS = ("grow", "income", "protect")
-BENCHMARKS = {"NIF50": "NIFTY 50", "NIF500": "NIFTY 500", "NIFMID150": "NIFTY Midcap 150", "NIFSMA250": "NIFTY Smallcap 250"}
+BENCHMARKS = {"NIF50": "NIFTY 50", "NIF500": "NIFTY 500", "NIFMID150": "NIFTY Midcap 150", "NIFSMA250": "NIFTY Smallcap 250", "NIFMIC250": "NIFTY Microcap 250"}
 
 # private: how the readings combine, by horizon and goal
 _BASE = {"strength": 0.30, "spread": 0.20, "risk": 0.20, "trend": 0.10, "valuation": 0.10, "concentration": 0.10}

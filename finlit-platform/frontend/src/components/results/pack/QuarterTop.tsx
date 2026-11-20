@@ -22,10 +22,10 @@ function useTotals(quarter: string | undefined, cap?: string, on = true): VSumma
 export function QuarterTiles({ r }: { r: QResp | undefined }) {
   const q = r?.quarter, locked = !!r?.locked;
   const list = r?.quarters ?? [], at = list.findIndex((x) => x.key === q?.key), before = at >= 0 ? list[at + 1] : undefined;
-  const large = useTotals(q?.key, "Large", !!q), mid = useTotals(q?.key, "Mid", !!q), small = useTotals(q?.key, "Small", !!q);
+  const large = useTotals(q?.key, "Large", !!q), mid = useTotals(q?.key, "Mid", !!q), small = useTotals(q?.key, "Small", !!q), micro = useTotals(q?.key, "Micro", !!q);
   const prevTotals = useTotals(before?.key, undefined, !!before && !locked);
   if (!r?.quarter || !q) return <div className="sx-skel sp-sec" role="status" aria-label="Loading the quarter's figures" />;
-  const by: BySize = { Large: large, Mid: mid, Small: small };
+  const by: BySize = { Large: large, Mid: mid, Small: small, Micro: micro };
   const prev: Prev = before ? { fiscal: before.fiscal, declared: before.declared, totals: prevTotals ?? null } : null;
   const t = r.totals as VSummary;
   const upd = r.updatedAt ? new Date(r.updatedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false }) : null;

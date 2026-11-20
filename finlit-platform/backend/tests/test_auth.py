@@ -529,7 +529,8 @@ async def test_tell_me_when_a_company_joins_names_joins_and_leaves_in_the_inbox_
     monkeypatch.setattr("finlit.mailpolicy.ALERT_EMAILS", True)   # the email path, kept for when alert emails are switched back on (mailpolicy.py)
     from finlit.screens import check_screens, matches, screen_mail
     pool = app.state.store.pool
-    assert matches({"market_cap": 60000}, {"caps": ["Large"]}) and not matches({"market_cap": 20000}, {"caps": ["Large"]}) and matches({"market_cap": 20000}, {"caps": ["Mid", "Large"]})
+    assert matches({"market_cap": 80000}, {"caps": ["Large"]}) and not matches({"market_cap": 30000}, {"caps": ["Large"]}) and matches({"market_cap": 30000}, {"caps": ["Mid", "Large"]})   # task #262: Large above ₹75,000 Cr, Mid ₹25,000-75,000
+    assert matches({"market_cap": 5000}, {"caps": ["Micro"]}) and matches({"market_cap": 15000}, {"caps": ["Small"]}) and not matches({"market_cap": 5000}, {"caps": ["Small"]})
     assert not matches({"market_cap": None}, {"caps": ["Small"]})                      # no market cap: no size, never guessed
     assert matches({"pillar_quality": 80, "pillar_growth": 70}, {"model": "modelcompound"}) and not matches({"pillar_quality": 80, "pillar_growth": 10}, {"model": "modelcompound"})
     subj, body = screen_mail("Cheap", [{"symbol": "AAA", "name": "Alpha"}], 3, "http://x/screener", [{"symbol": "BBB", "name": "Beta"}])

@@ -18,7 +18,7 @@ export const SCALE_NOTE = "How spread the list is, not how safe it is";
 export const SCORE_PARTS = { comove: "How the shares move together", sector: "How the list is spread across sectors" };
 /** The word for a spread reading, and the fixed bar length that goes with each word (the bars show the word, not a figure). */
 export const SPREAD_WORD = (v: number): { word: string; bar: number } => (v >= 70 ? { word: "Widely spread", bar: 100 } : v >= 40 ? { word: "Spread", bar: 66 } : { word: "Concentrated", bar: 33 });
-export const SIZES_NOTE = "Sectors are NSE's. Sizes are AMFI's: large cap = the 100 biggest companies, mid cap = the next 150, small cap = the rest. The same sector and size are used everywhere on this page.";
+export const SIZES_NOTE = "Sectors are NSE's. Sizes are FinLit's, by market value: large cap above ₹75,000 Cr, mid cap ₹25,000–75,000 Cr, small cap ₹10,000–25,000 Cr, micro cap below ₹10,000 Cr. The same sector and size are used everywhere on this page.";
 export const GROUP_NOTE = "A group is shares that move closely together. Letters match the dark bars beside the grid.";
 export const GROUP_NOTE_LONG = "Found from each pair of shares, not from sector labels. A group is shares that move closely together; letters match the dark bars beside the grid.";
 export const NIFTY_NOTE = "Beta 1.00 means the list moved in line with the index. Bad weeks are the NIFTY 50's 10 worst weeks in the period shown.";

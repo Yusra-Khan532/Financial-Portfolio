@@ -43,7 +43,7 @@ const HEAD_WORD: Record<string, string> = { company: "Company name", revenueQoQ:
   opQoQ: "Operating profit growth (QoQ)", opm: "Operating margin", profitQoQ: "Profit growth (QoQ)", npm: "Net margin", eps: "EPS", verdict: "Verdict" };
 const INDICES: [string, string][] = [["NIFTY50", "NIFTY 50"], ["NIFTY100", "NIFTY 100"], ["NIFTY500", "NIFTY 500"]];
 const STATUSES: [string, string][] = [["", "Any status"], ["declared", "Figures in"], ["awaiting", "Report being updated"], ["due", "Due"]];
-const CAPS = [["", "Any size"], ["Large", "Large cap"], ["Mid", "Mid cap"], ["Small", "Small cap"]];
+const CAPS = [["", "Any size"], ["Large", "Large cap"], ["Mid", "Mid cap"], ["Small", "Small cap"], ["Micro", "Micro cap"]];
 const COLS = 16;   // with the verdict against the industry (final pages pack, board 11)
 
 const money = (v: number | null) => (v == null ? "—" : (v < 0 ? MINUS : "") + nf(v, Math.abs(v) >= 1000 ? 0 : 2));

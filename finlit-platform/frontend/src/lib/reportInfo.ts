@@ -3,7 +3,7 @@
 import type { Glossary } from "./api";
 
 export const NEW_I: Record<string, string> = {
-  "Size": "FinLit’s fixed size bands: large above ₹50,000 Cr, small below ₹10,000 Cr, mid in between.",
+  "Size": "FinLit’s fixed size bands: large above ₹75,000 Cr, mid ₹25,000–75,000 Cr, small ₹10,000–25,000 Cr, micro below ₹10,000 Cr.",
   "Style": "Value, blend or growth, from the company’s valuation against its growth.",
   "Income": "Low, moderate or high, from the dividend yield and how much profit is paid out.",
   "Momentum": "Oversold, neutral or overbought, from the 14-day RSI.",

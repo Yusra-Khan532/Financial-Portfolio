@@ -19,9 +19,9 @@ const at = (symbol: string, ind: string | null, o: Partial<Row> = {}): Item => {
 const syms = (r: Item[]) => r.map((x) => x.symbol);
 const U = [
   at("BANK1", "Banks", { market_cap: 90_000, prism_final: 85, prism_st_score: 60, prism_lt_score: 10 }),
-  at("BANK2", "Banks", { market_cap: 20_000, prism_final: 66, prism_st_score: 25, prism_lt_score: -30 }),
+  at("BANK2", "Banks", { market_cap: 30_000, prism_final: 66, prism_st_score: 25, prism_lt_score: -30 }),
   at("NBFC", "Finance", { market_cap: 5_000, prism_final: 52, prism_st_score: 0, prism_lt_score: -70 }),
-  at("STEEL", "Ferrous Metals", { market_cap: 60_000, prism_final: 40, prism_st_score: -25 }),
+  at("STEEL", "Ferrous Metals", { market_cap: 80_000, prism_final: 40, prism_st_score: -25 }),
   at("CHEM", "Chemicals & Petrochemicals", { market_cap: 3_000, prism_final: 20 }),
   at("ELEC", "Electrical Equipment", { market_cap: 15_000, prism_final: null }),
   at("BSEONLY", null, { market_cap: 800 }),

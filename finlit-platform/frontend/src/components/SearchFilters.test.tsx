@@ -43,10 +43,11 @@ describe("SearchFilters", () => {
     expect(t).toContain("Clear sector"); expect(t).toContain("Power 2"); expect(t).toContain("1 companies with no sector on file are left out");
     expect(html).toContain('role="listbox"'); expect(html).toContain('aria-selected="true"');
   });
-  it("market-cap list shows the three sizes with their ranges", () => {
+  it("market-cap list shows the four sizes with their ranges, in the site's order (task #262)", () => {
     const t = text(renderToStaticMarkup(<SearchFilters facets={facets} value={NO_FILTER} onChange={() => undefined} menu="cap" />));
-    for (const w of ["Large cap", "Above ₹50,000 Cr", "Mid cap", "₹10,000–50,000 Cr", "Small cap", "Below ₹10,000 Cr"]) expect(t).toContain(w);
-    for (const w of ["Mega", "Micro", "Nano"]) expect(t).not.toContain(w);
+    for (const w of ["Large cap", "Above ₹75,000 Cr", "Mid cap", "₹25,000–75,000 Cr", "Small cap", "₹10,000–25,000 Cr", "Micro cap", "Below ₹10,000 Cr"]) expect(t).toContain(w);
+    expect(t.indexOf("Large cap") < t.indexOf("Mid cap") && t.indexOf("Mid cap") < t.indexOf("Small cap") && t.indexOf("Small cap") < t.indexOf("Micro cap")).toBe(true);
+    for (const w of ["Mega", "Nano"]) expect(t).not.toContain(w);
   });
   it("renders nothing when the data carries no sector or market value", () => {
     expect(renderToStaticMarkup(<SearchFilters facets={facetsOf([])} value={NO_FILTER} onChange={() => undefined} />)).toBe("");

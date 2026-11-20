@@ -223,7 +223,7 @@ describe("the list at a glance (task #194: one card replaces the three donut box
     expect(within(card()).getByRole("img", { name: "Companies by size: Large 4, Not classified 1" })).toBeTruthy();
     expect(within(card()).getByRole("img", { name: "Companies by macro sector: IT 3, Banks 1, Others 1" })).toBeTruthy();
     expect(card().textContent).toMatch(/By macro sector/); expect(card().textContent).not.toMatch(/Sector-wise distribution/);
-    expect(card().textContent).toMatch(/Large above ₹50,000 Cr · Mid ₹10,000–50,000 Cr · Small below/);
+    expect(card().textContent).toMatch(/Large above ₹75,000 Cr · Mid ₹25,000–75,000 Cr · Small ₹10,000–25,000 Cr · Micro below/);
     const legend = Array.from(card().querySelectorAll(".rs-gleg li")).map((li) => li.textContent);
     expect(legend).toEqual(["IT360.0%", "Banks120.0%", "Others120.0%"]);
     expect(card().querySelectorAll(".rs-gsz li").length).toBe(2);

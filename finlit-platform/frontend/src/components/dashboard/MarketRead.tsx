@@ -3,7 +3,7 @@
 // Breadth, sizes and movers: the same day by company size, with the biggest moves. Figures from the screener table, the index feed and the Sector Pulse board.
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
-import { capBucket } from "../../lib/capBuckets";
+import { capBucket, SIZE_RULE_TEXT, SIZE_SHORTS } from "../../lib/capBuckets";
 import { dayMonth, pickIndices } from "../../lib/dashboard";
 import { dayWord, marketRead, weekdayOf, type Reading } from "../../lib/dashPack";
 import { useIndices } from "../../lib/indices";
@@ -17,7 +17,7 @@ import { coTitle, shortLabel } from "../../lib/companyLabel";
 const median = (xs: number[]) => { if (!xs.length) return null; const s = [...xs].sort((a, b) => a - b), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
 const sgn = (v: number | null, d = 1) => (v == null ? "–" : `${v > 0 ? "+" : v < 0 ? MINUS : ""}${nf(Math.abs(v), d)}%`);
 type Tab = "read" | "breadth";
-const SIZES = ["Large", "Mid", "Small"] as const;
+const SIZES = SIZE_SHORTS;   // Large, Mid, Small, Micro (lib/capBuckets.ts)
 
 export function MarketRead({ rows, loading }: { rows: Row[]; loading: boolean }) {
   const [tab, setTab] = useState<Tab>("read");
@@ -29,12 +29,12 @@ export function MarketRead({ rows, loading }: { rows: Row[]; loading: boolean })
     const adv = live.filter((r) => (r.change_pct as number) > 0).length, dec = live.filter((r) => (r.change_pct as number) < 0).length;
     const moves = live.filter((r) => Math.abs(r.change_pct as number) <= 40);   // a move past 40% in a day is a corporate action or a bad print, not a market move
     const big = { up: moves.filter((r) => (r.change_pct as number) >= 4).length, down: moves.filter((r) => (r.change_pct as number) <= -4).length, n: moves.length };
-    const by = (k: (typeof SIZES)[number]) => rows.filter((r) => capBucket(r.market_cap)?.label.startsWith(k));
+    const by = (k: (typeof SIZES)[number]) => rows.filter((r) => capBucket(r.market_cap)?.short === k);
     const m1 = (xs: Row[]) => median(xs.map((r) => r.return_1m).filter((v): v is number => v != null && Math.abs(v) <= 200));
     const sized = rows.filter((r) => capBucket(r.market_cap) && r.return_1m != null);
     const sizes = SIZES.map((k) => { const xs = by(k), lv = xs.filter((r) => r.change_pct != null && (r.price ?? 0) > 0);
       return { k, n: xs.length, up: lv.filter((r) => (r.change_pct as number) > 0).length, down: lv.filter((r) => (r.change_pct as number) < 0).length, day: median(lv.map((r) => r.change_pct as number)), month: m1(xs) }; });
-    return { adv, dec, total: live.length, big, sizes, size: { large: sizes[0].month, small: sizes[2].month, n: sized.length }, moves };
+    return { adv, dec, total: live.length, big, sizes, size: { large: sizes[0].month, small: sizes[3].month, n: sized.length }, moves };
   }, [rows]);
   const niftyChg = useNiftyDay(cards[0]?.row?.changePct ?? null);
   const read = useMemo(() => marketRead({ day, adv: data.adv, dec: data.dec, total: data.total, niftyChg, midChg: cards[3]?.row?.changePct ?? null, smallChg: cards[4]?.row?.changePct ?? null, big: data.big, size: data.size, board }), [data, cards, board, day]);
@@ -59,7 +59,7 @@ export function MarketRead({ rows, loading }: { rows: Row[]; loading: boolean })
             <table className="dsh-mr-t"><caption>By company size</caption>
               <thead><tr><th scope="col">Size</th><th scope="col" className="r">Companies</th><th scope="col" className="r">Rose</th><th scope="col" className="r">Fell</th><th scope="col" className="r">Typical move {day === "Today" ? "today" : day}</th><th scope="col" className="r">Typical move, 1 month</th></tr></thead>
               <tbody>{data.sizes.map((s) => <tr key={s.k}><th scope="row">{s.k}</th><td className="r">{s.n.toLocaleString("en-IN")}</td><td className="r up">{s.up.toLocaleString("en-IN")}</td><td className="r down">{s.down.toLocaleString("en-IN")}</td><td className={"r " + tone(s.day)}>{sgn(s.day, 2)}</td><td className={"r " + tone(s.month)}>{sgn(s.month)}</td></tr>)}</tbody></table>
-            <p className="dsh-foot">Sizes by FinLit's rule: Large above ₹50,000 Cr, Mid ₹10,000–50,000 Cr, Small below ₹10,000 Cr. "Typical" is the middle company of each size.</p>
+            <p className="dsh-foot">Sizes by FinLit's rule: {SIZE_RULE_TEXT}. "Typical" is the middle company of each size.</p>
             <div className="dsh-two"><div><div className="dsh-lh">Up 4% or more: {data.big.up.toLocaleString("en-IN")}</div>{tops.up.map((r) => <Link key={r.symbol} to={`/stocks/${r.symbol}`} className="dsh-mv"><b title={coTitle(r)}>{shortLabel(r)}</b><span className="up">{sgn(r.change_pct, 2)}</span></Link>)}</div>
               <div><div className="dsh-lh">Down 4% or more: {data.big.down.toLocaleString("en-IN")}</div>{tops.down.map((r) => <Link key={r.symbol} to={`/stocks/${r.symbol}`} className="dsh-mv"><b title={coTitle(r)}>{shortLabel(r)}</b><span className="down">{sgn(r.change_pct, 2)}</span></Link>)}</div></div>
             <p className="dsh-foot">The biggest moves among companies above ₹1,000 Cr.</p>

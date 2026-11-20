@@ -133,7 +133,7 @@ function Peers({ r }: { r: IndustryRead }) {
             {rows.map((p) => (
               <tr key={p.symbol} className={"pr" + (p.symbol === symbol ? " me" : "")}>
                 <td><Link to={`/stocks/${encodeURIComponent(p.symbol)}`}><b title={coTitle(p)}>{shortLabel(p)}</b></Link>{p.symbol === symbol && <em>This company</em>}</td>
-                <td>{p.size ? <span className={"sz sz-" + p.size[0]}>{p.size}</span> : <span className="aiq-na">–</span>}</td>
+                <td>{p.size ? <span className={"sz sz-" + (p.size === "Micro" ? "X" : p.size[0])}>{p.size}</span> : <span className="aiq-na">–</span>}</td>
                 {cell(p.rev, rvS, iR, "Revenue growth")}{cell(p.profit, pfS, iP, "Profit growth")}
                 <td>{p.verdict ? <span className={"vc " + verdictTone(p.verdict)}>{p.verdict}</span> : <span className="aiq-na">–</span>}</td>
               </tr>))}

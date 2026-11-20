@@ -82,10 +82,18 @@ describe("Advanced stock screener (Gold)", () => {
     open();
     fireEvent.click(screen.getByRole("button", { name: "Market cap" }));
     const d = within(screen.getByRole("dialog", { name: "Market cap" }));
-    expect(d.getByRole("checkbox", { name: /^Small cap\s*Below ₹10,000 Cr\s*6$/ })).toBeTruthy();
-    fireEvent.click(d.getByRole("checkbox", { name: /^Small cap/ }));
-    await waitFor(() => expect(loc()).toContain("size=small"));
+    expect(d.getByRole("checkbox", { name: /^Micro cap\s*Below ₹10,000 Cr\s*6$/ })).toBeTruthy();   // task #262: the fixture's companies are all below ₹10,000 Cr
+    fireEvent.click(d.getByRole("checkbox", { name: /^Micro cap/ }));
+    await waitFor(() => expect(loc()).toContain("size=micro"));
     expect(symbols()).toHaveLength(6);
+  });
+
+  it("task #262: an old link's ?cap=Small reads Micro, with the one-time note under the filters", async () => {
+    open("?cap=Small");
+    expect(screen.getByText(/Company sizes changed on 20 Nov 2026: your Small filter now reads Micro\./)).toBeTruthy();
+    await waitFor(() => expect(symbols()).toHaveLength(6));
+    fireEvent.click(screen.getByRole("button", { name: /^Market cap/ }));
+    expect((within(screen.getByRole("dialog", { name: "Market cap" })).getByRole("checkbox", { name: /^Micro cap/ }) as HTMLInputElement).checked).toBe(true);
   });
 
   it("task #258 SPEC §1: the three lists are linked; a pick that no longer fits is taken off and the page says so", async () => {
@@ -108,7 +116,7 @@ describe("Advanced stock screener (Gold)", () => {
   it("task #258 SPEC §4: the line under the name is the NSE industry and the size, with macro sector › sector › industry on hover", () => {
     open();
     const line = rowOf("AAA").querySelector(".sx-nse")!;
-    expect(line.firstChild!.textContent).toBe("Banks · Small cap");
+    expect(line.firstChild!.textContent).toBe("Banks · Micro cap");   // task #262: below ₹10,000 Cr
     expect(line.getAttribute("title")).toBe("Financial Services › Financial Services › Banks");
     expect(rowOf("AAA").querySelector(".pzs-bw.pzs-bw-strong")!.textContent).toBe("Strong");      // the rating word under the Prism number, in its colour
     expect(rowOf("BBB").querySelector(".pzs-bw.pzs-bw-healthy")!.textContent).toBe("Healthy");

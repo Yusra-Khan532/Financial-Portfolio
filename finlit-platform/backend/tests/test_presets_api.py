@@ -34,7 +34,7 @@ async def test_non_gold_gets_names_but_no_values(app, anon):  # noqa: F811
     r = await anon.get("/api/screener/presets")
     body = r.json()
     cards = [c for g in body["groups"] for c in g["presets"]]
-    assert r.status_code == 200 and len(cards) == 51 and (await anon.get("/api/screener/presets?tab=basic")).json()["groups"] and all(c["locked"] and c["count"] is None for c in cards) and cards[0]["name"]   # 45: task #243 (pack L12) leaves out PSU stocks, which cannot run yet; round 3a adds 8 screens, round 3b the 6 Sectors screens
+    assert r.status_code == 200 and len(cards) == 52 and (await anon.get("/api/screener/presets?tab=basic")).json()["groups"] and all(c["locked"] and c["count"] is None for c in cards) and cards[0]["name"]   # 45: task #243 (pack L12) leaves out PSU stocks, which cannot run yet; round 3a adds 8 screens, round 3b the 6 Sectors screens; task #262 adds Highest-rated micro caps
     names = [g["name"] for g in body["groups"]]       # task #243 (pack R2): the featured groups first, then Prism views and the rest
     assert names[:4] == ["Top rated", "Momentum", "Growth", "Themes"] and names[4] == "Sectors" and names[5] == "Prism views" and names[-1] == "Ownership"   # Ownership is back with its screens (task #243 round 3a); Sectors, the fifth featured tab (round 3b)
     assert [g["featured"] for g in body["groups"]][:6] == [True, True, True, True, True, False]       # Sectors is the fifth featured tab on Advanced (round 3b)
@@ -127,7 +127,8 @@ async def test_basic_tab_screens_are_silver_and_advanced_stay_gold(app, store): 
     free = await signed_in(app, "bf@example.com", plan="basic")
     lst = (await silver.get("/api/screener/presets?tab=basic")).json()
     cards = [c for g in lst["groups"] for c in g["presets"]]
-    assert lst["tab"] == "basic" and len(cards) == 41 and all(c["tab"] == "basic" and c["locked"] is False for c in cards)
+    assert lst["tab"] == "basic" and len(cards) == 42 and all(c["tab"] == "basic" and c["locked"] is False for c in cards)
+    assert "basic-top-micro" in {c["id"] for c in cards}                                                   # task #262: Top 10 micro caps joins the Basic tab (41 -> 42)
     assert all(c["locked"] for g in (await free.get("/api/screener/presets?tab=basic")).json()["groups"] for c in g["presets"])
     d = await silver.get("/api/screener/presets/basic-emerging-tech")
     assert d.status_code == 200 and d.json()["id"] == "basic-emerging-tech"

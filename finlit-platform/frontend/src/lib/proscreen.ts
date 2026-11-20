@@ -3,6 +3,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { apiGet, apiSend, type ApiError } from "./api";
 import { MINUS, cr, nf } from "./format";
 import type { Plan } from "./ui";
+import { migrateSmall } from "./sizeMigration";
 
 export type MetricInfo = { key: string; label: string; unit: string; better: "higher" | "lower" | "none"; tier: Plan; say: string; digits: number; locked: boolean;
   /** A score's fixed scale (task #144): 0 to 100, or -100 to +100 for the two technical views; the From and To boxes stay inside it. */ scale?: [number, number] | null;
@@ -117,17 +118,19 @@ export const encodeState = (s: PState, sort: string, dir: string): string => {
   if (s.nsectors?.length) o.ns = s.nsectors;
   if (s.on?.length) o.on = s.on;
   if (s.mine?.length) o.mn = s.mine;
+  if (s.caps.includes("Small")) o.z = 4;   // task #262: a "Small" written under the four sizes; without the marker a link's Small is an old one (now Micro)
   if (sort !== "market_cap" || dir !== "desc") o.o = [sort, dir];
   return Object.keys(o).length ? btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "") : "";
 };
-export const decodeState = (raw: string | null): { state: PState; sort?: string; dir?: "asc" | "desc" } => {
+/** `moved`: the link is from before 20 Nov 2026 and its size "Small" (below ₹10,000 Cr then) was read as Micro (task #262). */
+export const decodeState = (raw: string | null): { state: PState; sort?: string; dir?: "asc" | "desc"; moved?: true } => {
   if (!raw) return { state: EMPTY };
   try {
     const o = JSON.parse(decodeURIComponent(escape(atob(raw.replace(/-/g, "+").replace(/_/g, "/")))));
     const arr = (v: unknown) => (Array.isArray(v) ? v.filter((x) => typeof x === "string").slice(0, 60) : []);
     const ranges: Record<string, Range> = {};
     for (const [k, v] of Object.entries((o.r || {}) as Record<string, Range>)) if (/^[a-z0-9_]{2,40}$/.test(k) && v && typeof v === "object") ranges[k] = { min: typeof v.min === "number" ? v.min : undefined, max: typeof v.max === "number" ? v.max : undefined };
-    return { state: { ranges, sectors: arr(o.s), industries: arr(o.in ?? o.sn), indices: arr(o.ix ?? o.sx), caps: arr(o.c), bands: arr(o.b), macros: arr(o.ma), nsectors: arr(o.ns), ...(typeof o.m === "string" && /^[a-z_]{2,40}$/.test(o.m) ? { on: [o.m] } : {}), ...(Array.isArray(o.on) ? { on: arr(o.on).filter((x) => /^[a-z_]{2,40}$/.test(x)) } : {}), ...(Array.isArray(o.mn) ? { mine: arr(o.mn) } : {}) }, sort: typeof o.o?.[0] === "string" ? o.o[0] : undefined, dir: o.o?.[1] === "asc" ? "asc" : "desc" };
+    return { state: { ranges, sectors: arr(o.s), industries: arr(o.in ?? o.sn), indices: arr(o.ix ?? o.sx), caps: o.z === 4 ? arr(o.c) : migrateSmall(arr(o.c)), bands: arr(o.b), macros: arr(o.ma), nsectors: arr(o.ns), ...(typeof o.m === "string" && /^[a-z_]{2,40}$/.test(o.m) ? { on: [o.m] } : {}), ...(Array.isArray(o.on) ? { on: arr(o.on).filter((x) => /^[a-z_]{2,40}$/.test(x)) } : {}), ...(Array.isArray(o.mn) ? { mine: arr(o.mn) } : {}) }, sort: typeof o.o?.[0] === "string" ? o.o[0] : undefined, dir: o.o?.[1] === "asc" ? "asc" : "desc", ...(o.z !== 4 && arr(o.c).includes("Small") ? { moved: true as const } : {}) };
   } catch { return { state: EMPTY }; }
 };
 

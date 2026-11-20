@@ -1,7 +1,7 @@
 // Words of the Watchlists page as the "FinLit final pages" pack draws it (board 16, 13 Nov 2026): the five tiles, the insight cards, the groups and the
 // "Price and business disagree" cards, all from the real figures (the screener's universe row and the weekly Leader / In line / Laggard label of
 // /api/leadership/list). Pure functions, tested in watchlistPack.test.ts against the pack's own sentences. Describes, never advises.
-import { capBucket } from "./capBuckets";
+import { capBucket, SIZE_RULE_TEXT, SIZE_SHORTS, type SizeShort } from "./capBuckets";
 import type { Card } from "./pulsePack";
 
 export type LeadLabel = "leader" | "in_line" | "laggard";
@@ -21,7 +21,7 @@ export const PEER_HELP = "Leader, In line, Laggard. Each share's price over the 
 export const HELP = {
   pe: "P/E. The share price divided by a year's profit per share: how many years of today's profit you pay for.",
   roe: "ROE. Profit as a share of the money owners have put in. Higher means the company makes more from each rupee.",
-  size: "Company size. FinLit uses three sizes everywhere, by market value: Large above ₹50,000 Cr, Mid ₹10,000 to 50,000 Cr, Small below ₹10,000 Cr.",
+  size: `Company size. FinLit uses four sizes everywhere, by market value: ${SIZE_RULE_TEXT}.`,
   // the pack's own words name the old score; the owner's rule calls it FinLit IQ everywhere (noFinlitScoreWord.test.ts), so the line says what it is without the old name
   iq: "FinLit IQ. The company's overall score on FinLit, from 0 to 100.",
   prism: "FinLit Prism. FinLit's advanced rating of the company's financial health, from 0 to 100.",
@@ -43,15 +43,15 @@ export const andList = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.s
 const pct1 = (x: number) => (x > 0 ? "+" : x < 0 ? "−" : "") + Math.abs(x).toFixed(1) + "%";
 /** A fraction as points with one decimal and a real minus: 1.524679 -> "+152.5". */
 export const pts = (x: number) => { const v = Math.round(x * 1000) / 10; return (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(1); };
-/** FinLit's three sizes as one word (lib/capBuckets.ts): Large above ₹50,000 Cr, Mid ₹10,000-50,000 Cr, Small below. */
-export const sizeWord = (crore: number | null | undefined): "Large" | "Mid" | "Small" | null => { const b = capBucket(crore); return b ? (b.id === "large" ? "Large" : b.id === "mid" ? "Mid" : "Small") : null; };
+/** FinLit's four sizes as one word (lib/capBuckets.ts): Large, Mid, Small, Micro. */
+export const sizeWord = (crore: number | null | undefined): SizeShort | null => capBucket(crore)?.short ?? null;
 const lead = (i: Item) => (i.lead && i.lead.available ? i.lead : null);
 
 /** Tile 1: how many stocks, and how many of each size ("2 small · 1 mid company"). */
 export function stocksTile(items: Item[]): { value: string; sub: string } {
   const n: Record<string, number> = {};
   for (const i of items) { const s = sizeWord(i.marketCap); if (s) n[s] = (n[s] || 0) + 1; }
-  const keys = ["Large", "Mid", "Small"].filter((s) => n[s]).sort((a, b) => n[b] - n[a]);
+  const keys = [...SIZE_SHORTS].filter((s) => n[s]).sort((a, b) => n[b] - n[a]);
   const parts = keys.map((s) => `${n[s]} ${s.toLowerCase()}`);
   return { value: String(items.length), sub: parts.length ? `${parts.join(" · ")} ${n[keys[keys.length - 1]] === 1 ? "company" : "companies"}` : "Size not known yet" };
 }
@@ -152,7 +152,7 @@ export function peerCell(l: ListLead | null): { chip: string; tone: "good" | "ba
 
 export type GroupBy = "peers" | "industry" | "size";
 export const GROUP_SUB: Record<GroupBy, string> = {
-  peers: "Grouped by how each stock did against its peers over 12 months.", industry: "Grouped by industry.", size: "Grouped by company size: Large, Mid and Small.",
+  peers: "Grouped by how each stock did against its peers over 12 months.", industry: "Grouped by industry.", size: "Grouped by company size: Large, Mid, Small and Micro.",
 };
 const PEER_ORDER = ["Leaders", "In line", "Laggards", "Not compared"];
 /** The group a stock falls in for each Group by button. */
@@ -162,11 +162,11 @@ export function groupOf(g: GroupBy, i: Item): string {
   const l = lead(i);
   return !l ? "Not compared" : l.label === "leader" ? "Leaders" : l.label === "laggard" ? "Laggards" : "In line";
 }
-/** Groups in the pack's order: by peers Leaders, In line, Laggards, Not compared; by size Large, Mid, Small; by industry the largest first. */
+/** Groups in the pack's order: by peers Leaders, In line, Laggards, Not compared; by size Large, Mid, Small, Micro; by industry the largest first. */
 export function groups<T extends Item>(g: GroupBy, items: T[]): [string, T[]][] {
   const m = new Map<string, T[]>();
   for (const i of items) { const k = groupOf(g, i); m.set(k, [...(m.get(k) || []), i]); }
-  const order = g === "peers" ? PEER_ORDER : g === "size" ? ["Large", "Mid", "Small", "Size not known"] : null;
+  const order = g === "peers" ? PEER_ORDER : g === "size" ? [...SIZE_SHORTS, "Size not known"] : null;
   return [...m.entries()].sort((a, b) => (order ? order.indexOf(a[0]) - order.indexOf(b[0]) : b[1].length - a[1].length || a[0].localeCompare(b[0])));
 }
 export const groupTone = (k: string): "good" | "bad" | "mid" | "none" => (k === "Leaders" ? "good" : k === "Laggards" ? "bad" : k === "In line" ? "mid" : "none");

@@ -36,5 +36,5 @@ export const dateIN = (iso: string, opts: Intl.DateTimeFormatOptions = { day: "n
 export const initials = (text: string) =>
   text.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || text.slice(0, 2).toUpperCase();
 
-/** The size word of a market value (₹ crore): the site's one three-size scale (capBuckets.ts). */
+/** The size word of a market value (₹ crore): the site's one four-size scale (capBuckets.ts). */
 export const capSize = (crore: number | null | undefined): string | null => capBucket(crore)?.label ?? null;

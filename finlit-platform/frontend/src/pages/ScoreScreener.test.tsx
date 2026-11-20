@@ -355,7 +355,7 @@ describe("Basic stock screener page", () => {
     const d = screen.getByRole("dialog", { name: "How FinLit IQ works" });
     expect(d.textContent).toMatch(/Strong, Healthy, Mixed and Watch/);
     expect(d.textContent).not.toMatch(/78|62 to 77|45 to 61|under 45|average of/);              // the model's cut-offs and formula never show (task #64)
-    expect(d.textContent).toMatch(/Large cap above ₹50,000 Cr, Mid cap ₹10,000 to 50,000 Cr, Small cap below ₹10,000 Cr/);
+    expect(d.textContent).toMatch(/Large cap above ₹75,000 Cr, Mid cap ₹25,000 to 75,000 Cr, Small cap ₹10,000 to 25,000 Cr, Micro cap below ₹10,000 Cr/);
     expect(d.textContent).toMatch(/26 Oct 2026/);
     expect(d.textContent?.toLowerCase()).not.toMatch(/\b(buy|sell|hold|reduce|avoid|accumulate|target)\b/);
     fireEvent.keyDown(document, { key: "Escape" });
@@ -464,7 +464,7 @@ describe("Basic stock screener: no Prism", () => {
     expect(screen.getByRole("button", { name: /^Market cap\s?1/ })).toBeTruthy();
     const p = panel("Market cap");
     expect(countOf(p, "Large cap")).toMatch(/^\d+$/);
-    expect(p.getByText("Above ₹50,000 Cr")).toBeTruthy();                                         // each size with its range
+    expect(p.getByText("Above ₹75,000 Cr")).toBeTruthy(); expect(countOf(p, "Micro cap")).toMatch(/^\d+$/);   // task #262: four sizes                                       // each size with its range
     closePanel();
     expect(countOf(panel("Industry"), "Banks")).toBe("2");                                         // its own list is left out of its counts
     expect(opt(panel("Industry"), "IT - Software").checked).toBe(true);

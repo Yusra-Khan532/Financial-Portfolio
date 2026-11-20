@@ -1,6 +1,6 @@
 // Task #183 part 2 (MF portfolio, pack 02 §3 and "Changes of 15 Nov (afternoon)"): the Mix & overlap tab, in the pack's order.
 // 1 What they own (macro sector · 12 | sector · 22 × size look-through, chips with the plan's reading, "+N more ▾") → 2 Spread (six readings) → three sub-tabs:
-// What they hold (3 Money in, 4 Sectors inside) · How funds move together (5 Move together with a pair reader, 6 Shared stocks) · Small, mid and large (7) →
+// What they hold (3 Money in, 4 Sectors inside) · How funds move together (5 Move together with a pair reader, 6 Shared stocks) · Large, mid, small and micro (7) →
 // 8 Biggest stocks (5, then Show all 10) → 9 Trend (Gold, folded; a lock card below Gold). Figures are the server's; this file only draws and words them.
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
@@ -15,8 +15,8 @@ import { coTitle, subLine, titleOf } from "../../lib/companyLabel";
 
 export type Level = "macro" | "sector";
 export type Reading = { word: string | null; score: number | null } | null;
-const SIZES = ["Large", "Mid", "Small"] as const;
-const SIZE_HEAD: Record<string, [string, string]> = { Large: ["Large", "above ₹50,000 Cr"], Mid: ["Mid", "₹10,000–50,000 Cr"], Small: ["Small", "below ₹10,000 Cr"], Unsized: ["Not sized", "abroad or not matched"] };
+const SIZES = ["Large", "Mid", "Small", "Micro"] as const;   // FinLit's four sizes (lib/capBuckets.ts, task #262)
+const SIZE_HEAD: Record<string, [string, string]> = { Large: ["Large", "above ₹75,000 Cr"], Mid: ["Mid", "₹25,000–75,000 Cr"], Small: ["Small", "₹10,000–25,000 Cr"], Micro: ["Micro", "below ₹10,000 Cr"], Unsized: ["Not sized", "abroad or not matched"] };
 const p1 = (x: number) => `${(x * 100).toFixed(1)}%`;
 const p0 = (x: number) => `${Math.round(x * 100)}%`;
 export const tone = (w: string | null | undefined) => (/strong|healthy/i.test(w || "") ? "g" : /average|mixed|fair/i.test(w || "") ? "m" : /weak|poor|watch/i.test(w || "") ? "b" : "n");
@@ -74,10 +74,11 @@ export function OwnSection({ sp, level, onLevel, readingOf, gold, mfOnly }: { sp
   const colTot = (s: string) => rows.reduce((a, r) => a + (r.cells[s]?.w ?? 0), 0);
   const shown = level === "sector" && !all ? rows.slice(0, 8) : rows;
   const macroOf = (n: string) => sp.sectorMacro?.[n];
-  const top = rows[0], small = colTot("Small") / (sp.knownShares || 1);
+  // task #262: this card was about companies below ₹10,000 Cr (the old "Small"), which is the Micro column now; it keeps that meaning and its 15% line
+  const top = rows[0], small = colTot("Micro") / (sp.knownShares || 1);
   const cards: Card[] = [];
   if (top) cards.push({ kind: "insight", title: `${top.name} leads underneath`, text: `${p1(top.total)} of your list sits in ${top.name}, through ${top.n} companies across your funds.` });
-  cards.push({ kind: small < 0.15 ? "insight" : "watch", title: small < 0.15 ? "Few small companies underneath" : "Many small companies underneath", text: `${p0(small)} of the shares sit in companies below ₹10,000 Cr. Fund categories rank companies instead, so a fund's category and these sizes can differ.` });
+  cards.push({ kind: small < 0.15 ? "insight" : "watch", title: small < 0.15 ? "Few micro companies underneath" : "Many micro companies underneath", text: `${p0(small)} of the shares sit in micro companies, below ₹10,000 Cr. Fund categories rank companies instead, so a fund's category and these sizes can differ.` });
   cards.push({ kind: "insight", title: "Weights follow the fund files", text: `From each fund house's latest monthly file, each fund counting ${sp.basis === "value" ? "by the value of your units" : "the same"}.${sp.coverage.notMatched ? ` ${sp.coverage.notMatched} share ${sp.coverage.notMatched === 1 ? "ISIN is" : "ISINs are"} not matched to a listed company: counted as "Not sized".` : ""}` });
   return (
     <Section id="mfp-own" hide title="What your funds own: sector and size" help="The shares inside your funds, added up from each fund house's latest monthly file, by NSE sector and company size. Each chip is one company." how="Darker cells hold more of your list. A chip's dot is its reading on your plan; +N more opens the rest of the cell."
@@ -210,19 +211,19 @@ export function SharedSection({ sp }: { sp: MfSpread }) {
   );
 }
 
-// ------------------------------------------------------------------------------------------------ sub-tab 3: small, mid and large
+// ------------------------------------------------------------------------------------------------ sub-tab 3: large, mid, small and micro
 export function SizesSection({ sp }: { sp: MfSpread }) {
   const funds = sp.funds.filter((f) => sp.perFund?.[String(f.code)]);
-  const row = (sz: Record<string, number>, scale = 1) => { const l = (sz.Large ?? 0) * scale, m = (sz.Mid ?? 0) * scale, s = (sz.Small ?? 0) * scale, u = (sz.Unsized ?? 0) * scale, o = Math.max(0, 1 - l - m - s - u);
-    return <span className="mfm-stack">{[["L", l, "Large"], ["M", m, "Mid"], ["S", s, "Small"], ["U", u, "Not sized"], ["O", o, "Cash, debt and gold"]].map(([c, v, n]) => (v as number) > 0.005 ?
+  const row = (sz: Record<string, number>, scale = 1) => { const l = (sz.Large ?? 0) * scale, m = (sz.Mid ?? 0) * scale, s = (sz.Small ?? 0) * scale, x = (sz.Micro ?? 0) * scale, u = (sz.Unsized ?? 0) * scale, o = Math.max(0, 1 - l - m - s - x - u);
+    return <span className="mfm-stack">{[["L", l, "Large"], ["M", m, "Mid"], ["S", s, "Small"], ["X", x, "Micro"], ["U", u, "Not sized"], ["O", o, "Cash, debt and gold"]].map(([c, v, n]) => (v as number) > 0.005 ?
       <i key={c as string} className={"mfm-z" + c} style={{ width: `${(v as number) * 100}%` }} title={`${n} ${p0(v as number)}`}>{(v as number) > 0.08 ? p0(v as number) : ""}</i> : null)}</span>; };
-  const tot = sp.size.Large + sp.size.Mid + sp.size.Small;
+  const micro = sp.size.Micro ?? 0, tot = sp.size.Large + sp.size.Mid + sp.size.Small + micro;
   return (
-    <Section id="mfp-sizes" hide title="Small, mid and large" help="The shares inside each fund by company size, on FinLit's ₹ rule: large above ₹50,000 Cr, mid ₹10,000 to 50,000 Cr, small below ₹10,000 Cr." how="One bar per fund: large, mid and small, then cash, debt and gold in grey. The list's total adds up the shares only."
+    <Section id="mfp-sizes" hide title="Large, mid, small and micro" help="The shares inside each fund by company size, on FinLit's ₹ rule: large above ₹75,000 Cr, mid ₹25,000 to 75,000 Cr, small ₹10,000 to 25,000 Cr, micro below ₹10,000 Cr." how="One bar per fund: large, mid, small and micro, then cash, debt and gold in grey. The list's total adds up the shares only."
       sub="One bar per fund; the list's total is for the shares only.">
       <div className="mfm-fbars">{funds.map((f) => <div key={f.code} className="mfm-fb"><b>{shortFund(f.name)}</b>{row(sp.perFund![String(f.code)].size)}</div>)}
-        <div className="mfm-fb total"><b>Your list, shares only</b>{row({ Large: sp.size.Large / (tot || 1), Mid: sp.size.Mid / (tot || 1), Small: sp.size.Small / (tot || 1) })}</div></div>
-      <p className="sp-note"><i className="mfm-key mfm-zL" /> Large · <i className="mfm-key mfm-zM" /> Mid · <i className="mfm-key mfm-zS" /> Small · <i className="mfm-key mfm-zO" /> Cash, debt and gold.
+        <div className="mfm-fb total"><b>Your list, shares only</b>{row({ Large: sp.size.Large / (tot || 1), Mid: sp.size.Mid / (tot || 1), Small: sp.size.Small / (tot || 1), Micro: micro / (tot || 1) })}</div></div>
+      <p className="sp-note"><i className="mfm-key mfm-zL" /> Large · <i className="mfm-key mfm-zM" /> Mid · <i className="mfm-key mfm-zS" /> Small · <i className="mfm-key mfm-zX" /> Micro · <i className="mfm-key mfm-zO" /> Cash, debt and gold.
         Sizes follow FinLit's ₹ rule on the company's market value. SEBI's fund categories rank companies instead (the top 100 large, the next 150 mid), so a fund's category and these sizes can differ.</p>
     </Section>
   );
@@ -234,7 +235,7 @@ const SUB_OF: Record<string, Sub> = { "mfp-money": "hold", "mfp-secin": "hold", 
 export function MixSubTabs({ sp, level, onLevel }: { sp: MfSpread; level: Level; onLevel: (l: Level) => void }) {
   const [sub, setSub] = useState<Sub>("hold");
   useEffect(() => { const on = (e: Event) => { const s = SUB_OF[(e as CustomEvent).detail as string]; if (s) setSub(s); }; addEventListener("eq-jump", on); return () => removeEventListener("eq-jump", on); }, []);
-  const TABS: [Sub, string, string][] = [["hold", "What they hold", "Shares, debt, gold and sectors"], ["move", "How funds move together", "NAV moves and shared stocks"], ["size", "Small, mid and large", "Company sizes inside each fund"]];
+  const TABS: [Sub, string, string][] = [["hold", "What they hold", "Shares, debt, gold and sectors"], ["move", "How funds move together", "NAV moves and shared stocks"], ["size", "Large, mid, small and micro", "Company sizes inside each fund"]];
   return <>
     <div className="eqd-subbar mfm-subtabs" role="tablist" aria-label="Mix and overlap views">{TABS.map(([k, t, s]) => <button key={k} type="button" role="tab" aria-selected={sub === k} className={sub === k ? "on" : ""} onClick={() => setSub(k)}><b>{t}</b><small>{s}</small></button>)}</div>
     {sub === "hold" && <><MoneySection sp={sp} /><SectorsInside sp={sp} level={level} onLevel={onLevel} /></>}

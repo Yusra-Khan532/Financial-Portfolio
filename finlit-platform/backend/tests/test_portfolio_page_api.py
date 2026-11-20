@@ -139,7 +139,7 @@ async def test_task_183_risk_by_size_each_share_against_its_own_index(app):  # n
     from test_diversification_api import PRICES_MAX
     await seed(app)
     rows = [{"quote_date": r["d"], "close_price": r["c"]} for r in PRICES_MAX["__NIFTY"]["rows"]]
-    for code, k in (("NIFMID150", 1.1), ("NIFSMA250", 1.25)):
+    for code, k in (("NIFMID150", 1.1), ("NIFSMA250", 1.25), ("NIFMIC250", 1.4)):   # task #262: Micro is read against the Nifty Microcap 250
         await app.state.store.redis.set(f"idx:px:{code}", _json.dumps({"t": _time.time(), "v": {"rows": [{**r, "close_price": r["close_price"] * k} for r in rows]}}))
     basic = await signed_in(app, "rb@example.com", plan="basic")
     assert (await basic.post("/api/portfolio/risk", json={"symbols": SAMPLE})).status_code == 403
@@ -152,7 +152,7 @@ async def test_task_183_risk_by_size_each_share_against_its_own_index(app):  # n
     by = {x["symbol"]: x for x in j["shares"]}
     assert by["NEWCO"]["beta"] is None and by["NEWCO"]["why"] in ("Under a year of prices", "No size band yet")
     counted = [x for x in j["shares"] if x["beta"] is not None]
-    assert counted and all(x["benchmark"] in ("Nifty 50", "Nifty Midcap 150", "Nifty Smallcap 250") and 0 <= x["explained"] <= 100 for x in counted)
+    assert counted and all(x["benchmark"] in ("Nifty 50", "Nifty Midcap 150", "Nifty Smallcap 250", "Nifty Microcap 250") and 0 <= x["explained"] <= 100 for x in counted)
     assert sum(s["n"] for s in j["sizes"]) == j["counted"] == len(counted)
     assert j["betas"]["weighted"] == round(sum((s["avgBeta"] or 0) * s["listShare"] / 100 for s in j["sizes"]), 2) or abs(j["betas"]["weighted"] - sum((s["avgBeta"] or 0) * s["listShare"] / 100 for s in j["sizes"])) < 0.02
     assert j["glance"]["list"]["swing"] > 0 and j["glance"]["nifty"]["worstFall"] <= 0 and j["glance"]["worst10"]["nifty"] < 0

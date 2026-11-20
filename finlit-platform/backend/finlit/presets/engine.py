@@ -263,7 +263,8 @@ def prism_rules(fr: Frame, pf: Dict[str, Any]) -> List[Rule]:
         want = pf["status"]
         out.append(Rule(f"Prism rating status is {want.title()}", [fr.pz[i].get("prism_status") == want and fr.pz[i].get("prism_final") is not None for i in range(n)]))
     if pf.get("cap"):
-        out.append(Rule(f"{pf['cap']} cap (market-cap rank {'1 to 100' if pf['cap'] == 'Large' else '101 to 250' if pf['cap'] == 'Mid' else '251 onward'})", [fr.t.cap[i] == pf["cap"] for i in range(n)]))
+        from ..sizes import RANGE
+        out.append(Rule(f"{pf['cap']} cap (market value {RANGE[pf['cap']]})", [fr.t.cap[i] == pf["cap"] for i in range(n)]))   # task #262: the ₹ rule, not ranks
     for key, (field, words) in PRISM_PARAMS.items():
         if key in pf:
             lim = float(pf[key])
@@ -618,8 +619,9 @@ def run(fr: Frame, preset: Preset, requested: Optional[Sequence[str]] = None) ->
     out["ratedCount"] = sum(1 for i in idx if fr.has_prism(i))
     if preset.id == "fno-both-positive":
         out["of"] = {"label": "F&O stocks", "n": sum(1 for i in range(n) if fr.t.cols["fno"][i] == 1.0)}
-    if preset.id == "highest-rated-small":
-        out["of"] = {"label": "rated small caps", "n": sum(1 for i in range(n) if fr.t.cap[i] == "Small" and fr.pz[i].get("prism_status") == "RATED")}
+    if preset.id in ("highest-rated-small", "highest-rated-micro"):
+        sz = preset.prism_filters.get("cap")
+        out["of"] = {"label": f"rated {sz.lower()} caps", "n": sum(1 for i in range(n) if fr.t.cap[i] == sz and fr.pz[i].get("prism_status") == "RATED")}
     if not idx:
         out["closestMisses"] = closest_misses(fr, rules)
         out["emptyText"] = "No company meets every rule today."

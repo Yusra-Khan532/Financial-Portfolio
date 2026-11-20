@@ -16,6 +16,8 @@ import { EXAMPLES as RATIO_EXAMPLES, valueText } from "../lib/customRatio";
 import { apiSend } from "../lib/api";
 import { decodeRatios, encodeRatios, loadRatios, saveRatios, loadSavedRatios, storeSavedRatios, ratioLabel, type CustomRatio, activeCount, linkLevels, takenOffLine, cellTone, chipColumn, colourColumns, colourNote, dataLine, decodeState, emptyReason, encodeState, firstPeriod, fmtMetric, loadCols, norm, stack, standardColumns, storeCols, tableColumns, toBody, useCatalog, useReady, useScreen, type Catalog, type MetricInfo, type PState, type Range, type ReadyScreen } from "../lib/proscreen";
 import { screens, useSavedScreens, type SavedScreen } from "../lib/screens";
+import { CAP_BUCKETS } from "../lib/capBuckets";
+import { SizeNote } from "../components/SizeNote";
 import { useDocTitle } from "../lib/title";
 import { TIER, useUI, type Plan } from "../lib/ui";
 import { techBandOf, trendWord } from "../lib/scoreScreen";
@@ -375,6 +377,7 @@ export function ScreenerPro() {
             {/* task #243 (pack S, v3): a calm header row (the label and the minimise button), then the three tabs on their own row */}
             <div className="ssw-rh xsp-rh"><h2>Screens and rules</h2>
               <button type="button" className="ssw-rmin" onClick={minimizeRules} aria-controls="ssw-rules" aria-expanded={rulesOpen} aria-label="Minimize Screens and rules" title="Minimize Screens and rules (your rules stay on)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button></div>
+            <SizeNote link={!!init.current.moved} saved={saved.some((x) => !!x.sizesMoved)} />
             <PanelTabs tab={ptab} setTab={setPtab} nOn={onScreens.length} nReady={ready.data?.screens.length ?? null} />
             <div role="tabpanel" id="xsp-p-rules" aria-labelledby="xsp-t-rules" hidden={ptab !== "rules"} className="xsp-panel">
             {(nActive > 0 || rules.length > 0) && <p className="xsp-clear"><button type="button" className="lnk" onClick={clearAll}>Clear all</button></p>}
@@ -388,7 +391,7 @@ export function ScreenerPro() {
             {data && <>
               <div className="ssw-sec"><h3>Market cap</h3>
                 <div className="ssw-chips" role="group" aria-label="Market cap">{data.caps.map((c) => <button key={c.name} type="button" className="ssw-chip" aria-pressed={F.caps.includes(c.name)} onClick={() => toggle("caps", c.name)}>{c.name} <span>{nf(c.n, 0)}</span></button>)}</div>
-                <p className="ssw-note">Large above ₹50,000 Cr · Mid ₹10,000–50,000 Cr · Small below ₹10,000 Cr</p></div>
+                <p className="ssw-note">{CAP_BUCKETS.map((b) => `${b.short} ${b.range.replace(/^(Above|Below)/, (w) => w.toLowerCase())}`).join(" · ")}</p></div>
               <div className="ssw-sec"><h3>Sector, industry and index</h3>
                 {!!data.macros?.length && <Fold id="macro" named title="Macro sector" summary={pickedMacros.length ? `${pickedMacros.length} picked` : `All ${data.macros?.length ?? 12}`} open={folds.macro ?? pickedMacros.length > 0} setOpen={(o) => setFolds((x) => ({ ...x, macro: o }))}>
                   <Checks items={macroItems} picked={pickedMacros} toggle={(k) => pickLevel("macros", k)} /></Fold>}

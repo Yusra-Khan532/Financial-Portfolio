@@ -12,7 +12,7 @@ const HS = [H(100177, "Quant Small Cap Fund", "Equity Scheme - Small Cap Fund", 
   H(147347, "ICICI Prudential MNC Fund", "Equity Scheme - Sectoral/ Thematic", "Sectoral / Thematic", sc(51.9, "Average", [28, 69, 37, 79])),
   H(152911, "Kotak MNC Fund", "Equity Scheme - Sectoral/ Thematic", "Sectoral / Thematic", sc(64.4, "Average", [64, 75, 64, 50])),
   H(153651, "JioBlackRock Liquid Fund", "Debt Scheme - Liquid Fund", "Liquid", sc(67.6, "Healthy", [68, 85, 56, 62]))];
-const SP = { count: 5, size: { Large: 0.6, Mid: 0.31, Small: 0.09, Other: 0 },
+const SP = { count: 5, size: { Large: 0.6, Mid: 0.25, Small: 0.06, Micro: 0.09, Other: 0 },   // task #262: below ₹10,000 Cr is Micro
   readings: { together: { word: "Move as one", independent: 1.3, of: 4 }, underneath: { stocks: 235, inTwoOrMore: 36 }, overlap: { word: "Low", top: { a: 101144, b: 147347, pct: 10.2, n: 30 } },
     theme: { theme: "MNC", funds: [147347, 152911] } },
   funds: [{ code: 147347, name: "ICICI Prudential MNC Fund", amc: "ICICI Prudential Mutual Fund" }, { code: 152911, name: "Kotak MNC Fund", amc: "Kotak Mahindra Mutual Fund" }] } as unknown as MfSpread;

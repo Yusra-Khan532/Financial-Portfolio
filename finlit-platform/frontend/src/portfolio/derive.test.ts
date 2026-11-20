@@ -15,7 +15,7 @@ describe("number text", () => {
 describe("the sample list", () => {
   it("names the sizes from the page's own counts, the absent ones last", () => {
     const metas = Object.values(s12.inputs.meta) as never[];
-    expect(sizeLine(page, metas)).toBe("7 sectors · 9 large caps, 3 small caps, no mid caps");
+    expect(sizeLine(page, metas)).toBe("7 sectors · 9 large caps, 3 small caps, no mid caps, no micro caps");
     expect(sizeLine(page, metas, true)).toBe("7 sectors · 9 large, 3 small");
   });
   it("lists sectors largest first and keeps the list's own order for ties", () => {

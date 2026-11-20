@@ -218,10 +218,9 @@ async def list_holdings(request: Request, ctx: Ctx = Depends(member_ctx), pf: Op
 # ------------------------------------------------------------------------------------------------------------------------ diversification
 
 async def size_ranks(conn, isins: List[str]) -> Dict[str, str]:
-    """Large / Mid / Small by the site's one ₹ rule on the company's market value (task #183, COMMON-RULES: large above ₹50,000 Cr, mid above ₹10,000 Cr,
-    small below; the same scale as portfolio_page.risk_sizes and lib/capBuckets.ts). Fund categories rank companies instead; the page says so."""
-    def size_of(cr: float) -> Optional[str]:      # the same edges as portfolio_page.risk_sizes (kept here: this process never imports pandas)
-        return None if cr < 0 else "Large" if cr > 50000.0 else "Mid" if cr > 10000.0 else "Small"
+    """Large / Mid / Small / Micro by the site's one ₹ rule on the company's market value (finlit/sizes.py, task #262: large above ₹75,000 Cr, mid ₹25,000-75,000 Cr, small ₹10,000-25,000 Cr, micro below;
+    the same scale as portfolio_page.risk_sizes and lib/capBuckets.ts). Fund categories rank companies instead; the page says so."""
+    from ..sizes import size_of   # task #262: the site's one rule (Large, Mid, Small, Micro)
     if not isins:
         return {}
     rows = await conn.fetch(

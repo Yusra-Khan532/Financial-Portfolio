@@ -596,7 +596,7 @@ describe("Your rules (file 04 §3, §4; task #75)", () => {
     mount(); await ready();
     fireEvent.click(within(rulesPanel()).getByRole("button", { name: /^Large 204/ }));
     await waitFor(() => expect(last().cats!.cap).toEqual(["Large"]));
-    expect(within(rulesPanel()).getByText(/Large above ₹50,000 Cr · Mid ₹10,000–50,000 Cr · Small below ₹10,000 Cr/)).toBeTruthy();
+    expect(within(rulesPanel()).getByText(/Large above ₹75,000 Cr · Mid ₹25,000–75,000 Cr · Small ₹10,000–25,000 Cr · Micro below ₹10,000 Cr/)).toBeTruthy();
   });
 });
 

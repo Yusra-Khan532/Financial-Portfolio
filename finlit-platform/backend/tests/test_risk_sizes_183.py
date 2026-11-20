@@ -27,7 +27,8 @@ IDX = {code: [{"d": d.date().isoformat(), "c": c} for d, c in zip(FRIDAYS, path(
 
 
 def test_sizes_and_ranges():
-    assert [rs.size_of(v) for v in (50001, 50000, 10001, 10000, 5, None)] == ["Large", "Mid", "Mid", "Small", "Small", None]
+    # task #262 (finlit/sizes.py): Large above 75,000 Cr; Mid 25,000-75,000 (both lines Mid); Small 10,000-<25,000; Micro below 10,000
+    assert [rs.size_of(v) for v in (75001, 75000, 25000, 24999, 10000, 9999, 5, None)] == ["Large", "Mid", "Mid", "Small", "Small", "Micro", "Micro", None]
     assert [rs.band_of(b)["word"] for b in (0.5, 0.65, 0.9, 1.1, 1.35, 1.75, 2.4)] == ["Less sensitive", "Defensive", "Similar", "More sensitive", "High", "Very high", "Very high"]
     assert rs.band_of(None) is None
 

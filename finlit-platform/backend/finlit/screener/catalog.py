@@ -317,7 +317,7 @@ INDEX_LISTS = {  # code -> (label, niftyindices file)
     "NIFTYREALTY": ("NIFTY Realty", "ind_niftyrealtylist"), "NIFTYMEDIA": ("NIFTY Media", "ind_niftymedialist"), "NIFTYMETAL": ("NIFTY Metal", "ind_niftymetallist"),
     "NIFTYCOMMODITIES": ("NIFTY Commodities", "ind_niftycommoditieslist"),
 }
-CAPS = ("Large", "Mid", "Small")
+from ..sizes import SIZES as CAPS   # task #262: Large, Mid, Small, Micro (finlit/sizes.py)
 
 
 def tier_of(key: str) -> str:

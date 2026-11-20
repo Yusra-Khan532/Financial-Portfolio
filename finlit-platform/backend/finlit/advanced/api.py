@@ -87,7 +87,7 @@ class Universe(BaseModel):
     sector: List[str] = Field(default_factory=list, max_length=40)
     industry: List[str] = Field(default_factory=list, max_length=60)
     index: List[str] = Field(default_factory=list, max_length=20)
-    cap: List[Literal["Large", "Mid", "Small"]] = Field(default_factory=list, max_length=3)
+    cap: List[Literal["Large", "Mid", "Small", "Micro"]] = Field(default_factory=list, max_length=4)
     mcapMin: Optional[float] = Field(default=None, ge=0, le=1e9)
     mcapMax: Optional[float] = Field(default=None, ge=0, le=1e9)
     lenders: Literal["auto", "exclude", "include", "only"] = "auto"
