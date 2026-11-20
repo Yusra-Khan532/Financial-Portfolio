@@ -54,6 +54,18 @@ def test_too_few_weeks_gives_no_beta_and_share_prices_read_from_iso_dates():
     assert _days_closes(None) == ([], [])
 
 
+def test_a_share_with_a_few_months_of_prices_is_left_out_not_blanking_the_list():
+    """QA of 21 Nov (fail 1): 2 of 71 shares with under a year of prices had blanked the shares' beta ("—"). As on the Equity portfolio's Risk analytics, they
+    are left out, the others' weights scaled up, and the window names them."""
+    days, idx, a = _series(1.5)
+    _, _, b = _series(0.5)
+    out = beta500_weekly([(days, a), (days[-60:], b[-60:]), (days, b)], [1.0, 5.0, 1.0], dict(zip(days, idx)), END, ["AAA", "UTLSOLAR", "BBB"])
+    assert out["beta"] == 1.0                                     # AAA and BBB, equal weights after UTLSOLAR is left out
+    assert out["each"][1] is None and out["each"][0] == 1.5
+    w = out["window"]
+    assert (w["counted"], w["of"], w["short"]) == (2, 3, ["UTLSOLAR"]) and w["weeks"] >= mfb.MIN_WEEKS
+
+
 def test_one_band_gives_the_word_and_its_sentence():
     assert calc.band_line(0.79) == "Defensive: moves a little less than the market. When the Nifty 500 moved 1%, this moved about 0.79%."
     assert calc.band_line(1.0).startswith("Similar: moves about with the market.")

@@ -21,7 +21,9 @@ describe("Step 4's filter row (change 18)", () => {
     expect(screen.getByText("430 companies")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Held: All" }));
     const menu = screen.getByRole("group", { name: "Held" });
-    expect(within(menu).getAllByRole("checkbox").map((c) => c.closest("label")!.textContent)).toEqual(["More than one way17", `Only direct${ROWS.filter((c) => c.held.join("") === "D").length}`, `Only through funds and ETFs${ROWS.filter((c) => !c.held.includes("D")).length}`]);
+    expect(within(menu).getAllByRole("checkbox").map((c) => c.closest("label")!.textContent)).toEqual(["More than one way17", `Only direct${ROWS.filter((c) => c.held.join("") === "D").length}`, `Only through funds and ETFs${ROWS.filter((c) => c.held.length === 1 && c.held[0] !== "D").length}`]);
+    // QA of 21 Nov (item 4): the three choices never overlap, so they add up to every company
+    expect(17 + ROWS.filter((c) => c.held.join("") === "D").length + ROWS.filter((c) => c.held.length === 1 && c.held[0] !== "D").length).toBe(ROWS.length);
     fireEvent.click(within(menu).getByRole("checkbox", { name: /More than one way/ }));
     expect(screen.getByRole("button", { name: "Held: More than one way" }).className).toContain("on");
     expect(screen.getByText("Showing 17 of 430")).toBeTruthy();

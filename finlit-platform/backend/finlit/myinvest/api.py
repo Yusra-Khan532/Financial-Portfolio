@@ -106,25 +106,31 @@ def _shares_market(prices: Dict[str, Any], bench_rows: List[dict], symbols: List
     return {**{k: float(v) for k, v in m.items()}, "each": each, "short": list(short), "weeks": int(len(r)), "years": round(len(r) / 52, 1)}
 
 
-def beta500_weekly(series: List[Tuple[List[int], List[float]]], weights: List[float], bench: Dict[int, float], end: int) -> Dict[str, Any]:
+def beta500_weekly(series: List[Tuple[List[int], List[float]]], weights: List[float], bench: Dict[int, float], end: int,
+                   names: Optional[List[str]] = None) -> Dict[str, Any]:
     """Task #277 (live number fix 4): one "beta against the Nifty 500" for every kind on this page, the one each portfolio page already headlines: weekly
     closes over the past year (the MF and ETF pages' `beta500`, mfportfolio.bench.build). Each item's own beta, and the list's from its weighted weekly
-    changes over the weeks every item has one. The window goes with it, so the page can print it under the number."""
+    changes. As on the Equity portfolio's Risk analytics, an item with under most of a year of weekly prices (fewer than MIN_WEEKS changes) is left out of
+    the list's beta and the others' weights are scaled up; the window says how many were counted and names the ones left out (QA of 21 Nov: one share
+    with a few months of prices had blanked the whole list's beta). The window goes with it, so the page can print it under the number."""
     from ..mfportfolio import bench as mfb
     weeks_at = mfb.fridays(end)
     bd = sorted(bench)
     n500 = mfb.changes(mfb.weekly(bd, [bench[d] for d in bd], weeks_at))
     chs = [mfb.changes(mfb.weekly(d, v, weeks_at)) for d, v in series]
     each = [mfb.r2(mfb.ols(c, n500)[0]) for c in chs]
-    tw = sum(weights) or 1.0
-    lw = [w / tw for w in weights]
-    rows = [i for i in range(len(n500)) if chs and all(c[i] is not None for c in chs)]
+    keep = [k for k, c in enumerate(chs) if sum(1 for x in c if x is not None) >= mfb.MIN_WEEKS]
+    tw = sum(weights[k] for k in keep) or 1.0
+    lw = {k: weights[k] / tw for k in keep}
+    rows = [i for i in range(len(n500)) if keep and all(chs[k][i] is not None for k in keep)]
     port: List[Optional[float]] = [None] * len(n500)
     for i in rows:
-        port[i] = sum(lw[k] * chs[k][i] for k in range(len(chs)))   # type: ignore[operator]
+        port[i] = sum(lw[k] * chs[k][i] for k in keep)   # type: ignore[operator]
     b = mfb.ols(port, n500)[0] if len(rows) >= mfb.MIN_WEEKS else None
+    short = [names[k] for k in range(len(chs)) if k not in keep] if names else []
     return {"beta": mfb.r2(b), "each": each, "window": {"index": "Nifty 500", "grain": "weekly", "window": "past year", "weeks": len(rows),
-            "from": date.fromordinal(weeks_at[0]).isoformat(), "to": date.fromordinal(weeks_at[-1]).isoformat()}}
+            "from": date.fromordinal(weeks_at[0]).isoformat(), "to": date.fromordinal(weeks_at[-1]).isoformat(),
+            "counted": len(keep), "of": len(chs), "short": short}}
 
 
 def _days_closes(p: Optional[Dict[str, Any]]) -> Tuple[List[int], List[float]]:
@@ -142,6 +148,20 @@ def _list_risk(parts: List[Tuple[List[int], List[float], float]], end: int) -> D
         return {"swing": None, "worstFall": None, "years": None, "why": "They share less than a year of daily prices, so they cannot be followed as one line yet." if parts else None}
     return {"swing": mfrisk.r1(mfrisk.swing(mfrisk.returns(lv), mfrisk.per_year(ld))), "worstFall": mfrisk.r1(mfrisk.worst_fall(lv)),
             "years": round((ld[-1] - ld[0]) / 365.25, 1), "why": None}
+
+
+async def _quotes(store, symbols: List[str]) -> Dict[str, Dict[str, Any]]:
+    """Each company's quote from its stored summary (price, changePct, asOf), consolidated first: the price the Equity portfolio shows (portfolio_overview)."""
+    from ..portfolio_overview import _num
+    async with store.pool.acquire() as conn:
+        rows = await conn.fetch("SELECT DISTINCT ON (symbol) symbol, body::jsonb #> '{quote}' AS q FROM snapshots WHERE symbol = ANY($1::text[]) AND section = 'summary' "
+                                "ORDER BY symbol, (statement = 'consolidated') DESC", symbols)
+    out: Dict[str, Dict[str, Any]] = {}
+    for r in rows:
+        q = orjson.loads(r["q"]) if isinstance(r["q"], (str, bytes)) else (r["q"] or {})
+        if isinstance(q, dict) and _num(q.get("price")):
+            out[r["symbol"]] = {"price": _num(q.get("price")), "changePct": _num(q.get("changePct")), "asOf": q.get("asOf")}
+    return out
 
 
 async def _bench(app) -> List[dict]:
@@ -233,6 +253,7 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
     bench = {date.fromisoformat(r["d"]).toordinal(): float(r["c"]) for r in bench_rows}
     end = max(bench) if bench else None
 
+    quotes = await _quotes(store, known) if known else {}
     shares: List[Dict[str, Any]] = []
     for s in known:
         f = facts[s]
@@ -242,8 +263,14 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
         days, vals = [d for d, _ in pairs], [c for _, c in pairs]
         last = vals[-1] if vals else None
         prev = vals[-2] if len(vals) > 1 else None
-        shares.append({"symbol": s, "name": f.get("name") or s, "qty": qty[s], "price": last, "priceDate": date.fromordinal(days[-1]).isoformat() if days else None,
-                       "chg1d": (last / prev - 1) * 100 if last and prev else None, "chg1y": _year_change(days, vals), "mcap": calc._num(f.get("mcap"))})
+        q = quotes.get(s) or {}
+        # QA of 21 Nov (item 5): the price and the day's change are the company's quote, as the Equity portfolio shows them (the stored price series is
+        # weekly, so its last point can be an older close); the series stays the fallback and still gives the 1-year change
+        price = q.get("price") or last
+        shares.append({"symbol": s, "name": f.get("name") or s, "qty": qty[s], "price": price,
+                       "priceDate": (str(q["asOf"])[:10] if q.get("price") and q.get("asOf") else date.fromordinal(days[-1]).isoformat() if days else None),
+                       "chg1d": q["changePct"] if q.get("price") and q.get("changePct") is not None else (last / prev - 1) * 100 if last and prev else None,
+                       "chg1y": _year_change(days, vals), "mcap": calc._num(f.get("mcap"))})
 
     units: Dict[int, Decimal] = defaultdict(Decimal)
     paid: Dict[int, Optional[Decimal]] = defaultdict(Decimal)        # task #235 (pack C3): what the units still held cost; None when a buy has no amount
@@ -301,7 +328,7 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
             log.warning("all-investments: share market figures failed: %s", type(exc).__name__)
     # task #277 (fix 4): every beta here is the one each kind's own page headlines (weekly, past year, against the Nifty 500), with its window
     b500 = {k: beta500_weekly([_days_closes(prices.get(x["symbol"])) for x in items] if k == "shares" else [(x["days"], x["closes"]) for x in items],
-                              list(split[k]["w"]), bench, end) if bench and end and items else None
+                              list(split[k]["w"]), bench, end, [x.get("symbol") or x.get("short") or x.get("name") or "" for x in items]) if bench and end and items else None
             for k, items in (("shares", shares), ("funds", funds), ("etfs", etfs))}
     for i, s in enumerate(shares):
         s["beta"] = b500["shares"]["each"][i] if b500["shares"] else None

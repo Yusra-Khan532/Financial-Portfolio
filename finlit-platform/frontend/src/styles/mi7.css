@@ -155,6 +155,7 @@ html.mi7-rowup .mi .stb-wrap { transform: translateY(-140%); opacity: 0; pointer
 .mi7-kfh h2 { margin: 0; font: 400 24px/1.2 var(--serif); color: var(--text); }
 .mi7-kfh p { margin: 0; font: 400 13px var(--sans); color: var(--muted); }
 .mi7-kfrow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.mi7-kfrow.n2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .mi7-kfrow.n1 { grid-template-columns: minmax(0, 1fr); }   /* QA 21 Nov (2): a skipped card leaves no empty slot */
 .mi7-kfc { --kc: #2f5a9e; display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--kc) 26%, var(--border)); border-radius: 14px;
   background: color-mix(in srgb, var(--kc) 7%, var(--s1)); }
 .mi7-kfc.t-good { --kc: #2e7d5b; } .mi7-kfc.t-warn { --kc: #b4572f; }
@@ -186,3 +187,10 @@ html.mi7-rowup .mi .stb-wrap { transform: translateY(-140%); opacity: 0; pointer
 .mi7-wc .wp-pill:hover:not([aria-pressed="true"]) { border-color: var(--text); }
 .mi7-wc .wp-pill:focus-visible { outline: 2px solid var(--accent, var(--text)); outline-offset: 2px; }
 .mi7-wc .wp-empty { margin: 12px 0 0; padding: 16px; border-radius: 12px; background: var(--s2); font-size: 16px; color: var(--text); }
+
+/* QA of 21 Nov (item 6): the stuck row steps away once the table has gone by, and while it is over the table it carries the column names in line with them */
+.mi7-frow.stuck.past { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .15s, visibility 0s .15s; }
+.mi7-frow.stuck { position: sticky; }
+.mi7-fcols { position: absolute; left: 0; right: 0; top: 100%; height: 30px; background: var(--s1); border-bottom: 1px solid var(--border); box-shadow: 0 6px 10px -8px rgba(0,0,0,.25); }
+.mi7-fcols span { position: absolute; top: 0; height: 30px; display: flex; align-items: center; padding: 0 8px; font: 700 12px var(--sans); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; }
+.mi7-fcols span[style*="right"] { justify-content: flex-end; }

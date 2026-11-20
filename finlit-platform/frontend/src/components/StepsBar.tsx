@@ -94,9 +94,11 @@ export function StepsBar({ steps, label = "Sections", menu, lead, arrows = false
   const go = (id: string, step: string) => { setOpen(false); setActive(step); scrollTo(id); };
   return (
     <div className={"stb-wrap" + (arrows ? " stb-arw" + (edge.l ? " edge-l" : "") + (edge.r ? " edge-r" : "") : "")} style={{ top }}>
+      {/* task #277 (QA of 21 Nov, item 13): with the arrows the switcher sits before the scrolling steps, not pinned over them (it hid the first steps) */}
+      {arrows && lead && stuck && <div className="stb-lead sw-host x-sw-on">{lead}</div>}
       {arrows && (edge.l || edge.r) && <button type="button" className="stb-sl l" aria-label="Earlier steps" disabled={!edge.l} onClick={() => slide(-1)}>‹</button>}
-      <nav className={"stb sw-host" + (stuck && lead ? " x-sw-on" : "")} ref={bar} aria-label={label}>
-        {lead}
+      <nav className={"stb sw-host" + (stuck && lead && !arrows ? " x-sw-on" : "")} ref={bar} aria-label={label}>
+        {!arrows && lead}
         <button type="button" ref={btn} className="stb-all" aria-haspopup="true" aria-expanded={open} aria-controls={popId} onClick={() => setOpen(!open)}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" focusable="false"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
           All sections

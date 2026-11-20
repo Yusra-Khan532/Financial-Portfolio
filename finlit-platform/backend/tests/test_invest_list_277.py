@@ -74,3 +74,18 @@ async def test_the_page_keeps_the_list_and_the_alert_reads_it(app, monkeypatch):
     assert (await c.post(URL, json={"shares": [], "mfPf": "none", "etfPf": "none"})).status_code == 200
     assert {x["ref"]: x for x in (await c.get("/api/alerts/lists")).json()["lists"]}["invest"]["count"] == before
     await c.aclose()
+
+
+@pytest.mark.integration
+async def test_a_share_is_priced_from_its_quote_as_on_the_equity_portfolio(app):  # noqa: F811
+    """QA of 21 Nov (item 5): All my investments showed ₹13,156 and the Equity portfolio ₹12,597 for one holding. The share's price is now its quote
+    (consolidated first), as portfolio_overview reads it, not the last point of the weekly price series."""
+    import json as _json
+    from datetime import datetime, timezone
+    async with app.state.store.pool.acquire() as conn:
+        for st, price in (("consolidated", 1234.5), ("standalone", 1.0)):
+            await conn.execute("INSERT INTO snapshots (symbol, statement, section, body, etag, generated_at) VALUES ('QTEST277', $1, 'summary', $2, 'e', $3) "
+                               "ON CONFLICT (symbol, statement, section) DO UPDATE SET body = EXCLUDED.body",
+                               st, _json.dumps({"quote": {"price": price, "changePct": 1.25, "asOf": "2026-11-20"}}), datetime.now(timezone.utc))
+    q = await mi._quotes(app.state.store, ["QTEST277", "NOSUCH"])
+    assert q == {"QTEST277": {"price": 1234.5, "changePct": 1.25, "asOf": "2026-11-20"}}
