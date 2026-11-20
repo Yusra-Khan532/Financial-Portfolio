@@ -252,9 +252,16 @@ async def scores(request: Request, group: str = Query("", max_length=12), catego
         if missing:
             async with request.app.state.store.pool.acquire() as conn:
                 info = {r["code"]: r for r in await conn.fetch("SELECT code, option_class, active, plan, category, isin FROM mf_schemes WHERE code = ANY($1::int[])", missing)}
+            from ..mf import classify
+            from .groups import ETF_SUBS
             for c in missing:
                 s = info.get(c)
                 if s is None:
+                    continue
+                if classify(s["category"] or "")[1] in ETF_SUBS:   # task #281: an ETF's AMFI code: the score is not given (not "IDCW" or "plan not stated")
+                    items.append({"code": c, "symbol": None, "plan": "ETF", "group": None, "final": None, "label": None, "status": None, "pillars": None, "rank": None,
+                                  "rankOf": None, "rankScope": None, "percentile": None, "flags": [], "confidence": None, "category": None,
+                                  "reason": NOT_SCORED["etf_not_offered"] if full else None, "notOffered": True})
                     continue
                 items.append({"code": c, "symbol": None, "plan": s["plan"], "group": None, "final": None, "label": None, "status": None, "pillars": None, "rank": None, "rankOf": None,
                               "rankScope": None, "percentile": None, "flags": [], "confidence": None, "category": None,
@@ -283,6 +290,11 @@ async def resolve_mf(conn, code: int):
     s = await conn.fetchrow("SELECT code, name, family, plan, option_class, active, isin, category FROM mf_schemes WHERE code = $1", code)
     if s is None:
         return None, None, "unknown"
+    # an ETF category scheme: no Mutual Fund Score is given (checked first: an ETF has no Direct / Regular plan and is not an IDCW option, task #281)
+    from ..mf import classify
+    from .groups import ETF_SUBS
+    if classify(s["category"])[1] in ETF_SUBS:
+        return None, None, "etf_not_offered"
     if s["option_class"] != "Growth":
         g = await conn.fetchrow("SELECT code, name FROM mf_schemes WHERE family = $1 AND plan = $2 AND option_class = 'Growth' AND active ORDER BY code LIMIT 1", s["family"], s["plan"])
         if g is None:
@@ -296,11 +308,6 @@ async def resolve_mf(conn, code: int):
         return None, None, "inactive"
     if s["plan"] not in ("Direct", "Regular"):
         return None, None, "no_plan"
-    # an ETF category scheme: no Mutual Fund Score is given
-    from ..mf import classify
-    from .groups import ETF_SUBS
-    if classify(s["category"])[1] in ETF_SUBS:
-        return None, None, "etf_not_offered"
     return None, None, "not_yet"
 
 
