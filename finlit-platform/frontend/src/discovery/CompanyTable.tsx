@@ -263,7 +263,9 @@ function Panel({ r }: { r: DRow }) {
           <Tile l={<>Tone of the presentation <I k="tone" /></>} v={toneWord(r.tone) ?? "Not read"} sub={r.tone != null ? `${r.tone > 0 ? "+" : r.tone < 0 ? "−" : ""}${Math.abs(r.tone).toFixed(2)} on −1 to +1` : undefined} />
         </div>
         <div className="dsc-end"><p className="dsc-src">Investor presentation of {fmtDate(doc?.date ?? r.dd) || "an unknown date"} · {doc?.pages ?? r.pg ?? "?"} pages read
-          {r.sec.length ? ` · also mentions ${r.sec.map((t) => c.d.board?.themes.find((x) => x.name === t)?.label ?? t).join(", ")}` : ""}</p>
+          {r.sec.length ? ` · also mentions ${r.sec.map((t) => c.d.board?.themes.find((x) => x.name === t)?.label ?? t).join(", ")}` : ""}
+          {/* task #260 (live check): a passage without a page says why, never a silent blank */}
+          {doc && !doc.pagesKept && ps.length ? " · Page numbers show once FinLit reads this presentation again and keeps its pages." : ""}</p>
           {doc?.link ? <a className="dsc-btn sm" href={doc.link} target="_blank" rel="noopener noreferrer">Read the presentation ↗</a> : null}</div>
       </section>
       <section className="dsc-bx dsc-read"><h4>FinLit’s reading</h4>

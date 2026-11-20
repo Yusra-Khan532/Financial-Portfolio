@@ -14,7 +14,7 @@ import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Board, BoardRow } from "../discovery/model";
 
-const st = vi.hoisted(() => ({ user: { id: 1 } as { id: number } | null, plan: "gold", toast: [] as string[] }));
+const st = vi.hoisted(() => ({ user: { id: 1 } as { id: number } | null, plan: "gold", toast: [] as string[], pagesKept: true }));
 const mk = (s: string, n: string, th: string, extra: Partial<BoardRow> = {}): BoardRow => ({ s, n, th, sec: [], st: "Operating", tone: 0.4, fc: 2, ev: {}, mac: "Industrials", sc: "Capital Goods",
   ind: "Aerospace & Defense", dd: "2026-11-05", pg: 30, grp: "aerospace-defense", ...extra });
 const ROWS: BoardRow[] = [
@@ -43,8 +43,8 @@ vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/ap
     if (p === "/api/discovery/board") return JSON.parse(JSON.stringify(BOARD));
     if (p === "/api/screener/universe") return JSON.parse(JSON.stringify(UNI));
     if (p.startsWith("/api/discovery/company?symbol=")) return { symbol: "BSHIELD", theme: "Defence & Aerospace", words: ["Defence orders", "Radar"],
-      passages: [{ t: "We won radar orders worth Rs 400 crore.", kind: "sentence", names: true, page: 7 }, { t: "Our plants run at full capacity.", kind: "sentence", names: false, page: 9 }],
-      document: { title: "Investor presentation", date: "2026-11-05", pages: 30, link: "https://nsearchives.nseindia.com/x.pdf", pagesKept: true },
+      passages: [{ t: "We won radar orders worth Rs 400 crore.", kind: "sentence", names: true, page: st.pagesKept ? 7 : null }, { t: "Our plants run at full capacity.", kind: "sentence", names: false, page: st.pagesKept ? 9 : null }],
+      document: { title: "Investor presentation", date: "2026-11-05", pages: 30, link: "https://nsearchives.nseindia.com/x.pdf", pagesKept: st.pagesKept },
       filings: [{ d: "2026-11-17", e: "order", el: "Order win", t: "Order worth Rs 400 crore for radar systems", l: "https://nsearchives.nseindia.com/o.pdf" }] };
     if (p.startsWith("/api/stocks/")) return { symbol: "X", state: "empty", code: "not_written", reason: "Not written yet.", disclaimer: "", compliance: "" };
     if (p === "/api/rotation") return { date: "2026-11-06", date_label: "6 Nov 2026", groups_ranked: 37, rows: [{ name: "Aerospace & Defense", slug: "aerospace-defense", kind: "industry", corner: "ahead_gaining",
@@ -72,7 +72,7 @@ const show = async (path = "/discover") => {
 };
 const views = () => screen.getByRole("navigation", { name: "Discover views" });
 beforeEach(() => {
-  st.user = { id: 1 }; st.plan = "gold"; st.toast = [];
+  st.user = { id: 1 }; st.plan = "gold"; st.toast = []; st.pagesKept = true;
   portfolio.replace?.({ holdings: [{ id: "a", symbol: "BSHIELD", qty: 1, price: 1, owned: true }, { id: "b", symbol: "NOTHERE", qty: 1, price: 1, owned: true }] } as never);
   watch.replace({ lists: [{ id: "main", name: "My watchlist", symbols: ["SOLARX"] }], meta: {} });
 });
@@ -117,6 +117,8 @@ describe("#260: the page and its addresses", () => {
     expect(screen.getByRole("heading", { level: 2, name: "Industrials" })).toBeTruthy();
     expect(document.querySelector(".dsc-kind")!.textContent).toBe("Macro sector · NSE");
     expect(screen.getByRole("heading", { name: "Sectors and industries" })).toBeTruthy();
+    expect(document.querySelector(".dsc-secrow small")!.textContent).toBe("2 industries");
+    expect(document.body.textContent).not.toMatch(/\b1 industries\b/);                   // found live: "1 industries"
     cleanup(); await show("/discover/sectors/industrials/capital-goods");
     expect(screen.getByRole("heading", { level: 2, name: "Capital Goods" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Industries in this sector" })).toBeTruthy();
@@ -323,6 +325,13 @@ describe("#260: the rev 4 filter box, the columns and the company panel", () => 
     expect(px.textContent).toMatch(/Prices and scores of the 19 Nov 2026 close/);
     expect(px.textContent).toMatch(/2 order wins/);                                         // filings in words
     expect(px.querySelector(".dsc-ind")!.textContent).toMatch(/rank 13 of 37 · 2 wks/);
+    expect(px.textContent).not.toMatch(/Page numbers show once/);                       // pages kept: no note
+  });
+  it("a presentation read before its pages were kept says why its passages carry no page (found live, 20 Nov)", async () => {
+    st.pagesKept = false; await show("/discover/companies");
+    fireEvent.click(screen.getByRole("button", { name: "Bharat Shield" }));
+    await screen.findByText(/“We won radar orders/);
+    expect(document.querySelector(".dsc-px")!.textContent).toMatch(/Page numbers show once FinLit reads this presentation again and keeps its pages\./);
   });
   it("§11 without Gold: Prism, Short term and Long term are locked tiles with 'See plans →'", async () => {
     st.plan = "silver"; await show("/discover/companies");
