@@ -300,3 +300,13 @@
 .ssw-groups .ssw-crlock-li > span { flex: 1; }
 .ssw-groups .ssw-crlock-li small { color: var(--muted); display: inline-flex; }
 .ssw-crnote { margin: 0 0 10px; padding: 8px 12px; border-radius: 8px; background: var(--gold-soft); border: 1px solid var(--gold); font-size: var(--fs-13); color: var(--text); }
+/* Task #259 (pack 03 §1, SHARED §5): the two header rows stay in place while the table scrolls. Header cells sit above every body cell, the pinned Company
+   header above all; the pinned Company cells of the body stay under the header (".scr-t .stick" gave header and body cells the same z-index). */
+.ssw-tw.tw-tall table thead th { z-index: 4; }
+.ssw-tw.tw-tall table thead th.stick { z-index: 6; }
+.ssw-tw.tw-tall table tbody td.stick { z-index: 2; }
+/* Task #259 (pack 03 §3): the three linked lists show their name beside their value ("Macro sector  All 12") */
+.ssw-sel .ssw-fl { display: inline-flex; align-items: baseline; gap: 8px; min-width: 0; }
+.ssw-sel .ssw-ft { font-weight: 600; color: var(--text); white-space: nowrap; }
+.ssw-sel .ssw-fv { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ssw-sel[aria-expanded="true"] .ssw-fv { color: var(--text); }

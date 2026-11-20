@@ -48,7 +48,7 @@ const READY = { asOf: "2026-11-12T00:00:00Z", total: 5813, screens: [
   { id: "modelcompound", label: "Quality compounders (model)", says: "Companies the FinLit IQ rates high on both quality and growth", tier: "silver", group: "model", count: 300 },
 ] };
 type Body = { ratios?: { num: string; den: string; show: string }[]; columns: string[]; filters: Record<string, unknown>; sort: { key: string; dir: string }; cats?: Record<string, string[]>; model_screen?: string; model_screens?: string[]; q?: string; offset?: number };
-const st = vi.hoisted(() => ({ funnel: undefined as unknown, many: 0, total: 0, cat: null as unknown, bodies: [] as Body[] }));
+const st = vi.hoisted(() => ({ funnel: undefined as unknown, facets: undefined as unknown, many: 0, total: 0, cat: null as unknown, bodies: [] as Body[] }));
 
 const Where = () => { const l = useLocation(); return <output data-testid="loc">{l.pathname + l.search}</output>; };
 const mount = (qs = "") => {
@@ -74,7 +74,7 @@ const addRule = async (label: string) => {
 
 beforeEach(() => {
   admin.user = null;
-  st.cat = catalog(); st.bodies = []; st.many = 0; st.total = 0; st.funnel = undefined; localStorage.clear(); ui.upgrade.mockClear(); ui.toast.mockClear();
+  st.cat = catalog(); st.bodies = []; st.many = 0; st.total = 0; st.funnel = undefined; st.facets = undefined; localStorage.clear(); ui.upgrade.mockClear(); ui.toast.mockClear();
   vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
   window.matchMedia = ((q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, onchange: null, dispatchEvent: () => false })) as never;
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
@@ -86,7 +86,7 @@ beforeEach(() => {
     if (st.many) return new Response(JSON.stringify({ total: st.total || st.many, offset: body.offset ?? 0, limit: 25, capped: false, columns: body.columns, took: 3, funnel: st.funnel, rows: Array.from({ length: st.many }, (_, i) => (
       { symbol: "S" + ((body.offset ?? 0) + i), name: "Company " + i, sector: null, cap: "Large", band: null, full: true, v: Object.fromEntries(body.columns.map((c: string) => [c, i + 1])) })) }), { status: 200 });
     const total = st.funnel && (st.funnel as { after: number }[]).some((s) => s.after === 0) ? 0 : 2;
-    return new Response(JSON.stringify({ total, offset: 0, limit: 25, capped: false, columns: body.columns, took: 3, funnel: st.funnel, rows: total === 0 ? [] : [
+    return new Response(JSON.stringify({ total, offset: 0, limit: 25, capped: false, columns: body.columns, took: 3, funnel: st.funnel, facets: st.facets, rows: total === 0 ? [] : [
       { symbol: "AAA", name: "Alpha", sector: null, cap: "Large", band: "strong", pband: "healthy", full: true, v: Object.fromEntries(body.columns.map((c: string) => [c, c === "ret_1d" ? 1.5 : 12])) },
       { symbol: "BBB", name: "Beta", sector: null, cap: "Mid", band: "watch", full: true, v: Object.fromEntries(body.columns.map((c: string) => [c, c === "pe" ? null : c === "ret_1d" ? -0.4 : 8])) }] }), { status: 200 });
   }));
@@ -244,12 +244,12 @@ describe("task #64, from task #192: each list is named by the level of its value
   const withLists = () => ({ ...catalog(), sectors: [{ name: "Financial Services", n: 708 }, { name: "Commodities", n: 573 }],
     industries: [{ name: "Banks", sector: "Financial Services", n: 41 }, { name: "Ferrous Metals", sector: "Commodities", n: 77 }],
     indices: [{ code: "NIFTY50", label: "NIFTY 50", n: 50 }] });
-  it("the box is Industry and index, the filter Industry: All industries, and the results say Name · size, as each row shows", async () => {
+  it("the box is Sector, industry and index (task #259), the filter Industry: All 2, and the results say Name · size, as each row shows", async () => {
     st.cat = withLists();
     mount(); await ready();
-    expect(screen.getByRole("heading", { name: "Industry and index" })).toBeTruthy();
-    expect(screen.queryByRole("heading", { name: "Sector and index" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Industry: All industries" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Sector, industry and index" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Industry and index" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Industry: All 2" })).toBeTruthy();
     expect(screen.queryByText("All sectors")).toBeNull();
     expect(table().querySelector("thead tr.ssw-hd th.stick small")?.textContent).toBe("Name · size");
     expect(table().querySelector("tbody tr td.stick small")?.textContent).toBe("Alpha · Large");      // the row: the company's name and size
@@ -257,7 +257,7 @@ describe("task #64, from task #192: each list is named by the level of its value
   it("a picked industry is counted as an industry, and no box title is read twice by a screen reader", async () => {
     st.cat = withLists();
     mount(); await ready();
-    fireEvent.click(screen.getByRole("button", { name: "Industry: All industries" }));
+    fireEvent.click(screen.getByRole("button", { name: "Industry: All 2" }));
     fireEvent.click(screen.getByRole("checkbox", { name: /Banks/ }));
     expect(await screen.findByRole("button", { name: "Industry: 1 picked" })).toBeTruthy();       // not "Industry: Industry: 1 picked"
     expect(screen.getByRole("button", { name: "Index: any (1 lists)" })).toBeTruthy();            // not "Index: Index: any"
@@ -833,5 +833,66 @@ describe("plan rules inside the Stock screener (task #64, 14 Nov N-2 and N-10)",
     expect(page.textContent).not.toMatch(/SILVER|Silver screens/);
     fireEvent.click(screen.getByRole("button", { name: "+ Add a rule" }));
     expect((await screen.findByRole("dialog", { name: "Add a rule" })).textContent).not.toMatch(/SILVER|GOLD/);
+  });
+});
+
+
+/** Task #259 (pack 03 §3, SHARED §1): Macro sector (12) · Sector (22) · Industry (59), linked, then Index. */
+describe("Sector, industry and index: three linked lists (task #259)", () => {
+  const withNse = () => ({ ...catalog(), sectors: [{ name: "Financial Services", n: 6 }, { name: "Industrials", n: 5 }],
+    macros: [{ name: "Financial Services", n: 6 }, { name: "Industrials", n: 5 }],
+    nseSectors: [{ name: "Financial Services", macro: "Financial Services", n: 6 }, { name: "Capital Goods", macro: "Industrials", n: 4 }, { name: "Construction", macro: "Industrials", n: 1 }],
+    industries: [{ name: "Banks", sector: "Financial Services", nseSector: "Financial Services", n: 4 }, { name: "Finance", sector: "Financial Services", nseSector: "Financial Services", n: 2 },
+      { name: "Electrical Equipment", sector: "Industrials", nseSector: "Capital Goods", n: 4 }, { name: "Construction", sector: "Industrials", nseSector: "Construction", n: 1 }],
+    indices: [{ code: "NIFTY50", label: "NIFTY 50", n: 50 }] });
+  const fold = (name: RegExp) => within(rulesPanel()).getByRole("button", { name });
+  const options = (title: string) => Array.from(within(rulesPanel()).getByRole("group", { name: title }).querySelectorAll("li")).map((li) => (li.textContent || "").trim());
+  it("the box lists Macro sector (All 2), Sector (All 3) and Industry (All 4), then Index", async () => {
+    st.cat = withNse(); mount(); await ready();
+    expect(screen.getByRole("heading", { name: "Sector, industry and index" })).toBeTruthy();
+    const titles = Array.from(rulesPanel().querySelectorAll(".ssw-fold")).map((d) => (d as HTMLElement).dataset.facet);
+    expect(titles.slice(0, 4)).toEqual(["macro", "nsector", "industry", "index"]);
+    expect(fold(/^Macro sector: All 2$/)).toBeTruthy(); expect(fold(/^Sector: All 3$/)).toBeTruthy(); expect(fold(/^Industry: All 4$/)).toBeTruthy();
+  });
+  it("a macro sector narrows Sector and Industry, joins Your rules and the request, and is kept in the address", async () => {
+    st.cat = withNse(); mount(); await ready();
+    fireEvent.click(fold(/^Macro sector/));
+    fireEvent.click(within(rulesPanel()).getByRole("checkbox", { name: /^Industrials/ }));
+    await waitFor(() => expect(last().cats?.macro).toEqual(["Industrials"]));
+    expect(screen.getByRole("button", { name: "Remove Macro sector: Industrials" })).toBeTruthy();
+    fireEvent.click(fold(/^Sector/));
+    expect(options("Sector").map((t) => t.replace(/\d+$/, ""))).toEqual(["Capital Goods", "Construction"]);       // only the sectors inside Industrials
+    fireEvent.click(fold(/^Industry/));
+    expect(options("Industry").map((t) => t.replace(/\d+$/, ""))).toEqual(["Electrical Equipment", "Construction"]);
+    await waitFor(() => expect(decodeState(new URLSearchParams(loc().split("?")[1]).get("s")).state.macros).toEqual(["Industrials"]));
+  });
+  it("a sector narrows Industry; a choice that no longer fits is taken off with a short message", async () => {
+    st.cat = withNse(); mount(); await ready();
+    fireEvent.click(fold(/^Industry/));
+    fireEvent.click(within(rulesPanel()).getByRole("checkbox", { name: /^Banks/ }));
+    await waitFor(() => expect(last().cats?.industry).toEqual(["Banks"]));
+    fireEvent.click(fold(/^Macro sector/));
+    fireEvent.click(within(rulesPanel()).getByRole("checkbox", { name: /^Industrials/ }));
+    expect(ui.toast).toHaveBeenCalledWith("Banks was taken off: not inside your other choice.");
+    await waitFor(() => expect(last().cats).toMatchObject({ macro: ["Industrials"], industry: [] }));
+    fireEvent.click(fold(/^Sector/));
+    fireEvent.click(within(rulesPanel()).getByRole("checkbox", { name: /^Capital Goods/ }));
+    await waitFor(() => expect(last().cats).toMatchObject({ macro: ["Industrials"], nsector: ["Capital Goods"] }));
+    expect(options("Industry").map((t) => t.replace(/\d+$/, ""))).toEqual(["Electrical Equipment"]);
+  });
+  it("each option's count follows the other filters set (the server's facets), and the funnel names each level", async () => {
+    st.cat = withNse(); st.facets = { macro: { "Financial Services": 2, Industrials: 1 }, nsector: { "Financial Services": 2, "Capital Goods": 1 }, industry: { Banks: 2, "Electrical Equipment": 1 } };
+    st.funnel = [{ key: "macro", before: 5813, after: 3, missing: 0 }, { key: "nsector", before: 3, after: 2, missing: 0 }];
+    mount("?s=" + encodeState({ ...norm({}), macros: ["Industrials"], nsectors: ["Capital Goods"] }, "market_cap", "desc")); await ready();
+    await waitFor(() => expect(options("Macro sector")).toEqual(["Financial Services2", "Industrials1"]));
+    fireEvent.click(fold(/^Industry/));
+    expect(options("Industry")).toEqual(["Electrical Equipment1"]);
+    expect(within(rulesPanel()).getByRole("list", { name: "What is left after each rule" }).textContent).toMatch(/after Macro sector.*after Sector/);
+  });
+  it("an older server without the lists keeps the one Industry list", async () => {
+    st.cat = { ...withNse(), macros: undefined, nseSectors: undefined }; mount(); await ready();
+    expect(within(rulesPanel()).queryByRole("button", { name: /^Macro sector/ })).toBeNull();
+    expect(within(rulesPanel()).queryByRole("button", { name: /^Sector: / })).toBeNull();
+    expect(fold(/^Industry: All 4$/)).toBeTruthy();
   });
 });

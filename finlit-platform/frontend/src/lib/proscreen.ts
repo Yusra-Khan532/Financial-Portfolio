@@ -14,7 +14,9 @@ export type MetricInfo = { key: string; label: string; unit: string; better: "hi
   hidden?: boolean; variants?: Record<string, string> | null };
 export type GroupInfo = { id: string; label: string; tier: Plan; metrics: MetricInfo[] };
 export type Catalog = {
-  plan: Plan; total: number; withReport: number; updatedAt: string; pricesAt?: string | null; scoresAt?: string | null; groups: GroupInfo[]; sectors: { name: string; n: number }[]; industries: { name: string; sector: string | null; n: number }[];
+  plan: Plan; total: number; withReport: number; updatedAt: string; pricesAt?: string | null; scoresAt?: string | null; groups: GroupInfo[]; sectors: { name: string; n: number }[]; industries: { name: string; sector: string | null; nseSector?: string | null; n: number }[];
+  /** Task #259 (pack 03 §3): NSE's 12 macro sectors and 22 sectors, for the linked Macro sector · Sector · Industry lists. */
+  macros?: { name: string; n: number }[]; nseSectors?: { name: string; macro: string | null; n: number }[];
   indices: { code: string; label: string; n: number }[]; caps: { name: string; n: number }[]; bands: { key: string; label: string; locked: boolean; n?: number }[];
   limits: { rows: number | null; export: boolean }; defaultColumns: string[];
   bandModel?: "prism" | "iq";   // which score the rating chips are on: FinLit Prism for Gold, the FinLit IQ below (tasks #64, #100)
@@ -23,22 +25,27 @@ export type Catalog = {
 export type Range = { min?: number; max?: number };
 export type PState = {
   ranges: Record<string, Range>; sectors: string[]; industries: string[]; indices: string[]; caps: string[]; bands: string[];
+  /** Task #259: NSE macro sectors (12) and sectors (22) picked; AND across the levels with `industries`, OR inside each list. */
+  macros?: string[]; nsectors?: string[];
   sort?: string; dir?: "asc" | "desc"; cols?: string[];
   model?: string;   // (older links) one ready-made screen on the plan's score (FinLit IQ or FinLit Prism): read as `on: [model]`
   on?: string[];    // the ready-made screens that are on (task #64 P-4): they stack, each adding its rules to the reader's; a company must pass all of them
   mine?: string[];  // filters a screen set that the reader then changed: they are the reader's own, and no screen touches them any more
 };
-export const EMPTY: PState = { ranges: {}, sectors: [], industries: [], indices: [], caps: [], bands: [] };
+export const EMPTY: PState = { ranges: {}, sectors: [], industries: [], indices: [], caps: [], bands: [], macros: [], nsectors: [] };
 export type ResultRow = { symbol: string; name: string; sector: string | null; cap: string | null; band: string | null; pband?: string | null; full?: boolean; v: Record<string, number | null>; r?: Record<string, number | null> };
 export type FunnelStep = { key: string; before: number; after: number; missing: number };
-export type Result = { total: number; offset: number; limit: number; capped: boolean; columns: string[]; rows: ResultRow[]; took: number; funnel?: FunnelStep[] };
+/** Task #259 (SHARED §1): companies per option under every other filter set (the option's own level left out). */
+export type Facets = { macro: Record<string, number>; nsector: Record<string, number>; industry: Record<string, number> };
+export type Result = { total: number; offset: number; limit: number; capped: boolean; columns: string[]; rows: ResultRow[]; took: number; funnel?: FunnelStep[]; facets?: Facets };
 
 export const norm = (s: Partial<PState> | undefined): PState => {
-  const out: PState = { ...EMPTY, ...(s || {}), ranges: { ...(s?.ranges || {}) } };
+  const out: PState = { ...EMPTY, ...(s || {}), ranges: { ...(s?.ranges || {}) }, macros: [...(s?.macros ?? [])], nsectors: [...(s?.nsectors ?? [])] };
   if (out.model) { out.on = [...new Set([...(out.on ?? []), out.model])]; delete out.model; }
   return out;
 };
-export const activeCount = (s: PState) => (s.on?.length ?? 0) + (s.model ? 1 : 0) + Object.values(s.ranges).filter((r) => r && (r.min != null || r.max != null)).length + (s.sectors.length || s.industries.length ? 1 : 0)   // one Sector filter (the industry list; a sector picked from an older link is part of it, task #74)
+export const activeCount = (s: PState) => (s.on?.length ?? 0) + (s.model ? 1 : 0) + Object.values(s.ranges).filter((r) => r && (r.min != null || r.max != null)).length + (s.sectors.length || s.industries.length ? 1 : 0)   // one Industry filter (the industry list; a sector picked from an older link is part of it, task #74)
+  + (s.macros?.length ? 1 : 0) + (s.nsectors?.length ? 1 : 0)   // task #259: Macro sector and Sector are a rule each, like Industry
   + (s.indices.length ? 1 : 0) + (s.caps.length ? 1 : 0) + (s.bands.length ? 1 : 0);
 
 /** A ratio the member builds from two screener figures (task #61): `num` divided by `den`, optionally limited to a range. Kept in this browser; the server works it out per company. */
@@ -73,7 +80,7 @@ export const storeSavedRatios = (v: SavedRatio[]) => { try { localStorage.setIte
 export const toBody = (s: PState & { models?: string[] }, sort: { key: string; dir: "asc" | "desc" }, columns: string[], q: string, offset: number, limit: number, ratios: CustomRatio[] = []) => ({
   ...(ratios.length ? { ratios: ratios.map((r) => ({ id: r.id, num: r.num, den: r.den, show: r.show ?? "times", name: r.name.slice(0, 40), ...ratioRange(r) })) } : {}),
   filters: Object.fromEntries(Object.entries(s.ranges).filter(([, r]) => r && (r.min != null || r.max != null))),
-  cats: { sector: s.sectors, industry: s.industries, index: s.indices, cap: s.caps, band: s.bands }, q, sort, columns, offset, limit, funnel: true,
+  cats: { sector: s.sectors, macro: s.macros ?? [], nsector: s.nsectors ?? [], industry: s.industries, index: s.indices, cap: s.caps, band: s.bands }, q, sort, columns, offset, limit, funnel: true,
   ...(s.models?.length ? { model_screens: s.models } : s.model ? { model_screens: [s.model] } : {}),
 });
 
@@ -107,6 +114,8 @@ export const encodeState = (s: PState, sort: string, dir: string): string => {
   const o: Record<string, unknown> = {};
   if (Object.keys(s.ranges).length) o.r = s.ranges;
   (["sectors", "industries", "indices", "caps", "bands"] as const).forEach((k) => s[k].length && (o[k[0] + (k === "industries" ? "n" : k === "indices" ? "x" : "")] = s[k]));
+  if (s.macros?.length) o.ma = s.macros;     // task #259: kept in the link, so a screen can be saved and shared
+  if (s.nsectors?.length) o.ns = s.nsectors;
   if (s.on?.length) o.on = s.on;
   if (s.mine?.length) o.mn = s.mine;
   if (s.caps.includes("Small")) o.z = 4;   // task #262: a "Small" written under the four sizes; without the marker a link's Small is an old one (now Micro)
@@ -121,7 +130,7 @@ export const decodeState = (raw: string | null): { state: PState; sort?: string;
     const arr = (v: unknown) => (Array.isArray(v) ? v.filter((x) => typeof x === "string").slice(0, 60) : []);
     const ranges: Record<string, Range> = {};
     for (const [k, v] of Object.entries((o.r || {}) as Record<string, Range>)) if (/^[a-z0-9_]{2,40}$/.test(k) && v && typeof v === "object") ranges[k] = { min: typeof v.min === "number" ? v.min : undefined, max: typeof v.max === "number" ? v.max : undefined };
-    return { state: { ranges, sectors: arr(o.s), industries: arr(o.in ?? o.sn), indices: arr(o.ix ?? o.sx), caps: o.z === 4 ? arr(o.c) : migrateSmall(arr(o.c)), bands: arr(o.b), ...(typeof o.m === "string" && /^[a-z_]{2,40}$/.test(o.m) ? { on: [o.m] } : {}), ...(Array.isArray(o.on) ? { on: arr(o.on).filter((x) => /^[a-z_]{2,40}$/.test(x)) } : {}), ...(Array.isArray(o.mn) ? { mine: arr(o.mn) } : {}) }, sort: typeof o.o?.[0] === "string" ? o.o[0] : undefined, dir: o.o?.[1] === "asc" ? "asc" : "desc", ...(o.z !== 4 && arr(o.c).includes("Small") ? { moved: true as const } : {}) };
+    return { state: { ranges, sectors: arr(o.s), industries: arr(o.in ?? o.sn), indices: arr(o.ix ?? o.sx), caps: o.z === 4 ? arr(o.c) : migrateSmall(arr(o.c)), bands: arr(o.b), macros: arr(o.ma), nsectors: arr(o.ns), ...(typeof o.m === "string" && /^[a-z_]{2,40}$/.test(o.m) ? { on: [o.m] } : {}), ...(Array.isArray(o.on) ? { on: arr(o.on).filter((x) => /^[a-z_]{2,40}$/.test(x)) } : {}), ...(Array.isArray(o.mn) ? { mine: arr(o.mn) } : {}) }, sort: typeof o.o?.[0] === "string" ? o.o[0] : undefined, dir: o.o?.[1] === "asc" ? "asc" : "desc", ...(o.z !== 4 && arr(o.c).includes("Small") ? { moved: true as const } : {}) };
   } catch { return { state: EMPTY }; }
 };
 
@@ -260,3 +269,22 @@ export function dataLine(pricesAt?: string | null, scoresAt?: string | null, now
   if (p && s && closed && s.y === p.y && s.m === p.m && s.d === p.d) return `Prices and scores: ${price}`;
   return [price && `Prices: ${price}`, s && `scores: ${day(s)}`].filter(Boolean).join(" · ").replace(/^scores/, "Scores");
 }
+
+/** Task #259 (pack 03 §3, SHARED §1): the three linked lists. A macro sector narrows Sector and Industry; a sector narrows Industry. Returns the picks
+ *  that still fit and the names taken off (said in a short message). Pure: the lists come from the catalog. */
+export function linkLevels(s: Pick<PState, "macros" | "nsectors" | "industries">, cat: Pick<Catalog, "industries" | "nseSectors"> | undefined): { macros: string[]; nsectors: string[]; industries: string[]; removed: string[] } {
+  const macros = s.macros ?? [], removed: string[] = [];
+  const sectorMacro = new Map((cat?.nseSectors ?? []).map((x) => [x.name, x.macro]));
+  const nsectors = (s.nsectors ?? []).filter((x) => { const ok = !macros.length || macros.includes(sectorMacro.get(x) ?? ""); if (!ok) removed.push(x); return ok; });
+  const ind = new Map((cat?.industries ?? []).map((x) => [x.name, x]));
+  const industries = s.industries.filter((x) => {
+    const i = ind.get(x);
+    if (!i) return true;     // not an NSE industry (an older link): left as it was
+    const ok = (!macros.length || macros.includes(i.sector ?? "")) && (!nsectors.length || nsectors.includes(i.nseSector ?? ""));
+    if (!ok) removed.push(x);
+    return ok;
+  });
+  return { macros, nsectors, industries, removed };
+}
+/** "Banks was taken off: not inside your other choice." (SHARED §1) */
+export const takenOffLine = (names: string[]) => (names.length ? `${names.join(", ")} ${names.length === 1 ? "was" : "were"} taken off: not inside your other choice.` : "");

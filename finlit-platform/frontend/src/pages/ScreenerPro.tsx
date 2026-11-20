@@ -14,7 +14,7 @@ import { ratioSentence } from "../components/screener/CustomRatio";
 import { RatioDrawer, type Draft } from "../components/screener/RatioDrawer";
 import { EXAMPLES as RATIO_EXAMPLES, valueText } from "../lib/customRatio";
 import { apiSend } from "../lib/api";
-import { decodeRatios, encodeRatios, loadRatios, saveRatios, loadSavedRatios, storeSavedRatios, ratioLabel, type CustomRatio, activeCount, cellTone, chipColumn, colourColumns, colourNote, dataLine, decodeState, emptyReason, encodeState, firstPeriod, fmtMetric, loadCols, norm, stack, standardColumns, storeCols, tableColumns, toBody, useCatalog, useReady, useScreen, type Catalog, type MetricInfo, type PState, type Range, type ReadyScreen } from "../lib/proscreen";
+import { decodeRatios, encodeRatios, loadRatios, saveRatios, loadSavedRatios, storeSavedRatios, ratioLabel, type CustomRatio, activeCount, linkLevels, takenOffLine, cellTone, chipColumn, colourColumns, colourNote, dataLine, decodeState, emptyReason, encodeState, firstPeriod, fmtMetric, loadCols, norm, stack, standardColumns, storeCols, tableColumns, toBody, useCatalog, useReady, useScreen, type Catalog, type MetricInfo, type PState, type Range, type ReadyScreen } from "../lib/proscreen";
 import { screens, useSavedScreens, type SavedScreen } from "../lib/screens";
 import { CAP_BUCKETS } from "../lib/capBuckets";
 import { SizeNote } from "../components/SizeNote";
@@ -90,7 +90,7 @@ const BAND_WORD: Record<string, string> = { strong: "Strong", healthy: "Healthy"
 /** A Prism rating word on the chip colours the FinLit IQ chip already uses (green, amber, red). */
 const PRISM_CLASS: Record<string, string> = { strong: "strong", healthy: "healthy", average: "mixed", weak: "watch", poor: "watch" };
 // the industry step is named by its values, NSE's 59 industries (task #64, from #192); "sector" is the old filter of an older link (the company's own label)
-const STEP_NAME: Record<string, string> = { size: "Size", sector: "Sector", industry: "Industry", index: "Index", band: "rating", model: "the ready-made screens on the plan's score" };
+const STEP_NAME: Record<string, string> = { size: "Size", sector: "Sector", macro: "Macro sector", nsector: "Sector", industry: "Industry", index: "Index", band: "rating", model: "the ready-made screens on the plan's score" };
 
 function Checks({ items, picked, toggle, search }: { items: { key: string; label: string; n: number }[]; picked: string[]; toggle: (k: string) => void; search?: boolean }) {
   const [q, setQ] = useState(""), [all, setAll] = useState(false);
@@ -107,11 +107,14 @@ function Checks({ items, picked, toggle, search }: { items: { key: string; label
 }
 
 /** A list filter folded behind one line ("All sectors ▾"), so the panel stays short. */
-function Fold({ id, title, summary, open, setOpen, children }: { id: string; title: string; summary: string; open: boolean; setOpen: (o: boolean) => void; children: React.ReactNode }) {
+function Fold({ id, title, summary, open, setOpen, children, named }: { id: string; title: string; summary: string; open: boolean; setOpen: (o: boolean) => void; children: React.ReactNode; named?: boolean }) {
   return (
     <div className="ssw-fold" data-facet={id}>
-      {/* the title is said once: a summary that already starts with it ("Index: any") is not read as "Index: Index: any" */}
-      <button type="button" className="ssw-sel" aria-expanded={open} aria-controls={`ssw-f-${id}`} onClick={() => setOpen(!open)}>{!summary.startsWith(`${title}:`) && <span className="sr">{title}: </span>}{summary}<i aria-hidden="true">▾</i></button>
+      {/* the title is said once: a summary that already starts with it ("Index: any") is not read as "Index: Index: any". `named` (task #259, pack 03 §3): the
+          list's name is shown beside its value ("Macro sector  All 12"), as the mockup draws the three linked lists */}
+      <button type="button" className="ssw-sel" aria-expanded={open} aria-controls={`ssw-f-${id}`} aria-label={named ? `${title}: ${summary}` : undefined} onClick={() => setOpen(!open)}>{named
+        ? <span className="ssw-fl" aria-hidden="true"><span className="ssw-ft">{title}</span> <span className="ssw-fv">{summary}</span></span>
+        : <>{!summary.startsWith(`${title}:`) && <span className="sr">{title}: </span>}{summary}</>}<i aria-hidden="true">▾</i></button>
       {open && <div id={`ssw-f-${id}`} role="group" aria-label={title}>{children}</div>}
     </div>
   );
@@ -218,6 +221,14 @@ export function ScreenerPro() {
   const setRange = (k: string, r: Range) => setF((s) => { const ranges = { ...s.ranges }; if (r.min == null && r.max == null) delete ranges[k]; else ranges[k] = r;
     const took = F.setBy[k] && !(s.mine ?? []).includes(k); return { ...s, ranges, ...(took ? { mine: [...(s.mine ?? []), k] } : {}) }; });
   const toggle = (key: "sectors" | "industries" | "indices" | "caps" | "bands", v: string) => setF((s) => ({ ...s, [key]: s[key].includes(v) ? s[key].filter((x) => x !== v) : [...s[key], v] }));
+  // task #259 (pack 03 §3): Macro sector, Sector and Industry are linked: a pick that no longer fits the other lists is taken off, with a short message
+  const pickLevel = (key: "macros" | "nsectors" | "industries", v: string) => {
+    const cur = key === "industries" ? f.industries : f[key] ?? [];
+    const next = { macros: f.macros ?? [], nsectors: f.nsectors ?? [], industries: f.industries, [key]: cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v] };
+    const linked = linkLevels(next, cat.data);
+    setF((s) => ({ ...s, macros: linked.macros, nsectors: linked.nsectors, industries: linked.industries }));
+    if (linked.removed.length) toast(takenOffLine(linked.removed));
+  };
   const removeRule = (k: string) => { const m = byKey.get(k); (m?.variants ? Object.values(m.variants) : [k]).forEach((x) => setRange(x, {})); setOrder((o) => o.filter((x) => x !== k)); };
   const addRule = (m: MetricInfo) => {
     setOrder((o) => (o.includes(m.key) ? o : [...o, m.key]));
@@ -260,6 +271,7 @@ export function ScreenerPro() {
     ...Object.entries(F.ranges as Record<string, Range>).map(([k, r]) => ({ label: rangeText(byKey.get(k), k, r), clear: () => setRange(k, {}),
       title: F.setBy[k] ? `Set by ${F.setBy[k].join(" and ")}${F.setBy[k].length > 1 || f.ranges[k] ? " (the stricter range)" : ""}. Change it and it becomes your own.` : undefined })),
     ...ratios.map((r) => ({ label: r.op === "none" || valueText(r) === "Column" ? `${r.name} (column)` : `${r.name} ${valueText(r)}`, title: ratioSentence(r, byKey), clear: () => setRatios(ratios.filter((x) => x.id !== r.id)) })),
+    ...(f.macros ?? []).map((s) => ({ label: `Macro sector: ${s}`, clear: () => pickLevel("macros", s) })), ...(f.nsectors ?? []).map((s) => ({ label: `Sector: ${s}`, clear: () => pickLevel("nsectors", s) })),
     ...f.sectors.map((s) => ({ label: s, clear: () => toggle("sectors", s) })), ...f.industries.map((s) => ({ label: s, clear: () => toggle("industries", s) })),
     ...f.indices.map((s) => ({ label: data?.indices.find((i) => i.code === s)?.label || s, clear: () => toggle("indices", s) })), ...F.caps.map((s) => ({ label: `${s} cap`, clear: () => toggle("caps", s) })),
     ...F.bands.map((s) => ({ label: `${prismOnly ? "Prism" : "FinLit IQ"} rating: ${BAND_WORD[s] ?? s}`, clear: () => toggle("bands", s) })),
@@ -312,14 +324,22 @@ export function ScreenerPro() {
   // the one Sector filter (task #74): the industry list, named Sector; a sector picked from an older link stays part of it
   const industryNames = useMemo(() => new Set((data?.industries || []).map((x) => x.name)), [data]);
   const legacySectors = useMemo(() => f.sectors.filter((s) => !industryNames.has(s)), [f.sectors, industryNames]);
-  const sectorItems = useMemo(() => [...legacySectors.map((s) => ({ key: s, label: s, n: data?.sectors.find((x) => x.name === s)?.n ?? 0 })), ...(data?.industries || []).map((x) => ({ key: x.name, label: x.name, n: x.n }))], [legacySectors, data]);
-  const toggleSector = (k: string) => toggle(f.sectors.includes(k) ? "sectors" : "industries", k);
+  const toggleSector = (k: string) => (f.sectors.includes(k) ? toggle("sectors", k) : pickLevel("industries", k));
   const nSector = f.industries.length + f.sectors.length;
+  // task #259: the Sector list follows the macro sectors picked, the Industry list both; each option's count follows the other filters set (SHARED §1)
+  const facets = res.data?.facets;
+  const countOf = (level: "macro" | "nsector" | "industry", name: string, n: number) => (facets ? facets[level][name] ?? 0 : n);
+  const pickedMacros = f.macros ?? [], pickedNs = f.nsectors ?? [];
+  const macroItems = useMemo(() => (data?.macros ?? []).map((x) => ({ key: x.name, label: x.name, n: countOf("macro", x.name, x.n) })), [data, facets]); // eslint-disable-line react-hooks/exhaustive-deps
+  const nsItems = useMemo(() => (data?.nseSectors ?? []).filter((x) => !pickedMacros.length || pickedMacros.includes(x.macro ?? "")).map((x) => ({ key: x.name, label: x.name, n: countOf("nsector", x.name, x.n) })), [data, facets, pickedMacros.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
+  const industryItems = useMemo(() => [...legacySectors.map((s) => ({ key: s, label: s, n: data?.sectors.find((x) => x.name === s)?.n ?? 0 })),
+    ...(data?.industries || []).filter((x) => (!pickedMacros.length || pickedMacros.includes(x.sector ?? "")) && (!pickedNs.length || pickedNs.includes(x.nseSector ?? ""))).map((x) => ({ key: x.name, label: x.name, n: countOf("industry", x.name, x.n) }))],
+  [legacySectors, data, facets, pickedMacros.join("|"), pickedNs.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const funnel = res.data?.funnel ?? [];
   const stepOf = (k: string) => funnel.find((s) => s.key === k);
   const tight = funnel.find((s) => s.after === 0);
-  const removeStep = (k: string) => { if (k === "size") setF((s) => ({ ...s, caps: [] })); else if (k === "sector" || k === "industry") setF((s) => ({ ...s, sectors: [], industries: [] })); else if (k === "index") setF((s) => ({ ...s, indices: [] })); else if (k === "band") setF((s) => ({ ...s, bands: [] })); else if (k === "model") setF((s) => ({ ...s, model: undefined })); else removeRule(baseOf(k)); };
+  const removeStep = (k: string) => { if (k === "size") setF((s) => ({ ...s, caps: [] })); else if (k === "sector" || k === "industry") setF((s) => ({ ...s, sectors: [], industries: [] })); else if (k === "macro") setF((s) => ({ ...s, macros: [] })); else if (k === "nsector") setF((s) => ({ ...s, nsectors: [] })); else if (k === "index") setF((s) => ({ ...s, indices: [] })); else if (k === "band") setF((s) => ({ ...s, bands: [] })); else if (k === "model") setF((s) => ({ ...s, model: undefined })); else removeRule(baseOf(k)); };
   const stepName = (k: string) => STEP_NAME[k] ?? ratios.find((r) => r.id === k)?.name ?? byKey.get(k)?.label ?? k;
 
   const panelRow = (r: (typeof rows)[number]): PanelRow => ({ symbol: r.symbol, name: r.name, sector: r.sector, price: r.v.price ?? null });
@@ -372,9 +392,13 @@ export function ScreenerPro() {
               <div className="ssw-sec"><h3>Market cap</h3>
                 <div className="ssw-chips" role="group" aria-label="Market cap">{data.caps.map((c) => <button key={c.name} type="button" className="ssw-chip" aria-pressed={F.caps.includes(c.name)} onClick={() => toggle("caps", c.name)}>{c.name} <span>{nf(c.n, 0)}</span></button>)}</div>
                 <p className="ssw-note">{CAP_BUCKETS.map((b) => `${b.short} ${b.range.replace(/^(Above|Below)/, (w) => w.toLowerCase())}`).join(" · ")}</p></div>
-              <div className="ssw-sec"><h3>Industry and index</h3>
-                <Fold id="industry" title="Industry" summary={nSector ? `Industry: ${nSector} picked` : "All industries"} open={folds.industry ?? nSector > 0} setOpen={(o) => setFolds((x) => ({ ...x, industry: o }))}>
-                  <Checks search items={sectorItems} picked={[...f.industries, ...f.sectors]} toggle={toggleSector} /></Fold>
+              <div className="ssw-sec"><h3>Sector, industry and index</h3>
+                {!!data.macros?.length && <Fold id="macro" named title="Macro sector" summary={pickedMacros.length ? `${pickedMacros.length} picked` : `All ${data.macros?.length ?? 12}`} open={folds.macro ?? pickedMacros.length > 0} setOpen={(o) => setFolds((x) => ({ ...x, macro: o }))}>
+                  <Checks items={macroItems} picked={pickedMacros} toggle={(k) => pickLevel("macros", k)} /></Fold>}
+                {!!data.nseSectors?.length && <Fold id="nsector" named title="Sector" summary={pickedNs.length ? `${pickedNs.length} picked` : `All ${pickedMacros.length ? nsItems.length : data.nseSectors?.length ?? 22}`} open={folds.nsector ?? pickedNs.length > 0} setOpen={(o) => setFolds((x) => ({ ...x, nsector: o }))}>
+                  <Checks search items={nsItems} picked={pickedNs} toggle={(k) => pickLevel("nsectors", k)} /></Fold>}
+                <Fold id="industry" named title="Industry" summary={nSector ? `${nSector} picked` : `All ${pickedMacros.length || pickedNs.length ? industryItems.length : data.industries.length}`} open={folds.industry ?? nSector > 0} setOpen={(o) => setFolds((x) => ({ ...x, industry: o }))}>
+                  <Checks search items={industryItems} picked={[...f.industries, ...f.sectors]} toggle={toggleSector} /></Fold>
                 {data.indices.length > 0 && <Fold id="index" title="Index" summary={f.indices.length ? `Index: ${f.indices.map((c) => data.indices.find((i) => i.code === c)?.label ?? c).join(", ")}` : `Index: any (${data.indices.length} lists)`} open={folds.index ?? f.indices.length > 0} setOpen={(o) => setFolds((x) => ({ ...x, index: o }))}>
                   <Checks items={data.indices.map((x) => ({ key: x.code, label: x.label, n: x.n }))} picked={f.indices} toggle={(k) => toggle("indices", k)} /></Fold>}</div>
               <div className="ssw-sec"><h3>Rules on numbers</h3>
