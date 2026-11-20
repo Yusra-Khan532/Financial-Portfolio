@@ -83,8 +83,8 @@ describe("What's inside (pack 03 §3)", () => {
 
 describe("Risk analytics (pack 03 §4)", () => {
   it("leads against the Nifty 500, with the window of each figure", () => {
-    expect(riskLede(rk)).toEqual({ lead: "Your list moves less than the Indian market.", rest: "It has moved 0.63% for every 1% move in the Nifty 500, and over 3 years it has swung 10.6% in a typical year against 14.6%." });
-    expect(glanceTiles(rk).map((t) => [t.k, t.v, t.vs])).toEqual([["Typical swing in a year · 3 yrs", "10.6%", "Nifty 500: 14.6%"], ["Worst fall from a high · 3 yrs", "−8.8%", "Nifty 500: −18.8%"],
+    expect(riskLede(rk)).toEqual({ lead: "Your list moves less than the Indian market.", rest: "It has moved 0.63% for every 1% move in the Nifty 500, and over 3 years it has swung 10.6% in a typical year against 14.6% for the Nifty 500 (3 yrs, daily)." });
+    expect(glanceTiles(rk).map((t) => [t.k, t.v, t.vs])).toEqual([["Typical swing in a year · 3 yrs", "10.6%", "Nifty 500: 14.6% (3 yrs, daily)"], ["Worst fall from a high · 3 yrs", "−8.8%", "Nifty 500: −18.8%"],
       ["In the 10 worst weeks · past year", "−1.6%", "Nifty 500: −2.8%"], ["Beta, Nifty 500", "0.63", "market: 1.00"]]);
   });
   it("builds the list's beta by type, liquid as 0, and shows the three figures and the readings", () => {

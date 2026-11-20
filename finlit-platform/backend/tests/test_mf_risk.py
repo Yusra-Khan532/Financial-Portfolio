@@ -72,9 +72,10 @@ def test_the_list_line_weights_each_days_change():
     days = list(range(D0, D0 + 3))
     d, v = risk.list_series([(days, [100, 110, 110], 1.0), (days, [100, 100, 90], 1.0)], days[-1])
     assert d == days[1:] and [round(x, 4) for x in v] == [105.0, 99.75]
-    # a day only one fund has is skipped: the change runs from the last common day to the next
+    # task #276 (number fix 3): a day only some funds have counts too, re-weighted over the funds that moved that day (it used to be skipped, so a
+    # young fund cut the whole list to its own short history): day 1 only the first fund moved (+10%); day 2 the first +10%, the second 0% over two days
     d, v = risk.list_series([(days, [100, 110, 121], 1.0), ([days[0], days[2]], [100, 100], 1.0)], days[-1])
-    assert d == [days[2]] and [round(x, 4) for x in v] == [110.5]
+    assert d == days[1:] and [round(x, 4) for x in v] == [110.0, 115.5]
 
 
 def test_short_names():

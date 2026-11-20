@@ -56,7 +56,9 @@ export type Risk = {
 export type RangeKey = "1M" | "6M" | "1Y" | "3Y" | "5Y" | "10Y" | "MAX";
 export type Points = { t: string[]; v: number[] };
 export type Change = { abs: number; pct: number; since: string | null };
-export type HistoryInfo = { source: "amfi" | "mirror" | null; from: string | null; to?: string | null; points?: number; complete?: boolean; note: string | null };
+/** `earlier`: the scheme's AMFI code changed in a takeover and its history includes the earlier code's NAVs (task #281). */
+export type HistoryInfo = { source: "amfi" | "mirror" | null; from: string | null; to?: string | null; points?: number; complete?: boolean; note: string | null;
+  earlier?: { oldCode: number; oldName: string; joinedOn: string; note: string } | null };
 export type FundDetail = Facts & {
   code: number; name: string; isin: string | null; isinReinvest: string | null; amc: string; category: string; categoryGroup: string; schemeType: string; plan: string;
   optionClass: FundRow["optionClass"]; option: string; active: boolean; nav: number | null; navDate: string | null; prevNav: number | null; prevDate: string | null; change: Change | null;

@@ -6,6 +6,7 @@
 .eqr-tile .sp-cap { display: flex; align-items: center; gap: 4px; margin: 0 0 4px; }
 .eqr-v { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 0; } .eqr-v b { font: 400 var(--fs-kpi)/var(--lh-24) var(--serif); color: var(--sp-ink); } .eqr-v small { font-size: var(--fs-caption); color: var(--sp-mute); }
 .eqr-sub, .eqr-mute { margin: 4px 0 0; font-size: var(--fs-caption); color: var(--sp-mute); }
+.eqr-win { margin: 6px 0 0; font-size: var(--fs-caption); color: var(--sp-mute); }   /* task #274 fix 5: the window of each figure ("3 yrs, weekly") */
 .eqr-h3 { display: flex; align-items: center; gap: 6px; margin: 0; font: 400 var(--fs-card-title)/var(--lh-18) var(--serif); color: var(--sp-ink); }
 /* the six ranges */
 .r-less { --rc: #2E7D57; --rb: color-mix(in srgb, #2E7D57 22%, var(--sp-panel)); } .r-defensive { --rc: #4E9A72; --rb: color-mix(in srgb, #4E9A72 16%, var(--sp-panel)); }

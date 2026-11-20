@@ -99,10 +99,11 @@ function Body() {
       {d && kindsHeld(d).length > 0 && <>
         {/* task #277 (change 16): the four views drawn as tabs; they replace the three kind tiles */}
         <ViewTiles d={d} view={tab} onView={(t) => toTab(t)} seen={seen} />
-        <StepsBar key={tab} steps={steps} menu={menu} label={`Sections of ${TABS.find((t) => t.id === tab)?.label}`}
+        <StepsBar key={tab} arrows steps={steps} menu={menu} label={`Sections of ${TABS.find((t) => t.id === tab)?.label}`}
           lead={<StickySwitch list={accs.length > 1 ? accs : []} cur={acc?.id ?? "all"} onPick={setAcc} figs={accFigs} defs={VIEWS} view={tab} onView={(t) => toTab(t)} tabsId="mi-tabs" noun={["holding", "holdings"]} />} />
         <div role="tabpanel" id={`mi-p-${tab}`} aria-labelledby={`mi-t-${tab}`} className="mi-panel">
-          {tab === "all" && <AllTogether d={d} money={money} toTab={toTab} openQty={() => setQty(true)} />}
+          {tab === "all" && <AllTogether d={d} money={money} toTab={toTab} openQty={() => setQty(true)}
+            stickyLead={<StickySwitch list={accs.length > 1 ? accs : []} cur={acc?.id ?? "all"} onPick={setAcc} figs={accFigs} defs={VIEWS} view={tab} onView={(t) => toTab(t)} tabsId="mi-tabs" noun={["holding", "holdings"]} />} />}
           {tab === "equity" && <EquityTab d={d} />}
           {tab === "mf" && <MfTab d={d} />}
           {tab === "etf" && <EtfTab d={d} />}

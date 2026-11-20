@@ -267,9 +267,16 @@ async def scores(request: Request, group: str = Query("", max_length=12), catego
                                          ORDER BY g.code LIMIT 1) g ON true
                           JOIN mf_scores m ON m.key = 'mf:' || g.code
                          WHERE s.code = ANY($1::int[]) AND s.option_class <> 'Growth' AND s.active""", missing)}  # nosec B608 - fixed column list; codes are a bound parameter
+            from ..mf import classify
+            from .groups import ETF_SUBS
             for c in missing:
                 s = info.get(c)
                 if s is None:
+                    continue
+                if classify(s["category"] or "")[1] in ETF_SUBS:   # task #281: an ETF's AMFI code: the score is not given (not "IDCW" or "plan not stated")
+                    items.append({"code": c, "symbol": None, "plan": "ETF", "group": None, "final": None, "label": None, "status": None, "pillars": None, "rank": None,
+                                  "rankOf": None, "rankScope": None, "percentile": None, "flags": [], "confidence": None, "category": None,
+                                  "reason": NOT_SCORED["etf_not_offered"] if full else None, "notOffered": True})
                     continue
                 g = sib.get(c)
                 if g is not None:
@@ -311,6 +318,11 @@ async def resolve_mf(conn, code: int):
     s = await conn.fetchrow("SELECT code, name, family, plan, option_class, active, isin, category FROM mf_schemes WHERE code = $1", code)
     if s is None:
         return None, None, "unknown"
+    # an ETF category scheme: no Mutual Fund Score is given (checked first: an ETF has no Direct / Regular plan and is not an IDCW option, task #281)
+    from ..mf import classify
+    from .groups import ETF_SUBS
+    if classify(s["category"])[1] in ETF_SUBS:
+        return None, None, "etf_not_offered"
     if s["option_class"] != "Growth":
         # task #281 (owner, 20 Nov 2026): the Growth option of the SAME plan only. Each plan is scored against its own plan's peers, so a Direct plan's
         # score on a Regular IDCW row would compare unlike with unlike; with no Growth option of this plan the row says so instead.
@@ -324,11 +336,6 @@ async def resolve_mf(conn, code: int):
         return None, None, "inactive"
     if s["plan"] not in ("Direct", "Regular"):
         return None, None, "no_plan"
-    # an ETF category scheme: no Mutual Fund Score is given
-    from ..mf import classify
-    from .groups import ETF_SUBS
-    if classify(s["category"])[1] in ETF_SUBS:
-        return None, None, "etf_not_offered"
     return None, None, "not_yet"
 
 

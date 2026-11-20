@@ -256,7 +256,12 @@ def split_category(line: str) -> Optional[Tuple[str, str]]:
     return kind, re.sub(r"\s+", " ", m.group(2)).strip()
 
 
-_IDCW = re.compile(r"idcw|dividend|income\s+distribution|payout|reinvest", re.I)
+_IDCW = re.compile(r"idcw|idwc|dividend|income\s+distribution|payout|reinvest", re.I)   # "IDWC" is AMFI's own typo for IDCW (task #281)
+# Task #281: "Cumulative" is the older word for the Growth option (FMPs, ICICI's ELSS series): units are never paid out. A plan for unclaimed redemption or
+# IDCW amounts holds money investors did not collect; it is not an option anybody invests in, so it is never read as IDCW or Growth.
+_GROWTH = re.compile(r"growth|cumulative", re.I)
+_UNCLAIMED = re.compile(r"unclaimed", re.I)
+UNCLAIMED = "Unclaimed amounts"
 
 
 def clean_plan(raw: str, name: str) -> str:
@@ -278,17 +283,67 @@ def clean_option(raw: str, name: str) -> Tuple[str, str]:
     AMFI's option column decides; the name is read only when the column is blank, and only its last ' - ' part (a fund can be called 'Dividend Yield Fund')."""
     raw = re.sub(r"\s+", " ", raw).strip()
     if raw:
+        if _UNCLAIMED.search(raw):
+            return "Other", raw
         if _IDCW.search(raw):
             return "IDCW", raw
-        if "growth" in raw.lower():
+        if _GROWTH.search(raw):
             return "Growth", raw
         return "Other", raw
     last = re.split(r"\s[-–]\s", name)[-1].strip().lower() if re.search(r"\s[-–]\s", name) else ""
+    if last and _UNCLAIMED.search(last):
+        return "Other", UNCLAIMED
     if last and _IDCW.search(last):
         return "IDCW", "IDCW"
-    if re.fullmatch(r"(direct |regular )?(plan )?growth( option| plan)?", last):
+    if re.fullmatch(r"(direct |regular )?(plan )?(growth|cumulative)( option| plan)?", last):
         return "Growth", "Growth"
     return "Other", "Not stated"
+
+
+_ETF_CAT = re.compile(r"\bETFs?\b|exchange\s+traded", re.I)
+_LIQUID_ETF = re.compile(r"liquid|overnight|1\s*d\s+rate", re.I)
+# "IDCW" anywhere, or "Dividend" as the option part after the last dash; never "Dividend" inside an index's name ("BSE 500 Dividend Leaders 50 ETF")
+_NAME_IDCW = re.compile(r"\b(?:idcw|idwc)\b|[\-–]\s*dividend(?:\s+option)?\s*$", re.I)
+
+
+def is_etf_category(category: str) -> bool:
+    """AMFI files every exchange traded fund under a category that names ETFs ("Other Scheme - Other ETFs", "Exchange Traded Funds (ETFs) - Equity ETF")."""
+    return bool(_ETF_CAT.search(category or ""))
+
+
+def etf_plan_option(name: str, option_class: str, option_label: str, nav: Optional[float] = None) -> Tuple[str, str, str]:
+    """Task #281: an ETF's units trade on the exchange; there is no Direct or Regular plan, and AMFI's columns for some fund houses still say "Regular Plan;
+    IDCW" (SBI's ETFs). Read as stated, those ETFs got no returns ("IDCW") and a plan they do not have. An ETF is a payout option only when AMFI lists a
+    separate IDCW code for it (the name says IDCW, e.g. "SBI NIFTY 1D Rate Liquid ETF - IDCW"), when AMFI's own column says IDCW for a liquid / overnight
+    ETF, or when a liquid / overnight ETF's NAV is held at exactly 1,000 (its income is paid out every day, so NAV-to-NAV change is not its return).
+    Every other ETF's NAV carries its whole return: it reads as Growth. Returns (plan, option class, label)."""
+    liquid = bool(_LIQUID_ETF.search(name or ""))
+    if _NAME_IDCW.search(name or "") or (liquid and (option_class == "IDCW" or (nav is not None and abs(nav - 1000.0) < 1e-9))):
+        return "Unspecified", "IDCW", "IDCW"
+    return "Unspecified", "Growth", "Growth"
+
+
+def _fold(s: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", unicodedata.normalize("NFKD", s or "").lower().replace("&", " and ")).strip()
+
+
+def option_from_nav_name(nav_name: str, base_name: Optional[str]) -> Tuple[str, str]:
+    """Task #281: the option stated in AMFI's scheme master name ("Scheme NAV Name"). When that name starts with the scheme's own name ("Scheme Name"), the
+    words after it are only plan and option words, however they are joined ("Motilal Oswal Midcap Fund-Regular Plan-Growth Option", "... Fund- Regular Plan
+    Growth", "... Fund - Direct Plan Cumulative Option"), so they are read whole. Otherwise the name is read as the NAV file's name is (its last ' - ' part)."""
+    base, full = _fold(base_name or ""), _fold(nav_name)
+    if base and full.startswith(base + " "):
+        tail = full[len(base):].strip()
+        if _UNCLAIMED.search(tail):
+            return "Other", UNCLAIMED
+        if re.search(r"\bbonus\b", tail):                  # "Growth Plan - Bonus Option" is the bonus option, not the growth one
+            return "Other", "Bonus"
+        if _IDCW.search(tail):
+            return "IDCW", "IDCW"
+        if re.search(r"\b(growth|cumulative)\b", tail):
+            return "Growth", "Growth"
+        return "Other", "Not stated"
+    return clean_option("", nav_name)
 
 
 _FREQ = r"(?:monthly|quarterly|weekly|daily|annual|annually|yearly|half[ -]?yearly|fortnightly|periodic|bi[ -]?monthly)"
@@ -368,6 +423,8 @@ def parse_navall(text: str, today: Optional[date] = None) -> Parsed:
             nav = None
         plan = clean_plan(f[4], name)
         opt, label = clean_option(f[5], name)
+        if is_etf_category(category):          # task #281: an ETF has no Direct / Regular plan and is not a payout option unless AMFI lists one
+            plan, opt, label = etf_plan_option(name, opt, label, nav)
         isin = f[1] if ISIN_RE.match(f[1]) else None
         isin2 = f[2] if ISIN_RE.match(f[2]) else None
         s = Scheme(code, name, amc, category, kind or "Open Ended", plan, opt, label, f"{amc_key(amc)}|{category}|{family_stem(name)}", isin, isin2,
@@ -1043,6 +1100,7 @@ async def refresh(store, settings=None, backfill_amc: Optional[str] = None, *, c
     3. Today's NAV is appended to each stored history (the hot schemes') and their returns / volatility / drawdown are worked out again.
     4. If whole days were missed (the job did not run), AMFI's industry-wide history for just those days fills the hole.
     5. Every other Growth scheme gets its 1, 3 and 5 year returns worked out again from AMFI's history for just the three start dates (`refresh_anchors`).
+       A scheme whose code changed in a takeover gets its earlier code's NAV history joined before its own (task #281, `finlit/mf_lineage.py`).
     6. Month-end NAVs: today's NAV is folded into every Growth scheme's month-end series, month-ends not read yet come from AMFI's history (a few each
        run until the full history is filled), and the SIP returns and month-end fall are worked out again (`refresh_monthly`).
     7. Fund size, expense ratio and the checklist are copied / worked out for the category table (`derive_dashboard`).
@@ -1076,6 +1134,7 @@ async def refresh(store, settings=None, backfill_amc: Optional[str] = None, *, c
         if backfill_amc:
             res["backfill"] = await backfill(store, settings, amc=backfill_amc, client=client)
         res["anchors"] = await refresh_anchors(store, client, newest)
+        res["lineage"] = await _guarded("lineage", _lineage(store, client))   # task #281: history across a takeover's new codes, before the month-ends
         res["monthly"] = await _guarded("monthly", refresh_monthly(store, client, newest))
         res["dashboard"] = await _guarded("dashboard", derive_dashboard(store))
         res["hot"] = await refresh_hot(store, client)
@@ -1092,12 +1151,15 @@ async def apply_nav_names(conn) -> int:
     and option read "not stated" (and returns, chart and score were withheld). AMFI's scheme master names every code in full ("HSBC Small Cap Fund -
     Direct Growth"; kept in mf_facts.nav_name by the disclosure job). Read the plan and option from that name, the same way as from the NAV file's own
     name; only what the NAV file did not state is filled, never overwritten. Returns how many schemes changed."""
-    rows = await conn.fetch("SELECT s.code, s.plan, s.option_class, s.option_label, f.nav_name FROM mf_schemes s JOIN mf_facts f USING (code) "
+    rows = await conn.fetch("SELECT s.code, s.plan, s.option_class, s.option_label, s.category, f.nav_name, f.base_name FROM mf_schemes s JOIN mf_facts f USING (code) "
                             "WHERE f.nav_name IS NOT NULL AND (s.plan = 'Unspecified' OR s.option_label = 'Not stated')")
     ups = []
     for r in rows:
+        if is_etf_category(r["category"]):     # task #281: an ETF's plan and option are settled when the NAV file is read (etf_plan_option)
+            continue
         plan = r["plan"] if r["plan"] != "Unspecified" else clean_plan("", r["nav_name"])
-        oc, ol = (r["option_class"], r["option_label"]) if r["option_label"] != "Not stated" else clean_option("", r["nav_name"])
+        # task #281: the words after the scheme's own name, however AMFI joins them ("Fund-Regular Plan-Growth Option")
+        oc, ol = (r["option_class"], r["option_label"]) if r["option_label"] != "Not stated" else option_from_nav_name(r["nav_name"], r["base_name"])
         if (plan, oc, ol) != (r["plan"], r["option_class"], r["option_label"]):
             ups.append((r["code"], plan, oc, ol))
     if ups:
@@ -1294,6 +1356,15 @@ async def refresh_anchors(store, client, newest: date) -> dict:
                                   r1m = NULL, r6m = NULL, vol1y = NULL, vol3y = NULL, mdd = NULL WHERE code = $1""", upd)
     out["updated"] = len(upd)
     return out
+
+
+LINEAGE_SECONDS = 240         # the nightly refresh-mf asks the mirror about earlier codes for at most this long; the rest are asked on the next runs
+
+
+async def _lineage(store, client) -> dict:
+    """Task #281: link schemes whose code changed in a takeover to their earlier code and join the history (finlit/mf_lineage.py); time-limited."""
+    from .mf_lineage import link
+    return await link(store, client, max_seconds=LINEAGE_SECONDS)
 
 
 async def _guarded(step: str, job) -> dict:
@@ -1493,21 +1564,37 @@ CHECK_RET5_BIT = 32
 
 DERIVE_FUND_FACTS = """
 WITH q AS (SELECT max(aum_end) AS e FROM mf_facts WHERE aum_lakh IS NOT NULL),
-fam_q AS (SELECT s.family, sum(f.aum_lakh) AS lakh, max(f.aum_end) AS asof FROM mf_facts f JOIN mf_schemes s ON s.code = f.code, q
-          WHERE f.aum_end = q.e GROUP BY s.family),
+-- task #281: each family's own latest AMFI quarter (a scheme missing from the newest quarter keeps its last one, with that quarter's date)
+fam_q AS (SELECT family, sum(lakh) AS lakh, max(e) AS asof
+          FROM (SELECT s.family, f.aum_lakh AS lakh, f.aum_end AS e, max(f.aum_end) OVER (PARTITION BY s.family) AS fe
+                FROM mf_facts f JOIN mf_schemes s ON s.code = f.code WHERE f.aum_lakh IS NOT NULL) x
+          WHERE e = fe GROUP BY family),
 fam_m AS (SELECT DISTINCT ON (fkey) fkey AS family, net_assets_lakh AS lakh, as_of AS asof FROM disclosure_portfolios
           WHERE net_assets_lakh IS NOT NULL AND net_assets_lakh > 0 ORDER BY fkey, as_of DESC),
 own_t AS (SELECT s.code, s.family, t.ter_regular, t.ter_direct, t.ter_date FROM mf_schemes s JOIN mf_facts f ON f.code = s.code JOIN mf_ter t ON t.name_key = f.name_key),
 fam_t AS (SELECT DISTINCT ON (family) family, ter_regular, ter_direct, ter_date FROM own_t ORDER BY family, ter_date DESC, code),
+fam_h AS (SELECT fkey AS family, (value->>'regular')::float8 AS ter_regular, (value->>'direct')::float8 AS ter_direct, as_of AS ter_date
+          FROM disclosure_facts WHERE kind = 'ter'),
+-- a scheme with one plan only (ETFs: AMFI lists some as Direct but files their one TER under Regular, e.g. UTI Nifty 50 ETF): either column is its TER
+one_p AS (SELECT family FROM mf_schemes GROUP BY family HAVING count(DISTINCT plan) = 1),
 v AS (SELECT s.code,
-             COALESCE(a.lakh, m.lakh) AS lakh, CASE WHEN a.lakh IS NOT NULL THEN a.asof ELSE m.asof END AS asof,
-             CASE WHEN a.lakh IS NOT NULL THEN 'q' WHEN m.lakh IS NOT NULL THEN 'm' END AS kind,
-             CASE s.plan WHEN 'Direct' THEN COALESCE(o.ter_direct, ft.ter_direct) WHEN 'Regular' THEN COALESCE(o.ter_regular, ft.ter_regular)
-                         ELSE COALESCE(o.ter_regular, o.ter_direct, ft.ter_regular, ft.ter_direct) END AS ter,
-             COALESCE(o.ter_date, ft.ter_date) AS ter_date
-      FROM mf_schemes s LEFT JOIN fam_q a ON a.family = s.family LEFT JOIN fam_m m ON m.family = s.family
-           LEFT JOIN own_t o ON o.code = s.code LEFT JOIN fam_t ft ON ft.family = s.family),
-w AS (SELECT code, lakh, asof, kind, ter, CASE WHEN ter IS NULL THEN NULL ELSE ter_date END AS ter_date FROM v),
+             -- AMFI's quarterly average when it is the newest quarter (or nothing newer exists); an older quarter gives way to a newer month-end figure
+             CASE WHEN a.lakh IS NOT NULL AND (a.asof >= q.e OR m.lakh IS NULL OR a.asof >= m.asof) THEN a.lakh ELSE m.lakh END AS lakh,
+             CASE WHEN a.lakh IS NOT NULL AND (a.asof >= q.e OR m.lakh IS NULL OR a.asof >= m.asof) THEN a.asof ELSE m.asof END AS asof,
+             CASE WHEN a.lakh IS NOT NULL AND (a.asof >= q.e OR m.lakh IS NULL OR a.asof >= m.asof) THEN 'q' WHEN m.lakh IS NOT NULL THEN 'm' END AS kind,
+             CASE WHEN s.plan = 'Direct' THEN COALESCE(o.ter_direct, ft.ter_direct, CASE WHEN op.family IS NOT NULL THEN COALESCE(o.ter_regular, ft.ter_regular) END)
+                  WHEN s.plan = 'Regular' THEN COALESCE(o.ter_regular, ft.ter_regular, CASE WHEN op.family IS NOT NULL THEN COALESCE(o.ter_direct, ft.ter_direct) END)
+                  ELSE COALESCE(o.ter_regular, o.ter_direct, ft.ter_regular, ft.ter_direct) END AS ter,
+             COALESCE(o.ter_date, ft.ter_date) AS ter_date,
+             CASE s.plan WHEN 'Direct' THEN h.ter_direct WHEN 'Regular' THEN h.ter_regular ELSE COALESCE(h.ter_regular, h.ter_direct) END AS house_ter,
+             h.ter_date AS house_date
+      FROM q, mf_schemes s LEFT JOIN fam_q a ON a.family = s.family LEFT JOIN fam_m m ON m.family = s.family
+           LEFT JOIN own_t o ON o.code = s.code LEFT JOIN fam_t ft ON ft.family = s.family LEFT JOIN fam_h h ON h.family = s.family
+           LEFT JOIN one_p op ON op.family = s.family),
+-- task #281: AMFI's figure first; when AMFI's file has none for the plan, the fund house's own daily TER (the figure the scheme page already shows),
+-- with its own date, so the list, the screener and the score read the same expense ratio as the page
+w AS (SELECT code, lakh, asof, kind, COALESCE(ter, house_ter) AS ter,
+             CASE WHEN ter IS NOT NULL THEN ter_date WHEN house_ter IS NOT NULL THEN house_date END AS ter_date FROM v),
 u AS (UPDATE mf_schemes s SET aum_lakh = w.lakh, aum_asof = w.asof, aum_kind = w.kind, ter = w.ter, ter_date = w.ter_date FROM w
       WHERE s.code = w.code AND (s.aum_lakh IS DISTINCT FROM w.lakh OR s.aum_asof IS DISTINCT FROM w.asof OR s.aum_kind IS DISTINCT FROM w.kind
                                  OR s.ter IS DISTINCT FROM w.ter OR s.ter_date IS DISTINCT FROM w.ter_date) RETURNING 1)
@@ -2333,6 +2420,8 @@ async def detail_payload(app, row) -> dict:
         kin = await conn.fetch("SELECT code, name, plan, option_class, option_label, nav, nav_date, active, isin FROM mf_schemes WHERE family = $1 AND code <> $2 ORDER BY plan, option_class, name LIMIT 40",
                                row["family"], row["code"])
         facts = await _facts(conn)
+        from .mf_lineage import notes as lineage_notes
+        earlier = await lineage_notes(conn, row["code"])   # task #281: the history includes an earlier code's NAVs (a takeover gave the scheme a new code)
         gsib = (await growth_siblings(conn, [row["code"]])).get(row["code"]) if row["option_class"] != "Growth" else None
     empty = {"value": None, "kind": "absolute", "from": None, "why": returns_note(row, source, bool(days))}
     ret = returns_json(m) if m else {k: {**empty, "kind": "cagr" if mo > 12 else "absolute"} for k, mo, _ in HORIZONS}
@@ -2349,7 +2438,8 @@ async def detail_payload(app, row) -> dict:
             "returns": ret, "risk": risk, "retDate": iso(row["metrics_date"]), "returnsNote": returns_note(row, source, bool(days)) if not m and ret["1y"]["value"] is None and ret["5y"]["value"] is None else None,
             "series": series_block(days, navs) if m else {},
             "history": {"source": source if days else None, "from": iso(date.fromordinal(days[0])) if days else None, "to": iso(date.fromordinal(days[-1])) if days else None,
-                        "points": len(days), "complete": complete, "note": note if source != "amfi" else None},
+                        "points": len(days), "complete": complete, "note": note if source != "amfi" else (earlier["note"] if earlier and days else None),
+                        "earlier": earlier if days else None},
             "family": [{"code": k["code"], "name": k["name"], "plan": k["plan"], "optionClass": k["option_class"], "option": k["option_label"], "nav": k["nav"],
                         "navDate": iso(k["nav_date"]), "active": k["active"], "isin": k["isin"] or None} for k in kin],   # task #183: each option by its ISIN
             "growthReturns": gsib, "growthReturnsWhy": NO_GROWTH_SIBLING if row["option_class"] != "Growth" and gsib is None else None,   # task #281

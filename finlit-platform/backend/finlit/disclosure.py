@@ -25,7 +25,7 @@ import re
 import tempfile
 import unicodedata
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional, Sequence, Tuple
 from zoneinfo import ZoneInfo
 
@@ -52,11 +52,10 @@ MIN_AUM_CODES = 3000
 TER_MAX = 5.0          # percent a year; SEBI's caps keep every real TER well under this
 AUM_PERIODS = ((1, 1), (1, 2), (2, 1), (2, 2))   # (fyId, periodId), newest first: AMFI may not have filled the newest quarter yet
 
-NO_EXIT_LOAD = ("Exit load is stated in each scheme's own documents (PDF, a different layout at every fund house); no free machine-readable "
-                "official source was found, so none is shown.")
+NO_EXIT_LOAD = ("Exit load comes from AMFI's scheme details, which has not been read for this scheme yet; the scheme's own documents state it.")
 NO_MANAGERS = ("Fund managers are named in each scheme's factsheet (PDF); no free machine-readable official source was found, so none is shown.")
-NO_BENCHMARK = "AMFI publishes the benchmark on its fund performance page, which our server cannot read yet; see the scheme's factsheet."
-NO_RISKOMETER = "AMFI publishes the risk-o-meter on its fund performance page, which our server cannot read yet; see the scheme's factsheet."
+NO_BENCHMARK = "AMFI publishes the benchmark on its fund performance page, which has not been read for this scheme yet; see the scheme's factsheet."
+NO_RISKOMETER = "AMFI publishes the risk-o-meter on its fund performance page, which has not been read for this scheme yet; see the scheme's factsheet."
 NO_TRACKING = "Tracking error is published in the fund house's monthly factsheet (PDF); no free machine-readable official source was found."
 NOT_LOADED = "AMFI's figures have not been loaded yet; they appear after the next nightly update."
 
@@ -168,10 +167,13 @@ def _pct(v) -> Optional[float]:
     return round(f, 4) if 0 < f <= TER_MAX else None
 
 
-def parse_ter_xlsx(path: str) -> Dict[str, TerRow]:
-    """AMFI's TER workbook -> {scheme name key: the scheme's row for the latest day in the file}. Empty when the columns are not the checked ones."""
+def parse_ter_xlsx(path: str, latest: Optional[date] = None) -> Dict[str, TerRow]:
+    """AMFI's TER workbook -> {scheme name key: the scheme's row for the latest day in the file}. Empty when the columns are not the checked ones.
+    Task #281: a row dated after `latest` (default tomorrow) is a typo in AMFI's file (the 20 Nov 2026 file has rows dated 21 and 22 Nov) and is skipped,
+    so it can never stand in for the scheme's real latest row."""
     import openpyxl   # parses the workbook's XML through defusedxml (installed with it, see requirements.txt)
 
+    latest = latest or (date.today() + timedelta(days=1))
     wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
     try:
         rows = wb.worksheets[0].iter_rows(values_only=True)
@@ -184,7 +186,7 @@ def parse_ter_xlsx(path: str) -> Dict[str, TerRow]:
             if not r or len(r) <= max(ni, ci, di, ri, xi) or not r[ni]:
                 continue
             d = r[di].date() if isinstance(r[di], datetime) else (r[di] if isinstance(r[di], date) else parse_amfi_date(str(r[di] or "")))
-            if d is None:
+            if d is None or d > latest:
                 continue
             k = name_key(str(r[ni]))
             if k and (k not in out or d >= out[k].day):
@@ -320,8 +322,9 @@ async def step_master(store, client, *, min_rows: int = MIN_MASTER_ROWS) -> dict
         async with conn.transaction():
             await conn.executemany(
                 "INSERT INTO mf_facts (code, base_name, name_key, launch_date, min_text, nav_name) VALUES ($1, $2, $3, $4, $5, $6) "
-                "ON CONFLICT (code) DO UPDATE SET base_name = EXCLUDED.base_name, name_key = EXCLUDED.name_key, launch_date = EXCLUDED.launch_date, "
-                "min_text = EXCLUDED.min_text, nav_name = COALESCE(EXCLUDED.nav_name, mf_facts.nav_name), updated_at = now()", items)
+                "ON CONFLICT (code) DO UPDATE SET base_name = EXCLUDED.base_name, name_key = EXCLUDED.name_key, "
+                "launch_date = COALESCE(EXCLUDED.launch_date, mf_facts.launch_date), min_text = COALESCE(EXCLUDED.min_text, mf_facts.min_text), "   # task #281
+                "nav_name = COALESCE(EXCLUDED.nav_name, mf_facts.nav_name), updated_at = now()", items)
             fixed = await mf.apply_nav_names(conn)   # task #256: a scheme the NAV file leaves without plan or option reads them from this name now
     return {"status": "ok", "schemes": len(items), "planOptionFromMaster": fixed}
 
@@ -337,11 +340,16 @@ async def store_ter(store, rows: Dict[str, TerRow], month: Optional[str], *, min
             held = await conn.fetchval("SELECT max(ter_date) FROM mf_ter")
             if held and newest < held:
                 return {"status": "refused", "why": f"This file's newest day is {newest.isoformat()}, older than the figures already held ({held.isoformat()}); nothing was replaced"}
+        # Task #281, owner's rule of 20 Nov 2026 ("if new data is missing, use the old data"): one night's file can lack whole fund houses (the live
+        # table held 2 094 schemes up to 8 Nov 2026 and no Nippon India row, while AMFI's file of 20 Nov has all 107 Nippon India rows). A scheme the
+        # new file does not name keeps its previous row with its own older date, which every page shows ("as of ..."); it is never blanked.
+        prev = await conn.fetch("SELECT name_key, name, category, ter_regular, ter_direct, ter_date FROM mf_ter")
+        kept = [(p["name_key"], p["name"], p["category"], p["ter_regular"], p["ter_direct"], p["ter_date"]) for p in prev if p["name_key"] not in rows]
         async with conn.transaction():
             await conn.execute("DELETE FROM mf_ter")
             await conn.executemany("INSERT INTO mf_ter (name_key, name, category, ter_regular, ter_direct, ter_date) VALUES ($1, $2, $3, $4, $5, $6)",
-                                   [(r.key, r.name, r.category, r.regular, r.direct, r.day) for r in rows.values()])
-    return {"status": "ok", "month": month, "schemes": len(rows), "day": newest.isoformat()}
+                                   [(r.key, r.name, r.category, r.regular, r.direct, r.day) for r in rows.values()] + kept)
+    return {"status": "ok", "month": month, "schemes": len(rows), "day": newest.isoformat(), "keptFromBefore": len(kept)}
 
 
 async def step_ter(store, client, today: date, *, min_schemes: int = MIN_TER_SCHEMES) -> dict:
@@ -361,8 +369,7 @@ async def store_aum(store, label: Optional[str], end: Optional[date], codes: Dic
                 return {"status": "refused", "why": f"This file is for {label} (ends {end.isoformat()}), older than the quarter already held ({held.isoformat()}); nothing was replaced"}
         known = {r["code"] for r in await conn.fetch("SELECT code FROM mf_schemes")}
         items = [(c, v, end, label) for c, v in codes.items() if c in known]
-        async with conn.transaction():   # one quarter replaces the other whole: a code AMFI no longer lists has no figure, never last quarter's
-            await conn.execute("UPDATE mf_facts SET aum_lakh = NULL, aum_end = NULL, aum_label = NULL WHERE aum_lakh IS NOT NULL")
+        async with conn.transaction():   # task #281, owner's rule: a code missing from the new quarter keeps its last quarter, with that quarter's end
             await conn.executemany(
                 "INSERT INTO mf_facts (code, aum_lakh, aum_end, aum_label) VALUES ($1, $2, $3, $4) "
                 "ON CONFLICT (code) DO UPDATE SET aum_lakh = EXCLUDED.aum_lakh, aum_end = EXCLUDED.aum_end, aum_label = EXCLUDED.aum_label, updated_at = now()",
@@ -429,7 +436,7 @@ async def _facts_rows(conn, code: int):
                              "LEFT JOIN mf_facts f ON f.code = s.code WHERE s.code = $1", code)
     if me is None:
         return None, None, None
-    fam = await conn.fetch("SELECT s.code, f.name_key, f.aum_lakh, f.aum_end, f.aum_label FROM mf_schemes s LEFT JOIN mf_facts f ON f.code = s.code "
+    fam = await conn.fetch("SELECT s.code, s.plan, f.name_key, f.aum_lakh, f.aum_end, f.aum_label FROM mf_schemes s LEFT JOIN mf_facts f ON f.code = s.code "
                            "WHERE s.family = $1", me["family"])
     keys = [me["name_key"]] + [r["name_key"] for r in fam if r["name_key"] and r["name_key"] != me["name_key"]]
     ter = None
@@ -490,10 +497,38 @@ NO_MINIMUM = ("The minimum amount AMFI lists is out of date for some schemes, so
               "site give the current minimum.")
 
 
+# Launch date rule (task #281, checked 20 Nov 2026): AMFI's scheme master and AMFI's scheme-details page give the same date (HSBC Small Cap Fund, formerly
+# L&T Emerging Businesses Fund: 22 Apr 2014 in both), which is the scheme's launch (offer opening). Some sites show the allotment date instead (12 May 2014),
+# and the first NAV comes a few days after that (15 May 2014). FinLit keeps AMFI's date and calls it the launch date; the two AMFI sources agree, so neither
+# overrides the other. A scheme whose AMFI code changed in a takeover keeps the original scheme's launch date (AMFI carries it over).
 def _launch_fact(me) -> dict:
     if me["launch_date"]:
         return {"value": me["launch_date"].isoformat(), "source": SRC_MASTER}
     return {"unavailable": NOT_LOADED if me["name_key"] is None else "AMFI's scheme master gives no launch date for this scheme."}
+
+
+DIRECT_PLANS_BEGAN = date(2013, 1, 1)   # SEBI's Direct plans began industry-wide on 1 Jan 2013
+
+
+def _day(d: date) -> str:
+    return f"{d.day} {d.strftime('%b %Y')}"
+
+
+def launch_note(plan: Optional[str], launch: Optional[date], first_nav: Optional[date], old_name: Optional[str], new_code_from: Optional[date]) -> Optional[str]:
+    """The line under the launch date (task #281). The launch date stays the SCHEME's (AMFI's); this says when this plan began and under which name the
+    scheme was launched, because other sites show those instead (HDFC Small Cap Fund: scheme 11 Feb 2008, Direct plan 1 Jan 2013; HSBC Small Cap Fund:
+    launched in 2014 as L&T Emerging Businesses Fund).
+    - A Direct plan of a scheme launched before Direct plans existed: "Direct plan from 1 Jan 2013", or from its first NAV on file when that is later.
+    - A scheme whose AMFI code changed in a takeover: the name it was launched under and the day the new code began."""
+    parts = []
+    if old_name and new_code_from:
+        base = re.split(r"\s*-\s*(?=(?:direct|regular)\b)", old_name, flags=re.I)[0].strip(" -")
+        parts.append(f"Launched as {base}; AMFI gave the scheme a new code on {_day(new_code_from)}.")
+    if plan == "Direct" and launch and launch < DIRECT_PLANS_BEGAN:
+        # a first NAV in January 2013 is the industry-wide start (the first working days); a later one is this plan's own start
+        start = first_nav if first_nav and (first_nav - DIRECT_PLANS_BEGAN).days > 31 else DIRECT_PLANS_BEGAN
+        parts.append(f"Direct plan from {_day(start)}" + (" (Direct plans began on 1 Jan 2013)." if start == DIRECT_PLANS_BEGAN else " (its first NAV)."))
+    return " ".join(parts) or None
 
 
 async def get_facts(pool, key) -> Optional[dict]:
@@ -506,6 +541,9 @@ async def get_facts(pool, key) -> Optional[dict]:
             return None
         me, fam, ter = await _facts_rows(conn, int(code))
         loaded = bool(await conn.fetchval("SELECT EXISTS (SELECT 1 FROM mf_facts WHERE aum_lakh IS NOT NULL)")) if me else False
+        # task #281: when this plan began (its first NAV on file) and the name the scheme was launched under, for the line under the launch date
+        lineage = await conn.fetchrow("SELECT (SELECT d0 FROM mf_history WHERE code = $1) AS d0, p.old_name, p.new_first FROM (SELECT 1) one "
+                                      "LEFT JOIN mf_predecessors p ON p.code = $1", int(code)) if me else None
     if me is None:
         return None
     try:   # holdings-side facts (finlit.portfolios): exit load, benchmark, risk-o-meter, managers; missing ones keep their reason
@@ -521,10 +559,21 @@ async def get_facts(pool, key) -> Optional[dict]:
     launch = _launch_fact(me)
     if "unavailable" in launch and extra.get("launchDate"):
         launch = extra["launchDate"]
+    if "unavailable" not in launch and lineage is not None:
+        # the plan's own first NAV: with a joined earlier history (a takeover), the earlier code's first NAV is the plan's start
+        first = lineage["d0"]
+        note = launch_note(me["plan"], date.fromisoformat(str(launch["value"])[:10]), first, lineage["old_name"], lineage["new_first"])
+        if note:
+            launch = {**launch, "note": " ".join(x for x in (launch.get("note"), note) if x)}
     out = {"aum": aum, "launchDate": launch, "benchmark": extra.get("benchmark") or {"unavailable": NO_BENCHMARK},
            "riskometer": extra.get("riskometer") or {"unavailable": NO_RISKOMETER}, "managers": extra.get("managers") or {"unavailable": NO_MANAGERS}}
     if isinstance(key, int) or str(key).isdigit():     # a mutual fund page: both plans' TER, the scheme's minimum, exit load unknown
         tr, td = _ter_fact(ter, "Regular"), _ter_fact(ter, "Direct")
+        if len({r["plan"] for r in fam}) == 1 and "value" in _etf_ter_fact(ter):
+            # task #281: a scheme with one plan (ETFs that AMFI lists as Direct but whose one TER it files under Regular): either column is its TER
+            one = _etf_ter_fact(ter)
+            tr = tr if "value" in tr else (one if me["plan"] != "Direct" else tr)
+            td = td if "value" in td else (one if me["plan"] == "Direct" else td)
         if "unavailable" in tr:    # AMFI's TER wins when it has the figure; else the fund house's own page
             tr = _house_ter_fact(extra, "Regular") or tr
         if "unavailable" in td:
