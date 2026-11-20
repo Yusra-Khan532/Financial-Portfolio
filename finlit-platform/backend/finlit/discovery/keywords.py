@@ -285,6 +285,25 @@ BUSINESS = re.compile(r"\b(revenues?|income from|order(?:s| book| inflow| backlo
                       r"(?:clients|customers|enterprises|businesses|banks|insurers|other))\b", re.I)
 
 
+_SHORT_FORMS = re.compile(r"(?-i:\bAI\b|\bGen ?AI\b|\bML\b|\bLLMs?\b)")
+_CELLS = re.compile(r"\s*[|;•▪●■◆➢❑]\s*|(?<=[.!?])\s+(?=[A-Z])")
+NEAR = 160      # characters: the business word and the theme's word in one stretch of the same sentence or slide
+
+
+def _business_in_theme(text: str, bucket: str) -> bool:
+    """A business word (revenue, orders, a product sold ...) close to a word of the theme itself (task #273 live check: a KPI slide's "Revenue Rs 865 Mn"
+    elsewhere on the page kept 5paisa, Kotak Mahindra Bank and four more lenders on AI & GenAI)."""
+    pat = BUCKET_PATTERNS.get(bucket, (None, []))[0]
+    for seg in _CELLS.split(text):              # one sentence or one table cell: a KPI slide's cells are separate statements
+        spots = [m.start() for m in BUSINESS.finditer(seg)]
+        if not spots:
+            continue
+        hits = [m.start() for m in (*(pat.finditer(seg) if pat else ()), *(_SHORT_FORMS.finditer(seg) if bucket == "AI & GenAI" else ()))]
+        if any(abs(a - b) <= NEAR for a in spots for b in hits):
+            return True
+    return False
+
+
 def seat(primary: Optional[str], secondary: Sequence[str], scores: Dict[str, Any], evidence: Sequence[str], industry: Optional[str]
          ) -> Tuple[Optional[str], List[str], bool]:
     """(main theme, other themes, moved) for one company as every Discover read shows it (board, company panel, overview, FinLit AI). Unchanged except
@@ -293,7 +312,7 @@ def seat(primary: Optional[str], secondary: Sequence[str], scores: Dict[str, Any
     sec = [b for b in (secondary or []) if b != primary]
     if not primary or industry not in FIN_INDUSTRIES or primary not in TECH_THEMES:
         return primary, sec, False
-    if any(BUSINESS.search(str(s)) for s in (evidence or [])):
+    if any(_business_in_theme(str(s), primary) for s in (evidence or [])):
         return primary, sec, False
     ranked = sorted((b for b in (scores or {}) if b not in TECH_THEMES), key=lambda b: -float((scores.get(b) or {}).get("score") or 0))
     business = [b for b in ranked if b not in SIGNAL_BUCKETS]
