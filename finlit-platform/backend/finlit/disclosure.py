@@ -25,7 +25,7 @@ import re
 import tempfile
 import unicodedata
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional, Sequence, Tuple
 from zoneinfo import ZoneInfo
 
@@ -48,6 +48,7 @@ SRC_EXCHANGE = "NSE trading rules"
 # Below these an answer is not the whole industry (a partial file, an error page that parsed): it is refused and nothing is stored.
 MIN_MASTER_ROWS = 8000
 MIN_TER_SCHEMES = 1500
+TER_KEEP_DAYS = 45      # a scheme missing from one TER file keeps its previous row this long (task #281)
 MIN_AUM_CODES = 3000
 TER_MAX = 5.0          # percent a year; SEBI's caps keep every real TER well under this
 AUM_PERIODS = ((1, 1), (1, 2), (2, 1), (2, 2))   # (fyId, periodId), newest first: AMFI may not have filled the newest quarter yet
@@ -168,10 +169,13 @@ def _pct(v) -> Optional[float]:
     return round(f, 4) if 0 < f <= TER_MAX else None
 
 
-def parse_ter_xlsx(path: str) -> Dict[str, TerRow]:
-    """AMFI's TER workbook -> {scheme name key: the scheme's row for the latest day in the file}. Empty when the columns are not the checked ones."""
+def parse_ter_xlsx(path: str, latest: Optional[date] = None) -> Dict[str, TerRow]:
+    """AMFI's TER workbook -> {scheme name key: the scheme's row for the latest day in the file}. Empty when the columns are not the checked ones.
+    Task #281: a row dated after `latest` (default tomorrow) is a typo in AMFI's file (the 20 Nov 2026 file has rows dated 21 and 22 Nov) and is skipped,
+    so it can never stand in for the scheme's real latest row."""
     import openpyxl   # parses the workbook's XML through defusedxml (installed with it, see requirements.txt)
 
+    latest = latest or (date.today() + timedelta(days=1))
     wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
     try:
         rows = wb.worksheets[0].iter_rows(values_only=True)
@@ -184,7 +188,7 @@ def parse_ter_xlsx(path: str) -> Dict[str, TerRow]:
             if not r or len(r) <= max(ni, ci, di, ri, xi) or not r[ni]:
                 continue
             d = r[di].date() if isinstance(r[di], datetime) else (r[di] if isinstance(r[di], date) else parse_amfi_date(str(r[di] or "")))
-            if d is None:
+            if d is None or d > latest:
                 continue
             k = name_key(str(r[ni]))
             if k and (k not in out or d >= out[k].day):
@@ -337,11 +341,17 @@ async def store_ter(store, rows: Dict[str, TerRow], month: Optional[str], *, min
             held = await conn.fetchval("SELECT max(ter_date) FROM mf_ter")
             if held and newest < held:
                 return {"status": "refused", "why": f"This file's newest day is {newest.isoformat()}, older than the figures already held ({held.isoformat()}); nothing was replaced"}
+        # Task #281: one night's file can lack whole fund houses (the live table held 2 094 schemes up to 8 Nov 2026 and no Nippon India row, while
+        # AMFI's file of 20 Nov has all 107 Nippon India rows). A scheme the new file does not name keeps its previous row, with its own older date,
+        # when that row is at most TER_KEEP_DAYS older than the new file; anything older is dropped (a closed scheme loses its figure).
+        prev = await conn.fetch("SELECT name_key, name, category, ter_regular, ter_direct, ter_date FROM mf_ter WHERE ter_date >= $1",
+                                newest - timedelta(days=TER_KEEP_DAYS))
+        kept = [(p["name_key"], p["name"], p["category"], p["ter_regular"], p["ter_direct"], p["ter_date"]) for p in prev if p["name_key"] not in rows]
         async with conn.transaction():
             await conn.execute("DELETE FROM mf_ter")
             await conn.executemany("INSERT INTO mf_ter (name_key, name, category, ter_regular, ter_direct, ter_date) VALUES ($1, $2, $3, $4, $5, $6)",
-                                   [(r.key, r.name, r.category, r.regular, r.direct, r.day) for r in rows.values()])
-    return {"status": "ok", "month": month, "schemes": len(rows), "day": newest.isoformat()}
+                                   [(r.key, r.name, r.category, r.regular, r.direct, r.day) for r in rows.values()] + kept)
+    return {"status": "ok", "month": month, "schemes": len(rows), "day": newest.isoformat(), "keptFromBefore": len(kept)}
 
 
 async def step_ter(store, client, today: date, *, min_schemes: int = MIN_TER_SCHEMES) -> dict:
