@@ -169,7 +169,7 @@ describe("Basic stock screener page", () => {
   it("FinLit IQ opens one panel: the rating in three groups with counts, then a from-to range for the FinLit IQ and each of its five scores (task #257 SPEC §3)", () => {
     open();
     const p = panel("FinLit IQ");
-    expect(within(p.getByRole("group", { name: "FinLit IQ rating" })).getAllByRole("checkbox").map((c) => c.closest("label")!.querySelector("span")!.textContent)).toEqual(["Strong or Healthy", "Below Healthy", "Not rated"]);
+    expect(within(p.getByRole("group", { name: "FinLit IQ fundamental rating" })).getAllByRole("checkbox").map((c) => c.closest("label")!.querySelector("span")!.textContent)).toEqual(["Strong or Healthy", "Below Healthy", "Not rated"]);
     expect(countOf(p, "Strong or Healthy")).toBe("4"); expect(countOf(p, "Below Healthy")).toBe("17"); expect(countOf(p, "Not rated")).toBe("1");   // 90 80 77 78 / 50 44 60 and the 14 Metals at 55 / GGG
     expect(p.getAllByRole("group", { name: / range$/ }).map((g) => g.getAttribute("aria-label"))).toEqual(["FinLit IQ range", "Quality range", "Growth range", "Profitability range", "Balance sheet range", "Technical range"]);
     expect(p.getByText("0 to 100, higher is better")).toBeTruthy();

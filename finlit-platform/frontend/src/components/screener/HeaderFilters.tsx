@@ -46,8 +46,8 @@ export function ScorePanel({ s }: { s: Screener }) {
     bands: { ...d.bands, ...Object.fromEntries(SCORE_KEYS.filter((k) => k in d.bands).map((k) => [k, []])) } }));
   return (<>
     <div className="hf-ph"><b>FinLit IQ</b><small>The score and its five parts, 0 to 100, higher is better.</small></div>
-    <h4 className="hf-h">Rating</h4>
-    <div className="hf-bands" role="group" aria-label="FinLit IQ rating">
+    <h4 className="hf-h">Fundamental rating</h4>
+    <div className="hf-bands" role="group" aria-label="FinLit IQ fundamental rating">
       {IQ_GROUPS.map((g) => { const on = iqGroupOn(s.draft, g), c = s.iqCounts[g.id] ?? 0, off = !c && !on;
         return <label key={g.id} className={"hf-band" + (off ? " hf-off" : "")}><input type="checkbox" checked={on} disabled={off} onChange={() => s.setIqGroup(g.id)} /><span>{g.label}</span><small>{nf(c, 0)}</small></label>; })}
     </div>

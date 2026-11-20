@@ -26,8 +26,8 @@ export function IqMenu({ d, bar, set }: { d: PresetDetail; bar: BarFilter; set: 
   return (
     <Dropdown label={n ? `FinLit IQ · ${n}` : "FinLit IQ"} on={n > 0} wide sheet>
       <div className="afx afx-in">
-        <section className="afx-sfs"><h4>Rating</h4>
-          <div className="afx-bands" role="group" aria-label="FinLit IQ rating">
+        <section className="afx-sfs"><h4>Fundamental rating</h4>
+          <div className="afx-bands" role="group" aria-label="FinLit IQ fundamental rating">
             {GROUPS.map((id) => { const on = g.includes(id), k = c[id] ?? 0;
               return <label key={id} className={"afx-bchk" + (!k && !on ? " fx-zero" : "")}><input type="checkbox" checked={on} disabled={!k && !on}
                 onChange={() => set({ ...bar, iqg: on ? g.filter((x) => x !== id) : [...g, id] })} /><span>{IQ_GROUP_WORD[id]}</span><small>{nf(k, 0)}</small></label>; })}

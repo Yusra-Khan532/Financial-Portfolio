@@ -49,9 +49,9 @@ describe("SPEC §3 on an open screen: the Prism score panel", () => {
   it("rating words, ranges and five trend words, with counts; the button counts what is on and Clear score filters leaves the rest", () => {
     render(<F />);
     fireEvent.click(screen.getByRole("button", { name: "Prism score" }));
-    expect(labels(screen.getByRole("group", { name: "Prism rating" }))).toEqual(["Strong1", "Healthy1", "Average0", "Weak1", "Poor0", "Not rated0"]);
+    expect(labels(screen.getByRole("group", { name: "Prism fundamental rating" }))).toEqual(["Strong1", "Healthy1", "Average0", "Weak1", "Poor0", "Not rated0"]);
     expect((screen.getByRole("checkbox", { name: /^Average/ }) as HTMLInputElement).disabled).toBe(true);
-    fireEvent.click(within(screen.getByRole("group", { name: "Prism rating" })).getByRole("checkbox", { name: /^Strong/ }));
+    fireEvent.click(within(screen.getByRole("group", { name: "Prism fundamental rating" })).getByRole("checkbox", { name: /^Strong/ }));
     fireEvent.change(screen.getByLabelText("Risk from"), { target: { value: "65" } });
     fireEvent.change(screen.getByLabelText("Valuation to"), { target: { value: "250" } });
     fireEvent.click(within(screen.getByRole("group", { name: "Short term technical view" })).getByRole("checkbox", { name: /^Uptrend/ }));
