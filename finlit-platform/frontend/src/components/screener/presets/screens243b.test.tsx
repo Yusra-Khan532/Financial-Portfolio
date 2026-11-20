@@ -60,7 +60,8 @@ describe("P4: filters", () => {
   function F({ basic = false }: { basic?: boolean }) { const [b, setB] = useState<BarFilter>(NO_BAR); return <MemoryRouter><FilterMenus d={D} f={{ bar: b, set: setB }} basic={basic} onAddRule={() => {}} /><FilterChips f={{ bar: b, set: setB }} basic={basic} /></MemoryRouter>; }
   it("Market cap ▾ · Sector ▾ · Prism rating ▾ · More filters ▾, each option with its count; ticking keeps it open and the label says what is on", () => {
     render(<F />);
-    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Market cap ▾", "Sector ▾", "Prism rating ▾", "More filters ▾"]);
+    // task #258 (SPEC §2): an Advanced screen's row is Market cap · Macro sector · Sector · Industry · Prism score · More filters
+    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Market cap ▾", "Macro sector ▾", "Sector ▾", "Industry ▾", "Prism score ▾", "More filters ▾"]);
     fireEvent.click(screen.getByRole("button", { name: /Market cap/ }));
     expect(screen.getAllByRole("checkbox").map((c) => c.closest("label")!.textContent)).toEqual(["Large cap40", "Mid cap60", "Small cap45"]);
     fireEvent.click(screen.getByRole("checkbox", { name: /Small cap/ }));
@@ -74,11 +75,12 @@ describe("P4: filters", () => {
     expect(screen.getByRole("button", { name: "+ Add a rule on any figure" })).toBeTruthy();
     fireEvent.click(screen.getByRole("checkbox", { name: /New on this list/ }));
     fireEvent.keyDown(document, { key: "Escape" });
-    fireEvent.click(screen.getByRole("button", { name: /Prism rating/ }));
-    expect(screen.getAllByRole("radio").map((r) => r.closest("label")!.textContent)).toEqual(["Any rating145", "Strong or Healthy49", "Strong only20"]);
+    cleanup();
+    render(<F basic />);
+    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Market cap ▾", "Sector ▾", "IQ rating ▾", "More filters ▾"]);   // Basic keeps its row
   });
   it("the filters that are on show as chips with × and Clear all; Basic has no 'Strong only' and calls it IQ rating", () => {
-    render(<F />);
+    render(<F basic />);
     fireEvent.click(screen.getByRole("button", { name: /Sector/ }));
     fireEvent.change(screen.getByRole("searchbox", { name: "Find a sector" }), { target: { value: "ban" } });
     expect(screen.getAllByRole("checkbox")).toHaveLength(1);

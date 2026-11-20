@@ -324,7 +324,7 @@ GROUP_EXTRA: Dict[str, dict] = {"sectors": {
     "isNew": True,
     "intro": "Screens that read each company's industry: where it stands on Sector Rotation and Sector Pulse, and how the company compares with its peers.",
     "about": {"shows": "Sector Rotation places each industry against the average industry: Ahead and gaining, Ahead but slowing, Behind but gaining or Behind and slipping. "
-                       "Sector Pulse reads how many of an industry's stocks are rising: Washout, Thrust C, Thrust CAP, Confirmed or Fading. "
+                       "Sector Pulse reads how many of an industry's stocks are rising: Sold off, Bouncing back, Bouncing back after a crash, Rising together, Losing steam or No clear signal. "
                        "The peer label compares a company with the others in its industry: Leader, In line or Laggard.",
               "use": ["Pick a screen by the question it answers: leaders in strong industries, the first stocks to rise in weak ones, or setups with the industry behind them.",
                       "Columns, then Sector reading, adds the same five readings to any Advanced screen.",
@@ -391,6 +391,79 @@ def _bse_only(r: dict) -> bool:
     return str(r.get("exchange") or "").upper() == "BSE"
 
 
+# Task #258 (20 Nov handoff, Advanced SPEC §2 and §3): an open Advanced screen filters on NSE's three levels, the Prism rating words, five score ranges and
+# the two technical views in five words. NSE's classification (task #192) is read once an hour and joined onto the screen's rows.
+_CLS: Dict[str, object] = {"at": 0.0, "map": {}}
+CLS_TTL = 3600.0
+
+
+async def _classification(store) -> Dict[str, tuple]:
+    import time
+    if _CLS["map"] and time.monotonic() - float(_CLS["at"]) < CLS_TTL:      # type: ignore[arg-type]
+        return _CLS["map"]       # type: ignore[return-value]
+    try:
+        async with store.pool.acquire() as conn:
+            rows = await conn.fetch("SELECT symbol, macro_sector, sector, industry FROM company_classification")
+        _CLS["map"] = {r["symbol"]: (r["macro_sector"] or None, r["sector"] or None, r["industry"] or None) for r in rows}
+        _CLS["at"] = time.monotonic()
+    except Exception:
+        log.warning("NSE classification not read for the open screen", exc_info=True)
+    return _CLS["map"]       # type: ignore[return-value]
+
+
+async def _with_classification(store, body: dict) -> dict:
+    """Adds cls_macro / cls_sector / cls_industry to each row of an Advanced screen (None when NSE does not classify the company)."""
+    cls = await _classification(store)
+    seen = set()
+    for r in (body.get("exportRows") or []) + (body.get("rows") or []):
+        if id(r) in seen or not isinstance(r, dict):
+            continue
+        seen.add(id(r))
+        r["cls_macro"], r["cls_sector"], r["cls_industry"] = cls.get(r.get("symbol"), (None, None, None))
+    return body
+
+
+def _name_key(s) -> str:
+    """A level name without case, commas or spacing: NSE's file writes "Oil, Gas & Consumable Fuels", the site's taxonomy "Oil Gas & Consumable Fuels"."""
+    return re.sub(r"[^a-z0-9]", "", str(s or "").lower())
+
+
+RATING_SLUGS = ("strong", "healthy", "average", "weak", "poor", "notrated")
+TREND5 = ("su", "u", "s", "d", "sd")
+_TREND_OF = {"strongpos": "su", "pos": "u", "neutral": "s", "neg": "d", "strongneg": "sd"}
+SCORE_RANGES = {"z": "prism_final", "zf": "prism_fundamental", "zv": "prism_valuation", "zq": "prism_quality", "zr": "prism_risk"}
+
+
+def _rating_of(r: dict) -> str:
+    """SHARED §4: Strong 80 and above, Healthy 65-79, Average 50-64, Weak 35-49, Poor below 35, Not rated without a Prism score."""
+    v = r.get("prism_final")
+    if not isinstance(v, (int, float)) or isinstance(v, bool) or v != v:
+        return "notrated"
+    return "strong" if v >= 80 else "healthy" if v >= 65 else "average" if v >= 50 else "weak" if v >= 35 else "poor"
+
+
+def _trend_of(v) -> Optional[str]:
+    from ..technical_wording import score_band
+    return _TREND_OF.get(score_band(v))
+
+
+def _range_of(qp, k: str) -> Optional[tuple]:
+    """A from-to box pair: empty means no limit, values are held to 0-100; None when neither box is set."""
+    def one(name):
+        raw = (qp.get(name) or "").strip()
+        try:
+            v = float(raw)
+        except ValueError:
+            return None
+        return None if v != v else min(100.0, max(0.0, v))
+    lo, hi = one(k + "min"), one(k + "max")
+    if lo is None and hi is None:
+        return None
+    if lo is not None and hi is not None and lo > hi:
+        lo, hi = hi, lo
+    return (lo, hi)
+
+
 # Task #243 (pack P4): the open screen's filters. Each one is a test on a row; the drop-downs offer each option with the number of rows it would leave, given the
 # OTHER filters that are on. "New on this list" = joined since the previous saved list; "Ahead of NIFTY 500 since added" = Since added above NIFTY 500 over the same days.
 def _bar(request: Request) -> dict:
@@ -400,7 +473,12 @@ def _bar(request: Request) -> dict:
             "rating": rating if rating in ("healthy", "strong") else "", "new": qp.get("new") == "1", "ahead": qp.get("ahead") == "1", "nse": qp.get("nse") == "1",
             "fno": qp.get("fno") == "1", "liquid": qp.get("liquid") == "1",
             # task #243 (pack v4, Advanced): Industry ahead and gaining, Peer leaders only, and the industry board's chip (an industry's address on Sector Pulse)
-            "sag": qp.get("sag") == "1", "plead": qp.get("plead") == "1", "ind": (qp.get("ind") or "").strip().lower()[:80]}
+            "sag": qp.get("sag") == "1", "plead": qp.get("plead") == "1", "ind": (qp.get("ind") or "").strip().lower()[:80],
+            # task #258 (Advanced SPEC §2, §3): NSE's macro sector, sector and industry; the Prism rating words, score ranges and the five trend words
+            "macro": {x[:80] for x in qp.getlist("macro") if x}, "nsec": {x[:80] for x in qp.getlist("nsec") if x}, "indu": {x[:80] for x in qp.getlist("indu") if x},
+            "pl": {x for x in ",".join(qp.getlist("pl")).split(",") if x in RATING_SLUGS},
+            "ranges": {k: rg for k in SCORE_RANGES if (rg := _range_of(qp, k)) is not None},
+            "st5": {x for x in (qp.get("st5") or "").split(",") if x in TREND5}, "lt5": {x for x in (qp.get("lt5") or "").split(",") if x in TREND5}}
 
 
 def _tests(f: dict, new_day: Optional[str]) -> Dict[str, object]:
@@ -429,6 +507,20 @@ def _tests(f: dict, new_day: Optional[str]) -> Dict[str, object]:
         t["plead"] = _peer_leader
     if f.get("ind"):
         ind = f["ind"]; t["ind"] = lambda r: r.get("sr_slug") == ind
+    if f.get("macro"):
+        want_m = {_name_key(x) for x in f["macro"]}; t["macro"] = lambda r: _name_key(r.get("cls_macro")) in want_m
+    if f.get("nsec"):
+        want_s = {_name_key(x) for x in f["nsec"]}; t["nsec"] = lambda r: _name_key(r.get("cls_sector")) in want_s
+    if f.get("indu"):
+        want_i = {_name_key(x) for x in f["indu"]}; t["indu"] = lambda r: _name_key(r.get("cls_industry")) in want_i
+    if f.get("pl"):
+        t["pl"] = lambda r: _rating_of(r) in f["pl"]
+    for k, (lo, hi) in (f.get("ranges") or {}).items():
+        col = SCORE_RANGES[k]
+        t["rg_" + k] = lambda r, col=col, lo=lo, hi=hi: isinstance(r.get(col), (int, float)) and (lo is None or r[col] >= lo) and (hi is None or r[col] <= hi)
+    for k, col in (("st5", "prism_st_score"), ("lt5", "prism_lt_score")):
+        if f.get(k):
+            t[k] = lambda r, col=col, want=f[k]: _trend_of(r.get(col)) in want
     return t
 
 
@@ -484,7 +576,22 @@ def _facets(rows: List[dict], tests: Optional[Dict[str, object]] = None, new_day
             sectors[r["sector"]] = sectors.get(r["sector"], 0) + 1
     probe = _tests({"q": "", "size": set(), "sector": set(), "rating": "", "new": True, "ahead": True, "nse": True, "fno": True, "liquid": True, "sag": True, "plead": True, "ind": ""}, new_day)
     n = lambda key, fn: sum(1 for r in rows if _passes(r, tests, key) and fn(r))       # noqa: E731
-    return {"sizes": sizes, "sectors": sorted(sectors.items(), key=lambda kv: (-kv[1], kv[0]))[:80],
+    # task #258 (SPEC §2, §3): each NSE level's values on this list with their counts (own level left out), and the counts of each rating and trend word
+    levels: Dict[str, Dict[str, int]] = {"macros": {}, "nsecs": {}, "industries": {}}
+    ratings = {s: 0 for s in RATING_SLUGS}
+    trend = {"st": {s: 0 for s in TREND5}, "lt": {s: 0 for s in TREND5}}
+    for r in rows:
+        for key, test, col in (("macros", "macro", "cls_macro"), ("nsecs", "nsec", "cls_sector"), ("industries", "indu", "cls_industry")):
+            if r.get(col) and _passes(r, tests, test):
+                levels[key][r[col]] = levels[key].get(r[col], 0) + 1
+        if _passes(r, tests, "pl"):
+            ratings[_rating_of(r)] += 1
+        for k, col in (("st", "prism_st_score"), ("lt", "prism_lt_score")):
+            w = _trend_of(r.get(col))
+            if w and _passes(r, tests, k + "5"):
+                trend[k][w] += 1
+    return {**{k: sorted(v.items(), key=lambda kv: (-kv[1], kv[0])) for k, v in levels.items()}, "ratings": ratings, "trend": trend,
+            "sizes": sizes, "sectors": sorted(sectors.items(), key=lambda kv: (-kv[1], kv[0]))[:80],
             "strong": n("rating", _strong), "strongOnly": n("rating", _strong_only), "anyRating": n("rating", lambda r: True),
             "new": n("new", probe["new"]), "ahead": n("ahead", probe["ahead"]), "nse": n("nse", probe["nse"]), "bse": sum(1 for r in rows if _bse_only(r)),
             "fno": n("fno", probe["fno"]), "liquid": n("liquid", probe["liquid"]),
@@ -521,7 +628,10 @@ def _page(request: Request, body: dict) -> dict:
 @router.get("/{pid}")
 async def detail(request: Request, pid: str):
     p, ctx, active = await _resolve(request, pid)
-    body = _page(request, await _body(request, p, active))
+    body = await _body(request, p, active)
+    if p.tab != "basic":      # task #258: NSE's three levels on every row of an Advanced screen, for its Macro sector, Sector and Industry filters
+        body = await _with_classification(request.app.state.store, body)
+    body = _page(request, body)
     await service.log_usage(request.app.state.store, p.id, "open")
     return _json({k: v for k, v in body.items() if k not in API_ONLY})
 

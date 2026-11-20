@@ -180,9 +180,9 @@
   ]
  },
  "highest-rated-large": {
-  "text": "Large caps with a strong Prism rating and a firm long-term trend. The 10 strongest come first, then every other company that passes.",
+  "text": "Large caps ({range}) with a strong Prism rating and a firm long-term trend. The 10 strongest come first, then every other company that passes.",
   "how": [
-   "Large caps (above ₹50,000 Cr) of ₹1,000 Cr or more, with a full Prism rating and a full year of prices. Include provisional adds companies rated on a shorter history, with their badge.",
+   "Large caps ({range}) of ₹1,000 Cr or more, with a full Prism rating and a full year of prices. Include provisional adds companies rated on a shorter history, with their badge.",
    "Each company needs a Prism rating of Healthy or Strong, sound Quality and Risk scores, a long-term view that is not a downtrend, and a price not far below its 52-week high. Companies after an extreme one-year run are left out.",
    "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
    "The list is ordered by FinLit's screen score.",
@@ -190,9 +190,9 @@
   ]
  },
  "highest-rated-mid": {
-  "text": "Mid caps with a strong Prism rating and a firm long-term trend. The 10 strongest come first, then every other company that passes.",
+  "text": "Mid caps ({range}) with a strong Prism rating and a firm long-term trend. The 10 strongest come first, then every other company that passes.",
   "how": [
-   "Mid caps (₹10,000–50,000 Cr) of ₹1,000 Cr or more, with a full Prism rating and a full year of prices. Include provisional adds companies rated on a shorter history, with their badge.",
+   "Mid caps ({range}) of ₹1,000 Cr or more, with a full Prism rating and a full year of prices. Include provisional adds companies rated on a shorter history, with their badge.",
    "Each company needs a Prism rating of Healthy or Strong, sound Quality and Risk scores, a long-term view that is not a downtrend, and a price not far below its 52-week high. Companies after an extreme one-year run are left out.",
    "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
    "The list is ordered by FinLit's screen score.",
@@ -200,9 +200,19 @@
   ]
  },
  "highest-rated-small": {
-  "text": "Small caps with a strong Prism rating and a firm long-term trend. The 10 strongest come first, then every other company that passes.",
+  "text": "Small caps ({range}) with a strong Prism rating and a firm long-term trend. The 10 strongest come first, then every other company that passes.",
   "how": [
-   "Small caps (below ₹10,000 Cr) of ₹1,000 Cr or more, with a full Prism rating and a full year of prices. Include provisional adds companies rated on a shorter history, with their badge.",
+   "Small caps ({range}) of ₹1,000 Cr or more, with a full Prism rating and a full year of prices. Include provisional adds companies rated on a shorter history, with their badge.",
+   "Each company needs a Prism rating of Healthy or Strong, sound Quality and Risk scores, a long-term view that is not a downtrend, and a price not far below its 52-week high. Companies after an extreme one-year run are left out.",
+   "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
+   "The list is ordered by FinLit's screen score.",
+   "The 10 strongest come first, at most three from one industry. Every other company that passes follows, in the same order. If fewer than 10 pass, the next companies that miss only the trend check fill the top 10, badged Trend not confirmed."
+  ]
+ },
+ "highest-rated-micro": {
+  "text": "Micro caps ({range}) with a strong Prism rating and a firm long-term trend. The 10 strongest come first, then every other company that passes.",
+  "how": [
+   "Micro caps ({range}) of ₹1,000 Cr or more, with a full Prism rating and a full year of prices. Include provisional adds companies rated on a shorter history, with their badge.",
    "Each company needs a Prism rating of Healthy or Strong, sound Quality and Risk scores, a long-term view that is not a downtrend, and a price not far below its 52-week high. Companies after an extreme one-year run are left out.",
    "Banks and finance companies are compared on Quality with other lenders, because Quality scores run lower across that whole industry.",
    "The list is ordered by FinLit's screen score.",
@@ -645,9 +655,9 @@
   }
  },
  "sector-rebound-leaders": {
-  "text": "The strongest stocks of industries in a broad rebound after a washout, with a short-term trend that has turned up.",
+  "text": "The strongest stocks of industries that are bouncing back after a broad fall, with a short-term trend that has turned up.",
   "how": [
-   "The industry is in Thrust C or Thrust CAP on Sector Pulse: a broad rebound after a washout.",
+   "The industry is Bouncing back or Bouncing back after a crash on Sector Pulse: after a broad fall, most of its stocks turned up together in a short space of time.",
    "The company is in the top quarter of its industry by 6-month return, whose short-term technical pillar reads Uptrend or Strong uptrend.",
    "Ordered by the short-term technical pillar, then by Tailwinds."
   ],
@@ -655,11 +665,11 @@
    "The sector reading comes from the weekly Sector Pulse and Sector Rotation run; the page says which date it is from."
   ],
   "about": {
-   "shows": "The strongest stocks of industries that are in a broad rebound after a washout, whose own short-term trend has turned up.",
+   "shows": "The strongest stocks of industries that are bouncing back after a broad fall, whose own short-term trend has turned up.",
    "use": [
-    "Pulse says how recent the rebound is: a thrust from a few sessions ago is a newer reading than one from weeks ago.",
-    "Check the long-term technical pillar: a rebound inside a long-term downtrend reads differently from one inside an uptrend.",
-    "Open the industry on Sector Pulse to see its breadth and its last thrust."
+    "Pulse says how recent the bounce is: a broad bounce from a few sessions ago is a newer reading than one from weeks ago.",
+    "Check the long-term technical pillar: a bounce inside a long-term downtrend reads differently from one inside an uptrend.",
+    "Open the industry on Sector Pulse to see its breadth and its last broad bounce."
    ]
   }
  },
@@ -683,10 +693,10 @@
   }
  },
  "sector-setups-behind": {
-  "text": "Companies on tonight's Setups or Chart patterns lists whose industry is ahead and gaining, or in a broad rebound or uptrend.",
+  "text": "Companies on tonight's Setups or Chart patterns lists whose industry is ahead and gaining, bouncing back or rising together.",
   "how": [
    "The company is on at least one of the 3 Setups or 11 Chart patterns lists tonight.",
-   "Its industry is Ahead and gaining on Sector Rotation, or in Thrust C, Thrust CAP or Confirmed on Sector Pulse.",
+   "Its industry is Ahead and gaining on Sector Rotation, or Bouncing back, Bouncing back after a crash or Rising together on Sector Pulse.",
    "Ordered by Tailwinds, the count of the four facts that line up."
   ],
   "notes": [
@@ -694,7 +704,7 @@
    "The Setups and Chart patterns lists are from the last close; the sector reading may be older."
   ],
   "about": {
-   "shows": "Companies on tonight's Setups or Chart patterns lists whose industry is ahead and gaining on Sector Rotation, or in a broad rebound or uptrend on Sector Pulse.",
+   "shows": "Companies on tonight's Setups or Chart patterns lists whose industry is ahead and gaining on Sector Rotation, or bouncing back or rising together on Sector Pulse.",
    "use": [
     "The List it is on column names the list: open that list to read what it looks for.",
     "Tailwinds counts four facts; it is not a score and not a view.",
@@ -722,11 +732,11 @@
   }
  },
  "sector-results-leading": {
-  "text": "Peer leaders that declared a Strong or Good quarter in the last week, in industries that are ahead and gaining or in a broad rebound or uptrend.",
+  "text": "Peer leaders that declared a Strong or Good quarter in the last week, in industries that are ahead and gaining, bouncing back or rising together.",
   "how": [
    "Results declared in the last week, read as Strong or Good on the Latest results page.",
    "The company is a Leader against its industry peers.",
-   "Its industry is Ahead and gaining on Sector Rotation, or in Thrust C, Thrust CAP or Confirmed on Sector Pulse.",
+   "Its industry is Ahead and gaining on Sector Rotation, or Bouncing back, Bouncing back after a crash or Rising together on Sector Pulse.",
    "Ordered by the result, then by profit growth against the same quarter last year."
   ],
   "notes": [
@@ -734,7 +744,7 @@
    "Results come from the Latest results page; outside a results season this list can be short or empty."
   ],
   "about": {
-   "shows": "Companies that lead their industry peers and declared a Strong or Good quarter in the last week, in industries that are ahead and gaining or in a broad rebound.",
+   "shows": "Companies that lead their industry peers and declared a Strong or Good quarter in the last week, in industries that are ahead and gaining or bouncing back.",
    "use": [
     "Read Sales and Profit against a year ago together: profit growing much faster than sales can come from one-off items.",
     "Open the Latest results page for the full quarter.",

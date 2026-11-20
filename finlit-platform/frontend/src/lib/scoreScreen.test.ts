@@ -224,9 +224,9 @@ describe("Prism filters", () => {
     const f = emptyFilters(); f.rated = true;
     expect(syms(applyFilters(PZ, f))).toEqual(["S", "H", "A", "W", "P"]);
   });
-  it("label chips are OR within the group and never match a company without a stored rating", () => {
+  it("label chips are OR within the group; the word follows the Prism score, and Not rated is every company without one (task #258, SHARED §4)", () => {
     const f = emptyFilters(); f.labels = ["STRONG", "NOT RATED"];
-    expect(syms(applyFilters(PZ, f))).toEqual(["S", "N"]);
+    expect(syms(applyFilters(PZ, f))).toEqual(["S", "N", "X"]);
   });
   it("the Prism range is inclusive and a missing score never passes it or counts as zero", () => {
     const f = emptyFilters(); f.ranges.z = { min: 55, max: 85 };
@@ -426,7 +426,7 @@ describe("Top 10 large / mid / small caps by FinLit IQ", () => {
   it("the address keeps the screen (top=10 with the size class) and a shared link opens it", () => {
     const f = topOf("Mid");
     const qs = serializeState({ filters: f, sort: { key: "overall", dir: -1 }, size: 25, page: 0 });
-    expect(qs.get("top")).toBe("10"); expect(qs.get("cap")).toBe("Mid");
+    expect(qs.get("top")).toBe("10"); expect(qs.get("cap")).toBe("Mid");   // the Basic screener keeps ?cap= (the Advanced one writes ?size=mid, task #258)
     const back = parseState(new URLSearchParams(qs.toString()), "basic");
     expect(back.filters.top).toBe(10);
     expect(parseState(new URLSearchParams("top=7"), "basic").filters.top).toBeNull();          // only the ten the screen defines

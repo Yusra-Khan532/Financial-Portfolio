@@ -225,6 +225,12 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
             nse = nse_pairs(t)
         except Exception:
             logging.getLogger("finlit.api").exception("screener universe: NSE sectors not read")
+        cls: dict = {}
+        try:      # task #258 (20 Nov handoff, SHARED §1): NSE's macro sector (12), sector (22) and industry (59) for each company, from the stored classification (task #192)
+            async with app.state.store.pool.acquire() as conn:
+                cls = {x["symbol"]: (x["macro_sector"], x["sector"], x["industry"]) for x in await conn.fetch("SELECT symbol, macro_sector, sector, industry FROM company_classification")}
+        except Exception:
+            logging.getLogger("finlit.api").exception("screener universe: NSE classification not read")
         isins = await isin_mod.symbol_isins(app)       # task #183: every row carries the company's share ISIN (null when the exchanges' lists do not have it)
         out = []
         for r in rows:
@@ -232,6 +238,8 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
             r["isin"] = isins.get(r["symbol"])
             sec, ind = nse.get(r["symbol"], (None, None))
             r["nse_sector"], r["nse_industry"] = sec or None, ind or None
+            cm, cs, ci = cls.get(r["symbol"], (None, None, None))
+            r["cls_macro"], r["cls_sector"], r["cls_industry"] = cm or None, cs or None, ci or None     # task #258: the three NSE levels (null: not classified)
             r.update(stored.get(r["symbol"]) or prism_screen.blank())
             ld = lead.get(r["symbol"])
             if ld:

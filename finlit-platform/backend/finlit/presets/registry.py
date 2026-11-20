@@ -151,14 +151,38 @@ TOP_RANK = (("prism_final", 0.55), ("prism_lt_score", 0.40), ("prism_st_score", 
 TOP_ORDER = (("rank_score", "desc"), ("prism_quality", "desc"), ("prism_final", "desc"), ("market_cap", "desc"))   # fix 12: exact ties go to the larger market cap
 
 
+def _crore(v: float) -> str:
+    return f"₹{v:,.0f}"
+
+
+def size_range(bucket: str) -> str:
+    """Task #258 (Advanced SPEC §5): the market-value range of a size, from the site's own size lines (screener.data; task #262 sets them), e.g. "above ₹50,000 Cr".
+    A Small line (SMALL_MIN_CR) and a Micro size are read when the data defines them; until then Small is everything below the Mid line."""
+    from ..screener import data as sizes
+    large, mid, small = sizes.LARGE_MIN_CR, sizes.MID_MIN_CR, getattr(sizes, "SMALL_MIN_CR", None)
+    if bucket == "Large":
+        return f"above {_crore(large)} Cr"
+    if bucket == "Mid":
+        return f"{_crore(mid)}–{large:,.0f} Cr"
+    if bucket == "Small":
+        return f"{_crore(small)}–{mid:,.0f} Cr" if small else f"below {_crore(mid)} Cr"
+    return f"below {_crore(small or mid)} Cr"
+
+
+def has_size(bucket: str) -> bool:
+    """True when the site's sizes include this bucket (Micro appears only once task #262 adds it to the data)."""
+    from ..screener.catalog import CAPS
+    return bucket in CAPS
+
+
 def _top(n: int, bucket: str, label: str) -> Preset:
     filters = {"cap": bucket, "rated": 1, "status": "RATED", "zmin": 65, "zqmin": 50, "zrmin": 50}      # fix 12: Healthy or Strong only; one Risk minimum for every size
-    how = [f"Only {label} caps: companies ranked {'1 to 100' if bucket == 'Large' else '101 to 250' if bucket == 'Mid' else '251 onward'} by market cap, as the site buckets them.",
+    how = [f"Only {label} caps: a market value {size_range(bucket)}, as the site sizes companies.",
            "Only companies with a full Prism rating (Provisional ratings appear only with the Include provisional chip, with their badge). Market cap Rs 1,000 Cr or more.",
            "Healthy or Strong on Prism, with sound quality and risk, a firm long-term trend and a price not far below its 52-week high.",
            "The strongest ten come first, at most three from one Sector label, then every other company that passes, ranked by the same score.",
            "If fewer than 10 pass, the list is filled with the next names that fail only the trend or the 52-week gate, badged Trend not confirmed."]
-    return Preset(f"highest-rated-{label}", f"Highest-rated {label} caps", "top-rated", f"{label.title()} caps with a strong Prism rating and a firm long-term trend. The 10 strongest come first, then every other company that passes.", "rules",
+    return Preset(f"highest-rated-{label}", f"Highest-rated {label} caps", "top-rated", f"{label.title()} caps ({size_range(bucket)}) with a strong Prism rating and a firm long-term trend. The 10 strongest come first, then every other company that passes.", "rules",
                   _m(**filters), "Below 52-week high <= 30", (("prism_lt_score > -20", "Long-term technical view above -20"), RUN_GUARD, MCAP1000), TOP_ORDER, 10, TOP_COLS, (PROVISIONAL,), tuple(how), True, None, ("provisional",),
                   f"p4 (Top 10, {label})", "advanced", TOP_RANK, 3, ("technical view", "52-week high"))
 
@@ -169,6 +193,8 @@ PRESETS: List[Preset] = [
     _top(1, "Large", "large"),
     _top(2, "Mid", "mid"),
     _top(3, "Small", "small"),
+    # task #258 (SPEC §5): "Highest-rated micro caps" joins Top rated once the data has a Micro size (task #262); hidden, never an empty card, until then
+    *([_top(4, "Micro", "micro")] if has_size("Micro") else []),
 
     Preset("momentum-leaders", "Momentum leaders", "trend", "Rated stocks in an uptrend near their 52-week high, ranked by 3-, 6- and 12-month returns against the market.", "rules",
            _m(zmin=50, rated=1, lt=20),
@@ -597,14 +623,14 @@ C_SFLAG = Col("sr_flag", "Leader flag", "text", "left")
 C_SQ = Col("sr_q6m_name", "Place in its industry by 6-month return", "text", "left")
 C_SR4 = Col("sr_rank_4w", "Industry ranks climbed in 4 weeks", "num1")
 C_SSET = Col("sr_setups", "List it is on", "text", "left")
-R_SEC_LEADING = ("sr_ag = 1 or sr_up = 1", "Industry Ahead and gaining on Sector Rotation, or in Thrust C, Thrust CAP or Confirmed on Sector Pulse")
+R_SEC_LEADING = ("sr_ag = 1 or sr_up = 1", "Industry Ahead and gaining on Sector Rotation, or Bouncing back, Bouncing back after a crash or Rising together on Sector Pulse")
 R_SEC_LEADER = ("sr_lead = 1", "Peer label Leader")
 SECTOR_ADV: List[Preset] = [
     _new("sector-leaders-leading", "Leaders in leading sectors", "sectors", "advanced",
          (("sr_ag = 1", "Industry Ahead and gaining on Sector Rotation"), R_SEC_LEADER, ("prism_lt_score >= 20", "Long-term technical pillar +20 or more")),
          (("sr_tailwinds", "desc"), ("prism_lt_score", "desc")), (), _m()),
     _new("sector-rebound-leaders", "Rebound leaders", "sectors", "advanced",
-         (("sr_thrust = 1", "Industry in Thrust C or Thrust CAP on Sector Pulse"), ("sr_q6m = 1", "Top quarter of its industry by 6-month return"),
+         (("sr_thrust = 1", "Industry Bouncing back or Bouncing back after a crash on Sector Pulse"), ("sr_q6m = 1", "Top quarter of its industry by 6-month return"),
           ("prism_st_score >= 20", "Short-term technical pillar +20 or more")),
          (("prism_st_score", "desc"), ("sr_tailwinds", "desc")), (C_SQ,), _m()),
     _new("sector-early-leaders", "Early leaders in weak sectors", "sectors", "advanced",
@@ -655,7 +681,11 @@ def _plain(p: Preset) -> Preset:
         return _replace(p, how_it_works=())
     ab = w.get("about") or {}
     about = (ab["shows"], tuple(ab["use"])) if ab.get("shows") and ab.get("use") else ()
-    return _replace(p, card_text=w["text"], how_it_works=tuple(w.get("how") or ()), about=about, notes=tuple(w.get("notes") or ()))
+    text, how = w["text"], tuple(w.get("how") or ())
+    if "{range}" in text or any("{range}" in h for h in how):      # task #258 (SPEC §5): a size screen names its range, from the site's size lines
+        rng = size_range(str(p.prism_filters.get("cap") or ""))
+        text, how = text.replace("{range}", rng), tuple(h.replace("{range}", rng) for h in how)
+    return _replace(p, card_text=text, how_it_works=how, about=about, notes=tuple(w.get("notes") or ()))
 
 
 PRESETS = [_plain(p) for p in PRESETS]

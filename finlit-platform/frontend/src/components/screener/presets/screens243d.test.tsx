@@ -17,8 +17,8 @@ vi.mock("../../../lib/ui", () => ({ useUI: () => ({ upgrade: vi.fn(), has: () =>
 afterEach(cleanup);
 
 const BOARD: BoardChip[] = [
-  { slug: "banks", name: "Banks", n: 3, corner: "ahead_gaining", rotation: "Ahead and gaining", pulse: "Confirmed", pulseCode: "confirmed" },
-  { slug: "power", name: "Power", n: 2, corner: "behind_gaining", rotation: "Behind but gaining", pulse: "Washout", pulseCode: "washout" },
+  { slug: "banks", name: "Banks", n: 3, corner: "ahead_gaining", rotation: "Ahead and gaining", pulse: "Rising together", pulseCode: "confirmed" },
+  { slug: "power", name: "Power", n: 2, corner: "behind_gaining", rotation: "Behind but gaining", pulse: "Sold off", pulseCode: "washout" },
   { slug: null, name: "No sector reading", n: 1, corner: null, rotation: null, pulse: null, pulseCode: null },
 ];
 const D = { facets: { sizes: {}, sectors: [], strong: 0, strongOnly: 0, anyRating: 6, new: 0, ahead: 0, nse: 6, bse: 0, fno: 2, liquid: 4, sag: 3, plead: 4 } } as unknown as PresetDetail;
@@ -61,10 +61,10 @@ describe("The industry board", () => {
     const g = screen.getByRole("group", { name: "Industries on this list: 3, 6 companies" });
     expect(g.querySelector(".psx3-bh")!.textContent).toContain("3 · 6 companies");
     const chips = within(g).getAllByRole("button").filter((b) => b.classList.contains("psx3-ind"));
-    expect(chips.map((c) => c.textContent)).toEqual(["Banks3Ahead and gainingConfirmed", "Power2Behind but gainingWashout", "No sector reading1"]);
+    expect(chips.map((c) => c.textContent)).toEqual(["Banks3Ahead and gainingRising together", "Power2Behind but gainingSold off", "No sector reading1"]);
     expect((chips[2] as HTMLButtonElement).disabled).toBe(true);
     expect(within(g).getByRole("button", { name: "About the industry board" })).toBeTruthy();
-    expect(INFO_BOARD).toMatch(/Ahead and gaining.*Behind and slipping.*Washout.*Thrust C.*Confirmed.*Fading/);
+    expect(INFO_BOARD).toMatch(/Ahead and gaining.*Behind and slipping.*Sold off.*Bouncing back.*Bouncing back after a crash.*Rising together.*Losing steam/);
   });
   it("picking a chip narrows the list and shows a filter chip; picking it again or Clear all removes it", () => {
     render(<B />);
@@ -98,7 +98,7 @@ describe("Sector reading columns", () => {
     const view = readFileSync(resolve(process.cwd(), "src/components/screener/presets/ScreenView.tsx"), "utf8");
     expect(view).toContain('case "sector": return sectorDay ? `Sector reading · ${sectorDay}` : "Sector reading";');
     const words = [INFO_BAND_SECTOR, INFO_BOARD, ...["sr_industry", "sr_rotation", "sr_pulse", "sr_peer", "sr_tailwinds", "sr_flag", "sr_setups"].map((k) => INFO[k])].join(" ");
-    expect(words).not.toMatch(/\b(buy|sell|hold|avoid|best|target|accumulate|reduce|top pick)\b/i);
+    expect(words).not.toMatch(/\b(buy|sell(?!-off)|hold|avoid|best|target|accumulate|reduce|top pick)\b/i);   // "a sell-off" (the pack Pulse words, task 258) describes a fall, not advice
   });
 });
 

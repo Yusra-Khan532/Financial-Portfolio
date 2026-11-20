@@ -8,14 +8,14 @@ words the columns show:
     sr_rank        rotation rank (1 = strongest)             sr_ranked      groups ranked
     sr_rank_4w     ranks climbed in 4 weeks (+ = up)         sr_corner      ahead_gaining | ahead_slowing | behind_gaining | behind_slipping
     sr_rotation    "Ahead and gaining · 3 wk"                sr_weeks       weeks in that corner
-    sr_pulse       the Sector Pulse state (Thrust CAP, ...)  sr_pulse_code  its code
+    sr_pulse       the Sector Pulse state in words (PULSE_WORDS)  sr_pulse_code  its stored code
     sr_above50     % of the group's stocks above their 50-day average
     sr_rebound     how recent the last thrust is ("5 sessions ago"), blank when there was none in the file
     sr_peer        Leader | In line | Laggard (blank: no label)
     sr_flag        Full flag | Early flag (blank: none)      sr_q6m         1 = top quarter of its industry by 6-month return ... 4
     sr_ag = 1      industry Ahead and gaining                sr_bg = 1      industry Behind but gaining
-    sr_up = 1      industry in Thrust C, Thrust CAP or Confirmed (a broad rebound or uptrend)
-    sr_thrust = 1  industry in Thrust C or Thrust CAP        sr_lead = 1    peer Leader      sr_flagged = 1  a Full or Early leader flag
+    sr_up = 1      industry bouncing back (after a crash or not) or rising together
+    sr_thrust = 1  industry bouncing back (after a crash or not)  sr_lead = 1  peer Leader      sr_flagged = 1  a Full or Early leader flag
     sr_on_setup=1  on a Setups or Chart patterns list tonight (set by mark_setups, once the lists are known)
     sr_tailwinds   0 to 4: sr_ag + sr_up + sr_lead + sr_on_setup. A count of facts that line up, not a score and not a view.
 
@@ -31,7 +31,11 @@ from .. import sector_data as sd
 
 log = logging.getLogger("finlit.presets.sectors")
 
-UP_STATES = {"thrust_c", "thrust_cap", "confirmed"}       # a broad rebound or an uptrend
+UP_STATES = {"thrust_c", "thrust_cap", "confirmed"}       # bouncing back or rising together
+# Task #258 (20 Nov handoff, SHARED §3): the one set of words a reader sees for each stored Pulse state (the stored codes stay as they are). The frontend twin is
+# frontend/src/lib/pulseWords.ts; a test keeps the two the same.
+PULSE_WORDS = {"thrust_cap": "Bouncing back after a crash", "thrust_c": "Bouncing back", "confirmed": "Rising together", "fading": "Losing steam",
+               "washout": "Sold off", "neutral": "No clear signal"}
 THRUST_STATES = {"thrust_c", "thrust_cap"}
 CORNER_NAMES = {"ahead_gaining": "Ahead and gaining", "ahead_slowing": "Ahead but slowing", "behind_gaining": "Behind but gaining", "behind_slipping": "Behind and slipping"}
 FLAG_NAMES = {2: "Full flag", 1: "Early flag"}
@@ -70,7 +74,7 @@ def group_fields(board_row: Dict[str, Any], rot_row: Optional[Dict[str, Any]]) -
         "sr_industry": board_row.get("name"), "sr_slug": board_row.get("slug"),
         "sr_rank": _num(rot.get("rank")), "sr_ranked": _num(rot.get("ranked")), "sr_rank_4w": _num(rot.get("rank_change_4w")),
         "sr_corner": corner, "sr_rotation": (f"{name} · {int(weeks)} wk" if name and isinstance(weeks, (int, float)) else name), "sr_weeks": _num(weeks),
-        "sr_pulse": board_row.get("state"), "sr_pulse_code": code, "sr_above50": _num(breadth.get("above_50")), "sr_rebound": _when(board_row.get("last_thrust")),
+        "sr_pulse": PULSE_WORDS.get(code or "", board_row.get("state")), "sr_pulse_code": code, "sr_above50": _num(breadth.get("above_50")), "sr_rebound": _when(board_row.get("last_thrust")),
         "sr_ag": 1.0 if corner == "ahead_gaining" else 0.0, "sr_bg": 1.0 if corner == "behind_gaining" else 0.0,
         "sr_up": 1.0 if code in UP_STATES else 0.0, "sr_thrust": 1.0 if code in THRUST_STATES else 0.0,
     }
