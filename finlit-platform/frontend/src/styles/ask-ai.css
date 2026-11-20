@@ -2,7 +2,7 @@
 .aif { width: min(480px, calc(100% - 24px)); height: min(720px, calc(100dvh - 90px)); }
 .aif.full { right: 0; bottom: 0; top: 0; left: 0; width: auto; height: auto; max-width: none; border-radius: 0; border: 0; }
 .aif.full > header { padding-left: max(16px, calc((100% - 920px) / 2 + 8px)); padding-right: max(16px, calc((100% - 920px) / 2 + 8px)); }
-.aif.full > form, .aif.full > .ai-fine { width: min(920px, 100%); margin-left: auto; margin-right: auto; box-sizing: border-box; }
+.aif.full > .aif-inw, .aif.full > .ai-fine { width: min(920px, 100%); margin-left: auto; margin-right: auto; box-sizing: border-box; }
 .aif.full .ai-body { width: min(920px, 100%); margin: 0 auto; box-sizing: border-box; padding: 20px 24px; }
 .aif.full .bub { max-width: 78%; font-size: 16px; } .aif.full .aif-cats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .aif.full .aif-qs { grid-template-columns: repeat(2, minmax(0, 1fr)); } .aif.full .aif-qchips { max-width: 480px; }
@@ -51,7 +51,7 @@
 .aif.full { --aif-g: #4fc08c; --aif-gs: color-mix(in srgb, var(--aif-g) 14%, transparent); display: grid; grid-template-columns: 272px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto auto; }
 :root[data-theme="light"] .aif.full { --aif-g: #1f7a55; }
 .aif.full > .aif-side { grid-column: 1; grid-row: 1 / -1; }
-.aif.full > header, .aif.full > .ai-body, .aif.full > form, .aif.full > .ai-fine { grid-column: 2; }
+.aif.full > header, .aif.full > .ai-body, .aif.full > .aif-inw, .aif.full > .ai-fine { grid-column: 2; }
 .aif.full .ai-body { width: min(1080px, 100%); }
 .aif-side { display: flex; flex-direction: column; gap: 10px; padding: 18px 14px; border-right: 1px solid var(--border); background: color-mix(in srgb, var(--aif-g) 5%, var(--s1)); overflow-y: auto; min-height: 0; }
 .aif-brand { display: flex; align-items: center; gap: 8px; padding: 4px 8px 10px; font: 700 20px var(--sans); } .aif-brand svg { width: 24px; height: 24px; color: var(--aif-g); } .aif-brand span { padding: 1px 8px; border-radius: 8px; background: var(--aif-g); color: #06180F; font-size: var(--fs-14); }
@@ -75,7 +75,7 @@
 .aif-clear { margin-top: 12px; padding: 8px 14px; border: 1px solid var(--border-strong); border-radius: 10px; background: none; color: var(--muted); cursor: pointer; }
 .aif-sv { display: flex; gap: 6px; align-items: stretch; } .aif-sv .aif-q { flex: 1; } .aif-unsave { width: 40px; border: 1px solid var(--border-strong); border-radius: 10px; background: none; color: var(--muted); font-size: var(--fs-18); cursor: pointer; }
 .aif-save { margin-left: 8px; padding: 0; border: 0; background: none; color: inherit; opacity: .6; cursor: pointer; vertical-align: middle; } .aif-save svg { width: 14px; height: 14px; } .aif-save:hover, .aif-save.on { opacity: 1; color: #e8b84a; }
-@media (max-width: 980px) { .aif.full { grid-template-columns: minmax(0, 1fr); } .aif.full > .aif-side { display: none; } .aif.full > header, .aif.full > .ai-body, .aif.full > form, .aif.full > .ai-fine { grid-column: 1; } .aif-expane { grid-template-columns: minmax(0, 1fr); } .aif-ext { grid-template-columns: repeat(2, minmax(0, 1fr)); padding-right: 0; border-right: 0; } }
+@media (max-width: 980px) { .aif.full { grid-template-columns: minmax(0, 1fr); } .aif.full > .aif-side { display: none; } .aif.full > header, .aif.full > .ai-body, .aif.full > .aif-inw, .aif.full > .ai-fine { grid-column: 1; } .aif-expane { grid-template-columns: minmax(0, 1fr); } .aif-ext { grid-template-columns: repeat(2, minmax(0, 1fr)); padding-right: 0; border-right: 0; } }
 .aif.full .ai-body { padding-top: 28px; }
 
 /* ---- #68 second pass: the full window as in the mock-up: a deep green window with a soft glow, a robot with a lit face, topic cards with their own picture, controls at the top right ---- */
@@ -100,7 +100,7 @@
 .aif.full .aif-c-platform { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 70'%3E%3Cpath d='M6 56 L30 38 L48 46 L90 10' fill='none' stroke='%234fc08c' stroke-opacity='.5' stroke-width='3'/%3E%3Crect x='4' y='6' width='88' height='60' rx='6' fill='%234fc08c' fill-opacity='.1'/%3E%3C/svg%3E"); }
 @media (max-width: 980px) { .aif.full > header.aif-hd { left: 0; } }
 .aif.full .aif-cat > *:not(.aif-go) { position: relative; z-index: 1; } .aif.full .aif-cat > .aif-go { position: absolute; z-index: 1; }
-.aif.full > .ai-body { grid-row: 2; } .aif.full > form { grid-row: 3; } .aif.full > .ai-fine { grid-row: 4; } .aif.full > header { grid-row: 1; }
+.aif.full > .ai-body { grid-row: 2; } .aif.full > .aif-inw { grid-row: 3; } .aif.full > .ai-fine { grid-row: 4; } .aif.full > header { grid-row: 1; }
 .aif.full .ai-body { padding-top: 40px; } .aif.full .aif-cat { min-height: 112px; }
 
 /* ---- #59: the full window's company flow follows the stockssena AI: a company and period panel at the left, three steps and the curated questions at the right ---- */
@@ -246,3 +246,55 @@
 .aid-verify { font-size: var(--fs-13); } .aid-verify summary { cursor: pointer; font-weight: 600; min-height: 32px; display: flex; align-items: center; }
 .aid-verify ul { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 4px; color: var(--text); }
 /* Task #241: Discovery as a page: the same view with a page's room */
+
+/* ---- Task #268 (20 Nov 2026, the team's reference: "use this type of UI for chatbot end to end keep our own colour theme but UI visibility like the one
+   in image"): the suggestion panel beside the box, the large box with its Enter key, the answer's FinLit AI label, the company card and history in the side
+   panel, and the five themes as five cards. Our own colours (the --aif-g green, the theme tokens); only the reference's layout and legibility. ---- */
+.aif-inw { position: relative; }
+.aif-askw { position: relative; }
+.aif-askw > .aif-sg-down { top: 60px; }     /* right under the box (the "Try asking" line sits under it) */
+.aif-sg { position: absolute; left: 0; right: 0; z-index: 30; max-height: min(380px, 52vh); overflow: auto; overscroll-behavior: contain; padding: 8px; background: var(--s1);
+  border: 1px solid var(--border-strong); border-radius: 16px; box-shadow: 0 24px 50px -24px rgba(0, 0, 0, .55); }
+.aif-sg-up { bottom: calc(100% + 6px); } .aif-sg-down { top: calc(100% + 6px); }
+.aif.full > .aif-inw .aif-sg { left: 0; right: 0; }
+.aif:not(.full) .aif-inw .aif-sg { left: 10px; right: 10px; }
+.aif-sg ul { list-style: none; margin: 0; padding: 0; }
+.aif-sg ul + ul { margin-top: 4px; }
+.aif-sgh { padding: 10px 12px 4px; font: 700 12px/1.3 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.aif-sgo { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 10px 12px; border-radius: 10px; cursor: pointer; color: var(--text); }
+.aif-sgo:hover, .aif-sgo.on { background: var(--s2); }
+.aif-sgo.on { box-shadow: inset 3px 0 0 var(--aif-g, var(--gold)); }
+.aif-sgq { font: 500 16px/1.4 var(--sans); min-width: 0; }
+.aif-sgn { font: 13px/1.3 var(--sans); color: var(--muted); white-space: nowrap; text-align: right; }
+.aif-sgai { border-top: 1px solid var(--border); border-radius: 0 0 10px 10px; margin-top: 4px; }
+.aif-sgai .aif-sgq { font-weight: 600; color: var(--aif-g, var(--gold)); }
+.aif-sgk { display: flex; align-items: center; gap: 6px; margin: 6px 12px 2px; font: 12px var(--sans); color: var(--faint); }
+.aif-sgk svg { display: none; }
+@media (max-width: 560px) { .aif-sgo { grid-template-columns: minmax(0, 1fr); gap: 2px; } .aif-sgn { white-space: normal; text-align: left; } .aif-sgk { display: none; } }
+/* the Enter key on the box, as in the reference: only where there is a keyboard and room */
+.aif-enter { display: none; flex: none; padding: 3px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--s2); color: var(--muted); font: 600 12px/1.4 var(--sans); }
+@media (hover: hover) and (min-width: 721px) { .aif.full .aif-enter { display: inline-block; } }
+.aif.full > .aif-inw > form { min-height: 60px; align-items: center; border: 1.5px solid var(--border-strong); border-radius: 16px; padding: 6px 6px 6px 18px; background: var(--s1); }
+.aif.full > .aif-inw > form:focus-within { border-color: var(--aif-g, var(--gold)); }
+.aif.full > .aif-inw > form input { border: 0 !important; background: none !important; box-shadow: none !important; font-size: 16px; padding: 10px 0; outline: 0; }
+/* the answer's label: FinLit AI, a mark and a rule, then the answer (the reference's "SENA AI" line, in our words) */
+.aif .bub.bot.aif-lab::before { content: "FinLit AI"; display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font: 700 12px/1 var(--sans); letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted); background: linear-gradient(var(--border), var(--border)) right center / calc(100% - 92px) 1px no-repeat; }
+/* the side panel's company card and history */
+.aif-sco { margin: 4px 0 12px; padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: 14px; background: var(--s1); }
+.aif-sco-h { display: flex; align-items: flex-start; gap: 8px; } .aif-sco-h > span { flex: 1; min-width: 0; }
+.aif-sco-h b { display: block; font: 700 16px var(--sans); color: var(--text); } .aif-sco-h small { display: block; font: 13px/1.35 var(--sans); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aif-sco-x { all: unset; cursor: pointer; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; color: var(--muted); font-size: 18px; } .aif-sco-x:hover, .aif-sco-x:focus-visible { background: var(--s2); color: var(--text); }
+.aif-sco-p { display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px; font: 600 18px var(--sans); color: var(--text); }
+.aif-sco-p em { font: 600 14px var(--sans); font-style: normal; } .aif-sco-p em.up { color: var(--gain); } .aif-sco-p em.dn { color: var(--loss); }
+.aif-sco-c { all: unset; cursor: pointer; display: inline-block; margin-top: 8px; font: 600 13px var(--sans); color: var(--aif-g, var(--gold)); } .aif-sco-c:hover, .aif-sco-c:focus-visible { text-decoration: underline; }
+.aif-hist { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 2px; }
+.aif-hist button { all: unset; box-sizing: border-box; cursor: pointer; display: block; width: 100%; padding: 7px 10px; border-radius: 8px; font: 13px/1.4 var(--sans); color: var(--muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .aif-hist button:hover, .aif-hist button:focus-visible { background: var(--s2); color: var(--text); }
+.aif-hist-none { margin: 0 10px 8px; font: 13px/1.45 var(--sans); color: var(--faint); }
+/* the five themes as five cards (the four entry cards and Mutual funds & ETFs) */
+.aif.full .aif-cats.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+@media (max-width: 1180px) { .aif.full .aif-cats.five { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 720px) { .aif.full .aif-cats.five { grid-template-columns: 1fr 1fr; } }
+.aif:not(.full) .aif-cats.five > li:last-child { grid-column: 1 / -1; }     /* two columns: the fifth card takes the whole last row */
+@media (max-width: 720px) { .aif.full .aif-cats.five > li:last-child { grid-column: 1 / -1; } }
