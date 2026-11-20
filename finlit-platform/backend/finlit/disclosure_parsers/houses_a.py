@@ -98,9 +98,10 @@ async def list_axis(client: httpx.AsyncClient, months: List[date]) -> List[FileR
 
 # -------------------------------------------------------------------------------------------------------------- Tata
 # tatamutualfund.com/schemes-related/portfolio (Next.js) embeds its whole document list in the page; the monthly files are one workbook per month
-# ('Monthly Portfolio as on 30th September 2026.xlsx', one sheet per scheme) on betacms.tatamutualfund.com, which redirects to www.
+# ('Monthly Portfolio as on 30th September 2026.xlsx', one sheet per scheme). Task #281: the links moved from betacms.tatamutualfund.com to
+# www.tatamutualfund.com (Nov 2026), so the old pattern listed nothing and no Tata scheme had holdings; both hosts are accepted, and "as on" may be "as".
 list_tata = page_lister("tata", "https://www.tatamutualfund.com/schemes-related/portfolio",
-                        r'(https://betacms\.tatamutualfund\.com/system/files/\d{4}-\d{2}/Monthly%20Portfolio%20as%20on%20[^"\\<>]+?\.xlsx?)(?=[\\"])')
+                        r'(https://(?:betacms|www)\.tatamutualfund\.com/system/files/\d{4}-\d{2}/Monthly%20Portfolio%20as%20(?:on%20)?[^"\\<>]+?\.xlsx?)(?=[\\"])')
 
 
 # -------------------------------------------------------------------------------------------------------------- Bandhan

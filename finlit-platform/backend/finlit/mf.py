@@ -1515,21 +1515,37 @@ CHECK_RET5_BIT = 32
 
 DERIVE_FUND_FACTS = """
 WITH q AS (SELECT max(aum_end) AS e FROM mf_facts WHERE aum_lakh IS NOT NULL),
-fam_q AS (SELECT s.family, sum(f.aum_lakh) AS lakh, max(f.aum_end) AS asof FROM mf_facts f JOIN mf_schemes s ON s.code = f.code, q
-          WHERE f.aum_end = q.e GROUP BY s.family),
+-- task #281: each family's own latest AMFI quarter (a scheme missing from the newest quarter keeps its last one, with that quarter's date)
+fam_q AS (SELECT family, sum(lakh) AS lakh, max(e) AS asof
+          FROM (SELECT s.family, f.aum_lakh AS lakh, f.aum_end AS e, max(f.aum_end) OVER (PARTITION BY s.family) AS fe
+                FROM mf_facts f JOIN mf_schemes s ON s.code = f.code WHERE f.aum_lakh IS NOT NULL) x
+          WHERE e = fe GROUP BY family),
 fam_m AS (SELECT DISTINCT ON (fkey) fkey AS family, net_assets_lakh AS lakh, as_of AS asof FROM disclosure_portfolios
           WHERE net_assets_lakh IS NOT NULL AND net_assets_lakh > 0 ORDER BY fkey, as_of DESC),
 own_t AS (SELECT s.code, s.family, t.ter_regular, t.ter_direct, t.ter_date FROM mf_schemes s JOIN mf_facts f ON f.code = s.code JOIN mf_ter t ON t.name_key = f.name_key),
 fam_t AS (SELECT DISTINCT ON (family) family, ter_regular, ter_direct, ter_date FROM own_t ORDER BY family, ter_date DESC, code),
+fam_h AS (SELECT fkey AS family, (value->>'regular')::float8 AS ter_regular, (value->>'direct')::float8 AS ter_direct, as_of AS ter_date
+          FROM disclosure_facts WHERE kind = 'ter'),
+-- a scheme with one plan only (ETFs: AMFI lists some as Direct but files their one TER under Regular, e.g. UTI Nifty 50 ETF): either column is its TER
+one_p AS (SELECT family FROM mf_schemes GROUP BY family HAVING count(DISTINCT plan) = 1),
 v AS (SELECT s.code,
-             COALESCE(a.lakh, m.lakh) AS lakh, CASE WHEN a.lakh IS NOT NULL THEN a.asof ELSE m.asof END AS asof,
-             CASE WHEN a.lakh IS NOT NULL THEN 'q' WHEN m.lakh IS NOT NULL THEN 'm' END AS kind,
-             CASE s.plan WHEN 'Direct' THEN COALESCE(o.ter_direct, ft.ter_direct) WHEN 'Regular' THEN COALESCE(o.ter_regular, ft.ter_regular)
-                         ELSE COALESCE(o.ter_regular, o.ter_direct, ft.ter_regular, ft.ter_direct) END AS ter,
-             COALESCE(o.ter_date, ft.ter_date) AS ter_date
-      FROM mf_schemes s LEFT JOIN fam_q a ON a.family = s.family LEFT JOIN fam_m m ON m.family = s.family
-           LEFT JOIN own_t o ON o.code = s.code LEFT JOIN fam_t ft ON ft.family = s.family),
-w AS (SELECT code, lakh, asof, kind, ter, CASE WHEN ter IS NULL THEN NULL ELSE ter_date END AS ter_date FROM v),
+             -- AMFI's quarterly average when it is the newest quarter (or nothing newer exists); an older quarter gives way to a newer month-end figure
+             CASE WHEN a.lakh IS NOT NULL AND (a.asof >= q.e OR m.lakh IS NULL OR a.asof >= m.asof) THEN a.lakh ELSE m.lakh END AS lakh,
+             CASE WHEN a.lakh IS NOT NULL AND (a.asof >= q.e OR m.lakh IS NULL OR a.asof >= m.asof) THEN a.asof ELSE m.asof END AS asof,
+             CASE WHEN a.lakh IS NOT NULL AND (a.asof >= q.e OR m.lakh IS NULL OR a.asof >= m.asof) THEN 'q' WHEN m.lakh IS NOT NULL THEN 'm' END AS kind,
+             CASE WHEN s.plan = 'Direct' THEN COALESCE(o.ter_direct, ft.ter_direct, CASE WHEN op.family IS NOT NULL THEN COALESCE(o.ter_regular, ft.ter_regular) END)
+                  WHEN s.plan = 'Regular' THEN COALESCE(o.ter_regular, ft.ter_regular, CASE WHEN op.family IS NOT NULL THEN COALESCE(o.ter_direct, ft.ter_direct) END)
+                  ELSE COALESCE(o.ter_regular, o.ter_direct, ft.ter_regular, ft.ter_direct) END AS ter,
+             COALESCE(o.ter_date, ft.ter_date) AS ter_date,
+             CASE s.plan WHEN 'Direct' THEN h.ter_direct WHEN 'Regular' THEN h.ter_regular ELSE COALESCE(h.ter_regular, h.ter_direct) END AS house_ter,
+             h.ter_date AS house_date
+      FROM q, mf_schemes s LEFT JOIN fam_q a ON a.family = s.family LEFT JOIN fam_m m ON m.family = s.family
+           LEFT JOIN own_t o ON o.code = s.code LEFT JOIN fam_t ft ON ft.family = s.family LEFT JOIN fam_h h ON h.family = s.family
+           LEFT JOIN one_p op ON op.family = s.family),
+-- task #281: AMFI's figure first; when AMFI's file has none for the plan, the fund house's own daily TER (the figure the scheme page already shows),
+-- with its own date, so the list, the screener and the score read the same expense ratio as the page
+w AS (SELECT code, lakh, asof, kind, COALESCE(ter, house_ter) AS ter,
+             CASE WHEN ter IS NOT NULL THEN ter_date WHEN house_ter IS NOT NULL THEN house_date END AS ter_date FROM v),
 u AS (UPDATE mf_schemes s SET aum_lakh = w.lakh, aum_asof = w.asof, aum_kind = w.kind, ter = w.ter, ter_date = w.ter_date FROM w
       WHERE s.code = w.code AND (s.aum_lakh IS DISTINCT FROM w.lakh OR s.aum_asof IS DISTINCT FROM w.asof OR s.aum_kind IS DISTINCT FROM w.kind
                                  OR s.ter IS DISTINCT FROM w.ter OR s.ter_date IS DISTINCT FROM w.ter_date) RETURNING 1)

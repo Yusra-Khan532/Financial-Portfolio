@@ -64,6 +64,12 @@ URL_EQUITY_L = "https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv"
 _DROP = frozenset("direct regular plan plans growth option options idcw dividend payout reinvestment reinvest bonus the and of scheme".split())
 _PAREN = re.compile(r"\([^)]*\)")
 _FORMERLY = re.compile(r"\(\s*(?:formerly|erstwhile|earlier|ex)\b[\s\S]*$", re.I)
+_ROMAN = {"i": "1", "ii": "2", "iii": "3", "iv": "4", "v": "5", "vi": "6", "vii": "7", "viii": "8", "ix": "9", "x": "10"}
+# Words written two ways for the same scheme (task #281): month abbreviations ('Apr 2029' / 'April 2029', 'Sept' / 'September'), plurals ('Bonds ETFs' /
+# 'Bond ETFs'), SBI's shortened sheet names ('CRI IBX SDL ... Ind Fund' for 'Crisil IBX SDL ... Index Fund').
+_SYN = {"jan": "january", "feb": "february", "mar": "march", "apr": "april", "jun": "june", "jul": "july", "aug": "august", "sep": "september",
+        "sept": "september", "oct": "october", "nov": "november", "dec": "december", "bonds": "bond", "etfs": "etf", "cri": "crisil", "ind": "index",
+        "indx": "index", "qlty": "quality", "mom": "momentum", "auto": "automotive"}
 
 
 def name_key(name: str, drop_parens: bool = False, drop_fund: bool = False) -> str:
@@ -74,7 +80,13 @@ def name_key(name: str, drop_parens: bool = False, drop_fund: bool = False) -> s
         s = _PAREN.sub(" ", _FORMERLY.sub(" ", s))
     s = s.replace("&", " and ")
     s = re.sub(r"\b(mid|large|small|flexi|multi|micro)\s*-?\s*cap\b", r"\1cap", s)       # 'Mid Cap' and 'Midcap' are the same word in AMFI's own lists
-    toks = {t for t in re.sub(r"[^a-z0-9]+", " ", s).split() if t not in _DROP and not (drop_fund and t == "fund")}
+    # Task #281: the same scheme written differently by the fund house's file and AMFI (each seen in the 31 Oct 2026 files):
+    s = re.sub(r"\bfunds?\s+of\s+funds?\b", " fof ", s)                                 # 'Fund of Funds' / 'Fund of Fund' = 'FOF'
+    s = re.sub(r"([a-z])(\d)|(\d)([a-z]{2,})", lambda m: f"{m.group(1)} {m.group(2)}" if m.group(1) else f"{m.group(3)} {m.group(4)}", s)
+    #                                                                                     'IBX50:50' = 'IBX 50:50', '250Mom' = '250 Mom' ('1d' stays one word)
+    s = re.sub(r"\bseries?\s*[-:]?\s*(i{1,3}|iv|vi{0,3}|ix|x)\b", lambda m: " series " + _ROMAN[m.group(1)] + " ", s)   # 'Serie-II' = 'Series 2'
+    toks = {_SYN.get(t, t) for t in re.sub(r"[^a-z0-9]+", " ", s).split()}
+    toks = {t for t in toks if t not in _DROP and not (drop_fund and t == "fund")}
     return " ".join(sorted(toks))
 
 
@@ -104,6 +116,10 @@ def _flat_key(name: str) -> str:
     return "".join(sorted(re.sub(r"[^a-z0-9]", "", name_key(name, True, True))))
 
 
+def _pass_key(name: str) -> str:
+    return " ".join(t for t in name_key(name, True, True).split() if t != "passive")
+
+
 class Index:
     """The scheme families in mf_schemes, for matching names from other sources. Built once per run (about 14 000 rows)."""
 
@@ -115,15 +131,20 @@ class Index:
         self.keys_np: Dict[str, Set[str]] = defaultdict(set)      # parenthesis-free key -> families
         self.keys_nf: Dict[str, Set[str]] = defaultdict(set)      # parenthesis-free and without the word 'fund'
         self.keys_flat: Dict[str, Set[str]] = defaultdict(set)    # letters and digits only, sorted: 'MahindraManulife' and 'Mahindra Manulife' agree
+        self.active: Set[str] = set()                              # families with a scheme still publishing NAVs
+        self.keys_pass: Dict[str, Set[str]] = defaultdict(set)    # as keys_nf without the word 'passive' (task #281), tried only after the exact keys
 
-    def add(self, code: int, name: str, amc: str, family: str) -> None:
+    def add(self, code: int, name: str, amc: str, family: str, active: bool = True) -> None:
         self.amc[family] = amc
+        if active:
+            self.active.add(family)
         self.codes[family].append(code)
         self.by_code[code] = family
         self.keys[name_key(name)].add(family)
         self.keys_np[name_key(name, True)].add(family)
         self.keys_nf[name_key(name, True, True)].add(family)
         self.keys_flat[_flat_key(name)].add(family)
+        self.keys_pass[_pass_key(name)].add(family)
 
     def resolve(self, names: Sequence[str], amc_re: Optional[re.Pattern] = None) -> Tuple[Optional[str], str]:
         """(family, reason). The first name that matches exactly one family wins; a name matching several families is ambiguous and refused."""
@@ -137,25 +158,29 @@ class Index:
                     fams = {f for f in fams if amc_re.search(self.amc.get(f, ""))}
                 if len(fams) == 1:
                     return next(iter(fams)), ""
+                live = fams & self.active
+                if len(fams) > 1 and len(live) == 1:
+                    return next(iter(live)), ""      # task #281: one active scheme and old stopped ones of the same name ('JM Short Term Fund')
                 if len(fams) > 1:
                     why = f"name matches {len(fams)} schemes ({', '.join(sorted(fams))[:120]}); not guessed"
-        for nm in names:                    # last resort: spacing and word order ignored (AMFI writes some fund house names without a space)
-            fams = self.keys_flat.get(_flat_key(nm), set()) if nm else set()
-            if amc_re is not None:
-                fams = {f for f in fams if amc_re.search(self.amc.get(f, ""))}
-            if len(fams) == 1:
-                return next(iter(fams)), ""
+        for table, keyf in ((self.keys_flat, _flat_key), (self.keys_pass, _pass_key)):
+            for nm in names:                # last resorts: spacing and word order ignored (AMFI writes some fund house names without a space); then the
+                fams = table.get(keyf(nm), set()) if nm else set()     # word 'passive' ignored ('Asset Allocation Passive FOF' = 'Asset Allocation FOF')
+                if amc_re is not None:
+                    fams = {f for f in fams if amc_re.search(self.amc.get(f, ""))}
+                if len(fams) == 1:
+                    return next(iter(fams)), ""
         return None, why
 
 
 async def load_index(pool) -> Index:
     idx = Index()
     async with pool.acquire() as conn:
-        rows = await conn.fetch("SELECT code, name, amc, family FROM mf_schemes")
+        rows = await conn.fetch("SELECT code, name, amc, family, active FROM mf_schemes")
     for r in rows:
         if excluded_amc(r["amc"]):
             continue
-        idx.add(r["code"], r["name"], r["amc"], r["family"])
+        idx.add(r["code"], r["name"], r["amc"], r["family"], bool(r["active"]))
     return idx
 
 
