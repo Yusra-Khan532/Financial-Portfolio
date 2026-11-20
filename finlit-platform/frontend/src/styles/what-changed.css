@@ -1,0 +1,106 @@
+/* Task #272 (Watchlists and Alerts, 20 Nov pack): "What changed at these companies" (components/changes/WhatChanged.tsx) and the list alert forms
+   (components/changes/AlertMe.tsx). Shared by every list page, so the block carries its own tokens on the site's (--text, --muted, --border, --s1, --s2)
+   and does not need the sectors pack's wrapper. Font sizes stay on the type scale (src/styles/typescale.test.ts). */
+.wc, .wc-files, .wc-ow, .wc-chip { --wc-ink: var(--text); --wc-mute: var(--muted); --wc-line: var(--border); --wc-panel: var(--s1); --wc-soft: var(--s2);
+  --wc-g: #0F6B3A; --wc-g-bg: #E1F2E7; --wc-g-bd: rgba(15, 107, 58, .25); --wc-t: #0E6471; --wc-v: #6B3FA0; --wc-o: #9A5A12; --wc-b: #1F4E9A; --wc-s: #5B6470;
+  --wc-m: #9A2F6E; --wc-r: #A12E26; --wc-new: #B5410F; --wc-new-bg: #FBEEE0; --wc-ow-row: #F2F7F1; --wc-new-row: #FBF6EE; --wc-go: #162335; --wc-go-ink: #fff; }
+:root[data-theme="dark"] :is(.wc, .wc-files, .wc-ow, .wc-chip) { --wc-g: #7FD8A6; --wc-g-bg: rgba(46, 125, 87, .18); --wc-g-bd: rgba(127, 216, 166, .3); --wc-t: #7CC7D2;
+  --wc-v: #C3A6EC; --wc-o: #F0B48A; --wc-b: #9DBDF2; --wc-s: #B4BCC6; --wc-m: #EBA2CF; --wc-r: #F2A0A6; --wc-new: #F5A274; --wc-new-bg: rgba(240, 180, 138, .14);
+  --wc-ow-row: rgba(46, 125, 87, .12); --wc-new-row: rgba(240, 180, 138, .08); --wc-go: #7CC7D2; --wc-go-ink: #0B1A1F; }
+
+.wc { scroll-margin-top: 90px; }
+.wc .wp-sub { margin: 6px 0 0; }
+.wc h2 { margin: 0; font: 600 24px/1.25 var(--serif); color: var(--wc-ink); }
+.wc-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin: 16px 0 12px; }
+.wc-ln { font: 700 16px var(--sans); color: var(--wc-ink); }
+.wc-lists { display: flex; flex-wrap: wrap; gap: 8px; }
+.wc-st { font-size: 16px; color: var(--wc-ink); display: inline-flex; align-items: center; gap: 6px; }
+.wc-nd { width: 9px; height: 9px; border-radius: 50%; background: var(--wc-new); display: inline-block; }
+.wc-grow { flex: 1; }
+.wc-dl { font: 600 16px var(--sans); color: var(--wc-ink); text-decoration: underline; text-underline-offset: 3px; }
+.wc-am-btn { display: inline-flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--wc-line); background: var(--wc-panel);
+  color: var(--wc-ink); font: 600 16px var(--sans); cursor: pointer; }
+.wc-am-btn[aria-expanded="true"], .wc-am-btn:hover { border-color: var(--wc-ink); }
+
+.wc-tiles { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; margin: 0 0 12px; }
+.wc-tile { min-width: 0; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--wc-line);
+  background: var(--wc-panel); color: var(--wc-ink); text-align: left; cursor: pointer; font: inherit; }
+.wc-tile span { display: flex; gap: 6px; font: 600 14px/1.3 var(--sans); }
+.wc-tile span .wc-dot { margin-top: 5px; }
+.wc-tile b { font: 600 24px/1 var(--serif); }
+.wc-tile:hover { border-color: var(--wc-ink); }
+.wc-tile[aria-pressed="true"] { border: 2px solid var(--wc-g); background: var(--wc-g-bg); padding: 9px 11px; }
+.wc-dot { flex: none; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--wc-s); }
+.wc-dot.g { background: var(--wc-g); } .wc-dot.t { background: var(--wc-t); } .wc-dot.v { background: var(--wc-v); } .wc-dot.o { background: var(--wc-o); }
+.wc-dot.b { background: var(--wc-b); } .wc-dot.s { background: var(--wc-s); } .wc-dot.m { background: var(--wc-m); } .wc-dot.r { background: var(--wc-r); }
+
+.wc-rows { list-style: none; margin: 0; padding: 0; border: 1px solid var(--wc-line); border-radius: 12px; overflow: hidden; }
+.wc-rows li { display: grid; grid-template-columns: 76px minmax(150px, 1.1fr) minmax(150px, .9fr) minmax(0, 2.2fr) 250px; gap: 8px 16px; align-items: center; padding: 12px 18px;
+  border-top: 1px solid var(--wc-line); font-size: 16px; color: var(--wc-ink); }
+.wc-rows li:first-child { border-top: 0; }
+.wc-rows li.is-ow { background: var(--wc-ow-row); }
+.wc-rows li.is-new { background: var(--wc-new-row); }
+.wc-d { color: var(--wc-mute); white-space: nowrap; }
+.wc-co { font-weight: 600; color: var(--wc-ink); text-decoration: underline; text-underline-offset: 3px; min-width: 0; overflow-wrap: anywhere; }
+.wc-k { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; white-space: nowrap; }
+.wc-k small { font-size: 14px; font-weight: 500; color: var(--wc-mute); }
+.wc-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.wc-ln2 { display: inline-flex; gap: 16px; white-space: nowrap; justify-self: end; }
+.wc-ln2 a { font-weight: 600; color: var(--wc-ink); text-decoration: underline; text-underline-offset: 3px; }
+.wc-new { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px; background: var(--wc-new); color: #fff; font: 700 12px/1.6 var(--sans); font-style: normal;
+  letter-spacing: .04em; text-transform: uppercase; vertical-align: 2px; }
+:root[data-theme="dark"] .wc-new { color: #1E1208; }
+.wc-more { margin: 10px 0 0; border: 0; background: none; padding: 4px 0; color: var(--wc-ink); font: 600 16px var(--sans); cursor: pointer; }
+.wc-note { margin: 12px 0 0; font-size: 14px; line-height: 1.5; color: var(--wc-mute); }
+.wc-lnk { border: 0; background: none; padding: 0; color: var(--wc-ink); font: 600 14px var(--sans); text-decoration: underline; cursor: pointer; }
+.wc-warn { margin: 10px 0 0; font-size: 14px; color: var(--wc-r); }
+
+/* the chip under a company with a new filing: inline, so the row keeps its height */
+.wc-chip { display: inline-flex; align-items: center; margin-left: 6px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--wc-line); background: var(--wc-soft);
+  color: var(--wc-ink); font: 600 12px/20px var(--sans); white-space: nowrap; text-decoration: none; vertical-align: 1px; }
+.wc-chip.g { border-color: var(--wc-g-bd); background: var(--wc-g-bg); color: var(--wc-g); }
+.wc-chip:hover { border-color: var(--wc-ink); }
+
+/* the green notice over the list for a new order win */
+.wc-ow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 14px; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--wc-g-bd); background: var(--wc-g-bg); color: var(--wc-ink); }
+.wc-ow p { margin: 0; flex: 1; min-width: 200px; font-size: 16px; } .wc-ow p b { color: var(--wc-g); } .wc-ow p span { color: var(--wc-mute); }
+.wc-owd { width: 10px; height: 10px; border-radius: 50%; background: var(--wc-g); }
+.wc-ow a { font-weight: 600; color: var(--wc-ink); text-decoration: underline; text-underline-offset: 3px; }
+.wc-ow button { width: 32px; height: 32px; border: 0; border-radius: 8px; background: transparent; color: var(--wc-ink); font: 600 20px/1 var(--sans); cursor: pointer; }
+.wc-ow button:hover { background: var(--wc-panel); }
+
+/* "Alert me": the short form, as the pack's alerts-02 picture */
+.wc-am { margin: 16px 0 4px; padding: 16px 18px; border: 1.5px solid var(--wc-ink); border-radius: 14px; background: var(--wc-panel); }
+.wc-am h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font: 600 18px var(--sans); color: var(--wc-ink); }
+.wc-kc { display: flex; flex-wrap: wrap; gap: 8px; }
+.wc-ck { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--wc-line); font: 600 14px var(--sans);
+  color: var(--wc-ink); cursor: pointer; background: var(--wc-panel); }
+.wc-ck.on { border-color: var(--wc-ink); background: var(--wc-soft); }
+.wc-ck input { width: 16px; height: 16px; margin: 0; accent-color: var(--wc-ink); }
+.wc-amf { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; margin-top: 14px; }
+.wc-fs { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 0; padding: 0; border: 0; font-size: 16px; color: var(--wc-ink); }
+.wc-fs legend { float: left; margin-right: 6px; font: 700 12px var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--wc-mute); }
+.wc-fs label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.wc-amn { flex: 1; min-width: 220px; margin: 0; font-size: 14px; line-height: 1.5; color: var(--wc-mute); }
+.wc-amb { display: inline-flex; align-items: center; gap: 16px; }
+.wc-go { min-height: 42px; padding: 0 20px; border: 0; border-radius: 999px; background: var(--wc-g); color: #fff; font: 600 16px var(--sans); cursor: pointer; }
+:root[data-theme="dark"] .wc-go { color: #0B1A1F; }
+.wc-go:disabled { opacity: .5; cursor: default; }
+
+/* "Tell me when a company on this list files" beside "Tell me when a label changes" */
+.wc-files h2 { flex-wrap: wrap; }
+.wc-files .wc-new { margin-left: 2px; vertical-align: 0; }
+.wc-set:disabled { opacity: .5; cursor: default; }
+.wc-files .wp-on a { margin-left: 6px; color: var(--sp-info, var(--wc-t)); font-weight: 600; }
+
+@media (max-width: 1180px) { .wc-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 760px) {
+  .wc-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .wc-rows li { grid-template-columns: 58px minmax(0, 1fr); padding: 12px 14px; font-size: 14px; }
+  .wc-rows li > :nth-child(n+3) { grid-column: 2; }
+  .wc-ln2 { justify-self: start; flex-wrap: wrap; white-space: normal; }
+  .wc-k small { font-size: 13px; }
+  .wc-grow { display: none; }
+  .wc-bar { gap: 10px 14px; }
+  .wc-amb { width: 100%; justify-content: flex-end; }
+}

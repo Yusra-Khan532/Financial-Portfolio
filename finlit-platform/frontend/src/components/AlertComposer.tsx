@@ -9,9 +9,10 @@ import { useUI } from "../lib/ui";
 import type { SearchRow } from "../lib/api";
 import { FilterNote, SearchFilters, useIndexFilter } from "./SearchFilters";
 import { useUniverse } from "../lib/screener";
-import { askBrowserPermission, browserPermission, useAlerts, useCurrentValue, type Channel, type Created } from "../lib/alerts";
-import { GROUPS, LIVE_NOTE, METRICS, OP_LABEL, describe, fixedTarget, fmtValue, isEvent, type Op } from "../lib/alertCatalog";
+import { askBrowserPermission, browserPermission, useAlertLists, useAlerts, useCurrentValue, type Channel, type Created } from "../lib/alerts";
+import { DEFAULT_FILING_KINDS, FILING_KINDS, GROUPS, LIVE_NOTE, METRICS, OP_LABEL, describe, fixedTarget, fmtValue, isEvent, type Op } from "../lib/alertCatalog";
 import { coTitle, subLine, titleOf } from "../lib/companyLabel";
+import "../styles/alerts272.css";
 
 /** Search any listed company by name or ticker and pick one. */
 export function StockPicker({ value, onChange, id }: { value: string; onChange: (symbol: string, name?: string) => void; id?: string }) {
@@ -45,7 +46,8 @@ export function StockPicker({ value, onChange, id }: { value: string; onChange: 
   );
 }
 
-export type Preset = Partial<{ symbol: string; metric: string; op: Op; value: number; keyword: string }>;
+/** list / kinds (task #272): "Applies to: A list" and the Discover kinds of "A filing Discover sorts as…". */
+export type Preset = Partial<{ symbol: string; metric: string; op: Op; value: number; keyword: string; list: string; kinds: string[] }>;
 const num = (s: string) => (s.trim() === "" || isNaN(Number(s)) ? null : Number(s));
 
 export function AlertComposer({ preset, onDone, compact }: { preset?: Preset; onDone?: (a: Created) => void; compact?: boolean }) {
@@ -65,10 +67,19 @@ export function AlertComposer({ preset, onDone, compact }: { preset?: Preset; on
   const [touched, setTouched] = useState(preset?.value != null);
   const [made, setMade] = useState<Created | null>(null);
   const [err, setErr] = useState<{ status?: string; detail: string; plan?: string } | null>(null);
+  // task #272: "Applies to: One stock / A list", and the Discover kinds and "One summary a day" of a filing alert
+  const [scope, setScope] = useState<"stock" | "list">(preset?.list ? "list" : "stock");
+  const [listRef, setListRef] = useState(preset?.list || "");
+  const [kinds, setKinds] = useState<string[]>(preset?.kinds || DEFAULT_FILING_KINDS);
+  const [digest, setDigest] = useState(false);
+  const { lists } = useAlertLists(scope === "list");
+  const pickedList = lists.find((l) => l.ref === listRef) ?? null;
+  useEffect(() => { if (scope === "list" && !pickedList && lists.length) setListRef(lists[0].ref); }, [scope, pickedList, lists]);
   const m = METRICS[metric];
   const locked = m.tier === "silver" && plan === "basic";
   const used = alerts.filter((a) => a.status !== "done").length;
-  const current = useCurrentValue(symbol, metric, rows);
+  const current = useCurrentValue(scope === "list" ? "" : symbol, metric, rows);
+  const filing = metric === "discover_filing";
 
   // a new preset (a quick-alert tile, or "Set alert" from a stock page) replaces the form
   const key = JSON.stringify(preset || {});
@@ -76,7 +87,10 @@ export function AlertComposer({ preset, onDone, compact }: { preset?: Preset; on
   useEffect(() => {
     if (first.current === key) return; first.current = key;
     setSymbol(preset?.symbol || symbol); setMetric(preset?.metric || "price"); setOp(preset?.op || METRICS[preset?.metric || "price"].ops[0]); setVal(preset?.value != null ? String(preset.value) : ""); setKw(preset?.keyword || ""); setTouched(preset?.value != null); setMade(null); setErr(null);
+    setScope(preset?.list ? "list" : "stock"); if (preset?.list) setListRef(preset.list); setKinds(preset?.kinds || DEFAULT_FILING_KINDS); setDigest(false);
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pickScope = (s: "stock" | "list") => { setScope(s); setMade(null); setErr(null); if (s === "list") { setMetric("discover_filing"); setOp("event"); } };
+  const flipKind = (k: string) => setKinds((x) => (x.includes(k) ? x.filter((y) => y !== k) : [...x, k]));
 
   const pickMetric = (k: string) => { setMetric(k); setOp(METRICS[k].ops[0]); setTouched(false); setVal(""); setMade(null); setErr(null); };
   // suggest a sensible target until the member types their own
@@ -100,15 +114,18 @@ export function AlertComposer({ preset, onDone, compact }: { preset?: Preset; on
 
   const fixed = fixedTarget(metric, op);
   const v = fixed ?? (isEvent(metric) ? (metric === "result_soon" ? num(val) : null) : num(val));
-  const ready = !!symbol && !locked && (metric === "news_keyword" ? kw.trim().length >= 2 : metric === "new_filing" ? true : v != null);
-  const sentence = symbol && ready ? `${symbol}: ${describe({ metric, op, value: v, keyword: kw.trim().toLowerCase() })}` : null;
+  const target = scope === "list" ? !!pickedList : !!symbol;
+  const ready = target && !locked && (filing ? kinds.length > 0 : metric === "news_keyword" ? kw.trim().length >= 2 : metric === "new_filing" ? true : v != null);
+  const who = scope === "list" ? (pickedList?.label ?? "") : symbol;
+  const sentence = who && ready ? `${who}: ${describe({ metric, op, value: v, keyword: kw.trim().toLowerCase(), kinds, digest })}` : null;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault(); if (!ready || create.isPending) return;
     setErr(null);
     if (!user) { upgrade("basic", "Alerts need a free account."); return; }
-    create.mutate({ symbol, metric, op, value: v, keyword: metric === "news_keyword" ? kw.trim() : undefined, channels: ch, repeat: isEvent(metric) ? repeat : repeat, note: note.trim() || undefined }, {
-      onSuccess: (a) => { setMade(a); toast(`Alert created for ${symbol}.`); onDone?.(a); },
+    create.mutate({ symbol: scope === "list" ? "" : symbol, metric, op, value: filing ? null : v, keyword: metric === "news_keyword" ? kw.trim() : undefined, channels: ch,
+      repeat: filing ? "every" : repeat, note: note.trim() || undefined, ...(filing ? { kinds, digest } : {}), ...(scope === "list" ? { list: listRef } : {}) }, {
+      onSuccess: (a) => { setMade(a); toast(scope === "list" ? `Alert created for ${pickedList?.label ?? "the list"}.` : `Alert created for ${symbol}.`); onDone?.(a); },
       onError: (x: unknown) => { const b = (x as { body?: { status?: string; detail?: string; plan?: string } })?.body; setErr({ status: b?.status, detail: b?.detail || "The alert could not be saved. Please try again.", plan: b?.plan }); },
     });
   };
@@ -116,16 +133,34 @@ export function AlertComposer({ preset, onDone, compact }: { preset?: Preset; on
   return (
     <form className={"alx-form" + (compact ? " is-compact" : "")} onSubmit={submit} noValidate>
       <div className="alx-row">
-        <label htmlFor="alx-stock">Stock</label>
-        <StockPicker id="alx-stock" value={symbol} onChange={(s) => { setSymbol(s); setMade(null); }} />
+        <span className="alx-lbl" id="alx-applies">Applies to <em className="alx-new">New</em></span>
+        <div className="alx-seg" role="group" aria-labelledby="alx-applies">
+          <button type="button" aria-pressed={scope === "stock"} onClick={() => pickScope("stock")}>One stock</button>
+          <button type="button" aria-pressed={scope === "list"} onClick={() => pickScope("list")}>A list</button>
+        </div>
       </div>
+      {scope === "stock" ? (
+        <div className="alx-row">
+          <label htmlFor="alx-stock">Stock</label>
+          <StockPicker id="alx-stock" value={symbol} onChange={(s) => { setSymbol(s); setMade(null); }} />
+        </div>
+      ) : (
+        <div className="alx-row">
+          <label htmlFor="alx-list">List</label>
+          <select id="alx-list" value={listRef} onChange={(e) => { setListRef(e.target.value); setMade(null); }}>
+            {!lists.length && <option value="">Loading your lists…</option>}
+            {lists.map((l) => <option key={l.ref} value={l.ref}>{l.label} · {l.count} compan{l.count === 1 ? "y" : "ies"}</option>)}
+          </select>
+          <small className="alx-cur">The companies inside your funds and ETFs join this list when their portfolio pages show them.</small>
+        </div>
+      )}
       <div className="alx-2">
         <div className="alx-row">
           <label htmlFor="alx-metric">Metric</label>
-          <select id="alx-metric" value={metric} onChange={(e) => pickMetric(e.target.value)}>
-            {GROUPS.map((g) => (
+          <select id="alx-metric" value={metric} onChange={(e) => pickMetric(e.target.value)} disabled={scope === "list"}>
+            {scope === "list" ? <option value="discover_filing">{METRICS.discover_filing.label} (new)</option> : GROUPS.map((g) => (
               <optgroup key={g} label={g}>
-                {Object.entries(METRICS).filter(([, x]) => x.group === g).map(([k, x]) => <option key={k} value={k}>{x.label}{x.tier === "silver" && plan === "basic" ? " · Silver" : ""}</option>)}
+                {Object.entries(METRICS).filter(([, x]) => x.group === g).map(([k, x]) => <option key={k} value={k}>{x.label}{k === "discover_filing" ? " (new)" : ""}{x.tier === "silver" && plan === "basic" ? " · Silver" : ""}</option>)}
               </optgroup>
             ))}
           </select>
@@ -138,6 +173,12 @@ export function AlertComposer({ preset, onDone, compact }: { preset?: Preset; on
         </div>
       </div>
       <p className="alx-hint">{m.hint}</p>
+      {filing && (
+        <div className="alx-kinds" role="group" aria-label="Kinds of filing">
+          {FILING_KINDS.map((k) => <button key={k.k} type="button" aria-pressed={kinds.includes(k.k)} onClick={() => flipKind(k.k)}>{k.chip}</button>)}
+          {!kinds.length && <small className="alx-cur">Pick at least one kind of filing.</small>}
+        </div>
+      )}
 
       {metric === "news_keyword" && (
         <div className="alx-row"><label htmlFor="alx-kw">Word or phrase</label><input id="alx-kw" value={kw} maxLength={40} placeholder={m.text} onChange={(e) => setKw(e.target.value)} /></div>
@@ -163,18 +204,30 @@ export function AlertComposer({ preset, onDone, compact }: { preset?: Preset; on
       </fieldset>
 
       <div className="alx-2">
-        <div className="alx-row">
-          <label htmlFor="alx-rep">How often</label>
-          <select id="alx-rep" value={repeat} onChange={(e) => setRepeat(e.target.value as "once" | "every")}>
-            <option value="once">Tell me once</option>
-            <option value="every">{isEvent(metric) ? "Every time something new appears" : "Every time it crosses"}</option>
-          </select>
-        </div>
+        {filing ? (
+          <div className="alx-row">
+            <span className="alx-lbl" id="alx-often">How often</span>
+            <div className="alx-seg" role="group" aria-labelledby="alx-often">
+              <button type="button" aria-pressed={!digest} onClick={() => setDigest(false)}>Each filing</button>
+              <button type="button" aria-pressed={digest} onClick={() => setDigest(true)}>One summary a day</button>
+            </div>
+          </div>
+        ) : (
+          <div className="alx-row">
+            <label htmlFor="alx-rep">How often</label>
+            <select id="alx-rep" value={repeat} onChange={(e) => setRepeat(e.target.value as "once" | "every")}>
+              <option value="once">Tell me once</option>
+              <option value="every">{isEvent(metric) ? "Every time something new appears" : "Every time it crosses"}</option>
+            </select>
+          </div>
+        )}
         <div className="alx-row"><label htmlFor="alx-note">Note to self <span className="alx-u">(optional)</span></label><input id="alx-note" value={note} maxLength={140} placeholder="e.g. Add to my portfolio" onChange={(e) => setNote(e.target.value)} /></div>
       </div>
 
       {sentence && <p className="alx-sentence" role="status"><Icon name="check" /><span>You will be told when <b>{sentence}</b></span></p>}
-      <p className="alx-live"><Icon name="activity" /><span>{m.live ? "Checked every few minutes while the market is open." : "Checked on weekday evenings, once the day's data is in."} Anything that fires lands in your notifications.</span></p>
+      <p className="alx-live"><Icon name="activity" /><span>{scope === "list"
+        ? `A list alert counts as 1 of ${limit} however many companies the list holds. It is checked on weekday evenings, once the day's filings are in, like every alert that is not on price.`
+        : filing ? "Checked on weekday evenings, once the day's filings are in." : m.live ? "Checked every few minutes while the market is open." : "Checked on weekday evenings, once the day's data is in."} Anything that fires lands in your notifications.</span></p>
 
       {locked && <div className="alx-warn" role="alert"><b>{m.label} alerts are part of Silver.</b> <button type="button" className="alx-link" onClick={() => upgrade("silver", `${m.label} alerts are part of Silver.`)}>See Silver</button></div>}
       {err && <div className="alx-warn" role="alert">{err.detail} {(err.status === "plan_required" || err.status === "plan_limit") && <button type="button" className="alx-link" onClick={() => upgrade((err.plan as "silver" | "gold") || "silver", err.detail)}>See plans</button>}</div>}

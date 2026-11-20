@@ -38,7 +38,21 @@ export const METRICS: Record<string, Metric> = {
   result_soon: { label: "Results due within (days)", unit: "days", group: "Results & ownership", live: false, tier: "basic", ops: ["event"], hint: "Tell me when a results date or board meeting for the company is announced inside this many days.", sample: 7 },
   news_keyword: { label: "News or filing mentions", unit: "", group: "News & filings", live: false, tier: "basic", ops: ["event"], hint: "Tell me when a new headline or filing for the company contains this word or phrase.", sample: 0, text: "e.g. dividend, buyback, acquisition" },
   new_filing: { label: "Any new filing", unit: "", group: "News & filings", live: false, tier: "silver", ops: ["event"], hint: "Tell me about every new exchange filing or document for the company.", sample: 0 },
+  discover_filing: { label: "A filing Discover sorts as…", unit: "", group: "News & filings", live: false, tier: "silver", ops: ["event"], hint: "An order win, new capacity or any of Discover's eight kinds, from the exchange filings of each weekday. For one stock or a whole list.", sample: 0 },
 };
+/** Task #272: Discover's eight kinds (discovery/board.py EVENTS), as the alert's chips say them; Order win and Capacity are ticked to start. */
+export const FILING_KINDS: { k: string; chip: string; lower: string }[] = [
+  { k: "order", chip: "Order win", lower: "order win" }, { k: "capacity", chip: "Capacity", lower: "capacity" }, { k: "partnership", chip: "Partnership", lower: "partnership" },
+  { k: "mna", chip: "Acquisition / merger", lower: "acquisition / merger" }, { k: "fundraise", chip: "Fund raising", lower: "fund raising" },
+  { k: "rating", chip: "Credit rating", lower: "credit rating" }, { k: "management", chip: "Management", lower: "management" }, { k: "legal", chip: "Legal / regulatory", lower: "legal / regulatory" },
+];
+export const DEFAULT_FILING_KINDS = ["order", "capacity"];
+/** "an order win or capacity filing" */
+export function kindsText(kinds: string[] | null | undefined): string {
+  const ws = FILING_KINDS.filter((x) => (kinds ?? DEFAULT_FILING_KINDS).includes(x.k)).map((x) => x.lower);
+  if (ws.length === FILING_KINDS.length) return "any of Discover's eight kinds";
+  return ws.length <= 1 ? (ws[0] ?? "a filing") : `${ws.slice(0, -1).join(", ")} or ${ws[ws.length - 1]}`;
+}
 export const GROUPS: Group[] = ["Price & momentum", "Technical signals", "Valuation", "Quality & growth", "FinLit IQ", "Results & ownership", "News & filings"];
 export const isEvent = (k: string) => METRICS[k]?.ops[0] === "event";
 /** Alerts with no number to choose: the server sets the target (alertengine.FIXED_TARGET). */
@@ -55,8 +69,9 @@ export function fmtValue(metric: string, v: number | null | undefined): string {
   return u === "₹" ? `${sign}₹${x}` : u === "Cr" ? `${sign}₹${x} Cr` : u === "pp" ? `${sign}${x} pp` : u === "days" ? `${x} days` : u ? `${sign}${x}${u}` : `${sign}${x}`;
 }
 /** "RSI (14) rises above 30" */
-export function describe(a: { metric: string; op: Op; value: number | null; keyword?: string | null }): string {
+export function describe(a: { metric: string; op: Op; value: number | null; keyword?: string | null; kinds?: string[] | null; digest?: boolean }): string {
   const m = METRICS[a.metric]; if (!m) return a.metric;
+  if (a.metric === "discover_filing") return `A filing Discover sorts as ${kindsText(a.kinds)}${a.digest ? " (one summary a day)" : ""}`;
   if (a.metric === "news_keyword") return `News or a filing mentions “${a.keyword}”`;
   if (a.metric === "new_filing") return "A new filing is published";
   if (a.metric === "result_soon") return `Results announced within ${a.value ?? 7} days`;

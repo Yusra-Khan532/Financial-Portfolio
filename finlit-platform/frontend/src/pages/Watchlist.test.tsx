@@ -4,6 +4,7 @@
 // Tell me when a label changes and the page's questions. Kept at the founder's request: row actions, list management, compare and sorting.
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Row } from "../lib/screener";
 import type { ListLead } from "../lib/watchlistPack";
@@ -27,6 +28,11 @@ vi.mock("../lib/taxonomy", async (orig) => ({ ...(await orig<typeof import("../l
   WHEELS: { symbol: "WHEELS", industry: "Auto Components" }, SSWL: { symbol: "SSWL", industry: "Auto Components" }, LOTUSDEV: { symbol: "LOTUSDEV", industry: "Realty" } } }) }));
 vi.mock("../components/PageFaqs", () => ({ PageFaqs: () => <section aria-label="Questions about this page" /> }));
 vi.mock("../components/AlertComposer", () => ({ AlertButton: ({ symbol, className }: { symbol: string; className?: string }) => <button className={className} aria-label={`Create an alert for ${symbol}`} /> }));
+// Task #272: Discover's filings of the list (GET /api/discovery/changes) and the last visit (POST /api/visits/watchlist), as of the pack's 20 Nov data
+const wc = vi.hoisted(() => ({ data: undefined as unknown, visit: null as string | null }));
+vi.mock("../lib/whatChanged", async (orig) => ({ ...(await orig<typeof import("../lib/whatChanged")>()),
+  useChanges: () => ({ data: wc.data, isLoading: false, isError: false, refetch: () => undefined }), useLastVisit: () => wc.visit }));
+vi.mock("../lib/alerts", async (orig) => ({ ...(await orig<typeof import("../lib/alerts")>()), useAlerts: () => ({ alerts: [], limit: 300, create: { mutate: vi.fn(), isPending: false }, remove: { mutate: vi.fn() } }) }));
 import { WatchlistPage } from "./Watchlist";
 import { watch } from "../lib/watchlist";
 
@@ -44,7 +50,7 @@ beforeEach(() => {
   st.toast.mockClear();
 });
 afterEach(cleanup);
-const open = () => { for (const s of PACK) watch.add(s); return render(<MemoryRouter><WatchlistPage /></MemoryRouter>); };
+const open = () => { for (const s of PACK) watch.add(s); return render(<QueryClientProvider client={new QueryClient()}><MemoryRouter><WatchlistPage /></MemoryRouter></QueryClientProvider>); };
 const table = () => screen.getByRole("table", { name: /your stocks/i });
 const rowOf = (sym: string) => within(table()).getByRole("link", { name: new RegExp("^" + sym) }).closest("tr") as HTMLElement;
 
@@ -169,5 +175,74 @@ describe("what the founder asked to keep", () => {
     expect(screen.getByRole("button", { name: "Lenders · 0" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Delete this list" }));
     expect(screen.queryByRole("button", { name: /Lenders/ })).toBeNull();
+  });
+});
+
+// Task #272 (Watchlists and Alerts, 20 Nov pack): "What changed at these companies", the filing chip, the new-order-win notice and
+// "Tell me when a company on this list files". The pack's 20 Nov data: Wheels India is not in Discover yet.
+const F = (n: number, d: string, t: string | null, dates?: string[]) => ({ n, d, t, l: t ? "https://nsearchives.nseindia.com/f.pdf" : null, dates: dates ?? Array(n).fill(d) });
+const CHANGES = () => ({ days: 90, events: ["order", "capacity", "partnership", "mna", "fundraise", "rating", "management", "legal"], notPlaced: [{ s: "WHEELS", n: "Wheels India Ltd" }], companies: [
+  { s: "SSWL", n: "Steel Strips Wheels", ev: { capacity: F(1, "2026-10-23", "Capacity addition"), management: F(2, "2026-10-23", "Outcome of the Board Meeting of 23 Oct 2026: appointment of directors") } as Record<string, ReturnType<typeof F>> },
+  { s: "LOTUSDEV", n: "Sri Lotus Developers & Realty", ev: { management: F(2, "2026-10-01", "Change in Management") } as Record<string, ReturnType<typeof F>> },
+] });
+describe("What changed at these companies (task #272)", () => {
+  beforeEach(() => { wc.data = CHANGES(); wc.visit = "2026-11-12T10:00:00Z"; });
+  it("sits under the list, before Price and business disagree, with the pack's words, tiles and rows", () => {
+    open();
+    const sec = screen.getByRole("heading", { name: "What changed at these companies" }).closest("section") as HTMLElement;
+    const order = [...document.querySelectorAll("section h2")].map((x) => x.textContent || "");
+    expect(order.indexOf("What changed at these companies")).toBeGreaterThan(order.findIndex((t) => t.startsWith("My watchlist")));
+    expect(order.indexOf("What changed at these companies")).toBeLessThan(order.findIndex((t) => t.startsWith("Price and business disagree")));
+    expect(within(sec).getByText("From Discover: 2 of the 3 companies on My watchlist filed one of these in the last 90 days.")).toBeTruthy();
+    expect(within(sec).getByText("My watchlist · 3 companies")).toBeTruthy();
+    expect(within(sec).getByText("Nothing new since your last visit on 12 Nov")).toBeTruthy();
+    expect(within(sec).getByRole("link", { name: "What changed in Discover ↗" }).getAttribute("href")).toBe("/discover/changes");
+    const tiles = within(sec).getByRole("group", { name: "Filter by kind of filing" });
+    expect(within(tiles).getAllByRole("button").map((b) => b.textContent)).toEqual(["Order wins0", "Capacity and commissioning1", "Partnerships and MoUs0", "Acquisitions and mergers0",
+      "Fund raising0", "Credit ratings0", "Management changes2", "Legal and regulatory0"]);
+    const rows = within(sec).getAllByRole("listitem");
+    expect(rows.map((r) => r.querySelector(".wc-co")?.textContent)).toEqual(["Steel Strips Wheels", "Steel Strips Wheels", "Sri Lotus Developers & Realty"]);
+    expect(rows[1].textContent).toContain("Management × 2");
+    expect(within(rows[2]).getByRole("link", { name: "Details in Discover ↗" }).getAttribute("href")).toBe("/discover/changes/management?q=Sri%20Lotus%20Developers%20%26%20Realty");
+    expect(within(rows[0]).getByRole("link", { name: "Filing ↗" }).getAttribute("href")).toMatch(/^https:\/\/nsearchives/);
+    expect(within(sec).getByText("Not in Discover yet: Wheels India Ltd (WHEELS). Filings as the companies reported them to NSE in the last 90 days; not a recommendation.")).toBeTruthy();
+    fireEvent.click(within(tiles).getByRole("button", { name: /Capacity and commissioning/ }));
+    expect(within(sec).getAllByRole("listitem")).toHaveLength(1);
+  });
+  it("marks what is new since the last visit: the count, a chip under the company and the green order-win notice with ×", () => {
+    const d = wc.data as ReturnType<typeof CHANGES>;
+    d.companies[0].ev.order = F(1, "2026-11-18", "Receipt of order worth Rs 120 crore");
+    open();
+    const sec = screen.getByRole("heading", { name: "What changed at these companies" }).closest("section") as HTMLElement;
+    expect(sec.querySelector(".wc-st")?.textContent).toBe("1 new since your last visit on 12 Nov");
+    expect(within(sec).getAllByRole("listitem")[0].textContent).toContain("Order win");          // order wins first
+    const chip = within(rowOf("SSWL")).getByRole("link", { name: "Order win · 18 Nov" });
+    expect(chip.getAttribute("href")).toBe("/discover/changes/order?q=Steel%20Strips%20Wheels");
+    expect(rowOf("LOTUSDEV").querySelector(".wc-chip")).toBeNull();                               // nothing new for Sri Lotus: no chip
+    const notice = document.querySelector(".wc-ow") as HTMLElement;
+    expect(notice.textContent).toContain("New order win · Steel Strips Wheels");
+    fireEvent.click(within(notice).getByRole("button", { name: "Close this notice" }));
+    expect(document.querySelector(".wc-ow")).toBeNull();
+  });
+  it("says nothing is new on a first visit, and Alert me opens the short form for the whole list", () => {
+    wc.visit = null; open();
+    const sec = screen.getByRole("heading", { name: "What changed at these companies" }).closest("section") as HTMLElement;
+    expect(within(sec).getByText("What is new shows from your next visit")).toBeTruthy();
+    fireEvent.click(within(sec).getByRole("button", { name: "Alert me" }));
+    const form = within(sec).getByRole("form", { name: "Tell me when a company in My watchlist files" });
+    expect(within(form).getByRole("checkbox", { name: "Order wins" })).toHaveProperty("checked", true);
+    expect(within(form).getByRole("checkbox", { name: "Capacity and commissioning" })).toHaveProperty("checked", true);
+    expect(within(form).getByRole("checkbox", { name: "Fund raising" })).toHaveProperty("checked", false);
+    expect(within(form).getByText("Checked on weekday evenings, once the day's filings are in. One alert for the whole list: 1 of your 300.")).toBeTruthy();
+    expect(within(form).getByRole("radio", { name: "Each filing" })).toHaveProperty("checked", true);
+  });
+  it("puts Tell me when a company on this list files beside Tell me when a label changes", () => {
+    open();
+    const card = screen.getByRole("heading", { name: /Tell me when a company on this list files/ }).closest("section") as HTMLElement;
+    expect(card.parentElement).toBe(screen.getByRole("heading", { name: "Tell me when a label changes" }).closest("section")!.parentElement);
+    expect(within(card).getByText("An order win, new capacity or any of Discover's eight kinds, from the exchange filings of each weekday.")).toBeTruthy();
+    expect(within(card).getAllByRole("button", { pressed: true }).map((b) => b.textContent)).toEqual(["Order win", "Capacity"]);
+    expect(within(card).getAllByRole("button", { pressed: false }).map((b) => b.textContent)).toEqual(["Partnership", "Acquisition / merger", "Fund raising", "Credit rating", "Management", "Legal / regulatory"]);
+    expect(within(card).getByRole("button", { name: "Set alert for this list" })).toBeTruthy();
   });
 });

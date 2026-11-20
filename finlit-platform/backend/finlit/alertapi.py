@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import BaseModel, Field, field_validator
 
 from . import alertengine as eng
+from . import filingalerts as fa
 from . import wake
 from .auth.routes import NO_STORE, SYMBOL, Ctx, fail, limit, secure_ctx
 
@@ -16,7 +18,7 @@ router = APIRouter(prefix="/api")
 
 
 class AlertIn(BaseModel):
-    symbol: str = Field(max_length=24)
+    symbol: str = Field(default="", max_length=24)
     metric: str = Field(max_length=40)
     op: Literal["above", "below", "event"]
     value: Optional[float] = Field(default=None, ge=-1e9, le=1e12)
@@ -24,12 +26,16 @@ class AlertIn(BaseModel):
     channels: List[str] = Field(default_factory=lambda: ["app"], max_length=4)
     repeat: Literal["once", "every"] = "once"
     note: Optional[str] = Field(default=None, max_length=140)
+    # task #272: "Applies to: A list" (filingalerts.LIST_REF) and the Discover kinds of a discover_filing alert; digest = one summary a day
+    list: Optional[str] = Field(default=None, max_length=48)
+    kinds: Optional[List[str]] = Field(default=None, max_length=8)
+    digest: bool = False
 
     @field_validator("symbol")
     @classmethod
     def _sym(cls, v: str) -> str:
         v = v.strip().upper()
-        if not SYMBOL.match(v):
+        if v and not SYMBOL.match(v):
             raise ValueError("bad symbol")
         return v
 
@@ -48,7 +54,8 @@ def alert_json(r: Any) -> Dict[str, Any]:
             "value": float(r["value"]) if r["value"] is not None else None, "keyword": r["keyword"], "channels": list(r["channels"]), "repeat": r["repeat"],
             "status": r["status"], "note": r["note"], "lastValue": float(r["last_value"]) if r["last_value"] is not None and r["op"] != "event" else None,
             "met": r["met"], "lastCheckedAt": r["last_checked"].isoformat() if r["last_checked"] else None,
-            "lastFiredAt": r["last_fired_at"].isoformat() if r["last_fired_at"] else None, "firedCount": r["fired_count"], "createdAt": r["created_at"].isoformat()}
+            "lastFiredAt": r["last_fired_at"].isoformat() if r["last_fired_at"] else None, "firedCount": r["fired_count"], "createdAt": r["created_at"].isoformat(),
+            "list": r["list_ref"], "kinds": list(r["kinds"]) if r["kinds"] else None, "digest": bool(r["digest"])}
 
 
 def notification_json(r: Any) -> Dict[str, Any]:
@@ -87,6 +94,36 @@ async def alert_value(request: Request, symbol: str = Query(max_length=24), metr
     return json_response({"value": v})
 
 
+@router.get("/alerts/lists")
+async def alert_lists(request: Request, ctx: Ctx = Depends(secure_ctx)):
+    """Task #272: the lists "Applies to: A list" offers (filingalerts.lists_of), with how many companies each holds. The funds' and ETFs' companies
+    are not offered yet: those pages (tasks #275-#277) build the look-through the list needs."""
+    async with request.app.state.store.pool.acquire() as conn:
+        st = await conn.fetchrow("SELECT watchlist, portfolio FROM user_state WHERE user_id = $1", ctx.user_id)
+    lists = fa.lists_of(st["watchlist"] if st else None, st["portfolio"] if st else None)
+    return json_response({"lists": [{"ref": x["ref"], "label": x["label"], "count": len(x["symbols"])} for x in lists], "kinds": fa.KINDS})
+
+
+PAGE = re.compile(r"^[a-z0-9-]{1,32}$")
+VISIT_ROLL_MINUTES = 30
+
+
+@router.post("/visits/{page}")
+async def page_visit(request: Request, page: str, ctx: Ctx = Depends(secure_ctx)):
+    """Task #272: the member's last visit to a page, for "Nothing new since your last visit on 12 Nov", the filing chips and the new-order-win notice.
+    Returns the visit before this one (null on a first visit). Opening the page again inside 30 minutes keeps the same answer, so a reload or a second
+    tab does not wipe what is new."""
+    if not PAGE.match(page):
+        raise fail(422, "bad_page")
+    async with request.app.state.store.pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "INSERT INTO page_visits (user_id, page) VALUES ($1, $2) ON CONFLICT (user_id, page) DO UPDATE SET "
+            "prev_at = CASE WHEN page_visits.seen_at < now() - make_interval(mins => $3) THEN page_visits.seen_at ELSE page_visits.prev_at END, "
+            "seen_at = CASE WHEN page_visits.seen_at < now() - make_interval(mins => $3) THEN now() ELSE page_visits.seen_at END RETURNING prev_at",
+            ctx.user_id, page, VISIT_ROLL_MINUTES)
+    return json_response({"previous": row["prev_at"].isoformat() if row and row["prev_at"] else None})
+
+
 @router.post("/alerts", status_code=201)
 async def create_alert(request: Request, body: AlertIn, ctx: Ctx = Depends(secure_ctx)):
     await limit(request, "alertw", ctx.user_id, 60, 600)
@@ -107,19 +144,44 @@ async def create_alert(request: Request, body: AlertIn, ctx: Ctx = Depends(secur
         raise fail(422, "value_required", "Enter the target value.")
     if body.metric != "news_keyword":
         keyword = None
+    # task #272: a list alert ("Applies to: A list") is a discover_filing alert on one of the member's lists; it is one alert however long the list is
+    list_ref, kinds, digest = None, None, False
+    if body.metric == fa.METRIC:
+        kinds = [k for k in fa.KINDS if k in set(body.kinds or [])]
+        if not kinds:
+            raise fail(422, "kinds_required", "Pick at least one kind of filing.")
+        digest = bool(body.digest)
+        body.value = None
+        if body.list:
+            if not fa.LIST_REF.match(body.list):
+                raise fail(422, "bad_list", "That list could not be found.")
+            list_ref = body.list
+            body.symbol = ""
+    elif body.list:
+        raise fail(422, "bad_list", "Only a filing alert can apply to a whole list.")
+    if not list_ref and not body.symbol:
+        raise fail(422, "symbol_required", "Pick a company.")
     channels = clean_channels(body.channels)
     pool = request.app.state.store.pool
     async with pool.acquire() as conn:
-        if not await conn.fetchval("SELECT EXISTS(SELECT 1 FROM companies WHERE symbol = $1) OR EXISTS(SELECT 1 FROM scores WHERE symbol = $1)", body.symbol):
+        if list_ref:
+            st = await conn.fetchrow("SELECT watchlist, portfolio FROM user_state WHERE user_id = $1", ctx.user_id)
+            if not fa.resolve(st["watchlist"] if st else None, st["portfolio"] if st else None, list_ref):
+                raise fail(404, "unknown_list", "That list could not be found. Open the page again and retry.")
+        elif not await conn.fetchval("SELECT EXISTS(SELECT 1 FROM companies WHERE symbol = $1) OR EXISTS(SELECT 1 FROM scores WHERE symbol = $1)", body.symbol):
             raise fail(404, "unknown_stock", "We could not find that company.")
         if await conn.fetchval("SELECT EXISTS(SELECT 1 FROM alerts WHERE user_id = $1 AND symbol = $2 AND metric = $3 AND op = $4 AND status <> 'done' "
-                               "AND value IS NOT DISTINCT FROM $5::numeric AND keyword IS NOT DISTINCT FROM $6)", ctx.user_id, body.symbol, body.metric, body.op, body.value, keyword):
+                               "AND value IS NOT DISTINCT FROM $5::numeric AND keyword IS NOT DISTINCT FROM $6 AND list_ref IS NOT DISTINCT FROM $7 "
+                               "AND kinds IS NOT DISTINCT FROM $8::text[] AND digest = $9)",
+                               ctx.user_id, body.symbol, body.metric, body.op, body.value, keyword, list_ref, kinds, digest):
             raise fail(409, "duplicate", "You already have this alert.")
         cap = eng.ALERT_LIMITS[ctx.plan]
         if await conn.fetchval("SELECT count(*) FROM alerts WHERE user_id = $1 AND status <> 'done'", ctx.user_id) >= cap:
             raise fail(403, "plan_limit", f"Your plan includes {cap} alerts at a time. Remove one that has finished, or upgrade.", plan="gold" if ctx.plan == "silver" else "silver")
         met, current, seen = None, None, None
-        if body.op == "event":
+        if body.metric == fa.METRIC:
+            seen = await fa.newest_signal(conn)     # only filings Discover sorts from now on count
+        elif body.op == "event":
             seen = await eng.newest_feed_id(conn, body.symbol)  # only things published from now on count
         else:
             current = await eng.current_value(conn, body.symbol, body.metric)
@@ -128,9 +190,10 @@ async def create_alert(request: Request, body: AlertIn, ctx: Ctx = Depends(secur
             else:
                 met = False
         row = await conn.fetchrow(
-            "INSERT INTO alerts (user_id, symbol, metric, op, value, keyword, channels, repeat, note, met, last_value) "
-            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *",
-            ctx.user_id, body.symbol, body.metric, body.op, body.value, keyword, channels, body.repeat, (body.note or "").strip() or None, met, current if current is not None else seen)
+            "INSERT INTO alerts (user_id, symbol, metric, op, value, keyword, channels, repeat, note, met, last_value, list_ref, kinds, digest) "
+            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *",
+            ctx.user_id, body.symbol, body.metric, body.op, body.value, keyword, channels, "every" if list_ref else body.repeat, (body.note or "").strip() or None, met,
+            current if current is not None else seen, list_ref, kinds, digest)
     await wake.set_alerts_flag(request.app.state.store.redis, True)   # an alert exists: the market-hours check must run (the next DB window corrects a false alarm)
     out = alert_json(row)
     out["alreadyMet"] = bool(met) if body.op != "event" else False
