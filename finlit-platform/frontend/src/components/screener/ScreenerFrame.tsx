@@ -127,6 +127,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
               {chips.map((c) => <button type="button" key={c.id} className="fchip" onClick={() => s.drop(c.id)} aria-label={`Remove filter ${c.label}`}>{c.label}<span aria-hidden="true">×</span></button>)}
               <button type="button" className="hf-clear" onClick={() => { s.setQ(""); s.clear(); }}>Clear all</button></>}
           </div>
+          {!topFilters && <SizeNote link={s.sizeMoved} />}   {/* task #262: with the header row, an old link's Small-now-Micro note sits under the filters */}
         </>) : (
         <div className="sx-stick"><Toolbar q={s.q} setQ={s.setQ} searchLabel="Search company name, sector or keyword" buttons={[
           { id: "cap", label: "Market cap", active: draft.caps.length, onClick: () => showPanel("cap") },

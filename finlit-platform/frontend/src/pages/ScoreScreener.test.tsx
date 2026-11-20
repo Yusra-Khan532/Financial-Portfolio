@@ -458,6 +458,13 @@ describe("Basic stock screener: no Prism", () => {
     fireEvent.click(b); fireEvent.mouseDown(document.body);
     expect(screen.queryByRole("dialog")).toBeNull();
   });
+  it("task #262: an old link's ?cap=Small reads Micro, with the one-time note under the header filters", () => {
+    open("?cap=Small");
+    expect(screen.getByText(/Company sizes changed on 20 Nov 2026: your Small filter now reads Micro\./)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Market cap\s?1/ })).toBeTruthy();
+    expect(opt(panel("Market cap"), "Micro cap").checked).toBe(true);
+    closePanel();
+  });
   it("a button shows how many of its filters are on, and the counts beside options are real", () => {
     open("?ind=IT+-+Software&ind=Automobiles&cap=Large");
     expect(screen.getByRole("button", { name: /^Industry\s?2/ })).toBeTruthy();
