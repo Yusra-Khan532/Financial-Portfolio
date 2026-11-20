@@ -127,6 +127,25 @@ Legend. **Table** means the database table and the migration that creates it (`b
 
 IDCW and "Other" options get no returns (a payout lowers the NAV, `mf.py:2008-2017`); the page says why.
 
+**History across a takeover's new codes (task #281, 20 Nov 2026).** When HSBC took over L&T's schemes in November 2022, AMFI gave the merged schemes new
+codes, so their FinLit history started on 28 Nov 2022 and 42 HSBC Growth schemes older than five years had no 5-year return. `finlit/mf_lineage.py` (a step
+of the nightly refresh-mf, at most 4 minutes a night) finds such schemes (a stored history starting more than 90 days after AMFI's launch date, from Feb 2013
+on), looks up the earlier codes on S3's scheme list (for HSBC: names starting "L&T" or "HSBC", Growth options, no longer active), and links one only when
+the NAVs join: same plan, the old code's last NAV at most 10 days before the new code's first, within 2%, same category, and clearly closer than any other
+candidate. The old code's NAVs are put before the scheme's own (none of its own days is replaced) and every figure is worked out again from the joined
+series. Links and evidence: `mf_predecessors` (migration 119); every old code looked at: `mf_lineage_cands`. The fund page names the earlier scheme
+under the source line. Checked against live data: all 42 November-2022 HSBC schemes link to the right L&T scheme (both plans of each to the same one);
+HSBC Small Cap Fund Direct Growth joined with L&T Emerging Businesses Fund (129220) gives 1y 13.02%, 3y 12.16% (AMFI's own figures) and 5y 16.02%
+(AMFI 15.96%: 19 Nov 2021, the 5-year start day, was a market holiday, and the two take the start NAV differently). More houses are added to
+`LINEAGE` in that file when a takeover gives schemes new codes; a rename that keeps the codes (IDFC to Bandhan) needs nothing.
+
+**Launch date (task #281).** AMFI's scheme master and AMFI's scheme-details page give the same launch date (HSBC Small Cap Fund: 22 Apr 2014, the offer
+opening of L&T Emerging Businesses Fund); some sites show the allotment date (12 May 2014). FinLit keeps AMFI's date (`disclosure._launch_fact`), the
+scheme's launch, and the line under it says when this plan began and the name the scheme was launched under (`disclosure.launch_note`): a Direct plan of
+a scheme launched before 2013 reads "Direct plan from 1 Jan 2013" (Direct plans began then; e.g. HDFC Small Cap Fund Direct Growth, scheme launched
+11 Feb 2008, which other sites show as 1 Jan 2013), or from its first NAV on file when that is more than a month later; a scheme whose code changed in a
+takeover reads "Launched as L&T Emerging Businesses Fund; AMFI gave the scheme a new code on 28 Nov 2022."
+
 ### 3.3 Fund facts
 
 | Parameter | Internal name | Type, unit | Source | Table (migration) | Route | Shown | Notes |

@@ -1051,6 +1051,7 @@ async def refresh(store, settings=None, backfill_amc: Optional[str] = None, *, c
     3. Today's NAV is appended to each stored history (the hot schemes') and their returns / volatility / drawdown are worked out again.
     4. If whole days were missed (the job did not run), AMFI's industry-wide history for just those days fills the hole.
     5. Every other Growth scheme gets its 1, 3 and 5 year returns worked out again from AMFI's history for just the three start dates (`refresh_anchors`).
+       A scheme whose code changed in a takeover gets its earlier code's NAV history joined before its own (task #281, `finlit/mf_lineage.py`).
     6. Month-end NAVs: today's NAV is folded into every Growth scheme's month-end series, month-ends not read yet come from AMFI's history (a few each
        run until the full history is filled), and the SIP returns and month-end fall are worked out again (`refresh_monthly`).
     7. Fund size, expense ratio and the checklist are copied / worked out for the category table (`derive_dashboard`).
@@ -1084,6 +1085,7 @@ async def refresh(store, settings=None, backfill_amc: Optional[str] = None, *, c
         if backfill_amc:
             res["backfill"] = await backfill(store, settings, amc=backfill_amc, client=client)
         res["anchors"] = await refresh_anchors(store, client, newest)
+        res["lineage"] = await _guarded("lineage", _lineage(store, client))   # task #281: history across a takeover's new codes, before the month-ends
         res["monthly"] = await _guarded("monthly", refresh_monthly(store, client, newest))
         res["dashboard"] = await _guarded("dashboard", derive_dashboard(store))
         res["hot"] = await refresh_hot(store, client)
@@ -1305,6 +1307,15 @@ async def refresh_anchors(store, client, newest: date) -> dict:
                                   r1m = NULL, r6m = NULL, vol1y = NULL, vol3y = NULL, mdd = NULL WHERE code = $1""", upd)
     out["updated"] = len(upd)
     return out
+
+
+LINEAGE_SECONDS = 240         # the nightly refresh-mf asks the mirror about earlier codes for at most this long; the rest are asked on the next runs
+
+
+async def _lineage(store, client) -> dict:
+    """Task #281: link schemes whose code changed in a takeover to their earlier code and join the history (finlit/mf_lineage.py); time-limited."""
+    from .mf_lineage import link
+    return await link(store, client, max_seconds=LINEAGE_SECONDS)
 
 
 async def _guarded(step: str, job) -> dict:
@@ -2308,6 +2319,8 @@ async def detail_payload(app, row) -> dict:
         kin = await conn.fetch("SELECT code, name, plan, option_class, option_label, nav, nav_date, active, isin FROM mf_schemes WHERE family = $1 AND code <> $2 ORDER BY plan, option_class, name LIMIT 40",
                                row["family"], row["code"])
         facts = await _facts(conn)
+        from .mf_lineage import notes as lineage_notes
+        earlier = await lineage_notes(conn, row["code"])   # task #281: the history includes an earlier code's NAVs (a takeover gave the scheme a new code)
     empty = {"value": None, "kind": "absolute", "from": None, "why": returns_note(row, source, bool(days))}
     ret = returns_json(m) if m else {k: {**empty, "kind": "cagr" if mo > 12 else "absolute"} for k, mo, _ in HORIZONS}
     if not m:
@@ -2323,7 +2336,8 @@ async def detail_payload(app, row) -> dict:
             "returns": ret, "risk": risk, "retDate": iso(row["metrics_date"]), "returnsNote": returns_note(row, source, bool(days)) if not m and ret["1y"]["value"] is None and ret["5y"]["value"] is None else None,
             "series": series_block(days, navs) if m else {},
             "history": {"source": source if days else None, "from": iso(date.fromordinal(days[0])) if days else None, "to": iso(date.fromordinal(days[-1])) if days else None,
-                        "points": len(days), "complete": complete, "note": note if source != "amfi" else None},
+                        "points": len(days), "complete": complete, "note": note if source != "amfi" else (earlier["note"] if earlier and days else None),
+                        "earlier": earlier if days else None},
             "family": [{"code": k["code"], "name": k["name"], "plan": k["plan"], "optionClass": k["option_class"], "option": k["option_label"], "nav": k["nav"],
                         "navDate": iso(k["nav_date"]), "active": k["active"], "isin": k["isin"] or None} for k in kin],   # task #183: each option by its ISIN
             "notAvailable": NOT_AVAILABLE, **facts}
