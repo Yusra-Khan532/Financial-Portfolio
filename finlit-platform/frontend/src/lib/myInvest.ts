@@ -2,7 +2,7 @@
 // (finlit/myinvest). The shares come from the Equity portfolio list in this browser and the account (sent as symbol and quantity only); the funds and ETFs
 // are read by the server from the member's MF portfolio and ETF portfolio. Every figure, weight, band and cut-off is worked out on the server; this file
 // only types the answer and writes numbers as words. Describes; never advises.
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { apiSend, type ApiError } from "./api";
 import { MINUS, nf } from "./format";
 import { DEFAULT_PF, type Holding } from "./portfolio";
@@ -81,7 +81,8 @@ export const ALL_KEY = "all-investments";
 export type AccountPick = { eq: string[] | null; mf: string; etf: string };
 export const useAllInvestments = (hs: Holding[], enabled: boolean, pick?: AccountPick | null) => {
   const body = { ...sharesBody(pick?.eq ? hs.filter((h) => pick.eq!.includes(h.pf ?? DEFAULT_PF)) : hs), ...(pick ? { mfPf: pick.mf, etfPf: pick.etf } : {}) };
-  return useQuery<AllInvestments, ApiError>({ queryKey: [ALL_KEY, body], queryFn: () => apiSend<AllInvestments>("POST", "/api/me/all-investments", body), enabled, staleTime: 120_000, retry: 1 });
+  // task #277: switching account keeps the last figures on screen until the account's own arrive (the top and Your portfolios do not vanish meanwhile)
+  return useQuery<AllInvestments, ApiError>({ queryKey: [ALL_KEY, body], queryFn: () => apiSend<AllInvestments>("POST", "/api/me/all-investments", body), enabled, staleTime: 120_000, retry: 1, placeholderData: keepPreviousData });
 };
 
 /** ₹ in lakh or crore, as the design writes it ("₹14.2 L", "₹1.3 Cr", "₹61,400"). */
