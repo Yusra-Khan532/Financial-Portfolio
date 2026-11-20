@@ -138,6 +138,12 @@ export function furthest(d: AllInvestments, go: Go): KfCard {
     bar: { kind: "bars", rows: e.map((y) => ({ label: y.symbol, v: Math.abs(y.premium!), color: y.premium! < 0 ? C.lo : C.hi, txt: `${y.premium! > 0 ? "+" : y.premium! < 0 ? "−" : ""}${nf(Math.abs(y.premium!), 2)}%` })), max: Math.max(...e.map((y) => Math.abs(y.premium!))) * 1.1 },
     rest: "Price against value compares each ETF's last price with its NAV of the same day.", link: { label: "See your ETFs", go: () => go("mi-etf-list") } };
 }
+/** What each ETF follows. A label two ETFs share (a kind such as "International", when no index is known) names those ETFs by their own names instead, which
+ *  carry the index ("Mirae Asset NYSE FANG+ ETF"): QA of 21 Nov, item 11, read "International, Gold and International". */
+export function trackNames(e: { symbol: string; name?: string | null; tracks?: string | null; categoryLabel?: string | null }[]): string[] {
+  const lab = e.map((x) => x.tracks ?? x.categoryLabel ?? x.symbol);
+  return lab.map((l, i) => (lab.filter((y) => y === l).length > 1 ? e[i].name || e[i].symbol : l));
+}
 /** Live number fix 8: "Same index twice: None" is not a card; "Each ETF follows a different index" only when no two share one. */
 function twice(d: AllInvestments, go: Go): KfCard {
   const rep = d.cards.etfs.repeats ?? [], e = d.etfs;
@@ -146,7 +152,7 @@ function twice(d: AllInvestments, go: Go): KfCard {
     rest: "Two ETFs on one index hold the same companies in the same weights.", link: { label: "See your ETFs", go: () => go("mi-etf-list") } };
   if (e.length < 2) return null;
   return { tone: "good", k: "No two the same", say: <><b>Each ETF follows a different index</b>.</>, bar: null,
-    rest: <>{joinWords(e.map((x) => x.tracks ?? x.categoryLabel ?? x.symbol))}.</>, link: { label: "See what is inside", go: () => go("mi-etf-inside") } };
+    rest: <>{joinWords(trackNames(e))}.</>, link: { label: "See what is inside", go: () => go("mi-etf-inside") } };
 }
 
 // ------------------------------------------------------------------------------------------------ the section
@@ -176,7 +182,7 @@ export function KeyFiguresSection({ d, view, go }: { d: AllInvestments; view: Ta
   return (
     <section className="card mi7-kf" id="mi-kf" aria-labelledby="mi-kf-h">
       <div className="mi7-kfh"><h2 id="mi-kf-h">Key figures</h2><p>{SUB[view](d)}</p></div>
-      <div className="mi7-kfrow">{cards.map((c) => (
+      <div className={"mi7-kfrow n" + cards.length}>{cards.map((c) => (
         <article key={c.k} className={"mi7-kfc t-" + c.tone}>
           <p className="mi7-k">{c.k}</p>
           <p className="mi7-kfsay">{c.say}</p>

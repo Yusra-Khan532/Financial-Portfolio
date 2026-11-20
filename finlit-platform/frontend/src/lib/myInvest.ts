@@ -35,8 +35,15 @@ export type Sector = SplitRow & { sector: string; named: boolean };
 export type Size = SplitRow & { size: string };
 export type Company = SplitRow & { symbol: string | null; name: string; abroad: boolean; macro: string; size: string | null; held: ("D" | "F" | "E")[]; via: string[]; score: number | null; label: string | null; peer: string };
 /** Task #277 (fix 4): the window a beta was worked out over ("vs Nifty 500 · weekly · past year"), printed under every beta on the page. */
-export type BetaWindow = { index: string; grain: string; window: string; weeks?: number; from?: string; to?: string };
-export const betaWindowTxt = (w: BetaWindow | null | undefined) => (w ? `vs ${w.index} · ${w.grain} · ${w.window}` : "vs Nifty 500 · weekly · past year");
+export type BetaWindow = { index: string; grain: string; window: string; weeks?: number; from?: string; to?: string; counted?: number; of?: number; short?: string[] };
+/** "vs Nifty 500 · weekly · past year"; when some holdings were left out (under most of a year of weekly prices, QA of 21 Nov), "· 69 of 71 (UTLSOLAR and TIMEX: under a year of prices)". */
+export const betaWindowTxt = (w: BetaWindow | null | undefined) => {
+  if (!w) return "vs Nifty 500 · weekly · past year";
+  const base = `vs ${w.index} · ${w.grain} · ${w.window}`;
+  if (w.counted == null || w.of == null || w.counted === w.of) return base;
+  const left = (w.short ?? []).filter(Boolean);
+  return `${base} · ${w.counted} of ${w.of}${left.length ? ` (${left.length <= 3 ? joinWords(left) : `${left.slice(0, 2).join(", ")} and ${left.length - 2} more`}: under a year of prices)` : ""}`;
+};
 export type KindRisk = { beta: number | null; betaWindow?: BetaWindow | null; swing: number | null; worstFall: number | null; years: number | null; why: string | null; cover?: number; benchSwing?: number | null; benchWorstFall?: number | null };
 export type RiskPart = { kind: Kind; money: number | null; beta: number | null; band?: string | null; riskShare: number | null; red: boolean };
 export type Risk = { beta: number | null; band?: string | null; /** task #277 (fix 6): the band word and its sentence, from one band */ bandLine?: string | null; why: string | null; parts: RiskPart[]; largest?: Kind; fall10?: { pct: number | null; value: number | null };

@@ -11,6 +11,7 @@ import { AlertMeForm } from "./AlertMe";
 import "../../styles/what-changed.css";
 
 const FIRST = 6;
+const NEW_TAB = { target: "_blank", rel: "noopener noreferrer" } as const;
 
 /** The block's data for a page: the rows, the last visit, what is new. Pages call it too (for the chip and the order-win notice): one request either way. */
 export function useWhatChanged(symbols: string[], page: string) {
@@ -44,7 +45,7 @@ export function OrderWinNotice({ row, page }: { row: ChangeRow | null; page: str
   );
 }
 
-export function WhatChanged({ symbols, listName, listRef, page, lists, activeList, onPickList, nameOf, title = "What changed at these companies", sub, lede, foot, countLabel, alertLabel, className = "wp-sec wc", hId = "wc-h", id = "what-changed" }: {
+export function WhatChanged({ symbols, listName, listRef, page, lists, activeList, onPickList, nameOf, title = "What changed at these companies", sub, lede, foot, countLabel, alertLabel, className = "wp-sec wc", hId = "wc-h", id = "what-changed", newTab = false }: {
   symbols: string[]; listName: string; listRef: string; page: string; lists?: ListTab[]; activeList?: string; onPickList?: (id: string) => void;
   nameOf?: (s: string) => string | undefined; title?: string;
   /** task #276 (the portfolio pages): a line under each company, e.g. "0.36% of your ETFs · SMALL250"; task #277: how it is held ("D F E 2.36% of everything") */
@@ -52,6 +53,7 @@ export function WhatChanged({ symbols, listName, listRef, page, lists, activeLis
   /** the line under the title, in place of the count headline */ lede?: string; /** what the foot line starts with, before the filings line */ foot?: string;
   /** the label of the count, e.g. "Inside your ETFs" (default: the list's name) */ countLabel?: string; /** the list as the Alert me form names it */ alertLabel?: string;
   className?: string; hId?: string; id?: string;
+  /** task #277 (QA of 21 Nov, item 12): the Discover links say ↗, so on All my investments they open in a new tab */ newTab?: boolean;
 }) {
   const { q, rows, lastVisit, newN } = useWhatChanged(symbols, page);
   const [kind, setKind] = useState<string | null>(null), [all, setAll] = useState(false), [alertOpen, setAlertOpen] = useState(false);
@@ -70,7 +72,7 @@ export function WhatChanged({ symbols, listName, listRef, page, lists, activeLis
           : <b className="wc-ln">{countLabel ?? listName} · {symbols.length} compan{symbols.length === 1 ? "y" : "ies"}</b>}
         <span className="wc-st">{newN > 0 ? <><i className="wc-nd" aria-hidden="true" /><b>{newN} new</b> since your last visit on {visit}</> : lastVisit ? `Nothing new since your last visit on ${visit}` : "What is new shows from your next visit"}</span>
         <span className="wc-grow" />
-        <Link className="wc-dl" to={DISCOVER_CHANGES}>What changed in Discover ↗</Link>
+        <Link className="wc-dl" to={DISCOVER_CHANGES} {...(newTab ? NEW_TAB : {})}>What changed in Discover ↗</Link>
         <button type="button" className="wc-am-btn" aria-expanded={alertOpen} onClick={() => setAlertOpen((v) => !v)}><Icon name="bell" />Alert me</button>
       </div>
       <div className="wc-tiles" role="group" aria-label="Filter by kind of filing">
@@ -93,7 +95,7 @@ export function WhatChanged({ symbols, listName, listRef, page, lists, activeLis
                 <span className="wc-t">{r.t ?? `${r.count} ${r.count === 1 ? KIND[r.k].one : KIND[r.k].many} in ${q.data?.days ?? 90} days · the subjects are in Discover`}{r.fresh > 0 && <em className="wc-new">New</em>}</span>
                 <span className="wc-ln2">
                   {r.t && r.l && <a href={r.l} target="_blank" rel="noopener noreferrer">Filing ↗</a>}
-                  <Link to={discoverLink(r.k, r.n)}>Details in Discover ↗</Link>
+                  <Link to={discoverLink(r.k, r.n)} {...(newTab ? NEW_TAB : {})}>Details in Discover ↗</Link>
                 </span>
               </li>))}
           </ul>}

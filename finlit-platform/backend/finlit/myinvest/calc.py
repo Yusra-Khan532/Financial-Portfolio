@@ -169,7 +169,7 @@ def changes_list(companies: List[Dict[str, Any]]) -> Dict[str, List[str]]:
 def filter_counts(companies: Sequence[Dict[str, Any]]) -> Dict[str, int]:
     """The company table's four filters, each with its count."""
     return {"all": len(companies), "twice": sum(1 for c in companies if c["ways"] >= 2),
-            "through": sum(1 for c in companies if c["direct"] == 0), "direct": sum(1 for c in companies if c["direct"] > 0 and c["ways"] == 1)}
+            "through": sum(1 for c in companies if c["direct"] == 0 and c["ways"] == 1), "direct": sum(1 for c in companies if c["direct"] > 0 and c["ways"] == 1)}
 
 
 def peer_word(raw: Optional[str], direct: bool) -> str:

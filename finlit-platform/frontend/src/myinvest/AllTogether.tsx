@@ -28,6 +28,14 @@ export const filterRows = (rows: Company[], f: Filter) =>
 const MIX_CLS: Record<string, string> = { indian: "m-in", abroad: "m-ab", gold: "m-au", debt: "m-dc", other: "m-ot", notLoaded: "m-nl" };
 
 type MoneyAll = Record<Kind | "all", KindMoney> | null;
+/** The open view's sections as the view bar lists them: Steps 1–6, with Key figures and What changed (a dot, no number) after Step 4 (QA of 21 Nov, item 6). */
+function sectionItems(): { id: string; n: number; label: string }[] {
+  return ALL_SECTIONS.flatMap((x, i) => {
+    const it = { id: x.id, n: i + 1, label: x.label };
+    return x.id === "mi-every" ? [it, { id: "mi-kf", n: 0, label: "Key figures" }, { id: "what-changed", n: 0, label: "What changed" }] : [it];
+  });
+}
+
 export function AllTogether({ d, money, toTab, openQty, stickyLead }: { d: AllInvestments; money?: MoneyAll; toTab: (t: Tab) => void; openQty: () => void; /** task #277: the portfolio and views, shown in Step 4's row while it stays up */ stickyLead?: ReactNode }) {
   const [filter, setFilter] = useState<EveryFilter>(NO_FILTER);
   const kinds = kindsHeld(d);
@@ -152,7 +160,7 @@ function Every({ d, filter, setFilter, lead }: { d: AllInvestments; filter: Ever
         info={["Every company you own, once, with what you hold directly, through funds and through ETFs added up.", "All together is your real share of the company; Held shows the ways: D direct, F through a fund, E through an ETF."]} />
       {/* task #277 (change 18): one row of filters across every company, which stays up while the table is scrolled */}
       <FilterRow rows={d.companies} f={filter} set={set} plan={d.plan === "gold" ? "gold" : "silver"} lead={lead}
-        sections={<SectionsMenu items={ALL_SECTIONS.map((x, i) => ({ id: x.id, n: i + 1, label: x.label }))} here="mi-every" go={go} all={() => go("mi-tabs")} />} />
+        sections={<SectionsMenu items={sectionItems()} here="mi-every" go={go} all={() => go("mi-tabs")} />} />
       <div id="mi-every-t" className="mi7-anchor" />
       <HScroll label="Every company you own" className="mi-freeze">
         <table className="mi-tb mi-co">
@@ -247,7 +255,7 @@ function RiskStep({ d }: { d: AllInvestments; money?: MoneyAll }) {
               <td className="r">{x?.swing != null ? <>{pctOf(x.swing)}{x.years ? <small> ({nf(x.years, 1)} y)</small> : null}</> : "—"}</td><td className="r mi-down">{x?.worstFall != null ? pctOf(x.worstFall) : "—"}</td></tr>); })}</tbody>
         </table>
       </HScroll>
-      <p className="mi-small">Swing and worst fall are each kind's own figure, as on its portfolio page (shares: weekly prices; funds and ETFs: daily, three years){r.bench ? `; the Nifty 500 swung ${pctOf(r.bench.swing)} a year and fell at most ${pctOf(r.bench.worstFall)} from ${dateRange(r.bench.from, r.bench.to)}` : ""}. A figure for everything together needs the three kinds' daily lines, so it is not shown.</p>
+      <p className="mi-small">Swing and worst fall are each kind's own figure, as on its portfolio page (shares: weekly prices; funds and ETFs: daily, three years){r.bench ? `; the Nifty 500, daily, swung ${pctOf(r.bench.swing)} a year and fell at most ${pctOf(r.bench.worstFall)} from ${dateRange(r.bench.from, r.bench.to)} (the Equity tab sets your shares beside the Nifty 500 over their own weeks)` : ""}. A figure for everything together needs the three kinds' daily lines, so it is not shown.</p>
       {/* task #235 (pack C4, C5): the Equity page's fall picture, weighted by value now, with each kind's share of the money and the size of the fall */}
       {r.beta != null && <div className="pfx mi-fx"><MarketFall id="mi-fall" what="Nifty 500" idx="Nifty 500" value={d.byValue && d.total ? { now: d.total } : null} noRupees={!d.byValue}
         worst={r.bench?.worstFall != null && r.bench.worstFall < 0 ? { pct: -r.bench.worstFall, line: "the Nifty 500’s worst in 3 years" } : null}
