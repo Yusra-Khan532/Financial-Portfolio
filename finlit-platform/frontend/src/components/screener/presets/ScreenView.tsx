@@ -378,7 +378,7 @@ export function ScreenView({ route }: { route: PresetRoute }) {
       {!gainers && sessions.length > 0 && <DateBar sessions={sessions} asOn={asOn} setAsOn={setAsOn} list={d?.list ?? null} />}
       {(gainers || sessions.length === 0) && (d || preset) && (      /* no saved list to pick from yet: the screen's own count and date */
         <p className="psx-meta">{d ? <><b>{d.topCount ? `${nf(d.count, 0)} pass · the top ${d.topCount} first` : d.listText || `${nf(d.count, 0)} match`}</b>
-          {!d.listText && !d.topCount && !paged && d.shown !== d.count && <span>showing {nf(d.shown, 0)}</span>}{d.asOf && <span>as of {dateIN(d.asOf)}</span>}</>
+          {!d.listText && !d.topCount && !paged && d.shown !== d.count && <span>showing {nf(d.shown, 0)}</span>}{d.asOf && <span>as of {dateIN(d.asOf)}</span>}{d.priceDay && d.asOf && d.priceDay > d.asOf.slice(0, 10) && <span>price and day change: latest, {dateIN(d.priceDay)}</span>}</>
           : preset?.count != null ? <><b>{preset.listText || `${nf(preset.count, 0)} match`}</b>{preset.asOf && <span>as of {dateIN(preset.asOf)}</span>}</> : null}</p>)}
       {gainers && (hist.data?.sessions?.length ?? 0) > 0 && <p className="psx-notes"><PsxInfo text={INFO_ASON_GAINERS} label="As on" /> Top gainers as they stood after the {onDay} close.</p>}
       {!!preset?.chips.length && (

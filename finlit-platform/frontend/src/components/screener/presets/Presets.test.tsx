@@ -105,11 +105,19 @@ describe("screen view", () => {
     expect(screen.getByText("86 match")).toBeTruthy();
     expect(screen.getByText("showing 3")).toBeTruthy();
     expect(screen.getByText(/as of 31 Oct 2026/)).toBeTruthy();
+    expect(screen.queryByText(/price and day change: latest/)).toBeNull();          // task #269: said only when the prices are newer than the list
     expect(screen.getByRole("button", { name: "How this screen works ▾" })).toBeTruthy();      // task #243 (P2): in the header, opens the rules
     expect(screen.getByText("A screen narrows a list. It is not a recommendation.")).toBeTruthy();
     expect(screen.getByText("Prism-confirmed")).toBeTruthy();
     expect(screen.getAllByRole("link", { name: /AAA/ })[0].getAttribute("href")).toBe("/stocks/AAA");   // the company, then its report
     expect(within(rowOf("BBB")).getAllByLabelText("not available").length).toBe(1);   // a missing value is a dash, not 0
+  });
+  it("a screen whose prices are newer than its list says so: the list's date, and the prices' day (task #269)", async () => {
+    detail.large = [200, { ...DETAIL, priceDay: "2026-11-02" }];
+    mount("?preset=large");
+    await screen.findByRole("table");
+    expect(screen.getByText(/as of 31 Oct 2026/)).toBeTruthy();
+    expect(screen.getByText("price and day change: latest, 2 Nov 2026")).toBeTruthy();
   });
   it("sorts the shown rows client-side, missing values last", async () => {
     mount("?preset=large");
