@@ -140,7 +140,11 @@ HSBC Small Cap Fund Direct Growth joined with L&T Emerging Businesses Fund (1292
 `LINEAGE` in that file when a takeover gives schemes new codes; a rename that keeps the codes (IDFC to Bandhan) needs nothing.
 
 **Launch date (task #281).** AMFI's scheme master and AMFI's scheme-details page give the same launch date (HSBC Small Cap Fund: 22 Apr 2014, the offer
-opening of L&T Emerging Businesses Fund); some sites show the allotment date (12 May 2014). FinLit keeps AMFI's date (`disclosure._launch_fact`).
+opening of L&T Emerging Businesses Fund); some sites show the allotment date (12 May 2014). FinLit keeps AMFI's date (`disclosure._launch_fact`), the
+scheme's launch, and the line under it says when this plan began and the name the scheme was launched under (`disclosure.launch_note`): a Direct plan of
+a scheme launched before 2013 reads "Direct plan from 1 Jan 2013" (Direct plans began then; e.g. HDFC Small Cap Fund Direct Growth, scheme launched
+11 Feb 2008, which other sites show as 1 Jan 2013), or from its first NAV on file when that is more than a month later; a scheme whose code changed in a
+takeover reads "Launched as L&T Emerging Businesses Fund; AMFI gave the scheme a new code on 28 Nov 2022."
 
 ### 3.3 Fund facts
 

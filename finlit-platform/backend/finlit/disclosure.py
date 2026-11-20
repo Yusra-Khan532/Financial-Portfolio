@@ -500,6 +500,30 @@ def _launch_fact(me) -> dict:
     return {"unavailable": NOT_LOADED if me["name_key"] is None else "AMFI's scheme master gives no launch date for this scheme."}
 
 
+DIRECT_PLANS_BEGAN = date(2013, 1, 1)   # SEBI's Direct plans began industry-wide on 1 Jan 2013
+
+
+def _day(d: date) -> str:
+    return f"{d.day} {d.strftime('%b %Y')}"
+
+
+def launch_note(plan: Optional[str], launch: Optional[date], first_nav: Optional[date], old_name: Optional[str], new_code_from: Optional[date]) -> Optional[str]:
+    """The line under the launch date (task #281). The launch date stays the SCHEME's (AMFI's); this says when this plan began and under which name the
+    scheme was launched, because other sites show those instead (HDFC Small Cap Fund: scheme 11 Feb 2008, Direct plan 1 Jan 2013; HSBC Small Cap Fund:
+    launched in 2014 as L&T Emerging Businesses Fund).
+    - A Direct plan of a scheme launched before Direct plans existed: "Direct plan from 1 Jan 2013", or from its first NAV on file when that is later.
+    - A scheme whose AMFI code changed in a takeover: the name it was launched under and the day the new code began."""
+    parts = []
+    if old_name and new_code_from:
+        base = re.split(r"\s*-\s*(?=(?:direct|regular)\b)", old_name, flags=re.I)[0].strip(" -")
+        parts.append(f"Launched as {base}; AMFI gave the scheme a new code on {_day(new_code_from)}.")
+    if plan == "Direct" and launch and launch < DIRECT_PLANS_BEGAN:
+        # a first NAV in January 2013 is the industry-wide start (the first working days); a later one is this plan's own start
+        start = first_nav if first_nav and (first_nav - DIRECT_PLANS_BEGAN).days > 31 else DIRECT_PLANS_BEGAN
+        parts.append(f"Direct plan from {_day(start)}" + (" (Direct plans began on 1 Jan 2013)." if start == DIRECT_PLANS_BEGAN else " (its first NAV)."))
+    return " ".join(parts) or None
+
+
 async def get_facts(pool, key) -> Optional[dict]:
     """Facts of one scheme: `key` is an AMFI scheme code (fund pages) or an ISIN (ETF pages). Each fact is {value, asOf?, source, note?} or
     {unavailable: reason}. None when the scheme is unknown."""
@@ -510,6 +534,9 @@ async def get_facts(pool, key) -> Optional[dict]:
             return None
         me, fam, ter = await _facts_rows(conn, int(code))
         loaded = bool(await conn.fetchval("SELECT EXISTS (SELECT 1 FROM mf_facts WHERE aum_lakh IS NOT NULL)")) if me else False
+        # task #281: when this plan began (its first NAV on file) and the name the scheme was launched under, for the line under the launch date
+        lineage = await conn.fetchrow("SELECT (SELECT d0 FROM mf_history WHERE code = $1) AS d0, p.old_name, p.new_first FROM (SELECT 1) one "
+                                      "LEFT JOIN mf_predecessors p ON p.code = $1", int(code)) if me else None
     if me is None:
         return None
     try:   # holdings-side facts (finlit.portfolios): exit load, benchmark, risk-o-meter, managers; missing ones keep their reason
@@ -525,6 +552,12 @@ async def get_facts(pool, key) -> Optional[dict]:
     launch = _launch_fact(me)
     if "unavailable" in launch and extra.get("launchDate"):
         launch = extra["launchDate"]
+    if "unavailable" not in launch and lineage is not None:
+        # the plan's own first NAV: with a joined earlier history (a takeover), the earlier code's first NAV is the plan's start
+        first = lineage["d0"]
+        note = launch_note(me["plan"], date.fromisoformat(str(launch["value"])[:10]), first, lineage["old_name"], lineage["new_first"])
+        if note:
+            launch = {**launch, "note": " ".join(x for x in (launch.get("note"), note) if x)}
     out = {"aum": aum, "launchDate": launch, "benchmark": extra.get("benchmark") or {"unavailable": NO_BENCHMARK},
            "riskometer": extra.get("riskometer") or {"unavailable": NO_RISKOMETER}, "managers": extra.get("managers") or {"unavailable": NO_MANAGERS}}
     if isinstance(key, int) or str(key).isdigit():     # a mutual fund page: both plans' TER, the scheme's minimum, exit load unknown

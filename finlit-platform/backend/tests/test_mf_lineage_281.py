@@ -101,6 +101,24 @@ def test_a_joined_series_has_a_5_year_return_and_the_cut_one_has_none():
     assert "28 Nov 2022" in L.note_for("L&T Emerging Businesses Fund - Direct Plan - Growth", FIRST)
 
 
+def test_the_launch_date_stays_the_schemes_and_the_line_under_it_says_when_this_plan_began():
+    from finlit.disclosure import launch_note
+    # HDFC Small Cap Fund Direct Growth (130503): scheme launched 11 Feb 2008 (AMFI); its Direct plan began with all Direct plans, 1 Jan 2013 (other sites show this)
+    assert launch_note("Direct", date(2008, 2, 11), date(2013, 1, 2), None, None) == "Direct plan from 1 Jan 2013 (Direct plans began on 1 Jan 2013)."
+    assert launch_note("Direct", date(2008, 2, 11), None, None, None) == "Direct plan from 1 Jan 2013 (Direct plans began on 1 Jan 2013)."
+    # a Direct plan whose first NAV came well after 2013: its own start
+    assert launch_note("Direct", date(2008, 2, 11), date(2015, 6, 3), None, None) == "Direct plan from 3 Jun 2015 (its first NAV)."
+    # the Regular plan, or a scheme launched after 2013: nothing to add
+    assert launch_note("Regular", date(2008, 2, 11), date(2008, 4, 3), None, None) is None
+    assert launch_note("Direct", date(2014, 4, 22), date(2014, 5, 15), None, None) is None
+    # HSBC Small Cap Fund (151130): launched in 2014 as L&T Emerging Businesses Fund; the new code began on 28 Nov 2022
+    assert launch_note("Direct", date(2014, 4, 22), date(2014, 5, 15), "L&T Emerging Businesses Fund - Direct Plan - Growth", FIRST) == (
+        "Launched as L&T Emerging Businesses Fund; AMFI gave the scheme a new code on 28 Nov 2022.")
+    # HSBC Value Fund Direct: launched in 2010 as L&T India Value Fund, so both lines
+    assert launch_note("Direct", date(2010, 1, 8), date(2013, 1, 2), "L&T India Value Fund-Direct Plan-Growth", FIRST) == (
+        "Launched as L&T India Value Fund; AMFI gave the scheme a new code on 28 Nov 2022. Direct plan from 1 Jan 2013 (Direct plans began on 1 Jan 2013).")
+
+
 NAV = """Scheme Code;ISIN Div Payout/ ISIN Growth;ISIN Div Reinvestment;Scheme Name;Plan;Option;Net Asset Value;Date
 
 Open Ended Schemes(Equity Scheme - Small Cap Fund)
@@ -167,6 +185,11 @@ async def test_the_nightly_step_links_joins_and_the_fund_page_says_so(store):  #
     page = await mf.detail_payload(app, row)
     assert page["history"]["earlier"]["oldCode"] == 129220 and page["history"]["from"] == "2014-05-15"
     assert page["history"]["note"].startswith("Includes the NAV history of L&T Emerging Businesses Fund") and page["returns"]["5y"]["value"] is not None
+    # the facts card: the launch date stays the scheme's (AMFI's), with the name it was launched under
+    from finlit.disclosure import get_facts
+    facts = await get_facts(store.pool, 151130)
+    assert facts["launchDate"]["value"] == "2014-04-22"
+    assert facts["launchDate"]["note"] == "Launched as L&T Emerging Businesses Fund; AMFI gave the scheme a new code on 28 Nov 2022."
     # a later run: nothing new to link, nothing asked again; a history rebuilt without the earlier part is joined again
     async with store.pool.acquire() as conn:
         await mf._write_series(conn, [(151130, own[0], own[1], True)])
