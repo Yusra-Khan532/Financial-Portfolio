@@ -72,6 +72,32 @@ def _pct(sorted_xs: List[float], p: float) -> float:
     return sorted_xs[min(len(sorted_xs) - 1, int(p * (len(sorted_xs) - 1)))]
 
 
+# Task #259 (pack 03 §3, SHARED §1): NSE's classification tree. Every screener company is filed under one of NSE's 59 industries; its sector (22) and
+# macro sector (12) follow from the industry. An industry missing from the file takes its macro sector's only sector when it has exactly one.
+_NSE_TREE: Optional[Dict[str, Tuple[str, str]]] = None
+
+
+def nse_tree() -> Dict[str, Tuple[str, str]]:
+    """industry (59) -> (sector (22), macro sector (12)), from data/nse_classification.json."""
+    global _NSE_TREE
+    if _NSE_TREE is None:
+        from pathlib import Path
+        rows = json.loads((Path(__file__).resolve().parents[1] / "data" / "nse_classification.json").read_text())["basic_industries"]
+        _NSE_TREE = {r["industry"]: (r["sector"], r["macro_sector"]) for r in rows}
+    return _NSE_TREE
+
+
+def nse_levels(industry: Optional[str], macro: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
+    """(NSE sector, NSE macro sector) of a company from its NSE industry and stored macro sector; (None, macro) when the sector cannot be told."""
+    tree = nse_tree()
+    if industry in tree:
+        return tree[industry]
+    if macro:
+        only = {s for s, m in tree.values() if m == macro}
+        return (only.pop() if len(only) == 1 else None), macro
+    return None, None
+
+
 def _tidy_sectors(raw: List[Optional[str]]) -> Tuple[List[Optional[str]], Dict[str, str]]:
     """The sector labels with variant spellings merged, and raw spelling -> shown label (a saved filter may still carry a raw spelling)."""
     counts: Dict[str, int] = {}
@@ -210,6 +236,16 @@ class Table:
                 s0, c = seen.get(ind, (sec, 0))
                 seen[ind] = (s0, c + 1)
         self.industries = sorted(((k, v[0], v[1]) for k, v in seen.items()), key=lambda t: t[0])
+        # task #259: NSE's macro sector (12) and sector (22) of each company, from its NSE industry; only companies with an NSE industry have them
+        lv = [nse_levels(ind, sec) if ind else (None, None) for sec, ind in zip(self.sector, self.industry)]
+        self.nsector: List[Optional[str]] = [x[0] for x in lv]
+        self.macro: List[Optional[str]] = [x[1] for x in lv]
+        self.macros = self._facet(self.macro)
+        ns: Dict[str, Tuple[Optional[str], int]] = {}
+        for s, m in zip(self.nsector, self.macro):
+            if s:
+                ns[s] = (m, ns.get(s, (m, 0))[1] + 1)
+        self.nsectors: List[Tuple[str, Optional[str], int]] = sorted(((k, v[0], v[1]) for k, v in ns.items()), key=lambda t: t[0])
         self.stats: Dict[str, dict] = {}
         for k, col in self.cols.items():
             xs = sorted(x for x in col if x == x)
@@ -262,6 +298,10 @@ class Table:
                 idx = [i for i in idx if col[i] == col[i] and (lo is None or col[i] >= lo) and (hi is None or col[i] <= hi)]
         if cats.get("sector"):
             want = {self.sector_alias.get(w, w) for w in cats["sector"]}; idx = [i for i in idx if self.sector[i] in want]
+        if cats.get("macro"):      # task #259: NSE macro sector (12), sector (22); AND across the levels, OR inside one
+            want = set(cats["macro"]); idx = [i for i in idx if self.macro[i] in want]
+        if cats.get("nsector"):
+            want = set(cats["nsector"]); idx = [i for i in idx if self.nsector[i] in want]
         if cats.get("industry"):
             want = {self.industry_alias.get(w, w) for w in cats["industry"]}; idx = [i for i in idx if self.industry[i] in want]
         if cats.get("cap"):
@@ -285,13 +325,14 @@ class Table:
         step named "model": which figures it uses and where it cuts are never told."""
         steps: List[dict] = []
         have: Dict[str, Dict[str, Optional[float]]] = {}
-        stages = [("size", {"cap": cats.get("cap") or []}), ("sector", {"sector": cats.get("sector") or []}), ("industry", {"industry": cats.get("industry") or []}),
+        stages = [("size", {"cap": cats.get("cap") or []}), ("sector", {"sector": cats.get("sector") or []}), ("macro", {"macro": cats.get("macro") or []}),
+                  ("nsector", {"nsector": cats.get("nsector") or []}), ("industry", {"industry": cats.get("industry") or []}),
                   ("index", {"index": cats.get("index") or []}), ("band", {"band": cats.get("band") or []}), ("band", {"pband": cats.get("pband") or []})]
         cur = list(range(self.n))
         for name, c in stages:
             if not any(c.values()):
                 continue
-            nxt = set(self.match({}, {**{k: [] for k in ("sector", "industry", "cap", "band", "pband", "index")}, **c}))
+            nxt = set(self.match({}, {**{k: [] for k in ("sector", "macro", "nsector", "industry", "cap", "band", "pband", "index")}, **c}))
             before = len(cur)
             cur = [i for i in cur if i in nxt]
             steps.append({"key": name, "before": before, "after": len(cur), "missing": 0})

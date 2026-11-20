@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from ..auth.routes import NO_STORE, fail
 from ..auth.service import current
 from .catalog import BY_KEY, CAPS, CATALOG, GROUP_LABEL, GROUPS, GROUP_TIER, HIDDEN, INDEX_LISTS, SCALE, VARIANTS, allowed, family, offered, ratioable
-from .data import get_table
+from .data import get_table, nse_levels
 from .ready import BY_ID as READY_BY_ID, READY, public as ready_public, shown_to
 
 router = APIRouter(prefix="/api/screener")
@@ -48,6 +48,8 @@ class Rng(BaseModel):
 
 class Cats(BaseModel):
     sector: List[str] = Field(default_factory=list, max_length=40)
+    macro: List[str] = Field(default_factory=list, max_length=12)      # task #259: NSE macro sector (12)
+    nsector: List[str] = Field(default_factory=list, max_length=22)    # task #259: NSE sector (22)
     industry: List[str] = Field(default_factory=list, max_length=60)
     index: List[str] = Field(default_factory=list, max_length=20)
     cap: List[Literal["Large", "Mid", "Small"]] = Field(default_factory=list, max_length=3)
@@ -156,7 +158,10 @@ async def catalog(request: Request):
         "groups": groups,
         # NSE sectors only: the ones an NSE industry sits under (task #64, file 04, data fix 2); a stray label held by one or two companies is not a sector to filter by
         "sectors": [{"name": n, "n": c} for n, c in t.sectors if n in {s for _, s, _ in t.industries if s}],
-        "industries": [{"name": n, "sector": s, "n": c} for n, s, c in t.industries],
+        "industries": [{"name": n, "sector": s, "nseSector": nse_levels(n, s)[0], "n": c} for n, s, c in t.industries],
+        # task #259 (pack 03 §3): NSE's macro sectors (12) and sectors (22) for the linked lists; "sectors" above stays for older links
+        "macros": [{"name": n, "n": c} for n, c in t.macros],
+        "nseSectors": [{"name": n, "macro": m, "n": c} for n, m, c in t.nsectors],
         "indices": [{"code": c, "label": INDEX_LISTS[c][0], "n": len(t.members.get(c, ()))} for c in INDEX_LISTS if t.members.get(c)],
         "caps": [{"name": c, "n": sum(1 for x in t.cap if x == c)} for c in CAPS],
         # the rating chips: FinLit Prism's words for Gold, the FinLit IQ's below (locked on Basic)
@@ -344,6 +349,19 @@ def _run(t, body: Query_, plan: str):
     return idx, cols, vals
 
 
+def _facets(t, body, plan: str) -> Dict[str, Dict[str, int]]:
+    """Companies per macro sector, sector and industry under every other filter (a level's own picks left out, so its other options keep a count)."""
+    out: Dict[str, Dict[str, int]] = {}
+    for level, col in (("macro", t.macro), ("nsector", t.nsector), ("industry", t.industry)):
+        idx, _c, _v = _run(t, body.model_copy(update={"cats": body.cats.model_copy(update={level: []}), "sort": Sort()}), plan)
+        counts: Dict[str, int] = {}
+        for i in idx:
+            if col[i]:
+                counts[col[i]] = counts.get(col[i], 0) + 1
+        out[level] = counts
+    return out
+
+
 @router.post("/query")
 async def query(request: Request, body: Query_):
     started = time.perf_counter()
@@ -366,6 +384,8 @@ async def query(request: Request, body: Query_):
                 r["band"] = None
     out = {"total": total, "offset": off, "limit": lim, "capped": capped, "columns": cols, "rows": rows,
            "took": round((time.perf_counter() - started) * 1000, 1)}
+    if body.funnel:        # task #259 (SHARED §1): each option's count follows the other filters already set (its own level left out)
+        out["facets"] = _facets(t, body, plan)
     if body.funnel:        # what is left after each rule in turn, and how many companies a rule left out for having no figure (the Stock screener's funnel)
         out["funnel"] = t.funnel({k: v.model_dump() for k, v in body.filters.items() if v.min is not None or v.max is not None}, cats_for(body, plan),
                                  model=_model_rules(screens_of(body)), ratios=[(rt.id, rv[rt.id], rt.min, rt.max) for rt in body.ratios])
