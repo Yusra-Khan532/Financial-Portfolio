@@ -11,6 +11,7 @@ import "../portfolio/pack/market-fall.css";
 import "../styles/sectors-pack.css";   // task #235: the fall picture's section heading and its ⓘ
 import { BandStrip, Notes, ScoreWord, SecHead, ShowAll, Stack, type Note } from "./parts";
 import { KeyFiguresSection } from "./KeyFigures277";
+import { InvestChanges } from "./Changes277";
 import { FilterRow, HELD, NO_FILTER, SectionsMenu, countFilters, filterCompanies, type EveryFilter } from "./EveryFilters";
 import { coTitle, subLine, titleOf } from "../lib/companyLabel";
 
@@ -39,6 +40,7 @@ export function AllTogether({ d, money, toTab, openQty, stickyLead }: { d: AllIn
       <Every d={d} filter={filter} setFilter={setFilter} lead={stickyLead} />
       {/* task #277 (change 9): Key figures after Step 4 */}
       <KeyFiguresSection d={d} view="all" go={(w) => { if (w === "held") { setFilter({ ...NO_FILTER, held: [HELD[0]] }); go("mi-every"); } else go(w); }} />
+      <InvestChanges d={d} />   {/* task #277 change 19: What changed at the companies you own, under Step 4 */}
       <HealthStep d={d} />
       <RiskStep d={d} money={money ?? null} />
     </>

@@ -11,6 +11,7 @@ import QTY from "../myinvest/sample-qty.json";
 import NOQTY from "../myinvest/sample-noqty.json";
 
 const st = vi.hoisted(() => ({ plan: "gold" as "basic" | "silver" | "gold", body: null as unknown, answer: null as unknown, sends: [] as [string, string, unknown][] }));
+vi.mock("../lib/auth", async (orig) => ({ ...(await orig<typeof import("../lib/auth")>()), useAuth: () => ({ user: null }) }));   // task #277: What changed asks for the last visit only when signed in
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()),
   apiSend: vi.fn(async (m: string, p: string, body: unknown) => { st.sends.push([m, p, body]); if (p === "/api/me/all-investments") { st.body = body; return st.answer; } return {}; }),
   apiGet: vi.fn(async () => ({ holdings: [] })) }));
@@ -81,7 +82,7 @@ describe("task #137: All my investments (15 Nov pack)", () => {
     mount(); await screen.findByText("Where your money sits");
     const bar = screen.getByRole("navigation", { name: "Sections of All together" });
     // task #277 (change 11): Steps 1–6 keep their numbers; Key figures sits after Step 4 with a dot
-    expect([...bar.querySelectorAll(".stb-chip")].map((c) => c.textContent)).toEqual(["1Your money", "2Made of", "3Sectors and sizes", "4Every company", "·Key figures", "5Health", "6Risk"]);
+    expect([...bar.querySelectorAll(".stb-chip")].map((c) => c.textContent)).toEqual(["1Your money", "2Made of", "3Sectors and sizes", "4Every company", "·Key figures", "·What changed", "5Health", "6Risk"]);
     fireEvent.click(within(bar).getByRole("button", { name: /All sections/ }));
     const menu = screen.getByRole("dialog", { name: "All sections" });
     expect([...menu.querySelectorAll("h5")].map((h) => h.textContent)).toEqual(["All together", "Equity", "Mutual funds", "ETFs"]);

@@ -171,3 +171,18 @@ html.mi7-rowup .mi .stb-wrap { transform: translateY(-140%); opacity: 0; pointer
 .mi7-kftrack { height: 8px; border-radius: 99px; background: color-mix(in srgb, var(--text) 6%, transparent); overflow: hidden; } .mi7-kftrack i { display: block; height: 100%; border-radius: 99px; }
 .mi7-kfbars b { color: var(--text); font: 600 12px var(--sans); font-variant-numeric: tabular-nums; }
 @media (max-width: 1100px) { .mi7-kfrow { grid-template-columns: minmax(0, 1fr); } }
+
+/* task #277 change 19: What changed at the companies you own: the held letters under each name, as Step 4 shows them */
+.mi7-wch { display: inline-flex; align-items: center; gap: 6px; }
+.mi7-wch .mi-held i { font-size: 12px; }
+/* the shared block (styles/what-changed.css) as a card of this page, with the page's own pills (the Watchlists page styles them in watchlist-pack.css) */
+.mi7-wc .wc.wp-sec { margin-top: 16px; padding: 16px 18px; border: 1px solid var(--border); border-radius: 14px; background: var(--s1); min-width: 0; scroll-margin-top: 130px; }
+.mi7-wc .wc h2 { margin: 0; font: 400 24px/1.2 var(--serif); color: var(--text); }
+.mi7-wc .wp-sub { margin: 4px 0 0; font-size: 14px; line-height: 1.5; color: var(--muted); }
+.mi7-wc .wc-lists { display: flex; flex-wrap: wrap; gap: 6px; }
+.mi7-wc .wp-pill { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--s1);
+  color: var(--text); font: 600 14px var(--sans); cursor: pointer; white-space: nowrap; }
+.mi7-wc .wp-pill[aria-pressed="true"] { background: var(--text); border-color: var(--text); color: var(--bg); }
+.mi7-wc .wp-pill:hover:not([aria-pressed="true"]) { border-color: var(--text); }
+.mi7-wc .wp-pill:focus-visible { outline: 2px solid var(--accent, var(--text)); outline-offset: 2px; }
+.mi7-wc .wp-empty { margin: 12px 0 0; padding: 16px; border-radius: 12px; background: var(--s2); font-size: 16px; color: var(--text); }
