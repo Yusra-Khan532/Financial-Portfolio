@@ -208,6 +208,18 @@ describe("#251/#260: your names", () => {
   });
 });
 
+describe("task #273: &open=<symbol> opens that company's row on arrival", () => {
+  it("the companies page with ?q=<name>&open=<symbol> lands with the row's details open", async () => {
+    await show("/discover/companies?q=Bharat%20Shield&open=BSHIELD");
+    expect(await screen.findByRole("button", { name: "☆ Add to watchlist" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Details for Bharat Shield Ltd" }).getAttribute("aria-expanded")).toBe("true");
+  });
+  it("an unknown symbol opens nothing", async () => {
+    await show("/discover/companies?open=NOSUCH");
+    expect(screen.queryByRole("button", { name: "☆ Add to watchlist" })).toBeNull();
+  });
+});
+
 describe("#251/#260: i buttons", () => {
   it("opens; closes on a second click, a click outside and Escape; focus goes back to the button", async () => {
     await show();
