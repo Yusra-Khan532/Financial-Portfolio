@@ -11,6 +11,7 @@ import QTY from "../myinvest/sample-qty.json";
 import NOQTY from "../myinvest/sample-noqty.json";
 
 const st = vi.hoisted(() => ({ plan: "gold" as "basic" | "silver" | "gold", body: null as unknown, answer: null as unknown, sends: [] as [string, string, unknown][] }));
+vi.mock("../lib/auth", async (orig) => ({ ...(await orig<typeof import("../lib/auth")>()), useAuth: () => ({ user: null }) }));   // task #277: What changed asks for the last visit only when signed in
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()),
   apiSend: vi.fn(async (m: string, p: string, body: unknown) => { st.sends.push([m, p, body]); if (p === "/api/me/all-investments") { st.body = body; return st.answer; } return {}; }),
   apiGet: vi.fn(async () => ({ holdings: [] })) }));
@@ -36,9 +37,11 @@ describe("task #137: All my investments (15 Nov pack)", () => {
     mount(); await screen.findByText("Where your money sits");
     expect(st.body).toEqual({ shares: [{ symbol: "HDFCBANK", qty: 40 }, { symbol: "INFY", qty: null }] });
     expect(screen.getByRole("heading", { level: 1, name: "All my investments" })).toBeTruthy();
-    expect(text()).toContain("6 shares · 3 mutual funds · 3 ETFs · buy prices for 0 of 12");   // task #235 (pack C3): the count names how many holdings have a buy price
+    expect(text()).toContain("6 shares · 3 funds · 3 ETFs");                    // task #277 (change 2): the title row counts the three lists
+    expect(text()).toContain("Money figures cover 0 of 12 holdings.");          // and the money box says what it covers (here: no buy price yet)
     expect(text()).toContain("Nothing is sent to a broker");
-    for (const name of ["Equity portfolio", "MF portfolio", "ETF portfolio", "How it is counted"]) expect(screen.getAllByRole("link", { name }).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: /^More: the three portfolio pages/ }));   // task #277: the page links sit in ⋯
+    for (const name of ["Equity portfolio", "MF portfolio", "ETF portfolio", "How it is counted"]) expect(screen.getAllByRole("menuitem", { name }).length).toBeGreaterThan(0);
   });
   it("B8: before the lists load, the header says it is reading them, never \"0 shares · …\"", () => {
     st.answer = new Promise(() => {});
@@ -55,7 +58,7 @@ describe("task #137: All my investments (15 Nov pack)", () => {
     mount(); await screen.findByText("Where your money sits");
     const d = withQty();
     expect(text()).toContain(rupees(d.total!));
-    expect(text()).toContain("over 1 year, on what you hold now");
+    expect(text()).toContain("value now");                                     // task #277: the money box (it replaces the dark box)
     expect(screen.getByRole("button", { name: "Edit quantities" })).toBeTruthy();
   });
   it("B1, B2, D8, D9: without quantities each kind counts the same (⅓), the split is not your money, and no ₹ value appears anywhere", async () => {
@@ -65,20 +68,21 @@ describe("task #137: All my investments (15 Nov pack)", () => {
     expect(text()).toContain("12 holdings");
     const money = text().replace(/₹75,000 Cr|₹25,000–75,000 Cr|₹10,000(–25,000)? Cr|₹[\d,]+ a year on ₹1 lakh|₹1 lakh/g, "")   // the four size lines (task #262) are not money;
     expect(money).not.toMatch(/₹/);                                           // no rupee value of the member's money anywhere
-    expect(screen.getAllByText("On your list").length).toBe(3);               // the tiles list holdings, never "Largest"
     expect(screen.getAllByRole("button", { name: "Add quantities" }).length).toBeGreaterThan(1);
   });
   it("D3, D4: four tabs; each tile opens its tab", async () => {
     mount(); await screen.findByText("Where your money sits");
-    expect(screen.getAllByRole("tab").map((t) => t.querySelector("b")!.textContent)).toEqual(["All together", "Equity", "Mutual funds", "ETFs"]);
-    fireEvent.click(screen.getByRole("button", { name: "Open Mutual funds →" }));
+    // task #277 (change 16): the four views drawn as tabs; the open one has a check, the others an arrow that opens them
+    expect(screen.getAllByRole("tab").map((t) => t.closest(".mi7-tile")!.querySelector(".mi7-tk")!.textContent)).toEqual(["All together", "Equity", "Mutual funds", "ETFs"]);
+    fireEvent.click(screen.getByRole("tab", { name: /^Go to Mutual funds/ }));
     await screen.findByRole("heading", { name: /^Your funds/ });
     expect(screen.getByRole("tab", { selected: true }).textContent).toContain("Mutual funds");
   });
   it("D5, D6: the sections bar numbers the open tab's sections; All sections lists every tab's", async () => {
     mount(); await screen.findByText("Where your money sits");
     const bar = screen.getByRole("navigation", { name: "Sections of All together" });
-    expect([...bar.querySelectorAll(".stb-chip")].map((c) => c.textContent)).toEqual(["1Your money", "2Made of", "3Sectors and sizes", "4Every company", "5Health", "6Risk"]);
+    // task #277 (change 11): Steps 1–6 keep their numbers; Key figures sits after Step 4 with a dot
+    expect([...bar.querySelectorAll(".stb-chip")].map((c) => c.textContent)).toEqual(["1Your money", "2Made of", "3Sectors and sizes", "4Every company", "·Key figures", "·What changed", "5Health", "6Risk"]);
     fireEvent.click(within(bar).getByRole("button", { name: /All sections/ }));
     const menu = screen.getByRole("dialog", { name: "All sections" });
     expect([...menu.querySelectorAll("h5")].map((h) => h.textContent)).toEqual(["All together", "Equity", "Mutual funds", "ETFs"]);
@@ -97,16 +101,19 @@ describe("task #137: All my investments (15 Nov pack)", () => {
     const table = document.querySelector(".mi-co")!;
     expect([...table.querySelectorAll("thead th")].slice(0, 3).map((t) => t.textContent)).toEqual(["Company", "All together", "Held"]);
     const d = withQty();
-    for (const [w, n] of [["All", d.filters.all], ["Held more than one way", d.filters.twice], ["Only through funds and ETFs", d.filters.through], ["Only direct", d.filters.direct]] as const)
-      expect(screen.getByRole("button", { name: `${w} ${n}` })).toBeTruthy();
+    // task #277 (change 18): the four "Show" buttons are one row of filters; Held's choices say how many each leaves
+    expect(document.querySelector(".mi7-fcount")!.textContent).toBe(`${d.companies.length} companies`);
+    fireEvent.click(screen.getByRole("button", { name: /^Held: All/ }));
+    expect([...document.querySelectorAll(".mi7-fm label")].map((l) => l.textContent)).toEqual([`More than one way${d.filters.twice}`, `Only direct${d.filters.direct}`, `Only through funds and ETFs${d.filters.through}`]);
+    fireEvent.keyDown(document, { key: "Escape" });
     expect(text()).not.toMatch(/\b(leader|laggard|in_line)\b/);
     expect(table.textContent).toMatch(/Leader|Laggard|In line/);
     expect(table.textContent).toContain("Not on your list");
   });
   it("L6: \"Held more than one way\" sets the company filter", async () => {
     mount(); await screen.findByText("Every company you own, counted once");
-    fireEvent.click(screen.getByRole("button", { name: "See which →" }));
-    expect(screen.getByRole("button", { name: /^Held more than one way \d+$/ }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: /^Show the \d+ →$/ }));   // task #277 (change 9): the Key figures card's link
+    expect(screen.getByRole("button", { name: /^Held: More than one way/ }).className).toContain("on");   // task #277: the Held filter, set and named
     const rows = document.querySelectorAll(".mi-co tbody tr");
     expect(rows.length).toBe(withQty().filters.twice);
   });

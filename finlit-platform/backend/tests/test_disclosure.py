@@ -181,7 +181,8 @@ async def test_one_failing_step_leaves_the_others_working(funds):
 
 
 @needs_db
-async def test_a_new_quarter_replaces_the_old_one_whole(funds):
+async def test_a_scheme_missing_from_a_new_quarter_keeps_its_last_one_with_its_date(funds):
+    """Owner's rule (20 Nov 2026, task #281): if new data is missing, the old data is used, with its own date; a newer file never blanks a figure."""
     await run(funds)
     later = json.loads(json.dumps(AUM))
     later["selectedPeriod"] = "October - December 2026"
@@ -189,8 +190,22 @@ async def test_a_new_quarter_replaces_the_old_one_whole(funds):
         house["schemes"] = [s for s in house["schemes"] if s["AMFI_Code"] != LARGE_CAP]          # the scheme is missing from the new quarter
     await run(funds, aum=later)
     lc = await d.get_facts(funds.pool, LARGE_CAP)
-    assert "unavailable" in lc["aum"]                                                          # no figure, rather than last quarter's
+    assert lc["aum"]["asOf"] == "2026-09-30" and "July - September 2026" in lc["aum"]["note"]   # last quarter's figure, saying which quarter
     assert (await d.get_facts(funds.pool, CHILDREN_DG))["aum"]["asOf"] == "2026-12-31"
+    async with funds.pool.acquire() as conn:                                                    # the list reads the same figure and date
+        row = await conn.fetchrow("SELECT aum_lakh, aum_asof FROM mf_schemes WHERE code = $1", LARGE_CAP)
+    assert row["aum_lakh"] and row["aum_asof"] == date(2026, 9, 30)
+
+
+@needs_db
+async def test_a_blank_launch_date_in_a_newer_master_keeps_the_stored_one(funds):
+    """Owner's rule (task #281): a scheme master that leaves a scheme's launch date blank never erases the date already stored."""
+    await run(funds)
+    blank = MASTER.replace("Rs. 5000 in multiples of Rs. 1 thereafter,11-Nov-2009,", "Rs. 5000 in multiples of Rs. 1 thereafter,,")
+    assert blank != MASTER
+    await run(funds, master=blank)
+    async with funds.pool.acquire() as conn:
+        assert await conn.fetchval("SELECT launch_date FROM mf_facts WHERE code = $1", LARGE_CAP) == date(2009, 11, 11)
 
 
 @needs_db

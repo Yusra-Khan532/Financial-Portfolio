@@ -46,7 +46,10 @@
 :root:not([data-theme="light"]) .band .lock-card, :root:not([data-theme="light"]) .report .lock-card, :root:not([data-theme="light"]) .lock-card { background: var(--s2); }
 
 /* tables: header rule, readable zebra and hover, sticky first column keeps the row tint */
-:root:not([data-theme="light"]) th { color: var(--muted); border-bottom: 1px solid var(--border-strong); background: color-mix(in srgb, var(--s2) 70%, transparent); }
+/* Task #264 (20 Nov 2026, the team: "ui issue at the header of the tables", Discover's theme table): this header shade was mixed with transparent, so
+   it was 70% see-through, and the rule outranks the tables' own header rules (.dsc-stick thead th, .tw-tall thead th, .psx3-t thead th): every pinned
+   header in dark showed the rows scrolling under it. Mixed with the card colour it looks the same on a card and is solid wherever it is pinned. */
+:root:not([data-theme="light"]) th { color: var(--muted); border-bottom: 1px solid var(--border-strong); background: color-mix(in srgb, var(--s2) 70%, var(--s1)); }
 :root:not([data-theme="light"]) td { border-bottom-color: var(--border); }
 :root:not([data-theme="light"]) tbody tr:nth-child(even) td { background-image: linear-gradient(var(--zebra), var(--zebra)); }
 :root:not([data-theme="light"]) tbody tr:hover td { background-color: var(--s2); background-image: linear-gradient(var(--row-hover), var(--row-hover)); }

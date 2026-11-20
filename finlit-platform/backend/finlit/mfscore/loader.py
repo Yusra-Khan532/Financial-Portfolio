@@ -18,7 +18,7 @@ from .model import FundIn
 log = logging.getLogger("finlit.mfscore")
 
 MF_COLS = """s.code, s.name, s.amc, s.category, s.plan, s.family, s.isin, s.nav_date, s.r1y, s.r3y, s.r5y, s.sip3y, s.sip5y, s.mdd3y_m, s.aum_lakh, s.ter, s.ter_date,
-             f.launch_date, m.days, m.navs"""
+             COALESCE(f.launch_date, (ld.value->>'date')::date) AS launch_date, m.days, m.navs"""
 KEEP_MONTHS = 63
 
 
@@ -91,7 +91,8 @@ async def load_mf(conn, codes: Optional[Sequence[int]] = None, limit: Optional[i
     if codes:
         args.append(list(codes))
         where += f" AND s.code = ANY(${len(args)}::int[])"
-    sql = f"SELECT {MF_COLS} FROM mf_schemes s LEFT JOIN mf_monthly m ON m.code = s.code LEFT JOIN mf_facts f ON f.code = s.code WHERE {where} ORDER BY s.code"  # nosec B608 - fixed column list and filters; values are bound parameters
+    sql = (f"SELECT {MF_COLS} FROM mf_schemes s LEFT JOIN mf_monthly m ON m.code = s.code LEFT JOIN mf_facts f ON f.code = s.code "
+           f"LEFT JOIN disclosure_facts ld ON ld.fkey = s.family AND ld.kind = 'launch_details' WHERE {where} ORDER BY s.code")  # nosec B608 - fixed column list and filters; values are bound parameters
     if limit:
         sql += f" LIMIT {int(limit)}"
     facts = await load_facts(conn)
@@ -150,7 +151,9 @@ async def load_etf(conn, symbols: Optional[Sequence[str]] = None, limit: Optiona
     isins = [r["isin"] for r in rows if r["isin"]]
     kin = {}
     if isins:
-        for k in await conn.fetch("""SELECT s.isin, s.isin_reinvest, s.code, s.family, s.ter, s.ter_date, s.aum_lakh, f.launch_date FROM mf_schemes s LEFT JOIN mf_facts f ON f.code = s.code
+        for k in await conn.fetch("""SELECT s.isin, s.isin_reinvest, s.code, s.family, s.ter, s.ter_date, s.aum_lakh,
+                                            COALESCE(f.launch_date, (ld.value->>'date')::date) AS launch_date FROM mf_schemes s LEFT JOIN mf_facts f ON f.code = s.code
+                                            LEFT JOIN disclosure_facts ld ON ld.fkey = s.family AND ld.kind = 'launch_details'
                                      WHERE s.isin = ANY($1::text[]) OR s.isin_reinvest = ANY($1::text[])""", isins):
             kin[k["isin"]] = k
             if k["isin_reinvest"]:

@@ -1,7 +1,7 @@
 // Task #272 (Watchlists and Alerts, 20 Nov pack): "What changed at these companies". One shared block for every list page: the Watchlists page mounts it
 // under the list (before "Price and business disagree"); the equity portfolio (task #274) and the other portfolio pages mount the same component with
 // their own companies, list switcher and page key. Data and rules: lib/whatChanged.ts. Styles: styles/what-changed.css (wc-). Describes, never advises.
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { Icon } from "../../lib/icons";
 import {
@@ -44,9 +44,14 @@ export function OrderWinNotice({ row, page }: { row: ChangeRow | null; page: str
   );
 }
 
-export function WhatChanged({ symbols, listName, listRef, page, lists, activeList, onPickList, nameOf, title = "What changed at these companies" }: {
+export function WhatChanged({ symbols, listName, listRef, page, lists, activeList, onPickList, nameOf, title = "What changed at these companies", sub, lede, foot, countLabel, alertLabel, className = "wp-sec wc", hId = "wc-h", id = "what-changed" }: {
   symbols: string[]; listName: string; listRef: string; page: string; lists?: ListTab[]; activeList?: string; onPickList?: (id: string) => void;
   nameOf?: (s: string) => string | undefined; title?: string;
+  /** task #276 (the portfolio pages): a line under each company, e.g. "0.36% of your ETFs · SMALL250"; task #277: how it is held ("D F E 2.36% of everything") */
+  sub?: (s: string) => ReactNode;
+  /** the line under the title, in place of the count headline */ lede?: string; /** what the foot line starts with, before the filings line */ foot?: string;
+  /** the label of the count, e.g. "Inside your ETFs" (default: the list's name) */ countLabel?: string; /** the list as the Alert me form names it */ alertLabel?: string;
+  className?: string; hId?: string; id?: string;
 }) {
   const { q, rows, lastVisit, newN } = useWhatChanged(symbols, page);
   const [kind, setKind] = useState<string | null>(null), [all, setAll] = useState(false), [alertOpen, setAlertOpen] = useState(false);
@@ -55,14 +60,14 @@ export function WhatChanged({ symbols, listName, listRef, page, lists, activeLis
   const list = all ? shown : shown.slice(0, FIRST);
   const visit = dayMonth(lastVisit);
   return (
-    <section className="wp-sec wc" id="what-changed" aria-labelledby="wc-h">
-      <h2 id="wc-h">{title}</h2>
-      <p className="wp-sub">{headline(q.data, symbols.length, listName)}</p>
-      {alertOpen && <AlertMeForm listRef={listRef} listLabel={listName} onClose={() => setAlertOpen(false)} />}
+    <section className={className} id={id} aria-labelledby={hId}>
+      <h2 id={hId}>{title}</h2>
+      <p className="wp-sub">{lede ?? headline(q.data, symbols.length, listName)}</p>
+      {alertOpen && <AlertMeForm listRef={listRef} listLabel={alertLabel ?? listName} onClose={() => setAlertOpen(false)} />}
       <div className="wc-bar">
         {lists && lists.length > 1 && onPickList
           ? <div className="wc-lists" role="group" aria-label="Which list">{lists.map((l) => <button key={l.id} type="button" className="wp-pill" aria-label={`What changed at the companies on ${l.label} (${l.count})`} aria-pressed={l.id === activeList} onClick={() => { onPickList(l.id); setKind(null); setAll(false); }}>{l.label} · {l.count}</button>)}</div>
-          : <b className="wc-ln">{listName} · {symbols.length} compan{symbols.length === 1 ? "y" : "ies"}</b>}
+          : <b className="wc-ln">{countLabel ?? listName} · {symbols.length} compan{symbols.length === 1 ? "y" : "ies"}</b>}
         <span className="wc-st">{newN > 0 ? <><i className="wc-nd" aria-hidden="true" /><b>{newN} new</b> since your last visit on {visit}</> : lastVisit ? `Nothing new since your last visit on ${visit}` : "What is new shows from your next visit"}</span>
         <span className="wc-grow" />
         <Link className="wc-dl" to={DISCOVER_CHANGES}>What changed in Discover ↗</Link>
@@ -82,9 +87,10 @@ export function WhatChanged({ symbols, listName, listRef, page, lists, activeLis
             {list.map((r) => (
               <li key={r.s + r.k} className={r.fresh ? "is-new" : r.k === "order" ? "is-ow" : ""}>
                 <span className="wc-d">{r.t ? dayMonth(r.d) : "—"}</span>
-                <Link className="wc-co" to={`/stocks/${r.s}`}>{r.n}</Link>
+                {sub ? <span className="wc-cow"><Link className="wc-co" to={`/stocks/${encodeURIComponent(r.s)}`}>{r.n}</Link>{sub(r.s) && <small className="wc-cs">{sub(r.s)}</small>}</span>
+                  : <Link className="wc-co" to={`/stocks/${r.s}`}>{r.n}</Link>}
                 <span className="wc-k"><i className={"wc-dot " + KIND[r.k].tone} aria-hidden="true" />{KIND[r.k].row}{r.count > 1 && <small> × {r.count}</small>}</span>
-                <span className="wc-t">{r.t ?? `${r.count} filing${r.count === 1 ? "" : "s"} in ${q.data?.days ?? 90} days · the subjects are in Discover`}{r.fresh > 0 && <em className="wc-new">New</em>}</span>
+                <span className="wc-t">{r.t ?? `${r.count} ${r.count === 1 ? KIND[r.k].one : KIND[r.k].many} in ${q.data?.days ?? 90} days · the subjects are in Discover`}{r.fresh > 0 && <em className="wc-new">New</em>}</span>
                 <span className="wc-ln2">
                   {r.t && r.l && <a href={r.l} target="_blank" rel="noopener noreferrer">Filing ↗</a>}
                   <Link to={discoverLink(r.k, r.n)}>Details in Discover ↗</Link>
@@ -92,7 +98,7 @@ export function WhatChanged({ symbols, listName, listRef, page, lists, activeLis
               </li>))}
           </ul>}
       {shown.length > FIRST && <button type="button" className="wc-more" aria-expanded={all} onClick={() => setAll((v) => !v)}>{all ? "Show fewer ▴" : `Show all ${shown.length} ▾`}</button>}
-      <p className="wc-note">{footnote(q.data, nameOf ?? (() => undefined))}</p>
+      <p className="wc-note">{foot ? `${foot} ` : ""}{footnote(q.data, nameOf ?? (() => undefined))}</p>
     </section>
   );
 }

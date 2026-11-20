@@ -58,7 +58,8 @@ def test_bulk_and_light_classes_match_the_incident_analysis():
         assert JOBS[n].cls == "bulk", n          # the three that ran at once on 2 GB are now strictly sequential
     for n in ("results", "results-light", "calendars", "quotes", "listing"):
         assert JOBS[n].cls == "light" and JOBS[n].honours_pause is False, n
-    assert JOBS["score-mf"].prerequisites == ("portfolios",) and "ingest" in JOBS["prism"].prerequisites
+    # task #281: the fund score follows the night's NAVs, fund facts and portfolios (it used to follow the portfolios only, and ran before all three)
+    assert JOBS["score-mf"].prerequisites == ("mf", "facts", "portfolios") and JOBS["score-mf"].nightly_inputs and "ingest" in JOBS["prism"].prerequisites
     assert JOBS["results"].sla.hours == 1.5 and JOBS["calendars"].sla.hours == 1.0 and JOBS["listing"].sla.hours == 6
     for n in ("ingest", "score", "prism", "mf", "portfolios"):
         assert JOBS[n].sla.hours == 26, n

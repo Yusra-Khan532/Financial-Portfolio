@@ -36,7 +36,7 @@ from . import taxonomy
 from .config import MF_EXCLUDED_AMCS
 from .disclosure_parsers import amfi
 from .disclosure_parsers.amcs import ADAPTERS, BROWSER_UA, MAX_BYTES, UA, Adapter, FileRef, month_ends
-from .disclosure_parsers.model import ASSET_CLASSES, Holding, Portfolio, Verdict, isin_ok, validate
+from .disclosure_parsers.model import ASSET_CLASSES, Holding, Portfolio, Verdict, isin_ok, metal_class, validate
 from .disclosure_parsers.sebi import NotAPortfolio, open_workbook, parse_rows
 
 log = logging.getLogger("finlit.portfolios")
@@ -64,6 +64,12 @@ URL_EQUITY_L = "https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv"
 _DROP = frozenset("direct regular plan plans growth option options idcw dividend payout reinvestment reinvest bonus the and of scheme".split())
 _PAREN = re.compile(r"\([^)]*\)")
 _FORMERLY = re.compile(r"\(\s*(?:formerly|erstwhile|earlier|ex)\b[\s\S]*$", re.I)
+_ROMAN = {"i": "1", "ii": "2", "iii": "3", "iv": "4", "v": "5", "vi": "6", "vii": "7", "viii": "8", "ix": "9", "x": "10"}
+# Words written two ways for the same scheme (task #281): month abbreviations ('Apr 2029' / 'April 2029', 'Sept' / 'September'), plurals ('Bonds ETFs' /
+# 'Bond ETFs'), SBI's shortened sheet names ('CRI IBX SDL ... Ind Fund' for 'Crisil IBX SDL ... Index Fund').
+_SYN = {"jan": "january", "feb": "february", "mar": "march", "apr": "april", "jun": "june", "jul": "july", "aug": "august", "sep": "september",
+        "sept": "september", "oct": "october", "nov": "november", "dec": "december", "bonds": "bond", "etfs": "etf", "cri": "crisil", "ind": "index",
+        "indx": "index", "qlty": "quality", "mom": "momentum", "auto": "automotive"}
 
 
 def name_key(name: str, drop_parens: bool = False, drop_fund: bool = False) -> str:
@@ -74,7 +80,13 @@ def name_key(name: str, drop_parens: bool = False, drop_fund: bool = False) -> s
         s = _PAREN.sub(" ", _FORMERLY.sub(" ", s))
     s = s.replace("&", " and ")
     s = re.sub(r"\b(mid|large|small|flexi|multi|micro)\s*-?\s*cap\b", r"\1cap", s)       # 'Mid Cap' and 'Midcap' are the same word in AMFI's own lists
-    toks = {t for t in re.sub(r"[^a-z0-9]+", " ", s).split() if t not in _DROP and not (drop_fund and t == "fund")}
+    # Task #281: the same scheme written differently by the fund house's file and AMFI (each seen in the 31 Oct 2026 files):
+    s = re.sub(r"\bfunds?\s+of\s+funds?\b", " fof ", s)                                 # 'Fund of Funds' / 'Fund of Fund' = 'FOF'
+    s = re.sub(r"([a-z])(\d)|(\d)([a-z]{2,})", lambda m: f"{m.group(1)} {m.group(2)}" if m.group(1) else f"{m.group(3)} {m.group(4)}", s)
+    #                                                                                     'IBX50:50' = 'IBX 50:50', '250Mom' = '250 Mom' ('1d' stays one word)
+    s = re.sub(r"\bseries?\s*[-:]?\s*(i{1,3}|iv|vi{0,3}|ix|x)\b", lambda m: " series " + _ROMAN[m.group(1)] + " ", s)   # 'Serie-II' = 'Series 2'
+    toks = {_SYN.get(t, t) for t in re.sub(r"[^a-z0-9]+", " ", s).split()}
+    toks = {t for t in toks if t not in _DROP and not (drop_fund and t == "fund")}
     return " ".join(sorted(toks))
 
 
@@ -104,6 +116,10 @@ def _flat_key(name: str) -> str:
     return "".join(sorted(re.sub(r"[^a-z0-9]", "", name_key(name, True, True))))
 
 
+def _pass_key(name: str) -> str:
+    return " ".join(t for t in name_key(name, True, True).split() if t != "passive")
+
+
 class Index:
     """The scheme families in mf_schemes, for matching names from other sources. Built once per run (about 14 000 rows)."""
 
@@ -115,15 +131,20 @@ class Index:
         self.keys_np: Dict[str, Set[str]] = defaultdict(set)      # parenthesis-free key -> families
         self.keys_nf: Dict[str, Set[str]] = defaultdict(set)      # parenthesis-free and without the word 'fund'
         self.keys_flat: Dict[str, Set[str]] = defaultdict(set)    # letters and digits only, sorted: 'MahindraManulife' and 'Mahindra Manulife' agree
+        self.active: Set[str] = set()                              # families with a scheme still publishing NAVs
+        self.keys_pass: Dict[str, Set[str]] = defaultdict(set)    # as keys_nf without the word 'passive' (task #281), tried only after the exact keys
 
-    def add(self, code: int, name: str, amc: str, family: str) -> None:
+    def add(self, code: int, name: str, amc: str, family: str, active: bool = True) -> None:
         self.amc[family] = amc
+        if active:
+            self.active.add(family)
         self.codes[family].append(code)
         self.by_code[code] = family
         self.keys[name_key(name)].add(family)
         self.keys_np[name_key(name, True)].add(family)
         self.keys_nf[name_key(name, True, True)].add(family)
         self.keys_flat[_flat_key(name)].add(family)
+        self.keys_pass[_pass_key(name)].add(family)
 
     def resolve(self, names: Sequence[str], amc_re: Optional[re.Pattern] = None) -> Tuple[Optional[str], str]:
         """(family, reason). The first name that matches exactly one family wins; a name matching several families is ambiguous and refused."""
@@ -137,25 +158,29 @@ class Index:
                     fams = {f for f in fams if amc_re.search(self.amc.get(f, ""))}
                 if len(fams) == 1:
                     return next(iter(fams)), ""
+                live = fams & self.active
+                if len(fams) > 1 and len(live) == 1:
+                    return next(iter(live)), ""      # task #281: one active scheme and old stopped ones of the same name ('JM Short Term Fund')
                 if len(fams) > 1:
                     why = f"name matches {len(fams)} schemes ({', '.join(sorted(fams))[:120]}); not guessed"
-        for nm in names:                    # last resort: spacing and word order ignored (AMFI writes some fund house names without a space)
-            fams = self.keys_flat.get(_flat_key(nm), set()) if nm else set()
-            if amc_re is not None:
-                fams = {f for f in fams if amc_re.search(self.amc.get(f, ""))}
-            if len(fams) == 1:
-                return next(iter(fams)), ""
+        for table, keyf in ((self.keys_flat, _flat_key), (self.keys_pass, _pass_key)):
+            for nm in names:                # last resorts: spacing and word order ignored (AMFI writes some fund house names without a space); then the
+                fams = table.get(keyf(nm), set()) if nm else set()     # word 'passive' ignored ('Asset Allocation Passive FOF' = 'Asset Allocation FOF')
+                if amc_re is not None:
+                    fams = {f for f in fams if amc_re.search(self.amc.get(f, ""))}
+                if len(fams) == 1:
+                    return next(iter(fams)), ""
         return None, why
 
 
 async def load_index(pool) -> Index:
     idx = Index()
     async with pool.acquire() as conn:
-        rows = await conn.fetch("SELECT code, name, amc, family FROM mf_schemes")
+        rows = await conn.fetch("SELECT code, name, amc, family, active FROM mf_schemes")
     for r in rows:
         if excluded_amc(r["amc"]):
             continue
-        idx.add(r["code"], r["name"], r["amc"], r["family"])
+        idx.add(r["code"], r["name"], r["amc"], r["family"], bool(r["active"]))
     return idx
 
 
@@ -167,7 +192,8 @@ def pack_holdings(hs: Sequence[Holding]) -> str:
 
 def unpack_holdings(raw) -> List[Holding]:
     arr = json.loads(raw) if isinstance(raw, str) else raw
-    return [Holding(a[0], a[1], a[2], CLS_BACK.get(a[3], "other"), a[4], a[5], a[6]) for a in arr]
+    # task #276: files stored before the metal-row rule are read with it too (SILVERBEES' silver was stored as cash)
+    return [Holding(a[0], a[1], a[2], metal_class(a[0], a[1], CLS_BACK.get(a[3], "other")), a[4], a[5], a[6]) for a in arr]
 
 
 async def store_portfolio(pool, fkey: str, amc: str, p: Portfolio) -> str:
@@ -210,6 +236,16 @@ async def put_facts(pool, rows: Sequence[Tuple[str, str, Optional[date], dict, s
 async def _run_done(pool, source: str, period: str) -> bool:
     async with pool.acquire() as conn:
         return bool(await conn.fetchval("SELECT 1 FROM disclosure_runs WHERE source = $1 AND period = $2 AND status = 'done'", source, period))
+
+
+async def _file_done(pool, source: str, period: str) -> bool:
+    """A fund-house file is skipped only when it was read whole: every sheet matched a scheme and passed the checks. A file with an unmatched or rejected
+    sheet is read again on the next run (task #281: files marked done while a new scheme was not in AMFI's list yet kept that scheme without holdings
+    for good; Angel One's index funds, for one). Older markers wrote the run's running totals, so a nonzero count there also means 'read again'."""
+    async with pool.acquire() as conn:
+        return bool(await conn.fetchval(
+            "SELECT 1 FROM disclosure_runs WHERE source = $1 AND period = $2 AND status = 'done' "
+            "AND COALESCE((detail->>'unmapped')::int, 0) = 0 AND COALESCE((detail->>'rejected')::int, 0) = 0", source, period))
 
 
 async def _run_mark(pool, source: str, period: str, status: str, detail: dict) -> None:
@@ -388,9 +424,59 @@ async def extra_facts(pool, key) -> Optional[dict]:
 
 # ------------------------------------------------------------------------------------------------------------- fetching
 
-def make_client() -> httpx.AsyncClient:
-    return httpx.AsyncClient(headers={"User-Agent": UA}, timeout=httpx.Timeout(60.0, connect=20.0), follow_redirects=True,
-                             limits=httpx.Limits(max_connections=2, max_keepalive_connections=1))
+RELAY_FETCH_HOSTS = ("barodabnpparibasmf.in",)   # fund-house sites that time out from the AWS server's address; fetched through the relay's /fetch route
+
+
+def _fetch_relay() -> Tuple[str, str]:
+    """(base, key) of the relay's /fetch route: EXCHANGE_RELAY_URL / EXCHANGE_RELAY_KEY, else the AMFI ones (one worker serves both)."""
+    base = (os.getenv("EXCHANGE_RELAY_URL") or os.getenv("AMFI_RELAY_URL") or "").strip().rstrip("/")
+    key = (os.getenv("EXCHANGE_RELAY_KEY") or os.getenv("AMFI_RELAY_KEY") or "").strip()
+    return base, key
+
+
+def _relayed_host(host: str) -> bool:
+    return any(host == h or host.endswith("." + h) for h in RELAY_FETCH_HOSTS)
+
+
+class RelayTransport(httpx.AsyncBaseTransport):
+    """Task #281: www.amfiindia.com and Baroda BNP Paribas's site do not answer the AWS server's address (the portfolio job's "performance", "loads" and
+    "barodabnp" parts ended in ConnectTimeout every night), while the facts job reaches AMFI through the relay (deploy/amfi-relay). Every request of the
+    portfolio job's client is sent here: a www.amfiindia.com request goes to the same path on the relay (method and JSON body kept, the shared key added;
+    disclosure.relay_for); a Baroda BNP request goes to the relay's GET /fetch?u=<address>. With no relay configured (local, CI) nothing changes."""
+
+    def __init__(self, inner: Optional[httpx.AsyncBaseTransport] = None):
+        self.inner = inner or httpx.AsyncHTTPTransport()
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        from .disclosure import relay_for
+        url = str(request.url)
+        new_url, extra = relay_for(url)
+        fetch_base, fetch_key = _fetch_relay()
+        if new_url == url and fetch_base and request.method == "GET" and request.url.scheme == "https" and _relayed_host(request.url.host):
+            new_url = str(httpx.URL(fetch_base + "/fetch", params={"u": url}))
+            extra = {"X-Relay-Key": fetch_key} if fetch_key else {}
+            extra["X-Fwd-User-Agent"] = request.headers.get("User-Agent", BROWSER_UA)
+            if request.headers.get("Referer"):
+                extra["X-Fwd-Referer"] = request.headers["Referer"]
+        if new_url == url:
+            return await self.inner.handle_async_request(request)
+        body = await request.aread()
+        headers = [(k, v) for k, v in request.headers.multi_items() if k.lower() not in ("host", "content-length")]
+        headers += list(extra.items())
+        relayed = httpx.Request(request.method, new_url, headers=headers, content=body or None, extensions=request.extensions)
+        resp = await self.inner.handle_async_request(relayed)
+        loc = resp.headers.get("Location")
+        if loc and 300 <= resp.status_code < 400:      # a redirect is followed on the original site (and relayed again), never on the relay's own address
+            resp.headers["Location"] = str(request.url.join(loc))
+        return resp
+
+    async def aclose(self) -> None:
+        await self.inner.aclose()
+
+
+def make_client(transport: Optional[httpx.AsyncBaseTransport] = None) -> httpx.AsyncClient:
+    inner = transport or httpx.AsyncHTTPTransport(limits=httpx.Limits(max_connections=2, max_keepalive_connections=1))   # a client's limits go on its transport
+    return httpx.AsyncClient(headers={"User-Agent": UA}, timeout=httpx.Timeout(60.0, connect=20.0), follow_redirects=True, transport=RelayTransport(inner))
 
 
 async def _retry(fn, tries: int = 3, base: float = 2.0):
@@ -514,6 +600,19 @@ def exit_load_text(raw: str) -> Optional[str]:
     return "Nil" if _NIL.match(t) else t[:600]
 
 
+_RUPEES = re.compile(r"(\d{1,3}(?:,\d{2,3})+|\d+)(?:\.\d+)?")
+
+
+def min_amount(raw: str) -> Tuple[Optional[str], Optional[float]]:
+    """AMFI's free-text minimum ("Rs. 5,000 and in multiples of Re.1 thereafter", "5000") -> (tidied text, the first rupee amount or None)."""
+    t = re.sub(r"\s+", " ", raw or "").strip()
+    if not t or t.upper() in ("NA", "N.A.", "-"):
+        return None, None
+    m = _RUPEES.search(t)
+    v = float(m.group(1).replace(",", "")) if m else None
+    return t[:200], (v if v is not None and 0 < v <= 10_000_000 else None)
+
+
 async def step_loads(pool, client, idx: Index, today: date) -> dict:
     """Exit load text from AMFI's scheme details: one list call per fund house, then one call per scheme that matches an active scheme family here and has no
     load text from the last LOAD_MAX_AGE_DAYS days. Resumable: whatever was written stays; the next run asks only for the rest."""
@@ -539,7 +638,7 @@ async def step_loads(pool, client, idx: Index, today: date) -> dict:
 
     async def one(fam: str, cands: List[Tuple[str, str]]):
         nonlocal asked, blank
-        launch_done = False
+        launch_done = min_done = False
         for mf_id, sid in sorted(cands, key=lambda c: -int(c[1]) if c[1].isdigit() else 0)[:3]:   # the newest listing of a scheme first
             async with sem:
                 asked += 1
@@ -551,6 +650,10 @@ async def step_loads(pool, client, idx: Index, today: date) -> dict:
             if ld and not launch_done and date(1950, 1, 1) <= ld <= today:    # a second source for schemes the scheme master gives no clean launch date
                 facts.append((fam, "launch_details", today, {"date": ld.isoformat()}, SRC_DETAILS, "https://www.amfiindia.com/otherdata/scheme-details"))
                 launch_done = True
+            mn_text, mn = min_amount(str(d.get("Scheme_min_amt") or ""))
+            if mn_text and not min_done:   # stored, not shown: AMFI's minimum is out of date for some schemes (task #281)
+                facts.append((fam, "min_amount_amfi", today, {"text": mn_text, "rupees": mn}, SRC_DETAILS, "https://www.amfiindia.com/otherdata/scheme-details"))
+                min_done = True
             txt_ = exit_load_text(str(d.get("Scheme_load") or ""))
             if txt_:
                 facts.append((fam, "exitload", today, {"text": txt_}, SRC_DETAILS, "https://www.amfiindia.com/otherdata/scheme-details"))
@@ -680,9 +783,10 @@ async def step_amc(pool, client, adapter: Adapter, idx: Index, today: date, mont
                         if await conn.fetchval("SELECT 1 FROM disclosure_portfolios WHERE fkey = $1 AND as_of = $2", fam, ref.month_end):
                             stats["skipped_existing"] += 1
                             continue
-            elif not force and await _run_done(pool, adapter.key, period):
+            elif not force and await _file_done(pool, adapter.key, period):
                 stats["skipped_existing"] += 1
                 continue
+            before = (stats["sheets"], len(stats["rejected"]), len(stats["unmapped"]), len(stats["errors"]))
             path = os.path.join(tmp, "f.bin")
             try:
                 await download(client, ref.url, path)
@@ -690,11 +794,12 @@ async def step_amc(pool, client, adapter: Adapter, idx: Index, today: date, mont
                 stats["errors"].append(f"{ref.label}: {type(exc).__name__}: {str(exc)[:120]}")
                 continue
             stats["files"] += 1
+            parse_file = getattr(adapter, "parse_file", None)      # a fund house that publishes PDFs only brings its own reader (houses_e.py)
             try:
-                for mname, mpath in _members(path):
+                for mname, mpath in ([(os.path.basename(path), path)] if parse_file else _members(path)):
                     sink: list = []
                     try:
-                        process_workbook(mpath, ref, adapter, idx, stats, sink)
+                        (parse_file or process_workbook)(mpath, ref, adapter, idx, stats, sink)
                     except Exception as exc:
                         stats["errors"].append(f"{ref.label} / {mname}: {type(exc).__name__}: {str(exc)[:120]}")
                     for fam, p in sink:
@@ -710,8 +815,10 @@ async def step_amc(pool, client, adapter: Adapter, idx: Index, today: date, mont
                     os.remove(path)
                 except OSError:
                     pass
-            if not per_scheme and len(stats["errors"]) == 0:
-                await _run_mark(pool, adapter.key, period, "done", {"sheets": stats["sheets"], "rejected": len(stats["rejected"]), "unmapped": len(stats["unmapped"])})
+            if not per_scheme and len(stats["errors"]) == before[3]:
+                # this file's own counts: a file with an unmatched or rejected sheet stays due (see _file_done)
+                await _run_mark(pool, adapter.key, period, "done", {"sheets": stats["sheets"] - before[0], "rejected": len(stats["rejected"]) - before[1],
+                                                                     "unmapped": len(stats["unmapped"]) - before[2]})
             await asyncio.sleep(0.3)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

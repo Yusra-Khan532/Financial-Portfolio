@@ -140,7 +140,7 @@ export function SubLine({ profile, score, plan, admin, prism }: { profile: Profi
   const cls = useClassification(profile.symbol).data;
   return (
     <>
-      <Row label="Rating"><ScoreBadge view={view} symbol={profile.symbol} /></Row>
+      <Row label="Fundamental rating"><ScoreBadge view={view} symbol={profile.symbol} /></Row>
       <CompanyFacts p={profile} cls={cls} />
     </>
   );

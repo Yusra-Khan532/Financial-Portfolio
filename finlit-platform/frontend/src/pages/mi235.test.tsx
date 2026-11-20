@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import QTY from "../myinvest/sample-qty.json";
 
 const st = vi.hoisted(() => ({ bodies: [] as unknown[], answer: null as unknown }));
+vi.mock("../lib/auth", async (orig) => ({ ...(await orig<typeof import("../lib/auth")>()), useAuth: () => ({ user: null }) }));   // task #277: What changed asks for the last visit only when signed in
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()),
   apiSend: vi.fn(async (_m: string, p: string, body: unknown) => { if (p === "/api/me/all-investments") { st.bodies.push(body); return structuredClone(st.answer); } return {}; }),
   apiGet: vi.fn(async (p: string) => (p === "/api/me/mf-portfolio/book" ? { portfolios: [{ id: "groww", name: "Groww" }] } : p === "/api/me/etf-portfolio/book" ? { portfolios: [{ id: "up", name: "Upstox" }] } : {})) }));
@@ -35,22 +36,26 @@ afterEach(cleanup);
 describe("All my investments by account and by value (pack C3)", () => {
   it("lists the accounts of the three pages by name; Upstox on the Equity and ETF pages is one account", async () => {
     mount(); await screen.findByText("Where your money sits");
-    await waitFor(() => expect([...document.querySelectorAll(".acc-t b")].map((b) => b.textContent)).toEqual(["All accounts", "Dhan", "Upstox", "Groww"]));
-    expect(document.querySelector(".acc-add")).toBeNull();                      // accounts are added on their portfolio pages
-    fireEvent.click(screen.getByRole("tab", { name: /Upstox/ }));
+    // task #277 (change 2): the accounts sit under Your portfolios in the top
+    await waitFor(() => expect([...document.querySelectorAll(".mi7-plist [role=radio] b:first-child")].map((b) => b.textContent).filter((t) => !t!.startsWith("₹"))).toEqual(["All accounts", "Dhan", "Upstox", "Groww"]));
+    expect(document.querySelector(".mi7-add")!.textContent).toContain("+ Add portfolio: on the Equity, MF or ETF page");   // accounts are added on their portfolio pages
+    fireEvent.click(screen.getByRole("radio", { name: /Upstox/ }));
     await waitFor(() => expect(st.bodies.at(-1)).toEqual({ shares: [{ symbol: "RELIANCE", qty: 25 }, { symbol: "KPITTECH", qty: 60 }], mfPf: "none", etfPf: "up" }));
-    fireEvent.click(screen.getByRole("tab", { name: /Groww/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /Groww/ }));
     await waitFor(() => expect(st.bodies.at(-1)).toEqual({ shares: [], mfPf: "groww", etfPf: "none" }));
   });
   it("the hero, Step 1 and In short show value now, invested and gain; the note names the holdings without a buy price", async () => {
     mount(); await screen.findByText("Where your money sits");
     // shares: 40 × 1500 + 30 × 1400 + 25 × 1300 + 4 × 15000 + 12 × 3000 = 2,30,500 (KPITTECH has no buy price); funds 3,10,000 (one unknown); ETFs 1,31,000
-    const hero = document.querySelector(".mi-dark-l")!.textContent!;
-    expect(hero).toMatch(/^Value now\. \+₹[\d.,]+ L? ?\(\+[\d.]+%\) on ₹6\.72 L invested, 10 of 12 holdings with a buy price\./);
+    // task #277 (change 2): the money box: value now; invested and gain side by side; what it covers
+    const box = screen.getByRole("region", { name: "All your investments" }).textContent!;
+    expect(box).toMatch(/value now/); expect(box).toContain("₹6.72 L");
+    expect(box).toMatch(/Gain or loss▲ ₹[\d.,]+ L? ?\+[\d.]+%/);
+    expect(box).toContain("Money figures cover 10 of 12 holdings.");
     const head = [...document.querySelectorAll(".mi-tb thead th")].slice(0, 5).map((t) => t.textContent);
     expect(head).toEqual(["Kind", "Holdings", "Invested", "Value now", "Gain / loss"]);
     expect(document.querySelector(".x-miss")!.textContent).toBe("10 of 12 holdings have a quantity and a buy price. Add the buy price for KPITTECH, HDFC Mid-Cap Opportunities on their portfolio pages to count them in Invested and Gain.");
-    expect(document.querySelector(".mi-count")!.textContent).toBe("6 shares · 3 mutual funds · 3 ETFs · buy prices for 10 of 12");
+    expect(document.querySelector(".mi7-count")!.textContent).toBe("6 shares · 3 funds · 3 ETFs");
     expect(document.querySelector(".mi-short")!.textContent).toMatch(/By value now: shares 37%, mutual funds 47%, ETFs 16%\. \+₹[\d.,]+ L? ?\(\+[\d.]+%\) on ₹6\.72 L invested; buy prices for 10 of 12\./);
   });
   it("Step 6 shows the fall as the Equity page's picture, by value, with each kind's share of the money and the Nifty 500's worst fall", async () => {

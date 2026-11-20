@@ -155,6 +155,17 @@ def look_through(shares: Sequence[Dict[str, Any]], funds: Sequence[Dict[str, Any
     return sorted(out, key=lambda x: (-x["all"], x["name"]))
 
 
+THROUGH_MIN = 0.1   # task #277 change 19: a company held only through funds and ETFs joins What changed at 0.1% or more of everything
+
+
+def changes_list(companies: List[Dict[str, Any]]) -> Dict[str, List[str]]:
+    """Task #277 (change 19): the companies of "What changed at the companies you own": held directly, or 0.1% or more of everything through funds
+    and ETFs. Listed in India only (Discover reads NSE filings); largest first."""
+    ok = [c for c in companies if c.get("symbol") and not c.get("abroad")]
+    return {"direct": [c["symbol"] for c in ok if c["direct"] > 0],
+            "through": [c["symbol"] for c in ok if c["direct"] == 0 and c["all"] >= THROUGH_MIN]}
+
+
 def filter_counts(companies: Sequence[Dict[str, Any]]) -> Dict[str, int]:
     """The company table's four filters, each with its count."""
     return {"all": len(companies), "twice": sum(1 for c in companies if c["ways"] >= 2),

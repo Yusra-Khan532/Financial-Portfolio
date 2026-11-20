@@ -48,7 +48,7 @@ describe("an open Basic screen", () => {
   });
   it("FinLit IQ: three rating groups with counts (zero greyed), 0-100 ranges held, 'FinLit IQ · 2', chips, Clear score filters", () => {
     render(<F />); open(/^FinLit IQ/);
-    const g = screen.getByRole("group", { name: "FinLit IQ rating" });
+    const g = screen.getByRole("group", { name: "FinLit IQ fundamental rating" });
     expect(within(g).getAllByRole("checkbox").map((c) => c.closest("label")!.textContent)).toEqual(["Strong or Healthy49", "Below Healthy80", "Not rated0"]);
     expect((within(g).getByRole("checkbox", { name: /Not rated/ }) as HTMLInputElement).disabled).toBe(true);
     expect(screen.getByText("Counts are for this list")).toBeTruthy();

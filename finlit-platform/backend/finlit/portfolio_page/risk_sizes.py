@@ -7,8 +7,9 @@ company's market value (finlit/sizes.py: Large above ₹75,000 Cr, Mid ₹25,000
 - Betas are over the past year of weekly closes (Friday to Friday): each share against its own size index (beta, R², the share of its moves its index explains),
   each size's average, the size-weighted beta of the list (each size's average beta times its share of the list), the list against a benchmark blended in the
   same proportions, and the list against the Nifty 50 alone. A share with under a year of prices gets no beta: it says "under a year".
-- Typical swing (annualised volatility of daily closes) and worst fall (largest drop from a high) are over 3 years of daily closes, with the years of data used
-  when a share has under 3.
+- Typical swing (annualised volatility of returns) and worst fall (largest drop from a high) are over 3 years of closes, with the years of data used when a share
+  has under 3. The shares' stored closes are weekly (price-MAX) and are annualised with √52; the index's are daily (√252). Each figure carries its grain and years
+  (task #274, number fix 1: the weekly closes had been annualised with √252, 2.2 times too high).
 - The list's 10 worst weeks are the Nifty 50's 10 worst weeks of the past year.
 - Each size against its own index: the size's shares held in equal amounts, the past year's return, and how much they moved for every 100 the index moved in its
   down weeks and in its up weeks.
@@ -84,15 +85,30 @@ def capture(y: pd.Series, x: pd.Series) -> Tuple[Optional[float], Optional[float
     return f(dn), f(up)
 
 
-def swing_and_fall(s: pd.Series, end: pd.Timestamp) -> Dict[str, Optional[float]]:
-    """Typical swing in a year (annualised volatility of daily returns, %) and worst fall from a high (%), over up to 3 years of daily closes."""
+PER_YEAR = {"daily": 252, "weekly": 52, "monthly": 12}
+
+
+def grain_of(idx: pd.DatetimeIndex) -> str:
+    """How far apart the closes are: daily, weekly or monthly, from the median gap between them (task #274, number fix 1)."""
+    if len(idx) < 3:
+        return "daily"
+    gap = float(np.median(np.diff(idx.values).astype("timedelta64[D]").astype(int)))
+    return "daily" if gap <= 3 else "weekly" if gap <= 8 else "monthly"
+
+
+def swing_and_fall(s: pd.Series, end: pd.Timestamp) -> Dict[str, Any]:
+    """Typical swing in a year (annualised volatility of returns, %) and worst fall from a high (%), over up to 3 years of closes.
+    Task #274 (number fix 1): the stored share prices (price-MAX) are WEEKLY closes, and they were annualised with the daily factor (√252), which put every swing
+    about 2.2 times too high (INFY 59% for a true 27%). Each series is now annualised by its own spacing (√52 for weekly), and the spacing is returned so the page
+    can say what the figure rests on."""
     x = s[(s.index > end - pd.Timedelta(days=DAYS_3Y)) & (s.index <= end)]
     if len(x) < 20:
-        return {"swing": None, "worstFall": None, "years": None}
+        return {"swing": None, "worstFall": None, "years": None, "grain": None}
     r = x.pct_change().dropna()
+    g = grain_of(x.index)
     years = round((x.index[-1] - x.index[0]).days / 365.25, 1)
     dd = float((x / x.cummax() - 1).min() * 100)
-    return {"swing": float(r.std(ddof=1) * math.sqrt(252) * 100), "worstFall": dd, "years": years}
+    return {"swing": float(r.std(ddof=1) * math.sqrt(PER_YEAR[g]) * 100), "worstFall": dd, "years": years, "grain": g}
 
 
 def r2(v: Optional[float], d: int = 2) -> Optional[float]:
@@ -114,13 +130,13 @@ def build(prices: Dict[str, Optional[dict]], index_rows: Dict[str, List[dict]], 
     for sym, p in prices.items():
         size = sizes.get(sym)
         row: Dict[str, Any] = {"symbol": sym, "size": size, "sector": sectors.get(sym), "benchmark": SIZE_INDEX[size][1] if size else None,
-                               "beta": None, "explained": None, "band": None, "why": None, "swing": None, "worstFall": None, "years": None, "oneYear": None}
+                               "beta": None, "explained": None, "band": None, "why": None, "swing": None, "worstFall": None, "years": None, "grain": None, "oneYear": None}
         if not p or not p.get("t"):
             row["why"] = "No stored prices"
             shares.append(row)
             continue
         s = daily(p["t"], p["c"])
-        row.update({k: r2(v, 1) if k != "years" else v for k, v in swing_and_fall(s, end).items()})
+        row.update({k: r2(v, 1) if k not in ("years", "grain") else v for k, v in swing_and_fall(s, end).items()})
         w = weekly(s, end)
         r = w.pct_change().dropna()
         if len(r) < MIN_WEEKS or (s.index[0] > end - pd.Timedelta(days=360)):
@@ -171,8 +187,11 @@ def build(prices: Dict[str, Optional[dict]], index_rows: Dict[str, List[dict]], 
         dr = pd.concat(daily_rets, axis=1)
         dr = dr[(dr.index > end - pd.Timedelta(days=DAYS_3Y)) & (dr.index <= end)].mean(axis=1, skipna=True).dropna()
         lvl = (1 + dr).cumprod()
-        glance["list"] = {"swing": r2(float(dr.std(ddof=1) * math.sqrt(252) * 100), 1), "worstFall": r2(float((lvl / lvl.cummax() - 1).min() * 100), 1)}
-    glance["nifty"] = {k: r2(v, 1) for k, v in swing_and_fall(nifty, end).items() if k != "years"}
+        g = grain_of(dr.index)                                  # task #274 fix 1: the shares' closes are weekly, so √52, not √252
+        glance["list"] = {"swing": r2(float(dr.std(ddof=1) * math.sqrt(PER_YEAR[g]) * 100), 1), "worstFall": r2(float((lvl / lvl.cummax() - 1).min() * 100), 1),
+                          "grain": g, "years": round((dr.index[-1] - dr.index[0]).days / 365.25, 1) if len(dr) > 1 else None}
+    nf = swing_and_fall(nifty, end)
+    glance["nifty"] = {"swing": r2(nf["swing"], 1), "worstFall": r2(nf["worstFall"], 1), "grain": nf["grain"], "years": nf["years"]}
     nw = bw["NIF50"]
     worst = nw.nsmallest(10).index
     glance["worst10"] = {"list": r2(float(lst.reindex(worst).mean() * 100), 1) if lst is not None else None, "nifty": r2(float(nw.reindex(worst).mean() * 100), 1)}

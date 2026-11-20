@@ -6,12 +6,21 @@ import type { Card } from "./pulsePack";
 export type RangeKey = "less" | "defensive" | "similar" | "more" | "high" | "very_high";
 export type Band = { key: RangeKey; word: string } | null;
 export type RiskShare = { symbol: string; size: "Large" | "Mid" | "Small" | "Micro" | null; sector: string | null; benchmark: string | null; beta: number | null; explained: number | null; band: Band; why: string | null;
-  swing: number | null; worstFall: number | null; years: number | null; oneYear: number | null };
+  swing: number | null; worstFall: number | null; years: number | null; oneYear: number | null; grain?: Grain | null };
 export type RiskSize = { size: "Large" | "Mid" | "Small" | "Micro"; benchmark: string; n: number; avgBeta: number | null; band: Band; listShare: number; adds: number | null; oneYear: number | null; benchOneYear: number | null; downPer100: number | null; upPer100: number | null };
+/** How far apart the closes behind a figure are (task #274, number fix 1: the shares' closes are weekly, the index's daily). */
+export type Grain = "daily" | "weekly" | "monthly";
+type Swing = { swing: number | null; worstFall: number | null; grain?: Grain | null; years?: number | null };
+/** "3 yrs, weekly": the window of a swing figure, printed next to it (number fix 5). */
+export const windowOf = (x: Swing | undefined | null, yearsDefault = 3) => {
+  if (!x) return "";
+  const y = x.years != null ? (x.years >= 2.95 ? Math.round(x.years) : Math.round(x.years * 10) / 10) : yearsDefault;
+  return `${y} ${y === 1 ? "yr" : "yrs"}${x.grain ? `, ${x.grain}` : ""}`;
+};
 export type RiskAnswer = {
   to: string; from: string; counted: number; shares: RiskShare[]; sizes: RiskSize[]; unknown: string[]; missingIndex: string[];
   betas: { weighted: number | null; blended: number | null; nifty: number | null; weightedBand: Band; blendedBand: Band; niftyBand: Band };
-  glance: { list?: { swing: number | null; worstFall: number | null }; nifty: { swing: number | null; worstFall: number | null }; worst10: { list: number | null; nifty: number | null }; weighted: number | null };
+  glance: { list?: Swing; nifty: Swing; worst10: { list: number | null; nifty: number | null }; weighted: number | null };
   ranges: { key: RangeKey; word: string; below: number | null }[];
 };
 export const RANGE_EDGES: [RangeKey, number, number][] = [["less", 0, 0.65], ["defensive", 0.65, 0.9], ["similar", 0.9, 1.1], ["more", 1.1, 1.35], ["high", 1.35, 1.75], ["very_high", 1.75, 2.5]];
@@ -36,15 +45,20 @@ export function riskLede(r: RiskAnswer): { lead: string; rest: string } {
 export function glanceTiles(r: RiskAnswer) {
   const g = r.glance, l = g.list;
   const ratio = l?.swing != null && g.nifty.swing ? l.swing / g.nifty.swing : null;
+  const to = new Date(r.to + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  // task #274 (number fixes 1 and 5): the swing is annualised by each series' own spacing, and every figure says its window ("3 yrs, weekly"); the line
+  // under the swing gives the ratio itself rather than "about twice", which the old 2.2-times-too-high swing produced
+  const swWin = `List: ${windowOf(l)} · Nifty 50: ${windowOf(g.nifty)}`;
   return [
-    { k: "Typical swing in a year · 3 yrs", v: l?.swing == null ? "–" : `${l.swing.toFixed(1)}%`, nifty: g.nifty.swing == null ? "–" : `${g.nifty.swing.toFixed(1)}%`,
-      sub: ratio == null ? "Not enough prices." : ratio >= 1.8 ? "About twice as bumpy as the index." : ratio >= 1.15 ? "Bumpier than the index." : ratio <= 0.85 ? "Steadier than the index." : "About as bumpy as the index.",
-      help: "How much the list's value has moved up and down in a typical year (the annualised volatility of daily closes), over the last 3 years.", how: "Higher is a bumpier ride. Set it beside the Nifty 50's figure under it." },
-    { k: "Worst fall from a high · 3 yrs", v: signed(l?.worstFall), nifty: signed(g.nifty.worstFall), sub: l?.worstFall == null || g.nifty.worstFall == null ? "Not enough prices." : l.worstFall < g.nifty.worstFall - 1 ? "Deeper than the index." : l.worstFall > g.nifty.worstFall + 1 ? "Shallower than the index." : "About the same as the index.",
-      help: "The largest drop from a peak to a later low, over the last 3 years of daily closes.", how: "A larger minus figure is a deeper fall. Set it beside the Nifty 50's." },
-    { k: "In the 10 worst weeks · past year", v: signed(g.worst10.list), nifty: signed(g.worst10.nifty), sub: g.worst10.list == null || g.worst10.nifty == null ? "Not enough prices." : g.worst10.list < g.worst10.nifty - 0.3 ? "Falls more when the market falls." : g.worst10.list > g.worst10.nifty + 0.3 ? "Falls less when the market falls." : "Falls about as much as the market.",
+    { k: "Typical swing in a year · 3 yrs", v: l?.swing == null ? "–" : `${l.swing.toFixed(1)}%`, nifty: g.nifty.swing == null ? "–" : `${g.nifty.swing.toFixed(1)}%`, win: swWin,
+      sub: ratio == null ? "Not enough prices." : ratio >= 1.15 ? `About ${ratio.toFixed(1)} times as bumpy as the index.` : ratio <= 0.85 ? `Steadier than the index: about ${ratio.toFixed(1)} times its swing.` : "About as bumpy as the index.",
+      help: `How much the list's value has moved up and down in a typical year (the annualised volatility of its ${l?.grain ?? "weekly"} returns), over the last 3 years. The Nifty 50's is from its ${g.nifty.grain ?? "daily"} closes.`,
+      how: "Higher is a bumpier ride. Set it beside the Nifty 50's figure under it." },
+    { k: "Worst fall from a high · 3 yrs", v: signed(l?.worstFall), nifty: signed(g.nifty.worstFall), win: swWin, sub: l?.worstFall == null || g.nifty.worstFall == null ? "Not enough prices." : l.worstFall < g.nifty.worstFall - 1 ? "Deeper than the index." : l.worstFall > g.nifty.worstFall + 1 ? "Shallower than the index." : "About the same as the index.",
+      help: `The largest drop from a peak to a later low, over the last 3 years (the list from ${l?.grain ?? "weekly"} closes, the Nifty 50 from ${g.nifty.grain ?? "daily"} closes).`, how: "A larger minus figure is a deeper fall. Set it beside the Nifty 50's." },
+    { k: "In the 10 worst weeks · past year", v: signed(g.worst10.list), nifty: signed(g.worst10.nifty), win: `weekly · past year, to ${to}`, sub: g.worst10.list == null || g.worst10.nifty == null ? "Not enough prices." : g.worst10.list < g.worst10.nifty - 0.3 ? "Falls more when the market falls." : g.worst10.list > g.worst10.nifty + 0.3 ? "Falls less when the market falls." : "Falls about as much as the market.",
       help: "The list's average weekly move in the Nifty 50's 10 worst weeks of the past year.", how: "Below the Nifty 50's figure: the list fell more in those weeks; above it, less." },
-    { k: "Beta, size-weighted", v: b2(r.betas.weighted), nifty: "1.00", niftyWord: "benchmarks", sub: r.betas.weighted == null ? "Not enough prices." : r.betas.weighted > 1.1 ? "More sensitive than its market (its own benchmarks)." : r.betas.weighted < 0.9 ? "Less sensitive than its market (its own benchmarks)." : "About as sensitive as its market (its own benchmarks).",
+    { k: "Beta, size-weighted", v: b2(r.betas.weighted), nifty: "1.00", niftyWord: "benchmarks", win: `vs each share's size index · weekly · past year, to ${to}`, sub: r.betas.weighted == null ? "Not enough prices." : r.betas.weighted > 1.1 ? "More sensitive than its market (its own benchmarks)." : r.betas.weighted < 0.9 ? "Less sensitive than its market (its own benchmarks)." : "About as sensitive as its market (its own benchmarks).",
       help: "Each share against the index of companies its size over the past year of weekly closes; the sizes combined by their share of the list.", how: "1.00 moves with its own benchmarks; above 1 more, below 1 less." },
   ];
 }

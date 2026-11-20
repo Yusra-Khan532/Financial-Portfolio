@@ -18,11 +18,13 @@ import type { LotsProps } from "../portfolio/HoldingCells";
 import { AddPortfolioDialog, AnalysingBar, GoTo, PortfoliosBar, type PfInfo } from "../portfolio/Portfolios";
 import { MoneyRow, SoldList, soldOf } from "../portfolio/MoneyRow";
 import { ClearPortfolio } from "../components/ClearPortfolio";
+import { AddSharesDialog, CompanyCombo, rowsToChanges, suggest, type AddRow, type AddTab } from "../portfolio/AddShares";
+import type { CompanyHit } from "../lib/companySearch";
 import { clearPortfolioServer, undoClearPortfolioServer } from "../lib/account";
 import { PdfImport } from "../components/PdfImport";
 import { ACCEPT, entriesFromFile, type Entry } from "../lib/holdingsFile";
 import { isPdf } from "../lib/holdingsPdf";
-import { entriesFrom, entryOf, makeMatcher, matchEntries, type Skipped, type ToCheck } from "../lib/holdingsMatch";
+import { entryOf, makeMatcher, matchEntries, type Skipped, type ToCheck } from "../lib/holdingsMatch";
 import { resolveIsins, sourcesLine } from "../lib/isin";
 import { modelFor, parsePeriod, parseTab, useOverview, withTab, type Line, type OverviewHolding, type Period, type Tab } from "../lib/portfolioOverview";
 import { usePortfolioPage } from "../portfolio/usePortfolioPage";
@@ -60,6 +62,14 @@ import { coTitle, subLine, titleOf } from "../lib/companyLabel";
  *  Every figure and every sentence comes from POST /api/portfolio/page (the handover pack's engine) and POST /api/portfolio/overview (live price and the plan's scores). */
 
 /** The sections of each tab, in reading order (task #183): the sections bar numbers them; All sections lists the three tabs. */
+/** The Upload tab's notes (task #274: the file notes moved from the page into Upload): what files work, and the CAS. */
+const UPLOAD_NOTE = <>
+  <p className="pfx-note eq-addnote">{ADD_NOTE}</p>
+          <details className="pfx-note eq-cas"><summary>Shares at more than one broker, Groww included? Upload your CAS</summary>
+            <p>A CAS (Consolidated Account Statement) from NSDL or CDSL lists the shares in every demat account you have, at every broker, with the number of shares. NSDL or CDSL emails it to you every month in which your holdings changed (look for "Consolidated Account Statement"), and both let you ask for one on their websites. Its password is usually your PAN in capitals.</p>
+            <p>Upload the PDF here. It is read on your device; only the ISINs are sent, to be looked up, and the quantities are added up across your accounts. Nothing is sent to a broker.</p></details>
+</>;
+
 const SECS: Record<TabKey, { label: string; secs: Sec[] }> = {
   portfolio: { label: "Portfolio", secs: [["pf-shares", "Your shares"], ["eq-trend", "Trends"], ["eq-peers", "Peers"], ["eq-leaders", "Group leaders"]] },
   diversification: { label: "Diversification analytics", secs: [["eq-where", "Where it sits"], ["eq-spread", "Spread"], ["eq-sectors", "Sectors"], ["eq-groups", "Stock groups"], ["eq-sizes", "Company sizes"], ["eq-grid", "Share by share"], ["eq-style", "Style tilt"]] },
@@ -89,7 +99,9 @@ export function HoldingsPage() {
   const by = useMemo(() => new Map((uni.data?.rows || []).map((r) => [r.symbol, r])), [uni.data]);
   const index = idx.data?.rows || [];
   const cap = limitsFor(plan).holdings;
-  const [one, setOne] = useState(""), [text, setText] = useState(""), [pasting, setPasting] = useState(false), [missing, setMissing] = useState<string[]>([]);
+  const [one, setOne] = useState(""), [missing, setMissing] = useState<string[]>([]);
+  // task #274 (pack change 1): the Add shares window (Add: with the picked company; Add several: empty; Import ▾: Paste a list or Upload) and the Import menu
+  const [addWin, setAddWin] = useState<{ tab: AddTab; pre: CompanyHit | null } | null>(null), [impOpen, setImpOpen] = useState(false);
   const [checks, setChecks] = useState<ToCheck[]>([]), [skipped, setSkipped] = useState<Skipped[]>([]), [readBy, setReadBy] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null), [busy, setBusy] = useState(false), [pdf, setPdf] = useState<File | null>(null);
   const matcher = useMemo(() => makeMatcher(index), [index]);
@@ -102,6 +114,9 @@ export function HoldingsPage() {
   const [kept, setKept] = useState<Set<string>>(new Set());
   const symbols = useMemo(() => [...new Set(st.holdings.filter((h) => cur === "all" || pfOf(h) === cur).map((h) => h.symbol))].filter((s) => aggOf(st.holdings, s, cur)?.qty !== 0 || kept.has(s)), [st.holdings, cur, kept]);
   const inTarget = useMemo(() => new Set(st.holdings.filter((h) => pfOf(h) === goTo).map((h) => h.symbol)), [st.holdings, goTo]);
+  // task #274 (change 1): what each suggestion shows beside the name (size and the latest close), and the shares already held ("In your list")
+  const heldSet = useMemo(() => new Set(allSymbols), [allSymbols]);
+  const coInfo = (sym: string) => { const u = by.get(sym); return { size: capBucket(u?.market_cap ?? null)?.short ?? null, close: u?.price ?? null }; };
   const ov = useOverview(symbols, !!model && !DEMO);
   const pg = usePortfolioPage(symbols, !!model && !DEMO);
   const tr = usePortfolioTrend(symbols, model === "prism" && !DEMO);
@@ -185,6 +200,15 @@ export function HoldingsPage() {
     toast([take.length ? `Added ${take.length} ${take.length === 1 ? "share" : "shares"}` : "Nothing new to add", check.length ? `${check.length} to check (listed below)` : "", skip.length ? `${skip.length} not added (reasons below)` : "",
       miss.length ? `${miss.length} not recognised (listed below)` : "", fresh.length > room ? `your plan holds up to ${cap}` : ""].filter(Boolean).join(" · ") + ".");
   };
+  /** The Add shares window's rows: a row with a quantity is a buy, one without follows the share by name (rowsToChanges); the plan's limit holds. */
+  const saveRows = (rows: AddRow[]) => {
+    const ch = rowsToChanges(rows, st.holdings, isinOf);
+    const newSyms = new Set(ch.adds.map((a) => a.symbol).filter((x) => !allSymbols.includes(x)));
+    if (allSymbols.length + newSyms.size > cap) { toast(`Your plan holds up to ${cap} shares. Remove a row or two and save again.`); return; }
+    if (ch.adds.length) portfolio.addMany(ch.adds);
+    ch.updates.forEach((u) => portfolio.update(u.id, u.patch));
+    toast([ch.shares ? `${ch.shares} ${ch.shares === 1 ? "share" : "shares"} added` : "", ch.buys ? `${ch.buys} ${ch.buys === 1 ? "buy" : "buys"} saved` : ""].filter(Boolean).join(", ") + ".");
+  };
   const addChecked = (c: ToCheck) => {
     if (inTarget.has(c.symbol)) { setChecks((xs) => xs.filter((x) => x !== c)); return; }
     if (!allSymbols.includes(c.symbol) && allSymbols.length >= cap) { toast(`Your plan holds up to ${cap} shares.`); return; }
@@ -237,14 +261,18 @@ export function HoldingsPage() {
             <p className="sp-desc">How strong your shares are, how well spread they are, and how risky the whole list is. Start with names; add quantities when you want the figures to follow your money. Nothing is sent to a broker.</p>
             <nav className="eq-links" aria-label="Related pages"><Link className="sp-link" to="/mf-portfolio">MF portfolio →</Link><Link className="sp-link" to="/watchlist">Watchlists →</Link><Link className="sp-link" to="/alerts">Alerts →</Link><Link className="sp-link" to="/learn/portfolio">Learn more →</Link></nav></div>
         <section className="eq-addbar" aria-label="Add shares">
-          <form className="pfx-add" onSubmit={(e) => { e.preventDefault(); void add(one.trim() ? [entryOf(one)] : []); setOne(""); }}>
-            <label className="pfx-input"><span className="sr-only">Add a share by name, symbol or ISIN</span><Icon name="search" />
-              <input ref={addBox} list="pf-names" value={one} onChange={(e) => setOne(e.target.value)} placeholder="Add a share by name, symbol or ISIN" autoComplete="off" maxLength={80} /></label>
-            <datalist id="pf-names">{index.slice(0, 500).map((r) => <option key={r[0]} value={r[0]}>{r[1]}</option>)}</datalist>
+          <form className="pfx-add" onSubmit={(e) => { e.preventDefault(); const t = one.trim(); if (!t) { setAddWin({ tab: "search", pre: null }); return; }
+            const hit = suggest(index, t, isinOf)[0]; if (hit) { setOne(""); setAddWin({ tab: "search", pre: hit }); } else { void add([entryOf(t)]); setOne(""); } }}>
+            <label className="pfx-input"><Icon name="search" />
+              <CompanyCombo index={index} isin={isinOf} held={heldSet} info={coInfo} label="Add a share by name, symbol or ISIN" inputRef={addBox} value={one} onChange={setOne}
+                onPick={(h) => { setOne(""); setAddWin({ tab: "search", pre: h }); }} /></label>
             <button className="pfx-solid">Add</button>
-            <span className="eq-add2"><button type="button" className="pfx-btn" aria-expanded={pasting} onClick={() => setPasting((v) => !v)}>Paste a list</button>
-            <button type="button" className="pfx-btn" onClick={() => file.current?.click()} disabled={busy}>{busy ? "Reading…" : "Upload broker file"}</button>
-            <input ref={file} type="file" accept={ACCEPT + ",.pdf,application/pdf"} hidden onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; if (isPdf(f)) { setPdf(f); return; } setBusy(true);
+            <span className="eq-add2"><button type="button" className="pfx-btn" onClick={() => setAddWin({ tab: "search", pre: null })}>Add several</button>
+            <span className="pfa-impw"><button type="button" className="pfx-btn" aria-haspopup="menu" aria-expanded={impOpen} onClick={() => setImpOpen((v) => !v)} disabled={busy}>{busy ? "Reading…" : "Import ▾"}</button>
+              {impOpen && <div className="x-swm pfa-imp" role="menu" aria-label="Import" onKeyDown={(e) => { if (e.key === "Escape") { setImpOpen(false); (e.currentTarget.previousElementSibling as HTMLElement | null)?.focus(); } }}>
+                <button type="button" role="menuitem" autoFocus onClick={() => { setImpOpen(false); setAddWin({ tab: "paste", pre: null }); }}><span className="x-swm-t"><b>Paste a list</b><small>Names, symbols or ISINs, one a line</small></span></button>
+                <button type="button" role="menuitem" onClick={() => { setImpOpen(false); setAddWin({ tab: "upload", pre: null }); }}><span className="x-swm-t"><b>Upload a broker file or CAS</b><small>Excel, CSV or PDF; read by ISIN</small></span></button></div>}</span>
+            <input ref={file} type="file" accept={ACCEPT + ",.pdf,application/pdf"} hidden onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; setAddWin(null); if (isPdf(f)) { setPdf(f); return; } setBusy(true);
               try { await add(await entriesFromFile(f, matcher), f.name); } catch (err) { toast(err instanceof Error && err.message.startsWith("That file") ? err.message : "That file could not be read. Save it as .xlsx or .csv, or paste the share names instead."); } finally { setBusy(false); } }} />
             <ClearPortfolio count={symbols.length} noun="share" kind="equity" className="pfx-btn" goes={["the quantities you added", "the figures worked out from them: score, diversification and risk"]}
               onClear={async () => { const before = portfolio.get(); await clearPortfolioServer(); localBefore.current = before; portfolio.reset(); }}
@@ -254,12 +282,10 @@ export function HoldingsPage() {
               }} />
             <span className="pfx-cap">{allSymbols.length} of {cap} shares</span></span>
           </form>
-          <p className="pfx-note eq-addnote">{ADD_NOTE}</p>
-          <details className="pfx-note eq-cas"><summary>Shares at more than one broker, Groww included? Upload your CAS</summary>
-            <p>A CAS (Consolidated Account Statement) from NSDL or CDSL lists the shares in every demat account you have, at every broker, with the number of shares. NSDL or CDSL emails it to you every month in which your holdings changed (look for "Consolidated Account Statement"), and both let you ask for one on their websites. Its password is usually your PAN in capitals.</p>
-            <p>Upload the PDF with Upload broker file. It is read on your device; only the ISINs are sent, to be looked up, and the quantities are added up across your accounts. Nothing is sent to a broker.</p></details>
-          {pasting && <div className="pfx-paste"><textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} placeholder={"INE002A01018\nHDFC Bank\nInfosys Ltd\nTCS"} aria-label="ISINs or share names to add, one per line" />
-            <button className="pfx-solid" onClick={() => { const es = entriesFrom(text, matcher); void add(es, undefined, es.length > 1); setText(""); }} disabled={!text.trim()}>Add these</button></div>}
+
+
+          {addWin && <AddSharesDialog tab={addWin.tab} pre={addWin.pre} index={index} isin={isinOf} held={heldSet} info={coInfo} pfs={pfList} defaultPf={goTo} onClose={() => setAddWin(null)}
+            onUpload={() => file.current?.click()} uploadNote={UPLOAD_NOTE} onSave={(rows) => { saveRows(rows); setAddWin(null); }} />}
           {pdf && <PdfImport file={pdf} index={index} search={idx.data} held={symbols} heldQty={qtyBySymbol} room={Math.max(0, cap - allSymbols.length)} onClose={() => setPdf(null)}
             onAdd={(picks) => {   // task #191: a depository statement brings each share's quantity; a share already in the list takes it as if typed
               const fresh = picks.filter((p) => !inTarget.has(p.symbol)), set = picks.filter((p) => inTarget.has(p.symbol) && p.qty);

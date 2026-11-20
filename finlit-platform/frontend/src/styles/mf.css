@@ -97,6 +97,13 @@
 .mf-big.pos, .mf-rf .pos { color: var(--gain); } .mf-big.neg, .mf-rf .neg { color: var(--loss); }
 .mf-rf { display: inline-grid; justify-items: end; gap: 1px; font-weight: 600; font-size: var(--fs-16); font-variant-numeric: tabular-nums; }
 .mf-rf small { font-size: 12px; font-weight: 400; color: var(--faint); max-width: 130px; line-height: 1.25; text-align: right; }
+/* task #281: an IDCW row shows its same-plan Growth option's score and returns, always labelled as that option's (never as its own NAV change) */
+.mf-grf { display: inline-grid; justify-items: end; gap: 2px; }
+.mf-grf .mf-gr, .mfs-cell .mfs-inh { font-size: 12px; font-weight: 400; font-style: italic; color: var(--muted); line-height: 1.25; max-width: 104px; text-align: right; white-space: normal; overflow-wrap: break-word; }
+.mfs-cell .mfs-inh { display: block; }
+.mf-plannote { margin: 8px 2px 0; font-size: 12px; color: var(--muted); }
+.mf-grblock { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+.mf-grblock .mf-h4 { margin: 0 0 8px; }
 .mf-retgrp { text-align: center !important; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); border-bottom: 2px solid var(--gold-deep); padding: 4px 8px; }
 .mf-table th.mf-retcol, .mf-table td.mf-retcol { min-width: 96px; background: var(--zebra); }
 .mf-grouprow th { padding-bottom: 0; border: 0; }

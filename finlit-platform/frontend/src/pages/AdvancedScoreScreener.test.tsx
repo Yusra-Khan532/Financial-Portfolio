@@ -168,7 +168,7 @@ describe("Advanced stock screener (Gold)", () => {
 
   it("SPEC §3: the Prism score panel filters by the rating words (with counts, zero greyed) and writes them to the address", async () => {
     open();
-    const p = prismPanel(), rating = within(p.getByRole("group", { name: "Prism rating" }));
+    const p = prismPanel(), rating = within(p.getByRole("group", { name: "Prism fundamental rating" }));
     expect(rating.getAllByRole("checkbox").map((c) => c.closest("label")!.textContent)).toEqual(["Strong1", "Healthy1", "Average1", "Weak0", "Poor1", "Not rated2"]);
     expect((rating.getByRole("checkbox", { name: /^Weak/ }) as HTMLInputElement).disabled).toBe(true);
     fireEvent.click(rating.getByRole("checkbox", { name: /^Strong/ })); fireEvent.click(rating.getByRole("checkbox", { name: /^Healthy/ }));

@@ -1,7 +1,8 @@
 // Task #251: the i buttons of the Discover pack (README "i buttons: texts", the mockup's INFO object, word for word). Task #260: the 20 Nov pack's INFO
-// object (code/discover.js), word for word: the four shared sizes, Rotation and Pulse in the shared words, and the new sector, industry and map notes. Each opens a short note under it,
-// closes on a second click, a click outside or Escape, and gives focus back to the button.
+// object (code/discover.js), word for word: the four shared sizes, Rotation and Pulse in the shared words, and the new sector, industry and map notes. Each opens a short note under it
+// on hover, keyboard focus or a click (task #265), closes on leaving it, a second click, a click outside or Escape, and gives focus back to the button.
 import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useHoverOpen } from "../lib/hoverOpen";
 
 /** The Sector Rotation reading date the corner text names. */
 export const RotDate = createContext<string>("the latest reading");
@@ -59,12 +60,12 @@ export function I({ k, label = "What does this mean?" }: { k: InfoKey; label?: s
     document.addEventListener("mousedown", onDown);
     return () => { document.removeEventListener("keydown", onKey); document.removeEventListener("mousedown", onDown); };
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
-  const toggle = () => {
-    if (open) { close(true); return; }
-    closeOpen?.(); closeOpen = closer; setOpen(true);
-  };
+  const openNow = () => { closeOpen?.(); closeOpen = closer; setOpen(true); };
+  const toggle = () => { if (open) { close(true); return; } openNow(); };
+  const hover = useHoverOpen(open, openNow, () => close(false));    // task #265: it opens on hover and keyboard focus too, as every other i does
   return <span className="dsc-iw">
-    <button ref={btn} type="button" className="dsc-ib" aria-label={label} aria-expanded={open} aria-controls={open ? id : undefined} data-i={k} onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggle(); }}>i</button>
-    {open && <span ref={box} id={id} role="note" className="dsc-tip">{infoText(k, rotDate)}</span>}
+    <button ref={btn} type="button" className="dsc-ib" aria-label={label} aria-expanded={open} aria-controls={open ? id : undefined} data-i={k} {...hover.trigger}
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); hover.click(toggle); }}>i</button>
+    {open && <span ref={box} id={id} role="note" className="dsc-tip" {...hover.note}>{infoText(k, rotDate)}</span>}
   </span>;
 }

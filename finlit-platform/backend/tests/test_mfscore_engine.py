@@ -289,6 +289,43 @@ async def test_not_rated_and_inherited_and_unscored_answers(store, monkeypatch):
         await c.execute("DELETE FROM mf_schemes WHERE code IN (910001, 910002, 910003)")
 
 
+async def test_idcw_rows_show_the_same_plans_growth_score_and_returns_labelled_as_such(store, monkeypatch):
+    """Task #281 (owner, 20 Nov 2026): IDCW rows in the fund list, screener and compare showed a dash for the score and every return (e.g. Parag Parikh Flexi Cap
+    Direct Monthly IDCW 153964). They show the Growth option of the SAME fund and plan, labelled; with no Growth option of that plan, a dash and the reason."""
+    from finlit import mf
+    codes = (910011, 910012, 910013, 910014)
+    async with store.pool.acquire() as c:
+        await c.execute("DELETE FROM mf_schemes WHERE code = ANY($1::int[])", list(codes))
+        await c.execute("DELETE FROM mf_scores WHERE key = 'mf:910011'")
+        for code, plan, opt in ((910011, "Direct", "Growth"), (910012, "Direct", "IDCW"), (910013, "Regular", "IDCW"), (910014, "Direct", "IDCW")):
+            await c.execute("INSERT INTO mf_schemes (code, name, plan, option_class, family, amc, scheme_type, category, nav, nav_date, active, r1y, r3y, r5y) "
+                            "VALUES ($1,$2,$3,$4,$5,'X Mutual Fund','Open Ended','Equity Scheme - Flexi Cap Fund',10.0,$6,true,$7,$8,$9)",
+                            code, f"Fund {code}", plan, opt, "lone|other" if code == 910014 else "pp|flexi", date(2026, 10, 28),
+                            *((12.5, 15.1, 18.2) if opt == "Growth" else (None, None, None)))
+    g = fund("mf:910011", "EQ-BROAD", "flexi-cap", months=60, seed=5)
+    g.code, g.category = 910011, "Equity Scheme - Flexi Cap Fund"
+    await _write(store, [g])
+    async with await _client(store, monkeypatch, "gold") as c:
+        body = (await c.get("/api/mf/scores?codes=910012,910013,910014")).json()
+        by = {i["code"]: i for i in body["items"]}
+        assert by[910012]["inherited"]["code"] == 910011 and by[910012]["inherited"]["label"] == "Growth option's score" and by[910012]["status"] is not None
+        assert "inherited" not in by[910013] and by[910013]["final"] is None and "same plan" in by[910013]["reason"]   # Regular IDCW: no Regular Growth, never the Direct one
+        assert by[910014]["final"] is None and "inherited" not in by[910014]
+        assert body["planNote"] == "Scores compare Direct plans with Direct plans and Regular with Regular."
+        one = (await c.get("/api/mf/910013/score")).json()
+        assert one["final"] is None and not one.get("inherited")                                        # the fund page agrees: same plan only
+    async with store.pool.acquire() as c:
+        sib = await mf.growth_siblings(c, [910012, 910013, 910014, 910011])
+        assert sib[910012]["code"] == 910011 and (sib[910012]["r1y"], sib[910012]["r3y"], sib[910012]["r5y"]) == (12.5, 15.1, 18.2)
+        assert sib[910012]["label"] == "Growth option's returns (before payouts)" and set(sib) == {910012}
+        items = [{"code": 910012, "optionClass": "IDCW"}, {"code": 910013, "optionClass": "IDCW"}, {"code": 910011, "optionClass": "Growth"}]
+        await mf.attach_growth_returns(c, items)
+        assert items[0]["growthReturns"]["code"] == 910011 and items[1]["growthReturns"] is None and "No Growth option" in items[1]["growthReturnsWhy"]
+        assert "growthReturns" not in items[2]
+        await c.execute("DELETE FROM mf_schemes WHERE code = ANY($1::int[])", list(codes))
+        await c.execute("DELETE FROM mf_scores WHERE key = 'mf:910011'")
+
+
 async def test_the_fund_list_sorts_by_score_for_gold_only(store, monkeypatch):
     from finlit import mf
     app = FastAPI()

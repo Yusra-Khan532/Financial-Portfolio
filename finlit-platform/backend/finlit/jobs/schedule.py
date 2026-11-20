@@ -48,6 +48,15 @@ def night_shift(now: datetime) -> bool:
     return any(window_open(n, now) for n in NIGHT_SHIFT)
 
 
+def shift_start(now: datetime) -> Optional[datetime]:
+    """The 23:00 IST that began the night shift open at `now`, or None outside the shift (08:00 to 23:00 IST)."""
+    if not night_shift(now):
+        return None
+    i = ist(now)
+    day = i.date() if i.time() >= WINDOWS["NIGHT"].start else i.date() - timedelta(days=1)
+    return datetime.combine(day, WINDOWS["NIGHT"].start, IST)
+
+
 def open_windows(now: datetime) -> List[str]:
     return [n for n in WINDOWS if window_open(n, now)]
 

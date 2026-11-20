@@ -46,8 +46,9 @@ describe("change 5: company chips open the company report", () => {
   const readingOf = () => null;
   it("links a chip with a symbol to /stocks/<symbol> and leaves an unmatched one as text with its reason", () => {
     view(<Cell c={{ w: 0.4, n: 2, stocks: [{ name: "ITC", symbol: "ITC", w: 0.192 }, { name: "Unlisted Co", symbol: null, w: 0.01 }] }} max={0.4} readingOf={readingOf} />);
-    const a = screen.getByRole("link", { name: /^ITC, 19\.2% of your list: open the company report$/ });
+    const a = screen.getByRole("link", { name: "ITC" });
     expect(a.getAttribute("href")).toBe("/stocks/ITC");
+    expect(a.getAttribute("title")).toBe("ITC: 19.2% of your list. Open the company report");
     expect(screen.queryByRole("link", { name: /Unlisted/ })).toBeNull();
     expect(document.querySelector('[title*="no company report"]')!.textContent).toContain("Unlisted");
   });

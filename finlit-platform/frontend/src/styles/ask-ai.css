@@ -176,6 +176,13 @@
 .aif-a-n { font-weight: 700; color: var(--text); white-space: nowrap; }
 .aif-a-src { margin: 4px 0 0; font-size: var(--fs-12); color: var(--muted); }
 .aif-a-disc { margin: 0; font-size: var(--fs-12); color: var(--muted); font-style: italic; }
+/* task #270: the answer's closing stance and its one-line summary; the edge carries the tone (green positive, gold mixed, red negative) */
+.aif-a-st { margin: 10px 0 6px; padding: 10px 12px; border: 1px solid var(--border); border-left: 4px solid var(--gold); border-radius: 10px; background: var(--s1); }
+.aif-a-st.pos, .aif-a-st.cpos { border-left-color: var(--gain); }
+.aif-a-st.neg, .aif-a-st.cneg { border-left-color: var(--loss); }
+.aif-a-st-h { margin: 0; font-size: var(--fs-14); color: var(--text); }
+.aif-a-st-h span { color: var(--muted); }
+.aif-a-st-s { margin: 4px 0 0; font-size: var(--fs-14); line-height: 1.5; color: var(--text); }
 .aif-a-bars { display: block; width: 100%; max-width: 460px; height: auto; margin: 8px 0 2px; }
 .aif-a-axis { stroke: var(--border-strong); stroke-width: 1; }
 .aif-a-bar { fill: color-mix(in srgb, var(--aif-g, var(--gold)) 45%, transparent); } .aif-a-bar.on { fill: var(--aif-g, var(--gold)); } .aif-a-bar.neg { fill: color-mix(in srgb, var(--loss) 60%, transparent); }

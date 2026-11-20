@@ -33,41 +33,52 @@ const MEANING: Record<string, Record<Tone, string>> = {
   risk: { good: "the share price has moved calmly, with smaller falls, ample trading and few pledged shares", mixed: "price swings, falls and trading activity are moderate",
     weak: "the share price swings widely or has fallen sharply, trading is thin or shares are pledged" },
 };
-const OVERALL: Record<string, string> = {
-  STRONG: "read as strong overall: most of what FinLit Prism measures is sound",
-  HEALTHY: "read as healthy overall: more of what FinLit Prism measures is sound than weighs on it",
-  AVERAGE: "read as mixed overall: some parts are sound while others weigh on it",
-  WEAK: "read as weak overall: more of what FinLit Prism measures weighs on it than is sound",
-  POOR: "read as poor overall: most of what FinLit Prism measures weighs on it",
+/** The overall reading: its key word (bold on the page) and what it means. */
+const OVERALL: Record<string, [string, string]> = {
+  STRONG: ["strong", "most of what FinLit Prism measures is sound"],
+  HEALTHY: ["healthy", "more of what FinLit Prism measures is sound than weighs on it"],
+  AVERAGE: ["mixed", "some parts are sound while others weigh on it"],
+  WEAK: ["weak", "more of what FinLit Prism measures weighs on it than is sound"],
+  POOR: ["poor", "most of what FinLit Prism measures weighs on it"],
 };
+const TONE_WORD: Record<Tone, string> = { good: "sound", mixed: "in between", weak: "weighs on it" };
 const SHORT: Record<TrendBand, string> = { positive: "the price has been rising over the last few weeks", neutral: "the price has moved sideways over the last few weeks",
   negative: "the price has been falling over the last few weeks" };
 const LONG: Record<TrendBand, string> = { positive: "the longer trend over months is up", neutral: "the longer trend over months is flat", negative: "the longer trend over months is down" };
 const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
-const list = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join("; ")}; and ${xs[xs.length - 1]}`);
 
-/** What the card means, in a few plain sentences, from the card itself (no model) and without its numbers (they are on the card): the overall
- *  reading, what is sound, what is in between, what weighs on it, and the price trends. Exported for the tests. */
-export function cardSummary(name: string, r: PrismLatest["rating"], parts: CardPart[], a: TechAssessment | null): string[] {
-  const out: string[] = [];
-  if (r.status === "NOT RATED" || r.final == null || !OVERALL[r.label]) out.push(`${name} has no overall FinLit Prism rating at the moment: too little of the data it needs is available.`);
-  else out.push(`${name}'s business and finances ${OVERALL[r.label]}.${r.status === "PROVISIONAL" ? " This is a first view: some of the data it needs is missing." : ""}`);
-  const four = parts.filter((p) => p.key !== "technical" && MEANING[p.key]);
-  const by = (t: Tone) => four.filter((p) => p.value != null && toneOf(p.value) === t).map((p) => `${MEANING[p.key][t]} (${p.name})`);
-  const good = by("good"), mixed = by("mixed"), weak = by("weak");
-  if (good.length) out.push(`What is sound: ${list(good)}.`);
-  if (mixed.length) out.push(`In between: ${list(mixed)}.`);
-  if (weak.length) out.push(`What weighs on it: ${list(weak)}.`);
-  const none = four.filter((p) => p.value == null).map((p) => p.name);
-  if (none.length && r.status !== "NOT RATED") out.push(`Not enough data yet for ${none.join(", ")}.`);
+/** One pointer: a bold label, the text, and the key words inside it to bold too. */
+export type Pointer = { head: string; text: string; key?: string };
+/** What the card means, as short pointers from the card itself (no model) and without its numbers (they are on the card). Task #228 rework 2 (the
+ *  team, 20 Nov 2026): "make it in pointers its too big of a paragaph and highlight keywords". The overall reading, then one pointer for each part
+ *  (strongest first) labelled with what it is, then the price trends. Exported for the tests. */
+export function cardSummary(name: string, r: PrismLatest["rating"], parts: CardPart[], a: TechAssessment | null): Pointer[] {
+  const out: Pointer[] = [];
+  const o = OVERALL[r.label];
+  if (r.status === "NOT RATED" || r.final == null || !o) out.push({ head: "Overall", text: `${name} has no overall FinLit Prism rating at the moment: too little of the data it needs is available.` });
+  else out.push({ head: "Overall", text: `${name}'s business and finances read as ${o[0]}: ${o[1]}.${r.status === "PROVISIONAL" ? " A first view: some of the data it needs is missing." : ""}`, key: `read as ${o[0]}` });
+  const four = parts.filter((p) => p.key !== "technical" && MEANING[p.key] && p.value != null) as (CardPart & { value: number })[];
+  const rank: Record<Tone, number> = { good: 0, mixed: 1, weak: 2 };
+  for (const p of [...four].sort((x, y) => rank[toneOf(x.value)] - rank[toneOf(y.value)])) {
+    const t = toneOf(p.value);
+    out.push({ head: `${p.name}, ${TONE_WORD[t]}`, text: cap(MEANING[p.key][t]) + "." });
+  }
+  const none = parts.filter((p) => p.key !== "technical" && MEANING[p.key] && p.value == null).map((p) => p.name);
+  if (none.length && r.status !== "NOT RATED") out.push({ head: "Not enough data yet", text: `${none.join(", ")}.` });
   if (a) {
     const st = trendBand(a.shortTerm.score), lt = trendBand(a.longTerm.score);
     if (st && lt) {
       const v = verdictView(a);
-      out.push(`Price trend: ${SHORT[st]}, ${st === lt ? "and" : "while"} ${LONG[lt]}${v.tone !== "na" ? ` (${v.word.toLowerCase()})` : ""}.`);
-    } else if (st || lt) out.push(`Price trend: ${st ? SHORT[st] : "the short-term view is not available"}; ${lt ? LONG[lt] : "the long-term view is not available"}.`);
+      out.push({ head: "Price trend", text: `${cap(SHORT[st])}, ${st === lt ? "and" : "while"} ${LONG[lt]}${v.tone !== "na" ? ` (${v.word.toLowerCase()})` : ""}.`, key: v.tone !== "na" ? v.word.toLowerCase() : undefined });
+    } else if (st || lt) out.push({ head: "Price trend", text: `${st ? cap(SHORT[st]) : "The short-term view is not available"}; ${lt ? LONG[lt] : "the long-term view is not available"}.` });
   }
-  return out.map(cap);
+  return out;
+}
+
+/** A pointer drawn: its label in bold, then the text with its key words in bold. */
+function PointerText({ p }: { p: Pointer }) {
+  const i = p.key ? p.text.indexOf(p.key) : -1;
+  return <li><b>{p.head}:</b> {i < 0 ? p.text : <>{p.text.slice(0, i)}<b>{p.key}</b>{p.text.slice(i + (p.key as string).length)}</>}</li>;
 }
 
 /** The session, or null where the page is drawn without the sign-in context (a preview, the card's own tests): then it acts as for a visitor. */
@@ -136,7 +147,7 @@ export function PrismAiSummary({ symbol, name, r, parts, a }: { symbol: string; 
       )}
       {state.kind === "card" && (
         <div className="pai-box" role="region" aria-label={`Summary of the FinLit Prism rating of ${name}`}>
-          {cardSummary(name, r, parts, a).map((l) => <p key={l}>{l}</p>)}
+          <ul className="pai-list">{cardSummary(name, r, parts, a).map((p) => <PointerText key={p.head} p={p} />)}</ul>
           <p className="pai-note"><Icon name="info" /> {state.note}{!user || !paid ? <> <Link to="/plans">Compare plans</Link></> : null}</p>
           <p className="pai-disc">{DISCLAIMER}</p>
         </div>

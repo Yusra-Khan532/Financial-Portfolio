@@ -305,6 +305,8 @@ class PrefsIn(BaseModel):
     dashPortfolios: Optional[DashPortfolios] = None   # task #248: the dashboard's Showing bar; none means All accounts everywhere
     # task #251: themes the member follows on Discover (their slugs). Stored with the account; no alert reads them yet.
     followThemes: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,79}$")]] = Field(default_factory=list, max_length=40)
+    # task #277: the views of a page the member has opened once ("mi:equity"), so a view not yet opened carries "Not opened yet" on every device
+    viewsSeen: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9]{1,12}:[a-z0-9-]{1,24}$")]] = Field(default_factory=list, max_length=60)
 
 
 # ------------------------------------------------------------------ helpers
@@ -1029,6 +1031,8 @@ async def admin_decline(request: Request, rid: int, ctx: Ctx = Depends(admin_ctx
 async def admin_data_health(request: Request, ctx: Ctx = Depends(admin_ctx)):
     body = await request.app.state.store.health()
     body["funds"] = await _funds_health(request.app.state.store.pool)
+    from .. import dataaudit
+    body["fundGaps"] = await dataaudit.fund_gaps(request.app.state.store.pool)   # task #281: every fund data gap, counted each time the panel opens
     from .. import integrity
     body["integrity"] = await integrity.last_result(request.app.state.store.pool)
     try:

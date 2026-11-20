@@ -9,7 +9,7 @@ import {
 } from "../lib/mfScore";
 import { BAND_NAME, bandVar } from "../lib/scoreBands";
 import { dateIN } from "../lib/format";
-import { scoreReason } from "../lib/mf";
+import { GROWTH_SCORE_LABEL, PLAN_SCORE_NOTE, scoreReason } from "../lib/mf";
 import { ScoreBreakdown } from "./ScoreBreakdown";
 import { PEER_KIND_WORD, type CategoryMedian } from "../lib/mfScoreUp";
 import { ScoreAlertButton } from "./ScoreAlertButton";
@@ -85,6 +85,7 @@ function Facts({ s }: { s: FundScore & { categoryMedian?: CategoryMedian } }) {
   if (s.rank?.percentile != null) rows.push(["Higher than", `${s.rank.percentile}% of the group`]);
   if (med?.final != null) rows.push(["Category median", `${scoreText(med.final)}${med.categoryLabel ? ` (${med.categoryLabel}, ${med.plan} plan)` : ""}`]);
   if (s.peers?.n) rows.push(["Compared with", `${s.peers.n} funds, ${PEER_KIND_WORD[s.peers.kind || ""] || s.peers.text || "similar funds"}`]);
+  if (s.fundPlan === "Direct" || s.fundPlan === "Regular" || s.plan === "Direct" || s.plan === "Regular") rows.push(["Plans", PLAN_SCORE_NOTE]);   // task #281
   if (s.months) rows.push(["NAV history used", `${s.months} months`]);
   const built = builtOnText(s.filled);
   if (built) rows.push(["Built on real data", built.replace("Built on real data: ", "")]);
@@ -100,7 +101,7 @@ export function ScoreBody({ s }: { s: FundScore }) {
   return (
     <>
       {line && <p className="mfs-one">{line}</p>}
-      {s.inherited && <p className="mf-note" role="note"><Icon name="info" /><span>Inherited score: {s.inherited.why}{s.inherited.code ? <> <Link to={`/funds/${s.inherited.code}`}>{s.inherited.name}</Link></> : s.inherited.symbol ? <> <Link to={`/etfs/${s.inherited.symbol}`}>{s.inherited.name}</Link></> : null}</span></p>}
+      {s.inherited && <p className="mf-note" role="note"><Icon name="info" /><span>{s.inherited.code ? GROWTH_SCORE_LABEL : "Inherited score"}: {s.inherited.why}{s.inherited.code ? <> <Link to={`/funds/${s.inherited.code}`}>{s.inherited.name}</Link></> : s.inherited.symbol ? <> <Link to={`/etfs/${s.inherited.symbol}`}>{s.inherited.name}</Link></> : null}</span></p>}
       <div className="mfs-top">
         <div className="mfs-ringbox">
           <ScoreRing score={s.final} label={s.label} />
