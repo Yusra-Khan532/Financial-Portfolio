@@ -49,9 +49,16 @@ _BIO = re.compile(r"\b(?:he|she) (?:founded|co-founded|has over|has more than|ho
                   r"executive director|independent director|director|president)[^)]*\)", re.I)
 
 
+# a deck's legal disclaimer (Welspun Corp's second passage, found in the live check: "Reproduction, distribution, republication and retransmission of
+# material contained herein is prohibited ...")
+_DISCLAIMER = re.compile(r"\breproduction,? distribution|\bprohibited without\b|\ball rights reserved\b|\bforward[- ]looking statements?\b|\bsafe harbou?r\b|"
+                         r"\bdisclaimer\b|\bdoes not constitute an? (?:offer|invitation|recommendation)\b|\bthis (?:presentation|document) (?:has been|is) "
+                         r"(?:prepared|not|for information)|\bno representation or warranty\b", re.I)
+
+
 def business(t: str) -> bool:
-    """False for a cover letter, a signature block or a person's biography (task #273)."""
-    return not (_LETTER.search(t) or _BIO.search(t))
+    """False for a cover letter, a signature block, a person's biography or a legal disclaimer (task #273)."""
+    return not (_LETTER.search(t) or _BIO.search(t) or _DISCLAIMER.search(t))
 
 
 def clean_q(q: Any) -> Optional[Dict[str, str]]:

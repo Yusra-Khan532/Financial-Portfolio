@@ -79,6 +79,20 @@ def test_a_lender_keeps_the_ai_theme_when_its_sentences_show_revenue_orders_or_a
     assert K.seat(None, [], SCORES, OPS, "Banks") == (None, [], False)
 
 
+def test_a_kpi_slides_revenue_far_from_the_theme_does_not_keep_a_lender_on_ai():
+    """Live check after the first deploy (20 Nov): 5paisa, Aditya Birla Capital, Bajaj Finserv, CAMS, Kotak Mahindra Bank and Medi Assist stayed on
+    AI & GenAI because a KPI cell on the same slide said "Revenue". The business word must sit in the same sentence or cell as the theme's word."""
+    kpi = ["Market Cap Data ₹23,326 Cr GWP | FY2026 ₹1,121 Cr REVENUE | FY2026 ₹150 Cr INVESTED CAPITAL | Enterprise AI Consumer AI AI Governance Agentic AI",
+           "Q1 FY27 Customer base 53.4 Lakh FINANCIALS Revenue ₹865 Mn Broking income ₹349 Mn. Our new app is AI driven with pro level tools.",
+           "₹191 Cr revenue, ₹42 Cr EBITDA; AI tools live for Paramount clients",
+           "Strengthens wallet share and accelerates cross-engine monetisation • Pillar 3: Technology, Digital & AI"]
+    assert K.seat("AI & GenAI", [], SCORES, kpi, "Banks")[2] is True
+    for t in ("GenAI products for enterprises contributed 18% of revenue in Q2.", "We won orders worth Rs 300 crore for AI data centre build-outs."):
+        assert K.seat("AI & GenAI", [], SCORES, [t], "Capital Markets")[2] is False, t
+    assert K.seat("Cloud & Data Centres", [], {"Cloud & Data Centres": {"score": 5}, "Financial Services & Trading": {"score": 2}},
+                  ["Colocation data centre revenue grew 30% to Rs 400 crore."], "Finance")[2] is False
+
+
 # ------------------------------------------------------------------------------------------------ 3 and 5. passages
 APOLLO_BIO = ("Baddam Karunakar Reddy (Managing Director) He founded Apollo Micro Systems in 1985 and has been instrumental in driving innovation in "
               "defence electronics.")
@@ -96,6 +110,9 @@ def test_no_passage_is_a_signature_block_or_a_biography():
         assert Q.clean_q(t) is None, t
     # a management quote about the business stays
     assert Q.clean_q("Mr. Rajesh Kumar, Chairman, said: “We won radar orders worth Rs 500 crore and commissioned the new plant this quarter.”")
+    # a deck's legal disclaimer (Welspun Corp's second passage, live check)
+    assert Q.clean_q("Reproduction, distribution, republication and retransmission of material contained herein is prohibited without prior written consent of the company.") is None
+    assert Q.clean_q("This presentation has been prepared for information purposes only and does not constitute an offer to buy or sell any securities.") is None
     out = Q.passages([APOLLO_BIO, APOLLO_BIZ, APOLLO_SIGN], ["Missile system"])
     assert [p["t"][:22] for p in out] == ["End-to-End Capabilitie"]
 
