@@ -4,6 +4,7 @@
 // Styles: styles/industry-card.css, scoped to #aiq. Describes the results; never advice.
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
+import { Info } from "../components/Info";
 import { useQuarterResults, type QResp } from "../lib/qresults";
 import type { VRow } from "../lib/resultsPack";
 import { useRotationMap } from "../lib/rotation";
@@ -22,6 +23,8 @@ const AGREE_TEXT: Record<string, string> = {
 };
 const VS_TEXT: Record<string, string> = { Ahead: "Ahead of the market", "In line": "In line with the market", Behind: "Behind the market" };
 const INFO = "Compares this quarter's growth against a year ago with the middle company (the median) of its industry and of the whole market, from Latest results. Describes the results; not a recommendation.";
+// task #265: the site's shared i (hover, keyboard focus or a tap opens it), in place of a native title that showed only after a long hover and never on a phone
+const INFO_G = { key: "aiq", label: "Against its industry this quarter", what: INFO };
 
 export type IndustryRead = {
   state: "none" | "loading" | "nogroup" | "locked" | "ready";
@@ -62,7 +65,7 @@ function Head({ r, children }: { r: IndustryRead; children?: React.ReactNode }) 
   return (
     <div className="aiq-hl">
       <p className="aiq-eye"><span className="aiq-dot" aria-hidden="true" />Key read for this quarter</p>
-      <h3 id="aiq-h">Against its industry this quarter<button type="button" className="info" aria-label="What is Against its industry this quarter?" title={INFO}>i</button></h3>
+      <h3 id="aiq-h">Against its industry this quarter<Info g={INFO_G} /></h3>
       {children}
       {i && <p className="aiq-sub">{i.name} · {i.declared} of {i.companies} companies have declared · revenue and net profit, {q} quarter against a year ago</p>}
     </div>

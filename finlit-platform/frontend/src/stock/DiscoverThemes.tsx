@@ -7,6 +7,7 @@
 // Data: GET /api/discovery/company (404 = not placed), the Discover board and the same prices the Discover page joins (discovery/model.ts), so every figure
 // here is the one the theme page shows. Describes what the company's own presentation says; never a pick. Styles: styles/dth.css (class prefix dth-).
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useHoverOpen } from "../lib/hoverOpen";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, apiGet } from "../lib/api";
@@ -66,7 +67,7 @@ function Spark() {
 const Arrow = () => <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>;
 const Stage = ({ st }: { st: string }) => <span className="dth-stg" style={{ "--stg": STAGE[st]?.[1] ?? "#6b7280" } as React.CSSProperties}>{st}</span>;
 
-/** The (i) of 20a: opens a note under it; a second click, Escape or a click outside closes it and focus goes back to the button. */
+/** The (i) of 20a: opens a note under it on hover, keyboard focus or a click; a second click, Escape or a click outside closes it and focus goes back to the button. */
 function Tip() {
   const [open, setOpen] = useState(false), id = useId(), btn = useRef<HTMLButtonElement>(null), box = useRef<HTMLSpanElement>(null);
   useEffect(() => {
@@ -76,8 +77,10 @@ function Tip() {
     document.addEventListener("keydown", key); document.addEventListener("mousedown", out);
     return () => { document.removeEventListener("keydown", key); document.removeEventListener("mousedown", out); };
   }, [open]);
-  return <span className="dth-iw"><button ref={btn} type="button" className="dth-i" aria-label="About Discover themes" aria-expanded={open} aria-controls={open ? id : undefined} onClick={() => setOpen(!open)}>i</button>
-    {open && <span ref={box} id={id} role="note" className="dth-pop">{TIP}</span>}</span>;
+  const hover = useHoverOpen(open, () => setOpen(true), () => setOpen(false));   // task #265: hover and keyboard focus open it too
+  return <span className="dth-iw"><button ref={btn} type="button" className="dth-i" aria-label="About Discover themes" aria-expanded={open} aria-controls={open ? id : undefined} {...hover.trigger}
+    onClick={() => hover.click(() => setOpen(!open))}>i</button>
+    {open && <span ref={box} id={id} role="note" className="dth-pop" {...hover.note}>{TIP}</span>}</span>;
 }
 
 /** 20a, under the classification row in the header card. `jump` scrolls below the sticky section bar (the report's own). */
