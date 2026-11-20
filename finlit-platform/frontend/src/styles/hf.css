@@ -64,8 +64,11 @@
 /* the frame in header-row mode (ScreenerFrame headerFilters): no side panel, the table takes the full width */
 .scr.hf-full { grid-template-columns: minmax(0, 1fr); }
 .scr.hf-full > .scr-main { grid-column: 1; }
-.hf-tool { flex-wrap: nowrap; align-items: center; }
-.hf-tool > :first-child { flex: 0 1 280px; min-width: 180px; }
+/* Task #263 (20 Nov 2026, the team: "ui issue in this box", the Advanced screener's filter bar): when the filters wrap to a second line, the search box
+   stays level with the first line (it floated between the two), is the filters' height (fgx.css), and never narrows below its placeholder
+   (it was cut to "Search company name or sy"). */
+.hf-tool { flex-wrap: nowrap; align-items: flex-start; }
+.hf-tool > :first-child { flex: 0 1 280px; min-width: 220px; }
 .hf-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
 .hf-count { margin: 0; font: 600 14px var(--sans); color: var(--text); }
 .hf-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }

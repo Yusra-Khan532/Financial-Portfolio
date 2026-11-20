@@ -120,7 +120,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
         {beforeTable}
         {/* 14 Nov file N-24 / N-33: no "not scored yet" ring and no sector box above the list (they were drawn for admin accounts); "Not scored yet" stays on each row */}
         {headerFilters ? (<>
-          <div className="sx-stick hf-bar"><div className="fgx-tool hf-tool" role="search"><SearchBox value={s.q} onChange={s.setQ} placeholder="Search company name or symbol" label="Search company name or symbol" />{topFilters ?? <HeaderFilters s={s} />}</div></div>
+          <div className="sx-stick hf-bar"><div className="fgx-tool hf-tool" role="search"><SearchBox value={s.q} onChange={s.setQ} placeholder="Company name or symbol" label="Search company name or symbol" />{topFilters ?? <HeaderFilters s={s} />}</div></div>
           <div className="hf-chips" aria-label="Active filters">
             {!chips.length && !qTrim ? <p className="hf-empty">No filters yet: every company is listed.</p> : <>
               {qTrim && <button type="button" className="fchip" onClick={() => s.setQ("")} aria-label={`Remove search ${qTrim}`}>Search: {qTrim}<span aria-hidden="true">×</span></button>}
