@@ -216,3 +216,24 @@
 .mi-tb td small.mi-sub { display: block; font-size: 12px; font-weight: 600; color: var(--muted); }
 .mi-tb td small.mi-sub.mi-up { color: var(--gain); } .mi-tb td small.mi-sub.mi-down { color: var(--loss); }
 .mi-dark .x-up { color: #7fe0ad; font-weight: 700; } .mi-dark .x-dn { color: #ffa4a8; font-weight: 700; }   /* task #235: the gain on the dark hero */
+
+/* Task #277 (20 Nov pack, live number fix 11): the step tables' sticky first column made Chrome count the table's whole width for the page, so the page
+   scrolled sideways at 1,180 px and on phones; the scroll box now keeps it inside */
+.mi .cz-tbl .tw { contain: paint; }
+/* Task #277 (pack "Contrast", each under 4.5:1 live): dark text on the gold and green segments of the bars and on the mid score chips; the beta band
+   labels of the fall picture in both themes; the Open tab links. Colours as in the pack's mockup sheet, on this page only. */
+.mi .mi-stack .k-funds > span, .mi .mi-stack .k-funds > span > small, .mi .mi-stack .m-au > span, .mi .mi-stack .m-au > span > small { color: #1f1a10; }
+.mi .mi-stack .m-dc > span, .mi .mi-stack .m-dc > span > small { color: #10241a; }
+.mi .mi-sbox.t-mid > b, .mi .mi-band i.t-mid { color: #1f1a10; }
+:root[data-theme="light"] .mi .mi-go > b { color: #1f5fb0; }
+:root[data-theme="light"] .mi .eqr-bands > .r-less, :root[data-theme="light"] .mi .r-less > small { color: #1b5a3d; }
+:root[data-theme="light"] .mi .eqr-bands > .r-defensive { color: #225a3f; } :root[data-theme="light"] .mi .eqr-bands > .r-similar { color: #3d4652; }
+:root[data-theme="light"] .mi .eqr-bands > .r-more { color: #6b5210; } :root[data-theme="light"] .mi .eqr-bands > .r-high { color: #8a3b12; } :root[data-theme="light"] .mi .eqr-bands > .r-very_high { color: #8f1f1f; }
+:root[data-theme="dark"] .mi :is(.eqr-bands > .r-less, .r-less > small) { color: #86d3a9; } :root[data-theme="dark"] .mi :is(.eqr-bands > .r-defensive, .r-defensive > small) { color: #9ad8b4; }
+:root[data-theme="dark"] .mi :is(.eqr-bands > .r-similar, .r-similar > small) { color: #b4cdf5; } :root[data-theme="dark"] .mi :is(.eqr-bands > .r-more, .r-more > small) { color: #ecd08a; }
+:root[data-theme="dark"] .mi :is(.eqr-bands > .r-high, .r-high > small) { color: #f2b08a; } :root[data-theme="dark"] .mi :is(.eqr-bands > .r-very_high, .r-very_high > small) { color: #f4a3a3; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .mi :is(.eqr-bands > .r-less, .r-less > small) { color: #86d3a9; } :root:not([data-theme="light"]) .mi :is(.eqr-bands > .r-defensive, .r-defensive > small) { color: #9ad8b4; }
+  :root:not([data-theme="light"]) .mi :is(.eqr-bands > .r-similar, .r-similar > small) { color: #b4cdf5; } :root:not([data-theme="light"]) .mi :is(.eqr-bands > .r-more, .r-more > small) { color: #ecd08a; }
+  :root:not([data-theme="light"]) .mi :is(.eqr-bands > .r-high, .r-high > small) { color: #f2b08a; } :root:not([data-theme="light"]) .mi :is(.eqr-bands > .r-very_high, .r-very_high > small) { color: #f4a3a3; }
+}
