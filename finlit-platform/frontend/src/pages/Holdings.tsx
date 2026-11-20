@@ -18,6 +18,7 @@ import type { LotsProps } from "../portfolio/HoldingCells";
 import { AddPortfolioDialog, AnalysingBar, GoTo, PortfoliosBar, type PfInfo } from "../portfolio/Portfolios";
 import { MoneyRow, SoldList, soldOf } from "../portfolio/MoneyRow";
 import { ClearPortfolio } from "../components/ClearPortfolio";
+import { EditWindow, SellWindow } from "../portfolio/EditSell";
 import { AddSharesDialog, CompanyCombo, rowsToChanges, suggest, type AddRow, type AddTab } from "../portfolio/AddShares";
 import type { CompanyHit } from "../lib/companySearch";
 import { clearPortfolioServer, undoClearPortfolioServer } from "../lib/account";
@@ -102,6 +103,8 @@ export function HoldingsPage() {
   const [one, setOne] = useState(""), [missing, setMissing] = useState<string[]>([]);
   // task #274 (pack change 1): the Add shares window (Add: with the picked company; Add several: empty; Import ▾: Paste a list or Upload) and the Import menu
   const [addWin, setAddWin] = useState<{ tab: AddTab; pre: CompanyHit | null } | null>(null), [impOpen, setImpOpen] = useState(false);
+  // task #274 (pack change 3): Edit | Sell under each share open these windows
+  const [esWin, setEsWin] = useState<{ what: "edit" | "sell"; symbol: string } | null>(null);
   const [checks, setChecks] = useState<ToCheck[]>([]), [skipped, setSkipped] = useState<Skipped[]>([]), [readBy, setReadBy] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null), [busy, setBusy] = useState(false), [pdf, setPdf] = useState<File | null>(null);
   const matcher = useMemo(() => makeMatcher(index), [index]);
@@ -158,15 +161,14 @@ export function HoldingsPage() {
   const changeOf = (sym: string) => { const o = byOv.get(sym); return o && o.status === "ready" ? o.changePct : null; };
   const lots: LotsProps = {
     holdings: st.holdings, cur, pfName, nPortfolios: pfList.length, priceOf, changeOf, goTo, open: openLots, focus,
-    onOpen: (sym, on) => setOpenLots((c) => { const n = new Set(c); if (on) n.add(sym); else n.delete(sym); return n; }),
+    // task #274 (pack change 3): the buys open in the Edit window, not as rows inside the table ("add a buy", "add a buy price", the score box's Add buys)
+    onOpen: (sym, on) => { if (on) setEsWin({ what: "edit", symbol: sym }); setOpenLots((c) => { const n = new Set(c); if (on) n.add(sym); else n.delete(sym); return n; }); },
     add: (sym, pf, side) => { acts.add(sym, pf, side); setOpenLots((c) => new Set([...c, sym])); setFocus(null); },
     edit: (id, patch) => acts.edit(id, patch),
     remove: (id) => { acts.remove(id); toast("Removed."); },
   };
   const money = moneyOf(st.holdings.filter((h) => symbols.includes(h.symbol) || cur === "all" || pfOf(h) === cur), cur, priceOf, changeOf);
-  const openFor = (sym: string, what: "qty" | "price") => { setView("portfolio"); setFocus({ symbol: sym, what }); setOpenLots((c) => new Set([...c, sym]));
-    if (what === "qty" && !(aggOf(st.holdings, sym, cur)?.nBuys)) acts.add(sym, cur === "all" ? (aggOf(st.holdings, sym, "all")?.pfs[0] ?? goTo) : cur, "buy");
-    setTimeout(() => document.getElementById(`lots-${sym}`)?.scrollIntoView?.({ behavior: "smooth", block: "center" }), 120); };
+  const openFor = (sym: string, what: "qty" | "price") => { void what; setView("portfolio"); setEsWin({ what: "edit", symbol: sym }); };   // task #274: Edit holds the buys (a share with none opens with one empty row)
   const pfFigs = (id: string | "all") => { const m = moneyOf(st.holdings, id, priceOf, changeOf); return { n: m.n, now: m.now, withQty: m.withQty, gainPct: m.full && m.invested ? (m.gain / m.invested) * 100 : null }; };
   const sold = soldOf(st.holdings, cur);
   const ids = data?.symbols ?? symbols;
@@ -284,6 +286,10 @@ export function HoldingsPage() {
           </form>
 
 
+          {esWin && (() => { const nm = meta[esWin.symbol]?.name ?? by.get(esWin.symbol)?.name ?? esWin.symbol, tt = titleOf({ symbol: esWin.symbol, name: nm });
+            return esWin.what === "edit" ? <EditWindow p={lots} symbol={esWin.symbol} title={tt} name={nm} onClose={() => setEsWin(null)}
+              onRemove={(pf) => { st.holdings.filter((h) => h.symbol === esWin.symbol && (pf === "all" || pfOf(h) === pf)).forEach((h) => portfolio.remove(h.id)); toast(`${tt} removed.`); }} />
+              : <SellWindow p={lots} symbol={esWin.symbol} title={tt} name={nm} onClose={() => setEsWin(null)} onSave={(sale) => { portfolio.addMany([sale]); toast(`Sale of ${tt} recorded.`); }} />; })()}
           {addWin && <AddSharesDialog tab={addWin.tab} pre={addWin.pre} index={index} isin={isinOf} held={heldSet} info={coInfo} pfs={pfList} defaultPf={goTo} onClose={() => setAddWin(null)}
             onUpload={() => file.current?.click()} uploadNote={UPLOAD_NOTE} onSave={(rows) => { saveRows(rows); setAddWin(null); }} />}
           {pdf && <PdfImport file={pdf} index={index} search={idx.data} held={symbols} heldQty={qtyBySymbol} room={Math.max(0, cap - allSymbols.length)} onClose={() => setPdf(null)}
@@ -332,7 +338,7 @@ export function HoldingsPage() {
           {view === "portfolio" && <MoneyRow t={money} onAdd={openFor} />}
           {view === "portfolio" && <KeyFigures tab="portfolio" sub={`Your ${plural(lines.length, "share")} at a glance`} cards={portfolioCards(shares, model, (sc.data?.readings as { valuation?: { word?: string } } | undefined)?.valuation?.word ?? null)} drop={model === "prism" ? (k) => keyDrop(k, shares) : undefined} n={shares.length} />}
           {view === "portfolio" && <>
-            <SharesTable lots={lots} qtyOf={(sym) => qtyBySymbol.get(sym) ?? null} onQty={onQty} lines={lines} meta={meta} page={page} mode={mode} colors={colors} model={model} tab={tab} period={period} limit={cap} state={ov.isError ? "error" : ov.isPending && !DEMO ? "loading" : "ready"}
+            <SharesTable lots={lots} editSell={{ onEdit: (sym) => setEsWin({ what: "edit", symbol: sym }), onSell: (sym) => setEsWin({ what: "sell", symbol: sym }) }} qtyOf={(sym) => qtyBySymbol.get(sym) ?? null} onQty={onQty} lines={lines} meta={meta} page={page} mode={mode} colors={colors} model={model} tab={tab} period={period} limit={cap} state={ov.isError ? "error" : ov.isPending && !DEMO ? "loading" : "ready"}
               errorText={DEMO ? "Scores are not available in the demo preview." : ov.error?.body?.detail} onTab={(t) => go(t)} onPeriod={(pd) => go("financials", pd)}
               peerOf={(sym) => shareOf.get(sym)} day={day} cards={tab === "overview" ? <div className="eq-cards"><Insights items={sharesCards(shares, day)} scope="eq.shares" /></div> : null}
               actions={(sym) => <button className="pfx-x" aria-label={`Remove ${sym}`} title={`Remove ${sym}${cur === "all" ? "" : ` from ${pfName(cur)}`}`} onClick={() => { st.holdings.filter((h) => h.symbol === sym && (cur === "all" || pfOf(h) === cur)).forEach((h) => portfolio.remove(h.id)); toast(`${sym} removed.`); }}>×</button>} />
