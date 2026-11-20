@@ -44,14 +44,14 @@ const DATA = {
 beforeEach(() => { st.data = DATA; st.put = []; st.asked = []; vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} }); });
 afterEach(() => { cleanup(); localStorage.clear(); });
 const show = async () => { render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false, enabled: false } } })}><MemoryRouter initialEntries={["/mf-portfolio"]}><MfPortfolioPage /></MemoryRouter></QueryClientProvider>);
-  await waitFor(() => expect(document.querySelector('.acc-t[data-acc="groww"]')).toBeTruthy()); };
+  await waitFor(() => expect([...document.querySelectorAll(".ptk-plist .ptk-pn b")].some((b) => b.textContent === "Groww")).toBe(true)); };
 
 describe("MF platforms, buys and sales (pack C1, C5, C6)", () => {
   it("the platforms bar lists All accounts, Groww and Coin; picking one reads that platform", async () => {
     await show();
-    expect([...document.querySelectorAll(".acc-t b")].map((b) => b.textContent)).toEqual(["All accounts", "Groww", "Coin by Zerodha"]);
-    expect(screen.getByText("One tab for each place you hold funds: an app, a broker or the fund house.")).toBeTruthy();
-    fireEvent.click(screen.getByRole("tab", { name: /Coin by Zerodha/ }));
+    // task #275 (change 2): Your portfolios sits beside the money box, the largest first (Coin holds ₹11,240, Groww ₹2,924)
+    expect([...document.querySelectorAll(".ptk-plist .ptk-pn b")].map((b) => b.textContent)).toEqual(["All accounts", "Coin by Zerodha", "Groww"]);
+    fireEvent.click(within(screen.getByRole("radiogroup", { name: "Portfolio" })).getByRole("radio", { name: /Coin by Zerodha/ }));
     expect(st.asked).toContain("coin");
   });
   it("Overview has the three money groups without Today; a fund opens into its buys and sales with units to 3 decimals", async () => {
@@ -71,9 +71,11 @@ describe("MF platforms, buys and sales (pack C1, C5, C6)", () => {
     expect(document.querySelector("tr.x-lot .l-day")).toBeNull();                       // no Today: NAVs change once a day
     expect(document.querySelector("tr.x-tot")!.textContent).toMatch(/^Total · 2 funds in 2 portfolios/);
   });
-  it("three money tiles (no Today), the Sold list names the fund sold in full", async () => {
+  it("the money box (Today says its NAV change is not loaded), the booked gain, and the Sold list names the fund sold in full", async () => {
     await show();
-    expect([...document.querySelectorAll(".xm-row .xm-k")].map((k) => k.textContent)).toEqual(["Invested", "Value now", "Gain or loss", "Booked gain"]);
+    expect([...document.querySelectorAll(".ptk-sub3 .ptk-k")].map((k) => k.textContent)).toEqual(["Invested", "Today", "Gain or loss"]);
+    expect(document.querySelectorAll(".ptk-sub3 > div")[1].textContent).toBe("Today—the day's NAV change is not loaded");
+    expect(document.querySelector(".ptk-booked")!.textContent).toMatch(/^Booked gain: /);
     expect(document.querySelector(".x-sold-t")!.textContent).toMatch(/1 fund sold in full.*\+₹100 booked/);
   });
   it("a change is saved as the fund's lines, each with its platform and side", async () => {
@@ -84,5 +86,41 @@ describe("MF platforms, buys and sales (pack C1, C5, C6)", () => {
     await act(async () => { vi.advanceTimersByTime(1000); });
     vi.useRealTimers();
     expect(st.put.at(-1)).toEqual({ path: "/api/me/mf-portfolio/bbb", body: { lots: [{ units: "25.5", avgCost: "200", boughtOn: "2025-02-02", pf: "coin", side: "buy" }] } });
+  });
+});
+
+describe("task #275 (change 3): Edit | Sell under each fund, in the shared dialogs", () => {
+  it("shows Edit | Sell in place of Remove; Edit lists the fund's buys on a platform by name, with Avg buy NAV", async () => {
+    await show();
+    expect(screen.queryByRole("button", { name: /^Remove ICICI/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Edit ICICI Prudential FMCG Fund" }));
+    const dlg = screen.getByRole("dialog", { name: "Edit ICICI Prudential FMCG Fund" });
+    expect(within(dlg).getAllByLabelText(/^Quantity in buy/).map((i) => (i as HTMLInputElement).value)).toEqual(["10.123", "5", "2.5"]);   // Groww's three buys
+    expect(within(dlg).getByLabelText("Average buy NAV in buy 1 of ICICI Prudential FMCG Fund")).toBeTruthy();
+    fireEvent.change(within(dlg).getByLabelText("Portfolio"), { target: { value: "coin" } });
+    expect(within(dlg).getAllByLabelText(/^Quantity in buy/).map((i) => (i as HTMLInputElement).value)).toEqual(["8", "4"]);
+  });
+  it("Sell saves a sale line on the chosen platform (PUT the fund's lines)", async () => {
+    await show();
+    fireEvent.click(screen.getByRole("button", { name: "Sell Quant Small Cap Fund" }));
+    const dlg = screen.getByRole("dialog", { name: "Sell Quant Small Cap Fund" });
+    fireEvent.change(within(dlg).getByLabelText("Quantity of Quant Small Cap Fund sold"), { target: { value: "5" } });
+    fireEvent.change(within(dlg).getByLabelText("Sell NAV of Quant Small Cap Fund"), { target: { value: "260" } });
+    fireEvent.change(within(dlg).getByLabelText("Date of the sale of Quant Small Cap Fund"), { target: { value: "2026-11-18" } });
+    fireEvent.click(within(dlg).getByRole("button", { name: /^(Sell|Save|Record)/ }));
+    await waitFor(() => expect(st.put.some((p) => p.path === "/api/me/mf-portfolio/bbb")).toBe(true), { timeout: 3000 });
+    const body = st.put.filter((p) => p.path === "/api/me/mf-portfolio/bbb").at(-1)!.body as { lots: { units: string; side: string; pf: string }[] };
+    expect(body.lots).toContainEqual(expect.objectContaining({ units: "5", side: "sell", pf: "coin", avgCost: "260", boughtOn: "2026-11-18" }));
+  });
+  it("Remove from one platform keeps the fund's lines on the other", async () => {
+    await show();
+    fireEvent.click(screen.getByRole("button", { name: "Edit ICICI Prudential FMCG Fund" }));
+    const dlg = screen.getByRole("dialog", { name: "Edit ICICI Prudential FMCG Fund" });
+    fireEvent.change(within(dlg).getByLabelText("Portfolio"), { target: { value: "coin" } });
+    fireEvent.click(within(dlg).getByRole("button", { name: /Remove from/ }));
+    fireEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: /^Remove/ }));
+    await waitFor(() => expect(st.put.some((p) => p.path === "/api/me/mf-portfolio/aaa")).toBe(true), { timeout: 3000 });
+    const body = st.put.filter((p) => p.path === "/api/me/mf-portfolio/aaa").at(-1)!.body as { lots: { pf: string }[] };
+    expect(body.lots.map((l) => l.pf)).toEqual(["groww", "groww", "groww", "groww"]);       // three Groww buys and the Groww sale; Coin's two buys gone
   });
 });

@@ -49,7 +49,9 @@ describe("MF portfolio top (M4)", () => {
     for (const c of [...fundsCards(HS, SP), ...mixCards(SP), ...riskCards(RK)]) expect(ids.has(c.to) || c.to === "mfp-units").toBe(true);
   });
   it("lists the sections in the pack's order", () => {
-    expect(MF_SECS.mix.secs.map((s) => s[1])).toEqual(["What they own", "Spread", "Money in", "Sectors inside", "Move together", "Shared stocks", "Company sizes", "Biggest stocks", "Trend"]);
-    expect(MF_SECS.risk.secs.map((s) => s[1])).toEqual(["At a glance", "Beta build", "Own benchmark", "Risk share", "If the Nifty 500 fell", "Each fund"]);
+    // task #275 (change 9): Key figures sit under the main section of each view
+    expect(MF_SECS.funds.secs.map((s) => s[1])).toEqual(["Your funds", "Key figures"]);
+    expect(MF_SECS.mix.secs.map((s) => s[1])).toEqual(["What they own", "Key figures", "Spread", "Money in", "Sectors inside", "Move together", "Shared stocks", "Company sizes", "Biggest stocks", "Trend"]);
+    expect(MF_SECS.risk.secs.map((s) => s[1])).toEqual(["At a glance", "Key figures", "Beta build", "Own benchmark", "Risk share", "If the Nifty 500 fell", "Each fund"]);
   });
 });

@@ -4,7 +4,7 @@
 weekday evenings once the day's filings are in) reads discovery_signals above the highest filing the alert has seen, for the companies the list holds that
 evening. Each filing is one bell item ("Order win · Welspun Corp"), or, with digest, one summary a day ("2 filings at your companies since 12 Nov").
 
-Lists the server can resolve: the equity portfolio (all accounts, or one account), each watchlist, the companies inside the member's ETFs ("etf", task
+Lists the server can resolve: the equity portfolio (all accounts, or one account), each watchlist, the companies inside the member's ETFs ("etf", task #276) and funds ("mf", task #275; see mf_list), task
 #276: 0.3% or more of the ETFs, from each ETF's monthly file), and "mine" (the equity portfolio and every watchlist,
 the Quick alerts "at my companies"). A list alert is one alert row, so it counts as 1 of the plan's alerts however many companies the list holds.
 
@@ -30,7 +30,7 @@ LOWER = {"order": "order win", "capacity": "capacity", "partnership": "partnersh
          "rating": "credit rating", "management": "management", "legal": "legal / regulatory"}
 DEFAULT_KINDS = ["order", "capacity"]
 PER_RUN = 10          # each-filing alerts: at most this many items per alert and run; the rest arrive as one summary line
-LIST_REF = re.compile(r"^(mine|equity|equity:[a-z0-9]{1,16}|watch|watch:[A-Za-z0-9_-]{1,40}|etf|invest|invest:through)$")
+LIST_REF = re.compile(r"^(mine|equity|equity:[a-z0-9]{1,16}|watch|watch:[A-Za-z0-9_-]{1,40}|etf|mf|invest|invest:through)$")
 ETF_MIN = 0.003      # task #276: the ETF list's companies are the ones that make up 0.3% or more of the member's ETFs (the page's What changed)
 
 # A tax, GST, customs, court, tribunal or penalty order: never an order win or new capacity (task #272, README "Before order-win alerts go out").
@@ -119,6 +119,38 @@ async def etf_list(conn, user_id: str) -> Optional[Dict[str, Any]]:
     return {"ref": "etf", "label": "ETF portfolio · companies inside your ETFs", "symbols": syms}
 
 
+async def mf_list(conn, user_id: str) -> Optional[Dict[str, Any]]:
+    """Task #275 (change 19): the companies inside the member's mutual funds (each fund's latest monthly file, through its scheme family), each fund
+    counting the same, that make up 0.3% or more of the list: the MF page's What changed, and its "Alert me" as one list. None when the member holds no
+    fund. Database only."""
+    from .portfolios import unpack_holdings
+    codes = [r["code"] for r in await conn.fetch("SELECT DISTINCT code FROM mf_holdings WHERE user_id = $1", user_id)]
+    if not codes:
+        return None
+    w = 1.0 / len(codes)
+    total: Dict[str, float] = {}
+    for code in codes:
+        fkey = await conn.fetchval("SELECT family FROM mf_schemes WHERE code = $1", code)
+        raw = await conn.fetchval("SELECT holdings FROM disclosure_portfolios WHERE fkey = $1 ORDER BY as_of DESC LIMIT 1", fkey) if fkey else None
+        if not raw:
+            continue
+        hs = [h for h in unpack_holdings(raw) if h.asset_class == "equity" and h.isin and h.isin.startswith("IN") and h.pct_nav]
+        if not hs:
+            continue
+        sym = {x["isin"]: x["symbol"] for x in await conn.fetch(
+            "SELECT i.isin, i.symbol FROM disclosure_isin i JOIN companies c ON c.symbol = i.symbol WHERE i.isin = ANY($1::text[])", [h.isin for h in hs])}
+        for h in hs:
+            if h.isin in sym:
+                total[sym[h.isin]] = total.get(sym[h.isin], 0.0) + w * float(h.pct_nav) / 100
+    syms = [s for s, v in sorted(total.items(), key=lambda kv: -kv[1]) if v >= ETF_MIN]
+    return {"ref": "mf", "label": "MF portfolio · companies inside your funds", "symbols": syms}
+
+
+async def fund_list(conn, user_id: str, ref: str) -> Optional[Dict[str, Any]]:
+    """The lists built from fund files: "etf" (task #276) and "mf" (task #275)."""
+    return await etf_list(conn, user_id) if ref == "etf" else await mf_list(conn, user_id) if ref == "mf" else None
+
+
 def resolve(watchlist: Any, portfolio: Any, ref: str, invest: Any = None) -> Optional[Dict[str, Any]]:
     return next((x for x in lists_of(watchlist, portfolio, invest) if x["ref"] == ref), None)
 
@@ -170,6 +202,8 @@ def list_page(ref: Optional[str]) -> str:
         return "/holdings#what-changed"
     if ref == "etf":
         return "/etf-portfolio#what-changed"
+    if ref == "mf":
+        return "/mf-portfolio#what-changed"
     return "/watchlist#what-changed"
 
 
@@ -202,7 +236,7 @@ async def run_alert(conn, deliver, mailer, site_url: str, user: Dict[str, Any], 
     seen = int(a["last_value"] or 0)
     where = ""
     if a.get("list_ref"):
-        lst = (await etf_list(conn, user["id"]) if a["list_ref"] == "etf"
+        lst = (await fund_list(conn, user["id"], a["list_ref"]) if a["list_ref"] in ("etf", "mf")
                else resolve((state or {}).get("watchlist"), (state or {}).get("portfolio"), a["list_ref"], (state or {}).get("invest")))
         symbols = lst["symbols"] if lst else []
         where = (lst.get("where") or f"On your {lst['label'].lower()}") if lst else ""

@@ -2,7 +2,7 @@
 // 1 What they own (macro sector · 12 | sector · 22 × size look-through, chips with the plan's reading, "+N more ▾") → 2 Spread (six readings) → three sub-tabs:
 // What they hold (3 Money in, 4 Sectors inside) · How funds move together (5 Move together with a pair reader, 6 Shared stocks) · Large, mid, small and micro (7) →
 // 8 Biggest stocks (5, then Show all 10) → 9 Trend (Gold, folded; a lock card below Gold). Figures are the server's; this file only draws and words them.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { Scroll, Section } from "../../components/sectors/pack/Common";
 import { Insights, GoldLock } from "../../portfolio/pack/EquityPack";
@@ -275,10 +275,11 @@ export function TrendUnder({ sp, gold }: { sp: MfSpread; gold: boolean }) {
   );
 }
 
-export function MixTab({ sp, readingOf, gold, big }: { sp: MfSpread; readingOf: (s: string | null) => Reading; gold: boolean; big: Big[] }) {
+export function MixTab({ sp, readingOf, gold, big, kf }: { sp: MfSpread; readingOf: (s: string | null) => Reading; gold: boolean; big: Big[]; /** task #275 (change 9): Key figures, under the main section */ kf?: ReactNode }) {
   const [level, setLevel] = useLevel();
   return <>
     <OwnSection sp={sp} level={level} onLevel={setLevel} readingOf={readingOf} gold={gold} />
+    {kf}
     <SpreadSection sp={sp} />
     <MixSubTabs sp={sp} level={level} onLevel={setLevel} />
     {big.length > 0 && <BiggestSection rows={big} sp={sp} readingOf={readingOf} gold={gold} />}
