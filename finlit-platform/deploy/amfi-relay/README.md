@@ -26,3 +26,20 @@ For NSE's `/api/` addresses it first fetches NSE's home page and sends the cooki
 The server needs nothing new: it uses `AMFI_RELAY_URL` and `AMFI_RELAY_KEY` (or `EXCHANGE_RELAY_URL` / `EXCHANGE_RELAY_KEY` if you want a separate worker). To update: paste the new `worker.js` over the old code in Cloudflare and Deploy.
 Answers written by the worker carry `X-Relay: 1`; an error of its own also carries `X-Relay-Error`. An answer without `X-Relay` (a wrong key, a Cloudflare error page) is never mistaken for the exchange refusing.
 **Not guaranteed:** an exchange may refuse Cloudflare's addresses too. Then the brief job says `report_blocked` as before and the administrator's annual-report URL override is the way.
+
+## Fund performance, scheme details and Baroda BNP Paribas (task #281, 20 Nov 2026)
+**Why:** the nightly `portfolios` job called AMFI and Baroda BNP Paribas's site directly; both time out from the AWS server's address, so its parts
+`performance`, `loads` and `barodabnp` ended in `ConnectTimeout` every night (`/api/mf/status` > `run:refresh-portfolios`). No fund showed an exit load,
+a benchmark or a risk-o-meter, and Baroda BNP Paribas's holdings were never read.
+
+**What the worker now also answers** (same key, same worker):
+- `GET /api/populate-mf`, `/api/populate-scheme`, `/api/scheme-details` on AMFI: fund houses, their schemes, and each scheme's details (exit load, launch date).
+- `POST /gateway/pollingsebi/api/amfi/fundperformance` and `/gateway/pollingsebi/api/amfi/getsubcategory` on AMFI, with a small JSON body (at most 4 KB),
+  never cached: benchmark, risk-o-meter and daily AUM of every scheme. Any other POST is refused.
+- `GET /fetch?u=` for `barodabnpparibasmf.in` (its monthly portfolio page and files), beside NSE and BSE.
+
+The server sends these through the relay by itself whenever `AMFI_RELAY_URL` is set (`portfolios.make_client`); no server change is needed.
+
+**Founder step (once):** Cloudflare > Workers & Pages > `finlit-amfi-relay` > Edit code > replace everything with the new `worker.js` > Deploy.
+Until then the three parts keep timing out exactly as before; nothing else changes. After it, the next `portfolios` run (or a manual run) fills them:
+`/api/mf/151130/facts` then shows benchmark "Nifty Smallcap 250 TRI", risk-o-meter "Very High" and an exit load.
