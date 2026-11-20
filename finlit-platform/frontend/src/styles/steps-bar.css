@@ -35,3 +35,14 @@
 .stb-step h2 { margin: 0; font: 600 var(--fs-section-title)/28px var(--font-serif, "Source Serif 4", Georgia, serif); color: var(--text); }
 .stb-step p { margin: 0; font: 400 var(--fs-small)/18px var(--font-sans, Inter, sans-serif); color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { .stb { scroll-behavior: auto; } }
+/* task #277 (opt-in `arrows`, All my investments): ‹ › at the bar's ends when its steps do not fit; a faded edge where steps are hidden; a dot on a step not seen yet */
+.stb-wrap.stb-arw { display: flex; align-items: center; gap: 4px; }
+.stb-wrap.stb-arw > .stb { flex: 1 1 auto; min-width: 0; }
+.stb-wrap.stb-arw.edge-r > .stb { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent); }
+.stb-wrap.stb-arw.edge-l > .stb { -webkit-mask-image: linear-gradient(90deg, transparent, #000 40px); mask-image: linear-gradient(90deg, transparent, #000 40px); }
+.stb-wrap.stb-arw.edge-l.edge-r > .stb { -webkit-mask-image: linear-gradient(90deg, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(90deg, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
+.stb-sl { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border-strong, var(--border)); background: var(--s1); color: var(--text); font: 600 20px/1 var(--sans); cursor: pointer; }
+.stb-sl:disabled { opacity: .35; cursor: default; }
+.stb-sl:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.stb-dot { display: inline-block; width: 7px; height: 7px; margin-left: 6px; border-radius: 50%; background: #c2410c; vertical-align: 2px; }
+@media (max-width: 760px) { .stb-sl { display: none; } }

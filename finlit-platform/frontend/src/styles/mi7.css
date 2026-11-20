@@ -99,3 +99,52 @@
   .mi7-tiles { grid-template-columns: minmax(0, 1fr); } .mi7-tile.on::after { display: none; }
   .mi7-ht h1 { font-size: 24px; } .mi7-menu-m { right: auto; left: 0; }
 }
+
+/* Step 4's filter row (change 18) and the band it becomes while the table is scrolled (§11) */
+.mi7-sent { height: 1px; margin-top: -1px; }
+.mi7-frow { position: sticky; top: var(--mi7-top, 62px); z-index: 34; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 10px 0 6px; padding: 8px 0; background: var(--s1); }
+.mi7-frow.stuck { margin-left: -18px; margin-right: -18px; padding: 8px 18px; border-bottom: 1px solid var(--border); box-shadow: 0 10px 18px -16px rgba(0, 0, 0, .45); }
+html.mi7-rowup .mi .stb-wrap { transform: translateY(-140%); opacity: 0; pointer-events: none; transition: transform .2s, opacity .2s; }
+.mi .stb-wrap { transition: transform .2s, opacity .2s; }
+@media (prefers-reduced-motion: reduce) { .mi .stb-wrap, html.mi7-rowup .mi .stb-wrap { transition: none; } }
+.mi7-find { flex: 0 1 220px; min-width: 140px; min-height: 38px; padding: 0 12px; border: 1px solid var(--border-strong, var(--border)); border-radius: 999px; background: var(--bg, var(--s1)); color: var(--text); font: 400 14px var(--sans); }
+.mi7-fmag { min-width: 38px; min-height: 38px; border: 1px solid var(--border-strong, var(--border)); border-radius: 999px; background: var(--s1); color: var(--text); font: 600 16px var(--sans); cursor: pointer; }
+.mi7-fw { position: relative; display: inline-flex; }
+.mi7-fb { display: inline-flex; align-items: center; gap: 4px; min-height: 38px; padding: 0 12px; border: 1px solid var(--border-strong, var(--border)); border-radius: 999px; background: var(--s1); color: var(--text); font: 600 13px var(--sans); white-space: nowrap; cursor: pointer; }
+.mi7-fb i { font-style: normal; font-size: 12px; opacity: .7; }
+.mi7-fb .mi7-fv0 { font-weight: 400; color: var(--muted); }
+.mi7-fb.on { background: var(--text); color: var(--s1); border-color: var(--text); }
+.mi7-fb:focus-visible, .mi7-find:focus-visible, .mi7-fmag:focus-visible, .mi7-fm label:focus-within, .mi7-chip button:focus-visible, .mi7-secm button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.mi7-fm { position: absolute; z-index: 60; top: calc(100% + 6px); left: 0; display: grid; gap: 2px; min-width: 250px; padding: 8px; border-radius: 12px; border: 1px solid var(--border-strong, var(--border));
+  background: var(--ov-surface, var(--s1)); box-shadow: 0 18px 40px -20px rgba(0, 0, 0, .45); }
+.mi7-fmh { margin: 2px 6px 4px; font: 700 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.mi7-fm label { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 36px; padding: 0 8px; border-radius: 8px; font: 500 14px var(--sans); color: var(--text); cursor: pointer; }
+.mi7-fm label:hover { background: var(--s2); }
+.mi7-fm label.off { color: var(--muted); cursor: default; } .mi7-fm label.off:hover { background: none; }
+.mi7-fm label small { font: 600 12px var(--sans); color: var(--muted); font-variant-numeric: tabular-nums; }
+.mi7-fm input { width: 16px; height: 16px; margin: 0; accent-color: var(--gold); }
+.mi7-fmf { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; padding: 8px 6px 2px; border-top: 1px solid var(--border); }
+.mi7-fmf .btn { min-height: 32px; }
+.mi7-fback { display: none; }
+.mi7-fcount { margin-left: auto; font: 400 13px var(--sans); color: var(--muted); }
+.mi7-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 2px 0 8px; }
+.mi7-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 10px; border-radius: 999px; background: var(--s2); border: 1px solid var(--border); font: 600 13px var(--sans); color: var(--text); }
+.mi7-chip button { min-width: 24px; min-height: 24px; border: 0; border-radius: 50%; background: none; color: var(--text); font-size: 16px; line-height: 1; cursor: pointer; }
+.mi7-none { padding: 18px 12px; text-align: center; color: var(--muted); }
+.mi7-anchor { scroll-margin-top: 130px; }
+.mi7-secm { min-width: 240px; }
+.mi7-secm button { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 8px; border: 0; border-radius: 8px; background: none; color: var(--text); text-align: left; font: 500 14px var(--sans); cursor: pointer; }
+.mi7-secm button:hover { background: var(--s2); }
+.mi7-secm button b { display: inline-grid; place-items: center; min-width: 22px; height: 22px; border-radius: 50%; background: var(--s2); font: 700 12px var(--sans); }
+.mi7-secm button small { margin-left: auto; font: 600 12px var(--sans); color: var(--gold); }
+.mi7-secm .mi7-secall { margin-top: 4px; border-top: 1px solid var(--border); border-radius: 0 0 8px 8px; font-weight: 700; }
+@media (max-width: 760px) {
+  .mi7-frow { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .mi7-frow.stuck { margin-left: -16px; margin-right: -16px; padding: 8px 16px; }
+  .mi7-fcount { flex: none; }
+  .mi7-fback { display: block; position: fixed; inset: 0; z-index: 59; background: var(--ov-backdrop); }
+  .mi7-fm { position: fixed; left: 0; right: 0; top: auto; bottom: 0; min-width: 0; max-height: 78vh; overflow: auto; border-radius: 16px 16px 0 0; padding: 12px 12px calc(12px + env(safe-area-inset-bottom)); }
+}
+/* a menu of the row opens above the site's own bars (the row's own layer would keep a phone's bottom sheet under the bottom navigation) */
+.mi7-frow:has(.mi7-fm) { z-index: 1200; }
+.mi7-frow .x-sw { position: static; border-radius: 999px; border: 1px solid var(--border); }

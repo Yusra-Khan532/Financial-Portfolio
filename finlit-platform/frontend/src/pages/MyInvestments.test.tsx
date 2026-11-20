@@ -99,8 +99,11 @@ describe("task #137: All my investments (15 Nov pack)", () => {
     const table = document.querySelector(".mi-co")!;
     expect([...table.querySelectorAll("thead th")].slice(0, 3).map((t) => t.textContent)).toEqual(["Company", "All together", "Held"]);
     const d = withQty();
-    for (const [w, n] of [["All", d.filters.all], ["Held more than one way", d.filters.twice], ["Only through funds and ETFs", d.filters.through], ["Only direct", d.filters.direct]] as const)
-      expect(screen.getByRole("button", { name: `${w} ${n}` })).toBeTruthy();
+    // task #277 (change 18): the four "Show" buttons are one row of filters; Held's choices say how many each leaves
+    expect(document.querySelector(".mi7-fcount")!.textContent).toBe(`${d.companies.length} companies`);
+    fireEvent.click(screen.getByRole("button", { name: /^Held: All/ }));
+    expect([...document.querySelectorAll(".mi7-fm label")].map((l) => l.textContent)).toEqual([`More than one way${d.filters.twice}`, `Only direct${d.filters.direct}`, `Only through funds and ETFs${d.filters.through}`]);
+    fireEvent.keyDown(document, { key: "Escape" });
     expect(text()).not.toMatch(/\b(leader|laggard|in_line)\b/);
     expect(table.textContent).toMatch(/Leader|Laggard|In line/);
     expect(table.textContent).toContain("Not on your list");
@@ -108,7 +111,7 @@ describe("task #137: All my investments (15 Nov pack)", () => {
   it("L6: \"Held more than one way\" sets the company filter", async () => {
     mount(); await screen.findByText("Every company you own, counted once");
     fireEvent.click(screen.getByRole("button", { name: "See which →" }));
-    expect(screen.getByRole("button", { name: /^Held more than one way \d+$/ }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: /^Held: More than one way/ }).className).toContain("on");   // task #277: the Held filter, set and named
     const rows = document.querySelectorAll(".mi-co tbody tr");
     expect(rows.length).toBe(withQty().filters.twice);
   });
