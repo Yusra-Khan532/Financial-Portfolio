@@ -38,7 +38,10 @@ ALIASES = {"reliance": "RELIANCE", "ril": "RELIANCE", "tvs": "TVSMOTOR", "tvs mo
            "axis bank": "AXISBANK", "itc": "ITC", "tcs": "TCS", "wipro": "WIPRO", "ongc": "ONGC", "ntpc": "NTPC", "bel": "BEL", "hal": "HAL",
            "bhel": "BHEL", "irctc": "IRCTC", "zomato": "ETERNAL", "eternal": "ETERNAL", "paytm": "PAYTM", "nykaa": "NYKAA", "titan": "TITAN",
            "asian paints": "ASIANPAINT", "ultratech": "ULTRACEMCO", "jsw steel": "JSWSTEEL", "tata steel": "TATASTEEL", "tata motors": "TMCV",
-           "sun pharma": "SUNPHARMA", "dr reddy": "DRREDDY", "dr reddys": "DRREDDY", "adani ports": "ADANIPORTS", "adani green": "ADANIGREEN"}
+           "sun pharma": "SUNPHARMA", "dr reddy": "DRREDDY", "dr reddys": "DRREDDY", "adani ports": "ADANIPORTS", "adani green": "ADANIGREEN",
+           # task #279 (20 Nov 2026, "why is icici low on last quarter" asked on HCLTECH's page): the one word the market uses for the bank of a
+           # group of listed companies; a longer name in the question ("icici prudential", "hdfc life") still wins
+           "icici": "ICICIBANK", "hdfc": "HDFCBANK", "pnb": "PNB", "lic": "LICI", "idfc first": "IDFCFIRSTB"}
 
 
 def norm(text: str) -> str:
@@ -130,3 +133,47 @@ async def named_in(gw: Gateway, question: str, limit: int = 2, skip: Optional[st
     except ToolError:
         return []
     return [s for s in find(question, names, symbols, limit + (1 if skip else 0)) if s != skip][:limit]
+
+
+# Task #279: the business groups people name with one word ("adani group debt", "tata results", "icici"): several listed companies start with it, so
+# no single company is picked, but the question is about that group, not the page's company. A curated list: an open rule took ordinary words
+# ("best", "quality", "real", "prime", "net") for companies, and FinLit's own "prism" for Prism Johnson.
+GROUPS = set("""icici hdfc tata adani bajaj birla aditya reliance mahindra godrej jindal kotak bharti vedanta piramal muthoot kirloskar torrent zydus
+shriram cholamandalam lodha oswal apollo dalmia hero hinduja murugappa ambuja jsw lupin cipla wipro infosys sbi lic idfc bandhan rattanindia
+indiabulls emami dabur marico usha raymond""".split())
+
+
+def group_word(question: str, names: List[Tuple[str, str, bool]], skip: Optional[str] = None) -> Optional[str]:
+    """Task #279: a business group's name ("icici", "tata", "adani", "bajaj") that starts the names of two or more listed companies: the question is
+    about a company, just not one named precisely enough to pick. Not when that word starts the page company's own name (on Tata Steel's page,
+    "tata" is that company). None when there is no such word."""
+    first: Dict[str, set] = {}
+    for key, sym, _ in names:
+        w = key.split()
+        if w and w[0] in GROUPS:
+            first.setdefault(w[0], set()).add(sym)
+    own = {k.split()[0] for k, sym, _ in names if sym == skip and k}
+    for w in norm(question).split():
+        if len(first.get(w, ())) >= 2 and w not in own:
+            return w
+    return None
+
+
+async def other_group(gw: Gateway, question: str, skip: Optional[str] = None) -> Optional[str]:
+    """group_word against the company list; None when the list cannot be read."""
+    try:
+        names, _ = await load(gw)
+    except ToolError:
+        return None
+    return group_word(question, names, skip)
+
+
+_STRONG = re.compile(r"\b(this|that|the same) (company|stock|share|firm|business|page|one)\b|\bhere\b", re.I)
+_WEAK = re.compile(r"\b(its|it'?s|it|this)\b", re.I)
+
+
+def points_at_page(question: str, strong_only: bool = False) -> bool:
+    """Task #279: the question points at the company of the page. Strong: "this company", "this stock", "here". Weak (also): "its margins", "how is
+    it doing", which in a follow-up mean the company the conversation is about."""
+    q = question or ""
+    return bool(_STRONG.search(q)) or (not strong_only and bool(_WEAK.search(q)))

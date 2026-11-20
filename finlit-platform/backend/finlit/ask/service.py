@@ -72,6 +72,8 @@ Facts
 - Give each figure its period or date as the tool states it ("ROE 9.2% in FY2026", "price Rs 1,484 at 15:30 on 14 Nov 2026"). Amounts are in Rs crore unless the tool says otherwise. The Indian financial year runs April to March.
 - If a tool has no data, or says it is being prepared, say so plainly with the reason it gives. Never guess or fill a gap.
 - Company cards may come with the question: the company of the page the member is on, and companies the question seems to name. Answer from them; read more only for what they do not hold. If a card is not about what was asked (for example the question is about a whole group of companies), ignore it.
+- Read the question for what it asks. The page the member opened FinLit AI on is only where they are: a question about another company, a fund, the market or anything else is answered about that, from any page, never turned towards the page's company. A short or loose company name ("icici", "hdfc", "tata") is found with search_stocks.
+- Never describe your own steps, tools or slips ("I pulled the wrong documents", "by mistake", "let me look up"): give the answer.
 - Otherwise: find the symbol with search_stocks, then use get_company_card first; use get_company_section or the other tools for anything more.
 - Write dates and times in India time (IST), for example "18 Nov 2026, 3:52 pm IST"; never UTC.
 - Ask for several tools at once when you need several things.
@@ -233,22 +235,28 @@ def with_prefetches(messages: List[Dict[str, Any]], reads: List[Any]) -> List[Di
     return messages
 
 
-def context_line(page_symbol: Optional[str], plan: str) -> str:
-    """The volatile part (today's date, the page the member is on, their plan) goes in the message, after the cached prefix."""
+def context_line(page_symbol: Optional[str], plan: str, page_is_subject: bool = True) -> str:
+    """The volatile part (today's date, the page the member is on, their plan) goes in the message, after the cached prefix. Task #279: the page is
+    where FinLit AI was opened, not what every question is about; when the question is about something else, the model is told so."""
     today = datetime.now(IST).strftime("%d %b %Y")
-    page = f" The member is on the page of {page_symbol}." if page_symbol else ""
+    page = ""
+    if page_symbol and page_is_subject:
+        page = f" The member is on the page of {page_symbol}."
+    elif page_symbol:
+        page = (f" The member opened FinLit AI on the page of {page_symbol}, but this question is about something else: answer what it asks, and"
+                f" do not bring {page_symbol} into the answer.")
     return f"[Today is {today} (India). The member's plan: {plan.title()}.{page}]"
 
 
 def build_messages(history: List[Dict[str, str]], question: str, page_symbol: Optional[str], plan: str, card: Optional[str] = None,
-                   route_note: str = "") -> List[Dict[str, Any]]:
+                   route_note: str = "", page_is_subject: bool = True) -> List[Dict[str, Any]]:
     """`card`: the company card of the page the member is on, read before the model starts (one round fewer, and every wording of a question about
     the company's rating, price or classification is answered from what the page shows). `route_note` (task #253): which of FinLit's tools and which
     of the team's sites this kind of question is answered from; it goes with the question, after the cached prefix."""
     msgs: List[Dict[str, Any]] = [{"role": m["role"], "content": m["content"]} for m in history]
     page = f"\n\n<company_card source=\"FinLit company page, read just now as this member\">\n{card}\n</company_card>" if card else ""
     route = f"\n{route_note}" if route_note else ""
-    msgs.append({"role": "user", "content": f"{context_line(page_symbol, plan)}{route}{page}\n\n{question}"})
+    msgs.append({"role": "user", "content": f"{context_line(page_symbol, plan, page_is_subject)}{route}{page}\n\n{question}"})
     return msgs
 
 

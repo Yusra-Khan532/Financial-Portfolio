@@ -16,10 +16,12 @@ Describes the past; not a forecast and not a recommendation. Information only, n
 from __future__ import annotations
 
 import math
+import logging
 import re
 from datetime import date, timedelta
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
+log = logging.getLogger("finlit.etfportfolio")
 MIX_KEYS = ("indian", "abroad", "gold", "silver", "debt")
 MIX_WORD = {"indian": "Indian shares", "abroad": "Shares abroad", "gold": "Gold", "silver": "Silver", "debt": "Debt or overnight lending"}
 MAIN_BUCKET = {"equity": "indian", "hybrid": "indian", "international": "abroad", "gold": "gold", "silver": "silver", "debt": "debt"}
@@ -101,6 +103,12 @@ def asset_mix(etfs: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
                 from_type.append(e["symbol"])
             continue
         low = ((a.get("debt") or 0) + (a.get("cash") or 0)) / t
+        if main in ("gold", "silver") and low > 0.5:
+            # task #277 (fix 2): a gold or silver ETF whose file was read with most of its money in debt and cash was misread (Nippon's silver ETF files its
+            # silver under a cash heading); it counts wholly as its metal, as an ETF without a file does, and the misreading is logged
+            log.warning("metal ETF read without its metal", extra={"symbol": e.get("symbol"), "split": a})
+            out[main] += e["w"]
+            continue
         out["debt"] += e["w"] * low
         out[main] += e["w"] * (1 - low)
     return {"shares": out, "fromType": from_type}
