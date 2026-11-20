@@ -77,23 +77,21 @@ describe("P4: filters", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     cleanup();
     render(<F basic />);
-    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Market cap ▾", "Sector ▾", "IQ rating ▾", "More filters ▾"]);   // Basic keeps its row
+    // task #257 (Basic SPEC §2): a Basic screen's row is Market cap · Macro sector · Sector · Industry · FinLit IQ · More filters (screens257.test.tsx)
+    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Market cap ▾", "Macro sector ▾", "Sector ▾", "Industry ▾", "FinLit IQ ▾", "More filters ▾"]);
   });
-  it("the filters that are on show as chips with × and Clear all; Basic has no 'Strong only' and calls it IQ rating", () => {
+  it("the filters that are on show as chips with × and Clear all; Basic has no 'Strong only' and no radio rating menu (task #257: the FinLit IQ panel)", () => {
     render(<F basic />);
-    fireEvent.click(screen.getByRole("button", { name: /Sector/ }));
-    fireEvent.change(screen.getByRole("searchbox", { name: "Find a sector" }), { target: { value: "ban" } });
-    expect(screen.getAllByRole("checkbox")).toHaveLength(1);
-    fireEvent.click(screen.getByRole("checkbox", { name: /Banks/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Market cap/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /Large cap/ }));
     const chips = screen.getByRole("group", { name: "Filters on" });
-    expect(chips.textContent).toContain("Banks");
+    expect(chips.textContent).toContain("Large cap");
     fireEvent.click(within(chips).getByRole("button", { name: "Clear all" }));
     expect(screen.queryByRole("group", { name: "Filters on" })).toBeNull();
-    cleanup();
-    render(<F basic />);
-    fireEvent.click(screen.getByRole("button", { name: /IQ rating/ }));
-    expect(screen.getAllByRole("radio")).toHaveLength(2);
+    fireEvent.click(screen.getByRole("button", { name: /^FinLit IQ/ }));
+    expect(screen.queryAllByRole("radio")).toHaveLength(0); expect(screen.queryByText("Strong only")).toBeNull();
   });
+
 });
 
 describe("P5: columns", () => {

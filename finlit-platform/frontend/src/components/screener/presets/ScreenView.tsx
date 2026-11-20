@@ -93,6 +93,14 @@ function ThemeCards({ themes, on, onPick }: { themes: Theme[]; on: string | null
 
 // ---------- the table (pack P5) ----------
 const HIDDEN = new Set(["symbol", "name", "stock", "badges", "rank", "position", "sector", "ret_1d"]);   // shown inside the Company and Price cells, not as columns of their own
+/** Task #257 (Basic SPEC §4): on a Basic screen, the name's line, then the company's NSE industry (one of 59) and size, e.g. "Auto Components · Small cap", with
+ *  "macro sector › sector › industry" on hover. A company NSE does not classify says so. */
+function IndLine({ r }: { r: PresetRow }) {
+  const s = (k: string) => (typeof r[k] === "string" ? (r[k] as string) : null);
+  const ind = s("cls_industry"), z = sizeOf(r), path = [s("cls_macro"), s("cls_sector"), ind].filter(Boolean).join(" › ");
+  return <><small className="psx3-nml">{[subOf(r), exchangeTag(r)].filter(Boolean).join(" · ")}</small>
+    <small className="psx3-indl" title={ind ? path : "NSE does not place this company in one of its 59 industries"}>{[ind ?? "Industry not classified", z && `${z} cap`].filter(Boolean).join(" · ")}</small></>;
+}
 const sizeOf = (r: PresetRow) => { const m = r.market_cap; return typeof m !== "number" || !(m > 0) ? null : capBucket(m)?.short ?? null; };   // the site's one rule (lib/capBuckets.ts)
 type Group = "price" | "score" | "returns" | "list" | "after" | "sector" | "screen";
 const groupOf = (c: PresetColumn): Group => {
@@ -210,7 +218,7 @@ function Table({ d, cols, rows, sort, setSort, basic, onDay, latest, picked, set
             <td className="psx3-stk psx3-co psx-stock"><Link to={`/stocks/${encodeURIComponent(r.symbol)}`} className="psx-co"><CoLogo symbol={r.symbol} name={r.name} size={24} />
               <span className="psx-cn"><span className="psx3-cl"><b title={codeNote(r)}>{titleOf(r)}</b>{isNew && <span className="psx3-tag new">New</span>}{(r.badges ?? []).some((b) => b.toLowerCase() === "provisional") && <span className="psx3-tag prov">Provisional</span>}
                 {(r.badges ?? []).filter((b) => b.toLowerCase() !== "provisional").map((b) => <Badge key={b} text={b} />)}</span>
-                <small>{[subOf(r), sizeOf(r) && `${sizeOf(r)} cap`, exchangeTag(r)].filter(Boolean).join(" · ")}</small></span></Link></td>
+                {basic ? <IndLine r={r} /> : <small>{[subOf(r), sizeOf(r) && `${sizeOf(r)} cap`, exchangeTag(r)].filter(Boolean).join(" · ")}</small>}</span></Link></td>
             {cols.map((c) => cell(r, c))}
             <td className="psx-a-left psx-act"><button type="button" className="psx-ci" aria-label={`Open the ${r.symbol} chart`} onClick={() => openChart(r)}><Icon name="line" /></button>
               <Link to={`/stocks/${encodeURIComponent(r.symbol)}`} className="psx-ci" aria-label={`Open the ${r.symbol} report`}><Icon name="notes" /></Link></td>
