@@ -316,8 +316,8 @@ def test_183_type_of_reads_payout_or_growth_and_the_grid_leaves_out_what_is_abro
             {"symbol": "C", "w": 0.25, "assetClass": "equity", "holdings": None}]                     # no monthly file: left out, never spread
     lt = calc.look_through(etfs, lambda i: "Large" if i.endswith("1") else None)
     assert lt["knownShares"] == pytest.approx(0.5) and set(lt["perEtf"]) == {"A"}
-    assert lt["lookThrough"]["macro"] == {"Energy|Large": {"w": 0.3, "n": 1, "stocks": [{"name": "X", "symbol": "X", "w": 0.3}]},
-                                          "Energy|Unsized": {"w": 0.2, "n": 1, "stocks": [{"name": "Y", "symbol": "Y", "w": 0.2}]}}
+    assert lt["lookThrough"]["macro"] == {"Energy|Large": {"w": 0.3, "n": 1, "stocks": [{"name": "X", "symbol": "X", "w": 0.3, "etfs": ["A"]}]},
+                                          "Energy|Unsized": {"w": 0.2, "n": 1, "stocks": [{"name": "Y", "symbol": "Y", "w": 0.2, "etfs": ["A"]}]}}   # task #276: which ETFs hold each company
     assert lt["sectorMacro"] == {"Oil, Gas & Consumable Fuels": "Energy", "Power": "Energy"}
     assert calc.abroad_top(etfs) == {"B": [{"name": "Z", "isin": "US0000000001", "pct": 50.0}]}
 

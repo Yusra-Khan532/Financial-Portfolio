@@ -14,15 +14,15 @@ export type Changes = { days: number; events: string[]; companies: ChangesCompan
 export type ChangeRow = { s: string; n: string; k: string; count: number; d: string; t: string | null; l: string | null; fresh: number };
 
 /** Discover's eight kinds, in the pack's order: the tile titles, the row's kind word and its colour class. */
-export const KINDS: { k: string; tile: string; row: string; tone: string }[] = [
-  { k: "order", tile: "Order wins", row: "Order win", tone: "g" },
-  { k: "capacity", tile: "Capacity and commissioning", row: "Capacity", tone: "t" },
-  { k: "partnership", tile: "Partnerships and MoUs", row: "Partnership", tone: "v" },
-  { k: "mna", tile: "Acquisitions and mergers", row: "Acquisition / merger", tone: "o" },
-  { k: "fundraise", tile: "Fund raising", row: "Fund raising", tone: "b" },
-  { k: "rating", tile: "Credit ratings", row: "Credit rating", tone: "s" },
-  { k: "management", tile: "Management changes", row: "Management", tone: "m" },
-  { k: "legal", tile: "Legal and regulatory", row: "Legal / regulatory", tone: "r" },
+export const KINDS: { k: string; tile: string; row: string; tone: string; one: string; many: string }[] = [
+  { k: "order", tile: "Order wins", row: "Order win", tone: "g", one: "order win", many: "order wins" },
+  { k: "capacity", tile: "Capacity and commissioning", row: "Capacity", tone: "t", one: "capacity filing", many: "capacity filings" },
+  { k: "partnership", tile: "Partnerships and MoUs", row: "Partnership", tone: "v", one: "partnership", many: "partnerships" },
+  { k: "mna", tile: "Acquisitions and mergers", row: "Acquisition / merger", tone: "o", one: "acquisition or merger filing", many: "acquisition or merger filings" },
+  { k: "fundraise", tile: "Fund raising", row: "Fund raising", tone: "b", one: "fund raising filing", many: "fund raising filings" },
+  { k: "rating", tile: "Credit ratings", row: "Credit rating", tone: "s", one: "credit rating", many: "credit ratings" },
+  { k: "management", tile: "Management changes", row: "Management", tone: "m", one: "management change", many: "management changes" },
+  { k: "legal", tile: "Legal and regulatory", row: "Legal / regulatory", tone: "r", one: "legal or regulatory filing", many: "legal or regulatory filings" },
 ];
 export const KIND = Object.fromEntries(KINDS.map((x) => [x.k, x]));
 

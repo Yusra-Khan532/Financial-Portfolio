@@ -4,13 +4,16 @@
 // risk. Every ETF is measured against the Nifty 500: an index ETF's beta against its own index is about 1 by design (COMMON-RULES 8). The figures are the
 // server's (/api/me/etf-portfolio/risk); the beta ranges are the owner's table. The Equity page's eqr- styles are shared. Describes; never advice.
 import { useState } from "react";
-import { Scroll, Section, Tip } from "../../components/sectors/pack/Common";
+import { Scroll, Tip } from "../../components/sectors/pack/Common";
+import { Section } from "../../portfolio/kit/KitSection";
 import { Insights } from "../../portfolio/pack/EquityPack";
 import { MarketFall } from "../../portfolio/pack/MarketFall";
 import { RANGE_EDGES, RANGE_SUB, type RangeKey } from "../../lib/eqRisk";
 import type { Card } from "../../lib/pulsePack";
 import type { Band, EtfPortfolio, EtfRisk, Inside } from "../../lib/etfPortfolio";
 import { live } from "../../lib/etfTop";
+import { benchText, benchWindow, betaWindowText, swingCheck } from "../../lib/etfKeyFigs";
+import type { ReactNode } from "react";
 import "../../portfolio/pack/risk-pack.css";
 
 type R = EtfRisk["etfs"][number];
@@ -40,23 +43,23 @@ export function byType(rk: EtfRisk) {
 }
 
 export function riskLede(rk: EtfRisk) {
-  const b = rk.own?.list.betaOwn;
+  const b = rk.own?.list.beta500 ?? rk.own?.list.betaOwn;
   if (b == null) return null;
   const lead = b < 0.9 ? "Your list moves less than the Indian market." : b > 1.1 ? "Your list moves more than the Indian market." : "Your list moves about with the Indian market.";
-  return { lead, rest: `It has moved ${b2(b)}% for every 1% move in the Nifty 500${rk.list.swing != null && rk.bench.swing != null ? `, and over 3 years it has swung ${rk.list.swing.toFixed(1)}% in a typical year against ${rk.bench.swing.toFixed(1)}%` : ""}.` };
+  return { lead, rest: `It has moved ${b2(b)}% for every 1% move in the Nifty 500${rk.list.swing != null && rk.bench.swing != null ? `, and over 3 years it has swung ${rk.list.swing.toFixed(1)}% in a typical year against ${rk.bench.swing.toFixed(1)}% for the Nifty 500 (${benchWindow(rk.bench)})` : ""}.` };
 }
 
 export function glanceTiles(rk: EtfRisk) {
   const l = rk.list, b = rk.bench, o = rk.own?.list;
   const ratio = l.swing != null && b.swing ? l.swing / b.swing : null;
   return [
-    { k: "Typical swing in a year · 3 yrs", v: pc(l.swing), vs: `Nifty 500: ${pc(b.swing)}`, sub: ratio == null ? "Not enough prices." : ratio < 0.85 ? "A calmer ride than the index." : ratio > 1.15 ? "A bumpier ride than the index." : "About as bumpy as the index.",
+    { k: "Typical swing in a year · 3 yrs", v: pc(l.swing), vs: benchText(b), sub: ratio == null ? "Not enough prices." : ratio < 0.85 ? "A calmer ride than the index." : ratio > 1.15 ? "A bumpier ride than the index." : "About as bumpy as the index.",
       help: "How much the list's value has moved up and down in a typical year, from daily prices over 3 years.", how: "Higher is a bumpier ride. Set it beside the Nifty 500's." },
     { k: "Worst fall from a high · 3 yrs", v: sp(l.worstFall), vs: `Nifty 500: ${sp(b.worstFall)}`, sub: l.worstFall == null || b.worstFall == null ? "Not enough prices." : l.worstFall > b.worstFall / 2 ? "Less than half as deep." : l.worstFall > b.worstFall ? "Shallower than the index." : "Deeper than the index.",
       help: "The largest drop of the list from a high to a later low, over 3 years of daily prices.", how: "A larger minus figure is a deeper fall." },
     { k: "In the 10 worst weeks · past year", v: sp(o?.worst10.list), vs: `Nifty 500: ${sp(o?.worst10.nifty500)}`, sub: o?.worst10.list == null || o.worst10.nifty500 == null ? "Not enough prices." : o.worst10.list > o.worst10.nifty500 + 0.3 ? "Falls less when the market falls." : o.worst10.list < o.worst10.nifty500 - 0.3 ? "Falls more when the market falls." : "Falls about as much as the market.",
       help: "The list's average weekly change in the Nifty 500's 10 worst weeks of the past year.", how: "Above the Nifty 500's figure: the list fell less in those weeks." },
-    { k: "Beta, Nifty 500", v: b2(o?.betaOwn), vs: "market: 1.00", sub: o?.betaOwn == null ? "Not enough prices." : o.betaOwn < 0.9 ? "Moves less than the market." : o.betaOwn > 1.1 ? "Moves more than the market." : "Moves about with the market.",
+    { k: "Beta, Nifty 500", v: b2(o?.beta500 ?? o?.betaOwn), vs: "market: 1.00", sub: (o?.beta500 ?? o?.betaOwn) == null ? "Not enough prices." : `${(o!.beta500 ?? o!.betaOwn)! < 0.9 ? "Moves less than the market." : (o!.beta500 ?? o!.betaOwn)! > 1.1 ? "Moves more than the market." : "Moves about with the market."} ${betaWindowText(rk.etfs.find((e) => e.betaWindow)?.betaWindow)}.`,
       help: "Each ETF against the Nifty 500 over the past year of weekly prices; the ETFs combined by their share of the list, liquid ETFs as 0.", how: "1.00 moves with the Indian market; above 1 more, below 1 less." },
   ];
 }
@@ -79,6 +82,8 @@ export function GlanceSection({ rk }: { rk: EtfRisk }) {
     <Section id="etp-glance" hide title="Risk at a glance" help="Four figures, each against the Nifty 500: the swing and the worst fall over 3 years of daily prices, the 10 worst weeks of the past year, and the list's beta." how="Each figure sits beside the Nifty 500's; the line under it says whether the list has been calmer or bumpier."
       sub={`${rk.basis === "value" ? "ETFs weighted by the value of your quantities" : "Each ETF counts the same until quantities are added"} · swing and worst fall: 3 years of daily prices; beta and weekly figures: the past year, to ${day(to)}.`}>
       {lede && <p className="eqr-lede"><b>{lede.lead}</b> {lede.rest}</p>}
+      {rk.list.level && <p className="sp-note etp-level"><b>{rk.list.level.word}</b> than {rk.list.level.vs}{rk.list.level.because ? `, ${rk.list.level.because}` : ""}.</p>}
+      {swingCheck(rk).over && <p className="sp-note" role="status">Data to check: the list's swing ({pc(rk.list.swing)}) is above the {pc(swingCheck(rk).cap)} average of its ETFs' swings, which a mix of them cannot be.</p>}
       {rk.list.why && <p className="sp-note">{rk.list.why}</p>}
       <div className="eqr-tiles">{glanceTiles(rk).map((t) => <div key={t.k} className="eqr-tile"><p className="sp-cap">{t.k}<Tip text={t.help} how={t.how} label={`About “${t.k}”`} /></p><p className="eqr-v"><b>{t.v}</b><small>{t.vs}</small></p><p className="eqr-sub">{t.sub}</p></div>)}</div>
       <Insights items={glanceCards(rk)} scope="etf.glance" />
@@ -215,10 +220,10 @@ export function EachEtfSection({ rk, d, ins }: P) {
   const row = (s: string) => live(d).find((x) => x.symbol === s);
   return (
     <Section id="etp-each" hide title="Each ETF's risk" help="Each ETF's beta against the Nifty 500 (past year, weekly), its swing and worst fall (3 years, daily), its price against its NAV and its share of the list's risk." how="Highest beta first. Under a year of prices: no beta. Under 3 years: since the start of its prices."
-      sub="Highest beta first. Swing and worst fall over 3 years.">
+      sub={`Highest beta first. Swing and worst fall over 3 years. ${benchText(rk.bench)}.`}>
       <Scroll label="each ETF's risk"><table className="sp-tb eqr-each kit-grid"><thead><tr><th scope="col">ETF</th><th scope="col">Beta, Nifty 500</th><th scope="col" className="r">Swing a year, 3 yrs</th><th scope="col" className="r">Worst fall, 3 yrs</th><th scope="col" className="r">Price vs NAV</th><th scope="col" className="r">Share of risk</th><th scope="col">What stands out</th></tr></thead>
         <tbody>{[...rk.etfs].sort((a, b) => (b.betaPast ?? -1) - (a.betaPast ?? -1)).map((e) => <tr key={e.symbol}><th scope="row">{e.symbol}<small className="mfp-sub">{row(e.symbol)?.tracks.label}</small></th>
-          <td>{e.compared === false ? <span className="sp-note">Not compared</span> : e.betaPast == null ? <span className="sp-note">Under a year</span> : <><b>{b2(e.betaPast)}</b> <Chip band={e.band} /></>}</td>
+          <td>{e.compared === false ? <span className="sp-note">Not compared</span> : e.betaPast == null ? <span className="sp-note">Under a year</span> : <><b>{b2(e.betaPast)}</b> <Chip band={e.band} /><small className="mfp-sub etp-win">{betaWindowText(e.betaWindow)}</small></>}</td>
           <td className="r">{pc(e.swing)}</td><td className="r sp-red">{sp(e.worstFall)}{e.years != null && e.years < 2.95 && e.from ? <small className="mfp-sub">since {new Date(e.from + "T00:00:00").toLocaleDateString("en-IN", { month: "short", year: "numeric" })}</small> : null}</td>
           <td className="r">{sp(row(e.symbol)?.premium, 2)}</td><td className="r">{pc(e.riskShare)}</td><td>{standsOut(e, d, ins)}</td></tr>)}</tbody></table></Scroll>
       <p className="sp-note">"What stands out" describes the figures; it is not advice.</p>
@@ -226,6 +231,6 @@ export function EachEtfSection({ rk, d, ins }: P) {
   );
 }
 
-export function RiskTab({ rk, d, ins, value }: P) {
-  return <><GlanceSection rk={rk} /><BuildSection rk={rk} d={d} /><N500Section rk={rk} d={d} /><FallSection rk={rk} value={value} /><RiskShareSection rk={rk} /><EachEtfSection rk={rk} d={d} ins={ins} /></>;
+export function RiskTab({ rk, d, ins, value, kf }: P & { kf?: ReactNode }) {
+  return <><GlanceSection rk={rk} />{kf}<BuildSection rk={rk} d={d} /><N500Section rk={rk} d={d} /><FallSection rk={rk} value={value} /><RiskShareSection rk={rk} /><EachEtfSection rk={rk} d={d} ins={ins} /></>;
 }
