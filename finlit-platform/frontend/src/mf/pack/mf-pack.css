@@ -232,3 +232,6 @@ a.mfm-chip.mfm-chip-a:focus-visible { outline: 2px solid var(--gold); outline-of
 .x-bz .mft-why { grid-column: 1 / -1; color: var(--text); font-size: var(--fs-13); }
 .mft-t .mft-c, .mft-t .mft-c * { white-space: normal; overflow-wrap: anywhere; }
 .mft-t .mft-c { overflow: hidden; }
+
+/* task #275 (change 18): the shared filter row's pressed Columns button reads --x-tab, set on the equity and ETF wrappers (.pfx) but not on this page */
+.mfp .ptk-frow { --x-tab: #0e6471; }
