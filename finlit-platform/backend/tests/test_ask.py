@@ -624,3 +624,20 @@ def test_the_instructions_put_the_question_before_the_page():
     line = service.context_line("HCLTECH", "gold", page_is_subject=False)
     assert "opened FinLit AI on the page of HCLTECH, but this question is about something else" in line
     assert "The member is on the page of HCLTECH." in service.context_line("HCLTECH", "gold")
+
+
+def test_the_ai_summary_is_pointers_with_bold_key_words_and_reads_the_technical_view():
+    """Task #228 rework 2 (20 Nov 2026): "make it in pointers its too big of a paragaph and highlight keywords"; the team's picture also shows "I could
+    not read the short-term and long-term technical views": the Prism summary FinLit AI reads carried only the technical view's dates."""
+    q = service.summary_question("RELIANCE")
+    assert "4 to 6 short pointers" in q and 'starting with "- "' in q and "at most 20 words" in q and "**bold**" in q and "No paragraph" in q
+    from finlit import prism
+    tech = {"shortTerm": {"score": 38.0, "rating": "Buy", "status": "ready"}, "longTerm": {"score": -32.0, "rating": "Reduce", "status": "ready"},
+            "verdict": {"label": "BOUNCE ONLY, DON'T INVEST", "tone": "caution"}}
+    got = prism._tech_scores({"technicalAssessment": tech})
+    assert got == {"shortTerm": {"score": 38.0, "rating": "Uptrend"}, "longTerm": {"score": -32.0, "rating": "Downtrend"}, "alignment": "Bounce in a downtrend"}
+    assert "Buy" not in json.dumps(got) and "INVEST" not in json.dumps(got)                  # the model's own words never leave the server
+    card = T._prism_card({"summary": {"final": 58.1, "label": "AVERAGE", "status": "RATED", "parts": {}, "technical": {"asOf": "2026-11-19", **got}}})
+    assert card["technical"] == {"shortTerm": {"score": 38.0, "rating": "Uptrend"}, "longTerm": {"score": -32.0, "rating": "Downtrend"},
+                                 "alignment": "Bounce in a downtrend", "asOf": "2026-11-19"}
+    assert prism._tech_scores({}) == {}
