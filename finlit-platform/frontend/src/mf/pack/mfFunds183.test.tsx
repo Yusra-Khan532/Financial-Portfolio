@@ -54,10 +54,21 @@ describe("Your funds (M5)", () => {
     expect(names()).toEqual(["JioBlackRock Liquid Fund", "Quant Small Cap Fund", "ICICI Prudential MNC Fund"]);
     expect(screen.getByRole("button", { name: "Score ▼" }).closest("th")!.getAttribute("aria-sort")).toBe("descending");
   });
+  it("task #275 (change 8): the fund cell gives house · plan · option and the ISIN; Category · type names the type under the category", () => {
+    view();
+    const row = Array.from(document.querySelectorAll(".mff-t tbody tr")).find((r) => r.textContent!.includes("ICICI Prudential MNC Fund"))!;
+    expect(row.querySelector("th .mfp-isin")!.textContent).toBe("INF2");
+    const cat = row.querySelectorAll("td")[0];
+    expect(cat.firstChild!.textContent).toBe("Sectoral / Thematic");
+    expect(cat.querySelector(".mff-type")!.textContent).toBe("Equity");
+    const liquid = Array.from(document.querySelectorAll(".mff-t tbody tr")).find((r) => r.textContent!.includes("JioBlackRock"))!;
+    expect(liquid.querySelector("td .mff-type")!.textContent).toBe("Debt");
+    expect(document.querySelector(".mff-t thead")!.textContent).toContain("Category · type");
+  });
   it("Returns & costs, Risk against each fund's own benchmark, and By fund type", () => {
     view();
     fireEvent.click(screen.getByRole("button", { name: "Returns & costs" }));
-    expect(Array.from(document.querySelectorAll(".mff-t thead th")).map((t) => t.textContent)).toEqual(["Fund ▲", "Type", "1 year", "3 years, a year", "5 years, a year", "Expense ratioi", "Fund size"]);
+    expect(Array.from(document.querySelectorAll(".mff-t thead th")).map((t) => t.textContent)).toEqual(["Fund ▲", "Category · type", "1 year", "3 years, a year", "5 years, a year", "Expense ratioi", "Fund size"]);
     expect(screen.getByRole("note").textContent).toMatch(/IDCW options show no 1, 3 or 5 year return/);
     fireEvent.click(screen.getByRole("button", { name: "Risk" }));
     const mnc = screen.getByText("ICICI Prudential MNC Fund").closest("tr")!;
