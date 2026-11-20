@@ -93,7 +93,7 @@ def _prism_card(p: Any) -> Any:
         return p if isinstance(p, dict) and p.get("unavailable") else {"unavailable": "No FinLit Prism report is stored for this company yet."}
     tech = s.get("technical") or {}
     return {"score": s.get("final"), "label": s.get("label"), "status": s.get("status"), "confidence": s.get("confidence"), "parts": s.get("parts"),
-            "technical": {k: tech.get(k) for k in ("shortTerm", "longTerm", "asOf") if k in tech} or tech or None,
+            "technical": {k: tech.get(k) for k in ("shortTerm", "longTerm", "alignment", "asOf") if k in tech} or tech or None,
             "topPros": s.get("topPros"), "topCons": s.get("topCons"), "calculatedAt": s.get("generatedAt"), "freshness": s.get("freshness")}
 
 
