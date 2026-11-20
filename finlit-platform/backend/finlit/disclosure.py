@@ -439,7 +439,7 @@ async def _facts_rows(conn, code: int):
                              "LEFT JOIN mf_facts f ON f.code = s.code WHERE s.code = $1", code)
     if me is None:
         return None, None, None
-    fam = await conn.fetch("SELECT s.code, f.name_key, f.aum_lakh, f.aum_end, f.aum_label FROM mf_schemes s LEFT JOIN mf_facts f ON f.code = s.code "
+    fam = await conn.fetch("SELECT s.code, s.plan, f.name_key, f.aum_lakh, f.aum_end, f.aum_label FROM mf_schemes s LEFT JOIN mf_facts f ON f.code = s.code "
                            "WHERE s.family = $1", me["family"])
     keys = [me["name_key"]] + [r["name_key"] for r in fam if r["name_key"] and r["name_key"] != me["name_key"]]
     ter = None
@@ -535,6 +535,11 @@ async def get_facts(pool, key) -> Optional[dict]:
            "riskometer": extra.get("riskometer") or {"unavailable": NO_RISKOMETER}, "managers": extra.get("managers") or {"unavailable": NO_MANAGERS}}
     if isinstance(key, int) or str(key).isdigit():     # a mutual fund page: both plans' TER, the scheme's minimum, exit load unknown
         tr, td = _ter_fact(ter, "Regular"), _ter_fact(ter, "Direct")
+        if len({r["plan"] for r in fam}) == 1 and "value" in _etf_ter_fact(ter):
+            # task #281: a scheme with one plan (ETFs that AMFI lists as Direct but whose one TER it files under Regular): either column is its TER
+            one = _etf_ter_fact(ter)
+            tr = tr if "value" in tr else (one if me["plan"] != "Direct" else tr)
+            td = td if "value" in td else (one if me["plan"] == "Direct" else td)
         if "unavailable" in tr:    # AMFI's TER wins when it has the figure; else the fund house's own page
             tr = _house_ter_fact(extra, "Regular") or tr
         if "unavailable" in td:

@@ -307,9 +307,16 @@ async def _load(conn) -> dict:
     async with conn.transaction():
         async for r in conn.cursor("SELECT m.code, m.days, m.navs FROM mf_monthly m JOIN mf_schemes s ON s.code = m.code WHERE s.active AND s.option_class = 'Growth'", prefetch=200):
             monthly[r["code"]] = (r["days"], r["navs"])
-    facts = {r["code"]: {"launch_date": r["launch_date"]} for r in await conn.fetch("SELECT code, launch_date FROM mf_facts")}
+    # task #281: the same launch date and expense ratio the scheme page shows: AMFI's scheme master / TER file first, then AMFI's scheme details
+    # (launch) and the fund house's own daily TER, so the screener never has less than the page
+    facts = {r["code"]: {"launch_date": r["launch_date"]} for r in await conn.fetch(
+        "SELECT s.code, COALESCE(f.launch_date, (ld.value->>'date')::date) AS launch_date FROM mf_schemes s LEFT JOIN mf_facts f ON f.code = s.code "
+        "LEFT JOIN disclosure_facts ld ON ld.fkey = s.family AND ld.kind = 'launch_details'")}
     ters = {r["code"]: (r["ter_regular"], r["ter_direct"]) for r in await conn.fetch(
         "SELECT f.code, t.ter_regular, t.ter_direct FROM mf_facts f JOIN mf_ter t ON t.name_key = f.name_key")}
+    for r in await conn.fetch("SELECT s.code, (h.value->>'regular')::float8 AS reg, (h.value->>'direct')::float8 AS dir FROM mf_schemes s "
+                              "JOIN disclosure_facts h ON h.fkey = s.family AND h.kind = 'ter'"):
+        ters.setdefault(r["code"], (r["reg"], r["dir"]))
     exits: Dict[str, Optional[str]] = {}
     for r in await conn.fetch("SELECT fkey, value FROM disclosure_facts WHERE kind = 'exitload'"):
         v = json.loads(r["value"]) if isinstance(r["value"], str) else r["value"]

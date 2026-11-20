@@ -216,3 +216,95 @@ async def test_a_fund_house_missing_from_one_ter_file_keeps_its_recent_figures(s
         got = {r["name"]: (r["ter_regular"], r["ter_date"]) for r in await conn.fetch("SELECT name, ter_regular, ter_date FROM mf_ter")}
         await conn.execute("DELETE FROM mf_ter")
     assert got == {"HSBC Small Cap Fund": (1.77, date(2026, 11, 19)), "Nippon India Small Cap Fund": (1.4, day1)}
+
+
+# ------------------------------------------------------------------------------------------------------------ one expense ratio everywhere
+
+@needs_db
+async def test_a_fund_house_ter_fills_the_list_and_the_score_when_amfi_has_none(store, monkeypatch):  # noqa: F811
+    """Nippon India (20 Nov 2026): every scheme page showed the fund house's own TER, but the list's 'Expense %' column and the score read only AMFI's
+    TER file, which had no Nippon row. Now the stored expense ratio falls back to the fund house's figure, with its date; an AMFI figure is never replaced."""
+    from finlit import mf
+    from finlit.mfscore.loader import load_mf
+    from test_disclosure import _no_wait_retry
+    from test_mf import amfi_client
+    monkeypatch.setattr(mf, "_retry", _no_wait_retry)
+    async with store.pool.acquire() as conn:
+        await conn.execute("TRUNCATE mf_facts, mf_ter")
+        await conn.execute("DELETE FROM disclosure_facts WHERE kind = 'ter'")
+    async with amfi_client() as c:
+        assert (await mf.refresh(store, None, client=c))["status"] == "ok"
+    async with store.pool.acquire() as conn:
+        fam = await conn.fetchval("SELECT family FROM mf_schemes WHERE code = 120465")     # Axis Large Cap Fund, Direct Growth
+        await conn.execute("INSERT INTO disclosure_facts (fkey, kind, as_of, value, source) VALUES ($1, 'ter', $2, $3::jsonb, 'Fund house, scheme-wise TER') "
+                           "ON CONFLICT (fkey, kind) DO UPDATE SET value = EXCLUDED.value, as_of = EXCLUDED.as_of", fam, date(2026, 10, 31),
+                           '{"regular": 1.41, "direct": 0.69}')
+    await mf.derive_dashboard(store)
+    async with store.pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT ter, ter_date FROM mf_schemes WHERE code = 120465")
+        assert (row["ter"], row["ter_date"]) == (0.69, date(2026, 10, 31))
+        funds, _ = await load_mf(conn, codes=[120465])
+        assert funds and funds[0].ter == 0.69
+        key = d.name_key("Axis Large Cap Fund")                                          # an AMFI figure for the scheme wins over the fund house's
+        await conn.execute("INSERT INTO mf_facts (code, base_name, name_key) VALUES (120465, 'Axis Large Cap Fund', $1) "
+                           "ON CONFLICT (code) DO UPDATE SET name_key = EXCLUDED.name_key", key)
+        await conn.execute("INSERT INTO mf_ter (name_key, name, category, ter_regular, ter_direct, ter_date) VALUES ($1, 'Axis Large Cap Fund', 'x', 1.6, 0.6, $2)",
+                           key, date(2026, 11, 19))
+    await mf.derive_dashboard(store)
+    async with store.pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT ter, ter_date FROM mf_schemes WHERE code = 120465")
+        await conn.execute("DELETE FROM disclosure_facts WHERE kind = 'ter'")
+        await conn.execute("DELETE FROM mf_ter")
+    assert (row["ter"], row["ter_date"]) == (0.6, date(2026, 11, 19))
+
+
+@needs_db
+async def test_a_one_plan_scheme_takes_its_ter_from_either_column(store, monkeypatch):  # noqa: F811
+    """UTI Nifty 50 ETF (20 Nov 2026): AMFI lists it as a Direct plan but files its one TER (0.06 %) under Regular; the page said 'no figure for the
+    Direct plan'. A scheme whose family has one plan takes whichever column AMFI filled, in the list and on the page."""
+    from finlit import mf
+    from test_disclosure import _no_wait_retry
+    from test_mf import amfi_client
+    monkeypatch.setattr(mf, "_retry", _no_wait_retry)
+    async with store.pool.acquire() as conn:
+        await conn.execute("TRUNCATE mf_facts, mf_ter")
+        await conn.execute("DELETE FROM disclosure_facts WHERE kind = 'ter'")
+    async with amfi_client() as c:
+        assert (await mf.refresh(store, None, client=c))["status"] == "ok"
+    name = "Aditya Birla Sun Life CRISIL Liquid Overnight ETF"
+    async with store.pool.acquire() as conn:
+        await conn.execute("UPDATE mf_schemes SET plan = 'Direct' WHERE code = 151533")
+        assert await conn.fetchval("SELECT count(DISTINCT plan) FROM mf_schemes WHERE family = (SELECT family FROM mf_schemes WHERE code = 151533)") == 1
+        await conn.execute("INSERT INTO mf_facts (code, base_name, name_key) VALUES (151533, $1, $2) ON CONFLICT (code) DO UPDATE SET name_key = EXCLUDED.name_key",
+                           name, d.name_key(name))
+        await conn.execute("INSERT INTO mf_ter (name_key, name, category, ter_regular, ter_direct, ter_date) VALUES ($1, $2, 'ETF', 0.06, NULL, $3)",
+                           d.name_key(name), name, date(2026, 11, 19))
+    await mf.derive_dashboard(store)
+    f = await d.get_facts(store.pool, 151533)
+    async with store.pool.acquire() as conn:
+        ter = await conn.fetchval("SELECT ter FROM mf_schemes WHERE code = 151533")
+        await conn.execute("DELETE FROM mf_ter")
+    assert ter == 0.06
+    assert f["terDirect"]["value"] == "0.06% a year"
+
+
+@needs_db
+async def test_the_score_reads_the_launch_date_the_page_shows(store, monkeypatch):  # noqa: F811
+    """16 Motilal Oswal ETFs (20 Nov 2026) have no launch date in AMFI's scheme master ('Alternative to launch of NFO for ETFs'); the page falls back to
+    AMFI's scheme details, and now the score's input does too."""
+    from finlit import mf
+    from finlit.mfscore.loader import load_mf
+    from test_disclosure import _no_wait_retry
+    from test_mf import amfi_client
+    monkeypatch.setattr(mf, "_retry", _no_wait_retry)
+    async with store.pool.acquire() as conn:
+        await conn.execute("TRUNCATE mf_facts, mf_ter")
+    async with amfi_client() as c:
+        assert (await mf.refresh(store, None, client=c))["status"] == "ok"
+    async with store.pool.acquire() as conn:
+        fam = await conn.fetchval("SELECT family FROM mf_schemes WHERE code = 120465")
+        await conn.execute("INSERT INTO disclosure_facts (fkey, kind, as_of, value, source) VALUES ($1, 'launch_details', $2, $3::jsonb, 'AMFI scheme details') "
+                           "ON CONFLICT (fkey, kind) DO UPDATE SET value = EXCLUDED.value", fam, date(2026, 11, 20), '{"date": "2009-11-11"}')
+        funds, _ = await load_mf(conn, codes=[120465])
+        await conn.execute("DELETE FROM disclosure_facts WHERE kind = 'launch_details'")
+    assert funds and funds[0].launch == date(2009, 11, 11)
