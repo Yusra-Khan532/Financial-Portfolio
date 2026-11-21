@@ -222,8 +222,8 @@ def test_the_note_and_the_instructions_name_the_order_and_the_prose_rule():
     assert routing.web_domains(["company", "economy"]) is None                              # two kinds: an open search
     s = service.SYSTEM
     for must in ("(1) the company's investor presentation, (2) its results", "(3) its earnings calls", "(4) news and the web pages",
-                 "(5) FinLit's company report", "(6) any other FinLit page", "short paragraphs of 2 to 4 sentences", "Few or no bullet points",
-                 "Every figure carries its source and date in the sentence", "Never send the member to \"go and check\"", "only a covering letter"):
+                 "(5) FinLit's company report", "(6) any other FinLit page", "2 to 4 numbered sections", "ends with its source in square brackets",
+                 "Every point that carries a figure ends with its source", "Never send the member to \"go and check\"", "only a covering letter"):
         assert must in s, must
     assert "at most 4 short bullet points" not in s and "Under 90 words" not in s
 
