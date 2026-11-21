@@ -64,7 +64,7 @@ async def test_collect_prefers_the_sites_fresher_rupee(monkeypatch):
 @pytest.mark.asyncio
 async def test_the_endpoint_answers_everyone_from_the_cache(app, anon):  # noqa: F811
     gm._mem = (0.0, None)
-    async def fake(settings, now=None, local=None):
+    async def fake(settings, now=None, local=None, redis=None):
         return gm.build({"sp500": (gm.parse_fred(CSV), None)}, datetime.now(timezone.utc))
     import finlit.global_markets as mod
     orig = mod.collect
@@ -89,3 +89,46 @@ def test_a_short_site_series_keeps_the_providers_older_closes_for_its_month():
     m = gm.moves(got, "₹")
     assert m["last"] == 92.97 and m["m1"] == round((92.97 / 93.8 - 1) * 100, 2) and m["w1"] == round((92.97 / 94.1 - 1) * 100, 2)
     assert gm.splice([], site) == site and gm.splice(fred, []) == fred
+
+
+# ------------------------------------------------------------------------------------------------ task #298 follow-up: EODHD's free plan
+def test_eodhd_closes_are_read_and_an_error_is_said():
+    from datetime import date as D
+    pts, why = gm.parse_eodhd([{"date": "2026-11-19", "close": 24802.78}, {"date": "2026-11-18", "close": 25463.81}, {"date": "2026-11-17", "close": None}])
+    assert pts == [(D(2026, 11, 18), 25463.81), (D(2026, 11, 19), 24802.78)] and why is None
+    assert gm.parse_eodhd({"message": "Forbidden"}) == ([], "EODHD did not return this series: Forbidden")
+
+
+class _Redis:
+    def __init__(self):
+        self.d = {}
+
+    async def get(self, k):
+        return self.d.get(k)
+
+    async def set(self, k, v, ex=None):
+        self.d[k] = v
+
+
+async def test_eodhd_fills_a_row_once_a_day_and_twelve_data_comes_first():
+    import httpx
+    from datetime import date as D
+    calls = []
+
+    def handler(req):
+        calls.append(req.url.host + req.url.path)
+        if req.url.host == "eodhd.com":
+            return httpx.Response(200, json=[{"date": "2026-11-18", "close": 100.0}, {"date": "2026-11-19", "close": 102.0}])
+        return httpx.Response(200, json={"status": "ok", "values": [{"datetime": "2026-11-19", "close": "7"}]})
+    dax = next(s for s in gm.SERIES if s["key"] == "dax")
+    assert dax["eod"] == "GDAXI.INDX"
+    redis = _Redis()
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as c:
+        pts, why, src = await gm._market(c, dax, "", "eodkey", D(2026, 10, 7), redis)
+        assert src == "EODHD" and pts[-1] == (D(2026, 11, 19), 102.0) and why is None
+        await gm._market(c, dax, "", "eodkey", D(2026, 10, 7), redis)                       # the second read in the day comes from the cache
+        assert calls == ["eodhd.com/api/eod/GDAXI.INDX"]
+        pts, _, src = await gm._market(c, dax, "tdkey", "eodkey", D(2026, 10, 7), redis)     # with a Twelve Data key, Twelve Data first
+        assert src == "Twelve Data" and pts == [(D(2026, 11, 19), 7.0)]
+        assert await gm._market(c, dax, "", "", D(2026, 10, 7)) == ([], gm.NO_KEY, "Twelve Data")
+    assert "EODHD or Twelve Data" in gm.NO_KEY

@@ -30,25 +30,31 @@ from fastapi import APIRouter, Request, Response
 log = logging.getLogger("finlit.global_markets")
 router = APIRouter()
 
-CACHE_KEY = "global-markets:v1"
+CACHE_KEY = "global-markets:v2"
 CACHE_SECONDS = 3600
 FRED_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv"
 TWELVE_URL = "https://api.twelvedata.com/time_series"
 DISCLAIMER = "Information only, not investment advice. Prices are the providers' daily closes; a market's latest close can be a day or more old."
-NO_KEY = "Not connected yet: this series comes from Twelve Data, whose key is not set on the server."
+NO_KEY = "Not connected yet: this series needs a market-data key on the server (EODHD or Twelve Data)."
+# Task #298 follow-up (the founder, 21 Nov: "we have not this [Twelve Data key]; how can we get this, or other ways"): EODHD's free plan (20 calls a
+# day, a year of daily closes) gives the Europe, Hong Kong and Shanghai indices and gold with EODHD_API_KEY. Daily closes change once a day, so each
+# series is read from EODHD at most twice a day (kept in Redis for 12 hours): 6 series, 12 calls, inside the free 20. Twelve Data, when its key is set,
+# still comes first.
+EODHD_URL = "https://eodhd.com/api/eod/{sym}"
+EODHD_KEEP = 12 * 3600
 
 # key, label, group, unit, source, source id, city, lat, lon, time zone, session (local open, close)
 SERIES: List[Dict[str, Any]] = [
     {"key": "sp500", "label": "S&P 500", "group": "US", "unit": "pts", "src": "fred", "id": "SP500", "city": "New York", "lat": 40.71, "lon": -74.01, "tz": "America/New_York", "session": ("09:30", "16:00")},
     {"key": "nasdaq", "label": "Nasdaq Composite", "group": "US", "unit": "pts", "src": "fred", "id": "NASDAQCOM", "city": "New York", "lat": 40.71, "lon": -74.01, "tz": "America/New_York", "session": ("09:30", "16:00")},
     {"key": "dow", "label": "Dow Jones", "group": "US", "unit": "pts", "src": "fred", "id": "DJIA", "city": "New York", "lat": 40.71, "lon": -74.01, "tz": "America/New_York", "session": ("09:30", "16:00")},
-    {"key": "ftse", "label": "FTSE 100", "group": "Europe", "unit": "pts", "src": "twelve", "id": "FTSE", "city": "London", "lat": 51.51, "lon": -0.13, "tz": "Europe/London", "session": ("08:00", "16:30")},
-    {"key": "dax", "label": "DAX", "group": "Europe", "unit": "pts", "src": "twelve", "id": "DAX", "city": "Frankfurt", "lat": 50.11, "lon": 8.68, "tz": "Europe/Berlin", "session": ("09:00", "17:30")},
-    {"key": "cac", "label": "CAC 40", "group": "Europe", "unit": "pts", "src": "twelve", "id": "CAC", "city": "Paris", "lat": 48.86, "lon": 2.35, "tz": "Europe/Paris", "session": ("09:00", "17:30")},
+    {"key": "ftse", "label": "FTSE 100", "group": "Europe", "unit": "pts", "src": "twelve", "id": "FTSE", "eod": "FTSE.INDX", "city": "London", "lat": 51.51, "lon": -0.13, "tz": "Europe/London", "session": ("08:00", "16:30")},
+    {"key": "dax", "label": "DAX", "group": "Europe", "unit": "pts", "src": "twelve", "id": "DAX", "eod": "GDAXI.INDX", "city": "Frankfurt", "lat": 50.11, "lon": 8.68, "tz": "Europe/Berlin", "session": ("09:00", "17:30")},
+    {"key": "cac", "label": "CAC 40", "group": "Europe", "unit": "pts", "src": "twelve", "id": "CAC", "eod": "FCHI.INDX", "city": "Paris", "lat": 48.86, "lon": 2.35, "tz": "Europe/Paris", "session": ("09:00", "17:30")},
     {"key": "nikkei", "label": "Nikkei 225", "group": "Asia", "unit": "pts", "src": "fred", "id": "NIKKEI225", "city": "Tokyo", "lat": 35.68, "lon": 139.69, "tz": "Asia/Tokyo", "session": ("09:00", "15:30")},
-    {"key": "hangseng", "label": "Hang Seng", "group": "Asia", "unit": "pts", "src": "twelve", "id": "HSI", "city": "Hong Kong", "lat": 22.32, "lon": 114.17, "tz": "Asia/Hong_Kong", "session": ("09:30", "16:00")},
-    {"key": "shanghai", "label": "Shanghai Composite", "group": "Asia", "unit": "pts", "src": "twelve", "id": "SSEC", "city": "Shanghai", "lat": 31.23, "lon": 121.47, "tz": "Asia/Shanghai", "session": ("09:30", "15:00")},
-    {"key": "gold", "label": "Gold", "group": "Commodities", "unit": "US$/oz", "src": "twelve", "id": "XAU/USD"},
+    {"key": "hangseng", "label": "Hang Seng", "group": "Asia", "unit": "pts", "src": "twelve", "id": "HSI", "eod": "HSI.INDX", "city": "Hong Kong", "lat": 22.32, "lon": 114.17, "tz": "Asia/Hong_Kong", "session": ("09:30", "16:00")},
+    {"key": "shanghai", "label": "Shanghai Composite", "group": "Asia", "unit": "pts", "src": "twelve", "id": "SSEC", "eod": "SSEC.INDX", "city": "Shanghai", "lat": 31.23, "lon": 121.47, "tz": "Asia/Shanghai", "session": ("09:30", "15:00")},
+    {"key": "gold", "label": "Gold", "group": "Commodities", "unit": "US$/oz", "src": "twelve", "id": "XAU/USD", "eod": "XAUUSD.FOREX"},
     {"key": "brent", "label": "Brent crude", "group": "Commodities", "unit": "US$/bbl", "src": "fred", "id": "DCOILBRENTEU"},
     {"key": "usdinr", "label": "Rupee per US dollar", "group": "Currency and yields", "unit": "₹", "src": "fred", "id": "DEXINUS"},   # the site's FBIL daily rate first
     {"key": "us10y", "label": "US 10-year yield", "group": "Currency and yields", "unit": "%", "src": "fred", "id": "DGS10"},
@@ -86,6 +92,24 @@ def parse_twelve(body: Dict[str, Any]) -> Tuple[List[Tuple[date, float]], Option
             continue
     out.sort()
     return out, None if out else "Twelve Data returned no closes for this series."
+
+
+def parse_eodhd(body: Any) -> Tuple[List[Tuple[date, float]], Optional[str]]:
+    """EODHD's end-of-day list ([{date, close, ...}], oldest first); an error comes back as a dict or text and is said, never guessed."""
+    if not isinstance(body, list):
+        msg = body.get("message") or body.get("error") if isinstance(body, dict) else None
+        return [], "EODHD did not return this series" + (f": {msg}" if msg else ".")
+    out: List[Tuple[date, float]] = []
+    for v in body:
+        try:
+            c = v.get("close")
+            if c is None:
+                continue
+            out.append((date.fromisoformat(str(v["date"])[:10]), float(c)))
+        except (AttributeError, KeyError, TypeError, ValueError):
+            continue
+    out.sort()
+    return out, None if out else "EODHD returned no closes for this series."
 
 
 def _on_or_before(points: List[Tuple[date, float]], day: date) -> Optional[Tuple[date, float]]:
@@ -131,9 +155,11 @@ def build(series: Dict[str, Tuple[List[Tuple[date, float]], Optional[str]]], now
     """series: {key: (points, why_empty)}. The answer the dashboard reads."""
     rows = []
     for s in SERIES:
-        pts, why = series.get(s["key"], ([], None))
+        got = series.get(s["key"], ([], None))
+        pts, why = got[0], got[1]
+        src = got[2] if len(got) > 2 else ("FRED" if s["src"] == "fred" else "Twelve Data")
         m = moves(pts, s["unit"])
-        rows.append({"key": s["key"], "label": s["label"], "group": s["group"], "unit": s["unit"], "source": "FRED" if s["src"] == "fred" else "Twelve Data",
+        rows.append({"key": s["key"], "label": s["label"], "group": s["group"], "unit": s["unit"], "source": src,
                      **m, "why": None if m["last"] is not None else (why or "No close from the source yet."),
                      "place": {"city": s["city"], "lat": s["lat"], "lon": s["lon"], **(session_now(s, now) or {})} if s.get("city") else None})
     overseas = [r for r in rows if r["place"] and r["group"] in ("US", "Europe", "Asia")]
@@ -141,7 +167,7 @@ def build(series: Dict[str, Tuple[List[Tuple[date, float]], Optional[str]]], now
     return {"rows": rows, "home": {**HOME, **(session_now(HOME, now) or {})}, "asOfIst": now.astimezone(ZoneInfo("Asia/Kolkata")).strftime("%H:%M"),
             "summary": {"open": sum(1 for r in overseas if r["place"].get("open")), "markets": len({r["place"]["city"] for r in overseas}),
                         "indices": len(valued), "down": sum(1 for r in valued if r["d1"] < 0), "up": sum(1 for r in valued if r["d1"] > 0)},
-            "disclaimer": DISCLAIMER, "sources": "FRED (St. Louis Fed); Twelve Data where connected", "builtAt": now.isoformat(timespec="seconds")}
+            "disclaimer": DISCLAIMER, "sources": sources_line(rows), "builtAt": now.isoformat(timespec="seconds")}
 
 
 # ------------------------------------------------------------------------------------------------------------------ fetching
@@ -167,20 +193,66 @@ async def _twelve(client: httpx.AsyncClient, key: str, sym: str) -> Tuple[List[T
         return [], "Twelve Data could not be reached just now; the card tries again within the hour."
 
 
-async def collect(settings, now: Optional[datetime] = None, local: Optional[Dict[str, List[Tuple[date, float]]]] = None) -> Dict[str, Any]:
+def sources_line(rows: List[Dict[str, Any]]) -> str:
+    used = [x for x in ("FRED", "FBIL", "EODHD", "Twelve Data") if any(r.get("source") == x and r.get("last") is not None for r in rows)]
+    words = {"FRED": "FRED (St. Louis Fed)", "FBIL": "FBIL reference rate", "EODHD": "EODHD", "Twelve Data": "Twelve Data"}
+    return "; ".join(words[x] for x in used) or "FRED (St. Louis Fed)"
+
+
+async def _eodhd(client: httpx.AsyncClient, key: str, sym: str, start: date, redis=None) -> Tuple[List[Tuple[date, float]], Optional[str]]:
+    """One series' daily closes from EODHD, kept in Redis for 12 hours so the free plan's 20 calls a day are never spent."""
+    ck = f"global-markets:eod:{sym}:{start.isoformat()}"
+    try:
+        raw = await redis.get(ck) if redis is not None else None
+        if raw:
+            return [(date.fromisoformat(d), float(v)) for d, v in orjson.loads(raw)], None
+    except Exception:
+        pass
+    try:
+        r = await client.get(EODHD_URL.format(sym=sym), params={"api_token": key, "fmt": "json", "from": start.isoformat()})
+        body = r.json() if r.headers.get("content-type", "").startswith("application/json") else {"message": f"HTTP {r.status_code}"}
+        pts, why = parse_eodhd(body)
+    except Exception as exc:
+        log.warning("global markets: EODHD %s failed: %s", sym, type(exc).__name__)
+        return [], "EODHD could not be reached just now; the card tries again within the hour."
+    if pts and redis is not None:
+        try:
+            await redis.set(ck, orjson.dumps([(d.isoformat(), v) for d, v in pts]), ex=EODHD_KEEP)
+        except Exception:
+            pass
+    return pts, why
+
+
+async def _market(client: httpx.AsyncClient, s: Dict[str, Any], twelve: str, eod: str, start: date, redis=None):
+    """A series FRED does not carry: Twelve Data when its key is set and it answers, then EODHD when its key is set; else why it is empty."""
+    why = None
+    if twelve:
+        pts, why = await _twelve(client, twelve, s["id"])
+        if pts:
+            return pts, None, "Twelve Data"
+    if eod and s.get("eod"):
+        pts, why2 = await _eodhd(client, eod, s["eod"], start, redis)
+        if pts:
+            return pts, None, "EODHD"
+        why = why2 or why
+    return [], why or NO_KEY, "EODHD" if eod else "Twelve Data"
+
+
+async def collect(settings, now: Optional[datetime] = None, local: Optional[Dict[str, List[Tuple[date, float]]]] = None, redis=None) -> Dict[str, Any]:
     """local: series the site already keeps fresher than FRED (the rupee: FBIL's daily reference rate, macro_points usdinr_d), used when newer."""
     now = now or datetime.now(timezone.utc)
     start = now.date() - timedelta(days=45)
     key = getattr(settings, "twelvedata_api_key", "") or ""
+    eod = getattr(settings, "eodhd_api_key", "") or ""
     # the client's own User-Agent: FRED holds a request with an unfamiliar one until it times out (checked 21 Nov 2026), as macro.py's Brent read does
     async with httpx.AsyncClient(timeout=httpx.Timeout(20.0, connect=8.0)) as client:
-        jobs = [(_fred(client, s["id"], start) if s["src"] == "fred" else _twelve(client, key, s["id"])) for s in SERIES]
+        jobs = [(_fred(client, s["id"], start) if s["src"] == "fred" else _market(client, s, key, eod, start, redis)) for s in SERIES]
         got = await asyncio.gather(*jobs)
     series = {s["key"]: g for s, g in zip(SERIES, got)}
     for k, pts in (local or {}).items():
         theirs = series.get(k, ([], None))[0]
         if pts and (not theirs or pts[-1][0] >= theirs[-1][0]):
-            series[k] = (splice(theirs, pts), None)
+            series[k] = (splice(theirs, pts), None, "FBIL")
     return build(series, now)
 
 
@@ -221,7 +293,7 @@ async def data(app) -> dict:
             raw = await redis.get(CACHE_KEY) if redis is not None else None
         except Exception:   # the cache is a convenience
             raw = None
-        out = orjson.loads(raw) if raw else await collect(app.state.settings, local=await site_series(app))
+        out = orjson.loads(raw) if raw else await collect(app.state.settings, local=await site_series(app), redis=redis)
         if not raw:
             try:
                 if redis is not None:
