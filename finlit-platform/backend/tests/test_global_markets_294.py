@@ -132,3 +132,20 @@ async def test_eodhd_fills_a_row_once_a_day_and_twelve_data_comes_first():
         assert src == "Twelve Data" and pts == [(D(2026, 11, 19), 7.0)]
         assert await gm._market(c, dax, "", "", D(2026, 10, 7)) == ([], gm.NO_KEY, "Twelve Data")
     assert "EODHD or Twelve Data" in gm.NO_KEY
+
+
+async def test_a_series_with_two_eodhd_codes_uses_the_one_that_answers():
+    import httpx
+    from datetime import date as D
+    seen = []
+
+    def handler(req):
+        seen.append(req.url.path)
+        if req.url.path.endswith("/UKX.INDX"):
+            return httpx.Response(200, json=[])                    # live, 21 Nov: one code answered with no closes
+        return httpx.Response(200, json=[{"date": "2026-11-20", "close": 9551.2}])
+    ftse = next(s for s in gm.SERIES if s["key"] == "ftse")
+    assert ftse["eod"] == ("UKX.INDX", "FTSE.INDX")
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as c:
+        pts, why, src = await gm._market(c, ftse, "", "k", D(2026, 10, 7), _Redis())
+    assert src == "EODHD" and pts == [(D(2026, 11, 20), 9551.2)] and seen == ["/api/eod/UKX.INDX", "/api/eod/FTSE.INDX"]
