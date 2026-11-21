@@ -220,7 +220,11 @@ class Store:
                     async with conn.transaction():
                         await conn.execute(path.read_text())
                         await conn.execute("INSERT INTO schema_migrations(version) VALUES($1)", path.stem)
+                        applied.add(path.stem)
             self.timescale = await self._enable_timescale(conn)
+        # One-time data changes that need Python, after every SQL file, recorded in schema_migrations by their own version (they never raise)
+        from . import iq_retire
+        await iq_retire.run_once(self.pool, applied)   # task #283 PR D: members' saved items on the retired FinLit IQ, converted to FinLit Prism
 
     async def _enable_timescale(self, conn) -> bool:
         available = await conn.fetchval("SELECT count(*) FROM pg_available_extensions WHERE name = 'timescaledb'")

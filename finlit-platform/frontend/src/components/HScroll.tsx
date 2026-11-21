@@ -8,7 +8,9 @@ import "../styles/frozen.css";
  *  first column gets a soft shadow on its edge while there is more to the right (`has-more`). */
 /** `pinBelow`: a CSS selector of a sticky bar; the column names stay under it while the page scrolls past the table (task #64, B-1 / V-1). A header inside a
  *  sideways-scrolling box cannot use position: sticky against the page, so it is moved with a transform; the box keeps no inner vertical scroll. */
-export function HScroll({ children, className = "", label = "table", tall = false, controls = true, pinBelow }: { children: ReactNode; className?: string; label?: string; tall?: boolean; controls?: boolean; pinBelow?: string }) {
+export function HScroll({ children, className = "", label = "table", tall = false, controls = true, pinBelow, barBottom = false, pinCells = false }: { children: ReactNode; className?: string; label?: string; tall?: boolean; controls?: boolean; pinBelow?: string;
+  /** task #274: move each header cell rather than the header group (Chromium draws a moved table header group with the rows faintly showing through) */ pinCells?: boolean;
+  /** task #274 (Equity, change 11): the sideways scrollbar sits at the bottom of the screen while the table is on screen */ barBottom?: boolean }) {
   const box = useRef<HTMLDivElement>(null);
   const [max, setMax] = useState(0), [pos, setPos] = useState(0);
   const [scrolled, setScrolled] = useState(false);
@@ -47,19 +49,20 @@ export function HScroll({ children, className = "", label = "table", tall = fals
       const top = bar ? bar.getBoundingClientRect().bottom : 0;
       const r = el.getBoundingClientRect(), hh = head.getBoundingClientRect().height;
       const d = Math.max(0, Math.min(top - r.top, r.height - hh));
-      head.style.transform = d > 0 ? `translateY(${d}px)` : "";
+      if (pinCells) head.style.setProperty("--pin", `${d}px`); else head.style.transform = d > 0 ? `translateY(${d}px)` : "";
       head.classList.toggle("is-pinned", d > 0);
     };
     const ask = () => { if (!raf) raf = requestAnimationFrame(place); };
     window.addEventListener("scroll", ask, { passive: true }); window.addEventListener("resize", ask);
+    // task #274: the bar it pins under can change height without a scroll (the Equity filter row grows when it sticks); follow it
+    const target = document.querySelector(pinBelow), ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(ask) : null; if (target) ro?.observe(target); ro?.observe(document.body);   // content above that loads late moves the table without a scroll
     place();
-    return () => { window.removeEventListener("scroll", ask); window.removeEventListener("resize", ask); if (raf) cancelAnimationFrame(raf); };
-  }, [pinBelow]);
+    return () => { window.removeEventListener("scroll", ask); window.removeEventListener("resize", ask); ro?.disconnect(); if (raf) cancelAnimationFrame(raf); };
+  }, [pinBelow, pinCells]);
   const go = (to: number) => box.current?.scrollTo({ left: Math.max(0, Math.min(max, to)), behavior: "smooth" });
   const step = () => Math.max(160, (box.current?.clientWidth || 600) * 0.6);
-  return (
-    <TableZoom label={label.charAt(0).toUpperCase() + label.slice(1)}>
-      {controls && max > 4 && (
+  const bar = (
+    controls && max > 4 && (
         <div className="hs-bar" role="group" aria-label={`Scroll the ${label} sideways`}>
           <button type="button" className="hs-btn" aria-label="Scroll left" disabled={pos <= 1} onClick={() => go(pos - step())}>◀</button>
           <span className="hs-end" aria-hidden="true">First column</span>
@@ -69,8 +72,13 @@ export function HScroll({ children, className = "", label = "table", tall = fals
           <output className="hs-now" aria-hidden="true">{Math.round((Math.min(pos, max) / max) * 100)}%</output>
           <button type="button" className="hs-btn" aria-label="Scroll right" disabled={pos >= max - 1} onClick={() => go(pos + step())}>▶</button>
         </div>
-      )}
+      )
+  );
+  return (
+    <TableZoom label={label.charAt(0).toUpperCase() + label.slice(1)}>
+      {!barBottom && bar}
       <div ref={box} className={"tw " + className + (tall ? " tw-tall" : "") + (pinBelow ? " tw-pin" : "") + (scrolled ? " is-scrolled" : "") + (max > 4 && pos < max - 1 ? " has-more" : "")}>{children}</div>
+      {barBottom && <div className="hs-bottom">{bar}</div>}
     </TableZoom>
   );
 }

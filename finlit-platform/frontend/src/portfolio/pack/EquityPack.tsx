@@ -29,7 +29,7 @@ export type View = "portfolio" | "diversification" | "risk";
 export const eqViews = (n: number): ViewDef<View>[] => [
   { id: "portfolio", label: "Portfolio", short: "Portfolio", sub: `Your ${n} ${n === 1 ? "share" : "shares"}, their scores and how they compare with peers`, color: VIEW_COLOR.first, icon: VIEW_ICON.case },
   { id: "diversification", label: "Diversification analytics", short: "Diversification", sub: "How spread out the list is, and what moves together", color: VIEW_COLOR.second, icon: VIEW_ICON.pie },
-  { id: "risk", label: "Risk analytics", short: "Risk", sub: "How much it swings, what drives the risk, what a fall could mean", color: VIEW_COLOR.risk, icon: VIEW_ICON.pulse },
+  { id: "risk", label: "Risk analytics", short: "Risk", sub: "How much it swings, what drives the risk, what a fall could mean", color: "#a24a17", icon: VIEW_ICON.pulse },   // task #274 (change 11): the darker orange reads 4.5:1 or more on the bar (#b5541c was 4.2:1)
 ];
 export function ViewTabs({ view, onView, n }: { view: View; onView: (v: View) => void; n: number }) {
   return <ViewTabsKit defs={eqViews(n)} view={view} onView={onView} label="Equity portfolio views" idp="eq-tab" panel="eq-panel" what="your list" />;

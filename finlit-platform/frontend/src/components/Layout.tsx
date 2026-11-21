@@ -10,7 +10,7 @@ import { Icon } from "../lib/icons";
 import { Tape } from "./Tape";
 import { SearchPalette } from "./SearchPalette";
 import { useWarmMyCompanies } from "../lib/mycompanies";
-import { AlertToasts, NotificationBell } from "./Notifications";
+import { AccountNotice, AlertToasts, NotificationBell } from "./Notifications";
 import { SystemControl } from "./SystemControl";
 import { AssistantLauncher } from "./AssistantLauncher";
 import { OPEN_AI } from "./assistantEvents";
@@ -231,7 +231,7 @@ export function Layout() {
         <Header onSearch={() => setSearch(true)} />
         {!bare && <ExtensionBanner />}
         <AdminViewStrip />
-        <main id="main"><ErrorBoundary key={loc.pathname}><Outlet /></ErrorBoundary><PageFaqs /></main>
+        <main id="main">{!onAuth && <AccountNotice />}<ErrorBoundary key={loc.pathname}><Outlet /></ErrorBoundary><PageFaqs /></main>
         {!bare && <Footer />}
         <SearchPalette open={search} onClose={() => setSearch(false)} />
         <AlertToasts />

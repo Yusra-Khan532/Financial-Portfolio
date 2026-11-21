@@ -232,6 +232,21 @@ describe("Assistant full window (task #52)", () => {
   });
 });
 
+describe("task #284: the 'Choose a question to ask' tab is gone from FinLit AI", () => {
+  it("the full window has no question chooser or topic tabs; its themes and the page's own questions stay", () => {
+    localStorage.setItem("finlit-ai-full", "1");
+    open("/screener");
+    const dlg = screen.getByRole("dialog", { name: "FinLit AI assistant" });
+    expect(dlg.className).toMatch(/\bfull\b/);
+    expect(within(dlg).queryByText(/Choose a question to ask/)).toBeNull();
+    expect(within(dlg).queryByRole("tablist", { name: "Question topics" })).toBeNull();
+    expect(within(dlg).queryByPlaceholderText(/Search questions/)).toBeNull();
+    expect(within(dlg).getByRole("list", { name: "What would you like to explore?" })).toBeTruthy();
+    expect(within(dlg).getByText("Questions about this page")).toBeTruthy();
+    localStorage.removeItem("finlit-ai-full");
+  });
+});
+
 describe("written answers from FinLit AI (task #211)", () => {
   const typeAndSend = async (label: string, text: string) => {
     const box = screen.getByLabelText(label);

@@ -871,7 +871,12 @@ def plan_problems(root: Node, plan: str) -> List[Problem]:
         if isinstance(n, Met):
             m = BY_KEY[n.key]
             if m.group == "model" and not offered(plan, m.group):   # task #283: the retired score is offered to no plan
-                out.append(Problem("plan_score", "That ratio is not offered: queries use the FinLit Prism score and its parts.", n.start, n.end, "error", [], {"key": n.key}))
+                if n.key == "overall":   # task #283 PR D: the retired overall score has a Prism twin: say so and offer it (its levels differ, so never swapped silently)
+                    out.append(Problem("plan_score", "That score has been retired: FinLit Prism is FinLit's only company score. Write Prism score instead, "
+                                                     "and check the number, since the two scores' levels differ (Prism: Strong 80, Healthy 65, Average 50).",
+                                       n.start, n.end, "error", [fix("Use Prism score", n.start, n.end, "Prism score")], {"key": n.key}))
+                else:
+                    out.append(Problem("plan_score", "That ratio is not offered: queries use the FinLit Prism score and its parts.", n.start, n.end, "error", [], {"key": n.key}))
             elif not allowed(plan, m.tier):
                 tier = TIER_NAME[m.tier]
                 out.append(Problem("plan_locked", f"{m.label} is part of the {tier} plan. Upgrade to {tier} to use it, or pick another ratio.", n.start, n.end, "error", [],

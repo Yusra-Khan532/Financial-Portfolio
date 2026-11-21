@@ -318,9 +318,9 @@ export function FundDetailPage() {
           <ul className="mf-chips" aria-label="About this scheme">
             <li><Link className="chip gold" to={`/funds?amc=${encodeURIComponent(d.amc)}`}>{d.amc}</Link></li>
             <li><Link className="chip ghost" to={`/funds?category=${encodeURIComponent(d.category)}`}>{categoryShort(d.category)}</Link></li>
-            <li><span className="chip ghost"><GTerm id={d.plan === "Regular" ? "regular-plan" : "direct-plan"}>{d.plan === "Unspecified" ? planLabel(d.plan, d.category) : d.plan + " plan"}</GTerm></span></li>
-            <li><span className="chip ghost"><GTerm id={d.optionClass === "IDCW" ? "idcw-income-distribution-cum-capital-withdrawal" : "growth-option"}>{d.option}</GTerm></span></li>
-            <li><span className="chip ghost"><GTerm id="open-ended-and-closed-ended-funds">{d.schemeType}</GTerm></span></li>
+            <li><GTerm box="chip ghost" id={d.plan === "Regular" ? "regular-plan" : "direct-plan"}>{d.plan === "Unspecified" ? planLabel(d.plan, d.category) : d.plan + " plan"}</GTerm></li>
+            <li><GTerm box="chip ghost" id={d.optionClass === "IDCW" ? "idcw-income-distribution-cum-capital-withdrawal" : "growth-option"}>{d.option}</GTerm></li>
+            <li><GTerm box="chip ghost" id="open-ended-and-closed-ended-funds">{d.schemeType}</GTerm></li>
           </ul>
           <p className="faint mf-ids">{d.isin ? <><GTerm id="isin">ISIN</GTerm> {d.isin} · </> : null}AMFI scheme code {d.code}{d.isinReinvest ? <> · reinvestment ISIN {d.isinReinvest}</> : null}</p>
         </div>

@@ -523,3 +523,10 @@
   .mf-cmpbar-go { width: 100%; justify-content: center; }
   .mf-qs-go, .mf-cmpbar-clear, .mf-note-card summary { min-height: 44px; }
 }
+
+/* Task #288: a chip's "i" sits outside the chip, just after it and centred on it, the same 20px "i" as ISIN and NAV beside it; the chip holds only its words.
+   A long chip (an IDCW option's full name) wraps inside the page instead of running off a phone screen and hiding its "i". */
+.mf-term.mf-term-out { gap: 6px; max-width: 100%; }
+.mf-chips > li { max-width: 100%; min-width: 0; }
+.mf-term-out > .chip { max-width: 100%; min-width: 0; }
+@media (max-width: 760px) { .mf-term-out > .chip { white-space: normal; height: auto; min-height: 24px; padding-block: 3px; line-height: 1.35; } }

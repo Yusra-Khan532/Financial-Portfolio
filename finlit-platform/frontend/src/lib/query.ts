@@ -38,6 +38,8 @@ export type RunBody = { query: string; sort?: { key: string; dir: "asc" | "desc"
 export type Basket = {
   id: string; name: string; query: string; note: string | null; columns: string[]; sort: { key: string; dir: "asc" | "desc" } | null; recent: boolean; createdAt: string; updatedAt: string;
   count: number | null; countedAt: string | null; status: "ok" | "locked" | "invalid"; stale: boolean; leftOut?: number;
+  /** Task #283 PR D: set by the server on a basket it converted to FinLit Prism; `text` says what changed (the scales differ). */
+  converted?: { on: string; was: string[]; text: string } | null;
 };
 
 // ------------------------------------------------------------------------------------------------------------------------------ calls

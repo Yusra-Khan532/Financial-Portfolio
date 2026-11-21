@@ -55,7 +55,20 @@ def alert_json(r: Any) -> Dict[str, Any]:
             "status": r["status"], "note": r["note"], "lastValue": float(r["last_value"]) if r["last_value"] is not None and r["op"] != "event" else None,
             "met": r["met"], "lastCheckedAt": r["last_checked"].isoformat() if r["last_checked"] else None,
             "lastFiredAt": r["last_fired_at"].isoformat() if r["last_fired_at"] else None, "firedCount": r["fired_count"], "createdAt": r["created_at"].isoformat(),
-            "list": r["list_ref"], "kinds": list(r["kinds"]) if r["kinds"] else None, "digest": bool(r["digest"])}
+            "list": r["list_ref"], "kinds": list(r["kinds"]) if r["kinds"] else None, "digest": bool(r["digest"]),
+            # task #283 PR D: what the one-time conversion changed ({on, was, text}: the page says the alert was converted) and why it paused one
+            "converted": _jsonb(r, "converted"), "pausedReason": r["paused_reason"] if "paused_reason" in r.keys() else None,
+            "retired": r["metric"] in eng.RETIRED}
+
+
+def _jsonb(r: Any, col: str) -> Any:
+    v = r[col] if col in r.keys() else None
+    return json.loads(v) if isinstance(v, str) else v
+
+
+def plan_text(metric: str) -> str:
+    tier = eng.METRICS[metric]["tier"]
+    return f"{eng.METRICS[metric]['label']} alerts are part of the {eng.TIER_NAME[tier]} plan."
 
 
 def notification_json(r: Any) -> Dict[str, Any]:
@@ -88,7 +101,7 @@ async def alert_value(request: Request, symbol: str = Query(max_length=24), metr
     if not SYMBOL.match(symbol) or metric not in eng.METRICS:
         raise fail(422, "bad_request")
     if not eng.allowed(ctx.plan, metric):
-        raise fail(403, "plan_required", "This metric is part of the Silver plan.", plan="silver")
+        raise fail(403, "plan_required", plan_text(metric), plan=eng.METRICS[metric]["tier"])
     async with request.app.state.store.pool.acquire() as conn:
         v = await eng.current_value(conn, symbol, metric)
     return json_response({"value": v})
@@ -136,8 +149,10 @@ async def create_alert(request: Request, body: AlertIn, ctx: Ctx = Depends(secur
     meta = eng.METRICS.get(body.metric)
     if not meta or body.op not in meta["ops"]:
         raise fail(422, "bad_metric", "That condition does not apply to this metric.")
+    if body.metric in eng.RETIRED:   # task #283: FinLit Prism is FinLit's only company score
+        raise fail(422, "retired_metric", "That score has been retired. Set the alert on the FinLit Prism score instead.")
     if not eng.allowed(ctx.plan, body.metric):
-        raise fail(403, "plan_required", f"{meta['label']} alerts are part of the Silver plan.", plan="silver")
+        raise fail(403, "plan_required", plan_text(body.metric), plan=meta["tier"])
     keyword = (body.keyword or "").strip().lower() or None
     if body.metric in eng.FIXED_TARGET:   # "hits the upper circuit" has no number to choose: the target is set here, whatever was sent
         body.value = eng.FIXED_TARGET[body.metric][body.op]
@@ -223,6 +238,8 @@ async def patch_alert(request: Request, aid: str, body: AlertPatch, ctx: Ctx = D
             raise fail(404, "not_found")
         if "value" in fields and a["metric"] in eng.FIXED_TARGET:
             raise fail(422, "bad_value", "This alert has no target value to change.")
+        if a["metric"] in eng.RETIRED and (fields.get("status") == "active" or "value" in fields):   # task #283: kept paused, with its reason
+            raise fail(422, "retired_metric", "This alert watched a retired score, so it stays paused. Delete it, or set a new alert on the FinLit Prism score.")
         sets, args = [], []
         for k, v in fields.items():
             args.append(v)

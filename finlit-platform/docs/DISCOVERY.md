@@ -98,3 +98,33 @@ ready-made views that filter on them (the pack's open decision, decided on 20 No
 - **One label per theme**: `board.label_of()` and `board.theme_slug()`; the board's themes carry `label` and `slug`, the company route `themeLabel` and `themeSlug`, `/api/discovery` themes `label`.
 - **Filings on the company route**: the newest 12, plus the latest filing of each other kind in the 90 days.
 - **`&open=<symbol>`** on any Discover page opens that company's row on arrival.
+
+## Task #267 (21 Nov 2026): earnings-call transcripts and results filings
+
+The team: "in discovery tab we need to add call transcript as well as result filings same way we did and use the keywords mentioned in pdf".
+
+- **Keywords**: Part 2 (Earnings Call Transcript Keywords: 8 "Call: ..." buckets, 87 keywords) and Part 3 (Results Filing Keywords: 7 "Results: ..."
+  buckets, 101 keywords, the sector KPIs included) of the Investor Presentation Keyword Directory v3, each keyword with its related terms (10 or more)
+  and what to verify, in `discovery/sources.json`, read from the PDF's word positions by `scripts/build_discovery_sources.py` (it stops unless the
+  PDF's own counts come out). Part 1 stays in `directory.json` as it was: v3 has the same 166 keywords and "what to verify" lines, but lists 10+
+  related terms for each where `directory.json` holds 1 to 6; adding them would re-sort every company's presentation theme, so it is left for its
+  own task.
+- **Documents** (`discovery/sources.py`), per company, the newest of the last 400 days: the filing the Documents page calls a "Call transcript"
+  whose title or category says "transcript" (a "concall" letter alone is a schedule or recording), and the newest results filing (financial results,
+  the outcome of the board meeting that approved them, the results press release; not a results-date notice, a newspaper copy, a call letter or a
+  presentation). Text the site already keeps is read first (`document_pages`, kept by the Concall Monitor, FinLit AI and this job;
+  `earnings_call_text`, kept by the earnings-call job); a file is downloaded through the shared fetcher only when no text is kept, and its text is
+  then kept in `document_pages` for FinLit AI.
+- **Matching**: the presentations' engine (concepts, whole words, plurals, short capital acronyms in capitals only, 2 different keywords or 5
+  mentions, evidence = up to 2 sentences that name a keyword AND hold a figure, never a rating or a disclaimer; tone of the document's words), built
+  as tries for the 1,400+ phrases (same counts as `keywords.analyse`, a test checks it; 0.07 s instead of 11 s per 100 KB). Ordinary words of every
+  call or filing ("about", "FY", "revenue", "guidance" ...) stay in the directory but are not matched alone. Stages stay with presentations.
+- **Job**: the nightly `refresh-discovery` reads them after the presentations, in the minutes the presentations left (their limits unchanged),
+  at most 400 documents and 600 exchange requests a run, newest first; re-read only when a newer document is filed or the rules change, a failed
+  read after a day; `sourcesUnreached` in the run result keeps the `discovery` probe asking for more. Table `discovery_documents` (migration 122),
+  one row per company and source.
+- **Route**: `GET /api/discovery/sources?source=calls|results` (every bucket with companies, how many with evidence, first names, what to verify,
+  and the reason when empty), `&bucket=<name>` (its companies: keywords, evidence, document date and exchange link, what to verify, tone),
+  `&symbol=<SYM>` (one company's buckets, or why there are none). Open on every plan, like the rest of Discover.
+- **Page**: "Earnings calls" (`/discover/calls`) and "Results filings" (`/discover/results`), in a strip of their own under the four ways; a
+  bucket at `/discover/calls/<slug>` (`discovery/Sources.tsx`, styles `dsc-kd-`).

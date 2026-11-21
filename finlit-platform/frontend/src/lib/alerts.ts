@@ -6,7 +6,7 @@ import { apiGet, apiSend } from "./api";
 import { useAuth } from "./auth";
 import { useUI } from "./ui";
 import { DEMO } from "./demo";
-import { LIMITS, METRICS, describe, fmtValue, isEvent, type Op } from "./alertCatalog";
+import { LIMITS, METRICS, TIER_LABEL, describe, fmtValue, isEvent, tierLocked, type Op } from "./alertCatalog";
 import type { Row } from "./screener";
 
 export type Channel = "app" | "email" | "browser";
@@ -16,7 +16,11 @@ export type AlertRow = {
   lastCheckedAt: string | null; lastFiredAt: string | null; firedCount: number; createdAt: string;
   /** Task #272: a list alert's list (equity, equity:<account>, watch:<list id>, mine), its Discover kinds and "one summary a day". */
   list?: string | null; kinds?: string[] | null; digest?: boolean;
+  /** Task #283 PR D: set by the server on an alert it converted to FinLit Prism ({on, was, text}); why it paused one; true for a retired metric. */
+  converted?: Converted | null; pausedReason?: string | null; retired?: boolean;
 };
+/** Task #283 PR D: what the server's one-time conversion to FinLit Prism changed in a saved item; `text` is the sentence the page shows. */
+export type Converted = { on: string; was: string[]; text: string };
 /** Task #272: a list "Applies to: A list" offers (GET /api/alerts/lists). */
 export type AlertList = { ref: string; label: string; count: number };
 export type Notice = { id: number; alertId: string | null; symbol: string | null; kind: string; title: string; body: string; link: string | null; push: boolean; read: boolean; createdAt: string };
@@ -115,10 +119,11 @@ const demoStore = { subscribe: (f: () => void) => { subs.add(f); return () => su
 /** Demo only: re-renders when the browser-held store changes. */
 export const useDemoStore = () => useSyncExternalStore(demoStore.subscribe, demoStore.get, demoStore.get);
 
-const wrongPlan = (plan: string, metric: string) => METRICS[metric].tier === "silver" && plan === "basic";
+const wrongPlan = (plan: string, metric: string) => tierLocked(METRICS[metric].tier, plan);
 function demoCreate(plan: string, rows: Row[], b: NewAlert): Created {
   const err = (status: string, detail: string, extra: Record<string, unknown> = {}) => Object.assign(new Error(detail), { body: { status, detail, ...extra } });
-  if (wrongPlan(plan, b.metric)) throw err("plan_required", `${METRICS[b.metric].label} alerts are part of the Silver plan.`, { plan: "silver" });
+  const tier = METRICS[b.metric].tier;
+  if (wrongPlan(plan, b.metric)) throw err("plan_required", `${METRICS[b.metric].label} alerts are part of the ${TIER_LABEL[tier]} plan.`, { plan: tier });
   const cap = LIMITS[plan] ?? 3;
   if (demo.alerts.filter((a) => a.status !== "done").length >= cap) throw err("plan_limit", `Your plan includes ${cap} alerts at a time. Remove one that has finished, or upgrade.`);
   const kw = (b.keyword || "").trim().toLowerCase() || null;

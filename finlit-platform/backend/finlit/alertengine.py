@@ -19,7 +19,7 @@ from .auth.mailer import Mailer
 log = logging.getLogger("finlit.alertengine")
 
 # key -> (label, unit, live, tier, ops).  live = checked every few minutes in market hours; the rest after the nightly load.
-# tier: "basic" metrics are open to every member; "silver" metrics (model scores, fundamentals, filings) need Silver.
+# tier: "basic" metrics are open to every member; "silver" metrics (fundamentals, filings) need Silver; "gold" (FinLit Prism) needs Gold.
 M = Dict[str, Any]
 METRICS: Dict[str, M] = {
     "price":          dict(label="Price", unit="₹", live=True, tier="basic", ops=("above", "below")),
@@ -35,6 +35,9 @@ METRICS: Dict[str, M] = {
     "from_low52":     dict(label="Distance from 52-week low", unit="%", live=False, tier="basic", ops=("below",)),
     "return_1m":      dict(label="1-month return", unit="%", live=False, tier="silver", ops=("above", "below")),
     "return_1y":      dict(label="1-year return", unit="%", live=False, tier="silver", ops=("above", "below")),
+    # task #283 PR D: FinLit Prism's score (prism_reports.final, 0 to 100; none for a company not rated), FinLit's only company score. A member's alert
+    # on the retired overall score was converted to it (finlit/iq_retire.py); an alert on a part of the retired score was paused with the reason.
+    "prism_final":    dict(label="FinLit Prism score", unit="", live=False, tier="gold", ops=("above", "below")),
     "overall":        dict(label="Overall score (retired)", unit="", live=False, tier="silver", ops=("above", "below")),
     "pillar_quality": dict(label="Quality score", unit="", live=False, tier="silver", ops=("above", "below")),
     "pillar_growth":  dict(label="Growth score", unit="", live=False, tier="silver", ops=("above", "below")),
@@ -75,12 +78,16 @@ EVENTS = {"news_keyword", "new_filing", "result_soon", "discover_filing"}
 FIXED_TARGET = {"circuit": {"above": 1.0, "below": -1.0}}   # metric -> op -> the only target it takes (set by the server)
 CHANNELS = ("app", "email", "browser")
 ALERT_LIMITS = {"basic": 3, "silver": 30, "gold": 300}
-RANK = {"basic": 0, "silver": 1, "gold": 2}
+RANK = {"basic": 0, "silver": 1, "gold": 2, "platinum": 2, "admin": 2}
 COOLDOWN_HOURS = 1  # a repeating alert never fires twice inside this window
+# Task #283: the retired overall score and its parts. The keys stay so members' converted or paused alerts still read; no alert can be set on them,
+# resumed on them or checked on them.
+RETIRED = {"overall", "pillar_quality", "pillar_growth", "pillar_profitability", "pillar_balance", "pillar_technical"}
+TIER_NAME = {"basic": "Basic", "silver": "Silver", "gold": "Gold"}
 
 
 def allowed(plan: str, metric: str) -> bool:
-    return METRICS[metric]["tier"] == "basic" or RANK.get(plan, 0) >= 1
+    return RANK.get(plan, 0) >= RANK[METRICS[metric]["tier"]]
 
 
 def fmt(metric: str, v: float) -> str:
@@ -161,6 +168,10 @@ async def load_values(conn, symbols: List[str], needed: set) -> Dict[str, Dict[s
                                   "ORDER BY symbol, (statement = 'consolidated') DESC", symbols):
             q = json.loads(r["q"]) if isinstance(r["q"], str) else r["q"]
             out[r["symbol"]]["circuit"], out[r["symbol"]]["_circuit_detail"] = circuit_state(q)
+    if "prism_final" in needed:   # the stored FinLit Prism rating, as the screener reads it (consolidated first; a company not rated has none)
+        for r in await conn.fetch("SELECT DISTINCT ON (symbol) symbol, final, status FROM prism_reports WHERE symbol = ANY($1::text[]) "
+                                  "ORDER BY symbol, (statement = 'consolidated') DESC, generated_at DESC", symbols):
+            out[r["symbol"]]["prism_final"] = round(float(r["final"]), 2) if r["final"] is not None and r["status"] != "NOT RATED" else None
     if needed & TECH:
         bars: Dict[str, List[Any]] = {}
         for r in await conn.fetch("SELECT symbol, close, high, low, volume FROM price_daily WHERE symbol = ANY($1::text[]) AND day > current_date - 420 ORDER BY symbol, day", symbols):
@@ -339,7 +350,7 @@ async def evaluate(pool, mailer: Mailer, site_url: str, kind: str = "all") -> in
         for r in rows:
             a = dict(r)
             meta = METRICS.get(a["metric"])
-            if not meta or not allowed(a["plan"], a["metric"]):
+            if not meta or a["metric"] in RETIRED or not allowed(a["plan"], a["metric"]):
                 continue
             if kind == "live" and not meta["live"]:
                 continue

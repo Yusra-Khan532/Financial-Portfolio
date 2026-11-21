@@ -207,3 +207,51 @@ async def test_the_endpoint_reads_section18_scores_the_three_and_the_company(app
     assert not any(x in text for x in ("positive", "neutral", "sentiment")) and "negative" not in text.replace("negative net worth", "")
     assert (await c.get("/api/stocks/bad sym!/filing-scores")).status_code in (400, 404)
     await c.aclose()
+
+
+ROSTER_CALL = ["TO ALL STOCK EXCHANGES\nSub: Transcripts of the earnings call conducted after the Board meeting\nDear Sir/ Madam,\nPlease find enclosed the transcript.",
+               "Infosys Limited\nEarnings Conference Call\nCORPORATE PARTICIPANTS:\n\nSalil Parekh\nChief Executive Officer and Managing Director\n\nJayesh Sanghrajka\n"
+               "Chief Financial Officer\n\nANALYSTS\n\nJonathan Lee\nGuggenheim Securities\n\nMeghna Sen\nCNBC-TV18",
+               "Moderator\nThe next question is from Jonathan Lee from Guggenheim Securities.\nJonathan Lee\nWhat about the order book? Is there a risk of default?\n"
+               "Salil Parekh\nWe delivered a record quarter with revenue growth of 21% year on year to Rs 1,860 crore.\nWhich countries are you exploring?\n"
+               "Jayesh Sanghrajka\nNet debt reduced to Rs 140 crore and free cash flow was Rs 215 crore."]
+
+
+def test_a_transcript_with_a_participants_list_and_names_on_their_own_lines():
+    """Lexicon 2.1.1 (the Infosys Q2 FY27 transcript): the list names the company's speakers; a name alone on a line starts a turn; the cover letter
+    ("Sub:"), the analysts and journalists, the moderator and any question are left out."""
+    from finlit.docscore.segment import roster
+    mine, others = roster(ROSTER_CALL)
+    assert mine == {"salil parekh", "jayesh sanghrajka"} and others == {"jonathan lee", "meghna sen"}
+    pts = segment(ROSTER_CALL, "C")
+    assert [(p.speaker, p.text[:30]) for p in pts if p.status == "scored"] == [("Salil Parekh", "We delivered a record quarter "), ("Jayesh Sanghrajka", "Net debt reduced to Rs 140 cro")]
+    assert {p.status for p in pts if "Sub:" in p.text or "enclosed" in p.text} == {"excluded: before the call"}
+    assert any(p.status == "excluded: a question" and "exploring" in p.text for p in pts)
+    assert all(p.status.startswith("excluded") for p in pts if p.speaker in ("Jonathan Lee", "Moderator"))
+
+
+def test_letterhead_labels_are_never_speakers():
+    """Lexicon 2.1.2 (Tech Mahindra's transcript cover letter): "NSE Symbol:" and "Regd. Office:" lines are the letter, not the call."""
+    pages = ["Tech Mahindra Limited\nNSE Symbol: TECHM\nRegd. Office: Gateway Building, Apollo Bunder, Mumbai 400 001\nSub: Transcript of the earnings call",
+             "Moderator: Welcome to the call.\nMohit Joshi: Revenue grew 6% YoY in the quarter."]
+    pts = segment(pages, "C")
+    letter = [p for p in pts if "TECHM" in p.text or "Gateway" in p.text]
+    assert len(letter) == 2 and all(p.speaker is None and p.status != "scored" for p in letter)
+    assert [(p.speaker, p.text) for p in pts if p.status == "scored"] == [("Mohit Joshi", "Revenue grew 6% YoY in the quarter.")]
+
+
+def test_an_analyst_labelled_with_a_shortened_surname_is_still_left_out():
+    """Lexicon 2.1.3 (Tech Mahindra's call): the moderator introduces "Rod Bourgeois from DeepDive Equity Research"; his turns are labelled "Rod B:"."""
+    from finlit.docscore.segment import _same
+    assert _same("Rod B", "rod bourgeois") and _same("Salil S. Parekh", "Salil Parekh") and not _same("Rod B", "Ravi Bansal") and not _same("Mohit", "Mohit Joshi")
+    pts = segment(["Moderator: The next question is from the line of Rod Bourgeois from DeepDive Equity Research.\n"
+                   "Rod B: Revenue grew 6% YoY, so the order book looks strong.\nMohit Joshi: Revenue grew 6% YoY in the quarter."], "C")
+    assert [p.speaker for p in pts if p.status == "scored"] == ["Mohit Joshi"]
+
+
+def test_a_speaker_who_asks_as_an_analyst_does_is_left_out_whoever_introduced_them():
+    """Lexicon 2.1.4 (Tech Mahindra Q2 FY27, live): "Rod B: First question on growth drivers." with no introduction the scorer could read."""
+    pts = segment(["Moderator: Thank you. We will now take questions.\nRod B: First question on growth drivers. Revenue grew 6% YoY in the quarter, so the order book looks strong.\n"
+                   "Mohit Joshi: Revenue grew 6% YoY in the quarter. The first question was on growth: the order book grew 32% YoY.\nRod B: Thanks, that is helpful."], "C")
+    assert {p.speaker for p in pts if p.status == "scored"} == {"Mohit Joshi"}       # management answering "your first question" stays
+    assert all(p.status.startswith("excluded") for p in pts if p.speaker == "Rod B")

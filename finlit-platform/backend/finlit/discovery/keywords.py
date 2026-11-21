@@ -89,14 +89,17 @@ def _pattern(term: str) -> str:
     return r"(?<![A-Za-z])" + re.escape(term) + r"(?:s|es)?(?![A-Za-z])"
 
 
-def compile_patterns() -> Dict[Tuple[str, str], Pattern[str]]:
+def compile_patterns(directory: Optional[Dict[str, List[dict]]] = None, broad: Optional[set] = None) -> Dict[Tuple[str, str], Pattern[str]]:
     """(bucket, concept) -> one pattern for the concept's keyword and related terms. Short all-capital acronyms (5 letters or fewer: EMS, CAM, ESS)
-    are matched in capitals only, so 'campaign' or 'ems' never count; the rest ignore case."""
+    are matched in capitals only, so 'campaign' or 'ems' never count; the rest ignore case. Task #267: the same rule for another directory (the
+    earnings-call and results-filing buckets, discovery/sources.py) with its own ordinary words."""
+    directory = DIRECTORY if directory is None else directory
+    broad = TOO_BROAD if broad is None else broad
     pats: Dict[Tuple[str, str], Pattern[str]] = {}
-    for bucket, concepts in DIRECTORY.items():
+    for bucket, concepts in directory.items():
         for c in concepts:
-            caps = [a for a in c["aliases"] if a.isupper() and len(a) <= 5 and a.lower() not in TOO_BROAD]
-            words = [a for a in c["aliases"] if a not in caps and a.lower() not in TOO_BROAD]
+            caps = [a for a in c["aliases"] if a.isupper() and len(a) <= 5 and a.lower() not in broad]
+            words = [a for a in c["aliases"] if a not in caps and a.lower() not in broad]
             alts = ([r"(?-i:" + _pattern(a) + ")" for a in caps] + [_pattern(a) for a in sorted(words, key=len, reverse=True)])
             if alts:
                 pats[(bucket, c["name"])] = re.compile("|".join(alts), re.IGNORECASE)
@@ -106,19 +109,21 @@ def compile_patterns() -> Dict[Tuple[str, str], Pattern[str]]:
 PATTERNS = compile_patterns()
 
 
-def compile_buckets() -> Dict[str, Tuple[Pattern[str], List[str]]]:
+def compile_buckets(directory: Optional[Dict[str, List[dict]]] = None, broad: Optional[set] = None) -> Dict[str, Tuple[Pattern[str], List[str]]]:
     """bucket -> (one pattern of every alias of its concepts, longest first, each in its own group; group index -> concept). Scanned once, left to
     right, so a piece of text counts for one concept only ("Generative AI" is not also "AI")."""
+    directory = DIRECTORY if directory is None else directory
+    broad = TOO_BROAD if broad is None else broad
     out: Dict[str, Tuple[Pattern[str], List[str]]] = {}
-    for bucket, concepts in DIRECTORY.items():
+    for bucket, concepts in directory.items():
         alts: List[Tuple[str, str]] = []
         for c in concepts:
             for a in c["aliases"]:
-                if a.lower() in TOO_BROAD:
+                if a.lower() in broad:
                     continue
                 if a.isupper() and len(a) <= 5:
                     alts.append((r"(?-i:" + _pattern(a) + ")", c["name"]))
-                elif a.lower() not in TOO_BROAD:
+                elif a.lower() not in broad:
                     alts.append((_pattern(a), c["name"]))
         alts.sort(key=lambda x: -len(x[0]))
         out[bucket] = (re.compile("|".join(f"({p})" for p, _ in alts), re.IGNORECASE), [n for _, n in alts])
@@ -129,12 +134,13 @@ BUCKET_PATTERNS = compile_buckets()
 VERIFY = {(b, c["name"]): c["verify"] for b, cs in DIRECTORY.items() for c in cs}
 
 
-def analyse(text: str, pats: Dict[Tuple[str, str], Pattern[str]] = PATTERNS, min_distinct: int = MIN_DISTINCT, min_total: int = MIN_TOTAL) -> Dict[str, dict]:
+def analyse(text: str, pats: Dict[Tuple[str, str], Pattern[str]] = PATTERNS, min_distinct: int = MIN_DISTINCT, min_total: int = MIN_TOTAL,
+            buckets: Optional[Dict[str, Tuple[Pattern[str], List[str]]]] = None) -> Dict[str, dict]:
     """bucket -> {distinct, total, score, terms (the 8 most mentioned concepts)}, highest score first; only buckets with breadth or repetition.
-    score = 2 x distinct concepts + 0.5 x mentions (up to 20), as the notes."""
+    score = 2 x distinct concepts + 0.5 x mentions (up to 20), as the notes. `buckets` (task #267): another directory's compile_buckets()."""
     hits: Dict[str, Dict[str, int]] = defaultdict(dict)
-    if pats is PATTERNS:
-        for bucket, (rx, names) in BUCKET_PATTERNS.items():
+    if pats is PATTERNS or buckets is not None:
+        for bucket, (rx, names) in (BUCKET_PATTERNS if buckets is None else buckets).items():
             for m in rx.finditer(text):
                 term = names[m.lastindex - 1] if m.lastindex else None
                 if term:

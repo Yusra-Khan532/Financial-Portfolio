@@ -49,6 +49,27 @@ export function NotificationBell() {
   );
 }
 
+/** Task #283 PR D: an account notice from the server (kind "notice", e.g. the one about saved screens and alerts converted to FinLit Prism) is shown
+ *  as a card on whichever page the member opens, in the server's own words, until they close it; closing marks it read on the server, so it is shown
+ *  once. It also stays in the notification centre and on the Alerts page. */
+export function AccountNotice() {
+  const { user } = useAuth();
+  const { items, markRead } = useNotices();
+  const [closed, setClosed] = useState<number[]>([]);
+  const n = user ? items.find((x) => x.kind === "notice" && !x.read && !closed.includes(x.id)) : undefined;
+  if (!n) return null;
+  const close = () => { setClosed((c) => [...c, n.id]); markRead([n.id]); };
+  return (
+    <section className="card acct-notice" role="region" aria-label={n.title}>
+      <span className="alx-ti" aria-hidden="true"><Icon name="bell" /></span>
+      <div><b>{n.title}</b><p>{n.body}</p>
+        <div className="acct-notice-f"><button type="button" className="btn primary" onClick={close}>Got it</button><Link className="alx-link" to="/alerts" onClick={close}>Open my alerts <Icon name="arrow" /></Link></div>
+      </div>
+      <button type="button" className="alx-x" aria-label="Close the notice" onClick={close}>✕</button>
+    </section>
+  );
+}
+
 /** Pops a card for each alert that fires while the site is open ("Alert triggered … View stock →" for a stock; other notices say what they are), and raises browser notifications if allowed. */
 export function AlertToasts() {
   const { user } = useAuth();

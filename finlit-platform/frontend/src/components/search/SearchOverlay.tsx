@@ -24,6 +24,7 @@ import { usePrismScores, type PrismScoreMap } from "../../lib/prismScores";
 import { PrismChips, PrismPreviewScores, stateOf } from "./prismParts";
 import { FlagIN, Hl, Logo, PriceChange, Range52, ScoreRing, Spark } from "./parts";
 import "../../styles/search.css";
+import "../../styles/mfup.css";   // task #287: the score chip's band colours (the chip was drawn unstyled in the search box)
 
 type News = { id: number; title: string; symbol: string | null; company: string | null; source: string | null; link: string | null; date: string; category: string | null };
 const PLACEHOLDER: Record<Tab, string> = {
@@ -278,7 +279,7 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
                   {sec.id === "recent" && <button type="button" onClick={() => visits.clear()}>Clear</button>}
                   {sec.more && tab === "all" && <button type="button" onClick={() => setTab(sec.more!.tab)}>{sec.more.label} →</button>}
                 </div>
-                {sec.items.map((it) => { i += 1; const me = i; return <Row key={sec.id + it.key} fs={gold && it.kind === "mf" ? scoreOf.get(Number(it.key.split(":")[1])) : undefined} it={it} gold={gold} prism={prism} q={q.trim()} today={today} id={`gs-o-${me}`} active={me === sel} index={me} best={sec.id === "best"} onHover={() => setSel(me)} onPick={pick} />; })}
+                {sec.items.map((it) => { i += 1; const me = i; return <Row key={sec.id + it.key} fs={gold && it.kind === "mf" ? scoreOf.get(Number(it.key.split(":")[1])) : undefined} fsBusy={fundScores.isLoading} it={it} gold={gold} prism={prism} q={q.trim()} today={today} id={`gs-o-${me}`} active={me === sel} index={me} best={sec.id === "best"} onHover={() => setSel(me)} onPick={pick} />; })}
               </div>
             ))}
           </div>
@@ -293,13 +294,13 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
   );
 }
 
-function Row({ fs, it, gold, prism, q, today, id, active, index, best, onHover, onPick }: { it: Item; gold: boolean; prism: PrismScoreMap; q: string; today: string; id: string; active: boolean; index: number; best: boolean; onHover: () => void; onPick: (it: Item, newTab?: boolean) => void; fs?: import("../../lib/mfScore").ScoreItem }) {
+function Row({ fs, fsBusy = false, it, gold, prism, q, today, id, active, index, best, onHover, onPick }: { fsBusy?: boolean; it: Item; gold: boolean; prism: PrismScoreMap; q: string; today: string; id: string; active: boolean; index: number; best: boolean; onHover: () => void; onPick: (it: Item, newTab?: boolean) => void; fs?: import("../../lib/mfScore").ScoreItem }) {
   return (
-    <div id={id} data-i={index} data-sym={gold && it.kind === "stock" ? it.sub : undefined} role="option" aria-selected={active} className={`gs-row k-${it.kind}${gold && it.kind === "stock" ? " pz" : ""}${active ? " on" : ""}${best ? " best" : ""}`} onMouseMove={active ? undefined : onHover}
+    <div id={id} data-i={index} data-sym={gold && it.kind === "stock" ? it.sub : undefined} role="option" aria-selected={active} className={`gs-row k-${it.kind}${gold && it.kind === "stock" ? " pz" : ""}${gold && it.kind === "mf" ? " fsc" : ""}${active ? " on" : ""}${best ? " best" : ""}`} onMouseMove={active ? undefined : onHover}
       onClick={(e) => onPick(it, e.ctrlKey || e.metaKey)} onAuxClick={(e) => { if (e.button === 1) onPick(it, true); }}>
       <Logo src={it.logo} name={it.title} kind={it.kind} size={best ? 46 : 40} />
       <span className="gs-main">
-        <span className="gs-t"><Hl text={it.title} q={q} />{fs && <ScoreChip item={fs} />}</span>
+        <span className="gs-t"><Hl text={it.title} q={q} /></span>
         <span className="gs-s">
           {it.kind !== "news" && <FlagIN />}
           {it.kind === "stock" ? <span className="gs-tk"><Hl text={it.sub} q={q} /></span> : <span className="gs-sub">{it.sub}</span>}
@@ -308,10 +309,20 @@ function Row({ fs, it, gold, prism, q, today, id, active, index, best, onHover, 
         </span>
       </span>
       {it.kind !== "news" && <PriceChange price={it.price} chg={it.chg} date={it.date} today={today} unit={it.kind === "mf" ? "NAV ₹" : "₹"} />}
+      {gold && it.kind === "mf" && <FundScoreCol item={fs} busy={fsBusy} />}
       {it.kind === "stock" ? (gold ? <PrismChips state={stateOf(prism, it.sub)} /> : <ScoreRing band="locked" />) : it.kind !== "news" ? <span className="gs-score gs-none gs-metric">{metricBadge(it)}</span> : null}
       <span className={`gs-tag t-${it.kind}`}>{it.kind === "news" ? (it.tag || "News") : KIND_LABEL[it.kind]}{it.external && <svg viewBox="0 0 24 24" aria-label="opens the source"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" /></svg>}</span>
     </div>
   );
+}
+
+/** Task #287: a fund's Mutual Fund Score in a column of its own (Gold), between the NAV and the 1Y return, captioned like the 1Y return, so the scores line
+ *  up down the list instead of running on from the fund's name. No score: a dash and "No score", with the reason on hover. */
+export function FundScoreCol({ item, busy }: { item?: import("../../lib/mfScore").ScoreItem; busy: boolean }) {
+  if (item && item.final != null) return <span className="gs-score gs-fsc"><ScoreChip item={item} /><span className="gs-band">MF Score</span></span>;
+  const wait = busy && !item;
+  return <span className="gs-score gs-fsc is-none" title={wait ? "Loading the score" : item?.reason || "This plan has no Mutual Fund Score yet."} aria-label={wait ? "Loading the score" : `No score. ${item?.reason || ""}`.trim()}>
+    <span className="gs-fsc-na" aria-hidden="true">{wait ? "…" : MINUS}</span><span className="gs-band" aria-hidden="true">{wait ? "MF Score" : "No score"}</span></span>;
 }
 
 function metricBadge(it: Item) {

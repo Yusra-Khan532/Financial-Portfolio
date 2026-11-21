@@ -8,3 +8,8 @@
 .hz-t { font: 600 var(--fs-16) var(--sans); color: var(--text); margin-right: auto; }
 .hz-tag { padding: 3px 10px; border-radius: 999px; background: var(--s2, var(--s1)); color: var(--muted); font: 600 var(--fs-12) var(--sans); }
 @media (max-width: 560px) { .hz-t { font-size: var(--fs-14); } }
+
+/* task #274 (Equity portfolio): the slim hidden card: title, "Hidden · " and the subtitle on one line, Show ▾ */
+.hz-slim { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 16px; }
+.hz-slim .hz-t { flex: 0 0 auto; font-weight: 700; }
+.hz-slim .hz-sub { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 14px; }
