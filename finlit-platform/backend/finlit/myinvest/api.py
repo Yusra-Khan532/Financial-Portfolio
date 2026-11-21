@@ -4,8 +4,8 @@ The body carries the member's Equity portfolio shares (symbol and quantity: that
 sends it); the member's mutual funds and ETFs are read here from their MF portfolio and ETF portfolio. No new store: the three lists stay where they are,
 so a change on a portfolio page shows here after a refresh.
 
-Plans: Silver and Gold, as the three portfolio pages. Shares are read with the FinLit IQ on Silver and FinLit Prism on Gold, never both; the funds' Health
-Score is Gold only, as everywhere on the site. Basic is refused (403 plan_required).
+Plans: Silver and Gold, as the three portfolio pages. Shares are read with FinLit Prism on Gold and with no company score on Silver (task #283 PR C: FinLit
+Prism is FinLit's only company score; the retired FinLit IQ is not sent); the funds' Health Score is Gold only, as everywhere on the site. Basic is refused (403 plan_required).
 
 Every figure follows "How the numbers are worked out" in the pack (see calc.py). The shares' beta is the Equity portfolio's own sum
 (portfolio_page.metrics.market_measures on weekly prices) against the Nifty 500; each fund's and ETF's beta is its portfolio page's own figure
@@ -39,7 +39,6 @@ DISCLAIMER = ("Describes your shares, mutual funds and ETFs from their published
               "fund or ETF can have changed since the fund house published its file. Past figures do not guarantee future returns. Mutual fund investments "
               "are subject to market risks; read all scheme-related documents carefully. Information only, not investment advice.")
 PRISM_BANDS = ("Strong", "Healthy", "Average", "Weak", "Poor")
-IQ_BANDS = ("Strong", "Healthy", "Mixed", "Watch")
 FUND_BANDS = PRISM_BANDS
 NO_BENCH = "The Nifty 500 history is not available right now, so the beta and swing figures cannot be worked out."
 
@@ -362,14 +361,12 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
     s_scores = [scores.get(s["symbol"], {}) for s in shares] if shares else []
     for s, sc in zip(shares, s_scores):
         s["score"], s["label"] = sc.get("score"), calc.word_case(sc.get("label"))
-    s_bands = PRISM_BANDS if gold else IQ_BANDS
-    from ..analytics.scoring import band as iq_band
-    word = (lambda v: label_of(v) or None) if gold else (lambda v: iq_band(v)["label"])
+    s_bands = PRISM_BANDS
     s_avg = calc.weighted_mean([s["score"] for s in shares], split["shares"]["w"])
     f_avg = calc.weighted_mean([f["score"] for f in funds], split["funds"]["w"])
     health = {
-        "shares": {"model": "prism" if gold else "iq", "score": calc.r(s_avg, 0), "label": word(s_avg) if s_avg is not None else None,
-                   **calc.band_counts([s["label"] for s in shares], split["shares"]["w"], s_bands)} if shares else None,
+        "shares": {"model": "prism", "score": calc.r(s_avg, 0), "label": label_of(s_avg) or None if s_avg is not None else None,
+                   **calc.band_counts([s["label"] for s in shares], split["shares"]["w"], s_bands)} if shares and gold else None,
         "funds": ({"locked": True} if not gold else {"locked": False, "score": calc.r(f_avg, 0), "label": label_of(f_avg) or None if f_avg is not None else None,
                   **calc.band_counts([f["label"] for f in funds], split["funds"]["w"], FUND_BANDS),
                   "lowest": min(({"name": f["short"], "score": f["score"], "label": f["label"]} for f in funds if f["score"] is not None), key=lambda x: x["score"], default=None)}) if funds else None,
@@ -378,7 +375,7 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
                  "widestGap": max(({"symbol": e["symbol"], "premium": e["premium"]} for e in etfs if e["premium"] is not None), key=lambda x: abs(x["premium"]), default=None)} if etfs else None,
     }
     under = [c for c in companies if c["symbol"] and not c["abroad"]]
-    health["underneath"] = {"model": "prism" if gold else "iq", **calc.band_counts([(scores.get(c["symbol"]) or {}).get("label") for c in under], [c["all"] for c in under], s_bands)} if under else None
+    health["underneath"] = {"model": "prism", **calc.band_counts([(scores.get(c["symbol"]) or {}).get("label") for c in under], [c["all"] for c in under], s_bands)} if under and gold else None
 
     # ---- each kind's card
     def card(kind: str, items: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -391,7 +388,7 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
                 "firstIs": "largest" if sp["valued"] else "list"}
 
     cards = {"shares": card("shares", shares), "funds": card("funds", funds), "etfs": card("etfs", etfs)}
-    cards["shares"].update(score=(health["shares"] or {}).get("score"), scoreModel="prism" if gold else "iq",
+    cards["shares"].update(score=(health["shares"] or {}).get("score"), scoreModel="prism" if gold else None, scoreLocked=not gold,
                            peers={w: sum(1 for s in shares if calc.peer_word(peer_raw.get(s["symbol"]), True) == w) for w in ("Leader", "In line", "Laggard", calc.NOT_COMPARED)},
                            bands=(health["shares"] or {}).get("bands"))
     cards["funds"].update(score=(health["funds"] or {}).get("score"), scoreLocked=not gold, bands=(health["funds"] or {}).get("bands"),

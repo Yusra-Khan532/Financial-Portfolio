@@ -61,10 +61,11 @@ def test_plan_ranking_and_limits():
 
 def test_summary_redaction_per_plan():
     basic = redact_section("summary", _summary(), "basic")
-    assert basic["score"]["overall"] is None and basic["thesis"] is None and basic["strengths"] == [] and basic["watchouts"] == []
-    assert basic["score"]["pillars"][0]["score"] is None
-    silver = redact_section("summary", _summary(), "silver")
-    assert silver["score"]["overall"] == 72 and silver["thesis"] == "Strong"
+    assert basic["strengths"] == [] and basic["watchouts"] == []
+    for plan in ("basic", "silver", "gold"):          # task #283 PR C: the retired FinLit IQ (score, its written read) goes for every plan
+        out = redact_section("summary", _summary(), plan)
+        assert "score" not in out and "thesis" not in out, plan
+    assert redact_section("summary", _summary(), "silver")["strengths"] == ["a"]
 
 
 def test_ratio_and_price_redaction():
@@ -74,9 +75,9 @@ def test_ratio_and_price_redaction():
     silver = redact_section("ratios", __import__("copy").deepcopy(ratios), "silver")
     assert set(silver["history"]["rows"]) == {"roe", "roce", "gross_margin"} and silver["valuationHistory"]["rows"] == {}
     basic = redact_section("ratios", __import__("copy").deepcopy(ratios), "basic")
-    assert set(basic["history"]["rows"]) == {"roe", "roce", "gross_margin"} and basic["score"]["overall"] is None
+    assert set(basic["history"]["rows"]) == {"roe", "roce", "gross_margin"} and "score" not in basic and "score" not in silver
     gold = redact_section("ratios", __import__("copy").deepcopy(ratios), "gold")
-    assert "debt_to_equity" in gold["history"]["rows"]
+    assert "debt_to_equity" in gold["history"]["rows"] and "score" not in gold
     price = {"technical": {"price": 1, "ema50": 2, "ema200": 3, "rsi": 50, "vsEma200Pct": 1.2}, "series": {"t": [1], "ema200": [1]}}
     out = redact_section("price-1Y", price, "silver")
     assert set(out["technical"]) == {"price", "ema50", "vsEma200Pct"} and "ema200" not in out["series"]
@@ -86,10 +87,11 @@ def test_ratio_and_price_redaction():
 
 def test_universe_redaction_keeps_showcase():
     rows = [{"symbol": "RELIANCE", "overall": 62, "band": "healthy"}, {"symbol": "TCS", "overall": 80, "band": "strong"}]
-    out = redact_universe(rows, "basic", {"RELIANCE"})
-    assert out[0]["overall"] == 62 and out[1]["overall"] is None and out[1]["band"] is None
-    assert redact_universe(rows, "silver", {"RELIANCE"})[1]["overall"] == 80       # Silver keeps the FinLit IQ (its Prism figures are Gold: tests/test_screener_prism.py)
-    assert redact_universe(rows, "gold", {"RELIANCE"}) == rows
+    rows = [{**r, "prism_final": 70} for r in rows]
+    for plan in ("basic", "silver", "gold"):          # task #283 PR C: the retired FinLit IQ's fields go to no plan, not even the showcase company
+        out = redact_universe(rows, plan, {"RELIANCE"})
+        assert not any(k in r for r in out for k in ("overall", "band")), plan
+        assert out[0]["prism_final"] == 70 and out[1]["prism_final"] == (70 if plan == "gold" else None), plan      # the showcase company stays open
 
 
 def test_which_sections_vary():

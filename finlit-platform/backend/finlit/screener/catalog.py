@@ -25,7 +25,7 @@ GROUPS = [
     ("size", "Size & price"), ("returns", "Returns"), ("valuation", "Valuation"), ("profitability", "Profitability"), ("growth", "Growth"),
     ("quarterly", "Quarterly results"), ("health", "Financial health"), ("liquidity", "Liquidity"), ("solvency", "Solvency"), ("efficiency", "Efficiency"),
     ("ownership", "Ownership"), ("events", "Company events"), ("flags", "Red flags"), ("banks", "Banks & lenders"), ("trading", "Volume, range & trend"),
-    ("model", "FinLit IQ"), ("prism", "FinLit Prism"),
+    ("model", "Retired score"), ("prism", "FinLit Prism"),
 ]
 GROUP_LABEL = dict(GROUPS)
 # Task #283 (21 Nov 2026): FinLit Prism ("prism", Gold and up) is FinLit's only company score. The retired FinLit IQ's group ("model": overall, its five pillars,
@@ -266,16 +266,17 @@ CATALOG: List[Metric] = [
     M("turnover20_cr", "Average value traded (20 sessions)", "trading", "Cr", "none", "silver", "The average of price times volume over the last 20 sessions, in rupee crore.", 1),
     M("volatility", "Volatility (yearly)", "trading", "%", "lower", "silver", "How much the price swings in a year.", 0),
     M("max_drawdown", "Worst fall (since data starts)", "trading", "%", "higher", "silver", "Biggest drop from a peak to a low.", 0),
-    # ---- FinLit IQ (Silver; Gold sees FinLit Prism instead). No formula, cut-off or weight in any text (task #64, P-2).
-    M("overall", "FinLit IQ", "model", "pts", "higher", "silver", "FinLit's score for the company, 0 to 100, from its filed statements and prices.", 0),
-    M("pillar_quality", "Quality", "model", "pts", "higher", "silver", "The FinLit IQ's Quality part, 0 to 100: returns on money and cash behind profit.", 0),
-    M("pillar_growth", "Growth", "model", "pts", "higher", "silver", "The FinLit IQ's Growth part, 0 to 100: how sales and profit have grown.", 0),
-    M("pillar_profitability", "Profitability", "model", "pts", "higher", "silver", "The FinLit IQ's Profitability part, 0 to 100: margins and returns.", 0),
-    M("pillar_balance", "Balance sheet", "model", "pts", "higher", "silver", "The FinLit IQ's Balance sheet part, 0 to 100: debt, liquidity and interest cover.", 0),
-    M("pillar_technical", "Technical", "model", "pts", "higher", "silver", "The FinLit IQ's Technical part, 0 to 100: the price trend.", 0),
-    M("score_change", "FinLit IQ change since last quarter", "model", "pts", "higher", "silver", "Points the FinLit IQ moved since the last quarter.", 0),
-    M("strengths_count", "Strengths found", "model", "n", "higher", "silver", "How many strengths the FinLit IQ report lists for the company.", 0),
-    M("watchouts_count", "Watch-outs found", "model", "n", "lower", "silver", "How many watch-outs the FinLit IQ report lists for the company.", 0),
+    # ---- the retired overall score (task #283): offered to no plan (RETIRED_GROUPS); kept only so the table and older saved items still read. No formula,
+    # cut-off or weight in any text (task #64, P-2).
+    M("overall", "Overall score (retired)", "model", "pts", "higher", "silver", "The retired overall score, 0 to 100. FinLit Prism is FinLit's only company score.", 0),
+    M("pillar_quality", "Quality (retired)", "model", "pts", "higher", "silver", "A part of the retired overall score, 0 to 100: returns on money and cash behind profit.", 0),
+    M("pillar_growth", "Growth (retired)", "model", "pts", "higher", "silver", "A part of the retired overall score, 0 to 100: how sales and profit have grown.", 0),
+    M("pillar_profitability", "Profitability (retired)", "model", "pts", "higher", "silver", "A part of the retired overall score, 0 to 100: margins and returns.", 0),
+    M("pillar_balance", "Balance sheet (retired)", "model", "pts", "higher", "silver", "A part of the retired overall score, 0 to 100: debt, liquidity and interest cover.", 0),
+    M("pillar_technical", "Technical (retired)", "model", "pts", "higher", "silver", "A part of the retired overall score, 0 to 100: the price trend.", 0),
+    M("score_change", "Retired score change since last quarter", "model", "pts", "higher", "silver", "Points the retired overall score moved since the last quarter.", 0),
+    M("strengths_count", "Strengths found", "model", "n", "higher", "silver", "How many strengths the company report lists for the company.", 0),
+    M("watchouts_count", "Watch-outs found", "model", "n", "lower", "silver", "How many watch-outs the company report lists for the company.", 0),
     # ---- FinLit Prism (Gold): the stored rating of each company, 0 to 100 (the two views -100 to +100); a company not rated yet has no figure
     M("prism_final", "Fundamental Prism score", "prism", "pts", "higher", "gold", "FinLit Prism's rating of the company, 0 to 100. Higher is better.", 0),
     M("prism_fundamental", "Prism Growth & Profitability", "prism", "pts", "higher", "gold", "Prism's Growth & Profitability part, 0 to 100: how steadily sales and profit grow.", 0),

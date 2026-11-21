@@ -1,7 +1,7 @@
 """/api/me/etf-portfolio: the ETFs a member keeps (task #136), Silver and Gold like My mutual funds; Basic and visitors are refused.
 
     GET     ""                 the ETFs with price, returns, cost, price against NAV, value traded, tracking difference and what each tracks
-    GET     "/inside"          what the money is in, company size, overlap between share ETFs and the largest stocks underneath (Prism on Gold, IQ on Silver)
+    GET     "/inside"          what the money is in, company size, overlap between share ETFs and the largest stocks underneath (FinLit Prism on Gold)
     GET     "/risk"            each ETF and the whole list against the Nifty 500 (the MF portfolio's sums), moving together, and each one's share of the swings
     POST    ""                 add an ETF (optionally with a quantity)
     PUT     "/quantities"      set or clear the quantities of ETFs already in the list
@@ -10,8 +10,8 @@
     POST    "/import-preview"  rows read from a broker file -> each row matched on ISIN, then on symbol; nothing stored
     POST    "/import-commit"   the rows the member confirmed -> stored
 
-Plan rules are applied here: the number of ETFs is entitlements.LIMITS[plan]["etf_holdings"]; the largest stocks carry FinLit Prism for Gold and the FinLit IQ for
-Silver, never both. Writes need a signed-in session from our own pages (Origin + CSRF) and are rate limited per member. Every query filters on the member's id.
+Plan rules are applied here: the number of ETFs is entitlements.LIMITS[plan]["etf_holdings"]; the largest stocks carry FinLit Prism for Gold and no company
+score on other plans (task #283 PR C: FinLit Prism is FinLit's only company score; the retired FinLit IQ is not sent). Writes need a signed-in session from our own pages (Origin + CSRF) and are rate limited per member. Every query filters on the member's id.
 Information only, not investment advice.
 """
 
@@ -202,19 +202,12 @@ async def nifty500(app) -> Dict[int, float]:
 
 
 async def scores_for(app, symbols: List[str], gold: bool) -> Dict[str, Dict[str, Any]]:
-    """Gold: FinLit Prism (score and word). Silver: the FinLit IQ (score and word). Never both."""
-    if not symbols:
+    """Gold: FinLit Prism (score and word). Other plans: nothing (task #283 PR C: FinLit Prism is FinLit's only company score)."""
+    if not symbols or not gold:
         return {}
-    store = app.state.store
-    if gold:
-        from .. import prism_screen
-        cards = prism_screen.cards(await store.prism_cards(symbols))
-        return {s: {"model": "prism", "score": fnum(c.get("prism_final"), 0), "label": c.get("prism_label")} for s, c in cards.items() if c.get("prism_final") is not None}
-    from ..portfolio_overview import BAND_WORD
-    async with store.pool.acquire() as conn:
-        rows = await conn.fetch("SELECT DISTINCT ON (symbol) symbol, overall, band FROM scores WHERE symbol = ANY($1::text[]) AND model = 'v1' AND overall IS NOT NULL "
-                                "ORDER BY symbol, (statement = 'consolidated') DESC, updated_at DESC", symbols)
-    return {r["symbol"]: {"model": "iq", "score": fnum(r["overall"], 0), "label": BAND_WORD.get(r["band"] or "", None)} for r in rows}
+    from .. import prism_screen
+    cards = prism_screen.cards(await app.state.store.prism_cards(symbols))
+    return {s: {"model": "prism", "score": fnum(c.get("prism_final"), 0), "label": c.get("prism_label")} for s, c in cards.items() if c.get("prism_final") is not None}
 
 
 async def size_of_isins(app, isins: List[str]) -> Dict[str, str]:
@@ -312,7 +305,7 @@ async def inside(request: Request, ctx: Ctx = Depends(member_ctx), pf: Optional[
         t["w"] = round(t["w"] * 100, 2)
         t["size"] = sizes.get(t["isin"] or "") if not t["abroad"] else None
         t["score"] = scores.get(t["symbol"] or "") if not t["abroad"] else None
-        t["scoreWhy"] = "Not compared: listed abroad" if t["abroad"] else None if t["score"] else "Not rated yet"
+        t["scoreWhy"] = "Not compared: listed abroad" if t["abroad"] else None if t["score"] else "Not rated yet" if gold else "FinLit Prism comes with a plan that has it"
     mix = calc.asset_mix(etfs)
     size = calc.size_mix(etfs, lambda isin: sizes.get(isin or ""))
     lt = calc.look_through(etfs, lambda isin: sizes.get(isin or ""))
@@ -330,7 +323,7 @@ async def inside(request: Request, ctx: Ctx = Depends(member_ctx), pf: Optional[
     dates = sorted({f["asOf"] for f in files if f["asOf"]})
     return reply({"count": len(etfs), "basis": basis, "files": files, "asOf": dates[-1] if dates else None, "mix": {k: round(v * 100, 1) for k, v in mix["shares"].items()},
                   "mixFromType": mix["fromType"], "size": {k: round(v * 100, 1) for k, v in size.items()} if size else None,
-                  "overlap": calc.overlap(etfs), "top": top, "scoreModel": "prism" if gold else "iq",
+                  "overlap": calc.overlap(etfs), "top": top, "scoreModel": "prism" if gold else "none",
                   "knownShares": round(lt["knownShares"], 4), "lookThrough": lt["lookThrough"], "sectorMacro": lt["sectorMacro"], "perEtf": lt["perEtf"],
                   "abroadTop": calc.abroad_top(etfs), "etfs": per_etf_split, "disclaimer": DISCLAIMER})
 

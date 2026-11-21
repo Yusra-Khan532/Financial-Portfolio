@@ -45,6 +45,13 @@ INPUT_CUT_SQL = ("CASE section "
                  "WHEN 'events' THEN jsonb_build_object('actions', j -> 'actions', 'dividendsByFY', j -> 'dividendsByFY')::text "
                  "WHEN 'price' THEN jsonb_build_object('daily', jsonb_build_object('t', j #> '{daily,t}', 'c', j #> '{daily,c}', 'v', j #> '{daily,v}', 'h', j #> '{daily,h}', 'l', j #> '{daily,l}'), 'technical', j -> 'technical')::text "
                  "ELSE body END")
+# Task #283 PR C: the coverage gap between the retired overall score and FinLit Prism, over listed companies (admin data-health only).
+PRISM_GAP_SQL = """WITH iq AS (SELECT DISTINCT symbol FROM scores WHERE model = 'v1' AND overall IS NOT NULL),
+       pz AS (SELECT DISTINCT symbol FROM prism_reports WHERE final IS NOT NULL AND status IS DISTINCT FROM 'NOT RATED')
+SELECT (SELECT count(*) FROM companies) AS listed,
+       (SELECT count(*) FROM companies c JOIN iq ON iq.symbol = c.symbol) AS retired,
+       (SELECT count(*) FROM companies c JOIN pz ON pz.symbol = c.symbol) AS prism,
+       (SELECT count(*) FROM companies c JOIN iq ON iq.symbol = c.symbol WHERE NOT EXISTS (SELECT 1 FROM pz WHERE pz.symbol = c.symbol)) AS gap"""
 VIEWED_KEY = "viewed"   # sorted set: symbol -> last time a member or visitor opened its report (keeps it stored when pruning)
 # What the website lists for every company. The 170 screener numbers (scores.metrics) are left out on purpose: they are ~2 KB a company and only /api/screener/query needs them.
 LIST_COLUMNS = ("symbol, statement, model, overall, band, pillar_quality, pillar_growth, pillar_profitability, pillar_balance, pillar_technical, price, market_cap, "
@@ -514,7 +521,19 @@ class Store:
                 "runs24h": {r["status"]: r["n"] for r in runs},
                 "recentProblems": [{"symbol": r["symbol"], "status": r["status"], "at": r["at"].isoformat(), "detail": str(r["errors"])[:200]} for r in failed],
                 "coverage": await self.coverage_health(),
+                "prismGap": await self.prism_gap(),
                 "secondarySource": await _upstox_health(self.redis)}
+
+    async def prism_gap(self) -> Optional[dict]:
+        """Task #283 PR C (admin only, the data-health panel): FinLit Prism is FinLit's only company score. `retiredNoPrism`: listed companies that have
+        the retired overall score (its job still writes it, hidden) but no FinLit Prism score (no rating, or "not rated"), so after the switch they read
+        "FinLit Prism: not scored yet". `prismScored`: listed companies with a Prism score. None when a table is missing."""
+        try:
+            async with self.pool.acquire() as conn:
+                r = await conn.fetchrow(PRISM_GAP_SQL)
+        except Exception:
+            return None
+        return {"listed": r["listed"], "retiredScored": r["retired"], "prismScored": r["prism"], "retiredNoPrism": r["gap"]}
 
     async def _upsert_prices(self, conn, symbol: str, daily: dict):
         rows = [(symbol, date.fromisoformat(t), daily["o"][i], daily["h"][i], daily["l"][i], daily["c"][i], daily["v"][i])

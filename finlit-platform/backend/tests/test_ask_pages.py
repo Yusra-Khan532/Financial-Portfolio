@@ -53,8 +53,9 @@ def test_every_page_of_the_task_has_a_tool_and_they_stay_in_one_fixed_order():
 def test_the_instructions_send_each_page_question_to_its_tool_before_the_web():
     s = service.SYSTEM
     for words in ("Superinvestor portfolios", "India economy", "Glossary", "Insights & blog", "Documents", "investor presentation", "read_company_document",
-                  "Basic stock screener", "Advanced stock screener", "Use FinLit's page before the web"):
+                  "Advanced stock screener", "Use FinLit's page before the web"):
         assert words in s, words
+    assert "Basic stock screener" not in s          # task #283 PR C: retired with the FinLit IQ
 
 
 # ------------------------------------------------------------------------------------------------ Superinvestor portfolios
@@ -230,29 +231,28 @@ def test_best_pages_keep_the_cover_and_the_pages_with_the_questions_words_in_ord
     assert sum(len(t) for _, t in P.best_pages(["x" * 5000] * 10, "", chars=9000)) <= 9000
 
 
-# ------------------------------------------------------------------------------------------------ the Basic and Advanced score screeners
+# ------------------------------------------------------------------------------------------------ the Advanced score screener (FinLit Prism; task #283 PR C retired the Basic one)
 async def test_score_screeners_filter_by_score_sector_and_size_as_the_member_sees_them():
     rows = [{"symbol": "HDFCBANK", "name": "HDFC Bank", "sector": "Private Sector Bank", "nse_industry": "Banks", "market_cap": 1400000, "overall": 71, "band": "Healthy", "prism_final": 66},
             {"symbol": "SBIN", "name": "SBI", "sector": "Public Sector Bank", "nse_industry": "Banks", "market_cap": 800000, "overall": 64, "band": "Average", "prism_final": 61},
             {"symbol": "BAJFINANCE", "name": "Bajaj Finance", "sector": "Non Banking Financial Company (NBFC)", "nse_industry": "Finance", "market_cap": 500000, "overall": 75, "prism_final": 70},
             {"symbol": "TCS", "name": "TCS", "sector": "Computers - Software & Consulting", "nse_industry": "IT - Software", "market_cap": 1200000, "overall": 80, "prism_final": None}]
     gw = Gw({"/api/screener/universe": {"rows": rows, "as_of": "2026-11-18"}})
-    _, out = await run(gw, "screen_by_finlit_score", {"score": "iq", "sector": "Banks"})
+    _, out = await run(gw, "screen_by_finlit_score", {"sector": "Banks"})
     assert [r["symbol"] for r in out["data"]["rows"]] == ["HDFCBANK", "SBIN"]          # "Banks" is a bank, not "Banking"
-    _, out = await run(gw, "screen_by_finlit_score", {"score": "iq", "min": 70, "min_market_cap": 600000})
-    assert [r["symbol"] for r in out["data"]["rows"]] == ["TCS", "HDFCBANK"] and out["asOf"] == "2026-11-18"
-    _, out = await run(gw, "screen_by_finlit_score", {"score": "prism"})
-    assert "TCS" not in [r["symbol"] for r in out["data"]["rows"]] and out["data"]["matched"] == 3      # no score yet: left out
+    _, out = await run(gw, "screen_by_finlit_score", {"min": 65, "min_market_cap": 600000})
+    assert [r["symbol"] for r in out["data"]["rows"]] == ["HDFCBANK"] and out["asOf"] == "2026-11-18"
+    _, out = await run(gw, "screen_by_finlit_score", {})
+    assert [r["symbol"] for r in out["data"]["rows"]] == ["BAJFINANCE", "HDFCBANK", "SBIN"] and out["data"]["matched"] == 3      # no score yet (TCS): left out
+    assert all("overall" not in r and "band" not in r for r in out["data"]["rows"])          # the retired score is never returned
 
 
 async def test_a_plan_without_the_score_gets_the_plans_name_not_an_empty_list():
     u = load("universe_visitor.json")
     for r in u["rows"]:
         r["overall"] = r["prism_final"] = None
-    r = await T.run(Gw({"/api/screener/universe": u}), "screen_by_finlit_score", {"score": "prism"})
+    r = await T.run(Gw({"/api/screener/universe": u}), "screen_by_finlit_score", {})
     assert r["error"] and "Gold plan" in r["text"]
-    r = await T.run(Gw({"/api/screener/universe": u}), "screen_by_finlit_score", {"score": "iq"})
-    assert r["error"] and "Silver plan" in r["text"]
 
 
 # ------------------------------------------------------------------------------------------------ "aligned with the web pages": the links under the answer
@@ -261,10 +261,10 @@ def test_each_answer_links_the_finlit_pages_it_read_once_each_at_most_four():
                           ("read_company_document", {"symbol": "RELIANCE"}), ("get_india_economy", {}), ("lookup_glossary", {"term": "P/E"})])
     assert links == [{"to": "/stocks/RELIANCE", "label": "RELIANCE company report"}, {"to": "/prism/RELIANCE", "label": "FinLit Prism report: RELIANCE"},
                      {"to": "/documents", "label": "Documents"}, {"to": "/macro", "label": "India economy"}]
-    assert P.page_links([("get_superinvestors", {}), ("screen_by_finlit_score", {"score": "prism"}), ("screen_by_finlit_score", {"score": "iq"}),
+    assert P.page_links([("get_superinvestors", {}), ("screen_by_finlit_score", {}), ("screen_by_finlit_score", {"score": "iq"}),
                          ("get_fii_dii_flows", {})]) == [{"to": "/superinvestors", "label": "Superinvestor portfolios"},
                                                          {"to": "/advanced-score-screener", "label": "Advanced stock screener"},
-                                                         {"to": "/score-screener", "label": "Basic stock screener"}, {"to": "/fii-dii", "label": "FII & DII flows"}]
+                                                         {"to": "/fii-dii", "label": "FII & DII flows"}]          # task #283: no Basic stock screener link
     assert P.page_links([("get_company_card", {"symbol": "../x"}), ("web_search", {}), ("get_news_and_filings", {"kind": "news"})]) == [{"to": "/news", "label": "News & filings"}]
 
 

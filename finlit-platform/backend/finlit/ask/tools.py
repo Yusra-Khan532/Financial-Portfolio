@@ -21,7 +21,7 @@ SOURCE_MINE = "The member's own saved lists on FinLit, read with FinLit's figure
 # The MCP descriptions speak of what "a visitor" or "the free website" sees; for a member the routes return their plan's view, so say that instead.
 DESCRIBE = {
     "get_ratios": "Margins, returns (ROE, ROCE), valuation and the other ratios the FinLit website shows on this member's plan, with the period each one is for, plus a short history.",
-    "get_finlit_score": "The FinLit IQ financial-health score (0 to 100) and its pillars, where this member's plan includes it. If the plan does not include it, the result says so.",
+    "get_finlit_score": "FinLit Prism, FinLit's only company score (0 to 100, with its label and four parts), where this member's plan includes it. If the plan does not include it, the result says so.",
     "get_quarter_results": "Companies that announced results for a quarter or on a date, with status and the figures this member's plan shows.",
     "screen_stocks": "Filter listed companies on the FinLit screener metrics (market cap, price, P/E, ROE, ROCE, margins, growth, debt, returns). Each filter is {min, max} in the metric's unit.",
 }
@@ -111,12 +111,12 @@ async def get_company_card(gw: Gateway, a: Dict[str, Any]) -> Out:
     if isinstance(prof.get("description"), str) and len(prof["description"]) > 500:
         prof["description"] = prof["description"][:500] + "…"
     card = {"symbol": sym, "profile": prof, "classification": tax, "quote": summary.get("quote"), "range52": summary.get("range52"),
-            "finlitPrism": prism, "finlitIQ": summary.get("score"), "keyMetrics": summary.get("keyMetrics"), "returns": summary.get("returns"),
-            "thesis": summary.get("thesis"), "strengths": summary.get("strengths"), "watchouts": summary.get("watchouts"),
+            "finlitPrism": prism, "keyMetrics": summary.get("keyMetrics"), "returns": summary.get("returns"),
+            "strengths": summary.get("strengths"), "watchouts": summary.get("watchouts"),
             "vsPeers": lead, "tradingFacts": trading, "statementBasis": (summary.get("meta") or {}).get("statement")}
     return Out(card, as_of=(summary.get("meta") or {}).get("generatedAt"), source=SOURCE_PAGE,
                routes=[f"/api/stocks/{sym}", f"/api/taxonomy/company/{sym}", f"/api/stocks/{sym}/leadership", f"/api/stocks/{sym}/trading", "/api/prism/reports/latest"],
-               notes=["finlitPrism is FinLit's Gold rating (0 to 100) shown at the top of the company page; finlitIQ is the Silver financial-health score. "
+               notes=["finlitPrism is FinLit's only company score (0 to 100), shown at the top of the company page on a plan that has it. "
                       "A part marked unavailable says why (for example, not included in the member's plan)."])
 
 
@@ -134,7 +134,6 @@ SECTIONS = {   # name -> (route, what it is)
     "segments": ("/api/stocks/{s}/segments", "revenue and profit by business segment"),
     "ownership_insights": ("/api/stocks/{s}/ownership-insights", "what changed in promoter, FII, DII and public holdings, and pledges"),
     "company_brief": ("/api/stocks/{s}/brief", "FinLit's written brief of the company"),
-    "iq_history": ("/api/stocks/{s}/score-history", "how the FinLit IQ has moved over time"),
     "prism_history": ("/api/prism/history?symbol={s}", "how the FinLit Prism score and its parts have moved over time (Gold)"),
     "forecast": ("/api/outlook/{s}", "FinLit's profit and revenue forecasting for the company (Gold)"),
     "macro_outlook": ("/api/stocks/{s}/macro-outlook", "how the economy's signals bear on the company's sector"),
@@ -156,7 +155,7 @@ async def get_company_section(gw: Gateway, a: Dict[str, Any]) -> Out:
 PAGE = [
     Tool("get_company_card", "Company card", "Everything at the top of a company's FinLit page in one call: name, NSE classification (macro sector, sector, industry, basic "
          "industry), market cap, price and day change, 52-week range, FinLit Prism (Gold rating, 0 to 100, with its parts and short- and long-term technical "
-         "view), FinLit IQ (Silver score and pillars), key ratios, returns, strengths and watch-outs, rank against NSE peers, F&O and margin trading. "
+         "view), key ratios, returns, strengths and watch-outs, rank against NSE peers, F&O and margin trading. "
          "Use it first for almost any question about one company.", SYM, get_company_card, ["symbol"]),
     Tool("get_finlit_prism", "FinLit Prism", "FinLit Prism for one company: the score (0 to 100) and its label (for example Strong), the four parts (fundamental "
          "and growth, valuation, quality, risk), the short- and long-term technical view, the main positives and negatives, and when it was calculated. "
@@ -176,7 +175,7 @@ BY_NAME: Dict[str, Tool] = {t.name: t for t in TOOLS}
 # What the panel says while a tool runs ("Reading RELIANCE's ratios…")
 DOING = {"search_stocks": "Finding the company", "get_stock_quote": "Reading the latest price", "get_batch_quotes": "Reading the latest prices",
          "get_company_profile": "Reading the company profile", "get_financials": "Reading the financial statements", "get_ratios": "Reading the ratios",
-         "get_shareholding": "Reading the shareholding", "get_price_history": "Reading the price history", "get_finlit_score": "Reading the FinLit IQ",
+         "get_shareholding": "Reading the shareholding", "get_price_history": "Reading the price history", "get_finlit_score": "Reading FinLit Prism",
          "get_quarter_results": "Reading the results", "get_results_calendar": "Reading the results calendar", "screen_stocks": "Running the screener",
          "get_market_overview": "Reading the market overview", "get_fii_dii_flows": "Reading FII and DII flows", "get_ipo_calendar": "Reading the IPO calendar",
          "search_funds": "Finding the fund", "get_fund_details": "Reading the fund details", "list_etfs": "Reading the ETF list", "get_etf": "Reading the ETF",

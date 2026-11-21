@@ -69,9 +69,9 @@ async def test_the_universe_lists_every_company_scored_or_not(api):
     assert len(body["as_of"]) == 10 and body["as_of"][4] == "-"      # the day the newest score was computed (the score screener states it)
     assert len(rows) > 5000                            # the whole symbol list, not just the stored reports
     by = {r["symbol"]: r for r in rows}
-    assert by["RELIANCE"]["scored"] is True and by["RELIANCE"]["overall"] is not None
+    assert by["RELIANCE"]["scored"] is True and "overall" not in by["RELIANCE"]          # task #283 PR C: the retired FinLit IQ is not served
     other = next(r for r in rows if r["symbol"] != "RELIANCE")
-    assert other["scored"] is False and other["overall"] is None and "pe" in other and other["pe"] is None     # every column present
+    assert other["scored"] is False and "overall" not in other and "pe" in other and other["pe"] is None     # every column present
     assert sum(r["scored"] for r in rows) == 1
 
 

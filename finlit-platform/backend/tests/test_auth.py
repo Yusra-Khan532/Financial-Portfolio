@@ -216,27 +216,27 @@ async def test_change_password_and_sessions_list(app):
 async def test_plan_redaction_on_the_server(app, anon):
     # visitor: showcase company open, everything else trimmed; same for Basic accounts
     rel = (await anon.get("/api/stocks/RELIANCE")).json()
-    assert rel["score"]["overall"] is not None and rel["thesis"]
+    assert rel["profile"]["name"] and rel["strengths"] is not None and "score" not in rel and "thesis" not in rel     # task #283 PR C: no retired IQ for any plan
     app.state.settings.showcase_symbols[:] = ["SOMETHINGELSE"]
     r = await anon.get("/api/stocks/RELIANCE")
     assert r.headers["cache-control"].startswith("private") and "Cookie" in r.headers["vary"]
     body = r.json()
-    assert body["score"]["overall"] is None and body["thesis"] is None and body["strengths"] == []
+    assert "score" not in body and body.get("thesis") is None and body["strengths"] == []
     ratios = (await anon.get("/api/stocks/RELIANCE/ratios")).json()
     assert 0 < len(ratios["history"]["rows"]) <= 5 and ratios["valuationHistory"]["rows"] == {}
     price = (await anon.get("/api/stocks/RELIANCE/price?range=1Y")).json()
     assert "ema200" not in price["series"] and set(price["technical"]) <= {"price", "ema50", "vsEma200Pct"}
     assert (await anon.get("/api/stocks/RELIANCE/segments")).json()["segments"] == {}
-    assert (await anon.get("/api/screener/top")).status_code == 403
+    assert (await anon.get("/api/screener/top")).status_code == 410        # task #283 PR C: the retired score's ranked list is gone for everyone
     rows = (await anon.get("/api/screener/universe")).json()["rows"]
-    assert rows[0]["overall"] is None and rows[0]["pe"] is not None  # plain ratios stay open
+    assert "overall" not in rows[0] and rows[0]["pe"] is not None  # plain ratios stay open
 
     silver = await signed_in(app, "b@example.com", plan="silver")
     s = (await silver.get("/api/stocks/RELIANCE")).json()
-    assert s["score"]["overall"] is not None and s["thesis"]
+    assert "score" not in s and "thesis" not in s and s["strengths"] is not None
     hist = (await silver.get("/api/stocks/RELIANCE/ratios")).json()["history"]["rows"]
     assert hist and set(hist) <= {"gross_margin", "operating_margin", "net_margin", "roe", "roce"}
-    assert (await silver.get("/api/screener/top")).status_code == 200
+    assert (await silver.get("/api/screener/top")).status_code == 410
     assert "ema200" not in (await silver.get("/api/stocks/RELIANCE/price?range=1Y")).json()["series"]
 
     gold = await signed_in(app, "g@example.com", plan="gold")
@@ -377,11 +377,13 @@ async def test_oversized_bodies_rejected(anon):
     assert r.status_code == 413
 
 
-async def test_score_history_needs_silver_for_other_companies_and_data_health_is_admin_only(app, anon):
+async def test_the_retired_score_history_is_gone_and_data_health_is_admin_only(app, anon):
     app.state.settings.showcase_symbols[:] = ["SOMETHINGELSE"]
-    assert (await anon.get("/api/stocks/RELIANCE/score-history")).status_code == 403
+    assert (await anon.get("/api/stocks/RELIANCE/score-history")).status_code == 410        # task #283 PR C: FinLit IQ is retired
     silver = await signed_in(app, "b@example.com", plan="silver")
-    assert len((await silver.get("/api/stocks/RELIANCE/score-history")).json()["points"]) == 1
+    assert (await silver.get("/api/stocks/RELIANCE/score-history")).status_code == 410
+    async with app.state.store.pool.acquire() as conn:      # the IQ job still writes its history (hidden, for a rollback): only serving stopped
+        assert await conn.fetchval("SELECT count(*) FROM score_history WHERE symbol = 'RELIANCE'") == 1
     assert (await silver.get("/api/admin/data-health")).status_code == 403
     admin = await make_admin(app)
     secret = (await admin.post("/api/me/mfa/setup")).json()["secret"]
