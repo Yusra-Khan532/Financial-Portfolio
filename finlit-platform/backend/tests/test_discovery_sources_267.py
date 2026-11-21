@@ -293,3 +293,15 @@ async def test_before_any_read_every_bucket_says_why_it_is_empty(store):  # noqa
     assert all(b["companies"] == 0 and b["reason"].startswith("No results filing has been read yet") for b in d["buckets"])
     w = await S.company(store, "calls", "FETCHCO")
     assert w["status"] == "waiting" and "nightly job reads it" in w["reason"]
+
+
+async def test_a_run_from_before_the_call_and_results_step_makes_the_probe_run_now(store):  # noqa: F811
+    """Task #267 follow-up (21 Nov, live): the last run was recorded before the deploy that added calls and results, so its record had no
+    sourcesUnreached and the probe said "up to date"; the new views stayed empty until the next window. Now that older record asks for a run."""
+    import json as _json
+    from finlit.discovery import signals as SG
+    await store.redis.set(SG.VERSION_KEY, SG.TAG_VERSION)
+    await store.redis.set(D.RUN_KEY, _json.dumps({"read": 3, "unreached": 0}))            # a presentations-only run (before #267)
+    assert await D.has_work(store) is True
+    await store.redis.set(D.RUN_KEY, _json.dumps({"read": 3, "unreached": 0, "sourcesUnreached": 0}))
+    assert await D.has_work(store) is False                                               # a run with the step, nothing left: up to date
