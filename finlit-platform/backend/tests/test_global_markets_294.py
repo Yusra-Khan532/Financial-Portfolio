@@ -78,3 +78,14 @@ async def test_the_endpoint_answers_everyone_from_the_cache(app, anon):  # noqa:
     finally:
         mod.collect = orig
         gm._mem = (0.0, None)
+
+
+def test_a_short_site_series_keeps_the_providers_older_closes_for_its_month():
+    from datetime import date as D
+    fred = [(D(2026, 10, 15), 93.5), (D(2026, 10, 20), 93.8), (D(2026, 11, 7), 94.0), (D(2026, 11, 14), 94.2)]
+    site = [(D(2026, 11, 10), 94.1), (D(2026, 11, 20), 92.97)]
+    got = gm.splice(fred, site)
+    assert got == [(D(2026, 10, 15), 93.5), (D(2026, 10, 20), 93.8), (D(2026, 11, 7), 94.0), (D(2026, 11, 10), 94.1), (D(2026, 11, 20), 92.97)]
+    m = gm.moves(got, "₹")
+    assert m["last"] == 92.97 and m["m1"] == round((92.97 / 93.8 - 1) * 100, 2) and m["w1"] == round((92.97 / 94.1 - 1) * 100, 2)
+    assert gm.splice([], site) == site and gm.splice(fred, []) == fred
