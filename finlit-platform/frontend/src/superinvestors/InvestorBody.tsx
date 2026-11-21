@@ -3,17 +3,25 @@
 import { useMemo, useState } from "react";
 import type { TrackedHolding, TrackedPage } from "./types";
 import { Co, MoveTag, PeersTag, PrismTag, Ret, StakeThenNow, TechCell, Who, crore, pct, ptsText, signed } from "./parts";
+import { sinceWords } from "./TrackedTab";
+
+/** The combined stake over the stored quarters (up to 8, oldest first), as a small line. */
+function Spark({ q }: { q: [string, number][] }) {
+  const max = Math.max(1, ...q.map(([, v]) => v)), w = 64, h = 20, step = q.length > 1 ? w / (q.length - 1) : 0;
+  const pts = q.map(([, v], i) => `${(i * step).toFixed(1)},${(h - 2 - (v / max) * (h - 4)).toFixed(1)}`).join(" ");
+  return <svg className="sx-spark" width={w} height={h} viewBox={`0 0 ${w} ${h}`} role="img" aria-label={q.map(([p, v]) => `${p} ${v.toFixed(2)}%`).join(", ")}><polyline points={pts} fill="none" stroke="currentColor" strokeWidth="1.6" /></svg>;
+}
 
 const FILTERS = [["all", "All"], ["changed", "Changed this year"], ["prism", "Prism Strong or Healthy"], ["leaders", "Leaders among peers"]] as const;
 type F = (typeof FILTERS)[number][0];
 const keep = (f: F) => (h: TrackedHolding) => f === "all" ? true : f === "changed" ? h.move !== "unchanged" && !h.sourceError
   : f === "prism" ? h.prism.label === "Strong" || h.prism.label === "Healthy" : h.peers.chip === "Leader";
 
-function stakeLine(h: TrackedHolding): string {
-  if (h.sourceError) return "year-ago figure: source error";
-  if (h.move === "new") return "new this year";
-  if (h.move === "unchanged") return "no change in the year";
-  return `${ptsText(h.changePts)} in the year`;
+function stakeLine(h: TrackedHolding, quarter: boolean): string {
+  if (h.sourceError) return quarter ? "earlier figure: source error" : "year-ago figure: source error";
+  if (h.move === "new") return quarter ? "new this quarter" : "new this year";
+  if (h.move === "unchanged") return quarter ? "no change in the quarter" : "no change in the year";
+  return `${ptsText(h.changePts)} in the ${quarter ? "quarter" : "year"}`;
 }
 
 export function InvestorBody({ p, names }: { p: TrackedPage; names: Record<string, string> }) {
@@ -21,6 +29,8 @@ export function InvestorBody({ p, names }: { p: TrackedPage; names: Record<strin
   const held = useMemo(() => p.holdings.filter((h) => h.move !== "exited" && (h.stakeNow ?? 0) > 0), [p.holdings]);
   const rows = held.filter(keep(f));
   const m = p.moves;
+  const quarter = p.since === "quarter";
+  const hasQ = held.some((h) => h.quarters && h.quarters.length > 1);
   const perf = held.filter((h) => h.valueCr).slice(0, 15);
   const top = Math.max(1, ...perf.map((h) => Math.abs(h.return1y ?? 0)));
   const secMax = Math.max(1, ...p.sectors.map((s) => s.pct));
@@ -36,7 +46,7 @@ export function InvestorBody({ p, names }: { p: TrackedPage; names: Record<strin
       <div className="si-stats sx-stats">
         <div className="si-stat"><span>Companies</span><b>{p.companies}</b><small>named with 1% or more</small></div>
         <div className="si-stat"><span>Value today</span><b>{crore(p.valueCr)}</b><small>stake × market capitalisation</small></div>
-        <div className="si-stat"><span>Moves since a year ago</span><b>{p.movesTotal}</b><small>{m.new} new · {m.added} up · {m.reduced} cut · {m.exited} no longer named</small></div>
+        <div className="si-stat"><span>Moves {sinceWords(p.since)}</span><b>{p.movesTotal}</b><small>{m.new} new · {m.added} up · {m.reduced} cut · {m.exited} no longer named</small></div>
         <div className="si-stat"><span>Named stakes, 1 year</span><b>{p.namedStakes1y.pct == null ? "—" : signed(p.namedStakes1y.pct)}</b>
           <small>{p.namedStakes1y.pct == null ? p.namedStakes1y.why : `same-size market ${signed(p.sameSizeMarketPct)}`}</small></div>
       </div>
@@ -48,16 +58,18 @@ export function InvestorBody({ p, names }: { p: TrackedPage; names: Record<strin
           {FILTERS.map(([k, w]) => <button key={k} type="button" aria-pressed={f === k} onClick={() => setF(k)}>{w} <small>{held.filter(keep(k)).length}</small></button>)}</span></div>
         <div className="si-scroll" tabIndex={0} role="region" aria-label="Holdings table, scrolls sideways">
           <table className="si-t sx-t">
-            <thead><tr><th scope="col">Company</th><th scope="col" className="n">Stake</th><th scope="col" className="n">Value today</th><th scope="col">FinLit Prism</th><th scope="col">Technical</th><th scope="col">Peers</th><th scope="col" className="n">1-year move</th><th scope="col">Also held by</th></tr></thead>
+            <thead><tr><th scope="col">Company</th><th scope="col" className="n">Stake</th><th scope="col" className="n">Value today</th><th scope="col">FinLit Prism</th><th scope="col">Technical</th><th scope="col">Peers</th><th scope="col" className="n">1-year move</th>{hasQ && <><th scope="col" className="n">Since first named</th><th scope="col">Stake, 8 quarters</th></>}<th scope="col">Also held by</th></tr></thead>
             <tbody>{rows.map((h) => (
               <tr key={h.symbol}>
                 <th scope="row"><Co symbol={h.symbol} name={h.name} size={h.size} asOf={h.asOf} names={h.names} /></th>
-                <td className="n">{pct(h.stakeNow)}<small className={h.sourceError ? "si-why" : undefined}>{stakeLine(h)}</small></td>
+                <td className="n">{pct(h.stakeNow)}<small className={h.sourceError ? "si-why" : undefined}>{stakeLine(h, quarter)}</small></td>
                 <td className="n">{h.valueCr == null ? <span className="si-why" title="No market capitalisation in today's quote list">no price</span> : crore(h.valueCr)}{h.weightPct != null && <small>{pct(h.weightPct, 1)} of the value</small>}</td>
                 <td><PrismTag p={h.prism} /></td>
                 <td><TechCell t={h.technical} /></td>
                 <td><PeersTag p={h.peers} /></td>
                 <td className="n"><Ret v={h.return1y} /></td>
+                {hasQ && <><td className="n">{h.sinceFirstNamed ? <><Ret v={h.sinceFirstNamed.pct} /><small>from {h.sinceFirstNamed.from}</small></> : <span className="sx-dash" title="Quarters not stored for this company yet">—</span>}</td>
+                  <td>{h.quarters && h.quarters.length > 1 ? <Spark q={h.quarters} /> : <span className="sx-dash">—</span>}</td></>}
                 <td>{h.alsoHeldBy.length ? <Who keys={h.alsoHeldBy} names={names} /> : <span className="sx-dash">—</span>}</td>
               </tr>))}</tbody>
           </table>
@@ -83,7 +95,7 @@ export function InvestorBody({ p, names }: { p: TrackedPage; names: Record<strin
 
       <section className="card si-sec sx-sec" aria-labelledby="sx-h-moves">
         <h2 id="sx-h-moves">Moves</h2>
-        <p className="si-lead">Every change since a year ago, largest first. A holder below 1% is not named, so “no longer named” means the investor sold or now holds under 1%; the filing does not say which.</p>
+        <p className="si-lead">Every change {sinceWords(p.since)}, largest first. A holder below 1% is not named, so “no longer named” means the investor sold or now holds under 1%; the filing does not say which.</p>
         {p.moveList.length === 0 ? <p className="si-empty">No stake changed between the two filings.</p> :
           <div className="si-scroll" tabIndex={0} role="region" aria-label="Moves, scrolls sideways">
             <table className="si-t sx-t">

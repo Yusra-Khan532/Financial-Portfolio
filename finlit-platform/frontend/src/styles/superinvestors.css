@@ -205,3 +205,4 @@
 .sx-eye{display:inline-flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
 .sx-eye .sx-fol{text-transform:none;letter-spacing:0}
 .sx-ov{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px;margin:0 10px 4px 0}
+.sx-spark{display:block;color:var(--gold-deep,var(--gold))}
