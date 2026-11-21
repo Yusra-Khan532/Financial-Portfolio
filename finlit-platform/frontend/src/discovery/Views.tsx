@@ -9,8 +9,8 @@ import { I, type InfoKey } from "./Info";
 import { useDsc } from "./ctx";
 import { CompanyTable, Evs, Locked, Prism, Stage, Trend } from "./CompanyTable";
 import { feedFor } from "./bucket";
-import { ARROW, BASE, BRIEF_CARDS, CORNERS, EVENTS, RECORD_FROM, STAGES, STAGE_CLASS, VIEW_PATH, daysOld, evBiz, eventPath, filterRows, fmtDate, industryPath, macroPath, pct,
-  sectorPath, short, slug, stat, themePath, tone, type BoardTheme, type Corner as CornerT, type DRow, type TState } from "./model";
+import { ARROW, BASE, BRIEF_CARDS, CORNERS, EVENTS, RECORD_FROM, STAGES, STAGE_CLASS, VIEW_PATH, daysOld, evBiz, eventPath, filterRows, fmtDate, useFeed, industryPath, macroPath, pct,
+  sectorPath, short, slug, stat, themePath, tone, type BoardTheme, type Corner as CornerT, type Filing, type DRow, type TState } from "./model";
 
 const pctOf = (n: number, of: number) => (of ? Math.round((n / of) * 100) : 0);
 const scrollToTable = () => setTimeout(() => document.getElementById("dsc-tbl-top")?.scrollIntoView?.({ block: "start", behavior: "smooth" }), 40);
@@ -88,10 +88,12 @@ function FilingList({ list, filtered }: { list: { s: string; n: string; d: strin
 }
 /** Task #296: the "Latest …" panel of a theme or event page follows the table's filters below it: only the filings of companies that pass them (null = no
  *  filter on, the whole feed). */
-function useFeedKeep(rows: DRow[], sort?: string): Set<string> | null {
+function useFeedKeep(rows: DRow[], by: { event?: string; theme?: string }, board: Filing[], sort?: string): { list: Filing[]; filtered: boolean } {
   const c = useDsc(), S = c.T("", sort);
   const on = !!(S.stage || S.size || S.lt || S.pr || S.cn || S.mac || S.sct || S.ind || S.mine || S.q || S.lenses.length || S.cell);
-  return useMemo(() => (on ? new Set(filterRows(rows, S, c.onList).map((r) => r.s)) : null), [on, rows, S, c]); // eslint-disable-line react-hooks/exhaustive-deps
+  const full = useFeed(by, on);       // the board has the newest 12; a filtered panel reads the whole 90 days
+  const keep = useMemo(() => (on ? new Set(filterRows(rows, S, c.onList).map((r) => r.s)) : null), [on, rows, S, c]); // eslint-disable-line react-hooks/exhaustive-deps
+  return { list: feedFor(on ? full.data?.filings ?? board : board, keep), filtered: on };
 }
 function FourKpis({ rows }: { rows: DRow[] }) {
   const c = useDsc(), s = stat(rows);
@@ -158,7 +160,7 @@ function WhereTheySit({ rows }: { rows: DRow[] }) {
 export function ThemePage({ theme }: { theme: string }) {
   const c = useDsc(), b = c.d.board!, t = b.themes.find((x) => x.name === theme)!;
   const rows = useMemo(() => c.d.rows.filter((r) => r.th === theme), [c.d.rows, theme]);
-  const keep = useFeedKeep(rows);
+  const feed = useFeedKeep(rows, { theme }, b.thfil?.[theme] ?? []);
   const s = stat(rows), yours = rows.filter((r) => c.onList(r.s));
   const sg = count(rows, (r) => r.st), sgN = new Map(sg);
   const p = usePrefs(), id = slug(theme), following = p.followThemes.includes(id);
@@ -185,7 +187,7 @@ export function ThemePage({ theme }: { theme: string }) {
       <div className="dsc-panel"><h3>What to check <I k="check" /></h3>
         {t.verify.length ? <ul>{t.verify.slice(0, 5).map((v) => <li key={v}>{v}</li>)}</ul> : <p className="dsc-na">No checklist for this theme yet.</p>}
         <p className="dsc-note">A theme word or a filing alone is not proof of real business. Check the figures, orders and status in the company’s own documents.</p></div>
-      <div className="dsc-panel"><h3>Latest filings in this theme</h3><FilingList list={feedFor(b.thfil?.[theme] ?? [], keep)} filtered={!!keep} /></div>
+      <div className="dsc-panel"><h3>Latest filings in this theme</h3><FilingList list={feed.list} filtered={feed.filtered} /></div>
     </div>
     <CompanyTable title={"Companies in " + t.label} base={rows} />
   </>;
@@ -218,7 +220,7 @@ export function EventPage({ k }: { k: string }) {
   const c = useDsc(), b = c.d.board!;
   const brief = BRIEF_CARDS.find((x) => x.k === k);
   const rows = useMemo(() => c.d.rows.filter((r) => r.ev[k]), [c.d.rows, k]);
-  const keep = useFeedKeep(rows, "ev");
+  const feed = useFeedKeep(rows, { event: k }, b.efil[k] ?? [], "ev");
   if (brief) return <>
     <Crumb trail={[[VIEW_PATH["what-changed"], "What changed"]]} here={brief.t} />
     <div className="dsc-dh"><div><h2>{brief.t} <span className="dsc-flg teal">From briefs</span></h2><p>Each item comes from a full company brief, with its value, its date and the page of the filing it is on. More companies appear as briefs are written.</p></div></div>
@@ -230,7 +232,7 @@ export function EventPage({ k }: { k: string }) {
     <Crumb trail={[[VIEW_PATH["what-changed"], "What changed"]]} here={e.t} />
     <div className="dsc-dh"><div><h2>{e.t}</h2><p>{s.n} companies {e.d} in the last {b.days} days. Sorted by how many such filings each made.</p></div><div className="dsc-dha"><Jump /></div></div>
     <FourKpis rows={rows} />
-    <div className="dsc-panel dsc-mb"><h3>Latest of these filings</h3><FilingList list={feedFor(b.efil[k] ?? [], keep)} filtered={!!keep} /></div>
+    <div className="dsc-panel dsc-mb"><h3>Latest of these filings</h3><FilingList list={feed.list} filtered={feed.filtered} /></div>
     <CompanyTable title={"Companies with " + e.t.toLowerCase()} base={rows} defaultSort="ev" event={k} />
   </>;
 }

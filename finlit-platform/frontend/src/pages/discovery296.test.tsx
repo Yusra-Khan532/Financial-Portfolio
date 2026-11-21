@@ -49,6 +49,8 @@ vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/ap
     if (p === `/api/discovery/sources?source=calls&bucket=${encodeURIComponent(GUIDE)}`) return CALLS(bucket(3, 2, JSON.parse(JSON.stringify(LIST))));
     if (p === "/api/screener/universe") return { rows: UNI, as_of: "2026-11-20" };
     if (p === "/api/rotation") return ROT;
+    if (p === "/api/discovery/feed?event=order") return { days: 90, total: 3, filings: [...BOARD.efil.order, { s: "ACME", n: "Acme Ltd", d: "2026-09-01", e: "order", el: "Order", t: "Order from BHEL", l: null }] };
+    if (p === "/api/discovery/feed?theme=Solar") return { days: 90, total: 1, filings: BOARD.thfil!.Solar };
     throw Object.assign(new Error("not stood in: " + p), { status: 503 });
   }) }));
 vi.mock("../lib/ui", async (orig) => ({ ...(await orig<typeof import("../lib/ui")>()),
@@ -150,6 +152,7 @@ describe("#296: the Latest panels of theme and event pages follow the filters", 
     fireEvent.change(screen.getByRole("combobox", { name: "Macro sector" }), { target: { value: "Industrials" } });
     expect(panel().textContent).toMatch(/Order from NTPC/);
     expect(panel().textContent).not.toMatch(/Order from IOC/);
+    expect(await within(panel()).findByText(/Order from BHEL/)).toBeTruthy();      // the 90 days' feed, read once a filter is on, beyond the board's newest 12
   });
   it("a theme page: a filter that leaves none of the feed's companies says so", async () => {
     await show("/discover/themes/solar?mac=Industrials");
