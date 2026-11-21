@@ -68,6 +68,8 @@ type Props = {
   editSell?: { onEdit: (symbol: string) => void; onSell: (symbol: string) => void };
   /** task #274 (change 11): what the row inside the table adds once it takes the view bar's place: the portfolio picker, the three views and Sections ▾ */
   stuckLead?: ReactNode;
+  /** task #274 (change 19): a chip beside Edit | Sell for a filing since the last visit ("● Fund raising ↗"), from Discover */
+  chip?: (symbol: string) => ReactNode;
 };
 const SIZE_ORDER: Record<string, number> = { Large: 0, Mid: 1, Small: 2, Micro: 3 };
 
@@ -177,7 +179,7 @@ export function SharesTable(p: Props) {
           {/* task #274 (pack change 8): symbol bold (BSE-only: the name), the full name on one line (BSE-only: its code), then Edit | Sell; every row one height */}
           <div className="pfs-t"><Link to={`/stocks/${l.symbol}`} className="pfs-sym" title={[coTitle({ symbol: l.symbol, name }), letter.has(l.symbol) ? `group ${letter.get(l.symbol)}` : ""].filter(Boolean).join(" · ")}>{titleOf({ symbol: l.symbol, name })}</Link>
             <span className="pfs-full" title={isBseCode(l.symbol) ? undefined : name}>{isBseCode(l.symbol) ? `BSE ${l.symbol}` : name || l.symbol}</span>
-            {ov && p.lots && <EditSellLinks p={p.lots} symbol={l.symbol} onEdit={() => p.editSell!.onEdit(l.symbol)} onSell={() => p.editSell!.onSell(l.symbol)} />}</div></div></td>
+            {ov && p.lots && <span className="pfs-acts"><EditSellLinks p={p.lots} symbol={l.symbol} onEdit={() => p.editSell!.onEdit(l.symbol)} onSell={() => p.editSell!.onSell(l.symbol)} />{p.chip?.(l.symbol)}</span>}</div></div></td>
           : <td className="pfx-name"><span className="x-nl"><Link to={`/stocks/${l.symbol}`} className="pfx-co"><CoLogo symbol={l.symbol} size={22} inline /><b title={coTitle({ symbol: l.symbol, name })}>{titleOf({ symbol: l.symbol, name })}</b></Link>{letter.has(l.symbol) && <span className="pfx-letter sm" title={`Group ${letter.get(l.symbol)}`}>{letter.get(l.symbol)}</span>}{ov && p.lots && <LotToggle p={p.lots} symbol={l.symbol} />}</span><small>{subLine({ symbol: l.symbol, name }, pk ? (pk.industry ?? name) : isBseCode(l.symbol) ? ((isReady(h) ? h.industry : null) ?? name) : name)}</small></td>}
         {ov && (p.editSell ? <td className="pfs-ind"><span className="pfs-indn" title={indOf(l) ?? undefined}>{indOf(l) ?? <Dash why="No industry in the stored report." />}</span>
           {sizeOf(l.symbol) ? <span className={"pfs-size pfs-sz-" + (sizeOf(l.symbol) as string).toLowerCase()}>{sizeOf(l.symbol)}</span> : <small className="pfs-nk">Size not known</small>}</td>

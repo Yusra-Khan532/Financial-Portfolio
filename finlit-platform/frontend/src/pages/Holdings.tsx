@@ -47,6 +47,8 @@ import { SectionsBar, SectionsMenu, jumpTo, type Sec } from "../portfolio/pack/P
 import { HideSlim, isHidden, setHidden } from "../components/Hideable";
 import { KeyAnswers } from "../portfolio/pack/KeyAnswers";
 import { divAnswers, portfolioAnswers, riskAnswers } from "../lib/keyAnswers";
+import { OrderWinNotice, WhatChanged, FilingChip, useWhatChanged } from "../components/changes/WhatChanged";
+import { useWatchlist } from "../lib/watchlist";
 import { EqTitle, MoneyBox, NextView, PfPicker, ScorePanel, ViewCards, YourPortfolios, useEqViewsSeen, type DayMove, type ViewCard } from "../portfolio/pack/EqTop";
 import { GoldLock, InShort, Insights, LeadersSection, StyleTiltPack, PeersSection, TrendSection, SizeFold, eqViews, type View } from "../portfolio/pack/EquityPack";
 import { StickySwitch } from "../portfolio/ViewKit";
@@ -75,7 +77,7 @@ const UPLOAD_NOTE = <>
 </>;
 
 const SECS: Record<TabKey, { label: string; secs: Sec[] }> = {
-  portfolio: { label: "Portfolio", secs: [["pf-shares", "Your shares"], ["eq-keys", "Key figures"], ["eq-trend", "Trends"], ["eq-peers", "Peers"], ["eq-leaders", "Group leaders"]] },
+  portfolio: { label: "Portfolio", secs: [["pf-shares", "Your shares"], ["eq-keys", "Key figures"], ["eq-wc", "What changed"], ["eq-trend", "Trends"], ["eq-peers", "Peers"], ["eq-leaders", "Group leaders"]] },
   diversification: { label: "Diversification analytics", secs: [["eq-where", "Where it sits"], ["eq-keysd", "Key figures"], ["eq-spread", "Spread"], ["eq-sectors", "Sectors"], ["eq-groups", "Stock groups"], ["eq-sizes", "Company sizes"], ["eq-grid", "Share by share"], ["eq-style", "Style tilt"]] },
   risk: { label: "Risk analytics", secs: [["eq-rg", "At a glance"], ["eq-keysr", "Key figures"], ["eq-build", "Beta build"], ["eq-sizeb", "Size benchmarks"], ["eq-mr", "Risk share"], ["eq-fall", "If the market fell 10%"], ["eq-each", "Each share"]] },
 };
@@ -276,6 +278,14 @@ export function HoldingsPage() {
   });
   /** All sections (task #274, change 11): every hidden section of the open view comes back, and the page goes to the top of the view */
   const showAllSecs = () => { SECS[view].secs.forEach(([id]) => setHidden("pack." + id, false)); setTimeout(() => document.getElementById("eq-tabs")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60); };
+  // task #274 (change 19): What changed at your companies, from Discover: the section (Your shares or Watchlist), the chip under each share for a filing
+  // since the last visit, the notice over the table for a new order win, and "N new" on the step
+  const wl = useWatchlist();
+  const watchSyms = useMemo(() => [...new Set(wl.lists.flatMap((x) => x.symbols))].filter((x) => !symbols.includes(x)), [wl, symbols]);
+  const onWatch = useMemo(() => new Set(wl.lists.flatMap((x) => x.symbols)), [wl]);
+  const [wcList, setWcList] = useState<"equity" | "watch">("equity");
+  const wcQ = useWhatChanged(DEMO ? [] : symbols, "equity-portfolio");
+  const secsLive = useMemo(() => ({ ...SECS, portfolio: { ...SECS.portfolio, secs: SECS.portfolio.secs.map((x): Sec => (x[0] === "eq-wc" && wcQ.newN ? [x[0], x[1], `${wcQ.newN} new`] : x)) } }), [wcQ.newN]);
   const renamePf = (id: string, name: string) => { const n = name.trim(); if (!n) return "Give the portfolio a name."; if (pfList.some((x) => x.id !== id && x.name.trim().toLowerCase() === n.toLowerCase())) return `You already have a portfolio called ${n}. Try another name, such as "${n} (joint)".`;
     if (!st.portfolios?.length) portfolio.replace({ ...portfolio.get(), portfolios: pfList.map((x) => ({ ...x })) }); portfolio.renamePortfolio(id, n); toast("Portfolio renamed."); return null; };
   const riskSp = useMemo(() => (page && rk.data && div ? riskSplit(page, rk.data, (x) => div.levelOf(x, "macro")) : null), [page, rk.data, div]);
@@ -355,14 +365,15 @@ export function HoldingsPage() {
           {data && data.noPrices.length > 0 && <p className="pfx-note" role="status">No stored prices yet for {data.noPrices.join(", ")}: {plural(data.noPrices.length, "share")} left out of the co-movement figures.</p>}
           {DEMO && <p className="pfx-note" role="status">The diversification figures are not available in the demo preview.</p>}
           {state === "error" && <p className="pfx-warn" role="alert">{pg.error?.body?.detail || "The figures for this list could not be loaded. Try again in a moment."}</p>}
-          <SectionsBar tab={view} all={SECS} steps onAll={showAllSecs} onTab={(t, then) => { setView(t); if (then) setTimeout(() => jumpTo(then), 120); }}
+          <SectionsBar tab={view} all={secsLive} steps onAll={showAllSecs} onTab={(t, then) => { setView(t); if (then) setTimeout(() => jumpTo(then), 120); }}
             lead={<StickySwitch list={pfList} cur={cur} onPick={(id) => { setCur(id); setOpenLots(new Set()); }} figs={pfFigs} defs={eqViews(lines.length)} view={view} onView={(v) => setView(v)} tabsId="eq-tabs" fresh={(["portfolio", "diversification", "risk"] as View[]).filter((v) => !seen.has(v))} />} />
           <div id="eq-panel" role="tabpanel" aria-labelledby={`eq-tab-${view}`}>
           {view !== "portfolio" && <AnalysingBar list={pfList} cur={cur} onPick={(id) => { setCur(id); setOpenLots(new Set()); }} n={symbols.length} />}
           {view === "portfolio" && <>
-            <SharesTable stuckLead={<>
+            <OrderWinNotice row={wcQ.notice} page="equity-portfolio" />
+            <SharesTable chip={(sym) => <FilingChip row={wcQ.chip(sym)} />} stuckLead={<>
               <StickySwitch list={pfList} cur={cur} onPick={(id) => { setCur(id); setOpenLots(new Set()); }} figs={pfFigs} defs={eqViews(lines.length)} view={view} onView={(v) => setView(v)} tabsId="eq-tabs" fresh={(["portfolio", "diversification", "risk"] as View[]).filter((v) => !seen.has(v))} />
-              <SectionsMenu secs={SECS.portfolio.secs} here="pf-shares" isHidden={(id) => isHidden("pack." + id)} show={(id) => setHidden("pack." + id, false)} onAll={showAllSecs} /></>}
+              <SectionsMenu secs={secsLive.portfolio.secs} here="pf-shares" isHidden={(id) => isHidden("pack." + id)} show={(id) => setHidden("pack." + id, false)} onAll={showAllSecs} /></>}
               lots={lots} editSell={{ onEdit: (sym) => setEsWin({ what: "edit", symbol: sym }), onSell: (sym) => setEsWin({ what: "sell", symbol: sym }) }} qtyOf={(sym) => qtyBySymbol.get(sym) ?? null} onQty={onQty} lines={lines} meta={meta} page={page} mode={mode} colors={colors} model={model} tab={tab} period={period} limit={cap} state={ov.isError ? "error" : ov.isPending && !DEMO ? "loading" : "ready"}
               errorText={DEMO ? "Scores are not available in the demo preview." : ov.error?.body?.detail} onTab={(t) => go(t)} onPeriod={(pd) => go("financials", pd)}
               peerOf={(sym) => shareOf.get(sym)} day={day} cards={tab === "overview" ? <div className="eq-cards"><Insights items={sharesCards(shares, day)} scope="eq.shares" /></div> : null}
@@ -370,6 +381,10 @@ export function HoldingsPage() {
             <SoldList items={sold} all={cur === "all" && pfList.length > 1} pfName={pfName} nameOf={(sym) => meta[sym]?.name ?? sym} onRemoveSale={(id, sym) => { portfolio.remove(id); setOpenLots((c) => new Set([...c, sym]));
               setTimeout(() => { const r = document.getElementById(`lots-${sym}`)?.previousElementSibling as HTMLElement | null; r?.classList.add("x-flash"); r?.scrollIntoView?.({ behavior: "smooth", block: "center" }); setTimeout(() => r?.classList.remove("x-flash"), 2300); }, 150); }} />
             <KeyAnswers id="eq-keys" sub={`What your ${plural(lines.length, "share")} add up to, from the table above and the sections below.`} items={portfolioAnswers(shares, model === "prism", (x) => shortLabel(x))} shares={shares} />
+            {!DEMO && <WhatChanged title="What changed at your companies" symbols={wcList === "equity" ? symbols : watchSyms} listName={wcList === "equity" ? "your shares" : "your watchlists"}
+              listRef={wcList === "equity" ? "equity" : "watch"} page="equity-portfolio" lists={[{ id: "equity", label: "Your shares", count: symbols.length }, { id: "watch", label: "Watchlist", count: watchSyms.length }]}
+              activeList={wcList} onPickList={(id) => setWcList(id === "watch" ? "watch" : "equity")} nameOf={(x) => meta[x]?.name ?? by.get(x)?.name}
+              sub={wcList === "equity" ? (x) => (onWatch.has(x) ? "★ also on a watchlist" : null) : undefined} className="sp-sec wc eq-wc" hId="wc-h-eq" id="eq-wc" />}
             <SizeFold counts={sizeCount} />
             {/* Trends, Peers and Group leaders: Gold only (FinLit Prism); Silver sees a dashed lock card for each (the pack) */}
             {model === "prism" ? <>

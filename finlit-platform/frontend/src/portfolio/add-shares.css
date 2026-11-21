@@ -185,3 +185,5 @@ html.eq-rowup .eq .eqt-bar { transform: translateY(-160%); opacity: 0; pointer-e
 #pf-shares .pfx-table thead.is-pinned th:first-child { z-index: 7; }
 #pf-shares .pfx-table thead.is-pinned tr:last-child th { box-shadow: 0 8px 12px -12px rgba(0, 0, 0, .5); }
 #pf-shares .pfx-table thead.is-pinned th::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(var(--s1), var(--s1)), var(--bg); }   /* --s1 is slightly see-through in light: lay it on the solid page colour */
+/* task #274 change 19: the filing chip sits beside Edit | Sell on the same line, so rows keep their height */
+.pfs-acts { display: flex; align-items: center; gap: 8px; min-width: 0; white-space: nowrap; } .pfs-acts .wc-chip { overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
