@@ -3,7 +3,7 @@ fastapi==0.143.2
 uvicorn==0.54.0
 python-dotenv>=1.2.4
 pymongo>=4.19.0,<5
-pydantic>=2.6.4
+pydantic>=2.14.3
 email-validator>=2.3.0
 pyjwt>=2.10.1
 bcrypt==4.1.3
