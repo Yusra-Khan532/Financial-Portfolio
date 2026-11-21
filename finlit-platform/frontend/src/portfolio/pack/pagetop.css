@@ -81,7 +81,7 @@
 /* Task #274 (Equity portfolio, change 11): the steps scroll inside the bar; ‹ › only when they do not fit; the edge with hidden steps fades; each arrow
    greys out at its end. The stuck pill sits in a page-coloured band under the site header, so rows do not show through above it. */
 .eqt-bar.eqt-scr { overflow: visible; }
-.eqt-bar.eqt-scr.stuck { box-shadow: 0 -14px 0 6px var(--bg), 0 10px 22px -16px rgba(0, 0, 0, .4); }
+.eqt-bar.eqt-scr.stuck { box-shadow: 0 -24px 0 10px var(--bg), 0 10px 22px -16px rgba(0, 0, 0, .4); }
 .eqt-steps { display: flex; align-items: center; gap: 4px; flex: 1 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; scroll-behavior: smooth; }
 .eqt-steps::-webkit-scrollbar { display: none; }
 .eqt-steps.f-l { -webkit-mask-image: linear-gradient(90deg, transparent, #000 28px); mask-image: linear-gradient(90deg, transparent, #000 28px); }

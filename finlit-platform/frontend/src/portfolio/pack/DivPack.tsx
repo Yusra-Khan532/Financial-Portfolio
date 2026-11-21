@@ -119,7 +119,7 @@ export function DivSubTabs({ d }: { d: DivInput }) {
   const [sub, setSub] = useState<Sub>("sectors");
   useEffect(() => { const on = (e: Event) => { const id = (e as CustomEvent<string>).detail, hit = SUBS.find((x) => x[1] === id); if (hit) setSub(hit[0]); }; addEventListener("eq-jump", on); return () => removeEventListener("eq-jump", on); }, []);
   return (
-    <div className="eqd-subs">
+    <div className="eqd-subs" id="eq-moves">   {/* task #274 (change 17): one step, "How the list moves together", with the three ways as tabs */}
       <p className="x2-k" aria-hidden="true">How the list moves together <small>{SUBS.length} ways to look · tap one</small></p>
       <div className="eqd-subbar" role="tablist" aria-label="How the list moves together">{SUBS.map(([k, , t, s], i) => <button key={k} type="button" role="tab" aria-selected={sub === k} aria-controls={"eqd-p-" + k} id={"eqd-t-" + k} onClick={() => setSub(k)}><span className="xn" aria-hidden="true">{i + 1}</span><b>{t}</b><small>{s}</small></button>)}</div>
       <div role="tabpanel" id={"eqd-p-" + sub} aria-labelledby={"eqd-t-" + sub}>

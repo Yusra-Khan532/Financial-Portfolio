@@ -170,6 +170,8 @@ async def has_work(store) -> Optional[bool]:
     if not raw:
         return None
     last = json.loads(raw)
+    if "sourcesUnreached" not in last:     # task #267: the last run predates the call and results step (a deploy added it): run now, not at the next window
+        return True
     return int(last.get("unreached") or 0) > 0 or int(last.get("sourcesUnreached") or 0) > 0     # task #267: calls and results left too
 
 
