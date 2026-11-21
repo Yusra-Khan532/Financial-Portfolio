@@ -60,6 +60,7 @@ PUBLIC: Dict[str, Page] = {
     "fii-dii": Page("FII and DII Data: Daily Institutional Flows | FinLit", "Daily FII and DII buying and selling in Indian equities, with trends over time and what the flows describe. Information only.", "FII and DII activity", "Daily institutional flows in Indian equities.", "FII and DII"),
     "sectors": Page("Sector Performance India: Sector Pulse and Rotation | FinLit", "See which Indian sectors are strengthening or weakening, how breadth is changing and which companies lead each sector.", "Indian sectors", "Sector states, breadth and leaders across Indian markets.", "Sectors"),
     "ipo": Page("IPO Calendar India: Upcoming and Recent IPOs | FinLit", "Upcoming and recent Indian IPOs with dates, price bands and issue size, in one calendar. Information only, not advice.", "IPO calendar", "Upcoming and recent Indian IPOs.", "IPO calendar"),
+    "ipo/all": Page("All Indian IPOs since 2020: Listing and Subscription | FinLit", "Every mainboard and SME IPO since 2020: issue price, subscription, GMP, listing price and return since IPO. Information only, not advice.", "All IPOs", "Every Indian IPO since 2020 with listing and subscription figures.", "All IPOs"),
     "concalls": Page("Concall Monitor: Earnings Call Recordings and Transcripts | FinLit", "Indian companies' earnings calls from their own exchange filings: the date and time, the recording, the transcript and the investor presentation.", "Concall Monitor", "Earnings call recordings, transcripts and investor presentations, from the companies' own filings.", "Concall Monitor"),
     "results": Page("Quarterly Results Calendar: Company Results India | FinLit", "Which Indian companies report results and when, with the numbers once they are out and how they compare with the year before.", "Quarterly results", "Company results calendar and the numbers as they arrive.", "Results"),
     "funds": Page("Mutual Fund Screener India: Compare Fund Returns | FinLit", "Search and compare Indian mutual funds on returns, cost, size and risk, with Mutual Fund Score. Information only.", "Mutual funds", "Search and compare Indian mutual funds.", "Funds"),
@@ -94,7 +95,7 @@ PRIVATE = ("account", "dashboard", "console", "admin", "login", "verify-email", 
            "funds/insights", "etfs/compare", "etfs/compare-index-funds", "sectors/rotation", "sectors/capital-goods", "research/stress-lab", "reverse-valuation",
            "discovery")      # task #260: the old address of Discover, now a redirect to /discover
 # Addresses that carry a value in the last part and are answered with a generic head (their content is checked in the app).
-PARAM_PREFIXES = ("funds", "etfs", "prism", "sectors", "blog", "legal", "outlook", "premium/report", "graphs/advanced", "account", "forum", "research/stress-lab", "superinvestors", "superinvestors/name")   # superinvestors/name: one filed name as written (task #289)
+PARAM_PREFIXES = ("ipo", "funds", "etfs", "prism", "sectors", "blog", "legal", "outlook", "premium/report", "graphs/advanced", "account", "forum", "research/stress-lab", "superinvestors", "superinvestors/name")   # superinvestors/name: one filed name as written (task #289)
 
 
 # Addresses that moved for good: answered with a 301 to the new address before anything else (web.py), and never listed in the sitemap. The query string is

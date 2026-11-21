@@ -21,6 +21,7 @@ from .ipogmp import SOURCE_NAME, SOURCE_URL, verdict
 
 router = APIRouter()
 IST = timezone(timedelta(hours=5, minutes=30))
+QUOTE_FALLBACK_DAYS = 365   # the nightly quote stands in for our daily closes only this long after listing (it is not split-adjusted)
 NOT_LISTED_AFTER = 45     # days after the bidding closed with no listing: the issue is shown as "did not list"
 
 SOURCES = {
@@ -33,11 +34,12 @@ ROWS_SQL = """SELECT g.ig_id, g.url, g.name, g.nse, g.bse, g.isin, g.board, g.se
     g.issue_size_cr, g.gmp, g.gmp_pct, g.listing_pct, g.listed, g.open_date, g.close_date, g.fetched_at,
     g.detail -> 'issue' AS issue, g.detail -> 'timetable' AS tt, g.nse_book -> 'categories' AS cats,
     lc.open AS listing_open, lc.close AS listing_close, cur.close AS last_close, cur.day AS last_day,
-    EXISTS (SELECT 1 FROM companies c WHERE c.symbol = g.nse) AS has_page
+    EXISTS (SELECT 1 FROM companies c WHERE c.symbol = g.nse) AS has_page, q.price AS quote_price, q.traded_at AS quote_at
     FROM ipo_gmp g
     LEFT JOIN LATERAL (SELECT open, close FROM price_daily p WHERE p.symbol = g.nse AND p.day = g.listing_date) lc ON g.nse IS NOT NULL AND g.listed
     LEFT JOIN LATERAL (SELECT close, day FROM price_daily p WHERE p.symbol = g.nse AND p.day >= g.listing_date ORDER BY p.day DESC LIMIT 1) cur
         ON g.nse IS NOT NULL AND g.listed
+    LEFT JOIN listing_quotes q ON q.symbol = g.nse AND g.listed
     WHERE ($1::int IS NULL OR g.ig_id = $1)
     ORDER BY COALESCE(g.open_date, g.listing_date) DESC NULLS LAST, g.ig_id DESC"""
 FULL_SQL = "SELECT detail, nse_book, history FROM ipo_gmp WHERE ig_id = $1"
@@ -88,6 +90,13 @@ def row(r: Dict[str, Any], today: date) -> Dict[str, Any]:
     cats = {c["key"]: c["times"] for c in (_j(r["cats"]) or []) if isinstance(c, dict) and c.get("key")}
     issue, lp = _f(r["issue_price"]), _f(r["listing_price"])
     last, lclose = _f(r["last_close"]), _f(r["listing_close"])
+    last_day = r["last_day"]
+    # No daily closes of our own: the nightly quote, but only for an issue that listed within the last year (the quote is not adjusted for splits and
+    # bonuses, which are rare in a share's first year; older issues need our adjusted daily history)
+    if last is None and r.get("quote_price") and r["listing_date"] and (today - r["listing_date"]).days <= QUOTE_FALLBACK_DAYS:
+        last = _f(r["quote_price"])
+        qa = r.get("quote_at")
+        last_day = qa.astimezone(IST).date() if qa else None
     k = adjustment(_f(r["listing_open"]), lp)
     base = issue * k if issue and k else issue          # the issue price in the same terms as our (split- and bonus-adjusted) daily prices
     st = status(bool(r["listed"]), bool(iss.get("withdrawn")), r["open_date"], r["close_date"], today)
@@ -100,7 +109,7 @@ def row(r: Dict[str, Any], today: date) -> Dict[str, Any]:
         "issueSizeCr": _f(r["issue_size_cr"]) if not iss.get("totalCr") else iss.get("totalCr"), "freshCr": iss.get("freshCr"), "ofsCr": iss.get("ofsCr"),
         "subscription": _f(r["subscription"]), "subQib": cats.get("qib"), "subNii": cats.get("nii"), "subRetail": cats.get("retail"),
         "gmp": _f(r["gmp"]), "gmpPct": _f(r["gmp_pct"]), "listingPrice": lp if r["listed"] else None, "listingPct": _f(r["listing_pct"]) if r["listed"] else None,
-        "listingClose": lclose, "listingClosePct": pct(lclose, base), "lastClose": last, "lastDay": r["last_day"].isoformat() if r["last_day"] else None,
+        "listingClose": lclose, "listingClosePct": pct(lclose, base), "lastClose": last, "lastDay": last_day.isoformat() if last_day else None,
         "companyPage": bool(r.get("has_page")), "sinceIpoPct": pct(last, base), "adjustedBy": round(k, 4) if k and k != 1.0 else None, "verdict": verdict(_f(r["gmp_pct"]), _f(r["listing_pct"])) if r["listed"] else None,
     }
 
