@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import type { Agree, Move, Size, TrackedCard, TrackedTab as Tab } from "./types";
+import { FollowButton, type useFollows } from "./Follow";
 import { Co, MoveTag, PeersTag, PrismTag, Ret, StakeThenNow, TechCell, Who, crore, pct, signed } from "./parts";
 
 const STEP = 15;
@@ -105,27 +106,27 @@ export function TheyAgree({ d, names }: { d: Tab; names: Record<string, string> 
 
 const SORTS = [["value", "Value today"], ["moves", "Most moves this year"], ["named", "Named stakes, 1 year"], ["name", "Name"]] as const;
 
-export function Cards({ d }: { d: Tab }) {
+export function Cards({ d, f }: { d: Tab; f?: ReturnType<typeof useFollows> }) {
   const [sort, setSort] = useState<(typeof SORTS)[number][0]>("value");
   const cards = useMemo(() => [...d.investors].sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "moves" ? b.movesTotal - a.movesTotal
     : sort === "named" ? (b.namedStakes1y.pct ?? -1e9) - (a.namedStakes1y.pct ?? -1e9) : (b.valueCr ?? 0) - (a.valueCr ?? 0)), [d.investors, sort]);
   return (
     <section className="card si-sec sx-sec" aria-labelledby="sx-h-cards">
       <h2 id="sx-h-cards">Tracked investors</h2>
-      <p className="si-lead">Each investor with every name they file under: their own, family members' and their investment companies'.</p>
+      <p className="si-lead">Each investor with every name they file under: their own, family members' and their investment companies'. Follow one to get an alert when a new filing shows a change.</p>
       <div className="sx-bar"><label className="sx-lab">Sort by <select className="sx-sel" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}>
-        {SORTS.map(([k, w]) => <option key={k} value={k}>{w}</option>)}</select></label></div>
-      <ul className="sx-grid">{cards.map((c) => <Card key={c.key} c={c} />)}</ul>
+        {SORTS.map(([k, w]) => <option key={k} value={k}>{w}</option>)}</select></label><span className="sx-sp" />{f?.state && <span className="sx-lab">Following {f.state.follows.length}</span>}</div>
+      <ul className="sx-grid">{cards.map((c) => <Card key={c.key} c={c} f={f} />)}</ul>
       <p className="sx-note">“Named stakes, 1 year” is how the stocks named today moved in price over 12 months, weighted by today's value; the same-size market is the median move of all listed companies of the same sizes. It is not the investor's own return.</p>
     </section>
   );
 }
 
-function Card({ c }: { c: TrackedCard }) {
+function Card({ c, f }: { c: TrackedCard; f?: ReturnType<typeof useFollows> }) {
   const m = c.moves;
   return (
     <li className="sx-card">
-      <div className="sx-card-h"><Link to={`/superinvestors/${c.key}`}>{c.name}</Link></div>
+      <div className="sx-card-h"><Link to={`/superinvestors/${c.key}`}>{c.name}</Link>{f && <FollowButton k={c.key} name={c.name} f={f} />}</div>
       <span className="sx-sub">{c.groupedNames === 1 ? "One filed name" : `${c.groupedNames} filed names grouped`} · {c.companies} {c.companies === 1 ? "company" : "companies"}</span>
       <dl className="sx-kv">
         <div><dt>Value today</dt><dd>{crore(c.valueCr)}</dd></div>
