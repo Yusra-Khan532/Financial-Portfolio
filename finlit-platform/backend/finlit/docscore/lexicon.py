@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Tuple
 
-LEXICON_VERSION = "2.1.0"   # workflow v2 weights; 2.1.0 adds the neutral contexts and auditor boilerplate below (calibration on real filings, change log)
+LEXICON_VERSION = "2.1.1"   # workflow v2 weights; 2.1.0 adds the neutral contexts and auditor boilerplate below (calibration on real filings, change log)
 
 # Change log (workflow 8.4 step 6: date, term, old and new, reason)
 # 2026-11-21 2.1.0  neutral contexts (weight 0, masked before every other list, the hard triggers included): the standard paragraphs every auditor's
@@ -20,6 +20,8 @@ LEXICON_VERSION = "2.1.0"   # workflow v2 weights; 2.1.0 adds the neutral contex
 #                   is a product word, not a default on debt.
 # 2026-11-21 2.1.0  boilerplate: the auditor's standard responsibilities paragraphs are legal text that says nothing about the business (workflow 3.3).
 # 2026-11-21 2.1.0  "net cash used in", "net cash from"/"net cash generated from" (cash flow statement line labels) are neutral, not "net cash +8".
+# 2026-11-21 2.1.1  transcripts (segment.py): a participants list names the company's speakers; a name alone on a line starts a turn; journalists,
+#                   analysts and anyone not on the company's list, the cover letter ("Sub:") and questions are left out (Infosys Q2 FY27 transcript).
 # 2026-11-21 2.1.0  period words: "full-year" (the workflow's worked call example gives "full-year guidance to 18-20%" E +6).
 
 THEMES: Dict[str, str] = {
