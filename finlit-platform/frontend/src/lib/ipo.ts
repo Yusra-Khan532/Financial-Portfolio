@@ -7,13 +7,13 @@ export type IpoDetails = {
   subscription?: { overall?: number; qib?: number; nii?: number; retail?: number; employees?: number; shareholders?: number };
   allotmentDate?: string; refundDate?: string; creditDate?: string; faceValue?: number; minInvestmentProvided?: number; issuePrice?: number;
   freshIssueCr?: number; ofsCr?: number; promoterPrePct?: number; promoterPostPct?: number; objectives?: string[];
-  docs?: { drhp?: string; rhp?: string; prospectus?: string }; about?: string; statusText?: string;
+  docs?: { drhp?: string; rhp?: string; prospectus?: string }; about?: string; statusText?: string; gmp?: { rupees: number; pct: number; source: string };
 };
 export type Ipo = {
   id: number; name: string; symbol: string | null; kind: "mainboard" | "sme"; sector: string | null; status: "upcoming" | "open" | "closed" | "listed";
   openDate: string; closeDate: string; listingDate: string | null; priceLow: number | null; priceHigh: number | null; lotSize: number | null;
   issueSizeCr: number | null; listingPrice: number | null; note: string | null; link: string | null;
-  details?: IpoDetails; updatedAt?: string | null; source?: string | null;
+  details?: IpoDetails; updatedAt?: string | null; source?: string | null; recordId?: number | null;
 };
 /** `fresh` skips the browser cache (the admin console must see its own changes at once). */
 export const useIpos = (fresh = false) => useQuery({ queryKey: ["ipos", fresh], queryFn: () => apiGet<{ ipos: Ipo[] }>("/api/ipos", fresh ? { cache: "reload" } : undefined).then((d) => d.ipos), staleTime: 120_000, retry: 1 });
@@ -45,7 +45,7 @@ export const hasSubscription = (i: Ipo) => SUBSCRIPTION_ROWS.some(([k]) => i.det
 /** One listed IPO in the GMP record: the last grey-market premium InvestorGain recorded before listing, against the listing price (both as a percent of
  *  the issue price). `verdict`: beat = listed more than `bandPts` above what the GMP said, short = more than `bandPts` below, band = within. */
 export type GmpPoint = { id: number; name: string; symbol: string | null; board: "mainboard" | "sme"; issuePrice: number; gmp: number; gmpPct: number; listingPrice: number;
-  listingPct: number; listingDate: string | null; subscription: number | null; issueSizeCr: number | null; verdict: "beat" | "short" | "band"; url: string };
+  listingPct: number; day1Close?: number | null; day1ClosePct?: number | null; listingDate: string | null; subscription: number | null; issueSizeCr: number | null; verdict: "beat" | "short" | "band"; url: string };
 export type GmpRecord = {
   board: "all" | "mainboard" | "sme"; items: GmpPoint[]; source: { name: string; url: string }; updatedAt: string | null; note: string;
   summary: { count: number; beat: number; short: number; band: number; bandPts: number; directionRight: number; medianGap: number | null; fit: { slope: number; intercept: number } | null };

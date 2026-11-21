@@ -11,8 +11,9 @@ exchange's closes), return since IPO = (latest close - issue price) / issue pric
 from __future__ import annotations
 
 import json
+import re
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Path, Request
 from fastapi.responses import Response
@@ -32,7 +33,7 @@ SOURCES = {
 
 ROWS_SQL = """SELECT g.ig_id, g.url, g.name, g.nse, g.bse, g.isin, g.board, g.sector, g.issue_price, g.listing_price, g.listing_date, g.subscription,
     g.issue_size_cr, g.gmp, g.gmp_pct, g.listing_pct, g.listed, g.open_date, g.close_date, g.fetched_at,
-    g.detail -> 'issue' AS issue, g.detail -> 'timetable' AS tt, g.nse_book -> 'categories' AS cats,
+    g.detail -> 'issue' AS issue, g.day1_open, g.day1_high, g.day1_low, g.day1_close, g.day1_src, g.last_px, g.last_px_date, g.last_px_src, g.detail -> 'timetable' AS tt, g.nse_book -> 'categories' AS cats,
     lc.open AS listing_open, lc.close AS listing_close, cur.close AS last_close, cur.day AS last_day,
     EXISTS (SELECT 1 FROM companies c WHERE c.symbol = g.nse) AS has_page, q.price AS quote_price, q.traded_at AS quote_at
     FROM ipo_gmp g
@@ -88,17 +89,30 @@ def row(r: Dict[str, Any], today: date) -> Dict[str, Any]:
     """One IPO as a table row."""
     iss, tt = _j(r["issue"]) or {}, _j(r["tt"]) or {}
     cats = {c["key"]: c["times"] for c in (_j(r["cats"]) or []) if isinstance(c, dict) and c.get("key")}
-    issue, lp = _f(r["issue_price"]), _f(r["listing_price"])
+    issue = _f(r["issue_price"])
+    # The listing price: the exchange's own open on the listing date when we have its file (InvestorGain's figure is the fallback: it is occasionally
+    # wrong, e.g. Waterways Leisure Tourism, ₹500 there against NSE's ₹681 open)
+    lp = _f(r.get("day1_open")) or _f(r["listing_price"])
+    lpct = pct(lp, issue) if r.get("day1_open") else _f(r["listing_pct"])
     last, lclose = _f(r["last_close"]), _f(r["listing_close"])
     last_day = r["last_day"]
-    # No daily closes of our own: the nightly quote, but only for an issue that listed within the last year (the quote is not adjusted for splits and
-    # bonuses, which are rare in a share's first year; older issues need our adjusted daily history)
-    if last is None and r.get("quote_price") and r["listing_date"] and (today - r["listing_date"]).days <= QUOTE_FALLBACK_DAYS:
-        last = _f(r["quote_price"])
-        qa = r.get("quote_at")
-        last_day = qa.astimezone(IST).date() if qa else None
     k = adjustment(_f(r["listing_open"]), lp)
     base = issue * k if issue and k else issue          # the issue price in the same terms as our (split- and bonus-adjusted) daily prices
+    since_base = base
+    # The first-day close: the exchange's own file for the listing date (as traded, so it compares directly with the issue price); else our daily closes
+    d1 = _f(r.get("day1_close"))
+    lclose_pct = pct(d1, issue) if d1 else pct(lclose, base)
+    lclose = d1 or lclose
+    # No daily closes of our own: the newest close in the exchange's file, else the nightly quote, but only for an issue that listed within the last
+    # year (neither is adjusted for splits and bonuses, which are rare in a share's first year; older issues need our adjusted daily history)
+    recent = bool(r["listing_date"]) and (today - r["listing_date"]).days <= QUOTE_FALLBACK_DAYS
+    if last is None and recent and r.get("last_px"):
+        last, last_day, since_base = _f(r["last_px"]), r.get("last_px_date"), issue
+    elif last is None and recent and r.get("quote_price"):
+        last, since_base = _f(r["quote_price"]), issue
+        qa = r.get("quote_at")
+        last_day = qa.astimezone(IST).date() if qa else None
+    day1 = {"open": _f(r.get("day1_open")), "high": _f(r.get("day1_high")), "low": _f(r.get("day1_low")), "close": d1, "source": r.get("day1_src")} if d1 else None
     st = status(bool(r["listed"]), bool(iss.get("withdrawn")), r["open_date"], r["close_date"], today)
     return {
         "id": r["ig_id"], "name": r["name"], "symbol": r["nse"] or r["bse"], "nse": r["nse"], "bse": r["bse"], "board": r["board"], "sector": r["sector"],
@@ -108,9 +122,9 @@ def row(r: Dict[str, Any], today: date) -> Dict[str, Any]:
         "priceLow": iss.get("priceLow"), "priceHigh": iss.get("priceHigh"), "issuePrice": issue, "lotSize": iss.get("lotSize"), "minAmount": iss.get("minAmount"),
         "issueSizeCr": _f(r["issue_size_cr"]) if not iss.get("totalCr") else iss.get("totalCr"), "freshCr": iss.get("freshCr"), "ofsCr": iss.get("ofsCr"),
         "subscription": _f(r["subscription"]), "subQib": cats.get("qib"), "subNii": cats.get("nii"), "subRetail": cats.get("retail"),
-        "gmp": _f(r["gmp"]), "gmpPct": _f(r["gmp_pct"]), "listingPrice": lp if r["listed"] else None, "listingPct": _f(r["listing_pct"]) if r["listed"] else None,
-        "listingClose": lclose, "listingClosePct": pct(lclose, base), "lastClose": last, "lastDay": last_day.isoformat() if last_day else None,
-        "companyPage": bool(r.get("has_page")), "sinceIpoPct": pct(last, base), "adjustedBy": round(k, 4) if k and k != 1.0 else None, "verdict": verdict(_f(r["gmp_pct"]), _f(r["listing_pct"])) if r["listed"] else None,
+        "gmp": _f(r["gmp"]), "gmpPct": _f(r["gmp_pct"]), "listingPrice": lp if r["listed"] else None, "listingPct": lpct if r["listed"] else None,
+        "listingClose": lclose, "listingClosePct": lclose_pct, "day1": day1, "lastClose": last, "lastDay": last_day.isoformat() if last_day else None,
+        "companyPage": bool(r.get("has_page")), "sinceIpoPct": pct(last, since_base), "adjustedBy": round(k, 4) if k and k != 1.0 else None, "verdict": verdict(_f(r["gmp_pct"]), lpct) if r["listed"] else None,
     }
 
 
@@ -144,3 +158,95 @@ async def record(request: Request, ig_id: int = Path(..., ge=1, le=10_000_000)) 
             "updatedAt": r["fetched_at"].isoformat() if r["fetched_at"] else None, "sources": SOURCES,
             "note": "GMP (grey market premium) is an informal, unofficial grey-market price, as InvestorGain recorded it; it is not an exchange figure."}
     return Response(json.dumps(body, default=str), media_type="application/json", headers={"Cache-Control": "public, max-age=600"})
+
+
+# ------------------------------------------------------------------------------------------------ the IPO calendar, completed from the IPO record
+# The calendar's rows come from FinEdge, whose feed leaves out lot size, sector, listing date and listing price (so a listed issue read "Closed") and most
+# details. Each calendar row is matched to its IPO record (NSE symbol or BSE code, else the same name with bidding opening within a week), and only what the
+# calendar row lacks is filled in. The record id is added, so the calendar can open the IPO report.
+CAL_RECORDS_SQL = """SELECT ig_id, name, nse, bse, board, sector, issue_price, listing_price, listing_date, subscription, issue_size_cr, gmp, gmp_pct, listed,
+    open_date, close_date, day1_open, day1_close, detail, nse_book FROM ipo_gmp WHERE open_date IS NULL OR open_date > current_date - 400"""
+
+
+def _norm(name: Optional[str]) -> str:
+    n = re.sub(r"[^a-z0-9 ]", " ", (name or "").lower())
+    n = re.sub(r"\b(limited|ltd|ipo|india|the|pvt|private|co|company)\b", " ", n)
+    return re.sub(r"\s+", " ", n).strip()
+
+
+def match(cal: Dict[str, Any], recs: List[Dict[str, Any]], by_sym: Dict[str, Dict[str, Any]], by_name: Dict[str, List[Dict[str, Any]]]) -> Optional[Dict[str, Any]]:
+    sym = (cal.get("symbol") or "").upper()
+    if sym and sym in by_sym:
+        return by_sym[sym]
+    cands = by_name.get(_norm(cal.get("name")), [])
+    od = cal.get("openDate")
+    for r in cands:
+        if not od or not r.get("open_date") or abs((r["open_date"] - date.fromisoformat(od)).days) <= 7:
+            return r
+    return None
+
+
+def complete(cal: Dict[str, Any], r: Dict[str, Any], today: date) -> Dict[str, Any]:
+    """One calendar row with the gaps filled from its IPO record."""
+    det = _j(r.get("detail")) or {}
+    iss, tt, ppl, docs = det.get("issue") or {}, det.get("timetable") or {}, det.get("people") or {}, det.get("documents") or {}
+    book = _j(r.get("nse_book")) or {}
+    f = _f
+    out = dict(cal)
+    out["recordId"] = r["ig_id"]
+    out["sector"] = cal.get("sector") or r.get("sector") or (det.get("company") or {}).get("sector")
+    out["lotSize"] = cal.get("lotSize") or (int(iss["lotSize"]) if iss.get("lotSize") else None)
+    out["issueSizeCr"] = cal.get("issueSizeCr") or iss.get("totalCr") or f(r.get("issue_size_cr"))
+    out["priceLow"] = cal.get("priceLow") or iss.get("priceLow")
+    out["priceHigh"] = cal.get("priceHigh") or iss.get("priceHigh")
+    if r.get("listed"):
+        ld = r.get("listing_date")
+        out["listingDate"] = cal.get("listingDate") or (ld.isoformat() if ld else None)
+        out["listingPrice"] = cal.get("listingPrice") or f(r.get("day1_open")) or f(r.get("listing_price"))
+        if out["listingDate"] and out.get("status") == "closed" and date.fromisoformat(out["listingDate"]) <= today:
+            out["status"] = "listed"
+    elif not cal.get("listingDate") and tt.get("listing"):
+        out["listingDate"] = tt["listing"]
+    d = dict(cal.get("details") or {})
+    sub = dict(d.get("subscription") or {})
+    if sub.get("overall") is None and r.get("subscription") is not None:
+        sub["overall"] = f(r["subscription"])
+    for c in book.get("categories") or []:
+        k = {"qib": "qib", "nii": "nii", "retail": "retail", "employee": "employees", "shareholder": "shareholders"}.get(c.get("key"))
+        if k and sub.get(k) is None:
+            sub[k] = c.get("times")
+    if sub:
+        d["subscription"] = sub
+    fill = {"issueType": iss.get("kind"), "exchange": iss.get("exchanges") or None, "registrar": ppl.get("registrar"), "leadManagers": ppl.get("leadManagers") or None,
+            "allotmentDate": tt.get("allotment"), "refundDate": tt.get("refunds"), "creditDate": tt.get("credit"), "faceValue": iss.get("faceValue"),
+            "issuePrice": iss.get("issuePrice") if r.get("listed") or (cal.get("status") == "closed") else None, "freshIssueCr": iss.get("freshCr"), "ofsCr": iss.get("ofsCr"),
+            "promoterPrePct": iss.get("promoterPre"), "promoterPostPct": iss.get("promoterPost")}
+    for k, v in fill.items():
+        if d.get(k) in (None, "", []) and v not in (None, "", []):
+            d[k] = v
+    dd = {k: v for k, v in (d.get("docs") or {}).items() if v}
+    for k in ("drhp", "rhp", "prospectus"):
+        if not dd.get(k) and docs.get(k):
+            dd[k] = docs[k]
+    if dd:
+        d["docs"] = dd
+    if r.get("gmp") is not None and r.get("gmp_pct") is not None:
+        d["gmp"] = {"rupees": f(r["gmp"]), "pct": f(r["gmp_pct"]), "source": SOURCE_NAME}
+    out["details"] = d
+    return out
+
+
+async def complete_calendar(conn, items: List[Dict[str, Any]], today: date) -> List[Dict[str, Any]]:
+    recs = [dict(x) for x in await conn.fetch(CAL_RECORDS_SQL)]
+    by_sym: Dict[str, Dict[str, Any]] = {}
+    by_name: Dict[str, List[Dict[str, Any]]] = {}
+    for r in recs:
+        for s in (r.get("nse"), r.get("bse")):
+            if s:
+                by_sym.setdefault(s.upper(), r)
+        by_name.setdefault(_norm(r["name"]), []).append(r)
+    out = []
+    for c in items:
+        r = match(c, recs, by_sym, by_name)
+        out.append(complete(c, r, today) if r else c)
+    return out

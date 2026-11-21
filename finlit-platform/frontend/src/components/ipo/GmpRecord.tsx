@@ -101,7 +101,8 @@ export function GmpRecord() {
                     <b>{hover.name}</b>
                     <dl>
                       <div><dt>GMP (unofficial)</dt><dd>{pcs(hover.gmpPct)}<small>₹{nf(hover.gmp, hover.gmp % 1 ? (hover.gmp < 10 ? 2 : 1) : 0)}</small></dd></div>
-                      <div><dt>Listing day</dt><dd className={hover.listingPct > 0 ? "up" : hover.listingPct < 0 ? "down" : ""}>{pcs(hover.listingPct)}<small>₹{nf(hover.listingPrice, hover.listingPrice % 1 ? 2 : 0)}</small></dd></div>
+                      <div><dt>Listed at</dt><dd className={hover.listingPct > 0 ? "up" : hover.listingPct < 0 ? "down" : ""}>{pcs(hover.listingPct)}<small>₹{nf(hover.listingPrice, hover.listingPrice % 1 ? 2 : 0)}</small></dd></div>
+                      {hover.day1ClosePct != null && hover.day1Close != null && <div><dt>Day-1 close</dt><dd className={hover.day1ClosePct > 0 ? "up" : hover.day1ClosePct < 0 ? "down" : ""}>{pcs(hover.day1ClosePct)}<small>₹{nf(hover.day1Close, hover.day1Close % 1 ? 2 : 0)}</small></dd></div>}
                     </dl>
                     <span className="ipo-gmp-tm">{[hover.listingDate ? day(hover.listingDate) : null, hover.board === "sme" ? "SME" : "Mainboard", hover.subscription != null ? `${nf(hover.subscription, 2)}x subscribed` : null].filter(Boolean).join(" · ")}</span>
                     <span className={"v " + hover.verdict}>{WORD[hover.verdict]}</span>

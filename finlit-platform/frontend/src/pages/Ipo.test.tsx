@@ -128,7 +128,7 @@ describe("What GMP said vs what actually listed", () => {
     const dot = within(sec).getAllByRole("link").find((e) => e.tagName.toLowerCase() === "circle" && /^bls/.test(e.getAttribute("aria-label") || "")) as Element;
     fireEvent.mouseEnter(dot);
     const tip = sec.querySelector(".ipo-gmp-tip") as HTMLElement;
-    expect(tip.textContent).toContain("GMP (unofficial)"); expect(tip.textContent).toContain("Listing day"); expect(tip.textContent).toContain("+65.3%");
+    expect(tip.textContent).toContain("GMP (unofficial)"); expect(tip.textContent).toContain("Listed at"); expect(tip.textContent).toContain("+65.3%");
     expect(tip.style.left).not.toBe("");
   });
 });

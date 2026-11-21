@@ -11,6 +11,7 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import time
 import re
 import secrets
@@ -1241,8 +1242,14 @@ async def list_ipos(request: Request):
     async with request.app.state.store.pool.acquire() as conn:
         rows = await conn.fetch("SELECT id, name, symbol, kind, sector, open_date, close_date, listing_date, price_low, price_high, lot_size, issue_size_cr, listing_price, note, link, details, updated_at, source "
                                 "FROM ipos ORDER BY open_date DESC LIMIT 300")   # not `raw`: it is for later features, not for the page
-    today = datetime.now(IST).date()   # India's date: an IPO opening today must read "Open" from midnight IST, not 05:30
-    return Response(content=json.dumps({"ipos": [ipo_json(r, today) for r in rows]}), media_type="application/json",
+        today = datetime.now(IST).date()   # India's date: an IPO opening today must read "Open" from midnight IST, not 05:30
+        items = [ipo_json(r, today) for r in rows]
+        try:                               # the provider's rows, completed from the IPO record (lot size, sector, listing, subscription, documents ...)
+            from ..ipoapi import complete_calendar
+            items = await complete_calendar(conn, items, today)
+        except Exception:
+            logging.getLogger("finlit.ipos").warning("IPO calendar not completed from the IPO record", exc_info=True)
+    return Response(content=json.dumps({"ipos": items}, default=str), media_type="application/json",
                     headers={"Cache-Control": "public, max-age=120, stale-while-revalidate=600"})
 
 

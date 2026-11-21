@@ -337,9 +337,16 @@ async def gmp_record(request: Request, board: str = Query("all", pattern="^(all|
         rows = [dict(r) for r in await conn.fetch(RECORD_SQL, None if board == "all" else board)]
         newest = await conn.fetchval("SELECT max(fetched_at) FROM ipo_gmp")
     f = lambda v: float(v) if v is not None else None  # noqa: E731
-    items = [{"id": r["ig_id"], "name": r["name"], "symbol": r["nse"] or r["bse"], "board": r["board"], "issuePrice": f(r["issue_price"]), "gmp": f(r["gmp"]), "gmpPct": f(r["gmp_pct"]),
-              "listingPrice": f(r["listing_price"]), "listingPct": f(r["listing_pct"]), "listingDate": r["listing_date"].isoformat() if r["listing_date"] else None,
-              "subscription": f(r["subscription"]), "issueSizeCr": f(r["issue_size_cr"]), "verdict": verdict(f(r["gmp_pct"]), f(r["listing_pct"])), "url": r["url"]} for r in rows]
+    pc = lambda a, b: round((a - b) / b * 100, 2) if a is not None and b else None  # noqa: E731
+    items = []
+    for r in rows:
+        issue, d1o, d1c = f(r["issue_price"]), f(r.get("day1_open")), f(r.get("day1_close"))
+        lp = d1o or f(r["listing_price"])                     # the exchange's own listing-day open when its file has been read; InvestorGain's otherwise
+        lpct = pc(d1o, issue) if d1o else f(r["listing_pct"])
+        items.append({"id": r["ig_id"], "name": r["name"], "symbol": r["nse"] or r["bse"], "board": r["board"], "issuePrice": issue, "gmp": f(r["gmp"]), "gmpPct": f(r["gmp_pct"]),
+                      "listingPrice": lp, "listingPct": lpct, "day1Close": d1c, "day1ClosePct": pc(d1c, issue),
+                      "listingDate": r["listing_date"].isoformat() if r["listing_date"] else None, "subscription": f(r["subscription"]), "issueSizeCr": f(r["issue_size_cr"]),
+                      "verdict": verdict(f(r["gmp_pct"]), lpct), "url": r["url"]})
     body = {"board": board, "items": items, "summary": summary([{"gmp_pct": i["gmpPct"], "listing_pct": i["listingPct"]} for i in items]),
             "source": {"name": SOURCE_NAME, "url": SOURCE_URL}, "updatedAt": newest.isoformat() if newest else None,
             "note": "GMP (grey market premium) is an informal, unofficial price from the grey market, as InvestorGain recorded it. It is not an exchange figure."}
