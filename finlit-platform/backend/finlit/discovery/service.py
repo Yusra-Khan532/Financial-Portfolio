@@ -133,6 +133,13 @@ async def run(store, limit: int = 300, max_minutes: float = 40.0, symbols: Optio
     finally:
         if own:
             await f.aclose()
+    try:                                   # task #267: then the calls and results, in the minutes the presentations left (their limits unchanged)
+        from . import sources as SRC
+        left = max(0.0, max_minutes - (time.monotonic() - started) / 60)
+        docs = await SRC.run(store, max_minutes=left, symbols=symbols, fetcher=fetcher)
+    except Exception as e:                 # a fault here never stops the run or the presentations' result
+        log.exception("discovery: calls and results not read")
+        docs = {"error": type(e).__name__, "unreached": 0}
     try:                                   # kept texts older than 400 days go, a bounded batch per run; a fault never stops the run
         from ..ask import docstore
         pruned = await docstore.prune(store)
@@ -140,7 +147,7 @@ async def run(store, limit: int = 300, max_minutes: float = 40.0, symbols: Optio
         log.warning("discovery: kept texts not pruned", exc_info=True)
         pruned = 0
     res = {"filings": tagged, "pending": len(todo), "read": done, "textsKept": kept, "textsPruned": pruned, "unreached": max(0, len(todo) - done), "statuses": counts, "errors": errors,
-           "minutes": round((time.monotonic() - started) / 60, 1)}
+           "callsAndResults": docs, "sourcesUnreached": int(docs.get("unreached") or 0), "minutes": round((time.monotonic() - started) / 60, 1)}
     try:
         await store.redis.set(RUN_KEY, json.dumps(res), ex=7 * 86400)
     except Exception:   # nosec B110 - the probe then falls back to the clock
@@ -149,7 +156,8 @@ async def run(store, limit: int = 300, max_minutes: float = 40.0, symbols: Optio
 
 
 async def has_work(store) -> Optional[bool]:
-    """For the job supervisor: True when the last run stopped with presentations it never reached, so the job continues soon, or when the stored
+    """For the job supervisor: True when the last run stopped with presentations (or, task #267, call transcripts and results filings) it never
+    reached, so the job continues soon, or when the stored
     filings were sorted under an older rule (task #273: a deploy that changes the sorting re-sorts them on the next probe, minutes after the deploy,
     not at the next night window; database only, seconds)."""
     try:
@@ -161,7 +169,8 @@ async def has_work(store) -> Optional[bool]:
     raw = await store.redis.get(RUN_KEY)
     if not raw:
         return None
-    return int(json.loads(raw).get("unreached") or 0) > 0
+    last = json.loads(raw)
+    return int(last.get("unreached") or 0) > 0 or int(last.get("sourcesUnreached") or 0) > 0     # task #267: calls and results left too
 
 
 # ------------------------------------------------------------------------------------------------ the page
