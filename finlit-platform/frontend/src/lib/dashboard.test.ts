@@ -87,7 +87,7 @@ describe("customise layout (task #195: five numbered steps)", () => {
   const ids = (l: { id: string }[]) => l.map((w) => w.id);
   it("starts in the order of the pack's flow table, every block on except Gold & silver", () => {
     const d = normaliseLayout(null);
-    expect(ids(d)).toEqual(["mystocks", "say", "portfolio", "mfglance", "etfglance", "movers", "second", "buckets", "market", "marketread", "snapshot", "sectors", "flows", "heatmap",
+    expect(ids(d)).toEqual(["mystocks", "say", "portfolio", "mfglance", "etfglance", "movers", "second", "buckets", "market", "globalmarkets", "marketread", "snapshot", "sectors", "flows", "heatmap",
       "resultstoday", "filings", "results", "ipos", "alerts", "stress", "dcf", "learn", "commodities"]);
     expect(d.filter((w) => !w.on).map((w) => w.id)).toEqual(["commodities"]);
     expect(d).toHaveLength(WIDGETS.length);

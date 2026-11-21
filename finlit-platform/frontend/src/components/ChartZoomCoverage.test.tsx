@@ -40,6 +40,7 @@ const OWN: { file: string; needle: RegExp; why: string }[] = [
 const EXEMPT: Record<string, string> = {
   "portfolio/kit/AddBox.tsx": "the add box's magnifier icon (task #276); no data",
   "superinvestors/Follow.tsx": "the bell icon of the Follow button (task #289); no data",
+  "components/dashboard/GlobalMarkets.tsx": "the world view and the 1-month lines of the Global markets card (task #294): every figure is in the table beside them",
   "superinvestors/InvestorBody.tsx": "the 8-quarter stake sparkline inside a holdings row (task #289); its figures are in the line's label",
   "portfolio/kit/FilterRow.tsx": "the Find box's magnifier icon (task #276); no data",
   "portfolio/kit/KitSection.tsx": "the Hide button's eye icon (task #276); no data",
