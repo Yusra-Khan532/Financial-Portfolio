@@ -22,7 +22,7 @@ describe("view tabs (B2)", () => {
     expect(screen.getByText("Choose a view").textContent).toBe("Choose a view 3 views of your list · tap one");
     const tabs = screen.getAllByRole("tab");
     expect(tabs.map((t) => [t.querySelector("b")!.textContent, t.getAttribute("aria-selected"), (t as HTMLElement).style.getPropertyValue("--va")])).toEqual([
-      ["Portfolio", "true", "#0e6471"], ["Diversification analytics", "false", "#4b4fc4"], ["Risk analytics", "false", "#b5541c"]]);
+      ["Portfolio", "true", "#0e6471"], ["Diversification analytics", "false", "#4b4fc4"], ["Risk analytics", "false", "#a24a17"]]);   // task #274 (change 11): the darker orange, 4.5:1 or more on the bar
     expect(tabs[0].querySelector(".eqv-ic svg")).toBeTruthy();
     fireEvent.keyDown(tabs[0], { key: "ArrowLeft" });
     expect(on).toHaveBeenCalledWith("risk");

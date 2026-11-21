@@ -116,7 +116,7 @@ export function Section({ id, title, help, how, sub, why, hide, right, children 
       {children}
     </section>
   );
-  return hide ? <Hideable id={"pack." + id} title={title}>{body}</Hideable> : body;
+  return hide ? <Hideable id={"pack." + id} title={title} sub={typeof sub === "string" ? sub : undefined}>{body}</Hideable> : body;
 }
 
 /** Task #192 (T5): the industries inside a too-small sector group, and the line that accounts for all of NSE's industries, from GET /api/taxonomy. */

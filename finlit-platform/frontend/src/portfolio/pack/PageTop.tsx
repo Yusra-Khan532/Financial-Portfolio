@@ -91,7 +91,17 @@ export function useHeaderHeight() {
   }, []);
 }
 
-export function SectionsBar<T extends string = TabKey>({ tab, all, onTab, lead }: { tab: T; all: Record<T, { label: string; secs: Sec[] }>; onTab: (t: T, then?: string) => void; lead?: ReactNode }) {
+export function SectionsBar<T extends string = TabKey>({ tab, all, onTab, lead, steps: scr = false, onAll }: { tab: T; all: Record<T, { label: string; secs: Sec[] }>; onTab: (t: T, then?: string) => void; lead?: ReactNode;
+  /** task #274 (Equity, change 11): the steps scroll inside the bar with ‹ › arrows when they do not fit; All sections shows every hidden section and goes to the top of the view */
+  steps?: boolean; onAll?: () => void }) {
+  const stepsBox = useRef<HTMLSpanElement>(null), [over, setOver] = useState({ any: false, l: false, r: false });
+  useEffect(() => {   // recheck the fit whenever the bar changes width (the portfolio and views appear on sticking)
+    const el = stepsBox.current; if (!scr || !el) return;
+    const fit = () => setOver({ any: el.scrollWidth > el.clientWidth + 2, l: el.scrollLeft > 2, r: el.scrollLeft < el.scrollWidth - el.clientWidth - 2 });
+    fit(); el.addEventListener("scroll", fit, { passive: true });
+    const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(fit); ro?.observe(el); if (el.parentElement) ro?.observe(el.parentElement);
+    return () => { el.removeEventListener("scroll", fit); ro?.disconnect(); };
+  }, [scr, tab]);
   const secs = all[tab].secs, [on, setOn] = useState(secs[0]?.[0] ?? ""), [menu, setMenu] = useState(false), [at, setAt] = useState({ top: 0, left: 0 }), [stuck, setStuck] = useState(false), bar = useRef<HTMLElement>(null);
   useHeaderHeight();
   useEffect(() => {   // "stuck": the bar has reached its sticky place under the header
@@ -110,11 +120,34 @@ export function SectionsBar<T extends string = TabKey>({ tab, all, onTab, lead }
     if (!menu) return; const y0 = scrollY, close = () => setMenu(false), sc = () => { if (Math.abs(scrollY - y0) > 40) setMenu(false); };
     addEventListener("click", close); addEventListener("scroll", sc, { passive: true }); return () => { removeEventListener("click", close); removeEventListener("scroll", sc); };
   }, [menu]);
+  useEffect(() => {   // task #274: the open step slides into view inside the steps box
+    const box = stepsBox.current, c = box?.querySelector<HTMLElement>(".eqt-chip[aria-current=true]"); if (!scr || !box || !c) return;
+    const l = c.offsetLeft - box.offsetLeft, r = l + c.offsetWidth;
+    if (l < box.scrollLeft) box.scrollTo?.({ left: Math.max(0, l - 24), behavior: "smooth" }); else if (r > box.scrollLeft + box.clientWidth) box.scrollTo?.({ left: r - box.clientWidth + 24, behavior: "smooth" });
+  }, [on, scr, over.any]);
+  useEffect(() => {   // task #274: at the bottom of the page the last section on screen is marked
+    if (!scr) return;
+    const end = () => { if (innerHeight + scrollY < document.documentElement.scrollHeight - 4) return; const vis = secs.map(([id]) => document.getElementById(id)).filter((e): e is HTMLElement => !!e && e.getBoundingClientRect().top < innerHeight); if (vis.length) setOn(vis[vis.length - 1].id); };
+    addEventListener("scroll", end, { passive: true }); return () => removeEventListener("scroll", end);
+  }, [scr, tab]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {   // task #235 (pack B12): the current chip scrolls into view beside the switchers, not under them
-    const el = bar.current, c = el?.querySelector<HTMLElement>(".eqt-chip[aria-current=true]"); if (!el || !c) return;
+    const el = bar.current, c = el?.querySelector<HTMLElement>(".eqt-chip[aria-current=true]"); if (scr || !el || !c) return;
     const sw = stuck ? el.querySelector<HTMLElement>(":scope > .x-sw")?.offsetWidth ?? 0 : 0, l = c.offsetLeft - el.offsetLeft, r = l + c.offsetWidth;
     if (l < el.scrollLeft + sw) el.scrollLeft = Math.max(0, l - sw - 8); else if (r > el.scrollLeft + el.clientWidth) el.scrollLeft = r - el.clientWidth + 8;
   }, [on, stuck]);
+  const chips = secs.map(([id, label], i) => <span key={id} className="eqt-chipw">{i > 0 && <span className="eqt-arrow" aria-hidden="true">→</span>}
+    <button type="button" className="eqt-chip" aria-current={on === id ? "true" : undefined} onClick={() => { setOn(id); jumpTo(id); }}><span className="eqt-n">{i + 1}</span>{label}</button></span>);
+  if (scr) {
+    const nudge = (d: 1 | -1) => { const el = stepsBox.current; if (el) el.scrollBy?.({ left: d * Math.max(160, el.clientWidth * 0.6), behavior: "smooth" }); };
+    return (
+      <nav ref={bar} className={"eqt-bar eqt-scr sw-host" + (stuck ? " stuck" : "") + (stuck && lead ? " x-sw-on" : "")} aria-label="Sections on this tab">
+        {lead}
+        <button type="button" className="eqt-all" onClick={() => { setOn(secs[0]?.[0] ?? ""); onAll?.(); }} title="Show every hidden section again and go to the top of the view">All sections</button>
+        {over.any && <button type="button" className="eqt-sa" aria-label="Earlier sections" disabled={!over.l} onClick={() => nudge(-1)}>‹</button>}
+        <span ref={stepsBox} className={"eqt-steps" + (over.l ? " f-l" : "") + (over.r ? " f-r" : "")}>{chips}</span>
+        {over.any && <button type="button" className="eqt-sa" aria-label="Later sections" disabled={!over.r} onClick={() => nudge(1)}>›</button>}
+      </nav>);
+  }
   return (
     <nav ref={bar} className={"eqt-bar sw-host" + (stuck ? " stuck" : "") + (stuck && lead ? " x-sw-on" : "")} aria-label="Sections on this tab">
       {lead}
@@ -122,10 +155,27 @@ export function SectionsBar<T extends string = TabKey>({ tab, all, onTab, lead }
         {/* task #235: the menu renders into the page body, because the stuck bar's backdrop blur clipped a fixed menu inside the bar */}
         {menu && createPortal(<div className="eqt-menu" role="menu" style={{ top: at.top, left: at.left }} onClick={(e) => e.stopPropagation()}>{(Object.keys(all) as T[]).map((t) => <div key={t}><p>{all[t].label}</p>
           {all[t].secs.map(([id, label], i) => <button key={id} type="button" role="menuitem" onClick={() => { setMenu(false); if (t === tab) { setOn(id); jumpTo(id); } else onTab(t, id); }}><span className="eqt-n">{i + 1}</span>{label}</button>)}</div>)}</div>, document.body)}</span>
-      {secs.map(([id, label], i) => <span key={id} className="eqt-chipw">{i > 0 && <span className="eqt-arrow" aria-hidden="true">→</span>}
-        <button type="button" className="eqt-chip" aria-current={on === id ? "true" : undefined} onClick={() => { setOn(id); jumpTo(id); }}><span className="eqt-n">{i + 1}</span>{label}</button></span>)}
+      {chips}
     </nav>
   );
+}
+
+/** Task #274 (change 11): "Sections ▾" in the row that takes the bar's place inside the table: the open view's sections with their numbers, "You are here",
+ *  "Hidden · opens it" for a hidden one (choosing it shows it and goes there), and All sections at the end. */
+export function SectionsMenu({ secs, here, isHidden, show, onAll }: { secs: Sec[]; here: string; isHidden: (id: string) => boolean; show: (id: string) => void; onAll: () => void }) {
+  const [open, setOpen] = useState(false), box = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const out = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") { setOpen(false); box.current?.querySelector<HTMLButtonElement>("button")?.focus(); } };
+    document.addEventListener("mousedown", out); document.addEventListener("keydown", key);
+    return () => { document.removeEventListener("mousedown", out); document.removeEventListener("keydown", key); };
+  }, [open]);
+  return <span className="eqt-secw" ref={box}><button type="button" className="eqt-secb" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>Sections <i aria-hidden="true">▾</i></button>
+    {open && <span className="eqt-secm" role="menu">{secs.map(([id, label], i) => { const h = isHidden(id);
+      return <button key={id} type="button" role="menuitem" onClick={() => { setOpen(false); if (h) show(id); setTimeout(() => jumpTo(id), h ? 120 : 0); }}>
+        <span className="eqt-n">{i + 1}</span><b>{label}</b>{id === here ? <small>You are here</small> : h ? <small>Hidden · opens it</small> : null}</button>; })}
+      <button type="button" role="menuitem" className="eqt-secall" onClick={() => { setOpen(false); onAll(); }}>All sections</button></span>}</span>;
 }
 
 /** Gold: the portfolio score box (as before), now the first cell of the top grid. */
