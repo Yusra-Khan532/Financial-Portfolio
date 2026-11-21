@@ -27,6 +27,8 @@ import pandas as pd
 SIZE_INDEX = {"Large": ("NIF50", "Nifty 50"), "Mid": ("NIFMID150", "Nifty Midcap 150"), "Small": ("NIFSMA250", "Nifty Smallcap 250"),
               "Micro": ("NIFMIC250", "Nifty Microcap 250")}
 from ..sizes import SIZES, size_of as _site_size   # noqa: E402  task #262: the site's one rule
+# Task #274 (the 20 Nov equity pack, change 17 and live text issue 7): "Compare with" picks one of these indices, and Risk at a glance's four tiles follow it
+COMPARE = {"NIF50": "Nifty 50", "NIF500": "Nifty 500", "NIFMID150": "Nifty Midcap 150", "NIFSMA250": "Nifty Smallcap 250"}
 YEAR_WEEKS = 52
 MIN_WEEKS = 45                                  # a share needs most of a year of weekly closes for a beta
 DAYS_3Y = 3 * 365
@@ -196,6 +198,22 @@ def build(prices: Dict[str, Optional[dict]], index_rows: Dict[str, List[dict]], 
     worst = nw.nsmallest(10).index
     glance["worst10"] = {"list": r2(float(lst.reindex(worst).mean() * 100), 1) if lst is not None else None, "nifty": r2(float(nw.reindex(worst).mean() * 100), 1)}
     glance["weighted"] = r2(weighted)
+    # the same figures against each index "Compare with" offers: its swing and worst fall (3 years), the list's and the index's average move in that index's
+    # 10 worst weeks of the past year, and the list's beta against it. An index without closes is left out (the page falls back to the Nifty 50)
+    vs: Dict[str, Any] = {}
+    for code, name in COMPARE.items():
+        lv = idx.get(code)
+        if lv is None or lv.empty:
+            continue
+        sf = swing_and_fall(lv, end)
+        wk = bw.get(code)                                       # the same weekly returns as every other figure here (the past year, to the last full week)
+        if wk is None or wk.empty:
+            continue
+        w10 = wk.nsmallest(10).index
+        vs[code] = {"name": name, "swing": r2(sf["swing"], 1), "worstFall": r2(sf["worstFall"], 1), "grain": sf["grain"], "years": sf["years"],
+                    "worst10": {"list": r2(float(lst.reindex(w10).mean() * 100), 1) if lst is not None and len(w10) else None, "index": r2(float(wk.reindex(w10).mean() * 100), 1) if len(w10) else None},
+                    "beta": r2(ols_beta(lst, wk)[0]) if lst is not None else None}
+    glance["vs"] = vs
     return {"to": end.date().isoformat(), "from": (end - pd.Timedelta(weeks=YEAR_WEEKS)).date().isoformat(), "counted": n, "shares": shares, "sizes": by_size,
             "betas": {"weighted": r2(weighted), "blended": r2(b_blend), "nifty": r2(b_nifty), "weightedBand": band_of(weighted), "blendedBand": band_of(b_blend), "niftyBand": band_of(b_nifty)},
             "glance": glance, "ranges": [{"key": k, "word": w, "below": None if math.isinf(t) else t} for t, k, w in BANDS]}

@@ -100,3 +100,21 @@ def test_no_nifty_is_an_error_and_a_share_with_no_prices_says_why():
         rs.build({}, {}, {}, {})
     out = rs.build({"X": None}, IDX, {"X": "Small"}, {})
     assert out["shares"][0]["why"] == "No stored prices" and out["counted"] == 0
+
+
+def test_task274_the_glance_figures_against_each_compare_index():
+    """Change 17 and live text issue 7 (20 Nov pack): picking NIFTY 500, Midcap 150 or Smallcap 250 in Compare with changed the picker but not the four
+    tiles. The answer now carries each index's swing and worst fall, the list's and the index's move in that index's 10 worst weeks, and the list's beta
+    against it; an index without closes is left out."""
+    big = 1.2 * MID
+    n500 = rng.normal(0.002, 0.022, len(FRIDAYS) - 1)
+    idx = {**IDX, "NIF500": [{"d": d.date().isoformat(), "c": c} for d, c in zip(FRIDAYS, path(n500))]}
+    out = rs.build({"MIDCO": series(path(big))}, idx, {"MIDCO": "Mid"}, {})
+    vs = out["glance"]["vs"]
+    assert set(vs) == {"NIF50", "NIF500", "NIFMID150", "NIFSMA250"}
+    assert vs["NIFMID150"]["name"] == "Nifty Midcap 150" and vs["NIFMID150"]["beta"] == 1.2          # the list moves exactly 1.2 times the Midcap 150
+    w = pd.Series(MID[-52:]); worst = w.nsmallest(10)
+    assert vs["NIFMID150"]["worst10"]["index"] == pytest.approx(round(float(worst.mean() * 100), 1))
+    assert vs["NIFMID150"]["worst10"]["list"] == pytest.approx(round(float(1.2 * worst.mean() * 100), 1), abs=0.11)
+    assert vs["NIF50"]["swing"] == out["glance"]["nifty"]["swing"] and vs["NIF50"]["worstFall"] == out["glance"]["nifty"]["worstFall"]   # the Nifty 50 as before
+    assert "NIF500" not in rs.build({"MIDCO": series(path(big))}, IDX, {"MIDCO": "Mid"}, {})["glance"]["vs"]   # no closes, no figures

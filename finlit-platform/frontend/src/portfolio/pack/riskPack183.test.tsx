@@ -39,7 +39,7 @@ describe("risk at a glance (E72)", () => {
     expect(g[3].win).toMatch(/^vs each share's size index · weekly · past year, to /);
     expect(glanceTiles(R).map((t) => [t.k, t.v, t.nifty, t.sub])).toEqual([
       ["Typical swing in a year · 3 yrs", "25.9%", "13.1%", "About 2.0 times as bumpy as the index."], ["Worst fall from a high · 3 yrs", "−24.6%", "−14.9%", "Deeper than the index."],
-      ["In the 10 worst weeks · past year", "−3.9%", "−2.7%", "Falls more when the market falls."], ["Beta, size-weighted", "1.82", "1.00", "More sensitive than its market (its own benchmarks)."]]);
+      ["In the 10 worst weeks · past year", "−3.9%", "−2.7%", "Falls more when the market falls."], ["Beta, size-weighted", "1.82", "1.13", "More sensitive than its market (its own benchmarks)."]]);   // task #274: under it, the whole list's beta against the index compared with (Nifty 50 here)
     view(<RiskGlancePack r={R} split={split} />);
     expect(screen.getByText(/beta for 10 shares \(FRACTAL has under a year of prices\)/)).toBeTruthy();
   });

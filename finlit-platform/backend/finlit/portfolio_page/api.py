@@ -149,7 +149,7 @@ async def risk_page(request: Request, body: PageIn, ctx: Ctx = Depends(member_ct
     from . import risk_sizes
     symbols = body.symbols
     week = div.unfinished_week(div.now_ist())
-    key = "pfrisk:" + ":".join(["v3", week, hashlib.sha1(",".join(sorted(symbols)).encode()).hexdigest()[:24]])   # nosec B324 - cache key
+    key = "pfrisk:" + ":".join(["v4", week, hashlib.sha1(",".join(sorted(symbols)).encode()).hexdigest()[:24]])   # nosec B324 - cache key
     redis = app.state.store.redis
     try:
         cached = await redis.get(key)
@@ -161,7 +161,7 @@ async def risk_page(request: Request, body: PageIn, ctx: Ctx = Depends(member_ct
     known = [s for s in symbols if s in facts]
     classes = await app.state.store.classifications(known) if known else {}
     index_rows: Dict[str, Any] = {}
-    for code, _name in risk_sizes.SIZE_INDEX.values():
+    for code in dict.fromkeys([c for c, _n in risk_sizes.SIZE_INDEX.values()] + list(risk_sizes.COMPARE)):   # task #274: also the "Compare with" indices (Nifty 500)
         raw = await _cached(app, f"idx:px:{code}", 6 * 3600, lambda c=code: _fetch_levels(app, c))
         index_rows[code] = shape_levels(raw, 5)["rows"] if raw else []
     if not index_rows.get("NIF50"):
