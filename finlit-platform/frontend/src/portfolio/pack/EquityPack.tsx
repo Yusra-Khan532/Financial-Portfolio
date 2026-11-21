@@ -234,7 +234,7 @@ export function InShort({ items }: { items: Reading[] }) {
   const xs = useMemo(() => [...items].sort((a, b) => (a.section === "data" ? -1 : 0) - (b.section === "data" ? -1 : 0)), [items]);
   if (!xs.length) return null;
   return (
-    <details className="sp-sec sp-fold eq-short" open>
+    <details className="sp-sec sp-fold eq-short" open id="eq-short">
       <summary><span><b className="sp-ft">What this means, in short</b><small>Written from your list's figures, if equal amounts were held</small></span><span className="sp-show eq-hs"><span className="o">Hide ▴</span><span className="c">Show ▾</span></span></summary>
       <table className="eq-st"><tbody>{xs.map((x) => <tr key={x.rule + x.text}><th scope="row">{TAG[x.section]}</th><td>{x.text}</td></tr>)}</tbody></table>
     </details>

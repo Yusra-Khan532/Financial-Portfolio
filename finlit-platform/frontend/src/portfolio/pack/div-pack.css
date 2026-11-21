@@ -144,3 +144,4 @@
   :root:not([data-theme="light"]) .spx-dots .r2 i { background: #3fa3b0; } :root:not([data-theme="light"]) .spx-dots .r2 i.part { background: linear-gradient(90deg, #3fa3b0 calc(var(--f) * 100%), var(--s2) 0); } }
 @media (max-width: 1100px) { .spx { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .spx-sc { grid-column: 1 / -1; } }
 @media (max-width: 700px) { .spx { grid-template-columns: minmax(0, 1fr); } .spx-sc { flex-direction: column; align-items: flex-start; } }
+.eqd-subs, .eq-short { scroll-margin-top: calc(var(--top-h, 63px) + 70px); }
