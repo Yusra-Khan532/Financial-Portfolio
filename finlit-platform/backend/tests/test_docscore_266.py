@@ -228,3 +228,13 @@ def test_a_transcript_with_a_participants_list_and_names_on_their_own_lines():
     assert {p.status for p in pts if "Sub:" in p.text or "enclosed" in p.text} == {"excluded: before the call"}
     assert any(p.status == "excluded: a question" and "exploring" in p.text for p in pts)
     assert all(p.status.startswith("excluded") for p in pts if p.speaker in ("Jonathan Lee", "Moderator"))
+
+
+def test_letterhead_labels_are_never_speakers():
+    """Lexicon 2.1.2 (Tech Mahindra's transcript cover letter): "NSE Symbol:" and "Regd. Office:" lines are the letter, not the call."""
+    pages = ["Tech Mahindra Limited\nNSE Symbol: TECHM\nRegd. Office: Gateway Building, Apollo Bunder, Mumbai 400 001\nSub: Transcript of the earnings call",
+             "Moderator: Welcome to the call.\nMohit Joshi: Revenue grew 6% YoY in the quarter."]
+    pts = segment(pages, "C")
+    letter = [p for p in pts if "TECHM" in p.text or "Gateway" in p.text]
+    assert len(letter) == 2 and all(p.speaker is None and p.status != "scored" for p in letter)
+    assert [(p.speaker, p.text) for p in pts if p.status == "scored"] == [("Mohit Joshi", "Revenue grew 6% YoY in the quarter.")]
