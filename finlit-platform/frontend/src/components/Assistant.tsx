@@ -14,7 +14,7 @@ import {
 } from "../lib/askFlow";
 import { Icon } from "../lib/icons";
 import { Link } from "react-router";
-import { TOPICS, clearRecent, loadRecent, loadSaved, pushRecent, searchQuestions, toggleSaved } from "../lib/askExplorer";
+import { clearRecent, loadRecent, loadSaved, pushRecent, toggleSaved } from "../lib/askExplorer";
 import { STARTERS } from "../lib/questionBank";
 import "../styles/ask-ai.css";
 import { CoLogo } from "./CoLogo";
@@ -77,7 +77,6 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
   const end = useRef<HTMLDivElement>(null);
   const field = useRef<HTMLInputElement>(null);
   const [pick, setPick] = useState(0);                      // bumps when the input must select XYZ
-  const [topicId, setTopicId] = useState<string>(TOPICS[0].id), [exq, setExq] = useState("");
   const [fundCtx, setFundCtx] = useState<FundCtx>({});   // task #203: the fund or ETF in context for the next fund question   // the question explorer of the full window
   const [recent, setRecent] = useState<string[]>(() => loadRecent()), [saved, setSaved] = useState<string[]>(() => loadSaved());
   const loc = useLocation();
@@ -321,17 +320,6 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
                 <li><button type="button" className="aif-cat aif-c-funds" onClick={() => setView("funds")}><Icon name={FUNDS_CARD.icon} /><b>{FUNDS_CARD.title}</b><small>{FUNDS_CARD.sub}</small><i className="aif-go" aria-hidden="true"><Icon name="arrow" /></i></button></li>
               </ul>
               {moreThemes}
-              <div className="aif-ex">
-                <div className="aif-exh"><h3><Icon name="spark" /> Choose a question to ask</h3>
-                  <label className="aif-exs"><Icon name="search" /><span className="sr-only">Search questions</span><input type="search" value={exq} onChange={(e) => setExq(e.target.value)} placeholder="Search questions (e.g., P/E, cash flow, DuPont)" autoComplete="off" /></label></div>
-                {exq.trim() ? (() => { const hits = searchQuestions(exq); return hits.length ? <ul className="aif-exq" aria-label="Matching questions">{hits.map(({ topic, q }) => <li key={q.id}><button type="button" onClick={() => tapQ(q)}><Icon name="chat" /><span>{q.text}<small>{topic.title}</small></span><Icon name="arrow" /></button></li>)}</ul> : <p className="aif-none">No question matches “{exq.trim()}”. Try a single word, or pick a topic on the left.</p>; })() : (
-                  <div className="aif-expane">
-                    <div className="aif-ext" role="tablist" aria-label="Question topics" aria-orientation="vertical">{TOPICS.map((t) => <button key={t.id} type="button" role="tab" aria-selected={topicId === t.id} className={topicId === t.id ? "on" : ""} onClick={() => setTopicId(t.id)}><Icon name={t.icon} />{t.title}</button>)}
-                      <button type="button" role="tab" aria-selected={topicId === "funds"} className={topicId === "funds" ? "on" : ""} onClick={() => setTopicId("funds")}><Icon name={FUNDS_CARD.icon} />Mutual Funds & ETF</button></div>
-                    {topicId === "funds" ? <div className="aif-exq" role="tabpanel" aria-label="Mutual Funds & ETF"><Suspense fallback={<p className="aif-none">Loading…</p>}><AskFunds compact ctx={fundCtx} setCtx={setFundCtx} onAnswer={(q, a) => void askFund(q, a)} /></Suspense></div>
-                      : <ul className="aif-exq" role="tabpanel" aria-label={TOPICS.find((t) => t.id === topicId)!.title}>{TOPICS.find((t) => t.id === topicId)!.questions.map((q) => <li key={q.id}><button type="button" onClick={() => tapQ(q)}><Icon name="chat" /><span>{q.text}</span><Icon name="arrow" /></button></li>)}</ul>}
-                  </div>)}
-              </div>
               {pageFaq && <><p className="aif-label">Questions about this page</p><ul className="aif-qs" aria-label={`Questions about ${pageFaq.title}`}>
                 {pageFaq.items.slice(0, 4).map((it) => <li key={it.q}><button type="button" className="aif-q" onClick={() => askPage(it.q, it.a)}><Icon name="chat" /><span>{it.q}</span><Icon name="arrow" /></button></li>)}</ul></>}
             </>}
