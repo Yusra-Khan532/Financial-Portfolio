@@ -1,8 +1,11 @@
 // Task #294 ("we need to make this on dashboard", the team's pictures of a Global Markets Tracker, 21 Nov 2026): the overnight and intraday context Indian
-// markets open against. A world view (each overseas market where it is, coloured by its last day's move, open or closed now) beside a table of US, Europe
+// markets open against. A world view (each overseas market where it is, coloured by its last day's move, open or closed now) and a table of US, Europe
 // and Asia indices, gold, crude, the rupee and the US 10-year yield with the 1-day, 1-week and 1-month moves and a 1-month line. Data: GET /api/global-markets
 // (backend/finlit/global_markets.py: FRED, the site's FBIL rupee, Twelve Data where connected). A row without data says why. Describes; never advises.
-import { useMemo } from "react";
+// Task #298 (the team, 21 Nov): no white space under the globe: the globe and one tile per continent share the top band, the table runs the full width
+// below it with every column lined up; continent headings in bold; pointing at a continent (its tile or its rows) turns the globe to it and lifts its
+// markets' pins, pointing at a row lifts that one market. Markets without data say so once per continent, not once per row.
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { geoGraticule10, geoOrthographic, geoPath } from "d3-geo";
 import { feature } from "topojson-client";
@@ -20,50 +23,87 @@ export type GmData = { rows: GmRow[]; home: Place & { open?: boolean }; asOfIst:
   disclaimer: string; sources: string };
 
 const GROUPS = ["US", "Europe", "Asia", "Commodities", "Currency and yields"];
+const INDEX_GROUPS = new Set(["US", "Europe", "Asia"]);
 const LAND = feature(land110 as unknown as Topology, (land110 as unknown as Topology).objects.land);
+/** Where the globe faces for each continent (the projection's rotation: minus the centre's longitude, minus its latitude); India by default. */
+export const FACE: Record<string, [number, number]> = { US: [80, -32], Europe: [-6, -44], Asia: [-108, -28], home: [-72, -24] };
+/** What the globe and the table point at: a continent, one market (its row), or nothing. */
+export type Focus = { group: string; key?: string } | null;
 
 /** A move: % for prices, percentage points for a yield; a real minus sign. */
 export const move = (v: number | null, unit: string) => v == null ? MINUS : `${v > 0 ? "+" : v < 0 ? MINUS : ""}${nf(Math.abs(v), 2)}${unit === "%" ? " pts" : "%"}`;
 const tone = (v: number | null) => (v == null || v === 0 ? "" : v > 0 ? "up" : "down");
 const level = (r: GmRow) => r.last == null ? MINUS : r.unit === "₹" ? `₹${nf(r.last, 2)}` : r.unit === "%" ? `${nf(r.last, 2)}%` : r.unit.startsWith("US$") ? `$${nf(r.last, 2)}` : nf(r.last, 2);
 const day = (iso: string | null) => iso ? new Date(iso + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "";
+/** Pointing follows a mouse only: a tap (touch) sets the focus by its click, and the leave a touch screen sends after it must not undo that. */
+const mouse = (e: { pointerType?: string }) => !e.pointerType || e.pointerType === "mouse";
+const calm = () => typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export function useGlobalMarkets() {
   return useQuery<GmData>({ queryKey: ["global-markets"], queryFn: () => apiGet("/api/global-markets"), staleTime: 300_000, retry: 1 });
 }
 
-/** The world as seen from above the Arabian Sea: Europe to Japan, with India's market ringed. A market on the far side of the globe is not drawn here;
- *  every market is in the table. */
-export function Globe({ d, size = 300 }: { d: GmData; size?: number }) {
-  const proj = useMemo(() => geoOrthographic().rotate([-72, -24]).scale(size / 2 - 6).translate([size / 2, size / 2]).clipAngle(90), [size]);
+/** The globe's rotation, eased to the face of the continent in focus (at once when the reader asks for less motion). */
+function useFace(focus: Focus): [number, number] {
+  const target = (focus && FACE[focus.group]) || FACE.home;
+  const [rot, setRot] = useState<[number, number]>(target);
+  const cur = useRef(rot);
+  useEffect(() => {
+    const from = cur.current, to = target;
+    if (from[0] === to[0] && from[1] === to[1]) return;
+    if (calm() || typeof requestAnimationFrame === "undefined") { cur.current = to; setRot(to); return; }
+    const t0 = performance.now(), ms = 550;
+    let raf = 0;
+    const step = (t: number) => {
+      const k = Math.min(1, (t - t0) / ms), e = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
+      const next: [number, number] = [from[0] + (to[0] - from[0]) * e, from[1] + (to[1] - from[1]) * e];
+      cur.current = next; setRot(next);
+      if (k < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [target[0], target[1]]); // eslint-disable-line react-hooks/exhaustive-deps
+  return rot;
+}
+
+/** The world with each overseas market pinned where it is. The continent in focus is turned to the front and its pins lifted; the others dim.
+ *  A market on the far side of the globe is not drawn here; every market is in the table. */
+export function Globe({ d, size = 260, focus = null }: { d: GmData; size?: number; focus?: Focus }) {
+  const rot = useFace(focus);
+  const proj = useMemo(() => geoOrthographic().rotate(rot).scale(size / 2 - 6).translate([size / 2, size / 2]).clipAngle(90), [size, rot]);
   const path = useMemo(() => geoPath(proj), [proj]);
-  const seen = new Map<string, { place: Place; d1: number | null; label: string }>();
+  const seen = new Map<string, { place: Place; d1: number | null; label: string; group: string; keys: string[] }>();
   for (const r of d.rows) {
-    if (!r.place || !["US", "Europe", "Asia"].includes(r.group)) continue;
+    if (!r.place || !INDEX_GROUPS.has(r.group)) continue;
     const had = seen.get(r.place.city);
-    if (!had || (had.d1 == null && r.d1 != null)) seen.set(r.place.city, { place: r.place, d1: r.d1, label: r.label });   // the first index of a city with a move
+    if (had) { had.keys.push(r.key); if (had.d1 == null && r.d1 != null) { had.d1 = r.d1; had.label = r.label; } }       // the first index of a city with a move
+    else seen.set(r.place.city, { place: r.place, d1: r.d1, label: r.label, group: r.group, keys: [r.key] });
   }
-  const visible = (p: { lon: number; lat: number }) => { const c = proj.rotate(); const lon = (p.lon + c[0]) * Math.PI / 180, lat = p.lat * Math.PI / 180, lat0 = -c[1] * Math.PI / 180;
+  const visible = (p: { lon: number; lat: number }) => { const lon = (p.lon + rot[0]) * Math.PI / 180, lat = p.lat * Math.PI / 180, lat0 = -rot[1] * Math.PI / 180;
     return Math.sin(lat0) * Math.sin(lat) + Math.cos(lat0) * Math.cos(lat) * Math.cos(lon) > 0; };
-  const home = proj([d.home.lon, d.home.lat]);
+  const home = visible(d.home) ? proj([d.home.lon, d.home.lat]) : null;
+  const lit = (m: { group: string; keys: string[] }) => !!focus && (focus.key ? m.keys.includes(focus.key) : focus.group === m.group);
   return (
-    <svg className="gm-globe" viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`World markets: ${[...seen.values()].map((m) => `${m.place.city} ${move(m.d1, "pts")}${m.place.open ? ", open" : ", closed"}`).join("; ")}`}>
+    <svg className={"gm-globe" + (focus ? " gm-focus" : "")} viewBox={`0 0 ${size} ${size}`} role="img"
+      aria-label={`World markets${focus ? `, turned to ${focus.group}` : ""}: ${[...seen.values()].map((m) => `${m.place.city} ${move(m.d1, "pts")}${m.place.open ? ", open" : ", closed"}`).join("; ")}`}>
       <circle cx={size / 2} cy={size / 2} r={size / 2 - 6} className="gm-sea" />
       <path d={path(geoGraticule10()) ?? ""} className="gm-grat" />
       <path d={path(LAND) ?? ""} className="gm-land" />
-      {home && <g className="gm-home"><circle cx={home[0]} cy={home[1]} r={22} className="gm-home-r" /><circle cx={home[0]} cy={home[1]} r={4} /><text x={home[0] - 8} y={home[1] + 4} textAnchor="end">Mumbai</text></g>}
+      {home && <g className="gm-home"><circle cx={home[0]} cy={home[1]} r={20} className="gm-home-r" /><circle cx={home[0]} cy={home[1]} r={4} /><text x={home[0] - 8} y={home[1] + 4} textAnchor="end">Mumbai</text></g>}
       {(() => {
         // labels point inwards on the right half (never cut at the globe's edge); a market close to one already labelled keeps its dot but not its
-        // label (London, Frankfurt and Paris sit within a few pixels): its figures are in the table. A market's move is labelled first.
-        const pins = [...seen.values()].filter((m) => visible(m.place)).map((m) => ({ m, xy: proj([m.place.lon, m.place.lat]) })).filter((p) => p.xy) as { m: { place: Place; d1: number | null; label: string }; xy: [number, number] }[];
-        pins.sort((a, b) => (a.m.d1 == null ? 1 : 0) - (b.m.d1 == null ? 1 : 0));
+        // label (London, Frankfurt and Paris sit within a few pixels), unless it is the one in focus. A lifted market and a market's move are labelled first.
+        const pins = [...seen.values()].filter((m) => visible(m.place)).map((m) => ({ m, xy: proj([m.place.lon, m.place.lat]), on: lit(m) }))
+          .filter((p) => p.xy) as { m: { place: Place; d1: number | null; label: string; group: string; keys: string[] }; xy: [number, number]; on: boolean }[];
+        pins.sort((a, b) => Number(b.on) - Number(a.on) || (a.m.d1 == null ? 1 : 0) - (b.m.d1 == null ? 1 : 0));
         const labelled: [number, number][] = [];
-        return pins.map(({ m, xy }) => {
+        return pins.map(({ m, xy, on }) => {
           const inward = xy[0] > size * 0.55, near = labelled.some(([x, y]) => Math.hypot(x - xy[0], y - xy[1]) < 16);
           if (!near) labelled.push(xy);
-          return <g key={m.place.city} className={"gm-pin " + tone(m.d1) + (m.place.open ? " open" : "")}>
-            <circle cx={xy[0]} cy={xy[1]} r={m.place.open ? 6 : 4.5} />
-            {!near && <text x={xy[0] + (inward ? -8 : 8)} y={xy[1] - 6} textAnchor={inward ? "end" : "start"}>{m.d1 != null && <tspan className="gm-pv">{move(m.d1, "pts")} </tspan>}{m.place.city}</text>}
+          return <g key={m.place.city} className={"gm-pin " + tone(m.d1) + (m.place.open ? " open" : "") + (on ? " on" : "")} data-city={m.place.city}>
+            {on && <circle cx={xy[0]} cy={xy[1]} r={12} className="gm-halo" />}
+            <circle cx={xy[0]} cy={xy[1]} r={on ? 7 : m.place.open ? 6 : 4.5} />
+            {!near && <text x={xy[0] + (inward ? -9 : 9)} y={xy[1] - 7} textAnchor={inward ? "end" : "start"}>{m.d1 != null && <tspan className="gm-pv">{move(m.d1, "pts")} </tspan>}{m.place.city}</text>}
           </g>;
         });
       })()}
@@ -78,10 +118,28 @@ function Spark({ line }: { line: [string, number][] }) {
   return <svg className={"gm-spark " + tone(vs[vs.length - 1] - vs[0])} width={w} height={h} viewBox={`0 0 ${w} ${h}`} role="img" aria-label={`1 month: ${line[0][0]} ${nf(vs[0], 2)} to ${line[line.length - 1][0]} ${nf(vs[vs.length - 1], 2)}`}><polyline points={pts} /></svg>;
 }
 
+/** A continent's tile: its markets with data, how many are open, and the average 1-day move of its indices (or each item's move for the rest). */
+function RegionTile({ g, rows, focus, setFocus }: { g: string; rows: GmRow[]; focus: Focus; setFocus: (f: Focus) => void }) {
+  const have = rows.filter((r) => r.last != null), d1s = have.map((r) => r.d1).filter((v): v is number => v != null);
+  const avg = d1s.length ? d1s.reduce((a, b) => a + b, 0) / d1s.length : null;
+  const opened = rows.filter((r) => r.place?.open).length, places = new Set(rows.map((r) => r.place?.city).filter(Boolean)).size;
+  const on = focus?.group === g && !focus.key;
+  return <button type="button" className={"gm-rg" + (on ? " on" : "")} aria-pressed={on} data-group={g}
+    onPointerEnter={(e) => mouse(e) && setFocus({ group: g })} onPointerLeave={(e) => mouse(e) && setFocus(null)} onFocus={() => setFocus({ group: g })} onBlur={() => setFocus(null)}
+    onClick={() => setFocus({ group: g })}>
+    <b>{g}</b>
+    {INDEX_GROUPS.has(g)
+      ? <><span className={"gm-rv " + tone(avg)}>{avg == null ? "No data yet" : move(avg, "pts")}</span>
+          <small>{avg == null ? `${rows.length} ${rows.length === 1 ? "index" : "indices"} not connected` : `average 1D of ${d1s.length} of ${rows.length} ${rows.length === 1 ? "index" : "indices"}`}{places ? ` · ${opened ? `${opened} open` : "closed"}` : ""}</small></>
+      : <span className="gm-ri">{rows.map((r) => <span key={r.key}>{r.label.replace(/ \(.*\)$/, "").replace("Rupee per US dollar", "Rupee").replace("US 10-year yield", "US 10Y")} <span className={tone(r.d1)}>{r.last == null ? MINUS : move(r.d1, r.unit)}</span></span>)}</span>}
+  </button>;
+}
+
 export function GlobalMarkets() {
   const q = useGlobalMarkets();
   const d = q.data;
   const s = d?.summary;
+  const [focus, setFocus] = useState<Focus>(null);
   return (
     <Card id="globalmarkets" title="Global markets" className="gm"
       sub="The overnight and intraday context Indian markets open against: US, Europe and Asia indices, gold, crude, the rupee and the US 10-year yield. 1-month trend with 1-day, 1-week and 1-month moves."
@@ -89,26 +147,44 @@ export function GlobalMarkets() {
       {q.isPending ? <p className="dsh-note" role="status">Loading world markets…</p>
         : q.isError || !d ? <p className="dsh-note" role="alert">World markets could not be loaded just now. Please try again in a moment.</p>
         : <div className="gm-body">
-          <figure className="gm-world"><Globe d={d} />
-            <figcaption>Dot colour is each market's latest 1-day index move; a bigger dot is open now. Mumbai is the home session.</figcaption></figure>
-          <div className="gm-tables">{GROUPS.map((g) => {
-            const rows = d.rows.filter((r) => r.group === g);
-            return !rows.length ? null : (
-              <div key={g} className="gm-grp">
-                <h4>{g}</h4>
-                <table className="gm-t"><thead><tr><th scope="col">Market</th><th scope="col" className="n">Last</th><th scope="col" className="n">1D</th><th scope="col" className="n">1W</th><th scope="col" className="n">1M</th><th scope="col">1 month</th></tr></thead>
-                  <tbody>{rows.map((r) => (
-                    <tr key={r.key}>
+          <div className="gm-top">
+            <figure className="gm-world"><Globe d={d} focus={focus} />
+              <figcaption>Dot colour is each market’s latest 1-day move; a bigger dot is open now. Point at a continent to turn the globe to it.</figcaption></figure>
+            <div className="gm-regions" role="group" aria-label="Continents: point at one to show it on the globe">
+              {GROUPS.map((g) => <RegionTile key={g} g={g} rows={d.rows.filter((r) => r.group === g)} focus={focus} setFocus={setFocus} />)}
+            </div>
+          </div>
+          <div className="gm-scroll">
+            <table className="gm-t">
+              <colgroup><col className="gm-c-name" /><col className="gm-c-n" /><col className="gm-c-n" /><col className="gm-c-n" /><col className="gm-c-n" /><col className="gm-c-line" /></colgroup>
+              <thead><tr><th scope="col">Market</th><th scope="col" className="n">Last</th><th scope="col" className="n">1D</th><th scope="col" className="n">1W</th><th scope="col" className="n">1M</th><th scope="col">1 month</th></tr></thead>
+              {GROUPS.map((g) => {
+                const rows = d.rows.filter((r) => r.group === g);
+                if (!rows.length) return null;
+                const empty = rows.filter((r) => r.last == null);
+                const whys = [...new Set(empty.map((r) => r.why || "No close from the source yet."))];
+                const on = focus?.group === g;
+                return <tbody key={g} className={"gm-grp" + (on ? " on" : "")} data-group={g}
+                  onPointerEnter={(e) => mouse(e) && setFocus({ group: g })} onPointerLeave={(e) => mouse(e) && setFocus(null)}>
+                  <tr className="gm-gh"><th scope="colgroup" colSpan={6}>{g}</th></tr>
+                  {rows.map((r) => (
+                    <tr key={r.key} className={focus?.key === r.key ? "on" : undefined} onPointerEnter={(e) => mouse(e) && r.place && setFocus({ group: g, key: r.key })}
+                      onPointerLeave={(e) => mouse(e) && r.place && setFocus({ group: g })}>
                       <th scope="row">{r.label}<small>{r.place ? `${r.place.city}${r.place.open != null ? (r.place.open ? " · open" : " · closed") : ""}` : r.unit}{r.asOf ? ` · ${day(r.asOf)}` : ""}</small></th>
-                      {r.last == null ? <td colSpan={5} className="gm-why">{r.why}</td> : <>
-                        <td className="n">{level(r)}</td>
-                        <td className={"n " + tone(r.d1)}>{move(r.d1, r.unit)}</td>
-                        <td className={"n " + tone(r.w1)}>{move(r.w1, r.unit)}</td>
-                        <td className={"n " + tone(r.m1)}>{move(r.m1, r.unit)}</td>
-                        <td><Spark line={r.line} /></td></>}
-                    </tr>))}</tbody></table>
-              </div>);
-          })}</div>
+                      <td className="n">{level(r)}</td>
+                      <td className={"n " + tone(r.d1)}>{move(r.d1, r.unit)}</td>
+                      <td className={"n " + tone(r.w1)}>{move(r.w1, r.unit)}</td>
+                      <td className={"n " + tone(r.m1)}>{move(r.m1, r.unit)}</td>
+                      <td>{r.last == null ? <span className="gm-dash" title={r.why ?? undefined}>{MINUS}</span> : <Spark line={r.line} />}</td>
+                    </tr>))}
+                  {empty.length > 0 && whys.map((w) => {
+                    const names = empty.filter((r) => (r.why || "No close from the source yet.") === w).map((r) => r.label);
+                    return <tr key={w} className="gm-why"><td colSpan={6}>{names.length === rows.length ? "No figures for these markets yet" : `No figures yet for ${names.join(", ").replace(/, ([^,]*)$/, " and $1")}`}: {w.replace(/^Not connected yet: /, "").replace(/^./, (c) => c.toLowerCase())}</td></tr>;
+                  })}
+                </tbody>;
+              })}
+            </table>
+          </div>
           <p className="gm-src">Sources: {d.sources}. {d.disclaimer}</p>
         </div>}
     </Card>
