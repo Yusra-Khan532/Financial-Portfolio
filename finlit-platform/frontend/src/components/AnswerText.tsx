@@ -3,6 +3,9 @@
 // include relevant sources"). Every answer is plain text: each line becomes a bullet, figures with a unit (₹, %, ×, crore) are bold, the source and the
 // disclaimer sit apart under the points, and a line that is a series of years or quarters ("FY22 ₹7.22 L Cr, FY23 ₹8.93 L Cr, …") also gets a small bar
 // chart. Nothing is read as HTML: the text is split and drawn as React text. Styles: styles/ask-ai.css (aif-a-).
+// Task #290 (the team, 21 Nov 2026: "all ans to be presented in a specific format"): an answer written as numbered sections ("1. Business growth" and
+// its "- " points) is drawn as one block per section, the heading above its points; a point's source in square brackets at its end ("[results
+// filing, 17 Oct 2026, p.26]") is drawn small and muted after it. An answer without numbered headings is drawn as before.
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 const MINUS = "−";
@@ -10,6 +13,29 @@ const MINUS = "−";
 const FIG = /((?:[+−-])?₹\s?[\d,]+(?:\.\d+)?(?:\s?(?:L Cr|Cr|lakh crore|crore|lakh))?|(?:[+−-])?\d[\d,]*(?:\.\d+)?\s?(?:%|×|x\b|L Cr\b|Cr\b|crore\b|lakh crore\b|bps\b))/g;
 const SOURCE = /^\s*(Source|Sources|Data|From)\s*:/i;
 const DISCLAIMER = /not a recommendation|not investment advice|Information only|Past returns do not guarantee/i;
+
+/** A section heading: "1. Business growth", "**2. Asset quality**" or "## 3. Margins" (a numbered line that is not itself a point). */
+const HEAD = /^(?:#{1,4}\s*)?\**\s*(\d{1,2})[.)]\s+(.{2,80}?)\s*\**\s*:?\s*$/;
+/** A point's source at its end, in square brackets. */
+const CITE = /\s*\[([^\]\n]{3,120})\]\s*\.?\s*$/;
+
+export type Section = { n: string; title: string; points: string[] };
+/** Split the answer's points into a lead (lines before the first heading) and numbered sections; null when there are fewer than two headings. */
+export function sectionsOf(lines: string[]): { lead: string[]; sections: Section[] } | null {
+  const lead: string[] = [], sections: Section[] = [];
+  for (const l of lines) {
+    const h = l.match(HEAD);
+    if (h && !/^[•\-*]\s/.test(l)) { sections.push({ n: h[1], title: h[2].replace(/\*\*/g, "").trim(), points: [] }); continue; }
+    if (sections.length) sections[sections.length - 1].points.push(l); else lead.push(l);
+  }
+  return sections.length >= 2 ? { lead, sections } : null;
+}
+
+/** One point: its text, its source (if bracketed at the end) small after it, and a small chart for a series of periods. */
+function Point({ line, k }: { line: string; k: string }) {
+  const body = line.replace(/^[•\-*]\s+/, ""), cite = body.match(CITE), text = cite ? body.slice(0, cite.index) : body, s = seriesOf(text);
+  return <li>{inline(text, k)}{cite && <span className="aif-a-cite"> {cite[1]}</span>}{s && <Bars points={s.points} unit={s.unit} />}</li>;
+}
 
 /** **bold** marked by the answer itself, then the figures. */
 function inline(text: string, key: string): ReactNode[] {
@@ -87,12 +113,17 @@ export function AnswerText({ text }: { text: string }) {
   const lines = st ? all.filter((_, i) => i !== st.at && !(st.sum != null && i === st.at + 1)) : all;
   const points = lines.filter((l) => !SOURCE.test(l) && !DISCLAIMER.test(l)), sources = lines.filter((l) => SOURCE.test(l)), notes = lines.filter((l) => !SOURCE.test(l) && DISCLAIMER.test(l));
   const tone = st ? (/^negative/i.test(st.word) ? "neg" : /cautiously negative/i.test(st.word) ? "cneg" : /^positive/i.test(st.word) ? "pos" : /cautiously positive/i.test(st.word) ? "cpos" : "mix") : "";
+  const secs = sectionsOf(points);
   return (
     <div className="aif-a">
-      {points.length > 0 && <ul className="aif-a-pts">{points.map((l, i) => {
-        const body = l.replace(/^[•\-*]\s+/, ""), s = seriesOf(body);
-        return <li key={i}>{inline(body, String(i))}{s && <Bars points={s.points} unit={s.unit} />}</li>;
-      })}</ul>}
+      {secs ? <>
+        {secs.lead.length > 0 && <div className="aif-a-lead">{secs.lead.map((l, i) => <p key={i}>{inline(l.replace(/^[•\-*]\s+/, ""), "l" + i)}</p>)}</div>}
+        {secs.sections.map((sec, i) => (
+          <section key={i} className="aif-a-sec" aria-label={`${sec.n}. ${sec.title}`}>
+            <h4 className="aif-a-h">{sec.n}. {sec.title}</h4>
+            {sec.points.length > 0 && <ul className="aif-a-pts">{sec.points.map((l, j) => <Point key={j} line={l} k={`${i}.${j}`} />)}</ul>}
+          </section>))}
+      </> : points.length > 0 && <ul className="aif-a-pts">{points.map((l, i) => <Point key={i} line={l} k={String(i)} />)}</ul>}
       {st && <div className={"aif-a-st " + tone} role="note" aria-label="In short">
         <p className="aif-a-st-h"><b>Stance: {st.word}</b>{st.why && <span> ({st.why})</span>}</p>
         {st.sum && <p className="aif-a-st-s">{inline(st.sum, "st")}</p>}

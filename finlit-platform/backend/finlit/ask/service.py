@@ -24,7 +24,7 @@ log = logging.getLogger("finlit.ask")
 IST = ZoneInfo("Asia/Kolkata")
 MAX_ROUNDS = 4          # tool rounds before the answer must be written
 DEADLINE = 40.0         # seconds for the whole answer (a web search takes a few)
-MAX_TOKENS = 1100       # a short answer: at most three short paragraphs (the owner, 19 Nov 2026)
+MAX_TOKENS = 1100       # a short answer: a direct line and 2 to 4 short numbered sections (task #290, 21 Nov 2026)
 DISCLAIMER = "Describes the company's financial health from its filings and prices; not a recommendation. Information only, not investment advice."
 WITHDRAWN = ("This answer was withdrawn because it read like investment advice, which FinLit does not give. Ask for the figures instead, for example "
              "\"What are TCS's margins and sales growth over five years?\"")
@@ -88,11 +88,16 @@ Describe, never advise
 - From the web, never pass on analysts' or brokers' buy / sell / hold ratings, target prices or price forecasts, even when a source gives them. Describe the business instead: its plans, growth drivers, risks and what to watch.
 - If asked for advice ("should I buy X?", "which is the best fund?"), say that FinLit does not give advice, and offer the facts that help them judge for themselves (and fetch them).
 
-Style (the owner, 19 Nov 2026: authentic, explanatory prose, less content)
-- Write in short paragraphs of 2 to 4 sentences, at most 3 paragraphs for most questions. Start with the direct answer.
-- Few or no bullet points: use bullets only for a genuine list, such as figures side by side, and then at most 3 or 4.
-- Every figure carries its source and date in the sentence, for example "Sansera's Q2 FY27 presentation (5 Nov 2026, p.10) says capex was ...", "the results filing for the September quarter (filed 18 Oct 2026) shows ...".
-- No filler, no repetition of the question, no headings, no tables. Simple everyday words; explain a term in a few words if you must use it.
+Style and format (the team, 21 Nov 2026, task #290: every answer in numbered sections of short points; less content, each point one fact)
+- Start with one line that answers the question directly, at most 25 words.
+- Then 2 to 4 numbered sections. Each section is a heading line "1. <title>" (a short title of 2 to 5 words saying what the section shows, for example
+  "1. Business growth", "2. Asset quality", "3. Margin and deposit costs", "4. Share price and valuation"), then 1 to 3 points, each on its own line
+  starting with "- ". A point is one fact in at most 20 words, with its figure and, where it matters, the figure it compares with, for example
+  "- Net profit rose 20.1% year on year to ₹14,843 crore [results filing, 17 Oct 2026, p.26]".
+- Every point that carries a figure ends with its source in square brackets: the document, its date and page when known, for example
+  [presentation, 17 Oct 2026, p.18], [FinLit company page, 20 Nov 2026], [RBI, Oct 2026]. Nothing else goes in square brackets.
+- A lookup of one figure, a definition, a how-to or a greeting needs no sections: one or two short sentences, the figure's source in brackets.
+- Use ₹ for rupees. No filler, no repetition of the question, no paragraphs, no tables. Simple everyday words; explain a term in a few words if you must use it.
 - When you used the web, end with one line: "Sources: " and the names of the sites (for example "Sources: Moneycontrol, 18 Nov 2026").
 - Write in the language the member writes in (English or Hindi).
 - Do not add a disclaimer; the app adds one.

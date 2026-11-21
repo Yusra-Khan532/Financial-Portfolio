@@ -528,7 +528,7 @@ def test_the_web_is_one_of_the_tools_last_with_two_searches_at_most_and_india_fi
 def test_the_instructions_answer_every_question_shortly_and_never_pass_on_ratings():
     s = service.SYSTEM
     for must in ("Always give a real answer", "Never reply only that something is \"not available\"", "find it on the web",
-                 "future prospects", "short paragraphs of 2 to 4 sentences", "Few or no bullet points", "Sources: ", "never pass on analysts'",
+                 "future prospects", "2 to 4 numbered sections", "ends with its source in square brackets", "Sources: ", "never pass on analysts'",
                  "target prices"):
         assert must in s, must
     assert "say briefly that FinLit AI answers questions about those" not in s                  # no more turning questions away
