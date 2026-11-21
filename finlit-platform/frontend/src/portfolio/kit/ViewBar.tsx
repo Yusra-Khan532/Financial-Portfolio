@@ -19,14 +19,15 @@ export type ViewDefB<T extends string> = { id: T; label: string; color: string }
 
 /** A menu that renders into the page body (a blurred sticky bar would clip it), closes on Esc, a click outside or a scroll. */
 export function Pop({ at, onClose, label, children, wide }: { at: { top: number; left: number }; onClose: () => void; label: string; children: ReactNode; wide?: boolean }) {
-  const box = useRef<HTMLDivElement>(null);
+  const box = useRef<HTMLDivElement>(null), close = useRef(onClose);
+  close.current = onClose;                       // task #292: the newest onClose, without re-running the effect (a page re-render no longer moves the focus)
   useEffect(() => {
-    const y0 = scrollY, key = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }, sc = () => { if (Math.abs(scrollY - y0) > 60) onClose(); };
-    const click = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) onClose(); };
-    addEventListener("keydown", key); addEventListener("scroll", sc, { passive: true }); setTimeout(() => document.addEventListener("mousedown", click), 0);
+    const y0 = scrollY, key = (e: KeyboardEvent) => { if (e.key === "Escape") close.current(); }, sc = () => { if (Math.abs(scrollY - y0) > 60) close.current(); };
+    const click = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) close.current(); };
+    addEventListener("keydown", key); addEventListener("scroll", sc, { passive: true }); const t = setTimeout(() => document.addEventListener("mousedown", click), 0);
     box.current?.querySelector<HTMLElement>("button")?.focus({ preventScroll: true });
-    return () => { removeEventListener("keydown", key); removeEventListener("scroll", sc); document.removeEventListener("mousedown", click); };
-  }, [onClose]);
+    return () => { clearTimeout(t); removeEventListener("keydown", key); removeEventListener("scroll", sc); document.removeEventListener("mousedown", click); };
+  }, []);                                        // once per opening
   return createPortal(<div ref={box} className={"ptk-pop" + (wide ? " wide" : "")} role="menu" aria-label={label} style={{ top: at.top, left: at.left }}>{children}</div>, document.body);
 }
 const place = (b: HTMLElement, w = 300) => { const r = b.getBoundingClientRect(); return { top: Math.round(r.bottom + 6), left: Math.round(Math.max(12, Math.min(r.left, innerWidth - w - 12))) }; };

@@ -1,6 +1,7 @@
 // Task #235 (the 18 Nov portfolios pack, B1): the portfolios bar (All accounts first, then one tab per broker account, then "+ Add portfolio"), Rename and
 // Remove confirmed in the page, the Add portfolio dialog (broker, name, how to start), and the line "Shares you add or upload go to [portfolio ▾]".
 // The figures on each tab are lib/ledger's. Describes; never advice.
+import { useDialogFocus } from "../lib/useDialogFocus";
 import { useEffect, useRef, useState } from "react";
 import { lk, pct, tone } from "./money";
 
@@ -66,21 +67,8 @@ export function AddPortfolioDialog({ taken, onClose, onSave, kinds = BROKERS, st
   taken: string[]; onClose: () => void; onSave: (p: { name: string; broker: string; start: Start }) => void; kinds?: string[]; start?: [Start, string, string][];
 }) {
   const [broker, setBroker] = useState(kinds[0]), [name, setName] = useState(kinds[0]), [typed, setTyped] = useState(false), [how, setHow] = useState<Start>("empty"), [err, setErr] = useState("");
-  const box = useRef<HTMLDivElement>(null), opener = useRef<Element | null>(null);
-  useEffect(() => {
-    opener.current = document.activeElement;
-    box.current?.querySelector<HTMLElement>("select, input")?.focus();
-    const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); onClose(); return; }
-      if (e.key !== "Tab" || !box.current) return;
-      const f = [...box.current.querySelectorAll<HTMLElement>("button, input, select")].filter((x) => !x.hasAttribute("disabled"));
-      if (!f.length) return;
-      if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
-      else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
-    };
-    document.addEventListener("keydown", key);
-    return () => { document.removeEventListener("keydown", key); (opener.current as HTMLElement | null)?.focus?.(); };
-  }, [onClose]);
+  const box = useRef<HTMLDivElement>(null);
+  useDialogFocus(box, onClose, { first: "select, input" });   // task #292: once per opening; typing a name no longer sends the cursor back to the broker box
   const save = (e: React.FormEvent) => {
     e.preventDefault();
     const n = name.trim();

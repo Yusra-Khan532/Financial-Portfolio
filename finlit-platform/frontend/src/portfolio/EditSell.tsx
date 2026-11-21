@@ -3,6 +3,7 @@
 //   (asks to confirm). Sell: date sold (today), quantity (all by default; "You have 20"), price (latest close), portfolio, and a preview of which buys the sale
 //   uses (first in, first out), the realised gain or loss (short or long term) and what is left; more than held says so and Save turns off.
 // The rules stay as today (lib/ledger): first in, first out within each portfolio; the average buy price is worked out from what is left. Classes: pfe-.
+import { useDialogFocus } from "../lib/useDialogFocus";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CoLogo } from "../components/CoLogo";
 import { aggOf, pfOf, rowsOf, type BuyFig, type SaleFig } from "../lib/ledger";
@@ -16,22 +17,10 @@ const plural = (n: number, w: string) => `${qf(n)} ${w}${n === 1 ? "" : "s"}`;
 const dfmt = (d?: string) => (d ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "no date");
 
 /** The live dialog (acc-dlg) with focus kept inside, Esc to close and focus given back to the opener. */
-function Win({ title, sub, logo, wide, onClose, children }: { title: ReactNode; sub?: ReactNode; logo?: ReactNode; wide?: boolean; onClose: () => void; children: ReactNode }) {
-  const box = useRef<HTMLDivElement>(null), opener = useRef<Element | null>(null);
-  useEffect(() => {
-    opener.current = document.activeElement;
-    box.current?.querySelector<HTMLElement>("input, select, button.go")?.focus();
-    const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); onClose(); return; }
-      if (e.key !== "Tab" || !box.current) return;
-      const f = [...box.current.querySelectorAll<HTMLElement>("button, input, select")].filter((x) => !x.hasAttribute("disabled"));
-      if (!f.length) return;
-      if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
-      else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
-    };
-    document.addEventListener("keydown", key);
-    return () => { document.removeEventListener("keydown", key); (opener.current as HTMLElement | null)?.focus?.(); };
-  }, [onClose]);
+function Win({ title, sub, logo, wide, onClose, children, first = "input, select, button.go" }: { title: ReactNode; sub?: ReactNode; logo?: ReactNode; wide?: boolean; onClose: () => void; children: ReactNode;
+  /** task #292: what gets the focus when the dialog opens */ first?: string }) {
+  const box = useRef<HTMLDivElement>(null);
+  useDialogFocus(box, onClose, { first });     // task #292: once per opening; typing no longer moves the cursor to Date bought
   return <div className="acc-dlg pfa-dlg" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
     <div className={"acc-dlg-in" + (wide ? " pfa-wide" : " pfe-mid")} role="dialog" aria-modal="true" aria-labelledby="pfe-h" ref={box}>
       <div className="pfa-dh"><h2 id="pfe-h" className="pfe-h">{logo}{title}</h2><button type="button" className="pfa-x" aria-label="Close" onClick={onClose}>×</button></div>
@@ -53,11 +42,11 @@ export function EditWindow({ p, symbol, title, name, onClose, onRemove }: { p: L
   const where = p.cur === "all" ? (p.nPortfolios > 1 ? "all your portfolios" : p.pfName(DEFAULT_PF)) : p.pfName(p.cur);
   const left = a?.qty ?? 0;
   const summary = a && a.nBuys ? `${plural(left, "share")} · ${a.avg != null ? `average ${inr(a.avg, 2)}` : "add the buy prices for an average"} · ${a.invested != null ? `invested ${inr(a.invested)}` : "invested not known yet"}` : "No buys yet.";
-  if (confirm) return <Win title={`Remove ${title}?`} onClose={() => setConfirm(false)}>
+  if (confirm) return <Win key="remove" title={`Remove ${title}?`} onClose={() => setConfirm(false)}>
     <p className="acc-dlg-p">{name} leaves {where}, and its buys and sales there are deleted. You can add it again later.</p>
     <div className="acc-dlg-b"><button type="button" onClick={() => setConfirm(false)}>Cancel</button><button type="button" className="go" onClick={() => { onRemove(p.cur); onClose(); }}>Remove</button></div>
   </Win>;
-  return <Win wide title={<>Edit {title} <small>{name}</small></>} logo={<CoLogo symbol={symbol} name={name} size={30} />} onClose={onClose}
+  return <Win key="edit" wide first={'input[aria-label^="Quantity"]'} title={<>Edit {title} <small>{name}</small></>} logo={<CoLogo symbol={symbol} name={name} size={30} />} onClose={onClose}
     sub="Each buy with its date, quantity and price. Changes are saved as you type.">
     <div className="pfa-entw"><table className="pfa-ent pfe-ent">
       <thead><tr><th scope="col">Date bought</th><th scope="col">Quantity</th><th scope="col">Price (₹)</th><th scope="col">Portfolio</th><th scope="col" className="r">Cost</th><th scope="col"><span className="sr-only">Delete</span></th></tr></thead>

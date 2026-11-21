@@ -5,6 +5,7 @@
 //   Enter, Esc; no close-match work under 4 letters; a 90 ms pause before searching.
 //   Add opens the window with the picked company, Add several opens it empty, Import ▾ opens it on Paste a list or Upload a broker file or CAS.
 // The window uses the live dialog (acc-dlg). Classes: pfa- (scoped to this file). Describes; never advice.
+import { useDialogFocus } from "../lib/useDialogFocus";
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { CoLogo } from "../components/CoLogo";
@@ -116,20 +117,8 @@ export function AddSharesDialog({ tab: tab0, pre, index, isin, held, info, pfs, 
   const [rows, setRows] = useState<AddRow[]>(() => [...(pre ? [{ ...blank(defaultPf), symbol: pre.symbol, name: pre.name, price: priceOf(pre.symbol) }] : []), blank(defaultPf)]);
   const [typed, setTyped] = useState<Record<number, string>>({});
   const [paste, setPaste] = useState(""), [found, setFound] = useState<{ line: string; hit: CompanyHit | null }[] | null>(null);
-  const box = useRef<HTMLDivElement>(null), opener = useRef<Element | null>(null);
-  useEffect(() => {
-    opener.current = document.activeElement;
-    const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !e.defaultPrevented) { e.preventDefault(); onClose(); return; }
-      if (e.key !== "Tab" || !box.current) return;
-      const f = [...box.current.querySelectorAll<HTMLElement>("button, input, select, textarea")].filter((x) => !x.hasAttribute("disabled"));
-      if (!f.length) return;
-      if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
-      else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
-    };
-    document.addEventListener("keydown", key);
-    return () => { document.removeEventListener("keydown", key); (opener.current as HTMLElement | null)?.focus?.(); };
-  }, [onClose]);
+  const box = useRef<HTMLDivElement>(null);
+  useDialogFocus(box, onClose, { first: null, skipHandledEscape: true });   // task #292: once per opening; a price refresh no longer pulls the focus out to Add
   const set = (i: number, patch: Partial<AddRow>) => setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const pickAt = (i: number, h: CompanyHit) => setRows((rs) => { const n = rs.map((r, j) => (j === i ? { ...r, symbol: h.symbol, name: h.name, price: priceOf(h.symbol) } : r)); return i === rs.length - 1 ? [...n, blank(defaultPf)] : n; });
   const n = rows.filter((r) => r.symbol).length;

@@ -20,7 +20,9 @@ export function UnitsDialog({ hs, onClose, onDone }: { hs: Holding[]; onClose: (
   const w = useMfWrites(), id = useId(), first = useRef<HTMLInputElement>(null);
   const [v, setV] = useState<Record<string, string>>(() => Object.fromEntries(hs.map((h) => [h.id, h.units != null && h.units > 0 ? String(h.units) : ""])));
   const [busy, setBusy] = useState(false), [err, setErr] = useState("");
-  useEffect(() => { first.current?.focus(); const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; addEventListener("keydown", k); return () => removeEventListener("keydown", k); }, [onClose]);
+  const close = useRef(onClose);
+  close.current = onClose;                       // task #292: once per opening; a re-render no longer sends the cursor back to the first box
+  useEffect(() => { first.current?.focus(); const k = (e: KeyboardEvent) => { if (e.key === "Escape") close.current(); }; addEventListener("keydown", k); return () => removeEventListener("keydown", k); }, []);
   const rows = useMemo(() => hs.map((h) => ({ h, v: v[h.id] ?? "", locked: (h.lines ?? h.lots).length > 1 })), [hs, v]);
   const total = rows.reduce((a, r) => a + (r.locked ? (r.h.current ?? 0) : (numOf(r.v) ?? 0) * (r.h.nav ?? 0)), 0);
   const chk = unitsCheck(rows);
