@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
@@ -132,16 +133,24 @@ def _today() -> date:
     return datetime.now(IST).date()
 
 
+HISTORY_TTL_S = 300
+_history: Dict[str, Any] = {"t": 0.0, "body": None}
+
+
 @router.get("/api/ipos/history")
 async def history(request: Request) -> Response:
-    """Public. Every IPO on record as a light row, newest first."""
+    """Public. Every IPO on record as a light row, newest first. Built at most once every five minutes per process (about 1,600 rows, two lookups each)."""
+    if _history["body"] is not None and time.monotonic() - _history["t"] < HISTORY_TTL_S:
+        return Response(_history["body"], media_type="application/json", headers={"Cache-Control": "public, max-age=600"})
     async with request.app.state.store.pool.acquire() as conn:
         rs = [dict(x) for x in await conn.fetch(ROWS_SQL, None)]
         newest = await conn.fetchval("SELECT max(fetched_at) FROM ipo_gmp")
     today = _today()
     body = {"items": [row(x, today) for x in rs], "asOf": today.isoformat(), "updatedAt": newest.isoformat() if newest else None, "sources": SOURCES,
             "note": "GMP (grey market premium) is an informal, unofficial grey-market price, as InvestorGain recorded it; it is not an exchange figure."}
-    return Response(json.dumps(body, default=str), media_type="application/json", headers={"Cache-Control": "public, max-age=600"})
+    text = json.dumps(body, default=str)
+    _history.update(t=time.monotonic(), body=text)
+    return Response(text, media_type="application/json", headers={"Cache-Control": "public, max-age=600"})
 
 
 @router.get("/api/ipos/record/{ig_id}")

@@ -190,6 +190,7 @@ async def test_job_stores_the_record_and_the_nse_book_and_the_api_serves_them(ap
         assert (out["stored"], out["listed"], out["withDetail"], out["nseAsked"], out["nseBooks"]) == (1, 1, 1, 1, 1) and nse.asked == ["BLSPOLY"]
         again = await ipogmp.refresh(store_, pause_s=0, http=http, nse=nse)
         assert again["read"] == 0 and again["nseAsked"] == 0                                   # listed with its record, and NSE asked once: nothing read again
+    ipoapi._history.update(t=0.0, body=None)                                                    # the five-minute copy would hide this test's rows
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
         h = (await c.get("/api/ipos/history")).json()
         row = h["items"][0]
