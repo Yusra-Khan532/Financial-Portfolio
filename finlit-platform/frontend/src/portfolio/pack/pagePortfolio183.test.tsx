@@ -15,8 +15,8 @@ const cell = (name: string, symbols: string[], share = 0.1) => ({ name, n: symbo
 const t: TrendRead = {
   n: 39, rated: 35, coverage: 0.9, breadth: { up: 0.5, down: 0.3 }, direction: { improving: 0.2, weakening: 0.46, steady: 0.34 }, average: { stLabel: "Sideways", ltLabel: "Uptrend" },
   words: { longTerm: "Split", shortAgainstLong: "Fading", businessAndPrice: "Partly out of step" }, between: 18,
-  grid: { "1,1": cell("Rising on both", ["SKYGOLD", "WHEELS", "MEDANTA", "RPEL", "BALUFORGE", "PERSISTENT", "APOLLO", "LUMAXTECH", "ICICIBANK"], 0.26), "1,0": cell("Up, pausing", ["AVALON"]), "1,-1": cell("Up, pulling back", []),
-    "0,1": cell("Picking up", []), "0,0": cell("Range-bound", ["SKIPPER"]), "0,-1": cell("Slipping", ["NETWEB"]), "-1,1": cell("Down, bouncing", ["BLS"]), "-1,0": cell("Down, steadying", ["SUZLON"]), "-1,-1": cell("Falling on both", ["KRN"]) },
+  grid: { "1,1": cell("Rising", ["SKYGOLD", "WHEELS", "MEDANTA", "RPEL", "BALUFORGE", "PERSISTENT", "APOLLO", "LUMAXTECH", "ICICIBANK"], 0.26), "1,0": cell("Rising but resting", ["AVALON"]), "1,-1": cell("Rising but dipping", []),
+    "0,1": cell("Flat, turning up", []), "0,0": cell("Flat", ["SKIPPER"]), "0,-1": cell("Flat, turning down", ["NETWEB"]), "-1,1": cell("Falling but bouncing", ["BLS"]), "-1,0": cell("Falling but resting", ["SUZLON"]), "-1,-1": cell("Falling", ["KRN"]) },
   business: { strong_up: { n: 7, share: 0.2, symbols: ["SKYGOLD", "WHEELS", "MEDANTA", "BALUFORGE", "LUMAXTECH", "SOLARINDS", "ICICIBANK"] }, strong_down: { n: 9, share: 0.26, symbols: ["SANDUMA", "RRKABEL", "SUZLON"] },
     weak_up: { n: 1, share: 0.03, symbols: ["APOLLO"] }, weak_down: { n: 0, share: 0, symbols: [] } },
 };
@@ -30,16 +30,18 @@ describe("the short- and long-term trend (C43–C46)", () => {
     expect(screen.getByText(/^Short-term trend →/)).toBeTruthy(); expect(screen.getByText(/^Long-term trend ↓/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "About the short-term trend" })).toBeTruthy(); expect(screen.getByRole("button", { name: "About the long-term trend" })).toBeTruthy();
     const table = screen.getByRole("table");
-    expect(within(table).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Long-term trend", "↓ Down", "→ Sideways", "↑ Up"]);
+    expect(within(table).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Long-term trend", "↑ Up", "→ Sideways", "↓ Down"]);   // task #274: Up first
     expect(within(table).getAllByRole("rowheader").map((h) => h.textContent)).toEqual(["↑ Up", "→ Sideways", "↓ Down"]);
     expect(screen.getByText(/35 of 39 stocks rated/).textContent).toMatch(/FRACTAL has no long-term reading yet/);
   });
   it("shows 4 names in a cell, then +N more ▾ that opens the full list", () => {
     view(<TrendSection t={t} shares={[]} />);
-    const c = screen.getByText("Rising on both").closest("td")!;
-    expect(c.textContent).toMatch(/SKYGOLD, WHEELS, MEDANTA, RPEL/);
+    const c = document.querySelector("tbody tr td")! as HTMLElement;   // top-left: Rising on both (task #274)
+    expect(c.querySelector(".eq-tg-w")!.textContent).toBe("Rising (Long term Rising, Short term Rising): 9 stocks");
+    expect(c.querySelector(".eq-tg-n")!.textContent).toBe("926%");
+    expect(within(c).getAllByRole("link").slice(0, 4).map((a) => a.getAttribute("href"))).toEqual(["/stocks/SKYGOLD", "/stocks/WHEELS", "/stocks/MEDANTA", "/stocks/RPEL"]);
     const more = within(c).getByRole("button", { name: "+5 more ▾" });
-    expect(c.querySelector("[hidden]")!.textContent).toBe(", BALUFORGE, PERSISTENT, APOLLO, LUMAXTECH, ICICIBANK");
+    expect(c.querySelector("[hidden]")!.textContent).toBe("BALUFORGEPERSISTENTAPOLLOLUMAXTECHICICIBANK");
     fireEvent.click(more);
     expect(c.querySelector("[hidden]")).toBeNull(); expect(more.textContent).toBe("Show fewer ▴");
   });
@@ -50,11 +52,11 @@ describe("the short- and long-term trend (C43–C46)", () => {
     expect(rows[0].textContent).toMatch(/7 stocks · Prism 65 or above, long-term uptrend/);
     expect(within(rows[0] as HTMLElement).getByRole("button", { name: "+3 more ▾" })).toBeTruthy();
     expect(rows[2].textContent).toMatch(/Prism below 50, long-term uptrend/);
-    expect(screen.getByText("18 of 35 rated shares sit in between (Prism 50 to 64, or a sideways trend).")).toBeTruthy();
+    expect(screen.getByText("18 of 35 rated shares sit in between (Prism 50 to 64, or a flat long-term trend).")).toBeTruthy();   // an older reading without the list
     expect(screen.getByRole("button", { name: "About Business and price" })).toBeTruthy();
   });
   it("writes its three things to know, closed until opened", () => {
-    expect(trendCards(t).map((c) => c.title)).toEqual(["Nine shares rise on both trends", "The short term trails the long term for 46%", "Price behind the business for nine shares"]);
+    expect(trendCards(t).map((c) => c.title)).toEqual(["Nine shares are Rising on both trends", "The short term trails the long term for 46%", "Price behind the business for nine shares"]);
     view(<TrendSection t={t} shares={[]} />);
     expect(screen.getAllByRole("button", { expanded: false }).filter((b) => b.className === "dsh-ic-row")).toHaveLength(3);
     expect(screen.getByRole("button", { name: "Open all" })).toBeTruthy();

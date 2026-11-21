@@ -19,6 +19,8 @@ import { capBucket, SIZE_SHORTS } from "../lib/capBuckets";
 import { coTitle, isBseCode, sortLabel, subLine, titleOf } from "../lib/companyLabel";
 import { GroupBand, HOLD_COLS, HoldingHeads, HoldingRowCells, LotRows, LotToggle, TotalRow, holdingFigs, type LotsProps } from "./HoldingCells";
 import { EditSellLinks } from "./EditSell";
+import { FilterChips, FilterRow, applyFilters, filterDefs, trendScoreWord, trendWord, type Getters, type Picks } from "./ShareFilters";
+import { aggOf } from "../lib/ledger";
 
 const SHORT_LABEL: Record<string, string> = { fundamental: "G&P", valuation: "Val.", quality: "Qual.", risk: "Risk", growth: "Growth", profitability: "Profit.", balance: "Balance", technical: "Tech." };
 /** Task #183 / #283: the words of the band filter: FinLit Prism's, on a plan with Prism; none on a plan without it (no company score is shown). */
@@ -46,7 +48,8 @@ const PartChip = ({ v, why }: { v: number | null | undefined; why?: string }) =>
 const TrendCell = ({ t }: { t: { score: number | null; word: string | null } | null | undefined }) => {
   if (!t || t.score == null) return <span className="pfx-dash" title="Not calculated for this rating.">{MINUS}<span className="sr-only"> not calculated for this rating</span></span>;
   const v = Math.max(-100, Math.min(100, t.score));
-  return <span className="eq-trc" title={t.word ?? undefined}><b>{v > 0 ? "+" : v < 0 ? MINUS : ""}{Math.abs(Math.round(v))}</b><span className="eq-trb" aria-hidden="true"><i className={v >= 0 ? "up" : "dn"} style={{ width: `${Math.abs(v) / 2}%`, [v >= 0 ? "left" : "right"]: "50%" } as React.CSSProperties} /></span><small>{t.word}</small></span>;
+  const word = trendScoreWord(v);   // task #274 change 13: the table's own words on the ±20 / ±50 lines (the server's word stays in the hover)
+  return <span className="eq-trc" title={t.word && t.word !== word ? `${word} · Prism: ${t.word}` : word}><b>{v > 0 ? "+" : v < 0 ? MINUS : ""}{Math.abs(Math.round(v))}</b><span className="eq-trb" aria-hidden="true"><i className={v >= 0 ? "up" : "dn"} style={{ width: `${Math.abs(v) / 2}%`, [v >= 0 ? "left" : "right"]: "50%" } as React.CSSProperties} /></span><small>{word}</small></span>;
 };
 const Dash = ({ why }: { why: string }) => <span className="pfx-dash" title={why}>{MINUS}<span className="sr-only"> not available: {why}</span></span>;
 const mean = (xs: (number | null | undefined)[]) => { const v = xs.filter((x): x is number => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
@@ -78,6 +81,8 @@ export function SharesTable(p: Props) {
   const [sortId, setSortId] = useState<string | null>(null), [dir, setDir] = useState<1 | -1>(-1);
   const [colsMode, setColsMode] = useState<"all" | "h" | "s">("all");   // task #235 (pack B7): Columns: Everything · Your holding · Scores
   const [q, setQ] = useState(""), [band, setBand] = useState<string | null>(null), [level, setLevel] = useState<Level>("sector");
+  // task #274 (pack change 18): the five filters; they stay set across Overview, By sector, By company size, Ratios and Financials (this component's state)
+  const [picks, setPicks] = useState<Picks>({});
   const [openSet, setOpenSet] = useState<Set<string>>(new Set());
   // "Add buys" (the score box, the missing note) opens the first such holding's buys (task #235, pack B5 and B13)
   useEffect(() => { const on = (e: Event) => { const s = (e as CustomEvent).detail as string; if (s) p.lots?.onOpen(s, true); }; addEventListener("bh-open", on); return () => removeEventListener("bh-open", on); }, [p.lots]);
@@ -107,11 +112,20 @@ export function SharesTable(p: Props) {
   };
   const wordOf = (l: Line) => wordKey(scoreOf(l.ov, model).word) ?? "Not scored";
   const counts = new Map<string, number>(); lines.forEach((l) => counts.set(wordOf(l), (counts.get(wordOf(l)) ?? 0) + 1));
+  const getters: Getters = {
+    prism: (sym) => { const l = lines.find((x) => x.symbol === sym); return l ? wordOf(l) : "Not scored"; },
+    size: (sym) => sizeOf(sym) ?? "Not known",
+    trend: (sym) => { const l = lines.find((x) => x.symbol === sym); return trendWord(isReady(l?.ov) ? l!.ov.prism?.longTerm?.score ?? null : null); },
+    peers: (sym) => { const pk = p.peerOf?.(sym)?.peer; return pk ? PEER_WORD[pk.label] : "Not compared"; },
+    buys: (sym) => ((p.lots && aggOf(p.lots.holdings, sym, p.lots.cur)?.nBuys) ? "With buys" : "No buys yet"),
+  };
+  const defs = useMemo(() => filterDefs("Prism", BAND_FILTERS.prism), []);   // FinLit Prism is the only company score (task #283)
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return sorted(lines.filter((l) => (band == null || wordOf(l) === band) && (!needle || [l.symbol, l.name || "", secOf(l.symbol)].join(" ").toLowerCase().includes(needle))));
+    const keep = p.editSell ? new Set(applyFilters(lines.map((l) => l.symbol), picks, getters)) : null;
+    return sorted(lines.filter((l) => (keep ? keep.has(l.symbol) : band == null || wordOf(l) === band) && (!needle || [l.symbol, l.name || "", secOf(l.symbol)].join(" ").toLowerCase().includes(needle))));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lines, q, band, sortId, dir, model, meta, cols]);
+  }, [lines, q, band, picks, sortId, dir, model, meta, cols, p.lots]);
 
   const head = (c: { id: string; label: string; hint?: string; sortable?: boolean; num?: boolean; cls?: string }) => (
     <th key={c.id} scope="col" className={[c.num ? "r" : "", c.cls ?? ""].join(" ").trim() || undefined} aria-sort={sortId === c.id ? (dir === 1 ? "ascending" : "descending") : "none"} title={c.hint}>
@@ -178,7 +192,7 @@ export function SharesTable(p: Props) {
     return [...m].map(([g, ms]) => ({ g, ms })).sort((a, b) => order(a.g) - order(b.g) || b.ms.length - a.ms.length || a.g.localeCompare(b.g));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, shown, level, meta]);
-  const filtering = q.trim() !== "" || band != null;
+  const filtering = q.trim() !== "" || band != null || Object.values(picks).some((v) => v?.length);
   const isOpen = (g: string) => filtering || openSet.has(g);
   const toggle = (g: string) => setOpenSet((c) => { const n = new Set(c); if (n.has(g)) n.delete(g); else n.add(g); return n; });
   const lead = ov ? (p.lots ? 2 + HOLD_COLS : 4) : 1;
@@ -216,7 +230,8 @@ export function SharesTable(p: Props) {
       {sizeCards}
       <div className="pfx-tools">
         <input className="pfx-search" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a share in your list" aria-label="Find a share in your list" />
-        {model === "prism" && <div className="pfx-chipsrow" role="group" aria-label="Filter by Prism band">
+        {p.editSell ? <FilterRow defs={defs} symbols={lines.map((l) => l.symbol)} picks={picks} get={getters} onChange={setPicks} />
+          : model === "prism" && <div className="pfx-chipsrow" role="group" aria-label="Filter by Prism band">
           <button type="button" className={"pfx-pillbtn" + (band == null ? " on" : "")} aria-pressed={band == null} onClick={() => setBand(null)}>All {lines.length}</button>
           {[...BAND_FILTERS[model], "Not scored"].filter((w) => counts.get(w)).map((w) => <button key={w} type="button" className={"pfx-pillbtn" + (band === w ? " on" : "")} aria-pressed={band === w} onClick={() => setBand(band === w ? null : w)}>{w} {counts.get(w)}</button>)}</div>}
         {tab === "sector" && <div className="pfx-chipsrow" role="group" aria-label="Group by">{(["macro", "sector", "industry"] as const).map((k) => <button key={k} type="button" className={"pfx-pillbtn" + (level === k ? " on" : "")} aria-pressed={level === k} onClick={() => setLevel(k)}>{LEVEL_WORD[k]} · {new Set(lines.map((l) => { const x = nseLevels(isReady(l.ov) ? l.ov.industry : null); return x ? x[k] : null; }).filter(Boolean)).size}</button>)}</div>}
@@ -226,6 +241,7 @@ export function SharesTable(p: Props) {
           <button key={k} type="button" aria-pressed={colsMode === k} onClick={() => setColsMode(k)}>{l}</button>)}</div>}
         <span className="pfx-note pfx-count">{plural(shown.length, "share")}{shown.length !== lines.length ? ` of ${lines.length}` : ""} · limit {p.limit}</span>
       </div>
+      {p.editSell && <FilterChips defs={defs} picks={picks} q={q} shown={shown.length} total={lines.length} onChange={setPicks} onClearQ={() => setQ("")} />}
       {p.state === "error" && <p className="pfx-warn" role="alert">{p.errorText || "The scores could not be loaded. Try again in a moment."}</p>}
       <div id="pf-panel" role="tabpanel" aria-labelledby={`pf-tab-${tab}`}>
         <HScroll label="table"><table className={"pfx-table t-" + tab + (ov && p.lots ? " x-grp" + (colsMode === "h" ? " only-h" : colsMode === "s" ? " only-s" : "") : "")}>
@@ -241,7 +257,7 @@ export function SharesTable(p: Props) {
                   <span className="a">{a != null && <Chip v={a} big />}</span></button></td></tr>
                 {open && ms.map((l) => row(l, true))}
               </FragmentRows>); })}
-            {!shown.length && <tr><td colSpan={nCols} className="pfx-empty">{lines.length ? "No share matches this filter." : "No shares yet."}</td></tr>}
+            {!shown.length && <tr><td colSpan={nCols} className="pfx-empty">{lines.length ? <>No share matches {p.editSell ? "these filters" : "this filter"}.{p.editSell && <> <button type="button" className="pff-clear" onClick={() => { setPicks({}); setQ(""); }}>Clear filters</button></>}</> : "No shares yet."}</td></tr>}
           </tbody>
           {ov && shown.length > 0 && <tfoot>{p.lots && <TotalRow p={p.lots} symbols={shown.map((l) => l.symbol)} lead={2} rest={nCols - 2 - HOLD_COLS} />}{foot(shown, "List average")}</tfoot>}
         </table></HScroll>

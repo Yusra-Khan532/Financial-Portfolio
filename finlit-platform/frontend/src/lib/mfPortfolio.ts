@@ -186,7 +186,10 @@ export type TrendRead = {
   n: number; rated: number; coverage: number; grid: Record<string, TrendCell>; breadth: { up: number; down: number }; direction: { improving: number; weakening: number; steady: number };
   business: Record<"strong_up" | "strong_down" | "weak_up" | "weak_down", { n: number; share: number; symbols: string[] }>; average: { stLabel: string; ltLabel: string } | null;
   /** Rated shares with neither a strong nor a weak business, or a sideways long-term trend (the Equity portfolio counts them under its list). */
-  between?: number; ndirection?: { improving: number; weakening: number; steady: number };
+  between?: number;
+  /** Task #274 change 7: the same shares listed, each with its reason (its Prism score, and whether the long-term trend is flat): the fifth box, In between. */
+  betweenList?: { n: number; share: number; items: { symbol: string; prism: number | null; flat: boolean }[] };
+  ndirection?: { improving: number; weakening: number; steady: number };
   words: { longTerm: string; shortAgainstLong: string; businessAndPrice: string };
 };
 export type MfTrend = { all: TrendRead; perFund?: Record<string, TrendRead>; sharedWeakSpots?: { n: number; share: number; symbols: string[] } };

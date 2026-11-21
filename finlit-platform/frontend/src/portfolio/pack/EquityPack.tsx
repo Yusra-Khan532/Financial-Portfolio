@@ -60,35 +60,65 @@ export function GoldLock({ id, title, text }: { id: string; title: string; text:
 }
 
 // ------------------------------------------------------------------------------------------------ Short- and long-term trend (Gold)
-const ST_COLS: [string, string][] = [["-1", "↓ Down"], ["0", "→ Sideways"], ["1", "↑ Up"]];
+const ST_COLS: [string, string][] = [["1", "↑ Up"], ["0", "→ Sideways"], ["-1", "↓ Down"]];   // task #274 change 4: Up first, so "rising on both" is top-left
 const LT_ROWS: [string, string][] = [["1", "↑ Up"], ["0", "→ Sideways"], ["-1", "↓ Down"]];
+const SIDE_WORD: Record<string, string> = { "1": "Rising", "0": "Flat", "-1": "Falling" };
 const BIZ: [keyof TrendRead["business"], string, string, string][] = [
   ["strong_up", "g", "Business and price agree (strong)", "Prism 65 or above, long-term uptrend"], ["strong_down", "m", "Price behind the business", "Prism 65 or above, long-term downtrend"],
   ["weak_up", "m", "Price ahead of the business", "Prism below 50, long-term uptrend"], ["weak_down", "b", "Business and price agree (weak)", "Prism below 50, long-term downtrend"]];
-/** The pack's trend card: a matrix of the short-term trend (across) against the long-term one (down), each cell with its names (4, then "+N more ▾"), and the
- *  Business and price lists beside it. Counts, names and shares are the server's (POST /api/portfolio/trend); every share counts the same. */
+/** A Prism score as the In between reason gives it: whole, unless rounding would carry it across a line (64.9 stays 64.9, not 65). */
+export const prismShown = (v: number) => { const r = Math.round(v); return (v < 65 && r >= 65) || (v < 50 && r >= 50) ? v.toFixed(1) : String(r); };
+/** Company names as small chips, each a link to its report (task #274 change 5; same tab, middle-click opens a new one); a BSE-only company shows its name,
+ *  not its code. The first `show`, then "+N more ▾" (a control, as every "and N more" on this page). `why` adds a reason to a chip ("TECHM · Prism 56"). */
+export function CoChips({ syms, shares, show = 4, why, empty = "–" }: { syms: string[]; shares: Share[]; show?: number; why?: (s: string) => string | null; empty?: string }) {
+  const [open, setOpen] = useState(false), id = "eq-cc-" + useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  if (!syms.length) return <>{empty}</>;
+  const by = new Map(shares.map((s) => [s.symbol, s])), rest = syms.length - show;
+  const chip = (sym: string) => { const s = by.get(sym) ?? { symbol: sym, name: null }, w = why?.(sym);
+    return <Link key={sym} to={`/stocks/${encodeURIComponent(sym)}`} className="eq-co" title={coTitle(s)}>{shortLabel(s)}{w && <span> · {w}</span>}</Link>; };
+  return <span className="eq-cos">{syms.slice(0, show).map(chip)}{rest > 0 && <><span id={id} className="eq-cos" hidden={!open}>{syms.slice(show).map(chip)}</span>
+    <button type="button" className="eq-more" aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}>{open ? "Show fewer ▴" : `+${rest} more ▾`}</button></>}</span>;
+}
+/** A sentence with every company of the list in it turned into a link to its report (task #274 change 5): the symbol, or a BSE-only company's short name. */
+export function LinkNames({ text, shares }: { text: string; shares: Share[] }) {
+  const by = new Map<string, string>();
+  for (const s of shares) { by.set(shortLabel(s), s.symbol); by.set(s.symbol, s.symbol); }
+  const keys = [...by.keys()].filter(Boolean).sort((a, b) => b.length - a.length).map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  if (!keys.length) return <>{text}</>;
+  const parts = text.split(new RegExp(`(?<![\\w&])(${keys.join("|")})(?![\\w&])`, "g"));
+  return <>{parts.map((x, i) => (i % 2 && by.has(x) ? <Link key={i} to={`/stocks/${encodeURIComponent(by.get(x)!)}`} className="eq-col">{x}</Link> : x))}</>;
+}
+/** The pack's trend card: a 3 × 3 matrix of the short-term trend (across) against the long-term one (down), Up first in both; each cell a big count with its
+ *  share, its name, up to 4 names then "+N more ▾"; darker cells hold more, empty ones are muted. Beside it the Business and price boxes: the four, and In
+ *  between, so every rated share is in exactly one. Counts, names and shares are the server's (POST /api/portfolio/trend); every share counts the same. */
 export function TrendSection({ t, shares }: { t: TrendRead; shares: Share[] }) {
   const pc0 = (x: number) => `${Math.round(x * 100)}%`, stocks = (n: number) => `${n} ${n === 1 ? "stock" : "stocks"}`;
   const none = shares.filter((s) => s.lt == null).map((s) => s.symbol);
+  const mid = t.betweenList, why = new Map((mid?.items ?? []).map((x) => [x.symbol, [x.prism != null ? `Prism ${prismShown(x.prism)}` : "not scored", x.flat ? "flat trend" : ""].filter(Boolean).join(" · ")]));
   return (
-    <Section id="eq-trend" hide title="Short- and long-term trend" help="Where each share's short-term price trend sits against its long-term one, from FinLit Prism's technical view." how="Across: the short-term trend, down to up. Down the side: the long-term trend, up to down. It describes past prices, not what comes next."
-      sub={<>{t.rated} of {t.n} {t.n === 1 ? "stock" : "stocks"} rated, from FinLit Prism's technical views. Where each share's short-term trend sits against its long-term one.{none.length ? <> {none.length <= 6 ? list2(none) : <More names={none} />} {none.length === 1 ? "has" : "have"} no long-term reading yet.</> : null}</>}>
+    <Section id="eq-trend" hide title="Short- and long-term trend" help="Where each share's short-term price trend sits against its long-term one, from FinLit Prism's technical view." how="Across: the short-term trend, up to down. Down the side: the long-term trend, up to down. Rising on both is top-left. It describes past prices, not what comes next."
+      sub={<>{t.rated} of {t.n} {t.n === 1 ? "stock" : "stocks"} rated, from FinLit Prism's technical views. Where each share's short-term trend sits against its long-term one.{none.length ? <> <CoChips syms={none} shares={shares} show={6} /> {none.length === 1 ? "has" : "have"} no long-term reading yet.</> : null}</>}>
       {!t.rated ? <p className="sp-empty">None of the shares in your list has a stored FinLit Prism trend reading yet.</p> : <div className="eq-tr">
         <div className="eq-tm">
-          <p className="eq-tm-x">Short-term trend →<Tip text="The share's price trend over the last few weeks." how="Read across: from down on the left to up on the right." label="About the short-term trend" /></p>
+          <p className="eq-tm-x">Short-term trend →<Tip text="The share's price trend over the last few weeks." how="Read across: from up on the left to down on the right." label="About the short-term trend" /></p>
           <p className="eq-tm-y">Long-term trend ↓<Tip text="The share's price trend over the last year." how="Read down the side: from up at the top to down at the bottom." label="About the long-term trend" /></p>
-          <Scroll label="trend matrix"><table className="eq-tg"><thead><tr><th><span className="sr-only">Long-term trend</span></th>{ST_COLS.map(([k, l]) => <th key={k} scope="col">{l}</th>)}</tr></thead>
-            <tbody>{LT_ROWS.map(([r, rl]) => <tr key={r}><th scope="row">{rl}</th>{ST_COLS.map(([c]) => { const g = t.grid[`${r},${c}`]; return <td key={c} className={"eq-tg-c t" + (+r + +c)}>
-              <b>{g?.name ?? "–"}</b><small>{stocks(g?.n ?? 0)} · {pc0(g?.share ?? 0)}</small><em><More names={g?.symbols ?? []} /></em></td>; })}</tr>)}</tbody></table></Scroll>
+          <Scroll label="trend matrix"><table className="eq-tg" aria-label="Trend matrix: long-term trend down the side, short-term trend across"><thead><tr><th><span className="sr-only">Long-term trend</span></th>{ST_COLS.map(([k, l]) => <th key={k} scope="col">{l}</th>)}</tr></thead>
+            <tbody>{LT_ROWS.map(([r, rl]) => <tr key={r}><th scope="row">{rl}</th>{ST_COLS.map(([c]) => { const g = t.grid[`${r},${c}`], n = g?.n ?? 0, sh = g?.share ?? 0;
+              return <td key={c} className={"eq-tg-c t" + (+r + +c) + (n ? "" : " e")} style={{ ["--k" as string]: `${Math.round(8 + Math.min(1, sh / 0.4) * 30)}%` }}>
+                <p className="eq-tg-n"><b>{n}</b><span>{pc0(sh)}</span></p><p className="eq-tg-w">{g?.name ?? "–"}<span className="sr-only"> (Long term {SIDE_WORD[r]}, Short term {SIDE_WORD[c]}): {stocks(n)}</span></p>
+                {n > 0 && <CoChips syms={g?.symbols ?? []} shares={shares} />}</td>; })}</tr>)}</tbody></table></Scroll>
         </div>
-        <div className="eq-bp">
-          <p className="eq-bp-h"><b>Business and price</b><Tip text="The business, from the FinLit Prism score, beside the price, from the long-term trend." how="65 or above is a strong business, below 50 a weak one; shares in between are counted under the list. Where the two disagree, the price has run ahead of the business or fallen behind it." label="About Business and price" /></p>
-          {BIZ.map(([k, tone, label, rule]) => { const b = t.business[k]; return <div key={k} className={"eq-bpr " + tone}>
-            <p className="eq-bpr-t"><b>{label}</b><b>{pc0(b.share)}</b></p><small>{stocks(b.n)} · {rule}</small><small className="eq-bpr-n"><More names={b.symbols} /></small></div>; })}
-          {t.between != null && <p className="sp-note">{t.between} of {t.rated} rated {t.rated === 1 ? "share sits" : "shares sit"} in between (Prism 50 to 64, or a sideways trend).</p>}
+        <div className="eq-bp" role="group" aria-label="Business and price">
+          <p className="eq-bp-h"><b>Business and price</b><Tip text="The business, from the FinLit Prism score, beside the price, from the long-term trend." how="65 or above is a strong business, below 50 a weak one. Where the two disagree, the price has run ahead of the business or fallen behind it. Shares in neither, Prism 50 to 64 or a flat long-term trend, are In between." label="About Business and price" /></p>
+          {BIZ.map(([k, tone, label, rule]) => { const b = t.business[k]; return <div key={k} className={"eq-bpr " + tone + (b.n ? "" : " e")}>
+            <p className="eq-bpr-t"><b>{label}</b><b>{pc0(b.share)}</b></p><small>{stocks(b.n)} · {rule}</small><div className="eq-bpr-n"><CoChips syms={b.symbols} shares={shares} empty="None of your shares right now." /></div></div>; })}
+          {mid ? <div className={"eq-bpr n" + (mid.n ? "" : " e")}>
+            <p className="eq-bpr-t"><b>In between</b><b>{pc0(mid.share)}</b></p><small>{stocks(mid.n)} · Prism 50 to 64, or a flat long-term trend</small>
+            <div className="eq-bpr-n"><CoChips syms={mid.items.map((x) => x.symbol)} shares={shares} show={8} why={(s) => why.get(s) ?? null} /></div></div>
+            : t.between != null && <p className="sp-note">{t.between} of {t.rated} rated {t.rated === 1 ? "share sits" : "shares sit"} in between (Prism 50 to 64, or a flat long-term trend).</p>}
         </div>
       </div>}
-      <Insights items={trendCards(t)} scope="eq.trend" />
+      <Insights items={trendCards(t, (x) => { const s = shares.find((y) => y.symbol === x); return s ? shortLabel(s) : x; })} scope="eq.trend" />
     </Section>
   );
 }
@@ -102,7 +132,7 @@ export function PeersSection({ shares }: { shares: Share[] }) {
     const xs = shares.filter((s) => s.peer?.label === label).sort((a, b) => a.peer!.rank / a.peer!.of - b.peer!.rank / b.peer!.of), open = !!all[label];
     return (
       <div className={"eq-pc eq-pc-" + tone}><p className="eq-pc-h"><b>{title}</b><span>{xs.length}</span></p>
-        <ul id={"eq-pc-" + label}>{(open ? xs : xs.slice(0, 3)).map((s) => <li key={s.symbol}><b title={coTitle(s)}>{shortLabel(s)}</b> · {s.peer!.rank} of {s.peer!.of} {s.peer!.group}<small>{peerLine(s)}</small></li>)}</ul>
+        <ul id={"eq-pc-" + label}>{(open ? xs : xs.slice(0, 3)).map((s) => <li key={s.symbol}><Link to={`/stocks/${encodeURIComponent(s.symbol)}`} className="eq-col" title={coTitle(s)}>{shortLabel(s)}</Link> · {s.peer!.rank} of {s.peer!.of} {s.peer!.group}<small>{peerLine(s)}</small></li>)}</ul>
         {xs.length > 3 && <button type="button" className="eq-more" aria-expanded={open} aria-controls={"eq-pc-" + label} onClick={() => setAll({ ...all, [label]: !open })}>{open ? "Show fewer ▴" : `Show all ${xs.length} ▾`}</button>}
         {!xs.length && <p className="sp-note">None.</p>}</div>);
   };
@@ -110,7 +140,7 @@ export function PeersSection({ shares }: { shares: Share[] }) {
     <Section id="eq-peers" hide title="Against their peers" help="Each share's price over the last 12 months against similar companies (its peer group) and its sector index." how="Leader: among the strongest of its group and ahead of the index. Laggard: among the weakest and behind it. It describes the past, not the future."
       sub="For each share: was it among the strongest or the weakest of similar companies over the last 12 months?"
       why="A share can rise 20% and still be a weak pick if similar companies rose 60%. Comparing each share with its own peer group shows whether your shares are the strong ones in each group, and which of them trail their group.">
-      <p className="sp-lead eq-lead">{peerSentence(shares)}</p>
+      <p className="sp-lead eq-lead"><LinkNames text={peerSentence(shares)} shares={shares} /></p>
       <div className="eq-pcs">{col("leader", "Leaders", "good")}{col("in_line", "In line", "mid")}{col("laggard", "Laggards", "bad")}</div>
       <Insights items={peerCards(shares)} scope="eq.peers" />
     </Section>
@@ -158,7 +188,7 @@ function LeaderCompare({ shares }: { shares: Share[] }) {
         <div className="eq-lc">{pairs.map(({ x, a, b }, i) => { const lo = Math.min(...a.v, ...b.v), hi = Math.max(...a.v, ...b.v); return (
           <div key={x.mine.symbol} className="eq-lc-c">
             <p className="sp-note">Peer group: {x.mine.peer!.group}</p>
-            <p className="eq-lc-t"><b className="sp-red" title={coTitle(x.mine)}>{shortLabel(x.mine)}</b> vs group #1 <b className="sp-good" title={coTitle(x.top)}>{shortLabel(x.top)}</b></p>
+            <p className="eq-lc-t"><Link to={`/stocks/${encodeURIComponent(x.mine.symbol)}`} className="eq-col sp-red" title={coTitle(x.mine)}>{shortLabel(x.mine)}</Link> vs group #1 <Link to={`/stocks/${encodeURIComponent(x.top.symbol)}`} className="eq-col sp-good" title={coTitle(x.top)}>{shortLabel(x.top)}</Link></p>
             <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`₹1 lakh a year ago: ${rupee(info[i].mine)} in ${x.mine.symbol}, ${rupee(info[i].theirs)} in ${x.top.symbol}`}>
               <line x1={0} x2={W} y1={H - ((100 - lo) / (hi - lo || 1)) * H} y2={H - ((100 - lo) / (hi - lo || 1)) * H} className="eq-lc-base" />
               <path d={line(b.v, lo, hi)} className="eq-lc-top" fill="none" /><path d={line(a.v, lo, hi)} className="eq-lc-me" fill="none" />
