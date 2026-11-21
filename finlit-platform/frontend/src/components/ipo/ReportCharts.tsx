@@ -22,19 +22,33 @@ export function BookBars({ cats, total }: { cats: BookCategory[]; total: number 
           <li key={c.key}><span className="ir-bl">{c.label}</span>
             <span className="ir-bt"><i style={{ width: `${Math.max(0.6, (c.times / max) * 100)}%`, background: colourOf(c.key) }} /><em style={{ left: `${(total / max) * 100}%` }} aria-hidden="true" /></span>
             <b>{nf(c.times, 2)}x</b></li>))}
-        <li className="ir-tot"><span className="ir-bl">Overall</span><span className="ir-bt"><i style={{ width: `${(total / max) * 100}%` }} /></span><b>{nf(total, 2)}x</b></li>
+        <li className="ir-tot"><span className="ir-bl">Overall, NSE book</span><span className="ir-bt"><i style={{ width: `${(total / max) * 100}%` }} /></span><b>{nf(total, 2)}x</b></li>
       </ul>
     </ChartZoom>
   );
 }
 
-/** Bids at each price in the band (lakh shares), the cut-off bids last. */
+/** Bids at each price in the band (lakh shares), the cut-off bids last. A wide band has dozens of prices with almost no bids: those (each under 1% of
+ *  all bids) are shown as one row, so the prices that hold the book stand out. */
+export function groupDemand(demand: { price: string; lakhShares: number }[]) {
+  const total = demand.reduce((a, d) => a + d.lakhShares, 0) || 1;
+  const keep = demand.filter((d, i) => d.price === "Cut-off" || i === demand.length - 1 || d.lakhShares / total >= 0.01 || demand.length <= 12);
+  const rest = demand.filter((d) => !keep.includes(d));
+  const nums = rest.map((d) => Number(d.price)).filter((n) => Number.isFinite(n));
+  const other = rest.length ? { price: nums.length ? `₹${Math.min(...nums)}–${Math.max(...nums)}, ${rest.length} other prices` : `${rest.length} other prices`, lakhShares: rest.reduce((a, d) => a + d.lakhShares, 0), other: true } : null;
+  const shown = keep.map((d) => ({ ...d, other: false }));
+  const cut = shown.findIndex((d) => d.price === "Cut-off");
+  if (other) shown.splice(cut >= 0 ? cut : shown.length, 0, other);      // the grouped prices sit just before the cut-off row
+  return shown.length > 1 ? shown : demand.map((d) => ({ ...d, other: false }));
+}
+
 export function DemandBars({ demand }: { demand: { price: string; lakhShares: number }[] }) {
-  const max = Math.max(1, ...demand.map((d) => d.lakhShares));
+  const rows = groupDemand(demand);
+  const max = Math.max(1, ...rows.map((d) => d.lakhShares));
   return (
     <ChartZoom label="Bids at each price">
       <ul className="ir-dem" aria-label="Bids at each price, lakh shares">
-        {demand.map((d) => <li key={d.price}><span>{d.price === "Cut-off" ? "Cut-off" : "₹" + d.price}</span><span className="ir-bt"><i style={{ width: `${Math.max(0.4, (d.lakhShares / max) * 100)}%` }} /></span><b>{nf(d.lakhShares, d.lakhShares < 10 ? 2 : 0)} lakh</b></li>)}
+        {rows.map((d) => <li key={d.price} className={d.other ? "ir-other" : ""}><span>{d.other || d.price === "Cut-off" ? d.price : "₹" + d.price}</span><span className="ir-bt"><i style={{ width: `${Math.max(0.4, (d.lakhShares / max) * 100)}%` }} /></span><b>{nf(d.lakhShares, d.lakhShares < 10 ? 2 : 0)} lakh</b></li>)}
       </ul>
     </ChartZoom>
   );

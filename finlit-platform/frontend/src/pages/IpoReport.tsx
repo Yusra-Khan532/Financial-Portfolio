@@ -50,6 +50,12 @@ export function inWords(r: IpoRecord): string[] {
   return out;
 }
 
+/** "the employee portion", "the employee and shareholder portions": the reserved parts NSE's book counts beyond the main categories. */
+function extra(cats: { key: string }[]): string {
+  const w = cats.map((c) => ({ employee: "employee", shareholder: "shareholder", policyholder: "policyholder", other: "other" } as Record<string, string>)[c.key]).filter(Boolean);
+  return w.length ? `the ${w.join(" and ")} ${w.length > 1 ? "portions" : "portion"}` : "the reserved portions";
+}
+
 function Tile({ k, v, s, c }: { k: string; v: ReactNode; s?: ReactNode; c?: string }) {
   return <div className="ir-tile"><span>{k}</span><b className={c}>{v}</b>{s && <small>{s}</small>}</div>;
 }
@@ -83,7 +89,7 @@ export function IpoReportPage() {
         <Tile k={r.status === "listed" || r.status === "closed" ? "Issue price" : "Price band"} v={r.status === "listed" || r.status === "closed" ? rupees(r.issuePrice) : r.priceHigh != null ? `${r.priceLow != null && r.priceLow !== r.priceHigh ? rupees(r.priceLow) + "–" : ""}${rupees(r.priceHigh)}` : MINUS}
           s={i?.lotSize ? `Lot of ${nf(i.lotSize, 0)} shares` : undefined} />
         <Tile k="Issue size" v={crore(r.issueSizeCr)} s={i && (i.freshCr || i.ofsCr) ? [i.freshCr ? `Fresh ${crore(i.freshCr)}` : "", i.ofsCr ? `Offer for sale ${crore(i.ofsCr)}` : ""].filter(Boolean).join(" · ") : undefined} />
-        <Tile k="Subscribed" v={times(r.subscription)} s={r.nseBook ? "NSE, all categories" : r.subscription != null ? (r.status === "open" ? "Overall, so far" : "Overall") : undefined} />
+        <Tile k="Subscribed" v={times(r.subscription ?? r.nseBook?.total)} s={r.subscription != null || r.nseBook ? (r.status === "open" ? "Overall, so far" : "Overall") : undefined} />
         <Tile k={r.status === "listed" ? "GMP before listing" : "Latest GMP"} v={r.gmp != null ? rupees(r.gmp) : MINUS} s={r.gmpPct != null ? `${nf(r.gmpPct, 1)}% of the ${r.status === "listed" ? "issue" : "upper"} price · unofficial` : undefined} />
         {r.status === "listed" && <Tile k="Listed at" v={rupees(r.listingPrice)} s={<span className={tone(r.listingPct)}>{pct(r.listingPct)} vs issue · {dateIn(r.listingDate)}</span>} />}
         {r.status === "listed" && r.listingClose != null && <Tile k="First-day close" v={rupees(r.listingClose)} s={r.listingClosePct != null ? <span className={tone(r.listingClosePct)}>{pct(r.listingClosePct)} vs issue</span> : undefined} />}
@@ -101,7 +107,7 @@ export function IpoReportPage() {
 
       <section className="card ir-sec" aria-labelledby="ir-sub"><h2 id="ir-sub">Subscription</h2>
         {r.nseBook ? <>
-          <p className="ir-lead">Subscribed <b>{times(r.nseBook.total)}</b> overall. The thin mark on each bar is the overall figure.</p>
+          <p className="ir-lead">Subscribed <b>{times(r.subscription ?? r.nseBook.total)}</b> overall.{r.subscription != null && Math.abs(r.subscription - r.nseBook.total) >= 0.01 && <> NSE's consolidated book, which also counts {extra(r.nseBook.categories)}, gives <b>{times(r.nseBook.total)}</b>.</>} The thin mark on each bar is NSE's overall figure.</p>
           <BookBars cats={r.nseBook.categories} total={r.nseBook.total} />
           {r.nseBook.demand.length > 1 && <><h3>Bids at each price</h3><p className="muted ir-small">Shares bid for at each price in the band (in lakh), as NSE published the book; cut-off bids take whatever price is set.</p><DemandBars demand={r.nseBook.demand} /></>}
           <p className="muted ir-small">Source: NSE, the consolidated book (bids on NSE and BSE together).</p>

@@ -67,6 +67,18 @@ describe("the IPO report", () => {
     expect(document.body.textContent).not.toMatch(ADVICE);
   });
 
+  it("names NSE's figure when its book counts more than the overall subscription, and groups thin prices", async () => {
+    st.rec = { ...rec, nseBook: { ...rec.nseBook!, total: 22.19, categories: [...rec.nseBook!.categories, { key: "employee", label: "Employees", offered: 1, bid: 1, times: 2.93 }] } };
+    at("/ipo/1849");
+    expect(document.body.textContent).toContain("Subscribed 241.22x overall. NSE's consolidated book, which also counts the employee portion, gives 22.19x.");
+    const { groupDemand } = await import("../components/ipo/ReportCharts");
+    const wide = [...Array.from({ length: 50 }, (_, i) => ({ price: String(1065 + i), lakhShares: 0.05 })), { price: "1115", lakhShares: 40244 }, { price: "Cut-off", lakhShares: 3571 }];
+    const g = groupDemand(wide);
+    expect(g.map((d) => d.price)).toEqual(["1115", "₹1065–1114, 50 other prices", "Cut-off"]);
+    expect(g[1].lakhShares).toBeCloseTo(2.5, 6);
+    expect(groupDemand(rec.nseBook!.demand).map((d) => d.price)).toEqual(["142", "150", "Cut-off"]);      // a short band is shown whole
+  });
+
   it("leaves out what it does not have", () => {
     st.rec = { ...rec, nseBook: null, gmpHistory: [], companyPage: false, detail: { ...rec.detail!, financials: null, anchors: null, objects: null, kpis: [] } };
     at("/ipo/1849");
