@@ -139,25 +139,8 @@
 /* "New" on a page launched in the last 30 days (lib/nav.ts isNew; task #136) */
 .side-l .side-new { flex: none; margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: var(--gain-soft, var(--s2)); color: var(--gain, var(--text)); font: 700 12px/1.4 var(--sans); font-style: normal; letter-spacing: .06em; text-transform: uppercase; }
 
-/* task #282 (the workspace-menu file of 21 Nov): each group heading carries one line saying what is inside, shown open or closed; Dashboard is a plain
-   two-line link above the groups; the rail's pop-out repeats the line under its heading. */
-.side-gb { align-items: flex-start; padding-block: 9px; }
-.side-gb .side-gbd, .side-gb .side-gn, .side-gb .side-gc { margin-top: 1px; }
-.side-gw { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left; }
-.side-gw .side-gname { color: var(--text); }
-.side-gs { font: 400 var(--fs-12)/1.35 var(--sans); color: var(--muted); white-space: normal; overflow-wrap: anywhere; }
-.side-i.side-dash { align-items: flex-start; padding-block: 9px; margin-bottom: 4px; }
-.side-l.side-l2 { flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
-.side-ls { font: 400 var(--fs-12)/1.35 var(--sans); color: var(--muted); white-space: normal; }
+/* task #282 (the workspace-menu file of 21 Nov): the rail's pop-out repeats the group's line under its heading. */
 .side-fly-s { margin: -2px 12px 8px; font: 400 var(--fs-13)/1.35 var(--sans); color: var(--muted); max-width: 260px; }
-/* the line runs under the page count and the chevron too, so every line fits in two lines at the panel's width (the pack's check) */
-.side-gb { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; column-gap: 8px; row-gap: 2px; align-items: start; }
-.side-gb .side-gw { display: contents; }
-.side-gb .side-gbd { grid-column: 1; grid-row: 1; margin-right: 0; }
-.side-gb .side-gname { grid-column: 2; grid-row: 1; }
-.side-gb .side-gn { grid-column: 3; grid-row: 1; }
-.side-gb .side-gc { grid-column: 4; grid-row: 1; }
-.side-gb .side-gs { grid-column: 2 / 5; grid-row: 2; }
 
 /* ---- task #285: an "i" button on every page row (side menu and the folded rail's pop-outs) opens the page's one-line description under the row.
    The button sits beside the link, not inside it (a button inside a link is not allowed), on the row's right edge; the link keeps room for it. ---- */
@@ -170,3 +153,28 @@
 .side-desc { margin: 2px 8px 6px 38px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--s2); color: var(--muted); font: 400 var(--fs-13, 13px)/1.45 var(--sans); animation: side-tip-in .12s ease-out; }
 .side-fly .side-desc { margin-left: 36px; }
 @media (max-width: 960px) { .side-info { top: 12px; width: 24px; height: 24px; font-size: 13px; } .side-row.has-info > .side-i { padding-right: 40px; } }
+
+/* ---- task #282 rework (the slim side menu file, 21 Nov: "make it slim and less bulky"): each group heading is one line; its line moves behind an i
+   (the #285 note); no page count; Dashboard on one line with its own i; tighter rows on a computer, 44px on touch. One group open at a time (AppShell). ---- */
+.side-gb { display: flex; align-items: center; padding-block: 0; font-weight: 500; color: var(--text); }
+.side-g.is-open .side-gb, .side-g.has-here .side-gb { font-weight: 600; }
+.side-gb .side-gbd, .side-gb .side-gc { margin-top: 0; }
+.side-gn { display: none; }
+.side-g > .side-row > .side-info { right: 32px; }
+.side-g > .side-row.has-info > .side-gb .side-gname { padding-right: 28px; }
+.side-dash-row > .side-info { right: 8px; top: 8px; }
+.side-i { padding-block: 2px; }
+.side-i.side-dash { align-items: center; padding-block: 2px; margin-bottom: 2px; }
+.side-g > .side-desc, .side-dash-row + .side-desc { margin: 0 8px 6px 34px; }
+.side-desc[hidden] { display: none; }
+@media (pointer: fine) {
+  .side-gb { min-height: 40px; }
+  .side-i { min-height: 36px; }
+  .side-row.has-info > .side-info { opacity: 0; }
+  .side-row:hover > .side-info, .side-row:focus-within > .side-info, .side-row > .side-info[aria-expanded="true"] { opacity: 1; }
+}
+@media (pointer: coarse) {
+  .side-dash-row > .side-info { top: 10px; }
+}
+/* a closed group is its heading only: the page list's padding goes with it (6px a group, the slim file's 480px menu) */
+.side-g:not(.is-open) > .side-gi .side-gin { padding-block: 0; border-left-color: transparent; }

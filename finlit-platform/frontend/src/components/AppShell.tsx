@@ -10,11 +10,20 @@ import { DEMO } from "../lib/demo";
 import { useAlerts, useNotices } from "../lib/alerts";
 import { DASHBOARD, MENU, isNew, menuMatch, offeredTo, type NavItem } from "../lib/nav";
 import { useIsGold } from "../lib/planGate";
-import { isBool, isBoolMap, loadUi, saveUi } from "../lib/persist";
+import { isBool, loadUi, saveUi } from "../lib/persist";
 import { SideRail } from "./SideRail";
 
 type Item = { to: string; label: string; icon: string; badge?: string; end?: boolean; gold?: boolean; sub?: boolean; fresh?: boolean; desc?: string };
 type Group = { id: string; title: string; line: string; short: string; icon: string; items: Item[] };
+
+/** The "i" beside a menu row (task #285; group headings and the Dashboard since the #282 rework): opens its note under the row, one note in the menu at a
+ *  time; a second click or Escape closes it and focus stays on the i. It never opens or closes a group. */
+function InfoButton({ k, label, target, info, setInfo, title }: { k: string; label: string; target: string; info: string | null; setInfo: (f: (v: string | null) => string | null) => void; title: string }) {
+  const shows = info === k;
+  return <button type="button" className="side-info" aria-label={label} aria-expanded={shows} aria-controls={target} title={title}
+    onClick={(e) => { e.stopPropagation(); setInfo((v) => (v === k ? null : k)); }}
+    onKeyDown={(e) => { if (e.key === "Escape" && shows) { e.stopPropagation(); setInfo(() => null); } }}>i</button>;
+}
 
 /** The left rail for every product page: where you are, what you follow, and what else the platform offers, in the order people use it. */
 export function AppShell() {
@@ -46,8 +55,10 @@ export function AppShell() {
   useEffect(() => { if (!open) return; const k = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false); addEventListener("keydown", k); return () => removeEventListener("keydown", k); }, [open]);
   // Each group is a drop-down: a header you click to show or hide its pages. The group holding the current page is always open;
   // what you opened or closed by hand is remembered.
-  const [folded, setFolded] = useState<Record<string, boolean>>(() => loadUi("side-groups", 1, isBoolMap, {}));
-  const toggleGroup = (id: string, isOpen: boolean) => setFolded((f) => { const n = { ...f, [id]: isOpen }; saveUi("side-groups", 1, n); return n; });
+  // Task #282 rework (the slim side menu file, 21 Nov): one group open at a time. The group holding the page is opened on arrival; otherwise the group
+  // the member opened last (one key, "side-open"; the old per-group "side-groups" choices are no longer read). Find stocks on a first visit.
+  const [openId, setOpenId] = useState<string>(() => loadUi("side-open", 1, (d: unknown) => (typeof d === "string" ? d : null), "find"));
+  const toggleGroup = (id: string, isOpen: boolean) => { const n = isOpen ? id : ""; setOpenId(n); saveUi("side-open", 1, n); };
   // "Find a page": filters the links by name and opens the groups that match (Ctrl+/ focuses it).
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
@@ -56,7 +67,7 @@ export function AppShell() {
   const [scrolled, setScrolled] = useState(false);
   const [tip, setTip] = useState<{ label: string; top: number; left: number } | null>(null);
   // Task #285: every page row has an "i" button that opens the page's one-line description under it (one open at a time; Escape or a second click closes it).
-  const [info, setInfo] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);     // the one note open: a page ("/screener"), a group ("g:find") or the Dashboard ("dash")
   useEffect(() => { setInfo(null); }, [pathname]);
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
@@ -98,7 +109,10 @@ export function AppShell() {
   const here = (g: Group) => g.items.some((i) => (i.end ? pathname === i.to : pathname === i.to || pathname.startsWith(i.to + "/")));
   // open when the page you are on is inside it, otherwise what you chose; the one-page Overview group and the first visit start open for Find stocks
   // remembered by the group's id (task #282: find, company, markets, funds and learn keep their ids; the renamed groups start as on a first visit)
-  const groupOpen = (g: Group) => here(g) || folded[g.id] === true || (folded[g.id] === undefined && g.id === "find");
+  // the page's own group opens on arrival (and becomes the remembered one); after that the member's choice rules, one group at a time
+  const homeGroup = groups.find(here)?.id;
+  useEffect(() => { if (homeGroup) { setOpenId(homeGroup); saveUi("side-open", 1, homeGroup); } }, [pathname, homeGroup]);
+  useEffect(() => { if (q) setInfo(null); }, [q]);   // typing in Find a page closes an open note
   // Find a page (task #282): the page's name, its one line, its group's heading, and short aliases ("inflation" finds India economy)
   const shown = useMemo(() => groups.map((g) => ({ g, items: !q ? g.items : g.items.filter((i) => menuMatch(q, navOf.get(i.to) ?? { to: i.to, label: i.label, sub: "", icon: i.icon, gold: i.gold }, g)) })), [groups, q]);   // eslint-disable-line react-hooks/exhaustive-deps
   const dashShown = !q || menuMatch(q, DASHBOARD);
@@ -138,16 +152,25 @@ export function AppShell() {
         <div className="side-body" ref={bodyRef} onScroll={(e) => { const v = e.currentTarget.scrollTop > 2; if (v !== scrolled) setScrolled(v); setTip(null); }}>
         <nav onKeyDown={onNavKey}>
           {q && hits === 0 && <p className="side-none" role="status">No page matches “{query.trim()}”.</p>}
-          {dashShown && <NavLink to={dash.to} end className={({ isActive }) => "side-i side-dash" + (isActive ? " on" : "")}>
-            <span className="side-ic"><Icon name="grid" /></span><span className="side-l side-l2"><span className="side-lt">{dash.label}</span><span className="side-ls">{DASHBOARD.sub}</span></span></NavLink>}
+          {dashShown && <><div className={"side-row has-info side-dash-row" + (info === "dash" ? " is-info" : "")}>
+            <NavLink to={dash.to} end className={({ isActive }) => "side-i side-dash" + (isActive ? " on" : "")}>
+              <span className="side-ic"><Icon name="grid" /></span><span className="side-l"><span className="side-lt">{dash.label}</span></span></NavLink>
+            <InfoButton k="dash" label="What is on the Dashboard" target="side-dash-d" info={info} setInfo={setInfo} title={DASHBOARD.sub} />
+          </div>
+          <p className="side-desc" id="side-dash-d" role="note" hidden={info !== "dash"}>{DASHBOARD.sub}</p></>}
           {shown.map(({ g, items }) => {
             if (q && !items.length) return null;
-            const gid = "sg-" + g.id, isOpen = !!q || groupOpen(g), holds = here(g);
+            // while Find a page has text, every group with a match is open (one at a time is paused); clearing it returns to the one open before
+            const gid = "sg-" + g.id, isOpen = q ? items.length > 0 : openId === g.id, holds = here(g), nk = "g:" + g.id;
             return (
             <div className={"side-g" + (isOpen ? " is-open" : "") + (holds ? " has-here" : "")} key={g.id} data-group={g.id}>
-              <button type="button" className="side-gt side-gb" aria-expanded={isOpen} aria-controls={gid} onClick={() => toggleGroup(g.id, !isOpen)}>
-                <span className="side-gbd" aria-hidden="true"><Icon name={g.icon} /></span><span className="side-gw"><span className="side-gname">{g.title}</span><span className="side-gs">{g.line}</span></span><span className="side-gn" aria-label={g.items.length + (g.items.length === 1 ? " page" : " pages")}>{g.items.length}</span><svg className="side-gc" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
-              </button>
+              <div className={"side-row" + (g.line ? " has-info" : "") + (info === nk ? " is-info" : "")}>
+                <button type="button" className="side-gt side-gb" aria-expanded={isOpen} aria-controls={gid} onClick={() => toggleGroup(g.id, !isOpen)}>
+                  <span className="side-gbd" aria-hidden="true"><Icon name={g.icon} /></span><span className="side-gname">{g.title}</span><svg className="side-gc" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
+                </button>
+                {g.line && <InfoButton k={nk} label={`What is in ${g.title}`} target={gid + "-d"} info={info} setInfo={setInfo} title={g.line} />}
+              </div>
+              {g.line && <p className="side-desc" id={gid + "-d"} role="note" hidden={info !== nk}>{g.line}</p>}
               <div id={gid} className="side-gi" role="region" aria-label={g.title} inert={!isOpen && !collapsed}>
               <div className="side-gin">
               {items.map((i) => {
@@ -158,8 +181,7 @@ export function AppShell() {
                   onMouseEnter={(e) => showTip(e.currentTarget, i.label)} onFocus={(e) => showTip(e.currentTarget, i.label)} onMouseLeave={() => setTip(null)} onBlur={() => setTip(null)}>
                   <span className="side-ic"><Icon name={i.icon} /></span><span className="side-l"><span className="side-lt">{i.label}</span>{i.gold && <em className="gtag" title="Gold plan" aria-label="Gold plan">Gold</em>}{i.fresh && <em className="side-new" title="A new page">New</em>}</span>{i.badge && <span className="side-b">{i.badge}</span>}
                 </NavLink>
-                {i.desc && <button type="button" className="side-info" aria-label={`About ${i.label}`} aria-expanded={shows} aria-controls={did} title={i.desc}
-                  onClick={() => setInfo((v) => (v === i.to ? null : i.to))} onKeyDown={(e) => { if (e.key === "Escape" && shows) { e.stopPropagation(); setInfo(null); } }}>i</button>}
+                {i.desc && <InfoButton k={i.to} label={`About ${i.label}`} target={did} info={info} setInfo={setInfo} title={i.desc} />}
                 {shows && <p id={did} className="side-desc" role="note">{i.desc}</p>}
                 </div>);
               })}

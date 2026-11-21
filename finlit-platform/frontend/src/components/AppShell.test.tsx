@@ -38,30 +38,59 @@ describe("AppShell rail", () => {
       expect(g.querySelector(".side-gbd svg"), name).toBeTruthy();
       expect(g.getAttribute("style"), name).toBeNull();
     }
-    expect(screen.getByRole("button", { name: /Find stocks/ }).getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByRole("button", { name: /Compare & chart/ }).getAttribute("aria-expanded")).toBe("false");
+    expect(screen.getByRole("button", { name: "Find stocks" }).getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("button", { name: "Compare & chart" }).getAttribute("aria-expanded")).toBe("false");
   });
-  it("task #282: titles the panel All pages; Dashboard sits on its own; every group shows its line under the heading, open or closed", () => {
+  it("task #282 rework (slim menu): All pages; Dashboard one line with its own i; each heading one line, its line behind an i; no page count", () => {
     const { container } = show("/dashboard");
     expect(container.querySelector(".side-tt")!.textContent).toBe("All pages");
     const dash = container.querySelector<HTMLAnchorElement>("a.side-dash")!;
     expect(dash.getAttribute("href")).toBe("/dashboard");
-    expect(dash.textContent).toBe("DashboardYour day at a glance: prices, alerts and scores of what you follow");
+    expect(dash.textContent).toBe("Dashboard");
+    expect(screen.getByRole("button", { name: "What is on the Dashboard" }).getAttribute("aria-controls")).toBe("side-dash-d");
     const heads = [...container.querySelectorAll<HTMLButtonElement>("button.side-gb")];
-    expect(heads.map((h) => [h.querySelector(".side-gname")!.textContent, h.querySelector(".side-gs")!.textContent])).toEqual([
-      ["My portfolio & watchlists", "Your holdings, watchlists, alerts and baskets"], ["Find stocks", "Screeners, themes and what big investors hold"],
-      ["Analyse a company", "One company in depth: report, rating, financials, forecasts"], ["Compare & chart", "Companies side by side, and any figure on a chart"],
-      ["Valuation & SIP calculators", "Fair value, P/E, DCF and how a SIP grows"], ["Markets & economy", "Sectors, FII and DII money, the economy, commodities"],
-      ["Results, IPOs & news", "Who reports when, the latest results, IPOs and filings"], ["Mutual funds & ETFs", "Find, screen and compare funds and ETFs"],
-      ["Learn", "Glossary, how-to guides, research notes and the forum"], ["Apps & add-ons", "FinLit in your browser and in your AI assistant"], ["Account", "Your profile, appearance and plan"]]);
-    expect(heads.find((h) => h.getAttribute("aria-expanded") === "false")!.querySelector(".side-gs")).toBeTruthy();   // the line stays when the group is closed
+    expect(heads.map((h) => h.textContent)).toEqual(["My portfolio & watchlists", "Find stocks", "Analyse a company", "Compare & chart", "Valuation & SIP calculators",
+      "Markets & economy", "Results, IPOs & news", "Mutual funds & ETFs", "Learn", "Apps & add-ons", "Account"]);     // one line each: no line, no count
+    expect(container.querySelector(".side-gn, .side-gs, .side-gw")).toBeNull();
+    // the lines are kept, each behind its group's i, as a hidden note
+    const notes = [...container.querySelectorAll<HTMLElement>(".side-g > p.side-desc")];
+    expect(notes.map((n) => n.textContent)).toEqual(["Your holdings, watchlists, alerts and baskets", "Screeners, themes and what big investors hold",
+      "One company in depth: report, rating, financials, forecasts", "Companies side by side, and any figure on a chart", "Fair value, P/E, DCF and how a SIP grows",
+      "Sectors, FII and DII money, the economy, commodities", "Who reports when, the latest results, IPOs and filings", "Find, screen and compare funds and ETFs",
+      "Glossary, how-to guides, research notes and the forum", "FinLit in your browser and in your AI assistant", "Your profile, appearance and plan"]);
+    expect(notes.every((n) => n.hidden)).toBe(true);
   });
-  it("toggles a group by click and remembers it", () => {
+  it("the i opens its note under the heading without opening the group; one note at a time; Escape closes it", () => {
+    const { container } = show("/dashboard");
+    const head = screen.getByRole("button", { name: "Compare & chart" }), i = screen.getByRole("button", { name: "What is in Compare & chart" });
+    fireEvent.click(i);
+    expect(i.getAttribute("aria-expanded")).toBe("true");
+    expect(head.getAttribute("aria-expanded")).toBe("false");                                         // the group stays closed
+    expect((container.querySelector("#" + i.getAttribute("aria-controls")) as HTMLElement).hidden).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "What is on the Dashboard" }));                  // another note: the first closes
+    expect(i.getAttribute("aria-expanded")).toBe("false");
+    const d = screen.getByRole("button", { name: "What is on the Dashboard" });
+    fireEvent.keyDown(d, { key: "Escape" });
+    expect(d.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(head);                                                                               // the heading opens the group, not the note
+    expect(head.getAttribute("aria-expanded")).toBe("true");
+    expect(i.getAttribute("aria-expanded")).toBe("false");
+  });
+  it("one group open at a time: opening one closes the other, and the last one opened is remembered under one key", () => {
     show("/dashboard");
-    const b = screen.getByRole("button", { name: /Compare & chart/ });
-    fireEvent.click(b);
-    expect(b.getAttribute("aria-expanded")).toBe("true");
-    expect(JSON.parse(localStorage.getItem("finlit:ui:side-groups")!).data["compare"]).toBe(true);           // task #282: remembered by the group's id
+    const find = screen.getByRole("button", { name: "Find stocks" }), cmp = screen.getByRole("button", { name: "Compare & chart" }), mk = screen.getByRole("button", { name: "Markets & economy" });
+    expect(find.getAttribute("aria-expanded")).toBe("true");                                            // a first visit: Find stocks
+    fireEvent.click(cmp);
+    expect(cmp.getAttribute("aria-expanded")).toBe("true"); expect(find.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(mk);
+    expect(mk.getAttribute("aria-expanded")).toBe("true"); expect(cmp.getAttribute("aria-expanded")).toBe("false");
+    expect(JSON.parse(localStorage.getItem("finlit:ui:side-open")!).data).toBe("markets");
+    fireEvent.click(mk);                                                                                 // closing it leaves none open
+    expect(document.querySelectorAll('button.side-gb[aria-expanded="true"]')).toHaveLength(0);
+    cleanup();
+    show("/superinvestors");                                                                             // the page's own group opens on arrival
+    expect(screen.getByRole("button", { name: "Find stocks" }).getAttribute("aria-expanded")).toBe("true");
+    expect(document.querySelectorAll('button.side-gb[aria-expanded="true"]')).toHaveLength(1);
   });
   it("keeps the Gold tag on gold tools and the collapse button", () => {
     show("/dashboard");
@@ -86,12 +115,16 @@ describe("AppShell rail", () => {
     fireEvent.change(box, { target: { value: "glossary" } });
     expect(container.querySelectorAll(".side-i").length).toBeGreaterThan(0);
     expect([...container.querySelectorAll(".side-i")].every((a) => /glossary/i.test(a.textContent!))).toBe(true);
-    expect(screen.getByRole("button", { name: /Learn/ }).getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("button", { name: "Learn" }).getAttribute("aria-expanded")).toBe("true");
+    expect(screen.queryByRole("button", { name: "Compare & chart" })).toBeNull();                                // only the groups with a match show, open
     // task #282: a page is found by its line too ("inflation" is in India economy's line), and the old name "documents" finds its new name
     fireEvent.change(box, { target: { value: "inflation" } });
     expect([...container.querySelectorAll(".side-g .side-lt")].map((x) => x.textContent)).toEqual(["India economy"]);
     fireEvent.change(box, { target: { value: "documents" } });
     expect([...container.querySelectorAll(".side-g .side-lt")].map((x) => x.textContent)).toEqual(["Annual reports & presentations"]);
+    fireEvent.change(box, { target: { value: "" } });                                                           // clearing it: back to the one group open before
+    expect(document.querySelectorAll('button.side-gb[aria-expanded="true"]')).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Find stocks" }).getAttribute("aria-expanded")).toBe("true");
     fireEvent.change(box, { target: { value: "zzzz-nothing" } });
     expect(screen.getByRole("status").textContent).toMatch(/No page matches/);
     fireEvent.click(screen.getByRole("button", { name: "Clear the search" }));
