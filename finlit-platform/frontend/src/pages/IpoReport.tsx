@@ -17,20 +17,22 @@ const abs1 = (v: number) => nf(Math.abs(v), 1) + "%";
 /** The issue in plain sentences, from the figures on this page only. */
 export function inWords(r: IpoRecord): string[] {
   const d = r.detail, i = d?.issue, out: string[] = [];
+  const now = r.status === "upcoming" || r.status === "open";
   const kind = i?.kind === "Book built" ? "book-built " : i?.kind === "Fixed price" ? "fixed-price " : "";
   const board = r.board === "sme" ? "SME" : "mainboard";
   const price = r.issuePrice != null && (r.status === "listed" || r.status === "closed") ? `priced at ${rupees(r.issuePrice)}` : r.priceHigh != null ? `with a price band of ${r.priceLow != null && r.priceLow !== r.priceHigh ? `${rupees(r.priceLow)} to ${rupees(r.priceHigh)}` : rupees(r.priceHigh)}` : "";
   const size = r.issueSizeCr != null ? ` of ${crore(r.issueSizeCr)}` : "";
   out.push(`${d?.company.fullName || r.name} ${r.status === "upcoming" || r.status === "open" ? "is raising" : "raised"} money through a ${kind}${board} IPO${size}${price ? ", " + price : ""}.`);
   if (i && (i.freshCr || i.ofsCr)) {
-    if (i.freshCr && i.ofsCr) out.push(`${crore(i.freshCr)} was new money for the company and ${crore(i.ofsCr)} was an offer for sale by existing shareholders, so ${nf((i.freshCr / (i.freshCr + i.ofsCr)) * 100, 0)}% of the money raised went to the company itself.`);
-    else if (i.freshCr) out.push(`The whole issue was new money for the company (a fresh issue); no existing shareholder sold shares.`);
-    else out.push(`The whole issue was an offer for sale: existing shareholders sold shares, and the money went to them rather than to the company.`);
+    const was = now ? "is" : "was", goes = now ? "goes" : "went", sell = now ? "sell" : "sold";
+    if (i.freshCr && i.ofsCr) out.push(`${crore(i.freshCr)} ${was} new money for the company and ${crore(i.ofsCr)} ${was} an offer for sale by existing shareholders, so ${nf((i.freshCr / (i.freshCr + i.ofsCr)) * 100, 0)}% of the money raised ${goes} to the company itself.`);
+    else if (i.freshCr) out.push(`The whole issue ${was} new money for the company (a fresh issue); no existing shareholder ${now ? "sells" : "sold"} shares.`);
+    else out.push(`The whole issue ${was} an offer for sale: existing shareholders ${sell} shares, and the money ${goes} to them rather than to the company.`);
   }
   if (r.openDate) out.push(`Bidding ${r.status === "upcoming" ? "runs" : r.status === "open" ? "runs" : "ran"} from ${dateIn(r.openDate)}${r.closeDate && r.closeDate !== r.openDate ? ` to ${dateIn(r.closeDate)}` : ""}${i?.lotSize ? `, in lots of ${nf(i.lotSize, 0)} shares${i.minAmount ? ` (${rupees(i.minAmount)} for one lot)` : ""}` : ""}.`);
   if (r.subscription != null) {
     const cats = r.nseBook?.categories.filter((c) => ["qib", "nii", "retail"].includes(c.key)) ?? [];
-    out.push(`The issue was subscribed ${times(r.subscription)} overall${cats.length ? `: ${cats.map((c) => `${c.label.toLowerCase()} ${times(c.times)}`).join(", ")}` : ""}.`);
+    out.push(`The issue ${r.status === "open" ? "has been" : "was"} subscribed ${times(r.subscription)} overall${r.status === "open" ? " so far" : ""}${cats.length ? `: ${cats.map((c) => `${c.label.toLowerCase()} ${times(c.times)}`).join(", ")}` : ""}.`);
   }
   if (r.status === "listed" && r.listingPrice != null && r.issuePrice != null && r.listingPct != null) {
     let s = `It listed on ${dateIn(r.listingDate)} at ${rupees(r.listingPrice)}, ${r.listingPct === 0 ? "the same as the issue price" : `${abs1(r.listingPct)} ${above(r.listingPct)} the issue price`}`;
@@ -44,7 +46,7 @@ export function inWords(r: IpoRecord): string[] {
     out.push(`The latest grey market premium InvestorGain recorded is ${rupees(r.gmp)} (${nf(r.gmpPct, 1)}% of the upper price). GMP is informal and unofficial.`);
   }
   if (r.sinceIpoPct != null && r.lastClose != null) out.push(`At the latest close (${rupees(r.lastClose)} on ${dateIn(r.lastDay)}) the share was ${abs1(r.sinceIpoPct)} ${above(r.sinceIpoPct)} the issue price${r.adjustedBy ? ", allowing for the splits and bonuses since" : ""}.`);
-  if (i?.promoterPre != null && i.promoterPost != null) out.push(`The promoters held ${nf(i.promoterPre, 2)}% of the company before the issue and ${nf(i.promoterPost, 2)}% after it.`);
+  if (i?.promoterPre != null && i.promoterPost != null) out.push(now ? `The promoters hold ${nf(i.promoterPre, 2)}% of the company before the issue and will hold ${nf(i.promoterPost, 2)}% after it.` : `The promoters held ${nf(i.promoterPre, 2)}% of the company before the issue and ${nf(i.promoterPost, 2)}% after it.`);
   return out;
 }
 
@@ -81,11 +83,11 @@ export function IpoReportPage() {
         <Tile k={r.status === "listed" || r.status === "closed" ? "Issue price" : "Price band"} v={r.status === "listed" || r.status === "closed" ? rupees(r.issuePrice) : r.priceHigh != null ? `${r.priceLow != null && r.priceLow !== r.priceHigh ? rupees(r.priceLow) + "–" : ""}${rupees(r.priceHigh)}` : MINUS}
           s={i?.lotSize ? `Lot of ${nf(i.lotSize, 0)} shares` : undefined} />
         <Tile k="Issue size" v={crore(r.issueSizeCr)} s={i && (i.freshCr || i.ofsCr) ? [i.freshCr ? `Fresh ${crore(i.freshCr)}` : "", i.ofsCr ? `Offer for sale ${crore(i.ofsCr)}` : ""].filter(Boolean).join(" · ") : undefined} />
-        <Tile k="Subscribed" v={times(r.subscription)} s={r.nseBook ? "NSE, all categories" : r.subscription != null ? "Overall" : undefined} />
-        <Tile k="GMP before listing" v={r.gmp != null ? rupees(r.gmp) : MINUS} s={r.gmpPct != null ? `${nf(r.gmpPct, 1)}% of the issue price · unofficial` : undefined} />
+        <Tile k="Subscribed" v={times(r.subscription)} s={r.nseBook ? "NSE, all categories" : r.subscription != null ? (r.status === "open" ? "Overall, so far" : "Overall") : undefined} />
+        <Tile k={r.status === "listed" ? "GMP before listing" : "Latest GMP"} v={r.gmp != null ? rupees(r.gmp) : MINUS} s={r.gmpPct != null ? `${nf(r.gmpPct, 1)}% of the ${r.status === "listed" ? "issue" : "upper"} price · unofficial` : undefined} />
         {r.status === "listed" && <Tile k="Listed at" v={rupees(r.listingPrice)} s={<span className={tone(r.listingPct)}>{pct(r.listingPct)} vs issue · {dateIn(r.listingDate)}</span>} />}
-        {r.status === "listed" && <Tile k="First-day close" v={rupees(r.listingClose)} s={r.listingClosePct != null ? <span className={tone(r.listingClosePct)}>{pct(r.listingClosePct)} vs issue</span> : undefined} />}
-        {r.status === "listed" && <Tile k="Since IPO" v={pct(r.sinceIpoPct)} c={tone(r.sinceIpoPct)} s={r.lastClose != null ? `${rupees(r.lastClose)} on ${dateIn(r.lastDay)}` : "No close on record"} />}
+        {r.status === "listed" && r.listingClose != null && <Tile k="First-day close" v={rupees(r.listingClose)} s={r.listingClosePct != null ? <span className={tone(r.listingClosePct)}>{pct(r.listingClosePct)} vs issue</span> : undefined} />}
+        {r.status === "listed" && r.sinceIpoPct != null && <Tile k="Since IPO" v={pct(r.sinceIpoPct)} c={tone(r.sinceIpoPct)} s={r.lastClose != null ? `${rupees(r.lastClose)} on ${dateIn(r.lastDay)}` : undefined} />}
         {r.status !== "listed" && <Tile k={r.status === "upcoming" ? "Bidding opens" : "Bidding window"} v={windowOf(r.openDate, r.closeDate)} s={r.listingDate ? `Listing ${dateIn(r.listingDate)}` : undefined} />}
       </section>
 
