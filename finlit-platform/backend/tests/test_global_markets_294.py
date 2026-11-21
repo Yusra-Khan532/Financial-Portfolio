@@ -149,3 +149,12 @@ async def test_a_series_with_two_eodhd_codes_uses_the_one_that_answers():
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as c:
         pts, why, src = await gm._market(c, ftse, "", "k", D(2026, 10, 7), _Redis())
     assert src == "EODHD" and pts == [(D(2026, 11, 20), 9551.2)] and seen == ["/api/eod/UKX.INDX", "/api/eod/FTSE.INDX"]
+
+
+def test_a_cached_answer_keeps_its_age_after_a_restart():
+    import time
+    from datetime import datetime, timedelta, timezone
+    old = (datetime.now(timezone.utc) - timedelta(minutes=50)).isoformat(timespec="seconds")
+    age = time.time() - gm.built_at({"builtAt": old})
+    assert 2990 <= age <= 3010                                   # 50 minutes old, not new: it is rebuilt in 10 minutes, not in an hour
+    assert abs(gm.built_at({}) - time.time()) < 2

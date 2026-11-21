@@ -281,6 +281,15 @@ _mem: Tuple[float, Optional[dict]] = (0.0, None)
 _lock = asyncio.Lock()
 
 
+def built_at(out: dict) -> float:
+    """When the answer was built (its builtAt), so a copy read back from Redis after a restart keeps its age and is not kept another full hour
+    (seen live, 21 Nov: a 21:11 answer was still served at 22:18). Now when the time is missing."""
+    try:
+        return min(time.time(), datetime.fromisoformat(out["builtAt"]).timestamp())
+    except (KeyError, TypeError, ValueError):
+        return time.time()
+
+
 async def data(app) -> dict:
     global _mem
     if _mem[1] is not None and time.time() - _mem[0] < CACHE_SECONDS:
@@ -301,7 +310,7 @@ async def data(app) -> dict:
                     await redis.set(CACHE_KEY, orjson.dumps(out), ex=CACHE_SECONDS)
             except Exception:
                 log.warning("global markets: cache write failed", exc_info=True)
-        _mem = (time.time(), out)
+        _mem = (built_at(out), out)
         return out
 
 
