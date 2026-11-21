@@ -421,3 +421,24 @@ table.sr-only { display: block; max-width: 1px; max-height: 1px; contain: strict
 .alx-conv, .xsp-conv, .qb-conv { margin: 0; font-size: 13px; line-height: 1.45; color: var(--muted); overflow-wrap: anywhere; }
 .xsp-conv { flex-basis: 100%; }
 @media (max-width: 640px) { .acct-notice { margin: 10px 16px 0; } }
+
+/* Console > Data health: fund-house files (task #281 round 7). Scoped with the ff- prefix. */
+.ff-needs, .ff-uploads, .ff-result-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.ff-needs th, .ff-needs td, .ff-uploads th, .ff-uploads td, .ff-result-table th, .ff-result-table td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.ff-needs tbody th, .ff-result-table th { text-transform: none; letter-spacing: normal; white-space: normal; font-size: 14px; color: var(--text); }
+.ff-needs th small { display: block; margin-top: 2px; font-weight: 400; }
+.ff-needs td, .ff-uploads td { white-space: normal; overflow-wrap: anywhere; }
+.ff-form { display: grid; grid-template-columns: max-content minmax(0, 360px); gap: 10px 14px; align-items: center; margin: 6px 0 12px; }
+.ff-form .btn { grid-column: 2; justify-self: start; }
+.ff-result { margin: 12px 0; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; }
+.ff-result p { margin: 0 0 8px; overflow-wrap: anywhere; }
+.ff-result-table th { width: 40%; font-weight: 600; }
+@media (max-width: 640px) {
+  .ff-form { grid-template-columns: minmax(0, 1fr); } .ff-form .btn { grid-column: 1; }
+  /* phone: each fund house is a short card (name and reason, then what is stored, what it needs, where to download) */
+  .ff-needs thead, .ff-uploads thead { display: none; }
+  .ff-needs, .ff-needs tbody, .ff-needs tr, .ff-needs th, .ff-needs td,
+  .ff-uploads, .ff-uploads tbody, .ff-uploads tr, .ff-uploads td { display: block; width: auto; }
+  .ff-needs tr, .ff-uploads tr { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .ff-needs th, .ff-needs td, .ff-uploads td { border: 0; padding: 2px 0; }
+}

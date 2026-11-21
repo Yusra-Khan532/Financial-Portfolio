@@ -123,7 +123,10 @@ async def test_the_job_loads_every_fact_and_the_pages_read_them(funds):
     assert f["terDirect"]["value"] == "0.92% a year"
     assert f["aum"]["value"] == "₹12,001 crore" and f["aum"]["asOf"] == "2026-09-30" and "July - September 2026" in f["aum"]["note"]
     assert f["launchDate"]["value"] == "2009-11-11"
-    assert "out of date" in f["minInvestment"]["unavailable"]                                   # AMFI's minimum is stale for some schemes: not shown
+    # task #281 round 7 (owner, 21 Nov 2026: show data we have, with its source and date): AMFI's scheme-master minimum is shown, with the note that
+    # it can be out of date and where the current minimum is
+    mi = f["minInvestment"]
+    assert mi["value"] and mi["source"] == d.SRC_MASTER_MIN and mi["note"] == d.MIN_NOTE and "out of date" in mi["note"]
     for k in ("exitLoad", "benchmark", "riskometer", "managers"):
         assert f[k]["unavailable"], k                                                          # no verified source: a reason, never a guess
 

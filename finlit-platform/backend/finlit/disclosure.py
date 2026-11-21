@@ -490,11 +490,22 @@ def _etf_ter_fact(ter) -> dict:
     return {"value": f"{v:.2f}% a year", "asOf": ter["ter_date"].isoformat(), "source": SRC_TER}
 
 
-# The scheme master's minimum amount is stored (mf_facts.min_text) but not shown: it is out of date for some schemes (every SBI Liquid Fund plan,
-# retail ones included, is listed at an old ₹5 crore institutional minimum) and no second official source tells which. A wrong minimum is worse
-# than none.
-NO_MINIMUM = ("The minimum amount AMFI lists is out of date for some schemes, so none is shown; the scheme's own documents and the fund house's "
-              "site give the current minimum.")
+# Minimum investment (task #281 round 7, the owner's rule of 21 Nov 2026: "if there is data, even old or out of date, show it"). AMFI's figure is
+# shown with its source and date: first AMFI's scheme details (read by the portfolios job, dated the day it was read), else the scheme master's
+# minimum (mf_facts.min_text). Some are out of date (every SBI Liquid Fund plan, retail ones included, is listed at an old ₹5 crore institutional
+# minimum), so the note says so and points to the fund house's documents for the current minimum.
+NO_MINIMUM = "AMFI lists no minimum amount for this scheme; the scheme's own documents and the fund house's site give it."
+MIN_NOTE = "As AMFI lists it; for some schemes AMFI's figure is out of date. The scheme's own documents on the fund house's site give the current minimum."
+SRC_MASTER_MIN = "AMFI scheme master"
+
+
+def min_fact(details: Optional[dict], master_text: Optional[str]) -> dict:
+    """The minimum investment fact: AMFI's scheme details (dated), else the scheme master's text, else the reason there is none."""
+    if details and details.get("value"):
+        return {**details, "note": MIN_NOTE}
+    if master_text:
+        return {"value": master_text, "source": SRC_MASTER_MIN, "note": MIN_NOTE}
+    return {"unavailable": NO_MINIMUM}
 
 
 # Launch date rule (task #281, checked 20 Nov 2026): AMFI's scheme master and AMFI's scheme-details page give the same date (HSBC Small Cap Fund, formerly
@@ -578,7 +589,7 @@ async def get_facts(pool, key) -> Optional[dict]:
             tr = _house_ter_fact(extra, "Regular") or tr
         if "unavailable" in td:
             td = _house_ter_fact(extra, "Direct") or td
-        out.update(terRegular=tr, terDirect=td, minInvestment={"unavailable": NO_MINIMUM},
+        out.update(terRegular=tr, terDirect=td, minInvestment=min_fact(extra.get("minAmount"), me["min_text"]),
                    exitLoad=extra.get("exitLoad") or {"unavailable": NO_EXIT_LOAD})
     else:                                              # an ETF page: one plan (AMFI files it as Regular), bought and sold on the exchange
         te = _etf_ter_fact(ter)

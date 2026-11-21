@@ -120,7 +120,8 @@ def test_the_relay_worker_allows_exactly_these_amfi_paths_methods_and_hosts():
 
 
 def test_amfis_minimum_amount_text_is_kept_with_its_first_rupee_figure():
-    """Stored (fact 'min_amount_amfi'), not shown: AMFI's minimum is out of date for some schemes (HDFC Small Cap: AMFI Rs 5,000; the fund house now Rs 100)."""
+    """Stored (fact 'min_amount_amfi') and, since round 7, shown with its date and a note: AMFI's minimum is out of date for some schemes
+    (HDFC Small Cap: AMFI Rs 5,000; the fund house now Rs 100)."""
     assert P.min_amount("5000") == ("5000", 5000.0)
     assert P.min_amount("Rs. 5,000 and in multiples of Re.1 thereafter") == ("Rs. 5,000 and in multiples of Re.1 thereafter", 5000.0)
     assert P.min_amount("For new investors :Rs.5000 For existing Rs. 1000")[1] == 5000.0

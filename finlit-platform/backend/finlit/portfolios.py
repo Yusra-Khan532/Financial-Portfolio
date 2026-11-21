@@ -398,7 +398,7 @@ async def extra_facts(pool, key) -> Optional[dict]:
     def fact(value, f, **extra) -> dict:
         return {"value": value, "asOf": _iso(f["as_of"]), "source": f["source"], **({"sourceUrl": f["source_url"]} if f.get("source_url") else {}), **extra}
 
-    out: Dict[str, Optional[dict]] = {k: None for k in ("exitLoad", "benchmark", "riskometer", "managers", "launchDate", "monthEndAum", "ter")}
+    out: Dict[str, Optional[dict]] = {k: None for k in ("exitLoad", "benchmark", "riskometer", "managers", "launchDate", "monthEndAum", "ter", "minAmount")}
     tr = val("ter")
     if tr and (tr[0].get("regular") is not None or tr[0].get("direct") is not None):
         out["ter"] = fact({"regular": tr[0].get("regular"), "direct": tr[0].get("direct")}, tr[1])
@@ -416,6 +416,9 @@ async def extra_facts(pool, key) -> Optional[dict]:
     mg = val("managers")
     if mg and mg[0].get("names"):
         out["managers"] = fact(", ".join(mg[0]["names"]), mg[1])
+    mn = val("min_amount_amfi")   # task #281 round 7: the minimum AMFI's scheme details state, shown with its date (owner's rule of 21 Nov 2026)
+    if mn and mn[0].get("text"):
+        out["minAmount"] = fact(mn[0]["text"], mn[1])
     ld = val("launch_details")
     if ld and ld[0].get("date"):
         out["launchDate"] = fact(ld[0]["date"], ld[1])

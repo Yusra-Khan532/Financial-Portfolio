@@ -131,7 +131,13 @@ async def test_portfolio_facts_merge_into_the_fund_page_facts(store):
     assert f["benchmark"]["value"] == "NIFTY AUTO TRI" and f["exitLoad"]["value"].startswith("1%")
     assert f["launchDate"]["value"] == "2024-05-17"                       # the second source fills in while the scheme master is not loaded
     assert f["aum"]["value"] == disclosure.aum_text(p.net_assets_lakh) and "month" in f["aum"]["note"]
-    assert "unavailable" in f["riskometer"] and "unavailable" in f["managers"] and "unavailable" in f["minInvestment"]
+    assert "unavailable" in f["riskometer"] and "unavailable" in f["managers"]
+    assert f["minInvestment"] == {"unavailable": disclosure.NO_MINIMUM}       # neither AMFI source has a minimum here: the reason, never a guess
+    await portfolios.put_facts(store.pool, [(FAM, "min_amount_amfi", TODAY, {"text": "Rs. 5,000 and in multiples of Re.1 thereafter", "rupees": 5000.0},
+                                             portfolios.SRC_DETAILS, "https://www.amfiindia.com/otherdata/scheme-details")])
+    mi = (await disclosure.get_facts(store.pool, 152657))["minInvestment"]  # task #281 round 7: AMFI's scheme details, shown with the day read
+    assert mi["value"] == "Rs. 5,000 and in multiples of Re.1 thereafter" and mi["asOf"] == TODAY.isoformat()
+    assert mi["source"] == portfolios.SRC_DETAILS and mi["note"] == disclosure.MIN_NOTE
     port = await disclosure.get_portfolio(store.pool, "INF200KA1Z00")     # ETF pages look schemes up by ISIN
     assert port["asOf"] == "2026-09-30" and len(port["holdings"]) == len(p.holdings)
     assert port["summary"]["industries"][0]["industry"] == "Auto Components" and port["summary"]["macroSectors"][0]["macroSector"] == "Consumer Discretionary"

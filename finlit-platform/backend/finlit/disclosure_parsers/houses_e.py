@@ -294,5 +294,7 @@ def parse_hdfc(path: str, ref: FileRef, adapter: Adapter, idx, stats: dict, sink
 HDFC = Adapter("hdfc", "HDFC Mutual Fund", r"^hdfc\b", list_hdfc, "files.hdfcfund.com")
 HDFC.parse_file = parse_hdfc
 
-# Not run nightly yet: HDFC's file store refuses the job's agent (see the top of this file). Adding HDFC here switches it on.
+# Not run nightly: HDFC's file store refuses the job's agent (see the top of this file), and the job never goes around that. Since task #281 round 7 an
+# administrator downloads the factsheet in a normal browser and uploads it (Console > Data health > Fund house files, finlit/fund_files.py), which reads it
+# with this adapter; pdfplumber is in requirements.txt for that.
 ADAPTERS: List[Adapter] = []
