@@ -79,6 +79,6 @@
   .ir-steps { grid-template-columns: minmax(0, 1fr); padding-left: 8px; }
   .ir-steps li { grid-template-columns: minmax(0, 1fr) auto; padding: 0 0 14px 20px; border-top: 0; border-left: 3px solid var(--border); }
   .ir-steps li.done { border-left-color: var(--k2); } .ir-steps li::before { top: 0; left: -8px; }
-  .ir-t { font-size: 13px; } .ir-t th, .ir-t td { padding: 7px 6px; }
+  .ir-t { font-size: 12px; } .ir-t th, .ir-t td { padding: 7px 4px; } .ir-t tbody th { font-size: 12px; } .ir-dot { margin-right: 4px; }
 }
 .ir-t thead th.r { white-space: normal; }
