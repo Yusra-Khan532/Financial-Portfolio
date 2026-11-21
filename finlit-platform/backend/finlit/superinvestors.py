@@ -240,9 +240,11 @@ def stakes_by_name(rows: List[dict]) -> Dict[str, Dict[str, dict]]:
             if not k:
                 continue
             now, ago = _num(h[2]), _num(h[3])
+            # task #289: the holder's last 8 quarters, newest first, when the filing data carries them ([period, stake])
+            qs = [[str(q[0]), _num(q[1])] for q in h[4] if isinstance(q, (list, tuple)) and len(q) >= 2 and q[0]] if len(h) > 4 and isinstance(h[4], list) else None
             prev = out.setdefault(k, {}).get(sym)
             if prev is None or (now or 0) > (prev["now"] or 0):
-                out[k][sym] = {"now": now, "ago": ago, "asOf": r.get("as_of"), "as_filed": str(h[0])}
+                out[k][sym] = {"now": now, "ago": ago, "asOf": r.get("as_of"), "as_filed": str(h[0]), "quarters": qs or None}
     return out
 
 
@@ -283,6 +285,32 @@ async def _finlit_view(app, symbols: List[str]) -> Tuple[Dict[str, dict], Dict[s
     return universe, leaders, med
 
 
+def quarter_end(period: str):
+    """'Sep 2026' -> 30 Sep 2026 (the last day of the quarter's month); None for a shape not understood."""
+    import calendar
+    from datetime import date
+    y, m = tracked.period_key(period)
+    if not y or not 1 <= m <= 12:
+        return None
+    return date(y, m, calendar.monthrange(y, m)[1])
+
+
+async def _first_named_moves(app, wanted) -> Dict[Tuple[str, str], Optional[float]]:
+    """{(symbol, quarter): the price move in % from that quarter's last close to the latest close}, from the stored daily prices."""
+    out: Dict[Tuple[str, str], Optional[float]] = {}
+    pairs = [(s, p, quarter_end(p)) for s, p in wanted]
+    pairs = [x for x in pairs if x[2] is not None]
+    if not pairs:
+        return out
+    async with app.state.store.pool.acquire() as conn:
+        for s, p, d in pairs:
+            row = await conn.fetchrow("SELECT (SELECT close FROM price_daily WHERE symbol = $1 AND day <= $2 ORDER BY day DESC LIMIT 1) AS then_close, "
+                                      "(SELECT close FROM price_daily WHERE symbol = $1 ORDER BY day DESC LIMIT 1) AS now_close", s, d)
+            a, b = (_num(row["then_close"]), _num(row["now_close"])) if row else (None, None)
+            out[(s, p)] = round((b / a - 1) * 100, 1) if a and b else None
+    return out
+
+
 async def _load(app) -> dict:
     pool = app.state.store.pool
     async with pool.acquire() as conn:
@@ -306,8 +334,19 @@ async def _load(app) -> dict:
         universe[s]["name"] = names.get(s) or universe[s].get("name") or s
         c = classes.get(s) or {}
         universe[s]["sector"] = c.get("sector") or universe[s].get("sector")
-    out["tracked"] = tracked.build(cfg, stakes, universe, leaders, med, {s: _num((quotes.get(s) or {}).get("market_cap")) for s in mine if s in quotes})
+    qmc = {s: _num((quotes.get(s) or {}).get("market_cap")) for s in mine if s in quotes}
+    out["tracked"] = tracked.build(cfg, stakes, universe, leaders, med, qmc)
     out["trackedNames"] = tracked.by_filed_name(cfg)
+    # task #289: quarter-on-quarter moves once each company's quarters are stored (the nightly ownership job fills them, tracked companies first)
+    held = [h for inv in out["tracked"]["investors"].values() for h in inv["holdings"] if (h["stakeNow"] or 0) > 0]
+    cover = round(sum(1 for h in held if h.get("quarters")) / len(held) * 100) if held else 0
+    out["quarterCover"] = cover
+    if cover > 0:
+        q = tracked.build(cfg, stakes, universe, leaders, med, qmc, since="quarter")
+        wanted = {(h["symbol"], h["sinceFirstNamed"]["from"]) for inv in q["investors"].values() for h in inv["holdings"] if h.get("sinceFirstNamed")}
+        prices = await _first_named_moves(app, wanted)
+        out["trackedQ"] = tracked.build(cfg, stakes, universe, leaders, med, qmc, since="quarter", first_named=prices)
+        out["tracked"] = tracked.build(cfg, stakes, universe, leaders, med, qmc, first_named=prices)
     traded = [q["traded_at"] for q in quotes.values() if q.get("traded_at")]
     out["pricesAt"] = max(traded).isoformat() if traded else None
     return out
@@ -385,24 +424,36 @@ def _locked() -> Response:
     return _reply({"status": "plan_required", "detail": PLAN_DETAIL, "plan": PLAN}, 403, private=True)
 
 
+QUARTER_READY = 90   # % of the tracked holdings with stored quarters before "Since last quarter" is the default
+
+
+def _pick(d: dict, since: Optional[str]) -> Tuple[dict, str, dict]:
+    """The tracked build to answer with: since last quarter when asked for and stored, or by default once QUARTER_READY% is stored; else a year ago."""
+    cover = d.get("quarterCover") or 0
+    has_q = d.get("trackedQ") is not None
+    use = "quarter" if has_q and (since == "quarter" or (since != "year" and cover >= QUARTER_READY)) else "year"
+    info = {"since": use, "sinceText": "Since last quarter" if use == "quarter" else "Since a year ago", "quarterReady": has_q and cover >= QUARTER_READY,
+            "quarterAvailable": has_q, "quarterCover": cover}
+    return (d["trackedQ"] if use == "quarter" else d.get("tracked") or {}), use, info
+
+
 def _card(inv: dict) -> dict:
     return {k: v for k, v in inv.items() if k not in ("holdings", "moveList")}
 
 
 @router.get("/api/superinvestors/tracked")
-async def tracked_tab(request: Request) -> Response:
+async def tracked_tab(request: Request, since: Optional[str] = None) -> Response:
     if not _allowed(await current(request)):
         return _locked()
     d = await data(request.app)
-    t = d.get("tracked") or {}
+    t, use, info = _pick(d, since)
     invs = t.get("investors") or {}
     body = {"tiles": t.get("tiles"), "moveCounts": t.get("moveCounts"), "sourceErrors": t.get("sourceErrors"), "medians": t.get("medians"),
             "investors": sorted((_card(i) for i in invs.values()), key=lambda c: -(c["valueCr"] or 0)), "moves": t.get("moves") or [],
             "agree": {v: tracked.agree_view(t.get("agree") or [], v) for v in ("held", "added", "cut")},
             "allCount": {"names": len(d["investors"]), "people": sum(1 for i in d["investors"].values() if i["kind"] == "person"),
                          "firms": sum(1 for i in d["investors"].values() if i["kind"] == "firm")},
-            "since": "year", "sinceText": "Since a year ago", "trackedSource": TRACKED_SOURCE, "namedStakesNote": NAMED_STAKES_NOTE,
-            **{k: d.get(k) for k in META}}
+            "trackedSource": TRACKED_SOURCE, "namedStakesNote": NAMED_STAKES_NOTE, **info, **{k: d.get(k) for k in META}}
     return _reply(body, private=True)
 
 
@@ -419,15 +470,16 @@ async def one_name(request: Request, key: str) -> Response:
 
 
 @router.get("/api/superinvestors/{key}")
-async def one_investor(request: Request, key: str) -> Response:
+async def one_investor(request: Request, key: str, since: Optional[str] = None) -> Response:
     if not _allowed(await current(request)):
         return _locked()
     d = await data(request.app)
     k = key.lower()[:200]
-    t = (d.get("tracked") or {}).get("investors") or {}
+    built, use, info = _pick(d, since)
+    t = built.get("investors") or {}
     if k in t:      # a tracked key that matches an old name key (ashish-kacholia) takes over that address
         inv = t[k]
-        return _reply({**inv, "kind_of_page": "tracked", "medians": d["tracked"].get("medians"), "trackedSource": TRACKED_SOURCE,
+        return _reply({**inv, **info, "kind_of_page": "tracked", "medians": built.get("medians"), "trackedSource": TRACKED_SOURCE,
                        "namedStakesNote": NAMED_STAKES_NOTE, **{m: d.get(m) for m in META}}, private=True)
     mark = (d.get("trackedNames") or {}).get(k)
     if mark:        # an old link to a name that belongs to a tracked investor: its page now

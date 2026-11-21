@@ -26,7 +26,7 @@ import json
 import statistics
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from .sizes import size_of   # FinLit's four sizes, one rule site-wide (Large above 75,000 cr ... Micro below 10,000 cr)
 
@@ -78,13 +78,16 @@ def _r(x: Optional[float], d: int = 2) -> Optional[float]:
 
 
 def build(cfg: List[dict], stakes: Dict[str, Dict[str, dict]], universe: Dict[str, dict], leaders: Optional[Dict[str, dict]] = None,
-          med: Optional[Dict[str, Optional[float]]] = None, quotes: Optional[Dict[str, Optional[float]]] = None) -> dict:
+          med: Optional[Dict[str, Optional[float]]] = None, quotes: Optional[Dict[str, Optional[float]]] = None, since: str = "year",
+          first_named: Optional[Dict[Tuple[str, str], Optional[float]]] = None) -> dict:
     """cfg: the tracked list. stakes: {filed-name key: {symbol: {"now", "ago", "asOf", "as_filed"}}} for every named public holder (any number
     of companies). universe: {symbol: {name, mcap, r1, isin, prism_label, prism_final, st, lt, sector}}. leaders: {symbol: {chip, text}}.
     med: the four sizes' median 1-year moves (worked out from the universe when not given). quotes: {symbol: market cap in crore} from today's
     quote list, which values each stake as the live page does; the universe's market cap stands in where a company has no quote today."""
     leaders = leaders or {}
     quotes = quotes or {}
+    first_named = first_named or {}
+    quarter = since == "quarter"     # compare with the previous quarter's filing instead of the one a year ago (each name's quarters, when stored)
     med = med if med is not None else medians(universe)
     investors: Dict[str, dict] = {}
     holders_of: Dict[str, List[str]] = defaultdict(list)       # symbol -> tracked keys named today
@@ -98,10 +101,19 @@ def build(cfg: List[dict], stakes: Dict[str, Dict[str, dict]], universe: Dict[st
             names.append({"key": fn["key"], "name": fn.get("as_filed") or fn["key"], "kind": fn.get("kind") or "person",
                           "companies": sum(1 for s in mine.values() if (s.get("now") or 0) >= MIN_STAKE and not _bad(s.get("now")))})
             for sym, s in mine.items():
-                row = per.setdefault(sym, {"by": [], "asOf": s.get("asOf")})
-                row["by"].append([fn["key"], s.get("now"), s.get("ago")])
+                row = per.setdefault(sym, {"by": [], "asOf": s.get("asOf"), "q": {}, "hasQ": True})
+                qs = s.get("quarters")
+                if not qs:
+                    row["hasQ"] = False
+                for per_, v in (qs or []):
+                    if v is not None and not _bad(v):
+                        row["q"][per_] = row["q"].get(per_, 0.0) + v
+                then = (qs[1][1] or 0.0) if quarter and qs and len(qs) > 1 else (None if quarter else s.get("ago"))
+                row["by"].append([fn["key"], s.get("now"), then])
         holdings: List[dict] = []
         for sym, row in per.items():
+            if quarter and not row["hasQ"]:      # no quarterly history for this company yet: no quarter-on-quarter move to show
+                row["by"] = [[b[0], b[1], b[1]] for b in row["by"]]
             bad = any(_bad(b[1]) or _bad(b[2]) for b in row["by"])
             now = sum(b[1] or 0 for b in row["by"] if not _bad(b[1]))
             ago = sum(b[2] or 0 for b in row["by"] if not _bad(b[2]))
@@ -137,6 +149,8 @@ def build(cfg: List[dict], stakes: Dict[str, Dict[str, dict]], universe: Dict[st
                 "valueCr": value, "changeValueCr": cv, "changeAbout": st == "exited",
                 "size": size_of(umcap or mcap), "mcapCr": umcap or mcap, "return1y": u.get("r1"), "sector": u.get("sector"),
                 "prism": {"label": u.get("prism_label"), "score": u.get("prism_final") if u.get("prism_label") not in (None, "Not rated") else None},
+                "quarters": [[p, round(v, 2)] for p, v in _oldest_first(row["q"])][-8:] if row["hasQ"] and row["q"] else None,
+                "sinceFirstNamed": _first_named(row, sym, first_named),
                 "technical": {"short": u.get("st"), "long": u.get("lt")}, "peers": {"chip": ld.get("chip"), "text": ld.get("text")},
             })
         held = [h for h in holdings if h["move"] != "exited" and (h["stakeNow"] or 0) > 0]
@@ -186,6 +200,46 @@ def build(cfg: List[dict], stakes: Dict[str, Dict[str, dict]], universe: Dict[st
         "tiles": {"tracked": len(investors), "companies": len(named), "moves": len(all_moves), "heldBy2": sum(1 for a in agree if len(a["heldBy"]) >= 2)},
         "moveCounts": dict(Counter(m["move"] for m in all_moves)),
     }
+
+
+_MONTHS = {m: i for i, m in enumerate(("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"), 1)}
+
+
+def period_key(p: str) -> Tuple[int, int]:
+    """'Sep 2026' (or '2026-09') -> (2026, 9), for ordering quarters; unknown shapes sort first."""
+    t = str(p).strip().lower().replace("-", " ").split()
+    try:
+        if len(t) == 2 and t[0][:3] in _MONTHS:
+            return int(t[1]), _MONTHS[t[0][:3]]
+        if len(t) >= 2 and t[0].isdigit():
+            return int(t[0]), int(t[1])
+    except ValueError:
+        pass
+    return 0, 0
+
+
+def _oldest_first(q: Dict[str, float]) -> List[Tuple[str, float]]:
+    return sorted(q.items(), key=lambda kv: period_key(kv[0]))
+
+
+def first_named_period(q: Dict[str, float]) -> Optional[str]:
+    """The earliest stored quarter with a combined stake of 1% or more (the start of the unbroken run up to now)."""
+    run: Optional[str] = None
+    for p, v in _oldest_first(q):
+        if v >= MIN_STAKE:
+            run = run or p
+        else:
+            run = None
+    return run
+
+
+def _first_named(row: dict, sym: str, first_named: Dict[Tuple[str, str], Optional[float]]) -> Optional[dict]:
+    if not row["hasQ"] or not row["q"]:
+        return None
+    p = first_named_period(row["q"])
+    if p is None:
+        return None
+    return {"from": p, "pct": first_named.get((sym, p))}
 
 
 def _agree(investors: Dict[str, dict], universe: Dict[str, dict], leaders: Dict[str, dict]) -> List[dict]:
