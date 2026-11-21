@@ -32,8 +32,7 @@ export function SourcesView({ src }: { src: Source }) {
   return <Status q={q}>{() => {
     const d = q.data!;
     return <>
-      <div className="dsc-toolbar"><p>{d.buckets.length} buckets of FinLit’s keyword directory, read from each company’s newest {d.document} filed with NSE in the last {d.days} days
-        ({plural(d.read, `${d.document} read`, `${d.document}s read`)}{d.newest ? `, the newest filed ${fmtDate(d.newest)}` : ""}). A company counts in a bucket when its {d.document} names 2 of the bucket’s keywords, or one of them 5 times. Open one for its companies, the sentences with figures and what to verify.</p></div>
+      {/* task #291 (the team, 21 Nov 2026: "remove this paragraph"): the method paragraph above the buckets is gone; each empty card still says why */}
       <div className="dsc-grid" aria-label={S.label + " buckets"}>{d.buckets.map((b) => <BucketCard key={b.name} src={src} b={b} />)}</div>
     </>;
   }}</Status>;
