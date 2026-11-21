@@ -54,7 +54,7 @@ async def test_plan_locks_in_validate_and_run(app, anon):  # noqa: F811
     assert (await post(anon, "ql/run", query="ROE > 3", sort={"key": "pb", "dir": "asc"})).json()["errors"][0]["code"] == "plan_locked"
     silver = await signed_in(app, "s@example.com", plan="silver")
     assert (await post(silver, "ql/run", query=q)).json()["ok"] is True
-    assert (await post(silver, "ql/run", query="FinLit IQ > 3")).json()["ok"] is True                      # the FinLit IQ is Silver's (task #64)
+    assert (await post(silver, "ql/run", query="FinLit IQ > 3")).json()["errors"][0]["code"] == "plan_score"   # task #283: the retired score, on no plan
     assert (await post(silver, "ql/run", query="Prism score > 3")).json()["errors"][0]["plan"] == "gold"     # FinLit Prism is Gold's
     await silver.aclose()
 
@@ -102,12 +102,13 @@ async def test_ratios_lists_every_metric_with_names_and_examples(app, anon):  # 
     from finlit.screener.catalog import CATALOG
     from finlit.screener.ql import analyze
     body = (await anon.get("/api/screener/ql/ratios")).json()
-    assert len(body["ratios"]) == len(CATALOG) and body["aliases"] > 1000 and body["plan"] == "basic"
+    assert len(body["ratios"]) == len([m for m in CATALOG if m.group != "model"]) and body["aliases"] > 1000 and body["plan"] == "basic"   # task #283: no retired score
+    assert not any(r["group"] == "model" or r["key"] == "overall" or r["key"].startswith("pillar_") or "FinLit IQ" in json.dumps(r) for r in body["ratios"])
     by = {r["key"]: r for r in body["ratios"]}
     assert by["pe"]["names"][0] == "P/E" and "P/E" in by["pe"]["names"] and by["pe"]["unitLabel"] == "times" and by["pe"]["definition"].startswith("The share price")
     assert by["pb"]["locked"] and by["pb"]["tier"] == "silver" and not by["pe"]["locked"]
     for r in body["ratios"]:       # every example written for a ratio is itself a valid query
-        assert analyze(r["example"], "silver" if r["key"] in {m.key for m in CATALOG if m.group == "model"} else "gold").ok, (r["key"], r["example"])   # each on the plan that has it
+        assert analyze(r["example"], "gold").ok, (r["key"], r["example"])
     assert {e["id"]: e["locked"] for e in body["examples"]}["value"] is True and {e["id"]: e["locked"] for e in body["examples"]}["quality"] is False
     assert body["limits"]["chars"] == 2000 and body["limits"]["conditions"] == 30 and body["limits"]["rows"] == 25
 

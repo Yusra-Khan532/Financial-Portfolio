@@ -24,7 +24,7 @@ SPLIT_DOWN, SPLIT_UP = -40.0, 60.0     # a one-session move beyond this is not t
 # the reason a company left a screen, in the screen's own words; never a number. The first rule (in the screen's order) the company no longer meets decides.
 REASONS: Tuple[Tuple[str, str], ...] = (
     ("market cap", "its market cap fell below the screen's size"), ("full year", "it no longer has a full year of prices"), ("1-year return", "its one-year run went past the screen's limit"),
-    ("finlit iq", "its FinLit IQ weakened"), ("prism score", "its Prism rating weakened"), ("technical", "its trend weakened"), ("trend", "its trend weakened"),
+    ("prism score", "its Prism rating weakened"), ("technical", "its trend weakened"), ("trend", "its trend weakened"),
     ("quality", "its Quality score weakened"), ("growth", "its Growth score weakened"), ("profitab", "its Profitability score weakened"), ("balance", "its Balance sheet score weakened"),
     ("risk", "its Risk score weakened"), ("valuation", "its Valuation score moved out of range"), ("52-week high", "it fell further below its 52-week high"),
     ("below the high", "it fell further below its 52-week high"), ("breakout", "its close above the range is no longer recent"), ("above its range", "its close above the range is no longer recent"), ("range top", "it moved away from the range top it closed above"), ("since then", "it moved away from its highest close since then"), ("9-day", "it moved away from its 9-day average"),
@@ -237,7 +237,7 @@ async def _reasons(fr, preset, active, symbols: Sequence[str]) -> Dict[str, str]
 
 
 async def gainers(store, fr, bench: Dict[str, float]) -> dict:
-    """Top gainers for both pages and the three windows at tonight's session, stored in `gainers`."""
+    """Top gainers for the three windows at tonight's session, stored in `gainers` (one page since task #283: the Basic page, on the retired FinLit IQ, is gone)."""
     from .registry import ALL as PRESETS      # every screen, the Prism basics too
     session = fr.as_of
     price = {s: fr.get(i, "price") for i, s in enumerate(fr.symbols)}
@@ -245,7 +245,7 @@ async def gainers(store, fr, bench: Dict[str, float]) -> dict:
     names = {p.id: p.name for p in PRESETS}
     stored = 0
     async with store.pool.acquire() as conn:
-        for page in ("basic", "advanced"):
+        for page in ("advanced",):
             ids = [p.id for p in PRESETS if p.tab == page and p.kind not in ("blocked", "quickview", "gainers")]
             days = [r["session"] for r in await conn.fetch("SELECT DISTINCT session FROM screen_runs WHERE preset_id = ANY($1::text[]) AND session < $2 ORDER BY session DESC LIMIT 21", ids, session)]
             base = await conn.fetchval("SELECT min(session) FROM screen_runs")

@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from starlette.datastructures import QueryParams
 
 from finlit.presets import api, engine, sectorread
-from finlit.presets.registry import BANNED_WORDS, BASIC, BY_ID, SECTOR_ADV, STD_SECTOR
+from finlit.presets.registry import ALL, BANNED_WORDS, BY_ID, SECTOR_ADV, STD_SECTOR
 from finlit.screener.data import Table
 
 AS_OF = date(2026, 11, 19)
@@ -87,7 +87,7 @@ def test_tailwinds_counts_four_facts():
 # ---------------------------------------------------------------------------------------------------------------- the six screens
 def test_six_sectors_screens_on_advanced_only_with_words_and_i_notes():
     assert [p.id for p in SECTOR_ADV] == ["sector-leaders-leading", "sector-rebound-leaders", "sector-early-leaders", "sector-setups-behind", "sector-turning-up", "sector-results-leading"]
-    assert not any(p.group == "sectors" for p in BASIC)
+    assert [p.id for p in ALL if p.group == "sectors"] == [p.id for p in SECTOR_ADV]
     for p in SECTOR_ADV:
         assert p.group == "sectors" and p.tab == "advanced" and p.card_text and p.how_it_works and len(p.about) == 2 and len(p.about[1]) == 3, p.id
         text = " ".join([p.name, p.card_text, p.about[0], *p.about[1], *p.how_it_works, *p.notes]).lower()
@@ -118,8 +118,7 @@ def test_any_advanced_screen_carries_the_sector_reading_and_its_dates():
     r = body["rows"][0]
     assert (r["sr_industry"], r["sr_rotation"], r["sr_pulse"], r["sr_peer"], r["sr_slug"], r["sr_rank"], r["sr_rank_4w"]) == ("Banks", "Ahead and gaining · 3 wk", "Rising together", "Leader", "banks", 4.0, 2.0)
     assert body["dataDates"] == {"prices": "2026-11-19", "setups": None, "sectors": "2026-11-06", "rotation": "2026-11-06"}
-    basic = engine.run(engine.Frame(Table([row("X", overall=70)], {}, {}, None), {}, AS_OF), BY_ID["basic-strong-all-four"])
-    assert not any(c.get("band") == "Sector reading" for c in basic["columns"]) and "dataDates" not in basic   # Basic gets no sector reading
+    assert "basic-strong-all-four" not in BY_ID           # task #283: the Basic tab (on the retired FinLit IQ) is gone; every screen carries the sector reading
 
 
 # ---------------------------------------------------------------------------------------------------------------- filters and the industry board

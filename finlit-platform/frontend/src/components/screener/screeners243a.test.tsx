@@ -29,18 +29,21 @@ describe("H: the page header", () => {
     expect(head.querySelector(".sp-desc")!.textContent).toBe("The advanced model.");
     const boxes = screen.getByRole("navigation", { name: "Screeners" });
     const links = within(boxes).getAllByRole("link");
-    expect(links.map((a) => a.textContent)).toEqual(["Stock screener", "Basic stock screener", "Advanced stock screener", "Query builder"]);   // no tier tags, no icons
-    expect(links.map((a) => a.getAttribute("aria-current"))).toEqual([null, null, "page", null]);
+    expect(links.map((a) => a.textContent)).toEqual(["Stock screener", "Advanced stock screener", "Query builder"]);   // no tier tags, no icons; task #283: no Basic stock screener
+    expect(links.map((a) => a.getAttribute("aria-current"))).toEqual([null, "page", null]);
     expect(boxes.querySelector("svg, .tier, i")).toBeNull();
     expect(head.querySelector(".xsh-date")!.textContent).toBe("Prism: 18 Nov 2026");
     fireEvent.click(screen.getByRole("button", { name: "How FinLit Prism works →" }));
     expect(open).toHaveBeenCalled();
     expect(screen.getByRole("link", { name: "Which screener should I use? →" }).getAttribute("href")).toBe("/advanced-score-screener#" + whichAnchor("/advanced-score-screener"));
   });
-  it("a Gold member is not offered the Basic stock screener (task #100): three boxes", () => {
-    gold.on = true;
-    at("/screener", <ScreenerHead title="Stock screener" desc="x" />);
-    expect(within(screen.getByRole("navigation", { name: "Screeners" })).getAllByRole("link").map((a) => a.textContent)).toEqual(["Stock screener", "Advanced stock screener", "Query builder"]);
+  it("every plan sees the same three boxes (task #283: the Basic stock screener is retired)", () => {
+    for (const on of [true, false]) {
+      gold.on = on;
+      at("/screener", <ScreenerHead title="Stock screener" desc="x" />);
+      expect(within(screen.getByRole("navigation", { name: "Screeners" })).getAllByRole("link").map((a) => a.textContent)).toEqual(["Stock screener", "Advanced stock screener", "Query builder"]);
+      cleanup();
+    }
   });
   it("the Stock screener has no tier pill; every page's 'Which screener should I use?' opens a real question", () => {
     at("/screener", <ScreenerHead title="Stock screener" desc="x" />);
@@ -90,7 +93,8 @@ describe("S: the Stock screener's three tabs", () => {
 describe("T1: the Stock screener's results table on a grid", () => {
   it("names neighbouring columns as one group: Market cap, the score, the technical pillars", () => {
     expect(bandsOf(["market_cap", "prism_st_score", "prism_lt_score"])).toEqual([{ kind: "size", n: 1 }, { kind: "tech", n: 2 }]);
-    expect(bandsOf(["price", "market_cap", "overall", "pe", "roe"])).toEqual([{ kind: "other", n: 1 }, { kind: "size", n: 1 }, { kind: "score", n: 1 }, { kind: "other", n: 2 }]);
+    expect(bandsOf(["price", "market_cap", "prism_final", "pe", "roe"])).toEqual([{ kind: "other", n: 1 }, { kind: "size", n: 1 }, { kind: "score", n: 1 }, { kind: "other", n: 2 }]);
+    expect(bandsOf(["market_cap", "overall"])).toEqual([{ kind: "size", n: 1 }, { kind: "other", n: 1 }]);   // task #283: the retired score is no score group
   });
   it("fixed widths, right-aligned market caps, one chip width, thin rules between groups, amber middling scores, banded rows", () => {
     const css = readFileSync(resolve(__dirname, "../../styles/screeners243.css"), "utf8");

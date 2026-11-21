@@ -240,8 +240,8 @@ class ScreenState(BaseModel):
     @field_validator("model")
     @classmethod
     def model_ok(cls, v: Optional[str]) -> Optional[str]:
-        from ..screener.ready import MODEL
-        if v is not None and v not in MODEL:
+        from ..screener.ready import MODEL, RETIRED_SCREENS
+        if v is not None and v not in MODEL and v not in RETIRED_SCREENS:      # task #283: a retired one is kept as saved, never run
             raise ValueError("unknown model screen")
         return v
 

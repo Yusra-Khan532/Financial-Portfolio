@@ -2,7 +2,7 @@
 // up to three key-figure tiles and a line illustration. Styles: styles/page-header.css (class prefix ph-).
 //   plan         "free" | "silver" | "gold" (or "basic", the same as "free"): the plan that gates the page. Leave out when the page is open to everyone and not a plan feature.
 //   stats        tiles { icon, value, label }. A tile is drawn only when its value is real data (not null / empty / NaN / a dash): never a placeholder number.
-//   links        up to four related pages, as addresses ("/score-screener") or { to, label?, primary? }. Each must exist in lib/nav.ts (or the short extras list in
+//   links        up to four related pages, as addresses ("/screener") or { to, label?, primary? }. Each must exist in lib/nav.ts (or the short extras list in
 //                lib/pageHeader.ts), takes its name from there, and is left out when it does not: a quick link can never be broken.
 //   learn        true (the default): scroll to the page's own questions (#faq) when it has some, else no button. false: none. { to } opens a page (methodology), { onClick } runs a handler, label renames the button.
 //   art          one of 12 line illustrations; hidden under 760 px.
@@ -47,7 +47,7 @@ export function PageHeader({ plan, title, description, eyebrow, stats, links, le
   const tiles: PhStat[] = [];
   void stats; void art; void realValue;
   const gold = useIsGold();
-  const btns = resolveLinks(links?.filter((l) => offeredTo(gold)({ to: typeof l === "string" ? l : l.to })), 4);   // task #100: no Basic stock screener for Gold
+  const btns = resolveLinks(links?.filter((l) => offeredTo(gold)({ to: typeof l === "string" ? l : l.to })), 4);   // task #100: pages not offered to Gold (none since task #283)
   const hasFaq = learn === true && !!faqForPath(pathname);
   const lo: PhLearn | null = learn === true ? (hasFaq ? {} : null) : learn ? learn : null;
   const label = lo?.label ?? "Learn more";

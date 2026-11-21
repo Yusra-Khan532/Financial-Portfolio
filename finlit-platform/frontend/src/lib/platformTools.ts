@@ -1,14 +1,13 @@
 // The "Explore the platform" cards on the landing page (the 8 Nov 2026 landing handover, feature-cards.json). Badge = lowest plan that opens the tool; image = public/landing/tools/<id>.webp.
 export type Badge = "FREE" | "SILVER" | "GOLD";
 export type BucketId = "discover" | "company-360" | "quant-lab" | "track" | "market" | "learn";
-/** `crown` overrides the directory row's crown, which otherwise shows for a paid tool (task #208, the team's choices of 16 Nov): false hides it on a paid tool
- *  (Basic Stock Screener); a plan name shows it on a tool that opens free but draws more with that plan (Chart Builder: scatter with Silver, heatmaps with Gold). */
+/** `crown` overrides the directory row's crown, which otherwise shows for a paid tool (task #208, the team's choices of 16 Nov): false hides it on a paid tool;
+ *  a plan name shows it on a tool that opens free but draws more with that plan (Chart Builder: scatter with Silver, heatmaps with Gold). */
 export interface PlatformCard { id: string; title: string; badge: Badge; link: string; what: string; points: [string, string, string]; image: string; dark?: boolean; rowTitle?: string; crown?: false | "SILVER" | "GOLD" }
 export interface Bucket { id: BucketId; name: string; line: string; cards: PlatformCard[] }
 export const BUCKETS: Bucket[] = [
   { id: "discover", name: "Discover", line: "Find the stocks and funds worth a closer look.", cards: [
     { id: "stock-screener", title: "Stock Screener", badge: "SILVER", link: "/screener", what: "Narrow 5,800+ listed companies down to the few that fit your rules.", points: ["190+ filters across valuation, growth, quarterly results, ownership and red flags", "Quick screens and a 3D view of the matches", "Pick your columns, sort, save the screen and download it"], image: "stock-screener-light" },
-    { id: "basic-score-screener", title: "Basic Stock Screener", badge: "SILVER", crown: false, link: "/score-screener", what: "Rank every listed company by its score.", points: ["Growth & Profitability, its four pillars, Technical and Overall in one table", "Ready-made Top 10s by size, plus momentum, growth and quality screens", "Filter by market cap, sector and score"], image: "basic-score-screener-light" },
     { id: "advanced-score-screener", title: "Advanced Stock Screener", badge: "GOLD", link: "/advanced-score-screener", what: "See the whole market through FinLit Prism, our advanced rating.", points: ["Prism score with Growth & Profitability, Valuation, Quality and Risk", "Short-term and long-term technical views beside each company", "Pre-built screens: highest-rated by size, momentum, emerging tech, sector themes and more"], image: "advanced-score-screener-light" },
     { id: "query-builder", title: "Query Builder", badge: "FREE", link: "/query-builder", what: "Type a rule in plain words and get the companies that match it.", points: ["Write rules like Market cap > 500 AND P/E < 15", "Start from examples: quality compounders, value, high dividend", "Keep a query as a basket and run it again later"], image: "query-builder-light" },
     { id: "mutual-funds", title: "Mutual Funds", badge: "FREE", link: "/funds/screener", what: "Filter every mutual fund by what it costs, holds and returns.", points: ["Type, category, fund house, plan, size, cost and risk filters", "Preset screens such as low-cost large caps or tax savers with a 5-year record", "Returns, SIP returns and the worst fall for every scheme"], image: "mutual-funds-light" },
@@ -59,7 +58,7 @@ export const BUCKETS: Bucket[] = [
 
 /** Two or three words under each tool's name in the compact directory on the landing page (the full card says the rest). */
 export const SHORT: Record<string, string> = {
-  "stock-screener": "190+ filters", "basic-score-screener": "rank by score", "advanced-score-screener": "rank by Prism", "query-builder": "rules in plain words", "mutual-funds": "filter every fund", "etfs": "350+ NSE ETFs", "fund-health-score": "score 1,200+ funds",
+  "stock-screener": "190+ filters", "advanced-score-screener": "rank by Prism", "query-builder": "rules in plain words", "mutual-funds": "filter every fund", "etfs": "350+ NSE ETFs", "fund-health-score": "score 1,200+ funds",
   "company-report": "everything on one page", "finlit-prism": "health in four parts", "company-financials": "statements and ratios", "compare-companies": "side by side", "chart-builder": "build your own charts", "correlation-charts": "how two measures move",
   "reverse-valuation": "what the price assumes", "dcf-calculator": "value a share", "profit-revenue-outlook": "1, 3, 5-year estimates", "eps-calculator": "EPS and target P/E", "sip-calculator": "monthly investing", "stress-lab": "shock the earnings",
   "watchlists": "follow your stocks", "equity-portfolio": "strength and spread", "mf-portfolio": "NAV, returns, health", "alerts": "price and filing alerts", "compare-funds": "head to head", "etf-portfolio": "track, cost, overlap",
@@ -70,7 +69,7 @@ export const SHORT: Record<string, string> = {
 /** One number per tool where the product has one (task #89): shown under the tool's name in the platform directory. Every figure is a count the product itself states or can be counted from it
  *  (the 215 screener filters and Query-builder ratios, the 448-term glossary, the 4 Prism parts, ...), written as a floor ("190+") where the data grows. A tool with no honest count has none. */
 export const FIGURE: Record<string, [string, string]> = {
-  "stock-screener": ["190+", "filters"], "basic-score-screener": ["5", "scores per company"], "advanced-score-screener": ["4", "Prism parts"], "query-builder": ["190+", "ratios"],
+  "stock-screener": ["190+", "filters"], "advanced-score-screener": ["4", "Prism parts"], "query-builder": ["190+", "ratios"],
   "mutual-funds": ["8,300+", "funds"], "etfs": ["350+", "ETFs"], "fund-health-score": ["1,200+", "funds scored"],
   "company-report": ["20", "sections"], "correlation-charts": ["10", "sections"], "finlit-prism": ["4", "parts + 2 tech views"], "company-financials": ["3", "statements + ratios"], "compare-companies": ["2–4", "companies at once"],
   "reverse-valuation": ["4", "answers it solves for"], "profit-revenue-outlook": ["1, 3, 5", "year estimates"], "stress-lab": ["5", "shocks to test"], "alerts": ["5", "alert types"], "compare-funds": ["4", "return periods"],
@@ -79,7 +78,7 @@ export const FIGURE: Record<string, [string, string]> = {
 };
 
 /** Tools with a tall picture for the Expand view (1200 × 1500, public/landing/expanded). Chart Builder, the Discussion Forum, MF Portfolio, IPO Calendar, EPS Calculator, Stress Lab, Browser Extension and Insights & Blog have none yet: their large view uses the card picture. */
-export const EXPANDED = new Set<string>(["advanced-score-screener", "alerts", "basic-score-screener", "company-financials", "company-report", "compare-companies", "compare-funds", "dcf-calculator", "etfs", "finlit-bot", "finlit-prism", "fund-health-score", "glossary", "market-data", "market-events", "mutual-funds", "news-filings", "equity-portfolio", "profit-revenue-outlook", "query-builder", "results-calendar", "sector-pulse", "sector-rotation", "sip-calculator", "stock-screener", "watchlists"]);
+export const EXPANDED = new Set<string>(["advanced-score-screener", "alerts", "company-financials", "company-report", "compare-companies", "compare-funds", "dcf-calculator", "etfs", "finlit-bot", "finlit-prism", "fund-health-score", "glossary", "market-data", "market-events", "mutual-funds", "news-filings", "equity-portfolio", "profit-revenue-outlook", "query-builder", "results-calendar", "sector-pulse", "sector-rotation", "sip-calculator", "stock-screener", "watchlists"]);
 
 /** The five figures in the platform panel (task #119; ETFs added by task #237). Each is true on the date given, with its source (shown as the figure's tooltip):
  *  - companies: 5,839 rows in /api/stocks/search-index on 13 Nov 2026 (every listed company the site has a page for);

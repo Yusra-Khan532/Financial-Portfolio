@@ -19,7 +19,7 @@ def test_lender_on_the_cut_off_passes_and_the_rule_matches_the_equivalent_value(
 
 
 def test_order_notes_are_plain_and_name_no_model_detail():
-    assert engine.rank_order_note(BY_ID["basic-top-large"]) == "The 10 highest FinLit IQs first."
+    assert "basic-top-large" not in BY_ID                     # task #283: the Basic tab's lists, ordered by the retired FinLit IQ, are gone
     assert engine.rank_order_note(BY_ID["highest-rated-large"]) == "Ordered by the FinLit Prism rating."
     assert engine.rank_order_note(BY_ID["setup-pre-breakout"]) is None and engine.rank_order_note(BY_ID["emerging-tech"]) is None
 

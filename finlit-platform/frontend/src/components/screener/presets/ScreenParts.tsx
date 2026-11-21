@@ -1,4 +1,4 @@
-// The open screen's parts on the Basic and Advanced stock screeners. Task #243 (screeners update pack v4, 18 Nov 2026), section P:
+// The open screen's parts on the Advanced stock screener. Task #243 (screeners update pack v4, 18 Nov 2026), section P:
 //   P3 DateBar       "List as on": a list box of the saved lists (count and status; a trading day with no saved list is shown, greyed); the status pill, the
 //                    day's figures ("N companies · +N joined · N left since {previous}"), an i and "Back to the latest list" on a past date
 //   P4 Dropdown,     one wrapping row of pill drop-downs (Market cap, Sector, rating, More filters), each option with the rows it would leave given the other
@@ -14,7 +14,6 @@ import { NO_BAR, type BarFilter, type BoardChip, type HistorySession, type LeftM
 import { INFO_BOARD, PsxInfo } from "./PsxInfo";
 import { Shine } from "./ScreensStrip";
 import { AdvScreenMenus, advChips } from "./AdvScreenFilters";
-import { BasicScreenMenus } from "./BasicScreenFilters";
 import { pulseSay, pulseWord } from "../../../lib/pulseWords";
 import "../../../styles/screens243.css";
 
@@ -90,7 +89,7 @@ export function DateBar({ sessions, asOn, setAsOn, list }: { sessions: HistorySe
 }
 
 /** A pill drop-down of the toolbar (pack P4): the label says what is on; ticking keeps it open; Esc or a click outside closes it and returns focus. */
-export function Dropdown({ label, on, children, wide, sheet }: { label: ReactNode; on: boolean; children: ReactNode; wide?: boolean; /** task #257: on a phone, opens as a bottom sheet (Basic) */ sheet?: boolean }) {
+export function Dropdown({ label, on, children, wide }: { label: ReactNode; on: boolean; children: ReactNode; wide?: boolean }) {
   const [open, setOpen] = useState(false);
   const btn = useRef<HTMLButtonElement>(null), panel = useRef<HTMLDivElement>(null), pid = useId();
   useEffect(() => {
@@ -103,8 +102,7 @@ export function Dropdown({ label, on, children, wide, sheet }: { label: ReactNod
   return (
     <span className="psx3-dd">
       <button ref={btn} type="button" className={"psx3-ddb" + (on ? " is-on" : "")} aria-expanded={open} aria-controls={pid} onClick={() => setOpen((v) => !v)}>{label} <span aria-hidden="true">▾</span></button>
-      {open && sheet && <span className="psx3-sback" aria-hidden="true" />}
-      {open && <div ref={panel} id={pid} className={"psx3-ddp" + (wide ? " is-wide" : "") + (sheet ? " psx3-sheet" : "")} role="group">{children}</div>}
+      {open && <div ref={panel} id={pid} className={"psx3-ddp" + (wide ? " is-wide" : "")} role="group">{children}</div>}
     </span>);
 }
 
@@ -116,10 +114,10 @@ export function Opt({ type = "checkbox", name, checked, onChange, label, n, desc
 }
 
 export type FilterSet = { bar: BarFilter; set: (b: BarFilter) => void };
-const RATING_WORD = (basic: boolean): Record<Exclude<Rating, "">, string> => ({ healthy: "Strong or Healthy", strong: basic ? "Strong only" : "Strong only" });
+const RATING_WORD: Record<Exclude<Rating, "">, string> = { healthy: "Strong or Healthy", strong: "Strong only" };
 
 /** P4: Market cap ▾ · Sector ▾ · rating ▾ · More filters ▾, from the screen's facets. */
-export function FilterMenus({ d, f, basic, onAddRule }: { d: PresetDetail; f: FilterSet; basic: boolean; onAddRule: () => void }) {
+export function FilterMenus({ d, f, onAddRule }: { d: PresetDetail; f: FilterSet; onAddRule: () => void }) {
   const { bar, set } = f, fc = d.facets;
   if (!fc) return null;
   const sizes = (["Large", "Mid", "Small", "Micro"] as const).filter((z) => (fc.sizes[z] ?? 0) > 0 || bar.sizes.includes(z));
@@ -127,20 +125,19 @@ export function FilterMenus({ d, f, basic, onAddRule }: { d: PresetDetail; f: Fi
   const nMore = (bar.fresh ? 1 : 0) + (bar.ahead ? 1 : 0) + (bar.nse ? 1 : 0) + (bar.fno ? 1 : 0) + (bar.liquid ? 1 : 0) + (bar.sag ? 1 : 0) + (bar.plead ? 1 : 0);
   return (<>
     {(sizes.length > 1 || bar.sizes.length > 0) && (
-      <Dropdown label={bar.sizes.length ? `Market cap · ${bar.sizes.length === 1 ? bar.sizes[0] : bar.sizes.length}` : "Market cap"} on={bar.sizes.length > 0} sheet={basic}>
+      <Dropdown label={bar.sizes.length ? `Market cap · ${bar.sizes.length === 1 ? bar.sizes[0] : bar.sizes.length}` : "Market cap"} on={bar.sizes.length > 0}>
         {sizes.map((z) => <Opt key={z} checked={bar.sizes.includes(z)} onChange={() => set({ ...bar, sizes: flip(bar.sizes, z) })} label={`${z} cap`} n={fc.sizes[z] ?? 0} />)}
       </Dropdown>)}
-    {!basic && <AdvScreenMenus d={d} bar={bar} set={set} />}{/* task #258 (SPEC §2): Macro sector · Sector · Industry · Prism score on an Advanced screen */}
-    {basic && <BasicScreenMenus d={d} bar={bar} set={set} />}{/* task #257 (Basic SPEC §2, §3): Macro sector · Sector · Industry · FinLit IQ; the old Sector and IQ rating menus are replaced */}
-    <Dropdown label={nMore ? `More filters · ${nMore}` : "More filters"} on={nMore > 0} wide sheet={basic}>
+    <AdvScreenMenus d={d} bar={bar} set={set} />{/* task #258 (SPEC §2): Macro sector · Sector · Industry · Prism score */}
+    <Dropdown label={nMore ? `More filters · ${nMore}` : "More filters"} on={nMore > 0} wide>
       <Opt checked={bar.fresh} onChange={() => set({ ...bar, fresh: !bar.fresh })} label="New on this list" n={fc.new} desc="Joined since the previous saved list." />
       <Opt checked={bar.ahead} onChange={() => set({ ...bar, ahead: !bar.ahead })} label="Ahead of NIFTY 500 since added" n={fc.ahead} desc="Since added is above NIFTY 500 over the same days." />
-      {/* task #243 (pack v4): on every screen of both pages */}
+      {/* task #243 (pack v4): on every screen */}
       <Opt checked={!!bar.fno} onChange={() => set({ ...bar, fno: !bar.fno })} label="F&O stocks only" n={fc.fno} desc="Stocks with futures and options contracts on NSE." />
       <Opt checked={!!bar.liquid} onChange={() => set({ ...bar, liquid: !bar.liquid })} label="Liquid only" n={fc.liquid} desc="An average of ₹10 Cr or more traded a day over the last 20 sessions." />
-      {/* task #243 round 3b (pack v4): Advanced only */}
-      {!basic && <Opt checked={!!bar.sag} onChange={() => set({ ...bar, sag: !bar.sag })} label="Industry ahead and gaining" n={fc.sag} desc="The company's industry is Ahead and gaining on Sector Rotation." />}
-      {!basic && <Opt checked={!!bar.plead} onChange={() => set({ ...bar, plead: !bar.plead })} label="Peer leaders only" n={fc.plead} desc="The company is a Leader against the other companies of its industry." />}
+      {/* task #243 round 3b (pack v4) */}
+      <Opt checked={!!bar.sag} onChange={() => set({ ...bar, sag: !bar.sag })} label="Industry ahead and gaining" n={fc.sag} desc="The company's industry is Ahead and gaining on Sector Rotation." />
+      <Opt checked={!!bar.plead} onChange={() => set({ ...bar, plead: !bar.plead })} label="Peer leaders only" n={fc.plead} desc="The company is a Leader against the other companies of its industry." />
       {((fc.bse ?? 0) > 0 || bar.nse) && <Opt checked={bar.nse} onChange={() => set({ ...bar, nse: !bar.nse })} label="NSE-listed only" n={fc.nse} desc={`Leaves out the ${nf(fc.bse ?? 0, 0)} listed only on the BSE.`} />}
       <button type="button" className="psx3-addrule" onClick={onAddRule}>+ Add a rule on any figure</button>
     </Dropdown>
@@ -148,13 +145,13 @@ export function FilterMenus({ d, f, basic, onAddRule }: { d: PresetDetail; f: Fi
 }
 
 /** P4: the filters that are on, as chips with ×, then Clear all. */
-export function FilterChips({ f, basic }: { f: FilterSet; basic: boolean }) {
+export function FilterChips({ f }: { f: FilterSet }) {
   const { bar, set } = f;
   const chips: { k: string; label: string; off: () => void }[] = [
     ...(bar.q.trim() ? [{ k: "q", label: `“${bar.q.trim()}”`, off: () => set({ ...bar, q: "" }) }] : []),
     ...bar.sizes.map((z) => ({ k: "z" + z, label: `${z} cap`, off: () => set({ ...bar, sizes: bar.sizes.filter((x) => x !== z) }) })),
     ...bar.sectors.map((n) => ({ k: "s" + n, label: n, off: () => set({ ...bar, sectors: bar.sectors.filter((x) => x !== n) }) })),
-    ...(bar.rating ? [{ k: "r", label: `${basic ? "IQ" : "Prism"} ${RATING_WORD(basic)[bar.rating]}`, off: () => set({ ...bar, rating: "" as Rating }) }] : []),
+    ...(bar.rating ? [{ k: "r", label: `Prism ${RATING_WORD[bar.rating]}`, off: () => set({ ...bar, rating: "" as Rating }) }] : []),
     ...(bar.fresh ? [{ k: "n", label: "New on this list", off: () => set({ ...bar, fresh: false }) }] : []),
     ...(bar.ahead ? [{ k: "a", label: "Ahead of NIFTY 500", off: () => set({ ...bar, ahead: false }) }] : []),
     ...(bar.fno ? [{ k: "f", label: "F&O stocks only", off: () => set({ ...bar, fno: false }) }] : []),
@@ -163,7 +160,7 @@ export function FilterChips({ f, basic }: { f: FilterSet; basic: boolean }) {
     ...(bar.plead ? [{ k: "p", label: "Peer leaders only", off: () => set({ ...bar, plead: false }) }] : []),
     ...(bar.ind ? [{ k: "i", label: `Industry: ${bar.ind.name}`, off: () => set({ ...bar, ind: null }) }] : []),
     ...(bar.nse ? [{ k: "e", label: "NSE-listed only", off: () => set({ ...bar, nse: false }) }] : []),
-    ...advChips(bar, set),           // task #258; task #257: the Basic screen's levels, FinLit IQ groups and ranges too
+    ...advChips(bar, set),           // task #258: the levels, Prism words, ranges and trend words
   ];
   if (!chips.length) return null;
   return (

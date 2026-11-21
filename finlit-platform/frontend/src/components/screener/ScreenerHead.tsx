@@ -1,9 +1,9 @@
 // Task #243 (screeners update pack v4, 18 Nov 2026), section H: the three screener pages use the site's standard page header (`header.sp-head`, as on
 // Sector Pulse and Results) in place of the old tab strip and head card:
-//   eyebrow "Research · Find stocks" · the serif title with its tier pill (Silver on Basic, Gold on Advanced, none on the Stock screener) · the page's
-//   description · four small plain boxes, one per screener, the current one filled · a head bar with the date chip, "How … works →" where the page has it,
+//   eyebrow "Research · Find stocks" · the serif title with its tier pill (Gold on Advanced, none on the Stock screener) · the page's
+//   description · three small plain boxes, one per screener, the current one filled · a head bar with the date chip, "How … works →" where the page has it,
 //   and "Which screener should I use? →", which opens that question in the page's "Questions about this page".
-// The founder's rule of 13 Nov (task #100) still holds: a Gold member is not offered the Basic stock screener, so Gold sees three boxes.
+// Task #283: the Basic stock screener is retired with its score, so every plan sees the same three boxes.
 // Styles: styles/screeners243.css (xsh-), on the pack tokens of styles/sectors-pack.css. Describes the pages; never advice.
 import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router";
@@ -18,14 +18,12 @@ import "../../styles/screeners243.css";
 
 export const SCREENERS: { to: string; label: string }[] = [
   { to: "/screener", label: "Stock screener" },
-  { to: "/score-screener", label: "Basic stock screener" },
   { to: "/advanced-score-screener", label: "Advanced stock screener" },
   { to: "/query-builder", label: "Query builder" },
 ];
 export const WHICH_Q = "Which screener should I use?";
 
-/** Each page's description, shown in its header (was screen-reader only on Basic and Advanced; pack H.3). The open-screen view shows the same one. */
-export const BASIC_DESC = <>Every listed company with its <b>FinLit IQ</b> and the five scores it is made of. Filter, sort and compare by size, sector and score.</>;
+/** Each page's description, shown in its header (pack H.3). The open-screen view shows the same one. */
 export const ADVANCED_DESC = <>The advanced model for the whole market: the <b>Prism score</b>, its four financial-health parts (Growth &amp; Profitability, Valuation, Quality, Risk) and two technical views, short term and long term. Filter, sort and compare.</>;
 export const STOCK_DESC = "Filter every listed company by size, valuation, growth, debt, ownership and price trend. Start from a ready-made screen or add your own rules; the list updates as you go.";
 
@@ -36,7 +34,7 @@ export function whichAnchor(path: string): string | null {
   return set && i >= 0 ? faqAnchor(set.id, i) : null;
 }
 
-/** The four plain screener boxes (pack H, v2): the page name only, no icons, tier tags or colours; the current page is filled and aria-current. */
+/** The plain screener boxes (pack H, v2): the page name only, no icons, tier tags or colours; the current page is filled and aria-current. */
 export function ScreenerBoxes() {
   const { pathname } = useLocation();
   const gold = useIsGold();

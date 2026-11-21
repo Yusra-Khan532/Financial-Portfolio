@@ -35,7 +35,6 @@ const PremiumReportPage = lazy(() => import("./pages/PremiumReport").then((m) =>
 const PrismPage = lazy(() => import("./pages/Prism").then((m) => ({ default: m.PrismPage })));
 const QueryBuilder = lazy(() => import("./pages/QueryBuilder").then((m) => ({ default: m.QueryBuilder })));
 const BasketsPage = lazy(() => import("./pages/Baskets").then((m) => ({ default: m.BasketsPage })));
-const ScoreScreener = lazy(() => import("./pages/ScoreScreener").then((m) => ({ default: m.ScoreScreener })));
 const AdvancedScoreScreener = lazy(() => import("./pages/AdvancedScoreScreener").then((m) => ({ default: m.AdvancedScoreScreener })));
 const Compare = lazy(() => import("./pages/Compare").then((m) => ({ default: m.Compare })));
 const GraphStudio = lazy(() => import("./pages/GraphStudio").then((m) => ({ default: m.GraphStudio })));
@@ -110,7 +109,8 @@ export default function App() {
             <Route path="screener" element={<Screener />} />
             <Route path="query-builder" element={<QueryBuilder />} />
             <Route path="baskets" element={<BasketsPage />} />
-            <Route path="score-screener" element={<ScoreScreener />} />
+            {/* task #283: the Basic stock screener is retired with its score; an old link (any query string) opens the Advanced stock screener. The server answers 301 too (finlit/seo.py REDIRECTS). */}
+            <Route path="score-screener" element={<Navigate to="/advanced-score-screener" replace />} />
             <Route path="advanced-score-screener" element={<AdvancedScoreScreener />} />
             <Route path="premium" element={<PremiumHub />} />
             <Route path="premium/markets" element={<MarketsPage />} />

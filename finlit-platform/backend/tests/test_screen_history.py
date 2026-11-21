@@ -21,9 +21,10 @@ def test_changes_and_the_bench_lookup():
     assert history.list_hash(["A", "B"]) == history.list_hash(["A", "B"]) != history.list_hash(["B", "A"])
 
 
-def test_top_gainers_screens_exist_on_both_pages_with_the_seven_columns():
+def test_top_gainers_screens_exist_with_the_seven_columns():
     assert ("top-gainers", "Top gainers") in GROUPS
-    for pid, tab in (("gainers-day", "advanced"), ("gainers-week", "advanced"), ("gainers-month", "advanced"), ("basic-gainers-day", "basic"), ("basic-gainers-week", "basic"), ("basic-gainers-month", "basic")):
+    assert not [p for p in BY_ID if p.startswith("basic-gainers")]          # task #283: one page (the Basic page, on the retired FinLit IQ, is gone)
+    for pid, tab in (("gainers-day", "advanced"), ("gainers-week", "advanced"), ("gainers-month", "advanced")):
         p = BY_ID[pid]
         assert p.kind == "gainers" and p.tab == tab and p.limit == 20
         keys = [c.key for c in p.columns]
@@ -48,8 +49,8 @@ def test_filter_bar_search_size_sector_and_strong_keep_the_screens_own_order():
         def __init__(self, **q):
             self.query_params = type("Q", (), {"get": lambda s, k, d=None: q.get(k, [d])[0] if k in q else d, "getlist": lambda s, k: q.get(k, [])})()
     # task #262 rupee rule: AAA large (above 75,000 Cr), BBB mid (25,000-75,000), CCC small (10,000-25,000)
-    rows = [{"symbol": "AAA", "name": "Alpha", "sector": "IT", "market_cap": 90000, "overall": 80}, {"symbol": "BBB", "name": "Beta", "sector": "Auto", "market_cap": 40000, "overall": 50},
-            {"symbol": "CCC", "name": "Gamma", "sector": "IT", "market_cap": 15000, "overall": 70}]
+    rows = [{"symbol": "AAA", "name": "Alpha", "sector": "IT", "market_cap": 90000, "prism_final": 80, "overall": 40}, {"symbol": "BBB", "name": "Beta", "sector": "Auto", "market_cap": 40000, "prism_final": 50, "overall": 90},
+            {"symbol": "CCC", "name": "Gamma", "sector": "IT", "market_cap": 15000, "prism_final": 70, "overall": 40}]      # task #283: "strong" reads Prism (65+), never the retired score
     assert [r["symbol"] for r in api._filtered(Req(size=["Large", "Small"]), rows)] == ["AAA", "CCC"]
     assert [r["symbol"] for r in api._filtered(Req(sector=["IT"], strong=["1"]), rows)] == ["AAA", "CCC"]
     assert [r["symbol"] for r in api._filtered(Req(q=["bet"]), rows)] == ["BBB"]

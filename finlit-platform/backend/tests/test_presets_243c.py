@@ -8,7 +8,7 @@ from starlette.datastructures import QueryParams
 
 from finlit.presets import api, engine
 from finlit.presets import service as svc
-from finlit.presets.registry import BANNED_WORDS, BY_ID, NEW_ADV, NEW_BASIC
+from finlit.presets.registry import ALL, BANNED_WORDS, BY_ID, NEW_ADV
 from finlit.screener.data import Table
 from finlit.screener.ready import READY
 
@@ -35,24 +35,20 @@ def syms(body):
 
 
 # ---------------------------------------------------------------------------------------------------------------- the registry
-def test_thirteen_new_screens_in_their_groups_with_words_and_i_notes():
+def test_the_new_screens_in_their_groups_with_words_and_i_notes():
     adv = {p.id: p.group for p in NEW_ADV}
-    basic = {p.id: p.group for p in NEW_BASIC}
     assert adv == {"strong-results": "growth", "dividend-payers": "value-income", "turnarounds": "value-income", "rating-downgrades": "safety", "institutions-buying": "ownership",
                    "promoter-buying": "ownership", "fresh-results": "growth", "weak-results": "safety"}
-    assert basic == {"basic-iq-upgrades": "top-rated", "basic-strong-results": "growth", "basic-dividend-payers": "value-income", "basic-iq-downgrades": "safety",
-                     "basic-institutions-buying": "ownership", "basic-promoter-buying": "ownership", "basic-fresh-results": "growth", "basic-weak-results": "safety"}
-    for p in NEW_ADV + NEW_BASIC:
-        assert p.tab == ("basic" if p.id.startswith("basic-") else "advanced") and p.added == "2026-11-19" and p.status == "live"
+    assert not [p.id for p in ALL if p.id.startswith("basic-") or p.tab != "advanced"]       # task #283: the Basic tab's screens (on the retired FinLit IQ) are gone
+    for p in NEW_ADV:
+        assert p.tab == "advanced" and p.added == "2026-11-19" and p.status == "live"
         assert p.card_text and p.how_it_works and len(p.about) == 2 and len(p.about[1]) == 3, p.id          # "What it shows", then three "How to use it" points
         text = " ".join([p.name, p.card_text, p.about[0], *p.about[1], *p.how_it_works, *p.notes]).lower()
         for w in BANNED_WORDS + ("hold", "avoid", "reduce", "accumulate", "target"):
             assert f" {w} " not in f" {text} ", (p.id, w)
-        if p.tab == "basic":
-            assert "prism" not in text, p.id                                                                       # the Basic tab never names Prism
+        assert "finlit iq" not in text, p.id
     assert [c.label for c in BY_ID["fresh-results"].columns if c.key.startswith("res_")] == ["Declared", "Result", "Sales vs a year ago", "Profit vs a year ago", "Net margin change (points)"]
     assert [c.label for c in BY_ID["rating-downgrades"].columns if c.key.startswith(("prism_before", "prism_change"))] == ["Prism before", "Rating before", "Scored on", "Change"]
-    assert [c.label for c in BY_ID["basic-iq-upgrades"].columns if c.key.startswith("iq_")] == ["FinLit IQ before", "Band before", "Scored on", "Change"]
 
 
 # ---------------------------------------------------------------------------------------------------------------- each rule on a small universe
@@ -82,21 +78,20 @@ def test_promoter_buying_keeps_rises_of_half_a_point_to_ten_points():
     assert syms(body) == ["A", "B"] and body["rows"][0]["own_promoters_chg_1q"] == 2.0      # D3: the 56-point jump is a reclassification, not buying
 
 
-def test_basic_screens_use_the_finlit_iq_band():
-    rows = [row("A", overall=70, q_sales_yoy=30, q_profit_yoy=30), row("B", overall=55, q_sales_yoy=30, q_profit_yoy=30)]
-    assert syms(run("basic-strong-results", rows)) == ["A"]                             # B's FinLit IQ is Mixed
+def test_a_sound_rating_is_prism_only_the_retired_score_is_never_read():
+    rows = [row("A", overall=90, q_sales_yoy=30, q_profit_yoy=30), row("B", overall=90, q_sales_yoy=30, q_profit_yoy=30)]
+    assert syms(run("strong-results", rows, {"A": pz(70)})) == ["A"]                     # B has the retired score's 90 but no Prism rating: not sound
 
 
 # ---------------------------------------------------------------------------------------------------------------- score history: before, change, same model
 def test_move_fields_change_is_now_minus_before_and_band_moves():
     f = svc.move_fields("prism", 61.0, 72.0, date(2026, 11, 3), svc.band_of, svc.BAND_NAMES)
     assert f == {"prism_before": 72.0, "prism_before_rating": "Healthy", "prism_before_day": "2026-11-03", "prism_change": -11.0, "prism_band_up": 0.0, "prism_band_down": 1.0}
-    g = svc.move_fields("iq", 63.0, 55.0, date(2026, 10, 27), svc.iq_band_of, svc.IQ_NAMES)
-    assert g["iq_before_band"] == "Mixed" and g["iq_change"] == 8.0 and g["iq_band_up"] == 1.0
-    assert svc.move_fields("iq", None, 55.0, date(2026, 10, 27), svc.iq_band_of, svc.IQ_NAMES) == {}      # no score today: no row, never a guess
+    assert svc.move_fields("prism", None, 55.0, date(2026, 10, 27), svc.band_of, svc.BAND_NAMES) == {}      # no score today: no row, never a guess
+    assert not hasattr(svc, "iq_band_of") and not hasattr(svc, "IQ_NAMES")                                    # task #283: the retired score's moves are not worked out
 
 
-def test_rating_downgrades_and_iq_upgrades_downgrades_on_every_row_change_adds_up():
+def test_rating_downgrades_on_every_row_change_adds_up():
     rows = [row(s, overall=o) for s, o in (("A", 70), ("B", 60), ("C", 75), ("D", 50))]
     prism = {"A": pz(60, **svc.move_fields("prism", 60, 72, date(2026, 11, 3), svc.band_of, svc.BAND_NAMES)),      # Healthy -> Average: a band down
              "B": pz(55, **svc.move_fields("prism", 55, 62, date(2026, 11, 3), svc.band_of, svc.BAND_NAMES)),      # 7 points, same band: not listed
@@ -107,21 +102,16 @@ def test_rating_downgrades_and_iq_upgrades_downgrades_on_every_row_change_adds_u
     for r in body["rows"]:
         assert round(r["prism_final"] - r["prism_before"], 1) == r["prism_change"]       # pack R5: score now - score before = Change, on every row
     assert syms(body)[0] == "A" or body["rows"][0]["prism_change"] <= body["rows"][1]["prism_change"]
-    iq = {"A": svc.move_fields("iq", 70, 60, date(2026, 10, 27), svc.iq_band_of, svc.IQ_NAMES), "B": svc.move_fields("iq", 60, 64, date(2026, 10, 27), svc.iq_band_of, svc.IQ_NAMES),
-          "C": svc.move_fields("iq", 75, 70, date(2026, 10, 27), svc.iq_band_of, svc.IQ_NAMES), "D": svc.move_fields("iq", 50, 59, date(2026, 10, 27), svc.iq_band_of, svc.IQ_NAMES)}
-    up, down = run("basic-iq-upgrades", rows, iq), run("basic-iq-downgrades", rows, iq)
-    assert syms(up) == ["A"] and syms(down) == ["D", "B"]               # A rose 10; D fell 9; B fell a band (Healthy to Mixed); C rose 5 in its band
-    for r in up["rows"] + down["rows"]:
-        assert round(r["overall"] - r["iq_before"], 1) == r["iq_change"]
 
 
 class _Conn:
-    def __init__(self, prism_rows, iq_rows):
-        self.p, self.i = prism_rows, iq_rows
+    def __init__(self, prism_rows):
+        self.p, self.sql = prism_rows, []
 
     async def fetch(self, sql, *args):
-        assert "model_version IS NOT DISTINCT FROM" in sql or "d.model = b.model" in sql        # the same scoring model as the newest row only
-        return self.p if "prism_history" in sql else self.i
+        assert "model_version IS NOT DISTINCT FROM" in sql        # the same scoring model as the newest row only
+        self.sql.append(sql)
+        return self.p
 
     async def __aenter__(self):
         return self
@@ -131,12 +121,13 @@ class _Conn:
 
 
 async def test_score_moves_read_the_histories_into_the_frame_fields():
-    conn = _Conn([{"symbol": "A", "day": date(2026, 11, 3), "final": 72.0}], [{"symbol": "A", "day": date(2026, 10, 27), "overall": 60}, {"symbol": "B", "day": AS_OF, "overall": 50}])
+    conn = _Conn([{"symbol": "A", "day": date(2026, 11, 3), "final": 72.0}])
     store = SimpleNamespace(pool=SimpleNamespace(acquire=lambda: conn))
     prism = {"A": pz(60)}
-    await svc._score_moves(store, prism, AS_OF, {"A": 70.0, "B": 52.0})
-    assert prism["A"]["prism_change"] == -12.0 and prism["A"]["iq_change"] == 10.0 and prism["A"]["iq_before_day"] == "2026-10-27"
-    assert "B" not in prism                                                   # nothing on file before today: no move
+    await svc._score_moves(store, prism, AS_OF)
+    assert prism["A"]["prism_change"] == -12.0 and prism["A"]["prism_before_day"] == "2026-11-03"
+    assert not any(k.startswith("iq_") for k in prism["A"]) and "B" not in prism          # task #283: the retired score's history is not read
+    assert all("score_history" not in s for s in conn.sql)
 
 
 # ---------------------------------------------------------------------------------------------------------------- the results screens
@@ -155,7 +146,7 @@ def test_results_window_takes_the_last_week_with_numbers_and_the_page_verdict():
     assert syms(fresh) == ["A"] and syms(weak) == ["B"]                          # E was not judged: on neither list
     r = fresh["rows"][0]
     assert (r["res_declared"], r["res_verdict"], r["res_sales_yoy"], r["res_profit_yoy"], r["res_npm_change"]) == ("2026-11-18", "Strong", 30.0, 45.0, 2.1)
-    assert syms(run("basic-fresh-results", rows, {s: dict(f[s]) for s in "ABE"})) == ["A"]
+    assert syms(run("fresh-results", [row(s, overall=90) for s in "ABE"], {s: dict(f[s]) for s in "ABE"})) == []   # no Prism rating: not sound, whatever the retired score
 
 
 # ---------------------------------------------------------------------------------------------------------------- filters, D3 on the Stock screener, the API's i and NEW

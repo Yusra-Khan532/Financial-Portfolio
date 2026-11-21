@@ -121,22 +121,24 @@ async def test_a_company_page_can_ask_which_top_rated_and_theme_screens_it_is_in
     assert (await gold.get("/api/screener/presets/for/AAA")).json() == {"symbol": "AAA", "screens": [], "ready": False, "asOf": None}   # before the first nightly run: says it is not ready
 
 
-async def test_basic_tab_screens_are_silver_and_advanced_stay_gold(app, store):  # noqa: F811
+async def test_the_basic_tab_is_retired_and_every_screen_is_on_prism_for_gold(app, store):  # noqa: F811
+    """Task #283: the Basic tab (Silver, built on the retired FinLit IQ) is gone with the Basic stock screener. An older ?tab=basic gets the same Prism screens,
+    locked below Gold; its screens' addresses answer 404; nothing sent names the retired score."""
     await wipe(store)
     silver = await signed_in(app, "bs@example.com", plan="silver")
-    free = await signed_in(app, "bf@example.com", plan="basic")
-    lst = (await silver.get("/api/screener/presets?tab=basic")).json()
-    cards = [c for g in lst["groups"] for c in g["presets"]]
-    assert lst["tab"] == "basic" and len(cards) == 42 and all(c["tab"] == "basic" and c["locked"] is False for c in cards)
-    assert "basic-top-micro" in {c["id"] for c in cards}                                                   # task #262: Top 10 micro caps joins the Basic tab (41 -> 42)
-    assert all(c["locked"] for g in (await free.get("/api/screener/presets?tab=basic")).json()["groups"] for c in g["presets"])
-    d = await silver.get("/api/screener/presets/basic-emerging-tech")
-    assert d.status_code == 200 and d.json()["id"] == "basic-emerging-tech"
-    assert (await free.get("/api/screener/presets/basic-top-large")).status_code == 403
-    assert (await silver.get("/api/screener/presets/highest-rated-large")).status_code == 403          # the Prism screens are Gold
+    gold = await signed_in(app, "bg@example.com", plan="gold")
+    old = await silver.get("/api/screener/presets?tab=basic")
     adv = (await silver.get("/api/screener/presets")).json()
-    assert adv["tab"] == "advanced" and all(c["locked"] for g in adv["groups"] for c in g["presets"])
-    await silver.aclose(); await free.aclose()
+    assert old.json()["tab"] == "advanced" and old.json()["groups"] == adv["groups"]
+    cards = [c for g in adv["groups"] for c in g["presets"]]
+    assert len(cards) == 52 and all(c["tab"] == "advanced" and c["locked"] for c in cards) and not any(c["id"].startswith("basic-") for c in cards)
+    for pid in ("basic-top-large", "basic-emerging-tech", "basic-iq-upgrades", "basic-gainers-day"):
+        assert (await gold.get(f"/api/screener/presets/{pid}")).status_code == 404, pid
+    assert (await silver.get("/api/screener/presets/highest-rated-large")).status_code == 403          # the Prism screens are Gold
+    assert (await silver.get("/api/screener/gainers?page=basic")).status_code == 403                   # Top gainers too: one page, Gold
+    for text in (old.text, (await gold.get("/api/screener/presets")).text):
+        assert "FinLit IQ" not in text and '"overall"' not in text and "pillar_" not in text
+    await silver.aclose(); await gold.aclose()
 
 
 async def test_the_screener_rows_carry_the_52_week_and_return_figures_for_the_optional_columns(store):  # noqa: F811

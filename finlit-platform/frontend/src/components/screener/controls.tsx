@@ -1,8 +1,8 @@
-// Filter controls shared by the two score screeners. Each takes the screener state (`s`) from useScreener.
+// Filter controls of the Advanced stock screener. Each takes the screener state (`s`) from useScreener.
 import { useEffect, useRef, type ReactNode } from "react";
 import { Link } from "react-router";
 import { RaiseQueryButton } from "../PageFeedback";
-import { BANDS, BAND_ORDER, type RangeKey } from "../../lib/scoreScreen";
+import type { RangeKey } from "../../lib/scoreScreen";
 import { useFocusTrap } from "../../lib/focusTrap";
 import type { Screener } from "./useScreener";
 
@@ -22,15 +22,6 @@ export function Slider({ s, k, end, label }: { s: Screener; k: RangeKey; end: "m
   return (<label className="pzs-sl">{end === "min" ? "From" : "To"}<input type="range" min={0} max={100} step={1} value={cur ?? dflt} aria-label={`${label} slider, ${end === "min" ? "lowest" : "highest"} score`}
     onChange={(e) => s.setRange(k, end, Number(e.target.value) === dflt ? "" : e.target.value)} /><output>{cur ?? dflt}</output></label>);
 }
-/** Score bands (Watch under 45, Mixed 45 to 61, Healthy 62 to 77, Strong 78 and above) as checkboxes, with the exact range under them. */
-export function BandBoxes({ s, k, label }: { s: Screener; k: "f" | "t"; label: string }) {
-  return (
-    <fieldset className="ss-fs"><legend>{label} score</legend>
-      {BAND_ORDER.map((b) => <label key={b}><input type="checkbox" checked={s.draft.bands[k].includes(b)} onChange={() => s.setBand(k, b)} /><span>{BANDS[b].label}</span></label>)}
-      <RangeBox s={s} k={k} label={label} />
-    </fieldset>);
-}
-
 /** The "How scores work" dialog frame: focus trap, Escape to close; the page supplies the definitions. */
 export function HowDialog({ onClose, children, title = "How scores work" }: { onClose: () => void; children: ReactNode; title?: string }) {
   const ref = useRef<HTMLDivElement>(null);

@@ -81,8 +81,8 @@
 .sx-ex .sx-t th, .sx-ex .sx-t td { padding-left: 10px; padding-right: 10px; }
 .sx-up { grid-template-columns: minmax(0, 1fr); } .sx-up .gate, .sx-up .gate > div, .sx-up .sx-ex { min-width: 0; max-width: 100%; }
 
-/* Lines that separate what belongs together (Basic and Advanced screeners): a rule under every row, a stronger one under the headings, a vertical rule between every two columns and a heavier one where each score group starts,
-   and the group labels (FinLit IQ / FinLit Prism / Technical views) as small capitals over a line. Columns 1-6 are the company columns; the first score group starts at column 7. */
+/* Lines that separate what belongs together (the Advanced screener): a rule under every row, a stronger one under the headings, a vertical rule between every two columns and a heavier one where each score group starts,
+   and the group labels (FinLit Prism / Technical views) as small capitals over a line. Columns 1-6 are the company columns; the first score group starts at column 7. */
 .sx-t tbody td { border-bottom: 1px solid var(--border); }
 .sx-t tbody tr:last-child td { border-bottom: 0; }
 .sx-t thead tr:not(.gh) th { border-bottom: 2px solid var(--border-strong, var(--border)); }
@@ -112,11 +112,11 @@
    Only the one-column Company band is sticky; the tick-box, rank and Action columns carry no band. */
 .sx-t .tg-row { --tg-surface: var(--s1); --tg-band: 13%; }
 :root[data-theme="dark"] .sx-t .tg-row { --tg-band: 20%; }
-.sx-t .tg-row [data-g="company"] { --g: #8a6a2a; } .sx-t .tg-row [data-g="price"] { --g: #5f6b7a; } .sx-t .tg-row [data-g="iq"] { --g: #1f7a55; } .sx-t .tg-row [data-g="prism"] { --g: #1f6b49; }
-.sx-t .tg-row [data-g="tech"] { --g: #2b6cb0; } .sx-t .tg-row [data-g="overall"] { --g: #7a5b16; } .sx-t .tg-row [data-g="range"] { --g: #6b43b0; }
+.sx-t .tg-row [data-g="company"] { --g: #8a6a2a; } .sx-t .tg-row [data-g="price"] { --g: #5f6b7a; } .sx-t .tg-row [data-g="prism"] { --g: #1f6b49; }
+.sx-t .tg-row [data-g="tech"] { --g: #2b6cb0; } .sx-t .tg-row [data-g="range"] { --g: #6b43b0; }
 :root[data-theme="dark"] .sx-t .tg-row [data-g="company"] { --g: #d6b56f; } :root[data-theme="dark"] .sx-t .tg-row [data-g="price"] { --g: #9aa6b5; }
-:root[data-theme="dark"] .sx-t .tg-row [data-g="iq"], :root[data-theme="dark"] .sx-t .tg-row [data-g="prism"] { --g: #4fc08c; } :root[data-theme="dark"] .sx-t .tg-row [data-g="tech"] { --g: #7fb0ea; }
-:root[data-theme="dark"] .sx-t .tg-row [data-g="overall"] { --g: #d9b96c; } :root[data-theme="dark"] .sx-t .tg-row [data-g="range"] { --g: #c4a5ff; }
+:root[data-theme="dark"] .sx-t .tg-row [data-g="prism"] { --g: #4fc08c; } :root[data-theme="dark"] .sx-t .tg-row [data-g="tech"] { --g: #7fb0ea; }
+:root[data-theme="dark"] .sx-t .tg-row [data-g="range"] { --g: #c4a5ff; }
 .sx-t .gh.tg-row th { border-bottom: 0; border-left: 0; background: transparent; }
 .sx-t .gh.tg-row th.tg-none { padding: 0; }
 .sx-t .gh.tg-row th[data-g] { padding: 8px 12px 7px; background: color-mix(in srgb, var(--g) var(--tg-band), var(--tg-surface)); border-top: 3px solid var(--g); border-left: 4px solid var(--tg-surface); border-radius: 12px 12px 0 0;
@@ -161,8 +161,8 @@
 :root[data-theme="dark"] .sx-t .tg-row [data-g] { --g: #4fc08c; }
 .sx-t .tg-row [data-g="company"], .sx-t .tg-row [data-g="price"], .sx-t .tg-row [data-g="range"] { --g: color-mix(in srgb, #1f7a55 55%, var(--muted)); }
 :root[data-theme="dark"] .sx-t .tg-row [data-g="company"], :root[data-theme="dark"] .sx-t .tg-row [data-g="price"], :root[data-theme="dark"] .sx-t .tg-row [data-g="range"] { --g: color-mix(in srgb, #4fc08c 50%, var(--muted)); }
-.sx-t .tg-row [data-g="tech"], .sx-t .tg-row [data-g="overall"], .sx-t .tg-row [data-g="prism"] { --g: #1f7a55; }
-:root[data-theme="dark"] .sx-t .tg-row [data-g="tech"], :root[data-theme="dark"] .sx-t .tg-row [data-g="overall"], :root[data-theme="dark"] .sx-t .tg-row [data-g="prism"] { --g: #4fc08c; }
+.sx-t .tg-row [data-g="tech"], .sx-t .tg-row [data-g="prism"] { --g: #1f7a55; }
+:root[data-theme="dark"] .sx-t .tg-row [data-g="tech"], :root[data-theme="dark"] .sx-t .tg-row [data-g="prism"] { --g: #4fc08c; }
 .scr-main .ss-t.sx-t .gh.tg-row th[data-g] { border-left: 2px solid var(--s1); border-radius: 10px 10px 0 0; text-align: left; padding: 8px 16px 7px; }
 .scr-main .ss-t.sx-t .gh.tg-row th.tg-none { padding: 0; min-width: 0; height: auto; }
 /* the left panel: the list scrolls under a soft edge, the last card clears the buttons, and the two buttons stay put */

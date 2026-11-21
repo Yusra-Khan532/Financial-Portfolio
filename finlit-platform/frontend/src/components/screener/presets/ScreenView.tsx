@@ -1,4 +1,4 @@
-// The screen view: one prebuilt screen on the Basic or Advanced stock screener. Values come from the response only: a missing one is a dash with its reason,
+// The screen view: one prebuilt screen on the Advanced stock screener. Values come from the response only: a missing one is a dash with its reason,
 // never zero, and nothing is ranked or recommended here.
 // Task #243 (screeners update pack v4, 18 Nov 2026), section P: one order of parts (P1): the header (P2, a shining crown on a featured group's screens), the date
 // bar (P3), the toolbar and the filters that are on (P4), the notes line, the table with three heading rows (P5), the selection bar (P6, only with a selection),
@@ -24,6 +24,7 @@ import {
   type ColFormat, type PresetColumn, type PresetDetail, type PresetRow, type SortState, type Theme,
 } from "../../../lib/presets";
 import type { PresetRoute } from "./usePresetRoute";
+import { PLAN_FOR_WATCHLIST } from "../../../lib/planGates";
 import "../../../styles/presets.css";
 import "../../../styles/advfx.css";   // task #258: the Advanced screen header fix (.psx3-hfix) and the header-row filters
 import { CoLogo } from "../../CoLogo";
@@ -93,23 +94,15 @@ function ThemeCards({ themes, on, onPick }: { themes: Theme[]; on: string | null
 
 // ---------- the table (pack P5) ----------
 const HIDDEN = new Set(["symbol", "name", "stock", "badges", "rank", "position", "sector", "ret_1d"]);   // shown inside the Company and Price cells, not as columns of their own
-/** Task #257 (Basic SPEC §4): on a Basic screen, the name's line, then the company's NSE industry (one of 59) and size, e.g. "Auto Components · Small cap", with
- *  "macro sector › sector › industry" on hover. A company NSE does not classify says so. */
-function IndLine({ r }: { r: PresetRow }) {
-  const s = (k: string) => (typeof r[k] === "string" ? (r[k] as string) : null);
-  const ind = s("cls_industry"), z = sizeOf(r), path = [s("cls_macro"), s("cls_sector"), ind].filter(Boolean).join(" › ");
-  return <><small className="psx3-nml">{[subOf(r), exchangeTag(r)].filter(Boolean).join(" · ")}</small>
-    <small className="psx3-indl" title={ind ? path : "NSE does not place this company in one of its 59 industries"}><span className="psx3-indn">{ind ?? "Industry not classified"}</span>{z && <span className="psx3-indz"> · {z} cap</span>}</small></>;   // a long industry shortens; the size always shows
-}
 const sizeOf = (r: PresetRow) => { const m = r.market_cap; return typeof m !== "number" || !(m > 0) ? null : capBucket(m)?.short ?? null; };   // the site's one rule (lib/capBuckets.ts)
 type Group = "price" | "score" | "returns" | "list" | "after" | "sector" | "screen";
 const groupOf = (c: PresetColumn): Group => {
   const b = (c.band ?? "").toLowerCase();
-  return b.startsWith("price") ? "price" : b === "finlit prism" || b === "finlit iq" || b === "technical views" || b === "technical" ? "score" : b === "returns" ? "returns"
+  return b.startsWith("price") ? "price" : b === "finlit prism" || b === "technical views" || b === "technical" ? "score" : b === "returns" ? "returns"
     : b === "on this list" ? "list" : b === "after this list" ? "after" : b === "sector reading" ? "sector" : "screen";
 };
 type Kind = "score" | "fund" | "tech";
-const kindOf = (c: PresetColumn): Kind | null => groupOf(c) !== "score" ? null : c.key === "prism_final" || c.key === "overall" ? "score" : /_(st|lt)_score$|^pillar_technical$/.test(c.key) ? "tech" : "fund";
+const kindOf = (c: PresetColumn): Kind | null => groupOf(c) !== "score" ? null : c.key === "prism_final" ? "score" : /_(st|lt)_score$/.test(c.key) ? "tech" : "fund";
 const TECH_KEYS = /_(st|lt)_score$/;
 const runs = <T,>(xs: T[], key: (x: T) => string) => xs.reduce<{ k: string; n: number }[]>((acc, x) => { const k = key(x); if (acc.length && acc[acc.length - 1].k === k) acc[acc.length - 1].n++; else acc.push({ k, n: 1 }); return acc; }, []);
 
@@ -136,10 +129,10 @@ export function shownColumns(cols: PresetColumn[], on: ColsOn, past: boolean): P
 }
 
 /** Group heading words, each naming its date (pack P5, L1). */
-function groupLabel(g: Group, basic: boolean, onDay: string, latest: string, sectorDay = ""): string {
+function groupLabel(g: Group, onDay: string, latest: string, sectorDay = ""): string {
   switch (g) {
     case "price": return `Price · ${onDay}`;
-    case "score": return `${basic ? "FinLit IQ" : "FinLit Prism"} · ${onDay}`;
+    case "score": return `FinLit Prism · ${onDay}`;
     case "returns": return `Returns · ${onDay}`;
     case "list": return `On this list · as on ${onDay}`;
     case "after": return `After this list · to ${latest}`;
@@ -152,10 +145,10 @@ const kindLabel = (k: Kind, n: number) => (k === "score" ? "Score" : k === "fund
 /** Every column with no figure on this date (pack P5.2, L4, L10): the heading says NOT SAVED, the cells are hatched, the notes line says so once. */
 export const emptyColumns = (cols: PresetColumn[], rows: PresetRow[]) => (rows.length ? cols.filter((c) => !["added_on", "since_added_pct", "since_then_pct", "price_latest"].includes(c.key) && rows.every((r) => r[c.key] == null || r[c.key] === "")).map((c) => c.key) : []);
 
-type TableProps = { d: PresetDetail; cols: PresetColumn[]; rows: PresetRow[]; sort: SortState; setSort: (k: string, first: 1 | -1) => void; basic: boolean; onDay: string; latest: string;
+type TableProps = { d: PresetDetail; cols: PresetColumn[]; rows: PresetRow[]; sort: SortState; setSort: (k: string, first: 1 | -1) => void; onDay: string; latest: string;
   picked: string[]; setPicked: (f: (p: string[]) => string[]) => void; openChart: (r: PresetRow) => void; chartOn?: string | null; first: number; newDay: string | null; empty: Set<string> };
 
-function Table({ d, cols, rows, sort, setSort, basic, onDay, latest, picked, setPicked, openChart, chartOn, first, newDay, empty }: TableProps) {
+function Table({ d, cols, rows, sort, setSort, onDay, latest, picked, setPicked, openChart, chartOn, first, newDay, empty }: TableProps) {
   const syms = rows.map((r) => r.symbol), allOn = syms.length > 0 && syms.every((x) => picked.includes(x)), someOn = !allOn && syms.some((x) => picked.includes(x));
   const groups = runs(cols, (c) => groupOf(c)), kinds = runs(cols, (c) => (groupOf(c) === "score" ? kindOf(c)! : "x" + groupOf(c)));
   const head = (key: string, label: string, align: string, firstDir: 1 | -1 = -1, cls = "", extra?: ReactNode) => {
@@ -187,12 +180,12 @@ function Table({ d, cols, rows, sort, setSort, basic, onDay, latest, picked, set
     return <td key={c.key} className={"psx-a-" + alignOf(c) + hatch}><CellValue v={v} f={c.format} k={c.key} /></td>;
   };
   return (
-    <table className={"scr-t psx-t psx3-t" + (basic ? "" : " psx3-hfix")}>
+    <table className="scr-t psx-t psx3-t psx3-hfix">
       <caption className="sr">{d.name}: {rows.length} {rows.length === 1 ? "company" : "companies"} shown{first ? `, from number ${first + 1}` : ""}. Select a column heading to sort the shown rows.</caption>
       <thead>
         <tr className="psx3-g">
           <th scope="colgroup" colSpan={3} className="psx3-stk psx3-gc">Company</th>
-          {groups.map((g, i) => <th key={g.k + i} scope="colgroup" colSpan={g.n} className={"psx3-g-" + g.k}>{groupLabel(g.k as Group, basic, onDay, latest, day(d.dataDates?.sectors ?? null))}
+          {groups.map((g, i) => <th key={g.k + i} scope="colgroup" colSpan={g.n} className={"psx3-g-" + g.k}>{groupLabel(g.k as Group, onDay, latest, day(d.dataDates?.sectors ?? null))}
             {g.k === "list" && <PsxInfo text={INFO_BAND_LIST} label="On this list" />}{g.k === "sector" && <PsxInfo text={INFO_BAND_SECTOR} label="Sector reading" />}{g.k === "screen" && <PsxInfo text={INFO_BAND_SCREEN} label="This screen" />}</th>)}
           <th scope="colgroup" aria-label="Chart and report" /></tr>
         <tr className="psx3-k">
@@ -218,7 +211,7 @@ function Table({ d, cols, rows, sort, setSort, basic, onDay, latest, picked, set
             <td className="psx3-stk psx3-co psx-stock"><Link to={`/stocks/${encodeURIComponent(r.symbol)}`} className="psx-co"><CoLogo symbol={r.symbol} name={r.name} size={24} />
               <span className="psx-cn"><span className="psx3-cl"><b title={codeNote(r)}>{titleOf(r)}</b>{isNew && <span className="psx3-tag new">New</span>}{(r.badges ?? []).some((b) => b.toLowerCase() === "provisional") && <span className="psx3-tag prov">Provisional</span>}
                 {(r.badges ?? []).filter((b) => b.toLowerCase() !== "provisional").map((b) => <Badge key={b} text={b} />)}</span>
-                {basic ? <IndLine r={r} /> : <small>{[subOf(r), sizeOf(r) && `${sizeOf(r)} cap`, exchangeTag(r)].filter(Boolean).join(" · ")}</small>}</span></Link></td>
+                <small>{[subOf(r), sizeOf(r) && `${sizeOf(r)} cap`, exchangeTag(r)].filter(Boolean).join(" · ")}</small></span></Link></td>
             {cols.map((c) => cell(r, c))}
             <td className="psx-a-left psx-act"><button type="button" className="psx-ci" aria-label={`Open the ${r.symbol} chart`} onClick={() => openChart(r)}><Icon name="line" /></button>
               <Link to={`/stocks/${encodeURIComponent(r.symbol)}`} className="psx-ci" aria-label={`Open the ${r.symbol} report`}><Icon name="notes" /></Link></td>
@@ -257,7 +250,7 @@ function Misses({ d }: { d: PresetDetail }) {
 /** P2: the header. The eyebrow names the page and the group; a screen in a featured group has the shining crown before its name. */
 function Frame({ route, name, cardText, children, how }: { route: PresetRoute; name: string; cardText?: string; children: ReactNode; how?: string[] }) {
   const group = route.groups.find((g) => g.presets.some((p) => p.id === route.id));
-  const eyebrow = `${route.tab === "basic" ? "Basic" : "Advanced"} · ${group?.name ?? "Prebuilt screen"}`;
+  const eyebrow = `Advanced · ${group?.name ?? "Prebuilt screen"}`;
   const [open, setOpen] = useState(false);
   const card = group?.presets.find((p) => p.id === route.id);
   return (
@@ -290,7 +283,7 @@ export function ScreenView({ route }: { route: PresetRoute }) {
   const { upgrade, has, toast } = useUI();
   const nav = useNavigate();
   useWatchlist();
-  const plan = PLAN_OF[route.tab], planName = plan === "gold" ? "Gold" : "Silver", basic = route.tab === "basic";
+  const plan = PLAN_OF[route.tab], planName = plan === "gold" ? "Gold" : "Silver";
   const listReady = list.isSuccess || list.isError;
   const unknown = list.isSuccess && !preset;
   const blocked = preset?.status === "blocked", lockedList = !!preset?.locked;
@@ -332,7 +325,7 @@ export function ScreenView({ route }: { route: PresetRoute }) {
   const step = (dir: 1 | -1) => { const i = rows.findIndex((r) => r.symbol === chart?.symbol), n = rows[i + dir]; if (i >= 0 && n) setChart(openRow(n)); };
   const maxCompare = has("gold") ? 4 : 2;
   const addPicked = () => {
-    if (!has("silver")) { upgrade("silver", "Watchlists come with the Silver plan."); return; }
+    if (!has(PLAN_FOR_WATCHLIST)) { upgrade(PLAN_FOR_WATCHLIST, "Watchlists come with the Silver plan."); return; }
     const fresh = picked.filter((x) => !watch.has(x)); fresh.forEach((x) => watch.add(x));
     toast(fresh.length ? `${fresh.length} ${fresh.length === 1 ? "company" : "companies"} added to your watchlist.` : "These companies are already on your watchlist.");
   };
@@ -369,10 +362,10 @@ export function ScreenView({ route }: { route: PresetRoute }) {
   const newDay = d?.list?.prev ? d.list.date : null;
   const sessions = hist.data?.sessions ?? [];
   const emptyNames = shown.filter((c) => empty.has(c.key)).map((c) => c.label);
-  const fullCols = shownColumns(allCols, { cap: true, fund: true, tech: true, returns: true, latest: past, sector: !basic }, past);
+  const fullCols = shownColumns(allCols, { cap: true, fund: true, tech: true, returns: true, latest: past, sector: true }, past);
   const dates = d?.dataDates, sectorsScreen = groupId === "sectors";
   const nOn = barCount(bar);
-  const tableProps = { d: d!, sort, setSort, basic, onDay, latest: latestDay, picked, setPicked, openChart: (r: PresetRow) => setChart(openRow(r)), chartOn: chart?.symbol, newDay, empty } as const;
+  const tableProps = { d: d!, sort, setSort, onDay, latest: latestDay, picked, setPicked, openChart: (r: PresetRow) => setChart(openRow(r)), chartOn: chart?.symbol, newDay, empty } as const;
   return (
     <Frame route={route} name={name} cardText={d?.cardText ?? preset?.cardText} how={how}>
       {!gainers && sessions.length > 0 && <DateBar sessions={sessions} asOn={asOn} setAsOn={setAsOn} list={d?.list ?? null} />}
@@ -395,22 +388,22 @@ export function ScreenView({ route }: { route: PresetRoute }) {
       {d && (banded || d.facets) && (
         <div className="psx3-tools" role="toolbar" aria-label="Filter and view this screen">
           <input className="psx3-q" type="search" value={bar.q} onChange={(e) => setBar({ ...bar, q: e.target.value })} placeholder="Search company or sector" aria-label="Search this screen" />
-          <FilterMenus d={d} f={{ bar, set: setBar }} basic={basic} onAddRule={route.clear} />
+          <FilterMenus d={d} f={{ bar, set: setBar }} onAddRule={route.clear} />
           {banded && <span className="psx3-tr">
             <button type="button" className="psx3-ddb" onClick={() => setExpand(true)}><Icon name="expand" /> Expand table</button>
             <Dropdown label="Columns" on={false}>
               <Opt checked={cols.cap} onChange={() => setCols({ ...cols, cap: !cols.cap })} label="Market cap" />
-              <Opt checked={cols.fund} onChange={() => setCols({ ...cols, fund: !cols.fund })} label={basic ? "The FinLit IQ parts" : "4 fundamental pillars"} />
-              <Opt checked={cols.tech} onChange={() => setCols({ ...cols, tech: !cols.tech })} label={basic ? "Technical pillar" : "2 technical pillars"} />
+              <Opt checked={cols.fund} onChange={() => setCols({ ...cols, fund: !cols.fund })} label="4 fundamental pillars" />
+              <Opt checked={cols.tech} onChange={() => setCols({ ...cols, tech: !cols.tech })} label="2 technical pillars" />
               <Opt checked={cols.returns} onChange={() => setCols({ ...cols, returns: !cols.returns })} label="Returns and 52-week high" desc="+4 columns" />
-              {!basic && <Opt checked={!!cols.sector} onChange={() => setCols({ ...cols, sector: !cols.sector })} label="Sector reading" desc="+5 columns" />}
+              <Opt checked={!!cols.sector} onChange={() => setCols({ ...cols, sector: !cols.sector })} label="Sector reading" desc="+5 columns" />
               {past && <Opt checked={cols.latest} onChange={() => setCols({ ...cols, latest: !cols.latest })} label={`Latest price (${latestDay})`} />}
             </Dropdown>
             <span className="psx3-seg2" role="group" aria-label="Table or charts"><button type="button" aria-pressed={view === "table"} onClick={() => setView("table")}>Table</button><button type="button" aria-pressed={view === "charts"} onClick={() => setView("charts")}>Charts</button></span>
           </span>}
         </div>)}
-      {(banded || d?.facets) && <FilterChips f={{ bar, set: setBar }} basic={basic} />}
-      {!basic && !!d?.industryBoard?.length && <IndustryBoard board={d.industryBoard} on={bar.ind?.slug ?? null}
+      {(banded || d?.facets) && <FilterChips f={{ bar, set: setBar }} />}
+      {!!d?.industryBoard?.length && <IndustryBoard board={d.industryBoard} on={bar.ind?.slug ?? null}
         onPick={(c) => setBar({ ...bar, ind: !c.slug || bar.ind?.slug === c.slug ? null : { slug: c.slug, name: c.name } })} />}
       {sectorsScreen && dates && <p className="psx3-dates" role="note">Data as of: prices and scores {day(dates.prices)}{dates.setups ? ` · Setups and Chart patterns lists ${day(dates.setups)}` : ""}
         {dates.sectors ? ` · Sector Pulse ${day(dates.sectors)}` : " · Sector Pulse not loaded"}{dates.rotation ? ` · Sector Rotation ${day(dates.rotation)}` : ""}</p>}

@@ -40,7 +40,7 @@ class Page:
 
 
 PUBLIC: Dict[str, Page] = {
-    "": Page("Indian Stock Analysis and Scores for Every Company | FinLit", "Financial statements, ratios, peers, ownership and filings for every listed Indian company, with a 0 to 100 FinLit IQ that shows its working. Start free.",
+    "": Page("Indian Stock Analysis and Scores for Every Company | FinLit", "Financial statements, ratios, peers, ownership and filings for every listed Indian company, with a 0 to 100 FinLit Prism score that shows its working.",
              "Every listed Indian stock, scored and explained", "FinLit reads company filings and prices and describes each listed Indian company's financial health with a 0 to 100 score that shows its working. Free to start; information only, not investment advice."),
     "companies": Page("All Listed Indian Companies, A to Z | FinLit", "Browse every listed Indian company from A to Z with its sector, and open its financial statements, ratios, peers and ownership. Free to start.",
                       "Listed Indian companies, A to Z", "Every listed Indian company in one alphabetical directory. Pick a letter, then open a company to see its statements, ratios, growth, peers and ownership.", "Companies"),
@@ -51,7 +51,6 @@ PUBLIC: Dict[str, Page] = {
     "superinvestors": Page("Superinvestor Portfolios: Named Investors' Stocks | FinLit", "See what named investors own in listed Indian companies: every stake of 1% or more from company filings, its value today, sector split and the year's changes.",
                            "Superinvestor portfolios", "What named investors own, from the companies' own shareholding filings: every public shareholder named with 1% or more in at least two listed companies, with the value of each stake today and what changed over the year. Information only, not investment advice.", "Superinvestor portfolios"),
     "screener": Page("Stock Screener India: Filter Stocks by Ratio | FinLit", "Screen listed Indian stocks by more than 170 ratios and scores, save your screens and see why each company passes. Free to start.", "Stock screener for Indian stocks", "Filter every listed Indian company by ratios, growth, size and score.", "Stock screener"),
-    "score-screener": Page("Stock Score Screener: Financial Health Scores | FinLit", "Filter Indian stocks by their FinLit IQ score and the pillars behind it: quality, growth, profitability, balance sheet and technical.", "Stock score screener", "Filter listed Indian companies by FinLit IQ and its pillars.", "Score screener"),
     "compare": Page("Compare Stocks India: Side-by-Side Analysis | FinLit", "Compare listed Indian companies side by side on financials, ratios, growth and FinLit scores to see how they differ.", "Compare stocks", "Put two or more listed Indian companies side by side.", "Compare stocks"),
     "prism": Page("FinLit Prism: Financial Health Rating for Stocks | FinLit", "FinLit Prism rates a company's financial health in four parts from its filings, with the working shown. Information only, not advice.", "FinLit Prism", "A four-part financial health rating for listed companies, from their filings.", "FinLit Prism"),
     "sip-calculator": Page("SIP Calculator: Plan SIP Returns and Step-Up SIPs | FinLit", "Work out what a monthly SIP could grow to, with step-ups, a goal and inflation. A free calculator with clear working. Not a forecast.", "SIP calculator", "Estimate what a monthly SIP could grow to under the rate and years you enter.", "SIP calculator"),
@@ -79,7 +78,7 @@ PUBLIC: Dict[str, Page] = {
     "why-we-exist": Page("Why FinLit Exists: Financial Research in Plain English", "Why FinLit Ventures was started: to make company filings and prices readable for everyone, with the working shown.", "Why we exist", "Why FinLit was started.", "Why we exist"),
     "contact": Page("Contact FinLit Ventures: Questions and Support", "Contact the FinLit Ventures team with questions about the site, the data, your account or the portfolio review and planning services.", "Contact us", "Reach the FinLit team.", "Contact"),
     "mcp": Page("Connect AI Assistants to FinLit Data | FinLit", "Free, read-only FinLit data for Claude, ChatGPT and Cursor through MCP, with what each tool returns.", "Connect AI assistants", "Read-only FinLit data for AI assistants.", "AI assistants"),
-    "browser-extension": Page("FinLit Browser Extension: Select Any Term or Company", "Select a financial term or a listed company on any web page to see its meaning or FinLit IQ score in a small card. Free for Chrome and Edge.", "Browser extension", "Select a financial term or company on any page and see what it means.", "Browser extension"),
+    "browser-extension": Page("FinLit Browser Extension: Select Any Term or Company", "Select a financial term or a listed company on any web page to see its meaning or FinLit Prism score in a small card. Free for Chrome and Edge.", "Browser extension", "Select a financial term or company on any page and see what it means.", "Browser extension"),
     "methodology/mf-score": Page("How the Mutual Fund Score Works | FinLit", "What Mutual Fund Score describes, which parts it has and how to read it. Information only, not a recommendation.", "Mutual Fund Score: how to read it", "What Mutual Fund Score describes and how to read it.", "Fund score method"),
     "leadership-label": Page("What the FinLit Leadership Labels Mean | FinLit", "What each leadership label on a company page means and how to read it. Describes price strength; not a recommendation.", "What the leadership labels mean", "The meaning of each label.", "Leadership labels"),
     "learn/sector-signals": Page("How to Read Sector Pulse: States and Breadth | FinLit", "A step-by-step guide to the sector states, the breadth bars and the leader flags on the FinLit sector pages, and what each one describes.", "How to use Sector Pulse", "Reading the states, breadth bars and leader flags.", "Sector Pulse guide"),
@@ -98,6 +97,24 @@ PRIVATE = ("account", "dashboard", "console", "admin", "login", "verify-email", 
 PARAM_PREFIXES = ("funds", "etfs", "prism", "sectors", "blog", "legal", "outlook", "premium/report", "graphs/advanced", "account", "forum", "research/stress-lab", "superinvestors")
 
 
+# Addresses that moved for good: answered with a 301 to the new address before anything else (web.py), and never listed in the sitemap. The query string is
+# dropped: an old link's parameters belonged to the page that is gone. Task #283 (21 Nov 2026): FinLit IQ is retired and FinLit Prism is FinLit's only company
+# score, so the Basic stock screener (built on the IQ) opens the Advanced stock screener; the IQ's glossary entry (its old id and the address people type)
+# opens FinLit Prism's, and the entries of the IQ's five pillars and its rating words (Mixed, Watch) open the glossary.
+REDIRECTS: Dict[str, str] = {
+    "score-screener": "/advanced-score-screener",
+    "glossary/finlit-iq": "/glossary/finlit-prism",
+    "glossary/finlit-score": "/glossary/finlit-prism",
+    "glossary/pillars-quality-growth-profitability-balance-sheet-technical": "/glossary",
+    "glossary/score-bands-strong-healthy-mixed-watch": "/glossary",
+}
+
+
+def redirect_for(path: str) -> Optional[str]:
+    """The new address of a path that moved for good (REDIRECTS), or None."""
+    return REDIRECTS.get(clean(path))
+
+
 def clean(path: str) -> str:
     return "/".join(p for p in path.strip("/").split("/") if p)
 
@@ -110,7 +127,7 @@ def is_private(path: str) -> bool:
 def is_known(path: str) -> Optional[bool]:
     """True: a real address; False: not one; None: depends on a database lookup (a company or a glossary term)."""
     p = clean(path)
-    if p in PUBLIC or is_private(p):
+    if p in PUBLIC or is_private(p) or p in REDIRECTS:
         return True
     if p.startswith("stocks/") and p.count("/") == 1 or p.startswith("glossary/") and p.count("/") == 1:
         return None
@@ -391,7 +408,8 @@ def sitemap_xml(base: str, companies: List[Tuple[str, Optional[date]]], today: d
     for lt in letters:
         add(f"companies/{lt}", today, "weekly", "0.6")
     for tid in TERMS:
-        add(f"glossary/{tid}", None, "yearly", "0.5")
+        if f"glossary/{tid}" not in REDIRECTS:
+            add(f"glossary/{tid}", None, "yearly", "0.5")
     for sym, updated in companies:
         if SYMBOL.match(sym):
             add(f"stocks/{sym}", updated, "weekly", "0.6")
