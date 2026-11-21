@@ -4,17 +4,20 @@
 //   §2 "Your names in Discover" · §3 the four views in the site's "ways to look" strip · §4–§10 the views, the pages and the company table
 //   §14 one real path per view (/discover, /discover/themes/<slug>, /discover/changes, /discover/sectors/<macro>[/<sector>], /discover/industries/<i>,
 //      /discover/companies), the table's filters in the query string; /discovery and its old #theme-... addresses land on the same pages.
+// Task #303 (developer file 15, the whole section): one line of figures with the company finder under the head (.dw-head), the names card on the landing
+//   views, and ONE sticky tab bar for the six ways to look (.dw-tabsbox > nav.dw-tabs) in place of the two "Explore Discover" strips; same links, same URLs.
 // Data: GET /api/discovery/board plus FinLit's readings per plan (discovery/model.ts). Describes what companies say and file; never a pick.
 // Styles: discovery/discover.css (class prefix dsc-), on the page head of styles/sectors-pack.css and styles/screeners243.css (xsh-).
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useLocation } from "react-router";
 import { useDocTitle } from "../lib/title";
 import { Icon } from "../lib/icons";
+import { Ico } from "../discovery/Toolbar";
 import { faqAnchor } from "../components/PageFaqs";
 import { DISCOVER_FAQ } from "../content/discoverFaqs";
 import { DiscoverProvider, useDsc } from "../discovery/ctx";
 import { I, RotDate } from "../discovery/Info";
-import { BASE, EVENTS, SOURCES, VIEW_PATH, fmtDate, isSource, legacyPath, short, themePath, useDiscover, useSources, type Source, type View } from "../discovery/model";
+import { BASE, EVENTS, SOURCES, VIEW_PATH, fmtDate, isSource, legacyPath, short, themePath, useDiscover, useSources, type View } from "../discovery/model";
 import { AllView, EventPage, EventsView, IndustryPage, MacroPage, SectorsView, ThemePage, ThemesView, YourNames } from "../discovery/Views";
 import { BucketPage, SourcesView } from "../discovery/Sources";
 
@@ -54,17 +57,32 @@ function Head() {
   </header>;
 }
 
+/** --dw-top: the height of the site header, so the tab bar sticks right under it. */
+function useTopHeight(ref: React.RefObject<HTMLDivElement | null>) {
+  useLayoutEffect(() => {
+    const top = document.querySelector<HTMLElement>(".top"), el = ref.current;
+    if (!el) return;
+    const put = () => el.style.setProperty("--dw-top", `${top ? Math.round(top.getBoundingClientRect().height) : 0}px`);
+    put();
+    if (!top || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(put); ro.observe(top);
+    return () => ro.disconnect();
+  }, [ref]);
+}
+
 function Page() {
   const c = useDsc(), b = c.d.board;
-  return <div className="wrap dsc-page">
+  const page = useRef<HTMLDivElement>(null);
+  useTopHeight(page);
+  return <div className="wrap dsc-page" ref={page}>
     <Head />
-    {b && <div className="dsc-under">
-      <div className="dsc-meta">
-        <span className="dsc-chip">{b.companies.toLocaleString("en-IN")} companies placed<I k="placed" /></span>
-        <span className="dsc-chip">{new Set(c.d.rows.map((r) => r.th)).size} themes</span>
-        <span className="dsc-chip">Filings of the last {b.days} days</span>
-      </div>
-      <Find />
+    {b && <div className="dw-head">
+      <p className="dw-meta">
+        <span><b>{b.companies.toLocaleString("en-IN")}</b> companies placed<I k="placed" /></span>
+        <span><b>{new Set(c.d.rows.map((r) => r.th)).size}</b> themes</span>
+        <span>Filings of the last <b>{b.days}</b> days</span>
+      </p>
+      <div className="dw-hb"><Find /></div>
     </div>}
     {c.d.isError ? <p className="dsc-empty" role="alert">Discover could not be loaded just now. Please try again in a moment.</p>
       : !b ? <p className="dsc-empty" aria-busy="true">Loading Discover…</p>
@@ -72,40 +90,27 @@ function Page() {
   </div>;
 }
 
-// §3 the four views: the site's "ways to look" strip (portfolio pack, "How the list moves together · 3 ways to look · tap one")
-const VIEW_ICON: Record<View, string> = { themes: "spark", "what-changed": "activity", sectors: "grid", "all-companies": "table", calls: "chat", results: "notes" };
-/** Task #267: the two views read from earnings-call transcripts and results filings, in a strip of their own under the four (same look). */
-function SourceWays() {
-  const r = useDsc().route;
-  return <>
-    <p className="x2-k dsc-wk" aria-hidden="true">From calls and results <small>2 more ways · the keyword directory’s call and results buckets</small></p>
-    <nav className="dsc-ways dsc-ways2" aria-label="Discover views from calls and results">{(Object.keys(SOURCES) as Source[]).map((k) => {
-      const on = r.view === k, s = SOURCES[k];
-      return <Link key={k} to={VIEW_PATH[k]} className="dsc-way" aria-current={on && !r.bucket ? "page" : undefined} data-on={on || undefined}>
-        <span className="dsc-wic" aria-hidden="true"><Icon name={VIEW_ICON[k]} /></span>
-        <span className="dsc-wtx"><span className="dsc-wl">{s.label}<span className="dsc-wn">{s.n}</span></span><span className="dsc-wd">{s.line}</span></span>
-      </Link>;
-    })}</nav>
-  </>;
-}
-function Ways() {
-  const c = useDsc(), r = c.route;
-  const ways: [View, string, number, string][] = [
-    ["themes", "Themes", new Set(c.d.rows.map((x) => x.th)).size, "What companies are building"],
-    ["what-changed", "What changed", EVENTS.length, `Filings of the last ${c.d.board?.days ?? 90} days`],
-    ["sectors", "Sectors", c.sectors.length, "NSE sectors and industries"],
-    ["all-companies", "All companies", c.d.rows.length, "Every company in one table"],
+/** Task #303: the six ways to look in one tab bar (four, a divider, then the two read from calls and results). Same links and paths as the two strips had. */
+function Tabs() {
+  const c = useDsc(), r = c.route, nav = useRef<HTMLElement>(null);
+  const four: [View, string, number][] = [
+    ["themes", "Themes", new Set(c.d.rows.map((x) => x.th)).size],
+    ["what-changed", "What changed", EVENTS.length],
+    ["sectors", "Sectors", c.sectors.length],
+    ["all-companies", "All companies", c.d.rows.length],
   ];
-  return <>
-    <p className="x2-k dsc-wk" aria-hidden="true">Explore Discover <small>{ways.length} ways to look · tap one</small></p>
-    <nav className="dsc-ways" aria-label="Discover views">{ways.map(([k, l, n, line]) => {
-      const on = r.view === k;
-      return <Link key={k} to={VIEW_PATH[k]} className="dsc-way" aria-current={on ? "page" : undefined} data-on={on || undefined}>
-        <span className="dsc-wic" aria-hidden="true"><Icon name={VIEW_ICON[k]} /></span>
-        <span className="dsc-wtx"><span className="dsc-wl">{l}<span className="dsc-wn">{n.toLocaleString("en-IN")}</span></span><span className="dsc-wd">{line}</span></span>
-      </Link>;
-    })}</nav>
-  </>;
+  const two: [View, string, number][] = [["calls", SOURCES.calls.label, SOURCES.calls.n], ["results", SOURCES.results.label, SOURCES.results.n]];
+  // the tab of this page in view when the bar scrolls sideways (phones)
+  useEffect(() => {
+    const tb = nav.current, at = tb?.querySelector<HTMLElement>("[data-on]");
+    if (tb && at && (at.offsetLeft < tb.scrollLeft || at.offsetLeft + at.offsetWidth > tb.scrollLeft + tb.clientWidth)) tb.scrollLeft = Math.max(0, at.offsetLeft - 12);
+  }, [r.view]);
+  const tab = ([k, l, n]: [View, string, number]) => {
+    const on = r.view === k, here = on && !r.theme && !r.event && !r.macro && !r.industry && !r.bucket;
+    return <Link key={k} to={VIEW_PATH[k]} className="dw-tab" aria-current={here ? "page" : undefined} data-on={on || undefined}>{l}<span>{n.toLocaleString("en-IN")}</span></Link>;
+  };
+  return <div className="dw-tabsbox"><nav ref={nav} className="dw-tabs" aria-label="Discover views">{four.map(tab)}<span className="dw-tsep" aria-hidden="true" />
+    <span className="dw-tlab" aria-hidden="true">From calls and results</span>{two.map(tab)}</nav></div>;
 }
 
 function Body() {
@@ -118,8 +123,7 @@ function Body() {
   return <>
     {!detail && <YourNames />}
     <div ref={top} className="dsc-anchor" />
-    <Ways />
-    <SourceWays />
+    <Tabs />
     <div className="dsc-view">
       {src ? (r.bucket ? <BucketPage key={src + r.bucket} src={src} slug={r.bucket} /> : <SourcesView key={src} src={src} />)
         : r.theme ? <ThemePage key={r.theme} theme={r.theme} />
@@ -155,18 +159,17 @@ function Find() {
     setTimeout(() => document.getElementById("dsc-tbl-top")?.scrollIntoView?.({ block: "start" }), 80);
   };
   const open = q.trim().length > 0;
-  return <div className="dsc-find" ref={box}>
-    <label htmlFor="dsc-gq">Find a company in Discover</label>
-    <div className="dsc-fin"><Icon name="search" />
-      <input id="dsc-gq" type="search" placeholder="Name or symbol, e.g. Sansera" autoComplete="off" role="combobox" aria-expanded={open} aria-controls="dsc-sugg" value={q}
+  return <div className="dw-gs" ref={box}>
+    <label className="dbx-q">{Ico.search}
+      <input id="dsc-gq" type="search" placeholder="Find a company in Discover, e.g. Sansera" aria-label="Find a company in Discover" autoComplete="off" role="combobox" aria-expanded={open} aria-controls="dsc-sugg" value={q}
         onChange={(e) => { setQ(e.target.value); setAct(0); }}
         onKeyDown={(e) => { if (e.key === "Escape") setQ(""); else if (e.key === "ArrowDown") { e.preventDefault(); setAct((a) => Math.min(a + 1, Math.max(0, hits.hits.length - 1))); }
-          else if (e.key === "ArrowUp") { e.preventDefault(); setAct((a) => Math.max(0, a - 1)); } else if (e.key === "Enter" && hits.hits[act]) { e.preventDefault(); pick(hits.hits[act].s); } }} /></div>
-    {open && <div className="dsc-sugg" id="dsc-sugg" role="listbox" aria-label="Companies in Discover">
-      {hits.hits.map((r, i) => <button key={r.s} type="button" role="option" aria-selected={i === act} onClick={() => pick(r.s)}>
-        <span><b>{short(r.n)}</b> <small>{/^\d{6}$/.test(r.s) ? "BSE " + r.s : r.s}</small></span><small>{c.d.board?.themes.find((t) => t.name === r.th)?.short ?? r.th}</small></button>)}
-      {hits.mine.map((s) => <button key={s} type="button" role="option" aria-selected={false} disabled><span><b>{short(c.d.uni.get(s)?.name ?? s)}</b> <small>{s}</small></span><small>not placed in a theme</small></button>)}
-      {!hits.hits.length && !hits.mine.length && <p className="dsc-na">No company in Discover matches.</p>}
+          else if (e.key === "ArrowUp") { e.preventDefault(); setAct((a) => Math.max(0, a - 1)); } else if (e.key === "Enter" && hits.hits[act]) { e.preventDefault(); pick(hits.hits[act].s); } }} /></label>
+    {open && <div className="dbx-pop wide" id="dsc-sugg" role="listbox" aria-label="Companies in Discover">
+      {hits.hits.map((r, i) => <button key={r.s} type="button" role="option" className="dbx-opt" aria-selected={i === act} onClick={() => pick(r.s)}>
+        <span className="dbx-ot"><b>{short(r.n)}</b> <small className="dw-na">{/^\d{6}$/.test(r.s) ? "BSE " + r.s : r.s}</small></span><span className="dbx-oc">{c.d.board?.themes.find((t) => t.name === r.th)?.short ?? r.th}</span></button>)}
+      {hits.mine.map((s) => <button key={s} type="button" role="option" className="dbx-opt" aria-selected={false} disabled><span className="dbx-ot"><b>{short(c.d.uni.get(s)?.name ?? s)}</b> <small className="dw-na">{s}</small></span><span className="dbx-oc">not placed in a theme</span></button>)}
+      {!hits.hits.length && !hits.mine.length && <p className="dbx-none">No company in Discover matches.</p>}
     </div>}
   </div>;
 }

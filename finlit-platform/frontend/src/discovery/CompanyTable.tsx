@@ -1,3 +1,6 @@
+// Task #303 (developer file 15): the old filter box is replaced by the dropdown toolbar of developer file 13 (Toolbar.tsx): search · Theme · Stage · Sector ·
+// Industry · Size · More filters · My names, the chips, and on the count line Ready-made views, Sort and Columns (the choice kept per member); a twelfth
+// column, Short-term trend (the universe's prism_st), sorts as the long-term trend does. Filters, their address keys and counts are unchanged.
 // Task #251: the compact company table, the ready-made views, the filters with their chips, paging and the details row.
 // Task #260 (the 20 Nov pack, SPEC §9–§11): the eleven columns (Sector · industry and Industry: Rotation · Pulse added), every column sorts (↕ ↓ ↑), the table
 // scrolls inside its box with the header row and the Company column in place (SHARED §5), filings as at most two chips and a dashed "+N more";
@@ -5,16 +8,16 @@
 // two labelled rows of 42 px drop-downs (About the company · Where it sits, NSE, the three NSE levels linked as in SHARED §1), active chips and Clear all;
 // on a phone the views scroll sideways and "Filters ▾" opens the rows. The company panel (row ▸) as a grid of boxes (§10). Members without Gold see Prism,
 // Short term and Long term locked, and the two views that filter on them locked too (the pack's open decision, decided: their counts would reveal the readings).
-import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "../lib/api";
 import { citeUrl, useCompanyBrief } from "../lib/companyBrief";
-import { I, type InfoKey } from "./Info";
-import { ActiveChips, FilterCard } from "./FilterCard";
+import { I, infoText, type InfoKey } from "./Info";
+import { AboutCompany, Chips, Dd, Ico, OptList, PopFoot, Search, Sw, industryItems, pickIndustry, pickSector, sectorItems, sharedChips, sizeItems, stageItems, unsetShared } from "./Toolbar";
 import { useDsc } from "./ctx";
 import { PulseChip, RankLine, RotChip, Stale } from "./Views";
-import { ARROW, CORNERS, EVENTS, LENSES, SIZES, STAGE_CLASS, codeOf, crore, filterRows, fmtDate, industryPath, isUp, linkFilters, macroPath, pct,
+import { EVENTS, LENSES, SIZES, STAGE_CLASS, codeOf, crore, filterRows, fmtDate, industryPath, isUp, macroPath, pct,
   sectorPath, short, sortRows, themePath, tone, toneWord, type DRow, type TState } from "./model";
 import type { CompanySize } from "../lib/companySize";
 
@@ -54,69 +57,86 @@ export function Locked() {
 
 type Col = { k: string; l: string; i?: InfoKey; cls?: string };
 const COLS: Col[] = [{ k: "co", l: "Company" }, { k: "cls", l: "Sector · industry", i: "sector", cls: "w-cls" }, { k: "th", l: "Theme · stage", i: "stage", cls: "w-th" },
-  { k: "ev", l: "Filings, 90 days", i: "filings", cls: "w-ev" }, { k: "pr", l: "Prism", i: "prism" }, { k: "lt", l: "Long-term trend", i: "lt", cls: "w-lt" },
-  { k: "r3m", l: "3 months", i: "r3m", cls: "r" }, { k: "r1y", l: "1 year", i: "r1y", cls: "r" }, { k: "hi", l: "Below 52-wk high", i: "high", cls: "r" },
-  { k: "mc", l: "Market cap", i: "mc", cls: "r" }, { k: "cn", l: "Industry: Rotation · Pulse", i: "corner", cls: "w-cn" }];
+  { k: "ev", l: "Filings, 90 days", i: "filings", cls: "w-ev" }, { k: "pr", l: "Prism", i: "prism" }, { k: "st", l: "Short-term trend", i: "st", cls: "w-lt" },
+  { k: "lt", l: "Long-term trend", i: "lt", cls: "w-lt" }, { k: "r3m", l: "3 months", i: "r3m", cls: "r" }, { k: "r1y", l: "1 year", i: "r1y", cls: "r" },
+  { k: "hi", l: "Below 52-wk high", i: "high", cls: "r" }, { k: "mc", l: "Market cap", i: "mc", cls: "r" }, { k: "cn", l: "Industry: Rotation · Pulse", i: "corner", cls: "w-cn" }];
 const GOLD_VIEWS = new Set(["uptrend", "prism"]);
+/** Task #303: the Sort dropdown's words; a sort keeps its own default direction (names A–Z, figures high first). */
+const SORT_NAME: Record<string, string> = { pr: "FinLit Prism", ev: "Most filings, 90 days", st: "Short-term trend", lt: "Long-term trend", r3m: "3-month move", r1y: "1-year move",
+  hi: "Nearest its 52-week high", mc: "Largest company", cn: "Sector Rotation box", co: "Company A–Z", cls: "Sector · industry", th: "Theme · stage" };
+const ASC = new Set(["co", "th", "cls"]);
 
 /** The table of one page. `base` is the page's own list (a theme, an event, a sector, an industry or every company). */
 export function CompanyTable({ title, base, defaultSort = "pr", event, hideCls }: { title: string; base: DRow[]; defaultSort?: string; event?: string; hideCls?: boolean }) {
   const c = useDsc();
   const S = c.T("", defaultSort), set = (p: Partial<TState>) => c.setT("", p, defaultSort);
   const hideTh = !!c.route.theme;
-  const [note, setNote] = useState<string | null>(null);
   const unlens = useMemo(() => filterRows(base, S, c.onList, false), [base, S, c]);
   const all = useMemo(() => sortRows(filterRows(base, S, c.onList), S, event), [base, S, c, event]);
   const pages = Math.max(1, Math.ceil(all.length / S.per)), page = Math.min(S.page, pages - 1);
   const vis = all.slice(page * S.per, (page + 1) * S.per);
-  const cols = COLS.filter((x) => !(hideTh && x.k === "th") && !(hideCls && x.k === "cls"));
-  const yours = c.route.theme || c.route.event || c.route.macro || c.route.industry ? base.filter((r) => c.onList(r.s)) : [];
+  const fixed = (k: string) => (hideTh && k === "th") || (hideCls && k === "cls");
+  const cols = COLS.filter((x) => x.k === "co" || (!fixed(x.k) && c.cols.has(x.k)));
   useEffect(() => { if (S.page !== page) set({ page }); }); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (!note) return; const t = setTimeout(() => setNote(null), 5000); return () => clearTimeout(t); }, [note]);
 
-  // the NSE levels of this list, linked (SHARED §1): picking a macro sector narrows Sector and Industry; a choice that no longer fits is taken off
-  const macs = useMemo(() => [...new Set(base.map((r) => r.mac).filter((x): x is string => !!x))].sort(), [base]);
-  const scts = useMemo(() => [...new Set(base.filter((r) => !S.mac || r.mac === S.mac).map((r) => r.sct).filter((x): x is string => !!x))].sort(), [base, S.mac]);
-  const inds = useMemo(() => [...new Set(base.filter((r) => (!S.mac || r.mac === S.mac) && (!S.sct || r.sct === S.sct)).map((r) => r.ind).filter((x): x is string => !!x))].sort(), [base, S.mac, S.sct]);
-  const cnt = (k: "mac" | "sct" | "ind", v: string) => filterRows(base, { ...S, [k]: v, ...(k === "mac" ? { sct: "", ind: "" } : k === "sct" ? { ind: "" } : {}), page: 0 }, c.onList).length;
-  const setNse = (k: "mac" | "sct" | "ind", v: string) => {
-    const l = linkFilters({ mac: S.mac, sct: S.sct, ind: S.ind, [k]: v }, c.tree);
-    if (l.dropped) setNote(l.dropped);
-    set({ mac: l.mac, sct: l.sct, ind: l.ind, page: 0 });
-  };
+  const cnt = (p: Partial<TState>) => filterRows(base, { ...S, ...p }, c.onList).length;
+  const thName = (t: string) => c.d.board?.themes.find((x) => x.name === t);
+  const themes = useMemo(() => [...new Set(base.map((r) => r.th))], [base]);
+  const mine = base.filter((r) => c.onList(r.s));
+  const moreN = (["lt", "pr", "cn"] as const).filter((k) => S[k]).length;
 
-  const chips: [string, string][] = [];
-  const lab: Record<string, string> = { stage: "Stage", size: "Size", lt: "Long-term trend", pr: "Prism", mac: "Macro sector", sct: "Sector", ind: "Industry", cn: "Sector Rotation" };
-  (["stage", "size", "lt", "pr", "mac", "sct", "ind", "cn"] as const).forEach((k) => {
-    if (!S[k]) return;
-    const v = k === "size" ? SIZES[S[k] as CompanySize] ?? S[k] : k === "cn" ? `${ARROW[S[k] as keyof typeof ARROW] ?? ""} ${CORNERS[S[k] as keyof typeof CORNERS] ?? S[k]}` : S[k] === "none" ? "Not rated" : S[k];
-    chips.push([k, `${lab[k]}: ${v}`]);
-  });
-  if (S.mine) chips.push(["mine", "Only my names"]);
-  if (S.q) chips.push(["q", `“${S.q}”`]);
+  const chips = sharedChips(S, (t) => thName(t)?.label ?? t);
   S.lenses.forEach((l) => chips.push(["lens:" + l, LENSES.find((x) => x.k === l)!.t]));
-  if (S.cell) chips.push(["cell", "Theme: " + (c.d.board?.themes.find((t) => t.name === S.cell)?.label ?? S.cell)]);
   const unset = (k: string) => {
     if (k === "all") return set({ stage: "", size: "", lt: "", pr: "", cn: "", mac: "", sct: "", ind: "", mine: false, q: "", lenses: [], cell: null, page: 0 });
-    if (k.startsWith("lens:")) return set({ lenses: S.lenses.filter((x) => x !== k.slice(5)), page: 0 });
-    if (k === "mine") return set({ mine: false, page: 0 });
-    if (k === "cell") return set({ cell: null, page: 0 });
-    if (k === "mac") return set({ mac: "", sct: "", ind: "", page: 0 });
-    if (k === "sct") return set({ sct: "", ind: "", page: 0 });
-    set({ [k]: "", page: 0 } as Partial<TState>);
+    const p = unsetShared(k, S); if (p) set(p);
   };
-  const sortBy = (k: string) => set(S.sort === k ? { dir: S.dir === -1 ? 1 : -1 } : { sort: k, dir: k === "co" || k === "th" || k === "cls" ? 1 : -1 });
-  return <section className="dsc-tsec" aria-labelledby="dsc-tbl-h">
+  const sortKeys = event ? ["ev", "pr", "st", "lt", "r3m", "r1y", "hi", "mc", "cn", "co"] : ["pr", "ev", "st", "lt", "r3m", "r1y", "hi", "mc", "cn", "co"];
+  const sName = (k: string) => (k === "ev" && event ? `Most ${(EVW[event] ?? [event, event])[1]}` : SORT_NAME[k] ?? k);
+  const sortBy = (k: string) => set(S.sort === k ? { dir: S.dir === -1 ? 1 : -1 } : { sort: k, dir: ASC.has(k) ? 1 : -1 });
+  const shown = COLS.filter((x) => x.k !== "co" && !fixed(x.k));
+  return <section className="dsc-tsec dw-list" aria-labelledby="dsc-tbl-h">
     <div className="dsc-secth" id="dsc-tbl-top"><h3 id="dsc-tbl-h">{title}</h3></div>
-    {yours.length > 0 && <div className="dsc-yh"><span>Yours here (★ watchlist):</span>{yours.map((r) => (
-      <button key={r.s} type="button" className="dsc-chip" onClick={() => { set({ q: r.n, page: 0 }); c.toggleOpen(r.s, true); }}>{short(r.n)}{c.isHeld(r.s) ? "" : " ★"}</button>))}</div>}
-    <FilterCard S={S} set={set} prismOpen={c.prismOpen} signedIn={c.signedIn}
-      views={LENSES.map((l) => ({ k: l.k, t: l.t, n: unlens.filter(l.f).length, gold: GOLD_VIEWS.has(l.k) && !c.prismOpen, noPeers: l.k === "leader" && !c.d.leaders }))}
-      nse={{ macs, scts, inds, cnt, set: setNse }} />
-    {note && <p className="dsc-taken" role="status">{note}</p>}
-    <ActiveChips chips={chips} unset={unset} />
-    <div className="dsc-rhead"><span className="dsc-cnt" aria-live="polite">{all.length.toLocaleString("en-IN")} {all.length === 1 ? "company" : "companies"}</span>
-      <span className="dsc-foot">Click ▸ for what the company says, its filings and FinLit’s reading.</span></div>
+    <div className="dbx-bar">
+      <Search value={S.q} onChange={(v) => set({ q: v, page: 0 })} />
+      <div className="dbx-dds" role="group" aria-label="Filters">
+        {!hideTh && <Dd label="Theme" value={S.cell ? thName(S.cell)?.short ?? S.cell : ""} wide>{(close) => <OptList title="Theme"
+          items={[{ v: "", t: "Any theme", c: cnt({ cell: null }), sel: !S.cell }, ...themes.map((t) => ({ v: t, t: thName(t)?.label ?? t, c: cnt({ cell: t }), sel: S.cell === t })).sort((a, b) => b.c - a.c)]}
+          onPick={(v) => { set({ cell: v || null, page: 0 }); close(); }} />}</Dd>}
+        <Dd label="Stage" value={S.stage}>{(close) => <OptList title="Stage" items={stageItems(S, cnt)} onPick={(v) => { set({ stage: v, page: 0 }); close(); }} />}</Dd>
+        {!hideCls && <Dd label="Sector" value={S.sct || (S.mac ? `All of ${S.mac}` : "")} wide>{(close) => <OptList title="Sector" search items={sectorItems(base, S, cnt)}
+          onPick={(v) => { set(pickSector(v, base)); close(); }} />}</Dd>}
+        {!hideCls && <Dd label="Industry" value={S.ind} wide>{(close) => <OptList title="Industry" search items={industryItems(base, S, cnt)}
+          onPick={(v) => { set(pickIndustry(v, base)); close(); }} />}</Dd>}
+        <Dd label="Size" value={S.size ? SIZES[S.size as CompanySize] ?? S.size : ""} wide>{(close) => <OptList title="Size" items={sizeItems(S, cnt)} onPick={(v) => { set({ size: v, page: 0 }); close(); }} />}</Dd>
+        <Dd label="More filters" icon={Ico.tune} badge={moreN || null} popCls="dbx-mf dw-mf1">{(close) => <>
+          <div className="dbx-mg one"><div className="dbx-mc"><h4>About the company</h4><AboutCompany S={S} set={set} cnt={cnt} prismOpen={c.prismOpen} /></div></div>
+          <PopFoot n={all.length} clear={() => set({ lt: "", pr: "", cn: "", page: 0 })} close={close} /></>}</Dd>
+        <MyNames S={S} set={set} mine={mine} />
+      </div>
+    </div>
+    <Chips chips={chips} unset={unset} />
+    <div className="dbx-rbar dw-rbar">
+      <span className="dbx-cnt"><span className="dsc-cnt" aria-live="polite">{all.length === base.length ? <><b>{all.length.toLocaleString("en-IN")}</b> {all.length === 1 ? "company" : "companies"}</>
+        : <><b>{all.length.toLocaleString("en-IN")}</b> of {base.length.toLocaleString("en-IN")} {base.length === 1 ? "company" : "companies"}</>}</span>
+        <span className="dw-foot">Click ▸ for what the company says, its filings and FinLit’s reading.</span></span>
+      <div className="dw-rr">
+        <Dd label="Ready-made views" icon={Ico.list} badge={S.lenses.length || null} wide right>{(close) => <>
+          {LENSES.map((l) => {
+            const on = S.lenses.includes(l.k), n = unlens.filter(l.f).length, gold = GOLD_VIEWS.has(l.k) && !c.prismOpen, noPeers = l.k === "leader" && !c.d.leaders;
+            return <Sw key={l.k} label={l.t} on={on} n={n} note={gold ? "Gold" : noPeers ? "Not published yet" : undefined} disabled={!on && (gold || noPeers || n === 0)}
+              onChange={(v) => set({ lenses: v ? [...S.lenses, l.k] : S.lenses.filter((x) => x !== l.k), page: 0 })} />;
+          })}
+          <p className="dbx-pn">{infoText("views", "")}</p>
+          <PopFoot n={all.length} clear={() => set({ lenses: [], page: 0 })} close={close} /></>}</Dd>
+        <div className="dbx-sortd"><span className="dbx-sl">Sort</span>
+          <Dd label={sName(S.sort) + (S.dir === 1 && !ASC.has(S.sort) ? " (low first)" : "")} title="Sort by" right>{(close) => <OptList title="Sort by"
+            items={sortKeys.map((k) => ({ v: k, t: sName(k), sel: S.sort === k }))} onPick={(v) => { set({ sort: v, dir: ASC.has(v) ? 1 : -1, page: 0 }); close(); }} />}</Dd></div>
+        <Dd label="Columns" icon={Ico.cols} value={cols.length - 1 < shown.length ? String(cols.length) : ""} right>{() => <>
+          {shown.map((x) => <Sw key={x.k} label={x.l} on={c.cols.has(x.k)} onChange={(v) => c.setCol(x.k, v)} />)}
+          <p className="dbx-pn">Company is always shown. Your choice is kept for every Discover list.</p></>}</Dd>
+      </div>
+    </div>
     <StickyTable>
       <thead><tr>{cols.map((x) => (
         <th key={x.k} scope="col" className={[x.k === "co" ? "co" : "", x.cls ?? ""].join(" ").trim() || undefined} aria-sort={S.sort === x.k ? (S.dir < 0 ? "descending" : "ascending") : "none"}>
@@ -131,6 +151,18 @@ export function CompanyTable({ title, base, defaultSort = "pr", event, hideCls }
   </section>;
 }
 
+/** "My names": Only my names, and the member's names in this list (a tap finds that one). */
+export function MyNames({ S, set, mine }: { S: TState; set: (p: Partial<TState>) => void; mine: { s: string; n: string }[] }) {
+  const c = useDsc();
+  return <Dd label="My names" icon={Ico.star} value={S.mine ? "Only these" : ""} badge={!S.mine && mine.length ? mine.length : null} title="My names in this list" right>{(close) => <>
+    <Sw big label="Only my names" on={S.mine} n={c.signedIn ? mine.length : null} disabled={!c.signedIn} onChange={(v) => set({ mine: v, page: 0 })} />
+    <p className="dbx-pn">{c.signedIn ? "From your portfolio and watchlist." : "Sign in to use your portfolio and watchlist."}</p>
+    {c.signedIn && <div className="dbx-ol" role="listbox" aria-label="My names">{mine.length ? mine.map((r) => (
+      <button key={r.s} type="button" role="option" aria-selected={false} className="dbx-opt" onClick={() => { set({ q: short(r.n), page: 0 }); c.toggleOpen(r.s, true); close(); }}>
+        <span className="dbx-ot">{short(r.n)}{c.isWatched(r.s) && !c.isHeld(r.s) ? " ★" : ""}</span><span className="dbx-oc">{codeOf(r.s)}</span></button>))
+      : <p className="dbx-none">None of your names is in this list.</p>}</div>}</>}</Dd>;
+}
+
 /** The table scrolls inside its box; its header row stays at the top and the Company column on the left (SHARED §5). The header's real height is
  *  measured (ResizeObserver) so nothing slides under it. */
 function StickyTable({ children }: { children: ReactNode }) {
@@ -142,7 +174,7 @@ function StickyTable({ children }: { children: ReactNode }) {
     ro.observe(th); ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  return <div className="dsc-tw dsc-stick" ref={box}><table className="dsc-tb">{children}</table></div>;
+  return <div className="dsc-tw dsc-stick dw-stick" ref={box}><table className="dsc-tb">{children}</table></div>;
 }
 
 function RowGroup({ r, cols, hideTh }: { r: DRow; cols: string[]; hideTh: boolean }) {
@@ -159,6 +191,7 @@ function RowGroup({ r, cols, hideTh }: { r: DRow; cols: string[]; hideTh: boolea
     th: <td className="dsc-thc"><b>{theme?.short ?? r.th}</b><Stage st={r.st} /></td>,
     ev: <td><Evs r={r} /></td>,
     pr: <td><Prism r={r} locked={!c.prismOpen && r.pr == null} /></td>,
+    st: <td><Trend lt={r.st2} locked={!c.prismOpen && !r.st2} /></td>,
     lt: <td><Trend lt={r.lt} locked={!c.prismOpen && !r.lt} />{hideTh && <><br /><Stage st={r.st} /></>}</td>,
     r3m: <td className={"r num " + tone(r.r3m)}>{pct(r.r3m)}</td>,
     r1y: <td className={"r num " + tone(r.r1y)}>{pct(r.r1y)}</td>,
@@ -236,7 +269,7 @@ function Panel({ r }: { r: DRow }) {
           <Tile l="Against peers" v={r.lead ? { leader: "Leader", in_line: "In line", laggard: "Laggard" }[r.lead] : "Not compared"}
             sub={r.lead ? r.ll : (r.ll ?? (c.d.leaders ? "No peer reading for this company" : "Peer labels are not published yet"))}
             cls={r.lead === "leader" ? "up" : r.lead === "laggard" ? "down" : "nr"} />
-          {c.prismOpen ? <Tile l="Short term" v={r.st2 ?? "Not rated"} cls={trCls(r.st2)} /> : <LockTile l="Short term" />}
+          {c.prismOpen ? <Tile l={<>Short term <I k="st" /></>} v={r.st2 ?? "Not rated"} cls={trCls(r.st2)} /> : <LockTile l={<>Short term <I k="st" /></>} />}
           {c.prismOpen ? <Tile l={<>Long term <I k="lt" /></>} v={r.lt ?? "Not rated"} cls={trCls(r.lt)} /> : <LockTile l={<>Long term <I k="lt" /></>} />}
           <Tile l="P/E" v={r.pe != null ? r.pe.toFixed(1) : "−"} />
           <Tile l="ROCE" v={r.roce != null ? r.roce.toFixed(1) + "%" : "−"} />

@@ -9,7 +9,8 @@ import { I, type InfoKey } from "./Info";
 import { useDsc } from "./ctx";
 import { CompanyTable, Evs, Locked, Prism, Stage, Trend } from "./CompanyTable";
 import { feedFor } from "./bucket";
-import { ARROW, BASE, BRIEF_CARDS, CORNERS, EVENTS, RECORD_FROM, STAGES, STAGE_CLASS, VIEW_PATH, daysOld, evBiz, eventPath, filterRows, fmtDate, useFeed, industryPath, macroPath, pct,
+import { Dd, Ico } from "./Toolbar";
+import { ARROW, BASE, BRIEF_CARDS, CORNERS, EVENTS, RECORD_FROM, addMonthsLocal, fmtLocal, STAGES, STAGE_CLASS, VIEW_PATH, daysOld, evBiz, eventPath, filterRows, fmtDate, useFeed, industryPath, macroPath, pct,
   sectorPath, short, slug, stat, themePath, tone, type BoardTheme, type Corner as CornerT, type Filing, type DRow, type TState } from "./model";
 
 const pctOf = (n: number, of: number) => (of ? Math.round((n / of) * 100) : 0);
@@ -78,13 +79,24 @@ function HBars({ items, unit, onPick, picked, href }: { items: [string, number, 
   return <><div className="dsc-hbars">{top.map(row)}</div>
     {rest.length > 0 && <details className="dsc-more"><summary><span>Show all {items.length} {unit}</span><i aria-hidden="true">▾</i></summary><div className="dsc-hbars">{rest.map(row)}</div></details>}</>;
 }
-/** A list that shows four, then "Show N more ▾" (SPEC §5.4, §6). */
-function FilingList({ list, filtered }: { list: { s: string; n: string; d: string; el: string; t: string; l?: string | null }[]; filtered?: boolean }) {
+/** Task #303 (version 3): the latest filings, one line each, full width: date · kind · company and headline · open; three shown, then "Show all N" (SPEC
+ *  §5.4, §6). It follows the table's filters below it (task #296). */
+const dshort = (d: string, now = new Date()) => {
+  const x = new Date(d.length === 10 ? d + "T00:00:00" : d);
+  if (Number.isNaN(x.getTime())) return "";
+  return x.getFullYear() === now.getFullYear() ? x.toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : x.toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+};
+function FeedPanel({ title, list, filtered, total }: { title: string; list: Filing[]; filtered: boolean; total: number }) {
   const c = useDsc();
-  if (!list.length) return <p className="dsc-na">{filtered ? "No filing from a company in your filters." : `No such filing in the last ${c.d.board?.days ?? 90} days.`}</p>;
-  const li = (f: (typeof list)[number]) => <li key={f.s + f.d + f.t}><b>{short(c.by.get(f.s)?.n ?? f.n)}</b> · {f.t}<small>{fmtDate(f.d)} · {f.el}{f.l ? <> · <a href={f.l} target="_blank" rel="noopener noreferrer">Open the filing ↗</a></> : null}</small></li>;
-  return <><ul className="dsc-fl">{list.slice(0, 4).map(li)}</ul>
-    {list.length > 4 && <details className="dsc-more"><summary><span>Show {list.length - 4} more</span><i aria-hidden="true">▾</i></summary><ul className="dsc-fl">{list.slice(4).map(li)}</ul></details>}</>;
+  const li = (f: Filing) => <li key={f.s + f.d + f.t}><span className="dw-fd" title={fmtDate(f.d)}>{dshort(f.d)}</span><span className="dw-fe">{f.el}</span>
+    <span className="dw-ft" title={f.t}><b>{short(c.by.get(f.s)?.n ?? f.n)}</b> {f.t}</span>
+    {f.l ? <a href={f.l} target="_blank" rel="noopener noreferrer" aria-label={`Open the filing: ${short(c.by.get(f.s)?.n ?? f.n)}`}>{Ico.ext}</a> : <span title="The exchange link is not held" />}</li>;
+  return <section className="dsc-panel dsc-mb dw-feed" aria-label={title}><div className="dw-fh"><h3>{title}</h3>
+    <span className="dw-fn">{filtered ? `${list.length} for your filters` : `${total} newest`}</span></div>
+    {list.length ? <><ul className="dw-fl">{list.slice(0, 3).map(li)}</ul>
+      {list.length > 3 && <details className="dw-fmore"><summary><span>Show all {list.length}</span><i aria-hidden="true">▾</i></summary><ul className="dw-fl">{list.slice(3).map(li)}</ul></details>}</>
+      : <p className="dsc-na">{filtered ? "No filing from a company in your filters." : `No such filing in the last ${c.d.board?.days ?? 90} days.`}</p>}
+  </section>;
 }
 /** Task #296: the "Latest …" panel of a theme or event page follows the table's filters below it: only the filings of companies that pass them (null = no
  *  filter on, the whole feed). */
@@ -170,6 +182,10 @@ export function ThemePage({ theme }: { theme: string }) {
     <div className="dsc-dh"><div><h2>{t.label}{t.broad && <><span className="dsc-flg">Broad</span><I k="broad" /></>}</h2>
       <p>{s.n} {s.n === 1 ? "company has" : "companies have"} this as their main theme{t.also ? <>, and {t.also} more mention it <I k="also" /></> : null}.</p></div>
       <div className="dsc-dha"><Jump />
+        <Dd label="What to check" icon={Ico.list} title="What to check in this theme" wide right cls="dw-chk">{() => <>
+          {t.verify.length ? <ol className="dbx-vl">{t.verify.slice(0, 5).map((v) => <li key={v}>{v}</li>)}</ol> : <p className="dbx-pn">No checklist for this theme yet.</p>}
+          <p className="dbx-pn">Questions to answer from the company’s own documents before taking a theme mention at face value.</p>
+          <p className="dbx-pn">A theme word or a filing alone is not proof of real business. Check the figures, orders and status in the company’s own documents.</p></>}</Dd>
         <button type="button" className="dsc-btn dsc-follow" aria-pressed={following} onClick={follow} title="Kept with your settings; FinLit does not send a message about a theme yet">{following ? "✓ Following" : "☆ Follow this theme"}</button></div></div>
     <div className="dsc-kpis">
       <Kpi l="Companies" v={s.n} small={yours.length ? `${yours.length} of yours` : c.signedIn ? "none of yours" : undefined} />
@@ -183,12 +199,7 @@ export function ThemePage({ theme }: { theme: string }) {
         <table className="dsc-stg"><tbody>{STAGES.map((k) => { const n = sgN.get(k) ?? 0; return <tr key={k}><td><Stage st={k} /></td><td className="r num">{n}</td><td className="r num dsc-na">{pctOf(n, s.n)}%</td></tr>; })}</tbody></table></div>
       <WhereTheySit rows={rows} />
     </div>
-    <div className="dsc-two">
-      <div className="dsc-panel"><h3>What to check <I k="check" /></h3>
-        {t.verify.length ? <ul>{t.verify.slice(0, 5).map((v) => <li key={v}>{v}</li>)}</ul> : <p className="dsc-na">No checklist for this theme yet.</p>}
-        <p className="dsc-note">A theme word or a filing alone is not proof of real business. Check the figures, orders and status in the company’s own documents.</p></div>
-      <div className="dsc-panel"><h3>Latest filings in this theme</h3><FilingList list={feed.list} filtered={feed.filtered} /></div>
-    </div>
+    <FeedPanel title="Latest filings in this theme" list={feed.list} filtered={feed.filtered} total={(b.thfil?.[theme] ?? []).length} />
     <CompanyTable title={"Companies in " + t.label} base={rows} />
   </>;
 }
@@ -197,7 +208,7 @@ export function ThemePage({ theme }: { theme: string }) {
 export function EventsView() {
   const c = useDsc(), b = c.d.board!;
   const rec = [...EVENTS.slice(0, 5).map((e) => e.t), "Each theme"];
-  const at = (m: number) => { const d = new Date(RECORD_FROM + "T00:00:00"); d.setMonth(d.getMonth() + m); return fmtDate(d.toISOString().slice(0, 10)); };
+  const at = (m: number) => fmtLocal(addMonthsLocal(RECORD_FROM, m));      // task #303: local dates (toISOString read one day early in India)
   return <>
     <div className="dsc-toolbar"><p>Companies with at least one such exchange filing in the last {b.days} days. A company can be in more than one group. <I k="filings" /></p></div>
     <div className="dsc-grid">{EVENTS.map((e) => {
@@ -207,13 +218,16 @@ export function EventsView() {
         <div className="dsc-kv"><Kv l="3-month median" v={pct(s.m3)} cls={tone(s.m3)} /><Kv l="In a long-term uptrend" v={c.prismOpen ? `${s.up} of ${s.n}` : <Locked />} /></div>
         <div className="dsc-ex">{yours ? <span className="dsc-yours">{yours} of yours · </span> : null}{ex || "No such filing in this window"}</div></Link>;
     })}</div>
-    <div className="dsc-secth"><h3>From company briefs</h3><I k="brief" /></div>
-    <div className="dsc-grid">{BRIEF_CARDS.map((x) => <Link key={x.k} className="dsc-cd dashed" to={eventPath(x.k)}><div className="dsc-top"><h3>{x.t}</h3><span className="dsc-flg teal">From briefs</span></div>
-      <div className="n">0<small>companies so far</small></div><div className="dsc-ex dsc-wrap">No full company brief with these items is published yet. They appear here, each with its page, as briefs are published.</div></Link>)}</div>
-    <div className="dsc-secth"><h3>How each group has done since companies joined it</h3><I k="record" /><span className="dsc-flg teal">Starts on launch</span></div>
-    <div className="dsc-tw"><table className="dsc-rec"><thead><tr><th scope="col">Group</th><th scope="col" className="r">1 month later</th><th scope="col" className="r">3 months</th><th scope="col" className="r">6 months</th><th scope="col" className="r">12 months</th><th scope="col" className="r">Nifty 500, same days</th></tr></thead>
+    {/* task #303 (version 3): the two sections below stay closed until opened; they keep their state while the page redraws */}
+    <details className="dw-acc" data-k="briefs"><summary className="dw-acch"><span className="dw-acct">From company briefs</span><I k="brief" /><span className="dsc-flg teal">From briefs</span>
+      <span className="dw-accs">{BRIEF_CARDS.length} groups · no brief published yet</span><i className="dw-accc" aria-hidden="true">▾</i></summary>
+    <div className="dw-accb"><div className="dsc-grid">{BRIEF_CARDS.map((x) => <Link key={x.k} className="dsc-cd dashed" to={eventPath(x.k)}><div className="dsc-top"><h3>{x.t}</h3><span className="dsc-flg teal">From briefs</span></div>
+      <div className="n">0<small>companies so far</small></div><div className="dsc-ex dsc-wrap">No full company brief with these items is published yet. They appear here, each with its page, as briefs are published.</div></Link>)}</div></div></details>
+    <details className="dw-acc" data-k="record"><summary className="dw-acch"><span className="dw-acct">How each group has done since companies joined it</span><I k="record" /><span className="dsc-flg teal">Starts on launch</span>
+      <span className="dw-accs">First figures from {at(1)}</span><i className="dw-accc" aria-hidden="true">▾</i></summary>
+    <div className="dw-accb"><div className="dsc-tw"><table className="dsc-rec"><thead><tr><th scope="col">Group</th><th scope="col" className="r">1 month later</th><th scope="col" className="r">3 months</th><th scope="col" className="r">6 months</th><th scope="col" className="r">12 months</th><th scope="col" className="r">Nifty 500, same days</th></tr></thead>
       <tbody>{rec.map((g) => <tr key={g}><td>{g}</td><td className="r dsc-na">from {at(1)}</td><td className="r dsc-na">{at(3)}</td><td className="r dsc-na">{at(6)}</td><td className="r dsc-na">{at(12)}</td><td className="r dsc-na">same dates</td></tr>)}</tbody></table></div>
-    <p className="dsc-foot">The record starts on {fmtDate(RECORD_FROM)}: each figure shows once its date has passed.</p>
+    <p className="dsc-foot">The record starts on {fmtDate(RECORD_FROM)}: each figure shows once its date has passed.</p></div></details>
   </>;
 }
 export function EventPage({ k }: { k: string }) {
@@ -232,7 +246,7 @@ export function EventPage({ k }: { k: string }) {
     <Crumb trail={[[VIEW_PATH["what-changed"], "What changed"]]} here={e.t} />
     <div className="dsc-dh"><div><h2>{e.t}</h2><p>{s.n} companies {e.d} in the last {b.days} days. Sorted by how many such filings each made.</p></div><div className="dsc-dha"><Jump /></div></div>
     <FourKpis rows={rows} />
-    <div className="dsc-panel dsc-mb"><h3>Latest of these filings</h3><FilingList list={feed.list} filtered={feed.filtered} /></div>
+    <FeedPanel title="Latest of these filings" list={feed.list} filtered={feed.filtered} total={(b.efil[k] ?? []).length} />
     <CompanyTable title={"Companies with " + e.t.toLowerCase()} base={rows} defaultSort="ev" event={k} />
   </>;
 }
@@ -280,6 +294,12 @@ export function SectorsView() {
     </>}
   </>;
 }
+/** Task #303 (version 3): the map's six steps. By count: 1–2, 3–5, 6–10, 11–25, 26–60, more than 60; by %: below 5, 5–10, 10–20, 20–35, 35–50, above 50.
+ *  The text is dark on the four lighter steps and light on the two darkest (discover.css, .dw-hc[data-l]). */
+export function heatStep(v: number, mode: "n" | "p"): number {
+  const cut = mode === "n" ? [2, 5, 10, 25, 60] : [5, 10, 20, 35, 50];
+  return 1 + cut.filter((x) => v > x).length;
+}
 function ThemeMap({ lvl, macs }: { lvl: "mac" | "sct"; macs: [string, DRow[]][] }) {
   const c = useDsc(), b = c.d.board!;
   const [mode, setMode] = useState<"n" | "p">("n");
@@ -291,12 +311,13 @@ function ThemeMap({ lvl, macs }: { lvl: "mac" | "sct"; macs: [string, DRow[]][] 
   return <>
     <div className="dsc-secth"><h3>{lvl === "mac" ? "Macro sector" : "Sector"} × theme map</h3><I k="map" /></div>
     <div className="dsc-toolbar"><p>Where each {word}’s companies sit across the largest themes. Click a number to list those companies.</p>
+      <span className="dw-heatk" aria-hidden="true">Fewer{[1, 2, 3, 4, 5, 6].map((l) => <i key={l} data-l={l} />)}More</span>
       <div className="dsc-seg" role="group" aria-label="Show"><button type="button" aria-pressed={mode === "n"} onClick={() => setMode("n")}>Companies</button><button type="button" aria-pressed={mode === "p"} onClick={() => setMode("p")}>% of the {word}</button></div></div>
-    <div className="dsc-tw dsc-stick"><table className="dsc-map"><thead><tr><th scope="col">{lvl === "mac" ? "Macro sector" : "Sector"}</th>{cols.map((t) => <th key={t.name} scope="col" title={t.label}>{t.short}</th>)}<th scope="col">All</th></tr></thead>
+    <div className="dsc-tw dsc-stick dw-map"><table className="dsc-map"><thead><tr><th scope="col">{lvl === "mac" ? "Macro sector" : "Sector"}</th>{cols.map((t) => <th key={t.name} scope="col" title={t.label}>{t.short}</th>)}<th scope="col">All</th></tr></thead>
       <tbody>{groups.map(([g, rows, to]) => <tr key={g}><th scope="row" className="rowh"><Link to={to}>{g}</Link></th>
         {cols.map((t) => {
-          const n = rows.filter((r) => r.th === t.name).length, v = mode === "n" ? n : pctOf(n, rows.length), a = Math.min(0.85, (mode === "n" ? n : v) / 60);
-          return <td key={t.name}>{n ? <button type="button" style={{ background: `color-mix(in srgb, var(--dsc-teal) ${Math.round(a * 100)}%, transparent)`, color: a > 0.45 ? "#fff" : undefined }}
+          const n = rows.filter((r) => r.th === t.name).length, v = mode === "n" ? n : pctOf(n, rows.length);
+          return <td key={t.name}>{n ? <button type="button" className="dw-hc" data-l={heatStep(v, mode)}
             aria-label={`${n} ${g} companies in ${t.label}`} onClick={() => c.go(to, { cell: t.name })}>{v}{mode === "p" ? "%" : ""}</button> : <span className="dsc-na" aria-label="none">·</span>}</td>;
         })}<td className="tot">{rows.length}</td></tr>)}</tbody></table></div>
   </>;

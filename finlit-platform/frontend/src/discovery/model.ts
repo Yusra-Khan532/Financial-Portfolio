@@ -71,6 +71,13 @@ export const TRENDS = ["Strong uptrend", "Uptrend", "Sideways", "Downtrend", "St
 export const BANDS = ["Strong", "Healthy", "Average", "Weak", "Poor"] as const;
 /** Sector Rotation's own launch of the track record: it starts when Discover started noting entries. */
 export const RECORD_FROM = "2026-11-19";
+/** Task #303: a date `m` months after a YYYY-MM-DD day, read and written in local time. Going through toISOString() turned midnight IST into the
+ *  previous UTC day, so "19 Dec" read "18 Dec" in India. */
+export function addMonthsLocal(day: string, m: number): Date {
+  const [y, mo, d] = day.split("-").map(Number);
+  return new Date(y, mo - 1 + m, d);
+}
+export const fmtLocal = (d: Date) => d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
 export const slug = (s: string) => s.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 export const sizeOf = (r: Pick<DRow, "sz">): CompanySize | null => r.sz;
@@ -212,7 +219,8 @@ export function readT(sp: URLSearchParams, sort = "pr"): TState {
   t.mine = sp.get("mine") === "1";
   t.lenses = (sp.get("v") ?? "").split(",").filter((x) => LENSES.some((l) => l.k === x));
   if (sp.get("sort")) t.sort = sp.get("sort")!;
-  if (sp.get("dir")) t.dir = sp.get("dir") === "asc" ? 1 : -1;
+  // a sort's own direction when the address names none (writeT leaves it out): names A–Z, figures high first (task #303: "Company A–Z" read Z–A)
+  t.dir = sp.get("dir") ? (sp.get("dir") === "asc" ? 1 : -1) : t.sort === sort ? t.dir : t.sort === "co" || t.sort === "th" || t.sort === "cls" ? 1 : -1;
   const pg = Number(sp.get("page")), per = Number(sp.get("per"));
   t.page = Number.isFinite(pg) && pg > 1 ? Math.floor(pg) - 1 : 0;
   t.per = [25, 50, 100].includes(per) ? per : 25;
@@ -250,6 +258,7 @@ export function sortValue(k: string, r: DRow, event?: string): number | string |
     case "ev": return event ? (r.ev[event] || 0) * 1000 + evBiz(r) : evBiz(r) * 1000 + (r.fc || 0);
     case "pr": return r.pr;
     case "lt": return r.lt ? TREND_RANK[r.lt] ?? null : null;
+    case "st": return r.st2 ? TREND_RANK[r.st2] ?? null : null;      // task #303: the short-term trend sorts as the long-term one does
     case "r3m": return r.r3m;
     case "r1y": return r.r1y;
     case "hi": return r.hi == null ? null : -r.hi;
