@@ -3,7 +3,8 @@
 // three portfolio lists (the Equity portfolio list, the MF portfolio's purchase, the ETF portfolio), then the page reads them again. A kind cannot be saved
 // half-done: the message names the kinds with some boxes empty; a kind left wholly empty keeps counting the same. Escape or ✕ closes it; focus starts in the
 // first box. A fund bought in several purchases is changed on the MF portfolio, where each purchase is kept. Descriptive only.
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useDialogFocus } from "../lib/useDialogFocus";
+import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { nf } from "../lib/format";
@@ -45,13 +46,8 @@ export function QtyDialog({ d, onClose }: { d: AllInvestments; onClose: () => vo
   const kinds = (["shares", "funds", "etfs"] as Kind[]).filter((k) => rows.some((r) => r.kind === k));
   const total = rows.reduce((a, r) => { const q = numOf(v(r)); return a + (q != null && r.price != null ? q * r.price : 0); }, 0);
 
-  useEffect(() => {
-    const prev = document.activeElement as HTMLElement | null;
-    box.current?.querySelector<HTMLInputElement>("input")?.focus();
-    const key = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); onClose(); } };
-    document.addEventListener("keydown", key);
-    return () => { document.removeEventListener("keydown", key); prev?.focus?.(); };
-  }, [onClose, mf.data]);
+  // task #292: once per opening; the funds list arriving after the dialog opened no longer sends the cursor back to the first box
+  useDialogFocus(box, onClose, { first: "input", trap: false });
 
   const save = async () => {
     const half = halfDone(rows.map((r) => ({ kind: r.kind, v: v(r), locked: r.locked })));
