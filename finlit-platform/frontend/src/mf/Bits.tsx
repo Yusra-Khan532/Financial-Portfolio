@@ -49,4 +49,10 @@ export function NotAvailable({ items, why }: { items: string[]; why: string }) {
   );
 }
 
-export const PlanChip = ({ plan, option }: { plan: string; option: string }) => <span className="mf-plan">{plan === "Unspecified" ? "Plan not stated" : plan}{option && option !== "Not stated" ? ` · ${option.replace(/\s*option$/i, "")}` : ""}</span>;
+// Task #281: an ETF has no Direct or Regular plan (AMFI files it under a category naming ETFs; the same rule as the server's mf.is_etf_category),
+// so its plan reads "ETF", not "Plan not stated".
+const ETF_CATEGORY = /\bETFs?\b|exchange\s+traded/i;
+export const isEtfCategory = (category?: string | null): boolean => ETF_CATEGORY.test(category ?? "");
+export const planLabel = (plan: string, category?: string | null): string =>
+  plan === "Unspecified" ? (isEtfCategory(category) ? "ETF" : "Plan not stated") : plan;
+export const PlanChip = ({ plan, option, category }: { plan: string; option: string; category?: string | null }) => <span className="mf-plan">{planLabel(plan, category)}{option && option !== "Not stated" ? ` · ${option.replace(/\s*option$/i, "")}` : ""}</span>;

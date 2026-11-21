@@ -76,7 +76,7 @@ export function ResultTable({ rows, q, onSort, loading, score, pick }: { rows: S
               <th scope="row" className="mfs-n">
                 <span className="mfs-nrow"><input type="checkbox" className="mfs-tick" checked={pick.picked.includes(r.code)} onChange={() => pick.onPick(r.code)} aria-label={`Compare ${r.name}`} />
                 <span className="mfs-nm"><Link to={`/funds/${r.code}`}>{r.name}</Link>
-                <small><span className="mf-house">{r.amc}</span><PlanChip plan={r.plan} option={r.option} />
+                <small><span className="mf-house">{r.amc}</span><PlanChip plan={r.plan} option={r.option} category={r.category} />
                   {!r.active && <span className="chip ghost">Stopped publishing</span>}</small>
                 <small className="mfs-nav"><span className="mfs-cat" title={r.category}>{categoryShort(r.category)}</span>{r.nav != null && <> · NAV <span className="mono">{navText(r.nav)}</span>{r.navDate ? ` on ${dateIN(r.navDate, { day: "numeric", month: "short" })}` : ""}</>}</small></span></span>
               </th>
