@@ -247,3 +247,11 @@ def test_an_analyst_labelled_with_a_shortened_surname_is_still_left_out():
     pts = segment(["Moderator: The next question is from the line of Rod Bourgeois from DeepDive Equity Research.\n"
                    "Rod B: Revenue grew 6% YoY, so the order book looks strong.\nMohit Joshi: Revenue grew 6% YoY in the quarter."], "C")
     assert [p.speaker for p in pts if p.status == "scored"] == ["Mohit Joshi"]
+
+
+def test_a_speaker_who_asks_as_an_analyst_does_is_left_out_whoever_introduced_them():
+    """Lexicon 2.1.4 (Tech Mahindra Q2 FY27, live): "Rod B: First question on growth drivers." with no introduction the scorer could read."""
+    pts = segment(["Moderator: Thank you. We will now take questions.\nRod B: First question on growth drivers. Revenue grew 6% YoY in the quarter, so the order book looks strong.\n"
+                   "Mohit Joshi: Revenue grew 6% YoY in the quarter. The first question was on growth: the order book grew 32% YoY.\nRod B: Thanks, that is helpful."], "C")
+    assert {p.speaker for p in pts if p.status == "scored"} == {"Mohit Joshi"}       # management answering "your first question" stays
+    assert all(p.status.startswith("excluded") for p in pts if p.speaker == "Rod B")
