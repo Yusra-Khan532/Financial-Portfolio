@@ -32,9 +32,10 @@ SOURCES = {
 ROWS_SQL = """SELECT g.ig_id, g.url, g.name, g.nse, g.bse, g.isin, g.board, g.sector, g.issue_price, g.listing_price, g.listing_date, g.subscription,
     g.issue_size_cr, g.gmp, g.gmp_pct, g.listing_pct, g.listed, g.open_date, g.close_date, g.fetched_at,
     g.detail -> 'issue' AS issue, g.detail -> 'timetable' AS tt, g.nse_book -> 'categories' AS cats,
-    lc.close AS listing_close, cur.close AS last_close, cur.day AS last_day
+    lc.open AS listing_open, lc.close AS listing_close, cur.close AS last_close, cur.day AS last_day,
+    EXISTS (SELECT 1 FROM companies c WHERE c.symbol = g.nse) AS has_page
     FROM ipo_gmp g
-    LEFT JOIN LATERAL (SELECT close FROM price_daily p WHERE p.symbol = g.nse AND p.day = g.listing_date) lc ON g.nse IS NOT NULL AND g.listed
+    LEFT JOIN LATERAL (SELECT open, close FROM price_daily p WHERE p.symbol = g.nse AND p.day = g.listing_date) lc ON g.nse IS NOT NULL AND g.listed
     LEFT JOIN LATERAL (SELECT close, day FROM price_daily p WHERE p.symbol = g.nse AND p.day >= g.listing_date ORDER BY p.day DESC LIMIT 1) cur
         ON g.nse IS NOT NULL AND g.listed
     WHERE ($1::int IS NULL OR g.ig_id = $1)
@@ -53,6 +54,18 @@ def _j(v: Any) -> Any:
 def pct(a: Optional[float], b: Optional[float]) -> Optional[float]:
     """(a - b) / b in percent, rounded to 0.01."""
     return round((a - b) / b * 100, 2) if a is not None and b else None
+
+
+def adjustment(our_open: Optional[float], listing_price: Optional[float]) -> Optional[float]:
+    """Our daily prices are adjusted for later splits and bonuses; the issue and listing prices are not. The listing-day open in our prices against the
+    listing price the exchange set gives the factor (1.0 when nothing has been adjusted; 0.5 after a 1:1 bonus or a 2-for-1 split). Within 2% it is 1.0
+    (rounding and the odd revised open); None when either figure is missing, and then our closes are used against the issue price as they are."""
+    if not our_open or not listing_price:
+        return None
+    k = our_open / listing_price
+    if abs(k - 1) <= 0.02:
+        return 1.0
+    return k if k < 1 else None        # adjustments only ever lower past prices: a higher open is a data mismatch, not an adjustment
 
 
 def status(listed: bool, withdrawn: bool, open_d: Optional[date], close_d: Optional[date], today: date) -> str:
@@ -75,6 +88,8 @@ def row(r: Dict[str, Any], today: date) -> Dict[str, Any]:
     cats = {c["key"]: c["times"] for c in (_j(r["cats"]) or []) if isinstance(c, dict) and c.get("key")}
     issue, lp = _f(r["issue_price"]), _f(r["listing_price"])
     last, lclose = _f(r["last_close"]), _f(r["listing_close"])
+    k = adjustment(_f(r["listing_open"]), lp)
+    base = issue * k if issue and k else issue          # the issue price in the same terms as our (split- and bonus-adjusted) daily prices
     st = status(bool(r["listed"]), bool(iss.get("withdrawn")), r["open_date"], r["close_date"], today)
     return {
         "id": r["ig_id"], "name": r["name"], "symbol": r["nse"] or r["bse"], "nse": r["nse"], "bse": r["bse"], "board": r["board"], "sector": r["sector"],
@@ -85,8 +100,8 @@ def row(r: Dict[str, Any], today: date) -> Dict[str, Any]:
         "issueSizeCr": _f(r["issue_size_cr"]) if not iss.get("totalCr") else iss.get("totalCr"), "freshCr": iss.get("freshCr"), "ofsCr": iss.get("ofsCr"),
         "subscription": _f(r["subscription"]), "subQib": cats.get("qib"), "subNii": cats.get("nii"), "subRetail": cats.get("retail"),
         "gmp": _f(r["gmp"]), "gmpPct": _f(r["gmp_pct"]), "listingPrice": lp if r["listed"] else None, "listingPct": _f(r["listing_pct"]) if r["listed"] else None,
-        "listingClose": lclose, "listingClosePct": pct(lclose, issue), "lastClose": last, "lastDay": r["last_day"].isoformat() if r["last_day"] else None,
-        "sinceIpoPct": pct(last, issue), "verdict": verdict(_f(r["gmp_pct"]), _f(r["listing_pct"])) if r["listed"] else None,
+        "listingClose": lclose, "listingClosePct": pct(lclose, base), "lastClose": last, "lastDay": r["last_day"].isoformat() if r["last_day"] else None,
+        "companyPage": bool(r.get("has_page")), "sinceIpoPct": pct(last, base), "adjustedBy": round(k, 4) if k and k != 1.0 else None, "verdict": verdict(_f(r["gmp_pct"]), _f(r["listing_pct"])) if r["listed"] else None,
     }
 
 

@@ -123,6 +123,17 @@ def test_nse_book_by_category():
     assert iponse.parse(zero) is None and iponse.parse({}) is None and iponse.parse([]) is None          # SME issues: NSE's figures are all zeros
 
 
+def test_adjustment_for_later_splits_and_bonuses():
+    assert ipoapi.adjustment(248.0, 248.0) == 1.0 and ipoapi.adjustment(249.5, 248.0) == 1.0                      # within 2%: nothing adjusted
+    assert ipoapi.adjustment(124.0, 248.0) == 0.5                                                                  # a 1:1 bonus or 2-for-1 split since
+    assert ipoapi.adjustment(300.0, 248.0) is None and ipoapi.adjustment(None, 248.0) is None                      # a mismatch, or no open: not adjusted
+    base = {"ig_id": 1, "name": "X", "nse": "X", "bse": None, "board": "mainboard", "sector": None, "issue_price": 150, "listing_price": 248, "listing_date": date(2026, 11, 3),
+            "subscription": None, "issue_size_cr": None, "gmp": None, "gmp_pct": None, "listing_pct": 65.33, "listed": True, "open_date": None, "close_date": None,
+            "issue": None, "tt": None, "cats": None, "listing_open": 124.0, "listing_close": 127.75, "last_close": 115.5, "last_day": date(2026, 11, 20)}
+    r = ipoapi.row(base, date(2026, 11, 21))
+    assert (r["listingClosePct"], r["sinceIpoPct"], r["adjustedBy"]) == (70.33, 54.0, 0.5)                          # the same as before the split
+
+
 def test_status_of_an_issue():
     t = date(2026, 11, 21)
     assert ipoapi.status(False, False, date(2026, 11, 25), date(2026, 11, 27), t) == "upcoming"
