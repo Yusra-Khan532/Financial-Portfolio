@@ -10,13 +10,13 @@
 .ir-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
 .ir-tile { display: grid; gap: 4px; align-content: start; padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--card, var(--bg)); }
 .ir-tile > span { font: 600 12px var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
-.ir-tile b { font: 600 22px/1.2 var(--sans); font-variant-numeric: tabular-nums; color: var(--text); } .ir-tile b.up { color: var(--gain); } .ir-tile b.down { color: var(--loss); }
+.ir-tile b { font: 600 24px/1.2 var(--sans); font-variant-numeric: tabular-nums; color: var(--text); } .ir-tile b.up { color: var(--gain); } .ir-tile b.down { color: var(--loss); }
 .ir-tile small { font-size: 13px; color: var(--muted); }
 
 .ir-sec { display: grid; gap: 10px; padding: 18px 20px; min-width: 0; } .ir-sec > *, .ir-res > * { min-width: 0; }
 .ir-sec h2 { margin: 0; font: 400 24px/1.25 var(--serif); color: var(--text); }
 .ir-sec h3 { margin: 8px 0 0; font: 600 16px var(--sans); }
-.ir-sec p { margin: 0; font-size: 15px; line-height: 1.6; }
+.ir-sec p { margin: 0; font-size: 16px; line-height: 1.6; }
 .ir-lead b { font-variant-numeric: tabular-nums; }
 .ir-small { font-size: 12px !important; line-height: 1.5 !important; }
 .ir-foot { margin: 0; font-size: 12px; line-height: 1.6; } .ir-foot a { color: inherit; }
@@ -72,7 +72,7 @@
 .ir-more summary { cursor: pointer; font: 600 14px var(--sans); padding: 6px 0; } .ir-more summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
 @media (max-width: 640px) {
-  .ir-sec { padding: 14px; } .ir-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ir-tile b { font-size: 19px; }
+  .ir-sec { padding: 14px; } .ir-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ir-tile b { font-size: 20px; }
   .ir-bars li { grid-template-columns: minmax(0, 1fr) 72px; } .ir-bars li .ir-bt { grid-column: 1 / -1; grid-row: 2; }
   .ir-dem li { grid-template-columns: 64px minmax(0, 1fr) 92px; }
   .ir-list li { flex-direction: column; gap: 2px; } .ir-list b { text-align: left; }

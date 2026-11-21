@@ -10,7 +10,7 @@
 .ia-btn { height: 38px; padding: 0 14px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--text); font: 600 13px var(--sans); cursor: pointer; white-space: nowrap; }
 .ia-btn:hover:not(:disabled) { border-color: var(--text); } .ia-btn:disabled { opacity: .5; cursor: default; } .ia-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .ia-link { border: 0; background: none; padding: 0; color: var(--text); text-decoration: underline; font: inherit; cursor: pointer; }
-.ia-sum { margin: 0; font-size: 15px; line-height: 1.6; } .ia-sum .up, .ia .up { color: var(--gain); } .ia-sum .down, .ia .down { color: var(--loss); }
+.ia-sum { margin: 0; font-size: 16px; line-height: 1.6; } .ia-sum .up, .ia .up { color: var(--gain); } .ia-sum .down, .ia .down { color: var(--loss); }
 .ia-none { padding: 24px; text-align: center; }
 
 .ia-tw { padding: 0; overflow: auto; max-height: 75vh; position: relative; }
