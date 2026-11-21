@@ -54,6 +54,9 @@ URL_MF_LIST = "https://www.amfiindia.com/api/populate-mf"
 URL_SCHEMES = "https://www.amfiindia.com/api/populate-scheme"
 URL_DETAILS = "https://www.amfiindia.com/api/scheme-details"
 LOAD_MAX_AGE_DAYS = 25               # a scheme's load text is asked again after this many days
+LOAD_PAUSE_S = 1.0                   # task #281 round 6: AMFI answered 429 to three scheme-details calls at a time; now one at a time, a second apart
+LOAD_MAX_CALLS = 900                 # scheme-details calls per run (about 15 minutes at the pause); the rest are asked on the next runs (resumable)
+LOAD_STOP_AFTER_429 = 5              # this many schemes in a row refused with 429 stop the step for this run, keeping what was stored
 URL_PERF = "https://www.amfiindia.com/gateway/pollingsebi/api/amfi/fundperformance"
 URL_PERF_SUB = "https://www.amfiindia.com/gateway/pollingsebi/api/amfi/getsubcategory"
 URL_EQUITY_L = "https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv"
@@ -424,6 +427,7 @@ async def extra_facts(pool, key) -> Optional[dict]:
 
 # ------------------------------------------------------------------------------------------------------------- fetching
 
+CF_ORIGIN_DOWN = (522, 523, 524)               # Cloudflare's own codes: the origin site did not accept or answer Cloudflare's connection
 RELAY_FETCH_HOSTS = ("barodabnpparibasmf.in",)   # fund-house sites that time out from the AWS server's address; fetched through the relay's /fetch route
 
 
@@ -465,6 +469,19 @@ class RelayTransport(httpx.AsyncBaseTransport):
         headers += list(extra.items())
         relayed = httpx.Request(request.method, new_url, headers=headers, content=body or None, extensions=request.extensions)
         resp = await self.inner.handle_async_request(relayed)
+        if resp.status_code in CF_ORIGIN_DOWN and new_url.startswith(fetch_base + "/fetch"):
+            # task #281 round 6: the relay reached Cloudflare but the fund house's site did not accept Cloudflare's connection (522 / 523 / 524; Baroda BNP,
+            # 21 Nov). Ask the site directly once; when that fails too, the error says both routes were tried.
+            await resp.aread()
+            await resp.aclose()
+            try:
+                direct = await self.inner.handle_async_request(request)
+            except httpx.TransportError as exc:
+                raise httpx.ConnectError(f"{request.url.host} did not answer the relay (Cloudflare {resp.status_code}: the site refused Cloudflare's connection) "
+                                         f"nor the server directly ({type(exc).__name__})", request=request) from exc
+            direct.headers["X-Via"] = f"direct (the relay's route answered {resp.status_code})"
+            return direct
+        resp.headers["X-Via"] = "relay " + httpx.URL(new_url).path
         loc = resp.headers.get("Location")
         if loc and 300 <= resp.status_code < 400:      # a redirect is followed on the original site (and relayed again), never on the relay's own address
             resp.headers["Location"] = str(request.url.join(loc))
@@ -479,6 +496,16 @@ def make_client(transport: Optional[httpx.AsyncBaseTransport] = None) -> httpx.A
     return httpx.AsyncClient(headers={"User-Agent": UA}, timeout=httpx.Timeout(60.0, connect=20.0), follow_redirects=True, transport=RelayTransport(inner))
 
 
+RETRY_AFTER_MAX = 90.0   # seconds: the longest Retry-After honoured
+
+
+def _retry_after(resp: httpx.Response, fallback: float) -> float:
+    try:
+        return min(max(float(resp.headers.get("Retry-After", "")), 1.0), RETRY_AFTER_MAX)
+    except ValueError:
+        return fallback
+
+
 async def _retry(fn, tries: int = 3, base: float = 2.0):
     for i in range(tries):
         try:
@@ -488,7 +515,31 @@ async def _retry(fn, tries: int = 3, base: float = 2.0):
                 raise
             if i == tries - 1:
                 raise
-            await asyncio.sleep(base * (i + 1))
+            if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code in (429, 503):   # task #281 round 6: "too many requests": wait as asked
+                await asyncio.sleep(_retry_after(exc.response, base * 5 * (i + 1)))
+            else:
+                await asyncio.sleep(base * (i + 1))
+
+
+def who_answered(exc: BaseException) -> str:
+    """Task #281 round 6: an HTTP error says who answered and by which route, so a 404 from the relay itself is never taken for AMFI's: the status, the
+    route (the relay's path, or direct), the relay's own X-Relay-Error when it was the relay's answer, and the start of the body. Never the relay key."""
+    if not isinstance(exc, httpx.HTTPStatusError):
+        return f"{type(exc).__name__}: {str(exc)[:200]}"
+    r = exc.response
+    via = r.headers.get("X-Via") or "direct"
+    own = r.headers.get("X-Relay-Error")
+    if own:
+        who = f"the relay itself ({own})"
+    elif via.startswith("relay") and r.status_code in CF_ORIGIN_DOWN:
+        who = "Cloudflare: the site did not accept the relay's connection"
+    else:
+        who = exc.request.url.host + (" through the relay" if via.startswith("relay") else "")
+    try:
+        body = " ".join(r.text.split())[:200]
+    except Exception:
+        body = ""
+    return f"HTTP {r.status_code} from {who}; {exc.request.method} {exc.request.url.copy_with(query=None)}; via {via}" + (f"; body: {body}" if body else "")
 
 
 async def download(client: httpx.AsyncClient, url: str, dest: str, headers: Optional[dict] = None) -> int:
@@ -507,9 +558,11 @@ async def download(client: httpx.AsyncClient, url: str, dest: str, headers: Opti
     return await _retry(go)
 
 
-async def get_json(client: httpx.AsyncClient, url: str, **kw):
+async def get_json(client: httpx.AsyncClient, url: str, method: str = "GET", **kw):
+    # task #281 round 6: the method is read once. It used to be popped inside the retried call, so a retry (after a 429, a 5xx or a timeout) went out as
+    # GET: through the relay that is a path its GET branch does not serve, and the relay's own "not found" (404, never retried) ended the performance step.
     async def go():
-        r = await client.request(kw.pop("method", "GET"), url, **kw)
+        r = await client.request(method, url, **kw)
         r.raise_for_status()
         return r.json()
     return await _retry(go)
@@ -632,20 +685,29 @@ async def step_loads(pool, client, idx: Index, today: date) -> dict:
                 unmapped += 1
             elif fam in active and fam not in fresh:
                 want[fam].append((str(h["mfId"]), str(r["scheme_id"])))
-        await asyncio.sleep(0.1)
-    facts, asked, blank = [], 0, 0
-    sem = asyncio.Semaphore(3)
+        await asyncio.sleep(LOAD_PAUSE_S)
+    facts: list = []
+    st = {"asked": 0, "blank": 0, "stored": 0, "refused429": 0, "in_a_row": 0, "errors": 0}
 
-    async def one(fam: str, cands: List[Tuple[str, str]]):
-        nonlocal asked, blank
+    async def one(fam: str, cands: List[Tuple[str, str]]) -> None:
         launch_done = min_done = False
         for mf_id, sid in sorted(cands, key=lambda c: -int(c[1]) if c[1].isdigit() else 0)[:3]:   # the newest listing of a scheme first
-            async with sem:
-                asked += 1
-                try:
-                    d = ((await get_json(client, URL_DETAILS, params={"MF_ID": mf_id, "scheme_id": sid})).get("data") or [{}])[0]
-                except Exception:
-                    continue
+            st["asked"] += 1
+            try:
+                d = ((await get_json(client, URL_DETAILS, params={"MF_ID": mf_id, "scheme_id": sid})).get("data") or [{}])[0]
+                st["in_a_row"] = 0
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code == 429:      # AMFI: "too many requests" even after the waits _retry made; this scheme is asked on a later run
+                    st["refused429"] += 1
+                    st["in_a_row"] += 1
+                    return
+                st["errors"] += 1
+                continue
+            except Exception:
+                st["errors"] += 1
+                continue
+            finally:
+                await asyncio.sleep(LOAD_PAUSE_S)
             ld = amfi.parse_dmy(str(d.get("Launch_Date") or ""))
             if ld and not launch_done and date(1950, 1, 1) <= ld <= today:    # a second source for schemes the scheme master gives no clean launch date
                 facts.append((fam, "launch_details", today, {"date": ld.isoformat()}, SRC_DETAILS, "https://www.amfiindia.com/otherdata/scheme-details"))
@@ -657,15 +719,30 @@ async def step_loads(pool, client, idx: Index, today: date) -> dict:
             txt_ = exit_load_text(str(d.get("Scheme_load") or ""))
             if txt_:
                 facts.append((fam, "exitload", today, {"text": txt_}, SRC_DETAILS, "https://www.amfiindia.com/otherdata/scheme-details"))
+                st["stored"] += 1
                 return
-        blank += 1
+        st["blank"] += 1
 
     items = list(want.items())
-    for i in range(0, len(items), 60):                                   # written in batches, so an interrupted run keeps what it got
-        await asyncio.gather(*[one(f, c) for f, c in items[i:i + 60]])
-        await put_facts(pool, facts)
-        facts.clear()
-    return {"status": "ok", "families": len(want), "asked": asked, "blank": blank, "alreadyFresh": len(fresh & active), "namesNotMatched": unmapped}
+    stopped = None
+    for n, (f, c) in enumerate(items, start=1):   # one scheme at a time (task #281 round 6: AMFI answered 429 to three at a time); written every 40
+        left = len(items) - n + 1
+        if st["asked"] >= LOAD_MAX_CALLS:
+            stopped = f"this run's limit of {LOAD_MAX_CALLS} AMFI calls was reached; the next run continues with the {left} schemes left"
+            break
+        if st["in_a_row"] >= LOAD_STOP_AFTER_429:
+            stopped = f"AMFI answered 'too many requests' (429) {st['in_a_row']} times in a row; stopped for this run, the next run continues with the {left} schemes left"
+            break
+        await one(f, c)
+        if n % 40 == 0:
+            await put_facts(pool, facts)
+            facts.clear()
+    await put_facts(pool, facts)
+    out = {"status": "partial" if stopped else "ok", "families": len(want), "asked": st["asked"], "loadsStored": st["stored"], "blank": st["blank"],
+           "refused429": st["refused429"], "errors": st["errors"], "alreadyFresh": len(fresh & active), "namesNotMatched": unmapped}
+    if stopped:
+        out["why"] = stopped
+    return out
 
 
 async def step_managers(pool, idx: Index) -> dict:
@@ -853,7 +930,7 @@ async def refresh(store, settings=None, only: Optional[Sequence[str]] = None, mo
                 out["steps"][name] = await fn()
             except Exception as exc:
                 log.warning("disclosure step %s failed", name, exc_info=True)
-                out["steps"][name] = {"status": "error", "why": f"{type(exc).__name__}: {str(exc)[:200]}"}
+                out["steps"][name] = {"status": "error", "why": who_answered(exc)}
         for ad in ADAPTERS:
             if want and ad.key not in want:
                 continue
@@ -861,7 +938,7 @@ async def refresh(store, settings=None, only: Optional[Sequence[str]] = None, mo
                 out["amc"][ad.key] = await step_amc(pool, client, ad, idx, today, months, force)
             except Exception as exc:
                 log.warning("disclosure adapter %s failed", ad.key, exc_info=True)
-                out["amc"][ad.key] = {"status": "error", "why": f"{type(exc).__name__}: {str(exc)[:200]}"}
+                out["amc"][ad.key] = {"status": "error", "why": who_answered(exc)}
     finally:
         if own:
             await client.aclose()
