@@ -144,7 +144,7 @@ export function IpoHistoryPage() {
           {shown.length > n && <div className="ia-more"><button type="button" className="ia-btn" onClick={() => setN(n + PAGE)}>Show {nf(Math.min(PAGE, shown.length - n), 0)} more</button><span className="muted">Showing {nf(n, 0)} of {nf(shown.length, 0)}</span></div>}
         </>}
         <p className="muted ia-foot">
-          At listing = the listing price (the listing-day open the exchange set) against the issue price. Day-1 close and latest close are the exchange's closing prices; since IPO = latest close against the issue price. Where the share has split or issued bonus shares since, the issue price is adjusted by the same factor, so the figures compare like with like.
+          At listing = the listing price (the listing-day open the exchange set) against the issue price. Day-1 close and latest close are the exchange's closing prices (for an issue listed in the past year whose daily history we do not hold yet, the latest quoted price); since IPO = that price against the issue price. Where the share has split or issued bonus shares since, the issue price is adjusted by the same factor, so the figures compare like with like.
           {" "}Issue details, overall subscription and GMP: <a href={data.sources.issue.url ?? undefined} target="_blank" rel="noopener noreferrer">{data.sources.issue.name}</a>. Subscription by category (QIB, NII, retail): NSE, for mainboard issues. GMP is an informal, unofficial grey-market price, not an exchange figure.
           {" "}Describes the past; not a forecast or advice.
         </p>
