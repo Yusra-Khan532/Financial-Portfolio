@@ -584,3 +584,5 @@ tr.dsc-det > td { padding: 14px 16px; background: var(--s3); }
 @media (min-width:960px) and (max-width:1059px){
   .dsc-ways:not(.dsc-ways2){grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+/* Task #291: the "Coming soon" line above the call and results buckets, in the method paragraph's place */
+.dsc-soon { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin: 0 0 14px; font-size: 14px; color: var(--muted); }

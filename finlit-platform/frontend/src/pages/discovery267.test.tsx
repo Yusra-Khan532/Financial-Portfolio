@@ -80,6 +80,7 @@ describe("#267: Earnings calls and Results filings in Discover", () => {
     expect(capex.querySelector(".dsc-ex")!.textContent).toBe("Acme Industries, Quiet Co");
     expect(cards[2].textContent).toMatch(/None of the 2 call transcripts read names 2 of this bucket's keywords, or one of them 5 times\./);
     expect(document.querySelector(".dsc-toolbar")).toBeNull();                                          // task #291: the method paragraph above the buckets is removed
+    expect(screen.getByRole("note").textContent).toBe("Coming soon Paid plans are coming soon. For now, every earnings-call and results-filing view here is open to everyone.");
     expect(document.body.textContent).not.toMatch(/buckets of FinLit’s keyword directory/);
     const caution = document.querySelector(".dsc-caution")!.textContent!;
     expect(caution).toMatch(/A keyword mention by itself is not proof of material business exposure/);
