@@ -150,7 +150,7 @@ export function FundTable({ rows, cols, q, onSort, picked, onPick, peers }: {
                 </label>
                 <span className="mf-nm">
                   <Link to={`/funds/${r.code}`}>{r.name}</Link>{has("gold") && <ScoreChip item={scores.map.get(r.code)} />}
-                  <small><span className="mf-house">{shortAmc(r.amc)}</span><PlanChip plan={r.plan} option={r.option} />{!r.active && <span className="chip ghost">Stopped publishing</span>}</small>
+                  <small><span className="mf-house">{shortAmc(r.amc)}</span><PlanChip plan={r.plan} option={r.option} category={r.category} />{!r.active && <span className="chip ghost">Stopped publishing</span>}</small>
                   {r.nav != null && <small className="mf-navm">NAV <span className="mono" title={navFull(r.nav)}>{navText(r.nav)}</span></small>}
                 </span>
               </th>
