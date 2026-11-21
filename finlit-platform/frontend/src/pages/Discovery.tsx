@@ -14,8 +14,11 @@ import { faqAnchor } from "../components/PageFaqs";
 import { DISCOVER_FAQ } from "../content/discoverFaqs";
 import { DiscoverProvider, useDsc } from "../discovery/ctx";
 import { I, RotDate } from "../discovery/Info";
-import { BASE, EVENTS, VIEW_PATH, fmtDate, legacyPath, short, themePath, useDiscover, type View } from "../discovery/model";
+import { BASE, EVENTS, SOURCES, VIEW_PATH, fmtDate, isSource, legacyPath, short, themePath, useDiscover, useSources, type Source, type View } from "../discovery/model";
 import { AllView, EventPage, EventsView, IndustryPage, MacroPage, SectorsView, ThemePage, ThemesView, YourNames } from "../discovery/Views";
+import { BucketPage, SourcesView } from "../discovery/Sources";
+
+const SRC_CAUTION = "A keyword mention by itself is not proof of material business exposure: check the figures in the filing itself.";
 import "../styles/sectors-pack.css";
 import "../styles/screeners243.css";
 import "../discovery/discover.css";
@@ -70,7 +73,21 @@ function Page() {
 }
 
 // §3 the four views: the site's "ways to look" strip (portfolio pack, "How the list moves together · 3 ways to look · tap one")
-const VIEW_ICON: Record<View, string> = { themes: "spark", "what-changed": "activity", sectors: "grid", "all-companies": "table" };
+const VIEW_ICON: Record<View, string> = { themes: "spark", "what-changed": "activity", sectors: "grid", "all-companies": "table", calls: "chat", results: "notes" };
+/** Task #267: the two views read from earnings-call transcripts and results filings, in a strip of their own under the four (same look). */
+function SourceWays() {
+  const r = useDsc().route;
+  return <>
+    <p className="x2-k dsc-wk" aria-hidden="true">From calls and results <small>2 more ways · the keyword directory’s call and results buckets</small></p>
+    <nav className="dsc-ways dsc-ways2" aria-label="Discover views from calls and results">{(Object.keys(SOURCES) as Source[]).map((k) => {
+      const on = r.view === k, s = SOURCES[k];
+      return <Link key={k} to={VIEW_PATH[k]} className="dsc-way" aria-current={on && !r.bucket ? "page" : undefined} data-on={on || undefined}>
+        <span className="dsc-wic" aria-hidden="true"><Icon name={VIEW_ICON[k]} /></span>
+        <span className="dsc-wtx"><span className="dsc-wl">{s.label}<span className="dsc-wn">{s.n}</span></span><span className="dsc-wd">{s.line}</span></span>
+      </Link>;
+    })}</nav>
+  </>;
+}
 function Ways() {
   const c = useDsc(), r = c.route;
   const ways: [View, string, number, string][] = [
@@ -93,23 +110,26 @@ function Ways() {
 
 function Body() {
   const c = useDsc(), r = c.route, b = c.d.board!;
-  const detail = !!(r.theme || r.event || r.macro || r.industry);
+  const detail = !!(r.theme || r.event || r.macro || r.industry || r.bucket);
+  const src = isSource(r.view) ? r.view : null, sd = useSources(src).data;     // task #267: the calls / results view's own caution and method
   const top = useRef<HTMLDivElement>(null), first = useRef(true);
-  const where = [r.view, r.theme, r.event, r.macro, r.sector, r.industry].join("|");
+  const where = [r.view, r.theme, r.event, r.macro, r.sector, r.industry, r.bucket].join("|");
   useEffect(() => { if (first.current) { first.current = false; return; } top.current?.scrollIntoView?.({ block: "start" }); }, [where]);
   return <>
     {!detail && <YourNames />}
     <div ref={top} className="dsc-anchor" />
     <Ways />
+    <SourceWays />
     <div className="dsc-view">
-      {r.theme ? <ThemePage key={r.theme} theme={r.theme} />
+      {src ? (r.bucket ? <BucketPage key={src + r.bucket} src={src} slug={r.bucket} /> : <SourcesView key={src} src={src} />)
+        : r.theme ? <ThemePage key={r.theme} theme={r.theme} />
         : r.event ? <EventPage key={r.event} k={r.event} />
         : r.industry ? <IndustryPage key={r.industry} ind={r.industry} />
         : r.macro ? <MacroPage key={r.macro + (r.sector ?? "")} m={r.macro} sc={r.sector} />
         : r.view === "what-changed" ? <EventsView /> : r.view === "sectors" ? <SectorsView /> : r.view === "all-companies" ? <AllView /> : <ThemesView />}
     </div>
-    <p className="dsc-caution"><Icon name="info" /> {b.caution} Describes the company’s financial health from its filings and prices; not a recommendation. Information only, not investment advice.</p>
-    <details className="dsc-how" id="dsc-how"><summary>How it is built</summary><p>{b.method}</p>
+    <p className="dsc-caution"><Icon name="info" /> {src ? sd?.caution ?? SRC_CAUTION : b.caution} Describes the company’s financial health from its filings and prices; not a recommendation. Information only, not investment advice.</p>
+    <details className="dsc-how" id="dsc-how"><summary>How it is built</summary><p>{src ? sd?.method ?? SOURCES[src].line : b.method}</p>
       <p>FinLit Prism, the two technical views, prices and market value come from FinLit’s own nightly figures, as your plan shows them. Sector Rotation is read weekly and Sector Pulse daily; each reading shows its date.</p></details>
   </>;
 }

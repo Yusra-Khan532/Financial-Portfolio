@@ -145,8 +145,9 @@ export function useDiscover() {
 //   /discover/sectors/<macro>/<sector>         a sector          /discover/industries/<industry>  an industry
 //   /discover/companies                        All companies
 // The table's filters, sort and page are in the query string. Old /discovery#theme-... links land on the same page.
-export type View = "themes" | "what-changed" | "sectors" | "all-companies";
-export type Route = { view: View; theme?: string; event?: string; macro?: string; sector?: string; industry?: string };
+//   /discover/calls[/<bucket>]                 Earnings calls    /discover/results[/<bucket>]     Results filings (task #267; the bucket's slug)
+export type View = "themes" | "what-changed" | "sectors" | "all-companies" | "calls" | "results";
+export type Route = { view: View; theme?: string; event?: string; macro?: string; sector?: string; industry?: string; bucket?: string };
 export type Names = { themes: string[]; macros: string[]; sectors: string[]; industries: string[] };
 export const BASE = "/discover";
 export function parseRoute(pathname: string, n: Names): Route {
@@ -160,6 +161,7 @@ export function parseRoute(pathname: string, n: Names): Route {
   }
   if (seg[0] === "industries") { const i = by(n.industries, seg[1]); return i ? { view: "sectors", industry: i } : { view: "sectors" }; }
   if (seg[0] === "companies") return { view: "all-companies" };
+  if (seg[0] === "calls" || seg[0] === "results") return seg[1] ? { view: seg[0], bucket: seg[1] } : { view: seg[0] };
   return { view: "themes" };
 }
 export const themePath = (t: string) => `${BASE}/themes/${slug(t)}`;
@@ -167,8 +169,11 @@ export const eventPath = (k: string) => `${BASE}/changes/${k}`;
 export const macroPath = (m: string) => `${BASE}/sectors/${slug(m)}`;
 export const sectorPath = (m: string, sc: string) => `${BASE}/sectors/${slug(m)}/${slug(sc)}`;
 export const industryPath = (i: string) => `${BASE}/industries/${slug(i)}`;
-export const VIEW_PATH: Record<View, string> = { themes: BASE, "what-changed": `${BASE}/changes`, sectors: `${BASE}/sectors`, "all-companies": `${BASE}/companies` };
+export const VIEW_PATH: Record<View, string> = { themes: BASE, "what-changed": `${BASE}/changes`, sectors: `${BASE}/sectors`, "all-companies": `${BASE}/companies`,
+  calls: `${BASE}/calls`, results: `${BASE}/results` };
+export const bucketPath = (src: Source, name: string) => `${VIEW_PATH[src]}/${slug(name.replace(/^(Call|Results):\s*/, ""))}`;
 export function pathOf(r: Route): string {
+  if ((r.view === "calls" || r.view === "results") && r.bucket) return `${VIEW_PATH[r.view]}/${r.bucket}`;
   if (r.theme) return themePath(r.theme);
   if (r.event) return eventPath(r.event);
   if (r.industry) return industryPath(r.industry);
@@ -297,3 +302,24 @@ export function linkFilters(t: Pick<TState, "mac" | "sct" | "ind">, tree: Tree):
   if (ind && ((sct && indSec !== sct) || (mac && indSec && tree.macroOf.get(indSec) !== mac))) { dropped = `${ind} was taken off: not inside your other choice.`; ind = ""; }
   return { mac, sct, ind, dropped };
 }
+
+// ------------------------------------------------------------------------------------------------ task #267: earnings calls and results filings
+//   GET /api/discovery/sources?source=calls|results[&bucket=<name>]   the keyword directory's call and results buckets, read from each company's newest
+//                                                                     call transcript and results filing (finlit/discovery/sources.py)
+export type Source = "calls" | "results";
+export const SOURCES: Record<Source, { label: string; n: number; line: string; doc: string }> = {
+  calls: { label: "Earnings calls", n: 8, line: "What management says on results calls", doc: "Call transcript" },
+  results: { label: "Results filings", n: 7, line: "What quarterly results filings report", doc: "Results filing" },
+};
+export const isSource = (v: View): v is Source => v === "calls" || v === "results";
+export type SrcDoc = { title: string | null; date: string | null; link: string | null; pages: number | null };
+export type SrcCompany = { symbol: string; company: string; score: number | null; distinct: number | null; mentions: number | null; keywords: string[]; evidence: string[];
+  verify: string[]; document: SrcDoc; tone: { score: number | null; label: string | null } };
+export type SrcBucket = { name: string; label: string; keywords: string[]; companies: number; withEvidence: number; verify: string[]; reason: string | null;
+  preview?: string[]; list?: SrcCompany[] };
+export type SrcData = { source: Source; label: string; document: string; days: number; buckets: SrcBucket[]; read: number; statuses: Record<string, number>; companies: number;
+  updated: string | null; newest: string | null; caution: string; method: string };
+export const useSources = (src: Source | null, bucket?: string | null) => useQuery({
+  queryKey: ["discovery", "sources", src, bucket ?? null], enabled: !!src, staleTime: 10 * 60_000, retry: 1,
+  queryFn: () => apiGet<SrcData>(`/api/discovery/sources?source=${src}${bucket ? `&bucket=${encodeURIComponent(bucket)}` : ""}`),
+});

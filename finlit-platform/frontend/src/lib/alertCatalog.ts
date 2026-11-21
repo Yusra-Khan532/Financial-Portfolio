@@ -1,7 +1,12 @@
 // Everything an alert can watch. Mirrors backend/finlit/alertengine.py (a test keeps the metric keys identical).
 export type Op = "above" | "below" | "event";
-export type Group = "Price & momentum" | "Technical signals" | "Valuation" | "Quality & growth" | "Retired score" | "Results & ownership" | "News & filings";
-export type Metric = { label: string; unit: string; group: Group; live: boolean; tier: "basic" | "silver"; ops: Op[]; hint: string; sample: number; text?: string };
+export type Group = "Price & momentum" | "Technical signals" | "Valuation" | "Quality & growth" | "FinLit Prism" | "Retired score" | "Results & ownership" | "News & filings";
+export type Tier = "basic" | "silver" | "gold";
+export type Metric = { label: string; unit: string; group: Group; live: boolean; tier: Tier; ops: Op[]; hint: string; sample: number; text?: string };
+const TIER_RANK: Record<string, number> = { basic: 0, silver: 1, gold: 2 };
+/** True when the member's plan does not include the metric (Silver metrics below Silver; FinLit Prism below Gold). */
+export const tierLocked = (tier: Tier, plan: string): boolean => (TIER_RANK[plan] ?? 0) < TIER_RANK[tier];
+export const TIER_LABEL: Record<Tier, string> = { basic: "Basic", silver: "Silver", gold: "Gold" };
 
 export const METRICS: Record<string, Metric> = {
   price: { label: "Price", unit: "₹", group: "Price & momentum", live: true, tier: "basic", ops: ["above", "below"], hint: "The last traded price. Checked every few minutes while the market is open.", sample: 0 },
@@ -24,6 +29,8 @@ export const METRICS: Record<string, Metric> = {
   roce: { label: "ROCE", unit: "%", group: "Quality & growth", live: false, tier: "silver", ops: ["above", "below"], hint: "Return on capital employed.", sample: 15 },
   operating_margin: { label: "Operating margin", unit: "%", group: "Quality & growth", live: false, tier: "silver", ops: ["above", "below"], hint: "Operating profit as a share of sales.", sample: 15 },
   debt_to_equity: { label: "Debt to equity", unit: "×", group: "Quality & growth", live: false, tier: "silver", ops: ["above", "below"], hint: "Borrowings relative to shareholders' money.", sample: 1 },
+  // Task #283 PR D: FinLit Prism's score, FinLit's only company score (Gold); members' alerts on the retired overall score were converted to it.
+  prism_final: { label: "FinLit Prism score", unit: "", group: "FinLit Prism", live: false, tier: "gold", ops: ["above", "below"], hint: "FinLit Prism's score of the company, 0–100: Strong 80 or more, Healthy 65–79, Average 50–64, Weak below 50. Checked after the nightly load.", sample: 65 },
   // Task #283: the retired overall score and its five parts. The keys stay (they mirror backend/finlit/alertengine.py, and members' existing alerts on
   // them still show); the group is not in GROUPS, so no new alert can be set on them. FinLit Prism is FinLit's only company score.
   overall: { label: "Overall score (retired)", unit: "", group: "Retired score", live: false, tier: "silver", ops: ["above", "below"], hint: "The retired overall 0–100 score. FinLit Prism is now FinLit's only company score.", sample: 70 },
@@ -56,7 +63,7 @@ export function kindsText(kinds: string[] | null | undefined): string {
   return ws.length <= 1 ? (ws[0] ?? "a filing") : `${ws.slice(0, -1).join(", ")} or ${ws[ws.length - 1]}`;
 }
 /** The groups a new alert can be set in (task #283: the retired score's group is not offered). */
-export const GROUPS: Group[] = ["Price & momentum", "Technical signals", "Valuation", "Quality & growth", "Results & ownership", "News & filings"];
+export const GROUPS: Group[] = ["Price & momentum", "Technical signals", "Valuation", "Quality & growth", "FinLit Prism", "Results & ownership", "News & filings"];
 export const isEvent = (k: string) => METRICS[k]?.ops[0] === "event";
 /** Alerts with no number to choose: the server sets the target (alertengine.FIXED_TARGET). */
 export const fixedTarget = (k: string, op: Op): number | null => (k === "circuit" ? (op === "below" ? -1 : 1) : null);

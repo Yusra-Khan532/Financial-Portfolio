@@ -360,6 +360,7 @@ export function QueryBuilder() {
 
         <section className="card qb-save" aria-label="Save as a basket">
           <h3>Keep this query as a basket</h3>
+          {basket?.converted?.text && <p className="qb-sub qb-conv" role="note">{basket.converted.text}</p>}
           {!user ? <p>Baskets are saved to your account so you can come back to them. <Link className="alx-link" to="/login">Sign in</Link> or <Link className="alx-link" to="/login">create a free account</Link> to keep up to 3.</p> : <>
             <div className="qb-saveform">
               <label>Name<input value={saveName} maxLength={80} onChange={(e) => setSaveName(e.target.value)} placeholder="e.g. Cheap and profitable" aria-invalid={!!nameBad} /></label>

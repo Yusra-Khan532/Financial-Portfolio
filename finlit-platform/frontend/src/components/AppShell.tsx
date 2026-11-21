@@ -8,16 +8,13 @@ import { useWatchlist } from "../lib/watchlist";
 import { usePortfolio } from "../lib/portfolio";
 import { DEMO } from "../lib/demo";
 import { useAlerts, useNotices } from "../lib/alerts";
-import { MORE, SECTIONS, isNew, offeredTo, type NavItem } from "../lib/nav";
+import { DASHBOARD, MENU, isNew, menuMatch, offeredTo, type NavItem } from "../lib/nav";
 import { useIsGold } from "../lib/planGate";
-import { badgeFor } from "../lib/sideGroups";
 import { isBool, isBoolMap, loadUi, saveUi } from "../lib/persist";
 import { SideRail } from "./SideRail";
 
-const RESEARCH = SECTIONS.find((x) => x.id === "research")!;   // by id: the header order changes (Workspace comes first)
-
-type Item = { to: string; label: string; icon: string; badge?: string; end?: boolean; gold?: boolean; sub?: boolean; fresh?: boolean };
-type Group = { title: string; items: Item[] };
+type Item = { to: string; label: string; icon: string; badge?: string; end?: boolean; gold?: boolean; sub?: boolean; fresh?: boolean; desc?: string };
+type Group = { id: string; title: string; line: string; short: string; icon: string; items: Item[] };
 
 /** The left rail for every product page: where you are, what you follow, and what else the platform offers, in the order people use it. */
 export function AppShell() {
@@ -50,7 +47,7 @@ export function AppShell() {
   // Each group is a drop-down: a header you click to show or hide its pages. The group holding the current page is always open;
   // what you opened or closed by hand is remembered.
   const [folded, setFolded] = useState<Record<string, boolean>>(() => loadUi("side-groups", 1, isBoolMap, {}));
-  const toggleGroup = (t: string, isOpen: boolean) => setFolded((f) => { const n = { ...f, [t]: isOpen }; saveUi("side-groups", 1, n); return n; });
+  const toggleGroup = (id: string, isOpen: boolean) => setFolded((f) => { const n = { ...f, [id]: isOpen }; saveUi("side-groups", 1, n); return n; });
   // "Find a page": filters the links by name and opens the groups that match (Ctrl+/ focuses it).
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
@@ -58,6 +55,9 @@ export function AppShell() {
   const bodyRef = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
   const [tip, setTip] = useState<{ label: string; top: number; left: number } | null>(null);
+  // Task #285: every page row has an "i" button that opens the page's one-line description under it (one open at a time; Escape or a second click closes it).
+  const [info, setInfo] = useState<string | null>(null);
+  useEffect(() => { setInfo(null); }, [pathname]);
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey) || e.key !== "/") return;
@@ -81,30 +81,28 @@ export function AppShell() {
     "/alerts": unread ? `${unread} new` : live ? String(live) : undefined,
     "/my-investments": "NEW",   // task #137: a new page
   };
-  const toItem = (n: NavItem): Item => ({ to: n.to, label: n.label, icon: n.icon, end: n.end, gold: n.gold, badge: badges[n.to], fresh: isNew(n) });
-  const mine = (id: string, extra: Item[] = []) => [...SECTIONS.find((x) => x.id === id)!.groups.flatMap((g) => g.items).map(toItem), ...extra];
+  const toItem = (n: NavItem): Item => ({ to: n.to, label: n.label, icon: n.icon, end: n.end, gold: n.gold, badge: badges[n.to], fresh: isNew(n), desc: n.sub });
+  // task #282: one list (lib/nav MENU) for the side menu, the rail, the pop-outs, the top bar and Find a page; Dashboard sits above the groups
+  const dash: Item = toItem(DASHBOARD);
   const groups: Group[] = ([
-    { title: "Overview", items: [{ to: "/dashboard", label: "Dashboard", icon: "home" }] },
-    ...RESEARCH.groups.map((g) => ({ title: g.title || RESEARCH.label, items: g.items.map(toItem) })),
-    { title: "Markets", items: mine("markets") },
-    { title: "News & events", items: mine("news") },
-    { title: "Funds", items: mine("funds") },
-    { title: "Your workspace", items: mine("myfinlit", [{ to: "/baskets", label: "My baskets", icon: "layers" }]).filter((x) => x.to !== "/dashboard") },
-    { title: MORE.groups[0].title!, items: MORE.groups[0].items.map(toItem) },
-    { title: "Learn", items: [{ to: "/glossary", label: "Glossary", icon: "book" }, { to: "/browser-extension", label: "Browser extension", icon: "spark" }, { to: "/blog", label: "Insights & blog", icon: "spark" }, { to: "/documents", label: "Documents", icon: "layers" }, { to: "/forum", label: "Discussion forums", icon: "users" }] },
-    ...(user ? [{ title: "Account", items: [
-      { to: "/account", label: "Profile & security", icon: "users", end: true },
-      { to: "/account/appearance", label: "Appearance", icon: "spark" },
-      ...(DEMO ? [] : [{ to: "/account/plan", label: "Plan", icon: "crown" }]),
-      ...(isAdmin ? [{ to: "/console", label: "Admin console", icon: "lock" }] : []),
+    ...MENU.map((g) => ({ id: g.id, title: g.title, line: g.line, short: g.short, icon: g.icon, items: g.items.map(toItem) })),
+    ...(user ? [{ id: "account", title: "Account", line: "Your profile, appearance and plan", short: "Account", icon: "users", items: [
+      { to: "/account", label: "Profile & security", icon: "users", end: true, desc: "Your name, email, password and sign-in" },
+      { to: "/account/appearance", label: "Appearance", icon: "spark", desc: "Light or dark theme, text size and how pages are laid out" },
+      ...(DEMO ? [] : [{ to: "/account/plan", label: "Plan", icon: "crown", desc: "Your plan and what each plan includes" }]),
+      ...(isAdmin ? [{ to: "/console", label: "Admin console", icon: "lock", desc: "Team tools: members, jobs and data checks" }] : []),
     ] }] : []),
   ] as Group[]).map((g) => ({ ...g, items: g.items.filter(offeredTo(gold)) }));   // task #100: pages not offered to Gold (none since task #283)
+  const navOf = new Map(MENU.flatMap((g) => g.items.map((n) => [n.to, n] as const)));
 
   const here = (g: Group) => g.items.some((i) => (i.end ? pathname === i.to : pathname === i.to || pathname.startsWith(i.to + "/")));
   // open when the page you are on is inside it, otherwise what you chose; the one-page Overview group and the first visit start open for Find stocks
-  const groupOpen = (g: Group) => here(g) || folded[g.title] === true || (folded[g.title] === undefined && (g.items.length === 1 || g.title === "Find stocks"));
-  const shown = useMemo(() => groups.map((g) => ({ g, items: !q ? g.items : g.title.toLowerCase().includes(q) ? g.items : g.items.filter((i) => i.label.toLowerCase().includes(q)) })), [groups, q]);
-  const hits = shown.reduce((n, x) => n + x.items.length, 0);
+  // remembered by the group's id (task #282: find, company, markets, funds and learn keep their ids; the renamed groups start as on a first visit)
+  const groupOpen = (g: Group) => here(g) || folded[g.id] === true || (folded[g.id] === undefined && g.id === "find");
+  // Find a page (task #282): the page's name, its one line, its group's heading, and short aliases ("inflation" finds India economy)
+  const shown = useMemo(() => groups.map((g) => ({ g, items: !q ? g.items : g.items.filter((i) => menuMatch(q, navOf.get(i.to) ?? { to: i.to, label: i.label, sub: "", icon: i.icon, gold: i.gold }, g)) })), [groups, q]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const dashShown = !q || menuMatch(q, DASHBOARD);
+  const hits = shown.reduce((n, x) => n + x.items.length, 0) + (q && dashShown ? 1 : 0);
   // Arrow keys walk the visible group headers and links; Home/End jump to the ends; ArrowUp from the first row returns to the search box.
   const onNavKey = (e: RKeyEvent<HTMLElement>) => {
     const keys = ["ArrowDown", "ArrowUp", "Home", "End"];
@@ -121,9 +119,9 @@ export function AppShell() {
       <button className="shell-fab" onClick={() => setOpen(true)} aria-label="Open the product menu" aria-expanded={open}><Icon name="panel" /><span>Menu</span></button>
       {open && <div className="shell-scrim" onClick={() => setOpen(false)} aria-hidden="true" />}
       <aside className="side" aria-label="Product navigation">
-        {collapsed && desktop ? <SideRail groups={groups} here={here} onExpand={() => setCollapsed(false)} /> : <>
+        {collapsed && desktop ? <SideRail groups={groups} dash={{ to: dash.to, label: dash.label, line: DASHBOARD.sub }} here={here} onExpand={() => setCollapsed(false)} /> : <>
         <div className={"side-top" + (scrolled ? " is-scrolled" : "")}>
-          <span className="side-t"><span className="side-tb" aria-hidden="true"><Icon name="grid" /></span><span className="side-tt">Workspace</span></span>
+          <span className="side-t"><span className="side-tb" aria-hidden="true"><Icon name="grid" /></span><span className="side-tt">All pages</span></span>
           <button className="side-toggle hide-sm" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? "Expand the side menu" : "Collapse the side menu"} aria-pressed={collapsed} title={collapsed ? "Expand" : "Collapse"}><Icon name="panel" /></button>
           <button className="side-toggle show-sm" onClick={() => setOpen(false)} aria-label="Close the product menu">✕</button>
           <div className="side-find">
@@ -140,22 +138,31 @@ export function AppShell() {
         <div className="side-body" ref={bodyRef} onScroll={(e) => { const v = e.currentTarget.scrollTop > 2; if (v !== scrolled) setScrolled(v); setTip(null); }}>
         <nav onKeyDown={onNavKey}>
           {q && hits === 0 && <p className="side-none" role="status">No page matches “{query.trim()}”.</p>}
+          {dashShown && <NavLink to={dash.to} end className={({ isActive }) => "side-i side-dash" + (isActive ? " on" : "")}>
+            <span className="side-ic"><Icon name="grid" /></span><span className="side-l side-l2"><span className="side-lt">{dash.label}</span><span className="side-ls">{DASHBOARD.sub}</span></span></NavLink>}
           {shown.map(({ g, items }) => {
             if (q && !items.length) return null;
-            const gid = "sg-" + g.title.replace(/\W+/g, "-"), isOpen = !!q || groupOpen(g), b = badgeFor(g.title), holds = here(g);
+            const gid = "sg-" + g.id, isOpen = !!q || groupOpen(g), holds = here(g);
             return (
-            <div className={"side-g" + (isOpen ? " is-open" : "") + (holds ? " has-here" : "")} key={g.title}>
-              <button type="button" className="side-gt side-gb" aria-expanded={isOpen} aria-controls={gid} onClick={() => toggleGroup(g.title, !isOpen)}>
-                <span className="side-gbd" aria-hidden="true"><Icon name={b.icon} /></span><span className="side-gname">{g.title}</span><span className="side-gn" aria-label={g.items.length + (g.items.length === 1 ? " page" : " pages")}>{g.items.length}</span><svg className="side-gc" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
+            <div className={"side-g" + (isOpen ? " is-open" : "") + (holds ? " has-here" : "")} key={g.id} data-group={g.id}>
+              <button type="button" className="side-gt side-gb" aria-expanded={isOpen} aria-controls={gid} onClick={() => toggleGroup(g.id, !isOpen)}>
+                <span className="side-gbd" aria-hidden="true"><Icon name={g.icon} /></span><span className="side-gw"><span className="side-gname">{g.title}</span><span className="side-gs">{g.line}</span></span><span className="side-gn" aria-label={g.items.length + (g.items.length === 1 ? " page" : " pages")}>{g.items.length}</span><svg className="side-gc" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
               </button>
               <div id={gid} className="side-gi" role="region" aria-label={g.title} inert={!isOpen && !collapsed}>
               <div className="side-gin">
-              {items.map((i) => (
-                <NavLink key={i.to} to={i.to} end={i.end ?? false} className={({ isActive }) => "side-i" + (i.sub ? " sub" : "") + (isActive ? " on" : "")} aria-label={collapsed ? i.label : undefined}
+              {items.map((i) => {
+                const did = "sd-" + i.to.replace(/[^a-z0-9]+/gi, "-"), shows = info === i.to;
+                return (
+                <div key={i.to} className={"side-row" + (i.desc ? " has-info" : "") + (shows ? " is-info" : "")}>
+                <NavLink to={i.to} end={i.end ?? false} className={({ isActive }) => "side-i" + (i.sub ? " sub" : "") + (isActive ? " on" : "")} aria-label={collapsed ? i.label : undefined}
                   onMouseEnter={(e) => showTip(e.currentTarget, i.label)} onFocus={(e) => showTip(e.currentTarget, i.label)} onMouseLeave={() => setTip(null)} onBlur={() => setTip(null)}>
                   <span className="side-ic"><Icon name={i.icon} /></span><span className="side-l"><span className="side-lt">{i.label}</span>{i.gold && <em className="gtag" title="Gold plan" aria-label="Gold plan">Gold</em>}{i.fresh && <em className="side-new" title="A new page">New</em>}</span>{i.badge && <span className="side-b">{i.badge}</span>}
                 </NavLink>
-              ))}
+                {i.desc && <button type="button" className="side-info" aria-label={`About ${i.label}`} aria-expanded={shows} aria-controls={did} title={i.desc}
+                  onClick={() => setInfo((v) => (v === i.to ? null : i.to))} onKeyDown={(e) => { if (e.key === "Escape" && shows) { e.stopPropagation(); setInfo(null); } }}>i</button>}
+                {shows && <p id={did} className="side-desc" role="note">{i.desc}</p>}
+                </div>);
+              })}
               </div>
               </div>
             </div>

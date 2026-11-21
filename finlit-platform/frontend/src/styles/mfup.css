@@ -2,6 +2,10 @@
 .mfu, .mfu-page, .mfu-admin, .mfs-bdwrap, .mfu-bd, .mfs-chip { --band-hi: #2FBF7F; --band-mid: #F0A030; --band-lo: #E5484D; --band-hi-ink: #5FE0A5; --band-mid-ink: #FFB454; --band-lo-ink: #FF7A7F; }
 :root[data-theme="light"] .mfu, :root[data-theme="light"] .mfu-page, :root[data-theme="light"] .mfu-admin, :root[data-theme="light"] .mfu-bd, :root[data-theme="light"] .mfs-chip { --band-hi: #1E9A60; --band-mid: #CC7A00; --band-lo: #D33A3F; --band-hi-ink: #11794D; --band-mid-ink: #8F5400; --band-lo-ink: #B82A30; }
 .mfs-chip { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px; border: 1px solid currentColor; font: 700 12px/17px var(--mono, monospace); vertical-align: 1px; }
+/* Task #286: the chip hugs its number (the red box of the task's picture). Inside a grid cell, such as the fund name in the funds list (.mf-nm), a grid item
+   stretches to the cell's width by default, which drew the score as a bar as wide as the name; justify-self and width keep it the size of the number. */
+.mfs-chip { justify-self: start; align-self: start; width: max-content; max-width: max-content; min-width: 28px; text-align: center; box-sizing: border-box; }
+.mf-nm > .mfs-chip { margin-left: 0; }
 .mfu-hist { position: relative; } .mfu-hist svg { width: 100%; height: auto; display: block; touch-action: pan-y; }
 .mfu-ax { font: 12px var(--mono, monospace); fill: var(--faint); } .mfu-zl { font: 600 12px var(--sans); fill: var(--muted); } .mfu-rl { font: 600 12px var(--sans); fill: var(--muted); }
 .mfu-tog { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 6px 0 10px; font-size: 13px; color: var(--muted); }
