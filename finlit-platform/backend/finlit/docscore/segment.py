@@ -98,6 +98,8 @@ def _paragraphs(lines: Sequence[str]) -> List[tuple]:
     return res
 
 
+ANALYST_TALK = re.compile(r"\b(my (first |second |next |last |final |follow-up |followup )?question|(?<!your )(?<!the )(?<!that )first question (on|is|was|for)|(?<!your )(?<!the )(?<!that )second question (on|is|was|for)|"
+                          r"thanks? (you )?for taking my question|a couple of questions|two questions|my follow-up|i have (a|two|one) question)", re.I)
 NOT_SPEAKER = re.compile(r"^(sub|subject|ref|re|date|to|dear|note|notes|website|web|email|e-mail|tel|fax|cin|regd|place|encl|kind attn|attn)$"
                          r"|\b(symbol|scrip|code|isin|office|address|phone|telephone|mobile|website|e-?mail|fax|cin|regd|registered|series|"
                          r"stock exchange|exchange|limited|ltd|listing|department|dept|plot|road|floor|tower|building|pin)\b", re.I)   # letterhead labels ("NSE Symbol:", "Regd. Office:")
@@ -229,6 +231,13 @@ def segment(pages: Sequence[str], doctype: str) -> List[Point]:
                     if status == "scored" and ch.rstrip().endswith("?"):
                         status = "excluded: a question"     # a question is not a company statement, whoever reads it out
                 points.append(Point(ch, pno, section, "row" if kind == "row" else "bullet" if kind == "bullet" else "sentence", speaker if doctype == "C" else None, status))
+    if doctype == "C":
+        # 2.1.4: a speaker who asks as an analyst does ("First question on growth drivers", "my question is", "thanks for taking my question") and is not on
+        # the company's own list is an analyst for the whole call, however the moderator introduced them (Tech Mahindra Q2 FY27: "Rod B").
+        askers = {p.speaker for p in points if p.speaker and ANALYST_TALK.search(p.text) and not any(_same(p.speaker.lower(), n) for n in mine)}
+        for p in points:
+            if p.speaker in askers and p.status == "scored":
+                p.status = "excluded: analyst or moderator"
     if doctype == "C" and points and all(p.status == "excluded: before the call" or p.status == "heading" for p in points):
         for p in points:                            # a transcript with no speaker labels at all: every sentence is read as the company's
             if p.status == "excluded: before the call":
