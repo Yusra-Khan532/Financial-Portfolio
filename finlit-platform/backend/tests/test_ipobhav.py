@@ -52,6 +52,10 @@ def test_the_api_uses_the_exchange_day1_close_and_the_latest_file_close():
     r = ipoapi.row(base, date(2026, 11, 21))
     assert (r["listingClose"], r["listingClosePct"], r["day1"]["high"], r["day1"]["source"]) == (203.55, -0.22, 214.2, "BSE")
     assert (r["lastClose"], r["lastDay"], r["sinceIpoPct"]) == (180.0, "2026-11-20", -11.76)
+    lag = ipoapi.row({**base, "nse": "X", "listing_open": 204.0, "last_close": 175.0, "last_day": date(2026, 11, 18), "listing_date": date(2023, 11, 3)}, date(2026, 11, 21))
+    assert (lag["lastClose"], lag["lastDay"]) == (180.0, "2026-11-20")                  # our closes lag; no split since listing (factor 1.0): the file's newer close
+    split = ipoapi.row({**base, "nse": "X", "listing_open": 102.0, "last_close": 90.0, "last_day": date(2026, 11, 18), "listing_date": date(2023, 11, 3)}, date(2026, 11, 21))
+    assert (split["lastClose"], split["lastDay"]) == (90.0, "2026-11-18")                # a split since listing (factor 0.5): our adjusted close stays
     old = ipoapi.row({**base, "listing_date": date(2023, 11, 3)}, date(2026, 11, 21))
     assert old["listingClosePct"] == -0.22 and old["sinceIpoPct"] is None                 # day 1 is as traded; a 3-year-old close is not split-adjusted
 

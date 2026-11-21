@@ -107,7 +107,10 @@ def row(r: Dict[str, Any], today: date) -> Dict[str, Any]:
     # No daily closes of our own: the newest close in the exchange's file, else the nightly quote, but only for an issue that listed within the last
     # year (neither is adjusted for splits and bonuses, which are rare in a share's first year; older issues need our adjusted daily history)
     recent = bool(r["listing_date"]) and (today - r["listing_date"]).days <= QUOTE_FALLBACK_DAYS
-    if last is None and recent and r.get("last_px"):
+    # The exchange file's close is used when it is newer than our daily closes (ours can lag a few days for some shares) or when we have none, provided it
+    # compares like with like: the issue listed within a year, or our own history shows no split or bonus since listing (factor 1.0)
+    bhav_newer = r.get("last_px") and r.get("last_px_date") and (last_day is None or r["last_px_date"] > last_day)
+    if bhav_newer and (recent or k == 1.0):
         last, last_day, since_base = _f(r["last_px"]), r.get("last_px_date"), issue
     elif last is None and recent and r.get("quote_price"):
         last, since_base = _f(r["quote_price"]), issue
