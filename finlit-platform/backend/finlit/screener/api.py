@@ -23,9 +23,9 @@ DEFAULT_COLUMNS = ["market_cap", "price"]
 # Task #141: Gold also opens with the two Prism technical views, Short-term technical and Long-term technical, beside the market cap.
 STANDARD_COLUMNS = ["market_cap"]
 GOLD_TECHNICAL_COLUMNS = ["prism_st_score", "prism_lt_score"]
-IQ_BANDS = ("strong", "healthy", "mixed", "watch")
 PRISM_BANDS = ("strong", "healthy", "average", "weak", "poor")
-BandWord = Literal["strong", "healthy", "mixed", "watch", "average", "weak", "poor"]   # every word of either score (IQ_BANDS + PRISM_BANDS)
+# FinLit Prism's words; "mixed" and "watch" (the retired FinLit IQ's) are still read so an older saved screen is not refused as malformed, and match nothing on Prism
+BandWord = Literal["strong", "healthy", "mixed", "watch", "average", "weak", "poor"]
 
 
 RATIO_PLAN_LINE = "Custom ratios come with Gold and Platinum."
@@ -53,8 +53,8 @@ class Cats(BaseModel):
     industry: List[str] = Field(default_factory=list, max_length=60)
     index: List[str] = Field(default_factory=list, max_length=20)
     cap: List[Literal["Large", "Mid", "Small", "Micro"]] = Field(default_factory=list, max_length=4)   # task #262: four sizes
-    # the rating words of the plan's score: FinLit IQ's below Gold (strong, healthy, mixed, watch), FinLit Prism's for Gold (strong, healthy, average, weak, poor).
-    # Task #142: only the IQ words were accepted, so a Gold member who picked Average, Weak or Poor got a refused request ("The screener is unavailable").
+    # FinLit Prism's rating words (strong, healthy, average, weak, poor), Gold only (task #283: Prism is the only company score).
+    # Task #142: a Gold member who picked Average, Weak or Poor must never get a refused request ("The screener is unavailable").
     band: List[BandWord] = Field(default_factory=list, max_length=5)
 
 
@@ -146,7 +146,7 @@ async def catalog(request: Request):
     t = await _table(request)
     groups = []
     for gid, label in GROUPS:
-        if not offered(plan, gid):           # Gold sees FinLit Prism and never the FinLit IQ; below Gold, no Prism (tasks #64 P-1, #100)
+        if not offered(plan, gid):           # FinLit Prism for Gold; below Gold, no Prism; the retired FinLit IQ for no plan (tasks #64 P-1, #100, #283)
             continue
         ms = [m for m in CATALOG if m.group == gid]
         groups.append({"id": gid, "label": label, "tier": GROUP_TIER.get(gid, "basic"), "metrics": [
@@ -164,10 +164,10 @@ async def catalog(request: Request):
         "nseSectors": [{"name": n, "macro": m, "n": c} for n, m, c in t.nsectors],
         "indices": [{"code": c, "label": INDEX_LISTS[c][0], "n": len(t.members.get(c, ()))} for c in INDEX_LISTS if t.members.get(c)],
         "caps": [{"name": c, "n": sum(1 for x in t.cap if x == c)} for c in CAPS],
-        # the rating chips: FinLit Prism's words for Gold, the FinLit IQ's below (locked on Basic)
-        "bandModel": "prism" if is_gold(plan) else "iq",
+        # the rating chips: FinLit Prism's words (task #283: the only company score). Gold has them with counts; below Gold they come locked, with no count
+        "bandModel": "prism" if is_gold(plan) else None,
         "bands": ([{"key": b, "label": b.title(), "locked": False, "n": sum(1 for x in t.pband if x == b)} for b in PRISM_BANDS] if is_gold(plan)
-                  else [{"key": b, "label": b.title(), "locked": not allowed(plan, "silver"), "n": sum(1 for x in t.band if x == b)} for b in IQ_BANDS]),
+                  else [{"key": b, "label": b.title(), "locked": True} for b in PRISM_BANDS]),
         "limits": {"rows": BASIC_ROWS if plan == "basic" else None, "export": False},    # no downloads on any plan (task #64 P-3)
         "defaultColumns": DEFAULT_COLUMNS,
         "standardColumns": standard_columns(plan),
@@ -249,7 +249,7 @@ def screens_of(body) -> List[str]:
 
 
 def cats_for(body, plan: str) -> dict:
-    """The category filters, with the rating words read against the plan's score: FinLit Prism's band for Gold, the FinLit IQ's below.
+    """The category filters, with the rating words read against FinLit Prism's band (Gold; below Gold a rating word is refused as part of Gold, task #283).
     A screen on a FinLit score that filters by its rating word (Strong) adds that word."""
     c = body.cats.model_dump()
     bands = list(c.get("band") or [])
@@ -257,10 +257,7 @@ def cats_for(body, plan: str) -> dict:
         want = set(READY_BY_ID[sid].bands)
         if want:
             bands = sorted((set(bands) & want) if bands else want)
-    if is_gold(plan):
-        c["pband"], c["band"] = bands, []
-    else:
-        c["band"] = bands
+    c["pband"], c["band"] = (bands if is_gold(plan) else []), []      # task #283: the retired FinLit IQ band is never a filter
     return c
 
 
@@ -300,7 +297,7 @@ async def ready(request: Request):
     t = await _table(request)
     counts = ready_counts(t)
     body = {"asOf": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(t.loaded)), "total": t.n,
-            "screens": [ready_public(r, counts.get(r.id)) for r in READY if shown_to(r, plan)]}     # FinLit IQ screens below Gold, Prism screens for Gold
+            "screens": [ready_public(r, counts.get(r.id)) for r in READY if shown_to(r, plan)]}     # the screens on FinLit Prism for Gold only
     return Response(content=__import__("json").dumps(body, separators=(",", ":"), ensure_ascii=False), media_type="application/json", headers={**NO_STORE, "Vary": "Cookie"})
 
 
@@ -319,9 +316,9 @@ def _run(t, body: Query_, plan: str):
     locked = _locked(plan, need)
     off_plan = [k for k in need if k in BY_KEY and not offered(plan, BY_KEY[k].group)]
     if off_plan or any(not shown_to(READY_BY_ID[sid], plan) for sid in screens_of(body)):
-        raise fail(400, "bad_request", "That filter is not part of this plan's score: Gold uses FinLit Prism, Silver the FinLit IQ.")
-    if (body.cats.band or screens_of(body)) and not allowed(plan, "silver"):
-        locked["overall"] = "silver"
+        raise fail(400, "bad_request", "That filter is not offered: the screener's score is FinLit Prism.")
+    if (body.cats.band or screens_of(body)) and not is_gold(plan):       # task #283: a rating word is FinLit Prism's, which is Gold
+        locked["prism_final"] = "gold"
     if locked:
         raise _refuse(locked, "Filtering or showing")
     model = _model_rules(screens_of(body))
@@ -377,11 +374,8 @@ async def query(request: Request, body: Query_):
     for r, i in zip(rows, page):
         if rv:
             r["r"] = {k: (None if v[i] != v[i] else round(v[i], 4)) for k, v in rv.items()}
-    if not allowed(plan, "silver"):  # the score band is a model output: below Silver only the free showcase companies keep it, as on the universe list
-        showcase = set(request.app.state.settings.showcase_symbols)
-        for r in rows:
-            if r["symbol"] not in showcase:
-                r["band"] = None
+    for r in rows:      # task #283: the retired FinLit IQ's band word is never sent (FinLit Prism's, `pband`, is the rating)
+        r["band"] = None
     out = {"total": total, "offset": off, "limit": lim, "capped": capped, "columns": cols, "rows": rows,
            "took": round((time.perf_counter() - started) * 1000, 1)}
     if body.funnel:        # task #259 (SHARED §1): each option's count follows the other filters already set (its own level left out)

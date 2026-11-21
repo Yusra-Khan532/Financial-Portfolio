@@ -94,25 +94,26 @@ async def test_plan_gate(app):  # noqa: F811
         assert r.status_code == 200
         cat = r.json()
         keys = {m["key"]: m for g in cat["groups"] for m in g["metrics"]}
-        assert cat["plan"] == "basic" and keys["pe"]["locked"] is False and keys["pb"]["locked"] is True and keys["overall"]["locked"] is True
+        assert cat["plan"] == "basic" and keys["pe"]["locked"] is False and keys["pb"]["locked"] is True and "overall" not in keys   # task #283: the retired score is offered to no plan
         ok = await _q(anon, {"filters": {"pe": {"max": 100}}, "columns": ["pe", "market_cap"], "limit": 100})
         assert ok.status_code == 200 and ok.json()["limit"] <= 25
-        showcase = set(app.state.settings.showcase_symbols)
-        assert all(r["band"] is None for r in ok.json()["rows"] if r["symbol"] not in showcase)   # the score band is model output too
+        assert all(r["band"] is None for r in ok.json()["rows"])   # the retired score's band word is never sent (task #283)
         no = await _q(anon, {"filters": {"pb": {"max": 5}}})
         assert no.status_code == 403 and no.json()["detail"]["plan"] == "silver"
-        assert (await _q(anon, {"columns": ["overall"]})).status_code == 403          # cannot read locked data through columns either
+        assert (await _q(anon, {"columns": ["roce_3y"]})).status_code == 403          # cannot read locked data through columns either
+        assert (await _q(anon, {"columns": ["overall"]})).status_code == 400          # the retired score is no column at all
         assert (await _q(anon, {"sort": {"key": "pb"}})).status_code == 403            # nor through sorting
         assert (await _q(anon, {"cats": {"band": ["strong"]}})).status_code == 403
         assert (await anon.post("/api/screener/export", json={})).status_code in (404, 405)   # no downloads on any plan (task #64 P-3)
         assert (await _q(anon, {"filters": {"nonsense": {"min": 1}}})).status_code == 422
     silver = await signed_in(app, "s@example.com", plan="silver")
     assert (await _q(silver, {"filters": {"pb": {"max": 50}}, "columns": ["pb"]})).status_code == 200
-    ok = await _q(silver, {"filters": {"overall": {"min": 0}}, "columns": ["overall", "pillar_quality"], "cats": {"band": ["mixed", "strong", "healthy", "watch"]}})
-    assert ok.status_code == 200 and ok.json()["total"] >= 1 and any(r["band"] for r in ok.json()["rows"])   # the FinLit IQ filters are Silver's (task #64)
+    for body in ({"filters": {"overall": {"min": 0}}}, {"columns": ["overall", "pillar_quality"]}, {"sort": {"key": "pillar_growth", "dir": "desc"}}):   # task #283: retired, on no plan
+        assert (await _q(silver, body)).status_code == 400, body
+    assert (await _q(silver, {"cats": {"band": ["mixed", "strong"]}})).status_code == 403                # a rating word is FinLit Prism's: Gold
     assert (await _q(silver, {"filters": {"prism_final": {"min": 10}}})).status_code == 400   # FinLit Prism is not part of Silver's score
     gold = await signed_in(app, "g@example.com", plan="gold")
-    assert (await _q(gold, {"filters": {"overall": {"min": 0}}})).status_code == 400          # Gold never filters by the FinLit IQ
+    assert (await _q(gold, {"filters": {"overall": {"min": 0}}})).status_code == 400          # nor Gold
     assert (await gold.post("/api/screener/export", json={"columns": ["pe", "roe"]})).status_code in (404, 405)
 
 

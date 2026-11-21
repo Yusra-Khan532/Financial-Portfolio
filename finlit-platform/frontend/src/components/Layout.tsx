@@ -46,7 +46,7 @@ function Menu({ m, open, setOpen, path }: { m: NavSection; open: boolean; setOpe
 function Header({ onSearch }: { onSearch: () => void }) {
   const { theme, toggleTheme, plan, setPlan } = useUI();
   const gold = useIsGold();
-  const sections = useMemo(() => forPlan(SECTIONS, gold), [gold]);   // task #100: no Basic stock screener for Gold
+  const sections = useMemo(() => forPlan(SECTIONS, gold), [gold]);   // task #100: pages not offered to Gold (none since task #283)
   const { user, ready, isAdmin, signOut } = useAuth();
   const nav = useNavigate();
   const [acct, setAcct] = useState(false);

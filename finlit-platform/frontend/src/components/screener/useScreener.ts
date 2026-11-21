@@ -1,18 +1,19 @@
-// The state and actions both score screeners share: URL state, draft vs applied filters, selection, watchlist, CSV, sorting.
-// Each page decides which columns, filters and views it shows; this hook knows nothing about the models.
+// The state and actions of the Advanced stock screener (FinLit Prism): URL state, draft vs applied filters, selection, watchlist, CSV, sorting.
+// The page decides which columns, filters and views it shows; this hook knows nothing about the model.
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useUniverse } from "../../lib/screener";
 import { useUI } from "../../lib/ui";
 import { useWatchlist, watch } from "../../lib/watchlist";
 import {
-  applyTop, fitLevels, iqGroupCounts, levelCounts, IQ_GROUPS, iqGroupOn, toggleRangeBand, togglePRangeBand, isBandList, topPool, chipsFor, cloneFilters, concentration, emptyFilters, facetCounts, filtersKey, nextSort, pageOf, parseState, isOldSizeLink, removeChip, serializeState, summarize, validate, withScores,
-  type Band, type BandKey, type PBand, type Filters, type IqLabel, type Item, type RangeKey, type Scope, type Sort, type SortKey, type State, type TechBand, type TechKey, type Trend5,
+  applyFilters, fitLevels, levelCounts, togglePRangeBand, isBandList, sortRows, chipsFor, cloneFilters, concentration, emptyFilters, facetCounts, filtersKey, nextSort, pageOf, parseState, isOldSizeLink, removeChip, serializeState, summarize, validate, withScores,
+  type PBand, type Filters, type Item, type RangeKey, type Scope, type Sort, type SortKey, type State, type TechBand, type TechKey, type Trend5,
 } from "../../lib/scoreScreen";
 import { coverageFrom } from "../../lib/scorePrism";
 import type { PrismLabel } from "../../lib/scorePrism";
+import { PLAN_FOR_WATCHLIST } from "../../lib/planGates";
 
-export type Mode = "basic" | "advanced";
+export type Mode = "advanced";
 const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
 export function useScreener(mode: Mode) {
@@ -31,7 +32,7 @@ export function useScreener(mode: Mode) {
   const [secQ, setSecQ] = useState(""), [q, setQ] = useState(() => (isBandList(params.get("q")) ? "" : params.get("q") ?? ""));   // q: the toolbar search; it narrows the table and is kept in the address as ?q=
   const [picked, setPicked] = useState<string[]>([]);
   const [how, setHow] = useState(false), [drawer, setDrawer] = useState(false);
-  const silver = has("silver"), locked = !silver, gold = has("gold"), maxCompare = gold ? 4 : 2;
+  const silver = has(PLAN_FOR_WATCHLIST), gold = has("gold"), maxCompare = gold ? 4 : 2;
   const appliedKey = filtersKey(applied);
   // mine: every filter set this page applied that the address has not echoed back yet (a Set, not one slot: two quick changes, say removing a chip and then
   // ticking another filter, used to let the late echo of the first one reset the sidebar and bring the removed filter back); wait: see below
@@ -47,9 +48,8 @@ export function useScreener(mode: Mode) {
   const found = useMemo(() => { const k = q.trim().toLowerCase(); return k ? items.filter((r) => `${r.symbol} ${r.name ?? ""} ${r.sector ?? ""}`.toLowerCase().includes(k)) : items; }, [items, q]);   // the toolbar search narrows everything, the counts beside the options included
   const facets = useMemo(() => facetCounts(found, draft), [found, draft]);
   const levels = useMemo(() => levelCounts(found, draft), [found, draft]);         // task #257: the three linked lists, every NSE name with its count
-  const iqCounts = useMemo(() => iqGroupCounts(found, draft), [found, draft]);     // task #257: Strong or Healthy / Below Healthy / Not rated   // each option's count respects every OTHER active filter (faceted search); the option's own group is left out so you can see what ticking another one would add
-  const rows = useMemo(() => applyTop(found, applied, sort), [found, appliedKey, sort]);   // eslint-disable-line react-hooks/exhaustive-deps
-  const topOf = useMemo(() => topPool(found, applied), [found, appliedKey]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // each option's count respects every OTHER active filter (faceted search); the option's own group is left out so you can see what ticking another one would add
+  const rows = useMemo(() => sortRows(applyFilters(found, applied), sort), [found, appliedKey, sort]);   // eslint-disable-line react-hooks/exhaustive-deps
   const sum = useMemo(() => summarize(rows), [rows]);
   const mix = useMemo(() => concentration(rows), [rows]);
   const pg = pageOf(rows, state.page, size);
@@ -82,12 +82,9 @@ export function useScreener(mode: Mode) {
     const t = setTimeout(() => apply(draft), wait.current);
     return () => clearTimeout(t);
   }, [draft]);   // eslint-disable-line react-hooks/exhaustive-deps
-  const setBand = (k: BandKey, b: Band) => edit((d) => ({ ...d, bands: { ...d.bands, [k]: toggle(d.bands[k], b) } }));
   const setRange = (k: RangeKey, end: "min" | "max", v: string) => edit((d) => ({ ...d, ranges: { ...d.ranges, [k]: { ...d.ranges[k], [end]: v.trim() === "" ? null : Number(v), ...(end === "max" ? { maxExcl: false } : {}) } } }), true);
   const setLabel = (l: PrismLabel) => edit((d) => ({ ...d, labels: toggle(d.labels, l) }));
-  const setRangeBand = (k: RangeKey, b: Band) => edit((d) => ({ ...d, ranges: { ...d.ranges, [k]: toggleRangeBand(d.ranges[k], b) } }));
   const setPRangeBand = (k: RangeKey, b: PBand) => edit((d) => ({ ...d, ranges: { ...d.ranges, [k]: togglePRangeBand(d.ranges[k], b) } }));   // Prism's five bands (N-32)
-  const setIqLabel = (l: IqLabel) => edit((d) => ({ ...d, iqLabels: toggle(d.iqLabels, l) }));
   const setTech = (k: TechKey, b: TechBand) => edit((d) => ({ ...d, tech: { ...d.tech, [k]: toggle(d.tech[k], b) } }));
   const setTrend = (k: TechKey, b: Trend5) => edit((d) => ({ ...d, trend: { ...d.trend, [k]: toggle(d.trend[k], b) } }));   // task #258: the five trend words
   /** Task #257 (SHARED §1): tick or untick a macro sector, sector or industry; a lower choice that no longer fits is taken off, and its names are returned for the message. */
@@ -97,7 +94,6 @@ export function useScreener(mode: Mode) {
     return next.dropped;
   };
   const clearLevel = (level: "macros" | "nsecs" | "industries") => edit((d) => fitLevels({ ...d, [level]: [] }).f);
-  const setIqGroup = (id: string) => { const g = IQ_GROUPS.find((x) => x.id === id)!; edit((d) => ({ ...d, iqLabels: iqGroupOn(d, g) ? d.iqLabels.filter((l) => !g.labels.includes(l)) : [...new Set([...d.iqLabels, ...g.labels])] })); };
 
   const togglePick = (s: string) => setPicked((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]));
   const pageSyms = pg.view.map((r) => r.symbol), allOnPage = pageSyms.length > 0 && pageSyms.every((s) => sel.includes(s)), someOnPage = pageSyms.some((s) => sel.includes(s));
@@ -106,11 +102,11 @@ export function useScreener(mode: Mode) {
   const toggleAll = () => setPicked((p) => (allOnPage ? p.filter((s) => !pageSyms.includes(s)) : [...new Set([...p, ...pageSyms])]));
 
   const addWatch = (s: string) => {
-    if (!silver) { upgrade("silver", "Watchlists come with the Silver plan."); return; }
+    if (!silver) { upgrade(PLAN_FOR_WATCHLIST, "Watchlists come with the Silver plan."); return; }
     if (watch.has(s)) { watch.remove(s); toast(`${s} removed from your watchlist.`); } else { watch.add(s); toast(`${s} added to your watchlist.`); }
   };
   const addSelected = () => {
-    if (!silver) { upgrade("silver", "Watchlists come with the Silver plan."); return; }
+    if (!silver) { upgrade(PLAN_FOR_WATCHLIST, "Watchlists come with the Silver plan."); return; }
     const fresh = sel.filter((s) => !watch.has(s));
     fresh.forEach((s) => watch.add(s));
     toast(fresh.length ? `${fresh.length} ${fresh.length === 1 ? "company" : "companies"} added to your watchlist.` : "These companies are already on your watchlist.");
@@ -119,8 +115,8 @@ export function useScreener(mode: Mode) {
 
   return {
     mode, data, isLoading, isError, has, upgrade, nav, state, applied, sort, size, draft, setDraft: setDraftLive, secQ, setSecQ, q, setQ, picked, setPicked, how, setHow, drawer, setDrawer,
-    silver, locked, gold, maxCompare, items: items as Item[], found: found as Item[], unscored, asOf, cover, prismAsOf, techAsOf, facets, levels, iqCounts, setLevel, clearLevel, setIqGroup, edit, rows, topOf, sum, mix, pg, chips, problems, bad, dirty, flush: () => apply(draft), sel, filterCount: chips.length,
-    sizeMoved, go, apply, clear, drop, toggle, setBand, setRange, setLabel, setIqLabel, setRangeBand, setPRangeBand, setTech, setTrend, togglePick, allOnPage, headBox, toggleAll, addWatch, addSelected, sortBy,
+    silver, gold, maxCompare, items: items as Item[], found: found as Item[], unscored, asOf, cover, prismAsOf, techAsOf, facets, levels, setLevel, clearLevel, edit, rows, sum, mix, pg, chips, problems, bad, dirty, flush: () => apply(draft), sel, filterCount: chips.length,
+    sizeMoved, go, apply, clear, drop, toggle, setRange, setLabel, setPRangeBand, setTech, setTrend, togglePick, allOnPage, headBox, toggleAll, addWatch, addSelected, sortBy,
   };
 }
 export type Screener = ReturnType<typeof useScreener>;

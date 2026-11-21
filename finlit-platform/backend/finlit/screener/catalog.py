@@ -28,14 +28,17 @@ GROUPS = [
     ("model", "FinLit IQ"), ("prism", "FinLit Prism"),
 ]
 GROUP_LABEL = dict(GROUPS)
-# One score per plan (founder, 13 Nov 2026, tasks #64 and #100): Silver filters by the FinLit IQ ("model"), Gold and up by FinLit Prism ("prism") and never see the IQ.
+# Task #283 (21 Nov 2026): FinLit Prism ("prism", Gold and up) is FinLit's only company score. The retired FinLit IQ's group ("model": overall, its five pillars,
+# its change and report counts) is offered to no plan: no filter list, column, sort, query or ratio list shows it. Its figures stay in the table (the universe and
+# the members' saved items still carry them until the data change), so they are kept below, unoffered.
 GROUP_TIER = {"model": "silver", "prism": "gold"}
+RETIRED_GROUPS = ("model",)
 
 
 def offered(plan: str, group: str) -> bool:
-    """Whether a plan is shown a group at all: Gold has the Prism group instead of the FinLit IQ group, every other plan the IQ group (locked below Silver) and no Prism."""
+    """Whether a plan is shown a group at all: the retired score's group never; FinLit Prism for Gold and up (below Gold, no Prism, as before)."""
     gold = plan in ("gold", "admin", "platinum")
-    return not (gold and group == "model") and not (not gold and group == "prism")
+    return group not in RETIRED_GROUPS and not (not gold and group == "prism")
 
 M = Metric
 _B = "basic"

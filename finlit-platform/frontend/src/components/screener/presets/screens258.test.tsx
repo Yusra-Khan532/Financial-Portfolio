@@ -13,7 +13,7 @@ const D = { facets: { sizes: { Large: 2, Mid: 1 }, sectors: [], strong: 1, anyRa
   macros: [["Financial Services", 2], ["Commodities", 1]], nsecs: [["Financial Services", 2], ["Metals & Mining", 1]], industries: [["Banks", 2], ["Ferrous Metals", 1]],
   ratings: { strong: 1, healthy: 1, average: 0, weak: 1, poor: 0, notrated: 0 }, trend: { st: { su: 1, u: 1, s: 0, d: 1, sd: 0 }, lt: { su: 0, u: 0, s: 1, d: 1, sd: 1 } } } } as unknown as PresetDetail;
 let last: BarFilter = NO_BAR;
-function F() { const [b, setB] = useState<BarFilter>(NO_BAR); last = b; return <MemoryRouter><FilterMenus d={D} f={{ bar: b, set: setB }} basic={false} onAddRule={() => {}} /><FilterChips f={{ bar: b, set: setB }} basic={false} /></MemoryRouter>; }
+function F() { const [b, setB] = useState<BarFilter>(NO_BAR); last = b; return <MemoryRouter><FilterMenus d={D} f={{ bar: b, set: setB }} onAddRule={() => {}} /><FilterChips f={{ bar: b, set: setB }} /></MemoryRouter>; }
 const labels = (g: HTMLElement) => within(g).getAllByRole("checkbox").map((c) => c.closest("label")!.textContent);
 
 describe("SPEC §2: every macro sector, sector and industry is listed", () => {

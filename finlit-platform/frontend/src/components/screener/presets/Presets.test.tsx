@@ -240,16 +240,6 @@ describe("redesign: list text, notes, theme figures and the Basic tab", () => {
     expect(screen.getByText("Breadth is 38%, below the 40% needed.")).toBeTruthy();
     expect(screen.queryByText("B50")).toBeNull();
   });
-  it("a Basic-tab screen asks for Silver, not Gold, when the plan is short", async () => {
-    detail.large = [403, { detail: { status: "plan_required" } }];
-    st.plan = "basic";
-    const Basic = () => { const r = usePresetRoute("basic"); return r.id ? <PresetPage route={r} /> : <PresetPanel route={r} />; };
-    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={["/score-screener?preset=large"]}><Basic /></MemoryRouter></QueryClientProvider>);
-    expect(await screen.findByRole("heading", { name: /This screen is part of Silver/ })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /Unlock with Silver/ }));
-    expect(st.upgrade).toHaveBeenCalledWith("silver", expect.any(String));
-    expect(screen.queryByText("Prism basics")).toBeNull();
-  });
 });
 
 

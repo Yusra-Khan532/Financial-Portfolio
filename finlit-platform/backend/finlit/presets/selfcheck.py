@@ -66,8 +66,6 @@ async def run(request: Request) -> Dict[str, Any]:
             leftout.append(f"{p.id}: {lo}")
         texts = [body.get("rankScoreNote") or ""] + list(body.get("howItWorks") or []) + [c.description for c in p.chips]
         hit = sorted({m.group(0) for t in texts for m in [LEAK.search(t or "")] if m})
-        if p.tab == "basic" and any("Growth & Profitability" in t for t in texts):
-            hit.append("Growth & Profitability")
         if hit:
             leaks.append(f"{p.id}: {hit}")
     checks = [

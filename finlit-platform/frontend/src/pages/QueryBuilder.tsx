@@ -25,6 +25,7 @@ import { onlyFix, ruleFor } from "../lib/queryRules";
 import { saveFile } from "../stock/derive";
 import { useDocTitle } from "../lib/title";
 import { TIER, useUI, type Plan } from "../lib/ui";
+import { PLAN_FOR_SCREENER } from "../lib/planGates";
 import "../styles/qbuilder.css";
 import { CoLogo } from "../components/CoLogo";
 
@@ -235,7 +236,7 @@ export function QueryBuilder() {
     setSort(next); if (res) run(0, next);
   };
   const exportCsv = async () => {
-    if (!rat.data?.limits.export) { ask("silver", "Downloading results comes with the Silver plan."); return; }
+    if (!rat.data?.limits.export) { ask(PLAN_FOR_SCREENER, "Downloading results comes with the Silver plan."); return; }
     try {
       const r = await fetch(apiUrl("/api/screener/ql/export"), { method: "POST", credentials: API_BASE ? "include" : "same-origin", headers: { "Content-Type": "application/json", Accept: "text/csv", ...viewAsHeader() }, body: JSON.stringify(bodyFor(0)) });
       if (!r.ok) throw new Error(String(r.status));
@@ -280,7 +281,7 @@ export function QueryBuilder() {
 
   return (
     <>
-      <PageHeader wrap plan="free" title="Query builder" art="search" links={["/screener", "/baskets", "/score-screener"]}
+      <PageHeader wrap plan="free" title="Query builder" art="search" links={["/screener", "/baskets", "/advanced-score-screener"]}
         description={<>Type a rule, get the companies: <code className="qb-inl">Market cap &gt; 500 AND P/E &lt; 15</code>. We check every word as you type, show how we read it, and list the listed companies that match all of it.</>} />
       <div className="wrap qb">
         <FindStocksTabs />
@@ -398,7 +399,7 @@ export function QueryBuilder() {
               </tbody></table></HScroll>
             {res.capped ? (
               <div className="pl-cap"><Icon name="lock" /><span><b>Showing the first {res.limit} of {nf(total, 0)} matches.</b> Silver shows every match and lets you download them.</span>
-                <button className="btn primary" onClick={() => ask("silver", "See every match with Silver.")}>Unlock with Silver</button></div>
+                <button className="btn primary" onClick={() => ask(PLAN_FOR_SCREENER, "See every match with Silver.")}>Unlock with Silver</button></div>
             ) : total > PAGE && (
               <div className="pm-pager"><span>{page * PAGE + 1}–{Math.min(total, page * PAGE + PAGE)} of {nf(total, 0)}</span>
                 <button className="btn" disabled={page === 0 || running} onClick={() => run((page - 1) * PAGE)}>Previous</button><button className="btn" disabled={(page + 1) * PAGE >= total || running} onClick={() => run((page + 1) * PAGE)}>Next</button></div>)}

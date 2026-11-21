@@ -14,7 +14,7 @@ afterEach(cleanup);
 
 describe("More filters: F&O stocks only and Liquid only", () => {
   const D = { facets: { sizes: { Large: 4 }, sectors: [], strong: 3, strongOnly: 1, anyRating: 4, new: 1, ahead: 2, nse: 4, bse: 0, fno: 218, liquid: 853 } } as unknown as PresetDetail;
-  function F() { const [b, setB] = useState<BarFilter>(NO_BAR); return <MemoryRouter><FilterMenus d={D} f={{ bar: b, set: setB }} basic={false} onAddRule={() => {}} /><FilterChips f={{ bar: b, set: setB }} basic={false} /></MemoryRouter>; }
+  function F() { const [b, setB] = useState<BarFilter>(NO_BAR); return <MemoryRouter><FilterMenus d={D} f={{ bar: b, set: setB }} onAddRule={() => {}} /><FilterChips f={{ bar: b, set: setB }} /></MemoryRouter>; }
   it("lists both with their counts after Ahead of NIFTY 500, and each shows as a chip when on", () => {
     render(<F />);
     fireEvent.click(screen.getByRole("button", { name: /More filters/ }));

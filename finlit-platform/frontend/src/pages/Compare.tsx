@@ -87,7 +87,7 @@ export function Compare() {
   const locked = T.model && !has(PLAN_FOR_COMPARE);
   const dists = useMemo(() => { const m = new Map<NumKey, Dist | null>(); (Object.keys(METRICS) as NumKey[]).forEach((k) => m.set(k, distOf(rows, k))); return m; }, [rows]);
   const off0 = off[tab] || [];
-  const iqOnly = (k: NumKey) => k === "overall" || String(k).startsWith("pillar_");   // task #283: the old overall score is retired, so its figures are never compared
+  const iqOnly = (k: string) => k === "overall" || k.startsWith("pillar_");   // task #283: the old overall score is retired, so its figures are never compared
   const groups = T.groups.map((g) => ({ ...g, keys: g.keys.filter((k) => !off0.includes(k) && !iqOnly(k)) })).filter((g) => g.keys.length);
   const keys: NumKey[] = groups.flatMap((g) => g.keys);
   const pool: NumKey[] = T.groups.flatMap((g) => g.keys).filter((k) => !iqOnly(k));

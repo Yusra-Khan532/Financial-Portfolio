@@ -53,18 +53,18 @@ async def test_plan_gate_and_limits(app):  # noqa: F811
         assert ok.status_code == 200 and ok.json()["plan"] == "basic"
         no = await anon.post("/api/compare/metrics", json={"symbols": ["AAA", "BBB"], "keys": ["pe", "pb"]})        # P/B is Silver
         assert no.status_code == 403 and no.json()["detail"]["plan"] == "silver" and no.json()["detail"]["keys"] == ["pb"]
-        assert (await anon.post("/api/compare/metrics", json={"symbols": ["AAA"], "keys": ["overall"]})).status_code == 403
+        assert (await anon.post("/api/compare/metrics", json={"symbols": ["AAA"], "keys": ["overall"]})).status_code == 400      # task #283: the retired score, on no plan
         assert (await anon.post("/api/compare/metrics", json={"symbols": ["AAA", "BBB", "CCC"], "keys": ["pe"]})).status_code == 403   # Basic compares 2
         assert (await anon.post("/api/compare/metrics", json={"symbols": ["AAA"], "keys": ["nonsense"]})).status_code == 422
         assert (await anon.post("/api/compare/metrics", json={"symbols": ["AAA"], "keys": []})).status_code == 422
         assert (await anon.post("/api/compare/metrics", json={"symbols": ["bad symbol!"], "keys": ["pe"]})).status_code == 422
     silver = await signed_in(app, "scmp@example.com", plan="silver")
     assert (await silver.post("/api/compare/metrics", json={"symbols": ["AAA", "BBB"], "keys": ["pe", "pb", "net_debt"]})).status_code == 200
-    assert (await silver.post("/api/compare/metrics", json={"symbols": ["AAA", "BBB"], "keys": ["overall"]})).status_code == 200   # the FinLit IQ is Silver's (task #64)
+    assert (await silver.post("/api/compare/metrics", json={"symbols": ["AAA", "BBB"], "keys": ["overall"]})).status_code == 400   # task #283: the retired FinLit IQ, on no plan
     assert (await silver.post("/api/compare/metrics", json={"symbols": ["AAA", "BBB", "CCC"], "keys": ["pe"]})).status_code == 403
     gold = await signed_in(app, "gcmp2@example.com", plan="gold")
     assert (await gold.post("/api/compare/metrics", json={"symbols": ["AAA", "BBB", "CCC"], "keys": ["prism_final"]})).status_code == 200
-    assert (await gold.post("/api/compare/metrics", json={"symbols": ["AAA", "BBB", "CCC"], "keys": ["overall"]})).status_code == 400    # Gold never compares on the FinLit IQ (task #100)
+    assert (await gold.post("/api/compare/metrics", json={"symbols": ["AAA", "BBB", "CCC"], "keys": ["overall"]})).status_code == 400
 
 
 async def test_saved_sets(app):  # noqa: F811

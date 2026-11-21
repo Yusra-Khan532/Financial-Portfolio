@@ -31,13 +31,14 @@ def _gold(ctx) -> bool:
     return bool(ctx.authed and (has(ctx.plan, "gold") or sees_all(ctx)))
 
 
-def _allowed(ctx, tab: str) -> bool:
-    """The Advanced tab's screens are Gold (Prism columns); the Basic tab's are Silver (FinLit score columns)."""
-    return bool(ctx.authed and (has(ctx.plan, "gold" if tab == "advanced" else "silver") or sees_all(ctx)))
+def _allowed(ctx, tab: str = "advanced") -> bool:
+    """The ready-made screens are built on FinLit Prism: Gold (task #283: the Basic tab, built on the retired FinLit IQ for Silver, is gone)."""
+    return _gold(ctx)
 
 
 def _tab_of(request: Request) -> str:
-    return "basic" if request.query_params.get("tab") == "basic" else "advanced"
+    """The one tab. An older request for ?tab=basic gets the same Prism screens (its own screens were retired with the Basic stock screener)."""
+    return "advanced"
 
 
 def _json(body, status: int = 200) -> Response:
@@ -95,8 +96,7 @@ async def _resolve(request: Request, pid: str):
         raise fail(404, "not_found", "No such screen.")
     ctx = await current(request)
     if not _allowed(ctx, p.tab):
-        need = "gold" if p.tab == "advanced" else "silver"
-        raise fail(403, "plan_required", f"Prebuilt screens on this tab are part of the {need.title()} plan.", plan=need)
+        raise fail(403, "plan_required", "Prebuilt screens are part of the Gold plan.", plan="gold")
     if p.kind in ("blocked", "quickview"):
         raise fail(409, "blocked" if p.kind == "blocked" else "not_a_server_screen",
                    p.blocked_reason or "This quick view is handled by the page itself.", blockedReason=p.blocked_reason)
@@ -120,11 +120,12 @@ def _as_on(request: Request):
     return d
 
 
-BAND_NOW = {"pillar_technical": "FinLit IQ"}      # 14 Nov N-25: lists stored before the change keep their old band name; served with today's
+RETIRED_KEYS = ("overall", "pillar_quality", "pillar_growth", "pillar_profitability", "pillar_balance", "pillar_technical")
 
 
 def _bands_now(cols: List[dict]) -> List[dict]:
-    return [{**c, "band": BAND_NOW[c["key"]]} if c.get("key") in BAND_NOW and c.get("band") else c for c in cols]
+    """Task #283: a list stored before FinLit IQ was retired may still name one of its columns; it is never served (the rows keep only the columns shown)."""
+    return [c for c in cols if c.get("key") not in RETIRED_KEYS]
 
 
 def _history_columns(cols: List[dict], p: Preset, then: bool) -> List[dict]:
@@ -180,7 +181,7 @@ async def _gainers_body(request: Request, p: Preset) -> dict:
         r["stillOn"] = "On the list" if r.get("stillOn") else (f"Left {r['leftOn']}" if r.get("leftOn") else "Left")
         if r.get("others"):
             r["screen"] = f"{r['screen']} (also {', '.join(r['others'])})"
-    page = "Basic" if p.tab == "basic" else "Advanced"
+    page = "Advanced"
     return {"id": p.id, "name": p.name, "asOf": got["session"], "count": len(rows), "shown": len(rows), "columns": [{"key": c.key, "label": c.label, "format": c.format, "align": c.align} for c in p.columns],
             "rows": rows, "exportRows": rows, "chips": [], "howItWorks": [], "cardText": p.card_text, "disclaimer": DISCLAIMER, "pageSize": 25,
             "heading": f"The 20 biggest rises · of the companies that joined a {page} screen at one of the closes before {got['session']}" if rows else None,
@@ -268,8 +269,8 @@ def overlay_prices(rows: List[dict], latest: Dict[str, tuple], list_day: str) ->
 FIGURE = {"setups": ("From 52-week high", "pct_from_high"), "top-gainers": ("Since it joined", "since")}
 
 
-def _score_figure(tab: str) -> tuple:
-    return ("FinLit IQ", "overall") if tab == "basic" else ("FinLit Prism", "prism_final")
+def _score_figure(tab: str = "advanced") -> tuple:
+    return ("FinLit Prism", "prism_final")
 
 
 def _num(v):
@@ -416,14 +417,15 @@ def _size_of(r: dict) -> str | None:
 
 
 def _strong(r: dict) -> bool:
-    iq, pr = r.get("overall"), r.get("prism_final")
-    return (isinstance(iq, (int, float)) and iq >= 62) or (isinstance(pr, (int, float)) and pr >= 65)
+    """Prism Strong or Healthy (65 or more). Task #283: the retired FinLit IQ is never read."""
+    pr = r.get("prism_final")
+    return isinstance(pr, (int, float)) and not isinstance(pr, bool) and pr >= 65
 
 
 def _strong_only(r: dict) -> bool:
-    """Prism Strong (80 or more) on Advanced, the FinLit IQ's Strong band (78 or more) on Basic."""
-    iq, pr = r.get("overall"), r.get("prism_final")
-    return (isinstance(pr, (int, float)) and pr >= 80) or (pr is None and isinstance(iq, (int, float)) and iq >= 78)
+    """Prism Strong (80 or more)."""
+    pr = r.get("prism_final")
+    return isinstance(pr, (int, float)) and not isinstance(pr, bool) and pr >= 80
 
 
 def _bse_only(r: dict) -> bool:
@@ -451,7 +453,7 @@ async def _classification(store) -> Dict[str, tuple]:
 
 
 async def _with_classification(store, body: dict) -> dict:
-    """Adds cls_macro / cls_sector / cls_industry to each row of a screen, Basic or Advanced (None when NSE does not classify the company)."""
+    """Adds cls_macro / cls_sector / cls_industry to each row of a screen (None when NSE does not classify the company)."""
     cls = await _classification(store)
     seen = set()
     for r in (body.get("exportRows") or []) + (body.get("rows") or []):
@@ -471,17 +473,7 @@ RATING_SLUGS = ("strong", "healthy", "average", "weak", "poor", "notrated")
 TREND5 = ("su", "u", "s", "d", "sd")
 _TREND_OF = {"strongpos": "su", "pos": "u", "neutral": "s", "neg": "d", "strongneg": "sd"}
 SCORE_RANGES = {"z": "prism_final", "zf": "prism_fundamental", "zv": "prism_valuation", "zq": "prism_quality", "zr": "prism_risk"}
-# Task #257 (Basic screener SPEC §3): a Basic screen's FinLit IQ panel: from-to ranges for the FinLit IQ and its five scores (same 0-100 boxes as above), and the
-# rating in three groups: good = Strong or Healthy (62 and above), below = Below Healthy, nr = Not rated (no FinLit IQ). The bands are lib/scoreScreen iqLabelOf's.
-SCORE_RANGES.update({"o": "overall", "pq": "pillar_quality", "pg": "pillar_growth", "pp": "pillar_profitability", "pb": "pillar_balance", "pt": "pillar_technical"})
-IQ_GROUPS = ("good", "below", "nr")
-
-
-def iq_group(r: dict) -> str:
-    v = r.get("overall")
-    if not isinstance(v, (int, float)) or isinstance(v, bool) or v != v:
-        return "nr"
-    return "good" if v >= 62 else "below"
+# Task #283: the Basic screen's panel on the retired FinLit IQ (its ranges o, pq ... pt and its rating groups, ?iqg=) is gone; such parameters are ignored.
 
 
 def _rating_of(r: dict) -> str:
@@ -528,8 +520,7 @@ def _bar(request: Request) -> dict:
             "macro": {x[:80] for x in qp.getlist("macro") if x}, "nsec": {x[:80] for x in qp.getlist("nsec") if x}, "indu": {x[:80] for x in qp.getlist("indu") if x},
             "pl": {x for x in ",".join(qp.getlist("pl")).split(",") if x in RATING_SLUGS},
             "ranges": {k: rg for k in SCORE_RANGES if (rg := _range_of(qp, k)) is not None},
-            "st5": {x for x in (qp.get("st5") or "").split(",") if x in TREND5}, "lt5": {x for x in (qp.get("lt5") or "").split(",") if x in TREND5},
-            "iqg": {x for x in ",".join(qp.getlist("iqg")).split(",") if x in IQ_GROUPS}}
+            "st5": {x for x in (qp.get("st5") or "").split(",") if x in TREND5}, "lt5": {x for x in (qp.get("lt5") or "").split(",") if x in TREND5}}
 
 
 def _tests(f: dict, new_day: Optional[str]) -> Dict[str, object]:
@@ -566,8 +557,6 @@ def _tests(f: dict, new_day: Optional[str]) -> Dict[str, object]:
         want_i = {_name_key(x) for x in f["indu"]}; t["indu"] = lambda r: _name_key(r.get("cls_industry")) in want_i
     if f.get("pl"):
         t["pl"] = lambda r: _rating_of(r) in f["pl"]
-    if f.get("iqg"):
-        t["iqg"] = lambda r: iq_group(r) in f["iqg"]
     for k, (lo, hi) in (f.get("ranges") or {}).items():
         col = SCORE_RANGES[k]
         t["rg_" + k] = lambda r, col=col, lo=lo, hi=hi: isinstance(r.get(col), (int, float)) and (lo is None or r[col] >= lo) and (hi is None or r[col] <= hi)
@@ -632,7 +621,6 @@ def _facets(rows: List[dict], tests: Optional[Dict[str, object]] = None, new_day
     # task #258 (SPEC §2, §3): each NSE level's values on this list with their counts (own level left out), and the counts of each rating and trend word
     levels: Dict[str, Dict[str, int]] = {"macros": {}, "nsecs": {}, "industries": {}}
     ratings = {s: 0 for s in RATING_SLUGS}
-    iq_groups = {g: 0 for g in IQ_GROUPS}
     trend = {"st": {s: 0 for s in TREND5}, "lt": {s: 0 for s in TREND5}}
     for r in rows:
         for key, test, col in (("macros", "macro", "cls_macro"), ("nsecs", "nsec", "cls_sector"), ("industries", "indu", "cls_industry")):
@@ -640,13 +628,11 @@ def _facets(rows: List[dict], tests: Optional[Dict[str, object]] = None, new_day
                 levels[key][r[col]] = levels[key].get(r[col], 0) + 1
         if _passes(r, tests, "pl"):
             ratings[_rating_of(r)] += 1
-        if _passes(r, tests, "iqg"):
-            iq_groups[iq_group(r)] += 1
         for k, col in (("st", "prism_st_score"), ("lt", "prism_lt_score")):
             w = _trend_of(r.get(col))
             if w and _passes(r, tests, k + "5"):
                 trend[k][w] += 1
-    return {**{k: sorted(v.items(), key=lambda kv: (-kv[1], kv[0])) for k, v in levels.items()}, "ratings": ratings, "iqGroups": iq_groups, "trend": trend,
+    return {**{k: sorted(v.items(), key=lambda kv: (-kv[1], kv[0])) for k, v in levels.items()}, "ratings": ratings, "trend": trend,
             "sizes": sizes, "sectors": sorted(sectors.items(), key=lambda kv: (-kv[1], kv[0]))[:80],
             "strong": n("rating", _strong), "strongOnly": n("rating", _strong_only), "anyRating": n("rating", lambda r: True),
             "new": n("new", probe["new"]), "ahead": n("ahead", probe["ahead"]), "nse": n("nse", probe["nse"]), "bse": sum(1 for r in rows if _bse_only(r)),
@@ -685,8 +671,7 @@ def _page(request: Request, body: dict) -> dict:
 async def detail(request: Request, pid: str):
     p, ctx, active = await _resolve(request, pid)
     body = await _body(request, p, active)
-    # task #258: NSE's three levels on every row, for the open screen's Macro sector, Sector and Industry filters; task #257: on Basic screens too, where the
-    # line under a company's name is its industry and size
+    # task #258: NSE's three levels on every row, for the open screen's Macro sector, Sector and Industry filters
     body = await _with_classification(request.app.state.store, body)
     body = _page(request, body)
     await service.log_usage(request.app.state.store, p.id, "open")
@@ -743,14 +728,15 @@ async def export(request: Request, pid: str):
 
 @gainers_router.get("")
 async def gainers_route(request: Request):
-    """Top gainers of a page and window, for the latest close or any close of the last 2 months. Silver on the Basic page, Gold on the Advanced one."""
-    page = "basic" if request.query_params.get("page") == "basic" else "advanced"
+    """Top gainers of a window, for the latest close or any close of the last 2 months. Gold, like the screens (task #283: the Basic page is retired; an older
+    ?page=basic gets the same list)."""
+    page = "advanced"
     win = request.query_params.get("window", "day")
     if win not in history.WINDOWS:
         raise fail(422, "bad_window", "window must be day, week or month.")
     ctx = await current(request)
     if not _allowed(ctx, page):
-        raise fail(403, "plan_required", "Top gainers are part of the Silver plan (Basic page) or the Gold plan (Advanced page).", plan="gold" if page == "advanced" else "silver")
+        raise fail(403, "plan_required", "Top gainers are part of the Gold plan.", plan="gold")
     got = await history.gainers_for(request.app.state.store, page, win, _as_on(request))
     if got is None:
         raise fail(404, "no_history", "No Top gainers are stored for that day yet.")

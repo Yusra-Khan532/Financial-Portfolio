@@ -55,7 +55,7 @@ describe("AppShell rail", () => {
   });
   it("folds the menu to the icon rail on the Find stocks pages (the table gets the room), and keeps the reader's own choice elsewhere", () => {
     localStorage.clear();
-    const find = show("/score-screener", false);
+    const find = show("/screener", false);
     expect(find.container.querySelector(".shell")!.classList.contains("is-collapsed")).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Expand the side menu" }));
     expect(find.container.querySelector(".shell")!.classList.contains("is-collapsed")).toBe(false);

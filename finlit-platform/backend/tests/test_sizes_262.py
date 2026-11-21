@@ -41,7 +41,7 @@ def test_a_typed_size_is_its_range_and_problems_point_at_what_was_typed():
 
 def test_the_ready_made_size_screens_include_micro_and_say_the_rule_in_rupees():
     from finlit.presets.registry import BY_ID
-    for pid in ("highest-rated-micro", "basic-top-micro"):
+    for pid in ("highest-rated-micro",):          # task #283: the Basic tab's "Top 10 micro caps" left with the retired FinLit IQ
         p = BY_ID[pid]
         assert "below ₹10,000 Cr" in " ".join(p.how_it_works) and "ranked" not in " ".join(p.how_it_works)
     assert "₹25,000–75,000 Cr" in " ".join(BY_ID["highest-rated-mid"].how_it_works) and "₹50,000" not in " ".join(BY_ID["highest-rated-large"].how_it_works)

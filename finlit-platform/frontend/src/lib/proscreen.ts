@@ -19,7 +19,7 @@ export type Catalog = {
   macros?: { name: string; n: number }[]; nseSectors?: { name: string; macro: string | null; n: number }[];
   indices: { code: string; label: string; n: number }[]; caps: { name: string; n: number }[]; bands: { key: string; label: string; locked: boolean; n?: number }[];
   limits: { rows: number | null; export: boolean }; defaultColumns: string[];
-  bandModel?: "prism" | "iq";   // which score the rating chips are on: FinLit Prism for Gold, the FinLit IQ below (tasks #64, #100)
+  bandModel?: "prism";   // the rating chips are on FinLit Prism (task #283: the only company score; locked below Gold)
   standardColumns?: string[];   // the columns the Stock screener opens with, only those the visitor's plan shows: the market cap, and for Gold the two technical views (tasks #145, #141)
 };
 export type Range = { min?: number; max?: number };
@@ -28,7 +28,7 @@ export type PState = {
   /** Task #259: NSE macro sectors (12) and sectors (22) picked; AND across the levels with `industries`, OR inside each list. */
   macros?: string[]; nsectors?: string[];
   sort?: string; dir?: "asc" | "desc"; cols?: string[];
-  model?: string;   // (older links) one ready-made screen on the plan's score (FinLit IQ or FinLit Prism): read as `on: [model]`
+  model?: string;   // (older links) one ready-made screen on FinLit Prism: read as `on: [model]`
   on?: string[];    // the ready-made screens that are on (task #64 P-4): they stack, each adding its rules to the reader's; a company must pass all of them
   mine?: string[];  // filters a screen set that the reader then changed: they are the reader's own, and no screen touches them any more
 };
@@ -220,11 +220,8 @@ export const READY: Ready[] = [
   { id: "newhigh", label: "Near a 52-week high with volume", says: "Within 3% of the high and trading 1.5× average volume", tier: "silver", state: r({ near_high: { min: 1 }, volume_vs_avg: { min: 1.5 } }) },
   { id: "oversold", label: "Oversold quality", says: "RSI under 35 but ROE above 12% and debt under 1×", tier: "silver", state: r({ rsi14: { max: 35 }, roe: { min: 12 }, debt_to_equity: { max: 1 } }) },
   { id: "clean", label: "No red flags", says: "None of the eight warnings apply, large and mid companies", tier: "silver", state: { ranges: { flag_count: { max: 0 } }, caps: ["Large", "Mid"] } },
-  { id: "strong", label: "FinLit Strong", says: "FinLit IQ of 78 or more", tier: "gold", state: r({ overall: { min: 78 } }) },
-  { id: "modelcompound", label: "Quality compounders (model)", says: "Quality 70+ and Growth 60+", tier: "gold", state: r({ pillar_quality: { min: 70 }, pillar_growth: { min: 60 } }) },
-  { id: "safe", label: "Safe and profitable (model)", says: "Balance sheet 70+ and Profitability 60+", tier: "gold", state: r({ pillar_balance: { min: 70 }, pillar_profitability: { min: 60 } }) },
-  { id: "improving", label: "Improving scores", says: "FinLit IQ up 5+ points since last quarter", tier: "gold", state: r({ score_change: { min: 5 }, overall: { min: 50 } }) },
-  { id: "outfavour", label: "Sound but out of favour", says: "Quality 55+ with the Technical pillar 35 or less", tier: "gold", state: r({ pillar_quality: { min: 55 }, pillar_technical: { max: 35 } }) },
+  // task #283: FinLit Prism is the only company score: "FinLit Strong" is Prism's Strong (80 or more); the screens on the retired score's parts have no Prism twin and are gone
+  { id: "strong", label: "FinLit Strong", says: "FinLit Prism 80 or more", tier: "gold", state: r({ prism_final: { min: 80 } }) },
 ];
 
 /** The colour of a result cell: green in the best quarter of the results shown for its column, red in the weakest quarter, where "better" is clear (never for a flag or

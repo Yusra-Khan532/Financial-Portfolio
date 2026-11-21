@@ -84,8 +84,8 @@ async def metrics(request: Request, body: MetricsIn):
     cap = LIMITS.get(plan, LIMITS["basic"])["compare"]
     if len(body.symbols) > cap:
         raise fail(403, "plan_limit", f"Your plan compares up to {cap} companies at once.", plan="gold")
-    if any(BY_KEY[k].group == "model" and not offered(plan, "model") for k in body.keys):   # one score per plan (task #100): Gold uses FinLit Prism
-        raise fail(400, "bad_request", "Gold compares on FinLit Prism, not the FinLit IQ.")
+    if any(BY_KEY[k].group == "model" and not offered(plan, "model") for k in body.keys):   # task #283: the retired score is offered to no plan
+        raise fail(400, "bad_request", "That figure is not offered: FinLit Prism is FinLit's company score.")
     locked = [k for k in body.keys if not allowed(plan, BY_KEY[k].tier)]
     if locked:
         tier = "gold" if any(BY_KEY[k].tier == "gold" for k in locked) else "silver"

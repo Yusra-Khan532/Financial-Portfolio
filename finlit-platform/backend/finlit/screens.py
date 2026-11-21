@@ -131,6 +131,9 @@ async def check_screens(pool, mailer: Mailer, site_url: str) -> int:
                 # members only get alerts for filters their plan includes; never reveal locked data through an email
                 if not all(k in BY_KEY and allowed(u["plan"], BY_KEY[k].tier) for k in keys) or ((state.get("bands") or state.get("model")) and not gold):
                     continue
+                from .screener.ready import MODEL
+                if state.get("model") and state["model"] not in MODEL:       # task #283: a screen on the retired FinLit IQ never runs (it would match everyone)
+                    continue
                 hit = [r for r in universe if matches(r, state, members, prism=gold)]
                 seen = await conn.fetchval("SELECT seen FROM screen_state WHERE user_id = $1 AND screen_name = $2", u["id"], sc["name"])
                 now = [r["symbol"] for r in hit]

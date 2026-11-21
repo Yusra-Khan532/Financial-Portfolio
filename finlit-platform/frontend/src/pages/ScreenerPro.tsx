@@ -39,6 +39,7 @@ import "../styles/stockscreener.css";
 import "../styles/tools.css";
 import { SIDE, SplitDivider, useSideWidth } from "../components/SplitDivider";
 import { CoLogo } from "../components/CoLogo";
+import { PLAN_FOR_SCREENER } from "../lib/planGates";
 
 const Cloud3D = lazy(() => import("../three/Cloud3D"));
 
@@ -70,24 +71,24 @@ const useDebounced = <T,>(v: T, ms: number) => { const [d, setD] = useState(v); 
 
 /** Short column names and the unit line under them (file 04 §5). */
 const SHORT: Record<string, string> = { price: "LTP", market_cap: "Market cap", pe: "P/E", pb: "P/B", roe: "ROE", roce: "ROCE", sales_cagr_3y: "Sales growth 3Y", profit_cagr_3y: "Profit growth 3Y",
-  debt_to_equity: "Debt to equity", ret_1y: "1 year", overall: "FinLit IQ", dividend_yield: "Dividend yield", pct_from_high: "Below 52W high" };
+  debt_to_equity: "Debt to equity", ret_1y: "1 year", dividend_yield: "Dividend yield", pct_from_high: "Below 52W high" };
 const UNIT_LINE: Record<string, string> = { "%": "%", x: "×", Cr: "₹ Cr", Rs: "₹", d: "days", pts: "points", flag: "yes / no", n: "" };
 /** Task #141: the two technical views (Gold) run from −100 to +100; the pill is green for an uptrend, red for a downtrend, plain for sideways (same edges as the Prism card). */
 const TECH_COLS = ["prism_st_score", "prism_lt_score"];
 const TECH_HEAD: Record<string, string> = { prism_st_score: "Short term", prism_lt_score: "Long term" };   // task #243 (pack T1): the group heading names the technical pillars   // non-breaking hyphen: the head never splits "Long-" / "term"
 const TECH_PILL: Record<string, string> = { pos: "healthy", neutral: "", neg: "watch" };
 const unitLine = (k: string, m: MetricInfo | undefined) => (k === "price" ? "₹ · 1 day" : k === "prism_st_score" ? "weeks" : k === "prism_lt_score" ? "months" : k === "market_cap" ? "₹ Cr" : m ? UNIT_LINE[m.unit] ?? "" : "");
-/** Task #243 (pack T1): the standard columns in named groups, each a run of neighbouring columns of one kind (Market cap, the Prism or FinLit IQ score,
+/** Task #243 (pack T1): the standard columns in named groups, each a run of neighbouring columns of one kind (Market cap, the Prism score,
  *  the two technical pillars, anything else). */
 type Band = { kind: "size" | "score" | "tech" | "other"; n: number };
-const kindOf = (k: string): Band["kind"] => (k === "market_cap" ? "size" : TECH_COLS.includes(k) ? "tech" : k === "prism_final" || k === "overall" ? "score" : "other");
+const kindOf = (k: string): Band["kind"] => (k === "market_cap" ? "size" : TECH_COLS.includes(k) ? "tech" : k === "prism_final" ? "score" : "other");
 export function bandsOf(keys: string[]): Band[] {
   const out: Band[] = [];
   for (const k of keys) { const kind = kindOf(k), last = out[out.length - 1]; if (last && last.kind === kind) last.n++; else out.push({ kind, n: 1 }); }
   return out;
 }
-const BAND_WORD: Record<string, string> = { strong: "Strong", healthy: "Healthy", mixed: "Mixed", watch: "Watch", average: "Average", weak: "Weak", poor: "Poor" };
-/** A Prism rating word on the chip colours the FinLit IQ chip already uses (green, amber, red). */
+const BAND_WORD: Record<string, string> = { strong: "Strong", healthy: "Healthy", average: "Average", weak: "Weak", poor: "Poor" };   // FinLit Prism's words (task #283)
+/** A Prism rating word on the site's three chip colours (green, amber, red). */
 const PRISM_CLASS: Record<string, string> = { strong: "strong", healthy: "healthy", average: "mixed", weak: "watch", poor: "watch" };
 // the industry step is named by its values, NSE's 59 industries (task #64, from #192); "sector" is the old filter of an older link (the company's own label)
 const STEP_NAME: Record<string, string> = { size: "Size", sector: "Sector", macro: "Macro sector", nsector: "Sector", industry: "Industry", index: "Index", band: "rating", model: "the ready-made screens on the plan's score" };
@@ -156,7 +157,7 @@ export function ScreenerPro() {
     if (narrow()) requestAnimationFrame(() => document.querySelector(".ssw-res")?.scrollIntoView({ block: "start" }));
   };
   const saved = useSavedScreens();
-  // One score per plan (tasks #64 P-1 and #100): the server sends Gold the FinLit Prism group, columns and rating words, and every other plan the FinLit IQ's.
+  // One company score (task #283): the server sends Gold the FinLit Prism group, columns and rating words; below Gold the Prism words come locked and no score group.
   const data = cat.data;
   const prismOnly = data?.bandModel === "prism";
   const plan: Plan = data?.plan ?? "basic";
@@ -274,7 +275,7 @@ export function ScreenerPro() {
     ...(f.macros ?? []).map((s) => ({ label: `Macro sector: ${s}`, clear: () => pickLevel("macros", s) })), ...(f.nsectors ?? []).map((s) => ({ label: `Sector: ${s}`, clear: () => pickLevel("nsectors", s) })),
     ...f.sectors.map((s) => ({ label: s, clear: () => toggle("sectors", s) })), ...f.industries.map((s) => ({ label: s, clear: () => toggle("industries", s) })),
     ...f.indices.map((s) => ({ label: data?.indices.find((i) => i.code === s)?.label || s, clear: () => toggle("indices", s) })), ...F.caps.map((s) => ({ label: `${s} cap`, clear: () => toggle("caps", s) })),
-    ...F.bands.map((s) => ({ label: `${prismOnly ? "Prism" : "FinLit IQ"} rating: ${BAND_WORD[s] ?? s}`, clear: () => toggle("bands", s) })),
+    ...F.bands.map((s) => ({ label: `Prism rating: ${BAND_WORD[s] ?? s}`, clear: () => toggle("bands", s) })),
   ];
 
   const nOn = chips.filter((c) => !c.label.endsWith(" (column)")).length + (q.trim() ? 1 : 0);   // what Clear all takes away; a ratio shown as a column is not a filter
@@ -411,10 +412,10 @@ export function ScreenerPro() {
                       <span>{g.label}</span>{on > 0 && <em>{on} on</em>}<small>{g.n}</small></button></li>; })}
                     </ul>
                 </div>
-                {onScreens.filter((x) => !x.state).map((x) => <div key={x.id} className="ssr-rule ssr-model" role="group" aria-label={`Screen on the ${prismOnly ? "FinLit Prism" : "FinLit IQ"}: ${x.label}`}><div className="ssr-rt"><b>{x.label}</b>
+                {onScreens.filter((x) => !x.state).map((x) => <div key={x.id} className="ssr-rule ssr-model" role="group" aria-label={`Screen on FinLit Prism: ${x.label}`}><div className="ssr-rt"><b>{x.label}</b>
                   <button type="button" className="ssr-x" aria-label={`Turn off ${x.label}`} onClick={() => toggleScreen(x)}>×</button></div>
                   <p className="ssr-say">{x.says}. Its cut-offs stay on the server.</p></div>)}
-                {stepOf("model") && <p className="ssr-cnt">The screens on the {prismOnly ? "FinLit Prism" : "FinLit IQ"} keep <b>{nf(stepOf("model")!.after, 0)}</b> of {nf(stepOf("model")!.before, 0)}</p>}
+                {stepOf("model") && <p className="ssr-cnt">The screens on FinLit Prism keep <b>{nf(stepOf("model")!.after, 0)}</b> of {nf(stepOf("model")!.before, 0)}</p>}
                 {rules.map((k) => { const m = byKey.get(k); if (!m) return null; const rk = ruleKey(m), cur = byKey.get(rk) ?? m;
                   return <RuleCard key={k} m={m} cur={cur} r={F.ranges[rk] || {}} set={(r) => setRange(rk, r)} remove={() => removeRule(k)} ask={ask} hot={hot === k}
                     period={periodOf(m)} setPeriod={(p) => setPeriod((x) => ({ ...x, [m.key]: p }))} count={stepOf(rk)} />; })}
@@ -428,7 +429,7 @@ export function ScreenerPro() {
                   if (ok.length) { setF((o) => ({ ...o, ranges: { ...o.ranges, ...Object.fromEntries(ok) } })); setOrder((o) => [...o, ...ok.map(([k]) => baseOf(k)).filter((k) => !o.includes(k))]); setPg({ k: "", p: 0 }); if (!r.errors.length && !lockedOnes.length) setTyped(""); } }}>
                   <label className="sr" htmlFor="ssw-type">Type rules</label>
                   <input id="ssw-type" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="Or type: pe < 20 and roe > 15" aria-describedby="ssw-type-h" autoComplete="off" />
-                  <p id="ssw-type-h">Names or short forms (pe, pb, roe, roce, debt, yield, mcap, price, sales3y, profit3y, 1d, 1m, 3m, 6m, 1y, high, {prismOnly ? "prism" : "iq"}) with &lt; or &gt;. Press Enter. For “or” and brackets use the <Link to="/query-builder">Query builder</Link>.</p>
+                  <p id="ssw-type-h">Names or short forms (pe, pb, roe, roce, debt, yield, mcap, price, sales3y, profit3y, 1d, 1m, 3m, 6m, 1y, high{prismOnly ? ", prism" : ""}) with &lt; or &gt;. Press Enter. For “or” and brackets use the <Link to="/query-builder">Query builder</Link>.</p>
                   {typedErr.map((m) => <p key={m} className="ssw-err" role="alert">{m}</p>)}
                 </form>
               </div>
@@ -484,7 +485,7 @@ export function ScreenerPro() {
                   <button className="alx-link" onClick={() => pickCols(null)}>Back to the standard set</button></div>}</span>
             </div>
             {res.isError && err?.status !== 403 ? <div className="state"><h2>The screener is unavailable right now</h2><p>Please try again in a moment.</p><button className="btn" onClick={() => res.refetch()}>Try again</button></div>
-              : res.isError ? <div className="state"><h2>That rule is part of a higher plan</h2><p>{err?.body?.detail}</p><button className="btn primary" onClick={() => ask((err?.body?.plan as Plan) || "silver", err?.body?.detail || "")}>See the plan</button></div>
+              : res.isError ? <div className="state"><h2>That rule is part of a higher plan</h2><p>{err?.body?.detail}</p><button className="btn primary" onClick={() => ask((err?.body?.plan as Plan) || PLAN_FOR_SCREENER, err?.body?.detail || "")}>See the plan</button></div>
               : !res.data ? <div className="skeleton" style={{ height: 380 }} aria-busy="true" /> : (
                 <>
                   {total === 0 && tight && <div className="ssw-zero" role="status"><b>No company passes every rule.</b> {stepName(tight.key)} is the tightest: it leaves none of the {nf(tight.before, 0)} companies before it.
@@ -492,7 +493,7 @@ export function ScreenerPro() {
                   <TableZoom label="Stock screener results"><HScroll className={"scr-tw ssw-tw" + (res.isFetching ? " is-busy" : "")} label="results table" tall controls={false}><table className="scr-t ssw-t">
                     <thead>
                       <tr className="ssw-band"><th className="stick">Company</th>{bandsOf(shown.filter((k) => base.includes(k))).map((b, i) => <th key={i} colSpan={b.n} className={"xst-b-" + b.kind}>{
-                        b.kind === "size" ? "Market cap" : b.kind === "tech" ? <>{prismOnly ? "FinLit Prism · " : ""}{b.n} technical {b.n === 1 ? "pillar" : "pillars"}<small>−100 to +100</small></> : b.kind === "score" ? (prismOnly ? "FinLit Prism" : "FinLit IQ") : `${b.n} ${b.n === 1 ? "column" : "columns"}`}</th>)}{ruleCount > 0 && <th colSpan={ruleCount} className="rb">Your rules</th>}{ratios.length > 0 && <th colSpan={ratios.length} className="cr-th">Custom ratios</th>}<th aria-label="Report" /></tr>
+                        b.kind === "size" ? "Market cap" : b.kind === "tech" ? <>{prismOnly ? "FinLit Prism · " : ""}{b.n} technical {b.n === 1 ? "pillar" : "pillars"}<small>−100 to +100</small></> : b.kind === "score" ? "FinLit Prism" : `${b.n} ${b.n === 1 ? "column" : "columns"}`}</th>)}{ruleCount > 0 && <th colSpan={ruleCount} className="rb">Your rules</th>}{ratios.length > 0 && <th colSpan={ratios.length} className="cr-th">Custom ratios</th>}<th aria-label="Report" /></tr>
                       <tr className="ssw-hd"><th className="stick" aria-sort={sort.key === "name" ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}><button onClick={() => sortBy("name")}>Company <span className="ar">{sort.key === "name" ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button><small>Name · size</small></th>
                         {shown.map((k) => { const m = byKey.get(k), isRule = !base.includes(k); return <th key={k} className={isRule ? "rb" : "xst-c-" + kindOf(k)} aria-sort={sort.key === k ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}>
                           <button onClick={() => sortBy(k)} title={m?.say} aria-label={`Sort by ${m?.label}`}>{SHORT[k] ?? TECH_HEAD[k] ?? m?.label} <span className="ar">{sort.key === k ? (sort.dir === "asc" ? "▲" : "▼") : "▾"}</span></button><small>{unitLine(k, m)}</small></th>; })}
@@ -505,7 +506,6 @@ export function ScreenerPro() {
                           if (k === "price") { const d = r.v.ret_1d; return <td key={k} className={isRule ? "rb" : ""}>{v == null ? "–" : fmtMetric(m!, v)}{d != null && <small className={"ssw-ch " + (d > 0 ? "up" : d < 0 ? "dn" : "")}>{(d > 0 ? "+" : d < 0 ? "−" : "") + nf(Math.abs(d), 1)}%</small>}</td>; }
                           if (k === "prism_final") return <td key={k} className={"ssw-iq" + (isRule ? " rb" : "")}>{v == null ? "–" : <><span className={"ssw-sc " + (PRISM_CLASS[r.pband ?? ""] ?? "")}>{Math.round(v)}</span>{r.pband && <small>{BAND_WORD[r.pband] ?? r.pband}</small>}</>}</td>;
                           if (TECH_COLS.includes(k)) { const w = trendWord(v), b = techBandOf(v); return <td key={k} className={"ssw-iq" + (isRule ? " rb" : " xst-c-tech")} title={v == null ? "No short or long price-trend reading yet for this company." : `${w} (${v > 0 ? "+" : v < 0 ? "−" : ""}${nf(Math.abs(v), 0)} on a scale of −100 to +100), from the latest prices`}>{v == null || !w || !b ? "–" : <><span className={"ssw-sc " + TECH_PILL[b]}>{(v > 0 ? "+" : v < 0 ? "−" : "") + nf(Math.abs(v), 0)}</span><small>{w}</small></>}</td>; }
-                          if (k === "overall") return <td key={k} className={"ssw-iq" + (isRule ? " rb" : "")}>{v == null ? "–" : <><span className={"ssw-sc " + (r.band ?? "")}>{Math.round(v)}</span>{r.band && <small>{BAND_WORD[r.band] ?? r.band}</small>}</>}</td>;
                           return <td key={k} className={[tone(k, v), isRule ? "rb" : "xst-c-" + kindOf(k)].filter(Boolean).join(" ")} title={v == null ? emptyReason(k, r.full) : undefined}>{v == null || !m ? "–" : fmtMetric(m, v)}</td>; })}
                         {ratios.map((r2) => { const v = r.r?.[r2.id]; return <td key={r2.id} className="cr-td" title={v == null ? "No value: a figure is missing, or the bottom figure is zero or less" : undefined}>{v == null ? "–" : `${nf(v, Math.abs(v) >= 100 ? 1 : 2)}${r2.show === "pct" ? "%" : "×"}`}</td>; })}
                         <td className="ssw-rep"><Link to={`/stocks/${encodeURIComponent(r.symbol)}`} aria-label={`Open the report of ${r.name || r.symbol}`} title="Open the company report"><Icon name="notes" /></Link></td>
@@ -514,7 +514,7 @@ export function ScreenerPro() {
                     </tbody></table></HScroll></TableZoom>
                   {res.data.capped ? (
                     <div className="pl-cap"><Icon name="lock" /><span><b>Showing the first {res.data.limit} of {nf(total, 0)} matches.</b> Silver shows every match and unlocks every filter.</span>
-                      <button className="btn primary" onClick={() => ask("silver", "See every match and use every filter with Silver.")}>Unlock with Silver</button></div>
+                      <button className="btn primary" onClick={() => ask(PLAN_FOR_SCREENER, "See every match and use every filter with Silver.")}>Unlock with Silver</button></div>
                   ) : total > PAGE && (
                     <div className="pm-pager ssw-pager"><span>Showing {nf(page * PAGE + 1, 0)}–{nf(Math.min(total, page * PAGE + PAGE), 0)} of {nf(total, 0)}</span><button className="btn" disabled={page === 0} onClick={() => setPage(page - 1)}>‹ Previous</button><button className="btn" disabled={(page + 1) * PAGE >= total} onClick={() => setPage(page + 1)}>Next {PAGE} ›</button></div>)}
                   {webgl && cloud && <div className="scr-3d">
@@ -524,7 +524,7 @@ export function ScreenerPro() {
                   </div>}
                 </>)}
             {coloured.length > 0 && <Plain>{colourNote(coloured, "all")}</Plain>}
-            <p className="ssw-legend">{ruleCount > 0 && <><span className="ssw-lg rb" /> Your rules: the columns your rules use · </>}– means no figure yet · the {prismOnly ? "Prism" : "FinLit IQ"} chip is coloured by its rating word. FinLit scores describe a company's financial health and its price trend. They are not advice to buy, sell or hold any share.</p>
+            <p className="ssw-legend">{ruleCount > 0 && <><span className="ssw-lg rb" /> Your rules: the columns your rules use · </>}– means no figure yet · the Prism chip is coloured by its rating word. FinLit scores describe a company's financial health and its price trend. They are not advice to buy, sell or hold any share.</p>
           </section>
         </div>
         {data && data.withReport < data.total && <p className="faint scr-foot">All {nf(data.total, 0)} listed companies are here with their price and market cap. Ratios, growth and statements show a dash until a company's report is loaded ({nf(data.withReport, 0)} are today); a rule leaves out the companies without that figure.</p>}

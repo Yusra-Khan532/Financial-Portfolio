@@ -12,9 +12,9 @@ vi.mock("../../../lib/ui", () => ({ useUI: () => ({ upgrade: vi.fn(), has: () =>
 import { ScreensStrip, closeDay, figureText } from "./ScreensStrip";
 import { usePresetRoute } from "./usePresetRoute";
 
-const P = (id: string, name: string, group: string, o = {}) => ({ id, name, group, cardText: name + " text", count: 25, asOf: "2026-11-12", status: "live", blockedReason: null, chips: [], howItWorks: [], locked: false, figure: "FinLit IQ", ...o });
+const P = (id: string, name: string, group: string, o = {}) => ({ id, name, group, cardText: name + " text", count: 25, asOf: "2026-11-12", status: "live", blockedReason: null, chips: [], howItWorks: [], locked: false, figure: "FinLit Prism", ...o });
 const F = (pairs: [string, number | null][]) => pairs.map(([name, value]) => ({ symbol: name.toUpperCase().replace(/\s/g, ""), name, value }));
-const LIST = { asOf: "2026-11-17", tab: "basic", groups: [
+const LIST = { asOf: "2026-11-17", tab: "advanced", groups: [
   { id: "top-rated", name: "Top rated", featured: true, presets: [
     P("t-large", "Top 10 large caps", "top-rated", { top10: true, count: 131, listText: "Top 10 of 131 that pass", joined: 3, first: F([["Indrav Infotech", 90]]) }),
     P("both", "Strong on both", "top-rated", { count: 71, joined: 0 })] },
@@ -30,8 +30,8 @@ let body: unknown = LIST;
 beforeEach(() => { body = LIST; vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200, headers: new Headers(), json: async () => body }) as unknown as Response)); });
 afterEach(cleanup);
 const Where = () => { const l = useLocation(); return <output data-testid="loc">{l.search}</output>; };
-const Strip = ({ past }: { past?: { day: string; count: number } }) => { const r = usePresetRoute("basic"); return <ScreensStrip route={r} past={past} />; };
-const mount = (qs = "", past?: { day: string; count: number }) => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={["/score-screener" + qs]}><Strip past={past} /><Where /></MemoryRouter></QueryClientProvider>);
+const Strip = ({ past }: { past?: { day: string; count: number } }) => { const r = usePresetRoute(); return <ScreensStrip route={r} past={past} />; };
+const mount = (qs = "", past?: { day: string; count: number }) => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={["/advanced-score-screener" + qs]}><Strip past={past} /><Where /></MemoryRouter></QueryClientProvider>);
 const tabNames = (el: HTMLElement) => within(el).getAllByRole("tab").map((t) => t.textContent!.replace(/\d+(New)?$/, "").trim());
 
 describe("Ready-made screens strip (task #243, pack R)", () => {
@@ -107,7 +107,7 @@ describe("Ready-made screens strip (task #243, pack R)", () => {
     body = { ...LIST, groups: [{ id: "top-rated", name: "Top rated", featured: true, presets: [P("t", "Top 10 large caps", "top-rated", { top10: true, count: null }), P("l", "Strong on both", "top-rated", { locked: true, count: null })] }] };
     mount();
     expect((await screen.findByText("Top 10 large caps")).closest("button")!.querySelector(".rms-m")!.textContent).toBe("Built after the close");
-    expect(screen.getByText("Strong on both").closest("button")!.textContent).toContain("Part of Silver");
+    expect(screen.getByText("Strong on both").closest("button")!.textContent).toContain("Part of Gold");   // task #283: the screens are on FinLit Prism
   });
 
   it("formats each figure and day as the lists show them", () => {

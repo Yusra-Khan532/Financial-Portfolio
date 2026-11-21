@@ -225,6 +225,7 @@ def suggest(phrase: str, limit: int = 3) -> List[str]:
         for n, k in ALIAS.items():
             if q in n:
                 score[k] = max(score.get(k, 0), 0.5 + 0.3 * len(q) / len(n))
+    score = {k: v for k, v in score.items() if BY_KEY[k].group != "model"}   # task #283: the retired score is never suggested
     ranked = sorted(score.items(), key=lambda kv: (-kv[1], BY_KEY[kv[0]].tier != "basic", kv[0]))
     return [k for k, s in ranked if s >= 0.5][:limit]
 
@@ -869,8 +870,8 @@ def plan_problems(root: Node, plan: str) -> List[Problem]:
     for n in walk(root):
         if isinstance(n, Met):
             m = BY_KEY[n.key]
-            if m.group == "model" and not offered(plan, m.group):   # one score per plan (task #100): Gold uses FinLit Prism, never the FinLit IQ
-                out.append(Problem("plan_score", f"{m.label} is not part of your plan's score. Use FinLit Prism instead.", n.start, n.end, "error", [], {"key": n.key}))
+            if m.group == "model" and not offered(plan, m.group):   # task #283: the retired score is offered to no plan
+                out.append(Problem("plan_score", "That ratio is not offered: queries use the FinLit Prism score and its parts.", n.start, n.end, "error", [], {"key": n.key}))
             elif not allowed(plan, m.tier):
                 tier = TIER_NAME[m.tier]
                 out.append(Problem("plan_locked", f"{m.label} is part of the {tier} plan. Upgrade to {tier} to use it, or pick another ratio.", n.start, n.end, "error", [],

@@ -202,11 +202,13 @@ def test_yes_no_ratios():
 def test_plan_locks_name_the_plan_and_are_not_dropped():
     q = "ROE > 10 AND P/B < 2 AND FinLit IQ > 60"
     probs = [p for p in ql.analyze(q, "basic").problems if p.code == "plan_locked"]
-    assert [(q[p.start:p.end], p.extra["plan"]) for p in probs] == [("P/B", "silver"), ("FinLit IQ", "silver")]   # the FinLit IQ is Silver's (task #64)
-    assert "Silver plan" in probs[0].message and "Silver plan" in probs[1].message
-    assert ql.analyze(q, "silver").ok
-    g = ql.analyze(q, "gold")                                       # Gold uses FinLit Prism and never the FinLit IQ (task #100)
-    assert [p.code for p in g.problems] == ["plan_score"] and "FinLit Prism" in g.problems[0].message
+    assert [(q[p.start:p.end], p.extra["plan"]) for p in probs] == [("P/B", "silver")]
+    assert "Silver plan" in probs[0].message
+    for plan in ("basic", "silver", "gold"):                        # task #283: the retired FinLit IQ is no ratio on any plan; queries use FinLit Prism
+        score = [p for p in ql.analyze(q, plan).problems if p.code == "plan_score"]
+        assert len(score) == 1 and "FinLit Prism" in score[0].message and "FinLit IQ" not in score[0].message, plan
+    assert ql.analyze("ROE > 10 AND P/B < 2", "silver").ok
+    assert "overall" not in ql.suggest("overall score") and "overall" not in ql.suggest("finlit iq")      # never suggested
     assert ql.analyze("ROE > 10 AND Prism score > 60", "gold").ok
     assert [p.code for p in ql.analyze("Prism score > 60", "silver").problems] == ["plan_locked"]   # below Gold, Prism is an upgrade
 

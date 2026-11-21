@@ -349,8 +349,8 @@
    "fix": "Pick another ratio, or open the plan that includes it."
   },
   "plan_score": {
-   "rule": "Each plan has one score: Gold and up use FinLit Prism, Silver the FinLit IQ. A Gold query never uses the FinLit IQ.",
-   "fix": "Use the plan's own score: Prism score and its parts on Gold, FinLit IQ and its parts on Silver."
+   "rule": "Queries use the FinLit Prism score and its parts.",
+   "fix": "Use the Prism score or one of its parts (Growth & Profitability, Valuation, Quality, Risk, the short-term and long-term technical views)."
   },
   "unexpected": {
    "rule": "After a condition comes a new line, AND, OR or the end of the query. A comma is not a joiner.",
