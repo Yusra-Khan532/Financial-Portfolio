@@ -12,7 +12,7 @@ describe("Prism report fixes (task #293)", () => {
     const t = css("prism-technical.css");
     expect(t).toContain(".pzt-map thead td { width: 112px; }");
     expect(t).toMatch(/\.pzt-map th \{ white-space: normal; \}/);
-    expect(t).toMatch(/@media \(max-width: 560px\) \{\s*\.pzr-rep \.pzt-map thead td \{ width: 78px; \}\s*\.pzr-rep \.pzt-map th small \{ overflow-wrap: normal;/);
+    expect(css("prism220.css")).toMatch(/@media \(max-width: 560px\) \{\s*\.pzr-rep \.pzt-map thead td \{ width: 78px; \}\s*\.pzr-rep \.pzt-map th small \{ overflow-wrap: normal;/);
   });
   it("2: the Trend alignment row follows its own width (container query), so the diamond stays on line 1 in the narrow card", () => {
     const c = css("prism-card.css");
@@ -34,7 +34,7 @@ describe("Prism report fixes (task #293)", () => {
     expect(src("Landing.tsx")).toContain('placeholder={narrow ? "Company name or symbol" : "Company name or symbol, for example TCS"}');
   });
   it("7: in dark the map's labels have no shaded box or line (the site-wide dark th rule is out-ranked)", () => {
-    expect(css("prism-technical.css")).toContain(":root .pzr-rep .pzt-map th, :root .pzr-rep .pzt-map thead td { background: none; border: 0; }");
+    expect(css("prism220.css")).toContain(":root .pzr-rep .pzt-map th, :root .pzr-rep .pzt-map thead td { background: none; border: 0; }");
   });
   it("8: the engine's internal status is never shown; members read plain words; the medians sentence stays; anything else is not shown", () => {
     const raw = "No peer calculation required, or industry universe unavailable or exceeds the on-demand limit.";

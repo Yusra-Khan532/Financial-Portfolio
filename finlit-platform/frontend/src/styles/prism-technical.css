@@ -182,11 +182,5 @@
   .pzt-bd, .pzt-mc { box-shadow: none; background: #fff; break-inside: avoid; }
 }
 /* Task #293 (21 Nov 2026, the team's Prism report pack, finlit-dev-11-prism-report-21nov) */
-/* 1. A site-wide th rule kept the trend map's row labels on one line, so they ran into the first cell: they may wrap; on phones after the hyphen (SHORT- / TERM) */
+/* 1. A site-wide th rule kept the trend map's row labels on one line, so they ran into the first cell: they may wrap (the report's phone width and dark-theme rules are in prism220.css) */
 .pzt-map th { white-space: normal; }
-@media (max-width: 560px) {
-  .pzr-rep .pzt-map thead td { width: 78px; }
-  .pzr-rep .pzt-map th small { overflow-wrap: normal; letter-spacing: .02em; }
-}
-/* 7. Dark theme: the site-wide dark th shade and line out-rank .pzt-map th, so the labels got boxes and lines in dark only; plain, as in light */
-:root .pzr-rep .pzt-map th, :root .pzr-rep .pzt-map thead td { background: none; border: 0; }

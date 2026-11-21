@@ -122,3 +122,11 @@
 .cz-modal .pzr-ch-in { padding: 4px 2px; }
 .pzr-rep .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .pzr-rep .pzt-prov { display: flex; gap: 6px; align-items: flex-start; } .pzr-rep .pzt-prov svg { flex: none; width: 14px; height: 14px; margin-top: 2px; }
+/* Task #293 (21 Nov 2026, the team's Prism report pack): the trend map inside the report (the rest of its rules are in prism-technical.css).
+   1. On phones the label column is 78px and the label wraps after the hyphen (SHORT- / TERM). */
+@media (max-width: 560px) {
+  .pzr-rep .pzt-map thead td { width: 78px; }
+  .pzr-rep .pzt-map th small { overflow-wrap: normal; letter-spacing: .02em; }
+}
+/* 7. Dark theme: the site-wide dark th shade and line out-rank .pzt-map th, so the labels got boxes and lines in dark only; plain, as in light */
+:root .pzr-rep .pzt-map th, :root .pzr-rep .pzt-map thead td { background: none; border: 0; }
