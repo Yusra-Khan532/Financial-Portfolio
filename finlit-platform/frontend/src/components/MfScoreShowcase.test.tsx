@@ -86,7 +86,7 @@ describe("the reading's rules", () => {
   it("sits under the Prism part on the landing page and describes, never advises", () => {
     const home = readFileSync(join(__dirname, "..", "pages", "Home.tsx"), "utf8");
     expect(home.indexOf("<MfScoreShowcase />")).toBeGreaterThan(home.indexOf("<PrismShowcase />"));
-    expect(home.indexOf("<MfScoreShowcase />")).toBeLessThan(home.indexOf("<PlansBand"));
+    expect(home).not.toMatch(/<PlansBand/);   // task #295: no plans band on the landing page for now
     const src = readFileSync(join(__dirname, "MfScoreShowcase.tsx"), "utf8") + readFileSync(join(__dirname, "..", "lib", "mfShowcase.ts"), "utf8");
     expect(src).not.toMatch(/\b(buy|sell|hold|accumulate|avoid|target|best|top pick)\b/i);
   });
