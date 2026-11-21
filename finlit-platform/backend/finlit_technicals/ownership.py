@@ -153,7 +153,10 @@ def pack_from_site(ownership: dict, premium: Optional[dict] = None, symbol: Opti
                 prev = _f(h[1].get("value")) if len(h) > 1 and isinstance(h[1], dict) else None
                 # task #289: the last 8 quarters, newest first, as [period, stake] (the superinvestors page's quarter-on-quarter moves and
                 # stake sparkline); only when the provider labels its quarters. A holder named last quarter is kept even when not now or a year ago.
-                quarters = [[x.get("period"), _f(x.get("value"))] for x in h[:8] if isinstance(x, dict) and x.get("period")]
+                # only when every entry kept carries its label: a history with unlabelled gaps would shift a year-ago figure into "last quarter"
+                head = h[:8]
+                quarters = ([[x.get("period"), _f(x.get("value"))] for x in head]
+                            if head and all(isinstance(x, dict) and x.get("period") for x in head) else [])
                 if (now or 0) >= 1 or (ago or 0) >= 1 or (prev or 0) >= 1:
                     holders.append([k.get("label"), grp, now, ago] + ([quarters] if len(quarters) >= 2 else []))
         pack["holders"] = holders

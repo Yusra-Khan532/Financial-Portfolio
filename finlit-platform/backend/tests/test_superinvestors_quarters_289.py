@@ -27,6 +27,9 @@ def test_the_parser_keeps_8_labelled_quarters_newest_first_and_old_readers_still
     # a holder named only last quarter is kept (it left this quarter)
     gone = own.pack_from_site({"periods": [], "series": {}}, premium([0, 1.3, 0.5, 0, 0]))
     assert gone["holders"][0][2:4] == [0.0, 0.0] and gone["holders"][0][4][1] == ["Jun 2026", 1.3]
+    # a history with unlabelled gaps keeps no quarters (a year-ago figure must never pass for last quarter)
+    gaps = own.pack_from_site({"periods": [], "series": {}}, {"shareholdingDetails": [{"label": "Non-Institutions", "children": [{"label": "X", "history": [{"period": "Sep 2026", "value": 2}, {}, {}, {}, {"period": "Sep 2025", "value": 1}]}]}]})
+    assert gaps["holders"] == [["X", "public", 2.0, 1.0]]
     # history without quarter labels: the four items, as before
     plain = own.pack_from_site({"periods": [], "series": {}}, {"shareholdingDetails": [{"label": "Non-Institutions", "children": [{"label": "X", "history": [{"value": 2}, {}, {}, {}, {"value": 1}]}]}]})
     assert plain["holders"] == [["X", "public", 2.0, 1.0]]
