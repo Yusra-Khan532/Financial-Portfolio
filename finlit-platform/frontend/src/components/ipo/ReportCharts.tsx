@@ -8,6 +8,8 @@ import type { BookCategory, IpoDetail, ReservationRow } from "../../lib/ipoHisto
 const COLOURS: Record<string, string> = { anchor: "var(--k1)", qib: "var(--k2)", nii: "var(--k3)", bnii: "var(--k3)", snii: "var(--k4)", retail: "var(--k5)", employee: "var(--k6)",
   shareholder: "var(--k7)", policyholder: "var(--k8)", market_maker: "var(--k8)", other: "var(--muted)" };
 const colourOf = (k: string) => COLOURS[k] ?? "var(--muted)";
+/** Rupees as the GMP log gives them: paise kept below ₹10 (₹0.70 is not ₹1), one decimal below ₹100 when it has one. */
+const rs = (v: number) => "₹" + nf(v, v % 1 === 0 ? 0 : Math.abs(v) < 10 ? 2 : 1);
 const dShort = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 
 /** Times subscribed per category, on one scale; the overall figure as a line. */
@@ -70,17 +72,17 @@ export function GmpLine({ points, issuePrice }: { points: { t: string; gmp: numb
   return (
     <ChartZoom label="GMP day by day">
       <div className="ir-gmp">
-        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`GMP from ${dShort(points[0].t)} to ${dShort(points[points.length - 1].t)}: first ₹${nf(points[0].gmp, 0)}, peak ₹${nf(peak.gmp, 0)}, last ₹${nf(points[points.length - 1].gmp, 0)}`}
+        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`GMP from ${dShort(points[0].t)} to ${dShort(points[points.length - 1].t)}: first ${rs(points[0].gmp)}, peak ${rs(peak.gmp)}, last ${rs(points[points.length - 1].gmp)}`}
           onMouseLeave={() => setHi(null)} onMouseMove={(e) => { const r = (e.currentTarget as SVGSVGElement).getBoundingClientRect(); const tx = t0 + (((e.clientX - r.left) / r.width) * W - L) / (W - L - R) * (t1 - t0); let b = 0; ts.forEach((t, i) => { if (Math.abs(t - tx) < Math.abs(ts[b] - tx)) b = i; }); setHi(b); }}>
-          {[lo, (lo + top) / 2, top].map((v) => <g key={v}><line x1={L} x2={W - R} y1={y(v)} y2={y(v)} className="ir-grid" /><text x={L - 6} y={y(v) + 4} textAnchor="end" className="ir-tick">₹{nf(v, 0)}</text></g>)}
+          {[lo, (lo + top) / 2, top].map((v) => <g key={v}><line x1={L} x2={W - R} y1={y(v)} y2={y(v)} className="ir-grid" /><text x={L - 6} y={y(v) + 4} textAnchor="end" className="ir-tick">{rs(Math.round(v * 100) / 100)}</text></g>)}
           {lo < 0 && <line x1={L} x2={W - R} y1={y(0)} y2={y(0)} className="ir-zero" />}
           <text x={L} y={H - 6} className="ir-tick">{dShort(points[0].t)}</text><text x={W - R} y={H - 6} textAnchor="end" className="ir-tick">{dShort(points[points.length - 1].t)}</text>
           <path d={path} className="ir-line" />
           <circle cx={x(new Date(peak.t).getTime())} cy={y(peak.gmp)} r={4} className="ir-peak" />
           {h && <circle cx={x(new Date(h.t).getTime())} cy={y(h.gmp)} r={5} className="ir-hi" />}
         </svg>
-        <p className="ir-gmp-cap" aria-live="polite">{h ? <>{new Date(h.t).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}: <b>₹{nf(h.gmp, h.gmp % 1 ? 1 : 0)}</b>{issuePrice ? ` (${nf((h.gmp / issuePrice) * 100, 1)}% of the issue price)` : ""}</>
-          : <>Peak <b>₹{nf(peak.gmp, peak.gmp % 1 ? 1 : 0)}</b> on {dShort(peak.t)} · last <b>₹{nf(points[points.length - 1].gmp, 0)}</b> on {dShort(points[points.length - 1].t)}</>}</p>
+        <p className="ir-gmp-cap" aria-live="polite">{h ? <>{new Date(h.t).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}: <b>{rs(h.gmp)}</b>{issuePrice ? ` (${nf((h.gmp / issuePrice) * 100, 1)}% of the issue price)` : ""}</>
+          : <>Peak <b>{rs(peak.gmp)}</b> on {dShort(peak.t)} · last <b>{rs(points[points.length - 1].gmp)}</b> on {dShort(points[points.length - 1].t)}</>}</p>
       </div>
     </ChartZoom>
   );
