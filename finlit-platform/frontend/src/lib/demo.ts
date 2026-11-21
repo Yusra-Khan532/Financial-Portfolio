@@ -20,6 +20,7 @@ async function demoFetch(input: RequestInfo | URL, init?: RequestInit): Promise<
     return json({ detail: "Not available in the demo." }, 405);
   }
   if (path === "/api/discovery/changes") return file("discovery-changes.json");   // task #277: What changed at the companies you own: sample filings, marked (sample)
+  if (/^\/api\/stocks\/[^/]+\/filing-scores$/.test(path)) return file("filing-scores.json");   // task #266: Tech Mahindra's Q2 FY27 presentation and results, scored by the real scorer (the transcript is a sample)
   if (path === "/api/stress/quick-picks") return json({ picks: [{ symbol: "ASIANPAINT", name: "Asian Paints" }] });   // Stress Lab: the demo holds one stored page
   if (/^\/api\/stress\/[^/]+\/page$/.test(path)) return file("stress-page.json");   // Stress Lab: Asian Paints on its own figures, whichever company is asked for
   if (/^\/api\/stress\/[^/]+\/peer$/.test(path)) return json({ symbol: path.split("/")[3], peer: null, peers: [] });

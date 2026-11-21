@@ -8,6 +8,7 @@ import { Icon } from "../lib/icons";
 import { Plain } from "../components/Plain";
 import { ChartHelp } from "../components/ChartHelp";
 import { SectionHead } from "./Sections";
+import { FilingScores } from "./FilingScores";
 import "../styles/news-filings.css";
 import { GROUP, GROUPS, dayNum, filingsPlain, highlights, monShort, monthHead, sortFilings, type Filing, type GroupKey } from "../lib/filings";
 
@@ -15,7 +16,7 @@ const FIRST = 8;
 const safe = (link: string | null) => (link && /^https?:\/\//.test(link) ? link : null);
 const shortName = (n: string) => n.replace(/\s+(Ltd\.?|Limited)$/i, "").trim();
 
-export function NewsSection({ e, name }: { e?: Events; name: string }) {
+export function NewsSection({ e, name, symbol }: { e?: Events; name: string; /** task #266: the three filings scored */ symbol?: string }) {
   const [g, setG] = useState<GroupKey | "all">("all");
   const [all, setAll] = useState(false);
   const [routine, setRoutine] = useState(false);
@@ -67,6 +68,7 @@ export function NewsSection({ e, name }: { e?: Events; name: string }) {
         {g === "all" && live.length > FIRST && <button type="button" className="nf-all" aria-expanded={all} onClick={toggleAll}>{all ? "Show fewer" : `Show all ${live.length}`}</button>}
         <p className="faint nf-foot">Source: NSE corporate announcements, as filed by the company. FinLit sorts them into groups; the exchange's own category is under each title. Times are IST.</p>
       </div>
+      {symbol && <FilingScores symbol={symbol} name={shortName(name)} />}
     </section>
   );
 }
