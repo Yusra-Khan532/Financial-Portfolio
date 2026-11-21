@@ -1,0 +1,3808 @@
+{
+ "source": "Investor Presentation Keyword Directory v3 (task #267 attachment): Part 2, Earnings Call Transcript Keywords (87 keywords in 8 buckets) and Part 3, Results Filing Keywords (101 keywords in 7 buckets), each keyword with its related terms and what to verify, read from the PDF's tables by scripts/build_discovery_sources.py.",
+ "calls": {
+  "buckets": {
+   "Call: Management Guidance & Outlook": [
+    {
+     "keyword": "Forward guidance",
+     "related": [
+      "Guidance for next year",
+      "full-year outlook",
+      "we expect",
+      "we are targeting",
+      "outlook",
+      "guidance",
+      "forecast",
+      "projection",
+      "management outlook",
+      "expected performance",
+      "forward-looking guidance",
+      "full-year guidance",
+      "annual guidance",
+      "we anticipate",
+      "we project",
+      "business outlook",
+      "growth outlook"
+     ],
+     "verify": "Check whether guidance is numeric and time-bound; compare with last quarter's guidance and the delivery record."
+    },
+    {
+     "keyword": "Guidance upgrade / raised outlook",
+     "related": [
+      "Raising guidance",
+      "upward revision",
+      "ahead of plan",
+      "better than earlier expected",
+      "guidance raised",
+      "upgraded outlook",
+      "upward guidance revision",
+      "improved guidance",
+      "guidance hike",
+      "revised upward",
+      "better outlook",
+      "increased forecast",
+      "stronger outlook",
+      "lifted guidance",
+      "guidance beat",
+      "revised target upward",
+      "optimistic revision"
+     ],
+     "verify": "Identify what changed (volume, price, mix, order wins) and the assumptions behind the new range."
+    },
+    {
+     "keyword": "Guidance cut / lowered outlook",
+     "related": [
+      "Downward revision",
+      "moderated expectations",
+      "tempering growth",
+      "cautious outlook",
+      "guidance reduced",
+      "guidance lowered",
+      "downgraded outlook",
+      "guidance trimmed",
+      "reduced forecast",
+      "weaker outlook",
+      "guidance withdrawn",
+      "revised downward",
+      "guidance miss",
+      "scaled-back expectations",
+      "lowered targets",
+      "softer outlook",
+      "guidance reset"
+     ],
+     "verify": "Separate temporary causes (delays, one-offs) from structural demand or margin problems."
+    },
+    {
+     "keyword": "Double-digit growth / CAGR target",
+     "related": [
+      "Mid-teens growth",
+      "20% CAGR",
+      "doubling revenue",
+      "2x in three years",
+      "10%+ growth",
+      "high-teens growth",
+      "15% growth",
+      "compounded growth",
+      "compound annual growth rate",
+      "growth ambition",
+      "growth trajectory",
+      "growth rate target",
+      "sustained growth",
+      "multi-year growth",
+      "2x target",
+      "growth algorithm"
+     ],
+     "verify": "Confirm base year, organic versus acquired growth, and whether past targets were met."
+    },
+    {
+     "keyword": "Medium-term and long-term targets",
+     "related": [
+      "Vision 2030",
+      "FY28 target",
+      "aspiration",
+      "ambition",
+      "strategic roadmap",
+      "medium-term goals",
+      "long-term goals",
+      "three-year plan",
+      "five-year plan",
+      "strategic plan",
+      "2030 targets",
+      "vision statement",
+      "mission 2030",
+      "targets by FY30",
+      "multi-year roadmap",
+      "long-range plan",
+      "strategic objectives",
+      "blueprint",
+      "strategic priorities"
+     ],
+     "verify": "Distinguish aspirational language from board-approved plans backed by capex and funding."
+    },
+    {
+     "keyword": "Revenue visibility",
+     "related": [
+      "Line of sight",
+      "well-placed",
+      "executable orders",
+      "order cover in quarters",
+      "earnings visibility",
+      "growth visibility",
+      "order visibility",
+      "demand visibility",
+      "clear visibility",
+      "good visibility",
+      "strong visibility",
+      "revenue certainty",
+      "predictable revenue",
+      "revenue cover",
+      "backlog cover",
+      "assured revenue",
+      "forward cover"
+     ],
+     "verify": "Look for quantified cover (order book to revenue ratio) rather than general comfort statements."
+    },
+    {
+     "keyword": "Strong pipeline",
+     "related": [
+      "Healthy pipeline",
+      "enquiry pipeline",
+      "bid pipeline",
+      "L1 position",
+      "qualified leads",
+      "robust pipeline",
+      "large pipeline",
+      "qualified pipeline",
+      "sales pipeline",
+      "opportunity funnel",
+      "tender pipeline",
+      "prospects",
+      "negotiation pipeline",
+      "deal funnel",
+      "business pipeline",
+      "lead funnel"
+     ],
+     "verify": "Check conversion history, L1 versus awarded status and bid-to-win ratio."
+    },
+    {
+     "keyword": "Structural tailwinds",
+     "related": [
+      "Secular growth",
+      "policy tailwind",
+      "demand tailwind",
+      "long runway",
+      "secular tailwinds",
+      "long-term tailwinds",
+      "policy tailwinds",
+      "demand tailwinds",
+      "industry tailwinds",
+      "structural growth",
+      "structural shift",
+      "multi-year tailwind",
+      "strong macro drivers",
+      "favourable environment",
+      "sectoral tailwinds",
+      "megatrends",
+      "supportive policy"
+     ],
+     "verify": "Name the specific policy or demand driver and size its revenue impact."
+    },
+    {
+     "keyword": "Inflection point",
+     "related": [
+      "Turning point",
+      "step change",
+      "scale-up phase",
+      "hockey-stick",
+      "breakout year",
+      "breakout",
+      "tipping point",
+      "pivotal moment",
+      "transition phase",
+      "acceleration phase",
+      "watershed",
+      "trend reversal",
+      "phase change",
+      "momentum shift",
+      "point of inflection"
+     ],
+     "verify": "Demand evidence of real change in revenue, margin or customer count, not just narrative."
+    },
+    {
+     "keyword": "Back-ended / H2-weighted year",
+     "related": [
+      "Second-half weighted",
+      "Q4 heavy",
+      "seasonally stronger",
+      "skewed to H2",
+      "back-loaded",
+      "H2-heavy",
+      "year-end loaded",
+      "fourth quarter spike",
+      "seasonal skew",
+      "second half pickup",
+      "back-end loaded",
+      "H2 ramp",
+      "late-year execution",
+      "Q3-Q4 weighted"
+     ],
+     "verify": "Assess execution risk and compare with the company's historical quarterly split."
+    }
+   ],
+   "Call: Demand, Orders & Customers": [
+    {
+     "keyword": "Strong demand environment",
+     "related": [
+      "Robust demand",
+      "demand momentum",
+      "healthy demand",
+      "demand revival",
+      "demand pull",
+      "demand strength",
+      "demand upcycle",
+      "buoyant demand",
+      "encouraging demand",
+      "strong offtake",
+      "demand resilience",
+      "demand uptick",
+      "solid demand",
+      "demand recovery"
+     ],
+     "verify": "Look for volume, order and enquiry data supporting the claim."
+    },
+    {
+     "keyword": "Demand slowdown / weak demand",
+     "related": [
+      "Muted demand",
+      "demand softness",
+      "destocking",
+      "channel inventory build-up",
+      "subdued offtake",
+      "weak offtake",
+      "demand weakness",
+      "demand contraction",
+      "sluggish demand",
+      "demand moderation",
+      "demand headwinds",
+      "lower volumes",
+      "inventory correction",
+      "demand lull"
+     ],
+     "verify": "Check duration, affected segments and management's recovery timeline."
+    },
+    {
+     "keyword": "Volume growth versus price-led growth",
+     "related": [
+      "Volume-led",
+      "realisation",
+      "price hikes",
+      "mix improvement",
+      "like-for-like growth",
+      "volume growth",
+      "price-led growth",
+      "volume-price-mix",
+      "organic volumes",
+      "same-product growth",
+      "price realisation",
+      "unit volume",
+      "underlying volume growth",
+      "value growth"
+     ],
+     "verify": "Split growth into volume, price and mix; price-only growth is less durable."
+    },
+    {
+     "keyword": "Rural and urban demand split",
+     "related": [
+      "Rural recovery",
+      "urban slowdown",
+      "premium demand",
+      "mass segment",
+      "entry-level",
+      "rural demand",
+      "urban demand",
+      "semi-urban",
+      "tier-2 cities",
+      "tier-3 cities",
+      "Bharat demand",
+      "rural markets",
+      "metro demand",
+      "consumption trends"
+     ],
+     "verify": "Verify segment-wise growth and sensitivity to monsoon, inflation and consumer sentiment."
+    },
+    {
+     "keyword": "Export demand and trade policy",
+     "related": [
+      "Tariffs",
+      "US tariff",
+      "China plus one",
+      "FTA benefits",
+      "anti-dumping",
+      "export realisation",
+      "export growth",
+      "trade barriers",
+      "export duties",
+      "free trade agreement",
+      "export headwinds",
+      "import duty",
+      "reciprocal tariffs",
+      "trade policy"
+     ],
+     "verify": "Quantify export share by geography and exposure to tariff or trade-policy changes."
+    },
+    {
+     "keyword": "Customer concentration",
+     "related": [
+      "Top 5 customers",
+      "top 10 clients",
+      "single-customer dependence",
+      "key account share",
+      "client concentration",
+      "top customer share",
+      "customer dependence",
+      "large customer exposure",
+      "revenue concentration",
+      "anchor customer",
+      "key client reliance",
+      "customer mix",
+      "top client revenue",
+      "customer diversification"
+     ],
+     "verify": "Check percentage of revenue from top customers and contract tenure."
+    },
+    {
+     "keyword": "New customer wins",
+     "related": [
+      "New logos",
+      "design wins",
+      "vendor approval",
+      "customer additions",
+      "empanelment",
+      "new clients",
+      "new accounts",
+      "customer acquisition",
+      "client wins",
+      "new relationships",
+      "approved vendor",
+      "new customer onboarding",
+      "fresh clients",
+      "account wins"
+     ],
+     "verify": "Verify programme, value, start of production and revenue timing."
+    },
+    {
+     "keyword": "Repeat orders and wallet share",
+     "related": [
+      "Repeat business",
+      "client mining",
+      "cross-sell",
+      "upsell",
+      "share of wallet",
+      "repeat customers",
+      "recurring orders",
+      "customer retention",
+      "account farming",
+      "existing customer growth",
+      "follow-on orders",
+      "repeat revenue",
+      "deepening relationships",
+      "customer stickiness"
+     ],
+     "verify": "Look for repeat-order percentage and growth within existing accounts."
+    },
+    {
+     "keyword": "Deal wins and total contract value (TCV)",
+     "related": [
+      "Large deal wins",
+      "net new TCV",
+      "deal pipeline",
+      "deal conversion",
+      "book-to-bill",
+      "TCV",
+      "ACV",
+      "deal momentum",
+      "mega deals",
+      "renewal deals",
+      "deal bookings",
+      "deal ramp-up",
+      "multi-year deals",
+      "deal signings"
+     ],
+     "verify": "Separate TCV from annual revenue, and check ramp-up and renewal versus net-new."
+    },
+    {
+     "keyword": "Order deferrals and cancellations",
+     "related": [
+      "Project delays",
+      "postponed orders",
+      "customer pushback",
+      "order slippage",
+      "de-scoping",
+      "order cancellations",
+      "deferred orders",
+      "order push-outs",
+      "contract termination",
+      "delayed ordering",
+      "order freeze",
+      "project deferment",
+      "customer hesitation",
+      "order reduction"
+     ],
+     "verify": "Check size of affected orders and likelihood of revenue shifting beyond the year."
+    },
+    {
+     "keyword": "Market share gains",
+     "related": [
+      "Share gain",
+      "market leadership",
+      "number one position",
+      "outperforming industry",
+      "market share expansion",
+      "gaining share",
+      "share improvement",
+      "industry outperformance",
+      "higher share",
+      "leadership position",
+      "share of market",
+      "competitive wins",
+      "market penetration",
+      "category leader"
+     ],
+     "verify": "Confirm source of market-share data and comparison against peers."
+    },
+    {
+     "keyword": "Distribution and channel expansion",
+     "related": [
+      "Distributor addition",
+      "touchpoints",
+      "retail stores",
+      "dealer network",
+      "direct reach",
+      "distribution reach",
+      "outlet expansion",
+      "channel partners",
+      "network expansion",
+      "retail footprint",
+      "sales network",
+      "GT and MT",
+      "modern trade",
+      "e-commerce channel"
+     ],
+     "verify": "Check productivity per outlet, not just outlet count."
+    }
+   ],
+   "Call: Margins & Profitability": [
+    {
+     "keyword": "EBITDA margin expansion",
+     "related": [
+      "Margin improvement",
+      "basis points expansion",
+      "margin uptick",
+      "profitability improvement",
+      "margin gains",
+      "higher margins",
+      "margin widening",
+      "margin recovery",
+      "EBITDA growth",
+      "operating margin expansion",
+      "improved profitability",
+      "bps improvement",
+      "margin accretion",
+      "margin enhancement"
+     ],
+     "verify": "Understand drivers: price, mix, operating leverage, lower input costs or one-offs."
+    },
+    {
+     "keyword": "Margin compression",
+     "related": [
+      "Margin pressure",
+      "margin contraction",
+      "squeeze",
+      "lower profitability",
+      "margin headwinds",
+      "margin erosion",
+      "margin decline",
+      "margin dilution",
+      "profit squeeze",
+      "shrinking margins",
+      "margin slippage",
+      "profitability pressure",
+      "reduced margins",
+      "margin hit"
+     ],
+     "verify": "Identify whether cost-driven or competition-driven, and the recovery plan."
+    },
+    {
+     "keyword": "Operating leverage",
+     "related": [
+      "Fixed cost absorption",
+      "scale benefits",
+      "incremental margin",
+      "cost leverage",
+      "operating gearing",
+      "scale efficiencies",
+      "fixed cost leverage",
+      "leverage benefits",
+      "drop-through",
+      "incremental EBITDA",
+      "flow-through",
+      "economies of scale",
+      "cost dilution",
+      "operating scale"
+     ],
+     "verify": "Compare incremental margins with average margins across several quarters."
+    },
+    {
+     "keyword": "Product mix and premiumisation",
+     "related": [
+      "Richer mix",
+      "value-added products",
+      "premium portfolio",
+      "high-margin segments",
+      "premiumisation",
+      "mix shift",
+      "favourable mix",
+      "upmarket",
+      "premium products",
+      "mix enrichment",
+      "high-value products",
+      "specialty mix",
+      "trading up",
+      "improved mix"
+     ],
+     "verify": "Quantify mix share and margin gap versus the base portfolio."
+    },
+    {
+     "keyword": "Raw material and input cost inflation",
+     "related": [
+      "Commodity prices",
+      "crude",
+      "steel",
+      "coal",
+      "freight cost",
+      "packaging cost",
+      "input cost volatility",
+      "raw material prices",
+      "cost inflation",
+      "material cost pressure",
+      "energy costs",
+      "commodity inflation",
+      "input price increase",
+      "RM costs"
+     ],
+     "verify": "Check cost pass-through lag and sensitivity to key commodities."
+    },
+    {
+     "keyword": "Pricing power and cost pass-through",
+     "related": [
+      "Price hikes",
+      "price increases",
+      "pass on cost",
+      "pricing discipline",
+      "realisation improvement",
+      "price pass-through",
+      "pricing actions",
+      "price corrections",
+      "cost recovery",
+      "price revisions",
+      "pricing leverage",
+      "take price",
+      "surcharge",
+      "pricing flexibility"
+     ],
+     "verify": "Verify whether price increases held without volume loss."
+    },
+    {
+     "keyword": "Cost optimisation and efficiency",
+     "related": [
+      "Cost rationalisation",
+      "productivity",
+      "cost take-out",
+      "lean operations",
+      "automation benefits",
+      "cost savings",
+      "cost control",
+      "efficiency gains",
+      "cost reduction",
+      "cost discipline",
+      "operational efficiency",
+      "procurement savings",
+      "overhead reduction",
+      "cost transformation"
+     ],
+     "verify": "Look for quantified savings and sustainability; avoid one-off cost deferrals."
+    },
+    {
+     "keyword": "Realisation and average selling price",
+     "related": [
+      "ASP",
+      "per-tonne EBITDA",
+      "ARPU",
+      "yield",
+      "net realisation",
+      "price per unit",
+      "average realisation",
+      "blended realisation",
+      "revenue per unit",
+      "per-unit economics",
+      "realised price",
+      "avg price",
+      "unit realisation",
+      "revenue per tonne"
+     ],
+     "verify": "Track unit economics trend across quarters."
+    },
+    {
+     "keyword": "Currency impact and hedging",
+     "related": [
+      "Rupee depreciation",
+      "forex gain",
+      "forex loss",
+      "hedge book",
+      "natural hedge",
+      "forex impact",
+      "exchange rate",
+      "currency volatility",
+      "FX tailwind",
+      "FX headwind",
+      "mark-to-market",
+      "currency fluctuation",
+      "hedging cover",
+      "forex exposure"
+     ],
+     "verify": "Separate operating performance from translation and mark-to-market effects."
+    },
+    {
+     "keyword": "Employee cost, wage and attrition",
+     "related": [
+      "Wage hike",
+      "salary increment",
+      "attrition rate",
+      "utilisation",
+      "subcontractor cost",
+      "headcount",
+      "employee expenses",
+      "manpower cost",
+      "talent cost",
+      "wage inflation",
+      "staff costs",
+      "employee addition",
+      "compensation cost",
+      "people cost"
+     ],
+     "verify": "Check effect on margin and whether supply of talent constrains growth."
+    },
+    {
+     "keyword": "Government incentives and PLI benefits",
+     "related": [
+      "PLI scheme",
+      "subsidy accrual",
+      "incentive income",
+      "duty drawback",
+      "RoDTEP",
+      "state incentives",
+      "capital subsidy",
+      "interest subvention",
+      "scheme benefits",
+      "government grants",
+      "export incentives",
+      "PLI claim",
+      "incentive accrual",
+      "policy incentives"
+     ],
+     "verify": "Confirm eligibility, amount recognised, timing of receipt and dependence on the scheme."
+    },
+    {
+     "keyword": "One-time and normalised earnings",
+     "related": [
+      "Non-recurring",
+      "one-off",
+      "normalised EBITDA",
+      "adjusted PAT",
+      "exceptional gain",
+      "adjusted earnings",
+      "underlying profit",
+      "core earnings",
+      "recurring earnings",
+      "normalised margin",
+      "ex-exceptional",
+      "adjusted EBITDA",
+      "non-operating items",
+      "one-time items"
+     ],
+     "verify": "Rebuild the underlying run-rate by excluding non-recurring items."
+    }
+   ],
+   "Call: Capex, Capacity & Execution": [
+    {
+     "keyword": "Capex plan and outlay",
+     "related": [
+      "Capex guidance",
+      "capital expenditure",
+      "Rs crore capex",
+      "FY capex",
+      "growth capex",
+      "maintenance capex",
+      "capex budget",
+      "investment outlay",
+      "planned capex",
+      "capex spend",
+      "capex envelope",
+      "capital allocation to capex",
+      "capex programme",
+      "project investment"
+     ],
+     "verify": "Split growth and maintenance capex, and check funding mix (internal accruals, debt, equity)."
+    },
+    {
+     "keyword": "Capacity addition timeline",
+     "related": [
+      "Commissioning",
+      "COD",
+      "trial production",
+      "commercial production date",
+      "phase 1",
+      "phase 2",
+      "start of production",
+      "SOP",
+      "project timeline",
+      "commissioning schedule",
+      "go-live",
+      "plant start-up",
+      "first production",
+      "capacity coming online"
+     ],
+     "verify": "Track announced versus achieved dates for previous projects."
+    },
+    {
+     "keyword": "Ramp-up and utilisation",
+     "related": [
+      "Utilisation ramp",
+      "ramp-up curve",
+      "stabilisation",
+      "break-even utilisation",
+      "run-rate production",
+      "ramp-up phase",
+      "scale-up",
+      "utilisation build",
+      "production ramp",
+      "capacity fill",
+      "learning curve",
+      "steady-state utilisation",
+      "ramp schedule",
+      "volume ramp"
+     ],
+     "verify": "Compare installed capacity to actual production and breakeven levels."
+    },
+    {
+     "keyword": "Peak revenue potential and asset turn",
+     "related": [
+      "Asset turnover",
+      "revenue potential from capex",
+      "revenue per Rs of capex",
+      "payback period",
+      "asset turns",
+      "peak revenue",
+      "revenue potential",
+      "fixed asset turnover",
+      "capital productivity",
+      "full-capacity revenue",
+      "sales potential",
+      "return on capex",
+      "capital efficiency",
+      "peak sales"
+     ],
+     "verify": "Test whether stated revenue potential is consistent with capacity and realisation."
+    },
+    {
+     "keyword": "Project on track / delays",
+     "related": [
+      "On schedule",
+      "time overrun",
+      "cost overrun",
+      "delayed commissioning",
+      "regulatory clearance pending",
+      "project slippage",
+      "ahead of schedule",
+      "project delay",
+      "schedule risk",
+      "project status",
+      "behind schedule",
+      "execution delay",
+      "timeline revised",
+      "project hurdles"
+     ],
+     "verify": "Check revised timeline and cost, plus impact on interest during construction."
+    },
+    {
+     "keyword": "Execution and milestone billing",
+     "related": [
+      "Execution pace",
+      "milestone achieved",
+      "billing",
+      "work-in-progress",
+      "percentage completion",
+      "execution rate",
+      "project execution",
+      "milestone-based billing",
+      "revenue recognition",
+      "execution run-rate",
+      "project delivery",
+      "delivery schedule",
+      "execution capability",
+      "billing milestones"
+     ],
+     "verify": "Compare execution rate with order book; check revenue recognition method."
+    },
+    {
+     "keyword": "Backward integration",
+     "related": [
+      "Vertical integration",
+      "captive supply",
+      "in-house manufacturing",
+      "upstream expansion",
+      "backward linkage",
+      "captive sourcing",
+      "integrated operations",
+      "own supply",
+      "self-sufficiency in inputs",
+      "captive mines",
+      "captive power",
+      "internal sourcing",
+      "supply chain integration",
+      "upstream integration"
+     ],
+     "verify": "Verify capex, stage of completion and expected margin benefit."
+    },
+    {
+     "keyword": "Localisation and import substitution",
+     "related": [
+      "Make in India",
+      "Atmanirbhar",
+      "indigenisation",
+      "local sourcing",
+      "domestic value addition",
+      "import replacement",
+      "local content",
+      "domestic manufacturing",
+      "import dependence reduction",
+      "PLI localisation",
+      "local production",
+      "in-country value addition",
+      "reduce imports",
+      "self-reliance"
+     ],
+     "verify": "Check customer demand, qualification status and policy support."
+    },
+    {
+     "keyword": "Customer qualification and trials",
+     "related": [
+      "Product approval",
+      "sampling",
+      "pilot orders",
+      "trial orders",
+      "homologation",
+      "PPAP",
+      "customer audit",
+      "vendor qualification",
+      "qualification process",
+      "product validation",
+      "approval process",
+      "customer trials",
+      "test orders",
+      "initial supplies"
+     ],
+     "verify": "Distinguish sampling from commercial supply orders."
+    },
+    {
+     "keyword": "R&D and new product pipeline",
+     "related": [
+      "R&D spend",
+      "pipeline launches",
+      "patents filed",
+      "innovation",
+      "product development",
+      "research investment",
+      "new product development",
+      "NPD",
+      "innovation pipeline",
+      "R&D centre",
+      "technology development",
+      "product roadmap",
+      "IP creation",
+      "R&D intensity"
+     ],
+     "verify": "Look for R&D as a percentage of revenue and the revenue timeline of launches."
+    },
+    {
+     "keyword": "New product and new market launches",
+     "related": [
+      "Launch",
+      "rollout",
+      "market entry",
+      "new category",
+      "geographic expansion",
+      "test markets",
+      "new variants",
+      "new geography",
+      "fresh launches",
+      "category entry",
+      "new market foray",
+      "international launch",
+      "pilot launch",
+      "expansion into new markets"
+     ],
+     "verify": "Verify initial traction metrics such as revenue, repeat rate and distribution."
+    },
+    {
+     "keyword": "Technology tie-up and transfer",
+     "related": [
+      "Technology partner",
+      "licence agreement",
+      "know-how",
+      "joint development",
+      "OEM tie-up",
+      "technical collaboration",
+      "technology alliance",
+      "technology agreement",
+      "licensing",
+      "technology licence",
+      "technical assistance",
+      "co-development",
+      "technical collaboration agreement",
+      "technology access"
+     ],
+     "verify": "Verify the signed agreement, royalty terms and commercial milestones."
+    }
+   ],
+   "Call: Balance Sheet, Cash Flow & Capital Allocation": [
+    {
+     "keyword": "Debt-free / net cash position",
+     "related": [
+      "Net cash",
+      "zero debt",
+      "cash surplus",
+      "debt-free status",
+      "net cash balance",
+      "no borrowings",
+      "debt-free company",
+      "cash-rich",
+      "net cash positive",
+      "nil debt",
+      "negative net debt",
+      "surplus cash",
+      "no long-term debt",
+      "strong liquidity"
+     ],
+     "verify": "Check borrowings including lease liabilities and off-balance-sheet obligations."
+    },
+    {
+     "keyword": "Deleveraging and debt repayment",
+     "related": [
+      "Debt reduction",
+      "prepayment",
+      "net debt to EBITDA",
+      "refinancing",
+      "lower interest burden",
+      "debt paydown",
+      "leverage reduction",
+      "debt retirement",
+      "balance sheet repair",
+      "debt servicing",
+      "reduced borrowings",
+      "gearing improvement",
+      "repayment schedule",
+      "lower leverage"
+     ],
+     "verify": "Verify targets, interest saved and source of funds."
+    },
+    {
+     "keyword": "Free cash flow and cash conversion",
+     "related": [
+      "FCF",
+      "operating cash flow to EBITDA",
+      "cash conversion cycle",
+      "cash generation",
+      "cash flow conversion",
+      "free cash generation",
+      "operating cash flow",
+      "cash from operations",
+      "cash conversion ratio",
+      "positive FCF",
+      "surplus cash flow",
+      "cash yield",
+      "cash accretion",
+      "cash realisation"
+     ],
+     "verify": "Compare operating cash flow with reported profit over several periods."
+    },
+    {
+     "keyword": "Working capital management",
+     "related": [
+      "Receivable days",
+      "debtor days",
+      "inventory days",
+      "payable days",
+      "net working capital",
+      "working capital cycle",
+      "cash cycle",
+      "working capital intensity",
+      "working capital days",
+      "WC efficiency",
+      "receivables collection",
+      "inventory turnover",
+      "creditor days",
+      "WC release"
+     ],
+     "verify": "Check trend in days and movement in receivables from government or large customers."
+    },
+    {
+     "keyword": "Equity fund raise and dilution",
+     "related": [
+      "QIP",
+      "preferential allotment",
+      "rights issue",
+      "warrants",
+      "FPO",
+      "promoter infusion",
+      "equity raise",
+      "capital raising",
+      "share issuance",
+      "equity infusion",
+      "dilution",
+      "fresh issue",
+      "follow-on offering",
+      "private placement"
+     ],
+     "verify": "Check size, pricing, use of proceeds and investor identity."
+    },
+    {
+     "keyword": "Capital allocation and shareholder returns",
+     "related": [
+      "Dividend payout ratio",
+      "buyback",
+      "special dividend",
+      "reinvestment priorities",
+      "capital deployment",
+      "payout policy",
+      "shareholder value",
+      "return of capital",
+      "dividend policy",
+      "capital priorities",
+      "cash deployment",
+      "investor returns",
+      "distribution policy",
+      "capital discipline"
+     ],
+     "verify": "Compare payout with free cash flow and capex needs."
+    },
+    {
+     "keyword": "Return ratios (ROCE and ROE)",
+     "related": [
+      "Return on capital employed",
+      "return on equity",
+      "return on invested capital",
+      "ROIC",
+      "RoCE",
+      "RoE",
+      "return ratios",
+      "capital returns",
+      "return on assets",
+      "ROA",
+      "return profile",
+      "capital efficiency",
+      "return metrics",
+      "ROCE improvement"
+     ],
+     "verify": "Trend of returns before and after large capex or acquisitions."
+    },
+    {
+     "keyword": "Cash and treasury balances",
+     "related": [
+      "Cash on books",
+      "treasury income",
+      "liquid investments",
+      "fixed deposits",
+      "surplus funds",
+      "cash balances",
+      "cash reserves",
+      "liquidity position",
+      "treasury portfolio",
+      "cash and equivalents",
+      "investment portfolio",
+      "liquid funds",
+      "cash pile",
+      "short-term investments"
+     ],
+     "verify": "Check if cash is free or earmarked, and whether it supports other income."
+    },
+    {
+     "keyword": "Receivables, collections and government dues",
+     "related": [
+      "Overdue receivables",
+      "collections",
+      "long outstanding",
+      "unbilled revenue",
+      "retention money",
+      "debtors",
+      "outstanding dues",
+      "payment delays",
+      "trade receivables",
+      "delayed payments",
+      "collection efficiency",
+      "government receivables",
+      "discom dues",
+      "aged receivables"
+     ],
+     "verify": "Check ageing, provisions and counterparties' payment record."
+    },
+    {
+     "keyword": "Interest and finance costs",
+     "related": [
+      "Interest cost",
+      "cost of debt",
+      "borrowing cost",
+      "interest coverage",
+      "rating upgrade benefit",
+      "interest burden",
+      "finance charges",
+      "interest outgo",
+      "weighted average cost of debt",
+      "interest expense",
+      "interest servicing",
+      "lower interest rates",
+      "funding cost",
+      "interest saved"
+     ],
+     "verify": "Track average cost of debt and interest coverage over time."
+    },
+    {
+     "keyword": "Promoter holding, pledge and stake sale",
+     "related": [
+      "Promoter pledge",
+      "promoter stake",
+      "block deal",
+      "offer for sale",
+      "encumbrance",
+      "promoter shareholding",
+      "promoter selling",
+      "pledged shares",
+      "promoter buying",
+      "insider selling",
+      "promoter dilution",
+      "stake monetisation",
+      "promoter infusion",
+      "shares pledged"
+     ],
+     "verify": "Verify filings and use of funds raised by promoters."
+    }
+   ],
+   "Call: Risks, Headwinds & Cautionary Language": [
+    {
+     "keyword": "Headwinds and challenges",
+     "related": [
+      "Challenging environment",
+      "uncertain",
+      "volatile",
+      "difficult quarter",
+      "near-term pain",
+      "adverse conditions",
+      "pressures",
+      "obstacles",
+      "difficult conditions",
+      "tough environment",
+      "roadblocks",
+      "softness",
+      "negative trends",
+      "unfavourable conditions"
+     ],
+     "verify": "Identify cause, duration and the effect on guidance."
+    },
+    {
+     "keyword": "Macro and geopolitical uncertainty",
+     "related": [
+      "War",
+      "Red Sea disruption",
+      "global slowdown",
+      "inflation",
+      "interest rates",
+      "tariffs",
+      "geopolitical tension",
+      "global uncertainty",
+      "macro weakness",
+      "recession risk",
+      "macro headwinds",
+      "oil price volatility",
+      "global trade disruption",
+      "economic uncertainty"
+     ],
+     "verify": "Quantify direct exposure by geography, supply chain or customer."
+    },
+    {
+     "keyword": "Regulatory and policy uncertainty",
+     "related": [
+      "Policy change",
+      "anti-dumping duty",
+      "price control",
+      "licence renewal",
+      "regulatory approval",
+      "regulatory risk",
+      "policy risk",
+      "regulatory overhang",
+      "government policy shift",
+      "compliance changes",
+      "tariff regulation",
+      "regulatory clearance",
+      "rule changes",
+      "regulatory delays"
+     ],
+     "verify": "Check dates for decisions and revenue at risk."
+    },
+    {
+     "keyword": "Competitive intensity",
+     "related": [
+      "Pricing pressure",
+      "new entrants",
+      "Chinese imports",
+      "aggressive competition",
+      "price war",
+      "intense competition",
+      "competitive pressure",
+      "market crowding",
+      "competitive pricing",
+      "rising competition",
+      "dumping",
+      "capacity glut",
+      "undercutting",
+      "competitive landscape"
+     ],
+     "verify": "Check effect on realisation, market share and margin."
+    },
+    {
+     "keyword": "Supply chain disruption",
+     "related": [
+      "Supply constraints",
+      "logistics",
+      "shortage",
+      "vendor dependence",
+      "single-source supplier",
+      "lead times",
+      "supply bottlenecks",
+      "component shortage",
+      "shipping delays",
+      "supply disruption",
+      "logistics cost",
+      "port congestion",
+      "input shortage",
+      "supply tightness"
+     ],
+     "verify": "Identify critical inputs and alternate sources."
+    },
+    {
+     "keyword": "Plant shutdown or operational disruption",
+     "related": [
+      "Fire",
+      "strike",
+      "lockout",
+      "maintenance shutdown",
+      "force majeure",
+      "weather disruption",
+      "plant outage",
+      "production halt",
+      "unplanned shutdown",
+      "labour unrest",
+      "operational interruption",
+      "flood",
+      "accident",
+      "plant closure"
+     ],
+     "verify": "Quantify lost production, insurance recovery and timeline to normal."
+    },
+    {
+     "keyword": "Litigation, tax and contingent liabilities",
+     "related": [
+      "Tax demand",
+      "GST notice",
+      "show-cause notice",
+      "arbitration",
+      "disputed liability",
+      "contingent liability",
+      "legal proceedings",
+      "tax dispute",
+      "court case",
+      "claims against the company",
+      "litigation risk",
+      "income tax demand",
+      "legal disputes",
+      "regulatory penalty"
+     ],
+     "verify": "Check amount, probability of loss and provisions made."
+    },
+    {
+     "keyword": "Cyclicality and seasonality",
+     "related": [
+      "Cyclical downturn",
+      "seasonal quarter",
+      "commodity cycle",
+      "trough",
+      "peak cycle",
+      "business cycle",
+      "seasonal demand",
+      "cycle bottom",
+      "upcycle",
+      "downcycle",
+      "seasonality impact",
+      "cyclical recovery",
+      "off-season",
+      "peak season"
+     ],
+     "verify": "Compare current margin to through-cycle averages."
+    },
+    {
+     "keyword": "Single product, customer or geography dependence",
+     "related": [
+      "Concentration risk",
+      "key product dependence",
+      "one-state exposure",
+      "single-plant risk",
+      "single-product risk",
+      "geographic concentration",
+      "single-market dependence",
+      "product concentration",
+      "customer dependency",
+      "reliance on one segment",
+      "one-supplier risk",
+      "narrow base",
+      "geographic dependence",
+      "key-market reliance"
+     ],
+     "verify": "Check revenue share of the concentrated exposure."
+    },
+    {
+     "keyword": "Cautiously optimistic / watchful tone",
+     "related": [
+      "Remain watchful",
+      "wait and watch",
+      "prudent approach",
+      "will monitor",
+      "conservative stance",
+      "guarded optimism",
+      "cautious outlook",
+      "measured optimism",
+      "careful approach",
+      "tentative",
+      "cautiously positive",
+      "conservative guidance",
+      "keep a close watch",
+      "monitoring closely"
+     ],
+     "verify": "Treat as a hedge in guidance; look for concrete numbers."
+    },
+    {
+     "keyword": "Forward-looking statement disclaimer",
+     "related": [
+      "Safe harbour",
+      "risks and uncertainties",
+      "actual results may differ",
+      "forward-looking statements",
+      "disclaimer",
+      "cautionary statement",
+      "forward-looking information",
+      "no assurance",
+      "subject to risks",
+      "legal disclaimer",
+      "investor disclaimer",
+      "estimates may vary",
+      "projections not guaranteed",
+      "cautionary note"
+     ],
+     "verify": "Standard disclaimer; the substance is in the risks management discusses on the call."
+    },
+    {
+     "keyword": "Climate, ESG and regulatory compliance",
+     "related": [
+      "Emissions",
+      "carbon cost",
+      "CBAM",
+      "BRSR",
+      "sustainability capex",
+      "green transition cost",
+      "net zero",
+      "decarbonisation",
+      "ESG compliance",
+      "carbon neutrality",
+      "carbon tax",
+      "sustainability reporting",
+      "scope 1 and 2 emissions",
+      "green steel"
+     ],
+     "verify": "Check cost impact and export exposure to carbon-border regimes."
+    }
+   ],
+   "Call: Strategy & Business Model Language": [
+    {
+     "keyword": "Asset-light model",
+     "related": [
+      "Capital light",
+      "outsourced manufacturing",
+      "franchise model",
+      "licensing model",
+      "low capex model",
+      "asset-light business",
+      "light balance sheet",
+      "low capital intensity",
+      "variable cost model",
+      "outsourced production",
+      "capex-light",
+      "asset-light expansion",
+      "partner-led model",
+      "asset-lite"
+     ],
+     "verify": "Check capex intensity and return ratios against peers."
+    },
+    {
+     "keyword": "Platform and ecosystem strategy",
+     "related": [
+      "Platform play",
+      "marketplace",
+      "network effects",
+      "ecosystem partners",
+      "super-app",
+      "platform business",
+      "two-sided platform",
+      "digital platform",
+      "ecosystem approach",
+      "platform model",
+      "open platform",
+      "integrated ecosystem",
+      "platformisation",
+      "app ecosystem"
+     ],
+     "verify": "Look for user, merchant and transaction metrics to prove scale."
+    },
+    {
+     "keyword": "Digital transformation and AI adoption",
+     "related": [
+      "Digitisation",
+      "automation",
+      "AI-led productivity",
+      "GenAI use cases",
+      "analytics",
+      "digital initiatives",
+      "technology modernisation",
+      "data-driven",
+      "cloud migration",
+      "digital-first",
+      "AI deployment",
+      "digital transformation programme",
+      "tech-enabled",
+      "digital adoption"
+     ],
+     "verify": "Check for quantified productivity or revenue effect and not just tool deployment."
+    },
+    {
+     "keyword": "Turnaround and restructuring",
+     "related": [
+      "Turnaround story",
+      "business reset",
+      "restructuring",
+      "rationalisation",
+      "exit non-core",
+      "turnaround plan",
+      "business revival",
+      "recovery plan",
+      "transformation",
+      "operational turnaround",
+      "reorganisation",
+      "revival strategy",
+      "cost restructuring",
+      "fix-and-grow"
+     ],
+     "verify": "Verify milestones such as debt reduction, margin recovery and cash generation."
+    },
+    {
+     "keyword": "Demerger, merger and group restructuring",
+     "related": [
+      "Scheme of arrangement",
+      "demerger",
+      "amalgamation",
+      "NCLT approval",
+      "holdco simplification",
+      "group restructuring",
+      "spin-off",
+      "merger of subsidiaries",
+      "reverse merger",
+      "corporate restructuring",
+      "consolidation of entities",
+      "hive-off",
+      "share exchange ratio",
+      "simplification"
+     ],
+     "verify": "Check appointed date, share-swap ratio and approvals."
+    },
+    {
+     "keyword": "Strategic review and monetisation",
+     "related": [
+      "Monetise assets",
+      "stake sale",
+      "evaluate options",
+      "IPO of subsidiary",
+      "unlock value",
+      "strategic options",
+      "value unlocking",
+      "asset monetisation",
+      "strategic alternatives",
+      "subsidiary listing",
+      "portfolio review",
+      "sell-down",
+      "non-core monetisation",
+      "exploring options"
+     ],
+     "verify": "Treat as unexecuted until a definitive agreement or filing exists."
+    },
+    {
+     "keyword": "Market leadership and moat",
+     "related": [
+      "Number one",
+      "leadership position",
+      "competitive moat",
+      "entry barriers",
+      "brand strength",
+      "market leader",
+      "dominant position",
+      "sustainable advantage",
+      "competitive advantage",
+      "pricing moat",
+      "leader in category",
+      "durable advantage",
+      "strong franchise",
+      "barriers to entry"
+     ],
+     "verify": "Verify share data, pricing power and returns evidence."
+    },
+    {
+     "keyword": "Diversification into new business",
+     "related": [
+      "New vertical",
+      "adjacency",
+      "entering new segment",
+      "foray into",
+      "diversification",
+      "new business line",
+      "business expansion",
+      "new vertical entry",
+      "diversify",
+      "adjacent business",
+      "business extension",
+      "new segment entry",
+      "venture into",
+      "portfolio expansion"
+     ],
+     "verify": "Check capital committed and whether management has prior experience."
+    },
+    {
+     "keyword": "China plus one and supply-chain shifts",
+     "related": [
+      "Global supply chain diversification",
+      "vendor shift to India",
+      "alternative sourcing",
+      "China+1",
+      "supply-chain realignment",
+      "friend-shoring",
+      "de-risking from China",
+      "reshoring",
+      "nearshoring",
+      "vendor diversification",
+      "global sourcing shift",
+      "India as alternative",
+      "supply chain relocation",
+      "manufacturing shift"
+     ],
+     "verify": "Look for actual customer orders versus general opportunity statements."
+    },
+    {
+     "keyword": "Management change and succession",
+     "related": [
+      "CEO transition",
+      "CFO change",
+      "new managing director",
+      "leadership team",
+      "key personnel exit",
+      "succession planning",
+      "leadership change",
+      "management reshuffle",
+      "senior management exit",
+      "new CEO",
+      "CXO changes",
+      "board changes",
+      "key management appointment",
+      "leadership transition"
+     ],
+     "verify": "Check filings and continuity of strategy."
+    }
+   ],
+   "Call: Analyst Q&A & Management Language Signals": [
+    {
+     "keyword": "Unable to comment / confidentiality",
+     "related": [
+      "Cannot disclose",
+      "client confidentiality",
+      "NDA",
+      "not in a position to share",
+      "confidential",
+      "not at liberty to say",
+      "cannot share details",
+      "non-disclosure",
+      "no comment",
+      "undisclosed",
+      "limited disclosure",
+      "sensitive information",
+      "cannot elaborate",
+      "will not comment"
+     ],
+     "verify": "An undisclosed-information flag; verify through exchange filings."
+    },
+    {
+     "keyword": "Subject to approvals",
+     "related": [
+      "Regulatory approval pending",
+      "board approval",
+      "shareholder approval",
+      "awaiting clearance",
+      "subject to conditions",
+      "subject to regulatory nod",
+      "approval awaited",
+      "contingent on approvals",
+      "pending approval",
+      "conditional",
+      "subject to NCLT",
+      "CCI approval",
+      "statutory approvals",
+      "clearances needed"
+     ],
+     "verify": "Check conditions and timeline; do not count unapproved items in estimates."
+    },
+    {
+     "keyword": "In discussions / advanced talks",
+     "related": [
+      "Under negotiation",
+      "term sheet",
+      "discussions ongoing",
+      "MoU stage",
+      "shortlisted",
+      "advanced stage of discussions",
+      "in talks",
+      "exploring",
+      "under discussion",
+      "negotiations underway",
+      "due diligence stage",
+      "preliminary talks",
+      "in dialogue",
+      "evaluating proposals"
+     ],
+     "verify": "Treat as unexecuted until a signed agreement or an exchange disclosure."
+    },
+    {
+     "keyword": "Early days, pilot and proof of concept",
+     "related": [
+      "PoC",
+      "pilot stage",
+      "trial phase",
+      "initial traction",
+      "too early to quantify",
+      "early stage",
+      "nascent",
+      "pilot project",
+      "testing phase",
+      "early traction",
+      "experimental",
+      "initial rollout",
+      "start-up phase",
+      "yet to scale"
+     ],
+     "verify": "Little revenue expected; check scale-up plan and milestones."
+    },
+    {
+     "keyword": "Run-rate and exit-rate commentary",
+     "related": [
+      "Annualised run-rate",
+      "exit rate",
+      "quarterly run-rate",
+      "current run rate",
+      "steady state",
+      "annualised revenue",
+      "run rate basis",
+      "exit run-rate",
+      "monthly run rate",
+      "current trajectory",
+      "sustainable level",
+      "ongoing levels",
+      "steady-state revenue",
+      "annualised numbers"
+     ],
+     "verify": "Check whether the quarter is representative or a peak or trough."
+    },
+    {
+     "keyword": "Sequential versus year-on-year framing",
+     "related": [
+      "QoQ",
+      "YoY",
+      "sequential growth",
+      "base effect",
+      "low base",
+      "high base",
+      "Q-o-Q",
+      "Y-o-Y",
+      "sequential comparison",
+      "year-ago quarter",
+      "previous quarter",
+      "comparable quarter",
+      "base year effect",
+      "linked quarter"
+     ],
+     "verify": "Compare both views; seasonal businesses need YoY, turnarounds need QoQ."
+    },
+    {
+     "keyword": "Ballpark and range statements",
+     "related": [
+      "Around",
+      "approximately",
+      "in the range of",
+      "broadly",
+      "order of magnitude",
+      "roughly",
+      "about",
+      "somewhere between",
+      "ballpark",
+      "approximate",
+      "in the vicinity",
+      "rough estimate",
+      "give or take",
+      "close to"
+     ],
+     "verify": "Ask for a precise figure; ranges can be wide."
+    },
+    {
+     "keyword": "Going forward and next few quarters",
+     "related": [
+      "In the coming quarters",
+      "over the medium term",
+      "soon",
+      "shortly",
+      "in due course",
+      "going forward",
+      "in the near term",
+      "next few quarters",
+      "in the days ahead",
+      "over the next year",
+      "hereafter",
+      "in the future",
+      "from here on",
+      "upcoming quarters"
+     ],
+     "verify": "Vague timing; request a specific quarter or date."
+    }
+   ]
+  }
+ },
+ "results": {
+  "buckets": {
+   "Results: Income Statement Line Items": [
+    {
+     "keyword": "Revenue from operations",
+     "related": [
+      "Net sales",
+      "turnover",
+      "topline",
+      "sale of products",
+      "sale of services",
+      "operating income",
+      "gross revenue",
+      "net revenue",
+      "total sales",
+      "sales revenue",
+      "operating revenue",
+      "income from operations",
+      "top line",
+      "revenue"
+     ],
+     "verify": "Check composition and growth versus previous periods; confirm the reporting basis."
+    },
+    {
+     "keyword": "Other income",
+     "related": [
+      "Treasury income",
+      "interest income",
+      "dividend income",
+      "gain on investments",
+      "miscellaneous income",
+      "non-operating income",
+      "other operating income",
+      "profit on sale of assets",
+      "fair value gains",
+      "income from investments",
+      "rental income",
+      "forex gain",
+      "other gains",
+      "sundry income"
+     ],
+     "verify": "Check share of PBT and recurrence; high other income can mask weak operations."
+    },
+    {
+     "keyword": "Total income",
+     "related": [
+      "Total revenue",
+      "income from all sources",
+      "gross income",
+      "aggregate income",
+      "revenue plus other income",
+      "total earnings",
+      "total receipts",
+      "consolidated income",
+      "total operating and other income",
+      "overall income",
+      "income total"
+     ],
+     "verify": "Compare with revenue from operations to measure dependence on other income."
+    },
+    {
+     "keyword": "EBITDA and operating profit",
+     "related": [
+      "PBDIT",
+      "EBIT",
+      "operating EBITDA margin",
+      "operating profit before other income",
+      "earnings before interest tax depreciation and amortisation",
+      "operating earnings",
+      "EBITDA",
+      "operating margin",
+      "core operating profit",
+      "adjusted EBITDA",
+      "operating surplus",
+      "EBITDA margin",
+      "profit from operations"
+     ],
+     "verify": "Confirm whether other income and exceptional items are included."
+    },
+    {
+     "keyword": "Profit before tax (PBT)",
+     "related": [
+      "PBT before exceptional items",
+      "profit before exceptional items and tax",
+      "pre-tax profit",
+      "profit before taxation",
+      "earnings before tax",
+      "EBT",
+      "PBT",
+      "profit before tax and exceptional",
+      "profit prior to tax",
+      "income before tax",
+      "pre-tax earnings",
+      "PBT margin"
+     ],
+     "verify": "Check the effect of exceptional items on the reported figure."
+    },
+    {
+     "keyword": "Profit after tax (PAT)",
+     "related": [
+      "Net profit",
+      "PAT margin",
+      "profit attributable to owners",
+      "profit for the period",
+      "net income",
+      "bottom line",
+      "profit after taxation",
+      "earnings after tax",
+      "net earnings",
+      "profit attributable to shareholders",
+      "net profit margin",
+      "PAT",
+      "profit for the year"
+     ],
+     "verify": "Check attributable versus total profit; verify tax rate effects."
+    },
+    {
+     "keyword": "Exceptional items",
+     "related": [
+      "Extraordinary items",
+      "one-time gain or loss",
+      "impairment",
+      "restructuring cost",
+      "gain on sale of investment",
+      "exceptional gain",
+      "exceptional loss",
+      "non-recurring items",
+      "one-off charges",
+      "write-off",
+      "provision write-back",
+      "exceptional expenses",
+      "unusual items",
+      "special items"
+     ],
+     "verify": "Strip out for run-rate earnings; understand why they recur."
+    },
+    {
+     "keyword": "Earnings per share (EPS)",
+     "related": [
+      "Basic EPS",
+      "diluted EPS",
+      "EPS not annualised",
+      "earnings per equity share",
+      "EPS annualised",
+      "profit per share",
+      "EPS growth",
+      "basic and diluted EPS",
+      "EPS before exceptional",
+      "per share earnings",
+      "EPS (Rs)",
+      "diluted earnings per share",
+      "earnings per share"
+     ],
+     "verify": "Check share count changes from ESOPs, warrants or conversions."
+    },
+    {
+     "keyword": "Finance costs",
+     "related": [
+      "Interest expense",
+      "interest on borrowings",
+      "interest on lease liabilities",
+      "bank charges",
+      "finance charges",
+      "borrowing costs",
+      "interest and finance charges",
+      "interest paid",
+      "financial expenses",
+      "interest on debentures",
+      "processing fees",
+      "interest cost",
+      "unwinding of discount",
+      "finance expense"
+     ],
+     "verify": "Compare with debt trend and effective interest rate."
+    },
+    {
+     "keyword": "Depreciation and amortisation",
+     "related": [
+      "D&A",
+      "depreciation expense",
+      "impairment charge",
+      "amortisation of intangibles",
+      "depreciation",
+      "amortisation",
+      "depreciation and amortisation expense",
+      "ROU depreciation",
+      "asset write-down",
+      "depreciation charge",
+      "amortization",
+      "wear and tear charge",
+      "depreciation provision"
+     ],
+     "verify": "Check for capex commissioning and any change in depreciation policy."
+    },
+    {
+     "keyword": "Employee benefits expense",
+     "related": [
+      "Salaries and wages",
+      "staff cost",
+      "share-based payment expense",
+      "gratuity",
+      "ESOP cost",
+      "employee cost",
+      "employee benefit expenses",
+      "personnel expenses",
+      "contribution to provident fund",
+      "staff welfare",
+      "bonus",
+      "manpower cost",
+      "remuneration",
+      "payroll expense"
+     ],
+     "verify": "Track employee cost as a percentage of revenue and any ESOP-related charges."
+    },
+    {
+     "keyword": "Cost of materials consumed",
+     "related": [
+      "Purchase of stock-in-trade",
+      "change in inventories",
+      "raw material cost",
+      "material cost",
+      "cost of goods sold",
+      "COGS",
+      "consumption of raw materials",
+      "cost of raw materials",
+      "purchases",
+      "cost of materials",
+      "material consumption",
+      "direct materials",
+      "cost of sales",
+      "stores and spares consumed"
+     ],
+     "verify": "Compute gross margin trend and watch inventory-related swings."
+    },
+    {
+     "keyword": "Other expenses",
+     "related": [
+      "Power and fuel",
+      "freight",
+      "selling and distribution",
+      "advertising",
+      "repairs",
+      "admin cost",
+      "other operating expenses",
+      "miscellaneous expenses",
+      "general expenses",
+      "rent",
+      "travelling",
+      "legal and professional fees",
+      "sundry expenses",
+      "overheads"
+     ],
+     "verify": "Examine large items and one-off components."
+    },
+    {
+     "keyword": "Tax expense and deferred tax",
+     "related": [
+      "Current tax",
+      "deferred tax",
+      "MAT credit",
+      "effective tax rate",
+      "tax holiday",
+      "new tax regime",
+      "provision for taxation",
+      "income tax expense",
+      "tax charge",
+      "deferred tax liability",
+      "deferred tax asset",
+      "section 115BAA",
+      "tax provision",
+      "tax outgo"
+     ],
+     "verify": "Check effective tax rate against statutory rate and reasons for variation."
+    },
+    {
+     "keyword": "Share of profit/loss of associates and JVs",
+     "related": [
+      "Equity-accounted investees",
+      "joint venture profit",
+      "associate results",
+      "share of associates",
+      "share in JV profits",
+      "equity method income",
+      "share of net profit of associates",
+      "share of loss of JVs",
+      "investee profit",
+      "JV earnings",
+      "associate income",
+      "share of results"
+     ],
+     "verify": "Check significance and whether cash returns (dividends) flow to the company."
+    },
+    {
+     "keyword": "Total comprehensive income and OCI",
+     "related": [
+      "Other comprehensive income",
+      "remeasurement of defined benefit plans",
+      "FVOCI gains",
+      "comprehensive income",
+      "OCI items",
+      "total comprehensive income for the period",
+      "items not reclassified",
+      "cash flow hedge reserve",
+      "foreign currency translation reserve",
+      "actuarial gains",
+      "OCI",
+      "comprehensive profit"
+     ],
+     "verify": "Check large OCI items that move equity but not profit."
+    },
+    {
+     "keyword": "Non-controlling interest",
+     "related": [
+      "Minority interest",
+      "profit attributable to non-controlling interests",
+      "NCI",
+      "minority shareholders",
+      "non-controlling shareholders",
+      "share of minority",
+      "minority share of profit",
+      "NCI in equity",
+      "outside shareholders",
+      "minority stake",
+      "NCI share",
+      "attributable to minorities"
+     ],
+     "verify": "Check how much profit belongs to the minority in subsidiaries."
+    },
+    {
+     "keyword": "Growth rates YoY and QoQ",
+     "related": [
+      "Year-on-year growth",
+      "quarter-on-quarter growth",
+      "sequential change",
+      "9M and H1 growth",
+      "YoY",
+      "QoQ",
+      "growth percentage",
+      "period-on-period change",
+      "annual growth",
+      "sequential growth",
+      "comparable growth",
+      "variance",
+      "change over previous year",
+      "incremental growth"
+     ],
+     "verify": "Verify like-for-like comparison with restated or acquired numbers."
+    }
+   ],
+   "Results: Standalone, Consolidated & Segments": [
+    {
+     "keyword": "Standalone results",
+     "related": [
+      "Standalone financials",
+      "parent-only results",
+      "unconsolidated numbers",
+      "standalone accounts",
+      "standalone statement",
+      "standalone P&L",
+      "company-only results",
+      "separate financial statements",
+      "standalone basis",
+      "standalone revenue",
+      "parent company results",
+      "standalone PAT"
+     ],
+     "verify": "Compare with consolidated to see subsidiaries' contribution."
+    },
+    {
+     "keyword": "Consolidated results",
+     "related": [
+      "Consolidated financials",
+      "group results",
+      "including subsidiaries",
+      "consolidated accounts",
+      "consolidated statement",
+      "consolidated P&L",
+      "group financials",
+      "consolidated basis",
+      "consolidated revenue",
+      "group performance",
+      "consolidated PAT",
+      "consolidated numbers"
+     ],
+     "verify": "Check consolidation of acquisitions and joint ventures."
+    },
+    {
+     "keyword": "Segment reporting (Ind AS 108)",
+     "related": [
+      "Operating segments",
+      "segment revenue",
+      "segment results",
+      "segment assets",
+      "segment liabilities",
+      "business segments",
+      "reportable segments",
+      "segment information",
+      "segmental performance",
+      "segment profit",
+      "segmental capital employed",
+      "segmental disclosure",
+      "segment EBIT",
+      "segment-wise results"
+     ],
+     "verify": "Look at segment margins and capital employed, and changes in segment definitions."
+    },
+    {
+     "keyword": "Geographic segment revenue",
+     "related": [
+      "Revenue within India",
+      "outside India",
+      "export revenue",
+      "overseas subsidiaries",
+      "domestic revenue",
+      "international revenue",
+      "revenue by geography",
+      "region-wise revenue",
+      "geographical segments",
+      "foreign revenue",
+      "overseas sales",
+      "revenue by country",
+      "India and rest of world",
+      "export share"
+     ],
+     "verify": "Check export share and currency exposure."
+    },
+    {
+     "keyword": "Discontinued operations",
+     "related": [
+      "Ind AS 105",
+      "assets held for sale",
+      "disposal group",
+      "business exit",
+      "discontinued business",
+      "discontinued segment",
+      "non-current assets held for sale",
+      "business discontinuation",
+      "exited operations",
+      "closure of business",
+      "assets classified as held for sale",
+      "sale of undertaking",
+      "wound-up operations",
+      "divested business"
+     ],
+     "verify": "Check effect on continuing earnings and restated comparatives."
+    },
+    {
+     "keyword": "Business combination and amalgamation",
+     "related": [
+      "Scheme of arrangement",
+      "merger",
+      "demerger",
+      "NCLT approval",
+      "appointed date",
+      "purchase price allocation",
+      "Ind AS 103",
+      "acquisition accounting",
+      "amalgamation scheme",
+      "business combination",
+      "common control",
+      "merger accounting",
+      "effective date",
+      "share swap"
+     ],
+     "verify": "Check effective date, accounting treatment and restated prior periods."
+    },
+    {
+     "keyword": "Audited versus unaudited results",
+     "related": [
+      "Limited review",
+      "audited annual results",
+      "unaudited quarterly results",
+      "reviewed figures",
+      "audited financials",
+      "unaudited financials",
+      "audit status",
+      "reviewed results",
+      "audited statements",
+      "unaudited statement",
+      "audit opinion",
+      "audit vs review",
+      "certified results",
+      "provisional results"
+     ],
+     "verify": "Review the auditor's report for reservations."
+    },
+    {
+     "keyword": "Quarterly, half-yearly and annual periods",
+     "related": [
+      "Three months ended",
+      "six months ended",
+      "nine months ended",
+      "year ended",
+      "previous year corresponding quarter",
+      "quarter ended",
+      "half year ended",
+      "preceding three months",
+      "Q1",
+      "Q2",
+      "Q3",
+      "Q4",
+      "H1",
+      "H2",
+      "9M",
+      "FY"
+     ],
+     "verify": "Verify the period and comparative columns match."
+    },
+    {
+     "keyword": "Subsidiaries, associates and joint ventures list",
+     "related": [
+      "Step-down subsidiary",
+      "wholly owned subsidiary",
+      "associate",
+      "JV",
+      "entities consolidated",
+      "list of subsidiaries",
+      "group entities",
+      "investee companies",
+      "step-down subsidiaries",
+      "consolidated entities",
+      "WOS",
+      "group structure",
+      "related entities",
+      "subsidiary list"
+     ],
+     "verify": "Look for additions and deletions in the group structure during the period."
+    },
+    {
+     "keyword": "Restated / regrouped figures",
+     "related": [
+      "Previous period figures regrouped",
+      "restated for comparability",
+      "reclassified",
+      "restated financials",
+      "regrouped numbers",
+      "figures rearranged",
+      "prior period restated",
+      "reclassification",
+      "reworked figures",
+      "comparative figures restated",
+      "recast",
+      "rearranged",
+      "adjusted comparatives",
+      "re-presented"
+     ],
+     "verify": "Understand what changed and whether it flatters current growth."
+    }
+   ],
+   "Results: Balance Sheet & Cash Flow Items": [
+    {
+     "keyword": "Borrowings and total debt",
+     "related": [
+      "Long-term borrowings",
+      "short-term borrowings",
+      "current maturities",
+      "NCDs",
+      "commercial paper",
+      "term loans",
+      "working capital loans",
+      "bank loans",
+      "debentures",
+      "gross debt",
+      "debt",
+      "loan funds",
+      "secured loans",
+      "unsecured loans"
+     ],
+     "verify": "Compare to cash, interest costs and maturity profile."
+    },
+    {
+     "keyword": "Net worth and shareholders' funds",
+     "related": [
+      "Total equity",
+      "reserves and surplus",
+      "retained earnings",
+      "securities premium",
+      "shareholders' equity",
+      "equity share capital",
+      "net worth",
+      "owners' funds",
+      "networth",
+      "equity attributable to owners",
+      "other equity",
+      "book value",
+      "shareholders' fund",
+      "capital and reserves"
+     ],
+     "verify": "Check changes from fund raises or large write-offs."
+    },
+    {
+     "keyword": "Trade receivables and expected credit loss",
+     "related": [
+      "Debtors",
+      "ECL provision",
+      "bad debts written off",
+      "allowance for doubtful debts",
+      "ageing",
+      "trade debtors",
+      "receivables",
+      "credit loss allowance",
+      "provision for bad debts",
+      "overdue receivables",
+      "doubtful debts",
+      "impairment of receivables",
+      "receivable ageing",
+      "expected credit loss"
+     ],
+     "verify": "Check ageing, provisioning and concentration of overdue accounts."
+    },
+    {
+     "keyword": "Inventories",
+     "related": [
+      "Finished goods",
+      "raw materials",
+      "work-in-progress",
+      "stock-in-trade",
+      "inventory write-down",
+      "stock",
+      "inventory levels",
+      "stores and spares",
+      "closing stock",
+      "inventory holding",
+      "WIP",
+      "inventory valuation",
+      "net realisable value",
+      "inventory build-up"
+     ],
+     "verify": "Check inventory days versus revenue growth and any write-downs."
+    },
+    {
+     "keyword": "Capital work-in-progress (CWIP)",
+     "related": [
+      "Capital advances",
+      "assets under construction",
+      "intangible assets under development",
+      "CWIP",
+      "projects in progress",
+      "capital WIP",
+      "capital under construction",
+      "construction in progress",
+      "pre-operative expenses",
+      "assets not yet commissioned",
+      "capital projects",
+      "work in progress capital",
+      "capitalisation pending",
+      "project assets"
+     ],
+     "verify": "Check size relative to gross block and capitalisation timeline."
+    },
+    {
+     "keyword": "Property, plant and equipment",
+     "related": [
+      "PPE",
+      "gross block",
+      "net block",
+      "additions during the period",
+      "revaluation",
+      "fixed assets",
+      "tangible assets",
+      "plant and machinery",
+      "land and buildings",
+      "property plant equipment",
+      "fixed asset additions",
+      "asset base",
+      "tangible fixed assets",
+      "block of assets"
+     ],
+     "verify": "Check additions against announced capex."
+    },
+    {
+     "keyword": "Goodwill and intangibles",
+     "related": [
+      "Goodwill impairment test",
+      "acquired intangibles",
+      "brands",
+      "customer relationships",
+      "intangible assets",
+      "goodwill on consolidation",
+      "intangible assets under development",
+      "software",
+      "trademarks",
+      "licences",
+      "IP assets",
+      "goodwill",
+      "amortisable intangibles",
+      "capitalised development cost"
+     ],
+     "verify": "Check goodwill as a percentage of net worth and impairment risk."
+    },
+    {
+     "keyword": "Cash and bank balances",
+     "related": [
+      "Cash and cash equivalents",
+      "other bank balances",
+      "fixed deposits",
+      "liquid investments",
+      "cash balances",
+      "bank deposits",
+      "cash at bank",
+      "cash in hand",
+      "term deposits",
+      "liquid funds",
+      "treasury",
+      "short-term deposits",
+      "cash and equivalents",
+      "unrestricted cash"
+     ],
+     "verify": "Check restricted balances and liquidity versus short-term debt."
+    },
+    {
+     "keyword": "Cash flow from operating activities",
+     "related": [
+      "CFO",
+      "operating cash flow",
+      "cash generated from operations",
+      "working capital changes",
+      "net cash from operating activities",
+      "operating activities cash flow",
+      "cash from operations",
+      "cash flows from operations",
+      "operating cash generation",
+      "OCF",
+      "cash inflow from operations",
+      "operating cash"
+     ],
+     "verify": "Compare with PAT and EBITDA for earnings quality."
+    },
+    {
+     "keyword": "Cash flow from investing and financing",
+     "related": [
+      "Capex outflow",
+      "purchase of investments",
+      "proceeds from borrowings",
+      "dividend paid",
+      "repayment",
+      "cash used in investing activities",
+      "financing cash flows",
+      "net cash from financing",
+      "investing cash flow",
+      "purchase of fixed assets",
+      "repayment of borrowings",
+      "interest paid",
+      "cash from financing",
+      "investment outflow"
+     ],
+     "verify": "Check capex versus guidance and the way growth is funded."
+    },
+    {
+     "keyword": "Contingent liabilities and commitments",
+     "related": [
+      "Bank guarantees",
+      "corporate guarantees",
+      "claims not acknowledged as debt",
+      "capital commitments",
+      "contingent liability",
+      "guarantees given",
+      "letters of credit",
+      "disputed claims",
+      "off-balance-sheet items",
+      "commitments",
+      "indemnities",
+      "capital contracts",
+      "uncalled liability",
+      "pending litigations"
+     ],
+     "verify": "Check size relative to net worth and likelihood of crystallisation."
+    },
+    {
+     "keyword": "Lease liabilities (Ind AS 116)",
+     "related": [
+      "Right-of-use assets",
+      "lease rentals",
+      "lease obligations",
+      "ROU assets",
+      "leases",
+      "lease payments",
+      "Ind AS 116",
+      "operating leases",
+      "lease commitments",
+      "finance lease",
+      "lease interest",
+      "lease liability",
+      "rent obligations",
+      "lease accounting"
+     ],
+     "verify": "Include in debt-like obligations for leverage comparisons."
+    },
+    {
+     "keyword": "Investments and loans",
+     "related": [
+      "Investment in subsidiaries",
+      "mutual funds",
+      "loans to related parties",
+      "advances to group companies",
+      "non-current investments",
+      "current investments",
+      "inter-corporate deposits",
+      "ICDs",
+      "loans and advances",
+      "investment portfolio",
+      "quoted investments",
+      "unquoted investments",
+      "loans given",
+      "fair value investments"
+     ],
+     "verify": "Check recoverability and related-party exposure."
+    },
+    {
+     "keyword": "Provisions and other liabilities",
+     "related": [
+      "Provision for warranty",
+      "employee benefits",
+      "deferred revenue",
+      "contract liabilities",
+      "customer advances",
+      "other liabilities",
+      "provisions",
+      "unearned revenue",
+      "advances from customers",
+      "current liabilities",
+      "non-current liabilities",
+      "accrued expenses",
+      "statutory dues",
+      "liabilities"
+     ],
+     "verify": "Contract liabilities and advances are a lead indicator of future revenue."
+    }
+   ],
+   "Results: Auditor Report & Quality Flags": [
+    {
+     "keyword": "Limited review report",
+     "related": [
+      "Review report on quarterly results",
+      "Regulation 33 review",
+      "statutory auditor review",
+      "limited review",
+      "auditor's review report",
+      "review conclusion",
+      "independent auditor's review",
+      "limited review certificate",
+      "review of interim financial information",
+      "SRE 2410",
+      "review opinion",
+      "review by auditors"
+     ],
+     "verify": "Read for any qualification or other-matter paragraphs."
+    },
+    {
+     "keyword": "Qualified, adverse or disclaimer opinion",
+     "related": [
+      "Modified opinion",
+      "qualification",
+      "basis for qualified opinion",
+      "adverse opinion",
+      "disclaimer of opinion",
+      "qualified conclusion",
+      "audit qualification",
+      "modified audit report",
+      "auditor qualification",
+      "reservation",
+      "basis for adverse opinion",
+      "qualified audit opinion",
+      "modified conclusion",
+      "adverse conclusion"
+     ],
+     "verify": "A major red flag; check the item, amount and management response."
+    },
+    {
+     "keyword": "Emphasis of matter",
+     "related": [
+      "Other matter paragraph",
+      "matter of emphasis",
+      "auditor draws attention to",
+      "EOM",
+      "emphasis paragraph",
+      "attention drawn",
+      "auditor's emphasis",
+      "other matters",
+      "matters highlighted",
+      "EoM paragraph",
+      "drawing attention",
+      "explanatory paragraph",
+      "highlighted by auditor",
+      "audit emphasis"
+     ],
+     "verify": "Check issue (litigation, uncertainty, delays in compliance) and its financial impact."
+    },
+    {
+     "keyword": "Key audit matters (KAM)",
+     "related": [
+      "Revenue recognition",
+      "impairment testing",
+      "valuation of investments",
+      "litigation provisioning",
+      "KAM",
+      "critical audit matters",
+      "significant audit risks",
+      "areas of audit focus",
+      "matters of most significance",
+      "audit focus areas",
+      "audit risk areas",
+      "key audit areas",
+      "audit matters",
+      "significant risk areas"
+     ],
+     "verify": "Identify areas of highest audit risk."
+    },
+    {
+     "keyword": "Material uncertainty on going concern",
+     "related": [
+      "Going concern doubt",
+      "negative net worth",
+      "default on borrowings",
+      "ability to continue operations",
+      "going concern",
+      "going concern uncertainty",
+      "substantial doubt",
+      "material uncertainty",
+      "erosion of net worth",
+      "liquidity crisis",
+      "insolvency risk",
+      "inability to meet obligations",
+      "going concern risk",
+      "continuation of business"
+     ],
+     "verify": "Critical risk flag; verify liquidity, debt defaults and funding plans."
+    },
+    {
+     "keyword": "Auditor resignation or change",
+     "related": [
+      "Statutory auditor resignation",
+      "appointment of new auditor",
+      "auditor non-reappointment",
+      "change of auditors",
+      "auditor exit",
+      "auditor rotation",
+      "resignation of auditors",
+      "auditor replacement",
+      "casual vacancy of auditor",
+      "new statutory auditor",
+      "auditor appointment",
+      "auditor change",
+      "auditor removal",
+      "auditor term"
+     ],
+     "verify": "Check reasons given and timing relative to results."
+    },
+    {
+     "keyword": "Restatement and prior-period errors",
+     "related": [
+      "Restated financials",
+      "correction of error",
+      "reclassification",
+      "prior-period adjustment",
+      "restatement",
+      "prior period items",
+      "restated results",
+      "revision of accounts",
+      "error correction",
+      "revised financials",
+      "re-audited",
+      "restated comparatives",
+      "accounting error",
+      "revision of previously reported numbers"
+     ],
+     "verify": "Check size and cause; frequent restatements reduce reliability."
+    },
+    {
+     "keyword": "Change in accounting policy",
+     "related": [
+      "Ind AS adoption",
+      "change in estimate",
+      "revised useful life",
+      "new revenue recognition policy",
+      "accounting policy change",
+      "change in accounting estimate",
+      "adoption of new standard",
+      "policy revision",
+      "revised accounting treatment",
+      "change in method",
+      "accounting standards change",
+      "first-time adoption",
+      "transition adjustment",
+      "change in depreciation method"
+     ],
+     "verify": "Check the effect on earnings and comparability."
+    },
+    {
+     "keyword": "Fraud, forensic audit and CARO remarks",
+     "related": [
+      "Forensic audit",
+      "fraud reported",
+      "CARO 2020 remarks",
+      "diversion of funds",
+      "fraud",
+      "misappropriation",
+      "forensic investigation",
+      "irregularities",
+      "whistle-blower complaint",
+      "CARO qualification",
+      "embezzlement",
+      "accounting irregularities",
+      "fund diversion",
+      "fraud detection"
+     ],
+     "verify": "Read details and amounts; check regulatory follow-up."
+    },
+    {
+     "keyword": "Internal financial controls",
+     "related": [
+      "IFC",
+      "material weakness",
+      "control deficiency",
+      "controls over financial reporting",
+      "ICFR",
+      "internal controls",
+      "internal control weakness",
+      "IFCoFR",
+      "control environment",
+      "financial controls",
+      "audit of internal controls",
+      "adequacy of controls",
+      "internal control over financial reporting",
+      "control lapses"
+     ],
+     "verify": "Check the auditor's comments on adequacy and operating effectiveness."
+    },
+    {
+     "keyword": "Related party transactions",
+     "related": [
+      "RPT",
+      "Regulation 23",
+      "loans to related parties",
+      "transactions with promoter entities",
+      "arm's length",
+      "related-party dealings",
+      "related party disclosures",
+      "Ind AS 24",
+      "transactions with group companies",
+      "promoter-linked transactions",
+      "interested party transactions",
+      "RPT approval",
+      "material RPT",
+      "related entities transactions"
+     ],
+     "verify": "Assess size relative to revenue and approvals obtained."
+    },
+    {
+     "keyword": "Delay in results or non-compliance",
+     "related": [
+      "Delayed filing",
+      "late submission",
+      "penalty by exchange",
+      "non-submission of results",
+      "non-compliance",
+      "delay in submission",
+      "late filing",
+      "regulatory penalty",
+      "non-filing",
+      "exchange fine",
+      "delayed publication",
+      "non-compliance with LODR",
+      "failure to file",
+      "belated results"
+     ],
+     "verify": "A governance warning sign; check reasons and penalties."
+    }
+   ],
+   "Results: Regulatory Filings & Corporate Actions (SEBI LODR)": [
+    {
+     "keyword": "Outcome of board meeting",
+     "related": [
+      "Regulation 30",
+      "Schedule III disclosure",
+      "board meeting intimation",
+      "board approved",
+      "board meeting outcome",
+      "decisions of the board",
+      "board resolution",
+      "board proceedings",
+      "board meeting results",
+      "intimation of board meeting",
+      "board decisions",
+      "outcome intimation",
+      "board approvals",
+      "board meeting held"
+     ],
+     "verify": "Read the outcome filing for decisions beyond results (fund raise, M&A, capex)."
+    },
+    {
+     "keyword": "Dividend declaration",
+     "related": [
+      "Interim dividend",
+      "final dividend",
+      "special dividend",
+      "record date",
+      "dividend per share",
+      "dividend recommended",
+      "dividend announcement",
+      "dividend payout",
+      "DPS",
+      "cash dividend",
+      "dividend declared",
+      "dividend yield",
+      "dividend distribution",
+      "ex-dividend date"
+     ],
+     "verify": "Check payout ratio against earnings and cash flow."
+    },
+    {
+     "keyword": "Buyback of shares",
+     "related": [
+      "Tender offer",
+      "open market buyback",
+      "buyback price",
+      "buyback size",
+      "record date",
+      "share repurchase",
+      "repurchase of equity shares",
+      "buy-back",
+      "buyback offer",
+      "buyback programme",
+      "buyback approval",
+      "shares bought back",
+      "buyback through tender",
+      "capital reduction"
+     ],
+     "verify": "Check size, premium to market price and funding source."
+    },
+    {
+     "keyword": "Bonus issue and stock split",
+     "related": [
+      "Sub-division of shares",
+      "bonus shares",
+      "share split",
+      "record date",
+      "stock split",
+      "bonus issue",
+      "face value split",
+      "sub-division of equity shares",
+      "bonus ratio",
+      "bonus allotment",
+      "capitalisation of reserves",
+      "split ratio",
+      "share sub-division",
+      "bonus declaration"
+     ],
+     "verify": "Corporate action only; no value change itself, but check intent and liquidity effect."
+    },
+    {
+     "keyword": "Fund raising: QIP, preferential and rights",
+     "related": [
+      "Qualified institutional placement",
+      "preferential issue",
+      "rights issue",
+      "warrants",
+      "share allotment",
+      "equity issuance",
+      "capital raise",
+      "fundraise",
+      "private placement",
+      "allotment of shares",
+      "fund raising approval",
+      "QIP launch",
+      "issue price",
+      "use of proceeds"
+     ],
+     "verify": "Check pricing, dilution, investor list and use of proceeds."
+    },
+    {
+     "keyword": "NCD, debentures and commercial paper issue",
+     "related": [
+      "Non-convertible debentures",
+      "bond issue",
+      "debt raise",
+      "private placement of debt",
+      "NCD",
+      "debenture issue",
+      "commercial paper",
+      "CP",
+      "bonds",
+      "raising debt",
+      "debt instruments",
+      "debt securities",
+      "masala bonds",
+      "green bonds"
+     ],
+     "verify": "Check tenure, coupon, security and refinancing need."
+    },
+    {
+     "keyword": "ESOP and share-based payments",
+     "related": [
+      "Employee stock options",
+      "ESPS",
+      "grants",
+      "vesting",
+      "option pool",
+      "ESOP",
+      "stock options",
+      "employee stock option plan",
+      "SAR",
+      "stock appreciation rights",
+      "RSU",
+      "share-based compensation",
+      "ESOP allotment",
+      "options granted"
+     ],
+     "verify": "Check dilution and cost recognised in the income statement."
+    },
+    {
+     "keyword": "Credit rating action",
+     "related": [
+      "CRISIL",
+      "ICRA",
+      "CARE",
+      "India Ratings",
+      "Acuite",
+      "rating upgrade",
+      "downgrade",
+      "outlook revised",
+      "credit rating",
+      "rating reaffirmed",
+      "rating assigned",
+      "rating watch",
+      "credit watch",
+      "rating withdrawn",
+      "Brickwork",
+      "rating outlook"
+     ],
+     "verify": "Read rationale; rating changes often precede borrowing cost changes."
+    },
+    {
+     "keyword": "Change in directors and key managerial personnel",
+     "related": [
+      "Appointment",
+      "resignation",
+      "KMP change",
+      "CFO resignation",
+      "independent director resignation",
+      "director appointment",
+      "company secretary change",
+      "managing director change",
+      "board reconstitution",
+      "cessation",
+      "director exit",
+      "re-appointment",
+      "whole-time director",
+      "key personnel change"
+     ],
+     "verify": "Check reasons given; independent director exits with allegations are red flags."
+    },
+    {
+     "keyword": "Promoter shareholding and pledge",
+     "related": [
+      "Encumbrance",
+      "creation of pledge",
+      "invocation of pledge",
+      "SAST disclosure",
+      "promoter sale",
+      "pledged shares",
+      "promoter holding",
+      "promoter stake change",
+      "release of pledge",
+      "promoter encumbrance",
+      "share pledge",
+      "promoter group holding",
+      "pledge percentage",
+      "creeping acquisition"
+     ],
+     "verify": "Check percentage pledged, lender and any invocation."
+    },
+    {
+     "keyword": "Shareholding pattern",
+     "related": [
+      "FII holding",
+      "DII holding",
+      "mutual fund holding",
+      "public shareholding",
+      "institutional ownership",
+      "FPI holding",
+      "shareholding structure",
+      "promoter and public",
+      "shareholder composition",
+      "category-wise holding",
+      "retail holding",
+      "insurance holding",
+      "shareholder base",
+      "top shareholders"
+     ],
+     "verify": "Check quarterly changes and concentration of holders."
+    },
+    {
+     "keyword": "Acquisition and disposal disclosures",
+     "related": [
+      "Slump sale",
+      "share purchase agreement",
+      "acquisition completed",
+      "disposal of subsidiary",
+      "stake purchase",
+      "SPA",
+      "acquisition announcement",
+      "business transfer agreement",
+      "sale of stake",
+      "acquisition of shares",
+      "completion of acquisition",
+      "disposal of business",
+      "asset purchase agreement",
+      "divestiture"
+     ],
+     "verify": "Check consideration, valuation and closing conditions."
+    },
+    {
+     "keyword": "Order or contract award disclosure",
+     "related": [
+      "Receipt of order",
+      "letter of award",
+      "bagging of order",
+      "contract won",
+      "Regulation 30 order intimation",
+      "order received",
+      "award of contract",
+      "securing order",
+      "new order intimation",
+      "orders bagged",
+      "contract awarded",
+      "order win",
+      "notification of award",
+      "purchase order received"
+     ],
+     "verify": "Confirm value, counterparty, execution period and binding status."
+    },
+    {
+     "keyword": "Litigation and regulatory action",
+     "related": [
+      "Show-cause notice",
+      "SEBI order",
+      "tax demand",
+      "GST demand",
+      "ED action",
+      "penalty imposed",
+      "court order",
+      "regulatory notice",
+      "legal notice",
+      "search and seizure",
+      "attachment",
+      "income tax raid",
+      "NCLT proceedings",
+      "adjudication order"
+     ],
+     "verify": "Check amount, forum, and whether the company is contesting."
+    },
+    {
+     "keyword": "Fire, outage and force majeure disclosure",
+     "related": [
+      "Plant fire",
+      "production halt",
+      "force majeure",
+      "natural calamity",
+      "insurance claim",
+      "accident",
+      "plant shutdown",
+      "disruption of operations",
+      "fire incident",
+      "operations suspended",
+      "flood",
+      "explosion",
+      "operational outage",
+      "loss due to fire"
+     ],
+     "verify": "Check estimated impact and insurance cover."
+    },
+    {
+     "keyword": "Capacity expansion and capex approval",
+     "related": [
+      "Board approves capex",
+      "expansion approved",
+      "new plant approval",
+      "investment in subsidiary",
+      "capex approval",
+      "capital expenditure approved",
+      "approval of expansion",
+      "project approval",
+      "investment approval",
+      "expansion plan approved",
+      "new facility approved",
+      "capacity addition approved",
+      "board nod for capex",
+      "approval of new unit"
+     ],
+     "verify": "Check approved amount, funding and timeline."
+    },
+    {
+     "keyword": "Earnings call and analyst meet intimation",
+     "related": [
+      "Schedule of analyst meet",
+      "conference call audio recording",
+      "transcript upload",
+      "investor presentation upload",
+      "earnings call",
+      "analyst call",
+      "investor call",
+      "earnings conference call",
+      "investor meet",
+      "Q&A session",
+      "call recording",
+      "analyst day",
+      "transcript",
+      "presentation to analysts"
+     ],
+     "verify": "Use to locate the call transcript and presentation that match the results."
+    },
+    {
+     "keyword": "Trading window closure and UPSI",
+     "related": [
+      "Unpublished price sensitive information",
+      "trading window",
+      "insider trading code",
+      "UPSI",
+      "trading window closed",
+      "trading restriction",
+      "PIT regulations",
+      "insider trading",
+      "designated persons",
+      "trading window intimation",
+      "blackout period",
+      "UPSI sharing",
+      "structured digital database",
+      "closure of window"
+     ],
+     "verify": "Closures often precede results; useful for timing only."
+    },
+    {
+     "keyword": "Name change, object clause or MOA/AOA change",
+     "related": [
+      "Alteration of memorandum",
+      "change in main objects",
+      "change in company name",
+      "new business object",
+      "MOA amendment",
+      "AOA amendment",
+      "change of name",
+      "alteration of articles",
+      "object clause alteration",
+      "rebranding",
+      "change in registered office",
+      "name change approval",
+      "memorandum change",
+      "new objects"
+     ],
+     "verify": "A change in objects can signal a new business direction."
+    },
+    {
+     "keyword": "Delisting, open offer and takeover code",
+     "related": [
+      "Open offer",
+      "delisting proposal",
+      "SAST Regulations",
+      "voluntary delisting",
+      "creeping acquisition",
+      "takeover code",
+      "exit offer",
+      "public announcement",
+      "tender offer to shareholders",
+      "reverse book building",
+      "delisting offer",
+      "mandatory open offer",
+      "takeover offer",
+      "offer price"
+     ],
+     "verify": "Check offer price, trigger and acceptance conditions."
+    },
+    {
+     "keyword": "Annual report and AGM notice",
+     "related": [
+      "AGM notice",
+      "annual general meeting",
+      "e-voting",
+      "shareholder resolutions",
+      "remote e-voting results",
+      "annual report",
+      "notice of AGM",
+      "postal ballot",
+      "EGM",
+      "voting results",
+      "scrutiniser report",
+      "resolutions passed",
+      "shareholders' meeting",
+      "general meeting"
+     ],
+     "verify": "Review resolutions for related-party approvals and capital raising."
+    }
+   ],
+   "Results: Press Release & Investor Highlights": [
+    {
+     "keyword": "Record revenue, EBITDA or PAT",
+     "related": [
+      "Highest ever",
+      "all-time high",
+      "record quarter",
+      "best-ever performance",
+      "record profit",
+      "record sales",
+      "record EBITDA",
+      "peak performance",
+      "highest quarterly revenue",
+      "historic high",
+      "milestone revenue",
+      "best quarter ever",
+      "record earnings",
+      "record year"
+     ],
+     "verify": "Compare with the prior peak and check whether it was a one-off."
+    },
+    {
+     "keyword": "Margin in basis points",
+     "related": [
+      "Margin up by bps",
+      "EBITDA margin at percent",
+      "PAT margin at percent",
+      "margin expanded",
+      "bps improvement",
+      "margin expansion bps",
+      "margin change",
+      "margin delta",
+      "basis point change",
+      "margin improved by",
+      "margin movement",
+      "margin trajectory",
+      "EBITDA margin",
+      "profit margin"
+     ],
+     "verify": "Check the base period used for comparison."
+    },
+    {
+     "keyword": "Order book in Rs crore",
+     "related": [
+      "Order backlog",
+      "unexecuted orders",
+      "order book at quarter end",
+      "order inflow in the quarter",
+      "order book Rs crore",
+      "order book value",
+      "backlog in crore",
+      "order book size",
+      "outstanding order book",
+      "order book position",
+      "order pipeline value",
+      "closing order book",
+      "orders in hand",
+      "order book position at period end"
+     ],
+     "verify": "Confirm the date and whether it includes letters of intent."
+    },
+    {
+     "keyword": "Net debt to equity and net debt to EBITDA",
+     "related": [
+      "Gearing",
+      "leverage ratio",
+      "net debt position",
+      "debt equity ratio",
+      "D/E ratio",
+      "net debt/EBITDA",
+      "net gearing",
+      "debt to equity",
+      "leverage",
+      "net debt-to-equity",
+      "gross debt to equity",
+      "debt to EBITDA",
+      "solvency ratio",
+      "capital structure"
+     ],
+     "verify": "Verify definition, including or excluding lease liabilities."
+    },
+    {
+     "keyword": "Sales volume and dispatches",
+     "related": [
+      "Volume sold",
+      "tonnage",
+      "units sold",
+      "dispatches",
+      "shipments",
+      "production volume",
+      "sales quantity",
+      "volumes",
+      "unit sales",
+      "sales in tonnes",
+      "despatches",
+      "volume growth",
+      "offtake",
+      "throughput"
+     ],
+     "verify": "Track volume growth separately from price."
+    },
+    {
+     "keyword": "Capacity utilisation percentage",
+     "related": [
+      "Utilisation rate",
+      "plant load factor",
+      "PLF",
+      "operating rate",
+      "throughput",
+      "capacity utilization",
+      "utilisation level",
+      "utilisation percent",
+      "production versus capacity",
+      "plant utilisation",
+      "capacity usage rate",
+      "rate of utilisation",
+      "operating capacity percent",
+      "utilisation trends"
+     ],
+     "verify": "Compare with installed capacity and breakeven."
+    },
+    {
+     "keyword": "Cash profit and operating cash flow",
+     "related": [
+      "Cash PAT",
+      "cash flow from operations",
+      "cash EPS",
+      "cash accruals",
+      "operating cash profit",
+      "cash earnings",
+      "internal accruals",
+      "cash profit",
+      "gross cash accruals",
+      "funds from operations",
+      "FFO",
+      "cash generation",
+      "operating cash",
+      "cash flows"
+     ],
+     "verify": "Compare against reported PAT."
+    },
+    {
+     "keyword": "Highlights of the quarter",
+     "related": [
+      "Key highlights",
+      "business update",
+      "operational update",
+      "financial highlights",
+      "performance snapshot",
+      "quarter highlights",
+      "results highlights",
+      "key takeaways",
+      "performance summary",
+      "Q-highlights",
+      "operational highlights",
+      "business highlights",
+      "performance overview",
+      "quarterly snapshot"
+     ],
+     "verify": "Use highlights to locate what the company wants to emphasise, then test against full results."
+    },
+    {
+     "keyword": "Outlook and way forward",
+     "related": [
+      "Management commentary",
+      "outlook statement",
+      "chairman's message",
+      "MD's comment",
+      "our focus areas",
+      "way ahead",
+      "looking ahead",
+      "future outlook",
+      "strategic priorities",
+      "road ahead",
+      "plans ahead",
+      "going ahead",
+      "management's view",
+      "business outlook"
+     ],
+     "verify": "Cross-check with the earnings call for numbers."
+    },
+    {
+     "keyword": "Awards, certifications and approvals",
+     "related": [
+      "Regulatory approval received",
+      "product approval",
+      "certification obtained",
+      "qualification cleared",
+      "awards",
+      "accreditation",
+      "USFDA approval",
+      "ISO certification",
+      "approval granted",
+      "licence granted",
+      "recognitions",
+      "product registration",
+      "statutory approval",
+      "type approval"
+     ],
+     "verify": "Check commercial significance and sales timeline."
+    }
+   ],
+   "Results: Sector-Specific KPIs Reported in Filings": [
+    {
+     "keyword": "Banking and NBFC asset quality",
+     "related": [
+      "GNPA",
+      "NNPA",
+      "slippages",
+      "credit cost",
+      "provision coverage ratio",
+      "restructured book",
+      "stage 3 assets",
+      "gross NPA",
+      "net NPA",
+      "PCR",
+      "asset quality",
+      "write-offs",
+      "delinquency",
+      "stressed assets",
+      "SMA"
+     ],
+     "verify": "Check trend and provisioning adequacy."
+    },
+    {
+     "keyword": "Net interest margin and spreads",
+     "related": [
+      "NIM",
+      "NII growth",
+      "cost of funds",
+      "yield on advances",
+      "spread",
+      "net interest income",
+      "margin on assets",
+      "interest spread",
+      "net interest margins",
+      "cost of deposits",
+      "yield on assets",
+      "funding cost",
+      "NIM compression",
+      "NIM expansion"
+     ],
+     "verify": "Look for sustainability against rate cycle and funding mix."
+    },
+    {
+     "keyword": "Deposits, CASA and credit growth",
+     "related": [
+      "CASA ratio",
+      "deposit growth",
+      "loan growth",
+      "credit-deposit ratio",
+      "advances growth",
+      "current account savings account",
+      "retail deposits",
+      "term deposits",
+      "CD ratio",
+      "credit growth",
+      "deposit mobilisation",
+      "loan book growth",
+      "low-cost deposits",
+      "advances"
+     ],
+     "verify": "Compare growth with industry and funding stability."
+    },
+    {
+     "keyword": "AUM and disbursements",
+     "related": [
+      "Assets under management",
+      "disbursement",
+      "loan book",
+      "collection efficiency",
+      "AUM growth",
+      "disbursals",
+      "managed assets",
+      "portfolio growth",
+      "loan disbursements",
+      "originations",
+      "AUM mix",
+      "business volumes",
+      "portfolio quality",
+      "book size"
+     ],
+     "verify": "Check quality of growth and collection efficiency."
+    },
+    {
+     "keyword": "Capital adequacy",
+     "related": [
+      "CRAR",
+      "Tier 1 capital",
+      "CET1",
+      "capital adequacy ratio",
+      "leverage",
+      "capital to risk-weighted assets",
+      "Tier 2 capital",
+      "common equity tier 1",
+      "CAR",
+      "capital ratios",
+      "regulatory capital",
+      "solvency",
+      "risk-weighted assets",
+      "capital buffer"
+     ],
+     "verify": "Check headroom relative to regulatory minimum and growth plans."
+    },
+    {
+     "keyword": "Insurance and AMC metrics",
+     "related": [
+      "Value of new business",
+      "VNB margin",
+      "annualised premium equivalent",
+      "APE",
+      "combined ratio",
+      "AUM mix",
+      "gross written premium",
+      "GWP",
+      "persistency",
+      "claims ratio",
+      "solvency ratio",
+      "embedded value",
+      "equity AUM",
+      "SIP flows"
+     ],
+     "verify": "Check margin sustainability and product mix."
+    },
+    {
+     "keyword": "IT services metrics",
+     "related": [
+      "Constant currency growth",
+      "deal TCV",
+      "utilisation",
+      "attrition",
+      "offshore mix",
+      "EBIT margin",
+      "CC growth",
+      "large deal wins",
+      "headcount",
+      "revenue per employee",
+      "onsite-offshore mix",
+      "deal pipeline",
+      "employee utilisation",
+      "vertical growth"
+     ],
+     "verify": "Compare growth and margin with peers and check large-deal concentration."
+    },
+    {
+     "keyword": "Telecom and digital metrics",
+     "related": [
+      "ARPU",
+      "subscriber additions",
+      "churn",
+      "data usage",
+      "tariff hike",
+      "5G subscribers",
+      "average revenue per user",
+      "subscriber base",
+      "net adds",
+      "data consumption",
+      "broadband subscribers",
+      "tower tenancy",
+      "postpaid mix",
+      "wireless subscribers"
+     ],
+     "verify": "Track ARPU growth and subscriber quality."
+    },
+    {
+     "keyword": "Retail and consumer metrics",
+     "related": [
+      "SSSG",
+      "same-store sales growth",
+      "store additions",
+      "footfall",
+      "average bill value",
+      "online share",
+      "like-for-like sales",
+      "sales per sq ft",
+      "store count",
+      "conversion rate",
+      "basket size",
+      "LFL growth",
+      "e-commerce share",
+      "revenue per store"
+     ],
+     "verify": "Separate growth from store additions from same-store growth."
+    },
+    {
+     "keyword": "Real estate metrics",
+     "related": [
+      "Pre-sales",
+      "bookings",
+      "collections",
+      "launches",
+      "inventory",
+      "net debt",
+      "RERA project",
+      "sales bookings",
+      "area sold",
+      "realisation per sq ft",
+      "unsold inventory",
+      "new launches",
+      "collections efficiency",
+      "sales value"
+     ],
+     "verify": "Look at collections and launches, not just bookings."
+    },
+    {
+     "keyword": "Hospitality and healthcare metrics",
+     "related": [
+      "RevPAR",
+      "occupancy",
+      "ARR",
+      "ARPOB",
+      "bed occupancy",
+      "EBITDA per bed",
+      "ALOS",
+      "average room rate",
+      "average revenue per occupied bed",
+      "room revenue",
+      "occupancy rate",
+      "revenue per bed",
+      "average length of stay",
+      "room inventory"
+     ],
+     "verify": "Check occupancy trend and unit economics."
+    },
+    {
+     "keyword": "Power, utilities and renewables metrics",
+     "related": [
+      "PLF",
+      "plant availability factor",
+      "PPA",
+      "tariff",
+      "merchant sales",
+      "installed capacity MW",
+      "generation units",
+      "PAF",
+      "power sold",
+      "capacity addition",
+      "units generated",
+      "average tariff",
+      "receivable days from discoms",
+      "contracted capacity"
+     ],
+     "verify": "Check contracted share of capacity and receivable days from discoms."
+    },
+    {
+     "keyword": "Infrastructure and EPC metrics",
+     "related": [
+      "Order book to revenue",
+      "execution rate",
+      "bid pipeline",
+      "L1 status",
+      "NHAI award",
+      "receivables from authorities",
+      "order book cover",
+      "execution run-rate",
+      "bid book",
+      "order inflow",
+      "unbilled revenue",
+      "retention",
+      "project completion",
+      "HAM project awards"
+     ],
+     "verify": "Check execution speed and receivables from public clients."
+    },
+    {
+     "keyword": "Pharma and chemicals metrics",
+     "related": [
+      "US generics sales",
+      "ANDA approvals",
+      "CDMO revenue",
+      "specialty chemicals mix",
+      "R&D percent",
+      "USFDA inspection",
+      "ANDA filings",
+      "US sales",
+      "formulation exports",
+      "R&D spend",
+      "specialty mix",
+      "EIR",
+      "Form 483",
+      "API revenue"
+     ],
+     "verify": "Check inspection outcomes and concentration in a few molecules or customers."
+    },
+    {
+     "keyword": "Auto and auto-ancillary metrics",
+     "related": [
+      "Wholesales",
+      "retail registrations",
+      "EV mix",
+      "content per vehicle",
+      "order book from OEM",
+      "SOP date",
+      "vehicle volumes",
+      "production volume",
+      "domestic sales",
+      "exports volumes",
+      "Vahan registrations",
+      "OEM schedules",
+      "CPV",
+      "market share by segment"
+     ],
+     "verify": "Distinguish OEM schedule commitments from actual production."
+    },
+    {
+     "keyword": "Metals and commodities metrics",
+     "related": [
+      "EBITDA per tonne",
+      "realisation per tonne",
+      "spread",
+      "coking coal cost",
+      "capacity utilisation",
+      "LME price",
+      "steel prices",
+      "HRC price",
+      "metal prices",
+      "cost per tonne",
+      "net realisation",
+      "production volume",
+      "sales volume",
+      "commodity spreads"
+     ],
+     "verify": "Check commodity sensitivity and cost position."
+    }
+   ]
+  }
+ }
+}
