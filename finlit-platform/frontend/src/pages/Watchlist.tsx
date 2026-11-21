@@ -67,12 +67,11 @@ function Th({ k, label, sort, dir, on, r, help }: { k?: SortKey; label: string; 
   );
 }
 
-/** The flags of a stock worth a second look (used by the dashboard's older watchlist block): a low score, a weak balance sheet, a big fall in a month, a high P/E
+/** The flags of a stock worth a second look (used by the dashboard's older watchlist block): a Weak FinLit Prism, a big fall in a month, a high P/E
  *  or a price near the member's own target. */
 export function signals(r: Row, target?: number, model: ScoreModel | null = null): string[] {
   const out: string[] = [];
   if (model === "prism") { const v = rowView(r); if (prismBandOf(v.score) === "weak" && v.score != null) out.push(`FinLit Prism is ${v.score}, Weak`); }
-  if ((r.pillar_balance ?? 100) <= 35) out.push(`Weak balance sheet (${r.pillar_balance}/100)`);
   if ((r.return_1m ?? 0) <= -10) out.push(`Fell ${nf(Math.abs(r.return_1m!), 1)}% in a month`);
   if ((r.pe ?? 0) >= 60) out.push(`Expensive at ${nf(r.pe!, 0)}× earnings`);
   if (target && r.price) { const d = ((r.price - target) / target) * 100; if (Math.abs(d) <= 5) out.push(`Within ${nf(Math.abs(d), 1)}% of your target ₹${nf(target, 0)}`); }

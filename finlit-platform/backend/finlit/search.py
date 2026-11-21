@@ -1,11 +1,12 @@
-"""Data for the site-wide search box beyond names: today's price and change, the score and band, and the logo of every company,
-plus the fund-house logos for fund and ETF results.
+"""Data for the site-wide search box beyond names: today's price and change and the logo of every company, plus the fund-house logos for fund
+and ETF results.
 
 The name list itself stays `/api/stocks/search-index` (public, cached for long, read by several tools). This payload is separate because
-it changes every minute in market hours and because scores are a Silver feature: a Basic visitor gets "locked" instead of a score
-(the free showcase company stays open), so the response is private and varies by cookie, built once per access level and kept in Redis.
+it changes every minute in market hours. It is built once per access level and kept in Redis (private, varies by cookie).
 
-Rows: [symbol, price, change %, price date (YYYY-MM-DD, India), score or null, band key or null or "locked", logo path or null].
+Rows: [symbol, price, change %, price date (YYYY-MM-DD, India), score, band, logo path or null]. Task #283 PR C (21 Nov 2026): the score and band
+were the retired FinLit IQ's; they are always null now (the positions stay so older readers of the rows keep working). FinLit Prism, FinLit's only
+company score, is read by the search box from /api/prism/scores on a plan that has it.
 Price and change come from the company's stored report when that is fresher (updated every minute in market hours), otherwise from the
 nightly market-wide listing; the date always travels with the price, so an old close is never shown as today's move.
 """
@@ -35,10 +36,10 @@ TTL = 120
 CACHE = "private, no-cache"
 
 QUOTES_SQL = """
-SELECT c.symbol, s.overall, s.band, s.price AS sp, s.change_pct AS sc, s.updated_at AS su,
+SELECT c.symbol, s.price AS sp, s.change_pct AS sc, s.updated_at AS su,
        q.price AS qp, q.change_pct AS qc, coalesce(q.traded_at, q.updated_at) AS qt, g.sha8
 FROM companies c
-LEFT JOIN LATERAL (SELECT overall, band, price, change_pct, updated_at FROM scores
+LEFT JOIN LATERAL (SELECT price, change_pct, updated_at FROM scores
                    WHERE symbol = c.symbol AND model = 'v1' ORDER BY (statement = 'consolidated') DESC, updated_at DESC LIMIT 1) s ON true
 LEFT JOIN listing_quotes q ON q.symbol = c.symbol
 LEFT JOIN logos g ON g.owner_kind = 'stock' AND g.owner_key = c.symbol AND g.status IN ('ok', 'manual') AND g.sha8 IS NOT NULL
@@ -67,18 +68,16 @@ def session_of(at: datetime) -> date:
 
 
 def quote_rows(rows, level: str, showcase: set) -> list:
-    """The compact rows above. Basic: scores are blanked to "locked" except for the showcase companies."""
+    """The compact rows above. The score and band positions are always null: they held the retired FinLit IQ (task #283 PR C)."""
     out = []
     for r in rows:
         # The report's price is a snapshot from whenever it was loaded; the listing row is refreshed after each close. The report wins only when it is from a LATER
         # trading day than the listing row (its write time is not comparable with a trade time: a Saturday write must not beat Friday's closing quote).
         use_report = r["sp"] is not None and (r["qp"] is None or r["qt"] is None or (r["su"] is not None and session_of(r["su"]) > r["qt"].astimezone(IST).date()))
         price, chg, at = (r["sp"], r["sc"], r["su"]) if use_report else (r["qp"], r["qc"], r["qt"])
-        score, band = r["overall"], r["band"]
-        if score is not None and not has(level, "silver") and r["symbol"] not in showcase:
-            score, band = None, "locked"
+        score, band = None, None
         logo = logo_path(r["sha8"])
-        if price is None and score is None and band is None and logo is None:
+        if price is None and logo is None:
             continue                                   # nothing to add to the name list
         when = None if not at or price is None else (session_of(at) if use_report else at.astimezone(IST).date())   # a score row's time is when it was written, not when it traded
         out.append([r["symbol"], _num(price), _num(chg), when.isoformat() if when else None,

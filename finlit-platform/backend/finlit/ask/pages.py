@@ -799,9 +799,10 @@ async def read_company_document(gw: Gateway, a: Dict[str, Any]) -> Out:
                              f"This is the document's text: never say the {want.lower()} could not be read."])
 
 
-# ------------------------------------------------------------------------------------------------ the Basic and Advanced stock screeners (FinLit IQ / FinLit Prism)
-SOURCE_SCORES = "FinLit's Basic stock screener (FinLit IQ) and Advanced stock screener (FinLit Prism) pages, as this member's plan shows them"
-SCORE_FIELDS = {"iq": ("overall", "band"), "prism": ("prism_final", "prism_label")}
+# ------------------------------------------------------------------------------------------------ the Advanced stock screener (FinLit Prism)
+# Task #283 PR C (21 Nov 2026): FinLit Prism is FinLit's only company score; the Basic stock screener and the score it used are retired.
+SOURCE_SCORES = "FinLit's Advanced stock screener (FinLit Prism), as this member's plan shows it"
+SCORE_FIELD, SCORE_LABEL = "prism_final", "prism_label"
 
 
 def _stem(w: str) -> str:
@@ -810,7 +811,7 @@ def _stem(w: str) -> str:
 
 
 def screen_rows(rows: List[Dict[str, Any]], a: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], int]:
-    field, label = SCORE_FIELDS[a["score"]]
+    field, label = SCORE_FIELD, SCORE_LABEL
     lo, hi = a.get("min"), a.get("max")
     want = [_stem(w) for w in re.findall(r"[a-z0-9]+", (a.get("sector") or "").lower())]
     out = []
@@ -833,12 +834,10 @@ def screen_rows(rows: List[Dict[str, Any]], a: Dict[str, Any]) -> Tuple[List[Dic
 async def screen_by_finlit_score(gw: Gateway, a: Dict[str, Any]) -> Out:
     u = await gw.json("/api/screener/universe", subject="The score screener")
     rows = (u or {}).get("rows") or []
-    field = SCORE_FIELDS[a["score"]][0]
-    if rows and not any(r.get(field) is not None for r in rows):
-        plan = "Gold" if a["score"] == "prism" else "Silver"
-        raise ToolError(f"The {'FinLit Prism' if a['score'] == 'prism' else 'FinLit IQ'} scores of the screener are part of the {plan} plan, which this member's plan does not include.")
+    if rows and not any(r.get(SCORE_FIELD) is not None for r in rows):
+        raise ToolError("The FinLit Prism scores of the screener are part of the Gold plan, which this member's plan does not include.")
     got, total = screen_rows(rows, a)
-    return Out({"score": "FinLit Prism (0 to 100)" if a["score"] == "prism" else "FinLit IQ (0 to 100)", "matched": total, "rows": got},
+    return Out({"score": "FinLit Prism (0 to 100)", "matched": total, "rows": got},
                as_of=(u or {}).get("as_of"), source=SOURCE_SCORES, routes=["/api/screener/universe"],
                notes=["market_cap is in Rs crore. A company without a score is left out (not yet rated)."])
 
@@ -938,14 +937,13 @@ TOOLS: List[Tool] = [
          {"topic": {"type": "string", "enum": list(FINANCE_TOPICS)},
           "sector": {"type": "string", "maxLength": 80, "description": "A sector, industry or kind of company, e.g. Private Sector Bank, NBFC, IT services"}},
          get_finance_framework),
-    Tool("screen_by_finlit_score", "Score screeners", "FinLit's Basic stock screener (FinLit IQ, Silver) and Advanced stock screener (FinLit Prism, Gold): companies by their "
-         "FinLit score, highest first, optionally within a score range, a sector or industry, and a minimum size. The member's plan decides which score they see.",
-         {"score": {"type": "string", "enum": ["iq", "prism"], "description": "iq: FinLit IQ (Basic screener); prism: FinLit Prism (Advanced screener)"},
-          "min": {"type": "number", "minimum": 0, "maximum": 100}, "max": {"type": "number", "minimum": 0, "maximum": 100},
+    Tool("screen_by_finlit_score", "Score screener", "FinLit's Advanced stock screener (FinLit Prism, FinLit's only company score; Gold): companies by their "
+         "FinLit Prism score, highest first, optionally within a score range, a sector or industry, and a minimum size.",
+         {"min": {"type": "number", "minimum": 0, "maximum": 100}, "max": {"type": "number", "minimum": 0, "maximum": 100},
           "sector": {"type": "string", "maxLength": 60, "description": "Words of an NSE sector or industry, e.g. Banks, IT, Pharmaceuticals"},
           "min_market_cap": {"type": "number", "minimum": 0, "description": "Rs crore"},
           "order": {"type": "string", "enum": ["asc", "desc"], "default": "desc"},
-          "limit": {"type": "integer", "minimum": 1, "maximum": 30, "default": 15}}, screen_by_finlit_score, ["score"]),
+          "limit": {"type": "integer", "minimum": 1, "maximum": 30, "default": 15}}, screen_by_finlit_score),
 ]
 TIMEOUTS = {"read_company_document": DOC_TIMEOUT + 5}
 DOING = {"get_superinvestors": "Reading Superinvestor portfolios", "get_india_economy": "Reading the India economy page", "lookup_glossary": "Reading the Glossary",
@@ -984,8 +982,7 @@ def page_links(calls: Iterable[Tuple[str, Dict[str, Any]]]) -> List[Dict[str, st
         elif name == "get_discovery":
             add("/discover", "Discover")   # task #241: Discovery is a page now; task #260: its address is /discover
         elif name == "screen_by_finlit_score":
-            add("/advanced-score-screener" if args.get("score") == "prism" else "/score-screener",
-                "Advanced stock screener" if args.get("score") == "prism" else "Basic stock screener")
+            add("/advanced-score-screener", "Advanced stock screener")
         elif name == "screen_stocks":
             add("/screener", "Stock screener")
         elif name == "get_fii_dii_flows":

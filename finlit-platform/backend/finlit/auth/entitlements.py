@@ -21,6 +21,13 @@ KEEP_TECHNICAL = ("price", "ema50", "vsEma200Pct")
 PRISM_FIELDS = ("prism_state", "prism_final", "prism_label", "prism_status", "prism_at", "prism_fundamental", "prism_valuation", "prism_quality", "prism_risk",
                 "prism_st", "prism_lt", "prism_st_score", "prism_lt_score", "prism_tech_at")
 MODEL_FIELDS = ("overall", "band", "pillar_quality", "pillar_growth", "pillar_profitability", "pillar_balance", "pillar_technical")
+# Task #283 PR C (21 Nov 2026): FinLit IQ is retired and FinLit Prism is FinLit's only company score. The IQ job keeps writing its figures (hidden, for a
+# rollback, 30 days), but no browser-facing answer carries them for any plan: the universe rows lose these fields, the stored report sections lose the
+# blocks below (strip_retired_score), and every other route that read the IQ reads FinLit Prism or nothing.
+RETIRED_ROW_FIELDS = MODEL_FIELDS + ("score_change", "strengths_count", "watchouts_count")
+RETIRED_SUMMARY_KEYS = ("score", "thesis", "iqInputs")      # the IQ block, its written read (from the IQ's pillars) and its inputs
+RETIRED_SECTIONS = ("summary", "ratios", "peers")
+PEER_RETIRED = ("overall", "band")
 
 LIMITS = {
     "basic": {"watchlist_lists": 0, "watchlist_symbols": 0, "screens": 3, "baskets": 3, "compare": 2, "holdings": 0, "mf_holdings": 0, "etf_holdings": 0, "earnings_calls_per_month": 0, "ai_questions_per_month": 0, "ai_summaries_per_month": 0},
@@ -46,23 +53,47 @@ def varies_by_plan(section: str) -> bool:
     return section in ("summary", "ratios", "segments", "stats") or section.startswith("price-")
 
 
-GOLD_TECHNICAL_INPUTS = {"rsi14", "vsEma50Pct"}
+def strip_retired_score(section: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    """A stored report section without the retired FinLit IQ, for every plan (task #283 PR C). `data` is modified in place and returned.
+    summary: no `score` (overall, band, the five pillars), `thesis` (the IQ's written read) or `iqInputs`; ratios: no `score` (the pillar drawer);
+    peers: no peer's `overall` or IQ `band`."""
+    if not isinstance(data, dict):
+        return data
+    if section == "summary":
+        for k in RETIRED_SUMMARY_KEYS:
+            data.pop(k, None)
+        meta = data.get("meta")
+        if isinstance(meta, dict):
+            meta.pop("scoreModel", None)
+    elif section == "ratios":
+        data.pop("score", None)
+        meta = data.get("meta")
+        if isinstance(meta, dict):
+            meta.pop("scoreModel", None)
+    elif section == "peers":
+        for item in data.get("items") or []:
+            if isinstance(item, dict):
+                for k in PEER_RETIRED:
+                    item.pop(k, None)
+        meta = data.get("meta")
+        if isinstance(meta, dict):
+            meta.pop("scoreModel", None)
+    return data
+
+
+def strip_retired_row(row: Dict[str, Any]) -> Dict[str, Any]:
+    """A screener row without the retired FinLit IQ's fields (task #283 PR C): a copy."""
+    return {k: v for k, v in row.items() if k not in RETIRED_ROW_FIELDS}
 
 
 def redact_section(section: str, data: Dict[str, Any], plan: str) -> Dict[str, Any]:
     """Return `data` with everything above `plan` removed. `data` is modified in place and returned."""
     if has(plan, "gold"):
-        return data
+        return strip_retired_score(section, data)
     silver = has(plan, "silver")
+    strip_retired_score(section, data)     # the retired FinLit IQ goes for every plan (task #283 PR C)
     if section == "summary":
         if not silver:
-            score = data.get("score") or {}
-            score["overall"] = None
-            score["band"] = {"key": "locked", "label": "Locked"}
-            for p in score.get("pillars", []):
-                p["score"] = None
-                p["band"] = {"key": "locked", "label": "Locked"}
-            data["thesis"] = None
             data["strengths"] = []
             data["watchouts"] = []
         data["returns"] = []   # "returns across every holding period" sits in the Gold Momentum card
@@ -79,22 +110,6 @@ def redact_section(section: str, data: Dict[str, Any], plan: str) -> Dict[str, A
                 for key in group["keys"][2:]:
                     latest.pop(key, None)
                 group["keys"] = group["keys"][:2]
-        score = data.get("score") or {}
-        if not silver:
-            score["overall"] = None
-            score["band"] = {"key": "locked", "label": "Locked"}
-            for p in score.get("pillars", []):
-                p["score"] = None
-                p["band"] = {"key": "locked", "label": "Locked"}   # a pillar's band is its score in buckets: locked like the score
-                p["inputs"] = []
-                p.pop("coverage", None)
-                p.pop("reason", None)
-        else:   # Silver: the momentum readings are the Gold "Momentum" card; the score shows they count, not their values
-            for p in score.get("pillars", []):
-                for i in p.get("inputs") or []:
-                    if isinstance(i, dict) and i.get("key") in GOLD_TECHNICAL_INPUTS:
-                        i["value"] = None
-                        i["locked"] = True
     elif section == "stats":
         if not silver:  # the price-statistics charts are a Silver feature
             data.clear()
@@ -114,18 +129,17 @@ def redact_section(section: str, data: Dict[str, Any], plan: str) -> Dict[str, A
 
 
 def redact_universe(rows: list, plan: str, showcase: set) -> list:
-    """The screener list: the FinLit IQ figures are a Silver feature and the FinLit Prism figures a Gold feature (the showcase company stays
-    open as the free example). A locked field is present and null, so the browser cannot tell a locked value from a missing one."""
+    """The screener list: the FinLit Prism figures are a Gold feature (the showcase company stays open as the free example). A locked field is present
+    and null, so the browser cannot tell a locked value from a missing one. The retired FinLit IQ's fields are never sent, to any plan (task #283 PR C)."""
+    rows = [strip_retired_row(r) for r in rows]
     if has(plan, "gold"):
         return rows
-    silver = has(plan, "silver")
     out = []
     for r in rows:
         if r.get("symbol") in showcase:
             out.append(r)
             continue
-        r = dict(r)
-        for f in PRISM_FIELDS + (() if silver else MODEL_FIELDS):
+        for f in PRISM_FIELDS:
             r[f] = None
         out.append(r)
     return out

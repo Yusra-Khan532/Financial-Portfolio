@@ -16,7 +16,7 @@ from .security import client_ip
 
 router = APIRouter(prefix="/api")
 
-FEATURES = ["Stock Screener", "Model-Based Scoring / FinLit IQ", "Set Your Own Model", "Advanced Valuation Tools", "DCF and Financial Analysis", "Extended DuPont Analysis",
+FEATURES = ["Stock Screener", "Model-based scoring / FinLit Prism", "Set Your Own Model", "Advanced Valuation Tools", "DCF and Financial Analysis", "Extended DuPont Analysis",
             "Chart Builder and Correlation", "Portfolio Import and Analysis", "IPO Analysis", "Company News", "Discussion Forum", "Macro Economics Simulator", "Glossary", "Other"]
 IMPROVE = ["User interface and navigation", "Data accuracy and reliability", "More financial metrics and ratios", "Better stock screening capabilities", "More detailed company analysis",
            "Faster loading and performance", "Better explanations of financial indicators", "Other"]

@@ -386,24 +386,26 @@ async def test_price_history_equals_the_price_routes(app):  # noqa: F811
 
 
 async def test_score_only_where_the_website_shows_it(app):  # noqa: F811
+    """Task #283 PR C: the score is FinLit Prism, FinLit's only company score (the FinLit IQ is retired): the free showcase company's Prism for a
+    visitor, and for any other company the message that it needs a plan with FinLit Prism. Nothing of the retired score is ever returned."""
+    from test_ask import store_prism
+    await store_prism(app)
     async with app.state.store.pool.acquire() as conn:
         await conn.execute("DELETE FROM snapshots WHERE symbol = 'LOCKEDCO'")
         await conn.execute("INSERT INTO snapshots (symbol, statement, section, body, etag, generated_at) SELECT 'LOCKEDCO', statement, section, body, etag, generated_at FROM snapshots WHERE symbol = 'RELIANCE'")
     try:
         async with new_client(app) as c:
-            s = await site(c, "/api/stocks/RELIANCE")
             sc = (await ok(c, "get_finlit_score", {"symbol": "RELIANCE"}))["data"]
-            assert sc["locked"] is False and sc["score"]["overall"] == s["score"]["overall"] == 51 and sc["score"]["band"] == s["score"]["band"]
-            assert [(p["key"], p["score"]) for p in sc["score"]["pillars"]] == [(p["key"], p["score"]) for p in s["score"]["pillars"]]
+            assert sc["locked"] is False and sc["score"]["name"] == "FinLit Prism" and sc["score"]["final"] == 85.4 and sc["score"]["label"] == "Strong"
             locked = await ok(c, "get_finlit_score", {"symbol": "LOCKEDCO"})
-            site_view = await site(c, "/api/stocks/LOCKEDCO")
-            assert site_view["score"]["overall"] is None and locked["data"]["locked"] is True and locked["data"]["score"] is None
-            assert "Silver" in locked["data"]["message"]
-            text = json.dumps(locked)
-            assert str(s["score"]["overall"]) + "," not in text and "thesis" not in text and "pillars" not in text      # nothing leaks
+            assert locked["data"]["locked"] is True and locked["data"]["score"] is None and "plan with FinLit Prism" in locked["data"]["message"]
+            for out in (sc, locked):
+                text = json.dumps(out)
+                assert "overall" not in text and "pillars" not in text and "thesis" not in text and "FinLit IQ" not in text and "Silver" not in text
     finally:
         async with app.state.store.pool.acquire() as conn:
             await conn.execute("DELETE FROM snapshots WHERE symbol = 'LOCKEDCO'")
+            await conn.execute("DELETE FROM prism_reports WHERE symbol = 'RELIANCE'")
 
 
 async def test_search_stocks(app):  # noqa: F811

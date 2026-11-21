@@ -60,29 +60,29 @@ def test_the_shape_uses_descriptive_words_never_the_models_and_no_word_without_a
 def test_redaction_by_plan():
     rows = [{"symbol": "TCS", "overall": 80, "prism_final": 60, "prism_state": "stored"}, {"symbol": "INFY", "overall": 70, "prism_final": 50, "prism_state": "stored"}]
     gold = redact_universe(rows, "gold", {"TCS"})
-    assert gold == rows
+    assert gold == [{k: v for k, v in r.items() if k != "overall"} for r in rows]                # task #283 PR C: the retired FinLit IQ goes for every plan
     silver = redact_universe(rows, "silver", {"TCS"})
-    assert silver[1]["overall"] == 70 and silver[1]["prism_final"] is None and silver[1]["prism_state"] is None
+    assert "overall" not in silver[1] and silver[1]["prism_final"] is None and silver[1]["prism_state"] is None
     assert silver[0]["prism_final"] == 60                                                        # the showcase company stays open
     basic = redact_universe(rows, "basic", {"TCS"})
-    assert basic[1]["overall"] is None and all(basic[1][f] is None for f in PRISM_FIELDS) and basic[0]["prism_final"] == 60
+    assert "overall" not in basic[1] and all(basic[1][f] is None for f in PRISM_FIELDS) and basic[0]["prism_final"] == 60
 
 
-def test_two_screeners_two_plans_prism_only_for_gold_and_the_finlit_score_only_for_silver_and_up():
-    """Basic score screener = Silver (FinLit IQ fields); Advanced score screener = Gold (Prism fields). Every field of each model is checked, not a sample."""
+def test_prism_only_for_gold_and_the_retired_finlit_score_for_no_plan():
+    """Advanced score screener = Gold (Prism fields); task #283 PR C: the retired FinLit IQ's fields go to no plan, not even the showcase company.
+    Every field of each model is checked, not a sample."""
     full = {f: 61.5 for f in PRISM_FIELDS + MODEL_FIELDS}
     rows = [{"symbol": "SHOWCASE", **full}, {"symbol": "OTHER", **full}]
     for plan in ("basic", "silver"):                                                              # Prism: not for Basic, not for Silver
         out = {r["symbol"]: r for r in redact_universe(rows, plan, {"SHOWCASE"})}
         assert all(out["OTHER"][f] is None for f in PRISM_FIELDS), plan
         assert not any("61.5" in repr(v) for k, v in out["OTHER"].items() if k.startswith("prism_")), plan
-        assert all(out["SHOWCASE"][f] == 61.5 for f in PRISM_FIELDS + MODEL_FIELDS), plan           # the free example company stays open
-    assert all(r[f] is None for r in redact_universe(rows, "basic", {"SHOWCASE"}) if r["symbol"] == "OTHER" for f in MODEL_FIELDS)   # FinLit IQ: not for Basic
-    silver = next(r for r in redact_universe(rows, "silver", {"SHOWCASE"}) if r["symbol"] == "OTHER")
-    assert all(silver[f] == 61.5 for f in MODEL_FIELDS)                                           # ... but for Silver
+        assert all(out["SHOWCASE"][f] == 61.5 for f in PRISM_FIELDS), plan                          # the free example company stays open
+    for plan in ("basic", "silver", "gold"):
+        assert not any(f in r for r in redact_universe(rows, plan, {"SHOWCASE"}) for f in MODEL_FIELDS), plan   # the retired FinLit IQ: for no plan
     gold = redact_universe(rows, "gold", {"SHOWCASE"})
-    assert all(r[f] == 61.5 for r in gold for f in PRISM_FIELDS + MODEL_FIELDS)                  # Gold sees both
-    assert redact_universe(rows, "silver", {"SHOWCASE"})[1] is not rows[1] and rows[1]["prism_final"] == 61.5     # the shared cache rows are never changed
+    assert all(r[f] == 61.5 for r in gold for f in PRISM_FIELDS)                                  # Gold sees Prism
+    assert redact_universe(rows, "silver", {"SHOWCASE"})[1] is not rows[1] and rows[1]["prism_final"] == 61.5 and rows[1]["overall"] == 61.5    # the shared cache rows are never changed
 
 
 async def test_the_universe_lists_the_newest_rating_prefers_consolidated_and_keeps_locked_values_on_the_server(app):
@@ -103,16 +103,16 @@ async def test_the_universe_lists_the_newest_rating_prefers_consolidated_and_kee
     assert none["prism_state"] == "none" and none["prism_final"] is None
     cover = body["prism"]
     assert cover["rated"] == 2 and cover["stored"] == 3 and cover["not_rated"] == 1 and cover["total"] == len(body["rows"]) and cover["per_night"] == prism.widen_per_night()
-    # the rating is on its way to Gold only: Silver keeps the FinLit IQ, a visitor neither; the showcase company stays open
+    # the rating is on its way to Gold only; the retired FinLit IQ goes to no plan (task #283 PR C); the showcase company stays open
     silver = await signed_in(app, "silver@example.com", plan="silver")
     raw = (await silver.get("/api/screener/universe")).content
     srows = {r["symbol"]: r for r in json.loads(raw)["rows"]}
-    assert srows["RELIANCE"]["overall"] is not None and all(srows["RELIANCE"][f] is None for f in PRISM_FIELDS)
+    assert "overall" not in srows["RELIANCE"] and all(srows["RELIANCE"][f] is None for f in PRISM_FIELDS)
     assert srows["TCS"]["prism_final"] == 55.0
     assert b"71.2" not in json.dumps({k: v for k, v in srows["RELIANCE"].items() if k.startswith("prism")}).encode()
     async with new_client(app) as visitor:
         v = {r["symbol"]: r for r in (await visitor.get("/api/screener/universe")).json()["rows"]}
-        assert v["RELIANCE"]["overall"] is None
+        assert "overall" not in v["RELIANCE"] and "overall" not in rel
         assert all(v["RELIANCE"][f] is None for f in PRISM_FIELDS) and v["TCS"]["prism_final"] == 55.0
         assert (await visitor.get("/api/screener/universe")).json()["prism"]["rated"] == 2          # counts are for everyone, no company is named
     for c in (gold, silver):

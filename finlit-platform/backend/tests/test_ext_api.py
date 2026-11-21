@@ -1,5 +1,6 @@
-"""GET /api/ext/company/{symbol}: the browser extension's one lookup. One score per plan (tasks #100 and #112): Silver the FinLit IQ, Gold FinLit Prism and never the FinLit IQ;
-the showcase company stays open, no side effects, strict symbol check."""
+"""GET /api/ext/company/{symbol}: the browser extension's one lookup. Task #283 PR C: FinLit Prism is FinLit's only company score (the FinLit IQ is retired):
+Gold and administrators get FinLit Prism, every other plan the locked card (name, sector, price, market value and the reason); the showcase company stays open,
+no side effects, strict symbol check."""
 import pytest
 
 from test_auth import app, make_admin, new_client, signed_in  # noqa: F401
@@ -17,35 +18,32 @@ async def seeded(app):  # noqa: F811
         await c.execute("DELETE FROM prism_reports WHERE symbol = $1", SYM)
         await c.execute("INSERT INTO scores (symbol, statement, model, overall, band, pillar_quality, pillar_growth, pillar_profitability, pillar_balance, pillar_technical, price, market_cap, pe, roe, "
                         "debt_to_equity, name, sector) VALUES ($1,'consolidated','v1',82,'strong',90,80,85,81,76,100,19600,26.4,9.8,0.41,'Ext Test Industries Ltd','Capital Goods')", SYM)
-    await app.state.store.redis.delete(f"ext:company:basic:{SYM}", f"ext:company:silver:{SYM}", f"ext:company:gold:{SYM}")
+    await app.state.store.redis.delete(f"ext:company:v2:basic:{SYM}", f"ext:company:v2:silver:{SYM}", f"ext:company:v2:gold:{SYM}")
     yield
     async with app.state.store.pool.acquire() as c:
         await c.execute("DELETE FROM scores WHERE symbol = $1", SYM)
         await c.execute("DELETE FROM prism_reports WHERE symbol = $1", SYM)
         await c.execute("DELETE FROM companies WHERE symbol = $1", SYM)
-    await app.state.store.redis.delete(f"ext:company:basic:{SYM}", f"ext:company:silver:{SYM}", f"ext:company:gold:{SYM}")
+    await app.state.store.redis.delete(f"ext:company:v2:basic:{SYM}", f"ext:company:v2:silver:{SYM}", f"ext:company:v2:gold:{SYM}")
 
 
-async def test_a_silver_member_gets_the_score_two_parts_and_four_figures(app):  # noqa: F811
+async def test_a_silver_member_gets_the_locked_card_and_never_the_retired_score(app):  # noqa: F811
     silver = await signed_in(app, "es@example.com", plan="silver")
     r = await silver.get(f"/api/ext/company/{SYM.lower()}")
     assert r.status_code == 200 and r.headers["cache-control"].startswith("private") and "Cookie" in r.headers["vary"]
     j = r.json()
-    assert j["locked"] is False and j["model"] == "iq" and j["score"] == 82 and j["band"] == "Strong"
-    assert "prism" not in j                                                # Silver sees the FinLit IQ only, nothing of Prism
-    assert j["fundamental"] == 84 and j["technical"] == 76            # the four pillars' average, and the technical pillar
-    assert j["figures"] == {"pe": 26.4, "roe": 9.8, "debtToEquity": 0.41} and j["marketCapCr"] == 19600
-    assert j["url"] == f"/stocks/{SYM}" and "not a recommendation" in j["disclaimer"].lower()
-    assert j["take"] and not any(w in j["take"].lower() for w in ("buy", "sell", "hold", "avoid", "accumulate", "target", "upside"))
-    for leak in ("pillar_quality", "pillar_growth", "weight"):
-        assert leak not in r.text
+    assert j["locked"] is True and j["model"] is None and j["marketCapCr"] == 19600 and j["url"] == f"/stocks/{SYM}" and "not a recommendation" in j["disclaimer"].lower()
+    for k in ("score", "band", "fundamental", "technical", "take", "what", "prism", "figures"):
+        assert k not in j, k
+    for leak in ("pillar", "FinLit IQ", "82"):
+        assert leak not in r.text, leak
 
 
 async def test_a_basic_or_signed_out_visitor_gets_the_name_and_price_but_no_score(app):  # noqa: F811
     for who in (await signed_in(app, "eb@example.com", plan="basic"), new_client(app)):
         j = (await who.get(f"/api/ext/company/{SYM}")).json()
         assert j["locked"] is True and j["model"] is None and j["name"] == "Ext Test Industries Ltd" and j["marketCapCr"] == 19600 and j["lockedWhy"]
-        assert "FinLit IQ" in j["lockedWhy"] and "FinLit Prism" in j["lockedWhy"]      # the card names what each plan shows
+        assert "FinLit Prism" in j["lockedWhy"] and "FinLit IQ" not in j["lockedWhy"]      # the card names FinLit's only company score
         for k in ("score", "band", "fundamental", "technical", "figures", "take", "prism"):
             assert k not in j, k
 
@@ -62,9 +60,9 @@ async def test_the_card_says_whether_the_person_is_signed_in_so_it_can_say_sign_
     basic = await signed_in(app, "ebs@example.com", plan="basic")
     j = (await basic.get(f"/api/ext/company/{SYM}")).json()
     assert j["signedIn"] is True and j["locked"] is True
-    silver = await signed_in(app, "ess@example.com", plan="silver")
-    j = (await silver.get(f"/api/ext/company/{SYM}")).json()
-    assert j["signedIn"] is True and j["locked"] is False and j["score"] == 82
+    gold = await signed_in(app, "ess@example.com", plan="gold")
+    j = (await gold.get(f"/api/ext/company/{SYM}")).json()
+    assert j["signedIn"] is True and j["locked"] is False and j["model"] == "prism"
 
 
 async def test_an_admin_sees_what_gold_sees(app):  # noqa: F811
@@ -80,7 +78,7 @@ async def _prism(app, final=78.4, label="HEALTHY", status="RATED", parts=None):
         await c.execute("""INSERT INTO prism_reports (symbol, statement, id, report, model_version, final, label, status) VALUES ($1, 'consolidated', $2, $3::jsonb, 'v1', $4, $5, $6)
                            ON CONFLICT (symbol, statement) DO UPDATE SET report = EXCLUDED.report, final = EXCLUDED.final, label = EXCLUDED.label, status = EXCLUDED.status""",
                          SYM, "a" * 32, json.dumps({"rating": {"parts": parts}}), final, label, status)
-    await app.state.store.redis.delete(f"ext:company:gold:{SYM}")
+    await app.state.store.redis.delete(f"ext:company:v2:gold:{SYM}")
 
 
 async def test_a_gold_member_sees_finlit_prism_with_its_four_parts(app):  # noqa: F811
@@ -119,8 +117,7 @@ async def test_prism_says_why_when_there_is_no_rating(app):  # noqa: F811
     assert (await gold.get(f"/api/ext/company/{SYM}")).json()["prism"]["provisional"] is True
 
 
-async def test_gold_never_sees_the_finlit_iq_and_silver_sees_it_by_name(app):  # noqa: F811
-    gold = await signed_in(app, "eold@example.com", plan="gold")
-    assert "FinLit IQ" not in (await gold.get(f"/api/ext/company/{SYM}")).text
-    silver = await signed_in(app, "esold@example.com", plan="silver")
-    assert "FinLit IQ" in (await silver.get(f"/api/ext/company/{SYM}")).json()["what"]
+async def test_no_plan_sees_the_retired_finlit_iq(app):  # noqa: F811
+    for who in (await signed_in(app, "eold@example.com", plan="gold"), await signed_in(app, "esold@example.com", plan="silver"), new_client(app)):
+        r = await who.get(f"/api/ext/company/{SYM}")
+        assert "FinLit IQ" not in r.text and "pillar" not in r.text and "bandKey" not in r.text
