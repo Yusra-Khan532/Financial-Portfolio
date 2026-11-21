@@ -45,7 +45,7 @@ describe("H: the page header", () => {
   it("the Stock screener has no tier pill; every page's 'Which screener should I use?' opens a real question", () => {
     at("/screener", <ScreenerHead title="Stock screener" desc="x" />);
     expect(document.querySelector(".tier")).toBeNull();
-    for (const p of ["/screener", "/score-screener", "/advanced-score-screener"]) expect(whichAnchor(p), p).toMatch(/^faq-.+-\d+$/);
+    for (const p of ["/screener", "/advanced-score-screener"]) expect(whichAnchor(p), p).toMatch(/^faq-.+-\d+$/);   // task #283: the Basic stock screener's questions are gone with it
   });
   it("the boxes sit two by two at 560 px and below; the old tab strip and head cards are gone from the pages", () => {
     const css = readFileSync(resolve(__dirname, "../../styles/screeners243.css"), "utf8");

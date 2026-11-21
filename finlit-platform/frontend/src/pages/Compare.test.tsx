@@ -33,13 +33,13 @@ describe("Compare: one score per plan (tasks #13, #100)", () => {
     const cards = [...container.querySelectorAll(".cc-prism")].map((c) => c.textContent);
     expect(cards[0]).toContain("71"); expect(cards[1]).toContain("Not rated yet");
   });
-  it("Silver sees only FinLit IQ: no model toggle and no Prism anywhere", () => {
+  it("Silver (task #283): a locked FinLit Prism row, no other score, no Prism figures", () => {
     st.plan = "silver"; const { container } = view();
-    expect(screen.queryByRole("button", { name: "FinLit Prism" })).toBeNull();
     expect(container.querySelectorAll(".cmp-models")).toHaveLength(0);
-    expect(container.querySelector(".cmp-cards")!.textContent).not.toContain("FinLit Prism");   // (the page header names Prism as a link, so only the comparison is checked)
-    expect(container.textContent).not.toContain("The FinLit Prism parts");
-    expect(container.querySelector(".cmp-cards")!.textContent).toContain("FinLit IQ");
+    const cards = container.querySelector(".cmp-cards")!.textContent!;
+    expect(cards).toContain("See FinLit Prism"); expect(cards).not.toMatch(/\bIQ\b|Five-pillar/);
+    expect(container.querySelectorAll(".cc-prism")).toHaveLength(2);
+    expect(container.textContent).not.toContain("The FinLit Prism parts"); expect(container.textContent).not.toContain("The five FinLit pillars");
   });
 });
 

@@ -12,6 +12,7 @@ import { SectionHead, type HeadCount } from "./Sections";
 import "../styles/insights.css";
 import { DropChev } from "../components/DropChev";
 import { useEarningsList } from "./EarningsCash";
+import { PLAN_FOR_REPORT_EXTRAS } from "../lib/planGates";
 
 export type Findings = { flags: Item[]; watch: Item[]; good: Item[] };
 type Item = { key: string; title: string; text: string; to: string; tag?: string };
@@ -77,8 +78,8 @@ export function KeyFindings({ s, f, lender }: { s: Summary; f?: Financials; lend
   const counts: HeadCount[] = [{ n: k.flags.length, label: k.flags.length === 1 ? "red flag" : "red flags", tone: "red" }, { n: k.watch.length, label: "to watch", tone: "amb" }, { n: k.good.length, label: k.good.length === 1 ? "positive" : "positives", tone: "pos" }];
   return (
     <section className="block" style={{ "--sc": "var(--gold-deep)" } as React.CSSProperties}>
-      <SectionHead id="notes" no="03 · What's going well and what to watch" icon="notes" tier="silver" title="What's going well and what to watch" sub="Plain-language findings from the statements, ratios and price history, in one list." color="--gold-deep" counts={counts} />
-      <Gate tier="silver" title="See the full scorecard notes" points={["Red flags, items to watch and strengths together", "Each links to its section", "Updated with every result"]}>
+      <SectionHead id="notes" no="03 · What's going well and what to watch" icon="notes" tier={PLAN_FOR_REPORT_EXTRAS} title="What's going well and what to watch" sub="Plain-language findings from the statements, ratios and price history, in one list." color="--gold-deep" counts={counts} />
+      <Gate tier={PLAN_FOR_REPORT_EXTRAS} title="See the full scorecard notes" points={["Red flags, items to watch and strengths together", "Each links to its section", "Updated with every result"]}>
         <div className="kf-g card acc kf-box">
           <Col kind="f" tag="Red flag" icon="alert" items={k.flags} empty="No red flags from the profit and loss checks." />
           <Col kind="w" tag="Watch" icon="info" items={k.watch} empty="Nothing to watch right now." />

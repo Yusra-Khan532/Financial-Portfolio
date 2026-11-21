@@ -28,7 +28,7 @@ def test_every_shown_key_has_a_complete_entry():
 
 
 def test_terms_complete_and_unique():
-    assert len(TERMS) == 450          # 443 + the seven new terms of the 9 Nov 2026 pages update
+    assert len(TERMS) == 448          # 443 + the seven new terms of the 9 Nov 2026 pages update, less FinLit IQ and its five pillars (task #283)
     for t in TERMS.values():
         assert t["meaning"] and t["why"] and t["how"] and t["topic"], t["term"]
 

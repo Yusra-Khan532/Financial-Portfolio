@@ -17,12 +17,12 @@ describe("Glossary, as the pack draws it", () => {
     open();
     expect(within(screen.getByRole("navigation", { name: "Breadcrumb" })).getByText("Glossary")).toBeTruthy();
     expect(screen.getByRole("heading", { level: 1, name: "Glossary" })).toBeTruthy();
-    expect(screen.getByText(/The language of investing in plain words: 450 terms from A to Z\./)).toBeTruthy();
+    expect(screen.getByText(/The language of investing in plain words: 448 terms from A to Z\./)).toBeTruthy();
     for (const l of ["Insights & blog →", "FAQs →", "Company report →"]) expect(screen.getByRole("link", { name: l })).toBeTruthy();
-    expect(screen.getByPlaceholderText('Search 450 terms, for example "P/E", "Sold off" or "Company size"')).toBeTruthy();
+    expect(screen.getByPlaceholderText('Search 448 terms, for example "P/E", "Sold off" or "Company size"')).toBeTruthy();
     expect(screen.getByText("Ctrl K")).toBeTruthy();
     const tile = (k: string) => screen.getByText(k, { selector: ".gp-tile > span" }).parentElement!.textContent;
-    expect([tile("Terms"), tile("Topics"), tile("New this update"), tile("Updated this update")]).toEqual(["Terms450from A to Z", "Topics18pick one on the left", "New this update7words used on the new pages", "Updated this update35renamed or rewritten"]);
+    expect([tile("Terms"), tile("Topics"), tile("New this update"), tile("Updated this update")]).toEqual(["Terms448from A to Z", "Topics18pick one on the left", "New this update7words used on the new pages", "Updated this update34renamed or rewritten"]);
     expect(screen.getByText("For education only; not investment, tax or legal advice.")).toBeTruthy();
     expect(screen.getByText("Definitions are for education only. FinLit Ventures is a technology company and is not registered with SEBI as an investment adviser or research analyst.")).toBeTruthy();
     expect(screen.getByRole("region", { name: "Questions about this page" })).toBeTruthy();
@@ -48,7 +48,7 @@ describe("Glossary, as the pack draws it", () => {
   it("lists the topics with their counts, and a topic narrows the letters", () => {
     open();
     const side = screen.getByRole("complementary", { name: "Topics" });
-    expect(within(side).getByRole("button", { name: "All topics 450", pressed: true })).toBeTruthy();
+    expect(within(side).getByRole("button", { name: "All topics 448", pressed: true })).toBeTruthy();
     expect(within(side).getByRole("button", { name: "Funds, bonds and derivatives 64" })).toBeTruthy();
     fireEvent.click(within(side).getByRole("button", { name: "Banks and lenders 8" }));
     expect(screen.getAllByRole("listitem").filter((li) => li.classList.contains("gp-row")).every((li) => li.textContent?.includes("Banks and lenders"))).toBe(true);
@@ -56,9 +56,9 @@ describe("Glossary, as the pack draws it", () => {
   it("FinLit words and New and updated show their own lists", () => {
     open();
     fireEvent.click(within(screen.getByRole("group", { name: "Views" })).getByRole("button", { name: /^FinLit words/ }));
-    expect(screen.getByText("37 terms · select a term to open it")).toBeTruthy();
+    expect(screen.getByText("35 terms · select a term to open it")).toBeTruthy();
     fireEvent.click(within(screen.getByRole("group", { name: "Views" })).getByRole("button", { name: /^New and updated/ }));
-    expect(screen.getByText("42 terms · select a term to open it")).toBeTruthy();
+    expect(screen.getByText("41 terms · select a term to open it")).toBeTruthy();
     const names = screen.getAllByRole("listitem").filter((li) => li.classList.contains("gp-row")).map((li) => li.querySelector(".gp-badge")?.textContent);
     expect(names.slice(0, 7).every((b) => b === "New")).toBe(true);
     expect(names.slice(7).every((b) => b === "Updated")).toBe(true);
@@ -76,7 +76,7 @@ describe("Glossary, as the pack draws it", () => {
     open("/glossary/company-size-bands-mega-cap-to-nano-cap");   // a renamed term keeps its old address, so links already shared still open it
     expect(screen.getByRole("heading", { level: 2, name: "Company size (Large, Mid, Small, Micro)" })).toBeTruthy();
     expect(screen.getByText(/FinLit does not use mega or nano labels\./)).toBeTruthy();
-    expect(screen.getByRole("link", { name: "All 450 glossary terms" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "All 448 glossary terms" })).toBeTruthy();
   });
 });
 void rows;

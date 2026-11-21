@@ -29,6 +29,7 @@ import { Stress } from "../components/dashboard/Stress";
 import { IndexHeatmap } from "../components/dashboard/Heatmap";
 import { AlertsScreens, Filings, Ipos, Learn, ResultsToday } from "../components/dashboard/NewsBlocks";
 import { Buckets, CommoditiesW, DcfW, Locked, Movers, Results, SecondLook } from "../components/dashboard/Legacy";
+import { PLAN_FOR_PORTFOLIO } from "../lib/planGates";
 import { SetupChip, useSetup } from "../components/dashboard/Setup";
 import { Customise } from "../components/dashboard/Customise";
 import { DashCardsProvider } from "../components/dashboard/DashCards";
@@ -62,7 +63,7 @@ export function Dashboard() {
     return out;
   }, [mine.companies, wl, pf.holdings, bySym]);
   // task #248: Step 1 reads only the portfolios picked in its Showing bar; Steps 2 to 5 keep reading everything followed and held
-  const pick = useDashPick(has("silver"));
+  const pick = useDashPick(has(PLAN_FOR_PORTFOLIO));
   const followedPick = useMemo<Followed[]>(() => {
     if (pick.choice.equity === "all") return followed;
     const keep = new Set([...mine.companies.filter((c) => c.followed).map((c) => c.symbol), ...wl.lists.flatMap((l) => l.symbols), ...pick.holdings.map((h) => h.symbol)]);
@@ -125,7 +126,7 @@ export function Dashboard() {
       default: return null;
     }
   };
-  const kinds: PickKind[] = has("silver") ? ["equity", "mf", "etf"] : ["equity"];   // the MF and ETF portfolios are Silver and up
+  const kinds: PickKind[] = has(PLAN_FOR_PORTFOLIO) ? ["equity", "mf", "etf"] : ["equity"];   // the MF and ETF portfolios are Silver and up
   const name = firstName(user.name, user.email);
   const state = idx.data ? marketWhen(new Date(), idx.data.marketOpen, idx.data.asOf ?? null) : [];   // pack 04: "Market opens at 9:15 · Figures from Friday's close"
   const sub = [longDay(), ...state, followed.length ? `You follow ${followed.length} stock${followed.length === 1 ? "" : "s"}` : loadingFollowed ? null : "You follow no stocks yet"].filter(Boolean).join(" · ");

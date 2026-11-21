@@ -27,6 +27,7 @@ const css = (v: string) => `var(${v})`;
  *  one line: the counts as coloured chips (if any), a dot, then the description (13 px, muted). Controls (toggles, a link) go on the right in `aside`.
  *  A section without a number (Chart lab) keeps its icon tile. */
 import "../styles/insights.css";
+import { PLAN_FOR_REPORT_EXTRAS } from "../lib/planGates";
 export type HeadCount = { n: number; label: string; tone: "red" | "amb" | "pos" };
 export function CountChips({ counts }: { counts: HeadCount[] }) {
   return <span className="cchips">{counts.map((c) => <span key={c.label} className={"cchip " + (c.n === 0 ? "zero" : c.tone)}><b>{c.n}</b> {c.label}</span>)}</span>;
@@ -49,7 +50,7 @@ export function SectionHead({ id, no, icon, tier, title, sub, color, aside, coun
 /* ---------------- Price & technicals ---------------- */
 const RANGES = ["1M", "6M", "1Y", "3Y", "5Y", "MAX"];
 /** Intraday ranges (Dhan) and the plan each needs; every one needs a signed-in account, except on the free example company. */
-const INTRA: [IntradayRange, Plan][] = [["1D", "basic"], ["5D", "silver"], ["1M", "silver"]];
+const INTRA: [IntradayRange, Plan][] = [["1D", "basic"], ["5D", PLAN_FOR_REPORT_EXTRAS], ["1M", PLAN_FOR_REPORT_EXTRAS]];
 const CAP: React.CSSProperties = { fontSize: 12, padding: "0 6px 0 8px", alignSelf: "center", whiteSpace: "nowrap" };
 export function PriceSection({ s, symbol, ratios }: { s: Summary; symbol: string; ratios?: Ratios }) {
   const [range, setRange] = useState("1Y"), [from, setFrom] = useState<number | undefined>();

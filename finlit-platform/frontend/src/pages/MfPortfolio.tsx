@@ -61,6 +61,7 @@ import "../portfolio/pack/pagetop.css";
 import "../styles/sectors-pack.css";
 import "../styles/industry-pack.css";
 import "../mf/pack/mf-pack.css";
+import { PLAN_FOR_PORTFOLIO, PLAN_FOR_PRISM } from "../lib/planGates";
 
 const errText = (e: unknown) => ((e as { body?: { detail?: string } })?.body?.detail) || (e instanceof Error ? e.message : "Something went wrong. Please try again.");
 
@@ -179,7 +180,7 @@ const VIEW_DEFS = (Object.keys(VIEW_LABEL) as MfView[]).map((id) => ({ id, label
 export function MfPortfolioPage() {
   useDocTitle("MF portfolio", "How healthy your mutual funds are, what sits inside them, how alike they are, and how risky they are together.");
   const { plan, has, toast } = useUI();
-  const silver = has("silver");
+  const silver = has(PLAN_FOR_PORTFOLIO);
   const [params, setParams] = useSearchParams();
   // task #235 (pack C1): one tab per platform; ?pf= picks one, All platforms adds them up
   const qAll = useMfPortfolio(silver), w = useMfWrites();
@@ -276,10 +277,9 @@ export function MfPortfolioPage() {
   const top = useMemo(() => sp.data?.topStocks ?? [], [sp.data]);
   const tiles = mfTiles(all, sp.data, rk.data), box = listBox(all, sp.data);
   const cards: ViewCard<MfView>[] = tiles.map((t) => ({ id: t.id as MfView, k: t.k, v: t.v, x: t.sub, what: VIEW_WHAT[t.id as MfView], color: VIEW_COLORS[t.id as MfView], tone: t.tone as ViewCard<MfView>["tone"] }));
-  // the plan's reading of a stock inside the funds (COMMON-RULES 3): FinLit Prism on Gold, FinLit IQ on Silver; the words are the server's
-  const readingOf = (sym: string | null): Reading => { const u = sym ? byU.get(sym) : undefined; if (!u) return null;
-    return has("gold") ? (u.prism_final != null ? { word: u.prism_label ? u.prism_label.charAt(0) + u.prism_label.slice(1).toLowerCase() : null, score: u.prism_final } : null)
-      : (u.overall != null ? { word: u.band ? u.band.charAt(0).toUpperCase() + u.band.slice(1) : null, score: u.overall } : null); };
+  // the reading of a stock inside the funds (COMMON-RULES 3): FinLit Prism, on a plan that has it (task #283); none otherwise; the words are the server's
+  const readingOf = (sym: string | null): Reading => { const u = sym ? byU.get(sym) : undefined; if (!u || !has(PLAN_FOR_PRISM)) return null;
+    return u.prism_final != null ? { word: u.prism_label ? u.prism_label.charAt(0) + u.prism_label.slice(1).toLowerCase() : null, score: u.prism_final } : null; };
   const big: Big[] = useMemo(() => top.map((t) => { const u = t.symbol ? byU.get(t.symbol) : undefined, mc = u?.market_cap;
     return { name: t.name, symbol: t.symbol, macro: u?.nse_sector ?? null, size: capBucket(mc)?.short ?? null, w: t.w, funds: t.funds }; }), [top, byU]);
   // a Key figures card that names "Add units" opens the dialog; one in another tab opens that tab first, then its section (the sections bar's jump)
@@ -287,7 +287,7 @@ export function MfPortfolioPage() {
 
   return (
     <div className="wrap ipo mp sp mfp">
-      <Gate tier="silver" title="Track your mutual funds" points={["How healthy each fund is: the Fund Health Score and its four parts", "What sits inside your funds, and how alike they are", "Each fund against its own benchmark, and the list together", "Import your CAS PDF, or Excel / CSV statements, read by ISIN"]}>
+      <Gate tier={PLAN_FOR_PORTFOLIO} title="Track your mutual funds" points={["How healthy each fund is: the Fund Health Score and its four parts", "What sits inside your funds, and how alike they are", "Each fund against its own benchmark, and the list together", "Import your CAS PDF, or Excel / CSV statements, read by ISIN"]}>
         {/* task #275 (change 2): the compact top: title, plan, as-of and the add box in one row; the money box that says what it covers, and Your portfolios */}
         <header className="ptk-head" id="mfp-top">
           <div className="ptk-t1">

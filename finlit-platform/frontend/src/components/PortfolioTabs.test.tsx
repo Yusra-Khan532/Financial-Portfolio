@@ -25,12 +25,12 @@ describe("tab strip", () => {
 });
 
 describe("Overview tab", () => {
-  it("Silver: FinLit IQ with its word and the five pillars; nothing of Prism", () => {
+  it("Silver (task #283): no company score, no parts and no retired score; the shares with their figures, and where FinLit Prism is", () => {
     const t = text(table(silver, "finlit", "overview"));
-    expect(t).toContain("FinLit IQ"); ["Quality", "Growth", "Profitability", "Balance sheet", "Technical"].forEach((x) => expect(t).toContain(x));
-    expect(t).toContain("Reliance Industries Ltd"); expect(t).toContain("₹1,184.00"); expect(t).toContain("₹16,02,253 Cr"); expect(t).toContain("Large cap"); expect(t).toContain("Strong");
-    expect(t).not.toMatch(/Prism|Growth & Profitability|Valuation|Risk|Rate now/);
-    expect(t).toContain("Portfolio average"); expect(t).toContain("Preparing… Its report is being prepared"); expect(t).toContain("FinLit does not list a company");
+    expect(t).not.toMatch(/\bIQ\b|Mixed|Watch|Quality|Profitability|Balance sheet|Technical|Prism score|Rate now/);
+    expect(t).toContain("Reliance Industries Ltd"); expect(t).toContain("₹1,184.00"); expect(t).toContain("₹16,02,253 Cr"); expect(t).toContain("Large cap");
+    expect(t).toContain("FinLit Prism, FinLit&#x27;s only company score, comes with Gold.");
+    expect(t).toContain("Preparing… Its report is being prepared"); expect(t).toContain("FinLit does not list a company");
   });
   it("Gold: Prism score and word, the four parts, two technical views with words and signed scores; no FinLit pillars", () => {
     const html = table(gold, "prism", "overview"), t = text(html);
@@ -47,8 +47,8 @@ describe("Overview tab", () => {
     expect(html).toContain('href="/stocks/RELIANCE"'); expect(html).toContain("Remove SAMPLEIT"); expect(html).toContain("Large cap"); expect(html).toContain("Micro cap"); expect(html).toContain("Mid cap");   // task #262: SAMPLETEXT (₹1,850 Cr) is Micro, SAMPLEPHARMA (₹54,800 Cr) Mid
   });
   it("has the filter chips and search box, and no download (task #183: no downloads on the portfolio pages)", () => {
-    const t = text(table(silver, "finlit", "overview"));
-    expect(t).toContain("Green"); expect(t).toContain("Orange"); expect(t).toContain("Red"); expect(t).toContain("Not scored"); expect(t).not.toContain("Export CSV");
+    const t = text(table(gold, "prism", "overview"));
+    expect(t).toContain("Green"); expect(t).toContain("Orange"); expect(t).toContain("Not scored"); expect(t).not.toContain("Export CSV");
   });
 });
 
@@ -93,7 +93,7 @@ describe("states", () => {
 describe("summary tiles", () => {
   it("shares, average score, colour mix and sectors", () => {
     const t = text(renderToStaticMarkup(<SummaryTiles lines={lines(silver)} model="finlit" limit={30} />));
-    expect(t).toContain("Shares"); expect(t).toContain("7"); expect(t).toContain("1 being prepared"); expect(t).toContain("Average FinLit IQ"); expect(t).toContain("59"); expect(t).toContain("average of 5 scored shares");
+    expect(t).toContain("Shares"); expect(t).toContain("7"); expect(t).toContain("1 being prepared"); expect(t).toContain("FinLit Prism"); expect(t).not.toMatch(/\bIQ\b/); expect(t).toContain("no share is scored yet");   // task #283
     expect(t).toContain("green 70+"); expect(t).toContain("Sectors");
     expect(text(renderToStaticMarkup(<SummaryTiles lines={lines(gold)} model="prism" limit={500} />))).toContain("Average Prism score");
   });

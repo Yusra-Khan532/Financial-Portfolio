@@ -13,7 +13,7 @@ vi.mock("lightweight-charts", () => {
     createChart: (_el: unknown, o: Record<string, unknown>) => { opts.push(o); return { addSeries: (k: string, so?: { color?: string }) => { added.push(k); if (so?.color) lines.push(so.color); return mk(); }, panes: () => [{ setStretchFactor: vi.fn() }, { setStretchFactor: vi.fn() }], priceScale: () => ({ applyOptions: vi.fn() }), timeScale: () => ({ fitContent: vi.fn(), setVisibleLogicalRange: vi.fn(), timeToCoordinate: vi.fn() }), subscribeCrosshairMove: vi.fn(), subscribeClick: vi.fn(), applyOptions: vi.fn(), remove: vi.fn() }; },
   };
 });
-vi.mock("../../lib/ui", () => ({ useThemeKey: () => "light", useUI: () => ({ has: (t: string) => t === "silver" }) }));   // Silver: the FinLit IQ (task #100)
+vi.mock("../../lib/ui", () => ({ useThemeKey: () => "light", useUI: () => ({ has: (t: string) => t === "silver" }) }));   // Silver: no company score (task #283: FinLit Prism comes with Gold)
 vi.mock("../../lib/api", () => ({
   apiGet: () => Promise.reject(new Error("offline")),
   useSummary: () => sumRes,
@@ -49,11 +49,12 @@ describe("ChartPanel", () => {
     expect(document.querySelector(".cp-f")!.textContent).toMatch(/Charts by TradingView Lightweight Charts/);   // credited in the footer, with a link to tradingview.com
     expect((document.querySelector(".cp-f a") as HTMLAnchorElement).href).toBe("https://www.tradingview.com/");
   });
-  it("never draws a grid, and shows the score badge and the score tiles", () => {
+  it("never draws a grid; a plan without FinLit Prism sees no score badge and no score tiles, and never the retired score (task #283)", () => {
     show();
     expect(opts[0].grid).toEqual({ vertLines: { visible: false }, horzLines: { visible: false } });
-    expect(document.querySelector(".plan-chip")?.textContent).toMatch(/^FinLit IQ 71/);
-    expect(screen.getByLabelText("FinLit IQ scores").textContent).toContain("Quality");
+    expect(document.querySelector(".plan-chip")).toBeNull();
+    expect(document.querySelector(".cp-score")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/\bIQ\b/);
   });
   it("opens with the 9-day line for the 9 EMA screen and the 20-day line for the pulled-back breakout, remembering the reader's choice", () => {
     expect(defaultIndicators("setup-ema9-consolidation")).toMatchObject({ ema9: true, ema20: false, ema50: false, ema200: false });

@@ -10,7 +10,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { nf } from "../lib/format";
-import { KIND_NAME, MODEL_NAME, betaTxt, chg, dateShort, kindsHeld, pctOf, rupees, toneOf, type AllInvestments, type Kind, type KindMoney, type Tab } from "../lib/myInvest";
+import { KIND_NAME, SCORE_NAME, betaTxt, chg, dateShort, kindsHeld, pctOf, rupees, toneOf, type AllInvestments, type Kind, type KindMoney, type Tab } from "../lib/myInvest";
 import { prefs, usePrefs } from "../lib/prefs";
 import { I } from "./parts";
 import "../styles/mi7.css";
@@ -134,8 +134,8 @@ function tileOf(t: Tab, d: AllInvestments): { v: string; x: string; bar: { n: nu
   if (!c.count) return { v: "None yet", x: `Nothing on your ${t === "equity" ? "Equity" : t === "mf" ? "MF" : "ETF"} portfolio yet.`, bar: [], empty: "none" };
   const bands = (c.bands ?? []).filter((b) => b.count > 0);
   if (t === "equity") {
-    const model = MODEL_NAME[c.scoreModel ?? "iq"].replace(/^FinLit /, "");
-    return { v: `${c.score != null ? `${model} ${nf(c.score, 0)}` : `${model}: not rated`} · Beta ${betaTxt(c.beta)}`,
+    const model = SCORE_NAME.replace(/^FinLit /, "");
+    return { v: `${c.scoreLocked ? `${SCORE_NAME} · see plans` : c.score != null ? `${model} ${nf(c.score, 0)}` : `${model}: not rated`} · Beta ${betaTxt(c.beta)}`,
       x: `${c.count} ${c.count === 1 ? "share" : "shares"}${bands.length ? " · " + bands.map((b) => `${b.count} ${b.label.toLowerCase()}`).join(" · ") : ""}`,
       bar: bands.map((b) => ({ n: b.count, c: toneColor(b.label), label: `${b.count} ${b.label}` })) };
   }

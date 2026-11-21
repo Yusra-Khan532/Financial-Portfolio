@@ -3,7 +3,7 @@
 export type NavItem = [id: string, label: string, icon: string, hint: string];
 
 export const NAV: NavItem[] = [
-  ["prism", "Scores", "gauge", "The FinLit IQ and the FinLit Prism score, side by side"],
+  ["prism", "Scores", "gauge", "The FinLit Prism score: financial health and the technical view, side by side"],
   ["business", "Company", "building", "What the company does and how it earns"],
   ["macro", "Economy", "globe", "Is the economy helping its sector? The reading, its drivers and indicators"],
   ["notes", "Strengths & watch-outs", "notes", "Every red flag, watch item and strength in one list, each linking to its section"],
@@ -33,10 +33,9 @@ export const GROUP_START = new Set(["price", "quarter", "ratios", "ownership", "
 const NUMBERS: Record<string, string> = { business: "01", macro: "02", notes: "03", price: "04", quarter: "05", financials: "06", trends: "07", charts: "08", ratios: "09",
   dupont: "10", earnings: "11", ownership: "12", peers: "13", sector: "14", insights: "15", segments: "16", dividends: "17", news: "18", community: "19" };
 export const sectionNo = (id: string): string | null => NUMBERS[id] ?? null;
-/** The Scores line follows the plan (one score per screen): Gold and Platinum speak only of FinLit Prism, Silver only of the FinLit IQ. */
-const SCORES_HINT = { prism: "The FinLit Prism score: financial health and the technical view, side by side", iq: "The FinLit IQ: the overall score and its five pillars" } as const;
-/** The sections to list (Where it stands took over the old Leadership section, final pages pack board 17), with the Scores line for the plan's score model. */
-export const navFor = (model?: "prism" | "iq" | null): NavItem[] => NAV.map((n) => (n[0] === "prism" && model ? [n[0], n[1], n[2], SCORES_HINT[model]] : n));
+/** The sections to list (Where it stands took over the old Leadership section, final pages pack board 17). Task #283: the Scores line names FinLit Prism,
+ *  FinLit's only company score, for every plan. */
+export const navFor = (model?: "prism" | null): NavItem[] => { void model; return NAV; };
 
 /** Where arrow keys move inside the panel's grid of `n` items laid out in `cols` columns: Left/Right step one (wrapping), Up/Down step a row (staying put at the
  *  top and bottom edge), Home/End jump to the ends. Any other key returns the same index. */

@@ -50,14 +50,14 @@ describe("2.1 header option D", () => {
     cls.data = null;
     expect(render(<ClassPath symbol="X" fallback="Refineries" />).container.textContent).toBe("IndustryRefineries");
   });
-  it("Rating: Gold sees FinLit Prism (58.5 /100 Average), Silver the FinLit IQ; Basic sees which plan shows it; Gold while loading never says Silver", () => {
+  it("Rating: Gold sees FinLit Prism (58.5 /100 Average); every other plan the locked Prism chip (task #283); Gold while loading never says Silver", () => {
     const prism = { kind: "report", final: 58.5, word: "Average", status: "RATED", parts: {} } as never;
     const gold = render(<MemoryRouter><RatingCell s={S} effPlan="gold" seesAll={false} prismIn={prism} /></MemoryRouter>).container.textContent;
     expect(gold).toBe("58.5/100AverageFinLit Prism");
     cleanup();
-    expect(render(<MemoryRouter><RatingCell s={S} effPlan="silver" seesAll={false} prismIn={{ kind: "loading" }} /></MemoryRouter>).container.textContent).toBe("71/100HealthyFinLit IQ");
+    expect(render(<MemoryRouter><RatingCell s={S} effPlan="silver" seesAll={false} prismIn={{ kind: "loading" }} /></MemoryRouter>).container.textContent).toBe("FinLit Prism · see plans");
     cleanup();
-    expect(render(<MemoryRouter><RatingCell s={S} effPlan="basic" seesAll={false} prismIn={{ kind: "loading" }} /></MemoryRouter>).container.textContent).toBe("The FinLit IQ comes with Silver");
+    expect(render(<MemoryRouter><RatingCell s={S} effPlan="basic" seesAll={false} prismIn={{ kind: "loading" }} /></MemoryRouter>).container.textContent).toBe("FinLit Prism · see plans");
     cleanup();
     expect(render(<MemoryRouter><RatingCell s={S} effPlan="gold" seesAll={false} prismIn={{ kind: "loading" }} /></MemoryRouter>).container.textContent).toBe("Reading the rating…");
   });

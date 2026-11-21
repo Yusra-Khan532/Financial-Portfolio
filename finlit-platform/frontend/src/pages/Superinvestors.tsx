@@ -12,6 +12,7 @@ import { useUI } from "../lib/ui";
 import { useDocTitle } from "../lib/title";
 import "../styles/superinvestors.css";
 import { coTitle, shortLabel } from "../lib/companyLabel";
+import { PLAN_FOR_SUPERINVESTORS } from "../lib/planGates";
 
 export type SiStatus = "new" | "added" | "reduced" | "exited" | "unchanged";
 export type SiHolding = { symbol: string; name: string; industry: string | null; sector: string | null; stakeNow: number | null; stakeYearAgo: number | null; changePts: number | null;
@@ -109,7 +110,7 @@ const STATUS_CLS: Record<SiStatus, string> = { new: "up", added: "up", reduced: 
 export function SuperinvestorPage() {
   const { key = "" } = useParams();
   const { has } = useUI();
-  const silver = has("silver");
+  const silver = has(PLAN_FOR_SUPERINVESTORS);
   const list = useQuery<SiList, ApiError>({ queryKey: ["superinvestors"], queryFn: () => apiGet("/api/superinvestors"), staleTime: 600_000, retry: 1 });
   const q = useQuery<SiPortfolio, ApiError>({ queryKey: ["superinvestor", key, silver], queryFn: () => apiGet(`/api/superinvestors/${encodeURIComponent(key)}`), enabled: silver && !!key, retry: false, staleTime: 600_000 });
   const brief = list.data?.investors.find((x) => x.key === key);
@@ -123,7 +124,7 @@ export function SuperinvestorPage() {
         description={brief || p ? <>Named with 1% or more in <b>{(p ?? brief)!.companies}</b> listed {(p ?? brief)!.companies === 1 ? "company" : "companies"}, worth <b>{crore((p ?? brief)!.valueCr)}</b> at today's prices. From the companies' own filings; information only, not investment advice.</> : undefined} />
       <div className="wrap si">
         {notFound ? <p className="si-empty">{q.error?.body?.detail as string || "No investor by that name in the stored filings."} <Link to={BASE}>See every investor →</Link></p>
-          : <Gate tier="silver" title="Superinvestor portfolios" points={GATE}>
+          : <Gate tier={PLAN_FOR_SUPERINVESTORS} title="Superinvestor portfolios" points={GATE}>
             {silver && q.isPending && <p className="si-wait" role="status">Loading the portfolio…</p>}
             {silver && q.isError && <p className="formerr" role="alert">The portfolio could not be loaded ({q.error.status || "network"}). Please try again in a moment.</p>}
             {(p || !silver) && <Portfolio p={p} brief={brief} />}

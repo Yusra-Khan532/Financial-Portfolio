@@ -195,10 +195,11 @@ describe("task #137: All my investments (15 Nov pack)", () => {
     expect(within(dlg).getAllByText("HDFCBANK")).toHaveLength(1);
     expect(within(dlg).getByText("2 buys and sales: change them in the buy history on the Equity portfolio")).toBeTruthy();
   });
-  it("D24, D25: Silver reads shares with FinLit IQ, Gold with FinLit Prism; Basic sees the plan gate", async () => {
+  it("D24, D25 (task #283): Silver lists shares without a score, Gold reads them with FinLit Prism; Basic sees the plan gate", async () => {
     const s = withQty(); s.plan = "silver"; st.answer = s; st.plan = "silver";
     mount(); await screen.findByText("Every company you own, counted once");
-    expect(document.querySelector(".mi-co thead")!.textContent).toContain("FinLit IQ");
+    expect(document.querySelector(".mi-co thead")!.textContent).not.toMatch(/FinLit Prism|\bIQ\b/);
+    expect(document.body.textContent).not.toMatch(/\bIQ\b/);
     cleanup(); st.plan = "gold"; st.answer = withQty(); mount(); await screen.findByText("Every company you own, counted once");
     expect(document.querySelector(".mi-co thead")!.textContent).toContain("FinLit Prism");
     cleanup(); st.plan = "basic"; mount();

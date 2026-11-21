@@ -67,7 +67,6 @@ const EXEMPT: Record<string, string> = {
   "components/sectors/pack/PulseTable.tsx": "the Full table view as the final pages pack draws it (06): 6-month lines inside table rows and the Friday squares, which scroll sideways on a phone; no enlarge arrow in the pack",
   "components/diversification/DiversificationCard.tsx": "small icons on the list row; its charts are bars drawn in sections.tsx",
   "components/ChartSays.tsx": "The collapsible reading under a chart: it has a small caret icon, not a chart.",
-  "charts/Dial.tsx": "score dial: one figure, drawn as a ring",
   "charts/Small.tsx": "sparklines, the RSI gauge and a small donut (the donut is wrapped where it is a chart: Fundamentals)",
   "charts/Atlas.tsx": "chart primitives; the arrow is on the card that holds them (Chart lab cards, Fundamentals, fund portfolio mix)",
   "components/GraphCharts.tsx": "chart builder primitives; the builder's cells have their own arrow (GraphStudio)",

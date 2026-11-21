@@ -23,7 +23,7 @@ export type Item = {
 };
 export type Section = { id: string; title: string; items: Item[]; more?: { tab: Tab; label: string } };
 
-export const BAND_LABEL: Record<string, string> = { strong: "Strong", healthy: "Healthy", mixed: "Mixed", watch: "Watch", insufficient: "Not scored", locked: "Silver" };
+export const BAND_LABEL: Record<string, string> = { strong: "Strong", healthy: "Healthy", mixed: "Mixed", watch: "Watch", insufficient: "Not scored", locked: "FinLit Prism" };
 export const KIND_LABEL: Record<Kind, string> = { stock: "Stock", mf: "Fund", etf: "ETF", news: "News" };
 
 export function quoteMap(q: Quotes | undefined): Map<string, Quote> {

@@ -26,7 +26,7 @@ afterEach(cleanup);
 const open = () => render(<QueryClientProvider client={new QueryClient()}><MemoryRouter><AlertsPage /></MemoryRouter></QueryClientProvider>);
 
 describe("Alerts: the 20 Nov pack's additions (task #272)", () => {
-  it("shows the two new Quick alerts first, marked New, then four of today's, and counts all fourteen", () => {
+  it("shows the two new Quick alerts first, marked New, then four of today's, and counts all thirteen (task #283 removed the retired score's alert)", () => {
     open();
     const q = screen.getByRole("region", { name: "Quick alerts" });
     const tiles = within(q).getAllByRole("button").filter((b) => b.classList.contains("alx-q"));
@@ -34,8 +34,9 @@ describe("Alerts: the 20 Nov pack's additions (task #272)", () => {
     expect(tiles[0].textContent).toBe("NewOrder win at my companiesAny company in my equity portfolio or watchlists files an order win");
     expect(tiles[1].textContent).toBe("NewNew capacity at my companiesA new plant, line or capacity is filed");
     expect(tiles[2].textContent).toContain("Price target");
-    expect(within(q).getByText("View all (14): the 12 of today plus these two.")).toBeTruthy();
-    expect(within(q).getByRole("button", { name: /View all \(14\)/ })).toBeTruthy();
+    expect(within(q).getByText("View all (13): the 11 of today plus these two.")).toBeTruthy();
+    expect(within(q).getByRole("button", { name: /View all \(13\)/ })).toBeTruthy();
+    expect(q.textContent).not.toMatch(/\bIQ\b/);
   });
   it("Order win at my companies opens Create alert on A list with the one kind, and saves one list alert", () => {
     open();

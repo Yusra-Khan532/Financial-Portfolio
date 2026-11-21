@@ -9,16 +9,15 @@ import { MINUS, dateIN, fmtUnit, nf, signed } from "../lib/format";
 import { useUI } from "../lib/ui";
 import { ThemeChips } from "./DiscoverThemes";
 import { Spark } from "../charts/Small";
-import { Gate } from "../components/Gate";
 import { PrismCompare } from "./PrismCompare";
 import { ScoreMovesCard } from "./ScoreMoves";
-import { ScoreCard } from "./ScoreCard";
 import { Info } from "../components/Info";
 import { LeadLine } from "./Leadership";
 import { type Ratios, type Summary } from "../lib/api";
 import { metric } from "./derive";
 import { TradingFacts } from "./TradingFacts";
-import { NameDots } from "./HeaderScore";
+import { NameDots, PrismLock } from "./HeaderScore";
+import { PLAN_FOR_WATCHLIST } from "../lib/planGates";
 import { useReportHeader } from "./useReportHeader";
 import { useClassification } from "../lib/taxonomy";
 import { fmtScore, ratingWord } from "../lib/prismTechnical";
@@ -41,7 +40,7 @@ export function blankWhy(key: string, label: string, lender: boolean | undefined
 
 export function Hero({ s, ratios, jump }: { s: Summary; ratios?: Ratios; jump: (id: string) => void }) {
   const { toast } = useUI();
-  const { two, seesAll, effPlan, prismIn, watch, toggleWatch, has } = useReportHeader(s);
+  const { seesAll, effPlan, prismIn, watch, toggleWatch, has } = useReportHeader(s);
   const q = s.quote, p = s.profile, good = (q.change ?? 0) >= 0, cov = s.dataQuality.coverage;
   const asOf = q.asOf ? new Date(q.asOf) : null;
   const macro = useClassification(p.symbol).data?.macro_sector ?? null;   // NSE's macro sector (task #192), not the provider's mixed field
@@ -56,7 +55,7 @@ export function Hero({ s, ratios, jump }: { s: Summary; ratios?: Ratios; jump: (
         <div className="hx hx-d">
           <div className="hxd-top">
             <span className="hx-logo"><span className="badge"><CoLogo symbol={p.symbol} name={p.name} size={64} /></span></span>
-            <div className="hxd-n"><h1 className="hx-name">{p.name}</h1><div className="hx-dots"><NameDots score={s.score} plan={effPlan} admin={seesAll} prism={prismIn} /></div></div>
+            <div className="hxd-n"><h1 className="hx-name">{p.name}</h1><div className="hx-dots"><NameDots plan={effPlan} admin={seesAll} prism={prismIn} /></div></div>
             <div className="hxd-px">
               <span className="hx-price"><span className="hx-rs">₹</span>{q.price == null ? MINUS : nf(q.price)}</span>
               {q.change != null && <span className={"chip " + (good ? "up" : "down")}>{(q.change > 0 ? "+" : q.change < 0 ? MINUS : "") + nf(Math.abs(q.change))} · {signed(q.changePct)}</span>}
@@ -64,7 +63,7 @@ export function Hero({ s, ratios, jump }: { s: Summary; ratios?: Ratios; jump: (
             </div>
             <span className="hx-acts icons"><div className="actions">
               <AlertButton symbol={s.profile.symbol} className="btn" label="Set alert" />
-              <button className={"btn" + (watch ? " on" : "")} aria-pressed={watch} aria-label={watch ? "Watching" : "Watchlist"} onClick={toggleWatch}><Icon name="spark" /><span>{watch ? "Watching" : "Watchlist"}</span>{!has("silver") && <Icon name="lock" className="lk" />}</button>
+              <button className={"btn" + (watch ? " on" : "")} aria-pressed={watch} aria-label={watch ? "Watching" : "Watchlist"} onClick={toggleWatch}><Icon name="spark" /><span>{watch ? "Watching" : "Watchlist"}</span>{!has(PLAN_FOR_WATCHLIST) && <Icon name="lock" className="lk" />}</button>
               <Link className="btn" to={`/dcf?sym=${encodeURIComponent(s.profile.symbol)}&load=1`} title="Value this company with the DCF calculator (Gold)"><Icon name="rupee" /><span>Value (DCF)</span>{!has("gold") && <Icon name="lock" className="lk" />}</Link>
               <button className="btn" aria-label="Copy link to this report" onClick={() => { navigator.clipboard?.writeText(location.href.split("#")[0]).then(() => toast("Link to this report copied."), () => toast(location.href)); }}><Icon name="arrow" /><span>Share</span></button>
             </div></span>
@@ -82,12 +81,9 @@ export function Hero({ s, ratios, jump }: { s: Summary; ratios?: Ratios; jump: (
             <TradingList s={s} /></details>
         </div>
 
-        {/* One model per plan (founder, 13 Nov 2026, task #100): Gold (and the open example company) sees FinLit Prism only, full width; Silver sees the FinLit IQ
-            beside a locked Prism example; Basic sees both locked. */}
+        {/* Task #283: FinLit Prism is FinLit's only company score. Every plan sees the Prism card full width: the rating on a plan with Prism (and on the
+            open example company), a locked Prism teaser on others. */}
         <div className="pz-pair dk-pair">
-        {!two && <Gate tier="silver" title="Unlock the FinLit IQ" points={["Overall score from our proprietary model", "Five-pillar scorecard on every stock page", "See how each parameter drives the score"]}>
-          <ScoreCard s={s} ratios={ratios} jump={jump} two={false} />
-        </Gate>}
         <PrismCompare symbol={s.profile.symbol} name={p.name} statement={s.meta.statement} />
         </div>
         {/* task #216: "How the scores have moved" sits under the Prism card (it was in live section 17, which is removed) */}
@@ -112,18 +108,17 @@ export function Hero({ s, ratios, jump }: { s: Summary; ratios?: Ratios; jump: (
   );
 }
 
-/** Row 2's Rating cell: the plan's one score (FinLit Prism on Gold, FinLit IQ on Silver) as "58.5 /100 Average"; Basic says which plan shows it. */
+/** Row 2's Rating cell: FinLit Prism as "58.5 /100 Average" for a plan with Prism; a locked Prism chip ("FinLit Prism · see plans") for others. */
 export function RatingCell({ s, effPlan, seesAll, prismIn }: { s: Summary; effPlan: Plan; seesAll: boolean; prismIn: PrismInput }) {
-  const v = badgeView(effPlan, seesAll, { overall: s.score.overall, word: s.score.band.label }, prismIn);
-  if (v.kind === "none") return effPlan === "basic" && !seesAll ? <span className="hx-lock"><Link to="/plans">The FinLit IQ comes with Silver</Link></span>
-    : <span className="hx-lock" aria-busy={prismIn.kind === "loading"}>{prismIn.kind === "loading" ? "Reading the rating…" : "—"}</span>;   // Gold while the rating loads, or when the server hides it
+  const v = badgeView(effPlan, seesAll, prismIn);
+  if (v.kind === "locked") return <PrismLock />;
+  if (v.kind === "none") return <span className="hx-lock" aria-busy={prismIn.kind === "loading"}>{prismIn.kind === "loading" ? "Reading the rating…" : "—"}</span>;   // while the rating loads, or when the server hides it
   if (v.kind === "prism-none") return <span className="hx-lock">FinLit Prism: not rated yet · <Link to={`/prism/${encodeURIComponent(s.profile.symbol)}`}>About Prism</Link></span>;
-  const prism = v.kind === "prism", n = v.score == null ? null : prism ? v.score.toFixed(1) : String(Math.round(v.score));
-  if (n == null) return <span className="hx-lock">FinLit IQ: not scored yet</span>;
+  const n = v.score.toFixed(1);
   return (
-    <span className={"hx-prism band-" + v.band} role="group" aria-label={`${prism ? "FinLit Prism" : "FinLit IQ"} ${n} out of 100: ${v.word}`}>
-      <span className="hpz-n">{n}</span><span className="hpz-of">/100</span>{v.word && <span className="hpz-w">{v.word}{prism && v.provisional ? " · provisional" : ""}</span>}
-      <span className="hpz-m">{prism ? "FinLit Prism" : "FinLit IQ"}</span>
+    <span className={"hx-prism band-" + v.band} role="group" aria-label={`FinLit Prism ${n} out of 100: ${v.word}`}>
+      <span className="hpz-n">{n}</span><span className="hpz-of">/100</span>{v.word && <span className="hpz-w">{v.word}{v.provisional ? " · provisional" : ""}</span>}
+      <span className="hpz-m">FinLit Prism</span>
     </span>
   );
 }
@@ -135,7 +130,7 @@ const TECH_ROW_TONE: Record<string, "pos" | "neg" | "mid"> = { strongpos: "pos",
 const TECH_ROW_SHAPE: Record<string, string> = { strongpos: "▲▲", pos: "▲", neutral: "◆", neg: "▼", strongneg: "▼▼" };
 const TECH_ROW_INK: Record<string, string> = { pos: "var(--band-hi-ink)", neg: "var(--band-lo-ink)", mid: "var(--band-mid-ink)" };
 export function TechRows({ effPlan, seesAll, prismIn }: { effPlan: Plan; seesAll: boolean; prismIn: PrismInput }) {
-  const v = badgeView(effPlan, seesAll, { overall: null, word: null }, prismIn);
+  const v = badgeView(effPlan, seesAll, prismIn);
   if (v.kind !== "prism" || prismIn.kind !== "report") return null;
   const rows = ([["Short term", "5–20 sessions", prismIn.short], ["Long term", "6–18 months", prismIn.long]] as const)
     .map(([k, span, t]) => ({ k, span, t, w: t ? ratingWord(t.rating, t.score) : null }))

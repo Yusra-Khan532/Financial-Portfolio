@@ -9,14 +9,14 @@ const src = (f: string) => readFileSync(new URL(f, import.meta.url), "utf8");
 
 describe("no page-wide standalone switch on the stock report", () => {
   it("the score card, hero and page have no switch", () => {
-    for (const f of ["./ScoreCard.tsx", "./Hero.tsx", "./StockPage.tsx"]) {
+    for (const f of ["./Hero.tsx", "./StockPage.tsx"]) {   // task #283: the old score card is gone
       const t = src(f);
       expect(t, f).not.toContain("BasisToggle");
       expect(t, f).not.toMatch(/>\s*Standalone\s*</);
     }
   });
   it("nothing carries the old wrong message", () => {
-    for (const f of ["./ScoreCard.tsx", "./Sections.tsx", "./Hero.tsx", "./StockPage.tsx"]) {
+    for (const f of ["./Sections.tsx", "./Hero.tsx", "./StockPage.tsx"]) {
       const t = src(f);
       expect(t, f).not.toContain("publishes");
       expect(t, f).not.toContain("Show consolidated instead");

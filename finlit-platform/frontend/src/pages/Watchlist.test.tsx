@@ -18,7 +18,7 @@ const st = vi.hoisted(() => ({ rows: [] as unknown[], toast: vi.fn(), gold: true
 vi.mock("../lib/screener", async (orig) => ({ ...(await orig<typeof import("../lib/screener")>()), useUniverse: () => ({ data: { rows: st.rows, sample: false, asOf: "2026-11-06" }, isLoading: false, isError: false, refetch: () => undefined }) }));
 vi.mock("../lib/ui", async (orig) => ({ ...(await orig<typeof import("../lib/ui")>()), useUI: () => ({ has: (t: string) => t !== "gold" || st.gold, toast: st.toast, upgrade: vi.fn(), plan: st.gold ? "gold" : "silver" }) }));
 vi.mock("../lib/auth", async (orig) => ({ ...(await orig<typeof import("../lib/auth")>()), useAuth: () => ({ user: { id: "u" } }) }));
-vi.mock("../lib/planScore", async (orig) => ({ ...(await orig<typeof import("../lib/planScore")>()), usePlanModel: () => (st.gold ? "prism" : "iq") }));
+vi.mock("../lib/planScore", async (orig) => ({ ...(await orig<typeof import("../lib/planScore")>()), usePlanModel: () => (st.gold ? "prism" : null) }));
 vi.mock("../lib/title", () => ({ useDocTitle: () => undefined }));
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), useQuotesFor: () => ({ data: { rows: [] }, isLoading: false }) }));
 vi.mock("../lib/indices", async (orig) => ({ ...(await orig<typeof import("../lib/indices")>()), useIndices: () => ({ data: { asOf: "2026-11-06", live: false, marketOpen: false, items: [], key: [] } }) }));
@@ -69,7 +69,7 @@ describe("Watchlists, as the pack draws it", () => {
     const tile = (k: string) => screen.getByText(k, { selector: ".wp-tile > span" }).parentElement as HTMLElement;
     expect(tile("Stocks").textContent).toBe("Stocks32 micro · 1 small company");   // task #262: four sizes
     expect(tile("On Friday").textContent).toBe("On Friday1 up · 2 downWHEELS −3.5%, LOTUSDEV −0.1%, SSWL +1.5%");
-    expect(tile("Average FinLit IQ").textContent).toBe("Average FinLit IQ71All three Healthy");
+    expect(tile("Average FinLit Prism").textContent).toBe("Average FinLit Prism—FinLit Prism · see plans");   // task #283: no score without Prism
     expect(within(tile("Against peers")).getByText("2 lead")).toBeTruthy();
     expect(within(tile("Against peers")).getByText("1 not compared (under a year of prices)")).toBeTruthy();
     expect(within(tile("Against peers")).getByRole("button", { name: "About Against peers" })).toBeTruthy();
@@ -85,22 +85,24 @@ describe("Watchlists, as the pack draws it", () => {
     expect(screen.getByText("Two of three stocks in one industry")).toBeTruthy();
     expect(screen.getByText("LOTUSDEV has under a year of prices")).toBeTruthy();
     const heads = within(table().querySelector("thead") as HTMLElement).getAllByRole("columnheader").map((h) => h.textContent?.replace(/i$/, "").trim());
-    expect(heads).toEqual(["Company", "Industry", "Price", "P/E", "ROE", "Size", "FinLit IQ", "Against peers", "Target", "Your note", "Actions"]);
-    for (const k of ["P/E", "ROE", "Size", "FinLit IQ", "Against peers", "Target"]) expect(within(table()).getByRole("button", { name: `About ${k}` })).toBeTruthy();
+    expect(heads).toEqual(["Company", "Industry", "Price", "P/E", "ROE", "Size", "Against peers", "Target", "Your note", "Actions"]);   // task #283: no score column without Prism
+    for (const k of ["P/E", "ROE", "Size", "Against peers", "Target"]) expect(within(table()).getByRole("button", { name: `About ${k}` })).toBeTruthy();
     const groupRows = within(table()).getAllByRole("columnheader").filter((h) => h.getAttribute("scope") === "colgroup").map((h) => h.textContent);
     expect(groupRows).toEqual(["Leaders2 stocks", "Not compared1 stock"]);
     const w = rowOf("WHEELS");
-    for (const t of ["Auto Components", "₹2,321.00", "−3.49%", "30.0×", "12.9%", "Micro", "73", "Healthy", "Leader", "2 of 20 Auto Parts: OEM"]) expect(within(w).getByText(t)).toBeTruthy();
+    for (const t of ["Auto Components", "₹2,321.00", "−3.49%", "30.0×", "12.9%", "Micro", "Leader", "2 of 20 Auto Parts: OEM"]) expect(within(w).getByText(t)).toBeTruthy();
+    expect(w.textContent).not.toMatch(/\bIQ\b|Mixed|Watch\b/);
     expect(within(rowOf("LOTUSDEV")).getByText("Not compared")).toBeTruthy();
     expect(within(rowOf("LOTUSDEV")).getByText("Under a year of prices")).toBeTruthy();
     expect(within(rowOf("LOTUSDEV")).getByText("Small")).toBeTruthy();
     // within Leaders, the peer rank orders the rows (2nd, then 3rd)
     expect(within(table()).getAllByRole("link").map((a) => a.querySelector("b")?.textContent)).toEqual(["WHEELS", "SSWL", "LOTUSDEV"]);
   });
-  it("Gold sees FinLit Prism in the same places (task #100), never the FinLit IQ", () => {
+  it("Gold sees FinLit Prism in the same places, in Prism's words (task #283), never another score", () => {
     st.gold = true; open();
     expect(within(table()).getByRole("columnheader", { name: /FinLit Prism/ })).toBeTruthy();
-    expect(within(table()).queryByRole("columnheader", { name: /FinLit IQ/ })).toBeNull();
+    expect(table().textContent).not.toMatch(/\bIQ\b|Mixed|Watch\b/);
+    expect(screen.getByText("Average FinLit Prism").parentElement!.textContent).not.toMatch(/Mixed|Watch/);
     expect(within(rowOf("WHEELS")).getByText("77")).toBeTruthy();
     expect(screen.getByText("Average FinLit Prism")).toBeTruthy();
     expect(within(rowOf("LOTUSDEV")).getByText("Not rated yet")).toBeTruthy();
