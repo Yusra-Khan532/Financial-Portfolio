@@ -110,7 +110,7 @@ def prune(out: Path, keep: int) -> None:
             continue
         shutil.rmtree(p, ignore_errors=True)
     for p in (rel.iterdir() if rel.is_dir() else []):      # a building folder left by a run that was killed
-        if p.name.startswith(".building-") and p.is_dir():
+        if (p.name.startswith(".building-") or p.name.startswith(".discard-")) and p.is_dir() and not p.name.endswith(".work"):   # .discard-: a set set aside (21 Nov 2026: never cleaned before)
             try:
                 age = datetime.now().timestamp() - p.stat().st_mtime
             except OSError:
