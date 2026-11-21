@@ -132,7 +132,7 @@
 .pzt-mapw { flex: 1 1 100%; margin-top: 4px; overflow-x: visible; }
 .pzt-map { width: 100%; border-collapse: separate; border-spacing: 6px; table-layout: fixed; font-size: var(--fs-13); }
 .pzt-map caption { caption-side: bottom; text-align: left; color: var(--muted); padding: 4px 6px 0; font-size: 12px; line-height: 1.5; }
-.pzt-map thead td { width: 92px; }
+.pzt-map thead td { width: 112px; }   /* task #293 (1): "SHORT-TERM" (about 96px at 12px bold, 0.1em) and its padding fit; it was 92px */
 .pzt-map th, .pzt-map thead td { background: none; border: 0; } .pzt-map th { font-weight: 700; text-align: left; color: var(--text); padding: 4px 6px; line-height: 1.3; vertical-align: middle; }
 .pzt-map th small { display: block; font: 700 12px var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .pzt-mc { --t: var(--t-na); text-align: left; white-space: normal; padding: 10px 10px 11px; border-radius: 12px; border: 1px solid var(--border); background: var(--s1); color: var(--muted); line-height: 1.4; vertical-align: top; overflow-wrap: anywhere; }
@@ -181,3 +181,12 @@
 @media print {
   .pzt-bd, .pzt-mc { box-shadow: none; background: #fff; break-inside: avoid; }
 }
+/* Task #293 (21 Nov 2026, the team's Prism report pack, finlit-dev-11-prism-report-21nov) */
+/* 1. A site-wide th rule kept the trend map's row labels on one line, so they ran into the first cell: they may wrap; on phones after the hyphen (SHORT- / TERM) */
+.pzt-map th { white-space: normal; }
+@media (max-width: 560px) {
+  .pzr-rep .pzt-map thead td { width: 78px; }
+  .pzr-rep .pzt-map th small { overflow-wrap: normal; letter-spacing: .02em; }
+}
+/* 7. Dark theme: the site-wide dark th shade and line out-rank .pzt-map th, so the labels got boxes and lines in dark only; plain, as in light */
+:root .pzr-rep .pzt-map th, :root .pzr-rep .pzt-map thead td { background: none; border: 0; }

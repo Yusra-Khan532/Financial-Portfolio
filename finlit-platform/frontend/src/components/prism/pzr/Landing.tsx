@@ -1,6 +1,6 @@
 // /prism landing: company search with suggestions, recent companies with their last stored score, sector chips and a short
 // explanation of what Prism is. Also the company picker used on the report page.
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Icon } from "../../../lib/icons";
 import { ActiveFilters, FilterNote, HiddenRows, SearchFilters, useIndexFilter } from "../../SearchFilters";
@@ -17,6 +17,18 @@ import { partVar } from "../../../lib/prismReport";
 import { coTitle, subLine, titleOf } from "../../../lib/companyLabel";
 
 /** The prism mark: white light entering a glass prism and leaving as four bands, one per part. */
+/** True on a phone-width window (560px or less), following resizes; false where the browser cannot tell. Task #293. */
+function useNarrow(): boolean {
+  const q = "(max-width: 560px)";
+  const [on, setOn] = useState(() => { try { return matchMedia(q).matches; } catch { return false; } });
+  useEffect(() => {
+    let m: MediaQueryList;
+    try { m = matchMedia(q); } catch { return; }
+    const f = () => setOn(m.matches); m.addEventListener?.("change", f); return () => m.removeEventListener?.("change", f);
+  }, []);
+  return on;
+}
+
 export function PrismMark({ size = 220 }: { size?: number }) {
   const parts = ["fundamental", "valuation", "quality", "risk"];
   return (
@@ -43,6 +55,7 @@ export function Picker({ statement, big = false }: { statement: Statement; setSt
   const [text, setText] = useState(""), [open, setOpen] = useState(false), [cur, setCur] = useState(0);
   const box = useRef<HTMLInputElement>(null);
   useSlashFocus(box);
+  const narrow = useNarrow();   // task #293 (5): on a phone the box is too narrow for the long placeholder, so it is shortened there
   const hits = useMemo(() => sf.search(text, 8).map((r) => ({ symbol: r[0], name: r[1] })), [sf.search, text]);   // name, symbol, BSE/NSE code or ISIN; no text with a filter on: the largest companies that pass
   const hidden = useMemo(() => sf.hidden(text, 3), [sf.hidden, text]);                                             // matches that only the filter leaves out
   const typed = text.trim();
@@ -53,7 +66,7 @@ export function Picker({ statement, big = false }: { statement: Statement; setSt
       <div className="pm-search pzr-search sf-host">
         <Icon name="search" />
         <input ref={box} value={text} role="combobox" aria-expanded={open && hits.length > 0} aria-controls="pz-sug" aria-autocomplete="list" aria-label="Choose a company"
-          placeholder="Company name or symbol, for example TCS" autoComplete="off" onChange={(e) => { setText(e.target.value); setOpen(true); setCur(0); }}
+          placeholder={narrow ? "Company name or symbol" : "Company name or symbol, for example TCS"} autoComplete="off" onChange={(e) => { setText(e.target.value); setOpen(true); setCur(0); }}
           onBlur={() => setTimeout(() => setOpen(false), 150)} onFocus={() => setOpen(true)}
           onKeyDown={(e) => { if (e.key === "ArrowDown") { e.preventDefault(); setCur((c) => Math.min(hits.length - 1, c + 1)); } else if (e.key === "ArrowUp") { e.preventDefault(); setCur((c) => Math.max(0, c - 1)); } else if (e.key === "Enter") { e.preventDefault(); submit(); } else if (e.key === "Escape") setOpen(false); }} />
         <SearchFilters variant="panel" className="sf-inline" facets={sf.facets} value={sf.filter} onChange={sf.setFilter} count={sf.count} />
