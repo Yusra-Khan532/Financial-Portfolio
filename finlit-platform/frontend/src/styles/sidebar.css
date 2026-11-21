@@ -138,3 +138,23 @@
 }
 /* "New" on a page launched in the last 30 days (lib/nav.ts isNew; task #136) */
 .side-l .side-new { flex: none; margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: var(--gain-soft, var(--s2)); color: var(--gain, var(--text)); font: 700 12px/1.4 var(--sans); font-style: normal; letter-spacing: .06em; text-transform: uppercase; }
+
+/* task #282 (the workspace-menu file of 21 Nov): each group heading carries one line saying what is inside, shown open or closed; Dashboard is a plain
+   two-line link above the groups; the rail's pop-out repeats the line under its heading. */
+.side-gb { align-items: flex-start; padding-block: 9px; }
+.side-gb .side-gbd, .side-gb .side-gn, .side-gb .side-gc { margin-top: 1px; }
+.side-gw { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left; }
+.side-gw .side-gname { color: var(--text); }
+.side-gs { font: 400 var(--fs-12)/1.35 var(--sans); color: var(--muted); white-space: normal; overflow-wrap: anywhere; }
+.side-i.side-dash { align-items: flex-start; padding-block: 9px; margin-bottom: 4px; }
+.side-l.side-l2 { flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+.side-ls { font: 400 var(--fs-12)/1.35 var(--sans); color: var(--muted); white-space: normal; }
+.side-fly-s { margin: -2px 12px 8px; font: 400 var(--fs-13)/1.35 var(--sans); color: var(--muted); max-width: 260px; }
+/* the line runs under the page count and the chevron too, so every line fits in two lines at the panel's width (the pack's check) */
+.side-gb { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; column-gap: 8px; row-gap: 2px; align-items: start; }
+.side-gb .side-gw { display: contents; }
+.side-gb .side-gbd { grid-column: 1; grid-row: 1; margin-right: 0; }
+.side-gb .side-gname { grid-column: 2; grid-row: 1; }
+.side-gb .side-gn { grid-column: 3; grid-row: 1; }
+.side-gb .side-gc { grid-column: 4; grid-row: 1; }
+.side-gb .side-gs { grid-column: 2 / 5; grid-row: 2; }
