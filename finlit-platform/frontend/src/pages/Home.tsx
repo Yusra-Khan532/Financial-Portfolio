@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
-import { PlansBand } from "./Plans";
 import { ExploreTools, OPEN_EXPLORE } from "../components/ExploreTools";
 import { PrismShowcase } from "../components/PrismShowcase";
 import { MfScoreShowcase } from "../components/MfScoreShowcase";
@@ -75,7 +74,7 @@ export function Home() {
       <ExploreTools />
       <PrismShowcase />
       <MfScoreShowcase />
-      <PlansBand id="pricing" landing />
+      {/* Task #295 (21 Nov 2026): the plans band is off the landing page for now; plans stay on /plans, which every upgrade link uses. */}
     </div>
   );
 }

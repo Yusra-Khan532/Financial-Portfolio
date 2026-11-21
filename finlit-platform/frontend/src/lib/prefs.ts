@@ -40,6 +40,7 @@ export const WIDGETS: { id: string; label: string; nav?: string; blurb: string; 
   { id: "second", label: "Worth a second look", blurb: "Watchlist companies with a Strong or Healthy FinLit Prism score whose Prism Valuation part is 65 or more.", min: PLAN_FOR_PRISM, size: "half", step: 2 },
   { id: "buckets", label: "Watchlist by band", blurb: "How your watchlist splits across the FinLit Prism bands: Strong, Healthy, Average and Weak.", min: PLAN_FOR_PRISM, size: "full", step: 2 },
   { id: "market", label: "Market today", blurb: "Index levels, the Nifty 50 / Sensex chart, and the prices and rates that move company profits.", min: "basic", size: "full", step: 3 },
+  { id: "globalmarkets", label: "Global markets", blurb: "US, Europe and Asia indices, gold, crude, the rupee and the US 10-year yield on a world view, with 1-day, 1-week and 1-month moves (task #294).", min: "basic", size: "full", step: 3 },
   { id: "marketread", label: "What the market adds up to", nav: "What it adds up to", blurb: "Six readings of the day (breadth, big moves, which sizes lead, short and bigger trends, industries) and what they add up to.", min: "basic", size: "full", step: 3 },
   { id: "snapshot", label: "Market snapshot", blurb: "How many stocks rose and fell, and the biggest movers of Nifty 50, Nifty 500 or all stocks.", min: "basic", size: "half", step: 3 },
   { id: "sectors", label: "Sectors today", blurb: "Every sector's move today, ranked.", min: "basic", size: "half", step: 3 },

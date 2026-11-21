@@ -39,7 +39,7 @@ describe("sections bar with numbered steps", () => {
     const pop = screen.getByRole("dialog", { name: "All sections" });
     expect([...pop.querySelectorAll("h5")].map((h) => h.textContent)).toEqual(["1 · Your money", "2 · Your watchlist", "3 · The market", "4 · Results and news", "5 · Tools"]);
     expect(within(pop).getAllByRole("button").map((b) => b.textContent)).toEqual(["Your investments today", "What your stocks say", "Your shares at a glance", "Your mutual funds at a glance", "Your ETFs",
-      "Watchlist movers", "Worth a second look", "Watchlist by band", "Market today", "What it adds up to", "Market snapshot", "Sectors today", "FII / DII flows", "Index heatmap",
+      "Watchlist movers", "Worth a second look", "Watchlist by band", "Market today", "Global markets", "What it adds up to", "Market snapshot", "Sectors today", "FII / DII flows", "Index heatmap",
       "Results today", "Filings and news", "Latest quarter results", "IPOs", "Alerts and saved screens", "Stress Lab", "DCF calculator", "Term of the day"]);
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
