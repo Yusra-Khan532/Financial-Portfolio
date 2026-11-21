@@ -108,7 +108,7 @@ describe("#267: Earnings calls and Results filings in Discover", () => {
     expect(quiet.textContent).toMatch(/the exchange link is not held/);
     expect(document.body.textContent).toMatch(/Track announced versus achieved dates for previous projects\./);   // the bucket's What to verify
     expect(document.body.textContent).toMatch(/A keyword mention by itself is not proof of material business exposure\. Check the figures in the filing itself\./);
-    fireEvent.change(screen.getByPlaceholderText("Name or symbol"), { target: { value: "quiet" } });
+    fireEvent.change(screen.getByPlaceholderText("Search a company in this list"), { target: { value: "quiet" } });   // task #296: the Discover filter card
     expect(document.querySelectorAll("[data-src-co]")).toHaveLength(1);
   });
 
