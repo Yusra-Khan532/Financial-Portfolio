@@ -527,7 +527,7 @@ export const CHART_HELP: Record<string, ChartHelpEntry> = {
     title: "What GMP said vs what actually listed",
     what: "Every listed IPO with a grey market premium (GMP) on record: the last GMP InvestorGain recorded before listing, against the price the share listed at. Both are a percent of the issue price.",
     x: "What the GMP said: the last GMP before listing, as a percent of the issue price.",
-    y: "The actual listing gain: the listing price against the issue price.",
+    y: "The listing price against the issue price, in percent.",
     read: "A dot on the dashed line listed exactly where the GMP said. Green dots listed more than 5 points above it, red dots more than 5 points below, grey within 5 points. The solid line is the trend of all the dots; a bigger dot is a bigger issue. Hollow dots are off the scale, drawn at the edge.",
     why: "It shows how closely the grey market's last price has matched listings in the past. GMP is unofficial, and the past says nothing certain about the next listing.",
   },

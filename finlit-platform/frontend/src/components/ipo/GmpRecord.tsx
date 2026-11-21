@@ -72,11 +72,11 @@ export function GmpRecord() {
         {!table ? (
           <ChartZoom label="What GMP said vs what actually listed">
             <div className="ipo-gmp-chart" ref={box}>
-              <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${s.count} listed issues: what the GMP said against the actual listing gain`} onMouseLeave={() => setHover(null)}>
+              <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${s.count} listed issues: what the GMP said against the listing price`} onMouseLeave={() => setHover(null)}>
                 {ticksY.map((v) => <g key={"y" + v}><line x1={L} x2={W - R} y1={sy(v)} y2={sy(v)} className="g-grid" /><text x={L - 8} y={sy(v) + 4} className="g-tick" textAnchor="end">{v}%</text></g>)}
                 {ticksX.map((v) => <text key={"x" + v} x={sx(v)} y={H - B + 18} className="g-tick" textAnchor="middle">{v}%</text>)}
                 <text x={(L + W - R) / 2} y={H - 4} className="g-axis" textAnchor="middle">What GMP said →</text>
-                <text x={4} y={12} className="g-axis" textAnchor="start">↑ Actual listing gain</text>
+                <text x={4} y={12} className="g-axis" textAnchor="start">↑ Listing price vs issue price</text>
                 <line x1={sx(X0)} y1={sy(X0)} x2={sx(exactTo)} y2={sy(exactTo)} className="g-exact" />
                 {fitX && f && <line x1={sx(fitX[0])} y1={sy(f.intercept + f.slope * fitX[0])} x2={sx(fitX[1])} y2={sy(f.intercept + f.slope * fitX[1])} className="g-fit" />}
                 {drawn.map((p) => { const o = off(p); return (
@@ -90,8 +90,8 @@ export function GmpRecord() {
             </div>
           </ChartZoom>
         ) : (
-          <div className="ipo-gmp-tw"><table className="ipo-gmp-t"><caption className="sr-only">Listed issues: what the GMP said and the actual listing gain</caption>
-            <thead><tr><th scope="col">Issue</th><th scope="col">Listed</th><th scope="col" className="r">GMP said</th><th scope="col" className="r">Listing gain</th><th scope="col" className="r">Subscribed</th><th scope="col">Result</th></tr></thead>
+          <div className="ipo-gmp-tw"><table className="ipo-gmp-t"><caption className="sr-only">Listed issues: what the GMP said and the listing price against the issue price</caption>
+            <thead><tr><th scope="col">Issue</th><th scope="col">Listed</th><th scope="col" className="r">GMP said</th><th scope="col" className="r">Listed vs issue</th><th scope="col" className="r">Subscribed</th><th scope="col">Result</th></tr></thead>
             <tbody>{d.items.map((p) => <tr key={p.url}><th scope="row">{p.name}<small>{p.board === "sme" ? "SME" : "Mainboard"}</small></th><td>{p.listingDate ? day(p.listingDate) : MINUS}</td><td className="r">{pc(p.gmpPct)}</td><td className={"r" + (p.listingPct > 0 ? " up" : p.listingPct < 0 ? " down" : "")}>{pc(p.listingPct)}</td><td className="r">{p.subscription == null ? MINUS : nf(p.subscription, 2) + "x"}</td><td>{WORD[p.verdict]}</td></tr>)}</tbody></table></div>
         )}
         <div className="ipo-gmp-key">
