@@ -532,10 +532,6 @@ tr.dsc-det > td { padding: 14px 16px; background: var(--s3); }
 .dsc-kd-l { margin: 0; font-size: 13px; color: var(--muted); }
 .dsc-kd-why { color: var(--faint); }
 .dsc-kd-sec { margin-top: 18px; }
-.dsc-kd-bar { display: flex; justify-content: space-between; align-items: center; gap: 10px 16px; flex-wrap: wrap; margin: 0 0 10px; }
-.dsc-kd-bar h3 { font: 400 20px/1.3 var(--serif); margin: 0; }
-.dsc-kd-find { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
-.dsc-kd-find input { box-sizing: border-box; width: 220px; max-width: 100%; font: 16px var(--sans); color: var(--text); background: var(--s2); border: 1px solid var(--border); border-radius: 10px; padding: 6px 10px; }
 .dsc-kd-ls { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 10px; }
 .dsc-kd-co { box-sizing: border-box; background: var(--s1); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; min-width: 0; overflow-wrap: anywhere; }
 .dsc-kd-h { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
@@ -550,7 +546,41 @@ tr.dsc-det > td { padding: 14px 16px; background: var(--s3); }
 .dsc-kd-vf .dsc-lab, .dsc-kd-kw .dsc-lab { margin-right: 4px; }
 @media (max-width: 560px) {
   .dsc-kd-co { padding: 12px; }
-  .dsc-kd-find, .dsc-kd-find input { width: 100%; }
 }
 /* Task #264: in dark the pinned Company header takes the same solid shade as the rest of the header row (theme.css), not the card colour */
 :root:not([data-theme="light"]) .dsc-tb thead th.co { background: color-mix(in srgb, var(--s2) 70%, var(--s1)); }
+/* Task #296 (the 21 Nov Discover filters pack): filters on the Earnings calls and Results filings bucket pages.
+   Everything else on these pages reuses the live Discover classes (.dsc-tools, .dsc-views, .dsc-fbar, .dsc-active,
+   .dsc-rhead, .dsc-pager, .dsc-yh, .dsc-taken). Add after the Discovery stylesheet. */
+
+/* 1. Keywords in this bucket: each keyword is a button with its count; pressed = the Keyword filter */
+.dsc-kd-kw button.dsc-ev{appearance:none;margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font:600 12px/18px var(--sans);text-align:left}
+.dsc-kd-kw button.dsc-ev .dsc-c{font-weight:500;opacity:.8;font-variant-numeric:tabular-nums}
+.dsc-kd-kw button.dsc-ev:hover{border-color:var(--border-strong)}
+.dsc-kd-kw button.dsc-ev[aria-pressed=true]{background:var(--dsc-teal);border-color:var(--dsc-teal);color:var(--dsc-on,#fff)}
+.dsc-kd-kw button.dsc-ev:disabled{opacity:.5;cursor:default;border-style:dashed}
+.dsc-kd-kw button.dsc-ev:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+/* 2. On each card, the keyword picked in the filter is marked */
+.dsc-kd-kw span.dsc-ev[data-on]{border-color:var(--dsc-teal);background:var(--dsc-teal-b);color:var(--dsc-teal)}
+
+/* 3. On each card, where the company sits: sector · industry · size (one muted line under the name) */
+.dsc-kd-co .dsc-kd-l{margin-top:2px}
+
+/* 4. Sort, on the right of the count line */
+.dsc-sortl{color:var(--muted);align-items:center;gap:8px;font-size:13px;display:inline-flex}
+.dsc-sortl select{appearance:none;box-sizing:border-box;height:38px;max-width:100%;font:14px var(--sans);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:0 30px 0 12px;background:var(--s1) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 11px center}
+.dsc-sortl select:hover{border-color:var(--border-strong)}
+.dsc-sortl select:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+/* Task #296: the four "Explore Discover" ways need about 920px in one row. Below that the labels
+   ("WHAT CHANGED 8", "ALL COMPANIES 917") ran out of their cards: 780-959px, 980-1279px with the
+   side menu open, 980-1059px with it folded. Use 2 by 2 there (phones already do, below 760px). */
+@media (max-width:959px){
+  .dsc-ways:not(.dsc-ways2){grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (min-width:960px) and (max-width:1279px){
+  .shell:not(.is-collapsed) .dsc-ways:not(.dsc-ways2){grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (min-width:960px) and (max-width:1059px){
+  .dsc-ways:not(.dsc-ways2){grid-template-columns:repeat(2,minmax(0,1fr))}
+}
