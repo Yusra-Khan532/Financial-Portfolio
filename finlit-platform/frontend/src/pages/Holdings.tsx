@@ -76,8 +76,9 @@ const UPLOAD_NOTE = <>
 
 const SECS: Record<TabKey, { label: string; secs: Sec[] }> = {
   portfolio: { label: "Portfolio", secs: [["pf-shares", "Your shares"], ["eq-keys", "Key figures"], ["eq-trend", "Trends"], ["eq-peers", "Peers"], ["eq-leaders", "Group leaders"]] },
-  diversification: { label: "Diversification analytics", secs: [["eq-where", "Where it sits"], ["eq-keysd", "Key figures"], ["eq-spread", "Spread"], ["eq-sectors", "Sectors"], ["eq-groups", "Stock groups"], ["eq-sizes", "Company sizes"], ["eq-grid", "Share by share"], ["eq-style", "Style tilt"]] },
-  risk: { label: "Risk analytics", secs: [["eq-rg", "At a glance"], ["eq-keysr", "Key figures"], ["eq-build", "Beta build"], ["eq-sizeb", "Size benchmarks"], ["eq-mr", "Risk share"], ["eq-fall", "If the market fell 10%"], ["eq-each", "Each share"]] },
+  // task #274 (change 17): the pack's steps for both views, each ending with What this means, in short
+  diversification: { label: "Diversification analytics", secs: [["eq-where", "Where it sits"], ["eq-keysd", "Key figures"], ["eq-spread", "Spread"], ["eq-moves", "Moving together"], ["eq-grid", "Share by share"], ["eq-style", "Style tilt"], ["eq-short", "What this means"]] },
+  risk: { label: "Risk analytics", secs: [["eq-rg", "At a glance"], ["eq-keysr", "Key figures"], ["eq-build", "Beta build"], ["eq-sizeb", "Size benchmarks"], ["eq-mr", "Risk share"], ["eq-fall", "If the market fell"], ["eq-each", "Each share"], ["eq-short", "What this means"]] },
 };
 
 export function HoldingsPage() {
