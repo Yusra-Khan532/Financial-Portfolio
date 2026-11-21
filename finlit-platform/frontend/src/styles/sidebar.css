@@ -170,11 +170,15 @@
 @media (pointer: fine) {
   .side-gb { min-height: 40px; }
   .side-i { min-height: 36px; }
-  .side-row.has-info > .side-info { opacity: 0; }
-  .side-row:hover > .side-info, .side-row:focus-within > .side-info, .side-row > .side-info[aria-expanded="true"] { opacity: 1; }
+  /* task #300 (the team, 21 Nov: "the i shall be present all the time"): the i of every page row shows at all times, not only on hover */
 }
 @media (pointer: coarse) {
   .side-dash-row > .side-info { top: 10px; }
 }
 /* a closed group is its heading only: the page list's padding goes with it (6px a group, the slim file's 480px menu) */
 .side-g:not(.is-open) > .side-gi .side-gin { padding-block: 0; border-left-color: transparent; }
+/* task #300: a page name breaks only between words ("Superinvestor portfolios" read "Superinves / tor" beside its New tag); a tag that does not fit
+   beside the name goes under it instead of squeezing the word */
+.side-lt { min-width: auto; overflow-wrap: break-word; }
+.side-l { flex-wrap: wrap; row-gap: 2px; }
+.side-l .side-new { margin-left: 0; }
