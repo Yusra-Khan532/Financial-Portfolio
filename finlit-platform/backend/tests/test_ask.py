@@ -443,7 +443,7 @@ async def test_the_company_card_holds_what_the_page_shows_and_prism_follows_the_
     assert not g["error"] and not s["error"]
     gd, sd = json.loads(g["text"])["data"], json.loads(s["text"])["data"]
     assert gd["finlitPrism"]["score"] == 85.4 and gd["finlitPrism"]["label"] == "Strong" and gd["finlitPrism"]["parts"]["quality"] == 90
-    assert "Gold plan" in sd["finlitPrism"]["unavailable"] and sd["finlitIQ"]["overall"] is not None         # Silver: its IQ, and why Prism is not there
+    assert "Gold plan" in sd["finlitPrism"]["unavailable"] and "finlitIQ" not in sd and "finlitIQ" not in gd     # Silver: why Prism is not there; no retired IQ (task #283 PR C)
     for k in ("profile", "classification", "quote", "keyMetrics", "returns", "vsPeers", "tradingFacts"):
         assert k in gd, k
     assert gd["profile"]["name"] and len(g["text"].encode()) <= T.RESULT_CAP + 2000

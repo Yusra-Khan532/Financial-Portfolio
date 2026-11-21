@@ -291,7 +291,7 @@ PATTERNS = [
 ]
 CHECKLIST = ["Arithmetic and formulas correct", "Source, date and reporting period stated", "Standalone and consolidated never mixed",
              "The sector's own measures used", "Facts kept apart from estimates and inference", "No invented filings, news or FinLit scores",
-             "Uncertainty said plainly when data is missing", "FinLit IQ and Prism explained the same way every time"]
+             "Uncertainty said plainly when data is missing", "FinLit Prism explained the same way every time"]
 
 
 def sector_key(text: Optional[str]) -> Optional[str]:

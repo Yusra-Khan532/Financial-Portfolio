@@ -76,7 +76,7 @@ async def test_summary_served_with_etag_and_304(api):
     assert r.status_code == 200
     assert r.headers["cache-control"].startswith("private") and "Cookie" in r.headers["vary"]  # plan-dependent section
     body = r.json()
-    assert body["meta"]["symbol"] == "RELIANCE" and body["score"]["overall"] is not None
+    assert body["meta"]["symbol"] == "RELIANCE" and body["profile"]["name"] and "score" not in body     # task #283 PR C: the retired FinLit IQ is not served
     again = await api.get("/api/stocks/RELIANCE", headers={"If-None-Match": r.headers["etag"]})
     assert again.status_code == 304 and again.content == b""
 
@@ -88,10 +88,12 @@ async def test_screener_universe(api, store):
     rel = rows["RELIANCE"]
     assert rel["name"] == "Reliance Industries Ltd" and rel["sector"]
     # every field the screener and comparison pages read is present and numeric (or null)
-    for k in ("overall", "pe", "pb", "roe", "roce", "debt_to_equity", "sales_cagr", "profit_cagr", "operating_margin",
-              "change_pct", "return_1m", "return_1y", "market_cap", "price", "dividend_yield", "pillar_quality", "pillar_balance"):
+    for k in ("pe", "pb", "roe", "roce", "debt_to_equity", "sales_cagr", "profit_cagr", "operating_margin",
+              "change_pct", "return_1m", "return_1y", "market_cap", "price", "dividend_yield"):
         assert k in rel and (rel[k] is None or isinstance(rel[k], (int, float))), k
-    assert rel["overall"] is not None and rel["band"] in {"strong", "healthy", "mixed", "watch"}
+    for k in ("overall", "band", "pillar_quality", "pillar_balance", "score_change"):       # task #283 PR C: the retired FinLit IQ goes to no plan
+        assert k not in rel, k
+    assert rel["scored"] is True
     assert "statement" not in rel and "updated_at" not in rel
     # task #64, 14 Nov N-28 / N-34: NSE's sector and industry come with every row (null when the company is in neither list), for the Sector and industry filter
     assert all("nse_sector" in x and "nse_industry" in x for x in rows.values())
@@ -303,13 +305,14 @@ async def test_probe_reports_every_endpoint(store):
 
 
 async def test_score_history_and_health(api, ingested):
-    h = await api.get("/api/stocks/RELIANCE/score-history")  # showcase symbol: open
-    pts = h.json()["points"]
-    assert h.status_code == 200 and len(pts) == 1 and pts[0]["overall"] is not None
+    h = await api.get("/api/stocks/RELIANCE/score-history")  # task #283 PR C: the retired FinLit IQ's history is not served, even for the showcase company
+    assert h.status_code == 410 and h.json()["status"] == "retired"
+    assert len(await ingested.score_history("RELIANCE")) == 1   # ... but the IQ job keeps writing it (hidden, for a rollback)
     await worker.ingest_one(FinEdgeClient(make_settings()), ingested, "RELIANCE")  # same day: still one point
-    assert len((await api.get("/api/stocks/RELIANCE/score-history")).json()["points"]) == 1
+    assert len(await ingested.score_history("RELIANCE")) == 1
     health = await ingested.health()
     assert health["universe"] > 5000 and health["loaded"] == 1 and health["scored"] >= 1 and "runs24h" in health
+    assert health["prismGap"]["retiredScored"] >= 1 and health["prismGap"]["retiredNoPrism"] <= health["prismGap"]["retiredScored"]     # task #283 PR C
 
 
 async def test_exchange_announcements_become_feed_items(api, ingested):
@@ -422,10 +425,7 @@ async def test_search_quotes_and_logos(ingested):
                 rel = rows["RELIANCE"]
                 assert body["fields"] == ["symbol", "price", "changePct", "priceDate", "score", "band", "logo"] and body["level"] == "basic"
                 assert rel[1] > 0 and len(rel[3]) == 10 and rel[6] == f"/api/logos/{sha}.png"
-                if want == "open":
-                    assert isinstance(rel[4], int) and rel[5] in {"strong", "healthy", "mixed", "watch"}
-                else:
-                    assert rel[4] is None and rel[5] == "locked"             # never a Silver score in a Basic answer
+                assert rel[4] is None and rel[5] is None and want in ("open", "locked")   # task #283 PR C: the score and band held the retired FinLit IQ; never sent
                 assert body["amcLogos"] == {"sbi": f"/api/logos/{sha}.png"}
                 assert (await api.get("/api/search/quotes", headers={"If-None-Match": r.headers["etag"]})).status_code == 304
                 img = await api.get(rel[6])

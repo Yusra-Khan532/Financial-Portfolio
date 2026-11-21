@@ -309,7 +309,7 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
             windows=night_morning, sla=Sla("hours", 26), resumable=True, boot=True, owns=("daily_prices",), prerequisites=("ingest-flagship",),
             what="load or reload every company's statements (resumable; one run is capped so other bulk jobs get their turn)"),
         Job("score", ("score-all", "--max-minutes", "70"), cls="bulk", priority=30, max_runtime_min=90, weight_mb=300, windows=night_morning, sla=Sla("hours", 26), resumable=True,
-            boot=True, prerequisites=("ingest",), owns=("scores",), what="FinLit IQ of every listed company"),
+            boot=True, prerequisites=("ingest",), owns=("scores",), what="The retired overall score of every listed company (kept running, not shown, task #283)"),
         Job("prism", ("precompute-prism", "--max-minutes", "55", "--limit", "800"), cls="bulk", priority=40, max_runtime_min=60, weight_mb=250 * prism_workers,
             shards=prism_workers, resumable=True, probe="prism", interval_min=10, windows=(W("NIGHT", 20), W("MORNING", 14)), sla=Sla("hours", 26), boot=True, prerequisites=("ingest", "score"),
             gate=Gate("PRISM_PRECOMPUTE_ENABLED", "Prism pre-compute is switched off: PRISM_PRECOMPUTE_ENABLED is not 1", forced=True), owns=("prism",),

@@ -15,7 +15,7 @@ import { visits, type Visit } from "../../lib/recentVisits";
 import { MINUS, dateIN, nf } from "../../lib/format";
 import {
   KIND_LABEL, TABS, allSections, amcLogo, flat, moversToday, quoteMap, searchStocks, stockItem, todayIST,
-  type Band, type Item, type Quotes, type Section, type Tab,
+  type Item, type Quotes, type Section, type Tab,
 } from "../../lib/globalSearch";
 import { SearchFilters } from "../SearchFilters";
 import { NO_FILTER, filterNoun, filterOn, filterPhrase, filterStocks, hasFilterData, indexFacets, passes, type StockFilter } from "../../lib/searchFilters";
@@ -112,7 +112,7 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
       const x = m.get(r.symbol);
       if (x && x.price != null) continue;
       if (r.price == null) continue;
-      m.set(r.symbol, { price: r.price, chg: r.change_pct ?? null, date: x?.date ?? null, score: x?.score ?? r.overall ?? null, band: x?.band ?? (r.band as Band) ?? null, logo: x?.logo ?? null });
+      m.set(r.symbol, { price: r.price, chg: r.change_pct ?? null, date: x?.date ?? null, score: x?.score ?? null, band: x?.band ?? null, logo: x?.logo ?? null });
     }
     return m;
   }, [quotes.data, uni.data]);

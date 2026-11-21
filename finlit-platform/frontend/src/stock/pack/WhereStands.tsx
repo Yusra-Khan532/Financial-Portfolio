@@ -73,7 +73,7 @@ export function WhereStands({ symbol, name, s, peers }: { symbol: string; name: 
       <div id="ws-panel" role="tabpanel" aria-labelledby={`ws-tab-${tab}`}>
         {tab === "industry" && secQ.isError && <p className="sp-note" role="status" data-testid="sector-blank">{failureText(secQ.error)}</p>}
         {tab === "industry" && !secQ.isError && (!g ? <p className="sp-note">{sec?.note ?? "NSE has not given this stock an industry yet, so there is no industry reading to show."}</p> : <IndustryTab name={short1} symbol={symbol} sec={sec!} locked={locked} page={page} rot={rot} />)}
-        {tab === "peers" && (lead ? <PeersTab name={short1} fullName={name} symbol={symbol} lead={lead} peers={peers} pe={s.keyMetrics} score={s.score?.overall} cap={s.quote.marketCapCr} /> : <p className="sp-note">{ld && !ld.available ? ld.display?.line ?? "No peer reading for this stock yet." : "The peer reading is loading."}</p>)}
+        {tab === "peers" && (lead ? <PeersTab name={short1} fullName={name} symbol={symbol} lead={lead} peers={peers} pe={s.keyMetrics} score={null} cap={s.quote.marketCapCr} /> : <p className="sp-note">{ld && !ld.available ? ld.display?.line ?? "No peer reading for this stock yet." : "The peer reading is loading."}</p>)}
         {tab === "chart" && <ChartTab px={px} s={s} prism={prism} align={align} />}
         {tab === "risk" && <RiskTab name={short1} s={s} risk={prism?.parts?.risk ?? null} gold={model === "prism"} nifty12={lead?.benchmarks.market?.ret52 ?? null} />}
       </div>

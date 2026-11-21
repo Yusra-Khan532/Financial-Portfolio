@@ -1,4 +1,4 @@
-"""POST /api/me/all-investments (task #137, 15 Nov 2026 pack) against real Postgres and Redis: plan gating (Silver and Gold; IQ for Silver, Prism for Gold;
+"""POST /api/me/all-investments (task #137, 15 Nov 2026 pack) against real Postgres and Redis: plan gating (Silver and Gold; no company score for Silver (task #283 PR C retired the FinLit IQ), Prism for Gold;
 the funds' Health Score Gold only), the funds read from the member's MF portfolio, the ETFs from the ETF portfolio (a change on either page shows here),
 quantities deciding the weights, each kind counting the same without them, the look-through through ETFs, the peer words, the named missing files and the
 risk figures per kind. The ETF and index sources are stood in for (the ETF portfolio tests' own data), so the figures are known."""
@@ -54,7 +54,7 @@ async def test_funds_and_etfs_with_quantities_weigh_by_money(app):  # noqa: F811
     assert b["counts"] == {"shares": 0, "funds": 1, "etfs": 2} and b["quantities"] == {"have": 3, "of": 3}
     assert b["cards"]["funds"]["share"] == pytest.approx(15000 / (15000 + etfs) * 100, abs=0.01) and b["cards"]["funds"]["value"] == 15000
     assert b["cards"]["funds"]["scoreLocked"] is True and b["cards"]["funds"]["score"] is None                 # the Health Score is Gold
-    assert b["cards"]["shares"]["scoreModel"] == "iq" and b["cards"]["etfs"]["count"] == 2 and "soon" not in b["cards"]["etfs"]
+    assert b["cards"]["shares"]["scoreModel"] is None and b["cards"]["shares"]["scoreLocked"] is True and b["health"]["shares"] is None and b["cards"]["etfs"]["count"] == 2   # task #283 PR C and "soon" not in b["cards"]["etfs"]
     assert "subject to market risks" in b["disclaimer"] and "not investment advice" in b["disclaimer"]
     await etf(c, "GOLDBEES", "1")                                                                       # changed on the ETF portfolio page ...
     assert (await c.post(URL, json={"shares": []})).json()["counts"]["etfs"] == 3                     # ... changes this page

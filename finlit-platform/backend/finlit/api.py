@@ -59,7 +59,7 @@ from . import fundjobs, sysctl, wake
 from . import options as options_api
 from .auth import routes as auth_routes
 from .mcp import server as mcp_server
-from .auth.entitlements import has, redact_section, redact_universe, varies_by_plan, sees_all
+from .auth.entitlements import RETIRED_SECTIONS, has, redact_section, redact_universe, strip_retired_score, varies_by_plan, sees_all
 from .auth.mailer import ConsoleMailer, ResendMailer
 from .auth.service import cookie_name, current
 from .modelguard import ModelGuardMiddleware
@@ -77,6 +77,8 @@ CACHE_STOCK = "public, max-age=60, stale-while-revalidate=600"
 CACHE_INDEX = "public, max-age=300, stale-while-revalidate=86400"
 PUBLIC_SECTIONS = set(SECTIONS) - {"price"}  # full daily history only via ranges
 UNLIMITED_PATHS = ("/api/health", "/api/ping")
+# Task #283 PR C: what a retired route answers (410): FinLit Prism is FinLit's only company score.
+RETIRED_SCORE = {"status": "retired", "detail": "This score has been retired. FinLit Prism is FinLit's only company score.", "see": "/api/prism/history"}
 LIMITED_PREFIX = "/api/"   # website files (scripts, styles, images) are not counted: one page load fetches dozens, and many mobile users share one IP
 MAX_BODY = 64 * 1024  # every request body in this API is small JSON
 UPLOAD_PREFIXES = ("/api/content/admin/upload", "/api/portfolio/admin/upload")  # forwarded to the site backend, which caps files at 15 MB
@@ -654,15 +656,9 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
 
     @app.get("/api/stocks/{symbol}/score-history")
     async def score_history(request: Request, symbol: str, statement: str = Query("consolidated")):
-        """How the FinLit IQ has moved (one point per day it was computed). Silver and above, like the score itself."""
-        symbol = symbol.strip().upper()
-        if not SYMBOL.match(symbol) or statement not in ("consolidated", "standalone"):
-            return JSONResponse({"status": "invalid"}, status_code=400)
-        if symbol not in settings.showcase_symbols and not has((await current(request)).plan, "silver"):
-            return JSONResponse({"status": "plan_required", "plan": "silver", "detail": "Score history is part of the Silver plan."},
-                                status_code=403, headers={"Cache-Control": "no-store"})
-        points = await app.state.store.score_history(symbol, statement)
-        return JSONResponse({"symbol": symbol, "points": points}, headers={"Cache-Control": CACHE_PRIVATE, "Vary": "Cookie"})
+        """Task #283 PR C: the history of the retired overall score is no longer served (its job keeps writing it, hidden, for a rollback).
+        FinLit Prism's own history is /api/prism/history."""
+        return JSONResponse(RETIRED_SCORE, status_code=410, headers={"Cache-Control": "no-store"})
 
     @app.get("/api/stocks/{symbol}/trading")
     async def trading(request: Request, symbol: str):
@@ -717,9 +713,19 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
         except Exception:   # nosec B110 - a failed check never stops the chart from being served
             pass
 
+    def without_retired(name: str, hit):
+        """Task #283 PR C: the stored section without the retired FinLit IQ (for every plan); the stored report itself is left as the IQ job wrote it."""
+        try:
+            body = orjson.dumps(strip_retired_score(name, orjson.loads(hit[0])))
+        except Exception:
+            return hit
+        return body, '"' + hashlib.sha1(f"{hit[1]}|noiq".encode()).hexdigest()[:20] + '"'  # nosec B324 - cache validator
+
     async def serve_hit(request: Request, symbol: str, statement: str, name: str, hit, started: float) -> Response:
         if name == "summary":
             hit = await with_isin(symbol, hit)        # task #183: the answer carries the company's ISIN (meta.isin)
+        if name in RETIRED_SECTIONS:
+            hit = without_retired(name, hit)
         if not varies_by_plan(name):
             return cached(request, hit[0], hit[1], CACHE_STOCK, started)
         # Plan-dependent: the showcase company is fully open; everything else is trimmed to the caller's plan on the server.
@@ -750,22 +756,14 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
 
     @app.get("/api/screener/top")
     async def top(request: Request, limit: int = Query(50, ge=1, le=200)):
-        if not has((await current(request)).plan, "silver"):
-            return JSONResponse({"status": "plan_required", "plan": "silver", "detail": "The ranked list is part of the Silver plan."},
-                                status_code=403, headers={"Cache-Control": "no-store"})
-        rows = await app.state.store.top_scores(limit=limit)
-        for r in rows:
-            for k, v in list(r.items()):
-                if hasattr(v, "isoformat"):
-                    r[k] = v.isoformat()
-                elif v is not None and not isinstance(v, (int, str, bool, float)):
-                    r[k] = float(v)
-        return JSONResponse({"rows": rows}, headers={"Cache-Control": CACHE_PRIVATE, "Vary": "Cookie"})
+        """Task #283 PR C: the ranked list was the retired overall score's ranking; it is no longer served. FinLit Prism's ranking is the Advanced
+        stock screener (/api/screener/universe, Gold)."""
+        return JSONResponse(RETIRED_SCORE, status_code=410, headers={"Cache-Control": "no-store"})
 
     @app.get("/api/screener/universe")
     async def universe(request: Request):
         """Every scored company in one response; the website filters and compares in the browser.
-        Built once per few minutes and kept in Redis, one copy per access level (model scores are a Silver feature, FinLit Prism a Gold one)."""
+        Built once per few minutes and kept in Redis, one copy per access level (FinLit Prism is a Gold feature; the retired FinLit IQ's fields go to no plan)."""
         started = time.perf_counter()
         ctx = await current(request)
         level = "gold" if has(ctx.plan, "gold") or sees_all(ctx) else "silver" if has(ctx.plan, "silver") else "basic"     # FinLit Prism is a Gold feature

@@ -416,7 +416,7 @@ def evaluate_facts(f: Dict[str, Any], now: datetime, credentials: Optional[List[
         sec.expected, sec.detail = "the week up to the last Friday's close, built on weekend nights", "board date (the last session it holds)"
         ds.append(sec)
     ds.append(judge_age("prism", "Prism ratings", ["prism"], f.get("prism_newest"), now, 30.0, 60.0))
-    ds.append(judge_age("scores", "FinLit IQs", ["score"], f.get("scores_newest"), now, 30.0, 60.0))
+    ds.append(judge_age("scores", "Retired overall scores (not shown)", ["score"], f.get("scores_newest"), now, 30.0, 60.0))
     if f.get("score_lag") is not None:
         ds.append(judge_score_lag(f["score_lag"], now, bool(f.get("visitors"))))
     if f.get("results_waiting") is not None:
