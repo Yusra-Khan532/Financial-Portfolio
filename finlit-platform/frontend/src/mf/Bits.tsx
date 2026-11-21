@@ -8,10 +8,13 @@ import { AMFI_RISK_LINE, DISCLAIMER, MIRROR_LABEL, pctText, tone, type Facts, ty
 const termById = (id: string): Term | undefined => TERMS.find((t) => t.id === id);
 
 /** A word with an (i) button that explains it in plain English, from the site glossary. Renders just the word if the term is unknown. */
-export function GTerm({ id, children }: { id: string; children: React.ReactNode }) {
+/** A word with its glossary "i". With `box` (a chip's classes), the word sits in that box and the "i" follows OUTSIDE it (task #288: an "i" inside a 24px
+ *  chip filled its height and crowded its edge). */
+export function GTerm({ id, children, box }: { id: string; children: React.ReactNode; box?: string }) {
   const t = termById(id);
-  if (!t) return <>{children}</>;
-  return <span className="mf-term">{children}<Info g={{ key: t.id, label: t.term, what: t.meaning, read: t.how, formula: t.formula || undefined, note: t.finlit || undefined }} /></span>;
+  const word = box ? <span className={box}>{children}</span> : children;
+  if (!t) return <>{word}</>;
+  return <span className={"mf-term" + (box ? " mf-term-out" : "")}>{word}<Info g={{ key: t.id, label: t.term, what: t.meaning, read: t.how, formula: t.formula || undefined, note: t.finlit || undefined }} /></span>;
 }
 
 /** A percent figure coloured by sign, or a dash with the reason it is missing (readable on touch and by screen readers, not only on hover). */
