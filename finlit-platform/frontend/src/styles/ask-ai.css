@@ -294,3 +294,9 @@
 @media (max-width: 720px) { .aif.full .aif-cats.five { grid-template-columns: 1fr 1fr; } }
 .aif:not(.full) .aif-cats.five > li:last-child { grid-column: 1 / -1; }     /* two columns: the fifth card takes the whole last row */
 @media (max-width: 720px) { .aif.full .aif-cats.five > li:last-child { grid-column: 1 / -1; } }
+
+/* ---- task #290: an answer in numbered sections: the direct line, then one block per section (its heading over its points), as the team's picture ---- */
+.aif-a-lead p { margin: 0 0 2px; line-height: 1.5; color: var(--text); font-weight: 500; }
+.aif-a-sec { display: grid; gap: 6px; padding: 10px 12px 12px; border: 1px solid var(--border); border-radius: 12px; background: color-mix(in srgb, var(--s2) 60%, transparent); }
+.aif-a-h { margin: 0; font: 700 var(--fs-16, 16px)/1.3 var(--sans); color: var(--text); letter-spacing: 0; }
+.aif-a-cite { font-size: var(--fs-12); color: var(--muted); white-space: normal; }
