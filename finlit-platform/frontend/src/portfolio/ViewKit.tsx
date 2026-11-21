@@ -45,8 +45,9 @@ function anchor() {
 type Menu = "p" | "v" | null;
 /** B12: the portfolio picker and the view switch at the left of the sticky sections bar. Shown by the bar only while it is stuck (`x-sw-on`).
  *  The menus render into the page body: the bar's backdrop blur would otherwise clip a fixed menu inside the bar. */
-export function StickySwitch<T extends string>({ list, cur, onPick, figs, defs, view, onView, tabsId, noun = ["share", "shares"] }: {
+export function StickySwitch<T extends string>({ list, cur, onPick, figs, defs, view, onView, tabsId, noun = ["share", "shares"], fresh }: {
   list: PfInfo[]; cur: string | "all"; onPick: (id: string | "all") => void; figs: (id: string | "all") => PfFigs; defs: ViewDef<T>[]; view: T; onView: (v: T) => void; tabsId: string; noun?: [string, string];
+  /** task #274: views not opened yet carry an orange dot on their button */ fresh?: T[];
 }) {
   const [menu, setMenu] = useState<Menu>(null), [at, setAt] = useState({ top: 0, left: 0 });
   const pb = useRef<HTMLButtonElement>(null), vb = useRef<HTMLButtonElement>(null), box = useRef<HTMLDivElement>(null);
@@ -88,7 +89,7 @@ export function StickySwitch<T extends string>({ list, cur, onPick, figs, defs, 
         <span className="acc-av" style={{ ["--av" as string]: avOf(p.id).av }} aria-hidden="true">{avOf(p.id).ini}</span><b>{p.name}</b><i aria-hidden="true">▾</i></button>}
       {defs.length > 1 && <>
         <span className="x-sw-seg" role="group" aria-label="View">{defs.map((d) => <button key={d.id} type="button" className="x-sw-v" aria-pressed={d.id === view} style={{ ["--va" as string]: d.color }} onClick={() => go(d.id)}>
-          <span className="x-sw-ic" aria-hidden="true">{d.icon}</span>{d.short}</button>)}</span>
+          <span className="x-sw-ic" aria-hidden="true">{d.icon}</span>{d.short}{fresh?.includes(d.id) && <><i className="eqx-dot" aria-hidden="true" /><span className="sr-only"> (not opened yet)</span></>}</button>)}</span>
         <button ref={vb} type="button" className="x-sw-b x-sw-vm" aria-haspopup="menu" aria-expanded={menu === "v"} style={{ ["--va" as string]: v.color }} aria-label={`View: ${v.label}. Switch view`} onClick={() => open("v", vb.current)}>
           <span className="x-sw-ic" aria-hidden="true">{v.icon}</span><b>{v.short}</b><i aria-hidden="true">▾</i></button>
       </>}
