@@ -1,0 +1,23 @@
+/* "What GMP said vs what actually listed" on the IPO calendar (components/ipo/GmpRecord). */
+.ipo-gmp { margin-bottom: 16px; }
+.ipo-gmp .card-h { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.ipo-gmp .card-h h3 { display: flex; align-items: center; gap: 6px; }
+.ipo-gmp-sub { margin: 4px 0 8px; font-size: 14px; }
+.ipo-gmp-lead { margin: 0 0 10px; font-size: 16px; line-height: 1.5; } .ipo-gmp-lead .up { color: var(--gain); } .ipo-gmp-lead .down { color: var(--loss); }
+.ipo-gmp-chart { position: relative; } .ipo-gmp-chart svg { width: 100%; height: auto; display: block; }
+.ipo-gmp .g-grid { stroke: var(--border); stroke-width: 1; } .ipo-gmp .g-tick { font: 12px var(--sans); fill: var(--muted); } .ipo-gmp .g-axis { font: 12px var(--sans); fill: var(--muted); }
+.ipo-gmp .g-exact { stroke: #4f46e5; stroke-width: 1.4; stroke-dasharray: 5 4; } .ipo-gmp .g-fit { stroke: var(--text); stroke-width: 1.6; opacity: .7; }
+.ipo-gmp .g-dot { fill-opacity: .55; cursor: pointer; } .ipo-gmp .g-dot.on, .ipo-gmp .g-dot:focus-visible { fill-opacity: .95; stroke: var(--text); stroke-width: 2; outline: none; }
+.ipo-gmp-tip { position: absolute; top: 8px; right: 8px; display: grid; gap: 2px; max-width: 260px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg, #fff); box-shadow: 0 4px 14px rgba(0,0,0,.08); font-size: 13px; }
+.ipo-gmp-tip b { font-size: 14px; } .ipo-gmp-tip .v { font-weight: 600; } .ipo-gmp-tip .v.beat { color: var(--gain); } .ipo-gmp-tip .v.short { color: var(--loss); }
+.ipo-gmp-key { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 8px; font-size: 13px; color: var(--muted); }
+.ipo-gmp-key span { display: inline-flex; align-items: center; gap: 6px; } .ipo-gmp-key i { display: inline-block; flex: none; width: 10px; height: 10px; border-radius: 50%; }
+.ipo-gmp-key i.k-exact { width: 18px; height: 0; border-radius: 0; border-top: 2px dashed #4f46e5; } .ipo-gmp-key i.k-fit { width: 18px; height: 0; border-radius: 0; border-top: 2px solid var(--text); }
+.ipo-gmp-tbtn { margin-left: auto; padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--text); font: 600 13px var(--sans); cursor: pointer; }
+.ipo-gmp-tbtn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.ipo-gmp-foot { margin: 8px 0 0; font-size: 12px; line-height: 1.5; }
+.ipo-gmp-tw { max-height: 420px; overflow: auto; position: relative; }
+.ipo-gmp-t { width: 100%; border-collapse: collapse; font-size: 13px; } .ipo-gmp-t th, .ipo-gmp-t td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; }
+.ipo-gmp-t .r { text-align: right; font-variant-numeric: tabular-nums; } .ipo-gmp-t th small { display: block; font-weight: 400; color: var(--muted); } .ipo-gmp-t .up { color: var(--gain); } .ipo-gmp-t .down { color: var(--loss); }
+@media (max-width: 640px) { .ipo-gmp-tip { position: static; margin-top: 8px; max-width: none; } .ipo-gmp-tbtn { margin-left: 0; } }
+.ipo-gmp-t th[scope="row"] { text-transform: none; letter-spacing: 0; font: 600 13px var(--sans); color: var(--text); } .ipo-gmp-t td { white-space: nowrap; }

@@ -41,3 +41,14 @@ export function timeline(i: Ipo): TimelineStep[] {
 }
 export const SUBSCRIPTION_ROWS: [keyof NonNullable<IpoDetails["subscription"]>, string][] = [["qib", "Qualified institutional buyers"], ["nii", "Non-institutional investors"], ["retail", "Retail investors"], ["employees", "Employees"], ["shareholders", "Shareholders"], ["overall", "Total"]];
 export const hasSubscription = (i: Ipo) => SUBSCRIPTION_ROWS.some(([k]) => i.details?.subscription?.[k] != null);
+
+/** One listed IPO in the GMP record: the last grey-market premium InvestorGain recorded before listing, against the listing price (both as a percent of
+ *  the issue price). `verdict`: beat = listed more than `bandPts` above what the GMP said, short = more than `bandPts` below, band = within. */
+export type GmpPoint = { name: string; symbol: string | null; board: "mainboard" | "sme"; issuePrice: number; gmp: number; gmpPct: number; listingPrice: number;
+  listingPct: number; listingDate: string | null; subscription: number | null; issueSizeCr: number | null; verdict: "beat" | "short" | "band"; url: string };
+export type GmpRecord = {
+  board: "all" | "mainboard" | "sme"; items: GmpPoint[]; source: { name: string; url: string }; updatedAt: string | null; note: string;
+  summary: { count: number; beat: number; short: number; band: number; bandPts: number; directionRight: number; medianGap: number | null; fit: { slope: number; intercept: number } | null };
+};
+export const useGmpRecord = (board: GmpRecord["board"]) =>
+  useQuery({ queryKey: ["ipo-gmp", board], queryFn: () => apiGet<GmpRecord>(`/api/ipos/gmp-record?board=${board}`), staleTime: 600_000, retry: 1 });

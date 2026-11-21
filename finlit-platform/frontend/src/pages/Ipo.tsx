@@ -7,6 +7,7 @@ import { asOf, IpoDrawer } from "./IpoDrawer";
 import { MINUS, nf } from "../lib/format";
 import { ChartHelp } from "../components/ChartHelp";
 import { ChartZoom } from "../components/ChartZoom";
+import { GmpRecord } from "../components/ipo/GmpRecord";
 
 const DAY = 86_400_000;
 const d0 = (iso: string) => new Date(iso + "T00:00:00").getTime();
@@ -89,6 +90,7 @@ export function IpoPage() {
       </div>
       <section className="card ipo-s"><div className="card-h"><h3><span className="ci"><Icon name="calendar" /></span>Next seven weeks<ChartHelp id="ipo-timeline" /></h3><span className="s">Bar = application window</span></div>{isLoading ? <div className="skeleton" style={{ height: 160 }} /> : <Strip rows={rows} />}
         <div className="clg">{(Object.keys(STATUS) as Ipo["status"][]).map((s) => <span key={s}><i style={{ background: STATUS[s].colour }} />{STATUS[s].label}</span>)}</div></section>
+      <GmpRecord />
       <div className="ipo-bar2">
         <div className="seg" role="group" aria-label="Status">{FILTERS.map(([k, l]) => <button key={k} aria-pressed={f === k} onClick={() => setF(k)}>{l}</button>)}</div>
         <div className="seg" role="group" aria-label="Board">{([["all", "All boards"], ["mainboard", "Mainboard"], ["sme", "SME"]] as const).map(([k, l]) => <button key={k} aria-pressed={kind === k} onClick={() => setKind(k)}>{l}</button>)}</div>
