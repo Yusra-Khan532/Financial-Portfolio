@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CoLogo } from "../components/CoLogo";
 import { Icon } from "../lib/icons";
 import { Link } from "react-router";
@@ -66,6 +66,8 @@ type Props = {
   lots?: LotsProps;
   /** Task #274 (pack change 3): Edit | Sell under each share open their windows; the buy rows inside the table and the × at the end of the row go. */
   editSell?: { onEdit: (symbol: string) => void; onSell: (symbol: string) => void };
+  /** task #274 (change 11): what the row inside the table adds once it takes the view bar's place: the portfolio picker, the three views and Sections ▾ */
+  stuckLead?: ReactNode;
 };
 const SIZE_ORDER: Record<string, number> = { Large: 0, Mid: 1, Small: 2, Micro: 3 };
 
@@ -84,6 +86,16 @@ export function SharesTable(p: Props) {
   useEffect(() => { const f = (e: Event) => { const id = (e as CustomEvent<string>).detail; if (typeof id === "string") { setSortId(id); setDir(1); } }; window.addEventListener("eq-sort", f); return () => window.removeEventListener("eq-sort", f); }, []);
   const [colsMode, setColsMode] = useState<"all" | "h" | "s">("all");   // task #235 (pack B7): Columns: Everything · Your holding · Scores
   const [q, setQ] = useState(""), [band, setBand] = useState<string | null>(null), [level, setLevel] = useState<Level>("sector");
+  // task #274 (change 11): once the filter row reaches the view bar, the bar slides up under the site header and this row takes its place; it comes back after the table
+  const toolsRef = useRef<HTMLDivElement>(null), findRef = useRef<HTMLInputElement>(null), [stuck, setStuck] = useState(false), [findOpen, setFindOpen] = useState(false);
+  useEffect(() => {
+    if (!p.editSell) return;
+    const on = () => { const el = toolsRef.current, sec = el?.closest("section"); if (!el || !sec) return;
+      const top = parseFloat(getComputedStyle(el).top) || 0, r = el.getBoundingClientRect(), b = sec.getBoundingClientRect().bottom;
+      const now = r.top <= top + 1 && b > top + r.height + 120 && scrollY > 0; setStuck(now); document.documentElement.classList.toggle("eq-rowup", now); };
+    on(); addEventListener("scroll", on, { passive: true }); addEventListener("resize", on);
+    return () => { removeEventListener("scroll", on); removeEventListener("resize", on); document.documentElement.classList.remove("eq-rowup"); };
+  }, [p.editSell]);
   // task #274 (pack change 18): the five filters; they stay set across Overview, By sector, By company size, Ratios and Financials (this component's state)
   const [picks, setPicks] = useState<Picks>({});
   const [openSet, setOpenSet] = useState<Set<string>>(new Set());
@@ -231,11 +243,14 @@ export function SharesTable(p: Props) {
             onKeyDown={(e) => { const to = nextTab(TABS[i].id, e.key); if (to) { e.preventDefault(); p.onTab(to); document.getElementById(`pf-tab-${to}`)?.focus(); } }}>{t.label}</button>))}</div></div>
       {p.cards}
       {sizeCards}
-      <div className={"pfx-tools" + (p.editSell ? " pfh" : "")}>
-        {p.editSell ? <label className="pfh-find"><Icon name="search" />
-          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a share in your list" aria-label="Find a share in your list" /></label>
+      <div ref={toolsRef} className={"pfx-tools" + (p.editSell ? " pfh" + (stuck ? " stuck sw-host x-sw-on" : "") : "")}>
+        {p.editSell && stuck && p.stuckLead}
+        {p.editSell && stuck && <label className="pfh-tab"><span className="sr-only">Table</span><select value={tab} onChange={(e) => p.onTab(e.target.value as Tab)}>{TABS.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}</select></label>}
+        {p.editSell && stuck && !q && !findOpen ? <button type="button" className="pfh-mag" aria-label="Find a share in your list" onClick={() => { setFindOpen(true); setTimeout(() => findRef.current?.focus(), 0); }}><Icon name="search" /></button>
+        : p.editSell ? <label className="pfh-find"><Icon name="search" />
+          <input ref={findRef} type="search" value={q} onChange={(e) => setQ(e.target.value)} onBlur={() => setFindOpen(false)} placeholder="Find a share in your list" aria-label="Find a share in your list" /></label>
           : <input className="pfx-search" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a share in your list" aria-label="Find a share in your list" />}
-        {p.editSell && <span className="pfh-div" aria-hidden="true" />}
+        {p.editSell && !stuck && <span className="pfh-div" aria-hidden="true" />}
         {p.editSell ? <FilterRow defs={defs} symbols={lines.map((l) => l.symbol)} picks={picks} get={getters} onChange={setPicks} />
           : model === "prism" && <div className="pfx-chipsrow" role="group" aria-label="Filter by Prism band">
           <button type="button" className={"pfx-pillbtn" + (band == null ? " on" : "")} aria-pressed={band == null} onClick={() => setBand(null)}>All {lines.length}</button>
@@ -252,7 +267,7 @@ export function SharesTable(p: Props) {
       {p.editSell && <FilterChips defs={defs} picks={picks} q={q} shown={shown.length} total={lines.length} onChange={setPicks} onClearQ={() => setQ("")} />}
       {p.state === "error" && <p className="pfx-warn" role="alert">{p.errorText || "The scores could not be loaded. Try again in a moment."}</p>}
       <div id="pf-panel" role="tabpanel" aria-labelledby={`pf-tab-${tab}`}>
-        <HScroll label="table"><table className={"pfx-table t-" + tab + (ov && p.lots ? " x-grp" + (colsMode === "h" ? " only-h" : colsMode === "s" ? " only-s" : "") : "")}>
+        <HScroll label="table" pinBelow={p.editSell ? "#pf-shares .pfx-tools.pfh" : undefined} pinCells={!!p.editSell} barBottom={!!p.editSell}><table className={"pfx-table t-" + tab + (ov && p.lots ? " x-grp" + (colsMode === "h" ? " only-h" : colsMode === "s" ? " only-s" : "") : "")}>
           <caption className="sr-only">{TABS.find((t) => t.id === tab)?.label} of your shares</caption>
           <thead>{band1}{th}</thead>
           <tbody>

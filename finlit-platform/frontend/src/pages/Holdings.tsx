@@ -43,7 +43,8 @@ import { dayWord } from "../lib/dashPack";
 import { useLeadershipList } from "../lib/leadership";
 import { sharesCards, type Share, type Size } from "../lib/equityPack";
 import { topTiles, type TabKey } from "../lib/equityTop";
-import { SectionsBar, jumpTo, type Sec } from "../portfolio/pack/PageTop";
+import { SectionsBar, SectionsMenu, jumpTo, type Sec } from "../portfolio/pack/PageTop";
+import { HideSlim, isHidden, setHidden } from "../components/Hideable";
 import { KeyAnswers } from "../portfolio/pack/KeyAnswers";
 import { divAnswers, portfolioAnswers, riskAnswers } from "../lib/keyAnswers";
 import { EqTitle, MoneyBox, NextView, PfPicker, ScorePanel, ViewCards, YourPortfolios, useEqViewsSeen, type DayMove, type ViewCard } from "../portfolio/pack/EqTop";
@@ -273,12 +274,14 @@ export function HoldingsPage() {
       bar = [...c].sort((a, b) => b[1] - a[1]).map(([k, n], i) => ({ n, c: MACRO_C[i % MACRO_C.length], label: `${k} ${n}` })); }
     return { id: t.id as View, v: t.v, x: t.sub, help: t.help, how: t.how, bar };
   });
+  /** All sections (task #274, change 11): every hidden section of the open view comes back, and the page goes to the top of the view */
+  const showAllSecs = () => { SECS[view].secs.forEach(([id]) => setHidden("pack." + id, false)); setTimeout(() => document.getElementById("eq-tabs")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60); };
   const renamePf = (id: string, name: string) => { const n = name.trim(); if (!n) return "Give the portfolio a name."; if (pfList.some((x) => x.id !== id && x.name.trim().toLowerCase() === n.toLowerCase())) return `You already have a portfolio called ${n}. Try another name, such as "${n} (joint)".`;
     if (!st.portfolios?.length) portfolio.replace({ ...portfolio.get(), portfolios: pfList.map((x) => ({ ...x })) }); portfolio.renamePortfolio(id, n); toast("Portfolio renamed."); return null; };
   const riskSp = useMemo(() => (page && rk.data && div ? riskSplit(page, rk.data, (x) => div.levelOf(x, "macro")) : null), [page, rk.data, div]);
 
   return (
-    <div className="wrap ipo pfx sp eq">
+    <HideSlim.Provider value={true}><div className="wrap ipo pfx sp eq">
       <Gate tier={PLAN_FOR_PORTFOLIO} title="Score your portfolio" points={["FinLit Prism for every share you own (Gold)", "How spread out the list is, and what moves together", "Share of risk and the NIFTY 50 comparison", "Import Excel, CSV or PDF statements"]}>
         <div className="pfx-flow">
         <section className="card eqx-top" aria-label="Equity portfolio">
@@ -352,12 +355,15 @@ export function HoldingsPage() {
           {data && data.noPrices.length > 0 && <p className="pfx-note" role="status">No stored prices yet for {data.noPrices.join(", ")}: {plural(data.noPrices.length, "share")} left out of the co-movement figures.</p>}
           {DEMO && <p className="pfx-note" role="status">The diversification figures are not available in the demo preview.</p>}
           {state === "error" && <p className="pfx-warn" role="alert">{pg.error?.body?.detail || "The figures for this list could not be loaded. Try again in a moment."}</p>}
-          <SectionsBar tab={view} all={SECS} onTab={(t, then) => { setView(t); if (then) setTimeout(() => jumpTo(then), 120); }}
+          <SectionsBar tab={view} all={SECS} steps onAll={showAllSecs} onTab={(t, then) => { setView(t); if (then) setTimeout(() => jumpTo(then), 120); }}
             lead={<StickySwitch list={pfList} cur={cur} onPick={(id) => { setCur(id); setOpenLots(new Set()); }} figs={pfFigs} defs={eqViews(lines.length)} view={view} onView={(v) => setView(v)} tabsId="eq-tabs" fresh={(["portfolio", "diversification", "risk"] as View[]).filter((v) => !seen.has(v))} />} />
           <div id="eq-panel" role="tabpanel" aria-labelledby={`eq-tab-${view}`}>
           {view !== "portfolio" && <AnalysingBar list={pfList} cur={cur} onPick={(id) => { setCur(id); setOpenLots(new Set()); }} n={symbols.length} />}
           {view === "portfolio" && <>
-            <SharesTable lots={lots} editSell={{ onEdit: (sym) => setEsWin({ what: "edit", symbol: sym }), onSell: (sym) => setEsWin({ what: "sell", symbol: sym }) }} qtyOf={(sym) => qtyBySymbol.get(sym) ?? null} onQty={onQty} lines={lines} meta={meta} page={page} mode={mode} colors={colors} model={model} tab={tab} period={period} limit={cap} state={ov.isError ? "error" : ov.isPending && !DEMO ? "loading" : "ready"}
+            <SharesTable stuckLead={<>
+              <StickySwitch list={pfList} cur={cur} onPick={(id) => { setCur(id); setOpenLots(new Set()); }} figs={pfFigs} defs={eqViews(lines.length)} view={view} onView={(v) => setView(v)} tabsId="eq-tabs" fresh={(["portfolio", "diversification", "risk"] as View[]).filter((v) => !seen.has(v))} />
+              <SectionsMenu secs={SECS.portfolio.secs} here="pf-shares" isHidden={(id) => isHidden("pack." + id)} show={(id) => setHidden("pack." + id, false)} onAll={showAllSecs} /></>}
+              lots={lots} editSell={{ onEdit: (sym) => setEsWin({ what: "edit", symbol: sym }), onSell: (sym) => setEsWin({ what: "sell", symbol: sym }) }} qtyOf={(sym) => qtyBySymbol.get(sym) ?? null} onQty={onQty} lines={lines} meta={meta} page={page} mode={mode} colors={colors} model={model} tab={tab} period={period} limit={cap} state={ov.isError ? "error" : ov.isPending && !DEMO ? "loading" : "ready"}
               errorText={DEMO ? "Scores are not available in the demo preview." : ov.error?.body?.detail} onTab={(t) => go(t)} onPeriod={(pd) => go("financials", pd)}
               peerOf={(sym) => shareOf.get(sym)} day={day} cards={tab === "overview" ? <div className="eq-cards"><Insights items={sharesCards(shares, day)} scope="eq.shares" /></div> : null}
               actions={(sym) => <button className="pfx-x" aria-label={`Remove ${sym}`} title={`Remove ${sym}${cur === "all" ? "" : ` from ${pfName(cur)}`}`} onClick={() => { st.holdings.filter((h) => h.symbol === sym && (cur === "all" || pfOf(h) === cur)).forEach((h) => portfolio.remove(h.id)); toast(`${sym} removed.`); }}>×</button>} />
@@ -401,6 +407,6 @@ export function HoldingsPage() {
       </Gate>
       <details className="sp-sec sp-fold eq-disc"><summary><span><b className="sp-ft">Disclaimer</b><small>What this page is, and is not</small></span><span className="sp-show">Show ▾</span></summary><PortfolioDisclaimer kind="equity" /></details>
       <p className="eq-end">Information only, not investment advice.</p>
-    </div>
+    </div></HideSlim.Provider>
   );
 }
