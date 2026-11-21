@@ -554,3 +554,5 @@ tr.dsc-det > td { padding: 14px 16px; background: var(--s3); }
 }
 /* Task #264: in dark the pinned Company header takes the same solid shade as the rest of the header row (theme.css), not the card colour */
 :root:not([data-theme="light"]) .dsc-tb thead th.co { background: color-mix(in srgb, var(--s2) 70%, var(--s1)); }
+/* Task #291: the "Coming soon" line above the call and results buckets, in the method paragraph's place */
+.dsc-soon { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin: 0 0 14px; font-size: 14px; color: var(--muted); }

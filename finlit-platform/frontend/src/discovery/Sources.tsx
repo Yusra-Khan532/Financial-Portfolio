@@ -32,7 +32,9 @@ export function SourcesView({ src }: { src: Source }) {
   return <Status q={q}>{() => {
     const d = q.data!;
     return <>
-      {/* task #291 (the team, 21 Nov 2026: "remove this paragraph"): the method paragraph above the buckets is gone; each empty card still says why */}
+      {/* task #291 (the team, 21 Nov 2026: "remove this paragraph and add something like plans coming soon"): the method paragraph above the buckets is
+          gone (each empty card still says why); in its place one short line that plans are coming soon and these views are open to everyone for now */}
+      <p className="dsc-soon" role="note"><span className="dsc-flg teal">Coming soon</span> Paid plans are coming soon. For now, every earnings-call and results-filing view here is open to everyone.</p>
       <div className="dsc-grid" aria-label={S.label + " buckets"}>{d.buckets.map((b) => <BucketCard key={b.name} src={src} b={b} />)}</div>
     </>;
   }}</Status>;
