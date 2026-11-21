@@ -44,6 +44,21 @@ async def discovery_board(request: Request):
     return JSONResponse(data, headers={"Cache-Control": "public, max-age=600"})
 
 
+@router.get("/feed")
+async def discovery_feed(request: Request, event: Optional[str] = Query(default=None, max_length=20), theme: Optional[str] = Query(default=None, max_length=80)):
+    """Task #296: the 90 days of filings behind a theme or event page's "Latest …" panel, read when the table below is filtered (finlit/discovery/
+    board.py feed()). Public filings, open on every plan like the board; cached by the browser and Caddy for 10 minutes."""
+    from . import board
+    if (event is None) == (theme is None):
+        raise HTTPException(400, "give event or theme")
+    if event is not None and event not in board.EVENTS:
+        raise HTTPException(404, "No such event")
+    if theme is not None and not re.fullmatch(r"[A-Za-z0-9 &,\-\.()/]{1,80}", theme):
+        raise HTTPException(400, "bad theme")
+    data = await board.feed(request.app.state.store, event=event, theme=theme)
+    return JSONResponse(data, headers={"Cache-Control": "public, max-age=600"})
+
+
 @router.get("/changes")
 async def discovery_changes(request: Request, symbols: str = Query(..., max_length=6000)):
     """Task #272: "What changed at these companies" for a list (finlit/discovery/changes.py). Public filings, open on every plan like the routes above;

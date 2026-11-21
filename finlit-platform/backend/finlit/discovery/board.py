@@ -132,7 +132,7 @@ def _signal(r: Dict[str, Any], names: Dict[str, str]) -> Dict[str, Any]:
             "el": S.EVENT_LABEL.get(r["event"], "Other filing"), "t": clean_title(r["title"]), "l": r["link"]}
 
 
-async def board(store) -> Dict[str, Any]:
+async def board(store, per_event: Optional[int] = FILINGS_PER_EVENT, per_theme: Optional[int] = FILINGS_PER_THEME) -> Dict[str, Any]:
     async with store.pool.acquire() as conn:
         rows = [dict(r) for r in await conn.fetch(
             "SELECT symbol, company, primary_bucket, secondary, stage, tone, status, doc_date, pages, scores, evidence FROM discovery_companies "
@@ -210,12 +210,14 @@ async def board(store) -> Dict[str, Any]:
             latest[x["symbol"]] = sig
         # task #250 (the team, 19 Nov): no list of every filing that names a theme (it named companies of other themes and sectors); the event lists
         # name only companies placed on Discover
-        if x["event"] in EVENTS and x["symbol"] in placed and len(efil.setdefault(x["event"], [])) < FILINGS_PER_EVENT:
+        if x["event"] in EVENTS and x["symbol"] in placed and (per_event is None or len(efil.setdefault(x["event"], [])) < per_event):
+            efil.setdefault(x["event"], [])
             efil[x["event"]].append(sig)
         # task #260 (SPEC §5.4 "Latest filings in this theme"): event filings of the companies whose MAIN theme it is, never of a company of another
         # theme that merely names it (task #250)
         th = theme_by_sym.get(x["symbol"])
-        if th and x["event"] in EVENTS and len(thfil.setdefault(th, [])) < FILINGS_PER_THEME:
+        if th and x["event"] in EVENTS and (per_theme is None or len(thfil.setdefault(th, [])) < per_theme):
+            thfil.setdefault(th, [])
             thfil[th].append(sig)
     for r in out_rows:
         if r["s"] in latest:
@@ -299,3 +301,14 @@ def _directory_verify() -> Dict[str, List[str]]:
         from .service import DIRECTORY_VERIFY
         _VERIFY.update(DIRECTORY_VERIFY)
     return _VERIFY
+
+
+FEED_MAX = 1500
+
+
+async def feed(store, event: Optional[str] = None, theme: Optional[str] = None) -> Dict[str, Any]:
+    """Task #296: every event filing of the last 90 days of one event (What changed) or of the companies whose main theme it is, newest first, for the
+    "Latest …" panel once the table below it is filtered (the board itself sends only the newest 12, so a filtered panel was often empty)."""
+    b = await board(store, per_event=None, per_theme=None)
+    items = (b["efil"].get(event) if event else b["thfil"].get(theme or "")) or []
+    return {"days": NEWS_DAYS, "event": event, "theme": theme, "filings": items[:FEED_MAX], "total": len(items)}

@@ -36,6 +36,12 @@ export type DRow = BoardRow & {
   sz: CompanySize | null; wk: number | null; pcode: string | null; sct: string | null;
 };
 
+/** Task #296: every event filing of the 90 days behind a theme or event page's "Latest …" panel, read only once the table below it is filtered. */
+export type Feed = { days: number; filings: Filing[]; total: number };
+export const useFeed = (by: { event?: string; theme?: string }, on: boolean) => useQuery({
+  queryKey: ["discovery", "feed", by.event ?? null, by.theme ?? null], enabled: on, staleTime: 10 * 60_000, retry: 1,
+  queryFn: () => apiGet<Feed>(`/api/discovery/feed?${by.event ? "event=" + encodeURIComponent(by.event) : "theme=" + encodeURIComponent(by.theme ?? "")}`),
+});
 export const useBoard = () => useQuery({ queryKey: ["discovery", "board"], queryFn: () => apiGet<Board>("/api/discovery/board"), staleTime: 10 * 60_000, retry: 1 });
 
 export const STAGES = ["Operating", "Under execution", "Planned", "MoU / pilot", "Not stated"] as const;

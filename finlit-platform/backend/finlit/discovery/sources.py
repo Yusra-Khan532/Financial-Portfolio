@@ -32,6 +32,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from ..earnings.transcripts import DOC_PDF_BYTES, Blocked, BudgetSpent, FetchFailed, Fetcher, extract_pages
 from . import keywords as K
+from . import fit as F
 
 log = logging.getLogger("finlit.discovery.sources")
 LOOKBACK_DAYS = 400
@@ -231,7 +232,7 @@ def evidence(text: str, terms: List[str], bucket: str, lex: Lexicon, k: int = MA
     """Up to k sentences that name one of the bucket's keywords AND hold a figure (keywords.evidence), never a rating, a call on the shares or a
     disclaimer."""
     got = K.evidence(text, terms, bucket, pats=lex.patterns, k=k * 4)
-    return [s for s in got if not NOT_EVIDENCE.search(s)][:k]
+    return [s for s in F.quotes(got, bucket) if not NOT_EVIDENCE.search(s)][:k]     # task #296: no page header, address line or tax-rate guidance
 
 
 def read_text(text: str, source: str) -> Dict[str, Any]:
@@ -382,6 +383,19 @@ def _doc(r: Dict[str, Any]) -> Dict[str, Any]:
             "link": r["doc_link"] if safe_link(r["doc_link"]) else None, "pages": r["pages"]}
 
 
+async def macros(conn, symbols: List[str]) -> Dict[str, str]:
+    """Each company's NSE macro sector (company_classification), for the fit rules of task #296."""
+    if not symbols:
+        return {}
+    return {r["symbol"]: r["macro_sector"] for r in await conn.fetch(
+        "SELECT symbol, macro_sector FROM company_classification WHERE symbol = ANY($1::text[]) AND macro_sector IS NOT NULL", symbols)}
+
+
+def fit(bucket: str, b: Dict[str, Any], macro: Optional[str], lex: "Lexicon") -> Optional[Dict[str, Any]]:
+    """Task #296: a stored read made to fit the company (finlit/discovery/fit.py)."""
+    return F.fit_entry(bucket, b, macro, lex.patterns, K.MIN_DISTINCT, K.MIN_TOTAL, MAX_EVIDENCE)
+
+
 def _entry(r: Dict[str, Any], b: Dict[str, Any]) -> Dict[str, Any]:
     return {"symbol": r["symbol"], "company": r["company"] or r["symbol"], "score": b.get("score"), "distinct": b.get("distinct"), "mentions": b.get("total"),
             "keywords": list((b.get("terms") or {}).keys()), "evidence": list(b.get("evidence") or [])[:MAX_EVIDENCE], "verify": list(b.get("verify") or []),
@@ -414,6 +428,7 @@ async def overview(store, source: str, bucket: Optional[str] = None) -> Dict[str
     lex = LEX[source]
     async with store.pool.acquire() as conn:
         rows = [dict(r) for r in await conn.fetch(ROWS_SQL, source)]
+        macro = await macros(conn, [r["symbol"] for r in rows])
     stat: Dict[str, int] = {}
     for r in rows:
         stat[r["status"]] = stat.get(r["status"], 0) + 1
@@ -423,6 +438,7 @@ async def overview(store, source: str, bucket: Optional[str] = None) -> Dict[str
         entries = []
         for r in rows:
             b = (_js(r["buckets"], {}) or {}).get(name)
+            b = fit(name, b, macro.get(r["symbol"]), lex) if b else None
             if b:
                 entries.append(_entry(r, b))
         entries.sort(key=lambda e: (-(e["score"] or 0), e["company"]))
@@ -447,6 +463,7 @@ async def company(store, source: str, symbol: str) -> Dict[str, Any]:
     lex = LEX[source]
     async with store.pool.acquire() as conn:
         r = await conn.fetchrow(ONE_SQL, source, sym)
+        macro = (await macros(conn, [sym])).get(sym)
     waiting = await pending(store, source, limit=1, symbols=[sym])
     base: Dict[str, Any] = {"symbol": sym, "source": source, "label": LABEL[source], "caution": CAUTION}
     if r is None:
@@ -457,7 +474,7 @@ async def company(store, source: str, symbol: str) -> Dict[str, Any]:
         return {**base, "status": "none", "buckets": [], "document": None,
                 "reason": f"No {DOC_WORD[source]} filed with NSE in the last {LOOKBACK_DAYS} days is held for this company."}
     r = dict(r)
-    bs = _js(r["buckets"], {}) or {}
+    bs = {b: f for b, v in (_js(r["buckets"], {}) or {}).items() if (f := fit(b, v, macro, lex))}
     items = [{"name": b, "label": label_of(b), **_entry(r, bs[b])} for b in lex.buckets if b in bs]
     items.sort(key=lambda e: -(e["score"] or 0))
     reason = None if items else STATUS_WORD.get(r["status"], r["status"]) + (f" ({r['reason']})" if r["status"] == "error" and r.get("reason") else "")
