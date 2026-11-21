@@ -11,7 +11,7 @@ export type IpoRow = {
   issueSizeCr: number | null; freshCr: number | null; ofsCr: number | null;
   subscription: number | null; subQib: number | null; subNii: number | null; subRetail: number | null;
   gmp: number | null; gmpPct: number | null; listingPrice: number | null; listingPct: number | null;
-  listingClose: number | null; listingClosePct: number | null; lastClose: number | null; lastDay: string | null; sinceIpoPct: number | null; adjustedBy: number | null; companyPage: boolean;
+  listingClose: number | null; listingClosePct: number | null; day1?: { open: number | null; high: number | null; low: number | null; close: number; source: string | null } | null; lastClose: number | null; lastDay: string | null; sinceIpoPct: number | null; adjustedBy: number | null; companyPage: boolean;
   verdict: "beat" | "short" | "band" | null;
 };
 export type Source = { name: string; url: string | null; what: string };

@@ -50,7 +50,9 @@ describe("the IPO report", () => {
     expect(w).toContain("The whole issue was new money for the company");
     expect(w).toContain("Bidding ran from 27 Oct 2026 to 29 Oct 2026, in lots of 100 shares (₹15,000 for one lot).");
     expect(w).toContain("subscribed 241.22x overall: qualified institutions 200.25x, non-institutional investors 559.20x, retail investors 128.36x.");
-    expect(w).toContain("It listed on 3 Nov 2026 at ₹248, 65.3% above the issue price; the first day closed at ₹255.50, 70.3% above it.");
+    expect(w).toContain("It listed on 3 Nov 2026 at ₹248, 65.3% above the issue price; the first day closed at ₹255.50, 70.3% above the issue price.");
+    expect(inWords({ ...rec, day1: { open: 248, high: 285, low: 225, close: 268.8, source: "NSE" }, listingClose: 268.8, listingClosePct: 79.2 }).join(" "))
+      .toContain("It listed on 3 Nov 2026 at ₹248, 65.3% above the issue price; through the first day it traded between ₹225 and ₹285 and closed at ₹268.80, 79.2% above the issue price.");
     expect(w).toContain("the listing price came in 19.3 points higher.");
     expect(w).toContain("98.53% of the company before the issue and 71.53% after it.");
     expect(w).not.toMatch(ADVICE);

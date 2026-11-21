@@ -36,7 +36,8 @@ export function inWords(r: IpoRecord): string[] {
   }
   if (r.status === "listed" && r.listingPrice != null && r.issuePrice != null && r.listingPct != null) {
     let s = `It listed on ${dateIn(r.listingDate)} at ${rupees(r.listingPrice)}, ${r.listingPct === 0 ? "the same as the issue price" : `${abs1(r.listingPct)} ${above(r.listingPct)} the issue price`}`;
-    if (r.listingClose != null && r.listingClosePct != null) s += `; the first day closed at ${rupees(r.listingClose)}, ${abs1(r.listingClosePct)} ${above(r.listingClosePct)} it`;
+    if (r.day1?.low != null && r.day1.high != null) s += `; through the first day it traded between ${rupees(r.day1.low)} and ${rupees(r.day1.high)}`;
+    if (r.listingClose != null && r.listingClosePct != null) s += `${r.day1?.low != null ? " and closed" : "; the first day closed"} at ${rupees(r.listingClose)}, ${abs1(r.listingClosePct)} ${above(r.listingClosePct)} the issue price`;
     out.push(s + ".");
   }
   if (r.gmp != null && r.gmpPct != null && r.status === "listed" && r.listingPct != null) {
@@ -92,7 +93,7 @@ export function IpoReportPage() {
         <Tile k="Subscribed" v={times(r.subscription ?? r.nseBook?.total)} s={r.subscription != null || r.nseBook ? (r.status === "open" ? "Overall, so far" : "Overall") : undefined} />
         <Tile k={r.status === "listed" ? "GMP before listing" : "Latest GMP"} v={r.gmp != null ? rupees(r.gmp) : MINUS} s={r.gmpPct != null ? `${nf(r.gmpPct, 1)}% of the ${r.status === "listed" ? "issue" : "upper"} price · unofficial` : undefined} />
         {r.status === "listed" && <Tile k="Listed at" v={rupees(r.listingPrice)} s={<span className={tone(r.listingPct)}>{pct(r.listingPct)} vs issue · {dateIn(r.listingDate)}</span>} />}
-        {r.status === "listed" && r.listingClose != null && <Tile k="First-day close" v={rupees(r.listingClose)} s={r.listingClosePct != null ? <span className={tone(r.listingClosePct)}>{pct(r.listingClosePct)} vs issue</span> : undefined} />}
+        {r.status === "listed" && r.listingClose != null && <Tile k="First-day close" v={rupees(r.listingClose)} s={r.listingClosePct != null ? <><span className={tone(r.listingClosePct)}>{pct(r.listingClosePct)} vs issue</span>{r.day1?.low != null && r.day1.high != null ? ` · range ${rupees(r.day1.low)}–${rupees(r.day1.high)}` : ""}</> : undefined} />}
         {r.status === "listed" && r.sinceIpoPct != null && <Tile k="Since IPO" v={pct(r.sinceIpoPct)} c={tone(r.sinceIpoPct)} s={r.lastClose != null ? `${rupees(r.lastClose)} on ${dateIn(r.lastDay)}` : undefined} />}
         {r.status !== "listed" && <Tile k={r.status === "upcoming" ? "Bidding opens" : "Bidding window"} v={windowOf(r.openDate, r.closeDate)} s={r.listingDate ? `Listing ${dateIn(r.listingDate)}` : undefined} />}
       </section>
@@ -162,7 +163,7 @@ export function IpoReportPage() {
       </section>}
 
       <p className="muted ir-foot">
-        Sources: issue details, overall subscription, GMP and offer-document figures from <a href={r.url} target="_blank" rel="noopener noreferrer">InvestorGain</a>{r.nseBook ? "; subscription by category and bids at each price from NSE" : ""}{r.status === "listed" ? "; first-day and latest closes from the exchange's daily prices" : ""}.
+        Sources: issue details, overall subscription, GMP and offer-document figures from <a href={r.url} target="_blank" rel="noopener noreferrer">InvestorGain</a>{r.nseBook ? "; subscription by category and bids at each price from NSE" : ""}{r.day1 ? `; listing-day open, range and close from ${r.day1.source ?? "the exchange"}'s daily price file` : ""}{r.status === "listed" ? "; the latest close from the exchange's daily prices" : ""}.
         {r.updatedAt ? ` Last read ${dateIn(r.updatedAt.slice(0, 10))}.` : ""} For information only; it describes the issue and is not advice.
       </p>
     </div>

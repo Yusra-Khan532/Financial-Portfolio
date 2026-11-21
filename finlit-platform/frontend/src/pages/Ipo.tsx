@@ -51,12 +51,14 @@ function Card({ r, onOpen }: { r: Ipo; onOpen: () => void }) {
   if (r.issueSizeCr != null) cells.push(["Issue size", `₹${nf(r.issueSizeCr, 0)} Cr`]);
   if (r.status === "listed" && g != null) cells.push(["Listing price vs issue price", (g >= 0 ? "▲ +" : "▼ " + MINUS) + nf(Math.abs(g), 1) + "%", g >= 0 ? "up" : "down"]);
   if (sub != null) cells.push(["Times subscribed", nf(sub, 2) + "x"]);
+  const gmp = r.details?.gmp;
+  if (gmp && r.status !== "listed") cells.push(["Latest GMP (unofficial)", `₹${nf(gmp.rupees, gmp.rupees % 1 ? (Math.abs(gmp.rupees) < 10 ? 2 : 1) : 0)} · ${gmp.pct > 0 ? "+" : gmp.pct < 0 ? MINUS : ""}${nf(Math.abs(gmp.pct), 1)}%`]);
   const meta = [r.sector, r.kind === "sme" ? "SME" : "Mainboard", r.details?.exchange?.join(" / "), r.symbol].filter(Boolean).join(" · ");
   return (
     <article className="card ipo-c" style={{ "--tc": st.colour } as React.CSSProperties}>
       <div className="ipo-h"><div><h3>{r.name}</h3><p>{meta}</p></div><span className="ipo-st"><i />{st.label}</span></div>
       <dl className="ipo-d">{cells.map(([k, v, c]) => <div key={k}><dt>{k}</dt><dd className={c || ""}>{v}</dd></div>)}</dl>
-      <div className="ipo-foot"><button className="ipo-more" onClick={onOpen} aria-label={`Details: ${r.name}`}>Details →</button></div>
+      <div className="ipo-foot"><button className="ipo-more" onClick={onOpen} aria-label={`Details: ${r.name}`}>Details →</button>{r.recordId ? <Link className="ipo-more" to={`/ipo/${r.recordId}`} aria-label={`Full IPO report: ${r.name}`}>Full report →</Link> : null}</div>
     </article>
   );
 }
