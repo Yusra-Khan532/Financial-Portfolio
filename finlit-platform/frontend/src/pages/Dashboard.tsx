@@ -1,7 +1,8 @@
 // The dashboard: a greeting row (date, market state, followed stocks, Setup chip, Customise), then the sticky sections bar and the blocks in five numbered steps (task #195,
 // dashboard pack of 15 Nov 2026): 1 Your money, 2 Your watchlist, 3 The market, 4 Results and news, 5 Tools, on every screen size. Every block can be moved inside its step,
 // switched off or resized in Customise; a switched-off block leaves its step, and a step with no blocks is not shown. Descriptive only, information only.
-import { useEffect, useMemo, useState } from "react";
+const GlobalMarkets = lazy(() => import("../components/dashboard/GlobalMarkets").then((m) => ({ default: m.GlobalMarkets })));   // task #294: the map's data loads with this card only
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { StepHeading, StepsBar, type Step } from "../components/StepsBar";
 import { Navigate, useSearchParams } from "react-router";
 import { useAuth } from "../lib/auth";
@@ -103,6 +104,7 @@ export function Dashboard() {
         mfPf={pick.param.mf} etfPf={pick.param.etf} heldIn={pick.heldIn} showing={pick.showing} eqPicked={pick.choice.equity === "all" ? null : pick.param.equity} />;
       case "say": return <Signals followed={followedPick} caps={caps} />;
       case "market": return <MarketToday />;
+      case "globalmarkets": return <Suspense fallback={<Card id="globalmarkets" title="Global markets"><p className="dsh-note" role="status">Loading world markets…</p></Card>}><GlobalMarkets /></Suspense>;
       case "snapshot": return <Snapshot rows={rows} loading={loadingRows} />;
       case "sectors": return <Sectors rows={rows} loading={loadingRows} />;
       case "marketread": return <MarketRead rows={rows} loading={loadingRows} />;

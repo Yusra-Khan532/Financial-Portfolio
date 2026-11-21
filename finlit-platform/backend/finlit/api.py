@@ -477,6 +477,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(ownership_insights.router)   # /api/stocks/{symbol}/ownership-insights: likewise
     app.include_router(__import__("finlit.superinvestors", fromlist=["router"]).router)   # /api/superinvestors: named investors of 1% or more, by investor (task #212)
     app.include_router(__import__("finlit.superinvestors_follow", fromlist=["router"]).router)   # /api/me/superinvestors: follows, alert choices, your stocks they hold (task #289)
+    app.include_router(__import__("finlit.global_markets", fromlist=["router"]).router)   # /api/global-markets: overseas indices, gold, crude, rupee, US yield (task #294)
     app.include_router(__import__("finlit.docscore.api", fromlist=["router"]).router)   # /api/stocks/{symbol}/filing-scores: the three filings scored (task #266)
     app.include_router(__import__("finlit.discovery.api", fromlist=["router"]).router)   # /api/discovery: the themes of companies' investor presentations (task #221)
     from .company_brief import api as _cb

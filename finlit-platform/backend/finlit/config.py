@@ -61,6 +61,7 @@ class Settings:
     # the page then shows the MCX price alone and says the international price is not connected. Secrets: set only in the host's dashboard.
     metals_dev_api_key: str = field(default_factory=lambda: os.getenv("METALS_DEV_API_KEY", "").strip())
     metalprice_api_key: str = field(default_factory=lambda: os.getenv("METALPRICEAPI_KEY", "").strip())
+    twelvedata_api_key: str = field(default_factory=lambda: os.getenv("TWELVEDATA_API_KEY", "").strip())       # task #294: the global markets card's Europe and Asia indices, gold and same-day moves (optional; set in .env.aws)
     metals_dev_poll_seconds: int = field(default_factory=lambda: max(30, int(os.getenv("METALS_DEV_POLL_SECONDS", "60"))))        # $19.99 plan: 60 s fits 50,000 requests a month
     metalprice_poll_seconds: int = field(default_factory=lambda: max(30, int(os.getenv("METALPRICEAPI_POLL_SECONDS", "600"))))   # $12 plan: 10-minute data
     # DECISION PENDING: set to 1 only after Dhan and MCX have said in writing that prices may be shown publicly. Until then the page never says "Live".
