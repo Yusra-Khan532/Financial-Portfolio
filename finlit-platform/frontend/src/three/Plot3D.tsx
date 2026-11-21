@@ -110,7 +110,9 @@ export default function Plot3D({ spec, label }: { spec: Plot3DSpec; label: strin
   }, [key]);                                // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="p3d">
-      <canvas ref={ref} className="p3d-cv" role="img" aria-label={label} />
+      {/* a new canvas for every new set of numbers: the old scene's teardown forces its WebGL context lost, and a renderer started again on that same
+          canvas gets the lost context and fails ("reading 'precision'"), so the surface vanished after any input changed (task #302) */}
+      <canvas key={key} ref={ref} className="p3d-cv" role="img" aria-label={label} />
       {tip && <p className="p3d-tip" aria-hidden="true">{tip}</p>}
     </div>
   );
