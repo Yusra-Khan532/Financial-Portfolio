@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 // The start of the DCF calculator page: what a DCF is, five steps to use it, what comes out. Plain words; it describes a calculation and never advises.
 const STEPS: [string, string][] = [
   ["Choose a company", "Search a listed company to fill its free cash flow, net debt, shares, price and market cap (Gold)."],
@@ -9,16 +9,26 @@ const STEPS: [string, string][] = [
 ];
 const GET = ["Intrinsic value per share", "Price against estimated value", "Bear, Base and Bull cases", "Sensitivity grid", "Year-wise cash flow and terminal value", "Full calculation and assumptions"];
 
+// Task #302: closed at the start (the calculator comes first; the header's "Learn more" opens it), and remembered open or closed per member.
 const KEY = "finlit.dcf.intro";
-const read = () => { try { return localStorage.getItem(KEY) !== "hidden"; } catch { return true; } };
-const save = (open: boolean) => { try { localStorage.setItem(KEY, open ? "open" : "hidden"); } catch { /* private mode */ } };
+const keyOf = (member: string | null) => `${KEY}.${member ?? "guest"}`;
+const read = (member: string | null) => { try { return localStorage.getItem(keyOf(member)) === "open"; } catch { return false; } };
+const save = (member: string | null, open: boolean) => { try { localStorage.setItem(keyOf(member), open ? "open" : "closed"); } catch { /* private mode */ } };
 
-export function DcfIntro() {
-  const [open, setOpen] = useState(read);
-  const set = (v: boolean) => { setOpen(v); save(v); };
+/** Open or closed, as this member left it (closed the first time). */
+export function useIntroOpen(member: string | null) {
+  const [open, setOpen] = useState(() => read(member));
+  useEffect(() => { setOpen(read(member)); }, [member]);
+  const set = useCallback((v: boolean) => { setOpen(v); save(member, v); }, [member]);
+  return { open, set };
+}
+
+export function DcfIntro({ open: given, onOpenChange }: { open?: boolean; onOpenChange?: (open: boolean) => void } = {}) {
+  const own = useIntroOpen(null);
+  const open = given ?? own.open, set = onOpenChange ?? own.set;
   return (
     <details className="card dcf-intro" open={open} onToggle={(e) => { const v = (e.currentTarget as HTMLDetailsElement).open; if (v !== open) set(v); }}>
-      <summary><h2>How this calculator works</h2><button type="button" className="dcf-hide" onClick={(e) => { e.preventDefault(); set(!open); }}>{open ? "Hide" : "Show"}</button></summary>
+      <summary><h2>How this calculator works</h2><button type="button" className="dcf-hide" aria-expanded={open} onClick={(e) => { e.preventDefault(); set(!open); }}>{open ? "Hide" : "Show"}</button></summary>
       <div className="dcf-intro-grid">
         <div>
           <h3>What is a DCF?</h3>

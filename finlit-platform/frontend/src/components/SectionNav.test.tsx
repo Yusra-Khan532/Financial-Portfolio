@@ -7,7 +7,15 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("./Info", () => ({ Info: ({ g }: { g: { label: string; what: string; note?: string } }) => <button type="button" className="info" aria-label={`What is ${g.label}?`} data-what={g.what} data-note={g.note ?? ""}>i</button> }));
 import { SectionNav } from "./SectionNav";
-import { dcfNav } from "../pages/Dcf";
+import type { SectionItem } from "./SectionNav";
+
+// The DCF calculator dropped its bar in task #302 (the redesign); the bar itself stays for the pages that use it, tested here with the same eight items.
+function dcfNav(hasResult: boolean, hasErrors: boolean): SectionItem[] {
+  const why = hasResult ? null : hasErrors ? "Fix the inputs marked in red to see this section." : "Shown once the inputs give a value.";
+  const about = "A short explanation of this section, long enough to read as one.";
+  return [["company", "Company Inputs"], ["cash", "Cash Flow & Growth"], ["rate", "Discount Rate & Risk"], ["balance", "Balance Sheet"], ["value", "DCF Valuation"],
+    ["sens", "Sensitivity Analysis"], ["cases", "Bear / Base / Bull Scenarios"], ["save", "Save & Export"]].map(([id, label], k) => ({ id, label, about, off: k >= 4 ? why : null }));
+}
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 const NAMES = ["Company Inputs", "Cash Flow & Growth", "Discount Rate & Risk", "Balance Sheet", "DCF Valuation", "Sensitivity Analysis", "Bear / Base / Bull Scenarios", "Save & Export"];
@@ -45,10 +53,9 @@ describe("DCF section bar (task #189)", () => {
     fireEvent.click(b);
     expect(scroll).not.toHaveBeenCalled();
   });
-  it("the page marks each target, and the bar sits above the company search, sticky under the header", () => {
+  it("the DCF page no longer has the bar (task #302); the bar's styles stay sticky under the header for the pages that keep it", () => {
     const page = readFileSync(join(process.cwd(), "src/pages/Dcf.tsx"), "utf8"), css = readFileSync(join(process.cwd(), "src/styles/section-nav.css"), "utf8");
-    for (const id of ["company", "cash", "rate", "balance", "value", "sens", "cases", "save"]) expect(page).toContain(`data-snav="${id}"`);
-    expect(page.indexOf("<SectionNav scope=\".dcf\"")).toBeLessThan(page.indexOf("<CompanyLoader enabled="));
+    expect(page).not.toMatch(/SectionNav|data-snav/);
     expect(css).toMatch(/\.jumpbar \{ display: block; position: sticky; top: 64px;/);
     expect(css).toMatch(/\.jumpbar-i\.on \{ background: var\(--gain-soft\); box-shadow: inset 0 0 0 1px var\(--gain\); \}/);
   });
