@@ -19,7 +19,7 @@ import { FundChart, SERIES_STYLE } from "../mf/FundChart";
 import { FundTable } from "../mf/FundTable";
 import { LoadingNotice, SortPills, SummaryCards } from "../mf/Summary";
 import { summarise } from "../lib/mfSummary";
-import { Fig, Foot, GTerm, PlanChip } from "../mf/Bits";
+import { Fig, Foot, GTerm, PlanChip, planLabel } from "../mf/Bits";
 import { FactsCard } from "../mf/Facts";
 import { FundGlance, FundSectionNav } from "../mf/FundGlance";
 import { ReturnsBlock } from "../mf/Returns";
@@ -318,7 +318,7 @@ export function FundDetailPage() {
           <ul className="mf-chips" aria-label="About this scheme">
             <li><Link className="chip gold" to={`/funds?amc=${encodeURIComponent(d.amc)}`}>{d.amc}</Link></li>
             <li><Link className="chip ghost" to={`/funds?category=${encodeURIComponent(d.category)}`}>{categoryShort(d.category)}</Link></li>
-            <li><span className="chip ghost"><GTerm id={d.plan === "Regular" ? "regular-plan" : "direct-plan"}>{d.plan === "Unspecified" ? "Plan not stated" : d.plan + " plan"}</GTerm></span></li>
+            <li><span className="chip ghost"><GTerm id={d.plan === "Regular" ? "regular-plan" : "direct-plan"}>{d.plan === "Unspecified" ? planLabel(d.plan, d.category) : d.plan + " plan"}</GTerm></span></li>
             <li><span className="chip ghost"><GTerm id={d.optionClass === "IDCW" ? "idcw-income-distribution-cum-capital-withdrawal" : "growth-option"}>{d.option}</GTerm></span></li>
             <li><span className="chip ghost"><GTerm id="open-ended-and-closed-ended-funds">{d.schemeType}</GTerm></span></li>
           </ul>
@@ -361,7 +361,7 @@ export function FundDetailPage() {
             <thead><tr><th scope="col">Plan and option</th><th scope="col">NAV</th><th scope="col">NAV date</th><th scope="col"><span className="sr-only">Compare</span></th></tr></thead>
             <tbody>{d.family.map((f) => (
               <tr key={f.code}>
-                <th scope="row"><Link to={`/funds/${f.code}`}>{f.name}</Link><small><PlanChip plan={f.plan} option={f.option} />{!f.active && <span className="chip ghost">Stopped publishing</span>}</small></th>
+                <th scope="row"><Link to={`/funds/${f.code}`}>{f.name}</Link><small><PlanChip plan={f.plan} option={f.option} category={d.category} />{!f.active && <span className="chip ghost">Stopped publishing</span>}</small></th>
                 <td className="num">{navText(f.nav)}</td><td className="num">{f.navDate ? dateIN(f.navDate) : "—"}</td>
                 <td className="num"><Link className="mf-linkbtn" to={compareUrl([d.code, f.code])}>Compare with this</Link></td>
               </tr>))}</tbody>
@@ -401,7 +401,7 @@ function Picker({ ids, onAdd }: { ids: number[]; onAdd: (code: number) => void }
       {ids.length >= TRAY_MAX && <p className="faint">You are comparing the most schemes this page can show ({TRAY_MAX}). Remove one to add another.</p>}
       {show.length > 0 && (
         <ul className="mf-results" aria-label="Matching schemes">{show.map((r) => (
-          <li key={r.code}><span><b>{r.name}</b><small>{shortAmc(r.amc)} · <PlanChip plan={r.plan} option={r.option} /></small></span>
+          <li key={r.code}><span><b>{r.name}</b><small>{shortAmc(r.amc)} · <PlanChip plan={r.plan} option={r.option} category={r.category} /></small></span>
             <button className="btn" disabled={ids.includes(r.code)} onClick={() => { onAdd(r.code); setText(""); }}>{ids.includes(r.code) ? "Added" : "Add"}</button></li>))}</ul>)}
       {debounced.length >= 2 && !res.isFetching && !show.length && <p className="muted">No Growth-option scheme matches “{debounced}”. Returns are compared for Growth options.</p>}
     </div>
@@ -426,7 +426,7 @@ function CompareTable({ funds }: { funds: CompareFund[] }) {
   };
   const rows: { label: React.ReactNode; cell: (f: CompareFund) => React.ReactNode; head?: boolean }[] = [
     { label: "Fund house", cell: (f) => shortAmc(f.amc) }, { label: "Category", cell: (f) => categoryShort(f.category) },
-    { label: "Plan and option", cell: (f) => <PlanChip plan={f.plan} option={f.option} /> },
+    { label: "Plan and option", cell: (f) => <PlanChip plan={f.plan} option={f.option} category={f.category} /> },
     { label: <GTerm id="net-asset-value-nav">Latest NAV</GTerm>, cell: (f) => <>{navText(f.nav)}<small className="muted"> {f.navDate ? dateIN(f.navDate, { day: "numeric", month: "short" }) : ""}</small></> },
     { label: "Returns", head: true, cell: () => null },
     { label: RETURN_LABELS.d1, cell: (f) => val(f.change?.pct ?? null, f.active ? "The previous NAV is not on file yet." : "Stopped publishing NAVs.", shortName(f) + ", 1 day") },
