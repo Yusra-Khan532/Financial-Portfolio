@@ -79,7 +79,8 @@ describe("#267: Earnings calls and Results filings in Discover", () => {
     expect(capex.textContent).toMatch(/1 with a sentence that holds a figure/);
     expect(capex.querySelector(".dsc-ex")!.textContent).toBe("Acme Industries, Quiet Co");
     expect(cards[2].textContent).toMatch(/None of the 2 call transcripts read names 2 of this bucket's keywords, or one of them 5 times\./);
-    expect(document.querySelector(".dsc-toolbar")!.textContent).toMatch(/newest call transcript filed with NSE in the last 400 days \(2 call transcripts read, the newest filed 18 Nov 2026\)/);
+    expect(document.querySelector(".dsc-toolbar")).toBeNull();                                          // task #291: the method paragraph above the buckets is removed
+    expect(document.body.textContent).not.toMatch(/buckets of FinLit’s keyword directory/);
     const caution = document.querySelector(".dsc-caution")!.textContent!;
     expect(caution).toMatch(/A keyword mention by itself is not proof of material business exposure/);
     expect(caution).toMatch(/Information only, not investment advice\./);
