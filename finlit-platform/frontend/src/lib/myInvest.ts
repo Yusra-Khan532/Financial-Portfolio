@@ -23,7 +23,7 @@ export type Bands = { bands: Band[]; notRated: { count: number; share: number };
 export type First = { name: string; symbol?: string | null; code?: number | null; w: number | null };
 export type Card = {
   count: number; valued: boolean; value: number | null; share: number; chg1y: number | null; beta: number | null; betaBand: string | null; first: First[]; firstIs: "largest" | "list";
-  score?: number | null; scoreModel?: "iq" | "prism"; scoreLocked?: boolean; scoreWord?: string | null; bands?: Band[] | null; peers?: Record<string, number>;
+  score?: number | null; scoreModel?: "prism"; scoreLocked?: boolean; scoreWord?: string | null; bands?: Band[] | null; peers?: Record<string, number>;
   overlap?: { pct: number; a: string; b: string; n: number } | null; sharedCompanies?: number; ter?: number | null; repeats?: { key: string; label: string | null; symbols: string[] }[];
   types?: { label: string; count: number }[];
 };
@@ -35,8 +35,15 @@ export type Sector = SplitRow & { sector: string; named: boolean };
 export type Size = SplitRow & { size: string };
 export type Company = SplitRow & { symbol: string | null; name: string; abroad: boolean; macro: string; size: string | null; held: ("D" | "F" | "E")[]; via: string[]; score: number | null; label: string | null; peer: string };
 /** Task #277 (fix 4): the window a beta was worked out over ("vs Nifty 500 · weekly · past year"), printed under every beta on the page. */
-export type BetaWindow = { index: string; grain: string; window: string; weeks?: number; from?: string; to?: string };
-export const betaWindowTxt = (w: BetaWindow | null | undefined) => (w ? `vs ${w.index} · ${w.grain} · ${w.window}` : "vs Nifty 500 · weekly · past year");
+export type BetaWindow = { index: string; grain: string; window: string; weeks?: number; from?: string; to?: string; counted?: number; of?: number; short?: string[] };
+/** "vs Nifty 500 · weekly · past year"; when some holdings were left out (under most of a year of weekly prices, QA of 21 Nov), "· 69 of 71 (UTLSOLAR and TIMEX: under a year of prices)". */
+export const betaWindowTxt = (w: BetaWindow | null | undefined) => {
+  if (!w) return "vs Nifty 500 · weekly · past year";
+  const base = `vs ${w.index} · ${w.grain} · ${w.window}`;
+  if (w.counted == null || w.of == null || w.counted === w.of) return base;
+  const left = (w.short ?? []).filter(Boolean);
+  return `${base} · ${w.counted} of ${w.of}${left.length ? ` (${left.length <= 3 ? joinWords(left) : `${left.slice(0, 2).join(", ")} and ${left.length - 2} more`}: under a year of prices)` : ""}`;
+};
 export type KindRisk = { beta: number | null; betaWindow?: BetaWindow | null; swing: number | null; worstFall: number | null; years: number | null; why: string | null; cover?: number; benchSwing?: number | null; benchWorstFall?: number | null };
 export type RiskPart = { kind: Kind; money: number | null; beta: number | null; band?: string | null; riskShare: number | null; red: boolean };
 export type Risk = { beta: number | null; band?: string | null; /** task #277 (fix 6): the band word and its sentence, from one band */ bandLine?: string | null; why: string | null; parts: RiskPart[]; largest?: Kind; fall10?: { pct: number | null; value: number | null };
@@ -51,10 +58,10 @@ export type EtfRow = { /** task #235: what the units still held cost */ invested
   premium: number | null; ter: number | null; categoryLabel: string | null; asOf: string | null; fileWhy: string | null; beta: number | null; swing: number | null; worstFall: number | null;
   riskWhy: string | null; tracks: string | null; twice: boolean; value: number | null; of: number; file: boolean };
 export type Health = {
-  shares: (Bands & { model: "iq" | "prism"; score: number | null; label: string | null }) | null;
+  shares: (Bands & { model: "prism"; score: number | null; label: string | null }) | null;
   funds: ({ locked: true } | (Bands & { locked: false; score: number | null; label: string | null; lowest: { name: string; score: number; label: string | null } | null })) | null;
   etfs: { ter: number | null; costPerLakh: number | null; widestGap: { symbol: string; premium: number } | null } | null;
-  underneath: (Bands & { model: "iq" | "prism" }) | null;
+  underneath: (Bands & { model: "prism" }) | null;
 };
 export type AllInvestments = {
   plan: "silver" | "gold"; byValue: boolean; total: number | null; missing: Kind[]; counts: Record<Kind, number>; quantities: { have: number; of: number }; chg1y: number | null;
@@ -84,8 +91,20 @@ export type AccountPick = { eq: string[] | null; mf: string; etf: string };
 export const useAllInvestments = (hs: Holding[], enabled: boolean, pick?: AccountPick | null) => {
   const body = { ...sharesBody(pick?.eq ? hs.filter((h) => pick.eq!.includes(h.pf ?? DEFAULT_PF)) : hs), ...(pick ? { mfPf: pick.mf, etfPf: pick.etf } : {}) };
   // task #277: switching account keeps the last figures on screen until the account's own arrive (the top and Your portfolios do not vanish meanwhile)
-  return useQuery<AllInvestments, ApiError>({ queryKey: [ALL_KEY, body], queryFn: () => apiSend<AllInvestments>("POST", "/api/me/all-investments", body), enabled, staleTime: 120_000, retry: 1, placeholderData: keepPreviousData });
+  return useQuery<AllInvestments, ApiError>({ queryKey: [ALL_KEY, body], queryFn: () => apiSend<AllInvestments>("POST", "/api/me/all-investments", body).then(withoutRetiredScore), enabled, staleTime: 120_000, retry: 1, placeholderData: keepPreviousData });
 };
+/** Task #283: FinLit Prism is FinLit's only company score, and it comes with Gold. On any other plan the page shows no company score: whatever the server
+ *  still sends on the retired score is dropped here, so the page shows names only (and a locked "FinLit Prism · see plans"). */
+export function withoutRetiredScore(d: AllInvestments): AllInvestments {
+  if (d.plan === "gold") return d;
+  return {
+    ...d,
+    shares: d.shares.map((s) => ({ ...s, score: null, label: null })),
+    companies: d.companies.map((c) => ({ ...c, score: null, label: null })),
+    cards: { ...d.cards, shares: { ...d.cards.shares, score: null, scoreWord: null, bands: null, scoreModel: undefined, scoreLocked: true } },
+    health: { ...d.health, shares: null, underneath: d.health.underneath?.model === "prism" ? d.health.underneath : null },
+  };
+}
 
 /** ₹ in lakh or crore, as the design writes it ("₹14.2 L", "₹1.3 Cr", "₹61,400"). */
 export function rupees(v: number): string {
@@ -98,7 +117,8 @@ export function rupees(v: number): string {
 export const chg = (v: number | null | undefined, d = 1) => (v == null ? "—" : (v > 0 ? "+" : v < 0 ? MINUS : "") + nf(Math.abs(v), d) + "%");
 export const pctOf = (v: number | null | undefined, d = 1) => (v == null ? "—" : (v < 0 ? MINUS : "") + nf(Math.abs(v), d) + "%");
 export const betaTxt = (v: number | null | undefined) => (v == null ? "—" : nf(v, 2));
-export const MODEL_NAME = { iq: "FinLit IQ", prism: "FinLit Prism" } as const;
+/** The one company score's name (task #283). */
+export const SCORE_NAME = "FinLit Prism";
 export const toneOf = (label: string | null | undefined) => (label === "Strong" || label === "Healthy" ? "pos" : label === "Average" || label === "Mixed" ? "mid" : label ? "neg" : "none");
 
 /** How the split was decided, said wherever a split appears (pack: "Without quantities, every split says each kind counts the same and that the split is not

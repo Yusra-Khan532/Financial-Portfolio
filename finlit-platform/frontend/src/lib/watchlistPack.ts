@@ -22,8 +22,6 @@ export const HELP = {
   pe: "P/E. The share price divided by a year's profit per share: how many years of today's profit you pay for.",
   roe: "ROE. Profit as a share of the money owners have put in. Higher means the company makes more from each rupee.",
   size: `Company size. FinLit uses four sizes everywhere, by market value: ${SIZE_RULE_TEXT}.`,
-  // the pack's own words name the old score; the owner's rule calls it FinLit IQ everywhere (noFinlitScoreWord.test.ts), so the line says what it is without the old name
-  iq: "FinLit IQ. The company's overall score on FinLit, from 0 to 100.",
   prism: "FinLit Prism. FinLit's advanced rating of the company's financial health, from 0 to 100.",
   target: "Target. A price you set as a reminder for yourself. It is not a prediction.",
 };

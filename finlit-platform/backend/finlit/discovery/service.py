@@ -149,7 +149,15 @@ async def run(store, limit: int = 300, max_minutes: float = 40.0, symbols: Optio
 
 
 async def has_work(store) -> Optional[bool]:
-    """For the job supervisor: True when the last run stopped with presentations it never reached, so the job continues soon."""
+    """For the job supervisor: True when the last run stopped with presentations it never reached, so the job continues soon, or when the stored
+    filings were sorted under an older rule (task #273: a deploy that changes the sorting re-sorts them on the next probe, minutes after the deploy,
+    not at the next night window; database only, seconds)."""
+    try:
+        ver = await store.redis.get(S.VERSION_KEY)
+    except Exception:   # nosec B110 - without Redis the clock decides, as before
+        ver = None
+    if ver is not None and (ver.decode() if isinstance(ver, bytes) else str(ver)) != S.TAG_VERSION:
+        return True
     raw = await store.redis.get(RUN_KEY)
     if not raw:
         return None

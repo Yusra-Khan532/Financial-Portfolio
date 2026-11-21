@@ -12,9 +12,10 @@ export type Resolved = { row: SeveralRow; hit: Sugg | null };
 
 const MAG = <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></svg>;
 
-export function AddBox({ placeholder, useResults, onAdd, full, fullWhy, resolve, onSeveral, menus, noun }: {
+export function AddBox({ placeholder, useResults, onAdd, full, fullWhy, resolve, onSeveral, menus, noun, onSeveralOpen }: {
   placeholder: string; useResults: (q: string) => Results; onAdd: (s: Sugg) => Promise<void> | void; full?: boolean; fullWhy?: string;
   resolve: (text: string) => Promise<Sugg | null>; onSeveral: (rows: Resolved[]) => Promise<void> | void; menus?: ReactNode; noun: [string, string];
+  /** task #275: a page with its own Add several table (MF: plan and option per row) opens it here instead of the built-in rows */ onSeveralOpen?: () => void;
 }) {
   const [q, setQ] = useState(""), [hi, setHi] = useState(0), [open, setOpen] = useState(false), [busy, setBusy] = useState(false), [msg, setMsg] = useState(""), [sev, setSev] = useState(false);
   const r = useResults(q.trim().length >= 2 ? q.trim() : ""), lid = "ptk-sug-" + useId().replace(/[^\w-]/g, "");
@@ -40,7 +41,7 @@ export function AddBox({ placeholder, useResults, onAdd, full, fullWhy, resolve,
             aria-activedescendant={show && items[hi] ? `${lid}-${hi}` : undefined} value={q} maxLength={60}
             onChange={(e) => { setQ(e.target.value); setOpen(true); setMsg(""); }} onKeyDown={key} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)} /></label>
         <button className="ptk-solid" type="submit" disabled={busy} title={full ? fullWhy : undefined}>{busy ? "Adding…" : "Add"}</button>
-        <button className="ptk-btn" type="button" onClick={() => setSev(true)}>Add several</button>
+        <button className="ptk-btn" type="button" onClick={() => (onSeveralOpen ? onSeveralOpen() : setSev(true))}>Add several</button>
         {menus}
         {show && <ul className="ptk-sug" id={lid} role="listbox" aria-label={`${noun[1]} found`} aria-busy={r.loading}>
           {r.error && <li className="none" role="presentation">The search is not available right now. Please try again in a minute.</li>}

@@ -1,5 +1,5 @@
 // Task #274 (the 20 Nov equity pack, change 18): the filters of Your shares in one row, in place of the Strong / Healthy / Average / Weak pills.
-//   Prism (or FinLit IQ on Silver) · Size · Trend · Vs peers · Buys, each a menu of check boxes (several can be ticked) with how many shares each choice
+//   Prism · Size · Trend · Vs peers · Buys, each a menu of check boxes (several can be ticked) with how many shares each choice
 //   would leave given the other filters. A set button turns dark and names its pick ("Prism: Weak", "Prism: 2 picked"). Under the row: "Showing 3 of 15",
 //   one chip per choice with ×, the search text as a chip, and Clear filters. Esc closes a menu and returns to its button; on a phone it opens as a sheet.
 // Pure filtering and counting (applyFilters, countFor) so the counts are tested without the page. Classes: pff-. Describes; never advice.
@@ -9,7 +9,7 @@ import "./add-shares.css";
 export type FilterKey = "prism" | "size" | "trend" | "peers" | "buys";
 export type Picks = Partial<Record<FilterKey, string[]>>;
 export type FilterDef = { key: FilterKey; label: string; choices: { v: string; note?: string; dot?: string }[] };
-/** The five buttons. `scoreName` is "Prism" (Gold) or "FinLit IQ" (Silver); `bands` are that model's words. */
+/** The five buttons. `scoreName` is "Prism" (the only company score since task #283); `bands` are its words. */
 export function filterDefs(scoreName: string, bands: string[]): FilterDef[] {
   const BAND_NOTE: Record<string, string> = { Strong: "80–100", Healthy: "65–79", Average: "50–64", Weak: "below 50" };
   const BAND_DOT: Record<string, string> = { Strong: "#1f6b45", Healthy: "#3a7f5a", Average: "#8a5a0b", Weak: "#b4572f", Mixed: "#8a5a0b", Watch: "#b4572f" };

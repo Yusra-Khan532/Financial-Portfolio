@@ -2,7 +2,7 @@
 // reads the member's three lists (Equity portfolio, MF portfolio, ETF portfolio) and their quantities, and looks through each fund and ETF to the companies
 // inside. It keeps no list of its own: a change on a portfolio page shows here after a refresh. Layout: header, summary row (dark box + one tile per kind),
 // four tabs (All together · Equity · Mutual funds · ETFs), the numbered sections bar of the open tab, then "What this means, in short", the disclaimer,
-// the FAQ and the sources. Plans: Silver and Gold (shares with FinLit IQ on Silver, FinLit Prism on Gold; Mutual Fund Score on Gold). Describes; never advises.
+// the FAQ and the sources. Plans: Silver and Gold (shares with FinLit Prism on Gold, names only on Silver; Mutual Fund Score on Gold). Describes; never advises.
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router";
@@ -22,6 +22,7 @@ import { aggOf } from "../lib/ledger";
 import { EQ_SECTIONS, ETF_SECTIONS, EquityTab, EtfTab, MF_SECTIONS, MfTab } from "../myinvest/KindTabs";
 import { QtyDialog } from "../myinvest/QtyDialog";
 import "../styles/myinvest.css";
+import { PLAN_FOR_PORTFOLIO } from "../lib/planGates";
 
 const TABS: { id: Tab; label: string; sub: string; sections: { id: string; label: string }[] }[] = [
   { id: "all", label: "All together", sub: "Money, mix, every company, health and risk", sections: ALL_SECTIONS },
@@ -51,7 +52,7 @@ export function MyInvestmentsPage() {
   useDocTitle("All my investments", "Your shares, mutual funds and ETFs in one place: how much you have, what it is made of, what you really own underneath, how healthy and how risky it is all together. Information only, not investment advice.");
   return (
     <div className="wrap mi">
-      <Gate tier="silver" title="See all your investments together" points={["Your shares, mutual funds and ETFs in one place, valued from your quantities", "Every company you own, counted once, looking through your funds and ETFs", "Each kind's beta against the Nifty 500, and beta together"]}>
+      <Gate tier={PLAN_FOR_PORTFOLIO} title="See all your investments together" points={["Your shares, mutual funds and ETFs in one place, valued from your quantities", "Every company you own, counted once, looking through your funds and ETFs", "Each kind's beta against the Nifty 500, and beta together"]}>
         <Body />
       </Gate>
     </div>
@@ -61,7 +62,7 @@ export function MyInvestmentsPage() {
 function Body() {
   const { has } = useUI();
   const { holdings, portfolios } = usePortfolio();
-  const silver = has("silver");
+  const silver = has(PLAN_FOR_PORTFOLIO);
   const qAll = useAllInvestments(holdings, silver);
   const mfB = useQuery({ queryKey: ["mf-portfolio", "book"], queryFn: () => apiGet<{ portfolios: Portfolio[] }>("/api/me/mf-portfolio/book"), enabled: silver, staleTime: 60_000, retry: false });
   const etfB = useQuery({ queryKey: ["etf-portfolio", "book"], queryFn: () => apiGet<{ portfolios: Portfolio[] }>("/api/me/etf-portfolio/book"), enabled: silver, staleTime: 60_000, retry: false });
@@ -171,7 +172,7 @@ const FAQ: [string, string][] = [
   ["How is profit or loss worked out?", "From the average buy price of each holding, which you type in on its portfolio page or which comes with a broker file or CAS: gain or loss is value now minus quantity × average buy price. A holding without a buy price is left out of the gain and listed so you can add one. Dividends, charges and taxes are not included. Nothing is sent to your broker."],
   ["Why is a company counted more than one way?", "You can own it directly and also through a fund or an ETF. The company table adds the ways together so you see your real share of it; Held shows D (direct), F (through a fund) and E (through an ETF)."],
   ["Why is the beta against the Nifty 500?", "Shares, funds and ETFs each have their own benchmark on their own pages. To add them up, this page measures every kind against one yardstick, the Nifty 500. Beta together is the sum of each kind's share of money times its beta."],
-  ["What does my plan show here?", "Silver: shares read with FinLit IQ, funds and ETFs. Gold: shares read with FinLit Prism, and each fund's Mutual Fund Score."],
+  ["What does my plan show here?", "Silver: your shares, funds and ETFs together, with the shares by name (FinLit Prism, FinLit's only company score, comes with Gold). Gold: shares read with FinLit Prism, and each fund's Mutual Fund Score."],
   ["Is anything sent to my broker?", "No. The lists stay in your FinLit account; nothing is sent to a broker."],
 ];
 function Faq() {

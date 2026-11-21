@@ -8,13 +8,14 @@ import { useNavigate } from "react-router";
 import { Icon } from "../lib/icons";
 import { Plain } from "../components/Plain";
 import { colourNote } from "../lib/proscreen";
-import { useUI, TIER } from "../lib/ui";
+import { useUI } from "../lib/ui";
+import { PLAN_FOR_SCREENER } from "../lib/planGates";
 import { limitsFor } from "../lib/auth";
 import { screens, useSavedScreens } from "../lib/screens";
 import { useDocTitle } from "../lib/title";
 import { csvText, nf } from "../lib/format";
 import { saveFile } from "../stock/derive";
-import { BAND_LABEL, EMPTY, GROUPS, METRICS, QUICK, activeCount, applyFilters, fmt, useUniverse, type NumKey, type Row, type State } from "../lib/screener";
+import { EMPTY, GROUPS, METRICS, QUICK, activeCount, applyFilters, fmt, useUniverse, type NumKey, type Row, type State } from "../lib/screener";
 import { CoLogo } from "../components/CoLogo";
 
 const COLS: { id: string; label: string; keys: NumKey[] }[] = [
@@ -24,14 +25,12 @@ const COLS: { id: string; label: string; keys: NumKey[] }[] = [
   { id: "profit", label: "Profitability", keys: ["roe", "roce", "operating_margin"] },
   { id: "growth", label: "Growth", keys: ["sales_cagr", "profit_cagr"] },
   { id: "health", label: "Financial health", keys: ["debt_to_equity"] },
-  { id: "model", label: "FinLit model", keys: ["overall", "pillar_quality", "pillar_growth", "pillar_profitability", "pillar_balance", "pillar_technical"] },
 ];
 const DEFAULT_COLS: NumKey[] = ["market_cap", "price"];   // task #41: the company, its market cap and share price, and nothing else until a filter or the Columns menu adds more
-const GOLD_COLS: NumKey[] = ["overall", "pillar_quality", "pillar_growth"];
 
 export function ScreenerLite() {
   const [sideW, setSide] = useSideWidth("lite");
-  useDocTitle("Stock screener", "Filter every listed Indian stock by size, valuation, profitability, growth and financial health. Gold adds filters built on the FinLit research model.");
+  useDocTitle("Stock screener", "Filter every listed Indian stock by size, valuation, profitability, growth and financial health.");
   const { has, upgrade, toast, plan } = useUI();
   const nav = useNavigate();
   const { data, isLoading, isError } = useUniverse();
@@ -47,11 +46,10 @@ export function ScreenerLite() {
   const saved = useSavedScreens();
   const [saveName, setSaveName] = useState("");
   const gold = has("gold");
-  useEffect(() => { if (gold) setCols((c) => (c.includes("overall") ? c : [...GOLD_COLS, ...c])); else setCols((c) => c.filter((k) => !METRICS[k].model)); }, [gold]);
 
   const rows = data?.rows || [];
   const result = useMemo(() => {
-    let r = applyFilters(rows, gold ? f : { ...f, ranges: Object.fromEntries(Object.entries(f.ranges).filter(([k]) => !METRICS[k as NumKey].model)), bands: [] });
+    let r = applyFilters(rows, { ...f, bands: [] });   // task #283: no score-band filter (the retired score's words); FinLit Prism is not on this page
     if (q.trim()) { const s = q.trim().toLowerCase(); r = r.filter((x) => x.symbol.toLowerCase().includes(s) || (x.name || "").toLowerCase().includes(s)); }
     const g = (x: Row) => (sort.key === "name" ? (x.name || "") : (x[sort.key] as number | null));
     return [...r].sort((a, b) => { const A = g(a), B = g(b); if (A == null && B == null) return 0; if (A == null) return 1; if (B == null) return -1; return (A < B ? -1 : A > B ? 1 : 0) * sort.dir; });
@@ -70,7 +68,7 @@ export function ScreenerLite() {
     return good ? "tone-good" : bad ? "tone-bad" : "";
   };
   // the colour note shows only while a column beyond the default ones is on the table and has a green or red cell on screen (task #73)
-  const coloured = useMemo(() => cols.filter((k) => !DEFAULT_COLS.includes(k) && !(gold && GOLD_COLS.includes(k)) && result.slice(0, shown).some((r) => tone(k, r[k]) !== "")).map((k) => METRICS[k]), [cols, result, shown, heat, gold]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const coloured = useMemo(() => cols.filter((k) => !DEFAULT_COLS.includes(k) && result.slice(0, shown).some((r) => tone(k, r[k]) !== "")).map((k) => METRICS[k]), [cols, result, shown, heat, gold]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const setRange = (k: NumKey, side: "min" | "max", raw: string) => setF((s) => {
     const cur = { ...(s.ranges[k] || {}) }, n = raw === "" ? undefined : Number(raw);
@@ -83,11 +81,10 @@ export function ScreenerLite() {
   const chips: { label: string; clear: () => void }[] = [
     ...Object.entries(f.ranges).filter(([, r]) => r && (r.min != null || r.max != null)).map(([k, r]) => ({ label: `${METRICS[k as NumKey].short} ${r!.min != null ? "≥ " + r!.min : ""}${r!.min != null && r!.max != null ? " and " : ""}${r!.max != null ? "≤ " + r!.max : ""}`, clear: () => setF((s) => ({ ...s, ranges: { ...s.ranges, [k]: {} } })) })),
     ...f.sectors.map((s) => ({ label: s, clear: () => setF((x) => ({ ...x, sectors: x.sectors.filter((y) => y !== s) })) })),
-    ...f.bands.map((s) => ({ label: `Band: ${BAND_LABEL[s]}`, clear: () => setF((x) => ({ ...x, bands: x.bands.filter((y) => y !== s) })) })),
   ];
   const save = () => { const n = saveName.trim(); if (!n || !nActive) { toast("Add a filter and a name first."); return; } if (saved.length >= limitsFor(plan).screens && !saved.some((s) => s.name === n)) { toast(`Your plan keeps up to ${limitsFor(plan).screens} saved screens. Remove one first.`); return; } screens.save(n, f, limitsFor(plan).screens); setSaveName(""); toast(`Saved “${n}” in Quick screens.`); };
   const download = () => {
-    if (!has("silver")) { toast("Downloads come with the Silver plan. Showing plans."); nav("/plans"); return; }
+    if (!has(PLAN_FOR_SCREENER)) { toast("Downloads come with the Silver plan. Showing plans."); nav("/plans"); return; }
     const ks = cols; const esc = (s: string) => `"${csvText(s).replace(/"/g, '""')}"`;
     const csv = [["Symbol", "Company", "Sector", ...ks.map((k) => METRICS[k].label)].map(esc).join(","), ...result.map((r) => [r.symbol, r.name || "", r.sector || "", ...ks.map((k) => r[k] ?? "")].map((v) => (typeof v === "string" ? esc(v) : v)).join(","))].join("\n");
     saveFile("FinLit-screen.csv", csv, "text/csv;charset=utf-8"); toast(`Saved ${result.length} companies as FinLit-screen.csv.`);
@@ -99,8 +96,8 @@ export function ScreenerLite() {
 
   return (
     <>
-      <PageHeader wrap plan="free" title="Stock screener" art="screener" links={["/score-screener", { to: "/advanced-score-screener", primary: true }, "/query-builder"]}
-        description={<>Filter every listed company by <b>size, valuation, profitability, growth and debt</b>. Gold adds filters built on the FinLit research model.</>} />
+      <PageHeader wrap plan="free" title="Stock screener" art="screener" links={[{ to: "/advanced-score-screener", primary: true }, "/query-builder"]}
+        description={<>Filter every listed company by <b>size, valuation, profitability, growth and debt</b>.</>} />
       <div className="wrap scr-wrap">
         {data?.sample && <div className="sample-note" role="note"><Icon name="info" /><span><b>Sample data.</b> Reliance is a real report; the other companies in this demo are fictional (symbols start with SMP-) so you can try the filters. The live site screens every listed company.</span></div>}
         <div className="scr" style={{ "--side-w": `${sideW}px` } as React.CSSProperties}>
@@ -120,8 +117,6 @@ export function ScreenerLite() {
                       {isOpen && (
                         <div className="scr-gb">
                           {g.id === "sector" && (<ul className="scr-sec">{sectors.map(([s, c]) => <li key={s}><label><input type="checkbox" checked={f.sectors.includes(s)} onChange={() => setF((x) => ({ ...x, sectors: toggle(x.sectors, s) }))} />{s}<em>{c}</em></label></li>)}</ul>)}
-                          {g.model && locked && (<div className="scr-lock"><span className="lk"><Icon name="lock" /></span><b>Filter by the FinLit model</b><p>FinLit IQ, band and each of the five pillars: Quality, Growth, Profitability, Balance sheet and Technical.</p><button className="btn" onClick={lockedTap}>Unlock with Gold <Icon name="arrow" /></button></div>)}
-                          {g.model && !locked && (<div className="scr-bands" role="group" aria-label="FinLit band">{(["strong", "healthy", "mixed", "watch"] as const).map((b) => <button key={b} className={"bandc " + b} aria-pressed={f.bands.includes(b)} onClick={() => setF((x) => ({ ...x, bands: toggle(x.bands, b) }))}>{BAND_LABEL[b]}</button>)}</div>)}
                           {!(g.model && locked) && g.filters.map((d) => { const m = METRICS[d.key], r = f.ranges[d.key] || {}; return (
                             <div className="scr-f" key={d.key}>
                               <div className="scr-fl"><span>{m.label}</span><small>{d.hint}</small></div>
@@ -154,8 +149,8 @@ export function ScreenerLite() {
               <div className="scr-tools">
                 <label className="scr-find sm"><Icon name="table" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search stocks" aria-label="Search stocks in results" /></label>
                 <div className="scr-cm"><button className="btn" aria-expanded={colMenu} onClick={() => setColMenu(!colMenu)}>Columns</button>
-                  {colMenu && <div className="scr-colmenu" role="menu">{COLS.map((g) => (g.id === "model" && !gold ? null : <div key={g.id}><div className="label">{g.label}</div>{g.keys.map((k) => <label key={k}><input type="checkbox" checked={cols.includes(k)} onChange={() => setCols((c) => (c.includes(k) ? c.filter((x) => x !== k) : [...c, k]))} />{METRICS[k].label}</label>)}</div>))}
-                    {!gold && <button className="lk-row" onClick={lockedTap}><Icon name="lock" />Model score columns · Gold</button>}</div>}</div>
+                  {colMenu && <div className="scr-colmenu" role="menu">{COLS.map((g) => (<div key={g.id}><div className="label">{g.label}</div>{g.keys.map((k) => <label key={k}><input type="checkbox" checked={cols.includes(k)} onChange={() => setCols((c) => (c.includes(k) ? c.filter((x) => x !== k) : [...c, k]))} />{METRICS[k].label}</label>)}</div>))}
+</div>}</div>
                 <button className="btn" onClick={download}><Icon name="table" />Download</button>
               </div>
             </div>
@@ -170,7 +165,7 @@ export function ScreenerLite() {
                 <tbody>{result.slice(0, shown).map((r) => (
                   <tr key={r.symbol} tabIndex={0} onClick={() => openRow(r)} onKeyDown={(e) => e.key === "Enter" && openRow(r)}>
                     <td className="stick"><span className="co"><CoLogo symbol={r.symbol} name={r.name} size={24} /><span><b title={codeNote(r)}>{titleOf(r)}</b>{subOf(r) && <small>{subOf(r)}</small>}</span></span></td>
-                    {COLS.flatMap((g) => g.keys).filter((k) => cols.includes(k)).map((k) => <td key={k} className={tone(k, r[k]) + (k === "overall" ? " sc" : "")}>{k === "overall" && r.band ? <span className={"vd " + r.band}>{r.overall}</span> : fmt(METRICS[k], r[k])}</td>)}
+                    {COLS.flatMap((g) => g.keys).filter((k) => cols.includes(k)).map((k) => <td key={k} className={tone(k, r[k])}>{fmt(METRICS[k], r[k])}</td>)}
                   </tr>))}
                   {!result.length && <tr><td colSpan={cols.length + 1} className="empty">No companies match all of these filters. Try loosening one.</td></tr>}
                 </tbody>
@@ -179,7 +174,7 @@ export function ScreenerLite() {
               </HScroll></TableZoom>
             )}
             {coloured.length > 0 && <Plain>{colourNote(coloured)}</Plain>}
-            <p className="faint scr-foot">A screen narrows a long list; it does not say what to buy. Open a company's report to see why a number looks the way it does. {TIER.gold.n} adds model-based filters.</p>
+            <p className="faint scr-foot">A screen narrows a long list; it does not say what to buy. Open a company's report to see why a number looks the way it does.</p>
           </section>
         </div>
       </div>

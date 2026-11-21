@@ -10,7 +10,7 @@ import { useDocTitle } from "../lib/title";
 import { nf } from "../lib/format";
 import { Radar } from "../charts/Radar";
 import { CompareBar } from "../components/CompareBar";
-import { BAND_LABEL, METRICS, distOf, fmt, percentile, useUniverse, type Dist, type NumKey, type Row } from "../lib/screener";
+import { METRICS, distOf, fmt, percentile, useUniverse, type Dist, type NumKey, type Row } from "../lib/screener";
 import { ChartHelp } from "../components/ChartHelp";
 import { CompareCustom } from "../components/CompareCustom";
 import { decodeKeys, encodeKeys } from "../lib/compareSets";
@@ -18,23 +18,23 @@ import { DiversificationCard } from "../components/diversification/Diversificati
 import { LABEL_WORD, PRISM_PARTS, PRISM_TREND, hasPrism, prismReason, toneOf, trendPos, trendText, type PrismLabel } from "../lib/scorePrism";
 import { trendWord } from "../lib/scoreScreen";
 import { CoLogo } from "../components/CoLogo";
+import { PLAN_FOR_COMPARE, PLAN_FOR_PRISM } from "../lib/planGates";
 import { useHoverTip } from "../components/HoverTip";
 import { useClassification } from "../lib/taxonomy";
 
 type TabDef = { id: string; label: string; model?: boolean; blurb: string; groups: { title: string; keys: NumKey[] }[] };
 const TABS: TabDef[] = [
-  { id: "overview", label: "Overview", blurb: "Who they are and how the FinLit model scores them.", groups: [] },
+  { id: "overview", label: "Overview", blurb: "Who they are and how FinLit Prism scores them.", groups: [] },
   { id: "fundamentals", label: "Financials", blurb: "Size, profit margin, returns on money and debt.", groups: [{ title: "Size and market", keys: ["market_cap", "price"] }, { title: "Profitability", keys: ["roe", "roce", "operating_margin"] }, { title: "Solvency and financial strength", keys: ["debt_to_equity"] }, { title: "Income for shareholders", keys: ["dividend_yield"] }] },
   { id: "spider", label: "Spider", blurb: "Eight measures on one chart. Further from the centre is better.", groups: [] },
   { id: "valuation", label: "Valuation", blurb: "How much the market is paying for each company.", groups: [{ title: "Price against earnings and assets", keys: ["pe", "pb"] }, { title: "Cash return on the price", keys: ["dividend_yield"] }] },
-  { id: "quality", label: "Quality & Risk", model: true, blurb: "How well the business earns, and how much debt it carries.", groups: [{ title: "Returns on money", keys: ["roe", "roce"] }, { title: "Safety", keys: ["debt_to_equity", "pillar_balance"] }, { title: "FinLit quality", keys: ["pillar_quality"] }] },
-  { id: "growth", label: "Growth", model: true, blurb: "How fast sales and profit have grown.", groups: [{ title: "Business growth", keys: ["sales_cagr", "profit_cagr", "pillar_growth"] }, { title: "The market's verdict", keys: ["return_1y"] }] },
-  { id: "technical", label: "Technical", model: true, blurb: "How the share price has been behaving.", groups: [{ title: "Price moves", keys: ["change_pct", "return_1m", "return_1y"] }, { title: "FinLit technical", keys: ["pillar_technical"] }] },
+  { id: "quality", label: "Quality & Risk", model: true, blurb: "How well the business earns, and how much debt it carries.", groups: [{ title: "Returns on money", keys: ["roe", "roce"] }, { title: "Safety", keys: ["debt_to_equity"] }] },
+  { id: "growth", label: "Growth", model: true, blurb: "How fast sales and profit have grown.", groups: [{ title: "Business growth", keys: ["sales_cagr", "profit_cagr"] }, { title: "The market's verdict", keys: ["return_1y"] }] },
+  { id: "technical", label: "Technical", model: true, blurb: "How the share price has been behaving.", groups: [{ title: "Price moves", keys: ["change_pct", "return_1m", "return_1y"] }] },
   { id: "stress", label: "Stress test", blurb: "How a shock to crude, the rupee, rates or demand would move both companies' earnings, side by side (Gold).", groups: [] },
   { id: "custom", label: "Build your own", blurb: "Pick from every measure the screener offers, save your sets and share the link.", groups: [] },
 ];
 const SPIDER: { label: string; key: NumKey }[] = [{ label: "ROE", key: "roe" }, { label: "ROCE", key: "roce" }, { label: "Margin", key: "operating_margin" }, { label: "Sales growth", key: "sales_cagr" }, { label: "Profit growth", key: "profit_cagr" }, { label: "Low debt", key: "debt_to_equity" }, { label: "Low P/E", key: "pe" }, { label: "Dividend", key: "dividend_yield" }];
-const PILLARS: NumKey[] = ["pillar_quality", "pillar_growth", "pillar_profitability", "pillar_balance", "pillar_technical"];
 const LETTER = ["A", "B", "C", "D"];
 const KEY_WHY = { good: "Green: the company beats 67% or more of companies on this measure, so it is among the stronger third. Better means lower for debt and P/E, higher for everything else.",
   mid: "Amber: the company beats 34 to 66% of companies on this measure, around the middle.", poor: "Red: the company beats 33% or fewer of companies on this measure, so it is among the weaker third." };
@@ -56,9 +56,9 @@ export function Compare() {
   const [sp, setSp] = useSearchParams();
   const [tab, setTab] = useState(() => (sp.has("m") ? "custom" : "overview"));
   const [off, setOff] = useState<Record<string, NumKey[]>>({});
-  // One score per plan (founder, 13 Nov 2026, task #100): the Overview shows FinLit Prism for Gold and the FinLit IQ for Silver, never both.
+  // Task #283: FinLit Prism is FinLit's only company score. The Overview shows it for plans that have it, and a locked Prism row for others.
   const gold = has("gold");
-  const showIq = !gold, showPrism = gold;
+  const showPrism = has(PLAN_FOR_PRISM);
   const rows = data?.rows || [];
   const max = has("gold") ? 4 : 2;
   const bySym = useMemo(() => new Map(rows.map((r) => [r.symbol, r])), [rows]);
@@ -68,7 +68,7 @@ export function Compare() {
   useEffect(() => {
     if (!rows.length || sp.has("c")) return;   // only when the page is opened with nothing chosen; a member who clears or removes keeps their choice
     const a = bySym.get(ids[0] || "RELIANCE") || rows[0];
-    const b = [...rows].filter((r) => r.symbol !== a.symbol && r.sector === a.sector).sort((x, y) => ((gold ? y.prism_final : y.overall) ?? 0) - ((gold ? x.prism_final : x.overall) ?? 0))[0] || rows.find((r) => r.symbol !== a.symbol);
+    const b = [...rows].filter((r) => r.symbol !== a.symbol && r.sector === a.sector).sort((x, y) => ((showPrism ? y.prism_final : y.market_cap) ?? 0) - ((showPrism ? x.prism_final : x.market_cap) ?? 0))[0] || rows.find((r) => r.symbol !== a.symbol);
     if (b) setSp((p) => { const n = new URLSearchParams(p); n.set("c", [a.symbol, b.symbol].join(",")); return n; }, { replace: true });
   }, [rows, sp, bySym, setSp]);
 
@@ -84,10 +84,10 @@ export function Compare() {
     if (!gold) { setTab("stress"); upgrade("gold", "Comparing two companies under a stress is part of the Gold plan."); return; }
     nav(`/research/stress-lab/${encodeURIComponent(picked[0].symbol)}?with=${encodeURIComponent(picked[1].symbol)}#compare`);
   };
-  const locked = T.model && !has("silver");
+  const locked = T.model && !has(PLAN_FOR_COMPARE);
   const dists = useMemo(() => { const m = new Map<NumKey, Dist | null>(); (Object.keys(METRICS) as NumKey[]).forEach((k) => m.set(k, distOf(rows, k))); return m; }, [rows]);
   const off0 = off[tab] || [];
-  const iqOnly = (k: NumKey) => gold && (k === "overall" || String(k).startsWith("pillar_"));   // task #100: no FinLit IQ figure for Gold
+  const iqOnly = (k: string) => k === "overall" || k.startsWith("pillar_");   // task #283: the old overall score is retired, so its figures are never compared
   const groups = T.groups.map((g) => ({ ...g, keys: g.keys.filter((k) => !off0.includes(k) && !iqOnly(k)) })).filter((g) => g.keys.length);
   const keys: NumKey[] = groups.flatMap((g) => g.keys);
   const pool: NumKey[] = T.groups.flatMap((g) => g.keys).filter((k) => !iqOnly(k));
@@ -153,7 +153,7 @@ export function Compare() {
             </ul>
           </div>
         )}
-        <div className="cmp-tabs" role="tablist" aria-label="Comparison areas">{TABS.map((t) => <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? "on" : ""} onClick={() => pickTab(t.id)}>{t.label}{(t.model && !has("silver") || t.id === "stress" && !gold) && <Icon name="lock" />}</button>)}</div>
+        <div className="cmp-tabs" role="tablist" aria-label="Comparison areas">{TABS.map((t) => <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? "on" : ""} onClick={() => pickTab(t.id)}>{t.label}{(t.model && !has(PLAN_FOR_COMPARE) || t.id === "stress" && !gold) && <Icon name="lock" />}</button>)}</div>
         <p className="cmp-blurb">{T.blurb}</p>
 
         {picked.length >= 2 && !locked && tab !== "overview" && tab !== "custom" && scored > 0 && (
@@ -168,8 +168,8 @@ export function Compare() {
                 <div className="cc-h"><CoLogo symbol={r.symbol} name={r.name} size={44} /><div><span className="tk">Company {LETTER[i]}{isBseCode(r.symbol) ? "" : ` · ${r.symbol}`}</span><b>{r.name || r.symbol}</b><CardLevel symbol={r.symbol} /></div></div>
                 <div className="cc-p"><b>{fmt(METRICS.price, r.price)}</b><span className={(r.change_pct ?? 0) >= 0 ? "pos" : "neg"}>{fmt(METRICS.change_pct, r.change_pct)}</span></div>
                 <div className="cc-g"><div><span>Market cap</span><b>{fmt(METRICS.market_cap, r.market_cap)}</b></div><div><span>P/E</span><b>{fmt(METRICS.pe, r.pe)}</b></div><div><span>ROE</span><b>{fmt(METRICS.roe, r.roe)}</b></div><div><span>Debt/Equity</span><b>{fmt(METRICS.debt_to_equity, r.debt_to_equity)}</b></div></div>
-                {showIq && <Gate tier="silver" title="See the FinLit IQ" points={["Overall research score", "Five-pillar scorecard"]}>
-                  <div className="cc-s"><Ring v={r.overall} band={r.band} /><div><span className="label">FinLit IQ</span><b>{r.overall ?? "—"}<small>/100</small></b>{r.band && <span className={"vd " + r.band}>{BAND_LABEL[r.band]}</span>}</div></div>
+                {!showPrism && <Gate tier={PLAN_FOR_PRISM} title="See FinLit Prism" points={["FinLit's only company score, 0 to 100", "Four financial-health parts and two technical views"]}>
+                  <div className="cc-s cc-prism"><div><span className="label">FinLit Prism</span><b>{"—"}<small>/100</small></b></div></div>
                 </Gate>}
                 {showPrism && <div className="cc-scores">{(hasPrism(r)
                   ? <div className="cc-s cc-prism"><Ring v={Math.round(r.prism_final as number)} band={toneOf(r.prism_final)} /><div><span className="label">FinLit Prism</span><b>{Math.round(r.prism_final as number)}<small>/100</small></b>{r.prism_label && <span className={"vd " + toneOf(r.prism_final)}>{LABEL_WORD[r.prism_label as PrismLabel] ?? r.prism_label}</span>}{r.prism_status && r.prism_status !== "RATED" && <small className="faint"> {r.prism_status.toLowerCase()}</small>}</div></div>
@@ -201,17 +201,6 @@ export function Compare() {
                 <p className="faint cmp-foot">Describes each company's financial health from its filings and prices. Not a recommendation. A company with no stored rating shows a dash.</p>
               </div>
             )}
-            {showIq && <Gate tier="silver" title="Compare the five FinLit pillars" points={["Quality, Growth, Profitability, Balance sheet, Technical", "See where each company is stronger"]}>
-              <div className="card cmp-pil"><div className="card-h"><h3><span className="ci"><Icon name="quality" /></span>The five FinLit pillars<ChartHelp id="cmp-pillars" /></h3><span className="s">0–100, higher is better</span></div>
-                <div className="pil-grid">
-                  <Radar axes={PILLARS.map((k) => METRICS[k].short)} series={picked.map((r, i) => ({ key: r.symbol, label: r.name || r.symbol, cls: "k" + i, values: PILLARS.map((k) => r[k]), tips: PILLARS.map((k) => r[k] == null ? null : `${r.name || r.symbol}\n${METRICS[k].short}: ${r[k]} / 100`) }))} />
-                  <div>{PILLARS.map((k) => { const w = win(k); return (
-                    <div className="pil-r" key={k}><span className="pil-l">{METRICS[k].short}</span>
-                      <div className="pil-bars">{picked.map((r, i) => <div key={r.symbol} className={"pb k" + i + (w === r.symbol ? " win" : "")} tabIndex={0} {...tip.bind(r[k] == null ? `${r.name || r.symbol}\n${METRICS[k].short}: no score` : `${r.name || r.symbol}\n${METRICS[k].short}: ${r[k]} / 100`)}><i style={{ width: `${r[k] ?? 0}%` }} /><b>{r[k] ?? "—"}</b></div>)}</div></div>); })}</div>
-                </div>
-                <div className="pil-key">{picked.map((r, i) => <span key={r.symbol}><i className={"mk k" + i} />{r.name}</span>)}</div>
-              </div>
-            </Gate>}
           </>
         )}
 
@@ -241,7 +230,7 @@ export function Compare() {
             <div className="card cmp-t"><p><Link className="btn primary" to={`/research/stress-lab/${encodeURIComponent(picked[0].symbol)}?with=${encodeURIComponent(picked[1].symbol)}#compare`}><Icon name="gauge" /> Open the Stress test for {picked[0].symbol} and {picked[1].symbol}</Link></p></div>
           </Gate>)}
         {picked.length >= 2 && !["overview", "spider", "custom", "stress"].includes(tab) && (
-          <Gate tier="silver" title={`Unlock ${T.label}`} points={["Model-based pillar scores", "Quality, growth and price behaviour side by side"]}>
+          <Gate tier={PLAN_FOR_COMPARE} title={`Unlock ${T.label}`} points={["Returns, debt and growth side by side", "Price behaviour against every company"]}>
             <div className="card cmp-t">
               <div className="cmp-pick"><span className="label">Compare on</span>{pool.map((k) => <button key={k} className={"mchip" + (keys.includes(k) ? " on" : "")} aria-pressed={keys.includes(k)} onClick={() => toggleKey(k)}>{METRICS[k].short}</button>)}</div>
               {!keys.length ? <p className="muted" style={{ padding: 16 }}>Pick at least one measure above.</p> : (

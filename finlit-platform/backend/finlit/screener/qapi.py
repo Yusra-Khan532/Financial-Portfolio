@@ -125,8 +125,8 @@ def _prepare(t: Table, body: RunIn, plan: str):
     for k in body.columns:
         if k not in BY_KEY:
             errors.append(_problem("unknown_column", f"We don't have a column called '{k}'."))
-        elif BY_KEY[k].group == "model" and not offered(plan, "model"):   # one score per plan (task #100): Gold shows FinLit Prism, never the FinLit IQ
-            errors.append(_problem("plan_score", f"The column {BY_KEY[k].label} is not part of your plan's score. Use FinLit Prism instead."))
+        elif BY_KEY[k].group == "model" and not offered(plan, "model"):   # task #283: the retired score is offered to no plan
+            errors.append(_problem("plan_score", "That column is not offered: queries use the FinLit Prism score and its parts."))
         elif not allowed(plan, BY_KEY[k].tier):
             tier = TIER_NAME[BY_KEY[k].tier]
             errors.append({**_problem("plan_locked", f"The column {BY_KEY[k].label} is part of the {tier} plan."), "plan": BY_KEY[k].tier})
@@ -136,7 +136,7 @@ def _prepare(t: Table, body: RunIn, plan: str):
     if sort.key not in ("name", "symbol") and sort.key not in BY_KEY:
         errors.append(_problem("unknown_sort", "We can't sort by that."))
     elif sort.key in BY_KEY and BY_KEY[sort.key].group == "model" and not offered(plan, "model"):
-        errors.append(_problem("plan_score", f"Sorting by {BY_KEY[sort.key].label} is not part of your plan's score. Use FinLit Prism instead."))
+        errors.append(_problem("plan_score", "That sort is not offered: queries use the FinLit Prism score and its parts."))
     elif sort.key in BY_KEY and not allowed(plan, BY_KEY[sort.key].tier):
         errors.append({**_problem("plan_locked", f"Sorting by {BY_KEY[sort.key].label} is part of the {TIER_NAME[BY_KEY[sort.key].tier]} plan."), "plan": BY_KEY[sort.key].tier})
     if body.recent and t.latest_quarter() is None:
@@ -231,6 +231,8 @@ async def ratios(request: Request):
         _ratios_cache.clear()
         items = []
         for m in CATALOG:
+            if m.group == "model":      # task #283: the retired score is no ratio a query can use, so it is never suggested
+                continue
             items.append({**_metric_info(m.key, plan), "group": m.group, "groupLabel": GROUP_LABEL[m.group], "better": m.better, "names": display_names(m.key),
                           "definition": definition(m.key), "example": _example(m.key, t), "stats": ({k: t.stats[m.key][k] for k in ("min", "p10", "p50", "p90", "max")} if m.key in t.stats else None)})
         q = t.latest_quarter()

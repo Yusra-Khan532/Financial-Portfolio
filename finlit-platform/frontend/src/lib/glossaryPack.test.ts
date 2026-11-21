@@ -8,12 +8,12 @@ const C = counts(TERMS, TOPICS);
 const T = (name: string) => TERMS.find((t) => t.term === name)!;
 
 describe("the pack's figures", () => {
-  it("450 terms, 18 topics, 7 new, 35 updated, 37 FinLit words", () => {
-    expect(C).toEqual({ terms: 450, topics: 18, added: 7, updated: 35, finlit: 37 });
-    expect(tiles(C)).toEqual([{ k: "Terms", v: 450, s: "from A to Z" }, { k: "Topics", v: 18, s: "pick one on the left" }, { k: "New this update", v: 7, s: "words used on the new pages" }, { k: "Updated this update", v: 35, s: "renamed or rewritten" }]);
-    expect(tabs(C).map((t) => [t.title, t.sub])).toEqual([["Browse A to Z", "All 450 terms, by letter or topic"], ["FinLit words", "37 terms behind the scores and labels"], ["New and updated", "42 terms added or changed"]]);
-    expect(DESC(450)).toBe("The language of investing in plain words: 450 terms from A to Z. Each says what it means, why it matters and how to use it, with the formula where there is a standard one, and how FinLit measures it.");
-    expect(SEARCH_HINT(450)).toBe('Search 450 terms, for example "P/E", "Sold off" or "Company size"');
+  it("448 terms, 18 topics, 7 new, 34 updated, 35 FinLit words (task #283: the retired score's two entries deleted)", () => {
+    expect(C).toEqual({ terms: 448, topics: 18, added: 7, updated: 34, finlit: 35 });
+    expect(tiles(C)).toEqual([{ k: "Terms", v: 448, s: "from A to Z" }, { k: "Topics", v: 18, s: "pick one on the left" }, { k: "New this update", v: 7, s: "words used on the new pages" }, { k: "Updated this update", v: 34, s: "renamed or rewritten" }]);
+    expect(tabs(C).map((t) => [t.title, t.sub])).toEqual([["Browse A to Z", "All 448 terms, by letter or topic"], ["FinLit words", "35 terms behind the scores and labels"], ["New and updated", "41 terms added or changed"]]);
+    expect(DESC(448)).toBe("The language of investing in plain words: 448 terms from A to Z. Each says what it means, why it matters and how to use it, with the formula where there is a standard one, and how FinLit measures it.");
+    expect(SEARCH_HINT(448)).toBe('Search 448 terms, for example "P/E", "Sold off" or "Company size"');
   });
   it("letter A holds 21 terms, ATR among them marked Updated, as drawn; the topic counts are the pack's", () => {
     const n = letterCounts(TERMS, LETTERS, {});
@@ -23,7 +23,7 @@ describe("the pack's figures", () => {
     expect(pick(TERMS, { letter: "A" })[0].term).toBe("Absolute and annualised return");
     expect(badge(T("Average true range (ATR)"))).toBe("Updated");
     const topic = (x: string) => TERMS.filter((t) => t.topic === x).length;
-    expect([topic("Banks and lenders"), topic("Funds, bonds and derivatives"), topic("FinLit words"), topic("Valuation")]).toEqual([8, 64, 37, 34]);
+    expect([topic("Banks and lenders"), topic("Funds, bonds and derivatives"), topic("FinLit words"), topic("Valuation")]).toEqual([8, 64, 35, 34]);
     expect(firstLetter({ "0–9": 0, A: 3 }, ["0–9", "A"])).toBe("A");
   });
 });
@@ -40,7 +40,7 @@ describe("board 03: the change list is applied", () => {
     expect(size.finlit).toBe("The same four sizes are used on every FinLit page: the screener, Markets pages, portfolios, watchlists and company reports. Until 20 Nov 2026 there were three; what was Small then (below ₹10,000 crore) is now Micro. FinLit does not use mega or nano labels.");
     expect(prism.meaning).toBe("FinLit's advanced financial-health rating of a listed company, part of the Gold plan. It scores four parts from the company's filings and prices (Growth & Profitability, Valuation, Quality and Risk) and combines them into a score out of 100 with a label: Strong, Healthy, Average, Weak or Poor.");
     expect(prism.formula).toBe("");
-    expect(prism.finlit).toBe("Prism is separate from the FinLit IQ and the two can disagree. Each part is weighed by industry group, with rules for losses and weak businesses; the weights stay inside the model. Every Prism report can be saved as a PDF.");
+    expect(prism.finlit).toBe("Each part is weighed by industry group, with rules for losses and weak businesses; the weights stay inside the model. Every Prism report can be saved as a PDF.");
     expect(lead.how).toBe("The label describes the past, not what comes next. Leaders can fall as hard as everyone else in a market-wide sell-off.");
     expect(lead.finlit).toBe("FinLit compares the share's return with its closest peers and with their sector index. \"Gaining\" or \"weakening\" shows the recent direction. Labels refresh weekly after Friday's close.");
   });

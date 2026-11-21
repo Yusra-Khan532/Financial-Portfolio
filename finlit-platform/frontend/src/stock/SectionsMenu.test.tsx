@@ -36,9 +36,10 @@ describe("sections bar numbers and the plan's Scores line (task #216, README 1.8
     expect(NAV.map(([id]) => id)).not.toContain("announcements");
     expect(NAV.filter(([id]) => ["macro", "dividends", "news", "community"].includes(id)).map(([id, l]) => `${sectionNo(id)} ${l}`)).toEqual(["02 Economy", "17 Dividends", "18 News & filings", "19 Discussions"]);
   });
-  it("Gold and Platinum read only FinLit Prism on the Scores line; Silver only the FinLit IQ", () => {
-    expect(navFor("prism")[0][3]).toBe("The FinLit Prism score: financial health and the technical view, side by side");
-    expect(navFor("iq")[0][3]).not.toMatch(/Prism/);
-    expect(navFor("prism")[0][3]).not.toMatch(/FinLit IQ/);
+  it("task #283: every plan reads only FinLit Prism on the Scores line", () => {
+    for (const m of ["prism", null, undefined] as const) {
+      expect(navFor(m)[0][3]).toBe("The FinLit Prism score: financial health and the technical view, side by side");
+      expect(navFor(m)[0][3]).not.toMatch(/\bIQ\b/);
+    }
   });
 });

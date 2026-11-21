@@ -25,8 +25,6 @@ export type Share = {
   st: number | null; lt: number | null; below52: number | null; m1: number | null;
   /** Task #235 (pack B15): the trend words beside the scores ("Strong uptrend"). */
   stWord?: string | null; ltWord?: string | null;
-  /** Silver (task #183): the FinLit IQ, the server's word for it, and its technical pillar. */
-  iq?: number | null; iqWord?: string | null; iqTech?: number | null;
   peer: { label: PeerLabel; raw: PeerLabel | null; rank: number; of: number; group: string; vs: number | null; bench: string; direction: "gaining" | "weakening" | null } | null;
   notCompared: string | null;
 };

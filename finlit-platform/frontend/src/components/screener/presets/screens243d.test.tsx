@@ -24,9 +24,9 @@ const BOARD: BoardChip[] = [
 const D = { facets: { sizes: {}, sectors: [], strong: 0, strongOnly: 0, anyRating: 6, new: 0, ahead: 0, nse: 6, bse: 0, fno: 2, liquid: 4, sag: 3, plead: 4 } } as unknown as PresetDetail;
 
 describe("More filters: Industry ahead and gaining, Peer leaders only (Advanced only)", () => {
-  function F({ basic = false }: { basic?: boolean }) {
+  function F() {
     const [b, setB] = useState<BarFilter>(NO_BAR);
-    return <MemoryRouter><FilterMenus d={D} f={{ bar: b, set: setB }} basic={basic} onAddRule={() => {}} /><FilterChips f={{ bar: b, set: setB }} basic={basic} /><output data-testid="p">{barParams(b).join("&")}</output></MemoryRouter>;
+    return <MemoryRouter><FilterMenus d={D} f={{ bar: b, set: setB }} onAddRule={() => {}} /><FilterChips f={{ bar: b, set: setB }} /><output data-testid="p">{barParams(b).join("&")}</output></MemoryRouter>;
   }
   it("both sit after Liquid only with their counts; each shows as a chip and goes in the address", () => {
     render(<F />);
@@ -42,19 +42,13 @@ describe("More filters: Industry ahead and gaining, Peer leaders only (Advanced 
     fireEvent.click(within(chips).getByRole("button", { name: "Remove Peer leaders only" }));
     expect(screen.getByTestId("p").textContent).toBe("sag=1");
   });
-  it("Basic has neither", () => {
-    render(<F basic />);
-    fireEvent.click(screen.getByRole("button", { name: /More filters/ }));
-    expect(screen.queryByRole("checkbox", { name: /Industry ahead/ })).toBeNull();
-    expect(screen.queryByRole("checkbox", { name: /Peer leaders/ })).toBeNull();
-  });
 });
 
 describe("The industry board", () => {
   function B() {
     const [b, setB] = useState<BarFilter>(NO_BAR);
     return <><IndustryBoard board={BOARD} on={b.ind?.slug ?? null} onPick={(c) => setB({ ...b, ind: !c.slug || b.ind?.slug === c.slug ? null : { slug: c.slug, name: c.name } })} />
-      <FilterChips f={{ bar: b, set: setB }} basic={false} /><output data-testid="p">{barParams(b).join("&")}</output><output data-testid="n">{barCount(b)}</output></>;
+      <FilterChips f={{ bar: b, set: setB }} /><output data-testid="p">{barParams(b).join("&")}</output><output data-testid="n">{barCount(b)}</output></>;
   }
   it("one chip per industry with its count, corner and Pulse state; the counts add up to the list; an i explains it", () => {
     render(<B />);

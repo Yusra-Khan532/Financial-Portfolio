@@ -39,9 +39,10 @@ export function restLine(d: EtfPortfolio, ins: Inside) {
   return parts.length ? `The rest: ${parts.join(", ")}.` : "";
 }
 
-/** A stock's reading on the member's plan, from the chips the server sent (FinLit Prism on Gold, FinLit IQ on Silver). */
+/** A stock's FinLit Prism reading, from the chips the server sent; none on a plan without Prism (task #283: any other score the server sends is dropped). */
 export function readingsOf(ins: Inside): (s: string | null) => Reading {
   const m = new Map<string, Reading>();
+  if (ins.scoreModel !== "prism") return () => null;
   for (const cells of Object.values(ins.lookThrough ?? {})) for (const c of Object.values(cells)) for (const st of c.stocks) if (st.symbol && st.score?.score != null) m.set(st.symbol, { word: st.score.label ? st.score.label.charAt(0) + st.score.label.slice(1).toLowerCase() : null, score: st.score.score });
   for (const t of ins.top) if (t.symbol && t.score?.score != null) m.set(t.symbol, { word: t.score.label ? t.score.label.charAt(0) + t.score.label.slice(1).toLowerCase() : null, score: t.score.score });
   return (s) => (s ? m.get(s) ?? null : null);
@@ -65,7 +66,7 @@ export function OwnSection({ d, ins, level, onLevel }: Props & { level: Level; o
   if (miss.length) cards.push({ kind: "insight", title: miss.length === 1 ? "One file is missing" : `${word(miss.length)} files are missing`, text: `${miss.join(" and ")}'s monthly ${miss.length === 1 ? "file is" : "files are"} not loaded yet, so ${miss.length === 1 ? "it is" : "they are"} left out of this grid, not spread over the others.` });
   return (
     <Section id="etp-own" hide title="What your ETFs own: macro sector and size" help="The Indian shares inside your ETFs, added up from each fund house's latest monthly file, by NSE macro sector or sector and company size. Each chip is one company." how="Darker cells hold more of your list. A chip's dot is its reading on your plan; +N more opens the rest of the cell."
-      sub={`The Indian shares inside your ETFs, from each fund house's ${month(ins.asOf)} file. Each chip is one company; its dot shows the ${gold ? "FinLit Prism" : "FinLit IQ"} band.${miss.length ? ` ${miss.join(" and ")}'s file ${miss.length === 1 ? "is" : "are"} not loaded yet.` : ""}`}>
+      sub={`The Indian shares inside your ETFs, from each fund house's ${month(ins.asOf)} file. ${gold ? "Each chip is one company; its dot shows the FinLit Prism band." : "Each chip is one company (names only on this plan; the dots show FinLit Prism, see plans)."}${miss.length ? ` ${miss.join(" and ")}'s file ${miss.length === 1 ? "is" : "are"} not loaded yet.` : ""}`}>
       <LevelSwitch level={level} onLevel={onLevel} sp={sp} />
       {rows.length ? <Scroll label="what your ETFs own"><table className="sp-tb mfm-g">
         <thead><tr><th scope="col">{level === "macro" ? "Macro sector" : "Sector"}</th>{sizes.map((s) => <th key={s} scope="col">{SIZE_HEAD[s][0]}<small>{SIZE_HEAD[s][1]}</small></th>)}<th scope="col" className="r">Of your list</th></tr></thead>
@@ -75,7 +76,7 @@ export function OwnSection({ d, ins, level, onLevel }: Props & { level: Level; o
         <tfoot><tr><th scope="row">All {level === "macro" ? "macro sectors" : "sectors"} · {rows.length}</th>{sizes.map((s) => <td key={s}><b>{p1(colTot(s))}</b> of the list · {p0(colTot(s) / (known || 1))} of the shares</td>)}<td className="r"><b>{p1(known)}</b> in Indian shares</td></tr></tfoot>
       </table></Scroll> : <p className="sp-note">None of your ETFs holds Indian shares with a monthly file loaded.</p>}
       {level === "sector" && rows.length > 8 && <button type="button" className="eq-more mfm-all" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer ▴" : `Show all ${rows.length} sectors ▾`}</button>}
-      <p className="sp-note"><i className="mfm-dot g" /> Strong or Healthy · <i className="mfm-dot m" /> {gold ? "Average" : "Mixed"} · <i className="mfm-dot b" /> {gold ? "Weak" : "Watch"}. Chips: the biggest holdings with a reading; "+N more" lists the rest of that cell. {restLine(d, ins)}</p>
+      <p className="sp-note">{gold && <><i className="mfm-dot g" /> Strong or Healthy · <i className="mfm-dot m" /> Average · <i className="mfm-dot b" /> Weak. </>}Chips: the biggest holdings with a reading; "+N more" lists the rest of that cell. {restLine(d, ins)}</p>
       <Insights items={cards} scope="etf.own" />
     </Section>
   );
@@ -223,16 +224,16 @@ export function InsideSubTabs(p: Props & { level: Level; onLevel: (l: Level) => 
 
 // ------------------------------------------------------------------------------------------------ 7 Largest stocks underneath
 export function LargestSection({ ins }: { ins: Inside }) {
-  const [all, setAll] = useState(false), rows = ins.top, shown = all ? rows : rows.slice(0, 5), gold = ins.scoreModel === "prism", model = gold ? "FinLit Prism" : "FinLit IQ";
+  const [all, setAll] = useState(false), rows = ins.top, shown = all ? rows : rows.slice(0, 5), gold = ins.scoreModel === "prism", model = "FinLit Prism";
   const macroOf = useMemo(() => { const m = new Map<string, string>(); for (const [k, c] of Object.entries(ins.lookThrough?.macro ?? {})) for (const st of c.stocks) if (st.symbol) m.set(st.symbol, k.split("|")[0]); return m; }, [ins]);
   return (
-    <Section id="etp-largest" hide title="Largest stocks underneath" help="The largest Indian holdings across your ETFs: each company's weight inside each ETF times the ETF's share of your list, added up." how={`"Of your ETFs" is that share of your list. The reading is the company's ${model} on your plan.`}
-      sub={`The ${rows.length} largest Indian holdings across your ETFs, with their ${model} reading.`}>
+    <Section id="etp-largest" hide title="Largest stocks underneath" help="The largest Indian holdings across your ETFs: each company's weight inside each ETF times the ETF's share of your list, added up." how={`"Of your ETFs" is that share of your list. The reading is the company's ${model} score, on a plan that has it.`}
+      sub={gold ? `The ${rows.length} largest Indian holdings across your ETFs, with their ${model} reading.` : `The ${rows.length} largest Indian holdings across your ETFs (names only on this plan).`}>
       <Scroll label="largest stocks underneath"><table className="sp-tb mfm-big kit-grid"><thead><tr><th scope="col">Stock</th><th scope="col">Macro sector</th><th scope="col">Size</th><th scope="col" className="r">Of your ETFs</th><th scope="col">Held by</th><th scope="col">{model}</th></tr></thead>
         <tbody>{shown.map((r) => <tr key={r.isin ?? r.name}>
           <th scope="row">{r.symbol ? <Link to={`/stocks/${r.symbol}`} title={coTitle({ symbol: r.symbol, name: r.name })}>{titleOf({ symbol: r.symbol, name: r.name })}</Link> : r.name}<small className="mfp-sub">{r.symbol ? subLine({ symbol: r.symbol, name: r.name }, r.name) : r.name}</small></th><td>{(r.symbol && macroOf.get(r.symbol)) ?? r.industry ?? "–"}</td><td>{r.size ? <span className="mfm-sz">{r.size[0]}</span> : "–"}</td>
           <td className="r">{r.w.toFixed(2)}%</td><td><span className="mfm-held">{r.etfs.map((s) => <span key={s}>{s}</span>)}</span></td>
-          <td>{r.score?.score != null ? <span className="mff-score"><b className={"mff-num " + tone(r.score.label)}>{Math.round(r.score.score)}</b> <span className={"mff-w " + tone(r.score.label)}>{r.score.label ? r.score.label.charAt(0) + r.score.label.slice(1).toLowerCase() : ""}</span></span> : <span className="sp-note">{r.scoreWhy ?? "Not rated"}</span>}</td></tr>)}</tbody></table></Scroll>
+          <td>{!gold ? <Link to="/plans" className="mfm-lock">FinLit Prism · see plans</Link> : r.score?.score != null ? <span className="mff-score"><b className={"mff-num " + tone(r.score.label)}>{Math.round(r.score.score)}</b> <span className={"mff-w " + tone(r.score.label)}>{r.score.label ? r.score.label.charAt(0) + r.score.label.slice(1).toLowerCase() : ""}</span></span> : <span className="sp-note">{r.scoreWhy ?? "Not rated"}</span>}</td></tr>)}</tbody></table></Scroll>
       {rows.length > 5 && <button type="button" className="eq-more" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer ▴" : `Show all ${rows.length} ▾`}</button>}
     </Section>
   );

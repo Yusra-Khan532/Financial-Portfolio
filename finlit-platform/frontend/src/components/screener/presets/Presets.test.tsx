@@ -105,11 +105,19 @@ describe("screen view", () => {
     expect(screen.getByText("86 match")).toBeTruthy();
     expect(screen.getByText("showing 3")).toBeTruthy();
     expect(screen.getByText(/as of 31 Oct 2026/)).toBeTruthy();
+    expect(screen.queryByText(/price and day change: latest/)).toBeNull();          // task #269: said only when the prices are newer than the list
     expect(screen.getByRole("button", { name: "How this screen works ▾" })).toBeTruthy();      // task #243 (P2): in the header, opens the rules
     expect(screen.getByText("A screen narrows a list. It is not a recommendation.")).toBeTruthy();
     expect(screen.getByText("Prism-confirmed")).toBeTruthy();
     expect(screen.getAllByRole("link", { name: /AAA/ })[0].getAttribute("href")).toBe("/stocks/AAA");   // the company, then its report
     expect(within(rowOf("BBB")).getAllByLabelText("not available").length).toBe(1);   // a missing value is a dash, not 0
+  });
+  it("a screen whose prices are newer than its list says so: the list's date, and the prices' day (task #269)", async () => {
+    detail.large = [200, { ...DETAIL, priceDay: "2026-11-02" }];
+    mount("?preset=large");
+    await screen.findByRole("table");
+    expect(screen.getByText(/as of 31 Oct 2026/)).toBeTruthy();
+    expect(screen.getByText("price and day change: latest, 2 Nov 2026")).toBeTruthy();
   });
   it("sorts the shown rows client-side, missing values last", async () => {
     mount("?preset=large");
@@ -231,16 +239,6 @@ describe("redesign: list text, notes, theme figures and the Basic tab", () => {
     expect(card.textContent).toMatch(/Near the high.*52%.*market 31%/);
     expect(screen.getByText("Breadth is 38%, below the 40% needed.")).toBeTruthy();
     expect(screen.queryByText("B50")).toBeNull();
-  });
-  it("a Basic-tab screen asks for Silver, not Gold, when the plan is short", async () => {
-    detail.large = [403, { detail: { status: "plan_required" } }];
-    st.plan = "basic";
-    const Basic = () => { const r = usePresetRoute("basic"); return r.id ? <PresetPage route={r} /> : <PresetPanel route={r} />; };
-    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={["/score-screener?preset=large"]}><Basic /></MemoryRouter></QueryClientProvider>);
-    expect(await screen.findByRole("heading", { name: /This screen is part of Silver/ })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /Unlock with Silver/ }));
-    expect(st.upgrade).toHaveBeenCalledWith("silver", expect.any(String));
-    expect(screen.queryByText("Prism basics")).toBeNull();
   });
 });
 

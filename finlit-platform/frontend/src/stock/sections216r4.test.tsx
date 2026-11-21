@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import { splitTitle, earningsItems } from "./EarningsCash";
 import { dedupe } from "./KeyFindings";
 import { reportFaqFor } from "../content/reportFaqPlan";
+import { PAGE_FAQS } from "../content/pageFaqs";
 import { groupWord } from "../lib/standsPack";
 import { macroWindow, macroSummary, type HistoryPoint } from "../lib/macroOutlook";
 
@@ -45,14 +46,13 @@ describe("03 Key findings (README 3.3)", () => {
   });
 });
 
-describe("20 the report FAQ follows the plan (README 3.20)", () => {
-  const items = [{ q: "What does the FinLit IQ at the top mean?", a: "IQ" }, { q: "What is in a report?", a: "The FinLit Prism score and how it has moved, then …" }];
-  it("Gold and Platinum get the Prism question; Silver keeps the FinLit IQ one and its report list starts with the FinLit IQ", () => {
-    expect(reportFaqFor(items, "prism")[0].q).toBe("What does the FinLit Prism score at the top mean?");
-    expect(reportFaqFor(items, "prism")[0].a).not.toMatch(/\b(buy|sell|hold|target|avoid)\b/i);
-    expect(reportFaqFor(items, "iq")[0].q).toBe("What does the FinLit IQ at the top mean?");
-    expect(reportFaqFor(items, "iq")[1].a).toBe("The FinLit IQ, then …");
-    expect(reportFaqFor(items, null)).toEqual(items);
+describe("20 the report FAQ (README 3.20; task #283: the same FinLit Prism question for every plan)", () => {
+  it("the company report's questions ask about FinLit Prism for every plan, without advice words", () => {
+    const items = PAGE_FAQS.find((f) => f.id === "company-report")!.items;
+    const q = items.find((i) => i.q === "What does the FinLit Prism score at the top mean?")!;
+    expect(q.a).not.toMatch(/\b(buy|sell|hold|target|avoid)\b/i);
+    expect(reportFaqFor(items, "prism")).toEqual(items); expect(reportFaqFor(items, null)).toEqual(items);
+    expect(JSON.stringify(items)).not.toMatch(/\bIQ\b/);
   });
 });
 
@@ -104,7 +104,7 @@ describe("14 Where it stands (README 3.14)", () => {
     const s = src("pack/WhereStands.tsx");
     expect(s).toContain("<HeadToHead name={name} symbol={symbol} lead={lead} />");
     expect(s).toContain("The full ranking table, with each company's label, is in");
-    expect(s).toContain('model === "prism" ? "Prism is the FinLit Prism score, 0 to 100." : "Score is the FinLit IQ, 0 to 100."');
+    expect(s).toContain('{model && <p className="sp-note">Prism is the FinLit Prism score, 0 to 100.</p>}');   // task #283: no score column without Prism
     expect(css).toMatch(/\.ws-h2h \.ws-six-s \.dot\.me \{/);
     expect(css).toMatch(/@media \(max-width: 760px\) \{ \.ws \.ws-reads \{ grid-template-columns: minmax\(0, 1fr\); \} \}/);
   });

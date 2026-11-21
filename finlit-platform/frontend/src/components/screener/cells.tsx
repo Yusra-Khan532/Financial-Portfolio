@@ -1,18 +1,12 @@
-// Table cells shared by the two score screeners. A missing figure says why (a dash or a lock, with the reason in words), never zero.
+// Table cells of the Advanced stock screener. A missing figure says why (a dash or a lock, with the reason in words), never zero.
 import { Link } from "react-router";
 import { Icon } from "../../lib/icons";
 import { MINUS, nf } from "../../lib/format";
 import { asOfText } from "../../lib/scoreBands";
-import { level, missingReason, ratingOfScore, trendWord, type Item, type PILLARS } from "../../lib/scoreScreen";
+import { ratingOfScore, trendWord, type Item } from "../../lib/scoreScreen";
 import { scoreBand } from "../../lib/scoreBands";
 import { LABEL_WORD, PRISM_STATUS_WORD, hasPrism, prismCell, prismReason } from "../../lib/scorePrism";
 
-export const Score = ({ r, k, locked }: { r: Item; k: "f" | "t" | "overall" | (typeof PILLARS)[number]["col"]; locked: boolean }) => {
-  const v = k === "f" ? r.f : k === "t" ? r.t : r[k];
-  if (v != null) return <span className={"ssp " + level(v)}>{v}</span>;
-  const why = missingReason(r, k, locked);
-  return <span className="ssp na" title={why}>{locked ? <Icon name="lock" /> : <>{MINUS}<small className="ss-why">{r.scored === false ? "Not scored yet" : k === "f" ? "Too little data" : "No data"}</small></>}<span className="sr">Not available: {why}</span></span>;
-};
 /** The Prism rating: the score with its rating word under it, in the rating's colour (task #258, SPEC §4; the word follows the score: Strong 80+, Healthy 65-79,
  *  Average 50-64, Weak 35-49, Poor below 35); a company without one says why and (Gold) links to its Prism page, which starts the calculation. */
 export const PrismScore = ({ r, gold }: { r: Item; gold: boolean }) => {

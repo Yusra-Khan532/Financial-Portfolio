@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { HScroll } from "../components/HScroll";
 import { nf } from "../lib/format";
-import { MODEL_NAME, betaTxt, betaWindowTxt, chg, joinWords, pctOf, rupees, type AllInvestments, type Kind } from "../lib/myInvest";
+import { SCORE_NAME, betaTxt, betaWindowTxt, chg, joinWords, pctOf, rupees, type AllInvestments, type Kind } from "../lib/myInvest";
 import { GoLink, Notes, ScoreWord, SecHead, ShowAll, Stack, type Note } from "./parts";
 import { coTitle, subLine, titleOf } from "../lib/companyLabel";
 import { KeyFiguresSection } from "./KeyFigures277";
@@ -23,11 +23,11 @@ function KindRisk({ d, kind, id, n, extra }: { d: AllInvestments; kind: Kind; id
   const name = { shares: "your shares", funds: "your funds", etfs: "your ETFs" }[kind];
   return (
     <section className="card mi-step">
-      <SecHead id={id} n={n} title={`How risky ${name} are`} line={kind === "shares" ? "The Equity portfolio's own figures against the Nifty 500, from weekly prices." : "Daily NAVs and prices over three years, against the Nifty 500, as on the portfolio page."}
+      <SecHead id={id} n={n} title={`How risky ${name} are`} line={kind === "shares" ? `Beta: weekly, past year, against the Nifty 500. Swing and worst fall: weekly prices${x?.years ? ` over the past ${x.years} years` : ""}, beside the Nifty 500 over the same weeks.` : "Beta: weekly, past year, against the Nifty 500, as on the portfolio page. Swing and worst fall: daily NAVs and prices over three years."}
         info={[`How ${name} have moved with the market: beta, the yearly swing and the worst fall from a high.`, "Beta above 1 moved more than the Nifty 500, below 1 less. Past moves only."]} />
       <div className="mi-three">
-        <article className="mi-hc"><p className="mi-cap">Beta vs Nifty 500</p><p className="mi-hv"><b>{betaTxt(x?.beta)}</b>{p?.band ? <span className="mi-chip">{p.band}</span> : null}</p><p className="mi-small">{x?.beta == null ? x?.why ?? "No figure yet." : <>{betaWindowTxt(x.betaWindow)}. The same figure as the {kind === "shares" ? "Equity" : kind === "funds" ? "MF" : "ETF"} portfolio page{x.cover != null && x.cover < 100 ? ` (${pctOf(x.cover, 0)} of them have a year of prices)` : ""}.</>}</p></article>
-        <article className="mi-hc"><p className="mi-cap">Swing a year</p><p className="mi-hv"><b>{pctOf(x?.swing)}</b></p><p className="mi-small">{kind === "shares" ? `Nifty 500: ${pctOf(x?.benchSwing)}` : `Nifty 500: ${pctOf(b?.swing)}`}. Worst fall from a high: <b className="mi-down">{pctOf(x?.worstFall)}</b>{kind === "shares" ? ` (Nifty 500 ${pctOf(x?.benchWorstFall)})` : ` (Nifty 500 ${pctOf(b?.worstFall)})`}.</p></article>
+        <article className="mi-hc"><p className="mi-cap">Beta vs Nifty 500</p><p className="mi-hv"><b>{betaTxt(x?.beta)}</b>{p?.band ? <span className="mi-chip">{p.band}</span> : null}</p><p className="mi-small">{x?.beta == null ? x?.why ?? "No figure yet." : <>{betaWindowTxt(x.betaWindow)}. {kind === "shares" ? "Against the Nifty 500, like the fund and ETF pages; the Equity portfolio's Risk analytics measures each share against the Nifty 50 and its own size index, so its figures differ." : `The same figure as the ${kind === "funds" ? "MF" : "ETF"} portfolio page.`}{x.cover != null && x.cover < 100 ? ` (${pctOf(x.cover, 0)} of them have a year of prices)` : ""}</>}</p></article>
+        <article className="mi-hc"><p className="mi-cap">Swing a year</p><p className="mi-hv"><b>{pctOf(x?.swing)}</b></p><p className="mi-small">{kind === "shares" ? `Nifty 500, same weeks: ${pctOf(x?.benchSwing)}` : `Nifty 500, daily over three years: ${pctOf(b?.swing)}`}. Worst fall from a high: <b className="mi-down">{pctOf(x?.worstFall)}</b>{kind === "shares" ? ` (Nifty 500 ${pctOf(x?.benchWorstFall)})` : ` (Nifty 500 ${pctOf(b?.worstFall)})`}.</p></article>
         <article className="mi-hc"><p className="mi-cap">Part of all market risk</p><p className="mi-hv"><b className={p?.red ? "mi-down" : ""}>{pctOf(p?.riskShare)}</b></p><p className="mi-small">On {pctOf(p?.money)} of the money{d.byValue ? "" : " (each kind counts the same until you add quantities)"}.</p></article>
       </div>
       {extra}
@@ -38,7 +38,7 @@ function KindRisk({ d, kind, id, n, extra }: { d: AllInvestments; kind: Kind; id
 // ------------------------------------------------------------------------------------------------ Equity
 export function EquityTab({ d }: { d: AllInvestments }) {
   const [all, setAll] = useState(false);
-  const s = d.shares, model = MODEL_NAME[d.plan === "gold" ? "prism" : "iq"], peers = d.cards.shares.peers ?? {};
+  const s = d.shares, model = SCORE_NAME, scored = d.plan === "gold", peers = d.cards.shares.peers ?? {};
   const byMacro = Object.entries(s.reduce<Record<string, number>>((a, x) => { a[x.macro] = (a[x.macro] ?? 0) + 1; return a; }, {})).sort((a, b) => b[1] - a[1]);
   const also = s.filter((x) => x.alsoIn);
   const risky = [...s].filter((x) => x.beta != null).sort((a, b) => (b.beta! * b.of) - (a.beta! * a.of)).slice(0, 5);
@@ -51,12 +51,12 @@ export function EquityTab({ d }: { d: AllInvestments }) {
   return (
     <>
       <section className="card mi-step">
-        <SecHead id="mi-eq-list" n={1} title="Your shares" line={`${s.length} shares from your Equity portfolio, read with ${model}.`} info={["Each share on your Equity portfolio with its score, peers, moves and part of everything.", "Of everything is the share's direct part only; step 4 of All together adds what your funds and ETFs hold."]} />
+        <SecHead id="mi-eq-list" n={1} title="Your shares" line={scored ? `${s.length} shares from your Equity portfolio, read with ${model}.` : `${s.length} shares from your Equity portfolio. ${model} · see plans.`} info={["Each share on your Equity portfolio with its score, peers, moves and part of everything.", "Of everything is the share's direct part only; step 4 of All together adds what your funds and ETFs hold."]} />
         <HScroll label="Your shares" className="mi-freeze">
           <table className="mi-tb">
-            <thead><tr><th scope="col">Share</th><th scope="col">Macro sector</th><th scope="col">Size</th><th scope="col">{model}</th><th scope="col">Against peers</th><th scope="col" className="r">1 day</th><th scope="col" className="r">1 year</th>{d.byValue && <th scope="col" className="r">Value</th>}<th scope="col" className="r">Of everything</th></tr></thead>
+            <thead><tr><th scope="col">Share</th><th scope="col">Macro sector</th><th scope="col">Size</th>{scored && <th scope="col">{model}</th>}<th scope="col">Against peers</th><th scope="col" className="r">1 day</th><th scope="col" className="r">1 year</th>{d.byValue && <th scope="col" className="r">Value</th>}<th scope="col" className="r">Of everything</th></tr></thead>
             <tbody>{shown.map((x) => <tr key={x.symbol}><th scope="row"><Link to={`/stocks/${encodeURIComponent(x.symbol)}`}><b title={coTitle(x)}>{titleOf(x)}</b></Link><small>{subLine(x, x.name)}</small>{x.alsoIn && <span className="mi-tag">Also in funds/ETFs</span>}</th>
-              <td>{x.macro}</td><td>{x.size ?? <span className="mi-muted">Not sized</span>}</td><td><ScoreWord v={x.score} label={x.label} /></td><td><span className={"mi-peer p-" + x.peer.replace(/\s/g, "").toLowerCase()}>{x.peer}</span></td>
+              <td>{x.macro}</td><td>{x.size ?? <span className="mi-muted">Not sized</span>}</td>{scored && <td><ScoreWord v={x.score} label={x.label} /></td>}<td><span className={"mi-peer p-" + x.peer.replace(/\s/g, "").toLowerCase()}>{x.peer}</span></td>
               <td className={"r " + tone(x.chg1d)}>{chg(x.chg1d, 2)}</td><td className={"r " + tone(x.chg1y)}>{chg(x.chg1y)}</td>{d.byValue && <td className="r">{x.value != null ? rupees(x.value) : "—"}</td>}<td className="r">{pctOf(x.of, 2)}</td></tr>)}</tbody>
           </table>
         </HScroll>
@@ -122,7 +122,8 @@ export function MfTab({ d }: { d: AllInvestments }) {
 /** What sits inside a kind: one split bar per fund or ETF (marked when its file is not loaded), and the stocks inside. */
 function Inside({ d, kind, id, title }: { d: AllInvestments; kind: "funds" | "etfs"; id: string; title: string }) {
   const each = d.madeOf.each.filter((x) => x.kind === kind);
-  const inside = d.companies.filter((c) => (kind === "funds" ? c.funds : c.etfs) > 0);
+  // QA of 21 Nov (item 8): largest first by this kind's own share (the list comes sorted by the share of everything, which mixed the order here)
+  const inside = d.companies.filter((c) => (kind === "funds" ? c.funds : c.etfs) > 0).sort((a, b) => (kind === "funds" ? b.funds - a.funds : b.etfs - a.etfs));
   const shared = inside.filter((c) => c.via.filter((v) => (kind === "funds" ? d.funds.some((f) => f.short === v) : d.etfs.some((e) => e.symbol === v))).length > 1);
   return (
     <section className="card mi-step">

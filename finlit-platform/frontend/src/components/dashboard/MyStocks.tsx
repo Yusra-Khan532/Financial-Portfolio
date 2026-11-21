@@ -1,6 +1,6 @@
 // Block 1, Your investments today: the shares held, the mutual funds, the ETFs and the watchlist under All / Watchlist / Shares / Mutual funds / ETFs; task #195 (dashboard pack
 // of 15 Nov 2026): four rows, the biggest moves of the last trading day first, then "Show all N" / "Show fewer". "What your stocks say" (Signals, below) is its own block.
-// Each row: size, price, the day's move, FinLit IQ (Prism for Gold), vs its peers, latest quarter against a year earlier, and any alert. Descriptive only.
+// Each row: size, price, the day's move, FinLit Prism (a locked pill on a plan without it), vs its peers, latest quarter against a year earlier, and any alert. Descriptive only.
 import { scoreView, usePlanModel, usePlanPrism, type ScoreView } from "../../lib/planScore";
 import { useMemo, useState } from "react";
 import { CoLogo } from "../CoLogo";
@@ -14,7 +14,8 @@ import { Tip } from "../sectors/pack/Common";
 import { SignalCards } from "./Signals";
 import { apiGet, useQuotesFor, type Financials } from "../../lib/api";
 import { useAlerts } from "../../lib/alerts";
-import { quoteMap, BAND_LABEL } from "../../lib/globalSearch";
+import { quoteMap } from "../../lib/globalSearch";
+import { PLAN_FOR_PORTFOLIO } from "../../lib/planGates";
 import { MINUS, nf } from "../../lib/format";
 import { dayMonth, quarterEndLabel, yoyLabel } from "../../lib/dashboard";
 import { Card, Rows, ShowMoreButton, tone, useShowMore } from "./parts";
@@ -31,16 +32,15 @@ const INV_LIMIT = 4;
 const LIST_ID = "dsh-mystocks-list";
 const pct = (v: number | null | undefined, d = 1) => (v == null ? "—" : (v > 0 ? "+" : v < 0 ? MINUS : "") + nf(v, d) + "%");
 
-/** Gold: the Prism score and its word (task #100). Its colour uses the same pill classes: green 70+, orange 50-69, red under 50. */
+/** Plans with Prism: the Prism score and its word (task #283: FinLit's only company score). Its colour uses the same pill classes: green 70+, orange 50-69, red under 50. */
 function PrismPill({ v }: { v: ScoreView }) {
   if (v.pending) return <i className="skeleton sk-p" />;
   if (v.score == null) return <span className="dsh-pill none" title={v.why ?? "Not rated yet"}>{v.word === "Not rated" ? "Not rated" : "Not rated yet"}</span>;
   return <span className={"dsh-pill " + (v.band === "hi" ? "strong" : v.band === "mid" ? "mixed" : "watch")} title={`FinLit Prism ${v.score} out of 100`}>{v.score} · {v.word}</span>;
 }
-function Pill({ score, band }: { score: number | null; band: string | null }) {
-  if (band === "locked") return <span className="dsh-pill none" title="The FinLit IQ is part of the Silver plan">Silver</span>;
-  if (score == null || !band) return <span className="dsh-pill none" title="Not scored yet">—</span>;
-  return <span className={"dsh-pill " + band}>{Math.round(score)} · {BAND_LABEL[band] ?? band}</span>;
+/** Plans without Prism: a locked pill that says where the score is. */
+function LockPill() {
+  return <Link className="dsh-pill none" to="/plans" title="FinLit Prism, FinLit's only company score, comes with a plan that has it. See plans.">See plans</Link>;
 }
 
 /** The three lists: everything followed, the watchlist part and the portfolio part (a share can be in both). */
@@ -95,11 +95,11 @@ export function MyStocks({ followed, loading, watch = new Set(), held = new Set(
   const { has } = useUI();
   const lists = useMemo(() => stockLists(followed, watch, held), [followed, watch, held]);
   // task #135: the member's mutual funds (MF portfolio, Silver and up) with each fund's last NAV move from its own page's answer (cached, shared)
-  const mfq = useMfPortfolio(has("silver"), mfPf);
+  const mfq = useMfPortfolio(has(PLAN_FOR_PORTFOLIO), mfPf);
   const funds = mfq.data?.holdings ?? [];
   const fundDetail = useQueries({ queries: funds.map((h) => ({ queryKey: ["mf", "detail", h.code], queryFn: () => apiGet<FundDetail>(`/api/mf/${h.code}`), staleTime: 300_000, retry: false })) });
   // task #223 (D1): the member's ETFs from the ETF portfolio (Silver and up), the same answer the ETF page and "Your ETFs at a glance" read
-  const etfq = useEtfPortfolio(has("silver"), etfPf);
+  const etfq = useEtfPortfolio(has(PLAN_FOR_PORTFOLIO), etfPf);
   const etfItems = etfq.data?.items ?? [];
   const allSyms = followed.map((f) => f.symbol);
   // the cards count every followed stock, so prices, results and peer labels are read for all of them (each call is cached and shared with the rows)
@@ -113,7 +113,7 @@ export function MyStocks({ followed, loading, watch = new Set(), held = new Set(
   const more = useShowMore(list, LIMIT, tab), invMore = useShowMore(invList, INV_LIMIT, tab);
   const shown = more.visible, invShown = tab === "etf" ? invList : invMore.visible;   // task #223: the ETFs chip lists every ETF (it has no Show all)
   const syms = isStockTab ? shown.map((f) => f.symbol) : invShown.filter((r) => r.symbol).map((r) => r.symbol as string);
-  const model = usePlanModel(), pm = usePlanPrism(syms, model);   // task #100: Gold sees FinLit Prism, Silver the FinLit IQ
+  const model = usePlanModel(), pm = usePlanPrism(syms, model);   // task #283: FinLit Prism for plans that have it, a locked pill otherwise
   const finsAll = useQueries({ queries: allSyms.map((s) => ({ queryKey: ["stock", s, "/financials"], queryFn: () => apiGet<Financials>(`/api/stocks/${s}/financials`), staleTime: 60_000, retry: false })) });
   const leads = useQueries({ queries: allSyms.map((s) => ({ queryKey: ["leadership", s], queryFn: () => apiGet<Leadership>(`/api/stocks/${encodeURIComponent(s)}/leadership`), staleTime: 15 * 60_000, retry: false })) });
   const finOf = new Map(allSyms.map((s, i) => [s, finsAll[i]])), leadOf = new Map(allSyms.map((s, i) => [s, leads[i]]));
@@ -144,14 +144,13 @@ export function MyStocks({ followed, loading, watch = new Set(), held = new Set(
   const reading = (r: InvRow) => {
     if (r.kind === "mf") { const h = healthText(r.health); return <span className={"dsh-pill dsh-hs " + h.band} title={h.title}>{h.text}</span>; }
     if (r.kind === "etf") return <span className="dsh-navt" title="The last close on the NSE against AMFI's NAV of the same day">{navText(r.premium)}</span>;
-    const q = qm.get(r.symbol!);
-    return quotes.isLoading ? <i className="skeleton sk-p" /> : model === "prism" ? <PrismPill v={scoreView("prism", { score: null }, pm[r.symbol!])} /> : <Pill score={q?.score ?? null} band={q?.band ?? null} />;
+    return quotes.isLoading ? <i className="skeleton sk-p" /> : model === "prism" ? <PrismPill v={scoreView(pm[r.symbol!])} /> : <LockPill />;
   };
   return (
     <>
     <Card id="mystocks" title="Your investments today" sub={sub} right={right} className="dsh-ys">
       {loading ? <Rows n={3} h={56} /> : !any ? (
-        <div className="dsh-empty"><b>Follow stocks or add your funds to see them here every day</b><p>Price, today's move, {model === "prism" ? "FinLit Prism" : "FinLit IQ"} and latest results for each stock you follow; NAV and Mutual Fund Score for your mutual funds.</p>
+        <div className="dsh-empty"><b>Follow stocks or add your funds to see them here every day</b><p>Price, today's move, FinLit Prism and latest results for each stock you follow; NAV and Mutual Fund Score for your mutual funds.</p>
           <button type="button" className="dsh-search" onClick={() => dispatchEvent(new Event("finlit:open-search"))}>Find a stock to follow</button></div>
       ) : isStockTab ? (!list.length ? (
         tab === "portfolio"
@@ -162,7 +161,7 @@ export function MyStocks({ followed, loading, watch = new Set(), held = new Set(
         <div className="dsh-st" role="table" id={LIST_ID} aria-label={tab === "portfolio" ? "Stocks in your portfolio" : tab === "watchlist" ? "Stocks on your watchlist" : "Stocks you follow and hold"}>
           <div className="dsh-st-h" role="row"><span role="columnheader">Stock</span><span role="columnheader">Size<Tip text={`FinLit's size scale: ${SIZE_RULE_TEXT}.`} /></span><span role="columnheader" className="r">Price</span>
             <span role="columnheader" className="r">{day}<Tip text={day === "Today" ? "The share price move today." : `The share price move on ${day}, the latest trading day.`} /></span>
-            <span role="columnheader">{model === "prism" ? "FinLit Prism" : "FinLit IQ"}<Tip text={model === "prism" ? "FinLit Prism rates each company's financial health from 0 to 100." : "FinLit IQ rates each company's financial health from 0 to 100."} /></span>
+            <span role="columnheader">FinLit Prism<Tip text="FinLit Prism rates each company's financial health from 0 to 100." /></span>
             <span role="columnheader">Vs its peers<Tip text="Leader, In line or Laggard: the share price over the last year against similar companies and the sector index, with its place among them. It describes the past, not the future." /></span>
             <span role="columnheader" className="r">Revenue YoY<Tip text="The latest quarter's revenue against the same quarter a year earlier." /></span><span role="columnheader" className="r">Profit YoY<Tip text="The latest quarter's net profit against the same quarter a year earlier." /></span><span role="columnheader" className="r">Alert</span></div>
           {shown.map((f, i) => {
@@ -177,7 +176,7 @@ export function MyStocks({ followed, loading, watch = new Set(), held = new Set(
                 <div className="sz" role="cell">{sizeOf(f.symbol) ?? "–"}</div>
                 <div className="dsh-pr r" role="cell">{quotes.isLoading ? <i className="skeleton sk-n" /> : q?.price != null ? "₹" + nf(q.price) : <span title="No traded price held yet">—</span>}</div>
                 <div className={"ch r " + tone(q?.chg)} role="cell">{quotes.isLoading ? <i className="skeleton sk-n" /> : pct(q?.chg, 2)}</div>
-                <div className="dsh-st-x">{sizeOf(f.symbol) && <span className="szm">{sizeOf(f.symbol)}</span>}<div className="sc" role="cell">{quotes.isLoading ? <i className="skeleton sk-p" /> : model === "prism" ? <PrismPill v={scoreView("prism", { score: null }, pm[f.symbol])} /> : <Pill score={q?.score ?? null} band={q?.band ?? null} />}</div>
+                <div className="dsh-st-x">{sizeOf(f.symbol) && <span className="szm">{sizeOf(f.symbol)}</span>}<div className="sc" role="cell">{quotes.isLoading ? <i className="skeleton sk-p" /> : model === "prism" ? <PrismPill v={scoreView(pm[f.symbol])} /> : <LockPill />}</div>
                 <div className="pr" role="cell">{(() => { const l = leadOf.get(f.symbol); if (l?.isLoading) return <i className="skeleton sk-p" />; const d = l?.data; if (!d) return <span className="dsh-na">—</span>; if (!d.available) return <span className="dsh-na" title={d.display?.line ?? "Not ranked among its peers"}>Not ranked</span>;
                   return <span className="dsh-peer"><span className={"dsh-pl " + d.label}>{PEER_WORD[d.label]}</span><small>{d.rank} of {d.peerGroup.ranked} peers</small></span>; })()}</div>
                 <div className={"yy r " + tone(rev?.tone === "up" ? 1 : rev?.tone === "down" ? -1 : 0)} role="cell" title={reasonRev}><b className="lbl">Revenue </b>{fin.isLoading ? <i className="skeleton sk-n" /> : rev?.text ?? pct(rev?.pct)}</div>
@@ -188,10 +187,10 @@ export function MyStocks({ followed, loading, watch = new Set(), held = new Set(
           })}
         </div>
       )) : !invList.length ? (
-        tab === "mf" ? (has("silver")
+        tab === "mf" ? (has(PLAN_FOR_PORTFOLIO)
           ? <div className="dsh-empty"><b>No mutual funds added yet</b><p>Add your mutual funds to see their NAV and Mutual Fund Score here.</p><Link className="dsh-btn" to="/mf-portfolio">Add a fund</Link></div>
           : <div className="dsh-empty"><b>Track your mutual funds</b><p>The MF portfolio is part of Silver: add your funds to see their NAV here, and their Mutual Fund Score on Gold.</p><Link className="dsh-btn" to="/plans">See plans</Link></div>)
-        : has("silver")
+        : has(PLAN_FOR_PORTFOLIO)
           ? <div className="dsh-empty"><b>No ETFs added yet</b><p>Add the ETFs you hold on the ETF portfolio page to see their price, today's move and their price against NAV here.</p><Link className="dsh-btn" to="/etf-portfolio">Add your ETFs</Link></div>
           : <div className="dsh-empty"><b>Track your ETFs</b><p>The ETF portfolio is part of Silver: add your ETFs to see their price against NAV here. Every ETF on the NSE is on the ETFs page.</p><Link className="dsh-btn" to="/etfs">See ETFs</Link></div>
       ) : (
@@ -199,7 +198,7 @@ export function MyStocks({ followed, loading, watch = new Set(), held = new Set(
           <div className="dsh-st-h" role="row"><span role="columnheader">Name</span><span role="columnheader">Type</span><span role="columnheader" className="r">Price or NAV</span>
             <span role="columnheader" className="r">{day}<Tip text={`The change on ${day === "Today" ? "today's" : `${day}'s`} session: the share price, or the fund's NAV against its previous NAV.`} /></span>
             <span role="columnheader" className="r">1 year<Tip text="The price or NAV change over the last year. Dividends are not included for shares and ETFs." /></span>
-            <span role="columnheader">FinLit reading<Tip text={`Shares: ${model === "prism" ? "FinLit Prism" : "FinLit IQ"}. Mutual funds: Mutual Fund Score (Gold). ETFs: the last price against the NAV.`} /></span><span role="columnheader" className="r">Alert</span></div>
+            <span role="columnheader">FinLit reading<Tip text={`Shares: FinLit Prism. Mutual funds: Mutual Fund Score (Gold). ETFs: the last price against the NAV.`} /></span><span role="columnheader" className="r">Alert</span></div>
           {invShown.map((r) => {
             const mine = r.symbol ? alerts.filter((a) => a.symbol === r.symbol && a.status !== "done") : [];
             return (

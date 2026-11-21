@@ -35,7 +35,6 @@ const PremiumReportPage = lazy(() => import("./pages/PremiumReport").then((m) =>
 const PrismPage = lazy(() => import("./pages/Prism").then((m) => ({ default: m.PrismPage })));
 const QueryBuilder = lazy(() => import("./pages/QueryBuilder").then((m) => ({ default: m.QueryBuilder })));
 const BasketsPage = lazy(() => import("./pages/Baskets").then((m) => ({ default: m.BasketsPage })));
-const ScoreScreener = lazy(() => import("./pages/ScoreScreener").then((m) => ({ default: m.ScoreScreener })));
 const AdvancedScoreScreener = lazy(() => import("./pages/AdvancedScoreScreener").then((m) => ({ default: m.AdvancedScoreScreener })));
 const Compare = lazy(() => import("./pages/Compare").then((m) => ({ default: m.Compare })));
 const GraphStudio = lazy(() => import("./pages/GraphStudio").then((m) => ({ default: m.GraphStudio })));
@@ -70,6 +69,7 @@ const Account = lazy(() => import("./pages/Account").then((m) => ({ default: m.A
 const Dashboard = lazy(() => import("./pages/Dashboard").then((m) => ({ default: m.Dashboard })));
 const Console = lazy(() => import("./pages/Console").then((m) => ({ default: m.Console })));
 const IpoPage = lazy(() => import("./pages/Ipo").then((m) => ({ default: m.IpoPage })));
+const ConcallMonitorPage = lazy(() => import("./pages/ConcallMonitor").then((m) => ({ default: m.ConcallMonitorPage })));
 const ResultsPage = lazy(() => import("./pages/Results").then((m) => ({ default: m.ResultsPage })));
 const QuarterResultsPage = lazy(() => import("./pages/QuarterResults").then((m) => ({ default: m.QuarterResultsPage })));
 const NewsPage = lazy(() => import("./pages/News").then((m) => ({ default: m.NewsPage })));
@@ -109,7 +109,8 @@ export default function App() {
             <Route path="screener" element={<Screener />} />
             <Route path="query-builder" element={<QueryBuilder />} />
             <Route path="baskets" element={<BasketsPage />} />
-            <Route path="score-screener" element={<ScoreScreener />} />
+            {/* task #283: the Basic stock screener is retired with its score; an old link (any query string) opens the Advanced stock screener. The server answers 301 too (finlit/seo.py REDIRECTS). */}
+            <Route path="score-screener" element={<Navigate to="/advanced-score-screener" replace />} />
             <Route path="advanced-score-screener" element={<AdvancedScoreScreener />} />
             <Route path="premium" element={<PremiumHub />} />
             <Route path="premium/markets" element={<MarketsPage />} />
@@ -156,6 +157,7 @@ export default function App() {
             <Route path="alerts" element={<AlertsPage />} />
             <Route path="forum/*" element={<ForumPage />} />
             <Route path="ipo" element={<IpoPage />} />
+            <Route path="concalls" element={<ConcallMonitorPage />} />
             <Route path="macro" element={<MacroPage />} />
             <Route path="sectors" element={<SectorPulsePage />} />
             <Route path="sectors/rotation" element={<SectorRotationPage />} />

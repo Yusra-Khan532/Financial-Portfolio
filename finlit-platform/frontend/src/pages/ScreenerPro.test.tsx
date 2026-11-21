@@ -26,7 +26,8 @@ const STD = ["price", "market_cap", "pe", "roe", "roce", "sales_cagr_3y", "debt_
 const wide = (c: Catalog): Catalog => ({ ...c, standardColumns: STD });   // a catalogue whose table opens with many columns (the tests of cells, colours and the column menu)
 const catalog = (lockSilver = false, plan: "basic" | "silver" | "gold" = lockSilver ? "basic" : "silver"): Catalog => ({
   plan, total: 5813, withReport: 5000, updatedAt: "2026-10-30T00:00:00Z", sectors: [], industries: [], indices: [], caps: [{ name: "Large", n: 204 }, { name: "Mid", n: 386 }, { name: "Small", n: 5244 }],
-  bands: ["strong", "healthy", "mixed", "watch"].map((k) => ({ key: k, label: k[0].toUpperCase() + k.slice(1), locked: plan !== "gold", n: 10 })), limits: { rows: null, export: true },
+  // task #283: FinLit Prism's words only; below Gold they come locked (the server sends no count and no score group)
+  bands: ["strong", "healthy", "average", "weak", "poor"].map((k) => ({ key: k, label: k[0].toUpperCase() + k.slice(1), locked: plan !== "gold", n: 10 })), limits: { rows: null, export: true },
   defaultColumns: ["market_cap", "price"], standardColumns: ["market_cap"],   // task #145: the table opens with the company and its market cap only
   groups: [
     { id: "valuation", label: "Valuation", tier: "basic", metrics: [
@@ -37,15 +38,14 @@ const catalog = (lockSilver = false, plan: "basic" | "silver" | "gold" = lockSil
     { id: "health", label: "Financial health", tier: "basic", metrics: [M("debt_to_equity", "Debt to equity", { better: "lower" })] },
     { id: "returns", label: "Returns", tier: "basic", metrics: [M("ret_1d", "1-day change", { unit: "%", better: "higher" }), M("ret_1y", "1-year return", { unit: "%", better: "higher" })] },
     { id: "size", label: "Size & price", tier: "basic", metrics: [M("market_cap", "Market cap", { unit: "Cr", better: "none" }), M("price", "Share price", { unit: "Rs", better: "none" })] },
-    { id: "model", label: "FinLit model", tier: "gold", metrics: [M("overall", "FinLit IQ", { unit: "pts", better: "higher", tier: "gold", locked: plan !== "gold" })] },
   ],
 });
 const READY = { asOf: "2026-11-12T00:00:00Z", total: 5813, screens: [
   { id: "large", label: "Large, established companies", says: "Market cap above ₹1,00,000 Cr", tier: "basic", group: "everyday", count: 123, state: { ranges: { market_cap: { min: 100000 } } } },
   { id: "lowdebt", label: "Low debt", says: "Debt to equity below 0.5×", tier: "basic", group: "everyday", count: 3552, state: { ranges: { debt_to_equity: { max: 0.5 } } } },
   { id: "value", label: "Value picks", says: "P/E under 15× and P/B under 2×", tier: "silver", group: "silver", count: 1265, state: { ranges: { pe: { min: 0.1, max: 15 }, pb: { min: 0.1, max: 2 } } } },
-  { id: "strong", label: "FinLit IQ Strong", says: "Companies the FinLit IQ rates Strong", tier: "silver", group: "model", count: 211, state: { ranges: {}, bands: ["strong"] } },
-  { id: "modelcompound", label: "Quality compounders (model)", says: "Companies the FinLit IQ rates high on both quality and growth", tier: "silver", group: "model", count: 300 },
+  { id: "pz_strong", label: "Prism Strong", says: "Companies FinLit Prism rates Strong", tier: "gold", group: "model", count: 211, state: { ranges: {}, bands: ["strong"] } },
+  { id: "pz_compound", label: "Quality and growth (Prism)", says: "Companies Prism rates high on both Quality and Growth & Profitability", tier: "gold", group: "model", count: 300 },
 ] };
 type Body = { ratios?: { num: string; den: string; show: string }[]; columns: string[]; filters: Record<string, unknown>; sort: { key: string; dir: string }; cats?: Record<string, string[]>; model_screen?: string; model_screens?: string[]; q?: string; offset?: number };
 const st = vi.hoisted(() => ({ funnel: undefined as unknown, facets: undefined as unknown, many: 0, total: 0, cat: null as unknown, bodies: [] as Body[] }));
@@ -98,7 +98,7 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
     mount(); await ready();
     expect(screen.getByRole("heading", { level: 1, name: "Stock screener" })).toBeTruthy();
     const boxes = screen.getByRole("navigation", { name: "Screeners" });
-    expect(within(boxes).getAllByRole("link").map((a) => a.textContent)).toEqual(["Stock screener", "Basic stock screener", "Advanced stock screener", "Query builder"]);   // page names only: no tier tags
+    expect(within(boxes).getAllByRole("link").map((a) => a.textContent)).toEqual(["Stock screener", "Advanced stock screener", "Query builder"]);   // task #283: no Basic stock screener   // page names only: no tier tags
     expect(document.querySelector(".ssy, nav.fst, .ssw-head")).toBeNull();                      // the section above the results, the old tab strip and head card are gone
     expect(screen.getByRole("tab", { name: "Your rules", selected: true })).toBeTruthy();        // Your rules is open on load
     openTab(/^Ready-made/);
@@ -169,26 +169,28 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
     await waitFor(() => expect(last().filters).toEqual({ pe: { min: 0.1, max: 10 } }));
   });
 
-  it("a screen on the plan's score sends only its id: no cut-off is on the page or in the request, and two stack", async () => {
-    mount(); await ready();
-    openTab(/^Ready-made/); fireEvent.click(screen.getByRole("tab", { name: /On the FinLit IQ/ }));
-    fireEvent.click(await screen.findByRole("button", { name: /^Quality compounders \(model\):/ }));
-    await waitFor(() => expect(last().model_screens).toEqual(["modelcompound"]));
+  it("a screen on FinLit Prism sends only its id: no cut-off is on the page or in the request, and two stack", async () => {
+    st.cat = { ...catalog(false, "gold"), bandModel: "prism" }; mount(); await ready();
+    openTab(/^Ready-made/); fireEvent.click(screen.getByRole("tab", { name: /On FinLit Prism/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Quality and growth \(Prism\):/ }));
+    await waitFor(() => expect(last().model_screens).toEqual(["pz_compound"]));
     expect(last().filters).toEqual({});
     openTab(/^Your rules/);
-    expect(within(rulesPanel()).getByRole("group", { name: /Screen on the FinLit IQ: Quality compounders/ }).textContent).toMatch(/cut-offs stay on the server/);
-    expect(document.body.textContent).not.toMatch(/70\+|Quality 70|78 or more/);
+    expect(within(rulesPanel()).getByRole("group", { name: /Screen on FinLit Prism: Quality and growth/ }).textContent).toMatch(/cut-offs stay on the server/);
+    expect(document.body.textContent).not.toMatch(/70\+|Quality 70|FinLit IQ/);
     await waitFor(() => expect(new URLSearchParams((screen.getByTestId("loc").textContent || "").split("?")[1]).get("s")).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: "Turn off Quality compounders (model)" }));
-    await waitFor(() => expect(within(rulesPanel()).queryByRole("group", { name: /Screen on the FinLit IQ/ })).toBeNull());
+    fireEvent.click(screen.getByRole("button", { name: "Turn off Quality and growth (Prism)" }));
+    await waitFor(() => expect(within(rulesPanel()).queryByRole("group", { name: /Screen on FinLit Prism/ })).toBeNull());
     await waitFor(() => expect(new URLSearchParams((screen.getByTestId("loc").textContent || "").split("?")[1]).get("s")).toBeNull());   // nothing of it is left in the address
   });
 
-  it("the rating-word screen and a screen above the plan: Basic is asked to upgrade instead of running", async () => {
+  it("below Gold there is no group of screens on a score (task #283), and a screen above the plan asks to upgrade instead of running", async () => {
     st.cat = catalog(true); mount(); await ready();
-    openTab(/^Ready-made/); fireEvent.click(screen.getByRole("tab", { name: /On the FinLit IQ/ }));
-    fireEvent.click(await screen.findByRole("button", { name: /^FinLit IQ Strong:.*part of Silver/ }));
-    expect(ui.upgrade).toHaveBeenCalledWith("silver", expect.stringMatching(/FinLit IQ Strong/));
+    openTab(/^Ready-made/);
+    expect(screen.queryByRole("tab", { name: /On FinLit Prism|FinLit IQ|FinLit model/ })).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: /More screens/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Value picks:.*part of Silver/ }));
+    expect(ui.upgrade).toHaveBeenCalledWith("silver", expect.stringMatching(/Value picks/));
     expect(st.bodies.some((b) => b.cats?.band?.length)).toBe(false);
   });
 
@@ -217,8 +219,8 @@ describe("task #64 Part 4: the panel and the header", () => {
   it("S-1: without a click the panel shows how many filters there are and every group with its count; a group row opens the picker on that group", async () => {
     mount(); await ready();
     const box = screen.getByRole("group", { name: "Every filter, by group" });
-    expect(box.querySelector(".ssw-size-n")?.textContent).toBe("12 filters in 7 groups");          // hidden period variants are not counted
-    expect(within(box).getAllByRole("button").map((b) => b.querySelector("span")?.firstChild?.textContent)).toEqual(["Valuation", "Profitability", "Growth", "Financial health", "Returns", "Size & price", "FinLit model"]);
+    expect(box.querySelector(".ssw-size-n")?.textContent).toBe("11 filters in 6 groups");          // hidden period variants are not counted; task #283: no group of the retired score
+    expect(within(box).getAllByRole("button").map((b) => b.querySelector("span")?.firstChild?.textContent)).toEqual(["Valuation", "Profitability", "Growth", "Financial health", "Returns", "Size & price"]);
     expect(within(box).queryByRole("link", { name: /Custom ratio/ })).toBeNull();                      // task #243 (S3): Custom ratio left the groups for its own tab
     fireEvent.click(within(box).getByRole("button", { name: /^Profitability: 2 filters/ }));
     const dlg = await screen.findByRole("dialog");

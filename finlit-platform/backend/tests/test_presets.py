@@ -493,99 +493,21 @@ def test_history_roundtrip_ignores_rows_written_by_the_old_moving_average_breadt
     assert len(stored) == 5 and stored[-1]["Hot"]["in_play"] is True and all(h["Hot"]["b50"] == 20 for h in stored)
 
 
-# ---------------------------------------------------------------------------------------------------------------- the Basic tab
-def buni(n_large=100, n_mid=60):
-    """Large and mid caps of Rs 1,000 Cr or more with FinLit scores, no Prism ratings at all (the Basic tab never needs them)."""
-    def m(mc, i): return dict(market_cap=mc, pct_from_high=10, ret_3m=5 + i % 9, ret_6m=8 + i % 7, ret_1y=15 + i % 11, fundamental_score=70 + i % 10, pillar_technical=60 + i % 10, pillar_quality=60,
-                              pillar_growth=60, pillar_profitability=60, pillar_balance=60, overall=70, is_bank=0)
-    rows = [row(f"L{i:03d}", sector=f"SecL{i % 30}", **m(100000 - i * 100, i)) for i in range(n_large)]
-    rows += [row(f"M{i:03d}", sector=f"SecM{i % 30}", **m(60000 - i * 100, i)) for i in range(n_mid)]   # task #262: mid is Rs 25,000-75,000 Cr
-    return rows
-
-
-def edit(r, **kw):
-    r["metrics"] = json.dumps({**json.loads(r["metrics"]), **kw})
-    return r
-
-
-def test_basic_registry_has_the_fourteen_cards_all_on_the_basic_tab():
-    basic = [p for p in PRESETS if p.tab == "basic" and p.kind not in ("pattern", "gainers")]
-    assert [p.id for p in basic] == ["basic-top-large", "basic-top-mid", "basic-top-small", "basic-top-micro", "basic-strong-both", "basic-strong-business-lagging", "basic-strong-trend-weaker-business",
-                                     "basic-strong-all-four", "basic-growth-leaders", "basic-profitable-debt-light", "basic-quality-compounders", "basic-momentum-leaders", "basic-near-high",
-                                     "basic-quality-off-highs", "basic-emerging-tech", "basic-sector-themes", "basic-caution-list",
-                                     "basic-setup-pre-breakout", "basic-setup-breakout-pullback", "basic-setup-ema9-consolidation",
-                                     "basic-iq-upgrades", "basic-strong-results", "basic-dividend-payers", "basic-iq-downgrades", "basic-institutions-buying",
-                                     "basic-promoter-buying", "basic-fresh-results", "basic-weak-results"]   # task #243: the eight new Basic screens
-    assert [p.id for p in basic if p.status != "live"] == [] and sum(1 for p in basic if p.top10) == 4   # task #262: a Top 10 for each of the four sizes
-    for p in basic:
-        text = " ".join(p.how_it_works).lower()
-        assert "prism" not in text and "prism" not in p.card_text.lower(), p.id       # the Basic tab never names a Prism field
-
-
-def test_basic_top_gates_sector_cap_and_the_bank_balance_sheet_blank():
-    rows = buni()
-    edit(rows[0], overall=61)                                # FinLit IQ below Healthy
-    edit(rows[1], pillar_technical=44)
-    edit(rows[2], pillar_quality=44)
-    edit(rows[3], pillar_balance=44)
-    edit(rows[4], pct_from_high=31)
-    edit(rows[5], pillar_balance=None)                        # blank, not a bank: out
-    edit(rows[6], pillar_balance=None, is_bank=1)             # blank bank: in
-    body = engine.run(frame(rows), BY_ID["basic-top-large"])
-    got = syms(body)
-    assert all(s not in got for s in ("L000", "L001", "L002", "L003", "L004", "L005"))
-    assert body["listText"] == f"{body['count']} pass · the top 10 first" and body["count"] == 94 and len(tops(body)) == 10
-    secs = [r["sector"] for r in tops(body)]
-    assert max(secs.count(s) for s in set(secs)) <= 3 and all(r["rank"] == i for i, r in enumerate(body["rows"], 1))
-    allrows = engine.run(frame(rows), BY_ID["basic-top-large"])["exportRows"]
-    assert allrows[0]["symbol"] and all(c["key"] != "prism_final" for c in body["columns"])
-    mids = engine.run(frame(rows), BY_ID["basic-top-mid"])
-    assert all(s.startswith("M") for s in syms(mids)) and mids["count"] == 60
-
-
-def test_basic_small_cap_needs_a_healthy_balance_sheet_and_one_thousand_crore():
-    # task #262: Small is now Rs 10,000-25,000 Cr and Micro (the old Small) below 10,000 Cr; both keep the Healthy balance sheet line, and the
-    # Rs 1,000 Cr floor is checked on Micro, the only size that reaches below it
-    for pid, top in (("basic-top-small", 20000), ("basic-top-micro", 3000)):
-        rows = buni(100, 150)
-        smalls = [row(f"X{i:03d}", sector=f"SecX{i}", market_cap=top - i * 10, pct_from_high=10, ret_3m=5, ret_6m=8, ret_1y=15, fundamental_score=70 + i % 5, pillar_technical=60, pillar_quality=60,
-                      pillar_growth=60, pillar_profitability=60, pillar_balance=62 if i else 61, overall=70, is_bank=0) for i in range(20)]
-        smalls.append(row("MICRO", sector="Other", market_cap=400, pct_from_high=10, ret_3m=5, ret_6m=8, ret_1y=15, fundamental_score=90, pillar_technical=90, pillar_quality=90, pillar_growth=90,
-                          pillar_profitability=90, pillar_balance=90, overall=90, is_bank=0))
-        body = engine.run(frame(rows + smalls), BY_ID[pid])
-        assert body["count"] == 19 and "X000" not in body["exportRows"][0]["symbol"] and "MICRO" not in [r["symbol"] for r in body["exportRows"]], pid
-
-
-def test_basic_two_sided_cards_blank_allowed_and_cautions():
-    def one(sym, **kw):
-        base = dict(market_cap=5000, fundamental_score=80, pillar_technical=80, pillar_quality=80, pillar_growth=80, pillar_profitability=80, pillar_balance=80, overall=80, pct_from_high=3,
-                    ret_3m=4, ret_6m=9, ret_1y=20, is_bank=0)
-        base.update(kw)
-        return row(sym, **base)
-    rows = [one("BOTH"), one("LAG", pillar_technical=40, pct_from_high=35), one("TREND", overall=70, pillar_quality=40, pillar_growth=40), one("NOBAL", pillar_balance=None),
-            one("SMALLMC", market_cap=1500), one("RISKY", overall=40, pct_from_high=50, pillar_technical=20), one("DEEP", pct_from_high=30)]
-
-    def ids(pid): return set(syms(engine.run(frame(rows), BY_ID[pid])))
-    assert ids("basic-strong-both") == {"BOTH", "NOBAL", "SMALLMC", "DEEP"}
-    assert ids("basic-strong-business-lagging") == {"LAG", "RISKY"} and ids("basic-strong-trend-weaker-business") == {"TREND"}
-    assert "NOBAL" not in ids("basic-strong-all-four") and "NOBAL" in ids("basic-growth-leaders") and "SMALLMC" in ids("basic-growth-leaders")     # blank balance sheet allowed there; floor Rs 1,000 Cr
-    assert ids("basic-caution-list") >= {"RISKY"} and "BOTH" not in ids("basic-caution-list")
-    assert ids("basic-quality-off-highs") == {"LAG", "RISKY", "DEEP"}
-    assert ids("basic-near-high") >= {"BOTH"} and "LAG" not in ids("basic-near-high") and "SMALLMC" not in ids("basic-near-high")
-    pb = engine.run(frame(rows), BY_ID["basic-profitable-debt-light"])
-    assert "profit_plus_balance" not in pb["rows"][0] and "fundamental_score" not in pb["rows"][0]      # no sixth score on the Basic page
-
+# ---------------------------------------------------------------------------------------------------------------- the Basic tab (retired, task #283)
+def test_the_basic_tab_is_retired_with_the_finlit_iq():
+    """Task #283: FinLit Prism is FinLit's only company score. The Basic tab's screens, built on the retired FinLit IQ, are gone; no screen reads its fields."""
+    assert not [p.id for p in ALL if p.tab != "advanced" or p.id.startswith("basic-")]
+    assert [p.id for p in ADVANCED] == [p.id for p in PRESETS]
 
 def test_a_stock_that_ran_over_300_percent_in_a_year_stays_out_of_top_10_and_momentum_lists():
-    rows = buni()
-    edit(rows[0], ret_1y=450)
-    edit(rows[1], ret_1y=None)                  # no full year of prices: out of every price-reading screen
-    for pid in ("basic-top-large", "basic-momentum-leaders"):
-        body = engine.run(frame(rows), BY_ID[pid])
-        got = [r["symbol"] for r in body["exportRows"]]
-        assert "L000" not in got, pid
-    assert engine.run(frame(rows), BY_ID["basic-top-large"])["count"] == 98       # the 450% run and the company without a full year are out
-
+    from finlit.presets.registry import RUN_GUARD
+    for pid in ("highest-rated-large", "highest-rated-mid", "highest-rated-small", "momentum-leaders"):
+        assert RUN_GUARD in BY_ID[pid].derived, pid
+    rows = [row("L000", mcap=200000, ret_1y=450, pct_from_high=5, ret_3m=10, ret_6m=10), row("L001", mcap=190000, ret_1y=40, pct_from_high=5, ret_3m=10, ret_6m=10)]
+    prism = {"L000": pz(85, lt=40, label="STRONG"), "L001": pz(85, lt=40, label="STRONG")}
+    for pid in ("highest-rated-large", "momentum-leaders"):
+        got = [r["symbol"] for r in engine.run(frame(rows, prism), BY_ID[pid])["exportRows"]]
+        assert "L000" not in got and "L001" in got, pid
 
 # ---------------------------------------------------------------------------------------------------------------- issue 30.b: Sector label, not the macro sector or the Industry
 def mac(r, macro, label=None):
@@ -629,21 +551,6 @@ def test_top_small_caps_cap_three_per_sector_label_not_per_macro_sector():
         prism2[sym] = pz(final=90 - i, qual=80)
     got2 = [r["symbol"] for r in tops(engine.run(frame(rows2, prism2), BY_ID["highest-rated-small"]))]
     assert sum(1 for s in got2 if s in names[:4]) == 3
-
-
-def test_basic_top_ten_also_caps_on_the_sector_label():
-    rows = buni()
-    for i in range(6):
-        mac(rows[i], "Consumer Discretionary", f"Label {i}")
-        edit(rows[i], fundamental_score=99, pillar_technical=99, pillar_quality=99, ret_3m=60, ret_6m=60, ret_1y=100, pct_from_high=0)
-    got = [r["symbol"] for r in tops(engine.run(frame(rows), BY_ID["basic-top-large"]))]
-    assert {f"L00{i}" for i in range(6)} <= set(got)          # six labels, one macro sector: all six stand
-    rows2 = buni()
-    for i in range(5):
-        mac(rows2[i], f"Macro {i}", "One Label")
-        edit(rows2[i], fundamental_score=99, pillar_technical=99, pillar_quality=99, ret_3m=60, ret_6m=60, ret_1y=100, pct_from_high=0)
-    got2 = [r["symbol"] for r in tops(engine.run(frame(rows2), BY_ID["basic-top-large"]))]
-    assert sum(1 for s in got2 if s in {f"L00{i}" for i in range(5)}) == 3
 
 
 def test_no_cap_or_grouping_in_the_presets_reads_the_macro_sector_or_the_industry():
@@ -698,8 +605,6 @@ def test_emerging_tech_universe_is_the_union_of_named_list_and_sector_label_memb
     assert tags["LABELCAMS"] == ["Fintech and market infrastructure"] and tags["LABELWEB"] == ["Digital platforms"]
     body = engine.run(frame(rows, {}, tags=tags), BY_ID["emerging-tech"])
     assert set(syms(body)) == set(tags)
-    basic = engine.run(frame([edit(r, pillar_growth=62, pillar_balance=60) for r in rows], {}, tags=tags), BY_ID["basic-emerging-tech"])
-    assert set(syms(basic)) == set(tags)
 
 
 def test_the_named_examples_of_the_spec_are_in_the_theme_by_label_or_by_name():
@@ -785,13 +690,12 @@ def test_every_advanced_list_has_a_one_thousand_crore_floor_and_the_provisional_
 
 
 # ---------------------------------------------------------------------------------------------------------------- Chart patterns
-def test_chart_pattern_screens_exist_on_both_tabs_with_worded_facts_and_no_rules():
+def test_chart_pattern_screens_exist_with_worded_facts_and_no_rules():
     from finlit.presets.patterns import SCAN_IDS, facts_of
-    adv = [p for p in PRESETS if p.kind == "pattern" and p.tab == "advanced"]
-    bas = [p for p in PRESETS if p.kind == "pattern" and p.tab == "basic"]
-    assert [p.spec for p in adv] == SCAN_IDS == [p.spec for p in bas] and len(adv) == 11
-    assert all(p.group == "chart-patterns" and p.status == "live" for p in adv + bas)
-    for p in adv + bas:
+    adv = [p for p in PRESETS if p.kind == "pattern"]
+    assert [p.spec for p in adv] == SCAN_IDS and len(adv) == 11 and all(p.tab == "advanced" for p in adv)      # task #283: no Basic copies on the retired score
+    assert all(p.group == "chart-patterns" and p.status == "live" for p in adv)
+    for p in adv:
         assert not re.search(r"\d", p.card_text.replace("50-day", "")) and "setup" not in p.card_text.lower() and "entry" not in p.card_text.lower(), p.id
     assert facts_of("daily_base", {"length": 30, "depth_pct": 12.34, "to_pivot_pct": 3.1}) == [["Base age", "30 sessions"], ["Depth", "12.3%"], ["Below the pivot", "3.1%"]]
     assert facts_of("flag", {"depth_pct": 9.0, "detail": {"pole_rise": 25.0}, "to_pivot_pct": 2.0})[0] == ["Run-up", "25.0%"]       # a fact with no value is left out
@@ -800,13 +704,13 @@ def test_chart_pattern_screens_exist_on_both_tabs_with_worded_facts_and_no_rules
 def test_a_chart_pattern_screen_lists_the_scanned_companies_ranked_by_the_page_score_with_facts_and_drawing():
     rows = [mrow(f"P{i}", market_cap=3000 + i) for i in range(5)]
     for i, r in enumerate(rows):
-        r["metrics"] = json.dumps({**json.loads(r["metrics"]), "overall": 50 + i})
-    fr = frame(rows, {})
+        r["metrics"] = json.dumps({**json.loads(r["metrics"]), "overall": 90 - i})      # the retired score (highest on P1) is never the order
+    fr = frame(rows, {f"P{i}": pz(50 + i) for i in range(5)})
     fr.patterns = {"as_of": "2026-11-06", "left_out": [["P4", "candles end 5 Nov, before the 6 Nov close"]],
                    "scans": {"daily_base": {"P1": {"facts": [["Base age", "20 sessions"]], "draw": {"level": 101.0}, "new": True}, "P3": {"facts": [], "draw": {}, "new": False}}}}
-    body = engine.run(fr, BY_ID["basic-pattern-daily_base"])
+    body = engine.run(fr, BY_ID["pattern-daily_base"])
     assert [r["symbol"] for r in body["rows"]] == ["P3", "P1"] and body["count"] == 2 and body["newToday"] == 1
     assert body["rows"][1]["facts"] == [["Base age", "20 sessions"]] and body["rows"][1]["pf1"] == "20 sessions" and body["rows"][1]["draw"] == {"level": 101.0}
     assert body["leftOutCount"] == 1 and "leftOut" not in body
     fr.patterns = None
-    assert engine.run(fr, BY_ID["basic-pattern-daily_base"])["emptyText"].startswith("The nightly chart-pattern run")
+    assert engine.run(fr, BY_ID["pattern-daily_base"])["emptyText"].startswith("The nightly chart-pattern run")

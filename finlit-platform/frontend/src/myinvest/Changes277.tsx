@@ -27,6 +27,14 @@ export function HeldLine({ c }: { c: Company | undefined }) {
     <span aria-hidden="true">{pctOf(c.all, 2)} of everything</span></span>);
 }
 
+/** QA of 21 Nov (item 7): what the "through" count counts. "52 of the 391 companies held only through funds and ETFs are 0.1% or more of everything; the 339
+ *  smaller ones are left out here." */
+export function smallLine(d: AllInvestments, ch: { through: string[] }): string | undefined {
+  const only = d.companies.filter((c) => c.symbol && !c.abroad && c.direct === 0).length;
+  if (only <= ch.through.length) return undefined;
+  return `${ch.through.length} of the ${only} companies held only through funds and ETFs are ${THROUGH_MIN}% or more of everything; the ${only - ch.through.length} smaller ones are left out here.`;
+}
+
 export function InvestChanges({ d }: { d: AllInvestments }) {
   const ch = changesOf(d), wl = useWatchlist();
   const [pick, setPick] = useState<Pick>("all");
@@ -35,7 +43,7 @@ export function InvestChanges({ d }: { d: AllInvestments }) {
   const sets: Record<Pick, { symbols: string[]; label: string; ref: string; name: string }> = {
     all: { symbols: [...ch.direct, ...ch.through], label: "Everything", ref: "invest", name: "All my investments" },
     direct: { symbols: ch.direct, label: "Direct", ref: "equity", name: "your equity portfolio" },
-    through: { symbols: ch.through, label: "Through funds and ETFs", ref: "invest:through", name: "All my investments (through funds and ETFs)" },
+    through: { symbols: ch.through, label: "Through funds and ETFs, 0.1% or more", ref: "invest:through", name: "All my investments (through funds and ETFs)" },
     watch: { symbols: watch, label: "Watchlists", ref: "watch", name: "your watchlists" },
   };
   const tabs: ListTab[] = (Object.keys(sets) as Pick[]).map((k) => ({ id: k, label: sets[k].label, count: sets[k].symbols.length }));
@@ -43,6 +51,7 @@ export function InvestChanges({ d }: { d: AllInvestments }) {
   return (
     <div className="mi7-wc">
       <WhatChanged symbols={s.symbols} listName={s.name} listRef={s.ref} page="myinvest" lists={tabs} activeList={pick} onPickList={(id) => setPick(id as Pick)}
-        title="What changed at the companies you own" nameOf={(x) => bySym.get(x)?.name} sub={(x) => <HeldLine c={bySym.get(x)} />} />
+        title="What changed at the companies you own" nameOf={(x) => bySym.get(x)?.name} sub={(x) => <HeldLine c={bySym.get(x)} />}
+        foot={smallLine(d, ch)} newTab />
     </div>);
 }

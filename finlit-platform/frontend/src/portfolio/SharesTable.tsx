@@ -5,7 +5,7 @@ import { HScroll } from "../components/HScroll";
 import { MINUS } from "../lib/format";
 import { bandInk, bandVar, scoreBand } from "../lib/scoreBands";
 import {
-  TABS, blankWhy, changeText, columnsFor, dash, isOverviewLike, isReady, money, monthYear, nextTab, priceText, scoreOf, scoreWhy, sortLines, BASIS_WORD, FINLIT_PILLARS, PRISM_FOUR,
+  TABS, blankWhy, changeText, columnsFor, dash, isOverviewLike, isReady, money, monthYear, nextTab, priceText, scoreOf, scoreWhy, sortLines, BASIS_WORD, PRISM_FOUR,
   type Col, type Line, type Model, type Period, type Ready, type Tab,
 } from "../lib/portfolioOverview";
 import { SIZE_WORD, plural, short2 } from "./derive";
@@ -23,15 +23,14 @@ import { FilterChips, FilterRow, applyFilters, filterDefs, trendScoreWord, trend
 import { aggOf } from "../lib/ledger";
 
 const SHORT_LABEL: Record<string, string> = { fundamental: "G&P", valuation: "Val.", quality: "Qual.", risk: "Risk", growth: "Growth", profitability: "Profit.", balance: "Balance", technical: "Tech." };
-/** Task #183: the words of each plan's band filter (Gold: Prism's; Silver: the FinLit IQ's, as the server gives them). */
-export const BAND_FILTERS: Record<Model, string[]> = { prism: ["Strong", "Healthy", "Average", "Weak"], finlit: ["Strong", "Healthy", "Mixed", "Watch"] };
+/** Task #183 / #283: the words of the band filter: FinLit Prism's, on a plan with Prism; none on a plan without it (no company score is shown). */
+export const BAND_FILTERS: Record<Model, string[]> = { prism: ["Strong", "Healthy", "Average", "Weak"], finlit: [] };
 export type Level = "macro" | "sector" | "industry";
 const LEVEL_WORD: Record<Level, string> = { macro: "Macro sector", sector: "Sector", industry: "Industry" };
 const wordKey = (w: string | null | undefined) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : null);
-/** The part columns of the plan's model: the four Prism parts (Gold) or the five FinLit IQ pillars (Silver). */
+/** The part columns: the four Prism parts, on a plan with Prism; none otherwise (task #283). */
 export const partDefs = (model: Model): { id: string; label: string; short: string; get: (h: Ready) => number | null }[] =>
-  model === "prism" ? PRISM_FOUR.map((p) => ({ id: p.key, label: p.label, short: SHORT_LABEL[p.key], get: (h: Ready) => h.prism?.parts?.[p.key] ?? null }))
-    : FINLIT_PILLARS.map(([k, label]) => ({ id: k, label, short: SHORT_LABEL[k], get: (h: Ready) => h.finlit?.pillars[k] ?? null }));
+  model === "prism" ? PRISM_FOUR.map((p) => ({ id: p.key, label: p.label, short: SHORT_LABEL[p.key], get: (h: Ready) => h.prism?.parts?.[p.key] ?? null })) : [];
 
 const Chip = ({ v, big, why }: { v: number | null | undefined; big?: boolean; why?: string }) => {
   if (v == null) return <span className="pfx-sc na" title={why || "Not scored"}>{MINUS}<span className="sr-only"> {why || "not scored"}</span></span>;
@@ -44,12 +43,6 @@ const PartChip = ({ v, why }: { v: number | null | undefined; why?: string }) =>
   if (v == null) return <span className="pfx-sc na" title={why || "Not enough data to score yet."}>{MINUS}<span className="sr-only"> {why || "not enough data to score yet"}</span></span>;
   const b = scoreBand(v) as "hi" | "mid" | "lo";
   return <span className="pfx-sc" style={{ background: `color-mix(in srgb, ${bandVar(b)} 18%, var(--s1))`, color: bandInk(b) }}>{WORD[b]}</span>;
-};
-/** Silver (task #183): a pillar shows the report's own word (Strong, Healthy, Mixed, Watch), coloured by its score; "–" when not scored. */
-const WordChip = ({ v, word, why }: { v: number | null | undefined; word: string | null | undefined; why?: string }) => {
-  if (v == null || !word) return <span className="pfx-sc na" title={why || "Not scored yet."}>{MINUS}<span className="sr-only"> {why || "not scored yet"}</span></span>;
-  const b = scoreBand(v) as "hi" | "mid" | "lo";
-  return <span className="pfx-sc" style={{ background: `color-mix(in srgb, ${bandVar(b)} 18%, var(--s1))`, color: bandInk(b) }}>{word}</span>;
 };
 /** Gold (task #183): a Prism trend view as its score (−100 to 100) with a bar and its word. */
 const TrendCell = ({ t }: { t: { score: number | null; word: string | null } | null | undefined }) => {
@@ -126,7 +119,7 @@ export function SharesTable(p: Props) {
     peers: (sym) => { const pk = p.peerOf?.(sym)?.peer; return pk ? PEER_WORD[pk.label] : "Not compared"; },
     buys: (sym) => ((p.lots && aggOf(p.lots.holdings, sym, p.lots.cur)?.nBuys) ? "With buys" : "No buys yet"),
   };
-  const defs = useMemo(() => filterDefs(model === "prism" ? "Prism" : "FinLit IQ", BAND_FILTERS[model]), [model]);
+  const defs = useMemo(() => filterDefs("Prism", BAND_FILTERS.prism), []);   // FinLit Prism is the only company score (task #283)
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
     const keep = p.editSell ? new Set(applyFilters(lines.map((l) => l.symbol), picks, getters)) : null;
@@ -147,8 +140,7 @@ export function SharesTable(p: Props) {
     if (c.id === "price") return <td key={c.id} className="r">{h.price == null ? <Dash why="No price in the stored report." /> : priceText(h.price)}</td>;
     if (c.id === "change") return <td key={c.id} className="r">{h.changePct == null ? <Dash why="No change in the stored report." /> : <span className={h.changePct > 0 ? "pfx-up" : h.changePct < 0 ? "pfx-down" : ""}>{changeText(h.changePct)}</span>}</td>;
     if (c.id === "cap") return <td key={c.id} className="r">{h.marketCapCr == null ? <Dash why="No market cap in the stored report." /> : `₹${money(h.marketCapCr)} Cr`}</td>;
-    if (c.id === "score") { const v = scoreOf(h, model).value; return <td key={c.id} className={("c " + groupCls(c.id)).trim()}><span className="eq-ps"><Chip v={v} big why={scoreWhy(h, model) || undefined} />{v != null && <small className={"eq-pw " + (v >= 70 ? "hi" : v >= 50 ? "mid" : "lo")}>{model === "prism" ? prismBandWord(v, h.prism?.label) : wordKey(scoreOf(h, model).word)}</small>}</span></td>; }
-    if (c.id.startsWith("f_")) { const k = c.id.slice(2) as keyof NonNullable<Ready["finlit"]>["pillars"]; return <td key={c.id} className={("c " + g).trim()}><WordChip v={h.finlit?.pillars[k]} word={h.finlit?.pillarWords?.[k]} why={k === "balance" ? "No balance-sheet pillar: banks and lenders are scored without it, or the report has too few figures." : `${c.label}: not scored yet`} /></td>; }
+    if (c.id === "score") { const v = scoreOf(h, model).value; return <td key={c.id} className={("c " + groupCls(c.id)).trim()}><span className="eq-ps"><Chip v={v} big why={scoreWhy(h, model) || undefined} />{v != null && <small className={"eq-pw " + (v >= 70 ? "hi" : v >= 50 ? "mid" : "lo")}>{prismBandWord(v, h.prism?.label)}</small>}</span></td>; }
     if (c.id.startsWith("p_")) { const k = c.id.slice(2), d = parts.find((x) => x.id === k); return <td key={c.id} className={("c " + g).trim()}><PartChip v={d?.get(h)} why={`${c.label}: not scored for this company`} /></td>; }
     if (c.id.startsWith("t_")) return <td key={c.id} className={g || undefined}><TrendCell t={h.prism?.[c.id.slice(2) as "shortTerm" | "longTerm"]} /></td>;
     if (c.id === "yearEnd") { const st = h.financials[period]; return <td key={c.id}>{st.periodEnd ? monthYear(st.periodEnd) : <Dash why={blankWhy(h, "revenue", period) || "No statement is stored yet."} />}</td>; }
@@ -215,18 +207,18 @@ export function SharesTable(p: Props) {
       {ov && p.peerOf && <td />}{ov && <td className="r">{restAvg(ls) == null ? "" : short2(restAvg(ls)!)}</td>}{!p.editSell && <td />}</tr>);
   const nParts = cols.filter((c) => c.id.startsWith("p_") || (c.id.startsWith("f_") && c.id !== "f_technical")).length, nTech = cols.filter((c) => c.id.startsWith("t_") || c.id === "f_technical").length;
   const band1 = ov && (<tr className="eq-band" aria-hidden="true">{p.lots ? <><th colSpan={2} /><GroupBand /></> : <th colSpan={lead + cols.filter((c) => c.id === "price" || c.id === "change").length} />}
-    <th className="c cg-s">{model === "prism" ? "FinLit Prism" : "FinLit IQ"}</th><th colSpan={nParts} className="eq-div cg-s">Fundamental pillars</th><th colSpan={nTech} className="eq-div2 cg-s">{nTech > 1 ? "Technical pillars" : "Technical pillar"}</th>
+    {model === "prism" && <><th className="c cg-s">FinLit Prism</th><th colSpan={nParts} className="eq-div cg-s">Fundamental pillars</th><th colSpan={nTech} className="eq-div2 cg-s">{nTech > 1 ? "Technical pillars" : "Technical pillar"}</th></>}
     <th colSpan={(p.peerOf ? 1 : 0) + 2} className="eq-div2 cg-s">Against peers</th></tr>);
   const th = (<tr>{head({ id: "share", label: "Share" })}
     {ov && head({ id: "size", label: p.editSell ? "Industry · size" : "Size", cls: p.editSell ? "pfs-indh" : undefined })}
     {ov && !p.lots && head({ id: "qty", label: "Qty", num: true })}
     {ov && p.lots && <HoldingHeads sortHead={(id, label, cls) => head({ id, label, num: true, cls })} />}
     {ov && !p.lots && head({ id: "value", label: "Value", num: true })}
-    {cols.map((c) => head({ id: c.id, cls: groupCls(c.id), label: ov && (c.id.startsWith("p_") || c.id.startsWith("f_")) ? (model === "finlit" ? c.label : parts.find((d) => d.id === c.id.slice(2))?.short ?? c.label) : c.id === "score" ? (model === "prism" ? "Prism" : "FinLit IQ") : c.id === "t_shortTerm" ? "Short term" : c.id === "t_longTerm" ? "Long term" : c.id === "change" && p.day ? p.day : c.label.replace(/ \(.*\)$/, ""), hint: c.hint ? `${c.label}. ${c.hint}` : c.label, num: c.num && !c.id.startsWith("t_") }))}
+    {cols.map((c) => head({ id: c.id, cls: groupCls(c.id), label: ov && (c.id.startsWith("p_") || c.id.startsWith("f_")) ? (model === "finlit" ? c.label : parts.find((d) => d.id === c.id.slice(2))?.short ?? c.label) : c.id === "score" ? "Prism" : c.id === "t_shortTerm" ? "Short term" : c.id === "t_longTerm" ? "Long term" : c.id === "change" && p.day ? p.day : c.label.replace(/ \(.*\)$/, ""), hint: c.hint ? `${c.label}. ${c.hint}` : c.label, num: c.num && !c.id.startsWith("t_") }))}
     {ov && p.peerOf && <th scope="col" className="eq-div2">Vs its peers<Tip text="The share price over the last 12 months against similar companies and the sector index, with its place among them." how="Leader: among the strongest and ahead of the index. In line: in between. Laggard: among the weakest and behind it. It describes the past, not the future." /></th>}
     {ov && head({ id: "rest", label: "Moves with rest", hint: "A share's average correlation with the other shares in the list", num: true })}{!p.editSell && <th scope="col"><span className="sr-only">Actions</span></th>}</tr>);
   const sizeCards = tab === "size" && (<div className="eq-sizecards">{SIZE_SHORTS.map((k) => { const ms = lines.filter((l) => sizeOf(l.symbol) === k), a = mean(ms.map((l) => scoreOf(l.ov, model).value)); return (
-    <div key={k} className="eq-sizecard"><p className="eq-k">{k} cap</p><p className="eq-v">{plural(ms.length, "share")}</p><p className="eq-x">{lines.length ? `${Math.round((ms.length / lines.length) * 100)}% of the list` : ""}{a != null ? ` · average ${model === "prism" ? "Prism" : "FinLit IQ"} ${Math.round(a)}` : ""}</p></div>); })}</div>);
+    <div key={k} className="eq-sizecard"><p className="eq-k">{k} cap</p><p className="eq-v">{plural(ms.length, "share")}</p><p className="eq-x">{lines.length ? `${Math.round((ms.length / lines.length) * 100)}% of the list` : ""}{a != null ? ` · average Prism ${Math.round(a)}` : ""}</p></div>); })}</div>);
 
   return (
     <section className="pfx-card pfx-wide" id="pf-shares" aria-labelledby="pfx-sh">
@@ -239,7 +231,7 @@ export function SharesTable(p: Props) {
       <div className="pfx-tools">
         <input className="pfx-search" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a share in your list" aria-label="Find a share in your list" />
         {p.editSell ? <FilterRow defs={defs} symbols={lines.map((l) => l.symbol)} picks={picks} get={getters} onChange={setPicks} />
-          : <div className="pfx-chipsrow" role="group" aria-label={`Filter by ${model === "prism" ? "Prism" : "FinLit IQ"} band`}>
+          : model === "prism" && <div className="pfx-chipsrow" role="group" aria-label="Filter by Prism band">
           <button type="button" className={"pfx-pillbtn" + (band == null ? " on" : "")} aria-pressed={band == null} onClick={() => setBand(null)}>All {lines.length}</button>
           {[...BAND_FILTERS[model], "Not scored"].filter((w) => counts.get(w)).map((w) => <button key={w} type="button" className={"pfx-pillbtn" + (band === w ? " on" : "")} aria-pressed={band === w} onClick={() => setBand(band === w ? null : w)}>{w} {counts.get(w)}</button>)}</div>}
         {tab === "sector" && <div className="pfx-chipsrow" role="group" aria-label="Group by">{(["macro", "sector", "industry"] as const).map((k) => <button key={k} type="button" className={"pfx-pillbtn" + (level === k ? " on" : "")} aria-pressed={level === k} onClick={() => setLevel(k)}>{LEVEL_WORD[k]} · {new Set(lines.map((l) => { const x = nseLevels(isReady(l.ov) ? l.ov.industry : null); return x ? x[k] : null; }).filter(Boolean)).size}</button>)}</div>}

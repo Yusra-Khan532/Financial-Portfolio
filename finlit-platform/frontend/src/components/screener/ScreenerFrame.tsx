@@ -1,4 +1,4 @@
-// The page frame both score screeners share: header, filter sidebar (quick views, size, sector, then the page's own filters), summary tiles, active-filter
+// The page frame of the Advanced stock screener (FinLit Prism): header, filter sidebar (quick views, size, sector, then the page's own filters), summary tiles, active-filter
 // chips, sector mix, the results table with selection, compare, watchlist and CSV, and the pager. The page supplies the model-specific parts.
 import { titleOf, subOf, codeNote } from "../../lib/companyLabel";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -15,10 +15,10 @@ import { SizeNote } from "../SizeNote";
 import { CAPS, PAGE_SIZES, pageList, type SortKey } from "../../lib/scoreScreen";
 import type { Plan } from "../../lib/ui";
 import { CheckRow, FgxFocus, FilterGroup, SearchBox } from "./FilterGroup";
-import { HeaderFilters } from "./HeaderFilters";
 import { SectorTree } from "./SectorTree";
 import { SortMenu, Toolbar } from "./PageParts";
 import "../../styles/fgx.css";
+import "../../styles/hf.css";   // the header-row layout (the bar and the chips under it); the filters themselves are the page's own (topFilters)
 import type { PageHeaderProps } from "../PageHeader";
 import { Dash } from "./cells";
 import { ScreenerHead } from "./ScreenerHead";
@@ -65,15 +65,15 @@ type Props = {
   dateLine?: string | null; howTitle?: string;
   /** The Columns menu in the toolbar (the 52-week and return columns). */ columnsMenu?: ReactNode;
   /** A tag after the company name (Leader / In line / Laggard on the Advanced page). */ leadTag?: (r: Screener["pg"]["view"][number]) => ReactNode;
-  /** Task #257 (Basic screener, SPEC §1): no left panel; every filter opens from the header row, active filters sit under it as chips, and the table takes the full width. */
+  /** Task #257 (SPEC §1): no left panel; every filter opens from the header row, active filters sit under it as chips, and the table takes the full width. */
   headerFilters?: boolean;
   /** Task #258 (Advanced SPEC §1): the header row's own filters (the Advanced page's Market cap · Macro sector · Sector · Industry · Prism score · Technical view · 52-week high);
-   *  given, the page uses the same header-row layout as Basic (#257) with these filters in place of the FinLit IQ ones. */ topFilters?: ReactNode;
+   *  given, the page uses the header-row layout (#257) with these filters. */ topFilters?: ReactNode;
   /** Task #258 (SPEC §4): the line under the company name, in place of the NSE industry alone (Advanced: industry · size). */ coLine?: (r: Screener["pg"]["view"][number]) => ReactNode;
 };
 const narrow = () => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(max-width: 1000px)").matches;
 export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, screens, filters, lead, beforeTable, errorTitle, groupHead, columnHeads, cells, colSpan, plain, how, tier, sortChoices, dateLine, howTitle = "How scores work", columnsMenu, leadTag, headerFilters: hfProp = false, topFilters, coLine }: Props) {
-  const headerFilters = hfProp || !!topFilters;   // one header-row layout for both screeners (#257 Basic, #258 Advanced)
+  const headerFilters = hfProp || !!topFilters;   // the header-row layout (#257, #258)
   const [sideW, setSide] = useSideWidth(splitKey);
   const { draft, setDraft, facets, drawer, setDrawer, sort, size, pg, rows, sel, bad, dirty, isLoading, isError, chips, filterCount, maxCompare } = s;
   const [chart, setChart] = useState<PanelRow | null>(null);
@@ -120,7 +120,7 @@ export function ScreenerFrame({ s, splitKey, title, intro, sideLabel, presets, s
         {beforeTable}
         {/* 14 Nov file N-24 / N-33: no "not scored yet" ring and no sector box above the list (they were drawn for admin accounts); "Not scored yet" stays on each row */}
         {headerFilters ? (<>
-          <div className="sx-stick hf-bar"><div className="fgx-tool hf-tool" role="search"><SearchBox value={s.q} onChange={s.setQ} placeholder="Search company name or symbol" label="Search company name or symbol" />{topFilters ?? <HeaderFilters s={s} />}</div></div>
+          <div className="sx-stick hf-bar"><div className="fgx-tool hf-tool" role="search"><SearchBox value={s.q} onChange={s.setQ} placeholder="Company name or symbol" label="Search company name or symbol" />{topFilters}</div></div>
           <div className="hf-chips" aria-label="Active filters">
             {!chips.length && !qTrim ? <p className="hf-empty">No filters yet: every company is listed.</p> : <>
               {qTrim && <button type="button" className="fchip" onClick={() => s.setQ("")} aria-label={`Remove search ${qTrim}`}>Search: {qTrim}<span aria-hidden="true">×</span></button>}

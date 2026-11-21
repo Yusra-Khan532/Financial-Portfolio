@@ -38,11 +38,11 @@ describe("PageHeader", () => {
     expect(container.querySelector(".ph-solo")).not.toBeNull();
   });
   it("takes quick-link names and addresses from the site map, and drops links the site does not have", () => {
-    wrap(<PageHeader title="T" links={["/score-screener", { to: "/advanced-score-screener", primary: true }, "/query-builder", "/no-such-page", "/dcf", "/news"]} />);
+    wrap(<PageHeader title="T" links={["/screener", { to: "/advanced-score-screener", primary: true }, "/query-builder", "/no-such-page", "/dcf", "/news"]} />);
     const nav = screen.getByRole("navigation", { name: "Related pages" });
     const links = within(nav).getAllByRole("link");
-    expect(links.map((a) => a.getAttribute("href"))).toEqual(["/score-screener", "/advanced-score-screener", "/query-builder", "/dcf"]);   // 4 at most, the unknown one gone
-    expect(links.map((a) => a.textContent)).toEqual(["Basic Screener→", "Advanced Screener→", "Query Builder→", "DCF Calculator→"]);
+    expect(links.map((a) => a.getAttribute("href"))).toEqual(["/screener", "/advanced-score-screener", "/query-builder", "/dcf"]);   // 4 at most, the unknown one gone
+    expect(links.map((a) => a.textContent)).toEqual(["Stock Screener→", "Advanced Screener→", "Query Builder→", "DCF Calculator→"]);
     expect(links[1].className).toContain("primary");
     expect(links[0].className).not.toContain("primary");
   });

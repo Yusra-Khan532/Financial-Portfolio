@@ -303,7 +303,8 @@ describe("Advanced stock screener: every plan below Gold gets the upgrade page",
       fireEvent.click(screen.getAllByRole("button", { name: /Unlock with Gold/ })[0]);
       expect(st.upgrade).toHaveBeenCalledWith("gold", expect.any(String));
       expect(document.body.textContent?.toLowerCase()).not.toMatch(forbidden);
-      expect(screen.getByRole("link", { name: "Basic stock screener" }).getAttribute("href")).toBe("/score-screener");
+      expect(screen.queryByRole("link", { name: "Basic stock screener" })).toBeNull();   // task #283: retired, and no sentence compares the two
+      expect(document.body.textContent).not.toMatch(/Basic stock screener|FinLit IQ/);
     });
   }
   it("a Silver response (rows with no Prism values) still renders nothing of Prism", () => {

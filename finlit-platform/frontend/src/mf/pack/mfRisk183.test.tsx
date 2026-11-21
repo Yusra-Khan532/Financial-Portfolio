@@ -16,7 +16,7 @@ const F = (code: number, short: string, type: string, betaOwn: number, riskShare
   riskShare, listShare: 20, type, ...x });
 const RK = { count: 5, basis: "equal", list: { swing: 9.6, worstFall: -8.2, level: null }, bench: { name: "NIFTY 500", swing: 14.3, worstFall: -18.8, from: "2023-11-13", to: "2026-11-13" },
   funds: [F(1, "Quant Small Cap", "Small cap", 0.83, 28.1, { benchmark: "Nifty Smallcap 250", worstFall: -24.7 }),
-    F(2, "ICICI Pru Multi Asset", "Hybrid", 1.02, 17.8, { benchmark: "68% Nifty 500 + 21% debt + 11% gold", benchKind: "blend", standIn: true, benchWhy: "Debt is a steady 6.5% a year.", beta: 0.66 }),
+    F(2, "ICICI Pru Multi Asset", "Hybrid", 1.02, 17.8, { benchmark: "68% Nifty 500 + 21% debt + 11% gold", benchKind: "blend", standIn: true, benchWhy: "Debt is a steady 6.5% a year.", beta: 0.66, beta500: 0.66 }),
     F(3, "ICICI Pru MNC", "Thematic", 0.82, 24.6), F(4, "Kotak MNC", "Thematic", 0.9, 29.2, { years: 2, worstFall: -16.5 }),
     F(5, "JioBlackRock Liquid", "Liquid", 0, 0.3, { compared: false, benchmark: "Not compared", benchKind: "none", explained: null, downPer100: null, upPer100: null, band: band(0), beta: 0.01 })],
   own: { from: "2025-11-14", to: "2026-11-13", list: { betaOwn: 0.71, betaOwnBand: band(0.71), betaExLiquid: 0.89, betaExLiquidBand: band(0.89), beta500: 0.65, beta500Band: band(0.65), liquidShare: 20,
@@ -25,10 +25,10 @@ const view = (ui: React.ReactNode) => render(<MemoryRouter>{ui}</MemoryRouter>);
 
 describe("Risk at a glance (M7, step 1)", () => {
   it("leads with the own-benchmark beta and shows four figures against the Nifty 500, each with its window", () => {
-    expect(riskLede(RK)).toEqual({ lead: "Your list moves less than its markets.", rest: "Each fund against its own benchmark, the list has moved 0.71% for every 1% move in them, and it swings 9.6% in a typical year against 14.3% for the Nifty 500." });
+    expect(riskLede(RK)).toEqual({ lead: "Your list moves less than its markets.", rest: "Each fund against its own benchmark, the list has moved 0.71% for every 1% move in them, and it swings 9.6% in a typical year against 14.3% for the Nifty 500 (3 yrs, daily)." });
     expect(glanceTiles(RK).map((t) => [t.k, t.v, t.vs, t.sub])).toEqual([
-      ["Typical swing in a year · 3 yrs", "9.6%", "Nifty 500: 14.3%", "A calmer ride than the index."], ["Worst fall from a high · 3 yrs", "−8.2%", "Nifty 500: −18.8%", "Less than half as deep."],
-      ["In the 10 worst weeks · past year", "−1.8%", "Nifty 500: −2.5%", "Falls less when the market falls."], ["Beta, own benchmarks", "0.71", "benchmarks: 1.00", "Moves less than its markets."]]);
+      ["Typical swing in a year · 3 yrs", "9.6%", "Nifty 500: 14.3% (3 yrs, daily)", "A calmer ride than the index."], ["Worst fall from a high · 3 yrs", "−8.2%", "Nifty 500: −18.8% (3 yrs, daily)", "Less than half as deep."],
+      ["In the 10 worst weeks · past year", "−1.8%", "Nifty 500: −2.5% (past year, weekly)", "Falls less when the market falls."], ["Beta, own benchmarks", "0.71", "benchmarks: 1.00", "Moves less than its markets."]]);
     view(<GlanceSection rk={RK} />);
     expect(screen.getByText(/beta and weekly figures from the past year, to 13 Nov 2026/)).toBeTruthy();
   });
@@ -78,6 +78,6 @@ describe("Own benchmark, risk share, a 10% fall, each fund (M7, steps 3 to 6)", 
     view(<EachFundSection rk={RK} />);
     expect(Array.from(document.querySelectorAll(".eqr-each tbody th")).map((t) => t.firstChild!.textContent)).toEqual(["ICICI Pru Multi Asset", "Kotak MNC", "Quant Small Cap", "ICICI Pru MNC", "JioBlackRock Liquid"]);
     expect(standsOut(RK.funds[3])).toBe("Under 3 years of NAVs (2 years) · More risk than its share");
-    expect(standsOut(RK.funds[1])).toBe("Moves more on its own benchmark than on the Nifty 500 · Benchmark is a stand-in");
+    expect(standsOut(RK.funds[1])).toBe("Moves more on its own benchmark than on the Nifty 500 (past year, weekly) · Benchmark is a stand-in");
   });
 });

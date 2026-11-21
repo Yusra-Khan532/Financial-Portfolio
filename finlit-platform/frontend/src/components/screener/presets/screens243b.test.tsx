@@ -57,7 +57,7 @@ describe("P3: List as on", () => {
 
 describe("P4: filters", () => {
   const D = { facets: { sizes: { Large: 40, Mid: 60, Small: 45 }, sectors: [["Banks", 20], ["IT", 12]], strong: 49, strongOnly: 20, anyRating: 145, new: 9, ahead: 70, nse: 140, bse: 5 } } as unknown as PresetDetail;
-  function F({ basic = false }: { basic?: boolean }) { const [b, setB] = useState<BarFilter>(NO_BAR); return <MemoryRouter><FilterMenus d={D} f={{ bar: b, set: setB }} basic={basic} onAddRule={() => {}} /><FilterChips f={{ bar: b, set: setB }} basic={basic} /></MemoryRouter>; }
+  function F() { const [b, setB] = useState<BarFilter>(NO_BAR); return <MemoryRouter><FilterMenus d={D} f={{ bar: b, set: setB }} onAddRule={() => {}} /><FilterChips f={{ bar: b, set: setB }} /></MemoryRouter>; }
   it("Market cap ▾ · Sector ▾ · Prism rating ▾ · More filters ▾, each option with its count; ticking keeps it open and the label says what is on", () => {
     render(<F />);
     // task #258 (SPEC §2): an Advanced screen's row is Market cap · Macro sector · Sector · Industry · Prism score · More filters
@@ -75,21 +75,16 @@ describe("P4: filters", () => {
     expect(screen.getByRole("button", { name: "+ Add a rule on any figure" })).toBeTruthy();
     fireEvent.click(screen.getByRole("checkbox", { name: /New on this list/ }));
     fireEvent.keyDown(document, { key: "Escape" });
-    cleanup();
-    render(<F basic />);
-    // task #257 (Basic SPEC §2): a Basic screen's row is Market cap · Macro sector · Sector · Industry · FinLit IQ · More filters (screens257.test.tsx)
-    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Market cap ▾", "Macro sector ▾", "Sector ▾", "Industry ▾", "FinLit IQ ▾", "More filters ▾"]);
   });
-  it("the filters that are on show as chips with × and Clear all; Basic has no 'Strong only' and no radio rating menu (task #257: the FinLit IQ panel)", () => {
-    render(<F basic />);
+  it("the filters that are on show as chips with × and Clear all; no menu offers the retired score (task #283)", () => {
+    render(<F />);
     fireEvent.click(screen.getByRole("button", { name: /^Market cap/ }));
     fireEvent.click(screen.getByRole("checkbox", { name: /Large cap/ }));
     const chips = screen.getByRole("group", { name: "Filters on" });
     expect(chips.textContent).toContain("Large cap");
     fireEvent.click(within(chips).getByRole("button", { name: "Clear all" }));
     expect(screen.queryByRole("group", { name: "Filters on" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /^FinLit IQ/ }));
-    expect(screen.queryAllByRole("radio")).toHaveLength(0); expect(screen.queryByText("Strong only")).toBeNull();
+    expect(screen.getAllByRole("button").map((b) => b.textContent).join(" ")).not.toMatch(/IQ/);
   });
 
 });

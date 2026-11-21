@@ -4,6 +4,7 @@ import { faqForPath } from "../lib/pageFaqs";
 import { SECOND } from "../lib/questionBank";
 import { answerCompany, generalAnswer, matchQuestion, searchListed, type Match } from "../lib/askAnswers";
 import { apiGet, type SearchIndex } from "../lib/api";
+import type { Quotes } from "../lib/globalSearch";
 import { AskRefused, askAi, safePages, useAskQuota, type AskTurn } from "../lib/askAi";
 import { useAuth } from "../lib/auth";
 import { useQueryClient } from "@tanstack/react-query";
@@ -17,6 +18,7 @@ import { TOPICS, clearRecent, loadRecent, loadSaved, pushRecent, searchQuestions
 import { STARTERS } from "../lib/questionBank";
 import "../styles/ask-ai.css";
 import { CoLogo } from "./CoLogo";
+import { AskSuggest, suggestCount, useSuggestKeys } from "./AskSuggest";
 import { AnswerText } from "./AnswerText";
 import { QUICK_PICKS } from "../lib/outlookPick";
 import type { FundCtx } from "../lib/askFunds";
@@ -64,6 +66,8 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [find, setFind] = useState("");
+  const [sgOpen, setSgOpen] = useState(false);              // task #268: the suggestion panel of the box being typed in
+  const pickRef = useRef<(i: number) => void>(() => {});
   const [found, setFound] = useState<{ symbol: string; name: string }[]>([]);
   const [findErr, setFindErr] = useState("");
   const [menuOpen, setMenuOpen] = useState(true);
@@ -118,6 +122,30 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
   const aiOn = !!qd?.enabled;                                   // written answers are switched on (ANTHROPIC_API_KEY on the server)
   const aiPlan = aiOn && (!user || quota.data?.limit === 0);           // a visitor or a Basic member: written answers are part of Silver and Gold
   const aiReady = aiOn && !!user && (quota.data?.left ?? 0) > 0;        // a Silver or Gold member with questions left this month
+  // task #268: the company card of the side panel (the reference's): its price and day change, and its name from the site's search index
+  const [coRow, setCoRow] = useState<[number, number | null] | null>(null);    // price and day change, read again each minute while the window is open
+  useEffect(() => {
+    setCoRow(null);
+    if (!company || !open || !big) return;
+    let live = true;
+    const read = () => apiGet<Quotes>(`/api/search/quotes?symbols=${encodeURIComponent(company)}`).then((d) => {
+      const r = d?.rows?.find((x) => x[0] === company);
+      if (live) setCoRow(r && typeof r[1] === "number" ? [r[1], typeof r[2] === "number" ? r[2] : null] : null);
+    }).catch(() => undefined);
+    void read();
+    const t = setInterval(read, 60_000);
+    return () => { live = false; clearInterval(t); };
+  }, [company, open, big]);
+  const [coName, setCoName] = useState<string | null>(null);
+  useEffect(() => {
+    if (!company || !open || !big) { setCoName(null); return; }
+    let live = true;
+    findCompanies(company).then((r) => { if (live) setCoName(r.find((x) => x.symbol === company)?.name ?? null); }).catch(() => undefined);
+    return () => { live = false; };
+  }, [company, open, big]);
+  const typed = text.trim().length >= 2 && !text.includes(SECOND) ? searchListed(text, company, 5) : [];   // the typing box searches the listed questions
+  const sgShow = sgOpen && text.trim().length >= 2 && !text.includes(SECOND);
+  const keys = useSuggestKeys(suggestCount(typed), sgShow, (i) => pickRef.current(i), () => setSgOpen(false));   // a hook: before the return below
   if (loc.pathname.startsWith("/admin")) return null;
 
   const pool: Q[] = category ? categoryQuestions(category) : company ? [...tabQuestions(tab, company, lender), ...tabQuestions("suggested", company, lender)] : [];
@@ -205,8 +233,15 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
   const row = (q: Q) => <li key={q.id}><button type="button" className="aif-q" onClick={() => tapQ(q)} title={q.needsSecondCompany ? `Replace ${SECOND} with the second company, then send` : undefined}><Icon name="chat" /><span>{q.text}</span><Icon name="arrow" /></button></li>;
   // the box: a few search words ask their best listed question; a sentence that matches none exactly is offered the closest listed ones
   // with written answers on, a sentence that is not a listed question goes to FinLit AI as typed; without them, its closest listed question is asked
-  const send = (e: React.FormEvent) => { e.preventDefault(); const t = text.trim(); if (!t) return; const top = searchListed(t, company, 1)[0]; void ask(generalAnswer(t) || matchQuestion(t, company) || aiReady || aiPlan || !top ? t : top.text, view === "chat" ? back : view); };
-  const typed = text.trim().length >= 2 && !text.includes(SECOND) ? searchListed(text, company, 5) : [];   // the typing box searches the listed questions
+  const sendNow = () => { const t = text.trim(); if (!t) return; setSgOpen(false); const top = searchListed(t, company, 1)[0]; void ask(generalAnswer(t) || matchQuestion(t, company) || aiReady || aiPlan || !top ? t : top.text, view === "chat" ? back : view); };
+  const send = (e: React.FormEvent) => { e.preventDefault(); sendNow(); };
+  // task #268: the suggestions show beside the box being typed in (above the bottom box, under the start screen's): the listed questions, then the words as typed
+  pickRef.current = (i: number) => { setSgOpen(false); if (i < typed.length) tapQ(typed[i]); else sendNow(); };
+  const comboProps = (listId: string) => ({ role: "combobox" as const, "aria-autocomplete": "list" as const, "aria-expanded": sgShow, "aria-controls": sgShow ? listId : undefined,
+    "aria-activedescendant": sgShow && keys.active >= 0 ? `${listId}-${keys.active}` : undefined, onKeyDown: keys.onKeyDown,
+    onFocus: () => setSgOpen(true), onBlur: () => setSgOpen(false) });
+  const suggest = (listId: string, place: "up" | "down") => sgShow && <AskSuggest id={listId} text={text} qs={typed} company={company} aiReady={aiReady} aiPlan={aiPlan} left={qd?.left ?? null}
+    active={keys.active} place={place} onPick={(q) => { setSgOpen(false); tapQ(q); }} onAsk={sendNow} />;
   /** Task #201: the start screen's search, above the cards: ask anything at once, with a few things to try. On the start screen it is the one box (the box at the
    *  bottom is hidden there), and the listed questions that match show under it. */
   const TRY: { label: string; go: () => void }[] = [
@@ -219,15 +254,16 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
     <div className="aif-askw">
       <form className="aif-ask" onSubmit={send} role="search">
         <Icon name="search" />
-        <input value={text} onChange={(e) => setText(e.target.value)} maxLength={300} aria-label="Ask FinLit AI anything"
-          placeholder="Ask anything about a company, sector or investment concept…" autoComplete="off" />
+        <input value={text} onChange={(e) => { setText(e.target.value); setSgOpen(true); }} maxLength={300} aria-label="Ask FinLit AI anything"
+          placeholder="Ask anything about a company, sector or investment concept…" autoComplete="off" {...comboProps("aif-sg-top")} />
+        <kbd className="aif-enter" aria-hidden="true">Enter</kbd>
         <button disabled={busy || !text.trim()} aria-label="Ask"><Icon name="arrow" /></button>
       </form>
-      {typed.length > 0 && <ul className="aif-typed aif-typed-top" aria-label="Listed questions that match">{typed.map((q) => <li key={q.id + q.text}><button type="button" onClick={() => tapQ(q)}><Icon name="search" /><span>{q.text}</span></button></li>)}</ul>}
+      {suggest("aif-sg-top", "down")}
       <p className="aif-try"><span>Try asking</span>{TRY.map((t) => <button key={t.label} type="button" onClick={t.go}>{t.label}</button>)}</p>
     </div>);
-  const moreThemes = <p className="aif-more"><span>More themes</span><button type="button" onClick={() => setView("funds")}><Icon name={FUNDS_CARD.icon} />{FUNDS_CARD.title}</button>
-    <button type="button" onClick={() => setView("discovery")}><Icon name="globe" />Discovery</button></p>;
+  // task #268: the five themes are the five cards (Mutual funds & ETFs is the fifth, no longer under "More"); Discovery stays here
+  const moreThemes = <p className="aif-more"><span>Also</span><button type="button" onClick={() => setView("discovery")}><Icon name="globe" />Discovery</button></p>;
 
   return (
     <>
@@ -242,6 +278,16 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
               <button type="button" className={view === "saved" ? "on" : ""} aria-current={view === "saved" ? "page" : undefined} onClick={() => setView("saved")}><Icon name="star" />Saved Questions</button>
               <button type="button" className={view === "discovery" ? "on" : ""} aria-current={view === "discovery" ? "page" : undefined} onClick={() => setView("discovery")}><Icon name="globe" />Discovery</button>
             </nav>
+            {company && <div className="aif-sco" aria-label={`In context: ${company}`}>
+              <div className="aif-sco-h"><span><b>{company}</b>{coName && <small>{coName}</small>}</span>
+                <button type="button" className="aif-sco-x" onClick={() => { setCompany(null); if (view === "company") setView("home"); }} aria-label={`Stop asking about ${company}`} title="Clear the company">×</button></div>
+              {coRow && <p className="aif-sco-p"><span>₹{coRow[0].toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                {coRow[1] != null && <em className={coRow[1] >= 0 ? "up" : "dn"}>{coRow[1] >= 0 ? "+" : "−"}{Math.abs(coRow[1]).toFixed(2)}%</em>}</p>}
+              <button type="button" className="aif-sco-c" onClick={() => { setCompany(null); setView("segments"); }}>Change company</button>
+            </div>}
+            <p className="aif-sl"><Icon name="refresh" /> History</p>
+            {recent.length ? <ul className="aif-hist" aria-label="Your recent questions">{recent.slice(0, 5).map((t) => <li key={t}><button type="button" title={t} onClick={() => void ask(t, "home")}>{t}</button></li>)}</ul>
+              : <p className="aif-hist-none">Nothing yet. Ask a question and it collects here.</p>}
             <p className="aif-sl"><Icon name="spark" /> Popular Questions</p>
             <ul className="aif-pop">{STARTERS.slice(0, 4).map((x) => <li key={x.q}><button type="button" onClick={() => void ask(x.q, "home")}><Icon name="chat" /><span>{x.q}</span></button></li>)}</ul>
             <button type="button" className="aif-va" onClick={() => setView("home")}>View all <Icon name="arrow" /></button>
@@ -268,10 +314,11 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
                 <rect x="14" y="44" width="8" height="18" rx="4" fill="currentColor" fillOpacity=".7" /><rect x="98" y="44" width="8" height="18" rx="4" fill="currentColor" fillOpacity=".7" /></svg>
                 <h2>Hi, I’m <em>FinLit AI</em></h2><p>Your investing &amp; market research assistant</p></div>
               {askBox}
-              <ul className="aif-cats" aria-label="What would you like to explore?">
+              <ul className="aif-cats five" aria-label="What would you like to explore?">
                 {CATEGORIES.map((c) => (
                   <li key={c.id}><button type="button" className={"aif-cat aif-c-" + c.id} onClick={() => { if (c.id === "company") { if (company) setView("company"); else setView("segments"); } else { setCategory(c.id); setView("topic"); } }}>
                     <Icon name={c.icon} /><b>{c.title}</b><small>{c.sub}</small><i className="aif-go" aria-hidden="true"><Icon name="arrow" /></i></button></li>))}
+                <li><button type="button" className="aif-cat aif-c-funds" onClick={() => setView("funds")}><Icon name={FUNDS_CARD.icon} /><b>{FUNDS_CARD.title}</b><small>{FUNDS_CARD.sub}</small><i className="aif-go" aria-hidden="true"><Icon name="arrow" /></i></button></li>
               </ul>
               {moreThemes}
               <div className="aif-ex">
@@ -291,10 +338,11 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
             {view === "home" && !big && <>
               <div className="bub bot aif-hi"><b>Hi, I'm FinLit AI</b><span>How can I help you today?</span></div>
               {askBox}
-              <ul className="aif-cats" aria-label="What would you like to explore?">
+              <ul className="aif-cats five" aria-label="What would you like to explore?">
                 {CATEGORIES.map((c) => (
                   <li key={c.id}><button type="button" className="aif-cat" onClick={() => { if (c.id === "company") { if (company) setView("company"); else setView("segments"); } else { setCategory(c.id); setView("topic"); } }}>
                     <Icon name={c.icon} /><b>{c.title}</b><small>{c.sub}</small></button></li>))}
+                <li><button type="button" className="aif-cat" onClick={() => setView("funds")}><Icon name={FUNDS_CARD.icon} /><b>{FUNDS_CARD.title}</b><small>{FUNDS_CARD.sub}</small></button></li>
               </ul>
               {moreThemes}
               {pageFaq && <><p className="aif-label">Questions about this page</p><ul className="aif-qs" aria-label={`Questions about ${pageFaq.title}`}>
@@ -395,7 +443,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
             </>}
 
             {view === "chat" && <>
-              {msgs.map((m, i) => <div key={i} className={"bub " + (m.role === "user" ? "me" : "bot") + (m.ai?.error ? " aif-bub-err" : "")} style={m.role === "user" ? { whiteSpace: "pre-wrap" } : undefined} aria-busy={!!m.ai?.status || undefined}>{m.ai?.status && !m.content ? <span className="aif-reading" role="status"><i />{m.ai.status}…</span> : m.role === "assistant" ? <AnswerText text={m.content} /> : m.content}
+              {msgs.map((m, i) => <div key={i} className={"bub " + (m.role === "user" ? "me" : "bot") + (m.ai?.error ? " aif-bub-err" : "") + (big && m.role === "assistant" ? " aif-lab" : "")} style={m.role === "user" ? { whiteSpace: "pre-wrap" } : undefined} aria-busy={!!m.ai?.status || undefined}>{m.ai?.status && !m.content ? <span className="aif-reading" role="status"><i />{m.ai.status}…</span> : m.role === "assistant" ? <AnswerText text={m.content} /> : m.content}
                 {m.ai?.disclaimer && <small className="aif-disc">{m.ai.disclaimer}</small>}
                 {m.ai?.plans && <Link className="aif-ans-link" to="/plans" onClick={() => { if (!big) setOpen(false); }}>See the plans <Icon name="arrow" /></Link>}{m.role === "user" && <button type="button" className={"aif-save" + (saved.includes(m.content) ? " on" : "")} aria-pressed={saved.includes(m.content)} aria-label={saved.includes(m.content) ? "Remove this question from saved" : "Save this question"} title={saved.includes(m.content) ? "Saved" : "Save this question"} onClick={() => setSaved((l) => toggleSaved(l, m.content))}><Icon name="star" /></button>}
                 {m.link && <Link className="aif-ans-link" to={m.link.to} onClick={() => { if (!big) setOpen(false); }}>{m.link.label} <Icon name="arrow" /></Link>}
@@ -410,13 +458,16 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
             </>}
             <div ref={end} />
           </div>
-          {view !== "home" && typed.length > 0 && <ul className="aif-typed" aria-label="Listed questions that match">{typed.map((q) => <li key={q.id + q.text}><button type="button" onClick={() => tapQ(q)}><Icon name="search" /><span>{q.text}</span></button></li>)}</ul>}
-          <form onSubmit={send} hidden={view === "home"}>
-            <input ref={field} value={text} onChange={(e) => setText(e.target.value)} maxLength={300}
+          <div className="aif-inw" hidden={view === "home"}>
+          {view !== "home" && suggest("aif-sg-bottom", "up")}
+          <form onSubmit={send}>
+            <input ref={field} value={text} onChange={(e) => { setText(e.target.value); setSgOpen(true); }} maxLength={300} autoComplete="off" {...comboProps("aif-sg-bottom")}
               placeholder={aiReady ? (company && view !== "home" ? `Ask anything, not just ${company}` : "Ask about a company, a fund or the market") : company && view !== "home" ? `Search ${company}'s questions (e.g. debt, dividend, P/E)` : "Search the questions (e.g. P/E, cash flow, debt)"}
               aria-label={aiReady ? "Your question for FinLit AI" : "Search the listed questions"} />
+            <kbd className="aif-enter" aria-hidden="true">Enter</kbd>
             <button disabled={busy || !text.trim()} aria-label="Send"><Icon name="arrow" /></button>
           </form>
+          </div>
           <p className="ai-fine">General information, not investment advice.{aiOn && user && qd && (qd.limit ?? 0) > 0 && <> <span className="aif-left">FinLit AI: {qd.left} of {qd.limit} written answers left this month{qd.left === 0 && qd.resets ? `; they renew on ${new Date(qd.resets).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : ""}.</span></>}</p>
         </section>
       )}

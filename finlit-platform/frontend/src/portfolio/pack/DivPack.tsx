@@ -44,14 +44,14 @@ export function WideBox({ title, children }: { title: string; children: ReactNod
 }
 
 // ------------------------------------------------------------------------------------------------ 1 Where it sits
-/** Step 1 (moved here from the Portfolio tab): macro sector × size, one chip per share with its Prism (Gold) or FinLit IQ (Silver) band, darker cells holding more,
+/** Step 1 (moved here from the Portfolio tab): macro sector × size, one chip per share with its FinLit Prism band (Gold; names only otherwise, task #283), darker cells holding more,
  *  each row's share of the list, and totals that add to 100% (D52, D53). */
 export function WhereSitsGrid({ d }: { d: DivInput }) {
   const g = useMemo(() => whereGrid(d.symbols, (s) => d.levelOf(s, "macro"), d.sizeOf), [d]);
   const sizeLabel: Record<Size3, string> = { Large: "Large cap", Mid: "Mid cap", Small: "Small cap", Micro: "Micro cap" };
   return (
     <Section id="eq-where" hide title="Where your list sits: macro sector and size" help="Each share in one row, its NSE macro sector, and one column, its size: large, mid, small or micro." how="A deeper cell has more of your shares. The last column is the row's share of the list, if equal amounts were held; rows and columns each add to 100%."
-      sub={<>Each chip is one share; its dot shows the {d.gold ? "FinLit Prism" : "FinLit IQ"} band. Darker cells carry more of the list. Large above ₹75,000 Cr · Mid ₹25,000–75,000 Cr · Small ₹10,000–25,000 Cr · Micro below ₹10,000 Cr.</>}>
+      sub={<>{d.gold ? "Each chip is one share; its dot shows the FinLit Prism band." : "Each chip is one share (names only on this plan; the dots show FinLit Prism, see plans)."} Darker cells carry more of the list. Large above ₹75,000 Cr · Mid ₹25,000–75,000 Cr · Small ₹10,000–25,000 Cr · Micro below ₹10,000 Cr.</>}>
       <Scroll label="where your list sits"><table className="eqd-ws">
         <thead><tr><th scope="col">Macro sector</th>{g.cols.map((c) => <th key={c.k} scope="col">{sizeLabel[c.k]} <span className="eqd-mute">· {c.n}</span></th>)}<th scope="col">Of the list</th></tr></thead>
         <tbody>{g.rows.map((r) => <tr key={r.name}><th scope="row">{r.name}</th>
@@ -60,7 +60,7 @@ export function WhereSitsGrid({ d }: { d: DivInput }) {
           <td className="eqd-of"><b>{pc(r.pct)}</b><span className="eqd-ob" aria-hidden="true"><i style={{ width: `${r.pct}%` }} /></span><small>{r.n} {r.n === 1 ? "share" : "shares"}</small></td></tr>)}</tbody>
         <tfoot><tr><th scope="row">All macro sectors</th>{g.cols.map((c) => <td key={c.k}><b>{c.n} {c.n === 1 ? "share" : "shares"}</b> · {pc(c.pct)}</td>)}<td><b>100%</b></td></tr></tfoot>
       </table></Scroll>
-      <p className="eqd-key"><span><i className="b-g" />{d.gold ? "Strong or Healthy Prism" : "Strong or Healthy FinLit IQ"}</span><span><i className="b-m" />{d.gold ? "Average" : "Mixed"}</span><span><i className="b-b" />{d.gold ? "Weak" : "Watch"}</span><span><i className="b-n" />Not scored yet</span></p>
+      {d.gold && <p className="eqd-key"><span><i className="b-g" />Strong or Healthy Prism</span><span><i className="b-m" />Average</span><span><i className="b-b" />Weak</span><span><i className="b-n" />Not scored yet</span></p>}
       {g.noSize.length > 0 && <p className="sp-note">No size band yet for {g.noSize.join(", ")}: counted in the row total, not in a size column.</p>}
     </Section>
   );

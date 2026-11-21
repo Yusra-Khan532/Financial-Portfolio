@@ -10,12 +10,12 @@ describe("site map", () => {
     expect(SECTIONS.map((s) => s.label)).toEqual(["Workspace", "Research", "Markets", "News & events", "Funds"]);
     const names = (id: string) => SECTIONS.find((s) => s.id === id)!.groups.flatMap((g) => g.items.map((i) => i.label));
     expect(RESEARCH.groups.map((g) => g.title)).toEqual(["Find stocks", "Analyse a company", "Investment calculators", "Charts"]);
-    expect(RESEARCH.groups[0].items.map((i) => i.label)).toEqual(["Stock screener", "Basic stock screener", "Advanced stock screener", "Query builder", "Discover", "Superinvestor portfolios"]);   // Discovery added by task #241; task #260: "Discover", after Query builder (SHARED §6)
+    expect(RESEARCH.groups[0].items.map((i) => i.label)).toEqual(["Stock screener", "Advanced stock screener", "Query builder", "Discover", "Superinvestor portfolios"]);   // task #283: the Basic stock screener is retired; Discovery added by task #241; task #260: "Discover", after Query builder (SHARED §6)
     expect(RESEARCH.groups[1].items.map((i) => i.label)).toEqual(["Company report", "Compare companies", "FinLit Prism", "Profit and revenue forecasting", "Stress Lab"]);
     expect(RESEARCH.groups[2].items.map((i) => i.label)).toEqual(["P/E, EPS & PEG calculator", "DCF valuation calculator", "Reverse valuation", "SIP calculator"]);
     expect(RESEARCH.groups[3].items.map((i) => i.label)).toEqual(["Chart builder", "Correlation charts"]);
     expect(names("markets")).toEqual(["Sector Pulse", "Sector Rotation", "FII & DII flows", "India economy", "Commodity prices"]);
-    expect(names("news")).toEqual(["Results calendar", "Latest results", "IPO calendar", "News & filings"]);
+    expect(names("news")).toEqual(["Results calendar", "Latest results", "Concall Monitor", "IPO calendar", "News & filings"]);   // task #278: Concall Monitor after Latest results
     expect(names("funds")).toEqual(["Mutual funds", "Mutual fund screener", "ETFs"]);
     expect(names("myfinlit")).toEqual(["Dashboard", "Watchlists", "All my investments", "Equity portfolio", "MF portfolio", "ETF portfolio", "Alerts"]);   // task #137: All my investments after Watchlists, as the pack draws it; task #136: ETF portfolio after MF portfolio
   });

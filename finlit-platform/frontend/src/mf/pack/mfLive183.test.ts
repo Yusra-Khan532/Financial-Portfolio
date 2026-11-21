@@ -10,7 +10,7 @@ const page = readFileSync(resolve(__dirname, "../../pages/MfPortfolio.tsx"), "ut
 
 describe("MF portfolio live fixes (M1)", () => {
   it("writes the account's plan on the badge, never a fixed word", () => {
-    expect(page).toContain('<p className="mfp-plan"><span>{TIER[plan].n}</span></p>');
+    expect(page).toContain('<p className="ptk-plan mfp-plan"><span>{TIER[plan].n}</span></p>');   // task #275: the badge sits in the compact top's title row
     expect(page).not.toMatch(/mfp-plan"><span>Silver</);
     expect([TIER.silver.n, TIER.gold.n].map((w) => w.toLowerCase())).toEqual(["silver", "gold"]);
   });

@@ -11,9 +11,9 @@ const i = (to: string, label: string, sub: string, icon: string, o: { gold?: boo
 /** A page carries a "New" tag in the menus until its `newUntil` day (task #136: 30 days from launch). */
 export const isNew = (n: { newUntil?: string }, now: number = Date.now()) => !!n.newUntil && now < Date.parse(n.newUntil + "T00:00:00+05:30");
 
-/** Pages a Gold member does not get (founder, 13 Nov 2026, task #100): Gold screens with FinLit Prism only, so the Basic stock screener (built on the FinLit IQ)
- *  is not offered to Gold. Menus, the left rail, page links and tool cards leave it out for Gold, and its address opens the Advanced stock screener. */
-export const NOT_FOR_GOLD = new Set(["/score-screener"]);
+/** Pages a Gold member is not offered (founder, 13 Nov 2026, task #100). Empty since task #283: the Basic stock screener, the one page listed, is retired with its
+ *  score, and its address opens the Advanced stock screener for everyone. Menus, the left rail, page links and tool cards still pass through `offeredTo`. */
+export const NOT_FOR_GOLD = new Set<string>();
 export const offeredTo = (gold: boolean) => (n: { to: string }) => !(gold && NOT_FOR_GOLD.has(n.to.split(/[?#]/)[0]));
 
 /** The five main headings, in the order people use them. */
@@ -30,7 +30,6 @@ export const SECTIONS: NavSection[] = [
   { id: "research", label: "Research", wide: true, groups: [
     { title: "Find stocks", items: [
       i("/screener", "Stock screener", "Filter every listed company by size, valuation, growth and debt", "table"),
-      i("/score-screener", "Basic stock screener", "Every listed company with its FinLit IQ, filtered by size, sector and score", "quality"),
       i("/advanced-score-screener", "Advanced stock screener", "Every listed company with its FinLit Prism rating: four financial-health parts and two technical views", "layers", { gold: true }),
       i("/query-builder", "Query builder", "Type a rule like P/E < 15, get the companies; save baskets", "notes"),
       // task #260 (SHARED §6 of the 20 Nov pack): Discover sits after Query builder, with the green New tag and the pack's line
@@ -65,6 +64,7 @@ export const SECTIONS: NavSection[] = [
   { id: "news", label: "News & events", groups: [{ items: [
     i("/results", "Results calendar", "Who reports quarterly results, and when", "calendar", { end: true }),
     i("/results/quarter", "Latest results", "Every company's newest quarter, newest first", "notes"),
+    i("/concalls", "Concall Monitor", "Earnings call recordings, transcripts, presentations and upcoming calls", "play", { newUntil: "2026-12-21" }),
     i("/ipo", "IPO calendar", "Issues open now, upcoming and listed", "activity"),
     i("/news", "News & filings", "Exchange filings and headlines", "notes"),
   ] }] },

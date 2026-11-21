@@ -45,7 +45,7 @@ function Crowned({ title, plan }: { title: string; plan: string }) {
   return <>{head && <b>{head}</b>}<span className="xt-tail"><b>{last}</b><span className="xt-crown"><Icon name="crown" /><span className="sr-only">, {plan} plan</span></span></span></>;
 }
 const TOOL_ICON: Record<string, string> = {
-  "stock-screener": "table", "basic-score-screener": "quality", "advanced-score-screener": "layers", "query-builder": "notes", "mutual-funds": "pie", "etfs": "bars", "fund-health-score": "gauge",
+  "stock-screener": "table", "advanced-score-screener": "layers", "query-builder": "notes", "mutual-funds": "pie", "etfs": "bars", "fund-health-score": "gauge",
   "company-report": "search", "finlit-prism": "prism", "company-financials": "table", "compare-companies": "compare", "chart-builder": "line", "correlation-charts": "activity",
   "dcf-calculator": "rupee", "reverse-valuation": "refresh", "profit-revenue-outlook": "activity", "eps-calculator": "percent", "sip-calculator": "coins", "stress-lab": "alert",
   "watchlists": "star", "equity-portfolio": "wallet", "mf-portfolio": "pie", "alerts": "bell", "compare-funds": "compare", "etf-portfolio": "bars",

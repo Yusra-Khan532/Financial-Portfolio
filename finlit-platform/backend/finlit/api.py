@@ -795,6 +795,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(__import__("finlit.presets.api", fromlist=["gainers_router"]).gainers_router)   # /api/screener/gainers
     app.include_router(__import__("finlit.presets.selfcheck", fromlist=["router"]).router)   # /api/screener/selfcheck: the screen checks, pass or fail only
     app.include_router(__import__("finlit.earnings.api", fromlist=["router"]).router)   # /api/earnings-calls (the list is open; the answers are Gold)
+    app.include_router(__import__("finlit.concall.api", fromlist=["router"]).router)   # /api/concalls: the Concall Monitor (task #278)
     app.include_router(advanced_api.router)
     app.include_router(compare_api.router)
     app.include_router(__import__("finlit.diversification.api", fromlist=["router"]).router)   # POST /api/diversification: the Diversification card (names only)

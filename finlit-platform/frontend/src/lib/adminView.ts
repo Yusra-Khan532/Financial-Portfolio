@@ -17,7 +17,7 @@ export function setAdminView(v: AdminView): void {
   try { if (v === "all") localStorage.removeItem(KEY); else localStorage.setItem(KEY, v); } catch { /* private mode */ }
 }
 
-/** True while an administrator sees every plan's features: the score helpers (lib/planScore) then add the FinLit IQ beside FinLit Prism. Set by lib/auth. */
+/** True while an administrator sees every plan's features: the score helpers (lib/planScore) show FinLit Prism to them (task #283: the retired score is no longer shown beside it). Set by lib/auth. */
 let all = false;
 export const seesAllNow = (): boolean => all;
 export function setSeesAllNow(v: boolean): void { all = v; }

@@ -1,6 +1,5 @@
-// The right half of the stock page's first dashboard: FinLit Prism beside the FinLit IQ (left half, in Hero.tsx).
-// Compact by design: one row each for the header, the score (prism glyph + words), the parts (tiles) and a footer. The left half uses the same row grid,
-// so the two halves line up. Task #216: the "What supports and weighs on the rating" drop-down and "Show full breakdown" are gone, for every plan.
+// The stock page's first dashboard: FinLit Prism, FinLit's only company score (task #283), full width (Hero.tsx).
+// Compact by design: one row each for the header, the score (prism glyph + words), the parts (tiles) and a footer. Task #216: the "What supports and weighs on the rating" drop-down and "Show full breakdown" are gone, for every plan.
 // Gold members (and everyone on a free example company) see the newest stored rating; others see a locked teaser.
 // A company with no stored rating is calculated automatically when the page opens. Anything unexpected hides the half and the score fills the row.
 import { useContext, useEffect, useRef } from "react";
@@ -18,6 +17,7 @@ import { PRISM_NOTE, PRISM_PARTS, PRISM_POINTS } from "./prismWords";
 import { CardSkeleton, FundamentalSection, TechnicalSection } from "./PrismCardView";
 import { PrismAiSummary } from "./PrismAiSummary";   // task #228: the AI summary button under the two cards
 import { type CardPart } from "./prismCardLogic";
+import { PLAN_FOR_PRISM } from "../lib/planGates";
 import "../styles/prism-compare.css";
 import "../styles/prism-card.css";
 
@@ -101,7 +101,7 @@ export function PrismCompare({ symbol, name, statement }: { symbol: string; name
     <section className="report dk-card pz-right" id="prism" aria-label={`FinLit Prism rating for ${name}`}>
       {state?.kind === "locked" ? (
         <OpenAccess.Provider value={false}>
-          <Gate tier="gold" title="Unlock FinLit Prism" points={PRISM_POINTS}>
+          <Gate tier={PLAN_FOR_PRISM} title="Unlock FinLit Prism" points={PRISM_POINTS}>
             {head("Example")}
             <div className="dk-body"><div className="pcx-body"><FundamentalSection r={EXAMPLE} parts={ex} example><p className="dk-note">Example numbers, to show the layout.</p></FundamentalSection></div>
             </div>

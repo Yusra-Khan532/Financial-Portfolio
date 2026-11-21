@@ -11,6 +11,7 @@ import { SectionHead } from "./Sections";
 import { HScroll } from "../components/HScroll";
 import { ChartHelp } from "../components/ChartHelp";
 import { ChartZoom } from "../components/ChartZoom";
+import { PLAN_FOR_REPORT_EXTRAS } from "../lib/planGates";
 
 type N = number | null;
 export type Stats = {
@@ -56,7 +57,7 @@ function PriceTab({ symbol }: { symbol: string }) {
         <div className="seg" role="group" aria-label="Candle range" style={{ marginBottom: 10 }}>{["1M", "6M", "1Y"].map((r) => <button key={r} aria-pressed={range === r} onClick={() => setRange(r)}>{r}</button>)}</div>
         {px && px.o && px.h && px.l ? <Candles t={px.t} o={px.o} h={px.h} l={px.l} c={px.c} v={px.v} ema50={px.ema50} ema200={px.ema200} /> : <div className="skeleton" style={{ height: 300 }} />}
       </Card>
-      <Gate tier="silver" title="Price statistics" points={["Monthly returns calendar", "Drawdown and volatility", "How big a typical day's move is"]}>
+      <Gate tier={PLAN_FOR_REPORT_EXTRAS} title="Price statistics" points={["Monthly returns calendar", "Drawdown and volatility", "How big a typical day's move is"]}>
         {stats && !ok && !stats.locked ? <Soon>Not enough price history yet for these charts.</Soon> : (
           <div className="cl-stats">
           {/* task #216 (README 3.8): the five price-statistics cards are one tab group */}

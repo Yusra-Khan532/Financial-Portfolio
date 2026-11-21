@@ -23,6 +23,7 @@
 
 .hs-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 8px; min-width: 0; }
 .hs-sub:empty { display: none; }
+.hs-lock { text-decoration: none; color: var(--muted); } .hs-lock svg { width: 14px; height: 14px; } .hs-lock:hover { color: var(--text); }
 .hs-badge { --band-c: var(--faint); display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px 9px; min-height: 30px; padding: 3px 12px 3px 10px; border-radius: 999px; max-width: 100%;
   background: color-mix(in srgb, var(--band-c) 15%, transparent); border: 1.5px solid color-mix(in srgb, var(--band-c) 70%, transparent); }
 .hs-badge.band-hi { --band-c: var(--band-hi); } .hs-badge.band-mid { --band-c: var(--band-mid); } .hs-badge.band-lo { --band-c: var(--band-lo); }

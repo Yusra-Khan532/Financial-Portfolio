@@ -1127,6 +1127,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_cb.add_argument("--max-writes", type=int, default=None, help="write at most this many briefs in this run (default BRIEF_MAX_WRITES_PER_NIGHT)")
     p_cb.add_argument("--max-minutes", type=float, default=40.0, help="start no new company after this many minutes")
     p_cb.add_argument("symbols", nargs="*", help="only these companies")
+    p_cc = sub.add_parser("refresh-concalls", help="every few hours: read new earnings-call filings (schedule, recording, transcript) for the Concall Monitor (docs/CONCALLS.md)")
+    p_cc.add_argument("--limit", type=int, default=160, help="letters read in this run")
+    p_cc.add_argument("--max-minutes", type=float, default=20.0, help="start no new letter after this many minutes")
+    p_cc.add_argument("symbols", nargs="*", help="only these companies")
     p_dc = sub.add_parser("refresh-discovery", help="nightly: read each company's newest investor presentation (Documents) and put it in the Discovery themes (docs/DISCOVERY.md)")
     p_dc.add_argument("--limit", type=int, default=300, help="presentations read in this run")
     p_dc.add_argument("--max-minutes", type=float, default=40.0, help="start no new presentation after this many minutes")
@@ -1655,6 +1659,13 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
             from .mf import record_run
             res = await brief_service.run(store, settings, max_writes=args.max_writes, max_minutes=args.max_minutes, symbols=[x.upper() for x in args.symbols] or None)
             await record_run(store, args.cmd, {k: v for k, v in res.items() if k != "written_symbols"})
+            print(json.dumps(res, default=str)[:3000])
+            return 0
+        if args.cmd == "refresh-concalls":
+            from .concall import service as concall_service
+            from .mf import record_run
+            res = await concall_service.run(store, limit=args.limit, max_minutes=args.max_minutes, symbols=[x.upper() for x in args.symbols] or None)
+            await record_run(store, args.cmd, res)
             print(json.dumps(res, default=str)[:3000])
             return 0
         if args.cmd == "refresh-discovery":

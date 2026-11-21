@@ -534,16 +534,16 @@ async def test_tell_me_when_a_company_joins_names_joins_and_leaves_in_the_inbox_
     assert matches({"market_cap": 80000}, {"caps": ["Large"]}) and not matches({"market_cap": 30000}, {"caps": ["Large"]}) and matches({"market_cap": 30000}, {"caps": ["Mid", "Large"]})   # task #262: Large above ₹75,000 Cr, Mid ₹25,000-75,000
     assert matches({"market_cap": 5000}, {"caps": ["Micro"]}) and matches({"market_cap": 15000}, {"caps": ["Small"]}) and not matches({"market_cap": 5000}, {"caps": ["Small"]})
     assert not matches({"market_cap": None}, {"caps": ["Small"]})                      # no market cap: no size, never guessed
-    assert matches({"pillar_quality": 80, "pillar_growth": 70}, {"model": "modelcompound"}) and not matches({"pillar_quality": 80, "pillar_growth": 10}, {"model": "modelcompound"})
+    assert matches({"prism_quality": 80, "prism_fundamental": 70}, {"model": "pz_compound"}) and not matches({"prism_quality": 80, "prism_fundamental": 10}, {"model": "pz_compound"})
     subj, body = screen_mail("Cheap", [{"symbol": "AAA", "name": "Alpha"}], 3, "http://x/screener", [{"symbol": "BBB", "name": "Beta"}])
     assert subj == "1 joined and 1 left: your screen “Cheap”" and "Joined since the last check" in body and "Left since the last check" in body and "BBB" in body
     c = await signed_in(app, "joins@example.com", plan="gold")
     screens = {"screens": [{"name": "Tell me", "state": {"ranges": {"pe": {"max": 30}}}, "notify": True},
                            {"name": "Quiet", "state": {"ranges": {"pe": {"max": 31}}}, "notify": False},
-                           {"name": "Model", "state": {"model": "modelcompound"}, "notify": True}]}
+                           {"name": "Model", "state": {"model": "modelcompound"}, "notify": True}]}      # task #283: a retired IQ screen, saved before
     assert (await c.put("/api/me/screens", json=screens)).status_code == 200
     back = (await c.get("/api/me/state")).json()["screens"]
-    assert back[2]["state"]["model"] == "modelcompound" and back[0]["notify"] is True and back[1]["notify"] is False   # the model screen and the choice are kept
+    assert back[2]["state"]["model"] == "modelcompound" and back[0]["notify"] is True and back[1]["notify"] is False   # the saved screen and the choice are kept (never run)
     assert (await c.put("/api/me/screens", json={"screens": [{"name": "x", "state": {"model": "nope"}}]})).status_code == 422
     async with pool.acquire() as conn:
         await conn.execute("UPDATE scores SET pe = 50, metrics = jsonb_set(coalesce(metrics, '{}'::jsonb), '{pe}', '50') WHERE symbol = 'RELIANCE'")
@@ -553,6 +553,9 @@ async def test_tell_me_when_a_company_joins_names_joins_and_leaves_in_the_inbox_
     assert await check_screens(pool, app.state.mailer, "http://test") == 1              # "Tell me" only: "Quiet" sends nothing
     mail = await last_mail(app, "joins@example.com")
     assert "RELIANCE" in mail["body"] and "Joined since the last check" in mail["body"] and "“Tell me”" in mail["subject"]
+    async with pool.acquire() as conn:
+        uid_g = await conn.fetchval("SELECT id FROM users WHERE email = 'joins@example.com'")
+        assert await conn.fetchval("SELECT count(*) FROM screen_state WHERE user_id = $1 AND screen_name = 'Model'", uid_g) == 0   # the retired IQ screen never ran
     async with pool.acquire() as conn:
         n = await conn.fetchval("SELECT count(*) FROM notifications n JOIN users u ON u.id = n.user_id WHERE u.email = 'joins@example.com' AND n.kind = 'screen' AND n.title LIKE '%Tell me%'")
         await conn.execute("UPDATE scores SET pe = 50, metrics = jsonb_set(coalesce(metrics, '{}'::jsonb), '{pe}', '50') WHERE symbol = 'RELIANCE'")

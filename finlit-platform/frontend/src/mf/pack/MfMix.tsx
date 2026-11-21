@@ -2,7 +2,7 @@
 // 1 What they own (macro sector · 12 | sector · 22 × size look-through, chips with the plan's reading, "+N more ▾") → 2 Spread (six readings) → three sub-tabs:
 // What they hold (3 Money in, 4 Sectors inside) · How funds move together (5 Move together with a pair reader, 6 Shared stocks) · Large, mid, small and micro (7) →
 // 8 Biggest stocks (5, then Show all 10) → 9 Trend (Gold, folded; a lock card below Gold). Figures are the server's; this file only draws and words them.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { Scroll, Section } from "../../components/sectors/pack/Common";
 import { Insights, GoldLock } from "../../portfolio/pack/EquityPack";
@@ -52,9 +52,12 @@ export function Cell({ c, max, readingOf, link }: { c?: { w: number; n: number; 
   if (!c || c.w <= 0) return <td className="mfm-c empty" />;
   const show = open ? c.stocks : c.stocks.slice(0, 4), rest = c.stocks.length - 4;
   return <td className="mfm-c" style={{ ["--mfm-a" as string]: String(Math.min(1, c.w / max) * 0.55) }}>
-    <span className="mfm-chips">{show.map((s) => { const r = readingOf(s.symbol); const tt = `${s.name}: ${p1(s.w)} of your list${r?.word ? ` · ${r.word}` : ""}`, body = <><i className={"mfm-dot " + tone(r?.word)} aria-hidden="true" />{s.symbol ?? s.name.split(" ")[0]}</>;
-      return link && s.symbol ? <Link key={s.symbol} className="mfm-chip ptk-chipl" to={`/stocks/${encodeURIComponent(s.symbol)}`} title={`${tt}. Open the company report`}>{body}</Link>
-        : <span key={s.symbol ?? s.name} className="mfm-chip" title={tt}>{body}</span>; })}
+    <span className="mfm-chips">{show.map((s) => { const r = readingOf(s.symbol); const tip = `${s.name}: ${p1(s.w)} of your list${r?.word ? ` · ${r.word}` : ""}`;
+      const inner = <><i className={"mfm-dot " + tone(r?.word)} aria-hidden="true" />{s.symbol ?? s.name.split(" ")[0]}</>;
+      // task #275 (change 5) and #276: a listed company's chip opens its company report (every page; `link={false}` keeps plain labels); one with no listed
+      // symbol (an ISIN not matched) has no report and stays a label that says so
+      return (link ?? true) && s.symbol ? <Link key={s.symbol} className="mfm-chip mfm-chip-a ptk-chipl" to={`/stocks/${encodeURIComponent(s.symbol)}`} title={`${tip}. Open the company report`}>{inner}</Link>
+        : <span key={s.symbol ?? s.name} className="mfm-chip" title={s.symbol ? tip : `${tip} · no company report (not matched to a listed company)`}>{inner}</span>; })}
       {rest > 0 && <button type="button" className="eq-more" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "Show fewer ▴" : `+${rest} more ▾`}</button>}</span>
     <small className="mfm-cw">{p1(c.w)} · {c.n} {c.n === 1 ? "co" : "cos"}</small></td>;
 }
@@ -84,17 +87,17 @@ export function OwnSection({ sp, level, onLevel, readingOf, gold, mfOnly }: { sp
   cards.push({ kind: "insight", title: "Weights follow the fund files", text: `From each fund house's latest monthly file, each fund counting ${sp.basis === "value" ? "by the value of your units" : "the same"}.${sp.coverage.notMatched ? ` ${sp.coverage.notMatched} share ${sp.coverage.notMatched === 1 ? "ISIN is" : "ISINs are"} not matched to a listed company: counted as "Not sized".` : ""}` });
   return (
     <Section id="mfp-own" hide title="What your funds own: sector and size" help="The shares inside your funds, added up from each fund house's latest monthly file, by NSE sector and company size. Each chip is one company." how="Darker cells hold more of your list. A chip's dot is its reading on your plan; +N more opens the rest of the cell."
-      sub={`The shares inside your funds, added up from each fund house's latest monthly file. ${mfOnly ? "Each chip is one company." : `Each chip is one company; its dot shows its ${gold ? "FinLit Prism" : "FinLit IQ"} band.`} Darker cells hold more of your list.`}>
+      sub={`The shares inside your funds, added up from each fund house's latest monthly file. ${mfOnly || !gold ? "Each chip is one company." : "Each chip is one company; its dot shows its FinLit Prism band."} Darker cells hold more of your list.`}>
       <LevelSwitch level={level} onLevel={onLevel} sp={sp} />
       <Scroll label="what your funds own"><table className="sp-tb mfm-g">
         <thead><tr><th scope="col">{level === "macro" ? "Macro sector" : "Sector"}</th>{sizes.map((s) => <th key={s} scope="col">{SIZE_HEAD[s][0]}<small>{SIZE_HEAD[s][1]}</small></th>)}<th scope="col" className="r">Of your list</th></tr></thead>
         <tbody>{shown.map((r) => <tr key={r.name}><th scope="row"><b>{r.name}</b>{level === "sector" && macroOf(r.name) && macroOf(r.name) !== r.name && <small>{macroOf(r.name)}</small>}</th>
-          {sizes.map((s) => <Cell key={s} c={r.cells[s]} max={max} readingOf={mfOnly ? () => null : readingOf} />)}
+          {sizes.map((s) => <Cell key={s} c={r.cells[s]} max={max} readingOf={mfOnly || !gold ? () => null : readingOf} />)}
           <td className="r mfm-tot"><b>{p1(r.total)}</b><i className="mfm-bar"><u style={{ width: `${(r.total / (rows[0]?.total || 1)) * 100}%` }} /></i><small>{p0(r.total / (sp.knownShares || 1))} of the shares</small></td></tr>)}</tbody>
         <tfoot><tr><th scope="row">All {level === "macro" ? "macro sectors" : "sectors"} · {rows.length}</th>{sizes.map((s) => <td key={s}><b>{p1(colTot(s))}</b> of the list · {p0(colTot(s) / (sp.knownShares || 1))} of the shares</td>)}<td className="r"><b>{p1(sp.knownShares)}</b> in shares</td></tr></tfoot>
       </table></Scroll>
       {level === "sector" && rows.length > 8 && <button type="button" className="eq-more mfm-all" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer ▴" : `Show all ${rows.length} sectors ▾`}</button>}
-      <p className="sp-note">{mfOnly ? "Readings of the stocks inside are part of Silver and up." : <><i className="mfm-dot g" /> Strong or Healthy · <i className="mfm-dot m" /> {gold ? "Average" : "Mixed"} · <i className="mfm-dot b" /> {gold ? "Weak" : "Watch"}.</>} Chips: the biggest holdings with a reading; "+N more" opens the rest of that cell. {rest(sp)}</p>
+      <p className="sp-note">{mfOnly || !gold ? "Names only on this plan: the dots show FinLit Prism, FinLit's only company score (see plans)." : <><i className="mfm-dot g" /> Strong or Healthy · <i className="mfm-dot m" /> Average · <i className="mfm-dot b" /> Weak.</>} Chips: the biggest holdings with a reading; "+N more" opens the rest of that cell. {rest(sp)}</p>
       <Insights items={cards} scope="mf.own" />
     </Section>
   );
@@ -252,13 +255,13 @@ export function BiggestSection({ rows, sp, readingOf, gold, mfOnly }: { rows: Bi
   const [all, setAll] = useState(false), nm = (c: number) => shortFund(sp.funds.find((f) => f.code === c)?.name);
   const shown = all ? rows : rows.slice(0, 5);
   return (
-    <Section id="mfp-biggest" hide title="Biggest stocks underneath" help="The largest holdings across your funds: each company's weight inside each fund times the fund's share of your list, added up." how={`"Of your funds" is that share of your list. The reading is the company's ${gold ? "FinLit Prism" : "FinLit IQ"} on your plan.`}
-      sub={`The ${rows.length} largest holdings across your funds, and which funds hold them. Reading: ${mfOnly ? "names only on this plan" : gold ? "FinLit Prism" : "FinLit IQ"}.`}>
-      <Scroll label="biggest stocks underneath"><table className="sp-tb mfm-big kit-grid"><thead><tr><th scope="col">Stock</th><th scope="col">Macro sector</th><th scope="col">Size</th><th scope="col" className="r">Of your funds</th><th scope="col">Held by</th><th scope="col">{gold ? "FinLit Prism" : "FinLit IQ"}</th></tr></thead>
+    <Section id="mfp-biggest" hide title="Biggest stocks underneath" help="The largest holdings across your funds: each company's weight inside each fund times the fund's share of your list, added up." how={`"Of your funds" is that share of your list. The reading is the company's FinLit Prism score, on a plan that has it.`}
+      sub={`The ${rows.length} largest holdings across your funds, and which funds hold them. Reading: ${mfOnly || !gold ? "names only on this plan" : "FinLit Prism"}.`}>
+      <Scroll label="biggest stocks underneath"><table className="sp-tb mfm-big kit-grid"><thead><tr><th scope="col">Stock</th><th scope="col">Macro sector</th><th scope="col">Size</th><th scope="col" className="r">Of your funds</th><th scope="col">Held by</th><th scope="col">FinLit Prism</th></tr></thead>
         <tbody>{shown.map((r) => { const rd = readingOf(r.symbol); return <tr key={r.symbol ?? r.name}>
           <th scope="row">{r.symbol ? <Link to={`/stocks/${r.symbol}`} title={coTitle({ symbol: r.symbol, name: r.name })}>{titleOf({ symbol: r.symbol, name: r.name })}</Link> : r.name}<small className="mfp-sub">{r.symbol ? subLine({ symbol: r.symbol, name: r.name }, r.name) : r.name}</small></th><td>{r.macro ?? "–"}</td><td>{r.size ? <span className="mfm-sz">{r.size[0]}</span> : "–"}</td>
           <td className="r">{(r.w * 100).toFixed(2)}%</td><td><span className="mfm-held">{r.funds.map((c) => <span key={c}>{nm(c)}</span>)}</span></td>
-          <td>{mfOnly ? <Link to="/plans" className="mfm-lock">🔒 Silver</Link> : rd?.score != null ? <span className="mff-score"><b className={"mff-num " + tone(rd.word)}>{Math.round(rd.score)}</b> <span className={"mff-w " + tone(rd.word)}>{rd.word}</span></span> : <span className="sp-note">Not rated</span>}</td></tr>; })}</tbody></table></Scroll>
+          <td>{mfOnly || !gold ? <Link to="/plans" className="mfm-lock">🔒 FinLit Prism · see plans</Link> : rd?.score != null ? <span className="mff-score"><b className={"mff-num " + tone(rd.word)}>{Math.round(rd.score)}</b> <span className={"mff-w " + tone(rd.word)}>{rd.word}</span></span> : <span className="sp-note">Not rated</span>}</td></tr>; })}</tbody></table></Scroll>
       {rows.length > 5 && <button type="button" className="eq-more" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer ▴" : `Show all ${rows.length} ▾`}</button>}
     </Section>
   );
@@ -268,14 +271,15 @@ export function TrendUnder({ sp, gold }: { sp: MfSpread; gold: boolean }) {
   const rated = sp.trend.all.rated, n = sp.trend.all.n;
   return (
     <section className="sp-sec" aria-labelledby="mfp-trend"><details className="mfm-fold"><summary><span><h2 id="mfp-trend">Short- and long-term trend underneath</h2><small>{rated} of {n} stocks rated, by share of your funds. From FinLit Prism's technical views.</small></span><span className="sp-show">Show ▾</span></summary>
-      <TrendCard t={sp.trend} nm={(c) => shortFund(sp.funds.find((f) => f.code === c)?.name)} /></details></section>
+      <TrendCard matrix t={sp.trend} nm={(c) => shortFund(sp.funds.find((f) => f.code === c)?.name)} /></details></section>
   );
 }
 
-export function MixTab({ sp, readingOf, gold, big }: { sp: MfSpread; readingOf: (s: string | null) => Reading; gold: boolean; big: Big[] }) {
+export function MixTab({ sp, readingOf, gold, big, kf }: { sp: MfSpread; readingOf: (s: string | null) => Reading; gold: boolean; big: Big[]; /** task #275 (change 9): Key figures, under the main section */ kf?: ReactNode }) {
   const [level, setLevel] = useLevel();
   return <>
     <OwnSection sp={sp} level={level} onLevel={setLevel} readingOf={readingOf} gold={gold} />
+    {kf}
     <SpreadSection sp={sp} />
     <MixSubTabs sp={sp} level={level} onLevel={setLevel} />
     {big.length > 0 && <BiggestSection rows={big} sp={sp} readingOf={readingOf} gold={gold} />}

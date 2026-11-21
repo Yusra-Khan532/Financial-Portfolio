@@ -102,9 +102,11 @@ async def alert_lists(request: Request, ctx: Ctx = Depends(secure_ctx)):
     async with request.app.state.store.pool.acquire() as conn:
         st = await conn.fetchrow("SELECT watchlist, portfolio, invest_list FROM user_state WHERE user_id = $1", ctx.user_id)
         etf = await fa.etf_list(conn, ctx.user_id)
+        mf = await fa.mf_list(conn, ctx.user_id)                                                                 # task #275: the companies inside the funds
     lists = fa.lists_of(st["watchlist"] if st else None, st["portfolio"] if st else None, st["invest_list"] if st else None)
-    if etf:
-        lists.insert(next((i for i, x in enumerate(lists) if x["ref"] == "mine"), len(lists)), etf)            # task #276: before "mine"
+    for fl in (etf, mf):
+        if fl:
+            lists.insert(next((i for i, x in enumerate(lists) if x["ref"] == "mine"), len(lists)), fl)         # task #276 / #275: before "mine"
     return json_response({"lists": [{"ref": x["ref"], "label": x["label"], "count": len(x["symbols"])} for x in lists], "kinds": fa.KINDS})
 
 
@@ -170,7 +172,7 @@ async def create_alert(request: Request, body: AlertIn, ctx: Ctx = Depends(secur
     async with pool.acquire() as conn:
         if list_ref:
             st = await conn.fetchrow("SELECT watchlist, portfolio, invest_list FROM user_state WHERE user_id = $1", ctx.user_id)
-            ok = (await fa.etf_list(conn, ctx.user_id) if list_ref == "etf"            # task #276: the companies inside the member's ETFs
+            ok = (await fa.fund_list(conn, ctx.user_id, list_ref) if list_ref in ("etf", "mf")   # tasks #276 / #275: the companies inside the ETFs / funds
                   else fa.resolve(st["watchlist"] if st else None, st["portfolio"] if st else None, list_ref, st["invest_list"] if st else None))
             if not ok:
                 raise fail(404, "unknown_list", "That list could not be found. Open the page again and retry.")

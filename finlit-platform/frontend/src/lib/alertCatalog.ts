@@ -1,6 +1,6 @@
 // Everything an alert can watch. Mirrors backend/finlit/alertengine.py (a test keeps the metric keys identical).
 export type Op = "above" | "below" | "event";
-export type Group = "Price & momentum" | "Technical signals" | "Valuation" | "Quality & growth" | "FinLit IQ" | "Results & ownership" | "News & filings";
+export type Group = "Price & momentum" | "Technical signals" | "Valuation" | "Quality & growth" | "Retired score" | "Results & ownership" | "News & filings";
 export type Metric = { label: string; unit: string; group: Group; live: boolean; tier: "basic" | "silver"; ops: Op[]; hint: string; sample: number; text?: string };
 
 export const METRICS: Record<string, Metric> = {
@@ -24,12 +24,14 @@ export const METRICS: Record<string, Metric> = {
   roce: { label: "ROCE", unit: "%", group: "Quality & growth", live: false, tier: "silver", ops: ["above", "below"], hint: "Return on capital employed.", sample: 15 },
   operating_margin: { label: "Operating margin", unit: "%", group: "Quality & growth", live: false, tier: "silver", ops: ["above", "below"], hint: "Operating profit as a share of sales.", sample: 15 },
   debt_to_equity: { label: "Debt to equity", unit: "×", group: "Quality & growth", live: false, tier: "silver", ops: ["above", "below"], hint: "Borrowings relative to shareholders' money.", sample: 1 },
-  overall: { label: "FinLit IQ", unit: "", group: "FinLit IQ", live: false, tier: "silver", ops: ["above", "below"], hint: "The overall 0–100 FinLit IQ.", sample: 70 },
-  pillar_quality: { label: "Quality score", unit: "", group: "FinLit IQ", live: false, tier: "silver", ops: ["above", "below"], hint: "The Quality pillar, 0–100.", sample: 70 },
-  pillar_growth: { label: "Growth score", unit: "", group: "FinLit IQ", live: false, tier: "silver", ops: ["above", "below"], hint: "The Growth pillar, 0–100.", sample: 70 },
-  pillar_profitability: { label: "Profitability score", unit: "", group: "FinLit IQ", live: false, tier: "silver", ops: ["above", "below"], hint: "The Profitability pillar, 0–100.", sample: 70 },
-  pillar_balance: { label: "Balance-sheet score", unit: "", group: "FinLit IQ", live: false, tier: "silver", ops: ["above", "below"], hint: "The Balance-sheet pillar, 0–100.", sample: 70 },
-  pillar_technical: { label: "Technical score", unit: "", group: "FinLit IQ", live: false, tier: "silver", ops: ["above", "below"], hint: "The Technical pillar, 0–100.", sample: 60 },
+  // Task #283: the retired overall score and its five parts. The keys stay (they mirror backend/finlit/alertengine.py, and members' existing alerts on
+  // them still show); the group is not in GROUPS, so no new alert can be set on them. FinLit Prism is FinLit's only company score.
+  overall: { label: "Overall score (retired)", unit: "", group: "Retired score", live: false, tier: "silver", ops: ["above", "below"], hint: "The retired overall 0–100 score. FinLit Prism is now FinLit's only company score.", sample: 70 },
+  pillar_quality: { label: "Quality score (retired)", unit: "", group: "Retired score", live: false, tier: "silver", ops: ["above", "below"], hint: "A part of the retired overall score, 0–100.", sample: 70 },
+  pillar_growth: { label: "Growth score (retired)", unit: "", group: "Retired score", live: false, tier: "silver", ops: ["above", "below"], hint: "A part of the retired overall score, 0–100.", sample: 70 },
+  pillar_profitability: { label: "Profitability score (retired)", unit: "", group: "Retired score", live: false, tier: "silver", ops: ["above", "below"], hint: "A part of the retired overall score, 0–100.", sample: 70 },
+  pillar_balance: { label: "Balance-sheet score (retired)", unit: "", group: "Retired score", live: false, tier: "silver", ops: ["above", "below"], hint: "A part of the retired overall score, 0–100.", sample: 70 },
+  pillar_technical: { label: "Technical score (retired)", unit: "", group: "Retired score", live: false, tier: "silver", ops: ["above", "below"], hint: "A part of the retired overall score, 0–100.", sample: 60 },
   q_net_profit: { label: "Net profit (latest quarter)", unit: "Cr", group: "Results & ownership", live: false, tier: "silver", ops: ["above", "below"], hint: "Net profit of the newest reported quarter, in crore rupees. Checked when new results are loaded.", sample: 1000 },
   q_revenue: { label: "Revenue (latest quarter)", unit: "Cr", group: "Results & ownership", live: false, tier: "silver", ops: ["above", "below"], hint: "Revenue of the newest reported quarter, in crore rupees.", sample: 10000 },
   rev_profit_gap: { label: "Revenue vs profit growth gap", unit: "pp", group: "Results & ownership", live: false, tier: "silver", ops: ["above"], hint: "Tell me when the latest quarter's revenue growth and net-profit growth (each against the same quarter last year) are this many percentage points apart. Sales up 37% while profit falls 36% is a gap of 73. Worth a close look at the report.", sample: 15 },
@@ -53,7 +55,8 @@ export function kindsText(kinds: string[] | null | undefined): string {
   if (ws.length === FILING_KINDS.length) return "any of Discover's eight kinds";
   return ws.length <= 1 ? (ws[0] ?? "a filing") : `${ws.slice(0, -1).join(", ")} or ${ws[ws.length - 1]}`;
 }
-export const GROUPS: Group[] = ["Price & momentum", "Technical signals", "Valuation", "Quality & growth", "FinLit IQ", "Results & ownership", "News & filings"];
+/** The groups a new alert can be set in (task #283: the retired score's group is not offered). */
+export const GROUPS: Group[] = ["Price & momentum", "Technical signals", "Valuation", "Quality & growth", "Results & ownership", "News & filings"];
 export const isEvent = (k: string) => METRICS[k]?.ops[0] === "event";
 /** Alerts with no number to choose: the server sets the target (alertengine.FIXED_TARGET). */
 export const fixedTarget = (k: string, op: Op): number | null => (k === "circuit" ? (op === "below" ? -1 : 1) : null);

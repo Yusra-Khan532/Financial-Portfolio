@@ -9,15 +9,16 @@ import type { Plan, PrismInput } from "../lib/scoreBands";
 import { notRatedReason } from "../lib/prism";
 import { parseTechnical } from "../lib/prismTechnical";
 import { LABEL, usePrismLatest } from "./PrismCard";
+import { PLAN_FOR_PRISM, PLAN_FOR_WATCHLIST } from "../lib/planGates";
 
 export function useReportHeader(s: Summary) {
   const { has, toast, upgrade } = useUI();
   const open = useContext(OpenAccess);
-  const two = has("gold") || open;   // Gold sees the score and FinLit Prism side by side
+  const two = has(PLAN_FOR_PRISM) || open;   // a plan with FinLit Prism (and the open example company) sees the Prism rating
   const { isAdmin, seesAll } = useAuth();
   const prism = usePrismLatest(s.profile.symbol, s.meta.statement, two || seesAll).data;
   const prismRep = prism?.kind === "report" ? prism.report : null;
-  const effPlan: Plan = two || seesAll ? "gold" : has("silver") ? "silver" : "basic";
+  const effPlan: Plan = two || seesAll ? "gold" : has(PLAN_FOR_WATCHLIST) ? "silver" : "basic";
   const tech = prismRep ? parseTechnical(prismRep.technicalAssessment) : null;
   const prismIn: PrismInput = !prism ? { kind: "loading" } : prism.kind === "report"
     ? { kind: "report", final: prism.report.rating.final, word: LABEL[prism.report.rating.label][0], status: prism.report.rating.status, parts: prism.report.rating.parts,
@@ -28,7 +29,7 @@ export function useReportHeader(s: Summary) {
   const p = s.profile, watch = wl.has(p.symbol);
   const need = (tier: "silver" | "gold", what: string) => { if (has(tier)) return true; upgrade(tier, `${what} come with the ${TIER[tier].n} plan.`); return false; };
   const toggleWatch = () => {
-    if (!need("silver", "Watchlist and portfolio tracking")) return;
+    if (!need(PLAN_FOR_WATCHLIST as "silver" | "gold", "Watchlist and portfolio tracking")) return;
     const on = !watch;
     if (on) { if (!has("gold") && wl.total() >= 30) { upgrade("gold", "Silver holds up to 30 stocks; Gold holds up to 1,000."); return; } wl.add(p.symbol); } else wl.remove(p.symbol);
     toast(on ? `${p.nse || p.symbol} added to your watchlist.` : `${p.nse || p.symbol} removed from your watchlist.`);

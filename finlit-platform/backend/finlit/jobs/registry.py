@@ -331,6 +331,11 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
             what="Discovery (task #221): reads each company's newest investor presentation from Documents (first 80 pages) and puts the company in the founder's 21 "
                  "themes by their keywords, with the sentences that hold figures; only companies with a new presentation (or a failed read a day old); resumable: a run "
                  "that stops with presentations left is run again a few minutes later (probe); a file the exchange does not give is recorded with the reason (docs/DISCOVERY.md)"),
+        Job("concalls", ("refresh-concalls", "--max-minutes", "20", "--limit", "160"), priority=49, max_runtime_min=30, weight_mb=150, stall_min=20,
+            windows=(W("NIGHT", 20), W("MORNING", 14)), interval_min=120, sla=Sla("hours", 12), resumable=True, catchup=True,
+            what="Concall Monitor (task #278): new earnings-call filings (schedule, recording, transcript, presentation) from the stored announcements; reads each "
+                 "letter once from the exchange (the call's date and time, the audio link), keeps a transcript's text for the page and FinLit AI; 160 letters a run, "
+                 "newest first, none started after 20 min; a file the exchange does not give is tried again on later runs (three tries, the reason kept) (docs/CONCALLS.md)"),
         Job("company-brief", ("refresh-company-brief",), cls="bulk", priority=46, max_runtime_min=60, weight_mb=300, stall_min=40, windows=(W("NIGHT", 20), W("MORNING", 14)),
             sla=Sla("hours", 72), resumable=True, catchup=False, max_attempts=3,
             what="company brief (the About section): reads the annual report and the latest filings of followed and largest companies, asks the language model to write what the company does, "

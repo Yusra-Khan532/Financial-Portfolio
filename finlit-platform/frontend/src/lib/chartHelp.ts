@@ -373,32 +373,7 @@ export const CHART_HELP: Record<string, ChartHelpEntry> = {
   "trend-payout": trend({ title: "Share of profit paid out", what: "The dividend payout ratio: the share of profit paid out as dividends.", x: "Financial year (annual only).", y: "Per cent of profit.", read: "Taller columns mean more of the profit is handed to shareholders and less is kept in the business.", why: "It shows whether the dividend is affordable and how much is kept for growth." }),
 
   /* ---------------------------------------------------------------- stock page: hero score */
-  "score-dial": {
-    title: "FinLit IQ dial",
-    what: "The overall FinLit IQ from 0 to 100, which is the average of five pillars: quality, growth, profitability, balance sheet and technical (price trend).",
-    x: "The ring is divided into five segments, one per pillar. Select a segment to open the detail for that pillar.",
-    y: "The number in the middle is the overall score out of 100, with a band label beside it. Higher is better.",
-    read: "A longer filled segment means a higher score for that pillar, so you can see which pillar lifts or drags the overall number.",
-    why: "It condenses many ratios and price signals into one starting point. It is a research summary, not a recommendation to buy or sell.",
-  },
-  "score-pillars": {
-    title: "Pillar scores",
-    what: "One tile for each of the five pillars, with its score out of 100, its band and the main inputs behind it.",
-    x: "The five pillars side by side.",
-    y: "Each score runs from 0 to 100 and is also drawn as a ring and a bar. Higher is better.",
-    read: "A fuller bar is a stronger pillar. Select a tile to see each input, its value and how it scored.",
-    why: "The overall score can hide a weak area, so the pillars show where a company is strong and where it is not.",
-  },
-
   /* ---------------------------------------------------------------- compare */
-  "cmp-pillars": {
-    title: "The five FinLit pillars",
-    what: "A radar chart that draws each selected company's five pillar scores as a shape.",
-    x: "The five spokes are the pillars: quality, growth, profitability, balance sheet and technical.",
-    y: "Distance from the centre is the score from 0 to 100. Further out is better.",
-    read: "A bigger shape is a stronger company overall. Where one company's shape sticks out beyond another's, it is ahead on that pillar.",
-    why: "It lets you compare companies on several strengths at once instead of one number at a time.",
-  },
   "cmp-fundamentals": {
     title: "Eight measures against every company",
     what: "A radar chart of eight measures for each selected company: ROE, ROCE, margin, sales growth, profit growth, low debt, low P/E and dividend.",
@@ -488,12 +463,12 @@ export const CHART_HELP: Record<string, ChartHelpEntry> = {
     why: "It gives a quick sense of the recent trend before reading the numbers.",
   },
   "report-pillars": {
-    title: "What drives the score",
-    what: "A bar for each FinLit pillar showing its score out of 100.",
+    title: "The FinLit Prism parts",
+    what: "A bar for each of FinLit Prism's four parts showing its score out of 100.",
     x: "Score from 0 to 100.",
-    y: "The pillars: quality, growth, profitability, balance sheet and technical.",
-    read: "A fuller bar is a stronger pillar and the label beside it gives the band, such as strong or mixed.",
-    why: "It shows which areas lift the overall score and which weigh on it.",
+    y: "The parts: Growth & Profitability, Valuation, Quality and Risk.",
+    read: "A fuller bar is a stronger part; higher is better for all four (a high Risk score means lower risk).",
+    why: "It shows which parts lift the Prism score and which weigh on it.",
   },
 
   /* ---------------------------------------------------------------- dashboard and watchlist */
@@ -523,13 +498,13 @@ export const CHART_HELP: Record<string, ChartHelpEntry> = {
   },
   "dash-second": {
     title: "Worth a second look",
-    what: "Stocks from your watchlist that have a flag worth checking: a weak FinLit band, a weak balance sheet, a fall of 10% or more in a month, a P/E of 60 or more, or a price near your target.",
-    read: "Each row shows the stock, its FinLit band and the first reason it was flagged. Open it to see the full picture.",
-    why: "A flag is a reason to look closer, not a reason to buy or sell.",
+    what: "Companies from your watchlist with a Strong or Healthy FinLit Prism score (65 or more) whose Prism Valuation part is 65 or more: the share price against earnings, book value and the company's own history.",
+    read: "Each row shows the company, its FinLit Prism band, its Prism score and its Valuation part, highest Valuation part first. Open it to see the full picture.",
+    why: "It points to companies worth a closer look; it describes the scores and is not a recommendation.",
   },
   "dash-buckets": {
     title: "Watchlist by band",
-    what: "A bar showing how your followed stocks split across the FinLit IQ bands: strong, healthy, mixed and watch.",
+    what: "A bar showing how your followed stocks split across the FinLit Prism bands: Strong (80 or more), Healthy (65 to 79), Average (50 to 64) and Weak (below 50).",
     read: "Each coloured block's width is the number of your stocks in that band; the list underneath gives the counts.",
     why: "It shows how your list is balanced between stronger and weaker companies.",
   },

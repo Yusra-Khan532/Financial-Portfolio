@@ -32,13 +32,13 @@ export function FlagIN() {
 }
 
 const RING: Record<string, string> = { strong: "var(--gain)", healthy: "var(--k1)", mixed: "var(--warn)", watch: "var(--loss)" };
-/** The 0-100 score as a ring with its band word. "locked" (below Silver) shows a lock; unscored shows a dash. Never buy/sell words. */
+/** The 0-100 score as a ring with its band word. "locked" (a plan without FinLit Prism, task #283) shows a lock; unscored shows a dash. Never buy/sell words. */
 export function ScoreRing({ score, band, size = 38, word = true }: { score?: number | null; band?: Band; size?: number; word?: boolean }) {
   if (band === "locked") {
     return (
-      <span className="gs-score gs-lock" title="Scores are part of the Silver plan">
+      <span className="gs-score gs-lock" title="FinLit Prism, FinLit's only company score, comes with a plan that has it. See plans.">
         <span className="gs-ring" style={{ width: size, height: size }}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5.5" y="10.5" width="13" height="9" rx="2" /><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" /></svg></span>
-        {word && <span className="gs-band">Silver</span>}
+        {word && <span className="gs-band">FinLit Prism</span>}
       </span>
     );
   }

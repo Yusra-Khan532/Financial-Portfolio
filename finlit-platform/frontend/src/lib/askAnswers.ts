@@ -8,6 +8,7 @@ import { apiGet } from "./api";
 import { capSize, cr, dateIN, MINUS, nf } from "./format";
 import suggestions from "../content/questionSuggestions.json";
 import { STARTERS, SECOND } from "./questionBank";
+import { RETIRED_SCORE_ANSWER, asksRetiredScore } from "./retiredScore";
 import { MARKET_QUESTIONS, writtenAnswer, type Q } from "./askFlow";
 import { EXPLORER_ANSWERS, TOPICS } from "./askExplorer";
 import { LEVELS, LEVEL_LABEL, fetchClassification, type Classification } from "./taxonomy";
@@ -291,25 +292,12 @@ const risk: Fn = (sym, d) => {
     `Its largest fall from a high was ${p1(isNum(s.drawdown?.max?.pct) ? Math.abs(s.drawdown.max.pct) : null)} (low on ${day(s.drawdown?.max?.date)}); today it is ${p1(isNum(s.drawdown?.current) ? Math.abs(s.drawdown.current) : null)} below its high.`,
     "FinLit does not have a beta for it.", `Source: FinLit prices, ${day(s.from)} to ${day(s.to)}.`]);
 };
-const scoreNow: Fn = (sym, d) => {
-  const sc = d.summary?.score;
-  if (!sc || !isNum(sc.overall)) return notHeld("a FinLit IQ score", sym, report(sym), "Open the company report");
-  return out([`${sym}'s FinLit IQ is ${sc.overall} out of 100 (${sc.band?.label ?? "–"}).`, `Its parts: ${(sc.pillars ?? []).map((p: J) => `${p.label} ${isNum(p.score) ? p.score : "not scored"}${p.band?.label ? ` (${p.band.label})` : ""}`).join(", ")}.`,
-    "The score describes the company's financial health and price trend from its filings and prices."], { to: report(sym), label: "See the score card" });
-};
-const scoreChange: Fn = (sym, d) => {
-  const pts: J[] = (d.scores?.points ?? []).filter((p: J) => isNum(p.overall));
-  if (pts.length < 2) return notHeld("a score history", sym, report(sym), "Open the company report");
-  const now = pts[pts.length - 1], t0 = new Date(now.day).getTime() - 90 * 86400000;
-  const then = [...pts].reverse().find((p) => new Date(p.day).getTime() <= t0) ?? pts[0];
-  const parts = [["pillar_quality", "Quality"], ["pillar_growth", "Growth"], ["pillar_profitability", "Profitability"], ["pillar_balance", "Balance sheet"], ["pillar_technical", "Technical"]]
-    .map(([k, l]) => (isNum(now[k]) && isNum(then[k]) ? { l, ch: now[k] - then[k] } : null)).filter(Boolean) as { l: string; ch: number }[];
-  const moved = parts.filter((x) => Math.abs(x.ch) >= 1).sort((a, b) => Math.abs(b.ch) - Math.abs(a.ch));
-  const shortHistory = new Date(then.day).getTime() > t0 + 10 * 86400000;
-  return out([`${sym}'s FinLit IQ was ${then.overall} on ${day(then.day)} and is ${now.overall} on ${day(now.day)} (${sgn(now.overall - then.overall, 0)} points).`,
-    shortHistory && `Its FinLit IQ history starts on ${day(pts[0].day)}, so this is the change since then, not over a full quarter.`,
-    moved.length ? `The parts that moved most: ${moved.slice(0, 3).map((x) => `${x.l} ${sgn(x.ch, 0)}`).join(", ")}.` : "None of its parts moved by a point or more.", "Source: FinLit IQ history."]);
-};
+// Task #283: FinLit Prism is FinLit's only company score. The score questions point to the company's Prism rating (Gold); no other score is quoted.
+const prismPage = (sym: string) => `/prism/${encodeURIComponent(sym)}`;
+const scoreNow: Fn = (sym) => out([`${sym}'s company score on FinLit is FinLit Prism: a score out of 100 for its financial health, built from four parts (Growth & Profitability, Valuation, Quality and Risk), with two technical views shown beside it.`,
+  "FinLit Prism comes with a plan that has it (Gold); its rating, parts and status are on the company's Prism page."], { to: prismPage(sym), label: "Open its FinLit Prism rating" });
+const scoreChange: Fn = (sym) => out([`How ${sym}'s FinLit Prism score has moved is on its company report, under "How the scores have moved", on a plan that has FinLit Prism (Gold).`,
+  "Each stored Prism rating carries its date, so the change is read from one stored rating to the next."], { to: report(sym, "#prism"), label: "See how the scores have moved" });
 const actions: Fn = (sym, d) => {
   const a: J[] = d.events?.actions ?? [];
   const pick = (re: RegExp) => a.filter((x) => re.test(x.type ?? ""));
@@ -397,6 +385,7 @@ export async function answerCompany(id: string, sym: string, extra: { second?: s
 /** The written answer of a general question (concepts, platform, market, the explorer topics), if it is one. */
 export function generalAnswer(text: string): string | undefined {
   const t = text.trim();
+  if (asksRetiredScore(t)) return RETIRED_SCORE_ANSWER;   // task #283: the retired score is answered from written text, never from data
   const ex = TOPICS.flatMap((x) => x.questions).find((x) => x.text === t);
   const a = writtenAnswer(t) ?? (ex ? EXPLORER_ANSWERS[ex.id] : undefined);
   return a && !/not investment advice/i.test(a) ? `${a} Information only, not investment advice.` : a;   // the disclaimer stays on every answer

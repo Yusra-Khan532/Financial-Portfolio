@@ -32,7 +32,7 @@ export function AppShell() {
   const live = useAlerts().alerts.filter((a) => a.status === "active").length;
   // The Find stocks pages (the screeners and the query builder) fold the menu to the icon rail so the table gets the room; every other page keeps the reader's own choice.
   // The choice made on those pages is remembered on its own, so folding or opening it there never changes the menu elsewhere.
-  const onFind = /^\/(screener|score-screener|advanced-score-screener|query-builder)(\/|$)/.test(pathname);
+  const onFind = /^\/(screener|advanced-score-screener|query-builder)(\/|$)/.test(pathname);
   // Folded to the icon rail by default on every page (the "FinLit final pages" design pack, 13 Nov 2026); the reader's own choice is remembered.
   const [collapsedAll, setCollapsedAll] = useState(() => loadUi("side-collapsed", 1, isBool, true));
   const [collapsedFind, setCollapsedFind] = useState(() => loadUi("side-collapsed-find", 1, isBool, true));
@@ -98,7 +98,7 @@ export function AppShell() {
       ...(DEMO ? [] : [{ to: "/account/plan", label: "Plan", icon: "crown" }]),
       ...(isAdmin ? [{ to: "/console", label: "Admin console", icon: "lock" }] : []),
     ] }] : []),
-  ] as Group[]).map((g) => ({ ...g, items: g.items.filter(offeredTo(gold)) }));   // task #100: no Basic stock screener for Gold
+  ] as Group[]).map((g) => ({ ...g, items: g.items.filter(offeredTo(gold)) }));   // task #100: pages not offered to Gold (none since task #283)
 
   const here = (g: Group) => g.items.some((i) => (i.end ? pathname === i.to : pathname === i.to || pathname.startsWith(i.to + "/")));
   // open when the page you are on is inside it, otherwise what you chose; the one-page Overview group and the first visit start open for Find stocks
@@ -165,7 +165,7 @@ export function AppShell() {
         <div className="side-foot">
           <div className="side-plan" style={{ "--tc": `var(${TIER[plan].tc})` } as React.CSSProperties}>
             <span className={"tier " + plan}><Icon name={TIER[plan].ic} />{TIER[plan].n}</span>
-            {plan !== "gold" ? <><p>{plan === "basic" ? "Unlock the FinLit IQ, watchlists and more." : "Gold adds FinLit Prism and deeper analysis."}</p><Link className="btn primary" to={user ? "/account/plan?want=" + (plan === "basic" ? "silver" : "gold") : "/plans"}>{plan === "basic" ? "See Silver" : "See Gold"}</Link></> : <p>Everything is unlocked.</p>}
+            {plan !== "gold" ? <><p>{plan === "basic" ? "Unlock watchlists, the full screener and more." : "Gold adds FinLit Prism and deeper analysis."}</p><Link className="btn primary" to={user ? "/account/plan?want=" + (plan === "basic" ? "silver" : "gold") : "/plans"}>{plan === "basic" ? "See Silver" : "See Gold"}</Link></> : <p>Everything is unlocked.</p>}
           </div>
         </div>
         </div>

@@ -14,7 +14,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 from ..screener.ql import analyze, canonical
 from ..screener.qeval import Evaluator
 from . import derive, expr, themes
-from .registry import Col, DISCLAIMER, IDENTITY_KEYS, REGISTRY_VERSION, STD_ADVANCED, STD_BASIC, STD_RETURNS, STD_SECTOR, Preset, render_card
+from .registry import Col, DISCLAIMER, IDENTITY_KEYS, REGISTRY_VERSION, STD_ADVANCED, STD_RETURNS, STD_SECTOR, Preset, render_card
 from .seed import THEME
 
 EXPORT_MAX = 2000        # rows kept per screen for paging (25 at a time) and for the CSV export; a screen that passes more says so
@@ -139,22 +139,11 @@ class Frame:
         if name == "w52_score":                                     # 100 minus the % below the 52-week high (the redesign's price-strength input)
             v = self.get(i, "pct_from_high")
             return None if v is None else max(0.0, 100.0 - v)
-        if name == "profit_plus_balance":                           # the Basic tab's "Profitability + Balance sheet" (both pillars needed)
-            a, b = self.get(i, "pillar_profitability"), self.get(i, "pillar_balance")
-            return None if a is None or b is None else a + b
         if name == "abs_vs_breakout":                               # how far the price is from the level it broke, either way (the Setups screens rank on closeness)
             v = self.get(i, "vs_breakout")
             return None if v is None else abs(v)
-        if name == "quality_fit":
-            return self._fit("pillar_quality")[i]
         if name == "prism_quality_fit":
             return self._fit("prism_quality")[i] if self.has_prism(i) else None
-        if name == "business_watch":                                # how many of the four business scores are in Watch (below 45)
-            vals = [self.get(i, k) for k in ("pillar_quality", "pillar_growth", "pillar_profitability", "pillar_balance")]
-            return float(sum(1 for v in vals if v is not None and v < 45))
-        if name == "balance_weak_ex":                               # Balance sheet below 35, except for insurers and brokers, whose policy reserves and client funding read as debt
-            b = self.get(i, "pillar_balance")
-            return None if b is None else (1.0 if b < 35 and self.industry_of(i) not in ("Insurance", "Capital Markets") else 0.0)
         if name == "abs_b2_level":                                  # the same for the version 2 Breakouts screen
             v = self.get(i, "b2_vs_level")
             return None if v is None else abs(v)
@@ -368,10 +357,8 @@ def lender_equivalent(others: Sequence[float], lend: Sequence[float], v: float) 
 
 
 def rank_order_note(preset: Preset) -> Optional[str]:
-    """What a list is ordered by, in plain words (no model detail): the Basic Top 10s by FinLit IQ, the Advanced Highest-rated lists by the Prism rating. A screen ordered by something
+    """What a list is ordered by, in plain words (no model detail): the Highest-rated lists by the Prism rating. A screen ordered by something
     else says nothing here (its own notes and columns carry it)."""
-    if preset.tab == "basic" and preset.top10:
-        return "The 10 highest FinLit IQs first."
     if preset.id.startswith("highest-rated-"):
         return "Ordered by the FinLit Prism rating."
     return None
@@ -411,9 +398,7 @@ def rank_scores_of(fr: Frame, terms: Sequence[Tuple[str, float]], member: Callab
 
 
 def rank_member(preset: Preset) -> Callable[[Frame], Callable[[int], bool]]:
-    """Who counts in the percentile population: the bucket's Prism-rated companies (Advanced tab) or the bucket's companies of Rs 1,000 Cr or more (Basic tab)."""
-    if preset.tab == "basic":
-        return lambda fr: (lambda i: (fr.get(i, "market_cap") or 0) >= LEADER_FLOOR)
+    """Who counts in the percentile population: the bucket's Prism-rated companies."""
     return lambda fr: (lambda i: fr.pz[i].get("prism_status") == "RATED" and fr.pz[i].get("prism_final") is not None)
 
 
@@ -463,8 +448,6 @@ def standard_columns(preset: Preset) -> List[Tuple[str, str, str, str, str]]:
     """The columns every list carries (key, label, format, align, band), then the returns behind their switch. Themes and Top gainers keep their own layouts."""
     if preset.kind in ("themes", "gainers"):
         return []
-    if preset.tab == "basic":
-        return list(STD_BASIC) + list(STD_RETURNS)
     return list(STD_ADVANCED) + list(STD_RETURNS) + list(STD_SECTOR)       # task #243: the Sector reading band, behind its switch in Columns
 
 
@@ -555,7 +538,7 @@ def run(fr: Frame, preset: Preset, requested: Optional[Sequence[str]] = None) ->
     if preset.kind == "quickview":
         raise Blocked(preset)
     active = resolve_chips(preset, requested)
-    if preset.tab != "basic" and preset.group not in SETUP_GROUPS:
+    if preset.group not in SETUP_GROUPS:
         ensure_setups(fr)
     cfg = Config(preset, active)
     fr.rank_scores = rank_scores_of(fr, preset.rank_score, rank_member(preset)(fr)) if preset.rank_score else {}
@@ -653,12 +636,12 @@ def ensure_setups(fr: Frame) -> None:
 
 def run_pattern(fr: Frame, preset: Preset, cfg: Config, active: Sequence[str]) -> dict:
     """A Chart patterns screen: the companies the nightly scan found for this pattern, with the facts it worded and the drawing the chart panel places.
-    Ranked by the page's own score (FinLit IQ on Basic, the Prism score on Advanced), then the larger market cap. The page never sees a rule."""
+    Ranked by the Prism score, then the larger market cap. The page never sees a rule."""
     from . import patterns as P
     run = fr.patterns or {}
     hits = (run.get("scans") or {}).get(preset.spec) or {}
     n = fr.t.n
-    in_scope = [i for i in range(n) if fr.symbols[i] in hits and (preset.tab == "basic" or fr.has_prism(i))]
+    in_scope = [i for i in range(n) if fr.symbols[i] in hits and fr.has_prism(i)]
     key = sort_key(fr, preset.rank)
     in_scope.sort(key=key)
     labels = P.FACT_LABELS[preset.spec]
@@ -693,7 +676,7 @@ def leaders_of(fr: Frame, idx: Sequence[int], r3: Optional[float], rank: Optiona
         if mc is None or mc < LEADER_FLOOR or below is None or below > themes.NEAR_HIGH or ret3 is None or r3 is None or ret3 <= r3:
             continue
         pick.append(i)
-    pick.sort(key=sort_key(fr, rank or (("has_prism", "desc"), ("prism_final", "desc"), ("overall", "desc"))))
+    pick.sort(key=sort_key(fr, rank or (("has_prism", "desc"), ("prism_final", "desc"))))
     return pick[:LEADERS]
 
 

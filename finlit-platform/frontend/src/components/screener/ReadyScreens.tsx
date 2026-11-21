@@ -1,7 +1,8 @@
 // "Ready-made screens" on the Stock screener (task #64, file 04 §2 and §8; 13 Nov P-4): four groups (Everyday, More screens, On the plan's score, My screens),
 // each screen with its name, the plain rule text and today's count. No plan tags (14 Nov, N-10): every screen here is open to every plan that has the page (each
 // count is for that screen on its own, so they compare). Screens STACK: several can be on, each adds its filters to the reader's and to the other screens', and a
-// company must pass all of them. A screen on the plan's score (FinLit IQ or FinLit Prism) is words only and runs on the server (FinLit Prism for Gold, the FinLit IQ below).
+// company must pass all of them. A screen on FinLit Prism is words only and runs on the server; its group is shown only to a plan with Prism (task #283: FinLit Prism
+// is FinLit's only company score).
 // Task #243 (screeners pack v4, S): the screens moved from the section above the results into the "Ready-made" tab of the left panel, as one toggle row each
 // (a box, the name, today's count and the rule); "ReadyOn" lists the screens that are on at the top of the "Your rules" tab, each with × to turn it off.
 import { useState } from "react";
@@ -25,7 +26,7 @@ export function ReadyScreens({ plan, prism = false, on, total, onToggle, onAllOf
   const [grp, setGrp] = useState<(typeof GROUPS)[number]["id"]>("everyday");
   const can = (t: Plan) => ORDER.indexOf(plan) >= ORDER.indexOf(t);
   const all = ready.data?.screens ?? [];
-  const groups = GROUPS.map((g) => (g.id === "model" ? { ...g, label: prism ? "On FinLit Prism" : "On the FinLit IQ" } : g));
+  const groups = GROUPS.filter((g) => g.id !== "model" || prism).map((g) => (g.id === "model" ? { ...g, label: "On FinLit Prism" } : g));
   const list = all.filter((s) => s.group === grp);
   const nOn = on.length;
   return (

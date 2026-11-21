@@ -1,6 +1,6 @@
 // Optional blocks of the earlier dashboard, kept for Customise (off in the default layout): quarter results, watchlist movers, second look, bands, DCF scenarios and Gold & silver.
 // "Gold & silver today" shows MCX futures prices that come through Dhan, whose terms do not allow showing them on the site: it stays off until a licensed source is connected.
-import { rowView, usePlanModel } from "../../lib/planScore";
+import { PRISM_BANDS, PRISM_BAND_WORD, prismBandOf, rowScore, rowView, usePlanModel, type PrismBand } from "../../lib/planScore";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { titleOf, subOf, codeNote } from "../../lib/companyLabel";
@@ -8,9 +8,8 @@ import { apiGet, type ApiError, type Financials } from "../../lib/api";
 import type { DcfInputs } from "../../lib/dcf";
 import { direction, inr, istTime, signedPct, useCommodities } from "../../lib/commodities";
 import { TIER, useUI, type Plan } from "../../lib/ui";
-import { BAND_LABEL, type Row } from "../../lib/screener";
+import { type Row } from "../../lib/screener";
 import { DEMO } from "../../lib/demo";
-import { signals } from "../../pages/Watchlist";
 import { MiniBars } from "../../charts/MiniBars";
 import { Icon } from "../../lib/icons";
 import { MINUS, cr, nf } from "../../lib/format";
@@ -60,24 +59,30 @@ export function Results({ symbols, names }: { symbols: string[]; names: Map<stri
   return <><div className="rcs">{symbols.slice(0, 4).map((s) => <ResultCard key={s} symbol={s} name={names.get(s) ?? null} />)}</div><p className="rcs-all"><Link to="/results/quarter">See all quarter results <Icon name="arrow" /></Link></p></>;
 }
 
-export function SecondLook({ items, meta }: { items: Row[]; meta: Record<string, { target?: number }> }) {
-  const model = usePlanModel() ?? "iq";   // task #100: Gold reads FinLit Prism, Silver the FinLit IQ
-  const flagged = items.map((r) => ({ r, s: signals(r, meta[r.symbol]?.target, model) })).filter((x) => x.s.length).slice(0, 5);
-  if (!items.length) return <Empty icon="quality" title="Nothing to review yet" text="Add stocks to your watchlist and FinLit flags the ones that need a second look." to="/watchlist" cta="Open watchlist" />;
-  if (!flagged.length) return <p className="muted dw-ok"><Icon name="check" /> Nothing in your watchlist needs attention right now.</p>;
-  return <ul className="sl">{flagged.map(({ r, s }) => <li key={r.symbol}><Link to={`/stocks/${r.symbol}`}><b title={codeNote(r)}><CoLogo symbol={r.symbol} name={r.name} size={20} inline />{titleOf(r)}</b>{model === "prism" ? (() => { const v = rowView("prism", r); return v.score != null && <span className={"band-dot " + (v.band === "hi" ? "strong" : v.band === "mid" ? "mixed" : "watch")}>Prism {v.word}</span>; })() : r.band && <span className={"band-dot " + r.band}>{BAND_LABEL[r.band]}</span>}</Link><span>{s[0]}</span></li>)}</ul>;
+/** Task #283: the companies on your watchlist with a Strong or Healthy FinLit Prism score (65 or more) whose Prism Valuation part is 65 or more (the share
+ *  price against earnings, book value and the company's own history), highest Valuation first. Plans with Prism only (the tile is gated on PLAN_FOR_PRISM). */
+export function secondLook(r: Row): string | null {
+  const v = rowView(r), val = r.prism_valuation ?? null, b = prismBandOf(r.prism_final);
+  if (v.score == null || val == null || !Number.isFinite(val) || (b !== "strong" && b !== "healthy") || val < 65) return null;
+  return `FinLit Prism ${v.score}, ${PRISM_BAND_WORD[b]} · Valuation part ${Math.round(val)}`;
 }
+export function SecondLook({ items }: { items: Row[]; meta?: Record<string, { target?: number }> }) {
+  const model = usePlanModel();
+  const flagged = model ? items.map((r) => ({ r, s: secondLook(r) })).filter((x): x is { r: Row; s: string } => !!x.s)
+    .sort((x, y) => (y.r.prism_valuation ?? 0) - (x.r.prism_valuation ?? 0)).slice(0, 5) : [];
+  if (!items.length) return <Empty icon="quality" title="Nothing to review yet" text="Add stocks to your watchlist and FinLit lists the ones with a Strong or Healthy FinLit Prism score and a high Valuation part." to="/watchlist" cta="Open watchlist" />;
+  if (!flagged.length) return <p className="muted dw-ok"><Icon name="check" /> No company on your watchlist has a Strong or Healthy FinLit Prism score with a Valuation part of 65 or more right now.</p>;
+  return <ul className="sl">{flagged.map(({ r, s }) => { const b = prismBandOf(r.prism_final)!; return <li key={r.symbol}><Link to={`/stocks/${r.symbol}`}><b title={codeNote(r)}><CoLogo symbol={r.symbol} name={r.name} size={20} inline />{titleOf(r)}</b><span className={"band-dot " + b}>Prism {PRISM_BAND_WORD[b]}</span></Link><span>{s}</span></li>; })}</ul>;
+}
+/** Task #283: the watchlist split across FinLit Prism's four bands (Strong 80+, Healthy 65 to 79, Average 50 to 64, Weak below 50). */
 export function Buckets({ items }: { items: Row[] }) {
-  const order = ["strong", "healthy", "mixed", "watch"] as const;
-  const colour: Record<string, string> = { strong: "var(--v-strong)", healthy: "var(--v-healthy)", mixed: "var(--v-mixed)", watch: "var(--v-weak)" };
-  const model = usePlanModel() ?? "iq";   // task #100: Gold groups by the Prism score (70+, 50-69, under 50), Silver by the FinLit band
-  const prismBand = (r: Row) => { const v = rowView("prism", r); return v.score == null ? null : v.band === "hi" ? "strong" : v.band === "mid" ? "mixed" : "watch"; };
-  const counts = order.map((b) => ({ b, n: items.filter((r) => (model === "prism" ? prismBand(r) : r.band) === b).length }));
+  const colour: Record<PrismBand, string> = { strong: "var(--v-strong)", healthy: "var(--v-healthy)", average: "var(--v-mixed)", weak: "var(--v-weak)" };
+  const counts = PRISM_BANDS.map((b) => ({ ...b, n: items.filter((r) => prismBandOf(rowScore(r)) === b.key).length }));
   const total = counts.reduce((a, c) => a + c.n, 0);
-  if (!total) return <Empty icon="layers" title="No scored stocks" text={`Add stocks to a watchlist to see them grouped by ${model === "prism" ? "Prism score" : "FinLit band"}.`} to="/watchlist" cta="Open watchlist" />;
+  if (!total) return <Empty icon="layers" title="No scored stocks" text="Add stocks to a watchlist to see them grouped by FinLit Prism band." to="/watchlist" cta="Open watchlist" />;
   return (
-    <div><div className="breadth big" role="img" aria-label="Watchlist by band">{counts.filter((c) => c.n).map((c) => <i key={c.b} style={{ flex: c.n, background: colour[c.b] }} />)}</div>
-      <ul className="bandk">{counts.map((c) => <li key={c.b}><i style={{ background: colour[c.b] }} /><span>{model === "prism" ? ({ strong: "Prism 70 and above", healthy: "", mixed: "Prism 50 to 69", watch: "Prism under 50" } as Record<string, string>)[c.b] || null : BAND_LABEL[c.b]}</span><b>{c.n}</b></li>).filter((_, i) => model !== "prism" || order[i] !== "healthy")}</ul></div>
+    <div><div className="breadth big" role="img" aria-label="Watchlist by band">{counts.filter((c) => c.n).map((c) => <i key={c.key} style={{ flex: c.n, background: colour[c.key] }} />)}</div>
+      <ul className="bandk">{counts.map((c) => <li key={c.key}><i style={{ background: colour[c.key] }} /><span>{c.word} · Prism {c.rule}</span><b>{c.n}</b></li>)}</ul></div>
   );
 }
 export function Locked({ tier, label }: { tier: Plan; label: string }) {

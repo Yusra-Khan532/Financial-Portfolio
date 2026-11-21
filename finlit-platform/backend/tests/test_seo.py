@@ -233,3 +233,13 @@ def test_a_long_fund_name_is_cut_at_a_whole_word_in_the_title():
     row = {"name": "Aditya Birla Sun Life Banking & PSU Debt Fund", "amc": "A", "category": "Debt - Banking", "plan": "Direct", "option_class": "Growth", "nav": 1.0, "nav_date": datetime.date(2026, 11, 9), "active": True}
     t = seo.render_fund(BASE, 1, row).title
     assert len(t) <= 70 and "Debt NAV and Returns" in t and "Fun " not in t
+
+
+async def test_the_retired_addresses_answer_301_with_the_query_dropped(site):
+    """Task #283: FinLit IQ is retired. The Basic stock screener opens the Advanced one, the IQ's glossary entry FinLit Prism's, its five pillars and rating words the glossary."""
+    for path, to in (("/score-screener", "/advanced-score-screener"), ("/score-screener?qmin=78&sort=overall&dir=desc", "/advanced-score-screener"),
+                     ("/score-screener/", "/advanced-score-screener"), ("/glossary/finlit-iq", "/glossary/finlit-prism"), ("/glossary/finlit-score", "/glossary/finlit-prism"),
+                     ("/glossary/pillars-quality-growth-profitability-balance-sheet-technical", "/glossary"), ("/glossary/score-bands-strong-healthy-mixed-watch", "/glossary")):
+        for r in (await site.get(path), await site.head(path)):
+            assert r.status_code == 301 and r.headers["location"] == to, path
+    assert (await site.get("/advanced-score-screener")).status_code == 200

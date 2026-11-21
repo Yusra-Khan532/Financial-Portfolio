@@ -2,7 +2,7 @@
 // built (by fund type, then Reading a beta and the three beta figures) → 3 Each fund against its own benchmark → 4 Share of the list vs share of the risk →
 // 5 If the market fell 10% → 6 Each fund's risk. The figures are the server's (/api/me/mf-portfolio/risk: mfportfolio/bench.py for the own-benchmark figures,
 // mfportfolio/risk.py for swing and worst fall); the beta ranges are the owner's table (COMMON-RULES 8). The Equity page's eqr- styles are shared. Never advice.
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Scroll, Section, Tip } from "../../components/sectors/pack/Common";
 import { Insights } from "../../portfolio/pack/EquityPack";
 import { MarketFall } from "../../portfolio/pack/MarketFall";
@@ -21,6 +21,10 @@ const BAR = ["#1f6b6b", "#b8892f", "#2E7D57", "#8fa8a6", "#B4362B", "#6b5ea8"];
 const isLiquid = (f: FundRisk) => f.compared === false;
 
 /** The funds grouped by type for the beta build: count, benchmark, average beta (within the type, weighted by the list), share of the list, what it adds. */
+/** Task #275 (number fixes 4 and 5): the window of each index figure, printed beside it. The swing and the worst fall come from 3 years of daily NAVs
+ *  (bench.from / bench.to); the beta and the 10 worst weeks from the past year of weekly closes (own.from / own.to). */
+export const WIN_3Y = "3 yrs, daily", WIN_1Y = "past year, weekly", BETA_WIN = "vs Nifty 500 · weekly · past year";
+
 export function byType(rk: MfRisk) {
   const m = new Map<string, FundRisk[]>();
   for (const f of rk.funds) { const t = f.type || "Other"; m.set(t, [...(m.get(t) ?? []), f]); }
@@ -36,18 +40,18 @@ export function riskLede(rk: MfRisk) {
   const o = rk.own?.list, b = o?.betaOwn;
   if (b == null) return null;
   const lead = b < 0.9 ? "Your list moves less than its markets." : b > 1.1 ? "Your list moves more than its markets." : "Your list moves about with its markets.";
-  return { lead, rest: `Each fund against its own benchmark, the list has moved ${b2(b)}% for every 1% move in them${rk.list.swing != null && rk.bench.swing != null ? `, and it swings ${rk.list.swing.toFixed(1)}% in a typical year against ${rk.bench.swing.toFixed(1)}% for the Nifty 500` : ""}.` };
+  return { lead, rest: `Each fund against its own benchmark, the list has moved ${b2(b)}% for every 1% move in them${rk.list.swing != null && rk.bench.swing != null ? `, and it swings ${rk.list.swing.toFixed(1)}% in a typical year against ${rk.bench.swing.toFixed(1)}% for the Nifty 500 (${WIN_3Y})` : ""}.` };
 }
 
 export function glanceTiles(rk: MfRisk) {
   const l = rk.list, b = rk.bench, o = rk.own?.list;
   const ratio = l.swing != null && b.swing ? l.swing / b.swing : null;
   return [
-    { k: "Typical swing in a year · 3 yrs", v: pc(l.swing), vs: `Nifty 500: ${pc(b.swing)}`, sub: ratio == null ? "Not enough NAVs." : ratio < 0.85 ? "A calmer ride than the index." : ratio > 1.15 ? "A bumpier ride than the index." : "About as bumpy as the index.",
+    { k: "Typical swing in a year · 3 yrs", v: pc(l.swing), vs: `Nifty 500: ${pc(b.swing)} (${WIN_3Y})`, sub: ratio == null ? "Not enough NAVs." : ratio < 0.85 ? "A calmer ride than the index." : ratio > 1.15 ? "A bumpier ride than the index." : "About as bumpy as the index.",
       help: "How much the list's value has moved up and down in a typical year, from daily NAVs over 3 years.", how: "Higher is a bumpier ride. Set it beside the Nifty 500's." },
-    { k: "Worst fall from a high · 3 yrs", v: sp(l.worstFall), vs: `Nifty 500: ${sp(b.worstFall)}`, sub: l.worstFall == null || b.worstFall == null ? "Not enough NAVs." : l.worstFall > b.worstFall / 2 ? "Less than half as deep." : l.worstFall > b.worstFall ? "Shallower than the index." : "Deeper than the index.",
+    { k: "Worst fall from a high · 3 yrs", v: sp(l.worstFall), vs: `Nifty 500: ${sp(b.worstFall)} (${WIN_3Y})`, sub: l.worstFall == null || b.worstFall == null ? "Not enough NAVs." : l.worstFall > b.worstFall / 2 ? "Less than half as deep." : l.worstFall > b.worstFall ? "Shallower than the index." : "Deeper than the index.",
       help: "The largest drop of the list from a high to a later low, over 3 years of daily NAVs.", how: "A larger minus figure is a deeper fall." },
-    { k: "In the 10 worst weeks · past year", v: sp(o?.worst10.list), vs: `Nifty 500: ${sp(o?.worst10.nifty500)}`, sub: o?.worst10.list == null || o.worst10.nifty500 == null ? "Not enough NAVs." : o.worst10.list > o.worst10.nifty500 + 0.3 ? "Falls less when the market falls." : o.worst10.list < o.worst10.nifty500 - 0.3 ? "Falls more when the market falls." : "Falls about as much as the market.",
+    { k: "In the 10 worst weeks · past year", v: sp(o?.worst10.list), vs: `Nifty 500: ${sp(o?.worst10.nifty500)} (${WIN_1Y})`, sub: o?.worst10.list == null || o.worst10.nifty500 == null ? "Not enough NAVs." : o.worst10.list > o.worst10.nifty500 + 0.3 ? "Falls less when the market falls." : o.worst10.list < o.worst10.nifty500 - 0.3 ? "Falls more when the market falls." : "Falls about as much as the market.",
       help: "The list's average weekly change in the Nifty 500's 10 worst weeks of the past year.", how: "Above the Nifty 500's figure: the list fell less in those weeks." },
     { k: "Beta, own benchmarks", v: b2(o?.betaOwn), vs: "benchmarks: 1.00", sub: o?.betaOwn == null ? "Not enough NAVs." : o.betaOwn < 0.9 ? "Moves less than its markets." : o.betaOwn > 1.1 ? "Moves more than its markets." : "Moves about with its markets.",
       help: "Each fund against its own category's benchmark over the past year of weekly NAVs; the funds combined by their share of the list, liquid funds as 0.", how: "1.00 moves with its own benchmarks; above 1 more, below 1 less." },
@@ -56,8 +60,8 @@ export function glanceTiles(rk: MfRisk) {
 
 export function glanceCards(rk: MfRisk): Card[] {
   const o = rk.own?.list, out: Card[] = [];
-  if (rk.list.swing != null && rk.bench.swing != null) out.push(rk.list.swing < rk.bench.swing ? { kind: "good", title: "Calmer than the market", text: `The list swings ${rk.list.swing.toFixed(1)}% a year against ${rk.bench.swing.toFixed(1)}% for the Nifty 500.` }
-    : { kind: "watch", title: "Bumpier than the market", text: `The list swings ${rk.list.swing.toFixed(1)}% a year against ${rk.bench.swing.toFixed(1)}% for the Nifty 500.` });
+  if (rk.list.swing != null && rk.bench.swing != null) out.push(rk.list.swing < rk.bench.swing ? { kind: "good", title: "Calmer than the market", text: `The list swings ${rk.list.swing.toFixed(1)}% a year against ${rk.bench.swing.toFixed(1)}% for the Nifty 500 (${WIN_3Y}).` }
+    : { kind: "watch", title: "Bumpier than the market", text: `The list swings ${rk.list.swing.toFixed(1)}% a year against ${rk.bench.swing.toFixed(1)}% for the Nifty 500 (${WIN_3Y}).` });
   const most = [...rk.funds].filter((f) => f.riskShare != null).sort((a, b) => (b.riskShare as number) - (a.riskShare as number))[0];
   if (most) out.push({ kind: "watch", title: `${most.short} carries the most risk`, text: `${pc(most.riskShare, 0)} of the list's ups and downs, from ${pc(most.listShare, 0)} of the list.` });
   if (o?.liquidShare && o.betaOwn != null && o.betaExLiquid != null) out.push({ kind: "insight", title: "The liquid fund does a lot of the calming", text: `Without it the list's beta is ${b2(o.betaExLiquid)}, not ${b2(o.betaOwn)}: it is ${pc(o.liquidShare, 0)} of the list and barely moves.` });
@@ -89,8 +93,9 @@ export function BuildSection({ rk }: { rk: MfRisk }) {
   const fig = [{ k: "beta of your list, each fund against its own benchmark", v: b2(o?.betaOwn) }, { k: "its usual move when its benchmarks move 10%", v: o?.betaOwn != null ? `about ${(o.betaOwn * 10).toFixed(1)}%` : "–" },
     { k: "funds that move more than their market", v: `${compared.filter((f) => (f.betaOwn as number) > 1.1).length} of ${compared.length}` }, { k: "funds that move less than their market", v: `${compared.filter((f) => (f.betaOwn as number) < 0.9).length} of ${compared.length}` }];
   const cards: Card[] = [];
-  const mismatch = rk.funds.filter((f) => f.beta != null && f.betaOwn != null && f.compared && Math.abs((f.beta as number) - (f.betaOwn as number)) >= 0.2);
-  if (mismatch.length) cards.push({ kind: "insight", title: "A different answer from the Nifty 500 alone", text: `${mismatch.map((f) => `${f.short} reads ${b2(f.betaOwn)} against its own benchmark and ${b2(f.beta)} against the Nifty 500 (3 years, daily)`).join("; ")}.` });
+  // task #275 (number fix 4): one Nifty 500 beta on the page, weekly over the past year like the headline (it compared with the 3-year daily figure)
+  const mismatch = rk.funds.filter((f) => f.beta500 != null && f.betaOwn != null && f.compared && Math.abs((f.beta500 as number) - (f.betaOwn as number)) >= 0.2);
+  if (mismatch.length) cards.push({ kind: "insight", title: "A different answer from the Nifty 500 alone", text: `${mismatch.map((f) => `${f.short} reads ${b2(f.betaOwn)} against its own benchmark and ${b2(f.beta500)} against the Nifty 500 (${WIN_1Y})`).join("; ")}.` });
   const blend = rk.funds.find((f) => f.benchKind === "blend" && f.betaOwn != null);
   if (blend) cards.push({ kind: "watch", title: `${blend.short} moves with its own mix`, text: `Against its blend (${blend.benchmark}) it reads ${b2(blend.betaOwn)}: it moves with the mix it holds, not calmer than it.` });
   const stand = rk.funds.filter((f) => f.standIn);
@@ -125,7 +130,7 @@ export function BuildSection({ rk }: { rk: MfRisk }) {
         <div className="eqr-b3">
           <div className="eqr-tile"><p className="sp-cap">Against own benchmarks<Tip text="Each fund against its own category's benchmark; the funds combined by their share of the list, liquid funds as 0." how="The headline reading: 1 moves with its own benchmarks, above 1 more, below 1 less." /></p><p className="eqr-v"><b>{b2(o?.betaOwn)}</b><Chip band={o?.betaOwnBand} /></p><p className="eqr-sub">Each fund against its category's index. The headline reading.</p></div>
           <div className="eqr-tile"><p className="sp-cap">Without the liquid fund<Tip text="The same figure for the funds that follow a share index only, weighted among themselves." how="The gap to the headline figure is how much the liquid funds calm the list." /></p><p className="eqr-v"><b>{b2(o?.betaExLiquid)}</b><Chip band={o?.betaExLiquidBand} /></p><p className="eqr-sub">The {compared.length} funds that hold shares, against their own benchmarks.</p></div>
-          <div className="eqr-tile"><p className="sp-cap">Against the Nifty 500 alone<Tip text="The list's combined weekly NAV change against the Nifty 500 only, past year." how="The figure for what a Nifty 500 fall has meant; use it for “if the whole market fell”." /></p><p className="eqr-v"><b>{b2(o?.beta500)}</b><Chip band={o?.beta500Band} /></p><p className="eqr-sub">Use this for "what if the whole market falls".</p></div>
+          <div className="eqr-tile"><p className="sp-cap">Against the Nifty 500 alone<Tip text="The list's combined weekly NAV change against the Nifty 500 only, past year." how="The figure for what a Nifty 500 fall has meant; use it for “if the whole market fell”." /></p><p className="eqr-v"><b>{b2(o?.beta500)}</b><Chip band={o?.beta500Band} /></p><p className="eqr-win">{BETA_WIN}</p><p className="eqr-sub">Use this for "what if the whole market falls".</p></div>
         </div>
         <Insights items={cards} scope="mf.beta" />
       </div>
@@ -194,7 +199,7 @@ export function standsOut(f: FundRisk) {
   const out: string[] = [];
   if (f.years != null && f.years < 2.95) out.push(`Under 3 years of NAVs (${f.years} years)`);
   if (f.riskShare != null && f.listShare != null && shaded(f.listShare, f.riskShare)) out.push("More risk than its share");
-  if (f.betaOwn != null && f.beta != null && f.compared && Math.abs(f.betaOwn - f.beta) >= 0.2) out.push(`Moves ${f.betaOwn > f.beta ? "more" : "less"} on its own benchmark than on the Nifty 500`);
+  if (f.betaOwn != null && f.beta500 != null && f.compared && Math.abs(f.betaOwn - f.beta500) >= 0.2) out.push(`Moves ${f.betaOwn > f.beta500 ? "more" : "less"} on its own benchmark than on the Nifty 500 (${WIN_1Y})`);
   if (f.standIn) out.push("Benchmark is a stand-in");
   if (f.saysLittle) out.push("Its benchmark explains little of its moves");
   if (f.worstFall != null && f.worstFall <= -20) out.push(`Fell ${Math.abs(f.worstFall).toFixed(0)}% from a high`);
@@ -214,6 +219,6 @@ export function EachFundSection({ rk }: { rk: MfRisk }) {
   );
 }
 
-export function RiskTab({ rk, value }: { rk: MfRisk; value?: { now: number; name?: string } | null }) {
-  return <><GlanceSection rk={rk} /><BuildSection rk={rk} /><OwnBenchSection rk={rk} /><RiskShareSection rk={rk} /><FallSection rk={rk} value={value} /><EachFundSection rk={rk} /></>;
+export function RiskTab({ rk, value, kf }: { rk: MfRisk; value?: { now: number; name?: string } | null; /** task #275 (change 9): Key figures, under the main section */ kf?: ReactNode }) {
+  return <><GlanceSection rk={rk} />{kf}<BuildSection rk={rk} /><OwnBenchSection rk={rk} /><RiskShareSection rk={rk} /><FallSection rk={rk} value={value} /><EachFundSection rk={rk} /></>;
 }

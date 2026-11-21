@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { BarSeries, CandlestickSeries, ColorType, CrosshairMode, HistogramSeries, LineSeries, LineStyle, PriceScaleMode, createChart, createSeriesMarkers,
   type IChartApi, type ISeriesApi, type ISeriesPrimitive, type MouseEventParams, type SeriesType, type Time } from "lightweight-charts";
-import { apiGet, useSection, useSummary, usePrice, type Peers } from "../../lib/api";
+import { apiGet, useSection, usePrice, type Peers } from "../../lib/api";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useFocusTrap } from "../../lib/focusTrap";
 import { useThemeKey } from "../../lib/ui";
@@ -94,14 +94,13 @@ export function ChartPanel({ row, onClose, onStep, extra }: { row: PanelRow; onC
   const [menu, setMenu] = useState<null | "ind" | "cmp">(null);
   const [measure, setMeasure] = useState<{ on: boolean; a: { t: string; p: number } | null; out: string | null }>({ on: false, a: null, out: null });
   const [log, setLog] = useState(opt.log);
-  const model = usePlanModel();                                  // task #100: Gold sees FinLit Prism, Silver the FinLit IQ, in every screener
+  const model = usePlanModel();                                  // task #283: FinLit Prism for plans that have it; no score otherwise
   const prismMap = usePlanPrism(useMemo(() => [row.symbol], [row.symbol]), model);
   useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify({ ...opt, log })); } catch { /* private window */ } }, [opt, log]);
   const touch = (n: Ind) => { setInd(n); try { sessionStorage.setItem(IND_KEY, JSON.stringify(n)); } catch { /* private window */ } };
   const theme = useThemeKey();
   const q = usePrice(row.symbol, opt.range);
   const q6 = usePrice(row.symbol, "6M");
-  const sum = useSummary(row.symbol).data;
   const peers = useSection<Peers>(row.symbol, "peers", menu === "cmp" || cmp.peers.length > 0).data;
   const box = useRef<HTMLDivElement>(null), host = useRef<HTMLDivElement>(null), chart = useRef<IChartApi | null>(null), main = useRef<ISeriesApi<SeriesType> | null>(null);
   const [legend, setLegend] = useState<string[]>([]);
@@ -274,7 +273,6 @@ export function ChartPanel({ row, onClose, onStep, extra }: { row: PanelRow; onC
   };
   const r1 = ret(1), r3 = ret(3);
   const first = bars[0], chg = lastBar && first ? (lastBar.c / first.c - 1) * 100 : null;
-  const score = sum?.score, overall = score?.overall;
   const tog = (k: keyof Ind) => touch({ ...ind, [k]: !ind[k] });
   const reset = () => { touch(defaultIndicators(row.screen)); setCmp({ nifty: false, peers: [] }); setLog(false); setOpt((o) => ({ ...o, mode: "candles", weekly: false })); setMeasure({ on: false, a: null, out: null }); chart.current?.timeScale().fitContent(); };
   const peerList = (peers?.symbols ?? []).filter((p) => p !== row.symbol).slice(0, 8);
@@ -290,7 +288,7 @@ export function ChartPanel({ row, onClose, onStep, extra }: { row: PanelRow; onC
       <div className="cp-p"><b>₹{num(lastBar?.c ?? row.price)}</b>
         {r1 != null && <span title="Change over the last month">1M {pct(r1)}</span>}{r3 != null && <span title="Change over the last 3 months">3M {pct(r3)}</span>}
         {chg != null && <span className="cp-rng" title={`Change over the chart range (${opt.range})`}>{opt.range} {pct(chg)}</span>}
-        {model && <ScoreChip className="cp-badge" v={scoreView(model, { score: overall == null ? null : Math.round(overall), word: score?.band?.label }, prismMap[row.symbol])} />}</div>
+        {model && <ScoreChip className="cp-badge" v={scoreView(prismMap[row.symbol])} />}</div>
       {!!row.facts?.filter(([, v]) => v != null).length && <div className="cp-fbox" aria-label="What the chart shows"><b>What the chart shows</b>
         <dl className="cp-facts">{row.facts.filter(([, v]) => v != null).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl></div>}
       <div className="cp-bar" role="group" aria-label="Chart range and tools">
@@ -329,7 +327,6 @@ export function ChartPanel({ row, onClose, onStep, extra }: { row: PanelRow; onC
         {q.isLoading && <p className="cp-m">Loading the chart…</p>}
         {!q.isLoading && !bars.length && <p className="cp-m">{q.isError ? "The chart could not be loaded." : "No price history yet for this company."}{q.isError && <button type="button" className="btn" onClick={() => q.refetch()}>Try again</button>}</p>}
       </div>
-      {model === "iq" && !!score?.pillars?.length && <ul className="cp-score" aria-label="FinLit IQ scores">{score.pillars.map((p) => <li key={p.key} className={"b-" + (p.band?.key || "")}><small>{p.label}</small><b>{p.score == null ? "–" : Math.round(p.score)}</b><em>{p.band?.label}</em></li>)}</ul>}
       {model === "prism" && prismParts(prismMap[row.symbol]).length > 0 && <ul className="cp-score cp-pz" aria-label="FinLit Prism scores">{prismParts(prismMap[row.symbol]).map((p) => <li key={p.key} className={"pb-" + p.band}><small>{p.label}</small><b>{p.text}</b><em>{p.word ?? (p.value == null ? "Not available" : p.key === "risk" ? "Higher means lower risk" : "Higher is better")}</em></li>)}</ul>}
       {extra}
       <p className="cp-f">Charts help you study a company; they are not advice to buy or sell. Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer">TradingView Lightweight Charts™</a>, Copyright (c) 2025 TradingView, Inc.</p>

@@ -44,9 +44,11 @@ describe("Your funds (M5)", () => {
   });
   it("filters by the API's band word and sorts every heading both ways", () => {
     view();
-    fireEvent.click(screen.getByRole("button", { name: "Healthy 1" }));
+    // task #275 (change 18): the band row moved into Health ▾ of the shared filter row
+    fireEvent.click(screen.getByRole("button", { name: "Health: All" }));
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /^Healthy/ }));
     expect(names()).toEqual(["JioBlackRock Liquid Fund"]);
-    fireEvent.click(screen.getByRole("button", { name: "All 3" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
     expect(names()).toEqual(["ICICI Prudential MNC Fund", "JioBlackRock Liquid Fund", "Quant Small Cap Fund"]);
     fireEvent.click(screen.getByRole("button", { name: "Score" }));
     expect(names()).toEqual(["ICICI Prudential MNC Fund", "Quant Small Cap Fund", "JioBlackRock Liquid Fund"]);
@@ -54,10 +56,44 @@ describe("Your funds (M5)", () => {
     expect(names()).toEqual(["JioBlackRock Liquid Fund", "Quant Small Cap Fund", "ICICI Prudential MNC Fund"]);
     expect(screen.getByRole("button", { name: "Score ▼" }).closest("th")!.getAttribute("aria-sort")).toBe("descending");
   });
+  it("task #275 (change 8): the fund cell gives house · plan · option and the ISIN; Category · type names the type under the category", () => {
+    view();
+    const row = Array.from(document.querySelectorAll(".mff-t tbody tr")).find((r) => r.textContent!.includes("ICICI Prudential MNC Fund"))!;
+    expect(row.querySelector("th .mfp-isin")!.textContent).toBe("INF2");
+    const cat = row.querySelectorAll("td")[0];
+    expect(cat.firstChild!.textContent).toBe("Sectoral / Thematic");
+    expect(cat.querySelector(".mff-type")!.textContent).toBe("Equity");
+    const liquid = Array.from(document.querySelectorAll(".mff-t tbody tr")).find((r) => r.textContent!.includes("JioBlackRock"))!;
+    expect(liquid.querySelector("td .mff-type")!.textContent).toBe("Debt");
+    expect(document.querySelector(".mff-t thead")!.textContent).toContain("Category · type");
+  });
+  it("task #275 (change 18): one filter row: Find a fund, Type and Health with counts, chips, Showing n of N, and Columns", () => {
+    view();
+    expect(screen.getByRole("group", { name: "Find, filter and columns" })).toBeTruthy();
+    expect(screen.queryByRole("group", { name: "Show funds by Health Score band" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Type: All" }));
+    expect(screen.getAllByRole("menuitemcheckbox").map((b) => b.textContent)).toEqual(["Equity2 funds", "Debt1 fund"]);
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /^Equity/ }));
+    expect(names()).toEqual(["ICICI Prudential MNC Fund", "Quant Small Cap Fund"]);
+    expect(screen.getByText("Showing 2 of 3 funds")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    fireEvent.click(screen.getByRole("button", { name: "Health: All" }));
+    expect(screen.getAllByRole("menuitemcheckbox").map((b) => b.textContent)).toEqual(["Healthy0 funds", "Average2 funds"]);
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    fireEvent.change(screen.getByRole("searchbox", { name: "Find a fund in your list" }), { target: { value: "INF1" } });
+    expect(names()).toEqual(["Quant Small Cap Fund"]);
+    fireEvent.click(screen.getByRole("button", { name: "Remove Type: Equity" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(names()).toHaveLength(3);
+    const cols = within(screen.getByRole("group", { name: "Columns" }));
+    expect(cols.getAllByRole("button").map((b) => b.textContent)).toEqual(["Overview", "Returns & costs", "Risk", "By fund type"]);
+    fireEvent.click(cols.getByRole("button", { name: "Risk" }));
+    expect(cols.getByRole("button", { name: "Risk" }).getAttribute("aria-pressed")).toBe("true");
+  });
   it("Returns & costs, Risk against each fund's own benchmark, and By fund type", () => {
     view();
     fireEvent.click(screen.getByRole("button", { name: "Returns & costs" }));
-    expect(Array.from(document.querySelectorAll(".mff-t thead th")).map((t) => t.textContent)).toEqual(["Fund ▲", "Type", "1 year", "3 years, a year", "5 years, a year", "Expense ratioi", "Fund size"]);
+    expect(Array.from(document.querySelectorAll(".mff-t thead th")).map((t) => t.textContent)).toEqual(["Fund ▲", "Category · type", "1 year", "3 years, a year", "5 years, a year", "Expense ratioi", "Fund size"]);
     expect(screen.getByRole("note").textContent).toMatch(/IDCW options show no 1, 3 or 5 year return/);
     fireEvent.click(screen.getByRole("button", { name: "Risk" }));
     const mnc = screen.getByText("ICICI Prudential MNC Fund").closest("tr")!;

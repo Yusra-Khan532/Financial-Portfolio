@@ -1,8 +1,10 @@
-// Prebuilt screens on the Advanced (Gold) and Basic (Silver) score screeners: the API types, the address (?preset=<id>&chip=<id>...), the two queries, client-side sorting and the CSV.
+// Prebuilt screens on the Advanced stock screener (FinLit Prism): the API types, the address (?preset=<id>&chip=<id>...), the two queries, client-side sorting and the CSV.
 // Every number shown comes from the response; nothing is computed here except ordering and layout.
 import { useSyncExternalStore } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { ApiError, apiGet } from "./api";
+import { PLAN_FOR_PRISM } from "./planGates";
+import type { Plan } from "./auth";
 
 export type PresetChip = { id: string; label: string; default: boolean; description: string };
 export type Preset = {
@@ -22,9 +24,9 @@ export type ScreenAbout = { shows: string; use: string[] };
 export type BoardChip = { slug: string | null; name: string; n: number; corner: string | null; rotation: string | null; pulse: string | null; pulseCode: string | null };
 /** Which date each kind of data on an Advanced screen is from (prices and scores, the Setups and Chart patterns lists, Sector Pulse, Sector Rotation). */
 export type DataDates = { prices: string | null; setups: string | null; sectors: string | null; rotation: string | null };
-/** Advanced screens are Gold (Prism fields); Basic screens are Silver (FinLit score fields). */
-export type PresetTab = "advanced" | "basic";
-export const PLAN_OF: Record<PresetTab, "gold" | "silver"> = { advanced: "gold", basic: "silver" };
+/** The ready-made screens are built on FinLit Prism (task #283: the Basic tab, built on the retired score, is gone with the Basic stock screener). */
+export type PresetTab = "advanced";
+export const PLAN_OF: Record<PresetTab, Plan> = { advanced: PLAN_FOR_PRISM };
 export type PresetGroup = { id: string; name: string; presets: Preset[]; /** Task #243: one of the featured groups (shown first, crowned). */ featured?: boolean;
   /** Round 3b: Sectors (Advanced) is new and has a one-line intro over its cards, with an i. */ isNew?: boolean; intro?: string; about?: ScreenAbout };
 export type PresetList = { asOf: string | null; groups: PresetGroup[]; tab?: PresetTab };
@@ -37,9 +39,9 @@ export type ThemeState = "in_play" | "emerging" | "fading" | "closest";
 export type Theme = { industry: string; state: ThemeState; breadth: number | null; marketBreadth?: number | null; r3?: number | null; rs3: number | null; members: number | null; small?: boolean; leaders: string[]; reason?: string | null };
 export type Miss = { symbol: string; name?: string | null; exchange?: string | null; failed: string[] };
 export type PresetDetail = {
-  id: string; name: string; asOf: string | null; count: number; shown: number; topCount?: number; asOn?: string; benchSincePct?: number | null; heading?: string | null; filtered?: number; facets?: { sizes: Record<string, number>; sectors: [string, number][]; strong: number; strongOnly?: number; anyRating?: number; new?: number; ahead?: number; nse?: number; bse?: number; fno?: number; liquid?: number; sag?: number; plead?: number;
+  id: string; name: string; asOf: string | null; count: number; shown: number; /** Task #269: the trading day of the prices shown (they are the latest, after the list's day). */ priceDay?: string | null; topCount?: number; asOn?: string; benchSincePct?: number | null; heading?: string | null; filtered?: number; facets?: { sizes: Record<string, number>; sectors: [string, number][]; strong: number; strongOnly?: number; anyRating?: number; new?: number; ahead?: number; nse?: number; bse?: number; fno?: number; liquid?: number; sag?: number; plead?: number;
     /** Task #258 (Advanced SPEC §2, §3): NSE's three levels on this list with their counts, and the counts of each Prism rating word and trend word. */
-    macros?: [string, number][]; nsecs?: [string, number][]; industries?: [string, number][]; ratings?: Record<string, number>; iqGroups?: Record<string, number>; trend?: { st: Record<string, number>; lt: Record<string, number> } }; columns: PresetColumn[]; rows: PresetRow[]; themes?: Theme[]; closestMisses?: Miss[];
+    macros?: [string, number][]; nsecs?: [string, number][]; industries?: [string, number][]; ratings?: Record<string, number>; trend?: { st: Record<string, number>; lt: Record<string, number> } }; columns: PresetColumn[]; rows: PresetRow[]; themes?: Theme[]; closestMisses?: Miss[];
   howItWorks: string[]; cardText: string; disclaimer: string;
   /** "Top 10 of 40 that pass": what the list shows of the companies that pass. */
   listText?: string; notes?: string[]; rankScoreNote?: string; emptyText?: string; ratedCount?: number;
@@ -111,7 +113,7 @@ export function presetParams(prev: URLSearchParams, id: string | null, chips: st
 export function usePresetList(enabled = true, tab: PresetTab = "advanced") {
   return useQuery<PresetList, ApiError>({
     queryKey: ["presets", tab], staleTime: 300_000, enabled, retry: (n, e) => !(e instanceof ApiError && e.status >= 400 && e.status < 500) && n < 1,
-    queryFn: async () => { const d = await apiGet<PresetList>("/api/screener/presets" + (tab === "basic" ? "?tab=basic" : "")); return { asOf: d.asOf ?? null, tab, groups: Array.isArray(d.groups) ? d.groups : [] }; },
+    queryFn: async () => { const d = await apiGet<PresetList>("/api/screener/presets"); return { asOf: d.asOf ?? null, tab, groups: Array.isArray(d.groups) ? d.groups : [] }; },
   });
 }
 /** `offset` and `limit` page a long screen (the first page leaves them out, so it is the cached answer as sent). */
@@ -124,23 +126,17 @@ export type BarFilter = { q: string; sizes: string[]; sectors: string[]; rating:
   sag?: boolean; plead?: boolean; ind?: { slug: string; name: string } | null;
   /** Task #258 (Advanced SPEC §2, §3): NSE's macro sectors, sectors and industries; the Prism rating words (strong ... notrated); from-to score ranges
    *  (z Prism, zf Growth & Profitability, zv Valuation, zq Quality, zr Risk); the two technical views in five words (su u s d sd). */
-  macros?: string[]; nsecs?: string[]; indus?: string[]; pl?: string[]; rg?: Partial<Record<ScoreRangeKey, [number | null, number | null]>>; st5?: string[]; lt5?: string[];
-  /** Task #257 (Basic SPEC §3): the FinLit IQ rating in three groups (good = Strong or Healthy, below = Below Healthy, nr = Not rated); its ranges are `rg`'s
-   *  o (FinLit IQ), pq Quality, pg Growth, pp Profitability, pb Balance sheet, pt Technical. */
-  iqg?: string[] };
-export type ScoreRangeKey = "z" | "zf" | "zv" | "zq" | "zr" | BasicRangeKey;
-export type BasicRangeKey = "o" | "pq" | "pg" | "pp" | "pb" | "pt";
-export const BASIC_RANGE_KEYS: BasicRangeKey[] = ["o", "pq", "pg", "pp", "pb", "pt"];
-export const SCORE_RANGE_KEYS: ScoreRangeKey[] = ["z", "zf", "zv", "zq", "zr", ...BASIC_RANGE_KEYS];
+  macros?: string[]; nsecs?: string[]; indus?: string[]; pl?: string[]; rg?: Partial<Record<ScoreRangeKey, [number | null, number | null]>>; st5?: string[]; lt5?: string[] };
+export type ScoreRangeKey = "z" | "zf" | "zv" | "zq" | "zr";
+export const SCORE_RANGE_KEYS: ScoreRangeKey[] = ["z", "zf", "zv", "zq", "zr"];
 const rangeOn = (b: BarFilter) => SCORE_RANGE_KEYS.filter((k) => b.rg?.[k] && (b.rg[k]![0] != null || b.rg[k]![1] != null));
 /** How many filters of the Prism score panel are on: each ticked word and each range, as on the all-companies view. */
-export const barScoreCount = (b: BarFilter) => (b.pl?.length ?? 0) + rangeOn(b).length + (b.st5?.length ?? 0) + (b.lt5?.length ?? 0) + (b.iqg?.length ?? 0);
+export const barScoreCount = (b: BarFilter) => (b.pl?.length ?? 0) + rangeOn(b).length + (b.st5?.length ?? 0) + (b.lt5?.length ?? 0);
 const advParams = (b: BarFilter): string[] => [
   ...(b.macros ?? []).map((x) => "macro=" + encodeURIComponent(x)), ...(b.nsecs ?? []).map((x) => "nsec=" + encodeURIComponent(x)), ...(b.indus ?? []).map((x) => "indu=" + encodeURIComponent(x)),
   ...(b.pl?.length ? ["pl=" + b.pl.join(",")] : []),
   ...rangeOn(b).flatMap((k) => { const [lo, hi] = b.rg![k]!; return [...(lo != null ? [`${k}min=${lo}`] : []), ...(hi != null ? [`${k}max=${hi}`] : [])]; }),
   ...(b.st5?.length ? ["st5=" + b.st5.join(",")] : []), ...(b.lt5?.length ? ["lt5=" + b.lt5.join(",")] : []),
-  ...(b.iqg?.length ? ["iqg=" + b.iqg.join(",")] : []),
 ];
 export const NO_BAR: BarFilter = { q: "", sizes: [], sectors: [], rating: "", fresh: false, ahead: false, nse: false, fno: false, liquid: false, sag: false, plead: false, ind: null };
 export const barParams = (b: BarFilter): string[] => [...(b.q.trim() ? ["q=" + encodeURIComponent(b.q.trim())] : []), ...b.sizes.map((x) => "size=" + encodeURIComponent(x)),

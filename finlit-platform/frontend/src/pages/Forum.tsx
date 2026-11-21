@@ -11,6 +11,7 @@ import { BOARD_NAME, DISCLAIMER, PLANS, forumMe, pickCompanies, send, type Compa
 import { BoardNote, CompanyLogo, Disclaimer, ThreadList, ThreadView, msg, useCompanyQuotes } from "../components/forum/ForumParts";
 import "../styles/forum.css";
 import { codeText, coTitle, subLine, titleOf } from "../lib/companyLabel";
+import { PLAN_FOR_FORUM } from "../lib/planGates";
 
 export { Body } from "../components/forum/ForumParts";
 
@@ -52,7 +53,7 @@ function FollowButton({ symbol }: { symbol: string }) {
   const { has, toast, upgrade } = useUI(), wlState = useWatchlist(); void wlState;
   const on = wl.has(symbol);
   return <button type="button" className={"btn" + (on ? " on" : "")} aria-pressed={on} onClick={() => {
-    if (!has("silver")) { upgrade("silver", `Following companies comes with the ${TIER.silver.n} plan.`); return; }
+    if (!has(PLAN_FOR_FORUM)) { upgrade(PLAN_FOR_FORUM, `Following companies comes with the ${TIER[PLAN_FOR_FORUM].n} plan.`); return; }
     if (!on && !has("gold") && wl.total() >= 30) { upgrade("gold", "Silver follows up to 30 stocks; Gold follows up to 1,000."); return; }
     if (on) wl.remove(symbol); else wl.add(symbol);
     toast(on ? `${symbol} removed from your watchlist.` : `${symbol} added to your watchlist.`);

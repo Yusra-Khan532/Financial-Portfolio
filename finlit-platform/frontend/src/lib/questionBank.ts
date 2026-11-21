@@ -1,4 +1,5 @@
 import suggestions from "../content/questionSuggestions.json";
+import { RETIRED_SCORE_ANSWER, RETIRED_SCORE_NAME } from "./retiredScore";
 
 export type BankSuggestion = { id: string; text: string };
 
@@ -41,8 +42,8 @@ export const SECOND = "XYZ";
  *  Each has its answer written here, so a tap answers at once without calling the language model (which can take many seconds). They describe how things
  *  work and use only what the site already says about its own scores; none asks for or offers advice. */
 export const STARTERS: { q: string; a: string }[] = [
-  { q: "What is the FinLit IQ score and how is it built?",
-    a: "The FinLit IQ is a score from 0 to 100 that averages five pillars: quality, growth, profitability, balance sheet and technical (the price trend). Each input is mapped to a score using fixed thresholds. The score has not been back-tested against future returns and does not predict them. Information only, not investment advice." },
+  // task #283: the retired score's question stays first (its place is read by askFlow), now answered with the retirement note
+  { q: `What is the ${RETIRED_SCORE_NAME}?`, a: RETIRED_SCORE_ANSWER },
   { q: "What does the FinLit Prism rating describe?",
     a: "FinLit Prism describes a company's financial health from its filings and prices. Its main score weighs four parts: growth and profitability, valuation, quality and risk. Technical indicators are shown separately and are not part of that score. It describes the company; it is not a recommendation." },
   { q: "What is the difference between a mutual fund and an ETF?",
@@ -52,6 +53,6 @@ export const STARTERS: { q: string; a: string }[] = [
   { q: "What is an expense ratio in a mutual fund?",
     a: "The expense ratio is the yearly fee a fund house charges to run a fund, shown as a percentage of the fund's average assets. It is taken out of the fund's NAV a little each day, so the returns a fund reports are already after it. Direct plans have a lower expense ratio than regular plans of the same fund." },
   { q: "Which FinLit tools help me look at a company's financial health?",
-    a: "On every company page the FinLit IQ scorecard shows the five pillars, and the FinLit Prism report (Gold) goes into growth, valuation, quality and risk with the reasons. The Score Screener lists companies by these scores, and Compare puts companies side by side. They describe a company's financial health; they are not recommendations." },
+    a: "On every company page the FinLit Prism rating (Gold) goes into growth and profitability, valuation, quality and risk with the reasons, with two technical views beside it. The Advanced stock screener lists companies by their Prism score, and Compare puts companies side by side. They describe a company's financial health; they are not recommendations." },
 ];
 export const STARTER_QUESTIONS: string[] = STARTERS.map((x) => x.q);

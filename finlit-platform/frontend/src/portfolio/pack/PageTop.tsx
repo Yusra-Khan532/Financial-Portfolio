@@ -41,7 +41,7 @@ export function ScoreLocked() {
     <div className="eqt-score eqt-locked">
       <p className="eqt-score-k">Your portfolio score</p>
       <p className="eqt-score-v"><b>—</b> / 100</p>
-      <p className="eqt-score-x">Worked out from FinLit Prism, part of the Gold plan. Your shares' FinLit IQ is in the Portfolio tab. <Link to="/plans">See plans</Link></p>
+      <p className="eqt-score-x">Worked out from FinLit Prism, part of the Gold plan. <Link to="/plans">FinLit Prism · see plans</Link></p>
     </div>
   );
 }
