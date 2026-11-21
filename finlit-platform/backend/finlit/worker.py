@@ -1122,6 +1122,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_ig.add_argument("--limit", type=int, default=100, help="pages read in this run")
     p_ig.add_argument("--nse-limit", type=int, default=40, help="listed mainboard issues whose NSE book is asked for in this run")
     p_ig.add_argument("--max-minutes", type=float, default=8.0, help="start no new page or NSE request after this many minutes")
+    p_ig.add_argument("--pause", type=float, default=2.0, help="seconds between two requests to the same site")
     p_rm = sub.add_parser("rebuild-metrics", help="recompute every screener filter value from stored snapshots (no provider calls)")
     p_rm.add_argument("--only-missing", action="store_true")
     sub.add_parser("refresh-indices", help="download NIFTY index constituent lists for the screener")
@@ -1765,7 +1766,7 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                 print(await refresh_logos(store, client, limit=args.limit, profile_limit=args.profiles))
             elif args.cmd == "refresh-ipo-gmp":
                 from .ipogmp import refresh as refresh_ipo_gmp
-                print(await refresh_ipo_gmp(store, limit=args.limit, max_minutes=args.max_minutes, nse_limit=args.nse_limit))
+                print(await refresh_ipo_gmp(store, limit=args.limit, max_minutes=args.max_minutes, nse_limit=args.nse_limit, pause_s=max(0.5, args.pause)))
             elif args.cmd == "refresh-calendars":
                 from .calendars import refresh_calendars
                 rep: dict = {}

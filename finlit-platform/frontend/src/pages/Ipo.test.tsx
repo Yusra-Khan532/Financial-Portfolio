@@ -85,7 +85,7 @@ describe("IpoPage", () => {
 
 
 // "What GMP said vs what actually listed": the record behind it is InvestorGain's (backend finlit/ipogmp.py); the section only draws it.
-const pt = (name: string, gmpPct: number, listingPct: number, verdict: "beat" | "short" | "band", extra = {}) => ({ name, symbol: null, board: "mainboard", issuePrice: 100, gmp: gmpPct,
+const pt = (name: string, gmpPct: number, listingPct: number, verdict: "beat" | "short" | "band", extra = {}) => ({ id: name.length, name, symbol: null, board: "mainboard", issuePrice: 100, gmp: gmpPct,
   gmpPct, listingPrice: 100 + listingPct, listingPct, listingDate: "2026-11-03", subscription: 10, issueSizeCr: 200, verdict, url: "https://www.investorgain.com/gmp/" + name + "/1/", ...extra });
 const GMP = { board: "mainboard", source: { name: "InvestorGain", url: "https://www.investorgain.com/" }, updatedAt: null, note: "",
   items: [pt("bls", 46, 65.33, "beat"), pt("sfc", 4.7, 7.61, "band"), pt("far", 300, 20, "short")],
@@ -103,7 +103,7 @@ describe("What GMP said vs what actually listed", () => {
     expect(within(sec).getByRole("link", { name: "InvestorGain" }).getAttribute("href")).toBe("https://www.investorgain.com/");
     expect(sec.textContent).toMatch(/unofficial/);
     expect(sec.textContent).not.toMatch(/\b(buy|sell|hold|should|best|target)\b/i);
-    expect(st.board).toBe("mainboard");
+    expect(st.board).toBe("all");                                   // every issue by default, as other platforms show it
     fireEvent.click(within(sec).getByRole("button", { name: "SME" }));
     expect(st.board).toBe("sme");
   });
@@ -119,6 +119,16 @@ describe("What GMP said vs what actually listed", () => {
   it("says so when there is no record yet", () => {
     st.gmp = { ...GMP, items: [], summary: { ...GMP.summary, count: 0 } };
     render(<IpoPage />, { wrapper: MemoryRouter });
-    expect(screen.getByText(/No listed issues with a GMP on record yet for mainboard issues/)).toBeTruthy();
+    expect(screen.getByText(/No listed issues with a GMP on record yet\./)).toBeTruthy();
+  });
+  it("shows a card beside the dot under the pointer, and a dot opens the IPO report", () => {
+    st.gmp = GMP;
+    render(<IpoPage />, { wrapper: MemoryRouter });
+    const sec = screen.getByRole("heading", { name: /What GMP said vs what actually listed/ }).closest("section") as HTMLElement;
+    const dot = within(sec).getAllByRole("link").find((e) => e.tagName.toLowerCase() === "circle" && /^bls/.test(e.getAttribute("aria-label") || "")) as Element;
+    fireEvent.mouseEnter(dot);
+    const tip = sec.querySelector(".ipo-gmp-tip") as HTMLElement;
+    expect(tip.textContent).toContain("GMP (unofficial)"); expect(tip.textContent).toContain("Listing day"); expect(tip.textContent).toContain("+65.3%");
+    expect(tip.style.left).not.toBe("");
   });
 });
