@@ -55,6 +55,7 @@ const get = vi.fn(async (path: string) => {
   if (path === "/api/me/superinvestors/overlap") return OVERLAP;
   if (path === "/api/superinvestors") return LIST;
   if (path === "/api/superinvestors/tracked") return TRACKED;
+  if (path === "/api/superinvestors/tracked?since=quarter") return { ...TRACKED, since: "quarter", sinceText: "Since last quarter", quarterAvailable: true, quarterReady: false, quarterCover: 40, tiles: { ...TRACKED.tiles, moves: 64 } };
   if (path === "/api/superinvestors/ashish-kacholia") return PAGE;
   if (path === "/api/superinvestors/bengal-finance-and-investment-pvt-ltd") return { status: "moved", to: "ashish-kacholia", name: "Ashish Kacholia" };
   throw Object.assign(new Error("x"), { status: 404, body: { detail: "No investor by that name in the stored filings." } });
@@ -210,5 +211,36 @@ describe("task #289: following, alerts and your stocks", () => {
     open("/superinvestors/ashish-kacholia");
     await screen.findByRole("heading", { name: "Names grouped here" });
     expect(document.querySelector("header .sx-eye .sx-fol")).toBeTruthy();
+  });
+});
+
+describe("task #289: since last quarter, once each quarter's filings are stored", () => {
+  it("'Since last quarter' is off until quarters are stored; once some are, choosing it asks the server and the tiles say so", async () => {
+    PLAN = "gold"; open("/superinvestors");
+    const sec = (await screen.findByRole("heading", { name: "Latest moves" })).closest("section")!;
+    expect((within(sec).getByRole("button", { name: "Since last quarter" }) as HTMLButtonElement).disabled).toBe(true);
+    cleanup();
+    Object.assign(TRACKED, { quarterAvailable: true, quarterCover: 40 });
+    open("/superinvestors");
+    const sec2 = (await screen.findByRole("heading", { name: "Latest moves" })).closest("section")!;
+    const q = within(sec2).getByRole("button", { name: "Since last quarter" }) as HTMLButtonElement;
+    expect(q.disabled).toBe(false);
+    expect(q.getAttribute("title")).toMatch(/stored for 40% of these holdings so far/);
+    fireEvent.click(q);
+    await waitFor(() => expect(get).toHaveBeenCalledWith("/api/superinvestors/tracked?since=quarter"));
+    await waitFor(() => expect(document.querySelector(".sx-stats")!.textContent).toMatch(/Moves since last quarter64/));
+    Object.assign(TRACKED, { quarterAvailable: false });
+  });
+  it("the investor page adds 'Since first named' and the 8-quarter stake line when quarters are stored", async () => {
+    const saved = PAGE.holdings;
+    PAGE.holdings = [{ ...saved[0], quarters: [["Dec 2025", 0.5], ["Mar 2026", 1.2], ["Jun 2026", 5.21], ["Sep 2026", 4.94]], sinceFirstNamed: { from: "Mar 2026", pct: 18.4 } }, ...saved.slice(1)] as unknown as typeof saved;
+    PLAN = "gold"; open("/superinvestors/ashish-kacholia");
+    const sec = (await screen.findByRole("heading", { name: "Stock picks and weightings" })).closest("section")!;
+    const heads = within(sec).getAllByRole("columnheader").map((h) => h.textContent);
+    expect(heads).toContain("Since first named"); expect(heads).toContain("Stake, 8 quarters");
+    const row = within(sec).getAllByRole("row")[1];
+    expect(row.textContent).toMatch(/\+18\.4%from Mar 2026/);
+    expect(within(row).getByRole("img").getAttribute("aria-label")).toBe("Dec 2025 0.50%, Mar 2026 1.20%, Jun 2026 5.21%, Sep 2026 4.94%");
+    PAGE.holdings = saved;
   });
 });

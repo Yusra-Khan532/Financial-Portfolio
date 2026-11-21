@@ -80,7 +80,8 @@ def extra_from_premium(symbol: str, ownership_body: dict, premium: Optional[dict
     holders = pack.get("holders") or []
     if not has_structure and not holders:
         return None
-    return {"structure": st if has_structure else {}, "holders": holders}
+    # task #289: "quarters" marks figures read since the named holders carry their last 8 quarters, so older rows are fetched once more
+    return {"structure": st if has_structure else {}, "holders": holders, "quarters": True}
 
 
 def build_view(symbol: str, ownership_body: dict, extra: Optional[dict]) -> dict:
@@ -260,7 +261,27 @@ def due_for_premium(row: Optional[dict], latest: Optional[str], now: datetime) -
         return 1
     if at is None or (now - at).total_seconds() > REFRESH_DAYS * 86400:
         return 2
+    if row.get("extra") and not row["extra"].get("quarters"):   # task #289: kept before the holders' quarters were stored; fetched once more, last in line
+        return 3
     return None
+
+
+async def _tracked_companies(store: Store) -> set:
+    """The companies any tracked investor (superinvestors_tracked.CONFIG) is named in, from the stored filings."""
+    try:
+        from .superinvestors import holder_key, slug
+        from .superinvestors_tracked import load_config
+        keys = {fn["key"] for inv in load_config() for fn in inv["filed_names"]}
+        out = set()
+        async with store.pool.acquire() as conn:
+            for r in await conn.fetch("SELECT symbol, extra->'holders' AS holders FROM ownership_insights WHERE extra ? 'holders'"):
+                hs = json.loads(r["holders"]) if isinstance(r["holders"], str) else (r["holders"] or [])
+                if any(isinstance(h, list) and h and slug(holder_key(str(h[0] or ""))) in keys for h in hs):
+                    out.add(r["symbol"])
+        return out
+    except Exception:   # a priority only: the run goes on in its usual order without it
+        log.warning("ownership insights: tracked companies unavailable", exc_info=True)
+        return set()
 
 
 async def refresh(store: Store, settings, *, max_minutes: float = 20.0, limit: int = 120, concurrency: int = 3, symbols: Optional[List[str]] = None,
@@ -278,6 +299,7 @@ async def refresh(store: Store, settings, *, max_minutes: float = 20.0, limit: i
         wanted = {(m.decode() if isinstance(m, bytes) else m): s for m, s in await store.redis.zrange(WANTED, 0, -1, withscores=True)}
     except Exception:   # nosec B110
         pass
+    first = await _tracked_companies(store)      # task #289: the tracked investors' companies come first, so their quarter-on-quarter moves appear soonest
     last = ""
     while True:
         async with store.pool.acquire() as conn:
@@ -312,7 +334,7 @@ async def refresh(store: Store, settings, *, max_minutes: float = 20.0, limit: i
                     log.warning("ownership insights for %s failed: %s: %s", sym, type(exc).__name__, exc)
                     continue
                 if rank is not None:
-                    todo.append((0 if sym in wanted else 1, rank, sym))
+                    todo.append((0 if sym in wanted or sym in first else 1, rank, sym))
         if symbols:
             break
     todo.sort(key=lambda t: (t[0], t[1], t[2]))

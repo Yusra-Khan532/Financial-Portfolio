@@ -64,7 +64,8 @@ export function SuperinvestorsPage() {
   const { has } = useUI();
   const gold = has(PLAN_FOR_SUPERINVESTORS);
   const q = useQuery<SiList, ApiError>({ queryKey: ["superinvestors"], queryFn: () => apiGet("/api/superinvestors"), staleTime: 600_000, retry: 1 });
-  const t = useQuery<TrackedTab, ApiError>({ queryKey: ["superinvestors-tracked"], queryFn: () => apiGet("/api/superinvestors/tracked"), enabled: gold, staleTime: 600_000, retry: 1 });
+  const [since, setSince] = useState<"year" | "quarter" | null>(null);     // null: the server's default (last quarter once enough is stored)
+  const t = useQuery<TrackedTab, ApiError>({ queryKey: ["superinvestors-tracked", since], queryFn: () => apiGet(`/api/superinvestors/tracked${since ? `?since=${since}` : ""}`), enabled: gold, staleTime: 600_000, retry: 1, placeholderData: (prev) => prev });
   // The tab is in the address (?tab=all), so a shared link keeps it; Tracked investors is the default.
   const [sp, setSp] = useSearchParams();
   const tab: "tracked" | "all" = sp.get("tab") === "all" ? "all" : "tracked";
@@ -85,8 +86,8 @@ export function SuperinvestorsPage() {
           {!gold ? <Outline /> : t.isPending ? <p className="si-wait" role="status">Loading the tracked investors…</p>
             : t.isError ? <p className="formerr" role="alert">The tracked investors could not be loaded ({t.error.status || "network"}). Please try again in a moment.</p>
             : <div className="si-body">
-              <Tiles t={t.data.tiles} />
-              <LatestMoves d={t.data} names={names} />
+              <Tiles t={t.data.tiles} since={t.data.since} />
+              <LatestMoves d={t.data} names={names} onSince={setSince} />
               <TheyAgree d={t.data} names={names} />
               <Cards d={t.data} f={gold ? f : undefined} />
               {gold && f.signedIn && <YourStocks />}

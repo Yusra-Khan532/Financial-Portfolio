@@ -12,7 +12,9 @@ export type TrackedHolding = {
   valueCr: number | null; changeValueCr: number | null; changeAbout: boolean; weightPct: number | null;
   size: Size | null; mcapCr: number | null; return1y: number | null; sector: string | null;
   prism: Prism; technical: Tech; peers: Peers; alsoHeldBy: string[];
+  quarters?: [string, number][] | null; sinceFirstNamed?: { from: string; pct: number | null } | null;
 };
+export type Since = { since: "year" | "quarter"; sinceText: string; quarterReady?: boolean; quarterAvailable?: boolean; quarterCover?: number };
 export type FiledName = { key: string; name: string; kind: "person" | "firm"; companies: number };
 export type MoveCounts = Record<"new" | "added" | "reduced" | "exited", number>;
 export type NamedStakes = { pct: number | null; coverPct: number; why: string | null };
@@ -36,9 +38,9 @@ export type TrackedTab = Meta & {
   tiles: { tracked: number; companies: number; moves: number; heldBy2: number };
   moveCounts: Partial<MoveCounts>; sourceErrors: number; medians: Record<Size, number | null>;
   investors: TrackedCard[]; moves: TrackedMove[]; agree: Record<"held" | "added" | "cut", Agree[]>;
-  allCount: { names: number; people: number; firms: number }; since: "year" | "quarter"; sinceText: string; trackedSource: string; namedStakesNote: string;
-};
-export type TrackedPage = Meta & TrackedCard & {
+  allCount: { names: number; people: number; firms: number }; trackedSource: string; namedStakesNote: string;
+} & Since;
+export type TrackedPage = Meta & TrackedCard & Partial<Since> & {
   kind_of_page: "tracked"; holdings: TrackedHolding[]; moveList: TrackedHolding[]; medians: Record<Size, number | null>; trackedSource: string; namedStakesNote: string;
 };
 export type Moved = { status: "moved"; to: string; name: string };

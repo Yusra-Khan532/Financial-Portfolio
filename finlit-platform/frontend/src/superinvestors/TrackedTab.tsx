@@ -10,18 +10,20 @@ const STEP = 15;
 const KINDS: [Move | "all", string][] = [["all", "All"], ["new", "New stakes"], ["added", "Stake up"], ["reduced", "Stake cut"], ["exited", "No longer named"]];
 const SIZES: Size[] = ["Large", "Mid", "Small", "Micro"];
 
-export function Tiles({ t }: { t: Tab["tiles"] }) {
+export const sinceWords = (s?: "year" | "quarter") => s === "quarter" ? "since last quarter" : "since a year ago";
+
+export function Tiles({ t, since }: { t: Tab["tiles"]; since?: "year" | "quarter" }) {
   return (
     <div className="si-stats sx-stats">
       <div className="si-stat"><span>Tracked investors</span><b>{t.tracked}</b><small>each under every name they file with</small></div>
       <div className="si-stat"><span>Companies named</span><b>{t.companies.toLocaleString("en-IN")}</b><small>with 1% or more, latest filings</small></div>
-      <div className="si-stat"><span>Moves since a year ago</span><b>{t.moves.toLocaleString("en-IN")}</b><small>new, up, cut, no longer named</small></div>
+      <div className="si-stat"><span>Moves {sinceWords(since)}</span><b>{t.moves.toLocaleString("en-IN")}</b><small>new, up, cut, no longer named</small></div>
       <div className="si-stat"><span>Held by 2 or more</span><b>{t.heldBy2}</b><small>companies</small></div>
     </div>
   );
 }
 
-export function LatestMoves({ d, names }: { d: Tab; names: Record<string, string> }) {
+export function LatestMoves({ d, names, onSince }: { d: Tab; names: Record<string, string>; onSince?: (s: "year" | "quarter") => void }) {
   const [kind, setKind] = useState<Move | "all">("all");
   const [size, setSize] = useState<Size | "all">("all");
   const [inv, setInv] = useState("all");
@@ -35,8 +37,9 @@ export function LatestMoves({ d, names }: { d: Tab; names: Record<string, string
       <p className="si-lead">What the tracked investors changed in the latest shareholding filings, largest first. The value is the change in the stake at today's price.</p>
       <div className="sx-bar">
         <span className="sx-chips" role="group" aria-label="Compare with">
-          <button type="button" aria-pressed={false} disabled title="Shown once each quarter's filings are stored">Since last quarter</button>
-          <button type="button" aria-pressed>Since a year ago</button>
+          <button type="button" aria-pressed={d.since === "quarter"} disabled={!d.quarterAvailable} onClick={() => { onSince?.("quarter"); reset(); }}
+            title={d.quarterAvailable ? (d.quarterReady ? undefined : `Each quarter's filings are stored for ${d.quarterCover ?? 0}% of these holdings so far`) : "Shown once each quarter's filings are stored"}>Since last quarter</button>
+          <button type="button" aria-pressed={d.since !== "quarter"} onClick={() => { onSince?.("year"); reset(); }}>Since a year ago</button>
         </span>
         <span className="sx-sp" />
         <label className="sx-lab">Size <select className="sx-sel" value={size} onChange={(e) => { setSize(e.target.value as Size | "all"); reset(); }}>

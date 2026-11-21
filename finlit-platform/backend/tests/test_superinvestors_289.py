@@ -119,7 +119,7 @@ ROWS = [
 
 def test_stakes_by_name_keeps_every_public_name_in_any_number_of_companies():
     s = si.stakes_by_name(ROWS)
-    assert s["bengal-finance-and-investment-pvt-ltd"] == {"AAA": {"now": 1.2, "ago": 0.0, "asOf": "Sep 2026", "as_filed": "Bengal Finance & Investment Pvt Ltd"}}
+    assert s["bengal-finance-and-investment-pvt-ltd"] == {"AAA": {"now": 1.2, "ago": 0.0, "asOf": "Sep 2026", "as_filed": "Bengal Finance & Investment Pvt Ltd", "quarters": None}}
     assert set(s["ashish-kacholia"]) == {"AAA", "BBB"}
 
 
