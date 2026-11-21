@@ -10,7 +10,7 @@ import type { SearchRow } from "../lib/api";
 import { FilterNote, SearchFilters, useIndexFilter } from "./SearchFilters";
 import { useUniverse } from "../lib/screener";
 import { askBrowserPermission, browserPermission, useAlertLists, useAlerts, useCurrentValue, type Channel, type Created } from "../lib/alerts";
-import { DEFAULT_FILING_KINDS, FILING_KINDS, GROUPS, LIVE_NOTE, METRICS, OP_LABEL, describe, fixedTarget, fmtValue, isEvent, type Op } from "../lib/alertCatalog";
+import { DEFAULT_FILING_KINDS, FILING_KINDS, GROUPS, LIVE_NOTE, METRICS, OP_LABEL, TIER_LABEL, describe, fixedTarget, fmtValue, isEvent, tierLocked, type Op } from "../lib/alertCatalog";
 import { coTitle, subLine, titleOf } from "../lib/companyLabel";
 import "../styles/alerts272.css";
 
@@ -76,7 +76,7 @@ export function AlertComposer({ preset, onDone, compact }: { preset?: Preset; on
   const pickedList = lists.find((l) => l.ref === listRef) ?? null;
   useEffect(() => { if (scope === "list" && !pickedList && lists.length) setListRef(lists[0].ref); }, [scope, pickedList, lists]);
   const m = METRICS[metric];
-  const locked = m.tier === "silver" && plan === "basic";
+  const locked = tierLocked(m.tier, plan), tierName = TIER_LABEL[m.tier];
   const used = alerts.filter((a) => a.status !== "done").length;
   const current = useCurrentValue(scope === "list" ? "" : symbol, metric, rows);
   const filing = metric === "discover_filing";
@@ -160,7 +160,7 @@ export function AlertComposer({ preset, onDone, compact }: { preset?: Preset; on
           <select id="alx-metric" value={metric} onChange={(e) => pickMetric(e.target.value)} disabled={scope === "list"}>
             {scope === "list" ? <option value="discover_filing">{METRICS.discover_filing.label} (new)</option> : GROUPS.map((g) => (
               <optgroup key={g} label={g}>
-                {Object.entries(METRICS).filter(([, x]) => x.group === g).map(([k, x]) => <option key={k} value={k}>{x.label}{k === "discover_filing" ? " (new)" : ""}{x.tier === "silver" && plan === "basic" ? " · Silver" : ""}</option>)}
+                {Object.entries(METRICS).filter(([, x]) => x.group === g).map(([k, x]) => <option key={k} value={k}>{x.label}{k === "discover_filing" ? " (new)" : ""}{tierLocked(x.tier, plan) ? ` · ${TIER_LABEL[x.tier]}` : ""}</option>)}
               </optgroup>
             ))}
           </select>
@@ -229,7 +229,7 @@ export function AlertComposer({ preset, onDone, compact }: { preset?: Preset; on
         ? `A list alert counts as 1 of ${limit} however many companies the list holds. It is checked on weekday evenings, once the day's filings are in, like every alert that is not on price.`
         : filing ? "Checked on weekday evenings, once the day's filings are in." : m.live ? "Checked every few minutes while the market is open." : "Checked on weekday evenings, once the day's data is in."} Anything that fires lands in your notifications.</span></p>
 
-      {locked && <div className="alx-warn" role="alert"><b>{m.label} alerts are part of Silver.</b> <button type="button" className="alx-link" onClick={() => upgrade("silver", `${m.label} alerts are part of Silver.`)}>See Silver</button></div>}
+      {locked && <div className="alx-warn" role="alert"><b>{m.label} alerts are part of {tierName}.</b> <button type="button" className="alx-link" onClick={() => upgrade(m.tier === "gold" ? "gold" : "silver", `${m.label} alerts are part of ${tierName}.`)}>See {tierName}</button></div>}
       {err && <div className="alx-warn" role="alert">{err.detail} {(err.status === "plan_required" || err.status === "plan_limit") && <button type="button" className="alx-link" onClick={() => upgrade((err.plan as "silver" | "gold") || "silver", err.detail)}>See plans</button>}</div>}
       {made && <div className="alx-ok" role="status"><b>Alert saved.</b> {made.alreadyMet ? <>It is already true right now ({fmtValue(made.metric, made.current)}), so you will hear when it next crosses.</> : "We will tell you when it fires."} <Link to="/alerts">View my alerts</Link></div>}
 

@@ -6,7 +6,8 @@ import { migrateStoredScreens } from "./sizeMigration";
 /** `notify`: "Tell me when a company joins" (task #64, file 04): true sends a message after each close naming the companies that joined or left; false keeps the screen
  *  quiet; a screen saved before the choice existed has none, and the server keeps emailing it as before. */
 /** `sizesMoved` (task #262): set by the server on a screen whose size filter it moved from Small to Micro on 20 Nov 2026; kept as sent. */
-export type SavedScreen = { name: string; state: State; notify?: boolean; sizesMoved?: string | null };
+/** `converted` (task #283 PR D): set by the server on a screen it converted to FinLit Prism; `text` says what changed (the scales differ). Kept as sent. */
+export type SavedScreen = { name: string; state: State; notify?: boolean; sizesMoved?: string | null; converted?: { on: string; was: string[]; text: string } | null };
 const KEY = "finlit-saved-screens";
 function read(): SavedScreen[] { try { const v = JSON.parse(localStorage.getItem(KEY) || "[]"); return Array.isArray(v) ? v : []; } catch { return []; } }
 

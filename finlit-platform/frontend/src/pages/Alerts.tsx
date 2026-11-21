@@ -12,7 +12,7 @@ import { DEMO } from "../lib/demo";
 import { useUniverse } from "../lib/screener";
 import { AlertComposer, type Preset } from "../components/AlertComposer";
 import { demoCheck, demoNudge, demoReset, noticeLabels, timeAgo, useAlertLists, useAlerts, useNotices, type AlertRow, type Channel } from "../lib/alerts";
-import { LIVE_NOTE, METRICS, closeness, describe, fixedTarget, fmtValue, isEvent } from "../lib/alertCatalog";
+import { LIVE_NOTE, METRICS, closeness, describe, fixedTarget, fmtValue, isEvent, tierLocked } from "../lib/alertCatalog";
 import { codeText } from "../lib/companyLabel";
 
 // Task #272: two new ones first, marked New, from Discover's What changed: one alert on the member's companies (equity portfolio and every watchlist).
@@ -32,7 +32,7 @@ const QUICK: { t: string; d: string; icon: string; p: Preset; isNew?: boolean }[
   { t: "Profit milestone", d: "Quarterly net profit above a level", icon: "coins", p: { metric: "q_net_profit", op: "above" } },
 ];
 const QUICK_FIRST = 6;   // the two new ones and the first four of the twelve
-const METRIC_ICON: Record<string, string> = { discover_filing: "medal", price: "rupee", move_abs: "activity", volume_x: "bars", rsi14: "gauge", from_high52: "growth", overall: "quality", pe: "percent", result_soon: "calendar", news_keyword: "notes", promoter_chg: "users", q_net_profit: "coins" };
+const METRIC_ICON: Record<string, string> = { discover_filing: "medal", price: "rupee", move_abs: "activity", volume_x: "bars", rsi14: "gauge", from_high52: "growth", overall: "quality", prism_final: "quality", pe: "percent", result_soon: "calendar", news_keyword: "notes", promoter_chg: "users", q_net_profit: "coins" };
 /** The channels an alert really uses: never email, which is off (the owner, 19 Nov 2026), even on an alert saved with it before. */
 const shown = (chs: Channel[]) => chs.filter((c) => c !== "email");
 const CH: Record<Channel, [string, string]> = { app: ["bell", "In-app"], email: ["mail", "Email"], browser: ["activity", "Browser"] };
@@ -66,6 +66,9 @@ function AlertCard({ a, onPatch, onRemove, listLabel }: { a: AlertRow; onPatch: 
         {a.firedCount > 0 && a.lastFiredAt ? <span className="alx-fired">Fired {a.firedCount}× (last {timeAgo(a.lastFiredAt)})</span> : null}
       </p>
       {a.note && <p className="alx-note">“{a.note}”</p>}
+      {/* task #283 PR D: the server's own words for an alert it converted to FinLit Prism, or paused (the two scores' scales differ) */}
+      {a.pausedReason && a.status === "paused" && <p className="alx-conv" role="note">{a.pausedReason}</p>}
+      {a.converted?.text && !a.pausedReason && <p className="alx-conv" role="note">{a.converted.text}</p>}
       <div className="alx-act">
         {edit && !ev ? (
           <form onSubmit={(e) => { e.preventDefault(); const n = Number(v); if (isFinite(n) && v.trim() !== "") { onPatch({ value: n }); setEdit(false); } }} className="alx-edit">
@@ -75,9 +78,9 @@ function AlertCard({ a, onPatch, onRemove, listLabel }: { a: AlertRow; onPatch: 
         ) : (
           <>
             {a.status === "active" && <button className="btn" onClick={() => onPatch({ status: "paused" })}><Icon name="pause" /><span>Pause</span></button>}
-            {a.status === "paused" && <button className="btn" onClick={() => onPatch({ status: "active" })}><Icon name="play" /><span>Resume</span></button>}
-            {a.status === "done" && <button className="btn" onClick={() => onPatch({ status: "active" })}><Icon name="play" /><span>Set again</span></button>}
-            {!ev && !fixed && <button className="btn" onClick={() => { setV(String(a.value ?? "")); setEdit(true); }}><Icon name="notes" /><span>Edit</span></button>}
+            {a.status === "paused" && !a.retired && <button className="btn" onClick={() => onPatch({ status: "active" })}><Icon name="play" /><span>Resume</span></button>}
+            {a.status === "done" && !a.retired && <button className="btn" onClick={() => onPatch({ status: "active" })}><Icon name="play" /><span>Set again</span></button>}
+            {!ev && !fixed && !a.retired && <button className="btn" onClick={() => { setV(String(a.value ?? "")); setEdit(true); }}><Icon name="notes" /><span>Edit</span></button>}
             {sure ? <><button className="btn danger" onClick={onRemove}>Delete</button><button className="btn" onClick={() => setSure(false)}>Keep</button></> : <button className="btn alx-del" onClick={() => setSure(true)} aria-label={`Delete the ${a.list ? listLabel ?? "list" : a.symbol} alert`}><Icon name="trash" /><span aria-hidden="true">Delete</span></button>}
           </>
         )}
@@ -206,7 +209,7 @@ export function AlertsPage() {
               <button className="alx-link" aria-expanded={allQuick} onClick={() => setAllQuick((v) => !v)}>{allQuick ? "Show fewer" : `View all (${QUICK.length})`} <Icon name="arrow" /></button></div>
             <div className="alx-qg">
               {(allQuick ? QUICK : QUICK.slice(0, QUICK_FIRST)).map((x) => {
-                const lock = METRICS[x.p.metric!].tier === "silver" && plan === "basic";
+                const lock = tierLocked(METRICS[x.p.metric!].tier, plan);
                 return <button key={x.t} className={"alx-q" + (x.isNew ? " is-new" : "")} onClick={() => { setPreset(x.p.list ? { ...x.p } : { ...x.p, symbol: preset.symbol }); setDrawer(true); }}>
                   {x.isNew && <em className="alx-qn">New</em>}<span className="alx-qi"><Icon name={x.icon} /></span><span><b>{x.t}</b><small>{x.d}</small></span>{lock && <em>Silver</em>}
                 </button>;

@@ -49,7 +49,8 @@ export function ReadyScreens({ plan, prism = false, on, total, onToggle, onAllOf
             {onNotify && <button type="button" className={"btn ssy-bell" + (s.notify ? " on" : "")} aria-pressed={!!s.notify} onClick={() => onNotify(s.name, !s.notify)}
               aria-label={`Messages for ${s.name}: ${s.notify ? "on" : "off"}`}>{s.notify ? "Messages on" : "Messages off"}</button>}
             <button type="button" className="btn" onClick={() => onOpenSaved(s)}>Open</button>
-            <button type="button" className="btn" onClick={() => onDeleteSaved(s.name)} aria-label={`Delete ${s.name}`}>Delete</button></li>))}</ul>
+            <button type="button" className="btn" onClick={() => onDeleteSaved(s.name)} aria-label={`Delete ${s.name}`}>Delete</button>
+            {s.converted?.text && <small className="xsp-conv" role="note">{s.converted.text}</small>}</li>))}</ul>
           : <p className="xsp-empty">No saved screens yet. Set your rules, then use Save screen above the results; it will list here.</p>
       ) : ready.isError ? <p className="xsp-empty">The ready-made screens are not available right now. <button type="button" className="lnk" onClick={() => ready.refetch()}>Try again</button></p>
         : !ready.data ? <div className="skeleton" style={{ height: 96 }} aria-busy="true" />

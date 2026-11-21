@@ -261,11 +261,19 @@ class ScreenState(BaseModel):
         return v
 
 
+class Converted(BaseModel):
+    """Task #283 PR D: set by the server on a saved screen it converted from the retired FinLit IQ to FinLit Prism (finlit/iq_retire.py); kept as sent."""
+    on: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    was: List[Annotated[str, StringConstraints(max_length=300)]] = Field(default_factory=list, max_length=40)
+    text: str = Field(default="", max_length=6000)
+
+
 class Screen(BaseModel):
     name: str = Field(min_length=1, max_length=40)
     state: ScreenState
     notify: Optional[bool] = None   # "Tell me when a company joins" (file 04): True sends the messages, False keeps the screen quiet; a screen saved before has none and keeps its emails
     sizesMoved: Optional[str] = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")   # task #262: the day a saved Small was moved to Micro (migration 116); the page shows a one-time note
+    converted: Optional[Converted] = None   # task #283 PR D: what the server changed from the retired FinLit IQ (the page says it was converted)
 
 
 class ScreensIn(BaseModel):
@@ -925,7 +933,10 @@ async def undo_clear_portfolio(request: Request, ctx: Ctx = Depends(secure_ctx))
 async def put_screens(request: Request, body: ScreensIn, ctx: Ctx = Depends(secure_ctx)):
     if len(body.screens) > limits_for(ctx.plan)["screens"]:
         raise fail(403, "plan_limit", "Your plan has reached its saved-screen limit.", plan="silver")
-    await save_state(request, ctx, "screens", [s.model_dump() for s in body.screens])
+    from ..iq_retire import convert_screens
+    # task #283 PR D: a browser that still holds a screen on the retired FinLit IQ saves it on FinLit Prism (marked as converted), never as it was
+    saved, _ = convert_screens([s.model_dump() for s in body.screens], drop_retired_model=False)
+    await save_state(request, ctx, "screens", saved)
     return {"status": "saved"}
 
 

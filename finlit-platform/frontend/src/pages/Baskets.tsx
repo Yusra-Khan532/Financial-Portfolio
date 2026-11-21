@@ -34,6 +34,7 @@ function Card({ b, names }: { b: Basket; names: string[] }) {
       {nameBad && <p className="qb-err" role="alert">{nameBad}</p>}
       <code className="qb-bkq">{queryPreview(b.query, 200)}</code>
       {b.note && <p className="qb-sub">{b.note}</p>}
+      {b.converted?.text && <p className="qb-sub qb-conv" role="note">{b.converted.text}</p>}
       <p className="qb-sub">{b.recent ? "Only recent results · " : ""}Updated {dateIN(b.updatedAt)}{b.leftOut ? ` · ${nf(b.leftOut, 0)} companies left out for missing data` : ""}</p>
       {err && <p className="qb-err" role="alert">{err}</p>}
       <div className="qb-bka">
