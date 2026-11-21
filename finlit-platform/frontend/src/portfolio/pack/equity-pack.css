@@ -115,16 +115,31 @@
 @media (max-width: 1000px) { .eq-tr { grid-template-columns: minmax(0, 1fr); } }
 .eq-tm-x, .eq-tm-y { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; padding: 4px 10px; border-radius: 8px; background: var(--s2); font: 700 var(--fs-caption)/var(--lh-12) var(--sans); letter-spacing: .04em; color: var(--sp-ink); }
 .eq-tm-x { justify-content: flex-end; }
-.eq-tg { width: 100%; min-width: 520px; border-collapse: separate; border-spacing: 6px; table-layout: fixed; }
-.eq-tg th { font: 700 var(--fs-caption)/var(--lh-12) var(--sans); color: var(--sp-mute); text-align: center; } .eq-tg th[scope="row"] { width: 86px; text-align: left; }
-.eq-tg-c { padding: 10px; border-radius: 10px; vertical-align: top; background: var(--s2); }
-.eq-tg-c b { display: block; font: 700 var(--fs-small)/var(--lh-13) var(--sans); } .eq-tg-c small { display: block; margin: 2px 0 6px; font-size: var(--fs-caption); color: var(--sp-mute); }
-.eq-tg-c em { display: block; font: 400 var(--fs-caption)/1.5 var(--sans); color: var(--sp-ink); }
-.eq-tg-c.t2 { background: var(--sp-good-bg); } .eq-tg-c.t1 { background: color-mix(in srgb, var(--sp-good-bg) 55%, var(--s1)); }
-.eq-tg-c.t-1 { background: color-mix(in srgb, var(--sp-bad-bg) 55%, var(--s1)); } .eq-tg-c.t-2 { background: var(--sp-bad-bg); }
+/* task #274 change 4: touching cells inside heavy axis lines, a big count and its share in each; darker cells hold more (--k, set from the share), empty ones muted */
+.eq-tg { width: 100%; min-width: 520px; border-collapse: collapse; table-layout: fixed; }
+.eq-tg th { padding: 6px 8px; font: 700 var(--fs-caption)/var(--lh-12) var(--sans); color: var(--sp-mute); text-align: center; } .eq-tg th[scope="row"] { width: 86px; text-align: left; border-right: 3px solid var(--sp-ink); }
+.eq-tg thead th:not(:first-child) { border-bottom: 3px solid var(--sp-ink); }
+.eq-tg-c { --tc: var(--gold); position: relative; padding: 10px; vertical-align: top; border: 1px solid var(--s1); background: color-mix(in srgb, var(--tc) var(--k, 10%), var(--s1)); }
+.eq-tg-c.t2, .eq-tg-c.t1 { --tc: var(--gain); } .eq-tg-c.t-1, .eq-tg-c.t-2 { --tc: var(--loss); }
+.eq-tg-c.e { background: var(--s2); } .eq-tg-c.e .eq-tg-n, .eq-tg-c.e .eq-tg-w { color: var(--sp-mute); opacity: .75; }
+.eq-tg-n { display: flex; align-items: baseline; gap: 6px; margin: 0; } .eq-tg-n b { font: 700 28px/1 var(--sans); color: var(--sp-ink); } .eq-tg-n span { font: 600 var(--fs-small)/1 var(--sans); color: var(--sp-ink); }
+.eq-tg-w { margin: 4px 0 6px; font: 700 var(--fs-small)/var(--lh-13) var(--sans); color: var(--sp-ink); }
+/* company chips that open the report (task #274 change 5) */
+.eq-cos { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; } .eq-cos[hidden] { display: none; }
+.eq-co { display: inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--sp-line); background: var(--s1); font: 600 var(--fs-caption)/1.5 var(--sans); color: var(--sp-ink); text-decoration: none; white-space: nowrap; }
+.eq-co span { font-weight: 400; color: var(--sp-mute); }
+/* a phone: the 3 x 3 fits the screen; chips shrink with "…" (the full name stays in the link) */
+@media (max-width: 600px) {
+  .eq-tg { min-width: 0; } .eq-tg th { padding: 4px; } .eq-tg th[scope="row"] { width: 64px; }
+  .eq-tg-c { padding: 6px; } .eq-tg-n b { font-size: 24px; } .eq-tg-n span { font-size: var(--fs-caption); } .eq-tg-w { font-size: var(--fs-caption); }
+  .eq-tg-c .eq-co { max-width: 100%; overflow: hidden; text-overflow: ellipsis; padding: 1px 6px; }
+}
+.eq-co:hover { border-color: var(--gold); text-decoration: underline; } .eq-co:focus-visible, .eq-col:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.eq-col { color: inherit; font-weight: 700; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-underline-offset: 2px; } .eq-col:hover { text-decoration-color: currentColor; }
 .eq-bp-h { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; } .eq-bp-h b { font: 700 var(--fs-body)/var(--lh-14) var(--sans); }
 /* Business and price: one row each, stacked (the pack's fix for the CSS clash that put them on one line) */
 .eq-bpr { display: block; padding: 10px 12px; margin: 0 0 8px; border-radius: 10px; border-left: 4px solid var(--sp-line); background: var(--s2); }
-.eq-bpr.g { border-left-color: var(--gain); } .eq-bpr.m { border-left-color: var(--gold); } .eq-bpr.b { border-left-color: var(--loss); }
+.eq-bpr.g { border-left-color: var(--gain); } .eq-bpr.m { border-left-color: var(--gold); } .eq-bpr.b { border-left-color: var(--loss); } .eq-bpr.n { border-left-color: var(--sp-mute); }
+.eq-bpr.e .eq-bpr-t { color: var(--sp-mute); } .eq-bpr .eq-bpr-n { margin-top: 6px; }
 .eq-bpr-t { display: flex; justify-content: space-between; gap: 10px; margin: 0; font-size: var(--fs-small); }
 .eq-bpr small { display: block; margin-top: 2px; font-size: var(--fs-caption); color: var(--sp-mute); } .eq-bpr .eq-bpr-n { color: var(--sp-ink); }

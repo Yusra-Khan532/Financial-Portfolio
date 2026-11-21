@@ -1,0 +1,289 @@
+{
+"trend": {
+"n": 15,
+"rated": 15,
+"coverage": 1.0,
+"grid": {
+"1,1": {
+"name": "Rising",
+"share": 0.2,
+"n": 3,
+"symbols": [
+"TIPSMUSIC",
+"APOLLO",
+"GLENMARK"
+]
+},
+"1,0": {
+"name": "Rising but resting",
+"share": 0.4,
+"n": 6,
+"symbols": [
+"SKYGOLD",
+"TECHM",
+"CHENNPETRO",
+"AEROFLEX",
+"MARINE",
+"PERSISTENT"
+]
+},
+"1,-1": {
+"name": "Rising but dipping",
+"share": 0.13333333333333333,
+"n": 2,
+"symbols": [
+"KINGFA",
+"526433"
+]
+},
+"0,1": {
+"name": "Flat, turning up",
+"share": 0.0,
+"n": 0,
+"symbols": []
+},
+"0,0": {
+"name": "Flat",
+"share": 0.06666666666666667,
+"n": 1,
+"symbols": [
+"ZENSARTECH"
+]
+},
+"0,-1": {
+"name": "Flat, turning down",
+"share": 0.0,
+"n": 0,
+"symbols": []
+},
+"-1,1": {
+"name": "Falling but bouncing",
+"share": 0.06666666666666667,
+"n": 1,
+"symbols": [
+"RELIANCE"
+]
+},
+"-1,0": {
+"name": "Falling but resting",
+"share": 0.13333333333333333,
+"n": 2,
+"symbols": [
+"INFY",
+"YESBANK"
+]
+},
+"-1,-1": {
+"name": "Falling",
+"share": 0.0,
+"n": 0,
+"symbols": []
+}
+},
+"breadth": {
+"up": 0.7333333333333333,
+"down": 0.2
+},
+"direction": {
+"improving": 0.2,
+"weakening": 0.6,
+"steady": 0.2
+},
+"ndirection": {
+"improving": 3,
+"weakening": 9,
+"steady": 3
+},
+"business": {
+"strong_up": {
+"n": 4,
+"share": 0.26666666666666666,
+"symbols": [
+"TIPSMUSIC",
+"KINGFA",
+"SKYGOLD",
+"CHENNPETRO"
+]
+},
+"strong_down": {
+"n": 1,
+"share": 0.06666666666666667,
+"symbols": [
+"YESBANK"
+]
+},
+"weak_up": {
+"n": 3,
+"share": 0.2,
+"symbols": [
+"APOLLO",
+"GLENMARK",
+"526433"
+]
+},
+"weak_down": {
+"n": 0,
+"share": 0.0,
+"symbols": []
+}
+},
+"between": 7,
+"betweenList": {
+"n": 7,
+"share": 0.4666666666666667,
+"items": [
+{
+"symbol": "TECHM",
+"prism": 56.0,
+"flat": false
+},
+{
+"symbol": "RELIANCE",
+"prism": 58.0,
+"flat": false
+},
+{
+"symbol": "AEROFLEX",
+"prism": 60.0,
+"flat": false
+},
+{
+"symbol": "MARINE",
+"prism": 53.0,
+"flat": false
+},
+{
+"symbol": "ZENSARTECH",
+"prism": 64.0,
+"flat": true
+},
+{
+"symbol": "INFY",
+"prism": 64.0,
+"flat": false
+},
+{
+"symbol": "PERSISTENT",
+"prism": 64.0,
+"flat": false
+}
+]
+},
+"average": {
+"stLabel": "Sideways",
+"ltLabel": "Uptrend"
+},
+"words": {
+"longTerm": "Mostly rising",
+"shortAgainstLong": "Fading",
+"businessAndPrice": "Partly out of step"
+}
+},
+"shares": [
+{
+"symbol": "TIPSMUSIC",
+"name": "Tips Music Ltd",
+"prism": 77.0,
+"st": 51.0,
+"lt": 61.0
+},
+{
+"symbol": "KINGFA",
+"name": "Kingfa Science & Technology (India) Ltd",
+"prism": 72.0,
+"st": -22.0,
+"lt": 47.0
+},
+{
+"symbol": "SKYGOLD",
+"name": "SKY Gold & Diamonds Ltd",
+"prism": 76.0,
+"st": 4.0,
+"lt": 59.0
+},
+{
+"symbol": "TECHM",
+"name": "Tech Mahindra Ltd",
+"prism": 56.0,
+"st": -4.0,
+"lt": 75.0
+},
+{
+"symbol": "RELIANCE",
+"name": "Reliance Industries Ltd",
+"prism": 58.0,
+"st": 30.0,
+"lt": -31.0
+},
+{
+"symbol": "CHENNPETRO",
+"name": "Chennai Petroleum Corporation Ltd",
+"prism": 82.0,
+"st": -9.0,
+"lt": 34.0
+},
+{
+"symbol": "AEROFLEX",
+"name": "Aeroflex Industries Ltd",
+"prism": 60.0,
+"st": -19.0,
+"lt": 47.0
+},
+{
+"symbol": "MARINE",
+"name": "Marine Electricals (India) Ltd",
+"prism": 53.0,
+"st": -13.0,
+"lt": 53.0
+},
+{
+"symbol": "APOLLO",
+"name": "Apollo Micro Systems Ltd",
+"prism": 45.0,
+"st": 20.0,
+"lt": 42.0
+},
+{
+"symbol": "ZENSARTECH",
+"name": "Zensar Technologies Ltd",
+"prism": 64.0,
+"st": 7.0,
+"lt": 2.0
+},
+{
+"symbol": "INFY",
+"name": "Infosys Ltd",
+"prism": 64.0,
+"st": -19.0,
+"lt": -46.0
+},
+{
+"symbol": "PERSISTENT",
+"name": "Persistent Systems Ltd",
+"prism": 64.0,
+"st": 8.0,
+"lt": 59.0
+},
+{
+"symbol": "GLENMARK",
+"name": "Glenmark Pharmaceuticals Ltd",
+"prism": 44.0,
+"st": 47.0,
+"lt": 65.0
+},
+{
+"symbol": "YESBANK",
+"name": "Yes Bank Ltd",
+"prism": 74.0,
+"st": 5.0,
+"lt": -50.0
+},
+{
+"symbol": "526433",
+"name": "Asm Technologies Ltd",
+"prism": 47.0,
+"st": -28.0,
+"lt": 41.0
+}
+]
+}

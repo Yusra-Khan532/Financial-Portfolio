@@ -70,16 +70,19 @@ export function peerCards(shares: Share[]): Card[] {
 }
 /** The three things to know under the trend matrix (task #183, pack 01-equity-portfolio): who rises on both trends, how much of the list trails its longer trend,
  *  and where the price sits behind the business. Counts and names from the server's trend reading (POST /api/portfolio/trend). */
-export function trendCards(t: { rated: number; grid: Record<string, { n: number; symbols: string[] }>; direction: { weakening: number; improving: number }; business: Record<string, { n: number; symbols: string[] }> }): Card[] {
+export function trendCards(t: { rated: number; grid: Record<string, { n: number; symbols: string[] }>; direction: { weakening: number; improving: number }; business: Record<string, { n: number; symbols: string[] }> },
+  label: (symbol: string) => string = (x) => x): Card[] {
+  // task #274: the cells' new names (Rising, Rising but resting, Rising but dipping, Flat, turning up ...), and the names as chips that open each report
+  const chips = (syms: string[], tag: string, tone?: "up" | "down") => (syms.length ? [{ label: tag, tone, chips: syms.map((x) => ({ symbol: x, label: label(x) })) }] : undefined);
   const out: Card[] = [];
   if (!t.rated) return out;
   const both = t.grid["1,1"];
-  if (both?.n) out.push({ kind: "good", title: `${cap(num(both.n))} ${both.n === 1 ? "share rises" : "shares rise"} on both trends`, text: `${list(both.symbols)}.` });
+  if (both?.n) out.push({ kind: "good", title: `${cap(num(both.n))} ${both.n === 1 ? "share is" : "shares are"} Rising on both trends`, text: `${list(both.symbols.map(label))}: up over months and up lately.`, groups: chips(both.symbols, "Rising", "up") });
   const trail = t.direction.weakening, lead = t.direction.improving;
-  if (trail >= lead && trail > 0) out.push({ kind: "watch", title: `The short term trails the long term for ${pc(trail * 100)}`, text: "Many shares are pausing or pulling back against their longer trend." });
-  else if (lead > 0) out.push({ kind: "good", title: `The short term leads the long term for ${pc(lead * 100)}`, text: "More shares are picking up against their longer trend than fading." });
+  if (trail >= lead && trail > 0) out.push({ kind: "watch", title: `The short term trails the long term for ${pc(trail * 100)}`, text: "Many shares are resting or dipping against their longer trend." });
+  else if (lead > 0) out.push({ kind: "good", title: `The short term leads the long term for ${pc(lead * 100)}`, text: "More shares are turning up against their longer trend than turning down." });
   const behind = t.business.strong_down;
-  if (behind?.n) out.push({ kind: "insight", title: `Price behind the business for ${behind.n === 1 ? "one share" : `${num(behind.n)} shares`}`, text: `Their Prism business reading is stronger than their price trend${behind.symbols.length ? `, including ${list(behind.symbols.slice(0, 3))}` : ""}.` });
+  if (behind?.n) out.push({ kind: "insight", title: `Price behind the business for ${behind.n === 1 ? "one share" : `${num(behind.n)} shares`}`, text: `Their Prism business reading is stronger than their price trend${behind.symbols.length ? `, including ${list(behind.symbols.slice(0, 3).map(label))}` : ""}.`, groups: chips(behind.symbols, "Price behind the business") });
   return out;
 }
 /** The pack's "What if you had owned the group leader instead?": ₹1 lakh a year ago in each laggard and in its group's #1. */

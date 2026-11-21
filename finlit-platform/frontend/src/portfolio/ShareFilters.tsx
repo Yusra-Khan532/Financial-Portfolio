@@ -22,7 +22,10 @@ export function filterDefs(scoreName: string, bands: string[]): FilterDef[] {
   ];
 }
 /** The trend word of a long-term score: the table's own ±20 cut-offs. */
-export const trendWord = (lt: number | null | undefined) => (lt == null ? "Not rated" : lt >= 20 ? "Rising" : lt <= -20 ? "Falling" : "Flat");
+export const trendWord = (lt: number | null | undefined) => (lt == null ? "Not rated" : Math.round(lt) >= 20 ? "Rising" : Math.round(lt) <= -20 ? "Falling" : "Flat");
+/** The word under a trend score in the table (task #274 change 13), on the same ±20 lines: Rising strongly +50 or more, Rising +20 to +49, Flat −19 to +19,
+ *  Falling −20 to −49, Falling sharply −50 or less. */
+export const trendScoreWord = (v: number) => { const r = Math.round(v); return r >= 50 ? "Rising strongly" : r >= 20 ? "Rising" : r > -20 ? "Flat" : r > -50 ? "Falling" : "Falling sharply"; };
 export type Getters = Record<FilterKey, (symbol: string) => string>;
 /** The symbols every set filter keeps: AND across buttons, OR inside one button. */
 export function applyFilters(symbols: string[], picks: Picks, get: Getters, skip?: FilterKey): string[] {

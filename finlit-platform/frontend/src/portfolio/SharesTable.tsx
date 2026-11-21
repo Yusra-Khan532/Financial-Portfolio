@@ -19,7 +19,7 @@ import { capBucket, SIZE_SHORTS } from "../lib/capBuckets";
 import { coTitle, isBseCode, sortLabel, subLine, titleOf } from "../lib/companyLabel";
 import { GroupBand, HOLD_COLS, HoldingHeads, HoldingRowCells, LotRows, LotToggle, TotalRow, holdingFigs, type LotsProps } from "./HoldingCells";
 import { EditSellLinks } from "./EditSell";
-import { FilterChips, FilterRow, applyFilters, filterDefs, trendWord, type Getters, type Picks } from "./ShareFilters";
+import { FilterChips, FilterRow, applyFilters, filterDefs, trendScoreWord, trendWord, type Getters, type Picks } from "./ShareFilters";
 import { aggOf } from "../lib/ledger";
 
 const SHORT_LABEL: Record<string, string> = { fundamental: "G&P", valuation: "Val.", quality: "Qual.", risk: "Risk", growth: "Growth", profitability: "Profit.", balance: "Balance", technical: "Tech." };
@@ -55,7 +55,8 @@ const WordChip = ({ v, word, why }: { v: number | null | undefined; word: string
 const TrendCell = ({ t }: { t: { score: number | null; word: string | null } | null | undefined }) => {
   if (!t || t.score == null) return <span className="pfx-dash" title="Not calculated for this rating.">{MINUS}<span className="sr-only"> not calculated for this rating</span></span>;
   const v = Math.max(-100, Math.min(100, t.score));
-  return <span className="eq-trc" title={t.word ?? undefined}><b>{v > 0 ? "+" : v < 0 ? MINUS : ""}{Math.abs(Math.round(v))}</b><span className="eq-trb" aria-hidden="true"><i className={v >= 0 ? "up" : "dn"} style={{ width: `${Math.abs(v) / 2}%`, [v >= 0 ? "left" : "right"]: "50%" } as React.CSSProperties} /></span><small>{t.word}</small></span>;
+  const word = trendScoreWord(v);   // task #274 change 13: the table's own words on the ±20 / ±50 lines (the server's word stays in the hover)
+  return <span className="eq-trc" title={t.word && t.word !== word ? `${word} · Prism: ${t.word}` : word}><b>{v > 0 ? "+" : v < 0 ? MINUS : ""}{Math.abs(Math.round(v))}</b><span className="eq-trb" aria-hidden="true"><i className={v >= 0 ? "up" : "dn"} style={{ width: `${Math.abs(v) / 2}%`, [v >= 0 ? "left" : "right"]: "50%" } as React.CSSProperties} /></span><small>{word}</small></span>;
 };
 const Dash = ({ why }: { why: string }) => <span className="pfx-dash" title={why}>{MINUS}<span className="sr-only"> not available: {why}</span></span>;
 const mean = (xs: (number | null | undefined)[]) => { const v = xs.filter((x): x is number => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
