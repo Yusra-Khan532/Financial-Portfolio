@@ -78,7 +78,7 @@ function KeyCardBox({ c, panel, on, flip, n, noun, id }: { c: KeyCard; panel: Re
   );
 }
 
-export type Sec = [id: string, label: string];
+export type Sec = [id: string, label: string, badge?: string];   // task #274: an optional badge on the step ("2 new")
 /** Task #235 (pack B6): the site header's height, kept in --top-h so a sticky bar sits just under the header at every width. */
 export function useHeaderHeight() {
   useEffect(() => {
@@ -135,8 +135,8 @@ export function SectionsBar<T extends string = TabKey>({ tab, all, onTab, lead, 
     const sw = stuck ? el.querySelector<HTMLElement>(":scope > .x-sw")?.offsetWidth ?? 0 : 0, l = c.offsetLeft - el.offsetLeft, r = l + c.offsetWidth;
     if (l < el.scrollLeft + sw) el.scrollLeft = Math.max(0, l - sw - 8); else if (r > el.scrollLeft + el.clientWidth) el.scrollLeft = r - el.clientWidth + 8;
   }, [on, stuck]);
-  const chips = secs.map(([id, label], i) => <span key={id} className="eqt-chipw">{i > 0 && <span className="eqt-arrow" aria-hidden="true">→</span>}
-    <button type="button" className="eqt-chip" aria-current={on === id ? "true" : undefined} onClick={() => { setOn(id); jumpTo(id); }}><span className="eqt-n">{i + 1}</span>{label}</button></span>);
+  const chips = secs.map(([id, label, badge], i) => <span key={id} className="eqt-chipw">{i > 0 && <span className="eqt-arrow" aria-hidden="true">→</span>}
+    <button type="button" className="eqt-chip" aria-current={on === id ? "true" : undefined} onClick={() => { setOn(id); jumpTo(id); }}><span className="eqt-n">{i + 1}</span>{label}{badge && <span className="eqt-badge">{badge}</span>}</button></span>);
   if (scr) {
     const nudge = (d: 1 | -1) => { const el = stepsBox.current; if (el) el.scrollBy?.({ left: d * Math.max(160, el.clientWidth * 0.6), behavior: "smooth" }); };
     return (
@@ -172,9 +172,9 @@ export function SectionsMenu({ secs, here, isHidden, show, onAll }: { secs: Sec[
     return () => { document.removeEventListener("mousedown", out); document.removeEventListener("keydown", key); };
   }, [open]);
   return <span className="eqt-secw" ref={box}><button type="button" className="eqt-secb" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>Sections <i aria-hidden="true">▾</i></button>
-    {open && <span className="eqt-secm" role="menu">{secs.map(([id, label], i) => { const h = isHidden(id);
+    {open && <span className="eqt-secm" role="menu">{secs.map(([id, label, badge], i) => { const h = isHidden(id);
       return <button key={id} type="button" role="menuitem" onClick={() => { setOpen(false); if (h) show(id); setTimeout(() => jumpTo(id), h ? 120 : 0); }}>
-        <span className="eqt-n">{i + 1}</span><b>{label}</b>{id === here ? <small>You are here</small> : h ? <small>Hidden · opens it</small> : null}</button>; })}
+        <span className="eqt-n">{i + 1}</span><b>{label}{badge && <span className="eqt-badge">{badge}</span>}</b>{id === here ? <small>You are here</small> : h ? <small>Hidden · opens it</small> : null}</button>; })}
       <button type="button" role="menuitem" className="eqt-secall" onClick={() => { setOpen(false); onAll(); }}>All sections</button></span>}</span>;
 }
 
