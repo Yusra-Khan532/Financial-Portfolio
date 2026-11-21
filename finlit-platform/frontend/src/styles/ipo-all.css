@@ -1,0 +1,49 @@
+/* All IPOs (pages/IpoHistory.tsx): filters, the summary line, the table on wide screens and cards on phones. */
+.ia { display: grid; gap: 14px; padding-bottom: 48px; }
+.ia-bar { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px 12px; align-items: end; padding: 14px 16px; }
+.ia-fs { display: contents; } .ia-ftog { display: none; }
+.ia-f { display: grid; gap: 4px; min-width: 0; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.ia-f select, .ia-f input { width: 100%; min-width: 0; height: 38px; padding: 0 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--card, var(--bg)); color: var(--text); font: 500 14px var(--sans); text-transform: none; letter-spacing: 0; }
+.ia-f select:focus-visible, .ia-f input:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.ia-q { grid-column: span 2; }
+.ia-acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; grid-column: -2 / -1; }
+.ia-btn { height: 38px; padding: 0 14px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--text); font: 600 13px var(--sans); cursor: pointer; white-space: nowrap; }
+.ia-btn:hover:not(:disabled) { border-color: var(--text); } .ia-btn:disabled { opacity: .5; cursor: default; } .ia-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.ia-link { border: 0; background: none; padding: 0; color: var(--text); text-decoration: underline; font: inherit; cursor: pointer; }
+.ia-sum { margin: 0; font-size: 15px; line-height: 1.6; } .ia-sum .up, .ia .up { color: var(--gain); } .ia-sum .down, .ia .down { color: var(--loss); }
+.ia-none { padding: 24px; text-align: center; }
+
+.ia-tw { padding: 0; overflow: auto; max-height: 75vh; position: relative; }
+.ia-t { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; font-variant-numeric: tabular-nums; }
+.ia-t th, .ia-t td { padding: 9px 10px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; white-space: nowrap; }
+.ia-t thead th { position: sticky; top: 0; z-index: 2; background: var(--card, var(--bg)); font: 600 12px var(--sans); letter-spacing: .02em; text-transform: uppercase; color: var(--muted); }
+.ia-t thead th button { border: 0; background: none; padding: 0; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+.ia-t thead th button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.ia-t thead th[aria-sort="ascending"], .ia-t thead th[aria-sort="descending"] { color: var(--text); }
+.ia-t .r { text-align: right; }
+.ia-t tbody th { position: sticky; left: 0; z-index: 1; background: var(--card, var(--bg)); min-width: 190px; max-width: 250px; white-space: normal; font: 600 14px var(--sans); text-transform: none; letter-spacing: 0; }
+.ia-t tbody th a { color: var(--text); text-decoration: none; } .ia-t tbody th a:hover { text-decoration: underline; }
+.ia-t tbody th a:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.ia-t small { display: block; margin-top: 2px; font-size: 12px; font-weight: 400; color: var(--muted); }
+.ia-t tbody tr { cursor: pointer; } .ia-t tbody tr:hover td, .ia-t tbody tr:hover th { background: var(--s2, rgba(0,0,0,.03)); }
+.ia-st { display: inline-block; padding: 1px 8px; border-radius: 999px; font: 600 12px var(--sans); background: var(--s2, rgba(0,0,0,.05)); color: var(--text); }
+.ia-st.open { background: color-mix(in srgb, var(--gain) 16%, transparent); color: var(--gain); }
+.ia-st.not_listed, .ia-st.withdrawn { color: var(--muted); }
+
+.ia-cards { display: none; list-style: none; margin: 0; padding: 0; gap: 10px; }
+.ia-c { display: grid; gap: 10px; padding: 14px; color: var(--text); text-decoration: none; }
+.ia-c:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.ia-ch { display: grid; gap: 2px; } .ia-ch b { font: 600 16px var(--sans); } .ia-ch span { font-size: 13px; color: var(--muted); }
+.ia-c dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 10px; margin: 0; }
+.ia-c dt { font-size: 12px; color: var(--muted); } .ia-c dd { margin: 0; font: 600 14px var(--sans); font-variant-numeric: tabular-nums; }
+.ia-more { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: center; }
+.ia-foot { margin: 4px 0 0; font-size: 12px; line-height: 1.6; } .ia-foot a { color: inherit; }
+
+@media (max-width: 900px) { .ia-q { grid-column: 1 / -1; } .ia-acts { grid-column: 1 / -1; justify-content: flex-start; } }
+@media (max-width: 760px) {
+  .ia-tw { display: none; } .ia-cards { display: grid; }
+  .ia-bar { grid-template-columns: minmax(0, 1fr) auto; padding: 12px; }
+  .ia-q { grid-column: 1; } .ia-ftog { display: inline-block; align-self: end; }
+  .ia-fs { display: none; grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; } .ia-bar.open .ia-fs { display: grid; }
+  .ia-acts { grid-column: 1 / -1; }
+}

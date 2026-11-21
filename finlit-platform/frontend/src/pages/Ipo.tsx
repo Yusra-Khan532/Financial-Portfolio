@@ -1,4 +1,5 @@
 import { PageHeader } from "../components/PageHeader";
+import { Link } from "react-router";
 import { useCallback, useMemo, useState } from "react";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
@@ -91,6 +92,7 @@ export function IpoPage() {
       <section className="card ipo-s"><div className="card-h"><h3><span className="ci"><Icon name="calendar" /></span>Next seven weeks<ChartHelp id="ipo-timeline" /></h3><span className="s">Bar = application window</span></div>{isLoading ? <div className="skeleton" style={{ height: 160 }} /> : <Strip rows={rows} />}
         <div className="clg">{(Object.keys(STATUS) as Ipo["status"][]).map((s) => <span key={s}><i style={{ background: STATUS[s].colour }} />{STATUS[s].label}</span>)}</div></section>
       <GmpRecord />
+      <Link to="/ipo/all" className="card ipo-all-link"><b>All IPOs since 2020</b><span>Every mainboard and SME issue: listing price against issue price, subscription, GMP and return since IPO, with filters and a full report for each.</span><i aria-hidden="true">→</i></Link>
       <div className="ipo-bar2">
         <div className="seg" role="group" aria-label="Status">{FILTERS.map(([k, l]) => <button key={k} aria-pressed={f === k} onClick={() => setF(k)}>{l}</button>)}</div>
         <div className="seg" role="group" aria-label="Board">{([["all", "All boards"], ["mainboard", "Mainboard"], ["sme", "SME"]] as const).map(([k, l]) => <button key={k} aria-pressed={kind === k} onClick={() => setKind(k)}>{l}</button>)}</div>

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // IPO calendar: sections by status, cards and detail drawer show only the facts that are in the data, listing-day arithmetic, compliance wording.
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Ipo } from "../lib/ipo";
 import { listingMove, timeline } from "../lib/ipo";
@@ -34,7 +35,7 @@ describe("helpers", () => {
 
 describe("IpoPage", () => {
   it("groups issues into status sections and hides absent facts", () => {
-    render(<IpoPage />);
+    render(<IpoPage />, { wrapper: MemoryRouter });
     for (const n of ["Open now", "Upcoming", "Listed"]) expect(screen.getAllByRole("region", { name: n }).length).toBe(1);
     expect(screen.queryByRole("region", { name: "Closed" })).toBeNull();
     const card = screen.getByRole("heading", { name: "Bare Co" }).closest("article")!;
@@ -48,7 +49,7 @@ describe("IpoPage", () => {
     expect(screen.getByText(/Data as of 29 Oct 2026/)).toBeTruthy();
   });
   it("drawer with every optional fact", () => {
-    render(<IpoPage />);
+    render(<IpoPage />, { wrapper: MemoryRouter });
     fireEvent.click(screen.getByRole("button", { name: "Details: Rich Co" }));
     const dr = screen.getByRole("dialog");
     for (const t of ["Link Intime", "Axis Capital", "Qualified institutional buyers", "12.50x", "Fresh issue", "Offer for sale", "Before the issue", "Repay borrowings", "Allotment", "Refunds", "NSE, BSE"]) expect(within(dr).getAllByText(new RegExp(t)).length).toBeGreaterThan(0);
@@ -59,7 +60,7 @@ describe("IpoPage", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
   it("drawer without optional fields has no empty rows", () => {
-    render(<IpoPage />);
+    render(<IpoPage />, { wrapper: MemoryRouter });
     fireEvent.click(screen.getByRole("button", { name: "Details: Bare Co" }));
     const dr = screen.getByRole("dialog");
     for (const t of ["Subscription", "Issue breakdown", "Promoter holding", "Lead managers", "Documents", "Minimum investment", "Allotment"]) expect(within(dr).queryByText(t)).toBeNull();
@@ -67,7 +68,7 @@ describe("IpoPage", () => {
     expect(within(dr).getByText("Key dates")).toBeTruthy();
   });
   it("listed issue shows the listing price against the issue price with both figures", () => {
-    render(<IpoPage />);
+    render(<IpoPage />, { wrapper: MemoryRouter });
     fireEvent.click(screen.getByRole("button", { name: "Details: Listed Co" }));
     const dr = screen.getByRole("dialog");
     expect(within(dr).getByText("Listing-day performance")).toBeTruthy();
@@ -76,7 +77,7 @@ describe("IpoPage", () => {
     expect(within(dr).getByText("Listing price compared with the issue price; not a return on any investment.")).toBeTruthy();
   });
   it("uses no advice wording", () => {
-    const { container } = render(<IpoPage />);
+    const { container } = render(<IpoPage />, { wrapper: MemoryRouter });
     fireEvent.click(screen.getByRole("button", { name: "Details: Listed Co" }));
     expect(document.body.textContent || container.textContent).not.toMatch(/\b(buy|sell|apply|subscribe|good listing|recommend|gain)\b/i);
   });
@@ -93,7 +94,7 @@ const GMP = { board: "mainboard", source: { name: "InvestorGain", url: "https://
 describe("What GMP said vs what actually listed", () => {
   it("draws every listed issue, writes the count in words, credits InvestorGain and calls GMP unofficial", () => {
     st.gmp = GMP;
-    render(<IpoPage />);
+    render(<IpoPage />, { wrapper: MemoryRouter });
     const sec = screen.getByRole("heading", { name: /What GMP said vs what actually listed/ }).closest("section") as HTMLElement;
     expect(sec.querySelectorAll("circle")).toHaveLength(3);
     expect(sec.textContent).toContain("Of 3 issues, 1 listed within 5 points of what the GMP said, 1 listed higher and 1 lower. The typical gap was 19.3 points.");
@@ -108,7 +109,7 @@ describe("What GMP said vs what actually listed", () => {
   });
   it("has a table view with the same figures", () => {
     st.gmp = GMP;
-    render(<IpoPage />);
+    render(<IpoPage />, { wrapper: MemoryRouter });
     const sec = screen.getByRole("heading", { name: /What GMP said vs what actually listed/ }).closest("section") as HTMLElement;
     fireEvent.click(within(sec).getByRole("button", { name: "Show as table" }));
     const rows = within(sec).getAllByRole("row");
@@ -117,7 +118,7 @@ describe("What GMP said vs what actually listed", () => {
   });
   it("says so when there is no record yet", () => {
     st.gmp = { ...GMP, items: [], summary: { ...GMP.summary, count: 0 } };
-    render(<IpoPage />);
+    render(<IpoPage />, { wrapper: MemoryRouter });
     expect(screen.getByText(/No listed issues with a GMP on record yet for mainboard issues/)).toBeTruthy();
   });
 });

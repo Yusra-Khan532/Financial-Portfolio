@@ -21,3 +21,7 @@
 .ipo-gmp-t .r { text-align: right; font-variant-numeric: tabular-nums; } .ipo-gmp-t th small { display: block; font-weight: 400; color: var(--muted); } .ipo-gmp-t .up { color: var(--gain); } .ipo-gmp-t .down { color: var(--loss); }
 @media (max-width: 640px) { .ipo-gmp-tip { position: static; margin-top: 8px; max-width: none; } .ipo-gmp-tbtn { margin-left: 0; } }
 .ipo-gmp-t th[scope="row"] { text-transform: none; letter-spacing: 0; font: 600 13px var(--sans); color: var(--text); } .ipo-gmp-t td { white-space: nowrap; }
+/* The link to every IPO, under the GMP record on the IPO calendar */
+.ipo-all-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 16px; align-items: center; margin-bottom: 16px; padding: 14px 18px; color: var(--text); text-decoration: none; }
+.ipo-all-link b { font: 600 16px var(--sans); } .ipo-all-link span { grid-column: 1; font-size: 14px; color: var(--muted); } .ipo-all-link i { grid-column: 2; grid-row: 1 / span 2; font-style: normal; font-size: 20px; }
+.ipo-all-link:hover b { text-decoration: underline; } .ipo-all-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }

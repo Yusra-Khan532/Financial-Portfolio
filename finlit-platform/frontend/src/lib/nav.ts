@@ -75,7 +75,8 @@ export const MENU: MenuGroup[] = [
     i("/results", "Results calendar", "Who reports quarterly results, and when", "calendar", { end: true }),
     i("/results/quarter", "Latest results", "Every company's newest quarter, newest first", "notes"),
     i("/concalls", "Concall Monitor", "Earnings call recordings, transcripts, presentations and upcoming calls", "play", { newUntil: "2026-12-21" }),   // task #278 (after the pack): joins the group whose line describes it
-    i("/ipo", "IPO calendar", "Issues open now, upcoming and listed", "activity"),
+    i("/ipo", "IPO calendar", "Issues open now, upcoming and listed", "activity", { end: true }),
+    i("/ipo/all", "All IPOs", "Every IPO since 2020: listing price, subscription, GMP and returns", "layers", { newUntil: "2026-12-21" }),
     i("/news", "News & filings", "Exchange filings and headlines", "notes"),
   ] },
   { id: "funds", title: "Mutual funds & ETFs", line: "Find, screen and compare funds and ETFs", short: "Funds", icon: "pie", items: [
