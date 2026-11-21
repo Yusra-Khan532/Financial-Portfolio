@@ -82,3 +82,4 @@
   .ir-t { font-size: 12px; } .ir-t th, .ir-t td { padding: 7px 4px; } .ir-t tbody th { font-size: 12px; } .ir-dot { margin-right: 4px; }
 }
 .ir-t thead th.r { white-space: normal; }
+.ir-dem li.ir-other { grid-template-columns: minmax(0, 1fr) 110px; } .ir-dem li.ir-other > span:first-child { grid-column: 1 / -1; color: var(--muted); } .ir-dem li.ir-other .ir-bt { grid-column: 1; }
