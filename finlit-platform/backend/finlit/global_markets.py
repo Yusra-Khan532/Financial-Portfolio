@@ -180,8 +180,17 @@ async def collect(settings, now: Optional[datetime] = None, local: Optional[Dict
     for k, pts in (local or {}).items():
         theirs = series.get(k, ([], None))[0]
         if pts and (not theirs or pts[-1][0] >= theirs[-1][0]):
-            series[k] = (pts, None)
+            series[k] = (splice(theirs, pts), None)
     return build(series, now)
+
+
+def splice(theirs: List[Tuple[date, float]], ours: List[Tuple[date, float]]) -> List[Tuple[date, float]]:
+    """The site's own closes from their first day, with the provider's older closes before it, so a short site series still has its 1-week and
+    1-month moves and its month line (task #294, live check: the FBIL rupee held under a month, and 1M showed a dash)."""
+    if not ours:
+        return list(theirs)
+    first = ours[0][0]
+    return [p for p in theirs if p[0] < first] + list(ours)
 
 
 async def site_series(app) -> Dict[str, List[Tuple[date, float]]]:
