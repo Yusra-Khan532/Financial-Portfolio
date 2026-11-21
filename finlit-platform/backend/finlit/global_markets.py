@@ -48,7 +48,7 @@ SERIES: List[Dict[str, Any]] = [
     {"key": "sp500", "label": "S&P 500", "group": "US", "unit": "pts", "src": "fred", "id": "SP500", "city": "New York", "lat": 40.71, "lon": -74.01, "tz": "America/New_York", "session": ("09:30", "16:00")},
     {"key": "nasdaq", "label": "Nasdaq Composite", "group": "US", "unit": "pts", "src": "fred", "id": "NASDAQCOM", "city": "New York", "lat": 40.71, "lon": -74.01, "tz": "America/New_York", "session": ("09:30", "16:00")},
     {"key": "dow", "label": "Dow Jones", "group": "US", "unit": "pts", "src": "fred", "id": "DJIA", "city": "New York", "lat": 40.71, "lon": -74.01, "tz": "America/New_York", "session": ("09:30", "16:00")},
-    {"key": "ftse", "label": "FTSE 100", "group": "Europe", "unit": "pts", "src": "twelve", "id": "FTSE", "eod": "FTSE.INDX", "city": "London", "lat": 51.51, "lon": -0.13, "tz": "Europe/London", "session": ("08:00", "16:30")},
+    {"key": "ftse", "label": "FTSE 100", "group": "Europe", "unit": "pts", "src": "twelve", "id": "FTSE", "eod": ("UKX.INDX", "FTSE.INDX"), "city": "London", "lat": 51.51, "lon": -0.13, "tz": "Europe/London", "session": ("08:00", "16:30")},
     {"key": "dax", "label": "DAX", "group": "Europe", "unit": "pts", "src": "twelve", "id": "DAX", "eod": "GDAXI.INDX", "city": "Frankfurt", "lat": 50.11, "lon": 8.68, "tz": "Europe/Berlin", "session": ("09:00", "17:30")},
     {"key": "cac", "label": "CAC 40", "group": "Europe", "unit": "pts", "src": "twelve", "id": "CAC", "eod": "FCHI.INDX", "city": "Paris", "lat": 48.86, "lon": 2.35, "tz": "Europe/Paris", "session": ("09:00", "17:30")},
     {"key": "nikkei", "label": "Nikkei 225", "group": "Asia", "unit": "pts", "src": "fred", "id": "NIKKEI225", "city": "Tokyo", "lat": 35.68, "lon": 139.69, "tz": "Asia/Tokyo", "session": ("09:00", "15:30")},
@@ -230,8 +230,9 @@ async def _market(client: httpx.AsyncClient, s: Dict[str, Any], twelve: str, eod
         pts, why = await _twelve(client, twelve, s["id"])
         if pts:
             return pts, None, "Twelve Data"
-    if eod and s.get("eod"):
-        pts, why2 = await _eodhd(client, eod, s["eod"], start, redis)
+    codes = s.get("eod")
+    for code in ((codes,) if isinstance(codes, str) else (codes or ())) if eod else ():   # a series can have more than one EODHD code (FTSE 100: UKX, FTSE)
+        pts, why2 = await _eodhd(client, eod, code, start, redis)
         if pts:
             return pts, None, "EODHD"
         why = why2 or why
