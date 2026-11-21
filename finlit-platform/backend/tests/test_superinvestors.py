@@ -72,7 +72,9 @@ def test_status_words():
 
 
 @pytest.mark.integration
-async def test_the_list_is_open_to_everyone_and_a_portfolio_needs_silver_or_gold(app, anon):  # noqa: F811
+async def test_the_list_is_open_to_everyone_and_a_portfolio_needs_gold(app, anon):  # noqa: F811
+    """Task #289: the portfolios moved to the Gold plan (the Silver plan is being removed); a tracked investor's key opens the tracked page and the
+    filed name's own portfolio is at /name/<key>."""
     st = app.state.store
     async with st.pool.acquire() as conn:
         await conn.execute("TRUNCATE ownership_insights")
@@ -89,15 +91,19 @@ async def test_the_list_is_open_to_everyone_and_a_portfolio_needs_silver_or_gold
     assert r.status_code == 200 and b["count"] == 2 and [i["key"] for i in b["investors"]] == ["vijay-kedia", "ashish-kacholia"] and b["companies"] >= 4
     assert "holdings" not in b["investors"][0] and b["disclaimer"]
     no = await anon.get("/api/superinvestors/ashish-kacholia")
-    assert no.status_code == 403 and no.json()["status"] == "plan_required" and no.json()["plan"] == "silver"
-    basic = await signed_in(app, "basic212@example.com")
-    assert (await basic.get("/api/superinvestors/ashish-kacholia")).status_code == 403
-    for plan in ("silver", "gold"):
-        c = await signed_in(app, f"{plan}212@example.com", plan=plan)
-        p = await c.get("/api/superinvestors/ashish-kacholia")
-        assert p.status_code == 200 and p.json()["companies"] == 3 and p.json()["history"] and p.json()["source"], plan
-        assert p.headers["cache-control"].startswith("private")
-        assert (await c.get("/api/superinvestors/nobody-at-all")).status_code == 404
+    assert no.status_code == 403 and no.json()["status"] == "plan_required" and no.json()["plan"] == "gold"
+    for plan in ("basic", "silver"):
+        c = await signed_in(app, f"{plan}212@example.com", plan=None if plan == "basic" else plan)
+        assert (await c.get("/api/superinvestors/ashish-kacholia")).status_code == 403, plan
+    c = await signed_in(app, "gold212@example.com", plan="gold")
+    p = await c.get("/api/superinvestors/name/ashish-kacholia")
+    assert p.status_code == 200 and p.json()["companies"] == 3 and p.json()["history"] and p.json()["source"]
+    assert p.headers["cache-control"].startswith("private")
+    t = await c.get("/api/superinvestors/ashish-kacholia")
+    assert t.status_code == 200 and t.json()["kind_of_page"] == "tracked"
+    v = await c.get("/api/superinvestors/vijay-kedia")
+    assert v.status_code == 200 and v.json()["kind_of_page"] == "tracked"
+    assert (await c.get("/api/superinvestors/nobody-at-all")).status_code == 404
 
 
 def test_more_filing_categories_are_left_out_and_people_are_told_from_firms():

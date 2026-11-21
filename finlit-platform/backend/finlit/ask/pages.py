@@ -56,9 +56,11 @@ async def get_superinvestors(gw: Gateway, a: Dict[str, Any]) -> Out:
             return Out({"investor": a["investor"], "found": False, "names": [i.get("name") for i in investors][:60]}, as_of=(lst or {}).get("asOf"),
                        source=SOURCE_SI, routes=["/api/superinvestors"],
                        notes=["No investor of that name holds 1% or more of a listed company in the filings FinLit holds; the names listed are the ones it does."])
-        one = await gw.json(f"/api/superinvestors/{hit['key']}", subject=f"The portfolio of {hit.get('name')}")
-        return Out({"investor": hit.get("name"), "key": hit["key"], "portfolio": one}, as_of=(lst or {}).get("asOf"), source=SOURCE_SI,
-                   routes=[f"/api/superinvestors/{hit['key']}"])
+        # task #289: a filed name grouped into a tracked investor (Bengal Finance -> Ashish Kacholia) reads the tracked investor's page
+        key, name = ((hit.get("tracked") or {}).get("key") or hit["key"]), ((hit.get("tracked") or {}).get("name") or hit.get("name"))
+        one = await gw.json(f"/api/superinvestors/{key}", subject=f"The portfolio of {name}")
+        return Out({"investor": name, "key": key, "portfolio": one}, as_of=(lst or {}).get("asOf"), source=SOURCE_SI,
+                   routes=[f"/api/superinvestors/{key}"])
     rows = [{k: i.get(k) for k in ("key", "name", "kind", "companies", "valueCr", "top", "changes")} for i in investors]
     rows.sort(key=lambda r: r.get("valueCr") or 0, reverse=True)
     return Out({"count": (lst or {}).get("count"), "investors": rows[: a.get("limit", 30)], "covered": (lst or {}).get("covered"), "emptyWhy": (lst or {}).get("emptyWhy")},

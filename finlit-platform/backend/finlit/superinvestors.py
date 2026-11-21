@@ -20,8 +20,12 @@ Blanks always say why. Information only, not investment advice.
 Each investor is marked "person" or "firm" from the shape of the name; the page opens on people (the "superinvestors" of the task) with
 companies and funds one tab away.
 
-GET /api/superinvestors          the list (every plan, signed in or not)
-GET /api/superinvestors/{key}    one portfolio (Silver and Gold; Basic and visitors get plan_required)
+GET /api/superinvestors                 the All named holders list (every plan, signed in or not); a name grouped into a tracked investor carries `tracked`
+GET /api/superinvestors/tracked         the Tracked investors tab: tiles, cards, latest moves, stocks they agree on (Gold; task #289)
+GET /api/superinvestors/name/{key}      one filed name's portfolio, as the filings write it (Gold)
+GET /api/superinvestors/{key}           a tracked investor's page; a filed name that belongs to a tracked investor answers `moved` with its page;
+                                        any other name answers its own portfolio (Gold; other plans get plan_required)
+Task #289 (21 Nov 2026): the whole feature is part of the Gold plan; the Silver lock is gone. Tracked investors: superinvestors_tracked.py.
 """
 from __future__ import annotations
 
@@ -35,13 +39,14 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 import orjson
 from fastapi import APIRouter, Request, Response
 
+from . import superinvestors_tracked as tracked
 from .auth.entitlements import has, sees_all
 from .auth.service import current
 
 log = logging.getLogger("finlit.superinvestors")
 router = APIRouter()
 
-CACHE_KEY = "superinvestors:v2"   # v2: every investor carries kind (person | firm)
+CACHE_KEY = "superinvestors:v3"   # v2: every investor carries kind (person | firm); v3: tracked investors (task #289)
 CACHE_SECONDS = 3600
 MIN_COMPANIES = 2           # named in at least this many listed companies (1% or more today) to be listed
 MIN_STAKE = 1.0             # the filing names holders of 1% or more
@@ -219,6 +224,65 @@ def build(rows: List[dict], names: Dict[str, str], quotes: Dict[str, dict], clas
     }
 
 
+def stakes_by_name(rows: List[dict]) -> Dict[str, Dict[str, dict]]:
+    """{filed-name key: {symbol: {now, ago, asOf, as_filed}}} for every named public holder, in any number of companies: a tracked investor's
+    second name may be named in one company only (Vijay Kedia files once as "Vijay Kedia")."""
+    out: Dict[str, Dict[str, dict]] = {}
+    for r in rows:
+        holders = r.get("holders") or []
+        if not isinstance(holders, list):
+            continue
+        sym = str(r["symbol"]).upper()
+        for h in holders:
+            if not isinstance(h, (list, tuple)) or len(h) < 4 or h[1] != "public" or not is_investor(str(h[0] or "")):
+                continue
+            k = slug(holder_key(str(h[0])))
+            if not k:
+                continue
+            now, ago = _num(h[2]), _num(h[3])
+            prev = out.setdefault(k, {}).get(sym)
+            if prev is None or (now or 0) > (prev["now"] or 0):
+                out[k][sym] = {"now": now, "ago": ago, "asOf": r.get("as_of"), "as_filed": str(h[0])}
+    return out
+
+
+async def _finlit_view(app, symbols: List[str]) -> Tuple[Dict[str, dict], Dict[str, dict], Dict[str, Optional[float]]]:
+    """FinLit's own view of the companies in the tracked investors' filings, from the same sources as the company report: the stored score row
+    (name, market cap, 1-year move), the Prism card (label, score, short- and long-term technical words), the weekly peer label and the ISIN.
+    Also the four sizes' median 1-year move over every scored company (the same-size market)."""
+    from . import isin as isin_mod, prism_screen
+    from .leadership import ordinal
+    from .leadership_api import agreeing, public_now
+    store = app.state.store
+    async with store.pool.acquire() as conn:
+        rows = await conn.fetch("SELECT DISTINCT ON (symbol) symbol, name, market_cap, return_1y FROM scores ORDER BY symbol, (statement = 'consolidated') DESC")
+        lead = await conn.fetch("SELECT symbol, label, raw_label, rel52, rank, ranked, group_short, group_name FROM leadership WHERE symbol = ANY($1::text[])", symbols)
+        classes = {r["symbol"]: r["sector"] for r in await conn.fetch("SELECT symbol, sector FROM company_classification WHERE symbol = ANY($1::text[])", symbols)}
+    every = {r["symbol"]: {"mcap": _num(r["market_cap"]), "r1": _num(r["return_1y"])} for r in rows}
+    med = tracked.medians(every)
+    prism = prism_screen.cards(await store.prism_cards(symbols))
+    try:
+        isins = await isin_mod.symbol_isins(app)
+    except Exception:   # the ISIN map is a convenience for matching a member's stocks; the page works without it
+        log.warning("superinvestors: ISIN map unavailable", exc_info=True)
+        isins = {}
+    names = {r["symbol"]: r["name"] for r in rows}
+    universe: Dict[str, dict] = {}
+    for s in symbols:
+        e, p = every.get(s) or {}, prism.get(s) or {}
+        universe[s] = {"name": names.get(s), "mcap": e.get("mcap"), "r1": e.get("r1"), "isin": isins.get(s), "sector": classes.get(s),
+                       "prism_label": p.get("prism_label") or ("Not rated" if s in every else None), "prism_final": p.get("prism_final"),
+                       "st": p.get("prism_st"), "lt": p.get("prism_lt")}
+    leaders: Dict[str, dict] = {}
+    if await public_now(store):
+        words = {"leader": "Leader", "in_line": "In line", "laggard": "Laggard"}
+        for r in lead:
+            lab = agreeing(r["label"], r["raw_label"], r["rel52"])
+            if lab in words and r["rank"] and r["ranked"]:
+                leaders[r["symbol"]] = {"chip": words[lab], "text": f"{ordinal(int(r['rank']))} of {r['ranked']} {r['group_short'] or r['group_name']} peers"}
+    return universe, leaders, med
+
+
 async def _load(app) -> dict:
     pool = app.state.store.pool
     async with pool.acquire() as conn:
@@ -229,9 +293,21 @@ async def _load(app) -> dict:
         quotes = {r["symbol"]: dict(r) for r in await conn.fetch("SELECT symbol, market_cap, traded_at FROM listing_quotes")}
         classes = {r["symbol"]: dict(r) for r in await conn.fetch("SELECT symbol, industry, sector FROM company_classification WHERE symbol IS NOT NULL")}
     total = await pool.fetchval("SELECT count(*) FROM companies")
-    out = build([{"symbol": r["symbol"], "as_of": r["as_of"], "holders": orjson.loads(r["holders"]) if isinstance(r["holders"], (str, bytes)) else r["holders"],
-                  "premium_at": r["premium_at"].isoformat() if r["premium_at"] else None} for r in rows], names, quotes, classes)
+    filings = [{"symbol": r["symbol"], "as_of": r["as_of"], "holders": orjson.loads(r["holders"]) if isinstance(r["holders"], (str, bytes)) else r["holders"],
+                "premium_at": r["premium_at"].isoformat() if r["premium_at"] else None} for r in rows]
+    out = build(filings, names, quotes, classes)
     out["companies"] = total
+    # task #289: the tracked investors, each grouped with every name they file under, with FinLit's own view of each stock
+    cfg = tracked.load_config()
+    stakes = stakes_by_name(filings)
+    mine = sorted({sym for inv in cfg for fn in inv["filed_names"] for sym in (stakes.get(fn["key"]) or {})})
+    universe, leaders, med = await _finlit_view(app, mine)
+    for s in mine:
+        universe[s]["name"] = names.get(s) or universe[s].get("name") or s
+        c = classes.get(s) or {}
+        universe[s]["sector"] = c.get("sector") or universe[s].get("sector")
+    out["tracked"] = tracked.build(cfg, stakes, universe, leaders, med, {s: _num((quotes.get(s) or {}).get("market_cap")) for s in mine if s in quotes})
+    out["trackedNames"] = tracked.by_filed_name(cfg)
     traded = [q["traded_at"] for q in quotes.values() if q.get("traded_at")]
     out["pricesAt"] = max(traded).isoformat() if traded else None
     return out
@@ -275,7 +351,8 @@ def _reply(body: Any, status: int = 200, private: bool = False) -> Response:
 
 
 def summary(d: dict) -> dict:
-    rows = [{k: v for k, v in inv.items() if k not in ("holdings", "sectors", "history")} for inv in d["investors"].values()]
+    marks = d.get("trackedNames") or {}
+    rows = [{**{k: v for k, v in inv.items() if k not in ("holdings", "sectors", "history")}, "tracked": marks.get(inv["key"])} for inv in d["investors"].values()]
     rows.sort(key=lambda x: (-(x["valueCr"] or 0), x["name"]))
     meta = {k: d.get(k) for k in ("covered", "companies", "asOf", "fetchedFrom", "fetchedTo", "pricesAt", "source", "disclaimer", "noteNames", "rule", "builtAt")}
     why = None if rows else ("No company's named-holder details are stored yet; they are fetched overnight." if not d.get("covered")
@@ -289,14 +366,73 @@ async def list_investors(request: Request) -> Response:
     return _reply(summary(await data(request.app)))
 
 
-@router.get("/api/superinvestors/{key}")
-async def one_investor(request: Request, key: str) -> Response:
-    ctx = await current(request)
-    if not sees_all(ctx) and not has(ctx.plan, "silver"):
-        return _reply({"status": "plan_required", "detail": "Superinvestor portfolios are part of the Silver and Gold plans.", "plan": "silver"}, 403, private=True)
+PLAN = "gold"
+PLAN_DETAIL = "Superinvestor portfolios are part of the Gold plan."
+META = ("asOf", "fetchedFrom", "fetchedTo", "pricesAt", "source", "disclaimer", "noteNames", "rule")
+TRACKED_SOURCE = ("Tracked investors. A list kept by FinLit's editors: individuals widely followed as market investors, who are not promoters of the companies "
+                  "shown. Each groups the names the investor files under, checked against the filings. FinLit Prism, technical scores and peer tags are "
+                  "FinLit's own, as on each company report.")
+NAMED_STAKES_NOTE = ("The 12-month price move of each stock named today, largest stakes first; the total weights each by today's value. It is not the "
+                     "investor's own return: the prices and dates they paid, and stakes under 1%, are not in the filings.")
+
+
+def _allowed(ctx) -> bool:
+    """Gold (the top plan) and administrators; a plan named platinum counts as Gold if one is ever added."""
+    return sees_all(ctx) or has(ctx.plan, PLAN) or ctx.plan == "platinum"
+
+
+def _locked() -> Response:
+    return _reply({"status": "plan_required", "detail": PLAN_DETAIL, "plan": PLAN}, 403, private=True)
+
+
+def _card(inv: dict) -> dict:
+    return {k: v for k, v in inv.items() if k not in ("holdings", "moveList")}
+
+
+@router.get("/api/superinvestors/tracked")
+async def tracked_tab(request: Request) -> Response:
+    if not _allowed(await current(request)):
+        return _locked()
+    d = await data(request.app)
+    t = d.get("tracked") or {}
+    invs = t.get("investors") or {}
+    body = {"tiles": t.get("tiles"), "moveCounts": t.get("moveCounts"), "sourceErrors": t.get("sourceErrors"), "medians": t.get("medians"),
+            "investors": sorted((_card(i) for i in invs.values()), key=lambda c: -(c["valueCr"] or 0)), "moves": t.get("moves") or [],
+            "agree": {v: tracked.agree_view(t.get("agree") or [], v) for v in ("held", "added", "cut")},
+            "allCount": {"names": len(d["investors"]), "people": sum(1 for i in d["investors"].values() if i["kind"] == "person"),
+                         "firms": sum(1 for i in d["investors"].values() if i["kind"] == "firm")},
+            "since": "year", "sinceText": "Since a year ago", "trackedSource": TRACKED_SOURCE, "namedStakesNote": NAMED_STAKES_NOTE,
+            **{k: d.get(k) for k in META}}
+    return _reply(body, private=True)
+
+
+@router.get("/api/superinvestors/name/{key}")
+async def one_name(request: Request, key: str) -> Response:
+    """One filed name's portfolio as the filings write it (the All named holders tab)."""
+    if not _allowed(await current(request)):
+        return _locked()
     d = await data(request.app)
     inv = d["investors"].get(key.lower()[:200])
     if inv is None:
         return _reply({"status": "not_found", "detail": "No investor by that name in the stored filings."}, 404, private=True)
-    meta = {k: d.get(k) for k in ("asOf", "fetchedFrom", "fetchedTo", "pricesAt", "source", "disclaimer", "noteNames", "rule")}
-    return _reply({**inv, **meta}, private=True)
+    return _reply({**inv, "kind_of_page": "name", "tracked": (d.get("trackedNames") or {}).get(inv["key"]), **{k: d.get(k) for k in META}}, private=True)
+
+
+@router.get("/api/superinvestors/{key}")
+async def one_investor(request: Request, key: str) -> Response:
+    if not _allowed(await current(request)):
+        return _locked()
+    d = await data(request.app)
+    k = key.lower()[:200]
+    t = (d.get("tracked") or {}).get("investors") or {}
+    if k in t:      # a tracked key that matches an old name key (ashish-kacholia) takes over that address
+        inv = t[k]
+        return _reply({**inv, "kind_of_page": "tracked", "medians": d["tracked"].get("medians"), "trackedSource": TRACKED_SOURCE,
+                       "namedStakesNote": NAMED_STAKES_NOTE, **{m: d.get(m) for m in META}}, private=True)
+    mark = (d.get("trackedNames") or {}).get(k)
+    if mark:        # an old link to a name that belongs to a tracked investor: its page now
+        return _reply({"status": "moved", "to": mark["key"], "name": mark["name"]}, 200, private=True)
+    inv = d["investors"].get(k)
+    if inv is None:
+        return _reply({"status": "not_found", "detail": "No investor by that name in the stored filings."}, 404, private=True)
+    return _reply({**inv, "kind_of_page": "name", "tracked": None, **{m: d.get(m) for m in META}}, private=True)
