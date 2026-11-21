@@ -33,5 +33,7 @@ describe("task #287: a proper score column in the search box", () => {
     expect(src).toMatch(/gold && it\.kind === "mf" && <FundScoreCol/);
     expect(css).toMatch(/\.gs-row\.k-mf\.fsc \{ grid-template-columns: auto minmax\(0, 1fr\) auto 64px 92px 58px; \}/);
     expect(src).toMatch(/import "\.\.\/\.\.\/styles\/mfup\.css";/);
+    // follow-up: the chip's own rule (task #286) starts it at the left of its box; in this column it is centred over its caption
+    expect(css).toMatch(/\.gs-fsc \.mfs-chip \{ justify-self: center;/);
   });
 });
