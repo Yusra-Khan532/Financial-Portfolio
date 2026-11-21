@@ -17,6 +17,7 @@ import { PLAN_FOR_SUPERINVESTORS } from "../lib/planGates";
 import type { Moved, TrackedPage, TrackedTab } from "../superinvestors/types";
 import { Cards, LatestMoves, TheyAgree, Tiles } from "../superinvestors/TrackedTab";
 import { InvestorBody } from "../superinvestors/InvestorBody";
+import { FollowButton, FollowingAlerts, YourStocks, useFollows } from "../superinvestors/Follow";
 
 export type SiStatus = "new" | "added" | "reduced" | "exited" | "unchanged";
 export type SiHolding = { symbol: string; name: string; industry: string | null; sector: string | null; stakeNow: number | null; stakeYearAgo: number | null; changePts: number | null;
@@ -69,6 +70,7 @@ export function SuperinvestorsPage() {
   const tab: "tracked" | "all" = sp.get("tab") === "all" ? "all" : "tracked";
   const setTab = (k: "tracked" | "all") => setSp((prev) => { const n = new URLSearchParams(prev); if (k === "all") n.set("tab", "all"); else { n.delete("tab"); n.delete("show"); } return n; }, { replace: true });
   const names = useMemo(() => Object.fromEntries((t.data?.investors ?? []).map((i) => [i.key, i.name])), [t.data]);
+  const f = useFollows();
   const allCount = q.data?.count ?? t.data?.allCount.names;
   return (
     <>
@@ -86,7 +88,9 @@ export function SuperinvestorsPage() {
               <Tiles t={t.data.tiles} />
               <LatestMoves d={t.data} names={names} />
               <TheyAgree d={t.data} names={names} />
-              <Cards d={t.data} />
+              <Cards d={t.data} f={gold ? f : undefined} />
+              {gold && f.signedIn && <YourStocks />}
+              {gold && f.signedIn && <FollowingAlerts f={f} names={names} />}
               <Source m={t.data} tracked={t.data.trackedSource} covered={q.data?.covered} companies={q.data?.companies} />
             </div>}
         </Gate> : <AllNamed q={q} />}
@@ -185,12 +189,13 @@ function OneInvestor({ byName }: { byName: boolean }) {
   const known = !!brief || !!list.data?.investors.some((x) => x.tracked?.key === key);
   const notFound = q.error?.status === 404 || (!gold && !!list.data && !known);
   const names = useMemo(() => Object.fromEntries((tracked.data?.investors ?? []).map((i) => [i.key, i.name])), [tracked.data]);
+  const f = useFollows();
   const desc = d && d.kind_of_page === "tracked"
     ? <>Named with 1% or more in <b>{d.companies}</b> listed {d.companies === 1 ? "company" : "companies"} under {d.groupedNames === 1 ? "one name" : `${d.groupedNames} names`}, worth <b>{crore(d.valueCr)}</b> at today's prices. From the companies' own filings; information only, not investment advice.</>
     : (d ?? brief) ? <>Named with 1% or more in <b>{(d ?? brief)!.companies}</b> listed {(d ?? brief)!.companies === 1 ? "company" : "companies"}, worth <b>{crore((d ?? brief)!.valueCr)}</b> at today's prices. From the companies' own filings; information only, not investment advice.</> : undefined;
   return (
     <>
-      <PageHeader wrap eyebrow={<Link to={BASE}>Superinvestor portfolios</Link>} plan="gold" title={name} links={[BASE, "/research"]} description={desc} />
+      <PageHeader wrap eyebrow={<span className="sx-eye"><Link to={BASE}>Superinvestor portfolios</Link>{gold && d?.kind_of_page === "tracked" && <FollowButton k={d.key} name={d.name} f={f} />}</span>} plan="gold" title={name} links={[BASE, "/research"]} description={desc} />
       <div className="wrap si">
         {notFound ? <p className="si-empty">{q.error?.body?.detail as string || "No investor by that name in the stored filings."} <Link to={BASE}>See every investor →</Link></p>
           : moved ? <p className="si-wait sx-moved" role="status">{moved.name}'s names are grouped on one page. Opening it…</p>

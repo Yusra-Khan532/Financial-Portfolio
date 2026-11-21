@@ -39,6 +39,7 @@ const OWN: { file: string; needle: RegExp; why: string }[] = [
 /** Drawings with nothing to enlarge: sparklines, gauges and rings that show one figure, decorative art, icons, tiny inline bars. */
 const EXEMPT: Record<string, string> = {
   "portfolio/kit/AddBox.tsx": "the add box's magnifier icon (task #276); no data",
+  "superinvestors/Follow.tsx": "the bell icon of the Follow button (task #289); no data",
   "portfolio/kit/FilterRow.tsx": "the Find box's magnifier icon (task #276); no data",
   "portfolio/kit/KitSection.tsx": "the Hide button's eye icon (task #276); no data",
   "portfolio/kit/ViewCards.tsx": "the view cards' check and arrow icons (task #276); no data",

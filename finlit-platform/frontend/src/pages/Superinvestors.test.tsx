@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 let PLAN = "basic";
 vi.mock("../lib/ui", () => ({ useUI: () => ({ has: (t: string) => ({ basic: 0, silver: 1, gold: 2 } as Record<string, number>)[PLAN] >= ({ basic: 0, silver: 1, gold: 2 } as Record<string, number>)[t], upgrade: vi.fn(), toast: vi.fn() }),
   TIER: { silver: { n: "Silver", ic: "medal", tc: "--silver" }, gold: { n: "Gold", ic: "crown", tc: "--gold" }, basic: { n: "Free", ic: "sprout", tc: "--text" } } }));
+vi.mock("../lib/auth", () => ({ useAuth: () => ({ user: PLAN === "basic" ? null : { id: "u", email: "m@example.com", plan: PLAN } }) }));
 vi.mock("../components/PageHeader", () => ({ PageHeader: ({ title, description }: { title: string; description?: React.ReactNode }) => <header><h1>{title}</h1><div>{description}</div></header> }));
 
 const META = { asOf: "Sep 2026", fetchedFrom: "2026-11-09", fetchedTo: "2026-11-11", pricesAt: "2026-11-17T10:00:00Z", source: "Each company's shareholding filing (named public shareholders of 1% or more), via FinEdge; values at today's market capitalisation.",

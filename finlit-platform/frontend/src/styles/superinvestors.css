@@ -202,3 +202,6 @@
 .sx-trk:hover,.sx-trk:focus-visible{text-decoration:underline}
 .sx-more{margin-top:10px}
 .sx-moved{padding:24px 0}
+.sx-eye{display:inline-flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.sx-eye .sx-fol{text-transform:none;letter-spacing:0}
+.sx-ov{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px;margin:0 10px 4px 0}

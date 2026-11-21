@@ -415,4 +415,9 @@ async def evaluate(pool, mailer: Mailer, site_url: str, kind: str = "all") -> in
             fired += await auto_label_alerts(pool, mailer, site_url)
         except Exception:
             log.exception("label-change alerts failed")
+        try:   # task #289: a followed tracked investor's moves in each new shareholding filing (deduped per member, investor, company and quarter)
+            from .superinvestors_follow import follow_alerts
+            fired += await follow_alerts(pool, mailer, site_url)
+        except Exception:
+            log.exception("superinvestor alerts failed")
     return fired

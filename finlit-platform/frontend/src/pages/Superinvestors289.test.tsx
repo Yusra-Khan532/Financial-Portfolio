@@ -9,7 +9,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 let PLAN = "gold";
 vi.mock("../lib/ui", () => ({ useUI: () => ({ has: (t: string) => ({ basic: 0, silver: 1, gold: 2 } as Record<string, number>)[PLAN] >= ({ basic: 0, silver: 1, gold: 2 } as Record<string, number>)[t], upgrade: vi.fn(), toast: vi.fn() }),
   TIER: { silver: { n: "Silver", ic: "medal", tc: "--silver" }, gold: { n: "Gold", ic: "crown", tc: "--gold" }, basic: { n: "Free", ic: "sprout", tc: "--text" } } }));
-vi.mock("../components/PageHeader", () => ({ PageHeader: ({ title, description, plan }: { title: string; description?: React.ReactNode; plan?: string }) => <header data-plan={plan}><h1>{title}</h1><div>{description}</div></header> }));
+vi.mock("../lib/auth", () => ({ useAuth: () => ({ user: PLAN === "basic" ? null : { id: "u", email: "m@example.com", plan: PLAN } }) }));
+vi.mock("../components/PageHeader", () => ({ PageHeader: ({ title, description, plan, eyebrow }: { title: string; description?: React.ReactNode; plan?: string; eyebrow?: React.ReactNode }) => <header data-plan={plan}><div>{eyebrow}</div><h1>{title}</h1><div>{description}</div></header> }));
 
 const META = { asOf: "Sep 2026", fetchedFrom: "2026-11-05", fetchedTo: "2026-11-21", pricesAt: "2026-11-20T10:00:00Z", source: "Each company's shareholding filing, via FinEdge.", disclaimer: "Information only, not investment advice.", noteNames: "n", rule: "r" };
 const P = (label: string | null, score: number | null) => ({ label, score });
@@ -38,14 +39,27 @@ const PAGE = { ...KACH, ...META, kind_of_page: "tracked", medians: TRACKED.media
 const LIST = { ...META, investors: [{ key: "bengal-finance-and-investment-pvt-ltd", name: "Bengal Finance", kind: "firm", tracked: { key: "ashish-kacholia", name: "Ashish Kacholia" }, companies: 14, valueCr: 1, valueNote: null, top: [], changes: { new: 0, added: 0, reduced: 0, exited: 0 } }],
   count: 1315, people: 802, firms: 513, emptyWhy: null, covered: 3771, companies: 5844 };
 
+let FOLLOW = { follows: ["ashish-kacholia"], prefs: { new: true, added: true, reduced: true, exited: true }, note: "Alerts arrive in the bell, the browser and email as your alert settings allow, once per investor, company and filing quarter.",
+  feed: [{ title: "Ashish Kacholia: new stake in ESDS Software Solution, 2.05% (filing Sep 2026)", body: "b", link: "/superinvestors/ashish-kacholia", at: "2026-11-21T03:00:00Z" }] };
+let OVERLAP: object = { empty: false, emptyWhy: null, rows: [
+  { symbol: "TITAN", name: "Titan Company", in: ["Portfolio"], investors: [{ key: "rekha-jhunjhunwala", name: "Rekha Jhunjhunwala", move: "reduced", moveText: "Stake cut", sourceError: false }], prism: P("Strong", 80.3), return1y: 19.2 },
+  { symbol: "INFY", name: "Infosys", in: ["Portfolio"], investors: [], prism: P("Healthy", 70.1), return1y: -3.1 },
+  { symbol: "CANBK", name: "Canara Bank", in: ["Watchlist"], investors: [{ key: "rekha-jhunjhunwala", name: "Rekha Jhunjhunwala", move: "new", moveText: "New stake", sourceError: false }], prism: P("Healthy", 65.2), return1y: -10.1 }] };
+const send = vi.fn(async (method: string, path: string, body?: { new: boolean; added: boolean; reduced: boolean; exited: boolean }) => {
+  if (path.endsWith("/alert-prefs")) FOLLOW = { ...FOLLOW, prefs: body! };
+  else { const k = path.split("/").pop()!; FOLLOW = { ...FOLLOW, follows: method === "PUT" ? [...FOLLOW.follows, k] : FOLLOW.follows.filter((x) => x !== k) }; }
+  return FOLLOW;
+});
 const get = vi.fn(async (path: string) => {
+  if (path === "/api/me/superinvestors/follows") return FOLLOW;
+  if (path === "/api/me/superinvestors/overlap") return OVERLAP;
   if (path === "/api/superinvestors") return LIST;
   if (path === "/api/superinvestors/tracked") return TRACKED;
   if (path === "/api/superinvestors/ashish-kacholia") return PAGE;
   if (path === "/api/superinvestors/bengal-finance-and-investment-pvt-ltd") return { status: "moved", to: "ashish-kacholia", name: "Ashish Kacholia" };
   throw Object.assign(new Error("x"), { status: 404, body: { detail: "No investor by that name in the stored filings." } });
 });
-vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), apiGet: (p: string) => get(p) }));
+vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), apiGet: (p: string) => get(p), apiSend: (m: string, p: string, b?: never) => send(m, p, b) }));
 import { SuperinvestorNamePage, SuperinvestorPage, SuperinvestorsPage } from "./Superinvestors";
 
 afterEach(() => { cleanup(); get.mockClear(); });
@@ -158,5 +172,43 @@ describe("task #289: a tracked investor's page", () => {
     expect(lock.closest(".gate")!.className).toMatch(/is-locked/);
     expect(get).not.toHaveBeenCalledWith("/api/superinvestors/ashish-kacholia");
     expect(text()).not.toMatch(/No investor by that name/);
+  });
+});
+
+describe("task #289: following, alerts and your stocks", () => {
+  it("each card has Follow; following counts; your stocks they hold; alert choices, follow chips and the latest alerts", async () => {
+    PLAN = "gold"; open("/superinvestors");
+    const cards = (await screen.findByRole("heading", { name: "Tracked investors", level: 2 })).closest("section")!;
+    await within(cards).findByText("Following 1");
+    expect(within(cards).getByRole("button", { name: "Stop following Ashish Kacholia" }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(within(cards).getByRole("button", { name: "Follow Radhakishan Damani" }));
+    await within(cards).findByText("Following 2");
+    expect(send).toHaveBeenCalledWith("PUT", "/api/me/superinvestors/follows/radhakishan-damani", undefined);
+    const yours = (await screen.findByRole("heading", { name: "Your stocks they hold" })).closest("section")!;
+    await waitFor(() => expect(within(yours).getAllByRole("row")).toHaveLength(4));
+    const rows = within(yours).getAllByRole("row").slice(1).map((r) => r.textContent);
+    expect(rows[0]).toMatch(/Titan Company.*TITAN.*Portfolio.*Rekha Jhunjhunwala.*Stake cut.*Strong.*80\.3.*\+19\.2%/);
+    expect(rows[1]).toMatch(/Infosys.*Portfolio.*No tracked investor named/);
+    expect(rows[2]).toMatch(/Canara Bank.*Watchlist.*New stake/);
+    const fol = screen.getByRole("heading", { name: "Following and alerts" }).closest("section")!;
+    expect(fol.textContent).toMatch(/once per investor, company and filing quarter/);
+    const box = within(fol).getByRole("checkbox", { name: "Stake cut" }) as HTMLInputElement;
+    expect(box.checked).toBe(true);
+    fireEvent.click(box);
+    await waitFor(() => expect(send).toHaveBeenCalledWith("PUT", "/api/me/superinvestors/alert-prefs", { new: true, added: true, reduced: false, exited: true }));
+    expect(within(fol).getByRole("link", { name: /Ashish Kacholia: new stake in ESDS Software Solution, 2\.05% \(filing Sep 2026\)/ }).getAttribute("href")).toBe("/superinvestors/ashish-kacholia");
+    fireEvent.click(within(fol).getByRole("button", { name: "Stop following Ashish Kacholia" }));
+    await waitFor(() => expect(send).toHaveBeenCalledWith("DELETE", "/api/me/superinvestors/follows/ashish-kacholia", undefined));
+  });
+  it("with no portfolio and no watchlist it says how to start; the investor page has Follow beside the eyebrow", async () => {
+    OVERLAP = { empty: true, emptyWhy: "x", rows: [] };
+    PLAN = "gold"; open("/superinvestors");
+    const yours = (await screen.findByRole("heading", { name: "Your stocks they hold" })).closest("section")!;
+    await within(yours).findByText(/to see who else holds them/);
+    expect(within(yours).getByRole("link", { name: "portfolio" }).getAttribute("href")).toBe("/holdings");
+    cleanup();
+    open("/superinvestors/ashish-kacholia");
+    await screen.findByRole("heading", { name: "Names grouped here" });
+    expect(document.querySelector("header .sx-eye .sx-fol")).toBeTruthy();
   });
 });
