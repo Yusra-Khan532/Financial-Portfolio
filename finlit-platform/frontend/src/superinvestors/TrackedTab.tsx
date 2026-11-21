@@ -55,7 +55,7 @@ export function LatestMoves({ d, names }: { d: Tab; names: Record<string, string
               <td><MoveTag m={m.move} /></td>
               <th scope="row"><Co symbol={m.symbol} name={m.name} asOf={m.asOf} /></th>
               <td className="n"><StakeThenNow then={m.stakeThen} now={m.stakeNow} move={m.move} change={m.changePts} /></td>
-              <td className="n">{m.changeAbout && m.changeValueCr != null ? "about " : ""}{crore(m.changeValueCr)}</td>
+              <td className="n">{m.changeAbout && m.changeValueCr != null ? "about " : ""}{crore(m.changeValueCr == null ? null : Math.abs(m.changeValueCr))}</td>
               <td><PrismTag p={m.prism} /></td>
               <td><span className="sx-sz">{m.size ?? "—"}</span></td>
             </tr>))}</tbody>

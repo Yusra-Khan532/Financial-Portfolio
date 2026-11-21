@@ -93,7 +93,7 @@ export function InvestorBody({ p, names }: { p: TrackedPage; names: Record<strin
                   <td><MoveTag m={h.move} /></td>
                   <th scope="row"><Co symbol={h.symbol} name={h.name} size={h.size} asOf={h.asOf} /></th>
                   <td className="n"><StakeThenNow then={h.stakeThen} now={h.stakeNow} move={h.move} change={h.changePts} /></td>
-                  <td className="n">{h.changeAbout && h.changeValueCr != null ? "about " : ""}{crore(h.changeValueCr)}</td>
+                  <td className="n">{h.changeAbout && h.changeValueCr != null ? "about " : ""}{crore(h.changeValueCr == null ? null : Math.abs(h.changeValueCr))}</td>
                   <td><PrismTag p={h.prism} /></td>
                 </tr>))}</tbody>
             </table>
