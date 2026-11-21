@@ -49,6 +49,8 @@ import { KeyAnswers } from "../portfolio/pack/KeyAnswers";
 import { divAnswers, portfolioAnswers, riskAnswers } from "../lib/keyAnswers";
 import { OrderWinNotice, WhatChanged, FilingChip, useWhatChanged } from "../components/changes/WhatChanged";
 import { useWatchlist } from "../lib/watchlist";
+import { ThemePill, YourThemes, themeView } from "../portfolio/pack/EqThemes";
+import { useBoard } from "../discovery/model";
 import { EqTitle, MoneyBox, NextView, PfPicker, ScorePanel, ViewCards, YourPortfolios, useEqViewsSeen, type DayMove, type ViewCard } from "../portfolio/pack/EqTop";
 import { GoldLock, InShort, Insights, LeadersSection, StyleTiltPack, PeersSection, TrendSection, SizeFold, eqViews, type View } from "../portfolio/pack/EquityPack";
 import { StickySwitch } from "../portfolio/ViewKit";
@@ -77,7 +79,7 @@ const UPLOAD_NOTE = <>
 </>;
 
 const SECS: Record<TabKey, { label: string; secs: Sec[] }> = {
-  portfolio: { label: "Portfolio", secs: [["pf-shares", "Your shares"], ["eq-keys", "Key figures"], ["eq-wc", "What changed"], ["eq-trend", "Trends"], ["eq-peers", "Peers"], ["eq-leaders", "Group leaders"]] },
+  portfolio: { label: "Portfolio", secs: [["pf-shares", "Your shares"], ["eq-keys", "Key figures"], ["eq-wc", "What changed"], ["eq-themes", "Themes"], ["eq-trend", "Trends"], ["eq-peers", "Peers"], ["eq-leaders", "Group leaders"]] },
   diversification: { label: "Diversification analytics", secs: [["eq-where", "Where it sits"], ["eq-keysd", "Key figures"], ["eq-spread", "Spread"], ["eq-sectors", "Sectors"], ["eq-groups", "Stock groups"], ["eq-sizes", "Company sizes"], ["eq-grid", "Share by share"], ["eq-style", "Style tilt"]] },
   risk: { label: "Risk analytics", secs: [["eq-rg", "At a glance"], ["eq-keysr", "Key figures"], ["eq-build", "Beta build"], ["eq-sizeb", "Size benchmarks"], ["eq-mr", "Risk share"], ["eq-fall", "If the market fell 10%"], ["eq-each", "Each share"]] },
 };
@@ -286,6 +288,13 @@ export function HoldingsPage() {
   const [wcList, setWcList] = useState<"equity" | "watch">("equity");
   const wcQ = useWhatChanged(DEMO ? [] : symbols, "equity-portfolio");
   const secsLive = useMemo(() => ({ ...SECS, portfolio: { ...SECS.portfolio, secs: SECS.portfolio.secs.map((x): Sec => (x[0] === "eq-wc" && wcQ.newN ? [x[0], x[1], `${wcQ.newN} new`] : x)) } }), [wcQ.newN]);
+  // task #274 (change 20): Themes, from Discover: the pill beside the size, Your themes (Your shares or Watchlists) and the Theme filter on Your shares
+  const boardQ = useBoard();
+  const [thList, setThList] = useState<"shares" | "watch">("shares"), [themeF, setThemeF] = useState<string | null>(null);
+  const thShares = useMemo(() => (boardQ.data ? themeView(boardQ.data, uni.data?.rows, symbols) : null), [boardQ.data, uni.data, symbols]);
+  const thWatch = useMemo(() => (boardQ.data ? themeView(boardQ.data, uni.data?.rows, watchSyms) : null), [boardQ.data, uni.data, watchSyms]);
+  const mainTheme = useMemo(() => { const m = new Map<string, { short: string; slug: string; name: string }>(); thShares?.themes.forEach((t) => t.mine.forEach((x) => m.set(x.s, { short: t.short, slug: t.slug, name: t.name }))); return m; }, [thShares]);
+  const labelOf = (x: string) => { const y = shareOf.get(x); return y ? shortLabel(y) : x; };
   const renamePf = (id: string, name: string) => { const n = name.trim(); if (!n) return "Give the portfolio a name."; if (pfList.some((x) => x.id !== id && x.name.trim().toLowerCase() === n.toLowerCase())) return `You already have a portfolio called ${n}. Try another name, such as "${n} (joint)".`;
     if (!st.portfolios?.length) portfolio.replace({ ...portfolio.get(), portfolios: pfList.map((x) => ({ ...x })) }); portfolio.renamePortfolio(id, n); toast("Portfolio renamed."); return null; };
   const riskSp = useMemo(() => (page && rk.data && div ? riskSplit(page, rk.data, (x) => div.levelOf(x, "macro")) : null), [page, rk.data, div]);
@@ -371,7 +380,8 @@ export function HoldingsPage() {
           {view !== "portfolio" && <AnalysingBar list={pfList} cur={cur} onPick={(id) => { setCur(id); setOpenLots(new Set()); }} n={symbols.length} />}
           {view === "portfolio" && <>
             <OrderWinNotice row={wcQ.notice} page="equity-portfolio" />
-            <SharesTable chip={(sym) => <FilingChip row={wcQ.chip(sym)} />} stuckLead={<>
+            <SharesTable chip={(sym) => <FilingChip row={wcQ.chip(sym)} />} themePill={(sym) => <ThemePill t={mainTheme.get(sym) ?? null} name={meta[sym]?.name ?? by.get(sym)?.name ?? sym} />}
+              theme={themeF ? { label: thShares?.themes.find((t) => t.name === themeF)?.short ?? themeF, has: (sym) => mainTheme.get(sym)?.name === themeF, onClear: () => setThemeF(null) } : null} stuckLead={<>
               <StickySwitch list={pfList} cur={cur} onPick={(id) => { setCur(id); setOpenLots(new Set()); }} figs={pfFigs} defs={eqViews(lines.length)} view={view} onView={(v) => setView(v)} tabsId="eq-tabs" fresh={(["portfolio", "diversification", "risk"] as View[]).filter((v) => !seen.has(v))} />
               <SectionsMenu secs={secsLive.portfolio.secs} here="pf-shares" isHidden={(id) => isHidden("pack." + id)} show={(id) => setHidden("pack." + id, false)} onAll={showAllSecs} /></>}
               lots={lots} editSell={{ onEdit: (sym) => setEsWin({ what: "edit", symbol: sym }), onSell: (sym) => setEsWin({ what: "sell", symbol: sym }) }} qtyOf={(sym) => qtyBySymbol.get(sym) ?? null} onQty={onQty} lines={lines} meta={meta} page={page} mode={mode} colors={colors} model={model} tab={tab} period={period} limit={cap} state={ov.isError ? "error" : ov.isPending && !DEMO ? "loading" : "ready"}
@@ -385,6 +395,9 @@ export function HoldingsPage() {
               listRef={wcList === "equity" ? "equity" : "watch"} page="equity-portfolio" lists={[{ id: "equity", label: "Your shares", count: symbols.length }, { id: "watch", label: "Watchlist", count: watchSyms.length }]}
               activeList={wcList} onPickList={(id) => setWcList(id === "watch" ? "watch" : "equity")} nameOf={(x) => meta[x]?.name ?? by.get(x)?.name}
               sub={wcList === "equity" ? (x) => (onWatch.has(x) ? "★ also on a watchlist" : null) : undefined} className="sp-sec wc eq-wc" hId="wc-h-eq" id="eq-wc" />}
+            {!DEMO && <YourThemes v={thList === "shares" ? thShares : thWatch} list={thList} onList={setThList} theme={themeF} label={labelOf}
+              counts={{ shares: { placed: thShares?.placed ?? 0, total: symbols.length }, watch: { placed: thWatch?.placed ?? 0, total: watchSyms.length } }}
+              onShow={thList === "shares" ? (name) => { setThemeF(name); setTimeout(() => jumpTo("pf-shares"), 60); } : undefined} />}
             <SizeFold counts={sizeCount} />
             {/* Trends, Peers and Group leaders: Gold only (FinLit Prism); Silver sees a dashed lock card for each (the pack) */}
             {model === "prism" ? <>

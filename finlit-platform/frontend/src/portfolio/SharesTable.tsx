@@ -70,6 +70,10 @@ type Props = {
   stuckLead?: ReactNode;
   /** task #274 (change 19): a chip beside Edit | Sell for a filing since the last visit ("● Fund raising ↗"), from Discover */
   chip?: (symbol: string) => ReactNode;
+  /** task #274 (change 20): the share's main Discover theme as a pill beside its size, opening the theme with the company found */
+  themePill?: (symbol: string) => ReactNode;
+  /** task #274 (change 20): "Show them in the table" from Your themes: keeps the shares with that main theme; shown as the chip "Theme: AI & GenAI ×" */
+  theme?: { label: string; has: (symbol: string) => boolean; onClear: () => void } | null;
 };
 const SIZE_ORDER: Record<string, number> = { Large: 0, Mid: 1, Small: 2, Micro: 3 };
 
@@ -140,9 +144,9 @@ export function SharesTable(p: Props) {
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
     const keep = p.editSell ? new Set(applyFilters(lines.map((l) => l.symbol), picks, getters)) : null;
-    return sorted(lines.filter((l) => (keep ? keep.has(l.symbol) : band == null || wordOf(l) === band) && (!needle || [l.symbol, l.name || "", secOf(l.symbol)].join(" ").toLowerCase().includes(needle))));
+    return sorted(lines.filter((l) => (keep ? keep.has(l.symbol) : band == null || wordOf(l) === band) && (!p.theme || p.theme.has(l.symbol)) && (!needle || [l.symbol, l.name || "", secOf(l.symbol)].join(" ").toLowerCase().includes(needle))));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lines, q, band, picks, sortId, dir, model, meta, cols, p.lots]);
+  }, [lines, q, band, picks, sortId, dir, model, meta, cols, p.lots, p.theme]);
 
   const head = (c: { id: string; label: string; hint?: string; sortable?: boolean; num?: boolean; cls?: string }) => (
     <th key={c.id} scope="col" className={[c.num ? "r" : "", c.cls ?? ""].join(" ").trim() || undefined} aria-sort={sortId === c.id ? (dir === 1 ? "ascending" : "descending") : "none"} title={c.hint}>
@@ -182,7 +186,7 @@ export function SharesTable(p: Props) {
             {ov && p.lots && <span className="pfs-acts"><EditSellLinks p={p.lots} symbol={l.symbol} onEdit={() => p.editSell!.onEdit(l.symbol)} onSell={() => p.editSell!.onSell(l.symbol)} />{p.chip?.(l.symbol)}</span>}</div></div></td>
           : <td className="pfx-name"><span className="x-nl"><Link to={`/stocks/${l.symbol}`} className="pfx-co"><CoLogo symbol={l.symbol} size={22} inline /><b title={coTitle({ symbol: l.symbol, name })}>{titleOf({ symbol: l.symbol, name })}</b></Link>{letter.has(l.symbol) && <span className="pfx-letter sm" title={`Group ${letter.get(l.symbol)}`}>{letter.get(l.symbol)}</span>}{ov && p.lots && <LotToggle p={p.lots} symbol={l.symbol} />}</span><small>{subLine({ symbol: l.symbol, name }, pk ? (pk.industry ?? name) : isBseCode(l.symbol) ? ((isReady(h) ? h.industry : null) ?? name) : name)}</small></td>}
         {ov && (p.editSell ? <td className="pfs-ind"><span className="pfs-indn" title={indOf(l) ?? undefined}>{indOf(l) ?? <Dash why="No industry in the stored report." />}</span>
-          {sizeOf(l.symbol) ? <span className={"pfs-size pfs-sz-" + (sizeOf(l.symbol) as string).toLowerCase()}>{sizeOf(l.symbol)}</span> : <small className="pfs-nk">Size not known</small>}</td>
+          <span className="pfs-tags">{sizeOf(l.symbol) ? <span className={"pfs-size pfs-sz-" + (sizeOf(l.symbol) as string).toLowerCase()}>{sizeOf(l.symbol)}</span> : <small className="pfs-nk">Size not known</small>}{p.themePill?.(l.symbol)}</span></td>
           : <td>{sizeOf(l.symbol) ?? MINUS}</td>)}
         {ov && (p.lots ? <HoldingRowCells p={p.lots} symbol={l.symbol} priceCell={isReady(h) ? cell(h, PRICE_COL) : <td className="x-c2 x-gs cg-h" />} changeCell={isReady(h) ? cell(h, CHANGE_COL) : <td className="x-c2 cg-h" />} />
           : <><td className="r x-qty"><input type="number" inputMode="decimal" min="0" step="any" placeholder="Qty" aria-label={`Quantity of ${l.symbol} you own`} defaultValue={p.qtyOf(l.symbol) ?? ""}
@@ -266,7 +270,7 @@ export function SharesTable(p: Props) {
           <button key={k} type="button" aria-pressed={colsMode === k} onClick={() => setColsMode(k)}>{l}</button>)}</div>}
         <span className="pfx-note pfx-count">{plural(shown.length, "share")}{shown.length !== lines.length ? ` of ${lines.length}` : ""}{p.editSell ? "" : ` · limit ${p.limit}`}</span>
       </div>
-      {p.editSell && <FilterChips defs={defs} picks={picks} q={q} shown={shown.length} total={lines.length} onChange={setPicks} onClearQ={() => setQ("")} />}
+      {p.editSell && <FilterChips defs={defs} picks={picks} q={q} shown={shown.length} total={lines.length} onChange={setPicks} onClearQ={() => setQ("")} extra={p.theme ? { label: `Theme: ${p.theme.label}`, onClear: p.theme.onClear } : null} />}
       {p.state === "error" && <p className="pfx-warn" role="alert">{p.errorText || "The scores could not be loaded. Try again in a moment."}</p>}
       <div id="pf-panel" role="tabpanel" aria-labelledby={`pf-tab-${tab}`}>
         <HScroll label="table" pinBelow={p.editSell ? "#pf-shares .pfx-tools.pfh" : undefined} pinCells={!!p.editSell} barBottom={!!p.editSell}><table className={"pfx-table t-" + tab + (ov && p.lots ? " x-grp" + (colsMode === "h" ? " only-h" : colsMode === "s" ? " only-s" : "") : "")}>

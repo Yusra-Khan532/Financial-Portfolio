@@ -192,3 +192,9 @@ html.eq-rowup .eq .eqt-bar { transform: translateY(-160%); opacity: 0; pointer-e
 .eq-wc .wp-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: none; color: var(--text); font: 600 14px var(--sans); cursor: pointer; }
 .eq-wc .wp-pill[aria-pressed="true"] { background: var(--text); color: var(--s1); }
 .eq-wc .wp-pill:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+/* task #274 change 20: the theme pill beside the size chip, one line, so rows keep one height */
+.pfs-tags { display: flex; align-items: center; gap: 5px; min-width: 0; white-space: nowrap; }
+.pfs-theme { display: inline-block; min-width: 0; max-width: 112px; overflow: hidden; text-overflow: ellipsis; padding: 1px 8px; border: 1px solid color-mix(in srgb, #4b4fc4 40%, var(--border)); border-radius: 999px;
+  color: #4b4fc4; font: 600 12px/1.6 var(--sans); text-decoration: none; white-space: nowrap; }
+:root[data-theme="dark"] .pfs-theme { color: #a9acf0; } @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pfs-theme { color: #a9acf0; } }
+.pfs-theme:hover { text-decoration: underline; } .pfs-theme:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
