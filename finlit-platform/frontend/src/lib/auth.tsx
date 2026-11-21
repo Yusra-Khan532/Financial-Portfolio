@@ -80,3 +80,7 @@ export function useAuth() {
   if (!a) throw new Error("useAuth outside AuthProvider");
   return a;
 }
+/** The sign-in state, or null outside the provider: for small widgets inside pages that also render on their own (tests, previews). */
+export function useAuthMaybe() {
+  return useContext(Ctx);
+}

@@ -14,7 +14,7 @@ const totals = { companies: 4682, declared: 3040, due: 1642, awaiting: 0, withNu
 vi.mock("../lib/feed", async (orig) => ({ ...(await orig<typeof import("../lib/feed")>()), useResultsStatus: () => ({ data: undefined }) }));
 vi.mock("../lib/jobsStatus", () => ({ useJobsStatus: () => ({ data: undefined }), resultsDelayedNote: () => null }));
 vi.mock("../lib/watchlist", () => ({ useWatchlist: () => ({ lists: [] }) }));
-vi.mock("../lib/auth", () => ({ useAuth: () => ({ user: null, plan: "basic", ready: true }) }));
+vi.mock("../lib/auth", () => ({ useAuth: () => ({ user: null, plan: "basic", ready: true }), useAuthMaybe: () => ({ user: null, plan: "basic", ready: true }) }));   // task #297: the page header's calendar button reads it too
 vi.mock("../lib/portfolio", () => ({ usePortfolio: () => ({ holdings: [] }) }));
 vi.mock("../lib/ui", () => ({ useUI: () => ({ toast: vi.fn(), plan: "basic", upgrade: vi.fn(), has: () => false }), TIER: { basic: { n: "Basic", ic: "sprout", tc: "--t-basic" }, silver: { n: "Silver", ic: "medal", tc: "--t-silver" }, gold: { n: "Gold", ic: "crown", tc: "--t-gold" } } }));
 // One source (task #193): the calendar's days and the day's list are the same rows. The mock gives 2 on Sat 7 Nov and 2 on Fri 6 Nov, as the lists do.

@@ -31,7 +31,7 @@ const VIEWS: { key: ResView; title: string; desc: string; color: string; icon: s
   { key: "industries", title: "Industries", desc: "How each industry did this quarter", color: "#4b4fc4", icon: "layers" },
   { key: "companies", title: "Companies", desc: "Every company's results, newest first", color: "#b5541c", icon: "list" },
 ];
-export function ResultsHead({ title, desc, links, view }: { title: string; desc: string; links: [string, string][]; view: ResView }) {
+export function ResultsHead({ title, desc, links, view, actions }: { title: string; desc: string; links: [string, string][]; view: ResView; actions?: React.ReactNode }) {
   const to: Record<ResView, string> = { calendar: "/results", industries: "/results/quarter?view=industries", companies: "/results/quarter" };
   return (
     <header className="sp-head rs-head">
@@ -41,6 +41,7 @@ export function ResultsHead({ title, desc, links, view }: { title: string; desc:
       <div className="sp-head-bar">
         <nav className="rs-links" aria-label="Related pages">{links.map(([href, label]) => <Link key={href} to={href} className="sp-link">{label} →</Link>)}</nav>
       </div>
+      {actions}
       {/* task #224 (results pack of 18 Nov, A3): the three views as cards that stand out, each in its own colour; they stay links to the same pages */}
       <div className="xvr-w">
         <p className="eqv-k" id="rs-views-k">Choose a view <small>· 3 views · tap one</small></p>
