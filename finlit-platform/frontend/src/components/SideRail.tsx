@@ -6,7 +6,7 @@ import { createPortal } from "react-dom";
 import { NavLink, useLocation } from "react-router";
 import { Icon } from "../lib/icons";
 
-export type RailItem = { to: string; label: string; icon: string; end?: boolean; gold?: boolean; badge?: string };
+export type RailItem = { to: string; label: string; icon: string; end?: boolean; gold?: boolean; badge?: string; desc?: string };
 export type RailGroup = { id: string; title: string; line: string; short: string; icon: string; items: RailItem[] };
 
 /** The icon of each group in the folded rail (20px, stroke 1.6), by group id (task #282 reuses the live icons: Portfolio takes "Your workspace"'s, Compare the
@@ -30,6 +30,8 @@ const svg = (body: ReactNode) => <svg aria-hidden="true" focusable="false" viewB
 export function SideRail({ groups, dash, here, onExpand }: { groups: RailGroup[]; dash: { to: string; label: string; line: string }; here: (g: RailGroup) => boolean; onExpand: () => void }) {
   const { pathname } = useLocation();
   const [fly, setFly] = useState<{ title: string; top: number; left: number } | null>(null);
+  const [info, setInfo] = useState<string | null>(null);   // task #285: the page whose "i" description is open in the pop-out
+  useEffect(() => { setInfo(null); }, [fly?.title]);
   const box = useRef<HTMLDivElement>(null), nav = useRef<HTMLElement>(null), btns = useRef<Record<string, HTMLButtonElement | null>>({});
   useEffect(() => { setFly(null); }, [pathname]);
   useEffect(() => {
@@ -62,10 +64,18 @@ export function SideRail({ groups, dash, here, onExpand }: { groups: RailGroup[]
         <div className="side-fly" ref={box} role="dialog" aria-label={open.title} style={{ top: Math.max(84, Math.min(fly.top - 8, innerHeight - 60 - open.items.length * 44)), left: fly.left }}>
           <p className="side-fly-t">{open.title}</p>
           <p className="side-fly-s">{open.line}</p>
-          {open.items.map((i) => (
-            <NavLink key={i.to} to={i.to} end={i.end ?? false} className={({ isActive }) => "side-fly-i" + (isActive ? " on" : "")}>
+          {open.items.map((i) => {
+            const did = "fd-" + i.to.replace(/[^a-z0-9]+/gi, "-"), shows = info === i.to;
+            return (
+            <div key={i.to} className={"side-row" + (i.desc ? " has-info" : "") + (shows ? " is-info" : "")}>
+            <NavLink to={i.to} end={i.end ?? false} className={({ isActive }) => "side-fly-i" + (isActive ? " on" : "")}>
               <Icon name={i.icon} /><span>{i.label}</span>{i.gold && <em className="gtag" title="Gold plan" aria-label="Gold plan">Gold</em>}{i.badge && <b className="side-b">{i.badge}</b>}
-            </NavLink>))}
+            </NavLink>
+            {i.desc && <button type="button" className="side-info" aria-label={`About ${i.label}`} aria-expanded={shows} aria-controls={did} title={i.desc}
+              onClick={() => setInfo((v) => (v === i.to ? null : i.to))}>i</button>}
+            {shows && <p id={did} className="side-desc" role="note">{i.desc}</p>}
+            </div>);
+          })}
         </div>, document.body)}
     </>
   );

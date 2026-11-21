@@ -147,3 +147,39 @@ describe("AppShell rail", () => {
     expect(screen.getByRole("navigation", { name: "All pages, collapsed" })).toBeTruthy();
   });
 });
+
+describe("task #285: an i button on every page shows its description", () => {
+  it("gives every page row in the side menu an 'About' button that opens and closes the page's line", () => {
+    const { container } = show("/dashboard");
+    const rows = [...container.querySelectorAll<HTMLElement>(".side-gin > .side-row")];
+    expect(rows.length).toBeGreaterThan(30);
+    for (const r of rows) {
+      const name = r.querySelector(".side-lt")!.textContent!;
+      const b = r.querySelector<HTMLButtonElement>("button.side-info");
+      expect(b, name).toBeTruthy();
+      expect(b!.getAttribute("aria-label")).toBe("About " + name);
+      expect(b!.closest("a")).toBeNull();   // the button sits beside the link, never inside it
+    }
+    const b = screen.getByRole("button", { name: "About Stock screener" });
+    expect(b.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(b);
+    expect(b.getAttribute("aria-expanded")).toBe("true");
+    expect(container.querySelector("#" + b.getAttribute("aria-controls"))!.textContent).toBe("Filter every listed company by size, valuation, growth and debt");
+    fireEvent.click(screen.getByRole("button", { name: "About Profile & security" }));
+    expect(b.getAttribute("aria-expanded")).toBe("false");   // one open at a time
+    expect(screen.getByRole("note").textContent).toBe("Your name, email, password and sign-in");
+    fireEvent.click(screen.getByRole("button", { name: "About Profile & security" }));
+    expect(screen.queryByRole("note")).toBeNull();
+  });
+  it("shows the same i buttons in the folded rail's pop-out", () => {
+    Object.defineProperty(window, "matchMedia", { configurable: true, value: () => ({ matches: true, addEventListener() {}, removeEventListener() {} }) });
+    const { container } = show("/dashboard", false);
+    fireEvent.click(container.querySelector<HTMLButtonElement>('.side-rail-g[data-group="find"]')!);
+    const fly = document.querySelector(".side-fly")!;
+    const btns = [...fly.querySelectorAll<HTMLButtonElement>("button.side-info")];
+    expect(btns.length).toBe(fly.querySelectorAll("a.side-fly-i").length);
+    fireEvent.click(btns[0]);
+    expect(fly.querySelector(".side-desc")!.textContent!.length).toBeGreaterThan(10);
+    delete (window as { matchMedia?: unknown }).matchMedia;
+  });
+});

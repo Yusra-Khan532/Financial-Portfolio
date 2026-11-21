@@ -13,7 +13,7 @@ import { useIsGold } from "../lib/planGate";
 import { isBool, isBoolMap, loadUi, saveUi } from "../lib/persist";
 import { SideRail } from "./SideRail";
 
-type Item = { to: string; label: string; icon: string; badge?: string; end?: boolean; gold?: boolean; sub?: boolean; fresh?: boolean };
+type Item = { to: string; label: string; icon: string; badge?: string; end?: boolean; gold?: boolean; sub?: boolean; fresh?: boolean; desc?: string };
 type Group = { id: string; title: string; line: string; short: string; icon: string; items: Item[] };
 
 /** The left rail for every product page: where you are, what you follow, and what else the platform offers, in the order people use it. */
@@ -55,6 +55,9 @@ export function AppShell() {
   const bodyRef = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
   const [tip, setTip] = useState<{ label: string; top: number; left: number } | null>(null);
+  // Task #285: every page row has an "i" button that opens the page's one-line description under it (one open at a time; Escape or a second click closes it).
+  const [info, setInfo] = useState<string | null>(null);
+  useEffect(() => { setInfo(null); }, [pathname]);
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey) || e.key !== "/") return;
@@ -78,16 +81,16 @@ export function AppShell() {
     "/alerts": unread ? `${unread} new` : live ? String(live) : undefined,
     "/my-investments": "NEW",   // task #137: a new page
   };
-  const toItem = (n: NavItem): Item => ({ to: n.to, label: n.label, icon: n.icon, end: n.end, gold: n.gold, badge: badges[n.to], fresh: isNew(n) });
+  const toItem = (n: NavItem): Item => ({ to: n.to, label: n.label, icon: n.icon, end: n.end, gold: n.gold, badge: badges[n.to], fresh: isNew(n), desc: n.sub });
   // task #282: one list (lib/nav MENU) for the side menu, the rail, the pop-outs, the top bar and Find a page; Dashboard sits above the groups
   const dash: Item = toItem(DASHBOARD);
   const groups: Group[] = ([
     ...MENU.map((g) => ({ id: g.id, title: g.title, line: g.line, short: g.short, icon: g.icon, items: g.items.map(toItem) })),
     ...(user ? [{ id: "account", title: "Account", line: "Your profile, appearance and plan", short: "Account", icon: "users", items: [
-      { to: "/account", label: "Profile & security", icon: "users", end: true },
-      { to: "/account/appearance", label: "Appearance", icon: "spark" },
-      ...(DEMO ? [] : [{ to: "/account/plan", label: "Plan", icon: "crown" }]),
-      ...(isAdmin ? [{ to: "/console", label: "Admin console", icon: "lock" }] : []),
+      { to: "/account", label: "Profile & security", icon: "users", end: true, desc: "Your name, email, password and sign-in" },
+      { to: "/account/appearance", label: "Appearance", icon: "spark", desc: "Light or dark theme, text size and how pages are laid out" },
+      ...(DEMO ? [] : [{ to: "/account/plan", label: "Plan", icon: "crown", desc: "Your plan and what each plan includes" }]),
+      ...(isAdmin ? [{ to: "/console", label: "Admin console", icon: "lock", desc: "Team tools: members, jobs and data checks" }] : []),
     ] }] : []),
   ] as Group[]).map((g) => ({ ...g, items: g.items.filter(offeredTo(gold)) }));   // task #100: pages not offered to Gold (none since task #283)
   const navOf = new Map(MENU.flatMap((g) => g.items.map((n) => [n.to, n] as const)));
@@ -147,12 +150,19 @@ export function AppShell() {
               </button>
               <div id={gid} className="side-gi" role="region" aria-label={g.title} inert={!isOpen && !collapsed}>
               <div className="side-gin">
-              {items.map((i) => (
-                <NavLink key={i.to} to={i.to} end={i.end ?? false} className={({ isActive }) => "side-i" + (i.sub ? " sub" : "") + (isActive ? " on" : "")} aria-label={collapsed ? i.label : undefined}
+              {items.map((i) => {
+                const did = "sd-" + i.to.replace(/[^a-z0-9]+/gi, "-"), shows = info === i.to;
+                return (
+                <div key={i.to} className={"side-row" + (i.desc ? " has-info" : "") + (shows ? " is-info" : "")}>
+                <NavLink to={i.to} end={i.end ?? false} className={({ isActive }) => "side-i" + (i.sub ? " sub" : "") + (isActive ? " on" : "")} aria-label={collapsed ? i.label : undefined}
                   onMouseEnter={(e) => showTip(e.currentTarget, i.label)} onFocus={(e) => showTip(e.currentTarget, i.label)} onMouseLeave={() => setTip(null)} onBlur={() => setTip(null)}>
                   <span className="side-ic"><Icon name={i.icon} /></span><span className="side-l"><span className="side-lt">{i.label}</span>{i.gold && <em className="gtag" title="Gold plan" aria-label="Gold plan">Gold</em>}{i.fresh && <em className="side-new" title="A new page">New</em>}</span>{i.badge && <span className="side-b">{i.badge}</span>}
                 </NavLink>
-              ))}
+                {i.desc && <button type="button" className="side-info" aria-label={`About ${i.label}`} aria-expanded={shows} aria-controls={did} title={i.desc}
+                  onClick={() => setInfo((v) => (v === i.to ? null : i.to))} onKeyDown={(e) => { if (e.key === "Escape" && shows) { e.stopPropagation(); setInfo(null); } }}>i</button>}
+                {shows && <p id={did} className="side-desc" role="note">{i.desc}</p>}
+                </div>);
+              })}
               </div>
               </div>
             </div>
