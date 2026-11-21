@@ -2,6 +2,7 @@
 ownership, Origin and CSRF, the import preview (ISIN first, then symbol; a company's shares never become an ETF) and the commit, and the three readings
 (list, what's inside, risk) filled from the ETF data. The ETF data sources are stood in for, so the figures are known."""
 
+import json
 import math
 import random
 from datetime import date, timedelta
@@ -92,7 +93,7 @@ async def etf_data(app, monkeypatch):  # noqa: F811
         return {d.toordinal(): v for d, v in zip(DAYS, N500)}
 
     async def scores(_app, syms, gold):
-        return {s: {"model": "prism" if gold else "iq", "score": 73.0, "label": "HEALTHY" if gold else "Healthy"} for s in syms}
+        return {s: {"model": "prism", "score": 73.0, "label": "HEALTHY"} for s in syms} if gold else {}     # task #283 PR C: no retired FinLit IQ below Gold
 
     async def sizes(_app, isins):
         return {i: "Large" for i in isins}
@@ -176,7 +177,7 @@ async def test_the_list_twice_tag_tracks_costs_and_premiums(app):  # noqa: F811
 
 
 async def test_whats_inside_mix_overlap_and_largest_stocks_by_plan(app):  # noqa: F811
-    for plan, model in (("gold", "prism"), ("silver", "iq")):
+    for plan, model in (("gold", "prism"), ("silver", "none")):
         c = await signed_in(app, f"{plan}2@example.com", plan=plan)
         await fill(c)
         b = (await c.get(URL + "/inside")).json()
@@ -187,15 +188,16 @@ async def test_whats_inside_mix_overlap_and_largest_stocks_by_plan(app):  # noqa
         assert pair["pct"] == 19.0 and pair["n"] == 2
         top = {t["name"]: t for t in b["top"]}
         hdfc = top["HDFC Bank Limited"]
-        assert hdfc["etfs"] == ["NIFTYBEES", "SBINIFTY50"] and hdfc["w"] == 4.0 and hdfc["score"]["model"] == model and hdfc["size"] == "Large"
+        assert hdfc["etfs"] == ["NIFTYBEES", "SBINIFTY50"] and hdfc["w"] == 4.0 and (hdfc["score"] or {}).get("model", "none") == model and hdfc["size"] == "Large"
         assert "NVIDIA Corp" not in top                                   # task #183: the largest stocks are Indian; holdings abroad are listed apart
         assert b["abroadTop"] == {"MON100": [{"name": "NVIDIA Corp", "isin": "US67066G1040", "pct": 9.0}]}
         assert b["size"]["Large"] == 100.0
+        assert plan == "gold" or (hdfc["score"] is None and hdfc["scoreWhy"] and '"iq"' not in json.dumps(b))
         # task #183: the look-through grid adds up to the list's share in Indian shares, both levels, with each company and its plan's reading
         assert b["knownShares"] == pytest.approx(0.076) and sum(c["w"] for c in b["lookThrough"]["macro"].values()) == pytest.approx(0.076)
         assert sum(c["w"] for c in b["lookThrough"]["sector"].values()) == pytest.approx(0.076)
         cell = b["lookThrough"]["sector"]["Banks|Large"]
-        assert cell["n"] == 2 and [x["symbol"] for x in cell["stocks"]] == ["HDFCBANK", "ICICIBANK"] and cell["stocks"][0]["score"]["model"] == model
+        assert cell["n"] == 2 and [x["symbol"] for x in cell["stocks"]] == ["HDFCBANK", "ICICIBANK"] and (cell["stocks"][0]["score"] or {}).get("model", "none") == model
         assert b["perEtf"]["NIFTYBEES"]["size"] == {"Large": pytest.approx(0.19)} and "MON100" not in b["perEtf"]
         why = {f["symbol"]: f["why"] for f in b["files"]}
         assert why["GOLDBEES"] and why["NIFTYBEES"] is None

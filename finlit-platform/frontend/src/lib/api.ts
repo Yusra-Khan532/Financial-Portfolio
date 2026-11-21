@@ -35,8 +35,9 @@ export type PillarSummary = { key: string; label: string; score: number | null; 
 export type Summary = {
   meta: Meta; profile: Profile; quote: Quote; range52: { high: number | null; low: number | null };
   sparkline: { t: string[]; c: number[] };
-  score: { overall: number | null; band: Band; model: string; pillars: PillarSummary[] };
-  thesis: string | null; strengths: Note[]; watchouts: Note[]; keyMetrics: KeyMetric[]; returns: Return[]; dataQuality: DataQuality;
+  /** Task #283 PR C: the retired overall score and its written read are no longer sent (absent); FinLit Prism is read from /api/prism. */
+  score?: { overall: number | null; band: Band; model: string; pillars: PillarSummary[] };
+  thesis?: string | null; strengths: Note[]; watchouts: Note[]; keyMetrics: KeyMetric[]; returns: Return[]; dataQuality: DataQuality;
 };
 export type Financials = { meta: Meta; unit: string; yearly: { pl: Table; bs: Table; cf: Table }; quarterly: { pl: Table } };
 export type RatioEntry = { value: number; period: string; label: string; unit: string | null; better: "higher" | "lower" | null; group: string | null };
@@ -47,7 +48,8 @@ export type Ratios = {
   groups: { id: string; label: string; pillar: string; keys: string[] }[];
   history: { periods: string[]; rows: Record<string, Series> };
   valuationHistory: { periods: string[]; rows: Record<"pe" | "pb" | "ps" | "average_price", Series> };
-  score: { model: string; overall: number | null; band: Band; pillars: (PillarSummary & { inputs: PillarInput[] })[] };
+  /** Task #283 PR C: no longer sent (the retired overall score's pillar drawer). */
+  score?: { model: string; overall: number | null; band: Band; pillars: (PillarSummary & { inputs: PillarInput[] })[] };
   glossary: Record<string, Glossary>;
   blanks?: Record<string, string>;   // why a valuation figure has no number (backend snapshot._valuation_blanks)
 };

@@ -2,10 +2,10 @@
 FinLit button (the glossary and the company list live inside the extension, so no other request is made).
 
 Cheap on purpose: two indexed single-row reads, no on-demand report build, no view counting, no side effects, and the answer is kept in Redis for five minutes per
-symbol and access level. One score per plan, as on the site (founder, 13 Nov 2026, tasks #100 and #112): Silver gets the FinLit IQ (score, rating word, its two parts) and the key
-figures; Gold and administrators get FinLit Prism instead (the stored report's score, label and four parts, one more single-row read) with the key figures, and never the FinLit IQ.
-`model` says which one the card shows ("iq", "prism", or null when locked). A Basic or signed-out visitor gets name, sector, price and market value and `locked: true` (the free
-showcase company stays open). The wording describes; it never advises.
+symbol and access level. Task #283 PR C (21 Nov 2026): FinLit Prism is FinLit's only company score (the FinLit IQ is retired). Gold and administrators get FinLit
+Prism (the stored report's score, label and four parts, one more single-row read) with the key figures; the free showcase company is open to everyone the same way.
+Every other plan, and a signed-out visitor, gets name, sector, price and market value and `locked: true` with the reason (FinLit Prism comes with a plan that has it).
+`model` says what the card shows ("prism", or null when locked). The wording describes; it never advises.
 Information only, not investment advice.
 """
 
@@ -21,7 +21,6 @@ from fastapi.responses import JSONResponse
 
 from .auth.entitlements import has, sees_all
 from .auth.service import current
-from .portfolio_overview import BAND_WORD
 from .prism import PRISM_NAME, _PARTS, _num
 from .search import QUOTES_SQL, _hydrate, _rec, quote_rows
 
@@ -29,9 +28,8 @@ router = APIRouter(prefix="/api/ext")
 SYMBOL = re.compile(r"^[A-Z0-9&_.\-]{1,24}$")
 TTL = 300
 DISCLAIMER = "Describes the company's financial health from its filings and prices; not a recommendation. Information only, not investment advice."
-WHAT_IT_IS = ("The FinLit IQ runs from 0 to 100 and describes a company's financial health from its filings and prices. The Growth & Profitability score reads the business "
-              "(quality, growth, profitability and balance sheet); the Technical score reads the price trend.")
-DETAIL_SQL = """SELECT name, sector, market_cap, pe, roe, debt_to_equity, pillar_quality, pillar_growth, pillar_profitability, pillar_balance, pillar_technical
+LOCKED_WHY = f"{PRISM_NAME}, FinLit's only company score, comes with a plan that has it. Sign in or see plans on FinLit."
+DETAIL_SQL = """SELECT name, sector, market_cap, pe, roe, debt_to_equity
                 FROM scores WHERE symbol = $1 AND model = 'v1' ORDER BY (statement = 'consolidated') DESC, updated_at DESC LIMIT 1"""
 NAME_SQL = "SELECT name, sector FROM companies WHERE symbol = $1"
 PRISM_SQL = ("SELECT final, label, status, " + ", ".join(f"{_num('rating,parts,' + k)} AS p_{k}" for k in _PARTS)   # nosec B608: constant names only, the symbol is a bound value
@@ -41,23 +39,6 @@ PRISM_PARTS = {"fundamental": "Growth & Profitability", "valuation": "Valuation"
 
 def _n(v: Any, nd: int = 1) -> Optional[float]:
     return None if v is None else round(float(v), nd)
-
-
-def _word(score: Optional[float], hi: float = 70, mid: float = 50) -> str:
-    return "strong" if score is not None and score >= hi else "fair" if score is not None and score >= mid else "weak"
-
-
-def take(fund: Optional[float], tech: Optional[float], band_word: Optional[str]) -> Optional[str]:
-    """One plain sentence from the two parts. It describes the reading; it never says to buy, sell or hold."""
-    if fund is None and tech is None:
-        return None
-    parts = []
-    if fund is not None:
-        parts.append(f"business scores are {_word(fund)} ({round(fund)}/100)")
-    if tech is not None:
-        parts.append(f"the price trend reads {_word(tech)} ({round(tech)}/100)")
-    lead = f"The overall reading is {band_word}: " if band_word else ""
-    return lead + " and ".join(parts) + "."
 
 
 def prism_block(r: Any) -> Dict[str, Any]:
@@ -78,35 +59,24 @@ async def build(request: Request, sym: str, level: str) -> Optional[Dict[str, An
         q = await conn.fetchrow(QUOTES_SQL + " WHERE c.symbol = $1", sym)
         base = await conn.fetchrow(NAME_SQL, sym)
         d = await conn.fetchrow(DETAIL_SQL, sym)
-        pz = await conn.fetchrow(PRISM_SQL, sym) if level == "gold" else None
+        open_ = level == "gold" or sym in showcase       # FinLit Prism: Gold and administrators, and the free showcase company for everyone
+        pz = await conn.fetchrow(PRISM_SQL, sym) if open_ else None
     if base is None:
         return None
-    gold = level == "gold"
-    rows = quote_rows([_hydrate(_rec(q))], "silver" if gold else level, showcase) if q is not None else []
+    rows = quote_rows([_hydrate(_rec(q))], level, showcase) if q is not None else []
     price = rows[0][1] if rows else None
     change = rows[0][2] if rows else None
     when = rows[0][3] if rows else None
-    score, band = (rows[0][4], rows[0][5]) if rows else (None, None)
-    locked = band == "locked"
     out: Dict[str, Any] = {"symbol": sym, "name": (d and d["name"]) or base["name"], "sector": (d and d["sector"]) or base["sector"], "url": f"/stocks/{sym}",
-                           "price": price, "changePct": change, "priceDate": when, "marketCapCr": _n(d["market_cap"], 0) if d else None, "locked": locked,
+                           "price": price, "changePct": change, "priceDate": when, "marketCapCr": _n(d["market_cap"], 0) if d else None, "locked": not open_,
                            "disclaimer": DISCLAIMER}
-    out["model"] = None if locked else "prism" if gold else "iq"
-    if locked:
-        out["lockedWhy"] = "The FinLit IQ comes with the Silver plan and FinLit Prism with Gold. Sign in or see plans on FinLit."
+    out["model"] = "prism" if open_ else None
+    if not open_:
+        out["lockedWhy"] = LOCKED_WHY
         return out
     if d is not None:
         out["figures"] = {"pe": _n(d["pe"]), "roe": _n(d["roe"]), "debtToEquity": _n(d["debt_to_equity"], 2)}
-    if gold:                                   # Gold: FinLit Prism only, never the FinLit IQ
-        out["prism"] = prism_block(pz)
-    elif score is not None and d is not None:  # Silver: the FinLit IQ
-        pillars = [d[k] for k in ("pillar_quality", "pillar_growth", "pillar_profitability", "pillar_balance") if d[k] is not None]
-        fund = sum(float(p) for p in pillars) / len(pillars) if pillars else None
-        tech = _n(d["pillar_technical"])
-        bw = BAND_WORD.get(band or "")
-        out.update(score=_n(score, 0), band=bw, bandKey=band, fundamental=_n(fund, 0), technical=None if tech is None else round(tech), take=take(fund, tech, bw), what=WHAT_IT_IS)
-    else:
-        out["why"] = "This company has no FinLit IQ yet."
+    out["prism"] = prism_block(pz)
     return out
 
 
@@ -116,9 +86,9 @@ async def company(request: Request, symbol: str):
     if not SYMBOL.match(sym):
         return JSONResponse({"status": "not_found", "detail": "No such company."}, status_code=404)
     who = await current(request)
-    level = "gold" if sees_all(who) or has(who.plan, "gold") else "silver" if has(who.plan, "silver") else "basic"
+    level = "gold" if sees_all(who) or has(who.plan, "gold") else "silver" if has(who.plan, "silver") else "basic"   # silver and basic answer alike (no Prism)
     store = request.app.state.store
-    key = f"ext:company:{level}:{sym}"
+    key = f"ext:company:v2:{level}:{sym}"      # v2: task #283 PR C (no retired FinLit IQ)
     try:
         hit = await store.redis.get(key)
     except Exception:

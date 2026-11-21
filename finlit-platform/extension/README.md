@@ -1,6 +1,6 @@
 # FinLit browser extension (task #54)
 
-Select a financial term or a listed company on any web page and a small FinLit card opens beside it: the **glossary meaning** of a term, or a **company's FinLit score, the one your plan has**: the FinLit IQ with its two parts on Silver, FinLit Prism with its four parts on Gold (below Silver, the card says what each plan shows)
+Select a financial term or a listed company on any web page and a small FinLit card opens beside it: the **glossary meaning** of a term, or a **company's FinLit score, the one your plan has**: FinLit Prism, FinLit's only company score, with its four parts on a plan that has it (task #283: the FinLit IQ is retired) (below Silver, the card says what each plan shows)
 (with market value, PE, ROE and Debt/Equity), with one button to open the full analysis on FinLit.
 
 Chrome, Edge, Brave and other Chromium browsers (Manifest V3). Free, like the rest of FinLit.
@@ -15,7 +15,7 @@ Chrome, Edge, Brave and other Chromium browsers (Manifest V3). Free, like the re
 | Glossary = no request | The 450-term glossary is bundled (`data/glossary.json`, built from the site glossary by `build.py`). |
 | Company list = one cached download | The site's public search list is fetched at most once a day (with `If-None-Match`, so a repeat costs a 304), only when a lookup is asked for, and kept in extension storage. |
 | Company card = one tiny request | `GET /api/ext/company/SYMBOL`: two indexed row reads, kept in Redis five minutes, no report build, no view counting. The extension also keeps a card ten minutes. |
-| Plan rules stay on the server | The score and key figures are Silver (as on the site); Basic and signed-out visitors get name, sector, price, market value and a note with a link, never the score. The free showcase company stays open. |
+| Plan rules stay on the server | FinLit Prism and the key figures come with a plan that has FinLit Prism (as on the site); other plans, Basic and signed-out visitors get name, sector, price, market value and a note with a link, never the score. The free showcase company stays open. |
 | Does not touch the host page | One element (`<finlit-extension>`) with a closed shadow root and constructable stylesheet; every piece of remote text is set with `textContent`. Top frame only. |
 | User control | Toolbar menu: a switch for the whole extension and a switch per site. |
 
@@ -39,7 +39,7 @@ For a local server, save `apiBase` (only `http://localhost:PORT` is honoured) in
 
 1. `python extension/build.py --zip`, upload `extension/dist/finlit-extension-<version>.zip` in the Developer Dashboard (one-time registration fee applies).
 2. The full step-by-step for the owner, with the listing text, screenshots and promo tile, is `store/LISTING.md`. Privacy policy URL: `https://finlitventures.com/browser-extension#privacy` (same text as `PRIVACY.md`).
-3. Single purpose to state: "Show the meaning of a financial term, or a company's FinLit score (FinLit IQ or FinLit Prism, by plan), for text the user selects."
+3. Single purpose to state: "Show the meaning of a financial term, or a company's FinLit Prism score (on a plan that has it), for text the user selects."
 4. Permission justifications: `storage` (settings and cached company list), `contextMenus` (right-click lookup), `activeTab` (read the current site name for the per-site switch), host access to finlitventures.com (the company card), content script on all sites (shows the button next to text the user selects).
 5. Raise `version` in `manifest.json` for every update; rerun `build.py` whenever the site glossary changes (a test fails until you do).
 

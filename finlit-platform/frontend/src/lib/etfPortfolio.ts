@@ -24,17 +24,17 @@ export type Repeat = { key: string; label: string; symbols: string[] };
 export type EtfPortfolio = { plan: string; limit: number; count: number; items: EtfRow[]; basis: "value" | "equal"; repeats: Repeat[]; asOf: string | null; missingQty?: string[]; disclaimer: string };
 
 export type Top = { name: string; isin: string | null; symbol: string | null; /** NSE's industry, or "Listed abroad" (task #192) */ industry: string | null; w: number; etfs: string[]; abroad: boolean; size: string | null;
-  score: { model: "prism" | "iq"; score: number | null; label: string | null } | null; scoreWhy: string | null };
+  score: { model: "prism"; score: number | null; label: string | null } | null; scoreWhy: string | null };
 export type Inside = {
   count: number; why?: string; basis: "value" | "equal"; files: { symbol: string; asOf: string | null; source: string | null; why: string | null }[]; asOf: string | null;
   mix: Record<"indian" | "abroad" | "gold" | "silver" | "debt", number>; mixFromType: string[]; size: (Record<"Large" | "Mid" | "Small" | "Not sized", number> & { Micro?: number }) | null;   // Micro: the fourth size (task #262)
-  overlap: { symbols: string[]; pairs: { a: string; b: string; pct: number; n: number }[] }; top: Top[]; scoreModel: "prism" | "iq";
+  overlap: { symbols: string[]; pairs: { a: string; b: string; pct: number; n: number }[] }; top: Top[]; /** Task #283 PR C: "none" on a plan without FinLit Prism (the retired score is not sent). */ scoreModel: "prism" | "none";
   /** task #183: the look-through grid over Indian shares (the MF page's shape), each share ETF's own split, holdings abroad apart */
   knownShares?: number; lookThrough?: Record<"macro" | "sector", Record<string, LtCell>>; sectorMacro?: Record<string, string>;
   perEtf?: Record<string, Record<"macro" | "sector" | "size", Record<string, number>>>; abroadTop?: Record<string, { name: string; isin: string | null; pct: number }[]>;
   etfs?: { symbol: string; assetClass: string | null; split: Record<string, number> | null; type: EtfType }[];
 };
-export type LtCell = { w: number; n: number; stocks: { name: string; symbol: string | null; w: number; score?: { model: "prism" | "iq"; score: number | null; label: string | null } | null; /** task #276: the ETFs that hold it */ etfs?: string[] }[] };
+export type LtCell = { w: number; n: number; stocks: { name: string; symbol: string | null; w: number; score?: { model: "prism"; score: number | null; label: string | null } | null; /** task #276: the ETFs that hold it */ etfs?: string[] }[] };
 export type Band = { key: "less" | "defensive" | "similar" | "more" | "high" | "very_high"; word: string };
 export type EtfRisk = {
   count: number; why?: string; basis: "value" | "equal";

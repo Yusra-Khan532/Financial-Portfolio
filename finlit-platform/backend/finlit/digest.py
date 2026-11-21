@@ -1,6 +1,7 @@
 """The weekly "week ahead" email, for members who switched it on in Account → Appearance.
 
-One plain-text message: result dates for the stocks they follow, IPOs open or opening, how their stocks moved, and score changes.
+One plain-text message: result dates for the stocks they follow, IPOs open or opening and how their stocks moved. Task #283 PR C (21 Nov 2026): the
+"score changes" block read the retired FinLit IQ's history; FinLit Prism is FinLit's only company score, so the block is gone.
 Sent at most once per ISO week per member.
 """
 
@@ -25,14 +26,7 @@ async def build(conn, user_id, symbols: List[str], today: date, site_url: str) -
     moves = await conn.fetch("SELECT DISTINCT ON (symbol) symbol, name, change_pct, return_1m FROM scores WHERE symbol = ANY($1::text[]) AND change_pct IS NOT NULL "
                              "ORDER BY symbol, updated_at DESC", symbols) if symbols else []
     moves = sorted(moves, key=lambda r: abs(float(r["change_pct"])), reverse=True)[:5]
-    changes = []
-    for sym in symbols[:60]:
-        h = await conn.fetch("SELECT day, overall FROM score_history WHERE symbol = $1 AND model = 'v1' AND overall IS NOT NULL ORDER BY day DESC LIMIT 40", sym)
-        if len(h) >= 2:
-            old = next((x for x in h if (h[0]["day"] - x["day"]).days >= 6), None)
-            if old and abs(h[0]["overall"] - old["overall"]) >= 5:
-                changes.append((sym, old["overall"], h[0]["overall"]))
-    if not (results or ipos or moves or changes):
+    if not (results or ipos or moves):
         return None
     out = ["Your week ahead on FinLit", ""]
     if results:
@@ -41,8 +35,6 @@ async def build(conn, user_id, symbols: List[str], today: date, site_url: str) -
         out += ["IPOs OPEN OR OPENING"] + [f"  {r['name']}: {r['open_date']:%d %b} to {r['close_date']:%d %b}" + (f", up to ₹{float(r['price_high']):,.0f}, lot {r['lot_size']}" if r["price_high"] and r["lot_size"] else "") for r in ipos] + [""]
     if moves:
         out += ["YOUR BIGGEST MOVERS"] + [f"  {r['symbol']:<12} {float(r['change_pct']):+.1f}% today" for r in moves] + [""]
-    if changes:
-        out += ["SCORE CHANGES"] + [f"  {s:<12} {a} → {b}" for s, a, b in changes[:6]] + [""]
     out += [f"Open your dashboard: {site_url}/dashboard", "", "You get this because you switched on the weekly email. Turn it off in Account → Appearance. Information only, not investment advice.", "", "FinLit Ventures"]
     return "\n".join(out)
 

@@ -9514,68 +9514,68 @@
    "formula": "The deepest fall from a running peak to a later low in the stored daily price history."
   },
   "overall": {
-   "label": "FinLit IQ",
+   "label": "Overall score (retired)",
    "unit": "pts",
    "better": "higher",
    "group": "model",
    "term": "finlit-prism",
-   "what": "FinLit's 0–100 summary of a company's health: the average of five pillar scores, each built from ratios scored against fixed thresholds.",
-   "read": "Use it to shortlist and to spot changes, then read the report behind it. It is not a buy or sell call.",
+   "what": "The retired 0–100 overall score of a company: the average of five pillar scores. FinLit Prism is now FinLit's only company score.",
+   "read": "It is no longer shown. Read FinLit Prism instead.",
    "why": "It turns dozens of numbers into one readable starting point.",
    "formula": "The average of the available pillar scores, out of 100. Each input scores 18, 38, 58, 76 or 92 against four fixed thresholds and a pillar is the average of its inputs."
   },
   "pillar_quality": {
-   "label": "Quality pillar",
+   "label": "Quality pillar (retired)",
    "unit": "pts",
    "better": "higher",
    "group": "model",
    "term": "finlit-prism",
-   "what": "The Quality pillar: returns on capital and how well profit turns into cash.",
-   "read": "Read the pillars before the overall score: a 60 made of 80s and 40s is very different from steady 60s.",
+   "what": "A part of the retired overall score, the Quality pillar: returns on capital and how well profit turns into cash.",
+   "read": "It is no longer shown. Read FinLit Prism and its parts instead.",
    "why": "A stock can be strong in some pillars and weak in others; the pillars show where.",
    "formula": "Average of the scores for ROE, ROCE and cash conversion (CFO/PAT)."
   },
   "pillar_growth": {
-   "label": "Growth pillar",
+   "label": "Growth pillar (retired)",
    "unit": "pts",
    "better": "higher",
    "group": "model",
    "term": "finlit-prism",
-   "what": "The Growth pillar: how fast sales and profit have grown.",
-   "read": "Read the pillars before the overall score: a 60 made of 80s and 40s is very different from steady 60s.",
+   "what": "A part of the retired overall score, the Growth pillar: how fast sales and profit have grown.",
+   "read": "It is no longer shown. Read FinLit Prism and its parts instead.",
    "why": "A stock can be strong in some pillars and weak in others; the pillars show where.",
    "formula": "Average of the scores for sales CAGR, profit CAGR and latest sales growth."
   },
   "pillar_profitability": {
-   "label": "Profitability pillar",
+   "label": "Profitability pillar (retired)",
    "unit": "pts",
    "better": "higher",
    "group": "model",
    "term": "finlit-prism",
-   "what": "The Profitability pillar: margins and how hard the assets work.",
-   "read": "Read the pillars before the overall score: a 60 made of 80s and 40s is very different from steady 60s.",
+   "what": "A part of the retired overall score, the Profitability pillar: margins and how hard the assets work.",
+   "read": "It is no longer shown. Read FinLit Prism and its parts instead.",
    "why": "A stock can be strong in some pillars and weak in others; the pillars show where.",
    "formula": "Average of the scores for operating margin, net margin and asset turnover."
   },
   "pillar_balance": {
-   "label": "Balance sheet pillar",
+   "label": "Balance sheet pillar (retired)",
    "unit": "pts",
    "better": "higher",
    "group": "model",
    "term": "finlit-prism",
-   "what": "The Balance sheet pillar: how much of the assets are funded by liabilities, and whether profit is backed by cash.",
-   "read": "Read the pillars before the overall score: a 60 made of 80s and 40s is very different from steady 60s.",
+   "what": "A part of the retired overall score, the Balance sheet pillar: how much of the assets are funded by liabilities, and whether profit is backed by cash.",
+   "read": "It is no longer shown. Read FinLit Prism and its parts instead.",
    "why": "A stock can be strong in some pillars and weak in others; the pillars show where.",
    "formula": "Average of the scores for liabilities to assets and cash conversion (CFO/PAT)."
   },
   "pillar_technical": {
-   "label": "Technical pillar",
+   "label": "Technical pillar (retired)",
    "unit": "pts",
    "better": "higher",
    "group": "model",
    "term": "finlit-prism",
-   "what": "The Technical pillar: the price trend and momentum.",
-   "read": "Read the pillars before the overall score: a 60 made of 80s and 40s is very different from steady 60s.",
+   "what": "A part of the retired overall score, the Technical pillar: the price trend and momentum.",
+   "read": "It is no longer shown. Read FinLit Prism and its parts instead.",
    "why": "A stock can be strong in some pillars and weak in others; the pillars show where.",
    "formula": "Average of the scores for price against the 50-day and 200-day averages and the 14-day RSI."
   },
@@ -9591,15 +9591,15 @@
    "formula": "Average of the Quality, Growth, Profitability and Balance sheet pillars (no price trend); needs at least three of the four."
   },
   "score_change": {
-   "label": "Score change since last quarter",
+   "label": "Retired score change since last quarter",
    "unit": "pts",
    "better": "higher",
    "group": "model",
    "term": "finlit-prism",
-   "what": "How many points the FinLit IQ has moved since the last quarter.",
-   "read": "Use it to shortlist and to spot changes, then read the report behind it. It is not a buy or sell call.",
+   "what": "How many points the retired overall score moved since the last quarter.",
+   "read": "It is no longer shown. Read FinLit Prism instead.",
    "why": "It turns dozens of numbers into one readable starting point.",
-   "formula": "FinLit IQ now minus the score at the previous quarter, from the stored score history."
+   "formula": "The retired overall score now minus the score at the previous quarter, from the stored score history."
   },
   "strengths_count": {
    "label": "Strengths found",
@@ -10390,7 +10390,7 @@
    "term": "finlit-prism",
    "what": "FinLit Prism's rating of the company, 0 to 100, with its rating word (Strong, Healthy, Average, Weak or Poor).",
    "read": "Higher is better. Read its four parts to see where the rating comes from. It describes the company; it is not advice to buy, sell or hold.",
-   "why": "One number for the company's financial health, built differently from the FinLit IQ.",
+   "why": "One number for the company's financial health: FinLit's only company score.",
    "formula": "Worked out by FinLit Prism from the company's filed statements and prices. The model's cut-offs and weights stay with the model."
   },
   "prism_fundamental": {

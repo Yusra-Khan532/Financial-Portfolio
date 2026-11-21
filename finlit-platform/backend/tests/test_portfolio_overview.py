@@ -1,5 +1,5 @@
-"""POST /api/portfolio/overview: the Equity portfolio page's bulk read. Shape, plan gating (Silver: FinLit IQ and no Prism field; Gold: Prism and no FinLit
-score block; Basic and visitors refused), ratios and financials equal to what the stock page shows (Reliance fixture), the preparing and unknown
+"""POST /api/portfolio/overview: the Equity portfolio page's bulk read. Shape, plan gating (Silver: no company score at all, task #283 PR C retired the FinLit IQ block;
+Gold: Prism; Basic and visitors refused), ratios and financials equal to what the stock page shows (Reliance fixture), the preparing and unknown
 statuses, the blank-figure reasons, and the 500 limit."""
 
 import pytest
@@ -28,7 +28,7 @@ async def ask(client, symbols):
     return await client.post("/api/portfolio/overview", json={"symbols": symbols})
 
 
-async def test_silver_gets_the_finlit_score_and_no_prism_field(app):
+async def test_silver_gets_no_company_score_and_no_prism_field(app):
     await put(app.state.store, "RELIANCE", final=71.2)
     silver = await signed_in(app, "s@example.com", plan="silver")
     r = await ask(silver, ["reliance"])
@@ -37,7 +37,7 @@ async def test_silver_gets_the_finlit_score_and_no_prism_field(app):
     assert body["model"] == "finlit" and body["plan"] == "silver" and body["count"] == 1
     h = body["holdings"][0]
     assert h["symbol"] == "RELIANCE" and h["status"] == "ready" and h["name"] and h["price"] and h["marketCapCr"] and h["sector"]
-    assert h["finlit"]["overall"] is not None and h["finlit"]["word"] and set(h["finlit"]["pillars"]) == set(po.PILLARS)
+    assert "finlit" not in h and "overall" not in r.text and "pillar" not in r.text      # task #283 PR C: the retired FinLit IQ block is not sent
     assert not any("prism" in k.lower() for k in h) and "prism" not in r.text.lower().replace("finlit prism", "")
     assert set(h["ratios"]) == {"pe", "pb", "roe", "dividend_yield", "debt_to_equity"} and set(h["financials"]) == {"year", "quarter"}
 
@@ -104,11 +104,8 @@ async def test_ratios_and_financials_equal_the_stock_page(app):
     assert h["basis"] in ("consolidated", "standalone")
     silver = await signed_in(app, "s@example.com", plan="silver")
     s = (await ask(silver, ["RELIANCE"])).json()["holdings"][0]
-    assert s["finlit"]["overall"] == summary["score"]["overall"]
-    assert s["finlit"]["pillars"] == {p["key"]: p["score"] for p in summary["score"]["pillars"]}
-    # task #183: each pillar's word is the report's own (score.pillars[].band.label), the same words the company page shows
-    assert s["finlit"]["pillarWords"] == {p["key"]: (p["band"]["label"] if p["score"] is not None else None) for p in summary["score"]["pillars"]}
-    assert set(s["finlit"]["pillarWords"].values()) - {None} <= {"Strong", "Healthy", "Mixed", "Watch"}
+    assert "finlit" not in s and "prism" not in s and "score" not in summary       # task #283 PR C: no retired score on the page or in the summary
+    assert s["price"] == h["price"] and s["ratios"] == h["ratios"] and s["financials"] == h["financials"]
 
 
 async def test_preparing_and_unknown_companies(app):
