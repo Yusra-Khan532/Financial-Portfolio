@@ -205,24 +205,45 @@ def summary(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 # ------------------------------------------------------------------------------------------------ the job: refresh-ipo-gmp
 UPSERT = """INSERT INTO ipo_gmp (ig_id, url, name, nse, bse, isin, board, sector, issue_price, listing_price, listing_date, subscription, issue_size_cr,
-    gmp, gmp_pct, listing_pct, listed, history, fetched_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18::jsonb, now())
+    gmp, gmp_pct, listing_pct, listed, history, detail, open_date, close_date, fetched_at)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18::jsonb,$19::jsonb,$20,$21, now())
     ON CONFLICT (ig_id) DO UPDATE SET url=EXCLUDED.url, name=EXCLUDED.name, nse=EXCLUDED.nse, bse=EXCLUDED.bse, isin=EXCLUDED.isin, board=EXCLUDED.board,
     sector=EXCLUDED.sector, issue_price=EXCLUDED.issue_price, listing_price=EXCLUDED.listing_price, listing_date=EXCLUDED.listing_date,
     subscription=EXCLUDED.subscription, issue_size_cr=EXCLUDED.issue_size_cr, gmp=EXCLUDED.gmp, gmp_pct=EXCLUDED.gmp_pct, listing_pct=EXCLUDED.listing_pct,
-    listed=EXCLUDED.listed, history=EXCLUDED.history, fetched_at=now()"""
+    listed=EXCLUDED.listed, history=EXCLUDED.history, detail=COALESCE(EXCLUDED.detail, ipo_gmp.detail), open_date=COALESCE(EXCLUDED.open_date, ipo_gmp.open_date),
+    close_date=COALESCE(EXCLUDED.close_date, ipo_gmp.close_date), fetched_at=now()"""
 
 
 def to_row(r: Dict[str, Any]) -> tuple:
+    det = r.get("detail")
+    tt = (det or {}).get("timetable") or {}
+    d = lambda v: date.fromisoformat(v) if v else None  # noqa: E731
     return (r["ig_id"], r["url"], r["name"], r["nse"], r["bse"], r["isin"], r["board"], r["sector"], r["issue_price"], r["listing_price"], r["listing_date"],
-            r["subscription"], r["issue_size_cr"], r["gmp"], r["gmp_pct"], r["listing_pct"], r["listed"], json.dumps(r["history"]))
+            r["subscription"], r["issue_size_cr"], r["gmp"], r["gmp_pct"], r["listing_pct"], r["listed"], json.dumps(r["history"]),
+            json.dumps(det) if det else None, d(tt.get("open")), d(tt.get("close")))
 
 
-async def refresh(store, limit: int = 120, pause_s: float = 2.0, max_minutes: float = 8.0, http=None) -> Dict[str, Any]:
-    """Read InvestorGain's IPO GMP pages we do not have yet, or whose issue had not listed when last read; newest first. One page at a time with a pause,
-    at most `limit` pages and `max_minutes` per run, so the first full history fills over a few runs. A page that cannot be read is skipped and tried
-    again next run; stored records are never removed."""
+# Which stored rows need no new read: listed issues already read with their full record, and issues that closed long ago without listing (withdrawn or
+# never listed) read in the last week. Everything else (new pages, issues in progress, rows from before the full record) is read again.
+DONE_SQL = """SELECT ig_id FROM ipo_gmp WHERE (listed AND detail IS NOT NULL)
+    OR (NOT listed AND close_date < current_date - 45 AND fetched_at > now() - interval '7 days')"""
+# Listed mainboard issues NSE has not been asked about, newest first; an issue NSE had no book for is asked again a week later while it is within 30 days
+# of listing (the exchange can publish late), then left.
+NSE_TODO_SQL = """SELECT ig_id, nse FROM ipo_gmp WHERE listed AND board = 'mainboard' AND nse IS NOT NULL AND nse_book IS NULL
+    AND (nse_checked_at IS NULL OR (nse_checked_at < now() - interval '7 days' AND listing_date > current_date - 30))
+    ORDER BY listing_date DESC NULLS LAST LIMIT $1"""
+NSE_SAVE_SQL = "UPDATE ipo_gmp SET nse_book = $2::jsonb, nse_checked_at = now() WHERE ig_id = $1"
+
+
+async def refresh(store, limit: int = 100, pause_s: float = 2.0, max_minutes: float = 8.0, http=None, nse_limit: int = 40, nse=None) -> Dict[str, Any]:
+    """Read InvestorGain's IPO pages we do not have yet, or whose issue had not listed when last read, or that were stored before the full record was
+    kept; newest first. One page at a time with a pause, at most `limit` pages and `max_minutes` per run, so the first full history fills over a few runs.
+    Then, in the time left, ask NSE for the subscription by category of up to `nse_limit` listed mainboard issues (once each). A page or a symbol that
+    cannot be read is skipped and tried again next run; stored records are never removed."""
     import httpx
-    out = {"seen": 0, "read": 0, "stored": 0, "listed": 0, "skipped": 0, "errors": 0}
+    from .iporecord import parse_detail
+    from .iponse import Nse
+    out = {"seen": 0, "read": 0, "stored": 0, "listed": 0, "withDetail": 0, "skipped": 0, "errors": 0, "nseAsked": 0, "nseBooks": 0, "nseErrors": 0}
     stop = time.monotonic() + max_minutes * 60
     own = http is None
     http = http or httpx.AsyncClient(timeout=40, headers={"User-Agent": UA}, follow_redirects=True)
@@ -232,7 +253,7 @@ async def refresh(store, limit: int = 120, pause_s: float = 2.0, max_minutes: fl
         pages = page_urls(sm.text)
         out["seen"] = len(pages)
         async with store.pool.acquire() as conn:
-            done = {r["ig_id"] for r in await conn.fetch("SELECT ig_id FROM ipo_gmp WHERE listed")}
+            done = {r["ig_id"] for r in await conn.fetch(DONE_SQL)}
         todo = [p for p in pages if p["id"] not in done][:limit]
         for p in todo:
             if time.monotonic() > stop:
@@ -247,10 +268,16 @@ async def refresh(store, limit: int = 120, pause_s: float = 2.0, max_minutes: fl
                 if rec is None:
                     out["skipped"] += 1
                 else:
+                    try:
+                        rec["detail"] = parse_detail(res.text)
+                    except Exception:
+                        log.warning("ipo record of %s not read", p["url"], exc_info=True)
+                        rec["detail"] = None
                     async with store.pool.acquire() as conn:
                         await conn.execute(UPSERT, *to_row(rec))
                     out["stored"] += 1
                     out["listed"] += int(rec["listed"])
+                    out["withDetail"] += int(rec["detail"] is not None)
             except Exception:
                 log.warning("ipo gmp page %s not read", p["url"], exc_info=True)
                 out["errors"] += 1
@@ -258,6 +285,29 @@ async def refresh(store, limit: int = 120, pause_s: float = 2.0, max_minutes: fl
     finally:
         if own:
             await http.aclose()
+    if nse_limit > 0 and time.monotonic() < stop:
+        async with store.pool.acquire() as conn:
+            asks = [dict(r) for r in await conn.fetch(NSE_TODO_SQL, nse_limit)]
+        client = nse or Nse(pause_s=pause_s)
+        try:
+            for a in asks:
+                if time.monotonic() > stop:
+                    break
+                try:
+                    book = await client.ipo(a["nse"])
+                except Exception:
+                    log.warning("NSE book of %s not read", a["nse"], exc_info=True)
+                    out["nseErrors"] += 1
+                    if out["nseErrors"] >= 3:                        # NSE is refusing: leave the rest for the next run
+                        break
+                    continue
+                out["nseAsked"] += 1
+                out["nseBooks"] += int(book is not None)
+                async with store.pool.acquire() as conn:
+                    await conn.execute(NSE_SAVE_SQL, a["ig_id"], json.dumps(book) if book else None)
+        finally:
+            if nse is None:
+                await client.aclose()
     return out
 
 
