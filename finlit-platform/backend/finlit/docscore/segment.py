@@ -139,9 +139,15 @@ def roster(pages: Sequence[str]) -> Tuple[Set[str], Set[str]]:
 
 
 def _same(a: str, b: str) -> bool:
-    """The same person: the same name, or the same first and last word ("Salil Parekh" and "Salil S. Parekh")."""
-    x, y = a.lower().split(), b.lower().split()
-    return x == y or (len(x) >= 2 and len(y) >= 2 and x[0] == y[0] and x[-1] == y[-1])
+    """The same person: the same name, or the same first word and a last word that is the same or shortened ("Salil Parekh" and "Salil S. Parekh";
+    "Rod B" and "Rod Bourgeois", as a transcript labels an analyst the moderator introduced by full name)."""
+    x, y = a.lower().replace(".", "").split(), b.lower().replace(".", "").split()
+    if x == y:
+        return True
+    if len(x) < 2 or len(y) < 2 or x[0] != y[0]:
+        return False
+    s, t = sorted((x[-1], y[-1]), key=len)
+    return s == t or t.startswith(s)
 
 
 def _label_lines(lines: List[str], names: Set[str], state: dict) -> List[str]:

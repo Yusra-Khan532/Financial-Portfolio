@@ -238,3 +238,12 @@ def test_letterhead_labels_are_never_speakers():
     letter = [p for p in pts if "TECHM" in p.text or "Gateway" in p.text]
     assert len(letter) == 2 and all(p.speaker is None and p.status != "scored" for p in letter)
     assert [(p.speaker, p.text) for p in pts if p.status == "scored"] == [("Mohit Joshi", "Revenue grew 6% YoY in the quarter.")]
+
+
+def test_an_analyst_labelled_with_a_shortened_surname_is_still_left_out():
+    """Lexicon 2.1.3 (Tech Mahindra's call): the moderator introduces "Rod Bourgeois from DeepDive Equity Research"; his turns are labelled "Rod B:"."""
+    from finlit.docscore.segment import _same
+    assert _same("Rod B", "rod bourgeois") and _same("Salil S. Parekh", "Salil Parekh") and not _same("Rod B", "Ravi Bansal") and not _same("Mohit", "Mohit Joshi")
+    pts = segment(["Moderator: The next question is from the line of Rod Bourgeois from DeepDive Equity Research.\n"
+                   "Rod B: Revenue grew 6% YoY, so the order book looks strong.\nMohit Joshi: Revenue grew 6% YoY in the quarter."], "C")
+    assert [p.speaker for p in pts if p.status == "scored"] == ["Mohit Joshi"]
