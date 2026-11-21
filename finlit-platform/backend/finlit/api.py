@@ -49,6 +49,7 @@ from . import page_feedback as page_feedback_api
 from . import dcf as dcf_api
 from . import logos as logos_api
 from . import amfi_import as amfi_import_api
+from . import fund_files as fund_files_api
 from . import search as search_api
 from . import ext_api
 from . import macro as macro_api
@@ -85,6 +86,10 @@ UPLOAD_PREFIXES = ("/api/content/admin/upload", "/api/portfolio/admin/upload")  
 MAX_UPLOAD_BODY = 16 * 1024 * 1024
 IMPORT_PREFIX = "/api/me/mf-portfolio/import-"   # a member's fund statement, read in the browser and sent as rows (up to 2,000 of them)
 MAX_IMPORT_BODY = 2 * 1024 * 1024
+# Task #281 round 7: an administrator's file uploads (AMFI's TER workbook, a fund house's monthly portfolio file) are sent as base64 inside JSON. Only a POST
+# that carries a session cookie gets the room; the routes themselves are admin-only (admin_ctx) and check the file's type from its bytes.
+ADMIN_FILE_PREFIXES = ("/api/admin/amfi/", "/api/admin/fund-files")
+MAX_ADMIN_FILE_BODY = 36 * 1024 * 1024
 CACHE_PRIVATE = "private, no-cache"  # the browser keeps a copy but asks (cheap 304) every time, so a new plan shows at once
 
 
@@ -131,6 +136,8 @@ class BodyLimitMiddleware:
         declared = headers.get(b"content-length")
         upload = scope.get("path", "").startswith(UPLOAD_PREFIXES) and headers.get(b"authorization", b"").strip().lower().startswith(b"bearer ")
         limit = MAX_UPLOAD_BODY if upload else MAX_IMPORT_BODY if scope.get("path", "").startswith(IMPORT_PREFIX) and scope["method"] == "POST" else self.limit   # the large allowance only for a request that carries a CMS token, or a member's fund-statement rows (the route needs a signed-in session and rate limits)
+        if scope["method"] == "POST" and scope.get("path", "").startswith(ADMIN_FILE_PREFIXES) and headers.get(b"cookie"):
+            limit = MAX_ADMIN_FILE_BODY
         too_big = JSONResponse({"status": "too_large", "detail": "Request is too large."}, status_code=413,
                                headers={"Cache-Control": "no-store"})
         if declared and declared.isdigit() and int(declared) > limit:
@@ -811,6 +818,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(ext_api.router)   # /api/ext/company/{symbol}: the browser extension's one lookup
     app.include_router(logos_api.router)
     app.include_router(amfi_import_api.router)
+    app.include_router(fund_files_api.router)
     app.include_router(macro_api.router)
     app.include_router(_mo.admin)   # /api/admin/macro/*
     app.include_router(__import__("finlit.macro_sectors", fromlist=["router"]).router)   # /api/macro/sectors: the macro backdrop per sector (Gold, switched on in the Console)

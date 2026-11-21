@@ -1,6 +1,6 @@
 import { JobsBanner } from "../components/JobsBanner";
 import { useState } from "react";
-import { Link, Navigate } from "react-router";
+import { Link, Navigate, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, apiGet, apiSend, apiUrl } from "../lib/api";
 import { useIpos } from "../lib/ipo";
@@ -13,6 +13,7 @@ import { useDocTitle } from "../lib/title";
 import { ScoreAdminPanel } from "../mf/ScoreAdminPanel";
 import { LogoCoverage } from "../components/admin/LogoCoverage";
 import { AmfiImport } from "../components/admin/AmfiImport";
+import { FundFiles } from "../components/admin/FundFiles";
 import { MacroAdmin } from "../components/admin/MacroAdmin";
 import { BriefAdmin } from "../components/admin/BriefAdmin";
 import { fundJobLine, fundPollMs } from "../lib/fundJobs";
@@ -67,7 +68,10 @@ function Features() {
 export function Console() {
   useDocTitle("Admin console", "FinLit administrators: manage members, plans and the audit log.");
   const { user, ready, isAdmin } = useAuth();
-  const [tab, setTab] = useState<"users" | "requests" | "content" | "data" | "macro" | "brief" | "audit">("requests");
+  type Tab = "users" | "requests" | "content" | "data" | "macro" | "brief" | "audit";
+  const [sp] = useSearchParams();   // task #281 round 7: /console?tab=data opens Data health directly (a link, or a browser assistant following steps)
+  const asked = sp.get("tab");
+  const [tab, setTab] = useState<Tab>((["users", "requests", "content", "data", "macro", "brief", "audit"] as Tab[]).includes(asked as Tab) ? (asked as Tab) : "requests");
   if (!ready) return <div className="wrap state" role="status"><div className="skeleton" style={{ height: 14, width: 200, margin: "40px auto" }} /></div>;
   if (!user) return <Navigate to="/login?next=%2Fconsole" replace />;
   if (!isAdmin) return <div className="wrap state"><h1 style={{ font: "400 28px var(--serif)" }}>Administrators only</h1><p className="muted">This area is for the FinLit team.</p><Link className="btn" to="/dashboard">Back to your dashboard</Link></div>;
@@ -81,7 +85,7 @@ export function Console() {
       {tab === "requests" && <Requests />}
       {tab === "users" && <Users />}
       {tab === "content" && <ContentAdmin />}
-      {tab === "data" && <><Health /><ScoreAdminPanel /><FundLoads /><AmfiImport /><LogoCoverage /><Features /><NotifyList /></>}
+      {tab === "data" && <><Health /><ScoreAdminPanel /><FundLoads /><AmfiImport /><FundFiles /><LogoCoverage /><Features /><NotifyList /></>}
       {tab === "macro" && <MacroAdmin />}
       {tab === "brief" && <BriefAdmin />}
       {tab === "audit" && <Audit />}
