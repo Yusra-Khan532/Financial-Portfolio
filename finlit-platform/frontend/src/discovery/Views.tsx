@@ -8,7 +8,8 @@ import { stateParts } from "../lib/sectors";
 import { I, type InfoKey } from "./Info";
 import { useDsc } from "./ctx";
 import { CompanyTable, Evs, Locked, Prism, Stage, Trend } from "./CompanyTable";
-import { ARROW, BASE, BRIEF_CARDS, CORNERS, EVENTS, RECORD_FROM, STAGES, STAGE_CLASS, VIEW_PATH, daysOld, evBiz, eventPath, fmtDate, industryPath, macroPath, pct,
+import { feedFor } from "./bucket";
+import { ARROW, BASE, BRIEF_CARDS, CORNERS, EVENTS, RECORD_FROM, STAGES, STAGE_CLASS, VIEW_PATH, daysOld, evBiz, eventPath, filterRows, fmtDate, industryPath, macroPath, pct,
   sectorPath, short, slug, stat, themePath, tone, type BoardTheme, type Corner as CornerT, type DRow, type TState } from "./model";
 
 const pctOf = (n: number, of: number) => (of ? Math.round((n / of) * 100) : 0);
@@ -78,12 +79,19 @@ function HBars({ items, unit, onPick, picked, href }: { items: [string, number, 
     {rest.length > 0 && <details className="dsc-more"><summary><span>Show all {items.length} {unit}</span><i aria-hidden="true">▾</i></summary><div className="dsc-hbars">{rest.map(row)}</div></details>}</>;
 }
 /** A list that shows four, then "Show N more ▾" (SPEC §5.4, §6). */
-function FilingList({ list }: { list: { s: string; n: string; d: string; el: string; t: string; l?: string | null }[] }) {
+function FilingList({ list, filtered }: { list: { s: string; n: string; d: string; el: string; t: string; l?: string | null }[]; filtered?: boolean }) {
   const c = useDsc();
-  if (!list.length) return <p className="dsc-na">No such filing in the last {c.d.board?.days ?? 90} days.</p>;
+  if (!list.length) return <p className="dsc-na">{filtered ? "No filing from a company in your filters." : `No such filing in the last ${c.d.board?.days ?? 90} days.`}</p>;
   const li = (f: (typeof list)[number]) => <li key={f.s + f.d + f.t}><b>{short(c.by.get(f.s)?.n ?? f.n)}</b> · {f.t}<small>{fmtDate(f.d)} · {f.el}{f.l ? <> · <a href={f.l} target="_blank" rel="noopener noreferrer">Open the filing ↗</a></> : null}</small></li>;
   return <><ul className="dsc-fl">{list.slice(0, 4).map(li)}</ul>
     {list.length > 4 && <details className="dsc-more"><summary><span>Show {list.length - 4} more</span><i aria-hidden="true">▾</i></summary><ul className="dsc-fl">{list.slice(4).map(li)}</ul></details>}</>;
+}
+/** Task #296: the "Latest …" panel of a theme or event page follows the table's filters below it: only the filings of companies that pass them (null = no
+ *  filter on, the whole feed). */
+function useFeedKeep(rows: DRow[], sort?: string): Set<string> | null {
+  const c = useDsc(), S = c.T("", sort);
+  const on = !!(S.stage || S.size || S.lt || S.pr || S.cn || S.mac || S.sct || S.ind || S.mine || S.q || S.lenses.length || S.cell);
+  return useMemo(() => (on ? new Set(filterRows(rows, S, c.onList).map((r) => r.s)) : null), [on, rows, S, c]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 function FourKpis({ rows }: { rows: DRow[] }) {
   const c = useDsc(), s = stat(rows);
@@ -150,6 +158,7 @@ function WhereTheySit({ rows }: { rows: DRow[] }) {
 export function ThemePage({ theme }: { theme: string }) {
   const c = useDsc(), b = c.d.board!, t = b.themes.find((x) => x.name === theme)!;
   const rows = useMemo(() => c.d.rows.filter((r) => r.th === theme), [c.d.rows, theme]);
+  const keep = useFeedKeep(rows);
   const s = stat(rows), yours = rows.filter((r) => c.onList(r.s));
   const sg = count(rows, (r) => r.st), sgN = new Map(sg);
   const p = usePrefs(), id = slug(theme), following = p.followThemes.includes(id);
@@ -176,7 +185,7 @@ export function ThemePage({ theme }: { theme: string }) {
       <div className="dsc-panel"><h3>What to check <I k="check" /></h3>
         {t.verify.length ? <ul>{t.verify.slice(0, 5).map((v) => <li key={v}>{v}</li>)}</ul> : <p className="dsc-na">No checklist for this theme yet.</p>}
         <p className="dsc-note">A theme word or a filing alone is not proof of real business. Check the figures, orders and status in the company’s own documents.</p></div>
-      <div className="dsc-panel"><h3>Latest filings in this theme</h3><FilingList list={b.thfil?.[theme] ?? []} /></div>
+      <div className="dsc-panel"><h3>Latest filings in this theme</h3><FilingList list={feedFor(b.thfil?.[theme] ?? [], keep)} filtered={!!keep} /></div>
     </div>
     <CompanyTable title={"Companies in " + t.label} base={rows} />
   </>;
@@ -208,18 +217,20 @@ export function EventsView() {
 export function EventPage({ k }: { k: string }) {
   const c = useDsc(), b = c.d.board!;
   const brief = BRIEF_CARDS.find((x) => x.k === k);
+  const rows = useMemo(() => c.d.rows.filter((r) => r.ev[k]), [c.d.rows, k]);
+  const keep = useFeedKeep(rows, "ev");
   if (brief) return <>
     <Crumb trail={[[VIEW_PATH["what-changed"], "What changed"]]} here={brief.t} />
     <div className="dsc-dh"><div><h2>{brief.t} <span className="dsc-flg teal">From briefs</span></h2><p>Each item comes from a full company brief, with its value, its date and the page of the filing it is on. More companies appear as briefs are written.</p></div></div>
     <div className="dsc-panel"><p className="dsc-na">No full company brief with these items is published yet.</p></div>
   </>;
   const e = EVENTS.find((x) => x.k === k)!;
-  const rows = c.d.rows.filter((r) => r.ev[k]), s = stat(rows);
+  const s = stat(rows);
   return <>
     <Crumb trail={[[VIEW_PATH["what-changed"], "What changed"]]} here={e.t} />
     <div className="dsc-dh"><div><h2>{e.t}</h2><p>{s.n} companies {e.d} in the last {b.days} days. Sorted by how many such filings each made.</p></div><div className="dsc-dha"><Jump /></div></div>
     <FourKpis rows={rows} />
-    <div className="dsc-panel dsc-mb"><h3>Latest of these filings</h3><FilingList list={b.efil[k] ?? []} /></div>
+    <div className="dsc-panel dsc-mb"><h3>Latest of these filings</h3><FilingList list={feedFor(b.efil[k] ?? [], keep)} filtered={!!keep} /></div>
     <CompanyTable title={"Companies with " + e.t.toLowerCase()} base={rows} defaultSort="ev" event={k} />
   </>;
 }

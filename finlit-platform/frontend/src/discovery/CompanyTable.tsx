@@ -9,12 +9,12 @@ import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type R
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "../lib/api";
-import { Icon } from "../lib/icons";
 import { citeUrl, useCompanyBrief } from "../lib/companyBrief";
 import { I, type InfoKey } from "./Info";
+import { ActiveChips, FilterCard } from "./FilterCard";
 import { useDsc } from "./ctx";
 import { PulseChip, RankLine, RotChip, Stale } from "./Views";
-import { ARROW, BANDS, CORNERS, EVENTS, LENSES, SIZES, STAGES, STAGE_CLASS, TRENDS, codeOf, crore, filterRows, fmtDate, industryPath, isUp, linkFilters, macroPath, pct,
+import { ARROW, CORNERS, EVENTS, LENSES, SIZES, STAGE_CLASS, codeOf, crore, filterRows, fmtDate, industryPath, isUp, linkFilters, macroPath, pct,
   sectorPath, short, sortRows, themePath, tone, toneWord, type DRow, type TState } from "./model";
 import type { CompanySize } from "../lib/companySize";
 
@@ -58,14 +58,13 @@ const COLS: Col[] = [{ k: "co", l: "Company" }, { k: "cls", l: "Sector · indust
   { k: "r3m", l: "3 months", i: "r3m", cls: "r" }, { k: "r1y", l: "1 year", i: "r1y", cls: "r" }, { k: "hi", l: "Below 52-wk high", i: "high", cls: "r" },
   { k: "mc", l: "Market cap", i: "mc", cls: "r" }, { k: "cn", l: "Industry: Rotation · Pulse", i: "corner", cls: "w-cn" }];
 const GOLD_VIEWS = new Set(["uptrend", "prism"]);
-const SIZE_KEYS: CompanySize[] = ["large", "mid", "small", "micro"];
 
 /** The table of one page. `base` is the page's own list (a theme, an event, a sector, an industry or every company). */
 export function CompanyTable({ title, base, defaultSort = "pr", event, hideCls }: { title: string; base: DRow[]; defaultSort?: string; event?: string; hideCls?: boolean }) {
   const c = useDsc();
   const S = c.T("", defaultSort), set = (p: Partial<TState>) => c.setT("", p, defaultSort);
   const hideTh = !!c.route.theme;
-  const [fOpen, setFOpen] = useState(false), [note, setNote] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
   const unlens = useMemo(() => filterRows(base, S, c.onList, false), [base, S, c]);
   const all = useMemo(() => sortRows(filterRows(base, S, c.onList), S, event), [base, S, c, event]);
   const pages = Math.max(1, Math.ceil(all.length / S.per)), page = Math.min(S.page, pages - 1);
@@ -107,53 +106,15 @@ export function CompanyTable({ title, base, defaultSort = "pr", event, hideCls }
     set({ [k]: "", page: 0 } as Partial<TState>);
   };
   const sortBy = (k: string) => set(S.sort === k ? { dir: S.dir === -1 ? 1 : -1 } : { sort: k, dir: k === "co" || k === "th" || k === "cls" ? 1 : -1 });
-  const inMac = S.mac ? ` in ${S.mac}` : "", inSct = S.sct ? ` in ${S.sct}` : inMac;
-  const sel = (k: keyof TState, label: string, info: InfoKey | null, opts: [string, string][], onChange?: (v: string) => void) => (
-    <label className="dsc-ff"><span>{label}{info ? <I k={info} /> : null}</span>
-      <select aria-label={label} value={String(S[k] ?? "")} data-on={S[k] ? true : undefined}
-        onChange={(e) => (onChange ? onChange(e.target.value) : set({ [k]: e.target.value, page: 0 } as Partial<TState>))}>{opts.map(([v, t]) => <option key={v} value={v}>{t}</option>)}</select></label>);
-
   return <section className="dsc-tsec" aria-labelledby="dsc-tbl-h">
     <div className="dsc-secth" id="dsc-tbl-top"><h3 id="dsc-tbl-h">{title}</h3></div>
     {yours.length > 0 && <div className="dsc-yh"><span>Yours here (★ watchlist):</span>{yours.map((r) => (
       <button key={r.s} type="button" className="dsc-chip" onClick={() => { set({ q: r.n, page: 0 }); c.toggleOpen(r.s, true); }}>{short(r.n)}{c.isHeld(r.s) ? "" : " ★"}</button>))}</div>}
-    <div className="dsc-tools">
-      <div className="dsc-views" role="group" aria-label="Ready-made views"><span className="dsc-lab">Ready-made views</span><I k="views" />
-        {LENSES.map((l) => {
-          const gold = GOLD_VIEWS.has(l.k) && !c.prismOpen;
-          const on = S.lenses.includes(l.k), n = unlens.filter(l.f).length, noPeers = l.k === "leader" && !c.d.leaders, zero = !gold && !noPeers && n === 0;
-          const off = gold || noPeers || zero;
-          return <button key={l.k} type="button" className={"dsc-ln" + (zero || noPeers ? " zero" : "") + (gold ? " gold" : "")} aria-pressed={on} disabled={off && !on}
-            title={gold ? "FinLit Prism and the technical views are part of Gold" : noPeers ? "The peer labels are not published yet" : zero ? "No company in this list" : undefined}
-            onClick={() => set({ lenses: on ? S.lenses.filter((x) => x !== l.k) : [...S.lenses, l.k], page: 0 })}>{l.t}<span className="dsc-c">{gold ? "Gold" : noPeers ? "−" : n}</span></button>;
-        })}</div>
-      <div className={"dsc-fbar" + (fOpen ? " open" : "")} id="dsc-fbar">
-        <div className="dsc-fbtop">
-          <label className="dsc-fq"><Icon name="search" /><input type="search" placeholder="Search a company in this list" aria-label="Search in this list" value={S.q} onChange={(e) => set({ q: e.target.value, page: 0 })} /></label>
-          <label className="dsc-mine-t" data-on={S.mine || undefined} title={c.signedIn ? undefined : "Sign in to use your portfolio and watchlist"}>
-            <input type="checkbox" checked={S.mine} onChange={(e) => set({ mine: e.target.checked, page: 0 })} disabled={!c.signedIn} /><span>Only my names</span></label>
-          <button type="button" className="dsc-fbtog" aria-expanded={fOpen} aria-controls="dsc-frows" onClick={() => setFOpen((v) => !v)}>Filters <i aria-hidden="true">▾</i></button>
-        </div>
-        <div className="dsc-frows" id="dsc-frows">
-          <div className="dsc-frow" role="group" aria-labelledby="dsc-fh-co"><div className="dsc-fh" id="dsc-fh-co">About the company</div>
-            {sel("stage", "Stage", "stage", [["", "Any stage"], ...STAGES.map((s) => [s, s] as [string, string])])}
-            {sel("size", "Size", "mc", [["", "Any size"], ...SIZE_KEYS.map((s) => [s, SIZES[s]] as [string, string])])}
-            {sel("lt", "Long-term trend", "lt", c.prismOpen ? [["", "Any trend"], ...TRENDS.map((s) => [s, s] as [string, string]), ["none", "Not rated"]] : [["", "Part of Gold"]])}
-            {sel("pr", "FinLit Prism", "prism", c.prismOpen ? [["", "Any rating"], ...BANDS.map((s) => [s, s] as [string, string])] : [["", "Part of Gold"]])}
-          </div>
-          <div className="dsc-frow" role="group" aria-labelledby="dsc-fh-nse"><div className="dsc-fh" id="dsc-fh-nse">Where it sits <small>NSE</small></div>
-            {sel("mac", "Macro sector", null, [["", "Any macro sector"], ...macs.map((m) => [m, `${m} (${cnt("mac", m)})`] as [string, string])], (v) => setNse("mac", v))}
-            {sel("sct", "Sector", null, [["", "Any sector" + inMac], ...scts.map((m) => [m, `${m} (${cnt("sct", m)})`] as [string, string])], (v) => setNse("sct", v))}
-            {sel("ind", "Industry", null, [["", "Any industry" + inSct], ...inds.map((m) => [m, `${m} (${cnt("ind", m)})`] as [string, string])], (v) => setNse("ind", v))}
-            {sel("cn", "Sector Rotation", "corner", [["", "Any box"], ...Object.entries(CORNERS).map(([k, v]) => [k, `${ARROW[k as keyof typeof ARROW]} ${v}`] as [string, string])])}
-          </div>
-        </div>
-      </div>
-    </div>
+    <FilterCard S={S} set={set} prismOpen={c.prismOpen} signedIn={c.signedIn}
+      views={LENSES.map((l) => ({ k: l.k, t: l.t, n: unlens.filter(l.f).length, gold: GOLD_VIEWS.has(l.k) && !c.prismOpen, noPeers: l.k === "leader" && !c.d.leaders }))}
+      nse={{ macs, scts, inds, cnt, set: setNse }} />
     {note && <p className="dsc-taken" role="status">{note}</p>}
-    {chips.length > 0 && <div className="dsc-active" role="group" aria-label="Filters on"><span>Filters:</span>{chips.map(([k, t]) => (
-      <button key={k} type="button" className="dsc-ac" aria-label={`Remove filter ${t}`} onClick={() => unset(k)}>{t} ✕</button>))}
-      <button type="button" className="dsc-linkish" onClick={() => unset("all")}>Clear all</button></div>}
+    <ActiveChips chips={chips} unset={unset} />
     <div className="dsc-rhead"><span className="dsc-cnt" aria-live="polite">{all.length.toLocaleString("en-IN")} {all.length === 1 ? "company" : "companies"}</span>
       <span className="dsc-foot">Click ▸ for what the company says, its filings and FinLit’s reading.</span></div>
     <StickyTable>
