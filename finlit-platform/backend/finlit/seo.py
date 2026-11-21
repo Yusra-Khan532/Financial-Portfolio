@@ -94,7 +94,7 @@ PRIVATE = ("account", "dashboard", "console", "admin", "login", "verify-email", 
            "funds/insights", "etfs/compare", "etfs/compare-index-funds", "sectors/rotation", "sectors/capital-goods", "research/stress-lab", "reverse-valuation",
            "discovery")      # task #260: the old address of Discover, now a redirect to /discover
 # Addresses that carry a value in the last part and are answered with a generic head (their content is checked in the app).
-PARAM_PREFIXES = ("funds", "etfs", "prism", "sectors", "blog", "legal", "outlook", "premium/report", "graphs/advanced", "account", "forum", "research/stress-lab", "superinvestors")
+PARAM_PREFIXES = ("funds", "etfs", "prism", "sectors", "blog", "legal", "outlook", "premium/report", "graphs/advanced", "account", "forum", "research/stress-lab", "superinvestors", "superinvestors/name")   # superinvestors/name: one filed name as written (task #289)
 
 
 # Addresses that moved for good: answered with a 301 to the new address before anything else (web.py), and never listed in the sitemap. The query string is

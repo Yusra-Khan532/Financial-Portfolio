@@ -21,8 +21,8 @@ export const PLAN_FOR_PORTFOLIO: Plan = "silver";
 export const PLAN_FOR_STRESS_LAB: Plan = "silver";
 /** The stock screener's Silver features, where a page outside the screener links to them. */
 export const PLAN_FOR_SCREENER: Plan = "silver";
-/** Superinvestors. */
-export const PLAN_FOR_SUPERINVESTORS: Plan = "silver";
+/** Superinvestors: Gold (task #289, 21 Nov 2026: the whole feature moved to Gold; the Silver badge and lock are gone). */
+export const PLAN_FOR_SUPERINVESTORS: Plan = "gold";
 /** Discover (themes). */
 export const PLAN_FOR_DISCOVER: Plan = "silver";
 /** The forum's Silver features. */

@@ -60,6 +60,7 @@ const SuperinvestorsPage = lazy(() => import("./pages/Superinvestors").then((m) 
 const DiscoveryPage = lazy(() => import("./pages/Discovery").then((m) => ({ default: m.DiscoveryPage })));   // task #241
 const DiscoveryRedirect = lazy(() => import("./pages/Discovery").then((m) => ({ default: m.DiscoveryRedirect })));   // task #260: /discovery -> /discover
 const SuperinvestorPage = lazy(() => import("./pages/Superinvestors").then((m) => ({ default: m.SuperinvestorPage })));
+const SuperinvestorNamePage = lazy(() => import("./pages/Superinvestors").then((m) => ({ default: m.SuperinvestorNamePage })));
 const StressLabIndexPage = lazy(() => import("./pages/StressLab").then((m) => ({ default: m.StressLabIndexPage })));
 const OutlookPage = lazy(() => import("./pages/Outlook").then((m) => ({ default: m.OutlookPage })));
 const OutlookIndexPage = lazy(() => import("./pages/Outlook").then((m) => ({ default: m.OutlookIndexPage })));
@@ -146,6 +147,7 @@ export default function App() {
             <Route path="superinvestors" element={<SuperinvestorsPage />} />
             <Route path="discover/*" element={<DiscoveryPage />} />
             <Route path="discovery" element={<DiscoveryRedirect />} />
+            <Route path="superinvestors/name/:key" element={<SuperinvestorNamePage />} />
             <Route path="superinvestors/:key" element={<SuperinvestorPage />} />
             <Route path="research/stress-lab/:symbol" element={<StressLabPage />} />
             <Route path="eps-calculator" element={<EpsCalculatorPage />} />
