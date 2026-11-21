@@ -98,7 +98,9 @@ def _paragraphs(lines: Sequence[str]) -> List[tuple]:
     return res
 
 
-NOT_SPEAKER = re.compile(r"^(sub|subject|ref|re|date|to|dear|note|notes|website|web|email|e-mail|tel|fax|cin|regd|place|encl|kind attn|attn)$", re.I)
+NOT_SPEAKER = re.compile(r"^(sub|subject|ref|re|date|to|dear|note|notes|website|web|email|e-mail|tel|fax|cin|regd|place|encl|kind attn|attn)$"
+                         r"|\b(symbol|scrip|code|isin|office|address|phone|telephone|mobile|website|e-?mail|fax|cin|regd|registered|series|"
+                         r"stock exchange|exchange|limited|ltd|listing|department|dept|plot|road|floor|tower|building|pin)\b", re.I)   # letterhead labels ("NSE Symbol:", "Regd. Office:")
 ROSTER_COMPANY = re.compile(r"^(corporate|company|management)\s+(participants|representatives|speakers|team)\b|^management\s*:?$|^from the company\b", re.I)
 ROSTER_OTHER = re.compile(r"^(analysts?|journalists|media|investors|conference call participants|call participants|participants|other participants)\b.{0,30}$", re.I)
 ROLE_WORDS = re.compile(r"\b(officer|director|president|head|manager|chief|chairman|chairperson|secretary|analyst|limited|ltd|securities|capital|bank|times|express|news|"
@@ -153,7 +155,7 @@ def _label_lines(lines: List[str], names: Set[str], state: dict) -> List[str]:
         if bare and (ROSTER_COMPANY.search(bare) or (ROSTER_OTHER.match(bare) and len(bare.split()) <= 5)):
             state["roster"] = True
         if state.get("roster"):
-            if bare and (MODERATOR.match(bare) or len(bare.split()) > 12 or (SPEAKER.match(ln) and not NOT_SPEAKER.match(SPEAKER.match(ln).group(1).strip()))):
+            if bare and (MODERATOR.match(bare) or len(bare.split()) > 12 or (SPEAKER.match(ln) and not NOT_SPEAKER.search(SPEAKER.match(ln).group(1).strip()))):
                 state["roster"] = False
             else:
                 if bare:
@@ -168,7 +170,7 @@ def _label_lines(lines: List[str], names: Set[str], state: dict) -> List[str]:
             pending = None
             continue
         m = SPEAKER.match(ln)
-        if m and not NOT_SPEAKER.match(m.group(1).strip()):
+        if m and not NOT_SPEAKER.search(m.group(1).strip()):
             out.append("")
         out.append(ln)
     return out
@@ -193,7 +195,7 @@ def segment(pages: Sequence[str], doctype: str) -> List[Point]:
                 continue
             if doctype == "C":
                 m = SPEAKER.match(text)
-                if m and not NOT_SPEAKER.match(m.group(1).strip()):
+                if m and not NOT_SPEAKER.search(m.group(1).strip()):
                     speaker, text = m.group(1).strip(), m.group(2).strip()
                     kind = "sentence" if kind == "heading" else kind
                 if speaker and MODERATOR.match(speaker):
