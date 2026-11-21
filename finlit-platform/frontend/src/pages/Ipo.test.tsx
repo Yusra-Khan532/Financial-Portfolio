@@ -5,8 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Ipo } from "../lib/ipo";
 import { listingMove, timeline } from "../lib/ipo";
 
-const st = vi.hoisted(() => ({ data: [] as unknown[] }));
-vi.mock("../lib/ipo", async (orig) => ({ ...(await orig<typeof import("../lib/ipo")>()), useIpos: () => ({ data: st.data, isLoading: false, isError: false }) }));
+const st = vi.hoisted(() => ({ data: [] as unknown[], gmp: undefined as unknown, board: "" }));
+vi.mock("../lib/ipo", async (orig) => ({ ...(await orig<typeof import("../lib/ipo")>()), useIpos: () => ({ data: st.data, isLoading: false, isError: false }),
+  useGmpRecord: (b: string) => { st.board = b; return { data: st.gmp, isLoading: false, isError: false }; } }));
 vi.mock("../lib/title", () => ({ useDocTitle: () => undefined }));
 vi.mock("../components/ChartHelp", () => ({ ChartHelp: () => null }));
 import { IpoPage } from "./Ipo";
@@ -16,7 +17,7 @@ const bare = mk({ id: 1, name: "Bare Co", status: "upcoming" });
 const rich = mk({ id: 2, name: "Rich Co", status: "open", sector: "Foods", symbol: "RICH", priceLow: 95, priceHigh: 100, lotSize: 150, issueSizeCr: 600, updatedAt: "2026-10-29T10:00:00+00:00", source: "FinEdge",
   details: { exchange: ["NSE", "BSE"], registrar: "Link Intime", leadManagers: ["Axis Capital"], subscription: { qib: 12.5, retail: 3.2, overall: 6.1 }, allotmentDate: "2026-11-06", refundDate: "2026-11-09", freshIssueCr: 400, ofsCr: 200, promoterPrePct: 80, promoterPostPct: 60, objectives: ["Repay borrowings"], docs: { rhp: "https://example.org/rhp.pdf" } } });
 const listed = mk({ id: 3, name: "Listed Co", status: "listed", openDate: "2026-10-01", closeDate: "2026-10-05", listingDate: "2026-10-09", priceLow: 90, priceHigh: 100, lotSize: 100, listingPrice: 112.5, source: "FinEdge" });
-beforeEach(() => { st.data = [bare, rich, listed]; });
+beforeEach(() => { st.data = [bare, rich, listed]; st.gmp = undefined; });
 afterEach(cleanup);
 
 describe("helpers", () => {
@@ -78,5 +79,45 @@ describe("IpoPage", () => {
     const { container } = render(<IpoPage />);
     fireEvent.click(screen.getByRole("button", { name: "Details: Listed Co" }));
     expect(document.body.textContent || container.textContent).not.toMatch(/\b(buy|sell|apply|subscribe|good listing|recommend|gain)\b/i);
+  });
+});
+
+
+// "What GMP said vs what actually listed": the record behind it is InvestorGain's (backend finlit/ipogmp.py); the section only draws it.
+const pt = (name: string, gmpPct: number, listingPct: number, verdict: "beat" | "short" | "band", extra = {}) => ({ name, symbol: null, board: "mainboard", issuePrice: 100, gmp: gmpPct,
+  gmpPct, listingPrice: 100 + listingPct, listingPct, listingDate: "2026-11-03", subscription: 10, issueSizeCr: 200, verdict, url: "https://www.investorgain.com/gmp/" + name + "/1/", ...extra });
+const GMP = { board: "mainboard", source: { name: "InvestorGain", url: "https://www.investorgain.com/" }, updatedAt: null, note: "",
+  items: [pt("bls", 46, 65.33, "beat"), pt("sfc", 4.7, 7.61, "band"), pt("far", 300, 20, "short")],
+  summary: { count: 3, beat: 1, short: 1, band: 1, bandPts: 5, directionRight: 3, medianGap: 19.3, fit: { slope: 1.03, intercept: 2 } } };
+
+describe("What GMP said vs what actually listed", () => {
+  it("draws every listed issue, writes the count in words, credits InvestorGain and calls GMP unofficial", () => {
+    st.gmp = GMP;
+    render(<IpoPage />);
+    const sec = screen.getByRole("heading", { name: /What GMP said vs what actually listed/ }).closest("section") as HTMLElement;
+    expect(sec.querySelectorAll("circle")).toHaveLength(3);
+    expect(sec.textContent).toContain("Of 3 issues, 1 listed within 5 points of what the GMP said, 1 listed higher and 1 lower. The typical gap was 19.3 points.");
+    expect(sec.textContent).toContain("1 off the scale (hollow, at the edge)");
+    expect(sec.textContent).toContain("Actual trend · slope 1.03");
+    expect(within(sec).getByRole("link", { name: "InvestorGain" }).getAttribute("href")).toBe("https://www.investorgain.com/");
+    expect(sec.textContent).toMatch(/unofficial/);
+    expect(sec.textContent).not.toMatch(/\b(buy|sell|hold|should|best|target)\b/i);
+    expect(st.board).toBe("mainboard");
+    fireEvent.click(within(sec).getByRole("button", { name: "SME" }));
+    expect(st.board).toBe("sme");
+  });
+  it("has a table view with the same figures", () => {
+    st.gmp = GMP;
+    render(<IpoPage />);
+    const sec = screen.getByRole("heading", { name: /What GMP said vs what actually listed/ }).closest("section") as HTMLElement;
+    fireEvent.click(within(sec).getByRole("button", { name: "Show as table" }));
+    const rows = within(sec).getAllByRole("row");
+    expect(rows).toHaveLength(4);
+    expect(rows[1].textContent).toContain("46.0%"); expect(rows[1].textContent).toContain("65.3%"); expect(rows[1].textContent).toContain("Beat the call");
+  });
+  it("says so when there is no record yet", () => {
+    st.gmp = { ...GMP, items: [], summary: { ...GMP.summary, count: 0 } };
+    render(<IpoPage />);
+    expect(screen.getByText(/No listed issues with a GMP on record yet for mainboard issues/)).toBeTruthy();
   });
 });

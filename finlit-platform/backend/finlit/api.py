@@ -472,6 +472,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
 
     if settings.site_api_url:
         register_stock_admin(app, settings.site_api_url)  # must come before the /api/stocks/{symbol}/{section} routes
+    app.include_router(__import__("finlit.ipogmp", fromlist=["router"]).router)   # /api/ipos/gmp-record: GMP against the actual listing (IPO calendar)
     app.include_router(intraday.router)   # /api/stocks/{symbol}/intraday: also before the /api/stocks/{symbol}/{section} route
     app.include_router(leadership_api.router)   # /api/stocks/{symbol}/leadership and /leadership-history: likewise
     app.include_router(ownership_insights.router)   # /api/stocks/{symbol}/ownership-insights: likewise
