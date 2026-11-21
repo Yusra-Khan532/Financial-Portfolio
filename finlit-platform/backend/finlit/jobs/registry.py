@@ -115,6 +115,9 @@ class Job:
     daily_at: Optional[Tuple[int, int]] = None
     day_rule: Optional[Callable[[date], bool]] = None
     time_rule: Optional["TimeRule"] = None          # the only hours of the week the job may START in, retries and continuations included (the sector job: weekend nights)
+    # Inside these hours, while the job is due or running, it has the server's long-job lane to itself (owner's written exception, 21 Nov 2026, the sector
+    # job only): it goes first, every other bulk or audit job waits, and one already running is paused (it continues afterwards, never counted as a failure).
+    first_in: Optional["TimeRule"] = None
     sla: Sla = field(default_factory=Sla)
     probe: Optional[str] = None
     min_gap_min: float = 30.0                       # probe-driven re-runs: at least this long after the last attempt
@@ -307,7 +310,7 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         # weekend nights only, at the lowest bulk priority (owner, 18 Nov 2026; docs/JOBS.md "The sector job on weekend nights"): one full build a week on the
         # week's data up to Friday's close; every daily and weekly job of the night goes first; never on a weekday night
         Job("sectors", ("refresh-sectors",), cls="bulk", priority=95, max_runtime_min=90, weight_mb=SECTORS_WEIGHT_MB, stall_min=45, prerequisites=("technicals",), resumable=True,
-            windows=(W("NIGHT", 120), W("MORNING", 120)), time_rule=WEEKEND_NIGHTS, sla=Sla("hours", 192), owns=("sectors",), catchup=False,
+            windows=(W("NIGHT", 120), W("MORNING", 120)), time_rule=WEEKEND_NIGHTS, first_in=WEEKEND_NIGHTS, sla=Sla("hours", 192), owns=("sectors",), catchup=False,
             gate=Gate("SECTORS_JOB", "The sector job is switched off by SECTORS_JOB=off in /opt/finlit/.env.aws: Sector Pulse and Rotation keep the last published data. Remove the line (or set it to on) and restart the jobs container to bring back the weekend build (docs/JOBS.md section 4b)", wants="on", default="on"),   # on since the owner's decision of 18 Nov 2026 (weekend nights only); SECTORS_JOB=off still switches it off
             what="Sector Pulse: NSE's daily files, then every industry's breadth state, leader flags and ranked stocks, swapped in whole (docs/SECTORS.md)"),
         Job("ingest-flagship", ("ingest", "RELIANCE", "TCS", "INFY", "HDFCBANK", "ICICIBANK", "SBIN", "ITC", "LT", "BHARTIARTL", "HINDUNILVR"), cls="bulk",
