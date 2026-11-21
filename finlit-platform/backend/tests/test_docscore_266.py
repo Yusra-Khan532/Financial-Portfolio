@@ -207,3 +207,24 @@ async def test_the_endpoint_reads_section18_scores_the_three_and_the_company(app
     assert not any(x in text for x in ("positive", "neutral", "sentiment")) and "negative" not in text.replace("negative net worth", "")
     assert (await c.get("/api/stocks/bad sym!/filing-scores")).status_code in (400, 404)
     await c.aclose()
+
+
+ROSTER_CALL = ["TO ALL STOCK EXCHANGES\nSub: Transcripts of the earnings call conducted after the Board meeting\nDear Sir/ Madam,\nPlease find enclosed the transcript.",
+               "Infosys Limited\nEarnings Conference Call\nCORPORATE PARTICIPANTS:\n\nSalil Parekh\nChief Executive Officer and Managing Director\n\nJayesh Sanghrajka\n"
+               "Chief Financial Officer\n\nANALYSTS\n\nJonathan Lee\nGuggenheim Securities\n\nMeghna Sen\nCNBC-TV18",
+               "Moderator\nThe next question is from Jonathan Lee from Guggenheim Securities.\nJonathan Lee\nWhat about the order book? Is there a risk of default?\n"
+               "Salil Parekh\nWe delivered a record quarter with revenue growth of 21% year on year to Rs 1,860 crore.\nWhich countries are you exploring?\n"
+               "Jayesh Sanghrajka\nNet debt reduced to Rs 140 crore and free cash flow was Rs 215 crore."]
+
+
+def test_a_transcript_with_a_participants_list_and_names_on_their_own_lines():
+    """Lexicon 2.1.1 (the Infosys Q2 FY27 transcript): the list names the company's speakers; a name alone on a line starts a turn; the cover letter
+    ("Sub:"), the analysts and journalists, the moderator and any question are left out."""
+    from finlit.docscore.segment import roster
+    mine, others = roster(ROSTER_CALL)
+    assert mine == {"salil parekh", "jayesh sanghrajka"} and others == {"jonathan lee", "meghna sen"}
+    pts = segment(ROSTER_CALL, "C")
+    assert [(p.speaker, p.text[:30]) for p in pts if p.status == "scored"] == [("Salil Parekh", "We delivered a record quarter "), ("Jayesh Sanghrajka", "Net debt reduced to Rs 140 cro")]
+    assert {p.status for p in pts if "Sub:" in p.text or "enclosed" in p.text} == {"excluded: before the call"}
+    assert any(p.status == "excluded: a question" and "exploring" in p.text for p in pts)
+    assert all(p.status.startswith("excluded") for p in pts if p.speaker in ("Jonathan Lee", "Moderator"))
