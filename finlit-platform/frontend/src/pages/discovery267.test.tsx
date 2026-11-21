@@ -2,6 +2,8 @@
 // Task #267: Discover's "Earnings calls" and "Results filings" views (discovery/Sources.tsx): the strip of their own under the four ways, a card per
 // bucket with its company count (an empty bucket says why), a bucket's page with each company's keywords, its sentences with figures (or why none is
 // quoted), the document's date and exchange link, and the bucket's What to verify; the directory's caution and the disclaimer stay on every view.
+// Task #303: the two views are now the last two tabs of Discover's one tab bar, and a bucket's page is the compact layout (one row per company that
+// opens to its sentences, document, keywords and checks; What to verify as a dropdown). Every check below keeps its intent.
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -52,17 +54,18 @@ function Where() { const l = useLocation(); loc = l.pathname; return null; }
 const show = async (path: string) => {
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
     <MemoryRouter initialEntries={[path]}><Routes><Route path="/discover/*" element={<><DiscoveryPage /><Where /></>} /></Routes></MemoryRouter></QueryClientProvider>);
-  await screen.findByRole("navigation", { name: "Discover views from calls and results" });
+  await screen.findByRole("navigation", { name: "Discover views" });
 };
-const strip = () => screen.getByRole("navigation", { name: "Discover views from calls and results" });
+const strip = () => screen.getByRole("navigation", { name: "Discover views" });
 afterEach(() => { cleanup(); seen.length = 0; });
 
 describe("#267: Earnings calls and Results filings in Discover", () => {
-  it("adds two views in their own strip; the four ways stay as they are", async () => {
+  it("adds two views after the four in the tab bar, behind a divider and the 'From calls and results' label", async () => {
     await show("/discover");
-    const ways = [...strip().querySelectorAll("a")].map((a) => [a.querySelector(".dsc-wl")!.textContent, a.getAttribute("href"), a.querySelector(".dsc-wd")!.textContent]);
-    expect(ways).toEqual([["Earnings calls8", "/discover/calls", "What management says on results calls"], ["Results filings7", "/discover/results", "What quarterly results filings report"]]);
-    expect(screen.getByRole("navigation", { name: "Discover views" }).querySelectorAll("a")).toHaveLength(4);
+    const ways = [...strip().querySelectorAll("a")].map((a) => [a.textContent, a.getAttribute("href")]);
+    expect(ways.slice(4)).toEqual([["Earnings calls8", "/discover/calls"], ["Results filings7", "/discover/results"]]);
+    expect(ways).toHaveLength(6);
+    expect(strip().querySelector(".dw-tlab")!.textContent).toBe("From calls and results");
     expect(seen.some((p) => p.startsWith("/api/discovery/sources"))).toBe(false);          // the Themes view does not load the new views' data
     fireEvent.click(within(strip()).getByRole("link", { name: /Earnings calls/ }));
     expect(loc).toBe("/discover/calls");
@@ -93,24 +96,36 @@ describe("#267: Earnings calls and Results filings in Discover", () => {
     await show("/discover/calls/capex-capacity-and-execution");
     expect(within(await screen.findByRole("navigation", { name: "Breadcrumb" })).getByRole("link", { name: "Earnings calls" }).getAttribute("href")).toBe("/discover/calls");
     expect(screen.getByRole("heading", { level: 2, name: "Capex, Capacity & Execution" })).toBeTruthy();
-    const rows = await screen.findAllByRole("listitem", { name: (_n, el) => el.hasAttribute("data-src-co") });
-    expect(rows.map((r) => r.getAttribute("data-src-co"))).toEqual(["ACME", "QUIETCO"]);
-    const acme = rows[0];
+    await screen.findAllByRole("row", { name: (_n, el) => el.hasAttribute("data-src-co") });
+    const rows = () => [...document.querySelectorAll<HTMLElement>("tr[data-src-co]")];
+    expect(rows().map((r) => r.getAttribute("data-src-co"))).toEqual(["ACME", "QUIETCO"]);
+    const acme = rows()[0];
     expect(within(acme).getByRole("link", { name: "Acme Industries" }).getAttribute("href")).toBe("/stocks/ACME");
-    expect(acme.querySelector(".dsc-kd-ev")!.textContent).toBe("“Capex guidance for FY27 is Rs 1,200 crore, mostly growth capex for the new Dahej line.”");
-    expect([...acme.querySelectorAll(".dsc-kd-kw .dsc-ev")].map((e) => e.textContent)).toEqual(["Capex plan and outlay", "Ramp-up and utilisation"]);
-    expect(acme.querySelector(".dsc-kd-doc")!.textContent).toBe("Call transcript of 18 Nov 2026 · Open the filing ↗ · Tone of its wording: Positive");
-    const a = within(acme).getByRole("link", { name: "Open the filing ↗" });
+    expect(acme.querySelector(".dbx-quote")!.textContent).toBe("“Capex guidance for FY27 is Rs 1,200 crore, mostly growth capex for the new Dahej line.”");
+    expect(acme.querySelector(".dbx-kt")!.textContent).toBe("Capex plan and outlay +1");
+    expect(acme.querySelector(".dbx-c4 time")!.getAttribute("title")).toBe("18 Nov 2026");
+    fireEvent.click(within(acme).getByRole("button", { name: "Show details for Acme Industries" }));
+    const det = acme.nextElementSibling as HTMLElement;
+    expect([...det.querySelectorAll(".dbx-kw")].map((e) => e.textContent)).toEqual(["Capex plan and outlay", "Ramp-up and utilisation"]);
+    expect(det.querySelector(".dbx-ql")!.textContent).toBe("“Capex guidance for FY27 is Rs 1,200 crore, mostly growth capex for the new Dahej line.”");
+    expect(det.querySelector(".dbx-doc span")!.textContent).toBe("Call transcript of 18 Nov 2026 · 4 pages · Tone of its wording: Positive");
+    const a = within(det).getByRole("link", { name: "Open the filing ↗" });
     expect([a.getAttribute("href"), a.getAttribute("target"), a.getAttribute("rel")]).toEqual(["https://nsearchives.nseindia.com/corporate/ACME_T.pdf", "_blank", "noopener noreferrer"]);
-    expect(acme.querySelector(".dsc-kd-vf")!.textContent).toBe("What to verify Split growth and maintenance capex.");
-    const quiet = rows[1];                                                                  // a keyword alone is not evidence: said, not quoted
-    expect(quiet.querySelector(".dsc-kd-ev")).toBeNull();
-    expect(quiet.textContent).toMatch(/No sentence names one of these keywords with a figure, so there is nothing to quote: the mention alone is not evidence\./);
-    expect(quiet.textContent).toMatch(/the exchange link is not held/);
-    expect(document.body.textContent).toMatch(/Track announced versus achieved dates for previous projects\./);   // the bucket's What to verify
-    expect(document.body.textContent).toMatch(/A keyword mention by itself is not proof of material business exposure\. Check the figures in the filing itself\./);
-    fireEvent.change(screen.getByPlaceholderText("Search a company in this list"), { target: { value: "quiet" } });   // task #296: the Discover filter card
-    expect(document.querySelectorAll("[data-src-co]")).toHaveLength(1);
+    expect(det.querySelector(".dbx-vf")!.textContent).toBe("Split growth and maintenance capex.");
+    const quiet = rows()[1];                                                                // a keyword alone is not evidence: said, not quoted
+    expect(quiet.querySelector(".dbx-quote")!.textContent).toBe("No sentence with a figure");
+    fireEvent.click(quiet);                                                                 // the whole row opens too
+    const qd = quiet.nextElementSibling as HTMLElement;
+    expect(qd.querySelector(".dbx-ql")).toBeNull();
+    expect(qd.textContent).toMatch(/No sentence names one of these keywords with a figure, so there is nothing to quote: the mention alone is not evidence\./);
+    expect(qd.textContent).toMatch(/the exchange link is not held/);
+    const verify = screen.getAllByRole("button", { name: /What to verify/ }).find((x) => x.classList.contains("dbx-ddb"))!;
+    fireEvent.click(verify);
+    const pop = screen.getByRole("dialog", { name: "What to verify in this bucket" });
+    expect(pop.textContent).toMatch(/Track announced versus achieved dates for previous projects\./);   // the bucket's What to verify
+    expect(pop.textContent).toMatch(/A keyword mention by itself is not proof of material business exposure\. Check the figures in the filing itself\./);
+    fireEvent.change(screen.getByPlaceholderText("Search a company in this list"), { target: { value: "quiet" } });   // task #296: the Discover filters
+    expect(document.querySelectorAll("tr[data-src-co]")).toHaveLength(1);
   });
 
   it("Results filings before any read: every bucket says why it is empty; an unknown bucket says so", async () => {

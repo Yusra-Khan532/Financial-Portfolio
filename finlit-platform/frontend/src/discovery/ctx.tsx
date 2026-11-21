@@ -18,9 +18,21 @@ export type Ctx = {
   signedIn: boolean; held: string[]; watched: string[]; onList: (s: string) => boolean; isHeld: (s: string) => boolean; isWatched: (s: string) => boolean;
   toggleWatch: (s: string, name: string) => void; prismOpen: boolean;
   /** The table state of this page (from the query string); `setT` changes it in place (replace, so Back leaves the page, not each filter). */
+  /** Task #303: the company table's columns this member shows (Company is always shown), kept per member in this browser. */
+  cols: Set<string>; setCol: (k: string, on: boolean) => void;
   T: (key: string, sort?: string) => TState; setT: (key: string, patch: Partial<TState>, sort?: string) => void; open: Set<string>; toggleOpen: (s: string, on?: boolean) => void;
 };
 const C = createContext<Ctx | null>(null);
+/** Every column the table can show besides Company, in its order (task #303 adds the short-term trend after Prism). */
+export const ALL_COLS = ["cls", "th", "ev", "pr", "st", "lt", "r3m", "r1y", "hi", "mc", "cn"] as const;
+export const colsKey = (uid: string | number | null | undefined) => `finlit-dsc-cols:${uid ?? "guest"}`;
+function readCols(uid: string | number | null | undefined): Set<string> {
+  try {
+    const v = localStorage.getItem(colsKey(uid));
+    if (v != null) return new Set(v.split(",").filter((k) => (ALL_COLS as readonly string[]).includes(k)));
+  } catch { /* storage blocked: every column */ }
+  return new Set(ALL_COLS);
+}
 export const useDsc = () => { const c = useContext(C); if (!c) throw new Error("Discover context missing"); return c; };
 
 export function DiscoverProvider({ d, children }: { d: Discover; children: React.ReactNode }) {
@@ -38,6 +50,14 @@ export function DiscoverProvider({ d, children }: { d: Discover; children: React
   const industries = useMemo(() => [...new Set(d.rows.map((r) => r.ind).filter((x): x is string => !!x))].sort(), [d.rows]);
   const route = useMemo(() => parseRoute(loc.pathname, { themes, macros: sectors, sectors: [...tree.macroOf.keys()], industries }), [loc.pathname, themes, sectors, tree, industries]);
   const [open, setOpen] = useState<Set<string>>(new Set());
+  const uid = (user as { id?: string | number } | null)?.id ?? null;
+  const [cols, setCols] = useState<Set<string>>(() => readCols(uid));
+  useEffect(() => { setCols(readCols(uid)); }, [uid]);
+  const setCol = useCallback((k: string, on: boolean) => setCols((c) => {
+    const n = new Set(c); if (on) n.add(k); else n.delete(k);
+    try { localStorage.setItem(colsKey(uid), ALL_COLS.filter((x) => n.has(x)).join(",")); } catch { /* storage blocked: kept for this visit */ }
+    return n;
+  }), [uid]);
   const sp = useMemo(() => new URLSearchParams(loc.search), [loc.search]);
   // task #273 (suggested): &open=<symbol> opens that company's row on arrival (the other pages link here with ?q=<name>&open=<symbol>)
   const openSym = (sp.get("open") || "").trim().toUpperCase();
@@ -68,6 +88,7 @@ export function DiscoverProvider({ d, children }: { d: Discover; children: React
       }
       watch.add(s); toast(`${name} added to your watchlist.`);
     },
+    cols, setCol,
     T: (_key, sort) => readT(sp, sort),
     setT: (_key, patch, sort) => {
       const next = writeT({ ...readT(sp, sort), ...patch }, sort).toString();

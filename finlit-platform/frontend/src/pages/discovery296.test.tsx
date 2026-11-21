@@ -4,6 +4,8 @@
 // Filed); chips with Clear all, "N of M companies", Sort by, pages instead of "Show 25 more"; the keyword buttons set the Keyword filter and the keyword is
 // marked on each card; each card names where the company sits; the choices live in the address. The header counts come from the bucket's own answer.
 // On theme and event pages the "Latest …" panel follows the table's filters. Pure rules: discovery/bucket.ts.
+// Task #303: the same filters, address keys and counts in the dropdown toolbar of developer file 13 (Keyword · Sector · Industry · Size · More filters with
+// the quick views and the call's own filters · My names), the chips, and Sort as a dropdown; each check keeps its intent.
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -64,81 +66,93 @@ function Where() { const l = useLocation(); loc = l.pathname + l.search; return 
 const show = async (path: string) => {
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
     <MemoryRouter initialEntries={[path]}><Routes><Route path="/discover/*" element={<><DiscoveryPage /><Where /></>} /></Routes></MemoryRouter></QueryClientProvider>);
-  await screen.findByRole("navigation", { name: "Discover views from calls and results" });
+  await screen.findByRole("navigation", { name: "Discover views" });
 };
 const cards = () => [...document.querySelectorAll("[data-src-co]")].map((e) => e.getAttribute("data-src-co"));
+const ready = () => screen.findAllByRole("row", { name: (_n, el) => el.hasAttribute("data-src-co") });
+const ddBtn = (name: RegExp | string) => screen.getAllByRole("button", { name }).find((b) => b.classList.contains("dbx-ddb"))!;
+const dd = (name: RegExp | string) => { fireEvent.click(ddBtn(name)); return screen.getByRole("dialog"); };
+const pickOpt = (btn: RegExp | string, opt: RegExp | string) => { const d = dd(btn); fireEvent.click(within(d).getByRole("option", { name: opt })); };
+const esc = () => fireEvent.keyDown(document, { key: "Escape" });
 const PAGE = "/discover/calls/management-guidance-and-outlook";
 afterEach(() => { cleanup(); });
 
 describe("#296: filters on the calls and results bucket pages", () => {
   it("the header counts come from the bucket's own answer, so they match the list", async () => {
     await show(PAGE);
-    await screen.findAllByRole("listitem", { name: (_n, el) => el.hasAttribute("data-src-co") });
-    expect(document.querySelector(".dsc-dh p")!.textContent).toBe("3 companies’ newest call transcript name this bucket’s keywords; 2 with a sentence that holds a figure.");
+    await ready();
+    expect([...document.querySelectorAll(".dbx-stats > span")].map((x) => x.textContent)).toEqual(["3 companies", "2 quote a figure", "3 keywords", "Transcripts filed 1 Aug 2026 – 18 Nov 2026"]);
     expect(document.querySelector(".dsc-cnt")!.textContent).toBe("3 companies");
   });
 
-  it("the filter card: the views (one of the bucket's own), the row of the call, About the company without Stage, Where it sits; no Show more", async () => {
+  it("the toolbar: the quick views (one of the bucket's own), the call's own filters, About the company without Stage, Sector and Industry; pages, no Show more", async () => {
     await show(PAGE);
-    await screen.findAllByRole("listitem", { name: (_n, el) => el.hasAttribute("data-src-co") });
-    const views = [...screen.getByRole("group", { name: "Ready-made views" }).querySelectorAll(".dsc-ln")].map((b) => b.textContent);
-    expect(views).toEqual(["Quotes a sentence with a figure2", "Long-term uptrend2", "Industry ahead and gaining1", "Prism strong or healthy2"]);
-    expect(document.querySelector("#dsc-fh-doc")!.textContent).toBe("In the call newest transcript");
-    expect(screen.queryByRole("combobox", { name: "Stage" })).toBeNull();
-    for (const n of ["Keyword", "Keywords named", "Tone of its wording", "Filed", "Size", "Long-term trend", "FinLit Prism", "Macro sector", "Sector", "Industry", "Sector Rotation", "Sort by", "Rows per page"])
-      expect(screen.getByRole("combobox", { name: n })).toBeTruthy();
-    expect([...(screen.getByRole("combobox", { name: "Keyword" }) as HTMLSelectElement).options].map((o) => o.textContent))
-      .toEqual(["Any keyword", "Forward guidance (3)", "Strong pipeline (2)", "Guidance cut / lowered outlook (1)"]);
-    expect([...(screen.getByRole("combobox", { name: "Tone of its wording" }) as HTMLSelectElement).options].map((o) => o.textContent)).toEqual(["Any tone", "Positive (2)", "Mixed (1)"]);
+    await ready();
+    expect([...screen.getByRole("group", { name: "Filters" }).querySelectorAll(".dbx-ddl")].map((b) => b.textContent)).toEqual(["Keyword", "Sector", "Industry", "Size", "More filters", "My names"]);
+    expect(within(dd(/^Keyword/)).getAllByRole("option").map((o) => o.textContent)).toEqual(["Any keyword3", "Forward guidance3", "Strong pipeline2", "Guidance cut / lowered outlook1"]);
+    esc();
+    const more = dd(/^More filters/);
+    expect(within(more).getAllByRole("checkbox").map((b) => b.closest("label")!.textContent)).toEqual(["Quotes a sentence with a figure2", "Long-term uptrend2", "Industry ahead and gaining1", "Prism strong or healthy2"]);
+    expect([...more.querySelectorAll("h4")].map((h) => h.textContent)).toEqual(["Quick views", "In the call", "About the company"]);
+    expect(within(more).getByRole("radiogroup", { name: "Keywords named" })).toBeTruthy();
+    expect(within(more).getByRole("radiogroup", { name: "Filed" })).toBeTruthy();
+    expect([...(within(more).getByRole("combobox", { name: "Tone of its wording" }) as HTMLSelectElement).options].map((o) => o.textContent)).toEqual(["Any tone", "Positive (2)", "Mixed (1)"]);
+    for (const n of ["Long-term trend", "FinLit Prism", "Sector Rotation"]) expect(within(more).getByRole("combobox", { name: n })).toBeTruthy();
+    esc();
+    expect(screen.queryByRole("button", { name: /^Stage/ })).toBeNull();
+    expect(ddBtn(/^Best match/)).toBeTruthy();                                             // Sort, as a dropdown
+    expect(screen.getByRole("combobox", { name: "Rows per page" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /more of/ })).toBeNull();
     expect(screen.getByRole("button", { name: "Next →" })).toBeTruthy();
   });
 
-  it("each card says where the company sits; a keyword button sets the Keyword filter, marks it on the cards, and the choice is in the address", async () => {
+  it("each row says where the company sits; the Keyword filter narrows the list, marks the keyword, and the choice is in the address", async () => {
     await show(PAGE);
-    await screen.findAllByRole("listitem", { name: (_n, el) => el.hasAttribute("data-src-co") });
-    expect(document.querySelector('[data-src-co="SUZLON"] .dsc-kd-where')!.textContent).toBe("Capital Goods · Electrical Equipment · Size: Mid");
-    const kwBox = screen.getByRole("group", { name: "Keywords in this bucket" });
-    expect(within(kwBox).getAllByRole("button").map((b) => b.textContent)).toEqual(["Forward guidance3", "Strong pipeline2", "Guidance cut / lowered outlook1"]);
-    fireEvent.click(within(kwBox).getByRole("button", { name: /^Strong pipeline/ }));
+    await ready();
+    expect(document.querySelector('[data-src-co="SUZLON"] .dbx-sub')!.textContent).toBe("SUZLON · Electrical Equipment");
+    fireEvent.click(screen.getByRole("button", { name: "Show details for Suzlon Energy" }));
+    expect([...document.querySelectorAll(".dbx-facts dd")].map((d) => d.textContent)).toEqual(["Capital Goods › Electrical Equipment", "Mid", "Uptrend", "Healthy · 72"]);
+    pickOpt(/^Keyword/, /^Strong pipeline/);
     expect(cards()).toEqual(["SUZLON", "INFY"]);
     expect(loc).toBe(PAGE + "?kw=Strong+pipeline");
-    expect(document.querySelector('[data-src-co="SUZLON"] .dsc-ev[data-on]')!.textContent).toBe("Strong pipeline");
+    expect(document.querySelector('[data-src-co="SUZLON"] .dbx-kt .hit')!.textContent).toBe("Strong pipeline");
+    expect(document.querySelector(".dbx-kw.hit")!.textContent).toBe("Strong pipeline");     // marked in the open row's keywords too
     expect(document.querySelector(".dsc-cnt")!.textContent).toBe("2 of 3 companies");
-    expect(within(screen.getByRole("group", { name: "Filters on" })).getAllByRole("button").map((b) => b.textContent)).toEqual(["Keyword: Strong pipeline ✕", "Clear all"]);
-    fireEvent.click(within(kwBox).getByRole("button", { name: /^Strong pipeline/ }));       // a second tap clears it
+    expect(within(screen.getByRole("group", { name: "Filters on" })).getAllByRole("button").map((b) => b.textContent)).toEqual(["Keyword: Strong pipeline", "Clear all"]);
+    pickOpt(/^Keyword/, /^Any keyword/);                                                     // "Any keyword" clears it
     expect(cards()).toHaveLength(3);
   });
 
-  it("sector, industry and the call's own filters narrow the list; a macro sector that does not hold the sector takes it off; Clear all", async () => {
+  it("sector, industry and the call's own filters narrow the list; a new macro sector takes the sector off; Clear all", async () => {
     await show(PAGE + "?mac=Industrials&sct=Capital+Goods&ind=Electrical+Equipment&kw=Strong+pipeline");
-    await screen.findAllByRole("listitem", { name: (_n, el) => el.hasAttribute("data-src-co") });
+    await ready();
     expect(cards()).toEqual(["SUZLON"]);
-    expect((screen.getByRole("combobox", { name: "Macro sector" }) as HTMLSelectElement).value).toBe("Industrials");
-    fireEvent.change(screen.getByRole("combobox", { name: "Macro sector" }), { target: { value: "Financial Services" } });
-    expect(screen.getByRole("status").textContent).toMatch(/was taken off: not inside your other choice\./);
+    expect(ddBtn(/^Sector/).querySelector(".dbx-ddv")!.textContent).toBe("Capital Goods");
+    pickOpt(/^Sector/, /^All of Financial Services/);
+    expect(loc).toBe(PAGE + "?mac=Financial+Services&kw=Strong+pipeline");
     expect(cards()).toEqual([]);
     expect(document.body.textContent).toMatch(/No company matches these filters\./);
-    fireEvent.click(screen.getByRole("button", { name: "Clear all" }));
+    fireEvent.click(within(screen.getByRole("group", { name: "Filters on" })).getByRole("button", { name: "Clear all" }));
     expect(cards()).toHaveLength(3);
     expect(loc).toBe(PAGE);
-    fireEvent.change(screen.getByRole("combobox", { name: "Tone of its wording" }), { target: { value: "Mixed" } });
+    fireEvent.change(within(dd(/^More filters/)).getByRole("combobox", { name: "Tone of its wording" }), { target: { value: "Mixed" } });
     expect(cards()).toEqual(["INFY"]);
-    fireEvent.change(screen.getByRole("combobox", { name: "Tone of its wording" }), { target: { value: "" } });
-    fireEvent.change(screen.getByRole("combobox", { name: "Keywords named" }), { target: { value: "3" } });
+    fireEvent.change(within(screen.getByRole("dialog")).getByRole("combobox", { name: "Tone of its wording" }), { target: { value: "" } });
+    fireEvent.click(within(screen.getByRole("radiogroup", { name: "Keywords named" })).getByRole("radio", { name: /^3\+/ }));
     expect(cards()).toEqual(["INFY"]);
   });
 
-  it("Sort by: newest filing first and company name; the views", async () => {
+  it("Sort: newest filing first and company name; the quick views", async () => {
     await show(PAGE + "?sort=co");
-    await screen.findAllByRole("listitem", { name: (_n, el) => el.hasAttribute("data-src-co") });
+    await ready();
     expect(cards()).toEqual(["HDFCBANK", "INFY", "SUZLON"]);
-    fireEvent.change(screen.getByRole("combobox", { name: "Sort by" }), { target: { value: "mc" } });
+    pickOpt(/^Company name/, "Largest market value");
     expect(cards()).toEqual(["HDFCBANK", "INFY", "SUZLON"]);
-    fireEvent.change(screen.getByRole("combobox", { name: "Sort by" }), { target: { value: "best" } });
-    fireEvent.click(screen.getByRole("button", { name: /^Quotes a sentence with a figure/ }));
+    pickOpt(/^Largest market value/, "Best match");
+    const more = dd(/^More filters/);
+    fireEvent.click(within(more).getByRole("checkbox", { name: /^Quotes a sentence with a figure/ }));
     expect(cards()).toEqual(["SUZLON", "HDFCBANK"]);
-    fireEvent.click(screen.getByRole("button", { name: /^Industry ahead and gaining/ }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("checkbox", { name: /^Industry ahead and gaining/ }));
     expect(cards()).toEqual(["SUZLON"]);
   });
 });
@@ -146,17 +160,17 @@ describe("#296: filters on the calls and results bucket pages", () => {
 describe("#296: the Latest panels of theme and event pages follow the filters", () => {
   it("an event page: only the filings of companies in the filters, and a line when none is left", async () => {
     await show("/discover/changes/order");
-    const panel = () => screen.getByRole("heading", { name: "Latest of these filings" }).parentElement!;
+    const panel = () => screen.getByRole("heading", { name: "Latest of these filings" }).closest("section")!;
     expect(panel().textContent).toMatch(/Order from NTPC/);
     expect(panel().textContent).toMatch(/Order from IOC/);
-    fireEvent.change(screen.getByRole("combobox", { name: "Macro sector" }), { target: { value: "Industrials" } });
+    pickOpt(/^Sector/, /^All of Industrials/);
     expect(panel().textContent).toMatch(/Order from NTPC/);
     expect(panel().textContent).not.toMatch(/Order from IOC/);
     expect(await within(panel()).findByText(/Order from BHEL/)).toBeTruthy();      // the 90 days' feed, read once a filter is on, beyond the board's newest 12
   });
   it("a theme page: a filter that leaves none of the feed's companies says so", async () => {
     await show("/discover/themes/solar?mac=Industrials");
-    const panel = screen.getByRole("heading", { name: "Latest filings in this theme" }).parentElement!;
+    const panel = screen.getByRole("heading", { name: "Latest filings in this theme" }).closest("section")!;
     expect(panel.textContent).toMatch(/No filing from a company in your filters\./);
   });
 });
@@ -184,9 +198,10 @@ describe("#296: the pure rules", () => {
     expect(feedFor(feed, null)).toEqual(feed);
     expect(feedFor(feed, new Set(["B"]))).toEqual([{ s: "B" }]);
   });
-  it("the Explore Discover boxes go 2 by 2 at laptop widths, so no label leaves its box", () => {
+  it("task #303: the one tab bar replaces the Explore Discover boxes; it sticks under the site header and scrolls sideways when it does not fit", () => {
     const css = readFileSync(join(__dirname, "..", "discovery", "discover.css"), "utf8");
-    expect(css).toMatch(/@media \(max-width:959px\)\{\s*\.dsc-ways:not\(\.dsc-ways2\)\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)\}/);
-    expect(css).toMatch(/\.shell:not\(\.is-collapsed\) \.dsc-ways:not\(\.dsc-ways2\)/);
+    expect(css).toMatch(/\.dw-tabsbox \{ position: sticky; top: var\(--dw-top, 64px\);/);
+    expect(css).toMatch(/\.dw-tabs \{[^}]*overflow-x: auto;/);
+    expect(css).not.toMatch(/\.dsc-ways?\b/);                                              // the old strips are gone
   });
 });

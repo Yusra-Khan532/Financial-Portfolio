@@ -7,7 +7,7 @@ import { useHoverOpen } from "../lib/hoverOpen";
 /** The Sector Rotation reading date the corner text names. */
 export const RotDate = createContext<string>("the latest reading");
 
-export type InfoKey = "placed" | "stage" | "filings" | "prism" | "lt" | "r3m" | "r1y" | "high" | "mc" | "corner" | "rank" | "pulse" | "median" | "uptrend" | "broad"
+export type InfoKey = "placed" | "stage" | "filings" | "prism" | "lt" | "st" | "r3m" | "r1y" | "high" | "mc" | "corner" | "rank" | "pulse" | "median" | "uptrend" | "broad"
   | "views" | "mine" | "check" | "tone" | "record" | "also" | "brief" | "nse" | "sector" | "largest" | "themesin" | "map" | "inds" | "m1y"
   /** task #296: the bucket pages' own filters */ | "kw" | "named" | "wtone" | "filed";
 
@@ -18,6 +18,7 @@ export function infoText(k: InfoKey, rotDate: string): ReactNode {
     case "filings": return <>Exchange filings of the last 90 days, by type. “2 order” means two order or contract filings. Results, meeting notices and routine filings are not counted here.</>;
     case "prism": return <><b>FinLit Prism</b>, 0 to 100: FinLit’s overall reading of the business and the stock (Strong, Healthy, Average, Weak, Poor). <b>Not rated</b>: a new listing or too little data.</>;
     case "lt": return <><b>Long-term trend</b> of the price, from FinLit’s technical score: Strong uptrend, Uptrend, Sideways, Downtrend, Strong downtrend. <b>Not rated</b>: the stock trades too thinly or has too little history.</>;
+    case "st": return <><b>Short-term trend</b> of the price over the recent weeks (about 5 to 20 trading sessions), from FinLit’s technical score, in the same five words as the long-term trend: Strong uptrend, Uptrend, Sideways, Downtrend, Strong downtrend. <b>Not rated</b>: the stock trades too thinly or has too little history.</>;
     case "r3m": return <>Price change over the last 3 months.</>;
     case "r1y": return <>Price change over the last 12 months.</>;
     case "high": return <>How far the last close is below the highest close of the last 52 weeks. “At the high” means within 0.05%.</>;

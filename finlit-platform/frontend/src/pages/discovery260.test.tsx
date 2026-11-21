@@ -6,6 +6,8 @@
 // its own link; Portfolio and Watchlist counts with every name that is not placed; ☆ adds to and removes from the watchlist and the panel follows; every i
 // opens and closes (second click, outside click, Escape) and gives focus back; views, filters, chips, Clear all and paging agree with the count; the page's
 // own words describe and never advise.
+// Task #303: the same checks on the new frame (one line of figures, one tab bar for the six ways) and the dropdown toolbar (views, filters and columns in
+// dropdowns); every intent is kept.
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -71,6 +73,10 @@ const show = async (path = "/discover") => {
   await screen.findByRole("navigation", { name: "Discover views" });
 };
 const views = () => screen.getByRole("navigation", { name: "Discover views" });
+/** Task #303: opens one of the toolbar's dropdowns by its button. */
+const ddBtn = (name: RegExp | string) => screen.getAllByRole("button", { name }).find((b) => b.classList.contains("dbx-ddb"))!;
+const dd = (name: RegExp | string) => { fireEvent.click(ddBtn(name)); return screen.getByRole("dialog"); };
+const pickOpt = (btn: RegExp | string, opt: RegExp | string) => { const d = dd(btn); fireEvent.click(within(d).getByRole("option", { name: opt })); };
 beforeEach(() => {
   st.user = { id: 1 }; st.plan = "gold"; st.toast = []; st.pagesKept = true;
   portfolio.replace?.({ holdings: [{ id: "a", symbol: "BSHIELD", qty: 1, price: 1, owned: true }, { id: "b", symbol: "NOTHERE", qty: 1, price: 1, owned: true }] } as never);
@@ -89,7 +95,7 @@ describe("#260: the page and its addresses", () => {
     expect(document.body.textContent).toMatch(/“Renewable Power” is shown inside “Renewable Energy & Power”/);
     expect(document.body.textContent).toMatch(/Corporate developments: no company has it as its main theme yet; 1 mentions it/);
   });
-  it("§1 the head: eyebrow, Discover with a New tag, the as-of pill, the two FAQ links, the count chips", async () => {
+  it("§1 the head: eyebrow, Discover with a New tag, the as-of pill, the two FAQ links, the line of figures", async () => {
     await show();
     const h = document.querySelector(".dsc-head")!;
     expect(h.querySelector(".sp-eyebrow")!.textContent).toBe("Research · Find stocks");
@@ -98,21 +104,20 @@ describe("#260: the page and its addresses", () => {
     expect(h.querySelector(".xsh-date")!.textContent).toMatch(/^Presentations to 19 Nov 2026 · prices and scores: 19 Nov 2026 close$/);
     const links = [...h.querySelectorAll("a.xsh-link")].map((a) => [a.textContent, a.getAttribute("href")]);
     expect(links).toEqual([["How is a company placed? →", "/discover#faq-discover-1"], ["Does Discover tell me what to buy? →", "/discover#faq-discover-7"]]);
-    expect([...document.querySelectorAll(".dsc-meta .dsc-chip")].map((c) => c.textContent)).toEqual(["5 companies placedi", "4 themes", "Filings of the last 90 days"]);
+    expect([...document.querySelectorAll(".dw-meta > span")].map((c) => c.textContent)).toEqual(["5 companies placedi", "4 themes", "Filings of the last 90 days"]);
   });
-  it("§3 the four views in the ways-to-look strip, each a real path; §14 every page has its own path and Back-able address", async () => {
+  it("§3 the views in one tab bar (task #303), each a real path; §14 every page has its own path and Back-able address", async () => {
     await show();
-    expect(document.querySelector(".dsc-wk")!.textContent).toBe("Explore Discover 4 ways to look · tap one");
-    const ways = [...views().querySelectorAll("a")].map((a) => [a.querySelector(".dsc-wl")!.textContent, a.getAttribute("href"), a.querySelector(".dsc-wd")!.textContent]);
-    expect(ways).toEqual([["Themes4", "/discover", "What companies are building"], ["What changed8", "/discover/changes", "Filings of the last 90 days"],
-      ["Sectors3", "/discover/sectors", "NSE sectors and industries"], ["All companies5", "/discover/companies", "Every company in one table"]]);
+    const ways = [...views().querySelectorAll("a")].map((a) => [a.textContent, a.getAttribute("href")]);
+    expect(ways).toEqual([["Themes4", "/discover"], ["What changed8", "/discover/changes"], ["Sectors3", "/discover/sectors"], ["All companies5", "/discover/companies"],
+      ["Earnings calls8", "/discover/calls"], ["Results filings7", "/discover/results"]]);
     fireEvent.click(within(views()).getByRole("link", { name: /Sectors/ }));
     expect(loc).toBe("/discover/sectors");
     cleanup(); await show("/discover/themes/defence-and-aerospace");
     expect(within(screen.getByRole("navigation", { name: "Breadcrumb" })).getByText("Defence & Aerospace")).toBeTruthy();
     expect(screen.getByRole("heading", { level: 2, name: /Defence & Aerospace/ })).toBeTruthy();
     expect(document.querySelector(".dsc-mine")).toBeNull();                                // "Your names" hides on detail pages
-    expect(document.querySelector(".dsc-yh")!.textContent).toMatch(/Yours here \(★ watchlist\):Bharat Shield/);
+    expect(within(dd(/^My names/)).getByRole("option", { name: /Bharat Shield/ })).toBeTruthy();   // task #303: "Yours here" is the My names dropdown
     cleanup(); await show("/discover/sectors/industrials");
     expect(screen.getByRole("heading", { level: 2, name: "Industrials" })).toBeTruthy();
     expect(document.querySelector(".dsc-kind")!.textContent).toBe("Macro sector · NSE");
@@ -144,7 +149,7 @@ describe("#260: the page and its addresses", () => {
     expect(readT(q, "pr")).toEqual(t);
     expect(writeT(freshT("pr"), "pr").toString()).toBe("");                                 // a clean page has a clean address
     cleanup(); await show("/discover/companies?size=large");
-    expect(document.querySelector(".dsc-cnt")!.textContent).toBe("1 company");              // SOLARX, ₹1,20,000 Cr
+    expect(document.querySelector(".dsc-cnt")!.textContent).toBe("1 of 5 companies");       // SOLARX, ₹1,20,000 Cr
   });
   it("§5 the theme page: five figures, How far along, Where these companies sit (switch, bars, a bar filters the table), What to check, Latest filings", async () => {
     await show("/discover/themes/defence-and-aerospace");
@@ -155,15 +160,15 @@ describe("#260: the page and its addresses", () => {
     expect(where.textContent).toMatch(/1 industry of NSE’s 59 on NSE’s classification\. Pick one to list its companies below\./);
     fireEvent.click(within(where).getByRole("button", { name: "Aerospace & Defense" }));
     expect(loc).toBe("/discover/themes/defence-and-aerospace?ind=Aerospace+%26+Defense");
-    expect(document.body.textContent).toMatch(/A theme word or a filing alone is not proof of real business\. Check the figures, orders and status in the company’s own documents\./);
-    expect(screen.getByRole("heading", { name: "Latest filings in this theme" }).parentElement!.textContent).toMatch(/Bharat Shield · Order worth Rs 400 crore for radar systems/);
+    expect(dd(/^What to check/).textContent).toMatch(/A theme word or a filing alone is not proof of real business\. Check the figures, orders and status in the company’s own documents\./);
+    expect(screen.getByRole("heading", { name: "Latest filings in this theme" }).closest("section")!.textContent).toMatch(/Bharat Shield Order worth Rs 400 crore for radar systems/);
     expect(document.querySelector(".dsc-tb thead")!.textContent).not.toMatch(/Theme · stage/);   // hidden on theme pages
   });
-  it("§6 an event page lists four of its filings, then 'Show N more'", async () => {
+  it("§6 an event page lists three of its filings, then 'Show all N' (task #303, version 3)", async () => {
     await show("/discover/changes/order");
-    const box = screen.getByRole("heading", { name: "Latest of these filings" }).parentElement!;
-    expect(box.querySelectorAll(":scope > ul.dsc-fl > li").length).toBe(4);
-    expect(box.querySelector("details summary")!.textContent).toMatch(/^Show 2 more/);
+    const box = screen.getByRole("heading", { name: "Latest of these filings" }).closest("section")!;
+    expect(box.querySelectorAll(":scope > ul.dw-fl > li").length).toBe(3);
+    expect(box.querySelector("details summary")!.textContent).toMatch(/^Show all 6/);
   });
   it("§7 Sectors: Macro sectors | Sectors | Industries switch; the industries table with Rotation 'rank N of 37 · W wks' and Pulse in the shared words; the reading date and 'days old'", async () => {
     await show("/discover/sectors");
@@ -236,24 +241,28 @@ describe("#251/#260: the table", () => {
     await show("/discover/companies");
     const count = () => document.querySelector(".dsc-cnt")!.textContent;
     expect(count()).toBe("5 companies");
-    const up = screen.getByRole("button", { name: /Long-term uptrend/ });
-    expect(up.textContent).toBe("Long-term uptrend2");                                     // BSHIELD (Uptrend), FORGE (Strong uptrend)
-    fireEvent.click(up); expect(count()).toBe("2 companies");
-    fireEvent.change(screen.getByRole("combobox", { name: "Size" }), { target: { value: "mid" } });
-    expect(count()).toBe("1 company");                                                      // BSHIELD, ₹40,000 Cr: Mid on the four shared sizes
+    const up = within(dd(/^Ready-made views/)).getByRole("checkbox", { name: /Long-term uptrend/ });
+    expect(up.closest("label")!.textContent).toBe("Long-term uptrend2");                   // BSHIELD (Uptrend), FORGE (Strong uptrend)
+    fireEvent.click(up); expect(count()).toBe("2 of 5 companies");
+    fireEvent.keyDown(document, { key: "Escape" });
+    pickOpt(/^Size/, /^Mid/);
+    expect(count()).toBe("1 of 5 companies");                                               // BSHIELD, ₹40,000 Cr: Mid on the four shared sizes
     const chips = screen.getByRole("group", { name: "Filters on" });
-    expect([...chips.querySelectorAll(".dsc-ac")].map((b) => b.textContent)).toEqual(["Size: Mid ✕", "Long-term uptrend ✕"]);
-    fireEvent.click(within(chips).getByRole("button", { name: "Remove filter Size: Mid" })); expect(count()).toBe("2 companies");
+    expect([...chips.querySelectorAll(".dbx-chip")].map((b) => b.textContent)).toEqual(["Size: Mid", "Long-term uptrend"]);
+    fireEvent.click(within(chips).getByRole("button", { name: "Remove filter Size: Mid" })); expect(count()).toBe("2 of 5 companies");
     fireEvent.click(within(screen.getByRole("group", { name: "Filters on" })).getByRole("button", { name: "Clear all" })); expect(count()).toBe("5 companies");
-    fireEvent.change(screen.getByRole("combobox", { name: "Long-term trend" }), { target: { value: "none" } });
-    expect(count()).toBe("1 company");
+    fireEvent.change(within(dd(/^More filters/)).getByRole("combobox", { name: "Long-term trend" }), { target: { value: "none" } });
+    expect(count()).toBe("1 of 5 companies");
     expect(document.querySelector(".dsc-tb tbody")!.textContent).toMatch(/Solar X.*Not rated/);
-    expect(screen.getByRole("button", { name: /Leader in its peer group/ }).hasAttribute("disabled")).toBe(true);   // peer labels not published: said, not zero
+    fireEvent.keyDown(document, { key: "Escape" });
+    const lead = within(dd(/^Ready-made views/)).getByRole("checkbox", { name: /Leader in its peer group/ });
+    expect(lead.hasAttribute("disabled")).toBe(true);                                         // peer labels not published: said, not zero
+    expect(lead.closest("label")!.textContent).toBe("Leader in its peer groupNot published yet");
   });
   it("Silver: FinLit Prism and the trends read 'Gold', never 'Not rated'", async () => {
     st.plan = "silver"; await show("/discover/companies");
     expect(document.querySelector(".dsc-tb tbody")!.textContent).toMatch(/Gold/);
-    expect((screen.getByRole("combobox", { name: "Long-term trend" }) as HTMLSelectElement).textContent).toBe("Part of Gold");
+    expect((within(dd(/^More filters/)).getByRole("combobox", { name: "Long-term trend" }) as HTMLSelectElement).textContent).toBe("Part of Gold");
   });
   it("a plan without the trends never reads '0 of N in a long-term uptrend': the counts and the trend views say Gold (found on the live page, 19 Nov)", async () => {
     st.plan = "silver"; await show();
@@ -264,9 +273,10 @@ describe("#251/#260: the table", () => {
     cleanup(); await show("/discover/sectors");
     ups().forEach((t) => expect(t).toMatch(/Gold/));
     cleanup(); await show("/discover/companies");
+    const vd = dd(/^Ready-made views/);
     for (const v of [/Long-term uptrend/, /Prism strong or healthy/]) {
-      const b = screen.getByRole("button", { name: v });
-      expect(b.hasAttribute("disabled")).toBe(true); expect(b.textContent).toMatch(/Gold$/);
+      const b = within(vd).getByRole("checkbox", { name: v });
+      expect(b.hasAttribute("disabled")).toBe(true); expect(b.closest("label")!.textContent).toMatch(/Gold$/);
     }
     cleanup(); st.plan = "gold"; await show();
     expect(ups().some((t) => /\d+ of \d+/.test(t || ""))).toBe(true);                       // Gold still sees the counts
@@ -281,24 +291,27 @@ describe("#251/#260: the table", () => {
 });
 
 describe("#260: the rev 4 filter box, the columns and the company panel", () => {
-  it("one box: views on top (a view with no company greyed), search and Only my names, two labelled rows; NSE lists linked, 'Any sector in Industrials'", async () => {
+  it("task #303: the toolbar: search, Theme, Stage, Sector, Industry, Size, More filters, My names; Sector and Industry linked, 'Any industry in Industrials'", async () => {
     await show("/discover/companies");
-    const tools = document.querySelector(".dsc-tools")!;
-    expect(tools.querySelector(".dsc-views")).toBeTruthy();
-    expect((tools.querySelector(".dsc-fq input") as HTMLInputElement).placeholder).toBe("Search a company in this list");
-    expect(tools.querySelector(".dsc-mine-t")!.textContent).toBe("Only my names");
-    expect([...tools.querySelectorAll(".dsc-fh")].map((h) => h.textContent)).toEqual(["About the company", "Where it sits NSE"]);
-    expect([...tools.querySelectorAll(".dsc-ff > span")].map((x) => x.textContent!.replace(/i$/, ""))).toEqual(["Stage", "Size", "Long-term trend", "FinLit Prism", "Macro sector", "Sector", "Industry", "Sector Rotation"]);
-    expect([...(screen.getByRole("combobox", { name: "Size" }) as HTMLSelectElement).options].map((o) => o.text)).toEqual(["Any size", "Large", "Mid", "Small", "Micro"]);
-    expect([...(screen.getByRole("combobox", { name: "Sector Rotation" }) as HTMLSelectElement).options].map((o) => o.text)).toEqual(["Any box", "↗ Ahead and gaining", "→ Ahead but slowing", "↑ Behind but gaining", "↘ Behind and slipping"]);
-    fireEvent.change(screen.getByRole("combobox", { name: "Macro sector" }), { target: { value: "Industrials" } });
-    expect((screen.getByRole("combobox", { name: "Sector" }) as HTMLSelectElement).options[0].text).toBe("Any sector in Industrials");
-    expect((screen.getByRole("combobox", { name: "Industry" }) as HTMLSelectElement).options[0].text).toBe("Any industry in Industrials");
-    expect([...(screen.getByRole("combobox", { name: "Industry" }) as HTMLSelectElement).options].map((o) => o.text)).toEqual(["Any industry in Industrials", "Aerospace & Defense (2)", "Electrical Equipment (1)"]);
-    expect(screen.getByRole("combobox", { name: "Macro sector" }).hasAttribute("data-on")).toBe(true);   // on = teal
-    const lead = screen.getByRole("button", { name: /Industry ahead and gaining/ });
-    fireEvent.change(screen.getByRole("combobox", { name: "Macro sector" }), { target: { value: "Power" } });
-    expect(lead.className).toMatch(/zero/); expect(lead.hasAttribute("disabled")).toBe(true);   // no company in this list: greyed, cannot be pressed
+    expect((screen.getByRole("searchbox", { name: "Search in this list" }) as HTMLInputElement).placeholder).toBe("Search a company in this list");
+    expect([...screen.getByRole("group", { name: "Filters" }).querySelectorAll(".dbx-ddb .dbx-ddl")].map((b) => b.textContent))
+      .toEqual(["Theme", "Stage", "Sector", "Industry", "Size", "More filters", "My names"]);
+    expect(within(dd(/^Size/)).getAllByRole("option").map((o) => o.textContent)).toEqual(["Any size5", "Large · above ₹75,000 cr1", "Mid · ₹25,000–75,000 cr1",
+      "Small · ₹10,000–25,000 cr0", "Micro · below ₹10,000 cr3"]);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect([...(within(dd(/^More filters/)).getByRole("combobox", { name: "Sector Rotation" }) as HTMLSelectElement).options].map((o) => o.text))
+      .toEqual(["Any box", "↗ Ahead and gaining (2)", "→ Ahead but slowing (0)", "↑ Behind but gaining (0)", "↘ Behind and slipping (0)"]);
+    fireEvent.keyDown(document, { key: "Escape" });
+    pickOpt(/^Sector/, /^All of Industrials/);
+    expect(loc).toBe("/discover/companies?mac=Industrials");
+    expect(ddBtn(/^Sector/).className).toMatch(/\bon\b/);   // on = teal
+    expect(within(dd(/^Industry/)).getAllByRole("option").map((o) => o.textContent)).toEqual(["Any industry in Industrials3", "Aerospace & Defense2", "Electrical Equipment1"]);
+    fireEvent.click(screen.getByRole("option", { name: /^Electrical Equipment/ }));
+    expect(loc).toBe("/discover/companies?mac=Industrials&sct=Capital+Goods&ind=Electrical+Equipment");   // an industry sets its sector and macro sector
+    pickOpt(/^Sector/, /^All of Power/);
+    expect(loc).toBe("/discover/companies?mac=Power");                                       // a new macro sector takes the sector and industry off
+    const lead = within(dd(/^Ready-made views/)).getByRole("checkbox", { name: /Industry ahead and gaining/ });
+    expect(lead.hasAttribute("disabled")).toBe(true);                                         // no company in this list: greyed, cannot be switched on
   });
   it("the linked rule: a choice that no longer fits is taken off with a message", () => {
     const tree = treeOf(joinRows(BOARD, UNI.rows as never, [], [], undefined));
@@ -306,10 +319,10 @@ describe("#260: the rev 4 filter box, the columns and the company panel", () => 
     expect(linkFilters({ mac: "Industrials", sct: "", ind: "Power" }, tree).ind).toBe("");
     expect(linkFilters({ mac: "Industrials", sct: "Capital Goods", ind: "Aerospace & Defense" }, tree).dropped).toBeNull();
   });
-  it("eleven columns; filings as two chips then a dashed '+N more' with the rest in its hover text; sizes on the shared scale", async () => {
+  it("twelve columns (task #303: Short-term trend after Prism); filings as two chips then a dashed '+N more' with the rest in its hover text; sizes on the shared scale", async () => {
     await show("/discover/companies");
     expect([...document.querySelectorAll(".dsc-tb thead th .dsc-sb")].map((b) => b.textContent)).toEqual(["Company", "Sector · industry", "Theme · stage", "Filings, 90 days", "Prism",
-      "Long-term trend", "3 months", "1 year", "Below 52-wk high", "Market cap", "Industry: Rotation · Pulse"]);
+      "Short-term trend", "Long-term trend", "3 months", "1 year", "Below 52-wk high", "Market cap", "Industry: Rotation · Pulse"]);
     const forge = [...document.querySelectorAll(".dsc-tb tbody tr")].find((r) => /Forge Co/.test(r.textContent || ""))!;
     const chips = [...forge.querySelectorAll(".dsc-ev")].map((e) => e.textContent);
     expect(chips).toEqual(["1 order", "1 capacity", "+2 more"]);
