@@ -207,3 +207,15 @@
 .pai-note { display: flex; gap: 6px; align-items: flex-start; color: var(--muted); font-size: var(--fs-13); } .pai-note svg { flex: none; width: 14px; height: 14px; margin-top: 3px; }
 .pai-err { color: var(--loss); }
 .pai-disc { color: var(--muted); font-size: 12px; }
+/* Task #293 (21 Nov 2026, the team's Prism report pack, finlit-dev-11-prism-report-21nov) */
+/* 2. Trend alignment in the narrow Technical analysis card (laptop widths): the divider was left at the end of line 1 and the diamond alone on
+   line 2. The phone layout now follows the row's own width, not the window's. */
+.pcx-al { container-type: inline-size; }
+@container (max-width: 520px) {
+  .pcx-asp { display: none; }
+  .pcx-ai { width: 34px; height: 34px; }
+  .pcx-ak { flex: 1 1 0; min-width: 0; white-space: normal; }
+  .pcx-at { flex-basis: 100%; }
+}
+/* 3. The scale under each technical bar: "Sideways · 0" stays on one line */
+.pcx-sl span:nth-child(2) { white-space: nowrap; }

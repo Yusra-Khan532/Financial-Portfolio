@@ -294,3 +294,12 @@
 .pzr-disc p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--text); max-width: none; } .pzr-disc p.pzr-disc-n { margin-top: 6px; font-size: 13px; color: var(--muted); }
 .pzr-viewer { margin: 4px 0 0; font-size: 13px; color: var(--muted); } .pzr-viewer b { color: var(--text); font-weight: 600; }
 @media print { .pzr-disc { background: #fff; border-color: #999; } }
+/* Task #293 (21 Nov 2026, the team's Prism report pack, finlit-dev-11-prism-report-21nov) */
+/* 4. Valuation against the benchmark: every card's header has the same shape (EV/EBITDA's note dropped to a second line on its own), and a
+   card with fewer rows no longer spreads them down, so the bars of all cards start on one line */
+.pzr-peer-h { flex-direction: column; align-items: flex-start; gap: 2px; }
+.pzr-peer { align-content: start; }
+/* 5. The company search above the report grows (it stayed at its 340px basis, and the placeholder was cut off) */
+.pzr-pagebar > .pzr-pick { flex: 1 1 420px; min-width: 0; }
+/* 6. The filter button in that search box is centred (it sat at top:5px in the 52px box) */
+.pzr-search .sf-inline { top: 12px; }

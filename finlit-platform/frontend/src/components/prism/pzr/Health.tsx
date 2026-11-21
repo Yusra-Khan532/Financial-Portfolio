@@ -7,6 +7,16 @@ import { peerRows, type PeerRow } from "../../../lib/prismReport";
 import { ChartTable, ShowTable } from "../PrismCharts";
 
 /** A section that opens and closes; its content stays in the page so a printout always includes it. */
+/** The engine's benchmark note in plain words for members (task #293, fix 8). The engine's status "No peer calculation required, or industry
+ *  universe unavailable or exceeds the on-demand limit" is an internal state, not a sentence for members; the medians note is a sentence and stays;
+ *  any other engine note is not shown. Exported for the tests. */
+export function benchmarkNote(note: string | null | undefined): string | null {
+  if (!note) return null;
+  if (/no peer calculation required|industry universe unavailable|on-demand limit/i.test(note)) return "The sector benchmarks above come from the data provider; FinLit did not work out its own peer average for this company.";
+  if (/^Medians use /.test(note)) return note;
+  return null;
+}
+
 export function Collapse({ title, count, children, defaultOpen = false, id }: { title: string; count?: number; children: ReactNode; defaultOpen?: boolean; id: string }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
@@ -60,7 +70,7 @@ export function Peers({ report }: { report: PrismReport }) {
       {rows.length ? <ul className="pzr-peers">{rows.map((r) => <PeerBlock key={r.key} row={r} />)}</ul>
         : <p className="pzr-empty">No verified industry or sector valuation benchmarks were available; the valuation factors that need one use group estimates.</p>}
       {extra.length > 0 && <ul className="pzr-bm">{extra.map(([k, b]) => { const l = benchmarkLine(k, b); return <li key={k}><b>{l.what} {l.value}</b><span className="pzr-small">Source: {l.src}{l.more}</span></li>; })}</ul>}
-      {report.benchmark?.note && <p className="pzr-small">{report.benchmark.note}</p>}
+      {benchmarkNote(report.benchmark?.note) && <p className="pzr-small">{benchmarkNote(report.benchmark?.note)}</p>}
       <p className="pzr-small">Own-history comparisons use the company's own multiples over up to five years; the comparison behind each valuation factor is listed with the factor.</p>
       {rows.length > 0 && <><div className="pzr-cfoot"><span /><ShowTable on={table} set={setTable} /></div>
         {table && <ChartTable caption="Company multiple, benchmark and own five-year median" head={["Multiple", "Company", "Benchmark", "Own 5-year median"]} rows={rows.map((r) => [r.label, r.company == null ? "—" : `${nf(r.company, 2)}×`, r.benchmark == null ? "—" : `${nf(r.benchmark, 2)}×`, r.own == null ? "—" : `${nf(r.own, 2)}×`])} />}</>}
