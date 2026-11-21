@@ -336,13 +336,14 @@ def _count_one(t: Table, plan: str, query: str, recent: bool) -> Dict[str, Any]:
 def _view(r, count: Optional[Dict[str, Any]] = None, stale: bool = False) -> Dict[str, Any]:
     out = {"id": str(r["id"]), "name": r["name"], "query": r["query"], "note": r["note"], "columns": _parse_json(r["columns"], []), "sort": _parse_json(r["sort"], None),
            "recent": r["recent"], "createdAt": r["created_at"].isoformat(), "updatedAt": r["updated_at"].isoformat(),
-           "count": r["last_count"], "countedAt": r["counted_at"].isoformat() if r["counted_at"] else None, "status": "ok", "stale": True}
+           "count": r["last_count"], "countedAt": r["counted_at"].isoformat() if r["counted_at"] else None, "status": "ok", "stale": True,
+           "converted": _parse_json(r["converted"], None)}   # task #283 PR D: what the one-time conversion from the retired FinLit IQ changed ({on, was, text})
     if count is not None and not stale:
         out.update({"count": count["count"], "status": count["status"], "leftOut": count.get("leftOut"), "stale": False})
     return out
 
 
-COLS = "id, name, query, note, columns, sort, recent, last_count, counted_at, created_at, updated_at"
+COLS = "id, name, query, note, columns, sort, recent, last_count, counted_at, created_at, updated_at, converted"
 
 
 async def _owned(conn, ctx: Ctx, basket_id: str):

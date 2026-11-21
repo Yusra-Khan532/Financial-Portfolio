@@ -73,7 +73,11 @@ async def test_repeating_alert_needs_a_new_crossing_and_respects_pause_and_email
 
 async def test_validation_limits_and_ownership(app):
     basic = await signed_in(app, "c@example.com")
-    assert (await basic.post("/api/alerts", json=body(metric="overall", value=70))).json()["detail"]["status"] == "plan_required"
+    assert (await basic.post("/api/alerts", json=body(metric="pe", value=20))).json()["detail"]["status"] == "plan_required"
+    # task #283 PR D: the retired score takes no new alert on any plan; FinLit Prism's score is a Gold alert
+    assert (await basic.post("/api/alerts", json=body(metric="overall", value=70))).json()["detail"]["status"] == "retired_metric"
+    locked = (await basic.post("/api/alerts", json=body(metric="prism_final", value=65))).json()["detail"]
+    assert locked["status"] == "plan_required" and locked["plan"] == "gold" and "part of the Gold plan" in locked["detail"]
     assert (await basic.post("/api/alerts", json=body(op="below", metric="volume_x", value=3))).json()["detail"]["status"] == "bad_metric"
     assert (await basic.post("/api/alerts", json=body(channels=["app", "sms"]))).json()["detail"]["status"] == "bad_channel"
     assert (await basic.post("/api/alerts", json=body(symbol="NOPE123"))).json()["detail"]["status"] == "unknown_stock"
@@ -86,7 +90,9 @@ async def test_validation_limits_and_ownership(app):
     other = await signed_in(app, "d@example.com", plan="silver")
     ours = (await basic.get("/api/alerts")).json()["alerts"][0]["id"]
     assert (await other.delete(f"/api/alerts/{ours}")).status_code == 404
-    assert (await other.post("/api/alerts", json=body(metric="overall", value=40))).status_code == 201
+    assert (await other.post("/api/alerts", json=body(metric="pe", value=40))).status_code == 201          # a Silver metric on Silver
+    assert (await other.post("/api/alerts", json=body(metric="overall", value=40))).json()["detail"]["status"] == "retired_metric"
+    assert (await other.post("/api/alerts", json=body(metric="prism_final", value=65))).json()["detail"]["plan"] == "gold"
     assert (await basic.delete(f"/api/alerts/{ours}")).status_code == 200
     anon_status = (await (await signed_in(app, "e@example.com")).get("/api/alerts")).status_code
     assert anon_status == 200

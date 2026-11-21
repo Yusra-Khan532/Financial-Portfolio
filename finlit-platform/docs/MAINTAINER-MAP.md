@@ -78,6 +78,9 @@ Written 17 Nov 2026 from a full read of the repository, the team workspace and t
 - **Database:**
   - `finlit/migrations/NNN_*.sql` are applied in filename order. The latest is `106_company_classification.sql`, and numbers have gaps, so the next one is `107_`.
   - Migrations only go forward: a rollback does not undo them.
+  - A one-time data change that needs Python runs from `Store.migrate()` after the SQL files and records its own version in `schema_migrations`
+    (it never raises, so it cannot stop a deploy or a job). The first is task #283 PR D's `finlit/iq_retire.py` (`123_iq_to_prism`): members' saved
+    screens, query baskets and alerts on the retired FinLit IQ converted to FinLit Prism, with one notice per member (notification kind `notice`).
 - **Settings:** `finlit/config.py` (`Settings`), although many modules read `os.environ` directly.
 - **Data providers:**
 

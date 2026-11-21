@@ -414,3 +414,10 @@ table.sr-only { display: block; max-width: 1px; max-height: 1px; contain: strict
 .rc-more { margin-top: 8px; } .rc-more > summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--s1); color: var(--text); font: 600 var(--fs-14) var(--sans); }
 .rc-more > summary::-webkit-details-marker { display: none; } .rc-more > summary::after { content: "▾"; font-size: var(--fs-12); color: var(--muted); } .rc-more[open] > summary::after { content: "▴"; }
 .rc-more > summary:hover { border-color: var(--text); } .rc-more > summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; } .rc-more > .feed-l { margin-top: 8px; }
+/* Task #283 PR D: an account notice from the server (shown once, until closed) and the "converted" lines on saved screens, baskets and alerts */
+.acct-notice { display: grid; grid-template-columns: 38px minmax(0, 1fr) 28px; gap: 12px; align-items: start; margin: 12px auto 0; max-width: 1200px; padding: 14px 14px 14px 16px; border-left: 4px solid var(--gold); }
+.acct-notice p { margin: 4px 0 10px; font-size: 14px; line-height: 1.5; color: var(--muted); overflow-wrap: anywhere; }
+.acct-notice-f { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.alx-conv, .xsp-conv, .qb-conv { margin: 0; font-size: 13px; line-height: 1.45; color: var(--muted); overflow-wrap: anywhere; }
+.xsp-conv { flex-basis: 100%; }
+@media (max-width: 640px) { .acct-notice { margin: 10px 16px 0; } }
