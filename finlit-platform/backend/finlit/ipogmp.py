@@ -266,14 +266,15 @@ from fastapi import APIRouter, Query, Request  # noqa: E402
 from fastapi.responses import Response  # noqa: E402
 
 router = APIRouter()
+RECORD_SQL = """SELECT * FROM ipo_gmp WHERE listed AND gmp_pct IS NOT NULL AND listing_pct IS NOT NULL AND ($1::text IS NULL OR board = $1)
+    ORDER BY listing_date DESC"""
 
 
 @router.get("/api/ipos/gmp-record")
 async def gmp_record(request: Request, board: str = Query("all", pattern="^(all|mainboard|sme)$")) -> Response:
     """Public. Every listed IPO with its last GMP before listing and its actual listing gain, and the figures under the chart. GMP is InvestorGain's."""
-    q = "SELECT * FROM ipo_gmp WHERE listed AND gmp_pct IS NOT NULL AND listing_pct IS NOT NULL" + ("" if board == "all" else " AND board = $1") + " ORDER BY listing_date DESC"
     async with request.app.state.store.pool.acquire() as conn:
-        rows = [dict(r) for r in (await conn.fetch(q) if board == "all" else await conn.fetch(q, board))]
+        rows = [dict(r) for r in await conn.fetch(RECORD_SQL, None if board == "all" else board)]
         newest = await conn.fetchval("SELECT max(fetched_at) FROM ipo_gmp")
     f = lambda v: float(v) if v is not None else None  # noqa: E731
     items = [{"name": r["name"], "symbol": r["nse"] or r["bse"], "board": r["board"], "issuePrice": f(r["issue_price"]), "gmp": f(r["gmp"]), "gmpPct": f(r["gmp_pct"]),
