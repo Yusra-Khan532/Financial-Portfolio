@@ -15,6 +15,7 @@ import { useAuth } from "../lib/auth";
 import { pickerDays, useResultsCalendar } from "../lib/resultsCalendar";
 import { DashCardsProvider } from "../components/dashboard/DashCards";
 import { ComingUp, DayResults, MonthCalendar, ResultsHead, type CalDay } from "../components/results/pack/ResultsPack";
+import { CalendarSync } from "../components/CalendarSync";   // task #297: Add to Google Calendar
 import { CalendarTiles } from "../components/results/pack/CalendarTiles";
 import "../styles/sectors.css";
 import "../styles/sectors-pack.css";
@@ -78,7 +79,7 @@ export function ResultsPage() {
   return (
     <DashCardsProvider userId={user?.id ?? null}>
     <div className="wrap sx sp rs rsc" data-testid="results-calendar">
-      <ResultsHead title="Results calendar" desc="Who has reported, how good the results were against similar companies, and who reports next. Dates are as announced to the exchanges."
+      <ResultsHead actions={<CalendarSync />} title="Results calendar" desc="Who has reported, how good the results were against similar companies, and who reports next. Dates are as announced to the exchanges."
         links={[["/results/quarter", "All quarter results"], ["/news", "News & filings"], ["/ipo", "IPO calendar"]]} view="calendar" />
       {staleNote && <div className="rc-stale" role="status">{staleNote}</div>}
       {delayedNote && !staleNote && <div className="rc-stale" role="status" data-testid="results-delayed">{delayedNote}</div>}

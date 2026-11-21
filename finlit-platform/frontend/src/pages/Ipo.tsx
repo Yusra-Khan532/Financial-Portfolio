@@ -1,4 +1,5 @@
 import { PageHeader } from "../components/PageHeader";
+import { CalendarSync } from "../components/CalendarSync";   // task #297: Add to Google Calendar
 import { Link } from "react-router";
 import { useCallback, useMemo, useState } from "react";
 import { Icon } from "../lib/icons";
@@ -84,7 +85,7 @@ export function IpoPage() {
   const fromProvider = rows.some((r) => r.source === "FinEdge");
   return (
     <div className="wrap ipo">
-      <PageHeader plan="free" title="IPO calendar" art="calendar" links={["/results", "/news", "/premium/markets"]}
+      <PageHeader plan="free" title="IPO calendar" art="calendar" links={["/results", "/news", "/premium/markets"]} actions={<CalendarSync />}
         description={<>Issues that are <b>open, coming up and recently listed</b>, updated automatically from exchange data. For information only; the offer document is the authoritative source.</>}
         stats={[{ icon: "activity", value: !isLoading && rows.length > 0 ? by("open").length : null, label: "Open now" }, { icon: "calendar", value: !isLoading && rows.length > 0 ? by("upcoming").length : null, label: "Upcoming" }]} />
       <div className="ipo-k">
