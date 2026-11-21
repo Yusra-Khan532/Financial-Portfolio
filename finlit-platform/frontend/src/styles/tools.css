@@ -430,3 +430,17 @@ section.block .tr-c p.tr-in { display: flex; align-items: flex-start; gap: 8px; 
 .cc-scores .cc-prism { padding-top: 0; border-top: 0; }
 .cc-scores .cc-tech { margin: 0; }
 @media (max-width: 560px) { .cc-scores { grid-template-columns: minmax(0, 1fr); } }
+/* task #299 (the team, 21 Nov 2026: "too much content written about each and every feature"): a header menu item is its name only; its one-line
+   description sits behind an i on the row's right and shows on hover, a tap or keyboard focus on the item (the side menu's #300 i, the same look) */
+.ddr { position: relative; display: grid; }
+.ddr > a { padding-right: 40px; }
+.ddq { position: absolute; top: 50%; right: 10px; transform: translateY(-50%); display: grid; }
+.ddq-b { width: 20px; height: 20px; display: grid; place-items: center; padding: 0; border: 1px solid var(--border-strong, var(--border)); border-radius: 50%; background: var(--s1);
+  color: var(--muted); font: italic 600 12px/1 Georgia, "Times New Roman", serif; cursor: help; opacity: .75; transition: color .15s, border-color .15s, opacity .15s; }
+.ddr:hover .ddq-b, .ddq:hover .ddq-b, .ddr:focus-within .ddq-b { opacity: 1; }
+.ddq:hover .ddq-b { color: var(--text); border-color: var(--gold); }
+.ddq-t { display: none; position: absolute; top: calc(100% + 6px); right: -4px; z-index: 80; width: 240px; padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: 10px;
+  background: var(--s2); color: var(--text); box-shadow: var(--lift); font: 400 13px/1.45 var(--sans); text-align: left; pointer-events: none; }
+.ddq:hover .ddq-t, .ddr:has(> a:focus-visible) .ddq-t { display: block; }
+.ddm .ddr > a { min-height: 44px; padding-top: 6px; padding-bottom: 6px; }
+.ddr:hover, .ddr:focus-within { z-index: 5; }   /* the tooltip of the row in focus lies over the rows after it */

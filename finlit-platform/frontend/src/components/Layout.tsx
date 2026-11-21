@@ -35,8 +35,17 @@ function Menu({ m, open, setOpen, path }: { m: NavSection; open: boolean; setOpe
       <div className={"ddm" + (open ? " open" : "") + (m.wide ? " wide" : "") + (m.id === "more" ? " right" : "") + (m.groups.length === 1 && !m.groups[0].title ? " solo" : "")} role="menu">
         {m.groups.map((g, gi) => (
           <div className="ddg" key={gi}>{g.title && <span className="ddt">{g.title}</span>}
-            {g.items.map((it) => <Link key={it.to} to={it.to} role="menuitem" className={isHere(path, it) ? "here" : undefined} aria-current={isHere(path, it) ? "page" : undefined} onClick={() => setOpen(null)}>
-              <span className="ddi"><Icon name={it.icon} /></span><span><b>{it.label}{it.gold && <em className="gtag">Gold</em>}{isNew(it) && <em className="nav-new">New</em>}</b><small>{it.sub}</small></span></Link>)}</div>
+            {g.items.map((it, ii) => {
+              // task #299 (the team, 21 Nov: "too much content written about each and every feature … provide an i button where a person can hover"):
+              // the name only; its line sits behind an i beside the link (a button cannot be inside a link) and shows on hover, keyboard focus or a tap
+              const tip = `ddtip-${m.id}-${gi}-${ii}`;
+              return <div className="ddr" key={it.to}>
+                <Link to={it.to} role="menuitem" className={isHere(path, it) ? "here" : undefined} aria-current={isHere(path, it) ? "page" : undefined} aria-describedby={it.sub ? tip : undefined} onClick={() => setOpen(null)}>
+                  <span className="ddi"><Icon name={it.icon} /></span><span><b>{it.label}{it.gold && <em className="gtag">Gold</em>}{isNew(it) && <em className="nav-new">New</em>}</b></span></Link>
+                {it.sub && <span className="ddq"><button type="button" className="ddq-b" aria-label={`What is ${it.label}?`} aria-describedby={tip} tabIndex={-1}>i</button>
+                  <span role="tooltip" id={tip} className="ddq-t">{it.sub}</span></span>}
+              </div>;
+            })}</div>
         ))}
       </div>
     </div>
