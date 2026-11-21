@@ -49,6 +49,9 @@ def test_verdicts_fit_and_summary():
 def test_page_urls_from_the_sitemap():
     xml = "<loc>https://www.investorgain.com/gmp/a-ipo/10/</loc><loc>https://www.investorgain.com/gmp/b-ipo/2401/</loc><loc>https://www.investorgain.com/gmp/a-ipo/10/</loc>"
     assert [p["id"] for p in ipogmp.page_urls(xml)] == [2401, 10]
+    both = xml + "<loc>https://www.investorgain.com/ipo/mtar-technologies-ipo/66/</loc><loc>https://www.investorgain.com/ipo/b-ipo/2401/</loc>"
+    got = ipogmp.page_urls(both)                                  # the IPO list adds issues the GMP list leaves out; each is read from its GMP page
+    assert [p["id"] for p in got] == [2401, 66, 10] and got[1]["url"] == "https://www.investorgain.com/gmp/mtar-technologies-ipo/66/"
 
 
 # ------------------------------------------------------------------------------------------------ the API, against Postgres

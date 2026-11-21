@@ -29,16 +29,20 @@ UA = "Mozilla/5.0 (compatible; FinLitBot/1.0; +https://finlitventures.com)"
 
 SOURCE_NAME = "InvestorGain"
 SOURCE_URL = "https://www.investorgain.com/"
+# Two sitemap sections: the GMP pages (a=22) and the IPO pages (a=18). The GMP section leaves out most issues from 2020-21 (MTAR Technologies, Easy Trip,
+# Nazara ...), yet each of those has a GMP page at the same slug and id, so the IPO section's list is read too and every issue is read from its GMP page.
 SITEMAP = "https://www.investorgain.com/google_sitemap_urlredirect.asp?a=22"
-PAGE_RE = re.compile(r"https://www\.investorgain\.com/gmp/([a-z0-9-]+)/(\d+)/")
+SITEMAPS = (SITEMAP, "https://www.investorgain.com/google_sitemap_urlredirect.asp?a=18")
+PAGE_RE = re.compile(r"https://www\.investorgain\.com/(?:gmp|ipo)/([a-z0-9-]+)/(\d+)/")
 BAND_PTS = 5.0      # "within the band": the listing gain was within 5 percentage points of what the GMP said
 
 
 def page_urls(sitemap_xml: str) -> List[Dict[str, Any]]:
-    """Every IPO GMP page in InvestorGain's sitemap: [{id, slug, url}], each once, newest id first."""
+    """Every IPO in InvestorGain's sitemap (its GMP pages or its IPO pages): [{id, slug, url}], each once, newest id first; url is always the GMP page."""
     seen: Dict[int, Dict[str, Any]] = {}
     for m in PAGE_RE.finditer(sitemap_xml or ""):
-        seen.setdefault(int(m.group(2)), {"id": int(m.group(2)), "slug": m.group(1), "url": m.group(0)})
+        i, slug = int(m.group(2)), m.group(1)
+        seen.setdefault(i, {"id": i, "slug": slug, "url": f"https://www.investorgain.com/gmp/{slug}/{i}/"})
     return sorted(seen.values(), key=lambda x: -x["id"])
 
 
@@ -248,9 +252,15 @@ async def refresh(store, limit: int = 100, pause_s: float = 2.0, max_minutes: fl
     own = http is None
     http = http or httpx.AsyncClient(timeout=40, headers={"User-Agent": UA}, follow_redirects=True)
     try:
-        sm = await http.get(SITEMAP)
-        sm.raise_for_status()
-        pages = page_urls(sm.text)
+        xml = []
+        for u in SITEMAPS:                          # the GMP list must answer; the IPO list only adds the issues the GMP list leaves out
+            sm = await http.get(u)
+            if u == SITEMAP:
+                sm.raise_for_status()
+            if sm.status_code == 200:
+                xml.append(sm.text)
+            await asyncio.sleep(pause_s)
+        pages = page_urls("\n".join(xml))
         out["seen"] = len(pages)
         async with store.pool.acquire() as conn:
             done = {r["ig_id"] for r in await conn.fetch(DONE_SQL)}
@@ -327,7 +337,7 @@ async def gmp_record(request: Request, board: str = Query("all", pattern="^(all|
         rows = [dict(r) for r in await conn.fetch(RECORD_SQL, None if board == "all" else board)]
         newest = await conn.fetchval("SELECT max(fetched_at) FROM ipo_gmp")
     f = lambda v: float(v) if v is not None else None  # noqa: E731
-    items = [{"name": r["name"], "symbol": r["nse"] or r["bse"], "board": r["board"], "issuePrice": f(r["issue_price"]), "gmp": f(r["gmp"]), "gmpPct": f(r["gmp_pct"]),
+    items = [{"id": r["ig_id"], "name": r["name"], "symbol": r["nse"] or r["bse"], "board": r["board"], "issuePrice": f(r["issue_price"]), "gmp": f(r["gmp"]), "gmpPct": f(r["gmp_pct"]),
               "listingPrice": f(r["listing_price"]), "listingPct": f(r["listing_pct"]), "listingDate": r["listing_date"].isoformat() if r["listing_date"] else None,
               "subscription": f(r["subscription"]), "issueSizeCr": f(r["issue_size_cr"]), "verdict": verdict(f(r["gmp_pct"]), f(r["listing_pct"])), "url": r["url"]} for r in rows]
     body = {"board": board, "items": items, "summary": summary([{"gmp_pct": i["gmpPct"], "listing_pct": i["listingPct"]} for i in items]),
