@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { CoLogo } from "../components/CoLogo";
+import { Icon } from "../lib/icons";
 import { Link } from "react-router";
 import { HScroll } from "../components/HScroll";
 import { MINUS } from "../lib/format";
@@ -79,6 +80,8 @@ export function SharesTable(p: Props) {
   const rest = page?.avg_with_rest ?? {};
   const letter = useMemo(() => new Map((page?.groups ?? []).flatMap((g) => g.members.map((m) => [m, g.letter] as const))), [page]);
   const [sortId, setSortId] = useState<string | null>(null), [dir, setDir] = useState<1 | -1>(-1);
+  // task #274 (change 9): Key figures' "Sort the table by valuation" sorts by that column, weakest first
+  useEffect(() => { const f = (e: Event) => { const id = (e as CustomEvent<string>).detail; if (typeof id === "string") { setSortId(id); setDir(1); } }; window.addEventListener("eq-sort", f); return () => window.removeEventListener("eq-sort", f); }, []);
   const [colsMode, setColsMode] = useState<"all" | "h" | "s">("all");   // task #235 (pack B7): Columns: Everything · Your holding · Scores
   const [q, setQ] = useState(""), [band, setBand] = useState<string | null>(null), [level, setLevel] = useState<Level>("sector");
   // task #274 (pack change 18): the five filters; they stay set across Overview, By sector, By company size, Ratios and Financials (this component's state)
@@ -222,14 +225,17 @@ export function SharesTable(p: Props) {
 
   return (
     <section className="pfx-card pfx-wide" id="pf-shares" aria-labelledby="pfx-sh">
-      <div className="pfx-h pfx-h-shares"><div><h2 id="pfx-sh">Your shares</h2>{p.peerOf && <p className="sp-sub">{plural(lines.length, "share")} · limit {p.limit}. Click a heading to sort.</p>}</div>
+      <div className="pfx-h pfx-h-shares"><div><h2 id="pfx-sh">Your shares</h2>{p.peerOf && <p className="sp-sub">{p.editSell ? `${plural(lines.length, "share")} · up to ${p.limit} · click a column heading to sort` : <>{plural(lines.length, "share")} · limit {p.limit}. Click a heading to sort.</>}</p>}</div>
         <div className="pfx-tabs" role="tablist" aria-label="Portfolio views">{TABS.map((t, i) => (
           <button key={t.id} type="button" role="tab" id={`pf-tab-${t.id}`} aria-selected={tab === t.id} aria-controls="pf-panel" tabIndex={tab === t.id ? 0 : -1} className={"pfx-pillbtn" + (tab === t.id ? " on" : "")} onClick={() => p.onTab(t.id)}
             onKeyDown={(e) => { const to = nextTab(TABS[i].id, e.key); if (to) { e.preventDefault(); p.onTab(to); document.getElementById(`pf-tab-${to}`)?.focus(); } }}>{t.label}</button>))}</div></div>
       {p.cards}
       {sizeCards}
-      <div className="pfx-tools">
-        <input className="pfx-search" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a share in your list" aria-label="Find a share in your list" />
+      <div className={"pfx-tools" + (p.editSell ? " pfh" : "")}>
+        {p.editSell ? <label className="pfh-find"><Icon name="search" />
+          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a share in your list" aria-label="Find a share in your list" /></label>
+          : <input className="pfx-search" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a share in your list" aria-label="Find a share in your list" />}
+        {p.editSell && <span className="pfh-div" aria-hidden="true" />}
         {p.editSell ? <FilterRow defs={defs} symbols={lines.map((l) => l.symbol)} picks={picks} get={getters} onChange={setPicks} />
           : model === "prism" && <div className="pfx-chipsrow" role="group" aria-label="Filter by Prism band">
           <button type="button" className={"pfx-pillbtn" + (band == null ? " on" : "")} aria-pressed={band == null} onClick={() => setBand(null)}>All {lines.length}</button>
@@ -237,9 +243,11 @@ export function SharesTable(p: Props) {
         {tab === "sector" && <div className="pfx-chipsrow" role="group" aria-label="Group by">{(["macro", "sector", "industry"] as const).map((k) => <button key={k} type="button" className={"pfx-pillbtn" + (level === k ? " on" : "")} aria-pressed={level === k} onClick={() => setLevel(k)}>{LEVEL_WORD[k]} · {new Set(lines.map((l) => { const x = nseLevels(isReady(l.ov) ? l.ov.industry : null); return x ? x[k] : null; }).filter(Boolean)).size}</button>)}</div>}
         {tab === "financials" && <div className="pfx-chipsrow" role="group" aria-label="Period shown">{([["year", "Latest year"], ["quarter", "Latest quarter"]] as const).map(([k, l]) => <button key={k} type="button" className={"pfx-pillbtn" + (period === k ? " on" : "")} aria-pressed={period === k} onClick={() => p.onPeriod(k)}>{l}</button>)}</div>}
         {(tab === "sector" || tab === "size") && <div className="pfx-chipsrow"><button type="button" className="pfx-link" onClick={() => setOpenSet(new Set(groups.map((g) => g.g)))}>Open all</button><button type="button" className="pfx-link" onClick={() => setOpenSet(new Set())}>Close all</button></div>}
-        {ov && p.lots && <div className="x-cols" role="group" aria-label="Columns"><span>Columns:</span>{([["all", "Everything"], ["h", "Your holding"], ["s", "Scores"]] as const).map(([k, l]) =>
+        {ov && p.lots && p.editSell && <label className={"pfh-cols" + (colsMode !== "all" ? " on" : "")}><span className="sr-only">Columns</span>
+          <select value={colsMode} onChange={(e) => setColsMode(e.target.value as typeof colsMode)}><option value="all">All columns</option><option value="h">Your holding</option><option value="s">Scores</option></select></label>}
+        {ov && p.lots && !p.editSell && <div className="x-cols" role="group" aria-label="Columns"><span>Columns:</span>{([["all", "Everything"], ["h", "Your holding"], ["s", "Scores"]] as const).map(([k, l]) =>
           <button key={k} type="button" aria-pressed={colsMode === k} onClick={() => setColsMode(k)}>{l}</button>)}</div>}
-        <span className="pfx-note pfx-count">{plural(shown.length, "share")}{shown.length !== lines.length ? ` of ${lines.length}` : ""} · limit {p.limit}</span>
+        <span className="pfx-note pfx-count">{plural(shown.length, "share")}{shown.length !== lines.length ? ` of ${lines.length}` : ""}{p.editSell ? "" : ` · limit ${p.limit}`}</span>
       </div>
       {p.editSell && <FilterChips defs={defs} picks={picks} q={q} shown={shown.length} total={lines.length} onChange={setPicks} onClearQ={() => setQ("")} />}
       {p.state === "error" && <p className="pfx-warn" role="alert">{p.errorText || "The scores could not be loaded. Try again in a moment."}</p>}

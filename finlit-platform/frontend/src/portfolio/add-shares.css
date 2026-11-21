@@ -135,3 +135,18 @@
 @media (max-width: 760px) {
   .pff-menu { position: fixed; left: 12px; right: 12px; top: auto; bottom: 72px; min-width: 0; max-height: 60vh; overflow: auto; z-index: 130; }
 }
+
+/* Task #274 change 12: the Your shares head (layout 1): search with a magnifier · a thin divider · the five filters · Columns · count; one control height
+   (38 px), fully rounded; the table blue for the open table tab and a Columns choice; 16 px between rows; wraps instead of scrolling between 761 and 1,300 px. */
+.pfx-tools.pfh { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; row-gap: 16px; margin: 16px 0 0; }
+.pfh-find { display: inline-flex; align-items: center; gap: 8px; flex: 0 1 260px; min-width: 180px; min-height: 38px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--s1); color: var(--muted); }
+.pfh-find input { flex: 1; min-width: 0; min-height: 36px; padding: 0; border: 0; outline: 0; background: none; color: var(--text); font: 400 14px var(--sans); }
+.pfh-find:focus-within { outline: 2px solid var(--gold); outline-offset: 2px; }
+.pfh-div { width: 1px; height: 26px; background: var(--border-strong); }
+.pfx-tools.pfh .pff-row { gap: 10px; }
+.pfx-tools.pfh .pfh-cols select { -webkit-appearance: none; appearance: none; width: auto; min-height: 38px; height: 38px; padding: 0 32px 0 14px; border: 1px solid var(--border-strong); border-radius: 999px; color: var(--text); font: 600 14px var(--sans); cursor: pointer;
+  background: var(--s1) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0h10L5 6z' fill='%23888'/></svg>") no-repeat right 13px center; }
+.pfx-tools.pfh .pfh-cols.on select { background-color: var(--x-blue, #2f5a9e); border-color: var(--x-blue, #2f5a9e); color: #fff; }
+.pfh-cols select:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.pfx-tools.pfh .pfx-count { margin-left: auto; }
+@media (max-width: 760px) { .pfh-div { display: none; } .pfh-find { flex: 1 1 100%; } .pfx-tools.pfh .pfx-count { margin-left: 0; flex: 1 1 100%; } }

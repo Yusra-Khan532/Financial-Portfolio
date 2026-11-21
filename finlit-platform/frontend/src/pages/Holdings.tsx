@@ -42,14 +42,15 @@ import { useIndices } from "../lib/indices";
 import { dayWord } from "../lib/dashPack";
 import { useLeadershipList } from "../lib/leadership";
 import { sharesCards, type Share, type Size } from "../lib/equityPack";
-import { portfolioCards, topTiles, type TabKey } from "../lib/equityTop";
-import { KeyFigures, SectionsBar, jumpTo, type Sec } from "../portfolio/pack/PageTop";
+import { topTiles, type TabKey } from "../lib/equityTop";
+import { SectionsBar, jumpTo, type Sec } from "../portfolio/pack/PageTop";
+import { KeyAnswers } from "../portfolio/pack/KeyAnswers";
+import { divAnswers, portfolioAnswers, riskAnswers } from "../lib/keyAnswers";
 import { EqTitle, MoneyBox, NextView, PfPicker, ScorePanel, ViewCards, YourPortfolios, useEqViewsSeen, type DayMove, type ViewCard } from "../portfolio/pack/EqTop";
 import { GoldLock, InShort, Insights, LeadersSection, StyleTiltPack, PeersSection, TrendSection, SizeFold, eqViews, type View } from "../portfolio/pack/EquityPack";
 import { StickySwitch } from "../portfolio/ViewKit";
-import { keyDrop } from "../portfolio/pack/KeyDrops";
-import { BetaBuild, EachShareRisk, Fall10, RiskGlancePack, RiskShareSection, SizeBench, riskKeys, riskSplit, usePortfolioRisk } from "../portfolio/pack/RiskPack";
-import { DivSubTabs, ShareGrid, SpreadPack, WhereSitsGrid, divKeys, type DivInput } from "../portfolio/pack/DivPack";
+import { BetaBuild, EachShareRisk, Fall10, RiskGlancePack, RiskShareSection, SizeBench, riskSplit, usePortfolioRisk } from "../portfolio/pack/RiskPack";
+import { DivSubTabs, ShareGrid, SpreadPack, WhereSitsGrid, divFacts, type DivInput } from "../portfolio/pack/DivPack";
 import { nseLevels } from "../lib/nseTaxonomy";
 import "../styles/sectors-pack.css";
 import "../styles/industry-pack.css";
@@ -73,9 +74,9 @@ const UPLOAD_NOTE = <>
 </>;
 
 const SECS: Record<TabKey, { label: string; secs: Sec[] }> = {
-  portfolio: { label: "Portfolio", secs: [["pf-shares", "Your shares"], ["eq-trend", "Trends"], ["eq-peers", "Peers"], ["eq-leaders", "Group leaders"]] },
-  diversification: { label: "Diversification analytics", secs: [["eq-where", "Where it sits"], ["eq-spread", "Spread"], ["eq-sectors", "Sectors"], ["eq-groups", "Stock groups"], ["eq-sizes", "Company sizes"], ["eq-grid", "Share by share"], ["eq-style", "Style tilt"]] },
-  risk: { label: "Risk analytics", secs: [["eq-rg", "At a glance"], ["eq-build", "Beta build"], ["eq-sizeb", "Size benchmarks"], ["eq-mr", "Risk share"], ["eq-fall", "If the market fell 10%"], ["eq-each", "Each share"]] },
+  portfolio: { label: "Portfolio", secs: [["pf-shares", "Your shares"], ["eq-keys", "Key figures"], ["eq-trend", "Trends"], ["eq-peers", "Peers"], ["eq-leaders", "Group leaders"]] },
+  diversification: { label: "Diversification analytics", secs: [["eq-where", "Where it sits"], ["eq-keysd", "Key figures"], ["eq-spread", "Spread"], ["eq-sectors", "Sectors"], ["eq-groups", "Stock groups"], ["eq-sizes", "Company sizes"], ["eq-grid", "Share by share"], ["eq-style", "Style tilt"]] },
+  risk: { label: "Risk analytics", secs: [["eq-rg", "At a glance"], ["eq-keysr", "Key figures"], ["eq-build", "Beta build"], ["eq-sizeb", "Size benchmarks"], ["eq-mr", "Risk share"], ["eq-fall", "If the market fell 10%"], ["eq-each", "Each share"]] },
 };
 
 export function HoldingsPage() {
@@ -355,7 +356,6 @@ export function HoldingsPage() {
             lead={<StickySwitch list={pfList} cur={cur} onPick={(id) => { setCur(id); setOpenLots(new Set()); }} figs={pfFigs} defs={eqViews(lines.length)} view={view} onView={(v) => setView(v)} tabsId="eq-tabs" fresh={(["portfolio", "diversification", "risk"] as View[]).filter((v) => !seen.has(v))} />} />
           <div id="eq-panel" role="tabpanel" aria-labelledby={`eq-tab-${view}`}>
           {view !== "portfolio" && <AnalysingBar list={pfList} cur={cur} onPick={(id) => { setCur(id); setOpenLots(new Set()); }} n={symbols.length} />}
-          {view === "portfolio" && <KeyFigures tab="portfolio" sub={`Your ${plural(lines.length, "share")} at a glance`} cards={portfolioCards(shares, model, (sc.data?.readings as { valuation?: { word?: string } } | undefined)?.valuation?.word ?? null)} drop={model === "prism" ? (k) => keyDrop(k, shares) : undefined} n={shares.length} />}
           {view === "portfolio" && <>
             <SharesTable lots={lots} editSell={{ onEdit: (sym) => setEsWin({ what: "edit", symbol: sym }), onSell: (sym) => setEsWin({ what: "sell", symbol: sym }) }} qtyOf={(sym) => qtyBySymbol.get(sym) ?? null} onQty={onQty} lines={lines} meta={meta} page={page} mode={mode} colors={colors} model={model} tab={tab} period={period} limit={cap} state={ov.isError ? "error" : ov.isPending && !DEMO ? "loading" : "ready"}
               errorText={DEMO ? "Scores are not available in the demo preview." : ov.error?.body?.detail} onTab={(t) => go(t)} onPeriod={(pd) => go("financials", pd)}
@@ -363,6 +363,7 @@ export function HoldingsPage() {
               actions={(sym) => <button className="pfx-x" aria-label={`Remove ${sym}`} title={`Remove ${sym}${cur === "all" ? "" : ` from ${pfName(cur)}`}`} onClick={() => { st.holdings.filter((h) => h.symbol === sym && (cur === "all" || pfOf(h) === cur)).forEach((h) => portfolio.remove(h.id)); toast(`${sym} removed.`); }}>×</button>} />
             <SoldList items={sold} all={cur === "all" && pfList.length > 1} pfName={pfName} nameOf={(sym) => meta[sym]?.name ?? sym} onRemoveSale={(id, sym) => { portfolio.remove(id); setOpenLots((c) => new Set([...c, sym]));
               setTimeout(() => { const r = document.getElementById(`lots-${sym}`)?.previousElementSibling as HTMLElement | null; r?.classList.add("x-flash"); r?.scrollIntoView?.({ behavior: "smooth", block: "center" }); setTimeout(() => r?.classList.remove("x-flash"), 2300); }, 150); }} />
+            <KeyAnswers id="eq-keys" sub={`What your ${plural(lines.length, "share")} add up to, from the table above and the sections below.`} items={portfolioAnswers(shares, model === "prism", (x) => shortLabel(x))} shares={shares} />
             <SizeFold counts={sizeCount} />
             {/* Trends, Peers and Group leaders: Gold only (FinLit Prism); Silver sees a dashed lock card for each (the pack) */}
             {model === "prism" ? <>
@@ -376,16 +377,16 @@ export function HoldingsPage() {
             </>}
           </>}
           {view === "diversification" && (page && common && div ? <>
-            <KeyFigures tab="diversification" sub="How spread out your list really is" cards={divKeys(div)} />
             <WhereSitsGrid d={div} />
+            <KeyAnswers id="eq-keysd" sub="How spread out your list really is, in three answers." items={divAnswers(divFacts(div), (x) => { const y = shareOf.get(x); return y ? shortLabel(y) : x; })} shares={shares} />
             <SpreadPack d={div} />
             <DivSubTabs d={div} />
             <ShareGrid d={div} />
             {model === "prism" ? <StyleTiltPack tilt={data?.styleTilt} /> : <GoldLock id="eq-style" title="Style tilt" text="Where your list's average share ranks among all the companies FinLit Prism rates, part by part." />}
           </> : <p className="sp-note">{state === "loading" ? "Working out the figures…" : "The diversification figures need at least two shares with a year of weekly prices."}</p>)}
           {view === "risk" && (page && rk.data && riskSp ? <>
-            <KeyFigures tab="risk" sub="Where the list's risk sits" cards={riskKeys(rk.data, riskSp)} />
             <RiskGlancePack r={rk.data} split={riskSp} compare={scoreOn ? { value: choices.benchmark, onChange: (v) => pick({ ...choices, benchmark: v }) } : undefined} />
+            <KeyAnswers id="eq-keysr" sub="Where the list's risk sits, in three answers." items={riskAnswers(rk.data, riskSp.bySize, (x) => { const y = shareOf.get(x); return y ? shortLabel(y) : x; })} shares={shares} />
             <BetaBuild r={rk.data} />
             <SizeBench r={rk.data} />
             <RiskShareSection r={rk.data} split={riskSp} />

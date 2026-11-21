@@ -1,6 +1,7 @@
 // Task #183 W7: the Equity portfolio's Diversification analytics tab as the 15 Nov pack draws it (01-equity-portfolio, D50–D71): Where it sits (macro sector × size,
 // one chip per share), How spread out is the list?, three sub-tabs (how sectors move together · how stocks move together · large, mid, small and micro), Share by share,
 // and the style tilt (Gold). Figures from the server's page answer, worked out in lib/eqDiv. Every class is eqd-. Describes how prices moved; never advice.
+import type { DivFacts } from "../../lib/keyAnswers";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Scroll, Section, Tip } from "../../components/sectors/pack/Common";
 import { Insights, More } from "./EquityPack";
@@ -293,5 +294,14 @@ export function divKeys(d: DivInput) {
   return divKeyCards({ top: name ? { name, n: who.length, pct: (who.length / Math.max(1, N)) * 100, sectorNames: [...new Set(who.map((s) => d.levelOf(s, "sector")))] } : null, N,
     groups: groups.length, cross: groups.filter((g) => g.cross).length, eff: d.page.score.effective_stocks, counted: d.page.order.length,
     small: sm ? { n: sm.n, avg: sm.avg, k: sm.k } : null, sameAvg: sameVsDiff(d.page.order, d.page.corr, of).same.avg });
+}
+/** Task #274 (change 9): the figures behind Diversification's three Key figures answers (lib/keyAnswers divAnswers). */
+export function divFacts(d: DivInput): DivFacts {
+  const of = (s: string) => d.levelOf(s, "macro"), N = d.symbols.length;
+  const counts = d.symbols.reduce<Record<string, string[]>>((a, s) => { (a[of(s)] ??= []).push(s); return a; }, {});
+  const top = Object.entries(counts).sort((a, b) => b[1].length - a[1].length)[0];
+  return { N, sectors: Object.entries(counts).map(([name, xs]) => ({ name, n: xs.length })), sectorLevelOfTop: top ? [...new Set(top[1].map((s) => d.levelOf(s, "sector")))] : [],
+    groups: d.page.groups.map((g) => ({ members: g.members, cross: groupCard(g.members, g.avg_corr, d.page.order, d.page.corr, of, d.sizeOf).cross })),
+    eff: d.page.score.effective_stocks, counted: d.page.order.length };
 }
 export { averageLinkage, effective };
