@@ -209,7 +209,7 @@ LIMIT_POLICY: Dict[str, str] = {
     "ath": "deadline: stops itself after --max-minutes 8 (limit 12)",
     "coverage": "deadline: stops itself after --max-minutes 13 and records what it checked (limit 22)",
     "calendars": "fixed: two provider calendars (IPO and results dates); measured about 9 s",
-    "ipo-prices": "deadline: no new file after --max-minutes 10 and at most --max-dates 60 listing dates a run, one file a second (limit 14)",
+    "ipo-prices": "deadline: no new file after --max-minutes 10 and at most --max-dates 250 listing dates a run, one file a second (limit 14)",
     "ipo-gmp": "deadline: no new page or NSE request after --max-minutes 10, at most --limit 300 pages and --nse-limit 80 NSE books a run, one a second (limit 14)",
     "quotes": "deadline: no new slice after --max-minutes 7 (each slice followed up inside it), Dhan phase 90 s, a company 30 s (limit 10)",
     "alerts-live": "fixed: members' own alerts only; measured about 3 s",
@@ -275,7 +275,7 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         Job("ipo-gmp", ("refresh-ipo-gmp", "--limit", "300", "--nse-limit", "80", "--pause", "1", "--max-minutes", "10"), priority=3, max_runtime_min=14, weight_mb=60, honours_pause=False,
             stall_min=12, interval_min=30, sla=Sla("none"),     # round the clock, every 30 min: the first fill of ~1,400 issues takes hours, not days; later runs read only new and unlisted issues
             what="Every IPO's record and GMP from InvestorGain's IPO page, one page at a time, then NSE's subscription by category of listed mainboard issues (IPO calendar, all-IPOs table, IPO report)"),
-        Job("ipo-prices", ("refresh-ipo-prices", "--max-dates", "60", "--max-minutes", "10"), priority=3, max_runtime_min=14, weight_mb=120, honours_pause=False,
+        Job("ipo-prices", ("refresh-ipo-prices", "--max-dates", "250", "--max-minutes", "10"), priority=3, max_runtime_min=14, weight_mb=120, honours_pause=False,
             stall_min=12, interval_min=30, sla=Sla("none"),
             what="Each listed IPO's listing-day open, high, low and close, and its latest close, from the NSE and BSE daily price files (all-IPOs table, IPO report)"),
         Job("calendars", ("refresh-calendars",), priority=3, max_runtime_min=10, weight_mb=60, honours_pause=False, stall_min=10,
