@@ -1,10 +1,9 @@
-import { HScroll } from "../components/HScroll";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router";
+import { Link, Navigate } from "react-router";
 import { Icon } from "../lib/icons";
 import { dateIN, nf, num, MINUS } from "../lib/format";
-import { downloadCsv, prefetchMarkets, qs, useGold, usePremium, type Feed, type MarketSection } from "../lib/premium";
+import { downloadCsv, prefetchMarkets, qs, useGold, usePremium, type Feed as FeedT } from "../lib/premium";
 import { LineChart } from "../charts/LineChart";
 import { useDocTitle } from "../lib/title";
 import { GoldLock, PremiumHead } from "./Premium";
@@ -12,34 +11,25 @@ import { useIndexHistory, useIndices, type IndexRow, type Stat } from "../lib/in
 import { ChartHelp } from "../components/ChartHelp";
 import { LogoLoader } from "../components/LogoLoader";
 import { ChartZoom } from "../components/ChartZoom";
+import { usePortfolio } from "../lib/portfolio";
+import { useWatchlist } from "../lib/watchlist";
+import { useAuth } from "../lib/auth";
+import { useExpand } from "../components/dashboard/dx";
+import { MkDd, MkSeg, type MkOption } from "../components/MkDd";
+import { MK_TABS, MOVED, ROUTINE, catLabel, dShort, hhmm, ipoCounts, nice, resultCounts, split, todayIST, type MkTab } from "../lib/marketEvents";
+import "../styles/market-events.css";
+
+/* Task #322 (developer file 24, 22 Nov 2026): Market events & index in five tabs (Announcements, Call transcripts, Indices, Index in detail, Commodity
+   indices). The IPO and results calendars left this page: both repeat a free page that holds more (/ipo, /results), and their old addresses lead there.
+   No table scrolls sideways any more (the "First column ... Last column" slider is gone): each fits its space, and on a phone each row is a small card. */
 
 type Row = Record<string, string | number | null | undefined>;
-type Col = { key: string; label: string; num?: boolean; wide?: boolean; fmt?: (v: string | number | null | undefined, r: Row) => React.ReactNode };
-
+type Col = { key: string; label: string; num?: boolean; fmt?: (v: string | number | null | undefined, r: Row) => React.ReactNode };
 const txt = (v: unknown) => (v == null || v === "" ? MINUS : String(v));
-const dt = (v: unknown) => (v ? dateIN(String(v).slice(0, 10)) : MINUS);
 const n2 = (v: unknown) => (typeof v === "number" ? num(v) : MINUS);
-const pc = (v: unknown) => (typeof v === "number" ? <span style={{ color: v >= 0 ? "var(--gain)" : "var(--loss)" }}>{(v > 0 ? "▲ +" : v < 0 ? "▼ " + MINUS : "") + nf(v)}%</span> : MINUS);
-const status = (v: unknown) => { const t = String(v || ""); const k = /open|live|current/i.test(t) ? "up" : /upcoming|forthcoming/i.test(t) ? "gold" : /list/i.test(t) ? "info" : "ghost"; return t ? <span className={"chip " + k}>{t}</span> : MINUS; };
-const doc = (v: unknown) => (v ? <a href={String(v)} target="_blank" rel="noopener noreferrer">Open document</a> : MINUS);
+const pc = (v: unknown) => (typeof v === "number" ? <span style={{ color: v >= 0 ? "var(--gain)" : "var(--loss)" }}>{(v > 0 ? "▲ +" : v < 0 ? "▼ " + MINUS : "") + nf(Math.abs(v))}%</span> : MINUS);
 
-const TABS: { id: MarketSection | "commodities"; label: string }[] = [
-  { id: "ipo", label: "IPO calendar" }, { id: "results", label: "Results calendar" }, { id: "announcements", label: "Announcements" },
-  { id: "transcripts", label: "Call transcripts" }, { id: "indices", label: "Indices live" }, { id: "valuations", label: "Index valuation history" }, { id: "commodities", label: "Commodities" },
-];
-
-const COLS: Record<string, Col[]> = {
-  ipo: [{ key: "company_name", label: "Company" }, { key: "security_type", label: "Type" }, { key: "ipo_status", label: "Status", fmt: status }, { key: "start_date", label: "Opens", fmt: dt }, { key: "end_date", label: "Closes", fmt: dt },
-    { key: "price_range", label: "Price band", num: true }, { key: "issue_size", label: "Issue size", num: true }, { key: "subscription", label: "Subscription", num: true }, { key: "exchange", label: "Exchange" }],
-  results: [{ key: "symbol", label: "Symbol" }, { key: "company_name", label: "Company" }, { key: "expected_result_date", label: "Expected result date", fmt: dt }],
-  announcements: [{ key: "date", label: "Date", fmt: dt }, { key: "symbol", label: "Symbol" }, { key: "category", label: "Category" }, { key: "description", label: "Announcement", wide: true }, { key: "document_url", label: "Document", fmt: doc }],
-  transcripts: [{ key: "date", label: "Date", fmt: dt }, { key: "symbol", label: "Symbol" }, { key: "category", label: "Category" }, { key: "description", label: "Call", wide: true }, { key: "document_url", label: "Transcript", fmt: doc }],
-  indices: [{ key: "index_name", label: "Index" }, { key: "close_price", label: "Close", num: true, fmt: n2 }, { key: "change_pct", label: "Change", num: true, fmt: pc }, { key: "points_change", label: "Points", num: true, fmt: n2 },
-    { key: "high_price", label: "High", num: true, fmt: n2 }, { key: "low_price", label: "Low", num: true, fmt: n2 }, { key: "pe", label: "P/E", num: true, fmt: n2 }, { key: "pb", label: "P/B", num: true, fmt: n2 }, { key: "div_yield", label: "Div. yield %", num: true, fmt: n2 }, { key: "quote_date", label: "As of", fmt: dt }],
-  valuations: [{ key: "quote_date", label: "Date", fmt: dt }, { key: "close_price", label: "Close", num: true, fmt: n2 }, { key: "pe", label: "P/E", num: true, fmt: n2 }, { key: "pb", label: "P/B", num: true, fmt: n2 }, { key: "div_yield", label: "Div. yield %", num: true, fmt: n2 }],
-};
-
-const PAGE = 15;
+const PAGE = 15, PAGE_BIG = 50;
 
 function Loading() { return <div aria-busy="true" style={{ minHeight: 360, display: "grid", placeItems: "center" }}><LogoLoader size="lg" label="Loading" /></div>; }
 function Problem({ e, retry }: { e: unknown; retry: () => void }) {
@@ -47,85 +37,91 @@ function Problem({ e, retry }: { e: unknown; retry: () => void }) {
   return <div className="state"><h2>{status === 403 ? "This tool is part of Gold" : "This data is not available right now"}</h2><p>{status === 403 ? "Sign in with a Gold account to use it." : "The data provider did not answer. Nothing is wrong with your account."}</p>
     {status !== 403 && <button className="btn" onClick={retry}>Try again</button>}</div>;
 }
+function Pager({ total, page, setPage, size, word }: { total: number; page: number; setPage: (p: number) => void; size: number; word: string }) {
+  const pages = Math.max(1, Math.ceil(total / size));
+  return <div className="pm-pager"><span>{total.toLocaleString("en-IN")} {word}</span><button className="btn" type="button" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</button><span>Page {page + 1} of {pages}</span><button className="btn" type="button" disabled={page >= pages - 1} onClick={() => setPage(page + 1)}>Next</button></div>;
+}
 
-function Table({ cols, rows, q, file }: { cols: Col[]; rows: Row[]; q: string; file?: string }) {
+/** A plain table (the commodity history): fits its space, rows as cards on a phone. */
+function Table({ cols, rows, file }: { cols: Col[]; rows: Row[]; q?: string; file?: string }) {
   const [page, setPage] = useState(0);
-  const shown = useMemo(() => { const s = q.trim().toLowerCase(); return s ? rows.filter((r) => Object.values(r).some((v) => String(v ?? "").toLowerCase().includes(s))) : rows; }, [rows, q]);
-  useEffect(() => setPage(0), [q, rows]);
-  const pages = Math.max(1, Math.ceil(shown.length / PAGE));
-  if (!shown.length) return <div className="pm-empty">Nothing matches. Try a wider date range or clear the search.</div>;
-  return (
-    <>
-      {file && <div className="pm-tools"><button className="alx-link" onClick={() => downloadCsv(file, cols.map((c) => c.label), shown.map((r) => cols.map((c) => r[c.key] as string | number | null)))}><Icon name="table" /> Export CSV</button></div>}
-      <HScroll className="" label="table"><table className="pm-t"><thead><tr>{cols.map((c) => <th key={c.key} className={c.num ? "n" : ""}>{c.label}</th>)}</tr></thead>
-        <tbody>{shown.slice(page * PAGE, page * PAGE + PAGE).map((r, i) => <tr key={i}>{cols.map((c) => <td key={c.key} className={(c.num ? "n " : "") + (c.wide ? "wrapc" : "")}>{c.fmt ? c.fmt(r[c.key], r) : txt(r[c.key])}</td>)}</tr>)}</tbody></table></HScroll>
-      <div className="pm-pager"><span>{shown.length} rows</span><button className="btn" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</button><span>Page {page + 1} of {pages}</span><button className="btn" disabled={page >= pages - 1} onClick={() => setPage(page + 1)}>Next</button></div>
-    </>
-  );
+  useEffect(() => setPage(0), [rows]);
+  if (!rows.length) return <div className="pm-empty">Nothing to show for this choice.</div>;
+  return <>
+    {file && <div className="pm-tools"><button className="alx-link" onClick={() => downloadCsv(file, cols.map((c) => c.label), rows.map((r) => cols.map((c) => r[c.key] as string | number | null)))}><Icon name="table" /> Export CSV</button></div>}
+    <div className="mk-tw"><table className="pm-t mk-stack"><thead><tr>{cols.map((c) => <th key={c.key} className={c.num ? "n" : ""} scope="col">{c.label}</th>)}</tr></thead>
+      <tbody>{rows.slice(page * PAGE, page * PAGE + PAGE).map((r, i) => <tr key={i}>{cols.map((c) => <td key={c.key} data-l={c.label} className={c.num ? "n" : ""}>{c.fmt ? c.fmt(r[c.key], r) : txt(r[c.key])}</td>)}</tr>)}</tbody></table></div>
+    <Pager total={rows.length} page={page} setPage={setPage} size={PAGE} word="rows" />
+  </>;
 }
 
-/** Every index as a tile tinted by today's move: green up, red down, stronger colour for bigger moves. */
-function Heat({ rows }: { rows: Row[] }) {
-  const max = Math.max(...rows.map((r) => Math.abs(Number(r.change_pct) || 0)), 0.5);
-  if (!rows.length) return null;
-  return (
-    <ChartZoom label="Index moves today (heat map)" className="cz-top"><div className="pm-heat" data-chart aria-label="Index moves today">{rows.map((r) => {
-      const c = typeof r.change_pct === "number" ? r.change_pct : null;
-      return <div key={String(r.index_symbol || r.index_name)} className="pm-tile" style={{ "--tc": c == null ? "var(--faint)" : c >= 0 ? "var(--gain)" : "var(--loss)", "--ti": c == null ? 0 : 6 + (Math.abs(c) / max) * 22 } as React.CSSProperties}>
-        <small title={String(r.index_name || "")}>{String(r.index_name || r.index_symbol)}</small><b>{typeof r.close_price === "number" ? nf(r.close_price) : MINUS}</b><span>{c == null ? MINUS : (c > 0 ? "▲ +" : c < 0 ? "▼ " + MINUS : "") + nf(Math.abs(c)) + "%"}</span></div>;
-    })}</div></ChartZoom>
-  );
+/* ---------------------------------------------------------------- announcements and call transcripts */
+
+type Ann = { date?: string; symbol?: string; category?: string; description?: string; document_url?: string };
+const when = (s: unknown) => <>{dShort(s)}{hhmm(s) ? <small className="faint mk-u">{hhmm(s)}</small> : null}</>;
+const matches = (r: Ann, t: string) => !t || `${r.symbol} ${r.description} ${r.category}`.toLowerCase().includes(t);
+
+/** The member's followed companies (holdings and watchlists), for "My stocks". */
+function useMine(): Set<string> {
+  const { user } = useAuth(); const pf = usePortfolio(), wl = useWatchlist();
+  return useMemo(() => new Set(user ? [...pf.holdings.filter((h) => h.owned !== false && h.side !== "sell").map((h) => h.symbol), ...wl.lists.flatMap((l) => l.symbols)] : []), [user, pf, wl]);
 }
 
-/** P/E through time against its own average, and a plain verdict on where it sits today. */
-function Valuation({ rows, name }: { rows: Row[]; name: string }) {
-  const asc = [...rows].reverse().filter((r) => typeof r.pe === "number");
-  if (asc.length < 2) return null;
-  const pe = asc.map((r) => r.pe as number), avg = pe.reduce((a, b) => a + b, 0) / pe.length, now = pe[pe.length - 1], gap = ((now - avg) / avg) * 100;
-  const word = gap > 10 ? "Expensive against its own history" : gap < -10 ? "Cheap against its own history" : "Close to its usual valuation";
+function EventFeed({ kind, big }: { kind: "announcements" | "transcripts"; big: boolean }) {
+  const ann = kind === "announcements";
+  const [from, setFrom] = useState(""), [to, setTo] = useState(""), [applied, setApplied] = useState({ from: "", to: "" });
+  const [q, setQ] = useState(""), [cat, setCat] = useState("all"), [who, setWho] = useState<"all" | "mine">("all"), [noise, setNoise] = useState<"hide" | "show">("hide"), [page, setPage] = useState(0);
+  const { data, isLoading, isError, error, refetch, isFetching } = usePremium<FeedT<Ann>>(`/markets/${kind}` + qs({ from_date: applied.from, to_date: applied.to }));
+  const mine = useMine();
+  const all = data?.items || [];
+  const t = q.trim().toLowerCase();
+  const cats = useMemo(() => { const m = new Map<string, number>(); for (const r of all) m.set(String(r.category ?? ""), (m.get(String(r.category ?? "")) ?? 0) + 1); return [...m].sort((a, b) => b[1] - a[1]); }, [all]);
+  const nMine = all.filter((r) => mine.has(String(r.symbol))).length, nRout = all.filter((r) => ROUTINE.test(String(r.category ?? ""))).length;
+  const rows = all.filter((r) => (!ann || cat === "all" || r.category === cat) && (who === "all" || mine.has(String(r.symbol)))
+    && (!ann || noise === "show" || cat !== "all" || !ROUTINE.test(String(r.category ?? ""))) && matches(r, t));
+  useEffect(() => setPage(0), [q, cat, who, noise, applied, big]);
+  const size = big ? PAGE_BIG : PAGE;
+  const shown = rows.slice(page * size, page * size + size);
+  const csv = () => downloadCsv(`finlit-${kind}`, ["Date", "Symbol", "Company", ...(ann ? ["Category"] : []), "Announcement", "Document"],
+    rows.map((r) => { const s = split(r); return [r.date, r.symbol, s.co, ...(ann ? [r.category] : []), s.what, r.document_url]; }));
+  const catOpts: MkOption<string>[] = [{ v: "all", label: "All categories", small: all.length }, ...cats.map(([c, n]) => ({ v: c, label: catLabel(c) || "Other", small: n }))];
   return (
-    <>
-      <div className="pm-verdict"><span className={"chip " + (gap > 10 ? "down" : gap < -10 ? "up" : "gold")}>{word}</span>
-        <span><b>P/E {nf(now, 1)}</b> <span className="faint">against an average of {nf(avg, 1)} over this period ({gap >= 0 ? "+" : MINUS}{nf(Math.abs(gap), 0)}%)</span></span></div>
-      <div className="pm-chart card"><div className="pm-chart-h"><div><small>Valuation</small><b>{name} P/E <ChartHelp id="idx-pe-history" /></b></div><span className="faint">Dashed line is the average</span></div>
-        <LineChart periods={asc.map((r) => (r.quote_date ? dateIN(String(r.quote_date).slice(0, 10), { day: "numeric", month: "short" }) : ""))} series={[{ key: "pe", label: "P/E", color: "var(--gold)", values: pe }]} fmt={(x) => nf(x, 1)} height={240} area avg={avg} /></div>
-    </>
-  );
-}
-
-function Feed({ section }: { section: MarketSection }) {
-  const short = section === "announcements" || section === "transcripts";
-  const [from, setFrom] = useState(""), [to, setTo] = useState(""), [symbol, setSymbol] = useState(""), [index, setIndex] = useState(""), [q, setQ] = useState("");
-  const [applied, setApplied] = useState({ from: "", to: "", symbol: "" });
-  const indices = usePremium<Feed<Row>>("/markets/indices", section === "valuations");
-  const list = (indices.data?.items || []).map((r) => String(r.index_symbol || r.index_name || "")).filter(Boolean);
-  if (section === "valuations" && !index && list.length) setIndex(list.find((x) => /nifty ?50$/i.test(x)) || list[0]);  // default to NIFTY 50
-  const path = `/markets/${section}` + (section === "valuations" ? (index ? qs({ index_symbol: index, from_date: applied.from, to_date: applied.to }) : "") : qs({ from_date: applied.from, to_date: applied.to, symbol: applied.symbol }));
-  const { data, isLoading, isError, error, refetch, isFetching } = usePremium<Feed<Row>>(path, section !== "valuations" || !!index);
-  const apply = (e: React.FormEvent) => { e.preventDefault(); setApplied({ from, to, symbol: symbol.trim() }); };
-  const maxDays = short ? 7 : 366;
-  return (
-    <section aria-label={TABS.find((t) => t.id === section)?.label}>
-      <form className="pm-bar" onSubmit={apply}>
-        {section !== "indices" && <><label>From<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} max={to || undefined} /></label><label>To<input type="date" value={to} onChange={(e) => setTo(e.target.value)} min={from || undefined} /></label></>}
-        {short && <label>Company symbol<input value={symbol} onChange={(e) => setSymbol(e.target.value)} placeholder="e.g. RELIANCE" maxLength={30} /></label>}
-        {section === "valuations" && <label>Index<select value={index} onChange={(e) => setIndex(e.target.value)}>{list.map((x) => <option key={x}>{x}</option>)}</select></label>}
-        {section !== "indices" && <button className="btn primary" type="submit">Apply</button>}
-        {section !== "indices" && (from || to || symbol) && <button className="btn" type="button" onClick={() => { setFrom(""); setTo(""); setSymbol(""); setApplied({ from: "", to: "", symbol: "" }); }}>Reset</button>}
-        <label style={{ marginLeft: "auto" }}>Search these rows<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Type to filter" /></label>
-      </form>
-      {section !== "indices" && <p className="pm-meta">{short ? "Up to 7 days at a time." : `Up to ${maxDays > 300 ? "a year" : maxDays + " days"} at a time.`} {section === "results" || section === "ipo" ? "Showing the next two weeks unless you choose dates." : ""}{section === "results" && <> <Link to="/results/quarter">See every company's quarter results, newest first</Link>.</>}</p>}
-      {isError ? <Problem e={error} retry={() => refetch()} /> : isLoading ? <Loading /> : (
-        <>
-          <p className="pm-meta"><Icon name="check" /> Updated {data?.fetchedAt ? new Date(data.fetchedAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "just now"} · Source: {data?.provider || "FinEdge"}{isFetching ? " · refreshing…" : ""}{section === "indices" && <> <ChartHelp id="idx-tiles" /></>}</p>
-          {section === "indices" && <Heat rows={data?.items || []} />}
-          {section === "valuations" && <Valuation rows={data?.items || []} name={index} />}
-          <Table cols={COLS[section]} rows={data?.items || []} q={q} file={`finlit-${section}${index ? "-" + index : ""}`} />
-        </>)}
+    <section aria-label={ann ? "Announcements" : "Call transcripts"}>
+      {ann && <div className="pm-bar mk-bar">
+        <MkSeg k="Companies" label="Companies" value={who} onChange={setWho} options={[{ v: "all", label: "All companies" }, { v: "mine", label: `My stocks ${nMine}` }]} />
+        <MkSeg k="Routine notices" label="Routine notices" value={noise} onChange={setNoise} options={[{ v: "hide", label: `Hide routine notices ${nRout}` }, { v: "show", label: "Show everything" }]} />
+      </div>}
+      <div className="pm-bar mk-bar">
+        {ann && <MkDd k="Category" value={cat} onChange={setCat} options={catOpts} search="Find a category" />}
+        <label className="mk-find">Search<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Company or words" /></label>
+        <form className="mk-dates" onSubmit={(e) => { e.preventDefault(); setApplied({ from, to }); }}>
+          <label>From<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} max={to || undefined} /></label>
+          <label>To<input type="date" value={to} onChange={(e) => setTo(e.target.value)} min={from || undefined} /></label>
+          <button className="btn" type="submit">Apply</button>
+          {(applied.from || applied.to) && <button className="btn" type="button" onClick={() => { setFrom(""); setTo(""); setApplied({ from: "", to: "" }); }}>Reset</button>}
+        </form>
+        <div className="mk-tools"><button className="alx-link" type="button" onClick={csv} disabled={!rows.length}><Icon name="table" /> Export CSV</button></div>
+      </div>
+      {isError ? <Problem e={error} retry={() => refetch()} /> : isLoading ? <Loading /> : <>
+        <div className="mk-tw"><table className="pm-t mk-ann mk-stack">
+          <thead><tr><th scope="col">When</th><th scope="col">Company</th>{ann && <th scope="col">Category</th>}<th scope="col">{ann ? "Announcement" : "Call or meeting"}</th><th scope="col">Document</th></tr></thead>
+          <tbody>{shown.map((r, i) => { const s = split(r); return (
+            <tr key={i}>
+              <td className="mk-nw" data-l="When">{when(r.date)}</td>
+              <td data-l="Company"><b>{txt(r.symbol)}</b>{s.co && s.co !== r.symbol ? <small className="faint mk-u">{s.co}</small> : null}</td>
+              {ann && <td data-l="Category"><span className="chip mk-cat">{catLabel(r.category) || MINUS}</span></td>}
+              <td className="wrapc mk-what" data-l={ann ? "Announcement" : "Call or meeting"}>{s.what || <span className="faint">No detail given; see the document</span>}</td>
+              <td className="mk-nw" data-l="Document">{r.document_url ? <a href={r.document_url} target="_blank" rel="noopener noreferrer">Open ↗</a> : MINUS}</td>
+            </tr>); })}
+            {!shown.length && <tr><td colSpan={ann ? 5 : 4} className="mk-none">{who === "mine" && !mine.size ? "Add companies to a watchlist or your portfolio to see their filings here." : "Nothing matches. Clear the filter to see every row."}</td></tr>}</tbody>
+        </table></div>
+        <Pager total={rows.length} page={page} setPage={setPage} size={size} word={ann ? "announcements" : "filings"} />
+        <p className="pm-meta">{ann ? "Routine notices are meeting schedules, newspaper copies, trading-window and certificate filings; choosing a category shows them. " : "Analyst-meet and call filings: schedules, recordings and transcripts. "}
+          {applied.from || applied.to ? "Up to 7 days at a time. " : "The last 7 days. "}Updated {data?.fetchedAt ? new Date(data.fetchedAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "just now"} · Source: {data?.provider || "FinEdge"}{isFetching ? " · refreshing…" : ""}</p>
+      </>}
     </section>
   );
 }
-
 
 /* ---------------------------------------------------------------- index prices and valuation history (/api/indices) */
 
@@ -172,20 +168,20 @@ function IndexPrices({ open }: { open: (code: string) => void }) {
       </div>
       {!rows.length ? <div className="pm-empty">No index matches. Clear the search or pick another group.</div> : <>
         <div className="pm-tools"><button className="alx-link" onClick={() => downloadCsv("finlit-indices", ["Index", "Code", "Exchange", "Group", "Close", "Change %", "Points", "High", "Low", "P/E", "P/B", "Div. yield %", "Date"], rows.map((r) => [r.name, r.code, r.exchange, r.group, r.close, r.changePct, r.points, r.high, r.low, r.pe, r.pb, r.divYield, r.date]))}><Icon name="table" /> Export CSV</button></div>
-        <HScroll className="" label="table"><table className="pm-t"><thead><tr>{th("name", "Index", false)}{th("close", "Close")}{th("changePct", "Change")}<th className="n">Points</th><th className="n">Day range</th>{th("pe", "P/E")}{th("pb", "P/B")}{th("divYield", "Div. yield %")}<th><span className="sr">Valuation history</span></th></tr></thead>
+        <div className="mk-tw"><table className="pm-t"><thead><tr>{th("name", "Index", false)}{th("close", "Close")}{th("changePct", "Change")}<th className="n">Points</th><th className="n">Day range</th>{th("pe", "P/E")}{th("pb", "P/B")}{th("divYield", "Div. yield %")}<th><span className="sr">Valuation history</span></th></tr></thead>
           <tbody>{rows.slice(page * PAGE, page * PAGE + PAGE).map((r) => (
             <tr key={r.code}><td><b>{r.name}</b><small className="faint" style={{ display: "block" }}>{r.exchange} · {r.group}</small></td><td className="n">{v2(r.close)}</td><td className="n">{chg(r.changePct)}</td><td className="n">{v2(r.points)}</td>
               <td className="n">{r.low != null && r.high != null ? `${nf(r.low)} – ${nf(r.high)}` : MINUS}</td><td className="n">{v2(r.pe, 1)}</td><td className="n">{v2(r.pb)}</td><td className="n">{v2(r.divYield)}</td>
-              <td>{r.pe != null || r.pb != null ? <button className="alx-link" onClick={() => open(r.code)}>History</button> : null}</td></tr>))}</tbody></table></HScroll>
+              <td>{r.pe != null || r.pb != null ? <button className="alx-link" onClick={() => open(r.code)}>History</button> : null}</td></tr>))}</tbody></table></div>
         <div className="pm-pager"><span>{rows.length} indices</span><button className="btn" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</button><span>Page {page + 1} of {pages}</span><button className="btn" disabled={page >= pages - 1} onClick={() => setPage(page + 1)}>Next</button></div>
       </>}
     </section>
   );
 }
 
-const MEASURES = { pe: { label: "P/E", unit: "", d: 1, low: "cheaper", say: "Price for each rupee of the index's yearly profit." },
-  pb: { label: "P/B", unit: "", d: 2, low: "cheaper", say: "Price against the book value of the index's companies." },
-  dy: { label: "Dividend yield", unit: "%", d: 2, low: "dearer", say: "Yearly dividends as a share of the index level; a higher yield usually means a cheaper market." } } as const;
+const MEASURES = { pe: { label: "P/E", unit: "", d: 1, say: "Price for each rupee of the index's yearly profit." },
+  pb: { label: "P/B", unit: "", d: 2, say: "Price against the book value of the index's companies." },
+  dy: { label: "Dividend yield", unit: "%", d: 2, say: "Yearly dividends as a share of the index level, in %." } } as const;
 type Measure = keyof typeof MEASURES;
 
 /** Where an index's valuation sits against its own last 1, 3 or 5 years: the line, its median, a one-standard-deviation band, and a plain verdict. */
@@ -198,10 +194,10 @@ function IndexValuation({ code, setCode }: { code: string; setCode: (c: string) 
   const st: Stat | null = data?.stats[m] ?? null;
   const rows = data?.rows || [];
   const series = rows.map((r) => r[m]);
+  // task #322: where today sits in the index's own past, in the pack's words (low is lower than on three days in four), describing the past only
   const verdict = (s: Stat) => {
-    const z = s.sd ? (s.now - s.median) / s.sd : 0, cheapSide = m === "dy" ? z > 0 : z < 0, far = Math.abs(z) >= 1;
-    return { word: Math.abs(z) < 0.5 ? "Close to its usual level" : cheapSide ? (far ? "Cheap against its own history" : "Slightly cheap against its own history") : far ? "Expensive against its own history" : "Slightly expensive against its own history",
-      tone: Math.abs(z) < 0.5 ? "gold" : cheapSide ? "up" : "down" };
+    const b = s.pctile <= 25 ? "low" : s.pctile >= 75 ? "high" : "usual";
+    return { word: `${MEASURES[m].label} is ${b === "usual" ? "in its usual range" : b} against its own ${years} year${years > 1 ? "s" : ""}`, tone: m === "dy" ? "" : b === "low" ? "up" : b === "high" ? "down" : "" };
   };
   return (
     <section aria-label="Index valuation">
@@ -223,11 +219,11 @@ function IndexValuation({ code, setCode }: { code: string; setCode: (c: string) 
             <div className="pm-kpi"><small>Usual range (±1 sd)</small><b style={{ fontSize: 20 }}>{f(Math.max(0, st.median - st.sd))} – {f(st.median + st.sd)}</b><i>Two days in three fall here</i></div>
             <div className="pm-kpi"><small>Low · High</small><b style={{ fontSize: 20 }}>{f(st.min)} · {f(st.max)}</b><i>{nf(st.n, 0)} trading days</i></div>
           </div>
-          <div className="pm-chart card"><div className="pm-chart-h"><div><small>{MEASURES[m].say}</small><b>{data.name} {MEASURES[m].label}, last {years} year{years > 1 ? "s" : ""} <ChartHelp id="idx-valuation" /></b></div><span className="faint">Dashed: median · faint lines: usual range</span></div>
+          <ChartZoom label="Index valuation history" className="cz-top"><div className="pm-chart card"><div className="pm-chart-h"><div><small>{MEASURES[m].say}</small><b>{data.name} {MEASURES[m].label}, last {years} year{years > 1 ? "s" : ""} <ChartHelp id="idx-valuation" /></b></div><span className="faint">Dashed: median · faint lines: usual range</span></div>
             <LineChart periods={rows.map((r) => dateIN(r.d, { day: "numeric", month: "short", year: "2-digit" }))} fmt={(x) => nf(x, MEASURES[m].d)} height={280} avg={st.median} avgLabel="Median"
               series={[{ key: m, label: MEASURES[m].label, color: "var(--gold)", values: series },
                 { key: "hi", label: "Upper usual", color: "color-mix(in srgb, var(--muted) 45%, transparent)", values: rows.map(() => st.median + st.sd) },
-                { key: "lo", label: "Lower usual", color: "color-mix(in srgb, var(--muted) 45%, transparent)", values: rows.map(() => Math.max(0, st.median - st.sd)) }]} /></div>
+                { key: "lo", label: "Lower usual", color: "color-mix(in srgb, var(--muted) 45%, transparent)", values: rows.map(() => Math.max(0, st.median - st.sd)) }]} /></div></ChartZoom>
           <div className="pm-tools"><button className="alx-link" onClick={() => downloadCsv(`finlit-${data.code}-valuation-${years}y`, ["Date", "P/E", "P/B", "Dividend yield %"], rows.map((r) => [r.d, r.pe, r.pb, r.dy]))}><Icon name="table" /> Export CSV ({nf(rows.length, 0)} days)</button></div>
         </>;
       })()}
@@ -261,8 +257,8 @@ function Commodities() {
               <div className="pm-cards"><div className="pm-kpi"><small>Latest ({latest?.label || MINUS})</small><b>{latest?.value != null ? nf(latest.value) : MINUS}</b></div>
                 <div className="pm-kpi"><small>Change on last month</small><b>{latest?.value != null && prev?.value ? pc(((latest.value - prev.value) / prev.value) * 100) : MINUS}</b></div></div>
               {hist.data?.changesUnavailable && <p className="pm-meta">Provider percentage changes are unavailable right now. The history below is still correct.</p>}
-              {rows.length > 1 && <div className="pm-chart card"><div className="pm-chart-h"><div><small>Trend</small><b>{list.data?.items.find((i) => i.code === code)?.name} <ChartHelp id="commodity-trend" /></b></div><span className="faint">Monthly index level</span></div>
-                <LineChart periods={[...rows].reverse().map((r) => r.label)} series={[{ key: "v", label: "Index", color: "var(--gold)", values: [...rows].reverse().map((r) => r.value) }]} fmt={(x) => nf(x, 1)} height={230} area /></div>}
+              {rows.length > 1 && <ChartZoom label="Commodity index trend" className="cz-top"><div className="pm-chart card"><div className="pm-chart-h"><div><small>Trend</small><b>{list.data?.items.find((i) => i.code === code)?.name} <ChartHelp id="commodity-trend" /></b></div><span className="faint">Monthly index level</span></div>
+                <LineChart periods={[...rows].reverse().map((r) => r.label)} series={[{ key: "v", label: "Index", color: "var(--gold)", values: [...rows].reverse().map((r) => r.value) }]} fmt={(x) => nf(x, 1)} height={230} area /></div></ChartZoom>}
               <Table cols={[{ key: "label", label: "Month" }, { key: "value", label: "Index level", num: true, fmt: n2 }]} rows={rows as unknown as Row[]} q="" file={`finlit-commodity-${code}`} />
             </>)}</div>
         </div>)}
@@ -270,43 +266,55 @@ function Commodities() {
   );
 }
 
-/** The week in four numbers, from the same saved feeds the tabs use (already loading when the page opens). */
-function Glance({ go }: { go: (t: (typeof TABS)[number]["id"]) => void }) {
-  const ipo = usePremium<Feed<Row>>("/markets/ipo"), res = usePremium<Feed<Row>>("/markets/results"), ann = usePremium<Feed<Row>>("/markets/announcements"), idx = useIndices();
-  const week = Date.now() + 7 * 864e5;
-  const open = (ipo.data?.items || []).filter((r) => /open|live|current/i.test(String(r.ipo_status || ""))).length;
-  const soon = (ipo.data?.items || []).filter((r) => /upcoming|forthcoming/i.test(String(r.ipo_status || ""))).length;
-  const now = Date.now() - 864e5;
-  const due = (res.data?.items || []).filter((r) => { const t = r.expected_result_date ? new Date(String(r.expected_result_date)).getTime() : NaN; return t >= now && t <= week; }).length;
+
+/** The week in four numbers. Open IPOs are counted from the dates (open only between the open and close dates); each tile opens its page or tab. */
+function Glance({ go }: { go: (t: MkTab) => void }) {
+  const ipo = usePremium<FeedT<Row>>("/markets/ipo"), res = usePremium<FeedT<Row>>("/markets/results"), ann = usePremium<FeedT<Row>>("/markets/announcements"), idx = useIndices();
+  const today = todayIST();
+  const ic = ipoCounts(ipo.data?.items || [], today), rc = resultCounts(res.data?.items || [], today);
   const nifty = (idx.data?.items || []).find((r) => r.code === "NIF50");
   const k = (v: React.ReactNode, ready: boolean) => (ready ? v : <span className="skeleton" style={{ display: "inline-block", width: 60, height: 26 }} />);
   return (
-    <div className="pm-cards" aria-label="This week at a glance">
-      <button className="pm-kpi pm-kpi-btn" onClick={() => go("ipo")}><small>IPOs open now</small><b>{k(open, !!ipo.data)}</b><i>{ipo.data ? `${soon} upcoming` : " "}</i></button>
-      <button className="pm-kpi pm-kpi-btn" onClick={() => go("results")}><small>Results due this week</small><b>{k(due, !!res.data)}</b><i>{res.data ? `${res.data.items.length} in the calendar` : " "}</i></button>
-      <button className="pm-kpi pm-kpi-btn" onClick={() => go("announcements")}><small>Announcements, last 7 days</small><b>{k(ann.data?.items.length ?? 0, !!ann.data)}</b><i>Filings and board outcomes</i></button>
-      <button className="pm-kpi pm-kpi-btn" onClick={() => go("indices")}><small>NIFTY 50</small><b>{k(nifty?.close != null ? nf(nifty.close) : MINUS, !!idx.data)}</b><i>{nifty ? pc(nifty.changePct) : "Index level"}{nifty?.pe != null ? ` · P/E ${nf(nifty.pe, 1)}` : ""}</i></button>
+    <div className="pm-cards mk-kpis" aria-label="This week at a glance">
+      <Link className="pm-kpi pm-kpi-btn" to="/ipo"><small>IPOs open now</small><b>{k(ic.open, !!ipo.data)}</b><i>{ipo.data ? `${ic.soon} upcoming · IPO calendar` : " "}</i></Link>
+      <Link className="pm-kpi pm-kpi-btn" to="/results"><small>Results due this week</small><b>{k(rc.week, !!res.data)}</b><i>{res.data ? `${rc.later} coming up · Results calendar` : " "}</i></Link>
+      <button className="pm-kpi pm-kpi-btn" type="button" onClick={() => go("announcements")}><small>Announcements, last 7 days</small><b>{k((ann.data?.items.length ?? 0).toLocaleString("en-IN"), !!ann.data)}</b><i>Filings and board outcomes</i></button>
+      <button className="pm-kpi pm-kpi-btn" type="button" onClick={() => go("indices")}><small>{nifty ? nice(nifty.name) : "Nifty 50"}</small><b>{k(nifty?.close != null ? nf(nifty.close) : MINUS, !!idx.data)}</b><i>{nifty ? pc(nifty.changePct) : "Index level"}{nifty?.pe != null ? ` · P/E ${nf(nifty.pe, 1)}` : ""}</i></button>
     </div>
   );
 }
 
+const startTab = (): MkTab | string => { const h = location.hash.slice(1); return MOVED[h] ? h : (MK_TABS.find((t) => t.id === h)?.id ?? "announcements"); };
+
 export function MarketsPage() {
-  useDocTitle("Market events & index dashboard", "IPO and results calendars, announcements, call transcripts, index prices and valuations, and commodity trends.");
+  useDocTitle("Market events & index", "What companies told the exchanges this week, and every index with its valuation and returns against its own history, with monthly commodity indices.");
   const gold = useGold(); const qc = useQueryClient();
-  const [tab, setTab] = useState<(typeof TABS)[number]["id"]>(() => (TABS.find((t) => t.id === location.hash.slice(1))?.id) || "ipo");
+  const [tab, setTab] = useState<MkTab | string>(startTab);
   const [idx, setIdx] = useState("NIF50");
   const openIndex = (c: string) => { setIdx(c); setTab("valuations"); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const label = MK_TABS.find((t) => t.id === tab)?.label ?? "";
+  const x = useExpand(label);
   useEffect(() => { if (gold) prefetchMarkets(qc); }, [gold, qc]);
-  useEffect(() => { history.replaceState(history.state, "", "#" + tab); }, [tab]);   // keep the router's own state
+  useEffect(() => { if (!MOVED[tab]) history.replaceState(history.state, "", "#" + tab); }, [tab]);   // keep the router's own state
+  if (MOVED[tab]) return <Navigate to={MOVED[tab]} replace />;   // the old #ipo and #results tabs: their own pages
   if (!gold) return <><PremiumHead title="Market events & index" art="macro" /><GoldLock title="Market Events & Index Dashboard" /></>;
+  const t = tab as MkTab;
+  const body = t === "commodities" ? <Commodities /> : t === "indices" ? <IndexPrices open={openIndex} /> : t === "valuations" ? <IndexValuation code={idx} setCode={setIdx} /> : <EventFeed key={t} kind={t} big={x.open} />;
   return (
     <>
-      <PremiumHead title="Market events & index" art="macro" links={["/ipo", "/results", "/premium"]}>The week ahead in one place: <b>new issues, results, company announcements</b>, how the indices are valued, and where commodities are heading.</PremiumHead>
-      <div className="wrap" style={{ paddingBottom: 56 }}>
+      <PremiumHead title="Market events & index" art="macro" links={["/ipo", "/results", "/premium"]}>What companies told the exchanges this week, and every index with its <b>valuation and returns against its own history</b>, with monthly commodity indices.</PremiumHead>
+      <div className="wrap mke" style={{ paddingBottom: 56 }}>
         <Glance go={setTab} />
-        <div className="pm-tabs" role="tablist" aria-label="Market dashboard sections">{TABS.map((t) => <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}>{t.label}</button>)}</div>
-        {tab === "commodities" ? <Commodities /> : tab === "indices" ? <IndexPrices open={openIndex} /> : tab === "valuations" ? <IndexValuation code={idx} setCode={setIdx} /> : <Feed key={tab} section={tab} />}
-        <p className="pm-meta" style={{ marginTop: 22 }}>General information, not investment advice. Index levels refresh every minute while the market is open; valuations (P/E, P/B, dividend yield) are published once a day.</p>
+        <div className="pm-tabs" role="tablist" aria-label="Market events sections">{MK_TABS.map((s) => <button key={s.id} role="tab" type="button" aria-selected={t === s.id} onClick={() => setTab(s.id)}>{s.label}</button>)}</div>
+        <div className="mk-sect"><MkDd k="Section" value={t} onChange={(v) => setTab(v)} options={MK_TABS.map((s) => ({ v: s.id, label: s.label }))} /></div>
+        {x.open && <div className="dx-hold mk-hold" style={{ height: x.hold ?? undefined }} aria-hidden="true" />}
+        <section ref={x.panelRef} className={"mk-panel" + (x.open ? " dx-xp" : "")} aria-label={label} {...(x.open ? { role: "dialog", "aria-modal": true } : {})}>
+          {x.bar}
+          <div className="mk-ph"><h2 className="mk-pt">{label}</h2>{!x.open && <button ref={x.btnRef} type="button" className="dx-xb mk-xb" aria-label={`Expand: ${label}`} title="Expanded view, 50 rows a page" onClick={x.expand}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 3h6v6M21 3l-7 7M9 21H3v-6M3 21l7-7" /></svg></button>}</div>
+          {body}
+        </section>
+        {x.backdrop}
+        <p className="pm-meta" style={{ marginTop: 22 }}>General information, not investment advice. Index levels refresh every minute while the market is open; valuations (P/E, P/B, dividend yield) are published once a day. Where a value sits against its own history describes the past, not what comes next.</p>
       </div>
     </>
   );
