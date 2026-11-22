@@ -140,6 +140,12 @@ async def ingest_one(client: FinEdgeClient, store: Store, symbol: str, statement
     company = await store.company(symbol)
     try:
         bundle = await client.fetch_bundle(symbol, statement, low=low)
+        if not slim:   # task #325 (file 26, 5.5): the exchange's own daily candles (NSE first) in place of the provider's series, when they are stored: see candles.py
+            try:
+                from . import candles
+                await candles.apply(store, bundle, symbol)
+            except Exception:
+                log.exception("exchange candles skipped for %s", symbol)
         sections = await _build_sections(client, store, symbol, bundle, company, slim=slim)
         checks = sections["summary"]["dataQuality"]["checks"]
         row = snapshot.score_row(sections)
@@ -1155,6 +1161,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_st.add_argument("--limit", type=int, default=None, help="at most this many companies in this run")
     p_st.add_argument("--force", action="store_true", help="rebuild companies already built today")
     p_st.add_argument("symbols", nargs="*", help="only these companies")
+    sub.add_parser("export-scores", help="after the presets job: the day's scores and every ready-made screen into one file for the owner's archive (task #326); stored results only")
     sub.add_parser("refresh-presets", help="nightly, after the Prism batch: momentum and growth scores, industry breadth and theme states, theme-tag top-up, and every prebuilt screen into the cache (database only)")
     p_ld = sub.add_parser("refresh-leadership", help="weekly: Leader / In line / Laggard labels from the stored weekly prices and the sector and market indices (database and cached index levels only)")
     p_ld.add_argument("--backfill-from", default=None, help="YYYY-MM-DD: also compute every 4th Friday back to this date, so the rank-history chart starts with points")
@@ -1203,6 +1210,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_mi = sub.add_parser("refresh-industry", help="daily: AMFI's monthly category report (industry AUM, net flows, folios by scheme category) for the Mutual Fund Insights page; resumable, only new or re-published months are read")
     p_mi.add_argument("--since", default=None, help="first month to load, YYYY-MM (default and earliest: 2019-04, the first category-wise report)")
     p_mi.add_argument("--max-age-hours", type=float, default=None, help="skip when this ran fine in the last N hours")
+    p_cdl = sub.add_parser("refresh-candles", help="nightly, after the close: daily candles from the exchange (Dhan, NSE first) into daily_candles, for prices, volume and the chart patterns")
+    p_cdl.add_argument("symbols", nargs="*", help="only these companies (default: every company, the longest-unloaded first)")
+    p_cdl.add_argument("--days", type=int, default=1150, help="history to load for a company seen for the first time")
+    p_cdl.add_argument("--limit", type=int, default=None)
+    p_cdl.add_argument("--max-minutes", type=float, default=45.0)
     p_di = sub.add_parser("refresh-instruments", help="weekly: Dhan's public instrument file (ISIN, surveillance flag, margin eligibility, F&O status of every NSE and BSE equity); needs no account")
     p_di.add_argument("--max-age-hours", type=float, default=None, help="skip when this ran fine in the last N hours")
     p_cm = sub.add_parser("refresh-commodities", help="commodity prices: MCX futures from Dhan and international prices from metals.dev / MetalpriceAPI into Redis (--loop: keeps running)")
@@ -1707,6 +1719,13 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
             # Companies that are not ready yet, or that the data provider answered slowly, are waiting, not a fault: they are tried again next run. Only a run in which nothing at all
             # could be built (the provider or the macro inputs are down) is a fault the supervisor retries with its back-off.
             return 1 if res["tried"] >= 10 and res["built"] == 0 and res["not_covered"] == 0 else 0
+        if args.cmd == "export-scores":
+            from . import scores_export
+            from .mf import record_run
+            res = await scores_export.run(store)
+            await record_run(store, args.cmd, res)
+            print(json.dumps(res, default=str)[:3000])
+            return 1 if res["failed"] else 0
         if args.cmd == "refresh-presets":
             from .presets import service as preset_service
             res = await preset_service.refresh_presets(store, settings)
@@ -1792,6 +1811,11 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                     raise
                 print(counts)
                 await _record_results_run(store, args.cmd, "failed" if rep.get("errors") else "ok", counts, rep)
+            elif args.cmd == "refresh-candles":
+                from . import candles
+                from .dhan import DhanClient
+                async with DhanClient(settings, store.redis) as dc:
+                    print(await candles.refresh(store, dc, symbols=[x.upper() for x in args.symbols] or None, days=args.days, max_minutes=args.max_minutes, limit=args.limit))
             elif args.cmd == "refresh-quotes":
                 from .dhan import DhanClient
                 async with DhanClient(settings, store.redis) as dc:

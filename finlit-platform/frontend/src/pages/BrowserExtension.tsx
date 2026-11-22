@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { PageHeader } from "../components/PageHeader";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
@@ -44,28 +43,13 @@ function Preview() {
   );
 }
 
-function Steps() {
-  const [copied, setCopied] = useState(false);
-  const copy = async () => { try { await navigator.clipboard.writeText("chrome://extensions"); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* the address is shown to type */ } };
-  return (
-    <ol className="ext-steps">
-      <li><span><b>Download and unzip</b>Press the download button, then open the file and choose Extract All (Windows) or double-click it (Mac). Keep the folder; Chrome reads the extension from it.</span></li>
-      <li><span><b>Open the extensions page</b>In Chrome, Edge or Brave, type <span className="ext-code">chrome://extensions<button type="button" onClick={copy}>{copied ? "Copied" : "Copy"}</button></span> in the address bar (in Edge it is <span className="ext-code">edge://extensions</span>) and press Enter.</span></li>
-      <li><span><b>Turn on Developer mode</b>It is the switch at the top right of that page.</span></li>
-      <li><span><b>Load the folder</b>Press <strong>Load unpacked</strong>, choose the unzipped folder (the one that holds <span className="ext-code">manifest.json</span>) and press Select Folder. Done: the FinLit button appears next to any text you select.<small>Browsers allow one-click install only from their store. Until the store listing is live, this takes about a minute, once.</small></span></li>
-    </ol>
-  );
-}
-
 export function BrowserExtensionPage() {
   useDocTitle("Browser extension", "Select any financial term or listed company on any web page and see its FinLit meaning or its FinLit Prism score (Gold) in a small card, without leaving the page. Free.");
   const installed = useExtensionInstalled();
   const can = canInstallExtension();
   const target = installTarget();
-  const store = target.external;
-  const Get = target.external
-    ? <a className="btn primary lg" href={target.href} target="_blank" rel="noopener noreferrer"><Icon name="arrow" /> {target.label}</a>
-    : <a className="btn primary lg" href={EXTENSION.zipUrl} download><Icon name="arrow" /> Download the extension</a>;
+  // One click from the Chrome Web Store: no download, no unzipping, no Developer mode (the manual install steps are gone).
+  const Get = <a className="btn primary lg" href={target.external ? target.href : EXTENSION.chromeStoreUrl} target="_blank" rel="noopener noreferrer"><Icon name="arrow" /> {target.external ? target.label : "Add to Chrome"}</a>;
 
   return (
     <>
@@ -90,21 +74,17 @@ export function BrowserExtensionPage() {
               </>
             ) : (
               <>
-                <span className="ext-badge">{store ? "Free · one click" : "Free · store listing coming soon"}</span>
+                <span className="ext-badge">Free · one click from the Chrome Web Store</span>
                 <h2 id="ext-get">Add FinLit to your browser</h2>
                 <p>Understand any term and see any company's FinLit score wherever you read: news sites, research notes, blogs. No copying and pasting, no switching tabs.</p>
                 <WhatYouGet />
                 <div className="ext-btns">{Get}</div>
-                {store && <p className="ext-fine">Prefer a file? <a href={EXTENSION.zipUrl} download>Download the ZIP</a>.</p>}
+                <p className="ext-fine">Opens the Chrome Web Store: press <b>Add to Chrome</b>, then <b>Add extension</b>. In Edge, allow extensions from other stores when it asks.</p>
               </>
             )}
           </section>
           <Preview />
         </div>
-
-        {!installed && can && !store && (
-          <section className="ext-card" aria-labelledby="ext-steps"><h2 id="ext-steps">Install it in four steps</h2><Steps /></section>
-        )}
 
         <section className="ext-card" aria-labelledby="ext-try">
           <h2 id="ext-try">Try it here</h2>
@@ -123,7 +103,7 @@ export function BrowserExtensionPage() {
           <details><summary>Is it free?</summary><p>Yes. The company score follows your FinLit plan, exactly as on the website: FinLit Prism, on a plan that has it (Gold). Sign in to FinLit in the same browser to see it. Terms are free for everyone.</p></details>
           <details><summary>Why does it ask to run on all websites?</summary><p>So the green button can appear beside text you select on any site. It does nothing until you select something, and it never reads the rest of the page. You can turn it off for one site or everywhere from the toolbar icon.</p></details>
           <details><summary>What does it send to FinLit?</summary><p>Your selected words are never sent. When it recognises a listed company and you open its card, it asks FinLit for that one company by its stock symbol. If you are signed in to FinLit in the same browser, the request carries your session so the card shows what your plan allows.</p></details>
-          <details><summary>How do I remove it?</summary><p>Open <span className="ext-code">chrome://extensions</span>, find FinLit Ventures and press Remove.</p></details>
+          <details><summary>How do I remove it?</summary><p>Right-click the FinLit icon in the toolbar and choose <b>Remove from Chrome</b>, or open <span className="ext-code">chrome://extensions</span>, find FinLit Ventures and press Remove.</p></details>
           <details><summary>Is this advice?</summary><p>No. The card describes a company's financial health from its filings and prices. Information only, not investment advice.</p></details>
         </section>
         <section className="ext-card" id="privacy" aria-labelledby="ext-priv">

@@ -220,6 +220,7 @@ LIMIT_POLICY: Dict[str, str] = {
     "digest": "fixed: members who switched the digest on; measured about 6 s",
     "scores-live": "deadline: stops itself at --max-minutes; at most RT_PRISM_PER_RUN companies a run, what is left stays queued",
     "prune": "database: deletes old rows; measured about 9 s",
+    "scores-export": "database: reads stored scores and screen lists only, at most one new day plus 3 back-fill days a run; measured in seconds",
     "presets": "database: builds the prebuilt screens from tables already held and runs the eleven chart-pattern scans on the stored daily candles; screens about 4 s, scans a few minutes (its own guard, so a scan problem never stops the screens)",
     "leadership": "database: weekly labels from stored prices, Saturdays only",
     "score-mf": "database: scores from tables already held; measured about 2 s",
@@ -307,6 +308,11 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         Job("technicals", ("refresh-technicals",), cls="bulk", priority=10, max_runtime_min=75, weight_mb=350, resumable=True, probe="technicals",
             windows=(W("AFTER_CLOSE", 0), W("MORNING", 0)), sla=Sla("session", 12), owns=("technicals", "daily_prices"),
             what="technical view of every stored Prism report from fresh Dhan daily candles (resumable, yields to members)"),
+        # task #325 (developer file 26, 5.5): the exchange's own daily candles (NSE first, Dhan) for prices, volume and the chart patterns; three years on first
+        # sight, then only new sessions; time-boxed and resumable (the longest-unloaded company first), so a short night is picked up the next night
+        Job("candles", ("refresh-candles", "--max-minutes", "45"), cls="bulk", priority=9, max_runtime_min=55, weight_mb=150, resumable=True,
+            windows=(W("AFTER_CLOSE", 0), W("MORNING", 0)), sla=Sla("session", 12), owns=("daily_candles",),
+            what="daily candles from the exchange (Dhan, NSE first, BSE only where there is no NSE row) into daily_candles: the prices, volume and chart patterns read them"),
         # weekend nights only, at the lowest bulk priority (owner, 18 Nov 2026; docs/JOBS.md "The sector job on weekend nights"): one full build a week on the
         # week's data up to Friday's close; every daily and weekly job of the night goes first; never on a weekday night
         Job("sectors", ("refresh-sectors",), cls="bulk", priority=95, max_runtime_min=90, weight_mb=SECTORS_WEIGHT_MB, stall_min=45, prerequisites=("technicals",), resumable=True,
@@ -329,6 +335,11 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         Job("presets", ("refresh-presets",), cls="bulk", priority=42, max_runtime_min=40, weight_mb=350, windows=(W("NIGHT", 20), W("MORNING", 14)), sla=Sla("hours", 30),
             prerequisites=("prism",), catchup=False,
             what="prebuilt screens: momentum and growth scores, industry breadth and theme states, every screen's list into the cache (after the Prism batch; database only)"),
+        # task #326: one file per market day for the owner's archive, started by the presets job's completion (its probe sees the finished day without a file;
+        # presets is its prerequisite, so it never reads while the lists are being rewritten). Stored results only: a few seconds. Back-fill of earlier days,
+        # a few a run, only in the night shift. A run with nothing to do is a success (weekends, holidays).
+        Job("scores-export", ("export-scores",), priority=44, max_runtime_min=10, weight_mb=250, stall_min=8, probe="scores-export", min_gap_min=5,
+            prerequisites=("presets",), sla=Sla("hours", 30), owns=(), what="the day's scores and every ready-made screen, one file a market day, for the owner's archive (/internal/export/scores)"),
         Job("stress", ("refresh-stress", "--max-minutes", "40"), cls="bulk", priority=43, max_runtime_min=50, weight_mb=300, stall_min=20, windows=(W("NIGHT", 20), W("MORNING", 14)),
             sla=Sla("hours", 30), resumable=True, prerequisites=("ingest", "macro"), catchup=True, max_attempts=5, probe="stress", min_gap_min=5,
             what="Stress Lab: builds and stores the page and the company pack of every covered company (₹10,000 Cr or more: large, mid and small caps that are not banks, NBFCs or insurers), companies with no "
