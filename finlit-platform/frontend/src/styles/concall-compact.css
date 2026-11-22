@@ -20,7 +20,7 @@
 .p4-tag.wl { color: var(--dsc-amber); border-color: var(--dsc-amber-e); background: var(--dsc-amber-b); }
 
 /* the calls, grouped by day */
-.p4-dh { display: flex; align-items: baseline; gap: 10px; margin: 18px 0 8px; color: var(--text); font: 400 20px/1.25 var(--serif); }
+.p4-dh { display: flex; align-items: baseline; gap: 10px; margin: 18px 0 8px; color: var(--text); font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); }   /* an h3: the H3 role (task #310) */
 .p4-dh span { color: var(--faint); font: 13px var(--sans); }
 .p4-day:first-of-type .p4-dh { margin-top: 4px; }
 .p4-cl { border: 1px solid var(--border); border-radius: 12px; background: var(--s1); overflow: hidden; }

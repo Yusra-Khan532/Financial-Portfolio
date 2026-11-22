@@ -22,7 +22,7 @@ body:has(.etf-tray, .mf-tray, .mf-compare-tray) .pf-dock { bottom: calc(86px + e
 .pf-scrim { position: fixed; inset: 0; }   /* the dimmer and the layers come from overlay.css */
 .pf-modal { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(480px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 18px 20px 20px; border-radius: 18px; border: 1px solid var(--border-strong); background: var(--ov-surface, var(--s1)); color: var(--text); box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .7); }
 .pf-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.pf-h h2 { margin: 0; font: 500 var(--fs-24)/1.2 var(--serif); }
+.pf-h h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
 .pf-x { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: var(--fs-24); line-height: 1; cursor: pointer; }
 .pf-x:hover { color: var(--text); border-color: var(--border-strong); }
 .pf-about { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; margin: 10px 0 14px; padding: 8px 12px; border-radius: 10px; background: var(--s2); font-size: var(--fs-13); color: var(--muted); }
@@ -43,7 +43,7 @@ body:has(.etf-tray, .mf-tray, .mf-compare-tray) .pf-dock { bottom: calc(86px + e
 .pf-err { padding: 9px 12px; border-radius: 10px; border: 1px solid var(--loss); color: var(--loss); font-size: var(--fs-13); }
 .pf-act { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 .pf-done { display: grid; justify-items: center; gap: 8px; text-align: center; padding: 14px 4px 4px; }
-.pf-done h3 { margin: 0; font: 500 var(--fs-24)/1.2 var(--serif); } .pf-done p { margin: 0; color: var(--muted); }
+.pf-done h3 { margin: 0; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); } .pf-done p { margin: 0; color: var(--muted); }
 .pf-ok { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--gain); color: #0B0C0F; } .pf-ok svg { width: 22px; height: 22px; }
 @media (max-width: 640px) {
   .pf-modal { left: 0; right: 0; bottom: 0; top: auto; transform: none; width: auto; max-height: 92dvh; border-radius: 18px 18px 0 0; padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)); }

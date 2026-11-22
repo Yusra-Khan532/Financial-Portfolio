@@ -16,7 +16,7 @@
 
 .pfa-dlg .acc-dlg-in.pfa-wide { width: min(980px, 100%); }
 .pfa-dh { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 4px; }
-.pfa-dh h2 { margin: 0; font: 600 24px/1.25 var(--serif); }
+.pfa-dh h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
 .pfa-x { border: 0; background: none; color: var(--muted); font: 600 20px/1 var(--sans); cursor: pointer; min-width: 36px; min-height: 36px; border-radius: 10px; }
 .pfa-x:hover { background: color-mix(in srgb, var(--text) 7%, transparent); color: var(--text); }
 .pfa-x:focus-visible, .pfa-link:focus-visible, .pfa-tabs button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }

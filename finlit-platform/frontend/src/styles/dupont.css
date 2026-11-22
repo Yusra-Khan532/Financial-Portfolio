@@ -11,7 +11,7 @@
 .dp-say { margin: 8px 0 0; max-width: 78ch; } .dp-note { font-size: var(--fs-13); margin: 10px 0 0; max-width: 80ch; } .dp-more { margin-top: 10px; }
 .dp-find { display: flex; gap: 8px; align-items: flex-start; margin: 10px 0 0; max-width: 80ch; padding: 10px 12px; border-left: 3px solid var(--warn); background: color-mix(in srgb, var(--warn) 8%, transparent); } .dp-find svg { width: 16px; height: 16px; flex: none; margin-top: 2px; color: var(--warn); }
 
-.dp-head { margin: 8px 0 -4px; } .dp-head h3 { display: flex; align-items: center; gap: 10px; font-size: var(--fs-20); margin: 0 0 4px; } .dp-head p { margin: 0; font-size: var(--fs-16); max-width: 70ch; }
+.dp-head { margin: 8px 0 -4px; } .dp-head h3 { display: flex; align-items: center; gap: 10px; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); margin: 0 0 4px; } .dp-head p { margin: 0; font-size: var(--fs-16); max-width: 70ch; }
 
 /* Decoding ROE (stock/DecodeRoe.tsx), below the DuPont analysis card */
 .dp-deep { display: grid; gap: 16px; }
@@ -42,7 +42,7 @@
 .dp-deep .dp-head { margin: 8px 0 -4px; }
 
 /* Decoding ROE: insight cards and block headings larger and easier to see (founder request) */
-.dp-deep .card-h h3, .dp-card .card-h h3 { font-size: var(--fs-20); }
+.dp-deep .card-h h3, .dp-card .card-h h3 { font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); }
 .dp-ins { gap: 16px; }
 .dp-insc { padding: 18px 20px; gap: 10px; border-left-width: 5px; background: color-mix(in srgb, var(--gold) 6%, var(--s1)); }
 .dp-insc p { font-size: 18px; line-height: 1.4; } .dp-insc p b { font-weight: 650; }
@@ -52,7 +52,7 @@
 /* DuPont redesign: neutral surfaces, ink for numbers, status colour only on the up/down pills */
 .dp-main { padding: 20px 22px; }
 .dp-top { display: flex; gap: 16px 24px; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; margin-bottom: 18px; }
-.dp-title { flex: 1 1 340px; min-width: 0; } .dp-title h3 { margin: 0 0 6px; display: flex; align-items: center; gap: 10px; font-size: var(--fs-20); } .dp-title p { margin: 0; font-size: 14px; max-width: 62ch; } .dp-title p b { color: var(--text); font-weight: 600; }
+.dp-title { flex: 1 1 340px; min-width: 0; } .dp-title h3 { margin: 0 0 6px; display: flex; align-items: center; gap: 10px; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); } .dp-title p { margin: 0; font-size: 14px; max-width: 62ch; } .dp-title p b { color: var(--text); font-weight: 600; }
 .dp-main .ci { color: var(--text); background: var(--s2); }
 .dp-info { flex: 0 1 300px; display: flex; gap: 10px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--s2); font-size: var(--fs-13); color: var(--muted); } .dp-info svg { width: 16px; height: 16px; flex: none; margin-top: 2px; color: var(--muted); } .dp-info b { display: block; color: var(--text); font-weight: 600; margin-bottom: 2px; }
 .dp-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; align-items: stretch; margin: 0 0 20px; }
@@ -79,7 +79,7 @@
 .dp-main .dp-deep .dp-card { box-shadow: none; background: var(--s1); padding: 16px 18px; }
 .dp-main .dp-deep .dp-head h4 { display: flex; align-items: center; gap: 10px; font-size: var(--fs-18); margin: 0 0 4px; }
 .dp-main .dp-deep > .dp-note:last-child { display: none; }
-.dp-main .dp-deep .card-h h3 { font-size: 16px; }
+.dp-main .dp-deep .card-h h3 { font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); }
 @media (max-width: 860px) {
   .dp-strip { grid-template-columns: 1fr; gap: 0; } .dp-op { justify-self: center; padding: 4px 0; }
   .dp-main { padding: 16px 14px; }

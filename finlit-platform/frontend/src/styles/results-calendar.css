@@ -1,19 +1,11 @@
-/* The Results calendar (/results) after the 15 Nov pack (task #193). Every rule is scoped to .rsc, the calendar page's own root, so Latest results (which shares
-   the rs- classes and the header) and the Sector Pulse pages (which share the sp- classes) do not change. New classes start with rsc-. Sizes from the site's
-   type scale only (styles/typescale.css, START-HERE "One type scale"). */
 
-/* ---- type: h1 32, section titles 20 serif, subtitles and links 14, filter buttons 13, tile values 24, callout titles 15 */
-.rsc .sp-head h1 { font: 400 var(--fs-page-title)/var(--lh-32) var(--serif); }
-.rsc .sp-sec h2 { font: 400 var(--fs-section-title)/var(--lh-20) var(--serif); }
+.rsc .sp-sec h2 { font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
 .rsc .sp-desc, .rsc .sp-sub { font-size: var(--fs-body); line-height: var(--lh-14); }
 .rsc .sp-link, .rsc .rs-links .sp-link { font-size: var(--fs-body); }
 .rsc .sp-fbtn { min-height: 34px; padding: 0 12px; font: 600 var(--fs-small)/1 var(--sans); }
 .rsc .sp-vbtn { font-size: var(--fs-small); }
-.rsc .sp-ct { font-size: var(--fs-body); }   /* pack B5 says 15, between the scale's 14 and 16; START-HERE allows only the scale, so the step below 16 */
-@media (max-width: 760px) {
-  .rsc .sp-head h1 { font-size: var(--fs-page-title); line-height: var(--lh-28); } .rsc .sp-fbtn { min-height: 44px; }
+@media (max-width: 760px) { .rsc .sp-fbtn { min-height: 44px; }
   /* luxe.css sets every h2 to 24px on phones with !important (site-wide); the pack's section titles are 20, so this page's own titles say so the same way */
-  .rsc .sp-sec h2 { font-size: var(--fs-section-title) !important; }
 }
 
 /* ---- the four tiles: one row of equal height; the dropdowns float over the page (components/DropTile) */

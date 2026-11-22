@@ -32,7 +32,7 @@
 .stb-step:first-child { margin-top: 4px; }
 .stb-step-n { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; transform: translateY(-2px);
   background: var(--text); color: var(--s1); font: 600 var(--fs-small)/1 var(--font-sans, Inter, sans-serif); }
-.stb-step h2 { margin: 0; font: 600 var(--fs-section-title)/28px var(--font-serif, "Source Serif 4", Georgia, serif); color: var(--text); }
+.stb-step h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); color: var(--text); }
 .stb-step p { margin: 0; font: 400 var(--fs-small)/18px var(--font-sans, Inter, sans-serif); color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { .stb { scroll-behavior: auto; } }
 /* task #277 (opt-in `arrows`, All my investments): ‹ › at the bar's ends when its steps do not fit; a faded edge where steps are hidden; a dot on a step not seen yet */

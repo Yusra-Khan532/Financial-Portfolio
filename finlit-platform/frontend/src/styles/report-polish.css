@@ -9,7 +9,6 @@
   /* type scale: 11 steps instead of the 40 sizes on the page today */
   --fs-num: 56px;      /* section number (01, 02 …) */
   --fs-display: 40px;  /* company name */
-  --fs-h2: 32px;       /* every section title, numbered or not */
   --fs-kpi: 24px;      /* big numbers inside tiles */
   --fs-h3: 18px;       /* every card title */
   --fs-h4: 16px;       /* sub-card / tile title */
@@ -44,7 +43,7 @@ section.block { padding-block: var(--section-gap) 0; }
 .sh-rule { min-height: 48px; }
 .sh .no { font-size: var(--fs-micro); letter-spacing: .14em; line-height: 1.4; }
 .sh h2, .sh-l:has(.sh-n) h2 {
-  font-size: var(--fs-h2); line-height: var(--lh-tight); letter-spacing: -.015em;
+  font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); letter-spacing: -.015em;
   margin-top: var(--sp-1); max-width: 48ch; text-wrap: balance;
 }
 .sh p, .sh-r p { font-size: var(--fs-body); line-height: var(--lh-body); max-width: 64ch; }
@@ -67,13 +66,12 @@ section.block .grid { gap: var(--card-gap); }
 /* ---------- 3. Cards ---------- */
 section.block .card { border-radius: var(--radius-card); padding: var(--card-pad-y) var(--card-pad-x); }
 .card-h { margin-bottom: var(--sp-3); }
-/* one style for every card title (today: 16, 18, 19, 21, 24 and 28px) */
+/* one style for every card title: the H3 role of task #310 (Sans 16px, 600) */
 .card-h h3, .card h3, .rcx h3, .dp-card h3, .dp .card-h h3, #decoding-roe h3, .card.acc .card-h h3, .seg-title {
-  font-family: var(--serif); font-size: var(--fs-h3); line-height: var(--lh-head);
-  font-weight: 500; letter-spacing: -.005em;
+  font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); letter-spacing: 0;
 }
 /* DuPont block title until it becomes its own section (see REPORT-FIXES.md) */
-.dp-title h3 { font-family: var(--serif); font-size: 24px; font-weight: 500; line-height: var(--lh-head); letter-spacing: -.01em; }
+.dp-title h3 { font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); letter-spacing: -.01em; }
 /* small tiles inside cards */
 section.block .card .card { border-radius: var(--radius-tile); }
 
@@ -99,8 +97,7 @@ section.block table td { font-size: var(--fs-table); line-height: var(--lh-table
 
 /* ---------- 7. Phones ---------- */
 @media (max-width: 760px) {
-  :root { --fs-num: 40px; --fs-h2: 24px; --fs-h3: 18px; --section-gap: var(--sp-12); --block-gap: var(--sp-6); --card-pad-y: var(--sp-4); --card-pad-x: var(--sp-4); }
-  .dp-title h3 { font-size: var(--fs-20); }
+  :root { --fs-num: 40px; --fs-h3: 18px; --section-gap: var(--sp-12); --block-gap: var(--sp-6); --card-pad-y: var(--sp-4); --card-pad-x: var(--sp-4); }
 }
 
 /* the plans note at the end of a report: one line, not a pricing page */

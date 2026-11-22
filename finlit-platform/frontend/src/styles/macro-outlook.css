@@ -27,7 +27,7 @@
 .mo-stale { border-color: var(--loss); background: color-mix(in srgb, var(--loss) 10%, var(--s1)); }
 .mo-skel { padding: 24px; border: 1px dashed var(--border); border-radius: 14px; color: var(--muted); }
 .mo-panel { border: 1px solid var(--border); border-radius: 14px; background: var(--s1); padding: 14px 16px; min-width: 0; }
-.mo-h { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; } .mo-h h3 { display: flex; align-items: center; gap: 8px; margin: 0; font: 600 16px var(--serif); }   /* task #227: section titles are serif */ .mo-h .faint { font-size: 12px; }
+.mo-h { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; } .mo-h h3 { display: flex; align-items: center; gap: 8px; margin: 0; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); }   /* task #227: section titles are serif */ .mo-h .faint { font-size: 12px; }
 /* B */
 .mo-t { width: 100%; border-collapse: collapse; font-size: 14px; } .mo-t th, .mo-t td { padding: 7px 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
 .mo-t thead th { font: 600 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); } .mo-t .num { text-align: right; font-variant-numeric: tabular-nums; width: 56px; }

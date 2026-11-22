@@ -62,7 +62,7 @@ export function Login() {
   const busy = login.isPending || register.isPending;
 
   if (DEMO) return <Navigate to="/dashboard" replace />;
-  if (user && !sent) return <div className="login"><div className="wrap state"><h1 style={{ font: "400 32px var(--serif)" }}>You are signed in</h1><p className="muted">{user.email}</p><Link className="btn primary" to={next}>Continue</Link></div></div>;
+  if (user && !sent) return <div className="login"><div className="wrap state"><h1 className="ui-title">You are signed in</h1><p className="muted">{user.email}</p><Link className="btn primary" to={next}>Continue</Link></div></div>;
 
   return (
     <div className="login">
@@ -70,7 +70,7 @@ export function Login() {
       <div className="wrap login-in">
         <div className="login-l">
           <div className="eyebrow" style={{ marginBottom: 14 }}>Members' area</div>
-          <h1>Your research, <em>your way</em>.</h1>
+          <h1 className="ui-title ui-title--marketing">Your research, <em>your way</em>.</h1>
           <p className="lede-xl">A free account saves what you follow and keeps your plan, your colours and your dashboard exactly as you left them, on any device.</p>
           <ul className="trustl">
             <li><span className="fi"><Icon name="wallet" /></span><div><b>Watchlists that follow you</b><span>Lists, notes and price targets are saved to your account, not just this browser.</span></div></li>

@@ -28,12 +28,12 @@ export function FeedbackInbox() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pf"] }) });
   if (!ready) return null;
   if (!user) return <Navigate to="/login?next=%2Fadmin%2Ffeedback" replace />;
-  if (!on) return <section className="sec"><div className="wrap"><h1>Queries and feedback</h1><p className="muted">Administrators only, signed in with the authenticator code.</p></div></section>;
+  if (!on) return <section className="sec"><div className="wrap"><h1 className="ui-title">Queries and feedback</h1><p className="muted">Administrators only, signed in with the authenticator code.</p></div></section>;
   const seg = (v: string, set: (s: string) => void, opts: [string, string][], label: string) => (
     <div className="seg" role="group" aria-label={label}>{opts.map(([k, l]) => <button key={k} type="button" aria-pressed={v === k} onClick={() => { set(k); setPg(1); }}>{l}</button>)}</div>);
   return (
     <section className="sec"><div className="wrap pfi">
-      <div className="eyebrow">Admin</div><h1>Queries and feedback</h1>
+      <div className="eyebrow">Admin</div><h1 className="ui-title">Queries and feedback</h1>
       <p className="muted">{list.data ? `${list.data.counts.new} new · ${list.data.counts.openQueries} queries still open` : "Loading…"}. Each message is tagged with the page it was written on.</p>
       <div className="pfi-bar">
         {seg(kind, setKind, [["", "All"], ["query", "Queries"], ["feedback", "Feedback"]], "Kind")}

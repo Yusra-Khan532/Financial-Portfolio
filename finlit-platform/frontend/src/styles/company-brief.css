@@ -1,7 +1,7 @@
 /* Company brief (stock/CompanyBrief.tsx). Site tokens only; every rule is scoped to .cb. Sizes sit on the type scale. */
 .cb { margin-top: 24px; padding: 20px; border: 1px solid var(--border); border-radius: 16px; background: var(--s1); color: var(--text); min-width: 0; overflow-wrap: anywhere; }
-.cb h2 { margin: 0; font-family: var(--serif); font-size: var(--fs-20); line-height: var(--lh-20); font-weight: 600; }
-.cb h3 { margin: 0 0 10px; font-family: var(--serif); font-size: var(--fs-18); line-height: var(--lh-18); font-weight: 600; }
+.cb h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
+.cb h3 { margin: 0 0 10px; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); }
 .cb h4 { margin: 0 0 6px; font-size: var(--fs-16); line-height: var(--lh-16); font-weight: 600; }
 .cb p { margin: 0; }
 .cb-eyebrow { font-size: var(--fs-12); line-height: var(--lh-12); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); font-weight: 700; }

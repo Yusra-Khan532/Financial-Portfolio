@@ -37,7 +37,6 @@
 
 /* Phone (390px) */
 @media (max-width: 640px) {
-  .pagehead h1 { font-size: clamp(30px, 9vw, 40px); }
   .pagehead p { font-size: 16px; }
   .prices { grid-template-columns: 1fr; }
   .hp-story p { font-size: var(--fs-16); }

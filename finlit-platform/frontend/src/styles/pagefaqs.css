@@ -8,14 +8,14 @@ main:has(.shell.is-collapsed) > .pfq { padding-left: 96px; }
   box-shadow: inset 0 3px 0 var(--gold), var(--lift); }   /* clearer boundary: a thin gold top edge and a soft lift */
 .pfq-h { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
 .pfq-k { display: block; font: 600 12px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--gold); margin-bottom: 6px; }
-.pfq-h h2, .pfq-hub h1 { margin: 0; font: 400 24px/1.2 var(--serif); color: var(--text); }
+.pfq-h h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); color: var(--text); } .pfq-hub h1 { margin: 0; color: var(--text); }   /* the hub title is ui-title--read (task #310) */
 .pfq-h h2 small, .pfq-pgh h3 small { font: 500 13px var(--sans); color: var(--faint); margin-left: 6px; white-space: nowrap; }
 .pfq-plan { flex: none; font: 700 12px var(--sans); letter-spacing: .06em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; background: var(--s3); color: var(--muted); white-space: nowrap; }
 .pfq-plan.gold { background: var(--gold-soft); color: var(--gold); } .pfq-plan.free { background: var(--gain-soft); color: var(--gain); }
 .pfq-plan.silver { background: color-mix(in srgb, var(--t-silver, #8A8F98) 18%, var(--s1)); }
 .pfq-list { border-top: 1px solid var(--border); }
 .pfq-i { border-bottom: 1px solid var(--border); }
-.pfq-i h3, .pfq-i h4 { margin: 0; font: inherit; }
+.pfq-i h3, .pfq-i h4 { margin: 0; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); }   /* the H3 role; the question button inside keeps its own 16px/600 */
 .pfq-q { all: unset; box-sizing: border-box; width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px 4px; cursor: pointer; font: 600 16px/1.4 var(--sans); color: var(--text); }
 .pfq-q:hover { color: var(--gold); }
 .pfq-q:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
@@ -37,16 +37,16 @@ main:has(.shell.is-collapsed) > .pfq { padding-left: 96px; }
 .pfq-hub { padding-top: 32px; padding-bottom: 48px; max-width: 920px; }
 .pfq-hub-h p { color: var(--muted); font-size: var(--fs-16); line-height: 1.6; max-width: 66ch; }
 .pfq-jump { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 6px; } .pfq-jump a { padding: 5px 12px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); font: 600 13px var(--sans); text-decoration: none; } .pfq-jump a:hover { color: var(--gold); border-color: var(--gold); }
-.pfq-sech { margin: 36px 0 4px; font: 600 12px var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--gold); }
+.pfq-sech { margin: 36px 0 4px; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); color: var(--text); }   /* an h2: the H2 role (task #310) */
 .pfq-pg { margin-top: 18px; scroll-margin-top: 80px; }
 .pfq-pgh { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 6px; }
-.pfq-pgh h3 { margin: 0; font: 400 20px var(--serif); } .pfq-pgh h3 a { color: var(--text); text-decoration: none; } .pfq-pgh h3 a:hover { color: var(--gold); }
+.pfq-pgh h3 { margin: 0; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); } .pfq-pgh h3 a { color: var(--text); text-decoration: none; } .pfq-pgh h3 a:hover { color: var(--gold); }
 @media (max-width: 960px) { main:has(.shell) > .pfq { padding-left: 0 !important; } }
 @media (max-width: 760px) { .pfq-in { width: calc(100% - 28px); } }   /* the phone gutter of .wrap */
 @media (max-width: 720px) {
   .pfq { margin-top: 28px; margin-bottom: 24px; }
   .pfq-in { padding: 20px 16px 16px; border-radius: 16px; }
-  .pfq-h { flex-direction: column; gap: 8px; } .pfq-h h2 { font-size: var(--fs-20); }
+  .pfq-h { flex-direction: column; gap: 8px; }
   .pfq-h h2 small { display: block; margin: 2px 0 0; }
   .pfq-q { padding: 14px 2px; min-height: 48px; }
 }

@@ -27,7 +27,7 @@ export function FaqsPage() {
     <div className="wrap pfq-hub">
       <header className="pfq-hub-h">
         <span className="pfq-k">FAQs</span>
-        <h1>Questions about every page</h1>
+        <h1 className="ui-title ui-title--read">Questions about every page</h1>
         <p>{total} questions for {PAGE_FAQS.length} pages. Each page also shows its own questions at the bottom. Information only, not investment advice.</p>
         <div className="pfq-search" role="search">
           <label htmlFor="pfq-s" className="sr-only">Search the questions</label>

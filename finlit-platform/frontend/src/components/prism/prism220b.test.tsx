@@ -45,8 +45,8 @@ describe("shared parts (README 1.1, 1.2, 1.4, 1.5, 1.6)", () => {
     expect((h as HTMLElement).style.getPropertyValue("--sc")).toBe("var(--gain)");
     expect(PZ_SECTIONS.map((s) => [s.no, s.color])).toEqual([["01", "var(--p-growth)"], ["02", "#2a78d6"], ["03", "var(--gain)"], ["04", "var(--p-quality)"], ["05", "var(--muted)"]]);
     const css = src("styles/prism220.css");
-    expect(css).toMatch(/\.pzh-n \{[^}]*var\(--fs-40, 40px\)/); expect(css).toMatch(/\.pzh-t h3 \{[^}]*var\(--fs-24, 24px\)/); expect(css).toMatch(/\.pzh-t p \{[^}]*var\(--fs-13, 13px\)/);
-    expect(css).toMatch(/@media \(max-width: 700px\) \{ \.pzh-n \{ font-size: var\(--fs-32, 32px\); \} \.pzh-t h3 \{ font-size: var\(--fs-20, 20px\); \} \}/);
+    expect(css).toMatch(/\.pzh-n \{[^}]*var\(--fs-40, 40px\)/); expect(css).toMatch(/\.pzh-t h3 \{[^}]*var\(--ui-fs-h3\)/);   // the H3 role (task #310) expect(css).toMatch(/\.pzh-t p \{[^}]*var\(--fs-13, 13px\)/);
+    expect(css).toMatch(/@media \(max-width: 700px\) \{ \.pzh-n \{ font-size: var\(--fs-32, 32px\); \} \}/);
   });
   it("the sections bar has seven items and its FAQ inside the report's container", () => {
     const shell = src("components/prism/pzr/Shell.tsx");

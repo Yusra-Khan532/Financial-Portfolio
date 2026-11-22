@@ -80,7 +80,7 @@
 .p4-sec .ipo-sec-h small{margin-left:4px;color:var(--faint);font:400 13px var(--sans)}
 .p4-il{grid-template-columns:repeat(auto-fill,minmax(min(100%,440px),1fr));gap:12px}
 .p4 .p4-ic{gap:10px;padding:14px 16px;border-radius:14px}
-.p4 .p4-ic .ipo-h h3{font-size:18px}
+.p4 .p4-ic .ipo-h h3{font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans)}
 .p4-d{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px 12px}
 .p4-d>div{min-width:0}
 .p4-d dd{font:600 13px var(--mono);overflow-wrap:anywhere}

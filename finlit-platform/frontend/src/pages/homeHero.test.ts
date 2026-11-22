@@ -14,7 +14,7 @@ function stripSize(media: string): number {
 
 describe("landing hero (#121)", () => {
   it("has the picture's heading, paragraph, buttons and ticks", () => {
-    expect(tsx).toContain("<h1 id=\"hh-title\">Research deeper.<br /><em>Invest with clarity.</em></h1>");
+    expect(tsx).toContain("<h1 id=\"hh-title\" className=\"ui-title ui-title--marketing\">Research deeper.<br /><em>Invest with clarity.</em></h1>");
     expect(tsx).toContain("Explore statistical scoring models, customizable analytical tools, comprehensive company reports, sector insights and much more—all in one platform.");
     expect(tsx).toMatch(/className="btn lg hh-go" href="#platform".*>Explore the platform </);
     expect(tsx).toContain("See a sample company report");

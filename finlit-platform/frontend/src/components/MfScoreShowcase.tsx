@@ -46,7 +46,7 @@ export function MfScoreShowcase() {
       <div className="hpz-top">
         <div className="hpz-title">
           <p className="hpz-pill">Mutual Fund Score</p>
-          <h2 id="hmf-title">Beyond Returns. One Score for Deeper Mutual Fund Analysis.</h2>
+          <h2 id="hmf-title" className="ui-h2--marketing">Beyond Returns. One Score for Deeper Mutual Fund Analysis.</h2>
         </div>
         <ul className="hpz-feats hmf-feats" aria-label="The four parts of the Mutual Fund Score">
           {MF_FEATURES.map((f) => (

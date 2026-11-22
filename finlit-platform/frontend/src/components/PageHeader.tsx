@@ -9,7 +9,8 @@
 //   back / meta / actions / children   a back link or breadcrumb above the title, a note under the description ("Updated ..."), extra buttons after the links, and anything
 //                that sits in the header (tabs, notices) below the row.
 //   titleAside   a small control on the right of the title row (the EPS calculator's "How to use", task #184); it may add a full-width panel under the title.
-//   wrap         draw the page container around the card (for pages that had a full-width .pagehead band).
+//   wrap         draw the page container around the header (for pages that had a full-width .pagehead band).
+//   titleVariant "tool" (the default, Serif 32px) or "read" (40px) for the long reads (learn, methodology): the shared title roles of task #310 (ui-title).
 import { useId, type ReactNode } from "react";
 import { Link, useInRouterContext, useLocation } from "react-router";
 import { Icon } from "../lib/icons";
@@ -27,7 +28,7 @@ export type PhLearn = { to?: string; onClick?: () => void; label?: string };
 export type PageHeaderProps = {
   plan?: PhPlan; title: ReactNode; description?: ReactNode; eyebrow?: ReactNode;
   stats?: PhStat[]; links?: PhLink[]; learn?: boolean | PhLearn; art?: PhArtKind;
-  back?: ReactNode; meta?: ReactNode; actions?: ReactNode; children?: ReactNode; titleAside?: ReactNode; wrap?: boolean; className?: string; id?: string;
+  back?: ReactNode; meta?: ReactNode; actions?: ReactNode; children?: ReactNode; titleAside?: ReactNode; wrap?: boolean; className?: string; id?: string; titleVariant?: "tool" | "read";
 };
 
 const PLAN: Record<string, { n: string; ic: string; cls: string }> = {
@@ -40,7 +41,7 @@ function HLink({ to, className, children }: { to: string; className: string; chi
   return useInRouterContext() ? <Link to={to} className={className}>{children}</Link> : <a href={to} className={className}>{children}</a>;
 }
 
-export function PageHeader({ plan, title, description, eyebrow, stats, links, learn = true, art, back, meta, actions, children, titleAside, wrap, className = "", id }: PageHeaderProps) {
+export function PageHeader({ plan, title, description, eyebrow, stats, links, learn = true, art, back, meta, actions, children, titleAside, wrap, className = "", id, titleVariant = "tool" }: PageHeaderProps) {
   const uid = useId(), tid = id ?? "ph-t" + uid.replace(/:/g, "");
   const inRouter = useInRouterContext();   // the header also renders on its own (tests, previews): plain anchors then
   const pathname = inRouter ? useLocation().pathname : (typeof window !== "undefined" ? window.location.pathname : "/");   // eslint-disable-line react-hooks/rules-of-hooks
@@ -54,6 +55,7 @@ export function PageHeader({ plan, title, description, eyebrow, stats, links, le
   const label = lo?.label ?? "Learn more";
   const p = plan && plan !== "free" && plan !== "basic" ? PLAN[plan] : undefined;   // free is the default: only Silver and Gold are marked (founder, 13 Nov 2026)
   const sided = false;
+  const titleCls = "ph-title ui-title" + (titleVariant === "read" ? " ui-title--read" : "");
   const learnEl = !lo ? null : lo.to
     ? <HLink className="ph-learn" to={lo.to}><Icon name="info" />{label}</HLink>
     : lo.onClick
@@ -64,7 +66,7 @@ export function PageHeader({ plan, title, description, eyebrow, stats, links, le
       <div className="ph-main">
         {back ? <div className="ph-back">{back}</div> : null}
         {(p || eyebrow) ? <div className="ph-top">{p ? <span className={"ph-plan " + p.cls}><Icon name={p.ic} />{p.n}</span> : null}{eyebrow ? <span className="ph-eyebrow">{eyebrow}</span> : null}</div> : null}
-        {titleAside ? <div className="ph-titlerow"><h1 className="ph-title" id={tid}>{title}</h1>{titleAside}</div> : <h1 className="ph-title" id={tid}>{title}</h1>}
+        {titleAside ? <div className="ph-titlerow"><h1 className={titleCls} id={tid}>{title}</h1>{titleAside}</div> : <h1 className={titleCls} id={tid}>{title}</h1>}
         {description ? <p className="ph-desc">{description}</p> : null}
         {meta ? <p className="ph-meta">{meta}</p> : null}
         <div className="ph-row">

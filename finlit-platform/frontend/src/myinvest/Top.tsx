@@ -77,7 +77,7 @@ export function TopCard({ d, money, accs, cur, onPick, openQty, loading }: { d?:
     <header className="card mi7-top" aria-label="All my investments">
       <div className="mi7-t1">
         <div className="mi7-ht">
-          <h1>All my investments</h1>
+          <h1 className="ui-title">All my investments</h1>
           {d && <span className="mi7-plan">{d.plan === "gold" ? "Gold" : "Silver"}</span>}
           <I k="All my investments" what="Your shares, mutual funds and ETFs read together: how much you have and where it sits, what it is made of, what you really own underneath, how healthy it is and how risky it is as a whole."
             read="This page reads your three portfolio lists. Add or remove a holding on its own page and it changes here. Nothing is sent to a broker." />

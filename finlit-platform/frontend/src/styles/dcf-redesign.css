@@ -7,7 +7,7 @@
 
 /* how it works: closed until asked for */
 .dcx .dcf-intro:not([open]){padding-block:12px}
-.dcx .dcf-intro:not([open]) summary h2{font-size:var(--fs-16)}
+.dcx .dcf-intro:not([open]) summary h2{font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif)}
 
 /* company bar: one row */
 .dcx-co{padding:14px 16px}
@@ -31,7 +31,7 @@
 /* assumptions */
 .dcx-in{padding:4px 18px 8px}
 .dcx-ih{display:flex;align-items:baseline;gap:10px;padding:14px 0 6px;border-bottom:1px solid var(--border)}
-.dcx-ih h2{margin:0;font:600 var(--fs-18)/1.2 var(--serif);color:var(--text)}
+.dcx-ih h2{margin:0;font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif);color:var(--text)}
 .dcx-ihs{flex:1;font:13px var(--sans);color:var(--faint)}
 .dcx-g{border:0;margin:0;padding:12px 0 4px;min-width:0}
 .dcx-g+.dcx-g{border-top:1px solid var(--border)}

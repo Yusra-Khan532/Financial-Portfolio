@@ -23,7 +23,7 @@
 .hh-top { position: relative; isolation: isolate; overflow: hidden; padding: clamp(22px, 3vw, 36px) 0 clamp(56px, 7vw, 96px); color: var(--hh-hero-text);
   background: radial-gradient(120% 90% at 18% 0%, var(--hh-hero-a), var(--hh-hero-b) 72%); }
 .hh-top-cols { display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); gap: clamp(28px, 5vw, 64px); align-items: center; }
-.hh-top h1 { font: 400 clamp(38px, 5vw, 62px)/1.06 var(--serif); letter-spacing: -.02em; margin: 0 0 18px; text-wrap: balance; }
+.hh-top h1 { letter-spacing: -.02em; margin: 0 0 18px; text-wrap: balance; color: inherit; }   /* ui-title--marketing (task #310) sets the size; the hero keeps its own text colour */
 .hh-top h1 em { position: relative; display: inline-block; font-style: italic; color: var(--hh-g); white-space: nowrap; }
 .hh-lede { font-size: var(--fs-18, 18px); line-height: 1.55; color: var(--hh-hero-muted); max-width: 48ch; margin: 0 0 26px; }
 .hh .cta-row { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -34,7 +34,7 @@
 .hh-frame span { margin: 0 auto; padding: 3px 18px; border-radius: 999px; background: var(--s1); font-size: 12px; color: var(--faint); }
 .hh-video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #14120d; border: 1px solid var(--border-strong, var(--border)); border-radius: 0 0 14px 14px; box-shadow: 0 30px 60px -34px rgba(35, 32, 24, .5); }
 .hh-tour figcaption { margin-top: 12px; font-size: 13px; color: var(--muted); display: grid; gap: 2px; } .hh-tour figcaption b { color: var(--text); font-weight: 600; }
-@media (max-width: 900px) { .hh-top-cols { grid-template-columns: minmax(0, 1fr); } .hh-top h1 { font-size: clamp(36px, 10vw, 52px); } }
+@media (max-width: 900px) { .hh-top-cols { grid-template-columns: minmax(0, 1fr); } }
 
 
 /* plans on the home page: three equal-height cards showing their first 8 features, with the full table in a closed dropdown */
@@ -77,7 +77,6 @@
   .hh .cta-row { flex-direction: column; } .hh .cta-row .btn { width: 100%; justify-content: center; min-height: 48px; }
 }
 .hh-top .hh-top-cols { grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); }
-.hh-top h1 { font-size: clamp(40px, 4.7vw, 70px); }
 @media (min-width: 1000px) { .hh-top h1 { white-space: nowrap; } }
 .hh-top h1 em { white-space: nowrap; }
 @media (max-width: 900px) { .hh-top .hh-top-cols { grid-template-columns: minmax(0, 1fr); } }

@@ -14,7 +14,7 @@
 .eq-pc { padding: 14px; border-radius: 14px; } .eq-pc-good { background: var(--sp-good-bg); } .eq-pc-mid { background: var(--s2); } .eq-pc-bad { background: #FCE4D6; } :root[data-theme="dark"] .eq-pc-bad { background: rgba(233, 150, 73, .14); }
 .eq-pc-h { display: flex; justify-content: space-between; margin: 0 0 8px; } .eq-pc-h b { font: 700 16px var(--sans); } .eq-pc-h span { font: 400 24px var(--serif); }
 .eq-pc ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; } .eq-pc li { font-size: 14px; padding-top: 8px; border-top: 1px solid var(--sp-line); } .eq-pc li small { display: block; font-size: 12px; color: var(--sp-mute); }
-.eq-lead-cmp { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--sp-line); } .eq-lead-cmp h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; font: 400 20px var(--serif); }
+.eq-lead-cmp { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--sp-line); } .eq-lead-cmp h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); }
 .eq-lc { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 10px 0 12px; }
 .eq-lc-c { padding: 12px; border: 1px solid var(--sp-line); border-radius: 12px; } .eq-lc-c svg { display: block; width: 100%; height: auto; } .eq-lc-t { margin: 0 0 6px; font-size: 14px; }
 .eq-lc-base { stroke: var(--sp-mute); stroke-dasharray: 3 3; } .eq-lc-top { stroke: #2E7D57; stroke-width: 1.6; } .eq-lc-me { stroke: #A12E26; stroke-width: 1.6; }

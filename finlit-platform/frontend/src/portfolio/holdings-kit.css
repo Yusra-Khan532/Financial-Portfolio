@@ -39,7 +39,7 @@
 /* Add portfolio dialog */
 .acc-dlg { position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; padding: 16px; background: rgba(10, 9, 6, .45); }
 .acc-dlg-in { width: min(480px, 100%); max-height: calc(100dvh - 32px); overflow: auto; background: var(--s1); color: var(--text); border: 1px solid var(--border); border-radius: 18px; padding: 20px 20px 16px; box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .45); }
-.acc-dlg-in h2 { margin: 0 0 4px; font: 600 24px/1.25 var(--serif, Georgia, serif); }
+.acc-dlg-in h2 { margin: 0 0 4px; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
 .acc-dlg-p { margin: 0 0 14px; color: var(--muted); font-size: 14px; }
 .acc-f { display: grid; gap: 4px; margin-bottom: 12px; font-size: 13px; font-weight: 600; }
 .acc-f input, .acc-f select { font: 500 16px var(--sans); min-height: 42px; border: 1px solid var(--border); border-radius: 10px; padding: 0 12px; background: var(--bg); color: var(--text); }

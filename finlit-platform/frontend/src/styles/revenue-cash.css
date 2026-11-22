@@ -1,7 +1,7 @@
 /* Revenue-to-Cash Intelligence (stock/RevenueCash.tsx). Neutral surfaces, hairline borders, one gold accent; severity is carried by a shape and a word, colour is a second cue. */
 .rcx { padding: 20px 22px; margin: 16px 0 8px; scroll-margin-top: 130px; background: var(--s1); }
 .rcx-h { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-.rcx-h h3 { display: flex; align-items: center; gap: 8px; margin: 0; font: 600 18px var(--serif); flex-wrap: wrap; }
+.rcx-h h3 { display: flex; align-items: center; gap: 8px; margin: 0; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); flex-wrap: wrap; }
 .rcx-sub { margin: 4px 0 0; color: var(--muted); font-size: var(--fs-14); }
 .rcx-sec { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); min-width: 0; }
 .rcx-k { margin: 0 0 10px; font: 600 12px var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }

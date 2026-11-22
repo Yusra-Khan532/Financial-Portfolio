@@ -39,7 +39,7 @@ export function Legal() {
   if (!d) return <div className="wrap state"><h2>We cannot find that page</h2></div>;
   return (
     <section className="sec"><div className="wrap legal">
-      <div className="eyebrow">Legal</div><h1 style={{ font: "300 clamp(32px,5vw,52px)/1.1 var(--serif)", margin: "8px 0 8px" }}>{d.title}</h1>
+      <div className="eyebrow">Legal</div><h1 className="ui-title ui-title--read" style={{ margin: "8px 0 8px" }}>{d.title}</h1>
       <p className="faint">Draft for review by FinLit's legal adviser before launch. Last updated October 2026.</p>
       {d.body.map(([h, t]) => <div key={h}><h2>{h}</h2><p>{t}</p></div>)}
       <p style={{ marginTop: 32 }}>{Object.keys(DOCS).filter((k) => k !== doc).map((k) => <Link key={k} to={`/legal/${k}`} style={{ marginRight: 16 }}>{DOCS[k].title}</Link>)}</p>

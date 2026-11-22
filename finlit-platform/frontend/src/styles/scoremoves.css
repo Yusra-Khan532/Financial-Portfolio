@@ -49,7 +49,7 @@
 .scm216-card .scm-hi svg { width: 20px; height: 20px; }
 .scm216-card .scm-ht { flex: 1 1 260px; min-width: 0; }
 .scm216-card .scm-eb { margin: 0; font: 700 var(--fs-12, 12px) var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--c1); }
-.scm216-card .scm-ht h3 { margin: 2px 0; font: 500 var(--fs-24, 24px)/1.2 var(--font-serif, Georgia, serif); color: var(--text); }
+.scm216-card .scm-ht h3 { margin: 2px 0; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); color: var(--text); }
 .scm216-card .scm-dl { margin: 0; font: 400 var(--fs-13, 13px) var(--sans); color: var(--muted); }
 .scm216-card .scm-rng { display: flex; flex-wrap: wrap; gap: 6px; }
 .scm216-card .scm-rng button { min-height: 33px; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: 600 var(--fs-13, 13px) var(--sans); cursor: pointer; }

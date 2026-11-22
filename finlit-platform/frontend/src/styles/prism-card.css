@@ -16,7 +16,7 @@
 .pcx-ic svg { width: 24px; height: 24px; }
 .pcx-ht { min-width: 0; }
 .pcx-nw { white-space: nowrap; }   /* task #230: the heading's "i" stays right after its last word, never alone at the far right */
-.pcx-ht h3 { margin: 0; font: 500 24px/1.2 var(--serif); letter-spacing: .05em; text-transform: uppercase; color: var(--text); }
+.pcx-ht h3 { margin: 0; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); color: var(--text); }
 .pcx-ht p { margin: 4px 0 0; font-size: 14px; line-height: 1.45; color: var(--muted); }
 .pcx-note { display: flex; align-items: flex-start; gap: 10px; margin: 0; padding: 12px 14px; border-radius: 12px; font-size: var(--fs-13); line-height: 1.5; color: var(--muted); background: color-mix(in srgb, #5B7BE8 9%, rgba(var(--dk-w), .02)); border: 1px solid color-mix(in srgb, #5B7BE8 20%, var(--border)); }
 .pcx-note svg { width: 16px; height: 16px; flex: none; margin-top: 1px; color: var(--faint); }
@@ -151,7 +151,7 @@
   .pcx-body { padding: 16px 14px 0; gap: 14px; }
   .pcx-sh { padding: 16px 16px 14px; gap: 10px 12px; }
   .pcx-ic { width: 40px; height: 40px; border-radius: 12px; } .pcx-ic svg { width: 20px; height: 20px; }
-  .pcx-ht h3 { font-size: var(--fs-16); letter-spacing: .04em; } .pcx-ht p { font-size: 13px; }
+  .pcx-ht p { font-size: var(--fs-13); }
   .pcx-note { font-size: 12px; padding: 10px 12px; }
   .pcx-fb { padding: 16px; gap: 16px; }
   .pcx-rc { display: flex; flex-direction: column; align-items: center; text-align: center; }

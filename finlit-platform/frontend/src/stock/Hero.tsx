@@ -55,7 +55,7 @@ export function Hero({ s, ratios, jump }: { s: Summary; ratios?: Ratios; jump: (
         <div className="hx hx-d">
           <div className="hxd-top">
             <span className="hx-logo"><span className="badge"><CoLogo symbol={p.symbol} name={p.name} size={64} /></span></span>
-            <div className="hxd-n"><h1 className="hx-name">{p.name}</h1><div className="hx-dots"><NameDots plan={effPlan} admin={seesAll} prism={prismIn} /></div></div>
+            <div className="hxd-n"><h1 className="hx-name ui-title">{p.name}</h1><div className="hx-dots"><NameDots plan={effPlan} admin={seesAll} prism={prismIn} /></div></div>
             <div className="hxd-px">
               <span className="hx-price"><span className="hx-rs">₹</span>{q.price == null ? MINUS : nf(q.price)}</span>
               {q.change != null && <span className={"chip " + (good ? "up" : "down")}>{(q.change > 0 ? "+" : q.change < 0 ? MINUS : "") + nf(Math.abs(q.change))} · {signed(q.changePct)}</span>}

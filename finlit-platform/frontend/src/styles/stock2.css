@@ -325,7 +325,7 @@ a.pr-row:hover, .pr-row.hot { transform: translateX(4px); border-color: color-mi
 .plan li .ck { width: 28px; height: 28px; border-radius: 9px; color: var(--tc); background: color-mix(in srgb, var(--tc) 16%, transparent); margin-top: 0; } .plan li .ck svg { width: 15px; height: 15px; }
 .plan li { grid-template-columns: 28px minmax(0, 1fr); gap: 12px; }
 .plan .inc { display: flex; justify-content: space-between; align-items: center; } .inc-n { padding: 3px 10px; border-radius: 999px; font: 600 12px var(--sans); letter-spacing: .06em; text-transform: none; color: var(--tc); background: color-mix(in srgb, var(--tc) 14%, transparent); }
-.cmp-h { text-align: center; margin: 48px 0 18px; } .cmp-h h3 { margin: 0; font: 400 clamp(26px, 3vw, 36px) var(--serif); } .cmp-h p { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+.cmp-h { text-align: center; margin: 48px 0 18px; } .cmp-h h3 { margin: 0; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); } .cmp-h p { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
 .cmp { margin-top: 0; } .cmp thead th { position: sticky; top: 0; z-index: 2; padding: 16px 10px; background: #252119; }
 .cmp thead th { --tc: var(--gold); text-align: center; border-bottom: 2px solid var(--tc); } .cmp thead th.cur { background: linear-gradient(180deg, color-mix(in srgb, var(--tc) 22%, #252119), #252119); }
 .th-i { width: 34px; height: 34px; margin: 0 auto 6px; border-radius: 11px; display: grid; place-items: center; color: #181714; background: linear-gradient(135deg, color-mix(in srgb, var(--tc) 40%, #fff), var(--tc)); } .th-i svg { width: 17px; height: 17px; }
@@ -442,9 +442,9 @@ a.pr-row:hover, .pr-row.hot { transform: translateX(4px); border-color: color-mi
 .tf-list .k { color: var(--faint); } .tf-list .v { font-weight: 600; } .tf-list small { color: var(--faint); font-size: var(--fs-12); } .tf-list em { font-style: normal; font-size: 12px; font-weight: 600; color: var(--warn); }
 
 /* Gold insights: the revenue-segments card has a large title (owner's request) */
-.card-h h3.seg-title { font: 400 28px/1.15 var(--serif); letter-spacing: -.01em; gap: 12px; }
+.card-h h3.seg-title { font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); letter-spacing: -.01em; gap: 12px; }
 .card-h h3.seg-title .ci { width: 38px; height: 38px; }
-@media (max-width: 700px) { .card-h h3.seg-title { font-size: var(--fs-20); } .card-h h3.seg-title .ci { width: 32px; height: 32px; } }
+@media (max-width: 700px) { .card-h h3.seg-title .ci { width: 32px; height: 32px; } }
 /* Ownership: the big year selector */
 .own-yr2 { margin: 0 0 18px; }
 .own-yr2-h { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }

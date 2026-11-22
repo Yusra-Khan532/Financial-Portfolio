@@ -22,7 +22,7 @@
 .adv-tabsel span, .adv-pairsel span { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
 .adv-tabsel select, .adv-pairsel select { width: 100%; }
 
-.adv-sec h2 { font: 400 var(--fs-28)/1.15 var(--serif); margin: 4px 0 6px; }
+.adv-sec h2 { font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); margin: 4px 0 6px; }
 .adv-sec p { color: var(--muted); margin: 0 0 6px; max-width: 75ch; }
 .adv-sec .adv-note { font-size: var(--fs-14); color: var(--text); border-left: 3px solid var(--gold); padding: 4px 0 4px 10px; background: var(--gold-soft); border-radius: 0 8px 8px 0; }
 
@@ -33,7 +33,7 @@
 
 /* pair picker */
 .adv-picker { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 10px; min-width: 0; }
-.adv-picker h3 { font-size: var(--fs-12); letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin: 8px 6px 4px; }
+.adv-picker h3 { font: var(--ui-fw-semibold) var(--fs-label)/var(--lh-12) var(--font-sans); letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin: 8px 6px 4px; }
 .adv-picker ul { list-style: none; margin: 0; padding: 0; }
 .adv-picker li { display: flex; align-items: center; gap: 2px; }
 .adv-pair { flex: 1; min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 8px; text-align: left; background: none; border: 0; border-radius: 8px; padding: 7px 8px; color: var(--text); cursor: pointer; font-size: 13px; line-height: 1.3; }
@@ -67,7 +67,7 @@ fieldset.adv-field legend { padding: 0 4px; }
 /* chart card */
 .adv-card { background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 14px; min-width: 0; }
 .adv-ch { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
-.adv-ch h3 { margin: 0; font-size: var(--fs-16); line-height: 1.3; min-width: 0; overflow-wrap: anywhere; }
+.adv-ch h3 { margin: 0; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); min-width: 0; overflow-wrap: anywhere; }
 .adv-banner { margin: 6px 0; padding: 8px 10px; border-radius: 8px; font-size: 13px; line-height: 1.45; border: 1px solid var(--border); background: var(--s2); color: var(--text); display: flex; gap: 8px; align-items: flex-start; }
 .adv-banner svg { width: 15px; height: 15px; flex: none; margin-top: 2px; color: var(--gold); }
 .adv-banner.bw { border-color: color-mix(in srgb, var(--gold) 50%, var(--border)); background: var(--gold-soft); }
