@@ -151,6 +151,11 @@ function Peers({ r }: { r: IndustryRead }) {
 
 export function IndustryCard({ read: r }: { read: IndustryRead }) {
   const rq = useRotationMap();
+  const [tab, setTab] = useState<0 | 1>(0);
+  const tabKey = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault(); const n = tab === 0 ? 1 : 0; setTab(n); document.getElementById(n === 0 ? "aiq-t1" : "aiq-t2")?.focus();
+  };
   if (r.state === "none" || r.state === "loading") return null;
   const row = r.row!, ind = r.ind;
   if (r.state === "nogroup") return (
@@ -174,6 +179,13 @@ export function IndustryCard({ read: r }: { read: IndustryRead }) {
           ? <div className={"aiq-vb " + verdictTone(verdict)}><small>Its verdict on Latest results</small><b>{verdict}</b></div>
           : <Link className="aiq-vb v-none" to={`/results/quarter?q=${encodeURIComponent(row.symbol)}`}><small>Its own verdict</small><b>On Latest results →</b></Link>)}
       </div>
+      {/* task #328 (developer file 27, change 3): the industry's biggest companies are a tab under the header, not a closed row at the foot that read as a caption.
+          Both panes stay mounted, so the table keeps its sort while the member switches tabs. */}
+      <div className="aiq-tabs" role="tablist" aria-label="Views of this quarter">
+        <button type="button" role="tab" id="aiq-t1" aria-controls="aiq-p1" aria-selected={tab === 0} tabIndex={tab === 0 ? 0 : -1} onClick={() => setTab(0)} onKeyDown={tabKey}>{r.name} against its industry</button>
+        <button type="button" role="tab" id="aiq-t2" aria-controls="aiq-p2" aria-selected={tab === 1} tabIndex={tab === 1 ? 0 : -1} onClick={() => setTab(1)} onKeyDown={tabKey}>The {r.peers ? `${r.peers.length} ` : ""}biggest in {i.name}{r.peers ? <b>{r.peers.length}</b> : null}</button>
+      </div>
+      <div className="aiq-pane" id="aiq-p1" role="tabpanel" aria-labelledby="aiq-t1" hidden={tab !== 0}>
       <div className="aiq-kp">
         <Score label="Revenue growth" name={r.name} mine={rev} indV={iR} mktV={mR} industry={i.name} />
         <Score label="Profit growth" name={r.name} mine={profit} indV={iP} mktV={mP} industry={i.name} />
@@ -188,10 +200,10 @@ export function IndustryCard({ read: r }: { read: IndustryRead }) {
         <div className="aiq-f" title={agree ? AGREE_TEXT[agree] : noAgree}><span className="aiq-fi" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2" /></svg></span>
           <div><small>Results and prices</small><b>{agree ?? "No clear reading"}</b><a href="#sector">See prices in 14 →</a></div></div>
       </div>
-      <details className="aiq-peers">
-        <summary>How the biggest companies in {i.name} did{r.peers ? ` · ${r.peers.length}` : ""}<span className="aiq-chev" aria-hidden="true">▾</span></summary>
+      </div>
+      <div className="aiq-pane peers" id="aiq-p2" role="tabpanel" aria-labelledby="aiq-t2" hidden={tab !== 1}>
         <Peers r={r} />
-      </details>
+      </div>
     </section>
   );
 }

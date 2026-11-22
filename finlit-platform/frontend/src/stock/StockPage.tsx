@@ -11,7 +11,7 @@ import { nf, signed } from "../lib/format";
 import { OpenAccess } from "../components/Gate";
 import { useAuth } from "../lib/auth";
 import { Hero } from "./Hero";
-import { Defer } from "./Defer";
+import { Defer, usualHeight } from "./Defer";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { FinancialsSection, PriceSection } from "./Sections";
 import { InsightsSection, PeersSection, RatiosSection, SegmentsSection } from "./Sections3";
@@ -28,6 +28,7 @@ import { WhereStands } from "./pack/WhereStands";
 import { useDocTitle } from "../lib/title";
 import "../styles/report-polish.css";
 import "../styles/report216.css";   // task #216: compact headings, drop-down arrow, enlarge and phone rules (after the polish tokens it adjusts)
+import "../styles/company-report-layout.css";   // task #328 (developer file 27): the eight layout changes, after the sheets they adjust
 import { MiniBar } from "./MiniBar";
 import { useEarningsFindings } from "./EarningsCash";
 import { KeyFindings, checkItems, findingsOf } from "./KeyFindings";
@@ -189,19 +190,19 @@ export function StockPage() {
         <PhoneFold page="stock" {...foldOf("macro")}><ErrorBoundary section="Economy and sector"><MacroOutlookSection symbol={symbol} /></ErrorBoundary></PhoneFold>
         <PhoneFold page="stock" {...foldOf("notes")}><ErrorBoundary section="This section"><KeyFindings s={s} f={fin} lender={!!s.dataQuality.isBank} /></ErrorBoundary></PhoneFold>
         <PhoneFold page="stock" {...foldOf("price")}><ErrorBoundary section="This section"><PriceSection s={s} symbol={symbol} ratios={ratios} /></ErrorBoundary></PhoneFold>
-        <PhoneFold page="stock" {...foldOf("quarter")}><PlFlagsLayer f={fin} lender={!!s.dataQuality.isBank} /><Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><QuarterSection f={fin} /></ErrorBoundary></Defer></PhoneFold>
-        <PhoneFold page="stock" {...foldOf("financials")}><Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><FinancialsSection f={fin} /></ErrorBoundary></Defer></PhoneFold>
-        <PhoneFold page="stock" {...foldOf("trends")}><Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><TrendsSection f={fin} e={events} r={ratios} /></ErrorBoundary></Defer></PhoneFold>
-        <PhoneFold page="stock" {...foldOf("charts")}><Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><ChartLab s={s} symbol={symbol} f={fin} r={ratios} o={own} e={events} p={peers} /></ErrorBoundary></Defer></PhoneFold>
-        <PhoneFold page="stock" {...foldOf("ratios")}><Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><RatiosSection r={ratios} lender={!!s.dataQuality.isBank} sector={s.profile.sector} industry={s.profile.industry} labels={[s.profile.sector, s.profile.industry, s.profile.subIndustry]} /></ErrorBoundary></Defer></PhoneFold>
-        <PhoneFold page="stock" {...foldOf("ownership")}><Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><OwnershipSection o={own} ins={ownIns.data} insWhy={ownInsWhy} /></ErrorBoundary></Defer></PhoneFold>
-        <PhoneFold page="stock" {...foldOf("peers")}><Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><PeersSection p={peers} self={symbol} s={s} /></ErrorBoundary></Defer></PhoneFold>
-        <PhoneFold page="stock" {...foldOf("sector")}><Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="Where it stands"><WhereStands symbol={symbol} name={s.profile.name} s={s} peers={peers} /></ErrorBoundary></Defer></PhoneFold>
-        <PhoneFold page="stock" {...foldOf("insights")}><Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><InsightsSection s={s} r={ratios} tech={tech} /></ErrorBoundary></Defer></PhoneFold>
-        <PhoneFold page="stock" {...foldOf("segments")}><Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><SegmentsSection seg={seg} /></ErrorBoundary></Defer></PhoneFold>
-        <PhoneFold page="stock" {...foldOf("dividends")}><Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><DividendsSection e={events} price={q?.price} r={ratios} /></ErrorBoundary></Defer></PhoneFold>
-        <PhoneFold page="stock" {...foldOf("news")}><Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><NewsSection e={events} name={s.profile.name} symbol={symbol} /></ErrorBoundary></Defer></PhoneFold>
-        <PhoneFold page="stock" {...foldOf("community")}><Defer all={openAll} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><CommunitySection symbol={symbol} name={s.profile.name} /></ErrorBoundary></Defer></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("quarter")}><PlFlagsLayer f={fin} lender={!!s.dataQuality.isBank} /><Defer all={openAll} height={usualHeight("quarter")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><QuarterSection f={fin} /></ErrorBoundary></Defer></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("financials")}><Defer all={openAll} height={usualHeight("financials")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><FinancialsSection f={fin} /></ErrorBoundary></Defer></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("trends")}><Defer all={openAll} height={usualHeight("trends")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><TrendsSection f={fin} e={events} r={ratios} /></ErrorBoundary></Defer></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("charts")}><Defer all={openAll} height={usualHeight("charts")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><ChartLab s={s} symbol={symbol} f={fin} r={ratios} o={own} e={events} p={peers} /></ErrorBoundary></Defer></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("ratios")}><Defer all={openAll} height={usualHeight("ratios")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><RatiosSection r={ratios} lender={!!s.dataQuality.isBank} sector={s.profile.sector} industry={s.profile.industry} labels={[s.profile.sector, s.profile.industry, s.profile.subIndustry]} /></ErrorBoundary></Defer></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("ownership")}><Defer all={openAll} height={usualHeight("ownership")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><OwnershipSection o={own} ins={ownIns.data} insWhy={ownInsWhy} /></ErrorBoundary></Defer></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("peers")}><Defer all={openAll} height={usualHeight("peers")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><PeersSection p={peers} self={symbol} s={s} /></ErrorBoundary></Defer></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("sector")}><Defer all={openAll} height={usualHeight("sector")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="Where it stands"><WhereStands symbol={symbol} name={s.profile.name} s={s} peers={peers} /></ErrorBoundary></Defer></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("insights")}><Defer all={openAll} height={usualHeight("insights")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><InsightsSection s={s} r={ratios} tech={tech} /></ErrorBoundary></Defer></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("segments")}><Defer all={openAll} height={usualHeight("segments")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><SegmentsSection seg={seg} /></ErrorBoundary></Defer></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("dividends")}><Defer all={openAll} height={usualHeight("dividends")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><DividendsSection e={events} price={q?.price} r={ratios} /></ErrorBoundary></Defer></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("news")}><Defer all={openAll} height={usualHeight("news")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><NewsSection e={events} name={s.profile.name} symbol={symbol} /></ErrorBoundary></Defer></PhoneFold>
+        <PhoneFold page="stock" {...foldOf("community")}><Defer all={openAll} height={usualHeight("community")} onShow={() => setShown((n) => n + 1)}><ErrorBoundary section="This section"><CommunitySection symbol={symbol} name={s.profile.name} /></ErrorBoundary></Defer></PhoneFold>
       </div>
       <div className="wrap"><p className="rp-plans" id="plans">Basic, Silver and Gold open more of every report: the scores, the checks and the full statements. <Link to="/pricing">Compare the plans</Link></p></div>
       {partial && <div className="prep-toast" role="status"><i aria-hidden="true" />Ownership, peers, segments and announcements are still loading. Everything above is final.</div>}

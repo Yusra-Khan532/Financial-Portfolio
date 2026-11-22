@@ -137,14 +137,17 @@ function ValuationHistory({ r }: { r: Ratios }) {
     <div className="vh">
       <ChartZoom label="Valuation history" className="cz-r">
       <div className="tools"><div><div className="label" style={{ display: "flex", alignItems: "center", gap: 8 }}>Valuation history<ChartHelp id="valuation-history" /></div><p className="faint" style={{ margin: "4px 0 0", fontSize: "var(--fs-13)" }}>How much investors paid over the years</p></div><div className="seg">{(["pe", "pb", "ps"] as const).map((x) => <button key={x} aria-pressed={k === x} onClick={() => setK(x)}>{x === "pe" ? "P/E" : x === "pb" ? "P/B" : "P/S"}</button>)}</div></div>
+      <LineChart periods={vh.periods} series={[{ key: k, label: name, color: "var(--c4)", values: vals }]} fmt={(x) => nf(x, 1) + "×"} area avg={mean} height={250} />
+      {/* task #328 (developer file 27, change 5): the chart keeps its drawn size (720 × 250); the three figures are rows beside it, In simple words under them */}
+      <div className="vh-side">
       <div className="vh-top">
         <div className="vh-k"><span className="label">{name} in {vh.periods[vh.periods.length - 1]}</span><b>{nf(now, 1)}×</b></div>
         <div className="vh-k"><span className="label">{vh.periods.length}-year average</span><b>{nf(mean, 1)}×</b></div>
         <div className={"vh-k " + (diff > 10 ? "hi" : diff < -10 ? "lo" : "")}><span className="label">Versus its history</span><b>{diff >= 0 ? "▲ " : "▼ "}{nf(Math.abs(diff), 0)}% {diff >= 0 ? "above" : "below"}</b></div>
       </div>
-      <LineChart periods={vh.periods} series={[{ key: k, label: name, color: "var(--c4)", values: vals }]} fmt={(x) => nf(x, 1) + "×"} area avg={mean} height={250} />
-      </ChartZoom>
       <Plain tone={diff > 10 ? "warn" : diff < -10 ? "good" : "info"}>{diff > 10 ? `Investors are paying more than usual for each rupee of ${k === "pe" ? "profit" : k === "pb" ? "book value" : "sales"} — about ${nf(Math.abs(diff), 0)}% above this company's own average.` : diff < -10 ? `Investors are paying less than usual — about ${nf(Math.abs(diff), 0)}% below this company's own average.` : "The price is close to what investors have usually paid for this company."}</Plain>
+      </div>
+      </ChartZoom>
     </div>
   );
 }
@@ -285,7 +288,7 @@ export function PeersSection({ p, self, s }: { p?: Peers; self: string; s: Summa
 const SPEC: Record<string, { stops: string[]; at: (val: string) => number; say: (val: string) => string }> = {
   // the four sizes (task #262), smallest to largest along the bar
   Size: { stops: ["Micro", "Small", "Mid", "Large"], at: (x) => (/Large/.test(x) ? 3.5 : /Mid/.test(x) ? 2.5 : /Micro/.test(x) ? 0.5 : 1.5), say: (x) => (/Large/.test(x) ? "A big, established company" : /Mid/.test(x) ? "A mid-sized company with room to grow" : /Micro/.test(x) ? "A very small company; can move faster, with more risk" : "A smaller company; can move faster, with more risk") },
-  Style: { stops: ["Value", "Blend", "Growth"], at: (x) => (/Premium/.test(x) ? 2.5 : /Value/.test(x) ? 0.5 : 1.5), say: (x) => (/Premium/.test(x) ? "The market pays a high price for its growth" : /Value/.test(x) ? "Priced low against what it earns" : "Neither cheap nor expensive") },
+  Style: { stops: ["Value", "Blend", "Growth"], at: (x) => (/Premium/.test(x) ? 2.5 : /Value/.test(x) ? 0.5 : 1.5), say: (x) => (/Premium/.test(x) ? "The market pays a high price for its growth" : /Value/.test(x) ? "Priced low against what it earns" : "Between the value and growth groups") },   // task #328 (file 27, C): no cheap or expensive
   Income: { stops: ["Low", "Moderate", "High"], at: (x) => (/High/.test(x) ? 2.5 : /Moderate/.test(x) ? 1.5 : 0.5), say: (x) => (/High/.test(x) ? "Pays out a large share as dividends" : /Moderate/.test(x) ? "Pays a steady dividend" : "Pays little; keeps cash for growth") },
   Momentum: { stops: ["Oversold", "Neutral", "Overbought"], at: (x) => (/Oversold/.test(x) ? 0.5 : /Overbought/.test(x) ? 2.5 : 1.5), say: (x) => (/Oversold/.test(x) ? "Sold off heavily lately" : /Overbought/.test(x) ? "Bought heavily lately" : "No extreme in recent price moves") },
 };
@@ -294,6 +297,8 @@ const WHY: Record<string, [string, string]> = {
   profit_cagr: ["Profit growing slower than sales means costs are eating into margins.", "Watch the profit margin in the next two quarters."],
   current_ratio: ["Short-term bills slightly exceed short-term assets, so cash management matters.", "Watch operating cash flow and short-term borrowings."],
   rsi14: ["Heavy selling can mean fear, or a chance if the business is sound.", "Watch for the price to stop falling before drawing conclusions."],
+  // task #328 (developer file 27, C): the overbought trigger ("Heavy recent buying") has its own two lines; it shared the oversold ones
+  rsi14_high: ["Heavy recent buying has lifted the price fast: an RSI above 70 means recent gains far outweigh recent losses.", "Watch whether RSI eases back below 70 and how the price holds against its 50-day average."],
   vsEma200Pct: ["Trading below its long-term average signals a weak longer trend.", "Watch whether the price reclaims its 200-day average."],
   cfo_to_pat: ["Profit is turning into real cash, which makes earnings more trustworthy.", "Watch that cash flow stays above reported profit."],
   debt_to_equity: ["Low borrowing leaves room to handle a bad year or fund growth.", "Watch if debt rises faster than profit."],
@@ -329,7 +334,7 @@ export function InsightsSection({ s, r, tech }: { s: Summary; r?: Ratios; tech?:
           <div className="trg-cols">
             {([["watch", "Worries", "alert"], ["good", "Strengths", "check"]] as const).map(([kind, title]) => (
               <div key={kind}><div className={"trg-colh " + kind}>{title}<span>{trig.filter((n) => n.kind === kind).length}</span></div>
-                <ul className="trg2">{trig.filter((n) => n.kind === kind).map((n) => { const w = WHY[n.key]; return (
+                <ul className="trg2">{trig.filter((n) => n.kind === kind).map((n) => { const w = WHY[n.key === "rsi14" && /buying|overbought/i.test(`${n.title} ${n.text ?? ""}`) ? "rsi14_high" : n.key]; return (
                   <li key={n.key} className={n.kind}><div className="trg2-h"><span className="trg-i"><Icon name={n.kind === "watch" ? "alert" : "check"} /></span><b>{n.title}</b></div>
                     {w && <details className="trg2-dd xdd"><summary>Why it matters, and what to watch<DropChev /></summary><div className="trg2-w"><span><small>Why it matters</small>{w[0]}</span><span><small>What to watch</small>{w[1]}</span></div></details>}</li>
                 ); })}{!trig.some((n) => n.kind === kind) && <li className={kind}><p>Nothing stands out.</p></li>}</ul></div>

@@ -10,7 +10,7 @@ import { Icon } from "../lib/icons";
 import type { Table } from "../lib/api";
 import { DUPONT_LIMITS as LIM } from "../lib/dupontRules";
 import {
-  anomalies, averages, completeness, deepYears, driver, evaluateInsights, explain, gapList, insightContext, move, qualityScore, requiredMargin, roeVerdict, simRanges, simRoe, simStart, clampTo, tableRows, thresholdNotes, waterfall,
+  anomalies, averages, completeness, deepYears, driver, driverRows, evaluateInsights, explain, gapList, insightContext, move, qualityScore, requiredMargin, roeVerdict, simRanges, simRoe, simStart, clampTo, tableRows, thresholdNotes, waterfall,
   type Basis, type TableRow, type View, type Why,
 } from "../lib/dupontDeep";
 import { MINUS, nf } from "../lib/format";
@@ -98,6 +98,10 @@ export function DecodeRoe({ pl, bs, lender, said = NONE }: { pl: Table | undefin
           <span className="k">ROE driven by</span>
           {drv ? <b className="dp-badge">{drv.name}</b> : <b className="dp-badge off">Not clear</b>}
           <small>{drv && mv ? `${nf(Math.abs(drv.share), 0)}% of the ROE move from ${mv.first.label} to ${mv.last.label}, the largest of the three` : driverWhy}</small>
+          {/* task #328 (developer file 27, change 6): the three drivers from the table above, largest effect first, so the box is filled */}
+          {mv && <><ul className="dp-drv" aria-label={`The three drivers, ${mv.first.label} to ${mv.last.label}`}>{driverRows(mv).map((d) => (
+            <li key={d.key} className={d.top ? "top" : undefined}><span className="n">{d.name}<small>{d.how}</small></span><span className="v">{d.first} → {d.last}</span><span className={"e" + (d.dir > 0 ? " up" : d.dir < 0 ? " dn" : "")}>{d.effect}</span></li>))}</ul>
+            <p className="dp-drv-f">ROE went from {nf(mv.first.roe as number, 2)}% to {nf(mv.last.roe as number, 2)}% over the period.</p></>}
         </div>
         {(() => {
           const total = score.total, v = total == null ? null : roeVerdict(total), b = v ? v.band : "na";
@@ -124,9 +128,13 @@ export function DecodeRoe({ pl, bs, lender, said = NONE }: { pl: Table | undefin
         { key: "year", label: "ROE by year", content: <>
       <div className="card dp-card">
         <div className="card-h"><h3><span className="ci"><Icon name="growth" /></span>ROE by year, reported and normalized</h3><span className="s">{view === "reported" ? "Dotted line: normalized" : "Dotted line: reported"} · ⚑ ring marks low-quality earnings</span></div>
+        {/* task #328 (developer file 27, change 6b): the chart at most 760 px wide; the legend and the note on normalized ROE beside it */}
+        <div className="dp-roe"><div className="dp-roe-g">
         <RoeLines labels={labels} series={rowOrder} flags={years.map((y) => y.lowQuality)} notes={years.map((y) => y.why.roe?.short ?? null)} fmt={(v) => `${sg(v, 1)}%`} ariaLabel={`Return on equity by year, reported and normalized. ${years.map((y) => `${y.label}: reported ${y.roe == null ? "not available" : nf(y.roe, 1) + " per cent"}, normalized ${y.normRoe == null ? "not available" : nf(y.normRoe, 1) + " per cent"}`).join("; ")}`} />
+        <div className="dp-aside">
         <ul className="dp-legend" aria-hidden="true"><li><i className="ln" style={{ background: "var(--c1)" }} />ROE, reported (circle)</li><li><i className="ln dot" style={{ color: "var(--c2)" }} />ROE, normalized (square)</li></ul>
         <p className="faint dp-note">Normalized ROE removes exceptional items (after tax at the year's own tax rate) and profit from discontinued operations: normalized profit = net profit − exceptional items × (1 − tax rate) − discontinued profit.{years.some((y) => y.taxRateFallback && (y.exceptional ?? 0) !== 0) ? ` Where tax and pre-tax profit could not give a rate (${years.filter((y) => y.taxRateFallback && (y.exceptional ?? 0) !== 0).map((y) => y.label).join(", ")}), a ${nf(LIM.fallbackTaxRate * 100, 0)}% rate was assumed.` : ""}</p>
+        </div></div></div>
       </div>
         </> },
         { key: "roa", label: "ROE and ROA", content: <>

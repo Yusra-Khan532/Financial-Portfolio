@@ -14,11 +14,13 @@ import { IndustryList } from "./pack/WhereStands";
 
 afterEach(cleanup);
 const EV = raw as unknown as Events;
-const rows = (c: HTMLElement) => [...c.querySelectorAll(".nf-r")];
+// task #328 (developer file 27, change 7): rows past the first six are in the page but hidden (nf-hid) until "Show all" adds "all" to the card
+const rows = (c: HTMLElement) => [...c.querySelectorAll(".nf-r")].filter((r) => !r.classList.contains("nf-hid") || !!r.closest(".nf-card.all"));
+const months = (c: HTMLElement) => [...c.querySelectorAll(".nf-mo")].filter((m) => !m.classList.contains("nf-hid") || !!m.closest(".nf-card.all")).map((m) => m.querySelector(".nf-m")!.textContent);
 const css = (f: string) => readFileSync(join(__dirname, "..", "styles", f), "utf8");
 
 describe("18 News and filings (S1)", () => {
-  it("the head, the simple words, 4 tiles that open their PDF in a new tab, the chips with counts and 8 rows first", () => {
+  it("the head, the simple words, 4 tiles that open their PDF in a new tab, the chips with counts and 6 rows first", () => {
     const { container: c } = render(<MemoryRouter><NewsSection e={EV} name="TD Power Systems Ltd" /></MemoryRouter>);
     expect(c.querySelector("#news h2")!.textContent).toBe("What the company has told the exchange");
     expect(c.querySelector("#news .no")!.textContent).toContain("News and filings");
@@ -26,20 +28,27 @@ describe("18 News and filings (S1)", () => {
     const tiles = [...c.querySelectorAll("a.nf-h")];
     expect(tiles.length).toBe(4); expect(tiles.every((t) => t.getAttribute("target") === "_blank" && /^https:/.test(t.getAttribute("href")!))).toBe(true);
     expect([...c.querySelectorAll(".nf-f .chip-b")].map((b) => b.textContent)).toEqual(["All 24", "Results & board meetings 2", "Dividends & corporate actions 4", "Investor calls & presentations 7", "Orders & agreements 2", "Shares & fund raising 9"]);
-    expect(rows(c).length).toBe(8);
+    expect(rows(c).length).toBe(6);
     expect(c.querySelector("#announcements")).not.toBeNull();                 // old links still land on the filings card
     expect(rows(c)[0].querySelector(".nf-k")!.textContent).toBe("NSE category: General Updates");
     expect(rows(c)[0].querySelector(".nf-d small")!.textContent).toBe("17:24");
     expect(rows(c)[0].querySelector(".nf-go")!.textContent).toBe("PDF ↗");
+    // the arrow is its own button beside the PDF link; it opens the whole text of that one filing
+    const arrow = rows(c)[0].querySelector<HTMLButtonElement>("button.nf-exp")!;
+    expect(arrow.getAttribute("aria-expanded")).toBe("false"); expect(arrow.closest("a")).toBeNull();
+    fireEvent.click(arrow);
+    expect(rows(c)[0].classList.contains("open")).toBe(true); expect(arrow.getAttribute("aria-label")).toBe("Show one line");
+    expect(rows(c)[1].classList.contains("open")).toBe(false);
   });
   it("Show all 24 / Show fewer, a chip shows only its group (no empty months), and the routine filing on request (dashed)", () => {
     const { container: c } = render(<MemoryRouter><NewsSection e={EV} name="TD Power Systems Ltd" /></MemoryRouter>);
     fireEvent.click(screen.getByText("Show all 24"));
     expect(rows(c).length).toBe(24);
-    expect([...c.querySelectorAll(".nf-m")].map((h) => h.textContent)).toEqual(["November 2026", "October 2026", "September 2026", "August 2026"]);
-    fireEvent.click(screen.getByText("Show fewer")); expect(rows(c).length).toBe(8);
+    expect(months(c)).toEqual(["November 2026", "October 2026", "September 2026", "August 2026"]);
+    expect(c.querySelector(".nf-card")!.classList.contains("all")).toBe(true);   // the box that scrolls at 560 px
+    fireEvent.click(screen.getByText("Show fewer")); expect(rows(c).length).toBe(6);
     fireEvent.click(within(c.querySelector(".nf-f") as HTMLElement).getByText("Shares & fund raising"));
-    expect(rows(c).length).toBe(9); expect([...c.querySelectorAll(".nf-m")].map((h) => h.textContent)).toEqual(["October 2026", "September 2026", "August 2026"]);
+    expect(rows(c).length).toBe(9); expect(months(c)).toEqual(["October 2026", "September 2026", "August 2026"]);
     expect(c.querySelector(".nf-all")).toBeNull();
     fireEvent.click(within(c.querySelector(".nf-f") as HTMLElement).getByText("All"));
     fireEvent.click(screen.getByText("Show 1 routine filing"));
