@@ -469,3 +469,30 @@ async def test_a_failed_sectors_view_is_reported_and_the_live_set_keeps_serving(
     res = await run(tmp_path, batch_fn=good_batch(), levels_fn=broken)
     assert res["status"] == "unchanged" and sj.exit_code(res) == 0 and res["sectorsView"]["status"] == "failed" and "out of memory" in res["sectorsView"]["message"]
     assert sd.board_date(tmp_path / "out") == THU and not (sd.live_release(tmp_path / "out") / sd.LEVELS_DIR).exists()
+
+def test_quick_probe_goes_through_the_relay_when_nse_refuses_the_server(monkeypatch):
+    """22 Nov 2026: NSE refused the AWS address for 4 days of files. With the relay set, a refused probe asks NSE through the relay before giving up."""
+    import urllib.error
+    import urllib.request
+    from finlit_technicals import fetch
+
+    def forbidden(*a, **k):
+        raise urllib.error.HTTPError("u", 403, "Forbidden", {}, None)
+    monkeypatch.setattr(urllib.request, "urlopen", forbidden)
+    asked = []
+
+    def relay(self, url, referer):
+        asked.append(url)
+        return answer[0], b""
+    monkeypatch.setattr(fetch.Fetcher, "_relay", relay)
+    monkeypatch.setenv("EXCHANGE_RELAY_URL", "https://relay.example.workers.dev")
+    monkeypatch.setenv("EXCHANGE_RELAY_KEY", "k")
+    answer = [200]
+    assert sj.quick_probe(today=THU) is None and asked and "nseindia.com" in asked[0]   # reached through the relay: the download goes ahead
+    answer = [-1]                                                                      # the relay itself failed (X-Relay-Error)
+    msg = sj.quick_probe(today=THU)
+    assert "refused this server (HTTP 403)" in msg and "relay did not reach it" in msg and "PC in India" in msg
+    monkeypatch.delenv("EXCHANGE_RELAY_URL")
+    monkeypatch.delenv("AMFI_RELAY_URL", raising=False)
+    asked.clear()
+    assert "refused this server" in sj.quick_probe(today=THU) and not asked           # no relay set: as before, nothing is relayed
