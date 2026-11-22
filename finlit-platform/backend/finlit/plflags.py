@@ -184,6 +184,17 @@ def _evaluate(p: Dict[str, Optional[Move]]) -> List[Dict[str, Any]]:
     return out
 
 
+def titled(title: str, no: int, scope: str, period: Optional[str]) -> str:
+    """Task #312 (developer file 20, the check): the period in the title ("... in the Sep quarter", "... in FY26"), so a quarter's finding never reads as a
+    contradiction beside a five-year one. Case 8 is a run of quarters and keeps its own words."""
+    if no == 8 or not period:
+        return title
+    if scope == "quarterly":
+        mon = period.split(" ")[0]
+        return f"{title} in the {mon} quarter" if len(mon) == 3 and mon.isalpha() else f"{title} in the latest quarter"
+    return f"{title} in {period}"
+
+
 def _build(no: int, scope: str, basis: str, t: Table, i: int, j: int, text: str, p: Optional[Dict[str, Optional[Move]]], extra: Optional[List[str]] = None) -> Dict[str, Any]:
     c = CASES[no]
     period, against = t["periods"][i], t["periods"][j]
@@ -197,7 +208,7 @@ def _build(no: int, scope: str, basis: str, t: Table, i: int, j: int, text: str,
         v = _pct_pos(m) if pos else (m.pct if m else None)
         return None if v is None else _r1(v)
     return {"case": no, "id": c["id"], "severity": c["severity"], "scope": scope, "basis": basis, "period": period, "against": against,
-            "title": c["title"], "text": f"{text} Compared with {against}.", "why": c["why"],
+            "title": titled(c["title"], no, scope, period), "text": f"{text} Compared with {against}.", "why": c["why"],
             "revenueGrowth": g(p["rev"]) if p else None, "profitGrowth": g(p["np"], True) if p else None, "operatingGrowth": g(p["op"], True) if p else None,
             "rows": [k for k in rows if (t.get("rows") or {}).get(k)], "periods": periods, "key": f"{no}:{scope}:{period}"}
 

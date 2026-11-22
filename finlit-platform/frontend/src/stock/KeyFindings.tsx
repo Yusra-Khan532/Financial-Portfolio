@@ -35,9 +35,29 @@ export function checkItems(intel: Intel | null): { flags: Item[]; watch: Item[] 
   return out;
 }
 
-/** One list per column with no title twice; a title found in more than one column stays in the most serious (red flag, then watch, then strength). */
+/** Task #312 (developer file 20, the check): two titles for one finding. Reliance showed "Customers are paying more slowly" (receivables +38.9% against
+ *  sales +9.7%) beside "Collection efficiency deteriorating" (debtor days 14 to 17), and "Other income is 24% of pre-tax profit" beside "How much of the
+ *  profit comes from non-operating income or one-off items?": Watch showed 6 where 4 were distinct. A finding's topic is read from its title. */
+const TOPICS: [string, RegExp][] = [
+  ["receivables", /customers are paying more slowly|collection efficiency|debtor days|receivables? (grow|rising|build)/i],
+  ["other-income", /other income|non-operating income|one-off items|leans on one-off/i],
+];
+export const topicOf = (title: string): string => TOPICS.find(([, re]) => re.test(title))?.[0] ?? title.trim().toLowerCase();
+
+/** One list per column with no finding twice; a finding found in more than one column, or under two titles, stays in the most serious (red flag, then
+ *  watch, then strength) with the first item's title, and the other's fact is kept as a line in its details. */
 export function dedupe(k: Findings): Findings {
-  const seen = new Set<string>(), keep = (list: Item[]) => list.filter((i) => { const t = i.title.trim().toLowerCase(); if (seen.has(t)) return false; seen.add(t); return true; });
+  const kept = new Map<string, Item>();
+  const keep = (list: Item[]) => {
+    const out: Item[] = [];
+    for (const i of list) {
+      const t = topicOf(i.title), first = kept.get(t);
+      if (!first) { const c = { ...i }; kept.set(t, c); out.push(c); continue; }
+      const extra = i.title.trim().toLowerCase() === first.title.trim().toLowerCase() ? "" : i.text;
+      if (extra && !first.text.includes(extra)) first.text = `${first.text} ${extra}`;
+    }
+    return out;
+  };
   return { flags: keep(k.flags), watch: keep(k.watch), good: keep(k.good) };
 }
 
