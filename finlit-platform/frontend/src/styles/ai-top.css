@@ -3,6 +3,11 @@
    main action of a page, so it is not green, and the navy of --action-primary is gone. Only its place in the header is set here. */
 .top .ai-top { flex: none; padding: 0 14px; }   /* the header row is full: keep its old width (the shared button pads 18px) */
 .top .ai-top svg { width: 16px; height: 16px; flex: none; }
+/* Task #320 (22 Nov 2026): "make this box golden". The button keeps the shared secondary shape (height, corners, type); only its colours go gold, from
+   the site's gold tokens so light and dark follow: a soft gold fill, a gold edge, the spark in gold. Hover and keyboard focus deepen the edge. */
+.top .ai-top { background: var(--gold-soft); border-color: color-mix(in srgb, var(--gold) 60%, transparent); color: var(--text); }
+.top .ai-top svg { color: var(--gold); }
+.top .ai-top:hover { background: color-mix(in srgb, var(--gold) 22%, transparent); border-color: var(--gold); }
 @media (max-width: 759px) { .top .ai-top { width: 44px; height: 44px; padding: 0; justify-content: center; } .top .ai-top span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; } }
 
 /* The dashboard's questions, folded to one line (summary 16px, count 13px). */
