@@ -246,6 +246,21 @@ export const priceWhy = (r: QRow, k: PriceKey): string => {
 export const pctOf = (n: number, total: number) => (total > 0 ? (n / total) * 100 : 0);
 
 export const PAGE = 50;
+/** Rows per page of the Companies table (the server serves at most 100 a page). */
+export const PAGE_SIZES = [50, 100] as const;
+
+/** What the Price position filter can find, from the server's count over every company in the table (`priceStrip`).
+ *  It used to sit above the results table; it belongs with the filter it describes. A high that is on file for no company says so in words
+ *  (never "0 of 0"), with what that means for the column and the filter. */
+export function priceHeldLines(s: NonNullable<QResp["priceStrip"]>): string[] {
+  const all = s.companies, n = (v: number) => nf(v, 0);
+  const out: string[] = [];
+  if (s.have52 > 0) out.push(`${n(s.near52)} of the ${n(s.have52)} companies with a 52-week high are within 5% of it${all > s.have52 ? `; ${n(all - s.have52)} have no 52-week high on file` : ""}.`);
+  else out.push(`No 52-week high is on file for any of these ${n(all)} companies, so the Below 52-week high column shows a dash and a 52-week-high condition matches none.`);
+  if (s.haveAth > 0) out.push(`${n(s.nearAth)} of the ${n(s.haveAth)} companies with an all-time high are within 5% of it${all > s.haveAth ? `; ${n(all - s.haveAth)} have no all-time high on file` : ""}.`);
+  else out.push(`No all-time high is on file for any of these ${n(all)} companies, so the Below all-time high column shows a dash and an all-time-high condition matches none.`);
+  return out;
+}
 export const GAP_FLAG = 15;
 export const GAP_LABEL = "Profit and sales moved apart";
 

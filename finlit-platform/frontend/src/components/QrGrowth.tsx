@@ -7,7 +7,7 @@ import { FilterGroup } from "./screener/FilterGroup";
 import "../styles/fgx.css";
 import {
   CELL_OF, GROWTH_METRICS, GROWTH_OPS, GROWTH_PERIODS, GROWTH_PRESETS, activePreset, applyPreset, cellKeyOf, cleanValue, growthIsDefault, metricLabel, onCells, opWords, periodLabel, valueProblem,
-  BAND_EDGES, DEFAULT_PRICE, PRICE_KEYS, PRICE_PRESETS, PRICE_WORD, activePricePreset, bandLabel, priceIsDefault, rangeProblem, sideOn,
+  BAND_EDGES, DEFAULT_PRICE, PRICE_KEYS, PRICE_PRESETS, PRICE_WORD, activePricePreset, bandLabel, priceHeldLines, priceIsDefault, rangeProblem, sideOn, type QResp,
   DEFAULT_GROWTH, type PriceKey, type PriceState, type PriceSide, type PriceSummary, type PriceCondSummary, type CellKey, type GrowthCond, type GrowthCondSummary, type GrowthOp, type GrowthState, type GrowthSummary,
 } from "../lib/qresults";
 
@@ -101,9 +101,11 @@ function PriceSection({ k, side, onSide }: { k: PriceKey; side: PriceSide; onSid
   );
 }
 
-export function GrowthPanel({ state, onChange, summary, loading, price = DEFAULT_PRICE, onPrice, priceSummary, onBoth, onReset }: {
+export function GrowthPanel({ state, onChange, summary, loading, price = DEFAULT_PRICE, onPrice, priceSummary, onBoth, onReset, held }: {
   state: GrowthState; onChange: (g: GrowthState) => void; summary?: GrowthSummary | null; loading?: boolean;
   price?: PriceState; onPrice?: (p: PriceState) => void; priceSummary?: PriceSummary | null; onBoth?: (g: GrowthState, p: PriceState) => void; onReset?: () => void;
+  /** The count of 52-week and all-time highs on file over the whole table (Silver; null for Basic): shown under the Price position filter. */
+  held?: QResp["priceStrip"];
 }) {
   const on = onCells(state), k = on.length;
   const opUsed = on.some((c) => CELL_OF[c][0] === "operatingProfit");
@@ -154,6 +156,7 @@ export function GrowthPanel({ state, onChange, summary, loading, price = DEFAULT
         <FilterGroup id="qg-price" title="Price position" defaultOpen active={pOn.length} meta={<span className="qg-new">New filter</span>}>
         <div className="qg-blk qg-price" role="group" aria-label="Price position">
           <p className="muted qg-lead">Identify companies based on how far their current market price is below their highest recorded price.</p>
+          {held && held.companies > 0 && <ul className="qg-held" aria-label="Highs on file">{priceHeldLines(held).map((l) => <li key={l}>{l}</li>)}</ul>}
           <div className="qg-psets">{PRICE_KEYS.map((x) => <PriceSection key={x} k={x} side={price[x]} onSide={(s) => setSide(x, s)} />)}</div>
           <div className="qg-modewrap">
             <span className="qg-fl">Filter logic</span>
