@@ -100,7 +100,7 @@ export function ThemeChips({ symbol, name, jump }: { symbol: string; name: strin
     <nav className="dth dtx" aria-label={`Discover themes featuring ${co}`}>
       <span className="dtx-k"><Spark />Discover</span>
       <Link className="dtx-main" to={themeLink(d.main?.name ?? d.company.theme, co)} title={`Main theme: ${mainLabel}${many(d.main?.n)}. Opens it in Discover with ${co} found.`}>
-        <b>{mainLabel}</b><span className="dtx-tag">Main theme</span><Arrow /></Link>
+        <b>{mainLabel}</b><em className="ui-chip ui-chip--gold">Main theme</em><Arrow /></Link>
       {d.others.length > 0 && <span className="dtx-also">also {d.others.map((t, i) => <span key={t.name}>{i > 0 ? ", " : ""}<Link to={themeLink(t.name, co)} title={`${t.label} in Discover${t.n != null ? ` (${t.n.toLocaleString("en-IN")} ${t.n === 1 ? "company" : "companies"})` : ""}`}>{t.label}</Link></span>)}</span>}
       <span className="dtx-end">
         {d.row?.st && <span title={date ? `Its investor presentation of ${fmtDate(date)} describes it as ${(STAGE[d.row.st]?.[0] ?? d.row.st).replace(/^its own sentences describe it as /, "")}` : STAGE[d.row.st]?.[0]}><Stage st={d.row.st} /></span>}
