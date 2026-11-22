@@ -278,19 +278,39 @@ def _num(v):
 
 
 async def _joined_counts(store, keys: List[tuple]) -> dict:
-    """{(preset_id, chips): companies on the list now whose Added date is that screen's latest close}. Lists built on the first stored close count none:
-    every company on them was already there when FinLit began storing lists, so 'joined since yesterday' would not be true."""
+    """{(preset_id, chips, latest session): joined} for the cards, from the SAME saved lists the open screen reads (savedlists.joined_left): the companies on
+    the latest list that were not on the one before. Task #325 (developer file 25, 2.1 row 5): the cards used to count open spells and disagreed with the open
+    screen (Momentum leaders 17 against 16, Uptrend on both views 67 against 61). On a day the screen's rules changed the value is "rules" (row 3 and 4: the
+    joined figure would mix rule changes with price moves), and a list built on the first stored close counts none."""
     if not keys:
         return {}
     base = await history.baseline_session(store)
     async with store.pool.acquire() as conn:
-        rows = await conn.fetch("SELECT preset_id, chips, added_on, count(*) AS n FROM screen_spells WHERE left_on IS NULL AND preset_id = ANY($1::text[]) "
-                                "AND added_on >= CURRENT_DATE - 14 GROUP BY preset_id, chips, added_on", list({k[0] for k in keys}))
-    out = {}
+        rows = await conn.fetch(
+            "WITH r AS (SELECT preset_id, chips, session, registry, row_number() OVER (PARTITION BY preset_id, chips ORDER BY session DESC) AS rn "
+            "FROM screen_runs WHERE preset_id = ANY($1::text[])) "
+            "SELECT r.preset_id, r.chips, r.session, r.rn, r.registry::text AS reg, s.symbol FROM r LEFT JOIN screen_snapshots s "
+            "ON s.preset_id = r.preset_id AND s.chips = r.chips AND s.session = r.session WHERE r.rn <= 2", list({k[0] for k in keys}))
+    lists: dict = {}
     for r in rows:
-        if base is not None and r["added_on"] == base:
+        k = (r["preset_id"], r["chips"])
+        d = lists.setdefault(k, {})
+        e = d.setdefault(r["rn"], {"session": r["session"], "reg": r["reg"], "syms": set()})
+        if r["symbol"]:
+            e["syms"].add(r["symbol"])
+    out = {}
+    for k, d in lists.items():
+        now = d.get(1)
+        if now is None:
             continue
-        out[(r["preset_id"], r["chips"], r["added_on"].isoformat())] = r["n"]
+        key = (k[0], k[1], now["session"].isoformat())
+        before = d.get(2)
+        if before is None or (base is not None and now["session"] == base):
+            out[key] = 0
+        elif before["reg"] != now["reg"]:
+            out[key] = "rules"
+        else:
+            out[key] = len(now["syms"] - before["syms"])
     return out
 
 
@@ -344,6 +364,11 @@ async def listing(request: Request):
             joined = await _joined_counts(store, keys)
         except Exception:
             joined = None
+        try:          # Top gainers: This month waits for 21 saved closes; until then its card says since when it counts
+            async with store.pool.acquire() as conn:
+                sessions_saved = await conn.fetchval("SELECT count(DISTINCT session) FROM screen_runs")
+        except Exception:
+            sessions_saved = None
         for p, card, cached in found:
             card["top10"] = bool(p.top10)
             card["figure"] = FIGURE.get(p.group, _score_figure(p.tab))[0]
@@ -351,9 +376,16 @@ async def listing(request: Request):
                 continue
             if p.kind == "gainers":
                 card["count"], card["asOf"] = cached["count"], cached["asOf"]
+                if p.id == "gainers-month" and sessions_saved is not None and sessions_saved < 21:      # task #325 (file 25, 2.1 row 2)
+                    card["cardText"] = (f"Companies that joined a screen of this page since 11 Nov 2026, when FinLit began storing lists ({sessions_saved} closes so far; "
+                                        "a full month is 21), ranked by how far the price has risen since.")
             card["first"] = _first3(p, cached, table)
             if joined is not None and p.kind != "gainers" and cached.get("asOf"):
-                card["joined"] = joined.get((p.id, engine.chip_key([c.id for c in p.chips if c.default]), str(cached["asOf"])[:10]), 0)
+                j = joined.get((p.id, engine.chip_key([c.id for c in p.chips if c.default]), str(cached["asOf"])[:10]), 0)
+                if j == "rules":
+                    card["rulesUpdated"] = True      # the card shows "rules updated", never "+N joined", on that day
+                else:
+                    card["joined"] = j
     return _json({"tab": tab, "asOf": as_of, "groups": [{"id": g, "name": n, "featured": g in FEATURED_GROUPS, "presets": by_group[g], **GROUP_EXTRA.get(g, {})}
                                                         for g, n in GROUPS if by_group[g]]})
 
