@@ -50,7 +50,7 @@
 .mfu-t .r { text-align: right; font-variant-numeric: tabular-nums; }
 .mfu-t thead th { font: 600 var(--fs-label, 12px)/1.3 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .mfu-t tbody th, .mfu-t tfoot th { font: 600 var(--fs-14)/1.35 var(--sans); letter-spacing: 0; text-transform: none; color: var(--text); } .mfu-t small { display: block; font-weight: 400; font-size: var(--fs-12); color: var(--muted); }
-.mfu-t input { width: clamp(72px, 24vw, 110px); min-height: 36px; padding: 0 8px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font: 400 var(--fs-14) var(--sans); text-align: right; }
+.mfu-t input { width: clamp(72px, 24vw, 110px); min-height: 36px; padding: 0 8px; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font: 400 var(--fs-14) var(--sans); text-align: right; }
 .mfu-t tfoot th, .mfu-t tfoot td { font-weight: 700; border-bottom: 0; }
 .mfu-go { border-color: var(--text) !important; background: var(--text) !important; }
 .mfp-empty h2 { margin: 0 0 6px; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); } .mfp-empty-b { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
@@ -182,7 +182,7 @@ a.mfm-chip.mfm-chip-a:focus-visible { outline: 2px solid var(--gold); outline-of
 .mfa-buy { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
 .mfa-buy label { display: grid; gap: 2px; font-size: var(--fs-13); font-weight: 600; }
 .mfa-buy small { font-weight: 400; color: var(--muted); }
-.mfa-buy input, .mfa-t input, .mfa-t select { width: 100%; min-width: 0; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s2); color: var(--text); font: var(--fs-16)/var(--lh-16) var(--sans); }
+.mfa-buy input, .mfa-t input, .mfa-t select { width: 100%; min-width: 0; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s2); color: var(--text); font: var(--fs-16)/var(--lh-16) var(--sans); }
 .mfa-note { margin: 10px 0 0; font-size: var(--fs-13); color: var(--muted); }
 .cpf-dlg.mfa-several { width: min(860px, 100%); }
 .mfa-tw { margin-top: 12px; }

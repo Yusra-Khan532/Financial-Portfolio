@@ -63,7 +63,7 @@
 .qb-step { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; align-items: start; } .qb-step > div, .qb-step > label { min-width: 0; }
 .qb-n { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; background: var(--gold-soft); color: var(--gold); font: 700 var(--fs-12) var(--sans); margin-top: 8px; }
 .qb-step label { display: grid; gap: 4px; font-size: var(--fs-13); color: var(--muted); font-weight: 600; }
-.qb-step select, .qb-step input, .qb-saveform input { height: 42px; border-radius: var(--r-ctl); border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); padding: 0 12px; font: 500 var(--fs-16) var(--sans); width: 100%; box-sizing: border-box; min-width: 0; }
+.qb-step select, .qb-step input, .qb-saveform input { height: 42px; border-radius: var(--r-ctl); border: 1px solid var(--ui-field-line); background: var(--s1); color: var(--text); padding: 0 12px; font: 500 var(--fs-16) var(--sans); width: 100%; box-sizing: border-box; min-width: 0; }
 .qb-step select:focus, .qb-step input:focus, .qb-saveform input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); }
 .qb-step input[aria-invalid="true"], .qb-saveform input[aria-invalid="true"] { border-color: var(--loss); }
 /* the ratio search box is itself a label with an icon and an input: keep it one row (the step rules above are for the plain Compare / Value fields) */
@@ -108,7 +108,7 @@
 .qb-bklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .qb-bk { display: grid; gap: 8px; align-content: start; min-width: 0; }
 .qb-bkh { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; } .qb-bkh h3 { margin: 0; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); overflow-wrap: anywhere; min-width: 0; }
-.qb-bkh form { display: flex; gap: 8px; flex-wrap: wrap; flex: 1 1 220px; } .qb-bkh form input { flex: 1 1 160px; min-width: 0; height: 40px; border-radius: var(--r-ctl); border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); padding: 0 12px; font: 500 var(--fs-16) var(--sans); }
+.qb-bkh form { display: flex; gap: 8px; flex-wrap: wrap; flex: 1 1 220px; } .qb-bkh form input { flex: 1 1 160px; min-width: 0; height: 40px; border-radius: var(--r-ctl); border: 1px solid var(--ui-field-line); background: var(--s1); color: var(--text); padding: 0 12px; font: 500 var(--fs-16) var(--sans); }
 .qb-count-pill { display: grid; justify-items: end; text-align: right; } .qb-count-pill b { font: 400 var(--fs-32)/1 var(--serif); } .qb-count-pill small { font-size: var(--fs-12); color: var(--muted); max-width: 190px; } .qb-count-pill.locked b, .qb-count-pill.invalid b { color: var(--faint); }
 .qb-bkq { display: block; font: 500 var(--fs-13)/1.6 var(--mono); background: var(--s3); padding: 10px 12px; border-radius: var(--r-ctl); overflow-wrap: anywhere; white-space: pre-wrap; color: var(--text); }
 .qb-bka { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; } .qb-bka .btn { height: 38px; padding: 0 14px; }

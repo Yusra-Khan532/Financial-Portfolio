@@ -183,7 +183,7 @@
 .psx3-rot.is-ahead_slowing { color: #7A5B16; background: rgba(201, 162, 78, .16); }
 .psx3-rot.is-behind_gaining { color: #1F5FA8; background: rgba(47, 111, 192, .12); }
 .psx3-rot.is-behind_slipping { color: #A33A44; background: rgba(217, 114, 124, .14); }
-.psx3-pls { color: var(--text); background: var(--s2, rgba(0, 0, 0, .05)); }
+.psx3-pls { color: var(--text); background: var(--s2); }
 .psx3-pls.is-thrust_c, .psx3-pls.is-thrust_cap, .psx3-pls.is-confirmed { color: #1F6B49; background: rgba(46, 139, 87, .12); }
 .psx3-pls.is-washout { color: #A33A44; background: rgba(217, 114, 124, .14); }
 .psx3-pls.is-fading { color: #7A5B16; background: rgba(201, 162, 78, .16); }
@@ -208,7 +208,7 @@
 .psx3-ind.is-on { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); background: color-mix(in srgb, #C9A24E 10%, var(--s1)); }
 .psx3-ind.is-none { cursor: default; opacity: .85; }
 .psx3-in { display: flex; align-items: center; gap: 8px; font: 600 var(--fs-13)/1.3 var(--sans); }
-.psx3-ic { font: 700 var(--fs-12)/1 var(--sans); padding: 3px 6px; border-radius: var(--ui-r-pill); background: var(--s2, rgba(0, 0, 0, .06)); }
+.psx3-ic { font: 700 var(--fs-12)/1 var(--sans); padding: 3px 6px; border-radius: var(--ui-r-pill); background: var(--s2); }
 .psx3-im { display: flex; flex-wrap: wrap; gap: 4px; }
 .psx3-dates { margin: 6px 0 0; font: 400 var(--fs-12)/1.45 var(--sans); color: var(--muted); }
 @media (max-width: 560px) { .psx3-ind { flex: 1 1 100%; } .psx3-sr small { white-space: normal; } }

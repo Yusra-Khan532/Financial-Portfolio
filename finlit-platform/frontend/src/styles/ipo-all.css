@@ -18,8 +18,8 @@
 .ia-t tbody th a { color: var(--text); text-decoration: none; } .ia-t tbody th a:hover { text-decoration: underline; }
 .ia-t tbody th a:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .ia-t small { display: block; margin-top: 2px; font-size: var(--fs-12); font-weight: 400; color: var(--muted); }
-.ia-t tbody tr { cursor: pointer; } .ia-t tbody tr:hover td, .ia-t tbody tr:hover th { background: var(--s2, rgba(0,0,0,.03)); }
-.ia-st { display: inline-block; padding: 1px 8px; border-radius: var(--ui-r-pill); font: 600 var(--fs-12) var(--sans); background: var(--s2, rgba(0,0,0,.05)); color: var(--text); }
+.ia-t tbody tr { cursor: pointer; } .ia-t tbody tr:hover td, .ia-t tbody tr:hover th { background: var(--s2); }
+.ia-st { display: inline-block; padding: 1px 8px; border-radius: var(--ui-r-pill); font: 600 var(--fs-12) var(--sans); background: var(--s2); color: var(--text); }
 .ia-st.open { background: color-mix(in srgb, var(--gain) 16%, transparent); color: var(--gain); }
 .ia-st.not_listed, .ia-st.withdrawn { color: var(--muted); }
 

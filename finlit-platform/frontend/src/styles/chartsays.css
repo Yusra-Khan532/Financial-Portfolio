@@ -1,10 +1,10 @@
 /* "What does the chart say?": the collapsible reading under a chart. Loaded by the component itself so it looks the same on every page (it used to ride on advcharts.css, which only the Advanced charts page imports). */
 /* "What does the chart say?": the collapsible reading under a chart (components/ChartSays.tsx) */
-.csay { margin: 14px 0; border: 1px solid color-mix(in srgb, var(--gain, #1f6b49) 55%, var(--border)); border-radius: var(--r-ctl); background: color-mix(in srgb, var(--gain, #1f6b49) 7%, var(--s1)); }
+.csay { margin: 14px 0; border: 1px solid color-mix(in srgb, var(--gain) 55%, var(--border)); border-radius: var(--r-ctl); background: color-mix(in srgb, var(--gain) 7%, var(--s1)); }
 .csay > summary { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 16px; cursor: pointer; list-style: none; }
 .csay > summary::-webkit-details-marker { display: none; }
-.csay > summary:focus-visible { outline: 2px solid var(--gain, #1f6b49); outline-offset: 2px; border-radius: var(--r-ctl); }
-.csay-ic { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: var(--r-ctl); color: var(--gain, #1f6b49); background: color-mix(in srgb, var(--gain, #1f6b49) 14%, transparent); }
+.csay > summary:focus-visible { outline: 2px solid var(--gain); outline-offset: 2px; border-radius: var(--r-ctl); }
+.csay-ic { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: var(--r-ctl); color: var(--gain); background: color-mix(in srgb, var(--gain) 14%, transparent); }
 .csay-t { flex: 1; min-width: 0; display: grid; gap: 2px; } .csay-t b { font: 500 var(--fs-18, 18px)/1.25 var(--serif, Georgia, serif); color: var(--text); } .csay-t small { font-size: var(--fs-14, 14px); color: var(--muted); }
 .csay-chev { flex: none; color: var(--muted); transition: transform .2s; } .csay[open] .csay-chev { transform: rotate(180deg); }
 .csay-body { padding: 0 16px 14px; } .csay-body > .cinf { margin: 0; border: 0; border-left: 0; padding: 0; max-width: none; background: none; }

@@ -10,7 +10,7 @@
 .pf-about svg { width: 15px; height: 15px; flex: none; } .pf-about b { color: var(--text); }
 .pf-modal form { display: grid; gap: 10px; }
 .pf-modal label { font: 600 var(--fs-14) var(--sans); display: grid; gap: 6px; }
-.pf-modal textarea, .pf-modal input[type="email"] { width: 100%; font: 400 var(--fs-16)/1.5 var(--sans); padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); resize: vertical; }
+.pf-modal textarea, .pf-modal input[type="email"] { width: 100%; font: 400 var(--fs-16)/1.5 var(--sans); padding: 10px 12px; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); resize: vertical; }
 .pf-modal textarea:focus-visible, .pf-modal input:focus-visible { outline: 2px solid var(--focus, var(--gold)); outline-offset: 1px; }
 .pf-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .pf-chips button { min-height: 36px; padding: 0 12px; border-radius: var(--ui-r-pill); border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: 600 var(--fs-13) var(--sans); cursor: pointer; }

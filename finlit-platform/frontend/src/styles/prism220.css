@@ -44,9 +44,9 @@
 .pz-prop-ic svg { width: 15px; height: 15px; }
 
 /* ===== 2.1 the disclaimer at the top: a boxed drop-down, closed on load ===== */
-.pz-tdisc { margin: 4px 0 18px; border: 1px solid var(--border); border-left: 4px solid var(--gold, #B08A2E); border-radius: var(--r-ctl); background: var(--card, var(--s1)); box-shadow: 0 1px 0 rgba(0, 0, 0, .02); }
+.pz-tdisc { margin: 4px 0 18px; border: 1px solid var(--border); border-left: 4px solid var(--gold); border-radius: var(--r-ctl); background: var(--card, var(--s1)); box-shadow: 0 1px 0 rgba(0, 0, 0, .02); }
 .pz-tdisc > summary.xdd-s { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: 12px; min-height: 44px; padding: 12px 16px; }
-.pz-tdisc-ic { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: color-mix(in srgb, var(--gold, #B08A2E) 14%, transparent); color: var(--gold, #B08A2E); }
+.pz-tdisc-ic { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: color-mix(in srgb, var(--gold) 14%, transparent); color: var(--gold); }
 .pz-tdisc-ic svg { width: 16px; height: 16px; }
 .pz-tdisc-t { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; font-size: var(--fs-14, 14px); line-height: 1.45; color: var(--muted); }
 .pz-tdisc-t b { font: 700 var(--fs-13, 13px)/1.4 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--text); }

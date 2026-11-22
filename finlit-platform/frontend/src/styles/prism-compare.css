@@ -35,7 +35,7 @@
 .dk-hm a, .dk-link { color: var(--gold); font-weight: 600; text-decoration: none; font-size: var(--fs-13); white-space: nowrap; } .dk-hm a:hover, .dk-link:hover { text-decoration: underline; text-underline-offset: 3px; }
 .dk-chip { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: var(--r-ctl); border: 1px solid rgba(var(--dk-w, 255,255,255),.12); background: rgba(var(--dk-w, 255,255,255),.04); color: var(--muted); font-size: var(--fs-12); font-weight: 600; white-space: nowrap; }
 .dk-fchip { display: none; }
-.dk-live::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--gain, #5FB88E); }
+.dk-live::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--gain); }
 
 /* score row */
 .dk-row { display: flex; align-items: center; gap: 16px; height: var(--dk-h-row); padding: 8px 16px; min-width: 0; }

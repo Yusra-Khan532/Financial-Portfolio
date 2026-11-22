@@ -6,7 +6,7 @@
 .hh, .fl-modal-wrap {
   --hh-g: #1F6B49; --hh-g-fill: #1F7A55; --hh-on-g: #FFFFFF; --hh-g-soft: rgba(31, 122, 85, .12);
   --hh-au: #7A5B16; --hh-au-fill: #C9A24E; --hh-y: #E8D29B; --hh-y-fill: #F2D58A; --hh-on-y: #1A1405;
-  --hh-hero-a: #E6F1E9; --hh-hero-b: var(--bg, #F7F3EA); --hh-hero-text: var(--text); --hh-hero-muted: var(--muted); --hh-hero-line: rgba(31, 107, 73, .22); --hh-glow: rgba(31, 122, 85, .35);
+  --hh-hero-a: #E6F1E9; --hh-hero-b: var(--bg); --hh-hero-text: var(--text); --hh-hero-muted: var(--muted); --hh-hero-line: rgba(31, 107, 73, .22); --hh-glow: rgba(31, 122, 85, .35);
 }
 :root[data-theme="dark"] .hh, :root[data-theme="dark"] .fl-modal-wrap {
   --hh-g: #7FD8A6; --hh-g-fill: #7FD8A6; --hh-on-g: #0B2A1E; --hh-g-soft: rgba(127, 216, 166, .12);
@@ -29,10 +29,11 @@
 .hh .cta-row { display: flex; flex-wrap: wrap; gap: 10px; }
 .hh .cta-row .btn svg { width: 16px; height: 16px; }
 .hh-tour { margin: 0; min-width: 0; }
-.hh-frame { display: flex; align-items: center; gap: 6px; padding: 10px 14px; border: 1px solid var(--border-strong, var(--border)); border-bottom: 0; border-radius: var(--r-ctl) var(--r-ctl) 0 0; background: var(--s2, var(--s1)); }
+/* task #310 H: the browser frame round the tour is the card surface (--s1) with the card border (--border), in both themes */
+.hh-frame { display: flex; align-items: center; gap: 6px; padding: 10px 14px; border: 1px solid var(--border); border-bottom: 0; border-radius: var(--r-ctl) var(--r-ctl) 0 0; background: var(--s1); }
 .hh-frame i { width: 9px; height: 9px; border-radius: 50%; background: var(--border-strong, var(--border)); }
-.hh-frame span { margin: 0 auto; padding: 3px 18px; border-radius: var(--ui-r-pill); background: var(--s1); font-size: var(--fs-12); color: var(--faint); }
-.hh-video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #14120d; border: 1px solid var(--border-strong, var(--border)); border-radius: 0 0 var(--r-ctl) var(--r-ctl); box-shadow: 0 30px 60px -34px rgba(35, 32, 24, .5); }
+.hh-frame span { margin: 0 auto; padding: 3px 18px; border-radius: var(--ui-r-pill); background: var(--s2); font-size: var(--fs-12); color: var(--faint); }
+.hh-video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: var(--s1); border: 1px solid var(--border); border-radius: 0 0 var(--r-ctl) var(--r-ctl); box-shadow: 0 30px 60px -34px rgba(35, 32, 24, .5); }
 .hh-tour figcaption { margin-top: 12px; font-size: var(--fs-13); color: var(--muted); display: grid; gap: 2px; } .hh-tour figcaption b { color: var(--text); font-weight: 600; }
 @media (max-width: 900px) { .hh-top-cols { grid-template-columns: minmax(0, 1fr); } }
 
@@ -70,7 +71,6 @@
 .hh-top .hh-fine { color: var(--hh-hero-muted); }
 .hh-frame i:nth-child(1) { background: var(--hh-au-fill); } .hh-frame i:nth-child(2) { background: var(--hh-y-fill); } .hh-frame i:nth-child(3) { background: var(--hh-g-fill); }
 .hh-top .hh-tour figcaption { color: var(--hh-hero-muted); } .hh-top .hh-tour figcaption b { color: var(--hh-hero-text); }
-.hh-top .hh-video { border-color: var(--hh-hero-line); }
 .hh :focus-visible { outline-color: var(--hh-g); }
 @media (max-width: 760px) {
   .hh-strip { gap: 6px 10px; font-size: var(--fs-16); } .hh-strip::before, .hh-strip::after { display: none; }
@@ -84,13 +84,13 @@
 /* Task #121 (13 Nov 2026): the hero as in the team's picture: a plain deep green-black panel (plain cream in the light theme), the three-part line on top made
    bigger (upright "Track what matters." in green), "Research deeper." over "Invest with clarity." in green italic, the mint "Explore the platform" button, an
    outlined sample-report button and three ticks. The bottom curve, the drawn underline and the round-icon features of #118 are gone. */
-.hh { --hh-hero-a: var(--bg, #F7F3EA); }
+.hh { --hh-hero-a: var(--bg); }
 :root[data-theme="dark"] .hh { --hh-hero-a: #0C1910; --hh-hero-b: #0C1910; }
 .hh-top { background: var(--hh-hero-a); }
 .hh-strip { font-size: var(--fs-24); }
 @media (min-width: 1100px) { .hh-strip { font-size: var(--fs-28); } }
 .hh-top h1 em { display: inline; }
-:root[data-theme="dark"] .hh .btn.hh-go:not(.primary) { background: linear-gradient(90deg, #BAF7D1, #5DAF7A); color: var(--s2); }
+:root[data-theme="dark"] .hh .btn.hh-go:not(.primary) { background: var(--btn-bg); color: var(--btn-fg); }   /* task #310 G: the main button in dark too (was its own #BAF7D1 to #5DAF7A gradient) */
 .hh-trust { list-style: none; margin: 26px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 12px 26px; font-size: var(--fs-16, 16px); color: var(--hh-hero-text); }
 .hh-trust li { display: inline-flex; align-items: center; gap: 8px; }
 .hh-trust svg { flex: none; width: 17px; height: 17px; color: var(--hh-g); }

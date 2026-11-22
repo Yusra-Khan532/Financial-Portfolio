@@ -104,3 +104,5 @@
   .eqh-fs { flex: 1 1 150px; } .eqh-f .eqh-fs select { flex: 1; min-width: 0; }
   .eqh-fq { flex: 1 1 100%; } .eqh-f .eqh-fq input { width: 100%; }
 }
+/* Task #310 G: the theme filters' edge in dark is a field edge (--ui-field-line); --border read 1.6:1 */
+:root[data-theme="dark"] .eqh-f .eqh-fs select, :root[data-theme="dark"] .eqh-f .eqh-fq input { border-color: var(--ui-field-line); }

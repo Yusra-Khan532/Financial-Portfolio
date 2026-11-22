@@ -163,3 +163,5 @@
 
 /* task #323 (developer file 22): the equity sections on the Watchlists page */
 .eq.eq-embed { display: block; background: none; border: 0; border-radius: 0; padding: 0; }
+/* Task #310 G (08-dark-theme.md): in dark the gold "+N more" on a green trend cell read 4.2:1; it takes the text colour there */
+:root[data-theme="dark"] .eq-tg-c .eq-more { color: var(--text); }

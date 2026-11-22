@@ -1,7 +1,7 @@
 /* One IPO in full (pages/IpoReport.tsx, components/ipo/ReportCharts.tsx). */
 .ir { display: grid; gap: 14px; padding-bottom: 48px; }
 .ir-none { padding: 28px; text-align: center; }
-.ir-st { display: inline-block; margin-right: 6px; padding: 1px 10px; border-radius: var(--ui-r-pill); font: 600 var(--fs-13) var(--sans); background: var(--s2, rgba(0,0,0,.05)); color: var(--text); vertical-align: 1px; }
+.ir-st { display: inline-block; margin-right: 6px; padding: 1px 10px; border-radius: var(--ui-r-pill); font: 600 var(--fs-13) var(--sans); background: var(--s2); color: var(--text); vertical-align: 1px; }
 .ir-st.open { background: color-mix(in srgb, var(--gain) 16%, transparent); color: var(--gain); } .ir-st.listed { background: color-mix(in srgb, var(--k7) 18%, transparent); }
 .ir-cta { display: inline-flex; align-items: center; height: 38px; padding: 0 16px; border: 1px solid var(--border); border-radius: var(--ui-r-pill); color: var(--text); font: 600 var(--fs-14) var(--sans); text-decoration: none; }
 .ir-cta:hover { border-color: var(--text); } .ir-cta:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
@@ -30,14 +30,14 @@
 .ir-bars, .ir-dem { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .ir-bars li, .ir-dem li { display: grid; grid-template-columns: minmax(120px, 240px) minmax(0, 1fr) 84px; gap: 12px; align-items: center; font-size: var(--fs-14); }
 .ir-bars b, .ir-dem b { text-align: right; font-variant-numeric: tabular-nums; }
-.ir-bt { position: relative; height: 14px; border-radius: var(--ui-r-mark); background: var(--s2, rgba(0,0,0,.05)); }
+.ir-bt { position: relative; height: 14px; border-radius: var(--ui-r-mark); background: var(--s2); }
 .ir-bt i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: var(--ui-r-mark); background: var(--k2); }
 .ir-bt em { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--text); opacity: .55; }
 .ir-tot { padding-top: 6px; border-top: 1px solid var(--border); font-weight: 600; } .ir-tot .ir-bt i { background: var(--text); opacity: .7; }
 .ir-dem li { grid-template-columns: 80px minmax(0, 1fr) 110px; font-size: var(--fs-13); } .ir-dem .ir-bt i { background: var(--k4); }
 
 .ir-res { display: grid; gap: 12px; }
-.ir-stack { display: flex; height: 22px; border-radius: var(--ui-r-mark); overflow: hidden; background: var(--s2, rgba(0,0,0,.05)); }
+.ir-stack { display: flex; height: 22px; border-radius: var(--ui-r-mark); overflow: hidden; background: var(--s2); }
 .ir-stack i { height: 100%; } .ir-stack i + i { border-left: 2px solid var(--card, var(--bg)); }
 .ir-dot { display: inline-block; width: 10px; height: 10px; margin-right: 8px; border-radius: var(--ui-r-mark); vertical-align: 0; }
 .ir-tw { overflow-x: auto; }

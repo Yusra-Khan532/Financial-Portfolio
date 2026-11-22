@@ -41,7 +41,7 @@
 .sf-panel { position: absolute; z-index: 30; top: calc(100% + 6px); right: 0; width: 290px; max-width: calc(100vw - 32px); display: grid; gap: 10px; padding: 12px; background: var(--s1); color: var(--text); border: 1px solid var(--border-strong); border-radius: var(--r-ctl); box-shadow: 0 24px 50px -18px rgba(0,0,0,.55); text-align: left; }
 :root:not([data-theme="light"]) .sf-panel { background: var(--s3); }
 .sf-panel label { display: grid; gap: 4px; font: 600 var(--fs-12) var(--sans); color: var(--muted); }
-.sf-panel select { width: 100%; min-height: 38px; padding: 6px 8px; border-radius: var(--r-ctl); border: 1px solid var(--border-strong); background: var(--s2); color: var(--text); font: 500 var(--fs-14) var(--sans); }
+.sf-panel select { width: 100%; min-height: 38px; padding: 6px 8px; border-radius: var(--r-ctl); border: 1px solid var(--ui-field-line); background: var(--s2); color: var(--text); font: 500 var(--fs-14) var(--sans); }
 .sf-panel select:focus-visible, .sf-acts button:focus-visible, .sf-empty button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .sf-count { margin: 0; font: 600 var(--fs-13) var(--sans); color: var(--text); }
 .sf-panel .sf-fn { margin: 0; padding: 0; border: 0; }
