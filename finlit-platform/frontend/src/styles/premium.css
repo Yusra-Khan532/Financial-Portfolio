@@ -86,9 +86,9 @@
 .plat-math { margin: 6px 0 0; padding: 10px 12px; border-radius: var(--r-ctl); background: var(--s2); border: 1px dashed var(--border); font: 500 var(--fs-13)/1.6 var(--mono); color: var(--text); } .plat-math i { color: var(--gold); font-style: normal; } .plat-math b { color: var(--gain); font-weight: 600; }
 .split { margin-top: 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; } .split > div { padding: 18px 20px; border-radius: var(--r-card); border: 1px solid var(--border); background: var(--s1); } .split h3 { font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); margin: 0 0 6px; display: flex; gap: 10px; align-items: center; } .split p { margin: 0; color: var(--muted); font-size: var(--fs-14); line-height: 1.55; } .split .mark { width: 10px; height: 10px; border-radius: var(--ui-r-mark); display: inline-block; }
 .split-note { grid-column: 1 / -1; text-align: center; color: var(--muted); font-size: var(--fs-14); } .split-note b { color: var(--text); }
-.cmp .yes.ck { background: var(--gain); color: #fff; } .cmp .x-no { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--loss-soft); color: var(--loss); font: 700 14px var(--sans); }
-.cmp .yes.ck svg { display: none; } .cmp .yes.ck::before { content: "✓"; font: 700 14px var(--sans); }
-.cmp .soon-tag { margin-left: 8px; padding: 1px 8px; border-radius: 999px; background: var(--gold-soft); color: var(--gold); font: 700 12px var(--sans); letter-spacing: .04em; text-transform: uppercase; }
+.cmp .yes.ck { background: var(--gain); color: #fff; } .cmp .x-no { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--loss-soft); color: var(--loss); font: 700 var(--fs-14) var(--sans); }
+.cmp .yes.ck svg { display: none; } .cmp .yes.ck::before { content: "✓"; font: 700 var(--fs-14) var(--sans); }
+.cmp .soon-tag { margin-left: 8px; padding: 1px 8px; border-radius: var(--ui-r-pill); background: var(--gold-soft); color: var(--gold); font: 700 var(--fs-12) var(--sans); letter-spacing: .04em; text-transform: uppercase; }
 @media (max-width: 860px) { .soon { grid-template-columns: 1fr; padding: 22px; } .split { grid-template-columns: 1fr; } }
 .cmp .cta-r td { padding-top: 14px; } .cmp .cta-r .btn { height: 38px; font-size: var(--fs-14); padding: 0 12px; white-space: normal; line-height: 1.2; }
 /* screener: chips and the filter card (valuation and every other group) */
@@ -257,7 +257,7 @@ tr.tot td { border-top: 1px solid var(--text); font-weight: 600; }
 .who-c, .dv-out > div, .dv-out .hl { border-radius: var(--r-ctl); background: var(--s1); transform: none !important; box-shadow: none; }
 .who-c:hover { border-color: var(--text); }
 .cmp tr.grp td { background: transparent; border-bottom: 1px solid var(--gold); }
-.art-wrap { background: var(--s2); border-radius: var(--r-l) var(--r-l) 0 0; }
+.art-wrap { background: var(--s2); border-radius: var(--r-ctl) var(--r-ctl) 0 0; }
 .pagehead .pa, .pa-float { display: none !important; }
 .pagehead:has(.pa) { min-height: 0; display: block; }
 .pagehead { background: transparent; border-bottom: 1px solid var(--border); }
@@ -320,7 +320,7 @@ footer.band { border-top: 1px solid #3A362D; --band-a: #1B1915; }
 :root:root .cb-chip, :root:root .cb-p, :root:root .cb-t, :root:root .chips button, :root:root .cmp .soon-tag, :root:root .cmp-d, :root:root .dchip, :root:root .dcol .yoy, :root:root .dk-tag, :root:root .mtr-pill, :root:root .pl-chip, :root:root .pl-tier, :root:root .ribbon, :root:root .rsi-zone b, :root:root .trg-colh span, :root:root .wf-leg button, :root:root .soon li { border-radius: var(--ui-r-mark); }
 :root:root .plan.current::after { border-radius: var(--ui-r-mark); }
 :root:root .ribbon { background: transparent; border: 1px solid var(--tc); color: var(--tc); height: 24px; }
-:root:root .plan-name .pi, :root:root .who-i { background: transparent; border: 1px solid var(--tc); color: var(--tc); border-radius: var(--r-m); }
+:root:root .plan-name .pi, :root:root .who-i { background: transparent; border: 1px solid var(--tc); color: var(--tc); border-radius: var(--r-ctl); }
 :root:root .pl-art { display: none; }
 :root:root .plan-desc { min-height: 0; }
 :root:root .plan-name { font-family: var(--serif); }

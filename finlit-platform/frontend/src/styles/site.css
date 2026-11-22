@@ -47,7 +47,7 @@ input[type="range"]:focus-visible::-moz-range-thumb { filter: drop-shadow(0 0 2p
   background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
   background-size: 56px 56px; -webkit-mask-image: radial-gradient(70% 60% at 50% 30%, #000, transparent); mask-image: radial-gradient(70% 60% at 50% 30%, #000, transparent); }
 .hero-cols { display: grid; grid-template-columns: 1.1fr .9fr; gap: clamp(28px, 5vw, 64px); align-items: center; }
-.hero-home h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(40px, 6.4vw, 84px); line-height: 1.02; letter-spacing: -.02em; margin: 14px 0 20px; }
+.hero-home h1 { font-family: var(--serif); font-weight: 400; font-size: var(--ui-fs-64); line-height: 1.02; letter-spacing: -.02em; margin: 14px 0 20px; }
 .hero-home h1 em { font-style: italic; background: linear-gradient(120deg, var(--gold-2), var(--gold) 50%, var(--gold-deep)); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .lede-xl { font-size: var(--fs-16); color: var(--muted); max-width: 52ch; margin: 0 0 28px; }
 .cta-row { display: flex; gap: 12px; flex-wrap: wrap; }

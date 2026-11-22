@@ -99,7 +99,7 @@ button.ld-chip { cursor: pointer; } button.ld-chip:hover { filter: brightness(.9
 
 /* explainer page */
 .lx { max-width: 880px; } .lx .sec-h { margin: 36px 0 12px; }
-.lx-note { padding: 12px 16px; border-radius: 12px; background: var(--s1); border: 1px solid var(--border-strong); color: var(--text); font-size: var(--fs-14); line-height: 1.55; }
+.lx-note { padding: 12px 16px; border-radius: var(--r-ctl); background: var(--s1); border: 1px solid var(--border-strong); color: var(--text); font-size: var(--fs-14); line-height: 1.55; }
 .lx-p { font-size: var(--fs-16); line-height: 1.7; color: var(--muted); margin: 0 0 14px; } .lx-p b { color: var(--text); }
 .lx-rules { padding-left: 22px; display: grid; gap: 10px; font-size: var(--fs-16); line-height: 1.65; color: var(--muted); } .lx-rules b { color: var(--text); } .lx-rules.plain { list-style: disc; }
 .lx-rules .ld-chip { margin: 0 2px; vertical-align: 1px; }

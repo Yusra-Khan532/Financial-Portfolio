@@ -185,6 +185,24 @@ describe("family 7: account, learn and help (task #310 F, pages/07)", () => {
   });
 });
 
+describe("family 8: marketing and legal (task #310 F, pages/08)", () => {
+  const SHEETS = ["site", "human-home", "human-pages", "platform-grid", "feature-demo", "leadership", "connectai", "blog", "luxe"].map((n) => `styles/${n}.css`);
+  it("home, about, why, contact, plans, services, blog, MCP, leadership label and legal sheets have no hand-typed corners, sizes or weights", () => {
+    expect(SHEETS.flatMap(shapeFindings)).toEqual([]);
+  });
+
+  it("the hero's Explore button takes the main button colour from its token (no page-own #1F7A55)", () => {
+    expect(rulesFor(read("styles/human-home.css"), /\.hh \.btn\.hh-go:not\(\.primary\)\s*$/).join("")).toMatch(/background: var\(--btn-bg\); color: var\(--btn-fg\);/);
+  });
+
+  it("no IBM Plex anywhere: the font files are not loaded and no chart, canvas or variable names it", () => {
+    expect(read("main.tsx")).not.toMatch(/ibm-plex/);
+    const files = ["styles/finlit.css", "styles/calm.css", "styles/tools.css", "components/PageArt.tsx", "components/DrawLayer.tsx", "three/Plot3D.tsx",
+      "charts/PriceChart.tsx", "charts/IntradayChart.tsx", "charts/FinChart.tsx", "charts/Small.tsx", "stock/Sections3.tsx"];
+    for (const f of files) expect(noComments(read(f)), f).not.toMatch(/IBM Plex/);
+  });
+});
+
 describe("shared sheets (task #310 F)", () => {
   it("the shared navigation and table pieces have no hand-typed corners, sizes or weights", () => {
     const files = ["styles/tabgroup.css", "styles/section-nav.css", "styles/tablesort.css", "styles/table-grid.css", "styles/theme.css", "styles/type227.css",
