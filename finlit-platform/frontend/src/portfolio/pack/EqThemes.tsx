@@ -124,9 +124,9 @@ export function YourThemes({ v, list, onList, counts, label, onShow, theme, voic
         {day && <span className="eqh-asof">Read from each company's newest investor presentation, to {day}</span>}
         <Link className="eqh-all" to="/discover">All themes in Discover ↗</Link>
       </div>
-      {!v ? <p className="sp-note">Reading Discover's themes…</p> : !v.placed ? <p className="sp-empty">None of {list === "shares" ? "your shares" : "your watchlist names"} is placed in a Discover theme yet. A company is placed once FinLit reads its newest investor presentation.</p> : <>
+      {!v ? <p className="sp-note">Reading Discover's themes…</p> : !v.placed ? <p className="sp-empty">None of {list === "shares" ? "your shares" : L ? "the companies on this list" : "your watchlist names"} is placed in a Discover theme yet. A company is placed once FinLit reads its newest investor presentation.</p> : <>
         <div className="eqh-chips" role="list">
-          {v.themes.map((t) => <Link role="listitem" key={t.name} className="eqh-chip" to={`/discover/themes/${t.slug}?mine=1`}><b>{t.short}</b> {t.mine.length} of yours · {t.n} companies ›</Link>)}
+          {v.themes.map((t) => <Link role="listitem" key={t.name} className="eqh-chip" to={`/discover/themes/${t.slug}?mine=1`}><b>{t.short}</b> {t.mine.length} {L ? "on this list" : "of yours"} · {t.n} companies ›</Link>)}
           {v.mentionOnly.map((t) => <Link role="listitem" key={t.name} className="eqh-chip dash" to={`/discover/themes/${t.slug}?mine=1`} title={`Mentioned by ${t.mine.map(label).join(", ")}, not their main theme`}><b>{t.short}</b> mentioned by {t.mine.length} ›</Link>)}
         </div>
         {F.bar}
