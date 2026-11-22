@@ -160,7 +160,8 @@ def by_date(rows: Iterable[Dict[str, Any]]) -> List[Tuple[date, List[Dict[str, A
     return sorted(g.items(), key=lambda kv: kv[0], reverse=True)
 
 
-async def refresh(store, max_dates: int = 60, pause_s: float = 1.0, max_minutes: float = 10.0, http=None, today: Optional[date] = None) -> Dict[str, Any]:
+async def refresh(store, max_dates: int = 60, pause_s: float = 1.0, max_minutes: float = 10.0, http=None, today: Optional[date] = None, ca_limit: int = 150,
+                  ca_client=None) -> Dict[str, Any]:
     """Day-1 prices for listed IPOs that have none yet (newest listing dates first, at most `max_dates` dates a run), then the latest close of every
     listed IPO from the newest NSE and BSE files. Nothing stored is removed; a day that cannot be read is tried again next run."""
     import httpx
@@ -215,6 +216,10 @@ async def refresh(store, max_dates: int = 60, pause_s: float = 1.0, max_minutes:
                             out["latest"] += 1
                 out["latestDate"] = d.isoformat()
                 break
+        # splits and bonuses since listing, from NSE (weekly per issue), in the time left
+        if ca_limit > 0 and time.monotonic() < stop:
+            from .ipocorp import refresh as refresh_ca
+            out["corporateActions"] = await refresh_ca(store, limit=ca_limit, stop_at=stop, pause_s=pause_s, client=ca_client or (None if own else http))
     finally:
         out["files"] = files.fetched
         if own:
