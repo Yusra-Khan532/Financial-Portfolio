@@ -1,6 +1,6 @@
 /* Review of the companies found in a holdings PDF (components/PdfImport.tsx) */
 .pdfi { margin-top: 16px; padding: 16px 18px; container-type: inline-size; }   /* the review sits in a narrow side column on desktop: lay it out by its own width */
-.pdfi h3 { margin: 0 0 6px; font: 600 16px var(--sans); }
+.pdfi h3 { margin: 0 0 6px; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); }
 .pdfi-list { display: grid; gap: 0; margin: 12px 0; border: 1px solid var(--border); border-radius: 8px; max-height: 420px; overflow: auto; }
 .pdfi-row { display: grid; grid-template-columns: 22px minmax(0, 1.1fr) 16px minmax(0, 1.4fr) minmax(0, 1fr); gap: 10px; align-items: center; padding: 9px 12px; border-bottom: 1px solid var(--border); cursor: pointer; }
 .pdfi-row:last-child { border-bottom: 0; } .pdfi-row .in { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }

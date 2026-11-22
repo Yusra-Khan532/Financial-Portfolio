@@ -1,12 +1,12 @@
 /* Landing page, "Explore the platform" (components/ExploreTools.tsx). Design tokens only; works in light and dark. */
 .xt-head { text-align: center; max-width: 760px; margin: 0 auto; }
-.xt-head h2 { font: 400 clamp(28px, 3.8vw, 44px)/1.12 var(--serif); letter-spacing: -.01em; margin: 10px 0 10px; text-wrap: balance; }
+.xt-head h2 { letter-spacing: -.01em; margin: 10px 0 10px; text-wrap: balance; }
 .xt-head > p { margin: 0 auto 18px; color: var(--muted); font-size: var(--fs-16); max-width: 56ch; }
 .xt-go svg { transition: transform .2s; }
 .fl-gchip:focus-visible, .fl-gall:focus-visible, .fl-gnav:focus-visible, .fl-exp:focus-visible, .fl-modal-x:focus-visible, .xt-rn:focus-visible, .xt-tool:focus-visible, .xt-open:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .xt-pane[hidden] { display: none; }
 .xt-ghead { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; margin: 28px 0 22px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
-.xt-ghead h3 { margin: 0; font: 400 clamp(26px, 3vw, 34px)/1.1 var(--serif); } .xt-ghead p { margin: 6px 0 0; color: var(--muted); font-size: var(--fs-16); } .xt-ghead > span { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.xt-ghead h3 { margin: 0; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); } .xt-ghead p { margin: 6px 0 0; color: var(--muted); font-size: var(--fs-16); } .xt-ghead > span { font-size: 13px; color: var(--muted); white-space: nowrap; }
 .xt-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; align-items: stretch; }
 .xt-card { display: flex; flex-direction: column; min-width: 0; border: 1px solid var(--border); border-radius: 16px; background: var(--s1); overflow: hidden; }
 .xt-shot { aspect-ratio: 16 / 10; overflow: hidden; border-bottom: 1px solid var(--border); background: var(--s2, var(--s1)); }
@@ -35,7 +35,7 @@
 .xt-row:hover, .xt-row:focus-within { transform: translateY(-3px); border-color: color-mix(in srgb, var(--ac) 45%, var(--border)); box-shadow: 0 24px 44px -26px color-mix(in srgb, var(--ac) 55%, rgba(0, 0, 0, .4)); }
 .xt-row header { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; align-items: start; }
 .xt-gi { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: color-mix(in srgb, var(--ac) 16%, var(--s1)); color: var(--ac-ink); } .xt-gi svg { width: 22px; height: 22px; }
-.xt-row h3 { margin: 0; font: 400 20px/1.2 var(--serif); } .xt-row header p { margin: 3px 0 0; color: var(--muted); font-size: var(--fs-14); line-height: 1.4; }
+.xt-row h3 { margin: 0; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); } .xt-row header p { margin: 3px 0 0; color: var(--muted); font-size: var(--fs-14); line-height: 1.4; }
 .xt-cnt { padding: 3px 9px; border-radius: 999px; background: color-mix(in srgb, var(--ac) 12%, var(--s1)); color: var(--ac-ink); font: 700 12px var(--mono); }
 .xt-tools { list-style: none; margin: 14px 0 6px; padding: 0; display: grid; gap: 2px; align-content: start; flex: 1; }
 .xt-tool { display: grid; grid-template-columns: minmax(0, 1fr) 14px; grid-template-rows: auto auto; align-items: center; gap: 1px 10px; width: 100%; box-sizing: border-box; padding: 8px 10px; border: 0; border-radius: 10px; background: none; color: var(--text); text-align: left; text-decoration: none; font: inherit; cursor: pointer; }
@@ -125,7 +125,7 @@
 .fl-modal-pos { font: 700 var(--fs-12) var(--mono); letter-spacing: .08em; color: var(--ac-ink); }
 .fl-modal-x { cursor: pointer; min-height: 36px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--border-strong, var(--border)); background: var(--s1); color: var(--text); font: 600 var(--fs-14) var(--sans); }
 .fl-modal-cols { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 24px; min-height: 0; overflow: auto; }
-.fl-modal-info { display: flex; flex-direction: column; gap: 14px; min-width: 0; } .fl-modal-info h2 { margin: 0; font: 400 var(--fs-28) / 1.15 var(--serif); }
+.fl-modal-info { display: flex; flex-direction: column; gap: 14px; min-width: 0; } .fl-modal-info h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
 .fl-modal-pts li { font-size: var(--fs-16); line-height: 1.5; color: var(--text); }
 .fl-modal-nav { display: grid; gap: 8px; margin-top: auto; } .fl-modal-nav .xt-open { margin-top: 0; justify-content: flex-start; }
 .fl-modal-pic { max-height: min(70vh, 760px); overflow: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--s2, var(--s1)); }
@@ -156,7 +156,7 @@
 .xt-pill { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 0 0 14px; }
 .xt-pill::before, .xt-pill::after { content: ""; flex: 0 1 84px; height: 1px; background: var(--hh-hero-line, var(--border)); }
 .xt-pill span { padding: 7px 18px; border-radius: 999px; border: 1px solid var(--hh-hero-line, var(--border)); font: 600 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--hh-g); }
-.xt-head h2 { font-size: clamp(30px, 4.2vw, 52px); line-height: 1.08; margin: 0 0 14px; }
+.xt-head h2 { margin: 0 0 14px; }
 .xt-head h2 em { display: block; font-style: italic; color: var(--hh-g); }
 .xt-head > p { margin: 0 auto; max-width: 70ch; }
 .xt-panel { grid-template-columns: max-content auto minmax(0, 1fr); gap: 20px 0; padding: 22px 24px; border: 1px solid var(--hh-hero-line, var(--border)); border-radius: 22px;

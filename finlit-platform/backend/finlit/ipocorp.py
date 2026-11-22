@@ -153,6 +153,7 @@ async def refresh(store, limit: int = 150, stop_at: Optional[float] = None, paus
         # BSE-only issues: Yahoo Finance, by the ticker BSE trades them under
         async with store.pool.acquire() as conn:
             bse_rows = [dict(r) for r in await conn.fetch(CA_BSE_TODO, limit)]
+        out["yahooDue"] = len(bse_rows)
         yerr = 0
         for r in bse_rows:
             if stop_at and time.monotonic() > stop_at:
@@ -160,14 +161,20 @@ async def refresh(store, limit: int = 150, stop_at: Optional[float] = None, paus
             await asyncio.sleep(pause_s)
             try:
                 res = await http.get(YAHOO.format(ticker=r["bse_ticker"].replace("&", "%26")), headers={"User-Agent": BROWSER["User-Agent"], "Accept": "application/json"})
+                codes = out.setdefault("yahooStatus", {})
+                codes[str(res.status_code)] = codes.get(str(res.status_code), 0) + 1
                 got = yahoo_since_listing(res.json(), r["listing_date"]) if res.status_code in (200, 404) else None
                 if res.status_code not in (200, 404):
                     yerr += 1
                     if yerr >= 5:
                         break                                     # Yahoo is refusing: try again next run
                     continue
-            except Exception:
+            except Exception as exc:
                 log.warning("Yahoo history of %s not read", r["bse_ticker"], exc_info=True)
+                out["yahooError"] = f"{type(exc).__name__}: {str(exc)[:120]}"
+                yerr += 1
+                if yerr >= 5:
+                    break
                 continue
             out["yahooAsked"] = out.get("yahooAsked", 0) + 1
             async with store.pool.acquire() as conn:

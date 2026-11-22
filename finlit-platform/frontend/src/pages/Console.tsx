@@ -74,11 +74,11 @@ export function Console() {
   const [tab, setTab] = useState<Tab>((["users", "requests", "content", "data", "macro", "brief", "audit"] as Tab[]).includes(asked as Tab) ? (asked as Tab) : "requests");
   if (!ready) return <div className="wrap state" role="status"><div className="skeleton" style={{ height: 14, width: 200, margin: "40px auto" }} /></div>;
   if (!user) return <Navigate to="/login?next=%2Fconsole" replace />;
-  if (!isAdmin) return <div className="wrap state"><h1 style={{ font: "400 28px var(--serif)" }}>Administrators only</h1><p className="muted">This area is for the FinLit team.</p><Link className="btn" to="/dashboard">Back to your dashboard</Link></div>;
-  if (!user.mfaOk) return <div className="wrap state"><h1 style={{ font: "400 28px var(--serif)" }}>One more step</h1><p className="muted">Administrators sign in with an authenticator-app code. {user.mfa ? "Sign out and sign in again, entering the code when asked." : "Set up two-step sign-in to continue."}</p><Link className="btn primary" to="/account/security?setup=1">Open security settings</Link></div>;
+  if (!isAdmin) return <div className="wrap state"><h1 className="ui-title">Administrators only</h1><p className="muted">This area is for the FinLit team.</p><Link className="btn" to="/dashboard">Back to your dashboard</Link></div>;
+  if (!user.mfaOk) return <div className="wrap state"><h1 className="ui-title">One more step</h1><p className="muted">Administrators sign in with an authenticator-app code. {user.mfa ? "Sign out and sign in again, entering the code when asked." : "Set up two-step sign-in to continue."}</p><Link className="btn primary" to="/account/security?setup=1">Open security settings</Link></div>;
   return (
     <div className="wrap console">
-      <header className="dash-h"><div><div className="eyebrow">Admin</div><h1>Console</h1><p className="muted">Members, plan requests and the audit trail. Blog posts and website enquiries are in the <Link to="/admin">content tools</Link> (no second sign-in).</p></div></header>
+      <header className="dash-h"><div><div className="eyebrow">Admin</div><h1 className="ui-title">Console</h1><p className="muted">Members, plan requests and the audit trail. Blog posts and website enquiries are in the <Link to="/admin">content tools</Link> (no second sign-in).</p></div></header>
       <div className="seg" role="tablist" aria-label="Console sections" style={{ marginBottom: 18 }}>
         {([["requests", "Plan requests"], ["users", "Members"], ["content", "Calendar & news"], ["data", "Data health"], ["macro", "Macro outlook"], ["brief", "Company brief"], ["audit", "Audit log"]] as const).map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</button>)}
       </div>

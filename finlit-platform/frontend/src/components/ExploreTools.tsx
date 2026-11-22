@@ -157,7 +157,7 @@ export function ExploreTools() {
     <section className="sec hh-sec xt" id="platform" aria-labelledby="xt-title"><div className="wrap">
       <div className="xt-head">
         <p className="xt-pill"><span>The platform</span></p>
-        <h2 id="xt-title">Everything you need. <em>Nothing you don't.</em></h2>
+        <h2 id="xt-title" className="ui-h2--marketing">Everything you need. <em>Nothing you don't.</em></h2>
         <p>A complete toolkit to explore companies, run quantitative models, track your portfolio and stay informed across sectors.</p>
       </div>
       <div className="xt-hero xt-panel">

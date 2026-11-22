@@ -36,7 +36,7 @@ export function ResultsHead({ title, desc, links, view, actions }: { title: stri
   return (
     <header className="sp-head rs-head">
       <p className="sp-eyebrow">Markets · Results</p>
-      <h1>{title}</h1>
+      <h1 className="ui-title">{title}</h1>
       <p className="sp-desc">{desc}</p>
       <div className="sp-head-bar">
         <nav className="rs-links" aria-label="Related pages">{links.map(([href, label]) => <Link key={href} to={href} className="sp-link">{label} →</Link>)}</nav>

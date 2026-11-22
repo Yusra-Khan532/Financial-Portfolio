@@ -5,7 +5,7 @@
      weight, so an h3 that sets its own face (the small uppercase labels set in the sans face on purpose) keeps it;
    - placeholder text in every field reads at the quiet text colour at full strength (browsers dim it by default, to about 2.5:1 on the green);
    - headings sit a little tighter and wrap in balanced lines (body text keeps the 1.6 line height finlit.css gives it). */
-:where(main) h3 { font-family: var(--font-serif); font-weight: 600; }
+:where(main) h3 { font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); }
 :where(main) :is(h1, h2) { letter-spacing: -.01em; }
 :where(main) :is(h1, h2, h3) { text-wrap: balance; }
 ::placeholder { color: var(--faint); opacity: 1; }

@@ -31,10 +31,10 @@
 .pzh-n { flex: 0 0 auto; padding-top: 2px; font: 400 var(--fs-40, 40px)/1 var(--serif); color: var(--sc, var(--gold)); }
 .pzh-rule { flex: 0 0 1px; width: 1px; background: var(--border-strong); }
 .pzh-t { min-width: 0; }
-.pzh-t h3 { display: block; margin: 0 0 4px; font: 500 var(--fs-24, 24px)/1.2 var(--serif); }
+.pzh-t h3 { display: block; margin: 0 0 4px; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); }
 .pzh-t h3::before { display: none; content: none; }
 .pzh-t p { margin: 0; max-width: 120ch; font-size: var(--fs-13, 13px); line-height: 1.5; color: var(--muted); }
-@media (max-width: 700px) { .pzh-n { font-size: var(--fs-32, 32px); } .pzh-t h3 { font-size: var(--fs-20, 20px); } }
+@media (max-width: 700px) { .pzh-n { font-size: var(--fs-32, 32px); } }
 
 /* ===== 1.4 proprietary note ===== */
 .pz-prop { display: flex; align-items: flex-start; gap: 10px; max-width: none; margin: -4px 0 14px; padding: 10px 14px; border: 1px solid color-mix(in srgb, #2a78d6 30%, var(--border));

@@ -248,7 +248,7 @@ export function EtfPortfolioPage() {
       <Gate tier={PLAN_FOR_PORTFOLIO} title="Track your ETFs" points={["What each ETF tracks and costs, and how close it trades to its NAV", "What sits inside them: asset mix, overlap and the largest stocks", "Each ETF against the Nifty 500, and the list together", "Import a broker file, read by ISIN, then symbol"]}>
         <header className="ptk-head" id="etp-top">
           <div className="ptk-t1">
-            <div className="ptk-ht"><h1>ETF portfolio</h1><p className="ptk-plan mfp-plan"><span>{TIER[plan].n}</span></p>
+            <div className="ptk-ht"><h1 className="ui-title">ETF portfolio</h1><p className="ptk-plan mfp-plan"><span>{TIER[plan].n}</span></p>
               <Tip text="What your ETFs track, what they cost, how close they trade to their value, what sits inside them and how risky they are together." how="Start with names; add quantities when you want the figures to follow your money. Each ETF is read by its ISIN; a row without one is matched on the NSE symbol." label="About “ETF portfolio”" />
               {lastDay && <span className="ptk-asof">Prices at close · {lastDay}</span>}</div>
             <AddBox placeholder="Add an ETF by name, symbol or ISIN" noun={["ETF", "ETFs"]} useResults={useResults} full={full} fullWhy={`Your plan holds ${limit} ETFs. Remove one to add another.`}

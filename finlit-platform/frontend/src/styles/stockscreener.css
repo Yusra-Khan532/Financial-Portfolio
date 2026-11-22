@@ -14,7 +14,7 @@
 
 /* ready-made screens */
 .ssy-top { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; }
-.ssy h2 { margin: 0; font-size: 20px; }
+.ssy h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
 .ssy-top p { margin: 0; color: var(--muted); font-size: var(--fs-13); flex: 1 1 300px; }
 .ssy-grp { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
 .ssy-grp button { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: 600 var(--fs-13) var(--sans); cursor: pointer; }
@@ -43,7 +43,7 @@
 .ssw-work { display: grid; grid-template-columns: 316px minmax(0, 1fr); gap: 20px; align-items: start; }
 .ssw-rules { position: sticky; top: 80px; max-height: calc(100vh - 96px); overflow: auto; padding: 16px !important; }
 .ssw-rh { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-.ssw-rh h2 { margin: 0; font-size: 20px; flex: 1; }
+.ssw-rh h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); flex: 1; }
 .ssw .lnk { border: 0; background: none; color: var(--gold); font: 600 var(--fs-13) var(--sans); cursor: pointer; padding: 4px; }
 .ssw .lnk:hover { text-decoration: underline; }
 .ssw-wait { margin: 0 0 8px; padding: 6px 10px; border-radius: 8px; background: var(--gold-soft); font-size: var(--fs-12); color: var(--text); }
@@ -53,7 +53,7 @@
 .ssw-funnel b { color: var(--text); font-variant-numeric: tabular-nums; }
 .ssw-funnel li > span[aria-hidden] { color: var(--faint); }
 .ssw-sec { border-top: 1px solid var(--border); padding: 12px 0; }
-.ssw-sec h3 { margin: 0 0 8px; font: 800 var(--fs-12) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.ssw-sec h3 { margin: 0 0 8px; font: var(--ui-fw-semibold) var(--fs-label)/var(--lh-12) var(--font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 6px; }
 .ssw-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .ssw-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--s1); color: var(--text); font: 600 var(--fs-13) var(--sans); cursor: pointer; white-space: nowrap; }
 .ssw-chip span { color: var(--muted); font-weight: 500; font-variant-numeric: tabular-nums; }
@@ -120,7 +120,7 @@
 .ssw-res { min-width: 0; padding: 16px 18px !important; }
 .ssw-rhd { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px 16px; }
 .ssw-ttl { flex: 1 1 320px; min-width: 0; }
-.ssw-ttl h2 { margin: 0; font-size: 24px; }
+.ssw-ttl h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
 .ssw-ttl h2 b { font-variant-numeric: tabular-nums; }
 .ssw-sub { margin: 4px 0 0; font-size: var(--fs-13); color: var(--muted); }
 .ssw-acts { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -174,7 +174,7 @@
 .ssk-back { position: fixed; inset: 0; z-index: var(--z-backdrop); display: grid; place-items: center; padding: 16px; background: var(--ov-backdrop); }
 .ssk { width: min(860px, 100%); max-height: min(720px, calc(100vh - 32px)); display: flex; flex-direction: column; border-radius: 16px; background: var(--s1); border: 1px solid var(--border-strong); box-shadow: 0 24px 60px rgba(0, 0, 0, .3); overflow: hidden; }
 .ssk-top { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
-.ssk-top h2 { margin: 0; font-size: 20px; flex: 1 0 auto; }
+.ssk-top h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); flex: 1 0 auto; }
 .ssk-find { flex: 1 1 260px; height: 40px; padding: 0 14px; border: 2px solid var(--text); border-radius: 10px; background: var(--s1); color: var(--text); font-size: var(--fs-14); }
 .ssk-body { display: grid; grid-template-columns: 210px minmax(0, 1fr); min-height: 0; flex: 1; }
 .ssk-groups { overflow: auto; padding: 8px; border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 2px; }

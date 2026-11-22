@@ -53,7 +53,7 @@ export function Home() {
         <p className="hh-strip"><span>Quantify the market</span><i aria-hidden="true">×</i><span>Research deeper</span><i aria-hidden="true">×</i><em>Track what matters.</em></p>
         <div className="hh-top-cols">
           <div>
-            <h1 id="hh-title">Research deeper.<br /><em>Invest with clarity.</em></h1>
+            <h1 id="hh-title" className="ui-title ui-title--marketing">Research deeper.<br /><em>Invest with clarity.</em></h1>
             <p className="hh-lede">Explore statistical scoring models, customizable analytical tools, comprehensive company reports, sector insights and much more—all in one platform.</p>
             <div className="cta-row">
               <a className="btn lg hh-go" href="#platform" onClick={() => dispatchEvent(new Event(OPEN_EXPLORE))}>Explore the platform <Icon name="arrow" /></a>

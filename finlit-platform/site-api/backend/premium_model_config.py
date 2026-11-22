@@ -1,7 +1,7 @@
 """FinLit v3.6.1 configuration supplied by the project owner.
 Group fill values are the supplied 13–14 October 2026 snapshot, not live medians.
 """
-MODEL_VERSION = "3.6.20"
+MODEL_VERSION = "3.6.21"
 BASELINE_VERSION = "3.6.1-simple"
 FILL_VERSION = "2026-10-14"
 QUARTERS_JUDGED = 10
@@ -163,3 +163,13 @@ LOSS_CAPS = {
 DEEP_LOSS_MARGIN = 10
 DEEP_LOSS_EXTRA = 10
 LOSS_CAP_FLOOR = 10
+
+# 3.6.21 (owner Pranjal, 22 November 2026, task #318): recently listed companies were NOT RATED on missing inputs their filings could supply.
+#   * The trailing EPS falls back to the reported trailing EPS, then the latest full year's EPS, whenever the four latest quarters do not give one
+#     (before, a single missing quarter left P/E, P/E vs history and PEG all empty once four quarterly slots existed).
+#   * The operating margin change falls back to the latest full year against the year before when the quarters cannot be compared.
+#   * The largest fall of a company with fewer than 250 sessions is measured over the sessions since listing (at least this many, all complete),
+#     and counts in confidence in proportion: sessions / 250.
+# A company with complete data scores exactly as in 3.6.20.
+SHORT_FALL_MIN_SESSIONS = 120
+FULL_FALL_SESSIONS = 250

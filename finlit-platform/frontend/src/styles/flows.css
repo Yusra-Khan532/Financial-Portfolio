@@ -10,7 +10,7 @@
 button.fl-chip { cursor: pointer; color: var(--text); } button.fl-chip:hover { border-color: var(--gold); } button.fl-chip:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .fl-wrap { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
 .fl-panel { background: var(--s1); border: 1px solid var(--border); border-radius: 20px; padding: 22px 24px; box-shadow: var(--shadow); min-width: 0; }
-.fl-panel h2 { margin: 0; font: 600 18px var(--sans); } .fl-panel h3 { margin: 0 0 8px; font: 600 16px var(--serif); }   /* task #227: panel titles are serif */
+.fl-panel h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); } .fl-panel h3 { margin: 0 0 8px; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); }   /* task #227: panel titles are serif */
 .fl-ph { display: flex; justify-content: space-between; align-items: center; gap: 10px 18px; flex-wrap: wrap; margin-bottom: 10px; }
 .fl-note { margin: 0 0 14px; color: var(--muted); font-size: 14px; line-height: 1.55; max-width: 90ch; }
 .fl-foot { margin: 12px 0 0; color: var(--faint); font-size: var(--fs-13); line-height: 1.5; } .fl-foot a, .fl-src a { color: var(--gold); }
@@ -32,7 +32,7 @@ button.fl-chip { cursor: pointer; color: var(--text); } button.fl-chip:hover { b
 .fl-comb { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-radius: 14px; background: var(--s2); } .fl-comb span { color: var(--muted); font-size: var(--fs-14); } .fl-comb b { font: 700 20px var(--mono); }
 .fl-split { margin-top: 16px; } .fl-split-t { display: flex; justify-content: space-between; gap: 10px; font: 600 13px var(--sans); margin-bottom: 6px; flex-wrap: wrap; }
 .fl-split-b { display: flex; height: 14px; border-radius: 10px; overflow: hidden; gap: 2px; background: var(--s3); } .fl-split-b i { display: block; min-width: 4px; transition: width .5s; } .fl-split-b i.buying { background: var(--gain); } .fl-split-b i.selling { background: var(--loss); }
-.fl-st { padding: 16px 18px; } .fl-st h2 { font: 600 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.fl-st { padding: 16px 18px; } .fl-st h2 { font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); color: var(--muted); margin-bottom: 8px; }
 .fl-st .v { font: 700 24px/1.15 var(--mono); display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; } .fl-st .v small { font: 600 14px var(--sans); }
 .fl-st p { margin: 6px 0 0; font-size: var(--fs-13); color: var(--muted); line-height: 1.5; } .fl-st p b { color: var(--text); font-family: var(--mono); font-weight: 600; white-space: nowrap; }
 .fl-30 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .fl-30 div span { display: block; font: 600 12px var(--sans); color: var(--muted); letter-spacing: .05em; text-transform: uppercase; } .fl-30 div b { font: 700 18px var(--mono); overflow-wrap: anywhere; }
@@ -74,7 +74,7 @@ button.fl-chip { cursor: pointer; color: var(--text); } button.fl-chip:hover { b
 .fl-cell[data-l="1"] { background: color-mix(in srgb, var(--gain) 36%, var(--s3)); } .fl-cell[data-l="2"] { background: color-mix(in srgb, var(--gain) 58%, var(--s3)); } .fl-cell[data-l="3"] { background: color-mix(in srgb, var(--gain) 78%, var(--s3)); } .fl-cell[data-l="4"] { background: var(--gain); }
 .fl-cell[data-l="-1"] { background: color-mix(in srgb, var(--loss) 36%, var(--s3)); } .fl-cell[data-l="-2"] { background: color-mix(in srgb, var(--loss) 58%, var(--s3)); } .fl-cell[data-l="-3"] { background: color-mix(in srgb, var(--loss) 78%, var(--s3)); } .fl-cell[data-l="-4"] { background: var(--loss); }
 .fl-legend { display: flex; align-items: center; gap: 4px; font: 500 12px var(--sans); color: var(--muted); margin-top: 8px; flex-wrap: wrap; } .fl-legend i { width: 13px; height: 13px; border-radius: 3px; display: inline-block; } .fl-legend span { margin: 0 6px; }
-.fl-day { margin-top: 16px; padding: 14px 16px; border-radius: 14px; background: var(--s2); border: 1px solid var(--border); } .fl-day h3 { margin: 0 0 10px; font: 600 14px var(--sans); }
+.fl-day { margin-top: 16px; padding: 14px 16px; border-radius: 14px; background: var(--s2); border: 1px solid var(--border); } .fl-day h3 { margin: 0 0 10px; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); }
 .fl-day-g { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; } .fl-day-g div { font-size: 13px; color: var(--muted); display: grid; gap: 2px; } .fl-day-g b { font: 700 18px var(--mono); color: var(--text); } .fl-day-g small { font: 500 12px var(--mono); color: var(--muted); }
 
 /* context cards: percentile, absorption */
@@ -124,7 +124,7 @@ button.fl-chip { cursor: pointer; color: var(--text); } button.fl-chip:hover { b
 
 /* the compact panel (dashboard) */
 .flp { background: var(--s1); border: 1px solid var(--border); border-radius: 20px; padding: 18px 20px; box-shadow: var(--shadow); display: grid; gap: 12px; min-width: 0; }
-.flp-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px 14px; flex-wrap: wrap; } .flp-h h2 { margin: 0; font: 600 16px var(--sans); } .flp-h span { font: 500 12px var(--mono); color: var(--faint); }
+.flp-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px 14px; flex-wrap: wrap; } .flp-h h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); } .flp-h span { font: 500 12px var(--mono); color: var(--faint); }
 .flp-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .flp-two > div { padding: 10px 12px; border-radius: 12px; background: var(--s2); min-width: 0; } .flp-two span { display: block; font: 600 12px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); } .flp-two b { display: block; font: 700 var(--fs-20)/1.2 var(--mono); overflow-wrap: anywhere; } .flp-two small { font: 500 12px var(--mono); color: var(--faint); }
 .flp-meta { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: var(--fs-13); color: var(--muted); } .flp-meta b { font: 600 13px var(--mono); color: var(--text); }
 .flp-a { font: 600 14px var(--sans); color: var(--gold); text-decoration: none; } .flp-a:hover { text-decoration: underline; }

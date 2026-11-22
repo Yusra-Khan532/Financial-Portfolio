@@ -15,11 +15,11 @@
 .fd-back { position: fixed; inset: 0; z-index: 420; display: grid; place-items: center; padding: 16px; background: var(--ov-backdrop); animation: fd-fade .16s ease-out; }
 .fd-dlg { width: min(960px, 100%); max-height: calc(100dvh - 32px); overflow: auto; border-radius: 18px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); box-shadow: 0 40px 80px -30px rgba(0, 0, 0, .6); }
 .fd-dlg header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
-.fd-dlg h2 { margin: 0; font: 400 24px/1.2 var(--serif); }
+.fd-dlg h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
 .fd-x { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border); background: var(--s2); color: var(--text); font-size: 20px; cursor: pointer; } .fd-x:hover { border-color: var(--gold); }
 .fd-frame.big { margin: 16px 20px 0; aspect-ratio: auto; } .fd-frame.big .fd-media { height: auto; object-fit: contain; }
 .fd-steps { margin: 14px 20px 0; padding: 12px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--s2); }
-.fd-steps h3 { margin: 0 0 6px; font: 700 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.fd-steps h3 { margin: 0 0 6px; font: var(--ui-fw-semibold) var(--fs-label)/var(--lh-12) var(--font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .fd-steps ol { margin: 0; padding: 0; list-style: none; counter-reset: s; display: grid; gap: 6px; }
 .fd-steps li { counter-increment: s; display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 10px; align-items: start; font-size: 14px; line-height: 1.45; }
 .fd-steps li::before { content: counter(s); display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--gold); color: var(--on-gold); font: 800 12px var(--sans); }
@@ -27,5 +27,5 @@
 .fd-fine { margin: 0; padding: 8px 20px 16px; color: var(--faint); font-size: 12px; }
 @keyframes fd-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @keyframes fd-fade { from { opacity: 0; } to { opacity: 1; } }
-@media (max-width: 640px) { .fd-steps { margin: 12px 12px 0; } .fd-dlg h2 { font-size: 20px; } .fd-frame.big { margin: 12px 12px 0; } .fd-foot { padding: 12px 12px 4px; } .fd-fine { padding: 8px 12px 14px; } .fd-i { width: 22px; height: 22px; font-size: 12px; } .fd-trig { padding: 6px 0; } }
+@media (max-width: 640px) { .fd-steps { margin: 12px 12px 0; } .fd-frame.big { margin: 12px 12px 0; } .fd-foot { padding: 12px 12px 4px; } .fd-fine { padding: 8px 12px 14px; } .fd-i { width: 22px; height: 22px; font-size: 12px; } .fd-trig { padding: 6px 0; } }
 @media (prefers-reduced-motion: reduce) { .fd-peek, .fd-back { animation: none; } .fd-i { transition: none; } }

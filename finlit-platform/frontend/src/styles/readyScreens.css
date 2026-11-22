@@ -6,7 +6,7 @@
 /* R1: one header row */
 .rms-hd { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; }
 .rms-hd > div { flex: 1 1 320px; min-width: 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 12px; }
-.rms-hd h2 { margin: 0; font: 600 20px/1.3 var(--serif); color: var(--text); }
+.rms-hd h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); color: var(--text); }
 .rms-hd p { margin: 0; font-size: 14px; line-height: 1.45; color: var(--muted); max-width: none; }
 .rms-upd { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: var(--s2); border: 1px solid var(--border);
   font: 600 13px var(--sans); color: var(--muted); white-space: nowrap; }

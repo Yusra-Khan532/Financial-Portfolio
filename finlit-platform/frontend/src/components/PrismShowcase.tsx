@@ -39,7 +39,7 @@ export function PrismShowcase() {
       <div className="hpz-top">
         <div className="hpz-title">
           <p className="hpz-pill">FinLit Prism</p>
-          <h2 id="hpz-title">Beyond Ratios. A Statistical Model for Deeper Equity Analysis.</h2>
+          <h2 id="hpz-title" className="ui-h2--marketing">Beyond Ratios. A Statistical Model for Deeper Equity Analysis.</h2>
         </div>
         <ul className="hpz-feats" aria-label="What FinLit Prism reads">
           {FEATURES.map((f) => (

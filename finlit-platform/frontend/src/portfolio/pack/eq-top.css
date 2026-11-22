@@ -9,7 +9,7 @@
 .eqx-top { margin: 12px 0 0; padding: 14px 18px 16px; }
 .eqx-t1 { display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; }
 .eqx-ht { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.eqx-ht h1 { margin: 0; font: 400 32px/1.15 var(--serif); color: var(--text); }
+.eqx-ht h1 { margin: 0; color: var(--text); }
 .eqx-plan { padding: 2px 9px; border-radius: 6px; border: 1px solid color-mix(in srgb, var(--gold) 50%, var(--border)); background: color-mix(in srgb, var(--gold) 14%, var(--s1)); font: 700 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--text); }
 .eqx-asof { font: 500 13px var(--sans); color: var(--muted); }
 .eqx-acts { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; flex: 1 1 520px; }
@@ -129,7 +129,6 @@
   .eqx-sub3 { grid-template-columns: 1fr 1fr; } .eqx-sub3 > div:nth-child(3) { grid-column: 1 / -1; padding: 8px 0 0; border-left: 0; border-top: 1px solid var(--border); }
   .eqx-cov { grid-template-columns: minmax(0, 1fr); gap: 8px; }
   .eqx-tiles { grid-template-columns: minmax(0, 1fr); } .eqx-tile.on::after { display: none; }
-  .eqx-ht h1 { font-size: 28px; }
   .eqx-acts { position: relative; } .eqx-acts > .eqx-menu { position: absolute; right: 0; bottom: 0; }
   .eqx-acts .pfx-input { flex: 1 1 100%; } .eqx-acts .eq-add2 { display: contents; } .eqx-acts .pfx-add .pfx-btn, .eqx-acts .pfx-add .pfx-solid { flex: 0 0 auto; padding-left: 14px; padding-right: 14px; } .eqx-acts .pfa-impw { margin-right: 52px; }
 }

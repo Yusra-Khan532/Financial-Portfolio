@@ -2,13 +2,13 @@
 .rd-back { position: fixed; inset: 0; }
 .rd { position: fixed; top: 0; right: 0; bottom: 0; z-index: var(--z-drawer, 320); width: min(600px, 100vw); display: flex; flex-direction: column; background: var(--s1); color: var(--text); box-shadow: -16px 0 40px rgba(0, 0, 0, .25); }
 .rd-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
-.rd-head h2 { margin: 0; font-size: 20px; }
+.rd-head h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
 .rd-x { border: 0; background: transparent; color: var(--muted); font-size: 24px; line-height: 1; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
 .rd-x:hover { background: var(--s2); color: var(--text); }
 .rd-body { flex: 1; overflow: auto; padding: 8px 20px 20px; }
 .rd-body .rd-sec { padding: 14px 0; border-bottom: 1px solid var(--border); }
 .rd-body .rd-sec:last-child { border-bottom: 0; }
-.rd-body h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 16px; }
+.rd-body h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); }
 .rd-body h3 span { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--gold); color: var(--on-gold, #fff); font-size: 12px; }
 .rd-frac { display: grid; gap: 0; }
 .rd-field { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--s1); color: var(--text); font: 16px var(--sans); cursor: pointer; }

@@ -30,7 +30,7 @@ export function Account() {
     <div className="wrap acct">
       <header className="acct-h">
         <div className="av lg" aria-hidden="true">{(user.name || user.email)[0].toUpperCase()}</div>
-        <div><h1>{user.name || "Your account"}</h1><p className="muted">{user.email} · <span className={"tier " + user.plan}>{TIER[user.plan].n}</span></p></div>
+        <div><h1 className="ui-title">{user.name || "Your account"}</h1><p className="muted">{user.email} · <span className={"tier " + user.plan}>{TIER[user.plan].n}</span></p></div>
       </header>
       <nav className="acct-tabs" aria-label="Account sections">
         {TABS.filter(([to]) => !DEMO || to === "appearance").map(([to, label, ic]) => <NavLink key={to} to={to ? `/account/${to}` : "/account"} end className={({ isActive }) => (isActive ? "on" : "")}><Icon name={ic} />{label}</NavLink>)}

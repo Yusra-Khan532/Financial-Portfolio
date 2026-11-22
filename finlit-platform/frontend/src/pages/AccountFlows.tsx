@@ -16,7 +16,7 @@ function Shell({ title, children }: { title: string; children: React.ReactNode }
       <div className="wrap" style={{ display: "grid", placeItems: "center" }}>
         <div className="card login-card" style={{ width: "min(480px, 100%)" }}>
           <Link to="/" className="lg-mark" aria-label="FinLit home" style={{ height: 48, marginBottom: 14 }} />
-          <h1 style={{ font: "400 28px var(--serif)", margin: "0 0 10px" }}>{title}</h1>
+          <h1 className="ui-title" style={{ margin: "0 0 10px" }}>{title}</h1>
           {children}
         </div>
       </div>
