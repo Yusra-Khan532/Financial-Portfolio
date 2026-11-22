@@ -57,7 +57,7 @@ export function EtfListPage() {
   return (
     <>
       <PageHeader wrap plan="free" title="ETFs on the NSE" art="funds" links={["/etfs/compare", "/etfs/compare-index-funds", "/funds"]}
-        description={<>Price and <b>1-day, 1-year and 5-year returns</b> for every ETF we find on the exchange. Search, filter, sort and compare up to four. Information only: nothing here is advice to buy or sell.</>}
+        description="Price and 1-day, 1-year and 5-year returns of every NSE ETF; search, filter, compare up to four."
         stats={[{ icon: "layers", value: data ? data.universe : null, label: "ETFs listed" }]} />
 
       <div className="wrap etf-page">

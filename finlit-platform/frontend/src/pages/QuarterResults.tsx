@@ -10,6 +10,7 @@ import { useAuth } from "../lib/auth";
 import { useUI } from "../lib/ui";
 import { ApiError, apiGet } from "../lib/api";
 import { dayLabel } from "../lib/feed";
+import { dayMonth } from "../lib/dashboard";
 import { useResultsDelayedNote } from "../lib/jobsStatus";
 import { MINUS, nf } from "../lib/format";
 import { GROWTH_PRESETS, PRICE_PRESETS, activePreset, activePricePreset, applyPreset, priceIsDefault, DATE_MEANING, GAP_LABEL, PAGE, PAGE_SIZES, activeChip, cellHit, DEFAULT_GROWTH, DEFAULT_PRICE, PRICE_KEYS, PRICE_WORD, bandOf, bandShort, priceFromParams, priceHit, priceOn, priceQuery, priceToParams, priceWhy, type PriceKey, type PriceState, type CellKey, growthFromParams, growthOn, growthQuery, growthToParams, type GrowthState, awaitingNote, csvOf, dateChips, dateFromParams, dateProblem, describeSel, gapAlertLink, headline, isWeekend, longDay, queryString, signedPct, todayIST, useQuarterResults, weekdayName, type DateSel, type QDates, type QParams, type QRow } from "../lib/qresults";
@@ -363,7 +364,7 @@ export function QuarterResultsPage() {
   return (
     <div className="wrap ipo qr sp rs rs-latest">
       <ResultsHead title={`Latest results${q ? ` · ${q.fiscal}` : ""}`} view={view}
-        desc={`Every company's results for the quarter${q ? ` ended ${new Date(q.periodEnd + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}` : ""}, the most recently declared first, with how each compares with similar companies.`}
+        desc={`Results for the quarter${q ? ` ended ${dayMonth(q.periodEnd, true)}` : ""}, newest first, each compared with similar companies.`}
         links={[["/results", "Results calendar"], ["/news", "News & filings"], ["/documents", "Documents"]]} />
       <QuarterTiles r={d} />
       <div className="rs-qsel"><QuarterPicker quarters={d?.quarters ?? []} current={q?.key} onPick={(key) => { const n = new URLSearchParams(sp); n.set("quarter", key); setSp(n); setOffset(0); }} /></div>

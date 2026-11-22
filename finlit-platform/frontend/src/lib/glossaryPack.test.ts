@@ -12,7 +12,7 @@ describe("the pack's figures", () => {
     expect(C).toEqual({ terms: 448, topics: 18, added: 7, updated: 34, finlit: 35 });
     expect(tiles(C)).toEqual([{ k: "Terms", v: 448, s: "from A to Z" }, { k: "Topics", v: 18, s: "pick one on the left" }, { k: "New this update", v: 7, s: "words used on the new pages" }, { k: "Updated this update", v: 34, s: "renamed or rewritten" }]);
     expect(tabs(C).map((t) => [t.title, t.sub])).toEqual([["Browse A to Z", "All 448 terms, by letter or topic"], ["FinLit words", "35 terms behind the scores and labels"], ["New and updated", "41 terms added or changed"]]);
-    expect(DESC(448)).toBe("The language of investing in plain words: 448 terms from A to Z. Each says what it means, why it matters and how to use it, with the formula where there is a standard one, and how FinLit measures it.");
+    expect(DESC(448)).toBe("448 investing terms in plain words: what each means, why it matters, how to use it, and its formula.");   // one line (founder, 22 Nov 2026)
     expect(SEARCH_HINT(448)).toBe('Search 448 terms, for example "P/E", "Sold off" or "Company size"');
   });
   it("letter A holds 21 terms, ATR among them marked Updated, as drawn; the topic counts are the pack's", () => {

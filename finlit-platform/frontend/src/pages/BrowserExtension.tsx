@@ -54,7 +54,7 @@ export function BrowserExtensionPage() {
   return (
     <>
       <PageHeader wrap title="Browser extension" art="report" learn={false} links={["/glossary", "/mcp"]}
-        description={<>Select any <b>financial term</b> or <b>listed company</b> on any web page and a small FinLit card opens beside it: the meaning, or the company's <b>FinLit Prism</b> score on a plan that has it (Gold), with its key figures. Free, and it reads only the words you select.</>} />
+        description="Select a term or company on any web page to see a FinLit card. Free; it reads only your selection." />
       <div className="wrap ext">
         <div className="ext-hero">
           <section className="ext-card" aria-labelledby="ext-get">

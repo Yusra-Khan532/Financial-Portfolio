@@ -23,7 +23,7 @@ import { buttonClass } from "../components/ui";
 import example from "../lib/__fixtures__/prismReport.json";
 
 function Head({ children }: { children?: React.ReactNode }) {
-  return <PremiumHead title={PRISM_NAME} art="rating" links={["/advanced-score-screener", "/research", "/compare"]}>{children ?? <>A company's <b>financial health</b>, split into four parts the way a prism splits light. {PRISM_NOTE}</>}</PremiumHead>;
+  return <PremiumHead title={PRISM_NAME} art="rating" links={["/advanced-score-screener", "/research", "/compare"]} meta={children ? undefined : PRISM_NOTE}>{children ?? "A company's financial health in four parts, the way a prism splits light."}</PremiumHead>;
 }
 
 function Locked({ symbol }: { symbol?: string }) {

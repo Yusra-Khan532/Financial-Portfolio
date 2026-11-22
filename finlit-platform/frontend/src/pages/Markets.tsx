@@ -141,7 +141,7 @@ export function MarketsPage() {
   const body = t === "commodities" ? <CommodityIndices /> : t === "indices" ? <IndexPrices open={openIndex} big={x.open} /> : t === "valuations" ? <IndexDetail code={idx} setCode={setIdx} /> : <EventFeed key={t} kind={t} big={x.open} />;
   return (
     <>
-      <PremiumHead title="Market events & index" art="macro" links={["/ipo", "/results", "/premium"]}>What companies told the exchanges this week, and every index with its <b>valuation and returns against its own history</b>, with monthly commodity indices.</PremiumHead>
+      <PremiumHead title="Market events & index" art="macro" links={["/ipo", "/results", "/premium"]}>This week's company disclosures, and every index against its own history, with commodity indices.</PremiumHead>
       <div className="wrap mke" style={{ paddingBottom: 56 }}>
         <Glance go={setTab} />
         <div className="pm-tabs" role="tablist" aria-label="Market events sections">{MK_TABS.map((s) => <button key={s.id} role="tab" type="button" aria-selected={t === s.id} onClick={() => setTab(s.id)}>{s.label}</button>)}</div>

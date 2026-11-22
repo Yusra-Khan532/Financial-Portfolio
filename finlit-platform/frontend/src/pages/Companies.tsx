@@ -32,7 +32,8 @@ export function CompaniesPage() {
     <>
       <PageHeader wrap title={one ? `Companies starting with ${one.toUpperCase()}` : "Listed companies, A to Z"} art="report" links={["/research", "/screener", "/glossary"]}
         stats={total ? [{ icon: "table", value: total, label: "Companies" }] : []}
-        description={<>Every listed Indian company in one alphabetical list. Pick a letter, then open a company to see its statements, ratios, growth, peers and ownership. Describes the company's financial health from its filings and prices; not a recommendation. Information only, not investment advice.</>} />
+        description="Every listed Indian company, A to Z: pick a letter, then open a company's report."
+        meta="Describes the company's financial health from its filings and prices; not a recommendation. Information only, not investment advice." />
       <div className="wrap gx">
         <nav className="gx-bar" aria-label="Letters">
           <div className="gx-az">

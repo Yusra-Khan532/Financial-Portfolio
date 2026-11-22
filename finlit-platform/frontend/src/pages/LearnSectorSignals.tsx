@@ -7,7 +7,8 @@ import { useDocTitle } from "../lib/title";
 import "../styles/sectors.css";
 
 const TITLE = "How to use Sector Pulse";
-const DESC = "Sector Pulse shows, for every NSE industry, whether most of its stocks are rising together or only a few. This page explains what each reading means and how to use it.";
+const DESC = "Sector Pulse shows, for every NSE industry, whether most of its stocks are rising together or only a few. This page explains what each reading means and how to use it.";   // the page's search description
+const HEAD_DESC = "What each Sector Pulse reading means for an NSE industry, and how to use it.";   // the header's one line (founder, 22 Nov 2026)
 const STATES: [string, string][] = [
   ["Washout", "The industry has been sold broadly. No broad rebound yet."],
   ["Thrust C", "Most stocks turned up together after a sell-off."],
@@ -21,7 +22,7 @@ export function LearnSectorSignalsPage() {
   useDocTitle(TITLE, DESC);
   return (
     <div className="wrap sx" data-testid="learn-signals">
-      <PageHeader titleVariant="read" eyebrow="Learn · Sector Pulse" title={TITLE} description={DESC} links={["/sectors"]} learn={false} />
+      <PageHeader titleVariant="read" eyebrow="Learn · Sector Pulse" title={TITLE} description={HEAD_DESC} links={["/sectors"]} learn={false} />
       <div className="sx-learn">
         <section className="sx-card sx-sec" aria-labelledby="ls-what">
           <h2 id="ls-what">What Sector Pulse shows</h2>

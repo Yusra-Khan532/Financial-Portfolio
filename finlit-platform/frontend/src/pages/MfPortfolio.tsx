@@ -290,7 +290,7 @@ export function MfPortfolioPage() {
     <div className="wrap ipo mp sp mfp">
       <Gate tier={PLAN_FOR_PORTFOLIO} title="Track your mutual funds" points={["How healthy each fund is: the Fund Health Score and its four parts", "What sits inside your funds, and how alike they are", "Each fund against its own benchmark, and the list together", "Import your CAS PDF, or Excel / CSV statements, read by ISIN"]}>
         {/* task #275 (change 2): the compact top: title, plan, as-of and the add box in one row; the money box that says what it covers, and Your portfolios */}
-        <header className="ptk-head" id="mfp-top">
+        <header className="ptk-head card" id="mfp-top">
           <div className="ptk-t1">
             <div className="ptk-ht"><h1 className="ui-title">MF portfolio</h1><p className="ptk-plan mfp-plan"><span>{TIER[plan].n}</span></p>
               <Tip text="How healthy your mutual funds are, what sits inside them, how alike they are, and how risky they are together." how="Start with names; add units when you want the figures to follow your money. Each fund is read by its ISIN, which names the exact plan and option." label="About the MF portfolio" />

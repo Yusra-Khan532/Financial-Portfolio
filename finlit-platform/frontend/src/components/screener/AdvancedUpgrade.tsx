@@ -7,6 +7,7 @@ import { LockedPresets } from "./presets/LockedPresets";
 import { MINUS } from "../../lib/format";
 import "../../styles/scorescreen.css";
 import { PageHeader } from "../PageHeader";
+import { ADVANCED_DESC } from "./ScreenerHead";
 import { FUND_PART_NAME } from "../../lib/prismNames";
 import { PLAN_FOR_PRISM } from "../../lib/planGates";
 
@@ -30,7 +31,7 @@ export function AdvancedUpgrade() {
   return (
     <>
       <PageHeader wrap plan="gold" title="Screen every company with FinLit Prism." art="rating" links={["/screener", { to: "/plans", primary: true, label: "See the Gold plan" }]}
-        description={<>The advanced model for the whole market: the <b>Prism score</b>, its four financial-health parts and two technical views, side by side, with filters, quick views and compare. It is part of the Gold plan.</>} />
+        description={<>{ADVANCED_DESC} Part of the Gold plan.</>} />{/* task #327: the same one line as the Gold view (file 25, page headers) */}
       <div className="wrap scr-wrap">
         <div className="sx-up">
           <div className="sx-ex-h"><span className="tier gold">Example</span><span className="muted">Sample companies and figures, only to show the layout. Not real data.</span></div>

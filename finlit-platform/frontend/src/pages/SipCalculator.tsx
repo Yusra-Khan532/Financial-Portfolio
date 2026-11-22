@@ -243,7 +243,7 @@ export function SipCalculator() {
   return (
     <div className="sip-page">
       <PageHeader wrap plan="free" title="SIP calculator" art="calculator" links={["/mf-portfolio", "/funds", "/eps-calculator"]}
-        description={<>Estimate what a <b>monthly investment</b> could grow to, see every year of it, plan for a goal, and check what waiting or tax does to it. Every figure is worked out the same way as the formula shown below.</>} />
+        description="What a monthly investment could grow to, year by year, with goals, delay and tax." />
 
       <div className="wrap sip-wrap">
         <section className="sip-card sip-main" aria-label="Calculator">

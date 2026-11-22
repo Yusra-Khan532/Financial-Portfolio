@@ -73,7 +73,7 @@ describe("task #289: Tracked investors tab", () => {
     PLAN = "gold"; open("/superinvestors");
     await screen.findByRole("heading", { name: "Latest moves" });
     expect(document.querySelector("header")!.getAttribute("data-plan")).toBe("gold");
-    expect(text()).toMatch(/What well-known investors own and changed, from the companies' own shareholding filings \(holders of 1% or more\), with FinLit's view of each stock and which of your stocks they hold/);
+    expect(text()).toContain("What well-known investors own and changed, from shareholding filings (holders of 1% or more).");   // the one-line header (founder, 22 Nov 2026)
     expect(screen.getByRole("tab", { name: /Tracked investors 26/ }).getAttribute("aria-selected")).toBe("true");
     expect(screen.getByRole("tab", { name: /All named holders 1,315/ })).toBeTruthy();
     const tiles = [...document.querySelectorAll(".sx-stats .si-stat")].map((t) => t.textContent);

@@ -25,7 +25,8 @@ import { showQuery, type Show } from "../lib/sectors";
 import { tw, useShow, useShowWords } from "../lib/groupWords";
 
 const TITLE = "Sector Rotation";
-const DESC = tw("Money moves from one industry to another over months. This page shows which industries are leading the market, which are falling behind, and which are changing places.");
+const DESC = tw("Money moves from one industry to another over months. This page shows which industries are leading the market, which are falling behind, and which are changing places.");   // the page's search description
+const HEAD_DESC = tw("Which industries lead the market, which lag, and which are changing places over the months.");   // the header's one line (founder, 22 Nov 2026)
 const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function Yardstick({ n, show, groups }: { n: number; show: Show; groups: number | null }) {
@@ -74,7 +75,7 @@ export function SectorRotationPage() {
   const disclaimer = m ? tw(`Describes past prices of NSE industry groups against the average group; not a forecast and not a recommendation to buy, sell or hold any security. NSE daily data, equal-weighted industry groups, the same counted stocks as Sector Pulse. Data as of ${d ? `${WEEKDAY[d.getUTCDay()]} ${m.date_label ?? m.date}` : m.date}, after the close.`) : "";
   return (
     <div className="wrap sx sp rp" data-testid="sector-rotation">
-      <PackHead page="rotation" title={TITLE} desc={tw(DESC)} meta={meta} view={view} onView={setView} industries={m?.rows ?? []} show={show} onShow={setShow} findHint={show === "sectors" ? "A sector, e.g. Healthcare" : "An industry, e.g. Banks"} side={m ? <Yardstick n={m.rows.length} show={show} groups={indRot.data?.rows.length ?? null} /> : null} />
+      <PackHead page="rotation" title={TITLE} desc={tw(HEAD_DESC)} meta={meta} view={view} onView={setView} industries={m?.rows ?? []} show={show} onShow={setShow} findHint={show === "sectors" ? "A sector, e.g. Healthcare" : "An industry, e.g. Banks"} side={m ? <Yardstick n={m.rows.length} show={show} groups={indRot.data?.rows.length ?? null} /> : null} />
       {pending && show === "industries" && <p className="sp-note sp-pending">{pending}</p>}
       {(q.isLoading || !ready) && <div className="sx-skel sp-sec" role="status" aria-label="Loading the rotation readings" />}
       {q.isError && <div className="sp-sec"><Blank title={show === "sectors" ? "The Sectors view is not available right now" : "Sector Rotation is not available right now"} reason={failureText(q.error)}>

@@ -18,6 +18,9 @@ const CARDS = [
     points: ["The FinLit Prism score and its four parts", "Key ratios, ownership and peers", "One page you can print or save"] },
 ];
 
+/** The number of tools in words, for the hub's one-line description. */
+const NUM_WORD: Record<number, string> = { 2: "Two", 3: "Three", 4: "Four", 5: "Five", 6: "Six" };
+
 /** FinLit Prism leads the hub: the advanced financial-health rating, with its four parts and their weights. */
 function PrismHubCard() {
   return (
@@ -50,9 +53,9 @@ export function GoldLock({ title }: { title: string }) {
   );
 }
 
-/** The heading of the Gold dashboards: the shared page header with the Gold badge. `children` is the description (inline content, not a paragraph). */
-export function PremiumHead({ title, children, art = "report", links, stats, learn, eyebrow }: { title: string; children?: ReactNode; art?: PhArtKind; links?: PhLink[]; stats?: PageHeaderProps["stats"]; learn?: PageHeaderProps["learn"]; eyebrow?: string }) {
-  return <PageHeader wrap plan="gold" title={title} description={children} art={art} links={links} stats={stats} learn={learn} eyebrow={eyebrow} />;
+/** The heading of the Gold dashboards: the shared page header with the Gold badge. `children` is the description (inline content, not a paragraph); `meta`, a note under it (the disclaimer). */
+export function PremiumHead({ title, children, meta, art = "report", links, stats, learn, eyebrow }: { title: string; children?: ReactNode; meta?: ReactNode; art?: PhArtKind; links?: PhLink[]; stats?: PageHeaderProps["stats"]; learn?: PageHeaderProps["learn"]; eyebrow?: string }) {
+  return <PageHeader wrap plan="gold" title={title} description={children} meta={meta} art={art} links={links} stats={stats} learn={learn} eyebrow={eyebrow} />;
 }
 
 export function PremiumHub() {
@@ -60,7 +63,7 @@ export function PremiumHub() {
   const gold = useGold(); const qc = useQueryClient();
   return (
     <>
-      <PremiumHead title="Gold dashboards" links={["/prism", "/premium/markets"]}>The premium research desk: <b>{CARDS.length + 1} tools</b> built for serious investors. They open fast, stay up to date, and every number comes from the same sources our analysts use.</PremiumHead>
+      <PremiumHead title="Gold dashboards" links={["/prism", "/premium/markets"]}>{NUM_WORD[CARDS.length + 1] ?? CARDS.length + 1} Gold research tools, kept up to date from the same sources our analysts use.</PremiumHead>
       <div className="wrap" style={{ paddingBottom: 56 }}>
         {!gold && <p className="chip gold" style={{ height: "auto", padding: "8px 14px", whiteSpace: "normal", maxWidth: "100%", lineHeight: 1.4 }}><Icon name="crown" /> Included with the Gold plan. Open any tool to see how it works.</p>}
         <PrismHubCard />

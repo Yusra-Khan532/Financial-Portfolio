@@ -150,7 +150,7 @@ export function AlertsPage() {
   return (
     <div className="wrap alx">
       <PageHeader plan="free" title="Alerts" art="calendar" links={["/watchlist", "/holdings", "/results"]}
-        description={<>Get notified when a stock meets your conditions: price, technical, ratio, score or news. You are told in the app (the bell), and in your browser if you choose. For information only, not investment advice.</>}
+        description="Be told in the app or browser when a stock meets your price, technical, ratio, score or news rule."
         actions={<div className="alx-ha">
           <span className="alx-used" title={`${plan[0].toUpperCase() + plan.slice(1)} plan`}><b>{used}</b> / {limit} alerts used{plan !== "gold" && used >= limit - 1 && <button className="alx-link" onClick={() => upgrade(plan === "basic" ? "silver" : "gold", "More alerts")}>Get more</button>}</span>
           <button className="btn primary alx-new-btn" onClick={() => setDrawer(true)}><span aria-hidden="true">+</span> Create alert</button>

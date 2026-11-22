@@ -28,7 +28,7 @@ export function Account() {
   if (!user) return <Navigate to={`/login?next=${encodeURIComponent("/account" + (tab ? "/" + tab : ""))}`} replace />;
   return (
     <div className="wrap acct">
-      <header className="acct-h">
+      <header className="acct-h card">
         <div className="av lg" aria-hidden="true">{(user.name || user.email)[0].toUpperCase()}</div>
         <div><h1 className="ui-title">{user.name || "Your account"}</h1><p className="muted">{user.email} · <span className={"tier " + user.plan}>{TIER[user.plan].n}</span></p></div>
       </header>

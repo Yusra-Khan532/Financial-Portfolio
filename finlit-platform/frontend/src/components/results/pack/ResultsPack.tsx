@@ -34,7 +34,7 @@ const VIEWS: { key: ResView; title: string; desc: string; color: string; icon: s
 export function ResultsHead({ title, desc, links, view, actions }: { title: string; desc: string; links: [string, string][]; view: ResView; actions?: React.ReactNode }) {
   const to: Record<ResView, string> = { calendar: "/results", industries: "/results/quarter?view=industries", companies: "/results/quarter" };
   return (
-    <header className="sp-head rs-head">
+    <header className="sp-head rs-head card">
       <p className="sp-eyebrow">Markets · Results</p>
       <h1 className="ui-title">{title}</h1>
       <p className="sp-desc">{desc}</p>

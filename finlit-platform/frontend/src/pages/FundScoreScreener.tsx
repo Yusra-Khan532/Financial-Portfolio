@@ -9,7 +9,7 @@ import { useDocTitle } from "../lib/title";
 import { useUI } from "../lib/ui";
 import { apiUrl } from "../lib/api";
 import { nf } from "../lib/format";
-import { MF_METHOD_URL, MF_SCORE_COMPLIANCE, MF_SCORE_NAME, bandOf, scoreText, wordBand, wordPos } from "../lib/mfScore";
+import { MF_METHOD_URL, MF_SCORE_COMPLIANCE, MF_SCORE_NAME, MF_SCORE_NOTE, bandOf, scoreText, wordBand, wordPos } from "../lib/mfScore";
 import { bandVar } from "../lib/scoreBands";
 import {
   LABELS, PAGE, PILLARS, VIEWS, activeView, chips, clearChip, csvUrl, emptyQuery, paramsToQuery, queryToParams, useFacets, useLeaderboard, useScreener,
@@ -38,7 +38,7 @@ function Upgrade() {
     <div className="wrap mf mfu-page">
       <p className="mf-back"><Link to="/funds">← All mutual fund schemes</Link></p>
       <PageHeader plan="gold" title="Fund score screener" art="funds" learn={{ to: MF_METHOD_URL, label: "What the score means" }} links={["/funds", "/funds/compare", "/etfs"]}
-        description={<>The <b>{MF_SCORE_NAME}</b> of every scored fund, its four parts (Performance, Risk, Cost, Quality), category leaderboards, filters and a CSV download. It is part of the Gold plan.</>} />
+        description={<>Every scored fund's {MF_SCORE_NAME}, with its four parts.</>} meta={MF_SCORE_NOTE} />
       <Gate tier="gold" title="Fund score screener" points={POINTS}>
         <section className="card mf-card" aria-label="Example of the fund score screener">
           <p className="faint">Layout only. Example rows with no real fund or figure.</p>
@@ -137,7 +137,7 @@ function Screener() {
       <p className="mf-back"><Link to="/funds">← All mutual fund schemes</Link></p>
       <TitleCard tier="gold" title="Fund score screener" learnTo={MF_METHOD_URL} learnLabel="What the score means" art="funds" links={["/funds", "/funds/compare", "/etfs"]}
         stats={[{ icon: "layers", value: facets.data ? cats.length : null, label: "Categories" }, { icon: "calendar", value: list.data?.runDate, label: "Scores worked out" }]}
-        sub={<>The <b>{MF_SCORE_NAME}</b> of every scored fund, with its four parts. {MF_SCORE_COMPLIANCE}</>} />
+        sub={<>Every scored fund's {MF_SCORE_NAME}, with its four parts.</>} meta={MF_SCORE_NOTE} />
       <div className="seg" role="tablist" aria-label="View">
         <button role="tab" aria-selected={q.tab === "table"} onClick={() => set({ tab: "table" })}>All funds</button>
         <button role="tab" aria-selected={q.tab === "board"} onClick={() => set({ tab: "board", subs: q.subs.slice(0, 1) })}>Category leaderboard</button>

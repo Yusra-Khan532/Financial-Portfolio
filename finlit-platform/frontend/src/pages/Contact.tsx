@@ -21,7 +21,7 @@ export function Contact() {
   };
   return (
     <>
-      <section className="pagehead"><div className="aurora" style={{ opacity: 0.6 }} /><div className="wrap"><PageArt kind="contact" /><div className="eyebrow">Contact</div><h1 className="ui-title ui-title--marketing">Write to us.</h1><p>Tell us what you need, in a line or in a paragraph. A person on the team reads every message and we usually reply within one working day.</p></div></section>
+      <section className="pagehead"><div className="aurora" style={{ opacity: 0.6 }} /><div className="wrap"><PageArt kind="contact" /><div className="eyebrow">Contact</div><h1 className="ui-title ui-title--marketing">Write to us.</h1><p>Tell us what you need. A person reads every message; we usually reply within one working day.</p></div></section>
       <section className="sec" style={{ paddingTop: 16 }}><div className="wrap two">
         <div className="card">
           {m.isSuccess ? <div className="done"><div className="done-ic"><Icon name="check" /></div><h3 style={{ font: "400 24px var(--serif)" }}>Message sent</h3><p className="muted">Thanks. We have it, and we usually reply within one working day.</p></div> : (

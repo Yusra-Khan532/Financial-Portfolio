@@ -328,7 +328,7 @@ export function FundHeadToHead() {
   return (
     <>
       <PageHeader wrap plan="free" title="Fund compare" art="compare" links={["/funds", "/fund-score-screener", "/etfs"]}
-        description={<>Two funds of the same category, head to head: <b>returns, risk, consistency and costs</b> over 1, 3, 5 or 10 years, each also against the category average. Information only, never advice.</>} />
+        description="Two funds of one category, head to head on returns, risk, consistency and cost over 1–10 years." />
       <div className="wrap mf h2h">
         <section className="card mf-card h2h-setup" aria-labelledby="h2h-h">
           <div className="h2h-setup-h">

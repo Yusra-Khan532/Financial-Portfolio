@@ -5,11 +5,11 @@
 .gp-crumb { display: flex; gap: 8px; margin: 18px 0 10px; font-size: var(--fs-13); color: var(--sp-mute); } .gp-crumb [aria-current] { color: var(--sp-ink); font-weight: 600; }
 
 /* header panel */
-.gp-head { margin: 0 0 14px; padding: 8px 0 4px; }   /* task #310: an open page header, so the title starts at the left edge of the content column */
+.gp-head { margin: 12px 0 16px; padding: 14px 18px 16px; }   /* founder, 22 Nov 2026: the header is in the shared card (class "card"), with the Equity portfolio header's padding (task #310 had made it open) */
 .gp-head-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 14px 24px; align-items: flex-start; }
 .gp-eyebrow { margin: 0 0 6px; font: 700 var(--fs-12) var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--au, var(--gold)); }
 .gp-head h1 { margin: 0 0 10px; color: var(--sp-ink); }
-.gp-desc { margin: 0; max-width: 72ch; font-size: var(--fs-16); line-height: 1.55; color: var(--sp-ink); }
+.gp-desc { margin: 0; font-size: var(--fs-16); line-height: 1.5; color: var(--sp-ink); } .gp-head .gp-desc { max-width: 104ch; }   /* outranks ".card p" (premium.css) */
 .gp-links { display: flex; flex-wrap: wrap; gap: 8px; }
 .gp-links a { display: inline-flex; align-items: center; min-height: 34px; padding: 0 14px; border: 1px solid var(--sp-line); border-radius: var(--ui-r-pill); color: var(--sp-info); font: 600 var(--fs-14) var(--sans); text-decoration: none; background: var(--sp-panel); }
 .gp-links a:hover { border-color: var(--sp-info); }
@@ -81,7 +81,7 @@
 
 @media (max-width: 900px) { .gp-cols { grid-template-columns: minmax(0, 1fr); } .gp-side { position: static; } .gp-side ul { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 760px) {
-  .gp-head { padding: 4px 0 0; }
+  .gp-head { margin-top: 8px; } .gp-head .gp-desc { font-size: var(--fs-14); line-height: var(--lh-14); }   /* the one-line description at the site's body size on a phone, so a header there is no taller than in the approved preview */
   .gp-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .gp-tile b { font-size: var(--fs-24); }
   .gp-tabs { grid-template-columns: minmax(0, 1fr); }
   .gp-search kbd { display: none; }

@@ -72,7 +72,7 @@ export function PremiumReportPage() {
   if (!gold) return <><PremiumHead title="Premium reports" art="report" /><GoldLock title="Premium Report" /></>;
   return (
     <>
-      <div className="pm-noprint"><PremiumHead title="Premium reports" art="report" links={["/research", "/prism", "/premium"]}>A clean <b>one-document research report</b> for any company. Print it or save it as a PDF to share.</PremiumHead></div>
+      <div className="pm-noprint"><PremiumHead title="Premium reports" art="report" links={["/research", "/prism", "/premium"]}>A one-document research report on any company, to print or save as a PDF.</PremiumHead></div>
       <div className="wrap" style={{ paddingBottom: 56 }}>
         <div className="pm-search pm-noprint" style={{ marginBottom: 24 }}><Icon name="search" />
           <input ref={box} value={text} onChange={(e) => { setText(e.target.value); setOpen(true); }} onBlur={() => setTimeout(() => setOpen(false), 150)} placeholder="Choose a company, for example RELIANCE" aria-label="Choose a company" />

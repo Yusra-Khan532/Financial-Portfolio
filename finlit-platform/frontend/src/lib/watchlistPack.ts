@@ -27,7 +27,7 @@ export const HELP = {
 };
 export const DISAGREE_SUB = "The peer tag is about the share price. The business score ranks the company's results and balance sheet within the same group.";
 export const DISAGREE_WHY = "When the price is far ahead of the business, the market may be expecting a lot. It is a prompt to read the report, not a call to act.";
-export const PAGE_DESC = "The companies you are keeping an eye on: how they are doing, how they compare with their peers, and what to look at next.";
+export const PAGE_DESC = "The companies you follow: how they are doing, against their peers, and what to look at next.";
 export const PLAIN = "lists, notes and targets are saved in this browser. Targets are your own reminders, not predictions; FinLit does not tell you when to buy or sell.";
 export const ALERT_SUB = "An alert when a stock on this list becomes a Leader, In line or a Laggard, sent after the weekly check.";
 

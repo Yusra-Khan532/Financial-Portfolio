@@ -99,7 +99,7 @@ export function NewsPage() {
   return (
     <div className="wrap ipo p4 p4-news">
       <PageHeader plan="free" title="News & filings" art="news" links={["/results", "/documents", "/ipo"]}
-        description={<>Exchange announcements and results filings for <b>every company we cover</b>, sorted into FinLit topics, plus market news chosen by the FinLit team.</>} />
+        description="Exchange announcements and results filings sorted into topics, plus market news we pick." />
       <div className="p4-tools">
         <label className="dbx-q">{Ico.search}<input type="search" placeholder="Search a company or headline" aria-label="Search news" value={f.q} autoComplete="off" onChange={(e) => set({ q: e.target.value })} /></label>
         <div className="dbx-dds">

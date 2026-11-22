@@ -198,7 +198,7 @@ export function Dashboard() {
     <DashCardsProvider userId={user.id}>
     <DxProvider>
     <div className="wrap dsh">
-      <header className="dsh-head">
+      <header className="dsh-head card">
         <div><div className="dsh-kicker">Dashboard</div><h1 className="ui-title">{greetingWord(istHour())}{name ? `, ${name}` : ""}</h1><p className="dsh-meta">{sub}</p></div>
         <div className="dsh-actions"><SetupChip steps={setup.steps} n={setup.n} />
           <button type="button" className="dsh-btn" aria-pressed={edit} onClick={() => { setEdit(!edit); if (params.has("edit")) setParams({}, { replace: true }); }}>{edit ? "Done" : "Customise"}</button></div>

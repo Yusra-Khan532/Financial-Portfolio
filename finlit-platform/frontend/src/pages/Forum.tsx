@@ -102,7 +102,7 @@ function Home({ symbol }: { symbol?: string }) {
     <div className="wrap fo fo2">
       <div className={"fo2-grid" + (symbol ? " has-company" : "")}>
         <div className="fo2-left">
-          <div className="fo-intro"><div className="eyebrow">Community</div><h1 className="fo-h1 ui-title">Discussion forums</h1><p className="muted">Discuss, ask and share what you find in the filings of Indian companies.</p></div>
+          <div className="fo-intro card"><div className="eyebrow">Community</div><h1 className="fo-h1 ui-title">Discussion forums</h1><p className="muted">Discuss, ask and share what you find in Indian companies' filings.</p></div>
           {me?.moderator && <div className="seg fo-boards" role="group" aria-label="Board">{PLANS.map((b) => <button type="button" key={b} aria-pressed={(board || me.board) === b} onClick={() => setPick(b)}>{BOARD_NAME[b]}</button>)}</div>}
           {me?.signedIn && <Companies active={symbol} board={board} />}
         </div>

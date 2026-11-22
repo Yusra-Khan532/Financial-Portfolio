@@ -19,7 +19,7 @@
 .dsh .skeleton { border-radius: var(--r-ctl); }
 
 /* greeting */
-.dsh-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 4px 0 8px; }   /* task #310: an open page header, so the title starts at the left edge of the content column */
+.dsh-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 14px 18px 16px; }   /* founder, 22 Nov 2026: the header is in the shared card (class "card"), with the Equity portfolio header's padding (task #310 had made it open); the page's 16px gap spaces it */
 .dsh-kicker { font-size: var(--fs-12); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--d-acc); }
 .dsh h1 { margin: 6px 0 4px; color: var(--d-ink); }
 .dsh-meta { margin: 0; font-size: var(--fs-14); color: var(--d-mut2); }

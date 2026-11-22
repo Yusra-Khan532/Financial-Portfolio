@@ -32,13 +32,13 @@ describe("page titles (task #310)", () => {
     expect(bad).toEqual([]);
   });
 
-  it("the shared page header draws its title as ui-title, open (no card), with the read size for the long reads", () => {
+  it("the shared page header draws its title as ui-title, with the read size for the long reads (the box is the shared card class since 22 Nov 2026)", () => {
     const ph = read("components/PageHeader.tsx");
     expect(ph).toContain('"ph-title ui-title" + (titleVariant === "read" ? " ui-title--read" : "")');
     const css = noComments(read("styles/page-header.css"));
     expect(css).toMatch(/\.ph-title \{ margin: 0; letter-spacing/);
     expect(css).not.toMatch(/\.ph-title \{[^}]*font/);
-    expect(css).not.toMatch(/\.ph \{[^}]*(background|border:)/);   // the title starts at the left edge of the content column
+    expect(css).not.toMatch(/\.ph \{[^}]*(background|border:)/);   // the frame and surface come from the shared "card" class (styles/pageHeadBox.test.tsx), not a look of its own
     for (const f of ["pages/LearnSectorRotation.tsx", "pages/LearnSectorSignals.tsx", "pages/MfScoreMethod.tsx"]) expect(read(f)).toContain('titleVariant="read"');
   });
 

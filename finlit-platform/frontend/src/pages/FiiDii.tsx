@@ -415,7 +415,7 @@ export function FiiDiiPage() {
   return (
     <div className="fl-page">
       <PageHeader wrap plan="free" title="FII & DII flows today" art="chart" links={["/macro", "/premium/markets"]}
-        description={<>How much foreign institutions (FII/FPI) and domestic institutions (DII) <b>bought and sold</b> in the Indian stock market on the latest trading day, how long each has been buying or selling, and the history behind it. Net flow is simply what they bought minus what they sold.</>}>
+        description="Net buying (bought minus sold) by FIIs and DIIs on the latest day, with streaks and history.">
         <div className="fl-chips">
           {mood && <span className={"fl-chip " + (out ? "out" : inn ? "in" : "")}>{out ? "▼" : inn ? "▲" : "●"} {mood}</span>}
           {f?.latest && <span className="fl-chip">Last updated {ageLabel(f.latest.d, f.today)} · {dateIN(f.latest.d)}</span>}

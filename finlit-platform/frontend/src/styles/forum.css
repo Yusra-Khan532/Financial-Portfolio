@@ -42,7 +42,9 @@
 }
 @media (max-width: 1099px) { .fo2-grid.has-company .fo2-left { display: none; } }
 .fo-intro h1, .fo-h1 { margin: 4px 0 6px; }
-.fo-intro p { margin: 0 0 16px; }
+.fo-intro { margin: 12px 0 16px; padding: 14px 18px 16px; }   /* founder, 22 Nov 2026: the header is in the shared card (class "card"), with the Equity portfolio header's padding */
+.fo-intro.card p { margin: 0; max-width: 104ch; line-height: 1.5; }   /* outranks ".card p" (premium.css) */
+@media (max-width: 760px) { .fo-intro { margin-top: 8px; } .fo-intro.card p { font-size: var(--fs-14); line-height: var(--lh-14); } }   /* the one-line description at the site's body size on a phone, so a header there is no taller than in the approved preview */
 .fo-h2 { font: 600 var(--fs-18)/1.3 var(--sans); margin: 4px 0 12px; }
 .fo-boards { margin: 0 0 12px; }
 

@@ -9,7 +9,7 @@ export function LeadershipLabelPage() {
   useDocTitle("What the Leader labels mean", "What FinLit's Leader, In line and Laggard labels say about a stock's last 12 months against similar companies, and how to read them.");
   return (
     <>
-      <section className="pagehead"><div className="aurora" style={{ opacity: 0.6 }} /><div className="wrap"><PageArt kind="why" /><div className="eyebrow">What the labels mean</div><h1 className="ui-title ui-title--marketing">Leader, In line, Laggard</h1><p>A plain description of how a stock's last 12 months compare with similar companies. It looks back; it does not predict.</p></div></section>
+      <section className="pagehead"><div className="aurora" style={{ opacity: 0.6 }} /><div className="wrap"><PageArt kind="why" /><div className="eyebrow">What the labels mean</div><h1 className="ui-title ui-title--marketing">Leader, In line, Laggard</h1><p>How a stock's last 12 months compare with similar companies. It looks back; it does not predict.</p></div></section>
 
       <section className="sec" style={{ paddingTop: 16 }}><div className="wrap lx">
         <Reveal><div className="lx-note" role="note"><b>{LEAD_NOTE}</b> The label is not advice and not a signal to trade. It is one way to see where a company stands among similar companies.</div></Reveal>

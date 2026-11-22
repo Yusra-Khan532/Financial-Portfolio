@@ -7,7 +7,8 @@ import { useDocTitle } from "../lib/title";
 import "../styles/sectors.css";
 
 const TITLE = "How to use Sector Rotation";
-const DESC = "Which NSE industries have been pulling ahead of the rest, and which have been falling behind? This page explains the corners, breadth and the rotation rank, and how to use them.";
+const DESC = "Which NSE industries have been pulling ahead of the rest, and which have been falling behind? This page explains the corners, breadth and the rotation rank, and how to use them.";   // the page's search description
+const HEAD_DESC = "What the corners, breadth and rotation rank mean, and how to use them.";   // the header's one line (founder, 22 Nov 2026)
 const CORNERS: [string, string][] = [
   ["ahead_gaining", "Ahead over 6 months, and still gaining ground last month"],
   ["ahead_slowing", "Ahead over 6 months, but behind the average last month"],
@@ -19,7 +20,7 @@ export function LearnSectorRotationPage() {
   useDocTitle(TITLE, DESC);
   return (
     <div className="wrap sx rt" data-testid="learn-rotation">
-      <PageHeader titleVariant="read" eyebrow="Learn · Sector Rotation" title={TITLE} description={DESC} links={["/sectors/rotation"]} learn={false} />
+      <PageHeader titleVariant="read" eyebrow="Learn · Sector Rotation" title={TITLE} description={HEAD_DESC} links={["/sectors/rotation"]} learn={false} />
       <div className="sx-learn">
         <section className="rt-card sx-sec" aria-labelledby="lr-what">
           <h2 id="lr-what">What Sector Rotation shows</h2>

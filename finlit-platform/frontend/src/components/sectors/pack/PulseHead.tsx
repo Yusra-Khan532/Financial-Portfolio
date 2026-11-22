@@ -17,7 +17,7 @@ export function PackHead({ title, desc, meta, side, view, onView, industries, fi
 }) {
   const keep = show ? `?show=${show}` : "";             // the two pages share the view, and the link keeps it
   return (
-    <header className="sp-head">
+    <header className="sp-head card">
       <div className="sp-head-top">
         <div>
           <p className="sp-eyebrow">Markets · Sectors</p>

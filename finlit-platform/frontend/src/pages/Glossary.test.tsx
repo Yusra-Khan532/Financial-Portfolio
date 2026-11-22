@@ -17,7 +17,7 @@ describe("Glossary, as the pack draws it", () => {
     open();
     expect(within(screen.getByRole("navigation", { name: "Breadcrumb" })).getByText("Glossary")).toBeTruthy();
     expect(screen.getByRole("heading", { level: 1, name: "Glossary" })).toBeTruthy();
-    expect(screen.getByText(/The language of investing in plain words: 448 terms from A to Z\./)).toBeTruthy();
+    expect(screen.getByText("448 investing terms in plain words: what each means, why it matters, how to use it, and its formula.")).toBeTruthy();   // one line (founder, 22 Nov 2026)
     for (const l of ["Insights & blog →", "FAQs →", "Company report →"]) expect(screen.getByRole("link", { name: l })).toBeTruthy();
     expect(screen.getByPlaceholderText('Search 448 terms, for example "P/E", "Sold off" or "Company size"')).toBeTruthy();
     expect(screen.getByText("Ctrl K")).toBeTruthy();

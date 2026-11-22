@@ -1,12 +1,12 @@
-// The heading of every feature page: plan badge, serif title (the page's one h1), a short description, quick links to the related pages,
-// up to three key-figure tiles and a line illustration. Styles: styles/page-header.css (class prefix ph-).
+// The heading of every feature page, in the shared card (class "card", the same box as the Equity portfolio header; founder, 22 Nov 2026): serif title (the
+// page's one h1) with the plan badge beside it, a one-line description, quick links to the related pages. Styles: styles/page-header.css (class prefix ph-).
 //   plan         "free" | "silver" | "gold" (or "basic", the same as "free"): the plan that gates the page. Leave out when the page is open to everyone and not a plan feature.
 //   stats        tiles { icon, value, label }. A tile is drawn only when its value is real data (not null / empty / NaN / a dash): never a placeholder number.
 //   links        up to four related pages, as addresses ("/screener") or { to, label?, primary? }. Each must exist in lib/nav.ts (or the short extras list in
 //                lib/pageHeader.ts), takes its name from there, and is left out when it does not: a quick link can never be broken.
 //   learn        true (the default): scroll to the page's own questions (#faq) when it has some, else no button. false: none. { to } opens a page (methodology), { onClick } runs a handler, label renames the button.
 //   art          one of 12 line illustrations; hidden under 760 px.
-//   back / meta / actions / children   a back link or breadcrumb above the title, a note under the description ("Updated ..."), extra buttons after the links, and anything
+//   back / meta / actions / children   a back link or breadcrumb above the title, a note under the description ("Updated ...", or the page's disclaimer), extra buttons after the links, and anything
 //                that sits in the header (tabs, notices) below the row.
 //   titleAside   a small control on the right of the title row (the EPS calculator's "How to use", task #184); it may add a full-width panel under the title.
 //   wrap         draw the page container around the header (for pages that had a full-width .pagehead band).
@@ -56,17 +56,20 @@ export function PageHeader({ plan, title, description, eyebrow, stats, links, le
   const p = plan && plan !== "free" && plan !== "basic" ? PLAN[plan] : undefined;   // free is the default: only Silver and Gold are marked (founder, 13 Nov 2026)
   const sided = false;
   const titleCls = "ph-title ui-title" + (titleVariant === "read" ? " ui-title--read" : "");
+  // the plan badge sits beside the title, as on the Equity portfolio header (founder, 22 Nov 2026), not on a line of its own above it
+  const h1 = <h1 className={titleCls} id={tid}>{title}</h1>;
+  const heading = p ? <div className="ph-tline">{h1}<span className={"ph-plan " + p.cls}><Icon name={p.ic} />{p.n}</span></div> : h1;
   const learnEl = !lo ? null : lo.to
     ? <HLink className="ph-learn" to={lo.to}><Icon name="info" />{label}</HLink>
     : lo.onClick
       ? <button type="button" className="ph-learn ph-link-btn" onClick={lo.onClick}><Icon name="info" />{label}</button>
       : <a className="ph-learn" href="#faq" onClick={(e) => { const el = document.getElementById("faq"); if (el) { e.preventDefault(); el.scrollIntoView?.({ behavior: typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }); } }}><Icon name="info" />{label}</a>;
   const card = (
-    <section className={"ph" + (sided ? "" : " ph-solo") + (className ? " " + className : "")} aria-labelledby={tid} data-plan={plan ?? undefined}>
+    <section className={["ph", "card", sided ? "" : "ph-solo", className].filter(Boolean).join(" ")} aria-labelledby={tid} data-plan={plan ?? undefined}>
       <div className="ph-main">
         {back ? <div className="ph-back">{back}</div> : null}
-        {(p || eyebrow) ? <div className="ph-top">{p ? <span className={"ph-plan " + p.cls}><Icon name={p.ic} />{p.n}</span> : null}{eyebrow ? <span className="ph-eyebrow">{eyebrow}</span> : null}</div> : null}
-        {titleAside ? <div className="ph-titlerow"><h1 className={titleCls} id={tid}>{title}</h1>{titleAside}</div> : <h1 className={titleCls} id={tid}>{title}</h1>}
+        {eyebrow ? <div className="ph-top"><span className="ph-eyebrow">{eyebrow}</span></div> : null}
+        {titleAside ? <div className="ph-titlerow">{heading}{titleAside}</div> : heading}
         {description ? <p className="ph-desc">{description}</p> : null}
         {meta ? <p className="ph-meta">{meta}</p> : null}
         <div className="ph-row">

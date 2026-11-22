@@ -125,7 +125,7 @@ export function Compare() {
   return (
     <>
       <PageHeader wrap plan="free" title="Compare companies" art="compare" links={["/research", "/prism", "/screener"]}
-        description={<>Compare <b>size, valuation, quality, growth</b> and price behaviour across listed Indian companies, and choose exactly what to compare.</>}
+        description={<>Compare <b>size, valuation, quality, growth</b> and price behaviour across listed companies.</>}
         stats={[{ icon: "compare", value: max > 0 ? max : null, label: "Companies at once" }]} />
       <div className="wrap cmpw" ref={wrapRef}>
         {data?.sample && <div className="sample-note" role="note"><Icon name="info" /><span><b>Sample data.</b> Reliance is a real report; the other companies in this demo are fictional (symbols start with SMP-). The live site compares any listed companies.</span></div>}

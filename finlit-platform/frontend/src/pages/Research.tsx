@@ -41,7 +41,7 @@ export function Research({ onSearch }: { onSearch: () => void }) {
   return (
     <>
       <PageHeader wrap plan="free" title="Company report" art="report" links={["/screener", "/compare", "/prism"]}
-        description={<>The FinLit Prism score, statements, ratios, ownership and peers for {rows.length > 0 ? <b>{nf(rows.length, 0)}</b> : "every"} listed Indian companies, loaded in a blink.</>}
+        description={<>Prism score, statements, ratios, ownership and peers for {rows.length > 0 ? <><b>{nf(rows.length, 0)}</b> listed Indian companies</> : "every listed Indian company"}.</>}
         stats={[{ icon: "building", value: rows.length > 0 ? nf(rows.length, 0) : null, label: "Companies" }, { icon: "quality", value: scored ? nf(rows.filter((r) => rowScore(r) != null).length, 0) : null, label: "Rated by Prism" }]}>
         <button className="bigsearch" onClick={onSearch}><Icon name="table" /><span>Search any company or ticker</span><span className="kbd">Ctrl K</span></button>
       </PageHeader>

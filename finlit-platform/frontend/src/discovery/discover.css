@@ -254,7 +254,7 @@ tr.dsc-det > td { background: var(--s3); padding: 14px 16px; white-space: normal
   --dsc-g: #7fdba6; --dsc-g-b: #12301f; --dsc-a: #f0b45a; --dsc-a-b: #33260f; --dsc-bl: #9cbcf2; --dsc-bl-b: #172440; --dsc-r: #ff9b8f; --dsc-r-b: #3a1c18; } }
 
 /* §1 page head (the screeners' sp-head) and the line under it */
-.dsc-head.sp-head { margin-top: 18px; }
+.dsc-head.sp-head { margin-top: 12px; }   /* the boxed header of the screeners (screeners243.css) */
 .dsc-new { font: 700 var(--fs-12)/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; padding: 5px 9px; border-radius: var(--ui-r-pill); background: var(--dsc-g-b); color: var(--dsc-g); border: 1px solid color-mix(in srgb, var(--dsc-g) 35%, transparent); }
 
 /* the anchor a page change scrolls to (task #303: under the site header) */
