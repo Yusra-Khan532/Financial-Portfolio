@@ -28,7 +28,7 @@ from .config import Settings, get_settings
 
 log = logging.getLogger("finlit.store")
 MIGRATIONS = Path(__file__).parent / "migrations"
-SEARCH_KEY = "search-index"
+SEARCH_KEY = "search-index:v2"   # v2 (22 Nov 2026): the list carries each company's BSE scrip ID (`bseId`); the new key makes every server build it at once
 STOCK_TTL = 6 * 3600
 SEARCH_TTL = 6 * 3600   # the name list (~350 KB read from Postgres to build); a load or a universe refresh drops it sooner
 QUOTE_SYMBOLS_KEY = "quotes:symbols"   # who the minute-by-minute quote job updates: the list changes when a report is first loaded or pruned, not every minute
@@ -910,7 +910,9 @@ class Store:
         """Compact list for client-side search, pre-gzipped once (it is ~600 KB raw for ~5,700 stocks).
         Rows are [symbol, name, bse, ready], biggest company first; the NSE code is sent only when it differs from the symbol.
         Beside the rows, three parallel lists keep the payload small: `sectors` (distinct sector names, most companies first), `sec` (per row: index into
-        `sectors`, -1 when unknown) and `mc` (per row: market value in rupees crore rounded up, 0 when unknown) and `isin` (per row: ISIN, empty when not known)."""
+        `sectors`, -1 when unknown) and `mc` (per row: market value in rupees crore rounded up, 0 when unknown) and `isin` (per row: ISIN, empty when not known)
+        and `bseId` (per row: the BSE scrip ID, such as SPICY for BSE code 540084, from the exchange's scrip master; empty when it is the symbol or NSE
+        code already, or not known). A broker's holdings file names a BSE-only company by that ID, which no other field holds."""
         try:
             cached = await self.redis.hmget(SEARCH_KEY, ["body", "gzip", "etag"])
         except aioredis.RedisError as exc:
@@ -927,7 +929,9 @@ class Store:
                           COALESCE((SELECT n.isin FROM dhan_instruments n WHERE n.exch = 'NSE' AND n.symbol = c.nse_code AND c.nse_code <> '' AND n.isin IS NOT NULL
                                      ORDER BY (n.series = 'EQ') DESC, n.series LIMIT 1),
                                    (SELECT b.isin FROM dhan_instruments b WHERE b.exch = 'BSE' AND b.security_id = c.bse_code AND c.bse_code <> '' AND b.isin IS NOT NULL LIMIT 1),
-                                   (SELECT min(d.isin) FROM disclosure_isin d WHERE d.symbol = c.symbol)) AS isin
+                                   (SELECT min(d.isin) FROM disclosure_isin d WHERE d.symbol = c.symbol)) AS isin,
+                          (SELECT b.symbol FROM dhan_instruments b WHERE b.exch = 'BSE' AND b.security_id = c.bse_code AND c.bse_code <> ''
+                            ORDER BY b.symbol LIMIT 1) AS bse_id
                    FROM companies c
                    LEFT JOIN listing_quotes l ON l.symbol = c.symbol
                    LEFT JOIN LATERAL (SELECT market_cap FROM scores WHERE symbol = c.symbol AND market_cap IS NOT NULL ORDER BY updated_at DESC LIMIT 1) x ON true
@@ -940,16 +944,18 @@ class Store:
                 counts[r["sector"]] = counts.get(r["sector"], 0) + 1
         sectors = sorted(counts, key=lambda k: (-counts[k], k))      # code 0 = the sector with most companies
         code = {name: i for i, name in enumerate(sectors)}
-        out, sec, mc, isin = [], [], [], []
+        out, sec, mc, isin, bse_id = [], [], [], [], []
         for r in rows:
-            isin.append(r["isin"] or "")      # the current ISIN: the exchanges' (NSE, else BSE), else the funds' disclosure files ("" when none knows it); task #128
+            isin.append(r["isin"] or "")
+            bid = (r["bse_id"] or "").strip().upper()
+            bse_id.append(bid if bid and bid not in (r["symbol"], r["nse_code"], r["bse_code"]) else "")   # only when it adds a name the row lacks      # the current ISIN: the exchanges' (NSE, else BSE), else the funds' disclosure files ("" when none knows it); task #128
             row = [r["symbol"], r["name"], r["bse_code"], int(r["ready"])]
             if r["nse_code"] and r["nse_code"] != r["symbol"]:
                 row.append(r["nse_code"])
             out.append(row)
             sec.append(code.get(r["sector"], -1))                       # -1: sector not known
             mc.append(int(math.ceil(r["mcap"])) if r["mcap"] and r["mcap"] > 0 else 0)   # market value in rupees crore, rounded up (every band edge is a whole number, so the band is unchanged); 0: not known
-        body = dumps({"fields": ["symbol", "name", "bse", "ready", "nse"], "rows": out, "sectors": sectors, "sec": sec, "mc": mc, "isin": isin})
+        body = dumps({"fields": ["symbol", "name", "bse", "ready", "nse"], "rows": out, "sectors": sectors, "sec": sec, "mc": mc, "isin": isin, "bseId": bse_id})
         packed = gzip.compress(body, compresslevel=9, mtime=0)
         etag = etag_for(body)
         try:

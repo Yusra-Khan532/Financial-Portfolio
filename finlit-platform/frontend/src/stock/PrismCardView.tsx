@@ -167,7 +167,8 @@ function HorizonPanel({ title, h, index }: { title: string; h: TechHorizon; inde
 
 /** `bare` (task #220, README 3.2): only the two trend cards and the alignment card, with `after` under the alignment card; the Prism report's 02
  *  renders this same component again instead of a copy. */
-export function TechnicalSection({ a, report, onRecalculate, busy, bare = false, after }: { a: TechAssessment | null; report: PrismLatest; onRecalculate?: () => void; busy?: boolean; bare?: boolean; after?: ReactNode }) {
+/** `foot` (task #328, developer file 27 change 1): the card's "Updated …" date and the full-report button close the technical panel, not a row of their own. */
+export function TechnicalSection({ a, report, onRecalculate, busy, bare = false, after, foot }: { a: TechAssessment | null; report: PrismLatest; onRecalculate?: () => void; busy?: boolean; bare?: boolean; after?: ReactNode; foot?: ReactNode }) {
   const al = a ? trendAlignment(a.shortTerm.score, a.longTerm.score) : null;
   return (
     <section className="pcx-sec tech" aria-label="Technical analysis, separate from the Prism score">
@@ -194,6 +195,7 @@ export function TechnicalSection({ a, report, onRecalculate, busy, bare = false,
           {!bare && <TechAsOf asOf={report.technical?.asOf ?? a.asOf} stale={report.technical?.stale} refreshing={report.technical?.refreshing} />}
         </>
       ) : <div className="pcx-tq"><PrismTechRow report={report} onRecalculate={onRecalculate} busy={busy} /></div>}
+      {foot}
     </section>
   );
 }

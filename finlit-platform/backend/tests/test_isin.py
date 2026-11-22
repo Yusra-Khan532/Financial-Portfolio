@@ -186,6 +186,26 @@ async def test_search_list_carries_the_current_exchange_isin_not_the_old_one(db)
     assert at["ZZATLANTA"] == ""                                                # no list knows it: empty, not guessed
 
 
+async def test_search_list_carries_each_bse_scrip_id_a_broker_file_names_a_company_by(db):
+    """22 Nov 2026: a broker's holdings report named two BSE-only companies (no NSE listing) by their BSE scrip IDs, which no field of the list held,
+    so the shares were "not recognised". The list now carries the scrip ID from the exchange's scrip master, only when it adds a name."""
+    import orjson
+    async with db.pool.acquire() as conn:
+        await conn.execute("INSERT INTO dhan_instruments (exch, security_id, symbol, isin, name, series) VALUES ('BSE', '999104', 'ZZNAMEDID', NULL, 'Zz Named', 'X')")
+    try:
+        await db.invalidate_search()
+        doc = orjson.loads((await db.search_index())[0])
+        at = {row[0]: doc["bseId"][i] for i, row in enumerate(doc["rows"])}
+        assert len(doc["bseId"]) == len(doc["rows"])
+        assert at["ZZNAMED"] == "ZZNAMEDID"          # BSE 999104's scrip ID
+        assert at["ZZBSE"] == ""                     # its scrip ID is its symbol already: nothing to add
+        assert at["ZZKNOW"] == ""                    # no BSE line in the scrip master
+    finally:
+        async with db.pool.acquire() as conn:
+            await conn.execute("DELETE FROM dhan_instruments WHERE exch = 'BSE' AND security_id = '999104'")
+        await db.invalidate_search()
+
+
 async def test_loader_reads_the_zip_nsdl_sends_and_refuses_a_cut_short_file(db, tmp_path: Path):
     small = tmp_path / "ISIN_DETAILS_01-Dec-2026.zip"
     with zipfile.ZipFile(small, "w") as z:

@@ -1,7 +1,8 @@
 """FinLit "Equity portfolio" page: calculations and reading rules (ported unchanged from the design handover pack, reference/portfolio_metrics.py).
 
-Every formula, threshold and reading is the pack's. The one addition is a size code "U" for a company whose market-value rank is not known (it is counted in the
-list, in no size column). Information only, not investment advice.
+Every formula, threshold and reading is the pack's. Two additions: a size code "U" for a company whose market-value rank is not known (it is counted in the
+list, in no size column), and the same spread score with each share counted by its value now (`spread_by_value`, developer file 28: Your portfolio
+score and the top cards once every share has a quantity). Information only, not investment advice.
 
 This module turns a list of shares into everything the page shows:
   * where the list sits (sector and size mix, both amount modes)
@@ -76,6 +77,33 @@ def effective_sectors(sectors: List[str]) -> float:
     """1 / sum of squared sector shares, counting each share once (independent of the amount mode)."""
     s = pd.Series(sectors).value_counts(normalize=True)
     return float(1 / (s ** 2).sum())
+
+
+def effective_stocks_by_value(corr: np.ndarray, w: np.ndarray) -> float:
+    """Developer file 28: the participation ratio of the correlation matrix seen through the amounts, the eigenvalues of D C D with D = diag(sqrt(w)).
+    Equal amounts give effective_stocks(corr) exactly; n unrelated shares give 1 / sum(w^2), the number of equal holdings the amounts are worth; shares
+    that move as one give 1, whatever the amounts."""
+    d = np.sqrt(np.asarray(w, dtype=float) / float(np.sum(w)))
+    lam = np.linalg.eigvalsh(corr * np.outer(d, d))
+    return float(lam.sum() ** 2 / (lam ** 2).sum())
+
+
+def effective_sectors_by_value(sectors: List[str], w: np.ndarray) -> float:
+    """1 / sum of squared sector shares of the value. Equal amounts give effective_sectors(sectors) exactly."""
+    s = pd.Series(np.asarray(w, dtype=float), index=sectors).groupby(level=0).sum()
+    s = s / s.sum()
+    return float(1 / (s ** 2).sum())
+
+
+def spread_by_value(r: pd.DataFrame, sector: Dict[str, str], w: Dict[str, float]) -> dict:
+    """The diversification score with each share counted by its value (w: symbol -> value share, every listed share). Co-movement over the shares with a year
+    of prices (their amounts taken among themselves), sector spread over every share; the same score, parts and bands as diversification_score."""
+    cs = list(r.columns)
+    wc = np.array([w[s] for s in cs], dtype=float)
+    eff = effective_stocks_by_value(r.corr().values, wc) if len(cs) >= 3 and wc.sum() > 0 else float(len(cs))
+    syms = list(w)
+    effsec = effective_sectors_by_value([sector[s] for s in syms], np.array([w[s] for s in syms], dtype=float))
+    return diversification_score(eff, effsec)
 
 
 def diversification_score(eff_stocks: float, eff_sectors: float) -> dict:

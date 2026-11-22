@@ -45,6 +45,14 @@ export type Overview = { model: Model; plan: PlanName; count: number; holdings: 
 
 export const isReady = (h: OverviewHolding | undefined): h is Ready => h?.status === "ready";
 
+/** Developer file 27: the price and today's change of a share from the first answer that has it ready with a price. The figures that cover every
+ *  portfolio (Your portfolios, the picker, the sticky switch) read the selected portfolio's answer and then the all-accounts one, so each portfolio's value
+ *  is its own shares at their own prices, whichever portfolio is open. */
+export function pricesFrom(...answers: Map<string, OverviewHolding>[]) {
+  const at = (sym: string): Ready | null => { for (const m of answers) { const o = m.get(sym); if (isReady(o) && o.price != null) return o; } return null; };
+  return { priceOf: (sym: string) => at(sym)?.price ?? null, changeOf: (sym: string) => at(sym)?.changePct ?? null };
+}
+
 /** One call for the whole list (the server accepts up to 500). Asks again every 20 s while some company is still being prepared. */
 export function useOverview(symbols: string[], enabled: boolean) {
   const key = symbols.join(",");
