@@ -1,7 +1,6 @@
 """Task #322 (developer file 24): every index's P/E against its own five years and its returns, in one saved answer for the Market events table."""
 import asyncio
 import json
-from pathlib import Path
 
 from finlit import indices
 from tests.test_indices import FIX, make
