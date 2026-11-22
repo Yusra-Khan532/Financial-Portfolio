@@ -97,7 +97,8 @@ describe("family 3: portfolios and dashboard (task #310 F, pages/03)", () => {
 
   it("all my investments: figures on the light dark-theme blocks use the dark ink, and the disclaimer heading weight is 700", () => {
     const mi = noComments(read("styles/myinvest.css"));
-    expect(mi).toMatch(/:root\[data-theme="dark"\] \.mi :is\(\.t-pos, \.t-mid, \.t-neg,[^{]*\{ color: var\(--on-mint\); \}/);
+    // part G: the score box itself (.mi-sbox) is excluded; its word sits on --s2 and keeps the text colour (dark310.test.ts)
+    expect(mi).toMatch(/:root\[data-theme="dark"\] \.mi :is\(\.t-pos:not\(\.mi-sbox\), \.t-mid:not\(\.mi-sbox\), \.t-neg:not\(\.mi-sbox\),[^{]*\{ color: var\(--on-mint\); \}/);
     expect(mi).toMatch(/\.mi \.mi-fold summary b \{ font-weight: 700; \}/);
   });
 });

@@ -24,7 +24,7 @@
 .rsc .rsc-dayhead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
 .rsc .rsc-dayhead h2 { margin: 0; }
 .rsc .rsc-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.rsc .rsc-pick-sel select { min-height: 36px; max-width: 100%; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font-weight: 600; }
+.rsc .rsc-pick-sel select { min-height: 36px; max-width: 100%; padding: 0 10px; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font-weight: 600; }
 .rsc .rsc-pick .sp-fbtn:disabled { opacity: .45; cursor: default; }
 .rsc .rsc-up { margin: 0; white-space: nowrap; }
 @media (max-width: 640px) { .rsc .rsc-pick { width: 100%; } .rsc .rsc-pick-sel { flex: 1 1 100%; order: -1; } .rsc .rsc-pick-sel select { width: 100%; } }

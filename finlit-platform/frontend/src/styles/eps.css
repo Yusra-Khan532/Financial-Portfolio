@@ -60,7 +60,7 @@
 .eps-case.base { border-color: var(--gold); border-width: 2px; }
 .eps-case h3 { margin: 0; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); }
 .eps-case label { display: grid; gap: 4px; font-size: var(--fs-13); font-weight: 600; color: var(--muted); }
-.eps-case input { font: 400 var(--fs-16) var(--mono); padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); width: 100%; }
+.eps-case input { font: 400 var(--fs-16) var(--mono); padding: 8px 10px; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); width: 100%; }
 .eps-case input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .eps-case input[aria-invalid="true"] { border-color: var(--loss); }
 .eps-case dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 4px 0 0; font-size: var(--fs-14); }

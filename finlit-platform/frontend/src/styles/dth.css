@@ -111,3 +111,5 @@
 .dtc-acts .dth-btn { min-height: 36px; }
 @media (max-width: 900px) { .dtc-ctx { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dtc-ctx > div:nth-child(3) { border-left: 0; } .dtc-ctx > div:nth-child(n+3) { border-top: 1px solid var(--border); } }
 @media (max-width: 560px) { .dtc { padding: 14px; } .dtc-h > span:last-child:not(.dth-ck) { margin-left: 0; } .dtc-acts .dth-fine { flex-basis: 100%; margin-left: 0; } }
+/* Task #310 G: the "Main theme" gold chip on the violet Discover band read 3.5:1 in dark; --gold-2 is the lighter gold step */
+:root[data-theme="dark"] .dtx-main > em { color: var(--gold-2); }

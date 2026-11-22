@@ -2,7 +2,7 @@
    pagetop.css, risk-pack.css): only what is new here, all under .efp. */
 .efp .efp-add { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
 .efp .efp-add .mp-search { flex: 1 1 220px; min-width: 0; } .efp .efp-add .mp-search input { width: 100%; }
-.efp .efp-go { background: var(--sp-ink); border-color: var(--sp-ink); color: var(--bg, #fff); font-weight: 700; }
+.efp .efp-go { background: var(--sp-ink); border-color: var(--sp-ink); color: var(--bg); font-weight: 700; }
 .efp .efp-go:disabled { opacity: .55; cursor: not-allowed; }
 .efp .efp-picked { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; min-height: 40px; padding: 6px 10px; border: 1px solid var(--sp-line); border-radius: var(--r-ctl); background: var(--sp-panel); }
 .efp .efp-picked small { color: var(--sp-mute); font-weight: 600; letter-spacing: .04em; }

@@ -69,7 +69,7 @@
 .ssw-fold [role="group"] { padding: 8px 2px 4px; }
 .ssw-add { width: 100%; justify-content: center; border-style: dashed !important; min-height: 40px; }
 .ssw-typed { margin-top: 10px; }
-.ssw-typed input { width: 100%; height: 38px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font: var(--fs-13) var(--mono); }
+.ssw-typed input { width: 100%; height: 38px; padding: 0 10px; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font: var(--fs-13) var(--mono); }
 .ssw-typed p { margin: 6px 0 0; font-size: var(--fs-12); color: var(--muted); line-height: 1.45; }
 .ssw-err { color: var(--loss) !important; }
 .ssw-ratio { margin-top: 8px; padding-left: 0 !important; }
@@ -107,7 +107,7 @@
 .ssr-tr i { position: absolute; top: 0; bottom: 0; background: var(--gold); border-radius: var(--ui-r-mark); }
 .ssr-mm { display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
 .ssr-mm label { display: flex; align-items: center; gap: 6px; font-size: var(--fs-12); color: var(--muted); }
-.ssr-mm input { width: 86px; height: 30px; padding: 0 8px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font-size: var(--fs-13); font-variant-numeric: tabular-nums; }
+.ssr-mm input { width: 86px; height: 30px; padding: 0 8px; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font-size: var(--fs-13); font-variant-numeric: tabular-nums; }
 .ssr-u { font-size: var(--fs-12); color: var(--muted); }
 .ssr-pre { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .ssr-pre button { border: 1px solid var(--border); background: var(--s2); border-radius: var(--ui-r-pill); padding: 1px 9px; font: 500 var(--fs-12) var(--sans); color: var(--text); cursor: pointer; }
@@ -129,7 +129,7 @@
 .ssw-popb { flex-wrap: wrap; max-width: 340px; }
 .ssw-popn { flex-basis: 100%; font-size: var(--fs-12); color: var(--muted); line-height: 1.4; }
 .ssy-bell.on { background: var(--gold-soft); border-color: var(--gold); }
-.ssw-popb input { width: 200px; height: 36px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); }
+.ssw-popb input { width: 200px; height: 36px; padding: 0 10px; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); }
 .ssw-actv { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 0; }
 .ssw-a { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 0 2px 0 10px; border: 1px solid color-mix(in srgb, var(--gold) 50%, transparent); border-radius: var(--ui-r-pill); background: var(--gold-soft); color: var(--text); font: 600 var(--fs-12) var(--sans); }
 .ssw-a button { border: 0; background: none; color: inherit; font-size: var(--fs-16); line-height: 1; cursor: pointer; padding: 2px 7px; border-radius: var(--ui-r-pill); }

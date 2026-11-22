@@ -183,7 +183,7 @@
 .sp-dl { min-height: 42px; padding: 0 18px; border: 1px solid var(--sp-line); border-radius: var(--ui-r-pill); background: var(--sp-panel); color: var(--sp-ink); font: 600 var(--fs-16) var(--sans); cursor: pointer; }
 .sp-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 12px; }
 .sp-fbtn { min-height: 40px; padding: 0 16px; border: 1px solid var(--sp-line); border-radius: var(--ui-r-pill); background: var(--sp-panel); color: var(--sp-ink); font: 600 var(--fs-16) var(--sans); cursor: pointer; }
-.sp-fbtn.on { background: var(--sp-ink); border-color: var(--sp-ink); color: var(--bg, #fff); }
+.sp-fbtn.on { background: var(--sp-ink); border-color: var(--sp-ink); color: var(--bg); }
 .sp-ckey { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 10px 12px; border-radius: var(--r-ctl); background: var(--s2); font-size: var(--fs-13); color: var(--sp-ink); }
 .sp-keyi { display: inline-flex; align-items: center; gap: 6px; } .sp-keyi .sp-sw { opacity: .5; }
 .sp-full { min-width: 1100px; margin-top: 10px; }
@@ -233,7 +233,7 @@
 /* ---- task #192 round 4a-2 (sector pack, SECTOR-PAGES.md 2, 6, 8): the page guide, the sections bar and "+N more" ---- */
 .sp-guide { background: var(--sp-panel); border: 1px solid var(--sp-line); border-radius: var(--r-card); margin: 14px 0 0; overflow: hidden; }
 .sp-guide-h { all: unset; box-sizing: border-box; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; width: 100%; padding: 14px 18px; cursor: pointer; }
-.sp-guide-h:focus-visible { outline: 2px solid var(--gold, #B8955A); outline-offset: -2px; border-radius: var(--r-card); }
+.sp-guide-h:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; border-radius: var(--r-card); }
 .sp-guide.open .sp-guide-h { border-bottom: 1px solid var(--sp-line); background: color-mix(in srgb, var(--s2) 55%, transparent); }
 .sp-guide-q { display: grid; place-items: center; width: 28px; height: 28px; border-radius: var(--r-ctl); background: color-mix(in srgb, #E9B949 22%, transparent); color: #8F5400; font: 700 var(--fs-14) var(--sans); }
 .sp-guide-tt { display: grid; gap: 2px; } .sp-guide-tt b { font: 600 var(--fs-16) var(--sans); color: var(--sp-ink); } .sp-guide-tt small { font-size: var(--fs-13); color: var(--sp-mute); }
@@ -250,7 +250,7 @@
 .sp-guide-tags, .sp-guide-p { margin: 10px 0 0; font-size: var(--fs-13); } .sp-guide-ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
 .sp-secbar { position: sticky; top: var(--sp-bar-top, 64px); z-index: 20; display: flex; align-items: center; gap: 10px; margin: 14px 0 0; padding: 6px; background: var(--sp-panel); border: 1px solid var(--sp-line); border-radius: var(--ui-r-pill); overflow-x: auto; scrollbar-width: thin; }
 .sp-secbar-all { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--ui-r-pill); background: var(--s2); font: 600 var(--fs-13) var(--sans); color: var(--sp-ink); cursor: pointer; white-space: nowrap; flex: none; }
-.sp-secbar-all.on, .sp-secbar-all:hover { background: color-mix(in srgb, var(--sp-ink) 10%, var(--s2)); } .sp-secbar-all:focus-visible, .sp-secbar-c:focus-visible { outline: 2px solid var(--gold, #B8955A); }
+.sp-secbar-all.on, .sp-secbar-all:hover { background: color-mix(in srgb, var(--sp-ink) 10%, var(--s2)); } .sp-secbar-all:focus-visible, .sp-secbar-c:focus-visible { outline: 2px solid var(--gold); }
 .sp-secbar-l { list-style: none; display: flex; align-items: center; gap: 6px; margin: 0; padding: 0 6px 0 0; flex: none; }
 .sp-secbar-ar { color: var(--sp-mute); font-size: var(--fs-12); }
 .sp-secbar-c { display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px; font: 500 var(--fs-13) var(--sans); color: var(--sp-ink); text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent; }
@@ -258,7 +258,7 @@
 .sp-secbar-n { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--s2); font: 700 var(--fs-12) var(--sans); color: var(--sp-mute); }
 .sp-sec h2[id], .sp-sec [id^="sp-"], .sp-sec [id^="rp-"] { scroll-margin-top: 130px; }
 .sp-more-in { all: unset; cursor: pointer; font-weight: 700; color: var(--sp-ink); text-decoration: underline dotted; text-underline-offset: 3px; white-space: nowrap; }
-.sp-more-in:focus-visible { outline: 2px solid var(--gold, #B8955A); }
+.sp-more-in:focus-visible { outline: 2px solid var(--gold); }
 .sp-showall { all: unset; display: inline-block; margin: 8px 0 0; padding: 4px 0; font: 600 var(--fs-13) var(--sans); color: var(--sp-ink); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
-.sp-showall:focus-visible { outline: 2px solid var(--gold, #B8955A); }
+.sp-showall:focus-visible { outline: 2px solid var(--gold); }
 @media (max-width: 760px) { .sp-guide-two { grid-template-columns: minmax(0, 1fr); } .sp-guide-h { padding: 12px 14px; } .sp-guide-b { padding: 14px; } .sp-guide-t td:first-child { white-space: normal; } .sp-secbar { border-radius: var(--r-ctl); } }

@@ -278,3 +278,5 @@ section.block .pr-nm b { white-space: normal; overflow: visible; text-overflow: 
   .hx-d .hxd-strip > .hx-rate:has(.hx-tech) { display: block; }
   .hx-d .hxd-strip > .hx-rate > .hx-tech { margin-top: 10px; padding: 10px 0 0; border-left: 0; border-top: 1px dashed var(--border); }
 }
+/* Task #310 G: the day's change chip by the price read 4.4:1 in dark (green on its 14% green tint); a lighter tint keeps the green figure */
+:root[data-theme="dark"] .hx-d .hxd-px .chip { background: color-mix(in srgb, currentColor 8%, transparent); }

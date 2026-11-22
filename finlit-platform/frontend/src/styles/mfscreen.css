@@ -55,7 +55,7 @@
 .mfs-rkrow { display: grid; gap: 4px; margin-top: 4px; } .mfs-rkrow > span { font-size: var(--fs-13); color: var(--muted); }
 .mfs-dates { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .mfs-dates label { display: grid; gap: 4px; font-size: var(--fs-13); color: var(--muted); }
-.mfs-dates input, .mfs-sel select { height: 38px; padding: 0 10px; border-radius: var(--r-ctl); border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: var(--fs-14) var(--sans); min-width: 0; width: 100%; color-scheme: light dark; }
+.mfs-dates input, .mfs-sel select { height: 38px; padding: 0 10px; border-radius: var(--r-ctl); border: 1px solid var(--ui-field-line); background: var(--s1); color: var(--text); font: var(--fs-14) var(--sans); min-width: 0; width: 100%; color-scheme: light dark; }
 .mfs-sel { display: block; }
 .mfs-all { margin: 2px 0 4px; }
 .mfs-soon { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
@@ -200,10 +200,10 @@
 .mfs-tray { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 12px 0 0; padding: 12px 14px; border-radius: var(--r-ctl); background: var(--text); color: var(--bg, var(--s1)); }
 .mfs-tray > b { font: 600 var(--fs-14) var(--sans); }
 .mfs-tray-l { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 260px; min-width: 0; }
-.mfs-tray-c { display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px 4px 10px; border-radius: var(--ui-r-pill); background: color-mix(in srgb, var(--bg, #fff) 16%, transparent); font-size: var(--fs-13); }
+.mfs-tray-c { display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px 4px 10px; border-radius: var(--ui-r-pill); background: color-mix(in srgb, var(--bg) 16%, transparent); font-size: var(--fs-13); }
 .mfs-tray-c button { border: 0; background: none; color: inherit; font-size: var(--fs-16); line-height: 1; padding: 0 4px; cursor: pointer; min-width: 24px; min-height: 24px; }
 .mfs-tray-b { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; } .mfs-tray-b small { font-size: var(--fs-12); }
-.mfs-tray .btn:not(.primary) { background: transparent; color: inherit; border-color: color-mix(in srgb, var(--bg, #fff) 40%, transparent); }
+.mfs-tray .btn:not(.primary) { background: transparent; color: inherit; border-color: color-mix(in srgb, var(--bg) 40%, transparent); }
 @media (max-width: 640px) { .mfs-tray .btn { min-height: 44px; } .mfs-tick { width: 22px; height: 22px; } }
 /* the fund's name and its line in normal case, as the design draws them (a site-wide table rule set row headings in capitals) */
 .mfs-table tbody th.mfs-n, .mfs-table tbody th.mfs-n * { text-transform: none; letter-spacing: normal; }

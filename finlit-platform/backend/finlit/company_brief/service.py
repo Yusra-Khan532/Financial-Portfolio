@@ -31,11 +31,15 @@ from . import core as B
 from . import discovery as D
 
 log = logging.getLogger("finlit.company_brief")
+HOST_REFUSALS = 3            # refused files in a row before a host is left alone for the rest of the run (task #328)
+GAVE_UP_RETRY_DAYS = 7       # a company given up after MAX_ATTEMPTS is tried again once a week, not never (task #328)
+TRACE_KEEP = 40              # downloads kept in the run record
 
 REASONS = {
     "no_annual_report": "No annual report was found for this company on the exchanges' listings, so its brief has not been written.",
     "no_filings": "FinLit holds no results, presentation or press release for this company yet.",
-    "unreadable": "The annual report could not be read (a scan, a password or an address that no longer works).",
+    "unreadable": "The annual report was downloaded but holds no readable text (a scan or a locked file).",
+    "download": "The annual report could not be downloaded",
     "failed": "The writer's answer did not pass the checks; it is tried again.",
 }
 
@@ -48,6 +52,14 @@ class BriefFetcher(T.Fetcher):
         super().__init__(**kw)
         self.extra_hosts = {h.lower() for h in extra_hosts}
         self._resolve = resolve or _resolve
+        self.trace: List[Dict[str, Any]] = []        # every download of this run: status, bytes, relay or direct, outcome (task #328)
+        self.refusals: Dict[str, int] = {}           # refused files in a row, per host
+
+    def allow_host(self, host: str) -> None:
+        """A company's own website, named by the company in a filing it made to the exchange (the "weblink of the annual report" letter). Same rules as an
+        administrator's address: https, a public name, robots.txt obeyed."""
+        if host:
+            self.extra_hosts.add(host.lower())
 
     def host_ok(self, url: str) -> bool:      # type: ignore[override]
         p = urlsplit(url)
@@ -88,8 +100,66 @@ class BriefFetcher(T.Fetcher):
         return await self._json(BSE_AR.format(code=code), T.NSE_BROWSER_UA, {"Accept": "application/json, text/plain, */*", "Referer": "https://www.bseindia.com/"})
 
     async def pdf(self, url: str, cap: Optional[int] = None) -> bytes:
-        # the shared fetcher (nseindia.in links, NSE's browser agent: task #221), with the annual report's larger cap
-        return await super().pdf(url, cap or C.MAX_PDF_BYTES)
+        """Every brief download goes through fetch(), so each one is recorded with its HTTP status and size. Raises as the shared fetcher does."""
+        data, info = await self.fetch(url, cap)
+        if data is not None:
+            return data
+        if info["outcome"] in ("refused", "blocked_host", "robots"):
+            raise T.Blocked(info["detail"])
+        raise T.FetchFailed(info["detail"])
+
+    async def fetch(self, url: str, cap: Optional[int] = None) -> Tuple[Optional[bytes], Dict[str, Any]]:
+        """(the PDF or None, what happened). Task #328: the old path recorded every failed download as "unreadable" and blocked a whole host for the run after
+        one 403, so one refused file made the next companies fail in the same second. Now each download keeps its HTTP status, the bytes received and whether
+        it came straight or through the relay, and a host is given up for the run only after HOST_REFUSALS refusals in a row (robots.txt still stops it at once).
+        outcome: ok | refused (401/403) | robots | blocked_host | not_found (404/410) | http_error | network | too_large | not_pdf | not_allowed. BudgetSpent passes up."""
+        url = self.canonical(url)
+        host = (urlsplit(url).hostname or "").lower()
+        info: Dict[str, Any] = {"url": url[:300], "host": host, "status": None, "bytes": 0, "via": None, "outcome": "", "detail": ""}
+
+        def done(outcome: str, detail: str, data: Optional[bytes] = None):
+            info["outcome"], info["detail"] = outcome, detail
+            self.trace.append(dict(info))
+            return data, info
+        agent = T.NSE_BROWSER_UA if host.endswith("nseindia.com") else T.USER_AGENT
+        if not self.host_ok(url):
+            return done("not_allowed", f"{host or 'the address'} is not an exchange archive or a set report address")
+        if self.refusals.get(host, 0) >= HOST_REFUSALS:
+            return done("blocked_host", f"{host} refused {HOST_REFUSALS} files in a row in this run, so it was not asked again tonight")
+        r = None
+        for _ in range(T.MAX_REDIRECTS + 1):
+            try:
+                await self._allowed(url, agent)
+            except T.Blocked as e:
+                return done("robots", f"{host}: {e}")
+            try:
+                r = await self._send(url, {"User-Agent": agent, "Accept": "application/pdf, */*"}, cap or C.MAX_PDF_BYTES)
+            except T.FetchFailed as e:
+                return done("too_large" if "larger than the cap" in str(e) else "network", f"{host}: {e}")
+            info["status"], info["bytes"] = r.status_code, len(r.content or b"")
+            info["via"] = "relay" if r.headers.get("x-relay") else "direct"
+            if r.status_code in (301, 302, 303, 307, 308) and r.headers.get("location"):
+                url = str(httpx.URL(url).join(r.headers["location"]))
+                if not self.host_ok(url):
+                    return done("not_allowed", f"{host} sent the download to an address outside the allowed hosts")
+                host = (urlsplit(url).hostname or "").lower()
+                info["url"], info["host"] = url[:300], host
+                continue
+            break
+        else:
+            return done("network", f"{host}: too many redirects")
+        st = info["status"]
+        if st in (401, 403):
+            self.refusals[host] = self.refusals.get(host, 0) + 1
+            return done("refused", f"{host} answered HTTP {st} ({info['bytes']} bytes, {info['via']})")
+        self.refusals[host] = 0
+        if st in (404, 410):
+            return done("not_found", f"{host} answered HTTP {st}: the file is no longer at that address")
+        if st != 200:
+            return done("http_error", f"{host} answered HTTP {st} ({info['bytes']} bytes, {info['via']})")
+        if not r.content.startswith(b"%PDF"):
+            return done("not_pdf", f"{host} answered HTTP 200 with {info['bytes']} bytes that are not a PDF ({info['via']})")
+        return done("ok", f"HTTP 200, {info['bytes']} bytes ({info['via']})", r.content)
 
 
 def _is_ip(h: str) -> bool:
@@ -249,7 +319,10 @@ def blocked_by_attempts(src: Optional[dict], sig: str, now: datetime) -> Optiona
     if not src or not str(src.get("last_state") or "").startswith("failed") or src.get("last_docs") != sig:
         return None
     if (src.get("attempts") or 0) >= C.MAX_ATTEMPTS:
-        return "gave_up"
+        t = src.get("last_tried_at")
+        if t and now - t < timedelta(days=GAVE_UP_RETRY_DAYS):
+            return "gave_up"
+        return None                                       # task #328: a given-up company is tried again once a week, never left for good
     t = src.get("last_tried_at")
     if t and now - t < timedelta(hours=C.RETRY_AFTER_HOURS):
         return "waiting"
@@ -321,17 +394,109 @@ def report_url(src: Optional[dict]) -> Optional[str]:
     """The administrator's override, else the address the exchange listings gave."""
     return (src or {}).get("annual_report_url") or (src or {}).get("ar_url")
 
+
+def report_candidates(feed_hit: Optional[dict], src: Optional[dict]) -> List[str]:
+    """Where the annual report is fetched from, in order (task #328): the address in the exchange announcements FinLit already stores (News & filings; no
+    request to a listing that refuses the server), then the address an administrator set in the Console, then the address the exchanges' listings gave.
+    Each is tried in turn at read time; exchange hosts that refuse the server directly are asked through the relay by the fetcher. Duplicates dropped."""
+    out: List[str] = []
+    for u in ((feed_hit or {}).get("url"), (src or {}).get("annual_report_url"), (src or {}).get("ar_url")):
+        if u and u not in out:
+            out.append(u)
+    return out
+
+
+WEBLINK = re.compile(r"https://[^\s\"'<>()]+", re.I)
+
+
+def weblink_targets(pages: Sequence[str], limit: int = 2) -> List[str]:
+    """The annual report's address on the company's own site, from the short letter a company files with the exchange to give it ("weblink / exact path of
+    the annual report"). Only https addresses written in the letter, PDFs first; never a guessed address."""
+    found: List[str] = []
+    for text in pages[:5]:
+        for u in WEBLINK.findall(" ".join(str(text or "").split())):
+            u = u.rstrip(".,;:")
+            if u not in found and not valid_report_url(u):
+                found.append(u)
+    found.sort(key=lambda u: (0 if D.PDF.search(u) else 1, 0 if "annual" in u.lower() else 1))
+    return [u for u in found if D.PDF.search(u)][:limit]
+
+
+async def read_report(fetcher, urls: Sequence[str], report: dict) -> Tuple[Optional[str], List[str], List[Dict[str, Any]]]:
+    """(the address that was read, its pages, every attempt). Tries each address in order; a short letter that only gives the report's web address is followed
+    to that address once. BudgetSpent passes up."""
+    tries: List[Dict[str, Any]] = []
+    queue = list(urls)
+    followed = False
+    while queue:
+        u = queue.pop(0)
+        data, info = await fetcher.fetch(u, C.MAX_PDF_BYTES) if hasattr(fetcher, "fetch") else await _plain_fetch(fetcher, u)
+        tries.append(info)
+        _count(report, info["outcome"])
+        if data is None:
+            continue
+        pg = await asyncio.to_thread(B.pdf_pages, data, C.MAX_PAGES)
+        if not any(x.strip() for x in pg):
+            info["outcome"], info["detail"] = "unreadable", f"{info['detail']}: no readable text (a scan or a locked file)"
+            _count(report, "unreadable_text")
+            continue
+        if len(pg) <= 4 and not followed:
+            links = weblink_targets(pg)
+            if links:                                     # the weblink letter, not the report: follow the company's own address it gives
+                followed = True
+                for link in links:
+                    host = urlsplit(link).hostname or ""
+                    if hasattr(fetcher, "allow_host"):
+                        fetcher.allow_host(host)
+                info["outcome"], info["detail"] = "letter", f"a {len(pg)}-page letter giving the report's address; followed"
+                report["weblink_followed"] = report.get("weblink_followed", 0) + 1
+                queue = links + queue
+                continue
+        return u, pg, tries
+    return None, [], tries
+
+
+async def _plain_fetch(fetcher, url: str):
+    """For a fetcher without fetch() (tests' simple fakes): the old pdf() call, its error kept."""
+    try:
+        data = await fetcher.pdf(url)
+        return data, {"url": url, "host": urlsplit(url).hostname, "status": 200, "bytes": len(data), "via": None, "outcome": "ok", "detail": ""}
+    except T.Blocked as e:
+        return None, {"url": url, "host": urlsplit(url).hostname, "status": None, "bytes": 0, "via": None, "outcome": "refused", "detail": str(e)}
+    except T.FetchFailed as e:
+        return None, {"url": url, "host": urlsplit(url).hostname, "status": None, "bytes": 0, "via": None, "outcome": "network", "detail": str(e)}
+
+
+def _count(report: dict, outcome: str) -> None:
+    k = f"pdf_{outcome}"
+    report[k] = report.get(k, 0) + 1
+
+
+def failure_state(tries: Sequence[Dict[str, Any]]) -> Tuple[str, str]:
+    """(last_state, reason) when no address gave a readable report. failed_download: nothing usable came back (refused, missing, network, too large, not a
+    PDF); failed_unreadable: a PDF came back but held no text. The reason names each address's answer, e.g. "nsearchives.nseindia.com answered HTTP 403"."""
+    if not tries:
+        return "failed_download", REASONS["download"] + "."
+    got_pdf = any(t["outcome"] == "unreadable" for t in tries)
+    said = "; ".join(t.get("detail") or t.get("outcome") or "" for t in tries[:3])
+    if got_pdf:
+        return "failed_unreadable", f"{REASONS['unreadable']} ({said})"
+    return "failed_download", f"{REASONS['download']}: {said}"
+
 # ------------------------------------------------------------------------------------------------ one company
 async def ask_model(provider, pacer: Pacer, prompt: str, report: dict, sleep) -> Tuple[Optional[str], Optional[str]]:
     """(text, stop). `stop` names why the whole run must stop: budget | not_configured | quota; None when only this company failed (text None) or all is well."""
     if not await pacer.take():
         return None, "budget"
+    report["llm_asked"] = report.get("llm_asked", 0) + 1         # every call made, also those the provider refused ("llm_calls" counts answers)
     for wait_n in (0, 1):
         try:
             return await provider.generate("You write a factual company brief as JSON. Output JSON only.", prompt), None
         except NotConfigured:
             return None, "not_configured"
         except RateLimited as e:
+            report["quota_detail"] = (str(e) or getattr(e, "detail", "") or "")[:300]      # which quota the provider named (task #328)
+            report["llm_429"] = report.get("llm_429", 0) + 1
             if e.daily:
                 await pacer.exhaust()
                 return None, "quota"
@@ -357,7 +522,12 @@ async def write_one(store, provider, pacer, fetcher, c: dict, report: dict, toda
     src = await find_report(store, fetcher, c, src, report)
     if report.get("stopped") == "request_budget":
         return "request_budget"
-    docs = B.collect_sources(feed, None, report_url(src))
+    async with store.pool.acquire() as conn:
+        feed_rows = await conn.fetch(
+            "SELECT link, title, category, item_date FROM feed_items WHERE symbol = $1 AND kind = 'document' AND link IS NOT NULL "
+            "AND (title ILIKE '%annual report%' OR category ILIKE '%annual report%') ORDER BY item_date DESC LIMIT 20", symbol)
+    alts = report_candidates(D.from_feed([dict(r) for r in feed_rows]), src)
+    docs = B.collect_sources(feed, None, alts[0] if alts else None)
     parts, why, fresh = plan_parts(row, docs, td)
     if not parts:
         key = "nothing_new" if why == "nothing new" else why
@@ -375,7 +545,19 @@ async def write_one(store, provider, pacer, fetcher, c: dict, report: dict, toda
         return None
     # --- read
     pages: Dict[str, List[str]] = {}
+    ar_tries: List[Dict[str, Any]] = []
     for d in chosen:
+        if d["kind"] == "annual_report":
+            try:
+                got, pg, ar_tries = await read_report(fetcher, [d["url"], *[u for u in alts if u != d["url"]]], report)
+            except T.BudgetSpent:
+                return "request_budget"
+            if got:
+                d["url"] = got                        # the address actually read is the one the brief cites
+                pages[d["key"]] = pg
+            else:
+                log.info("brief %s: annual report not read: %s", symbol, "; ".join(t.get("detail", "") for t in ar_tries))
+            continue
         try:
             data = await fetcher.pdf(d["url"])
             pg = await asyncio.to_thread(B.pdf_pages, data, C.MAX_PAGES)
@@ -389,15 +571,13 @@ async def write_one(store, provider, pacer, fetcher, c: dict, report: dict, toda
             pages[d["key"]] = pg
     read = [d for d in chosen if d["key"] in pages]
     ar_key = next((d["key"] for d in read if d["kind"] == "annual_report"), None)
-    if first and not ar_key:
-        report["unreadable"] = report.get("unreadable", 0) + 1
+    if (first and not ar_key) or not read:
+        state, reason = failure_state(ar_tries) if (first and not ar_key) else ("failed_download", REASONS["download"] + ": none of the filings came back.")
+        key = "unreadable" if state == "failed_unreadable" else "download_failed"
+        report[key] = report.get(key, 0) + 1
         async with store.pool.acquire() as conn:
-            await note_source(conn, symbol, "failed_unreadable", REASONS["unreadable"], sig, True)
-        return None
-    if not read:
-        report["unreadable"] = report.get("unreadable", 0) + 1
-        async with store.pool.acquire() as conn:
-            await note_source(conn, symbol, "failed_unreadable", REASONS["unreadable"], sig, True)
+            await note_source(conn, symbol, state, reason[:600], sig, True)
+            await conn.execute("UPDATE company_brief_sources SET last_fetch = $2::jsonb WHERE symbol = $1", symbol, json.dumps(ar_tries[:6], default=str))
         return None
     # --- write
     points_only = "segments" in parts and not ar_key and not first
@@ -512,8 +692,10 @@ async def run(store, settings, provider=None, fetcher=None, env: Optional[Mappin
     today = today or datetime.now(timezone.utc).date()
     started = time.monotonic()
     model = (env.get("BRIEF_LLM_MODEL") or "").strip() or settings.gemini_model
-    provider = provider or GeminiProvider(settings.gemini_api_key, model, max_output_tokens=C.MAX_TOKENS_OUT, user_agent="FinLit-brief/1.0 (+https://finlitventures.com)")
-    report: dict = {"status": "ok", "model": provider.model, "prompt_version": C.PROMPT_VERSION}
+    key = (env.get("BRIEF_GEMINI_API_KEY") or "").strip() or settings.gemini_api_key    # task #328: a key of its own keeps the brief off the shared daily quota
+    provider = provider or GeminiProvider(key, model, max_output_tokens=C.MAX_TOKENS_OUT, user_agent="FinLit-brief/1.0 (+https://finlitventures.com)")
+    report: dict = {"status": "ok", "model": provider.model, "prompt_version": C.PROMPT_VERSION,
+                    "key": "own (BRIEF_GEMINI_API_KEY)" if (env.get("BRIEF_GEMINI_API_KEY") or "").strip() else "shared (GEMINI_API_KEY)"}
     if not provider.configured:
         await provider.aclose()
         report = {"status": "not_configured", "detail": "GEMINI_API_KEY is empty: no brief is written. Nothing was changed."}
@@ -529,6 +711,10 @@ async def run(store, settings, provider=None, fetcher=None, env: Optional[Mappin
     fetcher = fetcher or BriefFetcher(extra_hosts=[h for h in hosts if h], budget=C.REQUEST_BUDGET_PER_RUN)
     cap = max_writes if max_writes is not None else C.max_writes(env)
     report["companies"] = len(cands)
+    try:
+        report["drafts_republished"] = await recheck_drafts(store)
+    except Exception as exc:   # nosec B110 - never stops the night
+        log.warning("draft recheck failed: %s", type(exc).__name__)
     try:
         for c in cands:
             if report.get("written", 0) >= cap:
@@ -562,12 +748,38 @@ async def run(store, settings, provider=None, fetcher=None, env: Optional[Mappin
                 break
     finally:
         report["exchange_requests"] = getattr(fetcher, "requests", 0)
+        report["downloads"] = [{k: t.get(k) for k in ("host", "status", "bytes", "via", "outcome")} for t in (getattr(fetcher, "trace", None) or [])[-TRACE_KEEP:]]
         report["llm_left_today"] = await pacer.left_today()
         if own:
             await fetcher.aclose()
         await provider.aclose()
     await record(store, report)
     return report
+
+
+async def recheck_drafts(store) -> int:
+    """Drafts held back by a check that has since been corrected in code (task #328: LICI, "mix.ebitda: no citation" for an insurer with no EBITDA) are
+    checked again with today's rules, from what is stored: no model call. A draft that now passes every automatic rule is published as the job would have;
+    the stored problems are brought up to date either way."""
+    n = 0
+    async with store.pool.acquire() as conn:
+        rows = await conn.fetch("SELECT * FROM company_briefs WHERE status = 'draft' AND problems IS NOT NULL AND problems <> '[]'::jsonb LIMIT 200")
+    for r in rows:
+        r = dict(r)
+        brief = json.loads(r["brief"]) if isinstance(r["brief"], str) else r["brief"]
+        checks = json.loads(r["checks"]) if isinstance(r["checks"], str) else (r["checks"] or {})
+        probs = B.validate(brief)
+        stored = json.loads(r["problems"]) if isinstance(r["problems"], str) else (r["problems"] or [])
+        if probs == stored:
+            continue
+        async with store.pool.acquire() as conn:
+            await conn.execute("UPDATE company_briefs SET problems = $2::jsonb WHERE symbol = $1", r["symbol"], json.dumps(probs))
+        if probs:
+            continue
+        outcome = {"merged": brief, "problems": [], "flags": B.flags(brief), "checks": checks, "parts": list(r.get("parts_written") or [])}
+        if await maybe_auto_publish(store, r["symbol"], outcome, r):
+            n += 1
+    return n
 
 
 async def record(store, report: dict) -> None:

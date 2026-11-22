@@ -5,13 +5,11 @@ import { useDocTitle } from "../lib/title";
 import { ExploreTools, OPEN_EXPLORE } from "../components/ExploreTools";
 import { PrismShowcase } from "../components/PrismShowcase";
 import { MfScoreShowcase } from "../components/MfScoreShowcase";
-import { tourLook, type Look } from "../lib/tourTheme";
+import { tourLook, tourMedia, type Look } from "../lib/tourTheme";
 import "../styles/human-home.css";
 
 const TOUR = "Advanced screener · Company report · FinLit Prism · Sector Pulse · Sector Rotation · Mutual Fund Score · Portfolio";
 const reduced = () => typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
-const src = (look: Look) => `${import.meta.env.BASE_URL}landing/${look === "dark" ? "finlit-tour-dark-720p.mp4" : "finlit-tour-720p.mp4"}`;
-const poster = (look: Look) => `${import.meta.env.BASE_URL}landing/${look === "dark" ? "finlit-tour-dark-poster.jpg" : "finlit-tour-poster.jpg"}`;
 
 /** The page's theme, kept up to date when the visitor switches it. */
 function useSiteLook(): Look {
@@ -21,13 +19,15 @@ function useSiteLook(): Look {
   return look;
 }
 
-/** The product tour in a browser-style frame, always in the opposite theme to the page so it stands out (task #152 removed the Show in Light / Dark buttons; when the
- *  visitor switches the site's theme the video follows and keeps its place). It starts by itself, muted and looping, with controls so anyone can pause it; people
- *  who ask their device for less motion get the still poster. Only 720p files are shipped, so phones never download the large one. */
+/** The product tour in a browser-style frame (surface --s1, border --border), recorded in the page's own theme so it looks like the site the visitor lands on
+ *  (task #310 H; task #152 removed the Show in Light / Dark buttons). When the visitor switches the site's theme the video and its poster follow without a reload
+ *  and keep their place. It starts by itself, muted and looping, with controls so anyone can pause it; people who ask their device for less motion get the
+ *  still poster, the FinLit Prism report card. Only 720p files are shipped, so phones never download a large one. */
 export function Tour() {
   const v = useRef<HTMLVideoElement>(null);
   const site = useSiteLook();
   const look = tourLook(site);
+  const media = tourMedia(look, import.meta.env.BASE_URL);
   const at = useRef(0);
   const was = useRef(look);
   if (was.current !== look) { at.current = v.current?.currentTime ?? 0; was.current = look; }   // the site's theme changed: keep the place in the video
@@ -36,7 +36,7 @@ export function Tour() {
   return (
     <figure className="hh-tour" id="tour" data-look={look}>
       <div className="hh-frame" aria-hidden="true"><i /><i /><i /><span>finlitventures.com</span></div>
-      <video ref={v} key={look} className="hh-video" src={src(look)} poster={poster(look)} onLoadedMetadata={resume}
+      <video ref={v} key={look} className="hh-video" src={media.video} poster={media.poster} onLoadedMetadata={resume}
         autoPlay={!reduced()} muted loop playsInline controls preload="metadata" width={1280} height={720} aria-label={`A tour of FinLit in ${look} mode: screeners, company report, FinLit Prism, sector pages, fund health score and portfolio`} />
       <figcaption>
         <div className="hh-cap"><b>Product tour</b><span>{TOUR}</span></div>

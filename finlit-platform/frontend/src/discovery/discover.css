@@ -197,7 +197,7 @@ button.dsc-chip { cursor: pointer; }
 .dsc-pp { display: inline-flex; gap: 5px; align-items: baseline; white-space: nowrap; }
 .dsc-pp b { font-weight: 700; }
 .dsc-pp span { font-size: var(--fs-12); color: var(--muted); }
-.dsc-pp.b-strong b, .dsc-pp.b-healthy b { color: var(--gain); } .dsc-pp.b-average b { color: var(--warn, #b98a2c); } .dsc-pp.b-weak b, .dsc-pp.b-poor b { color: var(--loss); }
+.dsc-pp.b-strong b, .dsc-pp.b-healthy b { color: var(--gain); } .dsc-pp.b-average b { color: var(--warn); } .dsc-pp.b-weak b, .dsc-pp.b-poor b { color: var(--loss); }
 .dsc-trd { font-size: var(--fs-13); }
 .dsc-trd.u { color: var(--gain); } .dsc-trd.d { color: var(--loss); } .dsc-trd.s { color: var(--muted); }
 .dsc-lock { font: 700 var(--fs-12)/18px var(--sans); color: var(--gold); border: 1px solid color-mix(in srgb, var(--gold) 45%, var(--border)); border-radius: var(--ui-r-pill); padding: 0 7px; text-decoration: none; letter-spacing: .04em; text-transform: uppercase; }

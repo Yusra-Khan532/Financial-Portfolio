@@ -3,7 +3,7 @@
 .cx-pad { padding: 16px; }
 .cx-sets { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: flex-end; }
 .cx-sets label { display: grid; gap: 4px; min-width: 0; } .cx-sets .label { font-size: var(--fs-12); color: var(--muted); }
-.cx select, .cx input[type="search"], .cx-save input { height: 40px; padding: 0 12px; border-radius: var(--r-ctl); border: 1px solid var(--border-strong); background: var(--s2); color: var(--text); font: 500 var(--fs-14) var(--sans); min-width: 0; max-width: 100%; }
+.cx select, .cx input[type="search"], .cx-save input { height: 40px; padding: 0 12px; border-radius: var(--r-ctl); border: 1px solid var(--ui-field-line); background: var(--s2); color: var(--text); font: 500 var(--fs-14) var(--sans); min-width: 0; max-width: 100%; }
 .cx select:focus-visible, .cx input:focus-visible, .cx button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .cx-save { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; } .cx-save .btn, .cx-share { height: 40px; font-size: var(--fs-14); }
 .cx-mine, .cx-sel-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
