@@ -50,14 +50,17 @@ describe("which passage, which link", () => {
 });
 
 describe("20a: the header's themes", () => {
-  it("main theme first with its tag and Discover's count, then the others by their card label; the stage, the date and What it says", () => {
+  it("task #312: one line: Discover, the main theme with its tag (its count in the tooltip), also the others, the stage, What it says, (i)", () => {
     mount(<ThemeChips symbol="TECHM" name="Tech Mahindra Ltd" />, TECHM);
     const nav = screen.getByRole("navigation", { name: "Discover themes featuring Tech Mahindra" });
+    expect(nav.className).toBe("dth dtx");
     const links = within(nav).getAllByRole("link");
     expect(links.slice(0, 2).map((a) => [a.textContent, a.getAttribute("href")])).toEqual([
-      ["AI & GenAI(3 companies)Main theme", "/discover/themes/ai-and-genai?q=Tech+Mahindra"],
-      ["Corporate developments(95 companies)", "/discover/themes/corporate-catalysts-and-growth-signals?q=Tech+Mahindra"]]);
-    expect(nav.textContent).toContain("OperatingFrom its investor presentation of 15 Oct 2026");
+      ["AI & GenAIMain theme", "/discover/themes/ai-and-genai?q=Tech+Mahindra"],
+      ["Corporate developments", "/discover/themes/corporate-catalysts-and-growth-signals?q=Tech+Mahindra"]]);
+    expect(links[0].getAttribute("title")).toContain("3 companies in Discover");                 // the count moves to the tooltip
+    expect(links[1].getAttribute("title")).toBe("Corporate developments in Discover (95 companies)");
+    expect(nav.textContent).toBe("DiscoverAI & GenAIMain themealso Corporate developmentsOperatingWhat it says ↓i");
     expect(within(nav).getByRole("link", { name: "What it says ↓" }).getAttribute("href")).toBe("#dth-card");
     expect(within(nav).getByRole("button", { name: "About Discover themes" })).toBeTruthy();
   });
@@ -70,26 +73,29 @@ describe("20a: the header's themes", () => {
 });
 
 describe("20b: What it is building", () => {
-  it("the sentence, five words then +3 more, the business passage, the four figures from the theme's rows, the others, what to check, the links", () => {
+  it("task #312: compact: the header with the stage, one sentence with its words, the four figures in one strip, what to check, the actions", () => {
     mount(<BuildCard symbol="TECHM" name="Tech Mahindra Ltd" />, TECHM);
     const card = document.getElementById("dth-card")!;
-    expect(card.querySelector(".dth-lede")!.textContent).toBe("AI & GenAI is the theme Tech Mahindra’s newest investor presentation talks about most (15 Oct 2026, 61 pages). How far along: Operating (its own sentences describe it as running today).");
-    expect([...card.querySelectorAll(".dth-words i")].map((i) => i.textContent)).toEqual(["Generative AI", "Large language models", "Artificial intelligence", "a", "b", "+3 more"]);
+    expect(card.className).toBe("card dth-card dtc");
+    expect(card.querySelector(".dtc-h")!.textContent).toBe("From DiscoverWhat it is buildingOperating");
+    expect(card.querySelector(".dtc-lede")!.textContent).toBe("AI & GenAI is the theme Tech Mahindra’s newest investor presentation talks about most (15 Oct 2026, 61 pages). Its words: Generative AILarge language modelsArtificial intelligenceab+3 more");
     expect(card.querySelector(".dth-more")!.getAttribute("title")).toBe("c, d, e");
-    expect(card.querySelector(".dth-q")!.textContent).toMatch(/^“A key element.*From a slide of the presentation$/);
-    const ctx = within(screen.getByRole("group", { name: "AI & GenAI on Discover" }));
+    expect(card.querySelector(".dth-q")).toBeNull();                                               // the passage goes
+    expect(card.querySelector(".dth-also")).toBeNull();                                            // "also mentions" is in the header line
+    const ctx = within(card.querySelector("dl.dtc-ctx") as HTMLElement);
+    expect(card.querySelector("dl.dtc-ctx")!.getAttribute("aria-label")).toBe("AI & GenAI on Discover");
     expect(ctx.getByText("Companies in the theme").parentElement!.textContent).toBe("Companies in the theme324 more mention it");
-    expect(ctx.getByText("3-month median").parentElement!.textContent).toBe("3-month median−4.1%Tech Mahindra: +8.9%");   // median of 8.9, -4.1, -10
-    expect(ctx.getByText("1-year median").parentElement!.textContent).toBe("1-year median−8.7%across the theme’s companies");
-    expect(ctx.getByText("In a long-term uptrend").parentElement!.textContent).toBe("In a long-term uptrend2 of 3of the theme’s companies");
-    expect(card.querySelector(".dth-also")!.textContent).toBe("Its presentation also mentions Corporate developments.");
-    expect(card.querySelector(".dth-check")!.textContent).toBe("What to check: Look for quantified revenue contribution, order value and management commentary. A theme word alone is not proof of real business.");
-    expect(screen.getByRole("link", { name: /See AI & GenAI in Discover/ }).getAttribute("href")).toBe("/discover/themes/ai-and-genai?q=Tech+Mahindra");
+    expect(ctx.getByText("3-month median").parentElement!.textContent).toBe("3-month median−4.1%Tech Mahindra +8.9%");
+    expect(ctx.getByText("1-year median").parentElement!.textContent).toBe("1-year median−8.7%of the theme");
+    expect(ctx.getByText("In a long-term uptrend").parentElement!.textContent).toBe("In a long-term uptrend2of 3");
+    expect(card.querySelector(".dtc-check")!.textContent).toBe("What to check: Look for quantified revenue contribution, order value and management commentary. A theme word alone is not proof of real business.");
+    expect(screen.getByRole("link", { name: /See the theme in Discover/ }).getAttribute("href")).toBe("/discover/themes/ai-and-genai?q=Tech+Mahindra");
     expect(screen.getByRole("link", { name: "Open the presentation ↗" }).getAttribute("href")).toBe("https://example.com/p.pdf");
+    expect(card.querySelector(".dth-fine")!.textContent).toMatch(/^Theme figures as on Discover/);
     expect(card.textContent).not.toContain("Information only, not a recommendation.");   // task #311: said once, at the Prism card
   });
   it("below Gold the uptrend figure is a Gold lock, as on Discover's theme card, never a wrong 0", () => {
     mount(<BuildCard symbol="TECHM" name="Tech Mahindra Ltd" />, TECHM, UNI, false);
-    expect(within(screen.getByRole("group", { name: "AI & GenAI on Discover" })).getByText("In a long-term uptrend").parentElement!.textContent).toBe("In a long-term uptrendGoldof the theme’s companies");
+    expect(within(document.querySelector("dl.dtc-ctx") as HTMLElement).getByText("In a long-term uptrend").parentElement!.textContent).toBe("In a long-term uptrendGold");
   });
 });

@@ -491,7 +491,7 @@ function Filters({ st, set, pair, resp }: { st: AdvState; set: (p: Partial<AdvSt
           <option value="auto">As suits the chart</option><option value="exclude">Leave them out</option><option value="include">Include them</option><option value="only">Only lenders</option></select></label>
         {forced && <small className="faint">Always left out here: these ratios do not apply to lenders.</small>}</div>
       <div className="adv-field">
-        <label className="adv-check"><input type="checkbox" checked={u.sameFy} onChange={(e) => setU({ sameFy: e.target.checked })} /> Same financial year only{resp?.fyBreakdown?.length ? <span className="faint"> ({resp.fyBreakdown.map((b) => `${b.fy}: ${b.n}`).join(", ")})</span> : null}</label>
+        <label className="adv-check"><input type="checkbox" checked={u.sameFy} onChange={(e) => setU({ sameFy: e.target.checked })} /> <span>Same financial year only{resp?.fyBreakdown?.length ? <span className="faint"> ({resp.fyBreakdown.map((b) => `${b.fy}: ${b.n}`).join(", ")})</span> : null}</span></label>
         <label className="adv-check"><input type="checkbox" checked={st.trim} onChange={(e) => set({ trim: e.target.checked })} /> Leave out the most extreme 1% at each end (names listed under “left out”)</label>
       </div>
     </div>
