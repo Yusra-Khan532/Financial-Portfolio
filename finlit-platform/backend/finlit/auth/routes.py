@@ -316,6 +316,10 @@ class PrefsIn(BaseModel):
     followThemes: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,79}$")]] = Field(default_factory=list, max_length=40)
     # task #277: the views of a page the member has opened once ("mi:equity"), so a view not yet opened carries "Not opened yet" on every device
     viewsSeen: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9]{1,12}:[a-z0-9-]{1,24}$")]] = Field(default_factory=list, max_length=60)
+    # task #315: Word of the Day bookmarks (glossary term ids, newest first; every id in glossary_data.json matches this pattern) and the India date
+    # (YYYY-MM-DD) the member last opened the word, which hides the header's "new today" dot on every device. An empty date means not opened yet.
+    wordBookmarks: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,79}$")]] = Field(default_factory=list, max_length=200)
+    wordSeen: Optional[Annotated[str, StringConstraints(pattern=r"^(?:\d{4}-\d{2}-\d{2})?$")]] = None
 
 
 # ------------------------------------------------------------------ helpers

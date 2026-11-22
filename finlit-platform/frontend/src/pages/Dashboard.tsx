@@ -4,7 +4,7 @@
 const GlobalMarkets = lazy(() => import("../components/dashboard/GlobalMarkets").then((m) => ({ default: m.GlobalMarkets })));   // task #294: the map's data loads with this card only
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { StepHeading, StepsBar, type Step } from "../components/StepsBar";
-import { Navigate, useSearchParams } from "react-router";
+import { Navigate, useLocation, useSearchParams } from "react-router";
 import { useAuth } from "../lib/auth";
 import { RANK, useUI } from "../lib/ui";
 import { WIDGETS, prefs, stepGroups, usePrefs } from "../lib/prefs";
@@ -55,6 +55,15 @@ export function Dashboard() {
   const idx = useIndices();
   const [params, setParams] = useSearchParams();
   const [edit, setEdit] = useState(params.get("edit") === "1");
+  // task #315: Learn → Your bookmark (lib/nav.ts) and the Word of the Day panel open /dashboard#dsh-learn: bring the Learn card into view once it is drawn,
+  // and again after the blocks above it have loaded and pushed it down
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (hash !== "#dsh-learn" || !ready || !user) return;
+    const go = () => document.getElementById("dsh-b-learn")?.scrollIntoView({ block: "start" });
+    const t = [50, 700, 1800].map((ms) => window.setTimeout(go, ms));
+    return () => t.forEach(clearTimeout);
+  }, [hash, ready, user]);
   const rows: Row[] = uni.data?.rows ?? [];
   const bySym = useMemo(() => new Map(rows.map((r) => [r.symbol, r])), [rows]);
   const followed = useMemo<Followed[]>(() => {

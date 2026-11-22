@@ -13,7 +13,7 @@ export const PAGE_FAQS: PageFaq[] = [
   "items": [
    {
     "q": "What does the dashboard show?",
-    "a": "Five numbered steps, with a sections bar to jump between them. 1 Your money: Your investments today (your shares, watchlist and mutual funds in one table, the biggest moves first), What your stocks say, and your shares, mutual funds and ETFs at a glance. 2 Your watchlist: movers, Worth a second look and the watchlist by band. 3 The market: index levels and chart, what the market adds up to, the snapshot, sectors, FII/DII flows and the heatmap. 4 Results and news: results, filings, the latest quarter results and IPOs. 5 Tools: alerts and saved screens, Stress Lab, the DCF calculator and the term of the day."
+    "a": "Five numbered steps, with a sections bar to jump between them. 1 Your money: Your investments today (your shares, watchlist and mutual funds in one table, the biggest moves first), What your stocks say, and your shares, mutual funds and ETFs at a glance. 2 Your watchlist: movers, Worth a second look and the watchlist by band. 3 The market: index levels and chart, what the market adds up to, the snapshot, sectors, FII/DII flows and the heatmap. 4 Results and news: results, filings, the latest quarter results and IPOs. 5 Tools: alerts and saved screens, Stress Lab, the DCF calculator and the term of the day, with Your bookmark (the words you bookmarked from Word of the Day in the top bar)."
    },
    {
     "q": "How do I change the layout or colours?",

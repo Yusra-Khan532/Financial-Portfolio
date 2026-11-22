@@ -26,6 +26,7 @@ import { versionLine } from "../lib/version";
 import { HelpActions, PageFeedbackHost } from "./PageFeedback";
 import "../styles/ai-top.css";
 import { buttonClass } from "./ui";
+import { WordOfDayButton } from "./WordOfDay";
 
 /** One header dropdown, built from lib/nav.ts. */
 function Menu({ m, open, setOpen, path }: { m: NavSection; open: boolean; setOpen: (v: string | null) => void; path: string }) {
@@ -73,18 +74,20 @@ function Header({ onSearch }: { onSearch: () => void }) {
   // its seven menus and keeps the logo, a wider centred search, Ask FinLit AI, theme, notifications and account. Marketing pages and visitors keep the menus.
   const inShell = useInShell(), tool = !!user && inShell;
   const ai = !onAuth && <button type="button" className={buttonClass("secondary", "md", "ai-top")} onClick={() => dispatchEvent(new Event(OPEN_AI))} aria-label="Ask FinLit AI" aria-haspopup="dialog"><Icon name="spark" /><span>Ask FinLit AI</span></button>;
+  const wod = !onAuth && <WordOfDayButton />;   // task #315: just before Ask FinLit AI, on every page but the sign-in pages
   const find = <button className="search" onClick={onSearch} aria-label="Search stocks" aria-haspopup="dialog"><Icon name="search" /><span className="t">Search for a company</span></button>;
   return (
     <header className={"top" + (tool ? " top--tool" : "")}>
       <div className="wrap">
         <Link className="logo" to="/" aria-label="FinLit home"><span className="lg-mark" role="img" aria-label="FinLit" /></Link>
-        {tool ? <><div className="grow" />{find}<div className="grow" />{ai}</> : <>
+        {tool ? <><div className="grow" />{find}<div className="grow" />{wod}{ai}</> : <>
         <nav className="topnav" aria-label="Site">
           {sections.map((m) => <Menu key={m.id} m={m} open={open === m.id} setOpen={setOpen} path={loc.pathname} />)}
           <NavLink to={PRICING.to} className={({ isActive }) => (isActive ? "hl" : "")}>{PRICING.label}</NavLink>
           <Menu m={MORE} open={open === MORE.id} setOpen={setOpen} path={loc.pathname} />
         </nav>
         <div className="grow" />
+        {wod}
         {ai}
         {find}</>}
         {DEMO && onStock && (

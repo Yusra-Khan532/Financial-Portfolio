@@ -84,6 +84,7 @@ export const MENU: MenuGroup[] = [
   ] },
   { id: "learn", title: "Learn", line: "Glossary, how-to guides, research notes and the forum", short: "Learn", icon: "book", items: [
     i("/glossary", "Glossary", "Terms in plain words, with formulas", "book"),
+    i("/dashboard#dsh-learn", "Your bookmark", "The words you bookmarked from Word of the Day, on your dashboard", "book"),   // task #315 (the team's name)
     i("/learn/sector-signals", "How to use Sector Pulse", "Reading the states, the breadth bars and the leader flags", "book"),
     i("/learn/sector-rotation", "How to use Sector Rotation", "Reading the four corners and the rotation rank", "book"),
     i("/blog", "Insights & blog", "Research notes and explainers", "spark"),
