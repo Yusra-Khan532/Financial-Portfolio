@@ -1090,23 +1090,23 @@
   "items": [
    {
     "q": "What is on this dashboard?",
-    "a": "The week ahead in one place: the IPO and results calendars, company announcements, earnings call transcripts, live index levels, index valuation history and commodity indices."
+    "a": "What companies told the exchanges this week (announcements and call transcripts), every NSE and BSE index with its valuation and returns against its own history, one index in detail, and monthly commodity indices. The IPO and results calendars have their own free pages; the two tiles at the top open them."
    },
    {
-    "q": "Which dates are shown?",
-    "a": "The next two weeks unless you choose dates. You can pick up to a year at a time; call transcripts go up to 7 days at a time."
+    "q": "Why are some announcements hidden?",
+    "a": "Routine notices (meeting schedules, newspaper copies, trading-window and certificate filings) are hidden until you choose Show everything or a category. My stocks shows only the companies in your portfolio and watchlists. Announcements cover the last 7 days unless you choose dates, up to 7 days at a time."
    },
    {
     "q": "How often do index levels update?",
     "a": "Every minute while the market is open. Valuations (P/E, P/B, dividend yield) are published once a day."
    },
    {
-    "q": "How do I see an index's valuation history?",
-    "a": "Open Index valuation history and pick an index, or select History beside an index in Indices live."
+    "q": "What does Low, Usual or High for this index mean?",
+    "a": "Where today's P/E sits in that index's own last five years: Low is lower than on three days in four, High is higher than on three days in four. It describes the past, not what comes next. Open beside an index shows it in detail."
    },
    {
     "q": "What are the commodity figures here?",
-    "a": "Monthly commodity indices and the eight core industries. They are index levels, not rupee prices."
+    "a": "Monthly wholesale commodity indices. They are index levels, not rupee prices."
    },
    {
     "q": "Can I export the tables?",

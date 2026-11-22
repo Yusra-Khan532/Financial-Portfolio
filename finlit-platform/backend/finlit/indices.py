@@ -602,10 +602,107 @@ async def valuation(request: Request, code: str, years: int = Query(5, ge=1, le=
     return Response(json.dumps({"code": code, "name": name, "years": years, **out}), media_type="application/json", headers=NO_STORE)
 
 
+# ---------------------------------------------------------------- task #322: every index at once (the Market events & index table)
+
+BOARD_KEY = "idx:board"
+BOARD_FRESH = 6 * 3600          # rebuilt behind the scenes after six hours (valuations are published once a day)
+BOARD_LOCK = 20 * 60            # one build at a time; about 2 x 229 provider calls, a few minutes
+BOARD_PAR = 4                   # provider calls at once
+RET_SESSIONS = {"w1": 5, "m1": 21, "m3": 63, "y1": 252}
+
+
+def band(pctile: Optional[float]) -> Optional[str]:
+    """Where today's P/E sits in the index's own past: 'low' is lower than on three days in four, 'high' higher than on three days in four.
+    It describes the past, never what comes next."""
+    if pctile is None:
+        return None
+    return "low" if pctile < 25 else "high" if pctile > 75 else "usual"
+
+
+def board_row(code: str, val: Any, lev: Any) -> Dict[str, Any]:
+    """One index's line: P/E now, its 5-year median and percentile with the band; returns over 1 week, 1, 3 and 12 months (5, 21, 63 and 252
+    sessions of daily closes) and where today's level sits between the 1-year low and high (0 to 1)."""
+    out: Dict[str, Any] = {"code": code, "pe": None, "ret": {}, "lo1y": None, "hi1y": None, "pos1y": None}
+    if val is not None:
+        st = (shape_history(val, HISTORY_YEARS)["stats"] or {}).get("pe")
+        if st:
+            out["pe"] = {"now": round(st["now"], 2), "median": round(st["median"], 2), "pctile": st["pctile"], "band": band(st["pctile"]), "n": st["n"]}
+    if lev is not None:
+        rows = shape_levels(lev, 1)["rows"]
+        closes = [r["c"] for r in rows]
+        if closes:
+            now = closes[-1]
+            for k, n in RET_SESSIONS.items():
+                if len(closes) > n and closes[-1 - n]:
+                    out["ret"][k] = round(100 * (now / closes[-1 - n] - 1), 2)
+            lo, hi = min(closes), max(closes)
+            out["lo1y"], out["hi1y"] = lo, hi
+            out["pos1y"] = round((now - lo) / (hi - lo), 3) if hi > lo else None
+            out["asOf"] = rows[-1]["d"]
+    return out
+
+
+async def _build_board(app) -> Optional[Dict[str, Any]]:
+    feed = await _cached(app, "idx:feed", 900, lambda: _fetch_feed(app))
+    if not feed:
+        return None
+    sem = asyncio.Semaphore(BOARD_PAR)
+
+    async def one(code: str) -> Dict[str, Any]:
+        async with sem:
+            val = await _cached(app, f"idx:val:{code}", BOARD_FRESH, lambda: _fetch_history(app, code))
+            lev = await _cached(app, f"idx:px:{code}", BOARD_FRESH, lambda: _fetch_levels(app, code))
+        return board_row(code, val, lev)
+
+    codes = [x["code"] for x in feed["items"]]
+    rows = await asyncio.gather(*(one(c) for c in codes), return_exceptions=True)
+    items = [r for r in rows if isinstance(r, dict)]
+    return {"items": items, "built": datetime.now(IST).isoformat(timespec="minutes"), "indices": len(codes),
+            "withPe": sum(1 for r in items if r["pe"]), "withReturns": sum(1 for r in items if r["ret"])}
+
+
+async def _board_job(app) -> None:
+    redis = app.state.store.redis
+    try:
+        if not await redis.set(BOARD_KEY + ":build", "1", nx=True, ex=BOARD_LOCK):
+            return
+    except Exception:
+        return
+    try:
+        value = await _build_board(app)
+        if value is not None:
+            await redis.set(BOARD_KEY, json.dumps({"t": time.time(), "v": value}), ex=KEEP)
+    except Exception:
+        log.exception("index board not built")
+    finally:
+        try:
+            await redis.delete(BOARD_KEY + ":build")
+        except Exception:
+            pass
+
+
+@router.get("/board")
+async def board(request: Request, ctx: Ctx = Depends(premium_ctx)) -> Response:
+    """Every index's P/E against its own five years and its returns, in one answer (task #322). Served from a saved copy; the first ask, and any
+    ask after six hours, builds it behind the scenes, and until the first copy exists the answer says it is being prepared."""
+    redis = request.app.state.store.redis
+    try:
+        raw = await redis.get(BOARD_KEY)
+    except Exception:
+        raw = None
+    hit = json.loads(raw) if raw else None
+    if hit is None or time.time() - hit["t"] > BOARD_FRESH:
+        spawn(_board_job(request.app))
+    if hit is None:
+        return Response(json.dumps({"ready": False, "items": []}), media_type="application/json", headers=NO_STORE)
+    return Response(json.dumps({"ready": True, **hit["v"]}), media_type="application/json", headers=NO_STORE)
+
+
 async def warm(app) -> None:
     """Index prices for the strip, and NIFTY 50's history, ready before the first visitor asks."""
     try:
         await _cached(app, "idx:feed", 60, lambda: _fetch_feed(app))
         await _cached(app, "idx:val:NIF50", 6 * 3600, lambda: _fetch_history(app, "NIF50"))
+        spawn(_board_job(app))   # task #322: every index's valuation position and returns, built once behind the scenes
     except Exception:
         log.exception("index warm-up failed")

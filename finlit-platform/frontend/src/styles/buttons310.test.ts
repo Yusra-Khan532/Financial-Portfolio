@@ -21,7 +21,11 @@ describe("the main button", () => {
   });
   it("Ask FinLit AI is the shared second button with its icon; the navy of --action-primary is gone from it", () => {
     expect(read("components/Layout.tsx")).toMatch(/<button type="button" className=\{buttonClass\("secondary", "md", "ai-top"\)\}.*aria-label="Ask FinLit AI"[^\n]*<Icon name="spark" \/><span>Ask FinLit AI<\/span><\/button>/);
-    for (const r of rules(strip(read("styles/ai-top.css"))).filter((x) => /\.ai-top/.test(x.sel))) expect(r.body, r.sel).not.toMatch(/--action-primary|background|border-radius|color:/);
+    // task #320 made the box golden: its colours may come from the gold tokens only; never --action-primary, a typed colour or its own corners
+    for (const r of rules(strip(read("styles/ai-top.css"))).filter((x) => /\.ai-top/.test(x.sel))) {
+      expect(r.body, r.sel).not.toMatch(/--action-primary|border-radius|#[0-9a-f]{3,8}\b|rgba?\(/i);
+      for (const d of r.body.match(/(?:background|color|border-color)\s*:[^;]*/g) ?? []) expect(d, r.sel).toMatch(/var\(--(gold|gold-soft|text)\)/);
+    }
   });
   it("named cases: Create an alert and Add are the main button, Fund Screener and the other quick links the second button, Prism actions gold", () => {
     expect(read("components/dashboard/NewsBlocks.tsx")).toContain('<Link className={buttonClass("primary", "md")} to="/alerts">Create an alert</Link>');
