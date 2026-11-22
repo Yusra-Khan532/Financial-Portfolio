@@ -197,6 +197,27 @@ def write_sector_files(eng: SectorEngine, out: Path, labels: Dict[str, str], hom
         RT.write_files(rot, out / "rotation")
 
 
+LEVELS_DIR = "by-sector"      # the Sectors view of Sector Pulse and Rotation: by-sector/sectors/_board.json, by-sector/sectors/<slug>.json, by-sector/rotation/
+
+
+def write_level_files(eng: SectorEngine, out: Path, labels: Dict[str, str], rot: Optional[RT.Rotation] = None) -> Dict[str, Any]:
+    """FinLit patch (task #192, 22 Nov 2026): the board, one page per sector and the rotation files with groups at NSE's sector level (22 sectors),
+    in out/by-sector/, read against the same average industry as the industry groups (`rot`, the industry rotation). Same market, same universe.
+    Returns {"groups": n, "too_small": n, "rotation": bool}. Extra: a failure here is logged and never stops the rest of the batch."""
+    view = eng.at_level("sector")
+    lvl = out / LEVELS_DIR
+    lvl.mkdir(parents=True, exist_ok=True)
+    try:
+        rot_s = RT.Rotation(view, bench=rot.bench if rot is not None else None)
+        rot_rows = {g: RT.brief(rot_s.row(g)) for g in rot_s.group_names()}
+    except Exception as e:  # noqa: BLE001
+        log.warning("rotation by sector: %s", e)
+        rot_s, rot_rows = None, {}
+    write_sector_files(view, lvl, labels, {}, rot=rot_s, rot_rows=rot_rows)
+    board = json.loads((lvl / "sectors" / "_board.json").read_text(encoding="utf-8"))
+    return {"groups": board.get("groups"), "too_small": len(board.get("too_few_stocks") or []), "rotation": rot_s is not None}
+
+
 def write_summary(out: Path, summary: List[Dict[str, Any]], t0: float) -> None:
     meta = {"generated": pd.Timestamp.now(tz="Asia/Kolkata").strftime("%Y-%m-%d %H:%M"), "stocks": len(summary),
             "errors": sum(1 for x in summary if "error" in x), "seconds": round(time.time() - t0, 1)}
@@ -226,5 +247,9 @@ def run(symbols: Iterable[str], source, out_dir: str | Path, *, caps: Optional[D
                                           rot_rows=rot_rows if eng is not None else None)
     if eng is not None:
         write_sector_files(eng, out, labels, homes, history_sessions, rot, rot_rows)
+        try:
+            write_level_files(eng, out, labels, rot)
+        except Exception as e:  # noqa: BLE001 - the Sectors view is extra; the industry release stands without it
+            log.warning("sectors view: %s", e)
     write_summary(out, summary, t0)
     return summary

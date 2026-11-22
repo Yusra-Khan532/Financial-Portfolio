@@ -45,8 +45,9 @@ def assert_same_panel(new, ref):
 
 def tree_differences(a: Path, b: Path) -> list:
     """Files that differ byte for byte (_summary.json: everything but the clock-dependent generated / seconds)."""
-    fa = sorted(p.relative_to(a).as_posix() for p in a.rglob("*") if p.is_file())
-    fb = sorted(p.relative_to(b).as_posix() for p in b.rglob("*") if p.is_file())
+    # by-sector/ (the Sectors view, task #192) is newer than the frozen v2.0.1 reference: compared on its own in test_the_sectors_view_*
+    fa = sorted(p.relative_to(a).as_posix() for p in a.rglob("*") if p.is_file() and not p.relative_to(a).as_posix().startswith("by-sector/"))
+    fb = sorted(p.relative_to(b).as_posix() for p in b.rglob("*") if p.is_file() and not p.relative_to(b).as_posix().startswith("by-sector/"))
     diff = [] if fa == fb else [f"file lists differ: {sorted(set(fa) ^ set(fb))[:5]}"]
     for f in fa:
         if f not in fb:
@@ -300,3 +301,62 @@ def test_the_merge_refuses_parts_built_on_different_days(tmp_path):
         (work / f"part-{k}.pkl").write_bytes(pickle.dumps({"lines": [(k, {"symbol": "AB"[k]})], "labels": {}, "homes": {}, "groups": {}, "days": days, "last_day": "2026-11-0%d" % (5 + k)}))
     with pytest.raises(RuntimeError, match="different market data"):
         staged.stage_merge(str(d), str(work), str(out), 0.0)
+
+
+# ─── the Sectors view (task #192, 22 Nov 2026) ────────────────────────────────────────────────────────────────────
+def test_the_sectors_view_is_written_with_one_group_per_nse_sector_and_the_same_yardstick(tmp_path):
+    from finlit_technicals import NseHistory, SectorEngine
+    from finlit_technicals import rotation as RT
+    d = small_market(tmp_path, stocks=170, start="2024-03-01")
+    new = tmp_path / "new"
+    staged.run_staged(d, new, parts=2)
+    lvl = new / "by-sector"
+    board = json.loads((lvl / "sectors" / "_board.json").read_text())
+    ind = json.loads((new / "sectors" / "_board.json").read_text())
+    eng = SectorEngine(NseHistory(d), lean=True)
+    eng._build()
+    sectors = {eng.cls[k][1] for k in eng.panel.keys if k in eng.cls}
+    names = [r["name"] for r in board["rows"]] + [r["name"] for r in board["too_few_stocks"]]
+    assert sorted(names) == sorted(sectors)                                                  # every NSE sector once: a reading or "too small"
+    assert board["rows"] and all(r["kind"] == "sector" and r["sector"] == r["name"] for r in board["rows"]) and board["industries"] == 0
+    assert board["date"] == ind["date"]                                                      # the same market, the same day
+    assert board["universe"]["meet_rules"] == ind["universe"]["meet_rules"]                  # the same universe of stocks
+    for r in board["rows"]:                                                                  # each sector page lists its NSE industries
+        page = json.loads((lvl / "sectors" / f"{r['slug']}.json").read_text())
+        assert page["name"] == r["name"] and set(page["industries"]) == {eng.cls[s["symbol"]][0] for s in page["stocks"]} | set(page["industries"])
+        assert all(eng.cls[s["symbol"]][1] == r["name"] for s in page["stocks"])
+    rmap = json.loads((lvl / "rotation" / "_map.json").read_text())
+    imap = json.loads((new / "rotation" / "_map.json").read_text())
+    assert rmap["average_industry"] == imap["average_industry"]                              # both views are measured against the same average industry
+    ind_rot = RT.Rotation(eng)
+    sec_rot = RT.Rotation(eng.at_level("sector"), bench=ind_rot.bench)
+    assert sec_rot.bench.equals(ind_rot.bench.reindex(sec_rot.fr.ew.index).ffill())
+
+
+def test_the_sectors_view_added_to_an_older_release_is_the_same_as_a_full_build(tmp_path):
+    d = small_market(tmp_path, stocks=150, start="2024-03-01")
+    full = tmp_path / "full"
+    staged.run_staged(d, full, parts=2)
+    older = tmp_path / "older"
+    shutil.copytree(full, older)
+    shutil.rmtree(older / "by-sector")                                                       # a release built before the Sectors view existed
+    staged.add_levels(d, older)
+    assert (older / "by-sector" / "sectors" / "_board.json").is_file() and not (older / ".levels-work").exists()
+    a = sorted(p.relative_to(full).as_posix() for p in (full / "by-sector").rglob("*") if p.is_file())
+    b = sorted(p.relative_to(older).as_posix() for p in (older / "by-sector").rglob("*") if p.is_file())
+    assert a == b and a
+    assert all((full / f).read_bytes() == (older / f).read_bytes() for f in a)
+
+
+def test_the_sectors_view_is_never_added_to_a_release_of_another_day(tmp_path):
+    import pytest
+    d = small_market(tmp_path, stocks=120, start="2024-03-01")
+    rel = tmp_path / "rel"
+    staged.run_staged(d, rel, parts=1)
+    b = json.loads((rel / "sectors" / "_board.json").read_text())
+    b["date"] = "2020-01-03"
+    (rel / "sectors" / "_board.json").write_text(json.dumps(b))
+    shutil.rmtree(rel / "by-sector")
+    with pytest.raises(RuntimeError, match="a full build is needed"):
+        staged.add_levels(d, rel)
+    assert not (rel / "by-sector").exists()

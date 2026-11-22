@@ -202,9 +202,13 @@ class Rotation:
     """Rotation readings for every group, computed once from a SectorEngine (or from GroupResults directly)."""
 
     def __init__(self, engine=None, params: RotationParams = RotationParams(),
-                 groups: Optional[Mapping[str, GroupResult]] = None, study_file: Optional[str] = None):
+                 groups: Optional[Mapping[str, GroupResult]] = None, study_file: Optional[str] = None,
+                 bench: Optional[pd.Series] = None):
+        # FinLit patch (task #192, 22 Nov 2026): `bench` measures these groups against another set's average industry (the Sectors view is read against
+        # the same average industry as the Industries view, so both views use one yardstick)
         self.eng = engine
         self.p = params
+        self._bench_in = bench
         if groups is None:
             if engine is None:
                 raise ValueError("give a SectorEngine or the groups")
@@ -218,7 +222,7 @@ class Rotation:
     # ------------------------------------------------------------------ computing
     def _compute(self):
         p, fr = self.p, self.fr
-        self.bench = benchmark(fr)
+        self.bench = benchmark(fr) if self._bench_in is None else self._bench_in.reindex(fr.ew.index).ffill()
         windows = sorted({p.strength_sessions, p.change_sessions, p.year_sessions, *[n for n, _ in p.rank_windows]})
         self.rel = {n: relative(fr, self.bench, n) for n in windows}
         self.weeks = week_ends(fr.ew.index)

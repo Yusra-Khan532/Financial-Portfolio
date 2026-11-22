@@ -35,6 +35,8 @@ SLUG_ALIASES = {"capital-goods": "agricultural-commercial-construction-vehicles"
 LAST_RUN = "last_run.json"
 
 
+LEVELS_DIR = "by-sector"       # the Sectors view inside a release (finlit_technicals/batch.py LEVELS_DIR; task #192)
+
 def nse_dir(env: Optional[Dict[str, str]] = None) -> Path:
     return Path((env or os.environ).get("SECTOR_NSE_DIR") or DEFAULT_NSE_DIR)
 

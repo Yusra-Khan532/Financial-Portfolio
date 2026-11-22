@@ -441,3 +441,31 @@ def test_the_resume_key_ignores_modification_times_and_the_reference_lists(tmp_p
     assert sj.resume_signature(nse) == first and sj.signature(nse) != full       # the build folder stays; the 'unchanged' check still sees the change
     (nse / "bhav_2026.csv.gz").write_bytes(b"a new trading day was added")        # the market data changed: another set, another folder
     assert sj.resume_signature(nse) != first
+
+
+# ------------------------------------------------------------------------------------------------ the Sectors view added to an older live set (task #192)
+async def test_unchanged_files_add_the_sectors_view_to_a_live_set_built_before_it(tmp_path):
+    make_nse(tmp_path / "nse")
+    await run(tmp_path, batch_fn=good_batch())                                    # a live set without by-sector/
+    calls = []
+
+    def levels(nse, release):
+        calls.append(release)
+        fakes.make_release(Path(release) / sd.LEVELS_DIR)
+    again = await run(tmp_path, batch_fn=good_batch(), levels_fn=levels)
+    live = sd.live_release(tmp_path / "out")
+    assert again["status"] == "unchanged" and calls == [live] and again["sectorsView"]["status"] == "ok" and "sectors with a reading" in again["sectorsView"]["message"]
+    assert (live / sd.LEVELS_DIR / "sectors" / "_board.json").is_file()
+    third = await run(tmp_path, batch_fn=good_batch(), levels_fn=levels)            # already there: nothing to add
+    assert len(calls) == 1 and "sectorsView" not in third
+
+
+async def test_a_failed_sectors_view_is_reported_and_the_live_set_keeps_serving(tmp_path):
+    make_nse(tmp_path / "nse")
+    await run(tmp_path, batch_fn=good_batch())
+
+    def broken(nse, release):
+        raise RuntimeError("the 'levels' step was killed (most likely out of memory)")
+    res = await run(tmp_path, batch_fn=good_batch(), levels_fn=broken)
+    assert res["status"] == "unchanged" and sj.exit_code(res) == 0 and res["sectorsView"]["status"] == "failed" and "out of memory" in res["sectorsView"]["message"]
+    assert sd.board_date(tmp_path / "out") == THU and not (sd.live_release(tmp_path / "out") / sd.LEVELS_DIR).exists()

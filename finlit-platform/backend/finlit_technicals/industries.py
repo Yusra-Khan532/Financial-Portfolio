@@ -36,10 +36,24 @@ def load_industries(extra: Optional[str | Path] = None) -> Dict[str, Tuple[str, 
     return out
 
 
-def build_groups(keys, members_now, cls: Dict[str, Tuple[str, str]], min_members: int = 10):
+def build_groups(keys, members_now, cls: Dict[str, Tuple[str, str]], min_members: int = 10, level: str = "industry"):
     """Groups over every classified stock (history included): {name: [column, ...]} and
     {name: {"kind": "industry"|"sector", "industries": [...], "sector": ...}}.
-    `members_now` is a boolean per key: in the universe on the latest day."""
+    `members_now` is a boolean per key: in the universe on the latest day.
+    FinLit patch (task #192, 22 Nov 2026): level="sector" groups every stock by its NSE sector (the 22 of taxonomy/sectors.csv), one group per
+    sector, kept under NSE's own name; a sector with too few counted stocks is left for the board to list as too small."""
+    if level == "sector":
+        groups: Dict[str, list] = {}
+        meta: Dict[str, dict] = {}
+        for j, k in enumerate(keys):
+            if k not in cls:
+                continue
+            ind, sec = cls[k]
+            groups.setdefault(sec, []).append(j)
+            meta.setdefault(sec, {"kind": "sector", "industries": set(), "sector": sec})["industries"].add(ind)
+        return groups, {g: {"kind": "sector", "industries": sorted(m["industries"]), "sector": g} for g, m in meta.items()}
+    if level != "industry":
+        raise ValueError(f"level must be 'industry' or 'sector', not {level!r}")
     count: Dict[str, int] = {}
     for k, m in zip(keys, members_now):
         if m and k in cls:

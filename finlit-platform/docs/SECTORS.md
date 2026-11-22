@@ -197,3 +197,26 @@ a kept folder older than 30 hours is deleted. `SECTOR_RESUME=0` turns this off. 
 
 Running it by hand (server window, `ubuntu@ip-`) still works and needs no time limit:
 `docker compose -p finlit -f deploy/aws/docker-compose.aws.yml --env-file /opt/finlit/.env.aws exec app python -m finlit.worker refresh-sectors --no-fetch`.
+
+## 14. The Sectors view: NSE's 22 sectors as groups (task #192, 22 Nov 2026)
+
+Sector Pulse and Sector Rotation get a "Show: Sectors | Industries" switch (task #192, SECTOR-PAGES.md S1). The Industries view is the board above: 33 NSE
+industries plus the sector groups that hold small industries. The Sectors view reads the same market with **one group per NSE sector** (the 22 of
+taxonomy/sectors.csv, under NSE's own names):
+
+- **Same market, same rules.** `SectorEngine.at_level("sector")` (finlit_technicals/sectors.py) shares the panel, the universe and the classification of the
+  industry engine; only the groups differ (`build_groups(..., level="sector")` in industries.py). A sector with too few counted stocks is listed as too small,
+  exactly as an industry is.
+- **Same yardstick.** Rotation by sector is measured against the same average industry as the industry groups (`Rotation(..., bench=industry_rotation.bench)`),
+  so a sector's "ahead of the average" means the same as an industry's (`average_industry` in both `_map.json` files is identical; tested).
+- **Files.** `<release>/by-sector/sectors/_board.json`, `by-sector/sectors/<slug>.json`, `by-sector/rotation/_map.json` and `<slug>.json`: the same shapes
+  as the industry files (`batch.write_level_files`, called by `batch.run` and by the staged merge). A failure there is logged and never stops the release.
+- **Routes.** Every board, page, year, history, map, small-group, membership and rotation route takes `?show=sectors`; any other value (or none) is the
+  Industries view. Plan gating is the same. Until a release has `by-sector/` the answer is 503 "The Sectors view is not loaded yet: ...", and
+  `/api/sectors/status` shows `sectorsViewLoaded`.
+- **A release built before it existed.** When the NSE files are unchanged, the sector job adds `by-sector/` to the live release in place
+  (`staged.add_levels`: the panel stage, then the `levels` stage; a few minutes, written beside the release and moved in whole; refused if the NSE files end on
+  another day than the release). The job's probe `sectors-view` makes it due for that, only inside its weekend-night hours (`min_gap_min` 60).
+  By hand (server window, `ubuntu@ip-`): the same `refresh-sectors --no-fetch` command as in section 13.
+- Tests: `finlit_technicals/tests/test_staged_equals_single_run.py` (`test_the_sectors_view_*`), `tests/test_sector_job.py` (the job adds it once; a failure
+  is reported and the live set keeps serving), `tests/test_sectors_api.py` (`?show=sectors`).
