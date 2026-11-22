@@ -1,0 +1,178 @@
+/* Font sizes follow the site's type scale (docs/TYPE-SCALE.md): the pack's 11, 11.5, 12.5, 13.5, 15 and 19 px are 12, 12, 13, 13, 16 and 20 px here.
+   IPO calendar (/ipo), task #307: developer file 17 v2 (22 Nov 2026). The results-news shared parts (developer files 16-19) and this page's rules, as the
+   pack ships them; every class starts .p4- (or sits under .p4). The .dbx- dropdowns are Discover's (discovery/discover.css). */
+/* Results & news pages, shared parts (developer files 16–19, 22 Nov 2026).
+   Load after the pages' own stylesheets (ConcallMonitor, Ipo, IpoHistory, index) and after
+   discover-bucket-compact.css (the .dbx- dropdowns, chips and switches of developer file 13).
+   Every new class starts with .p4- ; the Discover tokens (--dsc-*) are redefined on .p4 because
+   these pages do not load the Discovery stylesheet. */
+
+.p4{--dsc-teal:#0e6471;--dsc-teal-b:#e3efef;--dsc-on:#fff;--dsc-line2:color-mix(in srgb,var(--border) 55%,transparent);--dsc-amber:#8a5a07;--dsc-amber-b:#fbf0d9;--dsc-amber-e:#ecd3a1}
+:root[data-theme="dark"] .p4{--dsc-teal:#6fc0cb;--dsc-teal-b:#16292b;--dsc-on:#0b1a12;--dsc-amber:#e0a43a;--dsc-amber-b:#2d2414;--dsc-amber-e:#5a4520}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .p4{--dsc-teal:#6fc0cb;--dsc-teal-b:#16292b;--dsc-on:#0b1a12;--dsc-amber:#e0a43a;--dsc-amber-b:#2d2414;--dsc-amber-e:#5a4520}}
+.p4 .up{color:var(--gain)}.p4 .down{color:var(--loss)}
+.p4-pv{color:var(--faint);font-style:italic}
+.p4-note{margin:14px 0 0;padding:10px 12px;border:1px dashed var(--border-strong);border-radius:10px;color:var(--muted);font:13px/1.5 var(--sans)}
+.p4-pad{padding:10px 4px}
+.p4 .dsc-tag{font:700 12px/17px var(--sans);letter-spacing:.04em;text-transform:uppercase;vertical-align:1px;border:1px solid;border-radius:999px;margin-left:6px;padding:0 6px;display:inline-block}
+.p4 .dsc-tag.pf{color:var(--dsc-teal);border-color:var(--dsc-teal)}
+.p4 .dsc-tag.wl{color:var(--dsc-amber);border-color:var(--dsc-amber-e);background:var(--dsc-amber-b)}
+.p4-logo{flex:none;display:inline-grid;place-items:center;color:#fff;font-weight:700;letter-spacing:.02em}
+
+/* one toolbar per page: search, dropdowns, chips, then a count line */
+.p4-tools{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:16px 0 0;padding:12px;background:var(--s1);border:1px solid var(--border);border-radius:14px}
+.p4-tools .dbx-q{flex:1 1 220px}
+.p4-tools .ccm-seg{flex:none}
+.p4-tools .ccm-seg button{min-height:40px;padding:0 14px}
+.p4-tl{display:inline-flex;align-items:center;gap:7px;margin-left:auto;padding:0 4px;color:var(--gold);font:600 14px var(--sans);text-decoration:none;white-space:nowrap}
+.p4-tl svg{width:16px;height:16px}
+.p4-tl:hover{text-decoration:underline}
+.p4 .dbx-rbar{margin:14px 0 10px}
+.p4 .dbx-cnt{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px}
+.p4-have,.p4-hint{color:var(--faint);font:13px var(--sans)}
+.p4-csv{margin-left:auto}
+.p4-toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:400;padding:10px 16px;border-radius:10px;background:var(--text);color:var(--bg);font:600 14px var(--sans);box-shadow:0 12px 30px -10px #0008}
+
+/* KPI strip: one row of joined cells */
+.p4-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:0;margin:16px 0 0;border:1px solid var(--border);border-radius:12px;background:var(--s1);overflow:hidden}
+.p4-kpis>div{min-width:0;padding:11px 14px;box-shadow:inset -1px 0 0 var(--dsc-line2),inset 0 -1px 0 var(--dsc-line2)}
+.p4-kpis dt{display:flex;align-items:center;gap:6px;color:var(--muted);font:13px/1.25 var(--sans)}
+.p4-kpis dt i{width:8px;height:8px;border-radius:50%;background:var(--tc,var(--border-strong));flex:none}
+.p4-kpis dt small{color:var(--faint);font-size:12px}
+.p4-kpis dd{margin:5px 0 0;color:var(--text);font:600 20px/1.2 var(--sans);font-variant-numeric:tabular-nums}
+.p4-kpis dd small{color:var(--faint);font:500 13px var(--sans)}
+.p4-k6 dd{font-size:18px}
+
+/* sections that open on click (as the Discover preview) */
+.p4 .dw-acc{margin:18px 0 0;border:1px solid var(--border);border-radius:14px;background:var(--s1)}
+.p4 .dw-acch{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:13px 16px;cursor:pointer;list-style:none}
+.p4 .dw-acch::-webkit-details-marker{display:none}
+.p4 .dw-acch:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:14px}
+.p4 .dw-acct{color:var(--text);font:400 20px/1.25 var(--serif)}
+.p4 .dw-accs{flex:1 1 300px;color:var(--faint);font:13px/1.4 var(--sans)}
+.p4 .dw-accc{margin-left:auto;display:grid;place-items:center;width:30px;height:30px;border-radius:8px;border:1px solid var(--border);color:var(--muted);font-style:normal;transition:transform .15s}
+.p4 .dw-acc[open] .dw-accc{transform:rotate(180deg)}
+.p4 .dw-acc[open]>.dw-acch{border-bottom:1px solid var(--dsc-line2)}
+.p4 .dw-acc[open]>.dw-acch .dw-accs{display:none}
+.p4 .dw-accb{padding:14px 16px 10px}
+
+/* tables: the site-wide first-column rule (sticky, shaded) is reset for these tables */
+.p4-lt th small,.p4-iat th small,.p4-iat td small,.p4-lt td small{display:block;margin-top:2px;color:var(--faint);font:400 12px var(--sans);white-space:normal}
+.p4-iat th:first-child,.p4-iat td:first-child,.p4-lt td:first-child,.p4-lt th:first-child{position:static;background:none;border-radius:0}
+
+@media (max-width:760px){
+  .p4-tools{padding:10px;gap:8px}
+  .p4-tools .dbx-q{flex-basis:100%;order:-1}
+  .p4-tools .dbx-dds{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -10px;padding:0 10px;max-width:calc(100% + 20px)}
+  .p4-tools .dbx-dds::-webkit-scrollbar{display:none}
+  .p4-tools .ccm-seg{order:-2;width:100%}
+  .p4-tools .ccm-seg button{flex:1;justify-content:center}
+  .p4-tl{margin-left:0}
+  .p4-csv{margin-left:0}
+  .p4-kpis,.p4-k6{grid-template-columns:1fr 1fr}
+  .p4-kpis dd{font-size:18px}
+  .p4-hint{display:none}
+}
+
+/* IPO calendar (/ipo), developer file 17. Needs results-news-common.css. */
+
+.p4-sec{margin:20px 0 0}
+.p4-sec .ipo-sec-h small{margin-left:4px;color:var(--faint);font:400 13px var(--sans)}
+.p4-il{grid-template-columns:repeat(auto-fill,minmax(min(100%,440px),1fr));gap:12px}
+.p4 .p4-ic{gap:10px;padding:14px 16px;border-radius:14px}
+.p4 .p4-ic .ipo-h h3{font-size:18px}
+.p4-d{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px 12px}
+.p4-d>div{min-width:0}
+.p4-d dd{font:600 13px var(--mono);overflow-wrap:anywhere}
+.p4-d .na dd{color:var(--faint);font-weight:400}
+.p4 .p4-ic .ipo-foot{padding-top:6px;border-top:1px solid var(--dsc-line2)}
+.p4-ts{margin:20px 0 0}
+.p4-tw{position:relative;overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:var(--s1)}
+.p4-lt{min-width:760px}
+.p4-lt th small,.p4-iat th small,.p4-iat td small,.p4-lt td small{display:block;margin-top:2px;color:var(--faint);font:400 12px var(--sans);white-space:normal}
+.p4-lt th[scope=row] a{color:var(--text);font-weight:600;text-decoration:none}
+.p4-lt th[scope=row] a:hover{text-decoration:underline}
+.p4-lt tbody tr:last-child>*{border-bottom:0}
+.p4 .p4-lt thead th{background:none;position:static}
+.p4-lk{appearance:none;border:0;background:none;padding:2px;color:var(--gold);font:600 13px var(--sans);cursor:pointer}
+.p4-lk:hover{text-decoration:underline}
+.p4-seeall{display:inline-block;margin:10px 2px 0;color:var(--gold);font:600 14px var(--sans);text-decoration:none}
+.p4-seeall:hover{text-decoration:underline}
+.p4-gmpc{position:relative}
+.p4-gmpc svg{height:auto;display:block}
+.p4 .p4-gtw{max-height:none;overflow-x:auto}
+/* GMP record: colours say how the listing compared with the GMP (not gain or loss) */
+.p4{--gv-short:#b4570d;--gv-beat:#12796d;--gv-band:#b3b8bf;--gv-cap:#6b55c2;--gv-on:#fff}
+:root[data-theme="dark"] .p4{--gv-short:#ee9a4f;--gv-beat:#47bfae;--gv-band:#59626c;--gv-cap:#a391ea;--gv-on:#0d1316}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .p4{--gv-short:#ee9a4f;--gv-beat:#47bfae;--gv-band:#59626c;--gv-cap:#a391ea;--gv-on:#0d1316}}
+.p4 .g-hi{color:var(--gv-beat)}
+.p4 .g-lo{color:var(--gv-short)}
+.p4-gf{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin:12px 0 0}
+.p4-gvw{margin-left:auto}
+.p4-gch{margin:10px 0 0}
+.p4-gkey{display:flex;flex-wrap:wrap;gap:6px 18px;margin:12px 0 6px;color:var(--muted);font:13px var(--sans)}
+.p4-gkey i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.p4 i.s-short{background:var(--gv-short)}
+.p4 i.s-beat{background:var(--gv-beat)}
+.p4 i.s-band{background:var(--gv-band)}
+.p4 i.s-cap{background:repeating-linear-gradient(135deg,var(--gv-cap) 0 3px,color-mix(in srgb,var(--gv-cap) 45%,transparent) 3px 6px)}
+.p4-gr{border-top:1px solid var(--dsc-line2)}
+.p4-grr{display:grid;grid-template-columns:150px minmax(0,1fr) 90px 96px 110px;align-items:center;gap:6px 16px;padding:10px 8px;border-bottom:1px solid var(--dsc-line2)}
+.p4-grr.hl{background:color-mix(in srgb,var(--gold) 10%,transparent);box-shadow:inset 3px 0 0 var(--gold)}
+.p4-grl b{display:block;color:var(--text);font:600 16px var(--sans)}
+.p4-grl small,.p4-grw small,.p4-grg small{display:block;color:var(--faint);font:12px var(--sans)}
+.p4-grw b,.p4-grg b{display:block;color:var(--text);font:600 16px var(--sans);font-variant-numeric:tabular-nums}
+.p4-gbar{display:flex;height:24px;border-radius:6px;overflow:hidden;background:var(--s2)}
+.p4-gbar i{display:grid;place-items:center;min-width:0;overflow:hidden;white-space:nowrap;color:var(--gv-on);font:600 12px var(--sans);font-style:normal}
+.p4-gbar i.s-band{color:var(--text)}
+.p4-gbar i.s-cap{color:var(--text);text-shadow:0 0 3px var(--s1),0 0 3px var(--s1)}
+.p4-gbar.empty{background:repeating-linear-gradient(90deg,var(--s2) 0 6px,transparent 6px 10px)}
+.p4-grr.thin .p4-gbar{opacity:.6}
+.p4-gnow{display:block;margin-top:6px;color:var(--muted);font:13px/1.4 var(--sans)}
+.p4-gnow b{color:var(--text);font-weight:600}
+.p4-gnote{margin:12px 0 0;font-size:13px;line-height:1.5;max-width:110ch}
+.p4-gzr{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin:12px 0 6px;font-size:13px}
+.p4 .g-band{fill:color-mix(in srgb,var(--gv-band) 30%,transparent)}
+.p4 .g-capl{stroke:var(--gv-cap);stroke-width:1.2;stroke-dasharray:5 4}
+.p4 .g-capt{fill:var(--gv-cap);font:600 12px var(--sans)}
+.p4-gkey2 .g-bandk{width:16px;height:10px;background:color-mix(in srgb,var(--gv-band) 45%,transparent);border-radius:2px}
+.p4-gkey2 .g-capk{width:10px;height:10px;border-radius:50%;background:none;border:1.6px solid var(--gv-cap)}
+.p4-gv-t{font-weight:600}
+.p4-gv-t.g-beat{color:var(--gv-beat)}
+.p4-gv-t.g-short{color:var(--gv-short)}
+.p4-gv-t.g-cap{color:var(--gv-cap)}
+.p4-gv-t.g-band{color:var(--muted)}
+.p4-gt td small{display:block;color:var(--faint);font-size:12px}
+.p4-gt th:first-child,.p4-gt td:first-child{position:static;background:none}
+.p4-gl{appearance:none;display:block;margin-top:3px;padding:0;border:0;background:none;color:var(--gold);font:600 12px var(--sans);cursor:pointer;text-align:left}
+.p4-gl:hover{text-decoration:underline}
+.p4-tiph{display:block;margin-top:4px;color:var(--faint);font:12px var(--sans)}
+.p4-gmpc svg{max-width:100%}
+
+@media (max-width:760px){
+  .p4-il{grid-template-columns:minmax(0,1fr)}
+  .p4-d{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .p4-gvw{margin-left:0}
+  .p4-grr{grid-template-columns:minmax(0,1fr) auto auto;gap:6px 12px;padding:10px 4px}
+  .p4-grb{grid-column:1/-1;grid-row:2}
+  .p4-grx{grid-column:1/-1;text-align:left}
+}
+
+/* FinLit additions (task #307): the pinned tip takes the pointer so its link can be followed; the zoomed scatter keeps its frame */
+.p4 .ipo-gmp-tip.pin{pointer-events:auto}
+.p4-tipa{display:block;margin-top:4px;color:var(--gold);font:600 13px var(--sans);text-decoration:none}
+.p4-tipa:hover{text-decoration:underline}
+.p4 .p4-gmpc svg{width:100%}
+.p4 .ipo-gmp{margin-bottom:0}
+.p4 .ipo-sec-h small{margin-left:4px;color:var(--faint);font:400 13px var(--sans)}
+.p4-pending{margin:14px 0 0}
+@media (max-width:760px){
+  /* the closed GMP row on a phone: the title with its ▾ on one line, the summary under them (not the ▾ alone between them) */
+  .p4 .dw-acch{flex-wrap:wrap}
+  .p4 .dw-acct{flex:1 1 0;min-width:0}
+  .p4 .dw-accs{order:3;flex-basis:100%}
+}
+/* the GMP table's header row reads as one band, as the listed table's (the first header cell is reset by the site-wide first-column rule above) */
+.p4 .p4-gt thead th{background:none;position:static}
+/* the tip's placement classes (.n.up / .n.down, above or below the dot on a phone) are not gain or loss: its text keeps the text colour */
+.p4 .ipo-gmp-tip.up,.p4 .ipo-gmp-tip.down{color:var(--text)}
