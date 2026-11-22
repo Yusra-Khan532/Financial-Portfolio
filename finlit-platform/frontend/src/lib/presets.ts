@@ -37,7 +37,7 @@ export type PresetGroup = { id: string; name: string; presets: Preset[]; /** Tas
   /** Round 3b: Sectors (Advanced) is new and has a one-line intro over its cards, with an i. */ isNew?: boolean; intro?: string; about?: ScreenAbout };
 export type PresetList = { asOf: string | null; groups: PresetGroup[]; tab?: PresetTab };
 
-export type ColFormat = "text" | "num1" | "num2" | "pct" | "pct_down" | "score" | "cr" | "label" | "badge" | "date" | "since";
+export type ColFormat = "text" | "num0" | "num1" | "num2" | "pct" | "pctu" | "pct_down" | "times" | "score" | "cr" | "label" | "badge" | "date" | "since";   // num0, pctu, times: task #325 (pattern figures as numbers)
 export type PresetColumn = { key: string; label: string; format: ColFormat; align?: "left" | "right" | "center"; band?: string };
 export type PresetRow = { symbol: string; name?: string | null; exchange?: string | null; badges?: string[] } & Record<string, unknown>;
 export type ThemeState = "in_play" | "emerging" | "fading" | "closest";

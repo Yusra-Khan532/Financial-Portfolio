@@ -34,7 +34,7 @@ async def test_non_gold_gets_names_but_no_values(app, anon):  # noqa: F811
     r = await anon.get("/api/screener/presets")
     body = r.json()
     cards = [c for g in body["groups"] for c in g["presets"]]
-    assert r.status_code == 200 and len(cards) == 52 and (await anon.get("/api/screener/presets?tab=basic")).json()["groups"] and all(c["locked"] and c["count"] is None for c in cards) and cards[0]["name"]   # 45: task #243 (pack L12) leaves out PSU stocks, which cannot run yet; round 3a adds 8 screens, round 3b the 6 Sectors screens; task #262 adds Highest-rated micro caps
+    assert r.status_code == 200 and len(cards) == 53 and (await anon.get("/api/screener/presets?tab=basic")).json()["groups"] and all(c["locked"] and c["count"] is None for c in cards) and cards[0]["name"]   # 45: task #243 (pack L12) leaves out PSU stocks, which cannot run yet; round 3a adds 8 screens, round 3b the 6 Sectors screens; task #262 adds Highest-rated micro caps; task #325 B adds Fresh close above a base
     names = [g["name"] for g in body["groups"]]       # task #243 (pack R2): the featured groups first, then Prism views and the rest
     assert names[:4] == ["Top rated", "Momentum", "Growth", "Themes"] and names[4] == "Sectors" and names[5] == "Prism views" and names[-1] == "Ownership"   # Ownership is back with its screens (task #243 round 3a); Sectors, the fifth featured tab (round 3b)
     assert [g["featured"] for g in body["groups"]][:6] == [True, True, True, True, True, False]       # Sectors is the fifth featured tab on Advanced (round 3b)
@@ -131,7 +131,7 @@ async def test_the_basic_tab_is_retired_and_every_screen_is_on_prism_for_gold(ap
     adv = (await silver.get("/api/screener/presets")).json()
     assert old.json()["tab"] == "advanced" and old.json()["groups"] == adv["groups"]
     cards = [c for g in adv["groups"] for c in g["presets"]]
-    assert len(cards) == 52 and all(c["tab"] == "advanced" and c["locked"] for c in cards) and not any(c["id"].startswith("basic-") for c in cards)
+    assert len(cards) == 53 and all(c["tab"] == "advanced" and c["locked"] for c in cards) and not any(c["id"].startswith("basic-") for c in cards)
     for pid in ("basic-top-large", "basic-emerging-tech", "basic-iq-upgrades", "basic-gainers-day"):
         assert (await gold.get(f"/api/screener/presets/{pid}")).status_code == 404, pid
     assert (await silver.get("/api/screener/presets/highest-rated-large")).status_code == 403          # the Prism screens are Gold

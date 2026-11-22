@@ -692,14 +692,18 @@ def test_every_advanced_list_has_a_one_thousand_crore_floor_and_the_provisional_
 
 # ---------------------------------------------------------------------------------------------------------------- Chart patterns
 def test_chart_pattern_screens_exist_with_worded_facts_and_no_rules():
-    from finlit.presets.patterns import SCAN_IDS, facts_of
+    # task #325 (developer file 26): engine 2, twelve screens (Fresh close above a base is new); card lines and How this screen works from the pack, word for word
+    from finlit.presets.patterns import HOW, SCAN_IDS, number_of
     adv = [p for p in PRESETS if p.kind == "pattern"]
-    assert [p.spec for p in adv] == SCAN_IDS and len(adv) == 11 and all(p.tab == "advanced" for p in adv)      # task #283: no Basic copies on the retired score
+    assert [p.spec for p in adv] == SCAN_IDS and len(adv) == 12 and SCAN_IDS[-1] == "fresh_breakout" and all(p.tab == "advanced" for p in adv)
     assert all(p.group == "chart-patterns" and p.status == "live" for p in adv)
+    assert all(p.how_it_works and p.how_it_works == tuple(HOW[p.spec]) for p in adv)        # file 25, 2.1 row 1: no screen opens an empty How this screen works
+    allowed = {"tight_range": "3-month", "ipo_base": "8%"}                                     # the pack's own two card lines carry a figure
     for p in adv:
-        assert not re.search(r"\d", p.card_text.replace("50-day", "")) and "setup" not in p.card_text.lower() and "entry" not in p.card_text.lower(), p.id
-    assert facts_of("daily_base", {"length": 30, "depth_pct": 12.34, "to_pivot_pct": 3.1}) == [["Base age", "30 sessions"], ["Depth", "12.3%"], ["Below the pivot", "3.1%"]]
-    assert facts_of("flag", {"depth_pct": 9.0, "detail": {"pole_rise": 25.0}, "to_pivot_pct": 2.0})[0] == ["Run-up", "25.0%"]       # a fact with no value is left out
+        txt = p.card_text.replace("50-day", "").replace(allowed.get(p.spec, "\0"), "")
+        assert not re.search(r"\d", txt) and "setup" not in p.card_text.lower() and "entry" not in p.card_text.lower(), p.id
+    assert number_of("Below the level", "1.8%") == 1.8 and number_of("Level age", "89 sessions") == 89 and number_of("Volume, last 10 against 50", "0.50x") == 0.5
+    assert number_of("Closed above", "Rs 141.20") == 141.2 and number_of("Kind", "Flag") == "Flag" and number_of("Listed", "2026-11-03") == "2026-11-03"
 
 
 def test_a_chart_pattern_screen_lists_the_scanned_companies_ranked_by_the_page_score_with_facts_and_drawing():
@@ -708,10 +712,15 @@ def test_a_chart_pattern_screen_lists_the_scanned_companies_ranked_by_the_page_s
         r["metrics"] = json.dumps({**json.loads(r["metrics"]), "overall": 90 - i})      # the retired score (highest on P1) is never the order
     fr = frame(rows, {f"P{i}": pz(50 + i) for i in range(5)})
     fr.patterns = {"as_of": "2026-11-06", "left_out": [["P4", "candles end 5 Nov, before the 6 Nov close"]],
-                   "scans": {"daily_base": {"P1": {"facts": [["Base age", "20 sessions"]], "draw": {"level": 101.0}, "new": True}, "P3": {"facts": [], "draw": {}, "new": False}}}}
+                   "scans": {"daily_base": {"P1": {"facts": [["Level (Rs)", "418.50"], ["Level age", "20 sessions"]], "nums": {"Level (Rs)": 418.5, "Level age": 20.0},
+                                                   "draw": {"level": 101.0}, "new": True, "q": 79, "status": "At the level", "clean": "Clean"},
+                                            "P3": {"facts": [], "draw": {}, "new": False, "q": 40}}}}
     body = engine.run(fr, BY_ID["pattern-daily_base"])
-    assert [r["symbol"] for r in body["rows"]] == ["P3", "P1"] and body["count"] == 2 and body["newToday"] == 1
-    assert body["rows"][1]["facts"] == [["Base age", "20 sessions"]] and body["rows"][1]["pf1"] == "20 sessions" and body["rows"][1]["draw"] == {"level": 101.0}
+    # task #325: ordered by how cleanly the chart meets the pattern (P1, quality 79, before P3, 40), never by the retired score
+    assert [r["symbol"] for r in body["rows"]] == ["P1", "P3"] and body["count"] == 2 and body["newToday"] == 1
+    r1 = body["rows"][0]
+    assert r1["facts"][1] == ["Level age", "20 sessions"] and r1["pf1"] == 418.5 and r1["pf4"] == 20.0 and r1["draw"] == {"level": 101.0}
+    assert r1["pf_status"] == "At the level" and r1["pf_clean"] == "Clean" and "q" not in r1
     assert body["leftOutCount"] == 1 and "leftOut" not in body
     fr.patterns = None
     assert engine.run(fr, BY_ID["pattern-daily_base"])["emptyText"].startswith("The nightly chart-pattern run")
