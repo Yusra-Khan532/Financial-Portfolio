@@ -139,6 +139,7 @@ def quick_probe(timeout: float = 20.0, today: Optional[date] = None) -> Optional
     import urllib.request
     if str(BACKEND_DIR) not in sys.path:
         sys.path.insert(0, str(BACKEND_DIR))
+    url = None
     try:
         from finlit_technicals import fetch
         day = today or datetime.now(IST).date()
@@ -153,11 +154,30 @@ def quick_probe(timeout: float = 20.0, today: Optional[date] = None) -> Optional
         except urllib.error.HTTPError as e:
             code = e.code
     except Exception as exc:
+        if relay_answers(url):
+            return None
         return f"NSE's archive could not be reached from this server ({type(exc).__name__}: {str(exc)[:120]}). NSE often refuses data-centre addresses; the data stays at the last files held (docs/SECTORS.md)."
     if code in (200, 404):
         return None
-    return (f"NSE's archive refused this server (HTTP {code}). NSE often refuses data-centre addresses; the data stays at the last files held. "
-            "Run the download from a PC in India and copy the folder up (docs/SECTORS.md).")
+    if relay_answers(url):
+        return None                   # refused directly, but FinLit's relay reaches NSE: fetch-nse goes through it (finlit_technicals/fetch.py)
+    return (f"NSE's archive refused this server (HTTP {code}) and FinLit's relay did not reach it either (or is not set: EXCHANGE_RELAY_URL / AMFI_RELAY_URL). "
+            "The data stays at the last files held. Run the download from a PC in India and copy the folder up (docs/SECTORS.md).")
+
+
+def relay_answers(url: Optional[str]) -> bool:
+    """True when the relay (deploy/amfi-relay) is set and NSE answers through it (200 or 404). Never raises."""
+    if not url:
+        return False
+    try:
+        from finlit_technicals import fetch
+        f = fetch.Fetcher()
+        if not f._relayable(url):
+            return False
+        code, _ = f._relay(url, "https://www.nseindia.com/")
+        return code in (200, 404)
+    except Exception:
+        return False
 
 
 def interpret_fetch(code: Optional[int], lines: List[str]) -> Dict[str, Any]:
