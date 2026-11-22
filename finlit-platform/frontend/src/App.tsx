@@ -184,8 +184,9 @@ export default function App() {
             <Route path="account" element={<Account />} />
             <Route path="account/:tab" element={<Account />} />
             <Route path="console" element={<Console />} />
+            {/* task #310 part D (04-navigation.md): the company report has the same left menu as every other tool page */}
+            <Route path="stocks/:symbol" element={<StockPage />} />
           </Route>
-          <Route path="stocks/:symbol" element={<StockPage />} />
           <Route path="plans" element={<PlansPage />} />
           <Route path="pricing" element={<Navigate to="/plans" replace />} />
           <Route path="faq" element={<FaqsPage />} />

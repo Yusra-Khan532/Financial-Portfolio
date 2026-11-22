@@ -10,8 +10,13 @@ import { DEMO } from "../lib/demo";
 import { useAlerts, useNotices } from "../lib/alerts";
 import { DASHBOARD, MENU, isNew, menuMatch, offeredTo, type NavItem } from "../lib/nav";
 import { useIsGold } from "../lib/planGate";
-import { isBool, loadUi, saveUi } from "../lib/persist";
+import { isBool, loadUi, removeUi, saveUi } from "../lib/persist";
+import { useMarkShell } from "../lib/shellPresence";
+import { HelpActions } from "./PageFeedback";
 import { SideRail } from "./SideRail";
+
+/** Task #310 part D: the menu is on screen from 860px (below it, a sheet); from 860 to 1100px it starts as the rail. */
+export const DESKTOP_Q = "(min-width: 861px)", NARROW_Q = "(max-width: 1099px)";
 
 type Item = { to: string; label: string; icon: string; badge?: string; end?: boolean; gold?: boolean; sub?: boolean; fresh?: boolean; desc?: string };
 type Group = { id: string; title: string; line: string; short: string; icon: string; items: Item[] };
@@ -36,22 +41,32 @@ export function AppShell() {
   const held = usePortfolio().holdings.length;
   const { unread } = useNotices();
   const live = useAlerts().alerts.filter((a) => a.status === "active").length;
-  // The Find stocks pages (the screeners and the query builder) fold the menu to the icon rail so the table gets the room; every other page keeps the reader's own choice.
-  // The choice made on those pages is remembered on its own, so folding or opening it there never changes the menu elsewhere.
-  const onFind = /^\/(screener|advanced-score-screener|query-builder)(\/|$)/.test(pathname);
-  // Folded to the icon rail by default on every page (the "FinLit final pages" design pack, 13 Nov 2026); the reader's own choice is remembered.
+  useMarkShell();   // task #310 part D: the top bar drops the destinations this menu lists
+  // Task #310 part D (04-navigation.md): the menu looks the same on every tool page, in two states only, open or the icon rail. The reader's choice is
+  // remembered once and applies to every page (one setting; the old separate one for the Find stocks pages, "side-collapsed-find", is no longer read).
+  // Folded to the icon rail by default (the "FinLit final pages" design pack, 13 Nov 2026).
   const [collapsedAll, setCollapsedAll] = useState(() => loadUi("side-collapsed", 1, isBool, true));
-  const [collapsedFind, setCollapsedFind] = useState(() => loadUi("side-collapsed-find", 1, isBool, true));
-  const collapsed = onFind ? collapsedFind : collapsedAll, setCollapsed = onFind ? setCollapsedFind : setCollapsedAll;
-  const [open, setOpen] = useState(false); // mobile drawer
-  // The rail is a desktop view: a phone or a narrow window always gets the full menu in its drawer. Only one of the two is ever in the page.
-  const wide = () => (typeof matchMedia === "undefined" ? true : matchMedia("(min-width: 961px)").matches);
-  const [desktop, setDesktop] = useState(wide);
-  useEffect(() => { if (typeof matchMedia === "undefined") return; const m = matchMedia("(min-width: 961px)"), f = () => setDesktop(m.matches); m.addEventListener?.("change", f); return () => m.removeEventListener?.("change", f); }, []);
-  useEffect(() => { setOpen(false); }, [pathname]);
+  useEffect(() => { removeUi("side-collapsed-find"); }, []);
+  // Under 1100px wide it starts as the rail on each page (opening it there lasts for that page and does not change the saved choice); under 860px it is
+  // not shown and the phone bottom bar's Menu opens it as a sheet. Only one of the rail and the drawer is ever in the page.
+  const mq = (q: string, dflt: boolean) => (typeof matchMedia === "undefined" ? dflt : matchMedia(q).matches);
+  const [desktop, setDesktop] = useState(() => mq(DESKTOP_Q, true));
+  const [narrow, setNarrow] = useState(() => mq(NARROW_Q, false));
+  useEffect(() => {
+    if (typeof matchMedia === "undefined") return;
+    const d = matchMedia(DESKTOP_Q), n = matchMedia(NARROW_Q), f = () => { setDesktop(d.matches); setNarrow(n.matches); };
+    d.addEventListener?.("change", f); n.addEventListener?.("change", f);
+    return () => { d.removeEventListener?.("change", f); n.removeEventListener?.("change", f); };
+  }, []);
+  const [narrowOpen, setNarrowOpen] = useState(false);
+  useEffect(() => { setNarrowOpen(false); }, [pathname, narrow]);
+  const collapsed = narrow ? !narrowOpen : collapsedAll;
+  const setCollapsed = (v: boolean) => (narrow ? setNarrowOpen(!v) : setCollapsedAll(v));
+  const [open, setOpen] = useState(false); // phone sheet
+  const [help, setHelp] = useState(false); // the foot's Help and feedback
+  useEffect(() => { setOpen(false); setHelp(false); }, [pathname]);
   useEffect(() => { const o = () => setOpen((v) => !v); addEventListener("finlit:open-side", o); return () => removeEventListener("finlit:open-side", o); }, []);
   useEffect(() => { saveUi("side-collapsed", 1, collapsedAll); }, [collapsedAll]);
-  useEffect(() => { saveUi("side-collapsed-find", 1, collapsedFind); }, [collapsedFind]);
   useEffect(() => { if (!open) return; const k = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false); addEventListener("keydown", k); return () => removeEventListener("keydown", k); }, [open]);
   // Each group is a drop-down: a header you click to show or hide its pages. The group holding the current page is always open;
   // what you opened or closed by hand is remembered.
@@ -73,14 +88,14 @@ export function AppShell() {
     const k = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey) || e.key !== "/") return;
       e.preventDefault();
-      if (collapsed && matchMedia("(min-width: 961px)").matches) setCollapsed(false);
+      if (collapsed && matchMedia(DESKTOP_Q).matches) setCollapsed(false);
       setOpen(true);
       requestAnimationFrame(() => searchRef.current?.focus());
     };
     addEventListener("keydown", k); return () => removeEventListener("keydown", k);
   }, [collapsed]);
   const showTip = (el: HTMLElement, label: string) => {
-    if (!collapsed || !matchMedia("(min-width: 961px)").matches) return;
+    if (!collapsed || !matchMedia(DESKTOP_Q).matches) return;
     const r = el.getBoundingClientRect();
     setTip({ label, top: r.top + r.height / 2, left: r.right + 10 });
   };
@@ -106,7 +121,9 @@ export function AppShell() {
   ] as Group[]).map((g) => ({ ...g, items: g.items.filter(offeredTo(gold)) }));   // task #100: pages not offered to Gold (none since task #283)
   const navOf = new Map(MENU.flatMap((g) => g.items.map((n) => [n.to, n] as const)));
 
-  const here = (g: Group) => g.items.some((i) => (i.end ? pathname === i.to : pathname === i.to || pathname.startsWith(i.to + "/")));
+  // task #310 part D: the company report (/stocks/…) is in the left menu now; it belongs to "Company report" (/research) in Analyse a company
+  const reportOf = (to: string) => to === "/research" && pathname.startsWith("/stocks/");
+  const here = (g: Group) => g.items.some((i) => reportOf(i.to) || (i.end ? pathname === i.to : pathname === i.to || pathname.startsWith(i.to + "/")));
   // open when the page you are on is inside it, otherwise what you chose; the one-page Overview group and the first visit start open for Find stocks
   // remembered by the group's id (task #282: find, company, markets, funds and learn keep their ids; the renamed groups start as on a first visit)
   // the page's own group opens on arrival (and becomes the remembered one); after that the member's choice rules, one group at a time
@@ -177,10 +194,14 @@ export function AppShell() {
                 const did = "sd-" + i.to.replace(/[^a-z0-9]+/gi, "-"), shows = info === i.to;
                 return (
                 <div key={i.to} className={"side-row" + (i.desc ? " has-info" : "") + (shows ? " is-info" : "")}>
-                <NavLink to={i.to} end={i.end ?? false} className={({ isActive }) => "side-i" + (i.sub ? " sub" : "") + (isActive ? " on" : "")} aria-label={collapsed ? i.label : undefined}
-                  onMouseEnter={(e) => showTip(e.currentTarget, i.label)} onFocus={(e) => showTip(e.currentTarget, i.label)} onMouseLeave={() => setTip(null)} onBlur={() => setTip(null)}>
-                  <span className="side-ic"><Icon name={i.icon} /></span><span className="side-l"><span className="side-lt">{i.label}</span>{i.gold && <em className="gtag" title="Gold plan" aria-label="Gold plan">Gold</em>}{i.fresh && <em className="side-new" title="A new page">New</em>}</span>{i.badge && <span className="side-b">{i.badge}</span>}
-                </NavLink>
+                {(() => {
+                  const cls = (on: boolean) => "side-i" + (i.sub ? " sub" : "") + (on ? " on" : "");
+                  const common = { "aria-label": collapsed ? i.label : undefined, onMouseEnter: (e: React.MouseEvent<HTMLAnchorElement>) => showTip(e.currentTarget, i.label), onFocus: (e: React.FocusEvent<HTMLAnchorElement>) => showTip(e.currentTarget, i.label), onMouseLeave: () => setTip(null), onBlur: () => setTip(null) };
+                  const body = <><span className="side-ic"><Icon name={i.icon} /></span><span className="side-l"><span className="side-lt">{i.label}</span>{i.gold && <em className="gtag" title="Gold plan" aria-label="Gold plan">Gold</em>}{i.fresh && <em className="side-new" title="A new page">New</em>}</span>{i.badge && <span className="side-b">{i.badge}</span>}</>;
+                  // task #310 part D: on a company report, "Company report" is the current page (a NavLink would not mark it: its address is /research)
+                  return reportOf(i.to) ? <Link to={i.to} className={cls(true)} aria-current="page" {...common}>{body}</Link>
+                    : <NavLink to={i.to} end={i.end ?? false} className={({ isActive }) => cls(isActive)} {...common}>{body}</NavLink>;
+                })()}
                 {i.desc && <InfoButton k={i.to} label={`About ${i.label}`} target={did} info={info} setInfo={setInfo} title={i.desc} />}
                 {shows && <p id={did} className="side-desc" role="note">{i.desc}</p>}
                 </div>);
@@ -195,6 +216,14 @@ export function AppShell() {
           <div className="side-plan" style={{ "--tc": `var(${TIER[plan].tc})` } as React.CSSProperties}>
             <span className={"tier " + plan}><Icon name={TIER[plan].ic} />{TIER[plan].n}</span>
             {plan !== "gold" ? <><p>{plan === "basic" ? "Unlock watchlists, the full screener and more." : "Gold adds FinLit Prism and deeper analysis."}</p><Link className="btn primary" to={user ? "/account/plan?want=" + (plan === "basic" ? "silver" : "gold") : "/plans"}>{plan === "basic" ? "See Silver" : "See Gold"}</Link></> : <p>Everything is unlocked.</p>}
+          </div>
+          {/* task #310 part D: Help and feedback at the foot of the menu (the floating dock is gone) */}
+          <div className={"side-help" + (help ? " is-open" : "")}>
+            <button type="button" className="side-help-b" aria-expanded={help} aria-controls="side-help-a" onClick={() => setHelp((v) => !v)}>
+              <span className="side-ic"><Icon name="info" /></span><span className="side-l"><span className="side-lt">Help and feedback</span></span>
+              <svg className="side-gc" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
+            </button>
+            <div id="side-help-a" className="side-help-a" hidden={!help}><HelpActions className="side-help-i" /></div>
           </div>
         </div>
         </div>

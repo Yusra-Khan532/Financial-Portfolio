@@ -95,7 +95,7 @@
 /* ---- folded rail (desktop), as in the "FinLit final pages" pack (13 Nov 2026): one entry per group, its short name under a 20px icon, the current group on a
    cream tile in bold; the expand button on top. Markup: components/SideRail.tsx. The full menu's own markup is hidden while the rail shows. ---- */
 .side-rail, .side-fly { display: none; }
-@media (min-width: 961px) {
+@media (min-width: 861px) {
   /* The rail stays inside its card on any screen height (a signed-in reader has one more group, Account, that used to hang below the card):
      the card keeps its max height and the rail scrolls inside it. The group menus open in a portal, so nothing is clipped. */
   .is-collapsed .side { width: 76px; overflow: hidden; }
@@ -104,14 +104,12 @@
   .is-collapsed .side-rail::-webkit-scrollbar { display: none; }
   @media (max-height: 860px) { .is-collapsed .side-rail-g { padding: 6px 2px; gap: 3px; } }   /* a shorter screen: every group still fits without scrolling */
   .side-rail-x { display: grid; place-items: center; height: 36px; margin-bottom: 4px; padding: 0; border: 1px solid var(--border); border-radius: 10px; background: var(--s1); color: var(--text); cursor: pointer; }
-  :root[data-theme="light"] .side-rail-x { background: #fff; }
   .side-rail-x:hover { border-color: var(--border-strong); background: var(--s2); }
   .side-rail-x svg { width: 16px; height: 16px; }
   .side-rail-g { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 9px 2px; border-radius: 12px; color: var(--text); font: 500 12px/1.15 var(--sans); text-align: center; }
   .side-rail-g svg { width: 20px; height: 20px; flex: none; }
   .side-rail-g:hover, .side-rail-g[aria-expanded="true"] { background: color-mix(in srgb, var(--s2) 70%, transparent); }
-  .side-rail-g.on { background: #EFE8D7; font-weight: 700; }
-  :root[data-theme="dark"] .side-rail-g.on { background: color-mix(in srgb, var(--gold) 16%, var(--s2)); }
+  .side-rail-g.on { background: var(--s2); font-weight: 700; }   /* task #310 part D: the selected look is the --s2 fill in both themes */
   .side-rail-g:focus-visible, .side-rail-x:focus-visible, .side-fly-i:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   .side-fly { display: grid; gap: 2px; position: fixed; z-index: var(--z-tip, 260); width: 260px; max-height: calc(100dvh - 100px); overflow: auto; padding: 10px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--s1); box-shadow: 0 18px 40px -18px rgba(0, 0, 0, .35); }
   .side-fly-t { margin: 2px 6px 6px; font: 600 12px/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
@@ -122,7 +120,7 @@
 }
 
 /* ---- phone / tablet drawer ---- */
-@media (max-width: 960px) {
+@media (max-width: 860px) {
   .side { position: fixed; top: 0; bottom: 0; left: 0; width: min(320px, 90vw); max-height: none; margin: 0; border-width: 0 1px 0 0; border-radius: 0 12px 12px 0; transform: translateX(-105%); visibility: hidden; transition: transform .24s var(--side-ease), visibility 0s .24s; }
   .is-open .side { transform: none; visibility: visible; transition-delay: 0s; }
   .side-find kbd { display: none; }
@@ -152,7 +150,7 @@
 .side-info:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
 .side-desc { margin: 2px 8px 6px 38px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--s2); color: var(--muted); font: 400 var(--fs-13, 13px)/1.45 var(--sans); animation: side-tip-in .12s ease-out; }
 .side-fly .side-desc { margin-left: 36px; }
-@media (max-width: 960px) { .side-info { top: 12px; width: 24px; height: 24px; font-size: 13px; } .side-row.has-info > .side-i { padding-right: 40px; } }
+@media (max-width: 860px) { .side-info { top: 12px; width: 24px; height: 24px; font-size: 13px; } .side-row.has-info > .side-i { padding-right: 40px; } }
 
 /* ---- task #282 rework (the slim side menu file, 21 Nov: "make it slim and less bulky"): each group heading is one line; its line moves behind an i
    (the #285 note); no page count; Dashboard on one line with its own i; tighter rows on a computer, 44px on touch. One group open at a time (AppShell). ---- */
@@ -182,3 +180,22 @@
 .side-lt { min-width: auto; overflow-wrap: break-word; }
 .side-l { flex-wrap: wrap; row-gap: 2px; }
 .side-l .side-new { margin-left: 0; }
+
+/* ---- task #310 part D (04-navigation.md): Help and feedback at the foot of the menu, open and folded; the menu is on screen from 861px ---- */
+.side-help { margin-top: 8px; }
+.side-help-b, .side-help-i { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 40px; padding: 4px 8px; border-radius: var(--r-ctl); color: var(--muted); font: 500 var(--fs-14)/1.3 var(--sans); }
+.side-help-b:hover, .side-help-i:hover { background: var(--s2); color: var(--text); }
+.side-help-b .side-gc { width: 16px; height: 16px; flex: none; transform: rotate(-90deg); transition: transform .2s var(--side-ease); }
+.side-help-b[aria-expanded="true"] .side-gc { transform: none; }
+.side-help-a { display: grid; gap: 2px; margin-left: 16px; padding: 2px 0 4px 8px; border-left: 1px solid var(--border); }
+.side-help-a[hidden] { display: none; }
+.side-help-i svg { width: 18px; height: 18px; flex: none; }
+.side :is(.side-help-b, .side-help-i):focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.side-fly button.side-fly-i { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 10px; border-radius: var(--r-ctl); color: var(--text); font: 500 var(--fs-14)/1.25 var(--sans); }
+.side-fly button.side-fly-i:hover { background: var(--s2); }
+.side-fly button.side-fly-i svg { width: 16px; height: 16px; flex: none; color: var(--muted); }
+@media (min-width: 861px) {
+  .is-collapsed .side-rail-help { margin-top: auto; }
+  :root:root .side-toggle.show-sm { display: none; } :root:root .side-toggle.hide-sm { display: grid; }
+}
+@media (max-width: 860px) { .side-help-b, .side-help-i { min-height: 44px; } }

@@ -97,17 +97,18 @@ describe("AppShell rail", () => {
     expect(screen.getAllByLabelText("Gold plan").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Collapse the side menu" })).toBeTruthy();
   });
-  it("folds the menu to the icon rail on the Find stocks pages (the table gets the room), and keeps the reader's own choice elsewhere", () => {
+  it("task #310 part D: one remembered choice for every page: opening the menu on a screener opens it on the dashboard, the report and Sector Pulse too", () => {
     localStorage.clear();
+    localStorage.setItem("finlit:ui:side-collapsed-find", JSON.stringify({ v: 1, data: true }));         // the old per-section setting is no longer read
     const find = show("/screener", false);
-    expect(find.container.querySelector(".shell")!.classList.contains("is-collapsed")).toBe(true);
+    expect(find.container.querySelector(".shell")!.classList.contains("is-collapsed")).toBe(true);       // the rail by default
     fireEvent.click(screen.getByRole("button", { name: "Expand the side menu" }));
     expect(find.container.querySelector(".shell")!.classList.contains("is-collapsed")).toBe(false);
-    cleanup();
-    const other = show("/dashboard", false);
-    expect(other.container.querySelector(".shell")!.classList.contains("is-collapsed")).toBe(true);       // opening it on a screener never changed the menu elsewhere (the rail is the default there too)
-    cleanup();
-    expect(show("/advanced-score-screener", false).container.querySelector(".shell")!.classList.contains("is-collapsed")).toBe(false);   // and the choice made there is remembered there
+    expect(localStorage.getItem("finlit:ui:side-collapsed-find")).toBeNull();
+    for (const p of ["/dashboard", "/stocks/RELIANCE", "/sectors", "/advanced-score-screener"]) {
+      cleanup();
+      expect(show(p, false).container.querySelector(".shell")!.classList.contains("is-collapsed"), p).toBe(false);
+    }
   });
   it("filters the pages from the search box, opens the matching groups and says when nothing matches", () => {
     const { container } = show("/dashboard");
@@ -148,7 +149,7 @@ describe("AppShell rail", () => {
     show("/dashboard", false);
     const rail = screen.getByRole("navigation", { name: "All pages, collapsed" });
     const entries = [...rail.querySelectorAll<HTMLElement>(".side-rail-g")];
-    expect(entries.map((b) => b.textContent)).toEqual(["Dashboard", "Portfolio", "Find", "Company", "Compare", "Calculators", "Markets", "News", "Funds", "Learn", "Apps", "Account"]);
+    expect(entries.map((b) => b.textContent)).toEqual(["Dashboard", "Portfolio", "Find", "Company", "Compare", "Calculators", "Markets", "News", "Funds", "Learn", "Apps", "Account", "Help"]);   // task #310 part D: Help and feedback at the foot
     expect(entries[0].tagName).toBe("A"); expect(entries[0].getAttribute("href")).toBe("/dashboard");                  // Dashboard's icon opens the dashboard
     expect(entries[2].getAttribute("aria-label")).toBe("Find stocks: Screeners, themes and what big investors hold");
     expect(entries[2].getAttribute("title")).toBe("Find stocks: Screeners, themes and what big investors hold");

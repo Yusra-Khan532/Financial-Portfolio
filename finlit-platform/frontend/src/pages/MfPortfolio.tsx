@@ -62,6 +62,7 @@ import "../styles/sectors-pack.css";
 import "../styles/industry-pack.css";
 import "../mf/pack/mf-pack.css";
 import { PLAN_FOR_PORTFOLIO, PLAN_FOR_PRISM } from "../lib/planGates";
+import { PageTabs } from "../components/PageTabs";
 
 const errText = (e: unknown) => ((e as { body?: { detail?: string } })?.body?.detail) || (e instanceof Error ? e.message : "Something went wrong. Please try again.");
 
@@ -310,6 +311,7 @@ export function MfPortfolioPage() {
                     onUndo={async () => { try { await w.undoClear.mutateAsync(); } catch (x) { if ((x as { status?: number }).status === 410) throw new Error("The clear is final: Undo is only possible for 10 seconds."); throw x; } }} />
                   <p>{d ? `${d.count} ${d.count === 1 ? "fund" : "funds"} · ${limit} on your plan` : `${limit} on your plan`}</p></>}</MenuButton></>} />
           </div>
+          <PageTabs set="portfolios" className="pf-sibs" />{/* task #310 part D: the three portfolios as page tabs under the title */}
           {d && d.count > 0 && <TopMoney t={moneyNamed} all={all.map((h) => keyOf(h.id))} noun={["fund", "funds"]} pick={pick} onAddQty={addUnits} onAddPf={() => setAdding(true)} qtyWord="units" addLabel="Add units" todayKnown={false}
             onRename={(id, name) => { const m = name.trim(); if (!m) return "Give the platform a name."; if (pfList.some((x) => x.id !== id && x.name.trim().toLowerCase() === m.toLowerCase())) return `You already have a platform called ${m}. Try another name, such as "${m} (joint)".`;
               book.accounts.rename(id, m, pfList); toast("Platform renamed."); return null; }}

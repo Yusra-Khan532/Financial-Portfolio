@@ -57,7 +57,7 @@ describe("DCF section bar (task #189)", () => {
     const page = readFileSync(join(process.cwd(), "src/pages/Dcf.tsx"), "utf8"), css = readFileSync(join(process.cwd(), "src/styles/section-nav.css"), "utf8");
     expect(page).not.toMatch(/SectionNav|data-snav/);
     expect(css).toMatch(/\.jumpbar \{ display: block; position: sticky; top: 64px;/);
-    expect(css).toMatch(/\.jumpbar-i\.on \{ background: var\(--gain-soft\); box-shadow: inset 0 0 0 1px var\(--gain\); \}/);
+    expect(css).toMatch(/\.jumpbar-i\.on \{ background: var\(--ui-on-bg\);/);   // task #310 part D: the ui-tab selected colour, not emerald
   });
 });
 

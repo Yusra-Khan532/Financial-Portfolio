@@ -139,3 +139,20 @@ export const PRICING: NavItem = i("/plans", "Pricing", "Free, Silver and Gold", 
 /** Does this address belong to the item (itself or a page under it)? `end` items match only themselves; `not` names a sibling page that has its own item. */
 export const isHere = (path: string, it: NavItem) => path === it.to || (!it.end && path.startsWith(it.to + "/") && !(it.not && (path === it.not || path.startsWith(it.not + "/"))));
 export const sectionHere = (path: string, s: NavSection) => s.groups.some((g) => g.items.some((it) => isHere(path, it)));
+
+/* Task #310 part D (the 22 Nov pack, 04-navigation.md): one layer per job. Signed in on a tool page, the left menu moves between pages and the top bar
+   keeps the logo, search, Ask FinLit AI, theme, notifications and account; marketing pages and signed-out visitors keep the top menus. */
+
+/** The ticker strip shows on the dashboard and the Markets pages only (the same values are on the dashboard); every other page gets its 34px back. */
+export const TAPE_PAGES: NavItem[] = [DASHBOARD, ...G("markets").items];
+export const showsTape = (path: string) => TAPE_PAGES.some((it) => isHere(path, it));
+
+/** Sibling pages shown as page tabs (ui-tabs) directly under the title: the two sector pages and the three portfolios (the screeners have ScreenerHead). */
+export type Sibling = { to: string; label: string };
+export const SIBLINGS: Record<"sectors" | "portfolios", { label: string; items: Sibling[] }> = {
+  sectors: { label: "Sector pages", items: [{ to: "/sectors", label: "Sector Pulse" }, { to: "/sectors/rotation", label: "Sector Rotation" }] },
+  portfolios: { label: "Portfolios", items: [{ to: "/holdings", label: "Equity portfolio" }, { to: "/mf-portfolio", label: "MF portfolio" }, { to: "/etf-portfolio", label: "ETF portfolio" }] },
+};
+
+/** A section bar shows only when the page has this many sections or more. */
+export const SECTION_BAR_MIN = 4;
