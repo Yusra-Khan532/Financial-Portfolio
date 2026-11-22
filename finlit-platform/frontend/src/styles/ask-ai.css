@@ -300,3 +300,48 @@
 .aif-a-sec { display: grid; gap: 6px; padding: 10px 12px 12px; border: 1px solid var(--border); border-radius: 12px; background: color-mix(in srgb, var(--s2) 60%, transparent); }
 .aif-a-h { margin: 0; font: 700 var(--fs-16, 16px)/1.3 var(--sans); color: var(--text); letter-spacing: 0; }
 .aif-a-cite { font-size: var(--fs-12); color: var(--muted); white-space: normal; }
+
+/* ---- Task #305 (the team, 22 Nov 2026: "no need to scroll in order to see those 4 preset list ... use better colours and adjustments so to ease out
+   the UI/UX of the bot"). The four "Questions about this page" now come right under the ask box (Assistant.tsx), and the hero, the ask row and the theme
+   cards are compact, so the home reads top to bottom on one screen: hello, ask, this page's four questions, the five themes. Colours: each theme card has
+   its own hue (green, blue, violet, amber, teal) in place of five identical green cards; the four questions carry the brand green. ---- */
+.aif { --aif-c1: #4fc08c; --aif-c2: #5ea8e8; --aif-c3: #a48af2; --aif-c4: #e3a64e; --aif-c5: #3fc2bd; }
+:root[data-theme="light"] .aif { --aif-c1: #1f7a55; --aif-c2: #2a67a3; --aif-c3: #6a4cc0; --aif-c4: #9a5c12; --aif-c5: #1b7f7a; }
+/* the hello: a smaller robot and title */
+.aif.full .ai-body { padding-top: 4px; }
+.aif-hero { padding: 0; } .aif-hero .aif-bot { width: 72px; height: 66px; }
+.aif-hero h2 { margin-top: 0; font-size: clamp(24px, 2.4vw, 32px); } .aif-hero p { margin-top: 2px; font-size: var(--fs-16); }
+.aif.full .aif-askw { margin: 10px 0 10px; gap: 8px; }
+/* this page's four questions */
+.aif-pq { display: grid; gap: 6px; margin: 0 0 4px; }
+.aif-pq .aif-label { margin: 0; color: var(--aif-g, var(--gold)); }
+.aif-pq .aif-qs { gap: 6px; }
+.aif-pq .aif-q { padding: 8px 10px; gap: 10px; grid-template-columns: 28px minmax(0, 1fr) 14px; border-color: color-mix(in srgb, var(--aif-g, var(--gold)) 32%, var(--border));
+  background: color-mix(in srgb, var(--aif-g, var(--gold)) 6%, var(--s1)); font-weight: 500; }
+.aif-pq .aif-q > svg:first-child { box-sizing: border-box; width: 28px; height: 28px; padding: 6px; border-radius: 8px; color: var(--aif-g, var(--gold));
+  background: color-mix(in srgb, var(--aif-g, var(--gold)) 16%, transparent); }
+.aif-pq .aif-q:hover { border-color: var(--aif-g, var(--gold)); background: color-mix(in srgb, var(--aif-g, var(--gold)) 12%, var(--s1)); }
+.aif-pq .aif-q:hover > svg:last-child { color: var(--aif-g, var(--gold)); }
+.aif-q:focus-visible, .aif-cat:focus-visible { outline: 2px solid var(--aif-g, var(--gold)); outline-offset: 2px; }
+/* the five themes: compact cards, each with its own hue */
+.aif-cats.five > li:nth-child(1) { --c: var(--aif-c1); } .aif-cats.five > li:nth-child(2) { --c: var(--aif-c2); } .aif-cats.five > li:nth-child(3) { --c: var(--aif-c3); }
+.aif-cats.five > li:nth-child(4) { --c: var(--aif-c4); } .aif-cats.five > li:nth-child(5) { --c: var(--aif-c5); }
+.aif-cats.five .aif-cat { border-color: color-mix(in srgb, var(--c) 34%, var(--border)); background: linear-gradient(135deg, color-mix(in srgb, var(--c) 11%, var(--s1)), var(--s1)); }
+.aif-cats.five .aif-cat:hover { border-color: var(--c); background: linear-gradient(135deg, color-mix(in srgb, var(--c) 18%, var(--s1)), var(--s1)); }
+.aif-cats.five .aif-cat > svg:first-child { box-sizing: border-box; width: 32px; height: 32px; padding: 6px; border-radius: 9px; color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); margin: 0 0 4px; }
+.aif.full .aif-cats.five { margin: 10px 0 4px; gap: 10px; }
+.aif.full .aif-cats.five .aif-cat { min-height: 0; padding: 12px 14px; background-image: linear-gradient(135deg, color-mix(in srgb, var(--c) 11%, var(--s1)), var(--s1)); }
+.aif.full .aif-cats.five .aif-cat:hover { background-image: linear-gradient(135deg, color-mix(in srgb, var(--c) 18%, var(--s1)), var(--s1)); }
+.aif.full .aif-cats.five .aif-cat b { font-size: var(--fs-16, 16px); line-height: 1.25; } .aif.full .aif-cats.five .aif-cat small { font-size: var(--fs-13, 13px); }
+.aif.full .aif-cats.five .aif-go { color: var(--c); }
+.aif.full .aif-more { margin: 6px 0 0; }
+/* the small window: a one-line hello and the "Try asking" chips on one line that slides sideways */
+.aif:not(.full) .aif-hi { padding: 8px 12px; } .aif:not(.full) .aif-hi b { font-size: var(--fs-18); }
+.aif:not(.full) .aif-askw { margin: 4px 0 8px; gap: 8px; }
+.aif:not(.full) .aif-cat { padding: 10px 12px; }
+@media (max-width: 720px) {
+  .aif-try { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; } .aif-try::-webkit-scrollbar { display: none; }
+  .aif-try > * { flex: none; }
+  .aif.full .aif-hero .aif-bot { width: 56px; height: 52px; } .aif.full .aif-hero h2 { font-size: var(--fs-24); } .aif.full .aif-hero p { font-size: var(--fs-14); }
+  .aif.full .aif-cats.five .aif-cat small { padding-right: 30px; }
+}
