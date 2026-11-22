@@ -9,6 +9,8 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
+    "ui-check": "node scripts/check-ui.mjs",
+    "ui-check:baseline": "node scripts/check-ui.mjs --write-baseline",
     "overlay-guard": "node e2e/overlay_guard.mjs",
     "layout-guard": "node e2e/layout_guard.mjs",
     "layout-guard:api": "GUARD_MODE=api node e2e/layout_guard.mjs",
