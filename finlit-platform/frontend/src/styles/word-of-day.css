@@ -5,11 +5,12 @@
 .top .wod-top { position: relative; flex: none; padding: 0 14px; }
 .top .wod-top svg { width: 16px; height: 16px; flex: none; }
 .wod-dot { position: absolute; top: -3px; right: -3px; width: 10px; height: 10px; border-radius: 50%; background: var(--gold-2); box-shadow: 0 0 0 2px var(--header, var(--bg)); }   /* the header's own colour as a ring, so it reads on green and on mint */
-/* Icon only: on a phone (as Ask FinLit AI), and on a desktop whose header row has no room for the words (WordOfDay.tsx measures it) */
+/* Icon only: on a phone (as Ask FinLit AI, under 860px: task #310 part E, phone310.css), and on a desktop whose header row has no room for the words
+   (WordOfDay.tsx measures it) */
 .top .wod-top.is-compact { width: 44px; padding: 0; justify-content: center; }
 .top .wrap:has(> .wod-top.is-compact) > .grow { min-width: 0; }   /* the 8px spacer may close up rather than push the account button into the edge */
 .top .wod-top.is-compact .wod-top-t { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
-@media (max-width: 759px) {
+@media (max-width: 860px) {
   .top .wod-top { width: 44px; height: 44px; padding: 0; justify-content: center; }
   .top .wod-top .wod-top-t { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 }
@@ -21,14 +22,8 @@
 .top .wod-top.is-menu { display: none; }
 .wod-mi-new { white-space: nowrap; margin-left: 8px; padding: 0 6px; border-radius: var(--ui-r-pill); background: var(--gold-soft); color: var(--gold); font: var(--ui-fw-semibold) var(--fs-12)/var(--lh-12) var(--font-sans); font-style: normal; }
 
-/* Narrow phones: the row was already full (logo, Ask FinLit AI, theme, bell, account and the Dashboard button, which stays in view: headerlinks.css).
-   The book makes room without taking any of them away: it is 40px (still a full tap target), the row's gaps close from 8 to 2px and the spacers may
-   close up, which together give back the 52px it needs (a page with one spacer included), so Dashboard keeps its width. */
-@media (max-width: 500px) {
-  .top .wod-top { width: 40px; height: 40px; }
-  .top .wrap:has(> .wod-top) { gap: 2px; }   /* each button keeps its own border and fill, so they still read apart */
-  .top .wrap:has(> .wod-top) > .grow { min-width: 0; }
-}
+/* Phones (task #310 part E, 05-phone.md): under 860px the header has no Dashboard button, theme switch or burger, so the book keeps the full 44px
+   and the row its 8px gaps; the 500px rules that shrank it to 40px and closed the gaps to 2px are gone. */
 
 /* The panel */
 .wod-scrim { position: fixed; inset: 0; z-index: 1250; }   /* clear on a desktop: the panel reads as a card under the button */

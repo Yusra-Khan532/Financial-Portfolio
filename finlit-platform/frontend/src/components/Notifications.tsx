@@ -71,6 +71,9 @@ export function AccountNotice() {
 }
 
 /** Pops a card for each alert that fires while the site is open ("Alert triggered … View stock →" for a stock; other notices say what they are), and raises browser notifications if allowed. */
+/** Task #310 part E (05-phone.md, fix 3): a toast closes by itself after 6 seconds. */
+export const TOAST_MS = 6000;
+
 export function AlertToasts() {
   const { user } = useAuth();
   const { items, markRead } = useNotices();
@@ -85,7 +88,7 @@ export function AlertToasts() {
     if (!fresh.length) return;
     fresh.forEach((n) => seen.current!.add(n.id));
     setShown((s) => [...fresh.slice(0, 3), ...s].slice(0, 3));
-    fresh.forEach((n) => setTimeout(() => setShown((s) => s.filter((x) => x.id !== n.id)), 9000));
+    fresh.forEach((n) => setTimeout(() => setShown((s) => s.filter((x) => x.id !== n.id)), TOAST_MS));
   }, [items, user]);
   if (!shown.length) return DEMO && user ? <DemoSeeder /> : null;
   return (

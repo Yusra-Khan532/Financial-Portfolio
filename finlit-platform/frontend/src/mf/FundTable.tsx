@@ -1,6 +1,8 @@
 // The scheme table: sortable columns, the columns you chose, a tick box to add a scheme to the comparison. Wide tables scroll inside their own box.
 import { Link } from "react-router";
 import { HScroll } from "../components/HScroll";
+import { useEffect, useState } from "react";
+import { PHONE_ROWS, useIsPhone } from "../components/PhoneFold";
 import { useInfoPop } from "../components/Info";
 import {
   COLUMNS, COL_GROUPS, GROWTH_RETURNS_LABEL, PLAN_SCORE_NOTE, aumBucket, aumText, costLevel, growthFigure, returnBand, categoryShort, checklistLines, navFull, navText, noReturnsText, terText,
@@ -126,7 +128,14 @@ export function FundTable({ rows, cols, q, onSort, picked, onPick, peers }: {
     return t ? ({ "--tint": `color-mix(in srgb, var(${t.tone === "pos" ? "--gain" : "--loss"}) ${Math.round(8 + t.k * 22)}%, transparent)` } as React.CSSProperties) : undefined;
   };
   const cls = (c: ColDef) => (c.num ? "num" : "txt") + (c.group ? ` mf-retcol mf-g-${c.group}` : "") + ` mf-c-${c.id}`;
+  // task #310 part E (05-phone.md, fix 6): on a phone the list shows its first 5 schemes and a Show all button; desktop shows every row
+  const phone = useIsPhone();
+  const [all, setAll] = useState(false);
+  useEffect(() => { setAll(false); }, [rows]);
+  const cut = phone && !all && rows.length > PHONE_ROWS;
+  const shown = cut ? rows.slice(0, PHONE_ROWS) : rows;
   return (
+    <>
     <HScroll label="schemes table" controls={false}>
       <table className="mf-table">
         <caption className="sr-only">Mutual fund schemes. Use the column buttons to sort.</caption>
@@ -142,7 +151,7 @@ export function FundTable({ rows, cols, q, onSort, picked, onPick, peers }: {
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
+          {shown.map((r) => (
             <tr key={r.code} className={r.active ? "" : "mf-stopped"}>
               <th scope="row" className="mf-name">
                 <label className="mf-pickbox" title={picked.includes(r.code) ? "Remove from comparison" : "Add to comparison"}>
@@ -161,5 +170,7 @@ export function FundTable({ rows, cols, q, onSort, picked, onPick, peers }: {
       </table>
       {defs.some((c) => c.id === "score") && <p className="mf-plannote" data-testid="plan-note">{PLAN_SCORE_NOTE}</p>}
     </HScroll>
+    {cut && <button type="button" className="ui-btn ui-btn--secondary mf-showall" onClick={() => setAll(true)}>Show all {rows.length} schemes</button>}
+    </>
   );
 }

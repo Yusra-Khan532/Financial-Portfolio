@@ -14,6 +14,7 @@ import { isBool, loadUi, removeUi, saveUi } from "../lib/persist";
 import { useMarkShell } from "../lib/shellPresence";
 import { HelpActions } from "./PageFeedback";
 import { SideRail } from "./SideRail";
+import { SheetTools } from "./SheetTools";
 
 /** Task #310 part D: the menu is on screen from 860px (below it, a sheet); from 860 to 1100px it starts as the rail. */
 export const DESKTOP_Q = "(min-width: 861px)", NARROW_Q = "(max-width: 1099px)";
@@ -147,7 +148,6 @@ export function AppShell() {
   };
   return (
     <div className={"shell" + (collapsed ? " is-collapsed" : "") + (open ? " is-open" : "")}>
-      <button className="shell-fab" onClick={() => setOpen(true)} aria-label="Open the product menu" aria-expanded={open}><Icon name="panel" /><span>Menu</span></button>
       {open && <div className="shell-scrim" onClick={() => setOpen(false)} aria-hidden="true" />}
       <aside className="side" aria-label="Product navigation">
         {collapsed && desktop ? <SideRail groups={groups} dash={{ to: dash.to, label: dash.label, line: DASHBOARD.sub }} here={here} onExpand={() => setCollapsed(false)} /> : <>
@@ -225,6 +225,8 @@ export function AppShell() {
             </button>
             <div id="side-help-a" className="side-help-a" hidden={!help}><HelpActions className="side-help-i" /></div>
           </div>
+          {/* task #310 part E: under 860px the theme switch and the system controls are here, not in the header */}
+          <SheetTools className="side-tools" />
         </div>
         </div>
         </>}

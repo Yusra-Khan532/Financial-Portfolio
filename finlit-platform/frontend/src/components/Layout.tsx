@@ -27,6 +27,7 @@ import { HelpActions, PageFeedbackHost } from "./PageFeedback";
 import "../styles/ai-top.css";
 import { buttonClass } from "./ui";
 import { WordOfDayButton, WordOfDayMenuItem, useWodInMenu } from "./WordOfDay";
+import { SheetTools } from "./SheetTools";
 
 /** One header dropdown, built from lib/nav.ts. */
 function Menu({ m, open, setOpen, path, extra }: { m: NavSection; open: boolean; setOpen: (v: string | null) => void; path: string; extra?: React.ReactNode }) {
@@ -99,7 +100,7 @@ function Header({ onSearch }: { onSearch: () => void }) {
             ))}
           </div>
         )}
-        <button className="icon-btn" onClick={toggleTheme} aria-label={theme === "light" ? "Switch to dark theme" : "Switch to light theme"}>
+        <button className="icon-btn theme-btn" onClick={toggleTheme} aria-label={theme === "light" ? "Switch to dark theme" : "Switch to light theme"}>
           {theme === "light" ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z" /></svg>
             : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>}
         </button>
@@ -138,6 +139,7 @@ function Header({ onSearch }: { onSearch: () => void }) {
             {m.groups.map((g, gi) => <Fragment key={gi}>{g.title && m.id !== "more" && <span className="mt2">{g.title}</span>}{g.title && m.id === "more" && <span className="mt2">{g.title}</span>}
               {g.items.map((it) => <NavLink key={it.to} to={it.to} end={it.end}>{it.label}{it.gold && <em className="gtag">Gold</em>}{isNew(it) && <em className="nav-new">New</em>}</NavLink>)}</Fragment>)}</div>)}
           <div className="mg mg-help"><span className="mt">Help and feedback</span><HelpActions onPick={() => setMenu(false)} /></div>
+          <SheetTools />
           <div className="mg"><NavLink to={PRICING.to}>{PRICING.label}</NavLink>{user ? <><NavLink to="/dashboard">Dashboard</NavLink><NavLink to="/account">Account</NavLink></> : <><Link to="/login">Sign in</Link><Link to="/login?mode=signup" className="gold">Create free account</Link></>}</div>
         </nav>
       )}
