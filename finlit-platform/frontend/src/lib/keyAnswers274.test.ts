@@ -21,8 +21,14 @@ describe("Portfolio's Key figures", () => {
   it("against similar companies: a full sentence with the counts, the bar and who is furthest behind", () => {
     expect(peers.sentence).toBe("6 of 15 were among the strongest in their peer group over the last 12 months; 4 were among the weakest.");
     expect(peers.bar.map((b) => `${b.label} ${b.n}`)).toEqual(["Strongest 6", "Middle 3", "Weakest 4", "Not compared 2"]);
-    expect(peers.rests).toBe("Furthest behind: YESBANK (12th of 12) and INFY (10th of 13). 3 sit in the middle; TIPSMUSIC and KINGFA trade too thinly to rank fairly.");
+    expect(peers.rests).toBe("Furthest behind: YESBANK (12th of 12) and INFY (10th of 13). 3 sit in the middle. TIPSMUSIC and KINGFA trade too thinly to rank fairly.");
     expect(peers.go).toBe("See peers");
+  });
+  it("task #323 (file 21, part 3): more than three not compared are counted, not run on after the middle", () => {
+    const many = shares.map((s, i) => (i >= 6 ? { ...s, peer: null, notCompared: i % 2 ? "trades too thinly to rank fairly" : "has under a year of prices" } : s)) as Share[];
+    const [p] = portfolioAnswers(many, true, lab);
+    expect(p.rests).toMatch(/ 11 are not compared yet: TIPSMUSIC, KINGFA, AEROFLEX and 8 more, listed under Against their peers\.$/);
+    expect(p.rests).not.toMatch(/;/);
   });
   it("price trend: the pack's sentence on the pack's shares", () => {
     expect(trend.sentence).toBe("11 of 15 are in a long-term uptrend, but 8 of them are resting or dipping in recent weeks.");

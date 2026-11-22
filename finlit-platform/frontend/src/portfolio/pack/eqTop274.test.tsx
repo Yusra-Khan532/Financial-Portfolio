@@ -14,7 +14,7 @@ afterEach(cleanup);
 beforeEach(() => prefs.set({ viewsSeen: [] }, true));
 const wrap = (ui: React.ReactNode) => render(<MemoryRouter>{ui}</MemoryRouter>);
 const money = (o: Partial<Money> = {}): Money => ({ n: 15, withQty: 1, full: 1, invested: 15600, now: 16319, gain: 719, today: 94, prev: 16225, booked: 0, bookedOk: true, nSales: 0, bad: 0,
-  missing: Array.from({ length: 14 }, (_, i) => ({ symbol: "S" + i, what: "qty" as const })), ...o });
+  missing: Array.from({ length: 14 }, (_, i) => ({ symbol: "S" + i, what: "qty" as const })), covered: [], noPrice: [], rate: [], rateOn: null, ...o });
 
 describe("the money box (change 2)", () => {
   it("shows value now, Invested, Today and Gain with arrows and % pills, and the day's best and worst share", () => {

@@ -514,6 +514,13 @@ async def test_portfolio_is_saved_per_plan_and_validated(app):
     eleven = {**two, "portfolios": [{"id": f"p{i}", "name": f"P{i}"} for i in range(11)]}
     assert (await silver.put("/api/me/portfolio", json=eleven)).status_code == 422
     assert (await silver.put("/api/me/portfolio", json={"holdings": [{**two["holdings"][1], "side": "short"}]})).status_code == 422
+    # task #323: a buy price from a statement's Rate keeps saying so (priceFrom) and the day it is from (priceOn)
+    rate = {"holdings": [{"id": "r1", "symbol": "TCS", "qty": 5, "price": 3550.25, "owned": True, "priceFrom": "rate", "priceOn": "2026-11-20"}]}
+    assert (await silver.put("/api/me/portfolio", json=rate)).status_code == 200
+    kept = (await silver.get("/api/me/state")).json()["portfolio"]["holdings"][0]
+    assert kept["priceFrom"] == "rate" and kept["priceOn"] == "2026-11-20"
+    for bad in ({"priceFrom": "ltp"}, {"priceOn": "20 Nov"}):
+        assert (await silver.put("/api/me/portfolio", json={"holdings": [{**rate["holdings"][0], **bad}]})).status_code == 422
     dup = {"holdings": [{"id": "x", "symbol": "TCS", "qty": 1, "price": 1}, {"id": "x", "symbol": "INFY", "qty": 1, "price": 1}]}
     assert (await silver.put("/api/me/portfolio", json=dup)).status_code == 422
     for c in (basic, silver):

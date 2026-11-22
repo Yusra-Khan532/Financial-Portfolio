@@ -73,23 +73,28 @@ export function aggOf(hs: Holding[], symbol: string, pf: string | "all"): Agg | 
 export const soldInFull = (l: Ledger) => l.buys.length > 0 && l.qty === 0;
 
 export type Money = { n: number; withQty: number; full: number; invested: number; now: number; gain: number; today: number; prev: number;
-  booked: number; bookedOk: boolean; nSales: number; bad: number; missing: { symbol: string; what: "qty" | "price" }[] };
+  booked: number; bookedOk: boolean; nSales: number; bad: number; missing: { symbol: string; what: "qty" | "price" }[];
+  /** task #323 (developer file 21, part 6): the shares really in the money figures (a quantity, a buy price and a price today); those with no price today
+   *  yet (counted, not valued); and those whose buy price is a statement's Rate (priceFrom "rate"), with that Rate's day */
+  covered: string[]; noPrice: string[]; rate: string[]; rateOn: string | null };
 /** The money row and the total row (pack B7, B11): over the shares held in the portfolio (sold in full left out); a share without a buy price counts in
  *  Value now, not in Invested or Gain. priceOf: the latest price; changeOf: today's change in percent. */
 export function moneyOf(hs: Holding[], pf: string | "all", priceOf: (s: string) => number | null | undefined, changeOf: (s: string) => number | null | undefined): Money {
-  const t: Money = { n: 0, withQty: 0, full: 0, invested: 0, now: 0, gain: 0, today: 0, prev: 0, booked: 0, bookedOk: true, nSales: 0, bad: 0, missing: [] };
+  const t: Money = { n: 0, withQty: 0, full: 0, invested: 0, now: 0, gain: 0, today: 0, prev: 0, booked: 0, bookedOk: true, nSales: 0, bad: 0, missing: [], covered: [], noPrice: [], rate: [], rateOn: null };
   for (const sym of [...new Set(hs.map((h) => h.symbol.toUpperCase()))]) {
     const a = aggOf(hs, sym, pf);
     if (!a) continue;
     if (a.nSales || a.bad) { t.booked += a.booked; t.nSales += a.nSales; t.bad += a.bad; if (!a.bookedOk) t.bookedOk = false; }
     if (a.qty === 0) continue;                                                           // sold in full: in Sold, not in the counts
     t.n++;
+    const fromRate = hs.find((h) => h.symbol.toUpperCase() === sym && (pf === "all" || pfOf(h) === pf) && h.priceFrom === "rate" && h.price > 0);
+    if (fromRate) { t.rate.push(sym); t.rateOn = fromRate.priceOn ?? t.rateOn; }
     const p = priceOf(sym);
     if (a.qty == null) { t.missing.push({ symbol: sym, what: "qty" }); continue; }
-    if (p == null) continue;                                                             // no price today yet: counted, not valued
+    if (p == null) { t.noPrice.push(sym); continue; }                                    // no price today yet: counted, not valued
     const now = a.qty * p, c = changeOf(sym) ?? 0, prev = now / (1 + c / 100);
     t.withQty++; t.now += now; t.today += now - prev; t.prev += prev;
-    if (a.invested != null) { t.full++; t.invested += a.invested; t.gain += now - a.invested; } else t.missing.push({ symbol: sym, what: "price" });
+    if (a.invested != null) { t.full++; t.covered.push(sym); t.invested += a.invested; t.gain += now - a.invested; } else t.missing.push({ symbol: sym, what: "price" });
   }
   return t;
 }
@@ -117,12 +122,12 @@ export function lotActions(get: () => Holding[], store: Store) {
       const name = hs.find((h) => h.symbol.toUpperCase() === sym && pfOf(h) === pf && !h.owned);
       if (name && side === "buy") store.update(name.id, base); else store.add(base);
     },
-    edit: (id: string, patch: Partial<Pick<Holding, "qty" | "price" | "date">>) => store.update(id, patch),
+    edit: (id: string, patch: Partial<Pick<Holding, "qty" | "price" | "date">>) => store.update(id, patch.price != null ? { ...patch, priceFrom: undefined, priceOn: undefined } : patch),   // task #323: a typed price is no longer the Rate
     remove: (id: string) => {
       const hs = get(), h = hs.find((x) => x.id === id);
       if (!h) return;
       const others = hs.filter((x) => x.id !== id && x.symbol === h.symbol && pfOf(x) === pfOf(h));
-      if (!others.length) store.update(id, { qty: 1, price: 0, date: undefined, owned: false, side: undefined }); else store.remove(id);
+      if (!others.length) store.update(id, { qty: 1, price: 0, date: undefined, owned: false, side: undefined, priceFrom: undefined, priceOn: undefined }); else store.remove(id);
     },
   };
 }

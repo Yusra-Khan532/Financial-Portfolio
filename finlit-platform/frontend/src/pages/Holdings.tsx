@@ -23,7 +23,10 @@ import { AddSharesDialog, CompanyCombo, rowsToChanges, suggest, type AddRow, typ
 import type { CompanyHit } from "../lib/companySearch";
 import { clearPortfolioServer, undoClearPortfolioServer } from "../lib/account";
 import { PdfImport } from "../components/PdfImport";
-import { ACCEPT, entriesFromFile, type Entry } from "../lib/holdingsFile";
+import { ACCEPT, entriesAndAmountsFromFile, type Entry, type GridAmounts } from "../lib/holdingsFile";
+import { addedMessage, attachAmounts, fileNotes, newHolding, updateHeld, type Amounts, type ImportOpts } from "../lib/importAdd";
+import { fundsFromMissing } from "../lib/importFunds";
+import { sendAllFunds } from "../lib/importEtf";
 import { isPdf } from "../lib/holdingsPdf";
 import { entryOf, makeMatcher, matchEntries, type Skipped, type ToCheck } from "../lib/holdingsMatch";
 import { resolveIsins, sourcesLine } from "../lib/isin";
@@ -80,7 +83,7 @@ const UPLOAD_NOTE = <>
 </>;
 
 const SECS: Record<TabKey, { label: string; secs: Sec[] }> = {
-  portfolio: { label: "Portfolio", secs: [["pf-shares", "Your shares"], ["eq-keys", "Key figures"], ["eq-wc", "What changed"], ["eq-themes", "Themes"], ["eq-trend", "Trends"], ["eq-peers", "Peers"], ["eq-leaders", "Group leaders"]] },
+  portfolio: { label: "Portfolio", secs: [["pf-shares", "Your shares"], ["eq-keys", "Key figures"], ["eq-wc", "What changed"], ["eq-trend", "Trends"], ["eq-peers", "Peers"], ["eq-leaders", "Group leaders"], ["eq-themes", "Themes"]] },
   // task #274 (change 17): the pack's steps for both views, each ending with What this means, in short
   diversification: { label: "Diversification analytics", secs: [["eq-where", "Where it sits"], ["eq-keysd", "Key figures"], ["eq-spread", "Spread"], ["eq-moves", "Moving together"], ["eq-grid", "Share by share"], ["eq-style", "Style tilt"], ["eq-short", "What this means"]] },
   risk: { label: "Risk analytics", secs: [["eq-rg", "At a glance"], ["eq-keysr", "Key figures"], ["eq-build", "Beta build"], ["eq-sizeb", "Size benchmarks"], ["eq-mr", "Risk share"], ["eq-fall", "If the market fell"], ["eq-each", "Each share"], ["eq-short", "What this means"]] },
@@ -88,7 +91,7 @@ const SECS: Record<TabKey, { label: string; secs: Sec[] }> = {
 
 export function HoldingsPage() {
   useDocTitle("Equity portfolio", "Add the shares you own, by name or from a broker file, and see how strong each one is, how spread out the list is, what moves together and where the risk comes from.");
-  const { plan, toast } = useUI();
+  const { plan, toast, has } = useUI();
   const { seesAll } = useAuth();
   const qc = useQueryClient();
   const model = modelFor(plan, seesAll);          // Gold: FinLit Prism. Silver: no company score (task #283). Basic: the page is gated.
@@ -114,7 +117,9 @@ export function HoldingsPage() {
   const [addWin, setAddWin] = useState<{ tab: AddTab; pre: CompanyHit | null } | null>(null), [impOpen, setImpOpen] = useState(false);
   // task #274 (pack change 3): Edit | Sell under each share open these windows
   const [esWin, setEsWin] = useState<{ what: "edit" | "sell"; symbol: string } | null>(null);
-  const [checks, setChecks] = useState<ToCheck[]>([]), [skipped, setSkipped] = useState<Skipped[]>([]), [readBy, setReadBy] = useState<string | null>(null);
+  const [checks, setChecks] = useState<(ToCheck & Amounts)[]>([]), [skipped, setSkipped] = useState<Skipped[]>([]), [readBy, setReadBy] = useState<string | null>(null);
+  // task #323: what an import read and what it could not (the file's notes), and where its ETFs went
+  const [impNotes, setImpNotes] = useState<string[]>([]), [etfNote, setEtfNote] = useState("");
   const file = useRef<HTMLInputElement>(null), [busy, setBusy] = useState(false), [pdf, setPdf] = useState<File | null>(null);
   const matcher = useMemo(() => makeMatcher(index), [index]);
   const localBefore = useRef<PState | null>(null), addBox = useRef<HTMLInputElement>(null);   // Clear portfolio: the list as it was, if the server cannot be reached for Undo
@@ -194,21 +199,47 @@ export function HoldingsPage() {
       else if (h.isin && !bySymbol.has(h.symbol) && symbolOf.get(h.isin)) portfolio.update(h.id, { symbol: symbolOf.get(h.isin)! });
     }
   }, [isinOf, st.holdings, index]);
-  const add = async (entries: Entry[], from?: string, confirmNames = !!from) => {
+  /** Task #323: a share already in the target portfolio takes the statement's quantity, and its buy price when it has none; a share with buys of its own
+   *  keeps them (task #235: a bare quantity never replaces a history). True when something changed. */
+  const applyHeld = (sym: string, a: Amounts, o: ImportOpts = {}) => {
+    const mine = st.holdings.filter((h) => h.symbol === sym && pfOf(h) === goTo);
+    if (!mine.length || mine.some((h) => h.owned)) return false;
+    const patch = updateHeld(mine[0], a, o);
+    if (patch) portfolio.update(mine[0].id, patch);
+    return !!patch;
+  };
+  const add = async (entries: Entry[], from?: string, confirmNames = !!from, amounts?: GridAmounts) => {
     if (!entries.length) { toast(from ? `No shares found in ${from}. It should have a column with the ISINs or the share names (ISIN, Symbol, Stock, Instrument or Company).` : "No share names found. Put one ISIN, name or ticker per line, or paste the ISIN or Name column from your broker."); return; }
     if (!index.length) { toast("The company list is still loading. Try again in a moment."); return; }
     const isins = entries.flatMap((e) => (e.isin ? [e.isin] : []));
     if (isins.length) setBusy(true);
     const res = isins.length ? await resolveIsins(isins, idx.data) : null;
     setBusy(false);
-    const { found, check, skipped: skip, missing: miss, byIsin } = matchEntries(entries, index, res?.answers ?? null, confirmNames);
+    const m = matchEntries(entries, index, res?.answers ?? null, confirmNames), { skipped: skip, byIsin } = m;
+    // task #323: each line's quantity and average buy price come along (spreadsheets: lib/holdingsFile entriesWithAmounts)
+    const found = attachAmounts(m.found, entries), check = attachAmounts(m.check, entries);
     const fresh = [...new Map(found.filter((f) => !inTarget.has(f.symbol)).map((f) => [f.symbol, f])).values()];
     const room = Math.max(0, cap - allSymbols.length) + fresh.filter((f) => allSymbols.includes(f.symbol)).length, take = fresh.slice(0, room);
-    if (take.length) portfolio.addMany(take.map((f) => ({ symbol: f.symbol, qty: 1, price: 0, isin: f.isin || isinOf?.get(f.symbol), ...pfField(goTo) })));
+    if (take.length) portfolio.addMany(take.map((f) => ({ ...newHolding(f, f.isin || isinOf?.get(f.symbol)), ...pfField(goTo) })));
+    const updated = found.filter((f) => inTarget.has(f.symbol) && f.qty != null && applyHeld(f.symbol, f)).length;
     const taken = new Set([...symbols, ...take.map((f) => f.symbol)]);
+    // task #323 (file 21, part 13): a broker's report names ETFs by symbol; lines that named no listed company are tried as ETFs, for the ETF portfolio
+    const funds = amounts && has(PLAN_FOR_PORTFOLIO) && !DEMO ? fundsFromMissing(m.missing, entries) : [];
+    let miss = m.missing;
+    setEtfNote("");
+    if (funds.length) {
+      try {
+        const sent = await sendAllFunds(funds);
+        const notEtf = new Set(sent.notAdded.map((x) => x.toUpperCase()));
+        miss = miss.filter((x) => !funds.some((f) => f.input === x) || notEtf.has(x.toUpperCase()));
+        setEtfNote(sent.msg);
+      } catch { setEtfNote("The ETF lines could not be sent to your ETF portfolio just now; add them on the ETF portfolio page."); }
+    }
     setMissing(miss); setChecks(check.filter((c) => !taken.has(c.symbol))); setSkipped(skip);
+    setImpNotes(amounts ? fileNotes(amounts, take) : []);
     setReadBy(isins.length ? `${byIsin} of ${entries.length} ${entries.length === 1 ? "line" : "lines"} matched by ISIN, against ${sourcesLine(res?.sources ?? null)}.${entries.length > isins.length ? ` ${entries.length - isins.length} without an ISIN matched by name.` : ""}` : null);
-    toast([take.length ? `Added ${take.length} ${take.length === 1 ? "share" : "shares"}` : "Nothing new to add", check.length ? `${check.length} to check (listed below)` : "", skip.length ? `${skip.length} not added (reasons below)` : "",
+    const head = amounts ? addedMessage("file", take, updated, amounts.price).replace(/\.$/, "") : take.length ? `Added ${take.length} ${take.length === 1 ? "share" : "shares"}` : "Nothing new to add";
+    toast([head, check.length ? `${check.length} to check (listed below)` : "", skip.length ? `${skip.length} not added (reasons below)` : "",
       miss.length ? `${miss.length} not recognised (listed below)` : "", fresh.length > room ? `your plan holds up to ${cap}` : ""].filter(Boolean).join(" · ") + ".");
   };
   /** The Add shares window's rows: a row with a quantity is a buy, one without follows the share by name (rowsToChanges); the plan's limit holds. */
@@ -223,7 +254,7 @@ export function HoldingsPage() {
   const addChecked = (c: ToCheck) => {
     if (inTarget.has(c.symbol)) { setChecks((xs) => xs.filter((x) => x !== c)); return; }
     if (!allSymbols.includes(c.symbol) && allSymbols.length >= cap) { toast(`Your plan holds up to ${cap} shares.`); return; }
-    portfolio.addMany([{ symbol: c.symbol, qty: 1, price: 0, isin: c.isin || isinOf?.get(c.symbol), ...pfField(goTo) }]); setChecks((xs) => xs.filter((x) => x.symbol !== c.symbol)); toast(`${c.symbol} added.`);
+    portfolio.addMany([{ ...newHolding(c, c.isin || isinOf?.get(c.symbol)), ...pfField(goTo) }]); setChecks((xs) => xs.filter((x) => x.symbol !== c.symbol)); toast(`${c.symbol} added.`);
   };
   const empty = !lines.length;
   const common = page && model ? { page, meta, symbols: ids, mode, colors, model, ov: ovMap } : null;
@@ -268,7 +299,8 @@ export function HoldingsPage() {
     const best = xs.length ? xs.reduce((a, b) => (b.chg > a.chg ? b : a)) : null, worst = xs.length ? xs.reduce((a, b) => (b.chg < a.chg ? b : a)) : null;
     return { up: xs.filter((x) => x.chg > 0).length, down: xs.filter((x) => x.chg < 0).length, best: best && best.chg > 0 ? best : null, worst: worst && worst.chg < 0 ? worst : null };
   }, [shares]);
-  const haveBuys = useMemo(() => { const miss = new Set(money.missing.map((m) => m.symbol)); return shares.filter((x) => !miss.has(x.symbol)).map((x) => ({ symbol: x.symbol, label: shortLabel(x) })); }, [shares, money.missing]);
+  // task #323 (file 21, part 6): the shares really in the money (a share with no price today was never in `missing`, so "not missing" listed it as covered)
+  const haveBuys = useMemo(() => { const cov = new Set(money.covered); return shares.filter((x) => cov.has(x.symbol)).map((x) => ({ symbol: x.symbol, label: shortLabel(x) })); }, [shares, money.covered]);
   const seen = useEqViewsSeen(view);
   const BAND_TONE: Record<string, string> = { STRONG: "var(--eqx-hi)", HEALTHY: "var(--eqx-hi)", AVERAGE: "var(--eqx-mid)", WEAK: "var(--eqx-lo)", POOR: "var(--eqx-lo)" };
   const MACRO_C = ["#4b4fc4", "#b5541c", "#a23b72", "#0e6471", "#7a8c2e", "#9a6b12", "#2f5a9e", "#5b6170", "#13606b", "#c08a1e"];
@@ -319,7 +351,7 @@ export function HoldingsPage() {
                 <button type="button" role="menuitem" autoFocus onClick={() => { setImpOpen(false); setAddWin({ tab: "paste", pre: null }); }}><span className="x-swm-t"><b>Paste a list</b><small>Names, symbols or ISINs, one a line</small></span></button>
                 <button type="button" role="menuitem" onClick={() => { setImpOpen(false); setAddWin({ tab: "upload", pre: null }); }}><span className="x-swm-t"><b>Upload a broker file or CAS</b><small>Excel, CSV or PDF; read by ISIN</small></span></button></div>}</span>
             <input ref={file} type="file" accept={ACCEPT + ",.pdf,application/pdf"} hidden onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; setAddWin(null); if (isPdf(f)) { setPdf(f); return; } setBusy(true);
-              try { await add(await entriesFromFile(f, matcher), f.name); } catch (err) { toast(err instanceof Error && err.message.startsWith("That file") ? err.message : "That file could not be read. Save it as .xlsx or .csv, or paste the share names instead."); } finally { setBusy(false); } }} />
+              try { const r = await entriesAndAmountsFromFile(f, matcher); await add(r.entries, f.name, true, r.amounts); } catch (err) { toast(err instanceof Error && err.message.startsWith("That file") ? err.message : "That file could not be read. Save it as .xlsx or .csv, or paste the share names instead."); } finally { setBusy(false); } }} />
             </span>
           </form>
           </>} clear={<>
@@ -338,15 +370,18 @@ export function HoldingsPage() {
               : <SellWindow p={lots} symbol={esWin.symbol} title={tt} name={nm} onClose={() => setEsWin(null)} onSave={(sale) => { portfolio.addMany([sale]); toast(`Sale of ${tt} recorded.`); }} />; })()}
           {addWin && <AddSharesDialog tab={addWin.tab} pre={addWin.pre} index={index} isin={isinOf} held={heldSet} info={coInfo} pfs={pfList} defaultPf={goTo} onClose={() => setAddWin(null)}
             onUpload={() => file.current?.click()} uploadNote={UPLOAD_NOTE} onSave={(rows) => { saveRows(rows); setAddWin(null); }} />}
-          {pdf && <PdfImport file={pdf} index={index} search={idx.data} held={symbols} heldQty={qtyBySymbol} room={Math.max(0, cap - allSymbols.length)} onClose={() => setPdf(null)}
-            onAdd={(picks) => {   // task #191: a depository statement brings each share's quantity; a share already in the list takes it as if typed
+          {pdf && <PdfImport file={pdf} index={index} search={idx.data} held={symbols} heldQty={qtyBySymbol} room={Math.max(0, cap - allSymbols.length)} etf={has(PLAN_FOR_PORTFOLIO) && !DEMO} onClose={() => setPdf(null)}
+            onAdd={(picks, info) => {   // task #191: a statement brings each share's quantity; task #323: and its average buy price, or the Rate when chosen
+              const o: ImportOpts = { rateAsBuy: info.rateAsBuy };
               const fresh = picks.filter((p) => !inTarget.has(p.symbol)), set = picks.filter((p) => inTarget.has(p.symbol) && p.qty);
-              if (fresh.length) portfolio.addMany(fresh.map((p) => ({ ...(p.qty ? { symbol: p.symbol, qty: p.qty, price: 0, owned: true } : { symbol: p.symbol, qty: 1, price: 0 }), isin: isinOf?.get(p.symbol), ...pfField(goTo) })));
-              set.forEach((p) => onQty(p.symbol, p.qty!));
-              const withQty = fresh.filter((p) => p.qty).length;
-              toast([fresh.length ? `Added ${fresh.length} ${fresh.length === 1 ? "share" : "shares"} from the PDF${withQty ? `, ${withQty === fresh.length ? "each" : withQty} with its quantity` : ""}` : "", set.length ? `quantity set for ${set.length}` : ""].filter(Boolean).join("; ") + "."); }} />}
+              if (fresh.length) portfolio.addMany(fresh.map((p) => ({ ...newHolding(p, p.isin || isinOf?.get(p.symbol), o), ...pfField(goTo) })));
+              const updated = set.filter((p) => applyHeld(p.symbol, p, o)).length;
+              setImpNotes([]); setEtfNote(info.etf);
+              toast(addedMessage("PDF", fresh, updated, info.price, { ...o, rateCol: info.rateCol, rateOn: info.rateOn }) + (info.etf ? ` ${info.etf}` : "")); }} />}
+          {impNotes.length > 0 && <p className="pfx-note eq-imp-notes" role="note">{impNotes.join(" ")}</p>}
+          {etfNote && <p className="pfx-note eq-imp-etf" role="status">{etfNote} <Link to="/etf-portfolio">Open ETF portfolio ↗</Link></p>}
           {readBy && <p className="pfx-note eq-isin-src" role="status">{readBy}</p>}
-          {checks.length > 0 && <div className="pf-miss eq-isin" role="status"><b>Please check {checks.length === 1 ? "this line" : `these ${checks.length} lines`} (not added yet):</b>{checks.length > 1 && <button type="button" className="pfx-btn eq-addall" onClick={() => { const room = Math.max(0, cap - allSymbols.length), take = checks.filter((c) => !inTarget.has(c.symbol)).slice(0, room); portfolio.addMany(take.map((c) => ({ symbol: c.symbol, qty: 1, price: 0, isin: c.isin || isinOf?.get(c.symbol), ...pfField(goTo) }))); setChecks([]); toast(`Added ${take.length} ${take.length === 1 ? "share" : "shares"}.`); }}>Add all {checks.length}</button>}
+          {checks.length > 0 && <div className="pf-miss eq-isin" role="status"><b>Please check {checks.length === 1 ? "this line" : `these ${checks.length} lines`} (not added yet):</b>{checks.length > 1 && <button type="button" className="pfx-btn eq-addall" onClick={() => { const room = Math.max(0, cap - allSymbols.length), take = checks.filter((c) => !inTarget.has(c.symbol)).slice(0, room); portfolio.addMany(take.map((c) => ({ ...newHolding(c, c.isin || isinOf?.get(c.symbol)), ...pfField(goTo) }))); setChecks([]); toast(`Added ${take.length} ${take.length === 1 ? "share" : "shares"}.`); }}>Add all {checks.length}</button>}
             <ul>{checks.slice(0, 20).map((c) => <li key={c.symbol + (c.isin || c.input)}><span>{c.input}{c.isin && c.input !== c.isin ? ` (${c.isin})` : ""} → <b title={coTitle(c)}>{titleOf(c)}</b> {subLine(c, c.name)}. <small>{c.note}.</small></span>
               <button type="button" className="pfx-btn" onClick={() => addChecked(c)}>Add {c.symbol}</button></li>)}</ul></div>}
           {skipped.length > 0 && <div className="pf-miss eq-isin" role="status"><b>Not added ({skipped.length}):</b>
@@ -397,9 +432,6 @@ export function HoldingsPage() {
               listRef={wcList === "equity" ? "equity" : "watch"} page="equity-portfolio" lists={[{ id: "equity", label: "Your shares", count: symbols.length }, { id: "watch", label: "Watchlist", count: watchSyms.length }]}
               activeList={wcList} onPickList={(id) => setWcList(id === "watch" ? "watch" : "equity")} nameOf={(x) => meta[x]?.name ?? by.get(x)?.name}
               sub={wcList === "equity" ? (x) => (onWatch.has(x) ? "★ also on a watchlist" : null) : undefined} className="sp-sec wc eq-wc" hId="wc-h-eq" id="eq-wc" />}
-            {!DEMO && <YourThemes v={thList === "shares" ? thShares : thWatch} list={thList} onList={setThList} theme={themeF} label={labelOf}
-              counts={{ shares: { placed: thShares?.placed ?? 0, total: symbols.length }, watch: { placed: thWatch?.placed ?? 0, total: watchSyms.length } }}
-              onShow={thList === "shares" ? (name) => { setThemeF(name); setTimeout(() => jumpTo("pf-shares"), 60); } : undefined} />}
             <SizeFold counts={sizeCount} />
             {/* Trends, Peers and Group leaders: Gold only (FinLit Prism); Silver sees a dashed lock card for each (the pack) */}
             {model === "prism" ? <>
@@ -411,6 +443,10 @@ export function HoldingsPage() {
               <GoldLock id="eq-peers" title="Against their peers" text="Whether each share leads or lags similar companies over 12 months." />
               <GoldLock id="eq-leaders" title="What if you had owned the group leader instead?" text="Your laggards against the #1 share of their peer group over 12 months." />
             </>}
+            {/* task #323 (developer file 21, part 12): Your themes moves below Group leaders, so the readings about each share come first */}
+            {!DEMO && <YourThemes v={thList === "shares" ? thShares : thWatch} list={thList} onList={setThList} theme={themeF} label={labelOf}
+              counts={{ shares: { placed: thShares?.placed ?? 0, total: symbols.length }, watch: { placed: thWatch?.placed ?? 0, total: watchSyms.length } }}
+              onShow={thList === "shares" ? (name) => { setThemeF(name); setTimeout(() => jumpTo("pf-shares"), 60); } : undefined} />}
           </>}
           {view === "diversification" && (page && common && div ? <>
             <WhereSitsGrid d={div} />

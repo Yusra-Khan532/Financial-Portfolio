@@ -193,6 +193,9 @@ class Holding(BaseModel):
     isin: Optional[str] = Field(default=None, pattern=r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")  # task #183: the share's ISIN, the key that survives a rename
     pf: Optional[str] = Field(default=None, pattern=r"^[a-z0-9]{1,16}$")  # task #235: the portfolio (broker account) the row belongs to; none = the first one
     side: Optional[Literal["buy", "sell"]] = None  # task #235: a sale (first in, first out on the page); none or "buy" = a buy
+    # task #323: a buy price taken from a statement's Rate column (that day's price, not what was paid), chosen by the member on import, and that day
+    priceFrom: Optional[Literal["rate"]] = None
+    priceOn: Optional[str] = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
 
     @field_validator("symbol")
     @classmethod

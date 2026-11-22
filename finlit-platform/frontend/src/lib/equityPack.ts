@@ -51,10 +51,12 @@ export function sharesCards(shares: Share[], day: string): Card[] {
 // ------------------------------------------------------------------------------------------------ Against their peers
 export function peerSentence(shares: Share[]): string {
   const lead = shares.filter((s) => s.peer?.label === "leader"), lag = shares.filter((s) => s.peer?.label === "laggard");
-  let s = `${cap(num(lead.length))} of your ${shares.length} shares lead their peers and ${num(lag.length)} lag.`;
+  // task #323 (developer file 21, part 11): "One of your 12 shares leads its peers and one lags", not "lead their peers ... lag"
+  let s = `${cap(num(lead.length))} of your ${shares.length} shares ${lead.length === 1 ? "leads its" : "lead their"} peers and ${num(lag.length)} ${lag.length === 1 ? "lags" : "lag"}.`;
   const by = new Map<string, Share[]>(); shares.forEach((x) => { if (x.industry) by.set(x.industry, [...(by.get(x.industry) ?? []), x]); });
   const mixed = [...by.entries()].filter(([, xs]) => xs.length >= 3 && xs.some((x) => x.peer?.label === "leader") && xs.some((x) => x.peer?.label === "laggard")).sort((a, b) => b[1].length - a[1].length)[0];
-  if (mixed) { const [ind, xs] = mixed; s += ` Among your ${num(xs.length)} ${ind.toLowerCase()} shares, ${list(xs.filter((x) => x.peer?.label === "leader").map((x) => x.symbol))} lead while ${list(xs.filter((x) => x.peer?.label === "laggard").map((x) => x.symbol))} lag.`; }
+  if (mixed) { const [ind, xs] = mixed, a = xs.filter((x) => x.peer?.label === "leader").map((x) => x.symbol), z = xs.filter((x) => x.peer?.label === "laggard").map((x) => x.symbol);
+    s += ` Among your ${num(xs.length)} ${ind.toLowerCase()} shares, ${list(a)} ${a.length === 1 ? "leads" : "lead"} while ${list(z)} ${z.length === 1 ? "lags" : "lag"}.`; }
   return s;
 }
 export const peerLine = (s: Share) => (!s.peer ? "" : `${s.peer.vs == null ? "" : `${s.peer.vs >= 0 ? "+" : MINUS}${Math.abs(s.peer.vs).toFixed(1)} pts vs ${s.peer.bench} over 12 months`}${s.peer.direction ? `, ${s.peer.direction === "gaining" ? "gaining" : "weakening"} lately` : ""}`);

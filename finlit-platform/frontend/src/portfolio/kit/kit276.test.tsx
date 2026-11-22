@@ -26,7 +26,7 @@ describe("filters in one row", () => {
 });
 
 describe("the money box says what it covers", () => {
-  const m = (o: Partial<Money>): Money => ({ n: 4, withQty: 0, full: 0, invested: 0, now: 0, gain: 0, today: 0, prev: 0, booked: 0, bookedOk: true, nSales: 0, bad: 0, missing: [], ...o });
+  const m = (o: Partial<Money>): Money => ({ n: 4, withQty: 0, full: 0, invested: 0, now: 0, gain: 0, today: 0, prev: 0, booked: 0, bookedOk: true, nSales: 0, bad: 0, missing: [], covered: [], noPrice: [], rate: [], rateOn: null, ...o });
   it("none, some, and all", () => {
     expect(coverText(m({ missing: ["B", "A", "C", "D"].map((symbol) => ({ symbol, what: "qty" as const })) }), [], ["ETF", "ETFs"]).rest).toBe("None of A, B, C and D has a quantity yet; they count in every reading but not in the money.");
     expect(coverText(m({ full: 2, missing: [{ symbol: "C", what: "qty" }, { symbol: "D", what: "price" }] }), [], ["ETF", "ETFs"])).toEqual({ full: false, head: "Money figures cover 2 of 4 ETFs.", rest: "C has no quantity yet; D has no buy price yet; they count in every reading but not in the money." });
