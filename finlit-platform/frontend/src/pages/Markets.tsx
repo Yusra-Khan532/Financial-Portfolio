@@ -115,7 +115,7 @@ function Glance({ go }: { go: (t: MkTab) => void }) {
   const k = (v: React.ReactNode, ready: boolean) => (ready ? v : <span className="skeleton" style={{ display: "inline-block", width: 60, height: 26 }} />);
   return (
     <div className="pm-cards mk-kpis" aria-label="This week at a glance">
-      <Link className="pm-kpi pm-kpi-btn" to="/ipo"><small>IPOs open now</small><b>{k(ic.open, !!ipo.data)}</b><i>{ipo.data ? `${ic.soon} upcoming · IPO calendar` : " "}</i></Link>
+      <Link className="pm-kpi pm-kpi-btn" to="/ipo"><small>IPOs open now</small><b>{k(ic.open, !!ipo.data)}</b><i>{ipo.data ? `${ic.soon} upcoming · IPOs` : " "}</i></Link>
       <Link className="pm-kpi pm-kpi-btn" to="/results"><small>Results due this week</small><b>{k(rc.week, !!res.data)}</b><i>{res.data ? `${rc.later} coming up · Results` : " "}</i></Link>
       <button className="pm-kpi pm-kpi-btn" type="button" onClick={() => go("announcements")}><small>Announcements, last 7 days</small><b>{k((ann.data?.items.length ?? 0).toLocaleString("en-IN"), !!ann.data)}</b><i>Filings and board outcomes</i></button>
       <button className="pm-kpi pm-kpi-btn" type="button" onClick={() => go("indices")}><small>{nifty ? nice(nifty.name) : "Nifty 50"}</small><b>{k(nifty?.close != null ? nf(nifty.close) : MINUS, !!idx.data)}</b><i>{nifty ? pc(nifty.changePct) : "Index level"}{nifty?.pe != null ? ` · P/E ${nf(nifty.pe, 1)}` : ""}</i></button>

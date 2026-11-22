@@ -1362,6 +1362,8 @@ async def list_ipos(request: Request):
             items = await complete_calendar(conn, items, today)
         except Exception:
             logging.getLogger("finlit.ipos").warning("IPO calendar not completed from the IPO record", exc_info=True)
+        from ..ipoapi import settle                # task #329: closed 15 days or more with no listing date -> not listed
+        items = settle(items, today)
     return Response(content=json.dumps({"ipos": items}, default=str), media_type="application/json",
                     headers={"Cache-Control": "public, max-age=120, stale-while-revalidate=600"})
 

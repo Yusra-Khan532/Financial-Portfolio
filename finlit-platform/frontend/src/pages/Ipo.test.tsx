@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 // IPO calendar: sections by status, cards and detail drawer show only the facts that are in the data, listing-day arithmetic, compliance wording.
+// Task #329: the calendar is now the first view (Open and upcoming) of the one IPOs page; the Listed table holds the last 30 days only, its seven columns
+// sort, and "See the N →" opens the second view (the new page's own rules: pages/ipos329.test.tsx).
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,9 +9,12 @@ import type { Ipo } from "../lib/ipo";
 import { listingMove, timeline } from "../lib/ipo";
 
 const st = vi.hoisted(() => ({ data: [] as unknown[], gmp: undefined as unknown, board: "" }));
+const HIST = vi.hoisted(() => ({ items: [] as unknown[], asOf: "2026-10-20", updatedAt: null, note: "",
+  sources: { issue: { name: "InvestorGain", url: "https://www.investorgain.com/", what: "" }, nse: { name: "NSE", url: null, what: "" }, prices: { name: "NSE", url: null, what: "" } } }));
 vi.mock("../lib/ipo", async (orig) => ({ ...(await orig<typeof import("../lib/ipo")>()), useIpos: () => ({ data: st.data, isLoading: false, isError: false }),
   useGmpRecord: (b: string) => { st.board = b; return { data: st.gmp, isLoading: false, isError: false }; } }));
 vi.mock("../lib/title", () => ({ useDocTitle: () => undefined }));
+vi.mock("../lib/ipoHistory", async (orig) => ({ ...(await orig<typeof import("../lib/ipoHistory")>()), useIpoHistory: () => ({ data: HIST, isLoading: false, isError: false }) }));
 vi.mock("../components/ChartHelp", () => ({ ChartHelp: () => null }));
 import { IpoPage } from "./Ipo";
 
@@ -62,14 +67,14 @@ describe("IpoPage, the compact layout (task #307, developer file 17 v2)", () => 
   });  it("one KPI strip of five cells, Closed, listing soon among them", () => {
     st.data = [bare, rich, listed, mk({ id: 4, name: "Shut Co", status: "closed" })];
     render(<IpoPage />, { wrapper: MemoryRouter });
-    const k = [...document.querySelectorAll(".p4-kpis > div")].map((d) => d.textContent);
+    const k = [...document.querySelectorAll(".dw-kpis.p4-kpis > div")].map((d) => d.textContent);
     expect(k).toEqual(["Open now1", "Upcoming1", "Closed, listing soon1", "Listed in the last 30 days1", "Avg listing vs issue, 30 days+12.5%"]);
   });
   it("order: Open now → Upcoming → Closed, listing soon → Next seven weeks → the GMP section → Listed → the as-of line", () => {
     st.data = [bare, rich, listed, mk({ id: 4, name: "Shut Co", status: "closed" })]; st.gmp = GMP;
     render(<IpoPage />, { wrapper: MemoryRouter });
     const order = [screen.getByRole("region", { name: "Open now" }), screen.getByRole("region", { name: "Upcoming" }), screen.getByRole("region", { name: "Closed, listing soon" }),
-      screen.getByText("Next seven weeks").closest("section")!, document.querySelector("#p4-gmp")!, screen.getByRole("region", { name: "Listed" }), document.querySelector(".ipo-asof")!];
+      screen.getByText("Next seven weeks").closest("section")!, document.querySelector("#p4-gmp")!, screen.getByRole("region", { name: "Listed in the last 30 days" }), document.querySelector(".ipo-asof")!];
     for (let i = 1; i < order.length; i++) expect(order[i - 1].compareDocumentPosition(order[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByRole("region", { name: "Open now" }).textContent).toContain("apply until the closing date");
     expect(screen.getByRole("region", { name: "Closed, listing soon" }).textContent).toContain("allotment and listing dates in each card");
@@ -86,13 +91,13 @@ describe("IpoPage, the compact layout (task #307, developer file 17 v2)", () => 
     expect(within(r).getByRole("button", { name: "Details: Rich Foods Limited" }).textContent).toBe("Details →");
     expect(within(r).getByRole("link", { name: "Full IPO report: Rich Foods Limited" }).textContent).toBe("Full report ↗");
   });
-  it("Listed: the last 30 days as a table, newest first, a link to All IPOs; the company name links to the IPO report", () => {
+  it("Listed in the last 30 days: a table, newest first, a link to the second view; the company name links to the IPO report", () => {
     const old = mk({ id: 5, name: "OLD LISTING LIMITED", status: "listed", openDate: "2026-08-01", closeDate: "2026-08-05", listingDate: "2026-08-10", priceHigh: 50, listingPrice: 40, recordId: 77 });
     st.data = [bare, rich, { ...listed, recordId: 12, sector: "Foods", issueSizeCr: 22.98, details: { subscription: { overall: 12.79 }, gmp: { rupees: 5, pct: 5, source: "InvestorGain" } } }, old];
     render(<IpoPage />, { wrapper: MemoryRouter });
-    const sec = screen.getByRole("region", { name: "Listed" });
-    expect(sec.querySelector("h2 span")!.textContent).toBe("2"); expect(sec.querySelector("h2 small")!.textContent).toBe("1 in the last 30 days");
-    expect([...sec.querySelectorAll("thead th")].map((t) => t.textContent)).toEqual(["Company", "Listed", "Issue price", "Issue size", "Subscribed", "GMP said", "At listing", "Details"]);
+    const sec = screen.getByRole("region", { name: "Listed in the last 30 days" });
+    expect(sec.querySelector("h2 span")!.textContent).toBe("1"); expect(sec.querySelector("h2 small")!.textContent).toBe("All 0 since 2020 →");
+    expect([...sec.querySelectorAll("thead th")].map((t) => t.textContent)).toEqual(["Company", "Listed ▼", "Issue price", "Issue size", "Subscribed", "GMP said", "At listing", "Details"]);
     const rows = within(sec).getAllByRole("row").slice(1);
     expect(rows).toHaveLength(1);                                                   // only the issue listed in the last 30 days
     expect(rows[0].textContent).toContain("Listed Co"); expect(rows[0].textContent).toContain("Mainboard · Foods"); expect(rows[0].textContent).toContain("9 Oct 2026");
@@ -101,27 +106,32 @@ describe("IpoPage, the compact layout (task #307, developer file 17 v2)", () => 
     fireEvent.click(within(rows[0]).getByRole("button", { name: "Details: Listed Co" }));
     expect(within(screen.getByRole("dialog")).getByText("Listing-day performance")).toBeTruthy();
     fireEvent.keyDown(document, { key: "Escape" });
-    expect(within(sec).getByRole("link", { name: "See all 2 listed here, and every IPO since 2020, in All IPOs →" }).getAttribute("href")).toBe("/ipo/all");
+    expect(within(sec).queryByRole("link", { name: /in All IPOs/ })).toBeNull();                 // the cross link to the old second page went
   });
-  it("a search or Status = Listed lists every listed match, not just the last 30 days, 25 at a time with Show 25 more", () => {
+  it("a search keeps the Listed table to the last 30 days (all 147 are in the second view)", () => {
     const many = Array.from({ length: 30 }, (_, i) => mk({ id: 100 + i, name: `Older ${i}`, status: "listed", openDate: "2026-06-01", closeDate: "2026-06-03", listingDate: `2026-07-${String(1 + i).padStart(2, "0")}` }));
     st.data = [bare, rich, listed, ...many];
     render(<IpoPage />, { wrapper: MemoryRouter });
     fireEvent.change(screen.getByRole("searchbox", { name: "Search IPOs" }), { target: { value: "older 1" } });
-    let sec = screen.getByRole("region", { name: "Listed" });
-    expect(sec.querySelector("h2 small")!.textContent).toBe("newest first");
-    expect(within(sec).getAllByRole("row").slice(1).map((r) => r.querySelector("th")!.textContent!.replace(/(Mainboard|SME).*$/, ""))).toEqual(["Older 19", "Older 18", "Older 17", "Older 16", "Older 15", "Older 14", "Older 13", "Older 12", "Older 11", "Older 10", "Older 1"]);
-    fireEvent.change(screen.getByRole("searchbox", { name: "Search IPOs" }), { target: { value: "" } });
-    fireEvent.click(screen.getByRole("button", { name: /^Status/ }));
-    const pop = screen.getByRole("dialog", { name: "Status" });
-    expect([...pop.querySelectorAll(".dbx-opt")].map((o) => o.textContent)).toEqual(["All33", "Open now1", "Upcoming1", "Closed, listing soon0", "Listed31"]);
-    fireEvent.click(within(pop).getByRole("option", { name: /Listed/ }));
-    sec = screen.getByRole("region", { name: "Listed" });
-    expect(within(sec).getAllByRole("row")).toHaveLength(26);
-    fireEvent.click(within(sec).getByRole("button", { name: "Show 6 more" }));
-    expect(within(sec).getAllByRole("row")).toHaveLength(32);
-    expect(screen.queryByRole("region", { name: "Open now" })).toBeNull();
-    expect(screen.getByRole("group", { name: "Filters on" }).textContent).toContain("Listed");
+    let sec = screen.getByRole("region", { name: "Listed in the last 30 days" });
+    expect(within(sec).queryAllByRole("row")).toHaveLength(0);
+    expect(sec.textContent).toContain("No listing in the last 30 days matches these filters.");
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search IPOs" }), { target: { value: "listed" } });
+    sec = screen.getByRole("region", { name: "Listed in the last 30 days" });
+    expect(within(sec).getAllByRole("row")).toHaveLength(2);
+    expect(within(sec).queryByRole("button", { name: /^Show \d+ more/ })).toBeNull();
+    expect(screen.getByRole("group", { name: "Filters on" }).textContent).toContain("listed");
+  });
+  it("task #329 (found while checking): the first view has no Status filter, only search and Board; a Not listed issue is in none of its groups", () => {
+    st.data = [bare, rich, listed, mk({ id: 7, name: "Stale Co", status: "not_listed", openDate: "2026-09-01", closeDate: "2026-09-03" })];
+    render(<IpoPage />, { wrapper: MemoryRouter });
+    const now = document.querySelector('[data-ct-panel="now"]') as HTMLElement;
+    expect([...now.querySelectorAll(".p4-tools .dbx-ddl")].map((e) => e.textContent)).toEqual(["Board"]);
+    expect(within(now).queryByRole("button", { name: /^Status/ })).toBeNull();
+    expect(now.textContent).not.toContain("Stale Co");
+    expect([...document.querySelectorAll(".dw-kpis.p4-kpis > div")].map((d) => d.textContent)[2]).toBe("Closed, listing soon0");
+    fireEvent.click(screen.getByRole("button", { name: /^Board/ }));
+    expect([...screen.getByRole("dialog", { name: "Board" }).querySelectorAll(".dbx-opt")].map((o) => o.textContent)).toEqual(["All boards3", "Mainboard3", "SME0"]);
   });
   it("uses no advice wording", () => {
     render(<IpoPage />, { wrapper: MemoryRouter });
@@ -152,7 +162,7 @@ describe("What GMP said vs what actually listed (task #307)", () => {
     expect(within(gmpSec()).getByRole("link", { name: "InvestorGain" }).getAttribute("href")).toBe("https://www.investorgain.com/");
     expect(gmpSec().textContent).toMatch(/unofficial/); expect(gmpSec().textContent).toContain("Describes the past; not a forecast or advice.");
   });
-  it("By GMP range (default): a row per range with its 100% bar, within 5 pts, median gap, 'See the N →'; few ranges marked; current issues under their range", () => {
+  it("By GMP range (default): a row per range with its 100% bar, within 5 pts, median gap, 'See the N →' (opening the second view); few ranges marked; current issues under their range", () => {
     st.gmp = GMP; st.data = [bare, { ...rich, details: { ...rich.details, gmp: { rupees: 30, pct: 30, source: "InvestorGain" } } }, listed];
     render(<IpoPage />, { wrapper: MemoryRouter }); openGmp();
     const rows = [...gmpSec().querySelectorAll(".p4-grr")];
@@ -163,11 +173,8 @@ describe("What GMP said vs what actually listed (task #307)", () => {
     expect(r25.querySelector(".p4-grw")!.textContent).toBe("0%within 5 pts");
     expect(gmpSec().querySelector('.p4-grr[data-grow="r90"] .s-cap')).toBeTruthy();
     fireEvent.click(within(r25 as HTMLElement).getByRole("button", { name: "See the 2 →" }));
-    expect(within(gmpSec()).getByRole("button", { name: "Table" }).getAttribute("aria-pressed")).toBe("true");
-    expect(gmpSec().querySelector(".p4-gch")!.textContent).toContain("GMP said 25–50%");
-    expect(within(gmpSec()).getAllByRole("row")).toHaveLength(3);
-    fireEvent.click(within(gmpSec()).getByRole("button", { name: "Clear these" }));
-    expect(within(gmpSec()).getAllByRole("row")).toHaveLength(7);
+    expect(screen.getByRole("tab", { name: /All IPOs since 2020/ }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getAllByRole("button", { name: /^Remove filter/ }).map((b) => b.textContent)).toEqual(["Status: Listed", "GMP said: 25–50%"]);
   });
   it("Table: Issue · Listed · GMP said · Listed vs issue · Gap (pts) · Subscribed · Result; the cap and the ring", () => {
     st.gmp = GMP;

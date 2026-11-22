@@ -2,7 +2,7 @@
 // Names: the provider sends some names in capitals; they are shown in title case. GMP record: each listed issue's last grey-market premium against its
 // listing price, sorted into what the GMP said (ranges) and how the listing compared with it (categories). Everything is worked out from
 // /api/ipos/gmp-record?board=all; nothing is a forecast and nothing is advice.
-import type { GmpPoint, Ipo } from "./ipo";
+import { issuePriceOf, listingMove, type GmpPoint, type Ipo } from "./ipo";
 
 const SMALL = /\b(Of|And|The|For|In|On)\b/g;
 /** "MAHANADI COALFIELDS LIMITED" → "Mahanadi Coalfields Limited". A name with any lower-case letter is the company's own spelling and is kept. */
@@ -22,6 +22,38 @@ export function sectionOrder(status: Ipo["status"]) {
   return (a: Ipo, b: Ipo) => status === "upcoming" ? d0(a.openDate) - d0(b.openDate)
     : status === "listed" ? (d0(b.listingDate || b.closeDate) - d0(a.listingDate || a.closeDate)) || (d0(b.openDate) - d0(a.openDate))
       : d0(b.openDate) - d0(a.openDate);
+}
+
+// ------------------------------------------------------------------------------------------------ the Listed table's sorting (task #329)
+/** The seven columns of "Listed in the last 30 days", sortable the way the all-IPOs table is (developer files 28 and 29): figures high to low first,
+ *  text A to Z first, blanks last whichever way, and issues still in the market (no listing date) on top when sorted by Listed. */
+export type LSortKey = "name" | "date" | "issuePrice" | "issueSizeCr" | "subscription" | "gmp" | "listing";
+export const LSORT_COLS: [LSortKey, string, string?][] = [["name", "Company"], ["date", "Listed"], ["issuePrice", "Issue price", "r"], ["issueSizeCr", "Issue size", "r"],
+  ["subscription", "Subscribed", "r"], ["gmp", "GMP said", "r"], ["listing", "At listing", "r"]];
+/** The direction a column sorts in on its first press: text A to Z, figures and dates high to low. */
+export const firstDir = (k: LSortKey): "asc" | "desc" => (k === "name" ? "asc" : "desc");
+const lval = (r: Ipo, k: LSortKey): string | number | null => {
+  switch (k) {
+    case "name": return shortName(r.name).toLowerCase();
+    case "date": return r.listingDate ? d0(r.listingDate) : null;
+    case "issuePrice": return issuePriceOf(r);
+    case "issueSizeCr": return r.issueSizeCr;
+    case "subscription": return r.details?.subscription?.overall ?? null;
+    case "gmp": return r.details?.gmp?.pct ?? null;
+    case "listing": return listingMove(r)?.pct ?? null;
+  }
+};
+export function sortListed(rows: Ipo[], k: LSortKey, dir: "asc" | "desc"): Ipo[] {
+  const sign = dir === "asc" ? 1 : -1, tie = sectionOrder("listed");
+  const live = (r: Ipo) => r.status !== "listed";
+  return [...rows].sort((a, b) => {
+    if (k === "date" && live(a) !== live(b)) return live(a) ? -1 : 1;
+    const x = lval(a, k), y = lval(b, k);
+    if (x == null && y == null) return tie(a, b);
+    if (x == null) return 1;
+    if (y == null) return -1;
+    return (x < y ? -1 : x > y ? 1 : 0) * sign || tie(a, b);
+  });
 }
 
 // ------------------------------------------------------------------------------------------------ the GMP record

@@ -41,3 +41,6 @@
 .ctabs [role="tab"] .ct-cnt { margin-left: 6px; font: 600 var(--fs-12, 12px) var(--sans); color: inherit; }
 .ctabs.has-tools { flex-wrap: wrap; }
 .ctabs .ct-tools { flex: 1 1 100%; min-width: 0; margin-top: 4px; padding-top: 8px; border-top: 1px dashed var(--border); }
+/* task #329 (IPOs): a short line after the tabs, in the bar ("Showing: …") */
+.ctabs .ct-aside { flex: 1 1 220px; min-width: 0; font: 400 var(--fs-13)/1.4 var(--sans); color: var(--muted); }
+.ctabs .ct-aside b { color: var(--text); font-weight: 600; }

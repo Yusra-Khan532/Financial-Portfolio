@@ -3,8 +3,10 @@
 // price. Three views: By GMP range (default), Every issue (the scatter) and Table; filters by board, year listed, issue size and subscription, each option
 // with its count. The ranges, categories and filters are worked out here from /api/ipos/gmp-record?board=all (lib/ipoCalendar.ts).
 // GMP is an informal, unofficial grey-market price, shown as InvestorGain recorded it. Describes the past; not a forecast and not advice.
+// Task #329 (developer file 29): on the one IPOs page, "See the N →" opens the second view (All IPOs since 2020) with that GMP range selected
+// (`onSee`); a link to an IPO report carries the view it was opened from, so the report's back link returns there.
 import { memo, useCallback, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { MINUS, nf } from "../../lib/format";
 import { useGmpRecord, type GmpPoint, type Ipo } from "../../lib/ipo";
 import { GF0, GR, GS, GV, GY, GZ, gCat, gPass, gRange, gTally, isCap, share, shortName, type GBoard, type GCat, type GFilters, type GRangeKey } from "../../lib/ipoCalendar";
@@ -45,7 +47,8 @@ export function leadText(t: ReturnType<typeof gTally>) {
     + (t.abs != null ? ` The typical gap was ${nf(t.abs, 1)} points.` : "");
 }
 
-export function GmpRecord({ ipos, s, set, open, setOpen }: { ipos: Ipo[]; s: GState; set: (p: Partial<GState>) => void; open: boolean; setOpen: (o: boolean) => void }) {
+export function GmpRecord({ ipos, s, set, open, setOpen, onSee }: { ipos: Ipo[]; s: GState; set: (p: Partial<GState>) => void; open: boolean; setOpen: (o: boolean) => void;
+  onSee?: (k: GRangeKey) => void }) {
   const q = useGmpRecord("all"), d = q.data;
   const all = useMemo(() => d?.items ?? [], [d]);
   const items = useMemo(() => all.filter((e) => gPass(e, s)).sort((a, b) => (b.listingDate || "").localeCompare(a.listingDate || "")), [all, s]);
@@ -88,7 +91,7 @@ export function GmpRecord({ ipos, s, set, open, setOpen }: { ipos: Ipo[]; s: GSt
             <button type="button" className="dbx-lk" onClick={() => unset("all")}>Clear these</button></div>}
           <p className="ipo-gmp-lead">{T.n ? <>Of {nf(T.n, 0)} issues, <b>{nf(T.band, 0)}</b> ({share(T.band, T.n)}) listed within 5 points of what the GMP said, <b className="g-hi">{nf(T.beat, 0)}</b> higher and <b className="g-lo">{nf(T.short, 0)}</b> lower.
             {T.cap ? ` ${nf(T.cap, 0)} SME ${T.cap === 1 ? "issue" : "issues"} with a GMP above 85% opened at the +90% cap.` : ""}{T.abs != null ? ` The typical gap was ${nf(T.abs, 1)} points.` : ""}</> : "No listed issue matches these filters."}</p>
-          {s.view === "range" && <ByRange base={base} cap={T.cap > 0} current={current} hl={s.hl} onSee={(k) => set({ view: "table", range: k, hl: "", shown: 50 })} />}
+          {s.view === "range" && <ByRange base={base} cap={T.cap > 0} current={current} hl={s.hl} onSee={(k) => (onSee ? onSee(k) : set({ view: "table", range: k, hl: "", shown: 50 }))} />}
           {s.view === "table" && <GTable items={items} shown={s.shown} more={() => set({ shown: s.shown + 50 })} />}
           {s.view === "dots" && <Dots items={items} board={s.board} zoom={s.zoom} setZoom={(z) => set({ zoom: z })} cap={T.cap > 0} />}
           <p className="muted ipo-gmp-foot">GMP from <a href={d.source.url} target="_blank" rel="noopener noreferrer">{d.source.name}</a>: an informal, unofficial price from the grey market, not an exchange figure. Listing price as the exchange set it on listing day. Describes the past; not a forecast or advice.</p>
@@ -126,12 +129,19 @@ function ByRange({ base, cap, current, hl, onSee }: { base: GmpPoint[]; cap: boo
 }
 
 /** Table: the filtered issues, newest listing first, 50 at a time. */
+/** Where a link to an IPO report was followed from (the report's back link returns there). */
+function useFrom() {
+  const l = useLocation();
+  return useMemo(() => ({ from: l.pathname + l.search }), [l.pathname, l.search]);
+}
+
 function GTable({ items, shown, more }: { items: GmpPoint[]; shown: number; more: () => void }) {
+  const from = useFrom();
   return <>
     <div className="ipo-gmp-tw p4-gtw"><table className="ipo-gmp-t p4-gt"><caption className="sr-only">Listed issues: what the GMP said, the listing price against the issue price and the gap</caption>
       <thead><tr><th scope="col">Issue</th><th scope="col">Listed</th><th scope="col" className="r">GMP said</th><th scope="col" className="r">Listed vs issue</th><th scope="col" className="r">Gap</th><th scope="col" className="r">Subscribed</th><th scope="col">Result</th></tr></thead>
       <tbody>{items.slice(0, shown).map((e) => { const c = gCat(e); return (
-        <tr key={e.url}><th scope="row"><a href={`/ipo/${e.id}`}>{e.name}</a><small>{e.board === "sme" ? "SME" : "Mainboard"}</small></th><td>{day(e.listingDate)}</td>
+        <tr key={e.url}><th scope="row"><Link to={`/ipo/${e.id}`} state={from}>{e.name}</Link><small>{e.board === "sme" ? "SME" : "Mainboard"}</small></th><td>{day(e.listingDate)}</td>
           <td className="r">{pct(e.gmpPct)}</td><td className={"r " + tone(e.listingPct)}>{pct(e.listingPct)}</td><td className="r">{pts(e.listingPct - e.gmpPct)}</td>
           <td className="r">{e.subscription != null ? nf(e.subscription, 2) + "x" : MINUS}</td>
           <td><span className={"p4-gv-t g-" + c}>{GV[c]}</span>{isCap(e) && c !== "cap" ? <small>opened at the +90% cap</small> : null}</td></tr>); })}</tbody></table></div>
@@ -166,13 +176,13 @@ const DotLayer = memo(function DotLayer({ items, f, onHover, onPick }: { items: 
 
 /** Every issue: the scatter, zoomed to most issues by default, with the ±5-point band, the "exactly right" line and the SME opening cap. */
 function Dots({ items, board, zoom, setZoom, cap }: { items: GmpPoint[]; board: GBoard; zoom: "most" | "all"; setZoom: (z: "most" | "all") => void; cap: boolean }) {
-  const nav = useNavigate();
+  const nav = useNavigate(), from = useFrom();
   const [box, width] = useWidth();
   const [tip, setTip] = useState<{ e: GmpPoint; pinned: boolean } | null>(null);
   const f = useMemo(() => frameFor(width, zoom === "most"), [width, zoom]);
   const offN = items.filter((e) => e.gmpPct < f.X0 || e.gmpPct > f.X1 || e.listingPct < f.Y0 || e.listingPct > f.Y1).length;
   const onHover = useCallback((e: GmpPoint | null, pinned: boolean) => setTip(e ? { e, pinned } : null), []);
-  const onPick = useCallback((e: GmpPoint) => nav(`/ipo/${e.id}`), [nav]);
+  const onPick = useCallback((e: GmpPoint) => nav(`/ipo/${e.id}`, { state: from }), [nav, from]);
   const showCap = board !== "mainboard" && f.Y1 >= 90;
   const bx0 = f.X0, bx1 = Math.min(f.X1, f.Y1 - 5), most = zoom === "most";
   const e = tip?.e, c = e ? gCat(e) : null;
@@ -207,7 +217,7 @@ function Dots({ items, board, zoom, setZoom, cap }: { items: GmpPoint[]; board: 
             </dl>
             <span className="ipo-gmp-tm">{[e.listingDate ? day(e.listingDate) : null, e.board === "sme" ? "SME" : "Mainboard", e.subscription != null ? `${nf(e.subscription, 2)}x subscribed` : null].filter(Boolean).join(" · ")}</span>
             <span className={"p4-gv-t g-" + c}>{GV[c]} · {pts(e.listingPct - e.gmpPct)}{isCap(e) && c !== "cap" ? " · opened at the +90% cap" : ""}</span>
-            {tip?.pinned ? <a className="p4-tipa" href={`/ipo/${e.id}`}>Open the IPO report →</a> : <small className="p4-tiph">Select the dot to open its report</small>}
+            {tip?.pinned ? <Link className="p4-tipa" to={`/ipo/${e.id}`} state={from}>Open the IPO report →</Link> : <small className="p4-tiph">Select the dot to open its report</small>}
           </div>);
       })()}
     </div>

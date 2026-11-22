@@ -1,0 +1,41 @@
+/* IPOs (/ipo), one page with two views (task #329, developer file 29, 23 Nov 2026). Loaded after ipo-all.css, ipo-all-compact.css and
+   ipo-calendar.css. Everything is scoped to the page (.ipv, .ipv-all) or uses the pack's own names (.mg-strip, .mg-link, used nowhere else).
+   The views bar is the company report's TabGroup (styles/tabgroup.css); here it only sticks under the site header and wraps on a phone. */
+
+/* the five counts fill their row (they sat in a wider grid and left an empty cell on the right) */
+@media (min-width: 900px) { .ipv > .dw-kpis.p4-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+
+/* the views bar: under the counts, sticking under the site header while the page scrolls (not on a phone) */
+.ipv > .ctabs { margin: 20px 0 16px; }
+.ipv > .ctabs .ct-list { flex: 0 1 auto; flex-wrap: wrap; overflow: visible; }
+.ipv > .ctabs .ct-cnt { font-weight: 500; opacity: .78; }
+@media (min-width: 761px) { .ipv > .ctabs { position: sticky; top: var(--p4-top); z-index: 30; } }
+@media (max-width: 760px) {
+  .ipv > .ctabs .ct-list { flex: 1 1 100%; flex-direction: column; }
+  .ipv > .ctabs .ct-list button { width: 100%; }
+  .ipv > .ctabs .ct-aside { flex: 1 1 100%; }
+  .ipv > .ctabs .ctabs-hint { display: inline; }
+}
+
+/* the second view keeps the all-IPOs page's look: its seven totals, its toolbar and its table header row, which sticks under the views bar */
+.ipv-all { padding-bottom: 8px; }
+.ipv-all .p4-tools { margin: 0; }
+.ipv-all .p4-kpis { grid-template-columns: repeat(7, minmax(0, 1fr)); margin: 0; }
+.ipv-all .p4-kpis dd { font-size: var(--fs-18); }
+@media (min-width: 1241px) { .ipv .ipv-all .p4-iat thead th { top: calc(var(--p4-top) + var(--ipv-bar, 0px)); } }
+@media (max-width: 1240px) { .ipv-all .p4-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .ipv-all .p4-kpis { grid-template-columns: 1fr 1fr; } .ipv-all .p4-kpis > div:last-child { grid-column: 1 / -1; } }
+
+/* the first view: the Listed table's sortable headers */
+.ipv .p4-lt thead th button { border: 0; background: none; padding: 0; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+.ipv .p4-lt thead th button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.ipv .p4-lt thead th[aria-sort="ascending"], .ipv .p4-lt thead th[aria-sort="descending"] { color: var(--text); }
+
+/* a link drawn as a button: "All N since 2020 →" in the Listed heading, "See the breakdown by GMP range →" */
+.mg-link { background: none; border: 0; padding: 0; font: inherit; color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.mg-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+/* the one-line GMP summary in the second view */
+.mg-strip { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; justify-content: space-between; margin: 0; padding: 10px 14px;
+  border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); font: 400 var(--fs-13)/1.4 var(--sans); color: var(--muted); }
+.mg-strip b { color: var(--text); }
+.mg-strip .mg-link { color: var(--text); }

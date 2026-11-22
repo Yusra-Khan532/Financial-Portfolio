@@ -2,6 +2,8 @@
 // Arithmetic only; describes, never advises.
 import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "./api";
+import { gRange, shortName, type GRangeKey } from "./ipoCalendar";
+import type { Ipo } from "./ipo";
 
 export type IpoStatus = "upcoming" | "open" | "closed" | "listed" | "not_listed" | "withdrawn";
 export type IpoRow = {
@@ -19,15 +21,30 @@ export type IpoHistory = { items: IpoRow[]; asOf: string; updatedAt: string | nu
 
 export const useIpoHistory = () => useQuery({ queryKey: ["ipo-history"], queryFn: () => apiGet<IpoHistory>("/api/ipos/history"), staleTime: 600_000, retry: 1 });
 
-export const STATUS_LABEL: Record<IpoStatus, string> = { upcoming: "Upcoming", open: "Open now", closed: "Closed, not listed yet", listed: "Listed", not_listed: "Did not list", withdrawn: "Withdrawn" };
+export const STATUS_LABEL: Record<IpoStatus, string> = { upcoming: "Upcoming", open: "Open now", closed: "Closed, not listed yet", listed: "Listed", not_listed: "Not listed", withdrawn: "Withdrawn" };
+
+/** A calendar issue that is not in the IPO record, as a row of the all-IPOs table (task #329: the issues 15 days or more past their close with no
+ *  listing date show there as Not listed). It has no IPO report, so its id is negative and the row opens nothing; a figure the calendar lacks is blank. */
+export function rowFromCalendar(i: Ipo): IpoRow {
+  const ex = i.details?.exchange ?? [];
+  return {
+    id: -i.id, name: shortName(i.name), symbol: i.symbol, nse: null, bse: null, board: i.kind, sector: i.sector, exchanges: ex, kind: i.details?.issueType ?? null,
+    status: i.status, openDate: i.openDate, closeDate: i.closeDate, listingDate: i.listingDate, priceLow: i.priceLow, priceHigh: i.priceHigh, issuePrice: null, lotSize: i.lotSize,
+    minAmount: null, issueSizeCr: i.issueSizeCr, freshCr: null, ofsCr: null, subscription: i.details?.subscription?.overall ?? null, subQib: null, subNii: null, subRetail: null,
+    gmp: null, gmpPct: null, listingPrice: null, listingPct: null, listingClose: null, listingClosePct: null, lastClose: null, lastDay: null, sinceIpoPct: null, adjustedBy: null,
+    companyPage: false, verdict: null,
+  };
+}
 
 // ------------------------------------------------------------------------------------------------ filters
 export type Range = [number | null, number | null];
 export type Filters = {
   q: string; status: "all" | IpoStatus; board: "all" | "mainboard" | "sme"; year: "all" | string; sector: "all" | string; exchange: "all" | "NSE" | "BSE";
   gain: "any" | "up" | "down" | "gt25" | "gt50" | "gt100"; sub: "any" | "lt1" | "gt10" | "gt50" | "gt100"; size: "any" | "lt100" | "100to1000" | "gt1000";
+  /** Task #329: the GMP range a "See the N →" row of the GMP block opens this table with (the ranges of lib/ipoCalendar GR). */
+  gmp: "all" | GRangeKey;
 };
-export const NO_FILTERS: Filters = { q: "", status: "all", board: "all", year: "all", sector: "all", exchange: "all", gain: "any", sub: "any", size: "any" };
+export const NO_FILTERS: Filters = { q: "", status: "all", board: "all", year: "all", sector: "all", exchange: "all", gain: "any", sub: "any", size: "any", gmp: "all" };
 
 export const GAIN_OPTIONS: [Filters["gain"], string][] = [["any", "Any"], ["up", "Listed above issue price"], ["down", "Listed below issue price"], ["gt25", "Listed over 25% above"], ["gt50", "Listed over 50% above"], ["gt100", "Listed over 100% above"]];
 export const SUB_OPTIONS: [Filters["sub"], string][] = [["any", "Any subscription"], ["lt1", "Under 1x (not fully subscribed)"], ["gt10", "Above 10x"], ["gt50", "Above 50x"], ["gt100", "Above 100x"]];
@@ -48,7 +65,8 @@ export function passes(r: IpoRow, f: Filters, skip?: keyof Filters): boolean {
     (skip === "status" || f.status === "all" || r.status === f.status) && (skip === "board" || f.board === "all" || r.board === f.board) &&
     (skip === "year" || f.year === "all" || yearOf(r) === f.year) && (skip === "sector" || f.sector === "all" || r.sector === f.sector) &&
     (skip === "exchange" || f.exchange === "all" || r.exchanges.some((e) => e.startsWith(f.exchange))) &&
-    (skip === "gain" || inGain(r.listingPct, f.gain)) && (skip === "sub" || inSub(r.subscription, f.sub)) && (skip === "size" || inSize(r.issueSizeCr, f.size));
+    (skip === "gain" || inGain(r.listingPct, f.gain)) && (skip === "sub" || inSub(r.subscription, f.sub)) && (skip === "size" || inSize(r.issueSizeCr, f.size)) &&
+    (skip === "gmp" || f.gmp === "all" || (r.gmpPct != null && gRange(r.gmpPct) === f.gmp));
 }
 
 export function applyFilters(rows: IpoRow[], f: Filters): IpoRow[] {
@@ -70,11 +88,16 @@ export function optionCounts<K extends Exclude<keyof Filters, "q">>(rows: IpoRow
 export type SortKey = "date" | "name" | "issuePrice" | "issueSizeCr" | "subscription" | "gmpPct" | "listingPct" | "listingClosePct" | "lastClose" | "sinceIpoPct";
 const dateOf = (r: IpoRow) => r.listingDate || r.openDate || "";
 
+/** Issues still in the market (upcoming, open now, closed and not listed yet): they have no listing date, so they stay on top when the table is
+ *  sorted by Listed, whichever way (task #329, the rule of developer files 28 and 29). */
+export const LIVE_STATUS: ReadonlySet<string> = new Set(["upcoming", "open", "closed"]);
+
 /** Sorted copy; issues without the figure go last whichever way the column is sorted. */
 export function sortRows(rows: IpoRow[], key: SortKey, dir: "asc" | "desc"): IpoRow[] {
   const sign = dir === "asc" ? 1 : -1;
   const val = (r: IpoRow): string | number | null => (key === "date" ? dateOf(r) || null : key === "name" ? r.name.toLowerCase() : r[key]);
   return [...rows].sort((a, b) => {
+    if (key === "date" && LIVE_STATUS.has(a.status) !== LIVE_STATUS.has(b.status)) return LIVE_STATUS.has(a.status) ? -1 : 1;
     const x = val(a), y = val(b);
     if (x == null && y == null) return a.id - b.id;
     if (x == null) return 1;
