@@ -184,6 +184,13 @@ line.adv-gl { stroke: var(--border); stroke-width: 1; }
 /* filters, definitions, unavailable lists, flags */
 .adv-filters, .adv-defs { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
 .adv-fgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 4px 14px; }
+/* Task #313: "Which companies" boxes. Each field keeps its natural height under its label (the grid row used to stretch every field to the tallest one,
+   which pushed the lists, the market-cap boxes and the lenders menu down and made them tall), and a checkbox sits beside its words (".adv-field label" made
+   every label a one-column grid and "width: 100%" stretched the box across it). Scoped to this grid; the page's other fields are unchanged. */
+.adv-fgrid { align-items: start; }
+.adv-fgrid .adv-field, .adv-fgrid .adv-field label { align-content: start; }
+.adv-fgrid .adv-check { display: flex; align-items: flex-start; gap: 8px; }
+.adv-fgrid .adv-check input { width: auto; flex: none; margin-top: 2px; }
 .adv-filters .btn { margin-top: 10px; }
 .adv-defs dl { margin: 8px 0 0; display: grid; gap: 8px; font-size: 13px; }
 .adv-defs dt { font-weight: 600; } .adv-defs dd { margin: 2px 0 0; color: var(--muted); }
