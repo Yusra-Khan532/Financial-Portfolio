@@ -47,7 +47,8 @@ def _json(body, status: int = 200) -> Response:
 
 
 def _chips(p: Preset) -> List[dict]:
-    return [{"id": c.id, "label": c.label, "default": c.default, "description": c.description} for c in p.chips]
+    # task #325 (file 25, section 1 row 5): a sub-theme chip is marked, so the page shows the sub-themes as one group with one i button
+    return [{"id": c.id, "label": c.label, "default": c.default, "description": c.description, **({"sub": True} if (c.effect or {}).get("sub") else {})} for c in p.chips]
 
 
 def _list_text(p: Preset, cached: dict | None) -> str | None:
@@ -484,6 +485,65 @@ async def _classification(store) -> Dict[str, tuple]:
     return _CLS["map"]       # type: ignore[return-value]
 
 
+DISC_EVENTS = ("order", "capacity", "partnership", "mna")      # the four filing kinds file 25 section 4 names; ESOPs, ESG ratings and TDS notices are not counted
+DISC_SCREENS = ("emerging-tech",)
+_DISC_CACHE: Dict[str, tuple] = {}
+
+
+async def _discover_rows(store) -> Dict[str, dict]:
+    """Discover's board (finlit/discovery/board.py) by symbol, kept for 10 minutes: the board is built nightly and read by the Discover page the same way."""
+    import time
+    hit = _DISC_CACHE.get("board")
+    if hit and time.monotonic() - hit[0] < 600:
+        return hit[1]
+    from ..discovery import board as dboard
+    from ..discovery import signals as dsig
+    b = await dboard.board(store, per_event=0, per_theme=0)
+    by = {r["s"]: {**r, "lf": None} for r in b.get("rows") or []}
+    async with store.pool.acquire() as conn:      # the latest filing of the four kinds only (the board's own latest also counts ratings, legal and fund raising)
+        for x in await conn.fetch(
+                "SELECT DISTINCT ON (symbol) symbol, item_date, event, title, link FROM discovery_signals WHERE symbol = ANY($1::text[]) AND event = ANY($2::text[]) "
+                "AND item_date >= current_date - $3::int ORDER BY symbol, item_date DESC, feed_id DESC", list(by), list(DISC_EVENTS), dboard.NEWS_DAYS):
+            lf = {"d": x["item_date"].isoformat(), "e": x["event"], "el": dsig.EVENT_LABEL.get(x["event"], "Filing"), "t": dboard.clean_title(x["title"])}
+            if dboard.safe_link(x["link"]):
+                lf["l"] = x["link"]
+            by[x["symbol"]]["lf"] = lf
+    _DISC_CACHE["board"] = (time.monotonic(), by)
+    return by
+
+
+async def _with_discover(store, p: Preset, body: dict) -> dict:
+    """Task #325 (developer file 25, section 4): on Emerging tech every row carries what Discover knows: the stage the newest investor presentation
+    describes, its themes, the counts of the four filing kinds over 90 days and the latest of them. A company Discover has not placed says so
+    (disc_placed False); the two broad themes are left out of the themes."""
+    if p.id not in DISC_SCREENS:
+        return body
+    try:
+        by = await _discover_rows(store)
+    except Exception:      # Discover unavailable: the screen still opens, without the columns
+        return body
+    from ..discovery.board import BROAD
+    seen = set()
+    for r in (body.get("exportRows") or []) + (body.get("rows") or []):
+        if id(r) in seen or not isinstance(r, dict):
+            continue
+        seen.add(id(r))
+        x = by.get(r.get("symbol"))
+        r["disc_placed"] = x is not None
+        if x is None:
+            r["disc_stage"] = "Not placed"      # no investor presentation on file, so Discover has not placed the company
+            continue
+        r["disc_stage"] = x.get("st")
+        r["disc_themes"] = [t for t in [x.get("th"), *(x.get("sec") or [])] if t and t not in BROAD]
+        r["disc_ev"] = {k: int((x.get("ev") or {}).get(k) or 0) for k in DISC_EVENTS}
+        r["disc_latest"] = x.get("lf")
+        r["disc_latest_d"] = (x.get("lf") or {}).get("d")      # the column sorts by the filing's date; the cell shows the filing
+    cols = [c for c in body.get("columns") or [] if not str(c.get("key", "")).startswith("disc_")]
+    cols += [{"key": "disc_stage", "label": "Stage it describes", "format": "text", "align": "left", "band": "From Discover"},
+             {"key": "disc_latest_d", "label": "Latest filing", "format": "text", "align": "left", "band": "From Discover"}]
+    return {**body, "discover": True, "columns": cols}
+
+
 async def _with_classification(store, body: dict) -> dict:
     """Adds cls_macro / cls_sector / cls_industry to each row of a screen (None when NSE does not classify the company)."""
     cls = await _classification(store)
@@ -552,11 +612,15 @@ def _bar(request: Request) -> dict:
             "macro": {x[:80] for x in qp.getlist("macro") if x}, "nsec": {x[:80] for x in qp.getlist("nsec") if x}, "indu": {x[:80] for x in qp.getlist("indu") if x},
             "pl": {x for x in ",".join(qp.getlist("pl")).split(",") if x in RATING_SLUGS},
             "ranges": {k: rg for k in SCORE_RANGES if (rg := _range_of(qp, k)) is not None},
-            "st5": {x for x in (qp.get("st5") or "").split(",") if x in TREND5}, "lt5": {x for x in (qp.get("lt5") or "").split(",") if x in TREND5}}
+            "st5": {x for x in (qp.get("st5") or "").split(",") if x in TREND5}, "lt5": {x for x in (qp.get("lt5") or "").split(",") if x in TREND5},
+            # task #325 (developer file 25, section 4): Emerging tech's "Filings, 90 days" filter, from Discover's exchange filings
+            "filing": {x for x in ",".join(qp.getlist("filing")).split(",") if x in DISC_EVENTS}}
 
 
 def _tests(f: dict, new_day: Optional[str]) -> Dict[str, object]:
     t: Dict[str, object] = {}
+    if f.get("filing"):
+        kinds = set(f["filing"]); t["filing"] = lambda r: any(((r.get("disc_ev") or {}).get(k) or 0) > 0 for k in kinds)
     if f["q"]:
         q = f["q"]; t["q"] = lambda r: q in str(r.get("symbol", "")).lower() or q in str(r.get("name", "")).lower() or q in str(r.get("sector", "")).lower()
     if f["size"]:
@@ -664,7 +728,9 @@ def _facets(rows: List[dict], tests: Optional[Dict[str, object]] = None, new_day
             w = _trend_of(r.get(col))
             if w and _passes(r, tests, k + "5"):
                 trend[k][w] += 1
-    return {**{k: sorted(v.items(), key=lambda kv: (-kv[1], kv[0])) for k, v in levels.items()}, "ratings": ratings, "trend": trend,
+    disc = any("disc_placed" in r for r in rows)
+    filings = {k: n("filing", lambda r, k=k: ((r.get("disc_ev") or {}).get(k) or 0) > 0) for k in DISC_EVENTS} if disc else None
+    return {**{k: sorted(v.items(), key=lambda kv: (-kv[1], kv[0])) for k, v in levels.items()}, "ratings": ratings, "trend": trend, **({"filings": filings} if disc else {}),
             "sizes": sizes, "sectors": sorted(sectors.items(), key=lambda kv: (-kv[1], kv[0]))[:80],
             "strong": n("rating", _strong), "strongOnly": n("rating", _strong_only), "anyRating": n("rating", lambda r: True),
             "new": n("new", probe["new"]), "ahead": n("ahead", probe["ahead"]), "nse": n("nse", probe["nse"]), "bse": sum(1 for r in rows if _bse_only(r)),
@@ -678,7 +744,31 @@ def _filtered(request: Request, rows: List[dict], new_day: Optional[str] = None)
     return rows if not tests else [r for r in rows if _passes(r, tests)]
 
 
-def _page(request: Request, body: dict) -> dict:
+def _summary(rows: List[dict], table=None) -> dict:
+    """Task #325 (developer file 25, section 1 row 7): what kind of list it is, before reading the rows. Over the rows the open filters leave: how many have a
+    long-term technical view of Uptrend or Strong uptrend, how many Downtrend or Strong downtrend, how many sit within 10% of the 52-week high, and how many are
+    rated Healthy or Strong by Prism. `held` is the rows with a long-term view at all. A value missing on the row is read from the screener table."""
+    def val(r, key):
+        v = _num(r.get(key))
+        if v is None and table is not None and key in table.cols and r.get("symbol") in table.pos:
+            v = _num(table.cols[key][table.pos[r["symbol"]]])
+        return v
+    out = {"count": len(rows), "held": 0, "up": 0, "down": 0, "nearHigh": 0, "highHeld": 0, "sound": 0}
+    for r in rows:
+        w = _trend_of(val(r, "prism_lt_score"))
+        if w:
+            out["held"] += 1
+            out["up"] += w in ("su", "u")
+            out["down"] += w in ("d", "sd")
+        h = val(r, "pct_from_high")
+        if h is not None:
+            out["highHeld"] += 1
+            out["nearHigh"] += abs(h) <= 10
+        out["sound"] += _rating_of({"prism_final": val(r, "prism_final")}) in ("healthy", "strong")
+    return out
+
+
+def _page(request: Request, body: dict, table=None) -> dict:
     """A screen that is not a Top-10 list and not a theme view pages: `offset` (default 0) and `limit` (default 25, at most EXPORT_MAX) pick rows of the ranked list.
     The answer carries `offset`, `limit`, `available` (rows that can be paged to) and `hasMore`; `count` stays the number of companies that pass."""
     if "pageSize" not in body:
@@ -693,6 +783,13 @@ def _page(request: Request, body: dict) -> dict:
     body = {**body, "facets": facets, "filtered": len(avail)} if len(avail) != len(body.get("exportRows") or body["rows"]) or facets else body
     if board is not None:
         body = {**body, "industryBoard": board}
+    body = {**body, "summary": _summary(avail, table)}
+    subs: Dict[str, int] = {}
+    for r in avail:      # task #325 (file 25, section 1 row 5): each sub-theme chip shows how many companies of the list it holds
+        if r.get("sub_theme"):
+            subs[r["sub_theme"]] = subs.get(r["sub_theme"], 0) + 1
+    if subs:
+        body = {**body, "subCounts": subs}
     offset = _int(request, "offset", 0, 0, engine.EXPORT_MAX)
     limit = _int(request, "limit", body["pageSize"], 1, engine.EXPORT_MAX)
     rows = avail[offset:offset + limit]
@@ -705,7 +802,12 @@ async def detail(request: Request, pid: str):
     body = await _body(request, p, active)
     # task #258: NSE's three levels on every row, for the open screen's Macro sector, Sector and Industry filters
     body = await _with_classification(request.app.state.store, body)
-    body = _page(request, body)
+    body = await _with_discover(request.app.state.store, p, body)
+    try:
+        table = await get_table(request.app.state.store)
+    except Exception:      # the summary then reads only the screen's own rows
+        table = None
+    body = _page(request, body, table)
     await service.log_usage(request.app.state.store, p.id, "open")
     return _json({k: v for k, v in body.items() if k not in API_ONLY})
 

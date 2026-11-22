@@ -33,7 +33,7 @@ function Companies({ active, board }: { active?: string; board: string }) {
       <div className="fo-co-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
         <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search company (e.g. Reliance, TCS…)" aria-label="Search companies" maxLength={60} /></div>
       <div className="fo-filters" role="group" aria-label="Show">{FILTERS.map(([k, l]) => <button type="button" key={k} className={"chip" + (filter === k ? " on" : "")} aria-pressed={filter === k} onClick={() => setFilter(k)}>{l}</button>)}</div>
-      {me && !me.signedIn ? null : list.isPending ? <ul className="fo-co-list" aria-busy="true">{[0, 1, 2, 3].map((i) => <li key={i} className="skeleton" style={{ height: 62, borderRadius: 14 }} />)}</ul>
+      {me && !me.signedIn ? null : list.isPending ? <ul className="fo-co-list" aria-busy="true">{[0, 1, 2, 3].map((i) => <li key={i} className="skeleton" style={{ height: 62, borderRadius: "var(--r-ctl)" }} />)}</ul>
         : list.isError ? <div className="fo-err" role="alert">{msg(list.error)}</div>
         : !shown.length ? <div className="fo-empty"><b>{term ? "No company matches that search." : filter === "following" ? "None of the companies you follow has a discussion yet." : filter === "trending" ? "Nothing active in the last 7 days." : "No discussions on your board yet."}</b>
             <span>{term || filter !== "all" ? "Try All companies." : "Open any company's report and start the first discussion."}</span></div>
@@ -145,11 +145,11 @@ function Guidelines() {
   return (
     <Shell title="Community guidelines and terms">
       <p>FinLit Ventures is a research platform. We are not a SEBI-registered investment adviser or research analyst, and nothing posted here is a recommendation. Members post in their own name (a chosen handle) and are responsible for what they write.</p>
-      <h2 style={{ fontSize: 18 }}>What is welcome</h2>
+      <h2 style={{ fontSize: "var(--fs-18)" }}>What is welcome</h2>
       <ul><li>Questions and views about a company's business, results, balance sheet, valuation and risks, with the data or source behind them.</li><li>Links (up to {2} per post) to filings, annual reports or news articles.</li></ul>
-      <h2 style={{ fontSize: 18 }}>What is not allowed</h2>
+      <h2 style={{ fontSize: "var(--fs-18)" }}>What is not allowed</h2>
       <ul><li>Tips and calls: telling others to buy or sell, price targets, stop-losses, or promises of returns or "guaranteed" gains.</li><li>Promoting stocks, groups, channels, courses or paid services; pump-and-dump style hype.</li><li>Phone numbers, email addresses, WhatsApp/Telegram handles or invitations to move the conversation elsewhere.</li><li>Link shorteners, chat-group links, social profiles; abuse, harassment or personal attacks; repeating the same message.</li></ul>
-      <h2 style={{ fontSize: 18 }}>How moderation works</h2>
+      <h2 style={{ fontSize: "var(--fs-18)" }}>How moderation works</h2>
       <p>Posts that look like hype are held until a moderator reads them. Posts reported by 3 different members are hidden until a moderator decides. Moderators may remove posts and pause accounts. You can edit a post for 15 minutes and delete it at any time. The forum has one board for each plan: Basic, Silver and Gold members each read and write on the board of their own plan, and cannot see the other boards. Posting needs a free FinLit account. We never show your email or account name.</p>
       <p className="muted">{DISCLAIMER}</p>
     </Shell>

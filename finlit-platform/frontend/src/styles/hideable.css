@@ -1,15 +1,15 @@
 /* Hide / Show on optional panels (components/Hideable.tsx) */
 .hz { position: relative; min-width: 0; }
-.hz-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 14px; border: 1px solid var(--border); border-radius: 999px; background: var(--s1); color: var(--muted); font: 600 var(--fs-13) var(--sans); cursor: pointer; }
+.hz-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 14px; border: 1px solid var(--border); border-radius: var(--ui-r-pill); background: var(--s1); color: var(--muted); font: 600 var(--fs-13) var(--sans); cursor: pointer; }
 .hz-btn.hz-on { color: var(--text); } .hz-ic { flex: none; }                     /* the pack's Hide: an eye with a line through it, in the text colour */
 .hz-btn:hover { color: var(--text); border-color: var(--text); } .hz-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .hz-on { position: absolute; top: 12px; right: 12px; z-index: 2; }
-.hz-off { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 16px; border: 1px solid var(--border); border-radius: 16px; background: var(--s1); }
+.hz-off { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 16px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--s1); }
 .hz-t { font: 600 var(--fs-16) var(--sans); color: var(--text); margin-right: auto; }
-.hz-tag { padding: 3px 10px; border-radius: 999px; background: var(--s2, var(--s1)); color: var(--muted); font: 600 var(--fs-12) var(--sans); }
+.hz-tag { padding: 3px 10px; border-radius: var(--ui-r-pill); background: var(--s2, var(--s1)); color: var(--muted); font: 600 var(--fs-12) var(--sans); }
 @media (max-width: 560px) { .hz-t { font-size: var(--fs-14); } }
 
 /* task #274 (Equity portfolio): the slim hidden card: title, "Hidden · " and the subtitle on one line, Show ▾ */
 .hz-slim { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 16px; }
 .hz-slim .hz-t { flex: 0 0 auto; font-weight: 700; }
-.hz-slim .hz-sub { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 14px; }
+.hz-slim .hz-sub { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: var(--fs-14); }

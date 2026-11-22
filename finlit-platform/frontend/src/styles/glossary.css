@@ -3,7 +3,7 @@
 .gx-bar { margin: 18px 0 8px; }
 .gx-az { display: grid; grid-template-columns: repeat(var(--gx-n, 28), minmax(0, 1fr)); gap: 4px; }   /* All, 0-9 and A-Z: one single row across the page */
 @media (max-width: 900px) { .gx-az { display: flex; overflow-x: auto; scrollbar-width: thin; padding-bottom: 4px; } .gx-az button { flex: 0 0 38px; } }
-.gx-az button { min-width: 0; height: 40px; padding: 0; border-radius: 10px; border: 1px solid var(--border); background: var(--s1); color: var(--text); font: 600 14px var(--sans); cursor: pointer; }
+.gx-az button { min-width: 0; height: 40px; padding: 0; border-radius: var(--r-ctl); border: 1px solid var(--border); background: var(--s1); color: var(--text); font: 600 var(--fs-14) var(--sans); cursor: pointer; }
 .gx-az button:hover:not(:disabled) { border-color: var(--gold); } .gx-az button.on { background: var(--gold); color: var(--on-gold); border-color: var(--gold); } .gx-az button:disabled { opacity: .3; cursor: default; }
 /* graphs.css also defines .gx as a 2-column grid (320px + rest); the Companies A to Z page (the one user of these rules now; the Glossary is glossary-pack.css) lays itself out. */
 .wrap.gx { display: block; }

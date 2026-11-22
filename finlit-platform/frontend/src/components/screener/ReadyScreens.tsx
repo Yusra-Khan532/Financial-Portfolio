@@ -95,10 +95,10 @@ export function PanelTabs({ tab, setTab, nOn, nReady }: { tab: PanelTab; setTab:
     (e.currentTarget.querySelectorAll<HTMLButtonElement>("[role=tab]")[to])?.focus();
   };
   return (
-    <div className="xsp-tabs" role="tablist" aria-label="Screens and rules" onKeyDown={onKey}>
+    <div className="ui-tabs xsp-tabs" role="tablist" aria-label="Screens and rules" onKeyDown={onKey}>
       {PTABS.map((t) => (
         <button key={t.id} type="button" role="tab" id={`xsp-t-${t.id}`} aria-controls={`xsp-p-${t.id}`} aria-selected={tab === t.id} tabIndex={tab === t.id ? 0 : -1}
-          className={t.id === "ratio" ? "xsp-t-ratio" : undefined} onClick={() => setTab(t.id)}
+          className={"ui-tab" + (t.id === "ratio" ? " xsp-t-ratio" : "")} onClick={() => setTab(t.id)}
           title={t.id === "ready" && nReady != null ? `${nReady} ready-made screens` : undefined}>
           {t.id === "ratio" && <span className="xsp-spark" aria-hidden="true">✦</span>}{t.label}{t.id === "ready" && nOn > 0 && <b className="xsp-on">{nOn} on</b>}
         </button>))}

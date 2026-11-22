@@ -54,4 +54,5 @@ export const INFO_BAND_SECTOR = "Each company's industry as Sector Pulse and Sec
 /** The industry board's i (task #243 round 3b): the four corners and the Pulse states, and how picking a chip works. */
 export const INFO_BOARD = `Each chip is one industry on this list, with how many of its companies are here. Sector Rotation's corners: Ahead and gaining, Ahead but slowing, Behind but gaining, Behind and slipping (against the average industry, over 6 months and the last month). Sector Pulse's states: ${PULSE_TOOLTIP} Pick a chip to show only that industry; pick it again, or Clear all, to show every one.`;
 export const INFO_BAND_SCREEN = "Where each company came from and how far its price has risen since it joined.";
+export const INFO_BAND_DISCOVER = "From Discover: the stage the company's newest investor presentation describes, and the latest of its exchange filings of the last 90 days that is an order win, new capacity, a partnership, or an acquisition or merger. A company with no presentation on file is not placed.";
 export const INFO_START = "FinLit began storing lists on 11 Nov 2026; this company was already on the list then.";

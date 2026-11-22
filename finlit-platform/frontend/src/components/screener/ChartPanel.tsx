@@ -9,6 +9,9 @@ import { useThemeKey } from "../../lib/ui";
 import { CoLogo } from "../CoLogo";
 import { ScoreChip, prismParts, scoreView, usePlanModel, usePlanPrism } from "../../lib/planScore";
 import "../../styles/chartpanel.css";
+import { DISC_EVENTS, type DiscEvent, type DiscLatest } from "../../lib/presets";
+import { themePath } from "../../discovery/model";
+import { dateIN } from "../../lib/format";
 
 /** The chart that opens from a row of the stock screeners, built to the 11 Nov design: candles, bars or a line, daily or weekly, volume in its own pane, an Indicators menu
  *  (EMA 9/20/50/200, SMA 10/20/50, volume average, highest volume in 3 months, strength against NIFTY 500, events, the pattern), Compare, Measure and a reset.
@@ -53,7 +56,26 @@ const palette = () => ({ up: css("--gain", "#16a34a"), down: css("--loss", "#dc2
 /** What a chart-pattern scan found, as the server words it: facts ([label, value]) and the drawing (level, box, pole, swings, bar, dates already worked out). The page never sees a rule. */
 export type Draw = { level?: number; from?: string | null; box?: { from: string | null; to: string | null; low: number; high: number }; pole?: { from: string | null; low: number; to: string | null; high: number };
   swings?: { date: string | null; price: number; kind: string }[]; bar?: string | null; ema?: number };
-export type PanelRow = { symbol: string; name?: string | null; sector?: string | null; price?: number | null; facts?: [string, string | null][]; draw?: Draw; screen?: string };
+export type PanelRow = { symbol: string; name?: string | null; sector?: string | null; price?: number | null; facts?: [string, string | null][]; draw?: Draw; screen?: string;
+  /** Task #325 (file 25, section 4): on Emerging tech, what Discover knows of the company. */ disc?: PanelDisc | null };
+export type PanelDisc = { placed: boolean; stage?: string | null; themes?: string[]; ev?: Partial<Record<DiscEvent, number>>; latest?: DiscLatest | null };
+
+/** Task #325 (file 25, section 4, screenshot 03): the chart panel's "From Discover" block: themes, stage, counts of the four filing kinds over 90 days,
+ *  the latest of them, and the way to the company on Discover. A company with no presentation on file says Discover has not placed it. */
+export function DiscBlock({ d, name }: { d: PanelDisc; name: string }) {
+  if (!d.placed) return <div className="cp-disc" aria-label="From Discover"><b>From Discover</b><p>No investor presentation on file yet, so Discover has not placed this company.</p></div>;
+  const main = d.themes?.[0];
+  return (
+    <div className="cp-disc" aria-label="From Discover"><b>From Discover</b>
+      <dl className="cp-facts">
+        {!!d.themes?.length && <div><dt>{d.themes.length === 1 ? "Theme" : "Themes"}</dt><dd>{d.themes.join(", ")}</dd></div>}
+        <div><dt>Stage it describes</dt><dd>{d.stage || "Not stated"}</dd></div>
+        <div><dt>Filings, 90 days</dt><dd>{DISC_EVENTS.map(([k, l]) => `${l} ${d.ev?.[k] ?? 0}`).join(" · ")}</dd></div>
+        <div><dt>Latest filing</dt><dd>{d.latest ? <>{d.latest.el}, {dateIN(d.latest.d)}: {d.latest.l ? <a href={d.latest.l} target="_blank" rel="noreferrer noopener">{d.latest.t}</a> : d.latest.t}</> : "None of these kinds in 90 days"}</dd></div>
+      </dl>
+      {main && <Link className="cp-dlink" to={`${themePath(main)}?q=${encodeURIComponent(name)}`}>Open in Discover ›</Link>}
+    </div>);
+}
 type Bar = { t: string; o: number | null; h: number | null; l: number | null; c: number; v: number | null; e: Record<string, number | null> };
 
 /** Weekly candles from daily bars: first open, highest high, lowest low, last close, the week's volume, dated on the last trading day. */
@@ -331,6 +353,7 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false }: { ro
       </div>
       {model === "prism" && prismParts(prismMap[row.symbol]).length > 0 && <ul className="cp-score cp-pz" aria-label="FinLit Prism scores">{prismParts(prismMap[row.symbol]).map((p) => <li key={p.key} className={"pb-" + p.band}><small>{p.label}</small><b>{p.text}</b><em>{p.word ?? (p.value == null ? "Not available" : p.key === "risk" ? "Higher means lower risk" : "Higher is better")}</em></li>)}</ul>}
       {extra}
+      {row.disc && <DiscBlock d={row.disc} name={row.name || row.symbol} />}
       <p className="cp-f">Charts help you study a company; they are not advice to buy or sell. Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer">TradingView Lightweight Charts™</a>, Copyright (c) 2025 TradingView, Inc.</p>
       <Link className="btn primary cp-r" to={`/stocks/${row.symbol}`}>Open full report</Link>
     </aside>

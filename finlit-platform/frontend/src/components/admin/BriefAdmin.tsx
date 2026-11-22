@@ -56,7 +56,7 @@ function Detail({ symbol, onClose }: { symbol: string; onClose: () => void }) {
         <button role="tab" aria-selected={view === "page"} onClick={() => setView("page")}>As readers see it</button>
         <button role="tab" aria-selected={view === "text"} onClick={() => setView("text")}>Plain text</button>
       </div>
-      {view === "text" ? <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontSize: 13 }}>{o.text}</pre> : <div className="cb" style={{ margin: 0 }}><BriefBody r={reply as Extract<BriefReply, { state: "published" }>} /></div>}
+      {view === "text" ? <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontSize: "var(--fs-13)" }}>{o.text}</pre> : <div className="cb" style={{ margin: 0 }}><BriefBody r={reply as Extract<BriefReply, { state: "published" }>} /></div>}
     </section>
   );
 }

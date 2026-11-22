@@ -4,16 +4,16 @@
 [data-theme=dark] .p4 { --dsc-teal: #6fc0cb; --dsc-teal-b: #16292b; --dsc-on: #0b1a12; --dsc-amber: #e0a43a; --dsc-amber-b: #2d2414; --dsc-amber-e: #5a4520; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme=light]) .p4 { --dsc-teal: #6fc0cb; --dsc-teal-b: #16292b; --dsc-on: #0b1a12; --dsc-amber: #e0a43a; --dsc-amber-b: #2d2414; --dsc-amber-e: #5a4520; } }
 
-.p4 .dsc-tag { font: 700 12px/17px var(--sans); letter-spacing: .04em; text-transform: uppercase; vertical-align: 1px; border: 1px solid; border-radius: 999px; margin-left: 2px; padding: 0 6px; display: inline-block; }
+.p4 .dsc-tag { font: 700 var(--fs-12)/17px var(--sans); letter-spacing: .04em; text-transform: uppercase; vertical-align: 1px; border: 1px solid; border-radius: var(--ui-r-pill); margin-left: 2px; padding: 0 6px; display: inline-block; }
 .p4 .dsc-tag.pf { color: var(--dsc-teal); border-color: var(--dsc-teal); }
 .p4 .dsc-tag.wl { color: var(--dsc-amber); border-color: var(--dsc-amber-e); background: var(--dsc-amber-b); }
 
 /* one toolbar: search, dropdowns; then the topic chips, the filters on, the count line */
-.p4 .p4-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 16px 0 0; padding: 12px; background: var(--s1); border: 1px solid var(--border); border-radius: 14px; }
+.p4 .p4-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 16px 0 0; padding: 12px; background: var(--s1); border: 1px solid var(--border); border-radius: var(--r-ctl); }
 .p4 .p4-tools .dbx-q { flex: 1 1 220px; }
 .p4 .dbx-rbar { margin: 14px 0 10px; }
 .p4 .dbx-cnt { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
-.p4 .p4-hint { color: var(--faint); font: 13px var(--sans); }
+.p4 .p4-hint { color: var(--faint); font: var(--fs-13) var(--sans); }
 
 .p4 .p4-quick { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 12px 0 0; }
 .p4 .p4-quick .chip-b { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; }
@@ -22,25 +22,25 @@
 
 /* day groups and compact rows */
 .p4 .p4-fg h2 { display: flex; align-items: baseline; gap: 10px; }
-.p4 .p4-fg h2 span { color: var(--faint); font: 13px var(--sans); }
+.p4 .p4-fg h2 span { color: var(--faint); font: var(--fs-13) var(--sans); }
 .p4 .p4-fn li { grid-template-columns: 118px minmax(0, 1fr) 30px; align-items: start; gap: 14px; padding: 9px 0; }
 .p4 .p4-sym { display: inline-flex; align-items: center; gap: 6px; justify-content: flex-start; overflow: hidden; white-space: nowrap; text-align: left; }
 .p4 .p4-sym > span:last-child { overflow: hidden; text-overflow: ellipsis; }
 .p4 .p4-nb p { max-width: 110ch; margin: 0 0 3px; font-weight: 500; line-height: 1.45; }
 .p4 .p4-nb p a { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.p4 .p4-nb p b { font-weight: 650; }
-.p4 .p4-nb .p4-sum { margin: 4px 0 0; font-size: 14px; font-weight: 400; }
+.p4 .p4-nb p b { font-weight: 600; }
+.p4 .p4-nb .p4-sum { margin: 4px 0 0; font-size: var(--fs-14); font-weight: 400; }
 .p4 .p4-cat { color: var(--muted); }
-.p4 .p4-tp { color: var(--text); font-weight: 650; }
+.p4 .p4-tp { color: var(--text); font-weight: 600; }
 .p4 .p4-tp.t-results { color: var(--gold); }
-.p4 .p4-open { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 7px; color: var(--muted); }
+.p4 .p4-open { display: grid; place-items: center; width: 30px; height: 30px; border-radius: var(--r-ctl); color: var(--muted); }
 .p4 .p4-open:hover { background: var(--s2); color: var(--text); }
 .p4 .p4-open svg { width: 15px; height: 15px; }
 
-.p4 .p4-more { display: block; margin: 4px auto 18px; min-height: 40px; padding: 0 18px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--s1); color: var(--text); font: 600 14px var(--sans); cursor: pointer; }
+.p4 .p4-more { display: block; margin: 4px auto 18px; min-height: 40px; padding: 0 18px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font: 600 var(--fs-14) var(--sans); cursor: pointer; }
 .p4 .p4-more:hover:not(:disabled) { border-color: var(--gold); }
 .p4 .p4-more:disabled { opacity: .6; cursor: progress; }
-.p4 .p4-disc { margin: 8px 0 0; font-size: 13px; }
+.p4 .p4-disc { margin: 8px 0 0; font-size: var(--fs-13); }
 
 @media (max-width: 760px) {
   .p4 .p4-tools { padding: 10px; gap: 8px; }

@@ -71,7 +71,7 @@ function Card({ r, onOpen, onGmp }: { r: Ipo; onOpen: () => void; onGmp: (r: Ipo
   const meta = [r.sector, r.kind === "sme" ? "SME" : "Mainboard", r.details?.exchange?.join(" / "), r.symbol].filter(Boolean).join(" · ");
   const name = titleCase(r.name);
   return (
-    <article className="card ipo-c p4-ic" style={{ "--tc": st.colour } as React.CSSProperties}>
+    <article className="card ui-card ui-card--sm ipo-c p4-ic" style={{ "--tc": st.colour } as React.CSSProperties}>
       <div className="ipo-h"><div><h3>{name}</h3><p>{meta}</p></div><span className="ipo-st"><i />{st.label}</span></div>
       <dl className="ipo-d p4-d">{cells.map((c) => <div key={c.k} className={c.v == null ? "na" : undefined}><dt>{c.k}</dt><dd className={c.cls || ""}>{c.v ?? "—"}{c.extra}</dd></div>)}</dl>
       <div className="ipo-foot"><button type="button" className="ipo-more" onClick={onOpen} aria-label={`Details: ${name}`}>Details →</button>{r.recordId ? <Link className="ipo-more" to={`/ipo/${r.recordId}`} aria-label={`Full IPO report: ${name}`}>Full report ↗</Link> : null}</div>

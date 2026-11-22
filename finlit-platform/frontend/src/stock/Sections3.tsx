@@ -122,7 +122,7 @@ export function HistoryTable({ r, profile }: { r: Ratios; profile?: unknown }) {
           </Fragment>
         );
       })}</tbody>
-    </table>{(hidden > 0 || (all && group === "all" && everyRow.length > HEAD_RATIOS.length + 1)) && <p className="rh-more" style={{ margin: "10px 0 0" }}><button type="button" className="mf-linkbtn" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show the main eight" : `Show all ${everyRow.length}`}</button></p>}<p className="faint" style={{ fontSize: 12, margin: "10px 0 0" }}>Green cells are the most favourable years for that ratio, red the weakest. Where "better" depends on the business, cells stay uncoloured. n/m: the figure cannot be read that year (for example a negative base). They describe; they are not a recommendation.</p></HScroll>
+    </table>{(hidden > 0 || (all && group === "all" && everyRow.length > HEAD_RATIOS.length + 1)) && <p className="rh-more" style={{ margin: "10px 0 0" }}><button type="button" className="mf-linkbtn" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show the main eight" : `Show all ${everyRow.length}`}</button></p>}<p className="faint" style={{ fontSize: "var(--fs-12)", margin: "10px 0 0" }}>Green cells are the most favourable years for that ratio, red the weakest. Where "better" depends on the business, cells stay uncoloured. n/m: the figure cannot be read that year (for example a negative base). They describe; they are not a recommendation.</p></HScroll>
     </>
   );
 }
@@ -136,7 +136,7 @@ function ValuationHistory({ r }: { r: Ratios }) {
   return (
     <div className="vh">
       <ChartZoom label="Valuation history" className="cz-r">
-      <div className="tools"><div><div className="label" style={{ display: "flex", alignItems: "center", gap: 8 }}>Valuation history<ChartHelp id="valuation-history" /></div><p className="faint" style={{ margin: "4px 0 0", fontSize: 13 }}>How much investors paid over the years</p></div><div className="seg">{(["pe", "pb", "ps"] as const).map((x) => <button key={x} aria-pressed={k === x} onClick={() => setK(x)}>{x === "pe" ? "P/E" : x === "pb" ? "P/B" : "P/S"}</button>)}</div></div>
+      <div className="tools"><div><div className="label" style={{ display: "flex", alignItems: "center", gap: 8 }}>Valuation history<ChartHelp id="valuation-history" /></div><p className="faint" style={{ margin: "4px 0 0", fontSize: "var(--fs-13)" }}>How much investors paid over the years</p></div><div className="seg">{(["pe", "pb", "ps"] as const).map((x) => <button key={x} aria-pressed={k === x} onClick={() => setK(x)}>{x === "pe" ? "P/E" : x === "pb" ? "P/B" : "P/S"}</button>)}</div></div>
       <div className="vh-top">
         <div className="vh-k"><span className="label">{name} in {vh.periods[vh.periods.length - 1]}</span><b>{nf(now, 1)}×</b></div>
         <div className="vh-k"><span className="label">{vh.periods.length}-year average</span><b>{nf(mean, 1)}×</b></div>
@@ -186,7 +186,7 @@ export function RatiosSection({ r, lender = false, sector, industry, labels }: {
               {rows.map((k) => {
                 const e = r.latest[k], gl = r.glossary[k];
                 return (
-                  <div className="mrow" key={k}><span className="k"><i className={"bttr " + (e.better || "")} title={e.better ? `${e.better === "higher" ? "Higher" : "Lower"} is usually better` : ""}>{e.better === "higher" ? "▲" : e.better === "lower" ? "▼" : "•"}</i>{e.label} <Info g={gl} /></span><span className="v">{fmtUnit(e.value, e.unit)}<span className="unit" style={{ marginLeft: 6, fontSize: 11 }}>{e.period === "latest" ? "" : e.period}</span></span></div>
+                  <div className="mrow" key={k}><span className="k"><i className={"bttr " + (e.better || "")} title={e.better ? `${e.better === "higher" ? "Higher" : "Lower"} is usually better` : ""}>{e.better === "higher" ? "▲" : e.better === "lower" ? "▼" : "•"}</i>{e.label} <Info g={gl} /></span><span className="v">{fmtUnit(e.value, e.unit)}<span className="unit" style={{ marginLeft: 6, fontSize: "var(--fs-12)" }}>{e.period === "latest" ? "" : e.period}</span></span></div>
                 );
               })}
               {gold && keys.length > 2 && <div className="more-gold" role="button" tabIndex={0} onClick={() => upgrade("gold", "Detailed ratio analysis is a Gold feature.")} onKeyDown={(e) => e.key === "Enter" && upgrade("gold", "Detailed ratio analysis is a Gold feature.")}><Icon name="crown" /><span><b>+{keys.length - 2} more ratios</b> in detailed ratio analysis · Gold</span></div>}
@@ -194,7 +194,7 @@ export function RatiosSection({ r, lender = false, sector, industry, labels }: {
           );
         })}
       </div>
-      <p className="faint" style={{ fontSize: 12, margin: "10px 2px 0" }}>▲ higher is usually better · ▼ lower is usually better</p>
+      <p className="faint" style={{ fontSize: "var(--fs-12)", margin: "10px 2px 0" }}>▲ higher is usually better · ▼ lower is usually better</p>
         </> },
         { key: "profit", label: "Profitability ratios", content: <>
       <div className="card acc" style={{ margin: "0 0 8px", "--ac": "var(--p-profit)" } as React.CSSProperties}>
@@ -256,11 +256,11 @@ export function PeersSection({ p, self, s }: { p?: Peers; self: string; s: Summa
                   <line x1={CX} y1={CY} x2={x} y2={y} stroke={c} strokeWidth={on ? 2.4 : 1.2} strokeOpacity={on ? 0.9 : 0.35} strokeDasharray={on ? "" : "4 5"} />
                   <g className="orb-n" tabIndex={0} role="link" aria-label={`Open ${i.name || i.symbol} (${i.symbol})`} transform={`translate(${x} ${y})`} onMouseEnter={() => { setHv(i.symbol); prefetchStock(qc, i.symbol, 150); }} onMouseLeave={() => setHv(null)} onFocus={() => setHv(i.symbol)} onBlur={() => setHv(null)} onClick={() => go(i.symbol)} onKeyDown={(e) => e.key === "Enter" && go(i.symbol)} style={{ cursor: "pointer" }}>
                     <circle r={r + 8} fill={c} opacity={on ? 0.28 : 0.12} /><circle r={r} fill={`color-mix(in srgb, ${c} 30%, var(--s1))`} stroke={c} strokeWidth={on ? 3 : 2} />
-                    <text textAnchor="middle" dy=".35em" fontSize={11} fontWeight="700" fontFamily="IBM Plex Mono, monospace" fill="var(--text)">{i.symbol.length > (r > 28 ? 7 : 5) ? i.symbol.slice(0, r > 28 ? 6 : 4) + "…" : i.symbol}</text>
+                    <text textAnchor="middle" dy=".35em" fontSize={11} fontWeight="700" fontFamily="Inter Variable, Inter, monospace" fill="var(--text)">{i.symbol.length > (r > 28 ? 7 : 5) ? i.symbol.slice(0, r > 28 ? 6 : 4) + "…" : i.symbol}</text>
                   </g>
                 </g>
               ); })}
-            <g transform={`translate(${CX} ${CY})`}><circle r="58" fill="var(--gold)" opacity=".16" /><circle r="46" fill="url(#orbg)" /><text textAnchor="middle" dy="-.15em" fontSize="12" fontWeight="700" fill="#2a1c00" fontFamily="IBM Plex Mono, monospace">{self}</text><text textAnchor="middle" dy="1.5em" fontSize="11" fill="#2a1c00" opacity=".75">THIS COMPANY</text></g>
+            <g transform={`translate(${CX} ${CY})`}><circle r="58" fill="var(--gold)" opacity=".16" /><circle r="46" fill="url(#orbg)" /><text textAnchor="middle" dy="-.15em" fontSize="12" fontWeight="700" fill="#2a1c00" fontFamily="Inter Variable, Inter, monospace">{self}</text><text textAnchor="middle" dy="1.5em" fontSize="11" fill="#2a1c00" opacity=".75">THIS COMPANY</text></g>
           </svg>
           <p className="orb-cap">{hov ? <><b>{hov.name || hov.symbol}</b> · click to open its report</> : hasData ? "Bubble size shows market value. Hover or click a company." : "Hover or click a company to open its report."}</p>
           </ChartZoom>

@@ -1,61 +1,61 @@
 /* Task #274 (equity pack, change 1): the add box's suggestions and the Add shares window. Every class is pfa- (this file only); the window sits in the live
    dialog (acc-dlg). Colours are the site's tokens, so light and dark follow the theme. */
-.pfa-sugg { position: fixed; z-index: 200; background: var(--s1); color: var(--text); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 22px 44px -20px rgba(0,0,0,.5);
+.pfa-sugg { position: fixed; z-index: 200; background: var(--s1); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-ctl); box-shadow: 0 22px 44px -20px rgba(0,0,0,.5);
   padding: 6px; max-height: min(420px, 70vh); overflow: auto; font-family: var(--sans); }
-.pfa-opt { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "l n p" "l s p"; column-gap: 10px; align-items: center; padding: 8px; border-radius: 10px; cursor: pointer; }
+.pfa-opt { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "l n p" "l s p"; column-gap: 10px; align-items: center; padding: 8px; border-radius: var(--r-ctl); cursor: pointer; }
 .pfa-opt > :first-child { grid-area: l; }
-.pfa-opt > b { grid-area: n; font: 600 14px var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pfa-opt > small { grid-area: s; color: var(--muted); font-size: 12px; }
-.pfa-opt mark { background: none; color: inherit; font-weight: 800; text-decoration: underline; text-underline-offset: 2px; }
+.pfa-opt > b { grid-area: n; font: 600 var(--fs-14) var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pfa-opt > small { grid-area: s; color: var(--muted); font-size: var(--fs-12); }
+.pfa-opt mark { background: none; color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
 .pfa-opt[aria-selected="true"], .pfa-opt:hover { background: color-mix(in srgb, var(--text) 7%, transparent); }
-.pfa-px { grid-area: p; text-align: right; font: 600 13px var(--sans); font-variant-numeric: tabular-nums; }
-.pfa-px small { display: block; color: var(--muted); font-weight: 500; font-size: 12px; }
-.pfa-held { margin-left: 8px; padding: 1px 7px; border-radius: 99px; font: 700 12px var(--sans); background: color-mix(in srgb, var(--gold) 18%, var(--s1)); color: var(--text); }
-.pfa-empty { padding: 12px; color: var(--muted); font-size: 13px; }
-.pfa-hint { padding: 6px 8px 2px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--border); margin-top: 4px; }
+.pfa-px { grid-area: p; text-align: right; font: 600 var(--fs-13) var(--sans); font-variant-numeric: tabular-nums; }
+.pfa-px small { display: block; color: var(--muted); font-weight: 500; font-size: var(--fs-12); }
+.pfa-held { margin-left: 8px; padding: 1px 7px; border-radius: var(--ui-r-pill); font: 700 var(--fs-12) var(--sans); background: color-mix(in srgb, var(--gold) 18%, var(--s1)); color: var(--text); }
+.pfa-empty { padding: 12px; color: var(--muted); font-size: var(--fs-13); }
+.pfa-hint { padding: 6px 8px 2px; color: var(--muted); font-size: var(--fs-12); border-top: 1px solid var(--border); margin-top: 4px; }
 
 .pfa-dlg .acc-dlg-in.pfa-wide { width: min(980px, 100%); }
 .pfa-dh { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 4px; }
 .pfa-dh h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
-.pfa-x { border: 0; background: none; color: var(--muted); font: 600 20px/1 var(--sans); cursor: pointer; min-width: 36px; min-height: 36px; border-radius: 10px; }
+.pfa-x { border: 0; background: none; color: var(--muted); font: 600 var(--fs-20)/1 var(--sans); cursor: pointer; min-width: 36px; min-height: 36px; border-radius: var(--r-ctl); }
 .pfa-x:hover { background: color-mix(in srgb, var(--text) 7%, transparent); color: var(--text); }
 .pfa-x:focus-visible, .pfa-link:focus-visible, .pfa-tabs button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .pfa-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 12px; }
-.pfa-tabs button { min-height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--s1); color: var(--text); font: 600 14px var(--sans); cursor: pointer; }
+.pfa-tabs button { min-height: 38px; padding: 0 14px; border-radius: var(--ui-r-pill); border: 1px solid var(--border); background: var(--s1); color: var(--text); font: 600 var(--fs-14) var(--sans); cursor: pointer; }
 .pfa-tabs button.on { background: var(--text); border-color: var(--text); color: var(--bg); }
 .pfa-entw { overflow-x: auto; margin: 0 -4px; padding: 0 4px; }
 .pfa-ent { width: 100%; min-width: 720px; border-collapse: collapse; }
-.pfa-ent th { padding: 8px 6px; text-align: left; font: 700 12px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
+.pfa-ent th { padding: 8px 6px; text-align: left; font: 700 var(--fs-12) var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
 .pfa-ent th small { text-transform: none; letter-spacing: 0; font-weight: 500; }
 .pfa-ent td { padding: 8px 6px; vertical-align: middle; border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent); }
 .pfa-ent td.r { text-align: right; }
-.pfa-in { min-height: 38px; width: 100%; box-sizing: border-box; font: 500 14px var(--sans); border-radius: 10px; border: 1px solid var(--border); background: var(--s1); color: var(--text); padding: 0 10px; }
+.pfa-in { min-height: 38px; width: 100%; box-sizing: border-box; font: 500 var(--fs-14) var(--sans); border-radius: var(--r-ctl); border: 1px solid var(--border); background: var(--s1); color: var(--text); padding: 0 10px; }
 .pfa-ent select.pfa-in { min-width: 140px; }
 .pfa-ta { min-height: 120px; padding: 10px; }
-.pfa-cs { display: flex; align-items: center; gap: 8px; min-width: 220px; height: 40px; padding: 0 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--s1); color: var(--muted); }
+.pfa-cs { display: flex; align-items: center; gap: 8px; min-width: 220px; height: 40px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); color: var(--muted); }
 .pfa-cs svg { width: 16px; height: 16px; flex: none; }
-.pfa-cs input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text); font: 16px var(--sans); outline: none; }
+.pfa-cs input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text); font: var(--fs-16) var(--sans); outline: none; }
 .pfa-cs:focus-within { outline: 2px solid var(--gold); outline-offset: 2px; }
 .pfa-picked { display: flex; align-items: center; gap: 10px; min-width: 220px; }
-.pfa-picked b { display: block; font-size: 14px; }
-.pfa-picked small { display: block; color: var(--muted); font-size: 12px; }
+.pfa-picked b { display: block; font-size: var(--fs-14); }
+.pfa-picked small { display: block; color: var(--muted); font-size: var(--fs-12); }
 .pfa-held2 { color: var(--gold) !important; font-weight: 600; }
 .pfa-link { border: 0; background: none; padding: 0; color: var(--text); text-decoration: underline; font: inherit; cursor: pointer; }
 .pfa-row2 { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
 .pfa-df { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 14px; }
-.pfa-df .pfx-note { flex: 1 1 280px; font-size: 13px; color: var(--muted); margin: 0; }
+.pfa-df .pfx-note { flex: 1 1 280px; font-size: var(--fs-13); color: var(--muted); margin: 0; }
 .pfa-btns { display: flex; gap: 8px; margin-left: auto; }
-.pfa-lab { display: block; font: 600 14px var(--sans); margin: 4px 0 6px; }
+.pfa-lab { display: block; font: 600 var(--fs-14) var(--sans); margin: 4px 0 6px; }
 .pfa-pout { margin-top: 10px; }
 .pfa-no { color: var(--loss); }
-.pfa-drop { display: grid; gap: 10px; justify-items: start; padding: 18px; border: 1px dashed var(--border-strong); border-radius: 14px; }
+.pfa-drop { display: grid; gap: 10px; justify-items: start; padding: 18px; border: 1px dashed var(--border-strong); border-radius: var(--r-ctl); }
 @media (max-width: 760px) {
   .pfa-ent { min-width: 0; }
   .pfa-ent thead { display: none; }
   .pfa-ent, .pfa-ent tbody, .pfa-ent tr, .pfa-ent td { display: block; }
-  .pfa-ent tr { border: 1px solid var(--border); border-radius: 12px; padding: 6px 8px; margin-bottom: 10px; position: relative; }
+  .pfa-ent tr { border: 1px solid var(--border); border-radius: var(--r-ctl); padding: 6px 8px; margin-bottom: 10px; position: relative; }
   .pfa-ent td { border: 0; padding: 4px 0; }
-  .pfa-ent td[data-l]::before { content: attr(data-l); display: block; font: 700 12px var(--sans); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 2px; }
+  .pfa-ent td[data-l]::before { content: attr(data-l); display: block; font: 700 var(--fs-12) var(--sans); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 2px; }
   .pfa-ent td.r { position: absolute; top: 4px; right: 4px; }
   .pfa-cs, .pfa-picked { min-width: 0; }
 }
@@ -66,28 +66,28 @@
 .pfa-ent td, .pfa-ent tr:hover td, .pfa-ent tr:first-child td { background: none !important; box-shadow: none !important; position: static !important; }
 
 /* Task #274 change 3: Edit | Sell (classes pfe-) */
-.pfe-links { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
-.pfe-links button { border: 0; background: none; padding: 0; font: 600 12px var(--sans); color: var(--text); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.pfe-links { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-12); color: var(--muted); }
+.pfe-links button { border: 0; background: none; padding: 0; font: 600 var(--fs-12) var(--sans); color: var(--text); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 .pfe-links button:disabled { color: var(--faint, var(--muted)); text-decoration: none; cursor: default; }
-.pfe-links button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 3px; }
+.pfe-links button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: var(--ui-r-mark); }
 .pfa-dlg .acc-dlg-in.pfe-mid { width: min(620px, 100%); }
 .pfe-h { display: flex; align-items: center; gap: 10px; }
-.pfe-h small { font: 500 13px var(--sans); color: var(--muted); }
+.pfe-h small { font: 500 var(--fs-13) var(--sans); color: var(--muted); }
 .pfe-ent { min-width: 640px; }
-.pfe-n { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
-.pfe-sales ul { margin: 4px 0 0; padding-left: 18px; font-size: 14px; color: var(--muted); }
-.pfe-sum { margin: 12px 0 0; font: 600 14px var(--sans); }
+.pfe-n { display: block; color: var(--muted); font-size: var(--fs-12); margin-top: 2px; }
+.pfe-sales ul { margin: 4px 0 0; padding-left: 18px; font-size: var(--fs-14); color: var(--muted); }
+.pfe-sum { margin: 12px 0 0; font: 600 var(--fs-14) var(--sans); }
 .pfe-rm { border-color: color-mix(in srgb, var(--loss) 45%, var(--border)) !important; color: var(--loss) !important; }
 .pfe-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.pfe-grid label, .pfe-pf { display: grid; gap: 4px; font: 600 13px var(--sans); color: var(--muted); }
+.pfe-grid label, .pfe-pf { display: grid; gap: 4px; font: 600 var(--fs-13) var(--sans); color: var(--muted); }
 .pfe-grid label small { font-weight: 500; margin-left: 6px; }
-.pfe-pf b { font: 600 14px var(--sans); color: var(--text); min-height: 38px; display: flex; align-items: center; }
-.pfe-over { margin: 10px 0 0; color: var(--loss); font: 600 14px var(--sans); }
-.pfe-prev { margin-top: 14px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: color-mix(in srgb, var(--text) 3%, var(--s1)); }
-.pfe-prev dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; font-size: 14px; }
+.pfe-pf b { font: 600 var(--fs-14) var(--sans); color: var(--text); min-height: 38px; display: flex; align-items: center; }
+.pfe-over { margin: 10px 0 0; color: var(--loss); font: 600 var(--fs-14) var(--sans); }
+.pfe-prev { margin-top: 14px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: color-mix(in srgb, var(--text) 3%, var(--s1)); }
+.pfe-prev dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; font-size: var(--fs-14); }
 .pfe-prev dt { color: var(--muted); }
 .pfe-prev dd { margin: 0; display: grid; gap: 2px; }
-.pfe-prev dd small { color: var(--muted); font-size: 12px; }
+.pfe-prev dd small { color: var(--muted); font-size: var(--fs-12); }
 @media (max-width: 560px) { .pfe-grid { grid-template-columns: 1fr; } .pfe-ent { min-width: 0; } }
 
 /* Task #274 changes 8 and 12: the share column (fixed layout, one row height, stays put while the table scrolls sideways), Industry · size, the Prism divider */
@@ -95,43 +95,43 @@
 .pfx-table thead th:first-child { position: sticky; left: 0; z-index: 3; background: var(--s1); }
 .pfs-cell { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .pfs-t { display: grid; gap: 1px; min-width: 0; }
-.pfs-sym { font: 700 14px var(--sans); color: var(--text); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pfs-sym { font: 700 var(--fs-14) var(--sans); color: var(--text); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pfs-sym:hover { text-decoration: underline; }
-.pfs-full { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; }
+.pfs-full { font-size: var(--fs-12); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; }
 .pfx-table td.pfs-ind { min-width: 150px; max-width: 190px; white-space: normal; }
-.pfs-indn { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px; line-height: 17px; height: 34px; }   /* two lines kept for every industry, so rows keep one height */
-.pfs-size { display: inline-block; margin-top: 3px; padding: 0 8px; border-radius: 999px; font: 700 12px/18px var(--sans); border: 1px solid var(--border); color: var(--text); background: var(--s2); }
+.pfs-indn { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: var(--fs-13); line-height: 17px; height: 34px; }   /* two lines kept for every industry, so rows keep one height */
+.pfs-size { display: inline-block; margin-top: 3px; padding: 0 8px; border-radius: var(--ui-r-pill); font: 700 var(--fs-12)/18px var(--sans); border: 1px solid var(--border); color: var(--text); background: var(--s2); }
 .pfs-size.pfs-sz-large { border-color: color-mix(in srgb, #2E7D57 45%, var(--border)); }
 .pfs-size.pfs-sz-mid { border-color: color-mix(in srgb, #C9A227 50%, var(--border)); }
 .pfs-size.pfs-sz-small { border-color: color-mix(in srgb, #B4362B 45%, var(--border)); }
 .pfs-size.pfs-sz-micro { border-color: color-mix(in srgb, var(--k7, #7b5ea7) 50%, var(--border)); }
-.pfs-nk { display: block; color: var(--muted); font-size: 12px; }
+.pfs-nk { display: block; color: var(--muted); font-size: var(--fs-12); }
 .pfx-table .eq-divp { border-left: 3px solid var(--sp-line, var(--border-strong)); }
 
 /* Task #274 change 18: the filters of Your shares in one row (classes pff-) */
 .pff-row { display: inline-flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .pff-w { position: relative; display: inline-flex; }
-.pff-b { min-height: 38px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: 600 14px var(--sans); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-.pff-b i { font-style: normal; font-size: 12px; color: var(--muted); }
+.pff-b { min-height: 38px; padding: 0 12px; border-radius: var(--ui-r-pill); border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: 600 var(--fs-14) var(--sans); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.pff-b i { font-style: normal; font-size: var(--fs-12); color: var(--muted); }
 .pff-b.on { background: var(--text); border-color: var(--text); color: var(--bg); }
 .pff-b.on i { color: inherit; }
 .pff-b:focus-visible, .pff-chip:focus-visible, .pff-clear:focus-visible, .pff-done:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
-.pff-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 60; min-width: 240px; background: var(--s1); border: 1px solid var(--border); border-radius: 14px; padding: 6px; box-shadow: 0 22px 44px -20px rgba(0,0,0,.5); display: grid; gap: 2px; }
-.pff-opt { display: grid; grid-template-columns: auto auto 1fr auto; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 10px; cursor: pointer; font-size: 14px; }
+.pff-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 60; min-width: 240px; background: var(--s1); border: 1px solid var(--border); border-radius: var(--r-ctl); padding: 6px; box-shadow: 0 22px 44px -20px rgba(0,0,0,.5); display: grid; gap: 2px; }
+.pff-opt { display: grid; grid-template-columns: auto auto 1fr auto; align-items: center; gap: 8px; padding: 7px 8px; border-radius: var(--r-ctl); cursor: pointer; font-size: var(--fs-14); }
 .pff-opt:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
 .pff-opt input { width: 16px; height: 16px; margin: 0; accent-color: var(--text); }
 .pff-opt .pff-dot { width: 9px; height: 9px; border-radius: 50%; }
 .pff-opt:not(:has(.pff-dot)) { grid-template-columns: auto 1fr auto; }
 .pff-opt b { font-weight: 600; display: block; }
-.pff-opt small { display: block; color: var(--muted); font-size: 12px; }
-.pff-opt em { font-style: normal; font: 600 13px var(--sans); color: var(--muted); font-variant-numeric: tabular-nums; }
+.pff-opt small { display: block; color: var(--muted); font-size: var(--fs-12); }
+.pff-opt em { font-style: normal; font: 600 var(--fs-13) var(--sans); color: var(--muted); font-variant-numeric: tabular-nums; }
 .pff-opt.zero { opacity: .55; }
-.pff-done { justify-self: end; margin-top: 4px; min-height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--s1); color: var(--text); font: 600 13px var(--sans); cursor: pointer; }
-.pff-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0 4px; font-size: 13px; }
+.pff-done { justify-self: end; margin-top: 4px; min-height: 32px; padding: 0 12px; border-radius: var(--ui-r-pill); border: 1px solid var(--border); background: var(--s1); color: var(--text); font: 600 var(--fs-13) var(--sans); cursor: pointer; }
+.pff-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0 4px; font-size: var(--fs-13); }
 .pff-sh { color: var(--muted); font-weight: 600; margin-right: 4px; }
-.pff-chip { border: 1px solid var(--border); background: var(--s2); color: var(--text); border-radius: 999px; padding: 2px 10px; font: 500 13px var(--sans); cursor: pointer; }
+.pff-chip { border: 1px solid var(--border); background: var(--s2); color: var(--text); border-radius: var(--ui-r-pill); padding: 2px 10px; font: 500 var(--fs-13) var(--sans); cursor: pointer; }
 .pff-chip:hover { border-color: var(--loss); }
-.pff-clear { border: 0; background: none; color: var(--text); text-decoration: underline; font: 600 13px var(--sans); cursor: pointer; }
+.pff-clear { border: 0; background: none; color: var(--text); text-decoration: underline; font: 600 var(--fs-13) var(--sans); cursor: pointer; }
 @media (max-width: 760px) {
   .pff-menu { position: fixed; left: 12px; right: 12px; top: auto; bottom: 72px; min-width: 0; max-height: 60vh; overflow: auto; z-index: 130; }
 }
@@ -139,12 +139,12 @@
 /* Task #274 change 12: the Your shares head (layout 1): search with a magnifier · a thin divider · the five filters · Columns · count; one control height
    (38 px), fully rounded; the table blue for the open table tab and a Columns choice; 16 px between rows; wraps instead of scrolling between 761 and 1,300 px. */
 .pfx-tools.pfh { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; row-gap: 16px; margin: 16px 0 0; }
-.pfh-find { display: inline-flex; align-items: center; gap: 8px; flex: 0 1 260px; min-width: 180px; min-height: 38px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--s1); color: var(--muted); }
-.pfh-find input { flex: 1; min-width: 0; min-height: 36px; padding: 0; border: 0; outline: 0; background: none; color: var(--text); font: 400 14px var(--sans); }
+.pfh-find { display: inline-flex; align-items: center; gap: 8px; flex: 0 1 260px; min-width: 180px; min-height: 38px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); background: var(--s1); color: var(--muted); }
+.pfh-find input { flex: 1; min-width: 0; min-height: 36px; padding: 0; border: 0; outline: 0; background: none; color: var(--text); font: 400 var(--fs-14) var(--sans); }
 .pfh-find:focus-within { outline: 2px solid var(--gold); outline-offset: 2px; }
 .pfh-div { width: 1px; height: 26px; background: var(--border-strong); }
 .pfx-tools.pfh .pff-row { gap: 10px; }
-.pfx-tools.pfh .pfh-cols select { -webkit-appearance: none; appearance: none; width: auto; min-height: 38px; height: 38px; padding: 0 32px 0 14px; border: 1px solid var(--border-strong); border-radius: 999px; color: var(--text); font: 600 14px var(--sans); cursor: pointer;
+.pfx-tools.pfh .pfh-cols select { -webkit-appearance: none; appearance: none; width: auto; min-height: 38px; height: 38px; padding: 0 32px 0 14px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); color: var(--text); font: 600 var(--fs-14) var(--sans); cursor: pointer;
   background: var(--s1) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0h10L5 6z' fill='%23888'/></svg>") no-repeat right 13px center; }
 .pfx-tools.pfh .pfh-cols.on select { background-color: var(--x-blue, #2f5a9e); border-color: var(--x-blue, #2f5a9e); color: #fff; }
 .pfh-cols select:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
@@ -158,11 +158,11 @@
 .pfx-tools.pfh.stuck { flex-wrap: nowrap; gap: 6px; margin-left: -18px; margin-right: -18px; padding: 6px 18px; border-bottom: 1px solid var(--border); box-shadow: 0 10px 18px -16px rgba(0, 0, 0, .45); overflow-x: auto; scrollbar-width: none; }
 .pfx-tools.pfh.stuck::-webkit-scrollbar { display: none; }
 .pfx-tools.pfh.stuck > .x-sw { position: sticky; left: 0; z-index: 2; flex: 0 0 auto; background: linear-gradient(var(--s1), var(--s1)), var(--bg); }   /* if the row ever overflows, the portfolio and views stay pinned */
-.pfx-tools.pfh.stuck .pff-b, .pfx-tools.pfh.stuck .eqt-secb, .pfx-tools.pfh.stuck .pfh-cols select, .pfx-tools.pfh.stuck .pfh-tab select { padding-left: 10px; padding-right: 10px; font-size: 13px; }
+.pfx-tools.pfh.stuck .pff-b, .pfx-tools.pfh.stuck .eqt-secb, .pfx-tools.pfh.stuck .pfh-cols select, .pfx-tools.pfh.stuck .pfh-tab select { padding-left: 10px; padding-right: 10px; font-size: var(--fs-13); }
 .pfx-tools.pfh.stuck .pfh-cols select, .pfx-tools.pfh.stuck .pfh-tab select { padding-right: 26px; }
 .pfx-tools.pfh.stuck .pfx-count { display: none; }
 .pfx-tools.pfh.stuck .pff-row { flex-wrap: nowrap; gap: 6px; }
-.pfh-tab select { -webkit-appearance: none; appearance: none; height: 38px; padding: 0 30px 0 14px; border: 1px solid var(--text); border-radius: 999px; color: var(--text); font: 600 14px var(--sans); cursor: pointer;
+.pfh-tab select { -webkit-appearance: none; appearance: none; height: 38px; padding: 0 30px 0 14px; border: 1px solid var(--text); border-radius: var(--ui-r-pill); color: var(--text); font: 600 var(--fs-14) var(--sans); cursor: pointer;
   background: var(--s1) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0h10L5 6z' fill='%23888'/></svg>") no-repeat right 12px center; }
 .pfh-mag { flex: 0 0 auto; display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 1px solid var(--border-strong); border-radius: 50%; background: var(--s1); color: var(--text); cursor: pointer; }
 .pfh-mag:focus-visible, .pfh-tab select:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
@@ -174,7 +174,7 @@ html.eq-rowup .eq .eqt-bar { transform: translateY(-160%); opacity: 0; pointer-e
 /* the frozen column headers: opaque (rows do not show through), above the fixed share column, and compact so the frozen layers stay near 190 px */
 #pf-shares .pfx-table thead th { padding-top: 6px; padding-bottom: 6px; }
 #pf-shares .pfx-table thead.is-pinned th { background-clip: padding-box; }
-.pfx-tools.pfh.stuck .pff-b, .pfx-tools.pfh.stuck .eqt-secb { font: 600 13px var(--sans); padding-left: 9px; padding-right: 9px; }   /* menus keep the site's 16 px input size */
+.pfx-tools.pfh.stuck .pff-b, .pfx-tools.pfh.stuck .eqt-secb { font: 600 var(--fs-13) var(--sans); padding-left: 9px; padding-right: 9px; }   /* menus keep the site's 16 px input size */
 .pfx-tools.pfh.stuck, .pfx-tools.pfh.stuck .pff-row { gap: 4px; }
 .pfx-tools.pfh.stuck .pfh-cols select, .pfx-tools.pfh.stuck .pfh-tab select { padding-left: 10px; padding-right: 24px; background-position: right 9px center; }
 .pfx-tools.pfh.stuck { padding-top: 5px; padding-bottom: 5px; }
@@ -188,13 +188,13 @@ html.eq-rowup .eq .eqt-bar { transform: translateY(-160%); opacity: 0; pointer-e
 /* task #274 change 19: the filing chip sits beside Edit | Sell on the same line, so rows keep their height */
 .pfs-acts { display: flex; align-items: center; gap: 8px; min-width: 0; white-space: nowrap; } .pfs-acts .wc-chip { overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
 /* task #274 change 19: the Your shares / Watchlist switch of What changed, as pills (the Watchlists page's style; that stylesheet is not loaded here) */
-.eq-wc .wc-lists { display: inline-flex; gap: 6px; padding: 3px; border: 1px solid var(--border); border-radius: 999px; background: var(--s1); }
-.eq-wc .wp-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: none; color: var(--text); font: 600 14px var(--sans); cursor: pointer; }
+.eq-wc .wc-lists { display: inline-flex; gap: 6px; padding: 3px; border: 1px solid var(--border); border-radius: var(--ui-r-pill); background: var(--s1); }
+.eq-wc .wp-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 0; border-radius: var(--ui-r-pill); background: none; color: var(--text); font: 600 var(--fs-14) var(--sans); cursor: pointer; }
 .eq-wc .wp-pill[aria-pressed="true"] { background: var(--text); color: var(--s1); }
 .eq-wc .wp-pill:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 /* task #274 change 20: the theme pill beside the size chip, one line, so rows keep one height */
 .pfs-tags { display: flex; align-items: center; gap: 5px; min-width: 0; white-space: nowrap; }
-.pfs-theme { display: inline-block; min-width: 0; max-width: 112px; overflow: hidden; text-overflow: ellipsis; padding: 1px 8px; border: 1px solid color-mix(in srgb, #4b4fc4 40%, var(--border)); border-radius: 999px;
-  color: #4b4fc4; font: 600 12px/1.6 var(--sans); text-decoration: none; white-space: nowrap; }
+.pfs-theme { display: inline-block; min-width: 0; max-width: 112px; overflow: hidden; text-overflow: ellipsis; padding: 1px 8px; border: 1px solid color-mix(in srgb, #4b4fc4 40%, var(--border)); border-radius: var(--ui-r-pill);
+  color: #4b4fc4; font: 600 var(--fs-12)/1.6 var(--sans); text-decoration: none; white-space: nowrap; }
 :root[data-theme="dark"] .pfs-theme { color: #a9acf0; } @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pfs-theme { color: #a9acf0; } }
 .pfs-theme:hover { text-decoration: underline; } .pfs-theme:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
