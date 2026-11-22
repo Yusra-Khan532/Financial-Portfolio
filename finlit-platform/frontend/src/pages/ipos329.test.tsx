@@ -211,6 +211,23 @@ describe("sorting (developer files 28 and 29)", () => {
   });
 });
 
+describe("found while checking: Not listed", () => {
+  it("a calendar issue 15 days or more past its close with no listing date is in the All view as Not listed, with no report link; the counts follow", () => {
+    st.data = [open, listedA, listedB, mk({ id: 50, name: "ACME UNIVERSAL SAFEZONE9 LIMITED", status: "not_listed", kind: "sme", openDate: "2026-09-26", closeDate: "2026-09-30", priceLow: 65, priceHigh: 71, issueSizeCr: 26 }),
+      mk({ id: 51, name: "Matched Co", status: "not_listed", openDate: "2026-09-01", closeDate: "2026-09-03", recordId: 11 })];   // already in the IPO record: not added twice
+    page("/ipo?view=all&status=not_listed");
+    expect(tab(/All IPOs since 2020/).textContent).toBe("2All IPOs since 202064");
+    expect(tab(/Open and upcoming/).textContent).toBe("1Open and upcoming1");
+    expect([...document.querySelectorAll(".dw-kpis.p4-kpis > div")].map((d) => d.textContent)[2]).toBe("Closed, listing soon0");
+    const rows = [...panel("all").querySelectorAll(".ia-t tbody tr")];
+    expect(rows).toHaveLength(1);
+    expect(rows[0].textContent).toContain("Acme Universal Safezone9"); expect(rows[0].textContent).toContain("Not listed"); expect(rows[0].textContent).toContain("₹65–71");
+    expect(rows[0].querySelector("a")).toBeNull();
+    expect(within(panel("all")).getAllByRole("button", { name: /^Remove filter/ }).map((b) => b.textContent)).toEqual(["Status: Not listed"]);
+    expect(panel("now").textContent).not.toContain("Acme Universal");
+  });
+});
+
 describe("rule 6: the side menu", () => {
   it("one entry, IPOs, in place of IPO calendar and All IPOs; it stays lit on an issue page", () => {
     const items = SECTIONS.flatMap((s) => s.groups.flatMap((g) => g.items));

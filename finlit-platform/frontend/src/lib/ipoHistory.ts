@@ -2,7 +2,8 @@
 // Arithmetic only; describes, never advises.
 import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "./api";
-import { gRange, type GRangeKey } from "./ipoCalendar";
+import { gRange, shortName, type GRangeKey } from "./ipoCalendar";
+import type { Ipo } from "./ipo";
 
 export type IpoStatus = "upcoming" | "open" | "closed" | "listed" | "not_listed" | "withdrawn";
 export type IpoRow = {
@@ -20,7 +21,20 @@ export type IpoHistory = { items: IpoRow[]; asOf: string; updatedAt: string | nu
 
 export const useIpoHistory = () => useQuery({ queryKey: ["ipo-history"], queryFn: () => apiGet<IpoHistory>("/api/ipos/history"), staleTime: 600_000, retry: 1 });
 
-export const STATUS_LABEL: Record<IpoStatus, string> = { upcoming: "Upcoming", open: "Open now", closed: "Closed, not listed yet", listed: "Listed", not_listed: "Did not list", withdrawn: "Withdrawn" };
+export const STATUS_LABEL: Record<IpoStatus, string> = { upcoming: "Upcoming", open: "Open now", closed: "Closed, not listed yet", listed: "Listed", not_listed: "Not listed", withdrawn: "Withdrawn" };
+
+/** A calendar issue that is not in the IPO record, as a row of the all-IPOs table (task #329: the issues 15 days or more past their close with no
+ *  listing date show there as Not listed). It has no IPO report, so its id is negative and the row opens nothing; a figure the calendar lacks is blank. */
+export function rowFromCalendar(i: Ipo): IpoRow {
+  const ex = i.details?.exchange ?? [];
+  return {
+    id: -i.id, name: shortName(i.name), symbol: i.symbol, nse: null, bse: null, board: i.kind, sector: i.sector, exchanges: ex, kind: i.details?.issueType ?? null,
+    status: i.status, openDate: i.openDate, closeDate: i.closeDate, listingDate: i.listingDate, priceLow: i.priceLow, priceHigh: i.priceHigh, issuePrice: null, lotSize: i.lotSize,
+    minAmount: null, issueSizeCr: i.issueSizeCr, freshCr: null, ofsCr: null, subscription: i.details?.subscription?.overall ?? null, subQib: null, subNii: null, subRetail: null,
+    gmp: null, gmpPct: null, listingPrice: null, listingPct: null, listingClose: null, listingClosePct: null, lastClose: null, lastDay: null, sinceIpoPct: null, adjustedBy: null,
+    companyPage: false, verdict: null,
+  };
+}
 
 // ------------------------------------------------------------------------------------------------ filters
 export type Range = [number | null, number | null];

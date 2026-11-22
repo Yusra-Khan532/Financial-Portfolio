@@ -10,7 +10,7 @@ export type IpoDetails = {
   docs?: { drhp?: string; rhp?: string; prospectus?: string }; about?: string; statusText?: string; gmp?: { rupees: number; pct: number; source: string };
 };
 export type Ipo = {
-  id: number; name: string; symbol: string | null; kind: "mainboard" | "sme"; sector: string | null; status: "upcoming" | "open" | "closed" | "listed";
+  id: number; name: string; symbol: string | null; kind: "mainboard" | "sme"; sector: string | null; status: "upcoming" | "open" | "closed" | "listed" | "not_listed";   // not_listed: 15 days or more past the close with no listing date (task #329)
   openDate: string; closeDate: string; listingDate: string | null; priceLow: number | null; priceHigh: number | null; lotSize: number | null;
   issueSizeCr: number | null; listingPrice: number | null; note: string | null; link: string | null;
   details?: IpoDetails; updatedAt?: string | null; source?: string | null; recordId?: number | null;

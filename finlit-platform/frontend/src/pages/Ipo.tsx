@@ -6,6 +6,9 @@
 //     whose seven columns sort, with "All N since 2020 →" opening the second view with Status = Listed) → the as-of line.
 //   2 All IPOs since 2020 (?view=all plus its filter parameters): pages/IpoHistory.tsx, unchanged, with a one-line GMP summary.
 // Both views stay mounted, so each keeps its filters, sort and rows loaded; the page keeps each view's scroll position. /ipo/all redirects here.
+// Found while checking (the pack, 23 Nov): an issue 15 days or more past its close with no listing date is "not_listed" (backend ipoapi.settle): it
+// leaves Closed, listing soon (and its count) and shows as Not listed in the second view. The first view has no Status filter: it is already grouped
+// by status, so Board and search are enough.
 // For information only; the offer document is the authoritative source. Describes; never advises.
 import { PageHeader } from "../components/PageHeader";
 import { CalendarSync } from "../components/CalendarSync";   // task #297: Add to Google Calendar
@@ -16,7 +19,7 @@ import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
 import { issuePriceOf, listingGain, listingMove, minInvest, useIpos, type Ipo } from "../lib/ipo";
 import { firstDir, gRange, listedRecently, LSORT_COLS, sectionOrder, shortName, sortListed, titleCase, type GRangeKey, type LSortKey } from "../lib/ipoCalendar";
-import { useIpoHistory } from "../lib/ipoHistory";
+import { rowFromCalendar, useIpoHistory } from "../lib/ipoHistory";
 import { asOf, IpoDrawer } from "./IpoDrawer";
 import { IpoAllView } from "./IpoHistory";
 import { MINUS, nf } from "../lib/format";
@@ -34,14 +37,13 @@ const DAY = 86_400_000;
 const d0 = (iso: string) => new Date(iso + "T00:00:00").getTime();
 const short = (iso: string | null) => (iso ? new Date(iso + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "—");
 const full = (iso: string | null) => (iso ? new Date(iso + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : MINUS);
-const STATUS: Record<Ipo["status"], { label: string; colour: string }> = { open: { label: "Open now", colour: "var(--gain)" }, upcoming: { label: "Upcoming", colour: "var(--k1)" }, closed: { label: "Closed", colour: "var(--k4)" }, listed: { label: "Listed", colour: "var(--k7)" } };
+const STATUS: Record<Ipo["status"], { label: string; colour: string }> = { open: { label: "Open now", colour: "var(--gain)" }, upcoming: { label: "Upcoming", colour: "var(--k1)" }, closed: { label: "Closed", colour: "var(--k4)" }, listed: { label: "Listed", colour: "var(--k7)" },
+  not_listed: { label: "Not listed", colour: "var(--muted)" } };
 const LEGEND: Ipo["status"][] = ["open", "upcoming", "closed", "listed"];
 const money = (v: number) => "₹" + nf(v, v % 1 ? 2 : 0);
 const signedPct = (v: number) => (v > 0 ? "+" : v < 0 ? MINUS : "") + nf(Math.abs(v), 1) + "%";
-type StatusF = "all" | Ipo["status"];
 type BoardF = "all" | "mainboard" | "sme";
 type View = "now" | "all";
-const STATUS_OPTS: [StatusF, string][] = [["all", "All"], ["open", "Open now"], ["upcoming", "Upcoming"], ["closed", "Closed, listing soon"], ["listed", "Listed"]];
 const BOARD_OPTS: [BoardF, string][] = [["all", "All boards"], ["mainboard", "Mainboard"], ["sme", "SME"]];
 /** "Showing: …" in the views bar, one line per view (the pack's words). */
 export const SHOWING: Record<View, string> = { now: "Open, upcoming, about to list, and listed in the last 30 days", all: "Every mainboard and SME issue: listing, subscription, GMP and return since" };
@@ -130,7 +132,6 @@ export function IpoPage() {
   const loc = useLocation();
   const from = useMemo(() => ({ from: loc.pathname + loc.search }), [loc.pathname, loc.search]);
   const view = viewOf(params);
-  const [f, setF] = useState<StatusF>("all");
   const [kind, setKindRaw] = useState<BoardF>("all");
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<Ipo | null>(null);
@@ -143,18 +144,18 @@ export function IpoPage() {
   const rows = useMemo(() => data || [], [data]);
   const by = (s: Ipo["status"]) => rows.filter((r) => r.status === s);
   const qq = q.trim().toLowerCase();
-  const pass = (r: Ipo) => (f === "all" || r.status === f) && (kind === "all" || r.kind === kind) && (!qq || r.name.toLowerCase().includes(qq));
+  const pass = (r: Ipo) => (kind === "all" || r.kind === kind) && (!qq || r.name.toLowerCase().includes(qq));
   const shown = rows.filter(pass);
   const sec = (s: Ipo["status"]) => shown.filter((r) => r.status === s).sort(sectionOrder(s));
   const recent = rows.filter((r) => listedRecently(r));
   const avgGain = (() => { const g = recent.map(listingGain).filter((v): v is number => v != null); return g.length ? g.reduce((a, b) => a + b, 0) / g.length : null; })();
-  const cntS = (s: StatusF) => rows.filter((r) => (s === "all" || r.status === s) && (kind === "all" || r.kind === kind)).length;
-  const cntB = (b: BoardF) => rows.filter((r) => (f === "all" || r.status === f) && (b === "all" || r.kind === b)).length;
+  const cntB = (b: BoardF) => rows.filter((r) => r.status !== "not_listed" && (b === "all" || r.kind === b)).length;
   const chips: [string, string][] = [];
-  if (f !== "all") chips.push(["status", STATUS_OPTS.find((o) => o[0] === f)![1]]);
   if (kind !== "all") chips.push(["board", kind === "sme" ? "SME" : "Mainboard"]);
   if (qq) chips.push(["q", `“${q.trim()}”`]);
-  const unset = (k: string) => { if (k === "status" || k === "all") setF("all"); if (k === "board" || k === "all") setKind("all"); if (k === "q" || k === "all") setQ(""); };
+  const unset = (k: string) => { if (k === "board" || k === "all") setKind("all"); if (k === "q" || k === "all") setQ(""); };
+  // the calendar's Not listed issues that the IPO record does not hold join the second view's rows, so every issue on the site is in that list
+  const extra = useMemo(() => rows.filter((r) => r.status === "not_listed" && !r.recordId).map(rowFromCalendar), [rows]);
 
   // ------------------------------------------------------------------ the two views: the address, the bar, each view's scroll position
   const page = useRef<HTMLDivElement>(null);
@@ -233,7 +234,7 @@ export function IpoPage() {
   const stamp = asOf(rows.map((r) => r.updatedAt).filter((v): v is string => !!v).sort().pop());
   const fromProvider = rows.some((r) => r.source === "FinEdge");
   const recentShown = sec("listed").filter((r) => listedRecently(r));
-  const total = hist.data?.items.length;
+  const total = hist.data ? hist.data.items.length + extra.length : undefined;
   const liveN = by("open").length + by("upcoming").length + by("closed").length;
   const activeSec = (s: Ipo["status"], title: string, hint?: string) => {
     const list = sec(s);
@@ -249,7 +250,6 @@ export function IpoPage() {
       <div className="p4-tools">
         <label className="dbx-q">{Ico.search}<input type="search" placeholder="Search a company" aria-label="Search IPOs" value={q} autoComplete="off" onChange={(e) => setQ(e.target.value)} /></label>
         <div className="dbx-dds">
-          <Dd label="Status" value={f !== "all" ? STATUS_OPTS.find((o) => o[0] === f)![1] : ""}>{(close) => <OptList title="Status" items={STATUS_OPTS.map(([v, t]) => ({ v, t, c: cntS(v), sel: f === v }))} onPick={(v) => { setF(v as StatusF); close(); }} />}</Dd>
           <Dd label="Board" value={kind !== "all" ? (kind === "sme" ? "SME" : "Mainboard") : ""}>{(close) => <OptList title="Board" items={BOARD_OPTS.map(([v, t]) => ({ v, t, c: cntB(v), sel: kind === v }))} onPick={(v) => { setKind(v as BoardF); close(); }} />}</Dd>
         </div>
       </div>
@@ -260,19 +260,19 @@ export function IpoPage() {
       {activeSec("open", "Open now", "apply until the closing date")}
       {activeSec("upcoming", "Upcoming")}
       {activeSec("closed", "Closed, listing soon", "allotment and listing dates in each card")}
-      {rows.length > 0 && (f === "all" || f === "open" || f === "upcoming" || f === "closed") && (
+      {rows.length > 0 && (
         <section className="card ipo-s p4-ts"><div className="card-h"><h3><span className="ci"><Icon name="calendar" /></span>Next seven weeks<ChartHelp id="ipo-timeline" /></h3><span className="s">Bar = application window</span></div>
           <Strip rows={rows.filter((r) => kind === "all" || r.kind === kind)} />
           <div className="clg">{LEGEND.map((s) => <span key={s}><i style={{ background: STATUS[s].colour }} />{STATUS[s].label}</span>)}</div></section>)}
       {rows.length > 0 && <div ref={gmpBox}><GmpRecord ipos={rows} s={gm} set={setGmP} open={gmOpen} setOpen={setGmOpen} onSee={seeRange} /></div>}
-      {rows.length > 0 && (f === "all" || f === "listed") && (
+      {rows.length > 0 && (
         <section className="ipo-sec p4-sec" aria-label="Listed in the last 30 days">
           <h2 className="ipo-sec-h"><i style={{ background: STATUS.listed.colour }} />Listed in the last 30 days <span>{recentShown.length}</span>
             <small><button type="button" className="mg-link" onClick={allListed}>{total != null ? `All ${nf(total, 0)} since 2020 →` : "All IPOs since 2020 →"}</button></small></h2>
           {recentShown.length ? <ListedTable rows={recentShown} onOpen={setOpen} from={from} />
             : <p className="muted p4-pad">{recent.length ? "No listing in the last 30 days matches these filters." : "No listing in the last 30 days."}</p>}
         </section>)}
-      {rows.length > 0 && !shown.length && <p className="muted" style={{ padding: 24, textAlign: "center" }}>No issues match these filters.</p>}
+      {rows.length > 0 && !shown.some((r) => r.status !== "not_listed") && <p className="muted" style={{ padding: 24, textAlign: "center" }}>No issues match these filters.</p>}
       {rows.length > 0 && (stamp || fromProvider) && <p className="ipo-asof muted">{stamp && <>Data as of {stamp}</>}{stamp && fromProvider && " · "}{fromProvider && "Source: FinEdge"}</p>}
     </>
   );
@@ -290,7 +290,7 @@ export function IpoPage() {
         aside={<><b>Showing:</b> {SHOWING[view]}</>}
         views={[
           { key: "now", label: "Open and upcoming", note: isLoading ? undefined : nf(liveN, 0), content: nowPane },
-          { key: "all", label: "All IPOs since 2020", note: total != null ? nf(total, 0) : undefined, content: <IpoAllView onGmp={openGmpBlock} /> },
+          { key: "all", label: "All IPOs since 2020", note: total != null ? nf(total, 0) : undefined, content: <IpoAllView extra={extra} onGmp={openGmpBlock} /> },
         ]} />
       {open && <IpoDrawer ipo={{ ...open, name: titleCase(open.name) }} chip={STATUS[open.status]} onClose={closeDrawer} />}
     </div>

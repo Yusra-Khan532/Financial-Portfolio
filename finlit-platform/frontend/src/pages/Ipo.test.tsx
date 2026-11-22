@@ -108,7 +108,7 @@ describe("IpoPage, the compact layout (task #307, developer file 17 v2)", () => 
     fireEvent.keyDown(document, { key: "Escape" });
     expect(within(sec).queryByRole("link", { name: /in All IPOs/ })).toBeNull();                 // the cross link to the old second page went
   });
-  it("a search or Status = Listed keeps the Listed table to the last 30 days (all 147 are in the second view)", () => {
+  it("a search keeps the Listed table to the last 30 days (all 147 are in the second view)", () => {
     const many = Array.from({ length: 30 }, (_, i) => mk({ id: 100 + i, name: `Older ${i}`, status: "listed", openDate: "2026-06-01", closeDate: "2026-06-03", listingDate: `2026-07-${String(1 + i).padStart(2, "0")}` }));
     st.data = [bare, rich, listed, ...many];
     render(<IpoPage />, { wrapper: MemoryRouter });
@@ -119,16 +119,19 @@ describe("IpoPage, the compact layout (task #307, developer file 17 v2)", () => 
     fireEvent.change(screen.getByRole("searchbox", { name: "Search IPOs" }), { target: { value: "listed" } });
     sec = screen.getByRole("region", { name: "Listed in the last 30 days" });
     expect(within(sec).getAllByRole("row")).toHaveLength(2);
-    fireEvent.change(screen.getByRole("searchbox", { name: "Search IPOs" }), { target: { value: "" } });
-    fireEvent.click(screen.getByRole("button", { name: /^Status/ }));
-    const pop = screen.getByRole("dialog", { name: "Status" });
-    expect([...pop.querySelectorAll(".dbx-opt")].map((o) => o.textContent)).toEqual(["All33", "Open now1", "Upcoming1", "Closed, listing soon0", "Listed31"]);
-    fireEvent.click(within(pop).getByRole("option", { name: /Listed/ }));
-    sec = screen.getByRole("region", { name: "Listed in the last 30 days" });
-    expect(within(sec).getAllByRole("row")).toHaveLength(2);
     expect(within(sec).queryByRole("button", { name: /^Show \d+ more/ })).toBeNull();
-    expect(screen.queryByRole("region", { name: "Open now" })).toBeNull();
-    expect(screen.getByRole("group", { name: "Filters on" }).textContent).toContain("Listed");
+    expect(screen.getByRole("group", { name: "Filters on" }).textContent).toContain("listed");
+  });
+  it("task #329 (found while checking): the first view has no Status filter, only search and Board; a Not listed issue is in none of its groups", () => {
+    st.data = [bare, rich, listed, mk({ id: 7, name: "Stale Co", status: "not_listed", openDate: "2026-09-01", closeDate: "2026-09-03" })];
+    render(<IpoPage />, { wrapper: MemoryRouter });
+    const now = document.querySelector('[data-ct-panel="now"]') as HTMLElement;
+    expect([...now.querySelectorAll(".p4-tools .dbx-ddl")].map((e) => e.textContent)).toEqual(["Board"]);
+    expect(within(now).queryByRole("button", { name: /^Status/ })).toBeNull();
+    expect(now.textContent).not.toContain("Stale Co");
+    expect([...document.querySelectorAll(".dw-kpis.p4-kpis > div")].map((d) => d.textContent)[2]).toBe("Closed, listing soon0");
+    fireEvent.click(screen.getByRole("button", { name: /^Board/ }));
+    expect([...screen.getByRole("dialog", { name: "Board" }).querySelectorAll(".dbx-opt")].map((o) => o.textContent)).toEqual(["All boards3", "Mainboard3", "SME0"]);
   });
   it("uses no advice wording", () => {
     render(<IpoPage />, { wrapper: MemoryRouter });
