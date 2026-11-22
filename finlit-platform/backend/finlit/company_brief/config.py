@@ -17,7 +17,7 @@ MAX_ATTEMPTS = 3                  # a company whose output keeps failing the gat
 RETRY_AFTER_HOURS = 24
 MAX_LOOKUPS_PER_RUN = 150          # annual-report lookups (NSE, then BSE) in one run: cheap, no model call
 TOP_COMPANIES = 6000              # the whole listed market, in order, over as many nights as the cap needs. BRIEF_TOP_COMPANIES
-PROMPT_VERSION = "brief-1"
+PROMPT_VERSION = "brief-2"            # task #328: rule 7 names a side the company does not report
 
 
 def _int(env: Mapping[str, str], name: str, default: int) -> int:
