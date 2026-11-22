@@ -142,38 +142,14 @@ hr { border: 0; height: 1px; background: linear-gradient(90deg, transparent, var
 :root .mk-tile b { color: var(--text); }
 
 /* ======================================================================== phones: compact, app-like */
-.mtabs { display: none; }
 @media (max-width: 760px) {
   body { font-size: 14px; }
   .wrap { padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); }
 
-  /* header: logo, theme, alerts, account. Search and menu move to the bottom bar */
-  .top .wrap { min-height: 54px; gap: 8px; padding-block: 6px; }
-  .top .lg-mark { height: 38px; }
-  .top .search, .top .burger, .top .planseg { display: none !important; }
-  .icon-btn { width: 36px; height: 36px; border-radius: 10px; }
-  .av-btn { height: 36px; padding: 0 6px; } .av-btn .tier { display: none; }
+  /* task #310 part E: the phone header and the bottom bar moved to phone310.css, under 860px (05-phone.md) */
   .demo-bar { font-size: 12px; padding: 5px 10px; }
   .tape { font-size: var(--fs-12); }
 
-  /* bottom tab bar */
-  .mtabs { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; z-index: 75; left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); height: 62px; padding: 0 4px;
-    border-radius: 20px; background: color-mix(in srgb, var(--s1) 88%, transparent); -webkit-backdrop-filter: saturate(1.5) blur(16px); backdrop-filter: saturate(1.5) blur(16px);
-    border: 1px solid color-mix(in srgb, var(--gold) 28%, var(--border)); box-shadow: 0 18px 40px -18px rgba(15, 32, 24, .55), 0 1px 0 rgba(255,255,255,.5) inset; }
-  .mt-i { all: unset; display: grid; justify-items: center; align-content: center; gap: 3px; color: var(--faint); font: 600 12px var(--sans); letter-spacing: .01em; cursor: pointer; border-radius: 14px; -webkit-tap-highlight-color: transparent; }
-  .mt-i svg { width: 21px; height: 21px; }
-  .mt-i.on { color: var(--text); } .mt-i.on svg { color: var(--gold); }
-  .mt-i.on::after { content: ""; width: 4px; height: 4px; border-radius: 50%; background: var(--gold); margin-top: 1px; }
-  .mt-i:focus-visible { outline: 2px solid var(--focus); outline-offset: -4px; }
-  .mt-i:active { transform: scale(.94); }
-  .mt-search .mt-orb { display: grid; place-items: center; width: 44px; height: 44px; margin-top: -22px; border-radius: 50%; color: #1A1405;
-    background: linear-gradient(135deg, var(--acc-2), var(--acc) 50%, var(--acc-deep)); box-shadow: 0 10px 22px -8px color-mix(in srgb, var(--acc-deep) 80%, transparent), 0 0 0 4px var(--bg); }
-  .mt-search .mt-orb svg { width: 20px; height: 20px; color: #1A1405; }
-  .shell-fab { display: none !important; }
-  .ai-fab { bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important; width: 46px !important; height: 46px !important; right: 14px !important; }
-  .alx-toasts { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); right: 10px; left: 10px; width: auto; }
-  main { padding-bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
-  footer.band { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
 
   /* type scale */
   /* task #310: a title drawn as ui-title keeps its own phone size (tool 28px, long read 32px, marketing 40px; ui.css), and H2 keeps 24px from its role */
@@ -210,7 +186,6 @@ hr { border: 0; height: 1px; background: linear-gradient(90deg, transparent, var
   :root .mk-tile small { font-size: 12px; } :root .mk-tile b { font-size: 16px; } :root .mk-tile span { font-size: var(--fs-12); } :root .mk-tile em { font-size: var(--fs-12); }
 
 }
-@media (max-width: 380px) { .mt-i { font-size: var(--fs-12); } .mt-i svg { width: 19px; height: 19px; } }
 
 /* the assistant button: forest on paper, gold ring */
 :root:root:root .ai-fab { background: linear-gradient(160deg, var(--forest-2), var(--forest) 55%, var(--forest-ink)); color: var(--acc-2); border: 1px solid color-mix(in srgb, var(--acc) 45%, transparent); box-shadow: 0 14px 30px -14px rgba(15, 32, 24, .75); }

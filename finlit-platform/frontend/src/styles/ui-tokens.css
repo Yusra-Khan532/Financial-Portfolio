@@ -37,6 +37,7 @@
   /* Controls */
   --ui-ctl-h: 44px;      /* buttons and inputs; also the smallest tap target on a phone */
   --ui-ctl-h-sm: 36px;   /* dense desktop toolbars only; grows to 44px under 860px (ui.css) */
+  --ui-bar-h: 56px;      /* the phone bottom bar (Dashboard, Research, Search, Screener, Menu) under 860px (phone310.css) */
 
   /* Selected tab, pill or toggle: one colour in every theme and palette.
      Light: black with cream text. Dark: cream with dark green text (what the dashboard pills already do). */

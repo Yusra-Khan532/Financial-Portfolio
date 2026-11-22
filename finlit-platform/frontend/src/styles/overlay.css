@@ -61,7 +61,7 @@
 :root:root :is(.ai, .qb-drawer) { z-index: var(--z-drawer); }
 :root:root :is(.pop, .chh-p) { z-index: var(--z-popover); }
 :root:root :is(.toast, .alx-toasts, .prep-toast) { z-index: var(--z-toast); }
-:root:root :is(.etf-tray, .mf-tray, .wp-dock, .planseg, .ai-fab, .shell-fab, .mtabs) { z-index: var(--z-tray); }
+:root:root :is(.etf-tray, .mf-tray, .wp-dock, .planseg, .ai-fab, .mtabs) { z-index: var(--z-tray); }
 :root:root .gs { z-index: calc(var(--z-backdrop) + 40); }
 @media (max-width: 1000px) { :root:root .sx.sx-open .sx-side { z-index: var(--z-drawer); background: var(--ov-surface); } }
 @media (max-width: 860px) { :root:root .side { z-index: var(--z-drawer); background: var(--ov-surface); } }

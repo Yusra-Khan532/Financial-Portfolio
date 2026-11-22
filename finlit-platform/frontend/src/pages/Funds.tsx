@@ -1,6 +1,7 @@
 // Mutual funds: the scheme list, one scheme's page and the side-by-side comparison. Data is AMFI's own NAV files (see backend/finlit/mf.py); the section is free.
 // Information only: no ranking, no "best", no advice. Every page shows the source, the data date and the disclaimer.
 import { useEffect, useMemo, useState } from "react";
+import { PhoneFold } from "../components/PhoneFold";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { Icon } from "../lib/icons";
 import { useUI } from "../lib/ui";
@@ -240,7 +241,7 @@ export function FundListPage() {
           </div>
           </>
         )}
-        <Legend hidden={t && !q.stopped ? t.schemes - t.active : null} facts={facts} />
+        <PhoneFold page="funds" id="legend" title="How to read this table" line="What each column means and where the figures come from"><Legend hidden={t && !q.stopped ? t.schemes - t.active : null} facts={facts} /></PhoneFold>
         <Foot facts={facts} />
       </div>
 

@@ -1,0 +1,88 @@
+/* Task #310 part E (the 22 Nov pack, 05-phone.md): the phone layer. Everything here starts under 860px, the width at which the left menu becomes a
+   sheet (part D), so the header, the bottom bar and the sheet change together; between 760 and 860px there used to be no bottom bar, the full header
+   and a floating Menu button over the content. Built on ui-tokens.css only (no raw colours, sizes or corners). Locked in by src/styles/phone310.test.tsx. */
+
+.mtabs, .sheet-tools { display: none; }
+
+@media (max-width: 860px) {
+  body { font-size: var(--fs-14); }
+
+  /* Fixes 1 and 2. The header holds the logo, search, Ask FinLit AI (one icon: there is room at 360px), notifications and the account, each 44px.
+     The theme switch and the system controls are in the Menu sheet (SheetTools); the admin's View switch is in the strip under the header
+     (adminView.css); the Dashboard button is gone, because the bottom bar has Dashboard; the burger is the bottom bar's Menu. */
+  .top .wrap { min-height: 62px; gap: 8px; padding-block: 0; }
+  .top .lg-mark { height: 38px; }
+  :root .top > .wrap > :is(.burger, .planseg, .theme-btn, .sys-dd, .signin, .signin-ghost) { display: none !important; }   /* the bar only: the Menu sheet (.mnav) is inside the header too */
+  :root .top > .wrap > a.mob-cta[href="/dashboard"] { display: none !important; }
+  :root .top .search, :root .top.top--tool .search { flex: 0 0 var(--ui-ctl-h); width: var(--ui-ctl-h); max-width: none; height: var(--ui-ctl-h); min-width: 0; padding: 0; justify-content: center; }
+  :root .top .search .t, :root .top.top--tool .search .t { display: none; }
+  :root .top.top--tool .search + .grow { display: none; }   /* the search sits with the other buttons on the right, not in the middle */
+  :root .top :is(.icon-btn, .ai-top, .wod-top) { width: var(--ui-ctl-h); height: var(--ui-ctl-h); min-height: var(--ui-ctl-h); padding: 0; justify-content: center; }   /* the Word of the Day book (task #315) is 44px beside Ask FinLit AI */
+  :root .top > .wrap > .grow { min-width: 0; }   /* the spacers may close up at 360px; the 8px gaps stay */
+  :root .top .av-btn { height: var(--ui-ctl-h); min-width: var(--ui-ctl-h); padding: 0 6px; justify-content: center; }
+  :root .top .av-btn .tier { display: none; }
+
+  /* The theme switch and the system controls, at the foot of the Menu sheet (the site menu, or the left menu on a tool page) */
+  .sheet-tools { display: grid; gap: 2px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+  .sheet-tool { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 12px; width: 100%; min-height: var(--ui-ctl-h); padding: 0 8px; border-radius: var(--r-ctl); color: var(--text); font: var(--ui-fw-medium) var(--fs-14)/1.3 var(--font-sans); cursor: pointer; }
+  button.sheet-tool:hover { background: var(--s2); }
+  button.sheet-tool:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+  .sheet-tool > svg { width: 18px; height: 18px; flex: none; color: var(--muted); }
+  .sheet-tool-v, .sheet-sys .dd { margin-left: auto; }
+  .sheet-tool-v { color: var(--muted); }
+  .sheet-sys .icon-btn { width: var(--ui-ctl-h); height: var(--ui-ctl-h); }
+  .mnav .sheet-tools { margin-top: 0; border-top: 0; }
+  :root .mnav { max-height: calc(100dvh - 62px - var(--ui-bar-h) - env(safe-area-inset-bottom, 0px)); }   /* the site menu ends above the bottom bar */
+
+  /* Fix 3. What stays on screen: the header, this bar and a page's section bar. The bar: Dashboard, Research, Search, Screener, Menu, as drawn in
+     reference.html (flat, full width, the current page in text colour and 600). The floating Menu button is gone: Menu opens the sheet. */
+  .mtabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: fixed; left: 0; right: 0; bottom: 0; margin: 0;
+    padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+    background: var(--s1); border-top: 1px solid var(--border); }
+  .mt-i { all: unset; box-sizing: border-box; display: grid; justify-items: center; align-content: center; gap: 4px; min-width: 0; min-height: var(--ui-bar-h); padding: 6px 2px;
+    color: var(--muted); font: var(--ui-fw-medium) var(--fs-12)/1 var(--font-sans); text-align: center; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .mt-i > span:last-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mt-i svg { width: 20px; height: 20px; }
+  .mt-orb { display: grid; place-items: center; }
+  .mt-i[aria-current="page"] { color: var(--text); font-weight: var(--ui-fw-semibold); }
+  .mt-i:focus-visible { outline: 2px solid var(--focus); outline-offset: -4px; border-radius: var(--r-ctl); }
+  main { padding-bottom: calc(var(--ui-bar-h) + 16px + env(safe-area-inset-bottom, 0px)); }
+  footer.band { padding-bottom: calc(var(--ui-bar-h) + 24px + env(safe-area-inset-bottom, 0px)); }
+
+  /* Nothing else floats over the content: the company report's earnings-alert tab on the right edge stays off (its Show details button is in the
+     results section, which a phone opens on tap) */
+  :root .plf-edge { display: none; }
+
+  /* A table scrolls inside its own box, never the page: Sector Rotation's counts table was 356px wide in a 332px box at 360px */
+  :root div:has(> table.rp-counts) { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
+
+  /* Toasts appear above the bottom bar, never on it (they close by themselves: Notifications.tsx TOAST_MS) */
+  :root:root :is(.toast, .prep-toast, .cpf-toast) { bottom: calc(var(--ui-bar-h) + 12px + env(safe-area-inset-bottom, 0px)); }
+  :root:root .alx-toasts { bottom: calc(var(--ui-bar-h) + 12px + env(safe-area-inset-bottom, 0px)); left: 12px; right: 12px; width: auto; }
+
+  /* Fix 4. Tap targets: 44px. The shared buttons are 44px (ui.css); the older .btn grows to the same height. Small marks that are buttons (the "i"
+     buttons) keep their size and get a 44px tap area from a transparent ::after. */
+  :root .btn { min-height: var(--ui-ctl-h); }
+  :root .icon-btn { width: var(--ui-ctl-h); height: var(--ui-ctl-h); }   /* was 36px on a phone (luxe.css) */
+  :root .info::after { inset: -12px; }
+  :root .sp-i { position: relative; }
+  :root .sp-i::after { content: ""; position: absolute; inset: -11px; }
+  :root .pfq-all { display: inline-flex; align-items: center; min-height: var(--ui-ctl-h); font-size: var(--fs-14); }
+}
+
+/* Fix 6. Long pages open on tap (components/PhoneFold.tsx; only drawn under 860px). A closed row is the section's name and one line, as in reference.html. */
+.pfold { margin: 0 0 8px; }
+.pfold-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 56px; padding: 8px 16px; margin: 0;
+  border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.pfold-row:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pfold-t { display: grid; gap: 2px; min-width: 0; }
+.pfold-t b { font: var(--ui-fw-semibold) var(--fs-16)/1.3 var(--font-sans); }
+.pfold-t small { color: var(--faint); font: var(--ui-fw-regular) var(--fs-13)/1.4 var(--font-sans); }
+.pfold-i { flex: none; font: var(--ui-fw-medium) var(--fs-20)/1 var(--font-sans); color: var(--muted); }
+.pfold.is-open > .pfold-row { margin-bottom: 8px; }
+.pfold-b[hidden] { display: none; }
+/* Mutual funds: the list's first 5 schemes, then Show all (mf/FundTable.tsx) */
+.mf-showall { display: flex; width: calc(100% - 32px); margin: 12px 16px 16px; }
+/* The dashboard's later steps: the fold spans the 12-column grid and keeps the grid inside it, so the blocks keep their spans */
+.dsh-grid > .pfold { grid-column: 1 / -1; margin: 0; }
+.dsh-grid > .pfold > .pfold-b:not([hidden]) { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; }

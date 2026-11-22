@@ -51,7 +51,7 @@ function useLevel(btn: React.RefObject<HTMLButtonElement | null>, resetKey: stri
   useLayoutEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap || typeof ResizeObserver === "undefined" || level === 3) return;
-    if (matchMedia("(max-width: 759px)").matches) { if (level !== 0) setLevel(0); return; }   // a phone: the style sheet does it (word-of-day.css)
+    if (matchMedia("(max-width: 860px)").matches) { if (level !== 0) setLevel(0); return; }   // a phone (task #310 part E: under 860px): the style sheet does it (word-of-day.css, phone310.css)
     const grows = [...wrap.querySelectorAll<HTMLElement>(":scope > .grow")];   // one spacer, or two on a tool page (task #310 D: the search centred between them)
     const free = grows.reduce((n, g) => n + g.offsetWidth - (parseFloat(getComputedStyle(g).minWidth) || 0), 0);
     // The search box stretches into spare room (flex 0 1 280px): what it holds beyond its own words is room too, and words cut short mean too little.

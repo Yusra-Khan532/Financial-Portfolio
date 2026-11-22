@@ -85,7 +85,7 @@ const EXEMPT: Record<string, string> = {
   "components/DrawLayer.tsx": "drawing tool layer, not a chart",
   "components/Art.tsx": "decorative art", "components/BlogArt.tsx": "decorative art", "components/PageArt.tsx": "decorative art", "components/PageHeaderArt.tsx": "decorative art",
   "components/LogoLoader.tsx": "logo animation", "components/Assistant.tsx": "icon in the chat header", "pages/Feedback.tsx": "a decorative line in the side panel, no data", "components/TierEmblem.tsx": "plan emblem", "lib/icons.tsx": "icons",
-  "components/AppShell.tsx": "icons", "components/Layout.tsx": "icons", "components/PageFaqs.tsx": "icon", "components/QueryRules.tsx": "icons", "components/SearchFilters.tsx": "icons",
+  "components/AppShell.tsx": "icons", "components/Layout.tsx": "icons", "components/SheetTools.tsx": "the theme icons (task #310 part E)", "components/PageFaqs.tsx": "icon", "components/QueryRules.tsx": "icons", "components/SearchFilters.tsx": "icons",
   "components/SplitDivider.tsx": "panel divider handle", "components/screener/FilterGroup.tsx": "icons", "components/screener/PageParts.tsx": "small completeness ring in a summary strip", "components/screener/RatioDrawer.tsx": "small spread chart of one ratio inside the Custom ratio drawer",
   "components/search/SearchOverlay.tsx": "icons", "components/search/parts.tsx": "sparklines and icons in search rows", "components/search/prismParts.tsx": "score ring in a search row",
   "components/prism/pzr/Hero.tsx": "score ring and scale: one figure", "components/prism/pzr/Landing.tsx": "decorative mark", "components/prism/shared/PartTile.tsx": "score tile ring",

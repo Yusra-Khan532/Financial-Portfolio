@@ -18,7 +18,7 @@
 .mnav .mg-help button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .btn.foot-help { gap: 8px; }
 
-@media (max-width: 759px) { .top .ai-top { width: 44px; height: 44px; padding: 0; justify-content: center; } .top .ai-top span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; } }
+@media (max-width: 860px) { .top .ai-top { width: 44px; height: 44px; padding: 0; justify-content: center; } .top .ai-top span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; } }
 
 /* The dashboard's questions, folded to one line (summary 16px, count 13px). */
 .pfq-fold > summary { display: flex; align-items: baseline; gap: 12px; min-height: 44px; padding: 10px 0; cursor: pointer; list-style: none; font-size: 16px; }
