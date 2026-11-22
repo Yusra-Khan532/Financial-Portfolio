@@ -13,16 +13,18 @@ from .industry import key
 THEME = "Emerging tech"
 
 # sub-theme -> (Sector labels that join it, named additions, named exclusions)
+# task #325 (developer file 25, 4c, approved 22 Nov 2026): 13 companies added from Discover's primary theme: TONBO, SIGMAADV, KMEW; CENTUM, VINYAS, EPACK; BBOX;
+# EXIDEIND, TMPV, UNOMINDA; EMMVEE, BORORENEW, WAAREERTL. The screen's own conditions still decide which of them pass.
 SUBTHEMES: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...], Tuple[str, ...]]] = {
-    "Defence, aerospace and shipbuilding": (("Aerospace & Defense", "Aerospace & Defence", "Ship Building & Allied Services", "Shipbuilding", "Explosives"), ("SWANDEF", "KRISHNADEF", "AVANTEL", "NIBE", "SIKA", "BEML", "HAL", "BEL", "SOLARINDS", "MAZDOCK", "GRSE", "DATAPATTNS", "MTARTECH", "ASTRAMICRO", "PARAS"), ()),
+    "Defence, aerospace and shipbuilding": (("Aerospace & Defense", "Aerospace & Defence", "Ship Building & Allied Services", "Shipbuilding", "Explosives"), ("SWANDEF", "KRISHNADEF", "AVANTEL", "NIBE", "SIKA", "BEML", "HAL", "BEL", "SOLARINDS", "MAZDOCK", "GRSE", "DATAPATTNS", "MTARTECH", "ASTRAMICRO", "PARAS", "TONBO", "SIGMAADV", "KMEW"), ()),
     "Electronics, EMS and semiconductors": (("Consumer Electronics", "Computers Hardware & Equipments", "Telecom - Equipment & Accessories"),
-                                            ("KAYNES", "SYRMA", "CYIENTDLM", "AMBER", "AVALON", "MOSCHIP", "CGPOWER", "DIXON"), ("HAVELLS",)),
+                                            ("KAYNES", "SYRMA", "CYIENTDLM", "AMBER", "AVALON", "MOSCHIP", "CGPOWER", "DIXON", "CENTUM", "VINYAS", "EPACK"), ("HAVELLS",)),
     "Software products, AI and data": (("Software Products", "Data Processing Services"), ("PERSISTENT", "KPITTECH", "COFORGE", "NEWGEN", "RATEGAIN", "HAPPSTMNDS", "LATENTVIEW", "AFFLE"), ()),
     "Digital platforms": (("E-Retail/ E-Commerce", "Internet & Catalogue Retail", "Digital Entertainment", "E-Learning", "Web based media and service"), ("TBOTEK", "IXIGO", "LENSKART", "BLACKBUCK", "ETERNAL", "NYKAA", "NAUKRI"), ()),
     "Fintech and market infrastructure": (("Financial Technology (Fintech)", "Exchange and Data Platform", "Depositories, Clearing Houses and Other Intermediaries"), ("MCX", "BSE", "CDSL", "CAMS", "KFINTECH", "IEX"), ()),
-    "Data centres, cloud and telecom tech": ((), ("NETWEB", "RAILTEL", "E2E", "HFCL", "STLTECH"), ()),
-    "EV and batteries": ((), ("OLECTRA", "SONACOMS", "HBLENGINE", "ARE&M", "ATHERENERG", "GREAVESCOT"), ()),
-    "Clean-energy manufacturing": ((), ("WAAREEENER", "PREMIERENE", "SUZLON", "INOXWIND", "KPIGREEN"), ()),
+    "Data centres, cloud and telecom tech": ((), ("NETWEB", "RAILTEL", "E2E", "HFCL", "STLTECH", "BBOX"), ()),
+    "EV and batteries": ((), ("OLECTRA", "SONACOMS", "HBLENGINE", "ARE&M", "ATHERENERG", "GREAVESCOT", "EXIDEIND", "TMPV", "UNOMINDA"), ()),
+    "Clean-energy manufacturing": ((), ("WAAREEENER", "PREMIERENE", "SUZLON", "INOXWIND", "KPIGREEN", "EMMVEE", "BORORENEW", "WAAREERTL"), ()),
 }
 # a company whose symbol changed: the old symbol still counts while only it is listed
 ALIASES: Dict[str, Tuple[str, ...]] = {"ARE&M": ("AMARAJABAT",)}

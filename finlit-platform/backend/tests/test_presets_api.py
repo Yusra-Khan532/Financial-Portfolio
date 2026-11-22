@@ -255,11 +255,17 @@ async def test_the_list_gives_each_card_its_first_three_its_figure_and_who_joine
     first = card((await gold.get("/api/screener/presets")).json())
     assert first["joined"] == 0                         # the first stored close: every company was already there, nobody "joined"
     assert [f["symbol"] for f in first["first"]] == syms[:3] and all(f["name"] for f in first["first"]) and first["figure"] == "FinLit Prism" and first["top10"] is False
-    async with store.pool.acquire() as conn:            # an earlier close on record, and two companies added at the latest one
-        await conn.execute("INSERT INTO screen_runs (preset_id, chips, session, registry, n, list_hash) VALUES ($1, $2, $3::date - 1, 1, 1, 'x')", p.id, ckey, session)
-        await conn.execute("UPDATE screen_spells SET added_on = $3::date - 1 WHERE preset_id = $1 AND chips = $2 AND symbol <> ALL($4::text[])", p.id, ckey, session, syms[:2])
+    async with store.pool.acquire() as conn:            # task #325 C: an earlier saved list under the same rules, without the first two companies
+        reg = await conn.fetchval("SELECT registry FROM screen_runs WHERE preset_id = $1 AND chips = $2 AND session = $3", p.id, ckey, session)
+        await conn.execute("INSERT INTO screen_runs (preset_id, chips, session, registry, n, list_hash) VALUES ($1, $2, $3::date - 1, $4, $5, 'x')", p.id, ckey, session, reg, len(syms) - 2)
+        await conn.executemany("INSERT INTO screen_snapshots (preset_id, chips, session, symbol, rank, close, row) VALUES ($1, $2, $3::date - 1, $4, $5, NULL, '{}'::jsonb)",
+                               [(p.id, ckey, session, s, i) for i, s in enumerate(syms[2:])])
     again = card((await gold.get("/api/screener/presets")).json())
-    assert again["joined"] == 2
+    assert again["joined"] == 2 and "rulesUpdated" not in again       # the same count the open screen gives: on the latest list, not on the one before
+    async with store.pool.acquire() as conn:            # the rules changed between the two lists: the card says so and gives no joined figure
+        await conn.execute("UPDATE screen_runs SET registry = registry + 1 WHERE preset_id = $1 AND chips = $2 AND session = $3::date - 1", p.id, ckey, session)
+    ruled = card((await gold.get("/api/screener/presets")).json())
+    assert ruled.get("rulesUpdated") is True and "joined" not in ruled
     top = [c for g in (await gold.get("/api/screener/presets")).json()["groups"] for c in g["presets"] if c["id"] == "highest-rated-large"][0]
     assert top["top10"] is True and top["figure"] == "FinLit Prism"
     locked = card((await anon.get("/api/screener/presets")).json())
