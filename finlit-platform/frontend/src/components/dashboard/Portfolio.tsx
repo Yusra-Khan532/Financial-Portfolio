@@ -68,7 +68,7 @@ export function PortfolioGlance({ held, rows, loading }: { held: string[]; rows:
         {g.scored === 0 ? (has("gold")
           ? <p className="dsh-note">No Prism score is stored yet for these shares. A share's score appears here once its FinLit Prism rating has been calculated; <Link to="/prism">open FinLit Prism</Link>.</p>
           : <p className="dsh-note">The average score, score colours and Prism parts use FinLit Prism, part of Gold. <Link to="/plans">See plans</Link>.</p>) : <>
-          <div className="dsh-pg-top">
+          <div className="dx-gl-a"><div className="dsh-pg-top">
             <div className="dsh-pg-ringw" role="img" aria-label={`Average Prism score ${g.avgPrism ?? "not available"} out of 100${g.avgPrism != null ? `, ${bandWord(g.avgPrism).word}` : ""}; ${g.parts.map((p) => `${p.label} ${p.value ?? "no score"}`).join(", ")}`}>
               <ScoreRing parts={g.parts.map((p) => ({ key: p.key, value: p.value }))} score={g.avgPrism} /></div>
             <div>
@@ -79,14 +79,14 @@ export function PortfolioGlance({ held, rows, loading }: { held: string[]; rows:
               </div>
               <p className="dsh-pg-legend" aria-hidden="true"><span><b className="g">{g.colours.g}</b> strong or healthy</span><span><b className="o">{g.colours.o}</b> average</span><span><b className="r">{g.colours.r}</b> weak or poor</span>{g.colours.n > 0 && <span><b>{g.colours.n}</b> without a score</span>}</p>
             </div>
-          </div>
-          <p className="dsh-lh">Average by Prism part</p>
+          </div></div>
+          <div className="dx-gl-p"><p className="dsh-lh">Average by Prism part</p>
           <div className="dsh-pg-parts">{g.parts.map((p) => (
-            <div className="dsh-pg-part" key={p.label}><span>{p.label}</span><span className="t" aria-hidden="true"><i className={colourOf(p.value)} style={{ width: `${p.value ?? 0}%` }} /></span><b>{p.value ?? "—"}</b></div>))}</div>
+            <div className="dsh-pg-part" key={p.label}><span>{p.label}</span><span className="t" aria-hidden="true"><i className={colourOf(p.value)} style={{ width: `${p.value ?? 0}%` }} /></span><b>{p.value ?? "—"}</b></div>))}</div></div>
         </>}
-        <p className="dsh-note dsh-pg-spread">{g.sectors} {g.sectors === 1 ? "sector" : "sectors"}{g.largest && g.sectors > 1 ? `, the largest holds ${g.largest.count} of ${g.count}` : ""}{sizeLine ? ` · ${sizeLine} ${g.sizes.reduce((a, b) => a + b.count, 0) === 1 ? "company" : "companies"}` : ""}</p>
-        {g.scored > 0 && (() => { const v = (l: string) => g.parts.find((p) => p.label.startsWith(l))?.value ?? null; const c = portfolioCard({ growth: v("Growth"), valuation: v("Valuation"), quality: v("Quality"), risk: v("Risk") }); return c ? <div className="sp dsh-cards dsh-cards-after"><DashCards items={[c]} scope="portfolio" /></div> : null; })()}
-        <Link className="dsh-link foot" to="/holdings">Open Equity portfolio →</Link>
+        <div className="dx-gl-c"><p className="dsh-note dsh-pg-spread">{g.sectors} {g.sectors === 1 ? "sector" : "sectors"}{g.largest && g.sectors > 1 ? `, the largest holds ${g.largest.count} of ${g.count}` : ""}{sizeLine ? ` · ${sizeLine} ${g.sizes.reduce((a, b) => a + b.count, 0) === 1 ? "company" : "companies"}` : ""}</p>
+        <Link className="dsh-link foot" to="/holdings">Open Equity portfolio →</Link></div>
+        {g.scored > 0 && (() => { const v = (l: string) => g.parts.find((p) => p.label.startsWith(l))?.value ?? null; const c = portfolioCard({ growth: v("Growth"), valuation: v("Valuation"), quality: v("Quality"), risk: v("Risk") }); return c ? <div className="dx-gl-d"><div className="sp dsh-cards dsh-cards-after"><DashCards items={[c]} scope="portfolio" /></div></div> : null; })()}
       </>}
     </Card>
   );

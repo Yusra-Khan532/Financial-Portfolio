@@ -10,7 +10,6 @@ import { direction, inr, istTime, signedPct, useCommodities } from "../../lib/co
 import { TIER, useUI, type Plan } from "../../lib/ui";
 import { type Row } from "../../lib/screener";
 import { DEMO } from "../../lib/demo";
-import { MiniBars } from "../../charts/MiniBars";
 import { Icon } from "../../lib/icons";
 import { MINUS, cr, nf } from "../../lib/format";
 import { CoLogo } from "../CoLogo";
@@ -33,30 +32,43 @@ export function Movers({ items }: { items: Row[] }) {
   );
 }
 
-function ResultCard({ symbol, name }: { symbol: string; name: string | null }) {
+/** Task #316: the newest quarter of each company as one table row: revenue and net profit, each against the same quarter a year earlier (YoY) and the quarter before (QoQ).
+ *  A company held under its numeric BSE code shows its name. A company with fewer than two quarters is left out, as the chart cards did. */
+const chg = (a?: number | null, b?: number | null) => (a == null || b == null || !b ? null : ((a - b) / Math.abs(b)) * 100);
+const crore = (v: number | null | undefined) => (v == null ? "—" : (v < 0 ? MINUS : "") + "₹" + cr(Math.abs(v)) + " Cr");
+function ResultRow({ symbol, name }: { symbol: string; name: string | null }) {
   const { data, isError } = useQuery({ queryKey: ["stock", symbol, "/financials"], queryFn: () => apiGet<Financials>(`/api/stocks/${symbol}/financials`), staleTime: 60_000, retry: false });
   const q = data?.quarterly.pl;
   if (isError || (data && (!q || q.periods.length < 2))) return null;
-  if (!q) return <div className="rc"><div className="skeleton" style={{ height: 120 }} /></div>;
+  if (!q) return <tr><th scope="row"><i className="skeleton sk-n" /></th><td colSpan={6}><i className="skeleton sk-n" /></td></tr>;
   const n = q.periods.length, last = n - 1, yoy = n >= 5 ? n - 5 : -1;
-  const ch = (a?: number | null, b?: number | null) => (a == null || b == null || !b ? null : ((a - b) / Math.abs(b)) * 100);
-  const rev = q.rows.revenue as (number | null)[], np = q.rows.net_profit as (number | null)[];
-  const line = (label: string, v: (number | null)[]) => (
-    <div className="rc-r"><span>{label}</span><b>{v[last] == null ? "—" : (v[last]! < 0 ? MINUS : "") + "₹" + cr(Math.abs(v[last] as number))} Cr</b>
-      <span className={"qd " + tone(ch(v[last], yoy >= 0 ? v[yoy] : null))}>{sgn(ch(v[last], yoy >= 0 ? v[yoy] : null))} <small>YoY</small></span>
-      <span className={"qd " + tone(ch(v[last], v[last - 1]))}>{sgn(ch(v[last], v[last - 1]))} <small>QoQ</small></span></div>
-  );
+  const cells = (v: (number | null)[]) => {
+    const y = chg(v[last], yoy >= 0 ? v[yoy] : null), m = chg(v[last], v[last - 1]);
+    return <>
+      <td className="n">{crore(v[last])}<span className={"dx-under " + tone(y)}>{sgn(y)} YoY</span></td>
+      <td className={"n dx-hide-s " + tone(y)} title={yoy < 0 ? "Needs five quarters of results" : undefined}>{sgn(y)}</td>
+      <td className={"n dx-hide-s " + tone(m)}>{sgn(m)}</td>
+    </>;
+  };
+  const code = /^\d+$/.test(symbol);
   return (
-    <Link className="rc" to={`/stocks/${symbol}#quarter`}>
-      <div className="rc-h"><b>{symbol}</b><small>{name} · {q.periods[last]}</small></div>
-      {line("Revenue", rev)}{line("Net profit", np)}
-      <MiniBars labels={q.periods.slice(-6)} series={[{ key: "np", label: "Net profit", values: np.slice(-6), color: "var(--gold)" }]} fmt={(v) => cr(v)} height={86} w={260} highlight={5} />
-    </Link>
+    <tr>
+      <th scope="row"><Link to={`/stocks/${symbol}#quarter`}>{code && name ? name : symbol}</Link><small>{code ? `BSE ${symbol}` : name ?? ""} · {q.periods[last]}</small></th>
+      {cells(q.rows.revenue as (number | null)[])}{cells(q.rows.net_profit as (number | null)[])}
+    </tr>
   );
 }
 export function Results({ symbols, names }: { symbols: string[]; names: Map<string, string | null> }) {
   if (!symbols.length) return <><Empty icon="notes" title="Pick stocks to follow" text="Your watchlist's newest quarterly results appear here, compared with last quarter and last year." to="/watchlist" cta="Build a watchlist" /><p className="rcs-all"><Link to="/results/quarter">See all quarter results <Icon name="arrow" /></Link></p></>;
-  return <><div className="rcs">{symbols.slice(0, 4).map((s) => <ResultCard key={s} symbol={s} name={names.get(s) ?? null} />)}</div><p className="rcs-all"><Link to="/results/quarter">See all quarter results <Icon name="arrow" /></Link></p></>;
+  return <>
+    <div className="dx-tw"><table className="dx-t dx-rt">
+      <caption className="dx-sr">The newest quarter of the companies you follow</caption>
+      <thead><tr><th scope="col">Company</th><th scope="col" className="n">Revenue<span className="dx-under">YoY</span></th><th scope="col" className="n dx-hide-s">YoY</th><th scope="col" className="n dx-hide-s">QoQ</th>
+        <th scope="col" className="n">Net profit<span className="dx-under">YoY</span></th><th scope="col" className="n dx-hide-s">YoY</th><th scope="col" className="n dx-hide-s">QoQ</th></tr></thead>
+      <tbody>{symbols.slice(0, 4).map((s) => <ResultRow key={s} symbol={s} name={names.get(s) ?? null} />)}</tbody>
+    </table></div>
+    <p className="rcs-all"><Link to="/results/quarter">See all quarter results <Icon name="arrow" /></Link></p>
+  </>;
 }
 
 /** Task #283: the companies on your watchlist with a Strong or Healthy FinLit Prism score (65 or more) whose Prism Valuation part is 65 or more (the share

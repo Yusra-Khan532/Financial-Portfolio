@@ -19,10 +19,12 @@ import { PLAN_FOR_PORTFOLIO } from "../../lib/planGates";
 import { MINUS, nf } from "../../lib/format";
 import { dayMonth, quarterEndLabel, yoyLabel } from "../../lib/dashboard";
 import { Card, Rows, ShowMoreButton, tone, useShowMore } from "./parts";
+import { Dd, SegDd, useDashUi } from "./dx";
+import { DASH_INV_SORTS } from "../../lib/prefs";
 import { useUI } from "../../lib/ui";
 import { useMfPortfolio, type Holding as MfHolding } from "../../lib/mfPortfolio";
 import type { FundDetail } from "../../lib/mf";
-import { KIND_TAG, byMove, etfRows, healthText, investLine, investRows, navText, type InvRow } from "../../lib/dashInvest";
+import { INV_SORT_LABEL, KIND_TAG, etfRows, sortInv, type InvSort, healthText, investLine, investRows, navText, type InvRow } from "../../lib/dashInvest";
 import { useEtfPortfolio, type EtfRow } from "../../lib/etfPortfolio";
 
 export type Followed = { symbol: string; name: string | null };
@@ -108,12 +110,17 @@ export function MyStocks({ followed, loading, watch = new Set(), held = new Set(
   const inv = useMemo(() => buildInv(lists, followed, funds, fundData, qm, oneYear, qty, etfItems, heldIn), [lists, followed, funds, fundData.map((d) => d?.code ?? 0).join(","), quotes.data, oneYear, qty, etfq.data, heldIn]);   // eslint-disable-line react-hooks/exhaustive-deps
   const isStockTab = tab === "watchlist" || tab === "portfolio";
   // task #195: every list by the size of the last day's move, largest first (a fall as big as a rise)
-  const list = isStockTab ? byMove(lists[tab as "watchlist" | "portfolio"].map((f) => ({ ...f, day: qm.get(f.symbol)?.chg ?? null }))) : [];
-  const invList = byMove(tab === "mf" ? inv.funds : tab === "etf" ? inv.etfs : inv.all);
+  // task #316: the Sort dropdown (biggest move first, as before, by default); the choice is kept on the account
+  const [ui, setUi] = useDashUi(), sort: InvSort = ui.invSort;
+  const model = usePlanModel();
+  const pmAll = usePlanPrism(sort === "reading" ? allSyms : [], model);
+  const readOf = (r: { symbol?: string | null; kind?: string; health?: InvRow["health"] }) => r.kind === "mf" ? r.health?.score ?? null : r.kind === "etf" ? null : r.symbol ? scoreView(pmAll[r.symbol]).score : null;
+  const list = isStockTab ? sortInv(lists[tab as "watchlist" | "portfolio"].map((f) => ({ ...f, day: qm.get(f.symbol)?.chg ?? null })), sort, readOf) : [];
+  const invList = sortInv(tab === "mf" ? inv.funds : tab === "etf" ? inv.etfs : inv.all, sort, readOf);
   const more = useShowMore(list, LIMIT, tab), invMore = useShowMore(invList, INV_LIMIT, tab);
   const shown = more.visible, invShown = tab === "etf" ? invList : invMore.visible;   // task #223: the ETFs chip lists every ETF (it has no Show all)
   const syms = isStockTab ? shown.map((f) => f.symbol) : invShown.filter((r) => r.symbol).map((r) => r.symbol as string);
-  const model = usePlanModel(), pm = usePlanPrism(syms, model);   // task #283: FinLit Prism for plans that have it, a locked pill otherwise
+  const pm = usePlanPrism(syms, model);   // task #283: FinLit Prism for plans that have it, a locked pill otherwise
   const finsAll = useQueries({ queries: allSyms.map((s) => ({ queryKey: ["stock", s, "/financials"], queryFn: () => apiGet<Financials>(`/api/stocks/${s}/financials`), staleTime: 60_000, retry: false })) });
   const leads = useQueries({ queries: allSyms.map((s) => ({ queryKey: ["leadership", s], queryFn: () => apiGet<Leadership>(`/api/stocks/${encodeURIComponent(s)}/leadership`), staleTime: 15 * 60_000, retry: false })) });
   const finOf = new Map(allSyms.map((s, i) => [s, finsAll[i]])), leadOf = new Map(allSyms.map((s, i) => [s, leads[i]]));
@@ -130,14 +137,14 @@ export function MyStocks({ followed, loading, watch = new Set(), held = new Set(
   const shownCount = isStockTab ? list.length : invList.length, noun: [string, string] = isStockTab ? ["stock", "stocks"] : tab === "mf" ? ["fund", "funds"] : tab === "etf" ? ["ETF", "ETFs"] : ["investment", "investments"];
   const any = followed.length > 0 || funds.length > 0 || inv.etfs.length > 0;
   const sub = any ? [investLine(shownCount, noun, day, subWhen, !isStockTab && counts.funds > 0), isStockTab && latestEnd ? `latest quarter ${quarterEndLabel(latestEnd)}` : null,
-    showing ? `showing ${showing}` : null].filter(Boolean).join(" · ") : undefined;
+    showing ? `showing ${showing}` : null].filter(Boolean).join(" · ").replace(/biggest moves (today|on [^·]+?) first/, (m) => sort === "move" ? m : `${INV_SORT_LABEL[sort].replace("A–Z", "A to Z").toLowerCase()}`) : undefined;
   const open = tab === "portfolio" ? { to: "/holdings", long: "Open Equity portfolio", short: "Equity" } : tab === "mf" ? { to: "/mf-portfolio", long: "Open MF portfolio", short: "Funds" }
     : tab === "etf" ? { to: "/etf-portfolio", long: "Open ETF portfolio", short: "ETFs" } : { to: "/watchlist", long: "Open watchlist", short: "Watchlist" };
   const tabs: [StockTab, string, number][] = [["all", "All", inv.all.length], ["watchlist", "Watchlist", counts.watch], ["portfolio", "Equity", counts.shares], ["mf", "Mutual funds", counts.funds], ["etf", "ETFs", counts.etfs]];
   const right = (
     <div className="dsh-ys-tools">
-      {any && <div className="dsh-seg dsh-ys-tabs" role="group" aria-label="Which investments">
-        {tabs.map(([k, l, n]) => <button key={k} type="button" aria-pressed={tab === k} onClick={() => setTab(k)}>{l} <span className="n">{n}</span></button>)}</div>}
+      {any && <SegDd k="Show" segClass="dsh-ys-tabs" label="Which investments" value={tab} onChange={setTab} options={tabs.map(([k, l, n]) => ({ v: k, label: l, small: n }))} />}
+      {any && <Dd k="Sort" value={sort} onChange={(v) => setUi({ invSort: v })} className="dx-sort" options={DASH_INV_SORTS.map((v) => ({ v, label: INV_SORT_LABEL[v] }))} />}
       <Link className="dsh-link" to={open.to}><span className="long">{open.long}</span><span className="short">{open.short}</span> →</Link>
     </div>
   );

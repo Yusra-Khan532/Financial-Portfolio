@@ -12,7 +12,23 @@ export type Prefs = { palette: PaletteId; density: Density; alerts: boolean; scr
   /** task #251: themes followed on Discover (slugs); stored with the account, no alert reads them yet */ followThemes: string[];
   /** task #277: views of a page opened once ("mi:equity"); a view not in it shows "Not opened yet" */ viewsSeen: string[];
   /** task #315: Word of the Day bookmarks (glossary term ids, newest first, at most 200); shown on the dashboard under "Your bookmark" */ wordBookmarks: string[];
-  /** task #315: the India date (YYYY-MM-DD) the member last opened the Word of the Day; the header's gold dot shows until today's is opened */ wordSeen: string };
+  /** task #315: the India date (YYYY-MM-DD) the member last opened the Word of the Day; the header's gold dot shows until today's is opened */ wordSeen: string;
+
+  /** task #316: the dashboard's own choices, saved with the account like the Showing bar */ dashUi: DashUi };
+/** Task #316 (dashboard file 22): the section shown, the portfolio of "Your portfolios at a glance", the Global markets region, the sort of "Your investments today",
+ *  whose results and filings ("From"), and the cards hidden from each card's ⋯ menu. The server checks the same values (auth/routes.py DashUi). */
+export const DASH_SECS = ["all", "money", "watch", "market", "news", "tools"] as const;
+export const DASH_GLANCE = ["eq", "mf", "etf"] as const;
+export const DASH_REGIONS = ["us", "europe", "asia", "commod", "fx"] as const;
+export const DASH_INV_SORTS = ["move", "gain", "fall", "reading", "az"] as const;
+export type DashUi = { sec: (typeof DASH_SECS)[number]; glance: (typeof DASH_GLANCE)[number]; region: (typeof DASH_REGIONS)[number]; invSort: (typeof DASH_INV_SORTS)[number]; who: "market" | "mine"; hidden: string[] };
+export const DASH_UI_DEFAULT: DashUi = { sec: "all", glance: "eq", region: "us", invSort: "move", who: "market", hidden: [] };
+const oneOf = <T extends string>(xs: readonly T[], v: unknown, d: T): T => (typeof v === "string" && (xs as readonly string[]).includes(v) ? (v as T) : d);
+export function normaliseDashUi(raw: Partial<DashUi> | null | undefined): DashUi {
+  const r = raw && typeof raw === "object" ? raw : {};
+  return { sec: oneOf(DASH_SECS, r.sec, "all"), glance: oneOf(DASH_GLANCE, r.glance, "eq"), region: oneOf(DASH_REGIONS, r.region, "us"), invSort: oneOf(DASH_INV_SORTS, r.invSort, "move"),
+    who: r.who === "mine" ? "mine" : "market", hidden: [...new Set((Array.isArray(r.hidden) ? r.hidden : []).filter((x): x is string => typeof x === "string" && /^[a-z0-9_]{1,24}$/.test(x)))].slice(0, 30) };
+}
 export type PfChoice = "all" | string[];
 export type DashPortfolios = { equity: PfChoice; mf: PfChoice; etf: PfChoice };
 /** A glossary term id (backend PrefsIn.wordBookmarks uses the same pattern). */
@@ -25,7 +41,7 @@ const pfChoice = (v: unknown): PfChoice => { const ids = Array.isArray(v) ? [...
 export type DashStep = 1 | 2 | 3 | 4 | 5;
 export const DASH_STEPS: { n: DashStep; id: string; title: string; line: string }[] = [
   { n: 1, id: "money", title: "Your money", line: "What you hold, how it did on the last trading day, and what it says." },
-  { n: 2, id: "watch", title: "Your watchlist", line: "The stocks you follow but do not hold." },
+  { n: 2, id: "watch", title: "Your watchlist", line: "The stocks you follow." },
   { n: 3, id: "market", title: "The market", line: "Prices first, then what they add up to, then who is buying." },
   { n: 4, id: "news", title: "Results and news", line: "What companies reported and filed." },
   { n: 5, id: "tools", title: "Tools", line: "Set alerts and run your own numbers." },
@@ -63,7 +79,7 @@ export const WIDGETS: { id: string; label: string; nav?: string; blurb: string; 
 /** The layout version this build draws (task #195). A layout saved under an older version is moved to it once (`migrateLayout`). */
 export const DASH_V = 2;
 const defaultLayout = (): WidgetPref[] => WIDGETS.map((w) => ({ id: w.id, on: !w.off, size: w.size }));
-const DEFAULTS: Prefs = { palette: "gold", density: "comfortable", alerts: true, screenAlerts: true, profitGap: true, rotationCorner: true, rotationRank: false, digest: false, dashboard: defaultLayout(), sectorWatch: [], dashV: DASH_V, dashPortfolios: { equity: "all", mf: "all", etf: "all" }, followThemes: [], viewsSeen: [], wordBookmarks: [], wordSeen: "" };
+const DEFAULTS: Prefs = { palette: "gold", density: "comfortable", alerts: true, screenAlerts: true, profitGap: true, rotationCorner: true, rotationRank: false, digest: false, dashboard: defaultLayout(), sectorWatch: [], dashV: DASH_V, dashPortfolios: { equity: "all", mf: "all", etf: "all" }, followThemes: [], viewsSeen: [], wordBookmarks: [], wordSeen: "", dashUi: DASH_UI_DEFAULT };
 
 const KEY = "finlit-prefs-v1";
 const SIZES: readonly WidgetSize[] = ["quarter", "third", "half", "full"];
@@ -101,7 +117,9 @@ function normalise(raw: Partial<Prefs> | null | undefined): Prefs {
     viewsSeen: [...new Set((Array.isArray(raw?.viewsSeen) ? raw!.viewsSeen : []).filter((x): x is string => typeof x === "string" && /^[a-z0-9]{1,12}:[a-z0-9-]{1,24}$/.test(x)))].slice(0, 60),
     // task #315: older saved prefs have neither field; they load as no bookmarks and "not opened yet"
     wordBookmarks: [...new Set((Array.isArray(raw?.wordBookmarks) ? raw!.wordBookmarks : []).filter((x): x is string => typeof x === "string" && WORD_ID.test(x)))].slice(0, 200),
-    wordSeen: typeof raw?.wordSeen === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.wordSeen) ? raw.wordSeen : "" };
+    wordSeen: typeof raw?.wordSeen === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.wordSeen) ? raw.wordSeen : "",
+
+    dashUi: normaliseDashUi(raw?.dashUi) };
 }
 function read(): Prefs { try { return normalise(JSON.parse(localStorage.getItem(KEY) || "null")); } catch { return normalise(null); } }
 
