@@ -11,4 +11,4 @@
 /* the six Prism cards under a chart (Gold): four parts, two technical views */
 .cp-pz .pb-hi b { color: var(--band-hi-ink, var(--gain)); } .cp-pz .pb-mid b { color: var(--band-mid-ink, var(--warn, #c27a12)); } .cp-pz .pb-lo b { color: var(--band-lo-ink, var(--loss)); } .cp-pz .pb-na b { color: var(--faint, var(--muted)); }
 :root[data-theme="light"] .cp-pz .pb-hi b { color: var(--gain); } :root[data-theme="light"] .cp-pz .pb-mid b { color: #a8650a; } :root[data-theme="light"] .cp-pz .pb-lo b { color: var(--loss); }
-.cp-pz em { font-style: normal; font-size: 12px; color: var(--muted); }
+.cp-pz em { font-style: normal; font-size: var(--fs-12); color: var(--muted); }

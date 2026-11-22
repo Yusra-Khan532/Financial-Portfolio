@@ -42,7 +42,7 @@
 .sx-card { background: var(--s1); border: 1px solid var(--border-strong); border-radius: var(--r-card); padding: 20px 22px; min-width: 0; }
 .sx-card h2 { margin: 0 0 6px; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
 .sx-card h3 { margin: 0 0 6px; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); }
-.sx-sub { margin: 0 0 14px; color: var(--muted); font-size: 14px; line-height: 1.55; max-width: 78ch; }
+.sx-sub { margin: 0 0 14px; color: var(--muted); font-size: var(--fs-14); line-height: 1.55; max-width: 78ch; }
 .sx-sec { margin-top: 22px; }
 .sx-sec > h2 { margin: 0 0 4px; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
 .sx-link { color: var(--gold); font-weight: 600; text-decoration: none; } .sx-link:hover { text-decoration: underline; }
@@ -126,7 +126,7 @@
 .sx-sortbtn:hover { color: var(--text); }
 .sx-sortbtn .ar { font-size: var(--fs-12); min-width: 10px; }
 .sx-sortbtn.on { color: var(--text); }
-.sx-mini { margin-left: 6px; font-size: 12px; padding: 1px 5px; border: 1px solid var(--border-strong); border-radius: 6px; }
+.sx-mini { margin-left: 6px; font-size: var(--fs-12); padding: 1px 5px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-mark); }
 .sx-name { display: grid; gap: 2px; }
 .sx-name a, .sx-name b { font-weight: 700; color: var(--text); text-decoration: none; font-size: var(--fs-14); }
 .sx-name a:hover { color: var(--gold); text-decoration: underline; }

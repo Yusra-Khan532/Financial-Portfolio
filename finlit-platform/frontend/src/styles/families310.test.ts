@@ -56,6 +56,27 @@ describe("family 1: company report and Prism (task #310 F, pages/01)", () => {
   });
 });
 
+describe("family 2: screeners and Discover (task #310 F, pages/02)", () => {
+  const SHEETS = ["stockscreener", "screens243", "screeners243", "presets", "readyScreens", "advfx", "chartpanel", "ratiodrawer", "sectorTree", "searchfilters",
+    "scorescreen", "qbuilder", "fgx", "superinvestors", "companies", "glossary"].map((n) => `styles/${n}.css`);
+  it("the screener, query builder, Discover, superinvestor and A to Z sheets have no hand-typed corners, sizes or weights", () => {
+    expect([...SHEETS, "discovery/discover.css"].flatMap(shapeFindings)).toEqual([]);
+  });
+
+  it('"Your rules / Ready-made / Custom ratio" is the shared ui-tabs, selected by aria-selected', () => {
+    const rs = read("components/screener/ReadyScreens.tsx");
+    expect(rs).toMatch(/className="ui-tabs xsp-tabs" role="tablist"/);
+    expect(rs).toMatch(/className=\{"ui-tab" \+ \(t\.id === "ratio" \? " xsp-t-ratio" : ""\)\}/);
+    // the side panel keeps only its fit: no own track, corner or weight on the tabs
+    for (const r of rulesFor(read("styles/screeners243.css"), /^\s*\.xsp-tabs( \[role="tab"\])?\s*$/)) expect(r).not.toMatch(/border-radius|font: 700|background: var\(--s2\)/);
+  });
+
+  it("the three screener switch stays the shared page tabs, and screener h1 sizes are the tool title", () => {
+    expect(read("components/screener/ScreenerHead.tsx")).toMatch(/ui-tab/);
+    for (const f of ["styles/scorescreen.css", "styles/stockscreener.css"]) for (const r of rulesFor(read(f), /\bh1\b/)) expect(r).not.toMatch(/clamp\(/);
+  });
+});
+
 describe("shared sheets (task #310 F)", () => {
   it("the shared navigation and table pieces have no hand-typed corners, sizes or weights", () => {
     const files = ["styles/tabgroup.css", "styles/section-nav.css", "styles/tablesort.css", "styles/table-grid.css", "styles/theme.css", "styles/type227.css",

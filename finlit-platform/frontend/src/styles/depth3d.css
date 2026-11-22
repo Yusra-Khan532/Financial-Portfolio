@@ -58,7 +58,7 @@
 /* Task #229: the picture and the box that says what it means, side by side (stacked on narrow screens) */
 .scr-3d { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 340px); gap: 14px; align-items: start; margin: 0 0 12px; }
 .scr-3d .cloud3d { margin: 0; }
-.scr-3d-m { padding: 14px 16px; border: 1px solid var(--line, rgba(128,128,128,.25)); border-radius: 12px; background: var(--s1); color: var(--text); font-size: var(--fs-13); line-height: 1.5; display: grid; gap: 8px; }
+.scr-3d-m { padding: 14px 16px; border: 1px solid var(--line, rgba(128,128,128,.25)); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font-size: var(--fs-13); line-height: 1.5; display: grid; gap: 8px; }
 .scr-3d-m h4 { margin: 0; font: 600 var(--fs-14) var(--sans); }
 .scr-3d-m p { margin: 0; }
 .scr-3d-m dl { margin: 0; display: grid; gap: 4px; }
