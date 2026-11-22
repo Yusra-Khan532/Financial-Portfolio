@@ -35,12 +35,12 @@ SOURCES = {
 ROWS_SQL = """SELECT g.ig_id, g.url, g.name, g.nse, g.bse, g.isin, g.board, g.sector, g.issue_price, g.listing_price, g.listing_date, g.subscription,
     g.issue_size_cr, g.gmp, g.gmp_pct, g.listing_pct, g.listed, g.open_date, g.close_date, g.fetched_at,
     g.detail -> 'issue' AS issue, g.day1_open, g.day1_high, g.day1_low, g.day1_close, g.day1_src, g.last_px, g.last_px_date, g.last_px_src, g.ca_factor, g.detail -> 'timetable' AS tt, g.nse_book -> 'categories' AS cats,
-    lc.open AS listing_open, lc.close AS listing_close, cur.close AS last_close, cur.day AS last_day,
+    lc.open AS listing_open, lc.close AS listing_close, NULL::numeric AS last_close, NULL::date AS last_day,
     EXISTS (SELECT 1 FROM companies c WHERE c.symbol = g.nse) AS has_page, q.price AS quote_price, q.traded_at AS quote_at
     FROM ipo_gmp g
-    LEFT JOIN LATERAL (SELECT open, close FROM price_daily p WHERE p.symbol = g.nse AND p.day = g.listing_date) lc ON g.nse IS NOT NULL AND g.listed
-    LEFT JOIN LATERAL (SELECT close, day FROM price_daily p WHERE p.symbol = g.nse AND p.day >= g.listing_date ORDER BY p.day DESC LIMIT 1) cur
-        ON g.nse IS NOT NULL AND g.listed
+    -- one indexed lookup per issue (its listing day in our daily prices, for the adjustment factor). The latest close is the exchange file's
+    -- (last_px, every listed issue): the per-issue 'newest day' lookup in our daily prices made this list slow enough to time out (22 Nov 2026)
+    LEFT JOIN price_daily lc ON lc.symbol = g.nse AND lc.day = g.listing_date AND g.listed
     LEFT JOIN listing_quotes q ON q.symbol = g.nse AND g.listed
     WHERE ($1::int IS NULL OR g.ig_id = $1)
     ORDER BY COALESCE(g.open_date, g.listing_date) DESC NULLS LAST, g.ig_id DESC"""
