@@ -19,7 +19,7 @@ META_KEY = "patterns"
 MIN_COVERAGE = 0.98             # the share of the scanned companies whose candles reach the close: below it the run stops instead of publishing thin lists
 SUSPENDED_DAYS = 45             # candles that end this many days before the close belong to a suspended or delisted company: it leaves the scan universe
 
-# Task #325 (developer file 26, 22 Nov 2026): engine 2 (finlit/pattern_engine.py). Twelve scans (Fresh breakout is new); names, card lines and
+# Task #325 (developer file 26, 22 Nov 2026): engine 2 (finlit/pattern_engine.py). Twelve scans (Fresh close above a base is new; the pack called it "Fresh breakout", renamed because "breakout" stays out of what readers see, task #64); names, card lines and
 # "How this screen works" are the pack's pattern-text.json, word for word.
 SCAN_IDS = ["daily_base", "weekly_base", "near_pivot", "vcp", "tight_range", "flag", "ema50_pullback", "rs_before_price", "ipo_base", "big_reversal", "shakeout", "fresh_breakout"]
 NAMES = {
@@ -34,7 +34,7 @@ NAMES = {
  "ipo_base": "IPO base",
  "big_reversal": "Big reversal",
  "shakeout": "Shakeout",
- "fresh_breakout": "Fresh breakout"
+ "fresh_breakout": "Fresh close above a base"
 }
 TEXTS = {
  "daily_base": "Back under a level that stopped a rally one to four months ago, and not yet through it.",

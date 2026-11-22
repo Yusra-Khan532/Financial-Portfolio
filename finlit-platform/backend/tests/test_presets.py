@@ -692,7 +692,7 @@ def test_every_advanced_list_has_a_one_thousand_crore_floor_and_the_provisional_
 
 # ---------------------------------------------------------------------------------------------------------------- Chart patterns
 def test_chart_pattern_screens_exist_with_worded_facts_and_no_rules():
-    # task #325 (developer file 26): engine 2, twelve screens (Fresh breakout is new); card lines and How this screen works from the pack, word for word
+    # task #325 (developer file 26): engine 2, twelve screens (Fresh close above a base is new); card lines and How this screen works from the pack, word for word
     from finlit.presets.patterns import HOW, SCAN_IDS, number_of
     adv = [p for p in PRESETS if p.kind == "pattern"]
     assert [p.spec for p in adv] == SCAN_IDS and len(adv) == 12 and SCAN_IDS[-1] == "fresh_breakout" and all(p.tab == "advanced" for p in adv)

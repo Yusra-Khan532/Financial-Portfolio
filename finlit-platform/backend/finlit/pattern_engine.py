@@ -371,7 +371,7 @@ def fresh_breakout(s, rs):
 
 PATTERNS = [('daily_base', 'Daily base', daily_base), ('weekly_base', 'Weekly base', weekly_base), ('near_pivot', 'Near pivot', near_pivot), ('vcp', 'Volatility contraction (VCP)', vcp),
             ('tight_range', 'Tight range', tight_range), ('flag', 'Flag', flag), ('ema50_pullback', '50-day EMA pullback', ema50_pullback), ('rs_before_price', 'New RS high before price', rs_before_price),
-            ('ipo_base', 'IPO base', ipo_base), ('big_reversal', 'Big reversal', big_reversal), ('shakeout', 'Shakeout', shakeout), ('fresh_breakout', 'Fresh breakout', fresh_breakout)]
+            ('ipo_base', 'IPO base', ipo_base), ('big_reversal', 'Big reversal', big_reversal), ('shakeout', 'Shakeout', shakeout), ('fresh_breakout', 'Fresh close above a base', fresh_breakout)]
 
 
 def weekly_bars(dates: Sequence[str], h: Sequence[float], l: Sequence[float], c: Sequence[float]):
