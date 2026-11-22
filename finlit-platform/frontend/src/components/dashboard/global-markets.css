@@ -80,4 +80,4 @@
   .gm-t th, .gm-t td { padding: 5px 4px; }
 }
 /* the founder, 22 Nov 2026: a row shown through a tracker fund says so beside its name */
-.gm-t th .gm-trk { display: inline-block; margin-left: 6px; padding: 0 6px; border: 1px solid var(--border-strong); border-radius: 999px; color: var(--muted); font: 600 12px/18px var(--sans); vertical-align: 1px; white-space: nowrap; }
+.gm-t th .gm-trk { display: inline-block; margin-left: 6px; padding: 0 6px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); color: var(--muted); font: 600 var(--fs-12)/18px var(--sans); vertical-align: 1px; white-space: nowrap; }
