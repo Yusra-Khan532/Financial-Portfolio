@@ -102,6 +102,34 @@ describe("family 3: portfolios and dashboard (task #310 F, pages/03)", () => {
   });
 });
 
+describe("family 4: markets, results and news (task #310 F, pages/04)", () => {
+  const SHEETS = ["sectors", "sectors-pack", "rotation", "rotation-pack", "rotation-charts", "industry-pack", "macro", "flows", "commodities", "market-events",
+    "results-pack", "results-calendar", "results224", "qresults", "news-page", "ipo-all", "ipo-all-compact", "ipo-calendar", "ipo-gmp", "ipo-report"].map((n) => `styles/${n}.css`);
+  it("Sector Pulse, Rotation, macro, FII/DII, commodities, market events, results, news and IPO sheets have no hand-typed corners, sizes or weights", () => {
+    expect(SHEETS.flatMap(shapeFindings)).toEqual([]);
+  });
+
+  it("heat squares keep the mark corner; FII/DII bars use the dark ink in the dark theme", () => {
+    const fl = noComments(read("styles/flows.css"));
+    expect(rulesFor(fl, /^\s*\.fl-cell\s*$/).join("")).toMatch(/border-radius: var\(--ui-r-mark\)/);
+    expect(fl).toMatch(/:root\[data-theme="dark"\] \.fl-oi-bar i \{ color: var\(--on-mint\); \}/);
+  });
+
+  it("news filters are ui-tab and their topic tags ui-chip; IPO cards are small cards; macro tabs take the one selected look", () => {
+    const n = read("pages/News.tsx");
+    expect(n.match(/className=\{"ui-tab chip-b" \+/g)?.length).toBe(2);
+    expect(n).toMatch(/className=\{"ui-chip p4-tp t-" \+/);
+    expect(read("pages/Ipo.tsx")).toMatch(/className="card ui-card ui-card--sm ipo-c p4-ic"/);
+    expect(rulesFor(read("styles/macro.css"), /\.mc-tabs button\.on/).join("")).toMatch(/background: var\(--ui-on-bg\)/);
+  });
+
+  it("Sector Pulse's closed phone rows carry live figures where the section has them", () => {
+    const sp = read("pages/SectorPulse.tsx");
+    for (const id of ["bystate", "standouts", "counted"]) expect(sp).toContain(`line={foldLine.${id}}`);
+    expect(sp).toMatch(/groupsN\(b\.rows\.length\)\} with a reading/);
+  });
+});
+
 describe("shared sheets (task #310 F)", () => {
   it("the shared navigation and table pieces have no hand-typed corners, sizes or weights", () => {
     const files = ["styles/tabgroup.css", "styles/section-nav.css", "styles/tablesort.css", "styles/table-grid.css", "styles/theme.css", "styles/type227.css",

@@ -100,7 +100,7 @@
 @media (max-width: 900px) { .gl-bar { grid-template-columns: 1fr; } .gl-az { grid-template-columns: repeat(7, 1fr); } .gl-list { grid-template-columns: 1fr; } }
 
 /* ---- the labelled selects (.wl-sel), shared by the results pages; the Watchlists page itself is styles/watchlist-pack.css ---- */
-.wl-sel { display: grid; gap: 4px; font: 700 12px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--faint); } .wl-sel select { height: 46px; padding: 0 12px; min-width: 150px; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: 14px var(--sans); letter-spacing: 0; text-transform: none; }
+.wl-sel { display: grid; gap: 4px; font: 700 var(--fs-12) var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--faint); } .wl-sel select { height: 46px; padding: 0 12px; min-width: 150px; border-radius: var(--r-ctl); border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: var(--fs-14) var(--sans); letter-spacing: 0; text-transform: none; }
 
 /* ---- latest quarter + trends ---- */
 .qk { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 16px; }

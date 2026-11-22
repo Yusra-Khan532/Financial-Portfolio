@@ -50,7 +50,7 @@
 .sx-visually { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* state chips */
-.sx-chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px; border-radius: 999px; font: 700 12px/1 var(--sans); white-space: nowrap; border: 1px solid transparent; }
+.sx-chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px; border-radius: var(--ui-r-pill); font: 700 var(--fs-12)/1 var(--sans); white-space: nowrap; border: 1px solid transparent; }
 .sx-chip.big { height: 30px; padding: 0 13px; font-size: var(--fs-14); }
 .sx-chip.st-washout { background: var(--sx-washout-bg); color: var(--sx-washout-fg); border-color: var(--sx-washout-bd); }
 .sx-chip.st-thrust_c { background: var(--sx-c-bg); color: var(--sx-c-fg); border-color: var(--sx-c-bd); }
@@ -170,12 +170,12 @@
 .sx-footer { margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--border-strong); font-size: var(--fs-13); color: var(--muted); line-height: 1.6; max-width: 110ch; }
 
 /* locks and blanks: a missing value always says why */
-.sx-lock { display: grid; gap: 8px; justify-items: start; padding: 18px 20px; border: 1px dashed var(--border-strong); border-radius: 12px; background: var(--s2); }
+.sx-lock { display: grid; gap: 8px; justify-items: start; padding: 18px 20px; border: 1px dashed var(--border-strong); border-radius: var(--r-ctl); background: var(--s2); }
 .sx-lock b { font-size: var(--fs-16); } .sx-lock p { margin: 0; color: var(--muted); font-size: var(--fs-14); line-height: 1.55; max-width: 70ch; }
 .sx-lock .btn { height: 38px; }
-.sx-blank { padding: 22px; border: 1px solid var(--border-strong); border-radius: 14px; background: var(--s1); }
+.sx-blank { padding: 22px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); }
 .sx-blank h2 { margin: 0 0 8px; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); } .sx-blank p { margin: 0 0 12px; color: var(--muted); line-height: 1.6; max-width: 70ch; }
-.sx-skel { height: 220px; border-radius: 14px; background: var(--s2); border: 1px solid var(--border); }
+.sx-skel { height: 220px; border-radius: var(--r-ctl); background: var(--s2); border: 1px solid var(--border); }
 
 /* industry page */
 .sx-title { display: flex; align-items: center; gap: 12px 14px; flex-wrap: wrap; margin: 4px 0 4px; }
@@ -355,7 +355,7 @@
 .sx-studybox {
   background: var(--s1);
   border: 1px solid var(--border-strong);
-  border-radius: 14px;
+  border-radius: var(--r-ctl);
   padding: 20px 22px;
   min-width: 0;
 }
@@ -494,7 +494,7 @@
 
 /* ---------- 7. Learn pages and the stock-count line ---------- */
 .sx-learn { display: grid; gap: 16px; margin-top: 16px; max-width: 880px; }
-.sx-learn h3 { margin: 16px 0 4px; } .sx-learn p, .sx-learn li { font-size: 16px; line-height: 1.6; } .sx-learn ul { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 6px; }
+.sx-learn h3 { margin: 16px 0 4px; } .sx-learn p, .sx-learn li { font-size: var(--fs-16); line-height: 1.6; } .sx-learn ul { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 6px; }
 .sx-states { display: grid; gap: 10px; margin: 10px 0 14px; } .sx-states > div { display: grid; grid-template-columns: minmax(130px, 170px) minmax(0, 1fr); gap: 12px; align-items: start; } .sx-states dt, .sx-states dd { margin: 0; }
 @media (max-width: 600px) { .sx-states > div { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
 .sx-notcounted li { display: flex; gap: 8px; break-inside: avoid; padding: 2px 0; } .sx-notcounted li a { font-weight: 600; } .sx-notcounted .sx-note { margin-top: 12px; }
@@ -565,7 +565,7 @@
 .sx-lockpill { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; font: 600 var(--fs-12) var(--sans); color: var(--muted); }
 .sx-lockpill svg { width: 12px; height: 12px; flex: none; }
 /* corner: a tinted badge whose square is big enough to read; the words wrap inside it in two short lines */
-.sx-pulse .rt-corner.pill { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 6px 10px; border-radius: 12px; font: 600 var(--fs-12)/1.25 var(--sans); text-align: left; white-space: normal; border-color: color-mix(in srgb, currentColor 38%, transparent); }
+.sx-pulse .rt-corner.pill { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 6px 10px; border-radius: var(--r-ctl); font: 600 var(--fs-12)/1.25 var(--sans); text-align: left; white-space: normal; border-color: color-mix(in srgb, currentColor 38%, transparent); }
 .sx-pulse .rt-corner.pill .rt-glyph { flex: none; }
 .sx-pulse .rt-glyph .off { fill: currentColor; fill-opacity: .32; } .sx-pulse .rt-glyph .on { fill: currentColor; fill-opacity: 1; }   /* the corner's own square at full strength, the other three clearly there but quiet */
 .sx-pulse .rt-clink { display: inline-flex; max-width: 100%; text-decoration: none; border-radius: var(--r-ctl); }
@@ -573,7 +573,7 @@
 /* rotation rank: the same slot every time, a box for the rank and a pill of one width for the move */
 .sx-rk { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; }
 .sx-rk b { white-space: nowrap; display: inline-grid; place-items: center; min-width: 30px; height: 28px; padding: 0 6px; border-radius: var(--r-ctl); background: var(--s2); border: 1px solid var(--border-strong); font: 700 var(--fs-14) var(--sans); font-variant-numeric: tabular-nums; }
-.sx-pulse .rt-move { display: inline-grid; place-items: center; min-width: 42px; height: 24px; padding: 0 6px; border-radius: 999px; border: 1px solid transparent; font: 700 var(--fs-12) var(--sans); text-decoration: none; }
+.sx-pulse .rt-move { display: inline-grid; place-items: center; min-width: 42px; height: 24px; padding: 0 6px; border-radius: var(--ui-r-pill); border: 1px solid transparent; font: 700 var(--fs-12) var(--sans); text-decoration: none; }
 .sx-pulse .rt-move.big { text-decoration: none; }
 .sx-pulse .rt-move.up { color: var(--rt-up); background: color-mix(in srgb, var(--rt-up) 14%, transparent); border-color: color-mix(in srgb, var(--rt-up) 32%, transparent); }
 .sx-pulse .rt-move.down { color: var(--rt-down); background: color-mix(in srgb, var(--rt-down) 14%, transparent); border-color: color-mix(in srgb, var(--rt-down) 32%, transparent); }

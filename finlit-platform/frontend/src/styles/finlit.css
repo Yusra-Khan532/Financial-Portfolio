@@ -452,7 +452,7 @@ tbody tr:hover td { background: var(--s2); }
 .bucket .v { font-weight: 600; font-size: var(--fs-14); }
 .trig { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
 .trig li { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 12px; align-items: start; font-size: var(--fs-14); }
-.trig .ti { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; color: var(--tc); background: color-mix(in srgb, var(--tc) 14%, transparent); }
+.trig .ti { width: 36px; height: 36px; border-radius: var(--r-ctl); display: grid; place-items: center; color: var(--tc); background: color-mix(in srgb, var(--tc) 14%, transparent); }
 .trig .ti svg { width: 17px; height: 17px; }
 .trig b { display: block; }
 .trig span.d { color: var(--muted); font-size: var(--fs-13); }
