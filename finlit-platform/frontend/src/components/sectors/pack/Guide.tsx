@@ -12,6 +12,7 @@ import { BOX, BOX_ORDER } from "../../../lib/pulsePack";
 import { BOX_MEANING } from "../../../lib/rotationPack";
 import { BOX_COLOUR } from "../../rotation/pack/RotationSimple";
 import { tw } from "../../../lib/groupWords";
+import { SECTION_BAR_MIN } from "../../../lib/nav";
 
 // ------------------------------------------------------------------------------------------------ the sections bar
 export type BarItem = { id: string; label: string };
@@ -38,6 +39,7 @@ export function SectionsBar({ items }: { items: BarItem[] }) {
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
     if (id) setOn(id);
   };
+  if (items.length < SECTION_BAR_MIN) return null;   // task #310 part D: a section bar only on a page with four or more sections
   return (
     <nav className="sp-secbar" aria-label="Sections on this page">
       <button type="button" className={"sp-secbar-all" + (on == null ? " on" : "")} onClick={() => go(null)}>

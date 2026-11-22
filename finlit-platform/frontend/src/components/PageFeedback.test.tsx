@@ -15,7 +15,7 @@ vi.mock("../lib/api", async (orig) => {
     return { status: "received", id: 1 };
   }) };
 });
-import { PageFeedbackDock } from "./PageFeedback";
+import { HelpActions, PageFeedbackHost } from "./PageFeedback";
 import { PageHeader } from "./PageHeader";
 import { panel } from "../lib/pageFeedback";
 
@@ -23,7 +23,7 @@ const member = { id: "u1", email: "m@example.com", name: "M", role: "investor", 
 const open = (path = "/score-screener", withBanner = true) => render(
   <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
     <MemoryRouter initialEntries={[path]}>
-      <Routes><Route path="*" element={<>{withBanner && <PageHeader title="Basic stock screener" description="Score every company" />}<PageFeedbackDock /></>} /></Routes>
+      <Routes><Route path="*" element={<>{withBanner && <PageHeader title="Basic stock screener" description="Score every company" />}<HelpActions /><PageFeedbackHost /></>} /></Routes>
     </MemoryRouter>
   </QueryClientProvider>);
 
@@ -31,15 +31,14 @@ beforeEach(() => { st.user = member; st.sent = []; st.fail = null; panel.set(nul
 afterEach(cleanup);
 
 describe("Raise a Query and Share feedback", () => {
-  it("task #214: Raise a Query sits beside Share feedback at the bottom right of every page, once, in the same place with or without a banner", () => {
+  it("task #310 part D: Raise a Query and Share feedback are two plain actions, once each, with or without a banner; nothing floats over the page", () => {
     for (const banner of [true, false]) {
       open("/score-screener", banner);
-      const dock = document.querySelector(".pf-dock") as HTMLElement;
-      const btns = within(dock).getAllByRole("button");
-      expect(btns.map((b) => b.getAttribute("aria-label"))).toEqual(["Raise a Query", "Share feedback"]);
-      expect(btns[0].classList.contains("pf-fab-q")).toBe(true);           // told apart from feedback
-      expect(screen.getAllByRole("button", { name: "Raise a Query" }).length).toBe(1);   // the banner no longer repeats it
+      expect(document.querySelector(".pf-dock, .pf-fab")).toBeNull();     // the floating dock is gone
+      expect(screen.getAllByRole("button", { name: "Raise a Query" }).length).toBe(1);   // the banner does not repeat it
+      expect(screen.getAllByRole("button", { name: "Share feedback" }).length).toBe(1);
       expect(document.querySelector(".ph-qbtn")).toBeNull();
+      expect(screen.queryByRole("dialog")).toBeNull();                    // the host draws nothing until one is chosen
       cleanup();
     }
   });
@@ -121,6 +120,7 @@ describe("Raise a Query and Share feedback", () => {
   });
   it("is not drawn on the admin pages", () => {
     open("/admin/feedback", false);
-    expect(screen.queryByRole("button", { name: "Share feedback" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Share feedback" }));      // task #310 part D: the host draws no dialog on the admin pages
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

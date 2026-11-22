@@ -16,6 +16,7 @@ import { MINUS, nf } from "../../lib/format";
 import { dayMonth } from "../../lib/dashboard";
 import { Tip } from "../sectors/pack/Common";
 import { Card, Rows } from "./parts";
+import { usePane } from "./dx";
 import { DashCards } from "./DashCards";
 import { ScoreRing } from "../ScoreRing";
 
@@ -103,8 +104,13 @@ export function EtfsGlance({ pf = "all" }: { pf?: string }) {
   const rk = useEtfRisk(silver && n > 0, String(n), pf);
   const rkWhy = rk.isError ? "The risk figures could not be worked out just now" : null;
   const g = useMemo(() => (q.data && n ? etfGlance(q.data, rk.data, rkWhy) : null), [q.data, n, rk.data, rkWhy]);
+  const pane = usePane();   // task #316: a pane of "Your portfolios at a glance"
   // no ETFs (or no ETF portfolio on this plan): the short strip
-  if (!silver || (!q.isLoading && !q.isError && !n)) return (
+  if (!silver || (!q.isLoading && !q.isError && !n)) return pane ? (
+    <Card id="etfglance" title="Your ETFs at a glance">
+      <p className="dsh-note">{silver ? "No ETFs added yet. Add them to see what they track, their yearly cost and their price against NAV." : "The ETF portfolio is part of Silver: add your ETFs to see what they track, their yearly cost and their price against NAV."}</p>
+      <Link className="dsh-link foot" to={silver ? "/etf-portfolio" : "/etfs"}>{silver ? "Add your ETFs on the ETF portfolio page →" : "See ETFs →"}</Link>
+    </Card>) : (
     <section className="dsh-card dsh-strip dsh-strip1" aria-labelledby="dsh-etfglance">
       <h2 id="dsh-etfglance" className="t">Your ETFs at a glance</h2>
       <p className="m">{silver ? "No ETFs added yet. Add them to see what they track, their yearly cost and their price against NAV." : "The ETF portfolio is part of Silver: add your ETFs to see what they track, their yearly cost and their price against NAV."}</p>

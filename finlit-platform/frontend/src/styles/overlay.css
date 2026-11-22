@@ -64,7 +64,7 @@
 :root:root :is(.etf-tray, .mf-tray, .wp-dock, .planseg, .ai-fab, .shell-fab, .mtabs) { z-index: var(--z-tray); }
 :root:root .gs { z-index: calc(var(--z-backdrop) + 40); }
 @media (max-width: 1000px) { :root:root .sx.sx-open .sx-side { z-index: var(--z-drawer); background: var(--ov-surface); } }
-@media (max-width: 960px) { :root:root .side { z-index: var(--z-drawer); background: var(--ov-surface); } }
+@media (max-width: 860px) { :root:root .side { z-index: var(--z-drawer); background: var(--ov-surface); } }
 
 /* phones: the Download menu is a bottom sheet inside the viewport (it used to run off the left edge), and the bottom tab bar steps aside while a menu is open */
 @media (max-width: 700px) {

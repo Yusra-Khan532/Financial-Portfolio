@@ -297,6 +297,17 @@ class DashPortfolios(BaseModel):
     etf: PfChoice = "all"
 
 
+# task #316: the dashboard's own choices, saved like the Showing bar: the section shown, the portfolio of "Your portfolios at a glance", the Global
+# markets region, how "Your investments today" is sorted, whose results and filings, and the cards hidden from the ⋯ menu
+class DashUi(BaseModel):
+    sec: Literal["all", "money", "watch", "market", "news", "tools"] = "all"
+    glance: Literal["eq", "mf", "etf"] = "eq"
+    region: Literal["us", "europe", "asia", "commod", "fx"] = "us"
+    invSort: Literal["move", "gain", "fall", "reading", "az"] = "move"
+    who: Literal["market", "mine"] = "market"
+    hidden: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9_]{1,24}$")]] = Field(default_factory=list, max_length=30)
+
+
 class PrefsIn(BaseModel):
     theme: Optional[Literal["light", "dark"]] = None
     palette: Literal["gold", "champagne", "bronze", "graphite", "midnight", "emerald"] = "gold"
@@ -316,6 +327,7 @@ class PrefsIn(BaseModel):
     followThemes: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,79}$")]] = Field(default_factory=list, max_length=40)
     # task #277: the views of a page the member has opened once ("mi:equity"), so a view not yet opened carries "Not opened yet" on every device
     viewsSeen: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9]{1,12}:[a-z0-9-]{1,24}$")]] = Field(default_factory=list, max_length=60)
+    dashUi: Optional[DashUi] = None   # task #316: the dashboard's section, portfolio, region, sort, results-and-filings scope and hidden cards
 
 
 # ------------------------------------------------------------------ helpers

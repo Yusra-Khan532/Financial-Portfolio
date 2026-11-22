@@ -110,7 +110,8 @@ Written 17 Nov 2026 from a full read of the repository, the team workspace and t
 
 - **Routes:**
   - All are in `src/App.tsx`, loaded lazily through `lazyPage` (`src/lib/resilience.ts`).
-  - The app pages sit inside `AppShell` (side rail). The stock page `/stocks/:symbol` and the public pages sit inside `Layout`.
+  - The app pages, the company report `/stocks/:symbol` included, sit inside `AppShell` (the left menu); the public pages sit inside `Layout` only.
+  - **Navigation (task #310 part D, `src/styles/nav310.test.tsx`):** one layer per job. Signed in on an `AppShell` page the top bar has no menus (logo, search, Ask FinLit AI, theme, notifications, account; `lib/shellPresence.ts` tells the header); marketing pages and visitors keep the menus. The left menu has one remembered setting (`side-collapsed`), starts as the rail under 1100px and is a sheet under 860px. Sibling pages use `components/PageTabs.tsx` (sets in `lib/nav.ts` `SIBLINGS`); section bars show only with `SECTION_BAR_MIN` (4) sections and mark the one in view with `--ui-on-bg`. The ticker strip is on the dashboard and the Markets pages only (`showsTape`). Raise a Query and Share feedback are `HelpActions` (account menu, foot of the left menu, phone Menu sheet, footer); there is no floating dock.
 - **API:**
   - Use `src/lib/api.ts` (`apiGet`, `apiSend`, which add CSRF, the admin "view as" header and `ApiError`). `src/lib/siteApi.ts` covers the site backend.
   - About 54 raw `fetch(` calls still bypass it; do not add more.

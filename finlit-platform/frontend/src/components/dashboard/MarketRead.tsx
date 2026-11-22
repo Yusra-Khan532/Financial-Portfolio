@@ -12,6 +12,7 @@ import { useSectorBoard } from "../../lib/sectors";
 import type { Row } from "../../lib/screener";
 import { MINUS, nf } from "../../lib/format";
 import { Card, Rows, tone } from "./parts";
+import { useExpanded } from "./dx";
 import { coTitle, shortLabel } from "../../lib/companyLabel";
 
 const median = (xs: number[]) => { if (!xs.length) return null; const s = [...xs].sort((a, b) => a - b), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
@@ -41,6 +42,7 @@ export function MarketRead({ rows, loading }: { rows: Row[]; loading: boolean })
   // task #195: retitled "What the market adds up to", with the date in the sub-line ("Friday, 13 Nov · each reading says which stocks it is based on.")
   const asOf = idx.data?.asOf?.slice(0, 10) ?? null, title = "What the market adds up to";
   const sub = `${asOf ? `${weekdayOf(asOf)}, ${dayMonth(asOf)} · each` : "Each"} reading says which stocks it is based on.`;
+  const xp = useExpanded(), [fold, setFold] = useState(false);
   const tabs: [Tab, string, string][] = [["read", "The market read", "Six readings: good signs, mixed and warnings"], ["breadth", "Breadth, sizes and movers", "How many stocks rose, and which sizes led"]];
   const tops = useMemo(() => { const m = data.moves.filter((r) => (r.market_cap ?? 0) >= 1000); return { up: [...m].sort((a, b) => (b.change_pct as number) - (a.change_pct as number)).slice(0, 5), down: [...m].sort((a, b) => (a.change_pct as number) - (b.change_pct as number)).slice(0, 5) }; }, [data.moves]);
   return (
@@ -48,11 +50,14 @@ export function MarketRead({ rows, loading }: { rows: Row[]; loading: boolean })
       {loading || !data.total ? <Rows n={4} h={60} /> : <>
         <p className="dsh-mr-lead"><b>{read.lead}</b>{read.rest}</p>
         {read.tail && <p className="dsh-note">{read.tail}</p>}
+        {/* task #316: the verdict comes first; the six readings (and the breadth tab) fold under "Show the six readings", open in the expanded view */}
+        <div className="dsh-mr-sum"><b>What it adds up to</b><span className="good">{read.sum.good} good {read.sum.good === 1 ? "sign" : "signs"}</span><span className="mixed">{read.sum.mixed} mixed</span><span className="warning">{read.sum.warning} {read.sum.warning === 1 ? "warning" : "warnings"}</span><p>{read.sum.text}</p></div>
+        <details className="dx-fold" open={xp || fold} onToggle={(e) => { if (!xp) setFold((e.currentTarget as HTMLDetailsElement).open); }}>
+        <summary>{fold ? "Hide the six readings" : "Show the six readings"}<svg className="dx-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M6 9l6 6 6-6" /></svg></summary>
         <div className="dsh-mr-tabs" role="tablist" aria-label="Ways to read the market">{tabs.map(([k, t, s]) => <button key={k} type="button" role="tab" id={`dsh-mr-${k}`} aria-selected={tab === k} aria-controls="dsh-mr-panel" onClick={() => setTab(k)}><b>{t}</b><small>{s}</small></button>)}</div>
         <div id="dsh-mr-panel" role="tabpanel" aria-labelledby={`dsh-mr-${tab}`}>
           {tab === "read" ? <>
             <div className="dsh-mr-grid">{read.readings.map((r) => <ReadingCard key={r.k} r={r} />)}</div>
-            <div className="dsh-mr-sum"><b>What it adds up to</b><span className="good">{read.sum.good} good {read.sum.good === 1 ? "sign" : "signs"}</span><span className="mixed">{read.sum.mixed} mixed</span><span className="warning">{read.sum.warning} {read.sum.warning === 1 ? "warning" : "warnings"}</span><p>{read.sum.text}</p></div>
           </> : <>
             <div className="dsh-breadth" role="img" aria-label={`${data.adv} rising, ${data.dec} falling, ${data.total - data.adv - data.dec} unchanged`}><i className="up" style={{ flex: data.adv || 0.01 }} /><i style={{ flex: Math.max(data.total - data.adv - data.dec, 0.01) }} /><i className="down" style={{ flex: data.dec || 0.01 }} /></div>
             <div className="dsh-bk"><span className="up">▲ {data.adv.toLocaleString("en-IN")} rising</span><span>{(data.total - data.adv - data.dec).toLocaleString("en-IN")} unchanged</span><span className="down">▼ {data.dec.toLocaleString("en-IN")} falling</span></div>
@@ -65,6 +70,7 @@ export function MarketRead({ rows, loading }: { rows: Row[]; loading: boolean })
             <p className="dsh-foot">The biggest moves among companies above ₹1,000 Cr.</p>
           </>}
         </div>
+        </details>
       </>}
     </Card>
   );

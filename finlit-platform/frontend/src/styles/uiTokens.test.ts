@@ -93,6 +93,7 @@ describe("first fixes, in the source (task #310)", () => {
     expect(read("scoremoves.css")).toContain('.scm216-card .scm-rng button[aria-pressed="true"] { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); }');
     // on the company report the "1 week" score-history pill is drawn by MacroOutlook (.mo-rng): the same rule under another name
     expect(read("macro-outlook.css")).toContain('.mo-rng button[aria-pressed="true"] { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); }');
-    expect(read("sectors-pack.css")).toContain(".sp-tab[aria-current=\"page\"] { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); }");
+    // task #310 part D: the Sector Pulse / Sector Rotation switch is now the shared page tabs (ui-tab, components/PageTabs.tsx); no teal and no own pill is left
+    expect(read("sectors-pack.css")).not.toMatch(/\.sp-tab[\s{[:]/);
   });
 });

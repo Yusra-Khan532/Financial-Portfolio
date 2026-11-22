@@ -8,7 +8,8 @@ import { gainers, losers, sectorBoard, useMembers, weightedMove, MAX_MOVE } from
 import { scopeStocks, type Scope } from "../../lib/dashboard";
 import type { Row } from "../../lib/screener";
 import { useSectorBoard, type Board } from "../../lib/sectors";
-import { Card, Rows, Seg, tone, useIsPhone } from "./parts";
+import { Card, Rows, tone, useIsPhone } from "./parts";
+import { Dd } from "./dx";
 import { CoLogo } from "../CoLogo";
 import { useIndices } from "../../lib/indices";
 import { snapshotCard } from "../../lib/dashPack";
@@ -40,12 +41,11 @@ export function Snapshot({ rows, loading }: { rows: Row[]; loading: boolean }) {
       {list.length ? list.map((r) => <Link key={r.symbol} to={`/stocks/${r.symbol}`} className="dsh-mv"><b><CoLogo symbol={r.symbol} name={r.name} size={20} inline />{titleOf(r)}</b><span className={cls}>{sgn(r.change_pct)}</span></Link>) : <p className="dsh-note">{pick.note ?? `No ${title} in this group today.`}</p>}</div>
   );
   return (
-    <Card id="snapshot" title={<>Market snapshot<Tip text="Market snapshot. How many listed companies rose, fell or did not move on the latest trading day, the move of all of them weighted by company size, and the biggest movers in the Nifty 50, the Nifty 500 or all stocks." label="About “Market snapshot”" /></>} sub={m.n ? <>{m.n.toLocaleString("en-IN")} companies{m.all != null ? <> · cap-weighted move <b className={tone(m.all)}>{sgn(m.all)}</b></> : null}</> : undefined}>
+    <Card id="snapshot" title={<>Market snapshot<Tip text="Market snapshot. How many listed companies rose, fell or did not move on the latest trading day, the move of all of them weighted by company size, and the biggest movers in the Nifty 50, the Nifty 500 or all stocks." label="About “Market snapshot”" /></>} right={<Dd k="Movers in" value={scope} onChange={setScope} options={SCOPES.map(([v, label]) => ({ v, label }))} />} sub={m.n ? <>{m.n.toLocaleString("en-IN")} companies{m.all != null ? <> · cap-weighted move <b className={tone(m.all)}>{sgn(m.all)}</b></> : null}</> : undefined}>
       {loading || !m.n ? <Rows n={4} h={34} /> : <>
         <div className="dsh-lh first">Breadth</div>
         <div className="dsh-breadth" role="img" aria-label={`${m.adv} rising, ${m.dec} falling, ${m.flat} unchanged`}><i className="up" style={{ flex: m.adv || 0.01 }} /><i style={{ flex: Math.max(m.flat, 0.01) }} /><i className="down" style={{ flex: m.dec || 0.01 }} /></div>
         <div className="dsh-bk"><span className="up">▲ {m.adv.toLocaleString("en-IN")} rising</span><span>{m.flat.toLocaleString("en-IN")} <span className="long">unchanged</span><span className="short">flat</span></span><span className="down">▼ {m.dec.toLocaleString("en-IN")} <span className="long">falling</span></span></div>
-        <div className="dsh-scope"><Seg label="Stocks to rank" value={scope} options={SCOPES} onChange={setScope} /></div>
         <div className="dsh-two">{col("gainers", up, "up")}{col("decliners", down, "down")}</div>
         {pick.note && (up.length || down.length) ? <p className="dsh-foot">{pick.note}</p> : null}
         {card && <div className="sp dsh-cards dsh-cards-after"><DashCards items={[card]} scope="snapshot" /></div>}

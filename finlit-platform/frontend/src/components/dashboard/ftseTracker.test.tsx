@@ -14,13 +14,14 @@ const DATA = {
     tracker: { name: "iShares Core FTSE 100 UCITS ETF (ISF)", code: "ISF", unit: "GBX", note: NOTE } }],
 };
 vi.mock("../../lib/api", async (orig) => ({ ...(await orig<typeof import("../../lib/api")>()), apiGet: async () => DATA }));
+import { XCtx } from "./dx";   // task #316: the live card in full is its expanded view
 import { GlobalMarkets } from "./GlobalMarkets";
 
 afterEach(cleanup);
 
 describe("FTSE 100 through a labelled tracker fund", () => {
   it("labels the row, prices the fund in pence and says what it is under the Europe rows", async () => {
-    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><GlobalMarkets /></QueryClientProvider>);
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><XCtx.Provider value={true}><GlobalMarkets /></XCtx.Provider></QueryClientProvider>);
     const name = await screen.findByText("FTSE 100", { selector: "th" });
     const tr = name.closest("tr")!;
     const tag = within(tr).getByText("via ISF fund");

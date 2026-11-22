@@ -19,10 +19,11 @@ import { EnquiryProvider, useEnquiry } from "./Enquiry";
 import { InfoProvider } from "./Info";
 import { DEMO } from "../lib/demo";
 import { useAuth } from "../lib/auth";
-import { MORE, PRICING, SECTIONS, isHere, isNew, offeredTo, sectionHere, type NavSection } from "../lib/nav";
+import { MORE, PRICING, SECTIONS, isHere, isNew, offeredTo, sectionHere, showsTape, type NavSection } from "../lib/nav";
+import { useInShell } from "../lib/shellPresence";
 import { useIsGold } from "../lib/planGate";
 import { versionLine } from "../lib/version";
-import { PageFeedbackDock } from "./PageFeedback";
+import { HelpActions, PageFeedbackHost } from "./PageFeedback";
 import "../styles/ai-top.css";
 import { buttonClass } from "./ui";
 
@@ -68,20 +69,24 @@ function Header({ onSearch }: { onSearch: () => void }) {
   const onAuth = /^\/(login|forgot-password|reset-password|verify-email)(\/|$)/.test(loc.pathname);   // the sign-in pages carry no assistant
   useEffect(() => { setMenu(false); setOpen(null); setAcct(false); }, [loc.pathname]);
   useEffect(() => { const o = () => setMenu((m) => !m); addEventListener(OPEN_MENU, o); return () => removeEventListener(OPEN_MENU, o); }, []);
+  // Task #310 part D (04-navigation.md, one layer per job): signed in on a page with the left menu, the left menu moves between pages, so the top bar drops
+  // its seven menus and keeps the logo, a wider centred search, Ask FinLit AI, theme, notifications and account. Marketing pages and visitors keep the menus.
+  const inShell = useInShell(), tool = !!user && inShell;
+  const ai = !onAuth && <button type="button" className={buttonClass("secondary", "md", "ai-top")} onClick={() => dispatchEvent(new Event(OPEN_AI))} aria-label="Ask FinLit AI" aria-haspopup="dialog"><Icon name="spark" /><span>Ask FinLit AI</span></button>;
+  const find = <button className="search" onClick={onSearch} aria-label="Search stocks" aria-haspopup="dialog"><Icon name="search" /><span className="t">Search for a company</span></button>;
   return (
-    <header className="top">
+    <header className={"top" + (tool ? " top--tool" : "")}>
       <div className="wrap">
         <Link className="logo" to="/" aria-label="FinLit home"><span className="lg-mark" role="img" aria-label="FinLit" /></Link>
+        {tool ? <><div className="grow" />{find}<div className="grow" />{ai}</> : <>
         <nav className="topnav" aria-label="Site">
           {sections.map((m) => <Menu key={m.id} m={m} open={open === m.id} setOpen={setOpen} path={loc.pathname} />)}
           <NavLink to={PRICING.to} className={({ isActive }) => (isActive ? "hl" : "")}>{PRICING.label}</NavLink>
           <Menu m={MORE} open={open === MORE.id} setOpen={setOpen} path={loc.pathname} />
         </nav>
         <div className="grow" />
-        {!onAuth && <button type="button" className={buttonClass("secondary", "md", "ai-top")} onClick={() => dispatchEvent(new Event(OPEN_AI))} aria-label="Ask FinLit AI" aria-haspopup="dialog"><Icon name="spark" /><span>Ask FinLit AI</span></button>}
-        <button className="search" onClick={onSearch} aria-label="Search stocks" aria-haspopup="dialog">
-          <Icon name="search" /><span className="t">Search for a company</span>
-        </button>
+        {ai}
+        {find}</>}
         {DEMO && onStock && (
           <div className="seg planseg" role="group" aria-label="Preview plan">
             <span className="lbl">Preview</span>
@@ -104,11 +109,15 @@ function Header({ onSearch }: { onSearch: () => void }) {
             </button>
             <div className={"ddm right" + (acct ? " open" : "")} role="menu">
               <div className="acct-who"><b>{user.name || "Signed in"}</b><small>{user.email}</small></div>
+              {/* task #310 part D: on a page with the left menu these pages are in the left menu, so the top bar does not list them a second time */}
+              {!inShell && <>
               <Link to="/dashboard" role="menuitem"><span className="ddi"><Icon name="table" /></span><span><b>Dashboard</b></span></Link>
               <Link to="/watchlist" role="menuitem"><span className="ddi"><Icon name="wallet" /></span><span><b>Watchlist</b></span></Link>
               <Link to="/account" role="menuitem"><span className="ddi"><Icon name="users" /></span><span><b>Account</b></span></Link>
               <Link to="/account/appearance" role="menuitem"><span className="ddi"><Icon name="spark" /></span><span><b>Appearance</b></span></Link>
-              {isAdmin && <Link to="/console" role="menuitem"><span className="ddi"><Icon name="lock" /></span><span><b>Admin console</b></span></Link>}
+              {isAdmin && <Link to="/console" role="menuitem"><span className="ddi"><Icon name="lock" /></span><span><b>Admin console</b></span></Link>}</>}
+              <span className="ddt acct-help">Help and feedback</span>
+              <HelpActions asMenu onPick={() => setAcct(false)} />
               {!DEMO && <button role="menuitem" onClick={async () => { setAcct(false); await signOut(); nav("/"); }}><span className="ddi"><Icon name="arrow" /></span><span><b>Sign out</b></span></button>}
             </div>
           </div>
@@ -124,6 +133,7 @@ function Header({ onSearch }: { onSearch: () => void }) {
           {[...sections, MORE].map((m) => <div key={m.id} className="mg"><span className="mt">{m.label}</span>
             {m.groups.map((g, gi) => <Fragment key={gi}>{g.title && m.id !== "more" && <span className="mt2">{g.title}</span>}{g.title && m.id === "more" && <span className="mt2">{g.title}</span>}
               {g.items.map((it) => <NavLink key={it.to} to={it.to} end={it.end}>{it.label}{it.gold && <em className="gtag">Gold</em>}{isNew(it) && <em className="nav-new">New</em>}</NavLink>)}</Fragment>)}</div>)}
+          <div className="mg mg-help"><span className="mt">Help and feedback</span><HelpActions onPick={() => setMenu(false)} /></div>
           <div className="mg"><NavLink to={PRICING.to}>{PRICING.label}</NavLink>{user ? <><NavLink to="/dashboard">Dashboard</NavLink><NavLink to="/account">Account</NavLink></> : <><Link to="/login">Sign in</Link><Link to="/login?mode=signup" className="gold">Create free account</Link></>}</div>
         </nav>
       )}
@@ -167,7 +177,7 @@ function Footer() {
       <div className="wrap">
         <div className="fcta">
           <div><span className="lg-mark" role="img" aria-label="FinLit" style={{ marginBottom: 18 }} /><h2>Follow the numbers, not the noise.</h2>{!user && <p>Open a free account to follow stocks, set alerts and read the research reports we have built so far.</p>}</div>
-          <div className="cta-row">{!user && <Link className="btn primary" to="/login?mode=signup">Create free account</Link>}<button className="btn" onClick={() => enquire()}>Talk to the team</button></div>
+          <div className="cta-row">{!user && <Link className="btn primary" to="/login?mode=signup">Create free account</Link>}<button className="btn" onClick={() => enquire()}>Talk to the team</button><HelpActions className="btn foot-help" /></div>
         </div>
         <div className="fcols fcols5">
           <div className="fbrand"><b>{COMPANY.name}</b><p>Research and tools for Indian stocks and funds.</p>
@@ -237,7 +247,7 @@ export function Layout() {
       <EnquiryProvider>
         <a className="skip" href="#main">Skip to content</a>
         {DEMO && <div className="demo-bar" role="note"><b>Demo preview</b> · saved sample data, no servers. Forms are not sent. The live site loads every stock.</div>}
-        <Tape />
+        {showsTape(loc.pathname) && <Tape />}
         <Header onSearch={() => setSearch(true)} />
         {!bare && <ExtensionBanner />}
         <AdminViewStrip />
@@ -246,7 +256,7 @@ export function Layout() {
         <SearchPalette open={search} onClose={() => setSearch(false)} />
         <AlertToasts />
         {!onAuth && <AssistantLauncher />}
-        {!bare && <PageFeedbackDock />}
+        {!bare && <PageFeedbackHost />}
         {!bare && <MobileTabs onSearch={() => setSearch(true)} />}
       </EnquiryProvider>
     </InfoProvider>

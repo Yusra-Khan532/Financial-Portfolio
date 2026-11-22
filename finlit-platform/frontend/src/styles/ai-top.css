@@ -8,6 +8,16 @@
 .top .ai-top { background: var(--gold-soft); border-color: color-mix(in srgb, var(--gold) 60%, transparent); color: var(--text); }
 .top .ai-top svg { color: var(--gold); }
 .top .ai-top:hover { background: color-mix(in srgb, var(--gold) 22%, transparent); border-color: var(--gold); }
+/* Task #310 part D (04-navigation.md): signed in on a tool page the seven menus are gone (the left menu moves between pages), so the search is wider and
+   centred, with its words shown; a phone keeps its own header (05-phone.md). */
+:root .top.top--tool .search { flex: 0 1 520px; max-width: 520px; justify-content: flex-start; padding: 0 14px; }
+:root .top.top--tool .search .t { display: inline; }
+/* Raise a Query and Share feedback where the floating dock used to be: the phone Menu sheet and the footer (the account menu uses its own rows). */
+.mnav .mg-help button { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 4px; color: var(--text); font-weight: 500; }
+.mnav .mg-help button svg, .btn.foot-help svg { width: 16px; height: 16px; flex: none; }
+.mnav .mg-help button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.btn.foot-help { gap: 8px; }
+
 @media (max-width: 759px) { .top .ai-top { width: 44px; height: 44px; padding: 0; justify-content: center; } .top .ai-top span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; } }
 
 /* The dashboard's questions, folded to one line (summary 16px, count 13px). */

@@ -5,6 +5,9 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { NavLink, useLocation } from "react-router";
 import { Icon } from "../lib/icons";
+import { HelpActions } from "./PageFeedback";
+
+const HELP = "Help and feedback";
 
 export type RailItem = { to: string; label: string; icon: string; end?: boolean; gold?: boolean; badge?: string; desc?: string };
 export type RailGroup = { id: string; title: string; line: string; short: string; icon: string; items: RailItem[] };
@@ -39,7 +42,7 @@ export function SideRail({ groups, dash, here, onExpand }: { groups: RailGroup[]
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") { const t = fly.title; setFly(null); btns.current[t]?.focus(); } };
     const away = (e: MouseEvent) => { const t = e.target as Node; if (!box.current?.contains(t) && !nav.current?.contains(t)) setFly(null); };
     addEventListener("keydown", key); addEventListener("mousedown", away);
-    requestAnimationFrame(() => box.current?.querySelector<HTMLElement>("a")?.focus());
+    requestAnimationFrame(() => box.current?.querySelector<HTMLElement>("a, button")?.focus());
     return () => { removeEventListener("keydown", key); removeEventListener("mousedown", away); };
   }, [fly]);
   const open = groups.find((g) => g.title === fly?.title);
@@ -59,7 +62,17 @@ export function SideRail({ groups, dash, here, onExpand }: { groups: RailGroup[]
               {RAIL_ICON[g.id] ? svg(RAIL_ICON[g.id]) : <Icon name={g.icon} />}<span>{g.short}</span>
             </button>);
         })}
+        {/* task #310 part D: Help and feedback at the foot of the menu, in the rail too (the floating dock is gone) */}
+        <button type="button" className="side-rail-g side-rail-help" ref={(el) => { btns.current[HELP] = el; }} aria-label="Help and feedback" title="Help and feedback" aria-haspopup="true" aria-expanded={fly?.title === HELP}
+          onClick={(e) => { const r0 = e.currentTarget.getBoundingClientRect(), rail = nav.current?.getBoundingClientRect(); setFly((f) => (f?.title === HELP ? null : { title: HELP, top: r0.top - 60, left: (rail?.right ?? r0.right) + 12 })); }}>
+          <Icon name="info" /><span>Help</span>
+        </button>
       </nav>
+      {fly?.title === HELP && createPortal(
+        <div className="side-fly" ref={box} role="dialog" aria-label={HELP} style={{ top: Math.max(84, Math.min(fly.top, innerHeight - 160)), left: fly.left }}>
+          <p className="side-fly-t">{HELP}</p>
+          <HelpActions className="side-fly-i" onPick={() => setFly(null)} />
+        </div>, document.body)}
       {open && fly && createPortal(
         <div className="side-fly" ref={box} role="dialog" aria-label={open.title} style={{ top: Math.max(84, Math.min(fly.top - 8, innerHeight - 60 - open.items.length * 44)), left: fly.left }}>
           <p className="side-fly-t">{open.title}</p>

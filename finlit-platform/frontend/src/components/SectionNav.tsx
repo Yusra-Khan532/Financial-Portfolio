@@ -7,6 +7,7 @@ import { Info } from "./Info";
 import { Icon } from "../lib/icons";
 import type { Glossary } from "../lib/api";
 import "../styles/section-nav.css";
+import { SECTION_BAR_MIN } from "../lib/nav";
 
 export type SectionItem = { id: string; label: string; /** an icon before the label (optional: the DCF bar has none so all eight fit on one row) */ icon?: string; about: string; /** null when the section is there; else why it is not */ off?: string | null };
 const HEADER = 64;   // the site header's height: the bar sticks just under it
@@ -61,6 +62,7 @@ export function SectionNav({ items, scope, label = "Sections of this page" }: { 
       const d = el.getBoundingClientRect().top - offset(); if (Math.abs(d) > 4) window.scrollTo({ top: Math.max(0, window.scrollY + d), behavior: "auto" }); };
     addEventListener("scrollend", settle, { once: true }); window.setTimeout(settle, reduced() ? 60 : 1200);
   };
+  if (items.length < SECTION_BAR_MIN) return null;   // task #310 part D: a section bar only on a page with four or more sections
   return (
     <nav ref={bar} className="jumpbar" aria-label={label}>
       <div ref={row} className={"jumpbar-row" + (edge.l ? " fl" : "") + (edge.r ? " fr" : "")} onScroll={edges}>

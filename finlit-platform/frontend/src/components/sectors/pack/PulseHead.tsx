@@ -1,7 +1,8 @@
 // The top of Sector Pulse and Sector Rotation as the "FinLit final pages" pack draws it (13 Nov 2026): the eyebrow, the title, the line under it, the date line, a right-hand card
 // (Market backdrop / The yardstick), the two page tabs, Simple / Full table, and Find (an industry or a stock). Styles: styles/sectors-pack.css.
 import { useMemo, useState, type ReactNode } from "react";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
+import { PageTabs } from "../../PageTabs";
 import { useSearchIndex } from "../../../lib/api";
 import { short } from "../../../lib/pulsePack";
 import { Tip } from "./Common";
@@ -10,7 +11,7 @@ import { gl, tw } from "../../../lib/groupWords";
 
 export type View = "simple" | "full";
 
-export function PackHead({ page, title, desc, meta, side, view, onView, industries, findHint, show, onShow }: {
+export function PackHead({ title, desc, meta, side, view, onView, industries, findHint, show, onShow }: {
   page: "pulse" | "rotation"; title: string; desc: string; meta: ReactNode; side: ReactNode; view: View; onView: (v: View) => void;
   industries: { name: string; slug: string }[]; findHint?: string; show?: Show; onShow?: (s: Show) => void;
 }) {
@@ -27,10 +28,7 @@ export function PackHead({ page, title, desc, meta, side, view, onView, industri
         {side}
       </div>
       <div className="sp-head-bar">
-        <nav className="sp-tabs" aria-label="Sector pages">
-          <Link to={"/sectors" + keep} className={"sp-tab" + (page === "pulse" ? " on" : "")} aria-current={page === "pulse" ? "page" : undefined}>Sector Pulse</Link>
-          <Link to={"/sectors/rotation" + keep} className={"sp-tab" + (page === "rotation" ? " on" : "")} aria-current={page === "rotation" ? "page" : undefined}>Sector Rotation</Link>
-        </nav>
+        <PageTabs set="sectors" keep={keep} className="sp-tabs" />{/* task #310 part D: sibling pages are the shared page tabs (ui-tabs) */}
         {show && onShow && <div className="sp-view sp-show-sw" role="group" aria-label="Show sectors or industries"><span>Show<Tip text="Sectors: NSE's 22 sectors, each read as one group. Industries: NSE's industries, with the small ones of a sector read together as one sector group. Both are measured against the same average industry." /></span>
           {(["sectors", "industries"] as const).map((v) => <button key={v} type="button" className={"sp-vbtn" + (show === v ? " on" : "")} aria-pressed={show === v} onClick={() => onShow(v)}>{v === "sectors" ? "Sectors" : "Industries"}</button>)}
         </div>}
