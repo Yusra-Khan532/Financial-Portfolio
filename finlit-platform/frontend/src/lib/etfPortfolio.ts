@@ -4,6 +4,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiSend, type ApiError } from "./api";
 import type { Grid } from "./holdingsFile";
+import { lineOf } from "./gridLines";
 import { avgOf, combine, isAvgLabel, isCostLabel, num, pickColumns, qtyRank, type Part } from "./holdingsColumns";
 
 const BASE = "/api/me/etf-portfolio";
@@ -108,7 +109,7 @@ export function etfRowsFromGrid(grid: Grid): RawRow[] {
   }
   if (at < 0) {
     const out: RawRow[] = [];
-    grid.forEach((r, i) => { const isin = r.map((c) => clean(c).toUpperCase()).find((c) => ISIN_RE.test(c)); if (isin) out.push({ row: i + 1, isin }); });
+    grid.forEach((r, i) => { const isin = r.map((c) => clean(c).toUpperCase()).find((c) => ISIN_RE.test(c)); if (isin) out.push({ row: lineOf(grid, i), isin }); });
     return out;
   }
   const head = grid[at].map(headOf);
@@ -122,7 +123,7 @@ export function etfRowsFromGrid(grid: Grid): RawRow[] {
     const isin = cell(ci).toUpperCase(), sym = cell(cs);
     if (!ISIN_RE.test(isin) && !(sym && /^[A-Za-z0-9&_.:\-]{1,30}$/.test(sym))) continue;
     const q = num(cell(cq)), a = avgOf(q, pick.avg >= 0 ? num(cell(pick.avg)) : null, pick.cost >= 0 ? num(cell(pick.cost)) : null);
-    out.push({ row: i + 1, ...(ISIN_RE.test(isin) ? { isin } : {}), ...(sym ? { symbol: sym } : {}), ...(cell(cn) ? { name: cell(cn) } : {}),
+    out.push({ row: lineOf(grid, i), ...(ISIN_RE.test(isin) ? { isin } : {}), ...(sym ? { symbol: sym } : {}), ...(cell(cn) ? { name: cell(cn) } : {}),
       ...(q != null ? { qty: String(q) } : cell(cq) ? { qty: cell(cq) } : {}), ...(a && q != null && q > 0 ? { avg: a.avg } : {}) });
   }
   return out;

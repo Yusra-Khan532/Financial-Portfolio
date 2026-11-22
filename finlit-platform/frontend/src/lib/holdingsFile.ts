@@ -5,6 +5,7 @@
  *  not need a particular layout; the ISIN column is the one whose cells hold valid ISINs. The spreadsheet library is loaded only when a spreadsheet is chosen. */
 import { isinIn } from "./isin";
 import { avgOf, combine, isoDay, isPriceLabel, normLabel, num, pickColumns, qtyRank, RATE_HEAD, TRADE_HEADS, type Part } from "./holdingsColumns";
+import { setLines } from "./gridLines";
 
 export type Grid = string[][];
 export type NameMatcher = (name: string) => boolean;
@@ -110,18 +111,19 @@ export function gridFromText(text: string): Grid {
     const top = Math.max(0, ...freq.values());
     if (top > bestLines) { bestLines = top; d = dl; }
   }
-  const out: Grid = [];
-  let row: string[] = [], cell = "", q = false;
+  const out: Grid = [], at: number[] = [];
+  let row: string[] = [], cell = "", q = false, n = 0;                       // n: the record being read, from 1 (a quoted cell over two lines is one record)
+  const end = () => { n++; row.push(cell.trim()); cell = ""; if (row.some(Boolean)) { out.push(row); at.push(n); } row = []; };
   for (let i = 0; i < clean.length; i++) {
     const ch = clean[i];
     if (q) { if (ch === '"') { if (clean[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += ch; }
     else if (ch === '"') q = true;
     else if (ch === d) { row.push(cell.trim()); cell = ""; }
-    else if (ch === "\n" || ch === "\r") { if (ch === "\r" && clean[i + 1] === "\n") i++; row.push(cell.trim()); cell = ""; if (row.some(Boolean)) out.push(row); row = []; }
+    else if (ch === "\n" || ch === "\r") { if (ch === "\r" && clean[i + 1] === "\n") i++; end(); }
     else cell += ch;
   }
-  row.push(cell.trim()); if (row.some(Boolean)) out.push(row);
-  return out;
+  end();
+  return setLines(out, at);                                              // each row's line in the file (developer file 30, lib/gridLines)
 }
 
 const SHEET_TYPES = /\.(xlsx|xlsm|xlsb|xls|ods|html?|xml)$/i;
@@ -152,7 +154,14 @@ export async function gridsFromFile(file: File): Promise<Grid[]> {
   const XLSX = await import("xlsx");
   let wb: import("xlsx").WorkBook;
   try { wb = XLSX.read(buf, { type: "array", cellDates: false, cellFormula: false, cellHTML: false, cellStyles: false, sheetRows: MAX_ROWS }); } catch { throw bad; }
-  return wb.SheetNames.map((n) => (XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: false, defval: "", blankrows: false }) as unknown[][]).map((r) => r.map((c) => (c == null ? "" : String(c)))));
+  // each sheet's rows from its first used row (blank rows kept here only to number the others), then the blank rows left out as before (developer file 30)
+  return wb.SheetNames.map((n) => {
+    const ws = wb.Sheets[n], top = ws["!ref"] ? XLSX.utils.decode_range(ws["!ref"]).s.r : 0;
+    const all = (XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: "", blankrows: true }) as unknown[][]).map((r) => (r ?? []).map((c) => (c == null ? "" : String(c))));
+    const grid: Grid = [], at: number[] = [];
+    all.forEach((r, k) => { if (r.some((c) => c !== "")) { grid.push(r); at.push(top + k + 1); } });
+    return setLines(grid, at);
+  });
 }
 
 
