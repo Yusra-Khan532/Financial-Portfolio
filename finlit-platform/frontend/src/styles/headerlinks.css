@@ -2,7 +2,7 @@
    (a Dashboard button when signed in, a Sign in button when not), so nobody has to open the menu to find it. */
 .mob-only { display: none; }
 .mnav .mg-first { padding-bottom: 6px; }
-.mnav .mdash { display: block; font-weight: 700; font-size: var(--fs-16); padding: 12px 14px; border-radius: 12px; background: var(--s2); border: 1px solid var(--border); color: var(--text); text-align: center; }
+.mnav .mdash { display: block; font-weight: 700; font-size: var(--fs-16); padding: 12px 14px; border-radius: var(--r-ctl); background: var(--s2); border: 1px solid var(--border); color: var(--text); text-align: center; }
 /* Task #310 part E (05-phone.md): from 860px down, the width of the phone header and bottom bar. A visitor's Sign in is 44px tall; a member's
    Dashboard button is not shown on a phone (phone310.css), because the bottom bar has Dashboard. */
 @media (max-width: 860px) {

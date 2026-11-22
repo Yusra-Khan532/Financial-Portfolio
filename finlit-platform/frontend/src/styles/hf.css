@@ -3,8 +3,8 @@
 /* active filters under the header row */
 .hf-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 0; min-height: 28px; }
 .hf-chips .fchip { margin: 0; }
-.hf-empty { margin: 0; font: 400 13px var(--sans); color: var(--muted); }
-.hf-clear { border: 0; background: none; color: var(--gold); font: 600 13px var(--sans); cursor: pointer; padding: 4px 6px; }
+.hf-empty { margin: 0; font: 400 var(--fs-13) var(--sans); color: var(--muted); }
+.hf-clear { border: 0; background: none; color: var(--gold); font: 600 var(--fs-13) var(--sans); cursor: pointer; padding: 4px 6px; }
 
 /* the frame in header-row mode (ScreenerFrame headerFilters): no side panel, the table takes the full width */
 .scr.hf-full { grid-template-columns: minmax(0, 1fr); }
@@ -15,6 +15,6 @@
 .hf-tool { flex-wrap: nowrap; align-items: flex-start; }
 .hf-tool > :first-child { flex: 0 1 280px; min-width: 220px; }
 .hf-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
-.hf-count { margin: 0; font: 600 14px var(--sans); color: var(--text); }
+.hf-count { margin: 0; font: 600 var(--fs-14) var(--sans); color: var(--text); }
 .hf-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 @media (max-width: 760px) { .hf-tool { flex-wrap: wrap; } .hf-tool > :first-child { flex: 1 1 100%; } }

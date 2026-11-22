@@ -1,31 +1,31 @@
 /* Task #274 (change 20): Your themes, from Discover (pack/EqThemes.tsx). Theme tokens only, so light and dark follow. Classes: eqh-. */
 .eqh-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; margin: 0 0 12px; }
-.eqh-lists { display: inline-flex; gap: 6px; padding: 3px; border: 1px solid var(--border); border-radius: 999px; background: var(--s1); }
-.eqh-lists button { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: none; color: var(--text); font: 600 14px var(--sans); cursor: pointer; }
+.eqh-lists { display: inline-flex; gap: 6px; padding: 3px; border: 1px solid var(--border); border-radius: var(--ui-r-pill); background: var(--s1); }
+.eqh-lists button { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 0; border-radius: var(--ui-r-pill); background: none; color: var(--text); font: 600 var(--fs-14) var(--sans); cursor: pointer; }
 .eqh-lists button b { font-weight: 700; opacity: .8; }
 .eqh-lists button[aria-pressed="true"] { background: var(--text); color: var(--s1); }
-.eqh-asof { flex: 1 1 auto; font: 400 14px var(--sans); color: var(--muted); }
-.eqh-all { color: var(--text); font: 600 14px var(--sans); }
+.eqh-asof { flex: 1 1 auto; font: 400 var(--fs-14) var(--sans); color: var(--muted); }
+.eqh-all { color: var(--text); font: 600 var(--fs-14) var(--sans); }
 .eqh-chips { display: flex; gap: 8px; margin: 0 0 12px; overflow-x: auto; scrollbar-width: thin; padding-bottom: 2px; }
-.eqh-chip { flex: 0 0 auto; display: inline-flex; align-items: baseline; gap: 6px; padding: 8px 14px; border: 1px solid color-mix(in srgb, #4b4fc4 40%, var(--border)); border-radius: 10px; color: var(--text); text-decoration: none; font: 400 14px var(--sans); white-space: nowrap; }
+.eqh-chip { flex: 0 0 auto; display: inline-flex; align-items: baseline; gap: 6px; padding: 8px 14px; border: 1px solid color-mix(in srgb, #4b4fc4 40%, var(--border)); border-radius: var(--r-ctl); color: var(--text); text-decoration: none; font: 400 var(--fs-14) var(--sans); white-space: nowrap; }
 .eqh-chip b { font-weight: 700; } .eqh-chip.dash { border-style: dashed; color: var(--muted); }
 .eqh-chip:hover { background: color-mix(in srgb, #4b4fc4 7%, var(--s1)); }
 .eqh-tw { overflow-x: auto; }
 .eqh-t { width: 100%; min-width: 860px; border-collapse: collapse; }
-.eqh-t thead th { padding: 8px 10px; border-bottom: 1px solid var(--border); font: 700 12px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); text-align: left; }
-.eqh-t td, .eqh-t tbody th { padding: 12px 10px; border-bottom: 1px solid var(--border); vertical-align: top; font: 400 14px/1.5 var(--sans); color: var(--text); text-align: left; }
+.eqh-t thead th { padding: 8px 10px; border-bottom: 1px solid var(--border); font: 700 var(--fs-12) var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); text-align: left; }
+.eqh-t td, .eqh-t tbody th { padding: 12px 10px; border-bottom: 1px solid var(--border); vertical-align: top; font: 400 var(--fs-14)/1.5 var(--sans); color: var(--text); text-align: left; }
 .eqh-t .r { text-align: right; }
 .eqh-t tr.on { background: color-mix(in srgb, #4b4fc4 6%, transparent); }
-.eqh-tn { display: block; font: 700 14px var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--text); }
+.eqh-tn { display: block; font: 700 var(--fs-14) var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--text); }
 .eqh-t tbody th small { display: block; color: var(--muted); font-weight: 400; }
-.eqh-show { margin-top: 6px; padding: 0; border: 0; background: none; color: var(--text); font: 600 14px var(--sans); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.eqh-show { margin-top: 6px; padding: 0; border: 0; background: none; color: var(--text); font: 600 var(--fs-14) var(--sans); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 .eqh-m { display: block; } .eqh-m a, .eqh-t td a, .eqh-np a { color: var(--text); font-weight: 600; }
 .eqh-up { color: var(--gain); } .eqh-dn { color: var(--loss); }
 .eqh-st { display: inline-flex; align-items: center; gap: 6px; margin-right: 8px; } .eqh-st i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
 /* the stage colours, once (task #323: the filter chips use them too) */
 .eqh-st, .eqh-fc { --eqh-ex: #2f5a9e; --eqh-pl: #c08a1e; --eqh-mou: #a23b72; }
 .eqh-st.op i { background: var(--gain); } .eqh-st.ex i { background: var(--eqh-ex); } .eqh-st.pl i { background: var(--eqh-pl); } .eqh-st.mou i { background: var(--eqh-mou); }
-.eqh-np { margin: 12px 0 4px; font: 400 14px/1.5 var(--sans); color: var(--text); }
+.eqh-np { margin: 12px 0 4px; font: 400 var(--fs-14)/1.5 var(--sans); color: var(--text); }
 .eqh-lists button:focus-visible, .eqh-chip:focus-visible, .eqh-show:focus-visible, .eqh-all:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .eqh-t tbody th { text-transform: none; letter-spacing: 0; font-weight: 400; } .eqh-t tbody th small { text-transform: none; letter-spacing: 0; }
 
@@ -104,3 +104,5 @@
   .eqh-fs { flex: 1 1 150px; } .eqh-f .eqh-fs select { flex: 1; min-width: 0; }
   .eqh-fq { flex: 1 1 100%; } .eqh-f .eqh-fq input { width: 100%; }
 }
+/* Task #310 G: the theme filters' edge in dark is a field edge (--ui-field-line); --border read 1.6:1 */
+:root[data-theme="dark"] .eqh-f .eqh-fs select, :root[data-theme="dark"] .eqh-f .eqh-fq input { border-color: var(--ui-field-line); }

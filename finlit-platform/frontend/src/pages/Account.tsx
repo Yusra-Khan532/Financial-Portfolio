@@ -205,7 +205,7 @@ function PlanTab() {
             {plan === k ? <span className="chip gold">Your plan</span> : k !== "basic" && RANK[k] > RANK[plan] ? <button className="btn" disabled={req.isPending || (req.isSuccess && req.variables === k)} onClick={() => req.mutate(k as "silver" | "gold")}>{req.isSuccess && req.variables === k ? "Requested" : `Request ${TIER[k].n}`}</button> : null}
           </div>))}
       </div>
-      <label className="form" style={{ display: "block", marginTop: 14 }}><span className="muted" style={{ fontSize: 13 }}>Anything we should know? (optional)</span><textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} rows={2} style={{ width: "100%" }} /></label>
+      <label className="form" style={{ display: "block", marginTop: 14 }}><span className="muted" style={{ fontSize: "var(--fs-13)" }}>Anything we should know? (optional)</span><textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} rows={2} style={{ width: "100%" }} /></label>
       <Status m={req} ok="Request sent. We will confirm by email once your plan is switched on." />
     </section>
   );

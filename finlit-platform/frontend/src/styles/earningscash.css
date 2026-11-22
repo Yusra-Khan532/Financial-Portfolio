@@ -1,26 +1,26 @@
 .ec { padding: 0; border: 0; background: none; box-shadow: none; }
 .ec-h { display: flex; justify-content: flex-end; margin-bottom: 8px; }
 .ec-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--card-gap, 16px); margin-bottom: 16px; }
-.ec-tile { display: grid; gap: 4px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--s1); border-top: 3px solid var(--border-strong); }
+.ec-tile { display: grid; gap: 4px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); border-top: 3px solid var(--border-strong); }
 .ec { --ck-ok: #14573A; --ck-watch: #AE3A09; --ck-alert: #8E1F18; --ck-solid-ok: #14573A; --ck-solid-watch: #EA580C; --ck-solid-alert: #8E1F18; }   /* task #129: the watch colour is a clear orange, not brown */
 :root:not([data-theme="light"]) .ec { --ck-ok: #6CD3A2; --ck-watch: #FDBA74; --ck-alert: #FF9AA2; --ck-solid-ok: #17794F; --ck-solid-watch: #EA580C; --ck-solid-alert: #B3342E; }
 .ec-tile.s { border-top: 6px solid var(--ck-solid-ok); background: color-mix(in srgb, var(--ck-solid-ok) 18%, var(--s1)); } .ec-tile.w { border-top: 6px solid var(--ck-solid-watch); background: color-mix(in srgb, var(--ck-solid-watch) 18%, var(--s1)); } .ec-tile.f { border-top: 6px solid var(--ck-solid-alert); background: color-mix(in srgb, var(--ck-solid-alert) 18%, var(--s1)); }
 .ec-tile.s b { color: var(--ck-ok); } .ec-tile.w b { color: var(--ck-watch); } .ec-tile.f b { color: var(--ck-alert); }
 .ec-tile .k { font: 700 var(--fs-micro, 11px) var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .ec-tile b { font: 400 var(--fs-kpi, 22px)/1.2 var(--serif); color: var(--text); } .ec-tile small { color: var(--muted); font-size: var(--fs-13); line-height: 1.4; }
-.ec-sec { margin-top: 32px; padding: 20px 24px; border: 1px solid var(--border); border-radius: 14px; background: var(--s1); }
+.ec-sec { margin-top: 32px; padding: 20px 24px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); }
 .ec-sec h3 { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); }
-.ec-n { display: inline-flex; width: 26px; height: 26px; align-items: center; justify-content: center; border-radius: 50%; background: var(--gold-soft); color: var(--gold-deep, var(--gold)); font: 700 13px var(--sans); }
-.ec-k { margin: 18px 0 8px; font: 600 16px var(--sans); } .ec-note { margin: 10px 2px 0; font-size: var(--fs-13); }
+.ec-n { display: inline-flex; width: 26px; height: 26px; align-items: center; justify-content: center; border-radius: 50%; background: var(--gold-soft); color: var(--gold-deep, var(--gold)); font: 700 var(--fs-13) var(--sans); }
+.ec-k { margin: 18px 0 8px; font: 600 var(--fs-16) var(--sans); } .ec-note { margin: 10px 2px 0; font-size: var(--fs-13); }
 .ec-checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.ec-fold { margin-top: 12px; } .ec-fold summary { cursor: pointer; font: 600 14px var(--sans); color: var(--text); } .ec-fold ul { margin: 8px 0; padding-left: 18px; font-size: var(--fs-14); line-height: 1.55; } .ec-fold dt { font-weight: 600; margin-top: 8px; } .ec-fold dd { margin: 2px 0 0; font-size: var(--fs-14); line-height: 1.55; }
+.ec-fold { margin-top: 12px; } .ec-fold summary { cursor: pointer; font: 600 var(--fs-14) var(--sans); color: var(--text); } .ec-fold ul { margin: 8px 0; padding-left: 18px; font-size: var(--fs-14); line-height: 1.55; } .ec-fold dt { font-weight: 600; margin-top: 8px; } .ec-fold dd { margin: 2px 0 0; font-size: var(--fs-14); line-height: 1.55; }
 /* task #129, second note: the colour key, and the read / red flag / watch / investigate cards in green, orange and red only, with the Six checks' marks */
 .ec-legend { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 12px; padding: 0; font-size: var(--fs-13); color: var(--muted); }
 .ec-legend li { display: inline-flex; align-items: center; gap: 6px; } .ec-legend b { color: var(--text); font-weight: 700; }
-.ec-mk { display: inline-flex; width: 18px; height: 18px; flex: none; align-items: center; justify-content: center; margin-right: 6px; border-radius: 50%; color: #fff; font: 800 12px/1 var(--sans); vertical-align: 2px; }
+.ec-mk { display: inline-flex; width: 18px; height: 18px; flex: none; align-items: center; justify-content: center; margin-right: 6px; border-radius: 50%; color: #fff; font: 700 var(--fs-12)/1 var(--sans); vertical-align: 2px; }
 .ec-legend .ec-mk { margin-right: 0; }
 .ec .s > .ec-mk, .ec .s .ec-mk, .ec-legend .s .ec-mk { background: var(--ck-solid-ok); } .ec .w .ec-mk { background: var(--ck-solid-watch); } .ec .f .ec-mk { background: var(--ck-solid-alert); }
-.ec-tile b .ec-mk { width: 22px; height: 22px; font-size: 13px; vertical-align: 4px; }
+.ec-tile b .ec-mk { width: 22px; height: 22px; font-size: var(--fs-13); vertical-align: 4px; }
 .ec .ins.ec-c { --ic: var(--border-strong); border-left-width: 6px; background: color-mix(in srgb, var(--ic) 12%, var(--s1)); }
 .ec .ins.ec-c.s { --ic: var(--ck-solid-ok); } .ec .ins.ec-c.w { --ic: var(--ck-solid-watch); } .ec .ins.ec-c.f { --ic: var(--ck-solid-alert); }
 .ec .ins.ec-c.s .ins-tag { color: var(--ck-ok); } .ec .ins.ec-c.w .ins-tag { color: var(--ck-watch); } .ec .ins.ec-c.f .ins-tag { color: var(--ck-alert); }
@@ -42,7 +42,7 @@
   border: 1px solid color-mix(in srgb, var(--ic) 55%, var(--border));
   border-left: 6px solid var(--ic);
   background: color-mix(in srgb, var(--ic) var(--ck-tint), var(--s1));
-  border-radius: 10px;
+  border-radius: var(--r-ctl);
 }
 .ec-checks > li > details:has(.ei-pill.ok)    { --ic: var(--ck-solid-ok);    --ink: var(--ck-ok);    --solid: var(--ck-solid-ok); }
 .ec-checks > li > details:has(.ei-pill.watch) { --ic: var(--ck-solid-watch); --ink: var(--ck-watch); --solid: var(--ck-solid-watch); }
@@ -60,3 +60,5 @@
 
 /* On a phone the hidden labels of a wide table escaped its scroll box and the page scrolled sideways by about 60px: the box is positioned. */
 .tw { position: relative; }
+/* Task #310 G: the step numbers' --gold-deep on --gold-soft read 3.9:1 in dark; the brighter --gold there */
+:root[data-theme="dark"] .ec-n { color: var(--gold); }

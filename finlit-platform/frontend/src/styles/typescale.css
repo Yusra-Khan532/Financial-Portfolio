@@ -38,4 +38,6 @@ select, textarea { font-size: var(--fs-16) !important; }
 /* Browsers size <small>, <sup> and <sub> as "smaller" than their parent (about 10px in 12-13px text); pin them to the scale. Class rules still win. */
 small { font-size: var(--fs-12); }
 sup, sub { font-size: var(--fs-12); }
+/* Task #310 F: <b> and <strong> are "bolder", which reaches 900 inside 600 or 700 text; weights stop at 700 (01-design-rules). Class rules still win. */
+b, strong { font-weight: 700; }
 table, .num, [data-num] { font-variant-numeric: tabular-nums; }

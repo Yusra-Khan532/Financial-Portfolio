@@ -33,7 +33,7 @@ export function Contact() {
               <button className="btn primary lg" disabled={m.isPending}>{m.isPending ? "Sending…" : "Send message"}</button>
             </form>)}
         </div>
-        <div><div className="feat" style={{ "--ac": "var(--gold)" } as React.CSSProperties}><h3>Prefer email?</h3><p style={{ margin: "10px 0" }}><a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a></p><p><a href={COMPANY.linkedin} target="_blank" rel="noopener noreferrer">FinLit on LinkedIn</a></p><p className="faint" style={{ fontSize: 13, marginTop: 14 }}>We cannot give personal advice on what to buy or sell, so please do not send account numbers or passwords.</p><p className="faint" style={{ fontSize: 13, marginTop: 14 }}>{COMPANY.disclaimer}</p></div></div>
+        <div><div className="feat" style={{ "--ac": "var(--gold)" } as React.CSSProperties}><h3>Prefer email?</h3><p style={{ margin: "10px 0" }}><a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a></p><p><a href={COMPANY.linkedin} target="_blank" rel="noopener noreferrer">FinLit on LinkedIn</a></p><p className="faint" style={{ fontSize: "var(--fs-13)", marginTop: 14 }}>We cannot give personal advice on what to buy or sell, so please do not send account numbers or passwords.</p><p className="faint" style={{ fontSize: "var(--fs-13)", marginTop: 14 }}>{COMPANY.disclaimer}</p></div></div>
       </div></section>
     </>
   );

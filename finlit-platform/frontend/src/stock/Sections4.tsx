@@ -90,7 +90,7 @@ export function QuarterSection({ f }: { f?: Financials }) {
           <tbody>{lines.map(([k, v, b]) => { const qoq = chg(v[last], v[last - 1]), yoyC = yoy >= 0 ? chg(v[last], v[yoy]) : null;
             const tag = (c: number | null, label: string) => c == null ? null : <small className={"chg " + (c >= 0 ? "pos" : "neg")} title={label}>{c >= 0 ? "+" : MINUS}{nf(Math.abs(c), 1)}% {label}</small>;
             return <tr key={k} className={(b ? "sub" : "") + (k === "Revenue" || k === "Net profit" ? " hl" : "")}><td>{k}</td>{cols.map((i, j) => { const x = v[i]; return <td key={i} className={j === 0 ? "latest" : ""}>{x == null ? "—" : num(x, k.startsWith("EPS") ? 2 : 0)}{j === 0 && <span className="chgs">{tag(qoq, "vs last quarter")}{tag(yoyC, "vs year ago")}</span>}</td>; })}</tr>; })}</tbody></table></HScroll>
-        <p className="faint" style={{ fontSize: 12, margin: "10px 0 0" }}>Under each latest-quarter figure: how much it changed against the previous quarter, and against the same quarter a year earlier. Figures are as reported on the exchange filing.</p>
+        <p className="faint" style={{ fontSize: "var(--fs-12)", margin: "10px 0 0" }}>Under each latest-quarter figure: how much it changed against the previous quarter, and against the same quarter a year earlier. Figures are as reported on the exchange filing.</p>
       </div>
       {/* task #328 (developer file 27, change 4): the takeaways and the risks are two closed rows under the quarter's table, each with its count and first line */}
       {(() => { const k = readQuarter(q), line = industryKeyLine(ind); return (k.good.length || k.bad.length || line) ? (
@@ -173,8 +173,8 @@ export function TrendsSection({ f: pageF, e, r: pageR }: { f?: Financials; e?: E
     return (
       <section className="block" style={{ "--sc": "var(--gold)" } as React.CSSProperties}>
         <SectionHead id="trends" no="07 · Trends" icon="line" tier="basic" title="How sales, profit and cash have moved" sub={head(chosen as Basis)} color="--gold" />
-        <div className="tr-bar"><span className="faint" style={{ fontSize: 13, alignSelf: "center" }}>Accounts</span>{basisSeg}</div>
-        <p className={noneFor || finQ.isError ? "muted" : "faint"} role="status" style={{ fontSize: 14, margin: "6px 2px 0" }}>{why}</p>
+        <div className="tr-bar"><span className="faint" style={{ fontSize: "var(--fs-13)", alignSelf: "center" }}>Accounts</span>{basisSeg}</div>
+        <p className={noneFor || finQ.isError ? "muted" : "faint"} role="status" style={{ fontSize: "var(--fs-14)", margin: "6px 2px 0" }}>{why}</p>
         {!noneFor && !finQ.isError && <div className="skeleton" style={{ height: 320, marginTop: 14 }} />}
       </section>);
   }
@@ -218,9 +218,9 @@ export function TrendsSection({ f: pageF, e, r: pageR }: { f?: Financials; e?: E
       {/* task #216 (README 3.7): the trend groups are the report's tab group; Consolidated | Standalone sits in the heading row, left of Quarterly | Annual */}
       <TabGroup label="Trend groups" value={tab} onChange={(k) => setTab(k as typeof tab)} next={false} hint={`${tabName} shown here`}
         views={[{ key: "key", label: "Key metrics" }, { key: "margin", label: "Margins and investment" }, { key: "div", label: "Dividends" }]} />
-      {chosen && f.meta.statement !== pageBasis && <p className="faint" style={{ fontSize: 13, margin: "0 2px 12px" }}>This section now shows {f.meta.statement} accounts; the rest of this page uses {pageBasis} accounts.</p>}
-      {mode === "a" && yearGaps(A.pl.periods).map((g) => <p key={g} className="faint" style={{ fontSize: 13, margin: "0 2px 12px" }}>No {f.meta.statement} figures for {g} in our data sources: neighbouring columns and the trend lines below skip those years.</p>)}
-      {chosen && wantOther && ratQ.isError && <p className="faint" style={{ fontSize: 13, margin: "0 2px 12px" }}>The {chosen} ratios (return on equity and capital, payout) could not be loaded right now, so those charts are left out.</p>}
+      {chosen && f.meta.statement !== pageBasis && <p className="faint" style={{ fontSize: "var(--fs-13)", margin: "0 2px 12px" }}>This section now shows {f.meta.statement} accounts; the rest of this page uses {pageBasis} accounts.</p>}
+      {mode === "a" && yearGaps(A.pl.periods).map((g) => <p key={g} className="faint" style={{ fontSize: "var(--fs-13)", margin: "0 2px 12px" }}>No {f.meta.statement} figures for {g} in our data sources: neighbouring columns and the trend lines below skip those years.</p>)}
+      {chosen && wantOther && ratQ.isError && <p className="faint" style={{ fontSize: "var(--fs-13)", margin: "0 2px 12px" }}>The {chosen} ratios (return on equity and capital, payout) could not be loaded right now, so those charts are left out.</p>}
       <p className="sr-only" role="status" aria-live="polite">{`Showing ${mode === "q" ? "quarterly" : "annual"} figures, ${shownCount} of ${list.length} charts in ${tabName}.`}</p>
       <div className="tr-grid" id="trpanel" aria-label={tabName}>{built.map(({ c, d }) => {
         if (!d) return null;
@@ -248,9 +248,9 @@ export function TrendsSection({ f: pageF, e, r: pageR }: { f?: Financials; e?: E
             <p className={"tr-in " + line.tone}><Icon name={line.tone === "down" ? "decline" : line.tone === "up" ? "growth" : "line"} />{line.text}</p>
           </div>);
       })}</div>
-      {shownCount === 0 && <p className="faint" style={{ fontSize: 13, margin: "10px 2px" }}>– No {tabName.toLowerCase()} figures are available for this company in the {mode === "q" ? "quarterly" : "annual"} view.</p>}
-      {shownCount > 0 && missing.length > 0 && <p className="faint" style={{ fontSize: 12, margin: "10px 2px 0" }}>– Not shown, no reported figures: {missing.join(", ")}.</p>}
-      <p className="faint" style={{ fontSize: 12, margin: "10px 2px 0" }}>₹ Crore unless stated. Cash flow and balance sheet items are reported once a year, so they stay annual.</p>
+      {shownCount === 0 && <p className="faint" style={{ fontSize: "var(--fs-13)", margin: "10px 2px" }}>– No {tabName.toLowerCase()} figures are available for this company in the {mode === "q" ? "quarterly" : "annual"} view.</p>}
+      {shownCount > 0 && missing.length > 0 && <p className="faint" style={{ fontSize: "var(--fs-12)", margin: "10px 2px 0" }}>– Not shown, no reported figures: {missing.join(", ")}.</p>}
+      <p className="faint" style={{ fontSize: "var(--fs-12)", margin: "10px 2px 0" }}>₹ Crore unless stated. Cash flow and balance sheet items are reported once a year, so they stay annual.</p>
     </section>
   );
 }

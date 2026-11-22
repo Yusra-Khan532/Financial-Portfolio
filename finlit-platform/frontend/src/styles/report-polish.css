@@ -31,8 +31,8 @@
   --card-gap: var(--sp-4);       /* between cards in a grid */
   --card-pad-y: var(--sp-5);
   --card-pad-x: var(--sp-6);
-  --radius-card: 14px;
-  --radius-tile: 10px;
+  --radius-card: var(--r-card);
+  --radius-tile: var(--r-ctl);
 }
 
 /* ---------- 2. Section rhythm ---------- */
@@ -64,7 +64,7 @@ section.block > .gate { margin-top: var(--block-gap); }
 section.block .grid { gap: var(--card-gap); }
 
 /* ---------- 3. Cards ---------- */
-section.block .card { border-radius: var(--radius-card); padding: var(--card-pad-y) var(--card-pad-x); }
+section.block .card { border-radius: var(--r-card); padding: var(--card-pad-y) var(--card-pad-x); }
 .card-h { margin-bottom: var(--sp-3); }
 /* one style for every card title: the H3 role of task #310 (Sans 16px, 600) */
 .card-h h3, .card h3, .rcx h3, .dp-card h3, .dp .card-h h3, #decoding-roe h3, .card.acc .card-h h3, .seg-title {
@@ -73,7 +73,7 @@ section.block .card { border-radius: var(--radius-card); padding: var(--card-pad
 /* DuPont block title until it becomes its own section (see REPORT-FIXES.md) */
 .dp-title h3 { font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); letter-spacing: -.01em; }
 /* small tiles inside cards */
-section.block .card .card { border-radius: var(--radius-tile); }
+section.block .card .card { border-radius: var(--r-ctl); }
 
 /* ---------- 4. Text ---------- */
 section.block p { line-height: var(--lh-body); }
@@ -101,6 +101,6 @@ section.block table td { font-size: var(--fs-table); line-height: var(--lh-table
 }
 
 /* the plans note at the end of a report: one line, not a pricing page */
-.rp-plans { margin: var(--sp-16, 64px) 0 var(--sp-8, 32px); padding: 14px 18px; border: 1px solid var(--border); border-radius: 12px; background: var(--s1); font-size: var(--fs-body, 14px); color: var(--muted); }
+.rp-plans { margin: var(--sp-16, 64px) 0 var(--sp-8, 32px); padding: 14px 18px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); font-size: var(--fs-body, 14px); color: var(--muted); }
 .rp-plans a { margin-left: 6px; font-weight: 600; color: var(--gold-deep, var(--gold)); }
 .rg-h { margin: var(--sp-10, 40px) 0 var(--sp-4, 16px); font: 500 var(--fs-h3, 18px) var(--serif); }

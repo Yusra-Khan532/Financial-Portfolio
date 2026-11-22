@@ -90,6 +90,22 @@
   --financial-positive: var(--gain);
   --financial-negative: var(--loss);
 }
+/* Task #310 G (08-dark-theme.md): two dark-aware tokens. Each keeps the light theme exactly as it was and only moves dark.
+   --ui-field-line   the edge of an input, select or text box. Light: --border-strong, as before. Dark: --border-control, the photo's sage
+                     (#5D997F), 4.2:1 on the page and 5.2:1 on a card; --border-strong (#39604F) was 2.0 to 2.5:1, under the 3:1 a field edge needs.
+   --ui-heat-scale   how strong a heat-map or tinted cell may get, as a factor on its colour-mix share. Light: 1 (unchanged). Dark: .66, so the
+                     strongest green or red cell under cream figures stays at 4.5:1 or better (was 2.7 to 4.4 on CPI by division, the FII/DII
+                     months, the score history grid and the funds table). Use it as calc(<share>% * var(--ui-heat-scale)). */
+:root, :root[data-theme="light"] {
+  --ui-field-line: var(--border-strong);
+  --ui-heat-scale: 1;
+}
+:root[data-theme="dark"],
+:root:not([data-theme="light"]) {
+  --ui-field-line: var(--border-control);
+  --ui-heat-scale: .66;
+}
+
 /* --action-primary is left alone on purpose: only "Ask FinLit AI" (button.ai-top) reads it, and pointing it at --btn-bg would put a
    second main button on every page. That button is restyled in the source in a later step. */
 

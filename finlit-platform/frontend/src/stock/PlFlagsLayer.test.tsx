@@ -101,7 +101,7 @@ describe("compact popup", () => {
   it("the edge tab sits on the right edge, rounded on its left side; no blur on the card", () => {
     const css = readFileSync(new URL("../styles/plflags.css", import.meta.url), "utf8");
     const edge = css.match(/^\.plf-edge\s*\{[^}]*\}/m)![0];
-    expect(edge).toMatch(/right:\s*0/); expect(edge).not.toMatch(/left:\s*0/); expect(edge).toMatch(/border-radius:\s*12px 0 0 12px/);
+    expect(edge).toMatch(/right:\s*0/); expect(edge).not.toMatch(/left:\s*0/); expect(edge).toMatch(/border-radius:\s*var\(--r-ctl\) 0 0 var\(--r-ctl\)/);
     expect(css).not.toMatch(/backdrop-filter:\s*blur/);
   });
 });

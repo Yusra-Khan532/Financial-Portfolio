@@ -235,7 +235,7 @@ export function ThreadView({ id, onBack, backLabel, header }: { id: number; onBa
   const act = useMutation({ mutationFn: (f: () => Promise<unknown>) => f(), onSuccess: () => qc.invalidateQueries({ queryKey: ["forum"] }) });
   const refresh = () => qc.invalidateQueries({ queryKey: ["forum"] });
   const back = onBack && <button type="button" className="fo-back" onClick={onBack}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>{backLabel || "Back"}</button>;
-  if (q.isPending) return <div className="fo-thread">{back}<div className="skeleton" style={{ height: 160, borderRadius: 16 }} /></div>;
+  if (q.isPending) return <div className="fo-thread">{back}<div className="skeleton" style={{ height: 160, borderRadius: "var(--r-card)" }} /></div>;
   if (q.isError) return <div className="fo-thread">{back}<div className="fo-empty"><b>{q.error instanceof ApiError && q.error.status === 410 ? "This discussion was removed." : "This discussion is not available."}</b><span>It may have been removed, or it may belong to another plan's board.</span></div></div>;
   const { thread: t, replies } = q.data, tree = buildTree(replies, sort), open = t.status === "visible";
   return (

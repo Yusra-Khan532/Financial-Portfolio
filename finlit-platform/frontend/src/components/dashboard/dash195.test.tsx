@@ -155,7 +155,7 @@ describe("layout rules in the stylesheets", () => {
   });
   it("keeps the market read at 18px, card titles in the H2 role (task #310: serif 24px/500), and 24px between the investments columns", () => {
     const d = css("dashboard.css");
-    expect(d).toMatch(/\.dsh-mr-lead \{ font: 400 18px/); expect(d).toMatch(/\.dsh-rd-v \{ font: 600 18px/);
+    expect(d).toMatch(/\.dsh-mr-lead \{ font: 400 var\(--fs-18\)/); expect(d).toMatch(/\.dsh-rd-v \{ font: 600 var\(--fs-18\)/);
     expect(d).toMatch(/\.dsh \.dsh-card h2 \{ font: var\(--ui-fw-medium\) var\(--ui-fs-h2\)/);
     expect(d).toMatch(/column-gap: 24px/); expect(d).toMatch(/span:nth-child\(6\) \{ padding-left: 12px; \}/);
   });

@@ -22,7 +22,7 @@ export function Why() {
       </div></section>
       <section className="sec alt"><div className="wrap">
         <Reveal className="sec-h"><div className="eyebrow">How it usually goes</div><h2 className="ui-h2--marketing">Six steps, repeated</h2></Reveal>
-        <div className="steps six">{WHY.loop.map((l, i) => <Reveal key={l} delay={i * 60} className="step"><div className="dot" style={{ fontFamily: "var(--serif)", fontSize: 20 }}>{i + 1}</div><div><b>{l}</b></div></Reveal>)}</div>
+        <div className="steps six">{WHY.loop.map((l, i) => <Reveal key={l} delay={i * 60} className="step"><div className="dot" style={{ fontFamily: "var(--serif)", fontSize: "var(--fs-20)" }}>{i + 1}</div><div><b>{l}</b></div></Reveal>)}</div>
         <div className="cards3" style={{ marginTop: 40 }}>{WHY.principles.map((p, i) => <Reveal key={p.title} delay={i * 70}><div className="feat" style={{ "--ac": "var(--gold)" } as React.CSSProperties}><h3>{p.title}</h3><p>{p.text}</p></div></Reveal>)}</div>
       </div></section>
     </>

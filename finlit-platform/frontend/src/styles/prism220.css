@@ -4,17 +4,17 @@
 
 /* ===== 1.2 sticky sections bar ===== */
 .pzn { position: sticky; top: 0; z-index: 35; margin: 0 0 14px; background: color-mix(in srgb, var(--s1) 94%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
-  border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 10px 24px -20px rgba(20, 19, 15, .45); }
+  border: 1px solid var(--border); border-radius: var(--r-ctl); box-shadow: 0 10px 24px -20px rgba(20, 19, 15, .45); }
 .pzn-in { display: flex; align-items: center; gap: 8px; padding: 6px 8px; min-width: 0; }
 .pzn nav { position: relative; display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; min-width: 0; flex: 1 1 auto; }
 .pzn nav::-webkit-scrollbar { display: none; }
-.pzn nav a { position: relative; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 10px;
+.pzn nav a { position: relative; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: var(--r-ctl);
   font: 600 var(--fs-14, 14px) var(--sans); color: var(--muted); text-decoration: none; white-space: nowrap; }
 .pzn nav a:hover { color: var(--text); background: color-mix(in srgb, #2a78d6 6%, transparent); }
 .pzn nav a.active { color: #2a78d6; box-shadow: inset 0 -3px 0 #2a78d6; }
 .pzn nav .sx-n { font: 600 var(--fs-12, 12px) var(--mono, ui-monospace, monospace); color: var(--faint, var(--muted)); }
 .pzn nav a.active .sx-n { color: inherit; }
-.pzn-co { display: none; align-items: center; gap: 7px; flex: 0 0 auto; padding: 6px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--s1);
+.pzn-co { display: none; align-items: center; gap: 7px; flex: 0 0 auto; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1);
   font: 600 var(--fs-13, 13px)/1.2 var(--sans); color: var(--text); text-decoration: none; white-space: nowrap; }
 .pzn.xcmp .pzn-co { display: inline-flex; }
 .pzn-co b { font: 700 var(--fs-12, 12px) var(--sans); letter-spacing: .04em; }
@@ -38,15 +38,15 @@
 
 /* ===== 1.4 proprietary note ===== */
 .pz-prop { display: flex; align-items: flex-start; gap: 10px; max-width: none; margin: -4px 0 14px; padding: 10px 14px; border: 1px solid color-mix(in srgb, #2a78d6 30%, var(--border));
-  border-left: 4px solid #2a78d6; border-radius: 12px; background: color-mix(in srgb, #2a78d6 5%, var(--s1)); font: 400 var(--fs-14, 14px)/1.5 var(--sans); color: var(--text); }
+  border-left: 4px solid #2a78d6; border-radius: var(--r-ctl); background: color-mix(in srgb, #2a78d6 5%, var(--s1)); font: 400 var(--fs-14, 14px)/1.5 var(--sans); color: var(--text); }
 .pz-prop b { font-weight: 600; }
-.pz-prop-ic { flex: 0 0 auto; display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: color-mix(in srgb, #2a78d6 12%, var(--s1)); color: #2a78d6; }
+.pz-prop-ic { flex: 0 0 auto; display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: var(--r-ctl); background: color-mix(in srgb, #2a78d6 12%, var(--s1)); color: #2a78d6; }
 .pz-prop-ic svg { width: 15px; height: 15px; }
 
 /* ===== 2.1 the disclaimer at the top: a boxed drop-down, closed on load ===== */
-.pz-tdisc { margin: 4px 0 18px; border: 1px solid var(--border); border-left: 4px solid var(--gold, #B08A2E); border-radius: 12px; background: var(--card, var(--s1)); box-shadow: 0 1px 0 rgba(0, 0, 0, .02); }
+.pz-tdisc { margin: 4px 0 18px; border: 1px solid var(--border); border-left: 4px solid var(--gold); border-radius: var(--r-ctl); background: var(--card, var(--s1)); box-shadow: 0 1px 0 rgba(0, 0, 0, .02); }
 .pz-tdisc > summary.xdd-s { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: 12px; min-height: 44px; padding: 12px 16px; }
-.pz-tdisc-ic { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: color-mix(in srgb, var(--gold, #B08A2E) 14%, transparent); color: var(--gold, #B08A2E); }
+.pz-tdisc-ic { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: color-mix(in srgb, var(--gold) 14%, transparent); color: var(--gold); }
 .pz-tdisc-ic svg { width: 16px; height: 16px; }
 .pz-tdisc-t { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; font-size: var(--fs-14, 14px); line-height: 1.45; color: var(--muted); }
 .pz-tdisc-t b { font: 700 var(--fs-13, 13px)/1.4 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--text); }

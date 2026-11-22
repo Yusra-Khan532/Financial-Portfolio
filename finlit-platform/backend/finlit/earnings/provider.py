@@ -68,7 +68,7 @@ class GeminiProvider:
         except httpx.TransportError as exc:
             raise ProviderError(f"network: {type(exc).__name__}") from None
         if r.status_code == 429:
-            raise RateLimited(*_retry_after(r))
+            raise RateLimited(*_retry_after(r), detail=_quota_ids(r))
         if r.status_code in (401, 403):
             raise NotConfigured(f"the key was refused ({r.status_code})")
         if r.status_code >= 400:
@@ -101,6 +101,12 @@ def _retry_after(r: httpx.Response) -> tuple:
     if m:
         wait = max(wait, float(m.group(1)))
     return wait, bool(re.search(r"PerDay|per day|daily", text, re.I))
+
+
+def _quota_ids(r: httpx.Response) -> str:
+    """The quota names a 429 gives (e.g. "GenerateRequestsPerDayPerProjectPerModel-FreeTier"), so a run record says which limit was reached (task #328)."""
+    ids = sorted(set(re.findall(r'"quotaId"\s*:\s*"([^"]{1,120})"', r.text or "")))
+    return ("quota: " + ", ".join(ids[:4])) if ids else "rate limited"
 
 
 class Pacer:
