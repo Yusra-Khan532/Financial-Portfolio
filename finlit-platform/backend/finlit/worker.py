@@ -1161,6 +1161,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_st.add_argument("--limit", type=int, default=None, help="at most this many companies in this run")
     p_st.add_argument("--force", action="store_true", help="rebuild companies already built today")
     p_st.add_argument("symbols", nargs="*", help="only these companies")
+    sub.add_parser("export-scores", help="after the presets job: the day's scores and every ready-made screen into one file for the owner's archive (task #326); stored results only")
     sub.add_parser("refresh-presets", help="nightly, after the Prism batch: momentum and growth scores, industry breadth and theme states, theme-tag top-up, and every prebuilt screen into the cache (database only)")
     p_ld = sub.add_parser("refresh-leadership", help="weekly: Leader / In line / Laggard labels from the stored weekly prices and the sector and market indices (database and cached index levels only)")
     p_ld.add_argument("--backfill-from", default=None, help="YYYY-MM-DD: also compute every 4th Friday back to this date, so the rank-history chart starts with points")
@@ -1718,6 +1719,13 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
             # Companies that are not ready yet, or that the data provider answered slowly, are waiting, not a fault: they are tried again next run. Only a run in which nothing at all
             # could be built (the provider or the macro inputs are down) is a fault the supervisor retries with its back-off.
             return 1 if res["tried"] >= 10 and res["built"] == 0 and res["not_covered"] == 0 else 0
+        if args.cmd == "export-scores":
+            from . import scores_export
+            from .mf import record_run
+            res = await scores_export.run(store)
+            await record_run(store, args.cmd, res)
+            print(json.dumps(res, default=str)[:3000])
+            return 1 if res["failed"] else 0
         if args.cmd == "refresh-presets":
             from .presets import service as preset_service
             res = await preset_service.refresh_presets(store, settings)
