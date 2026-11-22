@@ -348,6 +348,10 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
             what="Concall Monitor (task #278): new earnings-call filings (schedule, recording, transcript, presentation) from the stored announcements; reads each "
                  "letter once from the exchange (the call's date and time, the audio link), keeps a transcript's text for the page and FinLit AI; 160 letters a run, "
                  "newest first, none started after 20 min; a file the exchange does not give is tried again on later runs (three tries, the reason kept) (docs/CONCALLS.md)"),
+        Job("feed-sort", ("feed-sort", "--max-minutes", "20"), priority=45, max_runtime_min=30, weight_mb=120, stall_min=20,
+            windows=(W("NIGHT", 20), W("MORNING", 14)), interval_min=180, sla=Sla("hours", 30), resumable=True, catchup=True,
+            what="News & filings sorting (task #309): when the feed's sorting rules change (feed.SORT_RULES), re-sorts every stored filing once into result / "
+                 "document / news and its FinLit topic, 5,000 rows at a time by id, continuing where the last run stopped; when the rules are current it does nothing"),
         Job("company-brief", ("refresh-company-brief",), cls="bulk", priority=46, max_runtime_min=60, weight_mb=300, stall_min=40, windows=(W("NIGHT", 20), W("MORNING", 14)),
             sla=Sla("hours", 72), resumable=True, catchup=False, max_attempts=3,
             what="company brief (the About section): reads the annual report and the latest filings of followed and largest companies, asks the language model to write what the company does, "

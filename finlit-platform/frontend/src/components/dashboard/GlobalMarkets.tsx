@@ -18,7 +18,9 @@ import "./global-markets.css";
 
 type Place = { city: string; lat: number; lon: number; open?: boolean; local?: string; hours?: string };
 export type GmRow = { key: string; label: string; group: string; unit: string; source: string; last: number | null; asOf: string | null; d1: number | null; w1: number | null; m1: number | null;
-  line: [string, number][]; why: string | null; place: Place | null };
+  line: [string, number][]; why: string | null; place: Place | null;
+  /** the founder, 22 Nov 2026: the FTSE 100 shown through a fund that tracks it, labelled so (its price is the fund's, in pence or pounds) */
+  tracker?: { name: string; code: string; unit: string; note: string } | null };
 export type GmData = { rows: GmRow[]; home: Place & { open?: boolean }; asOfIst: string; summary: { open: number; markets: number; indices: number; down: number; up: number };
   disclaimer: string; sources: string };
 
@@ -33,7 +35,8 @@ export type Focus = { group: string; key?: string } | null;
 /** A move: % for prices, percentage points for a yield; a real minus sign. */
 export const move = (v: number | null, unit: string) => v == null ? MINUS : `${v > 0 ? "+" : v < 0 ? MINUS : ""}${nf(Math.abs(v), 2)}${unit === "%" ? " pts" : "%"}`;
 const tone = (v: number | null) => (v == null || v === 0 ? "" : v > 0 ? "up" : "down");
-const level = (r: GmRow) => r.last == null ? MINUS : r.unit === "₹" ? `₹${nf(r.last, 2)}` : r.unit === "%" ? `${nf(r.last, 2)}%` : r.unit.startsWith("US$") ? `$${nf(r.last, 2)}` : nf(r.last, 2);
+const level = (r: GmRow) => r.last == null ? MINUS : r.unit === "₹" ? `₹${nf(r.last, 2)}` : r.unit === "%" ? `${nf(r.last, 2)}%` : r.unit.startsWith("US$") ? `$${nf(r.last, 2)}`
+  : r.unit === "GBX" ? `${nf(r.last, 2)}p` : r.unit === "GBP" ? `£${nf(r.last, 2)}` : nf(r.last, 2);
 const day = (iso: string | null) => iso ? new Date(iso + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "";
 /** Pointing follows a mouse only: a tap (touch) sets the focus by its click, and the leave a touch screen sends after it must not undo that. */
 const mouse = (e: { pointerType?: string }) => !e.pointerType || e.pointerType === "mouse";
@@ -170,13 +173,14 @@ export function GlobalMarkets() {
                   {rows.map((r) => (
                     <tr key={r.key} className={focus?.key === r.key ? "on" : undefined} onPointerEnter={(e) => mouse(e) && r.place && setFocus({ group: g, key: r.key })}
                       onPointerLeave={(e) => mouse(e) && r.place && setFocus({ group: g })}>
-                      <th scope="row">{r.label}<small>{r.place ? `${r.place.city}${r.place.open != null ? (r.place.open ? " · open" : " · closed") : ""}` : r.unit}{r.asOf ? ` · ${day(r.asOf)}` : ""}</small></th>
+                      <th scope="row">{r.label}{r.tracker ? <span className="gm-trk" title={r.tracker.note}>via {r.tracker.code} fund</span> : null}<small>{r.place ? `${r.place.city}${r.place.open != null ? (r.place.open ? " · open" : " · closed") : ""}` : r.unit}{r.asOf ? ` · ${day(r.asOf)}` : ""}</small></th>
                       <td className="n">{level(r)}</td>
                       <td className={"n " + tone(r.d1)}>{move(r.d1, r.unit)}</td>
                       <td className={"n " + tone(r.w1)}>{move(r.w1, r.unit)}</td>
                       <td className={"n " + tone(r.m1)}>{move(r.m1, r.unit)}</td>
                       <td>{r.last == null ? <span className="gm-dash" title={r.why ?? undefined}>{MINUS}</span> : <Spark line={r.line} />}</td>
                     </tr>))}
+                  {rows.filter((r) => r.tracker && r.last != null).map((r) => <tr key={r.key + "-trk"} className="gm-why"><td colSpan={6}>{r.label}: {r.tracker!.note.replace(/^./, (c) => c.toLowerCase())}</td></tr>)}
                   {empty.length > 0 && whys.map((w) => {
                     const names = empty.filter((r) => (r.why || "No close from the source yet.") === w).map((r) => r.label);
                     return <tr key={w} className="gm-why"><td colSpan={6}>{names.length === rows.length ? "No figures for these markets yet" : `No figures yet for ${names.join(", ").replace(/, ([^,]*)$/, " and $1")}`}: {w.replace(/^Not connected yet: /, "").replace(/^./, (c) => c.toLowerCase())}</td></tr>;

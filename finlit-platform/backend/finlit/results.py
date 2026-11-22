@@ -62,6 +62,7 @@ PAGE = 50
 INDEX_FLAGS = ("NIFTY50", "NIFTY100", "NIFTY500")
 FILING_SOURCE = "Exchange filing"
 FILING_CATEGORIES = ("outcome of board meeting", "result", "results", "financial results", "financial result")
+INTEGRATED_FINANCIAL = re.compile(r"^integrated filing\W{0,3}financials?$")
 QUARTER_RE = re.compile(r"^\d{4}-(03|06|09|12)$")
 NUMERIC_SORTS = {"revenueYoY": "revenueYoY", "profitYoY": "profitYoY", "marginChange": "npmChange", "gap": "gap", "revenue": "revenue", "netProfit": "netProfit",
                  "below52": "below52", "belowAth": "belowAth",
@@ -169,7 +170,10 @@ def is_declaration(source: Optional[str], category: Optional[str], title: Option
     if source != FILING_SOURCE:
         return False
     low = f"{title or ''}".lower()
-    return (category or "").strip().lower() in FILING_CATEGORIES and "result" in low and "clarification" not in low and "intimation" not in low
+    cat = " ".join((category or "").lower().split())
+    if INTEGRATED_FINANCIAL.match(cat):   # NSE's own results format since 2025: the filing is the results, whatever its title says
+        return "clarification" not in low and "intimation" not in low
+    return cat in FILING_CATEGORIES and "result" in low and "clarification" not in low and "intimation" not in low
 
 
 def assign(rows: List[dict]) -> Dict[str, Dict[str, Decl]]:

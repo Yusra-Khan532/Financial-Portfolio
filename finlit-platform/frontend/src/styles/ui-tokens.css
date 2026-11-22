@@ -1,0 +1,96 @@
+/* Task #310 (UI consistency across the site, 22 Nov 2026): the design rules as variables. These are the only corner, type, width
+   and control values a page may use (docs: the "FinLit: one look across the site" pack, 01-design-rules.md).
+   Every NEW variable starts with --ui- so it cannot clash with a name the site already reads (an earlier draft used --fs-h2 and
+   --fs-h3, which resized 21 headings on the company report). The existing names (--r-ctl, --r-card, --btn-bg, --s1, --fs-*) are
+   kept, so anything already built on them follows by itself.
+   Loaded after every theme layer (finlit.css, luxe.css, design-system.css, calm.css, site-green.css) and before overlay.css,
+   so these win; src/styles/uiTokens.test.ts checks the order. The shared ui- classes that read them are in ui.css. */
+
+/* Corners, type, widths and controls. `:root[data-theme]` gives these the same weight as the older theme layers' blocks, and
+   loading later makes them win (calm.css used to set --r-card: 16px here). */
+:root, :root[data-theme] {
+  /* Corners: four values, nothing else (plus 50% for round icon buttons and avatars) */
+  --ui-r-mark: 4px;      /* marks under 32px tall: heat squares, tags inside table rows */
+  --r-ctl: 12px;         /* buttons, inputs, small cards */
+  --r-card: 18px;        /* cards and panels */
+  --ui-r-pill: 999px;    /* tabs, filter pills, chips, badges */
+  /* The older corner tokens (premium.css: 4, 6 and 8px) now point at the new ones, so their users snap into line */
+  --r-s: var(--ui-r-mark);   /* was 4px */
+  --r-m: var(--r-ctl);       /* was 6px */
+  --r-l: var(--r-ctl);       /* was 8px */
+
+  /* Type: the existing --fs-12 to --fs-40 scale (typescale.css) stays, and --fs-page-title stays there too (32px, 28px on a phone).
+     One size is added for marketing titles. */
+  --ui-fs-64: 64px;  --ui-lh-64: 68px;
+  --ui-fs-title-read: var(--fs-40);          /* legal, glossary, learn, blog, FAQ */
+  --ui-fs-title-marketing: var(--ui-fs-64);  /* home, about, plans, services */
+  --ui-fs-h2: var(--fs-24);
+  --ui-fs-h2-marketing: var(--fs-40);
+  --ui-fs-h3: var(--fs-16);
+  --ui-fw-regular: 400;  --ui-fw-medium: 500;  --ui-fw-semibold: 600;  --ui-fw-bold: 700;   /* no 300, 650, 800, 900 */
+
+  /* Widths */
+  --ui-w-app: 1160px;    /* tool pages */
+  --ui-w-wide: 1260px;   /* marketing pages, screeners, company report */
+  --ui-w-read: 760px;    /* long reads, legal, account forms */
+
+  /* Controls */
+  --ui-ctl-h: 44px;      /* buttons and inputs; also the smallest tap target on a phone */
+  --ui-ctl-h-sm: 36px;   /* dense desktop toolbars only; grows to 44px under 860px (ui.css) */
+
+  /* Selected tab, pill or toggle: one colour in every theme and palette.
+     Light: black with cream text. Dark: cream with dark green text (what the dashboard pills already do). */
+  --ui-on-bg: var(--text);
+  --ui-on-fg: var(--s1);
+  /* Text on the gold Prism gradient: the dark ink the old dark-theme main button used */
+  --ui-on-prism: #1A1405;
+}
+
+/* Main action: green in both themes (was black in light and gold in dark; moved here from premium.css).
+   Gold then means the same thing in both themes: Prism and the Gold plan. The skip link (premium.css .skip) reads these. */
+:root[data-theme="light"] {
+  --btn-bg: #1F7A55;     /* the site's existing action green (human-home.css --hh-g-fill) */
+  --btn-fg: #FFFDF7;
+  --btn-hover: #1F6B49;  /* the site's existing darker step of the same green (light --gain), not a new colour */
+  --bg-elevated: var(--s1);   /* was #fff. Light only: in dark it is already --s3 (site-green.css), used for pop-ups */
+}
+:root[data-theme="dark"],
+:root:not([data-theme="light"]) {
+  --btn-bg: var(--mint);          /* #A7E8C8 (tools.css) */
+  --btn-fg: var(--on-mint);       /* #0B2B1D */
+  --btn-hover: var(--mint-hover);
+}
+
+/* The older navy-and-white variable set (design-system.css) pointed at the current one.
+   Light: every name follows, which removes the pure-white surface, the blue link and selected tint and the grey-blue text. */
+:root[data-theme="light"] {
+  --bg-page: var(--bg);
+  --bg-surface: var(--s1);
+  --bg-subtle: var(--s2);
+  --bg-selected: var(--sel);
+  --text-primary: var(--text);
+  --text-body: var(--muted);
+  --text-secondary: var(--muted);
+  --text-muted: var(--faint);
+  --text-link: var(--gold);
+  --border-subtle: var(--border);
+  --border-control: var(--border-strong);
+  --focus-ring: var(--focus);
+  --financial-positive: var(--gain);
+  --financial-negative: var(--loss);
+}
+/* Dark: site-green.css already points the surfaces and text at the green set, and keeps three on purpose: --border-control is the
+   photo's sage (task #206, siteGreen.test.ts), --text-body its own cream-sage step and --bg-selected the green the stress lab reads.
+   Only the four that still differ follow: the blue link (#93C5FD), the purple focus ring (#A78BFA) and the second green and red. */
+:root[data-theme="dark"],
+:root:not([data-theme="light"]) {
+  --text-link: var(--gold);
+  --focus-ring: var(--focus);
+  --financial-positive: var(--gain);
+  --financial-negative: var(--loss);
+}
+/* --action-primary is left alone on purpose: only "Ask FinLit AI" (button.ai-top) reads it, and pointing it at --btn-bg would put a
+   second main button on every page. That button is restyled in the source in a later step. */
+
+/* Never on a button, tab, pill or link: chart and score colours (--k1 to --k8, --c1 to --c5, --p-*, --pz-*, --pzr-*, --band-*, --ld-*).
+   They are for charts, heat maps and score marks only (scripts/check-ui.mjs flags them on control selectors). */

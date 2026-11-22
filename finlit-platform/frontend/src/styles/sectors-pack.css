@@ -27,7 +27,7 @@
 .sp-head-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--sp-line); }
 .sp-tabs { display: flex; gap: 8px; }
 .sp-tab { display: inline-flex; align-items: center; min-height: 42px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--sp-line); color: var(--sp-ink); font: 600 16px var(--sans); text-decoration: none; background: var(--sp-panel); }
-.sp-tab.on { background: #0E6471; border-color: #0E6471; color: #fff; }
+.sp-tab.on { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); }   /* task #310: the one selected colour (was teal #0E6471) */
 .sp-tab:hover:not(.on) { border-color: var(--sp-ink); }
 .sp-view { display: flex; align-items: center; gap: 8px; } .sp-view > span { font-size: 16px; color: var(--sp-mute); }
 .sp-vbtn { min-height: 42px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--sp-line); background: var(--sp-panel); color: var(--sp-ink); font: 600 16px var(--sans); cursor: pointer; }
