@@ -49,6 +49,7 @@ import "../mf/pack/mf-pack.css";
 import "../styles/etfportfolio.css";
 import "../portfolio/kit/kit.css";
 import { PLAN_FOR_PORTFOLIO } from "../lib/planGates";
+import { PageTabs } from "../components/PageTabs";
 
 const errText = (e: unknown) => ((e as { body?: { detail?: string } })?.body?.detail) || (e instanceof Error ? e.message : "Something went wrong. Please try again.");
 
@@ -273,6 +274,7 @@ export function EtfPortfolioPage() {
                     onUndo={async () => { try { await w.undoClear.mutateAsync(); } catch (x) { if ((x as { status?: number }).status === 410) throw new Error("The clear is final: Undo is only possible for 10 seconds."); throw x; } }} />
                   <p>{d ? `${d.count} ${d.count === 1 ? "ETF" : "ETFs"} · ${limit} on your plan` : `${limit} on your plan`}{searchUniverse.current ? ` · ${searchUniverse.current} ETFs to choose from` : ""}</p></>}</MenuButton></>} />
           </div>
+          <PageTabs set="portfolios" className="pf-sibs" />{/* task #310 part D: the three portfolios as page tabs under the title */}
           {d && d.count > 0 && <TopMoney t={money} all={live.map((e) => e.symbol)} noun={["ETF", "ETFs"]} pick={pick} onAddQty={addQty} onAddPf={() => setAdding(true)}
             onRename={(id, name) => { const m = name.trim(); if (!m) return "Give the account a name."; if (pfList.some((x) => x.id !== id && x.name.trim().toLowerCase() === m.toLowerCase())) return `You already have an account called ${m}. Try another name, such as "${m} (joint)".`;
               book.accounts.rename(id, m, pfList); toast("Account renamed."); return null; }}

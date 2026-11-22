@@ -25,7 +25,7 @@
 .eqt-bar button { flex: none; min-height: 38px; padding: 0 13px; border: 0; background: transparent; border-radius: 999px; font: 500 13px var(--sans); color: var(--sp-ink, var(--text)); cursor: pointer; white-space: nowrap; }
 .eqt-bar button:hover { background: var(--s2); } .eqt-bar button:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
 .eqt-all { border: 1px solid var(--sp-line, var(--border)) !important; background: var(--s2) !important; font-weight: 600 !important; }
-.eqt-chip[aria-current="true"] { font-weight: 600; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 6px; text-decoration-color: var(--gold); }
+/* task #310 part D: the chip in view takes the one selected colour (ui.css, "Section bars"), not an underline */
 .eqt-chipw { display: inline-flex; align-items: center; flex: none; } .eqt-arrow { color: var(--sp-mute, var(--muted)); font-size: 12px; padding: 0 2px; }
 .eqt-n { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-right: 6px; border-radius: 50%; background: var(--s2); font: 700 12px var(--sans); }
 .eqt-allw { position: relative; flex: none; }

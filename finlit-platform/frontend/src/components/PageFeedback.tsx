@@ -1,4 +1,4 @@
-// "Raise a Query" and "Share Feedback", side by side at the bottom right of every page (task #214), with the one dialog both open.
+// "Raise a Query" and "Share Feedback" (task #214), with the one dialog both open. Since task #310 part D they are menu actions (HelpActions), not a floating dock.
 // Every message goes to the team tagged with the page it was written on (lib/pageFeedback.ts). Styles: styles/pagefeedback.css (pf-).
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { createPortal } from "react-dom";
@@ -94,31 +94,26 @@ export function FeedbackDialog({ kind, pathname, search, plan, onClose }: { kind
     </>, document.body);
 }
 
-/** Always on screen, bottom right, on every page: "Raise a Query" beside "Share feedback", always in the same place (task #214; the query button used to sit
- *  in each page's banner, so its place moved from page to page). Also draws the dialog. */
-export function PageFeedbackDock() {
+/** "Raise a Query" and "Share feedback" as two plain actions (task #310 part D, the 22 Nov pack's 04-navigation.md: the floating dock that sat over content on
+ *  every page is gone). They sit in the account menu, at the foot of the left menu, in the phone Menu sheet and in the footer; `asMenu` makes them menu items. */
+export function HelpActions({ asMenu, className, onPick }: { asMenu?: boolean; className?: string; onPick?: () => void }) {
+  const role = asMenu ? "menuitem" : undefined;
+  const go = (k: Kind) => { onPick?.(); panel.set(k); };
+  const body = (icon: string, label: string) => asMenu ? <><span className="ddi"><Icon name={icon} /></span><span><b>{label}</b></span></> : <><Icon name={icon} /><span>{label}</span></>;
+  return <>
+    <button type="button" role={role} className={className} onClick={() => go("query")} aria-haspopup="dialog">{body("bubble", "Raise a Query")}</button>
+    <button type="button" role={role} className={className} onClick={() => go("feedback")} aria-haspopup="dialog">{body("pencil", "Share feedback")}</button>
+  </>;
+}
+
+/** The one dialog behind Raise a Query and Share feedback, tagged with the page it was opened on (task #214). Nothing is on screen until one of them is chosen. */
+export function PageFeedbackHost() {
   const inRouter = useInRouterContext();
   const loc = inRouter ? useLocation() : null;   // eslint-disable-line react-hooks/rules-of-hooks
   const pathname = loc?.pathname ?? "/", search = loc?.search ?? "";
   const { user, plan } = useAuth();
   const open = openKind();
   useEffect(() => { panel.set(null); }, [pathname]);   // moving to another page closes it: it was about the page left behind
-  // Task #79, SL-12c: on a phone the buttons are small round icons that step aside while the page scrolls down, so they never sit over what is being read
-  const [away, setAway] = useState(false);
-  useEffect(() => {
-    let last = window.scrollY;
-    const on = () => { const y = window.scrollY; if (y > last + 8) setAway(true); else if (y < last - 8) setAway(false); last = y; };
-    window.addEventListener("scroll", on, { passive: true });
-    return () => window.removeEventListener("scroll", on);
-  }, []);
-  if (/^\/admin(\/|$)/.test(pathname)) return null;
-  return (
-    <>
-      <div className="pf-dock" role="group" aria-label="Help with this page" data-away={away || undefined}>
-        <button type="button" className="pf-fab pf-fab-q" aria-label="Raise a Query" onClick={() => panel.set("query")} aria-haspopup="dialog"><Icon name="bubble" /><span>Raise a Query</span></button>
-        <button type="button" className="pf-fab" aria-label="Share feedback" onClick={() => panel.set("feedback")} aria-haspopup="dialog"><Icon name="pencil" /><span>Share feedback</span></button>
-      </div>
-      {open && <FeedbackDialog key={open + pathname} kind={open} pathname={pathname} search={search} plan={user ? plan : null} onClose={() => panel.set(null)} />}
-    </>
-  );
+  if (/^\/admin(\/|$)/.test(pathname) || !open) return null;
+  return <FeedbackDialog key={open + pathname} kind={open} pathname={pathname} search={search} plan={user ? plan : null} onClose={() => panel.set(null)} />;
 }

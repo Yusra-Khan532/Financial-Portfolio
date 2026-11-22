@@ -22,6 +22,7 @@ import { pfAvatar } from "../ViewKit";
 import type { PfFigs, PfInfo } from "../Portfolios";
 import type { View } from "./EquityPack";
 import "./eq-top.css";
+import { PageTabs } from "../../components/PageTabs";
 
 export const EQ_VIEWS: View[] = ["portfolio", "diversification", "risk"];
 export const EQ_VIEW_NAME: Record<View, string> = { portfolio: "Portfolio", diversification: "Diversification", risk: "Risk" };
@@ -57,7 +58,7 @@ const DAY = (iso: string | null | undefined) => {
 // ------------------------------------------------------------------------------------------------ title row
 export function EqTitle({ plan, asOf, add, clear }: { plan: string; asOf: string | null | undefined; add: ReactNode; clear: ReactNode }) {
   const m = useMenu(), day = DAY(asOf);
-  return (
+  return (<>
     <div className="eqx-t1">
       <div className="eqx-ht">
         <h1 className="ui-title">Equity portfolio</h1><span className="eqx-plan">{plan}</span>
@@ -75,7 +76,9 @@ export function EqTitle({ plan, asOf, add, clear }: { plan: string; asOf: string
           </span>
         </span>
       </div>
-    </div>);
+    </div>
+    <PageTabs set="portfolios" className="pf-sibs" />{/* task #310 part D: the three portfolios as page tabs under the title */}
+    </>);
 }
 
 // ------------------------------------------------------------------------------------------------ the money box

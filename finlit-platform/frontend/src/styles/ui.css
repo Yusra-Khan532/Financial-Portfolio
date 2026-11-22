@@ -29,6 +29,14 @@
 .ui-tab:hover { background: var(--s2); }
 .ui-tab[aria-selected="true"], .ui-tab[aria-pressed="true"], .ui-tab[aria-current="page"] { background: var(--ui-on-bg); color: var(--ui-on-fg); border-color: var(--ui-on-bg); }
 .ui-tab:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* Task #310 part D: sibling pages as page tabs (components/PageTabs.tsx), left-aligned directly under the title block. */
+.page-tabs { justify-content: flex-start; margin: 0; }
+.page-tabs.pf-sibs { margin: 12px 0 4px; }
+/* Task #310 part D: section bars (dashboard and all my investments: StepsBar; Sector Pulse and Rotation: SectionsBar; the three portfolios: eqt-chip;
+   long calculators and funds: SectionNav, in section-nav.css with the same tokens). The section in view takes the same selected colour as ui-tab, on a pill, marked by aria-current. */
+:root :is(.stb-chip[aria-current="step"], .sp-secbar-c[aria-current="location"], .eqt-chip[aria-current="true"]) {
+  background: var(--ui-on-bg); color: var(--ui-on-fg); border-radius: var(--ui-r-pill); box-shadow: none; text-decoration: none; font-weight: var(--ui-fw-semibold); }
+:root :is(.stb-chip[aria-current="step"], .sp-secbar-c[aria-current="location"], .eqt-chip[aria-current="true"]) :is(.stb-n, .sp-secbar-n, .eqt-n) { background: var(--ui-on-fg); color: var(--ui-on-bg); }
 
 /* Card: one surface, two sizes */
 .ui-card { background: var(--s1); border: 1px solid var(--border); border-radius: var(--r-card); padding: 24px; }

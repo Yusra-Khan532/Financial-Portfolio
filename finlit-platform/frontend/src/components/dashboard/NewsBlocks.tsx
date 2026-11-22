@@ -9,17 +9,17 @@ import { encodeState, toBody, useScreen, type PState } from "../../lib/proscreen
 import { dedupeFilings, filingLine, filingTag, istToday, resultLines, shortDay, titleCase } from "../../lib/dashboard";
 import { nf } from "../../lib/format";
 import { CoLogo } from "../CoLogo";
-import { Card, Rows, ScopeSeg, ShowMoreButton, useScope, useShowMore } from "./parts";
+import { Card, Rows, ShowMoreButton, useScope, useShowMore } from "./parts";
 import { buttonClass } from "../ui";
 
 export function ResultsToday({ symbols }: { symbols: string[] }) {
-  const [scope, setScope] = useScope("resultstoday", symbols.length > 0);
+  const [scope] = useScope("resultstoday", symbols.length > 0);   // task #316: chosen with the From dropdown in the section heading
   const q = useFeed("result", { symbols: scope === "mine" ? symbols : [], limit: 100, upcoming: true });
   const today = istToday(), end = new Date(Date.parse(today + "T00:00:00Z") + 7 * 864e5).toISOString().slice(0, 10);
   const lines = resultLines((q.data || []).filter((i) => i.date >= today && i.date <= end)).slice(0, 20);
   const more = useShowMore(lines, 5, scope);
   return (
-    <Card id="resultstoday" title="Results today" sub="Filed or due today, and the next few days" right={<ScopeSeg label="Results" scope={scope} onChange={setScope} hasStocks={symbols.length > 0} />}>
+    <Card id="resultstoday" title="Results today" sub="Filed or due today, and the next few days">
       {q.isLoading ? <Rows n={4} h={46} /> : q.isError ? <p className="dsh-note">Results are not available right now.</p> : !lines.length ? <p className="dsh-note">{scope === "mine" ? "No results due for your stocks this week." : "No company has filed or announced a results date for this week yet."}</p> :
         <><div className="dsh-lines" id="dsh-results-list">{more.visible.map((l) => <Link key={l.key} to={l.symbol ? `/stocks/${l.symbol}` : "/results"} className="dsh-line2"><span><b>{who(l)}</b><span>{l.text}</span></span><em>{shortDay(l.date, today)}</em></Link>)}</div>
           <ShowMoreButton more={more} noun="result" controls="dsh-results-list" /></>}
@@ -29,12 +29,12 @@ export function ResultsToday({ symbols }: { symbols: string[] }) {
 }
 
 export function Filings({ symbols }: { symbols: string[] }) {
-  const [scope, setScope] = useScope("filings", symbols.length > 0);
+  const [scope] = useScope("filings", symbols.length > 0);
   const q = useFeed("news", { symbols: scope === "mine" ? symbols : [], limit: 40 });
   const today = istToday(), items = dedupeFilings(q.data || []).slice(0, 20);
   const more = useShowMore(items, 5, scope);
   return (
-    <Card id="filings" title="Filings and news" sub="Exchange filings, newest first" right={<ScopeSeg label="Filings" scope={scope} onChange={setScope} hasStocks={symbols.length > 0} />}>
+    <Card id="filings" title="Filings and news" sub="Exchange filings, newest first">
       {q.isLoading ? <Rows n={5} h={46} /> : q.isError ? <p className="dsh-note">Filings are not available right now.</p> : !items.length ? <p className="dsh-note">{scope === "mine" ? "No new filings for your stocks." : "No new exchange filings yet."}</p> :
         <><div className="dsh-lines" id="dsh-filings-list">{more.visible.map((x) => <Link key={x.id} to="/news" className="dsh-line2 f" title={filingLine(x)}><span className="hd">{x.symbol && !/^\d+$/.test(x.symbol) && <CoLogo symbol={x.symbol} name={x.company || x.symbol} size={22} />}<b>{who(x) || "Market"}</b><i className="dsh-tag">{filingTag(x)}</i><em>{shortDay(x.date, today)}</em></span><span className="tx dsh-1line">{filingLine(x)}</span></Link>)}</div>
           <ShowMoreButton more={more} noun="filing" controls="dsh-filings-list" /></>}

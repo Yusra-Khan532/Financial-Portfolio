@@ -19,10 +19,11 @@ const DATA = {
   ],
 };
 vi.mock("../../lib/api", async (orig) => ({ ...(await orig<typeof import("../../lib/api")>()), apiGet: async () => DATA }));
+import { XCtx } from "./dx";   // task #316: the live card in full is its expanded view
 import { GlobalMarkets, move } from "./GlobalMarkets";
 
 afterEach(cleanup);
-const open = () => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><GlobalMarkets /></QueryClientProvider>);
+const open = () => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><XCtx.Provider value={true}><GlobalMarkets /></XCtx.Provider></QueryClientProvider>);
 
 describe("task #294: Global markets on the dashboard", () => {
   it("is a dashboard block in The market step, on every plan", () => {

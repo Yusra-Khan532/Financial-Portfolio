@@ -159,6 +159,12 @@ async def test_csrf_and_origin_are_enforced(app):
     assert (await c.get("/api/me/state")).json()["prefs"]["dashPortfolios"] == pick
     for bad in ({"equity": []}, {"equity": ["<x>"]}, {"mf": "some"}, {"etf": [f"a{i}" for i in range(11)]}):
         assert (await c.put("/api/me/prefs", json={"palette": "gold", "dashPortfolios": bad})).status_code == 422, bad
+    # task #316: the dashboard's own choices (section, portfolio pane, region, sort, results "From", hidden cards) are kept with the account and checked
+    ui = {"sec": "market", "glance": "mf", "region": "asia", "invSort": "fall", "who": "mine", "hidden": ["flows", "watch"]}
+    assert (await c.put("/api/me/prefs", json={"palette": "gold", "dashUi": ui})).status_code == 200
+    assert (await c.get("/api/me/state")).json()["prefs"]["dashUi"] == ui
+    for bad in ({"sec": "nope"}, {"region": "mars"}, {"who": "all"}, {"hidden": ["<script>"]}, {"hidden": [f"c{i}" for i in range(31)]}):
+        assert (await c.put("/api/me/prefs", json={"palette": "gold", "dashUi": bad})).status_code == 422, bad
     assert body  # silence unused
     await c.aclose()
 

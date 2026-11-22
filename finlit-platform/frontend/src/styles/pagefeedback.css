@@ -1,24 +1,5 @@
-/* "Raise a Query" and "Share feedback", side by side at the bottom right of every page (task #214), with their one dialog. Site tokens only. */
-.pf-dock { position: fixed; z-index: 66; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); display: flex; gap: 8px; align-items: center; }
-.pf-fab { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1.5px solid var(--gold); background: var(--s1); color: var(--text); font: 600 var(--fs-14)/1.2 var(--sans); cursor: pointer; box-shadow: 0 10px 26px -12px rgba(0, 0, 0, .55); transition: background .15s, transform .15s; }
-.pf-fab:hover { background: var(--s2); transform: translateY(-1px); }
-.pf-fab:focus-visible, .pf-chips button:focus-visible, .pf-stars button:focus-visible, .pf-x:focus-visible { outline: 2px solid var(--focus, var(--gold)); outline-offset: 2px; }
-.pf-fab svg { width: 16px; height: 16px; flex: none; }
-.pf-fab:not(.pf-fab-q) svg { color: var(--gold-deep, var(--gold)); }
-/* task #214: the two are told apart at a glance: a question has the green edge and icon, feedback the gold one; same size, shape and type */
-.pf-fab-q { border-color: var(--gain); }
-.pf-fab-q svg { color: var(--gain); }
-.pf-fab-q:focus-visible { outline-color: var(--gain); }
-/* trays that sit along the bottom of some pages: the dock stands above them */
-body:has(.etf-tray, .mf-tray, .mf-compare-tray) .pf-dock { bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
-@media (max-width: 900px) {
-  .pf-dock { bottom: calc(86px + env(safe-area-inset-bottom, 0px)); right: 12px; }   /* above the phone's bottom tab bar */
-  .pf-fab { min-height: 44px; padding: 0 14px; }
-  .pf-fab span { display: none; } .pf-fab { width: 44px; padding: 0; justify-content: center; }   /* task #79, SL-12c: small round icons on a phone (each button keeps its name for screen readers) */
-  .pf-dock { transition: transform .2s ease, opacity .2s ease; }
-  .pf-dock[data-away] { transform: translateY(calc(100% + 110px)); opacity: 0; pointer-events: none; }   /* out of the way while the page scrolls down; back on the way up */
-  body:has(.etf-tray, .mf-tray, .mf-compare-tray) .pf-dock { bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
-}
+/* The dialog behind "Raise a Query" and "Share feedback" (task #214). Since task #310 part D the two are menu actions (PageFeedback.tsx HelpActions); the floating dock is gone. Site tokens only. */
+.pf-chips button:focus-visible, .pf-stars button:focus-visible, .pf-x:focus-visible { outline: 2px solid var(--focus, var(--gold)); outline-offset: 2px; }
 .pf-scrim { position: fixed; inset: 0; }   /* the dimmer and the layers come from overlay.css */
 .pf-modal { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(480px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 18px 20px 20px; border-radius: 18px; border: 1px solid var(--border-strong); background: var(--ov-surface, var(--s1)); color: var(--text); box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .7); }
 .pf-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -48,8 +29,7 @@ body:has(.etf-tray, .mf-tray, .mf-compare-tray) .pf-dock { bottom: calc(86px + e
 @media (max-width: 640px) {
   .pf-modal { left: 0; right: 0; bottom: 0; top: auto; transform: none; width: auto; max-height: 92dvh; border-radius: 18px 18px 0 0; padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)); }
 }
-@media (prefers-reduced-motion: reduce) { .pf-fab { transition: none; } }
-@media print { .pf-dock, .pf-modal, .pf-scrim { display: none !important; } }
+@media print { .pf-modal, .pf-scrim { display: none !important; } }
 
 /* the team's inbox (/admin/feedback) */
 .pfi { max-width: 880px; } .pfi h1 { margin: 4px 0 6px; }
@@ -66,8 +46,3 @@ body:has(.etf-tray, .mf-tray, .mf-compare-tray) .pf-dock { bottom: calc(86px + e
 .pfi-from, .pfi-note { margin: 4px 0; font-size: var(--fs-13); } .pfi-act { justify-content: flex-start; }
 .pfi-pager { display: flex; gap: 12px; align-items: center; justify-content: center; margin: 16px 0; }
 
-/* the alert pop-ups stack above the feedback button instead of covering it */
-:root .alx-toasts { bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
-@media (max-width: 900px) { :root .alx-toasts { bottom: calc(142px + env(safe-area-inset-bottom, 0px)); } }
-/* Screener pages on a phone (task #64, SC-23): the floating buttons covered the As on picker and the table's last column. The feedback block at the foot of the page stays. */
-@media (max-width: 700px) { body:has(.scr-wrap, .psx-screen) .pf-dock { display: none; } }

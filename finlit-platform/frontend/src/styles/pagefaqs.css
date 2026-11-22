@@ -41,7 +41,7 @@ main:has(.shell.is-collapsed) > .pfq { padding-left: 96px; }
 .pfq-pg { margin-top: 18px; scroll-margin-top: 80px; }
 .pfq-pgh { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 6px; }
 .pfq-pgh h3 { margin: 0; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); } .pfq-pgh h3 a { color: var(--text); text-decoration: none; } .pfq-pgh h3 a:hover { color: var(--gold); }
-@media (max-width: 960px) { main:has(.shell) > .pfq { padding-left: 0 !important; } }
+@media (max-width: 860px) { main:has(.shell) > .pfq { padding-left: 0 !important; } }
 @media (max-width: 760px) { .pfq-in { width: calc(100% - 28px); } }   /* the phone gutter of .wrap */
 @media (max-width: 720px) {
   .pfq { margin-top: 28px; margin-bottom: 24px; }
