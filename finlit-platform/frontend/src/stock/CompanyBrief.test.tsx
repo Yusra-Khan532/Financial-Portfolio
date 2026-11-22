@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -20,25 +20,48 @@ const mount = () => render(<QueryClientProvider client={new QueryClient({ defaul
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe("company brief section", () => {
-  it("shows a loading skeleton, then the whole published brief with its citations", async () => {
+  it("task #312: the brief in five tabs, opening folded; every part and its citations are one click away", async () => {
     serve(published());
     mount();
     expect(screen.getByRole("status", { name: /loading the company brief/i })).toBeTruthy();
     await screen.findByText(/About Reliance Industries Ltd, from its own filings/);
+    expect(screen.getByText("Full brief")).toBeTruthy();
     expect(screen.getByText(/^Reviewed/)).toBeTruthy();
-    for (const h of ["Key figures", "How the group is held", "The businesses and their latest figures", "Where the money comes from", "Recent developments", "What is missing"]) expect(screen.getByRole("heading", { name: new RegExp(h) })).toBeTruthy();
-    expect(screen.getByText(/Reliance.s share of each company/)).toBeTruthy();
+    expect(document.querySelector(".cbr-checks")!.textContent).toMatch(/filings? read · ✓ 65 of 65 quotes found on their page/);
+    const tabs = screen.getAllByRole("tab").map((t) => t.textContent!.replace(/\d+$/, ""));
+    expect(tabs).toEqual(["The company", "Businesses", "Recent", "Sources & checks"]);   // no plans or catalysts in this brief: that tab is left out
+    // folded: the first sentence, four key figures and one button
+    expect(document.querySelectorAll(".cbr-about p").length).toBe(1);
+    expect(document.querySelectorAll(".cb-tile").length).toBeLessThanOrEqual(4);
+    expect(screen.queryByRole("heading", { name: /How the group is held/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Show the whole brief" }));
+    for (const h of ["Key figures", "How the group is held", "Where the money comes from"]) expect(screen.getByRole("heading", { name: new RegExp(h) })).toBeTruthy();
     expect(screen.getByText("66.43%")).toBeTruthy();
-    expect(screen.getByText(/Oil to Chemicals/)).toBeTruthy();
-    expect(screen.getByText("Share of EBITDA", { exact: false })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Share of EBITDA" })).toBeTruthy();       // one strip per measure, one table naming both
     expect(screen.getAllByRole("link", { name: /^Open Integrated Annual Report 2025-26.*page 131/ })[0].getAttribute("href")).toBe("https://www.ril.com/reports/RIL-Integrated-Annual-Report-2025-26.pdf#page=131");
-    expect(document.querySelectorAll(".cb-cite").length).toBeGreaterThan(40);
-    const det = screen.getByText("Sources and checks").closest("details")!;
-    expect(within(det).getByText(/65 of 65/)).toBeTruthy();
-    expect(within(det).getAllByRole("link").length).toBeGreaterThan(8);
+    expect(screen.getByRole("button", { name: "Show less" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: /Businesses/ }));
+    expect(screen.getByText(/Oil to Chemicals/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: /Sources & checks/ }));
+    expect(screen.getByRole("tabpanel").querySelector(".cb-checks")!.textContent).toMatch(/^65 of 65 quoted citations were found/);
+    expect(screen.getByRole("tabpanel").querySelectorAll("a").length).toBeGreaterThan(8);
+    fireEvent.click(screen.getByRole("tab", { name: /Recent/ }));
+    expect(screen.getByText("First brief for this company.")).toBeTruthy();
     expect(screen.getByText(/Written from the company's own filings/)).toBeTruthy();
     expect(screen.getByText(/not a recommendation. Information only, not investment advice/)).toBeTruthy();
-    expect(screen.getByText(/stake in Jio Platforms after the IPO/i)).toBeTruthy();
+  });
+
+  it("task #312: arrow keys move between tabs; a line with more than two sources shows two and +N", async () => {
+    serve(published());
+    mount();
+    await screen.findByText(/About Reliance/);
+    const first = screen.getByRole("tab", { name: /The company/ });
+    first.focus();
+    fireEvent.keyDown(first, { key: "ArrowRight" });
+    expect(screen.getByRole("tab", { name: /Businesses/ }).getAttribute("aria-selected")).toBe("true");
+    fireEvent.keyDown(screen.getByRole("tab", { name: /Businesses/ }), { key: "End" });
+    expect(screen.getByRole("tab", { name: /Sources & checks/ }).getAttribute("aria-selected")).toBe("true");
+    for (const w of document.querySelectorAll(".cb-cites")) expect(w.querySelectorAll(".cb-cite").length).toBeLessThanOrEqual(2 + 0);
   });
 
   it("says why when there is no published brief, never a guess", async () => {
@@ -61,7 +84,8 @@ describe("company brief section", () => {
     serve(published({ stale: true, waiting: true, changes: { since: "2026-11-04", now: "2027-01-20", parts: ["key_figures", "mix"] } }));
     mount();
     await screen.findByText(/may be behind/);
-    expect(screen.getByText(/key figures, where the money comes from rewritten from newer filings/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: /Recent/ }));
+    expect(screen.getByText(/Since 4 Nov 2026: key figures, where the money comes from rewritten from newer filings/)).toBeTruthy();
     expect(screen.getByText(/newer draft is waiting for review/)).toBeTruthy();
   });
 
@@ -69,8 +93,7 @@ describe("company brief section", () => {
     serve(published({ publishMode: "auto", reviewedAt: null }));
     mount();
     await screen.findByText(/About Reliance/);
-    expect(screen.getByText("Checked automatically")).toBeTruthy();
-    expect(screen.getByText("Checked automatically against the filings; every line cites its page.")).toBeTruthy();
+    expect(screen.getByText(/^Checked automatically · written/)).toBeTruthy();
     expect(screen.queryByText(/^Reviewed/)).toBeNull();
   });
 

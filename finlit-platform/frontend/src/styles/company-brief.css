@@ -94,3 +94,46 @@
   .cb-table td.num { display: block; }
 }
 .cb-badge.auto { border-color: var(--border-strong); color: var(--muted); background: var(--s2); }
+
+/* Task #312 (developer file 20, change 6): the brief in five tabs, opening folded. Classes start with cbr-; site tokens only. */
+.cbr-checks { margin-top: 4px; font-size: var(--fs-13); line-height: var(--lh-13); color: var(--muted); }
+.cbr-ok { color: var(--gain); font-weight: 700; }
+.cb-badge.cbr-full { border-color: var(--gain); color: var(--gain); background: var(--gain-soft); }
+.cbr-tabs { display: flex; gap: 4px; margin: 4px 0 16px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+.cbr-tabs::-webkit-scrollbar { display: none; }
+.cbr-tabs button { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: var(--ui-ctl-h); padding: 0 14px; border: 0; border-bottom: 2px solid transparent; background: none;
+  color: var(--muted); font: 600 var(--fs-14) var(--sans); cursor: pointer; white-space: nowrap; }
+.cbr-tabs button.on { color: var(--text); border-bottom-color: var(--gold); }
+.cbr-n { min-width: 20px; padding: 0 6px; border-radius: var(--ui-r-pill); background: var(--s2); color: var(--muted); font-size: var(--fs-12); line-height: var(--lh-12); text-align: center; }
+.cbr-about p:first-child { font-size: var(--fs-16); line-height: var(--lh-16); }
+.cbr-about p + p { font-size: var(--fs-14); line-height: var(--lh-14); color: var(--muted); }
+.cbr-tiles { grid-template-columns: repeat(var(--cbr-cols, 4), minmax(0, 1fr)); }
+.cbr-tiles .cb-tile { background: var(--s1); }
+.cbr-foldrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 16px; }
+.cbr-fold { margin-top: 16px; }
+.cbr-foldrow .cbr-fold { margin-top: 0; }
+.cbr-more { min-height: 0; padding: 0 6px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); background: var(--s2); color: var(--muted); font: 600 var(--fs-12)/var(--lh-12) var(--sans); cursor: pointer; }
+.cbr-strip { display: grid; grid-template-columns: 72px minmax(0, 1fr); align-items: center; gap: 10px; margin: 0 0 8px; }
+.cbr-sl { font-size: var(--fs-13); color: var(--muted); }
+.cbr-sb { display: flex; height: 18px; border-radius: var(--ui-r-mark); overflow: hidden; background: var(--s2); }
+.cbr-sb i { display: block; height: 100%; }
+.cbr-c1 { background: var(--k1); } .cbr-c2 { background: var(--k2); } .cbr-c3 { background: var(--k3); } .cbr-c4 { background: var(--k4); } .cbr-c5 { background: var(--k5); } .cbr-c6 { background: var(--k6); } .cbr-c7 { background: var(--k7); }
+.cbr-dot { display: inline-block; width: 10px; height: 10px; margin-right: 8px; border-radius: var(--ui-r-mark); vertical-align: 0; }
+#company-brief .cb-table th, #company-brief .cb-table td { position: static; text-transform: none; letter-spacing: normal; white-space: normal; background: none; }
+#company-brief .cb-table tbody th { font-size: var(--fs-14); font-weight: 500; color: var(--text); }
+.cbr-group { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.cbr-group li { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.cbr-gv { text-align: right; font-variant-numeric: tabular-nums; }
+.cbr-gb { position: relative; display: block; height: 6px; margin-top: 6px; border-radius: var(--ui-r-mark); background: var(--s2); }
+.cbr-gb i { display: block; height: 100%; border-radius: var(--ui-r-mark); background: var(--gold); }
+.cbr-gb::after { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--border-strong); }
+.cbr-all { margin-top: 10px; }
+.cbr-plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+.cbr-rows { list-style: none; margin: 0; padding: 0; }
+.cbr-rows li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: var(--fs-14); line-height: var(--lh-14); }
+@media (max-width: 760px) {
+  .cbr-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cbr-tiles .cb-tv { font-size: var(--fs-18); line-height: var(--lh-18); }
+  .cbr-group li { grid-template-columns: minmax(0, 1fr); }
+  .cbr-gv { text-align: left; }
+}
