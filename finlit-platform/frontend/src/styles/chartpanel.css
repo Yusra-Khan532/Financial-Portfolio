@@ -49,3 +49,23 @@ tr.cp-row > td { background: color-mix(in srgb, var(--gold, #b8892b) 9%, transpa
 .cp-score { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 8px; }
 .cp-score li { border: 1px solid var(--border); border-radius: 10px; padding: 6px 10px; display: flex; flex-direction: column; background: var(--s2, transparent); } .cp-score small { color: var(--muted); font-size: 12px; } .cp-score b { font-size: 18px; } .cp-score em { font-style: normal; font-size: 12px; color: var(--muted); }
 .cp-c { overflow: hidden; }
+/* task #325 (developer file 25, section 1 row 2): List + chart. The panel sits beside the list and stays in view while the list scrolls. */
+.cp.cp-inline { position: sticky; top: 84px; right: auto; bottom: auto; width: auto; max-height: calc(100vh - 100px); z-index: 1; box-shadow: none; }
+.cc-grid.cc-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cc-grid.cc-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } .cc-grid.cc-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.cc-p { display: flex; align-items: baseline; gap: 8px; font-variant-numeric: tabular-nums; } .cc-p b { font-size: var(--fs-16); } .cc-p .up { color: var(--gain); } .cc-p .down { color: var(--loss); }
+.cc-fx { display: flex; flex-wrap: wrap; gap: 4px 14px; font: 600 var(--fs-13) var(--sans); color: var(--text); font-variant-numeric: tabular-nums; }
+.cc-fx span { display: grid; } .cc-fx small { font: 500 var(--fs-12) var(--sans); color: var(--muted); }
+.cc-chart small { display: grid; place-items: center; height: 100%; color: var(--muted); font-size: var(--fs-13); }
+.cc-spark { width: 96px; height: 32px; }
+@media (max-width: 900px) { .cc-grid.cc-cols-3, .cc-grid.cc-cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .cc-grid.cc-cols-2, .cc-grid.cc-cols-3, .cc-grid.cc-cols-4 { grid-template-columns: minmax(0, 1fr); } }
+.psx-lc { display: grid; grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); gap: 14px; align-items: start; }
+.psx-lc-list { margin: 0; padding: 0; list-style: none; max-height: calc(100vh - 120px); overflow: auto; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--s1); }
+.psx-lc-list li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto auto; align-items: center; gap: 10px; padding: 9px 12px; border-bottom: 1px solid var(--border); cursor: pointer; }
+.psx-lc-list li:last-child { border-bottom: 0; } .psx-lc-list li:hover { background: var(--s2); }
+.psx-lc-list li.is-on { background: color-mix(in srgb, var(--gold) 10%, var(--s1)); box-shadow: inset 3px 0 0 var(--gold); }
+.psx-lc-list li:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.psx-lc-n { display: grid; min-width: 0; } .psx-lc-n b { font: 600 var(--fs-14) var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .psx-lc-n small { color: var(--muted); font-size: var(--fs-12); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.psx-lc-p, .psx-lc-f { display: grid; justify-items: end; font: 600 var(--fs-13) var(--sans); font-variant-numeric: tabular-nums; } .psx-lc-p small.up { color: var(--gain); } .psx-lc-p small.down { color: var(--loss); } .psx-lc-f small { color: var(--muted); font-weight: 500; font-size: var(--fs-12); }
+/* a phone: the list over the chart */
+@media (max-width: 900px) { .psx-lc { grid-template-columns: minmax(0, 1fr); } .psx-lc-list { max-height: 320px; } .cp.cp-inline { position: static; max-height: none; } }

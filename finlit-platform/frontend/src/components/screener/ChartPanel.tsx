@@ -87,7 +87,9 @@ class BoxPrimitive implements ISeriesPrimitive<Time> {
   }
 }
 
-export function ChartPanel({ row, onClose, onStep, extra }: { row: PanelRow; onClose: () => void; onStep?: (dir: 1 | -1) => void; extra?: React.ReactNode }) {
+/** `inline` (task #325, List + chart): the panel sits beside the list instead of over the page; it has no close button, keeps no focus trap, and Escape does not
+ *  close it. Up and down arrows still move through the list. */
+export function ChartPanel({ row, onClose, onStep, extra, inline = false }: { row: PanelRow; onClose: () => void; onStep?: (dir: 1 | -1) => void; extra?: React.ReactNode; inline?: boolean }) {
   const [opt, setOpt] = useState(readOpt);
   const [ind, setInd] = useState(() => readInd(row.screen));
   const [cmp, setCmp] = useState<Cmp>({ nifty: false, peers: [] });
@@ -107,12 +109,12 @@ export function ChartPanel({ row, onClose, onStep, extra }: { row: PanelRow; onC
   useFocusTrap(box, false);
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { if (menu) setMenu(null); else onClose(); return; }
+      if (e.key === "Escape") { if (menu) setMenu(null); else if (!inline) onClose(); return; }
       const t = e.target as HTMLElement | null;
       if ((e.key === "ArrowDown" || e.key === "ArrowUp") && onStep && !(t && /^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName))) { e.preventDefault(); onStep(e.key === "ArrowDown" ? 1 : -1); }
     };
     window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k);
-  }, [onClose, onStep, menu]);
+  }, [onClose, onStep, menu, inline]);
   useEffect(() => { if (!menu) return; const d = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest(".cp-menu")) setMenu(null); }; document.addEventListener("mousedown", d); return () => document.removeEventListener("mousedown", d); }, [menu]);
 
   const needBench = cmp.nifty || ind.rs;
@@ -278,12 +280,12 @@ export function ChartPanel({ row, onClose, onStep, extra }: { row: PanelRow; onC
   const peerList = (peers?.symbols ?? []).filter((p) => p !== row.symbol).slice(0, 8);
   const pct = (v: number | null) => v == null ? null : <span className={v >= 0 ? "up" : "dn"}>{v >= 0 ? "+" : ""}{num(v)}%</span>;
   return (
-    <aside className="cp" ref={box} role="complementary" aria-label={`${row.name || row.symbol} chart`}>
+    <aside className={"cp" + (inline ? " cp-inline" : "")} ref={box} role="complementary" aria-label={`${row.name || row.symbol} chart`}>
       <header className="cp-h">
         <CoLogo symbol={row.symbol} name={row.name} size={32} />
         <div className="cp-t"><b>{row.name || row.symbol}</b><small>{row.symbol}{row.sector ? ` · ${row.sector}` : ""}</small></div>
         {onStep && <span className="cp-nav" role="group" aria-label="Move between companies"><button type="button" onClick={() => onStep(-1)} aria-label="Previous company (up arrow)" title="Previous company (↑)">↑</button><button type="button" onClick={() => onStep(1)} aria-label="Next company (down arrow)" title="Next company (↓)">↓</button></span>}
-        <button type="button" className="cp-x" onClick={onClose} aria-label="Close chart">×</button>
+        {!inline && <button type="button" className="cp-x" onClick={onClose} aria-label="Close chart">×</button>}
       </header>
       <div className="cp-p"><b>₹{num(lastBar?.c ?? row.price)}</b>
         {r1 != null && <span title="Change over the last month">1M {pct(r1)}</span>}{r3 != null && <span title="Change over the last 3 months">3M {pct(r3)}</span>}
