@@ -200,13 +200,13 @@
 .pai-row { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .pai-btn { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; } .pai-btn svg { width: 16px; height: 16px; }
 .pai-hint { color: var(--muted); font-size: var(--fs-13); }
-.pai-box { padding: 14px 16px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--s1); display: grid; gap: 6px; font-size: var(--fs-14); line-height: 1.55; color: var(--text); min-width: 0; overflow-wrap: anywhere; }
+.pai-box { padding: 14px 16px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); display: grid; gap: 6px; font-size: var(--fs-14); line-height: 1.55; color: var(--text); min-width: 0; overflow-wrap: anywhere; }
 .pai-box p { margin: 0; }
 .pai-list { margin: 0; padding-left: 18px; display: grid; gap: 6px; } .pai-list b { font-weight: 600; }      /* task #228: pointers, key words bold */
 .pai-status { color: var(--muted); }
 .pai-note { display: flex; gap: 6px; align-items: flex-start; color: var(--muted); font-size: var(--fs-13); } .pai-note svg { flex: none; width: 14px; height: 14px; margin-top: 3px; }
 .pai-err { color: var(--loss); }
-.pai-disc { color: var(--muted); font-size: 12px; }
+.pai-disc { color: var(--muted); font-size: var(--fs-12); }
 /* Task #293 (21 Nov 2026, the team's Prism report pack, finlit-dev-11-prism-report-21nov) */
 /* 2. Trend alignment in the narrow Technical analysis card (laptop widths): the divider was left at the end of line 1 and the diamond alone on
    line 2. The phone layout now follows the row's own width, not the window's. */

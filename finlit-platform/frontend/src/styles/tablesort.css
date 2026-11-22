@@ -2,8 +2,8 @@
 th.ts-th { white-space: nowrap; }
 th.ts-th .ts-b { display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; background: none; font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
 th.ts-th.r .ts-b { flex-direction: row; }
-th.ts-th .ts-i { display: inline-grid; place-items: center; min-width: 16px; height: 16px; border-radius: 4px; font-size: var(--fs-12, 12px); line-height: 1; color: var(--faint, var(--muted)); }
+th.ts-th .ts-i { display: inline-grid; place-items: center; min-width: 16px; height: 16px; border-radius: var(--ui-r-mark); font-size: var(--fs-12, 12px); line-height: 1; color: var(--faint, var(--muted)); }
 th.ts-th .ts-b:hover .ts-i { color: var(--text); }
 th.ts-th.ts-on .ts-b { color: #2a78d6; }
 th.ts-th.ts-on .ts-i { background: #2a78d6; color: #fff; }
-th.ts-th .ts-b:focus-visible { outline: 2px solid #2a78d6; outline-offset: 2px; border-radius: 4px; }
+th.ts-th .ts-b:focus-visible { outline: 2px solid #2a78d6; outline-offset: 2px; border-radius: var(--ui-r-mark); }

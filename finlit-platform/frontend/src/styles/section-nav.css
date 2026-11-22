@@ -1,14 +1,14 @@
 /* SectionNav (components/SectionNav.tsx, task #189): the sticky bar of section buttons. Every class starts with jumpbar-: .snav and .secnav are the
    company report's own section bar, so they must never be styled here. Site tokens and type scale only; the marked section is emerald. */
-.jumpbar { display: block; position: sticky; top: 64px; z-index: 6; box-sizing: border-box; width: 100%; margin: 0 0 16px; padding: 5px; border: 1px solid var(--border); border-radius: 14px; background: var(--s1); box-shadow: 0 8px 18px -16px #000; min-width: 0; }
+.jumpbar { display: block; position: sticky; top: 64px; z-index: 6; box-sizing: border-box; width: 100%; margin: 0 0 16px; padding: 5px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); box-shadow: 0 8px 18px -16px #000; min-width: 0; }
 .jumpbar-row { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
 .jumpbar-row::-webkit-scrollbar { display: none; }
-.jumpbar-i { flex: 1 0 auto; display: flex; align-items: center; justify-content: center; gap: 0; padding-right: 2px; border-radius: 10px; transition: background .18s ease, box-shadow .18s ease; }
+.jumpbar-i { flex: 1 0 auto; display: flex; align-items: center; justify-content: center; gap: 0; padding-right: 2px; border-radius: var(--r-ctl); transition: background .18s ease, box-shadow .18s ease; }
 .jumpbar-i:hover { background: var(--s2); }
 .jumpbar-b { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 2px 0 8px; border: 0; background: transparent; color: var(--muted); font: 600 var(--fs-13)/1.2 var(--sans); white-space: nowrap; cursor: pointer; }
 .jumpbar-b svg { width: 16px; height: 16px; flex: none; }
 .jumpbar-b:hover { color: var(--text); }
-.jumpbar-b:focus-visible { outline: 2px solid var(--gain); outline-offset: 2px; border-radius: 8px; }
+.jumpbar-b:focus-visible { outline: 2px solid var(--gain); outline-offset: 2px; border-radius: var(--r-ctl); }
 .jumpbar-i.on { background: var(--ui-on-bg); border-radius: var(--ui-r-pill); }   /* task #310 part D: the section in view takes the ui-tab selected colour (was emerald) */
 .jumpbar-i.on .jumpbar-b, .jumpbar-i.on .info { color: var(--ui-on-fg); }
 .jumpbar-i.off .jumpbar-b { opacity: .5; cursor: not-allowed; }
