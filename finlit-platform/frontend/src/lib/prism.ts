@@ -172,10 +172,14 @@ export function notRatedLede(rating: Pick<PrismRating, "status" | "notRatedReaso
 }
 /** The completeness line. A high figure beside a withheld rating must never read as a contradiction: when a check other than the data coverage
  * withheld the rating, say so next to the figure and do not tick it. */
-export function inputsLine(rating: Pick<PrismRating, "status" | "confidence" | "notRatedReasons">): { text: string; ok: boolean; note: string | null } {
-  const text = `${pctWhole(rating.confidence)} of inputs available`;
+// Task #311 (developer file 21): the card says nothing when every figure is there; below that, "Some figures are missing" and the glossary link.
+// The percentage and how gaps are handled stay off the page (how FinLit builds its score is not shown).
+export const MISSING_WORDS = "Some figures are missing";
+export const allFiguresIn = (confidence: number | null | undefined) => confidence != null && Math.round(confidence * 100) >= 100;
+export function inputsLine(rating: Pick<PrismRating, "status" | "confidence" | "notRatedReasons">): { text: string; ok: boolean; note: string | null } | null {
+  if (allFiguresIn(rating.confidence)) return null;
   const withheldElsewhere = completenessNote(rating) != null;
-  return { text, ok: !withheldElsewhere, note: withheldElsewhere ? "Inputs are not the cause: a separate check withheld the rating." : null };
+  return { text: MISSING_WORDS, ok: !withheldElsewhere, note: withheldElsewhere ? "Missing figures are not the cause: a separate check withheld the rating." : null };
 }
 export const STATE_WORD: Record<FactorState, string> = {
   A: "Reported or calculated", Z: "Loss rule applied", S: "Industry benchmark in place of own history",
@@ -207,6 +211,10 @@ export const incomeNote = (group: string): string | null =>
   : group === "INSURANCE" ? "For insurers the model's sales line is net premium earned." : null;
 export const statementWord = (s?: string | null) => (s === "standalone" ? "Standalone" : "Consolidated");
 export const score1 = (v: number | null | undefined) => (v == null ? "—" : (v < 0 ? MINUS : "") + nf(v, 1));
+/** Task #311 (developer file 21, Prism page row 1): "How it works" in plain words, with the member's own daily allowance when the plan has one. */
+export function howPrismWorks(perDay: number | null | undefined): string {
+  return `Choose a company to open its rating. A new rating can take up to half a minute.${perDay ? ` You can open ${perDay} a day.` : ""}`;
+}
 export const pctWhole = (v: number | null | undefined) => (v == null ? "—" : `${Math.round(v * 100)}%`);
 
 /** A factor's value with its unit, in the site's style (real minus, ×, ₹ Cr). */

@@ -85,7 +85,6 @@ export function KeyFindings({ s, f, lender }: { s: Summary; f?: Financials; lend
           <Col kind="w" tag="Watch" icon="info" items={k.watch} empty="Nothing to watch right now." />
           <Col kind="s" tag="Strength" icon="check" items={k.good} empty="Nothing stands out yet." />
         </div>
-        <p className="faint kf-foot">Describes the company's financial health from its filings and prices; not a recommendation. Information only, not investment advice.</p>
       </Gate>
     </section>
   );

@@ -21,8 +21,7 @@
 .mo-score { display: inline-flex; align-items: baseline; gap: 4px; min-width: 150px; } .mo-score b { font: 700 24px var(--sans); font-variant-numeric: tabular-nums; } .mo-score small { color: var(--muted); margin-right: 8px; } .mo-score .mo-bar { align-self: center; width: 90px; }
 .mo-drivers { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px; flex: 1 1 160px; min-width: 0; }
 .mo .mo-more:focus-visible, .mo .mo-seg button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
-.mo-meta, .mo-map, .mo-disc, .mo-foot { margin: 0; font-size: var(--fs-13); color: var(--muted); } .mo-meta b { color: var(--text); }
-.mo-map { display: flex; gap: 6px; align-items: flex-start; }
+.mo-meta, .mo-disc, .mo-foot { margin: 0; font-size: var(--fs-13); color: var(--muted); } .mo-meta b { color: var(--text); }
 .mo-stale, .mo-note { display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 10px 14px; border-radius: 12px; font-size: 14px; border: 1px solid var(--border-strong); background: var(--s2); }
 .mo-stale { border-color: var(--loss); background: color-mix(in srgb, var(--loss) 10%, var(--s1)); }
 .mo-skel { padding: 24px; border: 1px dashed var(--border); border-radius: 14px; color: var(--muted); }
@@ -73,8 +72,7 @@
 .mo-why { margin: 0 0 10px; font-size: var(--fs-13); color: var(--muted); }
 
 /* ===== Task #216 (README 3.2): "How this reading is made", the backdrop with its ring, the 1.35 : 1 grid, the redrawn score history ===== */
-.mo .mo-how { margin: 0 0 14px; }
-.mo .mo-how > p { margin: 6px 0 0; }
+.mo .mo-est { margin: 0 0 14px; }
 .mo-bd { --bc: var(--faint); display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px 20px; margin: 0 0 16px; padding: 16px 20px;
   border: 1px solid color-mix(in srgb, var(--bc) 40%, var(--border)); border-left: 5px solid var(--bc); border-radius: 16px;
   background: linear-gradient(90deg, color-mix(in srgb, var(--bc) 9%, var(--s1)), var(--s1) 60%); }

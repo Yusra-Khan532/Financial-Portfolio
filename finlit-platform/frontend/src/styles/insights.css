@@ -17,7 +17,7 @@ mark.k.g { background: linear-gradient(transparent 62%, color-mix(in srgb, var(-
 .kf-n { margin-left: auto; font-weight: 700; color: var(--muted); }
 .ins-dot { display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; border-radius: 50%; color: #fff; background: var(--gold); }
 .ins-dot svg { width: 13px; height: 13px; } .ins-dot.f { background: var(--loss); } .ins-dot.w { background: var(--warn, #CC7A00); } .ins-dot.s { background: var(--gain); }
-.kf-none { margin: 0; font-size: var(--fs-13); color: var(--faint); } .kf-foot { margin: 12px 2px 0; font-size: 12px; }
+.kf-none { margin: 0; font-size: var(--fs-13); color: var(--faint); }
 @media (max-width: 900px) { .kf-g { grid-template-columns: minmax(0, 1fr); } }
 
 /* dots on the section tabs: red = a red flag, orange = something to watch */

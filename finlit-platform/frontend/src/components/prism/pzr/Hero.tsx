@@ -3,7 +3,7 @@
 import { Icon } from "../../../lib/icons";
 import { dateIN } from "../../../lib/format";
 import {
-  PRISM_NAME, PRISM_NOTE, completenessNote, notRatedReason, ringWhy, STATUS_TEXT, STATUS_WORD, isRated, labelTone, partInfo, pctWhole, ringSentence, score1, statementWord,
+  PRISM_NAME, PRISM_NOTE, MISSING_WORDS, allFiguresIn, notRatedReason, ringWhy, STATUS_TEXT, STATUS_WORD, isRated, labelTone, partInfo, ringSentence, score1, statementWord,
   type PrismRating, type PrismReport,
 } from "../../../lib/prism";
 import { THRESHOLDS, arcSegments, partVar } from "../../../lib/prismReport";
@@ -166,8 +166,8 @@ export function Hero({ report, actions }: { report: PrismReport; actions: Report
             <LabelChip label={rating.label} /><StatusChip status={rating.status} />
           </div>
           <p className="pzr-lede">{notRatedReason(rating) ?? STATUS_TEXT[rating.status]}</p>
-          <p className="pzr-cov"><Icon name="quality" /><span><b>{pctWhole(rating.confidence)} of inputs available</b>, and {rating.judgedQuarters} of 10 comparable quarters.</span></p>
-          <p className="pzr-cov-n">This is completeness of the data behind the score. It is not a probability and does not predict returns.{completenessNote(rating) ? " " + completenessNote(rating) : ""}</p>
+          {/* task #311: nothing when every figure is there; the percentage and how gaps are handled stay off the page */}
+          {!allFiguresIn(rating.confidence) && <p className="pzr-cov"><Icon name="quality" /><span><b>{MISSING_WORDS}</b></span></p>}
           <div className="pzr-acts">
             <MiniScores report={report} />
             <div className="pzr-noprint pzr-acts-r"><button type="button" className="btn" onClick={actions.onRecalculate} disabled={actions.recalculating}><Icon name="refresh" />{actions.recalculating ? "Recalculating…" : "Recalculate"}</button></div>

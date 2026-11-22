@@ -86,7 +86,7 @@ export function IpoPage() {
   return (
     <div className="wrap ipo">
       <PageHeader plan="free" title="IPO calendar" art="calendar" links={["/results", "/news", "/premium/markets"]} actions={<CalendarSync />}
-        description={<>Issues that are <b>open, coming up and recently listed</b>, updated automatically from exchange data. For information only; the offer document is the authoritative source.</>}
+        description={<>Issues that are <b>open, coming up and recently listed</b>. For information only; the offer document is the authoritative source.</>}
         stats={[{ icon: "activity", value: !isLoading && rows.length > 0 ? by("open").length : null, label: "Open now" }, { icon: "calendar", value: !isLoading && rows.length > 0 ? by("upcoming").length : null, label: "Upcoming" }]} />
       <div className="ipo-k">
         {([["open", "Open now", by("open").length], ["upcoming", "Upcoming", by("upcoming").length], ["listed", "Listed in the last 30 days", month.length]] as const).map(([k, l, n]) => <div key={k} className="card ipo-t" style={{ "--tc": STATUS[k].colour } as React.CSSProperties}><b>{n}</b><span>{l}</span></div>)}
