@@ -1,0 +1,83 @@
+/* Task #322 (developer file 24, 22 Nov 2026): Market events & index (pages/Markets.tsx). From the pack's market-events.css, scoped to .mk and on the site's
+   tokens. The dropdown (.dx-dd, components/MkDd.tsx) and the expanded view (.dx-xp, the dashboard's useExpand) carry their own rules here, because the
+   dashboard's copies are scoped to its page. No table scrolls sideways: each fits its space, and on a phone each row is a card. */
+
+/* ---- the dropdown, with a search box and group headings ---- */
+.mke .dx-only-s { display: none !important; }
+.mke .dx-dd { position: relative; display: inline-block; }
+.mke .dx-dd-b { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; max-width: 100%; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font: 500 var(--fs-13)/1.2 var(--sans); cursor: pointer; }
+.mke .dx-dd-b:hover { border-color: var(--border-strong); }
+.mke .dx-dd-b b { min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mke .dx-dd-k { color: var(--muted); white-space: nowrap; font-size: var(--fs-12); }
+.mke .dx-chev { flex: none; transition: transform .15s; }
+.mke [aria-expanded="true"] > .dx-chev { transform: rotate(180deg); }
+.mke .dx-dd-m { position: absolute; z-index: var(--z-dropdown, 60); top: calc(100% + 6px); left: 0; min-width: max(100%, 240px); max-width: min(380px, calc(100vw - 16px)); max-height: 360px; overflow: auto; padding: 6px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); box-shadow: var(--ov-shadow); }
+.mke .dx-dd-m > ul { margin: 0; padding: 0; list-style: none; }
+.mke .dx-dd-m li { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 40px; padding: 6px 10px; border-radius: var(--r-ctl); color: var(--text); font: 500 var(--fs-14)/1.25 var(--sans); cursor: pointer; }
+.mke .dx-dd-m li small { color: var(--muted); font-size: var(--fs-12); font-variant-numeric: tabular-nums; }
+.mke .dx-dd-m li[role="option"]:hover, .mke .dx-dd-m li[role="option"]:focus { background: var(--s2); outline: 0; }
+.mke .dx-dd-m li:focus-visible { box-shadow: inset 0 0 0 2px var(--gold); }
+.mke .dx-dd-m li[aria-selected="true"] { font-weight: 600; } .mke .dx-dd-m li[aria-selected="true"] > span::before { content: "✓ "; color: var(--gain); }
+.mke .dx-dd-q { box-sizing: border-box; width: 100%; height: 40px; margin: 0 0 6px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font: 500 var(--fs-14) var(--sans); }
+.mke .dx-dd-h { min-height: 0; padding: 10px 10px 4px; font: 600 var(--fs-12) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); cursor: default; }
+
+/* ---- the bars above each table ---- */
+.mke .mk-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 12px; }
+.mke .mk-find { display: inline-flex; align-items: center; gap: 8px; font: 500 var(--fs-13) var(--sans); color: var(--faint); }
+.mke .mk-find input { height: 40px; min-width: 200px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font: 500 var(--fs-14) var(--sans); }
+.mke .mk-dates { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; }
+.mke .mk-dates label { display: inline-flex; align-items: center; gap: 6px; font: 500 var(--fs-13) var(--sans); color: var(--faint); } .mke .mk-dates input { height: 40px; }
+.mke .mk-tools { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+
+/* ---- the tables: fit their space, no sideways slider ---- */
+.mke .mk-tw { box-sizing: border-box; max-width: 100%; margin: 0; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--s1); overflow: hidden; }
+.mke .mk-tw .pm-t { width: 100%; table-layout: auto; } .mke .mk-tw .pm-t td { vertical-align: top; }
+.mke .mk-tw .pm-t th, .mke .mk-tw .pm-t td { position: static; background: none; }
+.mke .mk-tw .pm-t td.wrapc { max-width: none; white-space: normal; overflow-wrap: anywhere; }
+.mke .mk-u { display: block; font-size: var(--fs-12); } .mke .mk-nw { white-space: nowrap; }
+.mke .mk-cat { white-space: nowrap; font-weight: 500; }
+.mke .mk-ann td:nth-child(2) { min-width: 120px; }
+.mke .mk-none { padding: 26px 16px; text-align: center; color: var(--muted); font: 500 var(--fs-14) var(--sans); }
+.mke .mk-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.mke a.pm-kpi-btn { text-decoration: none; }
+
+/* ---- the panel and its expanded view (50 rows a page) ---- */
+.mke .mk-ph { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 10px; }
+.mke .mk-pt { margin: 0; font: var(--ui-fw-semibold) var(--ui-fs-h3)/1.3 var(--sans); color: var(--text); }
+.mke .dx-xb { flex: none; width: 40px; height: 40px; display: grid; place-items: center; padding: 0; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); color: var(--muted); cursor: pointer; }
+.mke .dx-xb:hover { color: var(--text); border-color: var(--border-strong); }
+.mke .mk-sect { display: none; margin: 0 0 14px; }
+.dx-x { position: fixed; inset: 0; z-index: var(--z-backdrop, 400); background: var(--ov-backdrop); }
+.mke .mk-hold { min-height: 120px; border: 1px dashed var(--border-strong); border-radius: var(--r-card); }
+.mke .mk-panel.dx-xp { position: fixed; z-index: var(--z-modal, 401); top: 24px; bottom: 24px; left: max(24px, calc((100vw - 1320px) / 2)); right: max(24px, calc((100vw - 1320px) / 2)); overflow: auto; overscroll-behavior: contain;
+  padding: 0 24px 28px; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--bg); box-shadow: var(--ov-shadow); }
+.mke .dx-xp > .dx-x-bar { position: sticky; top: 0; z-index: 5; display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 0 -24px 16px; padding: 12px 24px; border-bottom: 1px solid var(--border); background: var(--bg);
+  font: 600 var(--fs-12) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.mke .dx-x-c { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font: 600 var(--fs-14) var(--sans); letter-spacing: 0; text-transform: none; cursor: pointer; }
+.mke .dx-xp .mk-ph { display: none; }
+
+@media (max-width: 1100px) { .mke .mk-hs { display: none; } .mke .dx-xp .mk-hs { display: table-cell; } }
+
+/* ---- phone: one Section dropdown in place of the tabs; dropdowns full width; table rows become cards ---- */
+@media (max-width: 640px) {
+  .mke .pm-tabs { display: none; }
+  .mke .mk-sect { display: block; } .mke .mk-sect .dx-dd, .mke .mk-sect .dx-dd-b { width: 100%; justify-content: space-between; }
+  .mke .dx-only-l { display: none !important; } .mke .dx-only-s { display: block !important; }
+  .mke .mk-bar > .dx-dd, .mke .mk-bar > .dx-dd .dx-dd-b { width: 100%; justify-content: space-between; }
+  .mke .dx-dd-b { min-height: 44px; } .mke .dx-dd-m li { min-height: 44px; } .mke .dx-dd-m { right: 0; max-width: none; }
+  .mke .mk-find { display: grid; gap: 4px; width: 100%; } .mke .mk-find input { width: 100%; min-width: 0; box-sizing: border-box; }
+  .mke .mk-dates { display: none; }
+  .mke .mk-tools { margin-left: 0; width: 100%; justify-content: space-between; }
+  .mke .mk-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mke .mk-tw table.mk-stack, .mke .mk-tw table.mk-stack tbody { display: block; width: 100%; }
+  .mke .mk-tw table.mk-stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .mke .mk-tw table.mk-stack tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px 12px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+  .mke .mk-tw table.mk-stack tr:last-child { border-bottom: 0; }
+  .mke .mk-tw table.mk-stack td { display: block; padding: 0; border: 0; text-align: left; }
+  .mke .mk-tw table.mk-stack td[data-l]::before { content: attr(data-l); display: block; margin-bottom: 2px; font: 600 var(--fs-12) var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--faint); }
+  .mke .mk-tw table.mk-stack td.wrapc, .mke .mk-tw table.mk-stack td.mk-none { grid-column: 1 / -1; }
+  .mke .mk-tw table.mk-stack tr { grid-auto-flow: row dense; }   /* the document link moves up beside the category: shorter cards */
+  .mke .mk-tw table.mk-stack td { min-width: 0; white-space: normal; overflow-wrap: anywhere; } .mke .mk-ann td:nth-child(2) { min-width: 0; }
+  .mke .mk-panel.dx-xp { inset: 0; border: 0; border-radius: 0; padding: 0 14px 40px; } .mke .dx-xp > .dx-x-bar { margin: 0 -14px 12px; padding: 10px 14px; }
+  .mke .dx-xb, .mke .dx-x-c { min-height: 44px; } .mke .dx-xb { width: 44px; height: 44px; }
+}

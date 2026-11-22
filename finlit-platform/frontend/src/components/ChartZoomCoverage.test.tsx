@@ -44,6 +44,7 @@ const EXEMPT: Record<string, string> = {
   "components/dashboard/MarketToday.tsx": "the Nifty 50 and Sensex chart of Market today enlarges with the card's own expand button, the dashboard's expanded view (task #316, dashboard file 22: it replaces Enlarge chart)",
   "components/dashboard/dx.tsx": "only the icons of the dashboard's dropdowns, expand button and card menu (task #316); no chart",
   "components/dashboard/MarketRead.tsx": "only the chevron of the Show the six readings fold (task #316); no chart",
+  "components/MkDd.tsx": "the Market events dropdown's chevron icon (task #322); no data",
   "components/dashboard/GlobalMarkets.tsx": "the world view and the 1-month lines of the Global markets card (task #294): every figure is in the table beside them",
   "superinvestors/InvestorBody.tsx": "the 8-quarter stake sparkline inside a holdings row (task #289); its figures are in the line's label",
   "portfolio/kit/FilterRow.tsx": "the Find box's magnifier icon (task #276); no data",
