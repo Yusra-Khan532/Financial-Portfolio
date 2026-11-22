@@ -307,6 +307,11 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         Job("technicals", ("refresh-technicals",), cls="bulk", priority=10, max_runtime_min=75, weight_mb=350, resumable=True, probe="technicals",
             windows=(W("AFTER_CLOSE", 0), W("MORNING", 0)), sla=Sla("session", 12), owns=("technicals", "daily_prices"),
             what="technical view of every stored Prism report from fresh Dhan daily candles (resumable, yields to members)"),
+        # task #325 (developer file 26, 5.5): the exchange's own daily candles (NSE first, Dhan) for prices, volume and the chart patterns; three years on first
+        # sight, then only new sessions; time-boxed and resumable (the longest-unloaded company first), so a short night is picked up the next night
+        Job("candles", ("refresh-candles", "--max-minutes", "45"), cls="bulk", priority=9, max_runtime_min=55, weight_mb=150, resumable=True,
+            windows=(W("AFTER_CLOSE", 0), W("MORNING", 0)), sla=Sla("session", 12), owns=("daily_candles",),
+            what="daily candles from the exchange (Dhan, NSE first, BSE only where there is no NSE row) into daily_candles: the prices, volume and chart patterns read them"),
         # weekend nights only, at the lowest bulk priority (owner, 18 Nov 2026; docs/JOBS.md "The sector job on weekend nights"): one full build a week on the
         # week's data up to Friday's close; every daily and weekly job of the night goes first; never on a weekday night
         Job("sectors", ("refresh-sectors",), cls="bulk", priority=95, max_runtime_min=90, weight_mb=SECTORS_WEIGHT_MB, stall_min=45, prerequisites=("technicals",), resumable=True,

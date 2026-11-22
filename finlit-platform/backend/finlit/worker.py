@@ -140,6 +140,12 @@ async def ingest_one(client: FinEdgeClient, store: Store, symbol: str, statement
     company = await store.company(symbol)
     try:
         bundle = await client.fetch_bundle(symbol, statement, low=low)
+        if not slim:   # task #325 (file 26, 5.5): the exchange's own daily candles (NSE first) in place of the provider's series, when they are stored: see candles.py
+            try:
+                from . import candles
+                await candles.apply(store, bundle, symbol)
+            except Exception:
+                log.exception("exchange candles skipped for %s", symbol)
         sections = await _build_sections(client, store, symbol, bundle, company, slim=slim)
         checks = sections["summary"]["dataQuality"]["checks"]
         row = snapshot.score_row(sections)
@@ -1203,6 +1209,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_mi = sub.add_parser("refresh-industry", help="daily: AMFI's monthly category report (industry AUM, net flows, folios by scheme category) for the Mutual Fund Insights page; resumable, only new or re-published months are read")
     p_mi.add_argument("--since", default=None, help="first month to load, YYYY-MM (default and earliest: 2019-04, the first category-wise report)")
     p_mi.add_argument("--max-age-hours", type=float, default=None, help="skip when this ran fine in the last N hours")
+    p_cdl = sub.add_parser("refresh-candles", help="nightly, after the close: daily candles from the exchange (Dhan, NSE first) into daily_candles, for prices, volume and the chart patterns")
+    p_cdl.add_argument("symbols", nargs="*", help="only these companies (default: every company, the longest-unloaded first)")
+    p_cdl.add_argument("--days", type=int, default=1150, help="history to load for a company seen for the first time")
+    p_cdl.add_argument("--limit", type=int, default=None)
+    p_cdl.add_argument("--max-minutes", type=float, default=45.0)
     p_di = sub.add_parser("refresh-instruments", help="weekly: Dhan's public instrument file (ISIN, surveillance flag, margin eligibility, F&O status of every NSE and BSE equity); needs no account")
     p_di.add_argument("--max-age-hours", type=float, default=None, help="skip when this ran fine in the last N hours")
     p_cm = sub.add_parser("refresh-commodities", help="commodity prices: MCX futures from Dhan and international prices from metals.dev / MetalpriceAPI into Redis (--loop: keeps running)")
@@ -1792,6 +1803,11 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                     raise
                 print(counts)
                 await _record_results_run(store, args.cmd, "failed" if rep.get("errors") else "ok", counts, rep)
+            elif args.cmd == "refresh-candles":
+                from . import candles
+                from .dhan import DhanClient
+                async with DhanClient(settings, store.redis) as dc:
+                    print(await candles.refresh(store, dc, symbols=[x.upper() for x in args.symbols] or None, days=args.days, max_minutes=args.max_minutes, limit=args.limit))
             elif args.cmd == "refresh-quotes":
                 from .dhan import DhanClient
                 async with DhanClient(settings, store.redis) as dc:
