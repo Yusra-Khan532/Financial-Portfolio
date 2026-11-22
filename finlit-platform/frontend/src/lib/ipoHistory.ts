@@ -41,13 +41,29 @@ const inGain = (v: number | null, g: Filters["gain"]) =>
 const inSub = (v: number | null, s: Filters["sub"]) => s === "any" || (v != null && (s === "lt1" ? v < 1 : s === "gt10" ? v > 10 : s === "gt50" ? v > 50 : v > 100));
 const inSize = (v: number | null, s: Filters["size"]) => s === "any" || (v != null && (s === "lt100" ? v < 100 : s === "100to1000" ? v >= 100 && v <= 1000 : v > 1000));
 
+/** Does one issue pass the filters? `skip` leaves one filter out, so a dropdown can count what each of its options would leave (task #308). */
+export function passes(r: IpoRow, f: Filters, skip?: keyof Filters): boolean {
+  const q = skip === "q" ? "" : f.q.trim().toLowerCase();
+  return (!q || r.name.toLowerCase().includes(q) || (r.symbol || "").toLowerCase().includes(q)) &&
+    (skip === "status" || f.status === "all" || r.status === f.status) && (skip === "board" || f.board === "all" || r.board === f.board) &&
+    (skip === "year" || f.year === "all" || yearOf(r) === f.year) && (skip === "sector" || f.sector === "all" || r.sector === f.sector) &&
+    (skip === "exchange" || f.exchange === "all" || r.exchanges.some((e) => e.startsWith(f.exchange))) &&
+    (skip === "gain" || inGain(r.listingPct, f.gain)) && (skip === "sub" || inSub(r.subscription, f.sub)) && (skip === "size" || inSize(r.issueSizeCr, f.size));
+}
+
 export function applyFilters(rows: IpoRow[], f: Filters): IpoRow[] {
-  const q = f.q.trim().toLowerCase();
-  return rows.filter((r) =>
-    (!q || r.name.toLowerCase().includes(q) || (r.symbol || "").toLowerCase().includes(q)) &&
-    (f.status === "all" || r.status === f.status) && (f.board === "all" || r.board === f.board) && (f.year === "all" || yearOf(r) === f.year) &&
-    (f.sector === "all" || r.sector === f.sector) && (f.exchange === "all" || r.exchanges.some((e) => e.startsWith(f.exchange))) &&
-    inGain(r.listingPct, f.gain) && inSub(r.subscription, f.sub) && inSize(r.issueSizeCr, f.size));
+  return rows.filter((r) => passes(r, f));
+}
+
+/** How many issues each option of one filter would leave, with every other filter applied (task #308: "Every option shows how many issues it would
+ *  leave, with the other filters applied"). One pass over the rows per filter, not one per option. */
+export function optionCounts<K extends Exclude<keyof Filters, "q">>(rows: IpoRow[], f: Filters, key: K, values: string[]): Record<string, number> {
+  const out: Record<string, number> = Object.fromEntries(values.map((v) => [v, 0]));
+  for (const r of rows) {
+    if (!passes(r, f, key)) continue;
+    for (const v of values) if (passes(r, { ...f, [key]: v } as Filters)) out[v] += 1;
+  }
+  return out;
 }
 
 // ------------------------------------------------------------------------------------------------ sorting
