@@ -10,7 +10,7 @@ import { TECH_NOTE, bandWidths, fmtScore, ratingWord, scalePos, trendAlignment, 
 import { TICKS, zoneBg } from "../components/prism/shared/PartTile";
 import { LABEL, type PrismLatest } from "./PrismCard";
 import { PrismTechRow, TechAsOf } from "./PrismTechRow";
-import { PART_LINE, SCORE_NOTE_WITH_TECH, FUND_NOTE, TECH_SEPARATE_NOTE, TECH_SUBTITLE, alignSentence, arcPath, basedOn, fmtNum, fundSubtitle, horizonCaption, horizonLabel, partTip, partWord, polar, ringArcs, signalsLine, techEdgePos, type CardPart } from "./prismCardLogic";
+import { PART_LINE, SCORE_NOTE_WITH_TECH, TECH_SUBTITLE, alignSentence, arcPath, basedOn, fmtNum, fundSubtitle, horizonCaption, horizonLabel, partTip, partWord, polar, ringArcs, signalsLine, techEdgePos, type CardPart } from "./prismCardLogic";
 
 const SHAPE: Record<TrendTone, string> = { strongpos: "▲▲", pos: "▲", neutral: "◆", neg: "▼", strongneg: "▼▼", na: "–" };
 const VSHAPE: Record<VerdictTone, string> = { pos: "▲", mixed: "◆", neg: "▼", na: "–" };
@@ -121,7 +121,7 @@ export function FundamentalSection({ r, parts, example = false, children }: { r:
       <header className="pcx-sh">
         <span className="pcx-ic" aria-hidden="true"><Icon name="coins" /></span>
         <div className="pcx-ht"><h3>{techIn ? "Prism score" : "Fundamental analysis"}</h3><p>{fundSubtitle(n)}</p></div>
-        <p className="pcx-note"><Icon name="info" /><span>{techIn ? SCORE_NOTE_WITH_TECH : FUND_NOTE}</span></p>
+        {techIn && <p className="pcx-note"><Icon name="info" /><span>{SCORE_NOTE_WITH_TECH}</span></p>}
       </header>
       <div className="pcx-fb">
         <div className="pcx-rc">
@@ -174,7 +174,6 @@ export function TechnicalSection({ a, report, onRecalculate, busy, bare = false,
       {!bare && <header className="pcx-sh">
         <span className="pcx-ic" aria-hidden="true"><Icon name="line" /></span>
         <div className="pcx-ht"><h3 className="pcx-hrow">Technical <span className="pcx-nw">analysis<InfoTip text={TECH_NOTE} /></span></h3><p>{TECH_SUBTITLE}</p></div>
-        <p className="pcx-note"><Icon name="info" /><span>{TECH_SEPARATE_NOTE}</span></p>
       </header>}
       {a ? (
         <>

@@ -238,7 +238,7 @@ function RiskStep({ d }: { d: AllInvestments; money?: MoneyAll }) {
   ];
   return (
     <section className="card mi-step">
-      <SecHead id="mi-risk" n={6} title="How risky it is, all together" line="Against the Nifty 500. Every beta is from weekly prices over the past year, as on each portfolio page; swings and falls from a high are from daily prices (shares weekly). It describes the past; it is not a forecast." info={["How sensitive everything is to the market: each kind's beta against the Nifty 500, and beta together.", "Beta together = the sum of each kind's share of money × its beta. A kind's share of the market risk = its share × its beta ÷ beta together."]} />
+      <SecHead id="mi-risk" n={6} title="How risky it is, all together" line="Against the Nifty 500, over the past year." info={["How sensitive everything is to the market: each kind's beta against the Nifty 500, and beta together.", "Beta together = the sum of each kind's share of money × its beta. A kind's share of the market risk = its share × its beta ÷ beta together."]} />
       <div className="mi-riskhead">
         <article className="mi-rh-dark"><p className="mi-cap">All together · Beta against the Nifty 500</p><p className="mi-rh-v">{betaTxt(r.beta)}{r.band ? <small> · {r.band}</small> : null}</p><p>{r.beta != null ? r.bandLine ?? `When the Nifty 500 moved 1%, this moved about ${nf(r.beta, 2)}%.` : r.why}</p></article>
         {kinds.map((k) => { const x = r.kinds[k]; return (

@@ -97,7 +97,10 @@ describe("Macro & Sector Outlook section", () => {
     wrap(); await screen.findByRole("group", { name: "Macro backdrop summary" });
     expect(screen.queryByText("How it works")).toBeNull(); expect(screen.queryByText("Formula")).toBeNull();
     expect(st.calls.some((c) => c.includes("methodology"))).toBe(false);
-    expect(screen.getAllByText(/not validated/i).length).toBeGreaterThan(0);
+    // task #311 (company report row 12): one line, no drop-down; still called an estimate because it is not validated; no method detail
+    expect(screen.getByText(/^An early estimate for the company's (main sector|sectors) · /)).toBeTruthy();
+    expect(screen.queryByText("How this reading is made")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/model v\d|coverage \d+%|segment revenue weights|initial assumptions/);
     expect(screen.getByText(/not a company-specific assessment, forecast, or investment recommendation/)).toBeTruthy();
   });
   it("never uses advice wording", async () => {

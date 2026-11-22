@@ -59,10 +59,10 @@ export function basedOn(_n: number, hasRisk: boolean): string {
 }
 /** "Evaluates business and financial strength using key metrics across four areas." */
 export const fundSubtitle = (n: number): string => `Evaluates business and financial strength using key metrics across ${COUNT_WORD[n] ?? n} areas.`;
-export const FUND_NOTE = "The financial-health score evaluates a company's business and financial strength. Technical indicators assess price trend and momentum separately and are not included in this score.";
 /** If the model ever sends a technical part, it is part of the score, and the note must not say it is not. */
 export const SCORE_NOTE_WITH_TECH = "The score combines the components shown.";
-export const TECH_SUBTITLE = "Assesses price trend and momentum using technical indicators.";
+// Task #311: the Technical box says in one line that it is separate; the grey notes that repeated it are gone.
+export const TECH_SUBTITLE = "Price trend and momentum, shown separately from the score.";
 export const TECH_SEPARATE_NOTE = "Technical analysis is not included in the financial-health score. It is shown separately to help assess price trend and momentum.";
 
 /* ------------------------------------------------------------------ technical horizons */

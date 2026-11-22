@@ -65,7 +65,7 @@ describe("page with 150 DII sessions of 400", () => {
     const dii = within(cal).getByRole("group", { name: /DII flow by day/ });
     const un = [...dii.querySelectorAll('[data-n="2"]')]; expect(un.length).toBeGreaterThan(100); expect(un.every((c) => c.getAttribute("data-d")! < first)).toBe(true); expect(dii.querySelectorAll('[data-n="1"]').length).toBe(0);
     expect(dii.querySelector(`[data-d="${days[150].d}"]`)!.getAttribute("title")).toMatch(/No DII figure for this day: our daily DII feed starts on/);
-    expect(cal.textContent).toContain("DII daily figures start on"); expect(cal.textContent).toContain("before that no daily DII series is available from our sources");
+    expect(cal.textContent).toContain("DII daily figures start on"); expect(cal.textContent).not.toContain("before that no daily DII series");   // task #311
   });
   it("chart: every line states its own availability window, Overall is only where both exist", () => {
     open();

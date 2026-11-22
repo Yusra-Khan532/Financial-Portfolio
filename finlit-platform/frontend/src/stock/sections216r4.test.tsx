@@ -69,10 +69,11 @@ describe("02 Macro outlook (README 3.2)", () => {
     expect(macroSummary(pts(5))).toEqual({ score: 44, label: "Supportive", change: 4, since: day(0), first: 40, firstLabel: "Neutral", streak: 2 });
     expect(macroSummary([])).toBeNull();
   });
-  it("the method sits in a drop-down above the backdrop; the enlarge button wraps only the chart", () => {
+  it("task #311: one estimate line (no method drop-down) above the backdrop; the enlarge button wraps only the chart", () => {
     const s = src("MacroOutlook.tsx");
-    expect(s).toContain("How this reading is made");
-    expect(s.indexOf("How this reading is made")).toBeLessThan(s.indexOf("<Backdrop"));
+    expect(s).not.toContain("How this reading is made");
+    expect(s.indexOf("{estimateLine(c)}")).toBeGreaterThan(0);
+    expect(s.indexOf("{estimateLine(c)}")).toBeLessThan(s.indexOf("<Backdrop"));
   });
 });
 

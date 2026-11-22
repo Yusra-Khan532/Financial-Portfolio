@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Icon } from "../../../lib/icons";
+import { useAuth } from "../../../lib/auth";
 import { ActiveFilters, FilterNote, HiddenRows, SearchFilters, useIndexFilter } from "../../SearchFilters";
 import { useSlashFocus } from "../../../lib/premium";
 import { useQuotesFor, useSearchIndex, type SearchRow } from "../../../lib/api";
@@ -10,7 +11,7 @@ import { quoteMap } from "../../../lib/globalSearch";
 import { Logo } from "../../search/parts";
 import { indexFacets, sectorAt } from "../../../lib/searchFilters";
 import {
-  PRISM_NAME, PRISM_NOTE, cleanSymbol, labelTone, partInfo, partsOf, pctWhole, readPrismRecent, score1, statementWord, useStoredSummary,
+  PRISM_NAME, PRISM_NOTE, cleanSymbol, howPrismWorks, labelTone, partInfo, partsOf, pctWhole, readPrismRecent, score1, statementWord, useStoredSummary,
   type Statement,
 } from "../../../lib/prism";
 import { partVar } from "../../../lib/prismReport";
@@ -136,7 +137,7 @@ export function Browse({ statement, open, onOpen }: { statement: Statement; open
   );
 }
 
-const WHAT = ["A score out of 100 and a label from Strong to Poor, or Not rated when the evidence is thin", "Four parts: Growth & Profitability, Valuation, Quality and Risk, each with what supports it and what weighs on it", "Every factor with its value and its reading, from Very strong to Very weak, and which inputs are missing"];
+const WHAT = ["A score out of 100 and a label from Strong to Poor, or Not rated when the evidence is thin", "Four parts: Growth & Profitability, Valuation, Quality and Risk, each with what supports it and what weighs on it", "Every factor with its value and its reading, from Very strong to Very weak"];
 export const PRISM_WHAT = WHAT;
 
 /** Six of the most searched companies, one tap each: straight to that company's Prism page, no typing. */
@@ -163,6 +164,7 @@ export function QuickSelect({ statement, onViewAll }: { statement: Statement; on
 }
 
 export function LandingBody({ statement, setStatement }: { statement: Statement; setStatement: (s: Statement) => void }) {
+  const { prismReportsPerDay } = useAuth();
   const recent = readPrismRecent();
   const [browse, setBrowse] = useState(false);
   const viewAll = () => { setBrowse(true); setTimeout(() => document.getElementById("pzr-browse")?.scrollIntoView?.({ behavior: "smooth", block: "start" }), 60); };
@@ -175,7 +177,7 @@ export function LandingBody({ statement, setStatement }: { statement: Statement;
       </section>
       {recent.length > 0 && (
         <section className="pzr-sec" aria-label="Recently opened">
-          <header className="pzr-sh"><h3>Recently opened</h3><p>The last score stored for each company. Opening one never starts a calculation.</p></header>
+          <header className="pzr-sh"><h3>Recently opened</h3><p>The latest rating for each company.</p></header>
           <ul className="pzr-recent">{recent.slice(0, 6).map((x) => <RecentCard key={x} symbol={x} />)}</ul>
         </section>
       )}
@@ -189,7 +191,7 @@ export function LandingBody({ statement, setStatement }: { statement: Statement;
         </div>
         <div className="pzr-what-h">
           <h3>How it works</h3>
-          <p>Choose a company. If a rating was calculated recently it opens at once; otherwise Prism starts calculating it from the latest filings and prices, which usually takes under half a minute, and shows it here when it is ready. Each member can calculate 20 a day.</p>
+          <p>{howPrismWorks(prismReportsPerDay)}</p>
           <p className="pzr-note">{PRISM_NOTE}</p>
         </div>
       </section>
