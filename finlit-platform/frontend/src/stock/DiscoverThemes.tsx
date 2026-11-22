@@ -38,6 +38,7 @@ export function businessPassage(ps: DiscoverPassage[] | undefined): DiscoverPass
   return all.find((p) => p.t && !NOT_BUSINESS.test(p.t)) ?? null;
 }
 /** "Tech Mahindra’s", "Apollo Micro Systems’" */
+const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 export const possessive = (n: string) => (/s$/i.test(n) ? `${n}’` : `${n}’s`);
 /** Discover's theme page with this company found: /discover/themes/ai-and-genai?q=Tech+Mahindra */
 export const themeLink = (theme: string, company: string) => `${themePath(theme)}?q=${encodeURIComponent(company).replace(/%20/g, "+")}`;
@@ -90,19 +91,21 @@ export function ThemeChips({ symbol, name, jump }: { symbol: string; name: strin
   if (d.company === null) return (
     <nav className="dth dth-none" aria-label="Discover themes"><span className="dth-k"><Spark />Discover themes</span>
       <span className="dth-nil">{co} is not in a Discover theme yet. Discover places a company from the words of its newest investor presentation. <Link to={BASE}>Open Discover ↗</Link></span></nav>);
-  const chip = (t: { name: string; label: string; n?: number } | null, label: string, main: boolean) => (
-    <Link className={"dth-chip" + (main ? " dth-main" : "")} to={themeLink(t?.name ?? label, co)} title={`Opens ${label} in Discover with ${co} found`}>
-      <b>{label}</b>{t?.n != null && <span>({t.n.toLocaleString("en-IN")} {t.n === 1 ? "company" : "companies"})</span>}{main && <em>Main theme</em>}<Arrow /></Link>);
-  const date = d.company.document?.date;
+  // Task #312 (developer file 20, change 1): one line, not a heading, three chips and a stage row (162 px, 311 on a phone): ✦ Discover · the main theme
+  // chip (Main theme) · "also" the other themes · the stage · What it says ↓ · (i). The counts move to the tooltips (they stay on the card below).
+  const date = d.company.document?.date, mainLabel = d.mainName ?? d.company.theme;
+  const many = (n?: number) => (n != null ? `, ${n.toLocaleString("en-IN")} ${n === 1 ? "company" : "companies"} in Discover` : "");
   return (
-    <nav className="dth" aria-label={`Discover themes featuring ${co}`}>
-      <span className="dth-k"><Spark /><span>Discover themes featuring this company</span><Tip /></span>
-      <ul className="dth-chips">
-        <li>{chip(d.main, d.mainName ?? d.company.theme, true)}</li>
-        {d.others.map((t) => <li key={t.name}>{chip(t, t.label, false)}</li>)}
-      </ul>
-      <p className="dth-src">{d.row?.st && <Stage st={d.row.st} />}{date && <span>From its investor presentation of {fmtDate(date)}</span>}<span aria-hidden="true">·</span>
-        <a href="#dth-card" onClick={(e) => { e.preventDefault(); if (jump) jump("dth-card"); else document.getElementById("dth-card")?.scrollIntoView({ block: "start" }); }}>What it says ↓</a></p>
+    <nav className="dth dtx" aria-label={`Discover themes featuring ${co}`}>
+      <span className="dtx-k"><Spark />Discover</span>
+      <Link className="dtx-main" to={themeLink(d.main?.name ?? d.company.theme, co)} title={`Main theme: ${mainLabel}${many(d.main?.n)}. Opens it in Discover with ${co} found.`}>
+        <b>{mainLabel}</b><span className="dtx-tag">Main theme</span><Arrow /></Link>
+      {d.others.length > 0 && <span className="dtx-also">also {d.others.map((t, i) => <span key={t.name}>{i > 0 ? ", " : ""}<Link to={themeLink(t.name, co)} title={`${t.label} in Discover${t.n != null ? ` (${t.n.toLocaleString("en-IN")} ${t.n === 1 ? "company" : "companies"})` : ""}`}>{t.label}</Link></span>)}</span>}
+      <span className="dtx-end">
+        {d.row?.st && <span title={date ? `Its investor presentation of ${fmtDate(date)} describes it as ${(STAGE[d.row.st]?.[0] ?? d.row.st).replace(/^its own sentences describe it as /, "")}` : STAGE[d.row.st]?.[0]}><Stage st={d.row.st} /></span>}
+        <a className="dtx-go" href="#dth-card" onClick={(e) => { e.preventDefault(); if (jump) jump("dth-card"); else document.getElementById("dth-card")?.scrollIntoView({ block: "start" }); }}>What it says ↓</a>
+        <Tip />
+      </span>
     </nav>);
 }
 
@@ -113,30 +116,24 @@ export function BuildCard({ symbol, name }: { symbol: string; name: string }) {
   const c = d.company, theme = d.mainName ?? c.theme, doc = c.document, words = c.words ?? [], shown = words.slice(0, 5), rest = words.slice(5);
   const q = businessPassage(c.passages), s = d.stats, st = d.row?.st ?? null, verify = d.main?.verify?.[0];
   const trendOpen = !!ui?.has("gold");     // the long-term trend is part of Gold, as on the Discover theme card (c.prismOpen)
+  // Task #312 (developer file 20, change 2): compact (435 px, 862 on a phone): the header with the stage on the right; one sentence with the
+  // presentation's date and pages, then its words; the four theme figures in one strip (2 x 2 on narrow screens); what to check; the actions with the
+  // figures' date and "Information only" in one fine line. "Its presentation also mentions" goes (it is in the header line); so does the passage.
+  void q;
   return (
-    <div className="card dth-card" id="dth-card">
-      <div className="dth-h"><span className="dth-ck"><Spark />From Discover</span><h3>What it is building</h3></div>
-      <div className="dth-body">
-        <div>
-          <p className="dth-lede"><b>{theme}</b> is the theme {possessive(co)} newest investor presentation talks about most{doc?.date ? ` (${fmtDate(doc.date)}${doc.pages ? `, ${doc.pages} pages` : ""})` : ""}.
-            {st && <> How far along: <Stage st={st} /> ({STAGE[st]?.[0] ?? "as its own sentences describe it"}).</>}</p>
-          {shown.length > 0 && <p className="dth-words"><span>Words it uses</span>{shown.map((w) => <i key={w}>{w}</i>)}{rest.length > 0 && <i className="dth-more" title={rest.join(", ")}>+{rest.length} more</i>}</p>}
-          {q && <blockquote className="dth-q">“{q.t.replace(/\s+/g, " ").trim()}”<cite>{q.kind === "slide" ? "From a slide of the presentation" : "From the presentation"}</cite></blockquote>}
-        </div>
-        {s && <div>
-          <div className="dth-ctx" role="group" aria-label={`${theme} on Discover`}>
-            <div><span>Companies in the theme</span><b>{s.n.toLocaleString("en-IN")}</b><small>{d.main?.also ? `${d.main.also} more mention it` : "No other company mentions it"}</small></div>
-            <div><span>3-month median</span><b>{pct(s.m3)}</b><small>{co}: {d.row?.r3m != null ? pct(d.row.r3m) : "not available"}</small></div>
-            <div><span>1-year median</span><b>{pct(s.m1y)}</b><small>across the theme’s companies</small></div>
-            <div><span>In a long-term uptrend</span>{trendOpen ? <b>{s.up} of {s.n}</b> : <b><Link to="/pricing" className="dth-lock" title="The technical views are part of Gold">Gold</Link></b>}<small>of the theme’s companies</small></div>
-          </div>
-          <p className="dth-ctx-n">The theme’s figures, as on its Discover page{d.asOf ? ` (prices of ${fmtDate(d.asOf)})` : ""}.</p>
-        </div>}
-      </div>
-      {d.others.length > 0 && <p className="dth-also">Its presentation also mentions {d.others.map((t, i) => <span key={t.name}>{i > 0 ? ", " : ""}<Link to={themeLink(t.name, co)}>{t.label}</Link></span>)}.</p>}
-      <p className="dth-check"><b>What to check:</b> {verify ? `${verify.replace(/\.?\s*$/, ".")} ` : ""}A theme word alone is not proof of real business.</p>
-      <div className="dth-acts"><Link className="dth-btn" to={themeLink(d.main?.name ?? c.theme, co)}>See {theme} in Discover<Arrow /></Link>
+    <div className="card dth-card dtc" id="dth-card">
+      <div className="dtc-h"><span className="dth-ck"><Spark />From Discover</span><h3>What it is building</h3>{st && <span title={STAGE[st]?.[0] ? cap(STAGE[st][0]) : undefined}><Stage st={st} /></span>}</div>
+      <p className="dtc-lede"><b>{theme}</b> is the theme {possessive(co)} newest investor presentation talks about most{doc?.date ? <span className="dtc-src"> ({fmtDate(doc.date)}{doc.pages ? `, ${doc.pages} pages` : ""})</span> : null}.
+        {shown.length > 0 && <span className="dtc-words"> Its words: {shown.map((w) => <i key={w}>{w}</i>)}{rest.length > 0 && <i className="dth-more" title={rest.join(", ")}>+{rest.length} more</i>}</span>}</p>
+      {s && <dl className="dtc-ctx" aria-label={`${theme} on Discover`}>
+        <div><dt>Companies in the theme</dt><dd><b>{s.n.toLocaleString("en-IN")}</b><small>{d.main?.also ? `${d.main.also} more mention it` : "no other company mentions it"}</small></dd></div>
+        <div><dt>3-month median</dt><dd><b>{pct(s.m3)}</b><small>{co} {d.row?.r3m != null ? pct(d.row.r3m) : "not available"}</small></dd></div>
+        <div><dt>1-year median</dt><dd><b>{pct(s.m1y)}</b><small>of the theme</small></dd></div>
+        <div><dt>In a long-term uptrend</dt><dd>{trendOpen ? <><b>{s.up}</b><small>of {s.n}</small></> : <b><Link to="/pricing" className="dth-lock" title="The technical views are part of Gold">Gold</Link></b>}</dd></div>
+      </dl>}
+      <p className="dtc-check"><b>What to check:</b> {verify ? `${verify.replace(/\.?\s*$/, ".")} ` : ""}A theme word alone is not proof of real business.</p>
+      <div className="dtc-acts"><Link className="dth-btn" to={themeLink(d.main?.name ?? c.theme, co)}>See the theme in Discover<Arrow /></Link>
         {doc?.link && <a className="dth-link" href={doc.link} target="_blank" rel="noopener noreferrer">Open the presentation ↗</a>}
-        <span className="dth-fine">Information only, not a recommendation.</span></div>
+        <span className="dth-fine">{s ? `Theme figures as on Discover${d.asOf ? `, prices of ${fmtDate(d.asOf)}` : ""} · ` : ""}Information only, not a recommendation.</span></div>
     </div>);
 }
