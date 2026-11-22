@@ -33,6 +33,7 @@ import sys
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -117,6 +118,29 @@ class Fetcher:
         self.opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=self.ctx),
                                                   urllib.request.HTTPCookieProcessor(self.jar))
         self.cookie_file = None
+        # NSE's archive refuses some server addresses (AWS: 4 days of files were refused on 22 Nov 2026). The server's jobs already hold the address and
+        # key of FinLit's relay (deploy/amfi-relay, a Cloudflare Worker whose GET /fetch passes *.nseindia.com through): when NSE refuses a direct request,
+        # this file and every later NSE file of the run go through the relay. Without these settings (a PC, CI) nothing changes.
+        self.relay_base = (os.environ.get("EXCHANGE_RELAY_URL") or os.environ.get("AMFI_RELAY_URL") or "").strip().rstrip("/")
+        self.relay_key = (os.environ.get("EXCHANGE_RELAY_KEY") or os.environ.get("AMFI_RELAY_KEY") or "").strip()
+        self.via_relay = False
+
+    def _relayable(self, url):
+        host = urllib.parse.urlsplit(url).hostname or ""
+        return bool(self.relay_base) and url.startswith("https://") and (host == "nseindia.com" or host.endswith(".nseindia.com"))
+
+    def _relay(self, url, referer):
+        """GET through the relay. A refusal by the relay itself (X-Relay-Error: host not allowed, bad key, exchange unreachable) is never read as
+        NSE's own answer: it counts as a failed attempt (-1), so a relay 404 cannot be mistaken for "NSE has no file for this day"."""
+        req = urllib.request.Request(self.relay_base + "/fetch?" + urllib.parse.urlencode({"u": url}),
+                                     headers={"X-Relay-Key": self.relay_key, "X-Fwd-User-Agent": UA, "X-Fwd-Referer": referer, "X-Fwd-Accept": "*/*"})
+        try:
+            with self.opener.open(req, timeout=90) as r:
+                return r.status, r.read()
+        except urllib.error.HTTPError as e:
+            if e.headers.get("X-Relay-Error"):
+                return -1, ("relay: " + e.headers.get("X-Relay-Error", "")).encode()
+            return e.code, b""
 
     def _pace(self):
         wait = self.delay - (time.time() - self.last)
@@ -156,7 +180,9 @@ class Fetcher:
         for attempt in range(len(waits) + 1):
             self._pace()
             try:
-                if self.use_curl:
+                if self.via_relay and self._relayable(url):
+                    code, body = self._relay(url, referer)
+                elif self.use_curl:
                     code, body = self._curl(url, referer)
                 else:
                     code, body = self._urllib(url, referer)
@@ -174,6 +200,10 @@ class Fetcher:
                 code, body = -1, str(e).encode()
             if code in (200, 404):
                 return code, body
+            if code in (401, 403) and not self.via_relay and self._relayable(url):
+                log("NSE refused this server's request; this file and the rest of the run go through FinLit's relay.")
+                self.via_relay = True
+                continue                    # at once, not after a wait: the relay is a different route, not a retry of the same one
             if attempt < len(waits):
                 log(f"  {url.rsplit('/', 1)[-1]}: got {code}, waiting {waits[attempt]}s and trying again", False)
                 time.sleep(waits[attempt])
