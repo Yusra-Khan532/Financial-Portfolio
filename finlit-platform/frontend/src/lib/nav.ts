@@ -47,7 +47,6 @@ export const MENU: MenuGroup[] = [
   { id: "company", title: "Analyse a company", line: "One company in depth: report, rating, financials, forecasts", short: "Company", icon: "layers", items: [
     i("/research", "Company report", "A report for every listed company: score, financials, ratios", "search"),
     i("/prism", "FinLit Prism", "A company's financial health rated in four parts", "layers", { gold: true }),
-    i("/premium/fundamentals", "Company financials", "Financials of any company, in tables and charts", "table", { gold: true }),
     i("/outlook", "Profit and revenue forecasting", "Revenue and profit estimates from a company's own history and its sector", "activity", { gold: true }),
     i("/research/stress-lab", "Stress Lab", "How a shock to crude, the rupee or rates would move a company's earnings", "gauge"),
     i("/documents", "Annual reports & presentations", "Annual reports and investor presentations of listed companies", "layers"),
@@ -69,7 +68,6 @@ export const MENU: MenuGroup[] = [
     i("/premium/markets", "Market events & index", "Index moves and the events behind them", "activity", { gold: true }),
     i("/fii-dii", "FII & DII flows", "Institutional buying and selling, streaks and history", "bars"),
     i("/macro", "India economy", "Inflation, growth, interest rates and reserves", "activity"),
-    i("/commodities", "Commodity prices", "Gold, silver, crude and metals: MCX, global and import parity", "activity"),
   ] },
   { id: "news", title: "Results, IPOs & news", line: "Who reports when, the latest results, IPOs and filings", short: "News", icon: "bell", items: [
     i("/results", "Results calendar", "Who reports quarterly results, and when", "calendar", { end: true }),

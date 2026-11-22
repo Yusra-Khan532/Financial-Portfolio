@@ -12,8 +12,6 @@ import { PRISM_NOTE, PRISM_PARTS } from "../stock/prismWords";
 import "../styles/prism-compare.css";
 
 const CARDS = [
-  { to: "/premium/fundamentals", icon: "table", title: "Company Financials Dashboard", text: "Every statement, ratio and shareholder of a listed company, in one place.",
-    points: ["Income statement, balance sheet and cash flow", "Named shareholders and promoter pledge", "Peers, dividends and corporate actions"] },
   { to: "/premium/markets", icon: "activity", title: "Market Events & Index Dashboard", text: "What is happening in the market this week, and how the indices and commodities are valued.",
     points: ["IPO and results calendars", "Announcements and call transcripts", "Index prices, valuation history and commodities"] },
   { to: "/premium/report", icon: "notes", title: "Premium Report", text: "A clean, printable research report for any company. Save it as a PDF to share.",
@@ -62,7 +60,7 @@ export function PremiumHub() {
   const gold = useGold(); const qc = useQueryClient();
   return (
     <>
-      <PremiumHead title="Gold dashboards" links={["/prism", "/premium/fundamentals", "/premium/markets"]}>The premium research desk: <b>{CARDS.length + 1} tools</b> built for serious investors. They open fast, stay up to date, and every number comes from the same sources our analysts use.</PremiumHead>
+      <PremiumHead title="Gold dashboards" links={["/prism", "/premium/markets"]}>The premium research desk: <b>{CARDS.length + 1} tools</b> built for serious investors. They open fast, stay up to date, and every number comes from the same sources our analysts use.</PremiumHead>
       <div className="wrap" style={{ paddingBottom: 56 }}>
         {!gold && <p className="chip gold" style={{ height: "auto", padding: "8px 14px", whiteSpace: "normal", maxWidth: "100%", lineHeight: 1.4 }}><Icon name="crown" /> Included with the Gold plan. Open any tool to see how it works.</p>}
         <PrismHubCard />

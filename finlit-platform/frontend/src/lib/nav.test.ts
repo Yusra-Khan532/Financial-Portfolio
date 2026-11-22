@@ -13,10 +13,10 @@ describe("site map", () => {
     expect(DASHBOARD.to).toBe("/dashboard");
     expect(names("mine")).toEqual(["All my investments", "Equity portfolio", "MF portfolio", "ETF portfolio", "Watchlists", "Alerts", "My baskets"]);
     expect(names("find")).toEqual(["Stock screener", "Advanced stock screener", "Query builder", "Discover", "Superinvestor portfolios"]);   // task #283: the Basic stock screener is retired
-    expect(names("company")).toEqual(["Company report", "FinLit Prism", "Company financials", "Profit and revenue forecasting", "Stress Lab", "Annual reports & presentations"]);
+    expect(names("company")).toEqual(["Company report", "FinLit Prism", "Profit and revenue forecasting", "Stress Lab", "Annual reports & presentations"]);
     expect(names("compare")).toEqual(["Compare companies", "Chart builder", "Correlation charts"]);
     expect(names("calc")).toEqual(["P/E, EPS & PEG calculator", "DCF valuation calculator", "Reverse valuation", "SIP calculator"]);
-    expect(names("markets")).toEqual(["Sector Pulse", "Sector Rotation", "Market events & index", "FII & DII flows", "India economy", "Commodity prices"]);
+    expect(names("markets")).toEqual(["Sector Pulse", "Sector Rotation", "Market events & index", "FII & DII flows", "India economy"]);   // task #317: Commodity prices is off the site
     expect(names("news")).toEqual(["Results calendar", "Latest results", "Concall Monitor", "IPO calendar", "All IPOs", "News & filings"]);   // task #278 (after the pack): its line covers results and filings
     expect(names("funds")).toEqual(["Mutual funds", "Mutual fund screener", "ETFs"]);
     expect(names("learn")).toEqual(["Glossary", "How to use Sector Pulse", "How to use Sector Rotation", "Insights & blog", "Discussion forums"]);
@@ -30,22 +30,29 @@ describe("site map", () => {
     expect(titles).not.toContain("Gold dashboards");
   });
   it("marks the Gold tools, and every page of the old menu is in the new one", () => {
-    expect(MENU.flatMap((g) => g.items).filter((i) => i.gold).map((i) => i.to).sort()).toEqual(["/advanced-score-screener", "/dcf", "/outlook", "/premium/fundamentals", "/premium/markets", "/prism", "/reverse-valuation"]);
+    expect(MENU.flatMap((g) => g.items).filter((i) => i.gold).map((i) => i.to).sort()).toEqual(["/advanced-score-screener", "/dcf", "/outlook", "/premium/markets", "/prism", "/reverse-valuation"]);
     const inMenu = new Set([DASHBOARD.to, ...MENU.flatMap((g) => g.items.map((i) => i.to))]);
     for (const p of ["/dashboard", "/watchlist", "/my-investments", "/holdings", "/mf-portfolio", "/etf-portfolio", "/alerts", "/baskets", "/screener", "/advanced-score-screener", "/query-builder", "/discover", "/superinvestors",
       "/research", "/compare", "/prism", "/outlook", "/research/stress-lab", "/eps-calculator", "/dcf", "/reverse-valuation", "/sip-calculator", "/graphs", "/graphs/advanced", "/sectors", "/sectors/rotation", "/fii-dii", "/macro",
-      "/commodities", "/results", "/results/quarter", "/concalls", "/ipo", "/news", "/funds", "/funds/screener", "/etfs", "/premium/fundamentals", "/premium/markets", "/glossary", "/browser-extension", "/blog", "/documents", "/forum",
+      "/results", "/results/quarter", "/concalls", "/ipo", "/news", "/funds", "/funds/screener", "/etfs", "/premium/markets", "/glossary", "/browser-extension", "/blog", "/documents", "/forum",
       "/learn/sector-signals", "/learn/sector-rotation", "/mcp"]) expect(inMenu.has(p), p).toBe(true);
+  });
+  it("task #317: Commodity prices and Company financials are in no menu and not in Find a page", () => {
+    const all = [DASHBOARD, ...MENU.flatMap((g) => g.items)];
+    expect(all.map((i) => i.to)).not.toContain("/commodities");
+    expect(all.map((i) => i.to)).not.toContain("/premium/fundamentals");
+    expect(all.map((i) => i.label)).not.toEqual(expect.arrayContaining(["Commodity prices"]));
+    expect(all.map((i) => i.label)).not.toEqual(expect.arrayContaining(["Company financials"]));
   });
   it("Find a page matches the page's name, its line, its group's heading, and the aliases", () => {
     const find = (q: string) => MENU.flatMap((g) => g.items.filter((it) => menuMatch(q, it, g)).map((it) => it.label));
     expect(find("inflation")).toEqual(["India economy"]);
-    expect(find("crude")).toEqual(expect.arrayContaining(["Stress Lab", "Commodity prices"]));
+    expect(find("crude")).toEqual(expect.arrayContaining(["Stress Lab"]));
     expect(find("annual")).toEqual(["Annual reports & presentations"]);
     expect(find("sip")).toEqual(expect.arrayContaining(["SIP calculator"]));                          // and the rest of "Valuation & SIP calculators", by its heading
     expect(find("documents")).toEqual(["Annual reports & presentations"]);
     expect(find("advanced")).toEqual(expect.arrayContaining(["Advanced stock screener"]));
-    expect(find("gold")).toEqual(expect.arrayContaining(["FinLit Prism", "Company financials", "DCF valuation calculator", "Market events & index", "Commodity prices"]));
+    expect(find("gold")).toEqual(expect.arrayContaining(["FinLit Prism", "DCF valuation calculator", "Market events & index"]));
     expect(find("valuation")).toEqual(expect.arrayContaining(["P/E, EPS & PEG calculator", "SIP calculator"]));   // the group heading finds all of its pages
     expect(menuMatch("glance", DASHBOARD)).toBe(true);
   });

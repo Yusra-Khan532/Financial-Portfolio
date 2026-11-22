@@ -4,7 +4,6 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Macro } from "../lib/macro";
-import type { Commodities } from "../lib/commodities";
 
 const st = vi.hoisted(() => ({ macro: null as unknown, cm: null as unknown }));
 vi.mock("../lib/macro", async (orig) => ({ ...(await orig<typeof import("../lib/macro")>()), useMacro: () => ({ data: st.macro, isLoading: false, isError: false, error: null }) }));
@@ -13,7 +12,6 @@ vi.mock("../lib/ui", () => ({ useUI: () => ({ toast: vi.fn(), plan: "basic" }) }
 vi.mock("../lib/title", () => ({ useDocTitle: () => undefined }));
 vi.mock("../components/MacroSectorImpact", () => ({ MacroSectorImpact: () => null }));
 import { MacroPage } from "./Macro";
-import { CommoditiesPage } from "./Commodities";
 
 const pts = (n: number, base: number): [string, number][] => Array.from({ length: n }, (_, i) => [new Date(Date.UTC(2026, 9, 1 + i)).toISOString().slice(0, 10), base + i]);
 const macro = (over: Partial<Macro> = {}): Macro => ({
@@ -49,34 +47,4 @@ describe("India macro page", () => {
   });
 });
 
-const eia = (over: object = {}) => ({
-  state: "ok", usd: "102.50", unit: "$ per barrel", date: "2026-11-03", prevDate: "2026-11-02", changePct: "2.50", source: "U.S. EIA", lag: "U.S. EIA, daily, 1-2 business day lag", note: null,
-  inr: { value: "9,033", unit: "₹ per barrel", usdinr: "88.1234", usdinrDate: "2026-11-04", priceDate: "2026-11-03", label: "Conversion, not a quote: the EIA price at the FBIL USD/INR rate" }, ...over,
-});
-const cmData = (e: object): Commodities => ({
-  asOf: "2026-11-05T10:00:00+05:30", status: "ok", market: { mcx: { open: false, opens: "09:00", closes: "23:30", hoursConfirmed: true, why: null }, global: { open: false } },
-  sources: { mcx: { connected: false, label: "", error: null }, intl: { connected: false, metals: null, energy: null, errors: {} } }, fx: { state: "off", usdinr: null, asOf: null, vendor: null },
-  assumptions: { k22: "", mcxGoldFineness: "", fineFineness: "", parity: "" }, ratio: { goldSilver: null}, worker: { ageSeconds: null },
-  items: [{ code: "brent", name: "Brent crude", group: "energy", mcx: null, intl: [], parity: null, notes: [], eia: e as never }],
-});
-
-describe("Commodities page", () => {
-  it("shows the Brent card with the dollar price, the rupee conversion with both dates, and the EIA source line", () => {
-    st.cm = cmData(eia());
-    render(<MemoryRouter><CommoditiesPage /></MemoryRouter>);
-    expect(screen.getByRole("heading", { name: "Brent crude" })).toBeTruthy();
-    expect(screen.getByText("$102.50")).toBeTruthy();
-    const body = document.body.textContent ?? "";
-    expect(body).toContain("Conversion, not a quote");
-    expect(body).toContain("88.1234 on 4 Nov 2026");
-    expect(body).toContain("Brent of 3 Nov 2026");
-    expect(body).toContain("U.S. EIA, daily, 1-2 day lag");
-    expect(body).not.toMatch(/Dhan\)/);
-  });
-  it("shows only the reason when there is no price", () => {
-    st.cm = cmData(eia({ state: "none", usd: null, inr: null, changePct: null, note: "Brent: source key not set" }));
-    render(<MemoryRouter><CommoditiesPage /></MemoryRouter>);
-    expect(screen.getByText("Brent: source key not set")).toBeTruthy();
-    expect(screen.queryByText(/Conversion, not a quote/)).toBeNull();
-  });
-});
+// Task #317: the Commodity prices page is off the site (its old address goes to India economy); its tests went with it.

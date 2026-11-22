@@ -265,7 +265,7 @@ export function OptionChainPage() {
 
   return (
     <>
-      <PageHeader wrap plan="gold" title="Option chain" art="chart" links={["/premium/markets", "/premium/fundamentals", "/premium"]}
+      <PageHeader wrap plan="gold" title="Option chain" art="chart" links={["/premium/markets", "/premium"]}
         description={<>Every strike of an index or F&amp;O stock for one expiry: <b>open interest, OI change, volume, implied volatility and price</b>, with the put-call ratio and max pain worked out from them. For information and education, not trading advice.</>} />
       <div className="wrap oc">
         <Gate tier="gold" title="Option chain" points={["Nifty, Bank Nifty, Fin Nifty, Midcap Nifty, Sensex and every F&O stock", "Open interest, OI change, volume, IV and price at every strike", "Put-call ratio, max pain and OI build-up, with the working explained", "Open interest by strike chart"]}>
