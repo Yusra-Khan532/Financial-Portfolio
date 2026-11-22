@@ -37,7 +37,7 @@ function Upgrade() {
   return (
     <div className="wrap mf mfu-page">
       <p className="mf-back"><Link to="/funds">← All mutual fund schemes</Link></p>
-      <PageHeader plan="gold" title="Fund score screener" art="funds" learn={{ to: MF_METHOD_URL, label: "How the score works" }} links={["/funds", "/funds/compare", "/etfs"]}
+      <PageHeader plan="gold" title="Fund score screener" art="funds" learn={{ to: MF_METHOD_URL, label: "What the score means" }} links={["/funds", "/funds/compare", "/etfs"]}
         description={<>The <b>{MF_SCORE_NAME}</b> of every scored fund, its four parts (Performance, Risk, Cost, Quality), category leaderboards, filters and a CSV download. It is part of the Gold plan.</>} />
       <Gate tier="gold" title="Fund score screener" points={POINTS}>
         <section className="card mf-card" aria-label="Example of the fund score screener">
@@ -46,7 +46,7 @@ function Upgrade() {
             <tbody>{["A", "B", "C"].map((n) => <tr key={n}><th scope="row">Example fund {n}</th><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>)}</tbody></table></div>
         </section>
       </Gate>
-      <p className="faint mf-fine">{MF_SCORE_COMPLIANCE} <Link to={MF_METHOD_URL}>How it works</Link></p>
+      <p className="faint mf-fine">{MF_SCORE_COMPLIANCE} <Link to={MF_METHOD_URL}>What the score means</Link></p>
     </div>
   );
 }
@@ -135,7 +135,7 @@ function Screener() {
   return (
     <div className="wrap mf mfu-page scr-wrap">
       <p className="mf-back"><Link to="/funds">← All mutual fund schemes</Link></p>
-      <TitleCard tier="gold" title="Fund score screener" learnTo={MF_METHOD_URL} learnLabel="How the score works" art="funds" links={["/funds", "/funds/compare", "/etfs"]}
+      <TitleCard tier="gold" title="Fund score screener" learnTo={MF_METHOD_URL} learnLabel="What the score means" art="funds" links={["/funds", "/funds/compare", "/etfs"]}
         stats={[{ icon: "layers", value: facets.data ? cats.length : null, label: "Categories" }, { icon: "calendar", value: list.data?.runDate, label: "Scores worked out" }]}
         sub={<>The <b>{MF_SCORE_NAME}</b> of every scored fund, with its four parts. {MF_SCORE_COMPLIANCE}</>} />
       <div className="seg" role="tablist" aria-label="View">

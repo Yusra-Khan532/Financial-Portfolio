@@ -74,7 +74,8 @@ function Body({ state, symbol, statement, name }: { state: Exclude<PrismCardStat
           <div className="dk-words">
             <div className="dk-chips"><span className={"pz-status " + r.status.toLowerCase().replace(" ", "-")}>{STATUS[r.status]}</span></div>
             {r.status !== "RATED" && <p className={"dk-note" + (r.status === "NOT RATED" ? " why" : "")}>{r.status === "NOT RATED" ? notRatedLede(r) : STATUS_NOTE[r.status]}</p>}
-            <p className={"dk-cov" + (inp.ok ? "" : " held")}><Icon name={inp.ok ? "check" : "info"} />{inp.text}{inp.note ? <span className="dk-cov-n"> · {inp.note}</span> : null} · <Link to="/glossary#coverage-prism">what this means</Link>{r.status === "NOT RATED" && <> · <Link to={`/prism/${encodeURIComponent(symbol)}`}>Why is this not rated?</Link></>}</p>
+            {inp && <p className={"dk-cov" + (inp.ok ? "" : " held")}><Icon name={inp.ok ? "check" : "info"} />{inp.text}{inp.note ? <span className="dk-cov-n"> · {inp.note}</span> : null} · <Link to="/glossary#coverage-prism">what this means</Link>{r.status === "NOT RATED" && <> · <Link to={`/prism/${encodeURIComponent(symbol)}`}>Why is this not rated?</Link></>}</p>}
+            {!inp && r.status === "NOT RATED" && <p className="dk-cov held"><Icon name="info" /><Link to={`/prism/${encodeURIComponent(symbol)}`}>Why is this not rated?</Link></p>}
           </div>
         </FundamentalSection>
         <TechnicalSection a={parseTechnical(rep.technicalAssessment)} report={rep} onRecalculate={() => run.mutate(true)} busy={busy} />
@@ -96,7 +97,7 @@ export function PrismCompare({ symbol, name, statement }: { symbol: string; name
   const state: PrismCardState | undefined = !gold && !open ? { kind: "locked" } : q.isError ? { kind: "hidden" } : q.data;
   // The server and this page disagree about the plan: say nothing rather than show a lock to a member.
   if (state?.kind === "hidden" || (state?.kind === "locked" && gold)) return null;
-  const head = (note?: string) => <header className="dk-head"><div className="dk-ht"><span className="eyebrow">FinLit Prism</span><span className="tier gold">Gold</span>{note && <span className="dk-chip">{note}</span>}</div><div className="dk-hm"><span className="hide-sm">Advanced model ·</span> <Link to="/glossary#finlit-prism">how it works</Link></div></header>;
+  const head = (note?: string) => <header className="dk-head"><div className="dk-ht"><span className="eyebrow">FinLit Prism</span><span className="tier gold">Gold</span>{note && <span className="dk-chip">{note}</span>}</div><div className="dk-hm"><Link to="/glossary#finlit-prism">What the score means</Link></div></header>;
   const ex = partsOf(EXAMPLE).parts;
   return (
     <section className="report dk-card pz-right" id="prism" aria-label={`FinLit Prism rating for ${name}`}>

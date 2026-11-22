@@ -132,6 +132,6 @@ export function ScoreMovesCard({ symbol, statement }: { symbol: string; statemen
         <div className="scm-rng" role="group" aria-label="Period">{RANGES.map((r) => <button key={r.id} type="button" aria-pressed={range === r.id} onClick={() => setRange(r.id)}>{r.label}</button>)}</div>
       </header>
       {q.isLoading ? <div className="skeleton" style={{ height: 200 }} /> : all.length < 2 ? <p className="faint scm-empty">{q.data?.note || "The history starts on the day recording began; there are not yet enough days to draw it."}</p> : <ScoreMoves points={all} range={range} />}
-      <p className="faint scm-foot"><span className="scm-k"><i className="solid" aria-hidden="true" />new rating that day</span> <span className="scm-k"><i className="hollow" aria-hidden="true" />earlier rating still holds</span> · Valuation: higher means cheaper · Risk: higher means lower risk{first ? ` · Recording began ${dateIN(first)}` : ""}. It describes how the scores moved; it is not a forecast or a recommendation.</p>
+      <p className="faint scm-foot"><span className="scm-k"><i className="solid" aria-hidden="true" />new rating that day</span> <span className="scm-k"><i className="hollow" aria-hidden="true" />earlier rating still holds</span> · Valuation: higher means cheaper · Risk: higher means lower risk</p>
     </section>);
 }

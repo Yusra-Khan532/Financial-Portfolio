@@ -210,14 +210,16 @@ describe("not-rated reasons", () => {
     const r = { ...base, notRatedReasons: [{ code: "classification" as const, text: "Prism has no model group for this industry yet (\"Coal\")." }] };
     expect(notRatedLede(r)).toContain("Coal");
     expect(notRatedLede(r).toLowerCase()).not.toContain("too little");
-    const line = inputsLine(r);
-    expect(line.text).toBe("100% of inputs available");
+    // task #311: nothing at 100%; below it, "Some figures are missing" with the note when another check withheld the rating
+    expect(inputsLine(r)).toBeNull();
+    const line = inputsLine({ ...r, confidence: 0.9 })!;
+    expect(line.text).toBe("Some figures are missing");
     expect(line.ok).toBe(false);
-    expect(line.note).toContain("Inputs are not the cause");
+    expect(line.note).toContain("Missing figures are not the cause");
     expect(notRatedLede(base)).toContain("recalculate");
     expect(notRatedLede(base).toLowerCase()).not.toContain("too little");
     const thin = { status: "NOT RATED" as const, confidence: 0.3, notRatedReasons: [{ code: "low_confidence" as const, text: "Only 30% of the inputs" }] };
-    expect(inputsLine(thin)).toMatchObject({ ok: true, note: null });
+    expect(inputsLine(thin)).toMatchObject({ text: "Some figures are missing", ok: true, note: null });
   });
 });
 

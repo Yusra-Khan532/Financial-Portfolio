@@ -51,7 +51,8 @@ CACHE_SECONDS = 3600
 MIN_COMPANIES = 2           # named in at least this many listed companies (1% or more today) to be listed
 MIN_STAKE = 1.0             # the filing names holders of 1% or more
 MOVE = 0.01                 # a stake change smaller than this (percentage points) is "unchanged"
-SOURCE = "Each company's shareholding filing (named public shareholders of 1% or more), via FinEdge; values at today's market capitalisation."
+# Task #311: where the list comes from, in one line; "via FinEdge" stays until the FinEdge agreement is checked for a credit requirement (Hold).
+SOURCE = "From each company's shareholding filing (named public shareholders of 1% or more), via FinEdge."
 DISCLAIMER = "Information only, not investment advice. Holdings below 1% are not named in filings, so a portfolio here shows only stakes of 1% or more."
 NOTE_NAMES = ("Names are matched as the filings write them: one investor filing under two spellings, or through a company, appears separately, "
               "and two different people with the same name appear as one. People and companies are told apart by the shape of the name.")

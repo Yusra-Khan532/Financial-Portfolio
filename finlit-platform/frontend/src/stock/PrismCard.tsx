@@ -74,7 +74,7 @@ export const fmtScore = one;
 
 /** The words a screen reader hears for the whole rating. */
 export function prismSummary(r: PrismLatest["rating"]): string {
-  const cov = `${pct(r.confidence)} of inputs available`;
-  if (r.status === "NOT RATED" || r.final == null) return `FinLit Prism: not rated. ${cov}.`;
-  return `FinLit Prism rating: ${LABEL[r.label][0]}, ${one(r.final)} out of 100, ${STATUS[r.status].toLowerCase()}. ${cov}.`;
+  const cov = Math.round(Math.max(0, Math.min(1, r.confidence)) * 100) >= 100 ? "" : " Some figures are missing.";   // task #311: nothing at 100%
+  if (r.status === "NOT RATED" || r.final == null) return `FinLit Prism: not rated.${cov}`;
+  return `FinLit Prism rating: ${LABEL[r.label][0]}, ${one(r.final)} out of 100, ${STATUS[r.status].toLowerCase()}.${cov}`;
 }

@@ -79,7 +79,7 @@ export function PrismShowcase() {
             <section className={cls("tech", "hpz-blk hpz-tech")} id="hpz-b-tech" aria-label="Technical analysis" {...on("tech")}>
               <header className="hpz-bh">
                 <span className="hpz-bi blue" aria-hidden="true">{glyph(<path d="M4 18l5-6 4 3 7-9" />)}</span>
-                <div><h3>Technical analysis</h3><p>Assesses price trend and momentum using technical indicators.</p></div>
+                <div><h3>Technical analysis</h3><p>Price trend and momentum, shown separately from the score.</p></div>
               </header>
               {S.tech.map((t) => (
                 <div key={t.name} className="hpz-trow">

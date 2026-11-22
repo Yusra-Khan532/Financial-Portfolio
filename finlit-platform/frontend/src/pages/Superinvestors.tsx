@@ -47,12 +47,12 @@ export function changesLine(c: SiSummary["changes"]): string {
   return parts.length ? parts.join(" · ") : "No changes in the year";
 }
 
-function Source({ m, covered, companies, tracked }: { m: Meta; covered?: number; companies?: number | null; tracked?: string }) {
-  const fetched = m.fetchedFrom && m.fetchedTo ? (m.fetchedFrom === m.fetchedTo ? day(m.fetchedFrom) : `${day(m.fetchedFrom)} – ${day(m.fetchedTo)}`) : null;
+function Source({ m, covered, tracked }: { m: Meta; covered?: number; companies?: number | null; tracked?: string }) {
   return (
     <div className="si-src">
-      <p><b>Source.</b> {m.source}{covered != null && <> Built from the filings of <b>{covered.toLocaleString("en-IN")}</b>{companies ? <> of {companies.toLocaleString("en-IN")}</> : null} listed companies.</>}
-        {m.asOf && <> Latest quarter <b>{m.asOf}</b>{fetched && <> (fetched {fetched})</>}.</>}{m.pricesAt && <> Prices of {day(m.pricesAt)}.</>}</p>
+      {/* task #311: what it is, how many companies and the dates; no fetch window or method */}
+      <p><b>Source.</b> {m.source}{covered != null && <> <b>{covered.toLocaleString("en-IN")}</b> companies covered.</>}
+        {(m.asOf || m.pricesAt) && <> {[m.asOf ? `Latest quarter ${m.asOf}` : null, m.pricesAt ? `${m.asOf ? "prices" : "Prices"} of ${day(m.pricesAt)}` : null].filter(Boolean).join(" · ")}.</>}</p>
       {tracked ? <p><b>{tracked.split(". ")[0]}.</b> {tracked.split(". ").slice(1).join(". ")}</p> : <p><b>Who is listed.</b> {m.rule} {m.noteNames}</p>}
       <p className="si-disc">{m.disclaimer}</p>
     </div>
