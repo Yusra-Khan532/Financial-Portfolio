@@ -554,3 +554,8 @@ a.pr-row:hover, .pr-row.hot { transform: translateX(4px); border-color: color-mi
 .dvk .dk-ring b { position: absolute; inset: 0; display: grid; place-items: center; font: 500 14px/1 var(--serif); }
 .nf-x { margin: 14px 0 0; font-size: 13px; }
 .nf-x a { color: var(--text); font-weight: 600; text-underline-offset: 3px; }
+/* Task #312 (developer file 20, change 5): the style scales' labels stay on one line ("OVERBOUGHT" broke as "OVERBOUGH / T" at 1440 px, from the
+   overflow-wrap: anywhere above). The pack asks for 11 px under 420 px; the site keeps page text at 12 px or more (task #227), so the letters close up
+   instead. */
+.spc-bar em { overflow-wrap: normal; white-space: nowrap; letter-spacing: .04em; flex: 1 1 auto; }
+@media (max-width: 420px) { .spc-bar em { letter-spacing: 0; } }
