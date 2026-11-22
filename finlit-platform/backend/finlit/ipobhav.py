@@ -149,7 +149,13 @@ DAY1_TODO = """SELECT ig_id, nse, bse, isin, listing_date FROM ipo_gmp
     ORDER BY listing_date DESC"""
 DAY1_SAVE = """UPDATE ipo_gmp SET day1_open = $2, day1_high = $3, day1_low = $4, day1_close = $5, day1_src = $6, day1_checked_at = now() WHERE ig_id = $1"""
 DAY1_MISS = "UPDATE ipo_gmp SET day1_checked_at = now() WHERE ig_id = $1"
-LAST_ROWS = "SELECT ig_id, nse, bse, isin FROM ipo_gmp WHERE listed"
+LAST_ROWS = "SELECT ig_id, nse, bse, isin, last_px FROM ipo_gmp WHERE listed"
+# issues with no latest close that have not been looked for in the newest day's files yet (added after it was read)
+LACKING_COUNT = """SELECT count(*) FROM ipo_gmp
+    WHERE listed AND last_px IS NULL AND (last_px_date IS NULL OR last_px_date < (SELECT max(last_px_date) FROM ipo_gmp))"""
+LACKING_ROWS = """SELECT ig_id, nse, bse, isin, last_px FROM ipo_gmp
+    WHERE listed AND last_px IS NULL AND (last_px_date IS NULL OR last_px_date < (SELECT max(last_px_date) FROM ipo_gmp))"""
+LAST_TRIED = "UPDATE ipo_gmp SET last_px_date = $2 WHERE ig_id = $1 AND last_px IS NULL"
 LAST_SAVE = "UPDATE ipo_gmp SET last_px = $2, last_px_date = $3, last_px_src = $4 WHERE ig_id = $1"
 
 
@@ -199,21 +205,28 @@ async def refresh(store, max_dates: int = 60, pause_s: float = 1.0, max_minutes:
         if time.monotonic() < stop:
             async with store.pool.acquire() as conn:
                 newest = await conn.fetchval("SELECT max(last_px_date) FROM ipo_gmp")
+                lacking = await conn.fetchval(LACKING_COUNT)
             for back in range(0, 8):
                 d = today - timedelta(days=back)
-                if newest and d <= newest:
-                    break                                       # the newest day we could read is stored already
+                if newest and d < newest:
+                    break
+                if newest and d == newest and not lacking:
+                    break                                       # the newest day we could read is stored already, for every issue
                 if d.weekday() >= 5:
                     continue
                 nse, bse = await files.nse_day(d), await files.bse_day(d)
                 if nse is None and bse is None:
                     continue
+                # a newer day: every listed issue; the same day again: only the issues added since (they have no latest close yet)
+                q = LAST_ROWS if not newest or d > newest else LACKING_ROWS
                 async with store.pool.acquire() as conn:
-                    for r in [dict(x) for x in await conn.fetch(LAST_ROWS)]:
+                    for r in [dict(x) for x in await conn.fetch(q)]:
                         got = pick(r, nse, bse)
                         if got:
                             await conn.execute(LAST_SAVE, r["ig_id"], got[0][3], d, got[1])
                             out["latest"] += 1
+                        elif r.get("last_px") is None:
+                            await conn.execute(LAST_TRIED, r["ig_id"], d)    # not in that day's files: tried once for that day
                 out["latestDate"] = d.isoformat()
                 break
         # splits and bonuses since listing, from NSE (weekly per issue), in the time left

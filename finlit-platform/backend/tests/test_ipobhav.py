@@ -102,3 +102,10 @@ async def test_job_reads_each_listing_date_once_and_the_latest_close(app):  # no
         again = await ipobhav.refresh(app.state.store, pause_s=0, http=http, today=date(2026, 11, 21))
         files = [u for u in asked if "bhav" in u.lower()]
         assert again["dates"] == 0 and again["day1"] == 0 and files == []                 # each date read once; the latest day stored already
+        async with app.state.store.pool.acquire() as conn:                                  # an issue added after the latest close was read
+            await conn.execute("INSERT INTO ipo_gmp (ig_id, url, name, nse, bse, board, issue_price, listed, listing_date, day1_close, day1_checked_at) "
+                               "VALUES (5, 'u', 'Y', 'BLSPOLY', NULL, 'mainboard', 100, true, '2026-11-03', 268.8, now())")
+        late = await ipobhav.refresh(app.state.store, pause_s=0, http=http, today=date(2026, 11, 21))
+        assert late["latest"] == 1 and late["latestDate"] == "2026-11-20"                   # the same day's files again, for the new issue only
+        async with app.state.store.pool.acquire() as conn:
+            assert float(await conn.fetchval("SELECT last_px FROM ipo_gmp WHERE ig_id = 5")) == 231.0
