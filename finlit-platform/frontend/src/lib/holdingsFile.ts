@@ -5,7 +5,8 @@
  *  not need a particular layout; the ISIN column is the one whose cells hold valid ISINs. The spreadsheet library is loaded only when a spreadsheet is chosen. */
 import { isinIn } from "./isin";
 import { avgOf, combine, isoDay, isPriceLabel, normLabel, num, pickColumns, qtyRank, RATE_HEAD, TRADE_HEADS, type Part } from "./holdingsColumns";
-import { setLines } from "./gridLines";
+import { lineOf, setLines } from "./gridLines";
+import { dayOf, leftAfter, sideOf, tradeColumns, tradePrice, type Trade } from "./tradeColumns";
 
 export type Grid = string[][];
 export type NameMatcher = (name: string) => boolean;
@@ -153,7 +154,18 @@ export async function gridsFromFile(file: File): Promise<Grid[]> {
   if (looksText && !isMarkup && new Uint8Array(buf, 0, Math.min(buf.byteLength, 4096)).includes(0)) throw bad;   // binary with a spreadsheet name but no spreadsheet signature
   const XLSX = await import("xlsx");
   let wb: import("xlsx").WorkBook;
-  try { wb = XLSX.read(buf, { type: "array", cellDates: false, cellFormula: false, cellHTML: false, cellStyles: false, sheetRows: MAX_ROWS }); } catch { throw bad; }
+  try { wb = XLSX.read(buf, { type: "array", cellDates: false, cellNF: true, cellFormula: false, cellHTML: false, cellStyles: false, sheetRows: MAX_ROWS }); } catch { throw bad; }
+  // developer file 31: a date cell reads as "2024-03-15", not as Excel shows it ("3/15/24" in a US format would be read day first as a wrong day)
+  for (const n of wb.SheetNames) {
+    const ws = wb.Sheets[n];
+    for (const k of Object.keys(ws)) {
+      if (k[0] === "!") continue;
+      const c = ws[k] as import("xlsx").CellObject;
+      if (c.t !== "n" || typeof c.v !== "number" || c.v < 1 || !c.z || !XLSX.SSF.is_date(c.z)) continue;   // below 1: a time of day only
+      const d = XLSX.SSF.parse_date_code(c.v);
+      if (d && d.y > 1900) c.w = `${d.y}-${String(d.m).padStart(2, "0")}-${String(d.d).padStart(2, "0")}`;
+    }
+  }
   // each sheet's rows from its first used row (blank rows kept here only to number the others), then the blank rows left out as before (developer file 30)
   return wb.SheetNames.map((n) => {
     const ws = wb.Sheets[n], top = ws["!ref"] ? XLSX.utils.decode_range(ws["!ref"]).s.r : 0;
@@ -181,11 +193,16 @@ export async function namesFromFile(file: File, matches?: NameMatcher): Promise<
  * price 0 (Holdings `wn`). Here the same layout gives each line its quantity and average buy price, from the columns holdingsColumns.ts
  * names, and a company on several lines (two accounts, two lots) is added up. A tradebook (Trade date / Trade type ...) gives names only. */
 
-export type Entry = { isin?: string; name: string; qty?: number; avg?: number; avgHow?: "column" | "worked"; lines?: number; rate?: number; rateOn?: string };
+export type Entry = { isin?: string; name: string; qty?: number; avg?: number; avgHow?: "column" | "worked"; lines?: number; rate?: number; rateOn?: string
+  /** developer file 31: each buy and sale of this company in the file (a tradebook), or each dated buy (a holdings file with a buy date) */
+  trades?: Trade[] };
 /** qty / price: the headings used (null when the file has none); trades: the file is a tradebook, so no quantities are taken; rateLike: a "Rate" or
  *  "LTP" column that is today's price (named in the note so nobody thinks it was used); otherParts: companies whose pledged or locked shares sit in
  *  other columns and are not in the quantity used ("Quantity Available"), to be checked. */
-export type GridAmounts = { qty: string | null; price: string | null; priceHow: "column" | "worked" | null; trades: boolean; rateLike: string | null; otherParts?: number; rate?: string | null; rateOn?: string | null };
+export type GridAmounts = { qty: string | null; price: string | null; priceHow: "column" | "worked" | null; trades: boolean; rateLike: string | null; otherParts?: number; rate?: string | null; rateOn?: string | null
+  /** developer file 31: what the file says about each buy and sale. kind "trades": a tradebook (side, day, price columns); "dated": a holdings file with
+   *  a buy date on each line. undated / unpriced: the lines with no readable day / no price; over: sales larger than the buys before them in the file. */
+  book?: { kind: "trades" | "dated"; side: string | null; day: string | null; price: string | null; buys: number; sells: number; undated: number[]; unpriced: number[]; over: number[] } };
 export type GridEntries = { entries: Entry[]; amounts: GridAmounts };
 
 /** Port of live `E`, with each line's quantity and average buy price. */
@@ -193,11 +210,13 @@ export function entriesWithAmounts(grid: Grid, matches?: NameMatcher): GridEntri
   const L = gridLayout(grid, matches);
   const none: GridAmounts = { qty: null, price: null, priceHow: null, trades: false, rateLike: null };
   const seen = new Map<string, Entry>(), parts = new Map<string, Part[]>(), order: string[] = [];
-  const rates = new Map<string, { rate: number; on?: string }>(), dates = new Map<string, number>();
-  const add = (e: Entry) => {
+  const rates = new Map<string, { rate: number; on?: string }>(), dates = new Map<string, number>(), tradesOf = new Map<string, Trade[]>();
+  const add = (e: Entry & { trade?: Trade }) => {
     const key = e.isin || "n:" + e.name.toUpperCase();
     if (!(e.isin || e.name)) return;
     if (!seen.has(key)) { seen.set(key, { isin: e.isin, name: e.name }); order.push(key); }
+    if (e.trade) tradesOf.set(key, [...(tradesOf.get(key) || []), e.trade]);
+    if (e.trade && e.trade.side === "sell") return;                                      // a sale is not a holding line: only its trade is kept
     if (e.rate != null && !rates.has(key)) { rates.set(key, { rate: e.rate, ...(e.rateOn ? { on: e.rateOn } : {}) }); if (e.rateOn) dates.set(e.rateOn, (dates.get(e.rateOn) ?? 0) + 1); }
     if (e.qty != null) parts.set(key, [...(parts.get(key) || []), { qty: e.qty, ...(e.avg != null ? { avg: e.avg } : {}) }]);
     else parts.set(key, [...(parts.get(key) || []), { qty: NaN }]);
@@ -214,50 +233,78 @@ export function entriesWithAmounts(grid: Grid, matches?: NameMatcher): GridEntri
   const heads = L.headerRow >= 0 ? L.rows[L.headerRow] : [];
   const pick = pickColumns(heads);
   const trades = heads.some((h) => h.trim() && !isPriceLabel(h) && (TRADE_HEADS.test(normLabel(h)) || /^(buy|sell|purchase|redemption)( ?\/ ?(sell|buy))?$/i.test(normLabel(h))));
-  const qtyCol = trades ? -1 : pick.qty;
+  // developer file 31: a column of BUY / SELL with a quantity makes the file a tradebook that is read line by line (it gave names only until then);
+  // a holdings file with a buy date on each line gives each line as a dated buy
+  const tc = L.headerRow >= 0 ? tradeColumns(heads, L.body) : null;
+  const kind: "trades" | "dated" | null = tc && tc.side >= 0 && pick.qty >= 0 ? "trades" : tc && !trades && tc.day >= 0 && pick.qty >= 0 ? "dated" : null;
+  const qtyCol = trades && kind !== "trades" ? -1 : pick.qty;
   const hows = new Set<"column" | "worked">();
-  const amountsOf = (r: string[]) => {
+  const lineAt = (b: number) => lineOf(grid, (L.headerRow >= 0 ? L.headerRow + 1 : 0) + b);   // L.body starts under the heading row
+  const amountsOf = (r: string[], b: number): Partial<Entry> & { trade?: Trade } => {
     if (qtyCol < 0) return {};
-    const q = num(r[qtyCol]);
+    const raw = num(r[qtyCol]);
+    if (kind === "trades") {                                                            // each line is a buy or a sale; what is left is worked out below
+      const side = sideOf(r[tc!.side]), q = raw == null ? null : Math.abs(raw);
+      if (!side || !(q != null && q > 0)) return {};
+      const price = tradePrice(r, q, tc!);
+      if (price != null) hows.add(tc!.price >= 0 && num(r[tc!.price]) != null ? "column" : "worked");
+      return { trade: { side, qty: q, price, date: tc!.day >= 0 ? dayOf(r[tc!.day]) : null, line: lineAt(b) } };
+    }
+    const q = raw;
     if (!(q != null && q > 0)) return {};
     const p = avgOf(q, pick.avg >= 0 ? num(r[pick.avg]) : null, pick.cost >= 0 ? num(r[pick.cost]) : null);
     if (p) hows.add(p.how);
     const rt = pick.rate >= 0 ? num(r[pick.rate]) : null, on = pick.date >= 0 ? isoDay(r[pick.date]) : null;
-    return { qty: q, ...(p ? { avg: p.avg } : {}), ...(rt != null && rt > 0 ? { rate: rt, ...(on ? { rateOn: on } : {}) } : {}) };
+    return { qty: q, ...(p ? { avg: p.avg } : {}), ...(rt != null && rt > 0 ? { rate: rt, ...(on ? { rateOn: on } : {}) } : {}),
+      ...(kind === "dated" ? { trade: { side: "buy" as const, qty: q, price: p?.avg ?? null, date: dayOf(r[tc!.day]), line: lineAt(b) } } : {}) };
   };
   let isinCol = -1, isinHits = 0;
   for (let c = 0; c < L.width; c++) { const n = L.body.filter((r) => isinIn(r[c] || "")).length; if (n > isinHits) { isinCol = c; isinHits = n; } }
   if (isinCol < 0) {
     if (L.col < 0) return { entries: L.names.map((name) => ({ name })), amounts: none };
-    for (const r of L.body) { const name = clean(r[L.col] || ""); if (name) add({ name, ...amountsOf(r) }); }
+    L.body.forEach((r, b) => { const name = clean(r[L.col] || ""); if (name) add({ name, ...amountsOf(r, b) }); });
   } else {
-    for (const r of L.body) {
+    L.body.forEach((r, b) => {
       const isin = isinIn(r[isinCol] || "");
       const name = L.col >= 0 && L.col !== isinCol ? clean(r[L.col] || "") : clean(r[isinCol] || "", isin);
-      if (isin) add({ isin, name, ...amountsOf(r) }); else if (name && L.mode === "column") add({ name, ...amountsOf(r) });
-    }
+      if (isin) add({ isin, name, ...amountsOf(r, b) }); else if (name && L.mode === "column") add({ name, ...amountsOf(r, b) });
+    });
   }
+  const over: number[] = [];
   const entries = order.map((k) => {
-    const e = seen.get(k)!, ps = parts.get(k) || [];
+    const e = seen.get(k)!, ps = parts.get(k) || [], ts = tradesOf.get(k);
+    if (kind === "trades") {                                                            // a tradebook: what is left after the trades, first in, first out
+      if (!ts?.length) return e;
+      const left = leftAfter(ts);
+      over.push(...left.over.map((t) => t.line));
+      return { ...e, qty: left.qty, ...(left.avg != null ? { avg: left.avg, avgHow: "column" as const } : {}), lines: ts.length, trades: ts };
+    }
     if (!ps.length || ps.some((p) => !Number.isFinite(p.qty))) return e;     // a line with no quantity: no total for this company
     const c = combine(ps), rt = rates.get(k);
-    return { ...e, qty: c.qty, lines: c.parts, ...(c.avg != null ? { avg: c.avg, avgHow: hows.has("worked") && pick.avg < 0 ? "worked" as const : "column" as const } : {}), ...(rt ? { rate: rt.rate, ...(rt.on ? { rateOn: rt.on } : {}) } : {}) };
+    return { ...e, qty: c.qty, lines: c.parts, ...(c.avg != null ? { avg: c.avg, avgHow: hows.has("worked") && pick.avg < 0 ? "worked" as const : "column" as const } : {}), ...(rt ? { rate: rt.rate, ...(rt.on ? { rateOn: rt.on } : {}) } : {}),
+      ...(kind === "dated" && ts?.length ? { trades: ts } : {}) };
   });
   const priceCol = pick.avg >= 0 ? pick.avg : pick.cost;
   // the quantity used is only the free part ("Quantity Available", "Free Qty"): count the companies with pledged / locked shares in other columns
   const partCols = qtyCol >= 0 && pick.qtyRank >= 3 ? heads.map((h, i) => (i !== qtyCol && /\b(qty|quantity|bal(ance)?|shares)\b/.test(normLabel(h)) && qtyRank(h) === 99 && /\b(pledged?|locked|lock ?in|freeze|frozen|lent|collateral|margin|loan|discrepant|t ?\+ ?\d)\b/.test(normLabel(h)) ? i : -1)).filter((i) => i >= 0) : [];
   const otherParts = partCols.length ? new Set(L.body.filter((r) => partCols.some((c) => (num(r[c]) ?? 0) > 0)).map((r) => (isinCol >= 0 ? isinIn(r[isinCol] || "") : undefined) || (L.col >= 0 ? clean(r[L.col] || "") : ""))).size : 0;
+  const all = [...tradesOf.values()].flat();
+  const book = kind && all.length ? { kind, side: kind === "trades" ? tc!.sideLabel : null, day: tc!.day >= 0 ? tc!.dayLabel : null,
+    price: kind === "trades" ? tc!.priceLabel || tc!.valueLabel || null : null, buys: all.filter((t) => t.side === "buy").length, sells: all.filter((t) => t.side === "sell").length,
+    undated: all.filter((t) => !t.date).map((t) => t.line), unpriced: all.filter((t) => t.price == null).map((t) => t.line), over: over.sort((a, b) => a - b) } : undefined;
+  const tradePriceLabel = kind === "trades" ? tc!.priceLabel || tc!.valueLabel || null : null;
   return {
     entries,
     amounts: {
       qty: qtyCol >= 0 ? pick.qtyLabel : null,
-      price: qtyCol >= 0 && priceCol >= 0 && hows.size ? (pick.avg >= 0 ? pick.avgLabel : pick.costLabel) : null,
-      priceHow: hows.size ? (pick.avg >= 0 ? "column" : "worked") : null,
+      price: kind === "trades" ? (hows.size ? tradePriceLabel : null) : qtyCol >= 0 && priceCol >= 0 && hows.size ? (pick.avg >= 0 ? pick.avgLabel : pick.costLabel) : null,
+      priceHow: kind === "trades" ? (hows.size ? (tc!.price >= 0 ? "column" : "worked") : null) : hows.size ? (pick.avg >= 0 ? "column" : "worked") : null,
       trades,
       rateLike: heads.map((h) => h.trim()).find((h) => RATE_HEAD.test(h)) ?? null,
       rate: rates.size && qtyCol >= 0 ? pick.rateLabel : null,
       rateOn: [...dates.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null,
       ...(otherParts ? { otherParts } : {}),
+      ...(book ? { book } : {}),
     },
   };
 }

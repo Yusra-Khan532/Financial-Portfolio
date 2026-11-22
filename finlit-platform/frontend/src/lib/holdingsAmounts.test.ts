@@ -184,8 +184,14 @@ describe("spreadsheets: quantity and buy price on every line", () => {
     const r = entriesWithAmounts([["Symbol", "ISIN", "Qty", "Avg price"], ["INFY", "INE009A01021", "10", "1000"], ["INFY", "INE009A01021", "30", "2000"]]);
     expect(r.entries).toEqual([{ isin: "INE009A01021", name: "INFY", qty: 40, avg: 1750, avgHow: "column", lines: 2 }]);
   });
-  it("a tradebook gives names only: its buys are not holdings", () => {
+  it("a tradebook gives each buy and sale with its date (developer file 31; it gave names only until then)", () => {
     const r = entriesWithAmounts([["symbol", "isin", "trade_date", "exchange", "trade_type", "quantity", "price", "trade_id"], ["INFY", "INE009A01021", "2026-11-03", "NSE", "buy", "10", "1500", "1"]]);
+    expect(r.amounts.trades).toBe(true);
+    expect(r.entries[0]).toMatchObject({ qty: 10, avg: 1500, trades: [{ side: "buy", qty: 10, price: 1500, date: "2026-11-03", line: 2 }] });
+    expect(fileNotes(r.amounts, r.entries)[0]).toMatch(/^This file lists trades: 1 buy and no sales/);
+  });
+  it("a tradebook with no Buy / Sell column that can be read still gives names only: its lines are not holdings", () => {
+    const r = entriesWithAmounts([["symbol", "isin", "trade_date", "exchange", "quantity", "price", "trade_id"], ["INFY", "INE009A01021", "2026-11-03", "NSE", "10", "1500", "1"]]);
     expect(r.amounts.trades).toBe(true);
     expect(r.entries[0].qty).toBeUndefined();
     expect(fileNotes(r.amounts, r.entries)[0]).toMatch(/lists trades/);

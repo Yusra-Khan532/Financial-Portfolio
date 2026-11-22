@@ -33,16 +33,17 @@ export async function addBookBuys(buys: { symbol: string; qty: number; price: nu
 export async function sendFunds(plan: EtfPlan, ticked: Set<string>, rateAsBuy: boolean, rateOn?: string | null): Promise<string> {
   if (!ticked.size) return "";
   const res = await apiSend<{ added: number; replaced: number; skipped: number }>("POST", BASE + "/import-commit", etfCommit(plan, ticked));
-  let fromRate = 0, priced = 0, fixed: string[] = [];
+  let fromRate = 0, priced = 0, traded = 0, fixed: string[] = [];
   try {
     const all = [...plan.add, ...plan.have];
     const r = await addBookBuys(etfBuys(plan, ticked, rateAsBuy, () => false));
     priced = r.added.length; fixed = r.fixed;
-    fromRate = r.added.filter((b) => !(all.find((x) => x.symbol === b.symbol)?.avg)).length;
+    traded = r.added.filter((b) => all.find((x) => x.symbol === b.symbol)?.line.trades?.length).length;   // developer file 31: with their dated buys and sales
+    fromRate = r.added.filter((b) => !(all.find((x) => x.symbol === b.symbol)?.avg) && !all.find((x) => x.symbol === b.symbol)?.line.trades?.length).length;
   } catch { /* the units are in; only the buy prices could not be saved, said below */ }
   const msg = etfMessage(res, plan.have.filter((x) => ticked.has(x.symbol)).map((x) => x.symbol), fromRate, rateOn);
-  const avg = priced - fromRate;
-  return msg + (avg ? ` ${avg === 1 ? "One has" : `${avg} have`} the file's average buy price.` : "")
+  const avg = priced - fromRate - traded;
+  return msg + (avg ? ` ${avg === 1 ? "One has" : `${avg} have`} the file's average buy price.` : "") + (traded ? ` ${traded === 1 ? "One comes" : `${traded} come`} with ${traded === 1 ? "its" : "their"} buys and sales from the file, dated.` : "")
     + (fixed.length ? ` The buy price of ${fixed.length === 1 ? fixed[0] : `${fixed.length} ETFs (${fixed.join(", ")})`} from an earlier import was corrected to the file's average.` : "");
 }
 

@@ -11,7 +11,7 @@ import { DEMO } from "../lib/demo";
 import { rowsWithBseIds, useSearchIndex } from "../lib/api";
 import { isinMap } from "../lib/searchFilters";
 import { useUniverse } from "../lib/screener";
-import { portfolio, usePortfolio, type PState } from "../lib/portfolio";
+import { portfolio, usePortfolio, type Holding, type PState } from "../lib/portfolio";
 import { aggOf, lotActions, moneyOf, pfOf } from "../lib/ledger";
 import { DEFAULT_PF } from "../lib/portfolio";
 import type { LotsProps } from "../portfolio/HoldingCells";
@@ -24,7 +24,7 @@ import type { CompanyHit } from "../lib/companySearch";
 import { clearPortfolioServer, undoClearPortfolioServer } from "../lib/account";
 import { PdfImport } from "../components/PdfImport";
 import { ACCEPT, entriesAndAmountsFromFile, type Entry, type GridAmounts } from "../lib/holdingsFile";
-import { addedMessage, attachAmounts, fileNotes, newHolding, updateHeld, type Amounts, type ImportOpts } from "../lib/importAdd";
+import { addedMessage, attachAmounts, fileNotes, newHolding, tradeRows, tradesMessage, updateHeld, type Amounts, type ImportOpts } from "../lib/importAdd";
 import { fundsFromMissing } from "../lib/importFunds";
 import { sendAllFunds } from "../lib/importEtf";
 import { isPdf } from "../lib/holdingsPdf";
@@ -226,8 +226,25 @@ export function HoldingsPage() {
     const found = attachAmounts(m.found, entries), check = attachAmounts(m.check, entries);
     const fresh = [...new Map(found.filter((f) => !inTarget.has(f.symbol)).map((f) => [f.symbol, f])).values()];
     const room = Math.max(0, cap - allSymbols.length) + fresh.filter((f) => allSymbols.includes(f.symbol)).length, take = fresh.slice(0, room);
-    if (take.length) portfolio.addMany(take.map((f) => ({ ...newHolding(f, f.isin || isinOf?.get(f.symbol)), ...pfField(goTo) })));
-    const updated = found.filter((f) => inTarget.has(f.symbol) && f.qty != null && applyHeld(f.symbol, f)).length;
+    // developer file 31: a share with trades (a tradebook, or a holdings file with a buy date) comes in as its dated buys and sales (lib/importAdd tradeRows);
+    // the others as before, with one line's quantity and average buy price
+    const plainTake = take.filter((f) => !f.trades?.length);
+    if (plainTake.length) portfolio.addMany(plainTake.map((f) => ({ ...newHolding(f, f.isin || isinOf?.get(f.symbol)), ...pfField(goTo) })));
+    const updated = found.filter((f) => !f.trades?.length && inTarget.has(f.symbol) && f.qty != null && applyHeld(f.symbol, f)).length;
+    const tradeSet = new Map<string, { isin?: string; trades: NonNullable<Amounts["trades"]> }>();
+    for (const f of found) if (f.trades?.length && (inTarget.has(f.symbol) || take.some((t) => t.symbol === f.symbol))) {
+      const x = tradeSet.get(f.symbol); tradeSet.set(f.symbol, { isin: x?.isin ?? f.isin ?? isinOf?.get(f.symbol), trades: [...(x?.trades ?? []), ...f.trades.filter((t) => !x?.trades.includes(t))] });
+    }
+    const tr = { shares: 0, buys: 0, sells: 0, already: 0, kept: [] as string[] }, tradeAdds: Omit<Holding, "id">[] = [];
+    const before = portfolio.get().holdings;
+    tradeSet.forEach((x, sym) => {
+      const r = tradeRows(sym, x.trades, before, goTo, x.isin ? { isin: x.isin } : {}, amounts?.book?.kind === "dated");
+      if (r.kept) { tr.kept.push(sym); return; }
+      if (r.first) portfolio.update(r.first.id, r.first.patch);
+      tradeAdds.push(...r.adds); tr.buys += r.buys; tr.sells += r.sells; tr.already += r.already;
+      if (r.buys + r.sells && !inTarget.has(sym)) tr.shares++;
+    });
+    if (tradeAdds.length) portfolio.addMany(tradeAdds);
     const taken = new Set([...symbols, ...take.map((f) => f.symbol)]);
     // task #323 (file 21, part 13): a broker's report names ETFs by symbol; lines that named no listed company are tried as ETFs, for the ETF portfolio
     const funds = amounts && has(PLAN_FOR_PORTFOLIO) && !DEMO ? fundsFromMissing(m.missing, entries) : [];
@@ -248,7 +265,8 @@ export function HoldingsPage() {
     const tail = rest ? ` ${rest} without an ISIN: ${[byCode ? `${byCode} matched by their NSE or BSE symbol or code` : "", rest > byCode ? `${rest - byCode} by name (to check) or not recognised` : ""].filter(Boolean).join(", ")}.` : "";
     setReadBy(isins.length ? `${byIsin} of ${entries.length} ${entries.length === 1 ? "line" : "lines"} matched by ISIN, against ${sourcesLine(res?.sources ?? null)}.${tail}`
       : from && byCode ? `${byCode} of ${entries.length} ${entries.length === 1 ? "line" : "lines"} matched by their NSE or BSE symbol or code${check.length ? `; ${check.length} by name, to check` : ""}.` : null);
-    const head = amounts ? addedMessage("file", take, updated, amounts.price).replace(/\.$/, "") : take.length ? `Added ${take.length} ${take.length === 1 ? "share" : "shares"}` : "Nothing new to add";
+    const plainHead = amounts ? addedMessage("file", plainTake, updated, amounts.price).replace(/\.$/, "") : take.length ? `Added ${take.length} ${take.length === 1 ? "share" : "shares"}` : "Nothing new to add";
+    const head = amounts?.book ? [tradesMessage({ ...tr, dated: !!amounts.book.day, kind: amounts.book.kind }).replace(/\.$/, ""), plainTake.length || updated ? plainHead : ""].filter(Boolean).join("; ") : plainHead;
     toast([head, check.length ? `${check.length} to check (listed below)` : "", skip.length ? `${skip.length} not added (reasons below)` : "",
       miss.length ? `${miss.length} not recognised (listed below)` : "", fresh.length > room ? `your plan holds up to ${cap}` : ""].filter(Boolean).join(" · ") + ".");
   };

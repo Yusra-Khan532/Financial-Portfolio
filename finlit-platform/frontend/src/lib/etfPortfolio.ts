@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiSend, type ApiError } from "./api";
 import type { Grid } from "./holdingsFile";
 import { lineOf } from "./gridLines";
+import { dayOf, leftAfter, sideOf, tradeColumns, tradePrice, type Trade } from "./tradeColumns";
 import { avgOf, combine, isAvgLabel, isCostLabel, num, pickColumns, qtyRank, type Part } from "./holdingsColumns";
 
 const BASE = "/api/me/etf-portfolio";
@@ -63,8 +64,10 @@ export const useEtfRisk = (on: boolean, n: string, pf = "all") => useQuery<EtfRi
 
 /** One line of a broker file. `avg` (the average buy price, from "Avg. price" or Invested ÷ quantity) stays in the browser: it becomes the ETF's buy in
  *  the book after the import; the server is sent the rest (`toSend`). */
-export type RawRow = { row: number; isin?: string; symbol?: string; name?: string; qty?: string; avg?: number };
-export const toSend = (rows: RawRow[]): Omit<RawRow, "avg">[] => rows.map(({ avg: _a, ...r }) => r);
+/** trades (developer file 31): from a tradebook, one row per ETF with its buys and sales; qty and avg are what is left, first in, first out. soldOut: every
+ *  unit was sold in the file: the line is sent with no units (so the server still says what it is) and the page does not offer it. */
+export type RawRow = { row: number; isin?: string; symbol?: string; name?: string; qty?: string; avg?: number; trades?: Trade[]; soldOut?: true };
+export const toSend = (rows: RawRow[]): Omit<RawRow, "avg" | "trades" | "soldOut">[] => rows.map(({ avg: _a, trades: _t, soldOut: s, qty, ...r }) => (s || qty == null ? r : { ...r, qty }));
 export type PreviewRow = { i: number; row: number; name: string | null; isin: string | null; symbol: string | null; qty: number | null; status: "matched" | "not_found" | "ignored" | "invalid" | "duplicate";
   reason: string; existing: boolean; etf: { symbol: string; name: string; fundHouse: string | null } | null };
 export type Preview = { rows: PreviewRow[]; counts: Record<PreviewRow["status"], number>; total: number; capacity: { limit: number; used: number; room: number } };
@@ -116,6 +119,9 @@ export function etfRowsFromGrid(grid: Grid): RawRow[] {
   const col = (re: RegExp) => head.findIndex((c) => re.test(c));
   const pick = pickColumns(head);
   const ci = col(H_ISIN), cs = col(H_SYM), cn = col(H_NAME), cq = col(H_QTY) >= 0 ? col(H_QTY) : pick.qty;
+  // developer file 31: a column of BUY / SELL makes the file a tradebook: one row per ETF with its trades, not one per line (a sale is not a holding)
+  const tc = tradeColumns(grid[at], grid.slice(at + 1));
+  if (tc.side >= 0 && cq >= 0) return tradeRows(grid, at, tc, { ci, cs, cn, cq });
   const out: RawRow[] = [];
   for (let i = at + 1; i < grid.length; i++) {
     const r = grid[i], cell = (k: number) => (k >= 0 ? clean(r[k] ?? "") : "");
@@ -127,6 +133,22 @@ export function etfRowsFromGrid(grid: Grid): RawRow[] {
       ...(q != null ? { qty: String(q) } : cell(cq) ? { qty: cell(cq) } : {}), ...(a && q != null && q > 0 ? { avg: a.avg } : {}) });
   }
   return out;
+}
+
+/** A tradebook's rows (developer file 31): each ETF's buys and sales, what is left of them first in, first out, numbered by its first line. */
+function tradeRows(grid: Grid, at: number, tc: ReturnType<typeof tradeColumns>, c: { ci: number; cs: number; cn: number; cq: number }): RawRow[] {
+  const by = new Map<string, RawRow & { trades: Trade[] }>();
+  for (let i = at + 1; i < grid.length; i++) {
+    const r = grid[i], cell = (k: number) => (k >= 0 ? clean(r[k] ?? "") : "");
+    const isin = cell(c.ci).toUpperCase(), sym = cell(c.cs), side = sideOf(r[tc.side]), q = num(cell(c.cq));
+    if ((!ISIN_RE.test(isin) && !(sym && /^[A-Za-z0-9&_.:\-]{1,30}$/.test(sym))) || !side || q == null || q === 0) continue;
+    const key = ISIN_RE.test(isin) ? isin : sym.toUpperCase(), qty = Math.abs(q);
+    const t: Trade = { side, qty, price: tradePrice(r, qty, tc), date: tc.day >= 0 ? dayOf(r[tc.day]) : null, line: lineOf(grid, i) };
+    const x = by.get(key) ?? { row: t.line, ...(ISIN_RE.test(isin) ? { isin } : {}), ...(sym ? { symbol: sym } : {}), ...(cell(c.cn) ? { name: cell(c.cn) } : {}), trades: [] };
+    x.trades.push(t); by.set(key, x);
+  }
+  return [...by.values()].map((x) => { const left = leftAfter(x.trades);
+    return { ...x, qty: String(left.qty), ...(left.avg != null ? { avg: left.avg } : {}), ...(left.qty > 0 ? {} : { soldOut: true as const }) }; });
 }
 
 /** Each imported ETF's average buy price from the file: the lines the review matched to it (an ETF on two lines is weighted by quantity), kept only when
