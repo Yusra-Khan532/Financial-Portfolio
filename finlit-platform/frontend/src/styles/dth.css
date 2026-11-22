@@ -83,6 +83,8 @@
 .dtx-main:focus-visible, .dtx-also a:focus-visible, .dtx-go:focus-visible { outline: 2px solid var(--dth-p); outline-offset: 2px; }
 .dtx-tag { font: 700 var(--fs-12)/1 var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--dth-on); background: var(--dth-p); border-radius: var(--ui-r-pill); padding: 4px 7px; white-space: nowrap; }
 .dtx-main svg { color: var(--muted); flex: none; }
+/* the "Main theme" chip stays on one line (it wrapped to two on phones, 22 Nov 2026 live check) */
+.dtx-main .ui-chip { flex: none; white-space: nowrap; }
 .dtx-also { font: 400 var(--fs-13)/1.4 var(--sans); color: var(--muted); min-width: 0; }
 .dtx-also a { color: var(--text); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
 .dtx-end { display: inline-flex; align-items: center; gap: 10px; margin-left: auto; }
