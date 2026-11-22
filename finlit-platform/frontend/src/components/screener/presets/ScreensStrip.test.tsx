@@ -45,19 +45,18 @@ describe("Ready-made screens strip (task #243, pack R)", () => {
     expect(strip.querySelector(".rms-cw")).toBeNull();
   });
 
-  it("R2: every tab in view in two groups, FEATURED (crowned, light gold) then MORE, in the pack's order; Top rated open first", async () => {
+  it("R2 (task #325 D2, file 25 row 9): every tab in one row, the featured first (crowned, light gold) in the pack's order, no Featured / More labels; Top rated open first", async () => {
     mount();
     await screen.findAllByRole("tab");
-    const [feat, more] = [...document.querySelectorAll<HTMLElement>(".rms-tgrp")];
-    expect(feat.className).toContain("rms-tfeat");
-    expect(feat.querySelector(".rms-tlab")!.textContent).toBe("Featured");
-    expect(tabNames(feat)).toEqual(["Top rated", "Momentum", "Growth", "Themes"]);
-    expect(more.querySelector(".rms-tlab")!.textContent).toBe("More");
-    expect(tabNames(more)).toEqual(["Setups", "Chart patterns", "Top gainers", "Safety"]);
-    for (const t of within(feat).getAllByRole("tab")) { expect(t.className).toContain("is-feat"); expect(t.querySelector(".rms-shine")).toBeTruthy(); }
-    for (const t of within(more).getAllByRole("tab")) { expect(t.className).not.toContain("is-feat"); expect(t.querySelector(".rms-shine")).toBeNull(); }
+    const row = document.querySelector<HTMLElement>(".rms-tabs")!;
+    expect(row.className).toContain("rms-tabs1");
+    expect(row.querySelector(".rms-tgrp, .rms-tlab")).toBeNull();
+    expect(tabNames(row)).toEqual(["Top rated", "Momentum", "Growth", "Themes", "Setups", "Chart patterns", "Top gainers", "Safety"]);
+    const tabs = within(row).getAllByRole("tab");
+    for (const t of tabs.slice(0, 4)) { expect(t.className).toContain("is-feat"); expect(t.querySelector(".rms-shine")).toBeTruthy(); }
+    for (const t of tabs.slice(4)) { expect(t.className).not.toContain("is-feat"); expect(t.querySelector(".rms-shine")).toBeNull(); }
     expect(screen.getByRole("tab", { name: /Top rated/ }).getAttribute("aria-selected")).toBe("true");
-    expect(document.body.textContent).not.toMatch(/Trend|New highs/);
+    expect(document.body.textContent).not.toMatch(/Trend|New highs|Featured/);
   });
 
   it("R3: compact cards: the name, one line of figures (listText or 'N companies · +N', task #325) and →; Top 10 has a crown, a TOP 10 tag and a gold rule", async () => {

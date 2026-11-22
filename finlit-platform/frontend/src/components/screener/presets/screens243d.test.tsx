@@ -50,15 +50,28 @@ describe("The industry board", () => {
     return <><IndustryBoard board={BOARD} on={b.ind?.slug ?? null} onPick={(c) => setB({ ...b, ind: !c.slug || b.ind?.slug === c.slug ? null : { slug: c.slug, name: c.name } })} />
       <FilterChips f={{ bar: b, set: setB }} /><output data-testid="p">{barParams(b).join("&")}</output><output data-testid="n">{barCount(b)}</output></>;
   }
-  it("one chip per industry with its count, corner and Pulse state; the counts add up to the list; an i explains it", () => {
+  it("task #325 D2 (file 25, row 6): one row, a chip per industry with its count, its readings on hover and behind the i; the counts add up to the list", () => {
     render(<B />);
     const g = screen.getByRole("group", { name: "Industries on this list: 3, 6 companies" });
-    expect(g.querySelector(".psx3-bh")!.textContent).toContain("3 · 6 companies");
-    const chips = within(g).getAllByRole("button").filter((b) => b.classList.contains("psx3-ind"));
-    expect(chips.map((c) => c.textContent)).toEqual(["Banks3Ahead and gainingRising together", "Power2Behind but gainingSold off", "No sector reading1"]);
+    expect(g.querySelector(".psx-optk")!.textContent).toBe("Industries on this list 3");
+    const chips = within(g).getAllByRole("button").filter((b) => b.classList.contains("psx3-ind1"));
+    expect(chips.map((c) => c.textContent)).toEqual(["Banks3", "Power2", "No sector reading1"]);
+    expect(chips.map((c) => c.getAttribute("title"))).toEqual(["Ahead and gaining · Rising together", "Behind but gaining · Sold off", null]);
     expect((chips[2] as HTMLButtonElement).disabled).toBe(true);
-    expect(within(g).getByRole("button", { name: "About the industry board" })).toBeTruthy();
+    expect(within(g).queryByRole("button", { name: /more/ })).toBeNull();          // three industries: no "+N more"
+    fireEvent.click(within(g).getByRole("button", { name: "About Industries on this list" }));
+    expect(screen.getByRole("note").textContent).toContain("Banks: Ahead and gaining · Rising together");
     expect(INFO_BOARD).toMatch(/Ahead and gaining.*Behind and slipping.*Sold off.*Bouncing back.*Bouncing back after a crash.*Rising together.*Losing steam/);
+  });
+  it("past six industries, the rest sit under '+N more'; picking one there filters the list and names it on the button", () => {
+    const many: BoardChip[] = Array.from({ length: 9 }, (_, k) => ({ slug: "i" + k, name: "Industry " + k, n: 9 - k, corner: null, rotation: "Ahead and gaining", pulse: null, pulseCode: null }));
+    function M() { const [on, setOn] = useState<string | null>(null); return <IndustryBoard board={many} on={on} onPick={(c) => setOn(on === c.slug ? null : c.slug)} />; }
+    render(<M />);
+    const g = screen.getByRole("group", { name: /Industries on this list: 9/ });
+    expect(within(g).getAllByRole("button").filter((b) => b.classList.contains("psx3-ind1"))).toHaveLength(6);
+    fireEvent.click(within(g).getByRole("button", { name: /\+3 more/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /Industry 7/ }));
+    expect(within(g).getByRole("button", { name: /Industry 7/ }).className).toContain("is-on");
   });
   it("picking a chip narrows the list and shows a filter chip; picking it again or Clear all removes it", () => {
     render(<B />);
@@ -87,7 +100,7 @@ describe("Sector reading columns", () => {
   });
   it("the band heading is blue (both themes) and names its date; no advice in any of the new words", () => {
     const css = readFileSync(resolve(process.cwd(), "src/styles/screens243.css"), "utf8");
-    expect(css).toMatch(/\.psx3-g-sector \{ color: #1F5FA8;/);
+    expect(css).toMatch(/\.psx3-g-sector, \.psx3-g-discover \{ color: #1F5FA8;/);      // task #325 D2: From Discover shares the blue (never on the same screen)
     expect(css).toMatch(/:root\[data-theme="dark"\] \.psx3-g-sector/);
     const view = readFileSync(resolve(process.cwd(), "src/components/screener/presets/ScreenView.tsx"), "utf8");
     expect(view).toContain('case "sector": return sectorDay ? `Sector reading · ${sectorDay}` : "Sector reading";');

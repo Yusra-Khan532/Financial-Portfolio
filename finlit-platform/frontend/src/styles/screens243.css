@@ -173,9 +173,9 @@
 .psx3-about [role="listitem"]::before { content: "•"; position: absolute; left: 0; color: var(--muted); }
 
 /* ---- task #243 round 3b (pack v4, section 3): the Sector reading band (blue), its cells, the industry board and the data dates of a Sectors screen ---- */
-.psx3-g-sector { color: #1F5FA8; box-shadow: inset 0 3px 0 #2F6FC0; background: color-mix(in srgb, #2F6FC0 9%, var(--s1)) !important; }
+.psx3-g-sector, .psx3-g-discover { color: #1F5FA8; box-shadow: inset 0 3px 0 #2F6FC0; background: color-mix(in srgb, #2F6FC0 9%, var(--s1)) !important; }
 .psx3-t th.psx3-c-sector { color: #1F5FA8; background: color-mix(in srgb, #2F6FC0 6%, var(--s1)) !important; }
-:root[data-theme="dark"] .psx3-g-sector, :root[data-theme="dark"] .psx3-t th.psx3-c-sector { color: #9CC3FF; }
+:root[data-theme="dark"] .psx3-g-sector, :root[data-theme="dark"] .psx3-g-discover, :root[data-theme="dark"] .psx3-t th.psx3-c-sector { color: #9CC3FF; }
 .psx3-sr b { font-weight: 600; }
 .psx3-sr small { display: block; margin-top: 2px; font: 400 var(--fs-12)/1.3 var(--sans); color: var(--muted); white-space: nowrap; }
 .psx3-rot, .psx3-pls, .psx3-peer { display: inline-block; padding: 2px 7px; border-radius: var(--ui-r-pill); font: 600 var(--fs-12)/1.4 var(--sans); white-space: nowrap; border: 1px solid transparent; }
@@ -228,3 +228,31 @@
 .psx-wallc { margin-left: auto; color: var(--muted); font: 500 var(--fs-13) var(--sans); font-variant-numeric: tabular-nums; }
 .psx-wallpg { margin-top: 10px; }
 @media (max-width: 760px) { .psx-views { width: 100%; display: flex; } .psx-views button { flex: 1; } .psx-wallc { margin-left: 0; width: 100%; } }
+
+/* Task #325 D2 (developer file 25, section 1 rows 5 to 9 and section 4) */
+.psx-opts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; }
+.psx-optk { font: 700 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; margin-right: 4px; }
+.psx-optk small { font: 600 12px var(--sans); letter-spacing: 0; margin-left: 2px; }
+.psx-opt1 { display: inline-flex; align-items: center; gap: 2px; }
+.psx-optsep { width: 1px; align-self: stretch; min-height: 24px; background: var(--border); margin: 0 4px; }
+.psx-chipn { margin-left: 6px; font: 600 12px var(--sans); color: var(--muted); font-variant-numeric: tabular-nums; }
+.psx-chip.is-on .psx-chipn { color: inherit; opacity: .8; }
+.psx3-board.psx-opts { margin: 0 0 12px; }
+.psx3-bname { font-weight: 700; text-transform: none; letter-spacing: 0; color: var(--text); font-size: var(--fs-13); }
+.psx3-sum { flex: 1 0 100%; display: flex; flex-wrap: wrap; gap: 4px 0; margin: 2px 0 0; padding-top: 8px; border-top: 1px solid var(--border); font: 400 13px/1.4 var(--sans); color: var(--muted); }
+.psx3-sum span { padding: 0 12px; border-left: 1px solid var(--border); } .psx3-sum span:first-child { padding-left: 0; border-left: 0; }
+.psx3-sum b { color: var(--text); font-variant-numeric: tabular-nums; }
+.psx-meta + .psx3-sum { border-top: 0; padding-top: 0; margin: -4px 0 12px; }
+.psx3-ddn { margin: 6px 4px 0; font: 400 12px/1.4 var(--sans); color: var(--muted); max-width: 300px; }
+.psx3-disc b { display: block; font-weight: 600; }
+.psx3-disc small { display: block; max-width: 280px; color: var(--muted); font-size: var(--fs-13); line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.psx3-mute { color: var(--muted); }
+.rms-tabs1 { gap: 6px; }
+.psx-optrow { display: contents; }
+@media (max-width: 700px) {
+  .psx3-sum span { padding: 0 8px; } .psx-optsep { display: none; }
+  /* a phone: the sub-themes and the industries in one line that scrolls sideways; the label above, the i after it (outside the scroller, so its note is not cut) */
+  .psx-optk { flex: 1 0 100%; }
+  .psx-optrow { display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; max-width: calc(100% - 36px); padding-bottom: 4px; scrollbar-width: thin; }
+  .psx-optrow > * { flex: 0 0 auto; }
+}

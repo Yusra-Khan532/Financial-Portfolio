@@ -106,7 +106,9 @@ describe("screen view", () => {
     expect(screen.getByText("showing 3")).toBeTruthy();
     expect(screen.getByText(/as of 31 Oct 2026/)).toBeTruthy();
     expect(screen.queryByText(/price and day change: latest/)).toBeNull();          // task #269: said only when the prices are newer than the list
-    expect(screen.getByRole("button", { name: "How this screen works ▾" })).toBeTruthy();      // task #243 (P2): in the header, opens the rules
+    fireEvent.click(screen.getByRole("button", { name: "About Highest-rated large caps" }));      // task #325 D2 (file 25, 1 row 8): the description and the rules behind the i
+    expect(document.querySelector(".psx-ip")!.textContent).toBe("What it listsCard textHow this screen worksRule one");
+    expect(screen.queryByRole("button", { name: /How this screen works/ })).toBeNull();
     expect(screen.getByText("A screen narrows a list. It is not a recommendation.")).toBeTruthy();
     expect(screen.getByText("Prism-confirmed")).toBeTruthy();
     expect(screen.getAllByRole("link", { name: /AAA/ })[0].getAttribute("href")).toBe("/stocks/AAA");   // the company, then its report
