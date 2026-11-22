@@ -670,50 +670,6 @@
   ]
  },
  {
-  "declared": 8,
-  "id": "commodity-prices",
-  "title": "Commodity prices",
-  "section": "Markets",
-  "routes": [
-   "/commodities"
-  ],
-  "plan": "Free, no sign-in",
-  "items": [
-   {
-    "q": "Is the MCX gold price what my jeweller will charge?",
-    "a": "No. MCX and import-parity figures leave out GST. A jeweller adds 3% GST, making charges (commonly 8% to 25%), wastage and a local premium, and usually sells 22K or 18K rather than 24K."
-   },
-   {
-    "q": "Why does each card show a contract month?",
-    "a": "MCX prices are futures prices, not spot prices. The nearest contract that has not expired is shown, and the next one once it trades more. On the day the contract changes, the day change is hidden."
-   },
-   {
-    "q": "How is the per-gram price worked out?",
-    "a": "Gold is quoted per 10 grams, so per gram is the quote ÷ 10. Silver is quoted per kilogram, so per gram is the quote ÷ 1,000."
-   },
-   {
-    "q": "How are the 22K and 18K prices calculated?",
-    "a": "From the MCX price: 22K is 22/24 of the 24K price and 18K is 18/24, the usual shop convention. The hallmark standard of 916 would give a figure about 0.07% lower."
-   },
-   {
-    "q": "What is import parity?",
-    "a": "An indicative cost of bringing a gram in at the international price: the US dollar price per troy ounce ÷ 31.1034768 grams × the rupee rate × (1 + customs duty + agriculture cess), with GST shown separately. It is worked out for gold and silver; platinum is hidden until its duty rate is confirmed, energy and base metals have none, and parity is hidden if the duty rate has not been checked in the last 120 days."
-   },
-   {
-    "q": "Why are the international price and import parity blank?",
-    "a": "They need the international price and the USD/INR rate. When the international feed is not connected, the page shows only MCX prices."
-   },
-   {
-    "q": "How many grams are in a tola?",
-    "a": "11.6638038 grams (180 grains); a troy ounce is 31.1034768 grams. Use the weight converter on the page for grams, tola, 10 g, 8 g (sovereign), kilograms and troy ounces."
-   },
-   {
-    "q": "When are prices updated?",
-    "a": "Live while MCX is open (until 23:30 IST). When it is closed, the last traded price is shown. MCX prices come through Dhan."
-   }
-  ]
- },
- {
   "declared": 6,
   "id": "results-calendar",
   "title": "Results calendar",
@@ -1124,42 +1080,6 @@
  },
  {
   "declared": 6,
-  "id": "stock-fundamentals",
-  "title": "Company financials",
-  "section": "Gold dashboards",
-  "routes": [
-   "/premium/fundamentals"
-  ],
-  "plan": "Gold",
-  "items": [
-   {
-    "q": "What is on this dashboard?",
-    "a": "A company's full financials in tables and charts: Snapshot, Income statement, Balance sheet, Cash flow, Ratios, Shareholders (named holders) and Peers & actions."
-   },
-   {
-    "q": "Can I switch between consolidated, standalone, yearly and quarterly?",
-    "a": "Yes, with the buttons next to the search box."
-   },
-   {
-    "q": "How do I chart a line from a table?",
-    "a": "Click any line in a table to chart it. Export CSV downloads the table."
-   },
-   {
-    "q": "What do “below by 71%” or “above by 12%” mean next to P/E and P/B?",
-    "a": "How the company's ratio compares with its sector's."
-   },
-   {
-    "q": "Where do the figures come from?",
-    "a": "Company filings, through FinEdge. A missing value shows a dash."
-   },
-   {
-    "q": "How is this different from the company report?",
-    "a": "The company report summarises and scores the company; this dashboard gives the full statement tables. Links at the top open the research page and the premium report."
-   }
-  ]
- },
- {
-  "declared": 6,
   "id": "market-events-index",
   "title": "Market events & index",
   "section": "Gold dashboards",
@@ -1186,7 +1106,7 @@
    },
    {
     "q": "What are the commodity figures here?",
-    "a": "Monthly commodity indices and the eight core industries. They are index levels, not rupee prices; live MCX prices are on the Commodity prices page."
+    "a": "Monthly commodity indices and the eight core industries. They are index levels, not rupee prices."
    },
    {
     "q": "Can I export the tables?",

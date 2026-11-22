@@ -66,7 +66,6 @@ PUBLIC: Dict[str, Page] = {
     "funds": Page("Mutual Fund Screener India: Compare Fund Returns | FinLit", "Search and compare Indian mutual funds on returns, cost, size and risk, with Mutual Fund Score. Information only.", "Mutual funds", "Search and compare Indian mutual funds.", "Funds"),
     "fund-score-screener": Page("Mutual Fund Score: Filter Funds by Score | FinLit", "Filter Indian mutual funds by Mutual Fund Score and the four parts behind it: performance, risk, cost and quality.", "Fund score screener", "Filter mutual funds by Mutual Fund Score and its four parts.", "Fund score screener"),
     "etfs": Page("ETF List India: Compare ETFs and Index Funds | FinLit", "Indian ETFs and index funds with tracking difference, cost and size, and how each compares with its index.", "ETFs", "Indian ETFs with tracking, cost and size.", "ETFs"),
-    "commodities": Page("Commodity Prices India: Gold, Silver, Crude | FinLit", "Gold, silver, crude oil and other commodity prices and trends relevant to Indian markets. Information only.", "Commodities", "Commodity prices and trends.", "Commodities"),
     "news": Page("Market News: Indian Stocks and Economy | FinLit", "Market news for Indian stocks and the economy, collected in one place with links to the original sources.", "Market news", "Market news with links to the sources.", "News"),
     "documents": Page("Company Documents: Annual Reports and Filings | FinLit", "Annual reports, presentations and filings of listed Indian companies, collected in one place.", "Company documents", "Annual reports, presentations and filings.", "Documents"),
     "glossary": Page("Investing Glossary: 450 Terms in Plain English | FinLit", "450 investing and finance terms explained in plain English, each with why it matters, how to use it and the formula where there is one.", "Investing glossary", "443 investing terms in plain English, from A to Z, with formulas.", "Glossary"),
@@ -108,6 +107,9 @@ REDIRECTS: Dict[str, str] = {
     "glossary/finlit-score": "/glossary/finlit-prism",
     "glossary/pillars-quality-growth-profitability-balance-sheet-technical": "/glossary",
     "glossary/score-bands-strong-healthy-mixed-watch": "/glossary",
+    # task #317 (developer file 23, 22 Nov 2026): two pages taken off the site
+    "commodities": "/macro",                 # Commodity prices -> India economy (free; it still shows crude and the rupee)
+    "premium/fundamentals": "/research",     # Company financials -> the Company report (section 06 carries a company's financials)
 }
 
 

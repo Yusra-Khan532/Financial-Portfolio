@@ -15,7 +15,7 @@ describe("task #213: option chain off", () => {
   it("is not in the menu, the sidebar or Find a page (all read lib/nav.ts)", () => {
     expect(allNav.some((i) => i.to === "/premium/options" || /option chain/i.test(i.label))).toBe(false);
     // task #282: the "Gold dashboards" heading is gone; its two pages sit in Analyse a company and Markets & economy, each with its Gold dot
-    expect(allNav.filter((i) => i.to.startsWith("/premium/")).map((i) => [i.label, i.gold])).toEqual([["Company financials", true], ["Market events & index", true]]);
+    expect(allNav.filter((i) => i.to.startsWith("/premium/")).map((i) => [i.label, i.gold])).toEqual([["Market events & index", true]]);   // task #317: Company financials is off the site
   });
   it("is not in the tools directory or the Plans demos", () => {
     expect(BUCKETS.flatMap((b) => b.cards).some((c) => c.id === "option-chain" || c.link.includes("/premium/options"))).toBe(false);

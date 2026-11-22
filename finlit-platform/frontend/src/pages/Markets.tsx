@@ -301,7 +301,7 @@ export function MarketsPage() {
   if (!gold) return <><PremiumHead title="Market events & index" art="macro" /><GoldLock title="Market Events & Index Dashboard" /></>;
   return (
     <>
-      <PremiumHead title="Market events & index" art="macro" links={["/ipo", "/results", "/commodities", "/premium"]}>The week ahead in one place: <b>new issues, results, company announcements</b>, how the indices are valued, and where commodities are heading.</PremiumHead>
+      <PremiumHead title="Market events & index" art="macro" links={["/ipo", "/results", "/premium"]}>The week ahead in one place: <b>new issues, results, company announcements</b>, how the indices are valued, and where commodities are heading.</PremiumHead>
       <div className="wrap" style={{ paddingBottom: 56 }}>
         <Glance go={setTab} />
         <div className="pm-tabs" role="tablist" aria-label="Market dashboard sections">{TABS.map((t) => <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}>{t.label}</button>)}</div>

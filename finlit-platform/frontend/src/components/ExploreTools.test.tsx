@@ -12,8 +12,8 @@ afterEach(() => { cleanup(); history.replaceState(null, "", "#"); document.body.
 const view = () => render(<MemoryRouter><ExploreTools /></MemoryRouter>);
 
 describe("platform data", () => {
-  it("has the six groups with 6, 6, 6, 6, 7 and 5 cards (36 tools; task #283 retired the Basic Stock Screener; the option chain is off, task #213; Correlation Chart and ETF Portfolio added, task #208), each with three points and an image", () => {
-    expect(BUCKETS.map((b) => b.cards.length)).toEqual([6, 6, 6, 6, 7, 5]);
+  it("has the six groups with 6, 5, 6, 6, 7 and 5 cards (35 tools; task #317 took off Company Financials; task #283 retired the Basic Stock Screener; the option chain is off, task #213; Correlation Chart and ETF Portfolio added, task #208), each with three points and an image", () => {
+    expect(BUCKETS.map((b) => b.cards.length)).toEqual([6, 5, 6, 6, 7, 5]);
     for (const c of BUCKETS.flatMap((b) => b.cards)) { expect(c.points).toHaveLength(3); expect(c.image).toMatch(/-(light|dark)$/); expect(["FREE", "SILVER", "GOLD"]).toContain(c.badge); }
   });
   it("drops the Premium Report and Connect AI cards and adds FinLit Bot", () => {
@@ -56,7 +56,7 @@ describe("<ExploreTools />", () => {
     expect(screen.getAllByRole("heading", { level: 4 })).toHaveLength(6);
     expect(location.hash).toBe("#tools-discover");
     fireEvent.click(chips[1]);
-    expect(screen.getAllByRole("heading", { level: 4 })).toHaveLength(6); expect(location.hash).toBe("#tools-company-360");
+    expect(screen.getAllByRole("heading", { level: 4 })).toHaveLength(5); expect(location.hash).toBe("#tools-company-360");
     const foot = screen.getByRole("navigation", { name: /between groups/i });
     expect(within(foot).getByText("Previous group").parentElement!.textContent).toMatch(/Discover/); expect(within(foot).getByText("Next group").parentElement!.textContent).toMatch(/Quant Lab/);
     fireEvent.click(within(foot).getByRole("button", { name: /All six groups/ }));
@@ -74,7 +74,7 @@ describe("<ExploreTools />", () => {
     expect(screen.getAllByRole("heading", { level: 4 })).toHaveLength(6);
     history.replaceState(null, "", "#");
   });
-  it("Expand opens a real dialog with the tool, runs through all 36 tools, locks the page scroll and closes with Esc", () => {
+  it("Expand opens a real dialog with the tool, runs through all 35 tools, locks the page scroll and closes with Esc", () => {
     view(); fireEvent.click(screen.getByRole("button", { name: /See the 6 Discover cards/ }));
     fireEvent.click(document.querySelector('[data-exp="stock-screener"]')!);
     const dlg = screen.getByRole("dialog"); expect(dlg.getAttribute("aria-modal")).toBe("true");
@@ -84,7 +84,7 @@ describe("<ExploreTools />", () => {
     fireEvent.click(within(dlg).getByRole("button", { name: /Next: Advanced Stock Screener/ }));
     expect(screen.getByRole("dialog").textContent).toMatch(/DISCOVER · 2 OF 6/);
     for (let i = 0; i < 5; i++) fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: /^Next:/ }));
-    expect(screen.getByRole("dialog").textContent).toMatch(/COMPANY 360 · 1 OF 6/);   // moving into another group's tool switches the group view behind it
+    expect(screen.getByRole("dialog").textContent).toMatch(/COMPANY 360 · 1 OF 5/);   // moving into another group's tool switches the group view behind it
     expect(location.hash).toBe("#tools-company-360");
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull(); expect(document.body.style.overflow).not.toBe("hidden");
@@ -99,7 +99,7 @@ describe("<ExploreTools />", () => {
     view();
     const rows = within(screen.getByRole("list", { name: /six groups and their tools/i })).getAllByRole("listitem").filter((li) => li.classList.contains("xt-row"));
     expect(rows).toHaveLength(6);
-    expect(rows.map((r) => r.querySelectorAll(".xt-tool").length)).toEqual([6, 6, 6, 6, 7, 5]);
+    expect(rows.map((r) => r.querySelectorAll(".xt-tool").length)).toEqual([6, 5, 6, 6, 7, 5]);
     const first = rows[0].querySelector("a.xt-tool")!;
     expect(first.getAttribute("href")).toBe("/screener"); expect(first.textContent).toMatch(/Stock Screener.*190\+ filters/);
     expect(rows[0].textContent).toMatch(/Advanced Stock Screener.*Gold/);
@@ -203,7 +203,7 @@ describe("dashboard cards, task #208 (the team's list of 16 Nov)", () => {
     expect(FIGURE["company-report"]).toEqual(["20", "sections"]);
     expect(card("chart-builder")!.crown).toBe("SILVER");
     expect(card("correlation-charts")).toMatchObject({ group: "company-360", title: "Correlation Chart", badge: "SILVER", link: "/graphs/advanced" });
-    expect(BUCKETS.find((b) => b.id === "company-360")!.cards).toHaveLength(6);
+    expect(BUCKETS.find((b) => b.id === "company-360")!.cards).toHaveLength(5);
   });
   it("Quant Lab: no Option Chain (taken off the site, task #213)", () => {
     expect(card("option-chain")).toBeUndefined();

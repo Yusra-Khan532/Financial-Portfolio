@@ -13,19 +13,19 @@ const src = (p: string) => resolve(__dirname, "..", p);
 const json = JSON.parse(readFileSync(resolve(__dirname, "../../../scripts/data/page-faqs.json"), "utf8")) as (typeof PAGE_FAQS[number] & { declared: number })[];
 
 describe("page FAQ data (built from the PDF by scripts/build-page-faqs.py)", () => {
-  it("has 31 pages and 220 questions (the PDF's 228, less the company report's download question, task #216, plus \"Which screener should I use?\" on Basic and Advanced, task #243, less the Basic stock screener's nine and Advanced's question comparing with it, task #283)", () => {
-    expect(PAGE_FAQS).toHaveLength(31);
-    expect(PAGE_FAQS.reduce((n, f) => n + f.items.length, 0)).toBe(220);
+  it("has 29 pages and 206 questions (task #317 took off Commodity prices, 8, and Company financials, 6; the PDF's 228, less the company report's download question, task #216, plus \"Which screener should I use?\" on Basic and Advanced, task #243, less the Basic stock screener's nine and Advanced's question comparing with it, task #283)", () => {
+    expect(PAGE_FAQS).toHaveLength(29);
+    expect(PAGE_FAQS.reduce((n, f) => n + f.items.length, 0)).toBe(206);
   });
   it("every page has the number of questions its 'N questions' line declares", () => {
-    expect(json).toHaveLength(31);
+    expect(json).toHaveLength(29);
     for (const p of json) expect(p.items.length, p.title).toBe(p.declared);
   });
   it("the TS file is the JSON without the bookkeeping field", () => {
     expect(PAGE_FAQS).toEqual(json.map(({ declared: _d, ...rest }) => rest));
   });
   it("ids are unique, questions end with '?', nothing is empty", () => {
-    expect(new Set(PAGE_FAQS.map((f) => f.id)).size).toBe(31);
+    expect(new Set(PAGE_FAQS.map((f) => f.id)).size).toBe(29);
     for (const f of PAGE_FAQS) for (const it of f.items) { expect(it.q.endsWith("?"), it.q).toBe(true); expect(it.a.length).toBeGreaterThan(5); expect(it.a).not.toMatch(/\s{2}|\n/); }
   });
   it("keeps verbatim text: typographic quotes, rupee signs, multi-line joins, plans, routes", () => {
@@ -99,8 +99,8 @@ describe("<PageFaqs />", () => {
   });
   it("the All FAQs hub lists every set grouped by section", () => {
     render(<MemoryRouter><FaqsPage /></MemoryRouter>);
-    expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(31);
-    expect(screen.getAllByRole("button").filter((b) => b.hasAttribute("aria-controls"))).toHaveLength(220);
+    expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(29);
+    expect(screen.getAllByRole("button").filter((b) => b.hasAttribute("aria-controls"))).toHaveLength(206);
     expect(screen.getByRole("heading", { level: 2, name: "Gold dashboards" })).toBeTruthy();
     cleanup();
   });
@@ -135,8 +135,8 @@ describe("FAQ upgrades", () => {
     const box = screen.getByRole("searchbox");
     fireEvent.change(box, { target: { value: "sector" } });
     const n = screen.getAllByRole("button").filter((b) => b.hasAttribute("aria-controls")).length;
-    expect(n).toBeGreaterThan(0); expect(n).toBeLessThan(220);
-    expect(screen.getByRole("status").textContent).toBe(`${n} of 220 questions match`);
+    expect(n).toBeGreaterThan(0); expect(n).toBeLessThan(206);
+    expect(screen.getByRole("status").textContent).toBe(`${n} of 206 questions match`);
     fireEvent.change(box, { target: { value: "zzzqqq" } });
     expect(screen.getByRole("status").textContent).toContain("No question matches");
     cleanup();
