@@ -295,6 +295,17 @@ async def test_saved_state_and_plan_limits(app):
     assert stored["dashV"] == 2 and stored["dashboard"] == [{"id": "learn", "on": True, "size": "quarter"}]
     assert (await basic.put("/api/me/prefs", json={"dashboard": [{"id": "learn", "on": True, "size": "huge"}]})).status_code == 422
     assert (await basic.put("/api/me/prefs", json={"palette": "neon"})).status_code == 422
+    # task #315: Word of the Day bookmarks (glossary ids, newest first) and the India date the word was last opened are stored and returned as sent
+    words = {"wordBookmarks": ["dupont-analysis", "return-on-equity-roe", "ebitda"], "wordSeen": "2026-11-23"}
+    assert (await basic.put("/api/me/prefs", json=words)).status_code == 200
+    stored = (await basic.get("/api/me/state")).json()["prefs"]
+    assert stored["wordBookmarks"] == words["wordBookmarks"] and stored["wordSeen"] == "2026-11-23"
+    assert (await basic.put("/api/me/prefs", json={"wordBookmarks": [], "wordSeen": ""})).status_code == 200   # none yet, not opened yet
+    assert (await basic.put("/api/me/prefs", json={"palette": "gold"})).status_code == 200                       # older browsers send neither field
+    assert (await basic.get("/api/me/state")).json()["prefs"]["wordBookmarks"] == []
+    for bad in ({"wordBookmarks": ["DuPont"]}, {"wordBookmarks": ["-x"]}, {"wordBookmarks": ["a b"]}, {"wordBookmarks": ["x" * 81]}, {"wordBookmarks": "ebitda"},
+                {"wordBookmarks": [f"t{i}" for i in range(201)]}, {"wordSeen": "23-11-2026"}, {"wordSeen": "2026-11-23T00:00"}, {"wordSeen": 20261123}):
+        assert (await basic.put("/api/me/prefs", json=bad)).status_code == 422, bad
     # one user never sees another's state
     assert (await silver.get("/api/me/state")).json()["prefs"] == {}
     for c in (basic, silver):

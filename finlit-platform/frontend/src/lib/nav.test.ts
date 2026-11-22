@@ -19,7 +19,7 @@ describe("site map", () => {
     expect(names("markets")).toEqual(["Sector Pulse", "Sector Rotation", "Market events & index", "FII & DII flows", "India economy"]);   // task #317: Commodity prices is off the site
     expect(names("news")).toEqual(["Results calendar", "Latest results", "Concall Monitor", "IPO calendar", "All IPOs", "News & filings"]);   // task #278 (after the pack): its line covers results and filings
     expect(names("funds")).toEqual(["Mutual funds", "Mutual fund screener", "ETFs"]);
-    expect(names("learn")).toEqual(["Glossary", "How to use Sector Pulse", "How to use Sector Rotation", "Insights & blog", "Discussion forums"]);
+    expect(names("learn")).toEqual(["Glossary", "Your bookmark", "How to use Sector Pulse", "How to use Sector Rotation", "Insights & blog", "Discussion forums"]);
     expect(names("apps")).toEqual(["Browser extension", "Connect AI assistants"]);
     // the rules for a heading: four words or fewer, one line under it, no plan names as headings
     for (const g of MENU) { expect(g.title.split(/\s+/).filter((w) => w !== "&").length, g.title).toBeLessThanOrEqual(4); expect(g.line.length, g.line).toBeLessThanOrEqual(59); expect(g.title).not.toMatch(/Gold|Silver|Basic/); }
@@ -61,7 +61,13 @@ describe("site map", () => {
     expect(new Set(paths).size).toBe(paths.length);
     const app = readFileSync(new URL("../App.tsx", import.meta.url), "utf8");
     const routes = [...app.matchAll(/path="([^"]+)"/g)].map((m) => "/" + m[1]);
-    for (const p of paths) expect(routes.some((r) => r === p || r === p + "/*"), p).toBe(true);
+    for (const p of paths.map((x) => x.split("#")[0])) expect(routes.some((r) => r === p || r === p + "/*"), p).toBe(true);   // task #315: "Your bookmark" is /dashboard#dsh-learn
+  });
+  it("task #315: Learn has \"Your bookmark\", opening the dashboard's Learn card", () => {
+    const bm = MENU.find((g) => g.id === "learn")!.items.find((it) => it.label === "Your bookmark")!;
+    expect(bm.to).toBe("/dashboard#dsh-learn");
+    expect(MORE.groups[0].items.map((it) => it.label)).toContain("Your bookmark");   // the header's More → Learn too
+    expect(isHere("/dashboard", bm)).toBe(false);                                     // the Dashboard link stays the one marked as here
   });
   it("knows which heading the visitor is under", () => {
     const research = RESEARCH;

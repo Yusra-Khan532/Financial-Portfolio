@@ -7,7 +7,7 @@
 // (its full version) and a ⋯ menu (open the full page, hide this card). The choices are kept on the account (prefs.dashUi).
 const GlobalMarkets = lazy(() => import("../components/dashboard/GlobalMarkets").then((m) => ({ default: m.GlobalMarkets })));   // task #294: the map's data loads with this card only
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
-import { Navigate, useSearchParams } from "react-router";
+import { Navigate, useLocation, useSearchParams } from "react-router";
 import { useAuth } from "../lib/auth";
 import { RANK, useUI } from "../lib/ui";
 import { WIDGETS, prefs, stepGroups, usePrefs, type WidgetPref } from "../lib/prefs";
@@ -110,6 +110,18 @@ export function Dashboard() {
   const symbols = useMemo(() => followed.map((f) => f.symbol), [followed]);
   const setup = useSetup(followed.length, p.palette, plan);
   const [ui, setUi] = useDashUi();
+  // task #315: Learn → Your bookmark (lib/nav.ts) and the Word of the Day panel open /dashboard#dsh-learn: bring the Learn card into view once it is drawn,
+  // and again after the blocks above it have loaded and pushed it down
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (hash !== "#dsh-learn" || !ready || !user) return;
+    // task #316 filters the sections and lets a card be hidden: show the Tools section and the Learn card so the link always lands on it
+    if (ui.sec !== "all" && ui.sec !== "tools") setUi({ sec: "tools" });
+    if (ui.hidden.includes("learn")) setUi({ hidden: ui.hidden.filter((x) => x !== "learn") });
+    const go = () => document.getElementById("dsh-b-learn")?.scrollIntoView({ block: "start" });
+    const t = [50, 700, 1800].map((ms) => window.setTimeout(go, ms));
+    return () => t.forEach(clearTimeout);
+  }, [hash, ready, user]);   // eslint-disable-line react-hooks/exhaustive-deps
   // task #316: the counts on the portfolio switch (the same cached answers the panes read)
   const mfN = useMfPortfolio(has(PLAN_FOR_PORTFOLIO), pick.param.mf).data?.count ?? null;
   const etfN = useEtfPortfolio(has(PLAN_FOR_PORTFOLIO), pick.param.etf).data?.items.filter((e) => !e.gone).length ?? null;
