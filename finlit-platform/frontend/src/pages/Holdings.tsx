@@ -296,7 +296,9 @@ export function HoldingsPage() {
   }, [page, ids, meta, byOv, shareOf, model]);
   // the Diversification analytics tile counts each NSE level (task #183 A4/A5): "9 macro sectors · 13 sectors · 22 industries · all four sizes"
   const lvN = (l: "macro" | "sector" | "industry") => (div ? new Set(ids.map((x) => div.levelOf(x, l))).size : undefined);
-  const top = topTiles(shares, page as never, model === "prism" ? "prism" : "finlit", { macro: lvN("macro"), sectors: lvN("sector"), industries: lvN("industry") ?? Object.keys(counts).length, sizes: (["Large", "Mid", "Small", "Micro"] as Size[]).filter((k) => sizeCount[k]).length });
+  // developer file 28: once every share has a quantity, the cards read the score's figures by value (the average Prism, the spread score, the NIFTY 50 measures)
+  const scA = sc.data && !sc.data.locked ? sc.data : null, byValue = scA?.basis === "value" && scA.byValue ? scA.byValue : null;
+  const top = topTiles(shares, page as never, model === "prism" ? "prism" : "finlit", { macro: lvN("macro"), sectors: lvN("sector"), industries: lvN("industry") ?? Object.keys(counts).length, sizes: (["Large", "Mid", "Small", "Micro"] as Size[]).filter((k) => sizeCount[k]).length }, byValue);
   // task #274 (changes 2 and 16): the money box's day line and what the money covers, the three view cards, and the views opened once
   const dayCount = useMemo(() => {
     const xs = shares.filter((x) => x.chg != null).map((x): DayMove => ({ symbol: x.symbol, label: shortLabel(x), chg: x.chg! }));
@@ -408,8 +410,9 @@ export function HoldingsPage() {
           {money.nSales > 0 && <MoneyRow t={money} onAdd={openFor} />}
           {sold.length > 0 && <SoldList items={sold} all={cur === "all" && pfList.length > 1} pfName={pfName} nameOf={(sym) => meta[sym]?.name ?? sym} onRemoveSale={(id) => portfolio.remove(id)} />}</div> : model && <>
           <div className="eqx-row2" id="eq-tabs">
-            <ScorePanel locked={!scoreOn} total={sc.data && !sc.data.locked ? sc.data.total ?? null : null} band={sc.data && !sc.data.locked ? sc.data.band : null} shares={symbols.length}
-              missing={symbols.filter((x) => !qtyBySymbol.get(x)).length} onAdd={() => { const sym = symbols.find((x) => !qtyBySymbol.get(x)); if (sym) openFor(sym, "qty"); }} />
+            <ScorePanel locked={!scoreOn} total={scA ? scA.total ?? null : null} band={scA ? scA.band : null} shares={symbols.length}
+              missing={symbols.filter((x) => !qtyBySymbol.get(x)).length} onAdd={() => { const sym = symbols.find((x) => !qtyBySymbol.get(x)); if (sym) openFor(sym, "qty"); }}
+              basis={scA?.basis} noPrice={(scA?.noQuantity ?? []).filter((x) => qtyBySymbol.get(x))} />
             <ViewCards cards={viewCards} view={view} onView={(v) => setView(v)} seen={seen} />
           </div>
           {data && data.unknown.length > 0 && <p className="pfx-warn" role="status">Not in FinLit's company list, so left out of the figures: {data.unknown.join(", ")}.</p>}

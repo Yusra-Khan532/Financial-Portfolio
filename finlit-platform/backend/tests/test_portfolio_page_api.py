@@ -123,9 +123,24 @@ async def test_score_is_gold_strict_and_never_returns_weights(app):  # noqa: F81
                 {"items": items, "benchmark": "SENSEX"}, {"items": items, "extra": 1}, {"items": []}):
         assert (await gold.post(SCORE, json=bad)).status_code == 422, bad
     none = (await gold.post(SCORE, json={"items": [{"symbol": s} for s in SAMPLE]})).json()
-    assert none["locked"] is False and none["needsQuantities"] is True and none["total"] is None
+    # developer file 28: with no quantities every share counts the same, and the total is still given (the panel asks for the buys)
+    assert none["locked"] is False and none["needsQuantities"] is True and none["basis"] == "equal" and isinstance(none["total"], int) and "byValue" not in none
+    one = (await gold.post(SCORE, json={"items": [{"symbol": SAMPLE[0], "qty": 10}] + [{"symbol": s} for s in SAMPLE[1:]]})).json()
+    assert one["basis"] == "equal" and one["valued"] == 1 and one["total"] == none["total"] and "byValue" not in one   # one quantity is not the list
     full = (await gold.post(SCORE, json={"items": items, "risk": "low", "goal": "protect"})).json()
-    assert full["needsQuantities"] is False and isinstance(full["total"], int)
+    assert full["needsQuantities"] is False and full["basis"] == "value" and isinstance(full["total"], int)
+    assert full["band"] in ("Strong", "Healthy", "Average", "Weak", "Poor")
+    bv = full["byValue"]                                                             # what the top cards show once every share has a value
+    page = (await gold.post("/api/portfolio/page", json={"symbols": SAMPLE})).json()["page"]
+    assert set(bv["spread"]) == set(page["score"]) and set(bv["market"]) == {"beta", "vol", "vol_nifty", "max_fall", "max_fall_nifty"}
+    assert bv["market"]["vol_nifty"] == page["market"]["eq"]["vol_nifty"]           # the same NIFTY 50 weeks as the page
+    import json as _json
+    import time as _time
+    from test_diversification_api import PRICES_MAX
+    rows = [{"quote_date": r["d"], "close_price": r["c"] * 1.1} for r in PRICES_MAX["__NIFTY"]["rows"]]
+    await app.state.store.redis.set("idx:px:NIF500", _json.dumps({"t": _time.time(), "v": {"rows": rows}}))
+    n500 = (await gold.post(SCORE, json={"items": items, "risk": "low", "goal": "protect", "benchmark": "NIF500"})).json()
+    assert n500["byValue"] == bv                                                     # the cards stay against the NIFTY 50 whatever the score compares with
     text = str(full).lower()
     assert "weight" not in text and "points" not in text and "blend" not in text
     # the names-only page endpoint is untouched

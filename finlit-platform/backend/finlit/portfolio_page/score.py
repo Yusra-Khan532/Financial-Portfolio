@@ -1,5 +1,10 @@
 """Your portfolio score: the readings of a share list weighted by the money in each share, and the one total that goes with them.
 
+Developer file 28 (founder, 23 Nov 2026: "check the score we are giving is weighted average when we have proper quantity and price"): one rule for the
+weights, the rule of the MF, ETF and All my investments pages. Each share counts by its value only when every share has one (a quantity and a stored price);
+otherwise every share counts the same, and the answer says which (`basis`). A share without a quantity is never counted at zero beside the others. The
+total's word is FinLit Prism's (Strong, Healthy, Average, Weak, Poor), the words the shares and the Portfolio card use.
+
 Pure Python over numbers the caller has already worked out (the heavy pandas part stays in portfolio_page.inputs / metrics). The blend that turns the
 readings into the total, the points behind each reading and the cut-offs all stay in this file: `public` returns the total and the readings as words and
 plain figures only. Describes the list; not a recommendation. Information only, not investment advice.
@@ -7,7 +12,9 @@ plain figures only. Describes the list; not a recommendation. Information only, 
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
+
+from ..mfscore.engine import label_of
 
 HORIZONS = ("lt1", "1-3", "3-5", "gt5")
 RISKS = ("low", "medium", "high")
@@ -30,13 +37,21 @@ def _wavg(pairs: List[tuple]) -> Optional[float]:
     return sum(v * w for v, w in p) / t if t else None
 
 
-def _weights(symbols: List[str], values: Dict[str, float]) -> Dict[str, float]:
-    """Each share's weight: its share of the value entered; equal for every share when no quantity is given."""
-    have = {s: values[s] for s in symbols if values.get(s, 0) > 0}
-    if have:
-        t = sum(have.values())
-        return {s: have.get(s, 0.0) / t for s in symbols}
-    return {s: 1 / len(symbols) for s in symbols}
+def weights_of(symbols: List[str], values: Dict[str, float]) -> Tuple[Dict[str, float], str]:
+    """Each share's part of the list and the basis: by value ("value") when every share has a value; otherwise every share counts the same ("equal").
+    Before developer file 28 a share without a value counted at zero once any other share had one, so one quantity made the score that share's alone."""
+    if symbols and all(values.get(s, 0) > 0 for s in symbols):
+        t = sum(values[s] for s in symbols)
+        return {s: values[s] / t for s in symbols}, "value"
+    return ({s: 1 / len(symbols) for s in symbols} if symbols else {}), "equal"
+
+
+def risk_points(beta: float, comfort: float) -> float:
+    """80 at the member's comfort beta, more below it (up to 100), fewer above it (down to 0), never higher for a larger beta. Before developer file 28 the
+    part above the comfort started at 100, so a beta just above the comfort read better than one exactly at it."""
+    if beta > comfort:
+        return max(0.0, min(100.0, 80 - (beta - comfort) * 60))
+    return min(100.0, 80 + (comfort - beta) * 20)
 
 
 def build(symbols: List[str], values: Dict[str, float], cards: Dict[str, Dict[str, Any]], page_score: Optional[Dict[str, Any]], market: Optional[Dict[str, Any]],
@@ -44,8 +59,8 @@ def build(symbols: List[str], values: Dict[str, float], cards: Dict[str, Dict[st
     """symbols: the list; values: symbol -> rupee value (qty x last stored price), missing when unknown; cards: symbol -> prism_screen shape;
     page_score: metrics page 'score' (diversification); market: market_measures against the benchmark for the value weights, or None;
     trend_fn(items) -> trend.portfolio_trend-style dict."""
-    quantities = any(values.get(s, 0) > 0 for s in symbols)
-    w = _weights(symbols, values)
+    w, basis = weights_of(symbols, values)
+    quantities = basis == "value"
     total_w = {s: w[s] for s in symbols}
 
     # holding strength: weighted Prism score
@@ -70,10 +85,7 @@ def build(symbols: List[str], values: Dict[str, float], cards: Dict[str, Dict[st
         conc = {"top": vs[0], "top5": sum(vs[:5]), "name": max(symbols, key=lambda s: total_w[s])}
 
     # risk against the chosen index, judged against the person's comfort
-    risk_points = None
-    if market:
-        beta = market["beta"]
-        risk_points = max(0.0, min(100.0, 100 - (beta - _COMFORT_BETA[risk]) * 60)) if beta > _COMFORT_BETA[risk] else min(100.0, 80 + (_COMFORT_BETA[risk] - beta) * 20)
+    risk_pts = risk_points(market["beta"], _COMFORT_BETA[risk]) if market else None
 
     readings: Dict[str, Any] = {}
     readings["strength"] = ({"word": word3(strength), "figure": round(strength), "scoredShare": round(scored_share, 2)} if strength is not None
@@ -97,7 +109,7 @@ def build(symbols: List[str], values: Dict[str, float], cards: Dict[str, Dict[st
                                  if conc else {"word": "Needs quantities", "why": "Largest holding and top five, once amounts are in."})
 
     # the total (private blend)
-    pts = {"strength": strength, "spread": page_score["score"] if page_score else None, "risk": risk_points, "trend": trend_points, "valuation": valuation,
+    pts = {"strength": strength, "spread": page_score["score"] if page_score else None, "risk": risk_pts, "trend": trend_points, "valuation": valuation,
            "concentration": max(0.0, 100 - max(0.0, conc["top"] * 100 - 5) * 4) if conc else None}
     wt = dict(_BASE)
     if horizon == "lt1":
@@ -110,10 +122,12 @@ def build(symbols: List[str], values: Dict[str, float], cards: Dict[str, Dict[st
         wt["strength"], wt["valuation"] = 0.35, 0.15
     got = {k: v for k, v in pts.items() if v is not None}
     tw = sum(wt[k] for k in got)
-    total = round(sum(wt[k] * v for k, v in got.items()) / tw) if quantities and tw else None
+    # every share counting the same still gives a total (the score panel says so and asks for the buys); concentration needs the amounts, so it waits
+    total = round(sum(wt[k] * v for k, v in got.items()) / tw) if tw else None
     coverage = (scored_share if strength is not None else 0.0)
-    out = {"needsQuantities": not quantities, "total": total, "totalWhy": None if total is not None else ("Needs quantities" if not quantities else "Not enough scored shares."),
+    out = {"needsQuantities": not quantities, "basis": basis, "valued": sum(1 for s in symbols if values.get(s, 0) > 0), "of": len(symbols),
+           "total": total, "totalWhy": None if total is not None else "Not enough scored shares.",
            "readings": readings, "coverage": round(coverage, 2), "confidence": "Lower" if coverage < 0.6 else "Usual", "benchmark": BENCHMARKS[benchmark]}
     if total is not None:
-        out["band"] = "Strong" if total >= 70 else "Fair" if total >= 50 else "Weak"
+        out["band"] = label_of(total)
     return out
