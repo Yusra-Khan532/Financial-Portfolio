@@ -1,7 +1,7 @@
 /* Enlarge arrow and enlarged-chart dialog (components/ChartZoom.tsx). Site tokens only; the dialog surface and dimmer come from overlay.css. */
 .cz { position: relative; min-width: 0; }
 .cz-slot, .cz-host { min-width: 0; }
-.cz-btn { --cz-in: 6px; position: absolute; top: calc(var(--cz-dt, 0px) + var(--cz-in)); right: calc(var(--cz-dr, 0px) + var(--cz-in)); z-index: 3; width: 36px; height: 36px; min-width: 0; min-height: 0; padding: 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 10px; border: 1px solid var(--border-subtle); background: var(--bg-subtle); color: var(--text-secondary); cursor: pointer; font: 600 var(--fs-13)/1 var(--sans); }
+.cz-btn { --cz-in: 6px; position: absolute; top: calc(var(--cz-dt, 0px) + var(--cz-in)); right: calc(var(--cz-dr, 0px) + var(--cz-in)); z-index: 3; width: 36px; height: 36px; min-width: 0; min-height: 0; padding: 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: var(--r-ctl); border: 1px solid var(--border-subtle); background: var(--bg-subtle); color: var(--text-secondary); cursor: pointer; font: 600 var(--fs-13)/1 var(--sans); }
 .cz-btn::after { content: ""; position: absolute; inset: -4px; }
 .cz-btn:hover { color: var(--text-primary); border-color: var(--border-control); }
 .cz-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
@@ -17,7 +17,7 @@
 .cz-title { margin: 0; flex: 1; min-width: 0; font: 700 var(--fs-18)/1.3 var(--sans); color: var(--text-primary); overflow-wrap: anywhere; }
 .cz-bar .cz-btn.cz-restore { position: static; width: auto; min-width: 44px; height: 44px; padding: 0 14px; flex: none; }
 .cz-bar .cz-btn.cz-restore::after { display: none; }
-.cz-modal { position: fixed; inset: 3vh 3vw; display: flex; flex-direction: column; padding: 16px 18px 18px; border: 1px solid var(--border-control); border-radius: 16px; overflow: hidden; }
+.cz-modal { position: fixed; inset: 3vh 3vw; display: flex; flex-direction: column; padding: 16px 18px 18px; border: 1px solid var(--border-control); border-radius: var(--r-card); overflow: hidden; }
 .cz-scrim { position: fixed; inset: 0; }
 .cz-body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
 .cz-body .cz-host { width: 100%; }
@@ -38,8 +38,8 @@
 .cz-body .cz-host .ipo-strip { padding: 0 24px; }
 
 /* zoom controls of the enlarged view (task #87): - 100% + Reset; the content is scaled with CSS zoom so layout, scrolling and text all follow */
-.cz-zoom { display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 3px; border: 1px solid var(--border-subtle); border-radius: 12px; background: var(--bg-subtle); }
-.cz-zb { min-width: 36px; height: 36px; padding: 0 10px; border: 0; border-radius: 9px; background: transparent; color: var(--text-primary); cursor: pointer; font: 700 var(--fs-18)/1 var(--sans); }
+.cz-zoom { display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 3px; border: 1px solid var(--border-subtle); border-radius: var(--r-ctl); background: var(--bg-subtle); }
+.cz-zb { min-width: 36px; height: 36px; padding: 0 10px; border: 0; border-radius: var(--r-ctl); background: transparent; color: var(--text-primary); cursor: pointer; font: 700 var(--fs-18)/1 var(--sans); }
 .cz-zb:hover:not(:disabled) { background: var(--bg-hover, rgba(127, 127, 127, .16)); }
 .cz-zb:disabled { opacity: .4; cursor: default; }
 .cz-zb:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }

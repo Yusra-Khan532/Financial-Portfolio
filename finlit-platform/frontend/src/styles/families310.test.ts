@@ -22,6 +22,40 @@ function rulesFor(css: string, sel: RegExp): string[] {
 const NUMERIC_SHAPE = /(border(-[a-z]+)*-radius|font-size)\s*:\s*[\d.]+px|font-weight\s*:\s*(800|900|650|300)|font\s*:\s*(800|900|650|300)\s/;
 export { shapeFindings, rulesFor, NUMERIC_SHAPE };
 
+describe("family 1: company report and Prism (task #310 F, pages/01)", () => {
+  const SHEETS = ["stock2", "report216", "report-polish", "prism", "prism-card", "prism-compare", "prism-report", "prism-showcase", "prism-technical", "prism220",
+    "outlook", "compare", "concall", "concall-compact", "company-brief", "dth", "dupont", "earnings", "earningscash", "earningsintel", "forecast215", "industry-card",
+    "plflags", "profitreality", "ratio-reading", "revenue-cash", "scoremoves", "filing-scores", "headerscore", "ownership", "what-changed", "macro-outlook",
+    "news-filings", "preparing", "minibar", "insights", "score-ring", "chartsays", "chartzoom", "charthelp", "drawlayer", "droptile"].map((n) => `styles/${n}.css`);
+  const CODE = ["stock/pack/stands.css", "stress/stresslab.css", "stock/Sections.tsx", "stock/Sections2.tsx", "stock/Sections3.tsx", "stock/Sections4.tsx",
+    "stock/Hero.tsx", "pages/PremiumReport.tsx", "pages/Prism.tsx", "pages/Compare.tsx", "pages/Outlook.tsx", "pages/StressLab.tsx", "pages/Documents.tsx", "pages/ConcallMonitor.tsx"];
+
+  it("the report, Prism, compare, forecast, Stress Lab, documents and concall sheets have no hand-typed corners, sizes or weights", () => {
+    expect([...SHEETS, ...CODE].flatMap(shapeFindings)).toEqual([]);
+  });
+
+  it('"Set alert", "Watching", "Value (DCF)" and "Share" are four secondary small buttons in one row; Watching shows aria-pressed', () => {
+    const h = read("stock/Hero.tsx");
+    expect(h.match(/className="ui-btn ui-btn--secondary ui-btn--sm"/g)?.length).toBe(4);
+    expect(h).toMatch(/className="ui-btn ui-btn--secondary ui-btn--sm" aria-pressed=\{watch\}/);
+    expect(noComments(read("styles/report216.css"))).toMatch(/\.hx-d \.hx-acts \.actions \{ flex-wrap: nowrap;/);
+  });
+
+  it("report cards use the card corner (no 14px/10px card tokens), and the forecast figure is on the scale", () => {
+    const rp = noComments(read("styles/report-polish.css"));
+    expect(rp).toMatch(/section\.block \.card \{ border-radius: var\(--r-card\)/);
+    expect(rp).toMatch(/section\.block \.card \.card \{ border-radius: var\(--r-ctl\)/);
+    expect(read("styles/forecast215.css")).not.toMatch(/--fs-21/);
+  });
+
+  it("documents are small cards, the Concall Monitor has the tool width, and compare has no IBM Plex", () => {
+    expect(read("pages/Documents.tsx")).toMatch(/className="card ui-card ui-card--sm doc-c"/);
+    expect(read("pages/ConcallMonitor.tsx")).toMatch(/className="page ccm p4 ui-page"/);
+    for (const r of rulesFor(read("styles/tools.css"), /\.radar \.r[lr]\b/)) expect(r).not.toMatch(/Plex/);
+    expect(read("components/DrawLayer.tsx")).not.toMatch(/Plex/);
+  });
+});
+
 describe("shared sheets (task #310 F)", () => {
   it("the shared navigation and table pieces have no hand-typed corners, sizes or weights", () => {
     const files = ["styles/tabgroup.css", "styles/section-nav.css", "styles/tablesort.css", "styles/table-grid.css", "styles/theme.css", "styles/type227.css",

@@ -59,7 +59,7 @@ describe("Compare, Spider tab", () => {
     expect([...card.querySelectorAll(".sp-h .mk")].map((m) => m.className)).toEqual(legend);          // the table's company headings carry the same markers
     expect([...card.querySelectorAll("svg.radar > g.rs")].map((g) => (g.getAttribute("class") || "").replace("rs ", ""))).toEqual(["k0", "k1"]);   // the chart's marker layer: the same classes in the same order
     expect([...card.querySelectorAll(".sp-r")].every((r) => r.querySelectorAll(".sp-v.k0, .sp-v.k1").length === 2)).toBe(true);
-    expect(readCss()).toMatch(/\.mk\.k0 \{ border-radius: 50%/); expect(readCss()).toMatch(/\.mk\.k1 \{ border-radius: 2px/);   // circle and square, as in the chart
+    expect(readCss()).toMatch(/\.mk\.k0 \{ border-radius: 50%/); expect(readCss()).toMatch(/\.mk\.k1 \{ border-radius: var\(--ui-r-mark\)/);   // circle and square, as in the chart
   });
 
   it("shows no figure as a gap, a cross and a grey dash, never as zero", () => {

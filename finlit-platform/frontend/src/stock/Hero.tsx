@@ -62,10 +62,10 @@ export function Hero({ s, ratios, jump }: { s: Summary; ratios?: Ratios; jump: (
               {q.price == null && cov && cov.reasons.length > 0 && <span className="cov-note" role="note">No price shown: {cov.reasons[0]}.</span>}
             </div>
             <span className="hx-acts icons"><div className="actions">
-              <AlertButton symbol={s.profile.symbol} className="btn" label="Set alert" />
-              <button className={"btn" + (watch ? " on" : "")} aria-pressed={watch} aria-label={watch ? "Watching" : "Watchlist"} onClick={toggleWatch}><Icon name="spark" /><span>{watch ? "Watching" : "Watchlist"}</span>{!has(PLAN_FOR_WATCHLIST) && <Icon name="lock" className="lk" />}</button>
-              <Link className="btn" to={`/dcf?sym=${encodeURIComponent(s.profile.symbol)}&load=1`} title="Value this company with the DCF calculator (Gold)"><Icon name="rupee" /><span>Value (DCF)</span>{!has("gold") && <Icon name="lock" className="lk" />}</Link>
-              <button className="btn" aria-label="Copy link to this report" onClick={() => { navigator.clipboard?.writeText(location.href.split("#")[0]).then(() => toast("Link to this report copied."), () => toast(location.href)); }}><Icon name="arrow" /><span>Share</span></button>
+              <AlertButton symbol={s.profile.symbol} className="ui-btn ui-btn--secondary ui-btn--sm" label="Set alert" />
+              <button className="ui-btn ui-btn--secondary ui-btn--sm" aria-pressed={watch} aria-label={watch ? "Watching" : "Watchlist"} onClick={toggleWatch}><Icon name="spark" /><span>{watch ? "Watching" : "Watchlist"}</span>{!has(PLAN_FOR_WATCHLIST) && <Icon name="lock" className="lk" />}</button>
+              <Link className="ui-btn ui-btn--secondary ui-btn--sm" to={`/dcf?sym=${encodeURIComponent(s.profile.symbol)}&load=1`} title="Value this company with the DCF calculator (Gold)"><Icon name="rupee" /><span>Value (DCF)</span>{!has("gold") && <Icon name="lock" className="lk" />}</Link>
+              <button className="ui-btn ui-btn--secondary ui-btn--sm" aria-label="Copy link to this report" onClick={() => { navigator.clipboard?.writeText(location.href.split("#")[0]).then(() => toast("Link to this report copied."), () => toast(location.href)); }}><Icon name="arrow" /><span>Share</span></button>
             </div></span>
           </div>
           <div className="hxd-strip">

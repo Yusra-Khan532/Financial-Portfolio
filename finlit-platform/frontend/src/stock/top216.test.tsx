@@ -28,10 +28,12 @@ describe("2.1 header option D", () => {
     expect(h).toMatch(/Trading details · \{asOf/);
     for (const b of ["Set alert", '{watch ? "Watching" : "Watchlist"}', "Value (DCF)", "Share"]) expect(h.slice(h.indexOf('className="hx-acts icons"'), h.indexOf('className="hxd-strip"'))).toContain(b);
   });
-  it("icon buttons show their label under the icon at every width", () => {
+  it("the four actions are shared secondary small buttons in one row, labels shown at every width (task #310 F)", () => {
     const r = css("report216.css");
-    expect(r).toMatch(/\.hx-d \.hx-acts \.btn \{ flex-direction: column;/);
-    expect(r).toMatch(/\.hx-d \.hx-acts \.btn > span \{ display: block;/);
+    const h = code("Hero.tsx");
+    expect(h.match(/className="ui-btn ui-btn--secondary ui-btn--sm"/g)?.length).toBe(4);
+    expect(h).toMatch(/className="ui-btn ui-btn--secondary ui-btn--sm" aria-pressed=\{watch\}/);
+    expect(r).toMatch(/\.hx-d \.hx-acts \.actions \{ flex-wrap: nowrap;/);
     expect(r).not.toMatch(/\.hx-acts[^{]*span \{ display: none/);
   });
   it("the four classification levels come from the API, Sector included; the basic industry is filled", () => {

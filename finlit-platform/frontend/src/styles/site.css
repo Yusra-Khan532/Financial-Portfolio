@@ -216,9 +216,9 @@ input[type="range"]:focus-visible::-moz-range-thumb { filter: drop-shadow(0 0 2p
 
 /* research landing */
 .sgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
-.scard { display: flex; flex-direction: column; gap: 6px; padding: 18px; border-radius: 18px; border: 1px solid var(--border); background: var(--s1); text-decoration: none; color: inherit; transition: transform .2s, border-color .2s, box-shadow .2s; }
-.scard:hover { transform: translateY(-3px); border-color: var(--gold); box-shadow: var(--lift); } .scard b { font: 500 16px var(--mono); } .scard span { color: var(--muted); font-size: 13px; }
-.bigsearch { display: flex; align-items: center; gap: 12px; width: min(620px, 100%); height: 60px; padding: 0 20px; border-radius: 18px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--faint); cursor: pointer; box-shadow: var(--shadow); font-size: 16px; transition: border-color .2s; } .bigsearch:hover { border-color: var(--gold); } .bigsearch .kbd { margin-left: auto; }
+.scard { display: flex; flex-direction: column; gap: 6px; padding: 18px; border-radius: var(--r-card); border: 1px solid var(--border); background: var(--s1); text-decoration: none; color: inherit; transition: transform .2s, border-color .2s, box-shadow .2s; }
+.scard:hover { transform: translateY(-3px); border-color: var(--gold); box-shadow: var(--lift); } .scard b { font: 500 var(--fs-16) var(--mono); } .scard span { color: var(--muted); font-size: var(--fs-13); }
+.bigsearch { display: flex; align-items: center; gap: 12px; width: min(620px, 100%); height: 60px; padding: 0 20px; border-radius: var(--r-card); border: 1px solid var(--border-strong); background: var(--s1); color: var(--faint); cursor: pointer; box-shadow: var(--shadow); font-size: var(--fs-16); transition: border-color .2s; } .bigsearch:hover { border-color: var(--gold); } .bigsearch .kbd { margin-left: auto; }
 
 /* states */
 .skeleton { background: linear-gradient(90deg, var(--s2) 0, var(--s3) 40%, var(--s2) 80%); background-size: 200% 100%; animation: none; border-radius: var(--r-ctl); }

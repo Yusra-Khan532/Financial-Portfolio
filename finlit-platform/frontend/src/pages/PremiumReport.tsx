@@ -32,16 +32,16 @@ function Report({ symbol }: { symbol: string }) {
     <article className="pm-rep" aria-label={`Premium report for ${d.profile.name}`}>
       <p className="pm-noprint" style={{ textAlign: "right" }}><button className="btn primary" onClick={() => window.print()}><Icon name="notes" /> Print or save as PDF</button></p>
       <header className="pm-cover">
-        <div><p className="faint" style={{ margin: 0, letterSpacing: ".14em", textTransform: "uppercase", fontSize: 12, fontWeight: 700, color: "var(--gold)" }}>FinLit Ventures · Premium report · {dateIN(new Date().toISOString())}</p>
+        <div><p className="faint" style={{ margin: 0, letterSpacing: ".14em", textTransform: "uppercase", fontSize: "var(--fs-12)", fontWeight: 700, color: "var(--gold)" }}>FinLit Ventures · Premium report · {dateIN(new Date().toISOString())}</p>
           <h1 className="ui-title" style={{ margin: "8px 0 4px" }}>{d.profile.name}</h1>
           <p className="muted" style={{ margin: 0 }}>{d.profile.symbol} · {d.profile.sector || MINUS}{d.profile.industry ? ` · ${d.profile.industry}` : ""} · {d.meta.statement === "standalone" ? "Standalone" : "Consolidated"} figures</p></div>
-        {d.sparkline.c.length > 1 && <div className="spk" aria-label="Price over the last year"><Spark values={d.sparkline.c} color={d.sparkline.c[d.sparkline.c.length - 1] >= d.sparkline.c[0] ? "var(--gain)" : "var(--loss)"} w={220} h={70} /><p className="faint" style={{ margin: 0, fontSize: 12, textAlign: "right" }}>Price, last 12 months <ChartHelp id="report-spark" /></p></div>}
+        {d.sparkline.c.length > 1 && <div className="spk" aria-label="Price over the last year"><Spark values={d.sparkline.c} color={d.sparkline.c[d.sparkline.c.length - 1] >= d.sparkline.c[0] ? "var(--gain)" : "var(--loss)"} w={220} h={70} /><p className="faint" style={{ margin: 0, fontSize: "var(--fs-12)", textAlign: "right" }}>Price, last 12 months <ChartHelp id="report-spark" /></p></div>}
       </header>
       <div className="pm-cards" style={{ marginTop: 18 }}>
         <div className="pm-kpi"><small>Price</small><b>{q.price != null ? "₹" + nf(q.price) : MINUS}</b><i>{signed(q.changePct)} today</i></div>
         <div className="pm-kpi"><small>Market cap</small><b>{q.marketCapCr != null ? "₹" + cr(q.marketCapCr) + " Cr" : MINUS}</b></div>
-        <div className="pm-kpi"><small>52-week range</small><b style={{ fontSize: 18 }}>{d.range52.low != null ? nf(d.range52.low) : MINUS} to {d.range52.high != null ? nf(d.range52.high) : MINUS}</b></div>
-        <div className="pm-kpi"><small>FinLit Prism{pzOk && prismWord(pzOk) ? ` · ${prismWord(pzOk)}` : ""}</small><b>{pzOk ? nf(pzOk.final as number, 1) : MINUS}<span className="faint" style={{ fontSize: 14 }}> / 100</span></b>{!pzOk && pz !== undefined && <i>{pz === "error" ? "Could not be loaded" : "Not rated yet"}</i>}</div>
+        <div className="pm-kpi"><small>52-week range</small><b style={{ fontSize: "var(--fs-18)" }}>{d.range52.low != null ? nf(d.range52.low) : MINUS} to {d.range52.high != null ? nf(d.range52.high) : MINUS}</b></div>
+        <div className="pm-kpi"><small>FinLit Prism{pzOk && prismWord(pzOk) ? ` · ${prismWord(pzOk)}` : ""}</small><b>{pzOk ? nf(pzOk.final as number, 1) : MINUS}<span className="faint" style={{ fontSize: "var(--fs-14)" }}> / 100</span></b>{!pzOk && pz !== undefined && <i>{pz === "error" ? "Could not be loaded" : "Not rated yet"}</i>}</div>
       </div>
       {d.thesis && <><h2>Summary</h2><p style={{ lineHeight: 1.65 }}>{d.thesis}</p></>}
       {pzOk?.parts && <><h2>The FinLit Prism parts <ChartHelp id="report-pillars" /></h2>
@@ -58,7 +58,7 @@ function Report({ symbol }: { symbol: string }) {
         <tbody>{o.data.latest.map((x) => <tr key={x.key}><td>{x.label}</td><td className="n">{x.value != null ? nf(x.value) : MINUS}</td><td className="n">{x.change1yPts != null ? signed(x.change1yPts, 2, " pts") : MINUS}</td></tr>)}</tbody></table></HScroll> : <p className="muted">Shareholding data is not available for this company yet.</p>}
       {p.data?.items?.length ? <><h2>Peers</h2><HScroll className="" label="table"><table className="pm-t"><thead><tr><th>Company</th><th className="n">FinLit Prism</th><th className="n">P/E</th></tr></thead>
         <tbody>{p.data.items.slice(0, 8).map((x) => <tr key={x.symbol}><td><Link to={`/premium/report/${x.symbol}`}>{x.name || x.symbol}</Link></td><td className="n">{pzOf(x.symbol) ?? MINUS}</td><td className="n">{x.pe != null ? nf(x.pe, 1) : MINUS}</td></tr>)}</tbody></table></HScroll></> : null}
-      <p className="faint" style={{ marginTop: 28, fontSize: 13 }}>Prepared from company filings and market data. Scores are research, not a recommendation to buy or sell. General information, not investment advice. Past performance is not a guide to future returns.</p>
+      <p className="faint" style={{ marginTop: 28, fontSize: "var(--fs-13)" }}>Prepared from company filings and market data. Scores are research, not a recommendation to buy or sell. General information, not investment advice. Past performance is not a guide to future returns.</p>
     </article>
   );
 }
