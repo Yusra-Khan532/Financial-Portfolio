@@ -11,6 +11,9 @@ export type Prefs = { palette: PaletteId; density: Density; alerts: boolean; scr
   /** task #248: which portfolios the dashboard's Step 1 reads, per kind ("all", or portfolio ids) */ dashPortfolios: DashPortfolios;
   /** task #251: themes followed on Discover (slugs); stored with the account, no alert reads them yet */ followThemes: string[];
   /** task #277: views of a page opened once ("mi:equity"); a view not in it shows "Not opened yet" */ viewsSeen: string[];
+  /** task #315: Word of the Day bookmarks (glossary term ids, newest first, at most 200); shown on the dashboard under "Your bookmark" */ wordBookmarks: string[];
+  /** task #315: the India date (YYYY-MM-DD) the member last opened the Word of the Day; the header's gold dot shows until today's is opened */ wordSeen: string;
+
   /** task #316: the dashboard's own choices, saved with the account like the Showing bar */ dashUi: DashUi };
 /** Task #316 (dashboard file 22): the section shown, the portfolio of "Your portfolios at a glance", the Global markets region, the sort of "Your investments today",
  *  whose results and filings ("From"), and the cards hidden from each card's ⋯ menu. The server checks the same values (auth/routes.py DashUi). */
@@ -28,6 +31,8 @@ export function normaliseDashUi(raw: Partial<DashUi> | null | undefined): DashUi
 }
 export type PfChoice = "all" | string[];
 export type DashPortfolios = { equity: PfChoice; mf: PfChoice; etf: PfChoice };
+/** A glossary term id (backend PrefsIn.wordBookmarks uses the same pattern). */
+export const WORD_ID = /^[a-z0-9][a-z0-9-]{0,79}$/;
 const PF_ID = /^[A-Za-z0-9_-]{1,40}$/;
 const pfChoice = (v: unknown): PfChoice => { const ids = Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === "string" && PF_ID.test(x)))].slice(0, 10) : []; return ids.length ? ids : "all"; };
 
@@ -68,13 +73,13 @@ export const WIDGETS: { id: string; label: string; nav?: string; blurb: string; 
   { id: "alerts", label: "Alerts and saved screens", blurb: "Your active and triggered alerts, and your saved screens.", min: "basic", size: "quarter", step: 5 },
   { id: "stress", label: "Stress Lab", blurb: "How crude, rupee, inflation and rate shocks would move a company's earnings.", min: "basic", size: "quarter", step: 5 },
   { id: "dcf", label: "DCF calculator", blurb: "Work out the value per share and the margin-of-safety price; your saved scenarios.", min: "gold", size: "quarter", step: 5 },
-  { id: "learn", label: "Term of the day", blurb: "One plain-words finance term, every day.", min: "basic", size: "quarter", step: 5 },
+  { id: "learn", label: "Term of the day", blurb: "One plain-words finance term, every day, and your bookmarked words.", min: "basic", size: "quarter", step: 5 },
   { id: "commodities", label: "Gold & silver today", blurb: "MCX gold, silver and crude oil with the day change. Off until a licensed price source is connected.", min: "basic", size: "half", step: 3, off: true },
 ];
 /** The layout version this build draws (task #195). A layout saved under an older version is moved to it once (`migrateLayout`). */
 export const DASH_V = 2;
 const defaultLayout = (): WidgetPref[] => WIDGETS.map((w) => ({ id: w.id, on: !w.off, size: w.size }));
-const DEFAULTS: Prefs = { palette: "gold", density: "comfortable", alerts: true, screenAlerts: true, profitGap: true, rotationCorner: true, rotationRank: false, digest: false, dashboard: defaultLayout(), sectorWatch: [], dashV: DASH_V, dashPortfolios: { equity: "all", mf: "all", etf: "all" }, followThemes: [], viewsSeen: [], dashUi: DASH_UI_DEFAULT };
+const DEFAULTS: Prefs = { palette: "gold", density: "comfortable", alerts: true, screenAlerts: true, profitGap: true, rotationCorner: true, rotationRank: false, digest: false, dashboard: defaultLayout(), sectorWatch: [], dashV: DASH_V, dashPortfolios: { equity: "all", mf: "all", etf: "all" }, followThemes: [], viewsSeen: [], wordBookmarks: [], wordSeen: "", dashUi: DASH_UI_DEFAULT };
 
 const KEY = "finlit-prefs-v1";
 const SIZES: readonly WidgetSize[] = ["quarter", "third", "half", "full"];
@@ -110,6 +115,10 @@ function normalise(raw: Partial<Prefs> | null | undefined): Prefs {
   return { palette: isPalette(raw?.palette) ? raw!.palette! : "gold", density: raw?.density === "compact" ? "compact" : "comfortable", alerts: raw?.alerts !== false, screenAlerts: raw?.screenAlerts !== false, profitGap: raw?.profitGap !== false, rotationCorner: raw?.rotationCorner !== false, rotationRank: raw?.rotationRank === true, digest: raw?.digest === true, dashboard: (raw?.dashV ?? 0) >= DASH_V ? normaliseLayout(raw?.dashboard) : migrateLayout(raw?.dashboard), dashV: DASH_V, sectorWatch: [...new Set((Array.isArray(raw?.sectorWatch) ? raw!.sectorWatch : []).filter((x): x is string => typeof x === "string" && /^[a-z0-9][a-z0-9-]{0,79}$/.test(x)))].slice(0, 60),
     dashPortfolios: { equity: pfChoice(raw?.dashPortfolios?.equity), mf: pfChoice(raw?.dashPortfolios?.mf), etf: pfChoice(raw?.dashPortfolios?.etf) } , followThemes: [...new Set((Array.isArray(raw?.followThemes) ? raw!.followThemes : []).filter((x): x is string => typeof x === "string" && /^[a-z0-9][a-z0-9-]{0,79}$/.test(x)))].slice(0, 40),
     viewsSeen: [...new Set((Array.isArray(raw?.viewsSeen) ? raw!.viewsSeen : []).filter((x): x is string => typeof x === "string" && /^[a-z0-9]{1,12}:[a-z0-9-]{1,24}$/.test(x)))].slice(0, 60),
+    // task #315: older saved prefs have neither field; they load as no bookmarks and "not opened yet"
+    wordBookmarks: [...new Set((Array.isArray(raw?.wordBookmarks) ? raw!.wordBookmarks : []).filter((x): x is string => typeof x === "string" && WORD_ID.test(x)))].slice(0, 200),
+    wordSeen: typeof raw?.wordSeen === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.wordSeen) ? raw.wordSeen : "",
+
     dashUi: normaliseDashUi(raw?.dashUi) };
 }
 function read(): Prefs { try { return normalise(JSON.parse(localStorage.getItem(KEY) || "null")); } catch { return normalise(null); } }

@@ -35,9 +35,10 @@ afterEach(() => { cleanup(); localStorage.clear(); });
 
 describe("top bar", () => {
   const layout = read("components/Layout.tsx");
+  // task #315: {wod} is the Word of the Day button, just before Ask FinLit AI
   it("drops the seven menus only when signed in on a page with the left menu; marketing pages and visitors keep them", () => {
     expect(layout).toMatch(/const inShell = useInShell\(\), tool = !!user && inShell;/);
-    expect(layout).toMatch(/\{tool \? <><div className="grow" \/>\{find\}<div className="grow" \/>\{ai\}<\/> : <>\s*<nav className="topnav" aria-label="Site">/);
+    expect(layout).toMatch(/\{tool \? <><div className="grow" \/>\{find\}<div className="grow" \/>\{wod\}\{ai\}<\/> : <>\s*<nav className="topnav" aria-label="Site">/);
     expect(layout).toMatch(/className=\{"top" \+ \(tool \? " top--tool" : ""\)\}/);
     expect(strip(read("styles/ai-top.css"))).toMatch(/:root \.top\.top--tool \.search \{ flex: 0 1 520px; max-width: 520px;/);   // wider, centred search
   });

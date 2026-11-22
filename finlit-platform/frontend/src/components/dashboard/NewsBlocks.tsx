@@ -1,5 +1,5 @@
-// Blocks 8 to 12: Results today, Filings and news, IPOs open now, Alerts and saved screens, Term of the day.
-import { useEffect, useState } from "react";
+// Blocks 8 to 12: Results today, Filings and news, IPOs open now, Alerts and saved screens, Term of the day (with Your bookmark, task #315).
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useFeed, who } from "../../lib/feed";
 import { useIpos } from "../../lib/ipo";
@@ -11,6 +11,9 @@ import { nf } from "../../lib/format";
 import { CoLogo } from "../CoLogo";
 import { Card, Rows, ShowMoreButton, useScope, useShowMore } from "./parts";
 import { buttonClass } from "../ui";
+import { usePrefs } from "../../lib/prefs";
+import { removeBookmark } from "../../lib/wordOfDay";
+import "../../styles/word-of-day.css";
 
 export function ResultsToday({ symbols }: { symbols: string[] }) {
   const [scope] = useScope("resultstoday", symbols.length > 0);   // task #316: chosen with the From dropdown in the section heading
@@ -89,11 +92,32 @@ export function AlertsScreens() {
 }
 
 export function Learn() {
-  const [t, setT] = useState<{ term: string; topic: string; meaning: string; id: string } | null>(null);
-  useEffect(() => { import("../../lib/glossary").then((g) => setT(g.termOfTheDay())); }, []);
+  const [g, setG] = useState<typeof import("../../lib/glossary") | null>(null);
+  useEffect(() => { import("../../lib/glossary").then(setG); }, []);
+  const t = g?.termOfTheDay() ?? null;   // task #315: the same word as the header's Word of the Day (India calendar day, no repeats in a cycle)
   return (
     <section className="dsh-card dsh-term dsh-tool" aria-labelledby="dsh-learn">
-      {!t ? <Rows n={3} h={28} /> : <><div className="dsh-kicker">Term of the day · {t.topic}</div><h2 id="dsh-learn">{t.term}</h2><p className="dsh-p">{t.meaning}</p><Link className="dsh-link foot" to={"/glossary#" + t.id}>Open the glossary →</Link></>}
+      {!t ? <Rows n={3} h={28} /> : <><div className="dsh-kicker">Term of the day · {t.topic}</div><h2 id="dsh-learn">{t.term}</h2><p className="dsh-p">{t.meaning}</p><Link className="dsh-link foot" to={"/glossary#" + t.id}>Open the glossary →</Link>
+        <YourBookmarks terms={g!.TERMS} /></>}
     </section>
+  );
+}
+
+type BmTerm = { id: string; term: string; topic: string };
+/** Task #315 (the team: "inside learn name it 'your bookmark'"): the words bookmarked from Word of the Day, newest first; the first 5, then "Show all N". */
+export function YourBookmarks({ terms }: { terms: readonly BmTerm[] }) {
+  const p = usePrefs();
+  const byId = useMemo(() => new Map(terms.map((x) => [x.id, x])), [terms]);
+  const list = p.wordBookmarks.map((id) => byId.get(id)).filter((x): x is BmTerm => !!x);
+  const more = useShowMore(list, 5);
+  return (
+    <div className="wod-bms" role="region" aria-labelledby="dsh-learn-bm">
+      <h3 id="dsh-learn-bm" className="wod-bms-h">Your bookmark</h3>
+      {!list.length ? <p className="wod-bms-e">No bookmarks yet. Open Word of the Day in the top bar and choose Bookmark this word.</p> : <>
+        <ul className="wod-bms-l" id="dsh-learn-bm-list">{more.visible.map((x) => (
+          <li key={x.id} className="wod-bms-i"><span className="wod-bms-t"><Link to={"/glossary#" + x.id}>{x.term}</Link><small>{x.topic}</small></span>
+            <button type="button" className="wod-bms-x" onClick={() => removeBookmark(x.id)} aria-label={`Remove ${x.term} from your bookmarks`}>Remove</button></li>))}</ul>
+        <ShowMoreButton more={more} noun="bookmark" total={list.length} controls="dsh-learn-bm-list" /></>}
+    </div>
   );
 }

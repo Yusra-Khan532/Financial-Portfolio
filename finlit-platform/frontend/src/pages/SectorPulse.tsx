@@ -1,6 +1,7 @@
 // Sector Pulse (/sectors) as the "FinLit final pages" pack draws it (founder, 13 Nov 2026; docs/design/finlit-final-pages/05 and 06): the pack's header with the Market
 // backdrop, a Simple view and a Full table view (in the address: ?view=full). Every number is the server's (GET /api/sectors, /api/sector-history, /api/sector-map); what a
 // plan does not include arrives null with its reason and is said in words. Describes price and breadth data; never advice. Styles: styles/sectors-pack.css.
+import { PhoneFold } from "../components/PhoneFold";
 import { useMemo } from "react";
 import { useSearchParams } from "react-router";
 import { useDocTitle } from "../lib/title";
@@ -65,13 +66,14 @@ export function SectorPulsePage() {
         <>
           <TodayMinute b={b} h={h} />
           <Cycle b={b} />
-          <ByState b={b} mine={mine} />
-          {mq.data && <IndustryMapPack m={mq.data} />}
-          {h && <Mood h={h} />}
-          <Momentum b={b} mine={mine} />
-          <YourIndustries b={b} h={h} symbols={symbols} signedIn={!!user} />
-          <Standouts b={b} />
-          <CountedAndSmall b={b} />
+          {/* task #310 part E (05-phone.md, fix 6): on a phone the sections after the second start closed (name and one line); desktop unchanged */}
+          <PhoneFold page="sectors" id="bystate" title="By state" line="Every group with a reading, grouped by its state today"><ByState b={b} mine={mine} /></PhoneFold>
+          {mq.data && <PhoneFold page="sectors" id="map" title={tw("Industry map")} line={tw("Each industry as a dot: how many of its stocks are rising, and how far it is below its 1-year high")}><IndustryMapPack m={mq.data} /></PhoneFold>}
+          {h && <PhoneFold page="sectors" id="mood" title="Market mood" line="How many groups were in each state, day by day"><Mood h={h} /></PhoneFold>}
+          <PhoneFold page="sectors" id="momentum" title="Momentum × strength" line="The Sector Pulse state beside the Sector Rotation box"><Momentum b={b} mine={mine} /></PhoneFold>
+          <PhoneFold page="sectors" id="yours" title={tw("Your industries")} line={tw("The industries of the shares in your portfolio, and how each is doing")}><YourIndustries b={b} h={h} symbols={symbols} signedIn={!!user} /></PhoneFold>
+          <PhoneFold page="sectors" id="standouts" title="Standout stocks" line={tw("Stocks at a new 1-year high while their industry is well below its own")}><Standouts b={b} /></PhoneFold>
+          <PhoneFold page="sectors" id="counted" title="Counted / Too small" line="Which stocks are counted, and the groups too small for a reading"><CountedAndSmall b={b} /></PhoneFold>
           <Words />
         </>
       )}
