@@ -21,7 +21,7 @@ const ZOOM = [
   "stock/Sections.tsx", "stock/Sections2.tsx", "stock/Sections3.tsx", "stock/ChartLab.tsx", "stock/SegmentMix.tsx", "stock/ProfitReality.tsx", "stock/RevenueCash.tsx",
   "stock/ScoreMoves.tsx", "stock/PrismHistory.tsx", "stock/MacroOutlook.tsx", "stock/own/OwnCharts.tsx", "stock/own/OwnersToday.tsx", "components/prism/pzr/History.tsx",
   // markets, flows, macro, sectors
-  "pages/Markets.tsx", "components/FlowsCharts.tsx", "pages/Macro.tsx",
+  "pages/marketsIndex.tsx", "components/FlowsCharts.tsx", "pages/Macro.tsx",
   // funds, MF, ETFs
   "mf/FundChart.tsx", "mf/H2HChart.tsx", "mf/Radar.tsx", "mf/ScoreHistory.tsx", "mf/ScoreCompare.tsx", "mf/screen/Graphics.tsx", "pages/FundInsights.tsx", "pages/Funds.tsx", "etf/EtfChart.tsx", "etf/Detail.tsx", "etf/Compare.tsx",
   // portfolio, dashboard, calculators, tools
@@ -44,6 +44,7 @@ const EXEMPT: Record<string, string> = {
   "components/dashboard/MarketToday.tsx": "the Nifty 50 and Sensex chart of Market today enlarges with the card's own expand button, the dashboard's expanded view (task #316, dashboard file 22: it replaces Enlarge chart)",
   "components/dashboard/dx.tsx": "only the icons of the dashboard's dropdowns, expand button and card menu (task #316); no chart",
   "components/dashboard/MarketRead.tsx": "only the chevron of the Show the six readings fold (task #316); no chart",
+  "pages/Markets.tsx": "the Market events page frame: the expand icon and tiles; its charts are in pages/marketsIndex.tsx (task #322)",
   "components/MkDd.tsx": "the Market events dropdown's chevron icon (task #322); no data",
   "components/dashboard/GlobalMarkets.tsx": "the world view and the 1-month lines of the Global markets card (task #294): every figure is in the table beside them",
   "superinvestors/InvestorBody.tsx": "the 8-quarter stake sparkline inside a holdings row (task #289); its figures are in the line's label",
