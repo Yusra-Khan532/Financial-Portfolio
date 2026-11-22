@@ -3,6 +3,11 @@
    main action of a page, so it is not green, and the navy of --action-primary is gone. Only its place in the header is set here. */
 .top .ai-top { flex: none; padding: 0 14px; }   /* the header row is full: keep its old width (the shared button pads 18px) */
 .top .ai-top svg { width: 16px; height: 16px; flex: none; }
+/* Task #320 (22 Nov 2026): "make this box golden". The button keeps the shared secondary shape (height, corners, type); only its colours go gold, from
+   the site's gold tokens so light and dark follow: a soft gold fill, a gold edge, the spark in gold. Hover and keyboard focus deepen the edge. */
+.top .ai-top { background: var(--gold-soft); border-color: color-mix(in srgb, var(--gold) 60%, transparent); color: var(--text); }
+.top .ai-top svg { color: var(--gold); }
+.top .ai-top:hover { background: color-mix(in srgb, var(--gold) 22%, transparent); border-color: var(--gold); }
 /* Task #310 part D (04-navigation.md): signed in on a tool page the seven menus are gone (the left menu moves between pages), so the search is wider and
    centred, with its words shown; a phone keeps its own header (05-phone.md). */
 :root .top.top--tool .search { flex: 0 1 520px; max-width: 520px; justify-content: flex-start; padding: 0 14px; }
