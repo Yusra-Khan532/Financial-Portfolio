@@ -77,8 +77,7 @@ const LINES: [string, string][] = [
   ["pages/SipCalculator.tsx", "What a monthly investment could grow to, year by year, with goals, delay and tax."],
   ["pages/Alerts.tsx", "Be told in the app or browser when a stock meets your price, technical, ratio, score or news rule."],
   ["pages/Forum.tsx", "Discuss, ask and share what you find in Indian companies' filings."],
-  ["pages/Ipo.tsx", "Open, upcoming and recently listed issues; the offer document is the final word."],
-  ["pages/IpoHistory.tsx", "Every mainboard and SME IPO since 2020: price, subscription, grey market and returns since."],
+  ["pages/Ipo.tsx", "Open, upcoming and just-listed issues, and every IPO since 2020; the offer document is the final word."],   // task #329: one page, IPOs
   ["pages/ConcallMonitor.tsx", "Earnings call recordings, transcripts, investor presentations and upcoming result meets."],
   ["pages/Macro.tsx", "Inflation, growth, jobs, RBI rates, reserves and the rupee, from MoSPI and the RBI, with history."],
   ["pages/SectorPulse.tsx", "Which industries are being sold, bouncing back or rising together, as of each Friday's close."],

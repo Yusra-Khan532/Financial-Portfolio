@@ -1,16 +1,24 @@
-// IPO calendar (/ipo), compact layout (task #307, developer file 17 v2, 22 Nov 2026): one KPI strip, a toolbar (search, Status, Board, All IPOs), then
-// Open now → Upcoming → Closed, listing soon (cards with the same fields in the same order) → Next seven weeks → What GMP said vs what actually listed
-// (closed until opened) → Listed (the last 30 days as a table; a search or Status = Listed lists every match, 25 at a time) → the as-of line.
+// IPOs (/ipo), one page in place of the IPO calendar and All IPOs (task #329, developer file 29, 23 Nov 2026). The header (title, one description,
+// the links, Add to Google Calendar and Learn more), the five counts, then the views bar (the company report's TabGroup: "⇆ 2 views", the two
+// numbered views with a count each and "Showing: …"), sticking under the site header while the page scrolls (not on a phone):
+//   1 Open and upcoming (?view=now, the default): search and filters, Open now → Upcoming → Closed, listing soon (cards with the same fields in the
+//     same order, task #307) → Next seven weeks → What GMP said vs what actually listed (closed until opened) → Listed in the last 30 days (a table
+//     whose seven columns sort, with "All N since 2020 →" opening the second view with Status = Listed) → the as-of line.
+//   2 All IPOs since 2020 (?view=all plus its filter parameters): pages/IpoHistory.tsx, unchanged, with a one-line GMP summary.
+// Both views stay mounted, so each keeps its filters, sort and rows loaded; the page keeps each view's scroll position. /ipo/all redirects here.
 // For information only; the offer document is the authoritative source. Describes; never advises.
 import { PageHeader } from "../components/PageHeader";
 import { CalendarSync } from "../components/CalendarSync";   // task #297: Add to Google Calendar
-import { Link } from "react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { TabGroup } from "../components/TabGroup";
+import { Link, useLocation, useSearchParams } from "react-router";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
 import { issuePriceOf, listingGain, listingMove, minInvest, useIpos, type Ipo } from "../lib/ipo";
-import { gRange, listedRecently, sectionOrder, shortName, titleCase } from "../lib/ipoCalendar";
+import { firstDir, gRange, listedRecently, LSORT_COLS, sectionOrder, shortName, sortListed, titleCase, type GRangeKey, type LSortKey } from "../lib/ipoCalendar";
+import { useIpoHistory } from "../lib/ipoHistory";
 import { asOf, IpoDrawer } from "./IpoDrawer";
+import { IpoAllView } from "./IpoHistory";
 import { MINUS, nf } from "../lib/format";
 import { ChartHelp } from "../components/ChartHelp";
 import { ChartZoom } from "../components/ChartZoom";
@@ -18,20 +26,27 @@ import { GmpRecord, GSTATE0, type GState } from "../components/ipo/GmpRecord";
 import { Chips, Dd, Ico, OptList } from "../discovery/Toolbar";
 import "../discovery/discover.css";
 import "../styles/ipo-all.css";
+import "../styles/ipo-all-compact.css";
 import "../styles/ipo-calendar.css";
+import "../styles/ipo-views.css";
 
 const DAY = 86_400_000;
 const d0 = (iso: string) => new Date(iso + "T00:00:00").getTime();
 const short = (iso: string | null) => (iso ? new Date(iso + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "—");
 const full = (iso: string | null) => (iso ? new Date(iso + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : MINUS);
 const STATUS: Record<Ipo["status"], { label: string; colour: string }> = { open: { label: "Open now", colour: "var(--gain)" }, upcoming: { label: "Upcoming", colour: "var(--k1)" }, closed: { label: "Closed", colour: "var(--k4)" }, listed: { label: "Listed", colour: "var(--k7)" } };
+const LEGEND: Ipo["status"][] = ["open", "upcoming", "closed", "listed"];
 const money = (v: number) => "₹" + nf(v, v % 1 ? 2 : 0);
 const signedPct = (v: number) => (v > 0 ? "+" : v < 0 ? MINUS : "") + nf(Math.abs(v), 1) + "%";
 type StatusF = "all" | Ipo["status"];
 type BoardF = "all" | "mainboard" | "sme";
+type View = "now" | "all";
 const STATUS_OPTS: [StatusF, string][] = [["all", "All"], ["open", "Open now"], ["upcoming", "Upcoming"], ["closed", "Closed, listing soon"], ["listed", "Listed"]];
 const BOARD_OPTS: [BoardF, string][] = [["all", "All boards"], ["mainboard", "Mainboard"], ["sme", "SME"]];
-const TABLE_ICON = <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 10h18M3 15h18M9 4v16" /></svg>;
+/** "Showing: …" in the views bar, one line per view (the pack's words). */
+export const SHOWING: Record<View, string> = { now: "Open, upcoming, about to list, and listed in the last 30 days", all: "Every mainboard and SME issue: listing, subscription, GMP and return since" };
+/** The view the address asks for; otherwise Open and upcoming (rule 3). */
+export const viewOf = (p: URLSearchParams): View => (p.get("view") === "all" ? "all" : "now");
 
 /** A two-month strip: every issue is a bar from its opening to its closing day, so overlaps and quiet weeks are obvious. */
 function Strip({ rows }: { rows: Ipo[] }) {
@@ -56,7 +71,7 @@ function Strip({ rows }: { rows: Ipo[] }) {
 }
 
 /** One card: the same fields in the same order for every issue; a field with no value shows a grey "—", so every card has the same shape. */
-function Card({ r, onOpen, onGmp }: { r: Ipo; onOpen: () => void; onGmp: (r: Ipo) => void }) {
+function Card({ r, onOpen, onGmp, from }: { r: Ipo; onOpen: () => void; onGmp: (r: Ipo) => void; from: { from: string } }) {
   const st = STATUS[r.status], mv = r.status === "listed" ? listingMove(r) : null, sub = r.details?.subscription?.overall, gmp = r.details?.gmp, mi = minInvest(r);
   const band = r.priceHigh == null ? null : r.priceLow != null && r.priceLow !== r.priceHigh ? `${money(r.priceLow)} – ${money(r.priceHigh)}` : money(r.priceHigh);
   const cells: { k: string; v: string | null; cls?: string; extra?: React.ReactNode }[] = [
@@ -74,22 +89,28 @@ function Card({ r, onOpen, onGmp }: { r: Ipo; onOpen: () => void; onGmp: (r: Ipo
     <article className="card ui-card ui-card--sm ipo-c p4-ic" style={{ "--tc": st.colour } as React.CSSProperties}>
       <div className="ipo-h"><div><h3>{name}</h3><p>{meta}</p></div><span className="ipo-st"><i />{st.label}</span></div>
       <dl className="ipo-d p4-d">{cells.map((c) => <div key={c.k} className={c.v == null ? "na" : undefined}><dt>{c.k}</dt><dd className={c.cls || ""}>{c.v ?? "—"}{c.extra}</dd></div>)}</dl>
-      <div className="ipo-foot"><button type="button" className="ipo-more" onClick={onOpen} aria-label={`Details: ${name}`}>Details →</button>{r.recordId ? <Link className="ipo-more" to={`/ipo/${r.recordId}`} aria-label={`Full IPO report: ${name}`}>Full report ↗</Link> : null}</div>
+      <div className="ipo-foot"><button type="button" className="ipo-more" onClick={onOpen} aria-label={`Details: ${name}`}>Details →</button>{r.recordId ? <Link className="ipo-more" to={`/ipo/${r.recordId}`} state={from} aria-label={`Full IPO report: ${name}`}>Full report ↗</Link> : null}</div>
     </article>
   );
 }
 
-/** Listed issues as a table: company (board and sector), listed, issue price, issue size, subscribed, GMP said, at listing (with the listing price), details. */
-function ListedTable({ rows, onOpen }: { rows: Ipo[]; onOpen: (r: Ipo) => void }) {
+/** Listed in the last 30 days, as a table: company (board and sector), listed, issue price, issue size, subscribed, GMP said, at listing (with the
+ *  listing price), details. The seven columns sort as the all-IPOs table does (task #329): figures high to low first, text A to Z first, blanks last. */
+function ListedTable({ rows, onOpen, from }: { rows: Ipo[]; onOpen: (r: Ipo) => void; from: { from: string } }) {
+  const [sort, setSort] = useState<{ k: LSortKey; d: "asc" | "desc" }>({ k: "date", d: "desc" });
+  const shown = useMemo(() => (sort.k === "date" && sort.d === "desc" ? [...rows].sort(sectionOrder("listed")) : sortListed(rows, sort.k, sort.d)), [rows, sort]);
+  const press = (k: LSortKey) => setSort((s) => (s.k === k ? { k, d: s.d === "asc" ? "desc" : "asc" } : { k, d: firstDir(k) }));
+  const label = sort.k === "date" ? (sort.d === "desc" ? "newest listing first" : "oldest listing first") : `sorted by ${LSORT_COLS.find((c) => c[0] === sort.k)![1]}, ${sort.d === "asc" ? (sort.k === "name" ? "A to Z" : "lowest first") : sort.k === "name" ? "Z to A" : "highest first"}`;
   return (
-    <div className="p4-tw"><table className="ia-t p4-lt"><caption className="sr-only">Listed issues, newest listing first</caption>
-      <thead><tr><th scope="col">Company</th><th scope="col">Listed</th><th scope="col" className="r">Issue price</th><th scope="col" className="r">Issue size</th><th scope="col" className="r">Subscribed</th><th scope="col" className="r">GMP said</th><th scope="col" className="r">At listing</th><th scope="col"><span className="sr-only">Details</span></th></tr></thead>
-      <tbody>{rows.map((r) => {
+    <div className="p4-tw"><table className="ia-t p4-lt"><caption className="sr-only">Listed in the last 30 days, {label}</caption>
+      <thead><tr>{LSORT_COLS.map(([k, l, c]) => <th key={k} scope="col" className={c} aria-sort={sort.k === k ? (sort.d === "asc" ? "ascending" : "descending") : "none"}>
+        <button type="button" onClick={() => press(k)}>{l}{sort.k === k ? (sort.d === "asc" ? " ▲" : " ▼") : ""}</button></th>)}<th scope="col"><span className="sr-only">Details</span></th></tr></thead>
+      <tbody>{shown.map((r) => {
         const mv = listingMove(r), g = r.details?.gmp, ip = issuePriceOf(r), sub = r.details?.subscription?.overall, name = shortName(r.name);
         return (
           <tr key={r.id}>
-            <th scope="row">{r.recordId ? <Link to={`/ipo/${r.recordId}`}>{name}</Link> : name}<small>{[r.kind === "sme" ? "SME" : "Mainboard", r.sector].filter(Boolean).join(" · ")}</small></th>
-            <td>{full(r.listingDate)}</td>
+            <th scope="row">{r.recordId ? <Link to={`/ipo/${r.recordId}`} state={from}>{name}</Link> : name}<small>{[r.kind === "sme" ? "SME" : "Mainboard", r.sector].filter(Boolean).join(" · ")}</small></th>
+            <td>{r.status === "listed" ? full(r.listingDate) : STATUS[r.status].label}</td>
             <td className="r">{ip != null ? money(ip) : MINUS}</td>
             <td className="r">{r.issueSizeCr != null ? `₹${nf(r.issueSizeCr, r.issueSizeCr >= 100 ? 0 : 2)} Cr` : MINUS}</td>
             <td className="r">{sub != null ? nf(sub, 2) + "x" : MINUS}</td>
@@ -102,12 +123,16 @@ function ListedTable({ rows, onOpen }: { rows: Ipo[]; onOpen: (r: Ipo) => void }
 }
 
 export function IpoPage() {
-  useDocTitle("IPO calendar", "Open, upcoming and recently listed IPOs in India: dates, price band, lot size, minimum investment and listing price against issue price.");
+  useDocTitle("IPOs", "Open, upcoming and recently listed IPOs in India, and every mainboard and SME IPO since 2020: dates, price band, lot size, subscription, GMP, listing price against issue price and return since IPO.");
   const { data, isLoading, isError } = useIpos();
+  const hist = useIpoHistory();
+  const [params, setParams] = useSearchParams();
+  const loc = useLocation();
+  const from = useMemo(() => ({ from: loc.pathname + loc.search }), [loc.pathname, loc.search]);
+  const view = viewOf(params);
   const [f, setF] = useState<StatusF>("all");
   const [kind, setKindRaw] = useState<BoardF>("all");
   const [q, setQ] = useState("");
-  const [listedShown, setListedShown] = useState(25);
   const [open, setOpen] = useState<Ipo | null>(null);
   const [gm, setGm] = useState<GState>(GSTATE0);
   const [gmOpen, setGmOpen] = useState(false);
@@ -129,11 +154,74 @@ export function IpoPage() {
   if (f !== "all") chips.push(["status", STATUS_OPTS.find((o) => o[0] === f)![1]]);
   if (kind !== "all") chips.push(["board", kind === "sme" ? "SME" : "Mainboard"]);
   if (qq) chips.push(["q", `“${q.trim()}”`]);
-  const unset = (k: string) => { if (k === "status" || k === "all") setF("all"); if (k === "board" || k === "all") setKind("all"); if (k === "q" || k === "all") setQ(""); setListedShown(25); };
+  const unset = (k: string) => { if (k === "status" || k === "all") setF("all"); if (k === "board" || k === "all") setKind("all"); if (k === "q" || k === "all") setQ(""); };
+
+  // ------------------------------------------------------------------ the two views: the address, the bar, each view's scroll position
+  const page = useRef<HTMLDivElement>(null);
+  const pos = useRef<Partial<Record<View, number>>>({});                  // each view's scroll position, kept while the member is in the other view
+  const shownView = useRef<View>(view);
+  const jump = useRef<"top" | "gmp" | null>(null);                        // a link that opens a view at a given place (not where it was left)
+  /** The space the site header and the views bar take at the top of the window while the bar sticks (0 on a phone, where it does not). */
+  const stuckTop = () => {
+    const bar = page.current?.querySelector<HTMLElement>(".ctabs");
+    if (!bar || getComputedStyle(bar).position !== "sticky") return 10;
+    return (parseFloat(getComputedStyle(bar).top) || 0) + bar.offsetHeight + 10;
+  };
+  const scrollToEl = (el: Element | null | undefined) => { if (el) window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + window.scrollY - stuckTop()) }); };
+  const go = (v: View, p?: Record<string, string>, at: "top" | "gmp" | null = null) => {
+    jump.current = at;
+    setParams((prev) => {
+      const n = p ? new URLSearchParams(p) : new URLSearchParams(prev);
+      n.set("view", v);
+      return n;
+    });
+  };
+  useEffect(() => {
+    const on = () => { pos.current[shownView.current] = window.scrollY; };
+    window.addEventListener("scroll", on, { passive: true });
+    return () => window.removeEventListener("scroll", on);
+  }, []);
+  // the bar's height, so the all-IPOs table's header row sticks just under it
+  useEffect(() => {
+    const bar = page.current?.querySelector<HTMLElement>(".ctabs"), box = page.current;
+    if (!bar || !box || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => box.style.setProperty("--ipv-bar", `${bar.offsetHeight}px`));
+    ro.observe(bar);
+    return () => ro.disconnect();
+  }, []);
+  useLayoutEffect(() => {
+    if (shownView.current === view && !jump.current) return;
+    const was = shownView.current;
+    shownView.current = view;
+    const at = jump.current; jump.current = null;
+    const panel = page.current?.querySelector(`[data-ct-panel="${view}"]`);
+    if (at === "gmp") { requestAnimationFrame(() => scrollToEl(page.current?.querySelector("#p4-gmp"))); return; }
+    if (at === "top" || pos.current[view] == null) {
+      // a view opened for the first time (or by a link) starts at its top, just under the bar, unless the page is above that already
+      const top = panel ? panel.getBoundingClientRect().top + window.scrollY - stuckTop() : 0;
+      if (at === "top" || window.scrollY > top) window.scrollTo({ top: Math.max(0, top) });
+    } else if (was !== view) window.scrollTo({ top: pos.current[view]! });
+  }, [view]);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ------------------------------------------------------------------ the GMP block, and the links between it and the second view
   const goGmp = (r: Ipo) => {
     const g = r.details?.gmp; if (!g) return;
     setGm((s) => ({ ...s, view: "range", board: r.kind, hl: gRange(g.pct), range: "", shown: 50 }));
     setGmOpen(true); setGoRow((n) => n + 1);
+  };
+  /** "See the breakdown by GMP range →" in the second view: the first view, the block open on By GMP range, scrolled to it. */
+  const openGmpBlock = () => { setGmP({ view: "range", hl: "", range: "" }); setGmOpen(true); go("now", undefined, "gmp"); };
+  /** "See the N →": the second view with that GMP range selected, among the listed issues of the block's board. */
+  const seeRange = (k: GRangeKey) => {
+    const p: Record<string, string> = { status: "listed", gmp: k };
+    if (gm.board !== "all") p.board = gm.board;
+    go("all", p, "top");
+  };
+  /** "All N since 2020 →": the second view with Status = Listed (rule 4); its sort is kept. */
+  const allListed = () => {
+    const p: Record<string, string> = { status: "listed" };
+    for (const k of ["sort", "dir"]) { const v = params.get(k); if (v) p[k] = v; }
+    go("all", p, "top");
   };
   const gmpBox = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -144,33 +232,26 @@ export function IpoPage() {
 
   const stamp = asOf(rows.map((r) => r.updatedAt).filter((v): v is string => !!v).sort().pop());
   const fromProvider = rows.some((r) => r.source === "FinEdge");
-  const listed = sec("listed");
-  const every = !!qq || f === "listed";                                   // a search or Status = Listed lists every listed match, 25 at a time
-  const listedRows = every ? listed.slice(0, listedShown) : listed.filter((r) => listedRecently(r));
+  const recentShown = sec("listed").filter((r) => listedRecently(r));
+  const total = hist.data?.items.length;
+  const liveN = by("open").length + by("upcoming").length + by("closed").length;
   const activeSec = (s: Ipo["status"], title: string, hint?: string) => {
     const list = sec(s);
     return list.length ? (
       <section className="ipo-sec p4-sec" aria-label={title}>
         <h2 className="ipo-sec-h"><i style={{ background: STATUS[s].colour }} />{title} <span>{list.length}</span>{hint ? <small>{hint}</small> : null}</h2>
-        <div className="ipo-list p4-il">{list.map((r) => <Card key={r.id} r={r} onOpen={() => setOpen(r)} onGmp={goGmp} />)}</div>
+        <div className="ipo-list p4-il">{list.map((r) => <Card key={r.id} r={r} onOpen={() => setOpen(r)} onGmp={goGmp} from={from} />)}</div>
       </section>) : null;
   };
-  return (
-    <div className="wrap ipo p4">
-      <PageHeader plan="free" title="IPO calendar" art="calendar" links={["/results", "/news", "/premium/markets"]} actions={<CalendarSync />}
-        description="Open, upcoming and recently listed issues; the offer document is the final word." />
-      <dl className="dw-kpis p4-kpis" aria-label="IPO counts">
-        {([["open", "Open now", by("open").length], ["upcoming", "Upcoming", by("upcoming").length], ["closed", "Closed, listing soon", by("closed").length], ["listed", "Listed in the last 30 days", recent.length]] as const).map(([k, l, n]) =>
-          <div key={k} style={{ "--tc": STATUS[k].colour } as React.CSSProperties}><dt><i />{l}</dt><dd>{isLoading ? "—" : n}</dd></div>)}
-        <div style={{ "--tc": "var(--k3)" } as React.CSSProperties}><dt><i />Avg listing vs issue, 30 days</dt><dd className={avgGain == null ? "" : avgGain >= 0 ? "up" : "down"}>{avgGain == null ? "—" : signedPct(avgGain)}</dd></div>
-      </dl>
+
+  const nowPane = (
+    <>
       <div className="p4-tools">
-        <label className="dbx-q">{Ico.search}<input type="search" placeholder="Search a company" aria-label="Search IPOs" value={q} autoComplete="off" onChange={(e) => { setQ(e.target.value); setListedShown(25); }} /></label>
+        <label className="dbx-q">{Ico.search}<input type="search" placeholder="Search a company" aria-label="Search IPOs" value={q} autoComplete="off" onChange={(e) => setQ(e.target.value)} /></label>
         <div className="dbx-dds">
-          <Dd label="Status" value={f !== "all" ? STATUS_OPTS.find((o) => o[0] === f)![1] : ""}>{(close) => <OptList title="Status" items={STATUS_OPTS.map(([v, t]) => ({ v, t, c: cntS(v), sel: f === v }))} onPick={(v) => { setF(v as StatusF); setListedShown(25); close(); }} />}</Dd>
-          <Dd label="Board" value={kind !== "all" ? (kind === "sme" ? "SME" : "Mainboard") : ""}>{(close) => <OptList title="Board" items={BOARD_OPTS.map(([v, t]) => ({ v, t, c: cntB(v), sel: kind === v }))} onPick={(v) => { setKind(v as BoardF); setListedShown(25); close(); }} />}</Dd>
+          <Dd label="Status" value={f !== "all" ? STATUS_OPTS.find((o) => o[0] === f)![1] : ""}>{(close) => <OptList title="Status" items={STATUS_OPTS.map(([v, t]) => ({ v, t, c: cntS(v), sel: f === v }))} onPick={(v) => { setF(v as StatusF); close(); }} />}</Dd>
+          <Dd label="Board" value={kind !== "all" ? (kind === "sme" ? "SME" : "Mainboard") : ""}>{(close) => <OptList title="Board" items={BOARD_OPTS.map(([v, t]) => ({ v, t, c: cntB(v), sel: kind === v }))} onPick={(v) => { setKind(v as BoardF); close(); }} />}</Dd>
         </div>
-        <Link className="p4-tl" to="/ipo/all">{TABLE_ICON}All IPOs since 2020 →</Link>
       </div>
       <Chips chips={chips} unset={unset} />
       {isError && <div className="formerr">The calendar could not be loaded. Please try again shortly.</div>}
@@ -182,17 +263,35 @@ export function IpoPage() {
       {rows.length > 0 && (f === "all" || f === "open" || f === "upcoming" || f === "closed") && (
         <section className="card ipo-s p4-ts"><div className="card-h"><h3><span className="ci"><Icon name="calendar" /></span>Next seven weeks<ChartHelp id="ipo-timeline" /></h3><span className="s">Bar = application window</span></div>
           <Strip rows={rows.filter((r) => kind === "all" || r.kind === kind)} />
-          <div className="clg">{(Object.keys(STATUS) as Ipo["status"][]).map((s) => <span key={s}><i style={{ background: STATUS[s].colour }} />{STATUS[s].label}</span>)}</div></section>)}
-      {rows.length > 0 && <div ref={gmpBox}><GmpRecord ipos={rows} s={gm} set={setGmP} open={gmOpen} setOpen={setGmOpen} /></div>}
-      {listed.length > 0 && (
-        <section className="ipo-sec p4-sec" aria-label="Listed">
-          <h2 className="ipo-sec-h"><i style={{ background: STATUS.listed.colour }} />Listed <span>{listed.length}</span><small>{every ? "newest first" : `${listedRows.length} in the last 30 days`}</small></h2>
-          {listedRows.length ? <ListedTable rows={listedRows} onOpen={setOpen} /> : <p className="muted p4-pad">No listing in the last 30 days.</p>}
-          {every && listed.length > listedShown && <div className="ia-more"><button type="button" className="ia-btn" onClick={() => setListedShown((n) => n + 25)}>Show {nf(Math.min(25, listed.length - listedShown), 0)} more</button><span className="muted">Showing {nf(listedShown, 0)} of {nf(listed.length, 0)}</span></div>}
-          <Link className="p4-seeall" to="/ipo/all">See all {nf(listed.length, 0)} listed here, and every IPO since 2020, in All IPOs →</Link>
+          <div className="clg">{LEGEND.map((s) => <span key={s}><i style={{ background: STATUS[s].colour }} />{STATUS[s].label}</span>)}</div></section>)}
+      {rows.length > 0 && <div ref={gmpBox}><GmpRecord ipos={rows} s={gm} set={setGmP} open={gmOpen} setOpen={setGmOpen} onSee={seeRange} /></div>}
+      {rows.length > 0 && (f === "all" || f === "listed") && (
+        <section className="ipo-sec p4-sec" aria-label="Listed in the last 30 days">
+          <h2 className="ipo-sec-h"><i style={{ background: STATUS.listed.colour }} />Listed in the last 30 days <span>{recentShown.length}</span>
+            <small><button type="button" className="mg-link" onClick={allListed}>{total != null ? `All ${nf(total, 0)} since 2020 →` : "All IPOs since 2020 →"}</button></small></h2>
+          {recentShown.length ? <ListedTable rows={recentShown} onOpen={setOpen} from={from} />
+            : <p className="muted p4-pad">{recent.length ? "No listing in the last 30 days matches these filters." : "No listing in the last 30 days."}</p>}
         </section>)}
       {rows.length > 0 && !shown.length && <p className="muted" style={{ padding: 24, textAlign: "center" }}>No issues match these filters.</p>}
       {rows.length > 0 && (stamp || fromProvider) && <p className="ipo-asof muted">{stamp && <>Data as of {stamp}</>}{stamp && fromProvider && " · "}{fromProvider && "Source: FinEdge"}</p>}
+    </>
+  );
+
+  return (
+    <div className="wrap ipo p4 ipv" ref={page}>
+      <PageHeader plan="free" title="IPOs" art="calendar" links={["/results", "/news", "/premium/markets"]} actions={<CalendarSync />}
+        description="Open, upcoming and just-listed issues, and every IPO since 2020; the offer document is the final word." />
+      <dl className="dw-kpis p4-kpis" aria-label="IPO counts">
+        {([["open", "Open now", by("open").length], ["upcoming", "Upcoming", by("upcoming").length], ["closed", "Closed, listing soon", by("closed").length], ["listed", "Listed in the last 30 days", recent.length]] as const).map(([k, l, n]) =>
+          <div key={k} style={{ "--tc": STATUS[k].colour } as React.CSSProperties}><dt><i />{l}</dt><dd>{isLoading ? "—" : n}</dd></div>)}
+        <div style={{ "--tc": "var(--k3)" } as React.CSSProperties}><dt><i />Avg listing vs issue, 30 days</dt><dd className={avgGain == null ? "" : avgGain >= 0 ? "up" : "down"}>{avgGain == null ? "—" : signedPct(avgGain)}</dd></div>
+      </dl>
+      <TabGroup label="Views of the IPO list" noun="views" hint="press one to switch" next={false} value={view} onChange={(k) => go(k as View)}
+        aside={<><b>Showing:</b> {SHOWING[view]}</>}
+        views={[
+          { key: "now", label: "Open and upcoming", note: isLoading ? undefined : nf(liveN, 0), content: nowPane },
+          { key: "all", label: "All IPOs since 2020", note: total != null ? nf(total, 0) : undefined, content: <IpoAllView onGmp={openGmpBlock} /> },
+        ]} />
       {open && <IpoDrawer ipo={{ ...open, name: titleCase(open.name) }} chip={STATUS[open.status]} onClose={closeDrawer} />}
     </div>
   );

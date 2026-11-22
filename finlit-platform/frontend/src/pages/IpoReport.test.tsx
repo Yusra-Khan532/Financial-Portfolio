@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { IpoHistory, IpoRecord, IpoRow } from "../lib/ipoHistory";
 
@@ -36,10 +36,13 @@ const st = { rec: rec as IpoRecord | undefined };
 vi.mock("../lib/ipoHistory", async (orig) => ({ ...(await orig<typeof import("../lib/ipoHistory")>()),
   useIpoRecord: () => ({ data: st.rec, isLoading: false, isError: !st.rec }),
   useIpoHistory: () => ({ data: { items: [base], asOf: "2026-11-21", updatedAt: null, sources, note: "" } as IpoHistory, isLoading: false, isError: false }) }));
-import { inWords, IpoReportPage } from "./IpoReport";
-import { IpoHistoryPage } from "./IpoHistory";
+vi.mock("../lib/ipo", async (orig) => ({ ...(await orig<typeof import("../lib/ipo")>()), useGmpRecord: () => ({ data: undefined, isLoading: false, isError: false }) }));
+import { backTo, inWords, IpoReportPage } from "./IpoReport";
+import { IpoAllRedirect, IpoAllView } from "./IpoHistory";
 
-const at = (path: string) => render(<MemoryRouter initialEntries={[path]}><Routes><Route path="/ipo/all" element={<IpoHistoryPage />} /><Route path="/ipo/:id" element={<IpoReportPage />} /></Routes></MemoryRouter>);
+const Where = () => { const l = useLocation(); return <output data-testid="at">{l.pathname + l.search}</output>; };
+const at = (path: string, state?: unknown) => render(<MemoryRouter initialEntries={[{ pathname: path.split("?")[0], search: path.includes("?") ? "?" + path.split("?")[1] : "", state }]}>
+  <Routes><Route path="/ipo" element={<><IpoAllView /><Where /></>} /><Route path="/ipo/all" element={<IpoAllRedirect />} /><Route path="/ipo/:id" element={<IpoReportPage />} /></Routes></MemoryRouter>);
 afterEach(() => { cleanup(); st.rec = rec; });
 const ADVICE = /\b(buy|sell|apply|subscribe|recommend|should|good listing|best|gain)\b/i;
 
@@ -97,9 +100,23 @@ describe("the IPO report", () => {
   });
 });
 
-describe("the all-IPOs table page", () => {
+describe("the all-IPOs view of the IPOs page (task #329)", () => {
+  it("/ipo/all opens /ipo?view=all, keeping its parameters", () => {
+    at("/ipo/all?board=mainboard&sort=listingPct");
+    expect(screen.getByTestId("at").textContent).toBe("/ipo?view=all&board=mainboard&sort=listingPct");
+    expect(screen.getAllByRole("link", { name: "BLS Polymers" })[0].getAttribute("href")).toBe("/ipo/1849");
+  });
+  it("the report's back link returns to the view the member came from", () => {
+    expect(backTo({ from: "/ipo?view=all&board=sme" })).toEqual({ to: "/ipo?view=all&board=sme", label: "IPOs: All IPOs since 2020" });
+    expect(backTo({ from: "/ipo" })).toEqual({ to: "/ipo", label: "IPOs: Open and upcoming" });
+    expect(backTo({ from: "/ipo?view=now" }).label).toBe("IPOs: Open and upcoming");
+    expect(backTo(null)).toEqual({ to: "/ipo?view=all", label: "IPOs: All IPOs since 2020" });          // opened directly: the list of every IPO
+    expect(backTo({ from: "https://elsewhere.example/ipo" }).to).toBe("/ipo?view=all");                  // only an address on this page
+    at("/ipo/1849", { from: "/ipo?view=now" });
+    expect(screen.getByRole("link", { name: "← IPOs: Open and upcoming" }).getAttribute("href")).toBe("/ipo?view=now");
+  });
   it("lists the issue, links to its report and uses no advice words", () => {
-    at("/ipo/all");
+    at("/ipo?view=all");
     expect(screen.getAllByRole("link", { name: "BLS Polymers" })[0].getAttribute("href")).toBe("/ipo/1849");
     expect(document.body.textContent).toContain("+65.3%");
     expect(document.body.textContent).not.toMatch(ADVICE);

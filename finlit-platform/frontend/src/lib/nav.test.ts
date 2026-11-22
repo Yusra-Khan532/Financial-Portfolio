@@ -17,7 +17,7 @@ describe("site map", () => {
     expect(names("compare")).toEqual(["Compare companies", "Chart builder", "Correlation charts"]);
     expect(names("calc")).toEqual(["P/E, EPS & PEG calculator", "DCF valuation calculator", "Reverse valuation", "SIP calculator"]);
     expect(names("markets")).toEqual(["Sector Pulse", "Sector Rotation", "Market events & index", "FII & DII flows", "India economy"]);   // task #317: Commodity prices is off the site
-    expect(names("news")).toEqual(["Results calendar", "Latest results", "Concall Monitor", "IPO calendar", "All IPOs", "News & filings"]);   // task #278 (after the pack): its line covers results and filings
+    expect(names("news")).toEqual(["Results calendar", "Latest results", "Concall Monitor", "IPOs", "News & filings"]);   // task #278 (after the pack): its line covers results and filings; task #329: one IPOs entry
     expect(names("funds")).toEqual(["Mutual funds", "Mutual fund screener", "ETFs"]);
     expect(names("learn")).toEqual(["Glossary", "Your bookmark", "How to use Sector Pulse", "How to use Sector Rotation", "Insights & blog", "Discussion forums"]);
     expect(names("apps")).toEqual(["Browser extension", "Connect AI assistants"]);

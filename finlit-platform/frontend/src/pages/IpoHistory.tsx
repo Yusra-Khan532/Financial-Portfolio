@@ -6,11 +6,16 @@
 // option showing how many issues it would leave with the other filters applied; the filters that are on show as chips with × and Clear all; the summary
 // sentence is a strip of seven figures; a count line says how the table is sorted; and the table is part of the page, its header row sticking under the
 // top nav, instead of scrolling inside its own box.
+//
+// Task #329 (developer file 29, 23 Nov 2026): this is now the second view of the one IPOs page (/ipo?view=all, pages/Ipo.tsx), unchanged, with a
+// one-line GMP summary after Show 50 more ("See the breakdown by GMP range →" opens the block in the first view) and a GMP-range filter that the
+// block's "See the N →" sets. /ipo/all redirects to /ipo?view=all with its parameters. The filters stay in the address, next to view=all.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
-import { PageHeader } from "../components/PageHeader";
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
 import { MINUS, nf } from "../lib/format";
-import { useDocTitle } from "../lib/title";
+import { useGmpRecord } from "../lib/ipo";
+import { GR, gTally } from "../lib/ipoCalendar";
+import { leadText } from "../components/ipo/GmpRecord";
 import {
   applyFilters, filtersFromParams, GAIN_OPTIONS, NO_FILTERS, optionCounts, paramsFromFilters, SIZE_OPTIONS, sortRows, STATUS_LABEL, SUB_OPTIONS, summarise, toCsv, useIpoHistory, yearOf,
   type Filters, type IpoRow, type IpoStatus, type SortKey,
@@ -108,18 +113,44 @@ function OptionList({ title, opts, value, onPick, onClose, wide }: { title: stri
   );
 }
 
-export function IpoHistoryPage() {
-  useDocTitle("All IPOs", "Every IPO in India since 2020, mainboard and SME: listing date, issue price, subscription, GMP before listing, listing price against issue price and return since IPO, with filters.");
+/** /ipo/all, the old address of this view: the IPOs page on its second view, every parameter kept (task #329, rule 2). */
+/** A phone card: the IPO report when the issue has one (a row taken from the calendar alone has none). */
+function IpoCardLink({ id, from, children }: { id: number; from: { from: string }; children: ReactNode }) {
+  return id > 0 ? <Link to={`/ipo/${id}`} state={from} className="card ia-c">{children}</Link> : <div className="card ia-c">{children}</div>;
+}
+
+export function IpoAllRedirect() {
+  const { search } = useLocation();
+  const p = new URLSearchParams(search);
+  p.delete("view");
+  const rest = p.toString();
+  return <Navigate to={`/ipo?view=all${rest ? "&" + rest : ""}`} replace />;
+}
+
+/** The one-line GMP summary under the table (task #329): what the GMP block says, over every listed issue with a GMP. */
+function GmpLine({ onOpen }: { onOpen?: () => void }) {
+  const q = useGmpRecord("all"), items = q.data?.items;
+  const t = useMemo(() => (items?.length ? gTally(items) : null), [items]);
+  if (!t) return null;
+  return <div className="mg-strip"><span><b>What GMP said vs what actually listed.</b> {leadText(t)}</span>
+    {onOpen && <button type="button" className="mg-link" onClick={onOpen}>See the breakdown by GMP range →</button>}</div>;
+}
+
+/** The second view of the IPOs page. `extra`: rows the table holds besides the IPO record's; `onGmp`: opens the GMP block in the first view. */
+export function IpoAllView({ extra, onGmp }: { extra?: IpoRow[]; onGmp?: () => void } = {}) {
   const { data, isLoading, isError } = useIpoHistory();
   const [params, setParams] = useSearchParams();
   const nav = useNavigate();
+  const loc = useLocation();
+  const from = { from: loc.pathname + loc.search };
   const f = useMemo(() => filtersFromParams(params), [params]);
   const sort = (SORTS as string[]).includes(params.get("sort") || "") ? (params.get("sort") as SortKey) : "date";
   const dir = params.get("dir") === "asc" ? "asc" : "desc";
   const [n, setN] = useState(PAGE);
   const [pop, setPop] = useState<string | null>(null);
-  const rows = useMemo(() => data?.items ?? [], [data]);
-  const set = (next: Partial<Filters>, s: SortKey = sort, d: "asc" | "desc" = dir) => { setParams(paramsFromFilters({ ...f, ...next }, s, d), { replace: true }); setN(PAGE); };
+  const rows = useMemo(() => (extra?.length ? [...(data?.items ?? []), ...extra] : data?.items ?? []), [data, extra]);
+  const put = (p: Record<string, string>) => setParams({ view: "all", ...p }, { replace: true });
+  const set = (next: Partial<Filters>, s: SortKey = sort, d: "asc" | "desc" = dir) => { put(paramsFromFilters({ ...f, ...next }, s, d)); setN(PAGE); };
   const shown = useMemo(() => sortRows(applyFilters(rows, f), sort, dir), [rows, f, sort, dir]);
   const sum = useMemo(() => summarise(shown), [shown]);
   const years = useMemo(() => [...new Set(rows.map(yearOf).filter((y): y is string => !!y))].sort().reverse(), [rows]);
@@ -135,9 +166,9 @@ export function IpoHistoryPage() {
     status: [["all", "All"], ...(["listed", "open", "upcoming", "closed", "not_listed", "withdrawn"] as IpoStatus[]).map((s) => [s, STATUS_LABEL[s]] as [string, string])],
     board: [["all", "All boards"], ["mainboard", "Mainboard"], ["sme", "SME"]], year: [["all", "All years"], ...years.map((y) => [y, y] as [string, string])],
     gain: GAIN_OPTIONS, sub: SUB_OPTIONS, size: SIZE_OPTIONS, exchange: [["all", "NSE and BSE"], ["NSE", "NSE"], ["BSE", "BSE"]],
-    sector: [["all", "All sectors"], ...sectors.map((s) => [s, s] as [string, string])],
+    sector: [["all", "All sectors"], ...sectors.map((s) => [s, s] as [string, string])], gmp: [["all", "Any"], ...GR],
   }), [years, sectors]);
-  const NAME: Record<Exclude<keyof Filters, "q">, string> = { status: "Status", board: "Board", year: "Year", gain: "At listing", sub: "Subscription", size: "Issue size", exchange: "Exchange", sector: "Sector" };
+  const NAME: Record<Exclude<keyof Filters, "q">, string> = { status: "Status", board: "Board", year: "Year", gain: "At listing", sub: "Subscription", size: "Issue size", exchange: "Exchange", sector: "Sector", gmp: "GMP said" };
   const counted = (k: Exclude<keyof Filters, "q">): Opt[] => { const c = optionCounts(rows, f, k, OPTS[k].map(([v]) => v)); return OPTS[k].map(([v, t]) => ({ v, t, c: c[v] })); };
   const chosen = (k: Exclude<keyof Filters, "q">) => (f[k] !== NO_FILTERS[k] ? OPTS[k].find(([v]) => v === f[k])?.[1] : undefined);
   const list = (k: Exclude<keyof Filters, "q">, wide?: boolean) => { const [open, setOpen] = opener(k); return (
@@ -155,11 +186,19 @@ export function IpoHistoryPage() {
   const share = sum.listed ? Math.round((sum.above / sum.listed) * 100) : null;
 
   return (
-    <div className="wrap ia p4">
-      <PageHeader plan="free" title="All IPOs" links={["/ipo", "/results", "/news"]}
-        back={<Link to="/ipo">← IPO calendar</Link>}
-        description="Every mainboard and SME IPO since 2020: price, subscription, grey market and returns since." />
-
+    <div className="ia p4 ipv-all">
+      {/* task #329: the seven totals first, then the filters and the table (the pack's order) */}
+      {data && <>
+        <dl className="p4-kpis" aria-label="What the filters show">
+          <div><dt>Issues</dt><dd>{nf(sum.count, 0)}</dd></div>
+          <div><dt>Raised</dt><dd>{crore(sum.raisedCr)}</dd></div>
+          <div><dt>Listed above issue price</dt><dd><span className="up">{nf(sum.above, 0)}</span> <small>of {nf(sum.listed, 0)}{share != null ? ` · ${share}%` : ""}</small></dd></div>
+          <div><dt>Listed below</dt><dd><span className={sum.below ? "down" : ""}>{nf(sum.below, 0)}</span></dd></div>
+          <div><dt>Median at listing</dt><dd className={tone(sum.medianGain)}>{pct(sum.medianGain)}</dd></div>
+          <div><dt>Median since IPO <small>({nf(sum.sinceCount, 0)})</small></dt><dd className={tone(sum.medianSince)}>{pct(sum.medianSince)}</dd></div>
+          <div><dt>Median subscription</dt><dd>{times(sum.medianSub)}</dd></div>
+        </dl>
+      </>}
       <div className="p4-tools" role="search" aria-label="Filter the IPOs">
         <label className="dbx-q"><Lens /><input type="search" placeholder="Company or symbol" value={f.q} onChange={(e) => set({ q: e.target.value })} autoComplete="off" aria-label="Search IPOs" /></label>
         <div className="dbx-dds">
@@ -180,23 +219,14 @@ export function IpoHistoryPage() {
       </div>
       {chips.length > 0 && <div className="dbx-chips" role="group" aria-label="Filters that are on">
         {chips.map(([k, t]) => <button type="button" key={k} className="dbx-chip" aria-label={`Remove filter ${t}`} onClick={() => set({ [k]: NO_FILTERS[k] } as Partial<Filters>)}>{t}<Cross /></button>)}
-        <button type="button" className="dbx-lk" onClick={() => { setParams(paramsFromFilters(NO_FILTERS, sort, dir), { replace: true }); setN(PAGE); }}>Clear all</button></div>}
+        <button type="button" className="dbx-lk" onClick={() => { put(paramsFromFilters(NO_FILTERS, sort, dir)); setN(PAGE); }}>Clear all</button></div>}
 
       {isError && <p className="formerr">The IPO list could not be loaded. Please try again shortly.</p>}
       {isLoading && <div className="skeleton" style={{ height: 420 }} role="status" aria-label="Loading IPOs" />}
       {data && <>
-        <dl className="p4-kpis" aria-label="What the filters show">
-          <div><dt>Issues</dt><dd>{nf(sum.count, 0)}</dd></div>
-          <div><dt>Raised</dt><dd>{crore(sum.raisedCr)}</dd></div>
-          <div><dt>Listed above issue price</dt><dd><span className="up">{nf(sum.above, 0)}</span> <small>of {nf(sum.listed, 0)}{share != null ? ` · ${share}%` : ""}</small></dd></div>
-          <div><dt>Listed below</dt><dd><span className={sum.below ? "down" : ""}>{nf(sum.below, 0)}</span></dd></div>
-          <div><dt>Median at listing</dt><dd className={tone(sum.medianGain)}>{pct(sum.medianGain)}</dd></div>
-          <div><dt>Median since IPO <small>({nf(sum.sinceCount, 0)})</small></dt><dd className={tone(sum.medianSince)}>{pct(sum.medianSince)}</dd></div>
-          <div><dt>Median subscription</dt><dd>{times(sum.medianSub)}</dd></div>
-        </dl>
         <div className="dbx-rbar"><span className="dbx-cnt" aria-live="polite"><b>{nf(shown.length, 0)}</b> {shown.length === 1 ? "issue" : "issues"} · sorted by {SORT_NAME[sort]}, {order}</span>
           <span className="p4-hint">Select a company for its full report</span></div>
-        {!shown.length ? <p className="card ia-none">No IPOs match these filters. <button type="button" className="ia-link" onClick={() => { setParams(paramsFromFilters(NO_FILTERS, sort, dir), { replace: true }); setN(PAGE); }}>Clear filters</button></p> : <>
+        {!shown.length ? <p className="card ia-none">No IPOs match these filters. <button type="button" className="ia-link" onClick={() => { put(paramsFromFilters(NO_FILTERS, sort, dir)); setN(PAGE); }}>Clear filters</button></p> : <>
           <div className="card ia-tw p4-iatw">
             <table className="ia-t p4-iat">
               <caption className="sr-only">IPOs matching the filters, {sort === "date" ? "newest first" : "sorted"}; select a company for its report</caption>
@@ -205,8 +235,8 @@ export function IpoHistoryPage() {
                 {COLS.map(([k, l, c]) => <th key={k} scope="col" className={c} aria-sort={sort === k ? (dir === "asc" ? "ascending" : "descending") : "none"}><button type="button" onClick={() => onSort(k)}>{l}{sort === k ? (dir === "asc" ? " ▲" : " ▼") : ""}</button></th>)}
               </tr></thead>
               <tbody>{shown.slice(0, n).map((r) => (
-                <tr key={r.id} onClick={(e) => { if (!(e.target as HTMLElement).closest("a")) nav(`/ipo/${r.id}`); }}>
-                  <th scope="row"><Link to={`/ipo/${r.id}`}>{r.name}</Link><small>{[r.board === "sme" ? "SME" : "Mainboard", r.symbol, r.sector].filter(Boolean).join(" · ")}</small></th>
+                <tr key={r.id} onClick={(e) => { if (r.id > 0 && !(e.target as HTMLElement).closest("a")) nav(`/ipo/${r.id}`, { state: from }); }}>
+                  <th scope="row">{r.id > 0 ? <Link to={`/ipo/${r.id}`} state={from}>{r.name}</Link> : r.name}<small>{[r.board === "sme" ? "SME" : "Mainboard", r.symbol, r.sector].filter(Boolean).join(" · ")}</small></th>
                   <td><When r={r} /></td>
                   <td className="r">{priceOf(r)}</td>
                   <td className="r">{crore(r.issueSizeCr)}</td>
@@ -219,7 +249,7 @@ export function IpoHistoryPage() {
             </table>
           </div>
           <ul className="ia-cards" aria-label="IPOs matching the filters">{shown.slice(0, n).map((r) => (
-            <li key={r.id}><Link to={`/ipo/${r.id}`} className="card ia-c">
+            <li key={r.id}><IpoCardLink id={r.id} from={from}>
               <div className="ia-ch"><b>{r.name}</b><span>{[r.board === "sme" ? "SME" : "Mainboard", r.symbol].filter(Boolean).join(" · ")}</span></div>
               <dl>
                 <div><dt>{r.status === "listed" ? "Listed" : STATUS_LABEL[r.status]}</dt><dd>{r.status === "listed" ? dateIn(r.listingDate) : dateIn(r.openDate)}</dd></div>
@@ -229,9 +259,10 @@ export function IpoHistoryPage() {
                 <div><dt>GMP said</dt><dd>{pct(r.gmpPct)}</dd></div>
                 <div><dt>Since IPO</dt><dd className={tone(r.sinceIpoPct)}>{pct(r.sinceIpoPct)}</dd></div>
               </dl>
-            </Link></li>))}</ul>
+            </IpoCardLink></li>))}</ul>
           {shown.length > n && <div className="ia-more"><button type="button" className="ia-btn" onClick={() => setN(n + PAGE)}>Show {nf(Math.min(PAGE, shown.length - n), 0)} more</button><span className="muted">Showing {nf(n, 0)} of {nf(shown.length, 0)}</span></div>}
         </>}
+        <GmpLine onOpen={onGmp} />
         <p className="muted ia-foot">
           At listing = the listing price (the listing-day open the exchange set) against the issue price. Day-1 close and latest close are the exchange's own closing prices (from NSE's and BSE's daily price files); a share that has not traded lately shows its last close and that day's date. Since IPO = the latest close against the issue price. Where the share has split or issued bonus shares since listing (from NSE's corporate actions; for BSE-only issues, Yahoo Finance's price history), the issue price is adjusted by the same factor, so the figures compare like with like. Where no such record reaches back to the listing, or the share no longer trades, since IPO is left blank rather than risk a wrong figure.
           {" "}Issue details, overall subscription and GMP: <a href={data.sources.issue.url ?? undefined} target="_blank" rel="noopener noreferrer">{data.sources.issue.name}</a>. Subscription by category (QIB, NII, retail): NSE, for mainboard issues. GMP is an informal, unofficial grey-market price, not an exchange figure.
