@@ -300,7 +300,8 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
             {big && <Link className="aif-help" to="/faq" onClick={() => setOpen(false)} aria-label="Help and frequently asked questions" title="Help"><Icon name="info" /></Link>}
             <button type="button" onClick={() => setOpen(false)} aria-label="Close">×</button>
           </header>
-          <div className="ai-body">
+          {/* task #321: the full window's start screen sits in the middle of the window (aif-homebody), not stuck to the top over empty space */}
+          <div className={"ai-body" + (view === "home" && big ? " aif-homebody" : "")}>
             {view === "home" && big && <>
               <div className="aif-hero"><svg className="aif-bot" viewBox="0 0 120 110" width="132" height="120" aria-hidden="true">
                 <defs><radialGradient id="aifbg" cx="50%" cy="55%" r="60%"><stop offset="0" stopColor="currentColor" stopOpacity=".35" /><stop offset="1" stopColor="currentColor" stopOpacity="0" /></radialGradient>

@@ -3,7 +3,8 @@ import { useSyncExternalStore } from "react";
 
 /** isin (task #183): the share's ISIN, the key that survives a rename (ZOMATO → ETERNAL); the symbol is what the page shows. */
 /** pf (task #235): the portfolio (broker account) the row belongs to; none = the first portfolio. side "sell": a sale (first in, first out), else a buy. */
-export type Holding = { id: string; symbol: string; qty: number; price: number; date?: string; note?: string; owned?: boolean; isin?: string; pf?: string; side?: "sell" };
+export type Holding = { id: string; symbol: string; qty: number; price: number; date?: string; note?: string; owned?: boolean; isin?: string; pf?: string; side?: "sell";
+  /** task #323: the buy price is a statement's Rate (its price on priceOn), chosen on import, not what was paid; dropped once the price is typed */ priceFrom?: "rate"; priceOn?: string };
 /** Task #235 (pack B1): a member's portfolios, one per broker account. The list's rows carry the id in `pf`. */
 export type Portfolio = { id: string; name: string; broker?: string; created?: string };
 export type PState = { holdings: Holding[]; portfolios?: Portfolio[] };

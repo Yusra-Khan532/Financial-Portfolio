@@ -6,13 +6,15 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import "../styles/steps-bar.css";
 import { SECTION_BAR_MIN } from "../lib/nav";
+import { foldAnchor, revealAndScroll } from "./PhoneFold";
 
 export type StepSection = { id: string; label: string };
 export type Step = { id: string; n: number; title: string; line?: string; sections: StepSection[]; /** task #277: a section the member has not seen (Key figures, What changed) carries a dot */ dot?: boolean };
 /** An optional menu for "All sections" grouped another way (all my investments: every tab's sections, grouped by tab); `go` runs instead of a scroll. */
 export type MenuGroup = { title: string; items: { id: string; label: string; go: () => void }[] };
 
-const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+// task #310 part E: a step closed on a phone (PhoneFold) opens before the scroll, and is tracked by its closed row
+const scrollTo = (id: string) => revealAndScroll(document.getElementById(id), (el) => el.scrollIntoView({ behavior: "smooth", block: "start" }));
 /** The height of the site's sticky header (the bar sits right under it). 0 when there is none, or it does not stick. */
 function headerHeight(): number {
   const h = document.querySelector<HTMLElement>("header.top");
@@ -56,7 +58,7 @@ export function StepsBar({ steps, label = "Sections", menu, lead, arrows = false
       cancelAnimationFrame(t);
       t = requestAnimationFrame(() => {
         const line = Math.max(headerHeight() + (bar.current?.offsetHeight ?? 0) + 40, innerHeight * 0.4);   // a step is in view once its heading reaches the upper part of the window
-        const tops = steps.map((s) => ({ id: s.id, top: document.getElementById(s.id)?.getBoundingClientRect().top ?? Infinity }));
+        const tops = steps.map((s) => ({ id: s.id, top: foldAnchor(document.getElementById(s.id))?.getBoundingClientRect().top ?? Infinity }));
         setActive(stepInView(tops, line));
       });
     };

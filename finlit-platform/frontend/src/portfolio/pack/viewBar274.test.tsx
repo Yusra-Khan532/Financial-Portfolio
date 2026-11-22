@@ -42,7 +42,8 @@ describe("Sections ▾ in the row inside the table", () => {
     render(<SectionsMenu secs={SECS.portfolio.secs} here="pf-shares" isHidden={(id) => isHidden("pack." + id)} show={(id) => setHidden("pack." + id, false)} onAll={onAll} />);
     fireEvent.click(screen.getByRole("button", { name: /Sections/ }));
     const items = screen.getAllByRole("menuitem").map((b) => b.textContent);
-    expect(items).toEqual(["1Your sharesYou are here", "2Key figures", "3TrendsHidden · opens it", "All sections"]);
+    // task #323 (file 21, part 9): Key figures starts closed, so the menu says so until it is opened
+    expect(items).toEqual(["1Your sharesYou are here", "2Key figuresHidden · opens it", "3TrendsHidden · opens it", "All sections"]);
     fireEvent.click(screen.getByRole("menuitem", { name: /Trends/ }));
     expect(isHidden("pack.eq-trend")).toBe(false);   // choosing a hidden one shows it
     fireEvent.click(screen.getByRole("button", { name: /Sections/ })); fireEvent.click(screen.getByRole("menuitem", { name: "All sections" }));

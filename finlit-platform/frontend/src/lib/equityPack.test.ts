@@ -21,6 +21,9 @@ describe("Portfolio tab", () => {
       sh("GLENMARK", { industry: "Pharmaceuticals", peer: peer("in_line", 5, 16, { raw: "leader" }) }), sh("RELIANCE", { industry: "Refineries", peer: peer("laggard", 7, 11, { raw: "in_line" }) }),
       sh("KINGFA", { industry: "Plastic", notCompared: "trades too thinly to rank fairly" }), sh("TIPSMUSIC", { industry: "Media", notCompared: "trades too thinly to rank fairly" }), sh("CHENNPETRO", { industry: "Refineries", notCompared: "has under a year of prices" })];
     expect(peerSentence(xs)).toBe("Two of your 9 shares lead their peers and three lag. Among your four software & consulting shares, TECHM and PERSISTENT lead while INFY and ZENSARTECH lag.");
+    // task #323 (file 21, part 11): one leader and one laggard read in the singular
+    const one = [sh("TECHM", { peer: peer("leader", 1, 13) }), sh("INFY", { peer: peer("laggard", 10, 13) }), sh("PERSISTENT", { peer: peer("in_line", 5, 13) })];
+    expect(peerSentence(one)).toBe("One of your 3 shares leads its peers and one lags. Among your three software & consulting shares, TECHM leads while INFY lags.");
     const c = peerCards(xs);
     expect(c[0].text).toBe("GLENMARK reads Leader and RELIANCE reads In line this week. Labels change only if the next weekly reading agrees.");
     expect(c[1]).toEqual({ kind: "watch", title: "Not compared: 3 shares", text: "KINGFA and TIPSMUSIC trade too thinly to rank fairly; CHENNPETRO has under a year of prices." });

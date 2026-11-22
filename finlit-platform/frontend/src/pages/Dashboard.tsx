@@ -7,7 +7,8 @@
 // (its full version) and a ⋯ menu (open the full page, hide this card). The choices are kept on the account (prefs.dashUi).
 const GlobalMarkets = lazy(() => import("../components/dashboard/GlobalMarkets").then((m) => ({ default: m.GlobalMarkets })));   // task #294: the map's data loads with this card only
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
-import { Navigate, useSearchParams } from "react-router";
+import { PhoneFold } from "../components/PhoneFold";
+import { Navigate, useLocation, useSearchParams } from "react-router";
 import { useAuth } from "../lib/auth";
 import { RANK, useUI } from "../lib/ui";
 import { WIDGETS, prefs, stepGroups, usePrefs, type WidgetPref } from "../lib/prefs";
@@ -110,6 +111,18 @@ export function Dashboard() {
   const symbols = useMemo(() => followed.map((f) => f.symbol), [followed]);
   const setup = useSetup(followed.length, p.palette, plan);
   const [ui, setUi] = useDashUi();
+  // task #315: Learn → Your bookmark (lib/nav.ts) and the Word of the Day panel open /dashboard#dsh-learn: bring the Learn card into view once it is drawn,
+  // and again after the blocks above it have loaded and pushed it down
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (hash !== "#dsh-learn" || !ready || !user) return;
+    // task #316 filters the sections and lets a card be hidden: show the Tools section and the Learn card so the link always lands on it
+    if (ui.sec !== "all" && ui.sec !== "tools") setUi({ sec: "tools" });
+    if (ui.hidden.includes("learn")) setUi({ hidden: ui.hidden.filter((x) => x !== "learn") });
+    const go = () => document.getElementById("dsh-b-learn")?.scrollIntoView({ block: "start" });
+    const t = [50, 700, 1800].map((ms) => window.setTimeout(go, ms));
+    return () => t.forEach(clearTimeout);
+  }, [hash, ready, user]);   // eslint-disable-line react-hooks/exhaustive-deps
   // task #316: the counts on the portfolio switch (the same cached answers the panes read)
   const mfN = useMfPortfolio(has(PLAN_FOR_PORTFOLIO), pick.param.mf).data?.count ?? null;
   const etfN = useEtfPortfolio(has(PLAN_FOR_PORTFOLIO), pick.param.etf).data?.items.filter((e) => !e.gone).length ?? null;
@@ -194,11 +207,16 @@ export function Dashboard() {
       <TodayStrip symbols={symbols} held={[...heldPick]} rows={rows} prism={has(PLAN_FOR_PRISM)} />
       <SectionFilter sections={groups.map((g) => ({ id: g.step.id as Exclude<Sec, "all">, title: g.step.title }))} />
       <div className="dsh-grid" id="dsh-grid" data-sec={ui.sec}>
-        {visible.map((g) => [
-          <SectionHead key={"step-" + g.step.id} id={`dsh-s-${g.step.id}`} title={g.step.title} line={g.step.line}>{fromNews(g)}</SectionHead>,
-          ...(g.blocks.some((b) => PICKED.has(b.id)) ? [<div key="dsh-show" className="dsh-cell full" data-block="show"><ShowingBar pick={pick} kinds={kinds} /></div>] : []),
-          ...cellsOf(g.blocks).map((c) => <div key={c.key} id={c.key === "stack" ? "dsh-b-stack" : `dsh-b-${c.key}`} className={"dsh-cell " + c.size + (c.key === "stack" ? " dx-stack" : "")} data-block={c.key}>{c.key === "stack" ? cell(c) : <XSlot>{cell(c)}</XSlot>}</div>),
-        ])}
+        {visible.map((g, gi) => {
+          const cells = [
+            <SectionHead key={"step-" + g.step.id} id={`dsh-s-${g.step.id}`} title={g.step.title} line={g.step.line}>{fromNews(g)}</SectionHead>,
+            ...(g.blocks.some((b) => PICKED.has(b.id)) ? [<div key="dsh-show" className="dsh-cell full" data-block="show"><ShowingBar pick={pick} kinds={kinds} /></div>] : []),
+            ...cellsOf(g.blocks).map((c) => <div key={c.key} id={c.key === "stack" ? "dsh-b-stack" : `dsh-b-${c.key}`} className={"dsh-cell " + c.size + (c.key === "stack" ? " dx-stack" : "")} data-block={c.key}>{c.key === "stack" ? cell(c) : <XSlot>{cell(c)}</XSlot>}</div>),
+          ];
+          // task #310 part E (05-phone.md, fix 6): with "All sections" chosen, a phone shows the sections after the second as closed rows (name and line).
+          // One section picked in the section filter is already short, so it is drawn open. Desktop unchanged (PhoneFold draws nothing of its own there).
+          return ui.sec !== "all" || gi < 2 ? cells : <PhoneFold key={"fold-" + g.step.id} page="dashboard" id={g.step.id} title={g.step.title} line={g.step.line ?? ""}>{cells}</PhoneFold>;
+        })}
         {!shown.length && <Card id="empty" title="Nothing to show here"><p className="dsh-note">Every block is switched off. <button type="button" className="dsh-link" onClick={() => setEdit(true)}>Open Customise</button> to turn some on.</p></Card>}
       </div>
       <PageFaqs inline />

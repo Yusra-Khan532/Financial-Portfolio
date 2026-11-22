@@ -1,5 +1,6 @@
 // Glossary data (generated from backend/finlit/normalize/glossary_data.json by backend/scripts/sync_glossary.py) and search.
 import data from "../content/glossary.json";
+import { cycleIndex, istDayNumber, wordOrder } from "./wordOfDay";
 
 /** `change`: board 03 of the "FinLit final pages" pack marks the 7 new terms and the 35 renamed or rewritten ones of this update. */
 export type Term = { id: string; term: string; letter: string; topic: string; meaning: string; why: string; how: string; formula: string; finlit: string; aliases: string[]; change?: "new" | "updated" };
@@ -42,4 +43,15 @@ export function search(q: string, pool: Term[] = TERMS): Term[] {
   return pool.map((t) => [t, score(t, q)] as const).filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1] || a[0].term.localeCompare(b[0].term)).map(([t]) => t);
 }
 
-export const termOfTheDay = (): Term => TERMS[Math.floor(Date.now() / 86_400_000) % TERMS.length];
+/** Task #315: the order the Word of the Day walks: every term once before any repeats, shuffled with a fixed seed (lib/wordOfDay.ts). */
+/** Neighbouring days never fall on terms next to each other A to Z (by id or as the glossary lists them) or on the same letter. */
+export const WORD_ORDER: Term[] = (() => {
+  const byId = new Map(TERMS.map((t, i) => [t.id, { t, i }]));
+  const ids = TERMS.map((t) => t.id), sorted = [...ids].sort(), rank = new Map(sorted.map((id, i) => [id, i]));
+  const clash = (a: string, b: string) => { const x = byId.get(a)!, y = byId.get(b)!; return x.t.letter === y.t.letter || Math.abs(x.i - y.i) === 1 || Math.abs(rank.get(a)! - rank.get(b)!) === 1; };
+  return wordOrder(ids, clash).map((id) => byId.get(id)!.t);
+})();
+/** The term for an India day number (lib/wordOfDay.ts istDayNumber). */
+export const termForDay = (day: number): Term => WORD_ORDER[cycleIndex(day, WORD_ORDER.length)];
+/** Today's word, on the India calendar day (changes at midnight IST). The header's Word of the Day and the dashboard's Term of the day both read this. */
+export const termOfTheDay = (now: number = Date.now()): Term => termForDay(istDayNumber(now));

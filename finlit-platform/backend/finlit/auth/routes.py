@@ -193,6 +193,9 @@ class Holding(BaseModel):
     isin: Optional[str] = Field(default=None, pattern=r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")  # task #183: the share's ISIN, the key that survives a rename
     pf: Optional[str] = Field(default=None, pattern=r"^[a-z0-9]{1,16}$")  # task #235: the portfolio (broker account) the row belongs to; none = the first one
     side: Optional[Literal["buy", "sell"]] = None  # task #235: a sale (first in, first out on the page); none or "buy" = a buy
+    # task #323: a buy price taken from a statement's Rate column (that day's price, not what was paid), chosen by the member on import, and that day
+    priceFrom: Optional[Literal["rate"]] = None
+    priceOn: Optional[str] = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
 
     @field_validator("symbol")
     @classmethod
@@ -327,6 +330,10 @@ class PrefsIn(BaseModel):
     followThemes: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,79}$")]] = Field(default_factory=list, max_length=40)
     # task #277: the views of a page the member has opened once ("mi:equity"), so a view not yet opened carries "Not opened yet" on every device
     viewsSeen: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9]{1,12}:[a-z0-9-]{1,24}$")]] = Field(default_factory=list, max_length=60)
+    # task #315: Word of the Day bookmarks (glossary term ids, newest first; every id in glossary_data.json matches this pattern) and the India date
+    # (YYYY-MM-DD) the member last opened the word, which hides the header's "new today" dot on every device. An empty date means not opened yet.
+    wordBookmarks: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,79}$")]] = Field(default_factory=list, max_length=200)
+    wordSeen: Optional[Annotated[str, StringConstraints(pattern=r"^(?:\d{4}-\d{2}-\d{2})?$")]] = None
     dashUi: Optional[DashUi] = None   # task #316: the dashboard's section, portfolio, region, sort, results-and-filings scope and hidden cards
 
 

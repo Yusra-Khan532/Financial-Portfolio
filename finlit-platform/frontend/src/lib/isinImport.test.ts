@@ -46,7 +46,8 @@ describe("the ISIN itself", () => {
 describe("reading a broker file keeps each line's ISIN beside its name", () => {
   it("a file with an ISIN column and a name column (the bug: the ISIN was thrown away)", () => {
     const grid = gridFromText("Company Name,ISIN,Qty,Avg price\nATLANTA LIMITED,INE285H01022,100,12.5\nDR. LAL PATHLABS LIMITED,INE600L01024,5,2400\nTotal,,105,\n");
-    expect(entriesFromGrid(grid)).toEqual([{ name: "ATLANTA LIMITED", isin: "INE285H01022" }, { name: "DR. LAL PATHLABS LIMITED", isin: "INE600L01024" }]);
+    // task #323: each line also brings its quantity and average buy price from the file's Qty and Avg price columns
+    expect(entriesFromGrid(grid)).toEqual([{ name: "ATLANTA LIMITED", isin: "INE285H01022", qty: 100, avg: 12.5, avgHow: "column", lines: 1 }, { name: "DR. LAL PATHLABS LIMITED", isin: "INE600L01024", qty: 5, avg: 2400, avgHow: "column", lines: 1 }]);
   });
   it("an ISIN-only column, a pasted list of ISINs and ISINs on one line", () => {
     expect(entriesFrom("ISIN\nINE002A01018\nINE040A01034\n")).toEqual([{ name: "", isin: "INE002A01018" }, { name: "", isin: "INE040A01034" }]);
@@ -139,7 +140,9 @@ describe("PDF statements: the ISIN on the line decides", () => {
     const f = findHoldingsInRows(rows, ROWS, answers([FUND]));
     expect(f.found.map((x) => [x.symbol, x.how])).toEqual([["ATLANTAA", "isin"], ["LALPATHLAB", "isin"]]);
     expect(f.found.every(isSure)).toBe(true);
-    expect(f.missing.join(" ")).toMatch(/NIPPON INDIA ETF NIFTY BEES \(INF204KB14I2\): An exchange-traded fund/);
+    // task #323 (file 21, part 8): an ETF line is kept, with its units, for the ETF portfolio, instead of being listed as not added
+    expect(f.missing.join(" ")).not.toMatch(/NIPPON INDIA ETF NIFTY BEES/);
+    expect(f.funds).toEqual([{ isin: FUND.isin, input: "NIPPON INDIA ETF NIFTY BEES", qty: 10 }]);
   });
 });
 

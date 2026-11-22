@@ -8,7 +8,7 @@ import { DEMO } from "./demo";
 import { savable } from "./ledger";
 import { loadState, savePortfolio, savePrefs, saveScreens, saveWatchlist } from "./account";
 import { portfolio } from "./portfolio";
-import { prefs } from "./prefs";
+import { prefs, type Prefs } from "./prefs";
 import { screens } from "./screens";
 import { watch } from "./watchlist";
 import { RANK } from "./ui";
@@ -26,7 +26,7 @@ export function StateSync() {
     if (DEMO) return;
     if (!uid) {
       prefs.onSave(null); watch.onSave(null); screens.onSave(null); portfolio.onSave(null);
-      if (last.current) { watch.reset(); screens.replace([]); portfolio.reset(); } // signed out: personal lists leave this device
+      if (last.current) { watch.reset(); screens.replace([]); portfolio.reset(); prefs.set({ wordBookmarks: [] }, true); } // signed out: personal lists (and Word of the Day bookmarks) leave this device
       last.current = null;
       return;
     }
@@ -34,13 +34,23 @@ export function StateSync() {
     const quiet = () => undefined;
     (async () => {
       // Lists left on this browser by a different account (sign-out was skipped, or the session ended) must not be adopted by, or uploaded to, this one.
-      try { const owner = localStorage.getItem(OWNER); if (owner && owner !== uid) { watch.reset(); screens.replace([]); portfolio.reset(); } } catch { /* storage unavailable */ }
+      let owner: string | null = null;
+      try { owner = localStorage.getItem(OWNER); if (owner && owner !== uid) { watch.reset(); screens.replace([]); portfolio.reset(); } } catch { /* storage unavailable */ }
+      const local = prefs.get();
       let saved;
       try { saved = await loadState(); } catch { return; }
       if (cancelled) return;
       try { localStorage.setItem(OWNER, uid); } catch { /* storage unavailable */ }
       // Appearance: the account wins; a new account adopts this browser's choices.
-      if (saved.prefs && Object.keys(saved.prefs).length) prefs.set(saved.prefs, true); else savePrefs(prefs.get()).catch(quiet);
+      if (saved.prefs && Object.keys(saved.prefs).length) {
+        // Task #315: Word of the Day bookmarks made as a visitor on this browser (no account has used it yet) join the account's, newest first;
+        // the later "opened today" date wins, so the header's dot does not come back after signing in.
+        const sp = saved.prefs as Partial<Prefs>;
+        const mine = !owner && local.wordBookmarks.length ? [...new Set([...local.wordBookmarks, ...(Array.isArray(sp.wordBookmarks) ? sp.wordBookmarks : [])])] : null;
+        const seen = local.wordSeen > (sp.wordSeen || "") ? local.wordSeen : null;
+        prefs.set({ ...sp, ...(mine ? { wordBookmarks: mine } : {}), ...(seen ? { wordSeen: seen } : {}) }, true);
+        if (mine || seen) savePrefs(prefs.get()).catch(quiet);
+      } else savePrefs(prefs.get()).catch(quiet);
       if (saved.screens?.length) screens.replace(saved.screens as never); else if (screens.get().length) saveScreens(screens.get()).catch(quiet);
       const wl = saved.watchlist;
       if (wl?.lists?.length) watch.replace({ lists: wl.lists, meta: wl.meta || {} });

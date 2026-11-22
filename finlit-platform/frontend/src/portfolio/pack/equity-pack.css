@@ -143,3 +143,20 @@
 .eq-bpr.e .eq-bpr-t { color: var(--sp-mute); } .eq-bpr .eq-bpr-n { margin-top: 6px; }
 .eq-bpr-t { display: flex; justify-content: space-between; gap: 10px; margin: 0; font-size: var(--fs-small); }
 .eq-bpr small { display: block; margin-top: 2px; font-size: var(--fs-caption); color: var(--sp-mute); } .eq-bpr .eq-bpr-n { color: var(--sp-ink); }
+
+/* task #323 (developer file 21, parts 1, 5, 6 and 11): the empty state, the group-leader charts, the money box's Rate note, the peers lead */
+/* 1 · The empty state is `div.card.dw-empty`; `.dw-empty { padding: 8px 0 }` (made for inside a dashboard widget) wins over `.card`'s padding. */
+.pfx .card.dw-empty { padding: 18px 20px 20px; }
+.pfx .dw-empty .eq-empty-go { justify-content: flex-start; }
+/* 5 · Group-leader charts: one laggard filled the whole row (auto-fit), and the 200 x 90 drawing was scaled up 6 times, lines and all. */
+.eq-lc { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 760px) { .eq-lc { grid-template-columns: minmax(0, 1fr); } }
+.eq-lc-c svg :is(path, line) { vector-effect: non-scaling-stroke; }
+.eq-lc-top, .eq-lc-me { stroke-width: 2.25px; }
+.eq-lc-base { stroke-width: 1px; }
+/* 7 (22 Nov) · Against their peers: the lead line was 20px serif across the full width. */
+.sp-lead.eq-lead { font: 400 var(--fs-16)/1.55 var(--sans); color: var(--text); max-width: 82ch; margin: 8px 0 8px; }
+@media (max-width: 760px) { .sp-lead.eq-lead { font-size: var(--fs-14); } }
+
+/* 6 (22 Nov, round 2) · Money box: says when the buy prices are the statement's Rate. */
+.eqx-rate { margin: 10px 0 0; padding: 8px 10px; border-left: 3px solid var(--gold); border-radius: 0 var(--r-ctl) var(--r-ctl) 0; background: color-mix(in srgb, var(--gold) 9%, transparent); font: 400 var(--fs-13)/1.5 var(--sans); color: var(--text); }

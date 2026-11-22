@@ -7,6 +7,7 @@
 // Describes, never advises. Styles: styles/sectors-pack.css (sp-guide, sp-secbar, sp-more-in).
 import { Fragment, useEffect, useId, useState, type ReactNode } from "react";
 import { Link } from "react-router";
+import { foldAnchor, revealAndScroll } from "../../PhoneFold";
 import { COLOUR, MEANING, ORDER, WORD } from "../../../lib/pulsePack";
 import { BOX, BOX_ORDER } from "../../../lib/pulsePack";
 import { BOX_MEANING } from "../../../lib/rotationPack";
@@ -26,7 +27,7 @@ export function SectionsBar({ items }: { items: BarItem[] }) {
       raf = 0;
       const line = 160;
       let cur: string | null = null;
-      for (const it of items) { const e = document.getElementById(it.id); if (e && e.getBoundingClientRect().top <= line) cur = it.id; }
+      for (const it of items) { const e = foldAnchor(document.getElementById(it.id)); if (e && e.getBoundingClientRect().top <= line) cur = it.id; }   // task #310 part E: a closed phone section by its row
       setOn(cur);
     };
     const onScroll = () => { if (!raf) raf = requestAnimationFrame(pick); };
@@ -36,7 +37,7 @@ export function SectionsBar({ items }: { items: BarItem[] }) {
   }, [key]);   // eslint-disable-line react-hooks/exhaustive-deps
   const go = (id: string | null) => {
     const el = id ? document.getElementById(id) : document.querySelector(".sp-guide");
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    revealAndScroll(el, (x) => x.scrollIntoView({ behavior: "smooth", block: "start" }));
     if (id) setOn(id);
   };
   if (items.length < SECTION_BAR_MIN) return null;   // task #310 part D: a section bar only on a page with four or more sections

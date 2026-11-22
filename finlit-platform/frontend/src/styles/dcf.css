@@ -126,7 +126,7 @@
   .dcf-bridge .bar { grid-column: 1 / -1; grid-row: 2; }
 }
 @media print {
-  .side, .shell-fab, .dcf-co, .dcf-acts, .dcf-saved, .dcf-adv, header.nav, footer { display: none !important; }
+  .side, .dcf-co, .dcf-acts, .dcf-saved, .dcf-adv, header.nav, footer { display: none !important; }
   .dcf .card { break-inside: avoid; }
 }
 

@@ -4,7 +4,10 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import "../styles/hideable.css";
 
 const key = (id: string) => `finlit.hide.${id}`;
-const read = (id: string) => { try { return localStorage.getItem(key(id)) === "1"; } catch { return false; } };
+/** Task #323 (developer file 21, part 9; file 22, W1): panels that start closed until the member opens them once (Show stores "0", so it stays open):
+ *  the equity portfolio's three Key figures sections, and the Watchlists page's. Every other panel starts open, as before. */
+export const CLOSED_BY_DEFAULT = new Set(["pack.eq-keys", "pack.eq-keysd", "pack.eq-keysr"]);
+const read = (id: string) => { try { const v = localStorage.getItem(key(id)); return v == null ? CLOSED_BY_DEFAULT.has(id) : v === "1"; } catch { return CLOSED_BY_DEFAULT.has(id); } };
 
 // Task #274: a change made elsewhere on the page (the Equity view bar's All sections, its Sections menu) reaches every panel at once.
 const EV = "finlit-hide";
