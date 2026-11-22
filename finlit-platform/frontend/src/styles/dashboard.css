@@ -19,9 +19,9 @@
 .dsh .skeleton { border-radius: 10px; }
 
 /* greeting */
-.dsh-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 4px 4px 8px; }
+.dsh-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 4px 0 8px; }   /* task #310: an open page header, so the title starts at the left edge of the content column */
 .dsh-kicker { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--d-acc); }
-.dsh h1 { margin: 6px 0 4px; font: 600 32px/1.15 var(--font-serif, "Source Serif 4", Georgia, serif); color: var(--d-ink); }
+.dsh h1 { margin: 6px 0 4px; color: var(--d-ink); }
 .dsh-meta { margin: 0; font-size: 14px; color: var(--d-mut2); }
 .dsh-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 
@@ -51,7 +51,7 @@
 .dsh .stb-step { scroll-margin-top: 140px; }
 .dsh-card { background: var(--d-card); border: 1px solid var(--d-line); border-radius: 16px; padding: 20px 24px; min-width: 0; box-shadow: none; }
 .dsh-card .dsh-ch { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 12px; margin-bottom: 12px; }
-.dsh-card h2 { margin: 0; font: 600 20px/1.25 var(--font-serif, "Source Serif 4", Georgia, serif); color: var(--d-ink); }
+.dsh-card h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); color: var(--d-ink); }
 .dsh-sub { margin: 2px 0 0; font-size: 13px; color: var(--d-mut); }
 .dsh-note { margin: 0 0 8px; font-size: 14px; color: var(--d-mut2); } .dsh-p { margin: 8px 0 16px; font-size: 14px; color: var(--d-mut2); }
 .dsh-foot { margin: 8px 0 0; font-size: 12px; color: var(--d-mut); }
@@ -136,7 +136,7 @@
 /* Setup drawer */
 .dsh-scrim { position: fixed; inset: 0; z-index: 90; background: var(--ov-backdrop, var(--overlay)); }
 .dsh-drawer { position: fixed; z-index: 91; top: 0; right: 0; bottom: 0; width: min(440px, 100vw); overflow: auto; background: var(--ov-surface, var(--d-card)); border-left: 1px solid var(--d-line); padding: 20px 24px; color: var(--d-ink); font: 400 14px/1.45 var(--font-sans, Inter, sans-serif); }
-.dsh-drawer .dh { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; } .dsh-drawer h2 { margin: 0; font: 600 20px/1.25 var(--font-serif, serif); }
+.dsh-drawer .dh { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; } .dsh-drawer h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
 .dsh-drawer ol { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
 .dsh-drawer li { display: grid; grid-template-columns: 24px 1fr; gap: 4px 12px; padding: 12px; border: 1px solid var(--d-line2); border-radius: 12px; } .dsh-drawer li .dsh-btn { grid-column: 2; justify-self: start; margin-top: 8px; text-decoration: none; }
 .dsh-drawer li div { display: flex; flex-direction: column; } .dsh-drawer li div span { font-size: 13px; color: var(--d-mut2); }
@@ -159,8 +159,7 @@
 /* phones */
 .dsh-hide-phone { display: block; }
 @media (max-width: 759px) {
-  .dsh { gap: 16px; padding-top: 16px; padding-bottom: 104px; }
-  .dsh h1 { font-size: 28px !important; line-height: 1.15 !important; } .dsh-card { padding: 16px; } .dsh .dsh-card h2, .dsh-drawer h2 { font-size: var(--fs-section-title) !important; line-height: 28px !important; }   /* task #195: every card title 20px; !important: the site-wide phone heading rule in luxe.css is !important too */
+  .dsh { gap: 16px; padding-top: 16px; padding-bottom: 104px; } .dsh-card { padding: 16px; }   /* task #310: the title and the card titles keep their roles on a phone (ui-title 28px, H2 24px) */
   .dsh-st .nm a { display: flex; align-items: center; min-height: 44px; } .dsh-mv, .dsh-sl { min-height: 44px; align-items: center; } .dsh-sl a { display: flex; align-items: center; min-height: 44px; }
   .dsh-head { align-items: flex-start; } .dsh-actions { width: 100%; } .dsh-btn, .dsh-chip { height: 44px; } .dsh-ib { width: 44px; height: 44px; }
   .dsh-seg button, .dsh-chips > button, .dsh-menu > button { height: 44px; padding: 0 14px; }
@@ -649,7 +648,7 @@
 
 /* ---------- task #195 (dashboard pack, 15 Nov 2026) ---------- */
 /* one type scale: every card title 20, the market read lead and readings 18, notes 13, captions 12 */
-.dsh .dsh-card h2 { font-size: var(--fs-section-title); line-height: 28px; }
+.dsh .dsh-card h2 { font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
 .dsh-mr-lead { font: 400 18px/1.45 var(--serif); margin: 6px 0 2px; }
 .dsh-rd-v { font: 600 18px/1.3 var(--font-sans, Inter, sans-serif); font-variant-numeric: tabular-nums; margin: 2px 0; }
 .dsh-rd-x { font-size: var(--fs-small); line-height: 18px; } .dsh-rd-b { font-size: var(--fs-caption); }
@@ -673,7 +672,7 @@
 @media (max-width: 420px) { .dsh-pg-top { grid-template-columns: minmax(0, 1fr); justify-items: start; } }
 /* empty ETF and IPO cards: one-line strips, full width */
 .dsh-card.dsh-strip1 { flex-direction: row !important; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 14px 18px; }
-.dsh-strip1 h2.t { margin: 0; font: 600 var(--fs-section-title)/28px var(--font-serif, "Source Serif 4", Georgia, serif); color: var(--d-ink); }
+.dsh-strip1 h2.t { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); color: var(--d-ink); }
 .dsh-strip1 .m { flex: 1 1 260px; min-width: 0; margin: 0; font-size: var(--fs-body); line-height: 20px; color: var(--d-mut2); }
 .dsh-strip1 > .dsh-btn { flex: none; margin-left: auto; }
 /* tools row: four equal cards, the link at the bottom of each */

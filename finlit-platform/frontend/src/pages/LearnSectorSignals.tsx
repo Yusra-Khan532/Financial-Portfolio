@@ -21,7 +21,7 @@ export function LearnSectorSignalsPage() {
   useDocTitle(TITLE, DESC);
   return (
     <div className="wrap sx" data-testid="learn-signals">
-      <PageHeader eyebrow="Learn · Sector Pulse" title={TITLE} description={DESC} links={["/sectors"]} learn={false} />
+      <PageHeader titleVariant="read" eyebrow="Learn · Sector Pulse" title={TITLE} description={DESC} links={["/sectors"]} learn={false} />
       <div className="sx-learn">
         <section className="sx-card sx-sec" aria-labelledby="ls-what">
           <h2 id="ls-what">What Sector Pulse shows</h2>

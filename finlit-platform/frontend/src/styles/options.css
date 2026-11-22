@@ -2,7 +2,7 @@
 .oc { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; padding-bottom: 40px; }
 .oc .gate, .oc .gate > div { min-width: 0; }
 .oc .gate .card + .card, .oc .gate section + section, .oc .gate p + section { margin-top: 18px; }
-.oc h2 { font: 600 18px/1.3 var(--sans); margin: 0 0 12px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.oc h2 { font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); margin: 0 0 12px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
 .oc h2 .faint { font-size: 13px; font-weight: 400; }
 .oc .card { padding: 20px 22px; }
 
@@ -128,13 +128,13 @@
 @keyframes oc-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .oc-detail { animation: none; } }
 .oc-detail header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.oc-detail h3 { margin: 0; font: 700 16px var(--sans); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.oc-detail h3 { margin: 0; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .oc-tag { font: 700 12px var(--sans); padding: 1px 8px; border-radius: 999px; background: var(--gold); color: var(--on-gold); }
 .oc-x { border: 1px solid var(--border-strong); background: var(--s2); color: var(--text); border-radius: 8px; width: 32px; height: 32px; cursor: pointer; }
 .oc-dgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .oc-dcol { border-radius: 12px; padding: 12px 14px; border: 1px solid var(--border); }
 .oc-dcol.ce { background: linear-gradient(180deg, color-mix(in srgb, var(--oc-ce) 14%, transparent), transparent 70%); } .oc-dcol.pe { background: linear-gradient(180deg, color-mix(in srgb, var(--oc-pe) 14%, transparent), transparent 70%); }
-.oc-dcol h3 { font-size: var(--fs-16); margin-bottom: 8px; }
+.oc-dcol h3 { font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); margin-bottom: 8px; }
 .oc-dcol dl { margin: 0; display: grid; grid-template-columns: minmax(110px, auto) minmax(0, 1fr); gap: 6px 12px; font-size: var(--fs-14); }
 .oc-dcol dt { color: var(--muted); } .oc-dcol dd { margin: 0; font-family: var(--mono); text-align: right; } .oc-dcol dd.big { font-size: var(--fs-16); font-weight: 700; }
 .oc-dcol dd small { font-size: 12px; margin-left: 6px; } .oc-dcol .pos { color: var(--gain); } .oc-dcol .neg { color: var(--loss); }

@@ -10,7 +10,7 @@
 .cl-ic { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--cl-c); color: #fff; }
 .cl-k { font: 700 var(--fs-label)/16px var(--font-sans, Inter, sans-serif); letter-spacing: .08em; text-transform: uppercase; color: var(--cl-c); }
 .cl-watch .cl-k { color: var(--gold); }
-.cl h3 { margin: 2px 0 0; font: 600 var(--fs-reading)/22px var(--font-sans, Inter, sans-serif); color: var(--text); }
+.cl h3 { margin: 2px 0 0; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); color: var(--text); }
 .cl-x { margin: 0; font: 400 var(--fs-small)/18px var(--font-sans, Inter, sans-serif); color: var(--muted); }
 .cl-meter { display: flex; height: 8px; margin-top: 6px; border-radius: 99px; overflow: hidden; background: var(--s2); }
 .cl-meter i { display: block; height: 100%; flex-basis: 0; }

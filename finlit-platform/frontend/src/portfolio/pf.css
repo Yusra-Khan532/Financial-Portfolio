@@ -12,13 +12,13 @@
 :where(.pfx) ul { list-style: none; }
 .pfx-serif { font-family: var(--serif); }
 .pfx-card { background: var(--s1); border: 1px solid var(--pfx-line); border-radius: 14px; padding: 24px; min-width: 0; }
-.pfx-card h2 { font-family: var(--serif); font-size: 24px; line-height: 32px; font-weight: 500; color: var(--pfx-ink); }
-.pfx-card h3 { font-size: 16px; line-height: 24px; font-weight: 600; color: var(--pfx-ink); }
+.pfx-card h2 { font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); color: var(--pfx-ink); }
+.pfx-card h3 { font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); color: var(--pfx-ink); }
 .pfx-row { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
 .pfx-grow { flex: 999 1 560px; min-width: 0; }
 .pfx-side { flex: 1 1 300px; min-width: 0; }
 .pfx-stack { flex: 1 1 300px; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
-.pfx-stack h2 { font-size: 20px; line-height: 28px; margin-bottom: 12px; }
+.pfx-stack h2 { font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); margin-bottom: 12px; }
 .pfx-wide { width: 100%; }
 .pfx-h { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; margin-bottom: 16px; }
 .pfx-note, .pfx-sub { font-size: 12px; line-height: 16px; color: var(--faint); }
@@ -154,7 +154,7 @@
 /* what moves together */
 .pfx-btn svg { transition: transform .15s; }
 .pfx-tg-body { display: flex; flex-direction: column; gap: 28px; }
-.pfx-tg-body h3 { font-size: 16px; }
+.pfx-tg-body h3 { font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); }
 .pfx-segs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 12px; }
 .pfx-seg { display: flex; flex-direction: column; align-items: stretch; text-align: left; gap: 4px; padding: 16px; border-radius: 12px; background: var(--s2); border: 1px solid var(--pfx-line); color: var(--pfx-ink); font: inherit; cursor: pointer; }
 .pfx-seg.on { background: var(--bg); border: 2px solid var(--pfx-ink); padding: 15px; }
@@ -195,10 +195,10 @@
 .pfx-pill2 { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px; background: var(--s1); border: 1px solid var(--pfx-line); font-size: 12px; line-height: 20px; font-weight: 700; color: var(--pfx-ink); }
 .pfx-pill2 .pfx-dot { width: 8px; height: 8px; }
 .pfx-grid-says { padding: 16px; border: 1px solid var(--pfx-line); border-radius: 12px; }
-.pfx-grid-says h3 { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--pfx-ink2); margin-bottom: 8px; }
+.pfx-grid-says h3 { font: var(--ui-fw-semibold) var(--fs-label)/var(--lh-12) var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--pfx-ink2); margin-bottom: 8px; }
 .pfx-grid-says ul { display: flex; flex-direction: column; gap: 6px; padding-left: 18px; list-style: disc; font-size: 14px; line-height: 20px; color: var(--pfx-ink); }
 .pfx-pickbox { padding: 16px; border: 1px dashed var(--border-strong); border-radius: 12px; } .pfx-pickbox p { font-size: 14px; color: var(--pfx-ink2); margin-top: 6px; }
-.pfx-rest .pfx-h { margin-bottom: 4px; } .pfx-rest h3 { font-size: 20px; line-height: 28px; font-weight: 500; }
+.pfx-rest .pfx-h { margin-bottom: 4px; } .pfx-rest h3 { font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); }
 .pfx-restbars { display: flex; align-items: flex-end; gap: 4px; height: 150px; margin-top: 16px; padding-bottom: 76px; position: relative; border-bottom: 1px solid var(--border-strong); }
 .pfx-restbars span { position: relative; flex: 1; height: 100%; display: flex; align-items: flex-end; min-width: 0; }
 .pfx-restbars i { display: block; width: 100%; border-radius: 3px 3px 0 0; background: var(--s3); }
@@ -266,7 +266,7 @@
 /* phone and narrow */
 @media (max-width: 1100px) { .pfx-sum { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pfx-gsplit { grid-template-columns: minmax(0, 1fr); } .pfx-tilt li { grid-template-columns: 150px minmax(0, 1fr) 190px; } }
 @media (max-width: 760px) {
-  .pfx-card { padding: 16px; border-radius: 12px; } .pfx-card h2 { font-size: 20px; line-height: 28px; }
+  .pfx-card { padding: 16px; border-radius: 12px; }
   .pfx-long { display: none; } .pfx-compact { display: inline; }
   .pfx-sum { gap: 10px; } .pfx-k { padding: 16px; } .pfx-big { font-size: 32px; line-height: 40px; }
   .pfx-bar-row { flex-direction: column; align-items: stretch; } .pfx-nav { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; } .pfx-nav .pfx-pillbtn { flex: 0 0 auto; }

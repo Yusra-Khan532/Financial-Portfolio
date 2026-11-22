@@ -291,7 +291,7 @@ export function MfPortfolioPage() {
         {/* task #275 (change 2): the compact top: title, plan, as-of and the add box in one row; the money box that says what it covers, and Your portfolios */}
         <header className="ptk-head" id="mfp-top">
           <div className="ptk-t1">
-            <div className="ptk-ht"><h1>MF portfolio</h1><p className="ptk-plan mfp-plan"><span>{TIER[plan].n}</span></p>
+            <div className="ptk-ht"><h1 className="ui-title">MF portfolio</h1><p className="ptk-plan mfp-plan"><span>{TIER[plan].n}</span></p>
               <Tip text="How healthy your mutual funds are, what sits inside them, how alike they are, and how risky they are together." how="Start with names; add units when you want the figures to follow your money. Each fund is read by its ISIN, which names the exact plan and option." label="About the MF portfolio" />
               {d?.dataDate && <span className="ptk-asof">NAVs at close · {dm(d.dataDate)}</span>}</div>
             <AddBox placeholder="Add a fund by name or ISIN" noun={["fund", "funds"]} useResults={useFundGroupResults} full={full} fullWhy={`Your plan holds ${limit} funds. Remove one to add another.`}

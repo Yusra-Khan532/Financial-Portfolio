@@ -44,7 +44,7 @@
 .si-stat b { font-size: 20px; font-variant-numeric: tabular-nums; }
 .si-stat small { font-size: 12px; color: var(--muted); }
 .si-sec { padding: 20px 22px; min-width: 0; }
-.si-sec h2 { font-size: 18px; line-height: 24px; margin: 0 0 4px; }
+.si-sec h2 { font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); margin: 0 0 4px; }
 .si-lead { margin: 0 0 12px; font-size: 13px; line-height: 18px; color: var(--muted); }
 .si-foot { margin: 10px 0 0; font-size: 12px; color: var(--muted); }
 

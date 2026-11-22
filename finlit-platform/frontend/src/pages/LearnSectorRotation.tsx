@@ -19,7 +19,7 @@ export function LearnSectorRotationPage() {
   useDocTitle(TITLE, DESC);
   return (
     <div className="wrap sx rt" data-testid="learn-rotation">
-      <PageHeader eyebrow="Learn · Sector Rotation" title={TITLE} description={DESC} links={["/sectors/rotation"]} learn={false} />
+      <PageHeader titleVariant="read" eyebrow="Learn · Sector Rotation" title={TITLE} description={DESC} links={["/sectors/rotation"]} learn={false} />
       <div className="sx-learn">
         <section className="rt-card sx-sec" aria-labelledby="lr-what">
           <h2 id="lr-what">What Sector Rotation shows</h2>

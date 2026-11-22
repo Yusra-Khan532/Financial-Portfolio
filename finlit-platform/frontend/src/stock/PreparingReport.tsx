@@ -28,7 +28,7 @@ export function PreparingReport({ symbol, name, sector, mode, done, total, onRet
       <div className="prep-head">
         <span className="prep-badge skeleton" aria-hidden="true" />
         <div className="prep-id">
-          <h1 className="prep-name">{name || symbol}</h1>
+          <h1 className="prep-name ui-title">{name || symbol}</h1>
           <div className="prep-sub"><b>{symbol}</b>{industry ? <span> · Industry: {industry}</span> : null}</div>
         </div>
         <div className="prep-price skeleton" aria-hidden="true" />

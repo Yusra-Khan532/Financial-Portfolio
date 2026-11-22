@@ -140,6 +140,11 @@ def _today() -> date:
 
 
 HISTORY_TTL_S = 300
+# what the sources have given so far (for checking the data jobs from outside)
+COVERAGE_SQL = """SELECT count(*) FILTER (WHERE listed) AS listed, count(*) FILTER (WHERE day1_close IS NOT NULL) AS day1,
+    count(*) FILTER (WHERE last_px IS NOT NULL) AS "lastClose", count(*) FILTER (WHERE bse_ticker IS NOT NULL) AS "bseTickers",
+    count(*) FILTER (WHERE ca_checked_at IS NOT NULL AND nse IS NOT NULL) AS "caCheckedNse", count(*) FILTER (WHERE ca_checked_at IS NOT NULL AND nse IS NULL) AS "caCheckedBse",
+    count(*) FILTER (WHERE ca_factor IS NOT NULL AND nse IS NULL) AS "caFactorBse", count(*) FILTER (WHERE nse_book IS NOT NULL) AS "nseBooks" FROM ipo_gmp"""
 _history: Dict[str, Any] = {"t": 0.0, "body": None}
 
 
@@ -151,8 +156,11 @@ async def history(request: Request) -> Response:
     async with request.app.state.store.pool.acquire() as conn:
         rs = [dict(x) for x in await conn.fetch(ROWS_SQL, None)]
         newest = await conn.fetchval("SELECT max(fetched_at) FROM ipo_gmp")
+        cov = dict(await conn.fetchrow(COVERAGE_SQL))
+        from .flows import get_meta
+        cov["lastPricesRun"] = await get_meta(conn, "ipo-prices:last")
     today = _today()
-    body = {"items": [row(x, today) for x in rs], "asOf": today.isoformat(), "updatedAt": newest.isoformat() if newest else None, "sources": SOURCES,
+    body = {"items": [row(x, today) for x in rs], "coverage": cov, "asOf": today.isoformat(), "updatedAt": newest.isoformat() if newest else None, "sources": SOURCES,
             "note": "GMP (grey market premium) is an informal, unofficial grey-market price, as InvestorGain recorded it; it is not an exchange figure."}
     text = json.dumps(body, default=str)
     _history.update(t=time.monotonic(), body=text)

@@ -322,16 +322,16 @@ section.block { padding-block: 64px 0; }
 .sh-n { font: 400 64px/1 var(--serif); letter-spacing: -.03em; color: var(--sc); flex: none; font-variant-numeric: lining-nums; }
 .sh-rule { width: 1px; align-self: stretch; min-height: 52px; background: var(--border-strong, var(--border)); flex: none; }
 .sh-l:has(.sh-n) { gap: 18px; }
-.sh-l:has(.sh-n) h2 { font-size: var(--fs-40); }
+.sh-l:has(.sh-n) h2 { font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
 .sh .no { font-size: 12px; font-weight: 700; letter-spacing: .18em; color: var(--sc); text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
-h2 { font-family: var(--serif); font-weight: 400; font-size: var(--fs-32); line-height: 1.1; margin: 2px 0 0; letter-spacing: -.015em; }
+h2 { font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); margin: 2px 0 0; letter-spacing: -.015em; }
 .sh-r { display: flex; flex-direction: column; align-items: flex-end; align-self: flex-start; gap: 10px; text-align: right; } .sh-r p { margin: 0; }
 .sh p { margin: 6px 0 0; color: var(--muted); max-width: 60ch; }
 .card { position: relative; background: linear-gradient(180deg, color-mix(in srgb, var(--ac, var(--gold)) 5%, var(--s1)), var(--s1) 160px); border: 1px solid var(--border); border-radius: 20px; padding: 22px 24px; box-shadow: var(--shadow); min-width: 0; }
 /* task #216 (pack 1.7): the accent is a 2 px top border, so it follows the rounded corners (the old straight bar ran past them on every accented card) */
 .card.acc { border-top: 2px solid color-mix(in srgb, var(--ac, var(--gold)) 80%, var(--border)) !important; }   /* !important: theme rules set the whole card border in dark mode */
 .card-h { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
-.card-h h3 { margin: 0; font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+.card-h h3 { margin: 0; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); display: flex; align-items: center; gap: 10px; }
 .ci { width: 30px; height: 30px; flex: none; border-radius: 9px; display: grid; place-items: center; color: var(--ac); background: color-mix(in srgb, var(--ac) 15%, transparent); }
 .ci svg { width: 16px; height: 16px; }
 .card-h .s { font-size: var(--fs-13); color: var(--faint); display: inline-flex; gap: 6px; align-items: center; }
@@ -492,7 +492,6 @@ tbody tr:hover td { background: var(--s2); }
 /* ---------- Plans ---------- */
 .plans { margin-top: 96px; padding-block: 72px 64px; overflow: hidden; }
 .plans-h { text-align: center; max-width: 760px; margin: 0 auto 26px; }
-.plans-h h2 { font-size: clamp(32px, 4vw, 48px); line-height: 1.08; }
 .plans-h h2 em { font-style: italic; background: linear-gradient(120deg, var(--gold-deep), var(--gold-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .plans-h p { color: var(--muted); margin: 12px auto 0; font-size: 16px; }
 .trust { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px 26px; margin: 0 0 36px; font-size: 13px; color: var(--muted); }
@@ -582,7 +581,7 @@ tbody tr:hover td { background: var(--s2); }
 /* Footer */
 footer.band { padding-block: 0; border-top: 1px solid rgba(255,255,255,.08); }
 .fcta { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding-block: 44px 36px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
-.fcta h2 { font-size: 32px; }
+.fcta h2 { font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
 .fcta p { margin: 6px 0 0; color: var(--muted); }
 .ffine { padding-block: 26px calc(34px + env(safe-area-inset-bottom, 0px)); font-size: var(--fs-13); color: var(--faint); display: grid; gap: 6px; }
 
@@ -669,9 +668,8 @@ footer.band { padding-block: 0; border-top: 1px solid rgba(255,255,255,.08); }
   .mini { display: none; }
   .hide-sm { display: none !important; }
   section.block { padding-top: 48px; }
-  h2 { font-size: 28px; }
   .sh-ic { width: 42px; height: 42px; }
-  .sh-n { font-size: 44px; } .sh-rule { min-height: 40px; } .sh-l:has(.sh-n) { gap: 12px; } .sh-l:has(.sh-n) h2 { font-size: 28px; }
+  .sh-n { font-size: 44px; } .sh-rule { min-height: 40px; } .sh-l:has(.sh-n) { gap: 12px; }
   .divs { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 22px; }
   .divs::before { display: none; }
   .peer { grid-template-columns: 40px minmax(0, 1fr) 110px; }

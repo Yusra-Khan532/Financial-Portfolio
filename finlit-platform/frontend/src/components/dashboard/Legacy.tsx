@@ -104,12 +104,11 @@ export function Locked({ tier, label }: { tier: Plan; label: string }) {
 export function CommoditiesW() {
   const q = useCommodities();
   const rows = (q.data?.items ?? []).filter((i) => ["gold", "silver", "crude"].includes(i.code) && i.mcx?.price);
-  if (q.isError || (q.data && !rows.length)) return <Empty icon="activity" title="Gold and silver today" text="MCX gold, silver and crude oil with the day change, and the international price beside them." to="/commodities" cta="Open commodity prices" />;
+  if (q.isError || (q.data && !rows.length)) return <Empty icon="activity" title="Gold and silver today" text="MCX gold, silver and crude oil with the day change, and the international price beside them." to="/macro" cta="Open India economy" />;
   if (!q.data) return <div className="skeleton" style={{ height: 120 }} />;
   return <><ul className="sl">{rows.map((i) => { const m = i.mcx!; const d = direction(m.change?.pct);
-    return <li key={i.code}><Link to="/commodities"><b>{i.name}</b>{m.change ? <span className={"chip " + (d === "up" ? "up" : d === "down" ? "down" : "gold")}>{signedPct(m.change.pct)}</span> : null}</Link>
-      <span>{inr(m.price!.value)} {m.price!.unit.replace(/^₹\s*/, "")} · {m.contract}{m.asOf ? ` · ${m.state === "closed" ? "last trade" : "trade at"} ${istTime(m.asOf)} IST` : ""}</span></li>; })}</ul>
-    <p className="rcs-all"><Link to="/commodities">Open commodity prices <Icon name="arrow" /></Link></p></>;
+    return <li key={i.code}><span className="sl-n"><b>{i.name}</b>{m.change ? <span className={"chip " + (d === "up" ? "up" : d === "down" ? "down" : "gold")}>{signedPct(m.change.pct)}</span> : null}</span>
+      <span>{inr(m.price!.value)} {m.price!.unit.replace(/^₹\s*/, "")} · {m.contract}{m.asOf ? ` · ${m.state === "closed" ? "last trade" : "trade at"} ${istTime(m.asOf)} IST` : ""}</span></li>; })}</ul></>;
 }
 
 type SavedDcf = { name: string; symbol: string | null; updatedAt: string; inputs: DcfInputs };

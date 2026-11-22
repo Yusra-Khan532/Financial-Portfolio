@@ -5,7 +5,7 @@
 .sip-hero p { margin: 0; max-width: 68ch; color: var(--muted); font-size: 16px; line-height: 1.55; }
 .sip-wrap { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
 .sip-card { background: var(--s1); border: 1px solid var(--border); border-radius: 22px; padding: 24px; box-shadow: var(--shadow); }
-.sip-card h2 { margin: 0; font: 600 18px var(--sans); }
+.sip-card h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
 
 /* main card: inputs | donut | results */
 .sip-main { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(220px, .8fr) minmax(0, 1fr); gap: 28px; align-items: start; }

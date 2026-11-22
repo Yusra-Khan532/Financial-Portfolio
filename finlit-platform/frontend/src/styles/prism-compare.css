@@ -97,7 +97,7 @@
 .dk-skel .s-row { height: calc(var(--dk-h-row) - 16px); margin-block: 8px; } .dk-skel .s-tiles { height: var(--dk-h-tiles); } .dk-skel .s-notes { height: calc(var(--dk-h-notes) - 20px); margin-top: 12px; margin-bottom: 8px; }
 .dk-empty { display: flex; align-items: center; gap: 18px; padding: 14px 18px; flex: 1; }
 .dk-empty-t { display: flex; flex-direction: column; gap: 8px; min-width: 0; align-items: flex-start; }
-.dk-empty-t h3 { margin: 0; font: 500 18px/1.3 var(--serif); }
+.dk-empty-t h3 { margin: 0; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); }
 .dk-empty-t p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
 .dk-empty-a { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; }
 .pzs-link { font-size: var(--fs-13); color: var(--gold); font-weight: 600; }
@@ -250,7 +250,7 @@
 .dk-comp { margin: 32px 0 0; padding: 14px 32px 18px; font-size: var(--fs-13); line-height: 1.5; border-top: 1px dashed var(--border); }
 .pz-busy, .pz-err { margin: 16px 32px 0; font-size: 14px; }
 .dk-skel .skeleton { margin: 24px 32px 0; } .dk-skel .s-row { height: 200px; margin-block: 24px 0; } .dk-skel .s-tiles { height: 130px; } .dk-skel .s-notes { height: 120px; margin-top: 24px; margin-bottom: 0; }
-.dk-empty { gap: 32px; padding: 32px; } .dk-empty-t h3 { font-size: 24px; } .dk-empty-t p { font-size: var(--fs-16); }
+.dk-empty { gap: 32px; padding: 32px; } .dk-empty-t h3 { font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); } .dk-empty-t p { font-size: var(--fs-16); }
 :root:root .report.dk-card.dk-detail { padding: 24px 32px 28px; gap: 24px; }
 .dk-full { gap: 32px; margin-top: 24px; }
 .dk-toggle { margin-top: 24px; } .dk-tg { height: 44px; padding: 0 22px; font-size: 14px; }

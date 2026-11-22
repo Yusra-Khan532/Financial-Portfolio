@@ -48,11 +48,11 @@ def input_gaps(row, inputs, meta):
 
     def pe():
         scalar('price','Market price',True)
+        # 3.6.21 (task #318): any one of these gives the P/E, so only all of them missing is a gap
         eps = inputs.get('eps_q', [])
-        if len(eps) >= 4:
-            series('eps_q','Trailing quarterly EPS',4,'quarterly')
-        elif num(inputs.get('eps_ttm')) is None and num(inputs.get('eps_fy')) is None:
-            gaps.append('Trailing EPS or latest annual EPS')
+        four = len(eps) >= 4 and all(num(v) is not None for v in eps[-4:])
+        if not four and num(inputs.get('eps_ttm')) is None and num(inputs.get('eps_fy')) is None:
+            gaps.append('Trailing EPS (the latest four quarters) or the latest annual EPS')
 
     if metric.endswith('_STREAK'):
         series('sales_q' if metric.startswith('SALES') else 'net_profit_q',
@@ -67,6 +67,8 @@ def input_gaps(row, inputs, meta):
             now, before, _ = recent(inputs.get(key,[]),[])
             if now is None or before is None or (key == 'sales_q' and (now <= 0 or before <= 0)):
                 gaps.append(f'{label} for matching current and prior margin periods')
+        if gaps:     # 3.6.21: the full-year fallback was not available either
+            gaps.append('Income and EBITDA for the latest two financial years')
     elif metric == 'INTEREST_COVER':
         scalar('profit_before_tax','Annual profit before tax')
         scalar('interest_cost','Annual P&L interest expense')
@@ -111,7 +113,7 @@ def input_gaps(row, inputs, meta):
         spec = {'GROSS_NPA':('gross_npa_pct','Gross NPA disclosure'), 'NET_NPA':('net_npa_pct','Net NPA disclosure'),
                 'PLEDGE':('promoter_pledged_pct','Promoter pledged-share disclosure'),
                 'VOLATILITY':('volatility_pct','At least 60 valid daily price returns'),
-                'BIGGEST_FALL':('biggest_fall_pct','Complete 250-session closing-price history'),
+                'BIGGEST_FALL':('biggest_fall_pct','Complete 250-session closing-price history, or at least 120 complete sessions since listing'),
                 'TRADING_VALUE':('trading_value_cr','Closing price and volume for the latest 60 sessions'),
                 'CAPITAL_ADEQUACY':('capital_adequacy_pct','Capital adequacy disclosure'),
                 'SOLVENCY':('solvency_ratio','Solvency disclosure')}.get(metric)
@@ -120,7 +122,8 @@ def input_gaps(row, inputs, meta):
         if gaps and metric in ('BIGGEST_FALL','TRADING_VALUE') and risk.get('sessions') is not None:
             n, bad = risk['sessions'], risk.get('invalidCloseLast250') if metric == 'BIGGEST_FALL' else risk.get('missingVolumeLast60')
             need = 250 if metric == 'BIGGEST_FALL' else 60
-            why = f'the provider returned {n} trading sessions' + (f', {need} are needed' if n < need else '') + (f'; {bad} of the latest {need} have no valid ' + ('closing price' if metric == 'BIGGEST_FALL' else 'volume') if bad else '')
+            need_text = f'{need} are needed' + (', or at least 120 complete ones since listing' if metric == 'BIGGEST_FALL' else '')
+            why = f'the provider returned {n} trading sessions' + (f', {need_text}' if n < need else '') + (f'; {bad} of the latest {need} have no valid ' + ('closing price' if metric == 'BIGGEST_FALL' else 'volume') if bad else '')
             gaps[-1] = f'{gaps[-1]} ({why})'
     return gaps or [info.get('note') or 'Compatible observations for this factor on the selected statement basis']
 

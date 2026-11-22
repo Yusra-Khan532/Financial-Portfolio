@@ -30,7 +30,6 @@ const BlogPost = lazy(() => import("./pages/Blog").then((m) => ({ default: m.Blo
 const Screener = lazy(() => import("./pages/Screener").then((m) => ({ default: m.Screener })));
 const PremiumHub = lazy(() => import("./pages/Premium").then((m) => ({ default: m.PremiumHub })));
 const MarketsPage = lazy(() => import("./pages/Markets").then((m) => ({ default: m.MarketsPage })));
-const FundamentalsPage = lazy(() => import("./pages/Fundamentals").then((m) => ({ default: m.FundamentalsPage })));
 const PremiumReportPage = lazy(() => import("./pages/PremiumReport").then((m) => ({ default: m.PremiumReportPage })));
 const PrismPage = lazy(() => import("./pages/Prism").then((m) => ({ default: m.PrismPage })));
 const QueryBuilder = lazy(() => import("./pages/QueryBuilder").then((m) => ({ default: m.QueryBuilder })));
@@ -54,7 +53,6 @@ const LearnSectorSignalsPage = lazy(() => import("./pages/LearnSectorSignals").t
 const MacroPage = lazy(() => import("./pages/Macro").then((m) => ({ default: m.MacroPage })));
 const FiiDiiPage = lazy(() => import("./pages/FiiDii").then((m) => ({ default: m.FiiDiiPage })));
 const SipCalculator = lazy(() => import("./pages/SipCalculator").then((m) => ({ default: m.SipCalculator })));
-const CommoditiesPage = lazy(() => import("./pages/Commodities").then((m) => ({ default: m.CommoditiesPage })));
 const StressLabPage = lazy(() => import("./pages/StressLab").then((m) => ({ default: m.StressLabPage })));
 const SuperinvestorsPage = lazy(() => import("./pages/Superinvestors").then((m) => ({ default: m.SuperinvestorsPage })));
 const DiscoveryPage = lazy(() => import("./pages/Discovery").then((m) => ({ default: m.DiscoveryPage })));   // task #241
@@ -117,7 +115,8 @@ export default function App() {
             <Route path="advanced-score-screener" element={<AdvancedScoreScreener />} />
             <Route path="premium" element={<PremiumHub />} />
             <Route path="premium/markets" element={<MarketsPage />} />
-            <Route path="premium/fundamentals" element={<FundamentalsPage />} />
+            {/* Task #317 (developer file 23): Company financials is off the site; its old address goes to the Company report (a 301 on the server). */}
+            <Route path="premium/fundamentals" element={<Navigate to="/research" replace />} />
             {/* Option chain: off for now (task #213); old links land on the Gold dashboards. The page (pages/OptionChain.tsx), /api/options and the option lot-size job stay, so it can come back by restoring this route and its nav entry. */}
             <Route path="premium/options" element={<Navigate to="/premium" replace />} />
             <Route path="premium/report" element={<PremiumReportPage />} />
@@ -132,7 +131,8 @@ export default function App() {
             <Route path="etfs/compare" element={<EtfComparePage />} />
             <Route path="etfs/compare-index-funds" element={<EtfVsIndexPage />} />
             <Route path="etfs/:symbol" element={<EtfDetailPage />} />
-            <Route path="commodities" element={<CommoditiesPage />} />
+            {/* Task #317 (developer file 23): Commodity prices is off the site; its old address goes to India economy (a 301 on the server). */}
+            <Route path="commodities" element={<Navigate to="/macro" replace />} />
             <Route path="fund-score-screener" element={<FundScoreScreener />} />
             <Route path="methodology/mf-score" element={<MfScoreMethod />} />
             <Route path="funds" element={<FundListPage />} />

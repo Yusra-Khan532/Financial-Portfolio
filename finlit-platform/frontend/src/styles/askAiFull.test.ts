@@ -14,7 +14,7 @@ describe("FinLit AI full window: the top row (task #226)", () => {
     expect(css.lastIndexOf("position: relative; top: auto")).toBeGreaterThan(css.lastIndexOf("position: absolute; top: 0; right: 0; left: 272px"));   // the later rule wins
   });
   it("lines its back arrow and buttons up with the conversation's edges (1080px wide, 24px inside)", () => {
-    expect(lastRule(".aif.full > header.aif-hd")).toMatch(/padding: 10px max\(24px, calc\(\(100% - 1080px\) \/ 2 \+ 24px\)\)/);
+    expect(lastRule(".aif.full > header.aif-hd")).toMatch(/padding: 6px max\(24px, calc\(\(100% - 1080px\) \/ 2 \+ 24px\)\)/);   // 6px top and bottom since task #314 (was 10px)
     expect(css).toMatch(/\.aif\.full \.ai-body \{ width: min\(1080px, 100%\); \}/);
   });
 });

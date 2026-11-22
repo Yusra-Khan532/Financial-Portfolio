@@ -74,7 +74,7 @@ export function Admin() {
   });
   return (
     <section className="sec"><div className="wrap">
-      <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 20 }}><h1 style={{ font: "300 40px var(--serif)", margin: 0 }}>Research publishing</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 20 }}><h1 className="ui-title">Research publishing</h1>
         <div style={{ display: "flex", gap: 8 }}><Link className="btn" to="/blog">View blog</Link><button className="btn" onClick={() => { try { sessionStorage.removeItem(KEY); } catch { /* ignore */ } nav("/console"); }}>Back to console</button></div></div>
       <div className="grid g2">
         <div className="card"><div className="card-h"><h3>Content</h3><span className="s">{list.data?.length ?? 0} items</span></div>

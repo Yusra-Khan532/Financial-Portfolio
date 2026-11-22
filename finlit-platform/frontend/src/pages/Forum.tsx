@@ -15,7 +15,7 @@ import { PLAN_FOR_FORUM } from "../lib/planGates";
 
 export { Body } from "../components/forum/ForumParts";
 
-const Shell = ({ title, children }: { title: string; children: React.ReactNode }) => <div className="wrap fo"><div className="eyebrow">Discussion</div><h1>{title}</h1><Disclaimer />{children}</div>;
+const Shell = ({ title, children }: { title: string; children: React.ReactNode }) => <div className="wrap fo"><div className="eyebrow">Discussion</div><h1 className="ui-title">{title}</h1><Disclaimer />{children}</div>;
 const FILTERS: [CompanyFilter, string][] = [["all", "All companies"], ["trending", "Trending"], ["discussed", "Most discussed"], ["following", "Following"]];
 const count = (n: number) => `${n.toLocaleString("en-IN")} ${n === 1 ? "discussion" : "discussions"}`;
 
@@ -75,7 +75,7 @@ function CompanyPanel({ symbol, board }: { symbol: string; board: string }) {
       <header className="fo-cp-head card">
         <CompanyLogo symbol={symbol} name={name || symbol} logo={qt?.logo} size={64} />
         <div className="fo-cp-id">
-          <h1>{name || symbol}</h1>
+          <h1 className="ui-title">{name || symbol}</h1>
           <div className="fo-cp-sub"><span className="tag tk">{symbol}</span>
             {qt?.price != null ? <><b className="fo-px">₹{nf(qt.price)}</b>{qt.chg != null && <span className={up ? "up" : "down"}>{up ? "▲" : "▼"} {up ? "+" : MINUS}{nf(Math.abs(qt.chg))}%</span>}</> : <span className="muted">Price not available</span>}</div>
         </div>
@@ -102,7 +102,7 @@ function Home({ symbol }: { symbol?: string }) {
     <div className="wrap fo fo2">
       <div className={"fo2-grid" + (symbol ? " has-company" : "")}>
         <div className="fo2-left">
-          <div className="fo-intro"><div className="eyebrow">Community</div><h1 className="fo-h1">Discussion forums</h1><p className="muted">Discuss, ask and share what you find in the filings of Indian companies.</p></div>
+          <div className="fo-intro"><div className="eyebrow">Community</div><h1 className="fo-h1 ui-title">Discussion forums</h1><p className="muted">Discuss, ask and share what you find in the filings of Indian companies.</p></div>
           {me?.moderator && <div className="seg fo-boards" role="group" aria-label="Board">{PLANS.map((b) => <button type="button" key={b} aria-pressed={(board || me.board) === b} onClick={() => setPick(b)}>{BOARD_NAME[b]}</button>)}</div>}
           {me?.signedIn && <Companies active={symbol} board={board} />}
         </div>

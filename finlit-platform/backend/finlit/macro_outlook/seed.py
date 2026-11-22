@@ -14,7 +14,7 @@ GROUPS = [("inflation", "Inflation"), ("monetary", "Monetary Policy"), ("credit"
 MOSPI, RBI, FBIL = ("MoSPI", "https://esankhyiki.mospi.gov.in"), ("RBI", "https://www.rbi.org.in"), ("RBI / FBIL", "https://www.fbil.org.in")
 EIA = ("U.S. EIA", "https://www.eia.gov/dnav/pet/hist/RBRTED.htm")
 WB = ("World Bank Commodity Price Data (Pink Sheet), CC BY 4.0", "https://www.worldbank.org/en/research/commodity-markets")
-COMM = ("Commodity price snapshots (metals.dev / MetalpriceAPI via the commodity worker)", "https://www.finlitventures.com/commodities")
+COMM = ("Commodity price snapshots (metals.dev / MetalpriceAPI via the commodity worker)", "https://www.finlitventures.com/macro")
 
 
 def thr(neutral: float, scale: float) -> Dict[str, Any]:

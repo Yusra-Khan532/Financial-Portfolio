@@ -7,7 +7,7 @@
 
 .mfi-card { padding: 18px 20px; margin: 0; overflow: hidden; }
 .mfi-card-h { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin-bottom: 12px; }
-.mfi-card-h h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px; }
+.mfi-card-h h3 { display: flex; align-items: center; gap: 8px; margin: 0; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); }
 
 /* ---- KPI cards */
 .mfi-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }

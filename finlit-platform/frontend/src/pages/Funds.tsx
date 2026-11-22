@@ -317,7 +317,7 @@ export function FundDetailPage() {
       <header className="mf-head">
         <div>
           <span className="eyebrow">{d.categoryGroup}</span>
-          <h1>{d.name}</h1>
+          <h1 className="ui-title">{d.name}</h1>
           <ul className="mf-chips" aria-label="About this scheme">
             <li><Link className="chip gold" to={`/funds?amc=${encodeURIComponent(d.amc)}`}>{d.amc}</Link></li>
             <li><Link className="chip ghost" to={`/funds?category=${encodeURIComponent(d.category)}`}>{categoryShort(d.category)}</Link></li>

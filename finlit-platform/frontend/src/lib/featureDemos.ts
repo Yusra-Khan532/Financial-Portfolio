@@ -35,7 +35,7 @@ export const DEMOS: Record<string, Demo> = {
   calendars: v("calendars", "Results, IPO and news calendars", "Result dates, open and upcoming IPOs and company filings, in one place.", "/results", "Open the calendars"),
   outlook: v("outlook", "Revenue and profit forecasting", "Estimates of revenue and profit from the company's own history and its sector, with the weights you choose.", "/outlook", "Open the outlook"),
   downloads: v("downloads", "Downloads", "Save a company's report as a PDF note or an offline copy, and download tables as CSV.", "/stocks/RELIANCE", "Open a company report"),
-  segments: v("segments", "Revenue by segment", "Where the company's revenue and profit come from, segment by segment, over the years.", "/premium/fundamentals", "Open company financials"),
+  segments: v("segments", "Revenue by segment", "Where the company's revenue and profit come from, segment by segment, over the years.", "/research", "Open the company report"),
   "gold-dash": v("gold-dash", "Gold dashboards", "Markets and financials: index moves with the events behind them, and every ratio over the years.", "/premium", "Open the Gold dashboards"),
   superinvestors: v("superinvestors", "Superinvestor portfolios", "What named investors own, from company filings: every stake of 1% or more, its value today, the weightings, the sector split and the year's changes.", "/superinvestors", "Open superinvestor portfolios"),
   options: v("options", "Option chain", "Open interest, its change, volume and implied volatility by strike, with the put-call ratio and max pain.", "/premium/options", "Open the option chain"),

@@ -29,7 +29,7 @@
 .ec-dlg { position: fixed; z-index: 310; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(1080px, calc(100% - 24px)); height: min(760px, calc(100dvh - 24px));
   display: flex; flex-direction: column; border: 1px solid var(--border-strong); border-radius: 22px; overflow: hidden; background: var(--s1); color: var(--text); }
 .ec-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 22px 14px; border-bottom: 1px solid var(--border); }
-.ec-head h3 { margin: 0; font: 400 24px/1.2 var(--serif); }
+.ec-head h3 { margin: 0; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); }
 .ec-head p { margin: 4px 0 0; color: var(--muted); font-size: var(--fs-14); }
 .ec-dlg .ec-x { position: static; flex: none; width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border); background: var(--s3); color: var(--text); font-size: var(--fs-20); line-height: 1; cursor: pointer; }
 .ec-dlg .ec-x:hover { border-color: var(--gold); color: var(--gold); }
@@ -84,7 +84,7 @@
 @media (max-width: 760px) {
   .ec-card { padding: 16px; }
   .ec-dlg { width: 100%; height: 100dvh; top: 0; left: 0; transform: none; border-radius: 0; border-width: 0; }
-  .ec-head { padding: 14px 16px 10px; } .ec-head h3 { font-size: var(--fs-18); }
+  .ec-head { padding: 14px 16px 10px; }
   .ec-body { display: block; overflow-y: auto; }
   .ec-rail { border-right: 0; border-bottom: 1px solid var(--border); padding: 12px 16px; overflow: visible; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; align-items: end; }
   .ec-co, .ec-hint, .ec-ai p { display: none; }

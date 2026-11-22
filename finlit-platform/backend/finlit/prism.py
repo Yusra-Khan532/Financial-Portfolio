@@ -329,11 +329,13 @@ CLASSIFICATION_VERSION = 3
 # 3.6.19: CAGR ladders (5, 4, 3, 2 years); PEG growth skips a missing or negative window (owner, 17 November 2026).
 # 3.6.20: interest cover is FinEdge's reported trailing-12-month interest coverage (the company report's figure) and is scored for every
 # non-financial company, low-debt ones included (owner, task #199).
-REQUIRED_MODEL_VERSION = "3.6.20"
+# 3.6.21: a recently listed company's missing quarters no longer empty its P/E (the latest full year's EPS stands in), its margin change is measured
+# on full years and its largest fall since listing (owner Pranjal, task #318). The NOT RATED reports are rebuilt first (_pending).
+REQUIRED_MODEL_VERSION = "3.6.21"
 # Reports of these older versions stay ON SCREEN (with their date) while they are rebuilt, instead of being hidden: a hidden report makes every page
 # open wait for a live calculation (as after 3.6.16-3.6.18). They are still out of date everywhere else (stale_model): a calculation never reuses
 # one, opening one rebuilds it in the background, and the nightly job rebuilds them. Older versions than these stay hidden.
-SHOWN_WHILE_REBUILDING = ("3.6.18", "3.6.19")
+SHOWN_WHILE_REBUILDING = ("3.6.18", "3.6.19", "3.6.20")
 CLASSIFICATION_MARK = "model group"      # in the rating's alerts of a report withheld by the classification check, before and after the fix
 # Mirrors REVENUE_VERSION in site-api/backend/premium_model_config.py (a test keeps them equal). Version 2 (17 November 2026): insurers' revenue
 # (premium earned) is read, and a company with no consolidated statements uses its standalone ones. Only the reports that can change are rebuilt
@@ -1344,7 +1346,8 @@ async def _pending(store, statement: str, days: int, limit: int, skip: list, sta
             "SELECT s.symbol FROM (SELECT DISTINCT symbol FROM snapshots WHERE section = 'summary') s "  # nosec B608 (only module constants are interpolated; values are bound)
             "LEFT JOIN listing_quotes q ON q.symbol = s.symbol LEFT JOIN prism_reports p ON p.symbol = s.symbol AND p.statement = $1 "
             f"WHERE {'(' + STALE_SQL + ' OR ' + STALE_REVENUE_SQL + ') AND $2::int IS NOT NULL' if stale_only else '(p.symbol IS NULL OR p.generated_at < now() - make_interval(days => $2) OR ' + STALE_MODEL_SQL + ' OR ' + STALE_SQL + ' OR ' + STALE_REVENUE_SQL + ')'} AND NOT (s.symbol = ANY($4::text[])) "
-            f"ORDER BY ({STALE_SQL}) DESC, ({STALE_REVENUE_SQL}) DESC, ({STALE_MODEL_SQL}) DESC, (p.symbol IS NULL) DESC, q.market_cap DESC NULLS LAST, s.symbol LIMIT $3",
+            f"ORDER BY ({STALE_SQL}) DESC, ({STALE_REVENUE_SQL}) DESC, ({STALE_MODEL_SQL}) DESC, (p.status = 'NOT RATED') IS TRUE DESC, (p.symbol IS NULL) DESC, "
+            "q.market_cap DESC NULLS LAST, s.symbol LIMIT $3",
             statement, days, limit, skip, CLASSIFICATION_VERSION, REQUIRED_MODEL_VERSION)
     return [r["symbol"] for r in rows]
 

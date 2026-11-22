@@ -46,7 +46,7 @@ function Crowned({ title, plan }: { title: string; plan: string }) {
 }
 const TOOL_ICON: Record<string, string> = {
   "stock-screener": "table", "advanced-score-screener": "layers", "query-builder": "notes", "mutual-funds": "pie", "etfs": "bars", "fund-health-score": "gauge",
-  "company-report": "search", "finlit-prism": "prism", "company-financials": "table", "compare-companies": "compare", "chart-builder": "line", "correlation-charts": "activity",
+  "company-report": "search", "finlit-prism": "prism", "compare-companies": "compare", "chart-builder": "line", "correlation-charts": "activity",
   "dcf-calculator": "rupee", "reverse-valuation": "refresh", "profit-revenue-outlook": "activity", "eps-calculator": "percent", "sip-calculator": "coins", "stress-lab": "alert",
   "watchlists": "star", "equity-portfolio": "wallet", "mf-portfolio": "pie", "alerts": "bell", "compare-funds": "compare", "etf-portfolio": "bars",
   "sector-pulse": "activity", "sector-rotation": "refresh", "market-events": "calendar", "market-data": "globe", "news-filings": "notes", "results-calendar": "calendar", "ipo-calendar": "bell",
@@ -157,7 +157,7 @@ export function ExploreTools() {
     <section className="sec hh-sec xt" id="platform" aria-labelledby="xt-title"><div className="wrap">
       <div className="xt-head">
         <p className="xt-pill"><span>The platform</span></p>
-        <h2 id="xt-title">Everything you need. <em>Nothing you don't.</em></h2>
+        <h2 id="xt-title" className="ui-h2--marketing">Everything you need. <em>Nothing you don't.</em></h2>
         <p>A complete toolkit to explore companies, run quantitative models, track your portfolio and stay informed across sectors.</p>
       </div>
       <div className="xt-hero xt-panel">

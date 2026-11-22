@@ -10,7 +10,7 @@
 
 .wc { scroll-margin-top: 90px; }
 .wc .wp-sub { margin: 6px 0 0; }
-.wc h2 { margin: 0; font: 600 24px/1.25 var(--serif); color: var(--wc-ink); }
+.wc h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); color: var(--wc-ink); }
 .wc-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin: 16px 0 12px; }
 .wc-ln { font: 700 16px var(--sans); color: var(--wc-ink); }
 .wc-lists { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -72,7 +72,7 @@
 
 /* "Alert me": the short form, as the pack's alerts-02 picture */
 .wc-am { margin: 16px 0 4px; padding: 16px 18px; border: 1.5px solid var(--wc-ink); border-radius: 14px; background: var(--wc-panel); }
-.wc-am h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font: 600 18px var(--sans); color: var(--wc-ink); }
+.wc-am h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); color: var(--wc-ink); }
 .wc-kc { display: flex; flex-wrap: wrap; gap: 8px; }
 .wc-ck { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--wc-line); font: 600 14px var(--sans);
   color: var(--wc-ink); cursor: pointer; background: var(--wc-panel); }

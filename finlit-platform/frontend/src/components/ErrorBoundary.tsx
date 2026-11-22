@@ -20,7 +20,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode; section?: st
     return (
       <div style={{ padding: "72px 16px", display: "grid", placeItems: "center" }}>
         <article className="card" role="alert" style={{ maxWidth: 520, width: "100%", padding: 28, textAlign: "center" }}>
-          <h1 style={{ fontSize: 24, margin: "0 0 10px" }}>{this.state.stale ? "A new version of FinLit is ready" : "Something went wrong on this page"}</h1>
+          <h1 className="ui-title" style={{ margin: "0 0 10px" }}>{this.state.stale ? "A new version of FinLit is ready" : "Something went wrong on this page"}</h1>
           <p className="muted" style={{ margin: "0 0 18px" }}>{this.state.stale ? "The site was just updated. Reloading brings you the new version." : "Your data is safe. Reload the page, or go back to your dashboard. If it keeps happening, tell us on the contact page."}</p>
           <p style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", margin: 0 }}>
             <button className="btn primary" onClick={() => location.reload()}>Reload</button>

@@ -29,7 +29,7 @@
 
 /* ---- header ---- */
 .mi-head { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px 32px; padding: 22px 24px; }
-.mi-head h1 { margin: 6px 0 6px; font: 600 var(--fs-page-title)/40px var(--font-serif, Georgia, serif); }
+.mi-head h1 { margin: 6px 0 6px; }
 .mi .mi-lede { margin: 0; font: 400 var(--fs-reading)/24px var(--sans); color: var(--muted); max-width: 70ch; }
 .mi .mi-links { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 10px 0 0; font: 600 var(--fs-small)/18px var(--sans); }
 .mi .mi-links a { color: var(--c1); }
@@ -88,7 +88,7 @@
 /* ---- Key figures ---- */
 .mi-kf { padding: 18px 20px; }
 .mi-kf-h { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; }
-.mi-kf-h h2 { margin: 0; font: 600 var(--fs-card-title)/24px var(--sans); display: flex; align-items: center; gap: 6px; }
+.mi-kf-h h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); display: flex; align-items: center; gap: 6px; }
 .mi-kf-sub { font: 400 var(--fs-small)/18px var(--sans); color: var(--muted); }
 .mi .mi-hide { margin-left: auto; background: var(--s2); border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; font: 600 var(--fs-caption)/16px var(--sans); color: var(--text); cursor: pointer; }
 .mi-kf-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
@@ -104,7 +104,7 @@
 .mi-sh { display: flex; align-items: flex-start; gap: 14px; margin: 0 0 8px; scroll-margin-top: 140px; }
 .mi-sh-n { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--mi-shares); color: #fff; font: 700 var(--fs-body)/1 var(--sans); }
 .mi-sh-t { flex: 1; min-width: 0; }
-.mi-sh h2 { margin: 2px 0 0; display: flex; align-items: center; gap: 6px; font: 600 var(--fs-section-title)/28px var(--font-serif, Georgia, serif); }
+.mi-sh h2 { margin: 2px 0 0; display: flex; align-items: center; gap: 6px; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
 .mi-sh-l { margin: 4px 0 0; font: 400 var(--fs-small)/18px var(--sans); color: var(--muted); max-width: 90ch; }
 .mi-sh-r { flex: none; }
 .mi .mi-dashed { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; margin: 14px 0 0; padding: 14px 16px; border: 1.5px dashed var(--border-strong); border-radius: 12px; }
@@ -166,11 +166,11 @@
 .mi .mi-pills { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; padding: 0; } .mi .mi-pills li { padding: 3px 10px; border-radius: 999px; background: var(--s1); border: 1px solid var(--border); font: 500 var(--fs-caption)/16px var(--sans); }
 
 /* ---- below every tab ---- */
-.mi-short { padding: 18px 22px; } .mi-short h2 { margin: 0; font: 600 var(--fs-card-title)/24px var(--sans); }
+.mi-short { padding: 18px 22px; } .mi-short h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
 .mi-short dl { margin: 10px 0 0; display: grid; gap: 8px; } .mi-short dl > div { display: grid; grid-template-columns: 110px 1fr; gap: 12px; padding: 8px 0; border-top: 1px solid var(--border); }
 .mi-short dt { font: 700 var(--fs-label)/20px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); } .mi-short dd { margin: 0; font: 400 var(--fs-body)/20px var(--sans); }
 .mi .mi-fold { padding: 14px 22px; } .mi .mi-fold summary span { display: grid; } .mi .mi-fold summary small { font: 400 var(--fs-small)/18px var(--sans); color: var(--muted); } .mi .mi-fold p { font: 400 var(--fs-small)/18px var(--sans); color: var(--muted); }
-.mi-faq { padding: 18px 22px; } .mi-faq h2 { margin: 2px 0 10px; font: 600 var(--fs-card-title)/24px var(--sans); }
+.mi-faq { padding: 18px 22px; } .mi-faq h2 { margin: 2px 0 10px; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
 .mi-faq details { border-top: 1px solid var(--border); padding: 10px 0; } .mi-faq details p { margin: 8px 0 0; font: 400 var(--fs-body)/20px var(--sans); color: var(--muted); }
 .mi .mi-go { display: grid; gap: 2px; padding: 16px 20px; color: var(--text); text-decoration: none; } .mi .mi-go b { color: var(--c1); font: 600 var(--fs-body)/20px var(--sans); } .mi .mi-go span { font: 400 var(--fs-small)/18px var(--sans); color: var(--muted); }
 .mi .mi-src { margin: 8px 0 0; }
@@ -179,9 +179,9 @@
 /* ---- the quantities dialog ---- */
 .mi-qd-back { position: fixed; inset: 0; z-index: var(--z-modal, 200); display: grid; place-items: center; padding: 16px; background: var(--ov-backdrop); }   /* the shared dim token (overlay.css) */
 .mi-qd { width: min(720px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; background: var(--s1); color: var(--text); border-radius: 16px; border: 1px solid var(--border-strong); box-shadow: 0 24px 60px -20px rgba(0,0,0,.5); }
-.mi-qd header { position: relative; padding: 18px 56px 12px 20px; border-bottom: 1px solid var(--border); } .mi-qd header h2 { margin: 0; font: 600 var(--fs-card-title)/24px var(--sans); }
+.mi-qd header { position: relative; padding: 18px 56px 12px 20px; border-bottom: 1px solid var(--border); } .mi-qd header h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
 .mi-qd .mi-x { position: absolute; top: 14px; right: 14px; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border); background: var(--s2); color: var(--text); cursor: pointer; }
-.mi-qd-body { overflow: auto; padding: 8px 20px; } .mi-qd-body h3 { margin: 12px 0 6px; font: 700 var(--fs-label)/16px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.mi-qd-body { overflow: auto; padding: 8px 20px; } .mi-qd-body h3 { margin: 12px 0 6px; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); color: var(--muted); }
 .mi-qd-body ul { list-style: none; margin: 0; padding: 0; } .mi-qd-body li { display: grid; grid-template-columns: minmax(0, 1fr) 130px 100px; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .mi-qd-n b { display: block; font: 600 var(--fs-body)/20px var(--sans); overflow-wrap: anywhere; } .mi-qd-n small { font: 400 var(--fs-caption)/16px var(--sans); color: var(--muted); }
 .mi-qd input { width: 100%; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--bg); color: var(--text); font: 500 var(--fs-body)/20px var(--sans); text-align: right; }
@@ -194,7 +194,7 @@
 /* ---- narrower screens; phones (390 px): tiles one per row, tables scroll inside their box with the first column frozen ---- */
 @media (max-width: 1100px) { .mi-sum { grid-template-columns: repeat(2, minmax(0, 1fr)); } .mi .mi-riskhead { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 760px) {
-  .mi-head { grid-template-columns: 1fr; padding: 18px 16px; } .mi-head h1 { font-size: var(--fs-24) !important; line-height: 32px !important; }
+  .mi-head { grid-template-columns: 1fr; padding: 18px 16px; }
   .mi-sum, .mi-kf-row, .mi .mi-three, .mi .mi-two, .mi .mi-riskhead { grid-template-columns: 1fr; }
   .mi-tabs { grid-template-columns: repeat(4, minmax(150px, 1fr)); overflow-x: auto; scrollbar-width: none; }
   .mi .mi-notes-row { grid-template-columns: 1fr; }
