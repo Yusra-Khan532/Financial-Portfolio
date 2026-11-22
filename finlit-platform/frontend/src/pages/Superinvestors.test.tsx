@@ -52,7 +52,9 @@ describe("Superinvestor portfolios (#212)", () => {
     expect(rows[1].textContent).toMatch(/₹47 cr/);
     expect(rows[1].textContent).toMatch(/1 holding without a market value today/);
     expect(document.body.textContent).toMatch(/via FinEdge/);
-    expect(document.body.textContent).toMatch(/Built from the filings of 4 of 5,839 listed companies. Latest quarter Sep 2026/);
+    // task #311 (Superinvestors row 2): how many companies and the dates; no fetch window; "via FinEdge" stays (Hold)
+    expect(document.body.textContent).toMatch(/via FinEdge.* 4 companies covered\. Latest quarter Sep 2026 · prices of /);
+    expect(document.body.textContent).not.toMatch(/Built from the filings of|fetched /);
     expect(document.body.textContent).toMatch(/not investment advice/);
   });
   it("finds an investor by name or by a company they hold", async () => {

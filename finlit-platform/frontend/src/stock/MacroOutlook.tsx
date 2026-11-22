@@ -9,7 +9,6 @@ import { GROUP_ICON, arrow, companyRows, driverText, indicatorsForReasons, insuf
   MACRO_RANGES, macroSummary, macroWindow, readings, type MacroRange, type HistoryPoint,
   type CompanyMacro, type Driver, type Indicator, type Item, type Reason, type SectorRow, type Tone } from "../lib/macroOutlook";
 import { ChartZoom, useZoomHeight } from "../components/ChartZoom";
-import { DropChev } from "../components/DropChev";
 
 
 export function Chip({ label, tone }: { label: string; tone: Tone }) { return <span className={"mo-chip " + tone}>{label}</span>; }
@@ -19,8 +18,10 @@ function Bar({ score, tone }: { score: number | null; tone: Tone }) {
 }
 const when = (iso?: string | null) => (iso ? dateIN(iso) : "—");
 
-function Meta({ c }: { c: CompanyMacro }) {
-  return <p className="mo-meta">As of <b>{when(c.snapshotDate)}</b>{c.basis === "reconstructed" ? " (reconstructed)" : ""} · coverage <b>{c.coverage != null ? Math.round(c.coverage * 100) : "—"}%</b> · model v{c.modelVersion} · initial assumptions, not validated</p>;
+/** Task #311 (developer file 21, row 12): one line, no drop-down. The reading is not validated yet, so it is called an estimate; how it is made
+    (coverage, model version, segment weights) is not shown. */
+export function estimateLine(c: Pick<CompanyMacro, "snapshotDate" | "mapping">): string {
+  return `An early estimate for the company's ${c.mapping?.basis && c.mapping.basis !== "primary" ? "sectors" : "main sector"} · ${when(c.snapshotDate)}`;
 }
 
 /* A: the backdrop (task #216, README 3.2): a score ring (84 px, the score in the middle, "/100" under it, a tick at 50), the eyebrow, the outlook group, the word
@@ -207,11 +208,8 @@ export function MacroOutlookSection({ symbol }: { symbol: string }) {
     body = (
       <>
         {c.stale.isStale && <p className="mo-stale" role="alert"><Icon name="alert" /><span><b>Stale data.</b> {c.stale.message}</span></p>}
-        {/* task #216 (README 3.2): heading, "How this reading is made" (closed), the backdrop, the grid (indicators and interpretation | score history), the disclaimer */}
-        <details className="xdd notes mo-how"><summary>How this reading is made<DropChev /></summary>
-          <Meta c={c} />
-          {c.mapping && <p className="mo-map"><Icon name="layers" />{c.mapping.note} {c.segments && <span>{c.segments.map((s) => `${s.name} ${Math.round(s.weight * 100)}%`).join(" · ")}</span>}</p>}
-        </details>
+        {/* task #216 (README 3.2) and #311: heading, the one estimate line with its date, the backdrop, the grid (indicators and interpretation | score history), the disclaimer */}
+        <p className="mo-meta mo-est">{estimateLine(c)}</p>
         <Backdrop c={c} />
         {c.status === "insufficient_data" && <p className="mo-note" role="status"><Icon name="info" />{insufficientText(c)}. No score is shown rather than a guess.</p>}
         {/* one row repeats the backdrop above (its score, word and the same reason pills), so the panel shows only for a company in several sectors */}

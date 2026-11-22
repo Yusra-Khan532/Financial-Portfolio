@@ -120,7 +120,7 @@ export function Cards({ d, f }: { d: Tab; f?: ReturnType<typeof useFollows> }) {
       <div className="sx-bar"><label className="sx-lab">Sort by <select className="sx-sel" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}>
         {SORTS.map(([k, w]) => <option key={k} value={k}>{w}</option>)}</select></label><span className="sx-sp" />{f?.state && <span className="sx-lab">Following {f.state.follows.length}</span>}</div>
       <ul className="sx-grid">{cards.map((c) => <Card key={c.key} c={c} f={f} />)}</ul>
-      <p className="sx-note">“Named stakes, 1 year” is how the stocks named today moved in price over 12 months, weighted by today's value; the same-size market is the median move of all listed companies of the same sizes. It is not the investor's own return.</p>
+      <p className="sx-note">“Named stakes, 1 year” is how the stocks named today moved in price over 12 months, against companies of the same size. It is not the investor's own return.</p>
     </section>
   );
 }

@@ -81,18 +81,18 @@ describe("AI summary under the FinLit Prism cards (task #228)", () => {
 
   it("draws the pointers as a list with the labels and key words in bold", () => {
     show();
-    fireEvent.click(screen.getByRole("button", { name: /AI summary/ }));
-    const box = screen.getByRole("region", { name: /Summary of the FinLit Prism rating of Reliance/ });
-    const items = box.querySelectorAll("ul.pai-list > li");
+    fireEvent.click(screen.getByRole("button", { name: /^Summarise$/ }));
+    const box = screen.getByRole("region", { name: /summary of the FinLit Prism rating of Reliance/ });
+    const items = box.querySelectorAll("ul.pai2-list > li");
     expect(items).toHaveLength(6);
-    expect([...box.querySelectorAll("ul.pai-list b")].map((b) => b.textContent)).toEqual(["Overall:", "read as mixed", "Quality, sound:", "Risk, sound:",
+    expect([...box.querySelectorAll("ul.pai2-list b")].map((b) => b.textContent)).toEqual(["Overall:", "read as mixed", "Quality, sound:", "Risk, sound:",
       "Growth & Profitability, in between:", "Valuation, weighs on it:", "Price trend:", "bounce in a downtrend"]);
   });
 
   it("a visitor gets the card summary at once, said plainly, with the plans link and the disclaimer; FinLit AI is not asked", () => {
     show();
-    fireEvent.click(screen.getByRole("button", { name: /AI summary/ }));
-    const box = screen.getByRole("region", { name: /Summary of the FinLit Prism rating of Reliance/ });
+    fireEvent.click(screen.getByRole("button", { name: /^Summarise$/ }));
+    const box = screen.getByRole("region", { name: /summary of the FinLit Prism rating of Reliance/ });
     expect(box.textContent).toContain("read as mixed");
     expect(box.textContent).not.toMatch(/58\.1|out of 100/);
     expect(box.textContent).toContain("An AI summary from FinLit AI (10 a month) is part of the Silver and Gold plans");
@@ -104,9 +104,9 @@ describe("AI summary under the FinLit Prism cards (task #228)", () => {
   it("a Gold member gets FinLit AI's summary of what the card means, streamed in place, from the 10 AI summaries, never from the questions", async () => {
     auth = { user: { id: "u1", role: "investor" }, plan: "gold" }; quota = { enabled: true, left: 97, limit: 100, summary: ALLOW(7) };
     show();
-    expect(await screen.findByText(/7 of 10 AI summaries left this month, apart from your FinLit AI questions/)).toBeTruthy();
+    expect(await screen.findByText(/A few lines from FinLit AI · 7 of 10 left this month/)).toBeTruthy();
     expect(screen.queryByText(/97 of 100/)).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /AI summary/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Summarise$/ }));
     const box = await screen.findByRole("region", { name: /AI summary of the FinLit Prism rating of Reliance/ });
     await waitFor(() => expect(box.textContent).toContain("The share price looks high against its earnings."));
     expect(asked).toEqual([{ symbol: "RELIANCE" }]);                             // the summary call: the server writes what is asked
@@ -120,8 +120,8 @@ describe("AI summary under the FinLit Prism cards (task #228)", () => {
     show();
     await screen.findByText(/What this card means, in a few lines$/);
     await new Promise((r) => setTimeout(r, 20));
-    fireEvent.click(screen.getByRole("button", { name: /AI summary/ }));
-    const box = screen.getByRole("region", { name: /^Summary of/ });
+    fireEvent.click(screen.getByRole("button", { name: /^Summarise$/ }));
+    const box = screen.getByRole("region", { name: /summary of the FinLit Prism rating of/ });
     expect(box.textContent).toMatch(/You have used this month's 10 AI summaries \(they renew on 1 Dec 2026\), so this summary is written from the card itself\. Your FinLit AI questions are counted separately\./);
     expect(box.textContent).toContain("read as mixed");
     expect(asked).toEqual([]);
@@ -130,15 +130,15 @@ describe("AI summary under the FinLit Prism cards (task #228)", () => {
   it("a Basic member is not sent to FinLit AI; a refusal from the server falls back to the card summary with its reason", async () => {
     auth = { user: { id: "u2", role: "investor" }, plan: "basic" }; quota = { enabled: true, left: 0, limit: 0, summary: { limit: 0, used: 0, left: 0, resets: "2026-12-01" } };
     show();
-    fireEvent.click(screen.getByRole("button", { name: /AI summary/ }));
-    expect(screen.getByRole("region", { name: /^Summary of/ }).textContent).toContain("part of the Silver and Gold plans");
+    fireEvent.click(screen.getByRole("button", { name: /^Summarise$/ }));
+    expect(screen.getByRole("region", { name: /summary of the FinLit Prism rating of/ }).textContent).toContain("part of the Silver and Gold plans");
     expect(asked).toEqual([]);
     cleanup();
     auth = { user: { id: "u4", role: "investor" }, plan: "silver" }; quota = { enabled: true, left: 3, limit: 50, summary: ALLOW(2) }; mode = "refuse";
     show();
-    await screen.findByText(/2 of 10 AI summaries left/);
-    fireEvent.click(screen.getByRole("button", { name: /AI summary/ }));
-    const box = await screen.findByRole("region", { name: /^Summary of/ });
-    expect(box.textContent).toContain("You have used all 10 AI summaries of this month. They renew on 01 Dec 2026. Your FinLit AI questions are counted separately. Meanwhile, this summary is written from the card itself.");
+    await screen.findByText(/2 of 10 left this month/);
+    fireEvent.click(screen.getByRole("button", { name: /^Summarise$/ }));
+    const box = await screen.findByRole("region", { name: /summary of the FinLit Prism rating of/ });
+    expect(box.textContent).toContain("You have used all 10 AI summaries of this month. They renew on 01 Dec 2026. Your FinLit AI questions are counted separately.");
   });
 });

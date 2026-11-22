@@ -283,8 +283,8 @@
     "a": "Yes. On the Gold plan you can open 10 different reports a day; a report you opened earlier the same day does not count again. Each member can also calculate 20 ratings a day, and Recalculate can be pressed a few times in ten minutes."
    },
    {
-    "q": "What does “100% of inputs available” mean?",
-    "a": "How complete the data behind the score was. It is not a probability and does not predict returns. Any input that was missing or estimated is marked on its factor."
+    "q": "What does “Some figures are missing” mean?",
+    "a": "Some of the figures behind the score were not reported; when every figure is there, the card says nothing. It is not a probability and does not predict returns. Any figure that was missing or estimated is marked on its factor."
    },
    {
     "q": "Is the technical view part of the score?",

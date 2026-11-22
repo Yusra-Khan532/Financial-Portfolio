@@ -43,8 +43,12 @@ export function availability(days: FlowDay[]): { fii: Window | null; dii: Window
 const dshort = (d: string) => dateIN(d, { day: "numeric", month: "short", year: "2-digit" });
 export const windowText = (w: Window | null) => (w ? `${dshort(w.from)} to ${dshort(w.to)}, ${w.n.toLocaleString("en-IN")} sessions` : "no sessions");
 /** The one sentence that says where the daily DII series begins (derived from the data, never typed in). */
-export const diiFeedText = (from: string | null | undefined) =>
-  from ? `DII daily figures start on ${dateIN(from, { day: "numeric", month: "short", year: "numeric" })}; before that no daily DII series is available from our sources.` : "No daily DII series is available from our sources.";
+export const longDay = (iso: string) => dateIN(iso, { day: "numeric", month: "short", year: "numeric" });
+export const diiFeedText = (from: string | null | undefined) => (from ? `DII daily figures start on ${longDay(from)}.` : "No daily DII figures are available yet.");   // task #311
+/** Task #311 (row 4): the flow-and-index chart says in words whether the two tended to move together, without the coefficient. */
+export function togetherWords(r: number): string {
+  return Math.abs(r) < 0.1 ? "flows and the index have shown almost no link" : r > 0 ? "flows and the index have tended to move together" : "flows and the index have tended to move in opposite directions";
+}
 
 /** Sessions inside the last `months` calendar months of the data (0 = all). */
 export function sinceMonths<T extends { d: string }>(rows: T[], months: number): T[] {

@@ -214,7 +214,7 @@ function Heatmap({ m }: { m: Macro }) {
         <tbody>{rank.map((d) => { const mp = new Map(d.points); return (
           <tr key={d.key} className={hot === d.key ? "on" : ""} onMouseEnter={() => setHot(d.key)} onMouseLeave={() => setHot(null)}>
             <th scope="row">{short(d.label)}</th>{months.map((mo) => { const v = mp.get(mo) ?? null, h = heat(v); return <td key={mo} style={{ background: h.bg }} className={h.strong ? "s" : ""}>{v == null ? "·" : nf(v, 1)}</td>; })}</tr>); })}</tbody></table></div></ChartZoom>
-      <p className="mc-foot">Source: MoSPI, CPI (base 2024 = 100), as published. Percent change over the same month a year earlier.</p>
+      <p className="mc-foot">Source: MoSPI. Change over the same month a year earlier.</p>
     </section>
   );
 }
