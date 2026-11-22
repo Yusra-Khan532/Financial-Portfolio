@@ -92,8 +92,8 @@
 #aiq .aiq-tbar > span:first-child { font: 700 var(--fs-12) var(--sans); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
 #aiq .aiq-sb { display: inline-flex; flex-wrap: wrap; gap: 3px; padding: 3px; border-radius: 12px; background: color-mix(in srgb, var(--aq) 7%, var(--s1)); border: 1px solid color-mix(in srgb, var(--aq) 22%, var(--border)); }
 #aiq .aiq-sb button { border: 0; background: transparent; border-radius: 9px; min-height: 32px; padding: 0 12px; font: 600 var(--fs-13) var(--sans); color: var(--aq); cursor: pointer; }
-#aiq .aiq-sb button[aria-pressed="true"] { background: var(--aq); color: #fff; box-shadow: 0 6px 14px -8px var(--aq); }
-:root[data-theme="dark"] #aiq .aiq-sb button[aria-pressed="true"] { color: #0b1a2c; }
+#aiq .aiq-sb button[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); box-shadow: none; }
+:root[data-theme="dark"] #aiq .aiq-sb button[aria-pressed="true"] { color: var(--ui-on-fg); }
 #aiq .aiq-sb button:focus-visible, #aiq .aiq-t th button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 #aiq .aiq-lg { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; font-size: var(--fs-12); color: var(--muted); }
 #aiq .aiq-lg s { display: inline-block; width: 3px; height: 14px; border-radius: 2px; background: var(--text); text-decoration: none; }

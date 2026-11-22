@@ -14,6 +14,7 @@ import { ApiError, apiGet } from "../lib/api";
 import { useUniverse } from "../lib/screener";
 import { useUIMaybe } from "../lib/ui";
 import { BASE, fmtDate, joinRows, pct, short, stat, themePath, useBoard, type BoardTheme, type DRow } from "../discovery/model";
+import { buttonClass } from "../components/ui";
 import "../styles/dth.css";
 
 export type DiscoverPassage = { t: string; kind?: string; about?: boolean };
@@ -132,7 +133,7 @@ export function BuildCard({ symbol, name }: { symbol: string; name: string }) {
         <div><dt>In a long-term uptrend</dt><dd>{trendOpen ? <><b>{s.up}</b><small>of {s.n}</small></> : <b><Link to="/pricing" className="dth-lock" title="The technical views are part of Gold">Gold</Link></b>}</dd></div>
       </dl>}
       <p className="dtc-check"><b>What to check:</b> {verify ? `${verify.replace(/\.?\s*$/, ".")} ` : ""}A theme word alone is not proof of real business.</p>
-      <div className="dtc-acts"><Link className="dth-btn" to={themeLink(d.main?.name ?? c.theme, co)}>See the theme in Discover<Arrow /></Link>
+      <div className="dtc-acts"><Link className={buttonClass("secondary", "md", "dth-btn")} to={themeLink(d.main?.name ?? c.theme, co)}>See the theme in Discover<Arrow /></Link>
         {doc?.link && <a className="dth-link" href={doc.link} target="_blank" rel="noopener noreferrer">Open the presentation ↗</a>}
         <span className="dth-fine">{s ? `Theme figures as on Discover${d.asOf ? `, prices of ${fmtDate(d.asOf)}` : ""} · ` : ""}Information only, not a recommendation.</span></div>
     </div>);

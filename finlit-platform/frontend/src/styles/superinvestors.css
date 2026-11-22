@@ -156,7 +156,7 @@
 .sx-mini{display:flex;flex-wrap:wrap;gap:4px}
 .sx-fol{display:inline-flex;align-items:center;gap:5px;font:600 12px/16px var(--sans);color:var(--text);background:var(--s1);border:1px solid var(--border-strong);border-radius:999px;padding:5px 10px;cursor:pointer;white-space:nowrap;min-height:30px}
 .sx-fol svg{width:14px;height:14px}
-.sx-fol[aria-pressed=true]{background:var(--gold-soft);border-color:color-mix(in srgb,var(--gold) 60%,transparent)}
+.sx-fol[aria-pressed=true]{background:var(--ui-on-bg);border-color:var(--ui-on-bg);color:var(--ui-on-fg)}
 
 /* names grouped */
 .sx-names{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}

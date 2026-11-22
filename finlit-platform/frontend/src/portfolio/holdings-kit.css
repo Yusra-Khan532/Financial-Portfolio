@@ -69,7 +69,7 @@ table.only-h .cg-s, table.only-s .cg-h { display: none !important; }
 .x-cols { display: inline-flex; align-items: center; gap: 3px; background: var(--s2); border: 1px solid var(--border); border-radius: 12px; padding: 3px; flex: none; }
 .x-cols span { font-size: 12px; color: var(--muted); padding: 0 6px; }
 .x-cols button { border: 0; background: transparent; border-radius: 9px; min-height: 32px; padding: 0 12px; font: 600 13px var(--sans); color: var(--text); cursor: pointer; white-space: nowrap; }
-.x-cols button[aria-pressed="true"] { background: var(--x-tab); color: #fff; box-shadow: 0 6px 14px -8px var(--x-tab); }
+.x-cols button[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); box-shadow: none; }
 .x-cols button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 @media (max-width: 700px) { .x-cols { width: 100%; justify-content: space-between; } .x-cols button { padding: 0 9px; font-size: 12px; } }
 .x-ro b { display: block; font-weight: 600; }
@@ -97,7 +97,8 @@ table tfoot .x-tot th { text-align: left; text-transform: none; letter-spacing: 
 .x-qtyt b { font: 700 14px var(--sans); }
 .x-qtyt small { font: 600 12px var(--sans); color: var(--muted); white-space: nowrap; }
 .x-namecv:focus-visible, .x-need-b:focus-visible, .x-lotadd-b:focus-visible, .x-lot-x:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
-.x-need-b { border: 1px dashed color-mix(in srgb, var(--gold) 70%, var(--border)); background: color-mix(in srgb, var(--gold) 8%, var(--s1)); border-radius: 8px; padding: 5px 9px; font: 600 12px var(--sans); color: var(--xg1); cursor: pointer; white-space: nowrap; }
+/* task #310: "add a buy" is the shared quiet small button (ui-btn ui-btn--quiet ui-btn--sm, components/ui); it was a pale gold dashed box */
+.x-need-b { white-space: nowrap; }
 tr.x-open > td, tr.x-open > th { border-bottom-color: transparent !important; }
 tr.x-open > td:first-child { box-shadow: inset 3px 0 0 #a16207; }
 tr.x-lot > td { background: color-mix(in srgb, #a16207 4%, var(--s1)) !important; padding-top: 6px !important; padding-bottom: 6px !important; font-size: 13px; border-top: 1px dashed color-mix(in srgb, var(--border) 70%, transparent) !important; }

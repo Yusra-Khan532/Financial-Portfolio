@@ -181,7 +181,7 @@
 .dcf-grp > .dcf-grid { padding: 16px; gap: 16px; }
 .dcf-grp > .dcf-grid > .dcf-f, .dcf-grp > .dcf-grid > .dcf-sl { padding: 14px 16px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--s1); }
 .dcf-grp > details, .dcf-grp > .dcf-rate { margin: 0 16px 16px; }
-.dcf-chips .chip-b.on { background: var(--gold); border-color: var(--gold); color: var(--on-gold); font-weight: 700; }
+.dcf-chips .chip-b[aria-pressed="true"] { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); font-weight: 700; }
 @media (max-width: 640px) { .dcf-grp > summary { font-size: 18px; padding: 12px 14px; } .dcf-grp > .dcf-grid { padding: 12px; gap: 12px; } .dcf-grp > details, .dcf-grp > .dcf-rate { margin: 0 12px 12px; } }
 @media (prefers-reduced-motion: reduce) { .dcf-grp > summary::after { transition: none; } }
 @media (max-width: 640px) { .dcf-live b { font-size: 16px; } .dcf-sl-box { width: 104px; } .dcf-range { height: 32px; } }

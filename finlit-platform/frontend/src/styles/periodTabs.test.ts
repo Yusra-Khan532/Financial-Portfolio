@@ -5,8 +5,8 @@ const css = readFileSync(new URL("./stock2.css", import.meta.url), "utf8");
 
 // Task #216 (company report handover, 17 Nov 2026, README 1.5; owner: "no navy, no gold"): the period toggle has the report's one toggle look.
 describe("period tabs (Quarterly / Yearly)", () => {
-  it("the selected tab is the --s3 fill with the text colour, not dark gold with dark text", () => {
-    expect(css).toMatch(/\.seg\.seg-period button\[aria-pressed="true"\]\s*\{[^}]*background:\s*var\(--s3\)/);
+  it("the selected tab is the site's one selected look (task #310), not dark gold with dark text", () => {
+    expect(css).toMatch(/\.seg\.seg-period button\[aria-pressed="true"\]\s*\{[^}]*background:\s*var\(--ui-on-bg\);\s*color:\s*var\(--ui-on-fg\)/);
     expect(css).not.toMatch(/\.seg\.seg-period button\[aria-pressed="true"\]\s*\{[^}]*var\(--gold\)/);
   });
   it("buttons are 33 px tall, 13 px semi-bold, 6 x 12 px padding, in a 1 px frame; 40 px on touch screens so they stay easy to tap", () => {

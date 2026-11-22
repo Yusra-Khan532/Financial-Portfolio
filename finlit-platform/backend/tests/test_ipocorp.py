@@ -31,3 +31,21 @@ def test_since_ipo_in_the_same_terms_after_a_split():
     r = ipoapi.row(base, date(2026, 11, 21))
     assert (r["lastClose"], r["sinceIpoPct"]) == (160.95, 138.44)                 # 160.95 against 135 x 0.5 = 67.50, not a 'fall' to 160.95 from 135
     assert ipoapi.row({**base, "ca_factor": None}, date(2026, 11, 21))["sinceIpoPct"] is None     # over a year, no factor: not shown
+
+
+def _yahoo(first: date, splits):
+    import calendar
+    ts = lambda d: calendar.timegm(d.timetuple()) + 4 * 3600  # noqa: E731
+    return {"chart": {"result": [{"meta": {"symbol": "X.BO", "firstTradeDate": ts(first)},
+                                  "events": {"splits": {str(ts(d)): {"date": ts(d), "numerator": n, "denominator": m, "splitRatio": f"{n}:{m}"} for d, n, m in splits}}}],
+                      "error": None}}
+
+
+def test_yahoo_for_bse_only_issues():
+    lst = date(2021, 10, 12)
+    got = ipocorp.yahoo_since_listing(_yahoo(date(2021, 10, 12), [(date(2023, 1, 9), 4, 1), (date(2024, 10, 4), 2, 1)]), lst)
+    assert got["factor"] == 0.125 and [a["exDate"] for a in got["actions"]] == ["2023-01-09", "2024-10-04"]     # Bombay Metrics, as NSE has it
+    assert ipocorp.yahoo_since_listing(_yahoo(date(2021, 10, 13), []), lst) == {"factor": 1.0, "actions": []}    # full history, no splits: none
+    assert ipocorp.yahoo_since_listing(_yahoo(date(2023, 6, 1), []), lst) is None                             # history starts long after listing
+    assert ipocorp.yahoo_since_listing({"chart": {"result": None, "error": {"code": "Not Found"}}}, lst) is None
+    assert ipocorp.yahoo_since_listing(_yahoo(date(2021, 10, 12), [(date(2021, 1, 1), 2, 1)]), lst)["factor"] == 1.0  # before listing: not counted
