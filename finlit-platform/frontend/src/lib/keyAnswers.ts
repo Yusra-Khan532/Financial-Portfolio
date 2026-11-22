@@ -1,7 +1,7 @@
 // Task #274 (the 20 Nov equity pack, change 9): Key figures as three plain answers per view. Each card: what it is about, one full sentence with the
 // numbers, a small bar with a legend, what the figure rests on, and a link. Vague headlines ("Mostly rising", "None", "Similar", "Weak · 34") are gone.
 // A card with nothing to say is left out and the next one moves up. Pure: the page passes its own figures in. Describes; never advice.
-import type { Share } from "./equityPack";
+import type { Share, Voice } from "./equityPack";
 import type { RiskAnswer } from "./eqRisk";
 import { scoreBand } from "./scoreBands";
 
@@ -21,7 +21,8 @@ const side = (v: number) => { const r = Math.round(v); return r >= 20 ? 1 : r <=
 const keep = (b: KeyBar[]) => b.filter((x) => x.n > 0);
 
 // ------------------------------------------------------------------------------------------------ Portfolio
-export function portfolioAnswers(shares: Share[], gold: boolean, label: (s: Share) => string = (s) => s.symbol): KeyAnswer[] {
+export function portfolioAnswers(shares: Share[], gold: boolean, label: (s: Share) => string = (s) => s.symbol, voice: Voice = "own"): KeyAnswer[] {
+  const LV = voice === "list";   // task #323 (file 22): the companies on a watchlist are watched, not owned
   const N = shares.length, out: KeyAnswer[] = [];
   if (!N) return out;
   const L = shares.filter((s) => s.peer?.label === "leader"), M = shares.filter((s) => s.peer?.label === "in_line"), G = shares.filter((s) => s.peer?.label === "laggard"), X = shares.filter((s) => !s.peer);
@@ -46,18 +47,18 @@ export function portfolioAnswers(shares: Share[], gold: boolean, label: (s: Shar
         : rd ? `${upL.length} of ${N} ${upL.length === 1 ? "is" : "are"} in a long-term uptrend, but ${rd} of them ${rd === 1 ? "is" : "are"} resting or dipping in recent weeks.`
         : `${upL.length} of ${N} ${upL.length === 1 ? "is" : "are"} in a long-term uptrend, and ${upL.length === 1 ? "it is" : "all of them are"} rising in recent weeks too.`,
       bar: keep([{ label: "Rising", n: rising.length, c: C.hi }, { label: "Resting or dipping", n: rd, c: C.hiSoft }, { label: "Flat", n: flat, c: C.none }, { label: "Falling", n: fall, c: C.lo }]),
-      rests: `${upL.length ? `${fall} ${fall === 1 ? "is" : "are"} in a long-term downtrend and ${flat} ${flat === 1 ? "is" : "are"} flat. ` : ""}${nr ? `${nr} ${nr === 1 ? "has" : "have"} no trend reading yet. ` : ""}Long term is the trend over months, short term the last few weeks, from FinLit Prism's technical view; the trend table below shows each share.` });
+      rests: `${upL.length ? `${fall} ${fall === 1 ? "is" : "are"} in a long-term downtrend and ${flat} ${flat === 1 ? "is" : "are"} flat. ` : ""}${nr ? `${nr} ${nr === 1 ? "has" : "have"} no trend reading yet. ` : ""}Long term is the trend over months, short term the last few weeks, from FinLit Prism's technical view; the trend table below shows each ${LV ? "company" : "share"}.` });
   }
   const val = shares.filter((s) => s.valuation != null);
   if (val.length) {
     const by = (b: string) => val.filter((s) => scoreBand(s.valuation) === b), S = by("hi"), F = by("mid"), W = by("lo");
     const avg = Math.round(val.reduce((a, s) => a + (s.valuation as number), 0) / val.length), top = Math.max(S.length, F.length, W.length);
-    const lead = W.length === top ? `${W.length} of ${N} read weak on valuation: you pay above-typical prices for ${W.length === 1 ? "it" : "them"}.`
-      : S.length === top ? `${S.length} of ${N} read strong on valuation: you pay below-typical prices for ${S.length === 1 ? "it" : "them"}.`
+    const lead = W.length === top ? `${W.length} of ${N} read weak on valuation: ${LV ? `${W.length === 1 ? "it trades" : "they trade"} at above-typical prices` : `you pay above-typical prices for ${W.length === 1 ? "it" : "them"}`}.`
+      : S.length === top ? `${S.length} of ${N} read strong on valuation: ${LV ? `${S.length === 1 ? "it trades" : "they trade"} at below-typical prices` : `you pay below-typical prices for ${S.length === 1 ? "it" : "them"}`}.`
       : `${F.length} of ${N} read fair on valuation: prices close to typical.`;
     const named = (xs: Share[], w: string) => (!xs.length ? "" : xs.length <= 2 ? `${list(xs.map(label))} read${xs.length === 1 ? "s" : ""} ${w}` : `${xs.length} read ${w}`);
     const others = [W.length === top ? named(S, "strong") : named(W, "weak"), W.length === top || S.length === top ? named(F, "fair") : named(S, "strong")].filter(Boolean);
-    out.push({ k: "Valuation", go: "Sort the table by valuation", to: "pf-shares", sort: "p_valuation", sentence: lead,
+    out.push({ k: "Valuation", ...(LV ? { go: "See the list", to: "wp-list" } : { go: "Sort the table by valuation", to: "pf-shares", sort: "p_valuation" }), sentence: lead,
       bar: keep([{ label: "Strong", n: S.length, c: C.hi }, { label: "Fair", n: F.length, c: C.mid }, { label: "Weak", n: W.length, c: C.lo }]),
       rests: `The list averages ${avg} out of 100 on FinLit Prism's valuation reading.${others.length ? ` ${cap(others.join("; "))}.` : ""}${N - val.length ? ` ${N - val.length} not scored.` : ""}` });
   }

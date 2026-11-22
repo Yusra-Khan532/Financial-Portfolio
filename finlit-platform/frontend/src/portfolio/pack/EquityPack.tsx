@@ -10,6 +10,7 @@ import type { LeadHistory, Leadership } from "../../lib/leadership";
 import {
   leaderCards, peerCards, trendCards, peerLine, peerSentence, PEER_WORD,
   type LeaderPair, type Share, type Size,
+  type Voice,
 } from "../../lib/equityPack";
 import type { Reading } from "../types";
 import type { StyleTilt } from "../../components/diversification/types";
@@ -91,14 +92,15 @@ export function LinkNames({ text, shares }: { text: string; shares: Share[] }) {
 /** The pack's trend card: a 3 × 3 matrix of the short-term trend (across) against the long-term one (down), Up first in both; each cell a big count with its
  *  share, its name, up to 4 names then "+N more ▾"; darker cells hold more, empty ones are muted. Beside it the Business and price boxes: the four, and In
  *  between, so every rated share is in exactly one. Counts, names and shares are the server's (POST /api/portfolio/trend); every share counts the same. */
-export function TrendSection({ t, shares }: { t: TrendRead; shares: Share[] }) {
+export function TrendSection({ t, shares, voice = "own" }: { t: TrendRead; shares: Share[]; /** task #323: "list" on the Watchlists page */ voice?: Voice }) {
+  const L = voice === "list", one = L ? "company" : "share";
   const pc0 = (x: number) => `${Math.round(x * 100)}%`, stocks = (n: number) => `${n} ${n === 1 ? "stock" : "stocks"}`;
   const none = shares.filter((s) => s.lt == null).map((s) => s.symbol);
   const mid = t.betweenList, why = new Map((mid?.items ?? []).map((x) => [x.symbol, [x.prism != null ? `Prism ${prismShown(x.prism)}` : "not scored", x.flat ? "flat trend" : ""].filter(Boolean).join(" · ")]));
   return (
-    <Section id="eq-trend" hide title="Short- and long-term trend" help="Where each share's short-term price trend sits against its long-term one, from FinLit Prism's technical view." how="Across: the short-term trend, up to down. Down the side: the long-term trend, up to down. Rising on both is top-left. It describes past prices, not what comes next."
-      sub={<>{t.rated} of {t.n} {t.n === 1 ? "stock" : "stocks"} rated, from FinLit Prism's technical views. Where each share's short-term trend sits against its long-term one.{none.length ? <> <CoChips syms={none} shares={shares} show={6} /> {none.length === 1 ? "has" : "have"} no long-term reading yet.</> : null}</>}>
-      {!t.rated ? <p className="sp-empty">None of the shares in your list has a stored FinLit Prism trend reading yet.</p> : <div className="eq-tr">
+    <Section id="eq-trend" hide title="Short- and long-term trend" help={`Where each ${one}'s short-term price trend sits against its long-term one, from FinLit Prism's technical view.`} how="Across: the short-term trend, up to down. Down the side: the long-term trend, up to down. Rising on both is top-left. It describes past prices, not what comes next."
+      sub={<>{t.rated} of {t.n} {t.n === 1 ? "stock" : "stocks"} rated, from FinLit Prism's technical views. Where each {one}'s short-term trend sits against its long-term one.{none.length ? <> <CoChips syms={none} shares={shares} show={6} /> {none.length === 1 ? "has" : "have"} no long-term reading yet.</> : null}</>}>
+      {!t.rated ? <p className="sp-empty">{L ? "None of the companies on this list has" : "None of the shares in your list has"} a stored FinLit Prism trend reading yet.</p> : <div className="eq-tr">
         <div className="eq-tm">
           <p className="eq-tm-x">Short-term trend →<Tip text="The share's price trend over the last few weeks." how="Read across: from up on the left to down on the right." label="About the short-term trend" /></p>
           <p className="eq-tm-y">Long-term trend ↓<Tip text="The share's price trend over the last year." how="Read down the side: from up at the top to down at the bottom." label="About the long-term trend" /></p>
@@ -111,14 +113,14 @@ export function TrendSection({ t, shares }: { t: TrendRead; shares: Share[] }) {
         <div className="eq-bp" role="group" aria-label="Business and price">
           <p className="eq-bp-h"><b>Business and price</b><Tip text="The business, from the FinLit Prism score, beside the price, from the long-term trend." how="65 or above is a strong business, below 50 a weak one. Where the two disagree, the price has run ahead of the business or fallen behind it. Shares in neither, Prism 50 to 64 or a flat long-term trend, are In between." label="About Business and price" /></p>
           {BIZ.map(([k, tone, label, rule]) => { const b = t.business[k]; return <div key={k} className={"eq-bpr " + tone + (b.n ? "" : " e")}>
-            <p className="eq-bpr-t"><b>{label}</b><b>{pc0(b.share)}</b></p><small>{stocks(b.n)} · {rule}</small><div className="eq-bpr-n"><CoChips syms={b.symbols} shares={shares} empty="None of your shares right now." /></div></div>; })}
+            <p className="eq-bpr-t"><b>{label}</b><b>{pc0(b.share)}</b></p><small>{stocks(b.n)} · {rule}</small><div className="eq-bpr-n"><CoChips syms={b.symbols} shares={shares} empty={L ? "None on this list right now." : "None of your shares right now."} /></div></div>; })}
           {mid ? <div className={"eq-bpr n" + (mid.n ? "" : " e")}>
             <p className="eq-bpr-t"><b>In between</b><b>{pc0(mid.share)}</b></p><small>{stocks(mid.n)} · Prism 50 to 64, or a flat long-term trend</small>
             <div className="eq-bpr-n"><CoChips syms={mid.items.map((x) => x.symbol)} shares={shares} show={8} why={(s) => why.get(s) ?? null} /></div></div>
-            : t.between != null && <p className="sp-note">{t.between} of {t.rated} rated {t.rated === 1 ? "share sits" : "shares sit"} in between (Prism 50 to 64, or a flat long-term trend).</p>}
+            : t.between != null && <p className="sp-note">{t.between} of {t.rated} rated {t.rated === 1 ? `${one} sits` : `${L ? "companies" : "shares"} sit`} in between (Prism 50 to 64, or a flat long-term trend).</p>}
         </div>
       </div>}
-      <Insights items={trendCards(t, (x) => { const s = shares.find((y) => y.symbol === x); return s ? shortLabel(s) : x; })} scope="eq.trend" />
+      <Insights items={trendCards(t, (x) => { const s = shares.find((y) => y.symbol === x); return s ? shortLabel(s) : x; }, voice)} scope="eq.trend" />
     </Section>
   );
 }
@@ -126,7 +128,8 @@ const list2 = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -
 
 // ------------------------------------------------------------------------------------------------ Against their peers (Gold)
 /** Three columns (Leaders, In line, Laggards): 3 shares each, then "Show all N ▾" (the pack). */
-export function PeersSection({ shares }: { shares: Share[] }) {
+export function PeersSection({ shares, voice = "own" }: { shares: Share[]; voice?: Voice }) {
+  const L = voice === "list";
   const [all, setAll] = useState<Record<string, boolean>>({});
   const col = (label: "leader" | "in_line" | "laggard", title: string, tone: string) => {
     const xs = shares.filter((s) => s.peer?.label === label).sort((a, b) => a.peer!.rank / a.peer!.of - b.peer!.rank / b.peer!.of), open = !!all[label];
@@ -138,27 +141,29 @@ export function PeersSection({ shares }: { shares: Share[] }) {
   };
   return (
     <Section id="eq-peers" hide title="Against their peers" help="Each share's price over the last 12 months against similar companies (its peer group) and its sector index." how="Leader: among the strongest of its group and ahead of the index. Laggard: among the weakest and behind it. It describes the past, not the future."
-      sub="For each share: was it among the strongest or the weakest of similar companies over the last 12 months?"
-      why="A share can rise 20% and still be a weak pick if similar companies rose 60%. Comparing each share with its own peer group shows whether your shares are the strong ones in each group, and which of them trail their group.">
-      <p className="sp-lead eq-lead"><LinkNames text={peerSentence(shares)} shares={shares} /></p>
+      sub={`For each ${L ? "company on the list" : "share"}: was it among the strongest or the weakest of similar companies over the last 12 months?`}
+      why={L ? "A share can rise 20% and still trail if similar companies rose 60%. Comparing each company with its own peer group shows which companies on this list are the strong ones in each group, and which of them trail their group."
+        : "A share can rise 20% and still be a weak pick if similar companies rose 60%. Comparing each share with its own peer group shows whether your shares are the strong ones in each group, and which of them trail their group."}>
+      <p className="sp-lead eq-lead"><LinkNames text={peerSentence(shares, voice)} shares={shares} /></p>
       <div className="eq-pcs">{col("leader", "Leaders", "good")}{col("in_line", "In line", "mid")}{col("laggard", "Laggards", "bad")}</div>
-      <Insights items={peerCards(shares)} scope="eq.peers" />
+      <Insights items={peerCards(shares, voice)} scope="eq.peers" />
     </Section>
   );
 }
 /** "What if you had owned the group leader instead?" (Gold): its own section after Against their peers, with its own chip in the sections bar (the pack). */
-export function LeadersSection({ shares }: { shares: Share[] }) {
+export function LeadersSection({ shares, voice = "own" }: { shares: Share[]; voice?: Voice }) {
   if (!shares.some((s) => s.peer?.label === "laggard")) return null;
+  const L = voice === "list";
   return (
-    <Section id="eq-leaders" hide title="What if you had owned the group leader instead?" help="Each of your laggards against the share ranked first in its own peer group, over the last 12 months of weekly closes." how="Both lines start at 100: the gap is how far apart they ended. The leader is the one that did best in that time, which is known only afterwards."
+    <Section id="eq-leaders" hide title={L ? "The weakest on this list against their group leader" : "What if you had owned the group leader instead?"} help={`Each of ${L ? "the laggards on this list" : "your laggards"} against the share ranked first in its own peer group, over the last 12 months of weekly closes.`} how="Both lines start at 100: the gap is how far apart they ended. The leader is the one that did best in that time, which is known only afterwards."
       why="A laggard can still be a fine business. Seeing how far the group's best share went shows the size of the gap, and prompts the question: the business, the price paid, or something temporary?">
-      <LeaderCompare shares={shares} />
+      <LeaderCompare shares={shares} voice={voice} />
     </Section>
   );
 }
 
 type LeadOn = Extract<Leadership, { available: true }>;
-function LeaderCompare({ shares }: { shares: Share[] }) {
+function LeaderCompare({ shares, voice = "own" }: { shares: Share[]; voice?: Voice }) {
   // the weakest laggards first (lowest place in their group); 3 shown, the rest on "Show all N ▾", their prices fetched only when shown
   const lagAll = shares.filter((s) => s.peer?.label === "laggard").sort((a, b) => b.peer!.rank / b.peer!.of - a.peer!.rank / a.peer!.of || a.symbol.localeCompare(b.symbol));
   const [all, setAll] = useState(false);
@@ -183,7 +188,7 @@ function LeaderCompare({ shares }: { shares: Share[] }) {
   const mon = (d: string) => `${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][+d.slice(5, 7) - 1]} ${d.slice(0, 4)}`;
   return (
     <div className="eq-lead-cmp">
-      <p className="sp-sub">Your {lag.length === 1 ? "weakest laggard" : `${num(lag.length)} weakest laggards`} against the #1 share of {lag.length === 1 ? "its" : "their"} own peer group, over the last 12 months. Both lines start at 100.</p>
+      <p className="sp-sub">{voice === "list" ? (lag.length === 1 ? "The weakest laggard on this list" : `The ${num(lag.length)} weakest laggards on this list`) : `Your ${lag.length === 1 ? "weakest laggard" : `${num(lag.length)} weakest laggards`}`} against the #1 share of {lag.length === 1 ? "its" : "their"} own peer group, over the last 12 months. Both lines start at 100.</p>
       {!pairs.length ? <p className="sp-note">{leads.some((q) => q.isLoading) || hist.some((q) => q.isLoading) ? "Loading the prices…" : "The weekly prices for this comparison are not available yet."}</p> : <>
         <div className="eq-lc">{pairs.map(({ x, a, b }, i) => { const lo = Math.min(...a.v, ...b.v), hi = Math.max(...a.v, ...b.v); return (
           <div key={x.mine.symbol} className="eq-lc-c">
@@ -200,7 +205,7 @@ function LeaderCompare({ shares }: { shares: Share[] }) {
           const left = busy ? [] : lag.filter((s) => !drawn.has(s.symbol));   // a blank says why (the pack's rule)
           return left.length ? <p className="sp-note">No comparison for {list2(left.map((s) => s.symbol))}: {left.length === 1 ? "its group's #1 or a year of its weekly prices is" : "their group's #1 or a year of their weekly prices is"} not available yet.</p> : null; })()}
         {lagAll.length > 3 && <button type="button" className="eq-more" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show the 3 weakest ▴" : `Show all ${lagAll.length} laggards ▾`}</button>}
-        <Insights items={leaderCards(info)} scope="eq.leaders" />
+        <Insights items={leaderCards(info, voice)} scope="eq.leaders" />
       </>}
     </div>
   );

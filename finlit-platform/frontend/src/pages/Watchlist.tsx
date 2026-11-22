@@ -35,6 +35,7 @@ import "../styles/sectors-pack.css";
 import "../styles/watchlist-pack.css";
 import { useClassifications } from "../lib/taxonomy";
 import { coTitle, isBseCode, shortLabel, subLine, titleOf } from "../lib/companyLabel";
+import { ListKeyFigures, ListSections, useListEquity } from "../portfolio/pack/ListSections";
 
 type SortKey = "peers" | "name" | "price" | "pe" | "roe" | "size" | "score";
 type Rich = Item & { row: Row };
@@ -108,7 +109,10 @@ export function WatchlistPage() {
   const idx = useIndices();
   const logos = quoteMap(useQuotesFor(list.symbols).data);
   const cls = useClassifications(list.symbols).data;   // NSE's industry of each stock (task #192): one request for the whole list
-  const wc = useWhatChanged(list.symbols, "watchlist");   // task #272: Discover's filings of the list, and what is new since the last visit
+  const wc = useWhatChanged(list.symbols, "watchlist");
+  // task #323 (developer file 22): the equity portfolio's sections for the open list (W1 Key figures, W2 Themes, W3 Trend, W4 Peers, W5 Group leader)
+  const eqOn = silver && !DEMO && list.symbols.length > 0;
+  const eq = useListEquity(list.symbols, rows, leadQ.data, eqOn, gold);   // task #272: Discover's filings of the list, and what is new since the last visit
 
   const items: Rich[] = useMemo(() => list.symbols.map((s) => bySym.get(s)).filter((r): r is Row => !!r).map((r) => {
     const v = model ? rowView(r) : null, b = prismBandOf(v?.score);
@@ -245,6 +249,8 @@ export function WatchlistPage() {
             </>)}
         </section>
 
+        {eqOn && <ListKeyFigures eq={eq} listName={list.name} />}
+
         <WhatChanged symbols={list.symbols} listName={list.name} listRef={`watch:${list.id}`} page="watchlist" nameOf={(s) => bySym.get(s)?.name ?? undefined}
           lists={st.lists.map((l) => ({ id: l.id, label: l.name, count: l.symbols.length }))} activeList={list.id} onPickList={setLid} />
 
@@ -263,6 +269,7 @@ export function WatchlistPage() {
             ) : <p className="wp-empty">{leads ? "On this list, the price rank and the business rank agree for every stock that is compared with its peers." : "This shows once the weekly peer check is available for the stocks on this list."}</p>}
           </section>
         </div>
+        {eqOn && <ListSections eq={eq} onShow={() => document.getElementById("wp-list")?.scrollIntoView({ behavior: "smooth", block: "start" })} />}
         <div className="wp-pair wp-pair-eq">
           <section className="wp-sec" aria-labelledby="wp-al">
             <h2 id="wp-al">Tell me when a label changes</h2>

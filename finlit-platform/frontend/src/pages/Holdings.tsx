@@ -46,6 +46,7 @@ import { useIndices } from "../lib/indices";
 import { dayWord } from "../lib/dashPack";
 import { useLeadershipList } from "../lib/leadership";
 import { sharesCards, type Share, type Size } from "../lib/equityPack";
+import { shareOf as buildShare } from "../lib/equityShares";
 import { topTiles, type TabKey } from "../lib/equityTop";
 import { SectionsBar, SectionsMenu, jumpTo, type Sec } from "../portfolio/pack/PageTop";
 import { HideSlim, isHidden, setHidden } from "../components/Hideable";
@@ -265,15 +266,9 @@ export function HoldingsPage() {
   // task #235 (the 18 Nov pack, live bug E4): one read of every share's peer label, not one call per share (which failed under load with 503s)
   const leadList = useLeadershipList(symbols, !!model && !DEMO);
   const idxQ = useIndices(), day = dayWord(new Date(), idxQ.data?.asOf ?? null);
-  const NOT_RANKED: Record<string, string> = { history: "has under a year of prices", liquidity: "trades too thinly to rank fairly", stale: "has no recent prices", group: "has no peer group", hidden: "is not ranked", pending: "is waiting for its first weekly reading" };
-  // below52: the screener table carries pct_from_high; the shared Row type does not name it
-  const shares: Share[] = useMemo(() => lines.map((l) => {
-    const h = l.ov && l.ov.status === "ready" ? l.ov : null, u = by.get(l.symbol), feed = leadList.data, ld = feed && feed.available ? feed.rows[l.symbol] : undefined, pr = h?.prism;
-    const size: Size | null = capBucket(h?.marketCapCr ?? u?.market_cap ?? null)?.short ?? null;
-    const peer = ld && ld.available ? { label: ld.label, raw: ld.rawLabel ?? null, rank: ld.rank, of: ld.ranked, group: ld.group, vs: ld.rel52 == null ? null : ld.rel52 * 100, bench: ld.sectorKind === "index" ? ld.sector ?? "its sector index" : "peer average", direction: ld.direction ?? null } : null;
-    return { symbol: l.symbol, name: l.name || h?.name || meta[l.symbol]?.name || u?.name || null, industry: h?.sector ?? meta[l.symbol]?.sector ?? null, size, chg: h?.changePct ?? null, prism: pr?.final ?? null, prismWord: pr?.label ?? null, valuation: pr?.parts?.valuation ?? null, risk: pr?.parts?.risk ?? null,
-      st: pr?.shortTerm?.score ?? null, lt: pr?.longTerm?.score ?? null, stWord: pr?.shortTerm?.word ?? null, ltWord: pr?.longTerm?.word ?? null, below52: (u as { pct_from_high?: number | null } | undefined)?.pct_from_high ?? null, m1: u?.return_1m ?? null, peer, notCompared: ld && !ld.available ? NOT_RANKED[ld.reason] ?? "is not ranked" : leadList.data && !leadList.data.available ? NOT_RANKED[leadList.data.reason] ?? "is not ranked" : null };
-  }), [lines, by, leadList.data, meta]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // task #323: the same builder as the Watchlists page's equity sections (lib/equityShares)
+  const shares: Share[] = useMemo(() => lines.map((l) => buildShare(l.symbol, l.name, l.ov, by.get(l.symbol), leadList.data, meta[l.symbol]))
+  , [lines, by, leadList.data, meta]);   // eslint-disable-line react-hooks/exhaustive-deps
   const shareOf = useMemo(() => new Map(shares.map((x) => [x.symbol, x])), [shares]);
   const counts = useMemo(() => { const c: Record<string, string[]> = {}; ids.forEach((sym) => { const k = meta[sym]?.sector || `${sym} (not classified)`; (c[k] ??= []).push(sym); }); return c; }, [ids, meta]);
   const sizeCount = useMemo(() => { const c = { Large: 0, Mid: 0, Small: 0, Micro: 0 } as Record<Size, number>; shares.forEach((x) => { if (x.size) c[x.size]++; }); return c; }, [shares]);

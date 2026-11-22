@@ -41,15 +41,16 @@ const num = (n: number) => (n <= 10 ? NUM[n] : String(n)), cap = (x: string) => 
 const STAGE_TONE: Record<string, string> = { Operating: "op", "Under execution": "ex", Planned: "pl", "MoU / pilot": "mou", "Not stated": "ns" };
 
 /** Three things to know under the table: the theme most of the list shares, how the list's theme shares moved against their theme, and how far along they are. */
-export function themeCards(v: ThemeView, label: (s: string) => string = (s) => s): Card[] {
+export function themeCards(v: ThemeView, label: (s: string) => string = (s) => s, voice: "own" | "list" = "own"): Card[] {
+  const L = voice === "list";   // task #323 (file 22): companies on a watchlist, not your shares
   const out: Card[] = [];
   const top = v.themes[0];
-  if (top && top.mine.length >= 2) out.push({ kind: "watch", title: `${cap(num(top.mine.length))} of your shares share one theme: ${top.short}`, text: `${top.mine.map((x) => label(x.s)).join(", ")} all have ${top.name} as their main theme, so news about that theme can move them together.` });
+  if (top && top.mine.length >= 2) out.push({ kind: "watch", title: L ? `${cap(num(top.mine.length))} companies on this list share one theme: ${top.short}` : `${cap(num(top.mine.length))} of your shares share one theme: ${top.short}`, text: `${top.mine.map((x) => label(x.s)).join(", ")} all have ${top.name} as their main theme, so news about that theme can move them together.` });
   const pairs = v.themes.flatMap((t) => t.mine.filter((x) => x.r3m != null && t.m3 != null).map((x) => ({ ...x, d: (x.r3m as number) - (t.m3 as number), t })));
   if (pairs.length) { const ahead = pairs.filter((x) => x.d > 0).length;
     out.push({ kind: ahead * 2 >= pairs.length ? "good" : "insight", title: `${ahead} of ${pairs.length} moved more than their theme in 3 months`, text: `Each share's 3-month move against the median of the companies with the same main theme on Discover${pairs[0] ? `; for example ${label(pairs[0].s)} ${pct(pairs[0].r3m)} against ${pct(pairs[0].t.m3)}` : ""}.` }); }
   const st = v.themes.flatMap((t) => t.mine.map((x) => x.st)), op = st.filter((x) => x === "Operating").length;
-  if (st.length) out.push({ kind: "insight", title: op === st.length ? "Every placed share is already operating in its theme" : `${op} of ${st.length} placed shares are already operating in their theme`, text: "How far along comes from each company's own presentation: operating, under execution, planned, or at MoU or pilot stage. Check the figures in its documents." });
+  if (st.length) out.push({ kind: "insight", title: op === st.length ? `Every placed ${L ? "company" : "share"} is already operating in its theme` : `${op} of ${st.length} placed ${L ? "companies" : "shares"} are already operating in their theme`, text: "How far along comes from each company's own presentation: operating, under execution, planned, or at MoU or pilot stage. Check the figures in its documents." });
   return out;
 }
 
@@ -58,9 +59,9 @@ const ALSO = 4;          // names shown under "Also mention it" before "N more"
 const list2 = (xs: React.ReactNode[]) => xs.reduce<React.ReactNode[]>((a, x, i) => (i ? [...a, ", ", x] : [x]), []);
 
 /** Task #323 (developer file 21, part 10): the filter bar's state and what it shows (the rules are lib/themesFilter.ts). */
-function useThemesFilter(v: ThemeView | null, list: "shares" | "watch") {
+function useThemesFilter(v: ThemeView | null, list: "shares" | "watch", onList = false) {
   const [f, setF] = useState<ThemeFilters>(NO_FILTERS), [open, setOpen] = useState<Record<string, boolean>>({});
-  const noun = list === "shares" ? "shares" : "names";
+  const noun = list === "shares" ? "shares" : onList ? "companies" : "names";   // task #323 (file 22, W2): "… 5 of 32 companies match" on Watchlists
   const all = v?.themes ?? [];
   const res = useMemo(() => filterThemes(all, f, noun), [all, f, noun]);
   const on = filtersOn(f), q = f.q.trim().toUpperCase();
@@ -78,7 +79,7 @@ function useThemesFilter(v: ThemeView | null, list: "shares" | "watch") {
           <label className="eqh-fs"><span>3-month move</span><select value={f.move} onChange={(e) => set("move", e.target.value as ThemeFilters["move"])}>
             <option value="">Any</option><option value="up">Up</option><option value="down">Down</option><option value="ahead">Ahead of its theme</option><option value="behind">Behind its theme</option></select></label>
           <label className="eqh-fs"><span>Sort</span><select value={f.sort} onChange={(e) => set("sort", e.target.value as ThemeFilters["sort"])}>
-            <option value="n">Most of your {noun}</option><option value="med-d">3-month median, high to low</option><option value="med-a">3-month median, low to high</option><option value="ut">Most in a long-term uptrend</option><option value="az">Theme, A to Z</option></select></label>
+            <option value="n">{onList ? "Most companies" : `Most of your ${noun}`}</option><option value="med-d">3-month median, high to low</option><option value="med-a">3-month median, low to high</option><option value="ut">Most in a long-term uptrend</option><option value="az">Theme, A to Z</option></select></label>
           <label className="eqh-fq"><span className="sr-only">Find a share in the themes</span><input type="search" placeholder={list === "shares" ? "Find a share" : "Find a company"} value={f.q} autoComplete="off" spellCheck={false} onChange={(e) => set("q", e.target.value)} /></label>
           <Tip label="About these filters" text="How far along comes from each company's own presentation: operating, under execution, planned, MoU or pilot, or not stated; pick one or more. Ahead of its theme: the share's 3-month move is above the median of all companies with the same main theme; behind: below it."
             how={`A theme stays while at least one of its ${noun} matches. Sorting and finding work together with the filters.`} />
@@ -105,38 +106,40 @@ function stageSum(t: ThemeLine): string | null {
   return k.length > 1 ? k.sort((a, b) => c[b] - c[a]).map((x) => `${x} ${c[x]}`).join(" · ") : null;
 }
 
-export function YourThemes({ v, list, onList, counts, label, onShow, theme }: { v: ThemeView | null; list: "shares" | "watch"; onList: (l: "shares" | "watch") => void;
+export function YourThemes({ v, list, onList, counts, label, onShow, theme, voice = "own", showLabel }: { v: ThemeView | null; list: "shares" | "watch"; onList: (l: "shares" | "watch") => void;
+  /** task #323 (developer file 22, W2): "list" on the Watchlists page: the open list's companies, no Your shares / Watchlists switch */ voice?: "own" | "list"; showLabel?: string;
   counts: { shares: { placed: number; total: number }; watch: { placed: number; total: number } }; label: (s: string) => string; onShow?: (name: string) => void; theme: string | null }) {
-  const cards = useMemo(() => (v ? themeCards(v, label) : []), [v, label]);
-  const F = useThemesFilter(v, list);
+  const cards = useMemo(() => (v ? themeCards(v, label, voice) : []), [v, label, voice]);
+  const L = voice === "list";
+  const F = useThemesFilter(v, list, L);
   const day = v?.updated ? new Date(v.updated).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : null;
   const co = (s: string) => <Link key={s} to={`/stocks/${encodeURIComponent(s)}`}>{label(s)}</Link>;
   return (
-    <Section id="eq-themes" hide title="Your themes, from Discover" help="The themes Discover reads from each company's newest investor presentation, for the companies on your list." how="A theme comes from the words of a company's own presentation; it is not proof of business in it."
-      sub={v ? `${v.placed} of ${v.total} ${list === "shares" ? "shares are" : "watchlist names are"} placed in a theme; ${v.themes.length} main ${v.themes.length === 1 ? "theme" : "themes"} between them.` : "Reading Discover's themes…"}>
+    <Section id="eq-themes" hide title={L ? "Themes on this list, from Discover" : "Your themes, from Discover"} help={`The themes Discover reads from each company's newest investor presentation, for the companies on ${L ? "this" : "your"} list.`} how="A theme comes from the words of a company's own presentation; it is not proof of business in it."
+      sub={v ? `${v.placed} of ${v.total} ${list === "shares" ? "shares are" : L ? "companies on this list are" : "watchlist names are"} placed in a theme; ${v.themes.length} main ${v.themes.length === 1 ? "theme" : "themes"} between them.` : "Reading Discover's themes…"}>
       <div className="eqh-bar">
-        <span className="eqh-lists" role="group" aria-label="Which list">
+        {!L && <span className="eqh-lists" role="group" aria-label="Which list">
           <button type="button" aria-pressed={list === "shares"} onClick={() => onList("shares")}>Your shares <b>{counts.shares.placed} of {counts.shares.total}</b></button>
-          <button type="button" aria-pressed={list === "watch"} onClick={() => onList("watch")}>Watchlists <b>{counts.watch.placed} of {counts.watch.total}</b></button></span>
+          <button type="button" aria-pressed={list === "watch"} onClick={() => onList("watch")}>Watchlists <b>{counts.watch.placed} of {counts.watch.total}</b></button></span>}
         {day && <span className="eqh-asof">Read from each company's newest investor presentation, to {day}</span>}
         <Link className="eqh-all" to="/discover">All themes in Discover ↗</Link>
       </div>
-      {!v ? <p className="sp-note">Reading Discover's themes…</p> : !v.placed ? <p className="sp-empty">None of {list === "shares" ? "your shares" : "your watchlist names"} is placed in a Discover theme yet. A company is placed once FinLit reads its newest investor presentation.</p> : <>
+      {!v ? <p className="sp-note">Reading Discover's themes…</p> : !v.placed ? <p className="sp-empty">None of {list === "shares" ? "your shares" : L ? "the companies on this list" : "your watchlist names"} is placed in a Discover theme yet. A company is placed once FinLit reads its newest investor presentation.</p> : <>
         <div className="eqh-chips" role="list">
-          {v.themes.map((t) => <Link role="listitem" key={t.name} className="eqh-chip" to={`/discover/themes/${t.slug}?mine=1`}><b>{t.short}</b> {t.mine.length} of yours · {t.n} companies ›</Link>)}
+          {v.themes.map((t) => <Link role="listitem" key={t.name} className="eqh-chip" to={`/discover/themes/${t.slug}?mine=1`}><b>{t.short}</b> {t.mine.length} {L ? "on this list" : "of yours"} · {t.n} companies ›</Link>)}
           {v.mentionOnly.map((t) => <Link role="listitem" key={t.name} className="eqh-chip dash" to={`/discover/themes/${t.slug}?mine=1`} title={`Mentioned by ${t.mine.map(label).join(", ")}, not their main theme`}><b>{t.short}</b> mentioned by {t.mine.length} ›</Link>)}
         </div>
         {F.bar}
         <div className="eqh-tw" hidden={F.on && !F.rows.length}><table className="eqh-t eqh-t2">
           <thead><tr><th scope="col">Theme</th>
-            <th scope="col">Your {list === "shares" ? "shares" : "names"} with it as their main theme<span className="eqh-hh" aria-hidden="true"><span>{list === "shares" ? "Share" : "Name"}</span><span>3 months</span><span>How far along</span></span></th>
+            <th scope="col">{L ? "On this list, with it as their main theme" : `Your ${list === "shares" ? "shares" : "names"} with it as their main theme`}<span className="eqh-hh" aria-hidden="true"><span>{list === "shares" ? "Share" : L ? "Company" : "Name"}</span><span>3 months</span><span>How far along</span></span></th>
             <th scope="col" className="r">3-month median<span className="eqh-hs">all in the theme</span></th><th scope="col" className="r">In a long-term uptrend<span className="eqh-hs">all in the theme</span></th><th scope="col">Also mention it</th></tr></thead>
           <tbody>{F.rows.map((r) => { const t = v.themes.find((x) => x.name === r.name)!, mine = F.mine(t), open = F.open(t), extra = t.mine.length - MORE, sum = F.on ? null : stageSum(t);
             const ut = t.rated ? Math.round((t.up / t.rated) * 100) : null;
             return <tr key={t.name} className={theme === t.name ? "on" : undefined}>
               <th scope="row"><Link className="eqh-tn" to={`/discover/themes/${t.slug}?mine=1`}>{t.name}</Link><small>{t.n} companies{t.also ? ` · ${t.also} more mention it` : ""}</small>
-                {onShow && <button type="button" className="eqh-show" onClick={() => onShow(t.name)}>Show them in the table</button>}</th>
-              <td data-l={`Your ${list === "shares" ? "shares" : "names"}: 3 months · how far along`}>
+                {onShow && <button type="button" className="eqh-show" onClick={() => onShow(t.name)}>{showLabel ?? "Show them in the table"}</button>}</th>
+              <td data-l={`${L ? "On this list" : `Your ${list === "shares" ? "shares" : "names"}`}: 3 months · how far along`}>
                 <ul className={open ? "eqh-ml open" : "eqh-ml"}>{mine.map((x, i) => <li key={x.s} className={[i >= MORE ? "eqh-x" : "", F.hit(x.s) ? "eqh-hit" : ""].filter(Boolean).join(" ") || undefined}>
                   <Link to={`/stocks/${encodeURIComponent(x.s)}`}>{label(x.s)}</Link>
                   <small className={x.r3m == null ? undefined : x.r3m >= 0 ? "eqh-up" : "eqh-dn"} title={x.r3m == null ? "3-month move not known" : "Its move over 3 months"}>{x.r3m == null ? "–" : pct(x.r3m)}</small>
