@@ -65,8 +65,8 @@
 .rt-bar { display: flex; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap; align-items: flex-start; }
 .rt-seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 10px; overflow: hidden; flex: none; }
 .rt-seg button { min-height: 44px; padding: 0 18px; background: var(--s1); color: var(--text); border: 0; font: 600 14px var(--sans); cursor: pointer; }
-.rt-seg button[aria-pressed="true"] { background: var(--rt-ag); color: #fff; }
-:root:not([data-theme="light"]) .rt-seg button[aria-pressed="true"] { color: #06181B; }
+.rt-seg button[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); }
+:root:not([data-theme="light"]) .rt-seg button[aria-pressed="true"] { color: var(--ui-on-fg); }
 .rt-moved, .rt-two ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .rt-moved li { display: grid; gap: 2px; font-size: 13px; } .rt-moved a, .rt-two a { display: inline-flex; align-items: center; min-height: 28px; color: var(--text); font-weight: 600; text-decoration: none; } .rt-moved a:hover, .rt-two a:hover { text-decoration: underline; }
 .rt-moved span { color: var(--muted); } .rt-moved b { color: var(--text); }
@@ -121,8 +121,8 @@
 /* ranking table */
 .rt-pills { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; }
 .rt-pills button { min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: 600 13px var(--sans); cursor: pointer; }
-.rt-pills button[aria-pressed="true"] { background: var(--rt-ag); border-color: var(--rt-ag); color: #fff; }
-:root:not([data-theme="light"]) .rt-pills button[aria-pressed="true"] { color: #06181B; }
+.rt-pills button[aria-pressed="true"] { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); }
+:root:not([data-theme="light"]) .rt-pills button[aria-pressed="true"] { color: var(--ui-on-fg); }
 .rt-tablebox { position: relative; border: 1px solid var(--border-strong); border-radius: 14px; background: var(--s1); overflow: hidden; width: 100%; contain: inline-size; }
 .rt-scroll { overflow-x: auto; max-width: 100%; }
 .rt-t { width: 100%; border-collapse: collapse; font-size: 13px; }

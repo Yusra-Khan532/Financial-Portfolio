@@ -71,7 +71,7 @@
 :root:not([data-theme="light"]) .search:hover, :root:not([data-theme="light"]) .icon-btn:hover { border-color: var(--gold); }
 :root:not([data-theme="light"]) .btn:not(.primary) { background: var(--s2); border-color: var(--border-strong); color: var(--text); }
 :root:not([data-theme="light"]) .btn:not(.primary):hover { background: var(--s3); border-color: var(--gold); }
-:root:not([data-theme="light"]) .btn.on { background: var(--gold-soft); border-color: var(--gold); color: var(--gold); }
+:root:not([data-theme="light"]) .btn[aria-pressed="true"]:not(.primary), :root:not([data-theme="light"]) .btn[aria-current="page"]:not(.primary) { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); box-shadow: none; }   /* task #310: cream with dark text (was a gold tint) */
 :root:not([data-theme="light"]) .tag, :root:not([data-theme="light"]) .kbd { background: var(--s2); border-color: var(--border-strong); }
 :root:not([data-theme="light"]) :focus-visible { outline-color: var(--gold-2); box-shadow: 0 0 0 4px rgba(11,12,15,.9); }
 

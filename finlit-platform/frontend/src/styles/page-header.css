@@ -18,11 +18,11 @@
 .ph-desc a { color: var(--gold); text-underline-offset: 3px; }
 .ph-meta { margin: 0; color: var(--faint); font-size: 13px; }
 .ph-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 4px; }
-.ph-lk, .ph-learn, .ph-qbtn { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: 600 14px var(--sans); text-decoration: none; cursor: pointer; transition: border-color .15s, background .15s; }
-.ph-lk:hover, .ph-learn:hover, .ph-qbtn:hover { border-color: var(--gold); background: var(--s2); }
+.ph-learn, .ph-qbtn { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: 600 14px var(--sans); text-decoration: none; cursor: pointer; transition: border-color .15s, background .15s; }
+.ph-learn:hover, .ph-qbtn:hover { border-color: var(--gold); background: var(--s2); }
 .ph-lk svg, .ph-learn svg, .ph-qbtn svg { width: 15px; height: 15px; flex: none; }
-.ph-lk.primary { background: var(--gold); border-color: var(--gold); color: var(--ph-on); }
-.ph-lk.primary:hover { background: var(--gold-2); border-color: var(--gold-2); color: #1A1405; }
+/* Task #310: the quick links ("Fund Screener →") are the shared second button, ui-btn ui-btn--secondary ui-btn--sm (components/ui), all alike; the gold pill for the
+   "primary" one is gone (gold means Prism and the Gold plan). */
 .ph-learn { background: transparent; color: var(--muted); } .ph-learn:hover { color: var(--text); }
 /* "Raise a Query" (components/PageFeedback.tsx): the same button as the others, with a gold edge so it is easy to find */
 .ph-qbtn { border-color: var(--gold); }
@@ -49,6 +49,6 @@
   .ph-side { width: auto; }
   .ph-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ph-title { font-size: var(--fs-28); }
-  .ph-lk, .ph-learn, .ph-qbtn { min-height: 40px; }
+  .ph-learn, .ph-qbtn { min-height: 40px; }
 }
 @media print { .ph { animation: none; } .ph-art-box { display: none; } }

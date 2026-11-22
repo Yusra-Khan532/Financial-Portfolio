@@ -53,7 +53,9 @@ describe("H: the page header", () => {
   it("the boxes sit two by two at 560 px and below; the old tab strip and head cards are gone from the pages", () => {
     const css = readFileSync(resolve(__dirname, "../../styles/screeners243.css"), "utf8");
     expect(css).toMatch(/@media \(max-width: 560px\) \{\s*\.xsh-nav \{ display: grid; grid-template-columns: 1fr 1fr;/);
-    expect(css).toMatch(/\.xsh-box \{[^}]*min-height: 36px/);
+    // task #310: the boxes are the shared 36px tab (ui-tab, --ui-ctl-h-sm), the current one marked aria-current
+    expect(readFileSync(resolve(__dirname, "./ScreenerHead.tsx"), "utf8")).toMatch(/className=\{tabClass\("xsh-box"\)\} aria-current=/);
+    expect(readFileSync(resolve(__dirname, "../../styles/ui.css"), "utf8")).toMatch(/\.ui-tab \{[^}]*min-height: var\(--ui-ctl-h-sm\)/);
     for (const f of ["../../pages/ScreenerPro.tsx", "./ScreenerFrame.tsx", "./presets/PresetPage.tsx"]) {
       const src = readFileSync(resolve(__dirname, f), "utf8");
       expect(src, f).not.toMatch(/<FindStocksTabs|ssw-head|className="card sx-head"/);

@@ -22,7 +22,7 @@
 :root:root .ow button { min-height: 0; min-width: 0; }
 .ow-seg { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 3px; background: var(--ow-chip); border-radius: 10px; }
 :root:root .ow .ow-seg button { height: 32px; min-width: 44px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: var(--ow-ink); font: 500 13px var(--font-sans); cursor: pointer; }
-:root:root .ow .ow-seg button[aria-pressed="true"] { background: var(--bg-surface); box-shadow: 0 1px 3px rgba(11, 25, 44, .18); font-weight: 600; }
+:root:root .ow .ow-seg button[aria-pressed="true"] { background: var(--ui-on-bg); box-shadow: none; font-weight: 600; color: var(--ui-on-fg); }
 :root:root .ow .ow-seg button:disabled { color: var(--text-disabled); cursor: default; }
 :root:root .ow .ow-btn { height: 32px; padding: 0 12px; border: 1px solid var(--border-control); border-radius: 8px; background: var(--bg-surface); color: var(--ow-ink); font: 600 13px var(--font-sans); cursor: pointer; }
 :root:root .ow .ow-btn:hover { background: var(--ow-chip); }
