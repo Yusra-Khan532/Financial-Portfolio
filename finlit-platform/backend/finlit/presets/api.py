@@ -710,6 +710,36 @@ async def detail(request: Request, pid: str):
     return _json({k: v for k, v in body.items() if k not in API_ONLY})
 
 
+PRICE_SESSIONS = {"3M": 63, "6M": 126, "1Y": 252}
+PRICES_MAX = 12
+
+
+@router.get("/{pid}/prices")
+async def prices_route(request: Request, pid: str):
+    """Task #325 (developer file 25, section 5): the chart wall's prices in one call, for up to 12 companies of this screen, from the daily series the
+    pattern job keeps (presets/candles.py), so a card never waits for a company report to be built ("Preparing this stock's report" kept 17 of 113
+    cards on Loading). A company with no stored series comes back as null and the card says the chart is being prepared."""
+    from . import candles as candles_mod
+    await _resolve(request, pid)
+    rng = request.query_params.get("range", "6M").upper()
+    n = PRICE_SESSIONS.get(rng, 126)
+    syms = [x.strip().upper() for x in (request.query_params.get("symbols") or "").split(",") if x.strip()][:PRICES_MAX]
+    store = request.app.state.store
+    out: Dict[str, Optional[dict]] = {}
+    for sym in syms:
+        try:
+            sr = await candles_mod.series(store, sym)
+        except Exception:
+            sr = None
+        t = (sr or {}).get("t") or []
+        if len(t) < 2:
+            out[sym] = None
+            continue
+        k = max(0, len(t) - n)
+        out[sym] = {f: list((sr.get(f) or [])[k:]) for f in ("t", "o", "h", "l", "c")}
+    return _json({"range": rng, "series": out})
+
+
 @router.get("/{pid}/history")
 async def history_route(request: Request, pid: str):
     p, ctx, active = await _resolve(request, pid)

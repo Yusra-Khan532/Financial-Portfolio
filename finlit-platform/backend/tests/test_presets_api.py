@@ -271,3 +271,20 @@ async def test_the_list_gives_each_card_its_first_three_its_figure_and_who_joine
     locked = card((await anon.get("/api/screener/presets")).json())
     assert "first" not in locked and "joined" not in locked and locked["count"] is None
     await gold.aclose()
+
+
+async def test_325_one_prices_call_for_the_chart_wall(app, anon, monkeypatch):  # noqa: F811
+    """Task #325 (file 25, section 5): up to 12 companies' prices in one call, from the stored daily series; a company with none is null; Gold only."""
+    from finlit.presets import candles as cm
+    t = [f"2026-0{m}-1{d}" for m in range(1, 9) for d in range(0, 10)][:80]
+
+    async def series(store, sym):
+        return {} if sym == "NONE" else {"t": t, "o": [1.0] * 80, "h": [2.0] * 80, "l": [0.5] * 80, "c": [1.5] * 80, "v": [9] * 80}
+    monkeypatch.setattr(cm, "series", series)
+    assert (await anon.get("/api/screener/presets/emerging-tech/prices?symbols=A")).status_code in (401, 403)
+    gold = await signed_in(app, "g325@example.com", plan="gold")
+    r = await gold.get("/api/screener/presets/emerging-tech/prices?range=3M&symbols=a,NONE," + ",".join(f"S{i}" for i in range(20)))
+    assert r.status_code == 200
+    body = r.json()
+    assert body["range"] == "3M" and len(body["series"]) == 12 and body["series"]["NONE"] is None
+    assert len(body["series"]["A"]["t"]) == 63 and set(body["series"]["A"]) == {"t", "o", "h", "l", "c"}

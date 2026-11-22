@@ -204,3 +204,24 @@ export const rowsForTheme = (rows: PresetRow[], t: Theme | null): PresetRow[] =>
 
 /** A breadth figure arrives as a percentage (43) or a share (0.43); both are shown as a percentage. */
 export const asPct = (v: number | null | undefined): number | null => (v == null ? null : Math.abs(v) <= 1 ? v * 100 : v);
+
+/* ------------------------------------------------------------------ task #325 (developer file 25): the chart wall's prices and the screen's view */
+export type ScreenSeries = { t: string[]; o: (number | null)[]; h: (number | null)[]; l: (number | null)[]; c: number[] };
+export type ScreenPrices = { range: string; series: Record<string, ScreenSeries | null> };
+/** Up to 12 companies' prices in one call per chunk (the server's most), from the stored daily series: a card never waits for a company report. */
+export function useScreenPrices(id: string | null, symbols: string[], range: "3M" | "6M" = "6M", enabled = true) {
+  const chunks: string[][] = [];
+  for (let i = 0; i < symbols.length; i += 12) chunks.push(symbols.slice(i, i + 12));
+  return useQuery<Record<string, ScreenSeries | null>, ApiError>({
+    queryKey: ["screen-prices", id, range, symbols.join(",")], enabled: enabled && !!id && symbols.length > 0, staleTime: 600_000, placeholderData: keepPreviousData, retry: 1,
+    queryFn: async () => {
+      const parts = await Promise.all(chunks.map((c) => apiGet<ScreenPrices>(`/api/screener/presets/${encodeURIComponent(id!)}/prices?range=${range}&symbols=${c.map(encodeURIComponent).join(",")}`)));
+      return Object.assign({}, ...parts.map((p) => p.series));
+    },
+  });
+}
+export type ScreenViewMode = "table" | "list" | "charts";
+const VIEW_KEY = "finlit-screen-view";
+/** The view switch remembers its choice (file 25, 1 row 1); List + chart is the default (row 2). */
+export const readScreenView = (): ScreenViewMode => { try { const v = localStorage.getItem(VIEW_KEY); return v === "table" || v === "charts" || v === "list" ? v : "list"; } catch { return "list"; } };
+export const saveScreenView = (v: ScreenViewMode) => { try { localStorage.setItem(VIEW_KEY, v); } catch { /* private window */ } };
