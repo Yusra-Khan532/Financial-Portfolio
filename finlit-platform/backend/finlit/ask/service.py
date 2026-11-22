@@ -154,20 +154,22 @@ def reads_like_advice(text: str) -> bool:
     return bool(ADVICE.search(text or ""))
 
 
-SUMMARY_VERSION = "v3"   # task #312: the fixed shape below; a new version is not served an older cached summary
+SUMMARY_VERSION = "v4"   # task #228 rework 3: bucket headlines; a new version is not served an older cached summary
 
 
 def summary_question(symbol: str) -> str:
-    """The AI summary at the top of the FinLit Prism card of the company page (task #228; reworked by task #312, developer file 20, 22 Nov 2026: the
-    member called the old text "poor"). Written from the card's own figures (get_finlit_prism, read before the model starts), in a fixed shape of up to
-    5 pointers and about 80 words, each with the card's numbers, so it is short and can be checked against the card. Written here, never by the
-    browser: the summary allowance (quota kind "summary") can only ever ask this."""
-    return (f"Summarise the FinLit Prism card of {symbol} (read above) in at most 5 pointers and about 80 words, each one line starting with \"- \" "
-            "and a bold label, in this order: **Overall:** the overall score and its label, and whether it is Rated or Provisional; **Sound:** the "
-            "parts scoring well, with their scores and what they measure; **In between:** the middling parts, with their scores; **Weighs on it:** "
-            "the weak parts, with their scores and the main reason the card gives (its topPros and topCons); **Price trend:** the short-term and long-term technical "
-            "scores and what they mean together (a higher Risk score means lower risk). Use only the card's figures, as the card states them. Leave "
-            "out a pointer that has nothing in it. No headings, no paragraph. Describe, never advise.")
+    """The AI summary at the top of the FinLit Prism card of the company page (task #228; task #312 (developer file 20): written from the card's own
+    figures, get_finlit_prism, read before the model starts). Task #228 rework 3 (the team, 22 Nov 2026): "make it summarize the score and nothing else
+    in pointer not paragraphs not big sentence instead create a major bucket headline then give point": numbered bucket headlines, each with one or
+    two short points of the card's own figures. Written here, never by the browser: the summary allowance (quota kind "summary") can only ever ask this."""
+    return (f"Summarise the FinLit Prism score of {symbol} (the card read above) and nothing else: no company news, business description or advice. "
+            "Write it as bucket headlines, each on its own line and numbered, in this order: \"1. Overall\", \"2. Sound\", \"3. In between\", "
+            "\"4. Weighs on it\", \"5. Price trend\". Under each headline write one or two points, each on its own line starting with \"- \", "
+            "at most 12 words, no full sentences: the part's name, its score and what it measures, with key figures in **bold**. "
+            "Overall: the overall score, its label and whether it is Rated or Provisional. Weighs on it: the weak parts and the main reason the card "
+            "gives (its topPros and topCons). Price trend: the short-term and long-term technical scores and what they mean together "
+            "(a higher Risk score means lower risk). Use only the card's figures, as the card states them. Leave out a headline that has nothing "
+            "under it. No paragraph. Describe, never advise.")
 
 
 # Task #255 ("chatbot is still not taking investor presentation data"): a question about what a company's own document says is answered from the
