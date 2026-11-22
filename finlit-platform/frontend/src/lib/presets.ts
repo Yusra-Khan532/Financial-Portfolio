@@ -15,6 +15,7 @@ export type Preset = {
   /** The strip's card (task #64, N-38), on the plan's own page only: a "Top 10 …" / "Highest-rated …" list; the figure the first three show;
    *  the first three companies on the stored list with that figure (null when the company has none); how many joined at the latest close. */
   top10?: boolean; figure?: string; first?: { symbol: string; name: string; value: number | null }[]; joined?: number;
+  /** task #325: the screen's rules changed at the latest close, so no joined figure is shown that day */ rulesUpdated?: boolean;
   /** Task #243 (pack v4): the i beside a new screen's name, and its NEW tag (two weeks after its first run). */
   about?: ScreenAbout | null; isNew?: boolean;
 };

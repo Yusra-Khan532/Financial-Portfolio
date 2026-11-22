@@ -50,7 +50,7 @@ describe("a new screen", () => {
     render(<Card p={p} group={g} on={false} planName="Gold" onPick={() => {}} />);
     const btn = screen.getByRole("button");
     expect(btn.querySelector(".rms-new")!.textContent).toBe("NEW");
-    expect(btn.querySelector(".rms-m")!.textContent).toBe("10 match · new screen");
+    expect(btn.querySelector(".rms-m")!.textContent).toBe("10 companies");      // task #325: the NEW tag says it
   });
   it("its only saved list shows the first-list pill, and Left the list says none yet", () => {
     const s = [{ date: "2026-11-19", count: 10, joined: null, left: null, prev: null, rulesUpdated: false, status: "first" as const, saved: true }];

@@ -77,3 +77,6 @@
 /* task #243 round 3b: the Sectors tab's one-line intro over its cards, with an i */
 .rms-intro { margin: 10px 0 0; font: 400 13px/1.45 var(--sans); color: var(--muted); }
 .rms-intro .psx-ib { display: inline-flex; vertical-align: middle; margin-left: 6px; }
+/* task #325 (developer file 25, 2.1 row 6): a screen whose list is empty tonight (IPO base) is greyed and says "None tonight" */
+.rms-card.is-empty { opacity: .62; border-style: dashed; }
+.rms-card.is-empty .rms-m { color: var(--muted); }
