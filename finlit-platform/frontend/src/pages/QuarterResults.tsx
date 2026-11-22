@@ -1,5 +1,5 @@
 import { titleOf } from "../lib/companyLabel";
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { SortTh } from "../components/SortTh";
 import { nextSort, type SortState } from "../lib/tableSort";
 import { Link, useSearchParams } from "react-router";
@@ -12,10 +12,12 @@ import { ApiError, apiGet } from "../lib/api";
 import { dayLabel } from "../lib/feed";
 import { useResultsDelayedNote } from "../lib/jobsStatus";
 import { MINUS, nf } from "../lib/format";
-import { GROWTH_PRESETS, PRICE_PRESETS, activePreset, activePricePreset, applyPreset, priceIsDefault, DATE_MEANING, GAP_LABEL, PAGE, activeChip, cellHit, DEFAULT_GROWTH, DEFAULT_PRICE, PRICE_KEYS, PRICE_WORD, bandOf, bandShort, priceFromParams, priceHit, priceOn, priceQuery, priceToParams, priceWhy, type PriceKey, type PriceState, type CellKey, growthFromParams, growthOn, growthQuery, growthToParams, type GrowthState, awaitingNote, csvOf, dateChips, dateFromParams, dateProblem, describeSel, gapAlertLink, headline, isWeekend, longDay, queryString, signedPct, todayIST, useQuarterResults, weekdayName, type DateSel, type QDates, type QParams, type QRow } from "../lib/qresults";
+import { GROWTH_PRESETS, PRICE_PRESETS, activePreset, activePricePreset, applyPreset, priceIsDefault, DATE_MEANING, GAP_LABEL, PAGE, PAGE_SIZES, activeChip, cellHit, DEFAULT_GROWTH, DEFAULT_PRICE, PRICE_KEYS, PRICE_WORD, bandOf, bandShort, priceFromParams, priceHit, priceOn, priceQuery, priceToParams, priceWhy, type PriceKey, type PriceState, type CellKey, growthFromParams, growthOn, growthQuery, growthToParams, type GrowthState, awaitingNote, csvOf, dateChips, dateFromParams, dateProblem, describeSel, gapAlertLink, headline, isWeekend, longDay, queryString, signedPct, todayIST, useQuarterResults, weekdayName, type DateSel, type QDates, type QParams, type QRow } from "../lib/qresults";
 import { saveFile } from "../stock/derive";
 import { ChartHelp } from "../components/ChartHelp";
 import { HScroll } from "../components/HScroll";
+import { TableZoom } from "../components/TableZoom";
+import { pageList } from "../lib/scoreScreen";
 import { GrowthPanel } from "../components/QrGrowth";
 import { FilterGroup } from "../components/screener/FilterGroup";
 import "../styles/fgx.css";
@@ -197,6 +199,43 @@ function DateEmpty({ dates, sel, today, quarterLabel, filtersOn, onPick, onQuart
   );
 }
 
+/** The note under the table, folded (the founder, 22 Nov 2026): closed when the page opens, the same words inside. The disclaimer and the
+ *  Results calendar link stay in sight below it. */
+export const READ_NOTE: [string, string][] = [
+  ["Growth (YoY and QoQ)", "Growth is against the same quarter last year (YoY) and the quarter before (QoQ); it shows a dash, with the reason on hover or focus, when the earlier quarter was zero or a loss or is not in our statements."],
+  ["Operating profit and OPM", "Operating profit is revenue less operating expenses before interest and depreciation (for banks, before provisions), the same figure as on the stock page and in the screener; OPM is operating profit over revenue."],
+  ["Dates", "Dates come from exchange filings and announced board meetings."],
+  ["Price position", "The two Price position columns show how far the latest price is below the 52-week high (the exchange's intraday high) and below the all-time high (the highest close in our price history); a dash means that high is not held. Distance below a high is a fact about the price, not a view on it."],
+];
+function ReadNote() {
+  return (
+    <div className="qr-read">
+      <details className="qr-how">
+        <summary><span><b>How to read this table</b><small>Growth, operating profit, dates and price position</small></span><span className="qr-how-show" aria-hidden="true"><span className="qr-how-s">Show ▾</span><span className="qr-how-h">Hide ▴</span></span></summary>
+        <dl>{READ_NOTE.map(([t, d]) => <div key={t}><dt>{t}</dt><dd>{d}</dd></div>)}</dl>
+      </details>
+      <p className="qr-foot muted">Not investment advice. <Link to="/results">Results calendar</Link></p>
+    </div>
+  );
+}
+
+/** Where the reader is in the list and how to move: "1–50 of 5,313", page numbers (first, last and two either side), rows per page. Above and below the table. */
+function Pager({ at, offset, total, size, onPage, onSize }: { at: "top" | "bottom"; offset: number; total: number; size: number; onPage: (n: number) => void; onSize: (n: number) => void }) {
+  const page = Math.floor(offset / size), pages = Math.max(1, Math.ceil(total / size));
+  return (
+    <div className={"qr-pg qr-pg-" + at}>
+      <span className="qr-pg-at" aria-live={at === "top" ? "polite" : undefined}>Showing <b>{nf(offset + 1, 0)}–{nf(Math.min(total, offset + size), 0)}</b> of {nf(total, 0)} companies</span>
+      <nav className="qr-pg-nav" aria-label={at === "top" ? "Pages of the results table" : "Pages of the results table (bottom)"}>
+        <button type="button" className="btn" disabled={page <= 0} onClick={() => onPage(page - 1)} aria-label="Previous page">‹ Previous</button>
+        {pageList(page, pages).map((n, i) => n == null ? <span key={"g" + i} className="qr-pg-gap" aria-hidden="true">…</span> :
+          <button type="button" key={n} className="btn qr-pg-n" aria-current={n === page ? "page" : undefined} aria-label={`Page ${n + 1}`} onClick={() => onPage(n)}>{n + 1}</button>)}
+        <button type="button" className="btn" disabled={page >= pages - 1} onClick={() => onPage(page + 1)} aria-label="Next page">Next ›</button>
+      </nav>
+      <label className="qr-pg-size muted">Rows per page <select value={size} onChange={(e) => onSize(Number(e.target.value))} aria-label={at === "top" ? "Rows per page" : "Rows per page (bottom)"}>{PAGE_SIZES.map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
+    </div>
+  );
+}
+
 export function QuarterResultsPage() {
   useDocTitle("Latest results", "Every company's results for the latest quarter, newest declaration first: revenue, profit, margins, growth against last year and last quarter, with a one-line summary to copy.");
   const { user } = useAuth();
@@ -212,23 +251,17 @@ export function QuarterResultsPage() {
   const [sideW, setSide] = useSideWidth("results-quarter");   // the draggable divider: the width is remembered; dragged to the edge it hides the filters
   const wide = sideW === 0;                                   // filters hidden, table at full width
   const toggleWide = () => setSide(wide ? SIDE.def : 0);
-  // The enlarge arrow on the results panel: the whole panel opens big over the page; Esc, a click outside or the same arrow brings it back.
-  const [zoom, setZoom] = useState(false);
-  useEffect(() => {
-    if (!zoom) return;
-    const k = (e: KeyboardEvent) => { if (e.key === "Escape") setZoom(false); };
-    const was = document.body.style.overflow;
-    document.body.style.overflow = "hidden";   // the page behind does not scroll while the panel is enlarged
-    window.addEventListener("keydown", k);
-    return () => { window.removeEventListener("keydown", k); document.body.style.overflow = was; };
-  }, [zoom]);
+  // Rows per page (50 or 100, the server's most). The table had only Previous / Next under 50 rows, so most of the 5,000-odd companies were out of
+  // sight: the pager now sits above the table as well as below it, with page numbers and the rows-per-page choice (22 Nov 2026).
+  const [size, setSize] = useState<number>(PAGE);
+  const tableTop = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const quarter = sp.get("quarter") || undefined;
   const sel = useMemo(() => dateFromParams(sp), [sp]);
   const hasDate = !!(sel.date || sel.from || sel.to);
   const growth = useMemo(() => growthFromParams(sp), [sp]);   // the growth filters live in the address, like the quarter and the dates
   const price = useMemo(() => priceFromParams(sp), [sp]);
-  const p: QParams = { ...f, quarter, q: f.q, offset, ...sel, ...growthQuery(growth), ...priceQuery(price) };
+  const p: QParams = { ...f, quarter, q: f.q, offset, limit: size, ...sel, ...growthQuery(growth), ...priceQuery(price) };
   const res = useQuarterResults(p);
   const d = res.data;
   const dateErr = res.error instanceof ApiError && res.error.status === 400 ? res.error.message : null;   // a bad or future date in the address: say so, never show a blank
@@ -237,6 +270,15 @@ export function QuarterResultsPage() {
   const [draft, setDraft] = useState({ from: sel.from || "", to: sel.to || "" });
   useEffect(() => { setDraft({ from: sel.from || "", to: sel.to || "" }); }, [sel.date, sel.from, sel.to]);
   const set = (patch: Partial<QParams>) => { setF((x) => ({ ...x, ...patch })); setOffset(0); };
+  /** After a page change, show the top of the table, not the top of the page (in the enlarged table, the dialog scrolls instead of the page). */
+  const toTable = () => requestAnimationFrame(() => {
+    const el = tableTop.current;
+    if (!el) return;
+    if (el.closest(".cz-body")) el.scrollIntoView({ block: "start" });
+    else window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + window.scrollY - 96) });
+  });
+  const goPage = (n: number) => { setOffset(n * size); toTable(); };
+  const pickSize = (n: number) => { setSize(n); setOffset(0); toTable(); };
   /** Change the date in the address (so it can be shared); `keepQuarter` leaves a chosen quarter alone, otherwise the server picks the quarter the date belongs to. */
   const setDates = (next: DateSel | null, keepQuarter = false) => {
     const n = new URLSearchParams(sp);
@@ -391,7 +433,7 @@ export function QuarterResultsPage() {
             <select value={f.status || ""} onChange={(e) => set({ status: e.target.value })} aria-label="Status">{STATUSES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
           </div>
         </FilterGroup>
-      <GrowthPanel state={growth} onChange={setGrowth} summary={d?.growth} loading={res.isFetching} price={price} onPrice={setPrice} priceSummary={d?.price} onBoth={setBoth} onReset={() => setBoth(DEFAULT_GROWTH, DEFAULT_PRICE)} />
+      <GrowthPanel state={growth} onChange={setGrowth} summary={d?.growth} loading={res.isFetching} price={price} onPrice={setPrice} priceSummary={d?.price} onBoth={setBoth} onReset={() => setBoth(DEFAULT_GROWTH, DEFAULT_PRICE)} held={dateErr ? null : d?.priceStrip} />
       </aside>
       <SplitDivider width={sideW} set={setSide} />
       <div className="qr-main">
@@ -414,17 +456,9 @@ export function QuarterResultsPage() {
         ...PRICE_PRESETS.filter((x) => x.growth).map((x) => { const on = activePricePreset(growth, price) === x.id; return { id: x.id, label: x.label, hint: x.hint, on, apply: () => setBoth(on ? DEFAULT_GROWTH : applyPreset(x.growth!), on ? DEFAULT_PRICE : x.price) }; }),
       ]} />
 
-      {zoom && <div className="qr-backdrop" onClick={() => setZoom(false)} aria-hidden="true" />}
-      <section className={"card qr-card" + (zoom ? " qr-zoomed" : "")}>
+      <section className="card qr-card">
         <div className="card-h"><h3><span className="ci"><Icon name="notes" /></span>{q ? `${q.label}` : "Results"}<span className="muted qr-count"> · {nf(total, 0)} {total === 1 ? "company" : "companies"}</span></h3>
-          <span className="muted qr-unit">Rs crore, except EPS (Rs) and per cent</span>
-          <button type="button" className="qr-zoom" aria-pressed={zoom} aria-label={zoom ? "Back to the page" : "Enlarge the results table"} title={zoom ? "Back to the page (Esc)" : "Enlarge the results table"} onClick={() => setZoom((z) => !z)}>
-            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">{zoom ? <path d="M6 2v4H2M10 14v-4h4M6 6 2 2M10 10l4 4" /> : <path d="M10 2h4v4M6 14H2v-4M14 2 9.5 6.5M2 14l4.5-4.5" />}</svg>
-          </button></div>
-        {d?.priceStrip && d.priceStrip.have52 + d.priceStrip.haveAth > 0 && !dateErr && (
-          <p className="qr-strip" role="status"><b>{nf(d.priceStrip.near52, 0)}</b> of {nf(d.priceStrip.have52, 0)} companies are within 5% of their 52-week high; <b>{nf(d.priceStrip.nearAth, 0)}</b> of {nf(d.priceStrip.haveAth, 0)} are within 5% of their all-time high.
-            {d.priceStrip.companies - d.priceStrip.have52 > 0 && <> {nf(d.priceStrip.companies - d.priceStrip.have52, 0)} have no 52-week high figure and {nf(d.priceStrip.companies - d.priceStrip.haveAth, 0)} no all-time high figure.</>}</p>
-        )}
+          <span className="muted qr-unit">Rs crore, except EPS (Rs) and per cent</span></div>
         {hasDate && d && !dateErr && (
           <p className="qr-active" role="status">
             Showing companies {describeSel(sel, today)}{q ? ` for ${q.label}` : ""}: <b>{nf(total, 0)}</b>{filtersOn ? " after your filters" : ""}.
@@ -438,6 +472,9 @@ export function QuarterResultsPage() {
           <div className="dw-empty"><span className="dw-ei"><Icon name="calendar" /></span><b>{d?.quarter ? "No companies match" : "No results dates yet"}</b><p>{d?.quarter ? (growthOn(growth) || priceOn(price) ? "No company meets the growth and price-position conditions you set. Try a wider band or lower threshold, or switch from Match all to Match any." : "Try removing a filter.") : "Results dates appear here as companies announce them."}</p>
             {f.scope === "watchlist" && <Link className="btn" to="/watchlist">Build a watchlist</Link>}{f.scope === "portfolio" && <Link className="btn" to="/holdings">Add holdings</Link>}</div>
         ) : (
+          // One enlarge arrow (the site's shared one, in the panel's corner): it opens the table WITH its pager, so every page can be read enlarged.
+          <TableZoom label="Results table">
+          <div ref={tableTop} className="qr-ttop">{total > PAGE_SIZES[0] && <Pager at="top" offset={offset} total={total} size={size} onPage={goPage} onSize={pickSize} />}</div>
           <HScroll label="results table" className="qr-scroll">
             <table className="qtt qr-t">
               <thead>
@@ -448,15 +485,10 @@ export function QuarterResultsPage() {
               <tbody>{body}</tbody>
             </table>
           </HScroll>
+          {total > PAGE_SIZES[0] && <Pager at="bottom" offset={offset} total={total} size={size} onPage={goPage} onSize={pickSize} />}
+          </TableZoom>
         )}
-        {total > PAGE && (
-          <nav className="qr-pager" aria-label="Pages">
-            <button type="button" className="btn" disabled={offset === 0} onClick={() => { setOffset(Math.max(0, offset - PAGE)); window.scrollTo({ top: 0 }); }}>← Previous</button>
-            <span className="muted">{nf(offset + 1, 0)} to {nf(Math.min(total, offset + PAGE), 0)} of {nf(total, 0)}</span>
-            <button type="button" className="btn" disabled={offset + PAGE >= total} onClick={() => { setOffset(offset + PAGE); window.scrollTo({ top: 0 }); }}>Next →</button>
-          </nav>
-        )}
-        <p className="qr-foot muted">Growth is against the same quarter last year (YoY) and the quarter before (QoQ); it shows a dash, with the reason on hover or focus, when the earlier quarter was zero or a loss or is not in our statements. Operating profit is revenue less operating expenses before interest and depreciation (for banks, before provisions), the same figure as on the stock page and in the screener; OPM is operating profit over revenue. Dates come from exchange filings and announced board meetings. The two Price position columns show how far the latest price is below the 52-week high (the exchange's intraday high) and below the all-time high (the highest close in our price history); a dash means that high is not held. Distance below a high is a fact about the price, not a view on it. Not investment advice. <Link to="/results">Results calendar</Link></p>
+        <ReadNote />
       </section>
       </div>
       </div>

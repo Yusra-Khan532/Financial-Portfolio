@@ -182,16 +182,28 @@ describe("the table columns", () => {
     expect(cells(3)).toEqual(["—Not held", "—Loading history"]); expect(rows[3].querySelector("abbr")!.getAttribute("title")).toMatch(/No 52-week high is held/);
     expect(rows[0].querySelectorAll("td.qr-pp .qr-ppv")[1].getAttribute("title")).toMatch(/highest close, week of 12 Jan 2026/);
   });
+  it("says in words when no all-time high is on file for any company (the live page showed \"0 of 0\", 22 Nov 2026)", () => {
+    st.resp = resp({ total: 1, rows: [mk({ ath: null, athDate: null, belowAth: null })], priceStrip: { companies: 5313, have52: 5266, near52: 417, haveAth: 0, nearAth: 0 } });
+    open();
+    const held = within(screen.getByRole("list", { name: "Highs on file" })).getAllByRole("listitem").map((li) => li.textContent);
+    expect(held).toEqual(["417 of the 5,266 companies with a 52-week high are within 5% of it; 47 have no 52-week high on file.",
+      "No all-time high is on file for any of these 5,313 companies, so the Below all-time high column shows a dash and an all-time-high condition matches none."]);
+    expect(document.body.textContent).not.toMatch(/0 of 0/);
+  });
   it("highlights the cells that met the price filter, for sighted and screen reader users", () => {
     st.resp = resp({ total: 1, rows: [mk()] });
     open("?p52=2&pAth=0");
     const hits = Array.from(document.querySelectorAll("td.qr-hit")).map((td) => td.textContent);
     expect(hits).toHaveLength(1); expect(hits[0]).toContain("12.4%"); expect(hits[0]).toContain("meets your price-position filter");
   });
-  it("sorts both ways from the header and shows the line above the table", () => {
+  it("sorts both ways from the header, and counts the highs on file under the Price position filter, not above the table", () => {
     st.resp = resp({ total: 1, rows: [mk()], priceStrip: { companies: 157, have52: 150, near52: 34, haveAth: 140, nearAth: 12 } });
     open();
-    expect(screen.getByText(/companies are within 5% of their 52-week high/).textContent).toContain("34 of 150 companies are within 5% of their 52-week high; 12 of 140 are within 5% of their all-time high.");
+    // 22 Nov 2026: the count line left the table's head (it read as a headline about results); it now sits in the filter it describes
+    expect(document.querySelector(".qr-card")!.textContent).not.toMatch(/within 5%/);
+    const held = within(screen.getByRole("list", { name: "Highs on file" })).getAllByRole("listitem").map((li) => li.textContent);
+    expect(held).toEqual(["34 of the 150 companies with a 52-week high are within 5% of it; 7 have no 52-week high on file.", "12 of the 140 companies with an all-time high are within 5% of it; 17 have no all-time high on file."]);
+    expect(screen.getByRole("list", { name: "Highs on file" }).closest('[data-fgx="qg-price"]')).toBeTruthy();
     // task #224 (A1): every heading's first click is high to low, the second low to high, the third the page's own order
     fireEvent.click(screen.getByRole("button", { name: /Below 52-week high/ }));
     expect(lastParams()).toMatchObject({ sort: "below52", dir: "desc" });
