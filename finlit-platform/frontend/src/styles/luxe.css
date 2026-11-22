@@ -111,13 +111,13 @@ hr { border: 0; height: 1px; background: linear-gradient(90deg, transparent, var
 :root .btn.primary:hover { background: var(--btn-hover); border-color: var(--btn-hover); filter: none; box-shadow: none; }
 :root .plan .btn.primary { box-shadow: none; }
 .hh .tagline { padding: 22px 0 22px; } .hh-hero { margin-top: 0; }
-.dash-h { padding: 22px 28px; border-radius: 22px; border: 1px solid color-mix(in srgb, var(--acc) 30%, transparent); box-shadow: 0 26px 50px -34px rgba(10,25,17,.85); margin-bottom: 18px; overflow: hidden; }
+.dash-h { padding: 22px 28px; border-radius: var(--r-card); border: 1px solid color-mix(in srgb, var(--acc) 30%, transparent); box-shadow: 0 26px 50px -34px rgba(10,25,17,.85); margin-bottom: 18px; overflow: hidden; }
 .dash-h h1 { margin: 4px 0 6px; }
 :root[data-theme="light"] .plan, :root[data-theme="light"] .plan.feat { background: linear-gradient(165deg, color-mix(in srgb, var(--band-a), #fff 4%), var(--band-b)) !important; border-color: var(--rep-border); }
 .pagehead, .sip-hero, .fl-hero, .mc-hero { border-radius: var(--r-card); box-shadow: 0 28px 50px -38px rgba(10, 25, 17, .8); }
 .shell .pagehead, .shell .sip-hero, .shell .fl-hero, .shell .mc-hero { border-radius: var(--r-card); margin: 0 20px 18px 0; border: 1px solid color-mix(in srgb, var(--acc) 30%, transparent); }
 .pagehead, .sip-hero, .fl-hero, .mc-hero { margin-bottom: 8px; }
-@media (max-width: 560px) { .dash-h { padding: 18px 18px; border-radius: 18px; } }
+@media (max-width: 560px) { .dash-h { padding: 18px 18px; border-radius: var(--r-card); } }
 
 /* ======================================================================== round two: signature details */
 
@@ -166,7 +166,7 @@ hr { border: 0; height: 1px; background: linear-gradient(90deg, transparent, var
   .hh .tagline { padding: 14px 0; } .hh .tagline p { font-size: var(--fs-16) !important; }
   .hh-sec, .sec { padding-block: 28px !important; }
   .hh-head { margin-bottom: 18px; } .hh-head::before { font-size: var(--fs-13); top: 10px; }
-  .dash-h { padding: 16px 16px !important; border-radius: 18px; margin-bottom: 12px; gap: 10px; }
+  .dash-h { padding: 16px 16px !important; border-radius: var(--r-card); margin-bottom: 12px; gap: 10px; }
   .dash-h p { font-size: var(--fs-14); }
 
   /* cards, buttons, fields */

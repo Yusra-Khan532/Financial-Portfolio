@@ -76,7 +76,7 @@
 /* the header must fit a 390px phone for every plan name (Silver is wider than Gold) */
 @media (max-width: 430px) { .av-btn .tier { display: none; } .av-btn { padding-right: 6px; } }
 /* home: tagline, coming soon, features, comparison */
-.nf { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-start; } .nf input[type="email"] { flex: 1; min-width: 220px; height: 48px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--border); background: var(--s1); color: var(--text); font: 16px var(--sans); } .nf input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.nf { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-start; } .nf input[type="email"] { flex: 1; min-width: 220px; height: 48px; padding: 0 16px; border-radius: var(--ui-r-pill); border: 1px solid var(--border); background: var(--s1); color: var(--text); font: var(--fs-16) var(--sans); } .nf input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .nf-trap { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; } .nf-err { flex-basis: 100%; margin: 0; color: var(--loss); font-size: var(--fs-14); } .nf-done { display: flex; gap: 8px; align-items: center; margin: 0; color: var(--gain); font-weight: 600; } .nf-done svg { width: 18px; height: 18px; }
 .tagline { padding: 34px 0 6px; text-align: center; } .tagline p { margin: 0; font: 400 clamp(22px, 3.4vw, 38px)/1.25 var(--serif); letter-spacing: -.01em; } .tagline p span { white-space: nowrap; } .tagline .x { margin: 0 .55em; color: var(--gold); font-family: var(--mono); font-weight: 500; }
 .soon { margin: 28px auto 0; padding: 26px 28px; border-radius: var(--r-card); border: 1px solid var(--gold); background: linear-gradient(135deg, var(--gold-soft), transparent 70%), var(--s1); display: grid; grid-template-columns: 1.1fr 1fr; gap: 24px; align-items: center; }
@@ -185,7 +185,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offs
 .ci, .pt-ic { border-radius: var(--ui-r-mark); }
 .lock-card { box-shadow: none; border: 1px solid var(--border-strong); }
 .lock-card .btn { background: var(--btn-bg); color: var(--btn-fg); box-shadow: none; }
-.float-chip, .dl-menu, .palette, .alx-toast { box-shadow: 0 4px 16px rgba(0,0,0,.18); border-radius: var(--r-l); }
+.float-chip, .dl-menu, .palette, .alx-toast { box-shadow: 0 4px 16px rgba(0,0,0,.18); border-radius: var(--r-ctl); }
 .term-dial { filter: none; }
 .dcenter .n, .hero-home h1 em { background: none; -webkit-background-clip: border-box; background-clip: border-box; color: var(--gold-2); -webkit-text-fill-color: currentColor; }
 .hero-home h1 em { color: var(--gold); }
@@ -311,7 +311,7 @@ footer.band { border-top: 1px solid #3A362D; --band-a: #1B1915; }
 :root:root input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), :root:root select, :root:root textarea { border-radius: var(--r-ctl); }
 :root:root .nf input[type="email"], :root:root .alx-form input, :root:root .alx-form select { border-radius: var(--r-ctl); }
 :root:root input::placeholder, :root:root textarea::placeholder { color: var(--faint); opacity: 1; }
-:root:root .alx-toast { border-radius: var(--r-l); border-width: 1px; border-left-width: 3px; box-shadow: 0 4px 16px rgba(0,0,0,.2); }
+:root:root .alx-toast { border-radius: var(--r-ctl); border-width: 1px; border-left-width: 3px; box-shadow: 0 4px 16px rgba(0,0,0,.2); }
 :root:root .kbd { border-radius: var(--ui-r-mark); white-space: nowrap; }
 :root:root .search .kbd, :root:root .stk-search .kbd { white-space: nowrap; flex: none; }
 :root:root .tag, :root:root [class*="chip"] { border-radius: var(--ui-r-mark); }

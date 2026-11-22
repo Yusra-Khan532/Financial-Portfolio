@@ -157,6 +157,34 @@ describe("family 6: calculators and charts (task #310 F, pages/06)", () => {
   });
 });
 
+describe("family 7: account, learn and help (task #310 F, pages/07)", () => {
+  const SHEETS = ["account", "adminView", "glossary-pack", "extension", "forum", "feedback", "pagefaqs", "pagefeedback", "ask-ai", "explore-tools", "callout",
+    "search", "ai-top"].map((n) => `styles/${n}.css`);
+  it("account, console, glossary, learn, extension, forum, feedback and FAQ sheets have no hand-typed corners, sizes or weights", () => {
+    expect(SHEETS.flatMap(shapeFindings)).toEqual([]);
+  });
+
+  it("widths: account and FAQ on the reading width, feedback on the tool width", () => {
+    expect(rulesFor(read("styles/account.css"), /^\s*\.acct\s*$/).join("")).toMatch(/max-width: var\(--ui-w-read\)/);
+    expect(rulesFor(read("styles/pagefaqs.css"), /^\s*\.pfq-hub\s*$/).join("")).toMatch(/max-width: var\(--ui-w-read\)/);
+    expect(noComments(read("styles/feedback.css"))).toMatch(/\.wrap\.fb \{ max-width: var\(--ui-w-app\); \}/);
+  });
+
+  it("glossary: term rows on the cream surface (no white), letters are pills with the one selected look", () => {
+    const g = noComments(read("styles/glossary-pack.css"));
+    expect(g).toMatch(/--gp-row: var\(--s1\);/);
+    expect(g).not.toMatch(/#FFFFFF|#fff\b/i);
+    expect(g).toMatch(/\.gp-letters button\[aria-pressed="true"\] \{ background: var\(--ui-on-bg\); color: var\(--ui-on-fg\); \}/);
+  });
+
+  it("no IBM Plex for code or the extension preview; no white extension preview in the light theme; no 15px", () => {
+    expect(noComments(read("styles/calm.css"))).not.toMatch(/Plex/);
+    const x = noComments(read("styles/extension.css"));
+    expect(x).toMatch(/:root\[data-theme="light"\] \.ext-demo \{ background: var\(--s1\); \}/);
+    expect(x).not.toMatch(/--fs-15|15px/);
+  });
+});
+
 describe("shared sheets (task #310 F)", () => {
   it("the shared navigation and table pieces have no hand-typed corners, sizes or weights", () => {
     const files = ["styles/tabgroup.css", "styles/section-nav.css", "styles/tablesort.css", "styles/table-grid.css", "styles/theme.css", "styles/type227.css",

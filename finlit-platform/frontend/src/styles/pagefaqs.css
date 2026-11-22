@@ -34,7 +34,7 @@ main:has(.shell.is-collapsed) > .pfq { padding-left: 96px; }
 /* hub */
 .pfq-search { margin: 14px 0 4px; } .pfq-search input { width: 100%; max-width: 420px; box-sizing: border-box; padding: 10px 14px; border-radius: var(--r-ctl); border: 1px solid var(--border-strong, var(--border)); background: var(--s1); color: var(--text); font: 400 var(--fs-16) var(--sans); } .pfq-search input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .pfq-count { margin: 6px 2px 0; min-height: 18px; font: 500 var(--fs-13) var(--sans); color: var(--muted); }
-.pfq-hub { padding-top: 32px; padding-bottom: 48px; max-width: 920px; }
+.pfq-hub { padding-top: 32px; padding-bottom: 48px; max-width: var(--ui-w-read); }
 .pfq-hub-h p { color: var(--muted); font-size: var(--fs-16); line-height: 1.6; max-width: 66ch; }
 .pfq-jump { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 6px; } .pfq-jump a { padding: 5px 12px; border-radius: var(--ui-r-pill); border: 1px solid var(--border); color: var(--muted); font: 600 var(--fs-13) var(--sans); text-decoration: none; } .pfq-jump a:hover { color: var(--gold); border-color: var(--gold); }
 .pfq-sech { margin: 36px 0 4px; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); color: var(--text); }   /* an h2: the H2 role (task #310) */

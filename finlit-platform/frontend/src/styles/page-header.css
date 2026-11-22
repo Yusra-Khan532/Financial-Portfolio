@@ -20,7 +20,7 @@
 .ph-desc a { color: var(--gold); text-underline-offset: 3px; }
 .ph-meta { margin: 0; color: var(--faint); font-size: var(--fs-13); }
 .ph-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 4px; }
-.ph-learn, .ph-qbtn { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: 600 14px var(--sans); text-decoration: none; cursor: pointer; transition: border-color .15s, background .15s; }
+.ph-learn, .ph-qbtn { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 14px; border-radius: var(--ui-r-pill); border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: 600 var(--fs-14) var(--sans); text-decoration: none; cursor: pointer; transition: border-color .15s, background .15s; }
 .ph-learn:hover, .ph-qbtn:hover { border-color: var(--gold); background: var(--s2); }
 .ph-lk svg, .ph-learn svg, .ph-qbtn svg { width: 15px; height: 15px; flex: none; }
 /* Task #310: the quick links ("Fund Screener →") are the shared second button, ui-btn ui-btn--secondary ui-btn--sm (components/ui), all alike; the gold pill for the

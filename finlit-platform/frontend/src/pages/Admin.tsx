@@ -79,7 +79,7 @@ export function Admin() {
       <div className="grid g2">
         <div className="card"><div className="card-h"><h3>Content</h3><span className="s">{list.data?.length ?? 0} items</span></div>
           <div className="tw"><table className="admin-t"><thead><tr><th>Title</th><th>Status</th><th>Updated</th><th /></tr></thead>
-            <tbody>{(list.data || []).map((c) => <tr key={c.id}><td><b>{c.title}</b><div className="faint" style={{ fontSize: 12 }}>{c.contentType}</div></td><td><span className={"chip " + (c.status === "PUBLISHED" ? "up" : "ghost")}>{c.status === "PUBLISHED" ? "Published" : "Draft"}</span></td><td>{c.updatedAt ? dateIN(c.updatedAt) : ""}</td>
+            <tbody>{(list.data || []).map((c) => <tr key={c.id}><td><b>{c.title}</b><div className="faint" style={{ fontSize: "var(--fs-12)" }}>{c.contentType}</div></td><td><span className={"chip " + (c.status === "PUBLISHED" ? "up" : "ghost")}>{c.status === "PUBLISHED" ? "Published" : "Draft"}</span></td><td>{c.updatedAt ? dateIN(c.updatedAt) : ""}</td>
               <td style={{ whiteSpace: "nowrap" }}><button className="btn" style={{ height: 34 }} onClick={() => toggle.mutate(c)}>{c.status === "PUBLISHED" ? "Unpublish" : "Publish"}</button> <button className="btn" style={{ height: 34, color: "var(--loss)" }} onClick={() => { if (confirm(`Delete “${c.title}”? This cannot be undone.`)) del.mutate(c.id); }}>Delete</button></td></tr>)}</tbody></table></div></div>
         <div className="card"><form className="form" onSubmit={(e) => { e.preventDefault(); create.mutate(); }}><div className="card-h"><h3>New article</h3></div>
           <label>Title<input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required minLength={3} /></label>
