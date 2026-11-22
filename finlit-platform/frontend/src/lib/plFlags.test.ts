@@ -107,7 +107,7 @@ describe("plInsights: latest quarter and latest year together", () => {
   it("a quarter-only flag is labelled as the quarter and names the periods exactly", () => {
     const [x] = plInsights({ annual: Y([100, 105], [10, 10.5]), quarterly: Q([100, 100, 100, 100, 110], [10, 10, 10, 10, 8]) });
     expect(x.case).toBe(3); expect(x.headline).toBe("quarterly");
-    expect(x.title).toBe("Revenue rose while profit fell in the latest quarter");
+    expect(x.title).toBe("Revenue rose while profit fell in the Sep quarter");
     expect(x.views.quarterly).toMatchObject({ label: "Latest quarter", period: "Sep 2026", against: "Sep 2025", periodEnd: "2026-09-30", againstEnd: "2025-09-30", triggered: true });
     expect(x.views.annual).toMatchObject({ period: "FY26", against: "FY25", triggered: false });   // the year still shows its own figures
     expect(x.views.annual!.growth).toMatchObject({ revenue: 5, profit: 5 });
@@ -125,7 +125,7 @@ describe("plInsights: latest quarter and latest year together", () => {
   });
   it("a year-only flag keeps the annual headline and a quarter without flag still shows", () => {
     const [x] = plInsights({ annual: Y([100, 110], [10, 8]), quarterly: Q([100, 100, 100, 100, 101], [10, 10, 10, 10, 10.2]) });
-    expect(x.headline).toBe("annual"); expect(x.title).toBe("Revenue rose while profit fell");
+    expect(x.headline).toBe("annual"); expect(x.title).toBe("Revenue rose while profit fell in FY26");
     expect(x.views.quarterly!.triggered).toBe(false); expect(x.views.annual!.triggered).toBe(true);
   });
   it("the year is the headline when the quarter and the year end on the same day", () => {

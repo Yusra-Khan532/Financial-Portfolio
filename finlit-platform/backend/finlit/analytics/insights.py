@@ -52,7 +52,9 @@ def notes(m: Dict[str, Optional[float]], ownership_latest: List[dict]) -> dict:
     elif sales is not None and sales < 4:
         add(watchouts, "sales_cagr", "Slow sales growth", f"Sales grew only {_f(sales)}% a year over {int(m.get('sales_cagr_years') or 5)} years.", sales)
     if sales is not None and profit is not None and profit < sales - 3:
-        add(watchouts, "profit_cagr", "Profit lagging sales", f"Profit grew {_f(profit)}% a year against {_f(sales)}% for sales — margins are under pressure.", profit)
+        yrs = int(m.get("profit_cagr_years") or m.get("sales_cagr_years") or 5)
+        # task #312 (developer file 20, the check): the period in the title, so it never reads as a contradiction beside a quarter's finding
+        add(watchouts, "profit_cagr", f"Profit lagging sales over {yrs} years", f"Profit grew {_f(profit)}% a year against {_f(sales)}% for sales over {yrs} years — margins are under pressure.", profit)
 
     npm = m.get("npm")
     if npm is not None and npm < 5:
