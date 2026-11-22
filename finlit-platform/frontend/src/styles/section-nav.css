@@ -9,8 +9,8 @@
 .jumpbar-b svg { width: 16px; height: 16px; flex: none; }
 .jumpbar-b:hover { color: var(--text); }
 .jumpbar-b:focus-visible { outline: 2px solid var(--gain); outline-offset: 2px; border-radius: 8px; }
-.jumpbar-i.on { background: var(--gain-soft); box-shadow: inset 0 0 0 1px var(--gain); }   /* a ring, not a border, so the buttons keep their width */
-.jumpbar-i.on .jumpbar-b { color: var(--gain); }
+.jumpbar-i.on { background: var(--ui-on-bg); border-radius: var(--ui-r-pill); }   /* task #310 part D: the section in view takes the ui-tab selected colour (was emerald) */
+.jumpbar-i.on .jumpbar-b, .jumpbar-i.on .info { color: var(--ui-on-fg); }
 .jumpbar-i.off .jumpbar-b { opacity: .5; cursor: not-allowed; }
 .jumpbar-row.fr { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent); }
 .jumpbar-row.fl { -webkit-mask-image: linear-gradient(90deg, transparent, #000 36px); mask-image: linear-gradient(90deg, transparent, #000 36px); }

@@ -5,6 +5,7 @@
 // Styles: styles/steps-bar.css (classes stb-*), scoped to these components.
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import "../styles/steps-bar.css";
+import { SECTION_BAR_MIN } from "../lib/nav";
 
 export type StepSection = { id: string; label: string };
 export type Step = { id: string; n: number; title: string; line?: string; sections: StepSection[]; /** task #277: a section the member has not seen (Key figures, What changed) carries a dot */ dot?: boolean };
@@ -90,7 +91,7 @@ export function StepsBar({ steps, label = "Sections", menu, lead, arrows = false
     return () => { b.removeEventListener("scroll", m); ro?.disconnect(); };
   }, [arrows, steps.length, stuck]);
   const slide = (dir: number) => bar.current?.scrollBy({ left: dir * Math.max(160, (bar.current?.clientWidth ?? 600) * 0.6), behavior: "smooth" });
-  if (!steps.length) return null;
+  if (steps.length < SECTION_BAR_MIN) return null;   // task #310 part D: a section bar only on a page with four or more sections
   const go = (id: string, step: string) => { setOpen(false); setActive(step); scrollTo(id); };
   return (
     <div className={"stb-wrap" + (arrows ? " stb-arw" + (edge.l ? " edge-l" : "") + (edge.r ? " edge-r" : "") : "")} style={{ top }}>

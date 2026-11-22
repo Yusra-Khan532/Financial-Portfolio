@@ -14,7 +14,7 @@ describe("page FAQ panel alignment", () => {
   it("starts after the workspace sidebar exactly as the page does (280px, or 96px collapsed: the pack's 76px icon rail plus its 20px margin), and not at all on a phone", () => {
     expect(css).toMatch(/\.shell:not\(\.is-collapsed\)\) > \.pfq \{ padding-left: 280px/);
     expect(css).toMatch(/\.shell\.is-collapsed\) > \.pfq \{ padding-left: 96px/);
-    expect(css).toMatch(/max-width: 960px\) \{ main:has\(\.shell\) > \.pfq \{ padding-left: 0 !important/);
+    expect(css).toMatch(/max-width: 860px\) \{ main:has\(\.shell\) > \.pfq \{ padding-left: 0 !important/);
   });
   it("uses the phone gutter of .wrap (14px) up to 760px", () => {
     expect(css).toMatch(/max-width: 760px\) \{ \.pfq-in \{ width: calc\(100% - 28px\)/);

@@ -26,9 +26,6 @@
 .sp-side-x { margin: 0; font-size: 14px; line-height: 1.45; color: var(--sp-ink); }
 .sp-head-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--sp-line); }
 .sp-tabs { display: flex; gap: 8px; }
-.sp-tab { display: inline-flex; align-items: center; min-height: 42px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--sp-line); color: var(--sp-ink); font: 600 16px var(--sans); text-decoration: none; background: var(--sp-panel); }
-.sp-tab[aria-current="page"] { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); }   /* task #310: the one selected colour (was teal #0E6471), marked by aria-current, not a class */
-.sp-tab:hover:not(.on) { border-color: var(--sp-ink); }
 .sp-view { display: flex; align-items: center; gap: 8px; } .sp-view > span { font-size: 16px; color: var(--sp-mute); }
 .sp-vbtn { min-height: 42px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--sp-line); background: var(--sp-panel); color: var(--sp-ink); font: 600 16px var(--sans); cursor: pointer; }
 .sp-vbtn[aria-pressed="true"], .sp-vbtn[aria-current="page"] { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); }
@@ -50,7 +47,7 @@
 .sp-link { display: inline-flex; margin-top: 10px; color: var(--sp-info); font-weight: 600; text-decoration: none; } .sp-link:hover { text-decoration: underline; }
 .sp-i { display: inline-grid; place-items: center; flex: none; width: 18px; height: 18px; margin-left: 4px; padding: 0; border-radius: 50%; border: 1px solid var(--sp-mute); background: var(--s1); color: var(--sp-mute); font: italic 600 12px/1 Georgia, serif; cursor: help; vertical-align: middle; }   /* task #227: a solid disc, so the "i" reads on a coloured tile too */
 .sp-i:hover, .sp-i[aria-expanded="true"] { border-color: var(--sp-info); color: var(--sp-info); }
-.sp-i:focus-visible, .sp-tab:focus-visible, .sp-vbtn:focus-visible, .sp-fbtn:focus-visible, .sp-exp:focus-visible, .sp-morebtn:focus-visible, .sp-dl:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.sp-i:focus-visible, .sp-vbtn:focus-visible, .sp-fbtn:focus-visible, .sp-exp:focus-visible, .sp-morebtn:focus-visible, .sp-dl:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .sp-pop { overflow-y: auto; overscroll-behavior: contain; position: fixed; z-index: var(--z-tip, 260); max-width: 320px; padding: 10px 12px; border: 1px solid var(--border-strong, var(--border)); border-radius: 10px; background: var(--s1); color: var(--text); font: 400 13px/1.45 var(--sans); box-shadow: 0 14px 34px -16px rgba(0, 0, 0, .4); }
 .sp-pop-l { display: block; }
 .sp-pop-l + .sp-pop-l { margin-top: 6px; }
@@ -223,7 +220,7 @@
   .sp-head { padding: 4px 0 0; } .sp-sec { padding: 18px 14px; border-radius: 18px; }
   .sp-lead { font-size: 20px; } .sp-squares { grid-template-columns: repeat(10, minmax(0, 1fr)); } .sp-squares a { width: 100%; height: auto; aspect-ratio: 1; }
   .sp-cards-2, .sp-cycle, .sp-tiles { grid-template-columns: minmax(0, 1fr); } .sp-standlist, .sp-changed { columns: 1; }
-  .sp-find input, .sp-find-box input { font-size: 16px; } .sp-tab, .sp-vbtn, .sp-fbtn { min-height: 44px; }
+  .sp-find input, .sp-find-box input { font-size: 16px; } .sp-vbtn, .sp-fbtn { min-height: 44px; }
   .sp-i { width: 22px; height: 22px; }
 }
 @media (prefers-reduced-motion: reduce) { .sp * { transition: none !important; } }
@@ -256,9 +253,8 @@
 .sp-secbar-l { list-style: none; display: flex; align-items: center; gap: 6px; margin: 0; padding: 0 6px 0 0; flex: none; }
 .sp-secbar-ar { color: var(--sp-mute); font-size: 12px; }
 .sp-secbar-c { display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px; font: 500 13px var(--sans); color: var(--sp-ink); text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent; }
-.sp-secbar-c.on { border-bottom-color: var(--gold, #B8955A); font-weight: 700; }
+/* task #310 part D: the chip in view takes the one selected colour (ui.css, "Section bars"), not an underline */
 .sp-secbar-n { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--s2); font: 700 12px var(--sans); color: var(--sp-mute); }
-.sp-secbar-c.on .sp-secbar-n { background: var(--sp-ink); color: var(--sp-panel); }
 .sp-sec h2[id], .sp-sec [id^="sp-"], .sp-sec [id^="rp-"] { scroll-margin-top: 130px; }
 .sp-more-in { all: unset; cursor: pointer; font-weight: 700; color: var(--sp-ink); text-decoration: underline dotted; text-underline-offset: 3px; white-space: nowrap; }
 .sp-more-in:focus-visible { outline: 2px solid var(--gold, #B8955A); }
