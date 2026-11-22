@@ -20,37 +20,43 @@ import { ByState, CountedAndSmall, Cycle, IndustryMapPack, Momentum, Mood, Stand
 import { PulseTable, SixMonths, StandoutsFull, TooSmallFull } from "../components/sectors/pack/PulseTable";
 import "../styles/sectors.css";
 import "../styles/sectors-pack.css";
+import { showQuery } from "../lib/sectors";
+import { tw, useShow, useShowWords } from "../lib/groupWords";
 
 const TITLE = "Sector Pulse";
-const DESC = "Which industries are being sold, which are bouncing back, and which are rising together? Every weekend we look at how many stocks in each industry were going up at Friday's close.";
-const DISCLAIMER = "Describes price data for NSE industries; not a recommendation to buy, sell or hold any security. Sources: NSE daily files and industry classification; company sizes by FinLit's rule (Large above ₹75,000 Cr, Mid ₹25,000–75,000 Cr, Small ₹10,000–25,000 Cr, Micro below ₹10,000 Cr). Prices adjusted for splits, bonuses and rights.";
+const DESC = tw("Which industries are being sold, which are bouncing back, and which are rising together? Every weekend we look at how many stocks in each industry were going up at Friday's close.");
+const DISCLAIMER = tw("Describes price data for NSE industries; not a recommendation to buy, sell or hold any security. Sources: NSE daily files and industry classification; company sizes by FinLit's rule (Large above ₹75,000 Cr, Mid ₹25,000–75,000 Cr, Small ₹10,000–25,000 Cr, Micro below ₹10,000 Cr). Prices adjusted for splits, bonuses and rights.");
 const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export function SectorPulsePage() {
-  useDocTitle(TITLE, DESC);
+  useDocTitle(TITLE, tw(DESC));
   const [params, setParams] = useSearchParams();
   const view: View = params.get("view") === "full" ? "full" : "simple";
   const setView = (v: View) => { const p = new URLSearchParams(params); if (v === "full") p.set("view", "full"); else p.delete("view"); setParams(p, { replace: true }); };
-  const q = useSectorBoard(), hq = useSectorHistory(), mq = useIndustryMap();
+  const { show, setShow, ready, pending } = useShow();
+  useShowWords(show);                                   // the words of every section below follow Show (task #192, S1)
+  const q = useSectorBoard(show, ready), hq = useSectorHistory(show, ready), mq = useIndustryMap(show, ready);
   const { user } = useAuth();
   const held = usePortfolio().holdings;
   const symbols = useMemo(() => [...new Set(held.map((x) => x.symbol.toUpperCase()))], [held]);
   const key = [...symbols].sort().join(",");
-  const mem = useQuery<{ groups: Record<string, { slug: string }> }, ApiError>({ queryKey: ["sectors", "membership", key], queryFn: () => apiGet(`/api/sectors/membership?symbols=${encodeURIComponent(key)}`), enabled: symbols.length > 0, staleTime: 3_600_000, retry: false });
+  const mem = useQuery<{ groups: Record<string, { slug: string }> }, ApiError>({ queryKey: ["sectors", "membership", key, show], queryFn: () => apiGet(`/api/sectors/membership?symbols=${encodeURIComponent(key)}` + showQuery(show, false)), enabled: symbols.length > 0, staleTime: 3_600_000, retry: false });
   const mine = useMemo(() => new Set(Object.values(mem.data?.groups ?? {}).map((g) => g.slug)), [mem.data]);
   const b = q.data, h = hq.data;
   const d = b?.date ? new Date(b.date + "T00:00:00Z") : null;
-  const meta = b ? <>Updated every weekend, to the close of {d ? `${WEEKDAY[d.getUTCDay()]} ${b.date_label ?? b.date}` : b.date} · {b.universe ? b.universe.counted_in_groups_with_reading.toLocaleString("en-IN") : b.stocks_counted.toLocaleString("en-IN")} actively traded stocks<Tip text="Only actively traded, established stocks are counted, so a few rarely traded names cannot swing the reading. The list is reviewed once a month." /> · {groupsSplit(b.rows)}, as NSE groups them<Tip text="Each group is an NSE industry with enough actively traded stocks for a steady reading; small industries of the same NSE sector are read together as one sector group." /></> : null;
+  const meta = b ? <>Updated every weekend, to the close of {d ? `${WEEKDAY[d.getUTCDay()]} ${b.date_label ?? b.date}` : b.date} · {b.universe ? b.universe.counted_in_groups_with_reading.toLocaleString("en-IN") : b.stocks_counted.toLocaleString("en-IN")} actively traded stocks<Tip text="Only actively traded, established stocks are counted, so a few rarely traded names cannot swing the reading. The list is reviewed once a month." /> · {groupsSplit(b.rows)}, as NSE groups them<Tip text={show === "sectors" ? "Each group is one of NSE's 22 sectors, read with all its industries together. A sector with too few actively traded stocks for a steady reading is listed under Too small." : "Each group is an NSE industry with enough actively traded stocks for a steady reading; small industries of the same NSE sector are read together as one sector group."} /></> : null;
   return (
     <div className="wrap sx sp" data-testid="sector-pulse">
-      <PackHead page="pulse" title={TITLE} desc={DESC} meta={meta} view={view} onView={setView} industries={b?.rows ?? []}
+      <PackHead page="pulse" title={TITLE} desc={tw(DESC)} meta={meta} view={view} onView={setView} industries={b?.rows ?? []} show={show} onShow={setShow}
         side={b ? <Backdrop pct={b.market?.pct_vs_200d ?? null} above={b.market?.above_200d ?? null} /> : null} />
-      {q.isLoading && <div className="sx-skel sp-sec" role="status" aria-label="Loading the sector readings" />}
-      {q.isError && <div className="sp-sec"><Blank title="Sector Pulse is not available right now" reason={failureText(q.error)}><button type="button" className="btn" onClick={() => q.refetch()}>Try again</button></Blank></div>}
+      {pending && show === "industries" && <p className="sp-note sp-pending">{pending}</p>}
+      {(q.isLoading || !ready) && <div className="sx-skel sp-sec" role="status" aria-label="Loading the sector readings" />}
+      {q.isError && <div className="sp-sec"><Blank title={show === "sectors" ? "The Sectors view is not available right now" : "Sector Pulse is not available right now"} reason={failureText(q.error)}>
+        <button type="button" className="btn" onClick={() => q.refetch()}>Try again</button>{show === "sectors" && <button type="button" className="btn" onClick={() => setShow("industries")}>Show industries</button>}</Blank></div>}
       {b && <PulseGuide stocks={b.universe?.counted_in_groups_with_reading ?? b.stocks_counted} groups={groupsParen(b.rows)} />}
       {b && <SectionsBar items={view === "simple" ? [
         { id: "sp-today", label: "Today" }, { id: "sp-cycle", label: "The cycle" }, { id: "sp-bystate", label: "By state" }, ...(mq.data ? [{ id: "sp-map", label: "Map" }] : []),
-        ...(h ? [{ id: "sp-mood", label: "Market mood" }] : []), { id: "sp-momentum", label: "Momentum × strength" }, { id: "sp-yours", label: "Your industries" },
+        ...(h ? [{ id: "sp-mood", label: "Market mood" }] : []), { id: "sp-momentum", label: "Momentum × strength" }, { id: "sp-yours", label: tw("Your industries") },
         { id: "sp-standouts", label: "Standout stocks" }, { id: b.universe ? "sp-counted" : "sp-small", label: "Counted / Too small" },
       ] : [
         { id: "sp-every", label: "Every number" }, ...(h ? [{ id: "sp-six", label: "Six months" }] : []), { id: "sp-stand-f", label: "Standout stocks" }, ...((b.too_few_stocks ?? []).length ? [{ id: "sp-small-f", label: "Too small" }] : []),
@@ -78,7 +84,7 @@ export function SectorPulsePage() {
           <Words />
         </>
       )}
-      {b && <p className="sp-disclaimer">{DISCLAIMER}</p>}
+      {b && <p className="sp-disclaimer">{tw(DISCLAIMER)}</p>}
     </div>
   );
 }

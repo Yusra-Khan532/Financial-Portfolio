@@ -21,12 +21,21 @@ import { FullCardsRot, RankingRot, SixMonthRanks, TwelveWeeks } from "../compone
 import "../styles/sectors.css";
 import "../styles/sectors-pack.css";
 import "../styles/rotation-pack.css";
+import { showQuery, type Show } from "../lib/sectors";
+import { tw, useShow, useShowWords } from "../lib/groupWords";
 
 const TITLE = "Sector Rotation";
-const DESC = "Money moves from one industry to another over months. This page shows which industries are leading the market, which are falling behind, and which are changing places.";
+const DESC = tw("Money moves from one industry to another over months. This page shows which industries are leading the market, which are falling behind, and which are changing places.");
 const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-function Yardstick({ n }: { n: number }) {
+function Yardstick({ n, show, groups }: { n: number; show: Show; groups: number | null }) {
+  if (show === "sectors") return (                    // the Sectors view is measured against the SAME average as the Industries view (task #192, S1: "the same yardstick")
+    <aside className="sp-side rp-yard" aria-label="The yardstick">
+      <p className="sp-side-k">The yardstick<Tip text="The yardstick. The same as in the Industries view: the average group, all the industry groups counted equally. Each sector is measured against it, so a sector's figures and an industry's figures can be compared directly." /></p>
+      <p className="rp-yard-t">The average group</p>
+      <p className="sp-side-x">{groups != null ? `All ${groups} industry groups counted equally, as in the Industries view.` : "The industry groups counted equally, as in the Industries view."} Every figure on this page says how far a sector is ahead of (+) or behind (−) this average.</p>
+    </aside>
+  );
   return (
     <aside className="sp-side rp-yard" aria-label="The yardstick">
       <p className="sp-side-k">The yardstick<Tip text="The yardstick. Every group (an NSE industry, or a sector group of small industries) is measured against the average group: all the groups counted equally, so a large one does not count for more than a small one." /></p>
@@ -37,16 +46,19 @@ function Yardstick({ n }: { n: number }) {
 }
 
 export function SectorRotationPage() {
-  useDocTitle(TITLE, DESC);
+  useDocTitle(TITLE, tw(DESC));
   const [params, setParams] = useSearchParams();
   const view: View = params.get("view") === "full" ? "full" : "simple";
   const setView = (v: View) => { const p = new URLSearchParams(params); if (v === "full") p.set("view", "full"); else p.delete("view"); setParams(p, { replace: true }); };
-  const q = useRotationMap(), bq = useSectorBoard();
+  const { show, setShow, ready, pending } = useShow();
+  useShowWords(show);                                   // the words of every section below follow Show (task #192, S1)
+  const q = useRotationMap(show, ready), bq = useSectorBoard(show, ready);
+  const indRot = useRotationMap("industries", ready && show === "sectors");      // the yardstick's own count of groups
   const { user } = useAuth();
   const held = usePortfolio().holdings;
   const symbols = useMemo(() => [...new Set(held.map((x) => x.symbol.toUpperCase()))].sort(), [held]);
   const key = symbols.join(",");
-  const mem = useQuery<{ groups: Record<string, { slug: string }> }, ApiError>({ queryKey: ["sectors", "membership", key], queryFn: () => apiGet(`/api/sectors/membership?symbols=${encodeURIComponent(key)}`), enabled: symbols.length > 0, staleTime: 3_600_000, retry: false });
+  const mem = useQuery<{ groups: Record<string, { slug: string }> }, ApiError>({ queryKey: ["sectors", "membership", key, show], queryFn: () => apiGet(`/api/sectors/membership?symbols=${encodeURIComponent(key)}` + showQuery(show, false)), enabled: symbols.length > 0, staleTime: 3_600_000, retry: false });
   const { mine, shares, value } = useMemo(() => {
     const g = mem.data?.groups ?? {}, shares = new Map<string, string[]>(), value = new Map<string, number>();
     for (const [sym, x] of Object.entries(g)) { shares.set(x.slug, [...(shares.get(x.slug) ?? []), sym]); }
@@ -58,17 +70,19 @@ export function SectorRotationPage() {
   const d = m?.date ? new Date(m.date + "T00:00:00Z") : null;
   const unranked = m?.rows.filter((r) => r.rank == null).map((r) => short(r.name)) ?? [];
   const nRanked = m?.rows.filter((r) => r.rank != null).length ?? 0;
-  const meta = m ? <>Updated after the weekly close, {d ? `${WEEKDAY[d.getUTCDay()]} ${m.date_label ?? m.date}` : m.date} · {groupsN(nRanked)} ranked<Tip text="Each week every group with enough history is ranked, 1 the strongest. An industry that is too new has a box but no rank yet." />{unranked.length > 0 && <> · {unranked.join(", ")} {unranked.length === 1 ? "is" : "are"} too small to rank</>}</> : null;
-  const disclaimer = m ? `Describes past prices of NSE industry groups against the average group; not a forecast and not a recommendation to buy, sell or hold any security. NSE daily data, equal-weighted industry groups, the same counted stocks as Sector Pulse. Data as of ${d ? `${WEEKDAY[d.getUTCDay()]} ${m.date_label ?? m.date}` : m.date}, after the close.` : "";
+  const meta = m ? <>Updated after the weekly close, {d ? `${WEEKDAY[d.getUTCDay()]} ${m.date_label ?? m.date}` : m.date} · {groupsN(nRanked)} ranked<Tip text={tw("Each week every group with enough history is ranked, 1 the strongest. An industry that is too new has a box but no rank yet.")} />{unranked.length > 0 && <> · {unranked.join(", ")} {unranked.length === 1 ? "is" : "are"} too small to rank</>}</> : null;
+  const disclaimer = m ? tw(`Describes past prices of NSE industry groups against the average group; not a forecast and not a recommendation to buy, sell or hold any security. NSE daily data, equal-weighted industry groups, the same counted stocks as Sector Pulse. Data as of ${d ? `${WEEKDAY[d.getUTCDay()]} ${m.date_label ?? m.date}` : m.date}, after the close.`) : "";
   return (
     <div className="wrap sx sp rp" data-testid="sector-rotation">
-      <PackHead page="rotation" title={TITLE} desc={DESC} meta={meta} view={view} onView={setView} industries={m?.rows ?? []} findHint="An industry, e.g. Banks" side={m ? <Yardstick n={m.rows.length} /> : null} />
-      {q.isLoading && <div className="sx-skel sp-sec" role="status" aria-label="Loading the rotation readings" />}
-      {q.isError && <div className="sp-sec"><Blank title="Sector Rotation is not available right now" reason={failureText(q.error)}><button type="button" className="btn" onClick={() => q.refetch()}>Try again</button></Blank></div>}
+      <PackHead page="rotation" title={TITLE} desc={tw(DESC)} meta={meta} view={view} onView={setView} industries={m?.rows ?? []} show={show} onShow={setShow} findHint={show === "sectors" ? "A sector, e.g. Healthcare" : "An industry, e.g. Banks"} side={m ? <Yardstick n={m.rows.length} show={show} groups={indRot.data?.rows.length ?? null} /> : null} />
+      {pending && show === "industries" && <p className="sp-note sp-pending">{pending}</p>}
+      {(q.isLoading || !ready) && <div className="sx-skel sp-sec" role="status" aria-label="Loading the rotation readings" />}
+      {q.isError && <div className="sp-sec"><Blank title={show === "sectors" ? "The Sectors view is not available right now" : "Sector Rotation is not available right now"} reason={failureText(q.error)}>
+        <button type="button" className="btn" onClick={() => q.refetch()}>Try again</button>{show === "sectors" && <button type="button" className="btn" onClick={() => setShow("industries")}>Show industries</button>}</Blank></div>}
       {m && <RotationGuide ranked={nRanked} total={m.rows.length} />}
       {m && <SectionsBar items={view === "simple" ? [
         { id: "rp-today", label: "Today" }, { id: "rp-four", label: "Four boxes" }, { id: "rp-map", label: "Map" }, { id: "rp-ahead", label: "Who is ahead" }, { id: "rp-changed", label: "Changed box" },
-        { id: "rp-next", label: "May change" }, { id: "rp-moves", label: "Rank moves" }, { id: "rp-yours", label: "Your industries" },
+        { id: "rp-next", label: "May change" }, { id: "rp-moves", label: "Rank moves" }, { id: "rp-yours", label: tw("Your industries") },
       ] : [
         { id: "rp-rank", label: "Ranking" }, { id: "rp-next", label: "May change" }, { id: "rp-six", label: "Six months of ranks" }, { id: "rp-twelve", label: "12-week change" },
       ]} />}

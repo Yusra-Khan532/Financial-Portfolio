@@ -5,7 +5,7 @@ import { nseName } from "./groupNames";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, apiGet } from "./api";
 import { MINUS } from "./format";
-import type { CornerCode, Locked, PlanName, StateName, StateCode } from "./sectors";
+import { showQuery, type CornerCode, type Locked, type PlanName, type Show, type StateName, type StateCode } from "./sectors";
 
 export const CORNERS: CornerCode[] = ["ahead_gaining", "ahead_slowing", "behind_slipping", "behind_gaining"];
 /** Where each corner sits on the map and in its 2x2 glyph: x = ahead (right) or behind (left) over 6 months, y = gaining (up) or slowing / slipping (down) over the last month. */
@@ -44,9 +44,9 @@ export type RotationCard = RotationRow & { reading?: boolean; note?: string };
 
 const retry = (n: number, e: unknown) => !(e instanceof ApiError && e.status < 500) && n < 1;
 const STALE = 5 * 60_000;
-export const useRotationMap = () => useQuery<RotationMap, ApiError>({ queryKey: ["rotation", "map"], queryFn: () => apiGet<RotationMap>("/api/rotation"), staleTime: STALE, retry });
-export const useRotationCard = (slug: string, enabled = true) =>
-  useQuery<RotationCard, ApiError>({ queryKey: ["rotation", "card", slug], queryFn: () => apiGet<RotationCard>(`/api/rotation/${encodeURIComponent(slug)}`), staleTime: STALE, retry, enabled: enabled && !!slug });
+export const useRotationMap = (show: Show = "industries", enabled = true) => useQuery<RotationMap, ApiError>({ queryKey: ["rotation", "map", show], queryFn: () => apiGet<RotationMap>("/api/rotation" + showQuery(show)), staleTime: STALE, retry, enabled });
+export const useRotationCard = (slug: string, enabled = true, show: Show = "industries") =>
+  useQuery<RotationCard, ApiError>({ queryKey: ["rotation", "card", slug, show], queryFn: () => apiGet<RotationCard>(`/api/rotation/${encodeURIComponent(slug)}` + showQuery(show)), staleTime: STALE, retry, enabled: enabled && !!slug });
 
 // ------------------------------------------------------------------------------------------------ words and numbers
 export const pts = (v: number | null | undefined, d = 1): string => (v == null || !Number.isFinite(v) ? "—" : (v < 0 ? MINUS : v > 0 ? "+" : "") + Math.abs(v).toFixed(d));
