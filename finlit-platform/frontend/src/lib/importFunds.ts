@@ -67,8 +67,41 @@ export function etfPlan(funds: FundLine[], pv: EtfPreview): EtfPlan {
 }
 
 /** The body for import-commit: the ticked ETFs and their units. "replace": an ETF already there takes the statement's units, as shares do. */
-export function etfCommit(plan: EtfPlan, ticked: Set<string>): { items: { symbol: string; qty: number }[]; existing: "replace" } {
-  return { items: [...plan.add, ...plan.have].filter((x) => ticked.has(x.symbol)).map((x) => ({ symbol: x.symbol, qty: x.qty })), existing: "replace" };
+/** Developer file 32: "skip", not "replace". An ETF already in the list keeps its units here; the book saved next records this account's buy, and the server
+ *  sets each ETF's units from every account's buys. "replace" made a second account's file overwrite the first account's units (100 -> 40), and the next
+ *  book save put them back, so the second account's units were never kept. */
+export function etfCommit(plan: EtfPlan, ticked: Set<string>): { items: { symbol: string; qty: number }[]; existing: "skip" } {
+  return { items: [...plan.add, ...plan.have].filter((x) => ticked.has(x.symbol)).map((x) => ({ symbol: x.symbol, qty: x.qty })), existing: "skip" };
+}
+
+// ------------------------------------------------------------------------------------------------ developer file 32: the ETF book's account for an import
+
+export type EtfAccount = { id: string; name: string; broker?: string; created?: string };
+/** The Equity portfolio a file was imported into (its id, name and broker). */
+export type EqAccount = { id: string; name: string; broker?: string };
+const ACC_ID = /^[a-z0-9]{1,16}$/, MAX_ACCOUNTS = 10;
+
+/** The ETF book's account for an Equity portfolio's ETFs (the book's accounts are its own list, `etf_books.portfolios`):
+ *   1. the account with the Equity portfolio's id (made by an earlier import), else 2. the one with its name (made by the member on the ETF page);
+ *   3. the Equity page's first portfolio ("main") goes to the book's first account, as every import did before;
+ *   4. else a new account with the portfolio's name and broker. A book with no accounts yet holds its buys in "main" (the page calls it "My ETFs"):
+ *      that becomes an account of its own first, named as the Equity page's first portfolio (`mainName`), so those buys keep theirs.
+ *  A book with 10 accounts (the most it takes) gets the buys in its first account, and `full` says so. */
+export function etfAccountFor(portfolios: EtfAccount[], eq: EqAccount, mainName = "My ETFs", today = new Date().toISOString().slice(0, 10)):
+  { pf: string; name: string; portfolios: EtfAccount[]; created: boolean; full: boolean } {
+  const first = portfolios[0] ?? { id: "main", name: "My ETFs" };
+  const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+  const hit = portfolios.find((a) => a.id === eq.id) ?? portfolios.find((a) => same(a.name, eq.name));
+  if (hit) return { pf: hit.id, name: hit.name, portfolios, created: false, full: false };
+  if (eq.id === "main") return { pf: first.id, name: first.name, portfolios, created: false, full: false };
+  if (portfolios.length >= MAX_ACCOUNTS) return { pf: first.id, name: first.name, portfolios, created: false, full: true };
+  const list = portfolios.length ? [...portfolios] : [{ id: "main", name: (mainName || "My ETFs").slice(0, 40), created: today }];
+  let name = eq.name.trim().slice(0, 40) || "Account", k = 2;
+  while (list.some((a) => same(a.name, name))) name = `${eq.name.trim().slice(0, 34)} (${k++})`;
+  let id = ACC_ID.test(eq.id) ? eq.id : eq.id.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 16) || "a" + Math.random().toString(36).slice(2, 9);
+  while (list.some((a) => a.id === id)) id = ("a" + Math.random().toString(36).slice(2, 9)).slice(0, 16);
+  const made: EtfAccount = { id, name, ...(eq.broker ? { broker: eq.broker.slice(0, 40) } : {}), created: today };
+  return { pf: id, name, portfolios: [...list, made], created: true, full: false };
 }
 
 /** The buys to put in the ETF book: one per ticked ETF with no buys yet (`hasBuys`), at the file's average buy price, or else at the Rate when the
@@ -79,42 +112,85 @@ export function etfBuys(plan: EtfPlan, ticked: Set<string>, rateAsBuy: boolean, 
   const traded = [...plan.add, ...plan.have].filter((x) => ticked.has(x.symbol) && !hasBuys(x.symbol) && x.line.trades?.length);
   const fromTrades = traded.flatMap((x) => x.line.trades!.map((t) => ({ symbol: x.symbol, qty: t.qty, price: t.price ?? 0, owned: true as const, pf, ...(t.date ? { date: t.date } : {}), ...(t.side === "sell" ? { side: "sell" as const } : {}) })));
   return [...fromTrades, ...[...plan.add, ...plan.have]
-    .filter((x) => !x.line.trades?.length && ticked.has(x.symbol) && !hasBuys(x.symbol) && ((x.avg != null && x.avg > 0) || (rateAsBuy && x.rate != null && x.rate > 0)))
+    // developer file 32: every ticked ETF gets its buy, with no price when the file has none: the book now carries each account's units
+    .filter((x) => !x.line.trades?.length && ticked.has(x.symbol) && !hasBuys(x.symbol) && x.qty > 0)
     .map((x) => x.avg != null && x.avg > 0
       ? { symbol: x.symbol, qty: x.qty, price: x.avg, owned: true as const, pf }
-      : { symbol: x.symbol, qty: x.qty, price: x.rate as number, owned: true as const, pf, ...(x.rateOn ? { date: x.rateOn } : {}) })];
+      : rateAsBuy && x.rate != null && x.rate > 0 ? { symbol: x.symbol, qty: x.qty, price: x.rate, owned: true as const, pf, ...(x.rateOn ? { date: x.rateOn } : {}) }
+      : { symbol: x.symbol, qty: x.qty, price: 0, owned: true as const, pf })];
 }
 
 type Lot = { id: string; symbol: string; pf: string; side: "buy" | "sell"; qty: number; price: number | null; date: string | null; legacy?: boolean };
-/** The ETF book after an import's buys (PUT /book takes the whole book). An ETF with no buys gets the file's buy; one with buys keeps them, except a single
- *  buy that an earlier import made (id "imp…", the same quantity) at another price: until 22 Nov 2026 the equity page's import gave each ETF after the first
- *  the line before's average price (`etfPlan`), and importing the file again puts the right one in. A quantity-only line ("legacy") is left as it is. */
-export function bookAfterImport(lots: Lot[], buys: { symbol: string; qty: number; price: number; date?: string; side?: "sell" }[], pf: string, newId: () => string):
-  { lots: Lot[]; added: string[]; fixed: string[] } {
-  const real = lots.filter((l) => !l.legacy);
-  const of = (sym: string) => real.filter((l) => l.symbol === sym);
-  const added: string[] = [], fixed: string[] = [];
-  const out = real.map((l) => ({ ...l, price: l.price != null && l.price > 0 ? l.price : null }));
-  for (const x of buys) {
-    const mine = of(x.symbol);
-    if (!mine.length) { out.push({ id: newId(), symbol: x.symbol, pf, side: x.side === "sell" ? "sell" : "buy", qty: x.qty, price: x.price > 0 ? x.price : null, date: x.date ?? null }); if (!added.includes(x.symbol)) added.push(x.symbol); continue; }
-    if (x.side === "sell" || buys.filter((b) => b.symbol === x.symbol).length > 1) continue;      // a trade history never corrects an earlier import's single buy
-    const only = mine.length === 1 ? mine[0] : null;
-    if (only && only.id.startsWith("imp") && only.side === "buy" && Math.abs(only.qty - x.qty) < 1e-6 && only.price != null && Math.abs(only.price - x.price) >= 0.005) {
-      const k = out.findIndex((l) => l.id === only.id);
-      out[k] = { ...out[k], price: x.price };
-      fixed.push(x.symbol);
+/** The ETF book after an import's buys in one account (`pf`; PUT /book takes the whole book). Developer file 32: each account is worked out on its own.
+ *  The server then sets each ETF's units to its open units across every account, so a second account's units add to the first's.
+ *   - An ETF with no buys in this account gets the file's buys there (`added`), whatever other accounts hold of it.
+ *   - An ETF whose only buy in this account is one an earlier import made (id "imp…") takes the file's quantity and price (`updated`): the same account's
+ *     newer statement. (Until 22 Nov 2026 the import gave each ETF after the first the line before's price; this also puts the right one in.)
+ *   - An ETF with buys of its own in this account (typed on the page, or a history) keeps them (`kept`): a statement never replaces a history.
+ *   - A quantity-only line ("legacy": an ETF stored before buys existed, read as a buy in the first account) is replaced by the file's buy when that is
+ *     the same account, and kept as a buy of its own when another account's buy comes, so its units still count.
+ *  A trade history (developer file 31) is added only where the account has none, and never updates a buy.
+ *  `twins`: ETFs joined here whose buy in another account, made by an import (or a quantity-only line), has the same units (and the same buy price when
+ *  both have one). Until this file every import put every portfolio's ETFs in the first account, so that buy may be this file's own from then: it is
+ *  not moved or deleted (that would be a guess), and the message names it so the member can check. */
+export function bookAfterImport(lots: Lot[], buys: { symbol: string; qty: number; price: number; date?: string; side?: "sell" }[], pf: string, newId: () => string,
+  /** ETFs the import's commit has just put in the list: the book shows their units as a quantity-only line, which is the commit's own, not an account's */
+  fresh: ReadonlySet<string> = new Set()):
+  { lots: Lot[]; added: string[]; joined: string[]; fixed: string[]; kept: string[]; same: string[]; twins: { symbol: string; pf: string }[] } {
+  const real = lots.filter((l) => !l.legacy), legacy = lots.filter((l) => l.legacy);
+  const out: Lot[] = real.map((l) => ({ ...l, price: l.price != null && l.price > 0 ? l.price : null }));
+  // added: in no account before; joined: held in another account, now in this one too; fixed: this account's earlier import (or its quantity-only line)
+  // taken to the file's units and price; kept: this account's own buys, left as they are
+  // same: this account's earlier import with the file's units and price already (the same file again): nothing to change
+  const added: string[] = [], joined: string[] = [], fixed: string[] = [], kept: string[] = [], same: string[] = [], twins: { symbol: string; pf: string }[] = [];
+  const syms = [...new Set(buys.map((b) => b.symbol))];
+  for (const sym of syms) {
+    const mine = buys.filter((b) => b.symbol === sym), here = real.filter((l) => l.symbol === sym && l.pf === pf);
+    const old = fresh.has(sym) ? undefined : legacy.find((l) => l.symbol === sym);
+    if (!here.length) {
+      if (old && old.pf !== pf) out.push({ ...old, id: old.id.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 40), price: null, legacy: undefined });   // another account's units stay counted
+      for (const x of mine) out.push({ id: newId(), symbol: sym, pf, side: x.side === "sell" ? "sell" : "buy", qty: x.qty, price: x.price > 0 ? x.price : null, date: x.date ?? null });
+      (old && old.pf === pf ? fixed : real.some((l) => l.symbol === sym) || old ? joined : added).push(sym);
+      const one = mine.length === 1 && mine[0].side !== "sell" ? mine[0] : null;
+      const twin = one && [...real.filter((l) => l.symbol === sym && l.pf !== pf && l.side === "buy" && l.id.startsWith("imp")), ...(old && old.pf !== pf ? [old] : [])]
+        .find((l) => Math.abs(l.qty - one.qty) < 1e-6 && (l.legacy || !(l.price != null && l.price > 0) || !(one.price > 0) || Math.abs(l.price - one.price) < 0.005));
+      if (twin) twins.push({ symbol: sym, pf: twin.pf });
+      continue;
     }
+    const only = here.length === 1 ? here[0] : null, x = mine.length === 1 && mine[0].side !== "sell" ? mine[0] : null;
+    if (only && x && only.id.startsWith("imp") && only.side === "buy") {
+      const price = x.price > 0 ? x.price : only.price;
+      if (Math.abs(only.qty - x.qty) >= 1e-6 || (price != null && (only.price == null || Math.abs(only.price - price) >= 0.005))) {
+        const k = out.findIndex((l) => l.id === only.id);
+        out[k] = { ...out[k], qty: x.qty, price };
+        fixed.push(sym);
+      } else same.push(sym);
+      continue;
+    }
+    kept.push(sym);
   }
-  return { lots: out, added, fixed };
+  return { lots: out.map(({ legacy: _l, ...l }) => l), added, joined, fixed, kept, same, twins };
 }
 
-/** The line after Add: "8 ETFs went to your ETF portfolio: 6 added, units set for NIFTYBEES and BANKBEES." */
-export function etfMessage(res: { added: number; replaced?: number; skipped?: number }, have: string[], buys = 0, rateOn?: string | null): string {
-  const n = res.added + (res.replaced ?? 0);
+/** The line after an import's ETFs went on (developer file 32): which account of the ETF portfolio they went to, and what happened to each. */
+export function etfAccountMessage(r: { account: string; created: boolean; full: boolean; fresh: string[]; joined: string[]; fixed: string[]; kept: string[]; same?: string[]; priced: number; fromRate: number; traded: number; unpriced?: number; rateOn?: string | null;
+  twins?: { symbol: string; account: string }[] }): string {
+  const list = (xs: string[]) => (xs.length <= 3 ? (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`) : `${xs.slice(0, 3).join(", ")} and ${xs.length - 3} more`);
+  const same = r.same ?? [], n = r.fresh.length + r.joined.length + r.fixed.length + r.kept.length + same.length;
   if (!n) return "";
-  const list = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
-  const parts = [res.added ? `${res.added} added` : "", res.replaced ? `units set for ${have.length && have.length === res.replaced ? list(have) : `${res.replaced} already there`}` : ""].filter(Boolean);
-  const on = dayLabel(rateOn ?? null);
-  return `${n} ${n === 1 ? "ETF went" : "ETFs went"} to your ETF portfolio: ${parts.join(", ")}.${buys ? ` ${buys === n ? "Each has" : `${buys} have`} the statement's Rate${on ? ` of ${on}` : ""} as ${buys === 1 ? "its" : "their"} buy price.` : ""}`;
+  const parts = [
+    r.fresh.length ? `${list(r.fresh)} ${r.fresh.length === 1 ? "is" : "are"} new to it` : "",
+    r.joined.length ? `${list(r.joined)} ${r.joined.length === 1 ? "was" : "were"} already there from another account and now ${r.joined.length === 1 ? "has" : "have"} this account's units too` : "",
+    r.fixed.length ? `${list(r.fixed)} in this account ${r.fixed.length === 1 ? "was" : "were"} updated to the file's units and buy price` : "",
+    r.kept.length ? `${list(r.kept)} already ${r.kept.length === 1 ? "has" : "have"} buys of ${r.kept.length === 1 ? "its" : "their"} own in this account, so ${r.kept.length === 1 ? "it was" : "they were"} not changed` : "",
+    same.length ? `${list(same)} ${same.length === 1 ? "was" : "were"} already in this account with the file's units and buy price, so nothing changed` : "",
+  ].filter(Boolean);
+  const on = dayLabel(r.rateOn ?? null), avg = r.priced - r.fromRate - r.traded;
+  return `${n} ${n === 1 ? "ETF went" : "ETFs went"} to your ETF portfolio, account "${r.account}"${r.created ? " (made there to match this portfolio)" : r.full ? " (its first account: it already has 10, the most it takes)" : ""}: ${parts.join("; ")}.`
+    + (avg > 0 ? ` ${avg === 1 ? "One has" : `${avg} have`} the file's average buy price.` : "")
+    + (r.fromRate ? ` ${r.fromRate === 1 ? "One has" : `${r.fromRate} have`} the statement's Rate${on ? ` of ${on}` : ""} as the buy price.` : "")
+    + (r.traded ? ` ${r.traded === 1 ? "One comes" : `${r.traded} come`} with ${r.traded === 1 ? "its" : "their"} buys and sales from the file, dated.` : "")
+    + (r.unpriced ? ` ${r.unpriced === 1 ? "One has" : `${r.unpriced} have`} no buy price in the file: add ${r.unpriced === 1 ? "it" : "them"} under Edit on the ETF portfolio.` : "")
+    + [...new Set((r.twins ?? []).map((t) => t.account))].map((acc) => { const xs = (r.twins ?? []).filter((t) => t.account === acc).map((t) => t.symbol), one = xs.length === 1;
+      return ` ${list(xs)} ${one ? "is" : "are"} also in account "${acc}" with the same units. Imports used to put every portfolio's ETFs in the first account, so ${one ? "that buy" : "those buys"} may be this file's from an earlier import: if so, delete ${one ? "it" : "them"} there under Edit.`; }).join("");
 }

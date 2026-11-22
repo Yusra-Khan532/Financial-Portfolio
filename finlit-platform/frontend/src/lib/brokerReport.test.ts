@@ -119,19 +119,20 @@ describe("ETF portfolio: the same report is read, with each line's quantity and 
 
 describe("the ETF book after an import from the equity page", () => {
   const lot = (id: string, symbol: string, qty: number, price: number | null, extra: object = {}) => ({ id, symbol, pf: "main", side: "buy" as const, qty, price, date: null, ...extra });
-  it("adds a buy for an ETF with none, keeps an ETF's own buys, and corrects a single earlier import buy made at the line before's price", () => {
+  it("adds a buy for an ETF with none, keeps an ETF's own buys, corrects a single earlier import buy made at the line before's price, and replaces a quantity-only line", () => {
     let n = 0;
     const lots = [lot("impA", "SMPLFANG", 120, 88.2), lot("own1", "SMPLGOLD", 10, 60), lot("own2", "SMPLGOLD", 5, 70), lot("impB", "SMPLHK", 2000, 18.4),
       lot("legacy:SMPLNEW", "SMPLNEW", 9, null, { legacy: true })];
     const r = bookAfterImport(lots, [{ symbol: "SMPLFANG", qty: 120, price: 150.75 }, { symbol: "SMPLGOLD", qty: 15, price: 61 }, { symbol: "SMPLHK", qty: 2000, price: 18.4 },
       { symbol: "SMPLNEW", qty: 9, price: 100 }], "main", () => "imp" + ++n);
-    expect(r.fixed).toEqual(["SMPLFANG"]);                    // the shifted price is put right
-    expect(r.added).toEqual(["SMPLNEW"]);                     // a quantity-only line takes the file's buy
+    expect(r.fixed).toEqual(["SMPLFANG", "SMPLNEW"]);         // the shifted price is put right; a quantity-only line in this account takes the file's buy
+    expect(r.added).toEqual([]); expect(r.kept).toEqual(["SMPLGOLD"]); expect(r.same).toEqual(["SMPLHK"]); expect(r.twins).toEqual([]);
     expect(r.lots.map((l) => [l.id, l.symbol, l.qty, l.price])).toEqual([
       ["impA", "SMPLFANG", 120, 150.75], ["own1", "SMPLGOLD", 10, 60], ["own2", "SMPLGOLD", 5, 70], ["impB", "SMPLHK", 2000, 18.4], ["imp1", "SMPLNEW", 9, 100]]);
   });
-  it("never touches a buy the member made, or an import buy whose quantity has changed since", () => {
+  it("never touches a buy the member made; this account's earlier import buy takes the newer statement's units and price (developer file 32)", () => {
     const r = bookAfterImport([lot("a1b2", "SMPLFANG", 120, 88.2), lot("impC", "SMPLHK", 1000, 30)], [{ symbol: "SMPLFANG", qty: 120, price: 150.75 }, { symbol: "SMPLHK", qty: 2000, price: 18.4 }], "main", () => "x");
-    expect(r.fixed).toEqual([]); expect(r.added).toEqual([]);
+    expect(r.kept).toEqual(["SMPLFANG"]); expect(r.fixed).toEqual(["SMPLHK"]); expect(r.added).toEqual([]);
+    expect(r.lots.map((l) => [l.id, l.qty, l.price])).toEqual([["a1b2", 120, 88.2], ["impC", 2000, 18.4]]);
   });
 });

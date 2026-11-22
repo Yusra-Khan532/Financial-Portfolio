@@ -7,7 +7,7 @@ import { coTitle, subLine, titleOf } from "../lib/companyLabel";
 import { dayLabel } from "../lib/holdingsColumns";
 import type { Amounts, ImportOpts } from "../lib/importAdd";
 import type { EtfPlan } from "../lib/importFunds";
-import { previewFunds, sendFunds } from "../lib/importEtf";
+import { previewFunds, sendFunds, type ImportAccount } from "../lib/importEtf";
 
 const WHY: Record<Found["how"], { label: string }> = {
   exact: { label: "Exact match" },
@@ -26,7 +26,7 @@ const tagOf = (f: PdfFound) => f.unsure || WHY[f.how].label;
 /** What the review adds: a share, with the quantity the statement shows for it (task #191) and, since task #323, its average buy price and Rate. */
 export type PdfPick = { symbol: string; isin?: string } & Amounts;
 /** What else Add did: the Rate choice, and the line about the ETFs sent to the ETF portfolio (empty when none). */
-export type PdfAddInfo = ImportOpts & { rateCol?: string | null; rateOn?: string | null; price: string | null; etf: string };
+export type PdfAddInfo = ImportOpts & { rateCol?: string | null; rateOn?: string | null; price: string | null; etf: string; /** developer file 32: the ETF page's account the ETFs went to */ etfPf?: string | null };
 const shares = (n: number) => `${n.toLocaleString("en-IN", { maximumFractionDigits: 3 })} ${n === 1 ? "share" : "shares"}`;
 const units = (n: number) => `${n.toLocaleString("en-IN", { maximumFractionDigits: 3 })} ${n === 1 ? "unit" : "units"}`;
 const rs = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -36,7 +36,8 @@ const pickOf = (f: PdfFound): PdfPick => ({ symbol: f.symbol, ...(f.isin ? { isi
 /** Reads a holdings PDF in the browser and shows what it found next to the PDF's own words, so nothing is added until the person confirms.
  *  The file and any password stay on the device. A depository statement (NSDL or CDSL CAS) also brings each share's quantity: a share already in the
  *  list can then take the statement's quantity (ticked only when the member has not typed a quantity of their own). */
-export function PdfImport({ file, index, search, held, heldQty, room, etf = false, onAdd, onClose }: { file: File; index: SearchRow[]; search?: SearchIndex; held: string[]; heldQty?: ReadonlyMap<string, number>; room: number;
+export function PdfImport({ file, index, search, held, heldQty, room, etf = false, account, onAdd, onClose }: { file: File; index: SearchRow[]; search?: SearchIndex; held: string[]; heldQty?: ReadonlyMap<string, number>; room: number;
+  /** developer file 32: the Equity portfolio the statement goes into; its ETFs go to the matching account of the ETF portfolio */ account?: ImportAccount;
   /** task #323: the member's plan has the ETF portfolio, so the statement's ETF lines can go there */ etf?: boolean; onAdd: (picks: PdfPick[], info: PdfAddInfo) => void; onClose: () => void }) {
   const [state, setState] = useState<"reading" | "password" | "review" | "error">("reading");
   const [wrong, setWrong] = useState(false), [pw, setPw] = useState(""), [msg, setMsg] = useState("");
@@ -86,15 +87,15 @@ export function PdfImport({ file, index, search, held, heldQty, room, etf = fals
   const head = (c: NonNullable<typeof cas>) => `${c.source === "depository" ? "Depository statement" : c.source === "broker" ? "Broker statement" : `${c.source} statement`}${c.asOf ? ` of ${c.asOf}` : ""}: quantities from its ${c.column} column${c.price ? `, buy prices from its ${c.price} column` : " · no buy prices in it"}`;
   const add = async () => {
     const picks = [...chosen.slice(0, room), ...updates].map(pickOf);
-    let etfLine = "";
+    let etfLine = "", etfPf: string | null = null;
     if (plan && etfTicked.length) {
       setSending(true);
       try {
-        etfLine = await sendFunds(plan, new Set(etfTicked.map((x) => x.symbol)), useRate, cas?.rateOn);
+        ({ msg: etfLine, pf: etfPf } = await sendFunds(plan, new Set(etfTicked.map((x) => x.symbol)), useRate, cas?.rateOn, account));
       } catch { etfLine = "The ETFs could not be sent to your ETF portfolio just now; add them on the ETF portfolio page."; }
       setSending(false);
     }
-    onAdd(picks, { rateAsBuy: useRate, rateCol: cas?.rate ?? null, rateOn: cas?.rateOn ?? null, price: cas?.price ?? null, etf: etfLine });
+    onAdd(picks, { rateAsBuy: useRate, rateCol: cas?.rate ?? null, rateOn: cas?.rateOn ?? null, price: cas?.price ?? null, etf: etfLine, etfPf });
     onClose();
   };
 
