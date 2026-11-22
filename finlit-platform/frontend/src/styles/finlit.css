@@ -446,7 +446,7 @@ tbody tr:hover td { background: var(--s2); }
 /* Insights (Gold) */
 .buckets { display: flex; flex-wrap: wrap; gap: 10px; }
 .bucket { display: flex; align-items: center; gap: 10px; padding: 10px 14px 10px 10px; border-radius: var(--r-ctl); background: color-mix(in srgb, var(--bc) 10%, var(--s1)); border: 1px solid color-mix(in srgb, var(--bc) 30%, transparent); }
-.bucket .bi { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: var(--bc); background: color-mix(in srgb, var(--bc) 16%, transparent); }
+.bucket .bi { width: 34px; height: 34px; border-radius: var(--r-ctl); display: grid; place-items: center; color: var(--bc); background: color-mix(in srgb, var(--bc) 16%, transparent); }
 .bucket .bi svg { width: 17px; height: 17px; }
 .bucket .k { font-size: var(--fs-12); color: var(--faint); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
 .bucket .v { font-weight: 600; font-size: var(--fs-14); }

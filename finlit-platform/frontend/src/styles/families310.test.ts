@@ -147,6 +147,16 @@ describe("family 5: mutual funds and ETFs (task #310 F, pages/05)", () => {
   });
 });
 
+describe("family 6: calculators and charts (task #310 F, pages/06)", () => {
+  const SHEETS = ["dcf", "dcf-redesign", "eps", "reverse", "sip", "graphs", "advcharts", "advfx", "options", "depth3d"].map((n) => `styles/${n}.css`);
+  it("the DCF, reverse valuation, P/E-EPS-PEG, SIP, chart builder and correlation sheets have no hand-typed corners, sizes or weights", () => {
+    expect(SHEETS.flatMap(shapeFindings)).toEqual([]);
+  });
+  it("the chart builder's 7px toggles and the correlation page's 8/9px buttons are on the control corner", () => {
+    for (const f of ["styles/graphs.css", "styles/advcharts.css"]) expect(noComments(read(f))).not.toMatch(/border-radius:\s*[5-9]px/);
+  });
+});
+
 describe("shared sheets (task #310 F)", () => {
   it("the shared navigation and table pieces have no hand-typed corners, sizes or weights", () => {
     const files = ["styles/tabgroup.css", "styles/section-nav.css", "styles/tablesort.css", "styles/table-grid.css", "styles/theme.css", "styles/type227.css",
