@@ -43,7 +43,7 @@ A locked value arrives as `null` and the answer carries `locked: {field: plan}`,
 
 `refresh-sectors`, job `sectors` in the registry: bulk, **weekend nights only** (owner, 18 Nov 2026: Saturday 23:00 to Sunday 08:00 IST, Sunday 23:00 to Monday 03:30 as a catch-up; docs/JOBS.md section 4b), first in those hours (owner, 21 Nov 2026: other bulk and audit jobs wait, one already running is paused and continues afterwards; docs/JOBS.md 4b), SLA 8 days (one build a week on the week up to Friday's close), after the `technicals` job, memory weight 450 MB (measured peak 364 MB, section 8), at most 90 minutes, stall watch 45 minutes. It never runs beside another bulk job. On by default (switched off 7 Nov 2026; brought back on weekend nights 18 Nov 2026); `SECTORS_JOB=off` switches it off, and while off the status says "disabledByConfig" and it is never counted as overdue.
 
-1. **fetch** (`SECTOR_FETCH`, default on): one quick request to NSE's archive first; if NSE refuses the server the run says so at once ("NSE's archive refused this server (HTTP 403) ... run the download from a PC in India") instead of waiting minutes. Otherwise `fetch-nse` runs in a child process with a time cap. The newest days are added to `/data/nse`. A failed download never crashes the supervisor; the run carries on with the files it has.
+1. **fetch** (`SECTOR_FETCH`, default on): one quick request to NSE's archive first; if NSE refuses the server, the same request is tried through FinLit's relay (`deploy/amfi-relay`, the Cloudflare Worker that already serves AMFI and the exchange files; `EXCHANGE_RELAY_URL`/`KEY`, else `AMFI_RELAY_URL`/`KEY`). When the relay reaches NSE the download goes ahead, and every NSE file that NSE refuses directly (401/403) is fetched through the relay for the rest of the run (since 22 Nov 2026; before, 4 days of files were refused on 22 Nov). Only when both fail does the run say so at once ("NSE's archive refused this server (HTTP 403) and FinLit's relay did not reach it either ... run the download from a PC in India") instead of waiting minutes. Otherwise `fetch-nse` runs in a child process with a time cap. The newest days are added to `/data/nse`. A failed download never crashes the supervisor; the run carries on with the files it has.
 2. **build** into a new folder; the files in use are not touched. The build runs in stages, each in its own process, so none holds the whole market in memory (section 8).
 3. **check**: board and every industry page written, stock files, fewer than 5% stocks with an error, not below 80% of the live stock count, not older than the live data. Otherwise nothing is published.
 4. **swap** atomically. Any failure or kill leaves the last good set serving.
@@ -101,7 +101,7 @@ A manual run does not wait for the supervisor's memory gate: check `free -m` fir
 
 ## 7. When NSE refuses the server
 
-NSE sometimes refuses data-centre addresses. The job then reports it (`/api/sectors/status` > `lastRun.fetch`) and the last good pages keep serving, with the date of their data visible. Remedies, best first:
+NSE sometimes refuses data-centre addresses. The job first goes through FinLit's relay (section 3, step 1); only when the relay cannot reach NSE either does it report it (`/api/sectors/status` > `lastRun.fetch`) and the last good pages keep serving, with the date of their data visible. Remedies, best first:
 1. On the founder's PC (India), run the package's own fetch and batch, then send the finished output: `python -m finlit_technicals fetch-nse --dir nse`, `python -m finlit_technicals batch --nse nse --out site_data`, zip `site_data`, copy it to `/opt/finlit/data/sectors/incoming/`, unzip, and run the `--import` command above. This needs no memory on the server at all (see the next section).
 2. Or copy the newest `bhav_2026.csv.gz` and `idx_2026.csv.gz` up, set `SECTOR_FETCH=0`, and run `refresh-sectors --no-fetch`.
 
@@ -155,7 +155,7 @@ A real NSE fetch (the sandbox cannot reach NSE; the refusal path, partial and ti
 |---|---|---|
 | Pages say "Sector data is not loaded yet: the nightly sector job is switched off" | `SECTORS_ENABLED` is not 1 | upload the folder, set it, restart |
 | "... the NSE data folder /data/nse does not exist" | upload not done or mount missing | section 4; check `ls /opt/finlit/data/nse` |
-| `behind`: "NSE's archive refused this server" | NSE blocks the address | section 7 |
+| `behind`: "NSE's archive refused this server" | NSE blocks the address and the relay is not set or cannot reach NSE | check `EXCHANGE_RELAY_URL`/`AMFI_RELAY_URL` in `.env.aws`, then section 7 |
 | `behind` with "NSE had not published a newer file" | normal before about 19:00 or on a holiday | none; retried automatically |
 | job state "waiting for memory" | the job needs about 550 MB free (450 + 100 for the site) and something else is using it | none: it starts by itself when memory is free (section 8) |
 | `error`: "The new set was not published (...)" | a check failed; the old set keeps serving | read the reason; run again with `--force` after fixing |
