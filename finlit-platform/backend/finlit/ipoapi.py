@@ -24,7 +24,9 @@ from .ipogmp import SOURCE_NAME, SOURCE_URL, verdict
 router = APIRouter()
 IST = timezone(timedelta(hours=5, minutes=30))
 QUOTE_FALLBACK_DAYS = 365   # the nightly quote stands in for our daily closes only this long after listing (it is not split-adjusted)
-NOT_LISTED_AFTER = 45     # days after the bidding closed with no listing: the issue is shown as "did not list"
+# Days after the bidding closed with no listing date: the issue leaves "Closed, listing soon" and is shown as "Not listed" (task #329, developer file 29:
+# four issues had read "listing soon" for two months; an issue normally lists within a week of its close). One rule for the calendar and the table.
+NOT_LISTED_AFTER = 15
 
 SOURCES = {
     "issue": {"name": SOURCE_NAME, "url": SOURCE_URL, "what": "Issue details, reservation, timetable, offer documents, overall subscription, GMP and figures from the offer document"},
@@ -72,7 +74,8 @@ def adjustment(our_open: Optional[float], listing_price: Optional[float]) -> Opt
     return k if k < 1 else None        # adjustments only ever lower past prices: a higher open is a data mismatch, not an adjustment
 
 
-def status(listed: bool, withdrawn: bool, open_d: Optional[date], close_d: Optional[date], today: date) -> str:
+def status(listed: bool, withdrawn: bool, open_d: Optional[date], close_d: Optional[date], today: date, listing_d: Optional[str] = None) -> str:
+    """Where an issue stands. A closed issue with no listing date is "not_listed" from NOT_LISTED_AFTER days after its close."""
     if withdrawn:
         return "withdrawn"
     if listed:
@@ -82,7 +85,7 @@ def status(listed: bool, withdrawn: bool, open_d: Optional[date], close_d: Optio
     if open_d and close_d and open_d <= today <= close_d:
         return "open"
     if close_d and today > close_d:
-        return "not_listed" if (today - close_d).days > NOT_LISTED_AFTER else "closed"
+        return "not_listed" if not listing_d and (today - close_d).days >= NOT_LISTED_AFTER else "closed"
     return "upcoming"
 
 
@@ -120,7 +123,7 @@ def row(r: Dict[str, Any], today: date) -> Dict[str, Any]:
         qa = r.get("quote_at")
         last_day = qa.astimezone(IST).date() if qa else None
     day1 = {"open": _f(r.get("day1_open")), "high": _f(r.get("day1_high")), "low": _f(r.get("day1_low")), "close": d1, "source": r.get("day1_src")} if d1 else None
-    st = status(bool(r["listed"]), bool(iss.get("withdrawn")), r["open_date"], r["close_date"], today)
+    st = status(bool(r["listed"]), bool(iss.get("withdrawn")), r["open_date"], r["close_date"], today, (r["listing_date"].isoformat() if r["listing_date"] else None) or tt.get("listing"))
     return {
         "id": r["ig_id"], "name": r["name"], "symbol": r["nse"] or r["bse"], "nse": r["nse"], "bse": r["bse"], "board": r["board"], "sector": r["sector"],
         "exchanges": iss.get("exchanges") or [], "kind": iss.get("kind"), "status": st,
@@ -257,6 +260,17 @@ def complete(cal: Dict[str, Any], r: Dict[str, Any], today: date) -> Dict[str, A
         d["gmp"] = {"rupees": f(r["gmp"]), "pct": f(r["gmp_pct"]), "source": SOURCE_NAME}
     out["details"] = d
     return out
+
+
+def settle(items: List[Dict[str, Any]], today: date) -> List[Dict[str, Any]]:
+    """The calendar's "closed" issues that are NOT_LISTED_AFTER days or more past their close with no listing date become "not_listed": they leave
+    "Closed, listing soon" (and its count) and show as Not listed in the list of every IPO (task #329). Run after the rows are completed from the IPO
+    record, which may have found a listing or a listing date."""
+    for it in items:
+        cd = it.get("closeDate")
+        if it.get("status") == "closed" and not it.get("listingDate") and cd and (today - date.fromisoformat(cd)).days >= NOT_LISTED_AFTER:
+            it["status"] = "not_listed"
+    return items
 
 
 async def complete_calendar(conn, items: List[Dict[str, Any]], today: date) -> List[Dict[str, Any]]:

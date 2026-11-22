@@ -15,9 +15,10 @@ export type TabView = { key: string; label: string; content?: ReactNode; chip?: 
 /** Task #220 (Prism report, README 1.3): `tools` puts a row of controls inside the bar, under the tabs (01's filters and sort); `sticky` freezes the
  *  bar under the page's sections bar while its section is on screen (top = --pzn-stick, set by the sections bar), with a shadow and a page-colour band
  *  when stuck, and a tab press (or Next view) while stuck shows the new panel from its start. */
-export function TabGroup({ views, label, hint = "Tap a tab to switch", numbered = true, variant, value, onChange, next = true, initial, noun = "views", tools, sticky = false }: {
+/** Task #329 (IPOs, developer file 29): `aside` is a short line after the tabs, in the bar ("Showing: …" for the view that is open). */
+export function TabGroup({ views, label, hint = "Tap a tab to switch", numbered = true, variant, value, onChange, next = true, initial, noun = "views", tools, sticky = false, aside }: {
   views: TabView[]; label: string; hint?: string; numbered?: boolean; variant?: "key" | "highlighted"; value?: string; onChange?: (key: string) => void; next?: boolean; initial?: string; noun?: string;
-  tools?: ReactNode; sticky?: boolean;
+  tools?: ReactNode; sticky?: boolean; aside?: ReactNode;
 }) {
   const uid = "ct" + useId().replace(/[^a-zA-Z0-9]/g, "");
   const [own, setOwn] = useState(initial ?? views[0]?.key);
@@ -92,6 +93,7 @@ export function TabGroup({ views, label, hint = "Tap a tab to switch", numbered 
             </button>
           ))}
         </div>
+        {aside != null && <span className="ct-aside" aria-live="polite">{aside}</span>}
         {tools && <div className="ct-tools">{tools}</div>}
       </div>
       {hasPanels && <div ref={panels} className="ct-panels">{views.map((v, j) => (
