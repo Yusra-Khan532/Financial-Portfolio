@@ -34,7 +34,7 @@ SOURCES = {
 
 ROWS_SQL = """SELECT g.ig_id, g.url, g.name, g.nse, g.bse, g.isin, g.board, g.sector, g.issue_price, g.listing_price, g.listing_date, g.subscription,
     g.issue_size_cr, g.gmp, g.gmp_pct, g.listing_pct, g.listed, g.open_date, g.close_date, g.fetched_at,
-    g.detail -> 'issue' AS issue, g.day1_open, g.day1_high, g.day1_low, g.day1_close, g.day1_src, g.last_px, g.last_px_date, g.last_px_src, g.detail -> 'timetable' AS tt, g.nse_book -> 'categories' AS cats,
+    g.detail -> 'issue' AS issue, g.day1_open, g.day1_high, g.day1_low, g.day1_close, g.day1_src, g.last_px, g.last_px_date, g.last_px_src, g.ca_factor, g.detail -> 'timetable' AS tt, g.nse_book -> 'categories' AS cats,
     lc.open AS listing_open, lc.close AS listing_close, cur.close AS last_close, cur.day AS last_day,
     EXISTS (SELECT 1 FROM companies c WHERE c.symbol = g.nse) AS has_page, q.price AS quote_price, q.traded_at AS quote_at
     FROM ipo_gmp g
@@ -109,9 +109,12 @@ def row(r: Dict[str, Any], today: date) -> Dict[str, Any]:
     recent = bool(r["listing_date"]) and (today - r["listing_date"]).days <= QUOTE_FALLBACK_DAYS
     # The exchange file's close is used when it is newer than our daily closes (ours can lag a few days for some shares) or when we have none, provided it
     # compares like with like: the issue listed within a year, or our own history shows no split or bonus since listing (factor 1.0)
+    # NSE's corporate actions give the split and bonus factor since listing for issues we hold no adjusted history for (BSE-only issues have none)
+    ca = _f(r.get("ca_factor"))
     bhav_newer = r.get("last_px") and r.get("last_px_date") and (last_day is None or r["last_px_date"] > last_day)
-    if bhav_newer and (recent or k == 1.0):
-        last, last_day, since_base = _f(r["last_px"]), r.get("last_px_date"), issue
+    if bhav_newer and (recent or k == 1.0 or ca is not None):
+        last, last_day = _f(r["last_px"]), r.get("last_px_date")
+        since_base = issue * ca if issue and ca else issue
     elif last is None and recent and r.get("quote_price"):
         last, since_base = _f(r["quote_price"]), issue
         qa = r.get("quote_at")

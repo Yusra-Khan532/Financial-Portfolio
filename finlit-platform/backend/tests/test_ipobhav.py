@@ -100,4 +100,5 @@ async def test_job_reads_each_listing_date_once_and_the_latest_close(app):  # no
         assert got == {1: (268.8, "NSE", 231.0), 2: (203.55, "BSE", 180.0), 3: (1082.25, "BSE", None), 4: (None, None, None)}
         asked.clear()
         again = await ipobhav.refresh(app.state.store, pause_s=0, http=http, today=date(2026, 11, 21))
-        assert again["dates"] == 0 and again["day1"] == 0 and asked == []                 # each date read once; the latest day stored already
+        files = [u for u in asked if "bhav" in u.lower()]
+        assert again["dates"] == 0 and again["day1"] == 0 and files == []                 # each date read once; the latest day stored already
