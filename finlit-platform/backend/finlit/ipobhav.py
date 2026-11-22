@@ -82,6 +82,16 @@ def bse_rows(text: str) -> Dict[str, Ohlc]:
     return out
 
 
+def bse_tickers(text: str) -> Dict[str, str]:
+    """BSE's new file: {scrip code: ticker} (the old format has names, not tickers)."""
+    out: Dict[str, str] = {}
+    for r in csv.DictReader(io.StringIO(text)):
+        code, tick = (r.get("FinInstrmId") or "").strip(), (r.get("TckrSymb") or "").strip().upper()
+        if code and tick:
+            out[code] = tick
+    return out
+
+
 def bse_old_text(blob: bytes) -> str:
     with zipfile.ZipFile(io.BytesIO(blob)) as z:
         name = next(n for n in z.namelist() if n.upper().endswith(".CSV"))
@@ -107,6 +117,7 @@ class Files:
         self.http, self.pause_s = http, pause_s
         self.nse: Dict[date, Optional[Dict[str, Ohlc]]] = {}
         self.bse: Dict[date, Optional[Dict[str, Ohlc]]] = {}
+        self.tickers: Dict[str, str] = {}                     # BSE scrip code -> ticker, from the new-format files read this run
         self.fetched = 0
 
     async def _get(self, url: str) -> Optional[bytes]:
@@ -132,7 +143,10 @@ class Files:
         if d not in self.bse:
             if d >= BSE_NEW_FROM:
                 b = await self._get(BSE_NEW.format(d=d))
-                self.bse[d] = bse_rows(b.decode("utf-8", "ignore")) if b else None
+                text = b.decode("utf-8", "ignore") if b else ""
+                self.bse[d] = bse_rows(text) if b else None
+                if b:
+                    self.tickers.update(bse_tickers(text))
             else:
                 b = await self._get(BSE_OLD.format(d=d))
                 try:
@@ -157,6 +171,11 @@ LACKING_ROWS = """SELECT ig_id, nse, bse, isin, last_px FROM ipo_gmp
     WHERE listed AND last_px IS NULL AND (last_px_date IS NULL OR last_px_date < (SELECT max(last_px_date) FROM ipo_gmp))"""
 LAST_TRIED = "UPDATE ipo_gmp SET last_px_date = $2 WHERE ig_id = $1 AND last_px IS NULL"
 LAST_SAVE = "UPDATE ipo_gmp SET last_px = $2, last_px_date = $3, last_px_src = $4 WHERE ig_id = $1"
+LOOKBACK_DAYS = 45            # calendar days looked back for a share that has not traded lately
+STALE_ROWS = """SELECT ig_id, nse, bse, isin, last_px FROM ipo_gmp WHERE listed AND last_px IS NULL
+    AND (px_lookback_on IS NULL OR px_lookback_on < (SELECT max(last_px_date) FROM ipo_gmp))"""
+LOOKBACK_DONE = "UPDATE ipo_gmp SET px_lookback_on = $1 WHERE listed AND last_px IS NULL"
+TICKER_SAVE = "UPDATE ipo_gmp SET bse_ticker = $1 WHERE bse = $2 AND bse_ticker IS DISTINCT FROM $1"
 
 
 def by_date(rows: Iterable[Dict[str, Any]]) -> List[Tuple[date, List[Dict[str, Any]]]]:
@@ -229,6 +248,36 @@ async def refresh(store, max_dates: int = 60, pause_s: float = 1.0, max_minutes:
                             await conn.execute(LAST_TRIED, r["ig_id"], d)    # not in that day's files: tried once for that day
                 out["latestDate"] = d.isoformat()
                 break
+            # Shares that did not trade on the newest day (illiquid SME shares often do not) and have no latest close yet: their last close in the
+            # files of up to LOOKBACK_DAYS earlier days, looked for once per newest day.
+            async with store.pool.acquire() as conn:
+                newest = await conn.fetchval("SELECT max(last_px_date) FROM ipo_gmp")
+                stale = [dict(x) for x in await conn.fetch(STALE_ROWS)] if newest else []
+            back = 1
+            while stale and back <= LOOKBACK_DAYS and time.monotonic() < stop:
+                d = newest - timedelta(days=back)
+                back += 1
+                if d.weekday() >= 5:
+                    continue
+                nse = await files.nse_day(d) if any(r["nse"] for r in stale) else None
+                bse = await files.bse_day(d)
+                files.nse.pop(d, None), files.bse.pop(d, None)
+                left = []
+                async with store.pool.acquire() as conn:
+                    for r in stale:
+                        got = pick(r, nse, bse)
+                        if got:
+                            await conn.execute(LAST_SAVE, r["ig_id"], got[0][3], d, got[1])
+                            out["latestEarlier"] = out.get("latestEarlier", 0) + 1
+                        else:
+                            left.append(r)
+                stale = left
+            if newest and back > LOOKBACK_DAYS:
+                async with store.pool.acquire() as conn:
+                    await conn.execute(LOOKBACK_DONE, newest)
+            if files.tickers:
+                async with store.pool.acquire() as conn:
+                    await conn.executemany(TICKER_SAVE, [(t, c) for c, t in files.tickers.items()])
         # splits and bonuses since listing, from NSE (weekly per issue), in the time left
         if ca_limit > 0 and time.monotonic() < stop:
             from .ipocorp import refresh as refresh_ca

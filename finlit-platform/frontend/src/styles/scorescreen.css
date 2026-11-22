@@ -26,7 +26,7 @@
 .sx-cap { display: block; color: var(--faint); font: 12px var(--sans); }
 .sx-t input[type="checkbox"], .sx-opt input, .scr-sec input { accent-color: var(--gold); width: 16px; height: 16px; }
 .sx-t th button:focus-visible, .sx-bulkb .btn:focus-visible, .sx-pager .btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
-.sx-pager { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; } .sx-pager .btn { min-width: 36px; padding: 4px 10px; } .sx-pager .btn.on { border-color: var(--gold); background: var(--gold-soft); color: var(--text); }
+.sx-pager { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; } .sx-pager .btn { min-width: 36px; padding: 4px 10px; } .sx-pager .btn[aria-current="page"] { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); box-shadow: none; }
 .sx-how { max-height: calc(100dvh - 24px); } .sx-how dl { margin: 14px 0; display: grid; gap: 4px; } .sx-how dt { font-weight: 700; margin-top: 8px; } .sx-how dd { margin: 0; color: var(--muted); font-size: var(--fs-14); line-height: 1.55; }
 .sx-how p { color: var(--muted); font-size: var(--fs-14); line-height: 1.55; }
 @media (max-width: 1000px) {

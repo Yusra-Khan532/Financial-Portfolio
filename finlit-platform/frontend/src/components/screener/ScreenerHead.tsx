@@ -10,6 +10,7 @@ import { Link, useLocation } from "react-router";
 import { offeredTo } from "../../lib/nav";
 import { useIsGold } from "../../lib/planGate";
 import { faqForPath } from "../../lib/pageFaqs";
+import { tabClass } from "../ui";
 import { faqAnchor } from "../PageFaqs";
 import { TierChip } from "../Gate";
 import type { Plan } from "../../lib/ui";
@@ -34,15 +35,16 @@ export function whichAnchor(path: string): string | null {
   return set && i >= 0 ? faqAnchor(set.id, i) : null;
 }
 
-/** The plain screener boxes (pack H, v2): the page name only, no icons, tier tags or colours; the current page is filled and aria-current. */
+/** The plain screener boxes (pack H, v2): the page name only, no icons, tier tags or colours. Task #310: the shared tabs (ui-tabs / ui-tab); the current page is
+ *  marked aria-current="page", which gives it the one selected look. */
 export function ScreenerBoxes() {
   const { pathname } = useLocation();
   const gold = useIsGold();
   return (
-    <nav className="xsh-nav" aria-label="Screeners">
+    <nav className="ui-tabs xsh-nav" aria-label="Screeners">
       {SCREENERS.filter(offeredTo(gold)).map((t) => {
         const on = pathname === t.to || pathname === t.to + "/";
-        return <Link key={t.to} to={t.to} className={"xsh-box" + (on ? " on" : "")} aria-current={on ? "page" : undefined}>{t.label}</Link>;
+        return <Link key={t.to} to={t.to} className={tabClass("xsh-box")} aria-current={on ? "page" : undefined}>{t.label}</Link>;
       })}
     </nav>
   );

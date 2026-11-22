@@ -56,7 +56,7 @@
 :root[data-theme="dark"] .psx3-addrule { color: #7CC7D2; }
 .psx3-seg2 { display: inline-flex; padding: 3px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--s2); }
 .psx3-seg2 button { min-height: 30px; padding: 0 12px; border: 0; border-radius: 999px; background: none; color: var(--muted); font: 600 13px var(--sans); cursor: pointer; }
-.psx3-seg2 button[aria-pressed="true"] { background: var(--s1); color: var(--text); box-shadow: 0 0 0 1px var(--border); }
+.psx3-seg2 button[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); box-shadow: none; }
 .psx3-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 10px; }
 .psx3-chip { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 0 4px 0 10px; border-radius: 999px; border: 1px solid var(--gold);
   background: color-mix(in srgb, var(--gold) 14%, var(--s1)); color: var(--text); font: 600 13px var(--sans); }

@@ -19,6 +19,7 @@ import {
 import { useDocTitle } from "../lib/title";
 import { PremiumHead } from "./Premium";
 import { LogoLoader } from "../components/LogoLoader";
+import { buttonClass } from "../components/ui";
 import example from "../lib/__fixtures__/prismReport.json";
 
 function Head({ children }: { children?: React.ReactNode }) {
@@ -111,7 +112,7 @@ function CompanyView({ symbol, statement, picker }: { symbol: string; statement:
           <div className="pzr-ico"><Icon name="prism" /></div>
           <h3>No {PRISM_NAME} rating for {symbol} yet</h3>
           <p>It is calculated from the company's latest filings and prices; this usually takes under half a minute. {statementWord(statement)} statements.</p>
-          <button type="button" className="btn primary lg" disabled={!!down} onClick={() => run(false)}><Icon name="prism" />Generate the Prism rating</button>
+          <button type="button" className={buttonClass("prism", "md")} disabled={!!down} onClick={() => run(false)}><Icon name="prism" />Generate the Prism rating</button>
           <p className="pzr-note">{PRISM_NOTE}</p>
         </div>
       )}

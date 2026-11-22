@@ -43,7 +43,7 @@
 .dv-toggle-row .dv-lab { display: inline; }
 .dv-seg { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; border: 1px solid var(--dv-line); border-radius: 999px; background: var(--bg-subtle, #ECEFF3); }
 .dv-seg button { min-height: 44px; padding: 0 16px; border: 0; border-radius: 999px; background: transparent; color: var(--text-body, #334155); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
-.dv-seg button.on { background: var(--text-primary, #0B192C); color: var(--bg-surface, #fff); }
+.dv-seg button[aria-checked="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); }   /* task #310: the one selected look, from the attribute */
 .dv-seg button:disabled { opacity: .45; cursor: not-allowed; }
 .dv-seg button:focus-visible, .dv-btn:focus-visible, .dv-chips button:focus-visible { outline: 2px solid var(--focus-ring, #6D28D9); outline-offset: 2px; }
 .dv-view { font-size: 16px; color: var(--text-primary, #0B192C); margin-bottom: 16px; }

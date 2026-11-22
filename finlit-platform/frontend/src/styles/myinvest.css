@@ -81,8 +81,8 @@
 .mi-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 4px 0 0; }
 .mi-tabs [role="tab"] { display: grid; gap: 2px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--s1); color: var(--text); text-align: left; cursor: pointer; }
 .mi-tabs [role="tab"] b { font: 600 var(--fs-body)/20px var(--sans); } .mi-tabs [role="tab"] small { font: 400 var(--fs-caption)/16px var(--sans); color: var(--muted); }
-.mi-tabs [role="tab"][aria-selected="true"] { background: var(--mi-shares); border-color: var(--mi-shares); color: #fff; } .mi-tabs [role="tab"][aria-selected="true"] small { color: rgba(255,255,255,.85); }
-.mi-tabs [role="tab"]:focus-visible { outline: 2px solid var(--c1); outline-offset: 2px; }
+.mi-tabs [role="tab"][aria-selected="true"] { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); } .mi-tabs [role="tab"][aria-selected="true"] small { color: color-mix(in srgb, var(--ui-on-fg) 85%, transparent); }
+.mi-tabs [role="tab"]:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .mi .stb-wrap { margin: 8px 0 16px; }
 
 /* ---- Key figures ---- */
@@ -149,7 +149,7 @@
 .mi .mi-filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; }
 .mi .mi-filters button { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--s1); color: var(--text); font: 600 var(--fs-small)/18px var(--sans); cursor: pointer; }
 .mi .mi-filters button b { margin-left: 4px; padding: 0 6px; border-radius: 999px; background: var(--s2); }
-.mi .mi-filters button[aria-pressed="true"] { background: var(--mi-shares); border-color: var(--mi-shares); color: #fff; } .mi .mi-filters button[aria-pressed="true"] b { background: rgba(255,255,255,.2); }
+.mi .mi-filters button[aria-pressed="true"] { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); } .mi .mi-filters button[aria-pressed="true"] b { background: color-mix(in srgb, var(--ui-on-fg) 20%, transparent); }
 
 /* ---- health and risk ---- */
 .mi .mi-hc { padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--s1); }
