@@ -39,6 +39,7 @@ const OWN: { file: string; needle: RegExp; why: string }[] = [
 /** Drawings with nothing to enlarge: sparklines, gauges and rings that show one figure, decorative art, icons, tiny inline bars. */
 const EXEMPT: Record<string, string> = {
   "portfolio/kit/AddBox.tsx": "the add box's magnifier icon (task #276); no data",
+  "pages/IpoHistory.tsx": "only the toolbar's icons on All IPOs (task #308): magnifier, chevrons, More filters, ×, tick; no data",
   "superinvestors/Follow.tsx": "the bell icon of the Follow button (task #289); no data",
   "components/dashboard/GlobalMarkets.tsx": "the world view and the 1-month lines of the Global markets card (task #294): every figure is in the table beside them",
   "superinvestors/InvestorBody.tsx": "the 8-quarter stake sparkline inside a holdings row (task #289); its figures are in the line's label",

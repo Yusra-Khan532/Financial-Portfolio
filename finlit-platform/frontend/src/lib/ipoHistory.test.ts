@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyFilters, filtersFromParams, median, NO_FILTERS, paramsFromFilters, sortRows, summarise, toCsv, yearOf, type IpoRow } from "./ipoHistory";
+import { applyFilters, filtersFromParams, median, NO_FILTERS, optionCounts, paramsFromFilters, passes, sortRows, summarise, toCsv, yearOf, type IpoRow } from "./ipoHistory";
 
 const row = (o: Partial<IpoRow>): IpoRow => ({
   id: 1, name: "A Ltd", symbol: "A", nse: "A", bse: null, board: "mainboard", sector: "Chemicals", exchanges: ["BSE", "NSE"], kind: "Book built", status: "listed",
@@ -30,6 +30,20 @@ describe("the all-IPOs table", () => {
     expect(ids({ size: "lt100" })).toEqual([2]);
     expect(ids({ exchange: "BSE" })).toEqual([1, 3]);
     expect(ids({ sector: "Textiles" })).toEqual([2]);
+  });
+
+  it("task #308: each option counts what it would leave with every other filter applied (Board = SME, then Year shows the SME issues of each year)", () => {
+    const more = [...rows, row({ id: 4, name: "D Ltd", board: "sme", openDate: "2026-02-01", listingDate: "2026-02-06" }), row({ id: 5, name: "E Ltd", board: "sme", openDate: "2024-05-01", listingDate: "2024-05-07" })];
+    const f = { ...NO_FILTERS, board: "sme" as const };
+    expect(optionCounts(more, f, "year", ["all", "2026", "2024"])).toEqual({ all: 3, "2026": 1, "2024": 2 });
+    // the filter's own value is left out when counting its options: Board counts every board, the other filters still apply
+    expect(optionCounts(more, { ...f, year: "2024" }, "board", ["all", "mainboard", "sme"])).toEqual({ all: 2, mainboard: 0, sme: 2 });
+    // the search applies to every count
+    expect(optionCounts(more, { ...NO_FILTERS, q: "d ltd" }, "board", ["all", "sme"])).toEqual({ all: 1, sme: 1 });
+    // an option's count is exactly what choosing it shows
+    for (const y of ["2026", "2024"]) expect(optionCounts(more, f, "year", [y])[y]).toBe(applyFilters(more, { ...f, year: y }).length);
+    expect(passes(more[1], { ...f, year: "2026" }, "year")).toBe(true);
+    expect(passes(more[1], { ...f, year: "2026" })).toBe(false);
   });
 
   it("sorts with missing figures last either way", () => {

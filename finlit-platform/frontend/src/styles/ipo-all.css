@@ -1,16 +1,9 @@
-/* All IPOs (pages/IpoHistory.tsx): filters, the summary line, the table on wide screens and cards on phones. */
+/* All IPOs (pages/IpoHistory.tsx): the table on wide screens and cards on phones. The toolbar, figure strip and count line: ipo-all-compact.css (task #308). */
 .ia { display: grid; gap: 14px; padding-bottom: 48px; }
-.ia-bar { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px 12px; align-items: end; padding: 14px 16px; }
-.ia-fs { display: contents; } .ia-ftog { display: none; }
-.ia-f { display: grid; gap: 4px; min-width: 0; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
-.ia-f select, .ia-f input { width: 100%; min-width: 0; height: 38px; padding: 0 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--card, var(--bg)); color: var(--text); font: 500 14px var(--sans); text-transform: none; letter-spacing: 0; }
-.ia-f select:focus-visible, .ia-f input:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
-.ia-q { grid-column: span 2; }
-.ia-acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; grid-column: -2 / -1; }
 .ia-btn { height: 38px; padding: 0 14px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--text); font: 600 13px var(--sans); cursor: pointer; white-space: nowrap; }
 .ia-btn:hover:not(:disabled) { border-color: var(--text); } .ia-btn:disabled { opacity: .5; cursor: default; } .ia-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .ia-link { border: 0; background: none; padding: 0; color: var(--text); text-decoration: underline; font: inherit; cursor: pointer; }
-.ia-sum { margin: 0; font-size: 16px; line-height: 1.6; } .ia-sum .up, .ia .up { color: var(--gain); } .ia-sum .down, .ia .down { color: var(--loss); }
+.ia .up { color: var(--gain); } .ia .down { color: var(--loss); }
 .ia-none { padding: 24px; text-align: center; }
 
 .ia-tw { padding: 0; overflow: auto; max-height: 75vh; position: relative; }
@@ -39,11 +32,6 @@
 .ia-more { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: center; }
 .ia-foot { margin: 4px 0 0; font-size: 12px; line-height: 1.6; } .ia-foot a { color: inherit; }
 
-@media (max-width: 900px) { .ia-q { grid-column: 1 / -1; } .ia-acts { grid-column: 1 / -1; justify-content: flex-start; } }
 @media (max-width: 760px) {
   .ia-tw { display: none; } .ia-cards { display: grid; }
-  .ia-bar { grid-template-columns: minmax(0, 1fr) auto; padding: 12px; }
-  .ia-q { grid-column: 1; } .ia-ftog { display: inline-block; align-self: end; }
-  .ia-fs { display: none; grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; } .ia-bar.open .ia-fs { display: grid; }
-  .ia-acts { grid-column: 1 / -1; }
 }
