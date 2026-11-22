@@ -154,17 +154,20 @@ def reads_like_advice(text: str) -> bool:
     return bool(ADVICE.search(text or ""))
 
 
+SUMMARY_VERSION = "v3"   # task #312: the fixed shape below; a new version is not served an older cached summary
+
+
 def summary_question(symbol: str) -> str:
-    """The AI summary under the FinLit Prism cards of the company page (task #228). The team, 19 Nov 2026: "it is just showing numbers, i dont want
-    it to show numbrrs but meaning of it". So: what the rating means, in words, with the reasons behind it; no scores and no other figures. Written
-    here, never by the browser: the summary allowance (quota kind "summary") can only ever ask this."""
-    # Task #228 rework 2 (the team, 20 Nov 2026): "make it in pointers its too big of a paragaph and highlight keywords".
-    return (f"Explain in plain words what the FinLit Prism rating of {symbol} shown on this page means, as 4 to 6 short pointers. Each pointer is one "
-            "line starting with \"- \", one idea, at most 20 words, and its key words in **bold** (for example **sound finances**, **valuation "
-            "looks high**). In this order: what the overall rating says about the business; what is strong and why; what is weak and why; the "
-            "valuation; what the Risk part means in practice (a higher Risk score means lower risk); and what the short-term and the long-term "
-            "price trends mean together (the rating's technical view). Use the reasons behind the parts (the rating's topPros and topCons). Do not "
-            "repeat the scores, percentages or any other numbers: say what they mean. No paragraph, no headings. Describe, never advise.")
+    """The AI summary at the top of the FinLit Prism card of the company page (task #228; reworked by task #312, developer file 20, 22 Nov 2026: the
+    member called the old text "poor"). Written from the card's own figures (get_finlit_prism, read before the model starts), in a fixed shape of up to
+    5 pointers and about 80 words, each with the card's numbers, so it is short and can be checked against the card. Written here, never by the
+    browser: the summary allowance (quota kind "summary") can only ever ask this."""
+    return (f"Summarise the FinLit Prism card of {symbol} (read above) in at most 5 pointers and about 80 words, each one line starting with \"- \" "
+            "and a bold label, in this order: **Overall:** the overall score and its label, and whether it is Rated or Provisional; **Sound:** the "
+            "parts scoring well, with their scores and what they measure; **In between:** the middling parts, with their scores; **Weighs on it:** "
+            "the weak parts, with their scores and the main reason the card gives (its topPros and topCons); **Price trend:** the short-term and long-term technical "
+            "scores and what they mean together (a higher Risk score means lower risk). Use only the card's figures, as the card states them. Leave "
+            "out a pointer that has nothing in it. No headings, no paragraph. Describe, never advise.")
 
 
 # Task #255 ("chatbot is still not taking investor presentation data"): a question about what a company's own document says is answered from the
