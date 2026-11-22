@@ -77,6 +77,31 @@ describe("family 2: screeners and Discover (task #310 F, pages/02)", () => {
   });
 });
 
+describe("family 3: portfolios and dashboard (task #310 F, pages/03)", () => {
+  const SHEETS = ["dashboard", "dash-shared", "dash223", "dash248", "dash316", "dash-cards", "myinvest", "mi7", "watchlist-pack", "alerts272", "etfportfolio",
+    "mfportfolio", "mfspread", "steps-bar", "pdfimport", "portfolio-disc", "hideable", "calendar-sync"].map((n) => `styles/${n}.css`);
+  const OWN = ["portfolio/pf.css", "portfolio/kit/kit.css", "portfolio/holdings-kit.css", "portfolio/view-kit.css", "portfolio/add-shares.css",
+    "portfolio/pack/equity-pack.css", "portfolio/pack/div-pack.css", "portfolio/pack/eq-top.css", "portfolio/pack/eq-themes.css", "portfolio/pack/pagetop.css",
+    "portfolio/pack/risk-pack.css", "portfolio/pack/market-fall.css", "portfolio/pack/key-answers.css", "holdings/holdings.css", "mf/pack/mf-pack.css",
+    "components/diversification/diversification.css", "components/clearportfolio.css", "components/removeall.css", "components/dashboard/global-markets.css"];
+  it("the dashboard, three portfolios, all my investments, watchlists, alerts and baskets have no hand-typed corners, sizes or weights", () => {
+    expect([...SHEETS, ...OWN].flatMap(shapeFindings)).toEqual([]);
+  });
+
+  it("dashboard heat-map tiles keep the mark corner (--ui-r-mark), cards the card corner", () => {
+    const d = noComments(read("styles/dashboard.css"));
+    expect(d).not.toMatch(/border-radius:\s*(16|14|10|8|4)px/);
+    expect(d).toMatch(/var\(--ui-r-mark\)/);
+    expect(d).toMatch(/var\(--r-card\)/);
+  });
+
+  it("all my investments: figures on the light dark-theme blocks use the dark ink, and the disclaimer heading weight is 700", () => {
+    const mi = noComments(read("styles/myinvest.css"));
+    expect(mi).toMatch(/:root\[data-theme="dark"\] \.mi :is\(\.t-pos, \.t-mid, \.t-neg,[^{]*\{ color: var\(--on-mint\); \}/);
+    expect(mi).toMatch(/\.mi \.mi-fold summary b \{ font-weight: 700; \}/);
+  });
+});
+
 describe("shared sheets (task #310 F)", () => {
   it("the shared navigation and table pieces have no hand-typed corners, sizes or weights", () => {
     const files = ["styles/tabgroup.css", "styles/section-nav.css", "styles/tablesort.css", "styles/table-grid.css", "styles/theme.css", "styles/type227.css",

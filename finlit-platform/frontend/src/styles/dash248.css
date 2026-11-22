@@ -2,20 +2,20 @@
    ds-acct); the dashboard's own CSS is not touched. Sizes on the type scale (12px and up); colours from the dashboard's tokens, so light and dark follow. */
 /* .dsh-cell > .dsh-card lays a card out as a column (dashboard.css, loaded after this file): the bar is one row, so it names the cell too */
 .dsh-cell > .dsh-card.dsh-show { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 10px; padding: 12px 16px; min-height: 0; text-align: left; }
-.dsh-show-k { font: 700 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.dsh-show-k { font: 700 var(--fs-12) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .dsh-show-pk { display: flex; flex-wrap: wrap; gap: 10px; min-width: 0; }
-.dsh-show-note { margin-left: auto; font: 400 12px var(--sans); color: var(--faint); }
-.dsh-show-all { margin-left: 4px; border: 0; background: none; color: var(--d-ink, var(--text)); font: 600 13px var(--sans); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 8px 4px; min-height: 40px; }
+.dsh-show-note { margin-left: auto; font: 400 var(--fs-12) var(--sans); color: var(--faint); }
+.dsh-show-all { margin-left: 4px; border: 0; background: none; color: var(--d-ink, var(--text)); font: 600 var(--fs-13) var(--sans); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 8px 4px; min-height: 40px; }
 
 .ds-pk { position: relative; min-width: 0; }
-.ds-pk-b { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; min-height: 42px; padding: 4px 12px; border-radius: 10px; border: 1px solid var(--d-line, var(--border));
+.ds-pk-b { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; min-height: 42px; padding: 4px 12px; border-radius: var(--r-ctl); border: 1px solid var(--d-line, var(--border));
   background: var(--s1); color: var(--d-ink, var(--text)); cursor: pointer; text-align: left; }
 .ds-pk-b:hover { border-color: var(--muted); }
 .ds-pk-b[aria-expanded="true"] { border-color: var(--text); box-shadow: 0 0 0 1px var(--text); }
 .ds-pk-t { display: grid; min-width: 0; }
-.ds-pk-k { font: 700 12px/1.1 var(--sans); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
-.ds-pk-v { font: 600 14px/1.25 var(--sans); white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
-.ds-pk-dot { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.ds-pk-k { font: 700 var(--fs-12)/1.1 var(--sans); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.ds-pk-v { font: 600 var(--fs-14)/1.25 var(--sans); white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+.ds-pk-dot { width: 10px; height: 10px; border-radius: var(--ui-r-mark); flex: none; }
 .ds-pk-equity { background: #2f6f9f; } .ds-pk-mf { background: #8a5cb8; } .ds-pk-etf { background: #b7791f; }
 .ds-pk-b.on { border-color: color-mix(in srgb, var(--warn) 55%, var(--border)); background: color-mix(in srgb, var(--warn) 10%, var(--s1)); }
 .ds-pk-b.on .ds-pk-v { color: var(--warn); }
@@ -23,28 +23,28 @@
 .ds-pk-b[aria-expanded="true"] .ds-pk-c { transform: translateY(1px) rotate(-135deg); }
 .ds-pk-b:focus-visible, .ds-pop button:focus-visible, .ds-pop a:focus-visible, .ds-pop input:focus-visible, .dsh-show-all:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
-.ds-pop { position: absolute; z-index: 40; top: calc(100% + 6px); left: 0; width: 320px; max-width: calc(100vw - 32px); padding: 8px; border-radius: 14px;
+.ds-pop { position: absolute; z-index: 40; top: calc(100% + 6px); left: 0; width: 320px; max-width: calc(100vw - 32px); padding: 8px; border-radius: var(--r-ctl);
   border: 1px solid var(--d-line, var(--border)); background: var(--s1); box-shadow: 0 22px 44px -20px rgba(0, 0, 0, .45); }
 :root[data-theme="dark"] .ds-pop { background: var(--s3); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ds-pop { background: var(--s3); } }
-.ds-pop-h { margin: 6px 8px 4px; font: 700 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-.ds-opt { display: flex; align-items: center; gap: 8px; border-radius: 10px; }
+.ds-pop-h { margin: 6px 8px 4px; font: 700 var(--fs-12) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.ds-opt { display: flex; align-items: center; gap: 8px; border-radius: var(--r-ctl); }
 .ds-opt:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
 .ds-opt > label, .ds-opt.ds-opt-all { flex: 1; display: flex; align-items: center; gap: 10px; padding: 8px; cursor: pointer; min-width: 0; }
 .ds-opt input { width: 18px; height: 18px; flex: none; accent-color: var(--gain); }
 .ds-opt-t { display: grid; min-width: 0; }
-.ds-opt-t b { font: 600 14px var(--sans); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ds-opt-t small { font: 400 12px var(--sans); color: var(--muted); }
-.ds-opt-all { border-bottom: 1px solid var(--border); border-radius: 10px 10px 0 0; margin-bottom: 4px; }
-.ds-opt-only { flex: none; border: 1px solid var(--border-strong); background: none; color: var(--text); font: 600 12px var(--sans); border-radius: 8px; padding: 4px 10px; margin-right: 6px; cursor: pointer; min-height: 30px; }
+.ds-opt-t b { font: 600 var(--fs-14) var(--sans); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ds-opt-t small { font: 400 var(--fs-12) var(--sans); color: var(--muted); }
+.ds-opt-all { border-bottom: 1px solid var(--border); border-radius: var(--r-ctl) var(--r-ctl) 0 0; margin-bottom: 4px; }
+.ds-opt-only { flex: none; border: 1px solid var(--border-strong); background: none; color: var(--text); font: 600 var(--fs-12) var(--sans); border-radius: var(--r-ctl); padding: 4px 10px; margin-right: 6px; cursor: pointer; min-height: 30px; }
 .ds-pop-f { display: flex; justify-content: space-between; align-items: center; gap: 8px; border-top: 1px solid var(--border); margin-top: 4px; padding: 8px 6px 2px; }
-.ds-pop-f a { font: 600 13px var(--sans); color: var(--gold); text-decoration: none; }
-.ds-pop-done { border: 0; background: var(--gain); color: #fff; font: 700 13px var(--sans); border-radius: 8px; padding: 0 16px; min-height: 34px; cursor: pointer; }
-:root[data-theme="dark"] .ds-pop-done { color: #0B1A12; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ds-pop-done { color: #0B1A12; } }
+.ds-pop-f a { font: 600 var(--fs-13) var(--sans); color: var(--gold); text-decoration: none; }
+.ds-pop-done { border: 0; background: var(--gain); color: #fff; font: 700 var(--fs-13) var(--sans); border-radius: var(--r-ctl); padding: 0 16px; min-height: 34px; cursor: pointer; }
+:root[data-theme="dark"] .ds-pop-done { color: var(--s1); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ds-pop-done { color: var(--s1); } }
 
 /* "held in Dhan": the account a held row sits in (only when the kind has two or more portfolios) */
-.ds-acct { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 6px; background: var(--s2); border: 1px solid var(--border); color: var(--muted); font: 500 12px/1.5 var(--sans); }
+.ds-acct { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: var(--ui-r-mark); background: var(--s2); border: 1px solid var(--border); color: var(--muted); font: 500 var(--fs-12)/1.5 var(--sans); }
 
 @media (max-width: 640px) {
   .dsh-cell > .dsh-card.dsh-show { padding: 12px 14px; }
