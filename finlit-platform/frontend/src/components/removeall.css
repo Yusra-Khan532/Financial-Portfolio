@@ -1,5 +1,5 @@
 /* "Remove all" (task #127): the question in place of the button, with the count, a red "Yes, remove all" and Cancel */
-.rma-ask { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; border: 1px solid color-mix(in srgb, var(--loss) 45%, var(--border)); border-radius: 12px; background: var(--loss-soft); }
+.rma-ask { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; border: 1px solid color-mix(in srgb, var(--loss) 45%, var(--border)); border-radius: var(--r-ctl); background: var(--loss-soft); }
 .rma-q { font-size: var(--fs-14); font-weight: 600; color: var(--text); } .rma-q small { display: block; font-size: var(--fs-12); font-weight: 500; color: var(--muted); }
 .rma-ask .rma-yes { background: var(--loss); border-color: var(--loss); color: var(--bg); }   /* the page colour reads well on the red in both themes (cream on dark red, near-black on light red) */
 .rma-ask .rma-yes:hover:not(:disabled) { filter: brightness(1.08); }

@@ -11,7 +11,7 @@ export function JobsBanner() {
     <div className={"jobs-banner " + (bad ? "" : lines.length ? "warn" : "ok")} role={bad ? "alert" : "status"} data-testid="jobs-banner">
       <b>{bad ? "Background jobs need attention" : lines.length ? "Background jobs: notes" : "Background jobs and data are healthy"}</b>
       {lines.length > 0 && <ul>{lines.map((l, i) => <li key={i} className={l.level === "bad" ? "neg" : ""}>{l.text}</li>)}</ul>}
-      <span className="muted" style={{ fontSize: 12 }}>Full detail: /api/jobs/status. Checked {q.data.data.checkedAt ? new Date(q.data.data.checkedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) + " IST" : "not yet"}.</span>
+      <span className="muted" style={{ fontSize: "var(--fs-12)" }}>Full detail: /api/jobs/status. Checked {q.data.data.checkedAt ? new Date(q.data.data.checkedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) + " IST" : "not yet"}.</span>
     </div>
   );
 }

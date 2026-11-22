@@ -231,7 +231,7 @@ export function ConcallMonitorPage() {
   const total = d?.total ?? 0, shown = items.length;
   const have = d?.have;
   return (
-    <div className="page ccm p4">
+    <div className="page ccm p4 ui-page">
       <PageHeader title="Concall Monitor" description={SUBTITLE} art="calendar" links={["/results", "/results/quarter", "/news"]} learn={false} />
       <div className="p4-tools">
         <div className="ccm-seg" role="tablist" aria-label="Latest or upcoming calls">

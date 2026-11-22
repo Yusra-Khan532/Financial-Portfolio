@@ -86,14 +86,14 @@ export function MarketToday() {
   };
   return (
     <Card id="market" title="Market today" sub={status} page={gold && d ? { to: "/premium/markets#indices", label: `All ${d.items.length} indices →` } : undefined} right={gold && d ? <Link className="dsh-link" to="/premium/markets#indices">All {d.items.length} indices →</Link> : undefined}>
-      {!d ? <div className="dsh-ixs">{Array.from({ length: 7 }, (_, i) => <div key={i} className="skeleton" style={{ height: 92, borderRadius: 12 }} />)}</div> : idx.isError ? <p className="dsh-note">Index levels are not available right now.</p> : <>
+      {!d ? <div className="dsh-ixs">{Array.from({ length: 7 }, (_, i) => <div key={i} className="skeleton" style={{ height: 92, borderRadius: "var(--r-ctl)" }} />)}</div> : idx.isError ? <p className="dsh-note">Index levels are not available right now.</p> : <>
         <div className="dsh-ixs" aria-label="Index levels">{main.map(tile)}
           {vix.row ? <div className="dsh-ix vix"><div className="n">India VIX</div><div className="v">{nf(vix.row.close as number)}</div><div className={"c " + tone(vix.row.changePct)}>{vix.row.changePct == null ? MINUS : (vix.row.changePct > 0 ? "▲ " : "▼ ") + sgn(vix.row.changePct)}<span className="p">{pts(vix.row.points)}</span></div><div className="pe">Volatility</div></div> : tile(vix)}</div>
       </>}
       <div className="dsh-mt-split">
         {d && !idx.isError ? <div className="dsh-hide-phone"><IndexChart items={d.items} cards={main} /></div> : <div />}
         <div className="dsh-rates"><div className="dsh-rates-h">Prices and rates that move company profits</div>
-          {macro.isLoading ? <div className="dsh-rates-g">{Array.from({ length: 6 }, (_, i) => <div key={i} className="skeleton" style={{ height: 68, borderRadius: 12 }} />)}</div> :
+          {macro.isLoading ? <div className="dsh-rates-g">{Array.from({ length: 6 }, (_, i) => <div key={i} className="skeleton" style={{ height: 68, borderRadius: "var(--r-ctl)" }} />)}</div> :
             <div className="dsh-rates-g">{tiles.map((t) => <div key={t.key} className="dsh-rate"><div className="n">{t.name}</div><div className="v">{t.value ?? "—"}</div><div className={"nt " + (t.tone ?? "")}>{t.note}</div></div>)}</div>}
           {infl && <div className="sp dsh-cards"><DashCards items={[infl]} scope="market" /></div>}
           <p className="dsh-foot">Sources: U.S. EIA (Brent), FBIL (USD/INR), RBI (repo), MoSPI (CPI, WPI). Brent is compared with its average over the last four finished quarters, the period behind companies' latest results.</p></div>

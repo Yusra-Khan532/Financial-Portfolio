@@ -266,7 +266,7 @@ describe("#303: the map", () => {
     expect(css).toMatch(/\.dsc-map td \.dw-hc\[data-l="5"\], \.dsc-map td \.dw-hc\[data-l="6"\] \{ color: var\(--dw-heat-on\); \}/);
     expect(css).toMatch(/\.dsc-page \{ --dw-heat: var\(--dsc-teal\); --dw-heat-on: #fff; --dw-on4: var\(--text\); \}/);   // light: white on the two darkest
     expect(css).toMatch(/:root\[data-theme="dark"\] \.dsc-page \{ --dw-heat-on: #04181b; --dw-on4: #04181b; \}/);       // dark: dark text on the bright teal
-    expect(css).toMatch(/font: 650 13px\/1 var\(--sans\)/);                                // 13 px semibold numbers
+    expect(css).toMatch(/font: 600 var\(--fs-13\)\/1 var\(--sans\)/);                                // 13 px semibold numbers
     for (let l = 1; l <= 6; l++) expect(css).toContain(`.dw-hc[data-l="${l}"], .dw-heatk i[data-l="${l}"]`);
   });
 });

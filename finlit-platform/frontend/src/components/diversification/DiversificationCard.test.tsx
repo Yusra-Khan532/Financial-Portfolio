@@ -155,7 +155,7 @@ describe("task #181: the card looks like the boxes above it, with its name highl
     const fs = await import("node:fs");
     const css = fs.readFileSync("src/components/diversification/diversification.css", "utf8");
     const last = (sel: string) => { const all = [...css.matchAll(new RegExp(sel.replace(/[.()]/g, "\\$&") + " \\{([^}]*)\\}", "g"))]; return all[all.length - 1]?.[1] ?? ""; };
-    expect(css).toContain("\n.dv-chips button { border-color: transparent; border-radius: 8px; background: var(--s1); }");   // rework 2 (19 Nov): plain tags, no border
+    expect(css).toContain("\n.dv-chips button { border-color: transparent; border-radius: var(--r-ctl); background: var(--s1); }");   // rework 2 (19 Nov): plain tags, no border
     expect(last(".dv-chips button.off")).toMatch(/border-color: var\(--border-strong\); background: transparent/);
     expect(last(".dv-try.on")).toBe(" border-color: var(--border-strong); ");                                    // an open "Try a different list" is not outlined green
     expect(css).toMatch(/--dv-hue: var\(--gold\); --border-control: var\(--border-strong\); --focus-ring: var\(--gold\)/);   // data bars and icon: the site's gold accent
