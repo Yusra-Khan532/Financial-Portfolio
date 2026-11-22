@@ -37,7 +37,19 @@ def test_a_zero_close_beside_real_volume_stays_a_bad_tick_and_the_reason_is_give
 
 
 def test_short_history_reason():
-    d = _inputs(_sessions(120))
+    # 3.6.21 (task #318): under 120 sessions there is still no largest fall, and the reason names both windows
+    d = _inputs(_sessions(100))
     rep = {'inputs': d, 'rating': score_company(d, 'MFG'), 'inputMeta': {}}
     rows = {i['metric']: i for i in build_input_completeness(rep)['items']}
-    assert '120 trading sessions, 250 are needed' in rows['BIGGEST_FALL']['missingInputs'][0]
+    assert '100 trading sessions, 250 are needed, or at least 120 complete ones since listing' in rows['BIGGEST_FALL']['missingInputs'][0]
+
+
+def test_largest_fall_since_listing_from_120_sessions():
+    # 3.6.21 (task #318): a company listed under a year ago gets its largest fall over every session since listing
+    d = _inputs(_sessions(171))
+    assert d['biggest_fall_pct'] is not None and d['biggest_fall_sessions'] == 171
+    row = next(r for r in score_company(d, 'MFG')['metrics'] if r['metric'] == 'BIGGEST_FALL')
+    assert row['status'] == 'A' and row['details']['sessions'] == 171 and 'Since listing: 171 sessions' in row['details']['note']
+    # a full year keeps the 250-session window and no since-listing note
+    full = _inputs(_sessions(300))
+    assert full['biggest_fall_sessions'] is None and full['biggest_fall_pct'] is not None

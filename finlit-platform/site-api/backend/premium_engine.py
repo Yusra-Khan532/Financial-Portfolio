@@ -17,7 +17,7 @@ try:
         PEG_CORE_GROUPS, PEG_MIN_PROFIT_STREAK, PEG_GROWTH_CAP,
         EPS_SPLIT_BONUS_RATIOS, EPS_SPLIT_BONUS_TOLERANCE,
         PROVISIONAL_BELOW, NOT_RATED_BELOW, PROVISIONAL_MIN_QUARTERS,
-        FLAG_RED, FLAG_GREEN, PLEDGE_ALERT, VALUE_TRAP,
+        FLAG_RED, FLAG_GREEN, PLEDGE_ALERT, VALUE_TRAP, FULL_FALL_SESSIONS,
     )
 except ImportError:
     from financial_records import num
@@ -33,7 +33,7 @@ except ImportError:
         PEG_CORE_GROUPS, PEG_MIN_PROFIT_STREAK, PEG_GROWTH_CAP,
         EPS_SPLIT_BONUS_RATIOS, EPS_SPLIT_BONUS_TOLERANCE,
         PROVISIONAL_BELOW, NOT_RATED_BELOW, PROVISIONAL_MIN_QUARTERS,
-        FLAG_RED, FLAG_GREEN, PLEDGE_ALERT, VALUE_TRAP,
+        FLAG_RED, FLAG_GREEN, PLEDGE_ALERT, VALUE_TRAP, FULL_FALL_SESSIONS,
     )
 
 LABELS = {
@@ -92,6 +92,24 @@ def recent(series, annual):
     if len(series) >= 5:
         return num(series[-1]), num(series[-5]), "Latest quarter vs same quarter last year (short-history fallback)"
     return (num(annual[-1]), num(annual[-2]), "Latest financial year vs previous year (short-history fallback)") if len(annual) >= 2 else (None, None, "Insufficient history")
+
+
+def trailing_eps(d):
+    """The EPS the P/E uses, with the basis it came from: the four latest quarters; with fewer than four quarters, the reported trailing EPS, then
+    the latest full year's EPS. 3.6.21 (task #318): when the four latest quarters do not give one (a quarter missing, a recent listing), the reported
+    trailing EPS and then the latest full year's EPS (before, one missing quarter left P/E, P/E vs own history and PEG all empty). No EPS is derived
+    from net profit, so a company that reports none keeps the treatment it had. (None, None) when none is available."""
+    eq = d.get("eps_q", [])
+    if len(eq) >= 4:
+        eps = complete_sum(eq, 4)
+        if eps is not None:
+            return eps, "Last four quarters"
+    for key, basis in (("eps_ttm", "Trailing twelve months (reported)"),
+                       ("eps_fy", "Latest full year (fewer than four quarters reported)" if len(eq) < 4 else "Latest full year (the latest four quarters are incomplete)")):
+        value = num(d.get(key))
+        if value is not None:
+            return value, basis
+    return None, None
 
 
 def reported_start(series):
@@ -398,7 +416,16 @@ def score_company(d, group):
         sn, so, _ = recent(sales_q, [])
         on, oo, _ = recent(op_q, [])
         now, before = ratio(on, sn), ratio(oo, so)
-        put("MARGIN_CHANGE", (now - before) * 100 if now is not None and before is not None else None)
+        margin_detail = None
+        if now is None or before is None:
+            # 3.6.21 (task #318): the quarters cannot be compared (a recent listing, or a missing quarter): the latest full year against the year before.
+            sy, oy = d.get("sales_y") or [], d.get("operating_profit_y") or []
+            if len(sy) >= 2 and len(oy) == len(sy):
+                yn, yb = ratio(oy[-1], sy[-1]), ratio(oy[-2], sy[-2])
+                if yn is not None and yb is not None:
+                    now, before = yn, yb
+                    margin_detail = {"basis": "Latest financial year vs previous year (the quarters cannot be compared)"}
+        put("MARGIN_CHANGE", (now - before) * 100 if now is not None and before is not None else None, detail=margin_detail)
         if LOSS_ADJUSTED_FUNDAMENTAL and now is not None and before is not None and now <= 0:
             put("MARGIN_CHANGE", (now - before) * 100, "Z", {"note": "Current operating margin is non-positive", "operatingLoss": True, "opMarginNow": now * 100}, 0.)
         de = ratio(debt, nw)
@@ -449,10 +476,7 @@ def score_company(d, group):
             explicit_points=100. if valid and interest == 0 else None)
 
     price, shares = num(d.get("price")), num(d.get("shares"))
-    eq = d.get("eps_q", [])
-    eps = complete_sum(eq, 4) if len(eq) >= 4 else num(d.get("eps_ttm"))
-    if eps is None and len(eq) < 4:
-        eps = num(d.get("eps_fy"))
+    eps, eps_basis = trailing_eps(d)
     pe = ratio(price, eps) if price is not None and price > 0 else None
     pb = ratio(price * shares, nw) if price is not None and price > 0 and shares is not None and shares > 0 else None
     loss, negative_nw = eps is not None and eps <= 0, nw is not None and nw <= 0
@@ -463,9 +487,10 @@ def score_company(d, group):
             if negative:
                 put(metric, None, "Z", {"note": "Non-positive EPS" if prefix == "PE" else "Non-positive net worth"}, 0.)
             elif suffix == "HISTORY" and (benchmark is None or benchmark <= 0) and industry is not None and industry > 0:
-                put(metric, ratio(current, industry), "S", {"note": "Industry median substituted for unavailable own history"})
+                put(metric, ratio(current, industry), "S", {"note": "Industry median substituted for unavailable own history",
+                                                             **({"epsBasis": eps_basis} if prefix == "PE" and eps_basis else {})})
             else:
-                put(metric, ratio(current, benchmark))
+                put(metric, ratio(current, benchmark), detail={"epsBasis": eps_basis} if prefix == "PE" and eps_basis and current is not None else None)
     # PEG growth (3.6.12): EPS growth first, because P/E is price per share and the growth must be per share too. Net profit growth only when there is no EPS CAGR.
     # 3.6.19 (owner, 17 November 2026): each is a ladder: the 5-year CAGR, and when it is missing or negative the 4-year, then 3-year, then 2-year one.
     adj_eps, eps_adjustments = split_adjusted_eps(d.get("eps_y", []), d.get("net_profit_y", []))
@@ -527,6 +552,11 @@ def score_company(d, group):
             continue
         if metric == "TRADING_VALUE" and value is not None:
             put(metric, value, explicit_points=next((p for threshold, p in TRADING_VALUE_STEPS if value >= threshold), 0))
+        elif metric == "BIGGEST_FALL" and value is not None and num(d.get("biggest_fall_sessions")) is not None:
+            # 3.6.21 (task #318): measured since listing over fewer than 250 sessions; it counts in confidence in proportion to the sessions covered
+            sessions = int(num(d["biggest_fall_sessions"]))
+            put(metric, value, detail={"sessions": sessions, "note": f"Since listing: {sessions} sessions (fewer than {FULL_FALL_SESSIONS})"})
+            credits[metric] = min(1., sessions / FULL_FALL_SESSIONS)
         else:
             put(metric, value)
 
