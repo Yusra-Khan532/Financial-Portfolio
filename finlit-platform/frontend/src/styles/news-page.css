@@ -18,7 +18,7 @@
 .p4 .p4-quick { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 12px 0 0; }
 .p4 .p4-quick .chip-b { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; }
 .p4 .p4-quick .chip-b span { color: var(--faint); font-weight: 500; font-variant-numeric: tabular-nums; }
-.p4 .p4-quick .chip-b.on span { color: inherit; opacity: .8; }
+.p4 .p4-quick .chip-b[aria-pressed="true"] span { color: inherit; opacity: .8; }   /* task #310 PR B: selected by the attribute, as the shared .chip-b */
 
 /* day groups and compact rows */
 .p4 .p4-fg h2 { display: flex; align-items: baseline; gap: 10px; }

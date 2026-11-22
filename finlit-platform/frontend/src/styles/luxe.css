@@ -105,11 +105,10 @@ hr { border: 0; height: 1px; background: linear-gradient(90deg, transparent, var
 .hh-hero .btn:not(.primary):hover, .pagehead .btn:not(.primary):hover { background: rgba(255,255,255,.13); border-color: var(--acc); }
 .pagehead .pa { opacity: .9; }
 
-/* ---- actions: gold on dark surfaces, deep forest on paper ---- */
-:root .btn.primary { border: 1px solid transparent; color: var(--on-gold); background: linear-gradient(135deg, var(--gold-2), var(--gold) 50%, var(--gold-deep)); box-shadow: 0 1px 0 rgba(255,255,255,.45) inset, 0 12px 26px -14px rgba(217,185,108,.8); }
-:root .btn.primary:hover { filter: brightness(1.06); border-color: transparent; box-shadow: 0 1px 0 rgba(255,255,255,.5) inset, 0 16px 30px -14px color-mix(in srgb, var(--acc) 90%, transparent); }
-:root[data-theme="light"] .btn.primary { background: linear-gradient(160deg, var(--forest-2), var(--forest) 55%, var(--forest-ink)); color: var(--acc-2); box-shadow: 0 1px 0 rgba(255,255,255,.18) inset, 0 12px 24px -14px rgba(15, 32, 24, .8); }
-:root[data-theme="light"] .hh-hero .btn.primary, :root[data-theme="light"] .pagehead .btn.primary, :root[data-theme="light"] .band .btn.primary { background: linear-gradient(135deg, var(--acc-2), var(--acc) 50%, var(--acc-deep)); color: #1A1405; box-shadow: 0 1px 0 rgba(255,255,255,.45) inset, 0 12px 26px -14px rgba(217,185,108,.8); }
+/* ---- actions (task #310): the main action is green in both themes (--btn-bg / --btn-fg, ui-tokens.css), the same as ui-btn--primary.
+   It was a gold gradient in dark and a deep forest gradient in light (gold again on dark heroes). Gold is for Prism actions (ui-btn--prism). ---- */
+:root .btn.primary { border: 1px solid var(--btn-bg); color: var(--btn-fg); background: var(--btn-bg); box-shadow: none; }
+:root .btn.primary:hover { background: var(--btn-hover); border-color: var(--btn-hover); filter: none; box-shadow: none; }
 :root .plan .btn.primary { box-shadow: none; }
 .hh .tagline { padding: 22px 0 22px; } .hh-hero { margin-top: 0; }
 .dash-h { padding: 22px 28px; border-radius: 22px; border: 1px solid color-mix(in srgb, var(--acc) 30%, transparent); box-shadow: 0 26px 50px -34px rgba(10,25,17,.85); margin-bottom: 18px; overflow: hidden; }

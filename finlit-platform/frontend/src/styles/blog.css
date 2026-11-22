@@ -12,7 +12,7 @@
 .bl-chips button svg { color: var(--gold); }
 .bl-chips button small { color: var(--muted); font-weight: 500; }
 .bl-chips button:hover { border-color: var(--gold); }
-.bl-chips button[aria-pressed="true"] { background: var(--gold-soft, var(--s2)); border-color: var(--gold); }
+.bl-chips button[aria-pressed="true"] { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); }
 .bl-chips button:focus-visible, .bl-card:focus-visible, .bl-feature:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
 .bl-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .bl-tools .seg button:disabled { opacity: .45; cursor: not-allowed; }

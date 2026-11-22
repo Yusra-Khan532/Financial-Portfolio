@@ -43,8 +43,9 @@ describe("PageHeader", () => {
     const links = within(nav).getAllByRole("link");
     expect(links.map((a) => a.getAttribute("href"))).toEqual(["/screener", "/advanced-score-screener", "/query-builder", "/dcf"]);   // 4 at most, the unknown one gone
     expect(links.map((a) => a.textContent)).toEqual(["Stock Screener→", "Advanced Screener→", "Query Builder→", "DCF Calculator→"]);
-    expect(links[1].className).toContain("primary");
-    expect(links[0].className).not.toContain("primary");
+    // task #310: every quick link is the shared second button; the one marked primary is no longer a gold pill
+    for (const a of links) expect(a.className).toContain("ui-btn ui-btn--secondary ui-btn--sm");
+    expect(links[1].className).not.toContain("primary");
   });
   it("renders the learn-more link in each of its forms", () => {
     const fn = vi.fn();

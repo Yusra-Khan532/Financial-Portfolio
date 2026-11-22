@@ -219,8 +219,11 @@ export function TrendsSection({ f: pageF, e, r: pageR }: { f?: Financials; e?: E
         const kind = c.kind ?? (single ? "flow" : "pair");
         const v0 = d.series[0].values, li = single ? lastIndex(v0) : -1;
         const hi = single ? (li < 0 ? d.labels.length - 1 : li) : d.labels.length - 1;
-        const ch = single ? yoyChange(v0, mode, kind === "ratio") : null, bd = ch ? badgeOf(ch) : null;
-        const line = insightLine({ kind, name: c.iname ?? c.title, labels: d.labels, mode, series: d.series.map((x) => ({ label: x.label, values: x.values })), money, since: c.since });
+        // task #312 (developer file 20, change 4): an annual-only card's series is yearly whatever the switch says, so its YoY is one step back (FY26
+        // against FY25). It was given the page's Quarterly mode and stepped back four years (FY26 against FY22: free cash flow "+558.5% YoY").
+        const cm: "q" | "a" = c.annualOnly ? "a" : mode;
+        const ch = single ? yoyChange(v0, cm, kind === "ratio") : null, bd = ch ? badgeOf(ch) : null;
+        const line = insightLine({ kind, name: c.iname ?? c.title, labels: d.labels, mode: cm, series: d.series.map((x) => ({ label: x.label, values: x.values })), money, since: c.since });
         const latest = (x: BarSeries) => { const i = lastIndex(x.values); return i < 0 ? null : money(x.values[i] as number); };
         const summary = `${c.title} by period. ` + (single && li >= 0 ? `Latest, ${shortPeriod(d.labels[li])}: ${money(v0[li] as number)}. ` : "") + line.text;
         return (

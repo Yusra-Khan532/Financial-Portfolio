@@ -33,13 +33,13 @@
 .pfx-sec > span { overflow: hidden; text-overflow: ellipsis; }
 
 /* buttons and pills */
-.pfx-btn, .pfx-solid, .pfx-pillbtn { font: inherit; font-size: 14px; line-height: 20px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+.pfx-btn, .pfx-pillbtn { font: inherit; font-size: 14px; line-height: 20px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
 .pfx-btn { min-height: 44px; padding: 0 16px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--s1); color: var(--pfx-ink); }
-.pfx-solid { min-height: 44px; padding: 0 20px; border: 0; border-radius: 12px; background: var(--pfx-ink); color: var(--bg); }
+/* task #310: .pfx-solid ("Add") is the shared main button, ui-btn ui-btn--primary (components/ui): green, 44px; it was black. Only its place is set in the pack sheets. */
 .pfx-pillbtn { min-height: 36px; padding: 0 16px; border: 1px solid var(--pfx-line); border-radius: 999px; background: var(--s1); color: var(--pfx-ink); font-size: 13px; line-height: 18px; }
-.pfx-pillbtn.on { background: var(--pfx-ink); color: var(--bg); border-color: var(--pfx-ink); }
+.pfx-pillbtn[aria-pressed="true"], .pfx-pillbtn[aria-selected="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); border-color: var(--ui-on-bg); }   /* task #310: marked by the attribute, not .on */
 .pfx-btn:focus-visible, .pfx-solid:focus-visible, .pfx-pillbtn:focus-visible, .pfx-seg:focus-visible, .pfx-link:focus-visible, .pfx-mode button:focus-visible, .pfx-grow-l:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
-.pfx-btn:disabled, .pfx-solid:disabled { opacity: .5; cursor: default; }
+.pfx-btn:disabled { opacity: .5; cursor: default; }
 .pfx-link { background: none; border: 0; padding: 8px 4px; font: inherit; font-size: 13px; font-weight: 600; color: var(--pfx-ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; min-height: 36px; }
 
 /* add bar */
@@ -238,7 +238,8 @@
 .pfx-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 12px; }
 .pfx-search { flex: 0 1 260px; min-height: 40px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--bg); color: var(--pfx-ink); font: inherit; font-size: 16px; min-width: 0; }
 .pfx-chipsrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.pfx-pillbtn.bf-hi.on { background: var(--band-hi); border-color: var(--band-hi); color: #07140D; } .pfx-pillbtn.bf-mid.on { background: var(--band-mid); border-color: var(--band-mid); color: #1D1100; } .pfx-pillbtn.bf-lo.on { background: var(--band-lo); border-color: var(--band-lo); color: #fff; }
+/* task #310: the score-band filters (bf-hi, bf-mid, bf-lo) no longer fill with the band colours when chosen: score colours stay in the scores, and a chosen
+   filter has the one selected look (.pfx-pillbtn[aria-pressed="true"] above) */
 .pfx-count { margin-left: auto; }
 .pfx-table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 760px; }
 .pfx-table th, .pfx-table td { padding: 12px 10px; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--pfx-line); }

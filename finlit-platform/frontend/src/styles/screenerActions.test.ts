@@ -13,11 +13,11 @@ describe("screener apply row", () => {
     expect(rule(".ss-actions .btn {")).toMatch(/min-width: 0/);
     expect(rule(".ss-actions .btn {")).toMatch(/white-space: normal/);
   });
-  it("the apply button is a flat solid mint with dark text and no gradient glow", () => {
+  it("the apply button is the flat solid main-action green (task #310) with no gradient glow", () => {
     const r = rule(":root:root .ss-actions .btn.primary {");
-    expect(r).toMatch(/background: var\(--mint\)/);
+    expect(r).toMatch(/background: var\(--btn-bg\)/);
     expect(r).toMatch(/background-image: none/);
-    expect(r).toMatch(/color: var\(--on-mint\)/);
+    expect(r).toMatch(/color: var\(--btn-fg\)/);
     expect(r).toMatch(/box-shadow: none/);
   });
 });

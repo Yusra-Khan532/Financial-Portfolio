@@ -453,7 +453,7 @@ a.pr-row:hover, .pr-row.hot { transform: translateX(4px); border-color: color-mi
 .own-yr2-row { display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 8px; scroll-behavior: smooth; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
 .own-chip { flex: none; min-width: 84px; height: 52px; padding: 0 24px; border-radius: 14px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: 600 18px var(--sans); font-variant-numeric: tabular-nums; cursor: pointer; transition: background .2s, border-color .2s, color .2s, transform .15s; }
 .own-chip:hover { border-color: var(--gold); transform: translateY(-1px); }
-.own-chip.on { background: linear-gradient(135deg, var(--gold-2), var(--gold) 55%, var(--gold-deep)); border-color: var(--gold); color: var(--on-gold); box-shadow: 0 6px 18px -8px var(--gold); }
+.own-chip[aria-checked="true"] { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); box-shadow: none; }
 .own-chip:focus-visible, .ob-li:focus-visible, .ob-plot:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .own-yr2-cap { margin: 6px 0 0; font-size: var(--fs-16); line-height: 1.55; color: var(--muted); } .own-yr2-cap b { color: var(--text); }
 @media (max-width: 560px) { .own-yr2-h { flex-wrap: wrap; gap: 2px 12px; } .own-chip { min-width: 78px; } }
@@ -533,7 +533,7 @@ a.pr-row:hover, .pr-row.hot { transform: translateX(4px); border-color: color-mi
 /* task #216 (pack 1.5): every toggle group in the report has the same look: 33 px buttons, 13 px semi-bold, a 1 px frame, the chosen one on --s3 */
 .seg.seg-period { padding: 2px; border: 1px solid var(--border-strong); border-radius: 6px; gap: 0; }
 .seg.seg-period button { min-width: 0; min-height: 33px; padding: 6px 12px; font-size: var(--fs-13, 13px); font-weight: 600; line-height: 1.4; color: var(--muted); border-radius: 4px; box-shadow: none; background: transparent; }
-.seg.seg-period button[aria-pressed="true"] { background: var(--s3); color: var(--text); font-weight: 600; box-shadow: none; }   /* was a dark gold fill with dark text: hard to read (pack 1.5) */
+.seg.seg-period button[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); font-weight: 600; box-shadow: none; }   /* was a dark gold fill with dark text: hard to read (pack 1.5) */
 @media (pointer: coarse) { .seg.seg-period button { min-height: 40px; } }
 .seg.seg-period button[aria-pressed="false"]:hover { color: var(--text); background: var(--s2); }
 .seg.seg-period button:focus-visible { outline: 2px solid var(--focus, var(--gold)); outline-offset: 2px; }
@@ -554,3 +554,8 @@ a.pr-row:hover, .pr-row.hot { transform: translateX(4px); border-color: color-mi
 .dvk .dk-ring b { position: absolute; inset: 0; display: grid; place-items: center; font: 500 14px/1 var(--serif); }
 .nf-x { margin: 14px 0 0; font-size: 13px; }
 .nf-x a { color: var(--text); font-weight: 600; text-underline-offset: 3px; }
+/* Task #312 (developer file 20, change 5): the style scales' labels stay on one line ("OVERBOUGHT" broke as "OVERBOUGH / T" at 1440 px, from the
+   overflow-wrap: anywhere above). The pack asks for 11 px under 420 px; the site keeps page text at 12 px or more (task #227), so the letters close up
+   instead. */
+.spc-bar em { overflow-wrap: normal; white-space: nowrap; letter-spacing: .04em; flex: 1 1 auto; }
+@media (max-width: 420px) { .spc-bar em { letter-spacing: 0; } }

@@ -101,8 +101,8 @@
 .fl-gchip .xt-gi { width: 26px; height: 26px; border-radius: 8px; flex: none; } .fl-gchip .xt-gi svg { width: 16px; height: 16px; }
 .fl-gchip span { white-space: nowrap; } .fl-gchip b { margin-left: auto; padding-left: 6px; font: 700 var(--fs-12) var(--mono); color: var(--ac-ink); }   /* task #200: the count keeps the 12px right padding clear; it used to be pressed into the edge */
 .fl-gchip:hover { border-color: var(--ac); }
-.fl-gchip[aria-pressed="true"] { background: var(--ac); border-color: var(--ac); color: var(--ac-on); box-shadow: 0 8px 18px -10px var(--ac); }
-.fl-gchip[aria-pressed="true"] .xt-gi { background: rgba(255, 255, 255, .22); color: var(--ac-on); } .fl-gchip[aria-pressed="true"] b { color: var(--ac-on); }
+.fl-gchip[aria-pressed="true"] { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); box-shadow: none; }
+.fl-gchip[aria-pressed="true"] .xt-gi { background: color-mix(in srgb, var(--ui-on-fg) 20%, transparent); color: var(--ui-on-fg); } .fl-gchip[aria-pressed="true"] b { color: var(--ui-on-fg); }
 .fl-gall { all: unset; box-sizing: border-box; cursor: pointer; flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--s1); color: var(--text); font: 600 var(--fs-14) / 1 var(--sans); white-space: nowrap; }
 .fl-gall:hover { border-color: var(--text); } .fl-gall svg { width: 16px; height: 16px; }
 .fl-gh { position: relative; padding-top: 18px; display: grid !important; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center !important; gap: 14px; }
