@@ -27,6 +27,9 @@ log = logging.getLogger("finlit.ipocorp")
 NSE_CA = "https://www.nseindia.com/api/corporates-corporateActions?index={index}&symbol={symbol}"
 YAHOO = "https://query1.finance.yahoo.com/v8/finance/chart/{ticker}.BO?range=max&interval=1mo&events=split"
 YAHOO_COVER_DAYS = 10         # Yahoo's history must start within this many days of the listing
+# Yahoo answers 429 to a short or unusual browser string (e.g. "Chrome/124.0"); the standard full form is answered (checked 22 Nov 2026)
+YAHOO_HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                 "Accept": "application/json"}
 SPLIT_RE = re.compile(r"from\s*(?:rs\.?|re\.?|₹)?\s*(\d+(?:\.\d+)?)\s*/?-?\s*(?:per\s*share)?\s*(?:up)?\s*to\s*(?:rs\.?|re\.?|₹)?\s*(\d+(?:\.\d+)?)", re.I)
 BONUS_RE = re.compile(r"bonus\s*(?:issue)?\s*(\d+)\s*:\s*(\d+)", re.I)
 
@@ -160,7 +163,7 @@ async def refresh(store, limit: int = 150, stop_at: Optional[float] = None, paus
                 break
             await asyncio.sleep(pause_s)
             try:
-                res = await http.get(YAHOO.format(ticker=r["bse_ticker"].replace("&", "%26")), headers={"User-Agent": BROWSER["User-Agent"], "Accept": "application/json"})
+                res = await http.get(YAHOO.format(ticker=r["bse_ticker"].replace("&", "%26")), headers=YAHOO_HEADERS)
                 codes = out.setdefault("yahooStatus", {})
                 codes[str(res.status_code)] = codes.get(str(res.status_code), 0) + 1
                 got = yahoo_since_listing(res.json(), r["listing_date"]) if res.status_code in (200, 404) else None
