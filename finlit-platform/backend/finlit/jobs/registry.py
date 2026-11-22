@@ -311,6 +311,7 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
         # week's data up to Friday's close; every daily and weekly job of the night goes first; never on a weekday night
         Job("sectors", ("refresh-sectors",), cls="bulk", priority=95, max_runtime_min=90, weight_mb=SECTORS_WEIGHT_MB, stall_min=45, prerequisites=("technicals",), resumable=True,
             windows=(W("NIGHT", 120), W("MORNING", 120)), time_rule=WEEKEND_NIGHTS, first_in=WEEKEND_NIGHTS, sla=Sla("hours", 192), owns=("sectors",), catchup=False,
+            probe="sectors-view", min_gap_min=60,   # task #192: a live set without the Sectors view gets it added (minutes, same files), in these hours only
             gate=Gate("SECTORS_JOB", "The sector job is switched off by SECTORS_JOB=off in /opt/finlit/.env.aws: Sector Pulse and Rotation keep the last published data. Remove the line (or set it to on) and restart the jobs container to bring back the weekend build (docs/JOBS.md section 4b)", wants="on", default="on"),   # on since the owner's decision of 18 Nov 2026 (weekend nights only); SECTORS_JOB=off still switches it off
             what="Sector Pulse: NSE's daily files, then every industry's breadth state, leader flags and ranked stocks, swapped in whole (docs/SECTORS.md)"),
         Job("ingest-flagship", ("ingest", "RELIANCE", "TCS", "INFY", "HDFCBANK", "ICICIBANK", "SBIN", "ITC", "LT", "BHARTIARTL", "HINDUNILVR"), cls="bulk",

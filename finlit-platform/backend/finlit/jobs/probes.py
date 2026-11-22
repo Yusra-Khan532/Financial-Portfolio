@@ -42,4 +42,11 @@ def build(store: Any) -> Dict[str, Callable[[], Awaitable[Optional[bool]]]]:
         from ..stress import service as stress_service      # the last run stopped at its time cap with covered companies it never reached
         return await stress_service.has_work(store)
 
-    return {"macro-outlook": macro_outlook, "technicals": technicals, "prism": prism, "ath": ath, "scores-live": scores_live, "stress": stress, "discovery": discovery}
+    async def sectors_view() -> Optional[bool]:
+        # task #192: the live sector set was built before the Sectors view existed; the sector job adds it in a few minutes (only in its weekend-night hours)
+        import asyncio
+        from .. import sector_data as sd
+        rel = await asyncio.to_thread(sd.live_release)
+        return bool(rel) and not await asyncio.to_thread(lambda: (rel / sd.LEVELS_DIR / "sectors" / "_board.json").is_file())
+
+    return {"sectors-view": sectors_view, "macro-outlook": macro_outlook, "technicals": technicals, "prism": prism, "ath": ath, "scores-live": scores_live, "stress": stress, "discovery": discovery}

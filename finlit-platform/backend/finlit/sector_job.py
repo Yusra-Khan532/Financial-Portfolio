@@ -222,6 +222,32 @@ def staged_runner():
     return mod
 
 
+def default_levels(nse: Path, release: Path) -> Any:
+    """Adds the Sectors view (by-sector/) to a release built before it existed, from the same NSE files, in a child process (finlit_technicals/staged.py, levels)."""
+    return staged_runner().add_levels(nse, release)
+
+
+def has_sectors_view(release: Optional[Path]) -> bool:
+    return bool(release and (release / sd.LEVELS_DIR / "sectors" / "_board.json").is_file())
+
+
+async def add_sectors_view(levels_fn: Callable[[Path, Path], Any], nse: Path, live: Path) -> Dict[str, Any]:
+    """The live set holds the industry groups but not the Sectors view (task #192: built before it existed). It is added in place, from the same NSE files,
+    in a few minutes: no new build. A failure is reported and never touches the industry pages, which keep serving."""
+    t = time.monotonic()
+    try:
+        await asyncio.to_thread(levels_fn, nse, live)
+    except Exception as exc:
+        msg = f"the Sectors view was not added ({type(exc).__name__}: {exc})"[:300]
+        print(f"sectors view: {msg}", flush=True)
+        return {"status": "failed", "message": msg}
+    sd.clear_cache()
+    board = sd.read_json(live / sd.LEVELS_DIR / "sectors" / "_board.json") or {}
+    msg = f"added to the live set: {board.get('groups')} sectors with a reading, {len(board.get('too_few_stocks') or [])} too small, in {round(time.monotonic() - t)} s"
+    print(f"sectors view: {msg}", flush=True)
+    return {"status": "ok", "message": msg}
+
+
 def peak_rss_mb() -> Optional[float]:
     """The largest resident memory of this process or of any stage it ran (the staged batch runs in child processes), in MB."""
     try:
@@ -302,7 +328,7 @@ async def expected_data_date(store: Any, now: datetime) -> date:
 
 async def refresh(store: Any, *, env: Optional[Dict[str, str]] = None, force: bool = False, fetch: Optional[bool] = None, symbols: Optional[List[str]] = None,
                   fetch_fn: Optional[Callable[..., Any]] = None, batch_fn: Optional[Callable[..., List[Dict[str, Any]]]] = None,
-                  now: Optional[datetime] = None) -> Dict[str, Any]:
+                  now: Optional[datetime] = None, levels_fn: Optional[Callable[[Path, Path], Any]] = None) -> Dict[str, Any]:
     """The whole run. Returns the result dict (also recorded). `status`: ok | unchanged | behind | error."""
     env = dict(os.environ if env is None else env)
     now = now or datetime.now(IST)
@@ -317,7 +343,7 @@ async def refresh(store: Any, *, env: Optional[Dict[str, str]] = None, force: bo
         print(busy["reason"], flush=True)
         return busy
     try:
-        res = await _refresh(store, env, nse, out, res, force, fetch, symbols, fetch_fn or run_fetch, batch_fn or default_batch, now)
+        res = await _refresh(store, env, nse, out, res, force, fetch, symbols, fetch_fn or run_fetch, batch_fn or default_batch, now, levels_fn or default_levels)
     except Exception as exc:      # a bug or an out-of-disk must not take the supervisor down, and must be reported in words
         log.exception("refresh-sectors failed")
         res.update(status="error", reason=f"{type(exc).__name__}: {exc}"[:300])
@@ -358,7 +384,8 @@ def read_lock_note(out: Path) -> str:
         return "start time not recorded"
 
 
-async def _refresh(store, env, nse: Path, out: Path, res: Dict[str, Any], force: bool, fetch: Optional[bool], symbols, fetch_fn, batch_fn, now: datetime) -> Dict[str, Any]:
+async def _refresh(store, env, nse: Path, out: Path, res: Dict[str, Any], force: bool, fetch: Optional[bool], symbols, fetch_fn, batch_fn, now: datetime,
+                   levels_fn: Callable[[Path, Path], Any] = None) -> Dict[str, Any]:
     problem = folder_problem(nse)
     if problem:
         return {**res, "status": "error", "reason": f"Cannot run: {problem}."}
@@ -380,6 +407,8 @@ async def _refresh(store, env, nse: Path, out: Path, res: Dict[str, Any], force:
     if live and not force and not symbols and prev_meta.get("nse_signature") == sig:
         # the files are the ones the live set was built from: building again would give the same answer
         res["unchanged"] = True
+        if levels_fn is not None and not has_sectors_view(live):
+            res["sectorsView"] = await add_sectors_view(levels_fn, nse, live)
         return {**res, **_verdict(live_date, expected, built=False, fetch=res["fetch"])}
     stamp = now.strftime("%Y%m%d-%H%M")
     # The full build takes longer than one run of the job on the small server (about 2.5 hours measured on 4 Nov 2026), so the build folder is keyed on the
