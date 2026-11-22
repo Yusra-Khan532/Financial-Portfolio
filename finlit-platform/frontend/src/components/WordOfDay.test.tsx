@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { WordOfDayButton } from "./WordOfDay";
+import { WordOfDayButton, WordOfDayMenuItem } from "./WordOfDay";
 import { WordPanel } from "./WordOfDayPanel";
 import { YourBookmarks } from "./dashboard/NewsBlocks";
 import { TERMS, termOfTheDay } from "../lib/glossary";
@@ -51,9 +51,21 @@ describe("the header button (checklist 1)", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(screen.getByRole("button", { name: "Word of the Day" }).getAttribute("aria-expanded")).toBe("false");
   });
+  it("where the row has no room even for the book, the 'More' menu item opens the same panel", async () => {
+    let picked = 0;
+    render(<MemoryRouter><WordOfDayButton /><WordOfDayMenuItem onPick={() => { picked++; }} /></MemoryRouter>);
+    const item = screen.getByRole("menuitem", { name: /Word of the Day/ });
+    expect(item.textContent).toContain("New today");
+    fireEvent.click(item);
+    expect(picked).toBe(1);
+    expect(await screen.findByRole("dialog", { name: "FinLit Word of the Day" })).toBeTruthy();
+    expect(prefs.get().wordSeen).toBe(istDate());
+    const src = readFileSync(resolve(__dirname, "Layout.tsx"), "utf8");
+    expect(src).toContain("extra={wodInMenu && <WordOfDayMenuItem onPick={() => setOpen(null)} />}");
+  });
   it("sits in Header(), just before Ask FinLit AI, on every page but the sign-in pages", () => {
     const src = readFileSync(resolve(__dirname, "Layout.tsx"), "utf8");
-    expect(src).toContain('const wod = !onAuth && <WordOfDayButton />;');
+    expect(src).toContain('const wod = !onAuth && <WordOfDayButton resetKey=');
     expect(src).toContain("{tool ? <><div className=\"grow\" />{find}<div className=\"grow\" />{wod}{ai}</> : <>");   // a tool page (task #310 D)
     expect(src).toMatch(/\{wod\}\n\s*\{ai\}\n\s*\{find\}<\/>\}/);                                                      // a page with the seven menus
   });

@@ -26,10 +26,10 @@ import { versionLine } from "../lib/version";
 import { HelpActions, PageFeedbackHost } from "./PageFeedback";
 import "../styles/ai-top.css";
 import { buttonClass } from "./ui";
-import { WordOfDayButton } from "./WordOfDay";
+import { WordOfDayButton, WordOfDayMenuItem, useWodInMenu } from "./WordOfDay";
 
 /** One header dropdown, built from lib/nav.ts. */
-function Menu({ m, open, setOpen, path }: { m: NavSection; open: boolean; setOpen: (v: string | null) => void; path: string }) {
+function Menu({ m, open, setOpen, path, extra }: { m: NavSection; open: boolean; setOpen: (v: string | null) => void; path: string; extra?: React.ReactNode }) {
   const here = sectionHere(path, m);
   return (
     <div className="dd" onMouseLeave={() => open && setOpen(null)}>
@@ -37,7 +37,7 @@ function Menu({ m, open, setOpen, path }: { m: NavSection; open: boolean; setOpe
         onBlur={(e) => { if (!e.currentTarget.parentElement?.contains(e.relatedTarget as Node)) setOpen(null); }}>{m.label}<Icon name="arrow" /></button>
       <div className={"ddm" + (open ? " open" : "") + (m.wide ? " wide" : "") + (m.id === "more" ? " right" : "") + (m.groups.length === 1 && !m.groups[0].title ? " solo" : "")} role="menu">
         {m.groups.map((g, gi) => (
-          <div className="ddg" key={gi}>{g.title && <span className="ddt">{g.title}</span>}
+          <div className="ddg" key={gi}>{g.title && <span className="ddt">{g.title}</span>}{gi === 0 && extra}
             {g.items.map((it, ii) => {
               // task #299 (the team, 21 Nov: "too much content written about each and every feature … provide an i button where a person can hover"):
               // the name only; its line sits behind an i beside the link (a button cannot be inside a link) and shows on hover, keyboard focus or a tap
@@ -74,7 +74,8 @@ function Header({ onSearch }: { onSearch: () => void }) {
   // its seven menus and keeps the logo, a wider centred search, Ask FinLit AI, theme, notifications and account. Marketing pages and visitors keep the menus.
   const inShell = useInShell(), tool = !!user && inShell;
   const ai = !onAuth && <button type="button" className={buttonClass("secondary", "md", "ai-top")} onClick={() => dispatchEvent(new Event(OPEN_AI))} aria-label="Ask FinLit AI" aria-haspopup="dialog"><Icon name="spark" /><span>Ask FinLit AI</span></button>;
-  const wod = !onAuth && <WordOfDayButton />;   // task #315: just before Ask FinLit AI, on every page but the sign-in pages
+  const wod = !onAuth && <WordOfDayButton resetKey={`${user?.id ?? ""}|${tool}|${isAdmin}|${ready}`} />;
+  const wodInMenu = useWodInMenu();   // task #315: in the band where even the tightened book does not fit, it is the first item of "More"   // task #315: just before Ask FinLit AI, on every page but the sign-in pages
   const find = <button className="search" onClick={onSearch} aria-label="Search stocks" aria-haspopup="dialog"><Icon name="search" /><span className="t">Search for a company</span></button>;
   return (
     <header className={"top" + (tool ? " top--tool" : "")}>
@@ -84,7 +85,7 @@ function Header({ onSearch }: { onSearch: () => void }) {
         <nav className="topnav" aria-label="Site">
           {sections.map((m) => <Menu key={m.id} m={m} open={open === m.id} setOpen={setOpen} path={loc.pathname} />)}
           <NavLink to={PRICING.to} className={({ isActive }) => (isActive ? "hl" : "")}>{PRICING.label}</NavLink>
-          <Menu m={MORE} open={open === MORE.id} setOpen={setOpen} path={loc.pathname} />
+          <Menu m={MORE} open={open === MORE.id} setOpen={setOpen} path={loc.pathname} extra={wodInMenu && <WordOfDayMenuItem onPick={() => setOpen(null)} />} />
         </nav>
         <div className="grow" />
         {wod}

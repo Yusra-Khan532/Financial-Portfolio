@@ -14,6 +14,13 @@
   .top .wod-top .wod-top-t { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 }
 
+/* A desktop row with no room even for the book: tightened as on a phone (level 2), or out of the row and into "More" (level 3; WordOfDay.tsx) */
+.top .wod-top.is-tight { width: 40px; height: 40px; }
+.top .wrap:has(> .wod-top.is-tight) { gap: 2px; }
+.top .wrap:has(> .wod-top.is-tight) > .grow { min-width: 0; }
+.top .wod-top.is-menu { display: none; }
+.wod-mi-new { white-space: nowrap; margin-left: 8px; padding: 0 6px; border-radius: var(--ui-r-pill); background: var(--gold-soft); color: var(--gold); font: var(--ui-fw-semibold) var(--fs-12)/var(--lh-12) var(--font-sans); font-style: normal; }
+
 /* Narrow phones: the row was already full (logo, Ask FinLit AI, theme, bell, account and the Dashboard button, which stays in view: headerlinks.css).
    The book makes room without taking any of them away: it is 40px (still a full tap target), the row's gaps close from 8 to 2px and the spacers may
    close up, which together give back the 52px it needs (a page with one spacer included), so Dashboard keeps its width. */

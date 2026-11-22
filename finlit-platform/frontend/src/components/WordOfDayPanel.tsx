@@ -46,7 +46,7 @@ export function WordPanel({ term, onClose, anchor }: { term: Term; onClose: () =
   }, [onClose]);
   // Desktop: a card under the header button, its right edge on the button's right edge. Followed on scroll and resize (the price tape scrolls away).
   useLayoutEffect(() => {
-    const place = () => { const r = anchor?.current?.getBoundingClientRect(); if (r) setPos({ top: Math.round(r.bottom + 8), right: Math.max(16, Math.round(window.innerWidth - r.right)) }); };
+    const place = () => { const r = anchor?.current?.getBoundingClientRect(); if (r && r.width > 0) setPos({ top: Math.round(r.bottom + 8), right: Math.max(16, Math.round(window.innerWidth - r.right)) }); };
     place();
     addEventListener("resize", place); addEventListener("scroll", place, { passive: true });
     return () => { removeEventListener("resize", place); removeEventListener("scroll", place); };
