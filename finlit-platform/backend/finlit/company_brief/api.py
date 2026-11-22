@@ -38,7 +38,12 @@ REASONS = {
     "held_back": "A reviewer kept this brief back. It is rewritten when the company files something new.",
     "looking": "Looking for the company's annual report on the exchanges' listings. The brief is written once it is found.",
     "failed_checks": "Its citations are being re-checked, so it is not shown for now.",
+    # task #328: the real state of a company the job tried and could not finish, in place of "Not written yet"
+    "report_not_downloaded": "The annual report could not be downloaded from the address on file; it will be tried again.",
+    "report_unread": "The annual report could not be read; it will be tried again.",
+    "writer_failed": "A brief was written but did not pass the citation checks; it will be tried again.",
 }
+FAILED = {"failed_download": "report_not_downloaded", "failed_unreadable": "report_unread", "failed_output": "writer_failed"}
 
 
 def _obj(v: Any) -> Any:
@@ -61,6 +66,8 @@ def public_view(row: Optional[dict], src: Optional[dict], symbol: str, name: Opt
             return empty(symbol, "no_annual_report", name)
         if src and src.get("ar_state") in ("blocked", "error") and not src.get("annual_report_url") and not src.get("ar_url"):
             return empty(symbol, "looking", name)
+        if src and src.get("last_state") in FAILED:
+            return empty(symbol, FAILED[src["last_state"]], name)
         return empty(symbol, "not_written", name)
     pub = _obj(row.get("published"))
     if pub is None:
