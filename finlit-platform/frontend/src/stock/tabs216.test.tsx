@@ -89,7 +89,7 @@ describe("year chips and drop-downs (README 1.5, 1.3)", () => {
   });
   it("\"Show as table\" (score history) and \"Sources and checks\" (company brief) show the round arrow", () => {
     expect(src("PrismHistory.tsx")).toContain('<details className="phx-table xdd"><summary>Show as table<DropChev /></summary>');
-    expect(src("CompanyBrief.tsx")).toMatch(/<details className="cb-det xdd">\s*<summary>Sources and checks<DropChev \/><\/summary>/);
+    expect(src("CompanyBrief.tsx")).toMatch(/\["sources", "Sources & checks"\]/);   // task #312 (developer file 20, change 6): the drop-down became the "Sources & checks" tab
   });
 });
 describe("shared fixes found while checking", () => {
