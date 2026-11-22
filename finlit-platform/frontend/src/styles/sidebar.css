@@ -98,15 +98,16 @@
 @media (min-width: 861px) {
   /* The rail stays inside its card on any screen height (a signed-in reader has one more group, Account, that used to hang below the card):
      the card keeps its max height and the rail scrolls inside it. The group menus open in a portal, so nothing is clipped. */
-  .is-collapsed .side { width: 76px; overflow: hidden; }
+  /* task #319 (22 Nov 2026): 76 -> 92 px, so the longest short name in bold (Calculators, Dashboard) sits inside the current group's tile with room on both sides */
+  .is-collapsed .side { width: 92px; overflow: hidden; }
   .is-collapsed .side-top, .is-collapsed .side-body { display: none; }
   .is-collapsed .side-rail { display: flex; flex-direction: column; gap: 2px; padding: 8px 6px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
   .is-collapsed .side-rail::-webkit-scrollbar { display: none; }
-  @media (max-height: 860px) { .is-collapsed .side-rail-g { padding: 6px 2px; gap: 3px; } }   /* a shorter screen: every group still fits without scrolling */
+  @media (max-height: 860px) { .is-collapsed .side-rail-g { padding: 6px 4px; gap: 3px; } }   /* a shorter screen: every group still fits without scrolling */
   .side-rail-x { display: grid; place-items: center; height: 36px; margin-bottom: 4px; padding: 0; border: 1px solid var(--border); border-radius: 10px; background: var(--s1); color: var(--text); cursor: pointer; }
   .side-rail-x:hover { border-color: var(--border-strong); background: var(--s2); }
   .side-rail-x svg { width: 16px; height: 16px; }
-  .side-rail-g { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 9px 2px; border-radius: 12px; color: var(--text); font: 500 12px/1.15 var(--sans); text-align: center; }
+  .side-rail-g { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; padding: 9px 4px; border-radius: 12px; color: var(--text); font: 500 12px/1.15 var(--sans); text-align: center; white-space: nowrap; }
   .side-rail-g svg { width: 20px; height: 20px; flex: none; }
   .side-rail-g:hover, .side-rail-g[aria-expanded="true"] { background: color-mix(in srgb, var(--s2) 70%, transparent); }
   .side-rail-g.on { background: var(--s2); font-weight: 700; }   /* task #310 part D: the selected look is the --s2 fill in both themes */
