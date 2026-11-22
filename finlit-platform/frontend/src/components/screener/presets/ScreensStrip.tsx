@@ -108,14 +108,12 @@ export function ScreensStrip({ route, past }: { route: PresetRoute; past?: { day
       className={"rms-tab" + (feat ? " is-feat" : "") + (sel ? " is-on" : "") + (g.id === activeGroup ? " has-open" : "")} onClick={() => setPicked(g.id)}>
       {feat ? <Shine /> : <GroupIcon group={g} />}{g.name} <b>{g.presets.length}</b>{(g.isNew ?? g.id === "sectors") && <span className="rms-newtab">New</span>}</button>;
   };
-  const feat = groups.filter(isFeatured), more = groups.filter((g) => !isFeatured(g));
+  const ordered = [...groups.filter(isFeatured), ...groups.filter((g) => !isFeatured(g))];
   return (
     <section className="card rms" aria-label="Ready-made screens">
       {head}
-      <div className="rms-tabs" role="tablist" aria-label="Screen groups">
-        {feat.length > 0 && <div className="rms-tgrp rms-tfeat" role="presentation"><span className="rms-tlab" aria-hidden="true">Featured</span>{feat.map(tab)}</div>}
-        {more.length > 0 && <div className="rms-tgrp" role="presentation"><span className="rms-tlab" aria-hidden="true">More</span>{more.map(tab)}</div>}
-      </div>
+      {/* task #325 (file 25, section 1 row 9): one row of the twelve groups, the featured first with their crowns; the "Featured / More" labels are gone */}
+      <div className="rms-tabs rms-tabs1" role="tablist" aria-label="Screen groups">{ordered.map(tab)}</div>
       {shown?.intro && <p className="rms-intro">{shown.intro}{shown.about && <PsxInfo label={shown.name} text={
         <span className="psx3-about"><b>What it shows</b><span>{shown.about.shows}</span><b>How to use it</b>
           <span role="list">{shown.about.use.map((u) => <span role="listitem" key={u}>{u}</span>)}</span></span>} />}</p>}

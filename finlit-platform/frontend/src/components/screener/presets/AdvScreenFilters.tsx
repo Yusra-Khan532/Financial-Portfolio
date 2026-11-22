@@ -4,10 +4,10 @@
 import { useState } from "react";
 import { MINUS, nf } from "../../../lib/format";
 import { NSE_INDUSTRIES, NSE_MACROS, NSE_SECTORS } from "../../../lib/nseTree";
-import { SCORE_RANGE_KEYS, barScoreCount, type BarFilter, type PresetDetail, type ScoreRangeKey } from "../../../lib/presets";
+import { DISC_EVENTS, SCORE_RANGE_KEYS, barScoreCount, type BarFilter, type PresetDetail, type ScoreRangeKey } from "../../../lib/presets";
 import { LABEL_WORD, PRISM_LABELS, PRISM_PARTS } from "../../../lib/scorePrism";
 import { TREND5, TREND5_WORD, pickNse, screenLevel, type Level } from "../../../lib/scoreScreen";
-import { Dropdown } from "./ScreenParts";
+import { Dropdown, Opt } from "./ScreenParts";
 
 type Set = (b: BarFilter) => void;
 const LEVELS: { level: Level; key: "macros" | "nsecs" | "indus"; facet: "macros" | "nsecs" | "industries"; title: string; one: string; all: number }[] = [
@@ -101,7 +101,18 @@ export function AdvScreenMenus({ d, bar, set }: { d: PresetDetail; bar: BarFilte
   return (<>
     <NseLevelMenus d={d} bar={bar} set={set} />
     <PrismMenu d={d} bar={bar} set={set} />
+    {d.discover && <FilingMenu d={d} bar={bar} set={set} />}
   </>);
+}
+
+/** Task #325 (developer file 25, section 4): Emerging tech's "Filings, 90 days" from Discover. Several kinds ticked: a company with any of them. */
+export function FilingMenu({ d, bar, set }: { d: PresetDetail; bar: BarFilter; set: Set }) {
+  const on = bar.filing ?? [], fc = d.facets?.filings;
+  return (
+    <Dropdown label={on.length ? `Filings, 90 days · ${on.length}` : "Filings, 90 days"} on={on.length > 0}>
+      {DISC_EVENTS.map(([k, label]) => <Opt key={k} checked={on.includes(k)} onChange={() => set({ ...bar, filing: flip(on, k) })} label={label} n={fc?.[k] ?? null} />)}
+      <p className="psx3-ddn">Exchange filings of the last 90 days, as Discover reads them. ESOP allotments, ESG ratings and tax notices are not counted.</p>
+    </Dropdown>);
 }
 
 /** The chips of these filters (under the header row with the screen's other chips). */
@@ -116,6 +127,7 @@ export function advChips(bar: BarFilter, set: Set): { k: string; label: string; 
       const [lo, hi] = bar.rg![k]!, name = RANGES.find((x) => x.k === k)?.label ?? k;
       return { k: "rg" + k, label: `${name}: ${lo != null && hi != null ? `${lo} to ${hi}` : lo != null ? `${lo} or more` : `${hi} or less`}`, off: () => set({ ...bar, rg: { ...(bar.rg ?? {}), [k]: [null, null] } }) };
     }),
+    ...(bar.filing?.length ? [{ k: "filing", label: `Filings, 90 days: ${bar.filing.map((x) => DISC_EVENTS.find(([k]) => k === x)?.[1] ?? x).join(", ")}`, off: () => set({ ...bar, filing: [] }) }] : []),
     ...(["st5", "lt5"] as const).filter((k) => bar[k]?.length).map((k) => ({ k, label: `${k === "st5" ? "Short term" : "Long term"}: ${(bar[k] ?? []).map((b) => TREND5_WORD[b as keyof typeof TREND5_WORD] ?? b).join(", ")}`, off: () => set({ ...bar, [k]: [] }) })),
   ];
 }

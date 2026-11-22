@@ -69,3 +69,9 @@ tr.cp-row > td { background: color-mix(in srgb, var(--gold, #b8892b) 9%, transpa
 .psx-lc-p, .psx-lc-f { display: grid; justify-items: end; font: 600 var(--fs-13) var(--sans); font-variant-numeric: tabular-nums; } .psx-lc-p small.up { color: var(--gain); } .psx-lc-p small.down { color: var(--loss); } .psx-lc-f small { color: var(--muted); font-weight: 500; font-size: var(--fs-12); }
 /* a phone: the list over the chart */
 @media (max-width: 900px) { .psx-lc { grid-template-columns: minmax(0, 1fr); } .psx-lc-list { max-height: 320px; } .cp.cp-inline { position: static; max-height: none; } }
+
+/* Task #325 D2 (file 25, section 4): From Discover in the chart panel */
+.cp-disc { margin: 12px 0 4px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s2, var(--s1)); }
+.cp-disc > b { display: block; margin-bottom: 6px; font: 700 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.cp-disc p { margin: 0; font: 400 13px/1.45 var(--sans); color: var(--muted); }
+.cp-dlink { display: inline-block; margin-top: 8px; font: 600 13px var(--sans); }
