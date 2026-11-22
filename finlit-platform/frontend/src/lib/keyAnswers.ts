@@ -32,7 +32,9 @@ export function portfolioAnswers(shares: Share[], gold: boolean, label: (s: Shar
     out.push({ k: "Against similar companies", go: "See peers", to: "eq-peers",
       sentence: `${L.length} of ${N} ${L.length === 1 ? "was" : "were"} among the strongest in ${L.length === 1 ? "its" : "their"} peer group over the last 12 months; ${G.length ? `${G.length} ${G.length === 1 ? "was" : "were"} among the weakest` : "none was among the weakest"}.`,
       bar: keep([{ label: "Strongest", n: L.length, c: C.hi }, { label: "Middle", n: M.length, c: C.mid }, { label: "Weakest", n: G.length, c: C.lo }, { label: "Not compared", n: X.length, c: C.none }]),
-      rests: [worst.length ? `Furthest behind: ${list(worst.map((s) => `${label(s)} (${ord(s.peer!.rank)} of ${s.peer!.of})`))}.` : "", M.length ? `${M.length} ${M.length === 1 ? "sits" : "sit"} in the middle${nc ? ";" : "."}` : "", nc].filter(Boolean).join(" ") });
+      rests: [worst.length ? `Furthest behind: ${list(worst.map((s) => `${label(s)} (${ord(s.peer!.rank)} of ${s.peer!.of})`))}.` : "", M.length ? `${M.length} ${M.length === 1 ? "sits" : "sit"} in the middle.` : "",
+        // task #323 (developer file 21, part 3): a long list of shares not compared ran on after "sit in the middle;" as one sentence; past three it is counted
+        X.length <= 3 ? nc : `${X.length} are not compared yet: ${list([...X.slice(0, 3).map(label), `${X.length - 3} more`])}, listed under Against their peers.`].filter(Boolean).join(" ") });
   }
   if (!gold) return out;
   const rated = shares.filter((s) => s.lt != null && s.st != null);

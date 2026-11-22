@@ -840,5 +840,22 @@
   ],
   "mode": "table",
   "note": "Console layout, plain tickers, no grid, ETFs (not companies), retired TATAMOTORS ticker = both demerged parts"
+ },
+ "upstox_dp_statement.pdf": {
+  "check": [],
+  "expected": [
+   "HDFCBANK",
+   "INFY",
+   "ITC",
+   "LT",
+   "NTPC",
+   "RELIANCE",
+   "TITAN"
+  ],
+  "missing": [
+   "TATA CONSULTANCY SERV LT"
+  ],
+  "mode": "table",
+  "note": "Upstox DP holding statement: ISIN | Scrip Name | Current Qty | Free Qty | ... | Rate | Valuation; names cut short; a balance of 0 (WIPRO) is left out; no NSDL/CDSL wording"
  }
 }

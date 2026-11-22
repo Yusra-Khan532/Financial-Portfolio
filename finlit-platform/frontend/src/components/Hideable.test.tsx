@@ -22,6 +22,15 @@ describe("Hide / Show on optional panels", () => {
     fireEvent.click(screen.getByRole("button", { name: "Hide: A" }));
     expect(screen.queryByText("aa")).toBeNull(); expect(screen.getByText("bb")).toBeTruthy();
   });
+  it("task #323: Key figures starts closed; once shown it stays open on the next visit; other panels start open", () => {
+    const { unmount } = render(<><Hideable id="pack.eq-keys" title="Key figures"><p>kf</p></Hideable><Hideable id="pack.eq-wc" title="What changed"><p>wc</p></Hideable></>);
+    expect(screen.queryByText("kf")).toBeNull(); expect(screen.getByText("wc")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Show: Key figures" }));
+    expect(screen.getByText("kf")).toBeTruthy();
+    unmount();
+    render(<Hideable id="pack.eq-keys" title="Key figures"><p>kf</p></Hideable>);
+    expect(screen.getByText("kf")).toBeTruthy();
+  });
   it("still works when browser storage is blocked", () => {
     const get = Storage.prototype.getItem, set = Storage.prototype.setItem;
     Storage.prototype.getItem = () => { throw new Error("blocked"); }; Storage.prototype.setItem = () => { throw new Error("blocked"); };

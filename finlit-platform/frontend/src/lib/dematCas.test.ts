@@ -22,7 +22,7 @@ describe("real depository statements, read by pdf.js", () => {
   it("NSDL CAS: every share with its Current Bal, also when a wrapped name puts the figures on the next line; bonds and fund units get none", async () => {
     const f = await readPdfHoldings(file("nsdl_cas.pdf"), INDEX);
     expect(qty(f)).toEqual({ RELIANCE: 75, TCS: 8, HDFCBANK: 120, LT: 3, "M&M": 75, ITC: 25, BAJFINANCE: 25, SBIN: 40, HDFCAMC: 25 });
-    expect(f.cas).toEqual({ source: "NSDL", asOf: "31 Mar 2026", column: "Current Bal" });
+    expect(f.cas).toMatchObject({ source: "NSDL", asOf: "31 Mar 2026", column: "Current Bal" });
   });
   it("CDSL statement of holdings: ISIN and security in separate columns, two-line names; the ETF and the G-Sec are not shares", async () => {
     const f = await readPdfHoldings(file("cdsl_holdings.pdf"), INDEX);
@@ -40,18 +40,18 @@ describe("real depository statements, read by pdf.js", () => {
     expect(f.found.find((x) => x.symbol === "RELIANCE")?.accounts).toBe(2);
     expect(f.found.find((x) => x.symbol === "ITC")?.qty).toBe(150);              // 50 of them pledged: still owned
     expect(f.notes).toContain("SBIN has a balance of 0 in the statement, so it is left out.");
-    expect(f.cas).toEqual({ source: "NSDL", asOf: "31 Oct 2026", column: "Current Bal" });
+    expect(f.cas).toMatchObject({ source: "NSDL", asOf: "31 Oct 2026", column: "Current Bal" });
   });
   it("a consolidated account statement with a Units column: shares take their units, the funds stay out", async () => {
     const f = await readPdfHoldings(file("depository_statement.pdf"), INDEX);
     expect(qty(f)).toEqual({ RELIANCE: 10, TCS: 5, HDFCBANK: 20, INFY: 15, HINDUNILVR: 9, LT: 8 });
     expect(f.cas).toMatchObject({ source: "depository", asOf: "20 Oct 2026", column: "Units" });
   });
-  it("a broker's own holdings report is not a depository statement: names only, as before", async () => {
+  it("a broker's own holdings report is not a depository statement, but its own Qty column is read now (task #323)", async () => {
     for (const name of ["zerodha_holdings.pdf", "groww_holdings.pdf", "upstox_series_suffix.pdf"]) {
       const f = await readPdfHoldings(file(name), INDEX);
-      expect(f.cas, name).toBeUndefined();
-      expect(f.found.every((x) => x.qty === undefined), name).toBe(true);
+      expect(f.cas?.source, name).not.toMatch(/^(NSDL|CDSL|depository)$/);
+      expect(f.found.every((x) => x.qty != null && x.qty > 0), name).toBe(true);
     }
   });
 });
