@@ -141,8 +141,7 @@
    small radii, no glows, no glass, no looping motion. Loaded after finlit/site/stock2/tools; class names unchanged.
    Scale: 8px grid (4/8/16/24/32/48/64). Radius: 4px chips, 6px controls, 8px panels.
    ===================================================================================================================== */
-:root { --r-s: 4px; --r-m: 6px; --r-l: 8px; --btn-bg: var(--gold); --btn-fg: #1A1405; --btn-hover: var(--gold-2); }
-:root[data-theme="light"] { --btn-bg: #1C1A15; --btn-fg: #FBF8F1; --btn-hover: #3A352A; }
+/* The corner tokens (--r-s, --r-m, --r-l) and the main-button colours (--btn-bg, --btn-fg, --btn-hover) now live in ui-tokens.css (task #310). */
 .band, :root[data-theme="light"] .report, :root[data-theme="light"] .plan, :root[data-theme="light"] .cmp { --btn-bg: #D4B26A; --btn-fg: #1A1405; --btn-hover: #E8D29B; }
 :root[data-theme="light"] .band.hero, :root[data-theme="light"] .band.plans { --btn-bg: #1C1A15; --btn-fg: #FBF8F1; --btn-hover: #3A352A; }
 
