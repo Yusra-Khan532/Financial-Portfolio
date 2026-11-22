@@ -80,9 +80,9 @@ function Body({ state, symbol, statement, name }: { state: Exclude<PrismCardStat
             {!inp && r.status === "NOT RATED" && <p className="dk-cov held"><Icon name="info" /><Link to={`/prism/${encodeURIComponent(symbol)}`}>Why is this not rated?</Link></p>}
           </div>
         </FundamentalSection>
-        <TechnicalSection a={parseTechnical(rep.technicalAssessment)} report={rep} onRecalculate={() => run.mutate(true)} busy={busy} />
+        <TechnicalSection a={parseTechnical(rep.technicalAssessment)} report={rep} onRecalculate={() => run.mutate(true)} busy={busy}
+          foot={<div className="dk-cta"><span className="pcx-upd">Updated {dateIN(rep.completedAt || rep.createdAt)}</span><Link className={buttonClass("prism", "sm", "dk-b")} to={`/prism/${encodeURIComponent(symbol)}`}>Open the full Prism report <Icon name="arrow" /></Link></div>} />
       </div>
-      <div className="dk-cta"><span className="pcx-upd">Updated {dateIN(rep.completedAt || rep.createdAt)}</span><Link className={buttonClass("prism", "sm", "dk-b")} to={`/prism/${encodeURIComponent(symbol)}`}>Open the full Prism report <Icon name="arrow" /></Link></div>
       {status}
     </>
   );

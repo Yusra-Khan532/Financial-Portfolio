@@ -2,9 +2,9 @@
 // filing from the list, each broken into points and scored 0 to 100 by the team's rule-based workflow (backend/finlit/docscore). Three separate cards,
 // one per source: the document score and its colour, the themes, the key points with their scores; every point on demand with the rules that moved it.
 // The page shows scores and their colours only (green 65–100, yellow 40–64, red 0–39), never a word such as positive, neutral or negative (the task's
-// rule). The method, the ranges and how the three sources are combined are in the PDF linked here. Describes what the documents say; not advice.
+// rule). Task #328 (developer file 27, C): the scoring rules (theme weights, how a score is made, the method PDF) stay off the page. Describes what the documents say; not advice.
 import { useState } from "react";
-import { BAND_RANGE, KINDS, METHOD_PDF, PARAM_NAME, useFilingScores, type Band, type DocKind, type FsDoc, type FsPoint } from "../lib/filingScores";
+import { BAND_RANGE, KINDS, useFilingScores, type Band, type DocKind, type FsDoc, type FsPoint } from "../lib/filingScores";
 import { possessive } from "./DiscoverThemes";
 import "../styles/filing-scores.css";
 
@@ -51,15 +51,16 @@ function DocCard({ k, d }: { k: DocKind; d: FsDoc }) {
       {(d.capped || (d.hardTriggers ?? 0) > 0) && <p className="fs-flag">{d.hardTriggers} hard trigger{d.hardTriggers === 1 ? "" : "s"} in the text (such as going concern or default): the document score is held at 64 or below.</p>}
       {d.share && <p className="fs-share" aria-label={`Points: ${d.share.green}% green, ${d.share.yellow}% yellow, ${d.share.red}% red`}><span className="fs-bar"><i className="g" style={{ flex: d.share.green || 0.001 }} /><i className="y" style={{ flex: d.share.yellow || 0.001 }} /><i className="r" style={{ flex: d.share.red || 0.001 }} /></span>
         <small>Points: {d.share.green}% green · {d.share.yellow}% yellow · {d.share.red}% red{d.mixed ? " · widely spread scores" : ""}</small></p>}
+      {/* task #328 (developer file 27, C): no theme weights and no "How the score is made": the site keeps scoring rules off its pages */}
       {themes.length > 0 && <details className="fs-det"><summary>By theme ({themes.length})</summary>
-        <ul className="fs-th">{themes.map((t) => <li key={t.theme}><span>{t.name}<small> · weight {t.weight} · {t.points} point{t.points === 1 ? "" : "s"}</small></span><Dot b={t.band} v={t.score} /></li>)}</ul></details>}
-      {d.params && <details className="fs-det"><summary>How the {d.score} is made</summary>
-        <ul className="fs-th">{d.params.map((p) => <li key={p.id}><span>{PARAM_NAME[p.id]}<small> · weight {p.weight}{p.used ? "" : " · not used"}</small></span>{p.used ? <b>{p.value}</b> : <small className="fs-nu">{p.id === "P6" ? "no reported figures to check against yet" : "—"}</small>}</li>)}</ul></details>}
-      <p className="fs-cap">Key points</p>
-      <ol className="fs-pts">{(d.keyPoints ?? []).map((p) => <PointRow key={p.id} p={p} />)}</ol>
-      {(d.points?.length ?? 0) > (d.keyPoints?.length ?? 0) && <>
-        <button type="button" className="fs-all" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Hide the points" : `Every point (${d.points!.length}${d.more ? `, first ${d.points!.length} of ${d.points!.length + d.more}` : ""})`}</button>
-        {all && <ol className="fs-pts all">{d.points!.map((p) => <PointRow key={p.id} p={p} />)}</ol>}</>}
+        <ul className="fs-th">{themes.map((t) => <li key={t.theme}><span>{t.name}<small> · {t.points} point{t.points === 1 ? "" : "s"}</small></span><Dot b={t.band} v={t.score} /></li>)}</ul></details>}
+      {/* task #328 (developer file 27, change 8): the points behind a "Key points" drop-down; "Every point" moves inside it */}
+      {(d.keyPoints?.length ?? 0) > 0 && <details className="fs-kp"><summary>Key points <span className="n">{d.keyPoints!.length}</span><span className="cv" aria-hidden="true">▾</span></summary>
+        <ol className="fs-pts">{d.keyPoints!.map((p) => <PointRow key={p.id} p={p} />)}</ol>
+        {(d.points?.length ?? 0) > (d.keyPoints?.length ?? 0) && <>
+          <button type="button" className="fs-all" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Hide the points" : `Every point (${d.points!.length}${d.more ? `, first ${d.points!.length} of ${d.points!.length + d.more}` : ""})`}</button>
+          {all && <ol className="fs-pts all">{d.points!.map((p) => <PointRow key={p.id} p={p} />)}</ol>}</>}
+      </details>}
     </article>);
 }
 
@@ -72,8 +73,7 @@ export function FilingScores({ symbol, name }: { symbol: string; name: string })
       <div className="fs-top">
         <div><h3 id="fs-title" className="fs-title">The three filings, point by point</h3>
           <p className="fs-lede">{possessive(name)} newest investor presentation, earnings call transcript and results filing, each broken into short points and scored from 0 to 100 by fixed word rules (no AI).</p></div>
-        <p className="fs-legend" aria-label="Score ranges"><span><i className="fs-sw b-green" aria-hidden="true" />65–100</span><span><i className="fs-sw b-yellow" aria-hidden="true" />40–64</span><span><i className="fs-sw b-red" aria-hidden="true" />0–39</span>
-          <a href={METHOD_PDF} target="_blank" rel="noopener noreferrer">How the scores work (PDF) ↗</a></p>
+        <p className="fs-legend" aria-label="Score ranges"><span><i className="fs-sw b-green" aria-hidden="true" />65–100</span><span><i className="fs-sw b-yellow" aria-hidden="true" />40–64</span><span><i className="fs-sw b-red" aria-hidden="true" />0–39</span></p>
       </div>
       {q.isLoading ? <div className="skeleton" style={{ height: 220 }} aria-busy="true" aria-label="Loading the filing scores" />
         : q.isError || !d ? <p className="fs-empty">The filing scores could not be loaded just now. <button type="button" className="fs-lnk" onClick={() => q.refetch()}>Try again</button></p>
@@ -81,6 +81,6 @@ export function FilingScores({ symbol, name }: { symbol: string; name: string })
           {d.company.score != null && <p className="fs-co"><Dot b={d.company.band} v={d.company.score} /> <span><b>All three together</b> · {(["R", "C", "P"] as DocKind[]).filter((k) => d.company.weights[k]).map((k) => `${d.docs[k].name.toLowerCase()} ${d.company.weights[k]}%`).join(" · ")}<small> (audited results carry the most, the presentation the least)</small></span></p>}
           <div className="fs-grid">{KINDS.map((k) => <DocCard key={k} k={k} d={d.docs[k]} />)}</div>
         </>}
-      <p className="faint fs-foot">Each point starts at 50; listed words, stated changes, figures, done or only planned business, firm or hedged language and the period move it, as the method PDF sets out. The scores read the words of the company's own documents; they are not a recommendation. Information only, not investment advice.</p>
+      <p className="faint fs-foot">The scores read the words of the company's own documents; they are not a recommendation. Information only, not investment advice.</p>
     </div>);
 }

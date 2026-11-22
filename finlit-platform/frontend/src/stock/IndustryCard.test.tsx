@@ -38,8 +38,12 @@ describe("the key read (v2)", () => {
     expect([...c.querySelectorAll(".aiq-f b")].map((e) => e.textContent)).toEqual(["Ahead of the market", "40% of its companies", "Agree"]);
     expect(c.querySelector(".aiq-meter i")!.getAttribute("style")).toContain("width: 40%");
     expect(c.querySelector(".aiq-f a")!.getAttribute("href")).toBe("#sector");
-    expect(c.querySelector(".aiq-peers")!.hasAttribute("open")).toBe(false);                                         // closed by default
-    expect(c.querySelector(".aiq-peers summary")!.textContent).toContain("How the biggest companies in Petroleum Products did · 10");
+    // task #328 (developer file 27, change 3): two tabs under the header; the company against its industry is selected, the ten biggest are the second tab
+    const tabs = [...c.querySelectorAll<HTMLButtonElement>(".aiq-tabs [role=tab]")];
+    expect(tabs.map((t) => [t.textContent, t.getAttribute("aria-selected")])).toEqual([["Reliance against its industry", "true"], ["The 10 biggest in Petroleum Products10", "false"]]);
+    expect(c.querySelector<HTMLElement>("#aiq-p2")!.hidden).toBe(true);
+    expect(c.querySelector<HTMLElement>("#aiq-p1")!.hidden).toBe(false);
+    expect(c.querySelector(".aiq-peers")).toBeNull();
   });
   it("TD Power Systems, not among the ten biggest: an outlined link badge, faster than, and Mixed", () => {
     const { container: c } = draw(read("TDPOWERSYS"));
@@ -74,7 +78,7 @@ describe("the key read (v2)", () => {
 });
 
 describe("the biggest companies (v3)", () => {
-  const open = (sym = "RELIANCE") => { const r = draw(read(sym)); fireEvent.click(r.container.querySelector(".aiq-peers summary")!); return r.container; };
+  const open = (sym = "RELIANCE") => { const r = draw(read(sym)); fireEvent.click(r.container.querySelectorAll(".aiq-tabs [role=tab]")[1]!); return r.container; };
   it("the sort bar (Size selected), the key, the pinned typical company, chips, and the company's own row", () => {
     const c = open();
     const sb = within(c.querySelector(".aiq-sb") as HTMLElement);

@@ -152,7 +152,12 @@ describe("task #183: a file's lines without an ISIN are offered to confirm, neve
     expect(r.found.map((f) => f.symbol)).toEqual(["RELIANCE"]);
     expect(r.check).toHaveLength(1);
     expect(r.check[0]).toMatchObject({ symbol: "HDFCBANK" });
-    expect(r.check[0].note).toMatch(/^No ISIN on this line, so it is matched by its name or symbol: please check/);
+    expect(r.check[0].note).toMatch(/^No ISIN on this line, so it is matched by its name: please check/);
+  });
+  it("a line that is exactly a listed company's symbol or code is added at once (a broker's holdings report: 42 shares waited under Please check, 22 Nov 2026)", () => {
+    const r = matchEntries([{ name: "HDFCBANK" }, { name: "500325" }, { name: "HDFC Bank Ltd" }], ROWS, answers(), true);
+    expect(r.found.map((f) => [f.input, f.symbol, f.code])).toEqual([["HDFCBANK", "HDFCBANK", true], ["500325", "RELIANCE", true]]);
+    expect(r.check.map((c) => c.input)).toEqual(["HDFC Bank Ltd"]);     // a name still waits for the member
   });
   it("a share typed by name in the add box is the member's own choice and is added at once", () => {
     expect(matchEntries([{ name: "HDFC Bank Ltd" }], ROWS, answers()).found.map((f) => f.symbol)).toEqual(["HDFCBANK"]);

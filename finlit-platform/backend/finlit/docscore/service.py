@@ -101,7 +101,8 @@ def split_combined(pages: Sequence[str], k: str) -> List[str]:
 
 
 def _cache_key(link: str, k: str) -> str:
-    return f"docscore:{L.LEXICON_VERSION}:{k}:{link}"
+    # "k2" (task #328): the key points of a results filing leave out table rows and name lists, so views shaped before are worked out again (from the stored pages)
+    return f"docscore:{L.LEXICON_VERSION}:k2:{k}:{link}"
 
 
 async def _read(store: Any, doc: Dict[str, Any], symbol: str, k: str) -> Optional[List[str]]:
@@ -121,7 +122,32 @@ async def _read(store: Any, doc: Dict[str, Any], symbol: str, k: str) -> Optiona
     return None
 
 
-def shape(d: Dict[str, Any]) -> Dict[str, Any]:
+_NUM = re.compile(r"^[\(\-−₹$]*\d[\d,.]*%?\)?$")
+_ENTITY = re.compile(r"\b(?:Limited|Ltd\.?|Private|Pvt\.?|Sdn\.?|Bhd\.?|LLC|LLP|Inc\.?|FZE|FZCO|GmbH|B\.V\.|Pte\.?|S\.A\.|PLC|Corporation)(?=\W|$)", re.I)
+
+
+def listlike(text: str) -> bool:
+    """Task #328 (developer file 27, C): a results filing's "point" that is really a table row or a list of names, not a statement. Such a point is left
+    out of the key points (it stays in Every point). True for: a row of figures (at least four numbers making up 40% or more of the words, or numbers with
+    hardly any ordinary words); a run of statement line labels (eight or more long words, 70% or more of them capitalised, almost no lower-case words);
+    a list of names (two or more company-form words such as Limited, Sdn or FZE, or four or more ; separated parts)."""
+    words = text.split()
+    if not words:
+        return False
+    nums = sum(1 for w in words if _NUM.match(w.strip(".,;:")))
+    lower = [w for w in words if w[:1].islower() and w.isalpha() and len(w) > 2]
+    if nums >= 4 and (nums / len(words) >= 0.4 or len(lower) < 3):
+        return True
+    long_ = [w.strip(".,;:()") for w in words if len(w.strip(".,;:()")) > 3 and w.strip(".,;:()").isalpha()]
+    caps = [w for w in long_ if w[:1].isupper()]
+    if len(long_) >= 8 and len(caps) / len(long_) >= 0.7 and len(lower) <= 3:
+        return True
+    if len(_ENTITY.findall(text)) >= 2 or text.count(";") >= 3:
+        return True
+    return False
+
+
+def shape(d: Dict[str, Any], k: Optional[str] = None) -> Dict[str, Any]:
     """The page's view of one scored document: the figures, the key points (hard triggers, then the points that carry most, red and green both) and the
     scored points in document order (at most MAX_POINTS). Point scores are shown whole, rounded as the workflow prints them."""
     names = L.THEMES
@@ -135,7 +161,9 @@ def shape(d: Dict[str, Any]) -> Dict[str, Any]:
     # very long points (a table run or a whole paragraph) and points with no theme only fill what is left.
     def rank(p: Dict[str, Any]):
         return (not p["hard"], p["theme"] == "GEN" or len(p["text"]) > 400, -(p["weight"] * abs(p["score"] - 50)))
-    ranked = sorted(scored, key=rank)
+    # task #328: in a results filing, table rows and lists of names are not key points (a hard trigger always stays)
+    pool = [p for p in scored if p["hard"] or not listlike(p["text"])] if k == "R" else scored
+    ranked = sorted(pool, key=rank)
     key: List[Dict[str, Any]] = []
     per: Dict[str, int] = {}
     for p in ranked:                     # at most two per theme first, so the key points cover the document's range
@@ -173,7 +201,7 @@ async def _score_and_keep(app: Any, symbol: str, k: str, doc: Dict[str, Any], pa
     if not d["counts"]["scored"]:
         out = {"status": "unreadable", "why": "The file holds no text FinLit can read (a scanned or image-only file)."}
     else:
-        out = {"status": "scored", **shape(d), "pages": len(part), "ofPages": len(pages)}
+        out = {"status": "scored", **shape(d, k), "pages": len(part), "ofPages": len(pages)}
     try:
         await app.state.store.redis.set(_cache_key(doc["link"], k), json.dumps(out), ex=CACHE_DAYS * 86400)
     except Exception:

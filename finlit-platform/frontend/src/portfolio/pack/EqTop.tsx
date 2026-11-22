@@ -142,7 +142,7 @@ export function YourPortfolios({ list, cur, figs, onPick, onAdd, onRename, onRem
     return <button key={id} type="button" role="radio" aria-checked={cur === id} onClick={() => onPick(id)}>
       <span className="acc-av" style={{ ["--av" as string]: a.av }} aria-hidden="true">{a.ini}</span>
       <span className="eqx-pn"><b>{nm}</b><small>{f.n} {f.n === 1 ? "share" : "shares"}</small></span>
-      <span className="eqx-pv">{f.withQty ? <><b>{inr(f.now)}</b>{f.gainPct != null && <small className={f.gainPct >= 0 ? "eqx-up" : "eqx-dn"}>{pct(f.gainPct)}</small>}</> : <small>no buys yet</small>}</span></button>; };
+      <span className="eqx-pv">{f.withQty ? <><b>{inr(f.now)}</b>{f.gainPct != null && <small className={f.gainPct >= 0 ? "eqx-up" : "eqx-dn"}>{pct(f.gainPct)}</small>}</> : <small>{f.noPrice ? "no price yet" : "no buys yet"}</small>}</span></button>; };
   return (
     <section className="eqx-box eqx-ports" aria-labelledby="eqx-pk">
       <div className="eqx-ph"><p className="eqx-k" id="eqx-pk">Your portfolios · {list.length}<Tip text="One portfolio for each broker account. All accounts adds them up and scores them as one list." how="Tap one to show only its shares. New shares go to the portfolio you pick in the Add window." label="About Your portfolios" /></p>
@@ -161,7 +161,10 @@ export function YourPortfolios({ list, cur, figs, onPick, onAdd, onRename, onRem
 }
 
 // ------------------------------------------------------------------------------------------------ the score
-export function ScorePanel({ total, band, missing, shares, onAdd, locked }: { total: number | null; band?: string | null; missing: number; shares: number; onAdd: () => void; locked?: boolean }) {
+/** basis and noPrice (developer file 28): how the server counted the shares ("value" or "equal") and the shares with a quantity but no stored price, so the
+ *  line under the scale never says "Weighted by value now" when every share was counted the same. */
+export function ScorePanel({ total, band, missing, shares, onAdd, locked, basis, noPrice = [] }: { total: number | null; band?: string | null; missing: number; shares: number; onAdd: () => void; locked?: boolean;
+  basis?: "value" | "equal"; noPrice?: string[] }) {
   const v = total == null ? null : Math.max(0, Math.min(100, total));
   return (
     <section className="eqx-score" aria-labelledby="eqx-sk">
@@ -172,7 +175,9 @@ export function ScorePanel({ total, band, missing, shares, onAdd, locked }: { to
           {v != null && <span className="eqx-mark" style={{ left: `${v}%` }}><b>{Math.round(v)}</b><i aria-hidden="true" /></span>}
           <span className="eqx-grad" aria-hidden="true" /><span className="eqx-ticks" aria-hidden="true">{[0, 25, 50, 75, 100].map((x) => <span key={x}>{x}</span>)}</span>
         </div>
-        <p className="eqx-sx">{missing ? <>Add buys for {missing} {missing === 1 ? "share" : "shares"} to weight the score by value now. <button type="button" className="eqx-lnk" onClick={onAdd}>Add buys</button></> : `Weighted by value now across ${shares} ${shares === 1 ? "share" : "shares"}.`}</p>
+        <p className="eqx-sx">{missing ? <>Add buys for {missing} {missing === 1 ? "share" : "shares"} to weight the score by value now. <button type="button" className="eqx-lnk" onClick={onAdd}>Add buys</button></>
+          : basis === "equal" && noPrice.length ? `Every share counts the same for now: no stored price yet for ${noPrice.length <= 3 ? noPrice.join(", ") : `${noPrice.length} shares`}.`
+          : `Weighted by value now across ${shares} ${shares === 1 ? "share" : "shares"}.`}</p>
       </>}
     </section>);
 }

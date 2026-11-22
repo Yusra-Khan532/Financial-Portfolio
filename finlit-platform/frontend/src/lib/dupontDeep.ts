@@ -175,6 +175,27 @@ export function driver(m: Move | null): Driver {
   return { key, name: DRIVER_NAME[key], share };
 }
 
+/** Task #328 (developer file 27, change 6): the three drivers for the "ROE driven by" box, from the table above it. First and last value of each over the
+ *  move, whether it pushed ROE up or pulled it down, and its stored log share of the move; the largest effect first. Lenders' names stay the same. */
+export type DriverRow = { key: "netMargin" | "turnover" | "multiplier"; name: string; how: string; first: string; last: string; dir: 1 | -1 | 0; share: number | null; top: boolean; effect: string };
+const DRV_ROWS = { turnover: ["Asset turnover", "Revenue / Total assets", "x"], multiplier: ["Equity multiplier", "Total assets / Total equity", "x"], netMargin: ["Net profit margin", "Net profit / Revenue", "%"] } as const;
+export function driverRows(m: Move | null): DriverRow[] {
+  if (!m) return [];
+  const rows = (["turnover", "multiplier", "netMargin"] as const).map((k) => {
+    const [name, how, unit] = DRV_ROWS[k], f = m.first[k] as number, l = m.last[k] as number;
+    const fmt = (v: number) => (v < 0 ? MINUS : "") + nf(Math.abs(v), 2) + (unit === "x" ? "×" : "%");
+    const dir: 1 | -1 | 0 = Math.abs(l - f) < 1e-9 ? 0 : l > f ? 1 : -1;
+    // the size of its effect: the stored log share when there is one, else the size of its own log change (a loss year leaves shares blank)
+    const size = m.shares[k] != null ? Math.abs(m.shares[k] as number) : f > 0 && l > 0 ? Math.abs(Math.log(l / f)) : 0;
+    return { key: k, name, how, first: fmt(f), last: fmt(l), dir, share: m.shares[k], size };
+  }).sort((a, b) => b.size - a.size);
+  return rows.map(({ size: _s, ...x }, i) => {
+    const top = i === 0 && x.dir !== 0;
+    const effect = x.dir === 0 ? "• no change" : `${x.dir > 0 ? "▲ pushed ROE up" : "▼ pulled ROE down"}${top ? " most" : ""}${x.share != null ? (x.share < 0 ? ` · offset ${nf(-x.share, 0)}% of the move` : ` · ${nf(x.share, 0)}% of the move`) : ""}`;
+    return { ...x, top, effect };
+  });
+}
+
 // ------------------------------------------------------------------------------------------------ insight cards from the rule config
 
 export type Ctx = Partial<Record<Measure, number | null>>;

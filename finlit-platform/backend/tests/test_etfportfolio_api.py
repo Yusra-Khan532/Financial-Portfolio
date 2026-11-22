@@ -246,6 +246,29 @@ async def test_import_preview_and_commit(app, monkeypatch):  # noqa: F811
     assert r.status_code == 403 and r.json()["detail"]["status"] == "plan_limit"
 
 
+async def test_import_preview_says_company_shares_for_a_report_that_names_them_by_symbol(app):  # noqa: F811
+    """22 Nov 2026: a broker's holdings report names shares and ETFs by symbol alone (no ISIN). A company's line (NSE symbol, BSE code or BSE scrip ID)
+    is "a company's shares, left for the Equity portfolio", not "no ETF with this ISIN or symbol"; an unknown symbol stays not found."""
+    c = await signed_in(app, "s22n@example.com", plan="silver")
+    async with app.state.store.pool.acquire() as conn:
+        await conn.executemany("INSERT INTO companies (symbol, name, nse_code, bse_code) VALUES ($1, $2, $3, $4) ON CONFLICT (symbol) DO NOTHING",
+                               [("ZZCOA", "Zz Company A Ltd", "ZZCOA", "999201"), ("999202", "Zz Bse Only Ltd", None, "999202")])
+        await conn.execute("INSERT INTO dhan_instruments (exch, security_id, symbol, name, series) VALUES ('BSE', '999202', 'ZZPRIMEID', 'Zz Bse Only', 'X') "
+                           "ON CONFLICT DO NOTHING")
+    try:
+        rows = [{"row": 4, "symbol": "ZZCOA", "qty": "60"}, {"row": 5, "symbol": "999201", "qty": "1"}, {"row": 6, "symbol": "ZZPRIMEID", "qty": "45"},
+                {"row": 7, "symbol": "NIFTYBEES", "qty": "270"}, {"row": 8, "symbol": "ZZNOTHING", "qty": "1"}]
+        p = (await c.post(URL + "/import-preview", json={"rows": rows})).json()
+        assert [r["status"] for r in p["rows"]] == ["ignored", "ignored", "ignored", "matched", "not_found"]
+        assert p["rows"][0]["reason"] == "A company's shares, not an ETF: left for the Equity portfolio."
+        assert p["rows"][4]["reason"] == "No ETF with this ISIN or symbol."
+        assert p["counts"]["ignored"] == 3 and p["counts"]["matched"] == 1
+    finally:
+        async with app.state.store.pool.acquire() as conn:
+            await conn.execute("DELETE FROM companies WHERE symbol = ANY($1)", ["ZZCOA", "999202"])
+            await conn.execute("DELETE FROM dhan_instruments WHERE exch = 'BSE' AND security_id = '999202'")
+
+
 # ------------------------------------------------------------------------------------------------------------------------ task #183 part 3 (15 Nov pack)
 
 async def test_183_added_by_isin_stored_with_it_and_cleared_with_undo(app, monkeypatch):  # noqa: F811
