@@ -26,13 +26,12 @@ const ZOOM = [
   "mf/FundChart.tsx", "mf/H2HChart.tsx", "mf/Radar.tsx", "mf/ScoreHistory.tsx", "mf/ScoreCompare.tsx", "mf/screen/Graphics.tsx", "pages/FundInsights.tsx", "pages/Funds.tsx", "etf/EtfChart.tsx", "etf/Detail.tsx", "etf/Compare.tsx",
   // portfolio, dashboard, calculators, tools
   "pages/Portfolio.tsx", "holdings/HoldingsSection.tsx", "pages/SipCalculator.tsx", "pages/EpsCalculator.tsx", "pages/Dcf.tsx",
-  "pages/OptionChain.tsx", "pages/Ipo.tsx", "components/ipo/GmpRecord.tsx", "components/ipo/ReportCharts.tsx", "components/AdvScatter.tsx", "components/TableZoom.tsx",
+  "pages/OptionChain.tsx", "pages/Ipo.tsx", "pages/QuarterResults.tsx", "components/ipo/GmpRecord.tsx", "components/ipo/ReportCharts.tsx", "components/AdvScatter.tsx", "components/TableZoom.tsx",
 ];
 
 /** Charts that already had their own enlarge arrow before the shared one: the file must still carry it. */
 const OWN: { file: string; needle: RegExp; why: string }[] = [
   { file: "pages/GraphStudio.tsx", needle: /Enlarge chart \$\{i \+ 1\}|ZoomGlyph/, why: "chart builder cells: .gx-zoom enlarges a cell over the page (now drawn with the shared glyph)" },
-  { file: "pages/QuarterResults.tsx", needle: /setZoom\(/, why: "Latest results panel: its own enlarge arrow (task #9) opens the whole panel over the page" },
   { file: "stock/Sections4.tsx", needle: /Expand \$\{c\.title\}/, why: "Trends cards: .tr-x grows a card to the full row" },
 ];
 
@@ -113,7 +112,7 @@ const DRAWS = /useChart\(|<svg[^>]*role="(?:img|group)"|<svg[^>]*viewBox|data-ch
 
 describe("every chart has the enlarge arrow, or a reason not to", () => {
   it("each file on the list uses the shared wrapper", () => {
-    for (const f of ZOOM) expect(/ChartZoom|zoomLabel=/.test(text(f)), `${f} should use ChartZoom`).toBe(true);
+    for (const f of ZOOM) expect(/ChartZoom|TableZoom|zoomLabel=/.test(text(f)), `${f} should use ChartZoom (or TableZoom, the same arrow for a table)`).toBe(true);
   });
 
   it("charts that kept their own arrow still have it", () => {
