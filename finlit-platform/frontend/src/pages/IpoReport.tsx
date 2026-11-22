@@ -2,7 +2,7 @@
 // how the issue was reserved and how much one could bid, the GMP log, issue details, the offer documents, figures and restated financials from the offer
 // document, what the money is for, and the anchor book. Every figure is from the named source or is arithmetic on them. Describes; never advises.
 import type { ReactNode } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useLocation, useParams } from "react-router";
 import { PageHeader } from "../components/PageHeader";
 import { BookBars, DemandBars, Financials, GmpLine, Reservation } from "../components/ipo/ReportCharts";
 import { MINUS, nf } from "../lib/format";
@@ -69,12 +69,21 @@ function Facts({ rows }: { rows: [string, ReactNode][] }) {
 const STEPS: [keyof NonNullable<IpoRecord["detail"]>["timetable"], string][] = [["anchorBid", "Anchor bidding"], ["open", "Bidding opens"], ["close", "Bidding closes"], ["allotment", "Allotment"],
   ["refunds", "Refunds"], ["credit", "Shares credited"], ["listing", "Listing"], ["anchorLockin30", "Anchor lock-in ends (50%)"], ["anchorLockin90", "Anchor lock-in ends (rest)"]];
 
+/** The back link goes to the view of the IPOs page the member came from (task #329, rule 2): the address a link on that page passed along,
+ *  else the list of every IPO, which is where this link always went. */
+export function backTo(state: unknown): { to: string; label: string } {
+  const f = (state as { from?: unknown } | null)?.from;
+  const to = typeof f === "string" && /^\/ipo(\?|$)/.test(f) ? f : "/ipo?view=all";
+  return { to, label: new URLSearchParams(to.split("?")[1] ?? "").get("view") === "all" ? "IPOs: All IPOs since 2020" : "IPOs: Open and upcoming" };
+}
+
 export function IpoReportPage() {
   const id = Number(useParams().id);
+  const back = backTo(useLocation().state);
   const { data: r, isLoading, isError } = useIpoRecord(id);
   useDocTitle(r ? `${r.name} IPO` : "IPO report", r ? `${r.name} IPO: issue price, subscription by category, reservation, timetable, listing and offer documents.` : "IPO report");
   if (isLoading) return <div className="wrap ir"><div className="skeleton" style={{ height: 520 }} role="status" aria-label="Loading the IPO report" /></div>;
-  if (isError || !r) return <div className="wrap ir"><div className="card ir-none"><b>This IPO is not in our records.</b><p><Link to="/ipo/all">See all IPOs</Link></p></div></div>;
+  if (isError || !r) return <div className="wrap ir"><div className="card ir-none"><b>This IPO is not in our records.</b><p><Link to="/ipo?view=all">See all IPOs since 2020</Link></p></div></div>;
   const d = r.detail, i = d?.issue, today = new Date().toISOString().slice(0, 10);
   const docs = d ? ([["Draft red herring prospectus (DRHP)", d.documents.drhp], ["Red herring prospectus (RHP)", d.documents.rhp], ["Prospectus", d.documents.prospectus], ["Anchor investor list", d.documents.anchorList]] as const).filter(([, u]) => !!u) : [];
   const steps = d ? STEPS.filter(([k]) => d.timetable[k]).map(([k, l]) => ({ k, l, at: d.timetable[k] as string })) : [];
@@ -82,7 +91,7 @@ export function IpoReportPage() {
   const meta = [r.board === "sme" ? "SME" : "Mainboard", ...(r.exchanges.length ? [r.exchanges.join(", ")] : []), r.sector, r.symbol].filter(Boolean).join(" · ");
   return (
     <div className="wrap ir">
-      <PageHeader plan="free" title={`${r.name} IPO`} back={<Link to="/ipo/all">← All IPOs</Link>}
+      <PageHeader plan="free" title={`${r.name} IPO`} back={<Link to={back.to}>← {back.label}</Link>}
         description={<><span className={"ir-st " + r.status}>{STATUS_LABEL[r.status]}</span> {meta}</>}
         actions={r.companyPage && r.nse ? <Link className="ir-cta" to={`/stocks/${encodeURIComponent(r.nse)}`}>Company page →</Link> : undefined} />
 

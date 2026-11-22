@@ -2,6 +2,7 @@
 // Task #308 (developer file 18): All IPOs in its compact layout. One toolbar instead of the filter card, the dropdowns counting what each option would
 // leave, chips for the filters that are on, a strip of seven figures instead of the long sentence, a count line naming the sort, and the table as part
 // of the page (its header row sticking under the top nav) instead of a box with its own scroll bar. The table, the cards and the footnote stay.
+// Task #329: the same table is now the second view of the one IPOs page (/ipo?view=all), rendered here on its own; its filters keep view=all.
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
@@ -27,11 +28,11 @@ const DATA: IpoHistory = {
   sources: { issue: { name: "FinEdge", url: "https://example.com", what: "" }, nse: { name: "NSE", url: null, what: "" }, prices: { name: "NSE", url: null, what: "" } },
 };
 vi.mock("../lib/ipoHistory", async (orig) => ({ ...(await orig<typeof import("../lib/ipoHistory")>()), useIpoHistory: () => ({ data: DATA, isLoading: false, isError: false }) }));
-vi.mock("../components/PageHeader", () => ({ PageHeader: ({ title }: { title: string }) => <h1>{title}</h1> }));
-import { IpoHistoryPage } from "./IpoHistory";
+vi.mock("../lib/ipo", async (orig) => ({ ...(await orig<typeof import("../lib/ipo")>()), useGmpRecord: () => ({ data: undefined, isLoading: false, isError: false }) }));
+import { IpoAllView } from "./IpoHistory";
 
 afterEach(cleanup);
-const page = (url = "/ipo/all") => render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={[url]}><IpoHistoryPage /></MemoryRouter></QueryClientProvider>);
+const page = (url = "/ipo?view=all") => render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={[url]}><IpoAllView /></MemoryRouter></QueryClientProvider>);
 const strip = () => [...document.querySelectorAll(".p4-kpis > div")].map((d) => `${d.querySelector("dt")?.textContent} ${d.querySelector("dd")?.textContent}`.replace(/\s+/g, " ").trim());
 
 describe("All IPOs, compact layout (task #308)", () => {
@@ -60,7 +61,7 @@ describe("All IPOs, compact layout (task #308)", () => {
   });
 
   it("each option shows how many issues it would leave with the other filters applied; picking one adds a chip with ×, and Clear all removes every filter", () => {
-    page("/ipo/all?board=sme");
+    page("/ipo?view=all&board=sme");
     fireEvent.click(screen.getByRole("button", { name: /^Year/ }));
     const opts = screen.getAllByRole("option").map((o) => o.textContent);
     expect(opts).toEqual(["All years2", "20260", "20252"]);       // with Board = SME: 2 SME issues in all, none in 2026, both in 2025

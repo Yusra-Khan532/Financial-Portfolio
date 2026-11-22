@@ -59,8 +59,9 @@ PUBLIC: Dict[str, Page] = {
     "macro": Page("India Macro Indicators: CPI, GDP, Repo Rate Data | FinLit", "India's inflation, growth, interest rates, reserves and more in one place, from MoSPI and RBI releases, with plain-English readings.", "India macro indicators", "Inflation, growth, interest rates and reserves from official releases.", "Macro"),
     "fii-dii": Page("FII and DII Data: Daily Institutional Flows | FinLit", "Daily FII and DII buying and selling in Indian equities, with trends over time and what the flows describe. Information only.", "FII and DII activity", "Daily institutional flows in Indian equities.", "FII and DII"),
     "sectors": Page("Sector Performance India: Sector Pulse and Rotation | FinLit", "See which Indian sectors are strengthening or weakening, how breadth is changing and which companies lead each sector.", "Indian sectors", "Sector states, breadth and leaders across Indian markets.", "Sectors"),
-    "ipo": Page("IPO Calendar India: Upcoming and Recent IPOs | FinLit", "Upcoming and recent Indian IPOs with dates, price bands and issue size, in one calendar. Information only, not advice.", "IPO calendar", "Upcoming and recent Indian IPOs.", "IPO calendar"),
-    "ipo/all": Page("All Indian IPOs since 2020: Listing and Subscription | FinLit", "Every mainboard and SME IPO since 2020: issue price, subscription, GMP, listing price and return since IPO. Information only, not advice.", "All IPOs", "Every Indian IPO since 2020 with listing and subscription figures.", "All IPOs"),
+    # task #329 (developer file 29): one page, IPOs, in place of the IPO calendar and All IPOs; /ipo/all redirects to /ipo?view=all (KEEP_QUERY)
+    "ipo": Page("IPOs India: Upcoming IPOs and Every IPO since 2020 | FinLit", "Open, upcoming and recently listed Indian IPOs, and every mainboard and SME IPO since 2020 with listing, subscription and GMP. Information only.", "IPOs",
+                "Open and upcoming Indian IPOs, and every IPO since 2020 with listing and subscription figures.", "IPOs"),
     "concalls": Page("Concall Monitor: Earnings Call Recordings and Transcripts | FinLit", "Indian companies' earnings calls from their own exchange filings: the date and time, the recording, the transcript and the investor presentation.", "Concall Monitor", "Earnings call recordings, transcripts and investor presentations, from the companies' own filings.", "Concall Monitor"),
     "results": Page("Quarterly Results Calendar: Company Results India | FinLit", "Which Indian companies report results and when, with the numbers once they are out and how they compare with the year before.", "Quarterly results", "Company results calendar and the numbers as they arrive.", "Results"),
     "funds": Page("Mutual Fund Screener India: Compare Fund Returns | FinLit", "Search and compare Indian mutual funds on returns, cost, size and risk, with Mutual Fund Score. Information only.", "Mutual funds", "Search and compare Indian mutual funds.", "Funds"),
@@ -113,9 +114,20 @@ REDIRECTS: Dict[str, str] = {
 }
 
 
-def redirect_for(path: str) -> Optional[str]:
-    """The new address of a path that moved for good (REDIRECTS), or None."""
-    return REDIRECTS.get(clean(path))
+# Addresses that moved for good and keep their query string: the old page's parameters still mean the same thing at the new address.
+# Task #329 (developer file 29, 23 Nov 2026): All IPOs (/ipo/all) is the second view of the one IPOs page; its filters carry over.
+KEEP_QUERY: Dict[str, str] = {
+    "ipo/all": "/ipo?view=all",
+}
+
+
+def redirect_for(path: str, query: str = "") -> Optional[str]:
+    """The new address of a path that moved for good (REDIRECTS, the query string dropped; KEEP_QUERY, the query string kept), or None."""
+    p = clean(path)
+    if p in KEEP_QUERY:
+        rest = "&".join(x for x in query.split("&") if x and not x.startswith("view="))
+        return KEEP_QUERY[p] + ("&" + rest if rest else "")
+    return REDIRECTS.get(p)
 
 
 def clean(path: str) -> str:
@@ -130,7 +142,7 @@ def is_private(path: str) -> bool:
 def is_known(path: str) -> Optional[bool]:
     """True: a real address; False: not one; None: depends on a database lookup (a company or a glossary term)."""
     p = clean(path)
-    if p in PUBLIC or is_private(p) or p in REDIRECTS:
+    if p in PUBLIC or is_private(p) or p in REDIRECTS or p in KEEP_QUERY:
         return True
     if p.startswith("stocks/") and p.count("/") == 1 or p.startswith("glossary/") and p.count("/") == 1:
         return None

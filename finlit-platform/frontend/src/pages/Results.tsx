@@ -80,7 +80,7 @@ export function ResultsPage() {
     <DashCardsProvider userId={user?.id ?? null}>
     <div className="wrap sx sp rs rsc" data-testid="results-calendar">
       <ResultsHead actions={<CalendarSync />} title="Results calendar" desc="Who has reported, how they did against similar companies, and who reports next."
-        links={[["/results/quarter", "All quarter results"], ["/news", "News & filings"], ["/ipo", "IPO calendar"]]} view="calendar" />
+        links={[["/results/quarter", "All quarter results"], ["/news", "News & filings"], ["/ipo", "IPOs"]]} view="calendar" />
       {staleNote && <div className="rc-stale" role="status">{staleNote}</div>}
       {delayedNote && !staleNote && <div className="rc-stale" role="status" data-testid="results-delayed">{delayedNote}</div>}
       <CalendarTiles kpi={kpi.data} ahead={ahead.data?.days} week={weekQ.data} lastDay={lastFull} lastResp={lastQ.data} today={today}
