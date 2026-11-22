@@ -110,7 +110,7 @@ export function DividendsSection({ e, price, r }: { e?: Events; price?: number |
             <u className="avgline"><b>average</b></u>
           </div>
           </ChartZoom>
-          <p className="faint" style={{ fontSize: 12, margin: "14px 0 0" }}>{e.dividendsByFY.basis}.{d.partial ? ` *${d.partial.p} is in progress: ${partLabel}. The average line uses ended years.` : ""}</p>
+          <p className="faint" style={{ fontSize: "var(--fs-12)", margin: "14px 0 0" }}>{e.dividendsByFY.basis}.{d.partial ? ` *${d.partial.p} is in progress: ${partLabel}. The average line uses ended years.` : ""}</p>
         </div>
         <div className="card acc" style={{ "--ac": "var(--c2)" } as React.CSSProperties}>
           <div className="card-h"><h3><span className="ci"><Icon name="percent" /></span>Payout ratio over time<ChartHelp id="payout" /></h3><span className="s">% of profit paid as dividends</span></div>
@@ -129,7 +129,7 @@ export function DividendsSection({ e, price, r }: { e?: Events; price?: number |
             <div className="hl"><span className="label">Dividends in the last 12 months</span><b>₹{nf(shares * d.ttm, 0)}</b><small>≈ ₹{nf(monthly, 0)} a month</small></div>
             {price != null && <div><span className="label">Return on that money</span><b>{pct((d.ttm / price) * 100)}</b></div>}
           </div>
-          <p className="faint" style={{ fontSize: 12, margin: "12px 0 0" }}>Based on the dividends declared in the last 12 months (₹{nf(d.ttm, 2)} a share{d.ttmAdjusted ? (d.ttmSplit ? ", adjusted for the split" : ", adjusted for splits and bonuses") : ""}) and today's price, before tax. Past dividends do not guarantee future ones.</p>
+          <p className="faint" style={{ fontSize: "var(--fs-12)", margin: "12px 0 0" }}>Based on the dividends declared in the last 12 months (₹{nf(d.ttm, 2)} a share{d.ttmAdjusted ? (d.ttmSplit ? ", adjusted for the split" : ", adjusted for splits and bonuses") : ""}) and today's price, before tax. Past dividends do not guarantee future ones.</p>
         </div>
         <div className="card acc" style={{ "--ac": "var(--gold)" } as React.CSSProperties}>
           <div className="card-h"><h3><span className="ci"><Icon name="coins" /></span>When it usually pays<ChartHelp id="div-months" /></h3><span className="s">Months with past payouts</span></div>

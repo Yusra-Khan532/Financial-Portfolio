@@ -207,7 +207,7 @@ PRESETS: List[Preset] = [
            ("Rated or provisional by Prism with a score of 50 or more.", "No more than 5% below the 52-week high.", "Short-term technical view +20 or more.", "Ranked by the short-term view."),
            False, None, ("provisional",), "p10 (At a 52-week high)"),
 
-    Preset("both-views-positive", "Positive on both technical views", "trend", "Large and mid caps whose short-term and long-term technical views are both positive.", "rules",
+    Preset("both-views-positive", "Uptrend on both views: large and mid caps", "trend", "Large and mid caps whose short-term and long-term technical views are both positive.", "rules",
            _m(rated=1, st=20, lt=20), "", (("is_large_mid = 1", "Large or mid cap"),), (("prism_final", "desc"),), 25,
            with_status((STOCK, PRISM, STS, LTS, ST, LT, R6M, W52, SECTOR, MCAP)), (ALL_CAPS,),
            ("Rated or provisional by Prism.", "Short-term and long-term technical views both +20 or more.", "Large and mid caps by default; the All caps chip adds small caps.", "Ranked by Prism score."),
@@ -250,10 +250,10 @@ PRESETS: List[Preset] = [
            ("Prism Quality 75 or more, Growth & Profitability 65 or more, Risk 50 or more.", "At least 25% below the 52-week high.", "Both technical views are shown; the Turning up chip keeps names whose short-term view is 0 or more.", "Ranked by Prism score."),
            False, None, ("provisional",), "p12 (Quality off its highs)"),
 
-    Preset("value-with-quality", "Value with quality", "value-income", "Cheaper-valued companies that also score well on quality, risk and growth & profitability.", "rules",
+    Preset("value-with-quality", "Value with quality", "value-income", "Companies with a lower valuation that also score well on quality, risk and growth & profitability.", "rules",
            _m(rated=1, zvmin=75, zqmin=60, zrmin=60, zfmin=50), "", (), (("prism_valuation", "desc"), ("prism_final", "desc")), 25,
            with_status((STOCK, VAL, QUAL, RISK, FUND, PRISM, STS, LTS, R6M, SECTOR, MCAP)), (),
-           ("Prism Valuation 75 or more, Quality 60 or more, Risk 60 or more, Growth & Profitability 50 or more.", "Ranked by Valuation, highest first (a higher Valuation score means cheaper)."),
+           ("Prism Valuation 75 or more, Quality 60 or more, Risk 60 or more, Growth & Profitability 50 or more.", "Ranked by Valuation, highest first (a higher Valuation score means a lower valuation)."),
            False, None, ("provisional",), "p13 (Value with quality)"),
 
     Preset("low-risk-compounders", "Low-risk compounders", "safety", "Companies that score high on risk, quality and growth & profitability together.", "rules",
@@ -347,7 +347,8 @@ SETUPS_ADV: List[Preset] = [
             "Now pulled back: 2% to 12% below the highest close since, back near the level it broke and its 20-day average, RSI between 40 and 65, and a long-term technical view of +20 or more.", S_NOTE),
            False, None, ("provisional",), "setup scans", "advanced", (("-abs_b2_level", 0.4), ("prism_lt_score", 0.6))),
     Preset("setup-ema9-consolidation", "Consolidating above the 9 EMA", "setups", "Stocks in an uptrend, holding a tight range just above their 9-day average.", "rules", _m(rated=1), "",
-           E9_RULES + (MCAP1000, ("prism_st_score >= 20", "Short-term technical view +20 or more")),
+           E9_RULES + (MCAP1000, ("prism_st_score >= 20", "Short-term technical view +20 or more"),
+                       ("prism_lt_score > -20", "Long-term technical view not a downtrend")),     # task #325 (file 25, 2.2): 24% of the list was in a long-term downtrend
            (("rank_score", "desc"), ("prism_st_score", "desc")), 25, with_status((STOCK, S_V9, S_R4, S_TURN, S_E20, S_RSI, STS, LTS, PRISM, SECTOR, MCAP)), (),
            ("Rated or provisional by Prism (a Provisional rating is badged); a full year of prices; market cap Rs 1,000 Cr or more.", "In an uptrend: price above its 50-day average, with the 9-day above the 20-day above the 50-day.",
             "Holding just above the 9-day average: four closes above it, within 3% of it now, a touch of it in the last four sessions, and a range of 6% or less.", S_NOTE),
@@ -373,8 +374,8 @@ _BASICS_COLS = with_status((RANK, STOCK, SECTOR, PRISM, PLABEL, FUND, VAL, QUAL,
 _BASICS_ORDER = (("prism_final", "desc"), ("market_cap", "desc"))
 QUICK_VIEWS: List[Preset] = [
     Preset("strongsafe", "Strong and safe", "prism-basics", "Strong on FinLit Prism, with a Risk part that reads lower risk.", "rules", _m(zmin=80, zrmin=65, rated=1), "", (), _BASICS_ORDER, 25, _BASICS_COLS),
-    Preset("fairvalue", "Fair value", "prism-basics", "Strong Growth & Profitability, with a fair valuation.", "rules", _m(zfmin=65, zvmin=50, rated=1), "", (), _BASICS_ORDER, 25, _BASICS_COLS),
-    Preset("weakvalue", "Weak value", "prism-basics", "Strong Growth & Profitability, with a weak valuation.", "rules", _m(zfmin=65, zvbelow=50, rated=1), "", (), _BASICS_ORDER, 25, _BASICS_COLS),
+    Preset("fairvalue", "Growth at a reasonable valuation", "prism-basics", "Strong Growth & Profitability, with a fair valuation.", "rules", _m(zfmin=65, zvmin=50, rated=1), "", (), _BASICS_ORDER, 25, _BASICS_COLS),
+    Preset("weakvalue", "Growth with a stretched valuation", "prism-basics", "Strong Growth & Profitability, with a weak valuation.", "rules", _m(zfmin=65, zvbelow=50, rated=1), "", (), _BASICS_ORDER, 25, _BASICS_COLS),
     Preset("bothtech", "Uptrend on both views", "prism-basics", "Both of Prism's technical views, short term and long term, in an uptrend.", "rules", _m(st=20, lt=20), "", (), _BASICS_ORDER, 25, _BASICS_COLS),
 ]
 

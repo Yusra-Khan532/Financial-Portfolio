@@ -47,7 +47,8 @@ def _json(body, status: int = 200) -> Response:
 
 
 def _chips(p: Preset) -> List[dict]:
-    return [{"id": c.id, "label": c.label, "default": c.default, "description": c.description} for c in p.chips]
+    # task #325 (file 25, section 1 row 5): a sub-theme chip is marked, so the page shows the sub-themes as one group with one i button
+    return [{"id": c.id, "label": c.label, "default": c.default, "description": c.description, **({"sub": True} if (c.effect or {}).get("sub") else {})} for c in p.chips]
 
 
 def _list_text(p: Preset, cached: dict | None) -> str | None:
@@ -278,19 +279,39 @@ def _num(v):
 
 
 async def _joined_counts(store, keys: List[tuple]) -> dict:
-    """{(preset_id, chips): companies on the list now whose Added date is that screen's latest close}. Lists built on the first stored close count none:
-    every company on them was already there when FinLit began storing lists, so 'joined since yesterday' would not be true."""
+    """{(preset_id, chips, latest session): joined} for the cards, from the SAME saved lists the open screen reads (savedlists.joined_left): the companies on
+    the latest list that were not on the one before. Task #325 (developer file 25, 2.1 row 5): the cards used to count open spells and disagreed with the open
+    screen (Momentum leaders 17 against 16, Uptrend on both views 67 against 61). On a day the screen's rules changed the value is "rules" (row 3 and 4: the
+    joined figure would mix rule changes with price moves), and a list built on the first stored close counts none."""
     if not keys:
         return {}
     base = await history.baseline_session(store)
     async with store.pool.acquire() as conn:
-        rows = await conn.fetch("SELECT preset_id, chips, added_on, count(*) AS n FROM screen_spells WHERE left_on IS NULL AND preset_id = ANY($1::text[]) "
-                                "AND added_on >= CURRENT_DATE - 14 GROUP BY preset_id, chips, added_on", list({k[0] for k in keys}))
-    out = {}
+        rows = await conn.fetch(
+            "WITH r AS (SELECT preset_id, chips, session, registry, row_number() OVER (PARTITION BY preset_id, chips ORDER BY session DESC) AS rn "
+            "FROM screen_runs WHERE preset_id = ANY($1::text[])) "
+            "SELECT r.preset_id, r.chips, r.session, r.rn, r.registry::text AS reg, s.symbol FROM r LEFT JOIN screen_snapshots s "
+            "ON s.preset_id = r.preset_id AND s.chips = r.chips AND s.session = r.session WHERE r.rn <= 2", list({k[0] for k in keys}))
+    lists: dict = {}
     for r in rows:
-        if base is not None and r["added_on"] == base:
+        k = (r["preset_id"], r["chips"])
+        d = lists.setdefault(k, {})
+        e = d.setdefault(r["rn"], {"session": r["session"], "reg": r["reg"], "syms": set()})
+        if r["symbol"]:
+            e["syms"].add(r["symbol"])
+    out = {}
+    for k, d in lists.items():
+        now = d.get(1)
+        if now is None:
             continue
-        out[(r["preset_id"], r["chips"], r["added_on"].isoformat())] = r["n"]
+        key = (k[0], k[1], now["session"].isoformat())
+        before = d.get(2)
+        if before is None or (base is not None and now["session"] == base):
+            out[key] = 0
+        elif before["reg"] != now["reg"]:
+            out[key] = "rules"
+        else:
+            out[key] = len(now["syms"] - before["syms"])
     return out
 
 
@@ -344,6 +365,11 @@ async def listing(request: Request):
             joined = await _joined_counts(store, keys)
         except Exception:
             joined = None
+        try:          # Top gainers: This month waits for 21 saved closes; until then its card says since when it counts
+            async with store.pool.acquire() as conn:
+                sessions_saved = await conn.fetchval("SELECT count(DISTINCT session) FROM screen_runs")
+        except Exception:
+            sessions_saved = None
         for p, card, cached in found:
             card["top10"] = bool(p.top10)
             card["figure"] = FIGURE.get(p.group, _score_figure(p.tab))[0]
@@ -351,9 +377,16 @@ async def listing(request: Request):
                 continue
             if p.kind == "gainers":
                 card["count"], card["asOf"] = cached["count"], cached["asOf"]
+                if p.id == "gainers-month" and sessions_saved is not None and sessions_saved < 21:      # task #325 (file 25, 2.1 row 2)
+                    card["cardText"] = (f"Companies that joined a screen of this page since 11 Nov 2026, when FinLit began storing lists ({sessions_saved} closes so far; "
+                                        "a full month is 21), ranked by how far the price has risen since.")
             card["first"] = _first3(p, cached, table)
             if joined is not None and p.kind != "gainers" and cached.get("asOf"):
-                card["joined"] = joined.get((p.id, engine.chip_key([c.id for c in p.chips if c.default]), str(cached["asOf"])[:10]), 0)
+                j = joined.get((p.id, engine.chip_key([c.id for c in p.chips if c.default]), str(cached["asOf"])[:10]), 0)
+                if j == "rules":
+                    card["rulesUpdated"] = True      # the card shows "rules updated", never "+N joined", on that day
+                else:
+                    card["joined"] = j
     return _json({"tab": tab, "asOf": as_of, "groups": [{"id": g, "name": n, "featured": g in FEATURED_GROUPS, "presets": by_group[g], **GROUP_EXTRA.get(g, {})}
                                                         for g, n in GROUPS if by_group[g]]})
 
@@ -452,6 +485,65 @@ async def _classification(store) -> Dict[str, tuple]:
     return _CLS["map"]       # type: ignore[return-value]
 
 
+DISC_EVENTS = ("order", "capacity", "partnership", "mna")      # the four filing kinds file 25 section 4 names; ESOPs, ESG ratings and TDS notices are not counted
+DISC_SCREENS = ("emerging-tech",)
+_DISC_CACHE: Dict[str, tuple] = {}
+
+
+async def _discover_rows(store) -> Dict[str, dict]:
+    """Discover's board (finlit/discovery/board.py) by symbol, kept for 10 minutes: the board is built nightly and read by the Discover page the same way."""
+    import time
+    hit = _DISC_CACHE.get("board")
+    if hit and time.monotonic() - hit[0] < 600:
+        return hit[1]
+    from ..discovery import board as dboard
+    from ..discovery import signals as dsig
+    b = await dboard.board(store, per_event=0, per_theme=0)
+    by = {r["s"]: {**r, "lf": None} for r in b.get("rows") or []}
+    async with store.pool.acquire() as conn:      # the latest filing of the four kinds only (the board's own latest also counts ratings, legal and fund raising)
+        for x in await conn.fetch(
+                "SELECT DISTINCT ON (symbol) symbol, item_date, event, title, link FROM discovery_signals WHERE symbol = ANY($1::text[]) AND event = ANY($2::text[]) "
+                "AND item_date >= current_date - $3::int ORDER BY symbol, item_date DESC, feed_id DESC", list(by), list(DISC_EVENTS), dboard.NEWS_DAYS):
+            lf = {"d": x["item_date"].isoformat(), "e": x["event"], "el": dsig.EVENT_LABEL.get(x["event"], "Filing"), "t": dboard.clean_title(x["title"])}
+            if dboard.safe_link(x["link"]):
+                lf["l"] = x["link"]
+            by[x["symbol"]]["lf"] = lf
+    _DISC_CACHE["board"] = (time.monotonic(), by)
+    return by
+
+
+async def _with_discover(store, p: Preset, body: dict) -> dict:
+    """Task #325 (developer file 25, section 4): on Emerging tech every row carries what Discover knows: the stage the newest investor presentation
+    describes, its themes, the counts of the four filing kinds over 90 days and the latest of them. A company Discover has not placed says so
+    (disc_placed False); the two broad themes are left out of the themes."""
+    if p.id not in DISC_SCREENS:
+        return body
+    try:
+        by = await _discover_rows(store)
+    except Exception:      # Discover unavailable: the screen still opens, without the columns
+        return body
+    from ..discovery.board import BROAD
+    seen = set()
+    for r in (body.get("exportRows") or []) + (body.get("rows") or []):
+        if id(r) in seen or not isinstance(r, dict):
+            continue
+        seen.add(id(r))
+        x = by.get(r.get("symbol"))
+        r["disc_placed"] = x is not None
+        if x is None:
+            r["disc_stage"] = "Not placed"      # no investor presentation on file, so Discover has not placed the company
+            continue
+        r["disc_stage"] = x.get("st")
+        r["disc_themes"] = [t for t in [x.get("th"), *(x.get("sec") or [])] if t and t not in BROAD]
+        r["disc_ev"] = {k: int((x.get("ev") or {}).get(k) or 0) for k in DISC_EVENTS}
+        r["disc_latest"] = x.get("lf")
+        r["disc_latest_d"] = (x.get("lf") or {}).get("d")      # the column sorts by the filing's date; the cell shows the filing
+    cols = [c for c in body.get("columns") or [] if not str(c.get("key", "")).startswith("disc_")]
+    cols += [{"key": "disc_stage", "label": "Stage it describes", "format": "text", "align": "left", "band": "From Discover"},
+             {"key": "disc_latest_d", "label": "Latest filing", "format": "text", "align": "left", "band": "From Discover"}]
+    return {**body, "discover": True, "columns": cols}
+
+
 async def _with_classification(store, body: dict) -> dict:
     """Adds cls_macro / cls_sector / cls_industry to each row of a screen (None when NSE does not classify the company)."""
     cls = await _classification(store)
@@ -520,11 +612,15 @@ def _bar(request: Request) -> dict:
             "macro": {x[:80] for x in qp.getlist("macro") if x}, "nsec": {x[:80] for x in qp.getlist("nsec") if x}, "indu": {x[:80] for x in qp.getlist("indu") if x},
             "pl": {x for x in ",".join(qp.getlist("pl")).split(",") if x in RATING_SLUGS},
             "ranges": {k: rg for k in SCORE_RANGES if (rg := _range_of(qp, k)) is not None},
-            "st5": {x for x in (qp.get("st5") or "").split(",") if x in TREND5}, "lt5": {x for x in (qp.get("lt5") or "").split(",") if x in TREND5}}
+            "st5": {x for x in (qp.get("st5") or "").split(",") if x in TREND5}, "lt5": {x for x in (qp.get("lt5") or "").split(",") if x in TREND5},
+            # task #325 (developer file 25, section 4): Emerging tech's "Filings, 90 days" filter, from Discover's exchange filings
+            "filing": {x for x in ",".join(qp.getlist("filing")).split(",") if x in DISC_EVENTS}}
 
 
 def _tests(f: dict, new_day: Optional[str]) -> Dict[str, object]:
     t: Dict[str, object] = {}
+    if f.get("filing"):
+        kinds = set(f["filing"]); t["filing"] = lambda r: any(((r.get("disc_ev") or {}).get(k) or 0) > 0 for k in kinds)
     if f["q"]:
         q = f["q"]; t["q"] = lambda r: q in str(r.get("symbol", "")).lower() or q in str(r.get("name", "")).lower() or q in str(r.get("sector", "")).lower()
     if f["size"]:
@@ -632,7 +728,9 @@ def _facets(rows: List[dict], tests: Optional[Dict[str, object]] = None, new_day
             w = _trend_of(r.get(col))
             if w and _passes(r, tests, k + "5"):
                 trend[k][w] += 1
-    return {**{k: sorted(v.items(), key=lambda kv: (-kv[1], kv[0])) for k, v in levels.items()}, "ratings": ratings, "trend": trend,
+    disc = any("disc_placed" in r for r in rows)
+    filings = {k: n("filing", lambda r, k=k: ((r.get("disc_ev") or {}).get(k) or 0) > 0) for k in DISC_EVENTS} if disc else None
+    return {**{k: sorted(v.items(), key=lambda kv: (-kv[1], kv[0])) for k, v in levels.items()}, "ratings": ratings, "trend": trend, **({"filings": filings} if disc else {}),
             "sizes": sizes, "sectors": sorted(sectors.items(), key=lambda kv: (-kv[1], kv[0]))[:80],
             "strong": n("rating", _strong), "strongOnly": n("rating", _strong_only), "anyRating": n("rating", lambda r: True),
             "new": n("new", probe["new"]), "ahead": n("ahead", probe["ahead"]), "nse": n("nse", probe["nse"]), "bse": sum(1 for r in rows if _bse_only(r)),
@@ -646,7 +744,31 @@ def _filtered(request: Request, rows: List[dict], new_day: Optional[str] = None)
     return rows if not tests else [r for r in rows if _passes(r, tests)]
 
 
-def _page(request: Request, body: dict) -> dict:
+def _summary(rows: List[dict], table=None) -> dict:
+    """Task #325 (developer file 25, section 1 row 7): what kind of list it is, before reading the rows. Over the rows the open filters leave: how many have a
+    long-term technical view of Uptrend or Strong uptrend, how many Downtrend or Strong downtrend, how many sit within 10% of the 52-week high, and how many are
+    rated Healthy or Strong by Prism. `held` is the rows with a long-term view at all. A value missing on the row is read from the screener table."""
+    def val(r, key):
+        v = _num(r.get(key))
+        if v is None and table is not None and key in table.cols and r.get("symbol") in table.pos:
+            v = _num(table.cols[key][table.pos[r["symbol"]]])
+        return v
+    out = {"count": len(rows), "held": 0, "up": 0, "down": 0, "nearHigh": 0, "highHeld": 0, "sound": 0}
+    for r in rows:
+        w = _trend_of(val(r, "prism_lt_score"))
+        if w:
+            out["held"] += 1
+            out["up"] += w in ("su", "u")
+            out["down"] += w in ("d", "sd")
+        h = val(r, "pct_from_high")
+        if h is not None:
+            out["highHeld"] += 1
+            out["nearHigh"] += abs(h) <= 10
+        out["sound"] += _rating_of({"prism_final": val(r, "prism_final")}) in ("healthy", "strong")
+    return out
+
+
+def _page(request: Request, body: dict, table=None) -> dict:
     """A screen that is not a Top-10 list and not a theme view pages: `offset` (default 0) and `limit` (default 25, at most EXPORT_MAX) pick rows of the ranked list.
     The answer carries `offset`, `limit`, `available` (rows that can be paged to) and `hasMore`; `count` stays the number of companies that pass."""
     if "pageSize" not in body:
@@ -661,6 +783,13 @@ def _page(request: Request, body: dict) -> dict:
     body = {**body, "facets": facets, "filtered": len(avail)} if len(avail) != len(body.get("exportRows") or body["rows"]) or facets else body
     if board is not None:
         body = {**body, "industryBoard": board}
+    body = {**body, "summary": _summary(avail, table)}
+    subs: Dict[str, int] = {}
+    for r in avail:      # task #325 (file 25, section 1 row 5): each sub-theme chip shows how many companies of the list it holds
+        if r.get("sub_theme"):
+            subs[r["sub_theme"]] = subs.get(r["sub_theme"], 0) + 1
+    if subs:
+        body = {**body, "subCounts": subs}
     offset = _int(request, "offset", 0, 0, engine.EXPORT_MAX)
     limit = _int(request, "limit", body["pageSize"], 1, engine.EXPORT_MAX)
     rows = avail[offset:offset + limit]
@@ -673,9 +802,44 @@ async def detail(request: Request, pid: str):
     body = await _body(request, p, active)
     # task #258: NSE's three levels on every row, for the open screen's Macro sector, Sector and Industry filters
     body = await _with_classification(request.app.state.store, body)
-    body = _page(request, body)
+    body = await _with_discover(request.app.state.store, p, body)
+    try:
+        table = await get_table(request.app.state.store)
+    except Exception:      # the summary then reads only the screen's own rows
+        table = None
+    body = _page(request, body, table)
     await service.log_usage(request.app.state.store, p.id, "open")
     return _json({k: v for k, v in body.items() if k not in API_ONLY})
+
+
+PRICE_SESSIONS = {"3M": 63, "6M": 126, "1Y": 252}
+PRICES_MAX = 12
+
+
+@router.get("/{pid}/prices")
+async def prices_route(request: Request, pid: str):
+    """Task #325 (developer file 25, section 5): the chart wall's prices in one call, for up to 12 companies of this screen, from the daily series the
+    pattern job keeps (presets/candles.py), so a card never waits for a company report to be built ("Preparing this stock's report" kept 17 of 113
+    cards on Loading). A company with no stored series comes back as null and the card says the chart is being prepared."""
+    from . import candles as candles_mod
+    await _resolve(request, pid)
+    rng = request.query_params.get("range", "6M").upper()
+    n = PRICE_SESSIONS.get(rng, 126)
+    syms = [x.strip().upper() for x in (request.query_params.get("symbols") or "").split(",") if x.strip()][:PRICES_MAX]
+    store = request.app.state.store
+    out: Dict[str, Optional[dict]] = {}
+    for sym in syms:
+        try:
+            sr = await candles_mod.series(store, sym)
+        except Exception:
+            sr = None
+        t = (sr or {}).get("t") or []
+        if len(t) < 2:
+            out[sym] = None
+            continue
+        k = max(0, len(t) - n)
+        out[sym] = {f: list((sr.get(f) or [])[k:]) for f in ("t", "o", "h", "l", "c")}
+    return _json({"range": rng, "series": out})
 
 
 @router.get("/{pid}/history")

@@ -16,12 +16,12 @@
 .hp-note { margin: 22px 0 0; color: var(--muted); font-size: var(--fs-14); max-width: 64ch; }
 .hp-note a, .hp-list a { color: var(--gold); text-decoration: underline; text-underline-offset: 3px; }
 .hp-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; max-width: 70ch; }
-.hp-list li { position: relative; padding: 12px 16px 12px 40px; border: 1px solid var(--border); border-radius: 14px; background: var(--s1); color: var(--muted); line-height: 1.55; }
-.hp-list li::before { content: ""; position: absolute; left: 16px; top: 20px; width: 10px; height: 2px; border-radius: 2px; background: var(--gold); }
+.hp-list li { position: relative; padding: 12px 16px 12px 40px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); color: var(--muted); line-height: 1.55; }
+.hp-list li::before { content: ""; position: absolute; left: 16px; top: 20px; width: 10px; height: 2px; border-radius: var(--ui-r-pill); background: var(--gold); }
 
 /* Why: a short story instead of a stats strip */
 .hp-story { max-width: 64ch; display: grid; gap: 16px; }
-.hp-story p { margin: 0; font-size: 18px; line-height: 1.65; color: var(--text); }
+.hp-story p { margin: 0; font-size: var(--fs-18); line-height: 1.65; color: var(--text); }
 
 /* Plans: calmer cards, easier-to-read comparison table */
 .plans .trust { color: var(--muted); }
@@ -37,7 +37,7 @@
 
 /* Phone (390px) */
 @media (max-width: 640px) {
-  .pagehead p { font-size: 16px; }
+  .pagehead p { font-size: var(--fs-16); }
   .prices { grid-template-columns: 1fr; }
   .hp-story p { font-size: var(--fs-16); }
   .cmp table { min-width: 560px; font-size: var(--fs-14); }

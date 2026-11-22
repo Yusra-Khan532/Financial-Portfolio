@@ -6,7 +6,7 @@ import { ApiError, apiGet } from "./api";
 import { PLAN_FOR_PRISM } from "./planGates";
 import type { Plan } from "./auth";
 
-export type PresetChip = { id: string; label: string; default: boolean; description: string };
+export type PresetChip = { id: string; label: string; default: boolean; description: string; /** Task #325: an Emerging tech sub-theme (shown as one group with one i). */ sub?: boolean };
 export type Preset = {
   id: string; name: string; group: string; cardText: string; count: number | null; asOf: string | null; status: "live" | "blocked"; blockedReason: string | null;
   /** "Top 10 of 40 that pass" or "First 25 of 129 that pass", as the card says it; null when the whole match is listed. */
@@ -15,12 +15,18 @@ export type Preset = {
   /** The strip's card (task #64, N-38), on the plan's own page only: a "Top 10 …" / "Highest-rated …" list; the figure the first three show;
    *  the first three companies on the stored list with that figure (null when the company has none); how many joined at the latest close. */
   top10?: boolean; figure?: string; first?: { symbol: string; name: string; value: number | null }[]; joined?: number;
+  /** task #325: the screen's rules changed at the latest close, so no joined figure is shown that day */ rulesUpdated?: boolean;
   /** Task #243 (pack v4): the i beside a new screen's name, and its NEW tag (two weeks after its first run). */
   about?: ScreenAbout | null; isNew?: boolean;
 };
 /** "What it shows" in a sentence or two, then three "How to use it" points (task #243). */
 export type ScreenAbout = { shows: string; use: string[] };
 /** Task #243 round 3b: one chip of a Sectors screen's industry board (counts add up to the list). `slug` is null for "No sector reading". */
+export type ListSummary = { count: number; held: number; up: number; down: number; nearHigh: number; highHeld: number; sound: number };
+export type DiscEvent = "order" | "capacity" | "partnership" | "mna";
+/** Task #325 (file 25, section 4): the four kinds of exchange filing Emerging tech counts, as the filter names them. */
+export const DISC_EVENTS: [DiscEvent, string][] = [["order", "Order win"], ["capacity", "New capacity"], ["partnership", "Partnership"], ["mna", "Acquisition or merger"]];
+export type DiscLatest = { d: string; e?: string; el: string; t: string; l?: string };
 export type BoardChip = { slug: string | null; name: string; n: number; corner: string | null; rotation: string | null; pulse: string | null; pulseCode: string | null };
 /** Which date each kind of data on an Advanced screen is from (prices and scores, the Setups and Chart patterns lists, Sector Pulse, Sector Rotation). */
 export type DataDates = { prices: string | null; setups: string | null; sectors: string | null; rotation: string | null };
@@ -41,7 +47,8 @@ export type Miss = { symbol: string; name?: string | null; exchange?: string | n
 export type PresetDetail = {
   id: string; name: string; asOf: string | null; count: number; shown: number; /** Task #269: the trading day of the prices shown (they are the latest, after the list's day). */ priceDay?: string | null; topCount?: number; asOn?: string; benchSincePct?: number | null; heading?: string | null; filtered?: number; facets?: { sizes: Record<string, number>; sectors: [string, number][]; strong: number; strongOnly?: number; anyRating?: number; new?: number; ahead?: number; nse?: number; bse?: number; fno?: number; liquid?: number; sag?: number; plead?: number;
     /** Task #258 (Advanced SPEC §2, §3): NSE's three levels on this list with their counts, and the counts of each Prism rating word and trend word. */
-    macros?: [string, number][]; nsecs?: [string, number][]; industries?: [string, number][]; ratings?: Record<string, number>; trend?: { st: Record<string, number>; lt: Record<string, number> } }; columns: PresetColumn[]; rows: PresetRow[]; themes?: Theme[]; closestMisses?: Miss[];
+    macros?: [string, number][]; nsecs?: [string, number][]; industries?: [string, number][]; ratings?: Record<string, number>; trend?: { st: Record<string, number>; lt: Record<string, number> };
+    /** Task #325: Emerging tech, how many companies have each kind of filing in 90 days. */ filings?: Record<DiscEvent, number> }; columns: PresetColumn[]; rows: PresetRow[]; themes?: Theme[]; closestMisses?: Miss[];
   howItWorks: string[]; cardText: string; disclaimer: string;
   /** "Top 10 of 40 that pass": what the list shows of the companies that pass. */
   listText?: string; notes?: string[]; rankScoreNote?: string; emptyText?: string; ratedCount?: number;
@@ -51,6 +58,8 @@ export type PresetDetail = {
   list?: { date: string; latest: string; count: number; joined: number | null; left: number | null; prev: string | null; first: string; rulesUpdated: boolean } | null;
   /** Round 3b: the industry board of a Sectors screen, and which date each kind of data is from (Advanced). */
   industryBoard?: BoardChip[]; dataDates?: DataDates;
+  /** Task #325 (file 25, section 1 rows 5 and 7): what kind of list it is, over the rows the filters leave; each sub-theme's count; Discover's columns are on. */
+  summary?: ListSummary; subCounts?: Record<string, number>; discover?: boolean;
   /** Task #243 (pack v4): the i beside the name and whether the screen is new. */
   about?: ScreenAbout | null; isNew?: boolean;
 };
@@ -126,7 +135,9 @@ export type BarFilter = { q: string; sizes: string[]; sectors: string[]; rating:
   sag?: boolean; plead?: boolean; ind?: { slug: string; name: string } | null;
   /** Task #258 (Advanced SPEC §2, §3): NSE's macro sectors, sectors and industries; the Prism rating words (strong ... notrated); from-to score ranges
    *  (z Prism, zf Growth & Profitability, zv Valuation, zq Quality, zr Risk); the two technical views in five words (su u s d sd). */
-  macros?: string[]; nsecs?: string[]; indus?: string[]; pl?: string[]; rg?: Partial<Record<ScoreRangeKey, [number | null, number | null]>>; st5?: string[]; lt5?: string[] };
+  macros?: string[]; nsecs?: string[]; indus?: string[]; pl?: string[]; rg?: Partial<Record<ScoreRangeKey, [number | null, number | null]>>; st5?: string[]; lt5?: string[];
+  /** Task #325 (file 25, section 4): Emerging tech's "Filings, 90 days" (order, capacity, partnership, mna), from Discover. */
+  filing?: string[] };
 export type ScoreRangeKey = "z" | "zf" | "zv" | "zq" | "zr";
 export const SCORE_RANGE_KEYS: ScoreRangeKey[] = ["z", "zf", "zv", "zq", "zr"];
 const rangeOn = (b: BarFilter) => SCORE_RANGE_KEYS.filter((k) => b.rg?.[k] && (b.rg[k]![0] != null || b.rg[k]![1] != null));
@@ -137,6 +148,7 @@ const advParams = (b: BarFilter): string[] => [
   ...(b.pl?.length ? ["pl=" + b.pl.join(",")] : []),
   ...rangeOn(b).flatMap((k) => { const [lo, hi] = b.rg![k]!; return [...(lo != null ? [`${k}min=${lo}`] : []), ...(hi != null ? [`${k}max=${hi}`] : [])]; }),
   ...(b.st5?.length ? ["st5=" + b.st5.join(",")] : []), ...(b.lt5?.length ? ["lt5=" + b.lt5.join(",")] : []),
+  ...(b.filing?.length ? ["filing=" + b.filing.join(",")] : []),
 ];
 export const NO_BAR: BarFilter = { q: "", sizes: [], sectors: [], rating: "", fresh: false, ahead: false, nse: false, fno: false, liquid: false, sag: false, plead: false, ind: null };
 export const barParams = (b: BarFilter): string[] => [...(b.q.trim() ? ["q=" + encodeURIComponent(b.q.trim())] : []), ...b.sizes.map((x) => "size=" + encodeURIComponent(x)),
@@ -144,7 +156,7 @@ export const barParams = (b: BarFilter): string[] => [...(b.q.trim() ? ["q=" + e
   ...(b.fno ? ["fno=1"] : []), ...(b.liquid ? ["liquid=1"] : []), ...(b.sag ? ["sag=1"] : []), ...(b.plead ? ["plead=1"] : []), ...(b.ind ? ["ind=" + encodeURIComponent(b.ind.slug)] : []), ...advParams(b)];
 /** How many filters are on (the search box counts as one). */
 export const barCount = (b: BarFilter) => (b.q.trim() ? 1 : 0) + b.sizes.length + b.sectors.length + (b.rating ? 1 : 0) + (b.fresh ? 1 : 0) + (b.ahead ? 1 : 0) + (b.nse ? 1 : 0) + (b.fno ? 1 : 0) + (b.liquid ? 1 : 0) + (b.sag ? 1 : 0) + (b.plead ? 1 : 0) + (b.ind ? 1 : 0)
-  + (b.macros?.length ?? 0) + (b.nsecs?.length ?? 0) + (b.indus?.length ?? 0) + barScoreCount(b);
+  + (b.macros?.length ?? 0) + (b.nsecs?.length ?? 0) + (b.indus?.length ?? 0) + barScoreCount(b) + (b.filing?.length ?? 0);
 export const detailPath = (id: string, chips: string[], offset = 0, limit?: number, asOn?: string | null, bar: BarFilter = NO_BAR) => {
   const q = chips.map((c) => "chip=" + encodeURIComponent(c));
   q.push(...barParams(bar));
@@ -203,3 +215,24 @@ export const rowsForTheme = (rows: PresetRow[], t: Theme | null): PresetRow[] =>
 
 /** A breadth figure arrives as a percentage (43) or a share (0.43); both are shown as a percentage. */
 export const asPct = (v: number | null | undefined): number | null => (v == null ? null : Math.abs(v) <= 1 ? v * 100 : v);
+
+/* ------------------------------------------------------------------ task #325 (developer file 25): the chart wall's prices and the screen's view */
+export type ScreenSeries = { t: string[]; o: (number | null)[]; h: (number | null)[]; l: (number | null)[]; c: number[] };
+export type ScreenPrices = { range: string; series: Record<string, ScreenSeries | null> };
+/** Up to 12 companies' prices in one call per chunk (the server's most), from the stored daily series: a card never waits for a company report. */
+export function useScreenPrices(id: string | null, symbols: string[], range: "3M" | "6M" = "6M", enabled = true) {
+  const chunks: string[][] = [];
+  for (let i = 0; i < symbols.length; i += 12) chunks.push(symbols.slice(i, i + 12));
+  return useQuery<Record<string, ScreenSeries | null>, ApiError>({
+    queryKey: ["screen-prices", id, range, symbols.join(",")], enabled: enabled && !!id && symbols.length > 0, staleTime: 600_000, placeholderData: keepPreviousData, retry: 1,
+    queryFn: async () => {
+      const parts = await Promise.all(chunks.map((c) => apiGet<ScreenPrices>(`/api/screener/presets/${encodeURIComponent(id!)}/prices?range=${range}&symbols=${c.map(encodeURIComponent).join(",")}`)));
+      return Object.assign({}, ...parts.map((p) => p.series));
+    },
+  });
+}
+export type ScreenViewMode = "table" | "list" | "charts";
+const VIEW_KEY = "finlit-screen-view";
+/** The view switch remembers its choice (file 25, 1 row 1); List + chart is the default (row 2). */
+export const readScreenView = (): ScreenViewMode => { try { const v = localStorage.getItem(VIEW_KEY); return v === "table" || v === "charts" || v === "list" ? v : "list"; } catch { return "list"; } };
+export const saveScreenView = (v: ScreenViewMode) => { try { localStorage.setItem(VIEW_KEY, v); } catch { /* private window */ } };

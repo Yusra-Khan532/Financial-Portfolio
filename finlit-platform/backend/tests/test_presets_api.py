@@ -255,13 +255,81 @@ async def test_the_list_gives_each_card_its_first_three_its_figure_and_who_joine
     first = card((await gold.get("/api/screener/presets")).json())
     assert first["joined"] == 0                         # the first stored close: every company was already there, nobody "joined"
     assert [f["symbol"] for f in first["first"]] == syms[:3] and all(f["name"] for f in first["first"]) and first["figure"] == "FinLit Prism" and first["top10"] is False
-    async with store.pool.acquire() as conn:            # an earlier close on record, and two companies added at the latest one
-        await conn.execute("INSERT INTO screen_runs (preset_id, chips, session, registry, n, list_hash) VALUES ($1, $2, $3::date - 1, 1, 1, 'x')", p.id, ckey, session)
-        await conn.execute("UPDATE screen_spells SET added_on = $3::date - 1 WHERE preset_id = $1 AND chips = $2 AND symbol <> ALL($4::text[])", p.id, ckey, session, syms[:2])
+    async with store.pool.acquire() as conn:            # task #325 C: an earlier saved list under the same rules, without the first two companies
+        reg = await conn.fetchval("SELECT registry FROM screen_runs WHERE preset_id = $1 AND chips = $2 AND session = $3", p.id, ckey, session)
+        await conn.execute("INSERT INTO screen_runs (preset_id, chips, session, registry, n, list_hash) VALUES ($1, $2, $3::date - 1, $4, $5, 'x')", p.id, ckey, session, reg, len(syms) - 2)
+        await conn.executemany("INSERT INTO screen_snapshots (preset_id, chips, session, symbol, rank, close, row) VALUES ($1, $2, $3::date - 1, $4, $5, NULL, '{}'::jsonb)",
+                               [(p.id, ckey, session, s, i) for i, s in enumerate(syms[2:])])
     again = card((await gold.get("/api/screener/presets")).json())
-    assert again["joined"] == 2
+    assert again["joined"] == 2 and "rulesUpdated" not in again       # the same count the open screen gives: on the latest list, not on the one before
+    async with store.pool.acquire() as conn:            # the rules changed between the two lists: the card says so and gives no joined figure
+        await conn.execute("UPDATE screen_runs SET registry = registry + 1 WHERE preset_id = $1 AND chips = $2 AND session = $3::date - 1", p.id, ckey, session)
+    ruled = card((await gold.get("/api/screener/presets")).json())
+    assert ruled.get("rulesUpdated") is True and "joined" not in ruled
     top = [c for g in (await gold.get("/api/screener/presets")).json()["groups"] for c in g["presets"] if c["id"] == "highest-rated-large"][0]
     assert top["top10"] is True and top["figure"] == "FinLit Prism"
     locked = card((await anon.get("/api/screener/presets")).json())
     assert "first" not in locked and "joined" not in locked and locked["count"] is None
     await gold.aclose()
+
+
+async def test_325_one_prices_call_for_the_chart_wall(app, anon, monkeypatch):  # noqa: F811
+    """Task #325 (file 25, section 5): up to 12 companies' prices in one call, from the stored daily series; a company with none is null; Gold only."""
+    from finlit.presets import candles as cm
+    t = [f"2026-0{m}-1{d}" for m in range(1, 9) for d in range(0, 10)][:80]
+
+    async def series(store, sym):
+        return {} if sym == "NONE" else {"t": t, "o": [1.0] * 80, "h": [2.0] * 80, "l": [0.5] * 80, "c": [1.5] * 80, "v": [9] * 80}
+    monkeypatch.setattr(cm, "series", series)
+    assert (await anon.get("/api/screener/presets/emerging-tech/prices?symbols=A")).status_code in (401, 403)
+    gold = await signed_in(app, "g325@example.com", plan="gold")
+    r = await gold.get("/api/screener/presets/emerging-tech/prices?range=3M&symbols=a,NONE," + ",".join(f"S{i}" for i in range(20)))
+    assert r.status_code == 200
+    body = r.json()
+    assert body["range"] == "3M" and len(body["series"]) == 12 and body["series"]["NONE"] is None
+    assert len(body["series"]["A"]["t"]) == 63 and set(body["series"]["A"]) == {"t", "o", "h", "l", "c"}
+
+
+async def test_325_d2_summary_line_and_emerging_tech_from_discover(app, store, monkeypatch):  # noqa: F811
+    """Task #325 D2 (file 25, section 1 row 7 and section 4): the list's summary over the rows the filters leave; on Emerging tech every row carries
+    Discover's stage, themes, the four filing kinds' counts and the latest of them, "Not placed" when Discover has no presentation; the "Filings, 90 days"
+    filter keeps only companies with that kind of filing and its counts come with the facets."""
+    from finlit.presets import api as papi
+    await wipe(store)
+    gold = await signed_in(app, "d2@example.com", plan="gold")
+    first = (await gold.get("/api/screener/presets/emerging-tech?limit=200")).json()
+    syms = [r["symbol"] for r in first["rows"]]
+    assert len(syms) >= 3 and first["summary"]["count"] == first["available"]
+    assert set(first["summary"]) == {"count", "held", "up", "down", "nearHigh", "highHeld", "sound"}
+    if "discover" not in first:      # Discover's tables are empty in the test database: the screen still opens, every row "not placed"
+        assert all(r.get("disc_placed") is False for r in first["rows"])
+    board = {syms[0]: {"s": syms[0], "st": "Under execution", "th": "Defence & Aerospace", "sec": ["Industrial Manufacturing & Capex", "Electronics"],
+                       "ev": {"order": 2, "legal": 4}, "lf": {"d": "2026-11-18", "e": "order", "el": "Order win", "t": "Order worth Rs 90 crore"}},
+             syms[1]: {"s": syms[1], "st": "Operating", "th": "Electronics", "sec": [], "ev": {"capacity": 1}, "lf": None}}
+
+    async def rows_(store):
+        return board
+    monkeypatch.setattr(papi, "_discover_rows", rows_)
+    d = (await gold.get("/api/screener/presets/emerging-tech?limit=200")).json()
+    by = {r["symbol"]: r for r in d["rows"]}
+    a, b, c = by[syms[0]], by[syms[1]], by[syms[2]]
+    assert d["discover"] is True and a["disc_placed"] and a["disc_stage"] == "Under execution"
+    assert a["disc_themes"] == ["Defence & Aerospace", "Electronics"]                         # the broad theme is left out
+    assert a["disc_ev"] == {"order": 2, "capacity": 0, "partnership": 0, "mna": 0}            # legal filings are not one of the four kinds
+    assert a["disc_latest"]["el"] == "Order win" and b["disc_latest"] is None and c["disc_placed"] is False and c["disc_stage"] == "Not placed"
+    assert [c["key"] for c in d["columns"] if c.get("band") == "From Discover"] == ["disc_stage", "disc_latest_d"] and a["disc_latest_d"] == "2026-11-18"
+    assert d["facets"]["filings"] == {"order": 1, "capacity": 1, "partnership": 0, "mna": 0}
+    only = (await gold.get("/api/screener/presets/emerging-tech?limit=200&filing=order")).json()
+    assert [r["symbol"] for r in only["rows"]] == [syms[0]] and only["summary"]["count"] == 1
+    both = (await gold.get("/api/screener/presets/emerging-tech?limit=200&filing=order,capacity")).json()
+    assert sorted(r["symbol"] for r in both["rows"]) == sorted(syms[:2])
+    hi = (await gold.get("/api/screener/presets/highest-rated-large")).json()
+    assert "discover" not in hi and not any("disc_placed" in r for r in hi["rows"]) and "summary" in hi
+    await gold.aclose()
+
+
+def test_325_d2_summary_counts():
+    from finlit.presets.api import _summary
+    rows = [{"symbol": "A", "prism_lt_score": 45, "pct_from_high": 4, "prism_final": 81}, {"symbol": "B", "prism_lt_score": -30, "pct_from_high": 25, "prism_final": 66},
+            {"symbol": "C", "prism_lt_score": 0, "pct_from_high": 10, "prism_final": 50}, {"symbol": "D"}]
+    assert _summary(rows) == {"count": 4, "held": 3, "up": 1, "down": 1, "nearHigh": 2, "highHeld": 3, "sound": 2}

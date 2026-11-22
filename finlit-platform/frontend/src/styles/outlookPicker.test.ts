@@ -11,6 +11,6 @@ describe("company picker rows", () => {
     expect(css).not.toMatch(/\.olp-row \{ display: flex;/);
   });
   it("sets the headings in bold, in the main text colour", () => {
-    expect(css).toMatch(/\.olp-l \{ font: 700 13px var\(--sans\);[^}]*color: var\(--text\);/);
+    expect(css).toMatch(/\.olp-l \{ font: 700 var\(--fs-13\) var\(--sans\);[^}]*color: var\(--text\);/);
   });
 });

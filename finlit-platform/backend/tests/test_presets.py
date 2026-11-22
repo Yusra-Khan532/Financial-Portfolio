@@ -61,7 +61,8 @@ def test_registry_shape_names_and_rules():
                                          "strong-results", "dividend-payers", "turnarounds", "rating-downgrades", "institutions-buying", "promoter-buying", "fresh-results", "weak-results",   # task #243 round 3a
                                          "sector-leaders-leading", "sector-rebound-leaders", "sector-early-leaders", "sector-setups-behind", "sector-turning-up", "sector-results-leading"]   # round 3b
     assert [p.id for p in QUICK_VIEWS] == ["strongsafe", "fairvalue", "weakvalue", "bothtech"] and "weak valuation" in BY_ID["weakvalue"].card_text      # 14 Nov N-35: the mock-up's order
-    assert [p.name for p in QUICK_VIEWS] == ["Strong and safe", "Fair value", "Weak value", "Uptrend on both views"] and not any(re.search(r"\d", p.card_text) for p in QUICK_VIEWS)      # N-31: words, no cut-offs
+    assert [p.name for p in QUICK_VIEWS] == ["Strong and safe", "Growth at a reasonable valuation", "Growth with a stretched valuation", "Uptrend on both views"]   # task #325 (file 25, 6: renamed, approved 22 Nov)
+    assert True and not any(re.search(r"\d", p.card_text) for p in QUICK_VIEWS)      # N-31: words, no cut-offs
     for p in PRESETS:     # a blocked card says it in plain words, never a developer's note
         if p.status == "blocked":
             assert not re.search(r"prism_reports|is_psu|one row|flag", p.blocked_reason or "", re.I), p.id

@@ -2,18 +2,18 @@
 .cpf-open { color: var(--loss) !important; border-color: color-mix(in srgb, var(--loss) 45%, var(--border-strong)) !important; }
 .cpf-open:disabled { opacity: .5; }
 .cpf-back { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 16px; background: rgba(15, 20, 25, .45); }
-.cpf-dlg { width: min(460px, 100%); max-height: calc(100vh - 32px); overflow: auto; padding: 22px 24px; border-radius: 16px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); box-shadow: 0 24px 60px -20px rgba(0, 0, 0, .5); }
+.cpf-dlg { width: min(460px, 100%); max-height: calc(100vh - 32px); overflow: auto; padding: 22px 24px; border-radius: var(--r-card); border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); box-shadow: 0 24px 60px -20px rgba(0, 0, 0, .5); }
 .cpf-dlg h2 { margin: 0 0 10px; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
-.cpf-dlg p { margin: 0 0 8px; font-size: 14px; line-height: 1.5; } .cpf-dlg ul { margin: 0 0 10px; padding-left: 20px; font-size: 14px; line-height: 1.5; list-style: disc; } .cpf-dlg li { display: list-item; }
+.cpf-dlg p { margin: 0 0 8px; font-size: var(--fs-14); line-height: 1.5; } .cpf-dlg ul { margin: 0 0 10px; padding-left: 20px; font-size: var(--fs-14); line-height: 1.5; list-style: disc; } .cpf-dlg li { display: list-item; }
 .cpf-safe { color: var(--muted); }
 .cpf-row { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 14px; }
-.cpf-row button { min-height: 44px; padding: 0 18px; border-radius: 999px; font: 600 14px var(--sans); cursor: pointer; }
+.cpf-row button { min-height: 44px; padding: 0 18px; border-radius: var(--ui-r-pill); font: 600 var(--fs-14) var(--sans); cursor: pointer; }
 .cpf-keep { border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); }
 .cpf-go { border: 1px solid var(--loss); background: var(--loss); color: var(--bg, #fff); }
 .cpf-go:disabled { opacity: .6; cursor: wait; }
 .cpf-row button:focus-visible, .cpf-toast button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .cpf-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 95; display: flex; align-items: center; gap: 18px; max-width: calc(100vw - 32px);
-  padding: 12px 18px; border-radius: 12px; background: #14211c; color: #f3eee2; font-size: 14px; box-shadow: 0 14px 34px -14px rgba(0, 0, 0, .55); }
+  padding: 12px 18px; border-radius: var(--r-ctl); background: #14211c; color: #f3eee2; font-size: var(--fs-14); box-shadow: 0 14px 34px -14px rgba(0, 0, 0, .55); }
 .cpf-toast button { all: unset; cursor: pointer; font-weight: 700; color: #e9cf8f; text-decoration: underline; text-underline-offset: 3px; min-height: 32px; display: inline-flex; align-items: center; }
-.cpf-err { margin: 6px 0 0; font-size: 13px; color: var(--loss); }
+.cpf-err { margin: 6px 0 0; font-size: var(--fs-13); color: var(--loss); }
 @media (max-width: 640px) { .cpf-toast { bottom: 88px; } }   /* above the phone's bottom menu */

@@ -121,10 +121,6 @@ export const PAGE_FAQS: PageFaq[] = [
     "a": "Each rating takes about 30 seconds to calculate, so they are added in steps, largest companies first, with more every night. For a company that is not rated yet, select Rate now on its row: its Prism page starts the calculation."
    },
    {
-    "q": "What do the Quick views do?",
-    "a": "They set common filters in one click: Prism strong and lower risk, Strong Growth & Profitability at a fair valuation, Uptrend on both technical views, and Growth & Profitability strong but valuation weak."
-   },
-   {
     "q": "Which screener should I use?",
     "a": "Use this Advanced stock screener (Gold) to sort and filter every company by the FinLit Prism rating, its four parts and its two technical views, or to open a ready-made screen. The Stock screener combines many rules on figures such as P/E, debt and returns, and the Query builder lets you type rules such as P/E < 15 instead of clicking."
    }

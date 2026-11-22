@@ -90,7 +90,7 @@
   ]
  },
  {
-  "declared": 7,
+  "declared": 6,
   "id": "advanced-score-screener",
   "title": "Advanced stock screener",
   "section": "Find stocks",
@@ -118,10 +118,6 @@
    {
     "q": "Why don't all companies have a Prism rating yet?",
     "a": "Each rating takes about 30 seconds to calculate, so they are added in steps, largest companies first, with more every night. For a company that is not rated yet, select Rate now on its row: its Prism page starts the calculation."
-   },
-   {
-    "q": "What do the Quick views do?",
-    "a": "They set common filters in one click: Prism strong and lower risk, Strong Growth & Profitability at a fair valuation, Uptrend on both technical views, and Growth & Profitability strong but valuation weak."
    },
    {
     "q": "Which screener should I use?",

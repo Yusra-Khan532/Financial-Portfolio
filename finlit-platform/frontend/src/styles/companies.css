@@ -1,5 +1,5 @@
 .cx-letters { list-style: none; margin: var(--s-4, 16px) 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
-.cx-letters a { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border: 1px solid var(--border, #d8dee8); border-radius: 12px; background: var(--surface, transparent); color: var(--text-primary); text-decoration: none; }
+.cx-letters a { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border: 1px solid var(--border, #d8dee8); border-radius: var(--r-ctl); background: var(--surface, transparent); color: var(--text-primary); text-decoration: none; }
 .cx-letters a:hover { border-color: var(--gold, currentColor); }
 .cx-letters span { color: var(--text-muted, var(--text-primary)); }
 .cx-list { list-style: none; margin: var(--s-4, 16px) 0; padding: 0; columns: 3 280px; column-gap: 28px; }

@@ -5,7 +5,7 @@ import { PhoneFold } from "../components/PhoneFold";
 import { useMemo } from "react";
 import { useSearchParams } from "react-router";
 import { useDocTitle } from "../lib/title";
-import { groupsParen, groupsSplit } from "../lib/pulsePack";
+import { groupsN, groupsParen, groupsSplit } from "../lib/pulsePack";
 import { PulseGuide, SectionsBar } from "../components/sectors/pack/Guide";
 import { useAuth } from "../lib/auth";
 import { usePortfolio } from "../lib/portfolio";
@@ -46,6 +46,18 @@ export function SectorPulsePage() {
   const mine = useMemo(() => new Set(Object.values(mem.data?.groups ?? {}).map((g) => g.slug)), [mem.data]);
   const b = q.data, h = hq.data;
   const d = b?.date ? new Date(b.date + "T00:00:00Z") : null;
+  // task #310 F (05-phone.md, fix 6): a closed section's one line carries its live figure where the section already has it
+  const foldLine = useMemo(() => {
+    const flags = b?.leader_flags, u = b?.universe, few = b?.too_few_stocks ?? [];
+    return {
+      bystate: b ? tw(`${groupsN(b.rows.length)} with a reading, grouped by their state today`) : "Every group with a reading, grouped by its state today",
+      standouts: flags == null ? tw("Stocks at a new 1-year high while their industry is well below its own")
+        : !flags.length ? tw("No stock is at a new 1-year high inside a weak industry today")
+        : tw(`${flags.length.toLocaleString("en-IN")} ${flags.length === 1 ? "stock" : "stocks"} at a new 1-year high while their industry is well below its own`),
+      counted: u ? tw(`${u.counted_in_groups_with_reading.toLocaleString("en-IN")} stocks counted · ${groupsN(few.length)} too small for a reading`)
+        : "Which stocks are counted, and the groups too small for a reading",
+    };
+  }, [b]);
   const meta = b ? <>Updated every weekend, to the close of {d ? `${WEEKDAY[d.getUTCDay()]} ${b.date_label ?? b.date}` : b.date} · {b.universe ? b.universe.counted_in_groups_with_reading.toLocaleString("en-IN") : b.stocks_counted.toLocaleString("en-IN")} actively traded stocks<Tip text="Only actively traded, established stocks are counted, so a few rarely traded names cannot swing the reading. The list is reviewed once a month." /> · {groupsSplit(b.rows)}, as NSE groups them<Tip text={show === "sectors" ? "Each group is one of NSE's 22 sectors, read with all its industries together. A sector with too few actively traded stocks for a steady reading is listed under Too small." : "Each group is an NSE industry with enough actively traded stocks for a steady reading; small industries of the same NSE sector are read together as one sector group."} /></> : null;
   return (
     <div className="wrap sx sp" data-testid="sector-pulse">
@@ -68,13 +80,13 @@ export function SectorPulsePage() {
           <TodayMinute b={b} h={h} />
           <Cycle b={b} />
           {/* task #310 part E (05-phone.md, fix 6): on a phone the sections after the second start closed (name and one line); desktop unchanged */}
-          <PhoneFold page="sectors" id="bystate" title="By state" line="Every group with a reading, grouped by its state today"><ByState b={b} mine={mine} /></PhoneFold>
+          <PhoneFold page="sectors" id="bystate" title="By state" line={foldLine.bystate}><ByState b={b} mine={mine} /></PhoneFold>
           {mq.data && <PhoneFold page="sectors" id="map" title={tw("Industry map")} line={tw("Each industry as a dot: how many of its stocks are rising, and how far it is below its 1-year high")}><IndustryMapPack m={mq.data} /></PhoneFold>}
           {h && <PhoneFold page="sectors" id="mood" title="Market mood" line="How many groups were in each state, day by day"><Mood h={h} /></PhoneFold>}
           <PhoneFold page="sectors" id="momentum" title="Momentum × strength" line="The Sector Pulse state beside the Sector Rotation box"><Momentum b={b} mine={mine} /></PhoneFold>
           <PhoneFold page="sectors" id="yours" title={tw("Your industries")} line={tw("The industries of the shares in your portfolio, and how each is doing")}><YourIndustries b={b} h={h} symbols={symbols} signedIn={!!user} /></PhoneFold>
-          <PhoneFold page="sectors" id="standouts" title="Standout stocks" line={tw("Stocks at a new 1-year high while their industry is well below its own")}><Standouts b={b} /></PhoneFold>
-          <PhoneFold page="sectors" id="counted" title="Counted / Too small" line="Which stocks are counted, and the groups too small for a reading"><CountedAndSmall b={b} /></PhoneFold>
+          <PhoneFold page="sectors" id="standouts" title="Standout stocks" line={foldLine.standouts}><Standouts b={b} /></PhoneFold>
+          <PhoneFold page="sectors" id="counted" title="Counted / Too small" line={foldLine.counted}><CountedAndSmall b={b} /></PhoneFold>
           <Words />
         </>
       )}

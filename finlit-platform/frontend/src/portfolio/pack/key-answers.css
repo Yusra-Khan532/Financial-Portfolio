@@ -1,23 +1,23 @@
 /* Task #274 (change 9): Key figures as three plain answers (pack/KeyAnswers.tsx). Theme tokens only, so light and dark follow. */
 .eqk-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.eqk { --kc: #c08a1e; display: grid; align-content: start; gap: 8px; min-width: 0; padding: 14px 16px; border: 1px solid color-mix(in srgb, var(--kc) 30%, var(--border)); border-radius: 14px;
+.eqk { --kc: #c08a1e; display: grid; align-content: start; gap: 8px; min-width: 0; padding: 14px 16px; border: 1px solid color-mix(in srgb, var(--kc) 30%, var(--border)); border-radius: var(--r-ctl);
   background: color-mix(in srgb, var(--kc) 9%, var(--s1)); }
 .eqk.eqk-a { --kc: #c08a1e; } .eqk.eqk-b { --kc: #2f5a9e; } .eqk.eqk-c { --kc: #c4553a; }
-.eqk-k { margin: 0; font: 700 13px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-.eqk-s { margin: 0; font: 400 20px/1.4 var(--serif); color: var(--text); }
-.eqk-bar { display: flex; gap: 2px; height: 10px; border-radius: 99px; overflow: hidden; background: color-mix(in srgb, var(--text) 6%, transparent); }
+.eqk-k { margin: 0; font: 700 var(--fs-13) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.eqk-s { margin: 0; font: 400 var(--fs-20)/1.4 var(--serif); color: var(--text); }
+.eqk-bar { display: flex; gap: 2px; height: 10px; border-radius: var(--ui-r-pill); overflow: hidden; background: color-mix(in srgb, var(--text) 6%, transparent); }
 .eqk-bar i { display: block; min-width: 3px; }
-.eqk-leg { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; padding: 0; list-style: none; font: 400 14px var(--sans); color: var(--text); }
-.eqk-leg li { display: inline-flex; align-items: center; gap: 6px; } .eqk-leg i { width: 10px; height: 10px; border-radius: 3px; } .eqk-leg b { font-weight: 700; }
+.eqk-leg { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; padding: 0; list-style: none; font: 400 var(--fs-14) var(--sans); color: var(--text); }
+.eqk-leg li { display: inline-flex; align-items: center; gap: 6px; } .eqk-leg i { width: 10px; height: 10px; border-radius: var(--ui-r-mark); } .eqk-leg b { font-weight: 700; }
 .eqk-rows { display: grid; gap: 6px; }
-.eqk-row { display: grid; grid-template-columns: minmax(80px, auto) minmax(0, 1fr) 44px; align-items: center; gap: 8px; font: 400 14px var(--sans); color: var(--text); }
+.eqk-row { display: grid; grid-template-columns: minmax(80px, auto) minmax(0, 1fr) 44px; align-items: center; gap: 8px; font: 400 var(--fs-14) var(--sans); color: var(--text); }
 .eqk-row span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-.eqk-track { position: relative; height: 10px; border-radius: 99px; background: color-mix(in srgb, var(--text) 6%, transparent); }
-.eqk-track i { position: absolute; inset: 0 auto 0 0; border-radius: 99px; background: var(--kc); }
+.eqk-track { position: relative; height: 10px; border-radius: var(--ui-r-pill); background: color-mix(in srgb, var(--text) 6%, transparent); }
+.eqk-track i { position: absolute; inset: 0 auto 0 0; border-radius: var(--ui-r-pill); background: var(--kc); }
 .eqk-track b { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--text); }
 .eqk-row em { font-style: normal; font-weight: 700; text-align: right; }
-.eqk-r { margin: 0; font: 400 14px/1.5 var(--sans); color: var(--text); }
+.eqk-r { margin: 0; font: 400 var(--fs-14)/1.5 var(--sans); color: var(--text); }
 .eqk-r a, .eqk-s a { color: inherit; }
-.eqk-go { justify-self: start; margin-top: 4px; padding: 0; border: 0; background: none; color: var(--text); font: 600 14px var(--sans); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.eqk-go { justify-self: start; margin-top: 4px; padding: 0; border: 0; background: none; color: var(--text); font: 600 var(--fs-14) var(--sans); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .eqk-go:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 @media (max-width: 1000px) { .eqk-grid { grid-template-columns: minmax(0, 1fr); } }

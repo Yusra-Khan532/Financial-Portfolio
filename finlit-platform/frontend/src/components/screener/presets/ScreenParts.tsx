@@ -10,11 +10,11 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { nf, MINUS } from "../../../lib/format";
-import { NO_BAR, type BarFilter, type BoardChip, type HistorySession, type LeftMode, type LeftRow, type PresetDetail, type Rating } from "../../../lib/presets";
+import { NO_BAR, type BarFilter, type BoardChip, type HistorySession, type LeftMode, type LeftRow, type ListSummary, type PresetDetail, type Rating } from "../../../lib/presets";
 import { INFO_BOARD, PsxInfo } from "./PsxInfo";
 import { Shine } from "./ScreensStrip";
 import { AdvScreenMenus, advChips } from "./AdvScreenFilters";
-import { pulseSay, pulseWord } from "../../../lib/pulseWords";
+import { pulseWord } from "../../../lib/pulseWords";
 import "../../../styles/screens243.css";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -28,15 +28,29 @@ export function statusLine(s: HistorySession): string {
     case "latest": return `Latest list · built after the ${day(s.date)} close`;
     case "rules": return "Rules updated this day";
     case "first": return "First saved list";
-    case "not_saved": return "Not saved";
+    case "not_saved": return "Not saved: the night's run did not store a list for this close";   // task #325 (file 25, 2.1 row 8): say why it is missing (12 Nov)
     default: return `Saved after the ${day(s.date)} close`;
   }
 }
 
+/** Task #325 (developer file 25, 2.1 rows 3 and 4, and section 1 row 10): on a day the screen's rules changed, joined and left would mix the rule change with price moves. */
+export const INFO_RULES = "The rules of this screen were updated at this close, so the list changed for that reason as well as for price moves. Joined and left are not shown for this day; they return from the next close.";
 export const INFO_PAST = "A past date shows the list as it stood after that close: its companies, their price, market cap and scores that day. Added and Since added read as they did that day. Since then shows what happened after the list, to the latest list. Joined and left compare the list with the previous saved list.";
 
 /** P3: the date bar. `sessions` latest first; `asOn` null for the latest list. */
-export function DateBar({ sessions, asOn, setAsOn, list }: { sessions: HistorySession[]; asOn: string | null; setAsOn: (d: string | null) => void; list: PresetDetail["list"] }) {
+/** Task #325 (file 25, section 1 row 7): what kind of list it is, before reading the rows, over the rows the filters leave. */
+export function SummaryLine({ s }: { s: ListSummary | undefined }) {
+  if (!s || !s.count) return null;
+  return (
+    <div className="psx3-sum" role="group" aria-label="This list in brief">
+      {s.held > 0 && <span><b>{nf(s.up, 0)}</b> of {nf(s.held, 0)} in a long-term uptrend</span>}
+      {s.held > 0 && <span><b>{nf(s.down, 0)}</b> in a downtrend</span>}
+      {s.highHeld > 0 && <span><b>{nf(s.nearHigh, 0)}</b> within 10% of the 52-week high</span>}
+      <span><b>{nf(s.sound, 0)}</b> rated Healthy or Strong</span>
+    </div>);
+}
+
+export function DateBar({ sessions, asOn, setAsOn, list, summary }: { sessions: HistorySession[]; asOn: string | null; setAsOn: (d: string | null) => void; list: PresetDetail["list"]; summary?: ListSummary }) {
   const [open, setOpen] = useState(false), [act, setAct] = useState(0);
   const btn = useRef<HTMLButtonElement>(null), box = useRef<HTMLUListElement>(null), lid = useId();
   const latest = sessions.find((s) => s.status === "latest" || s.saved !== false) ?? sessions[0];
@@ -82,9 +96,11 @@ export function DateBar({ sessions, asOn, setAsOn, list }: { sessions: HistorySe
         ? <><i aria-hidden="true" />New screen · first list, after the {day(cur)} close</>          /* task #243 (pack R5): the screen's only saved list */
         : <><i aria-hidden="true" />Latest list · after the {day(cur)} close</>}</span>
       {figs && <span className="psx3-figs" aria-live="polite"><b>{nf(figs.count, 0)}</b> {figs.count === 1 ? "company" : "companies"}
-        {figs.prev ? <> · <span className="psx3-j">+{nf(figs.joined ?? 0, 0)} joined</span> · {nf(figs.left ?? 0, 0)} left since {day(figs.prev)}</> : <> · first saved list</>}</span>}
+        {figs.prev && figs.rulesUpdated ? <> · rules updated on {day(cur)} <PsxInfo text={INFO_RULES} label="Rules updated" /></>
+          : figs.prev ? <> · <span className="psx3-j">+{nf(figs.joined ?? 0, 0)} joined</span> · {nf(figs.left ?? 0, 0)} left since {day(figs.prev)}</> : <> · first saved list</>}</span>}
       <PsxInfo text={INFO_PAST} label="List as on" />
       {past && <button type="button" className="fgx-link psx3-back" onClick={() => setAsOn(null)}>Back to the latest list</button>}
+      <SummaryLine s={summary} />
     </div>);
 }
 
@@ -172,22 +188,28 @@ export function FilterChips({ f }: { f: FilterSet }) {
 
 /** Task #243 round 3b (pack v4, section 3): the industry board of a Sectors screen. One chip per industry on the list, with its count, Sector Rotation corner and
  *  Sector Pulse state; the counts add up to the list. Picking a chip narrows the list (a filter chip shows it); picking it again shows every industry. */
+/** Task #325 (file 25, section 1 row 6): the industries on a sector screen's list in one row: the six largest as chips with their counts, the rest under
+ *  "+N more", and every industry's Sector Rotation and Sector Pulse reading behind the i button (and on each chip's hover). Was nine cards in three rows. */
+export const BOARD_SHOWN = 6;
+const reading = (c: BoardChip) => [c.rotation, pulseWord(c.pulseCode, c.pulse)].filter(Boolean).join(" · ");
 export function IndustryBoard({ board, on, onPick }: { board: BoardChip[]; on: string | null; onPick: (c: BoardChip) => void }) {
   const total = board.reduce((a, c) => a + c.n, 0);
+  const top = board.slice(0, BOARD_SHOWN), more = board.slice(BOARD_SHOWN);
+  const moreOn = more.find((c) => !!c.slug && c.slug === on) ?? null;
+  const chip = (c: BoardChip) => {
+    const pressed = !!c.slug && on === c.slug;
+    return <button key={c.slug ?? "none"} type="button" className={"fgx-chip psx-chip psx3-ind1" + (pressed ? " is-on" : "")} aria-pressed={c.slug ? pressed : undefined} disabled={!c.slug}
+      title={c.slug ? reading(c) || undefined : undefined} onClick={() => onPick(c)}>{c.name}<small className="psx-chipn">{nf(c.n, 0)}</small></button>;
+  };
   return (
-    <div className="psx3-board" role="group" aria-label={`Industries on this list: ${board.length}, ${total} ${total === 1 ? "company" : "companies"}`}>
-      <p className="psx3-bh"><b>Industries on this list</b> <span>{nf(board.length, 0)} · {nf(total, 0)} {total === 1 ? "company" : "companies"}</span><PsxInfo text={INFO_BOARD} label="the industry board" /></p>
-      <div className="psx3-bc">
-        {board.map((c) => {
-          const pressed = !!c.slug && on === c.slug;
-          return (
-            <button key={c.slug ?? "none"} type="button" className={"psx3-ind" + (pressed ? " is-on" : "") + (c.slug ? "" : " is-none")} aria-pressed={c.slug ? pressed : undefined} disabled={!c.slug}
-              onClick={() => onPick(c)}>
-              <span className="psx3-in"><b>{c.name}</b><span className="psx3-ic">{nf(c.n, 0)}</span></span>
-              {c.slug && <span className="psx3-im"><span className={"psx3-rot is-" + (c.corner ?? "")}>{c.rotation ?? `${MINUS} no rotation reading`}</span><span className={"psx3-pls is-" + (c.pulseCode ?? "")} title={pulseSay(c.pulseCode) ?? undefined}>{pulseWord(c.pulseCode, c.pulse) ?? MINUS}</span></span>}
-            </button>);
-        })}
-      </div>
+    <div className="psx-opts psx3-board" role="group" aria-label={`Industries on this list: ${board.length}, ${total} ${total === 1 ? "company" : "companies"}`}>
+      <span className="psx-optk">Industries on this list <small>{nf(board.length, 0)}</small></span>
+      <span className="psx-optrow" role="presentation">{top.map(chip)}</span>
+      {more.length > 0 && <Dropdown label={moreOn ? moreOn.name : `+${nf(more.length, 0)} more`} on={!!moreOn}>
+        {more.map((c) => <Opt key={c.slug ?? "none"} type="radio" name="psx3-more-ind" checked={!!c.slug && c.slug === on} onChange={() => c.slug && onPick(c)} label={c.name} n={c.n} desc={c.slug ? reading(c) || undefined : "Not classified"} />)}
+      </Dropdown>}
+      <PsxInfo label="Industries on this list" text={<span className="psx3-about"><span>{INFO_BOARD}</span>
+        <span role="list">{board.filter((c) => c.slug).map((c) => <span role="listitem" key={c.slug!}><b className="psx3-bname">{c.name}</b>: {reading(c) || `${MINUS} no reading`}</span>)}</span></span>} />
     </div>);
 }
 

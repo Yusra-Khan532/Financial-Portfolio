@@ -184,7 +184,7 @@ export function IndexHeatmap({ rows, loading, asOf }: { rows: Row[]; loading: bo
         {pref.view !== "map" && <Dd k="Sort" value={pref.sort} options={SORTS.map(([v, label]) => ({ v, label }))} onChange={(v) => setPref({ sort: v as HSort })} />}
       </div>}>
       {!loading && res.cells.length > 0 && <div className="hmx-tools"><span>{ix.label} · {res.cells.length} stocks</span></div>}
-      {loading ? <div className="skeleton" style={{ height: phone ? 420 : 440, borderRadius: 12 }} aria-busy="true" />
+      {loading ? <div className="skeleton" style={{ height: phone ? 420 : 440, borderRadius: "var(--r-ctl)" }} aria-busy="true" />
         : !res.cells.length ? <p className="dsh-note">{res.basis === "none" ? `NSE's published list of the ${ix.label} stocks has not been loaded yet; it is fetched with the nightly index refresh. Every other index here is ready.` : "No traded stocks for this group today."}</p>
           : pref.view === "grid" ? <Grid cells={shownCells} tiles={tiles} gridRef={gridRef} id="dx-hms" />
             : pref.view === "map" ? <HeatMap cells={res.cells} h={xp ? 620 : phone ? 420 : 440} tiles={tiles} onOther={() => setPref({ view: "grid" })} />

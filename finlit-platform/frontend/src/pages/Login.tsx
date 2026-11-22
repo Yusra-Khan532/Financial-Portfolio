@@ -105,7 +105,7 @@ export function Login() {
               {mode === "signup" && <label className="chk"><input type="checkbox" checked={terms} onChange={(e) => setTerms(e.target.checked)} /><span>I agree to the <Link to="/legal/terms" target="_blank">Terms</Link> and <Link to="/legal/privacy" target="_blank">Privacy Notice</Link>. FinLit research is information, not investment advice.</span></label>}
               {err && <div className="formerr" role="alert">{err}{unverified && <> <button type="button" className="linkbtn" onClick={() => resend.mutate()} disabled={resend.isPending}>Send the link again</button></>}{offerReset && mode === "signin" && <> <Link to={`/forgot-password${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ""}`}>Reset your password</Link></>}</div>}
               <div className="auth-submit"><button className="btn primary lg" style={{ width: "100%" }} disabled={busy}>{busy ? "One moment…" : mode === "signup" ? "Create account" : needCode ? "Verify and sign in" : "Sign in"}</button></div>
-              {mode === "signin" && !needCode && <p style={{ margin: "14px 0 0", fontSize: 14 }}><Link to="/forgot-password">Forgot your password?</Link></p>}
+              {mode === "signin" && !needCode && <p style={{ margin: "14px 0 0", fontSize: "var(--fs-14)" }}><Link to="/forgot-password">Forgot your password?</Link></p>}
             </form>
           )}
         </div>

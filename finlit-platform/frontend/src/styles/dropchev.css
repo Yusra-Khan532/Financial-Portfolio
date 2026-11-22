@@ -5,4 +5,4 @@ details.xdd > summary::-webkit-details-marker { display: none; }
 details.xdd > summary > .xdd-chev { margin-left: auto; }
 .xdd-chev { flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; border: 1px solid color-mix(in srgb, currentColor 25%, transparent); color: var(--muted); background: var(--s1); transition: transform .2s; }
 details.xdd[open] > summary > .xdd-chev { transform: rotate(180deg); }
-details.xdd > summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 8px; }
+details.xdd > summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: var(--r-ctl); }

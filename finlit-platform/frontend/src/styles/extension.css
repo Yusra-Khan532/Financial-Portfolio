@@ -3,72 +3,73 @@
 .ext-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: stretch; }   /* two equal boxes, side by side, one height (task #66) */
 .ext-hero > .ext-card { display: flex; flex-direction: column; justify-content: center; }   /* short intro box, centred beside the example card: no tall step list stretching the pair (task #66) */
 .ext-hero > .ext-card > .ext-badge { align-self: flex-start; }
-.ext-card { border: 1px solid var(--border); background: var(--s1); border-radius: 16px; padding: 24px; }
+.ext-card { border: 1px solid var(--border); background: var(--s1); border-radius: var(--r-card); padding: 24px; }
 .ext-card h2 { margin: 0 0 8px; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
 .ext-card h3 { margin: 0 0 6px; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); }
 .ext-card p { margin: 0 0 12px; color: var(--muted); max-width: none; }
-.ext-badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 12px; font-size: 12px; font-weight: 700; border: 1px solid var(--border); background: var(--s2); color: var(--muted); }
+.ext-badge { display: inline-flex; align-items: center; gap: 6px; border-radius: var(--ui-r-pill); padding: 4px 12px; font-size: var(--fs-12); font-weight: 700; border: 1px solid var(--border); background: var(--s2); color: var(--muted); }
 .ext-badge.ok { color: var(--gain); border-color: var(--gain); background: color-mix(in srgb, var(--gain) 12%, var(--s1)); }
 .ext-btns { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 4px; }
 .ext-hero > .ext-card { justify-content: flex-start; }   /* the first box now holds the four-line list, so it starts at the top like the example card (task #66) */
 .ext-hero > .ext-card > .ext-btns { margin-top: auto; padding-top: 14px; }   /* the button sits at the bottom edge of the box */
 .ext-gets { list-style: none; margin: 6px 0 4px; padding: 0; display: grid; gap: 12px; }
 .ext-gets li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; align-items: start; color: var(--muted); font-size: var(--fs-14); line-height: 1.45; }
-.ext-gets b { display: block; color: var(--text); font-size: var(--fs-15, 15px); margin-bottom: 1px; }
-.ext-gi { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--gold-soft); color: var(--gold); }
+.ext-gets b { display: block; color: var(--text); font-size: var(--fs-16); margin-bottom: 1px; }
+.ext-gi { width: 34px; height: 34px; border-radius: var(--r-ctl); display: grid; place-items: center; background: var(--gold-soft); color: var(--gold); }
 .ext-gi svg { width: 18px; height: 18px; }
-.ext-code { display: inline-flex; align-items: center; gap: 8px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; background: var(--s2); border: 1px solid var(--border); border-radius: 8px; padding: 3px 4px 3px 10px; }
-.ext-code button { border: 0; background: var(--gold-soft); color: var(--gold); font-weight: 700; font-size: 12px; border-radius: 6px; padding: 4px 8px; cursor: pointer; }
+.ext-code { display: inline-flex; align-items: center; gap: 8px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: var(--fs-13); background: var(--s2); border: 1px solid var(--border); border-radius: var(--r-ctl); padding: 3px 4px 3px 10px; }
+.ext-code button { border: 0; background: var(--gold-soft); color: var(--gold); font-weight: 700; font-size: var(--fs-12); border-radius: var(--r-ctl); padding: 4px 8px; cursor: pointer; }
 .ext-three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .ext-three .ext-card { padding: 20px; }
-.ext-try { font: 18px/1.7 var(--serif); }
-.ext-try mark { background: color-mix(in srgb, var(--gold) 22%, transparent); color: inherit; border-radius: 4px; padding: 0 3px; }
+.ext-try { font: var(--fs-18)/1.7 var(--serif); }
+.ext-try mark { background: color-mix(in srgb, var(--gold) 22%, transparent); color: inherit; border-radius: var(--ui-r-mark); padding: 0 3px; }
 .ext-faq details { border-top: 1px solid var(--border); padding: 12px 0; }
 .ext-faq details:first-of-type { border-top: 0; }
 .ext-faq summary { cursor: pointer; font-weight: 600; }
 .ext-faq p { margin: 8px 0 0; }
-.ext-fine { font-size: 12px; color: var(--muted); }
+.ext-fine { font-size: var(--fs-12); color: var(--muted); }
 
 /* the preview card */
-.ext-demo { border: 1px solid #dce8e0; border-radius: 16px; background: #fff; color: #10231a; box-shadow: 0 18px 50px rgba(0, 0, 0, .18); overflow: hidden; font-size: 14px; line-height: 1.45; width: 100%; display: flex; flex-direction: column; }
+.ext-demo { border: 1px solid #dce8e0; border-radius: var(--r-card); background: #fff; color: #10231a; box-shadow: 0 18px 50px rgba(0, 0, 0, .18); overflow: hidden; font-size: var(--fs-14); line-height: 1.45; width: 100%; display: flex; flex-direction: column; }
+:root[data-theme="light"] .ext-demo { background: var(--s1); }   /* task #310 F: no pure-white surface in the light theme */
 .ext-demo .eb { flex: 1; display: flex; flex-direction: column; } .ext-demo .eb .eo { margin-top: auto; }
-.ext-demo .eh { display: flex; align-items: center; gap: 8px; padding: 12px 14px; font: 700 16px/1.2 var(--serif); }
+.ext-demo .eh { display: flex; align-items: center; gap: 8px; padding: 12px 14px; font: 700 var(--fs-16)/1.2 var(--serif); }
 .ext-demo .eh svg { color: #0f6b45; }
 .ext-demo .eb { padding: 0 14px 12px; }
-.ext-demo h4 { margin: 0; font: 700 18px/1.25 var(--serif); }
-.ext-demo small { color: #56685e; font-size: 12px; }
-.ext-demo .eb2 { display: grid; gap: 10px; align-content: center; font-size: 12px; font-weight: 600; }
-.ext-demo .eb2 i { display: block; height: 6px; border-radius: 3px; background: #dbe8e0; margin-top: 4px; overflow: hidden; }
+.ext-demo h4 { margin: 0; font: 700 var(--fs-18)/1.25 var(--serif); }
+.ext-demo small { color: #56685e; font-size: var(--fs-12); }
+.ext-demo .eb2 { display: grid; gap: 10px; align-content: center; font-size: var(--fs-12); font-weight: 600; }
+.ext-demo .eb2 i { display: block; height: 6px; border-radius: var(--ui-r-pill); background: #dbe8e0; margin-top: 4px; overflow: hidden; }
 .ext-demo .eb2 u { display: block; height: 100%; background: #0f6b45; }
 .ext-demo .ef { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid #dce8e0; border-bottom: 1px solid #dce8e0; margin-bottom: 10px; text-align: center; }
 .ext-demo .ef div { padding: 8px 2px; border-left: 1px solid #dce8e0; }
 .ext-demo .ef div:first-child { border-left: 0; }
-.ext-demo .ef b { display: block; font-size: 13px; }
-.ext-demo .eo { display: block; text-align: center; background: #0b4d33; color: #fff; border-radius: 12px; padding: 10px; font-weight: 700; }
-.ext-demo .ex { padding: 8px 14px 10px; border-top: 1px solid #dce8e0; font-size: 12px; color: #56685e; }
+.ext-demo .ef b { display: block; font-size: var(--fs-13); }
+.ext-demo .eo { display: block; text-align: center; background: #0b4d33; color: #fff; border-radius: var(--r-ctl); padding: 10px; font-weight: 700; }
+.ext-demo .ex { padding: 8px 14px 10px; border-top: 1px solid #dce8e0; font-size: var(--fs-12); color: #56685e; }
 @media (max-width: 960px) { .ext-hero { grid-template-columns: minmax(0, 1fr); } .ext-demo { justify-self: stretch; } .ext-three { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 480px) { .ext-card { padding: 18px; } }
 
 /* the thin banner under the header */
 .ext-banner { background: color-mix(in srgb, var(--gain) 10%, var(--s1)); border-bottom: 1px solid color-mix(in srgb, var(--gain) 28%, var(--border)); }
 .ext-banner .wrap { display: flex; align-items: center; gap: 12px; padding-block: 8px; }
-.ext-banner p { margin: 0; flex: 1; min-width: 0; font-size: 14px; max-width: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* one line (task #106); the full sentence is the tooltip */
+.ext-banner p { margin: 0; flex: 1; min-width: 0; font-size: var(--fs-14); max-width: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* one line (task #106); the full sentence is the tooltip */
 .ext-banner .btn { flex: none; height: 36px; padding: 0 14px; }
-.ext-b-ic { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--gain); color: #fff; flex: none; }
+.ext-b-ic { display: grid; place-items: center; width: 28px; height: 28px; border-radius: var(--r-ctl); background: var(--gain); color: #fff; flex: none; }
 .ext-b-ic svg { width: 16px; height: 16px; }
-.ext-b-x { flex: none; width: 32px; height: 32px; border: 0; border-radius: 8px; background: none; color: var(--muted); cursor: pointer; display: grid; place-items: center; }
+.ext-b-x { flex: none; width: 32px; height: 32px; border: 0; border-radius: var(--r-ctl); background: none; color: var(--muted); cursor: pointer; display: grid; place-items: center; }
 .ext-b-x:hover { background: var(--s2); }
-.ext-b-x { font-size: 20px; line-height: 1; }
+.ext-b-x { font-size: var(--fs-20); line-height: 1; }
 @media (max-width: 640px) { .ext-banner { display: none; } }
 .ext-badge { margin-bottom: 12px; }
-.ext-demo .ep { border: 1px solid #dce8e0; border-radius: 12px; padding: 10px 12px; margin: 0 0 10px; }
-.ext-demo .ephd { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; font-size: 13px; }
-.ext-demo .ephd span { display: inline-flex; align-items: center; gap: 6px; } .ext-demo .ephd strong { font: 700 20px/1 var(--serif); }
-.ext-demo .ephd i { font-style: normal; background: #0f6b45; color: #fff; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 700; }
+.ext-demo .ep { border: 1px solid #dce8e0; border-radius: var(--r-ctl); padding: 10px 12px; margin: 0 0 10px; }
+.ext-demo .ephd { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; font-size: var(--fs-13); }
+.ext-demo .ephd span { display: inline-flex; align-items: center; gap: 6px; } .ext-demo .ephd strong { font: 700 var(--fs-20)/1 var(--serif); }
+.ext-demo .ephd i { font-style: normal; background: #0f6b45; color: #fff; border-radius: var(--ui-r-pill); padding: 2px 10px; font-size: var(--fs-12); font-weight: 700; }
 .ext-demo .ep .eb2 { gap: 8px; } .ext-demo .epn { display: block; margin-top: 8px; }
 /* the example card's plan switch (tasks #100, #112): the card shows FinLit Prism (task #283) */
 .ext-pv { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.ext-pv-sw { display: inline-flex; align-self: flex-start; gap: 4px; padding: 4px; border: 1px solid var(--border); border-radius: 999px; background: var(--s1); }
-.ext-pv-sw button { border: 0; background: none; color: var(--muted); font: 600 13px var(--sans); padding: 6px 12px; border-radius: 999px; cursor: pointer; min-height: 32px; }
+.ext-pv-sw { display: inline-flex; align-self: flex-start; gap: 4px; padding: 4px; border: 1px solid var(--border); border-radius: var(--ui-r-pill); background: var(--s1); }
+.ext-pv-sw button { border: 0; background: none; color: var(--muted); font: 600 var(--fs-13) var(--sans); padding: 6px 12px; border-radius: var(--ui-r-pill); cursor: pointer; min-height: 32px; }
 .ext-pv-sw button[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); }
 .ext-pv > .ext-demo { flex: 1; }

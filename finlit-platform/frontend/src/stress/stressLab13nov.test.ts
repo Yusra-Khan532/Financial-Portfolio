@@ -14,7 +14,7 @@ describe("Stress Lab SL-12 (13 Nov)", () => {
     expect(css).toMatch(/\.ibi\{text-transform:none;/);
   });
   it("b. text boxes are 16 px on phones", () => {
-    expect(css).toMatch(/@media \(max-width:760px\)\{\.sl-root input,\.sl-root select,\.sl-root textarea\{font-size:16px\}\}/);
+    expect(css).toMatch(/@media \(max-width:760px\)\{\.sl-root input,\.sl-root select,\.sl-root textarea\{font-size:var\(--fs-16\)\}\}/);
   });
   it("c. Share feedback never sits over what is being read (task #310 part D: the floating dock is gone; it is a menu action)", () => {
     expect(fb).not.toMatch(/\.pf-dock|\.pf-fab/);

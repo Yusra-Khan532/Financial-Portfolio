@@ -114,9 +114,9 @@ export function NewsPage() {
         </div>
       </div>
       <div className="p4-quick p4-topics" role="group" aria-label="Topics">
-        <button type="button" className={"chip-b" + (!f.topic ? " on" : "")} aria-pressed={!f.topic} onClick={() => set({ topic: "" })}>All<span>{nf(tAll)}</span></button>
+        <button type="button" className={"ui-tab chip-b" + (!f.topic ? " on" : "")} aria-pressed={!f.topic} onClick={() => set({ topic: "" })}>All<span>{nf(tAll)}</span></button>
         {FEED_TOPICS.filter(([k]) => tN[k] || f.topic === k).map(([k, l]) => (
-          <button key={k} type="button" className={"chip-b" + (f.topic === k ? " on" : "")} aria-pressed={f.topic === k} onClick={() => set({ topic: k, cat: "" })}>{l}<span>{nf(tN[k] || 0)}</span></button>))}
+          <button key={k} type="button" className={"ui-tab chip-b" + (f.topic === k ? " on" : "")} aria-pressed={f.topic === k} onClick={() => set({ topic: k, cat: "" })}>{l}<span>{nf(tN[k] || 0)}</span></button>))}
       </div>
       <Chips chips={chips} unset={unset} />
       <div className="dbx-rbar"><span className="dbx-cnt"><b>{nf(total)}</b> {noun} · {span}</span><span className="p4-hint">Exchange news and results filings · newest first</span></div>
@@ -132,7 +132,7 @@ export function NewsPage() {
             return <li key={e.id}>
               {e.symbol ? <Link className="feed-sym p4-sym" to={`/stocks/${e.symbol}`} title={coTitle({ symbol: e.symbol, name: e.company })}><CoLogo symbol={e.symbol} size={18} inline /><span>{shortLabel({ symbol: e.symbol, name: e.company })}</span></Link> : <span className="feed-sym alt">Market</span>}
               <div className="p4-nb"><p>{e.link ? <a href={e.link} target="_blank" rel="noopener noreferrer" title={e.title}>{text}</a> : text}</p>
-                <small><span className={"p4-tp t-" + (e.topic || "x")}>{tp}</span>{e.category && e.category !== tp ? <> · <span className="p4-cat">{e.category}</span></> : null}{e.source ? <span className="p4-src"> · {e.source}</span> : null}{tag(e.symbol)}</small>
+                <small><span className={"ui-chip p4-tp t-" + (e.topic || "x")}>{tp}</span>{e.category && e.category !== tp ? <> · <span className="p4-cat">{e.category}</span></> : null}{e.source ? <span className="p4-src"> · {e.source}</span> : null}{tag(e.symbol)}</small>
                 {e.summary && <p className="muted p4-sum">{e.summary}</p>}</div>
               {e.link ? <a className="p4-open" href={e.link} target="_blank" rel="noopener noreferrer" aria-label="Open the filing">{Ico.ext}</a> : <span />}
             </li>;

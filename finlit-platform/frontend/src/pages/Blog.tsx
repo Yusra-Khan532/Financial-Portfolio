@@ -97,11 +97,11 @@ export function BlogPost() {
   const file = c.fileUrl && (c.fileUrl.startsWith("/api/content/assets/") || /^https:\/\//.test(c.fileUrl)) ? apiUrl(c.fileUrl) : null;
   return (
     <>
-      <section className="pagehead"><div className="wrap" style={{ maxWidth: 760 }}><Link className="chip gold" to="/blog">← Blog</Link><h1 className="ui-title ui-title--read" style={{ maxWidth: "none" }}>{c.title}</h1><p>{c.excerpt}</p><p className="faint" style={{ marginTop: 12, fontSize: 13 }}>{c.author} · {c.publishedAt ? dateIN(c.publishedAt) : ""}</p></div></section>
+      <section className="pagehead"><div className="wrap" style={{ maxWidth: 760 }}><Link className="chip gold" to="/blog">← Blog</Link><h1 className="ui-title ui-title--read" style={{ maxWidth: "none" }}>{c.title}</h1><p>{c.excerpt}</p><p className="faint" style={{ marginTop: 12, fontSize: "var(--fs-13)" }}>{c.author} · {c.publishedAt ? dateIN(c.publishedAt) : ""}</p></div></section>
       <section className="sec" style={{ paddingTop: 0 }}><div className="wrap">
         {c.contentType === "ARTICLE" && <article className="article" dangerouslySetInnerHTML={{ __html: DOMPurifyless(c.articleHtml || "") }} />}
-        {c.contentType === "PDF" && file && <><iframe title={c.title} src={file} style={{ width: "100%", height: "78vh", border: "1px solid var(--border)", borderRadius: 16, background: "#fff" }} /></>}
-        {c.contentType === "IMAGE" && file && <img src={file} alt={c.title} style={{ maxWidth: "100%", borderRadius: 16, display: "block", margin: "0 auto" }} />}
+        {c.contentType === "PDF" && file && <><iframe title={c.title} src={file} style={{ width: "100%", height: "78vh", border: "1px solid var(--border)", borderRadius: "var(--r-card)", background: "#fff" }} /></>}
+        {c.contentType === "IMAGE" && file && <img src={file} alt={c.title} style={{ maxWidth: "100%", borderRadius: "var(--r-card)", display: "block", margin: "0 auto" }} />}
         {c.contentType !== "ARTICLE" && file && <p style={{ textAlign: "center", marginTop: 20 }}><a className="btn primary" href={file} download={c.originalFileName || undefined}>Download {c.originalFileName || "file"}</a></p>}
       </div></section>
     </>

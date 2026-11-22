@@ -10,7 +10,7 @@
 .kit-grid tbody td { border-bottom: 1px solid var(--border); }
 .kit-bands th { padding: 0; border-bottom: 0; background: transparent; }
 .kit-bands th.kit-band { padding: 7px 8px; border-top: 3px solid var(--kit-bc, var(--text)); border-left: 1px solid var(--border); background: color-mix(in srgb, var(--kit-bc, var(--text)) 8%, transparent);
-  font: 800 var(--fs-caption)/var(--lh-12) var(--sans, inherit); letter-spacing: .08em; text-transform: uppercase; color: var(--kit-bc, var(--text)); text-align: center; }
+  font: 700 var(--fs-caption)/var(--lh-12) var(--sans, inherit); letter-spacing: .08em; text-transform: uppercase; color: var(--kit-bc, var(--text)); text-align: center; }
 .kit-band.kit-b-green { --kit-bc: #1F6B49; } .kit-band.kit-b-blue { --kit-bc: #2A5C9A; } .kit-band.kit-b-gold { --kit-bc: #8A6A25; } .kit-band.kit-b-dark { --kit-bc: #3B3F49; }
 :root[data-theme="dark"] .kit-band.kit-b-green { --kit-bc: #7FD8A6; } :root[data-theme="dark"] .kit-band.kit-b-blue { --kit-bc: #9DB8E6; }
 :root[data-theme="dark"] .kit-band.kit-b-gold { --kit-bc: #E9C46A; } :root[data-theme="dark"] .kit-band.kit-b-dark { --kit-bc: #C9CBD2; }

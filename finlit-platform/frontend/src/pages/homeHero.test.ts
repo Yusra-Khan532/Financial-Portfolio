@@ -6,8 +6,9 @@ import { describe, expect, it } from "vitest";
 const tsx = readFileSync(join(__dirname, "Home.tsx"), "utf8");
 const css = readFileSync(join(__dirname, "..", "styles", "human-home.css"), "utf8");
 /** the font size the last rule for `.hh-strip` sets inside a media query that contains `media` (or outside any query when media is "") */
+// task #310 F: the sizes are now the type tokens (var(--fs-28)), read as their px number
 function stripSize(media: string): number {
-  const re = media ? new RegExp(`@media \\([^)]*${media}[^)]*\\)\\s*\\{[^@]*?\\.hh-strip \\{[^}]*?font-size: (\\d+)px`, "g") : /^\.hh-strip \{[^}]*?font-size: (\d+)px/gm;
+  const re = media ? new RegExp(`@media \\([^)]*${media}[^)]*\\)\\s*\\{[^@]*?\\.hh-strip \\{[^}]*?font-size: (?:var\\(--fs-)?(\\d+)(?:px|\\))`, "g") : /^\.hh-strip \{[^}]*?font-size: (?:var\(--fs-)?(\d+)(?:px|\))/gm;
   const all = [...css.matchAll(re)].map((m) => Number(m[1]));
   return all[all.length - 1];
 }

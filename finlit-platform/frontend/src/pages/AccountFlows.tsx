@@ -90,7 +90,7 @@ function ResetWithCode() {
           <PasswordField label="Repeat new password" value={again} onChange={setAgain} autoComplete="new-password" />
           {(local || m.isError) && <div className="formerr" role="alert">{local || msg(m.error)}</div>}
           <button className="btn primary lg" style={{ width: "100%" }} disabled={m.isPending}>{m.isPending ? "Saving…" : "Change password"}</button>
-          <p style={{ margin: "14px 0 0", fontSize: 14 }}>
+          <p style={{ margin: "14px 0 0", fontSize: "var(--fs-14)" }}>
             <button type="button" className="linkbtn" disabled={!email.trim() || again_.isPending} onClick={() => again_.mutate()}>{cancelled ? "Send a new code" : "Did not get it? Send a new code"}</button>
           </p>
         </form>

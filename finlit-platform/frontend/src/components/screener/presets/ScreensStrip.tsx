@@ -74,13 +74,14 @@ export function Card({ p, group, on, planName, onPick, past }: { p: Preset; grou
     : p.locked ? <>Part of {planName}</>
     : on && past ? <><b>{nf(past.count, 0)}</b> on {past.day} · past list</>
     : n == null ? <>Built after the close</>
+    : n === 0 ? <>None tonight</>      /* task #325 (file 25, 2.1 row 6): an empty list (IPO base) is greyed and says so */
     : p.listText ? <>{p.listText}</>
-    : <><b>{nf(n, 0)}</b> match{p.joined ? <> · <span className="rms-cj">+{nf(p.joined, 0)} joined</span></> : null}</>;
+    : <><b>{nf(n, 0)}</b> {n === 1 ? "company" : "companies"}{p.rulesUpdated ? <> · rules updated</> : p.joined ? <> · <span className="rms-cj">+{nf(p.joined, 0)}</span></> : null}</>;   /* task #325 (file 25, 1 row 9): "62 companies" and "+10"; no joined figure on a rule-update day */
   return (
-    <button type="button" className={"rms-card" + (feat ? " is-feat" : "") + (top ? " is-top10" : "") + (on ? " is-on" : "") + (blocked ? " is-blocked" : "")}
+    <button type="button" className={"rms-card" + (p.count === 0 && !blocked && !p.locked ? " is-empty" : "") + (feat ? " is-feat" : "") + (top ? " is-top10" : "") + (on ? " is-on" : "") + (blocked ? " is-blocked" : "")}
       aria-pressed={blocked ? undefined : on} aria-disabled={blocked || undefined} title={blocked ? p.blockedReason || "Coming soon" : p.cardText} onClick={onPick}>
       <span className="rms-t">{top && <Crown size={14} />}{p.name}{top && <span className="rms-tag">Top 10</span>}{p.isNew && <span className="rms-new">NEW</span>}</span>
-      <span className="rms-m">{line}{p.isNew && !blocked && <> · <span className="rms-nw">new screen</span></>}</span>
+      <span className="rms-m">{line}</span>{/* task #325 (file 25, 1 row 9): the green NEW tag says it; " · new screen" no longer repeats on the card */}
       <span className="rms-go" aria-hidden="true">{on ? "●" : "→"}</span>
     </button>);
 }
@@ -107,14 +108,12 @@ export function ScreensStrip({ route, past }: { route: PresetRoute; past?: { day
       className={"rms-tab" + (feat ? " is-feat" : "") + (sel ? " is-on" : "") + (g.id === activeGroup ? " has-open" : "")} onClick={() => setPicked(g.id)}>
       {feat ? <Shine /> : <GroupIcon group={g} />}{g.name} <b>{g.presets.length}</b>{(g.isNew ?? g.id === "sectors") && <span className="rms-newtab">New</span>}</button>;
   };
-  const feat = groups.filter(isFeatured), more = groups.filter((g) => !isFeatured(g));
+  const ordered = [...groups.filter(isFeatured), ...groups.filter((g) => !isFeatured(g))];
   return (
     <section className="card rms" aria-label="Ready-made screens">
       {head}
-      <div className="rms-tabs" role="tablist" aria-label="Screen groups">
-        {feat.length > 0 && <div className="rms-tgrp rms-tfeat" role="presentation"><span className="rms-tlab" aria-hidden="true">Featured</span>{feat.map(tab)}</div>}
-        {more.length > 0 && <div className="rms-tgrp" role="presentation"><span className="rms-tlab" aria-hidden="true">More</span>{more.map(tab)}</div>}
-      </div>
+      {/* task #325 (file 25, section 1 row 9): one row of the twelve groups, the featured first with their crowns; the "Featured / More" labels are gone */}
+      <div className="rms-tabs rms-tabs1" role="tablist" aria-label="Screen groups">{ordered.map(tab)}</div>
       {shown?.intro && <p className="rms-intro">{shown.intro}{shown.about && <PsxInfo label={shown.name} text={
         <span className="psx3-about"><b>What it shows</b><span>{shown.about.shows}</span><b>How to use it</b>
           <span role="list">{shown.about.use.map((u) => <span role="listitem" key={u}>{u}</span>)}</span></span>} />}</p>}

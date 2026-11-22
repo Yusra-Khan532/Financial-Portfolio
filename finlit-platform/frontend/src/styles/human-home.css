@@ -14,10 +14,10 @@
   --hh-hero-a: #0E3324; --hh-hero-b: #071A12; --hh-hero-text: #F7F3E8; --hh-hero-muted: #B9D9C6; --hh-hero-line: rgba(127, 216, 166, .28); --hh-glow: rgba(127, 216, 166, .55);
 }
 .hh .rv, .hh .rv.rv-pre { transform: none; transition: opacity .4s ease var(--d, 0ms); }
-.hh-kicker { font: 500 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--gold); }
+.hh-kicker { font: 500 var(--fs-12) var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--gold); }
 .hh-sec { padding: clamp(40px, 6vw, 84px) 0; }
 .hh-center { text-align: center; }
-.hh-fine { margin: 18px 0 0; font-size: 13px; color: var(--faint); max-width: 62ch; }
+.hh-fine { margin: 18px 0 0; font-size: var(--fs-13); color: var(--faint); max-width: 62ch; }
 
 /* hero: text on the left, the tour video in a browser frame on the right */
 .hh-top { position: relative; isolation: isolate; overflow: hidden; padding: clamp(22px, 3vw, 36px) 0 clamp(56px, 7vw, 96px); color: var(--hh-hero-text);
@@ -29,22 +29,22 @@
 .hh .cta-row { display: flex; flex-wrap: wrap; gap: 10px; }
 .hh .cta-row .btn svg { width: 16px; height: 16px; }
 .hh-tour { margin: 0; min-width: 0; }
-.hh-frame { display: flex; align-items: center; gap: 6px; padding: 10px 14px; border: 1px solid var(--border-strong, var(--border)); border-bottom: 0; border-radius: 14px 14px 0 0; background: var(--s2, var(--s1)); }
+.hh-frame { display: flex; align-items: center; gap: 6px; padding: 10px 14px; border: 1px solid var(--border-strong, var(--border)); border-bottom: 0; border-radius: var(--r-ctl) var(--r-ctl) 0 0; background: var(--s2, var(--s1)); }
 .hh-frame i { width: 9px; height: 9px; border-radius: 50%; background: var(--border-strong, var(--border)); }
-.hh-frame span { margin: 0 auto; padding: 3px 18px; border-radius: 999px; background: var(--s1); font-size: 12px; color: var(--faint); }
-.hh-video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #14120d; border: 1px solid var(--border-strong, var(--border)); border-radius: 0 0 14px 14px; box-shadow: 0 30px 60px -34px rgba(35, 32, 24, .5); }
-.hh-tour figcaption { margin-top: 12px; font-size: 13px; color: var(--muted); display: grid; gap: 2px; } .hh-tour figcaption b { color: var(--text); font-weight: 600; }
+.hh-frame span { margin: 0 auto; padding: 3px 18px; border-radius: var(--ui-r-pill); background: var(--s1); font-size: var(--fs-12); color: var(--faint); }
+.hh-video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #14120d; border: 1px solid var(--border-strong, var(--border)); border-radius: 0 0 var(--r-ctl) var(--r-ctl); box-shadow: 0 30px 60px -34px rgba(35, 32, 24, .5); }
+.hh-tour figcaption { margin-top: 12px; font-size: var(--fs-13); color: var(--muted); display: grid; gap: 2px; } .hh-tour figcaption b { color: var(--text); font-weight: 600; }
 @media (max-width: 900px) { .hh-top-cols { grid-template-columns: minmax(0, 1fr); } }
 
 
 /* plans on the home page: three equal-height cards showing their first 8 features, with the full table in a closed dropdown */
 .pgrid-l .plan .plan-desc { margin: 14px 0 16px; min-height: 0; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; height: calc(3 * 1.5em); line-height: 1.5; }
 .pgrid-l .plan > ul { flex: 1; }
-.plan-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-top: 22px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, .1); font-size: 13px; color: var(--faint); }
-.plan-all { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; min-height: 32px; font-weight: 600; font-size: 13px; color: var(--tc); cursor: pointer; }
-.plan-all:hover { text-decoration: underline; } .plan-all:focus-visible { outline: 2px solid var(--tc); outline-offset: 3px; border-radius: 4px; } .plan-all svg { width: 14px; height: 14px; }
-.cmp-h .cmp-toggle { all: unset; box-sizing: border-box; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border: 1px solid var(--border); border-radius: 14px; background: var(--s1); cursor: pointer; }
-.cmp-h .cmp-toggle h3 { margin: 0; } .cmp-h .cmp-toggle span { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.plan-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-top: 22px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, .1); font-size: var(--fs-13); color: var(--faint); }
+.plan-all { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; min-height: 32px; font-weight: 600; font-size: var(--fs-13); color: var(--tc); cursor: pointer; }
+.plan-all:hover { text-decoration: underline; } .plan-all:focus-visible { outline: 2px solid var(--tc); outline-offset: 3px; border-radius: var(--ui-r-mark); } .plan-all svg { width: 14px; height: 14px; }
+.cmp-h .cmp-toggle { all: unset; box-sizing: border-box; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); cursor: pointer; }
+.cmp-h .cmp-toggle h3 { margin: 0; } .cmp-h .cmp-toggle span { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-13); font-weight: 600; color: var(--muted); }
 .cmp-toggle svg { width: 14px; height: 14px; transform: rotate(90deg); transition: transform .2s; } .cmp-toggle[aria-expanded="true"] svg { transform: rotate(-90deg); }
 .cmp-toggle:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .cmp[hidden] { display: none; }
@@ -59,11 +59,11 @@
 
 /* Task #118 (13 Nov 2026): the hero as in the team's design: a deep green panel (a light green wash in the light theme), the three-part line on top, "Research with
    clarity." with a drawn underline, a light green main button, three features with round icons and a glowing curve along the bottom. */
-.hh-strip { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 0 0 clamp(26px, 4vw, 52px); font: 400 20px/1.25 var(--serif); color: var(--hh-hero-text); text-align: center; flex-wrap: wrap; }
+.hh-strip { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 0 0 clamp(26px, 4vw, 52px); font: 400 var(--fs-20)/1.25 var(--serif); color: var(--hh-hero-text); text-align: center; flex-wrap: wrap; }
 .hh-strip::before, .hh-strip::after { content: ""; flex: 0 1 110px; height: 1px; background: var(--hh-hero-line); }
 .hh-strip i { font-style: normal; color: var(--hh-g); } .hh-strip em { font-style: normal; color: var(--hh-g); }
 .hh-top h1 { color: var(--hh-hero-text); }
-:root .hh .btn.hh-go:not(.primary) { border: 0; background: var(--hh-g-fill); color: var(--hh-on-g); box-shadow: 0 12px 28px -14px var(--hh-glow); }
+:root .hh .btn.hh-go:not(.primary) { border: 0; background: var(--btn-bg); color: var(--btn-fg);   /* task #310 F: the main button colour from its token (was the page's own #1F7A55) */  box-shadow: 0 12px 28px -14px var(--hh-glow); }
 :root .hh .btn.hh-go:not(.primary):hover { filter: brightness(1.06); }
 :root .hh .btn.hh-ghost:not(.primary) { background: transparent; color: var(--hh-hero-text); border: 1px solid var(--hh-hero-line); }
 :root .hh .btn.hh-ghost:not(.primary):hover { border-color: var(--hh-g); }
@@ -73,7 +73,7 @@
 .hh-top .hh-video { border-color: var(--hh-hero-line); }
 .hh :focus-visible { outline-color: var(--hh-g); }
 @media (max-width: 760px) {
-  .hh-strip { gap: 6px 10px; font-size: 16px; } .hh-strip::before, .hh-strip::after { display: none; }
+  .hh-strip { gap: 6px 10px; font-size: var(--fs-16); } .hh-strip::before, .hh-strip::after { display: none; }
   .hh .cta-row { flex-direction: column; } .hh .cta-row .btn { width: 100%; justify-content: center; min-height: 48px; }
 }
 .hh-top .hh-top-cols { grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); }
@@ -87,14 +87,14 @@
 .hh { --hh-hero-a: var(--bg, #F7F3EA); }
 :root[data-theme="dark"] .hh { --hh-hero-a: #0C1910; --hh-hero-b: #0C1910; }
 .hh-top { background: var(--hh-hero-a); }
-.hh-strip { font-size: 24px; }
-@media (min-width: 1100px) { .hh-strip { font-size: 28px; } }
+.hh-strip { font-size: var(--fs-24); }
+@media (min-width: 1100px) { .hh-strip { font-size: var(--fs-28); } }
 .hh-top h1 em { display: inline; }
-:root[data-theme="dark"] .hh .btn.hh-go:not(.primary) { background: linear-gradient(90deg, #BAF7D1, #5DAF7A); color: #0B2A1E; }
+:root[data-theme="dark"] .hh .btn.hh-go:not(.primary) { background: linear-gradient(90deg, #BAF7D1, #5DAF7A); color: var(--s2); }
 .hh-trust { list-style: none; margin: 26px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 12px 26px; font-size: var(--fs-16, 16px); color: var(--hh-hero-text); }
 .hh-trust li { display: inline-flex; align-items: center; gap: 8px; }
 .hh-trust svg { flex: none; width: 17px; height: 17px; color: var(--hh-g); }
-@media (max-width: 760px) { .hh-strip { font-size: 18px; } .hh-trust { gap: 10px 18px; font-size: 14px; } }
+@media (max-width: 760px) { .hh-strip { font-size: var(--fs-18); } .hh-trust { gap: 10px 18px; font-size: var(--fs-14); } }
 
 /* Task #150 (14 Nov 2026): the FinLit Prism band's green is the background of the whole landing page in dark mode. It is one background on the page itself,
    held in place while the page scrolls, so every band (hero, the platform, Prism, plans) sits on the same green with no seam between them. Light mode is unchanged. */

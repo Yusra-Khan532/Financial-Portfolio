@@ -86,7 +86,7 @@ def test_size_screens_name_their_range_from_the_site_size_lines():
     from finlit.presets import registry
     assert registry.BY_ID["highest-rated-large"].card_text.startswith("Large caps (above ₹75,000 Cr) with")
     assert registry.BY_ID["highest-rated-mid"].card_text.startswith("Mid caps (₹25,000–75,000 Cr) with")
-    assert registry.BY_ID["highest-rated-small"].how_it_works[0].startswith("Small caps (₹10,000–25,000 Cr) of ₹1,000 Cr")
+    assert registry.BY_ID["highest-rated-small"].how_it_works[0].startswith("Small caps (₹10,000–25,000 Cr), with")   # task #325 (file 25, 2.1 row 7): no "of ₹1,000 Cr or more" on the size screens
     assert registry.BY_ID["highest-rated-micro"].how_it_works[0].startswith("Micro caps (below ₹10,000 Cr) of ₹1,000 Cr")
     assert not any("{range}" in p.card_text or any("{range}" in h for h in p.how_it_works) for p in registry.ALL)
     # the lines are the site's one rule (finlit/sizes.py, task #262)

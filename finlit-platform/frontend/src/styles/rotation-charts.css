@@ -1,7 +1,7 @@
 /* Sector Rotation: "Who is ahead, and which way they are moving" and "Six months of ranks" (components/rotation/RotationCharts.tsx) */
 .rc-card { position: relative; padding-top: 18px; } .rc-card h2 { padding-right: 70px; }
 .rc-ins { list-style: none; margin: 10px 0 14px; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
-.rc-in { padding: 10px 12px; border: 1px solid var(--border); border-left-width: 4px; border-radius: 12px; background: var(--s1); } .rc-in b { display: block; font: 600 var(--fs-14) var(--sans); } .rc-in b span { font: 700 var(--fs-12) var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-right: 4px; } .rc-in p { margin: 4px 0 0; font-size: var(--fs-14); color: var(--text); }
+.rc-in { padding: 10px 12px; border: 1px solid var(--border); border-left-width: 4px; border-radius: var(--r-ctl); background: var(--s1); } .rc-in b { display: block; font: 600 var(--fs-14) var(--sans); } .rc-in b span { font: 700 var(--fs-12) var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-right: 4px; } .rc-in p { margin: 4px 0 0; font-size: var(--fs-14); color: var(--text); }
 .rc-in-good { border-left-color: var(--gain); } .rc-in-insight { border-left-color: var(--gold); } .rc-in-watch { border-left-color: #c27a12; } .rc-in-warning { border-left-color: var(--loss); }
 .rc-key { display: flex; gap: 16px; margin: 4px 0 8px; font-size: var(--fs-12); color: var(--muted); } .rc-key span { display: inline-flex; align-items: center; gap: 6px; }
 .rc-rows { display: grid; } .rc-head, .rc-row { display: grid; grid-template-columns: minmax(120px, 220px) minmax(0, 1fr) 76px 86px; gap: 10px; align-items: center; min-height: 30px; }
