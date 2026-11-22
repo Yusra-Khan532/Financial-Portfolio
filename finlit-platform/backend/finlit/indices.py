@@ -616,7 +616,7 @@ def band(pctile: Optional[float]) -> Optional[str]:
     It describes the past, never what comes next."""
     if pctile is None:
         return None
-    return "low" if pctile <= 25 else "high" if pctile >= 75 else "usual"
+    return "low" if pctile < 25 else "high" if pctile > 75 else "usual"
 
 
 def board_row(code: str, val: Any, lev: Any) -> Dict[str, Any]:

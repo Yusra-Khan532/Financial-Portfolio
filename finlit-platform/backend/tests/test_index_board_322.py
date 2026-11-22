@@ -7,7 +7,7 @@ from tests.test_indices import FIX, make
 
 
 def test_band_describes_the_past_in_three_words():
-    assert [indices.band(p) for p in (None, 5, 25, 25.1, 50, 74.9, 75, 99)] == [None, "low", "low", "usual", "usual", "usual", "high", "high"]
+    assert [indices.band(p) for p in (None, 5, 24.9, 25, 50, 75, 75.1, 99)] == [None, "low", "low", "usual", "usual", "usual", "high", "high"]
 
 
 def test_board_row_from_the_sites_own_histories():
