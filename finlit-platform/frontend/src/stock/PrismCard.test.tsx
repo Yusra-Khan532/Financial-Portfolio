@@ -66,6 +66,7 @@ describe("FinLit Prism card", () => {
     expect(html.match(/class="pcx-card band-/g)).toHaveLength(4);
     expect(html).toContain('href="/prism/TCS"');
     expect(t).toContain("Open the full Prism report");
+    expect(html).toMatch(/<a class="ui-btn ui-btn--prism ui-btn--sm dk-b" href="\/prism\/TCS"[^>]*>Open the full Prism report/);   // task #310: the one gold (Prism) button
     expect(t).toContain(PRISM_NOTE);   // the compliance line
     // task #311 (developer file 21, company report rows 1, 3, 4, 5): the header link says what the score means; the two grey notes are gone
     expect(t).toContain("What the score means"); expect(t).not.toContain("Advanced model");

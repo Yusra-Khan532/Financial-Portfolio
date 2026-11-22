@@ -106,6 +106,8 @@ Written 17 Nov 2026 from a full read of the repository, the team workspace and t
 
 ## 4. Frontend
 
+- **UI build check (task #310, 22 Nov 2026).** `frontend/scripts/check-ui.mjs` runs inside `npm test` (`src/styles/uiCheck.test.ts`). A file may never have MORE findings than its starting point in `frontend/ui-baseline.json`: raw colours (hex/rgb/hsl outside the token files), hand-typed `border-radius` and `font-size` numbers, font weights other than 400/500/600/700, chart colours on buttons/tabs/links. New code uses the variables in `src/styles/ui-tokens.css` (`--ui-r-mark`, `--r-ctl`, `--r-card`, `--ui-r-pill`, `--fs-*`, `--ui-on-bg`/`--ui-on-fg`, `--btn-bg`) and the shared pieces in `src/components/ui/` (`Button`, `Tabs`, `Card`, `PageTitle`, `Input`, `Chip`; classes `ui-*` in `src/styles/ui.css`). After cleaning a page family, `npm run ui-check:baseline` and commit the lower numbers; never raise one.
+
 - **Routes:**
   - All are in `src/App.tsx`, loaded lazily through `lazyPage` (`src/lib/resilience.ts`).
   - The app pages sit inside `AppShell` (side rail). The stock page `/stocks/:symbol` and the public pages sit inside `Layout`.

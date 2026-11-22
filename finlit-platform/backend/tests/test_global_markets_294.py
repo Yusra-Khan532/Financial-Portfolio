@@ -134,21 +134,33 @@ async def test_eodhd_fills_a_row_once_a_day_and_twelve_data_comes_first():
     assert "EODHD or Twelve Data" in gm.NO_KEY
 
 
-async def test_a_series_with_two_eodhd_codes_uses_the_one_that_answers():
+async def test_the_ftse_100_comes_through_a_labelled_tracker_fund_and_an_empty_answer_is_not_asked_again():
+    """The founder, 22 Nov 2026: "use the labelled tracker fund for FTSE 100" (EODHD's free plan has no FTSE 100 index: UKX.INDX and FTSE.INDX
+    answered with no closes, 21 Nov). The row keeps its name, says which fund it is shown through, and prices the fund in pence."""
     import httpx
-    from datetime import date as D
+    from datetime import date as D, datetime as DT, timezone as TZ
     seen = []
 
     def handler(req):
         seen.append(req.url.path)
-        if req.url.path.endswith("/UKX.INDX"):
-            return httpx.Response(200, json=[])                    # live, 21 Nov: one code answered with no closes
-        return httpx.Response(200, json=[{"date": "2026-11-20", "close": 9551.2}])
+        if req.url.path.endswith("/ISF.LSE"):
+            return httpx.Response(200, json=[])                    # the first fund gives nothing: the next one is tried
+        return httpx.Response(200, json=[{"date": "2026-11-13", "close": 44.10}, {"date": "2026-11-19", "close": 44.50}, {"date": "2026-11-20", "close": 44.95}])
     ftse = next(s for s in gm.SERIES if s["key"] == "ftse")
-    assert ftse["eod"] == ("UKX.INDX", "FTSE.INDX")
+    assert "eod" not in ftse and [t[0] for t in ftse["trackers"]] == ["ISF.LSE", "VUKE.LSE"]
+    redis = _Redis()
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as c:
-        pts, why, src = await gm._market(c, ftse, "", "k", D(2026, 10, 7), _Redis())
-    assert src == "EODHD" and pts == [(D(2026, 11, 20), 9551.2)] and seen == ["/api/eod/UKX.INDX", "/api/eod/FTSE.INDX"]
+        got = await gm._market(c, ftse, "", "k", D(2026, 10, 7), redis)
+        assert got[:3] == ([(D(2026, 11, 13), 44.10), (D(2026, 11, 19), 44.50), (D(2026, 11, 20), 44.95)], None, "EODHD")
+        assert got[3] == {"name": "Vanguard FTSE 100 UCITS ETF (VUKE)", "code": "VUKE", "unit": "GBP"}
+        await gm._market(c, ftse, "", "k", D(2026, 10, 7), redis)              # both answers kept 12 hours, the empty one too: no second call
+    assert seen == ["/api/eod/ISF.LSE", "/api/eod/VUKE.LSE"]
+    row = next(r for r in gm.build({"ftse": got}, DT(2026, 11, 22, 6, tzinfo=TZ.utc))["rows"] if r["key"] == "ftse")
+    assert row["label"] == "FTSE 100" and row["unit"] == "GBP" and row["last"] == 44.95 and row["d1"] == 1.01
+    assert row["tracker"]["name"] == "Vanguard FTSE 100 UCITS ETF (VUKE)"
+    assert "a fund that tracks the FTSE 100" in row["tracker"]["note"] and "not the index level" in row["tracker"]["note"]
+    plain = next(r for r in gm.build({"dax": ([(D(2026, 11, 20), 1.0)], None, "EODHD")}, DT(2026, 11, 22, tzinfo=TZ.utc))["rows"] if r["key"] == "dax")
+    assert plain["tracker"] is None and plain["unit"] == "pts"
 
 
 def test_a_cached_answer_keeps_its_age_after_a_restart():

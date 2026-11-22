@@ -23,12 +23,12 @@
 .eqd-subbar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 0 12px; padding: 6px; border: 1px solid var(--sp-line); border-radius: 16px; background: var(--sp-panel); }
 .eqd-subbar button { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid transparent; border-radius: 12px; background: none; text-align: left; cursor: pointer; color: var(--sp-ink); }
 .eqd-subbar button b { font: 600 var(--fs-body)/var(--lh-14) var(--sans); } .eqd-subbar button small { font-size: var(--fs-caption); color: var(--sp-mute); }
-.eqd-subbar button[aria-selected="true"] { border-color: #2F5A9E; background: color-mix(in srgb, #2F5A9E 8%, var(--sp-panel)); box-shadow: inset 0 -3px 0 #2F5A9E; }
+.eqd-subbar button[aria-selected="true"] { border-color: var(--ui-on-bg); background: var(--ui-on-bg); box-shadow: none; color: var(--ui-on-fg); }
 .eqd-subbar button:focus-visible, .eqd-seg button:focus-visible, .eqd-xbtn:focus-visible, .eqd-heat button:focus-visible, .eqd-sheat button:focus-visible, .eqd-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 @media (max-width: 760px) { .eqd-subbar { grid-template-columns: minmax(0, 1fr); } }
 .eqd-seg { display: inline-flex; flex-wrap: wrap; padding: 3px; border: 1px solid var(--sp-line); border-radius: 10px; background: var(--s2); }
 .eqd-seg button { min-height: 32px; padding: 0 12px; border: 0; border-radius: 8px; background: none; font: 600 var(--fs-small)/1 var(--sans); color: var(--sp-mute); cursor: pointer; }
-.eqd-seg button[aria-pressed="true"] { background: var(--sp-panel); color: var(--sp-ink); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
+.eqd-seg button[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); box-shadow: none; }
 .eqd-k3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 12px 0 16px; }
 @media (max-width: 760px) { .eqd-k3 { grid-template-columns: minmax(0, 1fr); } }
 .eqd-k3.eqd-k4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }   /* the four company sizes (task #262) */

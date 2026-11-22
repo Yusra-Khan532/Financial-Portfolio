@@ -9,7 +9,7 @@
 .pm-card .go { margin-top: auto; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: var(--gold); } .pm-card .go svg { width: 16px; height: 16px; transition: transform .2s; } .pm-card:hover .go svg { transform: translateX(4px); }
 .pm-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 16px; padding: 5px; border-radius: 14px; background: var(--s2); width: fit-content; max-width: 100%; overflow-x: auto; }
 .pm-tabs button { height: 38px; padding: 0 16px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); font: 600 14px var(--sans); cursor: pointer; white-space: nowrap; } .pm-tabs button:hover { color: var(--text); }
-.pm-tabs button[aria-selected="true"] { background: var(--s1); color: var(--text); box-shadow: 0 1px 0 var(--border), 0 6px 16px -10px #000; }
+.pm-tabs button[aria-selected="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); box-shadow: none; }
 .pm-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin-bottom: 14px; } .pm-bar label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: .02em; }
 .pm-bar input, .pm-bar select { height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--s1); color: var(--text); font: 14px var(--sans); min-width: 150px; }
 .pm-meta { display: flex; gap: 12px; align-items: center; color: var(--faint); font-size: 13px; margin: 4px 0 12px; flex-wrap: wrap; }
@@ -21,7 +21,7 @@
 .pm-sec { margin: 30px 0 0; } .pm-sec > h2 { font: 500 20px var(--serif); margin: 0 0 12px; display: flex; gap: 10px; align-items: center; }
 .pm-search { position: relative; max-width: 640px; } .pm-search input { width: 100%; height: 52px; padding: 0 16px 0 46px; border-radius: 14px; border: 1px solid var(--border); background: var(--s1); color: var(--text); font: 16px var(--sans); } .pm-search > svg { position: absolute; left: 15px; top: 16px; width: 20px; height: 20px; color: var(--faint); }
 .pm-sug { position: absolute; z-index: 20; left: 0; right: 0; top: 58px; background: var(--s1); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 24px 50px -24px #000; overflow: hidden; } .pm-sug button { display: flex; width: 100%; gap: 10px; align-items: baseline; padding: 11px 16px; border: 0; background: none; color: var(--text); text-align: left; cursor: pointer; font: 16px var(--sans); } .pm-sug button:hover, .pm-sug button:focus-visible { background: var(--s2); outline: none; } .pm-sug small { color: var(--faint); }
-.pm-seg { display: inline-flex; padding: 4px; border-radius: 12px; background: var(--s2); gap: 4px; } .pm-seg button { height: 34px; padding: 0 14px; border: 0; border-radius: 9px; background: none; color: var(--muted); font: 600 13px var(--sans); cursor: pointer; } .pm-seg button[aria-pressed="true"] { background: var(--s1); color: var(--text); }
+.pm-seg { display: inline-flex; padding: 4px; border-radius: 12px; background: var(--s2); gap: 4px; } .pm-seg button { height: 34px; padding: 0 14px; border: 0; border-radius: 9px; background: none; color: var(--muted); font: 600 13px var(--sans); cursor: pointer; } .pm-seg button[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); }
 .pm-tree summary { cursor: pointer; padding: 8px 0; font-weight: 600; } .pm-tree ul { margin: 0 0 6px 18px; padding: 0; list-style: none; color: var(--muted); font-size: 14px; } .pm-tree li { display: flex; justify-content: space-between; gap: 16px; padding: 3px 0; border-bottom: 1px dashed var(--border); }
 .pm-empty { padding: 40px 18px; text-align: center; color: var(--muted); border: 1px dashed var(--border); border-radius: 14px; }
 .pm-lock { text-align: center; padding: 56px 20px; border: 1px solid var(--border); border-radius: 18px; background: linear-gradient(160deg, var(--s1), var(--s2)); } .pm-lock h2 { font: 500 28px var(--serif); margin: 10px 0; } .pm-lock p { color: var(--muted); max-width: 520px; margin: 0 auto 18px; }
@@ -141,8 +141,7 @@
    small radii, no glows, no glass, no looping motion. Loaded after finlit/site/stock2/tools; class names unchanged.
    Scale: 8px grid (4/8/16/24/32/48/64). Radius: 4px chips, 6px controls, 8px panels.
    ===================================================================================================================== */
-:root { --r-s: 4px; --r-m: 6px; --r-l: 8px; --btn-bg: var(--gold); --btn-fg: #1A1405; --btn-hover: var(--gold-2); }
-:root[data-theme="light"] { --btn-bg: #1C1A15; --btn-fg: #FBF8F1; --btn-hover: #3A352A; }
+/* The corner tokens (--r-s, --r-m, --r-l) and the main-button colours (--btn-bg, --btn-fg, --btn-hover) now live in ui-tokens.css (task #310). */
 .band, :root[data-theme="light"] .report, :root[data-theme="light"] .plan, :root[data-theme="light"] .cmp { --btn-bg: #D4B26A; --btn-fg: #1A1405; --btn-hover: #E8D29B; }
 :root[data-theme="light"] .band.hero, :root[data-theme="light"] .band.plans { --btn-bg: #1C1A15; --btn-fg: #FBF8F1; --btn-hover: #3A352A; }
 
@@ -198,10 +197,10 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offs
 .btn.lg { height: 48px; padding: 0 24px; }
 .btn.primary { background: var(--btn-bg); color: var(--btn-fg); border: 1px solid var(--btn-bg); box-shadow: none; }
 .btn.primary:hover { background: var(--btn-hover); border-color: var(--btn-hover); box-shadow: none; }
-.btn.on { background: var(--gold-soft); }
+.btn[aria-pressed="true"], .btn[aria-current="page"] { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); box-shadow: none; }   /* task #310: the one selected look (was a gold tint on .on) */
 .seg { padding: 2px; background: transparent; }
 .seg button { border-radius: var(--r-s); }
-.seg button[aria-pressed="true"] { background: var(--s3); box-shadow: none; }
+.seg button[aria-pressed="true"] { background: var(--ui-on-bg); box-shadow: none; color: var(--ui-on-fg); }
 .planseg button[aria-pressed="true"] { background: var(--s3); color: var(--text); box-shadow: inset 0 -2px 0 var(--tc); }
 .planseg button[aria-pressed="true"] i { background: var(--tc); }
 .chip, .vd, .tier { border-radius: var(--r-s); }

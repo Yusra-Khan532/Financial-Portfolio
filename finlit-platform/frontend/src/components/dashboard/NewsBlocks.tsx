@@ -10,6 +10,7 @@ import { dedupeFilings, filingLine, filingTag, istToday, resultLines, shortDay, 
 import { nf } from "../../lib/format";
 import { CoLogo } from "../CoLogo";
 import { Card, Rows, ScopeSeg, ShowMoreButton, useScope, useShowMore } from "./parts";
+import { buttonClass } from "../ui";
 
 export function ResultsToday({ symbols }: { symbols: string[] }) {
   const [scope, setScope] = useScope("resultstoday", symbols.length > 0);
@@ -77,7 +78,7 @@ export function AlertsScreens() {
   return (
     <Card id="alerts" title="Alerts and saved screens" className="dsh-tool">
       {!live.length && !saved.length ? <><p className="dsh-p">No alerts or saved screens yet. Get told when a price, score or filing crosses your line.</p>
-        <div className="dsh-btns"><Link className="dsh-btn dark" to="/alerts">Create an alert</Link><Link className="dsh-btn" to="/screener">Open screener</Link></div></> : <>
+        <div className="dsh-btns"><Link className={buttonClass("primary", "md")} to="/alerts">Create an alert</Link><Link className={buttonClass("secondary", "md")} to="/screener">Open screener</Link></div></> : <>
         {live.length > 0 && <><div className="dsh-lh first">Alerts</div><div className="dsh-lines">{live.map((a) => <Link key={a.id} to="/alerts" className="dsh-ipo"><b>{a.symbol} <i className={"dsh-tag" + (a.met ? " on" : "")}>{a.met ? "Triggered" : a.status === "paused" ? "Paused" : "Active"}</i></b><span>{a.label}</span></Link>)}</div></>}
         {saved.length > 0 && <><div className="dsh-lh">Saved screens</div><div className="dsh-lines">{saved.slice(0, 4).map((s) => {
           const st = s.state as unknown as PState & { sort?: string; dir?: "asc" | "desc" }, pro = !!st && typeof st === "object" && !!st.ranges;

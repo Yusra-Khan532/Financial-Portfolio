@@ -14,7 +14,7 @@
 .fcst .fcst-chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .fcst .fcst-chips button { min-height: 28px; padding: 3px 8px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--s1); color: var(--text); font: 600 var(--fs-12, 12px) var(--sans); cursor: pointer; white-space: nowrap; }
 .fcst .fcst-chips button span { font-weight: 600; }
-.fcst .fcst-chips button[aria-pressed="true"] { border-color: var(--c1, #2a78d6); background: var(--c1, #2a78d6); color: #fff; } .fcst .fcst-chips button[aria-pressed="true"] span { color: #fff; }
+.fcst .fcst-chips button[aria-pressed="true"] { border-color: var(--ui-on-bg); background: var(--ui-on-bg); color: var(--ui-on-fg); } .fcst .fcst-chips button[aria-pressed="true"] span { color: var(--ui-on-fg); }
 .fcst .fcst-n { margin: 10px 0 0; font: 400 var(--fs-12, 12px) var(--sans); color: var(--faint); }
 @media (pointer: coarse) { .fcst .fcst-chips button { min-height: 36px; } }
 @media (max-width: 1180px) { .sh:has(.fcst) { flex-wrap: wrap; } .sh-r:has(> .fcst) { flex: 1 1 100%; } }

@@ -98,7 +98,7 @@
 .mo-dchip { padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--s2); font: 600 var(--fs-12, 12px) var(--sans); color: var(--muted); }
 .mo-rng { display: flex; gap: 6px; margin: 8px 0 0; }
 .mo-rng button { min-height: 33px; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: 600 var(--fs-13, 13px) var(--sans); cursor: pointer; }
-.mo-rng button[aria-pressed="true"] { background: var(--c1); border-color: var(--c1); color: #fff; }
+.mo-rng button[aria-pressed="true"] { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); }   /* task #310: the one selected colour, not the chart colour --c1 (the company report's "1 week" pill) */
 .mo-sum { margin: 10px 0 4px; }
 .mo-sum p { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 0; }
 .mo-sum .mo-big { font: 500 var(--fs-32, 32px)/1 var(--font-serif, Georgia, serif); color: var(--text); }

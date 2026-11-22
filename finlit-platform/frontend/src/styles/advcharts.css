@@ -15,9 +15,9 @@
 .adv-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: var(--s1); border: 1px solid var(--border); border-radius: 12px; margin: 0 0 16px; }
 .adv-tabs [role=tab] { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; color: var(--muted); padding: 7px 11px; border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer; }
 .adv-tabs [role=tab]:hover { background: var(--s2); color: var(--text); }
-.adv-tabs [role=tab][aria-selected=true] { background: var(--gold-soft); color: var(--text); box-shadow: inset 0 -2px 0 var(--gold); }
+.adv-tabs [role=tab][aria-selected=true] { background: var(--ui-on-bg); color: var(--ui-on-fg); box-shadow: none; }
 .adv-tn { display: inline-grid; place-items: center; min-width: 20px; height: 20px; border-radius: 6px; background: var(--s2); border: 1px solid var(--border); font-size: 12px; color: var(--faint); }
-[aria-selected=true] > .adv-tn { background: var(--gold); color: var(--on-gold); border-color: var(--gold); }
+[aria-selected=true] > .adv-tn { background: var(--ui-on-fg); color: var(--ui-on-bg); border-color: var(--ui-on-fg); }
 .adv-tabsel, .adv-pairsel { display: none; }
 .adv-tabsel span, .adv-pairsel span { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
 .adv-tabsel select, .adv-pairsel select { width: 100%; }
@@ -76,7 +76,7 @@ fieldset.adv-field legend { padding: 0 4px; }
 .adv-seg { display: inline-flex; flex-wrap: wrap; gap: 2px; background: var(--s2); border: 1px solid var(--border); border-radius: 9px; padding: 2px; max-width: 100%; }
 .adv-seg button { background: none; border: 0; color: var(--muted); padding: 6px 10px; border-radius: 7px; font-size: var(--fs-13); font-weight: 600; cursor: pointer; display: inline-flex; gap: 5px; align-items: center; }
 .adv-seg button svg { width: 12px; height: 12px; }
-.adv-seg button[aria-pressed=true] { background: var(--gold-soft); color: var(--text); box-shadow: inset 0 -2px 0 var(--gold); }
+.adv-seg button[aria-pressed=true] { background: var(--ui-on-bg); color: var(--ui-on-fg); box-shadow: none; }
 .adv-link { background: none; border: 0; padding: 0; color: var(--gold); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font-size: 13px; text-align: left; }
 .adv-check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--text); margin: 8px 0 0; cursor: pointer; line-height: 1.4; }
 .adv-check input { margin-top: 2px; flex: none; }

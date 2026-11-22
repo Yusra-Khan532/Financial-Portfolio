@@ -76,5 +76,5 @@
 .ext-pv { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .ext-pv-sw { display: inline-flex; align-self: flex-start; gap: 4px; padding: 4px; border: 1px solid var(--border); border-radius: 999px; background: var(--s1); }
 .ext-pv-sw button { border: 0; background: none; color: var(--muted); font: 600 13px var(--sans); padding: 6px 12px; border-radius: 999px; cursor: pointer; min-height: 32px; }
-.ext-pv-sw button[aria-pressed="true"] { background: var(--gold); color: var(--on-gold); }
+.ext-pv-sw button[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); }
 .ext-pv > .ext-demo { flex: 1; }

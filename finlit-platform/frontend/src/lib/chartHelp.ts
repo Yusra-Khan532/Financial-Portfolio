@@ -528,9 +528,10 @@ export const CHART_HELP: Record<string, ChartHelpEntry> = {
     what: "Every listed IPO with a grey market premium (GMP) on record: the last GMP InvestorGain recorded before listing, against the price the share listed at. Both are a percent of the issue price.",
     x: "What the GMP said: the last GMP before listing, as a percent of the issue price.",
     y: "The listing price against the issue price, in percent.",
-    read: "A dot on the dashed line listed exactly where the GMP said. Green dots listed more than 5 points above it, red dots more than 5 points below, grey within 5 points. The solid line is the trend of all the dots; a bigger dot is a bigger issue. Hollow dots are off the scale, drawn at the edge.",
-    why: "It shows how closely the grey market's last price has matched listings in the past. GMP is unofficial, and the past says nothing certain about the next listing.",
+    read: "By GMP range (the first view): one row per range of what the GMP said, with the share of issues that listed lower than the GMP (orange), within 5 points of it (grey) or higher (teal), and those that opened at the +90% cap. Every issue: a dot on the dashed line listed exactly where the GMP said; the shaded band is within 5 points; a bigger dot is a bigger issue; hollow dots lie outside the view, drawn at the edge. These colours say how the listing compared with the GMP, not gain or loss.",
+    why: "It shows how closely the grey market's last price has matched listings in the past, range by range. GMP is unofficial, and the past says nothing certain about the next listing. NSE and BSE cap an SME issue's opening price at +90% of the issue price.",
   },
+
   "ipo-timeline": {
     title: "IPO timeline",
     what: "A timeline of about seven weeks showing when each IPO's application window is open. It starts ten days before today.",

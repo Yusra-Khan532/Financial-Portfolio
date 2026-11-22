@@ -17,7 +17,7 @@ import re
 import secrets
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
-from typing import Annotated, Any, Dict, List, Literal, Optional, Union
+from typing import Annotated, Any, Dict, List, Literal, Optional, Tuple, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field, StringConstraints, field_validator, model_validator
@@ -1119,36 +1119,75 @@ FEED_COLS = "kind, title, symbol, company, source, link, item_date, category, pe
 
 
 def feed_json(r: Any) -> Dict[str, Any]:
+    from ..feed import topic_of
     return {"id": r["id"], "kind": r["kind"], "title": r["title"], "symbol": r["symbol"], "company": r["company"], "source": r["source"], "link": r["link"],
-            "date": r["item_date"].isoformat(), "category": r["category"], "period": r["period"], "summary": r["summary"], "auto": r["auto"]}
+            "date": r["item_date"].isoformat(), "category": r["category"], "period": r["period"], "summary": r["summary"], "auto": r["auto"],
+            "topic": r["topic"] or topic_of(r["kind"], r["category"], r["title"])}
 
 
-@router.get("/feed")
-async def feed(request: Request, kind: Literal["news", "result", "document"] = "news", symbol: str = Query("", max_length=1200), q: str = Query("", max_length=80),
-               upcoming: bool = False, manual: bool = False, limit: int = Query(60, ge=1, le=3000), before: Optional[_date] = None,
-               from_date: Optional[_date] = None, to_date: Optional[_date] = None):
-    """Public. `symbol` may be one symbol or several separated by commas (a watchlist). `upcoming=true` returns dates from today on, soonest first."""
+FEED_KINDS = r"^(news|result|document)(,(news|result|document)){0,2}$"
+
+
+def _feed_topics(topic: str) -> List[str]:
+    from ..feed import TOPIC_KEYS
+    topics = [x.strip() for x in topic.split(",") if x.strip()]
+    if any(x not in TOPIC_KEYS for x in topics):
+        raise fail(400, "bad_request", "Unknown topic.")
+    return topics
+
+
+def _feed_filters(kind: str, symbol: str, q: str, filed: bool, topic: str, category: str) -> Tuple[List[str], List[Any]]:
+    """The WHERE parts shared by the feed list and its counts: kinds, filings only, companies, search, topic, exchange category."""
+    from ..feed import FILING_SOURCE
     syms = [x.strip().upper() for x in symbol.split(",") if x.strip()][:60]
     if any(not SYMBOL.match(x) for x in syms):
         raise fail(400, "invalid_symbol")
-    windowed = from_date is not None and to_date is not None and 0 <= (to_date - from_date).days <= 62
-    if limit > 200 and not windowed:
-        raise fail(400, "bad_request", "A long list needs a date window of two months or less.")
-    where, args = ["kind = $1"], [kind]
-    if windowed:
-        args += [from_date, to_date]
-        where.append(f"item_date BETWEEN ${len(args) - 1} AND ${len(args)}")
+    topics = _feed_topics(topic)
+    kinds = list(dict.fromkeys(kind.split(",")))
+    where, args = ["kind = ANY($1::text[])"], [kinds]
+    if filed and "result" in kinds:
+        args.append(FILING_SOURCE)
+        where.append(f"(kind <> 'result' OR (auto AND source = ${len(args)}))")   # results filings, not the calendar's dates
     if syms:
         args.append(syms)
         where.append(f"symbol = ANY(${len(args)}::text[])")
     if q.strip():
         args.append(f"%{q.strip().lower()}%")
         where.append(f"(lower(title) LIKE ${len(args)} OR lower(coalesce(company, '')) LIKE ${len(args)})")
+    if topics:
+        args.append(topics)
+        where.append(f"topic = ANY(${len(args)}::text[])")
+    if category.strip():
+        args.append(category.strip())
+        where.append(f"category = ${len(args)}")
+    return where, args
+
+
+@router.get("/feed")
+async def feed(request: Request, kind: str = Query("news", pattern=FEED_KINDS), symbol: str = Query("", max_length=1200), q: str = Query("", max_length=80),
+               upcoming: bool = False, manual: bool = False, limit: int = Query(60, ge=1, le=3000), before: Optional[_date] = None,
+               before_id: Optional[int] = Query(None, ge=1), filed: bool = False, topic: str = Query("", max_length=200),
+               category: str = Query("", max_length=80), from_date: Optional[_date] = None, to_date: Optional[_date] = None):
+    """Public. `symbol` may be one symbol or several separated by commas (a watchlist). `upcoming=true` returns dates from today on, soonest first.
+
+    `kind` may name several kinds (`news,result`: the News & filings page). `filed=true` leaves out the results calendar's dates, so only
+    filings are returned. `topic` keeps one or more FinLit topics (`orders,deals`); `category` one exchange category. `before` with
+    `before_id` continues a list from its last item (date and id), so a busy day cut by `limit` is not skipped."""
+    where, args = _feed_filters(kind, symbol, q, filed, topic, category)
+    windowed = from_date is not None and to_date is not None and 0 <= (to_date - from_date).days <= 62
+    if limit > 200 and not windowed:
+        raise fail(400, "bad_request", "A long list needs a date window of two months or less.")
+    if windowed:
+        args += [from_date, to_date]
+        where.append(f"item_date BETWEEN ${len(args) - 1} AND ${len(args)}")
     if manual:
         where.append("NOT auto")   # only what an administrator added (the console list; automatic exchange items would crowd it out)
     if upcoming:
         args.append(datetime.now(IST).date())
         where.append(f"item_date >= ${len(args)}")
+    elif before and before_id:
+        args += [before, before_id]
+        where.append(f"(item_date, id) < (${len(args) - 1}, ${len(args)})")
     elif before:
         args.append(before)
         where.append(f"item_date < ${len(args)}")
@@ -1161,10 +1200,55 @@ async def feed(request: Request, kind: Literal["news", "result", "document"] = "
                     headers={"Cache-Control": "public, max-age=60, stale-while-revalidate=300"})
 
 
+@router.get("/feed/counts")
+async def feed_counts(request: Request, kind: str = Query("news", pattern=FEED_KINDS), symbol: str = Query("", max_length=1200),
+                      q: str = Query("", max_length=80), filed: bool = False, topic: str = Query("", max_length=200),
+                      category: str = Query("", max_length=80), from_date: Optional[_date] = None, to_date: Optional[_date] = None):
+    """Public. How many items each FinLit topic, exchange category and day holds in a date window (default: the last 7 days), for the
+    News & filings page's chips and dropdowns. Topics are counted with every filter but the topic, categories with every filter but the
+    category, and days and the total with all of them, so each option says how many items it would show."""
+    from ..feed import TOPICS, topic_of
+    to_date = to_date or datetime.now(IST).date()
+    from_date = from_date or to_date - timedelta(days=7)
+    if not 0 <= (to_date - from_date).days <= 62:
+        raise fail(400, "bad_request", "The window must be two months or less.")
+    topics = _feed_topics(topic)
+    where, args = _feed_filters(kind, symbol, q, filed, "", "")   # topic and category are applied below, one facet at a time
+    args += [from_date, to_date]
+    where.append(f"item_date BETWEEN ${len(args) - 1} AND ${len(args)}")
+    sql = ("SELECT topic, category, item_date, count(*) AS n FROM feed_items WHERE " + " AND ".join(where) +  # nosec B608 - fragments are fixed; values are bound
+           " AND topic IS NOT NULL GROUP BY topic, category, item_date")
+    late = "SELECT kind, category, title, item_date FROM feed_items WHERE " + " AND ".join(where) + " AND topic IS NULL LIMIT 20000"  # nosec B608
+    async with request.app.state.store.pool.acquire() as conn:
+        groups = [(r["topic"], r["category"], r["item_date"], r["n"]) for r in await conn.fetch(sql, *args)]
+        groups += [(topic_of(r["kind"], r["category"], r["title"]), r["category"], r["item_date"], 1) for r in await conn.fetch(late, *args)]   # rows not re-sorted yet
+    want_t, want_c = set(topics), category.strip()
+    t_n: Dict[str, int] = {}
+    c_n: Dict[str, int] = {}
+    d_n: Dict[str, int] = {}
+    total = 0
+    for t, c, d, n in groups:
+        t_ok, c_ok = (not want_t or t in want_t), (not want_c or c == want_c)
+        if c_ok:
+            t_n[t] = t_n.get(t, 0) + n
+        if t_ok and c:
+            c_n[c] = c_n.get(c, 0) + n
+        if t_ok and c_ok:
+            d_n[d.isoformat()] = d_n.get(d.isoformat(), 0) + n
+            total += n
+    body = {"from": from_date.isoformat(), "to": to_date.isoformat(), "total": total,
+            "topics": [[k, label, t_n[k]] for k, label in TOPICS if t_n.get(k)],
+            "categories": sorted(([c, n] for c, n in c_n.items()), key=lambda x: (-x[1], x[0])),
+            "days": sorted(([d, n] for d, n in d_n.items()), reverse=True)}
+    return Response(content=json.dumps(body), media_type="application/json", headers={"Cache-Control": "public, max-age=60, stale-while-revalidate=300"})
+
+
 @router.post("/admin/feed", status_code=201)
 async def feed_create(request: Request, body: FeedIn, ctx: Ctx = Depends(admin_ctx)):
     async with request.app.state.store.pool.acquire() as conn:
-        new_id = await conn.fetchval(f"INSERT INTO feed_items ({FEED_COLS}) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id", *[getattr(body, c) for c in FEED_COLS.split(", ")])  # nosec B608
+        from ..feed import topic_of
+        new_id = await conn.fetchval(f"INSERT INTO feed_items ({FEED_COLS}, topic) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id",  # nosec B608
+                                     *[getattr(body, c) for c in FEED_COLS.split(", ")], topic_of(body.kind, body.category, body.title))
     await audit(request.app.state.store.pool, ctx.user_id, "feed_added", str(new_id), ip_of(request), kind=body.kind)
     return {"id": new_id}
 

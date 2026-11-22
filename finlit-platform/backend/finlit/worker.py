@@ -1139,6 +1139,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_cc.add_argument("--limit", type=int, default=160, help="letters read in this run")
     p_cc.add_argument("--max-minutes", type=float, default=20.0, help="start no new letter after this many minutes")
     p_cc.add_argument("symbols", nargs="*", help="only these companies")
+    p_fs = sub.add_parser("feed-sort", help="daily: when the feed's sorting rules changed, re-sort every stored filing once (kind and FinLit topic; resumable; task #309)")
+    p_fs.add_argument("--max-minutes", type=float, default=20.0, help="stop after this many minutes; the next run continues")
     p_dc = sub.add_parser("refresh-discovery", help="nightly: read each company's newest investor presentation (Documents) and put it in the Discovery themes (docs/DISCOVERY.md)")
     p_dc.add_argument("--limit", type=int, default=300, help="presentations read in this run")
     p_dc.add_argument("--max-minutes", type=float, default=40.0, help="start no new presentation after this many minutes")
@@ -1673,6 +1675,13 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
             from .concall import service as concall_service
             from .mf import record_run
             res = await concall_service.run(store, limit=args.limit, max_minutes=args.max_minutes, symbols=[x.upper() for x in args.symbols] or None)
+            await record_run(store, args.cmd, res)
+            print(json.dumps(res, default=str)[:3000])
+            return 0
+        if args.cmd == "feed-sort":
+            from . import feed as feed_mod
+            from .mf import record_run
+            res = await feed_mod.ensure_sorted(store, max_minutes=args.max_minutes)
             await record_run(store, args.cmd, res)
             print(json.dumps(res, default=str)[:3000])
             return 0

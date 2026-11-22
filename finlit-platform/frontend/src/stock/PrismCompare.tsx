@@ -18,6 +18,7 @@ import { CardSkeleton, FundamentalSection, TechnicalSection } from "./PrismCardV
 import { PrismAiSummary } from "./PrismAiSummary";   // task #228: the AI summary button under the two cards
 import { type CardPart } from "./prismCardLogic";
 import { PLAN_FOR_PRISM } from "../lib/planGates";
+import { buttonClass } from "../components/ui";
 import "../styles/prism-compare.css";
 import "../styles/prism-card.css";
 
@@ -57,7 +58,7 @@ function Body({ state, symbol, statement, name }: { state: Exclude<PrismCardStat
         <h3>No Prism rating for {name} yet</h3>
         <p>Prism rates a company's financial health in four parts: Growth & Profitability, Valuation, Quality and Risk. It reads the latest filings and prices, which usually takes under half a minute the first time. It is being calculated now and the result then stays stored here.</p>
         <div className="dk-empty-a">
-          <button className="btn primary dk-b" disabled={busy} onClick={() => run.mutate(false)}>{busy ? "Calculating…" : run.isError ? "Try again" : "Generate the Prism rating"} <Icon name="arrow" /></button>
+          <button className={buttonClass("prism", "sm", "dk-b")} disabled={busy} onClick={() => run.mutate(false)}>{busy ? "Calculating…" : run.isError ? "Try again" : "Generate the Prism rating"} <Icon name="arrow" /></button>
           <Link className="pzs-link" to={`/prism/${encodeURIComponent(symbol)}`}>Open the Prism page for {symbol}</Link>
         </div>
         {status}
@@ -80,7 +81,7 @@ function Body({ state, symbol, statement, name }: { state: Exclude<PrismCardStat
         <TechnicalSection a={parseTechnical(rep.technicalAssessment)} report={rep} onRecalculate={() => run.mutate(true)} busy={busy} />
       </div>
       <PrismAiSummary symbol={symbol} name={name} r={r} parts={parts} a={parseTechnical(rep.technicalAssessment)} />
-      <div className="dk-cta"><span className="pcx-upd">Updated {dateIN(rep.completedAt || rep.createdAt)}</span><Link className="btn primary dk-b" to={`/prism/${encodeURIComponent(symbol)}`}>Open the full Prism report <Icon name="arrow" /></Link></div>
+      <div className="dk-cta"><span className="pcx-upd">Updated {dateIN(rep.completedAt || rep.createdAt)}</span><Link className={buttonClass("prism", "sm", "dk-b")} to={`/prism/${encodeURIComponent(symbol)}`}>Open the full Prism report <Icon name="arrow" /></Link></div>
       {status}
     </>
   );
