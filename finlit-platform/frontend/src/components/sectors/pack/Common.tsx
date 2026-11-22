@@ -10,6 +10,7 @@ import { BOX_HELP } from "../../../lib/rotationPack";
 import type { Board } from "../../../lib/sectors";
 import type { CornerCode } from "../../../lib/sectors";
 import type { StateKey } from "../../../lib/sectorHistory";
+import { tw } from "../../../lib/groupWords";
 
 /** The pack's (i): a small round button that opens a short explanation on hover, focus or tap; Escape or a click elsewhere closes it. */
 /** An ⓘ popover. With `how` it reads as two lines, "What it shows" and "How to read it" (task #183, START-HERE 3); without, one line as before. */
@@ -52,7 +53,7 @@ export function InsightCard({ c }: { c: Card }) {
   return (
     <div className={"sp-card sp-" + c.kind}>
       <span className="sp-card-ic" aria-hidden="true"><svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{KIND_ICON[c.kind]}</svg></span>
-      <div><p className="sp-kind">{KIND_WORD[c.kind]}</p><h3 className="sp-ct"><MoreText text={c.title} more={c.more} /></h3><p className="sp-cx"><MoreText text={c.text} more={c.more} /></p></div>
+      <div><p className="sp-kind">{KIND_WORD[c.kind]}</p><h3 className="sp-ct"><MoreText text={tw(c.title)} more={c.more} /></h3><p className="sp-cx"><MoreText text={tw(c.text)} more={c.more} /></p></div>
     </div>
   );
 }

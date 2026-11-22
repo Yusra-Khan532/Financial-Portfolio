@@ -11,6 +11,7 @@ import { COLOUR, MEANING, ORDER, WORD } from "../../../lib/pulsePack";
 import { BOX, BOX_ORDER } from "../../../lib/pulsePack";
 import { BOX_MEANING } from "../../../lib/rotationPack";
 import { BOX_COLOUR } from "../../rotation/pack/RotationSimple";
+import { tw } from "../../../lib/groupWords";
 
 // ------------------------------------------------------------------------------------------------ the sections bar
 export type BarItem = { id: string; label: string };
@@ -72,29 +73,29 @@ const Steps = ({ items }: { items: ReactNode[] }) => <ol className="sp-guide-ste
 export function PulseGuide({ stocks, groups }: { stocks: number; groups: string }) {
   return (
     <Fold sub="Four steps, what each state means, and what the reading leaves out · 2 min read">
-      <p className="sp-guide-intro">Sector Pulse asks one question every weekend: in each industry, are most stocks going up or down? It reads the week up to Friday's close and counts how many of the {stocks.toLocaleString("en-IN")} actively traded stocks in each of the {groups} are above their trend, and gives each one a state. <b>Simple</b> tells the story; <b>Full table</b> shows every number.</p>
+      <p className="sp-guide-intro">{tw("Sector Pulse asks one question every weekend: in each industry, are most stocks going up or down? It reads the week up to Friday's close and counts how many of the")} {stocks.toLocaleString("en-IN")} actively traded stocks in each of the {groups} are above their trend, and gives each one a state. <b>Simple</b> tells the story; <b>Full table</b> shows every number.</p>
       <div className="sp-guide-two">
         <div><h3 className="sp-guide-k">Use it in four steps</h3>
           <Steps items={[
-            <><b>Check the market.</b> The <b>Market backdrop</b>, at the top of the page, says whether the whole market is in an uptrend. An industry bounce means more when it is.</>,
-            <><b>Read today.</b> <b>Today in one minute</b> gives what changed this week. <b>The cycle</b> shows the four stages and how many industries sit in each.</>,
-            <><b>Find an industry's state and count.</b> In <b>All … by state</b>, "21 of 41" means 21 of its 41 counted stocks are above their medium-term trend; past halfway, most are rising.</>,
-            <><b>Bring it to your shares.</b> <b>How your industries are doing</b> covers the industries your shares sit in. <b>Standout stocks</b> lists stocks at a 1-year high inside weak industries. Open any industry for a year of its readings.</>,
+            <><b>Check the market.</b> The <b>Market backdrop</b>{tw(", at the top of the page, says whether the whole market is in an uptrend. An industry bounce means more when it is.")}</>,
+            <><b>Read today.</b> <b>Today in one minute</b> gives what changed this week. <b>The cycle</b> {tw("shows the four stages and how many industries sit in each.")}</>,
+            <><b>{tw("Find an industry's state and count.")}</b> In <b>All … by state</b>, "21 of 41" means 21 of its 41 counted stocks are above their medium-term trend; past halfway, most are rising.</>,
+            <><b>Bring it to your shares.</b> <b>{tw("How your industries are doing")}</b> {tw("covers the industries your shares sit in.")} <b>Standout stocks</b> {tw("lists stocks at a 1-year high inside weak industries. Open any industry for a year of its readings.")}</>,
           ]} /></div>
         <div><h3 className="sp-guide-k">What each state means</h3>
           <table className="sp-guide-t"><thead><tr><th scope="col">State</th><th scope="col">When</th></tr></thead>
             <tbody>{ORDER.map((k) => <tr key={k}><td><i className="sp-sw" style={{ background: COLOUR[k] }} aria-hidden="true" /><b>{WORD[k]}</b></td><td>{MEANING[k]}</td></tr>)}</tbody></table>
-          <p className="sp-guide-tags"><span className="sp-tag sp-early">Early sign</span> Still Sold off, but most of its stocks are already above their short trend: a bounce may be forming. <span className="sp-tag sp-yourtag">Yours</span> An industry one of your shares belongs to.</p>
+          <p className="sp-guide-tags"><span className="sp-tag sp-early">Early sign</span> Still Sold off, but most of its stocks are already above their short trend: a bounce may be forming. <span className="sp-tag sp-yourtag">Yours</span> {tw("An industry one of your shares belongs to.")}</p>
         </div>
       </div>
       <div className="sp-guide-two sp-guide-low">
         <div><h3 className="sp-guide-k">Check it against history</h3>
-          <p><b>The market's mood, day by day</b> and <b>Six months of every industry</b> (Full table) show how long each state lasted and how often bounces faded. <b>Momentum and strength</b> sets this page next to Sector Rotation: a bounce in an industry that was already beating others has more behind it.</p></div>
+          <p><b>The market's mood, day by day</b> and <b>{tw("Six months of every industry")}</b> (Full table) show how long each state lasted and how often bounces faded. <b>Momentum and strength</b> {tw("sets this page next to Sector Rotation: a bounce in an industry that was already beating others has more behind it.")}</p></div>
         <div><h3 className="sp-guide-k">Keep in mind</h3>
           <ul className="sp-guide-ul">
             <li>The cycle is a map, not a timetable: many bounces fade before the next stage.</li>
-            <li>The state changes more slowly than the count, so an industry can have many stocks rising and still read Sold off.</li>
-            <li>Only actively traded, established stocks are counted (the list is reviewed monthly). Industries with too few are listed under <b>Too small for a reading</b>.</li>
+            <li>{tw("The state changes more slowly than the count, so an industry can have many stocks rising and still read Sold off.")}</li>
+            <li>{tw("Only actively traded, established stocks are counted (the list is reviewed monthly). Industries with too few are listed under")} <b>Too small for a reading</b>.</li>
             <li>It describes what stocks have done, not what they will do. It is not advice, and not a reason to act on its own.</li>
           </ul></div>
       </div>
@@ -107,28 +108,28 @@ export function PulseGuide({ stocks, groups }: { stocks: number; groups: string 
 export function RotationGuide({ ranked, total }: { ranked: number; total: number }) {
   return (
     <Fold sub="Four steps, what each box means, the yardstick, and what it leaves out · 2 min read">
-      <p className="sp-guide-intro">Money moves from one industry to another over months. Sector Rotation measures each of the {ranked} ranked groups against one yardstick, <b>the average group</b> (all {total} counted equally), and puts it in one of four boxes. It updates after each weekly close. <b>Simple</b> tells the story; <b>Full table</b> shows every number.</p>
+      <p className="sp-guide-intro">{tw("Money moves from one industry to another over months. Sector Rotation measures each of the")} {ranked} ranked groups against one yardstick, <b>the average group</b> (all {total} counted equally), and puts it in one of four boxes. It updates after each weekly close. <b>Simple</b> tells the story; <b>Full table</b> shows every number.</p>
       <div className="sp-guide-two">
         <div><h3 className="sp-guide-k">Use it in four steps</h3>
           <Steps items={[
-            <><b>Find the box.</b> Is the industry ahead of or behind the average group over the last several months? Is it gaining or slipping against it over the last month? The two answers give its box.</>,
+            <><b>Find the box.</b> {tw("Is the industry ahead of or behind the average group over the last several months? Is it gaining or slipping against it over the last month? The two answers give its box.")}</>,
             <><b>Read the box with breadth.</b> <b>Taking part</b>: Most means most of its stocks are above their 50-day average; Few means a handful carry it. A broad lead has held up better than a narrow one.</>,
             <><b>Watch the rank and what changed.</b> The rank puts every group on one list each week, 1 the strongest; the arrows show places moved in 1 and 4 weeks. <b>Changed box this week</b> and <b>May change box next week</b> show the moves.</>,
-            <><b>Bring it to your shares.</b> <b>How your industries compare</b> ranks the industries your shares sit in. <b>Does Sector Pulse agree?</b> checks whether the stocks inside have turned up too.</>,
+            <><b>Bring it to your shares.</b> <b>{tw("How your industries compare")}</b> {tw("ranks the industries your shares sit in.")} <b>Does Sector Pulse agree?</b> checks whether the stocks inside have turned up too.</>,
           ]} /></div>
         <div><h3 className="sp-guide-k">What each box means</h3>
           <table className="sp-guide-t"><thead><tr><th scope="col">Box</th><th scope="col">When</th></tr></thead>
             <tbody>{BOX_ORDER.map((b) => <tr key={b}><td><i className="sp-sw" style={{ background: BOX_COLOUR[b] }} aria-hidden="true" /><b>{BOX[b].arrow} {BOX[b].word}</b></td><td>{BOX_MEANING[b]}</td></tr>)}</tbody></table>
-          <p className="sp-guide-p"><b>Points.</b> +5 means the industry did 5 percentage points better than the average group; −5, 5 worse.</p>
-          <p className="sp-guide-p"><b>The usual order.</b> Behind but gaining → Ahead and gaining → Ahead but slowing → Behind and slipping, then round again. Industries can skip a box or turn back.</p>
+          <p className="sp-guide-p"><b>Points.</b> {tw("+5 means the industry did 5 percentage points better than the average group; −5, 5 worse.")}</p>
+          <p className="sp-guide-p"><b>The usual order.</b> {tw("Behind but gaining → Ahead and gaining → Ahead but slowing → Behind and slipping, then round again. Industries can skip a box or turn back.")}</p>
         </div>
       </div>
       <div className="sp-guide-two sp-guide-low">
         <div><h3 className="sp-guide-k">Check it against history</h3>
-          <p>Turn on the 8-week paths on <b>The map</b> to see the route each industry took. <b>Six months of ranks</b> and <b>How the ranking changed over 12 weeks</b> (Full table) show whether a lead has lasted or keeps changing hands. <b>Words on this page</b>, near the bottom, explains every term.</p></div>
+          <p>Turn on the 8-week paths on <b>The map</b> {tw("to see the route each industry took.")} <b>Six months of ranks</b> and <b>How the ranking changed over 12 weeks</b> (Full table) show whether a lead has lasted or keeps changing hands. <b>Words on this page</b>, near the bottom, explains every term.</p></div>
         <div><h3 className="sp-guide-k">Keep in mind</h3>
           <ul className="sp-guide-ul">
-            <li>A box says how an industry has done, not what it will do. It is not advice, and not a reason to act on its own.</li>
+            <li>{tw("A box says how an industry has done, not what it will do. It is not advice, and not a reason to act on its own.")}</li>
             <li><b>May change box</b> is an early look, not a forecast: some readings flip back the next week.</li>
             <li>A big climb can be the start of a new lead or a short catch-up. The box and Sector Pulse help tell the two apart.</li>
             <li>Read every lead against the market backdrop: the Nifty 50 against its long-term average.</li>

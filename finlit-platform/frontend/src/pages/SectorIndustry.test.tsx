@@ -79,3 +79,18 @@ describe("an industry page (pack 07)", () => {
     expect(screen.getByText("No such industry")).toBeTruthy();
   });
 });
+
+describe("a sector's page in the Sectors view (task #192, S1: ?show=sectors)", () => {
+  const atSector = () => render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={["/sectors/financial-services?show=sectors"]}><Routes><Route path="/sectors/:slug" element={<SectorIndustryPage />} /></Routes></MemoryRouter></QueryClientProvider>);
+  it("is named a sector, keeps the view on its links and offers no industry alerts", () => {
+    st.page = { ...(page as object), name: "Financial Services", slug: "financial-services", kind: "sector", sector: "Financial Services", industries: ["Banks", "Finance", "Capital Markets", "Insurance"] };
+    atSector();
+    expect(screen.getByRole("heading", { level: 1, name: "Financial Services" })).toBeTruthy();
+    expect(document.querySelector(".ip-head .sp-meta")?.textContent).toMatch(/^One of NSE's 22 sectors, 4 industries ·/);
+    expect(within(screen.getByRole("navigation", { name: "Breadcrumb" })).getByRole("link", { name: "Sector Pulse" }).getAttribute("href")).toBe("/sectors?show=sectors");
+    expect(screen.queryByRole("button", { name: /Add to watch|Watching/ })).toBeNull();            // the weekly alerts follow industry groups
+    const text = (document.body.textContent ?? "").replace(/average (industry|group)/gi, "").replace(/\d+ industries ·/, "");
+    expect(text.match(/\bindustr(y|ies)\b/gi) ?? []).toEqual([]);
+    expect(document.querySelector(".sp-disclaimer")?.textContent).toMatch(/^Describes price data for NSE sectors;/);
+  });
+});

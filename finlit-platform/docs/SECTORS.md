@@ -220,3 +220,10 @@ taxonomy/sectors.csv, under NSE's own names):
   By hand (server window, `ubuntu@ip-`): the same `refresh-sectors --no-fetch` command as in section 13.
 - Tests: `finlit_technicals/tests/test_staged_equals_single_run.py` (`test_the_sectors_view_*`), `tests/test_sector_job.py` (the job adds it once; a failure
   is reported and the live set keeps serving), `tests/test_sectors_api.py` (`?show=sectors`).
+- **The pages (round 4b-2).** `PackHead` has "Show: Sectors | Industries" between the page tabs and View, styled like the View pills (`useShow` in
+  `frontend/src/lib/groupWords.ts`). Sectors is the default once `/api/sectors/status` says `sectorsViewLoaded`; before that the pages show the industries
+  and say why. The choice is kept in the link (`?show=sectors|industries`) on both page tabs and on every group link; a sector's page is
+  `/sectors/<slug>?show=sectors` (no "Add to watch" there: the weekly alerts follow industry groups). Every visible sentence of the sector pages goes through
+  `tw()`, which swaps industry/industries for sector/sectors in the Sectors view and never touches "the average industry" (the yardstick is the same in both
+  views; Rotation's yardstick card says so and counts the industry groups). Tests: `pages/SectorShow192.test.tsx` (no "industry" left in any of the 4 views),
+  `pages/SectorIndustry.test.tsx` (a sector's page).

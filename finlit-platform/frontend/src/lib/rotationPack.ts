@@ -5,6 +5,7 @@ import type { CornerCode, GroupRow } from "./sectors";
 import type { RotationMap, RotationRow } from "./rotation";
 import { BOX, isEarly, keyOf, short } from "./pulsePack";
 import type { Card } from "./pulsePack";
+import { tw } from "./groupWords";
 
 export type Box = Exclude<CornerCode, "middle">;
 export const BOXES: Box[] = ["ahead_gaining", "ahead_slowing", "behind_gaining", "behind_slipping"];
@@ -144,7 +145,7 @@ export function rotationHeadline(m: RotationMap, mine: Set<string>): { lead: str
   const jump = [...up].sort((a, b) => LEVEL[b.to] - LEVEL[b.from] - (LEVEL[a.to] - LEVEL[a.from]) || (b.r.rank_change_4w ?? 0) - (a.r.rank_change_4w ?? 0))[0];
   const tg = towardsGaining(m, mine).slice(0, 2).map((x) => short(x.r.name));
   const lead = !mv.length ? "Leadership is steady." : jump?.to === "ahead_gaining" ? "Leadership is shifting." : "The boxes are shifting.";
-  const parts = [jump ? `${short(jump.r.name)} ${jump.to === "ahead_gaining" ? "jumped into the top box" : `moved up to ${BOX[jump.to].word}`} this week` : !mv.length ? "No industry changed box this week" : `${plural(mv.length, "industry", "industries")} moved to a weaker box this week`];
+  const parts = [jump ? `${short(jump.r.name)} ${jump.to === "ahead_gaining" ? "jumped into the top box" : `moved up to ${BOX[jump.to].word}`} this week` : !mv.length ? tw("No industry changed box this week") : `${plural(mv.length, tw("industry"), tw("industries"))} moved to a weaker box this week`];
   if (tg.length) parts.push(`${list(tg)} may start gaining next week`);
   const k = mayMoveRows(m).length;
   const line = `${plural(mv.length, "group", "groups")} changed box this week${mv.length ? `: ${up.length} moved to a better box, ${down.length} to a weaker one` : ""}. ${k ? `${k} more may change next week.` : "None looks set to change next week."}`;
@@ -196,15 +197,15 @@ export function yourRotationCards(rows: RotationRow[], value: Map<string, number
   const ag = rows.filter((r) => r.corner === "ahead_gaining").sort((a, b) => (value.get(b.slug) ?? 0) - (value.get(a.slug) ?? 0));
   const total = rows.reduce((s, r) => s + (value.get(r.slug) ?? 0), 0), inAg = ag.reduce((s, r) => s + (value.get(r.slug) ?? 0), 0);
   if (ag.length) out.push({ kind: "good", title: `${ag.length} of your ${rows.length} groups ${ag.length === 1 ? "is" : "are"} ahead and gaining`,
-    text: `${ag.map((r) => short(r.name)).join(", ")}.${total > 0 ? inAg * 2 > total ? " Most of your money sits in industries that are leading the market." : " Less than half of your money sits in them." : ""}` });
+    text: `${ag.map((r) => short(r.name)).join(", ")}.${total > 0 ? inAg * 2 > total ? tw(" Most of your money sits in industries that are leading the market.") : " Less than half of your money sits in them." : ""}` });
   const jump = rows.filter((r) => r.corner === "behind_slipping" && nextBox(r) === "ahead_gaining").sort((a, b) => (value.get(b.slug) ?? 0) - (value.get(a.slug) ?? 0))[0];
   if (jump) {
     const g = pulse.get(jump.slug), syms = shares.get(jump.slug) ?? [];
     const rising = g && (keyOf(g) === "crash" || keyOf(g) === "bouncing" || keyOf(g) === "rising" || isEarly(g));
-    out.push({ kind: "watch", title: `${short(jump.name)} is behind, but may jump next week`, text: `${syms.length === 1 ? `${syms[0]}'s industry is` : syms.length ? `The industry of ${list(syms)} is` : "It is"} in Behind and slipping, yet its newest reading points to Ahead and gaining.${rising ? ` Sector Pulse shows ${noun(short(jump.name))} stocks rising too.` : ""}` });
+    out.push({ kind: "watch", title: `${short(jump.name)} is behind, but may jump next week`, text: `${syms.length === 1 ? tw(`${syms[0]}'s industry is`) : syms.length ? tw(`The industry of ${list(syms)} is`) : "It is"} in Behind and slipping, yet its newest reading points to Ahead and gaining.${rising ? ` Sector Pulse shows ${noun(short(jump.name))} stocks rising too.` : ""}` });
   } else {
     const bs = rows.filter((r) => r.corner === "behind_slipping");
-    if (bs.length) out.push({ kind: "watch", title: `${bs.length} of your industries ${bs.length === 1 ? "is" : "are"} behind and slipping`, text: `${list(bs.map((r) => short(r.name)))}: behind the average group over the longer run, and still falling further back.` });
+    if (bs.length) out.push({ kind: "watch", title: tw(`${bs.length} of your industries ${bs.length === 1 ? "is" : "are"} behind and slipping`), text: `${list(bs.map((r) => short(r.name)))}: behind the average group over the longer run, and still falling further back.` });
   }
   return out;
 }
@@ -219,7 +220,7 @@ export function mapCards(m: RotationMap): Card[] {
   const steep = [...rk].map((r) => ({ r, p: path(r) })).filter((x) => x.p && boxOf(x.p.a.corner) && boxOf(x.p.z.corner) && LEVEL[x.p.z.corner as Box] > LEVEL[x.p.a.corner as Box]).sort((a, b) => (LEVEL[b.p!.z.corner as Box] - LEVEL[b.p!.a.corner as Box]) - (LEVEL[a.p!.z.corner as Box] - LEVEL[a.p!.a.corner as Box]) || b.p!.d - a.p!.d)[0];   // the biggest jump in box first, then the longest path
   if (steep) out.push({ kind: "insight", title: `${short(steep.r.name)} took the steepest path`, text: `Its 8-week path climbs from the ${CORNER_AT[steep.p!.a.corner as Box]} box to the ${CORNER_AT[steep.p!.z.corner as Box]} one. Turn on the paths to see it.` });
   const near = rk.filter((r) => Math.abs(r.strength_pts ?? 99) < 5 && Math.abs(r.change_pts ?? 99) < 3).length;   // within 5 points across and 3 up or down of the cross
-  if (near >= 5) out.push({ kind: "watch", title: "Many industries sit near the middle", text: "Dots close to the cross can change box with a small move. Treat their box as provisional." });
+  if (near >= 5) out.push({ kind: "watch", title: tw("Many industries sit near the middle"), text: "Dots close to the cross can change box with a small move. Treat their box as provisional." });
   return out;
 }
 
@@ -242,7 +243,7 @@ export function rankMoveCards(m: RotationMap): Card[] {
   const up = m.climbers_4w.map((x) => ({ x, r: m.rows.find((r) => r.slug === x.slug)! })).filter((y) => y.r);
   const down = m.fallers_4w.map((x) => ({ x, r: m.rows.find((r) => r.slug === x.slug)! })).filter((y) => y.r);
   const low = up.map((y) => ({ n: short(y.r.name), was: rankAgo(y.r, 4) })).filter((y) => y.was != null && y.was > half).sort((a, b) => b.was! - a.was!);
-  if (low.length * 2 >= up.length && low.length) out.push({ kind: "good", title: "The climbers were near the bottom", text: `A month ago ${list(low.map((y, i) => `${y.n} ${i ? "" : "was "}${ordinal(y.was!)}`))}. Money is moving into industries that had been left behind.` });
+  if (low.length * 2 >= up.length && low.length) out.push({ kind: "good", title: "The climbers were near the bottom", text: tw(`A month ago ${list(low.map((y, i) => `${y.n} ${i ? "" : "was "}${ordinal(y.was!)}`))}. Money is moving into industries that had been left behind.`) });
   const fav = down.map((y) => ({ n: short(y.r.name), was: rankAgo(y.r, 4), now: y.r.rank })).filter((y) => y.was != null && y.was <= 12).sort((a, b) => a.was! - b.was!);
   if (fav.length >= 2) out.push({ kind: "warning", title: "The fallers were recent favourites", text: `A month ago ${list(fav.map((y, i) => `${y.n} ${i ? "" : "was "}${ordinal(y.was!)}`))}.${fav.every((y) => (y.now ?? 0) > half) ? ` ${fav.length === 2 ? "Both" : `All ${["", "", "", "three", "four", "five"][fav.length] ?? fav.length}`} are now in the bottom half.` : ""}` });
   out.push({ kind: "insight", title: "Why this matters", text: "A big climb can be the start of a new lead, or a short catch-up. The box (above) and Sector Pulse help tell the two apart." });
@@ -255,7 +256,7 @@ export function fullCards(m: RotationMap): Card[] {
   const broad = ag.filter((r) => r.breadth === "broad"), few = ag.filter((r) => r.breadth === "narrow");
   if (ag.length) out.push({ kind: broad.length * 2 > ag.length ? "good" : "watch", title: broad.length * 2 > ag.length ? "Most leaders are broad" : "Few leaders are broad",
     text: `In ${broad.length} of the ${ag.length} groups ahead and gaining, most stocks are taking part. A lead that many stocks share is sturdier.` });
-  if (few.length) out.push({ kind: "watch", title: "Some leads rest on a few stocks", text: `${few.map((r) => short(r.name)).join(", ")}: ahead and gaining, but only a few of their stocks are in an uptrend. One or two big shares may be carrying the industry.` });
+  if (few.length) out.push({ kind: "watch", title: "Some leads rest on a few stocks", text: tw(`${few.map((r) => short(r.name)).join(", ")}: ahead and gaining, but only a few of their stocks are in an uptrend. One or two big shares may be carrying the industry.`) });
   const long = m.rows.filter((r) => r.corner === "behind_slipping" && r.weeks_in_corner >= 15).sort((a, b) => a.weeks_in_corner - b.weeks_in_corner);
   if (long.length) out.push({ kind: "warning", title: "Long stays at the bottom", text: `${list(long.map((r) => short(r.name)))} ${long.length === 1 ? "has" : "have"} been behind and slipping for ${list(long.map((r) => String(r.weeks_in_corner)))} weeks. A long stay shows a steady trend, not a quick bounce.` });
   return out;
@@ -271,7 +272,7 @@ export function rowSummary(r: RotationRow): string {
   return `${short(r.name)} is rank ${r.rank} of ${r.ranked}, in ${word(r.corner)} for ${plural(r.weeks_in_corner, "week")}. Against the average group it is ${pc(sixMonths(r))} over 6 months and ${pc(lastMonth(r))} over the last month.${b === "Most" ? " Most of its stocks are taking part in the move." : b === "Some" ? " Some of its stocks are taking part in the move." : b === "Few" ? " Only a few of its stocks are taking part in the move." : ""}`;
 }
 export function rotationCsv(rows: RotationRow[]): string {
-  const head = ["Rank", "Change 1 week", "Change 4 weeks", "Industry", "Box", "May move to", "Weeks in box", "1 month vs average %", "3 months vs average %", "6 months vs average %", "Taking part", "Share above 50-day average %", "Highest rank 26 weeks", "Lowest rank 26 weeks"];
+  const head = ["Rank", "Change 1 week", "Change 4 weeks", tw("Industry"), "Box", "May move to", "Weeks in box", "1 month vs average %", "3 months vs average %", "6 months vs average %", "Taking part", "Share above 50-day average %", "Highest rank 26 weeks", "Lowest rank 26 weeks"];
   const q = (v: unknown) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
   return [head, ...rows.map((r) => [r.rank ?? "", r.rank_change_1w ?? "", r.rank_change_4w ?? "", r.name, word(r.corner), nextBox(r) ? BOX[nextBox(r)!].word : "", r.weeks_in_corner, lastMonth(r) ?? "", threeMonths(r) ?? "", sixMonths(r) ?? "",
     breadthWord(r).w ?? "", r.breadth_above_50 ?? "", r.rank_best_26w ?? "", r.rank_worst_26w ?? ""])].map((l) => l.map(q).join(",")).join("\n");

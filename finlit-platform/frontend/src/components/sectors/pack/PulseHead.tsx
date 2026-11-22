@@ -5,13 +5,16 @@ import { Link, useNavigate } from "react-router";
 import { useSearchIndex } from "../../../lib/api";
 import { short } from "../../../lib/pulsePack";
 import { Tip } from "./Common";
+import type { Show } from "../../../lib/sectors";
+import { gl, tw } from "../../../lib/groupWords";
 
 export type View = "simple" | "full";
 
-export function PackHead({ page, title, desc, meta, side, view, onView, industries, findHint }: {
+export function PackHead({ page, title, desc, meta, side, view, onView, industries, findHint, show, onShow }: {
   page: "pulse" | "rotation"; title: string; desc: string; meta: ReactNode; side: ReactNode; view: View; onView: (v: View) => void;
-  industries: { name: string; slug: string }[]; findHint?: string;
+  industries: { name: string; slug: string }[]; findHint?: string; show?: Show; onShow?: (s: Show) => void;
 }) {
+  const keep = show ? `?show=${show}` : "";             // the two pages share the view, and the link keeps it
   return (
     <header className="sp-head">
       <div className="sp-head-top">
@@ -25,9 +28,12 @@ export function PackHead({ page, title, desc, meta, side, view, onView, industri
       </div>
       <div className="sp-head-bar">
         <nav className="sp-tabs" aria-label="Sector pages">
-          <Link to="/sectors" className={"sp-tab" + (page === "pulse" ? " on" : "")} aria-current={page === "pulse" ? "page" : undefined}>Sector Pulse</Link>
-          <Link to="/sectors/rotation" className={"sp-tab" + (page === "rotation" ? " on" : "")} aria-current={page === "rotation" ? "page" : undefined}>Sector Rotation</Link>
+          <Link to={"/sectors" + keep} className={"sp-tab" + (page === "pulse" ? " on" : "")} aria-current={page === "pulse" ? "page" : undefined}>Sector Pulse</Link>
+          <Link to={"/sectors/rotation" + keep} className={"sp-tab" + (page === "rotation" ? " on" : "")} aria-current={page === "rotation" ? "page" : undefined}>Sector Rotation</Link>
         </nav>
+        {show && onShow && <div className="sp-view sp-show-sw" role="group" aria-label="Show sectors or industries"><span>Show<Tip text="Sectors: NSE's 22 sectors, each read as one group. Industries: NSE's industries, with the small ones of a sector read together as one sector group. Both are measured against the same average industry." /></span>
+          {(["sectors", "industries"] as const).map((v) => <button key={v} type="button" className={"sp-vbtn" + (show === v ? " on" : "")} aria-pressed={show === v} onClick={() => onShow(v)}>{v === "sectors" ? "Sectors" : "Industries"}</button>)}
+        </div>}
         <div className="sp-view" role="group" aria-label="View"><span>View</span>
           {(["simple", "full"] as const).map((v) => <button key={v} type="button" className={"sp-vbtn" + (view === v ? " on" : "")} aria-pressed={view === v} onClick={() => onView(v)}>{v === "simple" ? "Simple" : "Full table"}</button>)}
         </div>
@@ -38,14 +44,14 @@ export function PackHead({ page, title, desc, meta, side, view, onView, industri
 }
 
 /** Find: type an industry or a stock; Enter (or picking a suggestion) opens it. */
-function Find({ industries, hint = "An industry or a stock, e.g. INFY" }: { industries: { name: string; slug: string }[]; hint?: string }) {
+function Find({ industries, hint = tw("An industry or a stock, e.g. INFY") }: { industries: { name: string; slug: string }[]; hint?: string }) {
   const [q, setQ] = useState(""), [open, setOpen] = useState(false);
   const nav = useNavigate();
   const idx = useSearchIndex(q.trim().length >= 2);
   const hits = useMemo(() => {
     const t = q.trim().toLowerCase();
     if (t.length < 2) return [];
-    const inds = industries.filter((i) => i.name.toLowerCase().includes(t) || short(i.name).toLowerCase().includes(t)).slice(0, 5).map((i) => ({ key: "i:" + i.slug, label: short(i.name), note: "Industry", to: `/sectors/${i.slug}` }));
+    const inds = industries.filter((i) => i.name.toLowerCase().includes(t) || short(i.name).toLowerCase().includes(t)).slice(0, 5).map((i) => ({ key: "i:" + i.slug, label: short(i.name), note: tw("Industry"), to: gl(i.slug) }));
     const rows = (idx.data?.rows ?? []) as unknown[][];
     const stocks = rows.filter((r) => String(r[0]).toLowerCase().startsWith(t) || String(r[1] ?? "").toLowerCase().includes(t)).slice(0, 6).map((r) => ({ key: "s:" + r[0], label: String(r[0]), note: String(r[1] ?? ""), to: `/stocks/${encodeURIComponent(String(r[0]))}` }));
     return [...inds, ...stocks];
@@ -71,7 +77,7 @@ export function Backdrop({ pct, above }: { pct: number | null; above: boolean | 
     <aside className={"sp-side" + (above === false ? " dn" : "")} aria-label="Market backdrop">
       <p className="sp-side-k">Market backdrop<Tip text="Market backdrop. Whether the Nifty 50 is above or below its long-term average price. Above it, the market as a whole is in an uptrend." /></p>
       <p className="sp-side-v"><b>{pct > 0 ? "+" : pct < 0 ? "−" : ""}{Math.abs(pct).toFixed(1)}%</b> Nifty 50 {pct >= 0 ? "above" : "below"} its long-term average</p>
-      <p className="sp-side-x">{above === false ? "The market as a whole is in a downtrend. Read each industry against it." : "The market as a whole is in an uptrend. Read each industry against it."}</p>
+      <p className="sp-side-x">{above === false ? tw("The market as a whole is in a downtrend. Read each industry against it.") : tw("The market as a whole is in an uptrend. Read each industry against it.")}</p>
     </aside>
   );
 }

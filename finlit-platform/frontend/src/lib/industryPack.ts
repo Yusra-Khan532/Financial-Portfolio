@@ -6,6 +6,7 @@ import type { IndustryYear } from "./sectorExtra";
 import type { RotationCard } from "./rotation";
 import type { StateKey } from "./sectorHistory";
 import { BOX, WORD, keyOf, short, type Card } from "./pulsePack";
+import { tw } from "./groupWords";
 
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const MONTH = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -39,10 +40,10 @@ export function tiles(p: IndustryPage): { k: string; help: string; v: string; su
   const n = p.stocks_counted, b = p.breadth, lc = lower(short(p.name));
   const s = of(b.above_9, n), m = of(b.above_20, n), l = of(b.above_50, n);
   return [
-    { k: "Stocks rising, short trend", help: "How many of the industry's counted stocks are above their short trend: their average price of about the last two weeks.", v: s == null ? "–" : `${s} of ${n}`, sub: "above their short trend" },
-    { k: "Medium trend", help: "How many are above their medium trend, about the last month. This is the main reading: the industry's state is read from it.", v: m == null ? "–" : `${m} of ${n}`, sub: "the main reading" },
+    { k: "Stocks rising, short trend", help: tw("How many of the industry's counted stocks are above their short trend: their average price of about the last two weeks."), v: s == null ? "–" : `${s} of ${n}`, sub: "above their short trend" },
+    { k: "Medium trend", help: tw("How many are above their medium trend, about the last month. This is the main reading: the industry's state is read from it."), v: m == null ? "–" : `${m} of ${n}`, sub: "the main reading" },
     { k: "Longer trend", help: "How many are above their longer trend, about the last two and a half months. A bounce turns into an uptrend when most stocks get here.", v: l == null ? "–" : `${l} of ${n}`, sub: l != null && l * 2 > n ? "most are there" : "not there yet" },
-    { k: "Below its 1-year high", help: "How far the industry's typical stock (the equal-weighted industry index) is below its highest close of the last year.", v: p.index_vs_52w_high == null ? "–" : `${Math.abs(p.index_vs_52w_high).toFixed(1)}%`, sub: `the typical ${lc} stock` },
+    { k: "Below its 1-year high", help: tw("How far the industry's typical stock (the equal-weighted industry index) is below its highest close of the last year."), v: p.index_vs_52w_high == null ? "–" : `${Math.abs(p.index_vs_52w_high).toFixed(1)}%`, sub: `the typical ${lc} stock` },
   ];
 }
 /** What the page calls its group: an NSE industry, or a sector group (small industries of one NSE sector read together; task #192, P16). */
@@ -165,7 +166,7 @@ export function rotationTiles(r: RotationCard, counted: number, unit: "industry"
   const up = r.breadth_above_50 == null ? null : Math.round((r.breadth_above_50 * counted) / 100);
   const mv = (n: number | null | undefined, w: string) => (n == null ? null : n > 0 ? `▲${n} ${w}` : n < 0 ? `▼${-n} ${w}` : `same ${w}`);
   return [
-    { k: "Rank", help: "Its place among all ranked groups this week (NSE industries and sector groups), 1 the strongest.", v: r.rank == null ? "Not ranked yet" : rankOf(r.rank, r.ranked), sub: [mv(r.rank_change_1w, "on the week"), mv(r.rank_change_4w, "in 4 weeks")].filter(Boolean).join(" · ") },
+    { k: "Rank", help: tw("Its place among all ranked groups this week (NSE industries and sector groups), 1 the strongest."), v: r.rank == null ? "Not ranked yet" : rankOf(r.rank, r.ranked), sub: [mv(r.rank_change_1w, "on the week"), mv(r.rank_change_4w, "in 4 weeks")].filter(Boolean).join(" · ") },
     { k: "Longer run vs average", help: `How many percentage points better (+) or worse (−) the ${unit} did than the average group over the last several months.`, v: s == null ? "–" : `${s >= 0 ? "+" : "−"}${Math.abs(s).toFixed(1)}`, sub: s == null ? "" : `points ${s >= 0 ? "ahead of" : "behind"} the average group` },
     { k: "Lately vs average", help: "The same over the last month.", v: c == null ? "–" : `${c >= 0 ? "+" : "−"}${Math.abs(c).toFixed(1)}`, sub: c == null ? "" : `points ${c >= 0 ? "ahead" : "behind"} last month` },
     { k: "Stocks taking part", help: "How many of its stocks are above their longer (50-day) average: Most, Some or Few. A lead most stocks share is broad.", v: b, sub: up == null ? "" : `${up} of ${counted} in an uptrend` },
@@ -189,11 +190,11 @@ export function stockCards(stocks: RankedStock[], p: IndustryPage): Card[] {
     out.push({ kind: "good", title: lo > 0 ? "The leaders of the last 6 months" : "The strongest of the last 6 months", text: `${list(top.map((x) => x.symbol))} are ${lo >= 0 ? "up" : "changed"} ${lo}% to ${hi}% in 6 months.` });
   }
   const fl = stocks.filter((x) => x.leader_flag);
-  if (fl.length) out.push({ kind: "insight", title: `${fl.length} standout ${fl.length === 1 ? "stock" : "stocks"}`, more: fl.length > 3 ? fl.slice(3).map((x) => x.symbol) : undefined, text: `${fl.length > 3 ? `${fl.slice(0, 3).map((x) => x.symbol).join(", ")} {more}` : list(fl.slice(0, 3).map((x) => x.symbol))} made new 1-year highs while the industry is still ${p.index_vs_52w_high == null ? "below" : `${Math.round(Math.abs(p.index_vs_52w_high))}% below`} its own high.` });
+  if (fl.length) out.push({ kind: "insight", title: `${fl.length} standout ${fl.length === 1 ? "stock" : "stocks"}`, more: fl.length > 3 ? fl.slice(3).map((x) => x.symbol) : undefined, text: tw(`${fl.length > 3 ? `${fl.slice(0, 3).map((x) => x.symbol).join(", ")} {more}` : list(fl.slice(0, 3).map((x) => x.symbol))} made new 1-year highs while the industry is still ${p.index_vs_52w_high == null ? "below" : `${Math.round(Math.abs(p.index_vs_52w_high))}% below`} its own high.`) });
   const low = s.slice(-5);
   if (s.length >= 15 && low.length === 5 && low.every((x) => x.return_6m_pct! < 0)) {
     const a = Math.round(Math.abs(Math.max(...low.map((x) => x.return_6m_pct!)))), b = Math.round(Math.abs(Math.min(...low.map((x) => x.return_6m_pct!))));
-    out.push({ kind: "warning", title: "A wide spread", text: `The weakest five fell ${a}% to ${b}%: ${isBounce(keyOf(p)) ? `being in a bouncing industry does not lift every stock` : `an industry's reading does not describe every stock in it`}.` });
+    out.push({ kind: "warning", title: "A wide spread", text: `The weakest five fell ${a}% to ${b}%: ${isBounce(keyOf(p)) ? tw(`being in a bouncing industry does not lift every stock`) : tw(`an industry's reading does not describe every stock in it`)}.` });
   }
   void name;
   return out;

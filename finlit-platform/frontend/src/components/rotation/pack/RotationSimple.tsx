@@ -12,6 +12,7 @@ import {
   BOXES, BOX_HELP, BOX_MEANING, CYCLE, LEVEL, WATCH_NEXT, aheadCards, boxCounts, changeMeaning, lastMonth, mapCards, mayMoveMeaning, mayMoveRows, meansForYou, movedRows, nextBox,
   pc, pt, pulseAgrees, rankMoveCards, ranked, rotationHeadline, rotationTodayCards, sixMonths, turned, yourRotationCards, type Agree, type Box,
 } from "../../../lib/rotationPack";
+import { gl, tw } from "../../../lib/groupWords";
 
 export const BOX_COLOUR: Record<Box, string> = { ahead_gaining: "#0F6B3A", ahead_slowing: "#8F5400", behind_gaining: "#2F5A9E", behind_slipping: "#A8342B" };   // the pack's dot colours
 const Yours = () => <em className="rp-yours"> · Yours</em>;
@@ -22,7 +23,7 @@ export function TodayRot({ m, mine, pulse }: { m: RotationMap; mine: Set<string>
   return (
     <section className="sp-sec" aria-labelledby="rp-today">
       <h2 id="rp-today">Today in one minute<Tip text="Today in one minute. What changed at the latest weekly close: how many groups sit in each box now and a week ago, and the few moves worth knowing." label="About “Today in one minute”" /></h2>
-      <p className="sp-sub">Which industries are leading, which are fading, and what changed this week.</p>
+      <p className="sp-sub">{tw("Which industries are leading, which are fading, and what changed this week.")}</p>
       <p className="sp-lead"><b>{h.lead}</b>{h.rest}</p>
       <p className="sp-note">{h.line}</p>
       <div className="rp-today">
@@ -63,17 +64,17 @@ export function YourRot({ m, mine, shares, value, pulse, signedIn }: { m: Rotati
   const rows = m.rows.filter((r) => mine.has(r.slug)).sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999)), { shown: rowsShown, button: rowsMore } = useShowAll(rows, 5);
   const nShares = [...shares.values()].reduce((s, x) => s + x.length, 0);
   return (
-    <Section id="rp-yours" hide title="How your industries compare" help="How your industries compare. The industries your shares belong to, each with its box, its rank among all industries and how it has done against the average group."
-      sub={rows.length ? `The ${rows.length} industries your ${nShares} shares belong to, from the strongest rank to the weakest.` : "The industries your shares belong to, from the strongest rank to the weakest."}
-      why="A share in a leading industry has the wind behind it; a share in a lagging one is swimming against the current. This shows which of your shares have which.">
-      {!rows.length ? <p className="sp-empty">{signedIn ? "Add shares to your portfolio to see how their industries compare." : <>Sign in and add shares to your portfolio to see how their industries compare. <Link to="/login">Sign in</Link></>}</p> : <>
+    <Section id="rp-yours" hide title={tw("How your industries compare")} help={tw("How your industries compare. The industries your shares belong to, each with its box, its rank among all industries and how it has done against the average group.")}
+      sub={rows.length ? tw(`The ${rows.length} industries your ${nShares} shares belong to, from the strongest rank to the weakest.`) : tw("The industries your shares belong to, from the strongest rank to the weakest.")}
+      why={tw("A share in a leading industry has the wind behind it; a share in a lagging one is swimming against the current. This shows which of your shares have which.")}>
+      {!rows.length ? <p className="sp-empty">{signedIn ? tw("Add shares to your portfolio to see how their industries compare.") : <>{tw("Sign in and add shares to your portfolio to see how their industries compare.")} <Link to="/login">Sign in</Link></>}</p> : <>
         <Cards items={yourRotationCards(rows, value, shares, pulse)} />
-        <Scroll label="your industries"><table className="sp-tb rp-yourt">
-          <thead><tr><th scope="col">Industry and your shares</th><th scope="col">Its box<Tip text="Its box: how the industry has done against the average group over the last several months and over the last month." /></th>
+        <Scroll label={tw("your industries")}><table className="sp-tb rp-yourt">
+          <thead><tr><th scope="col">{tw("Industry and your shares")}</th><th scope="col">Its box<Tip text={tw("Its box: how the industry has done against the average group over the last several months and over the last month.")} /></th>
             <th scope="col">Rank<Tip text="Its place among all ranked groups this week, 1 the strongest; below it, the places moved in 4 weeks." /></th><th scope="col">Rank, 26 weeks<Tip text="Its rank at each of the last 26 weekly closes: higher on the line is a better rank. The shaded band is the top third." /></th>
-            <th scope="col">Vs the average group<Tip text="How much better (+) or worse (−) the industry did than the average group over the last month and the last 6 months." /></th><th scope="col">What it means for you</th></tr></thead>
+            <th scope="col">Vs the average group<Tip text={tw("How much better (+) or worse (−) the industry did than the average group over the last month and the last 6 months.")} /></th><th scope="col">What it means for you</th></tr></thead>
           <tbody>{rowsShown.map((r) => { const mf = meansForYou(r); return (
-            <tr key={r.slug}><td><Link to={`/sectors/${r.slug}`} className="rp-ind"><b>{short(r.name)}</b></Link><span className="rp-shares">{(shares.get(r.slug) ?? []).map((s) => <Link key={s} to={`/stocks/${s}`} className="sp-sym rp-pill"><CoLogo symbol={s} size={18} inline />{s}</Link>)}</span></td>
+            <tr key={r.slug}><td><Link to={gl(r.slug)} className="rp-ind"><b>{short(r.name)}</b></Link><span className="rp-shares">{(shares.get(r.slug) ?? []).map((s) => <Link key={s} to={`/stocks/${s}`} className="sp-sym rp-pill"><CoLogo symbol={s} size={18} inline />{s}</Link>)}</span></td>
               <td><BoxChip corner={r.corner} help /></td><td><RankCell r={r} /></td><td><RankLine r={r} /></td>
               <td className="rp-vsavg"><span>last month <b className={(lastMonth(r) ?? 0) > 0 ? "sp-good" : (lastMonth(r) ?? 0) < 0 ? "sp-red" : ""}>{pc(lastMonth(r))}</b></span><span>6 months <b className={(sixMonths(r) ?? 0) > 0 ? "sp-good" : (sixMonths(r) ?? 0) < 0 ? "sp-red" : ""}>{pc(sixMonths(r))}</b></span></td>
               <td>{mf && <span className={"sp-mean rp-mean-" + mf.tone}>{mf.text}</span>}</td></tr>); })}</tbody>
@@ -100,12 +101,12 @@ export function MapRot({ m, mine }: { m: RotationMap; mine: Set<string> }) {
   const q = (x1: number, y1: number, x2: number, y2: number, b: Box) => <rect x={Math.min(x1, x2)} y={Math.min(y1, y2)} width={Math.abs(x2 - x1)} height={Math.abs(y2 - y1)} className={"rp-q rp-q-" + b} />;
   const count = (b: Box) => rows.filter((r) => r.corner === b).length;
   return (
-    <Section id="rp-map" hide title="The map: where every industry stands" help="The map. Each dot is an industry. Across: how far it is ahead of or behind the average group over the last several months. Up: whether it has been gaining on the average lately. The four boxes are the four parts of the map."
-      sub="Each dot is an industry. Choose which boxes to show.">
+    <Section id="rp-map" hide title={tw("The map: where every industry stands")} help={tw("The map. Each dot is an industry. Across: how far it is ahead of or behind the average group over the last several months. Up: whether it has been gaining on the average lately. The four boxes are the four parts of the map.")}
+      sub={tw("Each dot is an industry. Choose which boxes to show.")}>
       <div className="rp-toggles" role="group" aria-label="What the map shows">
         {BOXES.map((b) => <button key={b} type="button" className={"rp-tg rp-tg-" + BOX[b].tone + (on[b] ? " on" : "")} aria-pressed={on[b]} onClick={() => setOn({ ...on, [b]: !on[b] })}><span className="rp-tick" aria-hidden="true">✓</span>{BOX[b].word} · {count(b)}</button>)}
         <span className="rp-sep" aria-hidden="true" />
-        <button type="button" className={"rp-tg rp-tg-mine" + (ring ? " on" : "")} aria-pressed={ring} onClick={() => setRing(!ring)}><span className="rp-tick" aria-hidden="true">✓</span>Ring my industries</button>
+        <button type="button" className={"rp-tg rp-tg-mine" + (ring ? " on" : "")} aria-pressed={ring} onClick={() => setRing(!ring)}><span className="rp-tick" aria-hidden="true">✓</span>{tw("Ring my industries")}</button>
         <button type="button" className={"rp-tg rp-tg-path" + (paths ? " on" : "")} aria-pressed={paths} onClick={() => setPaths(!paths)}><span className="rp-tick" aria-hidden="true">✓</span>Show 8-week paths</button>
       </div>
       <div className="rp-mapwrap">
@@ -131,7 +132,7 @@ export function MapRot({ m, mine }: { m: RotationMap; mine: Set<string> }) {
                 {l && <text className={"rp-dl" + (me ? " me" : "")} x={l.x} y={l.y} textAnchor={l.anchor}>{short(d.name)}</text>}
               </g>); })}
           </svg>
-          {picked && <p className="rp-pick" role="status">{short(picked.name)}: rank {picked.row.rank} of {picked.row.ranked}, {BOX[picked.row.corner as Box].word}. {pc(picked.row.strength_pts)} against the average over the last several months, {pc(picked.row.change_pts)} lately. <Link to={`/sectors/${picked.slug}`}>Open {short(picked.name)} →</Link></p>}
+          {picked && <p className="rp-pick" role="status">{short(picked.name)}: rank {picked.row.rank} of {picked.row.ranked}, {BOX[picked.row.corner as Box].word}. {pc(picked.row.strength_pts)} against the average over the last several months, {pc(picked.row.change_pts)} lately. <Link to={gl(picked.slug)}>Open {short(picked.name)} →</Link></p>}
         </div>
         <aside className="rp-howmap">
           <b>How to read the map</b>
@@ -139,7 +140,7 @@ export function MapRot({ m, mine }: { m: RotationMap; mine: Set<string> }) {
             <li><b>Right of the middle line</b> ahead of the average group over the last several months.</li>
             <li><b>Above the middle line</b> gaining on the average lately.</li>
             <li><b>So</b> the top-right box holds the leaders that are still pulling ahead; bottom-left, the laggards still falling back.</li>
-            <li><b>A path</b> is the route over the last 8 weeks. Industries usually move round the boxes clockwise: up-left → up-right → down-right → down-left.</li>
+            <li><b>A path</b> {tw("is the route over the last 8 weeks. Industries usually move round the boxes clockwise: up-left → up-right → down-right → down-left.")}</li>
           </ol>
           <p>Hover over any dot for its name and rank. Use the buttons above the map to hide or show each box.</p>
         </aside>
@@ -159,8 +160,8 @@ export function AheadRot({ m }: { m: RotationMap }) {
   const turnedRows = rows.filter(turned), { shown: bars, button: barsMore } = useShowAll(rows, 10);
   void max;
   return (
-    <Section id="rp-ahead" hide title="Who is ahead, and which way they are moving" help="Who is ahead. Each industry's return over 6 months against the average group (the bar) and over the last month (the dot), in percentage points."
-      sub="Bars: each industry's return over 6 months against the average group, in points. Dot: the same for the last month.">
+    <Section id="rp-ahead" hide title="Who is ahead, and which way they are moving" help={tw("Who is ahead. Each industry's return over 6 months against the average group (the bar) and over the last month (the dot), in percentage points.")}
+      sub={tw("Bars: each industry's return over 6 months against the average group, in points. Dot: the same for the last month.")}>
       <ul className="sp-lgd"><li><i className="rp-lg rp-lg-up" />ahead over 6 months</li><li><i className="rp-lg rp-lg-dn" />behind over 6 months</li><li><i className="rp-lg rp-lg-dot" />last month</li></ul>
       <div className="rp-ahead" role="img" aria-label={`${groupsN(rows.length)} by their 6-month return against the average group, with last month's`}>
         <div className="rp-ah-head" aria-hidden="true"><span /><span className="rp-ah-axis" style={{ ["--z" as string]: zero + "%" }}><small>average group</small><em className="dn">◀ behind</em><em className="up">ahead ▶</em></span><b>6 months</b><b>Last month</b></div>
@@ -178,8 +179,8 @@ export function AheadRot({ m }: { m: RotationMap }) {
       {barsMore}
       <p className="sp-note">A dot on the other side of the line from its bar is a change of direction (marked ↺ in the last column): a leader that slipped last month, or a laggard that gained.</p>
       <Cards items={aheadCards(m)} />
-      {turnedRows.length > 0 && <details className="sp-more"><summary>Industries that changed direction ({turnedRows.length}) ▾</summary>
-        <ul className="sp-changed">{turnedRows.map((r) => <li key={r.slug}><Link to={`/sectors/${r.slug}`}>{short(r.name)}</Link>: {pt(sixMonths(r))} over 6 months, {pt(lastMonth(r))} last month</li>)}</ul></details>}
+      {turnedRows.length > 0 && <details className="sp-more"><summary>{tw("Industries that changed direction (")}{turnedRows.length}) ▾</summary>
+        <ul className="sp-changed">{turnedRows.map((r) => <li key={r.slug}><Link to={gl(r.slug)}>{short(r.name)}</Link>: {pt(sixMonths(r))} over 6 months, {pt(lastMonth(r))} last month</li>)}</ul></details>}
     </Section>
   );
 }
@@ -197,30 +198,30 @@ function AgreeCell({ a }: { a: Agree | null }) {
   return <span className="rp-agree"><span className={"rp-ag rp-ag-" + a.tone}>{a.word}</span><small>{a.why}</small></span>;
 }
 const FromTo = ({ from, to }: { from: Box; to: Box }) => <span className="rp-fromto"><span><BoxChip corner={from} /> <span aria-label="to">→</span></span><BoxChip corner={to} /></span>;
-const AGREE_HELP = "Does Sector Pulse agree? Sector Pulse counts how many of the industry's stocks are rising. It agrees when its stocks point the same way as the change of box: rising for a move up, not rising together for a move down.";
+const AGREE_HELP = tw("Does Sector Pulse agree? Sector Pulse counts how many of the industry's stocks are rising. It agrees when its stocks point the same way as the change of box: rising for a move up, not rising together for a move down.");
 export function ChangedRot({ m, mine, pulse }: { m: RotationMap; mine: Set<string>; pulse: Map<string, GroupRow> }) {
   const mv = movedRows(m), { shown: mvShown, button: mvMore } = useShowAll(mv, 4);
   return (
-    <Section id="rp-changed" hide title={`Changed box this week · ${mv.length}`} help="Changed box this week. Industries whose box at this weekly close is different from last week's." sub="What changed, and what each change means.">
-      {!mv.length ? <p className="sp-empty">No industry changed box this week.</p> :
-        <Scroll label="industries that changed box this week"><table className="sp-tb rp-chg">
-          <thead><tr><th scope="col">Industry</th><th scope="col">Last week → this week<Tip text="The box at last week's close and at this week's close." /></th><th scope="col">Rank<Tip text="Its place among all ranked groups this week, 1 the strongest." /></th><th scope="col">What it means</th><th scope="col">Does Sector Pulse agree?<Tip text={AGREE_HELP} /></th></tr></thead>
-          <tbody>{mvShown.map((x) => <tr key={x.r.slug}><td><Link to={`/sectors/${x.r.slug}`} className="rp-ind"><b>{short(x.r.name)}</b></Link>{mine.has(x.r.slug) && <Yours />}</td><td><FromTo from={x.from} to={x.to} /></td>
+    <Section id="rp-changed" hide title={`Changed box this week · ${mv.length}`} help={tw("Changed box this week. Industries whose box at this weekly close is different from last week's.")} sub="What changed, and what each change means.">
+      {!mv.length ? <p className="sp-empty">{tw("No industry changed box this week.")}</p> :
+        <Scroll label={tw("industries that changed box this week")}><table className="sp-tb rp-chg">
+          <thead><tr><th scope="col">{tw("Industry")}</th><th scope="col">Last week → this week<Tip text="The box at last week's close and at this week's close." /></th><th scope="col">Rank<Tip text="Its place among all ranked groups this week, 1 the strongest." /></th><th scope="col">What it means</th><th scope="col">Does Sector Pulse agree?<Tip text={tw(AGREE_HELP)} /></th></tr></thead>
+          <tbody>{mvShown.map((x) => <tr key={x.r.slug}><td><Link to={gl(x.r.slug)} className="rp-ind"><b>{short(x.r.name)}</b></Link>{mine.has(x.r.slug) && <Yours />}</td><td><FromTo from={x.from} to={x.to} /></td>
             <td><b>{x.r.rank ?? "–"}</b> of {x.r.ranked}</td><td><Meaning {...changeMeaning(x.from, x.to, x.r)} /></td><td><AgreeCell a={pulseAgrees(x.from, x.to, pulse.get(x.r.slug))} /></td></tr>)}</tbody>
         </table></Scroll>}
       {mvMore}
     </Section>
   );
 }
-export function MayMoveRot({ m, mine, pulse, sub = "Industries whose newest weekly reading already sits in another box.", why = true }: { m: RotationMap; mine: Set<string>; pulse: Map<string, GroupRow>; sub?: string; why?: boolean }) {
+export function MayMoveRot({ m, mine, pulse, sub = tw("Industries whose newest weekly reading already sits in another box."), why = true }: { m: RotationMap; mine: Set<string>; pulse: Map<string, GroupRow>; sub?: string; why?: boolean }) {
   const mm = mayMoveRows(m), { shown: mmShown, button: mmMore } = useShowAll(mm, 4);
   return (
-    <Section id="rp-next" hide title={`May change box next week · ${mm.length}`} help="May change box next week. An industry changes box only after a weekly close confirms it. These industries' newest weekly reading already sits in another box." sub={sub}
+    <Section id="rp-next" hide title={`May change box next week · ${mm.length}`} help={tw("May change box next week. An industry changes box only after a weekly close confirms it. These industries' newest weekly reading already sits in another box.")} sub={sub}
       why={why ? "This is an early look, not a forecast. Some readings flip back the next week." : undefined}>
-      {!mm.length ? <p className="sp-empty">No industry's newest reading sits in another box.</p> :
-        <Scroll label="industries that may change box next week"><table className="sp-tb rp-chg">
-          <thead><tr><th scope="col">Industry</th><th scope="col">Now → may move to<Tip text="Its box now, and the box its newest weekly reading sits in." /></th><th scope="col">Rank<Tip text="Its place among all ranked groups this week, 1 the strongest." /></th><th scope="col">What it means</th><th scope="col">Does Sector Pulse agree?<Tip text={AGREE_HELP} /></th></tr></thead>
-          <tbody>{mmShown.map((x) => <tr key={x.r.slug}><td><Link to={`/sectors/${x.r.slug}`} className="rp-ind"><b>{short(x.r.name)}</b></Link>{mine.has(x.r.slug) && <Yours />}</td><td><FromTo from={x.from} to={x.to} /></td>
+      {!mm.length ? <p className="sp-empty">{tw("No industry's newest reading sits in another box.")}</p> :
+        <Scroll label={tw("industries that may change box next week")}><table className="sp-tb rp-chg">
+          <thead><tr><th scope="col">{tw("Industry")}</th><th scope="col">Now → may move to<Tip text="Its box now, and the box its newest weekly reading sits in." /></th><th scope="col">Rank<Tip text="Its place among all ranked groups this week, 1 the strongest." /></th><th scope="col">What it means</th><th scope="col">Does Sector Pulse agree?<Tip text={tw(AGREE_HELP)} /></th></tr></thead>
+          <tbody>{mmShown.map((x) => <tr key={x.r.slug}><td><Link to={gl(x.r.slug)} className="rp-ind"><b>{short(x.r.name)}</b></Link>{mine.has(x.r.slug) && <Yours />}</td><td><FromTo from={x.from} to={x.to} /></td>
             <td><b>{x.r.rank}</b> of {x.r.ranked}</td><td><Meaning {...mayMoveMeaning(x.from, x.to)} /></td><td><AgreeCell a={pulseAgrees(x.from, x.to, pulse.get(x.r.slug))} /></td></tr>)}</tbody>
         </table></Scroll>}
       {mmMore}
@@ -236,8 +237,8 @@ export function RankMovesRot({ m, mine }: { m: RotationMap; mine: Set<string> })
     <li key={x.slug} className={mine.has(x.slug) ? "me" : ""}><span>{short(x.name)}</span><span className="rp-mvtrack"><i className={up ? "up" : "dn"} style={{ width: (Math.abs(x.change) / max) * 100 + "%" }} /><b className={up ? "sp-good" : "sp-red"}>{up ? "▲" : "▼"} {Math.abs(x.change)}</b></span></li>
   );
   return (
-    <Section id="rp-moves" hide title="Biggest rank moves in 4 weeks" help="Biggest rank moves. The industries that climbed or fell the most places in the ranking over the last 4 weekly closes."
-      sub={`Places climbed or fallen in the ranking since ${since ? since.replace(/ \d{4}$/, "") : "4 weeks ago"}. Highlighted: your industries.`}>
+    <Section id="rp-moves" hide title="Biggest rank moves in 4 weeks" help={tw("Biggest rank moves. The industries that climbed or fell the most places in the ranking over the last 4 weekly closes.")}
+      sub={tw(`Places climbed or fallen in the ranking since ${since ? since.replace(/ \d{4}$/, "") : "4 weeks ago"}. Highlighted: your industries.`)}>
       <div className="rp-moves">
         <div><p className="sp-cap sp-good">Climbed most · places</p><ul className="rp-mv">{up.map((x) => bar(x, true))}</ul><p className="sp-cap sp-red">Fell most · places</p><ul className="rp-mv">{dn.map((x) => bar(x, false))}</ul></div>
         <div className="rp-mvcards">{rankMoveCards(m).map((c) => <InsightCard key={c.title} c={c} />)}</div>
@@ -249,33 +250,33 @@ export function RankMovesRot({ m, mine }: { m: RotationMap; mine: Set<string> })
 // ------------------------------------------------------------------------------------------------ The four boxes
 export function FourBoxes({ m, mine }: { m: RotationMap; mine: Set<string> }) {
   return (
-    <Section id="rp-four" hide title="The four boxes, in the order industries usually move" help="The four boxes. Industries tend to move from Behind but gaining to Ahead and gaining, then Ahead but slowing, then Behind and slipping, and round again. The order is typical, not fixed."
-      sub="The number is each industry's rank, 1 to 37. ★ marks your industries.">
+    <Section id="rp-four" hide title={tw("The four boxes, in the order industries usually move")} help={tw("The four boxes. Industries tend to move from Behind but gaining to Ahead and gaining, then Ahead but slowing, then Behind and slipping, and round again. The order is typical, not fixed.")}
+      sub={tw("The number is each industry's rank, 1 to 37. ★ marks your industries.")}>
       <div className="rp-four">{CYCLE.map((b, i) => { const rows = m.rows.filter((r) => r.corner === b).sort((x, y) => (x.rank ?? 999) - (y.rank ?? 999)); return (
         <Fragment key={b}>
           {i > 0 && <span className="rp-four-arrow" aria-hidden="true">→</span>}
           <div className={"rp-fb rp-fb-" + BOX[b].tone}>
             <p className="rp-fb-h"><span className={"rp-fb-t rp-t-" + BOX[b].tone}>{BOX[b].arrow} {BOX[b].word}</span><Tip text={BOX_HELP[b]} label={`About “${BOX[b].word}”`} /><b>{rows.length}</b></p>
             <p className="rp-fb-x">{BOX_MEANING[b]}</p>
-            <ul className="rp-fb-l">{rows.map((r) => <li key={r.slug}><Link to={`/sectors/${r.slug}`}><span className={"rp-fb-n rp-n-" + BOX[b].tone}>{r.rank ?? "–"}</span>{short(r.name)}{mine.has(r.slug) && " ★"}</Link></li>)}</ul>
+            <ul className="rp-fb-l">{rows.map((r) => <li key={r.slug}><Link to={gl(r.slug)}><span className={"rp-fb-n rp-n-" + BOX[b].tone}>{r.rank ?? "–"}</span>{short(r.name)}{mine.has(r.slug) && " ★"}</Link></li>)}</ul>
             <p className="rp-fb-w"><b>What to watch next:</b> {WATCH_NEXT[b]}</p>
           </div>
         </Fragment>); })}</div>
-      <p className="sp-note">After Behind and slipping the cycle starts again. Industries can skip a box or turn back; the order is typical, not fixed.</p>
+      <p className="sp-note">{tw("After Behind and slipping the cycle starts again. Industries can skip a box or turn back; the order is typical, not fixed.")}</p>
     </Section>
   );
 }
 
 export const ROT_WORDS: [string, string][] = [
-  ["The average group", "All the industries counted equally. Every figure on this page is how far an industry is ahead of (+) or behind (−) it"],
-  ["Box", "Where an industry sits on the map: ahead or behind the average group over the last several months, and gaining or slipping against it lately"],
+  ["The average group", tw("All the industries counted equally. Every figure on this page is how far an industry is ahead of (+) or behind (−) it")],
+  ["Box", tw("Where an industry sits on the map: ahead or behind the average group over the last several months, and gaining or slipping against it lately")],
   ["Ahead and gaining", BOX_MEANING.ahead_gaining.replace(/\.$/, "")], ["Ahead but slowing", BOX_MEANING.ahead_slowing.replace(/\.$/, "")],
   ["Behind but gaining", BOX_MEANING.behind_gaining.replace(/\.$/, "")], ["Behind and slipping", BOX_MEANING.behind_slipping.replace(/\.$/, "")],
-  ["Rank", "An industry's place on one list of all ranked groups each week, 1 the strongest"],
+  ["Rank", tw("An industry's place on one list of all ranked groups each week, 1 the strongest")],
   ["May change box", "Its newest weekly reading already sits in another box; if the next weekly close agrees, it moves"],
-  ["Taking part", "How many of the industry's stocks are above their 50-day average: Most, Some or Few. A lead most stocks share is broad"],
-  ["Path", "The route an industry's dot took on the map over the last 8 weekly closes"],
-  ["Points", "Percentage points: +5 means the industry did 5% better than the average group over that time"],
-  ["Sector Pulse", "Our other sector page: it counts how many of each industry's stocks are rising, updated every weekend"],
+  ["Taking part", tw("How many of the industry's stocks are above their 50-day average: Most, Some or Few. A lead most stocks share is broad")],
+  ["Path", tw("The route an industry's dot took on the map over the last 8 weekly closes")],
+  ["Points", tw("Percentage points: +5 means the industry did 5% better than the average group over that time")],
+  ["Sector Pulse", tw("Our other sector page: it counts how many of each industry's stocks are rising, updated every weekend")],
 ];
 export { LEVEL, nextBox };
