@@ -8,3 +8,10 @@
 .avw-strip button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .avw-mob, .avw-all { display: none; }             /* desktop: the switch is in the header; the strip shows only while previewing */
 @media (max-width: 860px) { .avw:not(.avw-mob) { display: none; } .avw-mob { display: inline-flex; } .avw-all { display: flex; padding: 4px 16px; } }
+/* Task #323 (developer file 23): on the site header with its menus (not the tool pages' shorter bar), the admin-only switch and System menu pushed the
+   account button past the right edge up to 1500px wide (91px at 1366, 17px at 1440). There, the switch moves to the strip under the header, as on a phone. */
+@media (min-width: 861px) and (max-width: 1500px) {
+  .top:not(.top--tool) .avw:not(.avw-mob) { display: none; }
+  body:has(.top:not(.top--tool) .avw) .avw-all { display: flex; padding: 4px 16px; }
+  body:has(.top:not(.top--tool) .avw) .avw-mob { display: inline-flex; }
+}
