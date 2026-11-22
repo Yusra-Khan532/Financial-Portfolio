@@ -56,14 +56,16 @@
 .wod-fx-lhs { font: var(--ui-fw-bold) var(--fs-16)/var(--lh-16) var(--font-sans); color: var(--text); white-space: nowrap; }
 .wod-fx-part { display: inline-flex; align-items: center; gap: 8px; }
 .wod-fx-op { font: var(--ui-fw-semibold) var(--fs-16)/1 var(--font-sans); color: var(--muted); }
-.wod-fx-pill { display: inline-block; padding: 8px 12px; border-radius: var(--r-ctl); background: var(--s1); border: 1px solid var(--border); font: var(--ui-fw-semibold) var(--fs-14)/var(--lh-14) var(--font-sans); color: var(--text); text-align: center; overflow-wrap: anywhere; }
-@media (min-width: 760px) {   /* up to three parts on a desktop: one line of pills, their words wrapping inside (picture 2); a phone lets the pills wrap */
-  .wod-fx-row--few { flex-wrap: nowrap; }
+/* A pill keeps whole words: its text wraps only at spaces, and a pill is never narrower than its longest word (an unbreakable long word widens it;
+   only a word wider than the whole box may break, as a last resort, rather than spill out of the panel). When the pills do not fit on one line,
+   the row wraps. (Task #315 r4: `overflow-wrap: anywhere` and `min-width: 0` had let "Equity multiplier" break inside the word.) */
+.wod-fx-pill { display: inline-block; max-width: 100%; padding: 8px 12px; border-radius: var(--r-ctl); background: var(--s1); border: 1px solid var(--border); font: var(--ui-fw-semibold) var(--fs-14)/var(--lh-14) var(--font-sans); color: var(--text); text-align: center; word-break: normal; overflow-wrap: break-word; }
+@media (min-width: 760px) {   /* up to three parts on a desktop: the pills share the line (picture 2), wrapping their words at spaces, and drop to a new line only when even their longest words do not fit */
   .wod-fx-row--few .wod-fx-lhs { flex: none; }
-  .wod-fx-row--few .wod-fx-part { flex: 1 1 0; min-width: 0; }
-  .wod-fx-row--few .wod-fx-pill { flex: 1; min-width: 0; overflow-wrap: break-word; }
+  .wod-fx-row--few .wod-fx-part { flex: 1 1 0; min-width: min-content; }
+  .wod-fx-row--few .wod-fx-pill { flex: 1; min-width: min-content; }
 }
-.wod-fx-text { margin: 0; font: var(--ui-fw-medium) var(--fs-14)/var(--lh-14) var(--font-sans); color: var(--text); overflow-wrap: anywhere; }
+.wod-fx-text { margin: 0; font: var(--ui-fw-medium) var(--fs-14)/var(--lh-14) var(--font-sans); color: var(--text); overflow-wrap: break-word; }
 
 .wod-why { display: flex; gap: 10px; margin: 0; color: var(--text); }
 .wod-why b { font-weight: var(--ui-fw-bold); }
