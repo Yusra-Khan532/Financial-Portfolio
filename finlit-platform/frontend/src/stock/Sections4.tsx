@@ -44,6 +44,16 @@ function readQuarter(q: Table) {
 }
 
 /* ============== Latest quarter results ============== */
+/** One closed row of 05's takeaways or risks (task #328, file 27 change 4): the count and the first line show; the list opens on a press. */
+export function KqRow({ tone, icon, title, items, take, empty }: { tone: string; icon: string; title: string; items: string[]; take?: string | null; empty: string }) {
+  return (
+    <details style={{ "--ac": tone } as React.CSSProperties}>
+      <summary><span className="ci"><Icon name={icon} /></span><span>{title}</span><span className="n">{items.length}</span><span className="lead">{items[0] ?? empty}</span><span className="cv" aria-hidden="true">▾</span></summary>
+      {items.length ? <ul>{items.map((t) => <li key={t} className={t === take ? "aiq-take" : undefined}>{t}</li>)}</ul> : <ul><li className="muted">{empty}</li></ul>}
+    </details>
+  );
+}
+
 export function QuarterSection({ f }: { f?: Financials }) {
   const ind = useIndustryRead(f?.meta.symbol);   // task #222: the company against its industry this quarter (Latest results -> Industries)
   const q = f?.quarterly.pl;
@@ -74,13 +84,6 @@ export function QuarterSection({ f }: { f?: Financials }) {
           <MiniBars labels={q.periods.slice(-8)} series={[{ key: t.k, label: t.k, values: t.v.slice(-8), color: t.c }]} fmt={t.bar} height={116} highlight={7 - (t.v.slice(-8).length < 8 ? 8 - t.v.slice(-8).length : 0)} />
         </div>))}</div>
       <IndustryCard read={ind} />
-      {(() => { const k = readQuarter(q), line = industryKeyLine(ind); return (k.good.length || k.bad.length || line) ? (
-        <div className="kq">
-          <div className="card acc kq-c" style={{ "--ac": "var(--gain)" } as React.CSSProperties}><div className="card-h"><h3><span className="ci"><Icon name="check" /></span>Key takeaways</h3></div>
-            {k.good.length || line ? <ul>{k.good.map((t) => <li key={t}>{t}</li>)}{line && <li className="aiq-take">{line}</li>}</ul> : <p className="muted">Nothing stands out on the upside this quarter.</p>}</div>
-          <div className="card acc kq-c" style={{ "--ac": "var(--loss)" } as React.CSSProperties}><div className="card-h"><h3><span className="ci"><Icon name="alert" /></span>Key risks and red flags</h3></div>
-            {k.bad.length ? <ul>{k.bad.map((t) => <li key={t}>{t}</li>)}</ul> : <p className="muted">No red flags in the reported numbers this quarter.</p>}</div>
-        </div>) : null; })()}
       <div className="card acc qtab" style={{ "--ac": "var(--gold)" } as React.CSSProperties}>
         <div className="card-h"><h3><span className="ci"><Icon name="table" /></span>Profit and loss for the quarter<ChartHelp id="quarter-table" /></h3><span className="s">₹ Crore · latest quarter’s change shown under its figure</span></div>
         <HScroll className="" label="table"><table className="qtt"><thead><tr><th>Line</th>{cols.map((i, j) => <th key={i} className={j === 0 ? "latest" : ""}>{q.periods[i]}{j === 0 ? " (latest)" : j === 1 ? " (last quarter)" : " (year ago)"}</th>)}</tr></thead>
@@ -89,6 +92,12 @@ export function QuarterSection({ f }: { f?: Financials }) {
             return <tr key={k} className={(b ? "sub" : "") + (k === "Revenue" || k === "Net profit" ? " hl" : "")}><td>{k}</td>{cols.map((i, j) => { const x = v[i]; return <td key={i} className={j === 0 ? "latest" : ""}>{x == null ? "—" : num(x, k.startsWith("EPS") ? 2 : 0)}{j === 0 && <span className="chgs">{tag(qoq, "vs last quarter")}{tag(yoyC, "vs year ago")}</span>}</td>; })}</tr>; })}</tbody></table></HScroll>
         <p className="faint" style={{ fontSize: 12, margin: "10px 0 0" }}>Under each latest-quarter figure: how much it changed against the previous quarter, and against the same quarter a year earlier. Figures are as reported on the exchange filing.</p>
       </div>
+      {/* task #328 (developer file 27, change 4): the takeaways and the risks are two closed rows under the quarter's table, each with its count and first line */}
+      {(() => { const k = readQuarter(q), line = industryKeyLine(ind); return (k.good.length || k.bad.length || line) ? (
+        <div className="kq2">
+          <KqRow tone="var(--gain)" icon="check" title="Key takeaways" items={[...k.good, ...(line ? [line] : [])]} take={line} empty="Nothing stands out on the upside this quarter." />
+          <KqRow tone="var(--loss)" icon="alert" title="Key risks and red flags" items={k.bad} empty="No red flags in the reported numbers this quarter." />
+        </div>) : null; })()}
     </section>
   );
 }

@@ -32,7 +32,11 @@ describe("the three filings, point by point", () => {
     expect(cards[0].querySelector(".fs-dot.big")!.textContent).toBe("67");                 // Tech Mahindra's presentation pages: 67.3
     expect(cards[2].querySelector(".fs-dot.big")!.className).toContain("b-yellow");          // its results pages: 60.7
     expect(within(cards[0]).getByRole("link", { name: "PDF ↗" }).getAttribute("href")).toContain("nsearchives.nseindia.com");
-    expect(screen.getByRole("link", { name: "How the scores work (PDF) ↗" }).getAttribute("href")).toBe("/docs/finlit-filing-scores-method.pdf");
+    // task #328 (developer file 27, C): the scoring rules stay off the page: no method PDF link, no theme weights, no "How the … is made"
+    expect(screen.queryByRole("link", { name: /How the scores work/ })).toBeNull();
+    expect(document.body.textContent).not.toMatch(/weight \d|is made|method PDF/);
+    // change 8: the key points sit behind a closed "Key points N" drop-down, with Every point inside it
+    for (const c of cards) { const kp = c.querySelector("details.fs-kp")!; expect(kp.hasAttribute("open")).toBe(false); expect(kp.querySelector("summary")!.textContent).toMatch(/^Key points \d+▾$/); }
     expect(document.querySelector(".fs-legend")!.textContent).toContain("65–100");
     expect(document.querySelector(".fs-co")!.textContent).toMatch(/All three together · results filing 40% · earnings call transcript 35% · investor presentation 25%/);
   });

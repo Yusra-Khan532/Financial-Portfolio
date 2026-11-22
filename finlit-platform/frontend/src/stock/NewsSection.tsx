@@ -12,7 +12,7 @@ import { FilingScores } from "./FilingScores";
 import "../styles/news-filings.css";
 import { GROUP, GROUPS, dayNum, filingsPlain, highlights, monShort, monthHead, sortFilings, type Filing, type GroupKey } from "../lib/filings";
 
-const FIRST = 8;
+const FIRST = 6;   // task #328 (developer file 27, change 7): six shown first (was eight)
 const safe = (link: string | null) => (link && /^https?:\/\//.test(link) ? link : null);
 const shortName = (n: string) => n.replace(/\s+(Ltd\.?|Limited)$/i, "").trim();
 
@@ -20,14 +20,20 @@ export function NewsSection({ e, name, symbol }: { e?: Events; name: string; /**
   const [g, setG] = useState<GroupKey | "all">("all");
   const [all, setAll] = useState(false);
   const [routine, setRoutine] = useState(false);
+  const [open, setOpen] = useState<Set<string>>(() => new Set());   // the filings whose whole text is open
   const card = useRef<HTMLDivElement>(null);
   const fs = useMemo(() => sortFilings(e?.announcements ?? []), [e]);
   if (!e) return null;
   const live = fs.filter((f) => !f.routine), nRoutine = fs.length - live.length;
   const counts = Object.fromEntries(GROUPS.map((x) => [x.key, live.filter((f) => f.group === x.key).length])) as Record<GroupKey, number>;
-  const shown = (f: Filing) => (f.routine ? routine && (g === "all" || f.group === g) : g !== "all" ? f.group === g : all || f.i < FIRST);
-  const rows = fs.filter(shown);
-  const months = [...new Set(rows.map((f) => f.date.slice(0, 7)))];
+  // task #328 (developer file 27, change 7): one line a filing, six first; "Show all" opens the rest (rendered, marked nf-hid) inside a box that scrolls at 560 px
+  const listed = (f: Filing) => (f.routine ? routine && (g === "all" || f.group === g) : g !== "all" ? f.group === g : true);
+  const later = (f: Filing) => g === "all" && !f.routine && f.i >= FIRST;   // past the first six of the whole list
+  const shown = (f: Filing) => listed(f) && (all || !later(f));
+  const rowsAll = fs.filter(listed), rows = rowsAll.filter(shown);
+  const months = [...new Set(rowsAll.map((f) => f.date.slice(0, 7)))];
+  const keyOf = (f: Filing) => f.date + (f.time || "") + f.description.slice(0, 40);
+  const flip = (k: string) => setOpen((o) => { const n = new Set(o); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const plain = filingsPlain(shortName(name), fs, e.actions);
   const tiles = highlights(fs, e.actions);
   const nInView = rows.length;   // as the pack: the filings on screen now ("8 filings" before Show all, "9" for Shares & fund raising)
@@ -47,7 +53,7 @@ export function NewsSection({ e, name, symbol }: { e?: Events; name: string; /**
             <span className="nf-hk">{GROUP[h.group].label}</span><b>{h.title}</b><span className="nf-hd">{dayNum(h.filing.date)} {monShort(h.filing.date)} {h.filing.date.slice(0, 4)}{link ? <> · PDF <i aria-hidden="true">↗</i></> : null}</span></Tag>;
         })}</div>
       </>}
-      <div className={"card acc nf-card" + (routine ? " rt" : "")} id="announcements" ref={card} style={{ "--ac": "var(--k1)" } as React.CSSProperties}>
+      <div className={"card acc nf-card" + (routine ? " rt" : "") + (all ? " all" : "")} id="announcements" ref={card} style={{ "--ac": "var(--k1)" } as React.CSSProperties}>
         <div className="card-h"><h3><span className="ci"><Icon name="notes" /></span>All filings<ChartHelp id="news-filings" label="About these filings" /></h3>
           <span className="s nf-s"><span className="nf-n">{g === "all" && nInView < live.length ? `${nInView} of ${live.length} filings shown` : `${nInView} filing${nInView === 1 ? "" : "s"}`}</span>{nRoutine > 0 && <> · <button type="button" className="nf-rtb" aria-pressed={routine} onClick={() => setRoutine(!routine)}>{routine ? "Hide routine filings" : `Show ${nRoutine} routine filing${nRoutine === 1 ? "" : "s"}`}</button></>}</span></div>
         {live.length > 0 && <div className="fchips nf-f" role="group" aria-label="Show filings by group">
@@ -55,14 +61,16 @@ export function NewsSection({ e, name, symbol }: { e?: Events; name: string; /**
           {GROUPS.filter((x) => counts[x.key] > 0).map((x) => <button key={x.key} type="button" className={"chip-b" + (g === x.key ? " on" : "")} aria-pressed={g === x.key} style={{ "--gc": x.colour } as React.CSSProperties} onClick={() => setG(x.key)}><i aria-hidden="true" />{x.label} <span>{counts[x.key]}</span></button>)}
         </div>}
         <div className="nf-list">
-          {months.map((m) => <div key={m}><h4 className="nf-m">{monthHead(m)}</h4><ol className="nf-l">{rows.filter((f) => f.date.startsWith(m)).map((f) => {
-            const link = safe(f.link), Tag = link ? "a" : "div";
-            return <li key={f.date + (f.time || "") + f.description.slice(0, 40)} className={"nf-r" + (f.routine ? " nf-rt" : "")}>
+          {months.map((m) => { const inMonth = rowsAll.filter((f) => f.date.startsWith(m)), hidMonth = inMonth.every((f) => later(f));
+            return <div key={m} className={hidMonth ? "nf-mo nf-hid" : "nf-mo"}><h4 className="nf-m">{monthHead(m)}</h4><ol className="nf-l">{inMonth.map((f) => {
+            const link = safe(f.link), Tag = link ? "a" : "div", k = keyOf(f), isOpen = open.has(k);
+            return <li key={k} className={"nf-r" + (f.routine ? " nf-rt" : "") + (later(f) ? " nf-hid" : "") + (isOpen ? " open" : "")}>
               <span className="nf-d"><b>{dayNum(f.date)}</b>{monShort(f.date)}{f.time && <small>{f.time}</small>}</span>
               <Tag className="nf-b" style={{ "--gc": GROUP[f.group].colour } as React.CSSProperties} {...(link ? { href: link, target: "_blank", rel: "noopener noreferrer" } : {})}>
                 <span className="nf-c">{GROUP[f.group].label}</span><span className="nf-t">{f.title}</span><span className="nf-k">NSE category: {f.category}</span>{link && <span className="nf-go" aria-hidden="true">PDF ↗</span>}
-              </Tag></li>;
-          })}</ol></div>)}
+              </Tag>
+              <button type="button" className="nf-exp" aria-expanded={isOpen} aria-label={isOpen ? "Show one line" : "Show the whole text"} onClick={() => flip(k)}>▾</button></li>;
+          })}</ol></div>; })}
           {!fs.length && <p className="muted">No filings in the feed for this company yet.</p>}
         </div>
         {g === "all" && live.length > FIRST && <button type="button" className="nf-all" aria-expanded={all} onClick={toggleAll}>{all ? "Show fewer" : `Show all ${live.length}`}</button>}
