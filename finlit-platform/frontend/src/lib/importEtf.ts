@@ -7,7 +7,7 @@
 import { apiGet, apiSend } from "./api";
 import { DEFAULT_PF } from "./portfolio";
 import type { Book } from "./etfBook";
-import { etfBuys, etfCommit, etfMessage, etfPlan, etfPreviewRows, type EtfPlan, type EtfPreview, type FundLine } from "./importFunds";
+import { bookAfterImport, etfBuys, etfCommit, etfMessage, etfPlan, etfPreviewRows, type EtfPlan, type EtfPreview, type FundLine } from "./importFunds";
 
 const BASE = "/api/me/etf-portfolio";
 const uid = () => "imp" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -17,35 +17,33 @@ export async function previewFunds(funds: FundLine[]): Promise<EtfPlan> {
   return etfPlan(funds, pv);
 }
 
-/** The buys added to the book (only ETFs with no buys stored); returns how many were added. */
-export async function addBookBuys(buys: { symbol: string; qty: number; price: number; pf?: string; date?: string }[]): Promise<{ symbol: string }[]> {
-  if (!buys.length) return [];
+/** The buys added to the book (only ETFs with no buys stored), and the earlier import buys whose price was corrected (`bookAfterImport`). */
+export async function addBookBuys(buys: { symbol: string; qty: number; price: number; pf?: string; date?: string }[]): Promise<{ added: { symbol: string }[]; fixed: string[] }> {
+  if (!buys.length) return { added: [], fixed: [] };
   const b = await apiGet<Book>(BASE + "/book");
-  const real = b.lots.filter((l) => !l.legacy), withBuys = new Set(real.map((l) => l.symbol));
-  const fresh = buys.filter((x) => !withBuys.has(x.symbol));
-  if (!fresh.length) return [];
   const pf = b.portfolios[0]?.id ?? DEFAULT_PF;
   // an ETF with a quantity only (a "legacy" line of the book) is left as it is; one that gets a buy here takes the buy instead of that line
-  const lots = [...real.map((l) => ({ id: l.id, symbol: l.symbol, pf: l.pf, side: l.side, qty: l.qty, price: l.price > 0 ? l.price : null, date: l.date })),
-    ...fresh.map((x) => ({ id: uid(), symbol: x.symbol, pf, side: "buy" as const, qty: x.qty, price: x.price, date: x.date ?? null }))];
-  await apiSend("PUT", BASE + "/book", { portfolios: b.portfolios, lots });
-  return fresh;
+  const r = bookAfterImport(b.lots, buys, pf, uid);
+  if (!r.added.length && !r.fixed.length) return { added: [], fixed: [] };
+  await apiSend("PUT", BASE + "/book", { portfolios: b.portfolios, lots: r.lots.map(({ legacy: _l, ...l }) => l) });
+  return { added: r.added.map((symbol) => ({ symbol })), fixed: r.fixed };
 }
 
 /** Sends the ticked ETFs and says what happened ("8 ETFs went to your ETF portfolio: 6 added, units set for A and B."). */
 export async function sendFunds(plan: EtfPlan, ticked: Set<string>, rateAsBuy: boolean, rateOn?: string | null): Promise<string> {
   if (!ticked.size) return "";
   const res = await apiSend<{ added: number; replaced: number; skipped: number }>("POST", BASE + "/import-commit", etfCommit(plan, ticked));
-  let fromRate = 0, priced = 0;
+  let fromRate = 0, priced = 0, fixed: string[] = [];
   try {
     const all = [...plan.add, ...plan.have];
-    const added = await addBookBuys(etfBuys(plan, ticked, rateAsBuy, () => false));
-    priced = added.length;
-    fromRate = added.filter((b) => !(all.find((x) => x.symbol === b.symbol)?.avg)).length;
+    const r = await addBookBuys(etfBuys(plan, ticked, rateAsBuy, () => false));
+    priced = r.added.length; fixed = r.fixed;
+    fromRate = r.added.filter((b) => !(all.find((x) => x.symbol === b.symbol)?.avg)).length;
   } catch { /* the units are in; only the buy prices could not be saved, said below */ }
   const msg = etfMessage(res, plan.have.filter((x) => ticked.has(x.symbol)).map((x) => x.symbol), fromRate, rateOn);
   const avg = priced - fromRate;
-  return msg + (avg ? ` ${avg === 1 ? "One has" : `${avg} have`} the file's average buy price.` : "");
+  return msg + (avg ? ` ${avg === 1 ? "One has" : `${avg} have`} the file's average buy price.` : "")
+    + (fixed.length ? ` The buy price of ${fixed.length === 1 ? fixed[0] : `${fixed.length} ETFs (${fixed.join(", ")})`} from an earlier import was corrected to the file's average.` : "");
 }
 
 /** The spreadsheet path (no dialog): every ETF the preview finds is sent, within the plan's room. */

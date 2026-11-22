@@ -56,3 +56,5 @@
 .mp-pw { align-items: flex-end; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
 .mp-pw label { display: grid; gap: 6px; font-size: var(--fs-13); flex: 1 1 280px; max-width: 520px; }
 .mp-pw input { min-height: 38px; }
+/* the ETF import review: a holdings report's company-share lines, folded under the table (22 Nov 2026) */
+.mp-shares { margin: 10px 0 0; } .mp-shares summary { cursor: pointer; font-weight: 600; color: var(--text); } .mp-shares p { margin: 6px 0 0; font-size: var(--fs-13); line-height: 1.5; }
