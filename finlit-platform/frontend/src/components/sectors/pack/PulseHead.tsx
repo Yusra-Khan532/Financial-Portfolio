@@ -20,7 +20,7 @@ export function PackHead({ page, title, desc, meta, side, view, onView, industri
       <div className="sp-head-top">
         <div>
           <p className="sp-eyebrow">Markets · Sectors</p>
-          <h1>{title}</h1>
+          <h1 className="ui-title">{title}</h1>
           <p className="sp-desc">{desc}</p>
           <p className="sp-meta">{meta}</p>
         </div>

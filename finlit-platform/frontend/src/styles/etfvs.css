@@ -11,7 +11,7 @@
 .evi-crumb { margin-top: 14px; font-size: 14px; } .evi-crumb a { color: var(--gold); font-weight: 600; }
 /* selector card */
 .evi-select { padding: 22px; }
-.evi-sel-h { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 18px; } .evi-sel-h h2 { margin: 0 0 4px; font-size: 20px; font-weight: 600; } .evi-sel-h p { margin: 0; font-size: 14px; line-height: 1.5; max-width: 62ch; }
+.evi-sel-h { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 18px; } .evi-sel-h h2 { margin: 0 0 4px; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); } .evi-sel-h p { margin: 0; font-size: 14px; line-height: 1.5; max-width: 62ch; }
 .evi-form { display: grid; gap: 14px; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
 .evi-form > .evi-check, .evi-form > .evi-hint, .evi-form > .evi-go { grid-column: 1 / -1; }
 .evi-field { position: relative; display: grid; gap: 6px; min-width: 0; align-content: start; }

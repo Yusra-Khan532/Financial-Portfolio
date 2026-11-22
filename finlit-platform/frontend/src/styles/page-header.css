@@ -1,7 +1,9 @@
 /* Page header (components/PageHeader.tsx). One look for every feature page: plan badge, serif title, short description, quick links, key figures, a line illustration.
    Class prefix ph- is owned by this file. Only theme tokens: neutral surfaces, hairline borders, the single gold accent. Light and dark follow the tokens. */
 .ph-wrap { padding-top: 18px; }
-.ph { --ph-on: var(--on-gold); position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px 32px; align-items: center; padding: 24px 28px; margin: 0 0 16px; background: var(--s1); border: 1px solid var(--border); border-radius: 18px; color: var(--text); }
+.ph { --ph-on: var(--on-gold); position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px 32px; align-items: center; padding: 8px 0 4px; margin: 0 0 16px; color: var(--text); }
+/* Task #310: the header is open (no card around it), so the title starts at the left edge of the content column like the sections below it;
+   the title is ui-title (Serif 32px/500, 28px on a phone) or ui-title--read for the long reads (components/ui, ui.css). */
 :root[data-theme="light"] .ph { --ph-on: #FFFDF6; }
 .ph-solo { grid-template-columns: minmax(0, 1fr); }
 .ph-main { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
@@ -12,7 +14,7 @@
 .ph-plan.gold { background: var(--gold-soft); border-color: color-mix(in srgb, var(--gold) 55%, transparent); color: var(--gold); }
 .ph-eyebrow { font: 700 12px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
 .ph-titlerow { align-self: stretch; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 14px; } .ph-titlerow > .ph-title { flex: 1 1 260px; min-width: 0; }
-.ph-title { margin: 0; font: 500 var(--fs-page-title)/1.12 var(--serif); letter-spacing: -.01em; text-wrap: balance; overflow-wrap: anywhere; }
+.ph-title { margin: 0; letter-spacing: -.01em; text-wrap: balance; overflow-wrap: anywhere; }
 .ph-desc { margin: 0; max-width: 64ch; color: var(--muted); font-size: var(--fs-16); line-height: 1.55; }
 .ph-desc b, .ph-desc strong { color: var(--text); font-weight: 650; }
 .ph-desc a { color: var(--gold); text-underline-offset: 3px; }
@@ -44,11 +46,10 @@
 }
 @media (max-width: 1100px) { .ph-side { width: min(300px, 34vw); } }
 @media (max-width: 760px) {
-  .ph { grid-template-columns: minmax(0, 1fr); padding: 18px 16px; gap: 14px; border-radius: 16px; }
+  .ph { grid-template-columns: minmax(0, 1fr); padding: 4px 0 0; gap: 14px; }
   .ph-art-box { display: none; }
   .ph-side { width: auto; }
   .ph-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ph-title { font-size: var(--fs-28); }
   .ph-learn, .ph-qbtn { min-height: 40px; }
 }
 @media print { .ph { animation: none; } .ph-art-box { display: none; } }

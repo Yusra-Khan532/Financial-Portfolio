@@ -24,7 +24,7 @@ export function MfScoreMethodPage() {
   return (
     <div className="wrap mf mfs-method">
       <p className="mf-back"><Link to="/funds">← All mutual fund schemes</Link></p>
-      <PageHeader eyebrow="Mutual Fund Score" title={<>What the {MF_SCORE_NAME} means</>} art="report" links={["/fund-score-screener", "/funds", "/funds/compare"]} description={MF_SCORE_COMPLIANCE} meta={runDate ? <>Scores last worked out on {runDate}.</> : undefined} />
+      <PageHeader titleVariant="read" eyebrow="Mutual Fund Score" title={<>What the {MF_SCORE_NAME} means</>} art="report" links={["/fund-score-screener", "/funds", "/funds/compare"]} description={MF_SCORE_COMPLIANCE} meta={runDate ? <>Scores last worked out on {runDate}.</> : undefined} />
 
       <section className="card mf-card"><h2 className="mf-h4">What the score is, and what it is not</h2>
         <ul className="mfs-list">

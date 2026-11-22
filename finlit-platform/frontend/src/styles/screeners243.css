@@ -3,7 +3,7 @@
    Colours come from the site tokens (and the pack tokens of sectors-pack.css), so both themes read; sizes are on the site's type scale. */
 
 /* ---- H. The page header (pack H): the site's sp-head with four plain screener boxes ---- */
-.xsh.sp-head { margin: 18px 0 16px; padding: 24px 28px 18px; }
+.xsh.sp-head { margin: 18px 0 16px; padding: 8px 0 4px; }   /* task #310: an open page header, so the title starts at the left edge of the content column */
 .xsh .sp-eyebrow { margin: 0 0 8px; }
 .xsh-h1 { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin: 0 0 10px; }
 .xsh .xsh-h1 h1 { margin: 0; }
@@ -20,7 +20,7 @@
   padding: 0; cursor: pointer; }
 .xsh .xsh-link:hover { text-decoration: underline; }
 .xsh .xsh-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 4px; }
-@media (max-width: 760px) { .xsh.sp-head { padding: 18px 16px 14px; border-radius: 18px; } .xsh h1 { font-size: 28px; } }
+@media (max-width: 760px) { .xsh.sp-head { padding: 4px 0 0; } }
 @media (max-width: 560px) {
   .xsh-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   .xsh-box { justify-content: center; text-align: center; white-space: normal; line-height: 1.2; font-size: 13px; padding: 6px 8px; }
@@ -28,7 +28,7 @@
 
 /* ---- S. Stock screener: the left panel's three tabs (pack S, v2 and v3) ---- */
 .ssw-rh.xsp-rh { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 10px; }
-.ssw-rh.xsp-rh h2 { margin: 0; font: 700 16px/1.25 var(--sans); color: var(--text); }
+.ssw-rh.xsp-rh h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); color: var(--text); }
 .ssw-rh.xsp-rh .ssw-rmin { flex: none; }
 .xsp-tabs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1.2fr); gap: 3px; padding: 4px; margin: 0 0 12px; border-radius: 12px;
   background: var(--s2); border: 1px solid var(--border); }
@@ -47,7 +47,7 @@
 .xsp-clear { margin: 0 0 8px; text-align: right; }
 .xsp-onbox { display: grid; gap: 6px; margin: 0 0 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--gold) 50%, var(--border));
   background: color-mix(in srgb, var(--gold) 8%, var(--s1)); }
-.xsp-onbox h3 { margin: 0; font: 700 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.xsp-onbox h3 { margin: 0; font: var(--ui-fw-semibold) var(--fs-label)/var(--lh-12) var(--font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .xsp-onbox ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .xsp-onbox li button { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--gold); background: var(--s1);
   color: var(--text); font: 600 13px var(--sans); cursor: pointer; }

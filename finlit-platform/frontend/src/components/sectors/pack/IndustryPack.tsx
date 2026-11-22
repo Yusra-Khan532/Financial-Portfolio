@@ -35,7 +35,7 @@ export function IndustryHead({ p, rot }: { p: IndustryPage; rot: RotationCard | 
       <nav className="ip-crumbs" aria-label="Breadcrumb"><Link to="/markets">Markets</Link> › <Link to={"/sectors" + sq()}>Sector Pulse</Link> › <b>{name}</b></nav>
       <div className="ip-top">
         <div>
-          <h1>{name}</h1>
+          <h1 className="ui-title">{name}</h1>
           <p className="ip-chips">
             <StateChip k={k} help />{p.since_label && <span className="ip-since">since {dm(p.since!)}</span>}
             {rot && rot.corner && rot.corner !== "middle" && <><BoxChip corner={rot.corner} /><Tip text={BOX_HELP[rot.corner]} label={`About “${rot.corner_name}”`} />{rot.rank != null && <span className="ip-since">rank {rankOf(rot.rank, rot.ranked)}</span>}</>}

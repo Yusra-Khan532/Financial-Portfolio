@@ -64,7 +64,7 @@ export function PlansBand({ id, h1 = false, landing = false }: { id?: string; h1
       <div className="wrap">
         <div className="plans-h">
           <div className="eyebrow" style={{ marginBottom: 12 }}>FinLit plans</div>
-          <H id="plansTitle">Start free. Add more <em>when you need it</em></H>
+          <H id="plansTitle" className={h1 ? "ui-title ui-title--marketing" : "ui-h2--marketing"}>Start free. Add more <em>when you need it</em></H>
           <p>Basic costs nothing and needs no card. Silver adds the full screener, watchlists and the portfolio scorecard; Gold adds FinLit Prism, the Gold dashboards and more depth. Payments are not live yet, so for now ask for a plan from your account and we switch it on by hand.</p>
         </div>
         {!landing && <>

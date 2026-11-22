@@ -145,7 +145,7 @@ export function WatchlistPage() {
       <header className="wp-head" aria-labelledby="wp-title">
         <div className="wp-head-t">
           <span className="wp-plan">SILVER</span>
-          <h1 id="wp-title">Watchlists</h1>
+          <h1 id="wp-title" className="ui-title">Watchlists</h1>
           <p>{PAGE_DESC}</p>
         </div>
         <div className="wp-lists" role="group" aria-label="Your lists">

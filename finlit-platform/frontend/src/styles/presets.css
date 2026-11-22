@@ -34,7 +34,7 @@
 .psx-top { display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 12px; }
 .psx-tt { flex: 1 1 320px; min-width: 0; }
 .psx-eyebrow { color: var(--faint); font: 600 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; }
-.psx-tt h2 { margin: 2px 0 4px; font: 600 24px/1.2 var(--serif, Georgia, serif); overflow-wrap: anywhere; }
+.psx-tt h2 { margin: 2px 0 4px; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); overflow-wrap: anywhere; }
 .psx-card-text { margin: 0 0 8px; color: var(--muted); font-size: var(--fs-14); line-height: 1.5; }
 .psx-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; color: var(--muted); font-size: var(--fs-14); } .psx-meta b { color: var(--text); font: 600 14px var(--mono); }
 .psx-act { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -80,21 +80,21 @@
 .psx-filt { margin: 0 0 10px; color: var(--muted); font-size: var(--fs-14); }
 
 /* empty and other states */
-.psx-state { display: grid; justify-items: start; gap: 8px; padding: 18px 4px; } .psx-state h2 { margin: 0; font: 600 20px var(--serif, Georgia, serif); display: flex; gap: 8px; align-items: center; } .psx-state h2 svg { width: 18px; height: 18px; color: var(--gold); } .psx-state p { margin: 0; color: var(--muted); max-width: 62ch; line-height: 1.5; }
-.psx-empty { padding: 6px 0; } .psx-eh { margin: 0 0 4px; font: 600 18px var(--serif, Georgia, serif); } .psx-empty h3 { margin: 14px 0 8px; font: 600 14px var(--sans); color: var(--muted); }
+.psx-state { display: grid; justify-items: start; gap: 8px; padding: 18px 4px; } .psx-state h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); display: flex; gap: 8px; align-items: center; } .psx-state h2 svg { width: 18px; height: 18px; color: var(--gold); } .psx-state p { margin: 0; color: var(--muted); max-width: 62ch; line-height: 1.5; }
+.psx-empty { padding: 6px 0; } .psx-eh { margin: 0 0 4px; font: 600 18px var(--serif, Georgia, serif); } .psx-empty h3 { margin: 14px 0 8px; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); color: var(--muted); }
 .psx-miss { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .psx-miss li { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--s2); }
 .psx-mh { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; } .psx-mh a { color: var(--text); } .psx-mh small { color: var(--faint); }
 .psx-mr { color: var(--muted); font-size: var(--fs-14); line-height: 1.45; }
 
 /* upgrade page teaser */
-.psx-locked { padding: 18px 20px; display: grid; gap: 10px; justify-items: start; } .psx-locked h2 { margin: 0; font: 600 20px var(--serif, Georgia, serif); } .psx-locked p { margin: 0; }
+.psx-locked { padding: 18px 20px; display: grid; gap: 10px; justify-items: start; } .psx-locked h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); } .psx-locked p { margin: 0; }
 .psx-lg { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px 20px; width: 100%; }
-.psx-lgi h3 { margin: 0 0 4px; font: 600 14px var(--sans); } .psx-lgi ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: var(--fs-14); color: var(--muted); }
+.psx-lgi h3 { margin: 0 0 4px; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); } .psx-lgi ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: var(--fs-14); color: var(--muted); }
 .psx-lgi li { display: flex; gap: 6px; align-items: baseline; } .psx-lgi li svg { width: 12px; height: 12px; flex: none; color: var(--gold); } .psx-lgi small { color: var(--faint); }
 
 @media (max-width: 640px) {
-  .psx-screen { padding: 14px; } .psx-tt h2 { font-size: var(--fs-20); } .psx-themes { grid-template-columns: minmax(0, 1fr); }
+  .psx-screen { padding: 14px; } .psx-themes { grid-template-columns: minmax(0, 1fr); }
   .psx-act .btn { min-height: 40px; }
 }
 @media (prefers-reduced-motion: reduce) { .psx-gb svg, .psx-res { transition: none; } }

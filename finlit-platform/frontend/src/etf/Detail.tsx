@@ -44,7 +44,7 @@ export function EtfDetailPage() {
       <nav className="etf-crumb" aria-label="Breadcrumb"><Link to="/etfs">← All ETFs</Link></nav>
       <header className="etf-head">
         <div>
-          <h1>{d.name}</h1>
+          <h1 className="ui-title">{d.name}</h1>
           <div className="etf-ids">
             <span className="chip ghost mono">{d.symbol}</span><span className="chip ghost mono" title="ISIN">{d.isin}</span>
             {d.categoryLabel ? <span className="chip gold">{d.categoryLabel}{termKey && <GlossInfo name={termKey} fallback={d.categoryLabel} />}</span> : <span className="chip ghost" title="The fund's name does not say clearly what it follows">Category not clear from the name</span>}

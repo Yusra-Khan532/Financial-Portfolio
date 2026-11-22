@@ -61,7 +61,7 @@ export function ScreenerHead({ title, tier, desc, date, how, children }: {
   return (
     <header className="sp sp-head xsh" aria-labelledby="xsh-h1">
       <p className="sp-eyebrow">Research · Find stocks</p>
-      <div className="xsh-h1"><h1 id="xsh-h1">{title}</h1>{tier && tier !== "basic" ? <TierChip tier={tier} /> : null}</div>
+      <div className="xsh-h1"><h1 id="xsh-h1" className="ui-title">{title}</h1>{tier && tier !== "basic" ? <TierChip tier={tier} /> : null}</div>
       <p className="sp-desc">{desc}</p>
       <ScreenerBoxes />
       <div className="sp-head-bar xsh-bar">

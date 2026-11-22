@@ -47,7 +47,7 @@ function Head() {
   const asOf = [b?.updated ? `Presentations to ${fmtDate(b.updated)}` : null, c.d.pricesAsOf ? `prices and scores: ${fmtDate(c.d.pricesAsOf)} close` : null].filter(Boolean).join(" · ");
   return <header className="sp sp-head xsh dsc-head" aria-labelledby="dsc-h1">
     <p className="sp-eyebrow">Research · Find stocks</p>
-    <div className="xsh-h1"><h1 id="dsc-h1">Discover</h1><span className="dsc-new">New</span></div>
+    <div className="xsh-h1"><h1 id="dsc-h1" className="ui-title">Discover</h1><span className="dsc-new">New</span></div>
     <p className="sp-desc">Find companies by what they are building. Each company sits in the theme its newest investor presentation talks about most, with its recent exchange filings, its sector and FinLit’s readings beside it.</p>
     <div className="sp-head-bar xsh-bar">
       {asOf && <span className="xsh-date"><i aria-hidden="true" />{asOf}</span>}

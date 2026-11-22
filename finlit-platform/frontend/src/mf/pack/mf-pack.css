@@ -53,7 +53,7 @@
 .mfu-t input { width: clamp(72px, 24vw, 110px); min-height: 36px; padding: 0 8px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--s1); color: var(--text); font: 400 14px var(--sans); text-align: right; }
 .mfu-t tfoot th, .mfu-t tfoot td { font-weight: 700; border-bottom: 0; }
 .mfu-go { border-color: var(--text) !important; background: var(--text) !important; }
-.mfp-empty h2 { margin: 0 0 6px; font: 600 24px/1.3 var(--serif); } .mfp-empty-b { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.mfp-empty h2 { margin: 0 0 6px; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); } .mfp-empty-b { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
 /* Task #183: the dark "Your MF list" box, first cell of the top grid */
 .mfp-listbox { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 18px 20px; border-radius: 16px; background: #14211c; color: #f3eee2; }
 .mfp-lb-k { margin: 0; font: 600 var(--fs-label, 12px)/1.3 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: #e9cf8f; display: flex; align-items: center; gap: 4px; }

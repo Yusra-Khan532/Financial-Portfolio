@@ -47,7 +47,7 @@ export function Blog() {
       <section className="bl-hero"><div className="wrap bl-hero-in">
         <div className="bl-hero-t">
           <span className="bl-pill">FinLit Blog</span>
-          <h1>Long-Form Articles on Investing, Finance &amp; Markets</h1>
+          <h1 className="ui-title ui-title--read">Long-Form Articles on Investing, Finance &amp; Markets</h1>
           <p>In-depth explainers, myth-busters and thought pieces on the hottest topics in the world of investing. Plain language; none of it is a recommendation.</p>
         </div>
         <BlogArt />
@@ -97,7 +97,7 @@ export function BlogPost() {
   const file = c.fileUrl && (c.fileUrl.startsWith("/api/content/assets/") || /^https:\/\//.test(c.fileUrl)) ? apiUrl(c.fileUrl) : null;
   return (
     <>
-      <section className="pagehead"><div className="wrap" style={{ maxWidth: 760 }}><Link className="chip gold" to="/blog">← Blog</Link><h1 style={{ maxWidth: "none", fontSize: "clamp(30px,4.4vw,52px)" }}>{c.title}</h1><p>{c.excerpt}</p><p className="faint" style={{ marginTop: 12, fontSize: 13 }}>{c.author} · {c.publishedAt ? dateIN(c.publishedAt) : ""}</p></div></section>
+      <section className="pagehead"><div className="wrap" style={{ maxWidth: 760 }}><Link className="chip gold" to="/blog">← Blog</Link><h1 className="ui-title ui-title--read" style={{ maxWidth: "none" }}>{c.title}</h1><p>{c.excerpt}</p><p className="faint" style={{ marginTop: 12, fontSize: 13 }}>{c.author} · {c.publishedAt ? dateIN(c.publishedAt) : ""}</p></div></section>
       <section className="sec" style={{ paddingTop: 0 }}><div className="wrap">
         {c.contentType === "ARTICLE" && <article className="article" dangerouslySetInnerHTML={{ __html: DOMPurifyless(c.articleHtml || "") }} />}
         {c.contentType === "PDF" && file && <><iframe title={c.title} src={file} style={{ width: "100%", height: "78vh", border: "1px solid var(--border)", borderRadius: 16, background: "#fff" }} /></>}

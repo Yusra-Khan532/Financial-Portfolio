@@ -40,7 +40,7 @@
 .ui-title--read { font-size: var(--ui-fs-title-read); line-height: var(--lh-40); }
 .ui-title--marketing { font-size: var(--ui-fs-title-marketing); line-height: var(--ui-lh-64); }
 .ui-h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); color: var(--text); }
-.ui-h2--marketing { font-size: var(--ui-fs-h2-marketing); line-height: var(--lh-40); }
+.ui-h2--marketing, h2.ui-h2--marketing { font-size: var(--ui-fs-h2-marketing); line-height: var(--lh-40); }   /* h2.: wins over a section rule such as .sec-h h2 */
 .ui-h3 { margin: 0; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); color: var(--text); }
 .ui-label { font: var(--ui-fw-semibold) var(--fs-12)/var(--lh-12) var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
 .ui-lede { margin: 8px 0 0; font: var(--ui-fw-regular) var(--fs-16)/var(--lh-16) var(--font-sans); color: var(--muted); max-width: 68ch; }
@@ -66,6 +66,6 @@
   .ui-title { font-size: var(--fs-28); line-height: var(--lh-28); }
   .ui-title--read { font-size: var(--fs-32); line-height: var(--lh-32); }
   .ui-title--marketing { font-size: var(--fs-40); line-height: var(--lh-40); }
-  .ui-h2--marketing { font-size: var(--fs-28); line-height: var(--lh-28); }
+  .ui-h2--marketing, h2.ui-h2--marketing { font-size: var(--fs-28); line-height: var(--lh-28); }
   .ui-card { padding: 16px; }
 }

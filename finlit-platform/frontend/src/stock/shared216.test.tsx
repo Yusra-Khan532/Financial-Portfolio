@@ -22,11 +22,12 @@ describe("compact section heading (1.1)", () => {
     expect(desc.querySelector(".sh-dot")).toBeTruthy(); expect(desc.textContent).toContain("Plain-language findings.");
     expect(container.querySelector(".sh-r")).toBeNull();   // the description is no longer on the right
   });
-  it("sizes: number 40, title 24, line 13; phones 32 and 20; 44 px above each section", () => {
+  it("sizes: number 40, title 24 (the H2 role, task #310), line 13; phone number 32; 44 px above each section", () => {
     const r = css("report216.css");
-    expect(r).toMatch(/:root \{ --fs-num: 40px; --fs-h2: 24px; --section-gap: 44px; \}/);
-    expect(r).toMatch(/max-width: 760px\) \{\s*:root \{ --fs-num: 32px; --fs-h2: 20px;/);
-    expect(r).toMatch(/\.sh h2, \.sh-l:has\(\.sh-n\) h2 \{ font-size: var\(--fs-h2\) !important; \}/);   // luxe.css forces every phone h2 to 24 px
+    expect(r).toMatch(/:root \{ --fs-num: 40px; --section-gap: 44px; \}/);
+    expect(r).toMatch(/max-width: 760px\) \{\s*:root \{ --fs-num: 32px;/);
+    expect(css("report-polish.css")).toMatch(/\.sh h2, \.sh-l:has\(\.sh-n\) h2 \{\s*font: var\(--ui-fw-medium\) var\(--ui-fs-h2\)/);   // serif 24px/500 at every width
+    expect(r).not.toMatch(/\.sh h2[^{]*\{[^}]*!important/);   // no phone override: luxe.css no longer forces phone h2 sizes
     expect(r).toMatch(/\.sh \.sh-desc \{[^}]*var\(--fs-13, 13px\)/);
     expect(src("StockPage.tsx").indexOf("report216.css")).toBeGreaterThan(src("StockPage.tsx").indexOf("report-polish.css"));
   });

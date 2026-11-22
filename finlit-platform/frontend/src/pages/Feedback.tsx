@@ -72,7 +72,7 @@ export function FeedbackPage() {
     <div className="wrap fb">
       <aside className="fb-side" aria-label="About this page">
         <span className="fb-pill"><Icon name="chat" /> Feedback</span>
-        <h1>Help us build a <em>smarter FinLit</em></h1>
+        <h1 className="ui-title">Help us build a <em>smarter FinLit</em></h1>
         <p>Your feedback helps us improve existing features, fix what does not work, and build what matters next.</p>
         <ul>
           <li><Icon name="spark" /><span><b>Product improvements</b>based on real user input</span></li>

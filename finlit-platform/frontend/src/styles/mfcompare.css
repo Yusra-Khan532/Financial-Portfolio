@@ -13,7 +13,7 @@
 /* ---- the selector card ---- */
 .h2h-setup { display: grid; gap: 18px; background: linear-gradient(180deg, var(--s2), var(--s1) 70%); border-top: 3px solid var(--gold) !important; }
 .h2h-setup-h { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 8px 16px; }
-.h2h-setup-h h3 { display: flex; gap: 12px; align-items: flex-start; margin: 0; font-size: var(--fs-16); font-weight: 600; }
+.h2h-setup-h h3 { display: flex; gap: 12px; align-items: flex-start; margin: 0; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); }
 .h2h-setup-h h3 small { display: block; margin-top: 3px; font-size: 13px; font-weight: 400; color: var(--muted); }
 .h2h-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px 24px; align-items: start; }
 .h2h-pair { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: end; padding: 14px; border: 1px solid var(--border); border-radius: 16px; background: var(--s1); }
@@ -39,7 +39,7 @@
 
 /* ---- "Compare what matters": the four dimension cards ---- */
 .h2h-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 16px; margin: 8px 0 8px; }
-.h2h-head h2 { margin: 0; font: 400 var(--fs-28)/1.2 var(--serif); }
+.h2h-head h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
 .h2h-head p { margin: 0; font-size: var(--fs-14); }
 .h2h-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .h2h-card { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 12px; row-gap: 2px; align-items: center; text-align: left; padding: 14px 16px; border: 1px solid var(--border); border-radius: 16px; background: var(--s1); color: var(--text); font: inherit; cursor: pointer; min-width: 0; transition: border-color .15s, background-color .15s, box-shadow .15s, transform .15s; }

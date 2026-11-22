@@ -13,7 +13,7 @@ mark.k.g { background: linear-gradient(transparent 62%, color-mix(in srgb, var(-
 
 .sh-counts { font: 600 13px var(--sans); color: var(--muted); white-space: nowrap; }
 .kf-g { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
-.kf-col h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--text); }
+.kf-col h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); color: var(--text); }   /* the H3 role (task #310); inside a .card the card-title rule set this size anyway */
 .kf-n { margin-left: auto; font-weight: 700; color: var(--muted); }
 .ins-dot { display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; border-radius: 50%; color: #fff; background: var(--gold); }
 .ins-dot svg { width: 13px; height: 13px; } .ins-dot.f { background: var(--loss); } .ins-dot.w { background: var(--warn, #CC7A00); } .ins-dot.s { background: var(--gain); }
