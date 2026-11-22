@@ -160,3 +160,6 @@
 
 /* 6 (22 Nov, round 2) · Money box: says when the buy prices are the statement's Rate. */
 .eqx-rate { margin: 10px 0 0; padding: 8px 10px; border-left: 3px solid var(--gold); border-radius: 0 var(--r-ctl) var(--r-ctl) 0; background: color-mix(in srgb, var(--gold) 9%, transparent); font: 400 var(--fs-13)/1.5 var(--sans); color: var(--text); }
+
+/* task #323 (developer file 22): the equity sections on the Watchlists page */
+.eq.eq-embed { display: block; background: none; border: 0; border-radius: 0; padding: 0; }

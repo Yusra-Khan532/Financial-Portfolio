@@ -49,50 +49,54 @@ export function sharesCards(shares: Share[], day: string): Card[] {
 }
 
 // ------------------------------------------------------------------------------------------------ Against their peers
-export function peerSentence(shares: Share[]): string {
+/** Task #323 (developer file 22): "own" on the equity portfolio (your shares); "list" on the Watchlists page (the companies are watched, not owned). */
+export type Voice = "own" | "list";
+export function peerSentence(shares: Share[], voice: Voice = "own"): string {
   const lead = shares.filter((s) => s.peer?.label === "leader"), lag = shares.filter((s) => s.peer?.label === "laggard");
   // task #323 (developer file 21, part 11): "One of your 12 shares leads its peers and one lags", not "lead their peers ... lag"
-  let s = `${cap(num(lead.length))} of your ${shares.length} shares ${lead.length === 1 ? "leads its" : "lead their"} peers and ${num(lag.length)} ${lag.length === 1 ? "lags" : "lag"}.`;
+  let s = `${cap(num(lead.length))} of ${voice === "list" ? "the" : "your"} ${shares.length}${voice === "list" ? "" : " shares"} ${lead.length === 1 ? "leads its" : "lead their"} peers and ${num(lag.length)} ${lag.length === 1 ? "lags" : "lag"}.`;
   const by = new Map<string, Share[]>(); shares.forEach((x) => { if (x.industry) by.set(x.industry, [...(by.get(x.industry) ?? []), x]); });
   const mixed = [...by.entries()].filter(([, xs]) => xs.length >= 3 && xs.some((x) => x.peer?.label === "leader") && xs.some((x) => x.peer?.label === "laggard")).sort((a, b) => b[1].length - a[1].length)[0];
   if (mixed) { const [ind, xs] = mixed, a = xs.filter((x) => x.peer?.label === "leader").map((x) => x.symbol), z = xs.filter((x) => x.peer?.label === "laggard").map((x) => x.symbol);
-    s += ` Among your ${num(xs.length)} ${ind.toLowerCase()} shares, ${list(a)} ${a.length === 1 ? "leads" : "lead"} while ${list(z)} ${z.length === 1 ? "lags" : "lag"}.`; }
+    s += ` Among ${voice === "list" ? "the" : "your"} ${num(xs.length)} ${ind.toLowerCase()} ${voice === "list" ? "companies on this list" : "shares"}, ${list(a)} ${a.length === 1 ? "leads" : "lead"} while ${list(z)} ${z.length === 1 ? "lags" : "lag"}.`; }
   return s;
 }
 export const peerLine = (s: Share) => (!s.peer ? "" : `${s.peer.vs == null ? "" : `${s.peer.vs >= 0 ? "+" : MINUS}${Math.abs(s.peer.vs).toFixed(1)} pts vs ${s.peer.bench} over 12 months`}${s.peer.direction ? `, ${s.peer.direction === "gaining" ? "gaining" : "weakening"} lately` : ""}`);
-export function peerCards(shares: Share[]): Card[] {
+export function peerCards(shares: Share[], voice: Voice = "own"): Card[] {
   const out: Card[] = [];
   const flip = shares.filter((s) => s.peer && s.peer.raw && s.peer.raw !== s.peer.label);
   if (flip.length) out.push({ kind: "insight", title: "May change next week", text: `${list(flip.map((s) => `${s.symbol} reads ${PEER_WORD[s.peer!.raw!]}`))} this week. Labels change only if the next weekly reading agrees.` });
   const nc = shares.filter((s) => !s.peer);
-  if (nc.length) out.push({ kind: "watch", title: `Not compared: ${nc.length} ${nc.length === 1 ? "share" : "shares"}`, text: [...new Set(nc.map((s) => s.notCompared ?? "is not ranked"))].map((why) => { const who = nc.filter((s) => (s.notCompared ?? "is not ranked") === why).map((s) => s.symbol); return `${list(who)} ${who.length > 1 ? plural(why) : why}`; }).join("; ") + "." });
+  if (nc.length) out.push({ kind: "watch", title: `Not compared: ${nc.length} ${voice === "list" ? (nc.length === 1 ? "company" : "companies") : nc.length === 1 ? "share" : "shares"}`, text: [...new Set(nc.map((s) => s.notCompared ?? "is not ranked"))].map((why) => { const who = nc.filter((s) => (s.notCompared ?? "is not ranked") === why).map((s) => s.symbol); return `${list(who)} ${who.length > 1 ? plural(why) : why}`; }).join("; ") + "." });
   return out;
 }
 /** The three things to know under the trend matrix (task #183, pack 01-equity-portfolio): who rises on both trends, how much of the list trails its longer trend,
  *  and where the price sits behind the business. Counts and names from the server's trend reading (POST /api/portfolio/trend). */
 export function trendCards(t: { rated: number; grid: Record<string, { n: number; symbols: string[] }>; direction: { weakening: number; improving: number }; business: Record<string, { n: number; symbols: string[] }> },
-  label: (symbol: string) => string = (x) => x): Card[] {
+  label: (symbol: string) => string = (x) => x, voice: Voice = "own"): Card[] {
+  const co = (n: number) => (voice === "list" ? (n === 1 ? "company" : "companies") : n === 1 ? "share" : "shares");
   // task #274: the cells' new names (Rising, Rising but resting, Rising but dipping, Flat, turning up ...), and the names as chips that open each report
   const chips = (syms: string[], tag: string, tone?: "up" | "down") => (syms.length ? [{ label: tag, tone, chips: syms.map((x) => ({ symbol: x, label: label(x) })) }] : undefined);
   const out: Card[] = [];
   if (!t.rated) return out;
   const both = t.grid["1,1"];
-  if (both?.n) out.push({ kind: "good", title: `${cap(num(both.n))} ${both.n === 1 ? "share is" : "shares are"} Rising on both trends`, text: `${list(both.symbols.map(label))}: up over months and up lately.`, groups: chips(both.symbols, "Rising", "up") });
+  if (both?.n) out.push({ kind: "good", title: `${cap(num(both.n))} ${co(both.n)} ${both.n === 1 ? "is" : "are"} Rising on both trends`, text: `${list(both.symbols.map(label))}: up over months and up lately.`, groups: chips(both.symbols, "Rising", "up") });
   const trail = t.direction.weakening, lead = t.direction.improving;
-  if (trail >= lead && trail > 0) out.push({ kind: "watch", title: `The short term trails the long term for ${pc(trail * 100)}`, text: "Many shares are resting or dipping against their longer trend." });
-  else if (lead > 0) out.push({ kind: "good", title: `The short term leads the long term for ${pc(lead * 100)}`, text: "More shares are turning up against their longer trend than turning down." });
+  if (trail >= lead && trail > 0) out.push({ kind: "watch", title: `The short term trails the long term for ${pc(trail * 100)}`, text: `Many ${co(2)} are resting or dipping against their longer trend.` });
+  else if (lead > 0) out.push({ kind: "good", title: `The short term leads the long term for ${pc(lead * 100)}`, text: `More ${co(2)} are turning up against their longer trend than turning down.` });
   const behind = t.business.strong_down;
-  if (behind?.n) out.push({ kind: "insight", title: `Price behind the business for ${behind.n === 1 ? "one share" : `${num(behind.n)} shares`}`, text: `Their Prism business reading is stronger than their price trend${behind.symbols.length ? `, including ${list(behind.symbols.slice(0, 3).map(label))}` : ""}.`, groups: chips(behind.symbols, "Price behind the business") });
+  if (behind?.n) out.push({ kind: "insight", title: `Price behind the business for ${behind.n === 1 ? `one ${co(1)}` : `${num(behind.n)} ${co(2)}`}`, text: `Their Prism business reading is stronger than their price trend${behind.symbols.length ? `, including ${list(behind.symbols.slice(0, 3).map(label))}` : ""}.`, groups: chips(behind.symbols, "Price behind the business") });
   return out;
 }
 /** The pack's "What if you had owned the group leader instead?": ₹1 lakh a year ago in each laggard and in its group's #1. */
 export type LeaderPair = { symbol: string; leader: string; group: string; mine: number; theirs: number; leaderBigger: boolean | null; nextWeek: PeerLabel | null; gaining: boolean };
-export function leaderCards(pairs: LeaderPair[]): Card[] {
+export function leaderCards(pairs: LeaderPair[], voice: Voice = "own"): Card[] {
+  const L = voice === "list";
   if (!pairs.length) return [];
   const mine = pairs.reduce((a, p) => a + p.mine, 0), theirs = pairs.reduce((a, p) => a + p.theirs, 0), lakh = (v: number) => `₹${(v / 100000).toFixed(2)} lakh`;
-  const out: Card[] = [{ kind: "insight", title: theirs > mine ? "In hindsight, the group leaders did far better" : "In hindsight, your shares held their own", text: `₹${pairs.length} lakh split across your ${num(pairs.length)} laggards a year ago is worth about ${lakh(mine)} today; the same money in the ${num(pairs.length)} group leaders, about ${lakh(theirs)}.` }];
+  const out: Card[] = [{ kind: "insight", title: theirs > mine ? "In hindsight, the group leaders did far better" : L ? "In hindsight, these companies held their own" : "In hindsight, your shares held their own", text: `₹${pairs.length} lakh split across ${L ? "these" : "your"} ${num(pairs.length)} laggards a year ago ${L ? "would be" : "is worth"} about ${lakh(mine)} today; the same money in the ${num(pairs.length)} group leaders, about ${lakh(theirs)}.` }];
   const smaller = [...new Map(pairs.filter((p) => p.leaderBigger === false).map((p) => [p.leader, p])).values()];   // each leader once
-  out.push({ kind: "watch", title: "Hindsight is not a plan", text: `Last year's leader is not always next year's.${smaller.length ? ` Some leaders are much smaller and riskier companies (${smaller.slice(0, 2).map((p) => `${p.leader} against ${p.symbol}`).join(", ")}).` : ""} Use this to ask why your share lagged: the business, the price paid, or something temporary.` });
+  out.push({ kind: "watch", title: "Hindsight is not a plan", text: `Last year's leader is not always next year's.${smaller.length ? ` Some leaders are much smaller and riskier companies (${smaller.slice(0, 2).map((p) => `${p.leader} against ${p.symbol}`).join(", ")}).` : ""} Use this to ask why ${L ? "the company" : "your share"} lagged: the business, the price paid, or something temporary.` });
   const turning = pairs.filter((p) => p.nextWeek && p.nextWeek !== "laggard"), gaining = pairs.filter((p) => p.gaining && !turning.includes(p));
   const moves = (["leader", "in_line"] as PeerLabel[]).map((lab) => turning.filter((p) => p.nextWeek === lab)).filter((xs) => xs.length).map((xs) => `${list(xs.map((p) => p.symbol))} may move to ${PEER_WORD[xs[0].nextWeek!]} next week`);
   if (turning.length || gaining.length) out.push({ kind: "good", title: "Not all lags are equal", text: [...moves, gaining.length ? `${list(gaining.map((p) => p.symbol))} ${gaining.length === 1 ? "has" : "have"} been gaining on ${gaining.length === 1 ? "its" : "their"} peers over the last 3 months` : ""].filter(Boolean).join(", and ") + "." });
