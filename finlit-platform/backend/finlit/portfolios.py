@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import time
 import json
 import logging
 import os
@@ -56,6 +57,8 @@ URL_DETAILS = "https://www.amfiindia.com/api/scheme-details"
 LOAD_MAX_AGE_DAYS = 25               # a scheme's load text is asked again after this many days
 LOAD_PAUSE_S = 1.0                   # task #281 round 6: AMFI answered 429 to three scheme-details calls at a time; now one at a time, a second apart
 LOAD_MAX_CALLS = 900                 # scheme-details calls per run (about 15 minutes at the pause); the rest are asked on the next runs (resumable)
+LOAD_MAX_SECONDS = 25 * 60           # task #281 (22 Nov): the whole loads step's time budget. Without it, AMFI's "too many requests" waits (up to 90 s, three tries,
+                                     # on every fund-house list and scheme call) ran the portfolios job into its 120-minute limit on 22 Nov, and the job ended "timeout".
 LOAD_STOP_AFTER_429 = 5              # this many schemes in a row refused with 429 stop the step for this run, keeping what was stored
 URL_PERF = "https://www.amfiindia.com/gateway/pollingsebi/api/amfi/fundperformance"
 URL_PERF_SUB = "https://www.amfiindia.com/gateway/pollingsebi/api/amfi/getsubcategory"
@@ -675,13 +678,23 @@ async def step_loads(pool, client, idx: Index, today: date) -> dict:
     async with pool.acquire() as conn:
         active = {r["family"] for r in await conn.fetch("SELECT DISTINCT family FROM mf_schemes WHERE active")}
         fresh = {r["fkey"] for r in await conn.fetch("SELECT fkey FROM disclosure_facts WHERE kind = 'exitload' AND updated_at > now() - make_interval(days => $1)", LOAD_MAX_AGE_DAYS)}
+    deadline = time.monotonic() + LOAD_MAX_SECONDS
     houses = await get_json(client, URL_MF_LIST)
     want: Dict[str, List[Tuple[str, str]]] = defaultdict(list)          # family -> [(mf id, AMFI scheme id)], newest id first
     unmapped = 0
+    lists_skipped = 0
     for h in houses or []:
         if excluded_amc(str(h.get("mfName") or "")):
             continue
-        rows = await get_json(client, URL_SCHEMES, params={"MF_ID": h["mfId"]})
+        if time.monotonic() > deadline:
+            lists_skipped += 1
+            continue
+        try:
+            rows = await get_json(client, URL_SCHEMES, params={"MF_ID": h["mfId"]})
+        except Exception:      # one fund house's scheme list refused (e.g. 429 after the waits): skip it this run; it is asked again on the next
+            lists_skipped += 1
+            await asyncio.sleep(LOAD_PAUSE_S)
+            continue
         for r in rows or []:
             fam, _ = idx.resolve([str(r.get("scheme_name") or "")])
             if not fam:
@@ -730,6 +743,9 @@ async def step_loads(pool, client, idx: Index, today: date) -> dict:
     stopped = None
     for n, (f, c) in enumerate(items, start=1):   # one scheme at a time (task #281 round 6: AMFI answered 429 to three at a time); written every 40
         left = len(items) - n + 1
+        if time.monotonic() > deadline:
+            stopped = f"this run's time budget of {LOAD_MAX_SECONDS // 60} minutes was used; the next run continues with the {left} schemes left"
+            break
         if st["asked"] >= LOAD_MAX_CALLS:
             stopped = f"this run's limit of {LOAD_MAX_CALLS} AMFI calls was reached; the next run continues with the {left} schemes left"
             break
@@ -742,7 +758,7 @@ async def step_loads(pool, client, idx: Index, today: date) -> dict:
             facts.clear()
     await put_facts(pool, facts)
     out = {"status": "partial" if stopped else "ok", "families": len(want), "asked": st["asked"], "loadsStored": st["stored"], "blank": st["blank"],
-           "refused429": st["refused429"], "errors": st["errors"], "alreadyFresh": len(fresh & active), "namesNotMatched": unmapped}
+           "refused429": st["refused429"], "errors": st["errors"], "alreadyFresh": len(fresh & active), "namesNotMatched": unmapped, "houseListsSkipped": lists_skipped}
     if stopped:
         out["why"] = stopped
     return out
