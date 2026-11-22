@@ -225,9 +225,9 @@ describe("adding the shares", () => {
     ];
     expect(etfPreviewRows(funds)[0]).toEqual({ row: 1, isin: "INF000000101", name: "SAMPLE GOLD ETF", qty: "1800" });
     const pv: EtfPreview = { rows: [
-      { i: 1, status: "matched", etf: { symbol: "SMPLGOLD", name: "Sample Gold ETF" }, qty: 1800, existing: true },
-      { i: 2, status: "matched", etf: { symbol: "SMPLNDQ", name: "Sample Nasdaq 100 ETF" }, qty: 415, existing: false },
-      { i: 3, status: "not_found" },
+      { i: 0, row: 1, status: "matched", etf: { symbol: "SMPLGOLD", name: "Sample Gold ETF" }, qty: 1800, existing: true },
+      { i: 1, row: 2, status: "matched", etf: { symbol: "SMPLNDQ", name: "Sample Nasdaq 100 ETF" }, qty: 415, existing: false },
+      { i: 2, row: 3, status: "not_found" },
     ], capacity: { limit: 15, used: 4, room: 11 } };
     const plan = etfPlan(funds, pv);
     expect(plan.add.map((x) => x.symbol)).toEqual(["SMPLNDQ"]);
@@ -246,8 +246,20 @@ describe("adding the shares", () => {
     const funds = fundsFromMissing(["SMPLNIFTY", "SOMETHING ELSE LTD"], entries);
     expect(funds).toEqual([{ input: "SMPLNIFTY", symbol: "SMPLNIFTY", qty: 270, avg: 292.29, rate: 294.22 }]);
     expect(etfPreviewRows(funds)).toEqual([{ row: 1, symbol: "SMPLNIFTY", name: "SMPLNIFTY", qty: "270" }]);
-    const plan = etfPlan(funds, { rows: [{ i: 1, status: "matched", etf: { symbol: "SMPLNIFTY", name: "Sample Nifty 50 ETF" }, qty: 270 }], capacity: { limit: 15, used: 4, room: 11 } });
+    const plan = etfPlan(funds, { rows: [{ i: 0, row: 1, status: "matched", etf: { symbol: "SMPLNIFTY", name: "Sample Nifty 50 ETF" }, qty: 270 }], capacity: { limit: 15, used: 4, room: 11 } });
     expect(etfBuys(plan, new Set(["SMPLNIFTY"]), false, () => false)).toEqual([{ symbol: "SMPLNIFTY", qty: 270, price: 292.29, owned: true, pf: "main" }]);
+  });
+  it("each ETF keeps its own line's average buy price, as the server answers (i from 0, row as sent); live until 22 Nov each took the line before it", () => {
+    const funds = [{ input: "SMPLSILV", symbol: "SMPLSILV", qty: 500, avg: 88.2 }, { input: "SMPLFANG", symbol: "SMPLFANG", qty: 120, avg: 150.75 },
+      { input: "SMPLHK", symbol: "SMPLHK", qty: 2000, avg: 18.4 }, { input: "SMPLMF", symbol: "SMPLMF", qty: 3, avg: 10 }];
+    const rows = etfPreviewRows(funds).map((r, i) => ({ i, row: r.row, status: (i === 3 ? "not_found" : "matched") as "matched" | "not_found",
+      ...(i === 3 ? {} : { etf: { symbol: funds[i].symbol, name: funds[i].input }, qty: funds[i].qty }) }));
+    const plan = etfPlan(funds, { rows, capacity: { limit: 15, used: 0, room: 15 } });
+    expect(etfBuys(plan, new Set(["SMPLSILV", "SMPLFANG", "SMPLHK"]), false, () => false).map((b) => [b.symbol, b.qty, b.price]))
+      .toEqual([["SMPLSILV", 500, 88.2], ["SMPLFANG", 120, 150.75], ["SMPLHK", 2000, 18.4]]);
+    expect(plan.notAdded.map((n) => n.line.input)).toEqual(["SMPLMF"]);       // the right line is named as not added
+    // an answer without row numbers is read by place
+    expect(etfPlan(funds, { rows: rows.map(({ row: _r, ...x }) => x), capacity: { limit: 15, used: 0, room: 15 } }).add.map((a) => a.avg)).toEqual([88.2, 150.75, 18.4]);
   });
   it("says what came in", () => {
     expect(addedMessage("PDF", [{ qty: 20 }, { qty: 40 }], 0, null)).toBe("Added 2 shares from the PDF, each with its quantity; this statement has no buy prices; add them under Edit.");

@@ -608,15 +608,17 @@ class CommitIn(BaseModel):
     existing: Literal["skip", "replace"] = "skip"
 
 
-def match(raw: RawRow, by: Dict[str, dict], by_isin: Dict[str, str]) -> Tuple[str, Optional[str], str]:
-    """(status, symbol, reason) of one row: the ISIN first, then the symbol. A company's shares and an unknown name are never guessed into an ETF."""
+def match(raw: RawRow, by: Dict[str, dict], by_isin: Dict[str, str], companies: frozenset = frozenset()) -> Tuple[str, Optional[str], str]:
+    """(status, symbol, reason) of one row: the ISIN first, then the symbol. A company's shares and an unknown name are never guessed into an ETF.
+    `companies`: the row symbols that are listed companies (their NSE symbol, NSE code, BSE code or BSE scrip ID): a broker's holdings report names shares
+    and ETFs by symbol alone, with no ISIN, so those lines say "a company's shares" rather than "no ETF" (22 Nov 2026)."""
     isin = str(raw.isin or "").strip().upper()
     sym = sym_of(str(raw.symbol or ""))
     if isin and ISIN.match(isin) and isin in by_isin:
         return "matched", by_isin[isin], "Matched on ISIN."
     if sym and sym in by:
         return "matched", sym, "Matched on NSE symbol." if not isin else "The ISIN is not an ETF's we know; matched on NSE symbol."
-    if isin.startswith("INE") or (isin and ISIN.match(isin) and not isin.startswith("INF")):
+    if isin.startswith("INE") or (isin and ISIN.match(isin) and not isin.startswith("INF")) or (not isin and sym and sym in companies):
         return "ignored", None, "A company's shares, not an ETF: left for the Equity portfolio."
     if isin.startswith("INF"):
         return "not_found", None, "A mutual fund unit or an ETF we do not list: left for the MF portfolio."
@@ -628,8 +630,16 @@ async def import_preview(request: Request, body: PreviewIn, ctx: Ctx = Depends(m
     await limit(request, "etfpi", ctx.user_id, 30, 600)
     by = await etf_rows(request.app)
     by_isin = {r["isin"]: s for s, r in by.items() if r.get("isin")}
+    # symbols that are not ETFs we list: which of them are listed companies (the file is an equity report with ETFs in it)
+    loose = sorted({s for s in (sym_of(str(r.symbol or "")) for r in body.rows if not str(r.isin or "").strip()) if s and s not in by})[:MAX_IMPORT_ROWS]
     async with request.app.state.store.pool.acquire() as conn:
         have = {r["symbol"] for r in await conn.fetch("SELECT symbol FROM etf_holdings WHERE user_id = $1", ctx.user_id)}
+        named = await conn.fetch(
+            """SELECT unnest(ARRAY[c.symbol, c.nse_code, c.bse_code]) AS s FROM companies c
+                WHERE c.symbol = ANY($1::text[]) OR c.nse_code = ANY($1::text[]) OR c.bse_code = ANY($1::text[])
+               UNION SELECT b.symbol FROM dhan_instruments b JOIN companies c ON c.bse_code = b.security_id AND c.bse_code <> ''
+                WHERE b.exch = 'BSE' AND b.symbol = ANY($1::text[])""", loose) if loose else []
+    companies = frozenset(r["s"].upper() for r in named if r["s"])
     rows, seen, counts = [], {}, {"matched": 0, "not_found": 0, "ignored": 0, "invalid": 0, "duplicate": 0}
     for i, raw in enumerate(body.rows):
         try:
@@ -638,7 +648,7 @@ async def import_preview(request: Request, body: PreviewIn, ctx: Ctx = Depends(m
             rows.append({"i": i, "row": raw.row, "name": raw.name, "isin": raw.isin, "symbol": raw.symbol, "status": "invalid", "reason": str(e), "etf": None})
             counts["invalid"] += 1
             continue
-        status, sym, reason = match(raw, by, by_isin)
+        status, sym, reason = match(raw, by, by_isin, companies)
         item = {"i": i, "row": raw.row, "name": raw.name, "isin": raw.isin, "symbol": raw.symbol, "qty": fnum(q), "status": status, "reason": reason, "existing": False,
                 "etf": {"symbol": sym, "name": by[sym]["display_name"], "fundHouse": by[sym].get("fund_house")} if sym else None}
         if sym and sym in seen:

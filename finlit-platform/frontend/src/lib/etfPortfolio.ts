@@ -4,6 +4,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiSend, type ApiError } from "./api";
 import type { Grid } from "./holdingsFile";
+import { avgOf, combine, isAvgLabel, isCostLabel, num, pickColumns, qtyRank, type Part } from "./holdingsColumns";
 
 const BASE = "/api/me/etf-portfolio";
 export const KEY = ["etf-portfolio"] as const;
@@ -59,7 +60,10 @@ export const useEtfPortfolio = (on: boolean, pf = "all") => useQuery<EtfPortfoli
 export const useEtfInside = (on: boolean, n: string, pf = "all") => useQuery<Inside, ApiError>({ queryKey: [...KEY, "inside", n, pf], queryFn: () => apiGet<Inside>(BASE + "/inside" + q(pf)), enabled: on, staleTime: 5 * 60_000, retry: false });
 export const useEtfRisk = (on: boolean, n: string, pf = "all") => useQuery<EtfRisk, ApiError>({ queryKey: [...KEY, "risk", n, pf], queryFn: () => apiGet<EtfRisk>(BASE + "/risk" + q(pf)), enabled: on, staleTime: 5 * 60_000, retry: false });
 
-export type RawRow = { row: number; isin?: string; symbol?: string; name?: string; qty?: string };
+/** One line of a broker file. `avg` (the average buy price, from "Avg. price" or Invested ÷ quantity) stays in the browser: it becomes the ETF's buy in
+ *  the book after the import; the server is sent the rest (`toSend`). */
+export type RawRow = { row: number; isin?: string; symbol?: string; name?: string; qty?: string; avg?: number };
+export const toSend = (rows: RawRow[]): Omit<RawRow, "avg">[] => rows.map(({ avg: _a, ...r }) => r);
 export type PreviewRow = { i: number; row: number; name: string | null; isin: string | null; symbol: string | null; qty: number | null; status: "matched" | "not_found" | "ignored" | "invalid" | "duplicate";
   reason: string; existing: boolean; etf: { symbol: string; name: string; fundHouse: string | null } | null };
 export type Preview = { rows: PreviewRow[]; counts: Record<PreviewRow["status"], number>; total: number; capacity: { limit: number; used: number; room: number } };
@@ -86,26 +90,56 @@ const H_SYM = /^(symbol|trading ?symbol|tradingsymbol|ticker|scrip( ?(code|name|
 const H_NAME = /^(name|company( ?name)?|security name|scheme( ?name)?|etf( ?name)?|description)$/i;
 const H_QTY = /^(qty|quantity|quantity available|total quantity|units?|no\.? of (shares|units)|shares|holding|holdings|balance|free ?qty|available ?qty|current ?qty)\.?$/i;
 const clean = (s: string) => s.replace(/\s+/g, " ").trim();
+/** A heading as compared: "Symbol (52)" (a count of lines), "Qty." and "Avg. price:" read as "Symbol", "Qty" and "Avg. price". */
+const headOf = (c: string) => clean(c).replace(/\s*\(\s*\d[\d,]*\s*\)$/, "").replace(/[.:]+$/, "").trim();
+const isHead = (c: string) => { const h = headOf(c); return !!h && (H_ISIN.test(h) || H_SYM.test(h) || H_NAME.test(h) || H_QTY.test(h) || qtyRank(h) < 99 || isAvgLabel(h) || isCostLabel(h)); };
 
-/** The rows of one sheet: the header row is the first that names an ISIN or symbol column; the quantity is read from its own column when there is one.
- *  Lines without an ISIN or symbol (totals, titles) are left out. A sheet with no header still gives its ISINs, found in any cell. */
+/** The rows of one sheet. The header row is the one, among those that name an ISIN or symbol column, with the most column headings (a holdings report
+ *  opens with summary lines: "Invested  Current  Overall P&L"). Quantity from its own column, the average buy price from "Avg. price" (or Invested ÷
+ *  quantity). Lines without an ISIN or symbol (totals, titles) are left out, and the table ends at a Total line. A sheet with no header still gives its
+ *  ISINs, found in any cell. 22 Nov 2026: "Symbol (52)" was not read as a heading, so a broker's holdings report gave "no ISIN or symbol column". */
 export function etfRowsFromGrid(grid: Grid): RawRow[] {
-  const at = grid.findIndex((r) => r.some((c) => H_ISIN.test(clean(c))) || r.some((c) => H_SYM.test(clean(c))));
+  let at = -1, best = 0;
+  for (let i = 0; i < Math.min(grid.length, 80); i++) {
+    const r = grid[i] ?? [];
+    if (!r.some((c) => H_ISIN.test(headOf(c)) || H_SYM.test(headOf(c)))) continue;
+    const score = r.filter(isHead).length;
+    if (score > best) { at = i; best = score; }
+  }
   if (at < 0) {
     const out: RawRow[] = [];
     grid.forEach((r, i) => { const isin = r.map((c) => clean(c).toUpperCase()).find((c) => ISIN_RE.test(c)); if (isin) out.push({ row: i + 1, isin }); });
     return out;
   }
-  const head = grid[at].map(clean);
+  const head = grid[at].map(headOf);
   const col = (re: RegExp) => head.findIndex((c) => re.test(c));
-  const ci = col(H_ISIN), cs = col(H_SYM), cn = col(H_NAME), cq = col(H_QTY);
+  const pick = pickColumns(head);
+  const ci = col(H_ISIN), cs = col(H_SYM), cn = col(H_NAME), cq = col(H_QTY) >= 0 ? col(H_QTY) : pick.qty;
   const out: RawRow[] = [];
   for (let i = at + 1; i < grid.length; i++) {
     const r = grid[i], cell = (k: number) => (k >= 0 ? clean(r[k] ?? "") : "");
+    if (r.some((c) => /^(grand |sub ?)?total\s*[:\-]?\s*(value|holdings?|investment|invested|portfolio)?$/i.test(clean(c ?? "")))) break;   // the Total line and the notes under it
     const isin = cell(ci).toUpperCase(), sym = cell(cs);
-    if (!ISIN_RE.test(isin) && !(sym && /^[A-Za-z0-9&_.:\-]{1,30}$/.test(sym) && !/^(total|grand total)$/i.test(sym))) continue;
-    out.push({ row: i + 1, ...(ISIN_RE.test(isin) ? { isin } : {}), ...(sym ? { symbol: sym } : {}), ...(cell(cn) ? { name: cell(cn) } : {}), ...(cell(cq) ? { qty: cell(cq) } : {}) });
+    if (!ISIN_RE.test(isin) && !(sym && /^[A-Za-z0-9&_.:\-]{1,30}$/.test(sym))) continue;
+    const q = num(cell(cq)), a = avgOf(q, pick.avg >= 0 ? num(cell(pick.avg)) : null, pick.cost >= 0 ? num(cell(pick.cost)) : null);
+    out.push({ row: i + 1, ...(ISIN_RE.test(isin) ? { isin } : {}), ...(sym ? { symbol: sym } : {}), ...(cell(cn) ? { name: cell(cn) } : {}),
+      ...(q != null ? { qty: String(q) } : cell(cq) ? { qty: cell(cq) } : {}), ...(a && q != null && q > 0 ? { avg: a.avg } : {}) });
   }
+  return out;
+}
+
+/** Each imported ETF's average buy price from the file: the lines the review matched to it (an ETF on two lines is weighted by quantity), kept only when
+ *  every one of its lines had a price. */
+export function avgBySymbol(pv: Pick<Preview, "rows">, raws: RawRow[]): Map<string, number> {
+  const parts = new Map<string, Part[]>();
+  for (const r of pv.rows) {
+    if (!r.etf || (r.status !== "matched" && r.status !== "duplicate")) continue;
+    const raw = raws[r.i], q = num(raw?.qty ?? null);
+    if (!(q != null && q > 0)) continue;
+    parts.set(r.etf.symbol, [...(parts.get(r.etf.symbol) ?? []), { qty: q, ...(raw?.avg ? { avg: raw.avg } : {}) }]);
+  }
+  const out = new Map<string, number>();
+  parts.forEach((ps, sym) => { const c = combine(ps); if (c.avg != null) out.set(sym, c.avg); });
   return out;
 }
 

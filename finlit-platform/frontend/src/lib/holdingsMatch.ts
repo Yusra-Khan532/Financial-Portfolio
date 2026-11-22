@@ -26,24 +26,29 @@ export function entryOf(typed: string): Entry {
 // how sure a match is: exact ticker, code or full name, a name that only starts the same way, a demerged company, a retired ticker, found inside running text;
 // or, by ISIN (task #128): the company's current ISIN, an older ISIN of it, another ISIN of the same issuer, or the depository's issuer name
 export type How = "exact" | "close" | "split" | "alias" | "scan" | "isin" | "old_isin" | "issuer" | "issuer_name";
-export type Found = { input: string; symbol: string; name: string; how: How; isin?: string };
+/** `code`: the line is exactly a listed company's code (NSE symbol, NSE code, BSE code or BSE scrip ID), not a name; such a line needs no checking. */
+export type Found = { input: string; symbol: string; name: string; how: How; isin?: string; code?: true };
 /** A match that is not added until the member says so, with the reason. */
 export type ToCheck = Found & { note: string };
 /** A line that is not a listed company's share, with the reason (a fund unit, a bond, an unlisted share, an ISIN no list knows, a wrong check digit). */
 export type Skipped = { input: string; isin: string; note: string };
 
-/** One lookup, built once per search list: ticker, NSE or BSE code, and the company name without Ltd/Limited/&.
- *  `exact` uses hash lookups only (safe to call on every word window of a document); `find` also accepts a name that starts the same way. */
+/** One lookup, built once per search list: ticker, NSE or BSE code, BSE scrip ID, and the company name without Ltd/Limited/&.
+ *  `exact` uses hash lookups only (safe to call on every word window of a document); `find` also accepts a name that starts the same way.
+ *  A BSE scrip ID (row place 6, `rowsWithBseIds`) is taken only after every symbol and code, so it never hides another company's NSE symbol. */
 export function makeLookup(index: SearchRow[]) {
   const byCode = new Map<string, SearchRow>(), byName = new Map<string, SearchRow>();
   for (const r of index) {
     for (const c of [r[0], r[2], r[4]]) if (c && !byCode.has(c.toUpperCase())) byCode.set(c.toUpperCase(), r);
     const n = norm(r[1]); if (n && !byName.has(n)) byName.set(n, r);
   }
+  for (const r of index) { const id = r[5]?.toUpperCase(); if (id && !byCode.has(id)) byCode.set(id, r); }
+  const code = (input: string): SearchRow | undefined => byCode.get(tidy(input).toUpperCase());
   const exact = (input: string): SearchRow | undefined => { const t = tidy(input); return byCode.get(t.toUpperCase()) || byName.get(norm(t)); };
   // normalised names, worked out once and only when a "starts the same way" search is first needed (norm on 6000 names for every unmatched line was seconds on a long statement)
   let norms: string[] | undefined;
-  const one = (input: string): { row: SearchRow; how: "exact" | "close" } | undefined => {
+  const one = (input: string): { row: SearchRow; how: "exact" | "close"; code?: true } | undefined => {
+    const k = code(input); if (k) return { row: k, how: "exact", code: true };
     const e = exact(input); if (e) return { row: e, how: "exact" };
     const n = norm(tidy(input));
     let c: SearchRow | undefined;
@@ -52,7 +57,7 @@ export function makeLookup(index: SearchRow[]) {
   };
   // "Larsen & Toubro Ltd., Mumbai": a broker's registered-office tail after a comma is not part of the name.
   const find = (input: string) => one(input) || (input.includes(",") ? one(input.slice(0, input.indexOf(","))) : undefined);
-  return { find, exact, norm };
+  return { find, exact, code, norm };
 }
 
 /** Whether a name is a listed company; lets the file reader pick the right column. Empty until the company list has loaded. */
@@ -72,7 +77,7 @@ export function matchNames(names: string[], index: SearchRow[]): { found: Found[
     const parts = split ? split.map((sym) => bySymbol.get(sym)).filter((r): r is SearchRow => !!r) : [];
     if (parts.length) { parts.forEach((r) => found.push({ input, symbol: r[0], name: r[1], how: "split" })); continue; }   // a demerged company: the old share is now all of its parts
     const hit = find(input);
-    if (hit) { found.push({ input, symbol: hit.row[0], name: hit.row[1], how: hit.how }); continue; }
+    if (hit) { found.push({ input, symbol: hit.row[0], name: hit.row[1], how: hit.how, ...(hit.code ? { code: true as const } : {}) }); continue; }
     const old = bySymbol.get(canon(tidy(input).toUpperCase()));
     if (old) found.push({ input, symbol: old[0], name: old[1], how: "alias" }); else missing.push(input);
   }
@@ -82,7 +87,9 @@ export function matchNames(names: string[], index: SearchRow[]): { found: Found[
 /** Task #128: each line to a listed company BY ITS ISIN; a line's name is used only when the line has no ISIN. `answers` holds the ISIN answers
  *  (lib/isin.ts `resolveIsins`); an ISIN without an answer (the server could not be asked) falls back to the line's name, and that match is only offered
  *  to check, never added on its own. */
-/** confirmNames (task #183): lines of a file or a pasted list that have no ISIN are matched by name or symbol and put up for the member to confirm, never added on their own. */
+/** confirmNames (task #183): lines of a file or a pasted list that have no ISIN are matched by name and put up for the member to confirm, never added on
+ *  their own. A line that is exactly a listed company's code (NSE symbol, NSE code, BSE code or BSE scrip ID: `code`) is as sure as an ISIN and is added:
+ *  a broker's holdings report names every share that way, and all 42 of one member's shares waited under "Please check" (22 Nov 2026). */
 export function matchEntries(entries: Entry[], index: SearchRow[], answers: ReadonlyMap<string, IsinAnswer> | null, confirmNames = false):
   { found: Found[]; check: ToCheck[]; skipped: Skipped[]; missing: string[]; byIsin: number } {
   const found: Found[] = [], check: ToCheck[] = [], skipped: Skipped[] = [];
@@ -98,7 +105,7 @@ export function matchEntries(entries: Entry[], index: SearchRow[], answers: Read
     else skipped.push({ input, isin: e.isin, note: a.note || "Not a listed company's share." });
   }
   const byName = matchNames(named, index);
-  if (confirmNames) byName.found.forEach((f) => check.push({ ...f, note: "No ISIN on this line, so it is matched by its name or symbol: please check" }));
+  if (confirmNames) byName.found.forEach((f) => (f.code ? found.push(f) : check.push({ ...f, note: "No ISIN on this line, so it is matched by its name: please check" })));
   else found.push(...byName.found);
   for (const e of unanswered) {
     const hit = e.name ? matchNames([e.name], index).found : [];

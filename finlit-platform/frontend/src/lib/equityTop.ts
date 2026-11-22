@@ -15,18 +15,28 @@ const pct = (x: number) => `${Math.round(x)}%`;
 const list = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 /** FinLit Prism's word for a score: Strong 80 or more, Healthy 65 to 79, Average 50 to 64, Weak below 50. */
 export const prismWord = (v: number) => PRISM_BAND_WORD[prismBandOf(v)!];
+/** Developer file 28: FinLit Prism's five words, as each share's own label and Your portfolio score: Strong 80 or more, Healthy 65 to 79, Average 50 to 64,
+ *  Weak 35 to 49, Poor below 35 (the server's mfscore LABELS, also the MF portfolio and All my investments scores). */
+export const prismWord5 = (v: number) => { const s = Math.round(v * 10) / 10; return s >= 80 ? "Strong" : s >= 65 ? "Healthy" : s >= 50 ? "Average" : s >= 35 ? "Weak" : "Poor"; };
 
 type PageFigures = { score: { score: number; band: string }; market: { eq: { beta: number; vol: number; vol_nifty: number } } } | null;
+/** Developer file 28: the figures the cards show once every share has a quantity (Your portfolio score's answer, Gold): the average Prism, the spread score
+ *  and the NIFTY 50 measures with each share counted by its value now. Without it the cards count every share the same, as the views below do. */
+export type ByValue = { prism?: number | null; spread?: { score: number; band: string } | null; market?: { beta: number; vol: number; vol_nifty: number } | null };
 
-/** The three tiles, one per tab. `spread`: the counts behind the Diversification analytics tile (macro sectors, sectors, industries, sizes held). */
-export function topTiles(shares: Share[], page: PageFigures, model: "prism" | "finlit", spread: { macro?: number; sectors?: number; industries: number; sizes: number }): TopTile[] {
+/** The three tiles, one per tab. `spread`: the counts behind the Diversification analytics tile (macro sectors, sectors, industries, sizes held).
+ *  `byValue` (developer file 28): the figures by value once every share has a quantity; each tile's (i) says which way it counts. */
+export function topTiles(shares: Share[], page: PageFigures, model: "prism" | "finlit", spread: { macro?: number; sectors?: number; industries: number; sizes: number }, byValue: ByValue | null = null): TopTile[] {
+  // which way a tile counts, said in its (i): by value once the score sent the figure; on Gold, the same for every share until each has a quantity
+  const basis = (on: boolean) => (on ? "Each share counts by its value now." : model === "prism" && !byValue ? "Every share counts the same until each share has a quantity; then each counts by its value now." : "Every share counts the same.");
   let portfolio: TopTile;
   if (model === "prism") {
-    const sc = shares.filter((s) => s.prism != null), avg = sc.length ? Math.round(sc.reduce((a, s) => a + (s.prism as number), 0) / sc.length) : null;
-    const c = (b: "strong" | "healthy" | "average" | "weak") => sc.filter((s) => prismBandOf(s.prism) === b).length;
-    portfolio = { id: "portfolio", k: "Portfolio", v: avg == null ? "Not scored" : `${prismWord(avg)} · ${avg}`, tone: "good", link: "Open Portfolio",
-      sub: `Average FinLit Prism: ${c("strong")} strong · ${c("healthy")} healthy · ${c("average")} average · ${c("weak")} weak${shares.length - sc.length ? ` · ${shares.length - sc.length} not scored` : ""}`,
-      help: "The average FinLit Prism score of your shares, from 0 to 100, and how many read Strong, Healthy, Average or Weak.", how: "Strong is 80 and above, Healthy 65 to 79, Average 50 to 64, Weak below 50. Open the tab for each share." };
+    const sc = shares.filter((s) => s.prism != null), mean = sc.length ? Math.round(sc.reduce((a, s) => a + (s.prism as number), 0) / sc.length) : null;
+    const avg = byValue?.prism != null ? Math.round(byValue.prism) : mean;
+    const c = (w: string) => sc.filter((s) => prismWord5(s.prism as number) === w).length, poor = c("Poor");
+    portfolio = { id: "portfolio", k: "Portfolio", v: avg == null ? "Not scored" : `${prismWord5(avg)} · ${avg}`, tone: "good", link: "Open Portfolio",
+      sub: `Average FinLit Prism${byValue?.prism != null ? " by value" : ""}: ${c("Strong")} strong · ${c("Healthy")} healthy · ${c("Average")} average · ${c("Weak")} weak${poor ? ` · ${poor} poor` : ""}${shares.length - sc.length ? ` · ${shares.length - sc.length} not scored` : ""}`,
+      help: `The average FinLit Prism score of your shares, from 0 to 100, and how many read Strong, Healthy, Average, Weak or Poor. ${basis(byValue?.prism != null)}`, how: "Strong is 80 and above, Healthy 65 to 79, Average 50 to 64, Weak 35 to 49, Poor below 35. Open the tab for each share." };
   } else {
     portfolio = { id: "portfolio", k: "Portfolio", v: "FinLit Prism · see plans", tone: "good", link: "Open Portfolio",
       sub: `${shares.length} ${shares.length === 1 ? "share" : "shares"}, listed without a score on this plan`,
@@ -34,13 +44,16 @@ export function topTiles(shares: Share[], page: PageFigures, model: "prism" | "f
   }
   const parts = [spread.macro != null ? `${spread.macro} macro ${spread.macro === 1 ? "sector" : "sectors"}` : null, spread.sectors != null ? `${spread.sectors} ${spread.sectors === 1 ? "sector" : "sectors"}` : null,
     `${spread.industries} ${spread.industries === 1 ? "industry" : "industries"}`, spread.sizes === 4 ? "all four sizes" : spread.sizes === 3 ? "three of the four sizes" : spread.sizes === 2 ? "two of the four sizes" : "one size"].filter(Boolean);
-  const m = page?.market.eq;
+  const vs = byValue?.spread ?? null, vm = byValue?.market ?? null, m = vm ?? page?.market.eq;
+  const sp = vs ?? page?.score;
   return [portfolio,
-    { id: "diversification", k: "Diversification analytics", v: page ? `${page.score.score} · ${page.score.band}` : "–", sub: parts.join(" · "), tone: "info", link: "Open Diversification analytics",
-      help: "How widely the list is spread across sectors and sizes, and how independently the shares move, from 0 to 100.", how: "Higher means more spread. The line under it counts the macro sectors, sectors, industries and sizes held." },
+    { id: "diversification", k: "Diversification analytics", v: sp ? `${sp.score} · ${sp.band}` : "–", sub: (vs && page ? [`By value now (${page.score.score} by count)`, ...parts] : parts).join(" · "), tone: "info", link: "Open Diversification analytics",
+      help: `How widely the list is spread across sectors and sizes, and how independently the shares move, from 0 to 100. ${basis(!!vs)}`,
+      how: `Higher means more spread. The line under it counts the macro sectors, sectors, industries and sizes held.${vs ? " The view below counts each share once." : ""}` },
     { id: "risk", k: "Risk analytics", v: m ? `${m.beta > 1.1 ? "Above" : m.beta < 0.9 ? "Below" : "In line"} · β ${m.beta.toFixed(2)}` : "–", tone: "watch", link: "Open Risk analytics",
-      sub: m ? `Against the index: ${m.vol > m.vol_nifty * 1.15 ? "bigger" : m.vol < m.vol_nifty * 0.85 ? "smaller" : "similar"} swings, ${m.vol.toFixed(1)}% a year vs ${m.vol_nifty.toFixed(1)}%` : "Needs a year of weekly prices",
-      help: "Beta: how much the list tends to move when its index moves 1%. The swing: how much it rises and falls in a typical year.", how: "A beta above 1 has moved more than the index, below 1 less. The swing sits beside the index's." },
+      sub: m ? `${vm ? "By value now, against the index" : "Against the index"}: ${m.vol > m.vol_nifty * 1.15 ? "bigger" : m.vol < m.vol_nifty * 0.85 ? "smaller" : "similar"} swings, ${m.vol.toFixed(1)}% a year vs ${m.vol_nifty.toFixed(1)}%` : "Needs a year of weekly prices",
+      help: `Beta: how much the list tends to move when its index (the NIFTY 50) moves 1%. The swing: how much it rises and falls in a typical year. ${basis(!!vm)}`,
+      how: `A beta above 1 has moved more than the index, below 1 less. The swing sits beside the index's.${vm ? " The view below has no amounts: every share counts the same there." : ""}` },
   ];
 }
 

@@ -8,7 +8,7 @@ import { useDocTitle } from "../lib/title";
 import { TIER, useUI } from "../lib/ui";
 import { limitsFor, useAuth } from "../lib/auth";
 import { DEMO } from "../lib/demo";
-import { useSearchIndex } from "../lib/api";
+import { rowsWithBseIds, useSearchIndex } from "../lib/api";
 import { isinMap } from "../lib/searchFilters";
 import { useUniverse } from "../lib/screener";
 import { portfolio, usePortfolio, type PState } from "../lib/portfolio";
@@ -30,7 +30,7 @@ import { sendAllFunds } from "../lib/importEtf";
 import { isPdf } from "../lib/holdingsPdf";
 import { entryOf, makeMatcher, matchEntries, type Skipped, type ToCheck } from "../lib/holdingsMatch";
 import { resolveIsins, sourcesLine } from "../lib/isin";
-import { modelFor, parsePeriod, parseTab, useOverview, withTab, type Line, type OverviewHolding, type Period, type Tab } from "../lib/portfolioOverview";
+import { modelFor, parsePeriod, parseTab, pricesFrom, useOverview, withTab, type Line, type OverviewHolding, type Period, type Tab } from "../lib/portfolioOverview";
 import { usePortfolioPage } from "../portfolio/usePortfolioPage";
 import { loadChoices, saveChoices, usePortfolioScore, type Choices } from "../portfolio/useScore";
 import { usePortfolioTrend } from "../portfolio/usePortfolioTrend";
@@ -111,7 +111,7 @@ export function HoldingsPage() {
   const [adding, setAdding] = useState(false);
   const uni = useUniverse(), idx = useSearchIndex(true);
   const by = useMemo(() => new Map((uni.data?.rows || []).map((r) => [r.symbol, r])), [uni.data]);
-  const index = idx.data?.rows || [];
+  const index = useMemo(() => rowsWithBseIds(idx.data), [idx.data]);   // with each BSE scrip ID, so "SPICY" in a broker's file finds BSE 540084
   const cap = limitsFor(plan).holdings;
   const [one, setOne] = useState(""), [missing, setMissing] = useState<string[]>([]);
   // task #274 (pack change 1): the Add shares window (Add: with the picked company; Add several: empty; Import ▾: Paste a list or Upload) and the Import menu
@@ -136,6 +136,9 @@ export function HoldingsPage() {
   const heldSet = useMemo(() => new Set(allSymbols), [allSymbols]);
   const coInfo = (sym: string) => { const u = by.get(sym); return { size: capBucket(u?.market_cap ?? null)?.short ?? null, close: u?.price ?? null }; };
   const ov = useOverview(symbols, !!model && !DEMO);
+  // developer file 27: Your portfolios, the picker and the sticky switch show every portfolio, so they need every account's prices (as the MF and ETF pages
+  // do). In All accounts `ov` already holds them (the same symbols, the same request), so this asks only while one portfolio is open.
+  const ovAll = useOverview(allSymbols, !!model && !DEMO && cur !== "all");
   const pg = usePortfolioPage(symbols, !!model && !DEMO);
   const tr = usePortfolioTrend(symbols, model === "prism" && !DEMO);
   const rk = usePortfolioRisk(symbols, !!model && !DEMO);   // Risk analytics by company size (task #183 W8)   // Gold only (FinLit Prism); Silver sees the lock card
@@ -184,7 +187,9 @@ export function HoldingsPage() {
   };
   const money = moneyOf(st.holdings.filter((h) => symbols.includes(h.symbol) || cur === "all" || pfOf(h) === cur), cur, priceOf, changeOf);
   const openFor = (sym: string, what: "qty" | "price") => { void what; setView("portfolio"); setEsWin({ what: "edit", symbol: sym }); };   // task #274: Edit holds the buys (a share with none opens with one empty row)
-  const pfFigs = (id: string | "all") => { const m = moneyOf(st.holdings, id, priceOf, changeOf); return { n: m.n, now: m.now, withQty: m.withQty, gainPct: m.full && m.invested ? (m.gain / m.invested) * 100 : null }; };
+  const byAll = useMemo(() => new Map((ovAll.data?.holdings || []).map((h) => [h.symbol, h])), [ovAll.data]);
+  const every = useMemo(() => pricesFrom(byOv, byAll), [byOv, byAll]);
+  const pfFigs = (id: string | "all") => { const m = moneyOf(st.holdings, id, every.priceOf, every.changeOf); return { n: m.n, now: m.now, withQty: m.withQty, gainPct: m.full && m.invested ? (m.gain / m.invested) * 100 : null, noPrice: m.noPrice.length }; };
   const sold = soldOf(st.holdings, cur);
   const ids = data?.symbols ?? symbols;
   const state: "loading" | "ready" | "error" | "none" = DEMO ? "none" : pg.isError ? "error" : pg.isPending && symbols.length ? "loading" : "ready";
@@ -238,7 +243,11 @@ export function HoldingsPage() {
     }
     setMissing(miss); setChecks(check.filter((c) => !taken.has(c.symbol))); setSkipped(skip);
     setImpNotes(amounts ? fileNotes(amounts, take) : []);
-    setReadBy(isins.length ? `${byIsin} of ${entries.length} ${entries.length === 1 ? "line" : "lines"} matched by ISIN, against ${sourcesLine(res?.sources ?? null)}.${entries.length > isins.length ? ` ${entries.length - isins.length} without an ISIN matched by name.` : ""}` : null);
+    // 22 Nov 2026: how the lines without an ISIN were matched: by an exact NSE or BSE symbol or code (added), or by name (to check)
+    const byCode = m.found.filter((f) => f.code).length, rest = entries.length - isins.length;
+    const tail = rest ? ` ${rest} without an ISIN: ${[byCode ? `${byCode} matched by their NSE or BSE symbol or code` : "", rest > byCode ? `${rest - byCode} by name (to check) or not recognised` : ""].filter(Boolean).join(", ")}.` : "";
+    setReadBy(isins.length ? `${byIsin} of ${entries.length} ${entries.length === 1 ? "line" : "lines"} matched by ISIN, against ${sourcesLine(res?.sources ?? null)}.${tail}`
+      : from && byCode ? `${byCode} of ${entries.length} ${entries.length === 1 ? "line" : "lines"} matched by their NSE or BSE symbol or code${check.length ? `; ${check.length} by name, to check` : ""}.` : null);
     const head = amounts ? addedMessage("file", take, updated, amounts.price).replace(/\.$/, "") : take.length ? `Added ${take.length} ${take.length === 1 ? "share" : "shares"}` : "Nothing new to add";
     toast([head, check.length ? `${check.length} to check (listed below)` : "", skip.length ? `${skip.length} not added (reasons below)` : "",
       miss.length ? `${miss.length} not recognised (listed below)` : "", fresh.length > room ? `your plan holds up to ${cap}` : ""].filter(Boolean).join(" · ") + ".");
@@ -287,7 +296,9 @@ export function HoldingsPage() {
   }, [page, ids, meta, byOv, shareOf, model]);
   // the Diversification analytics tile counts each NSE level (task #183 A4/A5): "9 macro sectors · 13 sectors · 22 industries · all four sizes"
   const lvN = (l: "macro" | "sector" | "industry") => (div ? new Set(ids.map((x) => div.levelOf(x, l))).size : undefined);
-  const top = topTiles(shares, page as never, model === "prism" ? "prism" : "finlit", { macro: lvN("macro"), sectors: lvN("sector"), industries: lvN("industry") ?? Object.keys(counts).length, sizes: (["Large", "Mid", "Small", "Micro"] as Size[]).filter((k) => sizeCount[k]).length });
+  // developer file 28: once every share has a quantity, the cards read the score's figures by value (the average Prism, the spread score, the NIFTY 50 measures)
+  const scA = sc.data && !sc.data.locked ? sc.data : null, byValue = scA?.basis === "value" && scA.byValue ? scA.byValue : null;
+  const top = topTiles(shares, page as never, model === "prism" ? "prism" : "finlit", { macro: lvN("macro"), sectors: lvN("sector"), industries: lvN("industry") ?? Object.keys(counts).length, sizes: (["Large", "Mid", "Small", "Micro"] as Size[]).filter((k) => sizeCount[k]).length }, byValue);
   // task #274 (changes 2 and 16): the money box's day line and what the money covers, the three view cards, and the views opened once
   const dayCount = useMemo(() => {
     const xs = shares.filter((x) => x.chg != null).map((x): DayMove => ({ symbol: x.symbol, label: shortLabel(x), chg: x.chg! }));
@@ -378,7 +389,8 @@ export function HoldingsPage() {
           {readBy && <p className="pfx-note eq-isin-src" role="status">{readBy}</p>}
           {checks.length > 0 && <div className="pf-miss eq-isin" role="status"><b>Please check {checks.length === 1 ? "this line" : `these ${checks.length} lines`} (not added yet):</b>{checks.length > 1 && <button type="button" className="pfx-btn eq-addall" onClick={() => { const room = Math.max(0, cap - allSymbols.length), take = checks.filter((c) => !inTarget.has(c.symbol)).slice(0, room); portfolio.addMany(take.map((c) => ({ ...newHolding(c, c.isin || isinOf?.get(c.symbol)), ...pfField(goTo) }))); setChecks([]); toast(`Added ${take.length} ${take.length === 1 ? "share" : "shares"}.`); }}>Add all {checks.length}</button>}
             <ul>{checks.slice(0, 20).map((c) => <li key={c.symbol + (c.isin || c.input)}><span>{c.input}{c.isin && c.input !== c.isin ? ` (${c.isin})` : ""} → <b title={coTitle(c)}>{titleOf(c)}</b> {subLine(c, c.name)}. <small>{c.note}.</small></span>
-              <button type="button" className="pfx-btn" onClick={() => addChecked(c)}>Add {c.symbol}</button></li>)}</ul></div>}
+              <button type="button" className="pfx-btn" onClick={() => addChecked(c)}>Add {c.symbol}</button></li>)}</ul>
+            {checks.length > 20 && <small>and {checks.length - 20} more, not shown: Add all {checks.length} adds them too.</small>}</div>}
           {skipped.length > 0 && <div className="pf-miss eq-isin" role="status"><b>Not added ({skipped.length}):</b>
             <ul>{skipped.slice(0, 20).map((x) => <li key={x.isin}><span>{x.input}{x.input !== x.isin ? ` (${x.isin})` : ""}: {x.note}</span></li>)}</ul>{skipped.length > 20 && <small>and {skipped.length - 20} more.</small>}</div>}
           {missing.length > 0 && <p className="pf-miss" role="status"><b>Not recognised:</b> {missing.slice(0, 20).join(", ")}{missing.length > 20 ? ` and ${missing.length - 20} more` : ""}. Check the spelling, or use the NSE ticker or the ISIN.</p>}
@@ -398,8 +410,9 @@ export function HoldingsPage() {
           {money.nSales > 0 && <MoneyRow t={money} onAdd={openFor} />}
           {sold.length > 0 && <SoldList items={sold} all={cur === "all" && pfList.length > 1} pfName={pfName} nameOf={(sym) => meta[sym]?.name ?? sym} onRemoveSale={(id) => portfolio.remove(id)} />}</div> : model && <>
           <div className="eqx-row2" id="eq-tabs">
-            <ScorePanel locked={!scoreOn} total={sc.data && !sc.data.locked ? sc.data.total ?? null : null} band={sc.data && !sc.data.locked ? sc.data.band : null} shares={symbols.length}
-              missing={symbols.filter((x) => !qtyBySymbol.get(x)).length} onAdd={() => { const sym = symbols.find((x) => !qtyBySymbol.get(x)); if (sym) openFor(sym, "qty"); }} />
+            <ScorePanel locked={!scoreOn} total={scA ? scA.total ?? null : null} band={scA ? scA.band : null} shares={symbols.length}
+              missing={symbols.filter((x) => !qtyBySymbol.get(x)).length} onAdd={() => { const sym = symbols.find((x) => !qtyBySymbol.get(x)); if (sym) openFor(sym, "qty"); }}
+              basis={scA?.basis} noPrice={(scA?.noQuantity ?? []).filter((x) => qtyBySymbol.get(x))} />
             <ViewCards cards={viewCards} view={view} onView={(v) => setView(v)} seen={seen} />
           </div>
           {data && data.unknown.length > 0 && <p className="pfx-warn" role="status">Not in FinLit's company list, so left out of the figures: {data.unknown.join(", ")}.</p>}

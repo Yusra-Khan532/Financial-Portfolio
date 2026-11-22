@@ -14,8 +14,10 @@ export const FIELD_LABEL: Record<Field, string> = {
 export type RawRow = { row: number } & Partial<Record<Field, string>>;
 export const MAX_ROWS = 2000;
 
-/** Header text reduced to lower-case words: "Invested Amount (₹)" -> "invested amount", "Scheme Name / Fund" -> "scheme name fund". */
-const norm = (h: string) => h.toLowerCase().replace(/[₹$%*:()\[\]/\\_.,\-]+/g, " ").replace(/\s+/g, " ").trim();
+/** Header text reduced to lower-case words: "Invested Amount (₹)" -> "invested amount", "Scheme Name / Fund" -> "scheme name fund". A count a broker writes
+ *  after a heading ("Fund (12)", "Scheme (12)", "Instrument (12)", as "Symbol (52)" in its share report) is dropped first, so "Fund (12)" reads as "fund", not
+ *  "fund 12" (developer file 29; the ETF and equity readers already drop it). */
+const norm = (h: string) => h.toLowerCase().replace(/\(\s*\d[\d,]*\s*\)\s*$/, " ").replace(/[₹$%*:()\[\]/\\_.,\-]+/g, " ").replace(/\s+/g, " ").trim();
 
 /** In priority order: the first pattern a header matches decides its field. Order matters ("current nav" is a NAV, "avg nav" a cost, "purchase date" a date). */
 const RULES: [Field, RegExp][] = [

@@ -227,23 +227,40 @@ class ScoreIn(BaseModel):
 
 
 def _score_compute(prices, nifty_rows, bench_rows, meta, symbols, values, cards, week, horizon, risk, goal, benchmark):
-    """pandas part (worker thread): the diversification page score and the market measures for the value weights against the chosen index."""
+    """pandas part (worker thread): the diversification score and the market measures, both with the score's own weights (score.weights_of: by value when
+    every share has a value, else every share the same), against the chosen index; and, by value, what the top cards show (developer file 28)."""
     import numpy as np
     from . import metrics, score
     from ..mfportfolio import trend
     page_score = None
     market = None
+    by_value = None
     known = [s for s in symbols if s in meta]
+    w_of, basis = score.weights_of(known, values)
     if known:
         page = inputs.run(prices, nifty_rows, {s: meta[s] for s in known}, week)
         page_score = inputs.card_score(page) and page["score"]
         frame, bench = inputs.build_frame(prices, bench_rows, known, week)
         r, rn, _short = metrics.weekly_returns(frame, bench)
         if len(r.columns) >= 1 and len(r) >= 20:
-            w = np.array([max(values.get(s, 0.0), 0.0) for s in r.columns], dtype=float)
-            w = w / w.sum() if w.sum() > 0 else np.ones(len(r.columns)) / len(r.columns)
-            market = metrics.market_measures(r, rn, w)
-    return score.build(symbols, values, cards, page_score, market, horizon, risk, goal, benchmark, trend.portfolio_trend)
+            w = np.array([w_of[s] for s in r.columns], dtype=float)
+            market = metrics.market_measures(r, rn, w / w.sum())
+        if basis == "value":
+            # the spread score by value (the page's own score counts every share the same) and the NIFTY 50 measures by value, for the top cards
+            frame50, n50 = (frame, bench) if benchmark == "NIF50" else inputs.build_frame(prices, nifty_rows, known, week)
+            r50, rn50, _ = (r, rn, None) if benchmark == "NIF50" else metrics.weekly_returns(frame50, n50)
+            sector = {s: meta[s].get("sector") or f"{s} (not classified)" for s in known}
+            if page_score:
+                page_score = metrics.spread_by_value(r50, sector, w_of)
+            m50 = None
+            if len(r50.columns) >= 1 and len(r50) >= 20:
+                w50 = np.array([w_of[s] for s in r50.columns], dtype=float)
+                m50 = market if benchmark == "NIF50" else metrics.market_measures(r50, rn50, w50 / w50.sum())
+            by_value = {"spread": page_score, "market": {k: m50[k] for k in ("beta", "vol", "vol_nifty", "max_fall", "max_fall_nifty")} if m50 else None}
+    out = score.build(symbols, values, cards, page_score, market, horizon, risk, goal, benchmark, trend.portfolio_trend)
+    if by_value is not None:
+        out["byValue"] = {**by_value, "prism": out["readings"]["strength"].get("figure"), "prismShare": out["readings"]["strength"].get("scoredShare")}
+    return out
 
 
 @router.post("/score")

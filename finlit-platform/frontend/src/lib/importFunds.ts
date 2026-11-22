@@ -13,7 +13,8 @@
 import { dayLabel } from "./holdingsColumns";
 
 export type FundLine = { isin?: string; symbol?: string; input: string; qty?: number; avg?: number; rate?: number; rateOn?: string };
-export type EtfPreviewRow = { i: number; status: "matched" | "duplicate" | "ignored" | "not_found" | "invalid"; etf?: { symbol: string; name?: string }; qty?: number | string | null; existing?: boolean };
+/** `i`: the row's place in the request, from 0 (the server's `enumerate`); `row`: the number we gave it (`etfPreviewRows`: place + 1). */
+export type EtfPreviewRow = { i: number; row?: number; status: "matched" | "duplicate" | "ignored" | "not_found" | "invalid"; etf?: { symbol: string; name?: string }; qty?: number | string | null; existing?: boolean };
 export type EtfPreview = { rows: EtfPreviewRow[]; capacity: { limit: number; used: number; room: number } };
 
 /** The rows for import-preview: one per fund line, numbered from 1 (the ETF page's own `b()` gives { row, isin, symbol?, name?, qty? }). */
@@ -48,7 +49,9 @@ const WHY: Record<string, string> = {
 export function etfPlan(funds: FundLine[], pv: EtfPreview): EtfPlan {
   const out: EtfPlan = { add: [], have: [], notAdded: [], room: pv.capacity.room, limit: pv.capacity.limit, used: pv.capacity.used, over: 0 };
   pv.rows.forEach((r) => {
-    const line = funds[r.i - 1] ?? funds[r.i];   // rows are numbered from 1; tolerate a 0-based answer
+    // the line this answer is about: by the row number we sent (place + 1), else by its place. Until 22 Nov 2026 this read funds[i - 1] with the
+    // server's i counted from 0, so from the second ETF on each one took the line before it: its name, and its average buy price in the book.
+    const line = r.row != null && r.row >= 1 ? funds[r.row - 1] : funds[r.i];
     if (!line) return;
     if (r.status !== "matched" || !r.etf) { out.notAdded.push({ line, why: WHY[r.status] ?? "not added" }); return; }
     const qty = Number(r.qty ?? line.qty);
@@ -74,6 +77,29 @@ export function etfBuys(plan: EtfPlan, ticked: Set<string>, rateAsBuy: boolean, 
     .map((x) => x.avg != null && x.avg > 0
       ? { symbol: x.symbol, qty: x.qty, price: x.avg, owned: true as const, pf }
       : { symbol: x.symbol, qty: x.qty, price: x.rate as number, owned: true as const, pf, ...(x.rateOn ? { date: x.rateOn } : {}) });
+}
+
+type Lot = { id: string; symbol: string; pf: string; side: "buy" | "sell"; qty: number; price: number | null; date: string | null; legacy?: boolean };
+/** The ETF book after an import's buys (PUT /book takes the whole book). An ETF with no buys gets the file's buy; one with buys keeps them, except a single
+ *  buy that an earlier import made (id "imp…", the same quantity) at another price: until 22 Nov 2026 the equity page's import gave each ETF after the first
+ *  the line before's average price (`etfPlan`), and importing the file again puts the right one in. A quantity-only line ("legacy") is left as it is. */
+export function bookAfterImport(lots: Lot[], buys: { symbol: string; qty: number; price: number; date?: string }[], pf: string, newId: () => string):
+  { lots: Lot[]; added: string[]; fixed: string[] } {
+  const real = lots.filter((l) => !l.legacy);
+  const of = (sym: string) => real.filter((l) => l.symbol === sym);
+  const added: string[] = [], fixed: string[] = [];
+  const out = real.map((l) => ({ ...l, price: l.price != null && l.price > 0 ? l.price : null }));
+  for (const x of buys) {
+    const mine = of(x.symbol);
+    if (!mine.length) { out.push({ id: newId(), symbol: x.symbol, pf, side: "buy", qty: x.qty, price: x.price, date: x.date ?? null }); added.push(x.symbol); continue; }
+    const only = mine.length === 1 ? mine[0] : null;
+    if (only && only.id.startsWith("imp") && only.side === "buy" && Math.abs(only.qty - x.qty) < 1e-6 && only.price != null && Math.abs(only.price - x.price) >= 0.005) {
+      const k = out.findIndex((l) => l.id === only.id);
+      out[k] = { ...out[k], price: x.price };
+      fixed.push(x.symbol);
+    }
+  }
+  return { lots: out, added, fixed };
 }
 
 /** The line after Add: "8 ETFs went to your ETF portfolio: 6 added, units set for NIFTYBEES and BANKBEES." */

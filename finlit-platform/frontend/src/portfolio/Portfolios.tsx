@@ -6,7 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import { lk, pct, tone } from "./money";
 
 export type PfInfo = { id: string; name: string; broker?: string };
-export type PfFigs = { n: number; now: number; withQty: number; gainPct: number | null };
+/** noPrice (developer file 27): shares with a quantity whose price is not in yet (counted in n, not in now). */
+export type PfFigs = { n: number; now: number; withQty: number; gainPct: number | null; noPrice?: number };
 export const BROKERS = ["Dhan", "Upstox", "Zerodha", "Groww", "Angel One", "ICICI Direct", "HDFC Securities", "Kotak Securities", "5paisa", "Motilal Oswal", "Paytm Money", "Other"];
 export const MAX_PF = 10;
 const AV = ["#0e6471", "#4b4fc4", "#b5541c", "#2f5a9e", "#9a6b12", "#7a3e8e", "#2e7d57", "#a3324a", "#5b6170", "#13606b"];
