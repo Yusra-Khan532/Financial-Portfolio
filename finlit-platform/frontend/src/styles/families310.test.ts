@@ -130,6 +130,23 @@ describe("family 4: markets, results and news (task #310 F, pages/04)", () => {
   });
 });
 
+describe("family 5: mutual funds and ETFs (task #310 F, pages/05)", () => {
+  const SHEETS = ["mf", "mfscreen", "mfcompare", "mfinsights", "mfup", "mf-showcase", "etf", "etfvs", "ask-funds", "planScore", "tools"].map((n) => `styles/${n}.css`);
+  it("the funds list, fund screener, compare, score screener, ETFs and fund page sheets have no hand-typed corners, sizes or weights", () => {
+    expect(SHEETS.flatMap(shapeFindings)).toEqual([]);
+  });
+
+  it("bold text inside semibold labels stops at 700 (no computed 900), site-wide", () => {
+    expect(noComments(read("styles/typescale.css"))).toMatch(/\nb, strong \{ font-weight: 700; \}/);
+  });
+
+  it("the funds quick links stay secondary buttons, not the gold pill", () => {
+    const ph = read("components/PageHeader.tsx");
+    expect(ph).toMatch(/buttonClass\("secondary", "sm", "ph-lk"\)/);
+    expect(noComments(read("styles/page-header.css"))).not.toMatch(/\.ph-lk\.primary \{[^}]*background: var\(--gold\)/);
+  });
+});
+
 describe("shared sheets (task #310 F)", () => {
   it("the shared navigation and table pieces have no hand-typed corners, sizes or weights", () => {
     const files = ["styles/tabgroup.css", "styles/section-nav.css", "styles/tablesort.css", "styles/table-grid.css", "styles/theme.css", "styles/type227.css",

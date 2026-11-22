@@ -209,7 +209,7 @@ td.stick .co { display: inline-flex; align-items: center; gap: 10px; }
 /* ---- task #287: the Mutual Fund Score in its own column of the fund rows (Gold), between the NAV and the 1Y return ---- */
 .gs-row.k-mf.fsc { grid-template-columns: auto minmax(0, 1fr) auto 64px 92px 58px; }
 .gs-fsc { justify-items: center; }
-.gs-fsc .mfs-chip { justify-self: center; margin: 0; min-width: 34px; font-size: 13px; line-height: 22px; padding: 0 7px; }
+.gs-fsc .mfs-chip { justify-self: center; margin: 0; min-width: 34px; font-size: var(--fs-13); line-height: 22px; padding: 0 7px; }
 .gs-fsc-na { display: grid; place-items: center; min-width: 34px; height: 24px; border: 1px dashed var(--border); border-radius: var(--ui-r-pill); color: var(--faint); font: 600 var(--fs-13) var(--mono); }
 @media (max-width: 640px) {
   .gs-row.k-mf.fsc { grid-template-columns: auto minmax(0, 1fr) auto 44px; }
