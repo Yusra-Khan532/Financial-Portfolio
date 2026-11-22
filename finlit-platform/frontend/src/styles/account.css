@@ -129,7 +129,7 @@ div.dn { display: grid; grid-template-columns: 170px 1fr; gap: 18px; align-items
 :root { --frame: color-mix(in srgb, var(--border-strong) 65%, var(--border)); }
 :root[data-theme="light"] { --frame: #1A1915; }
 .card, .qt, .ftile, .wk, .rc, .hstat > div, .pl-card { border: 1.5px solid var(--frame); }
-:root[data-theme="light"] .card, :root[data-theme="light"] .qt, :root[data-theme="light"] .ftile { background: #fff; box-shadow: 0 1px 0 rgba(20, 19, 15, .04); }
+:root[data-theme="light"] .card, :root[data-theme="light"] .qt, :root[data-theme="light"] .ftile { background: var(--s1); box-shadow: 0 1px 0 rgba(20, 19, 15, .04); }
 :root[data-theme="light"] .report .card, :root[data-theme="light"] .band .card, :root[data-theme="light"] .band .qt { border-color: var(--border-strong); }
 
 /* ---- product shell: left navigation ---- */

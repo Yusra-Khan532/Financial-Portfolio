@@ -7,7 +7,8 @@ moves and a 1-month line, plus where each market is in its trading day (open or 
 Sources, read when asked and kept for an hour (no background job is added):
   * FRED (St. Louis Fed), open and without a key: S&P 500, Nasdaq Composite, Dow Jones, Nikkei 225, Brent crude, the US 10-year Treasury yield and the
     rupee per US dollar. Daily closes: the latest is usually the last US trading day.
-  * Twelve Data, with the key TWELVEDATA_API_KEY in the server's environment: FTSE 100, DAX, CAC 40, Hang Seng, Shanghai Composite and spot gold. Without
+  * Twelve Data, with the key TWELVEDATA_API_KEY in the server's environment, or else EODHD with EODHD_API_KEY: FTSE 100 (on EODHD's free plan through
+    a fund that tracks it, labelled so), DAX, CAC 40, Hang Seng, Shanghai Composite and spot gold. Without
     the key those rows are listed and say why they are empty; nothing is guessed. The free plan allows 8 requests a minute, so the hour's cache and one
     request per series keep well inside it; a series the plan does not include says so.
 Describes; never advises. Information only, not investment advice.
@@ -30,7 +31,7 @@ from fastapi import APIRouter, Request, Response
 log = logging.getLogger("finlit.global_markets")
 router = APIRouter()
 
-CACHE_KEY = "global-markets:v2"
+CACHE_KEY = "global-markets:v3"   # v3: the FTSE 100 row through a tracker fund (a fresh answer on deploy, not the hour-old one)
 CACHE_SECONDS = 3600
 FRED_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv"
 TWELVE_URL = "https://api.twelvedata.com/time_series"
@@ -48,7 +49,11 @@ SERIES: List[Dict[str, Any]] = [
     {"key": "sp500", "label": "S&P 500", "group": "US", "unit": "pts", "src": "fred", "id": "SP500", "city": "New York", "lat": 40.71, "lon": -74.01, "tz": "America/New_York", "session": ("09:30", "16:00")},
     {"key": "nasdaq", "label": "Nasdaq Composite", "group": "US", "unit": "pts", "src": "fred", "id": "NASDAQCOM", "city": "New York", "lat": 40.71, "lon": -74.01, "tz": "America/New_York", "session": ("09:30", "16:00")},
     {"key": "dow", "label": "Dow Jones", "group": "US", "unit": "pts", "src": "fred", "id": "DJIA", "city": "New York", "lat": 40.71, "lon": -74.01, "tz": "America/New_York", "session": ("09:30", "16:00")},
-    {"key": "ftse", "label": "FTSE 100", "group": "Europe", "unit": "pts", "src": "twelve", "id": "FTSE", "eod": ("UKX.INDX", "FTSE.INDX"), "city": "London", "lat": 51.51, "lon": -0.13, "tz": "Europe/London", "session": ("08:00", "16:30")},
+    # The FTSE 100 index is not in EODHD's free plan (UKX.INDX and FTSE.INDX answer with no closes), so the row shows a fund that tracks it, said as such
+    # (the founder, 22 Nov 2026: "use the labelled tracker fund for FTSE 100"). Its 1D / 1W / 1M moves follow the index; its price is the fund's, not
+    # the index level. Twelve Data (when its key is set) still gives the index itself first.
+    {"key": "ftse", "label": "FTSE 100", "group": "Europe", "unit": "pts", "src": "twelve", "id": "FTSE", "city": "London", "lat": 51.51, "lon": -0.13, "tz": "Europe/London", "session": ("08:00", "16:30"),
+     "trackers": (("ISF.LSE", "iShares Core FTSE 100 UCITS ETF (ISF)", "GBX"), ("VUKE.LSE", "Vanguard FTSE 100 UCITS ETF (VUKE)", "GBP"))},
     {"key": "dax", "label": "DAX", "group": "Europe", "unit": "pts", "src": "twelve", "id": "DAX", "eod": "GDAXI.INDX", "city": "Frankfurt", "lat": 50.11, "lon": 8.68, "tz": "Europe/Berlin", "session": ("09:00", "17:30")},
     {"key": "cac", "label": "CAC 40", "group": "Europe", "unit": "pts", "src": "twelve", "id": "CAC", "eod": "FCHI.INDX", "city": "Paris", "lat": 48.86, "lon": 2.35, "tz": "Europe/Paris", "session": ("09:00", "17:30")},
     {"key": "nikkei", "label": "Nikkei 225", "group": "Asia", "unit": "pts", "src": "fred", "id": "NIKKEI225", "city": "Tokyo", "lat": 35.68, "lon": 139.69, "tz": "Asia/Tokyo", "session": ("09:00", "15:30")},
@@ -158,8 +163,12 @@ def build(series: Dict[str, Tuple[List[Tuple[date, float]], Optional[str]]], now
         got = series.get(s["key"], ([], None))
         pts, why = got[0], got[1]
         src = got[2] if len(got) > 2 else ("FRED" if s["src"] == "fred" else "Twelve Data")
-        m = moves(pts, s["unit"])
-        rows.append({"key": s["key"], "label": s["label"], "group": s["group"], "unit": s["unit"], "source": src,
+        tracker = got[3] if len(got) > 3 else None
+        unit = tracker["unit"] if tracker else s["unit"]
+        m = moves(pts, unit)
+        rows.append({"key": s["key"], "label": s["label"], "group": s["group"], "unit": unit, "source": src,
+                     "tracker": {**tracker, "note": f"Shown through {tracker['name']}, a fund that tracks the {s['label']}: the moves follow the index; the price "
+                                                    f"is the fund's ({'pence' if unit == 'GBX' else 'pounds'}), not the index level."} if tracker else None,
                      **m, "why": None if m["last"] is not None else (why or "No close from the source yet."),
                      "place": {"city": s["city"], "lat": s["lat"], "lon": s["lon"], **(session_now(s, now) or {})} if s.get("city") else None})
     overseas = [r for r in rows if r["place"] and r["group"] in ("US", "Europe", "Asia")]
@@ -205,7 +214,8 @@ async def _eodhd(client: httpx.AsyncClient, key: str, sym: str, start: date, red
     try:
         raw = await redis.get(ck) if redis is not None else None
         if raw:
-            return [(date.fromisoformat(d), float(v)) for d, v in orjson.loads(raw)], None
+            kept = [(date.fromisoformat(d), float(v)) for d, v in orjson.loads(raw)]
+            return kept, None if kept else "EODHD returned no closes for this series."
     except Exception:
         pass
     try:
@@ -215,7 +225,7 @@ async def _eodhd(client: httpx.AsyncClient, key: str, sym: str, start: date, red
     except Exception as exc:
         log.warning("global markets: EODHD %s failed: %s", sym, type(exc).__name__)
         return [], "EODHD could not be reached just now; the card tries again within the hour."
-    if pts and redis is not None:
+    if redis is not None and (pts or why):   # an empty answer is kept too, so a code the plan does not carry is not asked again every hour (20 calls a day)
         try:
             await redis.set(ck, orjson.dumps([(d.isoformat(), v) for d, v in pts]), ex=EODHD_KEEP)
         except Exception:
@@ -231,10 +241,15 @@ async def _market(client: httpx.AsyncClient, s: Dict[str, Any], twelve: str, eod
         if pts:
             return pts, None, "Twelve Data"
     codes = s.get("eod")
-    for code in ((codes,) if isinstance(codes, str) else (codes or ())) if eod else ():   # a series can have more than one EODHD code (FTSE 100: UKX, FTSE)
+    for code in ((codes,) if isinstance(codes, str) else (codes or ())) if eod else ():   # a series can have more than one EODHD code
         pts, why2 = await _eodhd(client, eod, code, start, redis)
         if pts:
             return pts, None, "EODHD"
+        why = why2 or why
+    for code, name, unit in s.get("trackers", ()) if eod else ():                        # a fund that tracks the index, labelled as such
+        pts, why2 = await _eodhd(client, eod, code, start, redis)
+        if pts:
+            return pts, None, "EODHD", {"name": name, "code": code.split(".")[0], "unit": unit}
         why = why2 or why
     return [], why or NO_KEY, "EODHD" if eod else "Twelve Data"
 
