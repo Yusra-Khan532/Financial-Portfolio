@@ -125,7 +125,8 @@ export function FundTable({ rows, cols, q, onSort, picked, onPick, peers }: {
   const tint = (c: ColDef, r: FundRow): React.CSSProperties | undefined => {
     if (c.id !== "r1y" && c.id !== "r3y" && c.id !== "r5y" && c.id !== "sip3y" && c.id !== "sip5y") return undefined;
     const t = tintOf(r[c.id], scale[c.id] ?? 0);
-    return t ? ({ "--tint": `color-mix(in srgb, var(${t.tone === "pos" ? "--gain" : "--loss"}) ${Math.round(8 + t.k * 22)}%, transparent)` } as React.CSSProperties) : undefined;
+    // task #310 G: the share runs through --ui-heat-scale (1 in light, .66 in dark), so green figures on the green tint keep 4.5:1 in dark (were 3.8 to 4.4)
+    return t ? ({ "--tint": `color-mix(in srgb, var(${t.tone === "pos" ? "--gain" : "--loss"}) calc(${Math.round(8 + t.k * 22)}% * var(--ui-heat-scale)), transparent)` } as React.CSSProperties) : undefined;
   };
   const cls = (c: ColDef) => (c.num ? "num" : "txt") + (c.group ? ` mf-retcol mf-g-${c.group}` : "") + ` mf-c-${c.id}`;
   // task #310 part E (05-phone.md, fix 6): on a phone the list shows its first 5 schemes and a Show all button; desktop shows every row

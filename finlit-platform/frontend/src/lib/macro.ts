@@ -67,13 +67,15 @@ export const corrWords = (r: number | null): string => {
 /** 0..1 position of v between lo and hi (clamped). */
 export const frac = (v: number, lo: number, hi: number) => (hi > lo ? Math.min(1, Math.max(0, (v - lo) / (hi - lo))) : 0);
 
-/** Heat-map cell colour for an inflation rate: cool below the 4% target, warm above, hot above the 6% limit (token colours, light and dark safe). */
+/** Heat-map cell colour for an inflation rate: cool below the 4% target, warm above, hot above the 6% limit (token colours, light and dark safe).
+ *  Task #310 G: each share runs through --ui-heat-scale (ui-tokens.css): 1 in light (unchanged), .66 in dark, where the hottest red under cream figures was 3.3:1. */
+const mix = (tone: string, pct: number) => `color-mix(in srgb, var(${tone}) calc(${Math.round(pct)}% * var(--ui-heat-scale)), transparent)`;
 export function heat(v: number | null): { bg: string; strong: boolean } {
   if (v == null) return { bg: "transparent", strong: false };
-  if (v > 6) return { bg: `color-mix(in srgb, var(--loss) ${Math.round(35 + Math.min(40, (v - 6) * 8))}%, transparent)`, strong: true };
-  if (v > 4) return { bg: `color-mix(in srgb, var(--warn) ${Math.round(18 + (v - 4) * 10)}%, transparent)`, strong: false };
-  if (v >= 2) return { bg: `color-mix(in srgb, var(--gain) ${Math.round(14 + (4 - v) * 7)}%, transparent)`, strong: false };
-  return { bg: `color-mix(in srgb, var(--k1) ${Math.round(24 + (2 - v) * 8)}%, transparent)`, strong: true };
+  if (v > 6) return { bg: mix("--loss", 35 + Math.min(40, (v - 6) * 8)), strong: true };
+  if (v > 4) return { bg: mix("--warn", 18 + (v - 4) * 10), strong: false };
+  if (v >= 2) return { bg: mix("--gain", 14 + (4 - v) * 7), strong: false };
+  return { bg: mix("--k1", 24 + (2 - v) * 8), strong: true };
 }
 
 export const fmt = (v: number, unit: string): string => {

@@ -60,3 +60,5 @@
 
 /* On a phone the hidden labels of a wide table escaped its scroll box and the page scrolled sideways by about 60px: the box is positioned. */
 .tw { position: relative; }
+/* Task #310 G: the step numbers' --gold-deep on --gold-soft read 3.9:1 in dark; the brighter --gold there */
+:root[data-theme="dark"] .ec-n { color: var(--gold); }

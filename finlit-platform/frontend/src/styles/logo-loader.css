@@ -7,7 +7,7 @@ html[data-theme="dark"] .ll { --ll-ink: #F4F2EC; --ll-gold: #D9B96C; }
 .ll-ink { fill: var(--ll-ink); } .ll-gold { fill: var(--ll-gold); } .ll-grad { fill: url(#ll-grad); }
 .ll-stack { display: flex; flex-direction: column; align-items: center; }
 .ll-full { display: grid; place-items: center; min-height: 46vh; padding: 24px; }
-.ll-splash { position: fixed; inset: 0; z-index: 100000; display: grid; place-items: center; background: var(--bg, #F7F3EA); }
+.ll-splash { position: fixed; inset: 0; z-index: 100000; display: grid; place-items: center; background: var(--bg); }
 /* the opening animation: it covers the page until it has played to its end (lib/splash.tsx), then fades away; a session that has seen it goes straight in */
 #ll-boot { transition: opacity .4s ease; } #ll-boot.ll-out { opacity: 0; pointer-events: none; }
 html[data-splash="seen"] #ll-boot { display: none; }

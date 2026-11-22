@@ -144,7 +144,7 @@
 .pfh-find:focus-within { outline: 2px solid var(--gold); outline-offset: 2px; }
 .pfh-div { width: 1px; height: 26px; background: var(--border-strong); }
 .pfx-tools.pfh .pff-row { gap: 10px; }
-.pfx-tools.pfh .pfh-cols select { -webkit-appearance: none; appearance: none; width: auto; min-height: 38px; height: 38px; padding: 0 32px 0 14px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); color: var(--text); font: 600 var(--fs-14) var(--sans); cursor: pointer;
+.pfx-tools.pfh .pfh-cols select { -webkit-appearance: none; appearance: none; width: auto; min-height: 38px; height: 38px; padding: 0 32px 0 14px; border: 1px solid var(--ui-field-line); border-radius: var(--ui-r-pill); color: var(--text); font: 600 var(--fs-14) var(--sans); cursor: pointer;
   background: var(--s1) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0h10L5 6z' fill='%23888'/></svg>") no-repeat right 13px center; }
 .pfx-tools.pfh .pfh-cols.on select { background-color: var(--x-blue, #2f5a9e); border-color: var(--x-blue, #2f5a9e); color: #fff; }
 .pfh-cols select:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }

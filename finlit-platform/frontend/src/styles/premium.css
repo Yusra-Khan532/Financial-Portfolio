@@ -347,3 +347,5 @@ footer.band { border-top: 1px solid #3A362D; --band-a: #1B1915; }
 .tape-st.live { color: var(--gain); }
 .tape-st.live::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--gain); margin-right: 6px; }
 :root:root .cb-field { height: auto; min-height: 56px; padding-block: 8px; }   /* calm.css fixes every search field at 44px; this one holds the chosen companies, so it grows with them instead of letting them hang out of the box */
+/* Task #310 G (08-dark-theme.md): the "01", "02" numerals on Why we exist and About read 2.4:1 in dark on --border-strong */
+:root[data-theme="dark"] .feat .num { color: var(--faint); }

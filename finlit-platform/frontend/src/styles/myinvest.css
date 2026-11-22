@@ -15,8 +15,9 @@
 .mi .t-pos { background: var(--mi-pos); color: #fff; } .mi .t-mid { background: var(--mi-mid); color: #fff; } .mi .t-neg { background: var(--mi-neg); color: #fff; } .mi .t-none { background: var(--mi-none); color: var(--text); }
 .mi .t-type0 { background: var(--mi-in); color: #fff; } .mi .t-type1 { background: var(--mi-au); color: #fff; } .mi .t-type2 { background: var(--mi-ab); color: #fff; } .mi .t-type3 { background: var(--mi-dc); color: #fff; }
 /* Task #310 F (pages/03, 08-dark-theme): in the dark theme the score, type and mix blocks are light (mint, gold, sky), so their figures
-   use the dark ink (--on-mint) instead of white: 2.3:1 -> readable. The grey "no score" block stays dark with light text. */
-:root[data-theme="dark"] .mi :is(.t-pos, .t-mid, .t-neg, .t-type0, .t-type1, .t-type2, .t-type3, .mi-stack.big i, .mi-held i.on, .mi-sbox.t-pos b, .mi-sbox.t-mid b, .mi-sbox.t-neg b), :root[data-theme="dark"] .mi-sh-n { color: var(--on-mint); }
+   use the dark ink (--on-mint) instead of white: 2.3:1 -> readable. The grey "no score" block stays dark with light text.
+   Task #310 G: not on the score box itself (.mi-sbox.t-pos), whose word ("Healthy") sits on --s2: the dark ink there read 1.1:1. */
+:root[data-theme="dark"] .mi :is(.t-pos:not(.mi-sbox), .t-mid:not(.mi-sbox), .t-neg:not(.mi-sbox), .t-type0, .t-type1, .t-type2, .t-type3, .mi-stack.big i, .mi-held i.on, .mi-sbox.t-pos b, .mi-sbox.t-mid b, .mi-sbox.t-neg b), :root[data-theme="dark"] .mi-sh-n { color: var(--on-mint); }
 .mi .mi-dot { display: inline-block; width: 10px; height: 10px; border-radius: var(--ui-r-mark); margin-right: 8px; vertical-align: -1px; }
 .mi .mi-cap { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font: 700 var(--fs-label)/16px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .mi .mi-eyebrow { margin: 0; font: 700 var(--fs-label)/16px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
@@ -187,7 +188,7 @@
 .mi-qd-body { overflow: auto; padding: 8px 20px; } .mi-qd-body h3 { margin: 12px 0 6px; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); color: var(--muted); }
 .mi-qd-body ul { list-style: none; margin: 0; padding: 0; } .mi-qd-body li { display: grid; grid-template-columns: minmax(0, 1fr) 130px 100px; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .mi-qd-n b { display: block; font: 600 var(--fs-body)/20px var(--sans); overflow-wrap: anywhere; } .mi-qd-n small { font: 400 var(--fs-caption)/16px var(--sans); color: var(--muted); }
-.mi-qd input { width: 100%; padding: 7px 10px; border-radius: var(--r-ctl); border: 1px solid var(--border-strong); background: var(--bg); color: var(--text); font: 500 var(--fs-body)/20px var(--sans); text-align: right; }
+.mi-qd input { width: 100%; padding: 7px 10px; border-radius: var(--r-ctl); border: 1px solid var(--ui-field-line); background: var(--bg); color: var(--text); font: 500 var(--fs-body)/20px var(--sans); text-align: right; }
 .mi-qd input:disabled { opacity: .5; }
 .mi-qd-v { text-align: right; font: 600 var(--fs-body)/20px var(--sans); font-variant-numeric: tabular-nums; }
 .mi-qd-msg { margin: 0; padding: 10px 20px; color: var(--loss); font: 500 var(--fs-small)/18px var(--sans); background: color-mix(in srgb, var(--loss) 8%, var(--s1)); }

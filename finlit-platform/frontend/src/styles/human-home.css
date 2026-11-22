@@ -6,7 +6,7 @@
 .hh, .fl-modal-wrap {
   --hh-g: #1F6B49; --hh-g-fill: #1F7A55; --hh-on-g: #FFFFFF; --hh-g-soft: rgba(31, 122, 85, .12);
   --hh-au: #7A5B16; --hh-au-fill: #C9A24E; --hh-y: #E8D29B; --hh-y-fill: #F2D58A; --hh-on-y: #1A1405;
-  --hh-hero-a: #E6F1E9; --hh-hero-b: var(--bg, #F7F3EA); --hh-hero-text: var(--text); --hh-hero-muted: var(--muted); --hh-hero-line: rgba(31, 107, 73, .22); --hh-glow: rgba(31, 122, 85, .35);
+  --hh-hero-a: #E6F1E9; --hh-hero-b: var(--bg); --hh-hero-text: var(--text); --hh-hero-muted: var(--muted); --hh-hero-line: rgba(31, 107, 73, .22); --hh-glow: rgba(31, 122, 85, .35);
 }
 :root[data-theme="dark"] .hh, :root[data-theme="dark"] .fl-modal-wrap {
   --hh-g: #7FD8A6; --hh-g-fill: #7FD8A6; --hh-on-g: #0B2A1E; --hh-g-soft: rgba(127, 216, 166, .12);
@@ -84,13 +84,13 @@
 /* Task #121 (13 Nov 2026): the hero as in the team's picture: a plain deep green-black panel (plain cream in the light theme), the three-part line on top made
    bigger (upright "Track what matters." in green), "Research deeper." over "Invest with clarity." in green italic, the mint "Explore the platform" button, an
    outlined sample-report button and three ticks. The bottom curve, the drawn underline and the round-icon features of #118 are gone. */
-.hh { --hh-hero-a: var(--bg, #F7F3EA); }
+.hh { --hh-hero-a: var(--bg); }
 :root[data-theme="dark"] .hh { --hh-hero-a: #0C1910; --hh-hero-b: #0C1910; }
 .hh-top { background: var(--hh-hero-a); }
 .hh-strip { font-size: var(--fs-24); }
 @media (min-width: 1100px) { .hh-strip { font-size: var(--fs-28); } }
 .hh-top h1 em { display: inline; }
-:root[data-theme="dark"] .hh .btn.hh-go:not(.primary) { background: linear-gradient(90deg, #BAF7D1, #5DAF7A); color: var(--s2); }
+:root[data-theme="dark"] .hh .btn.hh-go:not(.primary) { background: var(--btn-bg); color: var(--btn-fg); }   /* task #310 G: the main button in dark too (was its own #BAF7D1 to #5DAF7A gradient) */
 .hh-trust { list-style: none; margin: 26px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 12px 26px; font-size: var(--fs-16, 16px); color: var(--hh-hero-text); }
 .hh-trust li { display: inline-flex; align-items: center; gap: 8px; }
 .hh-trust svg { flex: none; width: 17px; height: 17px; color: var(--hh-g); }

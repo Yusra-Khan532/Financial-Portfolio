@@ -16,7 +16,7 @@
 .oc-hits button { display: flex; justify-content: space-between; gap: 12px; width: 100%; padding: 9px 10px; border: 0; background: none; color: var(--text); text-align: left; border-radius: var(--r-ctl); cursor: pointer; font: inherit; }
 .oc-hits button:hover, .oc-hits button:focus-visible { background: var(--s3); }
 .oc-none { padding: 9px 10px; }
-.oc-ctl select { width: 100%; font: inherit; padding: 10px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); }
+.oc-ctl select { width: 100%; font: inherit; padding: 10px; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); }
 .oc-ctl select:focus-visible, .oc-seg button:focus-visible, .oc-scroll:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .oc-seg { display: flex; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); overflow: hidden; }
 .oc-seg button { flex: 1; padding: 10px 12px; border: 0; background: var(--s1); color: var(--text); font: inherit; cursor: pointer; }

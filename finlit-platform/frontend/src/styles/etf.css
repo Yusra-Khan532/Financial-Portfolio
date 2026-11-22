@@ -21,7 +21,7 @@
 .etf-ranges { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .etf-range { border: 1px solid var(--border); border-radius: var(--r-ctl); padding: 8px 12px 10px; margin: 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; min-width: 0; }
 .etf-range legend { font-size: var(--fs-13); color: var(--muted); padding: 0 6px; }
-.etf-range input { width: 78px; height: 36px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); padding: 0 8px; font: inherit; font-family: var(--mono); font-size: var(--fs-14); }
+.etf-range input { width: 78px; height: 36px; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); padding: 0 8px; font: inherit; font-family: var(--mono); font-size: var(--fs-14); }
 .etf-range input[aria-invalid="true"] { border-color: var(--loss); }
 .etf-count { margin: 6px 0 12px; color: var(--muted); font-size: var(--fs-14); min-height: 20px; }
 .etf-count b { color: var(--text); }

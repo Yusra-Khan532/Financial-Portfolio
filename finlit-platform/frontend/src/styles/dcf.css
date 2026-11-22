@@ -13,7 +13,7 @@
 .dcf-search input { border: 0; background: none; padding: 11px 0; width: 100%; font: inherit; color: var(--text); outline: none; }
 .dcf-search:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
 .dcf-basis { display: grid; gap: 4px; font-size: var(--fs-13); color: var(--muted); }
-.dcf-basis select, .dcf-f select, .dcf-tog select { font: inherit; padding: 9px 10px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); }
+.dcf-basis select, .dcf-f select, .dcf-tog select { font: inherit; padding: 9px 10px; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); }
 .dcf-hits { list-style: none; margin: 8px 0 0; padding: 4px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); max-height: 280px; overflow: auto; }
 .dcf-hits button { display: flex; justify-content: space-between; gap: 12px; width: 100%; padding: 9px 10px; border: 0; background: none; color: var(--text); text-align: left; border-radius: var(--r-ctl); cursor: pointer; font: inherit; }
 .dcf-hits button:hover, .dcf-hits button:focus-visible { background: var(--s2); }
@@ -29,7 +29,7 @@
 .dcf-f > label { font-weight: 600; font-size: var(--fs-16); display: flex; align-items: center; gap: 4px; }
 .dcf-f .req { color: var(--loss); }
 .dcf-in { position: relative; display: flex; }
-.dcf-in input { width: 100%; font: 400 var(--fs-16) var(--mono); padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); }
+.dcf-in input { width: 100%; font: 400 var(--fs-16) var(--mono); padding: 10px 12px; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); }
 .dcf-in input.is-ro { background: var(--s2); color: var(--muted); }
 .dcf-in .unit { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--faint); font-size: var(--fs-13); pointer-events: none; }
 .dcf-in input:focus-visible, .dcf-f select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
@@ -43,7 +43,7 @@
 .dcf-adv summary { cursor: pointer; font-weight: 600; }
 .dcf-grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 18px; margin: 12px 0; }
 .dcf-grid3 label { display: grid; gap: 4px; font-size: var(--fs-14); font-weight: 600; }
-.dcf-grid3 input { font: 400 var(--fs-14) var(--mono); padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); }
+.dcf-grid3 input { font: 400 var(--fs-14) var(--mono); padding: 8px 10px; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); }
 .dcf-grid3 small { font-weight: 400; font-size: var(--fs-12); }
 .dcf-capm { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-size: var(--fs-14); }
 .btn.sm { padding: 6px 12px; font-size: var(--fs-13); }
@@ -103,11 +103,11 @@
 .dcf-sens td.s-buy { background: var(--gain-soft); } .dcf-sens td.s-fair { background: var(--gold-soft); } .dcf-sens td.s-over { background: var(--loss-soft); }
 .dcf-sens td.base { outline: 2px solid var(--text); outline-offset: -2px; font-weight: 700; }
 .dcf-sens .cur { color: var(--gold); }
-.dcf-scen input { width: 76px; font: 400 var(--fs-14) var(--mono); padding: 5px 7px; text-align: right; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); }
+.dcf-scen input { width: 76px; font: 400 var(--fs-14) var(--mono); padding: 5px 7px; text-align: right; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); }
 
 .dcf-acts { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
 .dcf-save-row { display: flex; gap: 10px; flex-wrap: wrap; }
-.dcf-save-row input { flex: 1 1 220px; font: inherit; padding: 9px 12px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); }
+.dcf-save-row input { flex: 1 1 220px; font: inherit; padding: 9px 12px; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); }
 .dcf-saved ul { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 6px; }
 .dcf-saved li { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
 .dcf-saved .link { background: none; border: 0; padding: 0; color: var(--text); cursor: pointer; font: inherit; text-decoration: underline; }

@@ -139,7 +139,7 @@ input[type="range"]:focus-visible::-moz-range-thumb { filter: drop-shadow(0 0 2p
 
 /* forms */
 .form label { display: block; font-size: var(--fs-13); font-weight: 600; color: var(--muted); margin-bottom: 14px; }
-.form input, .form textarea, .form select, .modal input, .modal textarea { display: block; width: 100%; margin-top: 6px; padding: 12px 14px; border-radius: var(--r-ctl); border: 1px solid var(--border-strong); background: var(--s2); color: var(--text); font: var(--fs-16) var(--sans); }
+.form input, .form textarea, .form select, .modal input, .modal textarea { display: block; width: 100%; margin-top: 6px; padding: 12px 14px; border-radius: var(--r-ctl); border: 1px solid var(--ui-field-line); background: var(--s2); color: var(--text); font: var(--fs-16) var(--sans); }
 .form input:not([type="range"]):focus, .form textarea:focus, .modal input:not([type="range"]):focus, .modal textarea:focus, .form select:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); }
 .fgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; } .fgrid .span2 { grid-column: span 2; }
 @media (max-width: 560px) { .fgrid { grid-template-columns: 1fr; } .fgrid .span2 { grid-column: auto; } }
@@ -171,7 +171,7 @@ input[type="range"]:focus-visible::-moz-range-thumb { filter: drop-shadow(0 0 2p
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
 .chips button { border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); padding: 8px 12px; border-radius: var(--ui-r-pill); cursor: pointer; font-size: var(--fs-13); transition: border-color .15s, background .15s; }
 .chips button:hover { border-color: var(--gold); background: var(--gold-soft); } .chips .back { color: var(--muted); border-style: dashed; }
-.ai form { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); } .ai form input { flex: 1; min-width: 0; padding: 10px 12px; border-radius: var(--r-ctl); border: 1px solid var(--border-strong); background: var(--s2); color: var(--text); font: var(--fs-14) var(--sans); }
+.ai form { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); } .ai form input { flex: 1; min-width: 0; padding: 10px 12px; border-radius: var(--r-ctl); border: 1px solid var(--ui-field-line); background: var(--s2); color: var(--text); font: var(--fs-14) var(--sans); }
 .ai form button { width: 42px; border: 0; border-radius: var(--r-ctl); cursor: pointer; background: var(--gold); color: var(--on-gold); display: grid; place-items: center; } .ai form button:disabled { opacity: .4; cursor: default; }
 .ai-more { display: flex; flex-direction: column; gap: 6px; }
 .ai-more-btn, .ai-grp-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 40px; padding: 8px 12px; text-align: left; font: 600 var(--fs-13) var(--sans); color: var(--text); background: var(--s2); border: 1px solid var(--border-strong); border-radius: var(--r-ctl); cursor: pointer; }

@@ -165,3 +165,5 @@
 /* Task #167: the ring in the enlarged dialog, as large as the room allows (SipCalculator Donut) */
 .sip-donut.fit { margin-inline: auto; overflow: hidden; }
 .sip-donut.fit .sip-d-c { transform: scale(min(var(--sd), 2.4)); }   /* the figures grow with the ring; a transform keeps them at the scale's sizes */
+/* Task #310 G (08-dark-theme.md, 2): the one selected colour in dark, cream with dark text (--ui-on-bg / --ui-on-fg), not the gold gradient */
+:root[data-theme="dark"] .sip-tabs button.on { color: var(--ui-on-fg); background: var(--ui-on-bg); }

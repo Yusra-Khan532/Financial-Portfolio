@@ -109,7 +109,7 @@
 .sx-fbtn[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
 .sx-fbtn:disabled { opacity: .6; cursor: not-allowed; }
 .sx-sortsel { display: flex; gap: 8px; align-items: center; font-size: var(--fs-13); color: var(--muted); }
-.sx-sortsel select { height: 38px; border-radius: var(--r-ctl); border: 1px solid var(--border-strong); background: var(--s2); color: var(--text); padding: 0 10px; font: var(--fs-14) var(--sans); }
+.sx-sortsel select { height: 38px; border-radius: var(--r-ctl); border: 1px solid var(--ui-field-line); background: var(--s2); color: var(--text); padding: 0 10px; font: var(--fs-14) var(--sans); }
 .sx-tablebox { border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--sx-solid); overflow: hidden; }
 .sx-scroll { overflow-x: auto; max-width: 100%; margin: 0; padding: 0; -webkit-overflow-scrolling: touch; }
 .sx-t { width: 100%; min-width: 900px; border-collapse: separate; border-spacing: 0; font-size: var(--fs-14); }

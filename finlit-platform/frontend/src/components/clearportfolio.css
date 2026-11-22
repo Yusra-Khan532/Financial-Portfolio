@@ -9,7 +9,7 @@
 .cpf-row { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 14px; }
 .cpf-row button { min-height: 44px; padding: 0 18px; border-radius: var(--ui-r-pill); font: 600 var(--fs-14) var(--sans); cursor: pointer; }
 .cpf-keep { border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); }
-.cpf-go { border: 1px solid var(--loss); background: var(--loss); color: var(--bg, #fff); }
+.cpf-go { border: 1px solid var(--loss); background: var(--loss); color: var(--bg); }
 .cpf-go:disabled { opacity: .6; cursor: wait; }
 .cpf-row button:focus-visible, .cpf-toast button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .cpf-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 95; display: flex; align-items: center; gap: 18px; max-width: calc(100vw - 32px);

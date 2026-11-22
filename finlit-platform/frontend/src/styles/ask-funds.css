@@ -23,7 +23,7 @@
 .afq-want svg { flex: none; width: 16px; height: 16px; margin-top: 2px; color: var(--gain); }
 .afq-pick { display: grid; gap: 8px; }
 .afq-pick label { font: 600 var(--fs-13) var(--sans); }
-.afq-pick input { height: 44px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font: var(--fs-16) var(--sans); }
+.afq-pick input { height: 44px; padding: 0 14px; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font: var(--fs-16) var(--sans); }
 .afq-hits { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .afq-hits button { width: 100%; display: grid; gap: 2px; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); text-align: left; cursor: pointer; font: var(--fs-14)/1.35 var(--sans); }
 .afq-hits button:hover { border-color: var(--gain); }

@@ -65,7 +65,7 @@ export function IntradayChart({ data, showVol }: { data: Intraday; showVol: bool
     el("circle", { cx: x(li), cy: y(s.c[li]), r: 9, fill: css("--gold"), opacity: 0.2 }, svgEl);
     el("circle", { cx: x(li), cy: y(s.c[li]), r: 4.5, fill: css("--gold"), stroke: css("--s1"), "stroke-width": 2 }, svgEl);
     el("rect", { x: W - pr + 4, y: y(s.c[li]) - 10, width: 50, height: 20, rx: 6, fill: css("--gold") }, svgEl);
-    el("text", { x: W - pr + 29, y: y(s.c[li]) + 4, "text-anchor": "middle", "font-size": 11, "font-weight": 700, fill: "#1A1405", "font-family": "Inter Variable, Inter, sans-serif" }, svgEl).textContent = nf(s.c[li], 0);
+    el("text", { x: W - pr + 29, y: y(s.c[li]) + 4, "text-anchor": "middle", "font-size": 11, "font-weight": 700, fill: css("--ui-on-prism"), "font-family": "Inter Variable, Inter, sans-serif" }, svgEl).textContent = nf(s.c[li], 0);
 
     const cross = el("line", { y1: pt, y2: pt + ph, stroke: css("--border-strong"), "stroke-dasharray": "3 3", visibility: "hidden" }, svgEl);
     const dot = el("circle", { r: 5, fill: css("--line"), stroke: css("--s1"), "stroke-width": 2, visibility: "hidden" }, svgEl);

@@ -1,7 +1,7 @@
 /* "Where <company> stands" (final pages pack, board 17). Colours from sectors-pack.css (sp- tokens, scoped by .sp). */
 .ws { display: grid; gap: 16px; padding-top: 32px; }
 .ws .sp-sec { margin: 0; }
-.ws-eye { margin: 0 0 4px; font: 700 var(--fs-12) var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--gold-deep, #8a6516); }
+.ws-eye { margin: 0 0 4px; font: 700 var(--fs-12) var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--gold-deep); }
 .ws-head h2 { margin: 0 0 4px; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); color: var(--sp-ink); }
 .ws-lead { margin: 14px 0 6px; font: 400 var(--fs-24)/1.35 var(--serif); color: var(--sp-ink); } .ws-lead b { font-weight: 700; }
 .ws-strip { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }

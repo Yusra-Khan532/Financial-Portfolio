@@ -14,7 +14,7 @@
 .xt-body { display: flex; flex-direction: column; flex: 1; gap: 12px; padding: 20px 22px 22px; }
 .xt-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; } .xt-top h4 { margin: 0; font: 400 var(--fs-24)/1.2 var(--serif); }
 .xt-badge { flex: none; padding: 4px 10px; border-radius: var(--ui-r-pill); font: 700 var(--fs-12)/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; }
-.xt-free { background: color-mix(in srgb, var(--gain, #1f7a55) 14%, var(--s1)); color: var(--gain, #1f7a55); }
+.xt-free { background: color-mix(in srgb, var(--gain) 14%, var(--s1)); color: var(--gain); }
 .xt-silver { background: color-mix(in srgb, var(--text) 9%, var(--s1)); color: var(--muted); }
 .xt-gold { background: color-mix(in srgb, var(--gold) 18%, var(--s1)); color: var(--gold-deep, var(--gold)); }
 .xt-what { margin: 0; font-size: var(--fs-16); line-height: 1.45; color: var(--text); }
@@ -224,3 +224,7 @@
 :root:not([data-theme="light"]) .xt .btn.xt-go:not(.primary):hover, :root:not([data-theme="light"]) .hh .btn.hh-go:not(.primary):hover {
   background: var(--gold-2); color: var(--on-gold, #1A1405); border-color: var(--gold-2); filter: none; box-shadow: 0 12px 28px -14px color-mix(in srgb, var(--gold) 70%, transparent);
 }
+/* Task #310 G (08-dark-theme.md, 5): the landing page's "Explore the platform" is the main button, so dark uses --btn-bg / --btn-fg
+   (mint with its dark ink) like every main button, not the page's own green; light is unchanged. The fine print reads 4.3:1 on --faint. */
+:root[data-theme="dark"] .xt .btn.xt-go:not(.primary) { background: var(--btn-bg); color: var(--btn-fg); }
+:root[data-theme="dark"] .xt-foot .xt-fine { color: var(--muted); }
