@@ -31,16 +31,17 @@ vi.mock("../lib/qresults", async (orig) => ({ ...(await orig<typeof import("../l
         days: [{ date: "2026-11-07", n: 2 }, { date: "2026-11-06", n: 2 }, { date: "2026-10-20", n: 3036 }], industries: [{ name: "Consumer Durables", companies: 148, declared: 103, medianProfitYoY: 25.4 }] } }) }));
 import { ResultsPage } from "./Results";
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); localStorage.clear(); });
 const open = (at = "/results") => render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={[at]}><ResultsPage /></MemoryRouter></QueryClientProvider>);
 
-describe("Results calendar (pack 10, 15 Nov changes: task #193)", () => {
-  it("has the view switch, four calendar tiles with dropdowns (the quarter tiles are gone), the one-line quarter link, the calendar, the day and the week ahead", () => {
+describe("Results, the Calendar view (pack 10, 15 Nov changes: task #193; one page, task #330)", () => {
+  it("has the view bar on Calendar, six tiles in one row and three more under them, the quarter line, the calendar, the day and the week ahead", () => {
     open();
-    expect(within(screen.getByRole("navigation", { name: /Choose a view/ })).getByRole("link", { name: /^Calendar/ }).getAttribute("aria-current")).toBe("page");
-    expect(document.querySelectorAll(".rsc-tiles .dtl").length).toBe(4);
-    expect(document.querySelectorAll(".ip-tile").length).toBe(0);
-    expect([...document.querySelectorAll(".rsc-tiles .dtl-k")].map((x) => x.textContent)).toEqual(["Declared so far", "Due in the next 7 days", "Your companies", "Last full day · SAT 7 NOV"]);
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Results · Q2 FY27");
+    expect(screen.getByRole("tab", { name: /Calendar/ }).getAttribute("aria-selected")).toBe("true");
+    expect(document.querySelectorAll(".mg-tiles > .dtl").length).toBe(6);
+    expect([...document.querySelectorAll(".mg-tiles .dtl-k")].map((x) => x.textContent)).toEqual(["Declared so far", "Due in the next 7 days", "Your companies", "Typical revenue growthi", "Typical profit growthi", "Beat their industryi"]);
+    expect([...document.querySelectorAll(".mg-more .dtl-k")].map((x) => x.textContent)).toEqual(["Profit up", "Net margin upi", "Last full day · SAT 7 NOV"]);
     expect(screen.getByTestId("tile-declared").textContent).toContain("3,040of 4,682");
     expect(screen.getByTestId("tile-declared").textContent).toContain("64.9% in · 1,642 still due");
     expect(screen.getByTestId("tile-due").textContent).toContain("2companies");
@@ -48,7 +49,7 @@ describe("Results calendar (pack 10, 15 Nov changes: task #193)", () => {
     fireEvent.click(within(screen.getByTestId("tile-due")).getByRole("button", { name: /Who and when/ }));
     expect(screen.getByTestId("tile-due").textContent).toContain("KALYANKJIL, BLSPOLY");
     expect(screen.getByTestId("tile-due").textContent).toContain("After that: Mon 23 Nov · Carver Roboweld Ltd.");
-    expect(document.querySelector(".rsc-qline")?.textContent).toBe("Quarter so far, Q2 FY27: typical revenue +18.4% · typical profit +15.4% · 32% beat their industry. See the quarter on Latest results →");
+    expect(document.querySelector(".mg-note")?.textContent).toContain("Quarter ended 30 Sep 2026 (Q2 FY27)");
     expect(screen.getByRole("gridcell", { name: "Sat 7 Nov: 2 declared" })).toBeTruthy();
     expect(screen.getByRole("gridcell", { name: "Tue 10 Nov: 2 due" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Sat 7 Nov · 2 companies declared" })).toBeTruthy();   // calendar and list counts match
@@ -105,7 +106,8 @@ describe("Results calendar (pack 10, 15 Nov changes: task #193)", () => {
   it("for Basic the figures and verdicts are locked in words; the counts stay", () => {
     st.locked = true; open();
     expect(screen.getByText("Each company's figures and verdict are part of the Silver plan")).toBeTruthy();
-    expect(document.querySelector(".rsc-qline")?.textContent).toContain("3,040 of 4,682 companies declared · the growth figures open with Silver");
+    expect(document.querySelector(".mg-note")?.textContent).toContain("The growth figures, shares and verdicts are part of the Silver plan.");
+    expect(screen.getByTestId("tile-declared").textContent).toContain("3,040of 4,682");
     st.locked = false;
   });
 });

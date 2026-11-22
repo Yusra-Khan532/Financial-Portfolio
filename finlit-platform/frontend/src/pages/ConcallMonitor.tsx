@@ -233,7 +233,7 @@ export function ConcallMonitorPage() {
   const have = d?.have;
   return (
     <div className="page ccm p4 ui-page">
-      <PageHeader title="Concall Monitor" description={HEAD_DESC} art="calendar" links={["/results", "/results/quarter", "/news"]} learn={false} />
+      <PageHeader title="Concall Monitor" description={HEAD_DESC} art="calendar" links={["/results", "/news"]} learn={false} />
       <div className="p4-tools">
         <div className="ccm-seg" role="tablist" aria-label="Latest or upcoming calls">
           {(["latest", "upcoming"] as Tab[]).map((k) => <button key={k} type="button" role="tab" aria-selected={tab === k} className={tab === k ? "is-on" : ""} onClick={() => set({ tab: k === "latest" ? null : k })}>

@@ -22,7 +22,7 @@ const AGREE_TEXT: Record<string, string> = {
   "Prices lag": "Strong results that the share prices have not yet reflected.", "Prices run ahead": "Shares are leading even though results trail the market.",
 };
 const VS_TEXT: Record<string, string> = { Ahead: "Ahead of the market", "In line": "In line with the market", Behind: "Behind the market" };
-const INFO = "Compares this quarter's growth against a year ago with the middle company (the median) of its industry and of the whole market, from Latest results. Describes the results; not a recommendation.";
+const INFO = "Compares this quarter's growth against a year ago with the middle company (the median) of its industry and of the whole market, from Results. Describes the results; not a recommendation.";
 // task #265: the site's shared i (hover, keyboard focus or a tap opens it), in place of a native title that showed only after a long hover and never on a phone
 const INFO_G = { key: "aiq", label: "Against its industry this quarter", what: INFO };
 
@@ -143,8 +143,8 @@ function Peers({ r }: { r: IndustryRead }) {
           </tbody>
         </table>
       </div>
-      {!listed && <p className="aiq-foot">{symbol} is not among the {base.length} biggest; its own verdict is on <Link to={`/results/quarter?q=${encodeURIComponent(symbol)}`}>Latest results</Link>.</p>}
-      <p className="aiq-foot"><Link to={`/results/quarter?industry=${encodeURIComponent(ind.name)}`}>All {ind.companies} companies in {ind.name} →</Link></p>
+      {!listed && <p className="aiq-foot">{symbol} is not among the {base.length} biggest; its own verdict is on <Link to={`/results?view=companies&q=${encodeURIComponent(symbol)}`}>Results</Link>.</p>}
+      <p className="aiq-foot"><Link to={`/results?view=companies&industry=${encodeURIComponent(ind.name)}`}>All {ind.companies} companies in {ind.name} →</Link></p>
     </>
   );
 }
@@ -176,8 +176,8 @@ export function IndustryCard({ read: r }: { read: IndustryRead }) {
         <Head r={r}>{r.declared && iR != null && iP != null && <p className="aiq-lead">{leadParts(r.name, i.name, rev!, profit!, iR, iP).map(([t, b], k) => b ? <b key={k}>{t}</b> : <span key={k}>{t}</span>)}</p>}
           {!r.declared && <p className="aiq-lead">{r.name} has not declared this quarter's results yet.</p>}</Head>
         {r.peers && (listed && verdict
-          ? <div className={"aiq-vb " + verdictTone(verdict)}><small>Its verdict on Latest results</small><b>{verdict}</b></div>
-          : <Link className="aiq-vb v-none" to={`/results/quarter?q=${encodeURIComponent(row.symbol)}`}><small>Its own verdict</small><b>On Latest results →</b></Link>)}
+          ? <div className={"aiq-vb " + verdictTone(verdict)}><small>Its verdict on Results</small><b>{verdict}</b></div>
+          : <Link className="aiq-vb v-none" to={`/results?view=companies&q=${encodeURIComponent(row.symbol)}`}><small>Its own verdict</small><b>On Results →</b></Link>)}
       </div>
       {/* task #328 (developer file 27, change 3): the industry's biggest companies are a tab under the header, not a closed row at the foot that read as a caption.
           Both panes stay mounted, so the table keeps its sort while the member switches tabs. */}

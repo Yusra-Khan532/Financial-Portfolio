@@ -23,10 +23,10 @@ export const FULL_PAGE: Record<string, { to: string; label: string }> = {
   glance: { to: "/my-investments", label: "Open All my investments →" },
   sectors: { to: "/sectors", label: "Open Sector Pulse →" },
   flows: { to: "/fii-dii", label: "Full FII/DII data →" },
-  resultstoday: { to: "/results", label: "Results calendar →" },
+  resultstoday: { to: "/results", label: "Results →" },
   ipos: { to: "/ipo", label: "IPO calendar →" },
   filings: { to: "/news", label: "All news and filings →" },
-  results: { to: "/results/quarter", label: "See all quarter results →" },
+  results: { to: "/results?view=companies", label: "See all quarter results →" },
 };
 
 /* ------------------------------------------------------------------ hidden cards and the card that is expanded */

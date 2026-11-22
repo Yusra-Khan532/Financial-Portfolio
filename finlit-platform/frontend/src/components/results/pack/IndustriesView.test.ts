@@ -29,7 +29,7 @@ describe("results against share prices", () => {
     expect(c[1].text).toBe("Strong results that the share prices have not yet reflected.");
     expect(names(1)).toEqual(["Banks", "Oil, Gas & Consumable Fuels"]);
     expect(c[1].groups![0].label).toBe("All 2");
-    expect(c[1].groups![0].chips[1].to).toBe("/results/quarter?industry=Oil%20Gas%20%26%20Consumable%20Fuels");   // a chip opens that group's results
+    expect(c[1].groups![0].chips[1].to).toBe("/results?view=companies&industry=Oil%20Gas%20%26%20Consumable%20Fuels");   // a chip opens that group's results
     expect(c[3].text).toBe("Their typical company grew more slowly than the typical listed company.");
     expect(names(3)).toEqual(["IT - Software", "Realty"]);
   });

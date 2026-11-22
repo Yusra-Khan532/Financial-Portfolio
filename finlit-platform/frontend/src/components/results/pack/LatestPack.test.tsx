@@ -56,7 +56,7 @@ describe("the cards (the dashboard's shared dropdown cards)", () => {
     expect(good.getAttribute("aria-expanded")).toBe("true");
     const body = document.getElementById(good.getAttribute("aria-controls")!)!;
     expect(body.textContent).toMatch(/Their typical company grew revenue and profit faster.*All 2.*Chemicals.*Finance/);
-    expect(within(body).getByRole("link", { name: "Chemicals" }).getAttribute("href")).toBe("/results/quarter?industry=Chemicals");
+    expect(within(body).getByRole("link", { name: "Chemicals" }).getAttribute("href")).toBe("/results?view=companies&industry=Chemicals");
     fireEvent.click(screen.getByRole("button", { name: "Open all" }));
     expect(screen.getAllByRole("button", { expanded: true }).filter((b) => b.className === "dsh-ic-row")).toHaveLength(4);
     fireEvent.click(screen.getByRole("button", { name: "Close all" }));

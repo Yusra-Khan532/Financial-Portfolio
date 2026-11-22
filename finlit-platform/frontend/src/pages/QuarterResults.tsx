@@ -2,15 +2,13 @@ import { titleOf } from "../lib/companyLabel";
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { SortTh } from "../components/SortTh";
 import { nextSort, type SortState } from "../lib/tableSort";
-import { Link, useSearchParams } from "react-router";
+import { Link, Navigate, useSearchParams } from "react-router";
 import { SIDE, SplitDivider, useSideWidth } from "../components/SplitDivider";
 import { Icon } from "../lib/icons";
-import { useDocTitle } from "../lib/title";
 import { useAuth } from "../lib/auth";
 import { useUI } from "../lib/ui";
 import { ApiError, apiGet } from "../lib/api";
 import { dayLabel } from "../lib/feed";
-import { dayMonth } from "../lib/dashboard";
 import { useResultsDelayedNote } from "../lib/jobsStatus";
 import { MINUS, nf } from "../lib/format";
 import { GROWTH_PRESETS, PRICE_PRESETS, activePreset, activePricePreset, applyPreset, priceIsDefault, DATE_MEANING, GAP_LABEL, PAGE, PAGE_SIZES, activeChip, cellHit, DEFAULT_GROWTH, DEFAULT_PRICE, PRICE_KEYS, PRICE_WORD, bandOf, bandShort, priceFromParams, priceHit, priceOn, priceQuery, priceToParams, priceWhy, type PriceKey, type PriceState, type CellKey, growthFromParams, growthOn, growthQuery, growthToParams, type GrowthState, awaitingNote, csvOf, dateChips, dateFromParams, dateProblem, describeSel, gapAlertLink, headline, isWeekend, longDay, queryString, signedPct, todayIST, useQuarterResults, weekdayName, type DateSel, type QDates, type QParams, type QRow } from "../lib/qresults";
@@ -25,10 +23,8 @@ import "../styles/fgx.css";
 import "../styles/qresults.css";
 import { CoLogo } from "../components/CoLogo";
 import { short } from "../lib/pulsePack";
-import { ResultsHead, VerdictCell } from "../components/results/pack/ResultsPack";
-import { QuarterPicker, QuarterTiles } from "../components/results/pack/QuarterTop";
+import { VerdictCell } from "../components/results/pack/ResultsPack";
 import { GlanceCard } from "../components/results/pack/Glance";
-import { IndustriesView } from "../components/results/pack/IndustriesView";
 import type { VRow } from "../lib/resultsPack";
 import "../styles/sectors.css";
 import "../styles/sectors-pack.css";
@@ -237,16 +233,31 @@ function Pager({ at, offset, total, size, onPage, onSize }: { at: "top" | "botto
   );
 }
 
+/** Task #330 (developer file 28): Latest results is now the Companies view of the one Results page. The old address sends its view and every other query
+ *  parameter (filters, industry, quarter, dates) on: /results/quarter → /results?view=companies, /results/quarter?view=industries → /results?view=industries. */
 export function QuarterResultsPage() {
-  useDocTitle("Latest results", "Every company's results for the latest quarter, newest declaration first: revenue, profit, margins, growth against last year and last quarter, with a one-line summary to copy.");
+  const [sp] = useSearchParams();
+  const n = new URLSearchParams(sp);
+  n.set("view", sp.get("view") === "industries" ? "industries" : "companies");
+  return <Navigate to={`/results?${n.toString()}`} replace />;
+}
+
+/** Task #330: every company's results for the quarter, the Companies view of the one Results page (it was the Latest results page). The quarter, the dates,
+ *  the growth and price filters, the industry, the scope, the status and the search are read from the address, so a link (a calendar day, an industry, "See all
+ *  due", a company's own verdict) opens this view already filtered. */
+export function CompaniesView() {
   const { user } = useAuth();
   const { plan, upgrade, toast } = useUI();
   const [sp, setSp] = useSearchParams();
   const silver = plan !== "basic";
   // ?scope=portfolio or watchlist: the Results calendar's "Your companies" tile links here "filtered to yours" (task #193)
-  const [f, setF] = useState<QParams>(() => ({ scope: sp.get("scope") === "portfolio" || sp.get("scope") === "watchlist" ? (sp.get("scope") as "portfolio" | "watchlist") : "all", sort: "date", dir: "desc", industry: sp.get("industry") || undefined }));
-  const view = sp.get("view") === "industries" ? "industries" : "companies";   // the final pages pack's Industries / Companies tabs (board 11)
-  const setView = (v: "industries" | "companies") => { const n = new URLSearchParams(sp); if (v === "industries") n.set("view", "industries"); else n.delete("view"); setSp(n, { replace: true }); };
+  const fromUrl = (): Partial<QParams> => ({ scope: sp.get("scope") === "portfolio" || sp.get("scope") === "watchlist" ? (sp.get("scope") as "portfolio" | "watchlist") : "all",
+    industry: sp.get("industry") || undefined, status: sp.get("status") || undefined, q: sp.get("q") || undefined });
+  const [f, setF] = useState<QParams>(() => ({ sort: "date", dir: "desc", ...fromUrl() }));
+  // a link into this view while the page is open (an industry, "See all due", a company's verdict): the same page stays mounted, so follow the address
+  const urlKey = ["scope", "industry", "status", "q"].map((k) => sp.get(k) ?? "").join("|");
+  const first = useRef(true);
+  useEffect(() => { if (first.current) { first.current = false; return; } setF((x) => ({ ...x, ...fromUrl() })); setQuery(sp.get("q") || ""); setOffset(0); }, [urlKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [offset, setOffset] = useState(0);
   const [sideW, setSide] = useSideWidth("results-quarter");   // the draggable divider: the width is remembered; dragged to the edge it hides the filters
@@ -256,7 +267,7 @@ export function QuarterResultsPage() {
   // sight: the pager now sits above the table as well as below it, with page numbers and the rows-per-page choice (22 Nov 2026).
   const [size, setSize] = useState<number>(PAGE);
   const tableTop = useRef<HTMLDivElement>(null);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(() => sp.get("q") || "");
   const quarter = sp.get("quarter") || undefined;
   const sel = useMemo(() => dateFromParams(sp), [sp]);
   const hasDate = !!(sel.date || sel.from || sel.to);
@@ -362,16 +373,7 @@ export function QuarterResultsPage() {
 
   const delayed = useResultsDelayedNote();
   return (
-    <div className="wrap ipo qr sp rs rs-latest">
-      <ResultsHead title={`Latest results${q ? ` · ${q.fiscal}` : ""}`} view={view}
-        desc={`Results for the quarter${q ? ` ended ${dayMonth(q.periodEnd, true)}` : ""}, newest first, each compared with similar companies.`}
-        links={[["/results", "Results calendar"], ["/news", "News & filings"], ["/documents", "Documents"]]} />
-      <QuarterTiles r={d} />
-      <div className="rs-qsel"><QuarterPicker quarters={d?.quarters ?? []} current={q?.key} onPick={(key) => { const n = new URLSearchParams(sp); n.set("quarter", key); setSp(n); setOffset(0); }} /></div>
-      <div className="rs-tabs" role="tablist" aria-label="Industries or companies">
-        {([["industries", "Industries", "How each industry's results compare with the market"], ["companies", "Companies", "Every company, newest first, with its verdict"]] as const).map(([k, t, s2]) =>
-          <button key={k} type="button" role="tab" aria-selected={view === k} onClick={() => setView(k)}><b>{t}</b><small>{s2}</small></button>)}
-      </div>
+    <div className="ipo qr sp rs rs-latest">
       {delayed && <div className="rc-stale" role="status" data-testid="results-delayed">{delayed}</div>}
       {dateErr && <div className="formerr qr-derr" role="alert">{dateErr} <button type="button" className="alx-link" onClick={() => setDates(null)}>Show the latest quarter</button></div>}
       {growthLocked && <div className="formerr" role="alert">Filtering by {growthOn(growth) ? "growth" : "price position"} is part of the Silver plan. <button type="button" className="alx-link" onClick={() => need("Filtering by growth and price position is part of the Silver plan.")}>See Silver</button> <button type="button" className="alx-link" onClick={() => setBoth(DEFAULT_GROWTH, DEFAULT_PRICE)}>Remove the {growthOn(growth) && priceOn(price) ? "filters" : growthOn(growth) ? "growth filter" : "price-position filter"}</button></div>}
@@ -382,9 +384,7 @@ export function QuarterResultsPage() {
           <button type="button" className="btn primary" onClick={() => need("Quarter results figures are part of the Silver plan.")}>See Silver</button></div>
       )}
 
-      {view === "industries" && <IndustriesView inds={d?.industries ?? []} />}
-      {view === "industries" && <p className="sp-disclaimer">Reported figures from company filings to NSE; verdicts compare each company with its industry this quarter. Not a recommendation to buy, sell or hold any security.</p>}
-      {view === "companies" && <>
+      {<>
       {f.industry && <p className="qr-active" role="status">Showing {short(f.industry)} only. <button type="button" className="alx-link" onClick={() => { set({ industry: undefined }); const n = new URLSearchParams(sp); n.delete("industry"); setSp(n, { replace: true }); }}>Show every industry</button></p>}
       <div className={"qr-split" + (wide ? " qr-wide" : "")} style={{ "--side-w": `${sideW}px` } as React.CSSProperties}>
       <aside className="qr-side card" aria-label="Filters" id="qr-filters" hidden={wide}>

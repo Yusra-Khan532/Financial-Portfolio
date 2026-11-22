@@ -51,6 +51,6 @@ describe("task #297: Add to Google Calendar", () => {
   });
   it("sits on the IPO calendar and the Results calendar", () => {
     expect(readFileSync(join(__dirname, "..", "pages", "Ipo.tsx"), "utf8")).toMatch(/actions=\{<CalendarSync \/>\}/);
-    expect(readFileSync(join(__dirname, "..", "pages", "Results.tsx"), "utf8")).toMatch(/<ResultsHead actions=\{<CalendarSync \/>\}/);
+    expect(readFileSync(join(__dirname, "..", "pages", "Results.tsx"), "utf8")).toMatch(/<div className="mg-side">[\s\S]*?<CalendarSync \/>/);   // task #330: beside the quarter picker in the one Results page's header
   });
 });

@@ -49,7 +49,7 @@ export function industryCards(rows: { i: Ind; agree: Agree | null }[], name: (n:
   const ahead = rows.filter((x) => x.i.vsMarket === "Ahead"), behind = rows.filter((x) => x.i.vsMarket === "Behind");
   const lag = rows.filter((x) => x.agree === "Prices lag"), run = rows.filter((x) => x.agree === "Prices run ahead");
   const are = (n: number) => `${n} ${n === 1 ? "group is" : "groups are"}`;
-  const all = (xs: { i: Ind }[]) => (xs.length ? [{ label: `All ${xs.length}`, chips: xs.map((x) => ({ symbol: x.i.name, label: name(x.i.name), to: `/results/quarter?industry=${encodeURIComponent(x.i.name)}` })) }] : []);
+  const all = (xs: { i: Ind }[]) => (xs.length ? [{ label: `All ${xs.length}`, chips: xs.map((x) => ({ symbol: x.i.name, label: name(x.i.name), to: `/results?view=companies&industry=${encodeURIComponent(x.i.name)}` })) }] : []);
   if (ahead.length) out.push({ kind: "good", title: `${are(ahead.length)} ahead of the market`, text: "Their typical company grew revenue and profit faster than the typical listed company.", groups: all(ahead) });
   out.push({ kind: "insight", title: `Results beat, prices lag: ${lag.length}`, text: lag.length ? "Strong results that the share prices have not yet reflected." : "No group has strong results with share prices that are behind.", groups: all(lag) });
   out.push({ kind: "watch", title: `Prices ahead of results: ${run.length}`, text: run.length ? "Shares are leading even though results trail the market." : "No group's share prices are running ahead of weak results.", groups: all(run) });
@@ -100,7 +100,7 @@ function Drawer({ i, rot, pulse }: { i: Ind; rot: RotationRow | undefined; pulse
         {q.data?.locked ? <p className="sp-note">Each company's verdict is part of the Silver plan.</p> : !rows.length ? <p className="sp-note">{q.isLoading ? "Loading…" : "No company has declared yet."}</p> :
           <div className="rs-dr-scroll" role="region" aria-label="Biggest companies that declared" tabIndex={0}><table className="sp-tb rs-big kit-grid"><thead><tr>{(["company:Company", "size:Size", "rev:Rev.:r", "profit:Profit:r", "verdict:Verdict"]).map((c) => { const [k, l, cls] = c.split(":"); return <SortTh key={k} k={k} label={l} className={cls} sort={big.sort} onSort={big.toggle} />; })}</tr></thead>
             <tbody>{big.sorted.map((r) => <tr key={r.symbol}><td><Link to={`/stocks/${r.symbol}#quarter`}><b title={coTitle(r)}>{shortLabel(r)}</b></Link></td><td>{r.cap ?? "–"}</td><td className={"r " + tone(r.revenueYoY)}>{sp(r.revenueYoY)}</td><td className={"r " + tone(r.profitYoY)}>{r.loss && r.profitYoY == null ? "loss" : sp(r.profitYoY)}</td><td>{r.verdict ? <span className={"rs-v rs-v-" + r.verdict.toLowerCase().replace(" ", "")}>{r.verdict}</span> : <VerdictCell r={r} />}</td></tr>)}</tbody></table></div>}
-        <Link className="sp-link" to={`/results/quarter?industry=${encodeURIComponent(i.name)}`}>All {i.declared} companies in {nse(i.name)} →</Link>
+        <Link className="sp-link" to={`/results?view=companies&industry=${encodeURIComponent(i.name)}`}>All {i.declared} companies in {nse(i.name)} →</Link>
       </div>
     </div>
   );

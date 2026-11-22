@@ -16,7 +16,7 @@ vi.mock("../lib/ui", () => ({ useUI: () => ({ plan: "silver", upgrade: vi.fn(), 
 vi.mock("../lib/auth", () => ({ useAuth: () => ({ user: null }) }));
 vi.mock("../lib/title", () => ({ useDocTitle: () => undefined }));
 vi.mock("../components/ChartHelp", () => ({ ChartHelp: () => null }));
-import { QuarterResultsPage, READ_NOTE } from "./QuarterResults";
+import { CompaniesView, READ_NOTE } from "./QuarterResults";
 
 const summary = { companies: 10, declared: 10, due: 0, awaiting: 0, withNumbers: 8, flagged: 0, medianRevenueYoY: 1, medianProfitYoY: 1, profitUpShare: 50, marginUpShare: 50, nRevenue: 8, nProfit: 8, nMargin: 8 };
 const mk = (i: number): QRow => ({ date: "2026-11-21", symbol: "S" + i, name: "Sample " + i + " Ltd", sector: "IT", marketCap: 1, cap: "Large", indices: [], confirmed: true, periodEnd: "2026-09-30", loadedPeriodEnd: null, status: "declared", awaiting: false,
@@ -30,7 +30,7 @@ const resp = (total: number, n = Math.min(total, 50)): QResp => ({
 
 beforeEach(() => { st.resp = resp(5313); st.params = []; document.body.style.overflow = ""; vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} }); window.scrollTo = vi.fn() as unknown as typeof window.scrollTo; });
 afterEach(cleanup);
-const show = () => render(<MemoryRouter initialEntries={["/results/quarter"]}><Routes><Route path="/results/quarter" element={<QuarterResultsPage />} /></Routes></MemoryRouter>);
+const show = () => render(<MemoryRouter initialEntries={["/results/quarter"]}><Routes><Route path="/results/quarter" element={<CompaniesView />} /></Routes></MemoryRouter>);
 const panel = () => document.querySelector("section.qr-card") as HTMLElement;
 const last = () => st.params.filter((p) => "offset" in (p as object)).at(-1) as QParams;
 

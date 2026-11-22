@@ -15,7 +15,7 @@ vi.mock("../lib/ui", () => ({ useUI: () => ({ plan: st.plan, upgrade: st.upgrade
 vi.mock("../lib/auth", () => ({ useAuth: () => ({ user: null }) }));
 vi.mock("../lib/title", () => ({ useDocTitle: () => undefined }));
 vi.mock("../components/ChartHelp", () => ({ ChartHelp: () => null }));
-import { QuarterResultsPage } from "./QuarterResults";
+import { CompaniesView } from "./QuarterResults";
 
 const summary = { companies: 10, declared: 10, due: 0, awaiting: 0, withNumbers: 8, flagged: 0, medianRevenueYoY: 1, medianProfitYoY: 1, profitUpShare: 50, marginUpShare: 50, nRevenue: 8, nProfit: 8, nMargin: 8 };
 const mk = (over: Partial<QRow> = {}): QRow => ({ date: "2026-10-14", symbol: "AAA", name: "Aaa Ltd", sector: "IT", marketCap: 1, cap: "Large", indices: [], confirmed: true, periodEnd: "2026-09-30", loadedPeriodEnd: null, status: "declared", awaiting: false,
@@ -27,7 +27,7 @@ const resp = (over: Partial<QResp> = {}): QResp => ({
   distribution: { total: 5, sectors: [], caps: [] }, ...over,
 });
 const Where = () => { const l = useLocation(); return <output data-testid="loc">{l.pathname + l.search}</output>; };
-const open = (qs = "") => render(<MemoryRouter initialEntries={["/results/quarter" + qs]}><Routes><Route path="/results/quarter" element={<QuarterResultsPage />} /></Routes><Where /></MemoryRouter>);
+const open = (qs = "") => render(<MemoryRouter initialEntries={["/results/quarter" + qs]}><Routes><Route path="/results/quarter" element={<CompaniesView />} /></Routes><Where /></MemoryRouter>);
 const loc = () => decodeURIComponent(screen.getByTestId("loc").textContent || "");
 // the page's own request (it carries the page offset); the six tiles ask for whole-quarter figures by size alongside it (task #194)
 const lastParams = () => st.params.filter((p) => "offset" in (p as object)).at(-1) as QParams;

@@ -8,7 +8,7 @@ const SHORT: Record<string, string> = {
   "/fund-score-screener": "Fund Screener", "/research": "Company Report", "/compare": "Compare", "/prism": "FinLit Prism", "/outlook": "Forecasting",
   "/premium/report": "Premium Reports", "/eps-calculator": "P/E, EPS & PEG Calculator", "/dcf": "DCF Calculator", "/sip-calculator": "SIP Calculator",
   "/graphs": "Chart Builder", "/graphs/advanced": "Correlation Charts", "/fii-dii": "FII & DII", "/macro": "India Economy",
-  "/results": "Results Calendar", "/results/quarter": "Latest Results", "/ipo": "IPOs", "/news": "News & Filings",
+  "/results": "Results", "/results/quarter": "Results", "/ipo": "IPOs", "/news": "News & Filings",
   "/funds/screener": "MF Screener", "/funds": "Mutual Funds", "/etfs": "ETFs", "/holdings": "Equity Portfolio", "/mf-portfolio": "MF Portfolio", "/etf-portfolio": "ETF Portfolio", "/watchlist": "Watchlists",
 };
 /** Pages that exist but are not in the menus. */

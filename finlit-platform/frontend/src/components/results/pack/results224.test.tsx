@@ -62,9 +62,9 @@ describe("A2 and A3", () => {
     expect(screen.getByText("Choose a view").textContent).toBe("Choose a view · 3 views · tap one");
     const cards = screen.getAllByRole("link").filter((a) => a.classList.contains("sp-vbtn"));
     expect(cards.map((a) => [a.querySelector("b")!.textContent, a.querySelector("small")!.textContent, a.getAttribute("href"), (a as HTMLElement).style.getPropertyValue("--va")])).toEqual([
-      ["Calendar", "Who declares when, day by day", "/results", "#0e6471"],
-      ["Industries", "How each industry did this quarter", "/results/quarter?view=industries", "#4b4fc4"],
-      ["Companies", "Every company's results, newest first", "/results/quarter", "#b5541c"]]);
+      ["Calendar", "Who declares when, day by day", "/results?view=calendar", "#0e6471"],
+      ["Industries", "How each industry did this quarter", "/results?view=industries", "#4b4fc4"],
+      ["Companies", "Every company's results, newest first", "/results?view=companies", "#b5541c"]]);
     expect(cards.map((a) => a.getAttribute("aria-current"))).toEqual([null, "page", null]);
     const css = src("styles/results224.css");
     expect(css).toMatch(/@media \(max-width: 700px\) \{[\s\S]*grid-template-columns: minmax\(0, 1fr\); justify-items: center;[\s\S]*> small, \.sp-view\.xvr a\.sp-vbtn::after \{ display: none; \}/);
