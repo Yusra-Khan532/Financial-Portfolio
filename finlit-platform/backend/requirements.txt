@@ -13,7 +13,7 @@ cryptography==50.0.2
 openpyxl==3.1.5
 defusedxml==0.7.1
 # Earnings-call summaries (finlit/earnings): reads the text of a transcript PDF the exchanges publish. Pure Python, no system library.
-pypdf==6.21.4
+pypdf==7.1.1
 # HDFC's monthly factsheet PDF, uploaded by an administrator (finlit/fund_files.py, task #281 round 7): the reader (disclosure_parsers/houses_e.py) needs
 # each character's position and font, which pypdf does not give. pdfplumber is MIT licensed (with pdfminer.six, MIT, and pypdfium2, Apache-2.0/BSD-3).
 pdfplumber==0.11.10
