@@ -191,3 +191,33 @@ async def test_loads_stop_at_the_runs_call_limit(monkeypatch):
     async with P.make_client(httpx.MockTransport(reply)) as c:
         out = await P.step_loads(FakePool(), c, FakeIdx(), P._today())
     assert out["status"] == "partial" and out["asked"] == 5 and "15 schemes left" in out["why"]
+
+
+@pytest.mark.asyncio
+async def test_loads_keep_to_their_time_budget_and_skip_a_refused_house_list(monkeypatch):
+    """22 Nov: the portfolios job ran into its 120-minute limit ('timeout') because AMFI's 429 waits had no overall bound. A refused fund-house list is
+    skipped (asked again next run) and the step stops at its time budget, keeping what it stored."""
+    stored = []
+
+    async def put(pool, rows):
+        stored.extend(rows)
+    monkeypatch.setattr(P, "put_facts", put)
+    clock = {"t": 1000.0}
+    monkeypatch.setattr(P.time, "monotonic", lambda: clock["t"])
+    monkeypatch.setattr(P, "LOAD_MAX_SECONDS", 100)
+
+    def reply(request):
+        p = request.url.path
+        if p.endswith("populate-mf"):
+            return httpx.Response(200, json=[{"mfId": 9, "mfName": "Test Mutual Fund"}, {"mfId": 10, "mfName": "Other Mutual Fund"}])
+        if p.endswith("populate-scheme"):
+            if request.url.params.get("MF_ID") == "10":
+                return httpx.Response(400)                      # this house's list is refused: skipped, not fatal
+            return httpx.Response(200, json=[{"scheme_name": f"Fund {i}", "scheme_id": str(100 + i)} for i in range(20)])
+        clock["t"] += 30                                         # each scheme call costs 30 s: the 100 s budget allows about 4
+        return httpx.Response(200, json={"data": [{"Scheme_load": "Exit Load: 1% if redeemed within 1 year"}]})
+    async with P.make_client(httpx.MockTransport(reply)) as c:
+        out = await P.step_loads(FakePool(), c, FakeIdx(), P._today())
+    assert out["status"] == "partial" and "time budget" in out["why"] and "next run continues" in out["why"]
+    assert out["houseListsSkipped"] == 1
+    assert 3 <= out["loadsStored"] <= 5 and len([1 for _f, k, *_ in stored if k == "exitload"]) == out["loadsStored"]
