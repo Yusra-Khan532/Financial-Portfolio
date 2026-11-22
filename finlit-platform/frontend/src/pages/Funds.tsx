@@ -30,8 +30,12 @@ import { MF_METHOD_URL, MF_SCORE_COMPLIANCE } from "../lib/mfScore";
 import { ScoreCompare } from "../mf/ScoreCompare";
 import { FundHeadToHead } from "./FundHeadToHead";
 import "../styles/mf.css";
+import "../styles/prism-card.css";   // the (i) beside Volatility (task #311)
+import { InfoTip } from "../stock/PrismCardView";
 import "../styles/etfvs.css";
 import { ChartZoom } from "../components/ChartZoom";
+/** Task #311 (developer file 21, fund page row 1): the formula is off the page; one plain sentence behind the (i). */
+const VOL_TIP = "How much the NAV moves from day to day, shown as a yearly figure.";
 
 const HEAD = (title: string, lead: string, stats?: PageHeaderProps["stats"]) => (
   <PageHeader wrap plan="free" title={title} description={lead} stats={stats} art="funds" links={[{ to: "/fund-score-screener", primary: true }, "/funds/compare", "/etfs"]}
@@ -79,7 +83,7 @@ function Legend({ hidden, facts }: { hidden: number | null; facts?: { source?: s
           <p><b>Fund size</b> is AMFI's average assets under management for the latest quarter, all plans of the scheme together (where AMFI lists none, the fund house's month-end net assets; the tooltip says which). <b>Expense ratio</b> is the plan's own total expense ratio from AMFI's latest file, percent a year.</p>
         </NoteCard>
         <NoteCard title="Mutual Fund Score" short="The fund's score, 0 to 100, from its NAV history, costs and holdings. It describes the past; it is not a forecast.">
-          <p><b>Mutual Fund Score</b> (Gold) rates each fund from 0 to 100, with its label. {MF_SCORE_COMPLIANCE} <Link to={MF_METHOD_URL}>How it works</Link>.</p>
+          <p><b>Mutual Fund Score</b> (Gold) rates each fund from 0 to 100, with its label. {MF_SCORE_COMPLIANCE} <Link to={MF_METHOD_URL}>What the score means</Link>.</p>
         </NoteCard>
         <NoteCard title="Return and cost bands" short="The small word under a return or an expense ratio places it in a band. Compare a fund with its own category.">
           <p><b>Return and cost bands.</b> The small word under a return places it in a band: for 1 year, Negative, 0–8%, 8–15% or Above 15%; for 3 and 5 years (yearly rates), Below 8%, 8–12%, 12–15% or Above 15%. Under an expense ratio it says Low, Moderate or High against the median of the same category and plan (20% or more under or over it).
@@ -253,9 +257,9 @@ function Risk({ d }: { d: FundDetail }) {
     <div className="card mf-card">
       <div className="card-h"><h3><span className="ci"><Icon name="gauge" /></span>Risk, from the NAV history</h3></div>
       <div className="mf-risk">
-        <div><span className="label"><GTerm id="volatility">Volatility</GTerm> · 1 year</span><b>{vol1y.value == null ? <Fig v={null} why={vol1y.why} /> : pctText(vol1y.value, 2, false)}</b>
+        <div><span className="label"><GTerm id="volatility">Volatility</GTerm> · 1 year<InfoTip text={VOL_TIP} /></span><b>{vol1y.value == null ? <Fig v={null} why={vol1y.why} /> : pctText(vol1y.value, 2, false)}</b>
           <p className="muted">{vol1y.value == null ? vol1y.why : "How much the NAV swings, as a yearly figure. A fund at 14% typically moves about 14% either side of its average yearly path; one at 1% barely moves. It says how bumpy the ride was, not which way the NAV went."}</p></div>
-        <div><span className="label"><GTerm id="volatility">Volatility</GTerm> · 3 years</span><b>{vol3y.value == null ? <Fig v={null} why={vol3y.why} /> : pctText(vol3y.value, 2, false)}</b>
+        <div><span className="label"><GTerm id="volatility">Volatility</GTerm> · 3 years<InfoTip text={VOL_TIP} /></span><b>{vol3y.value == null ? <Fig v={null} why={vol3y.why} /> : pctText(vol3y.value, 2, false)}</b>
           <p className="muted">{vol3y.value == null ? vol3y.why : "The same measure over three years, so one calm or wild year counts for less."}</p></div>
         <div><span className="label"><GTerm id="drawdown">Largest fall</GTerm> (maximum drawdown)</span><b>{m.value == null ? <Fig v={null} why={m.why} /> : <span className={tone(m.value)}>{pctText(m.value, 2, false)}</span>}</b>
           <p className="muted">{m.value == null ? m.why : m.peak && m.trough && m.value < 0 ? `The deepest fall from a NAV high (${dateIN(m.peak)}) to a later low (${dateIN(m.trough)}) since ${dateIN(m.since || m.peak)}. It shows how deep the worst stretch was, not what comes next.` : "The NAV never fell below an earlier high in the history on file."}</p></div>
@@ -263,7 +267,6 @@ function Risk({ d }: { d: FundDetail }) {
       <h4 className="mf-h4">Other periods</h4>
       <ul className="mf-other">{OTHER_PERIODS.map(({ k, label }) => { const r = d.returns[k]; return (
         <li key={k}><span>{label}</span><b><Fig v={r.value} why={r.why} /></b><small className="muted">{r.value == null ? r.why : r.kind === "cagr" ? "per year" : "total change"}</small></li>); })}</ul>
-      <p className="faint mf-fine">Volatility is the standard deviation of daily NAV changes (weekend NAVs left out) times the square root of 252. Both measures use only the NAV history on file for this scheme.</p>
     </div>
   );
 }

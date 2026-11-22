@@ -46,7 +46,7 @@ describe("company brief section", () => {
     mount();
     await screen.findByText(/No annual report is on file/);
     expect(screen.queryByText("Key figures")).toBeNull();
-    expect(screen.getByText(/not a recommendation/)).toBeTruthy();
+    expect(screen.queryByText(/not a recommendation/)).toBeNull();   // task #311: the empty block carries no disclaimer; the page says it once, at the Prism card
   });
 
   it("offers a retry when the server cannot be reached", async () => {

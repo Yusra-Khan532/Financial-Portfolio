@@ -61,7 +61,7 @@ export function CardTop({ report, actions, example = false }: { report: PrismRep
           <div className="dk-words">
             <div className="dk-chips"><span className={"pz-status " + r.status.toLowerCase().replace(" ", "-")}>{STATUS[r.status as PrismLatest["rating"]["status"]]}</span></div>
             {r.status !== "RATED" && <p className={"dk-note" + (r.status === "NOT RATED" ? " why" : "")}>{r.status === "NOT RATED" ? notRatedLede(r) : STATUS_NOTE[r.status]}</p>}
-            <p className={"dk-cov" + (inp.ok ? "" : " held")}><Icon name={inp.ok ? "check" : "info"} />{inp.text}{inp.note ? <span className="dk-cov-n"> · {inp.note}</span> : null} · <Link to="/glossary#coverage-prism">what this means</Link></p>
+            {inp && <p className={"dk-cov" + (inp.ok ? "" : " held")}><Icon name={inp.ok ? "check" : "info"} />{inp.text}{inp.note ? <span className="dk-cov-n"> · {inp.note}</span> : null} · <Link to="/glossary#coverage-prism">what this means</Link></p>}
           </div>
         </FundamentalSection>
         <TechnicalSection a={parseTechnical(report.technicalAssessment)} report={rep} onRecalculate={actions.onRecalculate} busy={actions.recalculating} />

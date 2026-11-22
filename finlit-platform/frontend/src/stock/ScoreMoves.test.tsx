@@ -96,7 +96,7 @@ describe("README 2.3: range, lead line, legend", () => {
     const { container } = render(<ScoreMovesCard symbol="X" statement="consolidated" />);
     expect(container.querySelector(".scm-eb")!.textContent).toBe("FinLit Prism · score history");
     expect(container.querySelector("h3")!.textContent).toBe("How the scores have moved");
-    expect(container.querySelector(".scm-foot")!.textContent).toMatch(/new rating that day.*earlier rating still holds · Valuation: higher means cheaper · Risk: higher means lower risk · Recording began 1 Nov 2026/);
+    expect(container.querySelector(".scm-foot")!.textContent).toMatch(/new rating that day.*earlier rating still holds · Valuation: higher means cheaper · Risk: higher means lower risk$/);   // task #311: no recording date or forecast sentence in the foot
     for (const gone of ["Daily", "Weekly", "1M", "3M", "6M", "1Y", "Business only"]) expect(screen.queryByRole("button", { name: gone })).toBeNull();
     expect(container.textContent).not.toMatch(/Over the last \d/);
   });

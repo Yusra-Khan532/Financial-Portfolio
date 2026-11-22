@@ -527,12 +527,11 @@ export function ScreenerPro() {
             <p className="ssw-legend">{ruleCount > 0 && <><span className="ssw-lg rb" /> Your rules: the columns your rules use · </>}– means no figure yet · the Prism chip is coloured by its rating word. FinLit scores describe a company's financial health and its price trend. They are not advice to buy, sell or hold any share.</p>
           </section>
         </div>
-        {data && data.withReport < data.total && <p className="faint scr-foot">All {nf(data.total, 0)} listed companies are here with their price and market cap. Ratios, growth and statements show a dash until a company's report is loaded ({nf(data.withReport, 0)} are today); a rule leaves out the companies without that figure.</p>}
+        {data && data.withReport < data.total && <p className="faint scr-foot">All {nf(data.total, 0)} listed companies, with price and market cap. {nf(data.total - data.withReport, 0)} {data.total - data.withReport === 1 ? "has" : "have"} no ratios yet, so a rule on a ratio leaves {data.total - data.withReport === 1 ? "it" : "them"} out.</p>}
         <p id="scr-about" className="faint scr-foot">A screen narrows a long list; it does not say what to buy. Open a company's report to see why a number looks the way it does. Index lists come from NSE Indices. General information, not investment advice.</p>
         {isAdmin && data && data.total > 0 && (
           <div className="fgx-two">
-            <Donut part={data.withReport} total={data.total} partLabel="Report loaded" restLabel="Price and market cap only" title={`${nf(data.total - data.withReport, 0)} of ${nf(data.total, 0)} companies have no full report loaded yet.`}
-              note="Ratios, growth and statements show a dash until a company's report is loaded." />
+            <Donut part={data.withReport} total={data.total} partLabel="With ratios" restLabel="Price and market cap only" title={`${nf(data.total - data.withReport, 0)} of ${nf(data.total, 0)} companies have no ratios yet.`} />
             <SectorBars title="Listed companies by sector (Top 5)" rows={[...data.industries].sort((a, b) => b.n - a.n).slice(0, 5).map((x) => ({ label: x.name, n: x.n, pct: (x.n / data.total) * 100 }))} />
           </div>)}
       </div>

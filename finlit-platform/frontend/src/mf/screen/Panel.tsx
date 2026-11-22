@@ -245,7 +245,7 @@ export function Panel({ q, set, fac, waiting, canScore, fold = false }: PanelPro
         {(["1y", "3y", "5y"] as const).map((p) => (
           <div key={p} className="mfs-rkrow"><span>{p.replace("y", " year")}</span>
             <Chips opts={RK_BANDS} sel={q.rk.filter((r) => r.startsWith(p + ":")).map((r) => r.slice(3))} onToggle={(b) => upd({ rk: toggleIn(q.rk, `${p}:${b}`) })} label={`Rank inside the category, ${p}`} /></div>))}
-        <p className="fgx-note">Rank among funds of the same category and plan; needs at least three funds with a figure. Q1 is the top quarter.</p>
+        <p className="fgx-note">Rank among funds of the same category and plan. Q1 is the top quarter.</p>
         <Sub>Track record</Sub>
         <CheckRow label="Has a 3-year return" count={fac?.tick.has_hist3 ?? null} checked={q.tick.includes("has_hist3")} onChange={() => upd({ tick: toggleIn(q.tick, "has_hist3") })} />
         <CheckRow label="Has a 5-year return" count={fac?.tick.has_hist5 ?? null} checked={q.tick.includes("has_hist5")} onChange={() => upd({ tick: toggleIn(q.tick, "has_hist5") })} />
@@ -261,7 +261,7 @@ export function Panel({ q, set, fac, waiting, canScore, fold = false }: PanelPro
 
       {/* ----- risk */}
       <FilterGroup id="risk" title="Risk" active={nr(fieldsOf(RISK_FIGS)) + q.tick.filter((t) => TICK_FALL.some((o) => o.v === t)).length} {...og("risk")}>
-        <p className="fgx-hint">All figures come from month-end NAVs up to the last full month, so every fund is on the same ruler.</p>
+        <p className="fgx-hint">Figures to the end of last month.</p>
         {figured("risk", RISK_FIGS)}
         <Sub>Quick ticks</Sub>
         <Opts opts={TICK_FALL} sel={q.tick} counts={fac?.tick} onToggle={tog("tick")} label="Quick risk ticks" />
@@ -269,7 +269,7 @@ export function Panel({ q, set, fac, waiting, canScore, fold = false }: PanelPro
 
       {/* ----- portfolio */}
       <FilterGroup id="portfolio" title="Portfolio" active={nr([...fieldsOf(PORT_FIGS), "n_hold", "top10", "max_hold"]) + (q.sector ? 1 : 0) + (q.holds ? 1 : 0) + q.pfdate.length} {...og("portfolio")}>
-        <p className="fgx-hint">From each fund house's monthly portfolio file (latest month-end). {fac ? <>Funds of houses with no parsed file ({nf(fac.portfolio.none ?? 0, 0)} in this result) have no value here and are shown in the “no data” count, never as zero.</> : null}</p>
+        <p className="fgx-hint">From each fund's latest monthly portfolio. {fac ? <>{nf(fac.portfolio.none ?? 0, 0)} {(fac.portfolio.none ?? 0) === 1 ? "fund" : "funds"} here {(fac.portfolio.none ?? 0) === 1 ? "has" : "have"} no figure and {(fac.portfolio.none ?? 0) === 1 ? "is" : "are"} counted as “no data”.</> : null}</p>
         <Sub>Asset split</Sub>
         {figured("port", PORT_FIGS)}
         <Sub>Number of holdings</Sub>{rf("n_hold", true)}

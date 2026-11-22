@@ -194,7 +194,6 @@ export function CompanyBriefSection({ symbol }: { symbol: string }) {
         <div className="cb-empty">
           <div className="cb-eyebrow">Company brief</div><h2 id="cb-title">About this company, from its own filings</h2>
           <p>{q.data.reason}</p>
-          <p className="cb-disc">{q.data.compliance || COMPLIANCE}</p>
         </div>
       )}
       {q.data?.state === "published" && <BriefBody r={q.data} />}
