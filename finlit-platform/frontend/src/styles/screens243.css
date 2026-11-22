@@ -215,3 +215,16 @@
 /* The Chart cell keeps its two buttons on one line: presets.css makes .psx-act a wrapping flex box, which on a table cell stacked the buttons out of their row */
 .psx3-t td.psx-act { display: table-cell; white-space: nowrap; }
 .psx3-t td.psx-act > * + * { margin-left: 6px; }
+
+/* ---- task #325 (developer file 25, section 1 rows 1 to 4): the view switch in the screen header, the 3-month line beside the company, the chart wall ---- */
+.psx-views { flex: none; }
+.psx3-spk { width: 120px; }
+.psx3-spkb { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px; border-radius: var(--r-ctl); cursor: pointer; color: var(--muted); }
+.psx3-spkb:hover { background: var(--s2); color: var(--text); } .psx3-spkb:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.psx3-spkb svg { width: 15px; height: 15px; flex: none; }
+.psx3-spk0 { display: inline-block; width: 96px; text-align: center; color: var(--faint); }
+.psx-wallbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 4px 0 10px; }
+.psx-wallbar .psx3-seg2 button { min-height: 36px; }
+.psx-wallc { margin-left: auto; color: var(--muted); font: 500 var(--fs-13) var(--sans); font-variant-numeric: tabular-nums; }
+.psx-wallpg { margin-top: 10px; }
+@media (max-width: 760px) { .psx-views { width: 100%; display: flex; } .psx-views button { flex: 1; } .psx-wallc { margin-left: 0; width: 100%; } }
