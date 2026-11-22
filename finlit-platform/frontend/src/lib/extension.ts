@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 
-/** The FinLit browser extension (folder `extension/` of the repository). When the extension is published, put its store addresses here: the buttons across the site
- *  then say "Add to Chrome" / "Add to Edge" and open the store listing, where one click installs it. Until then they open /browser-extension, which offers the
- *  download and the four-step install. */
+/** The FinLit browser extension (folder `extension/` of the repository). Published on the Chrome Web Store (version 1.5.0, 22 Nov 2026): every button across the
+ *  site says "Add to Chrome" and opens the store listing, where one click installs it. Edge, Brave and Opera install it from the same listing. */
 export const EXTENSION = {
-  chromeStoreUrl: "",                  // e.g. https://chromewebstore.google.com/detail/finlit-ventures/<id>
+  chromeStoreUrl: "https://chromewebstore.google.com/detail/kbhfebaigibcikomgkommpgfhgkmbkbo",   // the Chrome Web Store listing (item kbhfebaigibcikomgkommpgfhgkmbkbo)
   edgeStoreUrl: "",                    // e.g. https://microsoftedge.microsoft.com/addons/detail/<id>
   zipUrl: "/extension/finlit-extension.zip",
   version: "1.5.0",                    // the version inside the zip (a test keeps it equal to extension/manifest.json)

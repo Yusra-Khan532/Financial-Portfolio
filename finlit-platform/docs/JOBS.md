@@ -115,6 +115,7 @@ SLA kinds: `hours` a success within N hours; `active` N hours counted only from 
 | scores-live (`refresh-scores-live`) | light | 7 | none | probe (queue of just-reported companies), at least 3 min apart; MORNING; docs/REALTIME-SCORES.md |
 | **prism** (`precompute-prism`, 2 shards) | bulk | 40 | 26 h | probe every 10 min + NIGHT + MORNING; after ingest and score |
 | presets (`refresh-presets`) | bulk | 42 | 30 h | NIGHT, MORNING; after prism (docs/PRESETS.md) |
+| scores-export (`export-scores`) | light | 44 | 30 h | probe: started by presets finishing a day with no file (presets is its prerequisite); back-fill 3 days a run in the night shift only; seconds (docs/SCORES-EXPORT.md) |
 | stress (`refresh-stress`) | bulk | 43 | 30 h | NIGHT (20 h), MORNING (14 h); after ingest and macro; builds and stores every covered company's Stress Lab page and pack, largest first, resumable, 40 min of new companies per run, 150 s per company (docs/STRESS.md) |
 | earnings-calls (`refresh-earnings-calls`, needs `GEMINI_API_KEY`) | bulk | 44 | 48 h | NIGHT, MORNING; bounded per run, resumable (docs/EARNINGS-CALLS.md) |
 | company-brief (`refresh-company-brief`, needs `GEMINI_API_KEY`, else it records "not configured" and writes nothing; docs/COMPANY-BRIEF.md) | bulk | 46 | 72 h | NIGHT (20 h), MORNING (14 h); only companies with new filings, followed and largest first, at most `BRIEF_MAX_WRITES_PER_NIGHT` (6) model calls a night, resumable; stores DRAFTS, a person publishes |

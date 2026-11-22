@@ -28,11 +28,13 @@ export function statusLine(s: HistorySession): string {
     case "latest": return `Latest list · built after the ${day(s.date)} close`;
     case "rules": return "Rules updated this day";
     case "first": return "First saved list";
-    case "not_saved": return "Not saved";
+    case "not_saved": return "Not saved: the night's run did not store a list for this close";   // task #325 (file 25, 2.1 row 8): say why it is missing (12 Nov)
     default: return `Saved after the ${day(s.date)} close`;
   }
 }
 
+/** Task #325 (developer file 25, 2.1 rows 3 and 4, and section 1 row 10): on a day the screen's rules changed, joined and left would mix the rule change with price moves. */
+export const INFO_RULES = "The rules of this screen were updated at this close, so the list changed for that reason as well as for price moves. Joined and left are not shown for this day; they return from the next close.";
 export const INFO_PAST = "A past date shows the list as it stood after that close: its companies, their price, market cap and scores that day. Added and Since added read as they did that day. Since then shows what happened after the list, to the latest list. Joined and left compare the list with the previous saved list.";
 
 /** P3: the date bar. `sessions` latest first; `asOn` null for the latest list. */
@@ -82,7 +84,8 @@ export function DateBar({ sessions, asOn, setAsOn, list }: { sessions: HistorySe
         ? <><i aria-hidden="true" />New screen · first list, after the {day(cur)} close</>          /* task #243 (pack R5): the screen's only saved list */
         : <><i aria-hidden="true" />Latest list · after the {day(cur)} close</>}</span>
       {figs && <span className="psx3-figs" aria-live="polite"><b>{nf(figs.count, 0)}</b> {figs.count === 1 ? "company" : "companies"}
-        {figs.prev ? <> · <span className="psx3-j">+{nf(figs.joined ?? 0, 0)} joined</span> · {nf(figs.left ?? 0, 0)} left since {day(figs.prev)}</> : <> · first saved list</>}</span>}
+        {figs.prev && figs.rulesUpdated ? <> · rules updated on {day(cur)} <PsxInfo text={INFO_RULES} label="Rules updated" /></>
+          : figs.prev ? <> · <span className="psx3-j">+{nf(figs.joined ?? 0, 0)} joined</span> · {nf(figs.left ?? 0, 0)} left since {day(figs.prev)}</> : <> · first saved list</>}</span>}
       <PsxInfo text={INFO_PAST} label="List as on" />
       {past && <button type="button" className="fgx-link psx3-back" onClick={() => setAsOn(null)}>Back to the latest list</button>}
     </div>);

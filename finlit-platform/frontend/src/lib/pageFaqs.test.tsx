@@ -13,9 +13,9 @@ const src = (p: string) => resolve(__dirname, "..", p);
 const json = JSON.parse(readFileSync(resolve(__dirname, "../../../scripts/data/page-faqs.json"), "utf8")) as (typeof PAGE_FAQS[number] & { declared: number })[];
 
 describe("page FAQ data (built from the PDF by scripts/build-page-faqs.py)", () => {
-  it("has 29 pages and 206 questions (task #317 took off Commodity prices, 8, and Company financials, 6; the PDF's 228, less the company report's download question, task #216, plus \"Which screener should I use?\" on Basic and Advanced, task #243, less the Basic stock screener's nine and Advanced's question comparing with it, task #283)", () => {
+  it("has 29 pages and 205 questions (task #325 took off the Advanced screener's Quick views question; task #317 took off Commodity prices, 8, and Company financials, 6; the PDF's 228, less the company report's download question, task #216, plus \"Which screener should I use?\" on Basic and Advanced, task #243, less the Basic stock screener's nine and Advanced's question comparing with it, task #283)", () => {
     expect(PAGE_FAQS).toHaveLength(29);
-    expect(PAGE_FAQS.reduce((n, f) => n + f.items.length, 0)).toBe(206);
+    expect(PAGE_FAQS.reduce((n, f) => n + f.items.length, 0)).toBe(205);
   });
   it("every page has the number of questions its 'N questions' line declares", () => {
     expect(json).toHaveLength(29);
@@ -100,7 +100,7 @@ describe("<PageFaqs />", () => {
   it("the All FAQs hub lists every set grouped by section", () => {
     render(<MemoryRouter><FaqsPage /></MemoryRouter>);
     expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(29);
-    expect(screen.getAllByRole("button").filter((b) => b.hasAttribute("aria-controls"))).toHaveLength(206);
+    expect(screen.getAllByRole("button").filter((b) => b.hasAttribute("aria-controls"))).toHaveLength(205);
     expect(screen.getByRole("heading", { level: 2, name: "Gold dashboards" })).toBeTruthy();
     cleanup();
   });
@@ -135,8 +135,8 @@ describe("FAQ upgrades", () => {
     const box = screen.getByRole("searchbox");
     fireEvent.change(box, { target: { value: "sector" } });
     const n = screen.getAllByRole("button").filter((b) => b.hasAttribute("aria-controls")).length;
-    expect(n).toBeGreaterThan(0); expect(n).toBeLessThan(206);
-    expect(screen.getByRole("status").textContent).toBe(`${n} of 206 questions match`);
+    expect(n).toBeGreaterThan(0); expect(n).toBeLessThan(205);
+    expect(screen.getByRole("status").textContent).toBe(`${n} of 205 questions match`);
     fireEvent.change(box, { target: { value: "zzzqqq" } });
     expect(screen.getByRole("status").textContent).toContain("No question matches");
     cleanup();

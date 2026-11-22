@@ -28,7 +28,7 @@ describe("P3: List as on", () => {
     fireEvent.click(screen.getByRole("button", { name: /Latest · 17 Nov/ }));
     const opts = within(screen.getByRole("listbox")).getAllByRole("option");
     expect(opts.map((o) => o.textContent)).toEqual(["Latest · 17 Nov145Latest list · built after the 17 Nov close", "16 Nov150Saved after the 16 Nov close",
-      "13 Nov155Rules updated this day", "12 Nov−Not saved", "11 Nov108First saved list"]);
+      "13 Nov155Rules updated this day", "12 Nov−Not saved: the night's run did not store a list for this close", "11 Nov108First saved list"]);
     expect(opts[3].getAttribute("aria-disabled")).toBe("true");
     expect(statusLine(SESSIONS[0])).toBe("Latest list · built after the 17 Nov close");
   });

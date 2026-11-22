@@ -60,7 +60,7 @@ describe("Ready-made screens strip (task #243, pack R)", () => {
     expect(document.body.textContent).not.toMatch(/Trend|New highs/);
   });
 
-  it("R3: compact cards: the name, one line of figures (listText or 'N match · +N joined') and →; Top 10 has a crown, a TOP 10 tag and a gold rule", async () => {
+  it("R3: compact cards: the name, one line of figures (listText or 'N companies · +N', task #325) and →; Top 10 has a crown, a TOP 10 tag and a gold rule", async () => {
     mount();
     const top = (await screen.findByText("Top 10 large caps")).closest("button")!;
     expect(top.className).toContain("is-top10"); expect(top.className).toContain("is-feat");
@@ -69,10 +69,10 @@ describe("Ready-made screens strip (task #243, pack R)", () => {
     expect(top.querySelector(".rms-m")!.textContent).toBe("Top 10 of 131 that pass");
     expect(top.querySelector(".rms-go")!.textContent).toBe("→");
     const both = screen.getByText("Strong on both").closest("button")!;
-    expect(both.querySelector(".rms-m")!.textContent).toBe("71 match");
+    expect(both.querySelector(".rms-m")!.textContent).toBe("71 companies");
     expect(both.className).not.toContain("is-top10");
     fireEvent.click(screen.getByRole("tab", { name: /Momentum/ }));
-    expect(screen.getByText("Momentum leaders").closest("button")!.querySelector(".rms-m")!.textContent).toBe("153 match · +9 joined");
+    expect(screen.getByText("Momentum leaders").closest("button")!.querySelector(".rms-m")!.textContent).toBe("153 companies · +9");
     fireEvent.click(screen.getByRole("tab", { name: /Themes/ }));
     expect(screen.getByText("Sector themes in play").closest("button")!.querySelector(".rms-m")!.textContent).toBe("3 industries · 15 companies");   // L11
     fireEvent.click(screen.getByRole("tab", { name: /Safety/ }));

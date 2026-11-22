@@ -47,6 +47,9 @@ services:
     volumes: &app_volumes
       - ${NSE_DATA_DIR:-/opt/finlit/data/nse}:/data/nse
       - ${SECTORS_DATA_DIR:-/opt/finlit/data/sectors}:/data/sectors
+      # Task #326: the nightly scores export (one file a market day, the newest 120 kept), written by the jobs container and served by the app at
+      # /internal/export/scores. A named volume: Docker creates it on the first start owned by user finlit (the image makes /data/exports), and no deploy removes it.
+      - scores_export:/data/exports
     depends_on:
       db: {condition: service_healthy}
       redis: {condition: service_healthy}
@@ -191,6 +194,7 @@ services:
     logging: *logging
 
 volumes:
+  scores_export:
   pgdata:
   caddy_data:
   caddy_config:

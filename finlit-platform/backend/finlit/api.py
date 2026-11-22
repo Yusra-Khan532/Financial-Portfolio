@@ -855,6 +855,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(__import__("finlit.portfolio_overview", fromlist=["router"]).router)   # POST /api/portfolio/overview: Equity portfolio page, before the site-backend catch-all
     app.include_router(__import__("finlit.portfolio_page.api", fromlist=["router"]).router)
     app.include_router(__import__("finlit.ask.api", fromlist=["router"]).router)   # /api/ask: Ask FinLit AI, answered from FinLit's data (before the site-backend catch-all)   # POST /api/portfolio/page: the new Equity portfolio page figures (names only)
+    app.include_router(__import__("finlit.scores_export_api", fromlist=["router"]).router)   # /internal/export/scores: the nightly scores export for the owner's archive (task #326), before the website
     if settings.site_api_url:
         register_catch_all(app, settings.site_api_url)  # last: everything the research API does not own
     if settings.frontend_dist:  # one container serves the website and the API (see finlit/web.py)
