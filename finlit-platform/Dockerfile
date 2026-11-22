@@ -27,6 +27,8 @@ COPY site-api/backend ./site-api/backend
 COPY --from=web /web/dist ./web
 COPY deploy/start.sh deploy/scheduler.sh deploy/jobs.sh ./
 RUN chmod +x start.sh scheduler.sh jobs.sh && useradd --create-home finlit && chown -R finlit /app
+# task #326: the scores export folder; a new named volume mounted here takes this owner, so the job (user finlit) can write it
+RUN mkdir -p /data/exports/scores && chown -R finlit /data/exports
 USER finlit
 ARG GIT_COMMIT=unknown
 ENV FRONTEND_DIST=/app/web APP_VERSION=$GIT_COMMIT
