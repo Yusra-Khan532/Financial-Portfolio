@@ -30,7 +30,7 @@ import { sendAllFunds } from "../lib/importEtf";
 import { isPdf } from "../lib/holdingsPdf";
 import { entryOf, makeMatcher, matchEntries, type Skipped, type ToCheck } from "../lib/holdingsMatch";
 import { resolveIsins, sourcesLine } from "../lib/isin";
-import { modelFor, parsePeriod, parseTab, useOverview, withTab, type Line, type OverviewHolding, type Period, type Tab } from "../lib/portfolioOverview";
+import { modelFor, parsePeriod, parseTab, pricesFrom, useOverview, withTab, type Line, type OverviewHolding, type Period, type Tab } from "../lib/portfolioOverview";
 import { usePortfolioPage } from "../portfolio/usePortfolioPage";
 import { loadChoices, saveChoices, usePortfolioScore, type Choices } from "../portfolio/useScore";
 import { usePortfolioTrend } from "../portfolio/usePortfolioTrend";
@@ -136,6 +136,9 @@ export function HoldingsPage() {
   const heldSet = useMemo(() => new Set(allSymbols), [allSymbols]);
   const coInfo = (sym: string) => { const u = by.get(sym); return { size: capBucket(u?.market_cap ?? null)?.short ?? null, close: u?.price ?? null }; };
   const ov = useOverview(symbols, !!model && !DEMO);
+  // developer file 27: Your portfolios, the picker and the sticky switch show every portfolio, so they need every account's prices (as the MF and ETF pages
+  // do). In All accounts `ov` already holds them (the same symbols, the same request), so this asks only while one portfolio is open.
+  const ovAll = useOverview(allSymbols, !!model && !DEMO && cur !== "all");
   const pg = usePortfolioPage(symbols, !!model && !DEMO);
   const tr = usePortfolioTrend(symbols, model === "prism" && !DEMO);
   const rk = usePortfolioRisk(symbols, !!model && !DEMO);   // Risk analytics by company size (task #183 W8)   // Gold only (FinLit Prism); Silver sees the lock card
@@ -184,7 +187,9 @@ export function HoldingsPage() {
   };
   const money = moneyOf(st.holdings.filter((h) => symbols.includes(h.symbol) || cur === "all" || pfOf(h) === cur), cur, priceOf, changeOf);
   const openFor = (sym: string, what: "qty" | "price") => { void what; setView("portfolio"); setEsWin({ what: "edit", symbol: sym }); };   // task #274: Edit holds the buys (a share with none opens with one empty row)
-  const pfFigs = (id: string | "all") => { const m = moneyOf(st.holdings, id, priceOf, changeOf); return { n: m.n, now: m.now, withQty: m.withQty, gainPct: m.full && m.invested ? (m.gain / m.invested) * 100 : null }; };
+  const byAll = useMemo(() => new Map((ovAll.data?.holdings || []).map((h) => [h.symbol, h])), [ovAll.data]);
+  const every = useMemo(() => pricesFrom(byOv, byAll), [byOv, byAll]);
+  const pfFigs = (id: string | "all") => { const m = moneyOf(st.holdings, id, every.priceOf, every.changeOf); return { n: m.n, now: m.now, withQty: m.withQty, gainPct: m.full && m.invested ? (m.gain / m.invested) * 100 : null, noPrice: m.noPrice.length }; };
   const sold = soldOf(st.holdings, cur);
   const ids = data?.symbols ?? symbols;
   const state: "loading" | "ready" | "error" | "none" = DEMO ? "none" : pg.isError ? "error" : pg.isPending && symbols.length ? "loading" : "ready";
