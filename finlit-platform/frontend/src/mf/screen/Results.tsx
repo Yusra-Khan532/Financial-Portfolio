@@ -23,7 +23,7 @@ export const BASE_COLS: Col[] = [
   { id: "r5y", label: "5 yrs a year", sort: "r5y", field: "r5y", hint: "Yearly rate (CAGR) over five years", cell: (r) => pct(r.r5y), why: noRet },
   { id: "ter", label: "Expense", sort: "ter", field: "ter", hint: "Total expense ratio of this plan, percent a year", cell: (r) => (r.ter == null ? "" : terText(r.ter)), why: () => "This plan is not in AMFI's latest expense-ratio file." },
   { id: "aum", label: "Size", sort: "aum", field: "aum", hint: "Fund size (AUM), all plans together", cell: (r) => (r.aum == null ? "" : aumText(r.aum)), why: () => "No fund size from AMFI or the fund house's portfolio file." },
-  { id: "vol3", label: "Volatility 3 yrs", sort: "vol", field: "vol3", hint: "Annualised standard deviation of 36 month-end returns", cell: (r) => (r.x?.risk.vol3 == null ? "" : nf(r.x.risk.vol3, 1) + "%"), why: () => noRisk },
+  { id: "vol3", label: "Volatility 3 yrs", sort: "vol", field: "vol3", hint: "How much returns moved from month to month over 3 years, shown as a yearly figure", cell: (r) => (r.x?.risk.vol3 == null ? "" : nf(r.x.risk.vol3, 1) + "%"), why: () => noRisk },
   { id: "fall", label: "Biggest fall", sort: "fall", field: "fall", hint: "Largest drop between month-end NAVs in the last 36 months", cell: (r) => (r.fall3y == null ? "" : pctText(r.fall3y, 1, false)), why: () => noRisk },
   { id: "rank3", label: "Rank 3 yrs", sort: "rank3y", hint: "Rank of the 3-year return among funds of the same category and plan (1 = highest)", cell: (r) => (r.x?.rank["3y"] ? `${r.x.rank["3y"]!.rank} of ${r.x.rank["3y"]!.of}` : ""), why: () => "Needs at least three funds of the same category and plan with a 3-year return." },
 ];

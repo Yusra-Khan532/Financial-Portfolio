@@ -16,6 +16,7 @@ import hashlib
 import json
 import logging
 import re
+import time
 from datetime import datetime
 from typing import Any, AsyncIterator, Dict, List, Literal, Optional
 
@@ -33,7 +34,10 @@ from .gateway import MemberGateway
 log = logging.getLogger("finlit.ask")
 router = APIRouter(prefix="/api/ask", tags=["ask"])
 CACHE_SECONDS = 30 * 60          # the same first question on the same page and plan is answered from Redis within 30 minutes
+SUMMARY_CACHE_SECONDS = 26 * 3600   # task #312: a card's summary is kept for its score day; a second press that day is instant and free
+PING_SECONDS = 10                   # task #312: a keep-alive on a summary's stream every 10 s, so a quiet stream is never taken for a dead one
 NO_STORE = {"Cache-Control": "no-store"}
+STREAM_HEADERS = {"Cache-Control": "no-store, no-cache", "X-Accel-Buffering": "no"}
 SYMBOL = re.compile(r"^[A-Z0-9&\-\.]{1,20}$")
 _clients: Dict[str, anthropic.AsyncAnthropic] = {}
 
@@ -105,6 +109,8 @@ def sse(event: str, data: Dict[str, Any]) -> bytes:
 
 
 def cache_key(model: str, ctx: Ctx, body: AskIn) -> str:
+    if body.kind == "summary":   # task #312: one summary per company per score day (scores are worked out once a night), the same for every plan
+        return f"ask:answer:summary:{service.SUMMARY_VERSION}:{model}:{(body.symbol or '').upper()}:{datetime.now(service.IST).date().isoformat()}"
     q = re.sub(r"\s+", " ", (service.summary_question(body.symbol or "") if body.kind == "summary" else body.question).strip().lower())
     h = hashlib.sha256(f"{q}|{body.symbol or ''}".encode()).hexdigest()[:32]
     kind = "summary:" if body.kind == "summary" else ""
@@ -156,7 +162,7 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
             yield sse("meta", {**quota.status(cap, n, month), "cached": True})
             yield sse("text", {"text": cached["text"]})
             yield sse("done", {"disclaimer": service.DISCLAIMER, "sources": cached.get("tools", []), "pages": cached.get("pages", [])})
-        return StreamingResponse(replay(), media_type="text/event-stream", headers={**NO_STORE, "X-Accel-Buffering": "no"})
+        return StreamingResponse(replay(), media_type="text/event-stream", headers={**STREAM_HEADERS})
 
     n = await quota.take(store.pool, ctx.user_id, cap, month, kind)
     if n is None and kind == "summary":
@@ -215,9 +221,12 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
             if other:
                 page = None
         want = ([page] if page else []) + named
+        # Task #312 (developer file 20): a summary is written from the FinLit Prism card's own figures, not the whole company page (which took 6 to
+        # 7 s to read before anything was written, and the text drifted).
+        card_tool = "get_finlit_prism" if kind == "summary" else "get_company_card"
         for sym in want[:2]:
-            yield sse("status", {"text": tools.label("get_company_card", {"symbol": sym})})
-        got = await asyncio.gather(*[tools.run(gw, "get_company_card", {"symbol": s}) for s in want[:2]])
+            yield sse("status", {"text": "Reading the FinLit Prism card" if kind == "summary" else tools.label("get_company_card", {"symbol": sym})})
+        got = await asyncio.gather(*[tools.run(gw, card_tool, {"symbol": s}) for s in want[:2]])
         cards = [g["text"] for g in got if not g["error"]]
         card = "\n".join(cards) or None
         # Task #253: the kind of question (a company, the economy, a company's financials, daily news, a term, valuation, rules, funds, a sector)
@@ -251,11 +260,16 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
         task = asyncio.create_task(service.answer(client_for(st.anthropic_api_key), st.ask_model, gw, messages, emit, prefetched,
                                                   routing.web_domains(kinds)))
         try:
+            quiet = time.monotonic()
             while not task.done() or out:
                 while out:
+                    quiet = time.monotonic()
                     yield out.pop(0)
                 if not task.done():
                     await asyncio.wait({task}, timeout=0.05)
+                    if kind == "summary" and time.monotonic() - quiet >= PING_SECONDS:
+                        quiet = time.monotonic()
+                        yield sse("ping", {})
             result = task.result()
         except anthropic.RateLimitError:
             err = {"code": "busy", "text": "FinLit AI is answering many questions right now. Please try again in a minute."}
@@ -278,8 +292,13 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
             err = {"code": "declined", "text": "FinLit AI cannot answer that question. Try asking about a company's figures, a fund or the market."}
         if result is not None and result["stop"] == "deadline" and not result["text"]:
             err = {"code": "slow", "text": "This answer took too long. Please ask again, or ask about one thing at a time."}
+        if err is None and result is not None and not (result.get("text") or "").strip():
+            # Task #312: seen live, 22 Nov: a summary ended with "done" and no text at all, and was counted. Never again: say so, and log why.
+            log.warning("ask: %s for %s ended with no text (stop=%s, output tokens=%s)", kind, body.symbol, result.get("stop"),
+                        (result.get("usage") or {}).get("output"))
+            err = {"code": "empty", "text": "FinLit AI sent back no text."}
         if err:
-            if not wrote:
+            if not wrote or kind == "summary":     # a summary is counted only when its text reached the member
                 try:
                     await quota.give_back(store.pool, ctx.user_id, month, kind)
                 except Exception:
@@ -293,12 +312,35 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
         links = pages.page_links([("get_company_card", {"symbol": s}) for s in want[:2]] + list(result.get("calls") or []))
         if key and result["text"] and result["stop"] in ("end_turn",) and not personal:
             try:
-                await store.redis.set(key, json.dumps({"text": result["text"], "tools": result["tools"], "pages": links}), ex=CACHE_SECONDS)
+                await store.redis.set(key, json.dumps({"text": result["text"], "tools": result["tools"], "pages": links}),
+                                      ex=SUMMARY_CACHE_SECONDS if kind == "summary" else CACHE_SECONDS)
             except Exception:
                 pass
+        state["delivered"] = True
         yield sse("done", {"disclaimer": service.DISCLAIMER, "sources": sorted(set(result["tools"])), "pages": links})
 
-    return StreamingResponse(run(), media_type="text/event-stream", headers={**NO_STORE, "X-Accel-Buffering": "no"})
+    state = {"delivered": False, "returned": False}
+
+    async def guarded() -> AsyncIterator[bytes]:
+        """Task #312: a summary the member did not receive is given back: the client left (Stop, a closed page) or the stream was cut (a deploy)
+        before "done". Errors give it back inside run(); this covers the rest."""
+        try:
+            async for chunk in run():
+                if chunk.startswith(b"event: error"):
+                    state["returned"] = True
+                yield chunk
+        finally:
+            if kind == "summary" and not state["delivered"] and not state["returned"]:
+                asyncio.get_running_loop().create_task(_give_back(store, ctx.user_id, month, kind))
+
+    return StreamingResponse(guarded(), media_type="text/event-stream", headers={**STREAM_HEADERS})
+
+
+async def _give_back(store, user_id: str, month, kind: str) -> None:
+    try:
+        await quota.give_back(store.pool, user_id, month, kind)
+    except Exception:
+        log.exception("ask: could not give the summary back")
 
 
 async def record(store, result: Dict[str, Any]) -> None:

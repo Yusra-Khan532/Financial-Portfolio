@@ -55,7 +55,8 @@ describe("FinLit Prism card", () => {
     for (const part of ["Growth & Profitability", "Valuation", "Quality", "Risk"]) expect(t).toContain(part);
     expect(t).toContain("78");
     expect(t).toContain("No data");   // the missing Risk part says so instead of showing zero
-    expect(t).toContain("76% of inputs available");
+    expect(t).toContain("Some figures are missing");   // task #311: below 100% the card says so, without the percentage
+    expect(t).not.toContain("inputs available");
     expect(t).toContain("20 Oct 2026");
     // task #216: no "What supports and weighs on the rating" drop-down (its pros, cons, date and Recalculate) and no "Show full breakdown", for any plan
     expect(t).not.toContain("What supports and weighs"); expect(t).not.toContain("Profit growth over years"); expect(t).not.toContain("Show full breakdown");
@@ -67,8 +68,14 @@ describe("FinLit Prism card", () => {
     expect(t).toContain("Open the full Prism report");
     expect(html).toMatch(/<a class="ui-btn ui-btn--prism ui-btn--sm dk-b" href="\/prism\/TCS"[^>]*>Open the full Prism report/);   // task #310: the one gold (Prism) button
     expect(t).toContain(PRISM_NOTE);   // the compliance line
+    // task #311 (developer file 21, company report rows 1, 3, 4, 5): the header link says what the score means; the two grey notes are gone
+    expect(t).toContain("What the score means"); expect(t).not.toContain("Advanced model");
+    expect(t).not.toContain("Technical indicators assess price trend and momentum separately");
+    expect(t).not.toContain("Technical analysis is not included in the financial-health score");
+    expect(t).toContain("Evaluates business and financial strength using key metrics across four areas.");
     expect(html).toContain(`aria-label="${prismSummary(REPORT.rating)}"`);
-    expect(prismSummary(REPORT.rating)).toBe("FinLit Prism rating: Healthy, 71.3 out of 100, provisional rating. 76% of inputs available.");
+    expect(prismSummary(REPORT.rating)).toBe("FinLit Prism rating: Healthy, 71.3 out of 100, provisional rating. Some figures are missing.");
+    expect(prismSummary({ ...REPORT.rating, confidence: 1 })).toBe("FinLit Prism rating: Healthy, 71.3 out of 100, provisional rating.");
   });
 
   it("draws a technical part by itself the moment the model sends one", async () => {
@@ -88,7 +95,7 @@ describe("FinLit Prism card", () => {
     const t = text(await render());
     expect(t).toContain("Not rated");
     expect(t).not.toContain("out of 100");
-    expect(t).toContain("40% of inputs available");
+    expect(t).toContain("Some figures are missing");
   });
 
   it("a classification block shows its specific reason, does not tick the full inputs figure and links to why", async () => {
@@ -98,8 +105,8 @@ describe("FinLit Prism card", () => {
     const t = text(html);
     expect(t).toContain("no model group for this industry yet");
     expect(t).not.toContain("Too little verified data");
-    expect(t).toContain("100% of inputs available");
-    expect(t).toContain("Inputs are not the cause");
+    expect(t).not.toContain("inputs available");          // task #311: nothing at 100%, and the link to why stays
+    expect(t).not.toContain("Some figures are missing");
     expect(t).toContain("Why is this not rated?");
   });
 

@@ -135,6 +135,6 @@ export function BuildCard({ symbol, name }: { symbol: string; name: string }) {
       <p className="dtc-check"><b>What to check:</b> {verify ? `${verify.replace(/\.?\s*$/, ".")} ` : ""}A theme word alone is not proof of real business.</p>
       <div className="dtc-acts"><Link className={buttonClass("secondary", "md", "dth-btn")} to={themeLink(d.main?.name ?? c.theme, co)}>See the theme in Discover<Arrow /></Link>
         {doc?.link && <a className="dth-link" href={doc.link} target="_blank" rel="noopener noreferrer">Open the presentation ↗</a>}
-        <span className="dth-fine">{s ? `Theme figures as on Discover${d.asOf ? `, prices of ${fmtDate(d.asOf)}` : ""} · ` : ""}Information only, not a recommendation.</span></div>
+        {s && <span className="dth-fine">Theme figures as on Discover{d.asOf ? `, prices of ${fmtDate(d.asOf)}` : ""}</span>}</div>
     </div>);
 }

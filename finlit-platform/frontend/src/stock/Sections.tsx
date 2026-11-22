@@ -29,6 +29,16 @@ const css = (v: string) => `var(${v})`;
 import "../styles/insights.css";
 import { PLAN_FOR_REPORT_EXTRAS } from "../lib/planGates";
 export type HeadCount = { n: number; label: string; tone: "red" | "amb" | "pos" };
+/** Task #312 (developer file 20, the check): "above its 200-day average, which suggests the longer trend is healthy" sat beside FinLit's long-term view
+ *  of a downtrend (Reliance, 22 Nov: −32, "Bounce in a downtrend"). Above the 200-day average while the 50-day average is still below it is a rise after a
+ *  fall, not yet a healthy longer trend, and is said so. */
+export function longTrend(t: { vsEma200Pct: number | null; ema50: number | null; ema200: number | null }): string {
+  if (t.vsEma200Pct == null) return "";
+  if (t.vsEma200Pct < 0) return "which suggests the longer trend is weak";
+  if (t.ema50 != null && t.ema200 != null && t.ema50 < t.ema200) return "after a fall: its 50-day average is still below the 200-day, so the longer trend has not turned up yet";
+  return "which suggests the longer trend is healthy";
+}
+
 export function CountChips({ counts }: { counts: HeadCount[] }) {
   return <span className="cchips">{counts.map((c) => <span key={c.label} className={"cchip " + (c.n === 0 ? "zero" : c.tone)}><b>{c.n}</b> {c.label}</span>)}</span>;
 }
@@ -75,7 +85,7 @@ export function PriceSection({ s, symbol, ratios }: { s: Summary; symbol: string
     <section className="block" style={{ "--sc": "var(--p-tech)" } as React.CSSProperties}>
       <SectionHead id="price" no="04 · Price & technicals" icon="line" tier="basic" title="How the stock has traded" sub="Intraday bars from Dhan for 1D, 5D and 1M; daily closes up to one year, weekly closes beyond. Hover the chart for detail." color="--p-tech" />
       {intra && idata?.series && chg != null && <Plain tone={chg >= 0 ? "good" : "warn"}>Since the open {idata.sessions.length > 1 ? "of " + istDay(idata.sessions[0]) : "on " + istDay(idata.session ?? "")}, the price {chg >= 0 ? "rose" : "fell"} {nf(Math.abs(chg), 2)}%.</Plain>}
-      {!intra && chg != null && <Plain tone={chg >= 0 ? "good" : "warn"}>Over this period the price {chg >= 0 ? "rose" : "fell"} {nf(Math.abs(chg), 1)}%.{t?.vsEma200Pct != null && <> It trades {nf(Math.abs(t.vsEma200Pct), 1)}% {t.vsEma200Pct < 0 ? "below" : "above"} its 200-day average, which {t.vsEma200Pct < 0 ? "suggests the longer trend is weak" : "suggests the longer trend is healthy"}.</>}</Plain>}
+      {!intra && chg != null && <Plain tone={chg >= 0 ? "good" : "warn"}>Over this period the price {chg >= 0 ? "rose" : "fell"} {nf(Math.abs(chg), 1)}%.{t?.vsEma200Pct != null && <> It trades {nf(Math.abs(t.vsEma200Pct), 1)}% {t.vsEma200Pct < 0 ? "below" : "above"} its 200-day average, {longTrend(t)}.</>}</Plain>}
       <div className="grid g3">
         <div className="card acc span2" style={{ "--ac": "var(--p-tech)" } as React.CSSProperties}>
           <div className="stats">

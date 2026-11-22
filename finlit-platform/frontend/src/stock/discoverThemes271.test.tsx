@@ -91,7 +91,8 @@ describe("20b: What it is building", () => {
     expect(card.querySelector(".dtc-check")!.textContent).toBe("What to check: Look for quantified revenue contribution, order value and management commentary. A theme word alone is not proof of real business.");
     expect(screen.getByRole("link", { name: /See the theme in Discover/ }).getAttribute("href")).toBe("/discover/themes/ai-and-genai?q=Tech+Mahindra");
     expect(screen.getByRole("link", { name: "Open the presentation ↗" }).getAttribute("href")).toBe("https://example.com/p.pdf");
-    expect(card.querySelector(".dth-fine")!.textContent).toMatch(/^Theme figures as on Discover.* · Information only, not a recommendation\.$/);
+    expect(card.querySelector(".dth-fine")!.textContent).toMatch(/^Theme figures as on Discover/);
+    expect(card.textContent).not.toContain("Information only, not a recommendation.");   // task #311: said once, at the Prism card
   });
   it("below Gold the uptrend figure is a Gold lock, as on Discover's theme card, never a wrong 0", () => {
     mount(<BuildCard symbol="TECHM" name="Tech Mahindra Ltd" />, TECHM, UNI, false);

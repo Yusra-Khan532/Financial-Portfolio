@@ -45,6 +45,13 @@ export type PlFlag = {
 /** lender: a bank or NBFC. Its revenue is the statement's Revenue line and it has no operating profit, so case 7 and operating growth are never used. */
 export type PlInput = { annual?: Table | null; quarterly?: Table | null; lender?: boolean };
 
+/** Task #312 (developer file 20, the check): the period in the title ("... in the Sep quarter", "... in FY26"), so a quarter's finding never reads as a
+ *  contradiction beside a five-year one ("Profit lagging sales over 5 years"). Case 8 is a run of quarters and keeps its own words. */
+export function titled(title: string, no: number, scope: Scope, period: string | null | undefined): string {
+  if (no === 8 || !period) return title;
+  if (scope === "quarterly") { const mon = period.split(" ")[0]; return /^[A-Za-z]{3}$/.test(mon) ? `${title} in the ${mon} quarter` : `${title} in the latest quarter`; }
+  return `${title} in ${period}`;
+}
 export const CASES: Record<CaseNo, { id: string; title: string; severity: Severity; why: string }> = {
   1: { id: "profit_outgrows_revenue", title: "Profit is growing much faster than revenue", severity: "watch", why: "Profit can be lifted by one-off items or unusual cost savings." },
   2: { id: "revenue_down_profit_up", title: "Revenue fell while profit rose", severity: "watch", why: "Worth checking for one-off gains, cost cuts or a change in margins." },
@@ -313,7 +320,7 @@ export function plInsights(input: PlInput | null | undefined): Insight[] {
     const c = CASES[no as CaseNo], hv = views[headline]!;
     out.push({
       case: no as CaseNo, id: c.id, severity: c.severity, why: c.why, headline, views, flags: mine, lender,
-      title: headline === "quarterly" && no !== 8 ? `${c.title} in the latest quarter` : c.title,
+      title: titled(c.title, no, headline, hv.period),
       key: `${no}:${headline}:${hv.period}`,
     });
   }

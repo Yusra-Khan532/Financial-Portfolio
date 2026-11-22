@@ -52,7 +52,7 @@ export function ScoreCompare({ codes, names = [] }: { codes: number[]; names?: s
   const passive = !locked && its.some((i) => i?.group === "OT-PASSIVE");
   return (
     <section className="card mf-card mfs-cmpcard mfu" aria-label={`${MF_SCORE_NAME}, side by side`}>
-      <div className="card-h"><h3><span className="ci"><Icon name="quality" /></span>{MF_SCORE_NAME}</h3><Link className="mf-linkbtn" to={MF_METHOD_URL}>How it works</Link></div>
+      <div className="card-h"><h3><span className="ci"><Icon name="quality" /></span>{MF_SCORE_NAME}</h3><Link className="mf-linkbtn" to={MF_METHOD_URL}>What the score means</Link></div>
       {!locked && its.some((i) => i?.final != null) && (
         <div className="mfu-cmptop">
           <div className="mfu-rings">{codes.map((c, i) => <div key={c}><ScoreRing score={its[i]?.final ?? null} label={its[i]?.label ?? null} size={92} /><small style={{ color: COLORS[i] }}>{nm[i]}</small></div>)}</div>
