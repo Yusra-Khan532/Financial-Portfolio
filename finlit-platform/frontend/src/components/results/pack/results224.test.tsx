@@ -45,7 +45,9 @@ describe("A1: sort by any heading", () => {
     expect(iv).toContain("const { sorted: sortedRows, sort, toggle } = useTableSort(rows,");
     expect(iv).toMatch(/const big = useTableSort\(rows,[\s\S]*const typ = useTableSort\(/);
     expect(iv).toMatch(/\{sortedRows\.map\(\(\{ i, agree \}\) => \{[\s\S]*<Fragment key=\{i\.name\}>[\s\S]*rs-drawer/);   // the drawer travels with its row
-    expect(qr).toMatch(/QH\("company", "Company"[\s\S]*QH\("verdict", "Verdict"/);
+    const grid = src("components/results/CompaniesGrid.tsx");   // task #330: the Companies table is its own component; every heading with a server sort sorts
+    expect(grid).toMatch(/co: \{ h: "Company", sort: "company" \}[\s\S]*v: \{ h: "Against its industry", sort: "verdict" \}/);
+    expect(qr).toContain("<CompaniesGrid rows={d.rows} set={colSet} sort={headSort} onSort={onHead}");
     expect(qr).toContain('if (!nx) return set({ sort: "date", dir: "desc" });');
   });
 });
