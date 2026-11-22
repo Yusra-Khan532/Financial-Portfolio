@@ -375,3 +375,24 @@
 .aif.full .aif-pop button { padding: 6px 8px; font-size: var(--fs-13); }
 .aif.full .aif-hist button { padding: 6px 8px; }
 .aif.full .aif-pro { padding: 10px; }
+
+/* ---- Task #321 (the team, 22 Nov 2026: "we can see the header issue and let the icons and everything fit in page, so much green space down"). The full
+   window's start screen (ai-body.aif-homebody, Assistant.tsx): (1) the robot's glow was cut by a straight line under the top row, because the scrolling body
+   clipped the glow's top: the hello now starts 22px lower inside the body, so the whole glow shows; (2) the content sat at the top with 360 to 420px empty
+   below on a laptop or desktop: it now sits in the middle of the window (auto margins: on a short window or a phone it still starts at the top and scrolls,
+   nothing is cut); (3) on a tall window the hello, the ask bar and the theme cards are one step larger so the screen reads as filled, not empty. ---- */
+.aif.full .ai-body.aif-homebody > :first-child { margin-top: auto; }
+.aif.full .ai-body.aif-homebody > :last-child { margin-bottom: auto; }
+.aif.full .aif-homebody .aif-hero { padding-top: 22px; }
+@media (max-height: 799px) { .aif.full .aif-homebody .aif-hero { padding-top: 14px; } }   /* a short laptop: still clear of the glow, and the page's four questions fit without scrolling (task #305) */
+@media (max-width: 720px) { .aif.full .aif-homebody .aif-hero { padding-top: 8px; } }   /* a phone: the body's own 14px plus 8px clear the glow; less to scroll */
+@media (min-width: 981px) and (min-height: 800px) {
+  .aif.full .aif-homebody .aif-hero .aif-bot { width: 96px; height: 88px; }
+  .aif.full .aif-homebody .aif-hero h2 { margin-top: 8px; } .aif.full .aif-homebody .aif-hero p { margin-top: 6px; font-size: var(--fs-18); }   /* the title keeps the h2 role size (task #310) */
+  .aif.full .aif-homebody .aif-askw { margin: 22px 0 14px; }
+  .aif.full .aif-homebody .aif-cats.five { margin: 22px 0 8px; gap: 14px; }
+  .aif.full .aif-homebody .aif-cats.five .aif-cat { min-height: 136px; padding: 16px 18px; }
+  .aif.full .aif-homebody .aif-cats.five .aif-cat > svg:first-child { width: 40px; height: 40px; padding: 8px; }
+  .aif.full .aif-homebody .aif-cats.five .aif-cat small { font-size: var(--fs-14); }   /* the card titles keep 16px: at 18px they broke onto two lines in five columns */
+  .aif.full .aif-homebody .aif-more { margin-top: 12px; }
+}
