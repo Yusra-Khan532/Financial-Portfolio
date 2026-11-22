@@ -68,6 +68,8 @@ function Body({ state, symbol, statement, name }: { state: Exclude<PrismCardStat
   const { parts } = partsOf(r);
   return (
     <>
+      {/* task #312 (developer file 20, change 3): the AI summary is the first thing in the card, not a row 996 px down after both panels */}
+      <PrismAiSummary symbol={symbol} name={name} r={r} parts={parts} a={parseTechnical(rep.technicalAssessment)} scoredAt={rep.completedAt || rep.createdAt} />
       <div className="pcx-body" role="group" aria-label={prismSummary(r)}>
         <FundamentalSection r={r} parts={parts}>
           <div className="dk-words">
@@ -78,7 +80,6 @@ function Body({ state, symbol, statement, name }: { state: Exclude<PrismCardStat
         </FundamentalSection>
         <TechnicalSection a={parseTechnical(rep.technicalAssessment)} report={rep} onRecalculate={() => run.mutate(true)} busy={busy} />
       </div>
-      <PrismAiSummary symbol={symbol} name={name} r={r} parts={parts} a={parseTechnical(rep.technicalAssessment)} />
       <div className="dk-cta"><span className="pcx-upd">Updated {dateIN(rep.completedAt || rep.createdAt)}</span><Link className="btn primary dk-b" to={`/prism/${encodeURIComponent(symbol)}`}>Open the full Prism report <Icon name="arrow" /></Link></div>
       {status}
     </>

@@ -11,8 +11,8 @@ import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AskRefused, askSummary, type AskQuota } from "../lib/askAi";
 import { apiGet } from "../lib/api";
-import { useAuth } from "../lib/auth";
 import { Icon } from "../lib/icons";
+import { useAuth } from "../lib/auth";
 import { trendBand, verdictView, type TechAssessment, type TrendBand } from "../lib/prismTechnical";
 import { AnswerText } from "../components/AnswerText";
 import { partWord, type CardPart } from "./prismCardLogic";
@@ -86,72 +86,122 @@ function useViewer(): ReturnType<typeof useAuth> | null {
   try { return useAuth(); } catch { return null; }
 }
 
-type State = { kind: "idle" } | { kind: "ai"; text: string; status: string | null; done: boolean; error: string | null } | { kind: "card"; note: string };
+/** Task #312 (developer file 20, change 3): the states of the bar. "writing" streams in; "done" only when text arrived and the server said done;
+ *  "empty" is every failure (no text, the stream cut, too slow, an error), shown with the reason and the card's own summary; "card" is the card's own
+ *  summary for a visitor, a Basic member, or when the summaries are used or switched off. */
+type State = { kind: "idle" } | { kind: "writing"; text: string; status: string | null } | { kind: "done"; text: string; at: Date; cached: boolean }
+  | { kind: "empty"; reason: string } | { kind: "card"; note: string };
+
+/** No event for 30 s (the server sends a keep-alive every 10 s), or 90 s in all: the summary is given up and said so. */
+export const QUIET_MS = 30_000, TOTAL_MS = 90_000;
 
 const renews = (iso: string) => { const d = new Date(`${iso}T00:00:00`); return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }); };
+const dayOf = (iso?: string | null) => { if (!iso) return null; const d = new Date(iso); return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }); };
+const stamp = (d: Date) => d.toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
-export function PrismAiSummary({ symbol, name, r, parts, a }: { symbol: string; name: string; r: PrismLatest["rating"]; parts: CardPart[]; a: TechAssessment | null }) {
+/** Read the summary's stream safely (the pack's reference/ai-summary-stream.ts): a stream that ends without "done", a "done" with no text, an "error"
+ *  or silence all end in "empty" with a plain reason, never a box stuck on "Writing the summary…". The server gives back the summary in every one of
+ *  these cases, so "not counted" is true. Exported for the tests. */
+export async function runSummary(symbol: string, set: (s: State) => void, outer: AbortSignal,
+  ask: typeof askSummary = askSummary, ms = { quiet: QUIET_MS, total: TOTAL_MS }): Promise<void> {
+  const ctl = new AbortController();
+  const stop = () => ctl.abort();
+  outer.addEventListener("abort", stop, { once: true });
+  let text = "", finished = false, cached = false, quiet: ReturnType<typeof setTimeout> | undefined;
+  const total = setTimeout(stop, ms.total);
+  const poke = () => { clearTimeout(quiet); quiet = setTimeout(stop, ms.quiet); };
+  const fail = (reason: string) => { finished = true; set({ kind: "empty", reason }); };
+  set({ kind: "writing", text: "", status: "Reading the card" });
+  poke();
+  try {
+    await ask(symbol, (e) => {
+      poke();
+      if (finished) return;
+      if (e.type === "meta") cached = !!(e as { cached?: boolean }).cached;
+      else if (e.type === "status") set({ kind: "writing", text, status: e.text });
+      else if (e.type === "text") { text += e.text; set({ kind: "writing", text, status: null }); }
+      else if (e.type === "replace") { text = e.text; set({ kind: "writing", text, status: null }); }
+      else if (e.type === "error") fail(`${e.text || "FinLit AI could not finish this summary."} It was not counted.`);
+      else if (e.type === "done") {
+        if (!text.trim()) fail("FinLit AI sent back no text, so this was not counted.");
+        else { finished = true; set({ kind: "done", text, at: new Date(), cached }); }
+      }
+    }, ctl.signal);
+    if (!finished) fail(text.trim() ? "The summary stopped before it was finished, so it was not counted." : "FinLit AI did not answer, so this was not counted.");
+  } catch (err) {
+    if (outer.aborted) { set({ kind: "idle" }); return; }               // Stop, or the page was left
+    if (err instanceof AskRefused) fail(/updat/i.test(err.message) || (err.status === 503 && /updat/i.test(err.code))
+      ? "FinLit is being updated. Try again in a minute; this was not counted." : `${err.message}`);
+    else fail(ctl.signal.aborted ? "FinLit AI took too long, so this was not counted." : "FinLit AI could not be reached just now, so this was not counted.");
+  } finally {
+    clearTimeout(quiet); clearTimeout(total);
+    outer.removeEventListener("abort", stop);
+  }
+}
+
+/** Task #312 change 3: the AI summary as the first thing in the FinLit Prism card: one bar ("AI summary of this card · A few lines from FinLit AI ·
+ *  9 of 10 left this month" and Summarise); while writing, three dots, the status and Stop; the text opens under the bar, before the panels it
+ *  summarises; done: the bullets, who wrote it from what and when, and Hide; a failure says why, that it was not counted, and gives the card's own
+ *  summary. `scoredAt`: the date of the card's scores. */
+export function PrismAiSummary({ symbol, name, r, parts, a, scoredAt }: { symbol: string; name: string; r: PrismLatest["rating"]; parts: CardPart[]; a: TechAssessment | null; scoredAt?: string | null }) {
   const auth = useViewer(), user = auth?.user ?? null, plan = auth?.plan ?? "basic";
   // the same query (and cache key) as lib/askAi useAskQuota, read only for a signed-in member
   const quota = useQuery<AskQuota>({ queryKey: ["ask-quota", user?.id ?? null], queryFn: () => apiGet<AskQuota>("/api/ask/quota"), enabled: !!user, staleTime: 60_000, retry: false });
   const [state, setState] = useState<State>({ kind: "idle" });
+  const [hidden, setHidden] = useState(false);
   const ctl = useRef<AbortController | null>(null);
   useEffect(() => () => ctl.current?.abort(), []);
   const q = quota.data;
   const paid = user?.role === "admin" || plan === "silver" || plan === "gold";
   const sq = q?.summary;   // the AI summaries of the month (10), apart from the questions
   const canAi = !!user && paid && !!q?.enabled && (sq?.left ?? 0) > 0;
+  const day = dayOf(scoredAt);
 
-  const fallback = (why: string) => setState({ kind: "card", note: why });
   const run = async () => {
+    setHidden(false);
     if (!canAi) {
-      fallback(!q?.enabled && user && paid ? "FinLit AI's written answers are not switched on right now, so this summary is written from the card itself."
+      setState({ kind: "card", note: !q?.enabled && user && paid ? "FinLit AI's written answers are not switched on right now, so this summary is written from the card itself."
         : user && paid ? `You have used this month's ${sq?.limit ?? 10} AI summaries${sq?.resets ? ` (they renew on ${renews(sq.resets)})` : ""}, so this summary is written from the card itself. Your FinLit AI questions are counted separately.`
-          : "This summary is written from the card itself. An AI summary from FinLit AI (10 a month) is part of the Silver and Gold plans.");
+          : "This summary is written from the card itself. An AI summary from FinLit AI (10 a month) is part of the Silver and Gold plans." });
       return;
     }
     ctl.current?.abort();
     const c = new AbortController(); ctl.current = c;
-    setState({ kind: "ai", text: "", status: "Reading the FinLit Prism card", done: false, error: null });
-    try {
-      await askSummary(symbol, (e) => {
-        if (e.type === "status") setState((s) => (s.kind === "ai" ? { ...s, status: e.text } : s));
-        else if (e.type === "text") setState((s) => (s.kind === "ai" ? { ...s, text: s.text + e.text, status: null } : s));
-        else if (e.type === "replace") setState((s) => (s.kind === "ai" ? { ...s, text: e.text } : s));
-        else if (e.type === "done") setState((s) => (s.kind === "ai" ? { ...s, status: null, done: true } : s));
-        else if (e.type === "error") setState((s) => (s.kind === "ai" ? { ...s, status: null, done: true, error: e.text } : s));
-      }, c.signal);
-      void quota.refetch();
-    } catch (err) {
-      if (c.signal.aborted) return;
-      fallback(err instanceof AskRefused ? `${err.message} Meanwhile, this summary is written from the card itself.` : "FinLit AI could not be reached just now, so this summary is written from the card itself.");
-    }
+    await runSummary(symbol, setState, c.signal);
+    void quota.refetch();
   };
-
-  const left = canAi && sq ? ` · ${sq.left} of ${sq.limit} AI summaries left this month, apart from your FinLit AI questions` : "";
+  const writing = state.kind === "writing";
+  const left = canAi && sq ? ` · ${sq.left} of ${sq.limit} left this month` : "";
+  const own = (note: string, warn: boolean) => (
+    <>
+      <p className={warn ? "pai2-msg" : "pai2-note"} role={warn ? "alert" : undefined}>{note}{!warn && (!user || !paid) ? <> <Link to="/plans">Compare plans</Link></> : null}</p>
+      <ul className="pai2-list">{cardSummary(name, r, parts, a).map((p) => <PointerText key={p.head} p={p} />)}</ul>
+      <p className="pai2-meta"><span>The card's own summary{day ? `, from its scores of ${day}` : ""} · {DISCLAIMER}</span>
+        <button type="button" className="pai2-x" onClick={() => setHidden(true)}>Hide</button></p>
+    </>);
   return (
-    <div className="pai" aria-live="polite">
-      <p className="pai-row">
-        <button type="button" className="btn pai-btn" onClick={() => void run()} disabled={state.kind === "ai" && !state.done} aria-expanded={state.kind !== "idle"}>
-          <Icon name="spark" />{state.kind === "ai" && !state.done ? "Writing the summary…" : state.kind === "idle" ? "AI summary" : "Summarise again"}
-        </button>
-        <small className="pai-hint">{canAi ? `What this card means, in a few lines from FinLit AI${left}` : "What this card means, in a few lines"}</small>
-      </p>
-      {state.kind === "ai" && (
-        <div className="pai-box" role="region" aria-label={`AI summary of the FinLit Prism rating of ${name}`}>
-          {state.status && <p className="pai-status" aria-busy="true">{state.status}…</p>}
-          {state.text && <AnswerText text={state.text} />}
-          {state.error && <p className="pai-err" role="alert">{state.error}</p>}
-          {state.done && !state.error && <p className="pai-disc">{DISCLAIMER}</p>}
+    <div className="pai2" data-state={state.kind} aria-live="polite">
+      <div className="pai2-bar">
+        <span className="pai2-ic"><Icon name="spark" /></span>
+        <div className="pai2-t">
+          <b>AI summary of this card</b>
+          {writing ? <small className="pai2-st" role="status"><i aria-hidden="true" className="pai2-dots"><i /><i /><i /></i>{state.status ? `${state.status}…` : "Writing…"}</small>
+            : <small>{canAi ? `A few lines from FinLit AI${left}` : user && paid ? "What this card means, in a few lines" : "What this card means, in a few lines · FinLit AI summaries are part of Silver and Gold"}</small>}
         </div>
-      )}
-      {state.kind === "card" && (
-        <div className="pai-box" role="region" aria-label={`Summary of the FinLit Prism rating of ${name}`}>
-          <ul className="pai-list">{cardSummary(name, r, parts, a).map((p) => <PointerText key={p.head} p={p} />)}</ul>
-          <p className="pai-note"><Icon name="info" /> {state.note}{!user || !paid ? <> <Link to="/plans">Compare plans</Link></> : null}</p>
-          <p className="pai-disc">{DISCLAIMER}</p>
-        </div>
-      )}
+        {writing ? <button type="button" className="btn pai2-stop" onClick={() => ctl.current?.abort()}>Stop</button>
+          : <button type="button" className="btn pai2-btn" onClick={() => void run()} aria-expanded={state.kind !== "idle" && !hidden}>
+            {state.kind === "done" || state.kind === "empty" ? "Summarise again" : "Summarise"}</button>}
+      </div>
+      {!hidden && state.kind !== "idle" && (
+        <div className="pai2-out" role="region" aria-label={`AI summary of the FinLit Prism rating of ${name}`}>
+          {state.kind === "writing" && (state.text ? <AnswerText text={state.text} /> : null)}
+          {state.kind === "done" && <>
+            <AnswerText text={state.text} />
+            <p className="pai2-meta"><span>Written by FinLit AI from this card{day ? ` (scores of ${day})` : ""} · {stamp(state.at)}{state.cached ? " · written earlier today, opened free" : ""} · {DISCLAIMER}</span>
+              <button type="button" className="pai2-x" onClick={() => setHidden(true)}>Hide</button></p></>}
+          {state.kind === "empty" && own(state.reason, true)}
+          {state.kind === "card" && own(state.note, false)}
+        </div>)}
     </div>
   );
 }
