@@ -2,12 +2,15 @@
 // tile with its symbol and today's move), Map (a squarified treemap by market value, every tile labelled, the font shrinking with the tile) and List;
 // Nifty Midcap 50, 100 and 150 as chips and every NSE index of the pack under "More indices"; a breadth line under the tiles. Before, tile size was
 // market value only, so the smallest companies of an index were boxes too small to label. The logic is in heatmapLogic.ts (tested there).
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { MINUS, nf } from "../../lib/format";
 import { treemap, useMembers } from "../../lib/markets";
 import type { Row } from "../../lib/screener";
-import { Card, Seg, tone, useIsPhone, useWidth } from "./parts";
+import { Card, ShowMoreButton, tone, useIsPhone, useWidth } from "./parts";
+import { Dd, useExpanded, type DdOption } from "./dx";
+import { useIndices } from "../../lib/indices";
+import { useGold } from "../../lib/premium";
 import { CoLogo } from "../CoLogo";
 import { coTitle, shortLabel } from "../../lib/companyLabel";
 import {
@@ -77,9 +80,24 @@ function TipCard({ tip, onClose }: { tip: Tip; onClose: () => void }) {
   );
 }
 
-function Grid({ cells, tiles }: { cells: Cell[]; tiles: ReturnType<typeof useTiles>["props"] }) {
+/** Task #316: how many tiles fit one row of the grid (read from the grid's own columns), so the page shows exactly three full rows. */
+function useCols(): [(el: HTMLElement | null) => void, number] {
+  const [cols, setCols] = useState(8);
+  const ro = useRef<ResizeObserver | null>(null);
+  const ref = useCallback((el: HTMLElement | null) => {
+    ro.current?.disconnect(); ro.current = null;
+    if (!el) return;
+    const read = () => { const n = getComputedStyle(el).gridTemplateColumns.split(" ").filter(Boolean).length; if (n > 0) setCols(n); };
+    read();
+    if (typeof ResizeObserver !== "undefined") { ro.current = new ResizeObserver(read); ro.current.observe(el); }
+  }, []);
+  useEffect(() => () => ro.current?.disconnect(), []);
+  return [ref, cols];
+}
+
+function Grid({ cells, tiles, gridRef, id }: { cells: Cell[]; tiles: ReturnType<typeof useTiles>["props"]; gridRef?: (el: HTMLElement | null) => void; id?: string }) {
   return (
-    <div className={"hmx-grid" + (cells.length > 100 ? " dense" : "")} role="list" aria-label="Stocks of the index, each the same size">
+    <div ref={gridRef} id={id} className={"hmx-grid" + (cells.length > 100 ? " dense" : "")} role="list" aria-label="Stocks of the index, each the same size">
       {cells.map((c) => (
         <button key={c.symbol} type="button" role="listitem" className={"hmx-t" + (c.move == null ? " nm" : "")} style={{ background: moveColour(c.move) }}
           aria-label={`${c.symbol}, ${c.name}: ${c.move == null ? "move not readable" : sgn(c.move) + " today"}`} {...tiles(c)}>
@@ -113,9 +131,9 @@ function HeatMap({ cells, h, tiles, onOther }: { cells: Cell[]; h: number; tiles
   );
 }
 
-function List({ cells }: { cells: Cell[] }) {
+function List({ cells, id }: { cells: Cell[]; id?: string }) {
   return (
-    <div className="dsh-hl hmx-list" role="table" aria-label="Stocks of the index">
+    <div className="dsh-hl hmx-list" id={id} role="table" aria-label="Stocks of the index">
       <div className="h" role="row"><span role="columnheader">Stock</span><span role="columnheader">Company</span><span role="columnheader" className="r">Price (₹)</span>
         <span role="columnheader" className="r">Today</span><span role="columnheader" className="r">Market value (₹ Cr)</span></div>
       {cells.map((c) => (
@@ -134,48 +152,44 @@ function List({ cells }: { cells: Cell[] }) {
 export function IndexHeatmap({ rows, loading, asOf }: { rows: Row[]; loading: boolean; asOf?: string | null }) {
   const members = useMembers().data?.indices, phone = useIsPhone();
   const [pref, setPref] = usePrefs();
-  const [more, setMore] = useState(false);
-  const menu = useRef<HTMLSpanElement>(null), moreBtn = useRef<HTMLButtonElement>(null);
   const ix = byId(pref.idx);
+  const xp = useExpanded(), gold = useGold(), nIdx = useIndices().data?.items.length;
+  const [gridRef, cols] = useCols(), [all, setAll] = useState(false);
   const res = useMemo(() => resolve(ix, rows, members), [ix, rows, members]);
   const cells = useMemo(() => sortCells(res.cells, pref.sort), [res, pref.sort]);
   const b = breadth(res.cells), day = priceDay(asOf);
   const { tip, setTip, props: tiles } = useTiles();
 
-  useEffect(() => {          // Escape or a click outside closes the panel
-    if (!more) return;
-    const key = (e: KeyboardEvent) => { if (e.key === "Escape") { setMore(false); moreBtn.current?.focus(); } };
-    const out = (e: PointerEvent) => { if (!menu.current?.contains(e.target as Node)) setMore(false); };
-    addEventListener("keydown", key); addEventListener("pointerdown", out);
-    return () => { removeEventListener("keydown", key); removeEventListener("pointerdown", out); };
-  }, [more]);
-  useEffect(() => { setTip(null); }, [pref.idx, pref.view, setTip]);
+  useEffect(() => { setTip(null); setAll(false); }, [pref.idx, pref.view, setTip]);
 
-  const pick = (id: string) => { setPref({ idx: id }); setMore(false); };
   const count = (code: string) => members?.[code]?.length;
+  // task #316: Index, View and Sort dropdowns; the ten pinned indices first, then the rest of the pack's indices, then the markets page with every index
+  const pinned = new Set(PINNED);
+  const idxOptions: DdOption<string>[] = [
+    ...PINNED.map((id) => { const x = byId(id); return { v: id, label: x.label, small: x.isNew ? <em className="hmx-new">New</em> : count(x.code) }; }),
+    ...GROUPS.flatMap((g) => g.items.filter((x) => !pinned.has(x.id)).map((x) => ({ v: x.id, label: x.label, small: count(x.code) ?? "list loading" }))),
+    ...(gold ? [{ v: "__all", label: `All ${nIdx ?? ""} indices…`.replace("  ", " "), href: "/premium/markets#indices" }] : []),
+  ];
+  // three full rows of tiles on the page (List: ten rows); every tile in the expanded view and after "Show all N stocks"
+  const limit = pref.view === "grid" ? cols * 3 : pref.view === "list" ? 10 : Infinity;
+  const extra = xp ? 0 : Math.max(0, cells.length - limit);
+  const shownCells = extra && !all ? cells.slice(0, limit) : cells;
   const basis = res.basis === "cap" ? "NSE's Nifty 50 list is not loaded yet, so this shows the 50 largest listed companies by market value (not the official index)."
     : res.basis === "sector" ? `NSE's ${ix.label} list is not loaded yet, so companies are grouped by FinLit's sector classification (not the official index).` : "";
   return (
     <Card id="heatmap" title="Index heatmap" sub={SUB[pref.view]} className="hmx"
-      right={<Seg label="View" value={pref.view} options={[["grid", "Grid"], ["map", "Map"], ["list", "List"]] as const} onChange={(v) => setPref({ view: v })} />}>
-      <div className="dsh-chips hmx-chips" role="group" aria-label="Index">
-        {PINNED.map((id) => { const x = byId(id); return <button key={id} type="button" aria-pressed={pref.idx === id} onClick={() => pick(id)}>{x.label}{x.isNew && <em className="hmx-new">New</em>}</button>; })}
-        <span className="dsh-menu" ref={menu}>
-          <button ref={moreBtn} type="button" aria-haspopup="true" aria-expanded={more} aria-pressed={!PINNED.includes(pref.idx)} onClick={() => setMore(!more)}>{PINNED.includes(pref.idx) ? "More indices" : ix.label} ▾</button>
-          {more && <div className="hmx-pop" role="group" aria-label="All indices">
-            {GROUPS.map((g) => <div key={g.title}><h4>{g.title}</h4>{g.items.map((x) => (
-              <button key={x.id} type="button" aria-pressed={pref.idx === x.id} onClick={() => pick(x.id)}>{x.label}<small>{count(x.code) ?? "list loading"}</small></button>))}</div>)}
-          </div>}
-        </span>
-      </div>
-      {!loading && res.cells.length > 0 && (
-        <div className="hmx-tools"><span>{ix.label} · {res.cells.length} stocks</span>
-          {pref.view !== "map" && <label>Sort <select value={pref.sort} onChange={(e) => setPref({ sort: e.target.value as HSort })}>{SORTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>}</div>)}
+      right={<div className="dx-hm-dd">
+        <Dd k="Index" value={pref.idx} options={idxOptions} onChange={(v) => setPref({ idx: v })} />
+        <Dd k="View" value={pref.view} options={[{ v: "grid", label: "Grid" }, { v: "map", label: "Map" }, { v: "list", label: "List" }]} onChange={(v) => setPref({ view: v as HView })} />
+        {pref.view !== "map" && <Dd k="Sort" value={pref.sort} options={SORTS.map(([v, label]) => ({ v, label }))} onChange={(v) => setPref({ sort: v as HSort })} />}
+      </div>}>
+      {!loading && res.cells.length > 0 && <div className="hmx-tools"><span>{ix.label} · {res.cells.length} stocks</span></div>}
       {loading ? <div className="skeleton" style={{ height: phone ? 420 : 440, borderRadius: 12 }} aria-busy="true" />
         : !res.cells.length ? <p className="dsh-note">{res.basis === "none" ? `NSE's published list of the ${ix.label} stocks has not been loaded yet; it is fetched with the nightly index refresh. Every other index here is ready.` : "No traded stocks for this group today."}</p>
-          : pref.view === "grid" ? <Grid cells={cells} tiles={tiles} />
-            : pref.view === "map" ? <HeatMap cells={res.cells} h={phone ? 420 : 440} tiles={tiles} onOther={() => setPref({ view: "grid" })} />
-              : <List cells={cells} />}
+          : pref.view === "grid" ? <Grid cells={shownCells} tiles={tiles} gridRef={gridRef} id="dx-hms" />
+            : pref.view === "map" ? <HeatMap cells={res.cells} h={xp ? 620 : phone ? 420 : 440} tiles={tiles} onOther={() => setPref({ view: "grid" })} />
+              : <List cells={shownCells} id="dx-hms" />}
+      {!loading && !xp && pref.view !== "map" && <ShowMoreButton more={{ extra, open: all, toggle: () => setAll(!all) }} noun="stock" total={cells.length} controls="dx-hms" />}
       {tip && <TipCard tip={tip} onClose={() => setTip(null)} />}
       <div className="dsh-hfoot">
         {res.cells.length > 0 ? (

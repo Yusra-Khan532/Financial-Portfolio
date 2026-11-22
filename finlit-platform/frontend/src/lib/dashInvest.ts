@@ -64,6 +64,21 @@ export function etfRows(items: { symbol: string; name: string | null; gone: bool
 export function byMove<T extends { day: number | null }>(rows: readonly T[]): T[] {
   return rows.map((r, i) => ({ r, i })).sort((a, b) => (b.r.day == null ? -1 : Math.abs(b.r.day)) - (a.r.day == null ? -1 : Math.abs(a.r.day)) || a.i - b.i).map((x) => x.r);
 }
+/** Task #316: the Sort dropdown of "Your investments today". Rows without the figure a sort reads go last, in the order of the biggest move. */
+export type InvSort = "move" | "gain" | "fall" | "reading" | "az";
+export const INV_SORT_LABEL: Record<InvSort, string> = { move: "Biggest move first", gain: "Biggest gain first", fall: "Biggest fall first", reading: "FinLit reading", az: "A–Z" };
+export function sortInv<T extends { day: number | null; name?: string | null; symbol?: string | null }>(rows: readonly T[], how: InvSort, reading?: (r: T) => number | null | undefined): T[] {
+  const base = byMove(rows);
+  if (how === "move") return base;
+  const pos = new Map(base.map((r, i) => [r, i]));
+  const key = (r: T): number | string | null => how === "gain" ? r.day : how === "fall" ? (r.day == null ? null : -r.day) : how === "reading" ? (reading?.(r) ?? null) : (r.name || r.symbol || "");
+  return [...base].sort((a, b) => {
+    const ka = key(a), kb = key(b);
+    if (ka == null || kb == null) return ka == null && kb == null ? pos.get(a)! - pos.get(b)! : ka == null ? 1 : -1;
+    if (typeof ka === "string") return ka.localeCompare(kb as string, "en", { sensitivity: "base" }) || pos.get(a)! - pos.get(b)!;
+    return (kb as number) - ka || pos.get(a)! - pos.get(b)!;
+  });
+}
 /** The card's sub-line (task #195): "18 investments · biggest moves on Friday first · prices and NAVs of 13 Nov". */
 export function investLine(n: number, noun: [string, string], day: string, when: string | null, navs: boolean): string {
   const parts = [`${n} ${n === 1 ? noun[0] : noun[1]}`, `biggest moves ${day === "Today" ? "today" : `on ${day}`} first`];

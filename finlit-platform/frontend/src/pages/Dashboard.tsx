@@ -1,13 +1,16 @@
-// The dashboard: a greeting row (date, market state, followed stocks, Setup chip, Customise), then the sticky sections bar and the blocks in five numbered steps (task #195,
-// dashboard pack of 15 Nov 2026): 1 Your money, 2 Your watchlist, 3 The market, 4 Results and news, 5 Tools, on every screen size. Every block can be moved inside its step,
-// switched off or resized in Customise; a switched-off block leaves its step, and a step with no blocks is not shown. Descriptive only, information only.
+// The dashboard: a greeting row (date, market state, followed stocks, Setup chip, Customise), then the blocks in five sections (task #195, dashboard pack of 15 Nov 2026):
+// Your money, Your watchlist, The market, Results and news, Tools, on every screen size. Every block can be moved inside its section, switched off or resized in Customise;
+// a switched-off block leaves its section, and a section with no blocks is not shown. Descriptive only, information only.
+// Task #316 (dashboard file 22, 22 Nov 2026): the page is shorter and nothing is removed. A four-figure strip under the heading; the section bar is a filter (one section
+// or all; a dropdown on a phone); the three "at a glance" cards are one card with Equity / Mutual funds / ETFs; the three watchlist cards are one card; Results today and
+// IPOs are stacked beside Filings and news, with one From dropdown for the section; FII / DII flows and Global markets share a row; every card has an expand button
+// (its full version) and a ⋯ menu (open the full page, hide this card). The choices are kept on the account (prefs.dashUi).
 const GlobalMarkets = lazy(() => import("../components/dashboard/GlobalMarkets").then((m) => ({ default: m.GlobalMarkets })));   // task #294: the map's data loads with this card only
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
-import { StepHeading, StepsBar, type Step } from "../components/StepsBar";
 import { Navigate, useSearchParams } from "react-router";
 import { useAuth } from "../lib/auth";
 import { RANK, useUI } from "../lib/ui";
-import { WIDGETS, prefs, stepGroups, usePrefs } from "../lib/prefs";
+import { WIDGETS, prefs, stepGroups, usePrefs, type WidgetPref } from "../lib/prefs";
 import { useUniverse, type Row } from "../lib/screener";
 import { useWatchlist, watch } from "../lib/watchlist";
 import { useMyCompanies } from "../lib/mycompanies";
@@ -30,7 +33,12 @@ import { Stress } from "../components/dashboard/Stress";
 import { IndexHeatmap } from "../components/dashboard/Heatmap";
 import { AlertsScreens, Filings, Ipos, Learn, ResultsToday } from "../components/dashboard/NewsBlocks";
 import { Buckets, CommoditiesW, DcfW, Locked, Movers, Results, SecondLook } from "../components/dashboard/Legacy";
-import { PLAN_FOR_PORTFOLIO } from "../lib/planGates";
+import { WatchToday } from "../components/dashboard/Watch";
+import { SectionFilter, SectionHead, TodayStrip, type Sec } from "../components/dashboard/Today";
+import { Dd, DxProvider, PaneCtx, SegDd, XSlot, useDashUi } from "../components/dashboard/dx";
+import { useMfPortfolio } from "../lib/mfPortfolio";
+import { useEtfPortfolio } from "../lib/etfPortfolio";
+import { PLAN_FOR_PORTFOLIO, PLAN_FOR_PRISM } from "../lib/planGates";
 import { SetupChip, useSetup } from "../components/dashboard/Setup";
 import { Customise } from "../components/dashboard/Customise";
 import { DashCardsProvider } from "../components/dashboard/DashCards";
@@ -39,9 +47,30 @@ import { useDashPick, type PickKind } from "../lib/dashPick";
 import { PageFaqs } from "../components/PageFaqs";
 import "../styles/sectors-pack.css";
 import "../styles/dashboard.css";
+import "../styles/dash316.css";
 
 /** Task #248: the Step 1 blocks that read the member's portfolios; the Showing bar sits above them when any is on. */
 const PICKED = new Set(["mystocks", "say", "portfolio", "mfglance", "etfglance"]);
+/** Task #316: blocks shown together in one cell. The first of a set that is switched on takes the place of the set. */
+const GLANCE = ["portfolio", "mfglance", "etfglance"] as const, WATCH = ["movers", "second", "buckets"] as const, STACK = ["resultstoday", "ipos"] as const, PAIR = ["flows", "globalmarkets"] as const;
+const GLANCE_KEY = { portfolio: "eq", mfglance: "mf", etfglance: "etf" } as const;
+type Cell = { key: string; ids: string[]; size: string };
+/** One section's cells: the merged sets as above, the rest one block a cell, in the member's order. */
+export function cellsOf(blocks: readonly WidgetPref[]): Cell[] {
+  const on = new Set(blocks.map((b) => b.id)), out: Cell[] = [], done = new Set<string>();
+  const has = (set: readonly string[]) => set.filter((id) => on.has(id));
+  for (const b of blocks) {
+    if (done.has(b.id)) continue;
+    const set = ([GLANCE, WATCH, STACK, PAIR] as readonly (readonly string[])[]).find((x) => x.includes(b.id));
+    if (!set) { out.push({ key: b.id, ids: [b.id], size: b.size }); continue; }
+    const ids = has(set); ids.forEach((id) => done.add(id));
+    if (set === GLANCE) out.push({ key: "glance", ids, size: "full" });
+    else if (set === WATCH) out.push({ key: "watch", ids, size: "full" });
+    else if (set === STACK) out.push({ key: ids.length > 1 ? "stack" : ids[0], ids, size: on.has("filings") ? "half" : "full" });
+    else ids.forEach((id) => out.push({ key: id, ids: [id], size: ids.length > 1 ? "half" : "full" }));   // FII / DII flows beside Global markets
+  }
+  return out;
+}
 
 export function Dashboard() {
   useDocTitle("Dashboard", "Your FinLit dashboard: your stocks today, the market, results and filings, arranged your way.");
@@ -80,6 +109,10 @@ export function Dashboard() {
   const names = useMemo(() => new Map(rows.map((r) => [r.symbol, r.name])), [rows]);
   const symbols = useMemo(() => followed.map((f) => f.symbol), [followed]);
   const setup = useSetup(followed.length, p.palette, plan);
+  const [ui, setUi] = useDashUi();
+  // task #316: the counts on the portfolio switch (the same cached answers the panes read)
+  const mfN = useMfPortfolio(has(PLAN_FOR_PORTFOLIO), pick.param.mf).data?.count ?? null;
+  const etfN = useEtfPortfolio(has(PLAN_FOR_PORTFOLIO), pick.param.etf).data?.items.filter((e) => !e.gone).length ?? null;
   // In the demo there is no server: the first nine largest companies stand in for a watchlist.
   useEffect(() => { if (DEMO && !wl.seeded && rows.length) watch.seed([...rows].sort((a, b) => (b.market_cap || 0) - (a.market_cap || 0)).slice(0, 9).map((r) => r.symbol)); }, [rows, wl.seeded]);
   if (!ready) return <div className="wrap state" role="status"><div className="skeleton" style={{ height: 14, width: 200, margin: "40px auto" }} /></div>;
@@ -94,7 +127,6 @@ export function Dashboard() {
   // whose terms do not allow showing them on the site, so it stays off until a licensed source is connected.
   const shown = p.dashboard.filter((w) => w.on || (all && w.id !== "commodities"));
   const groups = stepGroups(shown);
-  const steps: Step[] = groups.map((g) => ({ id: `dsh-s-${g.step.id}`, n: g.step.n, title: g.step.title, line: g.step.line, sections: g.blocks.map((b) => ({ id: `dsh-b-${b.id}`, label: meta[b.id].nav ?? meta[b.id].label })) }));
   const body = (id: string) => {
     const w = meta[id];
     if (RANK[plan] < RANK[w.min]) return <Card id={id} title={w.label}><Locked tier={w.min} label={w.label} /></Card>;
@@ -132,8 +164,26 @@ export function Dashboard() {
   const name = firstName(user.name, user.email);
   const state = idx.data ? marketWhen(new Date(), idx.data.marketOpen, idx.data.asOf ?? null) : [];   // pack 04: "Market opens at 9:15 · Figures from Friday's close"
   const sub = [longDay(), ...state, followed.length ? `You follow ${followed.length} stock${followed.length === 1 ? "" : "s"}` : loadingFollowed ? null : "You follow no stocks yet"].filter(Boolean).join(" · ");
+  const glanceIds = (shown.filter((w) => (GLANCE as readonly string[]).includes(w.id)).map((w) => w.id)) as (typeof GLANCE)[number][];
+  const glanceLabel = (id: string) => id === "portfolio" ? `Equity (${heldPick.size} ${heldPick.size === 1 ? "share" : "shares"})` : id === "mfglance" ? `Mutual funds${mfN != null ? ` (${mfN} ${mfN === 1 ? "fund" : "funds"})` : ""}` : `ETFs${etfN != null ? ` (${etfN} ${etfN === 1 ? "ETF" : "ETFs"})` : ""}`;
+  const glanceOn = glanceIds.find((id) => GLANCE_KEY[id] === ui.glance) ?? glanceIds[0];
+  const cell = (c: Cell) => {
+    if (c.key === "glance") return (
+      <Card id="glance" title="Your portfolios at a glance" className="dsh-pg dx-glance"
+        right={glanceIds.length > 1 ? <SegDd k="Portfolio" label="Portfolio" value={glanceOn} onChange={(id) => setUi({ glance: GLANCE_KEY[id] })} options={glanceIds.map((id) => ({ v: id, label: glanceLabel(id).replace(/ \(.*\)$/, ""), small: glanceLabel(id).match(/\((.*)\)$/)?.[1] }))} /> : undefined}>
+        <PaneCtx.Provider value={{ active: glanceOn, label: glanceLabel }}>{glanceIds.map((id) => <div key={id} className="dx-pane-w">{body(id)}</div>)}</PaneCtx.Provider>
+      </Card>);
+    if (c.key === "watch") return <WatchToday items={items} loading={loadingFollowed || (followed.length > 0 && loadingRows)} plan={plan}
+      parts={{ movers: c.ids.includes("movers") ? meta.movers.min : null, second: c.ids.includes("second") ? meta.second.min : null, buckets: c.ids.includes("buckets") ? meta.buckets.min : null }} />;
+    if (c.key === "stack") return <>{c.ids.map((id) => <div key={id} className="dx-stack-i" id={`dsh-b-${id}`} data-block={id}><XSlot>{body(id)}</XSlot></div>)}</>;
+    return body(c.ids[0]);
+  };
+  const visible = groups.filter((g) => ui.sec === "all" || g.step.id === ui.sec || !groups.some((x) => x.step.id === ui.sec));
+  const fromNews = (g: (typeof groups)[number]) => g.step.id === "news" && symbols.length > 0 && g.blocks.some((b) => b.id === "resultstoday" || b.id === "filings")
+    ? <Dd k="From" value={ui.who} onChange={(v) => setUi({ who: v })} options={[{ v: "market", label: "Market" }, { v: "mine", label: "My stocks" }]} label={`From: ${ui.who === "mine" ? "My stocks" : "Market"} (results and filings)`} /> : null;
   return (
     <DashCardsProvider userId={user.id}>
+    <DxProvider>
     <div className="wrap dsh">
       <header className="dsh-head">
         <div><div className="dsh-kicker">Dashboard</div><h1 className="ui-title">{greetingWord(istHour())}{name ? `, ${name}` : ""}</h1><p className="dsh-meta">{sub}</p></div>
@@ -141,18 +191,20 @@ export function Dashboard() {
           <button type="button" className="dsh-btn" aria-pressed={edit} onClick={() => { setEdit(!edit); if (params.has("edit")) setParams({}, { replace: true }); }}>{edit ? "Done" : "Customise"}</button></div>
       </header>
       {edit && <Customise layout={p.dashboard} plan={plan} onChange={(dashboard) => prefs.set({ dashboard })} onReset={() => prefs.set({ dashboard: [] })} onDone={() => setEdit(false)} />}
-      <StepsBar steps={steps} label="Dashboard sections" />
-      <div className="dsh-grid" id="dsh-grid">
-        {groups.map((g) => [
-          <StepHeading key={"step-" + g.step.id} id={`dsh-s-${g.step.id}`} n={g.step.n} title={g.step.title} line={g.step.line} />,
+      <TodayStrip symbols={symbols} held={[...heldPick]} rows={rows} prism={has(PLAN_FOR_PRISM)} />
+      <SectionFilter sections={groups.map((g) => ({ id: g.step.id as Exclude<Sec, "all">, title: g.step.title }))} />
+      <div className="dsh-grid" id="dsh-grid" data-sec={ui.sec}>
+        {visible.map((g) => [
+          <SectionHead key={"step-" + g.step.id} id={`dsh-s-${g.step.id}`} title={g.step.title} line={g.step.line}>{fromNews(g)}</SectionHead>,
           ...(g.blocks.some((b) => PICKED.has(b.id)) ? [<div key="dsh-show" className="dsh-cell full" data-block="show"><ShowingBar pick={pick} kinds={kinds} /></div>] : []),
-          ...g.blocks.map((w) => <div key={w.id} id={`dsh-b-${w.id}`} className={"dsh-cell " + w.size} data-block={w.id}>{body(w.id)}</div>),
+          ...cellsOf(g.blocks).map((c) => <div key={c.key} id={c.key === "stack" ? "dsh-b-stack" : `dsh-b-${c.key}`} className={"dsh-cell " + c.size + (c.key === "stack" ? " dx-stack" : "")} data-block={c.key}>{c.key === "stack" ? cell(c) : <XSlot>{cell(c)}</XSlot>}</div>),
         ])}
         {!shown.length && <Card id="empty" title="Nothing to show here"><p className="dsh-note">Every block is switched off. <button type="button" className="dsh-link" onClick={() => setEdit(true)}>Open Customise</button> to turn some on.</p></Card>}
       </div>
       <PageFaqs inline />
       <p className="dsh-fine">Describes prices, flows and company health from filings and prices; not a recommendation. Information only, not investment advice.</p>
     </div>
+    </DxProvider>
     </DashCardsProvider>
   );
 }
