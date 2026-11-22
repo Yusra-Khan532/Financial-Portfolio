@@ -51,6 +51,11 @@ export function CellValue({ v, f, k }: { v: unknown; f: ColFormat; k?: string })
   /* A distance below a high is stored as a positive number; it is shown as a minus (the price is that far down). Zero stays 0.0%. */
   if (f === "pct_down") return <>{v === 0 ? "" : MINUS}{nf(Math.abs(v), 1)}%</>;
   if (f === "num1") return <>{v < 0 ? MINUS : ""}{nf(Math.abs(v), 1)}</>;
+  /* Task #325 (developer file 26): the chart-pattern figures arrive as numbers so they sort as numbers. */
+  if (f === "num0") return <>{v < 0 ? MINUS : ""}{nf(Math.abs(v), 0)}</>;
+  if (f === "num2") return <>{v < 0 ? MINUS : ""}{nf(Math.abs(v), 2)}</>;
+  if (f === "pctu") return <>{nf(v, 1)}%</>;
+  if (f === "times") return <>{nf(v, 2)}×</>;
   if (f === "score") return <ScorePill v={v} signed={!!k && /_(st|lt)_score$/.test(k)} />;
   if (f === "cr") return <>{cr(v)}</>;
   return <>{String(v)}</>;

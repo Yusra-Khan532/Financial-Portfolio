@@ -354,17 +354,19 @@ SETUPS_ADV: List[Preset] = [
            False, None, ("provisional",), "setup scans", "advanced", (("-range_4d", 0.5), ("prism_st_score", 0.5))),
 ]
 # ------------------------------------------------------------------------------------------------------------------------------ Chart patterns (task #64, both tabs)
-# Eleven scans on daily candles, run nightly (presets/patterns.py). The rules live only in finlit/pattern_scans.py; the page shows what a scan found, in words.
-from .patterns import FACT_LABELS as _FACTS, NAMES as _PNAMES, SCAN_IDS as _SCANS, TEXTS as _PTEXTS   # noqa: E402
+# Twelve scans on daily candles, run nightly (presets/patterns.py): engine 2 (task #325, finlit/pattern_engine.py). The rules live only there; the page shows what a scan found.
+from .patterns import FACT_FORMAT as _FFMT, FACT_LABELS as _FACTS, HOW as _PHOW, NAMES as _PNAMES, SCAN_IDS as _SCANS, TEXTS as _PTEXTS   # noqa: E402
 
 
 def _pcols(scan: str) -> Tuple[Col, ...]:
-    return tuple(Col(f"pf{j}", lab, "text", "left") for j, lab in enumerate(_FACTS[scan], 1) if lab)
+    """Task #325 (file 26): the screen's four figures as numbers (they sort as numbers), then Status and How clean."""
+    fig = tuple(Col(f"pf{j}", lab, _FFMT.get(lab, "text"), "left" if _FFMT.get(lab, "text") in ("text", "date") else "right") for j, lab in enumerate(_FACTS[scan], 1) if lab)
+    return fig + (Col("pf_status", "Status", "text", "left"), Col("pf_clean", "How clean", "text", "left"))
 
 
 PATTERNS_ADV: List[Preset] = [
-    Preset(f"pattern-{k}", _PNAMES[k], "chart-patterns", _PTEXTS[k], "pattern", _m(), "", (), (("prism_final", "desc"),), 25,
-           with_status((STOCK, PRISM, STS, LTS) + _pcols(k) + (SECTOR, MCAP)), (), (), False, None, ("provisional",), k, "advanced")
+    Preset(f"pattern-{k}", _PNAMES[k], "chart-patterns", _PTEXTS[k], "pattern", _m(), "", (), (("pattern_q", "desc"),), 25,
+           with_status((STOCK, PRISM, STS, LTS) + _pcols(k) + (SECTOR, MCAP)), (), tuple(_PHOW[k]), False, None, ("provisional",), k, "advanced")
     for k in _SCANS]
 PRESETS = PRESETS[:-2] + SETUPS_ADV + PATTERNS_ADV + PRESETS[-2:]
 
@@ -503,8 +505,8 @@ _PLAIN: Dict[str, dict] = _json.loads((_Path(__file__).with_name("plain.json")).
 
 
 def _plain(p: Preset) -> Preset:
-    if p.kind == "pattern":          # the page words, without the look-back lengths the pack's texts printed (the handover drops them)
-        return _replace(p, how_it_works=())
+    if p.kind == "pattern":          # task #325 (developer file 26): engine 2's card line and How this screen works, from the pack's pattern-text.json, word for word
+        return p                     # (file 25, 2.1 row 1: these screens opened an empty How this screen works)
     w = _PLAIN.get(p.id)
     if w is None:
         return _replace(p, how_it_works=())

@@ -635,25 +635,28 @@ def ensure_setups(fr: Frame) -> None:
 
 
 def run_pattern(fr: Frame, preset: Preset, cfg: Config, active: Sequence[str]) -> dict:
-    """A Chart patterns screen: the companies the nightly scan found for this pattern, with the facts it worded and the drawing the chart panel places.
-    Ranked by the Prism score, then the larger market cap. The page never sees a rule."""
+    """A Chart patterns screen: the companies the nightly scan found for this pattern, with every figure the engine worded, the four the screen shows as
+    numbered columns, the status, How clean, and the drawing the chart panel places. Ordered by how cleanly the chart meets the pattern (engine 2, task #325),
+    then the larger market cap. The page never sees a rule or the quality number itself."""
     from . import patterns as P
     run = fr.patterns or {}
     hits = (run.get("scans") or {}).get(preset.spec) or {}
     n = fr.t.n
     in_scope = [i for i in range(n) if fr.symbols[i] in hits and fr.has_prism(i)]
-    key = sort_key(fr, preset.rank)
-    in_scope.sort(key=key)
+    mcap = lambda i: fr.get(i, "market_cap") or 0   # noqa: E731
+    in_scope.sort(key=lambda i: (-(hits[fr.symbols[i]].get("q") or 0), -mcap(i)))
     labels = P.FACT_LABELS[preset.spec]
     rows = []
     for pos, i in enumerate(in_scope, 1):
         row = _row(fr, preset, i, pos)
         h = hits[fr.symbols[i]]
         row["facts"], row["draw"], row["new"] = h.get("facts") or [], h.get("draw") or {}, bool(h.get("new"))
+        nums = h.get("nums") or {}
         by = {lab: val for lab, val in row["facts"]}
         for j, lab in enumerate(labels, 1):
             if lab:
-                row[f"pf{j}"] = by.get(lab)
+                row[f"pf{j}"] = nums.get(lab, by.get(lab)) if lab in nums else by.get(lab)
+        row["pf_status"], row["pf_clean"] = h.get("status"), h.get("clean")
         rows.append(row)
     out = _base(fr, preset, cfg, active, len(rows), rows[:preset.limit])
     out["pageSize"] = PAGE
