@@ -1,0 +1,73 @@
+/* Task #306: the Concall Monitor's compact layout (developer file 16, 22 Nov 2026): pages/ConcallMonitor.tsx. Loaded after styles/concall.css (ccm-) and
+   discovery/discover.css (the .dbx- dropdowns, chips and switches of developer file 13). Every class here starts with p4-; the Discover tokens (--dsc-*)
+   the .dbx- parts read are set on .p4, because this page does not sit inside the Discovery page. Font sizes on the site's type scale. */
+.p4 { --dsc-teal: #0e6471; --dsc-teal-b: #e3efef; --dsc-on: #fff; --dsc-line2: color-mix(in srgb, var(--border) 55%, transparent);
+  --dsc-amber: #8a5a07; --dsc-amber-b: #fbf0d9; --dsc-amber-e: #ecd3a1; }
+:root[data-theme="dark"] .p4 { --dsc-teal: #6fc0cb; --dsc-teal-b: #16292b; --dsc-on: #0b1a12; --dsc-amber: #e0a43a; --dsc-amber-b: #2d2414; --dsc-amber-e: #5a4520; }
+
+/* one toolbar: Latest / Upcoming, the search box, the four dropdowns */
+.p4-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 16px 0 0; padding: 12px; background: var(--s1); border: 1px solid var(--border); border-radius: 14px; }
+.p4-tools .dbx-q { flex: 1 1 220px; }
+.p4-tools .ccm-seg { flex: none; }
+.p4-tools .ccm-seg button { min-height: 40px; padding: 0 14px; }
+.p4 .dbx-chips { margin-top: 10px; }
+.p4 .dbx-rbar.p4-rbar { margin: 14px 0 10px; flex-wrap: wrap; }
+.p4 .dbx-cnt { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.p4-have { color: var(--faint); font: 13px var(--sans); }
+.p4-sort { display: flex; align-items: center; gap: 8px; }
+.p4-tag { display: inline-block; margin-left: 6px; padding: 0 6px; border: 1px solid; border-radius: 999px; font: 700 12px/17px var(--sans); letter-spacing: .04em; text-transform: uppercase; vertical-align: 1px; }
+.p4-tag.pf { color: var(--dsc-teal); border-color: var(--dsc-teal); }
+.p4-tag.wl { color: var(--dsc-amber); border-color: var(--dsc-amber-e); background: var(--dsc-amber-b); }
+
+/* the calls, grouped by day */
+.p4-dh { display: flex; align-items: baseline; gap: 10px; margin: 18px 0 8px; color: var(--text); font: 400 20px/1.25 var(--serif); }
+.p4-dh span { color: var(--faint); font: 13px var(--sans); }
+.p4-day:first-of-type .p4-dh { margin-top: 4px; }
+.p4-cl { border: 1px solid var(--border); border-radius: 12px; background: var(--s1); overflow: hidden; }
+.p4 .ccm-card.p4-cc { border: 0; border-radius: 0; background: none; padding: 10px 14px; }
+.p4 .ccm-card.p4-cc + .ccm-card.p4-cc { border-top: 1px solid var(--dsc-line2); }
+.p4 .ccm-card.p4-cc.is-open { background: color-mix(in srgb, var(--gold) 5%, var(--s1)); }
+.p4-cr { display: grid; grid-template-columns: minmax(0, 1fr) 104px auto; align-items: center; gap: 14px; }
+.p4 .p4-cc .ccm-name { font-size: var(--fs-16); }
+.p4 .p4-cc .ccm-tick { font-size: var(--fs-13); }
+.p4-when { display: flex; flex-direction: column; gap: 2px; color: var(--text); font: 600 14px/1.3 var(--sans); font-variant-numeric: tabular-nums; }
+.p4-when b { font-weight: 600; }
+.p4-when.none span { color: var(--faint); font: 400 13px/1.3 var(--sans); }
+.p4-when .ccm-up { align-self: flex-start; }
+/* the four actions in fixed columns, so they line up from row to row */
+.p4-acts { display: grid; grid-template-columns: 88px 114px 72px 120px; gap: 6px; justify-content: end; }
+.p4-acts .p4-ab { justify-self: start; }
+.p4-ab { appearance: none; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 11px; border: 1px solid var(--border-strong); border-radius: 8px;
+  background: var(--s1); color: var(--text); font: 600 13px/1 var(--sans); cursor: pointer; white-space: nowrap; }
+.p4-ab svg { width: 15px; height: 15px; flex: none; }
+.p4-ab:hover { border-color: var(--text); }
+.p4-ab:focus-visible { outline: 2px solid var(--focus, var(--gold)); outline-offset: 2px; }
+.p4-ab.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+.p4-ab-summary:not(.off) svg { color: var(--gold); }
+.p4-ab-summary.on svg { color: inherit; }
+/* an action that cannot be used: a dashed 32 px icon, its reason in the tooltip; pressing it opens the row with that reason */
+.p4-ab.off { justify-content: center; width: 32px; padding: 0; border-style: dashed; border-color: var(--border); background: none; color: var(--faint); opacity: .75; }
+.p4-ab.off span { display: none; }
+.p4-ab.off:hover { opacity: 1; border-color: var(--border-strong); }
+.p4-ab.off.on { width: auto; padding: 0 10px; background: var(--s2); color: var(--muted); opacity: 1; }
+.p4-ab.off.on span { display: inline; }
+.p4 .ccm-panel { margin: 10px 0 2px 46px; }
+.p4 .ccm-note { margin-left: 46px; }
+
+@media (max-width: 1100px) {
+  .p4-cr { grid-template-columns: minmax(0, 1fr) 104px; }
+  .p4-acts { grid-column: 1 / -1; justify-content: start; padding-left: 46px; }
+}
+/* phone: Latest / Upcoming full width at the top, then the search, then the dropdowns in one line that scrolls sideways; the actions on a second line */
+@media (max-width: 760px) {
+  .p4-tools { padding: 10px; gap: 8px; }
+  .p4-tools .ccm-seg { order: -2; width: 100%; }
+  .p4-tools .ccm-seg button { flex: 1; justify-content: center; }
+  .p4-tools .dbx-q { flex-basis: 100%; order: -1; }
+  .p4-tools .dbx-dds { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -10px; padding: 0 10px; max-width: calc(100% + 20px); }
+  .p4-tools .dbx-dds::-webkit-scrollbar { display: none; }
+  .p4-cr { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 10px; }
+  .p4-acts { padding-left: 0; grid-template-columns: repeat(4, auto); justify-content: start; }
+  .p4 .ccm-panel, .p4 .ccm-note { margin-left: 0; }
+  .p4 .ccm-card.p4-cc { padding: 10px 12px; }
+}

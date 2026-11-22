@@ -1,19 +1,32 @@
-// Concall Monitor (task #278): earnings calls from companies' own exchange filings. One card per call (logo, company, ticker, date, time) with four
-// independent buttons: Listen (the recording, played on the page when the company filed an audio file), Transcript (the full text, page by page), PPT
-// (the investor presentation, shown in place) and AI Summary (written once from the transcript or presentation). Each card keeps its own open panel, so
-// opening one never changes another. A button with nothing to open says why when pressed, never a dead click. Styles: styles/concall.css (prefix ccm-).
-import { useEffect, useRef, useState, type ReactNode } from "react";
+// Concall Monitor (task #278): earnings calls from companies' own exchange filings. One row per call (logo, company, ticker, time) with four
+// independent actions: Listen (the recording, played on the page when the company filed an audio file), Transcript (the full text, page by page), PPT
+// (the investor presentation, shown in place) and AI Summary (written once from the transcript or presentation). Each row keeps its own open panel, so
+// opening one never changes another. An action with nothing to open says why when pressed, never a dead click. Styles: styles/concall.css (ccm-).
+// Task #306 (developer file 16, compact layout): one toolbar (Latest / Upcoming, a search box that is always there, and the Companies, Has, Quarter and
+// Type dropdowns of developer file 13, each with counts worked out on the server with the other filters applied), the filters on as chips, a count line
+// with Sort, the calls grouped by day, rows about 58 px high with the four actions in fixed columns (one that cannot be used is a dashed 32 px icon with
+// its reason), and "Show more" that adds the next 30 (it used to ask the server for 90, beyond its cap of 60, and the list disappeared).
+// Styles: styles/concall-compact.css (p4-), discovery/discover.css (dbx-).
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router";
 import { PageHeader } from "../components/PageHeader";
 import { CoLogo } from "../components/CoLogo";
 import { useAuth } from "../lib/auth";
 import { useDocTitle } from "../lib/title";
 import { ApiError } from "../lib/api";
-import { callDay, fileUrl, filedDay, PAGE, summaryBlocks, useCalls, useTranscript, writeSummary, type Call, type Scope, type Summary, type Tab } from "../lib/concalls";
+import { dayLabel, fileUrl, filedDay, shortDay, summaryBlocks, timeText, useCalls, useTranscript, writeSummary,
+  type Call, type CallList, type Has, type Scope, type Sort, type Summary, type Tab } from "../lib/concalls";
+import { Chips, Dd, Ico, OptList, Sw, type Opt } from "../discovery/Toolbar";
 import "../styles/concall.css";
+import "../discovery/discover.css";
+import "../styles/concall-compact.css";
 
 const SUBTITLE = "Listen to earnings call recordings, read transcripts & investor presentations, and track upcoming result meets.";
-const SCOPES: [Scope, string][] = [["all", "All"], ["portfolio", "Portfolio"], ["watchlist", "Watchlist"]];
+const SCOPES: [Scope, string][] = [["all", "All companies"], ["portfolio", "My portfolio"], ["watchlist", "My watchlist"]];
+const HAS: [Has, string][] = [["listen", "Recording"], ["transcript", "Transcript"], ["ppt", "Presentation"], ["summary", "AI summary possible"]];
+const SORTS: [Sort, string][] = [["new", "Newest first"], ["old", "Oldest first"], ["az", "Company A–Z"]];
+const NO_QUARTER = "none";
+const nf = (n: number) => n.toLocaleString("en-IN");
 type Panel = "listen" | "transcript" | "ppt" | "summary";
 
 const ICON: Record<Panel, ReactNode> = {
@@ -114,37 +127,41 @@ function bold(t: string) {
 
 const has = (c: Call, p: Panel) => p === "listen" ? !c.listen.why : p === "transcript" ? !!c.transcript.doc : p === "ppt" ? !!c.ppt.doc : !!c.summary.link;
 
-/** One call. Its open panel is its own state: opening one card never changes another. */
-export function CallCard({ c }: { c: Call }) {
+const whyOf = (c: Call, p: Panel) => (p === "listen" ? c.listen.why : p === "summary" ? c.summary.why : (c[p] as { why?: string }).why) || undefined;
+
+/** One call, one row. Its open panel is its own state: opening one row never changes another, and the row does not move. `az`: the list is sorted by
+ *  company, so the row shows its date (there are no day headings then). */
+export function CallCard({ c, az = false }: { c: Call; az?: boolean }) {
   const [open, setOpen] = useState<Panel | null>(null);
   const id = `ccm-${c.id.replace(/[^A-Za-z0-9]/g, "-")}`;
-  const day = callDay(c.date);
+  const time = timeText(c.timeLabel);
   return (
-    <article className={"ccm-card" + (c.upcoming ? " is-up" : "")} aria-labelledby={`${id}-n`}>
-      <div className="ccm-row">
+    <article className={"ccm-card p4-cc" + (c.upcoming ? " is-up" : "") + (open ? " is-open" : "")} aria-labelledby={`${id}-n`}>
+      <div className="p4-cr">
         <div className="ccm-co">
-          <CoLogo symbol={c.symbol} name={c.name} size={40} />
+          <CoLogo symbol={c.symbol} name={c.name} size={34} />
           <div className="ccm-names">
             <Link id={`${id}-n`} className="ccm-name" to={`/stocks/${encodeURIComponent(c.symbol)}`}>{c.name}</Link>
-            <span className="ccm-tick">{c.symbol}<span className="ccm-kind"> · {c.kind}{c.quarter ? ` · ${c.quarter}` : ""}</span></span>
+            <span className="ccm-tick">{c.symbol}<span className="ccm-kind"> · {c.kind}{c.quarter ? ` · ${c.quarter}` : ""}</span>
+              {c.mine === "portfolio" ? <span className="p4-tag pf">Portfolio</span> : c.mine === "watchlist" ? <span className="p4-tag wl">Watchlist</span> : null}</span>
           </div>
         </div>
-        <div className="ccm-when">
-          {day ? <b>{day}</b> : <b className="ccm-nodate" title={c.dateNote || ""}>Date not stated</b>}
-          <span className={c.timeLabel ? "" : "ccm-notime"}>{c.timeLabel ? `${c.timeLabel} IST` : (c.timeNote || "Time not stated")}</span>
+        <div className={"p4-when" + (time ? "" : " none")}>
+          {az ? <b title={c.dateNote || undefined}>{shortDay(c.date) || "Date not stated"}</b> : null}
+          <span title={time ? "IST, as the company's letter states it" : c.timeNote || undefined}>{time ? `${time} IST` : (c.timeNote || "Time not stated in the filings")}</span>
           {c.upcoming ? <i className="ccm-up">Upcoming</i> : null}
         </div>
-        <div className="ccm-acts" role="group" aria-label={`${c.name}: recording, transcript, presentation, AI summary`}>
+        <div className="p4-acts" role="group" aria-label={`${c.name}: recording, transcript, presentation, AI summary`}>
           {(Object.keys(LABEL) as Panel[]).map((p) => {
             const ok = has(c, p);
             return (
-              <button key={p} type="button" className={"ccm-btn ccm-" + p + (ok ? "" : " is-off") + (open === p ? " is-on" : "")} aria-expanded={open === p} aria-controls={`${id}-p`}
-                aria-disabled={!ok} title={ok ? undefined : (p === "listen" ? c.listen.why : p === "summary" ? c.summary.why : (c[p] as { why?: string }).why) || undefined}
+              <button key={p} type="button" className={"p4-ab p4-ab-" + p + (ok ? "" : " off") + (open === p ? " on" : "")} aria-expanded={open === p} aria-controls={`${id}-p`}
+                aria-disabled={!ok} aria-label={ok ? undefined : `${LABEL[p]}: ${whyOf(c, p) || "not available"}`} title={ok ? undefined : whyOf(c, p)}
                 onClick={() => setOpen(open === p ? null : p)}>{ICON[p]}<span>{LABEL[p]}</span></button>);
           })}
         </div>
       </div>
-      {c.dateNote && !day ? <p className="ccm-note">{c.dateNote}</p> : null}
+      {c.dateNote && !c.date ? <p className="ccm-note">{c.dateNote}</p> : null}
       {open ? (
         <div className="ccm-panel" id={`${id}-p`} role="region" aria-label={`${LABEL[open]}: ${c.name}`}>
           {open === "listen" ? <ListenPanel c={c} /> : open === "transcript" ? <TranscriptPanel c={c} /> : open === "ppt" ? <PptPanel c={c} /> : <SummaryPanel c={c} />}
@@ -153,54 +170,116 @@ export function CallCard({ c }: { c: Call }) {
   );
 }
 
+/** The calls in order, grouped by day (one heading per day, with how many calls that day has over the whole filtered list). */
+function Days({ items, days, az }: { items: Call[]; days: Record<string, number>; az: boolean }) {
+  if (az) return <section className="p4-day" aria-label="Calls by company"><div className="p4-cl">{items.map((c) => <CallCard key={c.id} c={c} az />)}</div></section>;
+  const groups: { d: string | null; r: Call[] }[] = [];
+  for (const c of items) { const g = groups[groups.length - 1]; if (g && g.d === c.date) g.r.push(c); else groups.push({ d: c.date, r: [c] }); }
+  return <>{groups.map((g, i) => {
+    const n = days[g.d || ""] ?? g.r.length, label = dayLabel(g.d);
+    return <section key={(g.d || "none") + i} className="p4-day" aria-label={label}>
+      <h3 className="p4-dh">{label}<span>{nf(n)} {n === 1 ? "call" : "calls"}</span></h3>
+      <div className="p4-cl">{g.r.map((c) => <CallCard key={c.id} c={c} />)}</div></section>;
+  })}</>;
+}
+
 export function ConcallMonitorPage() {
   useDocTitle("Concall Monitor", SUBTITLE);
+  const { user } = useAuth();
   const [sp, setSp] = useSearchParams();
   const scope = (SCOPES.some(([k]) => k === sp.get("scope")) ? sp.get("scope") : "all") as Scope;
   const tab: Tab = sp.get("tab") === "upcoming" ? "upcoming" : "latest";
-  const [q, setQ] = useState(sp.get("q") || "");
-  const [typed, setTyped] = useState(q);
-  const [searching, setSearching] = useState(!!q);
-  const [limit, setLimit] = useState(PAGE);
-  const inp = useRef<HTMLInputElement>(null);
-  const set = (k: string, v: string | null) => { const n = new URLSearchParams(sp); if (v) n.set(k, v); else n.delete(k); setSp(n, { replace: true }); setLimit(PAGE); };
-  useEffect(() => { const t = setTimeout(() => { setQ(typed); set("q", typed.trim() || null); }, 250); return () => clearTimeout(t); }, [typed]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (searching) inp.current?.focus(); }, [searching]);
-  const r = useCalls(scope, tab, q, limit);
-  const d = r.data;
+  const hasOn = useMemo(() => (sp.get("has") || "").split(",").filter((h): h is Has => HAS.some(([k]) => k === h)), [sp]);
+  const quarter = sp.get("quarter") || "", kind = sp.get("kind") || "";
+  const sort = (SORTS.some(([k]) => k === sp.get("sort")) ? sp.get("sort") : "new") as Sort;
+  const [typed, setTyped] = useState(sp.get("q") || "");
+  const [q, setQ] = useState(typed);
+  const set = (patch: Record<string, string | null>) => {
+    const n = new URLSearchParams(sp);
+    for (const [k, v] of Object.entries(patch)) { if (v) n.set(k, v); else n.delete(k); }
+    setSp(n, { replace: true });
+  };
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) { first.current = false; return; }
+    const t = setTimeout(() => { setQ(typed); set({ q: typed.trim() || null }); }, 250);
+    return () => clearTimeout(t);
+  }, [typed]); // eslint-disable-line react-hooks/exhaustive-deps
+  const r = useCalls({ scope, tab, q, has: hasOn, quarter, kind, sort });
+  const pages = r.data?.pages ?? [];
+  const d: CallList | undefined = pages[0];
+  const items = useMemo(() => { const seen = new Set<string>(); return pages.flatMap((p) => p.items).filter((c) => !seen.has(c.id) && !!seen.add(c.id)); }, [pages]);
+  const f = d?.facets;
+  const toggleHas = (h: Has, on: boolean) => { const n = on ? [...hasOn, h] : hasOn.filter((x) => x !== h); set({ has: n.length ? HAS.map(([k]) => k).filter((k) => n.includes(k)).join(",") : null }); };
+  const scopeItems: Opt[] = SCOPES.map(([v, t]) => ({ v, t, c: f ? f.scope[v] : null, sel: scope === v, all: v === "all" }));
+  const quarterItems: Opt[] = [{ v: "", t: "Any quarter", sel: !quarter, all: true },
+    ...(f?.quarter ?? []).map((x) => ({ v: x.v, t: x.v === NO_QUARTER ? "Not stated in the filing" : x.v, c: x.n, sel: quarter === x.v }))];
+  const kindItems: Opt[] = [{ v: "", t: "Any type", sel: !kind, all: true }, ...(f?.kind ?? []).map((x) => ({ v: x.v, t: x.v, c: x.n, sel: kind === x.v }))];
+  const chips: [string, string][] = [];
+  if (scope !== "all") chips.push(["scope", SCOPES.find(([k]) => k === scope)![1]]);
+  for (const h of hasOn) chips.push(["has:" + h, "Has " + HAS.find(([k]) => k === h)![1].toLowerCase()]);
+  if (quarter) chips.push(["quarter", quarter === NO_QUARTER ? "Quarter not stated" : quarter]);
+  if (kind) chips.push(["kind", kind]);
+  if (q.trim()) chips.push(["q", `“${q.trim()}”`]);
+  const unset = (k: string) => {
+    if (k === "all") { setTyped(""); setQ(""); set({ scope: null, has: null, quarter: null, kind: null, q: null }); return; }
+    if (k.startsWith("has:")) { toggleHas(k.slice(4) as Has, false); return; }
+    if (k === "q") { setTyped(""); setQ(""); }
+    set({ [k]: null });
+  };
+  const filtered = chips.length > 0;
+  const total = d?.total ?? 0, shown = items.length;
+  const have = d?.have;
   return (
-    <div className="page ccm">
+    <div className="page ccm p4">
       <PageHeader title="Concall Monitor" description={SUBTITLE} art="calendar" links={["/results", "/results/quarter", "/news"]} learn={false} />
-      <div className="ccm-bar">
-        <div className="ccm-seg" role="tablist" aria-label="Which companies">
-          {SCOPES.map(([k, l]) => <button key={k} role="tab" aria-selected={scope === k} className={scope === k ? "is-on" : ""} onClick={() => set("scope", k === "all" ? null : k)}>{l}</button>)}
+      <div className="p4-tools">
+        <div className="ccm-seg" role="tablist" aria-label="Latest or upcoming calls">
+          {(["latest", "upcoming"] as Tab[]).map((k) => <button key={k} type="button" role="tab" aria-selected={tab === k} className={tab === k ? "is-on" : ""} onClick={() => set({ tab: k === "latest" ? null : k })}>
+            {k === "latest" ? "Latest" : "Upcoming"}{d ? <em>{nf(d.counts[k])}</em> : null}</button>)}
         </div>
-        <div className="ccm-right">
-          {searching ? (
-            <label className="ccm-search"><span className="sr-only">Search a company</span>
-              <input ref={inp} type="search" value={typed} placeholder="Company or symbol" onChange={(e) => setTyped(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Escape") { setTyped(""); setSearching(false); } }} />
-            </label>) : null}
-          <button type="button" className={"ccm-icon" + (searching ? " is-on" : "")} aria-label={searching ? "Close the search" : "Search a company"} aria-pressed={searching}
-            onClick={() => { if (searching) setTyped(""); setSearching(!searching); }}>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.8" /><path d="M16 16l4.5 4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
-          </button>
-          <div className="ccm-seg" role="tablist" aria-label="Latest or upcoming calls">
-            {(["latest", "upcoming"] as Tab[]).map((k) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? "is-on" : ""} onClick={() => set("tab", k === "latest" ? null : k)}>
-              {k === "latest" ? "Latest" : "Upcoming"}{d ? <em>{d.counts[k]}</em> : null}</button>)}
-          </div>
+        <label className="dbx-q">{Ico.search}<input type="search" placeholder="Search a company or symbol" aria-label="Search a company" value={typed} autoComplete="off"
+          onChange={(e) => setTyped(e.target.value)} onKeyDown={(e) => { if (e.key === "Escape") setTyped(""); }} /></label>
+        <div className="dbx-dds">
+          <Dd label="Companies" value={scope !== "all" ? SCOPES.find(([k]) => k === scope)![1] : ""} icon={Ico.star} title="Which companies">
+            {(close) => <><OptList title="Which companies" items={scopeItems} onPick={(v) => { set({ scope: v === "all" ? null : v }); close(); }} />
+              {!user ? <p className="dbx-pn">Sign in to see the calls of the companies in your portfolio and watchlists.</p> : null}</>}
+          </Dd>
+          <Dd label="Has" badge={hasOn.length || null} icon={Ico.tune} title="Calls that have">
+            {() => <>{HAS.map(([k, t]) => { const on = hasOn.includes(k), n = f ? f.has[k] : null;
+              return <Sw key={k} label={t} on={on} n={n} disabled={!on && n === 0} onChange={(v) => toggleHas(k, v)} />; })}
+              <p className="dbx-pn">Recording: a link the company filed. Transcripts come within 5 working days of the call (SEBI LODR).</p></>}
+          </Dd>
+          <Dd label="Quarter" value={quarter ? (quarter === NO_QUARTER ? "Not stated" : quarter) : ""} title="Quarter">
+            {(close) => <OptList title="Quarter" items={quarterItems} onPick={(v) => { set({ quarter: v || null }); close(); }} />}
+          </Dd>
+          <Dd label="Type" value={kind} title="Type of call">
+            {(close) => <OptList title="Type of call" items={kindItems} onPick={(v) => { set({ kind: v || null }); close(); }} />}
+          </Dd>
         </div>
       </div>
+      <Chips chips={chips} unset={unset} />
+      {d && !d.signIn && total ? (
+        <div className="dbx-rbar p4-rbar">
+          <span className="dbx-cnt"><b>{nf(total)}</b> {tab === "upcoming" ? (total === 1 ? "upcoming call" : "upcoming calls") : (total === 1 ? "call" : "calls")}{filtered ? " match" : ""}
+            {shown < total ? ` · showing the ${sort === "new" ? (tab === "upcoming" ? "soonest" : "newest") : sort === "old" ? (tab === "upcoming" ? "furthest" : "oldest") : "first"} ${nf(shown)}` : ""}
+            {have ? <span className="p4-have">{nf(have.listen)} with a recording · {nf(have.transcript)} {have.transcript === 1 ? "transcript" : "transcripts"} · {nf(have.ppt)} {have.ppt === 1 ? "presentation" : "presentations"}</span> : null}</span>
+          <div className="p4-sort"><span className="dbx-sl">Sort</span>
+            <Dd label={SORTS.find(([k]) => k === sort)![1]} title="Sort by" right>
+              {(close) => <OptList title="Sort by" items={SORTS.map(([v, t]) => ({ v, t, sel: sort === v }))} onPick={(v) => { set({ sort: v === "new" ? null : v }); close(); }} />}
+            </Dd></div>
+        </div>) : null}
       {r.isPending ? <p className="ccm-empty">Loading the calls…</p>
-        : r.isError ? <p className="ccm-empty">The calls could not be loaded just now ({r.error.message}). <button className="ccm-link" onClick={() => r.refetch()}>Try again</button></p>
+        : r.isError && !d ? <p className="ccm-empty">The calls could not be loaded just now ({r.error.message}). <button className="ccm-link" onClick={() => r.refetch()}>Try again</button></p>
         : d && d.signIn ? <p className="ccm-empty">{d.scopeNote} <Link to="/login">Sign in</Link></p>
-        : d && !d.items.length ? <p className="ccm-empty">{d.scopeNote || (q.trim() ? `No ${tab} call matches “${q.trim()}”.` : tab === "upcoming"
+        : d && !items.length ? <p className="ccm-empty">{d.scopeNote || (q.trim() ? `No ${tab} call matches “${q.trim()}”.` : filtered ? "No call matches these filters." : tab === "upcoming"
             ? "No earnings call is scheduled in the filings yet. Companies announce a call a few days before it; it appears here once the schedule is filed."
             : "No calls in the filings of the last four months.")}</p>
         : d ? (
           <>
-            <div className="ccm-list">{d.items.map((c) => <CallCard key={c.id} c={c} />)}</div>
-            {d.total > d.items.length ? <button className="ccm-more" onClick={() => setLimit(limit + PAGE)} disabled={r.isFetching}>{r.isFetching ? "Loading…" : `Show more (${d.total - d.items.length} left)`}</button> : null}
+            <Days items={items} days={d.days || {}} az={sort === "az"} />
+            {r.hasNextPage ? <button className="ccm-more" onClick={() => r.fetchNextPage()} disabled={r.isFetchingNextPage}>{r.isFetchingNextPage ? "Loading…" : `Show more (${nf(total - shown)} left)`}</button> : null}
+            {r.isFetchNextPageError ? <p className="ccm-why" role="alert">The next calls could not be loaded just now. The ones above stay; press Show more again.</p> : null}
           </>) : null}
       {d ? <p className="ccm-foot">Source: {d.source}{d.readAt ? `, read ${new Date(d.readAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}` : ""}. Dates and times are as the companies' letters state them (IST). {d.disclaimer}</p> : null}
     </div>

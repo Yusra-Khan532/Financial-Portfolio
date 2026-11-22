@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
@@ -54,13 +54,14 @@ async def _cards(request: Request) -> Dict[str, Any]:
     return body
 
 
-async def _member_symbols(request: Request, ctx: Ctx, scope: str) -> Optional[List[str]]:
+async def _member_lists(request: Request, ctx: Ctx) -> Dict[str, List[str]]:
+    """The member's equity portfolio and watchlist companies: {"portfolio": [...], "watchlist": [...]}."""
     from ..filingalerts import lists_of
     async with request.app.state.store.pool.acquire() as conn:
         st = await conn.fetchrow("SELECT watchlist, portfolio FROM user_state WHERE user_id = $1", ctx.user_id)
     lists = lists_of(st["watchlist"] if st else None, st["portfolio"] if st else None)
-    ref = "equity" if scope == "portfolio" else "watch"
-    return next((x["symbols"] for x in lists if x["ref"] == ref), [])
+    pick = lambda ref: next((x["symbols"] for x in lists if x["ref"] == ref), [])  # noqa: E731
+    return {"portfolio": pick("equity"), "watchlist": pick("watch")}
 
 
 def _match(card: Dict[str, Any], q: str) -> bool:
@@ -69,31 +70,106 @@ def _match(card: Dict[str, Any], q: str) -> bool:
     return all(w in hay for w in words)
 
 
+# Task #306: the toolbar's Has, Quarter and Type filters work over every call (not only the ones loaded), and each dropdown's counts are worked out
+# with the other filters applied. "listen" means a recording link or file the company filed; "summary" means a transcript or presentation to write from.
+HAS = ("listen", "transcript", "ppt", "summary")
+NO_QUARTER = "none"
+
+
+def has_it(card: Dict[str, Any], h: str) -> bool:
+    if h == "listen":
+        return not card["listen"].get("why")
+    if h == "summary":
+        return bool(card["summary"].get("link"))
+    return bool(card[h].get("doc"))
+
+
+def passes(card: Dict[str, Any], *, has: Sequence[str] = (), quarter: str = "", kind: str = "", syms: Optional[set] = None) -> bool:
+    if syms is not None and card["symbol"] not in syms:
+        return False
+    if quarter and (card.get("quarter") or NO_QUARTER) != quarter:
+        return False
+    if kind and card.get("kind") != kind:
+        return False
+    return all(has_it(card, h) for h in has)
+
+
+def _quarter_order(q: str) -> tuple:
+    """The newest quarter first ("Q2 FY27", "Q1 FY27", "Q4 FY26" ...), "Not stated in the filing" last."""
+    m = re.fullmatch(r"Q([1-4]) FY(\d{2})", q or "")
+    return (1, 0, 0, q) if not m else (0, -int(m.group(2)), -int(m.group(1)), q)
+
+
+def facets(cards: List[Dict[str, Any]], *, has: Sequence[str], quarter: str, kind: str, syms: Optional[set], lists: Optional[Dict[str, set]]) -> Dict[str, Any]:
+    """Counts for every dropdown, each with the other filters applied (the dropdown's own filter left out)."""
+    f = dict(has=has, quarter=quarter, kind=kind, syms=syms)
+    def n(**patch) -> int:
+        g = {**f, **patch}
+        return sum(1 for c in cards if passes(c, **g))
+    quarters = sorted({c.get("quarter") or NO_QUARTER for c in cards}, key=_quarter_order)
+    kinds = sorted({c.get("kind") for c in cards if c.get("kind")})
+    return {
+        "scope": {"all": n(syms=None), "portfolio": n(syms=lists["portfolio"]) if lists else None, "watchlist": n(syms=lists["watchlist"]) if lists else None},
+        "has": {h: n(has=sorted(set(has) | {h})) for h in HAS},
+        "quarter": [{"v": q, "n": n(quarter=q)} for q in quarters],
+        "kind": [{"v": k, "n": n(kind=k)} for k in kinds],
+    }
+
+
+def sort_cards(cards: List[Dict[str, Any]], tab: str, sort: str) -> List[Dict[str, Any]]:
+    if sort == "az":
+        return sorted(cards, key=lambda c: (c["name"].lower(), c["sortKey"]))
+    soonest = sorted(cards, key=lambda c: c["sortKey"])                         # upcoming: soonest first; latest: oldest first
+    newest = list(reversed(soonest))
+    if tab == "upcoming":
+        return newest if sort == "old" else soonest                            # on Upcoming "newest first" means the soonest call first
+    return soonest if sort == "old" else newest
+
+
 @router.get("")
 async def list_calls(request: Request, scope: str = Query("all", pattern="^(all|portfolio|watchlist)$"), tab: str = Query("latest", pattern="^(latest|upcoming)$"),
-                     q: str = Query("", max_length=60), offset: int = Query(0, ge=0, le=5000), limit_: int = Query(30, ge=1, le=PAGE_MAX, alias="limit")):
+                     q: str = Query("", max_length=60), offset: int = Query(0, ge=0, le=5000), limit_: int = Query(30, ge=1, le=PAGE_MAX, alias="limit"),
+                     has: str = Query("", max_length=60, pattern=r"^[a-z,]*$"), quarter: str = Query("", max_length=20), kind: str = Query("", max_length=30),
+                     sort: str = Query("new", pattern="^(new|old|az)$")):
     ctx = await current(request)
     data = await _cards(request)
     cards: List[Dict[str, Any]] = data["cards"]
+    want = [h for h in dict.fromkeys(x.strip() for x in has.split(",")) if h in HAS]
+    lists: Optional[Dict[str, set]] = None
+    if ctx.authed:
+        lists = {k: set(v) for k, v in (await _member_lists(request, ctx)).items()}
     scope_note = None
     if scope != "all":
         if not ctx.authed:
             return _json({"items": [], "total": 0, "counts": {"latest": 0, "upcoming": 0}, "scope": scope, "signIn": True, "readAt": data["readAt"],
-                          "source": service.SOURCE, "disclaimer": DISCLAIMER,
+                          "source": service.SOURCE, "disclaimer": DISCLAIMER, "facets": None, "have": None, "days": {},
                           "scopeNote": f"Sign in to see the calls of the companies in your {'equity portfolio' if scope == 'portfolio' else 'watchlists'}."})
-        syms = set(await _member_symbols(request, ctx, scope) or [])
-        if not syms:
+        if not lists[scope]:
             scope_note = ("Your equity portfolio has no companies yet: add them on the Portfolio page." if scope == "portfolio"
                           else "Your watchlists have no companies yet: add them on the Watchlists page.")
-        cards = [c for c in cards if c["symbol"] in syms]
     if q.strip():
         cards = [c for c in cards if _match(c, q)]
-    latest = [c for c in cards if not c["upcoming"]]
-    upcoming = sorted([c for c in cards if c["upcoming"]], key=lambda c: c["sortKey"])
-    pick = upcoming if tab == "upcoming" else latest
-    items = [{k: v for k, v in c.items() if k != "sortKey"} for c in pick[offset:offset + limit_]]
-    return _json({"items": items, "total": len(pick), "counts": {"latest": len(latest), "upcoming": len(upcoming)}, "scope": scope, "tab": tab,
-                  "readAt": data["readAt"], "source": service.SOURCE, "disclaimer": DISCLAIMER, "scopeNote": scope_note, "signIn": False})
+    syms = lists[scope] if (scope != "all" and lists) else None
+    scoped = [c for c in cards if syms is None or c["symbol"] in syms]
+    latest = [c for c in scoped if not c["upcoming"]]
+    upcoming = [c for c in scoped if c["upcoming"]]
+    in_tab = [c for c in cards if bool(c["upcoming"]) == (tab == "upcoming")]          # the tab's calls before the Companies / Has / Quarter / Type filters
+    pick = sort_cards([c for c in in_tab if passes(c, has=want, quarter=quarter, kind=kind, syms=syms)], tab, sort)
+
+    def tag(c: Dict[str, Any]) -> Optional[str]:
+        if not lists:
+            return None
+        return "portfolio" if c["symbol"] in lists["portfolio"] else "watchlist" if c["symbol"] in lists["watchlist"] else None
+
+    items = [{**{k: v for k, v in c.items() if k != "sortKey"}, "mine": tag(c)} for c in pick[offset:offset + limit_]]
+    days: Dict[str, int] = {}
+    for c in pick:
+        days[c.get("date") or ""] = days.get(c.get("date") or "", 0) + 1
+    have = {h: sum(1 for c in pick if has_it(c, h)) for h in HAS}
+    return _json({"items": items, "total": len(pick), "offset": offset, "counts": {"latest": len(latest), "upcoming": len(upcoming)}, "scope": scope, "tab": tab,
+                  "readAt": data["readAt"], "source": service.SOURCE, "disclaimer": DISCLAIMER, "scopeNote": scope_note, "signIn": False,
+                  "facets": facets(in_tab, has=want, quarter=quarter, kind=kind, syms=syms, lists=lists), "have": have, "days": days,
+                  "filters": {"has": want, "quarter": quarter, "kind": kind, "sort": sort}})
 
 
 async def _doc_row(request: Request, link: str, kinds: tuple) -> Dict[str, Any]:

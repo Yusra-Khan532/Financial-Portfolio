@@ -50,25 +50,25 @@ const open = (path = "/concalls") => render(<QueryClientProvider client={new Que
 const card = (name: string) => screen.getByRole("link", { name }).closest("article") as HTMLElement;
 
 describe("Concall Monitor", () => {
-  it("has the heading, the subtitle, the three filter tabs, a search icon and Latest / Upcoming", async () => {
+  it("has the heading, the subtitle, one toolbar (Latest / Upcoming, a search box always there, Companies, Has, Quarter, Type)", async () => {
     open();
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Concall Monitor");
     expect(screen.getByText("Listen to earnings call recordings, read transcripts & investor presentations, and track upcoming result meets.")).toBeTruthy();
-    const scope = screen.getByRole("tablist", { name: "Which companies" });
-    expect(within(scope).getAllByRole("tab").map((t) => t.textContent)).toEqual(["All", "Portfolio", "Watchlist"]);
-    expect(screen.getByRole("button", { name: "Search a company" })).toBeTruthy();
+    expect(screen.getByRole("searchbox", { name: "Search a company" }).getAttribute("placeholder")).toBe("Search a company or symbol");   // task #306
+    for (const l of ["Companies", "Has", "Quarter", "Type"]) expect(screen.getByRole("button", { name: new RegExp("^" + l) }).getAttribute("aria-haspopup")).toBe("dialog");
     await screen.findByText("Acme Ltd");
     expect(within(screen.getByRole("tablist", { name: "Latest or upcoming calls" })).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Latest2", "Upcoming1"]);
   });
 
-  it("each card shows the logo or initial, the name, the ticker, the call's date and time, and four buttons", async () => {
+  it("each row shows the logo or initial, the name, the ticker, the call's time (its day as the heading), and four buttons", async () => {
     open();
     await screen.findByText("Acme Ltd");
     const a = card("Acme Ltd");
     expect(within(a).getByText("A")).toBeTruthy();                                   // the logo (initials tile)
     expect(a.textContent).toContain("ACME");
-    expect(a.textContent).toContain("Nov 19, 2026");
-    expect(a.textContent).toContain("04:00 PM IST");
+    expect(a.textContent).not.toContain("Nov 19, 2026");                             // task #306: no US date on every row; the day is the heading
+    expect(a.closest("section")!.querySelector("h3")!.textContent).toMatch(/^Thu, 19 Nov1 call$/);
+    expect(a.textContent).toContain("4:00 PM IST");
     expect(within(a).getAllByRole("button").map((b) => b.textContent)).toEqual(["Listen", "Transcript", "PPT", "AI Summary"]);
     expect(card("Beta Industries").textContent).toContain("Time not stated in the filings");      // never a made-up time
   });
@@ -80,19 +80,20 @@ describe("Concall Monitor", () => {
     const audio = card("Acme Ltd").querySelector("audio")!;
     expect(audio.getAttribute("src")).toBe("https://acme.in/q2.mp3");
     expect(card("Beta Industries").querySelector(".ccm-panel")).toBeNull();
-    expect(within(card("Beta Industries")).getByRole("button", { name: "Listen" }).getAttribute("aria-expanded")).toBe("false");
+    expect(within(card("Beta Industries")).getByRole("button", { name: /^Listen/ }).getAttribute("aria-expanded")).toBe("false");
   });
 
   it("a button with nothing to open is greyed and says why when pressed (never a dead click)", async () => {
     open();
     await screen.findByText("Beta Industries");
     const b = card("Beta Industries");
-    const ppt = within(b).getByRole("button", { name: "PPT" });
+    const ppt = within(b).getByRole("button", { name: /^PPT/ });
     expect(ppt.getAttribute("aria-disabled")).toBe("true");
-    expect(ppt.className).toContain("is-off");
+    expect(ppt.className).toContain("off");                                          // task #306: a dashed icon, the reason in its tooltip
+    expect(ppt.getAttribute("title")).toBe("No investor presentation filed with this call.");
     fireEvent.click(ppt);
     expect(b.textContent).toContain("No investor presentation filed with this call.");
-    fireEvent.click(within(b).getByRole("button", { name: "Transcript" }));
+    fireEvent.click(within(b).getByRole("button", { name: /^Transcript/ }));
     expect(b.textContent).toContain("within 5 working days");
   });
 
@@ -132,10 +133,11 @@ describe("Concall Monitor", () => {
     fireEvent.click(screen.getByRole("tab", { name: /Upcoming/ }));
     await screen.findByText("Upcoming Co");
     expect(st.asked.some((u) => u.includes("tab=upcoming"))).toBe(true);
-    fireEvent.click(screen.getByRole("tab", { name: "Portfolio" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Companies/ }));             // task #306: the Companies dropdown keeps the server's scope=
+    fireEvent.click(screen.getByRole("option", { name: /My portfolio/ }));
     await screen.findByText(/Sign in to see the calls of the companies in your equity portfolio/);
-    fireEvent.click(screen.getByRole("button", { name: "Search a company" }));
-    fireEvent.change(screen.getByPlaceholderText("Company or symbol"), { target: { value: "acme" } });
+    expect(st.asked.some((u) => u.includes("scope=portfolio"))).toBe(true);
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search a company" }), { target: { value: "acme" } });
     await waitFor(() => expect(st.asked.some((u) => u.includes("q=acme"))).toBe(true));
   });
 
