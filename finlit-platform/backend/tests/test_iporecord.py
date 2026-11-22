@@ -198,6 +198,7 @@ async def test_job_stores_the_record_and_the_nse_book_and_the_api_serves_them(ap
         assert (row["subscription"], row["subQib"], row["subNii"], row["subRetail"]) == (241.22, 200.25, 559.2, 128.36)
         assert (row["listingPct"], row["listingClose"], row["listingClosePct"], row["lastClose"], row["sinceIpoPct"]) == (65.33, 255.5, 70.33, 231.0, 54.0)
         assert h["sources"]["nse"]["name"] == "NSE" and "unofficial" in h["note"]
+        assert (h["coverage"]["listed"], h["coverage"]["nseBooks"], h["coverage"]["day1"]) == (1, 1, 0)       # what the sources have given so far
         r = (await c.get("/api/ipos/record/1849")).json()
         assert r["detail"]["reservation"]["rows"][0]["key"] == "anchor" and r["nseBook"]["total"] == 241.22 and [g["gmp"] for g in r["gmpHistory"]] == [18.0, 69.0]
         assert (await c.get("/api/ipos/record/99999")).status_code == 404 and (await c.get("/api/ipos/record/0")).status_code == 422

@@ -286,4 +286,10 @@ async def refresh(store, max_dates: int = 60, pause_s: float = 1.0, max_minutes:
         out["files"] = files.fetched
         if own:
             await http.aclose()
+        try:                                               # the run's summary, shown with the all-IPOs list (what each source answered)
+            from .flows import set_meta
+            async with store.pool.acquire() as conn:
+                await set_meta(conn, "ipo-prices:last", {**out, "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
+        except Exception:
+            log.warning("ipo-prices run summary not stored", exc_info=True)
     return out
