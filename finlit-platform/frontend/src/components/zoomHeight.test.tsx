@@ -43,7 +43,7 @@ describe("useZoomHeight (task #167)", () => {
   });
   it("is used by the forecasting chart and the other charts drawn at a fixed height", () => {
     for (const f of ["charts/OutlookChart.tsx", "components/AdvScatter.tsx", "mf/H2HChart.tsx", "stock/SegmentMix.tsx", "stock/RevenueCash.tsx", "pages/SipCalculator.tsx",
-      "components/FlowsCharts.tsx", "pages/Macro.tsx", "components/dashboard/MarketToday.tsx", "components/prism/pzr/History.tsx", "charts/RoeLines.tsx", "charts/Waterfall.tsx"])
+      "components/FlowsCharts.tsx", "pages/Macro.tsx", "components/prism/pzr/History.tsx", "charts/RoeLines.tsx", "charts/Waterfall.tsx"])
       expect(readFileSync(join(process.cwd(), "src", f), "utf8"), f).toMatch(/useZoomHeight</);
   });
 });
