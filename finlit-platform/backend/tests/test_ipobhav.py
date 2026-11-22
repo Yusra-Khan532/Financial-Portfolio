@@ -36,6 +36,10 @@ def test_the_files_read_as_the_exchanges_publish_them():
     assert o["543270"] == (1063.9, 1154.0, 1035.7, 1082.25)
 
 
+def test_bse_tickers_from_the_new_file():
+    assert ipobhav.bse_tickers(BSE_NEW) == {"545010": "WISCON"}
+
+
 def test_pick_nse_first_then_bse_by_code_then_isin():
     n, b = ipobhav.nse_rows(NSE), ipobhav.bse_rows(BSE_NEW)
     assert ipobhav.pick({"nse": "BLSPOLY", "bse": "545011"}, n, b)[1] == "NSE"
@@ -79,6 +83,8 @@ async def test_job_reads_each_listing_date_once_and_the_latest_close(app):  # no
             return httpx.Response(200, text=BSE_NEW, headers={"content-type": "text/csv"})
         if "EQ_ISINCODE_150321" in u:
             return httpx.Response(200, content=old_zip(BSE_OLD), headers={"content-type": "application/zip"})
+        if "BhavCopy_BSE_CM_0_0_0_20261119" in u:                            # a quiet share last traded on 19 Nov
+            return httpx.Response(200, text=BSE_NEW.replace("545010", "999999").replace("WISCON", "QUIET"), headers={"content-type": "text/csv"})
         if "sec_bhavdata_full_20112026" in u:
             return httpx.Response(200, text=NSE.replace("268.80", "231.00"), headers={"content-type": "text/csv"})
         if "20261120" in u:
@@ -109,3 +115,11 @@ async def test_job_reads_each_listing_date_once_and_the_latest_close(app):  # no
         assert late["latest"] == 1 and late["latestDate"] == "2026-11-20"                   # the same day's files again, for the new issue only
         async with app.state.store.pool.acquire() as conn:
             assert float(await conn.fetchval("SELECT last_px FROM ipo_gmp WHERE ig_id = 5")) == 231.0
+            await conn.execute("INSERT INTO ipo_gmp (ig_id, url, name, nse, bse, board, issue_price, listed, listing_date, day1_close, day1_checked_at) "
+                               "VALUES (6, 'u', 'Quiet', NULL, '999999', 'sme', 100, true, '2026-10-01', 200, now())")
+        quiet = await ipobhav.refresh(app.state.store, pause_s=0, http=http, today=date(2026, 11, 21))
+        assert quiet.get("latestEarlier") == 1                                              # not traded on 20 Nov: its last close, from 19 Nov
+        async with app.state.store.pool.acquire() as conn:
+            r6 = await conn.fetchrow("SELECT last_px, last_px_date FROM ipo_gmp WHERE ig_id = 6")
+            assert (float(r6["last_px"]), r6["last_px_date"]) == (203.55, date(2026, 11, 19))
+            assert await conn.fetchval("SELECT bse_ticker FROM ipo_gmp WHERE ig_id = 2") == "WISCON"       # BSE's ticker kept for Yahoo

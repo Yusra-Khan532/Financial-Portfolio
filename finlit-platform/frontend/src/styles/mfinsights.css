@@ -34,7 +34,7 @@
 .mfi-tabs button { border: 0; background: transparent; color: var(--muted); font: 600 13px var(--sans, inherit); padding: 7px 12px; border-radius: 8px; cursor: pointer;
   transition: background .18s ease, color .18s ease, box-shadow .18s ease; }
 .mfi-tabs button:hover { color: var(--text); }
-.mfi-tabs button[aria-pressed="true"] { background: var(--s1); color: var(--text); box-shadow: 0 1px 0 var(--border-strong), 0 4px 14px -8px rgba(0,0,0,.5); }
+.mfi-tabs button[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); box-shadow: none; }
 .mfi-tabs button:focus-visible, .mfi-toggle:focus-visible, .mfi-legend button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .mfi-latest { margin: 0 0 4px; font-size: var(--fs-14); color: var(--muted); }
 .mfi-latest b { font: 400 20px var(--serif); color: var(--text); margin-left: 4px; }

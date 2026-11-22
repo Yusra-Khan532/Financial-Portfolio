@@ -24,6 +24,7 @@ import { useIsGold } from "../lib/planGate";
 import { versionLine } from "../lib/version";
 import { PageFeedbackDock } from "./PageFeedback";
 import "../styles/ai-top.css";
+import { buttonClass } from "./ui";
 
 /** One header dropdown, built from lib/nav.ts. */
 function Menu({ m, open, setOpen, path }: { m: NavSection; open: boolean; setOpen: (v: string | null) => void; path: string }) {
@@ -77,7 +78,7 @@ function Header({ onSearch }: { onSearch: () => void }) {
           <Menu m={MORE} open={open === MORE.id} setOpen={setOpen} path={loc.pathname} />
         </nav>
         <div className="grow" />
-        {!onAuth && <button type="button" className="ai-top" onClick={() => dispatchEvent(new Event(OPEN_AI))} aria-label="Ask FinLit AI" aria-haspopup="dialog"><Icon name="spark" /><span>Ask FinLit AI</span></button>}
+        {!onAuth && <button type="button" className={buttonClass("secondary", "md", "ai-top")} onClick={() => dispatchEvent(new Event(OPEN_AI))} aria-label="Ask FinLit AI" aria-haspopup="dialog"><Icon name="spark" /><span>Ask FinLit AI</span></button>}
         <button className="search" onClick={onSearch} aria-label="Search stocks" aria-haspopup="dialog">
           <Icon name="search" /><span className="t">Search for a company</span>
         </button>

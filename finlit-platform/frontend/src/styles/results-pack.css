@@ -31,7 +31,7 @@
 .rs-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; margin: 0 0 16px; }
 .rs-tabs button { display: grid; gap: 2px; padding: 12px 14px; border: 1px solid var(--sp-line); border-radius: 12px; background: var(--sp-panel); color: var(--sp-ink); text-align: left; cursor: pointer; }
 .rs-tabs button b { font: 700 16px var(--sans); } .rs-tabs button small { font-size: 13px; color: var(--sp-mute); }
-.rs-tabs button[aria-selected="true"] { background: #0E6471; border-color: #0E6471; color: #fff; } .rs-tabs button[aria-selected="true"] small { color: rgba(255, 255, 255, .85); }
+.rs-tabs button[aria-selected="true"] { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); } .rs-tabs button[aria-selected="true"] small { color: color-mix(in srgb, var(--ui-on-fg) 85%, transparent); }
 .rs-tabs button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .rs-it td { vertical-align: middle; } .rs-it td:first-child { min-width: 190px; } .rs-ir { cursor: pointer; } .rs-ir:hover td { background: var(--row-hover); } .rs-ir:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
 .rs-ir.on td { background: color-mix(in srgb, var(--gold) 9%, var(--sp-panel)); } .rs-ir.on td:first-child { box-shadow: inset 3px 0 0 var(--gold); }

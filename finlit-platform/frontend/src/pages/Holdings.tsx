@@ -37,6 +37,7 @@ import { sectorColors, sectorOrder, plural } from "../portfolio/derive";
 import { ADD_NOTE } from "../portfolio/words";
 import type { Mode } from "../portfolio/types";
 import "../portfolio/pf.css";
+import { buttonClass } from "../components/ui";
 import { capBucket } from "../lib/capBuckets";
 import { useIndices } from "../lib/indices";
 import { dayWord } from "../lib/dashPack";
@@ -311,7 +312,7 @@ export function HoldingsPage() {
             <label className="pfx-input"><Icon name="search" />
               <CompanyCombo index={index} isin={isinOf} held={heldSet} info={coInfo} label="Add a share by name, symbol or ISIN" inputRef={addBox} value={one} onChange={setOne}
                 onPick={(h) => { setOne(""); setAddWin({ tab: "search", pre: h }); }} /></label>
-            <button className="pfx-solid">Add</button>
+            <button className={buttonClass("primary", "md", "pfx-solid")}>Add</button>
             <span className="eq-add2"><button type="button" className="pfx-btn" onClick={() => setAddWin({ tab: "search", pre: null })}>Add several</button>
             <span className="pfa-impw"><button type="button" className="pfx-btn" aria-haspopup="menu" aria-expanded={impOpen} onClick={() => setImpOpen((v) => !v)} disabled={busy}>{busy ? "Reading…" : "Import ▾"}</button>
               {impOpen && <div className="x-swm pfa-imp" role="menu" aria-label="Import" onKeyDown={(e) => { if (e.key === "Escape") { setImpOpen(false); (e.currentTarget.previousElementSibling as HTMLElement | null)?.focus(); } }}>
@@ -363,7 +364,7 @@ export function HoldingsPage() {
             const id = portfolio.addPortfolio({ name, broker }); setAdding(false); setCur(id); setGoTo(id); toast(`${name} added.`);
             if (start !== "empty") setTimeout(() => file.current?.click(), 80); }} />}
 
-        {empty ? <div className="card dw-empty"><span className="dw-ei"><Icon name="wallet" /></span><b>No shares yet</b><p>Add a share by its name, symbol or ISIN, or upload the holdings file from your broker. {DEMO ? "" : <>You can also <Link to="/watchlist">start from your watchlist</Link>.</>}</p><span className="eq-empty-go"><button type="button" className="pfx-solid" onClick={() => addBox.current?.focus()}>Add a share</button><button type="button" className="pfx-btn" onClick={() => file.current?.click()}>Upload broker file</button></span>
+        {empty ? <div className="card dw-empty"><span className="dw-ei"><Icon name="wallet" /></span><b>No shares yet</b><p>Add a share by its name, symbol or ISIN, or upload the holdings file from your broker. {DEMO ? "" : <>You can also <Link to="/watchlist">start from your watchlist</Link>.</>}</p><span className="eq-empty-go"><button type="button" className={buttonClass("secondary", "md", "pfx-solid")} onClick={() => addBox.current?.focus()}>Add a share</button><button type="button" className="pfx-btn" onClick={() => file.current?.click()}>Upload broker file</button></span>
           {money.nSales > 0 && <MoneyRow t={money} onAdd={openFor} />}
           {sold.length > 0 && <SoldList items={sold} all={cur === "all" && pfList.length > 1} pfName={pfName} nameOf={(sym) => meta[sym]?.name ?? sym} onRemoveSale={(id) => portfolio.remove(id)} />}</div> : model && <>
           <div className="eqx-row2" id="eq-tabs">

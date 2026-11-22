@@ -65,6 +65,7 @@ describe("FinLit Prism card", () => {
     expect(html.match(/class="pcx-card band-/g)).toHaveLength(4);
     expect(html).toContain('href="/prism/TCS"');
     expect(t).toContain("Open the full Prism report");
+    expect(html).toMatch(/<a class="ui-btn ui-btn--prism ui-btn--sm dk-b" href="\/prism\/TCS"[^>]*>Open the full Prism report/);   // task #310: the one gold (Prism) button
     expect(t).toContain(PRISM_NOTE);   // the compliance line
     expect(html).toContain(`aria-label="${prismSummary(REPORT.rating)}"`);
     expect(prismSummary(REPORT.rating)).toBe("FinLit Prism rating: Healthy, 71.3 out of 100, provisional rating. 76% of inputs available.");

@@ -52,15 +52,16 @@ section.block .cz.cz-table:not(.cz-boxed) :is(th, td):last-child { padding-right
 .sn-no { display: inline-block; margin-right: 6px; font: 700 var(--fs-12, 12px)/1 var(--sans); letter-spacing: .04em; color: var(--muted); font-variant-numeric: tabular-nums; }
 .secnav a.active .sn-no, .secnav a[aria-current="true"] .sn-no { color: inherit; }
 
-/* ---- 1.5 / 3.12 12's year chips look like the tabs: white chips, blue when selected, inside the same blue-edged bar as the tab groups (tabgroup.css) ---- */
-section.block .own-yr2 { padding: 10px 12px 10px 14px; background: var(--s1); border: 1.5px solid color-mix(in srgb, var(--c1) 40%, var(--border)); border-left: 5px solid var(--c1);
-  border-radius: 14px; box-shadow: 0 10px 24px -18px color-mix(in srgb, var(--c1) 70%, transparent); }
-section.block .own-yr2-all { color: var(--c1); }
+/* ---- 1.5 / 3.12 12's year chips look like the tabs: white chips inside the same edged bar as the tab groups (tabgroup.css). Task #310: the chosen year has
+   the site's one selected look and the bar the same neutral edge, not the chart blue (--c1) ---- */
+section.block .own-yr2 { padding: 10px 12px 10px 14px; background: var(--s1); border: 1.5px solid var(--border); border-left: 5px solid var(--ui-on-bg);
+  border-radius: 14px; box-shadow: none; }
+section.block .own-yr2-all { color: var(--gold); }
 section.block .own-chip { min-width: 0; height: auto; min-height: 40px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text);
   font: 600 var(--fs-14, 14px)/1.2 var(--sans); box-shadow: 0 1px 2px rgba(20, 19, 15, .06); transform: none; }
-section.block .own-chip:hover { border-color: var(--c1); background: color-mix(in srgb, var(--c1) 7%, var(--s1)); transform: none; }
-section.block .own-chip.on { background: var(--c1); border-color: var(--c1); color: #fff; box-shadow: 0 6px 14px -8px var(--c1); }
-section.block .own-chip:focus-visible { outline: 2px solid var(--c1); }
+section.block .own-chip:hover { border-color: var(--text); background: var(--s2); transform: none; }
+section.block .own-chip[aria-checked="true"] { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); box-shadow: none; }
+section.block .own-chip:focus-visible { outline: 2px solid var(--focus); }
 
 /* ---- 1.4 the i button sits inside its box, top right, at every width (the key-figures strip: Market cap and Debt/equity stuck out); 1.9 tile notes wrap ---- */
 .kpis .kpi { position: relative; }
