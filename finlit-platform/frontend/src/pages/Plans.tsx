@@ -65,7 +65,7 @@ export function PlansBand({ id, h1 = false, landing = false }: { id?: string; h1
         <div className="plans-h">
           <div className="eyebrow" style={{ marginBottom: 12 }}>FinLit plans</div>
           <H id="plansTitle" className={h1 ? "ui-title ui-title--marketing" : "ui-h2--marketing"}>Start free. Add more <em>when you need it</em></H>
-          <p>Basic costs nothing and needs no card. Silver adds the full screener, watchlists and the portfolio scorecard; Gold adds FinLit Prism, the Gold dashboards and more depth. Payments are not live yet, so for now ask for a plan from your account and we switch it on by hand.</p>
+          <p>Basic is free with no card; Silver adds the full screener and watchlists; Gold adds Prism and more. Payments are not live yet: ask for a plan from your account.</p>
         </div>
         {!landing && <>
         <div className="trust">{[["check", "Basic is free, no card"], ["spark", "A score helps you compare. It is not advice"], ["quality", "Every report shows when it was last updated"], ["users", "Plans are switched on by our team for now"]].map(([i, t]) => <span key={t}><Icon name={i} />{t}</span>)}</div>

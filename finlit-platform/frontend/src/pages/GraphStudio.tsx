@@ -339,7 +339,7 @@ export function GraphStudio() {
   return (
     <>
       <PageHeader wrap plan="free" title="Chart builder" art="chart" links={[{ to: "/graphs/advanced", primary: true }, "/compare", "/research"]}
-        description={<>Put several graphs next to each other to see patterns and correlation. Choose <b>companies and measures</b>, pick a chart type for each, and keep what you build.</>} />
+        description="Put charts side by side to spot patterns: pick companies, measures and a chart type for each." />
       <div className={"wrap gx" + (panel ? "" : " gx-wide")}>
         <aside className={"gx-panel" + (panel ? "" : " gx-shut")} aria-label="Choose companies and measures" id="gx-panel">
           <button className="btn ghost gx-toggle" aria-expanded={panel} onClick={() => setPanel(!panel)}>{panel ? "Hide" : "Choose"} companies and measures</button>

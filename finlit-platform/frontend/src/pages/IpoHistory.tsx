@@ -158,7 +158,7 @@ export function IpoHistoryPage() {
     <div className="wrap ia p4">
       <PageHeader plan="free" title="All IPOs" links={["/ipo", "/results", "/news"]}
         back={<Link to="/ipo">← IPO calendar</Link>}
-        description={<>Every <b>mainboard and SME IPO since 2020</b>: when it listed, what it was priced at, how many times it was subscribed, what the grey market said and how it has done since. Tap an issue for its full report.</>} />
+        description="Every mainboard and SME IPO since 2020: price, subscription, grey market and returns since." />
 
       <div className="p4-tools" role="search" aria-label="Filter the IPOs">
         <label className="dbx-q"><Lens /><input type="search" placeholder="Company or symbol" value={f.q} onChange={(e) => set({ q: e.target.value })} autoComplete="off" aria-label="Search IPOs" /></label>

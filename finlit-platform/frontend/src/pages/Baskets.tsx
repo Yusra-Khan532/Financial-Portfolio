@@ -56,7 +56,7 @@ export function BasketsPage() {
   return (
     <>
       <PageHeader wrap plan="free" title="My baskets" art="search" links={["/query-builder", "/screener", "/watchlist"]}
-        description="A basket is a query you wrote and named. It is your own screen, not a model portfolio: the list changes as company figures change, and each basket shows how many companies match today."
+        description="Your named queries: your own screens, not model portfolios, with today's matches for each."
         stats={[{ icon: "layers", value: q.data ? list.length : null, label: "Baskets saved" }, { icon: "table", value: q.data && max > 0 ? max : null, label: "Basket limit" }]} />
       <div className="wrap qb">
         {DEMO ? <div className="state"><p>Baskets are part of the live site.</p></div>

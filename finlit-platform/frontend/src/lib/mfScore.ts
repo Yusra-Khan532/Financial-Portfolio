@@ -14,7 +14,9 @@ export function scoreFootLine(day: string | null, kind?: string | null, text?: s
   const when = day || peers ? ` ${["Scored", day, peers ? `against ${peers}` : null].filter(Boolean).join(" ")}` : "";
   return `Describes the fund's health from its past NAVs, costs and holdings; not a recommendation.${when}`;
 }
-export const MF_SCORE_COMPLIANCE = "Describes the fund's health from its past NAVs, costs and holdings; not a recommendation. Information only, not investment advice.";
+/** The short note under a page header (founder, 22 Nov 2026); the full line, with "Information only", stays beside the scores. */
+export const MF_SCORE_NOTE = "Describes the fund's health from its past NAVs, costs and holdings; not a recommendation.";
+export const MF_SCORE_COMPLIANCE = `${MF_SCORE_NOTE} Information only, not investment advice.`;
 export const MF_METHOD_URL = "/methodology/mf-score";
 export const PILLAR_HELP: Record<string, string> = {
   performance: "Did the fund beat funds like it, over how long, and month after month?",

@@ -206,7 +206,7 @@ export function ReverseValuationPage() {
   return (
     <>
       <PageHeader wrap plan="gold" title="Reverse valuation" art="report" links={["/dcf", "/outlook", "/stocks"]} learn={false}
-        description={<>What must happen for today's price to be justified? Choose what to solve for and see the growth, margin, exit multiple or return the market already assumes. It describes what the price assumes; it does not predict prices or rate any share.</>} />
+        description="The growth, margin, exit multiple or return today's price assumes. It describes; it does not predict." />
       <div className="wrap rv">
         <nav className="rv-tools" aria-label="Valuation tools"><span>Valuation tools</span><Link to="/dcf">DCF valuation</Link><Link to="/reverse-valuation" aria-current="page" className="on">Reverse valuation</Link><Link to="/compare">Compare companies</Link>
           <span className="rv-info" role="group" aria-label="About this tool">{([["how", "How it works"], ["why", "Why use it?"], ["method", "Methodology"]] as const).map(([k, l]) => <button key={k} type="button" aria-expanded={info === k} className={info === k ? "on" : ""} onClick={() => setInfo(info === k ? null : k)}>{l}</button>)}</span></nav>

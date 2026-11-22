@@ -179,7 +179,7 @@ export function FundListPage() {
 
   return (
     <>
-      {HEAD(title, "Compare all mutual funds in the chosen categories based on latest returns, historic returns, SIP returns, latest NAV, checklist and more.", [{ icon: "layers", value: t ? t.active.toLocaleString("en-IN") : null, label: "Active schemes" }, { icon: "line", value: t ? t.withHistory.toLocaleString("en-IN") : null, label: "With return history" }])}
+      {HEAD(title, "Funds in your chosen categories by returns, SIP returns, latest NAV, checklist and more.", [{ icon: "layers", value: t ? t.active.toLocaleString("en-IN") : null, label: "Active schemes" }, { icon: "line", value: t ? t.withHistory.toLocaleString("en-IN") : null, label: "With return history" }])}
       <div className="wrap mf">
         <CategoryCards q={q} onPick={(c) => set({ tab: c.tab, cats: [c.key], view: "" })} onScore={showByScore} />
         <Link className="evi-promo" to="/funds/insights">

@@ -48,7 +48,7 @@ export function Blog() {
         <div className="bl-hero-t">
           <span className="bl-pill">FinLit Blog</span>
           <h1 className="ui-title ui-title--read">Long-Form Articles on Investing, Finance &amp; Markets</h1>
-          <p>In-depth explainers, myth-busters and thought pieces on the hottest topics in the world of investing. Plain language; none of it is a recommendation.</p>
+          <p>Explainers, myth-busters and thought pieces on investing, in plain language; never a recommendation.</p>
         </div>
         <BlogArt />
       </div></section>

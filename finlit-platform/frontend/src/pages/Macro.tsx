@@ -304,7 +304,7 @@ export function MacroPage() {
   return (
     <div className="mc-page">
       <PageHeader wrap plan="free" title="India macro insights" art="macro" links={["/fii-dii", "/ipo"]}
-        description={<>The policy and price indicators that move Indian markets: <b>inflation, growth, jobs, the RBI's rates, the reserve buffer and the rupee</b>. Every figure comes from MoSPI or the RBI, with the full history behind it.</>}
+        description="Inflation, growth, jobs, RBI rates, reserves and the rupee, from MoSPI and the RBI, with history."
         stats={[{ icon: "activity", value: m ? m.cards.length : null, label: "Indicators" }]}
         meta={m ? <span className="mc-asof">Latest CPI: {m.cards.find((c) => c.key === "cpi")?.period} · Reserves: week ended {m.reserves ? dateIN(m.reserves.reservesAsOf) : "n/a"} · Repo rate as on {m.rates ? dateIN(m.rates.seenOn) : "n/a"}</span> : undefined} />
       <div className="wrap mc-wrap">

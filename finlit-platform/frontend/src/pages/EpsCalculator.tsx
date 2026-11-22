@@ -358,7 +358,7 @@ export function EpsCalculatorPage() {
   return (
     <>
       <PageHeader wrap plan="free" title="P/E, EPS & PEG calculator" art="calculator" links={["/dcf", "/sip-calculator", "/research"]} titleAside={<HowToUse />}
-        description={<>Work out <b>earnings per share, the P/E ratio and the PEG ratio</b> from four numbers, then see what a future EPS and a target P/E would imply for the share price. Everything updates as you type, and the working is shown.</>} />
+        description="EPS, P/E and PEG from four numbers, and the price a future EPS and target P/E would imply." />
       <div className="wrap dcf eps">
         <div ref={top} className="eps-anchor" aria-hidden="true" />
         <div ref={bar} className={"eps-tabs" + (edge.l ? " fl" : "") + (edge.r ? " fr" : "")} role="tablist" aria-label="Calculator sections" onKeyDown={onTabKey} onScroll={edges}>

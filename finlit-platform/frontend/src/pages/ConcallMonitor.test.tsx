@@ -53,7 +53,7 @@ describe("Concall Monitor", () => {
   it("has the heading, the subtitle, one toolbar (Latest / Upcoming, a search box always there, Companies, Has, Quarter, Type)", async () => {
     open();
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Concall Monitor");
-    expect(screen.getByText("Listen to earnings call recordings, read transcripts & investor presentations, and track upcoming result meets.")).toBeTruthy();
+    expect(screen.getByText("Earnings call recordings, transcripts, investor presentations and upcoming result meets.")).toBeTruthy();   // the one-line header (founder, 22 Nov 2026)
     expect(screen.getByRole("searchbox", { name: "Search a company" }).getAttribute("placeholder")).toBe("Search a company or symbol");   // task #306
     for (const l of ["Companies", "Has", "Quarter", "Type"]) expect(screen.getByRole("button", { name: new RegExp("^" + l) }).getAttribute("aria-haspopup")).toBe("dialog");
     await screen.findByText("Acme Ltd");

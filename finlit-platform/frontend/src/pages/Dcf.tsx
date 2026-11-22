@@ -597,7 +597,7 @@ export function DcfPage() {
     <>
       <PageHeader wrap plan="gold" title="DCF valuation calculator" art="calculator" links={["/eps-calculator", "/sip-calculator", "/outlook"]}
         learn={{ onClick: () => { intro.set(true); requestAnimationFrame(() => document.querySelector(".dcf-intro")?.scrollIntoView({ behavior: "smooth", block: "start" })); } }}
-        description={<>Estimate a company's <b>intrinsic value</b> from its projected cash flows with a Discounted Cash Flow (DCF) calculator. Every step of the working is shown, with checks that stop impossible assumptions.</>} />
+        description="A company's intrinsic value from its projected cash flows, with every step shown and checked." />
       <div className="wrap dcf dcx">
         <DcfIntro open={intro.open} onOpenChange={intro.set} />
         <Gate tier="gold" title="DCF calculator" points={["Intrinsic value per share, margin of safety and the safety price", "Load any listed company's cash flow, debt and shares", "Sensitivity grids, reverse DCF and bear/base/bull cases", "Save scenarios, share links and export to Excel (CSV)"]}>

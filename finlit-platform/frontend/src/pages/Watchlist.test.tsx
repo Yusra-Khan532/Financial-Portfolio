@@ -59,7 +59,7 @@ describe("Watchlists, as the pack draws it", () => {
     open();
     expect(screen.getByRole("heading", { level: 1, name: "Watchlists" })).toBeTruthy();
     expect(screen.getByText("SILVER")).toBeTruthy();
-    expect(screen.getByText("The companies you are keeping an eye on: how they are doing, how they compare with their peers, and what to look at next.")).toBeTruthy();
+    expect(screen.getByText("The companies you follow: how they are doing, against their peers, and what to look at next.")).toBeTruthy();   // one line (founder, 22 Nov 2026)
     expect(screen.getByRole("button", { name: "My watchlist · 3", pressed: true })).toBeTruthy();
     expect(screen.getByRole("button", { name: "+ New list" })).toBeTruthy();
     expect(screen.getByPlaceholderText("Add a stock to this list")).toBeTruthy();

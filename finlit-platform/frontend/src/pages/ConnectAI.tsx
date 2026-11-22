@@ -24,7 +24,7 @@ export function ConnectAIPage() {
   return (
     <>
       <section className="pagehead"><div className="aurora" style={{ opacity: 0.6 }} /><div className="wrap"><PageArt kind="about" /><div className="eyebrow">For AI assistants</div><h1 className="ui-title ui-title--marketing">Connect AI assistants to FinLit data.</h1>
-        <p>A free, read-only data connection (an MCP server) so an AI assistant can look up Indian company prices, financial statements, ratios, shareholding, results, funds and market figures from FinLit, instead of guessing them.</p></div></section>
+        <p>A free, read-only connection that lets AI assistants look up FinLit's Indian market data.</p></div></section>
 
       <section className="sec" style={{ paddingTop: 16 }}><div className="wrap ca">
         <h2 className="ui-h2--marketing">Your connection address</h2>

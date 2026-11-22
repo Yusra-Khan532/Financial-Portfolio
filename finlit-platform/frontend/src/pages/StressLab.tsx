@@ -36,7 +36,7 @@ export function StressLabIndexPage() {
   return (
     <>
       <PageHeader wrap eyebrow="Quant Lab" plan={has("gold") ? "gold" : "silver"} title="Stress Lab" art="chart" links={["/outlook", "/dcf", "/research"]}
-        description={<>See how a shock to <b>crude, the rupee, inflation, interest rates or demand</b> would move a company's earnings over the next 12 months, under assumptions you can see. Illustrative, not a forecast and not advice.</>} />
+        description="How a shock to crude, the rupee, inflation, rates or demand could move next-year earnings; illustrative." />
       <div className="wrap ol"><OutlookPicker intro base={BASE} picks={picks} recents={false} introText={<>Pick a large or mid cap that is not a bank, NBFC or insurer. Stress Lab starts from its last four reported quarters, applies the shock you choose, and shows what happens to earnings per share, interest cover and an earnings-based value, with every assumption and its source.</>} /></div>
     </>
   );

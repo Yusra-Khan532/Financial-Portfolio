@@ -5,7 +5,7 @@ import { Link } from "react-router";
 import { useEffect, useState } from "react";
 import { apiGet } from "../lib/api";
 import { useDocTitle } from "../lib/title";
-import { MF_SCORE_COMPLIANCE, MF_SCORE_NAME, PILLAR_HELP, SCORE_BANDS } from "../lib/mfScore";
+import { MF_SCORE_NAME, PILLAR_HELP, SCORE_BANDS } from "../lib/mfScore";
 import "../styles/mf.css";
 
 const FAQ: [string, string][] = [
@@ -24,7 +24,7 @@ export function MfScoreMethodPage() {
   return (
     <div className="wrap mf mfs-method">
       <p className="mf-back"><Link to="/funds">← All mutual fund schemes</Link></p>
-      <PageHeader titleVariant="read" eyebrow="Mutual Fund Score" title={<>What the {MF_SCORE_NAME} means</>} art="report" links={["/fund-score-screener", "/funds", "/funds/compare"]} description={MF_SCORE_COMPLIANCE} meta={runDate ? <>Scores last worked out on {runDate}.</> : undefined} />
+      <PageHeader titleVariant="read" eyebrow="Mutual Fund Score" title={<>What the {MF_SCORE_NAME} means</>} art="report" links={["/fund-score-screener", "/funds", "/funds/compare"]} description="Describes a fund's health from its past NAVs, costs and holdings; not a recommendation." meta={runDate ? <>Scores last worked out on {runDate}.</> : undefined} />
 
       <section className="card mf-card"><h2 className="mf-h4">What the score is, and what it is not</h2>
         <ul className="mfs-list">

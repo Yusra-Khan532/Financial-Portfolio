@@ -5,7 +5,7 @@ import type { Term } from "./glossary";
 
 export type Tab = "az" | "fw" | "nu";
 export const FINLIT_WORDS = "FinLit words";
-export const DESC = (n: number) => `The language of investing in plain words: ${n} terms from A to Z. Each says what it means, why it matters and how to use it, with the formula where there is a standard one, and how FinLit measures it.`;
+export const DESC = (n: number) => `${n} investing terms in plain words: what each means, why it matters, how to use it, and its formula.`;
 export const SEARCH_HINT = (n: number) => `Search ${n} terms, for example "P/E", "Sold off" or "Company size"`;
 export const EDU = "For education only; not investment, tax or legal advice.";
 export const FOOT = "Definitions are for education only. FinLit Ventures is a technology company and is not registered with SEBI as an investment adviser or research analyst.";

@@ -282,7 +282,7 @@ export function QueryBuilder() {
   return (
     <>
       <PageHeader wrap plan="free" title="Query builder" art="search" links={["/screener", "/baskets", "/advanced-score-screener"]}
-        description={<>Type a rule, get the companies: <code className="qb-inl">Market cap &gt; 500 AND P/E &lt; 15</code>. We check every word as you type, show how we read it, and list the listed companies that match all of it.</>} />
+        description={<>Type a rule like <code className="qb-inl">Market cap &gt; 500 AND P/E &lt; 15</code>; we check it as you type and list every match.</>} />
       <div className="wrap qb">
         <FindStocksTabs />
         {/* page flow: the rules, then the examples, then the box (an example fills the box below it) */}

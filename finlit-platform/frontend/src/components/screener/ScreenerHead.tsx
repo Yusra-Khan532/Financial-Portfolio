@@ -24,9 +24,9 @@ export const SCREENERS: { to: string; label: string }[] = [
 ];
 export const WHICH_Q = "Which screener should I use?";
 
-/** Each page's description, shown in its header (pack H.3). The open-screen view shows the same one. */
-export const ADVANCED_DESC = <>The advanced model for the whole market: the <b>Prism score</b>, its four financial-health parts (Growth &amp; Profitability, Valuation, Quality, Risk) and two technical views, short term and long term. Filter, sort and compare.</>;
-export const STOCK_DESC = "Filter every listed company by size, valuation, growth, debt, ownership and price trend. Start from a ready-made screen or add your own rules; the list updates as you go.";
+/** Each page's description, shown in its header (pack H.3), in one line (founder, 22 Nov 2026). The open-screen view shows the same one. */
+export const ADVANCED_DESC = "Every company's Prism score, its four health parts and two trend views: filter, sort, compare.";
+export const STOCK_DESC = "Filter every listed company by size, valuation, growth, debt, ownership and price trend.";
 
 /** The anchor of "Which screener should I use?" in this page's questions, or null when the page has no such question. */
 export function whichAnchor(path: string): string | null {
@@ -59,7 +59,7 @@ export function ScreenerHead({ title, tier, desc, date, how, children }: {
   const { pathname, search } = useLocation();
   const anchor = whichAnchor(pathname);
   return (
-    <header className="sp sp-head xsh" aria-labelledby="xsh-h1">
+    <header className="sp sp-head xsh card" aria-labelledby="xsh-h1">
       <p className="sp-eyebrow">Research · Find stocks</p>
       <div className="xsh-h1"><h1 id="xsh-h1" className="ui-title">{title}</h1>{tier && tier !== "basic" ? <TierChip tier={tier} /> : null}</div>
       <p className="sp-desc">{desc}</p>

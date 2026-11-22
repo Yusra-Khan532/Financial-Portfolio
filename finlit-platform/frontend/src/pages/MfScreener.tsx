@@ -102,7 +102,7 @@ export function MfScreenerPage() {
   return (
     <div className="wrap mf mfs-page">
       <PageHeader plan="free" title={title} art="funds" links={["/funds", "/fund-score-screener", "/funds/compare", "/funds/insights"]} learn={false}
-        description="Filter every mutual fund and ETF by type, category, fund house, plan, size, returns, cost, risk, portfolio and what its category is doing. Counts beside every choice, a histogram under every slider. Information only, not investment advice."
+        description="Filter every mutual fund and ETF by category, fund house, size, returns, cost, risk and portfolio."
         stats={[{ icon: "layers", value: list.data ? nf(total, 0) : null, label: "Funds match" }, { icon: "calendar", value: list.data?.dataDate ? dateIN(list.data.dataDate, { day: "numeric", month: "short", year: "numeric" }) : null, label: "NAV data date" }]} />
 
       {DEMO && <p className="mfs-demo" role="note"><Icon name="info" /> Preview build: the real AMFI NAVs and returns of 67 schemes are shown, but expense ratio, fund size, SIP, risk, portfolio and category figures here are sample values for layout only.</p>}

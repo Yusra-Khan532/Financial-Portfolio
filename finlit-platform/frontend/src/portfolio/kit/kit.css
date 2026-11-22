@@ -12,7 +12,7 @@
 .ptk-err { margin: 8px 0 0; color: var(--ptk-dn); font-size: 13px; }
 
 /* ---------------------------------------------------------------- the compact top: title row and add box */
-.ptk-head { margin: 4px 0 14px; padding: 8px 0 4px; }   /* task #310: an open page header, so the title starts at the left edge of the content column */
+.ptk-head { margin: 12px 0 16px; padding: 14px 18px 16px; }   /* founder, 22 Nov 2026: the header is in the shared card (class "card"), with the Equity portfolio header's padding (task #310 had made it open) */
 .ptk-t1 { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 18px; }
 .ptk-ht { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; }
 .ptk-ht h1 { margin: 0; color: var(--text); }
@@ -247,7 +247,7 @@
 @media (max-width: 1100px) { .ptk-views { grid-template-columns: 1fr; } .ptk-kf { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 900px) { .ptk-top2 { grid-template-columns: 1fr; } }
 @media (max-width: 760px) {
-  .ptk-head { padding: 4px 0 0; }
+  .ptk-head { margin-top: 8px; }
   .ptk-addc { flex-basis: 100%; }
   .ptk-add .ptk-btn { flex: 1 1 auto; justify-content: center; }
   .ptk-vcards { grid-template-columns: 1fr; }

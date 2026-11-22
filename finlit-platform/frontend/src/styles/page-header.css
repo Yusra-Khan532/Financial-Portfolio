@@ -1,25 +1,32 @@
-/* Page header (components/PageHeader.tsx). One look for every feature page: plan badge, serif title, short description, quick links, key figures, a line illustration.
+/* Page header (components/PageHeader.tsx). One look for every feature page: serif title with the plan badge beside it, a one-line description, quick links.
    Class prefix ph- is owned by this file. Only theme tokens: neutral surfaces, hairline borders, the single gold accent. Light and dark follow the tokens. */
 .ph-wrap { padding-top: 18px; }
-.ph { --ph-on: var(--on-gold); position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px 32px; align-items: center; padding: 8px 0 4px; margin: 0 0 16px; color: var(--text); }
-/* Task #310: the header is open (no card around it), so the title starts at the left edge of the content column like the sections below it;
-   the title is ui-title (Serif 32px/500, 28px on a phone) or ui-title--read for the long reads (components/ui, ui.css). */
+.ph { --ph-on: var(--on-gold); position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 24px; align-items: center; padding: 14px 18px 16px; margin: 12px 0 16px; color: var(--text); }
+/* section.ph.card outranks the page-scoped card padding (".mf .card", ".ssw .card", ".ol .card", ".dcf .card", ".oc .card": 20px 22px or 18px 20px) */
+section.ph.card { padding: 14px 18px 16px; }
+/* Founder, 22 Nov 2026: the header is back in a box. It carries the shared class "card" (frame, corners, surface and shadow in light and dark, from the theme), with
+   the padding of the Equity portfolio header (.eqx-top, portfolio/pack/eq-top.css). The title is ui-title (Serif 32px/500, 28px on a phone) or ui-title--read for
+   the long reads (components/ui, ui.css). Task #310 had made it open (no card). */
 :root[data-theme="light"] .ph { --ph-on: #FFFDF6; }
 .ph-solo { grid-template-columns: minmax(0, 1fr); }
-.ph-main { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.ph-main { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 .ph-back { font: 600 13px var(--sans); color: var(--muted); } .ph-back a { color: var(--gold); text-underline-offset: 3px; }
 .ph-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .ph-plan { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px 0 8px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--s2); color: var(--muted); font: 700 12px var(--sans); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
 .ph-plan svg { width: 13px; height: 13px; flex: none; }
 .ph-plan.gold { background: var(--gold-soft); border-color: color-mix(in srgb, var(--gold) 55%, transparent); color: var(--gold); }
 .ph-eyebrow { font: 700 12px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
-.ph-titlerow { align-self: stretch; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 14px; } .ph-titlerow > .ph-title { flex: 1 1 260px; min-width: 0; }
+.ph-titlerow { align-self: stretch; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 14px; } .ph-titlerow > :is(.ph-title, .ph-tline) { flex: 1 1 260px; min-width: 0; }
+/* the plan badge beside the title (it wraps under a long title on a phone) */
+.ph-tline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; } .ph-tline .ph-plan { flex: none; }
 .ph-title { margin: 0; letter-spacing: -.01em; text-wrap: balance; overflow-wrap: anywhere; }
-.ph-desc { margin: 0; max-width: 64ch; color: var(--muted); font-size: var(--fs-16); line-height: 1.55; }
+.ph-desc { margin: 0; color: var(--muted); font-size: var(--fs-16); line-height: 1.5; }
+/* one line on a desktop (founder, 22 Nov 2026); .ph .ph-desc outranks the site's ".card p { max-width: 68ch }" (premium.css) */
+.ph .ph-desc, .ph .ph-meta { max-width: 104ch; }
 .ph-desc b, .ph-desc strong { color: var(--text); font-weight: 650; }
 .ph-desc a { color: var(--gold); text-underline-offset: 3px; }
-.ph-meta { margin: 0; color: var(--faint); font-size: 13px; }
-.ph-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 4px; }
+.ph-meta { margin: 0; color: var(--faint); font-size: var(--fs-13); line-height: 1.45; }
+.ph-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 2px; }
 .ph-learn, .ph-qbtn { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); font: 600 14px var(--sans); text-decoration: none; cursor: pointer; transition: border-color .15s, background .15s; }
 .ph-learn:hover, .ph-qbtn:hover { border-color: var(--gold); background: var(--s2); }
 .ph-lk svg, .ph-learn svg, .ph-qbtn svg { width: 15px; height: 15px; flex: none; }
@@ -46,7 +53,8 @@
 }
 @media (max-width: 1100px) { .ph-side { width: min(300px, 34vw); } }
 @media (max-width: 760px) {
-  .ph { grid-template-columns: minmax(0, 1fr); padding: 4px 0 0; gap: 14px; }
+  .ph { grid-template-columns: minmax(0, 1fr); margin-top: 8px; gap: 14px; }
+  .ph .ph-desc { font-size: var(--fs-14); line-height: var(--lh-14); }   /* the one-line description at the site's body size on a phone, so a header there is no taller than in the approved preview */   /* on a phone every card, this one and the Equity portfolio header included, takes the site's 14px padding and 16px corners (luxe.css, !important) */
   .ph-art-box { display: none; }
   .ph-side { width: auto; }
   .ph-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }

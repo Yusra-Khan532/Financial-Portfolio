@@ -26,7 +26,7 @@ export function DocumentsPage() {
   return (
     <div className="wrap ipo">
       <PageHeader plan="free" title="Documents" art="report" links={["/news", "/results", "/research"]} actions={<label className="sw"><input type="checkbox" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} /><span aria-hidden="true" /><b>Only my watchlist{mine.length ? ` (${mine.length})` : ""}</b></label>}
-        description={<>Annual reports, presentations, transcripts and results filings, <b>linked straight to the exchange</b>. Open any file in a new tab.</>} />
+        description="Annual reports, presentations, transcripts and results filings, linked to the exchange." />
       <div className="ipo-bar2"><input className="cs-in" aria-label="Search documents" placeholder="Search company or title" value={q} onChange={(e) => setQ(e.target.value)} style={{ minWidth: 260 }} />
         <div className="fchips" role="group" aria-label="Type">{TYPES.map((t) => <button key={t} className={"chip-b" + (type === t ? " on" : "")} aria-pressed={type === t} onClick={() => setType(t)}>{t}</button>)}</div></div>
       {loading && <div className="skeleton" style={{ height: 220 }} />}

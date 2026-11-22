@@ -62,7 +62,7 @@ export function EtfComparePage() {
   return (
     <>
       <PageHeader wrap plan="free" title="Compare ETFs" art="compare" links={["/etfs", "/etfs/compare-index-funds", "/funds"]}
-        description={<>Choose <b>two to four ETFs</b>. The chart rebases each price to 100 on the same day, so you can see how they moved relative to each other. Information only.</>} />
+        description="Two to four ETFs on one chart, each rebased to 100 on the same day." />
       <div className="wrap etf-page">
         <div className="card etf-sec">
           <div className="card-h"><h3><span className="ci"><Icon name="layers" /></span>Choose ETFs</h3><Link className="etf-link" to="/etfs">Browse the full list →</Link></div>

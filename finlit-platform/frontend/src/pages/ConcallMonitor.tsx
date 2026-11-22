@@ -21,7 +21,8 @@ import "../styles/concall.css";
 import "../discovery/discover.css";
 import "../styles/concall-compact.css";
 
-const SUBTITLE = "Listen to earnings call recordings, read transcripts & investor presentations, and track upcoming result meets.";
+const SUBTITLE = "Listen to earnings call recordings, read transcripts & investor presentations, and track upcoming result meets.";   // the page's search description
+const HEAD_DESC = "Earnings call recordings, transcripts, investor presentations and upcoming result meets.";   // the header's one line (founder, 22 Nov 2026)
 const SCOPES: [Scope, string][] = [["all", "All companies"], ["portfolio", "My portfolio"], ["watchlist", "My watchlist"]];
 const HAS: [Has, string][] = [["listen", "Recording"], ["transcript", "Transcript"], ["ppt", "Presentation"], ["summary", "AI summary possible"]];
 const SORTS: [Sort, string][] = [["new", "Newest first"], ["old", "Oldest first"], ["az", "Company A–Z"]];
@@ -232,7 +233,7 @@ export function ConcallMonitorPage() {
   const have = d?.have;
   return (
     <div className="page ccm p4">
-      <PageHeader title="Concall Monitor" description={SUBTITLE} art="calendar" links={["/results", "/results/quarter", "/news"]} learn={false} />
+      <PageHeader title="Concall Monitor" description={HEAD_DESC} art="calendar" links={["/results", "/results/quarter", "/news"]} learn={false} />
       <div className="p4-tools">
         <div className="ccm-seg" role="tablist" aria-label="Latest or upcoming calls">
           {(["latest", "upcoming"] as Tab[]).map((k) => <button key={k} type="button" role="tab" aria-selected={tab === k} className={tab === k ? "is-on" : ""} onClick={() => set({ tab: k === "latest" ? null : k })}>

@@ -9,7 +9,7 @@ export function About() {
   useDocTitle("About", "FinLit Ventures is a small Indian research and planning company. Meet Nishant Jain (IIT Kanpur, CFA Level I, NISM Research Analyst certificate) and read how we think.");
   return (
     <>
-      <section className="pagehead"><div className="aurora" style={{ opacity: 0.6 }} /><div className="wrap"><PageArt kind="about" /><div className="eyebrow">About FinLit</div><h1 className="ui-title ui-title--marketing">A small team that likes explaining things.</h1><p>We do stock research, portfolio reviews and financial planning. Our one rule: if we cannot explain the reasoning plainly, we do not share it.</p></div></section>
+      <section className="pagehead"><div className="aurora" style={{ opacity: 0.6 }} /><div className="wrap"><PageArt kind="about" /><div className="eyebrow">About FinLit</div><h1 className="ui-title ui-title--marketing">A small team that likes explaining things.</h1><p>Stock research, portfolio reviews and planning. If we cannot explain it plainly, we do not share it.</p></div></section>
       <section className="sec" style={{ paddingTop: 16 }}><div className="wrap founder">
         <Reveal><img src={FOUNDER.photo} alt={`Portrait of ${FOUNDER.name}`} width="560" height="700" /></Reveal>
         <Reveal delay={100}><div className="eyebrow">Who leads the research</div><div className="sec-h" style={{ margin: "8px 0 0" }}><h2 className="ui-h2--marketing">{FOUNDER.name}</h2><p>{FOUNDER.role}</p></div><div className="cred">{FOUNDER.credentials.map((c) => <span className="chip gold" key={c}>{c}</span>)}</div><p className="muted">{FOUNDER.bio}</p><a className="btn" href={FOUNDER.linkedin} target="_blank" rel="noopener noreferrer">LinkedIn</a></Reveal>

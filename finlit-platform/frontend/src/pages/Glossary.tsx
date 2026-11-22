@@ -73,7 +73,7 @@ export function GlossaryPage() {
   return (
     <div className="wrap gp sp">
       <nav className="gp-crumb" aria-label="Breadcrumb"><span>Learn</span><span aria-hidden="true">›</span><span aria-current="page">Glossary</span></nav>
-      <header className="gp-head" aria-labelledby="gp-title">
+      <header className="gp-head card" aria-labelledby="gp-title">
         <div className="gp-head-top">
           <div><p className="gp-eyebrow">Learn</p><h1 id="gp-title" className="ui-title ui-title--read">Glossary</h1><p className="gp-desc">{DESC(C.terms)}</p></div>
           <nav className="gp-links" aria-label="Related pages"><Link to="/blog">Insights &amp; blog →</Link><Link to="/faq">FAQs →</Link><Link to="/stocks/RELIANCE">Company report →</Link></nav>

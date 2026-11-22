@@ -31,7 +31,7 @@ export function IndustryHead({ p, rot }: { p: IndustryPage; rot: RotationCard | 
   const on = watch.includes(p.slug);
   const toggle = () => prefs.set({ sectorWatch: on ? watch.filter((s) => s !== p.slug) : [...watch, p.slug] });
   return (
-    <header className="sp-head ip-head">
+    <header className="sp-head ip-head card">
       <nav className="ip-crumbs" aria-label="Breadcrumb"><Link to="/markets">Markets</Link> › <Link to={"/sectors" + sq()}>Sector Pulse</Link> › <b>{name}</b></nav>
       <div className="ip-top">
         <div>
