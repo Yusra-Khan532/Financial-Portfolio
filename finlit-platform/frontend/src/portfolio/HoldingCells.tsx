@@ -7,6 +7,7 @@ import { aggOf, moneyOf, pfOf, rowsOf, type Agg, type BuyFig, type SaleFig } fro
 import type { Holding } from "../lib/portfolio";
 import { dfmt, dshort, inr, pct, qf, sinr, tone } from "./money";
 import "./holdings-kit.css";
+import { buttonClass } from "../components/ui";
 export { inr, pct, qf, sinr, tone };
 
 export type LotsProps = {
@@ -67,8 +68,8 @@ export function HoldingRowCells({ p, symbol, priceCell, changeCell }: { p: LotsP
     <td className="r x-qty x-c1 x-gs cg-h"><span className="x-ro x-qtyt"><b>{a.qty == null ? MINUS : uq(p, a.qty)}</b><small>{a.nBuys ? lbl : "no buys"}</small></span></td>
     <td className="r x-avg x-c1 cg-h">{a.qty === 0 ? <span className="x-ro"><b>{MINUS}</b><small>all sold</small></span>
       : a.avg != null ? <span className="x-ro"><b>{inr(a.avg, p.mf ? 4 : 2)}</b><small>{a.nSales ? "average of what is left" : `average of ${a.nBuys}`}</small></span>
-      : a.nBuys ? <button type="button" className="x-need-b" onClick={() => p.onOpen(symbol, true)} title={priceMissing ? "A buy has no price yet" : undefined}>{p.mf ? "add a buy NAV" : "add a buy price"}</button>
-      : <button type="button" className="x-need-b" onClick={() => { p.add(symbol, p.cur === "all" ? (a.pfs[0] ?? p.goTo) : p.cur, "buy"); p.onOpen(symbol, true); }}>add a buy</button>}</td>
+      : a.nBuys ? <button type="button" className={buttonClass("quiet", "sm", "x-need-b")} onClick={() => p.onOpen(symbol, true)} title={priceMissing ? "A buy has no price yet" : undefined}>{p.mf ? "add a buy NAV" : "add a buy price"}</button>
+      : <button type="button" className={buttonClass("quiet", "sm", "x-need-b")} onClick={() => { p.add(symbol, p.cur === "all" ? (a.pfs[0] ?? p.goTo) : p.cur, "buy"); p.onOpen(symbol, true); }}>add a buy</button>}</td>
     <td className="r x-inv x-c1 cg-h">{a.qty === 0 || a.qty == null ? MINUS : a.invested == null ? <span className="x-need">add buy price</span> : inr(a.invested)}</td>
     {priceCell}{!p.mf && changeCell}
     <td className="r x-now x-c2 cg-h">{f.now == null ? MINUS : inr(f.now)}</td>

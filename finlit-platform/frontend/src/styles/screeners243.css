@@ -10,11 +10,8 @@
 .xsh-h1 .tier { font: 700 12px/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; padding: 6px 10px; border-radius: 999px; }
 .xsh .sp-desc { max-width: 72ch; margin: 0; }
 .xsh-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 0; }
-.xsh-box { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--s1);
-  color: var(--text); font: 600 14px var(--sans); text-decoration: none; white-space: nowrap; }
-.xsh-box:hover { border-color: var(--text); }
-.xsh-box.on { background: var(--text); border-color: var(--text); color: var(--bg); }
-.xsh-box:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+/* task #310: each box is the shared tab (ui-tab in ui.css: 36px, 44px on a phone, the one selected look on aria-current); only its place is set here */
+.xsh-box { white-space: nowrap; }
 .xsh .xsh-bar { margin-top: 14px; padding-top: 12px; gap: 10px 18px; }
 .xsh-date { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: var(--s2); border: 1px solid var(--border);
   font: 600 13px var(--sans); color: var(--muted); }
@@ -37,13 +34,13 @@
   background: var(--s2); border: 1px solid var(--border); }
 .xsp-tabs [role="tab"] { position: relative; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 2px 4px; min-width: 0; min-height: 40px; padding: 4px;
   border: 0; border-radius: 9px; background: none; color: var(--muted); font: 700 13px/1.15 var(--sans); cursor: pointer; white-space: normal; text-align: center; overflow-wrap: anywhere; }
-.xsp-tabs [role="tab"][aria-selected="true"] { background: var(--s1); color: var(--text); box-shadow: 0 1px 2px rgba(0, 0, 0, .12), 0 0 0 1px var(--border); }
+.xsp-tabs [role="tab"][aria-selected="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); box-shadow: none; }
 .xsp-tabs [role="tab"]:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
 .xsp-tabs .xsp-on { position: absolute; top: -7px; right: -3px; font: 700 12px/16px var(--sans); padding: 0 6px; border-radius: 999px; background: var(--gold); color: var(--on-gold);
   box-shadow: 0 0 0 2px var(--s2); white-space: nowrap; }   /* a corner badge: the tab's own label always shows in full */
 .xsp-tabs { overflow: visible; }
 .xsp-tabs .xsp-t-ratio { color: var(--gold-deep, var(--gold)); background: color-mix(in srgb, var(--gold) 12%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 70%, transparent); }
-.xsp-tabs .xsp-t-ratio[aria-selected="true"] { background: var(--gold); color: var(--on-gold); box-shadow: none; }
+.xsp-tabs .xsp-t-ratio[aria-selected="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); box-shadow: none; }
 :root[data-theme="dark"] .xsp-tabs .xsp-t-ratio:not([aria-selected="true"]) { color: var(--gold); }
 .xsp-spark { color: var(--gold); font-size: 12px; } .xsp-t-ratio[aria-selected="true"] .xsp-spark { color: inherit; }
 .xsp-panel[hidden] { display: none !important; }

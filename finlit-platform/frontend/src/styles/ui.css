@@ -15,6 +15,12 @@
 .ui-btn[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); border-color: var(--ui-on-bg); }   /* a button that is switched on, e.g. Watching */
 .ui-btn--sm { min-height: var(--ui-ctl-h-sm); padding: 0 14px; font-size: var(--fs-13); }
 .ui-btn[disabled], .ui-btn[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
+/* A link drawn as a button or a tab keeps the button's text colour: page sheets colour their links (".dsh a" is gold) and load after this file. */
+:root a.ui-btn.ui-btn--primary { color: var(--btn-fg); text-decoration: none; }
+:root a.ui-btn:is(.ui-btn--secondary, .ui-btn--quiet) { color: var(--text); text-decoration: none; }
+:root a.ui-btn.ui-btn--prism { color: var(--ui-on-prism); text-decoration: none; }
+:root a.ui-tab.ui-tab { color: var(--text); text-decoration: none; }
+:root a.ui-tab.ui-tab[aria-current="page"], :root a.ui-btn.ui-btn[aria-pressed="true"] { color: var(--ui-on-fg); }
 
 /* Tabs and pills: one selected colour (black on cream in light, cream on green in dark). The selected one is marked with
    aria-selected, aria-pressed or aria-current, never a class, so screen readers hear it too. */

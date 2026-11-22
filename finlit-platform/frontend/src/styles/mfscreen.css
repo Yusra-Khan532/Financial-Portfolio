@@ -49,7 +49,7 @@
 .mfs-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px; border-radius: 12px; background: var(--s2); border: 1px solid var(--border); }
 .mfs-tabs button { flex: 1 1 auto; min-height: 34px; padding: 0 10px; border: 1px solid transparent; border-radius: 9px; background: none; color: var(--muted); font: 600 13px var(--sans); cursor: pointer; white-space: nowrap; }
 .mfs-tabs button:hover:not(:disabled) { color: var(--text); }
-.mfs-tabs button[aria-pressed="true"] { background: var(--s1); color: var(--text); border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold-soft); }
+.mfs-tabs button[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); border-color: var(--ui-on-bg); box-shadow: none; }
 .mfs-tabs button:disabled { opacity: .45; cursor: not-allowed; }
 .mfs-tabs button:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
 .mfs-rkrow { display: grid; gap: 4px; margin-top: 4px; } .mfs-rkrow > span { font-size: 13px; color: var(--muted); }

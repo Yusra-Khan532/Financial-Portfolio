@@ -20,7 +20,7 @@
 .mfp-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 0 14px; }
 .mfp-tabs button { display: grid; gap: 2px; padding: 12px 14px; border: 1px solid var(--sp-line); border-radius: 12px; background: var(--sp-panel); color: var(--sp-ink); text-align: left; cursor: pointer; }
 .mfp-tabs button b { font: 700 16px var(--sans); } .mfp-tabs button small { font-size: 13px; color: var(--sp-mute); }
-.mfp-tabs button[aria-selected="true"] { background: #0E6471; border-color: #0E6471; color: #fff; } .mfp-tabs button[aria-selected="true"] small { color: rgba(255, 255, 255, .85); }
+.mfp-tabs button[aria-selected="true"] { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); } .mfp-tabs button[aria-selected="true"] small { color: color-mix(in srgb, var(--ui-on-fg) 85%, transparent); }
 .mfp-tabs button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
 .mfp-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; }

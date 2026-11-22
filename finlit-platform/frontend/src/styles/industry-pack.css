@@ -8,7 +8,7 @@
 .ip-top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
 .ip-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 10px; } .ip-since { font-size: 14px; color: var(--sp-mute); margin-right: 6px; }
 .ip-acts { display: flex; gap: 10px; } .ip-acts .sp-dl { display: inline-flex; align-items: center; text-decoration: none; color: var(--sp-ink); cursor: pointer; background: transparent; font: 600 16px var(--sans); }
-.ip-acts .sp-dl[aria-pressed="true"] { border-color: var(--sp-good); color: var(--sp-good); background: var(--sp-good-bg); }
+.ip-acts .sp-dl[aria-pressed="true"] { border-color: var(--ui-on-bg); color: var(--ui-on-fg); background: var(--ui-on-bg); }
 
 .ip-tiles, .ip-rtiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 12px 0 14px; }
 .ip-rtiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }

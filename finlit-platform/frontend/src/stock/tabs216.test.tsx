@@ -81,10 +81,11 @@ describe("i buttons (README 1.4)", () => {
 });
 
 describe("year chips and drop-downs (README 1.5, 1.3)", () => {
-  it("12's year chips look like the tabs: in the blue-edged bar, white chips, blue when selected", () => {
+  it("12's year chips look like the tabs: in the same edged bar, white chips, the one selected look when chosen (task #310: not the chart blue)", () => {
     const r = css("report216.css");
-    expect(r).toMatch(/section\.block \.own-yr2 \{[^}]*border-left: 5px solid var\(--c1\)/);
-    expect(r).toMatch(/section\.block \.own-chip\.on \{ background: var\(--c1\); border-color: var\(--c1\); color: #fff;/);
+    expect(r).toMatch(/section\.block \.own-yr2 \{[^}]*border-left: 5px solid var\(--ui-on-bg\)/);
+    expect(r).toMatch(/section\.block \.own-chip\[aria-checked="true"\] \{ background: var\(--ui-on-bg\); border-color: var\(--ui-on-bg\); color: var\(--ui-on-fg\);/);
+    expect(r).not.toMatch(/own-(yr2|chip)[^{]*\{[^}]*var\(--c1\)/);
   });
   it("\"Show as table\" (score history) and \"Sources and checks\" (company brief) show the round arrow", () => {
     expect(src("PrismHistory.tsx")).toContain('<details className="phx-table xdd"><summary>Show as table<DropChev /></summary>');

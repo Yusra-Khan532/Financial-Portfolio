@@ -14,6 +14,7 @@ import { ApiError, apiGet } from "../lib/api";
 import { useUniverse } from "../lib/screener";
 import { useUIMaybe } from "../lib/ui";
 import { BASE, fmtDate, joinRows, pct, short, stat, themePath, useBoard, type BoardTheme, type DRow } from "../discovery/model";
+import { buttonClass } from "../components/ui";
 import "../styles/dth.css";
 
 export type DiscoverPassage = { t: string; kind?: string; about?: boolean };
@@ -92,7 +93,7 @@ export function ThemeChips({ symbol, name, jump }: { symbol: string; name: strin
       <span className="dth-nil">{co} is not in a Discover theme yet. Discover places a company from the words of its newest investor presentation. <Link to={BASE}>Open Discover ↗</Link></span></nav>);
   const chip = (t: { name: string; label: string; n?: number } | null, label: string, main: boolean) => (
     <Link className={"dth-chip" + (main ? " dth-main" : "")} to={themeLink(t?.name ?? label, co)} title={`Opens ${label} in Discover with ${co} found`}>
-      <b>{label}</b>{t?.n != null && <span>({t.n.toLocaleString("en-IN")} {t.n === 1 ? "company" : "companies"})</span>}{main && <em>Main theme</em>}<Arrow /></Link>);
+      <b>{label}</b>{t?.n != null && <span>({t.n.toLocaleString("en-IN")} {t.n === 1 ? "company" : "companies"})</span>}{main && <em className="ui-chip ui-chip--gold">Main theme</em>}<Arrow /></Link>);
   const date = d.company.document?.date;
   return (
     <nav className="dth" aria-label={`Discover themes featuring ${co}`}>
@@ -135,7 +136,7 @@ export function BuildCard({ symbol, name }: { symbol: string; name: string }) {
       </div>
       {d.others.length > 0 && <p className="dth-also">Its presentation also mentions {d.others.map((t, i) => <span key={t.name}>{i > 0 ? ", " : ""}<Link to={themeLink(t.name, co)}>{t.label}</Link></span>)}.</p>}
       <p className="dth-check"><b>What to check:</b> {verify ? `${verify.replace(/\.?\s*$/, ".")} ` : ""}A theme word alone is not proof of real business.</p>
-      <div className="dth-acts"><Link className="dth-btn" to={themeLink(d.main?.name ?? c.theme, co)}>See {theme} in Discover<Arrow /></Link>
+      <div className="dth-acts"><Link className={buttonClass("secondary", "md", "dth-btn")} to={themeLink(d.main?.name ?? c.theme, co)}>See {theme} in Discover<Arrow /></Link>
         {doc?.link && <a className="dth-link" href={doc.link} target="_blank" rel="noopener noreferrer">Open the presentation ↗</a>}
         <span className="dth-fine">Information only, not a recommendation.</span></div>
     </div>);

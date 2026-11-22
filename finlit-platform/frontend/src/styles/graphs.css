@@ -18,8 +18,8 @@
 .gx-chip .gx-mini { font-size: 12px; border: 1px solid var(--border); }
 .gx-seg { display: inline-flex; flex-wrap: wrap; gap: 2px; background: var(--s2); border: 1px solid var(--border); border-radius: 9px; padding: 2px; margin-bottom: 8px; }
 .gx-seg button { background: none; border: 0; color: var(--muted); padding: 5px 10px; border-radius: 7px; font: inherit; font-size: var(--fs-13); font-weight: 600; cursor: pointer; display: inline-flex; gap: 4px; align-items: center; }
-.gx-seg button[aria-pressed=true], .gx-seg button[aria-selected=true] { background: var(--gold-soft); color: var(--gold); } .gx-seg button:disabled { opacity: .4; cursor: not-allowed; }
-.gx-groups { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0; } .gx-groups button { background: var(--s2); border: 1px solid var(--border); color: var(--muted); border-radius: 999px; padding: 3px 9px; font-size: 12px; cursor: pointer; } .gx-groups button[aria-pressed=true] { color: var(--gold); border-color: var(--gold); }
+.gx-seg button[aria-pressed=true], .gx-seg button[aria-selected=true] { background: var(--ui-on-bg); color: var(--ui-on-fg); } .gx-seg button:disabled { opacity: .4; cursor: not-allowed; }
+.gx-groups { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0; } .gx-groups button { background: var(--s2); border: 1px solid var(--border); color: var(--muted); border-radius: 999px; padding: 3px 9px; font-size: 12px; cursor: pointer; } .gx-groups button[aria-pressed=true] { color: var(--ui-on-fg); border-color: var(--ui-on-bg); background: var(--ui-on-bg); }
 .gx-list { list-style: none; margin: 0; padding: 0; } .gx-list li { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-bottom: 1px solid var(--border); font-size: 13px; cursor: grab; }
 .gx-list li label { display: flex; gap: 8px; align-items: center; flex: 1; cursor: pointer; } .gx-list li > span { flex: 1; } .gx-list small { color: var(--faint); font-size: 12px; white-space: nowrap; } .gx-list .grip { flex: none; color: var(--faint); }
 .gx-hint { font-size: 12px; margin: 4px 0; }
