@@ -72,3 +72,40 @@
   .dth-ctx b { font-size: 18px; }
   .dth-pop { left: auto; right: -8px; width: min(320px, calc(100vw - 48px)); }
 }
+
+/* Task #312 (developer file 20): 1 · .dtx, the Discover themes in one line; 2 · .dtc, What it is building, compact. Site tokens; sizes on the type scale. */
+.dtx { gap: 6px 12px; padding: 8px 10px 8px 12px; }
+.dtx-k { font: 700 var(--fs-12) var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+.dtx-k svg { color: var(--dth-p); }
+.dtx-main { display: inline-flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 8px 0 12px; border: 1.5px solid var(--dth-pb); border-radius: var(--ui-r-pill); background: var(--s1); color: var(--text); text-decoration: none; min-width: 0; }
+.dtx-main b { font: 600 var(--fs-14)/1.25 var(--sans); }
+.dtx-main:hover { border-color: var(--dth-p); } .dtx-main:hover b { text-decoration: underline; }
+.dtx-main:focus-visible, .dtx-also a:focus-visible, .dtx-go:focus-visible { outline: 2px solid var(--dth-p); outline-offset: 2px; }
+.dtx-tag { font: 700 var(--fs-12)/1 var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--dth-on); background: var(--dth-p); border-radius: var(--ui-r-pill); padding: 4px 7px; white-space: nowrap; }
+.dtx-main svg { color: var(--muted); flex: none; }
+.dtx-also { font: 400 var(--fs-13)/1.4 var(--sans); color: var(--muted); min-width: 0; }
+.dtx-also a { color: var(--text); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.dtx-end { display: inline-flex; align-items: center; gap: 10px; margin-left: auto; }
+.dtx-go { font: 600 var(--fs-13) var(--sans); color: var(--text); text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
+@media (max-width: 760px) { .dtx-end { margin-left: 0; width: 100%; } .dtx-main { max-width: 100%; } .dtx-main b { white-space: normal; } }
+.dtc { padding: 16px 20px 14px; }
+.dtc-h { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0 0 6px; }
+.dtc .dtc-h h3 { font: 600 var(--fs-18)/1.3 var(--sans); margin: 0; color: var(--text); }
+.dtc-h > span:last-child:not(.dth-ck) { margin-left: auto; }
+.dtc .dtc-lede { font: 400 var(--fs-16)/1.55 var(--sans); color: var(--text); margin: 0; max-width: none; }
+.dtc-lede b { font-weight: 700; }
+.dtc-src { color: var(--muted); }
+.dtc-words { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-left: 4px; color: var(--muted); font-size: var(--fs-13); }
+.dtc-words i { font: 600 var(--fs-12)/1 var(--sans); font-style: normal; background: var(--dth-ps); border: 1px solid var(--dth-pb); color: var(--dth-pi); border-radius: var(--ui-r-pill); padding: 5px 8px; }
+.dtc-ctx { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 12px 0 0; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); overflow: hidden; }
+.dtc-ctx > div { padding: 9px 14px; min-width: 0; }
+.dtc-ctx > div + div { border-left: 1px solid var(--border); }
+.dtc-ctx dt { font: 700 var(--fs-12)/1.3 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.dtc-ctx dd { margin: 2px 0 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.dtc-ctx b { font: 700 var(--fs-18)/1.25 var(--sans); color: var(--text); font-variant-numeric: tabular-nums; }
+.dtc-ctx small { font: 400 var(--fs-13)/1.3 var(--sans); color: var(--muted); }
+.dtc .dtc-check { font: 400 var(--fs-14)/1.5 var(--sans); color: var(--text); margin: 10px 0 0; max-width: none; }
+.dtc-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+.dtc-acts .dth-btn { min-height: 36px; }
+@media (max-width: 900px) { .dtc-ctx { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dtc-ctx > div:nth-child(3) { border-left: 0; } .dtc-ctx > div:nth-child(n+3) { border-top: 1px solid var(--border); } }
+@media (max-width: 560px) { .dtc { padding: 14px; } .dtc-h > span:last-child:not(.dth-ck) { margin-left: 0; } .dtc-acts .dth-fine { flex-basis: 100%; margin-left: 0; } }
