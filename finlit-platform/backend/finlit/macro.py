@@ -50,7 +50,7 @@ WB_COLUMNS = {"copper_m": ("Copper", "mt"), "aluminium_m": ("Aluminum", "mt"), "
 WB_LICENCE = "World Bank Commodity Price Data (the Pink Sheet), monthly averages; licence CC BY 4.0 (https://www.worldbank.org/en/about/legal/terms-of-use-for-datasets)."
 USER_AGENT = "FinLit-data/1.0 (+https://finlitventures.com)"
 PAUSE = 0.25                                  # seconds between two MoSPI requests
-KEY = "macro:v1"
+KEY = "macro:v2"          # v2: task #311 wording (a cached v1 body is never served again)
 CACHE = "public, max-age=600, stale-while-revalidate=3600"
 IST = timezone(timedelta(hours=5, minutes=30))
 DECISIONS = Path(__file__).parent / "data" / "repo_decisions.json"
@@ -574,6 +574,34 @@ async def refresh(store, transport: Optional[httpx.AsyncBaseTransport] = None, t
             "cards": len(payload["cards"]), "seconds": round(time.perf_counter() - started, 1)}
 
 
+# Task #311 (developer file 21, India macro rows 1, 2 and 5): each history line is its name, what it measures in one sentence, and its source (the source
+# name and link are sent beside it). How a series is joined across bases, rounded or read is not shown. The World Bank's licence line stays: CC BY 4.0
+# asks for the credit. Read fresh when the page is served, so a stored payload never shows older wording.
+NOTES: Dict[str, str] = {
+    "cpi": "Change in consumer prices over the same month a year earlier.",
+    "wpi": "Change in wholesale prices over the same month a year earlier.",
+    "gdp": "Change in the economy's output, each quarter against the same quarter a year earlier.",
+    "iip": "Change in industrial output over the same month a year earlier.",
+    "unemployment": "Share of people who want work and have none, each month.",
+    "repo": "The RBI's policy rate in force at each month end.",
+    "fx_reserves": "The foreign exchange reserves the RBI holds, in US dollars.",
+    "usdinr": "How many rupees one US dollar costs.",
+    "brent_d": "The daily price of Brent crude oil, in US dollars a barrel.",
+    "copper_m": WB_LICENCE,
+    "aluminium_m": WB_LICENCE,
+    "natgas_m": WB_LICENCE,
+    "credit_yoy": "Change in bank lending over a year earlier.",
+}
+
+
+def fresh_notes(payload: dict) -> dict:
+    """The stored page with today's wording of each history line (task #311)."""
+    for k, v in (payload.get("series") or {}).items():
+        if isinstance(v, dict) and k in NOTES:
+            v["note"] = NOTES[k]
+    return payload
+
+
 # ---------------------------------------------------------------------------------------------------- building the page
 def _spliced(newer: S.Points, older: S.Points) -> S.Points:
     """The older series up to where the newer one begins, then the newer one (each kept as published or derived within its own base)."""
@@ -601,10 +629,7 @@ def derive(raw: Dict[str, S.Points], decisions: List[S.Decision], today: date) -
             if d.year == 2025 and d not in pts and back.get(S.month_end(2024, d.month)):
                 pts[d] = round((v / back[S.month_end(2024, d.month)] - 1) * 100, 2)
         out[key] = pts
-    notes["cpi"] = ("MoSPI's published inflation rate, base 2024 = 100: the back series for 2013-2024 and the current series from January 2026. "
-                    "For the 12 months of 2025 (the new series' first year, for which MoSPI publishes no rate) the change is worked out from the "
-                    "current series' index against the back series' index for the same month, both on base 2024 (published indices are rounded to two "
-                    "decimals, so such a figure can differ from MoSPI's own by 0.01 percentage point).")
+    notes["cpi"] = NOTES["cpi"]
     breaks["cpi"] = [{"d": "2025-01-31", "label": "New series (base 2024)"}]
     for k in [k for k in raw if k.startswith("cpi_div_")]:
         out[k] = raw[k]
@@ -612,46 +637,41 @@ def derive(raw: Dict[str, S.Points], decisions: List[S.Decision], today: date) -
     for key in ("wpi", "wpi_primary", "wpi_fuel", "wpi_mfg", "wpi_food"):
         suffix = key[3:]
         out[key] = _spliced(S.yoy(raw.get("wpi22_idx" + suffix, {})), S.yoy(raw.get("wpi11_idx" + suffix, {})))
-    notes["wpi"] = ("MoSPI publishes the wholesale index, not an inflation rate: each month is the index against the same month a year earlier, always "
-                    "within one base (2011-12 = 100 until December 2023; 2022-23 = 100 from January 2024).")
+    notes["wpi"] = NOTES["wpi"]
     breaks["wpi"] = [{"d": "2024-01-31", "label": "Base 2022-23"}]
     # GDP: within each base, the quarter against the same quarter a year earlier.
     out["gdp"] = _spliced(S.yoy(raw.get("gdp22_const", {})), S.yoy(raw.get("gdp11_const", {})))
     out["gdp_nominal"] = _spliced(S.yoy(raw.get("gdp22_cur", {})), S.yoy(raw.get("gdp11_cur", {})))
     first22 = min(S.yoy(raw.get("gdp22_const", {})) or [None]) if raw.get("gdp22_const") else None
     breaks["gdp"] = [{"d": first22.isoformat(), "label": "Base 2022-23"}] if first22 else []
-    notes["gdp"] = ("Quarterly GDP from the National Statistics Office: real (constant prices) and nominal (current prices), each quarter against "
-                    "the same quarter a year earlier, within one base year (2011-12, then 2022-23 once it has a year of history).")
+    notes["gdp"] = NOTES["gdp"]
     # IIP: MoSPI's published growth, base 2022-23 where it exists, the 2011-12 base before.
     for key in ("iip", "iip_mining", "iip_mfg", "iip_elec", "iip_capital", "iip_infra", "iip_durables", "iip_nondurables"):
         out[key] = _spliced(raw.get(key, {}), raw.get(key + "_11", {}))
-    notes["iip"] = "MoSPI's published growth rate of the Index of Industrial Production (base 2022-23; base 2011-12 before it)."
+    notes["iip"] = NOTES["iip"]
     for key in ("unemployment", "unemployment_youth", "unemployment_urban"):
         out[key] = raw.get(key, {})
-    notes["unemployment"] = "Periodic Labour Force Survey, monthly estimate (published from January 2025), current weekly status."
+    notes["unemployment"] = NOTES["unemployment"]
     # Repo: the rate in force at each month end; today's from rbi.org.in.
     out["repo"] = S.repo_series(decisions, today)
-    notes["repo"] = "The rate in force at each month end, from every RBI policy decision since April 2016; today's figure is read from rbi.org.in."
+    notes["repo"] = NOTES["repo"]
     # Real rate: repo at each CPI month end minus CPI.
     out["real_rate"] = {d: round(out["repo"][d] - v, 2) for d, v in out["cpi"].items() if d in out["repo"]}
     # Reserves: RBI's month-end figures, then weekly figures (and the two earlier weeks each weekly release states).
     weekly = raw.get("fx_reserves_w", {})
     out["fx_reserves"] = {**raw.get("fx_reserves_m", {}), **weekly}
-    notes["fx_reserves"] = ("Month-end reserves from the RBI's tables (as republished by MoSPI), and weekly figures from the RBI's Weekly Statistical "
-                            "Supplement from the week they were first read; a weekly release also states the change against end-March and a year "
-                            "earlier, from which those two weeks are added.")
+    notes["fx_reserves"] = NOTES["fx_reserves"]
     out["usdinr"] = {**raw.get("usdinr_m", {}), **raw.get("usdinr_d", {})}
     out["usdinr_d"] = dict(raw.get("usdinr_d", {}))
-    notes["usdinr"] = ("Monthly average of the reference rate (RBI tables, as republished by MoSPI; months they have not published yet are the average of the FBIL "
-                       "reference rates in the RBI's Reference Rate Archive), then the daily FBIL reference rate shown on rbi.org.in from the day it was first read.")
+    notes["usdinr"] = NOTES["usdinr"]
     out["brent_d"] = dict(raw.get("brent_d", {}))
-    notes["brent_d"] = "U.S. Energy Information Administration, Europe Brent spot price FOB (series RBRTE), daily, US dollars a barrel; public-domain data."
+    notes["brent_d"] = NOTES["brent_d"]
     for key in ("copper_m", "aluminium_m", "natgas_m"):
         out[key] = dict(raw.get(key, {}))
-        notes[key] = WB_LICENCE + " A monthly average: the latest month is published about the third working day of the next month."
+        notes[key] = NOTES[key]
     for key in ("credit_yoy", "deposits_yoy", "m3_yoy"):
         out[key] = raw.get(key, {})
-    notes["credit_yoy"] = "Scheduled commercial banks, business in India, as the RBI's weekly statistical supplement states it, from the week it was first read."
+    notes["credit_yoy"] = NOTES["credit_yoy"]
     return out, breaks, notes
 
 
@@ -905,6 +925,8 @@ async def macro(request: Request):
     if hit[0] is None:
         async with store.pool.acquire() as conn:
             payload = await get_meta(conn, "payload")
+        if payload:
+            payload = fresh_notes(payload)
         if not payload:
             return Response(content=dumps({"status": "loading", "detail": "Macro data has not been loaded yet. It loads nightly; check back soon."}),
                             status_code=503, media_type="application/json", headers={"Cache-Control": "no-store", "Retry-After": "600"})

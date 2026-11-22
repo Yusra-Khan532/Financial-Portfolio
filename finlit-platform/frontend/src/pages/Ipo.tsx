@@ -158,7 +158,7 @@ export function IpoPage() {
   return (
     <div className="wrap ipo p4">
       <PageHeader plan="free" title="IPO calendar" art="calendar" links={["/results", "/news", "/premium/markets"]} actions={<CalendarSync />}
-        description={<>Issues that are <b>open, coming up and recently listed</b>, updated automatically from exchange data. For information only; the offer document is the authoritative source.</>} />
+        description={<>Issues that are <b>open, coming up and recently listed</b>. For information only; the offer document is the authoritative source.</>} />
       <dl className="dw-kpis p4-kpis" aria-label="IPO counts">
         {([["open", "Open now", by("open").length], ["upcoming", "Upcoming", by("upcoming").length], ["closed", "Closed, listing soon", by("closed").length], ["listed", "Listed in the last 30 days", recent.length]] as const).map(([k, l, n]) =>
           <div key={k} style={{ "--tc": STATUS[k].colour } as React.CSSProperties}><dt><i />{l}</dt><dd>{isLoading ? "—" : n}</dd></div>)}

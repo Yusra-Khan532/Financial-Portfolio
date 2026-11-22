@@ -12,7 +12,7 @@ const setSeesAll = (v: boolean): boolean => { setSeesAllNow(v); return v; };
 
 export type User = { id: string; email: string; name: string | null; role: "investor" | "admin"; plan: Plan; verified: boolean; mfa: boolean; mfaOk: boolean; viewAs?: Plan | null };
 export type Limits = { watchlist_lists: number; watchlist_symbols: number; screens: number; baskets: number; compare: number; holdings: number; mf_holdings: number; etf_holdings: number; earnings_calls_per_month: number };
-type Me = { user: User | null; plan: Plan; limits: Limits; csrf: string | null; showcase?: string[] };
+type Me = { user: User | null; plan: Plan; limits: Limits; csrf: string | null; showcase?: string[]; prismReportsPerDay?: number | null };
 
 /** Same numbers the server enforces (backend/finlit/auth/entitlements.py); the server is what actually applies them. */
 export const LIMITS: Record<Plan, Limits> = {
@@ -33,6 +33,8 @@ type Auth = {
   seesAll: boolean;
   /** Symbols whose full report the server sends to everyone (the free example). */
   showcase: string[];
+  /** Task #311: FinLit Prism reports this member may open in a day (the server's plan table); null when not limited or not part of the plan. */
+  prismReportsPerDay: number | null;
   /** Re-read the session after a sign-in, sign-out or plan change; clears plan-dependent cached data. */
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -70,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [qc, clearPlanData]);
 
   const value = useMemo<Auth>(() => ({
-    ready: DEMO || !q.isPending, user: DEMO ? DEMO_USER : me.user, plan: me.plan, limits: me.limits, isAdmin: me.user?.role === "admin", seesAll: setSeesAll(me.user?.role === "admin" && !me.user?.viewAs), showcase: me.showcase ?? [], refresh, signOut,
+    ready: DEMO || !q.isPending, user: DEMO ? DEMO_USER : me.user, plan: me.plan, limits: me.limits, isAdmin: me.user?.role === "admin", seesAll: setSeesAll(me.user?.role === "admin" && !me.user?.viewAs), showcase: me.showcase ?? [], prismReportsPerDay: me.prismReportsPerDay ?? null, refresh, signOut,
   }), [me, q.isPending, refresh, signOut]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

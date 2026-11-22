@@ -154,7 +154,7 @@ def test_derive_splices_bases_and_marks_the_breaks():
     raw = {"cpi": {D(2024, 12, 31): 5.2, D(2026, 1, 31): 2.75}, "cpi_idx": {D(2025, 1, 31): 105.0}, "cpi_idx_back": {D(2024, 1, 31): 100.0}}
     out, breaks, notes = macro.derive(raw, macro.load_decisions(), D(2026, 10, 23))
     assert out["cpi"][D(2025, 1, 31)] == 5.0 and out["cpi"][D(2024, 12, 31)] == 5.2 and out["cpi"][D(2026, 1, 31)] == 2.75
-    assert breaks["cpi"] and "base 2024" in notes["cpi"]
+    assert breaks["cpi"] and notes["cpi"] == macro.NOTES["cpi"]   # task #311: the base break is marked on the chart; the note says what CPI measures
     assert out["real_rate"][D(2025, 1, 31)] == round(out["repo"][D(2025, 1, 31)] - 5.0, 2)
 
 

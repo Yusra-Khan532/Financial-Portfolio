@@ -704,6 +704,15 @@ async def reset_with_code(request: Request, body: ResetCodeIn):
 
 
 # ------------------------------------------------------------------ who am I
+def prism_reports_per_day(ctx) -> Optional[int]:
+    """Task #311: the FinLit Prism reports this member may open in a day, the number the Prism page shows ("You can open N a day"). The same table
+    the report feed enforces (prism.PLAN_REPORTS); None for an administrator (not limited) and for a plan without Prism reports."""
+    from ..prism import PLAN_REPORTS          # imported here: prism imports this package
+    if getattr(ctx, "role", None) == "admin" and not (getattr(ctx, "extra", None) or {}).get("view_as"):
+        return None
+    return PLAN_REPORTS.get((ctx.plan or "").lower())
+
+
 def limits_for(plan: str) -> Dict[str, int]:
     return LIMITS.get(plan, LIMITS["basic"])
 
@@ -712,7 +721,8 @@ def limits_for(plan: str) -> Dict[str, int]:
 async def me(request: Request):
     ctx = await current(request)
     body = {"user": ctx.public() if ctx.authed else None, "plan": ctx.plan, "limits": limits_for(ctx.plan), "csrf": ctx.csrf if ctx.authed else None,
-            "showcase": sorted(request.app.state.settings.showcase_symbols)}  # the free example companies: their reports are sent in full to everyone
+            "showcase": sorted(request.app.state.settings.showcase_symbols),  # the free example companies: their reports are sent in full to everyone
+            "prismReportsPerDay": prism_reports_per_day(ctx)}
     return Response(content=json.dumps(body), media_type="application/json", headers={**NO_STORE, "Vary": "Cookie"})
 
 

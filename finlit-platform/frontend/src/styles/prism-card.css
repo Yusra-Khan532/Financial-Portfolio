@@ -219,3 +219,31 @@
 }
 /* 3. The scale under each technical bar: "Sideways · 0" stays on one line */
 .pcx-sl span:nth-child(2) { white-space: nowrap; }
+
+/* Task #312 (developer file 20, change 3): the AI summary as the first thing in the FinLit Prism card (.pai2 replaces .pai). Sizes on the type scale. */
+.pai2 { margin: 0; padding: 20px 32px 0; display: grid; gap: 0; }
+@media (max-width: 760px) { .pai2 { padding: 14px 14px 0; } }
+.pai2-bar { display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 14px; border: 1px solid color-mix(in srgb, var(--gold) 35%, var(--border)); border-radius: var(--r-ctl);
+  background: color-mix(in srgb, var(--gold) 7%, var(--s1)); }
+.pai2-ic { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: var(--r-ctl); background: color-mix(in srgb, var(--gold) 16%, var(--s1)); color: var(--gold); }
+.pai2-t { display: grid; gap: 1px; min-width: 0; flex: 1; }
+.pai2-t b { font: 600 var(--fs-16)/1.3 var(--sans); color: var(--text); }
+.pai2-t small { font: 400 var(--fs-13)/1.35 var(--sans); color: var(--muted); }
+.pai2 .btn.pai2-btn, .pai2 .btn.pai2-stop { flex: none; min-height: 38px; padding: 0 16px; }
+.pai2 .btn.pai2-btn { background: var(--gold); border-color: var(--gold); color: var(--bg); font-weight: 600; }
+.pai2 .btn.pai2-btn:hover { filter: brightness(1.08); }
+.pai2-st { display: inline-flex; align-items: center; }
+.pai2-dots { display: inline-flex; gap: 3px; margin-right: 6px; vertical-align: middle; }
+.pai2-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--gold); animation: pai2d 1s infinite ease-in-out; }
+.pai2-dots i:nth-child(2) { animation-delay: .15s; } .pai2-dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes pai2d { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .pai2-dots i { animation: none; opacity: .7; } }
+.pai2-out { display: grid; gap: 8px; margin-top: 8px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); font: 400 var(--fs-14)/1.55 var(--sans); color: var(--text); }
+.pai2-list { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.pai2-msg { margin: 0; padding: 8px 10px; border-radius: var(--r-ctl); background: color-mix(in srgb, var(--loss) 8%, var(--s1)); font-size: var(--fs-13); }
+.pai2-note { margin: 0; font-size: var(--fs-13); color: var(--muted); }
+.pai2-meta { margin: 2px 0 0; font: 400 var(--fs-12)/1.4 var(--sans); color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.pai2-x { margin-left: auto; border: 0; background: none; color: var(--text); font: 600 var(--fs-13) var(--sans); text-decoration: underline; cursor: pointer; padding: 4px; }
+.pai2-x:focus-visible, .pai2 .btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+@media (max-width: 560px) { .pai2-bar { flex-wrap: wrap; } .pai2-t { flex-basis: calc(100% - 50px); } .pai2 .btn.pai2-btn, .pai2 .btn.pai2-stop { width: 100%; justify-content: center; } }
+.pai2-ic svg { width: 18px; height: 18px; }

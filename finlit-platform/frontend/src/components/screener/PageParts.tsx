@@ -34,7 +34,7 @@ export function Donut({ part, total, partLabel, restLabel, title, note }: { part
           <circle cx="56" cy="56" r={R} fill="none" stroke="var(--gold)" strokeWidth="13" strokeDasharray={`${(pct / 100) * C} ${C}`} transform="rotate(-90 56 56)" />
           <text x="56" y="62" textAnchor="middle">{nf(pct, 0)}%</text></svg>
         <div><p className="fgx-big">{title}</p>{note && <p className="fgx-dm">{note}</p>}
-          <ul className="fgx-leg"><li><i className="a" aria-hidden="true" />{partLabel} {nf(part, 0)} ({nf(pct, 0)}%)</li><li><i className="b" aria-hidden="true" />{restLabel} {nf(total - part, 0)} ({nf(100 - pct, 0)}%)</li></ul></div>
+          <ul className="fgx-leg"><li><i className="a" aria-hidden="true" />{partLabel} {nf(part, 0)}</li><li><i className="b" aria-hidden="true" />{restLabel} {nf(total - part, 0)}</li></ul></div>
       </div>
     </div>);
 }

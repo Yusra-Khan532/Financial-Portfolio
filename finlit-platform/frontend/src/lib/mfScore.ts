@@ -6,6 +6,14 @@ import { scoreBand, type ScoreBand } from "./scoreBands";
 import { nf } from "./format";
 
 export const MF_SCORE_NAME = "Mutual Fund Score";
+/** Task #311 (developer file 21, fund page row 3): the score's foot line: the disclaimer, then when it was scored and against which funds, in plain words
+    (no rule about how many funds a comparison needs). */
+const PEERS_PLAIN: Record<string, string> = { sub: "funds of the same category and plan", grp: "funds of the wider group and the same plan", fam: "funds tracking the same index" };
+export function scoreFootLine(day: string | null, kind?: string | null, text?: string | null): string {
+  const peers = (kind && PEERS_PLAIN[kind]) || (text ? text.replace(/\s*\([^)]*\)/g, "").replace(/^funds in /, "funds of ") : null);
+  const when = day || peers ? ` ${["Scored", day, peers ? `against ${peers}` : null].filter(Boolean).join(" ")}` : "";
+  return `Describes the fund's health from its past NAVs, costs and holdings; not a recommendation.${when}`;
+}
 export const MF_SCORE_COMPLIANCE = "Describes the fund's health from its past NAVs, costs and holdings; not a recommendation. Information only, not investment advice.";
 export const MF_METHOD_URL = "/methodology/mf-score";
 export const PILLAR_HELP: Record<string, string> = {

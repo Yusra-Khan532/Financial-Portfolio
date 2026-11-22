@@ -137,7 +137,6 @@ export function BuildCard({ symbol, name }: { symbol: string; name: string }) {
       {d.others.length > 0 && <p className="dth-also">Its presentation also mentions {d.others.map((t, i) => <span key={t.name}>{i > 0 ? ", " : ""}<Link to={themeLink(t.name, co)}>{t.label}</Link></span>)}.</p>}
       <p className="dth-check"><b>What to check:</b> {verify ? `${verify.replace(/\.?\s*$/, ".")} ` : ""}A theme word alone is not proof of real business.</p>
       <div className="dth-acts"><Link className={buttonClass("secondary", "md", "dth-btn")} to={themeLink(d.main?.name ?? c.theme, co)}>See {theme} in Discover<Arrow /></Link>
-        {doc?.link && <a className="dth-link" href={doc.link} target="_blank" rel="noopener noreferrer">Open the presentation ↗</a>}
-        <span className="dth-fine">Information only, not a recommendation.</span></div>
+        {doc?.link && <a className="dth-link" href={doc.link} target="_blank" rel="noopener noreferrer">Open the presentation ↗</a>}</div>
     </div>);
 }

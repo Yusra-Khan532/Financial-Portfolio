@@ -4,7 +4,7 @@ import { Link } from "react-router";
 import { Gate } from "../components/Gate";
 import { Icon } from "../lib/icons";
 import {
-  FLAG_TEXT, MF_METHOD_URL, MF_SCORE_COMPLIANCE, MF_SCORE_NAME, PILLAR_HELP, SCORE_BANDS, bandOf, wordBand, builtOnText, etfMeasures, rankText, scoreSentence, scoreText, useFundScore,
+  FLAG_TEXT, MF_METHOD_URL, MF_SCORE_COMPLIANCE, scoreFootLine, MF_SCORE_NAME, PILLAR_HELP, SCORE_BANDS, bandOf, wordBand, builtOnText, etfMeasures, rankText, scoreSentence, scoreText, useFundScore,
   type FundScore, type ScoreLine,
 } from "../lib/mfScore";
 import { BAND_NAME, bandVar } from "../lib/scoreBands";
@@ -133,7 +133,7 @@ export function ScoreBody({ s }: { s: FundScore }) {
             </details>)}
         </div>)}
       {rated && s.kind === "etf" && <EtfMeasures s={s} />}
-      <p className="faint mf-fine">{MF_SCORE_COMPLIANCE} <Link to={s.method || MF_METHOD_URL}>How it works</Link>{s.runDate ? ` · worked out ${dateIN(s.runDate)}` : ""}{s.peers?.text ? ` · compared with ${s.peers.text}` : ""}.</p>
+      <p className="faint mf-fine">{scoreFootLine(s.runDate ? dateIN(s.runDate) : null, s.peers?.kind, s.peers?.text)} · <Link to={s.method || MF_METHOD_URL}>What the score means</Link></p>
     </>
   );
 }
