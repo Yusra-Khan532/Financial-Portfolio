@@ -31,7 +31,7 @@ from fastapi import APIRouter, Request, Response
 log = logging.getLogger("finlit.global_markets")
 router = APIRouter()
 
-CACHE_KEY = "global-markets:v2"
+CACHE_KEY = "global-markets:v3"   # v3: the FTSE 100 row through a tracker fund (a fresh answer on deploy, not the hour-old one)
 CACHE_SECONDS = 3600
 FRED_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv"
 TWELVE_URL = "https://api.twelvedata.com/time_series"
