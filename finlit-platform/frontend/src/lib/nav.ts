@@ -70,8 +70,7 @@ export const MENU: MenuGroup[] = [
     i("/macro", "India economy", "Inflation, growth, interest rates and reserves", "activity"),
   ] },
   { id: "news", title: "Results, IPOs & news", line: "Who reports when, the latest results, IPOs and filings", short: "News", icon: "bell", items: [
-    i("/results", "Results calendar", "Who reports quarterly results, and when", "calendar", { end: true }),
-    i("/results/quarter", "Latest results", "Every company's newest quarter, newest first", "notes"),
+    i("/results", "Results", "Who reports when, how each industry did, every company's results", "calendar", { end: true }),   // task #330: one page
     i("/concalls", "Concall Monitor", "Earnings call recordings, transcripts, presentations and upcoming calls", "play", { newUntil: "2026-12-21" }),   // task #278 (after the pack): joins the group whose line describes it
     i("/ipo", "IPO calendar", "Issues open now, upcoming and listed", "activity", { end: true }),
     i("/ipo/all", "All IPOs", "Every IPO since 2020: listing price, subscription, GMP and returns", "layers", { newUntil: "2026-12-21" }),

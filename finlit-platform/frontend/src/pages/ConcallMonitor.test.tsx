@@ -141,11 +141,11 @@ describe("Concall Monitor", () => {
     await waitFor(() => expect(st.asked.some((u) => u.includes("q=acme"))).toBe(true));
   });
 
-  it("the menu lists the page under News & events, after Latest results, marked new", async () => {
+  it("the menu lists the page under News & events, after Results (task #330: one page), marked new", async () => {
     const { SECTIONS, isNew } = await import("../lib/nav");
     const items = SECTIONS.find((s) => s.id === "news")!.groups.flatMap((g) => g.items);
     const at = items.findIndex((x) => x.to === "/concalls");
-    expect(items[at - 1].to).toBe("/results/quarter");
+    expect(items[at - 1].to).toBe("/results");
     expect(items[at].label).toBe("Concall Monitor");
     expect(isNew(items[at], Date.parse("2026-11-21T10:00:00+05:30"))).toBe(true);
     expect(readFileSync(resolve(process.cwd(), "src/App.tsx"), "utf8")).toMatch(/path="concalls" element=\{<ConcallMonitorPage \/>\}/);

@@ -59,7 +59,7 @@ function ResultRow({ symbol, name }: { symbol: string; name: string | null }) {
   );
 }
 export function Results({ symbols, names }: { symbols: string[]; names: Map<string, string | null> }) {
-  if (!symbols.length) return <><Empty icon="notes" title="Pick stocks to follow" text="Your watchlist's newest quarterly results appear here, compared with last quarter and last year." to="/watchlist" cta="Build a watchlist" /><p className="rcs-all"><Link to="/results/quarter">See all quarter results <Icon name="arrow" /></Link></p></>;
+  if (!symbols.length) return <><Empty icon="notes" title="Pick stocks to follow" text="Your watchlist's newest quarterly results appear here, compared with last quarter and last year." to="/watchlist" cta="Build a watchlist" /><p className="rcs-all"><Link to="/results?view=companies">See all quarter results <Icon name="arrow" /></Link></p></>;
   return <>
     <div className="dx-tw"><table className="dx-t dx-rt">
       <caption className="dx-sr">The newest quarter of the companies you follow</caption>
@@ -67,7 +67,7 @@ export function Results({ symbols, names }: { symbols: string[]; names: Map<stri
         <th scope="col" className="n">Net profit<span className="dx-under">YoY</span></th><th scope="col" className="n dx-hide-s">YoY</th><th scope="col" className="n dx-hide-s">QoQ</th></tr></thead>
       <tbody>{symbols.slice(0, 4).map((s) => <ResultRow key={s} symbol={s} name={names.get(s) ?? null} />)}</tbody>
     </table></div>
-    <p className="rcs-all"><Link to="/results/quarter">See all quarter results <Icon name="arrow" /></Link></p>
+    <p className="rcs-all"><Link to="/results?view=companies">See all quarter results <Icon name="arrow" /></Link></p>
   </>;
 }
 

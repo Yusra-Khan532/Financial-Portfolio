@@ -19,21 +19,40 @@ function useTotals(quarter: string | undefined, cap?: string, on = true): VSumma
   return (cap ? r.data.summary : r.data.totals) as VSummary;
 }
 
-export function QuarterTiles({ r }: { r: QResp | undefined }) {
+/** The quarter's six tiles as data (null while loading): Latest results draws them all; the one Results page (task #330) places them one by one. */
+export function useQuarterTileData(r: QResp | undefined): KitTileData[] | null {
   const q = r?.quarter, locked = !!r?.locked;
   const list = r?.quarters ?? [], at = list.findIndex((x) => x.key === q?.key), before = at >= 0 ? list[at + 1] : undefined;
   const large = useTotals(q?.key, "Large", !!q), mid = useTotals(q?.key, "Mid", !!q), small = useTotals(q?.key, "Small", !!q), micro = useTotals(q?.key, "Micro", !!q);
   const prevTotals = useTotals(before?.key, undefined, !!before && !locked);
-  if (!r?.quarter || !q) return <div className="sx-skel sp-sec" role="status" aria-label="Loading the quarter's figures" />;
+  if (!r?.quarter || !q) return null;
   const by: BySize = { Large: large, Mid: mid, Small: small, Micro: micro };
   const prev: Prev = before ? { fiscal: before.fiscal, declared: before.declared, totals: prevTotals ?? null } : null;
-  const t = r.totals as VSummary;
-  const upd = r.updatedAt ? new Date(r.updatedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false }) : null;
+  return quarterTiles(r.totals as VSummary, prev, by, locked);
+}
+/** Task #330: the tile keys of each place on the one Results page (a Basic plan's locked tiles carry other keys for the same tiles). */
+export const QT_TOP = ["medianRevenueYoY", "rev", "medianProfitYoY", "profit", "beat"], QT_MORE = ["profitUp", "margin"];
+export function QuarterTileSet({ tiles, keys }: { tiles: KitTileData[] | null; keys: string[] }) {
+  return <>{(tiles ?? []).filter((x) => keys.includes(x.key)).map((x) => <QTile key={x.key} t={x} />)}</>;
+}
+/** The quarter line under the tiles (and the Basic plan's note). */
+export function QuarterNote({ r }: { r: QResp | undefined }) {
+  const q = r?.quarter;
+  if (!q) return null;
+  const upd = r!.updatedAt ? new Date(r!.updatedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false }) : null;
+  return <>
+    {r!.locked && <p className="sp-note">The growth figures, shares and verdicts are part of the Silver plan. <Link to="/plans">See plans</Link>.</p>}
+    <p className="sp-note">Quarter ended {longDate(q.periodEnd)} ({q.fiscal}){upd ? ` · updated ${upd} IST` : ""} · figures in ₹ crore · "typical" is the middle company (the median), so a few extreme results cannot distort it.</p>
+  </>;
+}
+
+export function QuarterTiles({ r }: { r: QResp | undefined }) {
+  const tiles = useQuarterTileData(r);
+  if (!tiles) return <div className="sx-skel sp-sec" role="status" aria-label="Loading the quarter's figures" />;
   return (
     <section className="rs-kpis rs-qtiles" aria-label="The quarter so far">
-      <div className="rs-q6" role="group" aria-label="The quarter in six figures">{quarterTiles(t, prev, by, locked).map((x) => <QTile key={x.key} t={x} />)}</div>
-      {locked && <p className="sp-note">The growth figures, shares and verdicts are part of the Silver plan. <Link to="/plans">See plans</Link>.</p>}
-      <p className="sp-note">Quarter ended {longDate(q.periodEnd)} ({q.fiscal}){upd ? ` · updated ${upd} IST` : ""} · figures in ₹ crore · "typical" is the middle company (the median), so a few extreme results cannot distort it.</p>
+      <div className="rs-q6" role="group" aria-label="The quarter in six figures">{tiles.map((x) => <QTile key={x.key} t={x} />)}</div>
+      <QuarterNote r={r} />
     </section>
   );
 }

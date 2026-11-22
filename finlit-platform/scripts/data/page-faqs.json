@@ -666,12 +666,13 @@
   ]
  },
  {
-  "declared": 6,
+  "declared": 14,
   "id": "results-calendar",
-  "title": "Results calendar",
+  "title": "Results",
   "section": "News & events",
   "routes": [
-   "/results"
+   "/results",
+   "/results/quarter"
   ],
   "items": [
    {
@@ -688,29 +689,18 @@
    },
    {
     "q": "What are Coming up this week and the tiles?",
-    "a": "Coming up this week lists every company whose board meets on results in the next seven days, the same companies the calendar shows as due, with how its industry has done so far and that industry's typical profit growth. The four tiles at the top count what is declared, what is due in the next seven days, your own companies and the last full day."
+    "a": "Coming up this week lists every company whose board meets on results in the next seven days, the same companies the calendar shows as due, with how its industry has done so far and that industry's typical profit growth. The six tiles at the top count what is declared, what is due in the next seven days and your own companies, with the quarter's typical revenue and profit growth and the share of companies that beat their industry; 3 more figures under them add Profit up, Net margin up and the last full day."
    },
    {
     "q": "Where can I see the actual numbers?",
-    "a": "Select See all quarter results to open Latest results, which has revenue, profit and margins for every company."
+    "a": "Press Companies in the view bar: it has revenue, profit and margins for every company. From a day in the calendar, All … in the Companies view opens it with that day already chosen."
    },
    {
     "q": "Can I get a reminder before a company reports?",
     "a": "Yes. On the Alerts page, the Results announced quick alert (or the Results due within (days) condition) tells you when a results date is near."
-   }
-  ]
- },
- {
-  "declared": 8,
-  "id": "latest-results",
-  "title": "Latest results",
-  "section": "News & events",
-  "routes": [
-   "/results/quarter"
-  ],
-  "items": [
+   },
    {
-    "q": "What does this page show?",
+    "q": "What does the Companies view show?",
     "a": "Every company's results for one quarter, grouped by the day it declared, most recent first: revenue, operating profit and margin, net profit and margin, and EPS, with growth against a year ago (YoY) and the quarter before (QoQ)."
    },
    {
@@ -719,7 +709,7 @@
    },
    {
     "q": "How do I look at another quarter?",
-    "a": "Choose it in the Quarter menu at the top."
+    "a": "Choose it in the Quarter menu at the top. It applies to all three views; on a past quarter the calendar opens on that quarter's busiest month."
    },
    {
     "q": "What does the “Sales and profit apart” flag mean?",

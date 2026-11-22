@@ -305,8 +305,8 @@ const actions: Fn = (sym, d) => {
   const nextResult = (d.events?.announcements ?? []).find((x: J) => /board meeting|financial results|results/i.test(`${x.category} ${x.description}`) && new Date(x.date) >= new Date(new Date().toDateString()));
   return out([divs.length ? `${sym}'s latest dividends: ${divs.slice(0, 4).map((x) => `${x.title} (${day(x.date)})`).join("; ")}.` : `FinLit has no dividends for ${sym}.`,
     others.length ? `Splits, bonuses, rights and buybacks: ${others.slice(0, 5).map((x) => `${x.title} (${day(x.date)})`).join("; ")}.` : "No split, bonus, rights issue or buyback is on record.",
-    nextResult ? `Next board meeting on results: ${day(nextResult.date)}.` : "No upcoming results date is on record yet; the Results calendar lists dates as companies announce them.", "Source: FinLit corporate actions and announcements."],
-    { to: "/results", label: "Open the Results calendar" });
+    nextResult ? `Next board meeting on results: ${day(nextResult.date)}.` : "No upcoming results date is on record yet; the Results page lists dates as companies announce them.", "Source: FinLit corporate actions and announcements."],
+    { to: "/results", label: "Open Results" });
 };
 const compare: Fn = (sym, d, e) => {
   const b = e.second, d2 = e.d2;

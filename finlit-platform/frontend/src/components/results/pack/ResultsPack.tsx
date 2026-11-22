@@ -32,7 +32,7 @@ const VIEWS: { key: ResView; title: string; desc: string; color: string; icon: s
   { key: "companies", title: "Companies", desc: "Every company's results, newest first", color: "#b5541c", icon: "list" },
 ];
 export function ResultsHead({ title, desc, links, view, actions }: { title: string; desc: string; links: [string, string][]; view: ResView; actions?: React.ReactNode }) {
-  const to: Record<ResView, string> = { calendar: "/results", industries: "/results/quarter?view=industries", companies: "/results/quarter" };
+  const to: Record<ResView, string> = { calendar: "/results?view=calendar", industries: "/results?view=industries", companies: "/results?view=companies" };
   return (
     <header className="sp-head rs-head card">
       <p className="sp-eyebrow">Markets · Results</p>
@@ -195,7 +195,7 @@ export function DayResults({ day, resp, week, locked, mine, picker, today, onDay
         {locked ? <LockedBlock plan="silver" title="Each company's figures and verdict are part of the Silver plan">The calendar, the counts and the companies are open to everyone. Silver shows every company's revenue, profit and margin against a year ago, with its verdict against its industry.</LockedBlock>
           : <><ResultsTable rows={all ? shown : shown.slice(0, 10)} label={`results declared on ${dayShort(day)}`} mine={mine} />
             {shown.length > 10 && <button type="button" className="sp-morebtn" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer ▴" : `Show the other ${shown.length - 10} companies ▾`}</button>}
-            {total > rows.length && <p className="sp-note">The {rows.length} largest of {n0(total)} are listed here. <Link to={`/results/quarter?date=${day}`}>All {n0(total)} on Latest results →</Link></p>}</>}
+            {total > rows.length && <p className="sp-note">The {rows.length} largest of {n0(total)} are listed here. <Link to={`/results?view=companies&date=${day}`}>All {n0(total)} in the Companies view →</Link></p>}</>}
       </>}
     </section>
   );
@@ -224,7 +224,7 @@ export function ComingUp({ resp, inds, dueMine, followed, mine, locked }: { resp
   return (
     <Section id="rs-week" title={`Coming up this week · ${n0(total)} ${total === 1 ? "company" : "companies"}`} help="Coming up this week. Every company whose board meets on results in the next seven days, as announced to the exchanges: the same companies the calendar shows as due."
       sub={`The largest companies due, by day. The last two columns show how their industry has done so far: a yardstick for what to expect.${total > shown.length ? ` The ${shown.length} largest of ${n0(total)} are listed.` : ""}`}
-      right={<Link to="/results/quarter?status=due" className="sp-link">See all {n0(total)} →</Link>}>
+      right={<Link to="/results?view=companies&status=due" className="sp-link">See all {n0(total)} →</Link>}>
       {!resp ? <div className="sx-skel" style={{ height: 120 }} role="status" aria-label="Loading the week ahead" /> : !shown.length ? <p className="sp-empty">No board meetings on results are announced for the next seven days.</p> : <>
         {cards.length > 0 && <div className="rsc-cards">{cards.length > 1 && <div className="rsc-openall"><OpenAll scope="rsc-week" n={cards.length} /></div>}<DashCards items={cards} scope="rsc-week" /></div>}
         <Scroll label="results due this week"><table className="sp-tb rs-t kit-grid rsc-week-t">

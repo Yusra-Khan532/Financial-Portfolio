@@ -26,7 +26,7 @@ export function ResultsToday({ symbols }: { symbols: string[] }) {
       {q.isLoading ? <Rows n={4} h={46} /> : q.isError ? <p className="dsh-note">Results are not available right now.</p> : !lines.length ? <p className="dsh-note">{scope === "mine" ? "No results due for your stocks this week." : "No company has filed or announced a results date for this week yet."}</p> :
         <><div className="dsh-lines" id="dsh-results-list">{more.visible.map((l) => <Link key={l.key} to={l.symbol ? `/stocks/${l.symbol}` : "/results"} className="dsh-line2"><span><b>{who(l)}</b><span>{l.text}</span></span><em>{shortDay(l.date, today)}</em></Link>)}</div>
           <ShowMoreButton more={more} noun="result" controls="dsh-results-list" /></>}
-      <Link className="dsh-link foot" to="/results">Results calendar →</Link>
+      <Link className="dsh-link foot" to="/results">Results →</Link>
     </Card>
   );
 }

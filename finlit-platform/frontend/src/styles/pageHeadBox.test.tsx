@@ -86,8 +86,7 @@ const LINES: [string, string][] = [
   ["pages/LearnSectorRotation.tsx", "What the corners, breadth and rotation rank mean, and how to use them."],
   ["pages/LearnSectorSignals.tsx", "What each Sector Pulse reading means for an NSE industry, and how to use it."],
   ["pages/FiiDii.tsx", "Net buying (bought minus sold) by FIIs and DIIs on the latest day, with streaks and history."],
-  ["pages/Results.tsx", "Who has reported, how they did against similar companies, and who reports next."],
-  ["pages/QuarterResults.tsx", "newest first, each compared with similar companies."],
+  ["pages/Results.tsx", "Who reports when, how each industry did, and every company's results for the quarter"],   // task #330: one Results page (Latest results is its Companies view)
   ["pages/News.tsx", "Exchange announcements and results filings sorted into topics, plus market news we pick."],
   ["pages/Documents.tsx", "Annual reports, presentations, transcripts and results filings, linked to the exchange."],
   ["pages/Companies.tsx", "Every listed Indian company, A to Z: pick a letter, then open a company's report."],
