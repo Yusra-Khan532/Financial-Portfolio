@@ -21,6 +21,7 @@ import {
   DEFAULTS, PAGE_SIZE, PRESETS, PRESET_GROUPS, chipsFor, isDefault, loadSaved, parseQuery, presetOn, queryToParams, storeSaved, useScreenFacets, useScreenList, type Saved, type SQ,
 } from "../lib/mfScreen";
 import { SORTS } from "../lib/mfScreenDefs";
+import "../styles/task356.css";   // task #356: the preset rows
 import { FlowBars, RiskReturn } from "../mf/screen/Graphics";
 import { Panel } from "../mf/screen/Panel";
 import { ResultTable } from "../mf/screen/Results";
