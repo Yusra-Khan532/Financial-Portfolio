@@ -174,6 +174,7 @@ export function FundListPage() {
   const year = (filt.data?.dataDate || list.data?.dataDate || new Date().toISOString()).slice(0, 4);
   const chosen = q.tab === "all" ? [] : (q.cats ?? []).map(keyLabel).sort((a, b) => a.localeCompare(b));
   const title = `${selectionTitle(q.tab, chosen, q.cats === null)} mutual funds ${year}`;
+  // task #352 (team, 23 Nov 2026): the heading is just "Mutual Funds"; the browser tab title keeps the chosen categories and the year for search results
   useDocTitle(title, "Compare all mutual funds in the chosen categories based on latest returns, historic returns, SIP returns, latest NAV, checklist and more. Information only.");
 
   const set = (patch: Partial<ListQuery>) => setSp(queryToParams({ ...q, page: 1, ...patch }), { replace: !("page" in patch) });
@@ -206,7 +207,7 @@ export function FundListPage() {
 
   return (
     <>
-      {HEAD(title, "Funds in your chosen categories by returns, SIP returns, latest NAV, checklist and more.", [{ icon: "layers", value: t ? t.active.toLocaleString("en-IN") : null, label: "Active schemes" }, { icon: "line", value: t ? t.withHistory.toLocaleString("en-IN") : null, label: "With return history" }], true)}
+      {HEAD("Mutual Funds", "Funds in your chosen categories by returns, SIP returns, latest NAV, checklist and more.", [{ icon: "layers", value: t ? t.active.toLocaleString("en-IN") : null, label: "Active schemes" }, { icon: "line", value: t ? t.withHistory.toLocaleString("en-IN") : null, label: "With return history" }], true)}
       <div className="wrap mf mf-list">
         {/* Task #347 (23 Nov 2026, the team): the categories and the filters are one filter panel on the left of the table, "Hide filters" folds it to a
             narrow "Show filters" handle in the same place (never on the table), and it has the search box at the top. The choice is remembered here. */}
