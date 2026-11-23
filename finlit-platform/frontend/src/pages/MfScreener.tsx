@@ -85,6 +85,7 @@ export function MfScreenerPage() {
   // Task #140 (team note): the advanced screeners' sliding bar between the filters and the results: drag to resize, drag far left or double-click to hide.
   const [sideW, setSideW] = useSideWidth("mfscreen");
   const resizePanel = (w: number, snap = false) => { if (w < (snap ? SIDE.min / 2 : 1)) { setPanelOpen(false); saveUi("mfscreen.panel", 1, false); return; } setSideW(w); };
+  const shut = !panelOpen && !small;
   const togglePanel = () => { setPanelOpen(!panelOpen); saveUi("mfscreen.panel", 1, !panelOpen); };
   const reset = () => setSp(new URLSearchParams(), { replace: true });
   const saveScreen = () => {
@@ -119,21 +120,25 @@ export function MfScreenerPage() {
         <p className="fgx-note">Presets are plain starting points: they set filters you can change. They describe past figures and do not recommend any fund.</p>
       </section>
 
-      <Toolbar q={text} setQ={setText} searchLabel="Search by fund or fund house, e.g. hdfc mid cap" buttons={panelOpen || small ? [] : [{ id: "filters", label: "Filters", active: shown, onClick: showPanel }]}
+      <Toolbar q={text} setQ={setText} searchLabel="Search by fund or fund house, e.g. hdfc mid cap" buttons={[]}
         sort={<SortMenu value={sortVal} options={sorts.map((s) => ({ v: `${s.v}:${s.dir}`, label: s.label }))}
           onPick={(v) => { const [k, d] = v.split(":"); go({ sort: k, dir: d as "asc" | "desc", page: 1 }); }} />} />
 
-      <div className={"mfs-layout" + (panelOpen || small ? "" : " is-collapsed")} style={{ "--side-w": `${sideW || SIDE.def}px` } as React.CSSProperties}>
-        <aside className="card mfs-side" aria-label="Filters" hidden={!panelOpen && !small}>
+      {/* Task #350: hiding the filters keeps their column, so the results never move: the column holds a slim "Show filters" button that stays in view
+          while the page scrolls (the column is sticky), and reopens the panel in the same place. */}
+      <div className={"mfs-layout" + (shut ? " is-shut" : "")} style={{ "--side-w": `${sideW || SIDE.def}px` } as React.CSSProperties}>
+        <aside className={"card mfs-side" + (shut ? " is-shut" : "")} aria-label="Filters">
+          {shut ? <button type="button" className="mfs-showf" onClick={showPanel} aria-expanded="false" aria-controls="mfs-side-body"><Icon name="panel" /><span>Show filters</span>{shown > 0 && <b aria-label={`${shown} on`}>{shown}</b>}</button> : <div id="mfs-side-body" className="mfs-side-body">
           <div className="mfs-sh-top">
             <span className="mfs-sh-t">Filters{shown > 0 ? ` · ${shown} on` : ""}</span>
             <span className="fgx-tl">{!isDefault(q) && <button type="button" className="btn sm" onClick={reset}>Clear</button>}
-              {!small && <button type="button" className="btn sm" onClick={togglePanel}>Hide filters</button>}</span>
+              {!small && <button type="button" className="btn sm" aria-expanded="true" aria-controls="mfs-side-body" onClick={togglePanel}>Hide filters</button>}</span>
           </div>
           <Panel q={q} set={set} fac={fac} waiting={facets.isFetching && !fac} canScore={gold} fold={small} />
           {small && <div className="mfs-foot"><button type="button" className="btn primary" onClick={() => document.getElementById("mfs-results")?.scrollIntoView({ block: "start" })}>Show {list.data ? nf(total, 0) : ""} fund{total === 1 ? "" : "s"}</button></div>}
+          </div>}
         </aside>
-        {panelOpen && !small && <SplitDivider width={sideW || SIDE.def} set={resizePanel} />}
+        {!small && (shut ? <div className="mfs-split-ph" aria-hidden="true" /> : <SplitDivider width={sideW || SIDE.def} set={resizePanel} />)}
 
         <section className="card mfs-main" id="mfs-results" aria-label="Results">
           <div className="mfs-rbar">

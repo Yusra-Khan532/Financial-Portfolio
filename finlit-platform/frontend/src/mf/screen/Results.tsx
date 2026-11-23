@@ -57,7 +57,7 @@ export function ResultTable({ rows, q, onSort, loading, score, pick }: { rows: S
   const cols = columnsFor(q);
   const sorted = (k?: string) => (k && q.sort === k ? (q.dir === "asc" ? "ascending" : "descending") : k ? "none" : undefined);
   return (
-    <HScroll className="mfs-tw" label="funds table">
+    <HScroll className="mfs-tw" label="funds table" tall>
       <table className={"mfs-table" + (loading ? " is-loading" : "")}>
         <caption className="sr-only">Mutual funds that match the filters. Use the column buttons to sort.</caption>
         <thead>
