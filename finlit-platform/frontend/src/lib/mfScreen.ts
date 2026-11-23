@@ -222,7 +222,7 @@ export const PRESET_GROUPS: { id: string; label: string; ids: string[] }[] = [
   { id: "debt", label: "Debt", ids: ["short-debt", "debt-calm"] },
   { id: "index", label: "Index and themes", ids: ["cheap-index", "defence", "ai-tech"] },
   { id: "hybrid", label: "Hybrid", ids: ["steady-hybrid"] },
-  { id: "score", label: "FinLit Score", ids: ["score-cost"] },
+  { id: "score", label: "Mutual Fund Score", ids: ["score-cost"] }, // the picture names the score row by the FinLit name; the site calls it Mutual Fund Score (noFinlitScoreWord.test)
 ];
 export const PRESETS: PresetDef[] = [
   { id: "lowcost-large", label: "Large caps at lower cost", say: "Large Cap, Direct plan, expense ratio at or below the category median, fund size above ₹2,000 Cr.",

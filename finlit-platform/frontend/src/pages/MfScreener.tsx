@@ -111,7 +111,7 @@ export function MfScreenerPage() {
         stats={[{ icon: "layers", value: list.data ? nf(total, 0) : null, label: "Funds match" }, { icon: "calendar", value: list.data?.dataDate ? dateIN(list.data.dataDate, { day: "numeric", month: "short", year: "numeric" }) : null, label: "NAV data date" }]} />
 
       {DEMO && <p className="mfs-demo" role="note"><Icon name="info" /> Preview build: the real AMFI NAVs and returns of 67 schemes are shown, but expense ratio, fund size, SIP, risk, portfolio and category figures here are sample values for layout only.</p>}
-      {/* Task #356 (team, 23 Nov 2026): the presets in labelled rows (Equity, Debt, Index and themes, Hybrid, FinLit Score), the note on the heading's line. */}
+      {/* Task #356 (team, 23 Nov 2026): the presets in labelled rows (Equity, Debt, Index and themes, Hybrid, Mutual Fund Score), the note on the heading's line. */}
       <section className="mfs-presets" aria-labelledby="mfs-pl">
         <div className="mfs-phead"><span className="mfs-pl" id="mfs-pl">Preset screens</span>
           <p className="mfs-pnote">Presets are plain starting points: they set filters you can change. They describe past figures and do not recommend any fund.</p></div>

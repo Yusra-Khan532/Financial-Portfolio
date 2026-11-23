@@ -51,7 +51,7 @@ describe("task #131: the Mutual Fund Screener as the team's design", () => {
   it("C-1 the 11 presets (task #356: in five labelled rows); the one that is on is dark and its filters show as chips; clicking again turns it off", async () => {
     mount(); await screen.findAllByText("Alpha Mid Cap Fund");
     expect(document.querySelectorAll(".mfs-presets .mfs-preset")).toHaveLength(11);
-    expect([...document.querySelectorAll(".mfs-pgrp .mfs-pg")].map((x) => x.textContent)).toEqual(["Equity", "Debt", "Index and themes", "Hybrid", "FinLit Score"]);
+    expect([...document.querySelectorAll(".mfs-pgrp .mfs-pg")].map((x) => x.textContent)).toEqual(["Equity", "Debt", "Index and themes", "Hybrid", "Mutual Fund Score"]);
     fireEvent.click(screen.getByRole("button", { name: /Defence and aerospace funds/ }));
     await waitFor(() => expect(screen.getByTestId("loc").textContent).toContain("tags=defence"));
     expect(screen.getByRole("button", { name: /Defence and aerospace funds/ }).className).toContain("is-on");
