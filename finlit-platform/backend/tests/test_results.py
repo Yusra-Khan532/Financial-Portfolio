@@ -330,3 +330,18 @@ async def test_endpoint_date_filter_deep_link_and_errors(app, seeded):  # noqa: 
         assert b["rows"] and all(x[k] is None for x in b["rows"] for k in R.FIGURES)
     full = {x["symbol"]: x for x in (await silver.get(f"/api/results/quarter?quarter={q}")).json()["rows"]}
     assert "opYoY" in full["RELIANCE"] and (full["RELIANCE"]["opYoY"] is not None or full["RELIANCE"]["opYoYWhy"])
+
+
+def test_330_verdict_chips_count_before_the_chip_and_keep_one_verdict():
+    """Task #330 (developer file 28): the Companies view's verdict chips. Counts are over the rows the other filters leave; the chip keeps one verdict;
+    a verdict is a figure, so it is Silver (a Basic visitor gets 403 and no counts)."""
+    from finlit.results import by_verdict
+    rows = [{"symbol": "A", "verdict": "Strong"}, {"symbol": "B", "verdict": "Strong"}, {"symbol": "C", "verdict": "Loss"}, {"symbol": "D", "verdict": None}]
+    kept, counts = by_verdict(rows, "", True)
+    assert kept == rows and counts == {"Strong": 2, "Good": 0, "In line": 0, "Weak": 0, "Poor": 0, "Loss": 1}
+    kept, counts = by_verdict(rows, "Strong", True)
+    assert [r["symbol"] for r in kept] == ["A", "B"] and counts["Strong"] == 2
+    assert by_verdict(rows, "", False) == (rows, None)
+    with pytest.raises(Exception) as e:
+        by_verdict(rows, "Loss", False)
+    assert getattr(e.value, "status_code", None) == 403
