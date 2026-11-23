@@ -38,7 +38,6 @@
 .etf-list .etf-tools .btn { min-height: 34px; white-space: nowrap; }
 .etf-list .etf-search { height: 38px; flex: 1 1 auto; }
 .etf-list .etf-search input { font-size: var(--fs-14); }
-.etf-list .etf-ftog.is-on { border-color: var(--gold); }
 .etf-list .etf-ftog-n { min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--ui-r-pill); background: var(--gold); color: var(--on-gold); font: 600 var(--fs-12)/20px var(--sans); text-align: center; }
 .etf-list .etf-countrow { display: flex; align-items: baseline; justify-content: space-between; gap: 6px 12px; flex-wrap: wrap; }
 .etf-list .etf-countrow .etf-count { margin: 0 0 4px; }
@@ -88,3 +87,7 @@
   .etf-list .etf-chev { transition: none; }
   .etf-list .etf-tw { scroll-behavior: auto; }
 }
+
+/* task #354: the ETF page's "Hide filters" (the toggle while the panel is open) with the same bolder outline */
+:root .etf-list .btn.etf-ftog.is-on:not(.primary) { border: 2px solid color-mix(in srgb, var(--text) 70%, transparent); font-weight: 600; }
+:root .etf-list .btn.etf-ftog.is-on:not(.primary):hover, :root .etf-list .btn.etf-ftog.is-on:not(.primary):focus-visible { border-color: var(--text); }
