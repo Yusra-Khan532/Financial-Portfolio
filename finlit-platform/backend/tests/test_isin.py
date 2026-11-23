@@ -263,3 +263,21 @@ async def test_the_stock_answer_and_the_screener_rows_carry_the_isin(db):
             assert all("isin" in x for x in rows.values())
     finally:
         await db.redis.delete(stock_key("ZZKNOW", "consolidated"))
+
+
+async def test_search_list_carries_each_company_nse_industry(db, monkeypatch):
+    """Task #336 (23 Nov 2026): the company pickers' Filters gain Industry, so the list carries each company's NSE industry as a table of names
+    (most companies first) and one code per row (-1: not known), as it does for sectors."""
+    import orjson
+    from finlit import taxonomy
+    monkeypatch.setattr(taxonomy, "quote_pages", lambda: {"ZZKNOW": "Banks", "ZZBSE": "Banks", "ZZPART": "Power"})
+    await db.invalidate_search()
+    try:
+        doc = orjson.loads((await db.search_index())[0])
+        assert len(doc["ind"]) == len(doc["rows"])
+        assert doc["industries"][:2] == ["Banks", "Power"]            # most companies first
+        at = {row[0]: doc["ind"][i] for i, row in enumerate(doc["rows"])}
+        assert doc["industries"][at["ZZKNOW"]] == "Banks" and doc["industries"][at["ZZPART"]] == "Power"
+        assert at["ZZATLANTA"] == -1                                   # not on NSE's quote pages: not known, never guessed
+    finally:
+        await db.invalidate_search()

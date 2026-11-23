@@ -33,7 +33,7 @@ describe("facets come from the data", () => {
   });
   it("counts every band and the companies left out when a filter is on", () => {
     expect(Object.fromEntries(f.caps.map((c) => [c.id, c.n]))).toEqual({ large: 5, mid: 1, small: 0, micro: 2 });   // with 1 unknown: 5 + 1 + 0 + 2 + 1 = the 9 companies
-    expect(f.unknown).toEqual({ sector: 1, cap: 1 });
+    expect(f.unknown).toEqual({ sector: 1, cap: 1, industry: f.total });   // these rows carry no industry: every one unknown (task #336)
   });
   it("is cached per index and works on plain rows (screener rows)", () => {
     expect(indexFacets(idx)).toBe(f);

@@ -101,7 +101,8 @@ export type SearchRow = [symbol: string, name: string, bse: string | null, ready
 /** /api/stocks/search-index. `sectors` is a lookup table; `sec[i]` is the row's index into it (-1: sector not known) and `mc[i]` its market value in
  *  rupees crore, rounded up (0: not known); `isin[i]` is the row's ISIN ("": not known); `bseId[i]` its BSE scrip ID when that is a name the row does not
  *  already hold ("SPICY" for BSE code 540084; "": none). The lists run parallel to `rows`; an older server sends none of them. */
-export type SearchIndex = { fields: string[]; rows: SearchRow[]; sectors?: string[]; sec?: number[]; mc?: number[]; isin?: string[]; bseId?: string[] };
+export type SearchIndex = { fields: string[]; rows: SearchRow[]; sectors?: string[]; sec?: number[]; mc?: number[]; isin?: string[]; bseId?: string[];
+  /** task #336: NSE industry names (most companies first) and, per row, its index into them (-1: not known) */ industries?: string[]; ind?: number[] };
 
 /** The rows with each company's BSE scrip ID in place 6, for reading holdings files (a broker names a BSE-only company by it: "SPICY").
  *  Rows without one are the same arrays; an older server's list comes back as it is. */
