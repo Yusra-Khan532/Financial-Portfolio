@@ -20,11 +20,21 @@ export function SummaryCards({ items, total, plan = "Direct", scope = "in the ch
   );
 }
 
+/** Task #341 (prompt section 13): one "Order by" list holding every order, and the first three as quick buttons beside it (it was eight pills in a
+ *  row that wrapped). The same eight orders and the same sorting; a column heading's own sort shows as "Sorted by a column heading" in the list. */
+export const QUICK_SORTS = 3;
 export function SortPills({ q, onSort }: { q: ListQuery; onSort: (key: ListQuery["sort"], dir: "asc" | "desc") => void }) {
+  const cur = SORT_PILLS.findIndex((p) => q.sort === p.key && q.dir === p.dir);
   return (
     <div className="mf-pills" role="group" aria-label="Read the table in this order">
-      <span className="mf-pl">Order by</span>
-      {SORT_PILLS.map((p) => { const on = q.sort === p.key && q.dir === p.dir; return <button key={p.key} type="button" className={on ? "on" : ""} aria-pressed={on} onClick={() => onSort(p.key, p.dir)}>{p.label}</button>; })}
+      <label className="mf-sortsel"><span className="mf-pl">Order by</span>
+        <select value={cur < 0 ? "" : String(cur)} onChange={(e) => { const p = SORT_PILLS[+e.target.value]; if (p) onSort(p.key, p.dir); }}>
+          {cur < 0 && <option value="" disabled>Sorted by a column heading</option>}
+          {SORT_PILLS.map((p, i) => <option key={p.key + p.dir} value={String(i)}>{p.label}</option>)}
+        </select></label>
+      <span className="mf-qsorts" role="group" aria-label="Quick orders">
+        {SORT_PILLS.slice(0, QUICK_SORTS).map((p) => { const on = q.sort === p.key && q.dir === p.dir; return <button key={p.key} type="button" className={on ? "on" : ""} aria-pressed={on} onClick={() => onSort(p.key, p.dir)}>{p.label}</button>; })}
+      </span>
     </div>
   );
 }

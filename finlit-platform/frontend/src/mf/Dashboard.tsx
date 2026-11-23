@@ -62,10 +62,12 @@ export function CategoryCards({ q, onPick, onScore }: { q: ListQuery; onPick: (c
   );
 }
 
-function SelectAll({ all, some, n, onChange }: { all: boolean; some: boolean; n: number; onChange: () => void }) {
+/** Task #341 (prompt section 10): "Select All" on its own line with how many of the categories are ticked ("12 of 12 selected"). */
+function SelectAll({ all, some, n, picked, onChange }: { all: boolean; some: boolean; n: number; picked: number; onChange: () => void }) {
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => { if (ref.current) ref.current.indeterminate = some && !all; }, [some, all]);
-  return <label className="mf-check mf-all"><input ref={ref} type="checkbox" checked={all} onChange={onChange} /> <span>Select All ({n})</span></label>;
+  return <div className="mf-allrow"><label className="mf-check mf-all"><input ref={ref} type="checkbox" checked={all} onChange={onChange} /> <span>Select All ({n})</span></label>
+    <span className="mf-alln" aria-live="polite">{picked} of {n} selected</span></div>;
 }
 
 /** Equity | Hybrid | Debt | Solution Oriented | Others (and All funds), and under the chosen tab its sub-categories with how many schemes each shows. */
@@ -96,7 +98,7 @@ export function CategoryPicker({ q, subs, loading, onTab, onCats }: {
             : !subs.length ? <p className="muted mf-fine">No schemes in this group for the plan and option chosen below.</p> : (
               <fieldset>
                 <legend className="sr-only">Sub-categories to show</legend>
-                <SelectAll all={q.cats === null} some={!!q.cats?.length} n={subs.length} onChange={() => onCats(toggleAll(q.cats))} />
+                <SelectAll all={q.cats === null} some={!!q.cats?.length} n={subs.length} picked={q.cats === null ? subs.length : subs.filter((s) => q.cats!.includes(s.key)).length} onChange={() => onCats(toggleAll(q.cats))} />
                 <div className="mf-subgrid">
                   {subs.map((s) => (
                     <label key={s.key} className="mf-check" title={s.names.join(" · ")}>
