@@ -29,6 +29,9 @@ function ScoreStrip({ v, card, onScore }: { v: CardScoreView; card: Card; onScor
 
 /** "Six categories most people start with": one card per popular category; the pressed one is the category shown on its own. Each card shows how many
  *  of its funds are scored (top right) and, for Gold, the category's Mutual Fund Score. The ELSS tax note is one footnote beside the heading (task #130 C-3). */
+/** Task #340: the card is the chosen one (its category on its own); pressing it again clears the choice. */
+export const cardOn = (q: ListQuery, c: Card) => q.tab === c.tab && q.cats?.length === 1 && q.cats[0] === c.key;
+
 export function CategoryCards({ q, onPick, onScore }: { q: ListQuery; onPick: (c: Card) => void; onScore: (c: Card) => void }) {
   const { has } = useUI();
   const canSee = has("gold");
@@ -38,12 +41,12 @@ export function CategoryCards({ q, onPick, onScore }: { q: ListQuery; onPick: (c
       <div className="mf-cats-h"><h2 id="mf-cats-h">Six categories most people start with</h2><p className="faint" id="mf-elss-note">{ELSS_FOOTNOTE}</p></div>
       <ul className="mf-cards">
         {CARDS.map((c) => {
-          const on = q.tab === c.tab && q.cats?.length === 1 && q.cats[0] === c.key;
+          const on = cardOn(q, c);
           const v = cardScoreView(c.key, sc.data, { canSee, loading: sc.isLoading, failed: sc.isError });
           return (
             <li key={c.key}>
               <div className="mf-qwrap">
-                <button type="button" className="mf-qcard" aria-pressed={on} onClick={() => onPick(c)}>
+                <button type="button" className="mf-qcard" aria-pressed={on} onClick={() => onPick(c)} title={on ? `Showing ${c.title} only. Press again to show every category.` : undefined}>
                   <span className="ci" aria-hidden="true"><Icon name={c.icon} /></span>
                   <b>{c.title}</b>
                   {v.kind === "scored" && <span className="mf-qcount">{v.n.toLocaleString("en-IN")} scored fund{v.n === 1 ? "" : "s"}</span>}

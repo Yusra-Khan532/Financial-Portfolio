@@ -470,7 +470,15 @@ h2.mf-h4 { font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-ser
 .mf-cats-h p { margin: 0; font-size: var(--fs-12); max-width: 62ch; }
 .mf-qcard .mf-qcount { position: absolute; top: 14px; right: 14px; font-size: var(--fs-12); color: var(--muted); }
 .mf-qcard:has(.mf-qcount) b { padding-right: 92px; }
-.mf-qcard[aria-pressed="true"] .mf-qcount { right: 40px; }
+/* Task #340 (23 Nov 2026, the team: "wording overlap issue in the box selected"): the chosen card moved its "36 scored funds" 26px left to make room
+   for the tick, onto the title ("Flexi Cap Funds"). The count stays where it is on every card and the tick sits in the card's lower right corner. */
+.mf-qcard[aria-pressed="true"]::after { top: auto; bottom: 10px; right: 12px; }
+/* The count had been laid over the card (absolute) with a fixed 92px gap kept beside the title, so "Flexi Cap Funds" still ran into "36 scored funds".
+   It now has its own grid column beside the title: the title wraps against it whatever the widths, on every card, chosen or not. */
+.mf-qcard:has(.mf-qcount) { grid-template-columns: auto minmax(0, 1fr) auto; }
+.mf-qcard:has(.mf-qcount) b { grid-column: 2; grid-row: 1; padding-right: 0; }
+.mf-qcard .mf-qcount, .mf-qcard[aria-pressed="true"] .mf-qcount { position: static; grid-column: 3; grid-row: 1; align-self: start; white-space: nowrap; padding-top: 2px; }
+.mf-qcard:has(.mf-qcount) > span:not(.ci):not(.mf-qcount) { grid-column: 2 / -1; }
 .mf-qs-h { display: flex; align-items: baseline; gap: 8px; }
 .mf-qs-h .mf-qs-n { font: 600 var(--fs-24)/1 var(--sans); }
 .mf-qdist-l { display: flex; justify-content: space-between; gap: 6px; flex-wrap: wrap; font-size: var(--fs-12); color: var(--muted); }
