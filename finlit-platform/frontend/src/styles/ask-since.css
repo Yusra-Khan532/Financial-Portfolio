@@ -1,0 +1,10 @@
+/* Task #349 PR 3: "Since you last asked" (components/AskSince.tsx), above a FinLit AI answer. Scoped ais- classes, tokens only. */
+.ais { display: grid; gap: 8px; margin: 0 0 10px; text-align: left; }
+.ais-h { margin: 0; font-size: var(--fs-14); font-weight: 600; color: var(--text-primary); }
+.ais-q { margin: 0; color: var(--text-muted); font-size: var(--fs-12); overflow-wrap: anywhere; }
+.ais-l { margin: 4px 0 0; color: var(--text-muted); font-size: var(--fs-12); font-weight: 600; }
+.ais-rows { margin: 0; padding: 0 0 0 18px; display: grid; gap: 4px; font-size: var(--fs-13); line-height: 1.45; overflow-wrap: anywhere; }
+.ais-new a { color: var(--text-link); }
+.ais-d { color: var(--text-muted); font-size: var(--fs-12); white-space: nowrap; }
+.ais-said { color: var(--text-secondary); padding-top: 6px; border-top: 1px solid var(--border-subtle); }
+.ais-acts { display: flex; flex-wrap: wrap; gap: 8px; }

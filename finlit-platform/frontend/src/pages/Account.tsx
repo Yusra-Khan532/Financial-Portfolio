@@ -11,8 +11,9 @@ import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
 import { PasswordField } from "./PasswordField";
 import { DEMO } from "../lib/demo";
+import { AccountAiHistory } from "../components/AccountAiHistory";   // task #349 PR 2: FinLit AI history
 
-const TABS = [["", "Profile", "users"], ["security", "Security", "lock"], ["appearance", "Appearance", "spark"], ["plan", "Plan", "crown"]] as const;
+const TABS = [["", "Profile", "users"], ["security", "Security", "lock"], ["appearance", "Appearance", "spark"], ["ai", "FinLit AI", "chat"], ["plan", "Plan", "crown"]] as const;
 const msg = (e: unknown) => e instanceof ApiError ? e.body.detail || "Something went wrong." : "We could not reach FinLit. Check your connection.";
 const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
@@ -40,9 +41,10 @@ export function Account() {
       {tab === "" && !DEMO && <Profile />}
       {tab === "security" && !DEMO && <Security />}
       {tab === "appearance" && <Appearance />}
+      {tab === "ai" && !DEMO && <AccountAiHistory />}
       {tab === "plan" && !DEMO && <PlanTab />}
       {DEMO && tab !== "appearance" && <Navigate to="/account/appearance" replace />}
-      {!["", "security", "appearance", "plan"].includes(tab) && <Navigate to="/account" replace />}
+      {!["", "security", "appearance", "ai", "plan"].includes(tab) && <Navigate to="/account" replace />}
     </div>
   );
 }

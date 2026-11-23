@@ -5,8 +5,11 @@ import { SECOND } from "../lib/questionBank";
 import { answerCompany, generalAnswer, matchQuestion, searchListed, type Match } from "../lib/askAnswers";
 import { apiGet, type SearchIndex } from "../lib/api";
 import type { Quotes } from "../lib/globalSearch";
-import { AskRefused, INTERRUPTED, TIMED_OUT, askAi, safePages, useAskQuota, type AskTurn } from "../lib/askAi";
+import { AskRefused, INTERRUPTED, TIMED_OUT, askAi, safePages, safeSince, useAskQuota, type AskSinceData, type AskTurn } from "../lib/askAi";
+import { AskSince } from "./AskSince";   // task #349 PR 3: "since you last asked"
 import { useAuth } from "../lib/auth";
+import { AskHistoryButton, AskHistoryView, AskMemoryNotice } from "./AskHistory";   // task #349 PR 2: question memory
+import { memoryApplies } from "../lib/askMemory";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   CATEGORIES, MARKET_QUESTIONS, QUARTERS, SEGMENTS, TABS, categoryQuestions, isLenderSector, financialYears, quarterQuestion, quarterTrendQuestion, related, tabQuestions,
@@ -35,7 +38,9 @@ import { coTitle, subLine, titleOf } from "../lib/companyLabel";
 export { OPEN_AI };
 /** `ai`: a written answer from FinLit AI (task #211): what it is reading while the words have not come yet, the disclaimer once done, a refusal, or the note
  *  that written answers are part of Silver and Gold (Basic and visitors keep the listed questions: founder, 17 Nov 2026). */
-type Msg = { role: "user" | "assistant"; content: string; link?: { to: string; label: string }; actions?: { to: string; label: string }[]; suggest?: Q[]; ai?: { status?: string; disclaimer?: string; error?: boolean; plans?: boolean; retry?: string } };
+type Msg = { role: "user" | "assistant"; content: string; link?: { to: string; label: string }; actions?: { to: string; label: string }[]; suggest?: Q[]; ai?: { status?: string; disclaimer?: string; error?: boolean; plans?: boolean; retry?: string };
+  /** task #349 PR 3: "since you last asked" for this answer, and the question it answers (re-sent with `fresh` by "Full answer") */
+  since?: AskSinceData; sinceQ?: string };
 type View = "home" | "segments" | "topic" | "company" | "chat" | "history" | "saved" | "funds" | "discovery";
 
 let indexPromise: Promise<SearchIndex> | null = null;
@@ -118,13 +123,14 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
     return () => { live = false; clearTimeout(id); };
   }, [find, view]);
   const asked = useMemo(() => msgs.filter((m) => m.role === "user").map((m) => m.content), [msgs]);
-  const { user } = useAuth();
+  const { user, plan } = useAuth();
   const qc = useQueryClient();
   const quota = useAskQuota(open);
   const qd = quota.data;
   const aiOn = !!qd?.enabled;                                   // written answers are switched on (ANTHROPIC_API_KEY on the server)
   const aiPlan = aiOn && (!user || quota.data?.limit === 0);           // a visitor or a Basic member: written answers are part of Silver and Gold
   const aiReady = aiOn && !!user && (quota.data?.left ?? 0) > 0;        // a Silver or Gold member with questions left this month
+  const remembered = memoryApplies(!!user, plan);                       // task #349 PR 2: the server keeps a Silver or Gold member's questions
   // task #268: the company card of the side panel (the reference's): its price and day change, and its name from the site's search index
   const [coRow, setCoRow] = useState<[number, number | null] | null>(null);    // price and day change, read again each minute while the window is open
   useEffect(() => {
@@ -158,7 +164,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
   /** Task #138 (founder, 14 Nov 2026): no language model. A listed question answers at once: a general one from its written answer, a company one from
    *  that company's own FinLit figures. Anything else typed is matched against the listed questions and the closest ones are offered. */
   /** A question the listed answers do not cover: FinLit AI reads FinLit's own data as this member and the answer streams into the last bubble. */
-  const written = async (q: string, before: Msg[]) => {
+  const written = async (q: string, before: Msg[], fresh = false) => {
     const history: AskTurn[] = before.filter((m) => m.content && !m.ai?.error && !m.ai?.plans && !m.suggest).map((m) => ({ role: m.role, content: m.content }));
     while (history.length && history[0].role !== "user") history.shift();
     const pairs: AskTurn[] = [];                                         // only whole question-and-answer pairs, in order
@@ -171,13 +177,15 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
     try {
       await askAi(q, pairs, company, (e) => {
         if (e.type === "status") patch((m) => ({ ...m, ai: { ...m.ai, status: e.text } }));
+        // task #349 PR 3: what changed since the member last asked, shown above the words (it arrives before them)
+        else if (e.type === "since") { const s = safeSince(e); if (s) patch((m) => ({ ...m, since: s, sinceQ: q })); }
         else if (e.type === "text") patch((m) => ({ ...m, content: m.content + e.text, ai: { ...m.ai, status: undefined } }));
         // "" clears the words written before FinLit AI read more data (task #349): the bubble goes back to "Reading…"
         else if (e.type === "replace") patch((m) => ({ ...m, content: e.text, ai: { ...m.ai, status: e.text ? undefined : m.ai?.status || "Reading FinLit's data" } }));
         else if (e.type === "done") patch((m) => { const pages = safePages(e.pages); return { ...m, ai: { disclaimer: e.disclaimer }, ...(pages.length ? { actions: pages } : {}) }; });   // task #218: the FinLit pages the answer read
         else if (e.type === "error") patch((m) => ({ ...m, content: m.content ? `${m.content}\n\n${e.text}` : e.text,
           ai: { error: true, ...(e.code === INTERRUPTED || e.code === TIMED_OUT ? { retry: q } : {}) } }));   // task #349: an interrupted answer can be asked again
-      }, ctl.signal);
+      }, ctl.signal, undefined, { fresh });
     } catch (err) {
       if (ctl.signal.aborted) patch((m) => ({ ...m, content: m.content ? `${m.content}\n\nYou stopped this answer.` : "You stopped this answer.", ai: { error: true, retry: q } }));
       else {
@@ -196,6 +204,12 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
     const before = msgs.slice(0, i - 1);
     setMsgs(msgs.slice(0, i));
     void written(q, before);
+  };
+  /** Task #349 PR 3: "Full answer" under "Since you last asked": the same question again, as a new exchange, without the comparison. */
+  const fullAnswer = (q: string) => {
+    if (busy) return;
+    setMsgs((m) => [...m, { role: "user", content: q }]);
+    void written(q, [], true);
   };
   const ask = async (q: string, via: View, meta?: Partial<Match>) => {
     if (!q || busy) return;
@@ -278,6 +292,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
         <button disabled={busy || !text.trim()} aria-label="Ask"><Icon name="arrow" /></button>
       </form>
       {suggest("aif-sg-top", "down")}
+      {remembered && <AskMemoryNotice onLeave={() => setOpen(false)} />}
       <p className="aif-try"><span>Try asking</span>{TRY.map((t) => <button key={t.label} type="button" onClick={t.go}>{t.label}</button>)}</p>
     </div>);
   // task #268: the five themes are the five cards (Mutual funds & ETFs is the fifth, no longer under "More"); Discovery stays here
@@ -315,6 +330,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
             {view !== "home" && <button type="button" className="aif-back" onClick={goBack} aria-label="Back"><Icon name="arrow" /></button>}
             <div className="aif-title"><b>FinLit AI</b><span>{sub ?? "Your investing & market research assistant"}</span></div>
             {company && view !== "home" && <button type="button" className="aif-change" onClick={() => { setCompany(null); setView("segments"); }}>Change company</button>}
+            {view !== "history" && <AskHistoryButton onOpen={() => setView("history")} />}
             <button type="button" className="aif-full" onClick={toggleBig} aria-pressed={big} aria-label={big ? "Back to the small window" : "Open in a full window"} title={big ? "Back to the small window" : "Full window"}><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{big ? <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" /> : <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />}</svg></button>
             {big && <Link className="aif-help" to="/faq" onClick={() => setOpen(false)} aria-label="Help and frequently asked questions" title="Help"><Icon name="info" /></Link>}
             <button type="button" onClick={() => setOpen(false)} aria-label="Close">×</button>
@@ -359,11 +375,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
               {moreThemes}
             </>}
 
-            {view === "history" && <>
-              <div className="aif-h"><h2>Chat History</h2><p>Your recent questions, kept in this browser only.</p></div>
-              {recent.length ? <><ul className="aif-qs" aria-label="Recent questions">{recent.map((t) => <li key={t}><button type="button" className="aif-q" onClick={() => void ask(t, "home")}><Icon name="chat" /><span>{t}</span><Icon name="arrow" /></button></li>)}</ul>
-                <button type="button" className="aif-clear" onClick={() => setRecent(clearRecent())}>Clear history</button></> : <p className="aif-none">No questions yet. Ask one and it appears here.</p>}
-            </>}
+            {view === "history" && <AskHistoryView server={remembered} recent={recent} onAsk={(t) => void ask(t, "home")} onClearLocal={() => setRecent(clearRecent())} onLeave={() => setOpen(false)} />}
             {view === "saved" && <>
               <div className="aif-h"><h2>Saved Questions</h2><p>Questions you starred, kept in this browser only.</p></div>
               {saved.length ? <ul className="aif-qs" aria-label="Saved questions">{saved.map((t) => <li key={t} className="aif-sv"><button type="button" className="aif-q" onClick={() => void ask(t, "home")}><Icon name="star" /><span>{t}</span><Icon name="arrow" /></button><button type="button" className="aif-unsave" aria-label={`Remove from saved: ${t}`} onClick={() => setSaved((l) => toggleSaved(l, t))}>×</button></li>)}</ul>
@@ -453,7 +465,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
             </>}
 
             {view === "chat" && <>
-              {msgs.map((m, i) => <div key={i} className={"bub " + (m.role === "user" ? "me" : "bot") + (m.ai?.error ? " aif-bub-err" : "") + (big && m.role === "assistant" ? " aif-lab" : "")} style={m.role === "user" ? { whiteSpace: "pre-wrap" } : undefined} aria-busy={!!m.ai?.status || undefined}>{m.ai?.status && !m.content ? <span className="aif-reading" role="status"><i />{m.ai.status}…</span> : m.role === "assistant" ? <AnswerText text={m.content} /> : m.content}
+              {msgs.map((m, i) => <div key={i} className={"bub " + (m.role === "user" ? "me" : "bot") + (m.ai?.error ? " aif-bub-err" : "") + (big && m.role === "assistant" ? " aif-lab" : "")} style={m.role === "user" ? { whiteSpace: "pre-wrap" } : undefined} aria-busy={!!m.ai?.status || undefined}>{m.since && <AskSince data={m.since} busy={busy} onFull={m.sinceQ ? () => fullAnswer(m.sinceQ!) : undefined} onLeave={() => { if (!big) setOpen(false); }} />}{m.ai?.status && !m.content ? <span className="aif-reading" role="status"><i />{m.ai.status}…</span> : m.role === "assistant" ? <AnswerText text={m.content} /> : m.content}
                 {m.ai?.disclaimer && <small className="aif-disc">{m.ai.disclaimer}</small>}
                 {m.ai?.retry && i === msgs.length - 1 && !busy && <p className="aif-retry"><Button size="sm" onClick={() => retry(i, m.ai!.retry!)}>Ask again</Button></p>}
                 {m.ai?.plans && <Link className="aif-ans-link" to="/plans" onClick={() => { if (!big) setOpen(false); }}>See the plans <Icon name="arrow" /></Link>}{m.role === "user" && <button type="button" className={"aif-save" + (saved.includes(m.content) ? " on" : "")} aria-pressed={saved.includes(m.content)} aria-label={saved.includes(m.content) ? "Remove this question from saved" : "Save this question"} title={saved.includes(m.content) ? "Saved" : "Save this question"} onClick={() => setSaved((l) => toggleSaved(l, m.content))}><Icon name="star" /></button>}
@@ -479,6 +491,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
             <kbd className="aif-enter" aria-hidden="true">Enter</kbd>
             <button disabled={busy || !text.trim()} aria-label="Send"><Icon name="arrow" /></button>
           </form>
+          {remembered && <AskMemoryNotice onLeave={() => setOpen(false)} />}
           </div>
           <p className="ai-fine">General information, not investment advice.{aiOn && user && qd && (qd.limit ?? 0) > 0 && <> <span className="aif-left">FinLit AI: {qd.left} of {qd.limit} written answers left this month{qd.left === 0 && qd.resets ? `; they renew on ${new Date(qd.resets).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : ""}.</span></>}</p>
         </section>

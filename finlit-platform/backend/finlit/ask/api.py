@@ -3,6 +3,8 @@
 Silver and Gold members only (Basic keeps the instant listed questions); each plan has a monthly allowance (finlit/ask/quota.py). Events, in order:
     meta    {"limit", "used", "left", "resets", "cached"}      once, first
     status  {"text"}                                         while FinLit data is being read ("Reading the ratios (TCS)")
+    since   {"askedAt", "question", "match", "changes", "newItems", "said"}   before "text", only when the member asked the same or a similar
+                                                             question 1 hour to 30 days ago (task #349 PR 3, docs/ASK-AI.md "Since you last asked")
     text    {"text"}                                         pieces of the answer as they are written
     replace {"text"}                                         the answer so far is replaced (withdrawn as advice-like; "" clears a tool round's lead-in)
     ping    {}                                               a keep-alive after 10 s of quiet, while FinLit data is read or the model thinks
@@ -20,7 +22,7 @@ import logging
 import re
 import time
 from datetime import datetime
-from typing import Any, AsyncIterator, Awaitable, Dict, List, Literal, Optional
+from typing import Any, AsyncIterator, Awaitable, Dict, List, Literal, Optional, Tuple
 
 import anthropic
 from fastapi import APIRouter, Depends, Request
@@ -32,6 +34,7 @@ from ..auth.routes import fail, ip_of, limit, secure_ctx
 from ..auth.service import VIEW_AS_HEADER, Ctx, cookie_name, current
 from . import companies, pages, quota, routing, service, tools
 from .gateway import MemberGateway
+from . import memory   # task #349 PR 2: question memory (stores what was asked; changes no answer)
 
 log = logging.getLogger("finlit.ask")
 router = APIRouter(prefix="/api/ask", tags=["ask"])
@@ -67,6 +70,7 @@ class AskIn(BaseModel):
     question: str = Field(default="", max_length=500)
     history: List[Turn] = Field(default_factory=list, max_length=12)
     symbol: Optional[str] = Field(default=None, max_length=20)
+    fresh: bool = False     # task #349 PR 3: the full answer, without "since you last asked"
 
     @model_validator(mode="after")
     def by_kind(self) -> "AskIn":
@@ -151,6 +155,31 @@ def cache_key(model: str, ctx: Ctx, body: AskIn) -> str:
     return f"ask:answer:{kind}{model}:{plan_key(ctx)}:{datetime.now(service.IST).date().isoformat()}:{h}"
 
 
+async def subject_of(gw, body: "AskIn", question: str, kind: str, until: float) -> Tuple[List[str], Optional[str]]:
+    """The companies the question names and the page's company when the question is about it (task #279), read within the budget `until`."""
+    # The company of the page, and the companies the question names: their cards first (what the page shows, as this member), so the
+    # model starts with the facts whatever the wording, and answers in one round. Task #254 rework: the company list unreadable means none
+    # named, never a failed answer.
+    named = ((await within([companies.named_in(gw, question, 2, skip=body.symbol)], until))[0] or []) if kind == "question" else []
+    # Task #279 (the team, 20 Nov 2026: "read the question clearly and not only the company report from where chatbot is opened"): the
+    # page's company is read only when the question is about it: it points at it ("this company", "this stock", "here"), or names no
+    # other company. A question naming another company ("why is icici low", asked on HCLTECH's page), or a word that starts several
+    # companies' names, is about that company; a follow-up with no company keeps the company the conversation was about.
+    page = body.symbol
+    if page and kind == "question" and not companies.points_at_page(question, strong_only=True):
+        other = bool(named)
+        if not other:
+            other = bool((await within([companies.other_group(gw, question, skip=page)], until))[0])
+        if not other and body.history:          # "and its margins?" after "why is icici low": the company the conversation is about
+            last = next((t.content for t in reversed(body.history) if t.role == "user"), "")
+            before = (await within([companies.named_in(gw, last, 2, skip=page)], until))[0] or []
+            if before:
+                named, other = before, True
+        if other:
+            page = None
+    return named, page
+
+
 @router.get("/quota")
 async def get_quota(request: Request):
     """Whether written answers are switched on, and, for a signed-in member, the questions left this month (a visitor learns only the first)."""
@@ -180,10 +209,17 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
                    "The listed questions answer at once on every plan.", plan="silver")
     await limit(request, "ask:min", f"u:{ctx.user_id}", 6, 60)          # at most 6 questions a minute, whatever the allowance
 
+    # Task #349 PR 3: "since you last asked". A member with a question kept between 1 hour and 30 days ago: the question's subject is worked out
+    # now, and the newest earlier answer on it is looked for. Anyone else is answered exactly as before (nothing more is read).
+    started = time.monotonic()
+    early = await since_lookup(request, st, store, ctx, body, question) if kind == "question" else None
+    since_on = bool(early and early.get("prev"))
+
     # A repeated first question (same words, same page, same plan, same day) is answered from the cache, at once and without using the allowance.
+    # Not when "since you last asked" applies: that answer is the member's own (task #349 PR 3), like the answers about their own lists.
     key = cache_key(st.ask_model, ctx, body) if not body.history else None
     hit = None
-    if key:
+    if key and not since_on:
         try:
             hit = await store.redis.get(key)
         except Exception:
@@ -196,6 +232,10 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
             yield sse("meta", {**quota.status(cap, n, month), "cached": True})
             yield sse("text", {"text": cached["text"]})
             yield sse("done", {"disclaimer": service.DISCLAIMER, "sources": cached.get("tools", []), "pages": cached.get("pages", [])})
+            mem = cached.get("memory")              # task #349 PR 3: a replay is kept too, with the figures the first answer read
+            if kind == "question" and isinstance(mem, dict) and isinstance(mem.get("topic"), list):
+                memory.keep(store.pool, ctx, question=question, result={"text": cached["text"], "stop": "end_turn"}, topic=mem["topic"],
+                            figures=mem.get("figures") or {})
         return StreamingResponse(replay(), media_type="text/event-stream", headers={**STREAM_HEADERS})
 
     n = await quota.take(store.pool, ctx.user_id, cap, month, kind)
@@ -229,34 +269,27 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
         async def prepare() -> Dict[str, Any]:
             """Everything read before the model starts, inside one budget (task #349: it used to be up to 25 s of cards and 35 s of documents,
             outside the deadline and with no keep-alive); a read not finished in time is left out and the model may read it itself."""
-            until = time.monotonic() + PREREAD_SECONDS
-            # The company of the page, and the companies the question names: their cards first (what the page shows, as this member), so the
-            # model starts with the facts whatever the wording, and answers in one round. Task #254 rework: the company list unreadable means none
-            # named, never a failed answer.
-            named = ((await within([companies.named_in(gw, question, 2, skip=body.symbol)], until))[0] or []) if kind == "question" else []
-            # Task #279 (the team, 20 Nov 2026: "read the question clearly and not only the company report from where chatbot is opened"): the
-            # page's company is read only when the question is about it: it points at it ("this company", "this stock", "here"), or names no
-            # other company. A question naming another company ("why is icici low", asked on HCLTECH's page), or a word that starts several
-            # companies' names, is about that company; a follow-up with no company keeps the company the conversation was about.
-            page = body.symbol
-            if page and kind == "question" and not companies.points_at_page(question, strong_only=True):
-                other = bool(named)
-                if not other:
-                    other = bool((await within([companies.other_group(gw, question, skip=page)], until))[0])
-                if not other and body.history:          # "and its margins?" after "why is icici low": the company the conversation is about
-                    last = next((t.content for t in reversed(body.history) if t.role == "user"), "")
-                    before = (await within([companies.named_in(gw, last, 2, skip=page)], until))[0] or []
-                    if before:
-                        named, other = before, True
-                if other:
-                    page = None
+            until = (started if early is not None else time.monotonic()) + PREREAD_SECONDS
+            if early is not None:            # task #349 PR 3: already worked out to look for an earlier answer
+                named, page = early["named"], early["page"]
+            else:
+                named, page = await subject_of(gw, body, question, kind, until)
             want = ([page] if page else []) + named
             # Task #312 (developer file 20): a summary is written from the FinLit Prism card's own figures, not the whole company page (which
             # took 6 to 7 s to read before anything was written, and the text drifted).
             card_tool = "get_finlit_prism" if kind == "summary" else "get_company_card"
             for sym in want[:2]:
                 await emit("status", {"text": "Reading the FinLit Prism card" if kind == "summary" else tools.label("get_company_card", {"symbol": sym})})
-            got = [g or LATE for g in await within([tools.run(gw, card_tool, {"symbol": s}) for s in want[:2]], until)]
+            # Task #349 PR 3: with an earlier answer to compare, the company's filings since then are read with the cards (one call).
+            prev = early.get("prev") if early else None
+            subj = early["topic"][2] if prev and early["topic"][1] == "company" else None
+            feed_args = {"kind": "news", "symbol": subj, "limit": 12}
+            if subj:
+                await emit("status", {"text": tools.label("get_news_and_filings", feed_args)})
+            both = await within([tools.run(gw, card_tool, {"symbol": s}) for s in want[:2]] + ([tools.run(gw, "get_news_and_filings", feed_args)] if subj else []),
+                                until)
+            got = [g or LATE for g in both[:len(want[:2])]]
+            feed = both[len(want[:2])] if subj else None
             cards = [g["text"] for g in got if not g["error"]]
             card = "\n".join(cards) or None
             # Task #253: the kind of question (a company, the economy, a company's financials, daily news, a term, valuation, rules, funds, a
@@ -285,17 +318,30 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
             if len(reads) < len(asked):
                 log.warning("ask: %d of %d reads before the model were not finished in %ss", len(asked) - len(reads), len(asked), int(PREREAD_SECONDS))
             note = routing.note(kinds) + ("\n" + service.stance_note(question) if kind == "question" and service.stance_note(question) else "")   # task #270
+            extra_reads = [("get_news_and_filings", feed_args, feed)] if feed and not feed.get("error") else []
+            if prev:
+                # Task #349 PR 3: what changed since the earlier answer, worked out without a model from what was read just now (the cards, the
+                # documents) and the filings since then. The facts go in the note with the question, after the cached prefix.
+                now_reads = [(card_tool, {"symbol": s}, g) for s, g in zip(want[:2], got)] + [(n, a, x) for (n, a), x in reads]
+                now = memory.tool_results_of([], now_reads)
+                facts = memory.diff(prev["figures"], memory.extract_figures(now), asked_at=prev["askedAt"], subject=subj,
+                                    prev_plan=prev["plan"], now_plan=plan_key(ctx), locked=memory.locked_of(now))
+                items = memory.new_items(feed["text"], prev["askedAt"]) if extra_reads else []
+                await emit("since", memory.since_payload(prev, facts, items, subj))
+                note = (note + "\n" if note else "") + memory.since_note(prev, facts, items)
             messages = service.build_messages([t.model_dump() for t in body.history], question, body.symbol, plan_key(ctx), card, note,
                                               page_is_subject=bool(page) or kind != "question")
             prefetched = [r for r, _ in reads]
             if prefetched:
                 service.with_prefetches(messages, [(n, a, x) for (n, a), x in reads])
             result = await service.answer(client_for(st.anthropic_api_key), st.ask_model, gw, messages, emit, prefetched, max_tokens=st.ask_max_tokens)
-            return {"result": result, "want": want}
+            return {"result": result, "want": want, "named": named, "page": page, "kinds": kinds, "messages": messages,
+                    "cards": [(card_tool, {"symbol": s}, g) for s, g in zip(want[:2], got)] + extra_reads}
 
         yield sse("meta", {**quota.status(cap, n, month), "cached": False})
         result: Optional[Dict[str, Any]] = None
         want: List[str] = []
+        done_: Dict[str, Any] = {}
         err: Optional[Dict[str, str]] = None
         task = asyncio.create_task(prepare())
         try:
@@ -355,9 +401,13 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
         personal = any(t.startswith("get_my_") for t in result["tools"])
         # "aligned with the web pages" (task #218): the FinLit pages this answer read, as links under it; the companies read before the model started count first
         links = pages.page_links([("get_company_card", {"symbol": s}) for s in want[:2]] + list(result.get("calls") or []))
-        if key and result["text"] and result["stop"] in ("end_turn",) and not personal:
+        # Task #349 PR 2: question memory (ask/memory.py), written in the background from what this answer already read.
+        snap = memory.after_answer(store.pool, ctx, kind=kind, question=question, result=result, named=done_["named"], page=done_["page"],
+                                   kinds=done_["kinds"], messages=done_["messages"], cards=done_["cards"])
+        if key and result["text"] and result["stop"] in ("end_turn",) and not personal and not since_on:
             try:
-                await store.redis.set(key, json.dumps({"text": result["text"], "tools": result["tools"], "pages": links}),
+                await store.redis.set(key, json.dumps({"text": result["text"], "tools": result["tools"], "pages": links,
+                                                       **({"memory": snap} if snap else {})}, default=str),
                                       ex=SUMMARY_CACHE_SECONDS if kind == "summary" else CACHE_SECONDS)
             except Exception:
                 pass
@@ -379,6 +429,40 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
                 asyncio.get_running_loop().create_task(_give_back(store, ctx.user_id, month, kind))
 
     return StreamingResponse(guarded(), media_type="text/event-stream", headers={**STREAM_HEADERS})
+
+
+async def since_lookup(request: Request, st, store, ctx: Ctx, body: AskIn, question: str) -> Optional[Dict[str, Any]]:
+    """Task #349 PR 3: the earlier answer this question repeats, or None. Only for a member with a question kept between 1 hour and 30 days ago
+    (one cheap read); then the subject (the companies named, the page's company) is worked out once, here, and reused for the answer. Every miss
+    is counted (`ask:memory:miss:<day>`, by reason). Never fails an answer: any error means no since block."""
+    try:
+        if memory._viewing_as(ctx) or quota.allowance(ctx) <= 0:
+            return None
+        if body.history or body.fresh:
+            await memory.count_since(store.redis, "followup" if body.history else "fresh")
+            return None
+        if not await memory.has_recent(store.pool, ctx.user_id):
+            await memory.count_since(store.redis, "no_rows")
+            return None
+        gw = MemberGateway(request.app, request.headers.get("host", "localhost"), ip_of(request), cookie_name=cookie_name(st),
+                           cookie=request.cookies.get(cookie_name(st), ""), csrf=ctx.csrf or "",
+                           origin=request.headers.get("origin") or f"{request.url.scheme}://{request.headers.get('host', 'localhost')}",
+                           view_as=request.headers.get(VIEW_AS_HEADER))
+        try:
+            named, page = await subject_of(gw, body, question, "question", time.monotonic() + PREREAD_SECONDS)
+        finally:
+            await gw.aclose()
+        kinds = routing.classify(question, named_company=bool(named), on_company_page=bool(page))
+        topic = memory.topic_of(question, named, page, None, kinds)
+        out: Dict[str, Any] = {"named": named, "page": page, "topic": topic, "prev": None}
+        why = memory.since_miss_reason("question", body.history, body.fresh, topic)
+        if why is None:
+            out["prev"], why = await memory.match(store.pool, ctx.user_id, topic)
+        await memory.count_since(store.redis, why, hit=out["prev"] is not None)
+        return out
+    except Exception:
+        log.warning("ask: the earlier answer could not be looked for", exc_info=True)
+        return None
 
 
 async def _give_back(store, user_id: str, month, kind: str) -> None:
