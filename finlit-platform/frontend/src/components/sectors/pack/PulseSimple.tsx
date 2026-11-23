@@ -1,23 +1,24 @@
 // Sector Pulse, Simple view, exactly as the "FinLit final pages" pack draws it (13 Nov 2026, docs/design/finlit-final-pages/05-sector-pulse-simple.jpg): Today in one minute,
 // the market's mood, how your industries are doing, the cycle, all industries by state, the industry map, momentum and strength side by side, standout stocks, which stocks
 // are counted, too small for a reading and the words on the page. Every figure is the server's; the sentences are worked out in lib/pulsePack.ts. Describes, never advises.
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, apiGet } from "../../../lib/api";
 import { CoLogo } from "../../CoLogo";
 import { LockedBlock } from "../Parts";
 import { useSectorHistory, type SectorHistory, type StateKey } from "../../../lib/sectorHistory";
-import { useIndustryMap, type IndustryMap } from "../../../lib/sectorExtra";
+import { useIndustryMap } from "../../../lib/sectorExtra";
 import type { Board, GroupRow } from "../../../lib/sectors";
 import {
   BOX, BOX_ORDER, COLOUR, MEANING, ORDER, WORD, groupsN, groupsSplit, belowHigh, dayMon, bouncedAgo, byState, headline, howStrong, isEarly, keyOf, matrix, matrixCards, meansForYou, newHigh, risingOf, short, statesAt, todayThree, yourCards, yourOrder,
-  type Card, type Holding,
+  type Holding,
 } from "../../../lib/pulsePack";
 import { BoxChip, Cards, InsideLine, InsightCard, Scroll, Section, Spark, StateChip, Swatch, Tip, useAccount, useShowAll } from "./Common";
 import { coTitle, shortLabel } from "../../../lib/companyLabel";
 import { SxFold } from "./PulseLayout";
 import { AlertBell } from "./SectorAlert";
+import { HoverCard, useHover } from "./PulseMap";
 import { useWatchlist } from "../../../lib/watchlist";
 import { gl, sq, tw, wordsShow } from "../../../lib/groupWords";
 
@@ -25,7 +26,8 @@ const n0 = (v: number) => v.toLocaleString("en-IN");
 
 // ------------------------------------------------------------------------------------------------ Today in one minute
 export const TODAY_HELP = "Today in one minute. What changed at the latest close: how many groups are in each state now and a week ago, one square per group, and the few things worth knowing.";
-export function TodayMinute({ b, h }: { b: Board; h: SectorHistory | undefined }) {
+export function TodayMinute({ b, h, mine = new Set<string>() }: { b: Board; h: SectorHistory | undefined; mine?: Set<string> }) {
+  const box = useRef<HTMLDivElement>(null), hv = useHover(box), hovered = hv.h ? b.rows.find((r) => r.slug === hv.h!.slug) : undefined;
   // task #333 (file 30, polish 5): the squares run across the top, the counts are tiles in one row (number, state, change on last week), and three callouts sit in
   // one row under them; the headline's first sentence is a coloured chip (fix 2)
   const rows = b.rows, now = statesAt(h, 0), week = statesAt(h, 1);
@@ -38,11 +40,13 @@ export function TodayMinute({ b, h }: { b: Board; h: SectorHistory | undefined }
       <p className="sp-sub">{tw("What changed in the industries, and what to keep an eye on.")}</p>
       <p className="sp-lead"><b className={"sx-hl sx-hl-" + hd.tone}>{hd.lead}</b>{tw(hd.rest)}</p>
       {hd.sub && <p className="sp-lead-sub">{tw(hd.sub)}</p>}
-      <div className="sx-today">
+      <div className="sx-today" ref={box} onMouseLeave={hv.hide}>
         <p className="sp-cap">All {groupsSplit(rows)}, one square each</p>
         <ul className="sp-squares" aria-label={`All ${groupsN(rows.length)}, coloured by their state`}>
-          {squares.map((r) => <li key={r.slug}><Link to={gl(r.slug)} style={{ background: COLOUR[keyOf(r)] }} title={`${short(r.name)}: ${WORD[keyOf(r)]}`} aria-label={`${short(r.name)}: ${WORD[keyOf(r)]}`} /></li>)}
+          {squares.map((r) => <li key={r.slug}><Link to={gl(r.slug)} style={{ background: COLOUR[keyOf(r)] }} aria-label={`${short(r.name)}: ${WORD[keyOf(r)]}`}
+            onMouseEnter={(e) => hv.show(r.slug, e.currentTarget)} onFocus={(e) => hv.show(r.slug, e.currentTarget)} onBlur={hv.hide} /></li>)}
         </ul>
+        {hovered && hv.h && <HoverCard r={hovered} mine={mine.has(hovered.slug)} at={hv.h} />}
         <ul className="sx-tiles" style={{ ["--n" as string]: shown.length }} aria-label="How many are in each state, and the change on last week">{shown.map((k) => {
           const v = rows.filter((r) => keyOf(r) === k).length, was = week?.[k], d = was == null ? null : v - was;
           return <li key={k} className="sx-tile"><b>{v}</b><span className="sx-tile-k"><Swatch k={k} />{WORD[k]}<Tip text={MEANING[k]} label={`About “${WORD[k]}”`} /></span>
@@ -51,53 +55,6 @@ export function TodayMinute({ b, h }: { b: Board; h: SectorHistory | undefined }
       </div>
       <Cards items={cards} />
     </section>
-  );
-}
-
-// ------------------------------------------------------------------------------------------------ The market's mood, day by day
-const MOOD_ORDER: StateKey[] = ["crash", "bouncing", "rising", "no_signal", "losing", "sold_off"];     // bottom to top, as the pack stacks them
-export function Mood({ h }: { h: SectorHistory }) {
-  const n = h.dates.length, total = h.groups.length, W = 1000, H = 300, L = 30, R = 150, T = 8, B = 24;
-  const x = (i: number) => L + (i / Math.max(1, n - 1)) * (W - L - R), y = (v: number) => T + (1 - v / total) * (H - T - B);
-  const layers = useMemo(() => {
-    const base = new Array(n).fill(0);
-    return MOOD_ORDER.map((k) => {
-      const lo = [...base], hi = base.map((b0, i) => b0 + (h.counts[k]?.[i] ?? 0));
-      hi.forEach((v, i) => (base[i] = v));
-      const top = hi.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
-      const bot = lo.map((_v, i) => `L${x(n - 1 - i).toFixed(1)},${y(lo[n - 1 - i]).toFixed(1)}`).join("");
-      return { k, d: top + bot + "Z", last: h.counts[k]?.[n - 1] ?? 0, mid: (lo[n - 1] + hi[n - 1]) / 2 };
-    });
-  }, [h]);   // eslint-disable-line react-hooks/exhaustive-deps
-  const peak = h.counts.sold_off.reduce((best, v, i) => (v > h.counts.sold_off[best] ? i : best), 0);
-  const now = statesAt(h, 0)!;
-  const months = h.dates.map((d, i) => ({ d, i })).filter(({ d }, i) => i === 0 || d.slice(5, 7) !== h.dates[i - 1].slice(5, 7));
-  // task #333 (file 30): the three callouts under the chart are gone; "How to read it" is one line under the chart
-  const weeks = [...(h.weeks ?? [])].reverse();
-  return (
-    <Section id="sp-mood" title="The market's mood, day by day" help={`The market's mood. Every trading day each of the ${groupsN(total)} has one state. The chart stacks how many were in each state, so the colours always add up to ${total}. Hover a day to read it.`}
-      sub={`All ${groupsN(total)} stacked: each colour is how many were in that state on the day. Read it like weather for the whole market.`}>
-      <ul className="sp-lgd">{MOOD_ORDER.map((k) => <li key={k}><Swatch k={k} />{WORD[k]}</li>)}</ul>
-      <div className="sp-chartw">
-        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={tw(`Industries in each state, ${dayMon(h.dates[0])} to ${dayMon(h.dates[n - 1])}. Today: ${MOOD_ORDER.filter((k) => now[k]).map((k) => `${now[k]} ${WORD[k].toLowerCase()}`).join(", ")}.`)}>
-          {layers.map((l) => <path key={l.k} d={l.d} fill={COLOUR[l.k]} />)}
-          {[0, Math.round(total / 2), total].map((v) => <text key={v} className="sp-ax" x={L - 6} y={y(v) + 4} textAnchor="end">{v}</text>)}
-          {months.map(({ d, i }) => <text key={d} className="sp-ax" x={x(i)} y={H - 6} textAnchor="middle">{dayMon(d).split(" ")[1]}</text>)}
-          <line className="sp-peak" x1={x(peak)} x2={x(peak)} y1={T} y2={H - B} />
-          <text className="sp-ann" x={x(peak) + 6} y={T + 14}><tspan fontWeight="700">{h.counts.sold_off[peak]} of {total}</tspan> sold off · {dayMon(h.dates[peak])}</text>
-          {layers.filter((l) => l.last > 0).map((l) => <text key={l.k} className="sp-ann" x={x(n - 1) + 10} y={y(l.mid) + 4}><tspan fontWeight="700">{l.last}</tspan> {l.k === "crash" ? "Bounce after crash" : WORD[l.k]}</text>)}
-        </svg>
-      </div>
-      <p className="sx-howline"><b>How to read it:</b> {tw("a thick yellow band means most industries were being sold. Green growing up from the bottom means bounces are spreading.")}</p>
-      {weeks.length > 0 && (
-        <details className="sp-more"><summary>See the count, week by week ▾</summary>
-          <Scroll label={tw("industries in each state, week by week")}><table className="sp-tb">
-            <thead><tr><th scope="col">Friday</th>{MOOD_ORDER.map((k) => <th key={k} scope="col" className="r">{k === "crash" ? "Bounce after a crash" : WORD[k]}</th>)}</tr></thead>
-            <tbody>{weeks.map((w) => <tr key={w.date}><td>{dayMon(w.date)}</td>{MOOD_ORDER.map((k) => <td key={k} className="r">{w.counts[k] ? w.counts[k] : "·"}</td>)}</tr>)}</tbody>
-          </table></Scroll>
-          <p className="sp-note">How many of the {groupsN(total)} were in each state at each Friday's close, newest first.</p>
-        </details>)}
-    </Section>
   );
 }
 
@@ -250,44 +207,6 @@ export function placeLabels(dots: LabelIn[], box: { left: number; right: number;
     }
   }
   return out;
-}
-
-export function IndustryMapPack({ m }: { m: IndustryMap }) {
-  const W = 1000, H = 420, L = 56, R = 16, T = 10, B = 40, lo = -40;
-  const x = (v: number) => L + (v / 100) * (W - L - R), y = (v: number) => T + (Math.max(lo, Math.min(0, v)) / lo) * (H - T - B);
-  const near = m.rows.filter((r) => r.rising >= 50 && r.below_high > -15), far = m.rows.filter((r) => r.rising >= 50 && r.below_high <= -15), soldRising = m.rows.filter((r) => r.rising >= 50 && r.state === "sold_off");
-  const keys = ORDER.filter((k) => k === "no_signal" || m.rows.some((r) => r.state === k));       // the pack's key always names No clear signal
-  const cards: Card[] = [
-    { kind: "good", title: `${groupsN(near.length)} rising and near their highs`, text: "Top-right corner: half or more of their stocks are rising and the typical stock is close to its 1-year high." },
-    { kind: "insight", title: `${far.length} rising but still far below their highs`, text: "Bottom-right corner: most stocks have turned up, but the typical stock is still well under its 1-year high." },
-    { kind: "watch", title: `${soldRising.length} still marked Sold off`, text: "Half or more of their stocks are rising, but the state has not changed yet; it changes more slowly than the count." },
-  ];
-  return (
-    <Section id="sp-map" title={tw("Industry map")} help={tw("Industry map. Each dot is one industry. Across: out of every 100 of its stocks, how many are rising. Down: how far its typical stock is below its 1-year high. The colour is its state today. The corners are a way to read the map, not a ranking.")}
-      sub={tw("Each dot is an industry. Right means more of its stocks are rising; lower means its typical stock is further below its 1-year high. Colour is its state.")}>
-      <ul className="sp-lgd">{keys.map((k) => <li key={k}><Swatch k={k} />{WORD[k]}</li>)}</ul>
-      <div className="sp-chartw">
-        <svg viewBox={`0 0 ${W} ${H}`} role="img" data-testid="map-chart" aria-label={`${groupsN(m.rows.length)} by stocks rising and distance below their 1-year high.`}>
-          <rect className="sp-zone-up" x={x(50)} y={y(0)} width={x(100) - x(50)} height={y(-15) - y(0)} />
-          <rect className="sp-zone-dn" x={x(0)} y={y(-15)} width={x(50) - x(0)} height={y(lo) - y(-15)} />
-          {[0, 25, 50, 75, 100].map((v) => <g key={v}><line className={v === 50 ? "sp-mid" : "sp-grd"} x1={x(v)} x2={x(v)} y1={T} y2={H - B} /><text className="sp-ax" x={x(v)} y={H - B + 18} textAnchor="middle">{v}</text></g>)}
-          {[0, -10, -20, -30, -40].map((v) => <g key={v}><line className="sp-grd" x1={L} x2={W - R} y1={y(v)} y2={y(v)} /><text className="sp-ax" x={L - 8} y={y(v) + 4} textAnchor="end">{v}%</text></g>)}
-          <text className="sp-zone-t up" x={x(100) - 8} y={y(0) + 18} textAnchor="end">Rising and near highs</text>
-          <text className="sp-zone-t dn" x={x(0) + 8} y={y(lo) - 10}>Falling and far from highs</text>
-          <text className="sp-axt" x={(L + W - R) / 2} y={H - 4} textAnchor="middle">Out of every 100 stocks, how many are rising now →</text>
-          <text className="sp-axt" transform={`translate(14 ${(T + H - B) / 2}) rotate(-90)`} textAnchor="middle">← Further below its 1-year high</text>
-          {m.rows.map((r) => <circle key={r.slug} cx={x(r.rising)} cy={y(r.below_high)} r={7} fill={COLOUR[r.state]} stroke="#fff" strokeWidth={1.5}><title>{`${short(r.name)}: ${Math.round(r.rising)} of 100 rising, ${r.below_high.toFixed(1)}% below high, ${r.state_word}`}</title></circle>)}
-          {placeLabels(m.rows.map((r) => ({ id: r.slug, text: short(r.name), cx: x(r.rising), cy: y(r.below_high) })), { left: L, right: W - R, top: T, bottom: H - B }).map((l) => <text key={l.id} className="sp-dotl" x={l.x} y={l.y} textAnchor={l.anchor}>{l.text}</text>)}
-        </svg>
-      </div>
-      <p className="sp-note">{tw("Bottom right: industries that fell a long way and where most stocks have just turned up. Top right: strength already near its highs. Yellow dots on the right are industries still in the Sold off state although many of their stocks are now rising; the state changes more slowly than the count. Point at a dot for its name and numbers.")}</p>
-      <Cards items={cards.slice(0, 1)} />{/* task #333: the first callout; "still marked Sold off" moved up to Today */}
-      <details className="sp-more"><summary>{tw("Every industry on the map (")}{m.rows.length}) ▾</summary>
-        <Scroll label={tw("every industry on the map")}><table className="sp-tb"><thead><tr><th scope="col">{tw("Industry")}</th><th scope="col">State</th><th scope="col" className="r">Stocks rising of 100</th><th scope="col" className="r">Below its 1-year high</th><th scope="col">Box</th></tr></thead>
-          <tbody>{m.rows.map((r) => <tr key={r.slug}><td><Link to={gl(r.slug)}>{short(r.name)}</Link></td><td>{r.state_word}</td><td className="r">{Math.round(r.rising)}</td><td className="r">{belowHigh(r.below_high)}</td><td>{r.corner ?? "–"}</td></tr>)}</tbody></table></Scroll>
-      </details>
-    </Section>
-  );
 }
 
 // ------------------------------------------------------------------------------------------------ Momentum and strength, side by side

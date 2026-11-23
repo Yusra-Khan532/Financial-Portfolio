@@ -95,3 +95,46 @@ def build(pages: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         out.append({"state": s, "entered": r["entered"], "ended": len(r["lengths"]), "next": [{"state": k, "n": v} for k, v in nxt],
                     "typical_weeks": (int(typical) if typical is not None and float(typical).is_integer() else typical), "now": r["now"]})
     return {"window_from": first_week, "window_to": last_day.isoformat(), "groups": groups, "rows": out}
+
+
+def playback(pages: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Task #333 (file 30, addition 4): the Sector map's playback. Every group at each weekly close of the last year: stocks rising out of 100 (history.above_20),
+    how far below its 1-year high (history.index_vs_52w_high) and its reading (history.state_code). The weeks are the weekly closes common to the history."""
+    by_week: Dict[str, Dict[str, Any]] = {}
+    groups = []
+    last_day: Optional[date] = None
+    for p in pages:
+        h = p.get("history") if isinstance(p, dict) else None
+        if not isinstance(h, dict) or not p.get("slug"):
+            continue
+        dates = list(h.get("dates") or [])
+        if not dates:
+            continue
+        d = date.fromisoformat(str(dates[-1])[:10])
+        last_day = d if last_day is None or d > last_day else last_day
+        groups.append(p)
+    if not groups or last_day is None:
+        return None
+    start = (last_day - timedelta(days=WINDOW_DAYS)).isoformat()
+    weeks: Dict[tuple, str] = {}
+    for p in groups:
+        for d in p["history"]["dates"]:
+            d = str(d)[:10]
+            if d >= start:
+                k = date.fromisoformat(d).isocalendar()[:2]
+                weeks[k] = max(weeks.get(k, d), d)
+    ends = [weeks[k] for k in sorted(weeks)]
+    out = []
+    for p in groups:
+        h = p["history"]
+        idx = {str(d)[:10]: i for i, d in enumerate(h.get("dates") or [])}
+        def col(field: str, rnd: Optional[int]):
+            vals = list(h.get(field) or [])
+            res = []
+            for e in ends:
+                i = idx.get(e)
+                v = vals[i] if i is not None and i < len(vals) else None
+                res.append(round(float(v), rnd) if (rnd is not None and isinstance(v, (int, float))) else v)
+            return res
+        out.append({"slug": p["slug"], "name": p.get("name"), "rising": col("above_20", 1), "below_high": col("index_vs_52w_high", 1), "state": col("state_code", None)})
+    return {"weeks": ends, "groups": out}

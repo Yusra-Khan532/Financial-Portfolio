@@ -44,3 +44,15 @@ def test_window_is_the_last_12_months_and_median_can_be_a_half():
     rows = {r["state"]: r for r in out["rows"]}
     assert rows["fading"]["typical_weeks"] == 3.5 and rows["fading"]["now"] == 1
     assert out["window_from"] >= (date.fromisoformat(out["window_to"]) - timedelta(days=365)).isoformat()
+
+
+def test_playback_one_year_of_weekly_closes():
+    codes = ["washout"] * 10 + ["thrust_c"] * 5
+    ds = days("2026-10-26", codes)
+    page = {"slug": "power", "name": "Power", "history": {"dates": ds, "state_code": codes, "above_20": [10 + i for i in range(15)], "index_vs_52w_high": [-20.04 + i for i in range(15)]}}
+    out = sn.playback([page])
+    assert out["weeks"] == ["2026-10-30", "2026-11-06", "2026-11-13"]
+    g = out["groups"][0]
+    assert g["slug"] == "power" and g["state"] == ["washout", "washout", "thrust_c"]
+    assert g["rising"] == [14.0, 19.0, 24.0] and g["below_high"] == [-16.0, -11.0, -6.0]
+    assert sn.playback([]) is None
