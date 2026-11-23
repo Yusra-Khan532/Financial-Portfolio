@@ -15,7 +15,7 @@ import {
 } from "../lib/mf";
 import { keyLabel, selectionTitle, tabLabel } from "../lib/mfCategories";
 import { ColumnPicker, Controls, Pager } from "../mf/Controls";
-import { CategoryCards, CategoryPicker, cardOn } from "../mf/Dashboard";
+import { CategoryPicker, cardOn } from "../mf/Dashboard";
 import { FundChart, SERIES_STYLE } from "../mf/FundChart";
 import { FundTable } from "../mf/FundTable";
 import { LoadingNotice, SortPills, SummaryCards } from "../mf/Summary";
@@ -192,7 +192,6 @@ export function FundListPage() {
     <>
       {HEAD(title, "Funds in your chosen categories by returns, SIP returns, latest NAV, checklist and more.", [{ icon: "layers", value: t ? t.active.toLocaleString("en-IN") : null, label: "Active schemes" }, { icon: "line", value: t ? t.withHistory.toLocaleString("en-IN") : null, label: "With return history" }])}
       <div className="wrap mf mf-list">
-        <CategoryCards q={q} onPick={(c) => set(cardOn(q, c) ? { cats: null, view: "" } : { tab: c.tab, cats: [c.key], view: "" })} onScore={showByScore} />{/* task #340: pressing the chosen card again clears it (every category of its tab) */}
         <Link className="evi-promo" to="/funds/insights">
           <span className="evi-promo-ic" aria-hidden="true"><Icon name="line" /></span>
           <span className="evi-promo-t"><b>Fund industry trends <span className="evi-badge">Industry</span></b>
@@ -205,7 +204,8 @@ export function FundListPage() {
             <small>Every scored fund with its Mutual Fund Score and four parts: filter by category, cost, size and age, see category leaderboards and compare.</small></span>
           <span className="evi-promo-go" aria-hidden="true">Open →</span>
         </Link>
-        <CategoryPicker q={q} subs={subs} loading={filt.isLoading} onTab={(tab) => set({ tab, cats: null, ...tabDefaults(tab) })} onCats={(cats) => set({ cats })} />
+        <CategoryPicker q={q} subs={subs} loading={filt.isLoading} onTab={(tab) => set({ tab, cats: null, ...tabDefaults(tab) })} onCats={(cats) => set({ cats })}
+          frequent={{ onPick: (c) => set(cardOn(q, c) ? { cats: null, view: "" } : { tab: c.tab, cats: [c.key], view: "" }), onScore: showByScore }} />{/* task #344: the six frequently visited categories in the box (was "Six categories most people start with"); task #340: pressed again clears */}
         <Controls q={q} text={text} onText={setText} set={set} filters={filt.data} loading={list.isFetching} />
 
         <div className="mf-bar" id="mf-list">

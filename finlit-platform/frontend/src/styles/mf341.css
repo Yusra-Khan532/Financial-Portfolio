@@ -8,24 +8,7 @@
         16px padding, a 6px score bar, a quiet hover. Tablet: two columns. Phone: unchanged (the cards scroll sideways in one row, as before).
    - 9  the two tool cards (Fund industry trends, Fund score screener): about 70px tall, 36px icon, Open aligned right. */
 
-/* 8: the six category cards, 3 x 2 */
-.mf-list .mf-cats { margin-top: 24px; margin-bottom: 20px; }
-@media (min-width: 1001px) {
-  .mf-list .mf-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 14px; }
-}
-@media (min-width: 761px) and (max-width: 1000px) {
-  .mf-list .mf-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 12px; }
-}
-.mf-list .mf-qcard { padding: 16px 16px 14px; row-gap: 4px; transition: border-color .15s, background-color .15s, box-shadow .15s; }
-.mf-list .mf-qcard:hover { transform: none; border-color: color-mix(in srgb, var(--gold) 45%, var(--border-strong)); }
-.mf-list .mf-qcard b { font-size: var(--fs-16); line-height: var(--lh-16); }
-.mf-list .mf-qcard > span.mf-qcount { font-size: var(--fs-12); }
-.mf-list .mf-qcard > span:not(.ci):not(.mf-qcount) { font-size: var(--fs-13); line-height: var(--lh-13); }
-.mf-list .mf-qscore { padding: 12px 16px 14px; gap: 8px; }
-.mf-list .mf-qscore .mf-qs-n { font-size: var(--fs-24); }
-.mf-list .mf-qscore .mf-qs-t, .mf-list .mf-qdist-l { font-size: var(--fs-12); }
-.mf-list .mf-qdist { height: 6px; }
-.mf-list .mf-qscore a { font-size: var(--fs-13); }
+/* 8: the six category cards (3 x 2, task #341) were replaced by "Frequently visited funds" inside the category box (task #344, below). */
 
 /* 9: the two tool cards */
 .mf-list .evi-promo { padding: 14px 18px; min-height: 70px; gap: 14px; margin-bottom: 12px; transition: border-color .15s, background-color .15s; }
@@ -128,3 +111,26 @@
 .mf-list .seg button { border-radius: 0; min-height: 36px; padding: 0 14px; }
 .mf-list .seg button + button { border-left: 1px solid var(--border); }
 .mf-list .seg button[aria-pressed="true"], .mf-list .seg button[aria-pressed="true"] + button { border-left-color: transparent; }
+
+/* Task #344: "Frequently visited funds" at the top of the category box: the six names in one row (wrapping on narrow screens), the chosen one in
+   the site's selected look, and an (i) that opens what each is (its two lines, its Mutual Fund Score strip for Gold, the ELSS footnote) in a panel
+   under the row, three across on a desktop. */
+.mf-list .mf-freq { padding: 12px 18px; border-bottom: 1px solid var(--border); }
+.mf-list .mf-freq-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.mf-list .mf-freq-k { margin-right: 4px; font: 600 var(--fs-12)/var(--lh-12) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.mf-list .mf-freq-b { min-height: 34px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); background: var(--s1); color: var(--text); font: 600 var(--fs-13) var(--sans); cursor: pointer; }
+.mf-list .mf-freq-b:hover { border-color: var(--gold); }
+.mf-list .mf-freq-b[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); border-color: var(--ui-on-bg); }
+.mf-list .mf-freq-b:focus-visible, .mf-list .mf-freq-i:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.mf-list .mf-freq-i { display: inline-grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 1px solid var(--border-strong); border-radius: 50%; background: none; color: var(--muted); cursor: pointer; }
+.mf-list .mf-freq-i[aria-expanded="true"] { color: var(--text); border-color: var(--gold); }
+.mf-list .mf-freq-i svg { width: 16px; height: 16px; }
+.mf-list .mf-freq-info { margin-top: 12px; }
+.mf-list .mf-freq-info ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.mf-list .mf-freq-info li { display: grid; gap: 4px; align-content: start; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s2); }
+.mf-list .mf-freq-info li > b { font: 600 var(--fs-14)/var(--lh-14) var(--sans); }
+.mf-list .mf-freq-info li > span { font-size: var(--fs-13); line-height: var(--lh-13); color: var(--muted); }
+.mf-list .mf-freq-info .mf-qscore { margin: 6px -14px -12px; border-left: 0; border-right: 0; border-bottom: 0; border-radius: 0 0 var(--r-ctl) var(--r-ctl); background: var(--s1); min-height: 0; }
+.mf-list .mf-freq-info > p { margin: 10px 0 0; font-size: var(--fs-12); }
+@media (max-width: 1000px) { .mf-list .mf-freq-info ul { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .mf-list .mf-freq { padding: 12px 14px; } .mf-list .mf-freq-info ul { grid-template-columns: minmax(0, 1fr); } }
