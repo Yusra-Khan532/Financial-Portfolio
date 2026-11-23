@@ -199,7 +199,9 @@ async def create_alert(request: Request, body: AlertIn, ctx: Ctx = Depends(secur
                                ctx.user_id, body.symbol, body.metric, body.op, body.value, keyword, list_ref, kinds, digest):
             raise fail(409, "duplicate", "You already have this alert.")
         cap = eng.ALERT_LIMITS[ctx.plan]
-        if await conn.fetchval("SELECT count(*) FROM alerts WHERE user_id = $1 AND status <> 'done'", ctx.user_id) >= cap:
+        from .sector_alerts import groups_alerted   # task #333: each sector or industry with a Sector Pulse "Alert me" counts as one alert
+        sector_n = groups_alerted(await conn.fetchval("SELECT prefs FROM user_state WHERE user_id = $1", ctx.user_id))
+        if await conn.fetchval("SELECT count(*) FROM alerts WHERE user_id = $1 AND status <> 'done'", ctx.user_id) + sector_n >= cap:
             raise fail(403, "plan_limit", f"Your plan includes {cap} alerts at a time. Remove one that has finished, or upgrade.", plan="gold" if ctx.plan == "silver" else "silver")
         met, current, seen = None, None, None
         if body.metric == fa.METRIC:

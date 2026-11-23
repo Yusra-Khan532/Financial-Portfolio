@@ -408,6 +408,8 @@ async def evaluate(pool, mailer: Mailer, site_url: str, kind: str = "all") -> in
             fired += await auto_pl_flags(pool, mailer, site_url)
             from .rotation_alerts import auto_rotation_alerts   # the Sector Rotation alerts read the nightly rotation file, not the database
             fired += await auto_rotation_alerts(pool, mailer, site_url)
+            from .sector_alerts import auto_sector_alerts   # task #333: Sector Pulse "Alert me" (state, box, top 5), after the weekly close
+            fired += await auto_sector_alerts(pool, mailer, site_url)
         except Exception:
             log.exception("built-in alerts failed")
         try:   # the Watchlists page's "Tell me when a label changes": after each weekly Leader / In line / Laggard check (deduped per stock and week)

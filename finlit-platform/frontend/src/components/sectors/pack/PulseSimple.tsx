@@ -17,6 +17,8 @@ import {
 import { BoxChip, Cards, InsideLine, InsightCard, Scroll, Section, Spark, StateChip, Swatch, Tip, useAccount, useShowAll } from "./Common";
 import { coTitle, shortLabel } from "../../../lib/companyLabel";
 import { SxFold } from "./PulseLayout";
+import { AlertBell } from "./SectorAlert";
+import { useWatchlist } from "../../../lib/watchlist";
 import { gl, sq, tw, wordsShow } from "../../../lib/groupWords";
 
 const n0 = (v: number) => v.toLocaleString("en-IN");
@@ -101,38 +103,70 @@ export function Mood({ h }: { h: SectorHistory }) {
 
 // ------------------------------------------------------------------------------------------------ How your industries are doing
 type Membership = { groups: Record<string, { slug: string; name: string }> };
-export function YourIndustries({ b, h, symbols, signedIn }: { b: Board; h: SectorHistory | undefined; symbols: string[]; signedIn: boolean }) {
-  const key = [...symbols].sort().join(",");
-  const q = useQuery<Membership, ApiError>({ queryKey: ["sectors", "membership", key, wordsShow()], queryFn: () => apiGet<Membership>(`/api/sectors/membership?symbols=${encodeURIComponent(key)}` + sq(false)), enabled: symbols.length > 0, staleTime: 3_600_000, retry: false });
-  const held: Holding[] = symbols.flatMap((s) => (q.data?.groups[s] ? [{ symbol: s, slug: q.data.groups[s].slug }] : []));
-  const mine = b.rows.filter((r) => held.some((x) => x.slug === r.slug)).sort(yourOrder), { shown: mineShown, button: mineMore } = useShowAll(mine, 5);
-  const spark = (slug: string) => h?.groups.find((g) => g.slug === slug)?.rising ?? [];
+type Src = "hold" | "watch" | "both";
+/** The share pills of one row: at most three show, "+N" opens the rest; watchlist shares have a dashed outline (task #333, polish 1 and 9: symbol only). */
+function Pills({ syms }: { syms: { symbol: string; wl: boolean }[] }) {
+  const [open, setOpen] = useState(false);
+  const shown = open ? syms : syms.slice(0, 3);
   return (
-    <Section id="sx-yours" title={tw("How your industries are doing")} help={tw("Your industries: the NSE industries of the shares in your portfolio. Each one's state today, how it compares with other industries (Sector Rotation) and how many of its stocks have been rising over 6 months.")}
+    <div className="sp-mine">{shown.map((x) => <Link key={x.symbol} to={`/stocks/${x.symbol}`} className={"sp-sym" + (x.wl ? " sx-wl" : "")} title={x.wl ? `${x.symbol} (watchlist)` : x.symbol}>{x.symbol}</Link>)}
+      {syms.length > 3 && <button type="button" className="sx-pmore" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "fewer" : `+${syms.length - 3}`}</button>}</div>
+  );
+}
+export function YourIndustries({ b, h, symbols, signedIn }: { b: Board; h: SectorHistory | undefined; symbols: string[]; signedIn: boolean }) {
+  // task #333 (file 30, addition 6): the switch My portfolio · My watchlist · Both; every row shown; a bell in its own last column (addition 5); no shares and no
+  // watchlist: "Your sectors will show here"
+  const wl = useWatchlist();
+  const watchSyms = useMemo(() => [...new Set(wl.lists.flatMap((l) => l.symbols.map((x) => x.toUpperCase())))], [wl]);
+  const [src, setSrc] = useState<Src>(() => (symbols.length ? "hold" : "watch"));
+  const cur = src === "hold" && !symbols.length && watchSyms.length ? "watch" : src;
+  const all = useMemo(() => [...new Set([...symbols, ...watchSyms])].sort(), [symbols, watchSyms]);
+  const key = all.join(",");
+  const q = useQuery<Membership, ApiError>({ queryKey: ["sectors", "membership", key, wordsShow()], queryFn: () => apiGet<Membership>(`/api/sectors/membership?symbols=${encodeURIComponent(key)}` + sq(false)), enabled: all.length > 0, staleTime: 3_600_000, retry: false });
+  const pick = cur === "hold" ? symbols : cur === "watch" ? watchSyms : all;
+  const own = new Set(symbols);
+  const held: Holding[] = pick.flatMap((s) => (q.data?.groups[s] ? [{ symbol: s, slug: q.data.groups[s].slug }] : []));
+  const mine = b.rows.filter((r) => held.some((x) => x.slug === r.slug)).sort(yourOrder);
+  const spark = (slug: string) => h?.groups.find((g) => g.slug === slug)?.rising ?? [];
+  const portfolioHeld: Holding[] = symbols.flatMap((s) => (q.data?.groups[s] ? [{ symbol: s, slug: q.data.groups[s].slug }] : []));
+  const empty = !symbols.length && !watchSyms.length;
+  return (
+    <Section id="sx-yours" title={tw("How your industries are doing")} help={tw("Your industries: the NSE industries of the shares in your portfolio or on your watchlist. Each one's state today, how it compares with other industries (Sector Rotation) and how many of its stocks have been rising over 6 months.")}
       sub={mine.length ? tw(`The ${mine.length} ${mine.length === 1 ? tw("industry") : tw("industries")} your ${held.length} ${held.length === 1 ? "share belongs" : "shares belong"} to: is each one rising or falling, and is it beating other industries?`) : undefined}
       why={tw("A share rarely swims against its whole industry for long. Knowing whether your industries are rising or falling tells you what your shares are up against.")}>
-      {!symbols.length ? <p className="sp-empty">{signedIn ? <>Add the shares you own to <Link to="/portfolio">your portfolio</Link> {tw("and their industries appear here, each with its state and how it compares with the others.")}</> : <><Link to="/login">Sign in</Link> {tw("and add the shares you own: their industries appear here, each with its state and how it compares with the others.")}</>}</p>
-        : q.isLoading ? <div className="sx-skel" style={{ height: 120 }} role="status" aria-label={tw("Loading your industries")} />
-        : !mine.length ? <p className="sp-empty">None of your {symbols.length} {tw("shares is in an industry with a reading today: NSE has not given them an industry, or their industry has too few counted stocks.")}</p>
-        : <>
-          <Cards items={yourCards(b.rows, held).slice(0, 1)} />{/* task #333: one callout */}
-          <Scroll label={tw("your industries")}><table className="sp-tb sp-yours">
-            <thead><tr><th scope="col">{tw("Industry and your shares")}</th><th scope="col">Its state today<Tip text={tw("The industry's state at the latest close: sold off, bouncing back, rising together or losing steam.")} /></th>
-              <th scope="col">{tw("Against other industries")}<Tip text="Its Sector Rotation box and rank: how it has done against the average group over recent months and weeks." /></th>
-              <th scope="col">Stocks rising · last 6 months<Tip text="The line: out of every 100 of its counted stocks, how many were above their medium trend each day for 6 months. Dashed: half." /></th><th scope="col">What it means for you</th></tr></thead>
-            <tbody>{mineShown.map((r) => {
-              const m = meansForYou(r), syms = held.filter((x) => x.slug === r.slug).map((x) => x.symbol), up = risingOf(r);
-              return (<tr key={r.slug}>
-                <td><Link className="sp-ind" to={gl(r.slug)}>{short(r.name)}</Link><div className="sp-mine">{syms.map((s) => <Link key={s} to={`/stocks/${s}`} className="sp-sym"><CoLogo symbol={s} size={18} inline />{s}</Link>)}</div></td>
-                <td><StateChip k={keyOf(r)} /></td>
-                <td><BoxChip corner={r.rotation?.corner} />{r.rotation?.rank != null && <small className="sp-rank">rank {r.rotation.rank} of {r.rotation.ranked}</small>}</td>
-                <td><span className="sp-sparkc"><Spark values={spark(r.slug)} label={`${short(r.name)}: stocks rising over 6 months`} /><span className="sp-of"><b>{up ?? "–"} of {r.stocks_counted}</b><small>stocks rising</small></span></span></td>
-                <td><span className={"sp-mean sp-" + m.tone}>{m.text}</span></td>
-              </tr>);
-            })}</tbody>
-          </table></Scroll>
-          {mineMore}
-        </>}
+      {empty ? (
+        <div className="sx-empty" data-testid="your-empty"><b>{tw("Your industries will show here")}</b>
+          <p>{tw("Add the shares you hold, or build a watchlist, and this box shows which of your industries are rising, falling, leading or lagging.")}</p>
+          <p><Link className="sx-go" to={signedIn ? "/portfolio" : "/login?next=/portfolio"}>Add my shares</Link><Link className="sx-go2" to="/watchlists">Open my watchlist</Link></p></div>
+      ) : <>
+        <div className="sx-src" role="group" aria-label="Which shares"><span>{tw("Industries of")}</span>
+          <button type="button" aria-pressed={cur === "hold"} onClick={() => setSrc("hold")}>My portfolio <small>{symbols.length} {symbols.length === 1 ? "share" : "shares"}</small></button>
+          <button type="button" aria-pressed={cur === "watch"} onClick={() => setSrc("watch")}>My watchlist <small>{watchSyms.length} {watchSyms.length === 1 ? "share" : "shares"}</small></button>
+          <button type="button" aria-pressed={cur === "both"} onClick={() => setSrc("both")}>Both</button></div>
+        {q.isLoading ? <div className="sx-skel" style={{ height: 120 }} role="status" aria-label={tw("Loading your industries")} />
+          : !pick.length ? <p className="sp-empty">{cur === "hold" ? "Your portfolio has no shares yet." : "Your watchlist has no shares yet."}</p>
+          : !mine.length ? <p className="sp-empty">None of these {pick.length} {tw("shares is in an industry with a reading today: NSE has not given them an industry, or their industry has too few counted stocks.")}</p>
+          : <>
+            {cur === "hold" && <Cards items={yourCards(b.rows, portfolioHeld).slice(0, 1)} />}{/* the callout is about the portfolio, so it shows only on My portfolio */}
+            <Scroll label={tw("your industries")}><table className="sp-tb sp-yours">
+              <thead><tr><th scope="col">{tw("Industry and your shares")}</th><th scope="col">Its state today<Tip text={tw("The industry's state at the latest close: sold off, bouncing back, rising together or losing steam.")} /></th>
+                <th scope="col">{tw("Against other industries")}<Tip text="Its Sector Rotation box and rank: how it has done against the average group over recent months and weeks." /></th>
+                <th scope="col">Stocks rising · last 6 months<Tip text="The line: out of every 100 of its counted stocks, how many were above their medium trend each day for 6 months. Dashed: half." /></th><th scope="col">What it means for you</th>
+                <th scope="col" className="sx-alh">Alert</th></tr></thead>
+              <tbody>{mine.map((r) => {
+                const m = meansForYou(r), syms = held.filter((x) => x.slug === r.slug).map((x) => ({ symbol: x.symbol, wl: !own.has(x.symbol) })), up = risingOf(r);
+                return (<tr key={r.slug}>
+                  <td><Link className="sp-ind" to={gl(r.slug)}>{short(r.name)}</Link><Pills syms={syms} /></td>
+                  <td><StateChip k={keyOf(r)} /></td>
+                  <td><BoxChip corner={r.rotation?.corner} />{r.rotation?.rank != null && <small className="sp-rank">rank {r.rotation.rank} of {r.rotation.ranked}</small>}</td>
+                  <td><span className="sp-sparkc"><Spark values={spark(r.slug)} label={`${short(r.name)}: stocks rising over 6 months`} /><span className="sp-of"><b>{up ?? "–"} of {r.stocks_counted}</b><small>stocks rising</small></span></span></td>
+                  <td><span className={"sp-mean sp-" + m.tone}>{m.text}</span></td>
+                  <td className="sx-alc"><AlertBell slug={r.slug} name={short(r.name)} compact /></td>
+                </tr>);
+              })}</tbody>
+            </table></Scroll>
+          </>}
+      </>}
     </Section>
   );
 }
