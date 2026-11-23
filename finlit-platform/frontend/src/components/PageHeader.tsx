@@ -28,7 +28,7 @@ export type PhLearn = { to?: string; onClick?: () => void; label?: string };
 export type PageHeaderProps = {
   plan?: PhPlan; title: ReactNode; description?: ReactNode; eyebrow?: ReactNode;
   stats?: PhStat[]; links?: PhLink[]; learn?: boolean | PhLearn; art?: PhArtKind;
-  back?: ReactNode; meta?: ReactNode; actions?: ReactNode; children?: ReactNode; titleAside?: ReactNode; wrap?: boolean; className?: string; id?: string; titleVariant?: "tool" | "read";
+  back?: ReactNode; meta?: ReactNode; actions?: ReactNode; /** task #345: buttons placed before the quick links (the page's first actions) */ lead?: ReactNode; children?: ReactNode; titleAside?: ReactNode; wrap?: boolean; className?: string; id?: string; titleVariant?: "tool" | "read";
 };
 
 const PLAN: Record<string, { n: string; ic: string; cls: string }> = {
@@ -41,7 +41,7 @@ function HLink({ to, className, children }: { to: string; className: string; chi
   return useInRouterContext() ? <Link to={to} className={className}>{children}</Link> : <a href={to} className={className}>{children}</a>;
 }
 
-export function PageHeader({ plan, title, description, eyebrow, stats, links, learn = true, art, back, meta, actions, children, titleAside, wrap, className = "", id, titleVariant = "tool" }: PageHeaderProps) {
+export function PageHeader({ plan, title, description, eyebrow, stats, links, learn = true, art, back, meta, actions, lead, children, titleAside, wrap, className = "", id, titleVariant = "tool" }: PageHeaderProps) {
   const uid = useId(), tid = id ?? "ph-t" + uid.replace(/:/g, "");
   const inRouter = useInRouterContext();   // the header also renders on its own (tests, previews): plain anchors then
   const pathname = inRouter ? useLocation().pathname : (typeof window !== "undefined" ? window.location.pathname : "/");   // eslint-disable-line react-hooks/rules-of-hooks
@@ -73,6 +73,7 @@ export function PageHeader({ plan, title, description, eyebrow, stats, links, le
         {description ? <p className="ph-desc">{description}</p> : null}
         {meta ? <p className="ph-meta">{meta}</p> : null}
         <div className="ph-row">
+          {lead}
           {btns.length > 0 ? <nav className="ph-links" aria-label="Related pages" style={{ display: "contents" }}>
             {btns.map((l) => <HLink key={l.to} to={l.to} className={buttonClass("secondary", "sm", "ph-lk")}>{l.label}<span aria-hidden="true">→</span></HLink>)}
           </nav> : null}

@@ -172,6 +172,11 @@
 .aif-a-n { font-weight: 700; color: var(--text); white-space: nowrap; }
 .aif-a-src { margin: 4px 0 0; font-size: var(--fs-12); color: var(--muted); }
 .aif-a-disc { margin: 0; font-size: var(--fs-12); color: var(--muted); font-style: italic; }
+/* task #349: an answer cut short or stopped early says so under its points; Stop while an answer streams; Ask again after an interrupted one.
+   The buttons are the shared ui-btn (components/ui Button); only their place is set here. */
+.aif-a-cut { margin: 6px 0 0; font-size: var(--fs-12); color: var(--muted); font-style: italic; }
+.aif-stopw { margin: 4px 0 0; display: flex; justify-content: flex-start; }
+.aif-retry { margin: 10px 0 0; }
 /* task #270: the answer's closing stance and its one-line summary; the edge carries the tone (green positive, gold mixed, red negative) */
 .aif-a-st { margin: 10px 0 6px; padding: 10px 12px; border: 1px solid var(--border); border-left: 4px solid var(--gold); border-radius: var(--r-ctl); background: var(--s1); }
 .aif-a-st.pos, .aif-a-st.cpos { border-left-color: var(--gain); }

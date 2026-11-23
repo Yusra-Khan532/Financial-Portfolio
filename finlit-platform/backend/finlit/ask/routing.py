@@ -7,8 +7,10 @@ education for concepts, platforms and news as secondary): each question is read 
   1. `classify` (a pure function): economy, financials, news, concept, valuation, regulation, funds, and a sector when one is named. English and the
      usual Hinglish. Several types can hold at once.
   2. `route` turns the types into (a) a short note placed with the question (never in the system prompt, so the cached prefix stays the same for
-     every member) naming FinLit's own tools to use first and the sites to prefer on the web, and (b) for a question of one clear type, the web
-     search limited to that type's sites (the provider's `allowed_domains`). A mixed or unclear question keeps the web search open.
+     every member) naming FinLit's own tools to use first and the sites to prefer on the web, and (b) for a question of one clear type, an
+     instruction in that note to search only that type's sites (`web_domains`). A mixed or unclear question keeps the web search open. Task #349:
+     the sites are no longer the web search's `allowed_domains`: the tool list comes before the instructions in the cached prefix, so changing it
+     per type made one cache entry per type; the tool list is now the same for every question.
 The sites are the team's directory (knowledge.DIRECTORY); FinLit AI only searches and links them, and stores none of their content."""
 
 from __future__ import annotations
@@ -191,6 +193,8 @@ def note(kinds: List[str]) -> str:
             continue
         tools = ", ".join(_tools_of(k))
         parts.append(f"{_label_of(k)}: FinLit first ({tools}); then on the web prefer {sites}")
-    scope = " The web search keeps to these sites." if web_domains(kinds) else ""
+    # Task #349: the sites are guidance here, with the question, not the web search's allowed_domains (that changed the cached tool list per type).
+    keep = web_domains(kinds)
+    scope = (f" Search only these sites: put site: and one of them in the query (for example \"site:{keep[0]}\")." if keep else "")
     return ("[Sources for this question (the team's source directory). " + "; ".join(parts) + "." + scope
             + " Name the site and the date of every figure taken from the web.]")

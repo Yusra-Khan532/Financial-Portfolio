@@ -15,7 +15,8 @@ export type Prefs = { palette: PaletteId; density: Density; alerts: boolean; scr
   /** task #315: Word of the Day bookmarks (glossary term ids, newest first, at most 200); shown on the dashboard under "Your bookmark" */ wordBookmarks: string[];
   /** task #315: the India date (YYYY-MM-DD) the member last opened the Word of the Day; the header's gold dot shows until today's is opened */ wordSeen: string;
 
-  /** task #316: the dashboard's own choices, saved with the account like the Showing bar */ dashUi: DashUi };
+  /** task #316: the dashboard's own choices, saved with the account like the Showing bar */ dashUi: DashUi;
+  /** task #349 PR 2: FinLit AI keeps this member's questions for 180 days (Silver and Gold); false keeps nothing new. Older saved prefs: true */ aiMemory: boolean };
 /** Task #316 (dashboard file 22): the section shown, the portfolio of "Your portfolios at a glance", the Global markets region, the sort of "Your investments today",
  *  whose results and filings ("From"), and the cards hidden from each card's ⋯ menu. The server checks the same values (auth/routes.py DashUi). */
 export const DASH_SECS = ["all", "money", "watch", "market", "news", "tools"] as const;
@@ -80,7 +81,7 @@ export const WIDGETS: { id: string; label: string; nav?: string; blurb: string; 
 /** The layout version this build draws (task #195). A layout saved under an older version is moved to it once (`migrateLayout`). */
 export const DASH_V = 2;
 const defaultLayout = (): WidgetPref[] => WIDGETS.map((w) => ({ id: w.id, on: !w.off, size: w.size }));
-const DEFAULTS: Prefs = { palette: "gold", density: "comfortable", alerts: true, screenAlerts: true, profitGap: true, rotationCorner: true, rotationRank: false, digest: false, dashboard: defaultLayout(), sectorWatch: [], sectorAlerts: [], dashV: DASH_V, dashPortfolios: { equity: "all", mf: "all", etf: "all" }, followThemes: [], viewsSeen: [], wordBookmarks: [], wordSeen: "", dashUi: DASH_UI_DEFAULT };
+const DEFAULTS: Prefs = { palette: "gold", density: "comfortable", alerts: true, screenAlerts: true, profitGap: true, rotationCorner: true, rotationRank: false, digest: false, dashboard: defaultLayout(), sectorWatch: [], sectorAlerts: [], dashV: DASH_V, dashPortfolios: { equity: "all", mf: "all", etf: "all" }, followThemes: [], viewsSeen: [], wordBookmarks: [], wordSeen: "", dashUi: DASH_UI_DEFAULT, aiMemory: true };
 
 const KEY = "finlit-prefs-v1";
 const SIZES: readonly WidgetSize[] = ["quarter", "third", "half", "full"];
@@ -122,8 +123,11 @@ function normalise(raw: Partial<Prefs> | null | undefined): Prefs {
     wordBookmarks: [...new Set((Array.isArray(raw?.wordBookmarks) ? raw!.wordBookmarks : []).filter((x): x is string => typeof x === "string" && WORD_ID.test(x)))].slice(0, 200),
     wordSeen: typeof raw?.wordSeen === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.wordSeen) ? raw.wordSeen : "",
 
-    dashUi: normaliseDashUi(raw?.dashUi) };
+    dashUi: normaliseDashUi(raw?.dashUi),
+    aiMemory: raw?.aiMemory !== false };
 }
+/** Saved prefs (this browser's or the account's), cleaned; a field an older save does not have takes its default. */
+export const normalisePrefs = (raw: Partial<Prefs> | null | undefined): Prefs => normalise(raw);
 function read(): Prefs { try { return normalise(JSON.parse(localStorage.getItem(KEY) || "null")); } catch { return normalise(null); } }
 
 let state = typeof localStorage === "undefined" ? DEFAULTS : read();

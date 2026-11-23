@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PhoneFold } from "../components/PhoneFold";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { Icon } from "../lib/icons";
+import { buttonClass } from "../components/ui";
 import { useUI } from "../lib/ui";
 import { visits } from "../lib/recentVisits";
 import { useDocTitle } from "../lib/title";
@@ -15,7 +16,7 @@ import {
 } from "../lib/mf";
 import { keyLabel, selectionTitle, tabLabel } from "../lib/mfCategories";
 import { ColumnPicker, Controls, Pager } from "../mf/Controls";
-import { CategoryCards, CategoryPicker, cardOn } from "../mf/Dashboard";
+import { CategoryPicker, cardOn } from "../mf/Dashboard";
 import { FundChart, SERIES_STYLE } from "../mf/FundChart";
 import { FundTable } from "../mf/FundTable";
 import { LoadingNotice, SortPills, SummaryCards } from "../mf/Summary";
@@ -39,9 +40,18 @@ import { ChartZoom } from "../components/ChartZoom";
 /** Task #311 (developer file 21, fund page row 1): the formula is off the page; one plain sentence behind the (i). */
 const VOL_TIP = "How much the NAV moves from day to day, shown as a yearly figure.";
 
-const HEAD = (title: string, lead: string, stats?: PageHeaderProps["stats"]) => (
+/** Task #345 (23 Nov 2026, the team): on the list page "Fund industry trends" (it was a card under the categories) and "Import my funds" are the first two
+ *  buttons, each with a gold edge and a crown; the Fund score screener card went too (the header's "Fund Screener" opens the same page). */
+const GOLD_LEAD = (
+  <>
+    <Link className={buttonClass("secondary", "sm", "ph-lk ph-gold")} to="/funds/insights" title="Where the industry's money sits and moves, month by month: assets, net flows and folios by fund category."><Icon name="crown" className="ph-crown" />Fund industry trends <span aria-hidden="true">→</span></Link>
+    <Link className={buttonClass("secondary", "sm", "ph-lk ph-gold")} to="/mf-portfolio?tab=import"><Icon name="crown" className="ph-crown" />Import my funds <span aria-hidden="true">→</span></Link>
+  </>
+);
+const HEAD = (title: string, lead: string, stats?: PageHeaderProps["stats"], gold = false) => (
   <PageHeader wrap plan="free" title={title} description={lead} stats={stats} art="funds" links={[{ to: "/fund-score-screener", primary: true }, "/funds/compare", "/etfs"]}
-    actions={<Link className="btn" to="/mf-portfolio?tab=import">Import my funds <span aria-hidden="true">→</span></Link>} />
+    lead={gold ? GOLD_LEAD : undefined}
+    actions={gold ? undefined : <Link className="btn" to="/mf-portfolio?tab=import">Import my funds <span aria-hidden="true">→</span></Link>} />
 );
 const Problem = ({ title, text, retry }: { title: string; text: string; retry?: () => void }) => (
   <div className="wrap state" role="alert"><h2>{title}</h2><p>{text}</p>{retry && <button className="btn" onClick={retry}>Try again</button>} <Link className="btn" to="/funds">Back to all schemes</Link></div>
@@ -190,22 +200,10 @@ export function FundListPage() {
 
   return (
     <>
-      {HEAD(title, "Funds in your chosen categories by returns, SIP returns, latest NAV, checklist and more.", [{ icon: "layers", value: t ? t.active.toLocaleString("en-IN") : null, label: "Active schemes" }, { icon: "line", value: t ? t.withHistory.toLocaleString("en-IN") : null, label: "With return history" }])}
+      {HEAD(title, "Funds in your chosen categories by returns, SIP returns, latest NAV, checklist and more.", [{ icon: "layers", value: t ? t.active.toLocaleString("en-IN") : null, label: "Active schemes" }, { icon: "line", value: t ? t.withHistory.toLocaleString("en-IN") : null, label: "With return history" }], true)}
       <div className="wrap mf mf-list">
-        <CategoryCards q={q} onPick={(c) => set(cardOn(q, c) ? { cats: null, view: "" } : { tab: c.tab, cats: [c.key], view: "" })} onScore={showByScore} />{/* task #340: pressing the chosen card again clears it (every category of its tab) */}
-        <Link className="evi-promo" to="/funds/insights">
-          <span className="evi-promo-ic" aria-hidden="true"><Icon name="line" /></span>
-          <span className="evi-promo-t"><b>Fund industry trends <span className="evi-badge">Industry</span></b>
-            <small>Where the industry's money sits and moves, month by month: assets, net flows and folios by fund category.</small></span>
-          <span className="evi-promo-go" aria-hidden="true">Open →</span>
-        </Link>
-        <Link className="evi-promo" to="/fund-score-screener">
-          <span className="evi-promo-ic" aria-hidden="true"><Icon name="quality" /></span>
-          <span className="evi-promo-t"><b>Fund score screener</b>
-            <small>Every scored fund with its Mutual Fund Score and four parts: filter by category, cost, size and age, see category leaderboards and compare.</small></span>
-          <span className="evi-promo-go" aria-hidden="true">Open →</span>
-        </Link>
-        <CategoryPicker q={q} subs={subs} loading={filt.isLoading} onTab={(tab) => set({ tab, cats: null, ...tabDefaults(tab) })} onCats={(cats) => set({ cats })} />
+        <CategoryPicker q={q} subs={subs} loading={filt.isLoading} onTab={(tab) => set({ tab, cats: null, ...tabDefaults(tab) })} onCats={(cats) => set({ cats })}
+          frequent={{ onPick: (c) => set(cardOn(q, c) ? { cats: null, view: "" } : { tab: c.tab, cats: [c.key], view: "" }), onScore: showByScore }} />{/* task #344: the six frequently visited categories in the box (was "Six categories most people start with"); task #340: pressed again clears */}
         <Controls q={q} text={text} onText={setText} set={set} filters={filt.data} loading={list.isFetching} />
 
         <div className="mf-bar" id="mf-list">
@@ -220,12 +218,12 @@ export function FundListPage() {
             {!ready && t && !q.stopped && <span className="faint"> · {(t.schemes - t.active).toLocaleString("en-IN")} older schemes have stopped publishing and are hidden</span>}
             {facts?.dataDate && <span className="faint"> · NAVs up to {dateIN(facts.dataDate)}</span>}
           </p>
-          <ColumnPicker cols={cols} onChange={(c) => { setCols(c); writeCols(c); }} />
         </div>
 
         {ready ? (
           !hot.data ? <div className="card" aria-busy="true"><div className="skeleton" style={{ height: 420 }} /></div> : (
             <div className="card mf-tablecard">
+              <div className="mf-tbar">{/* task #346: the Columns button inside the table, beside its enlarge button */}<ColumnPicker cols={cols} onChange={(c) => { setCols(c); writeCols(c); }} /></div>
               <p className="faint mf-fine mf-pad">{hot.data.basis}</p>
               <FundTable rows={hotRows} cols={cols} q={q} onSort={onSort} picked={tray} onPick={pick} />
               <CompareBar tray={tray} onClear={clear} onOpen={() => nav(compareUrl(tray))} />
@@ -246,6 +244,7 @@ export function FundListPage() {
           {historyLoading(d.items) && <p className="mf-note" role="status"><Icon name="info" /><span><b>Return history is still loading.</b> None of the funds on this page has its 1, 3 or 5 year return yet because the NAV history from AMFI is loaded one fund house at a time. The figures appear as each house finishes; nothing here is missing for good.</span></p>}
           <SortPills q={eq} onSort={(sort, dir) => set({ sort: sort as SortKey, dir })} />
           <div className="card mf-tablecard">
+            <div className="mf-tbar">{/* task #346: the Columns button inside the table, beside its enlarge button */}<ColumnPicker cols={cols} onChange={(c) => { setCols(c); writeCols(c); }} /></div>
             <FundTable rows={d.items} cols={cols} q={eq} onSort={onSort} picked={tray} onPick={pick} peers={d.peers} />
             <CompareBar tray={tray} onClear={clear} onOpen={() => nav(compareUrl(tray))} />
             <Pager q={q} pages={d.pages} total={d.total} onPage={(p) => { set({ page: p }); window.scrollTo({ top: 0 }); }} onSize={(n) => set({ size: n })} />

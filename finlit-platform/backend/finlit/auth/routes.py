@@ -337,6 +337,7 @@ class PrefsIn(BaseModel):
     wordBookmarks: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,79}$")]] = Field(default_factory=list, max_length=200)
     wordSeen: Optional[Annotated[str, StringConstraints(pattern=r"^(?:\d{4}-\d{2}-\d{2})?$")]] = None
     dashUi: Optional[DashUi] = None   # task #316: the dashboard's section, portfolio, region, sort, results-and-filings scope and hidden cards
+    aiMemory: bool = True   # task #349 PR 2: FinLit AI keeps the member's questions for 180 days (ask/memory.py); false writes nothing new
 
 
 # ------------------------------------------------------------------ helpers

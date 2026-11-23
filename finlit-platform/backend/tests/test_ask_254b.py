@@ -217,7 +217,7 @@ def test_every_question_is_read_for_its_type(q, named, page, kinds):
 def test_the_note_and_the_instructions_name_the_order_and_the_prose_rule():
     note = routing.note(["company"])
     assert note.index("investor presentation") < note.index("results") < note.index("earnings calls") < note.index("news") < note.index("company report")
-    assert "Moneycontrol" in note and "The web search keeps to these sites." in note
+    assert "Moneycontrol" in note and "Search only these sites: put site: and one of them in the query" in note   # task #349: guidance, not allowed_domains
     assert routing.web_domains(["company", "financials"]) == routing.COMPANY_SITES          # still one kind: the company
     assert routing.web_domains(["company", "economy"]) is None                              # two kinds: an open search
     s = service.SYSTEM
@@ -255,32 +255,34 @@ def company_messages():
     return service.build_messages([], "what is issue with pricol", None, "gold", '{"symbol":"PRICOLLTD"}', routing.note(["company"]))
 
 
-async def run(client, domains):
+async def run(client):
     events: List[tuple] = []
 
     async def emit(e, d):
         events.append((e, d))
     from test_ask import FakeGateway
-    res = await service.answer(client, "m", FakeGateway({}), company_messages(), emit, None, domains)
+    res = await service.answer(client, "m", FakeGateway({}), company_messages(), emit)
     return res, events
 
 
-async def test_the_pricol_failure_a_refused_kept_to_search_is_asked_again_with_an_open_search():
+async def test_the_pricol_failure_the_search_never_carries_a_kept_to_site_list_any_more():
+    # task #349: the kept-to sites are in the note with the question; the tool list is the same for every question, so the provider never
+    # refuses a site list and the cached prefix is one entry for every kind of question
     c = PickyClient("domains")
-    res, _ = await run(c, routing.web_domains(["company"]))
-    assert res["text"].startswith("Pricol's Q2 FY27 presentation") and res["stop"] == "end_turn"
-    assert c.calls[0]["tools"][-1].get("allowed_domains") and not c.calls[1]["tools"][-1].get("allowed_domains")
+    res, _ = await run(c)
+    assert res["text"].startswith("Pricol's Q2 FY27 presentation") and res["stop"] == "end_turn" and len(c.calls) == 1
+    assert not c.calls[0]["tools"][-1].get("allowed_domains") and "Search only these sites" in c.calls[0]["messages"][0]["content"]
 
 
 async def test_a_refused_web_search_is_dropped_and_the_answer_written_from_what_was_read():
     c = PickyClient("web")
-    res, _ = await run(c, routing.web_domains(["company"]))
-    assert res["text"] and len(c.calls) == 3 and not any(t.get("name") == "web_search" for t in c.calls[2]["tools"])
+    res, _ = await run(c)
+    assert res["text"] and len(c.calls) == 2 and not any(t.get("name") == "web_search" for t in c.calls[1]["tools"])
 
 
 async def test_a_request_refused_for_another_reason_still_reaches_the_caller():
     with pytest.raises(anthropic.BadRequestError):
-        await run(PickyClient("always"), None)
+        await run(PickyClient("always"))
 
 
 # ------------------------------------------------------------------------------------------------ 5. end to end, with the real database

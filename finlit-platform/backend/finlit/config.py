@@ -19,6 +19,15 @@ def _list(value: str) -> List[str]:
     return [v.strip() for v in value.split(",") if v.strip()]
 
 
+def _ask_max_tokens(value: str) -> int:
+    """ASK_MAX_TOKENS (task #349): a whole number between 2,000 and 16,000; empty or unreadable means the default, 6,000."""
+    try:
+        n = int((value or "").strip() or 6000)
+    except ValueError:
+        n = 6000
+    return max(2000, min(16000, n))
+
+
 def site_api_url_default(env=None) -> str:
     """SITE_API_URL, or the address of the site backend that deploy/start.sh starts inside this container: the SAME rule as its site_api_wanted(),
     so a process started by `docker compose exec` (not a child of start.sh, which only exports the variable to its own children) behaves like the scheduler's."""
@@ -111,6 +120,9 @@ class Settings:
     # keeps its instant listed answers. The key lives only in /opt/finlit/.env.aws. ASK_MODEL changes the model (founder's choice: Haiku, for cost).
     anthropic_api_key: str = field(default_factory=lambda: os.getenv("ANTHROPIC_API_KEY", "").strip())
     ask_model: str = field(default_factory=lambda: os.getenv("ASK_MODEL", "").strip() or "claude-haiku-5-5")
+    # Task #349: the room for one request's output (the model's thinking, its tool calls and the answer; not the answer's length, which the
+    # instructions set). Optional ASK_MAX_TOKENS, kept between 2,000 and 16,000; default 6,000.
+    ask_max_tokens: int = field(default_factory=lambda: _ask_max_tokens(os.getenv("ASK_MAX_TOKENS", "")))
     # Free sample reports shown in full to everyone (the home page example).
     # The separate site backend (blog/CMS, portfolio report, contact forms, chat, ticker). Empty = those /api routes answer 404.
     site_api_url: str = field(default_factory=lambda: site_api_url_default())
