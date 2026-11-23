@@ -477,7 +477,9 @@ h2.mf-h4 { font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-ser
    It now has its own grid column beside the title: the title wraps against it whatever the widths, on every card, chosen or not. */
 .mf-qcard:has(.mf-qcount) { grid-template-columns: auto minmax(0, 1fr) auto; }
 .mf-qcard:has(.mf-qcount) b { grid-column: 2; grid-row: 1; padding-right: 0; }
-.mf-qcard .mf-qcount, .mf-qcard[aria-pressed="true"] .mf-qcount { position: static; grid-column: 3; grid-row: 1; align-self: start; white-space: nowrap; padding-top: 2px; }
+/* #340 follow-up: ".mf-qcard > span" (with :not(.ci), earlier in this file) is as specific as a class pair plus an element, so the count is named the
+   same way here (and comes later): before, it lost on every card that was not chosen and sat on the title in column 2. */
+.mf-qcard > span.mf-qcount, .mf-qcard[aria-pressed="true"] > span.mf-qcount { position: static; grid-column: 3; grid-row: 1; align-self: start; white-space: nowrap; padding-top: 2px; }
 .mf-qcard:has(.mf-qcount) > span:not(.ci):not(.mf-qcount) { grid-column: 2 / -1; }
 .mf-qs-h { display: flex; align-items: baseline; gap: 8px; }
 .mf-qs-h .mf-qs-n { font: 600 var(--fs-24)/1 var(--sans); }

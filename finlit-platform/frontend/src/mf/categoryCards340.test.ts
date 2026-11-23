@@ -21,7 +21,10 @@ describe("Six category cards (task #340)", () => {
   });
   it("the chosen card keeps its count in place (no slide onto the title) and shows its tick in the lower right corner", () => {
     expect(css).toMatch(/\.mf-qcard\[aria-pressed="true"\]::after \{ top: auto; bottom: 10px; right: 12px; \}/);
-    expect(css).toMatch(/\.mf-qcard \.mf-qcount, \.mf-qcard\[aria-pressed="true"\] \.mf-qcount \{ position: static; grid-column: 3; grid-row: 1;/);   // its own column beside the title
+    expect(css).toMatch(/\.mf-qcard > span\.mf-qcount, \.mf-qcard\[aria-pressed="true"\] > span\.mf-qcount \{ position: static; grid-column: 3; grid-row: 1;/);   // its own column beside the title
+    // #340 follow-up: it must out-rank ".mf-qcard > span:not(.ci) { grid-column: 2 }" on cards that are not chosen (same weight, later in the file)
+    const early = css.indexOf(".mf-qcard > span:not(.ci) {"), late = css.indexOf(".mf-qcard > span.mf-qcount,");
+    expect(early).toBeGreaterThan(-1); expect(late).toBeGreaterThan(early);
     expect(css).toMatch(/\.mf-qcard:has\(\.mf-qcount\) b \{ grid-column: 2; grid-row: 1; padding-right: 0; \}/);
     expect(css).not.toMatch(/\.mf-qcard\[aria-pressed="true"\] \.mf-qcount \{ right: 40px; \}/);
   });
