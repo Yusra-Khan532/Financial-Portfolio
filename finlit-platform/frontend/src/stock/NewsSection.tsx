@@ -67,7 +67,7 @@ export function NewsSection({ e, name, symbol }: { e?: Events; name: string; /**
             return <li key={k} className={"nf-r" + (f.routine ? " nf-rt" : "") + (later(f) ? " nf-hid" : "") + (isOpen ? " open" : "")}>
               <span className="nf-d"><b>{dayNum(f.date)}</b>{monShort(f.date)}{f.time && <small>{f.time}</small>}</span>
               <Tag className="nf-b" style={{ "--gc": GROUP[f.group].colour } as React.CSSProperties} {...(link ? { href: link, target: "_blank", rel: "noopener noreferrer" } : {})}>
-                <span className="nf-c">{GROUP[f.group].label}</span><span className="nf-t">{f.title}</span><span className="nf-k">NSE category: {f.category}</span>{link && <span className="nf-go" aria-hidden="true">PDF ↗</span>}
+                <span className="nf-c" title={GROUP[f.group].label}><span className="nf-cl">{GROUP[f.group].short ?? GROUP[f.group].label}</span></span><span className="nf-t">{f.title}</span><span className="nf-k">NSE category: {f.category}</span>{link && <span className="nf-go" aria-hidden="true">PDF ↗</span>}
               </Tag>
               <button type="button" className="nf-exp" aria-expanded={isOpen} aria-label={isOpen ? "Show one line" : "Show the whole text"} onClick={() => flip(k)}>▾</button></li>;
           })}</ol></div>; })}

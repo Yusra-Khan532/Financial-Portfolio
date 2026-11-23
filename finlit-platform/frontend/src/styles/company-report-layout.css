@@ -76,6 +76,8 @@
 .nf-card .nf-b{display:grid;grid-template-columns:190px minmax(0,1fr) auto;align-items:center;gap:0 12px;background:none;border:0;border-radius:0;padding:8px 0;min-width:0;box-shadow:none}
 .nf-card .nf-c{font:700 12px/1.2 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--gc);display:flex;align-items:center;gap:7px;min-width:0}
 .nf-card .nf-c::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--gc);flex:none}
+/* QA of 23 Nov: the group label stays on one line in its column (a short label; an ellipsis if a long one still does not fit; the full label is its title) */
+.nf-card .nf-cl{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nf-card .nf-t{font:400 14px/1.4 var(--sans);color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .nf-card .nf-k{display:none}
 .nf-card .nf-go{position:static;font:600 12px/1 var(--sans);white-space:nowrap}

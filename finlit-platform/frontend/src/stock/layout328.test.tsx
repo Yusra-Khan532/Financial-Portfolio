@@ -102,7 +102,7 @@ describe("the pack's rules are on the page", () => {
   });
   it("1 · the date and the report button close the technical panel", () => {
     const pc = src("./PrismCompare.tsx");
-    expect(pc).toContain('foot={<div className="dk-cta"><span className="pcx-upd">Updated');
+    expect(pc).toContain('foot={<div className="dk-cta"><span className="pcx-upd"');   // QA of 23 Nov: the label now says "Prism report calculated …" (prismCalcLabel)
     expect(pc.match(/className="dk-cta"/g)!.length).toBe(1);   // no second row of its own under both panels
   });
 });

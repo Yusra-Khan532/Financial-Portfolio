@@ -28,6 +28,10 @@ const STATUS_NOTE: Record<PrismLatest["rating"]["status"], string> = {
   "NOT RATED": "The overall rating is withheld.",
 };
 /** The parts to draw, from the data: the four of the model, and a technical part the moment the model sends one. */
+/** QA of 23 Nov (task #328): the card's date says what it is, the day this company's report was calculated; the technical view names its own
+ *  price day, and the screener header shows the newest day across all companies, so the three can differ without any of them being wrong. */
+export const prismCalcLabel = (at: string | null | undefined): string => (at ? `Prism report calculated ${dateIN(at)}` : "Prism report");
+
 export function partsOf(r: PrismLatest["rating"]): { parts: CardPart[]; technicalSoon: boolean } {
   const rated = r.status !== "NOT RATED";   // the model withholds category scores for a company it did not rate; so do we
   const parts: CardPart[] = PRISM_PARTS.map(([k, name, color]) => ({ key: k, name, color, value: rated ? r.parts?.[k] ?? null : null }));
@@ -81,7 +85,7 @@ function Body({ state, symbol, statement, name }: { state: Exclude<PrismCardStat
           </div>
         </FundamentalSection>
         <TechnicalSection a={parseTechnical(rep.technicalAssessment)} report={rep} onRecalculate={() => run.mutate(true)} busy={busy}
-          foot={<div className="dk-cta"><span className="pcx-upd">Updated {dateIN(rep.completedAt || rep.createdAt)}</span><Link className={buttonClass("prism", "sm", "dk-b")} to={`/prism/${encodeURIComponent(symbol)}`}>Open the full Prism report <Icon name="arrow" /></Link></div>} />
+          foot={<div className="dk-cta"><span className="pcx-upd" title="The day this company's Prism report was calculated. The technical view above names the last trading day its prices run to; the screener's header shows the newest day of any company.">{prismCalcLabel(rep.completedAt || rep.createdAt)}</span><Link className={buttonClass("prism", "sm", "dk-b")} to={`/prism/${encodeURIComponent(symbol)}`}>Open the full Prism report <Icon name="arrow" /></Link></div>} />
       </div>
       {status}
     </>

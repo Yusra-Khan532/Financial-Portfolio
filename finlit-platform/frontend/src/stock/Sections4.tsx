@@ -44,6 +44,8 @@ function readQuarter(q: Table) {
 }
 
 /* ============== Latest quarter results ============== */
+/** 05's second row: the quarter's own movements to watch. Red flags are only those of section 03 (the profit and loss checks). */
+export const KQ_RISK_TITLE = "Key risks to watch this quarter";
 /** One closed row of 05's takeaways or risks (task #328, file 27 change 4): the count and the first line show; the list opens on a press. */
 export function KqRow({ tone, icon, title, items, take, empty }: { tone: string; icon: string; title: string; items: string[]; take?: string | null; empty: string }) {
   return (
@@ -96,7 +98,9 @@ export function QuarterSection({ f }: { f?: Financials }) {
       {(() => { const k = readQuarter(q), line = industryKeyLine(ind); return (k.good.length || k.bad.length || line) ? (
         <div className="kq2">
           <KqRow tone="var(--gain)" icon="check" title="Key takeaways" items={[...k.good, ...(line ? [line] : [])]} take={line} empty="Nothing stands out on the upside this quarter." />
-          <KqRow tone="var(--loss)" icon="alert" title="Key risks and red flags" items={k.bad} empty="No red flags in the reported numbers this quarter." />
+          {/* QA of 23 Nov: these are the quarter's own movements, not the red flags of section 03's profit and loss checks, so they are named risks to watch
+              (HDFC Bank showed "Red flag 0" in 03 beside "Key risks and red flags 1" here) */}
+          <KqRow tone="var(--loss)" icon="alert" title={KQ_RISK_TITLE} items={k.bad} empty="No risks to watch in the reported numbers this quarter." />
         </div>) : null; })()}
     </section>
   );

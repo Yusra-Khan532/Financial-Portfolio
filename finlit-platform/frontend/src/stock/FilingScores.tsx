@@ -64,6 +64,12 @@ function DocCard({ k, d }: { k: DocKind; d: FsDoc }) {
     </article>);
 }
 
+/** QA of 23 Nov (task #328): the summary names how many filings it really weighs; with no transcript it weighs two, not "all three". */
+/** The note on the weights, only where it is true for the filings weighed. */
+export const weighNote = (ks: DocKind[]) => (ks.length < 2 || !ks.includes("R") ? null
+  : <small>{ks.includes("P") ? " (audited results carry the most, the presentation the least)" : " (audited results carry the most)"}</small>);
+export const togetherLabel = (n: number): string => (n >= 3 ? "All three together" : n === 2 ? "Both available filings together" : "The one available filing");
+
 export function FilingScores({ symbol, name }: { symbol: string; name: string }) {
   const q = useFilingScores(symbol);
   if (!symbol) return null;
@@ -78,7 +84,7 @@ export function FilingScores({ symbol, name }: { symbol: string; name: string })
       {q.isLoading ? <div className="skeleton" style={{ height: 220 }} aria-busy="true" aria-label="Loading the filing scores" />
         : q.isError || !d ? <p className="fs-empty">The filing scores could not be loaded just now. <button type="button" className="fs-lnk" onClick={() => q.refetch()}>Try again</button></p>
         : <>
-          {d.company.score != null && <p className="fs-co"><Dot b={d.company.band} v={d.company.score} /> <span><b>All three together</b> · {(["R", "C", "P"] as DocKind[]).filter((k) => d.company.weights[k]).map((k) => `${d.docs[k].name.toLowerCase()} ${d.company.weights[k]}%`).join(" · ")}<small> (audited results carry the most, the presentation the least)</small></span></p>}
+          {d.company.score != null && <p className="fs-co"><Dot b={d.company.band} v={d.company.score} /> <span><b>{togetherLabel((["R", "C", "P"] as DocKind[]).filter((k) => d.company.weights[k]).length)}</b> · {(["R", "C", "P"] as DocKind[]).filter((k) => d.company.weights[k]).map((k) => `${d.docs[k].name.toLowerCase()} ${d.company.weights[k]}%`).join(" · ")}{weighNote((["R", "C", "P"] as DocKind[]).filter((k) => d.company.weights[k]))}</span></p>}
           <div className="fs-grid">{KINDS.map((k) => <DocCard key={k} k={k} d={d.docs[k]} />)}</div>
         </>}
       <p className="faint fs-foot">The scores read the words of the company's own documents; they are not a recommendation. Information only, not investment advice.</p>
