@@ -1,0 +1,34 @@
+/* Task #341 (23 Nov 2026, the team: "at start make it 3x2 columns", with the Mutual Funds refinement prompt and its HTML; PR A = prompt sections 8 and 9).
+   Loaded only by the Mutual funds page (pages/Funds.tsx) after mf.css, so no other page changes. Every label, figure and link stays as it was; only the
+   layout and spacing move. Sizes are the site's own type scale (styles/typescale.css: 12, 13, 14, 16, 20, 24 ...), the nearest step to each size the
+   prompt names (its 11px becomes 12px, the smallest the site uses; 15px becomes 16px; 22px becomes 24px). Tokens only, so light and dark follow.
+   Section 7 (the heading card) keeps the shared page header (page-header.css, task #310: every quick link the same second button), as on every page.
+   - 8  the six category cards: three columns and two rows on a desktop (the task's own line; the prompt's four columns are left for this), equal heights,
+        16px padding, a 6px score bar, a quiet hover. Tablet: two columns. Phone: unchanged (the cards scroll sideways in one row, as before).
+   - 9  the two tool cards (Fund industry trends, Fund score screener): about 70px tall, 36px icon, Open aligned right. */
+
+/* 8: the six category cards, 3 x 2 */
+.mf .mf-cats { margin-top: 24px; margin-bottom: 20px; }
+@media (min-width: 1001px) {
+  .mf .mf-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 14px; }
+}
+@media (min-width: 761px) and (max-width: 1000px) {
+  .mf .mf-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 12px; }
+}
+.mf .mf-qcard { padding: 16px 16px 14px; row-gap: 4px; transition: border-color .15s, background-color .15s, box-shadow .15s; }
+.mf .mf-qcard:hover { transform: none; border-color: color-mix(in srgb, var(--gold) 45%, var(--border-strong)); }
+.mf .mf-qcard b { font-size: var(--fs-16); line-height: var(--lh-16); }
+.mf .mf-qcard > span.mf-qcount { font-size: var(--fs-12); }
+.mf .mf-qcard > span:not(.ci):not(.mf-qcount) { font-size: var(--fs-13); line-height: var(--lh-13); }
+.mf .mf-qscore { padding: 12px 16px 14px; gap: 8px; }
+.mf .mf-qscore .mf-qs-n { font-size: var(--fs-24); }
+.mf .mf-qscore .mf-qs-t, .mf .mf-qdist-l { font-size: var(--fs-12); }
+.mf .mf-qdist { height: 6px; }
+.mf .mf-qscore a { font-size: var(--fs-13); }
+
+/* 9: the two tool cards */
+.mf .evi-promo { padding: 14px 18px; min-height: 70px; gap: 14px; margin-bottom: 12px; transition: border-color .15s, background-color .15s; }
+.mf .evi-promo:hover { box-shadow: none; background: color-mix(in srgb, var(--s2) 60%, var(--s1)); }
+.mf .evi-promo-ic { width: 36px; height: 36px; } .mf .evi-promo-ic svg { width: 18px; height: 18px; }
+.mf .evi-promo-t { gap: 2px; } .mf .evi-promo-t b { font-size: var(--fs-14); } .mf .evi-promo-t small { font-size: var(--fs-13); line-height: var(--lh-13); }
+.mf .evi-promo-go { font-size: var(--fs-13); align-self: center; }
