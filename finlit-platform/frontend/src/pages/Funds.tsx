@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PhoneFold } from "../components/PhoneFold";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { Icon } from "../lib/icons";
+import { buttonClass } from "../components/ui";
 import { useUI } from "../lib/ui";
 import { visits } from "../lib/recentVisits";
 import { useDocTitle } from "../lib/title";
@@ -39,9 +40,18 @@ import { ChartZoom } from "../components/ChartZoom";
 /** Task #311 (developer file 21, fund page row 1): the formula is off the page; one plain sentence behind the (i). */
 const VOL_TIP = "How much the NAV moves from day to day, shown as a yearly figure.";
 
-const HEAD = (title: string, lead: string, stats?: PageHeaderProps["stats"]) => (
+/** Task #345 (23 Nov 2026, the team): on the list page "Fund industry trends" (it was a card under the categories) and "Import my funds" are the first two
+ *  buttons, each with a gold edge and a crown; the Fund score screener card went too (the header's "Fund Screener" opens the same page). */
+const GOLD_LEAD = (
+  <>
+    <Link className={buttonClass("secondary", "sm", "ph-lk ph-gold")} to="/funds/insights" title="Where the industry's money sits and moves, month by month: assets, net flows and folios by fund category."><Icon name="crown" className="ph-crown" />Fund industry trends <span aria-hidden="true">→</span></Link>
+    <Link className={buttonClass("secondary", "sm", "ph-lk ph-gold")} to="/mf-portfolio?tab=import"><Icon name="crown" className="ph-crown" />Import my funds <span aria-hidden="true">→</span></Link>
+  </>
+);
+const HEAD = (title: string, lead: string, stats?: PageHeaderProps["stats"], gold = false) => (
   <PageHeader wrap plan="free" title={title} description={lead} stats={stats} art="funds" links={[{ to: "/fund-score-screener", primary: true }, "/funds/compare", "/etfs"]}
-    actions={<Link className="btn" to="/mf-portfolio?tab=import">Import my funds <span aria-hidden="true">→</span></Link>} />
+    lead={gold ? GOLD_LEAD : undefined}
+    actions={gold ? undefined : <Link className="btn" to="/mf-portfolio?tab=import">Import my funds <span aria-hidden="true">→</span></Link>} />
 );
 const Problem = ({ title, text, retry }: { title: string; text: string; retry?: () => void }) => (
   <div className="wrap state" role="alert"><h2>{title}</h2><p>{text}</p>{retry && <button className="btn" onClick={retry}>Try again</button>} <Link className="btn" to="/funds">Back to all schemes</Link></div>
@@ -190,20 +200,8 @@ export function FundListPage() {
 
   return (
     <>
-      {HEAD(title, "Funds in your chosen categories by returns, SIP returns, latest NAV, checklist and more.", [{ icon: "layers", value: t ? t.active.toLocaleString("en-IN") : null, label: "Active schemes" }, { icon: "line", value: t ? t.withHistory.toLocaleString("en-IN") : null, label: "With return history" }])}
+      {HEAD(title, "Funds in your chosen categories by returns, SIP returns, latest NAV, checklist and more.", [{ icon: "layers", value: t ? t.active.toLocaleString("en-IN") : null, label: "Active schemes" }, { icon: "line", value: t ? t.withHistory.toLocaleString("en-IN") : null, label: "With return history" }], true)}
       <div className="wrap mf mf-list">
-        <Link className="evi-promo" to="/funds/insights">
-          <span className="evi-promo-ic" aria-hidden="true"><Icon name="line" /></span>
-          <span className="evi-promo-t"><b>Fund industry trends <span className="evi-badge">Industry</span></b>
-            <small>Where the industry's money sits and moves, month by month: assets, net flows and folios by fund category.</small></span>
-          <span className="evi-promo-go" aria-hidden="true">Open →</span>
-        </Link>
-        <Link className="evi-promo" to="/fund-score-screener">
-          <span className="evi-promo-ic" aria-hidden="true"><Icon name="quality" /></span>
-          <span className="evi-promo-t"><b>Fund score screener</b>
-            <small>Every scored fund with its Mutual Fund Score and four parts: filter by category, cost, size and age, see category leaderboards and compare.</small></span>
-          <span className="evi-promo-go" aria-hidden="true">Open →</span>
-        </Link>
         <CategoryPicker q={q} subs={subs} loading={filt.isLoading} onTab={(tab) => set({ tab, cats: null, ...tabDefaults(tab) })} onCats={(cats) => set({ cats })}
           frequent={{ onPick: (c) => set(cardOn(q, c) ? { cats: null, view: "" } : { tab: c.tab, cats: [c.key], view: "" }), onScore: showByScore }} />{/* task #344: the six frequently visited categories in the box (was "Six categories most people start with"); task #340: pressed again clears */}
         <Controls q={q} text={text} onText={setText} set={set} filters={filt.data} loading={list.isFetching} />

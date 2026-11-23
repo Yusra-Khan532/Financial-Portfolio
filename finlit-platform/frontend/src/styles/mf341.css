@@ -10,12 +10,7 @@
 
 /* 8: the six category cards (3 x 2, task #341) were replaced by "Frequently visited funds" inside the category box (task #344, below). */
 
-/* 9: the two tool cards */
-.mf-list .evi-promo { padding: 14px 18px; min-height: 70px; gap: 14px; margin-bottom: 12px; transition: border-color .15s, background-color .15s; }
-.mf-list .evi-promo:hover { box-shadow: none; background: color-mix(in srgb, var(--s2) 60%, var(--s1)); }
-.mf-list .evi-promo-ic { width: 36px; height: 36px; } .mf-list .evi-promo-ic svg { width: 18px; height: 18px; }
-.mf-list .evi-promo-t { gap: 2px; } .mf-list .evi-promo-t b { font-size: var(--fs-14); } .mf-list .evi-promo-t small { font-size: var(--fs-13); line-height: var(--lh-13); }
-.mf-list .evi-promo-go { font-size: var(--fs-13); align-self: center; }
+/* 9: the two tool cards were replaced by gold header buttons (task #345: Fund industry trends, Import my funds; styles/page-header.css). */
 
 /* 11 (PR B): the filters in two rows. Row 1: Search, Fund house, Plan, Option, each with its small label above (the labels were read to screen
    readers only, except Fund house). Row 2: Return range and "Include schemes that stopped publishing NAVs", under a hairline. Controls 38px. */
