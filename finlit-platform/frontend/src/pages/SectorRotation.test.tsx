@@ -3,7 +3,7 @@
 // Simple view's sections in the pack's order, the map's box toggles, the Full table view (?view=full) with its filters and the opened industry, and the not-loaded sentence.
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, Route, Routes, useParams } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import rot from "../lib/__fixtures__/rotation-6nov.json";
 import board from "../lib/__fixtures__/pulse-board-6nov.json";
@@ -67,7 +67,7 @@ describe("Sector Rotation, Simple view (developer file 31)", () => {
   });
   it("orders the parts: Today, Your sectors, the three boxes, Inside, Words; never advises", () => {
     at();
-    const want = ["Today in one minute", "How your industries compare", "The four boxes, in the order industries usually move", "Changed box this week · 8", "Price against results"];
+    const want = ["Today in one minute", "How your groups compare", "The four boxes, in the order groups usually move", "Changed box this week · 8", "Price against results"];
     const got = h2(), idx = want.map((t) => got.findIndex((x) => x.startsWith(t)));
     expect(idx.every((v, i) => v >= 0 && (i === 0 || v > idx[i - 1])), JSON.stringify(got)).toBe(true);
     expect(got.at(-1)).toMatch(/^Inside an industry: its strongest stocks, with FinLit Prism/);
@@ -139,7 +139,7 @@ describe("Sector Rotation, Simple view (developer file 31)", () => {
   });
   it("with no shares and no watchlist: the prompt shows and nothing is tinted gold or tagged Yours", () => {
     at();
-    expect(document.querySelector("#sx-yours .sx-empty")?.textContent).toContain("Your industries will show here");
+    expect(document.querySelector("#sx-yours .sx-empty")?.textContent).toContain("Your groups will show here");
     expect(document.querySelectorAll("tr.sx-mine").length).toBe(0);
     expect(document.querySelectorAll(".sp-yours, .rp-yours").length).toBe(0);
   });
@@ -199,5 +199,55 @@ describe("Sector Rotation, Full table view (developer file 31)", () => {
     at("/sectors/rotation?view=full");
     fireEvent.click(within(screen.getByRole("tablist", { name: "Full table" })).getByRole("tab", { name: /Six months of ranks/ }));
     expect(screen.getByRole("img", { name: /Ranks of 37 groups at 26 weekly closes/ })).toBeTruthy();
+  });
+});
+
+// ------------------------------------------------------------------------------------------------ task #332, the two points the lead decided
+// The three levels: the Industries view says "groups" for its 38 rows and "industry" for one row. "industries" is left only where it means NSE's own industries.
+const ALLOWED_INDUSTRIES = /\b(Industries view|industry groups?|small(?:er)? industries|NSE industries|its industries)\b/gi;
+function pluralIndustries(): string[] {
+  const body = document.body.cloneNode(true) as HTMLElement;
+  body.querySelectorAll('[aria-label="Show sectors or industries"], .sp-disclaimer').forEach((n) => n.remove());
+  const text = (body.textContent ?? "").replace(ALLOWED_INDUSTRIES, "");
+  return text.match(/[^.]{0,40}\bindustries\b[^.]{0,20}/gi) ?? [];
+}
+describe("Industries view: 'groups' for the 38, never 'industries' (three levels)", () => {
+  it("Simple view, every tab, the guide and the words", () => {
+    at("/sectors/rotation?show=industries");
+    fireEvent.click(screen.getByRole("button", { name: /How to read and use this page/ }));
+    expect(pluralIndustries()).toEqual([]);
+    expect(document.body.textContent).toContain("How your groups compare");
+    expect(document.body.textContent).toContain("The four boxes, in the order groups usually move");
+  });
+  it("Full table view, every tab", () => {
+    at("/sectors/rotation?show=industries&view=full");
+    for (const t of ["Six months of ranks", "12-week change", "May change next week", "Ranking"]) fireEvent.click(within(screen.getByRole("tablist", { name: "Full table" })).getByRole("tab", { name: new RegExp(t) }));
+    expect(pluralIndustries()).toEqual([]);
+  });
+});
+
+// Second polish pass 1: "Pressing still opens the sector's page."
+function Opened() { const { slug } = useParams(); return <p data-testid="opened">{slug}</p>; }
+const atMap = () => render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={["/sectors/rotation?tab=map"]}>
+  <Routes><Route path="/sectors/rotation" element={<SectorRotationPage />} /><Route path="/sectors/:slug" element={<Opened />} /></Routes></MemoryRouter></QueryClientProvider>);
+describe("pressing a dot on the map opens its page", () => {
+  it("a press navigates to the group's page (the same link as the summary line)", () => {
+    atMap();
+    const hit = document.querySelector(".rp-map .rp-hit")!;
+    const label = hit.getAttribute("aria-label")!;
+    fireEvent.click(hit);
+    const slug = screen.getByTestId("opened").textContent!;
+    const row = M.rows.find((r) => r.slug === slug)!;
+    expect(row).toBeTruthy();
+    expect(label.startsWith("Open ")).toBe(true);
+    expect(hit.getAttribute("role")).toBe("link");
+  });
+  it("Enter on a focused dot navigates too; the hover card shows on focus first", () => {
+    atMap();
+    const hit = document.querySelectorAll(".rp-map .rp-hit")[3]!;
+    fireEvent.focus(hit);
+    expect(document.querySelector(".sx-hc")?.textContent).toContain("Press to open its page.");
+    fireEvent.keyDown(hit, { key: "Enter" });
+    expect(M.rows.map((r) => r.slug)).toContain(screen.getByTestId("opened").textContent);
   });
 });

@@ -32,11 +32,12 @@ import "../styles/rotation-pack.css";
 import "../styles/sector-pages.css";
 import "../styles/rotation-332.css";
 import { showQuery, type Show } from "../lib/sectors";
-import { tw, useShow, useShowWords } from "../lib/groupWords";
+import { useShow, useShowWords } from "../lib/groupWords";
+import { rw, rwCards } from "../lib/rotationWords";
 
 const TITLE = "Sector Rotation";
-const DESC = tw("Money moves from one industry to another over months. This page shows which industries are leading the market, which are falling behind, and which are changing places.");   // the page's search description
-const HEAD_DESC = tw("Which industries lead the market, which lag, and which are changing places over the months.");   // the header's one line (founder, 22 Nov 2026)
+const DESC = ("Money moves from one industry to another over months. This page shows which industries are leading the market, which are falling behind, and which are changing places.");   // the page's search description
+const HEAD_DESC = ("Which industries lead the market, which lag, and which are changing places over the months.");   // the header's one line (founder, 22 Nov 2026)
 const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 /** The yardstick (fault 2, confirmed in the code): both views measure against the Industries view's average group (finlit_technicals/batch.py write_level_files passes
@@ -69,7 +70,7 @@ function useBoxTab(box: BoxId, params: URLSearchParams, setParams: (p: URLSearch
 }
 
 export function SectorRotationPage() {
-  useDocTitle(TITLE, tw(DESC));
+  useDocTitle(TITLE, rw(DESC));
   const [params, setParams] = useSearchParams();
   const view: View = params.get("view") === "full" ? "full" : "simple";
   const setView = (v: View) => { const p = new URLSearchParams(params); if (v === "full") p.set("view", "full"); else p.delete("view"); setParams(p, { replace: true }); };
@@ -103,15 +104,15 @@ export function SectorRotationPage() {
   const nRanked = m?.rows.filter((r) => r.rank != null).length ?? 0;
   // fault 3 (37 ranked, 38 in boxes): the data is right to give such a group a box (its 6-month and 1-month readings exist) and no rank (a rank compares a full year,
   // which it does not have yet), so the header says why it has a box and no rank
-  const meta = m ? <>Updated after the weekly close, {d ? `${WEEKDAY[d.getUTCDay()]} ${m.date_label ?? m.date}` : m.date} · {gw(nRanked)} ranked<Tip text={tw("Each week every industry with a full year of readings is ranked, 1 the strongest. One with less has a box (it has the 6-month and 1-month readings) but no rank yet.")} />
+  const meta = m ? <>Updated after the weekly close, {d ? `${WEEKDAY[d.getUTCDay()]} ${m.date_label ?? m.date}` : m.date} · {gw(nRanked)} ranked<Tip text={rw("Each week every industry with a full year of readings is ranked, 1 the strongest. One with less has a box (it has the 6-month and 1-month readings) but no rank yet.")} />
     {unranked.length > 0 && <> · {unranked.join(", ")} {unranked.length === 1 ? "has" : "have"} a box but no rank yet: a rank needs a full year of readings</>}</> : null;
-  const disclaimer = m ? tw(`Describes past prices of NSE industry groups against the average group; not a forecast and not a recommendation to buy, sell or hold any security. NSE daily data, equal-weighted industry groups, the same counted stocks as Sector Pulse. Data as of ${d ? `${WEEKDAY[d.getUTCDay()]} ${m.date_label ?? m.date}` : m.date}, after the close.`) : "";
+  const disclaimer = m ? rw(`Describes past prices of NSE industry groups against the average group; not a forecast and not a recommendation to buy, sell or hold any security. NSE daily data, equal-weighted industry groups, the same counted stocks as Sector Pulse. Data as of ${d ? `${WEEKDAY[d.getUTCDay()]} ${m.date_label ?? m.date}` : m.date}, after the close.`) : "";
   const allName = m ? (sectors ? `All ${m.rows.length} sectors` : `All ${m.rows.length} groups`) : "All";
   const hover = m ? hoverCard(m, pulse, mine, watchedOnly) : undefined;
   const bell = (r: { slug: string; name: string }) => <AlertBell slug={r.slug} name={short(r.name)} compact />;
   return (
     <div className="wrap sx sp rp sx-new" data-testid="sector-rotation">
-      <PackHead page="rotation" title={TITLE} desc={tw(HEAD_DESC)} meta={meta} view={view} onView={setView} industries={m?.rows ?? []} show={show} onShow={setShow} findHint={sectors ? "A sector, e.g. Healthcare" : "An industry, e.g. Banks"} side={m ? <Yardstick n={m.rows.length} show={show} groups={indRot.data?.rows.length ?? null} /> : null} />
+      <PackHead page="rotation" title={TITLE} desc={rw(HEAD_DESC)} meta={meta} view={view} onView={setView} industries={m?.rows ?? []} show={show} onShow={setShow} findHint={sectors ? "A sector, e.g. Healthcare" : "An industry, e.g. Banks"} side={m ? <Yardstick n={m.rows.length} show={show} groups={indRot.data?.rows.length ?? null} /> : null} />
       {pending && show === "industries" && <p className="sp-note sp-pending">{pending}</p>}
       {(q.isLoading || !ready) && <div className="sx-skel sp-sec" role="status" aria-label="Loading the rotation readings" />}
       {q.isError && <div className="sp-sec"><Blank title={sectors ? "The Sectors view is not available right now" : "Sector Rotation is not available right now"} reason={failureText(q.error)}>
@@ -143,10 +144,10 @@ export function SectorRotationPage() {
           ]} />
         </div>
         <Inside m={m} held={[...ms.held.keys()]} watched={[...ms.watched.keys()]} mine={mine} pulse={pulse} sectors={sectors} syms={new Set(heldSyms)} />
-        <div id="sx-words"><Words items={ROT_WORDS} /></div>
+        <div id="sx-words"><Words items={ROT_WORDS.map(([t, d]) => [rw(t), rw(d)] as [string, string])} /></div>
       </>}
       {m && view === "full" && <>
-        <Cards items={fullCards(m).slice(0, 2)} />
+        <Cards items={rwCards(fullCards(m).slice(0, 2))} />
         <div className="sx-box sx-box-full" data-box="full" id="sx-full">
           <TabGroup className="sx-bar sx-bar-stick" title={sectors ? `All ${m.rows.length} sectors, every number` : `All ${m.rows.length} groups, every number`} noun="tables" hint="press one" label="Full table" next={false} value={fullTab} onChange={setFullTab} views={[
             { key: "ranking", label: "Ranking", content: <RankingRot m={m} mine={mine} pulse={pulse} bell={bell} /> },
@@ -155,7 +156,7 @@ export function SectorRotationPage() {
             { key: "next", label: "May change next week", note: String(mayMoveRows(m).length), content: <MayMoveRot m={m} mine={mine} pulse={pulse} sub="Its newest weekly reading already sits in another box. If next week agrees, it moves." why={false} /> },
           ]} />
         </div>
-        <div id="sx-words"><Words items={ROT_WORDS} /></div>
+        <div id="sx-words"><Words items={ROT_WORDS.map(([t, d]) => [rw(t), rw(d)] as [string, string])} /></div>
       </>}
       {m && <p className="sp-disclaimer">{disclaimer}</p>}
     </div>

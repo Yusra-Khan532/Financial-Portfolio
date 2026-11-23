@@ -16,7 +16,8 @@ import {
   READ_SENTENCE, RES_FILTERS, headlineTone, inInside, inResFilter, insideStart, insideTop, pickTwo, readTogether, resultsFor,
   sharesFor, weeksText, type InsideFilter, type MemberShares, type ReadKey, type ResFilter, type ResultsGroup, type Source, type WhatNext,
 } from "../../../lib/rotation332";
-import { gl, sq, tw } from "../../../lib/groupWords";
+import { gl, sq } from "../../../lib/groupWords";
+import { rw, rwCards } from "../../../lib/rotationWords";
 import { BoxChip, Cards, Scroll, StateChip, Tip } from "../../sectors/pack/Common";
 import { AlertBell } from "../../sectors/pack/SectorAlert";
 import { BOX_COLOUR, RankLine } from "./RotationSimple";
@@ -66,7 +67,7 @@ export function TodayNew({ m, mine, pulse }: { m: RotationMap; mine: Set<string>
   return (
     <section className="sp-sec sx-today" aria-labelledby="sx-today-h" id="sx-today">
       <h2 id="sx-today-h">Today in one minute<Tip text="Today in one minute. What changed at the latest weekly close: how many sit in each box now and a week ago, and the few moves worth knowing." label="About “Today in one minute”" /></h2>
-      <p className="sp-sub">{tw("Which industries are leading, which are fading, and what changed this week.")}</p>
+      <p className="sp-sub">{rw("Which industries are leading, which are fading, and what changed this week.")}</p>
       <p className="sp-lead"><b className={"sx-hl sx-hl-" + tone}>{h.lead}</b>{h.rest}</p>
       <p className="sp-note">{h.line}</p>
       <p className="sp-cap">All {gw(m.rows.length)} by box</p>
@@ -75,7 +76,7 @@ export function TodayNew({ m, mine, pulse }: { m: RotationMap; mine: Set<string>
         <div key={c.box} className="sx-tile"><b>{c.now}</b>
           <span className="sx-tile-k"><span className="rp-boxname"><i className="rp-sq" style={{ background: BOX_COLOUR[c.box] }} aria-hidden="true" />{BOX[c.box].word}<Tip text={BOX_HELP[c.box]} label={`About “${BOX[c.box].word}”`} /></span></span>
           <small className={d > 0 ? "sx-d-up" : d < 0 ? "sx-d-dn" : ""}>{d > 0 ? `▲${d} vs last week` : d < 0 ? `▼${-d} vs last week` : "no change"}</small></div>); })}</div>
-      <Cards items={cards} cols={2} />
+      <Cards items={rwCards(cards)} cols={2} />
     </section>
   );
 }
@@ -98,22 +99,22 @@ export function YourNew({ m, ms, pulse, signedIn, whyOpen }: { m: RotationMap; m
   const empty = !nHeld && !nWatch;
   return (
     <section className="sp-sec sx-yours" aria-labelledby="sx-yours-h" id="sx-yours">
-      <div className="sp-sec-h"><div><h2 id="sx-yours-h">{tw("How your industries compare")}<Tip text={tw("How your industries compare. The industries your shares belong to, each with its box, its rank and how it has done against the average group.")} /></h2>
-        {!empty && <p className="sp-sub">{tw(`The ${rows.length} ${rows.length === 1 ? "industry" : "industries"} your ${src === "watchlist" ? `${nWatch} watchlist` : src === "both" ? `${new Set([...plain.values()].flat()).size}` : `${nHeld}`} shares belong to, from the strongest rank to the weakest.`)}</p>}</div></div>
-      {empty ? <div className="sx-empty" style={{ display: "block" }}><b>{tw("Your industries will show here")}</b>
-        <p>{tw("Add the shares you own, or build a watchlist, and this box shows which of your industries are rising, falling, leading or lagging.")}</p>
+      <div className="sp-sec-h"><div><h2 id="sx-yours-h">{rw("How your industries compare")}<Tip text={rw("How your industries compare. The industries your shares belong to, each with its box, its rank and how it has done against the average group.")} /></h2>
+        {!empty && <p className="sp-sub">{rw(`The ${rows.length} ${rows.length === 1 ? "industry" : "industries"} your ${src === "watchlist" ? `${nWatch} watchlist` : src === "both" ? `${new Set([...plain.values()].flat()).size}` : `${nHeld}`} shares belong to, from the strongest rank to the weakest.`)}</p>}</div></div>
+      {empty ? <div className="sx-empty" style={{ display: "block" }}><b>{rw("Your industries will show here")}</b>
+        <p>{rw("Add the shares you own, or build a watchlist, and this box shows which of your industries are rising, falling, leading or lagging.")}</p>
         <p>{signedIn ? <><Link className="sx-go" to="/portfolio">Add my shares</Link><Link className="sx-go2" to="/watchlists">Open my watchlist</Link></> : <><Link className="sx-go" to="/login?next=/sectors/rotation">Sign in to add my shares</Link></>}</p></div> : <>
-        <div className="sx-src" role="group" aria-label="Which shares"><span>{tw("Industries of")}</span>
+        <div className="sx-src" role="group" aria-label="Which shares"><span>{rw("Industries of")}</span>
           <button type="button" aria-pressed={src === "portfolio"} onClick={() => setSrc("portfolio")}>My portfolio <small>{nHeld} {nHeld === 1 ? "share" : "shares"}</small></button>
           <button type="button" aria-pressed={src === "watchlist"} onClick={() => setSrc("watchlist")}>My watchlist <small>{nWatch} {nWatch === 1 ? "share" : "shares"}</small></button>
           <button type="button" aria-pressed={src === "both"} onClick={() => setSrc("both")}>Both</button></div>
-        <Why open={whyOpen} text={tw("A share in a leading industry has the wind behind it; a share in a lagging one is swimming against the current. This shows which of your shares have which.")} />
-        {src === "portfolio" && <Cards items={yourRotationCards(rows, ms.held, plain, pulse).slice(0, 2)} />}
-        {!rows.length ? <p className="sp-empty">{src === "watchlist" ? tw("None of your watchlist shares is in an industry with a reading.") : tw("None of your shares is in an industry with a reading.")}</p> :
-          <Scroll label={tw("your industries")}><table className="sp-tb rp-yourt">
-            <thead><tr><th scope="col">{tw("Industry and your shares")}</th><th scope="col">Its box<Tip text={tw("Its box: how the industry has done against the average group over the last several months and over the last month.")} /></th>
+        <Why open={whyOpen} text={rw("A share in a leading industry has the wind behind it; a share in a lagging one is swimming against the current. This shows which of your shares have which.")} />
+        {src === "portfolio" && <Cards items={rwCards(yourRotationCards(rows, ms.held, plain, pulse).slice(0, 2))} />}
+        {!rows.length ? <p className="sp-empty">{src === "watchlist" ? rw("None of your watchlist shares is in an industry with a reading.") : rw("None of your shares is in an industry with a reading.")}</p> :
+          <Scroll label={rw("your industries")}><table className="sp-tb rp-yourt">
+            <thead><tr><th scope="col">{rw("Industry and your shares")}</th><th scope="col">Its box<Tip text={rw("Its box: how the industry has done against the average group over the last several months and over the last month.")} /></th>
               <th scope="col">Rank<Tip text="Its place among all ranked this week, 1 the strongest; below it, the places moved in 4 weeks." /></th><th scope="col">Rank, 26 weeks<Tip text="Its rank at each of the last 26 weekly closes: higher on the line is a better rank. The shaded band is the top third." /></th>
-              <th scope="col">Vs the average group<Tip text={tw("How much better (+) or worse (−) the industry did than the average group over the last month and the last 6 months.")} /></th><th scope="col">What it means for you</th><th scope="col" className="sx-alh">Alert</th></tr></thead>
+              <th scope="col">Vs the average group<Tip text={rw("How much better (+) or worse (−) the industry did than the average group over the last month and the last 6 months.")} /></th><th scope="col">What it means for you</th><th scope="col" className="sx-alh">Alert</th></tr></thead>
             <tbody>{rows.map((r) => { const mf = meansForYou(r), c = r.rank_change_4w; return (
               <tr key={r.slug} className="sx-mine"><td><Link to={gl(r.slug)} className="rp-ind"><b>{short(r.name)}</b></Link><Pills list={shares.get(r.slug) ?? []} /></td>
                 <td><BoxChip corner={r.corner} /></td>
@@ -144,7 +145,7 @@ export function hoverCard(m: RotationMap, pulse: Map<string, GroupRow>, mine: Se
         <div><dt>Rank</dt><dd>{r.rank != null ? `${r.rank} of ${r.ranked}` : "not ranked yet"}</dd></div>
         <div><dt>6 months vs average</dt><dd>{pc(sixMonths(r))}</dd></div>
       </dl>
-      <small>Press to open its summary.</small>
+      <small>Press to open its page.</small>
     </>;
   };
 }
@@ -166,7 +167,7 @@ export function PriceResults({ m, mine, sectors }: { m: RotationMap; mine: Set<s
   return (
     <section className="sp-sec sx-add" aria-labelledby="sx-res-h">
       <div className="sp-sec-h"><div><h2 id="sx-res-h">Price against results{q.data?.quarter?.fiscal ? `, ${q.data.quarter.fiscal}` : ""}<span className="sx-new-b">New</span></h2>
-        <p className="sp-sub">{tw("Each industry's box today beside how its companies' latest quarter compares with the market. They do not always agree.")}</p></div></div>
+        <p className="sp-sub">{rw("Each industry's box today beside how its companies' latest quarter compares with the market. They do not always agree.")}</p></div></div>
       {q.isLoading ? <div className="sx-skel" style={{ height: 120 }} role="status" aria-label="Loading the results groups" />
         : q.isError ? <p className="sp-empty">The results groups could not be loaded just now, so this check is blank. Please try again shortly.</p>
         : locked ? <p className="sp-empty">The results figures of each group are part of the Silver plan, as on the Results page. <Link to="/results?view=industries">Open Results</Link></p>
@@ -186,7 +187,7 @@ export function PriceResults({ m, mine, sectors }: { m: RotationMap; mine: Set<s
               </tr>))}</tbody>
           </table></Scroll>
           {f === "all" && hit.length > 6 && <button type="button" className="sp-showall" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer ▴" : `Show all ${hit.length} ▾`}</button>}
-          <p className="sp-note">{tw("Your industries come first.")} Results are from the Results page, by NSE industry{sectors ? "; a sector with several industries shows up to three, largest first. “Other …” is the sector's smaller industries read together" : ""}. Ahead / In line / Behind is that group's typical growth against the market's.</p>
+          <p className="sp-note">{rw("Your industries come first.")} Results are from the Results page, by NSE industry{sectors ? "; a sector with several industries shows up to three, largest first. “Other …” is the sector's smaller industries read together" : ""}. Ahead / In line / Behind is that group's typical growth against the market's.</p>
         </>}
     </section>
   );
@@ -198,7 +199,7 @@ export function WhatNextCards({ m, sectors }: { m: RotationMap; sectors: boolean
   return (
     <section className="sp-sec sx-add" aria-labelledby="sx-next-h">
       <div className="sp-sec-h"><div><h2 id="sx-next-h">What happened next<span className="sx-new-b">New</span></h2>
-        <p className="sp-sub">{tw("Where industries went after each box, counted from the weekly readings on this page.")}</p></div></div>
+        <p className="sp-sub">{rw("Where industries went after each box, counted from the weekly readings on this page.")}</p></div></div>
       {!wn || !wn.cards.length ? <p className="sp-empty">Not counted yet: the weekly readings behind this check are not in the current data set. They are added at the next weekly close.</p> : <>
         <p className="sx-cap"><b>What happened next, {wn.from_label} to {wn.to_label}.</b> Counted from {wn.weeks} weekly readings of {wn.groups} {sectors ? "sectors" : "groups"}. It shows what did happen, not what will.</p>
         <div className="sx-nx">{wn.cards.map((c) => (

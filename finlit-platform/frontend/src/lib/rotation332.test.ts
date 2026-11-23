@@ -10,6 +10,7 @@ import {
 import { beatOrTrail, gw, yourRotationCards } from "./rotationPack";
 import { renderHook } from "@testing-library/react";
 import { useShowWords } from "./groupWords";
+import { toGroups } from "./rotationWords";
 
 const M = rot as unknown as RotationMap;
 const row = (o: Partial<RotationRow>) => ({ name: "Healthcare", slug: "healthcare", industries: [], corner: "ahead_gaining", rank: 2, ranked: 19, tail: [], rank_history: [], ...o }) as unknown as RotationRow;
@@ -117,5 +118,15 @@ describe("Playback, What happened next, Inside a sector, Alert me", () => {
     expect(insideStart(rows, ["c"], ["b"])).toBe("c");
     expect(insideStart(rows, ["zzz"], ["b"])).toBe("b");
     expect(insideStart(rows, [], [])).toBe("a");
+  });
+});
+
+describe("Industries view words (three levels)", () => {
+  it("the rows are groups; NSE's own industries, one industry and the view's name are kept", () => {
+    expect(toGroups("How your industries compare")).toBe("How your groups compare");
+    expect(toGroups("Industries can skip a box")).toBe("Groups can skip a box");
+    expect(toGroups("a sector group of small industries")).toBe("a sector group of small industries");
+    expect(toGroups("All 38 industry groups counted equally, as in the Industries view.")).toBe("All 38 industry groups counted equally, as in the Industries view.");
+    expect(toGroups("The industry's stocks")).toBe("The industry's stocks");
   });
 });

@@ -85,7 +85,7 @@ describe("The map, Who is ahead, rank moves", () => {
   });
   it("rank moves in 4 weeks", () => {
     const c = rankMoveCards(M);
-    expect(c[0].text).toBe("A month ago Cement & Cement Products was 37th, Realty 33rd, Automobiles 27th and Telecommunication 24th. Money is moving into industries that had been left behind.");
+    expect(c[0].text).toBe("A month ago Cement & Cement Products was 37th, Realty 33rd, Automobiles 27th and Telecommunication 24th. Money is moving into groups that had been left behind.");
     expect(c[1].text).toBe("A month ago Chemicals & Petrochemicals was 5th, IT - Services 8th and Electrical Equipment 11th. All three are now in the bottom half.");
   });
 });
