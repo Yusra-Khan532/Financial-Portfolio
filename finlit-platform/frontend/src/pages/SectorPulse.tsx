@@ -93,7 +93,7 @@ export function SectorPulsePage() {
             { key: "next", label: "What happened next", isNew: true, content: <div><Cycle b={b} /><WhatNext /></div> },
           ]} />
           <InsideSector b={b} mine={mine} symbols={symbols} />
-          <SxFold id="sx-standouts" title={tw("Standout stocks in weak industries")} line={foldLine.standouts}><Standouts b={b} /></SxFold>
+          <SxFold id="sx-standouts" title={tw("Standout stocks in weak industries")} line={foldLine.standouts}><Standouts b={b} mine={mine} /></SxFold>
           <SxFold id="sx-counted" title="Which stocks are counted, and what is too small for a reading" line={foldLine.counted}><CountedAndSmall b={b} /></SxFold>
           <Words line="Every term on this page, in plain English." />
         </WhyFold.Provider>

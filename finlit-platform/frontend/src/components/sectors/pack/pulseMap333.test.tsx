@@ -98,3 +98,18 @@ describe("The market's mood, week by week (polish 3)", () => {
     expect(document.querySelector(".sx-mr")!.textContent).toContain("In brackets: the change on the week before.");
   });
 });
+
+import { Standouts } from "./PulseSimple";
+describe("Standout stocks: All · Strong · Early · In my industries (polish 7)", () => {
+  it("each filter shows every matching row, with its count", () => {
+    const flag = (symbol: string, group_slug: string, strong: boolean) => ({ symbol, name: symbol + " Ltd", group: group_slug, group_slug, tier: strong ? "full" : "early", tier_code: strong ? 2 : 1, sessions_ago: 0, new_today: true });
+    const flags = Array.from({ length: 12 }, (_, i) => flag("S" + i, i < 3 ? B.rows[0].slug : B.rows[1].slug, i % 2 === 0));
+    wrap(<Standouts b={{ ...B, leader_flags: flags } as unknown as Board} mine={new Set([B.rows[0].slug])} />);
+    const show = screen.getByRole("group", { name: "Show" });
+    expect(within(show).getAllByRole("button").map((x) => x.textContent)).toEqual(["All 12", "Strong 6", "Early 6", "In my industries 3"]);
+    const rows = () => document.querySelectorAll(".sp-stand tbody tr").length;
+    expect(rows()).toBe(8);
+    fireEvent.click(within(show).getByRole("button", { name: /Strong/ })); expect(rows()).toBe(6);
+    fireEvent.click(within(show).getByRole("button", { name: /In my industries/ })); expect(rows()).toBe(3);
+  });
+});
