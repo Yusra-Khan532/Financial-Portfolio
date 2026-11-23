@@ -55,8 +55,9 @@ function Menu({ label, items, more }: { label: ReactNode; items: { to: string; t
     </span>);
 }
 
-export function TopCard({ d, money, accs, cur, onPick, openQty, loading }: { d?: AllInvestments; money: Record<Kind | "all", KindMoney> | null; accs: AccRow[]; cur: string;
-  onPick: (id: string) => void; openQty: () => void; loading: boolean }) {
+export function TopCard({ d, money, allMoney, accs, cur, onPick, openQty, loading }: { d?: AllInvestments; money: Record<Kind | "all", KindMoney> | null;
+  /** developer file 33: every account together, for the All accounts row (money is the picked account's when one is picked) */ allMoney?: Record<Kind | "all", KindMoney> | null;
+  accs: AccRow[]; cur: string; onPick: (id: string) => void; openQty: () => void; loading: boolean }) {
   const m = money?.all, [moreOpen, setMoreOpen] = useState(false);
   const counts = d ? `${nf(d.counts.shares, 0)} share${d.counts.shares === 1 ? "" : "s"} · ${nf(d.counts.funds, 0)} fund${d.counts.funds === 1 ? "" : "s"} · ${nf(d.counts.etfs, 0)} ETF${d.counts.etfs === 1 ? "" : "s"}` : loading ? "Reading your three lists…" : "";
   const n = m?.n ?? 0, have = m ? m.n - m.missing.length : 0, all = n > 0 && have === n;
@@ -66,7 +67,8 @@ export function TopCard({ d, money, accs, cur, onPick, openQty, loading }: { d?:
   const sorted = [...accs].sort((a, b) => (b.value ?? -1) - (a.value ?? -1));
   const fold = accs.length > 4 && !moreOpen;
   const shown = fold ? accs.filter((a) => a.id === cur || sorted.slice(0, 3).some((x) => x.id === a.id)) : accs;
-  const allRow: AccRow = { id: "all", name: "All accounts", sub: `${n} ${n === 1 ? "holding" : "holdings"}`, value: m && m.now > 0 ? m.now : null, gainPct: m && have && m.invested ? (m.gain / m.invested) * 100 : null, color: "#3a3f4b", initial: "∑" };
+  const am = allMoney?.all ?? m, an = am?.n ?? 0, ahave = am ? am.n - am.missing.length : 0;
+  const allRow: AccRow = { id: "all", name: "All accounts", sub: `${an} ${an === 1 ? "holding" : "holdings"}`, value: am && am.now > 0 ? am.now : null, gainPct: am && ahave && am.invested ? (am.gain / am.invested) * 100 : null, color: "#3a3f4b", initial: "∑" };
   const row = (a: AccRow) => (
     <button key={a.id} type="button" role="radio" aria-checked={cur === a.id} onClick={() => onPick(a.id)}>
       <span className="mi7-av" aria-hidden="true" style={{ "--av": a.color } as React.CSSProperties}>{a.initial}</span>

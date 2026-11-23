@@ -40,6 +40,10 @@ Neither link touches the database: `/dates` lists the folder and the other retur
     companies not on any screen that day.
   - every day: ISIN, NSE symbol (BSE code for BSE-only companies) and the three NSE classification levels (`company_classification`), the name (`companies`),
     the leadership tag of the weekly run in force (`leadership_history`).
+- **Companies left out (counted in the job's notes, never filled with a guessed value):** a company with no ISIN (the key), and, since 23 Nov 2026, a
+  company with no close that day (the owner's checker refuses a whole file for one company without a close; on 22 Nov the screener had no price for 53
+  scored companies, so every night was refused and the job was held after 8 failures). Their screen rows go with them; the other rows keep their places.
+  A refused day's reason is the last line of the run's output, which the job status shows.
 - **Files:** `/data/exports/scores/scores_YYYY-MM-DD.json.gz` in the `scores_export` Docker volume (shared by the app and jobs containers, kept across deploys).
   Written under a temporary name and linked into place; an existing day is never replaced. Each file is checked with the owner's own checker
   (`finlit/scores_export_check.py`, the pack's `check_export.py` unchanged) before it is written. The newest 120 files are kept.
