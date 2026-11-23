@@ -88,3 +88,7 @@
   .etf-list .etf-chev { transition: none; }
   .etf-list .etf-tw { scroll-behavior: auto; }
 }
+
+/* task #353: the table, the pages and the compare bar 16px apart, as the boxes above (was 12px); the caption lines above the table stay close to it */
+.etf-list .etf-tw + .etf-pager { margin: 16px 0; }
+.etf-list .etf-pager + .etf-cbar, .etf-list .etf-tw + .etf-cbar { margin-top: 16px; }
