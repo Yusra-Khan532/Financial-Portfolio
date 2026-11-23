@@ -49,14 +49,16 @@ describe("Mutual Fund Screener page", () => {
     await waitFor(() => expect(st.calls.some((c) => c.includes("subs=mid-cap"))).toBe(true));
     expect(screen.getByRole("button", { name: /Remove filter: Mid Cap/ })).toBeTruthy();
   });
-  it("a preset sets filters and shows as on; the score preset is disabled", async () => {
+  it("a preset sets filters and shows as on; the score preset works for Gold (task #350)", async () => {
     mount();
     await screen.findByText("Alpha Mid Cap Fund");
     const p = screen.getByRole("button", { name: /Defence and aerospace funds/ });
     fireEvent.click(p);
     await waitFor(() => expect(screen.getByTestId("loc").textContent).toContain("tags=defence"));
     expect(screen.getByRole("button", { name: /Defence and aerospace funds/ }).getAttribute("aria-pressed")).toBe("true");
-    expect((screen.getByRole("button", { name: /Mutual Fund Score 65\+/ }) as HTMLButtonElement).disabled).toBe(true);
+    const sp = screen.getByRole("button", { name: /Mutual Fund Score 65\+/ }) as HTMLButtonElement;
+    expect(sp.disabled).toBe(false); fireEvent.click(sp);
+    await waitFor(() => expect(screen.getByTestId("loc").textContent).toContain("sc=total%3A65%3A"));
   });
   it("shows the no-data count and the groups that need a data source, disabled and explained", async () => {
     mount("/funds/screener?rng=ter:0:1");

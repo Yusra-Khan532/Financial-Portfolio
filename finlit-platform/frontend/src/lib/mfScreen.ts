@@ -8,6 +8,7 @@ import {
   AUMRANK_OPTS, BASIS_OPTS, CAP_OPTS, CFLOW_OPTS, CHK_EACH, CSIZE_OPTS, CSTREAK_OPTS, EXIT_OPTS, FRESH_OPTS, HOUSE_OPTS, INST_OPTS, MAT_OPTS, NUM_BY, OPTION_OPTS, PFDATE_OPTS,
   PLAN_OPTS, RK_BANDS, STRUCT_OPTS, STYLE_OPTS, TICK_DATA, TICK_FALL, TICK_LISTS, TYPE_OPTS, rangeText, type Opt,
 } from "./mfScreenDefs";
+import { SCORE_FIELDS, parseScores, scoreChipLabel, scoreParams, type ScoreField, type ScoreRange } from "./mfScoreFilter";
 
 // ------------------------------------------------------------------------------------------------ the query
 
@@ -16,15 +17,17 @@ export type SQ = {
   plans: string[]; options: string[]; inst: string[]; status: "active" | "stopped" | "both"; family: boolean; fresh: string; aumbasis: string[]; aumrank: string[];
   launchFrom: string; launchTo: string; rng: Record<string, [string, string]>; nd: string[]; rk: string[]; chk: string; chkEach: string[]; exit: string[]; tick: string[]; tags: string[];
   sector: string; sectorMin: string; holds: string; pfdate: string[]; cflow: string[]; cstreak: string[]; csize: string[];
+  /** task #350: FinLit Mutual Fund Score ranges, the total and each part on its own (Gold only) */
+  sc: Partial<Record<ScoreField, ScoreRange>>;
   sort: string; dir: "asc" | "desc"; page: number;
 };
 /** The page's starting point (spec section 1): Direct plan, Growth option, still publishing, mutual funds and ETFs together. */
 export const DEFAULTS: SQ = {
   q: "", group: "", subs: [], cap: [], style: [], struct: [], mat: [], amcs: [], house: [], plans: ["Direct"], options: ["Growth"], inst: [], status: "active", family: false, fresh: "",
   aumbasis: [], aumrank: [], launchFrom: "", launchTo: "", rng: {}, nd: [], rk: [], chk: "", chkEach: [], exit: [], tick: [], tags: [], sector: "", sectorMin: "", holds: "", pfdate: [],
-  cflow: [], cstreak: [], csize: [], sort: "aum", dir: "desc", page: 1,
+  cflow: [], cstreak: [], csize: [], sc: {}, sort: "aum", dir: "desc", page: 1,
 };
-export const EMPTY: SQ = { ...DEFAULTS, rng: {} };
+export const EMPTY: SQ = { ...DEFAULTS, rng: {}, sc: {} };
 export const PAGE_SIZE = 50;
 
 type ListKey = "subs" | "cap" | "style" | "struct" | "mat" | "amcs" | "house" | "plans" | "options" | "inst" | "aumbasis" | "aumrank" | "nd" | "rk" | "chkEach" | "exit" | "tick" | "tags" | "pfdate" | "cflow" | "cstreak" | "csize";
@@ -40,7 +43,7 @@ export const cleanNum = (s: string): string => { const t = s.trim().replace(/,/g
 
 /** The address bar's parameters -> a query. Unknown field names and malformed numbers are dropped, never trusted. */
 export function parseQuery(p: URLSearchParams): SQ {
-  const q: SQ = { ...DEFAULTS, rng: {}, plans: [...DEFAULTS.plans], options: [...DEFAULTS.options] };
+  const q: SQ = { ...DEFAULTS, rng: {}, sc: {}, plans: [...DEFAULTS.plans], options: [...DEFAULTS.options] };
   const many = (name: string) => p.getAll(name).flatMap((v) => v.split(",")).map((s) => s.trim()).filter(Boolean);
   for (const k of LISTS) { const v = k === "amcs" ? p.getAll("amcs").map((s) => s.trim()).filter(Boolean) : many(PARAM[k]); if (v.length || p.has(PARAM[k])) q[k] = [...new Set(v)] as never; }
   q.q = (p.get("q") || "").slice(0, 80);
@@ -52,6 +55,7 @@ export function parseQuery(p: URLSearchParams): SQ {
   q.launchTo = /^\d{4}-\d{2}-\d{2}$/.test(p.get("launch_to") || "") ? p.get("launch_to")! : "";
   for (const r of p.getAll("rng")) { const [f, lo = "", hi = ""] = r.split(":"); if (NUM_BY[f] && (cleanNum(lo) || cleanNum(hi))) q.rng[f] = [cleanNum(lo), cleanNum(hi)]; }
   q.nd = q.nd.filter((f) => f in q.rng);
+  q.sc = parseScores(p.getAll("sc"));
   if (p.get("option") === "All") q.options = [];
   q.chk = /^[1-5]$/.test(p.get("chk") || "") ? p.get("chk")! : "";
   q.sector = (p.get("sector") || "").slice(0, 60); q.sectorMin = cleanNum(p.get("sector_min") || "");
@@ -77,6 +81,7 @@ export function apiParams(q: SQ): URLSearchParams {
   if (q.launchTo) p.set("launch_to", q.launchTo);
   for (const [f, [lo, hi]] of Object.entries(q.rng)) if (lo || hi) p.append("rng", `${f}:${lo}:${hi}`);
   for (const f of q.nd) if (f in q.rng) p.append("nd", f);
+  for (const v of scoreParams(q.sc)) p.append("sc", v);
   if (q.chk) p.set("chk", q.chk);
   if (q.sector) { p.set("sector", q.sector); if (q.sectorMin) p.set("sector_min", q.sectorMin); }
   if (q.holds) p.set("holds", q.holds);
@@ -155,6 +160,12 @@ export function withRange(q: SQ, field: string, lo: string, hi: string): SQ {
   rng[field] = [lo, hi];
   return { ...q, rng, page: 1 };
 }
+/** Set or clear one score range; the other score ranges stay as they are (task #350: each is independent). */
+export function withScore(q: SQ, f: ScoreField, lo: string, hi: string): SQ {
+  const sc = { ...q.sc };
+  if (!lo && !hi) delete sc[f]; else sc[f] = [lo, hi];
+  return { ...q, sc, page: 1 };
+}
 export const rangeOf = (q: SQ, field: string): [number | null, number | null] => { const r = q.rng[field]; return r ? [r[0] === "" ? null : Number(r[0]), r[1] === "" ? null : Number(r[1])] : [null, null]; };
 
 // ------------------------------------------------------------------------------------------------ active filters (the removable chips)
@@ -186,6 +197,7 @@ export function chipsFor(q: SQ, subLabel: (k: string) => string = (k) => k, tagL
     const d = NUM_BY[f]; const [lo, hi] = rangeOf(q, f);
     out.push({ id: `rng:${f}`, label: `${d.label}: ${rangeText(d, lo, hi)}${q.nd.includes(f) ? " (and no data)" : ""}`, clear: (s) => withRange(s, f, "", "") });
   }
+  for (const f of SCORE_FIELDS) { const r = q.sc[f]; if (r) out.push({ id: `sc:${f}`, label: scoreChipLabel(f, r[0], r[1]), clear: (s) => withScore(s, f, "", "") }); }
   out.push(...q.rk.map((r) => { const [p, b] = r.split(":"); return { id: `rk:${r}`, label: `Rank in category, ${RK_PERIOD[p as keyof typeof RK_PERIOD] ?? p}: ${optLabel(RK_BANDS, b)}`, clear: (s: SQ) => ({ ...s, rk: s.rk.filter((x) => x !== r), page: 1 }) }; }));
   if (q.chk) out.push({ id: "chk", label: `Checklist: ${q.chk}+ of 5 passed`, clear: (s) => ({ ...s, chk: "", page: 1 }) });
   out.push(...q.chkEach.map((v) => ({ id: `chk_each:${v}`, label: `Check: ${optLabel(CHK_EACH, v)}`, clear: (s: SQ) => ({ ...s, chkEach: s.chkEach.filter((x) => x !== v), page: 1 }) })));
@@ -200,8 +212,8 @@ export function chipsFor(q: SQ, subLabel: (k: string) => string = (k) => k, tagL
 
 // ------------------------------------------------------------------------------------------------ preset screens (spec section 14)
 
-export type PresetDef = { id: string; label: string; say: string; set: (q: SQ) => SQ; off?: string };
-const base = (): SQ => ({ ...DEFAULTS, rng: {}, plans: [...DEFAULTS.plans], options: [...DEFAULTS.options] });
+export type PresetDef = { id: string; label: string; say: string; set: (q: SQ) => SQ; off?: string; /** uses the score filter: Gold only */ gold?: boolean };
+const base = (): SQ => ({ ...DEFAULTS, rng: {}, sc: {}, plans: [...DEFAULTS.plans], options: [...DEFAULTS.options] });
 const rng = (q: SQ, field: string, lo = "", hi = ""): SQ => withRange(q, field, lo, hi);
 /** Presets are plain filter settings; a preset is a starting point and everything stays editable. Names describe, they do not recommend. */
 export const PRESETS: PresetDef[] = [
@@ -221,7 +233,8 @@ export const PRESETS: PresetDef[] = [
   { id: "ai-tech", label: "AI and technology funds", say: "Technology and AI tags, India and overseas.", set: () => ({ ...base(), tags: ["ai", "semis", "robotics", "cloud", "cyber", "it", "g_nasdaq"] }) },
   { id: "elss-record", label: "Tax saver (ELSS) with a five-year record", say: "ELSS, five years or older, 5-year return above the category median.", set: () => rng(rng({ ...base(), subs: ["elss"] }, "age", "5"), "ex5y", "0") },
   { id: "steady-hybrid", label: "Hybrid funds with steady months", say: "Hybrid, no falling month in 3 years, equity share 10 to 40%.", set: () => rng({ ...base(), group: "hybrid", tick: ["noneg36"] }, "eq_pct", "10", "40") },
-  { id: "score-cost", label: "Mutual Fund Score 65+ at low cost", say: "Needs the score filter, which lives in the Fund score screener.", set: () => base(), off: "Score filters are in the Fund score screener." },
+  { id: "score-cost", label: "Mutual Fund Score 65+ at low cost", say: "FinLit Mutual Fund Score 65 or more, expense ratio at or below the category median.", gold: true,
+    set: () => rng({ ...base(), sc: { total: ["65", ""] } }, "ter_rel", "", "1") },   // task #350: the score filter is in this screener now (Gold)
 ];
 const presetKey = (q: SQ) => queryToParams({ ...q, page: 1, sort: q.sort, dir: q.dir }).toString();
 /** A preset is "on" while every filter it sets is still as it set it (more filters on top do not switch it off). */
