@@ -5,15 +5,17 @@
 import type { Action, Announcement } from "./api";
 
 export type GroupKey = "res" | "div" | "inv" | "ord" | "shr" | "oth";
-export const GROUPS: { key: GroupKey; label: string; colour: string }[] = [
-  { key: "res", label: "Results & board meetings", colour: "var(--k1)" },
-  { key: "div", label: "Dividends & corporate actions", colour: "var(--gold-deep)" },
-  { key: "inv", label: "Investor calls & presentations", colour: "var(--k7)" },
+// short: the one-line filing row's label (QA of 23 Nov, task #328: "Investor calls & presentations" wrapped the row onto two lines); the filter
+// chips and the row's title keep the full label.
+export const GROUPS: { key: GroupKey; label: string; colour: string; short?: string }[] = [
+  { key: "res", label: "Results & board meetings", colour: "var(--k1)", short: "Results & board" },
+  { key: "div", label: "Dividends & corporate actions", colour: "var(--gold-deep)", short: "Dividends & actions" },
+  { key: "inv", label: "Investor calls & presentations", colour: "var(--k7)", short: "Calls & presentations" },
   { key: "ord", label: "Orders & agreements", colour: "var(--k3)" },
   { key: "shr", label: "Shares & fund raising", colour: "var(--k2)" },
   { key: "oth", label: "Other", colour: "var(--muted)" },
 ];
-export const GROUP: Record<GroupKey, { label: string; colour: string }> = Object.fromEntries(GROUPS.map((g) => [g.key, g])) as unknown as Record<GroupKey, { label: string; colour: string }>;
+export const GROUP: Record<GroupKey, { label: string; colour: string; short?: string }> = Object.fromEntries(GROUPS.map((g) => [g.key, g])) as unknown as Record<GroupKey, { label: string; colour: string; short?: string }>;
 
 type Rule = { cat?: RegExp; text?: RegExp; group: GroupKey; routine?: boolean };
 const RULES: Rule[] = [
