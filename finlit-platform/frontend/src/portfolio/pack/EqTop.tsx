@@ -171,6 +171,7 @@ export function ScorePanel({ total, band, missing, shares, onAdd, locked, basis,
       <p className="eqx-sk" id="eqx-sk">Your portfolio score<Tip text="One number from 0 to 100 that sums up how strong the shares are, how well spread, how risky against the index, the price trend, valuation and concentration." how="Higher reads stronger on those together. Once every holding has its buys, each share counts by its value now." label="About Your portfolio score" /></p>
       {locked ? <p className="eqx-sv">Worked out from FinLit Prism, part of the Gold plan. <Link to="/plans">See plans</Link></p> : <>
         <p className="eqx-sv">{v == null ? "Your portfolio score is being worked out…" : <>Your portfolio score is <b>{band || `${Math.round(v)} of 100`}</b></>}</p>
+        {v != null && <p className="eqx-sx">Six parts together: strength, spread, risk against the index, trend, valuation and concentration. The Portfolio card is the average FinLit Prism of the shares alone.</p>}
         <div className="eqx-scale" role="img" aria-label={v == null ? "Score not worked out yet" : `${Math.round(v)} on a scale of 0 to 100`}>
           {v != null && <span className="eqx-mark" style={{ left: `${v}%` }}><b>{Math.round(v)}</b><i aria-hidden="true" /></span>}
           <span className="eqx-grad" aria-hidden="true" /><span className="eqx-ticks" aria-hidden="true">{[0, 25, 50, 75, 100].map((x) => <span key={x}>{x}</span>)}</span>

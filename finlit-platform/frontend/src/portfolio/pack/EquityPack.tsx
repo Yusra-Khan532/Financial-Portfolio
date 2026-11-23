@@ -96,7 +96,11 @@ export function TrendSection({ t, shares, voice = "own" }: { t: TrendRead; share
   const L = voice === "list", one = L ? "company" : "share";
   const pc0 = (x: number) => `${Math.round(x * 100)}%`, stocks = (n: number) => `${n} ${n === 1 ? "stock" : "stocks"}`;
   const none = shares.filter((s) => s.lt == null).map((s) => s.symbol);
-  const mid = t.betweenList, why = new Map((mid?.items ?? []).map((x) => [x.symbol, [x.prism != null ? `Prism ${prismShown(x.prism)}` : "not scored", x.flat ? "flat trend" : ""].filter(Boolean).join(" · ")]));
+  // QA 23 Nov (item 19): the reason chip uses the page's own Prism for the share (the value the table shows), not the trend answer's separate copy,
+  // so "RELIANCE · Prism 58" agrees with the table's 58; the trend answer's figure is the fallback for a share the page has no score for yet.
+  const own = new Map(shares.map((s) => [s.symbol, s.prism]));
+  const mid = t.betweenList, why = new Map((mid?.items ?? []).map((x) => { const v = own.get(x.symbol) ?? x.prism;
+    return [x.symbol, [v != null ? `Prism ${prismShown(v)}` : "not scored", x.flat ? "flat trend" : ""].filter(Boolean).join(" · ")]; }));
   return (
     <Section id="eq-trend" hide title="Short- and long-term trend" help={`Where each ${one}'s short-term price trend sits against its long-term one, from FinLit Prism's technical view.`} how="Across: the short-term trend, up to down. Down the side: the long-term trend, up to down. Rising on both is top-left. It describes past prices, not what comes next."
       sub={<>{t.rated} of {t.n} {t.n === 1 ? "stock" : "stocks"} rated, from FinLit Prism's technical views. Where each {one}'s short-term trend sits against its long-term one.{none.length ? <> <CoChips syms={none} shares={shares} show={6} /> {none.length === 1 ? "has" : "have"} no long-term reading yet.</> : null}</>}>

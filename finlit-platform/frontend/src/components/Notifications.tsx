@@ -70,6 +70,24 @@ export function AccountNotice() {
   );
 }
 
+/** Several alerts at once: one card that counts them, names the first two, and opens the alerts page; closing it only hides it (the alerts stay unread there). */
+export function AlertSummary({ items, onOpen, onClose }: { items: Notice[]; onOpen: () => void; onClose: () => void }) {
+  const alerts = items.filter((n) => n.kind === "alert").length;
+  const head = alerts === items.length ? `${items.length} alerts triggered` : `${items.length} new notices`;
+  const names = items.slice(0, 2).map((n) => n.title);
+  return (
+    <div className="alx-toast alx-sum">
+      <span className="alx-ti"><Icon name="bell" /></span>
+      <div className="alx-tb">
+        <b>{head}</b>
+        <p>{names.join("; ")}{items.length > 2 ? ` and ${items.length - 2} more` : ""}</p>
+        <div className="alx-tf"><button className="alx-link" onClick={onOpen}>Open my alerts <Icon name="arrow" /></button><small>{timeAgo(items[0].createdAt)}</small></div>
+      </div>
+      <button className="alx-x" aria-label="Dismiss" onClick={onClose}>✕</button>
+    </div>
+  );
+}
+
 /** Pops a card for each alert that fires while the site is open ("Alert triggered … View stock →" for a stock; other notices say what they are), and raises browser notifications if allowed. */
 /** Task #310 part E (05-phone.md, fix 3): a toast closes by itself after 6 seconds. */
 export const TOAST_MS = 6000;
@@ -95,7 +113,8 @@ export function AlertToasts() {
     <>
     {DEMO && <DemoSeeder />}
     <div className="alx-toasts" role="region" aria-label="New alerts" aria-live="polite">
-      {shown.map((n) => { const lb = noticeLabels(n); return (
+      {/* QA 23 Nov (item 15): two or more at once are one card ("3 alerts triggered", the first names, Open my alerts), not a stack over the page */}
+      {shown.length > 1 ? <AlertSummary items={shown} onOpen={() => { setShown([]); nav("/alerts"); }} onClose={() => setShown([])} /> : shown.map((n) => { const lb = noticeLabels(n); return (
         <div className="alx-toast" key={n.id}>
           <span className="alx-ti"><Icon name="bell" /></span>
           <div className="alx-tb">

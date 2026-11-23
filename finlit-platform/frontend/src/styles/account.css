@@ -274,7 +274,7 @@ div.dn { display: grid; grid-template-columns: 170px 1fr; gap: 18px; align-items
 @media (prefers-reduced-motion: reduce) { .alx-drawer { animation: none; } }
 
 /* toast: "Alert triggered" */
-.alx-toasts { position: fixed; z-index: 90; right: 16px; bottom: 16px; display: grid; gap: 10px; width: min(380px, calc(100vw - 32px)); }
+.alx-toasts { position: fixed; z-index: 90; right: 16px; bottom: 16px; display: grid; gap: 10px; width: min(340px, calc(100vw - 32px)); }   /* QA 23 Nov (item 15): one card at a time, narrower */
 .alx-toast { display: grid; grid-template-columns: 38px minmax(0, 1fr) 28px; gap: 12px; align-items: start; padding: 14px 14px 14px 16px; border-radius: var(--r-card); border: 1.5px solid var(--frame); border-left: 4px solid var(--gold); background: var(--s1); box-shadow: var(--lift); animation: alxIn .35s cubic-bezier(.2, .8, .2, 1); } @keyframes alxIn { from { opacity: 0; transform: translateY(14px); } }
 .alx-ti { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: var(--gold-soft); color: var(--gold); } .alx-ti svg { width: 18px; height: 18px; }
 .alx-tb b { font-size: var(--fs-14); } .alx-tb p { margin: 2px 0 6px; font-size: var(--fs-14); line-height: 1.45; color: var(--muted); } .alx-tf { display: flex; justify-content: space-between; align-items: center; gap: 10px; } .alx-tf small { color: var(--faint); font-size: var(--fs-12); }

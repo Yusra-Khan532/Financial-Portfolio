@@ -28,7 +28,8 @@ function Tile({ to, k, v, small }: { to: string; k: string; v: ReactNode; small:
   return <a className="dx-td" href={`#${to}`} onClick={jump(to)}><span>{k}</span><b>{v}</b><small>{small}</small></a>;
 }
 
-export function TodayStrip({ symbols, held, rows, prism }: { symbols: string[]; held: string[]; rows: Row[]; /** the plan shows FinLit Prism */ prism: boolean }) {
+export function TodayStrip({ symbols, held, rows, prism, loading = false }: { symbols: string[]; held: string[]; rows: Row[]; /** the plan shows FinLit Prism */ prism: boolean;
+  /** QA 23 Nov (item 17): the company list (with each share's Prism) is still loading */ loading?: boolean }) {
   const q = useQuotesFor(symbols), qm = quoteMap(q.data);
   const idx = useIndices(), f = useFlows().data;
   const day = dayWord(new Date(), idx.data?.asOf ?? null);
@@ -55,7 +56,7 @@ export function TodayStrip({ symbols, held, rows, prism }: { symbols: string[]; 
         small={big ? `biggest move of your ${symbols.length} ${symbols.length === 1 ? "stock" : "stocks"}` : !symbols.length ? "Follow or add stocks to see this" : q.isLoading ? "Loading prices…" : "No price move held yet"} />
       <Tile to="dsh-b-glance" k="Your equity, FinLit Prism"
         v={!prism ? MINUS : g?.avgPrism != null ? <>{g.avgPrism} · {bandWord(g.avgPrism).word}</> : MINUS}
-        small={!held.length ? "Add the shares you hold to see this" : !prism ? "FinLit Prism is part of Gold" : g?.avgPrism == null ? "No Prism score is stored yet for these shares" : weak ? `${weak.label} is the weak spot` : `${g.scored} of ${g.count} shares scored`} />
+        small={!held.length ? "Add the shares you hold to see this" : !prism ? "FinLit Prism is part of Gold" : g?.avgPrism == null && loading ? "Loading scores…" : g?.avgPrism == null ? "No Prism score is stored yet for these shares" : weak ? `${weak.label} is the weak spot` : `${g.scored} of ${g.count} shares scored`} />
       <Tile to="dsh-b-market" k="Nifty 50"
         v={nifty?.close != null ? <>{nf(nifty.close)} <i className={tone(nifty.changePct)}>{pct(nifty.changePct)}</i></> : MINUS}
         small={nifty?.close != null ? breadth : idx.isLoading ? "Loading…" : "Not in today's index feed"} />

@@ -204,7 +204,7 @@ export function Dashboard() {
           <button type="button" className="dsh-btn" aria-pressed={edit} onClick={() => { setEdit(!edit); if (params.has("edit")) setParams({}, { replace: true }); }}>{edit ? "Done" : "Customise"}</button></div>
       </header>
       {edit && <Customise layout={p.dashboard} plan={plan} onChange={(dashboard) => prefs.set({ dashboard })} onReset={() => prefs.set({ dashboard: [] })} onDone={() => setEdit(false)} />}
-      <TodayStrip symbols={symbols} held={[...heldPick]} rows={rows} prism={has(PLAN_FOR_PRISM)} />
+      <TodayStrip symbols={symbols} held={[...heldPick]} rows={rows} prism={has(PLAN_FOR_PRISM)} loading={loadingRows} />
       <SectionFilter sections={groups.map((g) => ({ id: g.step.id as Exclude<Sec, "all">, title: g.step.title }))} />
       <div className="dsh-grid" id="dsh-grid" data-sec={ui.sec}>
         {visible.map((g, gi) => {

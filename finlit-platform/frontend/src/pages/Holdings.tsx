@@ -322,7 +322,8 @@ export function HoldingsPage() {
   const lvN = (l: "macro" | "sector" | "industry") => (div ? new Set(ids.map((x) => div.levelOf(x, l))).size : undefined);
   // developer file 28: once every share has a quantity, the cards read the score's figures by value (the average Prism, the spread score, the NIFTY 50 measures)
   const scA = sc.data && !sc.data.locked ? sc.data : null, byValue = scA?.basis === "value" && scA.byValue ? scA.byValue : null;
-  const top = topTiles(shares, page as never, model === "prism" ? "prism" : "finlit", { macro: lvN("macro"), sectors: lvN("sector"), industries: lvN("industry") ?? Object.keys(counts).length, sizes: (["Large", "Mid", "Small", "Micro"] as Size[]).filter((k) => sizeCount[k]).length }, byValue);
+  const scoresLoading = ov.isPending && !DEMO && symbols.length > 0;   // QA 23 Nov (item 14): the tile says the scores are loading, not "Not scored"
+  const top = topTiles(shares, page as never, model === "prism" ? "prism" : "finlit", { macro: lvN("macro"), sectors: lvN("sector"), industries: lvN("industry") ?? Object.keys(counts).length, sizes: (["Large", "Mid", "Small", "Micro"] as Size[]).filter((k) => sizeCount[k]).length }, byValue, scoresLoading);
   // task #274 (changes 2 and 16): the money box's day line and what the money covers, the three view cards, and the views opened once
   const dayCount = useMemo(() => {
     const xs = shares.filter((x) => x.chg != null).map((x): DayMove => ({ symbol: x.symbol, label: shortLabel(x), chg: x.chg! }));

@@ -24,7 +24,7 @@ describe("the three cards by value (developer file 28)", () => {
   it("read the score's figures by value once every share has a quantity, and say so", () => {
     const [p, d, r] = topTiles(LIST, PAGE, "prism", SPREAD, BV);
     expect(p.v).toBe("Healthy · 78");                                           // by value, not the simple mean 57
-    expect(p.sub).toBe("Average FinLit Prism by value: 1 strong · 0 healthy · 1 average · 0 weak · 1 poor");
+    expect(p.sub).toBe("Average FinLit Prism of your shares, by value: 1 strong · 0 healthy · 1 average · 0 weak · 1 poor");
     expect(d.v).toBe("41 · Somewhat concentrated");
     expect(d.sub).toBe("By value now (74 by count) · 2 macro sectors · 3 sectors · 3 industries · two of the four sizes");
     expect(r.v).toBe("Above · β 1.24");
@@ -35,7 +35,7 @@ describe("the three cards by value (developer file 28)", () => {
   it("count every share the same until each has a quantity (Gold), and always on a plan without the score (Silver)", () => {
     const [p, d, r] = topTiles(LIST, PAGE, "prism", SPREAD, null);
     expect([p.v, d.v, r.v]).toEqual(["Average · 57", "74 · Fairly spread", "In line · β 1.02"]);
-    expect(p.sub).toBe("Average FinLit Prism: 1 strong · 0 healthy · 1 average · 0 weak · 1 poor");
+    expect(p.sub).toBe("Average FinLit Prism of your shares: 1 strong · 0 healthy · 1 average · 0 weak · 1 poor");
     expect(d.sub).toBe("2 macro sectors · 3 sectors · 3 industries · two of the four sizes"); expect(r.sub).toMatch(/^Against the index: /);
     for (const t of [p, d, r]) expect(t.help).toMatch(/Every share counts the same until each share has a quantity; then each counts by its value now\.$/);
     const s = topTiles(LIST, PAGE, "finlit", SPREAD, null);
@@ -73,7 +73,7 @@ describe("the equity page passes the score's figures to the cards", () => {
   const src = readFileSync(join(process.cwd(), "src/pages/Holdings.tsx"), "utf8");
   it("by value only when the server counted by value; the panel gets the basis and the shares with no stored price", () => {
     expect(src).toMatch(/byValue = scA\?\.basis === "value" && scA\.byValue \? scA\.byValue : null/);
-    expect(src).toMatch(/const top = topTiles\([^\n]*, byValue\);/);
+    expect(src).toMatch(/const top = topTiles\([^\n]*, byValue(, scoresLoading)?\);/);
     expect(src).toMatch(/basis=\{scA\?\.basis\} noPrice=\{\(scA\?\.noQuantity \?\? \[\]\)\.filter\(\(x\) => qtyBySymbol\.get\(x\)\)\}/);
   });
 });
