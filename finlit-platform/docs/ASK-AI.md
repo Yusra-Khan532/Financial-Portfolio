@@ -217,6 +217,8 @@ memory on or off.
   `DELETE /api/ask/history/{id}`. They reach the research API like `/api/ask` (the Vite proxy's `ask` prefix; Caddy sends every path to the app).
 - **The member's controls:** `prefs.aiMemory` (default on; older saved prefs load as on). The panel's Chat History reads the server's list for a
   signed-in Silver or Gold member (date, subject, question; tap to ask again; × deletes one) and keeps the browser-only list for visitors and Basic.
+  It opens from the full window's side menu, and from a History button in the panel header wherever that menu is not shown (the small window,
+  phones and any window under 981px; `AskHistoryButton`, hidden by CSS only where the side menu shows).
   Under the input, while remembering is on: "FinLit AI keeps your questions for 180 days to tell you what changed. Manage in Account.", linking to
   Account > FinLit AI (`/account/ai`): the section "FinLit AI history" with "Remember my FinLit AI questions", how many are kept, and "Clear my
   AI history" with a confirm step.

@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { Icon } from "../lib/icons";
+import { Button } from "./ui";
 import { usePrefs } from "../lib/prefs";
 import { ACCOUNT_AI_PATH, MEMORY_NOTICE, askedOn, deleteAskHistoryItem, loadAskHistory, subjectLabel, type AskHistory as History } from "../lib/askMemory";
 import "../styles/ask-memory.css";
@@ -58,6 +59,12 @@ export function AskHistoryView({ server, recent, onAsk, onClearLocal, onLeave }:
       </li>))}</ul>
       : <p className="aif-none">No questions kept yet. Your written answers from FinLit AI appear here.</p>}
   </>;
+}
+
+/** The panel header's way into Chat History (the lead, 23 Nov 2026): the full window's side menu holds it from 981px up, but the small window
+ *  and any window under 981px (phones, narrow windows) had no way in. The header button opens the same view; CSS hides it where the side menu shows. */
+export function AskHistoryButton({ onOpen }: { onOpen: () => void }) {
+  return <Button variant="quiet" size="sm" className="aim-hist" onClick={onOpen} aria-label="Chat History" title="Chat History"><Icon name="refresh" /><span className="aim-hist-l">History</span></Button>;
 }
 
 /** The line under the input for a signed-in Silver or Gold member (memoryApplies), while remembering is on (prefs.aiMemory). */

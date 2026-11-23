@@ -7,7 +7,7 @@ import { apiGet, type SearchIndex } from "../lib/api";
 import type { Quotes } from "../lib/globalSearch";
 import { AskRefused, INTERRUPTED, TIMED_OUT, askAi, safePages, useAskQuota, type AskTurn } from "../lib/askAi";
 import { useAuth } from "../lib/auth";
-import { AskHistoryView, AskMemoryNotice } from "./AskHistory";   // task #349 PR 2: question memory
+import { AskHistoryButton, AskHistoryView, AskMemoryNotice } from "./AskHistory";   // task #349 PR 2: question memory
 import { memoryApplies } from "../lib/askMemory";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -319,6 +319,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
             {view !== "home" && <button type="button" className="aif-back" onClick={goBack} aria-label="Back"><Icon name="arrow" /></button>}
             <div className="aif-title"><b>FinLit AI</b><span>{sub ?? "Your investing & market research assistant"}</span></div>
             {company && view !== "home" && <button type="button" className="aif-change" onClick={() => { setCompany(null); setView("segments"); }}>Change company</button>}
+            {view !== "history" && <AskHistoryButton onOpen={() => setView("history")} />}
             <button type="button" className="aif-full" onClick={toggleBig} aria-pressed={big} aria-label={big ? "Back to the small window" : "Open in a full window"} title={big ? "Back to the small window" : "Full window"}><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{big ? <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" /> : <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />}</svg></button>
             {big && <Link className="aif-help" to="/faq" onClick={() => setOpen(false)} aria-label="Help and frequently asked questions" title="Help"><Icon name="info" /></Link>}
             <button type="button" onClick={() => setOpen(false)} aria-label="Close">×</button>

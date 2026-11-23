@@ -105,7 +105,7 @@ describe("in the FinLit AI panel", () => {
     const notice = screen.getAllByText((_, el) => el?.className === "aim-note")[0];
     expect(notice.textContent).toBe(MEMORY_NOTICE);
     expect(within(notice).getByRole("link").getAttribute("href")).toBe("/account/ai");
-    fireEvent.click(screen.getByRole("button", { name: "Chat History" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Chat History" })[0]);
     expect(await screen.findByText("TCS Q2 results?")).toBeTruthy();
     expect(api.gets).toContain("/api/ask/history?limit=50");
   });
@@ -121,7 +121,7 @@ describe("in the FinLit AI panel", () => {
   it("a visitor sees no notice and the browser-only Chat History, and the server is not asked", () => {
     openFull();
     expect(document.querySelector(".aim-note")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Chat History" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Chat History" })[0]);
     expect(screen.getByText("Your recent questions, kept in this browser only.")).toBeTruthy();
     expect(api.gets.some((g) => g.startsWith("/api/ask/history"))).toBe(false);
   });
@@ -129,8 +129,42 @@ describe("in the FinLit AI panel", () => {
     who.user = { id: "u2" }; who.plan = "basic";
     openFull();
     expect(document.querySelector(".aim-note")).toBeNull();
+    fireEvent.click(screen.getAllByRole("button", { name: "Chat History" })[0]);
+    expect(screen.getByText("Your recent questions, kept in this browser only.")).toBeTruthy();
+  });
+});
+
+describe("Chat History on phones and narrow windows (the header's History button)", () => {
+  const openSmall = (path = "/dashboard") => {
+    try { localStorage.setItem("finlit-ai-full", "0"); } catch { /* none */ }
+    const r = render(<MemoryRouter initialEntries={[path]}><Assistant /></MemoryRouter>);
+    act(() => { dispatchEvent(new Event(OPEN_AI)); });
+    return r;
+  };
+  it("the small window (a phone's panel) has no side menu, and the header's History button opens the same history view", async () => {
+    who.user = { id: "u1" }; who.plan = "gold";
+    openSmall();
+    expect(document.querySelector(".aif-side")).toBeNull();                         // no side menu here: the header is the way in
+    const btn = screen.getByRole("button", { name: "Chat History" });
+    expect(btn.closest("header")).toBeTruthy();
+    expect(btn.className).toContain("ui-btn");
+    fireEvent.click(btn);
+    expect(await screen.findByText("TCS Q2 results?")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Chat History" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Chat History" })).toBeNull();       // already there: no button to itself
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByRole("button", { name: "Chat History" })).toBeTruthy();
+  });
+  it("a visitor's header button opens the browser-only list", () => {
+    openSmall();
     fireEvent.click(screen.getByRole("button", { name: "Chat History" }));
     expect(screen.getByText("Your recent questions, kept in this browser only.")).toBeTruthy();
+  });
+  it("the stylesheet hides the header button only where the full window's side menu shows (981px and up, menu open)", async () => {
+    const { readFileSync } = await import("node:fs");
+    const css = readFileSync(`${process.cwd()}/src/styles/ask-memory.css`, "utf8");
+    expect(css).toMatch(/@media \(min-width: 981px\) \{ \.aif\.full:not\(\.nomenu\) \.aim-hist \{ display: none; \} \}/);
+    expect(css).not.toMatch(/:[^;{}\n]*#[0-9a-f]{3,8}\b/i);                                       // tokens only
   });
 });
 
