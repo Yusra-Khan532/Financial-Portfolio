@@ -61,3 +61,21 @@
 .mf .mf-subgrid .mf-check { min-height: 38px; align-items: center; gap: 8px; padding: 6px 10px; line-height: var(--lh-13); font-size: var(--fs-13); }
 .mf .mf-subgrid .mf-check input { width: 16px; height: 16px; flex: none; }
 .mf .mf-subgrid .mf-check small { margin-left: auto; padding: 1px 7px; border-radius: var(--ui-r-pill); background: var(--s3); font-size: var(--fs-12); font-variant-numeric: tabular-nums; color: var(--muted); }
+
+/* 12 (PR C): the summary tiles. One quiet surface for all six (the tinted blue, green, amber and teal backgrounds made the row colourful), equal
+   heights; the Schemes count, a count rather than a performance figure, is set apart with a raised surface and a firmer edge. */
+.mf .mf-sum { grid-auto-rows: 1fr; gap: 12px; }
+.mf .mf-sc, .mf .mf-sc.t-blue, .mf .mf-sc.t-green, .mf .mf-sc.t-amber, .mf .mf-sc.t-teal, .mf .mf-sc.t-grey { background: var(--s1); box-shadow: none; padding: 14px 16px; gap: 4px; }
+.mf .mf-sum > .mf-sc:first-child { background: var(--s2); border-color: var(--border-strong); }
+.mf .mf-sc span { font-size: var(--fs-12); line-height: var(--lh-12); }
+
+/* 13 (PR C): "Order by" list + three quick buttons, 36px. */
+.mf .mf-pills { gap: 8px 10px; }
+.mf .mf-sortsel { display: inline-flex; align-items: center; gap: 8px; }
+.mf .mf-sortsel select { height: 36px; min-width: 220px; padding: 0 10px; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font: inherit; font-size: var(--fs-14); }
+.mf .mf-qsorts { display: inline-flex; flex-wrap: wrap; gap: 8px; padding-left: 10px; border-left: 1px solid var(--border); }
+.mf .mf-pills button { min-height: 36px; }
+@media (max-width: 760px) {
+  .mf .mf-sortsel { flex: 1 1 100%; } .mf .mf-sortsel select { flex: 1; min-width: 0; font-size: var(--fs-16); }
+  .mf .mf-qsorts { padding-left: 0; border-left: 0; }
+}
