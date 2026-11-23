@@ -8,6 +8,7 @@
 // Styles: styles/sector-pages.css (sx-). Describes, never advises.
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router";
+import { foldAnchor, revealAndScroll } from "../../PhoneFold";
 
 export type NavStop = { id: string; label: string };
 export function SxNav({ items }: { items: NavStop[] }) {
@@ -18,7 +19,7 @@ export function SxNav({ items }: { items: NavStop[] }) {
     const pick = () => {
       raf = 0;
       let cur: string | null = null;
-      for (const it of items) { const e = document.getElementById(it.id); if (e && e.getBoundingClientRect().top <= 170) cur = it.id; }
+      for (const it of items) { const e = foldAnchor(document.getElementById(it.id)); if (e && e.getBoundingClientRect().top <= 170) cur = it.id; }   // a closed phone section by its row
       setOn(cur);
     };
     const onScroll = () => { if (!raf) raf = requestAnimationFrame(pick); };
@@ -30,7 +31,7 @@ export function SxNav({ items }: { items: NavStop[] }) {
     const el = document.getElementById(id);
     if (!el) return;
     if (el instanceof HTMLDetailsElement && !el.open) el.open = true;          // a closed row opens when its name is pressed
-    el.scrollIntoView?.({ behavior: "smooth", block: "start" });
+    revealAndScroll(el, (x) => x.scrollIntoView?.({ behavior: "smooth", block: "start" }));   // a section closed on a phone opens first
     setOn(id);
   };
   return (
