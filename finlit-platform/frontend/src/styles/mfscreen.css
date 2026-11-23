@@ -13,9 +13,18 @@
 
 /* ---- layout: a left panel, results to the right; under 900 px the panel is a bottom sheet */
 .mfs-layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 18px; align-items: start; }
-.mfs-layout.is-collapsed { grid-template-columns: minmax(0, 1fr); }
 .mfs-side { position: sticky; top: 72px; max-height: calc(100vh - 90px); overflow: auto; padding: 14px 16px 8px; overscroll-behavior: contain; }
-.mfs-side[hidden] { display: none; }
+/* task #350: hidden filters keep their column (the results never move); the sticky column holds one "Show filters" button, in view while the page scrolls */
+.mfs-side.is-shut { padding: 10px; overflow: visible; max-height: none; background: transparent; border-style: dashed; box-shadow: none; }
+.mfs-showf { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 38px; padding: 0 12px; border-radius: var(--r-ctl); border: 1px solid var(--gold); background: var(--gold-soft); color: var(--text); font: 600 var(--fs-13) var(--sans); cursor: pointer; transition: background-color .16s ease, border-color .16s ease; }
+.mfs-showf:hover { background: var(--s2); } .mfs-showf:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.mfs-showf .ico { width: 16px; height: 16px; color: var(--gold); }
+.mfs-showf b { margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--ui-r-pill); background: var(--gold); color: var(--on-gold); font: var(--ui-fw-medium) var(--fs-12)/20px var(--sans); text-align: center; }
+.mfs-side-body { animation: mfs-in .16s ease; }
+@keyframes mfs-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .mfs-side-body { animation: none; } .mfs-showf { transition: none; } }
+.mfs-split-ph { min-width: 0; }
+@media (max-width: 1000px) { .mfs-split-ph { display: none; } }
 .mfs-grab, .mfs-foot { display: none; }
 .mfs-sh-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 0 10px; font: 600 var(--fs-13) var(--sans); color: var(--muted); flex-wrap: wrap; }
 .mfs-sh-t { color: var(--text); }
@@ -144,7 +153,7 @@
 
 /* Task #140 (team note): the sliding bar between the filters and the results, as on the advanced screeners (components/SplitDivider, .scr-split in tools.css). */
 @media (min-width: 1001px) {
-  .mfs-layout:not(.is-collapsed) { grid-template-columns: min(var(--side-w, 330px), max(240px, calc(100% - 448px))) 28px minmax(0, 1fr); gap: 0; }
+  .mfs-layout { grid-template-columns: min(var(--side-w, 330px), max(240px, calc(100% - 448px))) 28px minmax(0, 1fr); gap: 0; }
 }
 
 /* ---- task #131: Result at a glance as the team's 14 Nov design. Scatter dots by fund type, a legend and a hover / focus label; flow bars that
@@ -226,3 +235,21 @@
 .mfs-sc-err { margin: 0; color: var(--dn); font-size: var(--fs-13); }
 .mfs-sc .mfs-box[aria-invalid="true"], .mfs-sc-sel[aria-invalid="true"] { border-color: var(--dn); }
 .mfs-sc-lock svg { width: 14px; height: 14px; vertical-align: -2px; color: var(--gold); }
+
+/* task #350: the results table: numbers centred under their headings, a line between columns, the Fund column 290px and pinned on the left, the table
+   never squeezed below 1080px (it scrolls sideways instead), at most 680px tall with its header pinned, a 10px scrollbar and a 36px fade at the right edge
+   while more columns are hidden there. */
+.mfs-tw.tw-tall { max-height: 680px; scrollbar-width: thin; }
+.mfs-tw::-webkit-scrollbar { width: 10px; height: 10px; } .mfs-tw::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: var(--ui-r-pill); }
+.mfs-tw.has-more { -webkit-mask-image: linear-gradient(to right, black calc(100% - 46px), transparent calc(100% - 10px), black calc(100% - 10px)); mask-image: linear-gradient(to right, black calc(100% - 46px), transparent calc(100% - 10px), black calc(100% - 10px)); }
+.mfs-table { min-width: 1080px; }
+.mfs-table th.num, .mfs-table td.num, .mfs-table th.mfs-hs, .mfs-table td.mfs-hs { text-align: center; }
+.mfs-table td.mfs-hs .mfs-cell { align-items: center; }
+.mfs-table th:not(.mfs-n), .mfs-table td { border-left: 1px solid var(--border); }
+.mfs-table th.mfs-n { width: 290px; min-width: 290px; max-width: 290px; box-shadow: inset -1px 0 0 var(--border-strong); }
+.mfs-table .mf-sort { text-align: inherit; }
+@media (max-width: 640px) { .mfs-table th.mfs-n { width: 200px; min-width: 190px; max-width: 220px; } }   /* a phone keeps room for the figures beside the pinned Fund column */
+/* task #350: the header a step raised from the rows; a fund ticked for compare reads as selected (its row tinted, the pinned name cell too) */
+.mfs-table thead th, .mfs-table thead th.mfs-n { background: var(--s2); }
+.mfs-table tbody tr.is-picked > * { background: var(--gold-soft); }
+.mfs-table tbody tr.is-picked > th.mfs-n { box-shadow: inset 3px 0 0 var(--gold), inset -1px 0 0 var(--border-strong); }
