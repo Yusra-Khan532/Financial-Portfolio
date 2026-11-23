@@ -88,7 +88,7 @@ describe("Sector Pulse: Show: Sectors | Industries", () => {
     expect(h2).toEqual(expect.arrayContaining(["How your sectors are doing", "Momentum and strength, side by side"]));
     // task #333: the closed rows and the second box's tabs are worded for sectors too
     expect([...document.querySelectorAll("details.sx-fold > summary b")].map((x) => x.textContent)).toContain("Standout stocks in weak sectors");
-    expect(within(screen.getByRole("tablist", { name: "Checks on the price picture" })).getAllByRole("tab").map((t) => t.textContent)).toContain("1Against other sectors");
+    expect(within(screen.getByRole("tablist", { name: "Three checks on the price picture" })).getAllByRole("tab").map((t) => t.textContent)).toContain("1Against other sectors");
     expect(industryWords()).toEqual([]);
     expect(document.querySelector(".sp-disclaimer")?.textContent).toMatch(/^Describes price data for NSE sectors; not a recommendation to buy, sell or hold any security\./);
   });

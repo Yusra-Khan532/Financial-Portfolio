@@ -7,6 +7,7 @@ import { useDocTitle } from "../lib/title";
 import { groupsN, groupsParen, groupsSplit } from "../lib/pulsePack";
 import { PulseGuide, SectionsBar } from "../components/sectors/pack/Guide";
 import { SxBox, SxFold, SxNav } from "../components/sectors/pack/PulseLayout";
+import { InsideSector, PriceVsResults, WhatNext } from "../components/sectors/pack/PulseChecks";
 import { useAuth } from "../lib/auth";
 import { usePortfolio } from "../lib/portfolio";
 import { failureText, useSectorBoard } from "../lib/sectors";
@@ -73,7 +74,7 @@ export function SectorPulsePage() {
       {b && <PulseGuide stocks={b.universe?.counted_in_groups_with_reading ?? b.stocks_counted} groups={groupsParen(b.rows)} />}
       {/* task #333 (file 30): the section bar, frozen under the site header, every stop with its real name (Simple); the Full table has its own frozen box bar */}
       {b && view === "simple" && <SxNav items={[
-        { id: "sx-today", label: "Today" }, { id: "sx-yours", label: tw("Your industries") }, { id: "sx-all", label: allLabel }, { id: "sx-chk", label: "Price checks" },
+        { id: "sx-today", label: "Today" }, { id: "sx-yours", label: tw("Your industries") }, { id: "sx-all", label: allLabel }, { id: "sx-chk", label: "Price checks" }, { id: "sx-inside", label: tw("Inside an industry") },
         { id: "sx-standouts", label: "Standout stocks" }, { id: "sx-counted", label: "Stocks counted" }, { id: "sx-words", label: "Words explained" },
       ]} />}
       {b && view === "full" && <SectionsBar items={[
@@ -88,10 +89,12 @@ export function SectorPulsePage() {
             { key: "map", label: "Map", content: mq.data ? <IndustryMapPack m={mq.data} /> : <div className="sp-sec"><p className="sp-empty">{mq.isLoading ? "Loading the map…" : tw("The map is not available right now.")}</p></div> },
             { key: "time", label: "Over time", content: h ? <Mood h={h} /> : <div className="sp-sec"><p className="sp-empty">{hq.isLoading ? "Loading the history…" : "The history is not available right now."}</p></div> },
           ]} />
-          <SxBox id="sx-chk" store="finlit-sx-box-chk" label="Checks on the price picture" sub="press one" tabs={[
+          <SxBox id="sx-chk" store="finlit-sx-box-chk" label="Three checks on the price picture" sub="press one" tabs={[
             { key: "others", label: tw("Against other industries"), content: <Momentum b={b} mine={mine} /> },
-            { key: "next", label: "What happened next", content: <Cycle b={b} /> },
+            { key: "results", label: "Against results", isNew: true, content: <PriceVsResults b={b} mine={mine} /> },
+            { key: "next", label: "What happened next", isNew: true, content: <div><Cycle b={b} /><WhatNext /></div> },
           ]} />
+          <InsideSector b={b} mine={mine} symbols={symbols} />
           <SxFold id="sx-standouts" title={tw("Standout stocks in weak industries")} line={foldLine.standouts}><Standouts b={b} /></SxFold>
           <SxFold id="sx-counted" title="Which stocks are counted, and what is too small for a reading" line={foldLine.counted}><CountedAndSmall b={b} /></SxFold>
           <Words line="Every term on this page, in plain English." />
