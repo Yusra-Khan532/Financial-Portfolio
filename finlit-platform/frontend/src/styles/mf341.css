@@ -129,3 +129,10 @@
 .mf-list .mf-freq-info > p { margin: 10px 0 0; font-size: var(--fs-12); }
 @media (max-width: 1000px) { .mf-list .mf-freq-info ul { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 760px) { .mf-list .mf-freq { padding: 12px 14px; } .mf-list .mf-freq-info ul { grid-template-columns: minmax(0, 1fr); } }
+
+/* Task #346 (23 Nov 2026, the team: "give column button inside the table"): the Columns button sits in the table's own top strip, just left of the
+   enlarge button (it was above the summary tiles, away from the table); its list opens over the table. */
+.mf-list .mf-tablecard { position: relative; }
+.mf-list .mf-tbar { position: absolute; top: 8px; right: 58px; z-index: 10; }
+.mf-list .mf-tbar .mf-cols > .btn { min-height: 36px; }
+@media (max-width: 760px) { .mf-list .mf-tbar { right: 54px; } }
