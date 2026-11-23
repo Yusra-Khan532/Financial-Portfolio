@@ -5,6 +5,7 @@ import { useUniverse } from "../../lib/screener";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useWithLatest } from "../../lib/liveQuote";
 import { apiGet, prefetchStock, useSearchIndex, useSearchQuotes, useSummary, type SearchRow } from "../../lib/api";
 import { etfGet, type EtfItem, type EtfList } from "../../lib/etf";
 import { mfGet, type FundList, type FundRow, type HotList } from "../../lib/mf";
@@ -335,7 +336,8 @@ function Preview({ it, gold, prism, today, onOpen, onClose }: { it: Item; gold: 
   const nav = useNavigate();
   const ready = it.kind === "stock" && !!it.ready;
   const s = useSummary(it.sub, ready);
-  const sum = ready && s.data && s.data.meta?.symbol === it.sub ? s.data : null;
+  const latest = useWithLatest(ready && s.data && s.data.meta?.symbol === it.sub ? s.data : undefined);   // task #338: the same latest price as the company page
+  const sum = latest ?? null;
   const up = (it.chg ?? 0) >= 0;
   return (
     <aside className="gs-pre" aria-label="Preview">
