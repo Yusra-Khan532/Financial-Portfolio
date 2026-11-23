@@ -38,7 +38,7 @@ describe("the score ranges in the address and to the server", () => {
   it("each range is a removable chip that clears only itself", () => {
     const q = withScore(withScore(DEFAULTS, "total", "65", "80"), "risk", "70", "");
     const chips = chipsFor(q).filter((c) => c.id.startsWith("sc:"));
-    expect(chips.map((c) => c.label)).toEqual(["FinLit score: Healthy (65 to under 80)", "Risk: Strong (70 or more)"]);
+    expect(chips.map((c) => c.label)).toEqual(["Mutual Fund Score: Healthy (65 to under 80)", "Risk: Strong (70 or more)"]);
     expect(chips[0].clear(q).sc).toEqual({ risk: ["70", ""] });
   });
   it("presets have no gap and no overlap: the total uses the model's labels, a part its three words", () => {

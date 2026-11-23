@@ -53,7 +53,7 @@ export function scoreRangeText(lo: string, hi: string): string {
 export const presetOf = (f: ScoreField, lo: string, hi: string) => (f === "total" ? TOTAL_PRESETS : PART_PRESETS).find((p) => p.lo === lo && p.hi === hi) ?? null;
 export const scoreChipLabel = (f: ScoreField, lo: string, hi: string) => {
   const p = presetOf(f, lo, hi);
-  return `${f === "total" ? "FinLit score" : SCORE_NAME[f]}: ${p ? p.label.replace(/ (under|\d).*$/, "") + " (" + scoreRangeText(lo, hi) + ")" : scoreRangeText(lo, hi)}`;
+  return `${f === "total" ? "Mutual Fund Score" : SCORE_NAME[f]}: ${p ? p.label.replace(/ (under|\d).*$/, "") + " (" + scoreRangeText(lo, hi) + ")" : scoreRangeText(lo, hi)}`;
 };
 
 /** The (i) explanations, from the methodology page (/methodology/mf-score): what it measures, what goes into it, how to read it, what higher and lower mean. */
