@@ -16,16 +16,21 @@ The month is the calendar month in India; the count renews on the 1st. An admini
    not listed, from a Silver or Gold member, goes to `POST /api/ask` (`frontend/src/lib/askAi.ts`).
 2. `backend/finlit/ask/api.py` checks the member (signed in, Origin, CSRF), the plan and the month's allowance (`ask/quota.py`, table `ai_usage`,
    migration 107), then streams the answer as Server-Sent Events: `meta` (questions left), `status` ("Reading the ratios (TCS)"), `text` (the words as
-   they are written), `replace` (an answer withdrawn as advice-like), `done` (the disclaimer) or `error`.
-3. `ask/service.py` runs Claude (`ASK_MODEL`, default `claude-haiku-5-5`) with 23 read-only tools (`ask/tools.py`): the FinLit MCP tools (quotes,
-   statements, ratios, shareholding, price history, FinLit IQ, results, results calendar, screener, market overview, FII/DII flows, IPOs, funds, ETFs,
-   data freshness) and the member's own Equity portfolio, mutual funds and watchlists.
+   they are written), `replace` (an answer withdrawn as advice-like, or `""` to clear the words written before a tool round), `ping` (a keep-alive
+   after 10 s of quiet), `done` (the disclaimer) or `error`. A stream that ends with neither `done` nor `error` is shown as interrupted (task #349).
+3. `ask/service.py` runs Claude (`ASK_MODEL`, default `claude-haiku-5-5`) with 34 read-only tools (`ask/tools.py`) and the web search: the company
+   page tools, the page tools of `ask/pages.py`, the FinLit MCP tools (quotes, statements, ratios, shareholding, price history, FinLit Prism, results,
+   results calendar, screener, market overview, FII/DII flows, IPOs, funds, ETFs, data freshness) and the member's own Equity portfolio, mutual funds
+   and watchlists.
 4. **Every tool calls the website's own route in-process as the member** (`ask/gateway.py`: their session cookie, CSRF token and "view as"). So the AI
    sees exactly what that member's plan shows on the website, never more; a route that refuses a plan gives the AI a "not included in this member's plan"
    message, and the answer says which plan includes it.
 5. The instructions (`service.SYSTEM`): every figure from a tool, with its period or date; a blank is said with its reason; describe, never advise;
    no disclaimer of its own (the panel shows the standard one under every answer). A finished answer that reads like advice (`service.ADVICE`: "you
-   should buy", "target price", "multibagger", "top pick", "best stock" ...) is withdrawn and replaced by a plain notice.
+   should buy", a buy / sell / hold / accumulate / reduce rating or call, "target price", "price target", an analyst's or the consensus target,
+   "multibagger", "top pick", "the best stock to buy" ...) is withdrawn and replaced by a plain notice. Task #349: a target of policy or of a plan
+   ("RBI's inflation target of 4%", "a capex target of Rs 5,000 crore", "a target range of 2% to 6%") and "FinLit does not say which is the best
+   fund" are not advice and are no longer withdrawn.
 
 ## Answer every question, in a few lines (18 Nov 2026)
 
@@ -35,7 +40,9 @@ denying an answer is embarrassing.
 
 - FinLit's data first (company cards and tools); the web (`web_search`, run by the provider, at most 2 searches an answer, results India first) for
   everything else: prospects, plans, news, management commentary, the wider economy, general questions.
-- Style: the direct answer in one sentence, then at most 4 short bullets, under 90 words; "Sources: ..." in one line when the web was used.
+- Style (task #290, 21 Nov 2026): one line that answers the question, then 2 to 4 numbered sections ("1. Business growth"), each of 1 to 3
+  short points with the figure's source in square brackets; at most about 200 words in all (task #349); a lookup or a definition in one or two
+  sentences; "Sources: ..." in one line when the web was used.
 - Never passed on from the web: analysts' buy / sell / hold ratings, target prices, price forecasts (instructions, and the final check withdraws an
   answer that has them).
 - The panel says "Searching the web" while a search runs. Daily usage counts web searches (`ask:usage:<day>` field `web_searches`).
@@ -49,16 +56,17 @@ made for an anonymous visitor, so none read FinLit Prism or the company page's o
 Now:
 
 - `get_company_card`: everything at the top of a company page in one call (NSE's four levels, market cap, price, 52-week range, FinLit Prism with its
-  parts and technical views, FinLit IQ, key ratios, returns, strengths and watch-outs, rank against NSE peers, F&O and margin trading), read from the
+  parts and technical views, key ratios, returns, strengths and watch-outs, rank against NSE peers, F&O and margin trading), read from the
   page's own routes as the member, so each part follows the plan (Prism: Gold, and the showcase company for every member).
 - `get_finlit_prism`, and `get_company_section` for every other section (peers, rank vs peers, dividends and corporate actions, segments, ownership
-  insights, company brief, IQ and Prism history, forecast, macro outlook, trading facts).
+  insights, company brief, Prism history, forecast, macro outlook, trading facts).
 - **Cards first:** the company of the page the member is on, and up to two companies the question names (`ask/companies.py`: whole names, short
   names and plurals such as "jsw steels", symbols written in capitals; loose matches need a distinctive word, so "indian banks" or "life insurance
   companies" name no company), are read before the model starts. Any wording about a company is answered from what its page shows, in one round.
   Checked against the full list of 5,745 companies: 0 false matches on 48 questions about groups of companies, 20 of 20 named companies found.
-- The instructions name FinLit Prism (and "Prism score", "rating", the dots G&P, V, Q, R, S, L), FinLit IQ, Mutual Fund Score, the peer rank and NSE's levels,
-  and forbid saying FinLit lacks a measure; times are written in India time.
+- The instructions name FinLit Prism (and "Prism score", "rating", the dots G&P, V, Q, R, S, L), Mutual Fund Score, the peer rank and NSE's levels,
+  and forbid saying FinLit lacks a measure; times are written in India time. FinLit IQ is retired: asked about it, FinLit AI says so and explains
+  FinLit Prism, FinLit's only company score.
 
 ## Reading every FinLit page (task #218, 18 Nov 2026)
 
@@ -75,7 +83,7 @@ route that page reads, as the member:
 | Insights & blog | `get_insights_and_blogs` (says plainly when nothing is published) | `/api/content` |
 | News & filings, Documents | `get_news_and_filings` (news, results filings, documents by type) | `/api/feed` |
 | Documents: the file itself | `read_company_document` (newest investor presentation, annual report or call transcript; the pages that answer, with page numbers and the link) | `/api/feed`, then the PDF from the exchange archive (`earnings/transcripts.Fetcher`: exchange hosts only, robots.txt, byte cap, relay on 403); the newest 24 files stay in memory |
-| Basic and Advanced stock screeners | `screen_by_finlit_score` (FinLit IQ or FinLit Prism, by range, sector, size) | `/api/screener/universe` |
+| Basic and Advanced stock screeners | `screen_by_finlit_score` (FinLit Prism, by range, sector, size) | `/api/screener/universe` |
 
 The company report, Prism report, stock screener, portfolios, FII/DII flows and results calendar already had tools. The instructions name every page
 and its tool, FinLit's page before the web. **Links:** the `done` event carries `pages` (`[{to, label}]`, at most four, made by `pages.page_links`
@@ -88,9 +96,15 @@ is in `frontend/src/lib/feed.ts docType` and `pages.doc_type`.
 
 - Instant listed answers first; the model is used only for the rest.
 - Streaming: the first words show as soon as they are written.
-- Haiku at low effort, at most 1,500 words of output, at most 4 rounds of reading, 30 seconds in all (then a clear message).
+- Haiku at low effort, at most 4 rounds of reading (a paused web search is not a round). The answer's length is set in the instructions (about 200
+  words); `max_tokens` (6,000, setting `ASK_MAX_TOKENS`) is the room for the model's thinking, its tool calls and the answer together.
+- Time (task #349): the reads before the model (the companies named, the cards, the documents) share one budget of 15 s (`api.PREREAD_SECONDS`);
+  a read not finished by then is left out. The model then has 40 s (`service.DEADLINE`); after 30 s (`service.TOOLS_UNTIL`) no more tools are
+  called and the answer is written from what was read. The stream sends a keep-alive `ping` after every 10 s of quiet, for questions and summaries.
 - The tool list and the instructions never change, so they are cached by the provider (`cache_control`): every question after the first sends less.
-  Today's date, the plan and the page's company go in the message, after the cached part.
+  The tool list is byte for byte the same for every question (task #349: the web search no longer carries a question type's `allowed_domains`,
+  which made one cache entry per type); the type's sites go in the note with the question. Today's date, the plan and the page's company go in the
+  message, after the cached part.
 - The tools of one round run together; each result is cut to about 3,000 tokens (`tools.RESULT_CAP`).
 - On a company page the company is sent with the question, so no search is needed.
 - The same first question on the same page, plan and day is answered from Redis for 30 minutes, at once and without using the allowance (never for
@@ -111,6 +125,22 @@ FinLit AI's summary has no scores.
 ## Allowance, failures and cost
 
 - A question is taken from the allowance when its answer starts; if nothing could be written (provider down, busy, too slow, declined), it is given back.
+
+## Never an empty or silent answer (task #349)
+
+1. **Out of room.** A request that ends at `max_tokens` before any answer text (the thinking took the room) or in the middle of a tool call is
+   asked once more with no tools (`tool_choice: none`): the answer is written from what was read. Every request logs its stop reason and output
+   tokens (`ask: request N stop=... output tokens=...`).
+2. **Cut answers say so.** An answer cut by `max_tokens` or by the deadline ends with "(cut short; ask for the rest)"; a refusal after some text
+   ends with "(stopped early: ...)". The panel draws these as a note under the points (`AnswerText`, `.aif-a-cut`).
+3. **Only the answer.** Words written before a tool round ("Let me check ...") are cleared (`replace` with `""`) and are not part of the answer.
+4. **Web-search refusals only.** A 400 is retried without the web search only when its message is about the web search; any other 400 is logged
+   with the provider's message and the member sees "FinLit AI could not take this question just now" (code `refused`).
+5. **Long follow-ups.** The panel cuts each earlier turn to 3,500 characters before sending it; the server cuts a turn over 4,000 instead of
+   refusing it (it used to answer 422, and every later follow-up in that chat failed the same way).
+6. **The panel never waits forever.** A stream that ends with no `done` or `error` shows "The answer was interrupted. Ask again." with an "Ask again"
+   button; an answer still running after 120 s is stopped and says so; while an answer streams, a Stop button ends it (the server stops the work
+   too). Both buttons are the shared `ui-btn` (`components/ui`).
 - At most 6 questions a minute per member, whatever the allowance.
 - Daily totals of questions and tokens: Redis hash `ask:usage:YYYY-MM-DD` (fields `questions`, `input`, `output`, `cache_read`, `cache_write`, kept 120 days).
 
@@ -120,12 +150,16 @@ FinLit AI's summary has no scores.
 |---|---|
 | `ANTHROPIC_API_KEY` | The Claude API key. Empty = written answers are off; the panel keeps its listed questions and nobody is told to upgrade for them. |
 | `ASK_MODEL` | Optional. Default `claude-haiku-5-5`. |
+| `ASK_MAX_TOKENS` | Optional. The room for one request's output (thinking, tool calls and the answer), 2,000 to 16,000. Default 6,000. |
 
 ## Tests
 
 `backend/tests/test_ask.py` (a scripted model, real Postgres and Redis, Basic / Silver / Gold members), `backend/tests/test_ask_pages.py` (the page
 tools on copies of the live site's answers, a real PDF, the links), `frontend/src/components/AssistantMore.test.tsx`
-(written answers in the panel), `frontend/src/lib/askAi.test.ts` (the event stream).
+(written answers in the panel), `frontend/src/lib/askAi.test.ts` (the event stream). Task #349: `backend/tests/test_ask_349.py` (one test per
+cause of an empty or silent answer, the advice check's positive and negative table, the cache-identical tool list), `frontend/src/lib/askAi349.test.ts`
+(a stream with no final event, the time limit, Stop, turns cut to 3,500), `frontend/src/components/AssistantStop349.test.tsx` (Ask again, Stop) and
+`frontend/src/components/AnswerText349.test.tsx` (the cut-short note).
 
 ## Discovery (task #221, 18 Nov 2026)
 

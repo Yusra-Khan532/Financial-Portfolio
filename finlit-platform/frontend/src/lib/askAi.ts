@@ -59,9 +59,39 @@ export function parseSse(buffer: string): { events: AskEvent[]; rest: string } {
   return { events, rest };
 }
 
-/** Sends one question and calls `on` for every event as it arrives. Throws AskRefused when the server refuses before answering. */
-export async function askAi(question: string, history: AskTurn[], symbol: string | null, on: (e: AskEvent) => void, signal?: AbortSignal): Promise<void> {
-  return send({ question, history: history.slice(-6), ...(symbol ? { symbol } : {}) }, on, signal);
+/** Task #349: each earlier turn sent with a follow-up is cut to this many characters (the server takes up to 4,000 and cuts the rest), so a long
+ *  answer never makes the next question fail. */
+export const TURN_CHARS = 3500;
+/** Task #349: a written answer gets this long in all; then it is stopped and the member is told, never left on "Reading…". */
+export const ASK_TIMEOUT_MS = 120_000;
+/** The codes of the error events the browser makes itself (task #349): the stream ended with no "done" or "error", or the answer took too long. */
+export const INTERRUPTED = "interrupted", TIMED_OUT = "timeout";
+
+export const trimTurn = (t: AskTurn): AskTurn => (t.content.length <= TURN_CHARS ? t : { ...t, content: t.content.slice(0, TURN_CHARS - 1).trimEnd() + "…" });
+
+/** Sends one question and calls `on` for every event as it arrives. Throws AskRefused when the server refuses before answering, and the abort
+ *  reason when `signal` stops it (the Stop button). Task #349: the answer always ends with "done" or "error": a stream that ends without either is
+ *  reported as an error event with code INTERRUPTED, and an answer still running after `timeoutMs` is stopped and reported with code TIMED_OUT. */
+export async function askAi(question: string, history: AskTurn[], symbol: string | null, on: (e: AskEvent) => void, signal?: AbortSignal,
+  timeoutMs = ASK_TIMEOUT_MS): Promise<void> {
+  const ctl = new AbortController();
+  const stop = () => ctl.abort(signal?.reason);
+  if (signal?.aborted) stop(); else signal?.addEventListener("abort", stop, { once: true });
+  let late = false;
+  const timer = setTimeout(() => { late = true; ctl.abort(); }, timeoutMs);
+  let ended = false;
+  const seen = (e: AskEvent) => { if (e.type === "done" || e.type === "error") ended = true; on(e); };
+  try {
+    await send({ question, history: history.slice(-6).map(trimTurn), ...(symbol ? { symbol } : {}) }, seen, ctl.signal);
+  } catch (err) {
+    if (!late || signal?.aborted) throw err;              // a refusal, a network failure, or the member's Stop
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", stop);
+  }
+  if (ended) return;
+  on(late ? { type: "error", code: TIMED_OUT, text: "The answer took too long and was stopped. Ask again." }
+    : { type: "error", code: INTERRUPTED, text: "The answer was interrupted. Ask again." });
 }
 
 /** Task #228: the AI summary of the company's FinLit Prism card: what it means, in words. The server writes what is asked; it uses one of the
@@ -81,15 +111,24 @@ async function send(body: Record<string, unknown>, on: (e: AskEvent) => void, si
     throw new AskRefused(res.status, body.status || "failed", body.detail || "FinLit AI could not answer just now. Please try again.", body);
   }
   const reader = res.body.getReader(), dec = new TextDecoder();
+  // Task #349: stopping (Stop, the time limit) ends the read at once, whatever the transport does with the signal
+  const cancel = () => { void reader.cancel().catch(() => undefined); };
+  signal?.addEventListener("abort", cancel, { once: true });
   let buf = "";
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buf += dec.decode(value, { stream: true });
-    const { events, rest } = parseSse(buf);
-    buf = rest;
-    events.forEach(on);
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (signal?.aborted) break;
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const { events, rest } = parseSse(buf);
+      buf = rest;
+      events.forEach(on);
+    }
+  } finally {
+    signal?.removeEventListener("abort", cancel);
   }
+  if (signal?.aborted) throw signal.reason ?? new DOMException("Aborted", "AbortError");
   const { events } = parseSse(buf + "\n\n");
   events.forEach(on);
 }
