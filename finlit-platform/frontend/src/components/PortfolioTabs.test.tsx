@@ -85,7 +85,7 @@ describe("states", () => {
   it("empty list, loading and error", () => {
     expect(text(table(silver, "finlit", "overview", "year", "ready", []))).toContain("No shares yet");
     const loading = table(silver, "finlit", "overview", "year", "loading", silver.holdings.map((h) => ({ symbol: h.symbol, name: null })));
-    expect(text(loading)).toContain("Loading the scores"); expect(text(loading)).toContain("Preparing…");
+    expect(text(loading)).toContain("Loading the scores"); expect(text(loading)).toContain("Loading…"); expect(text(loading)).not.toContain("Preparing…");   // QA 23 Nov (item 14): no answer yet = Loading; "Preparing…" only once the server says so
     expect(table(silver, "finlit", "ratios", "year", "error", [])).toContain('role="alert"');
   });
 });

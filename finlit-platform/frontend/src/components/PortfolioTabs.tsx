@@ -36,7 +36,7 @@ function ScoreBadge({ l, model }: { l: Line; model: Model }) {
   if (model === "prism" && isReady(l.ov) && (!l.ov.prism || l.ov.prism.state === "none"))
     return <span className="pzs-no" title={why || undefined}>Not rated yet<span className="sr">: {why}</span><Link to={`/prism/${encodeURIComponent(l.symbol)}`} className="pzs-go" aria-label={`Rate ${l.symbol} with Prism now`}>Rate now</Link></span>;
   if (model === "prism" && isReady(l.ov)) return <span className="pzs-no" title={why || undefined}>Not rated<span className="sr">: {why}</span></span>;
-  return <span className="faint" title={why || undefined}>{isReady(l.ov) ? MINUS : "Preparing…"}</span>;
+  return <span className="faint" title={why || undefined}>{isReady(l.ov) ? MINUS : l.ov ? "Preparing…" : "Loading…"}</span>;   // QA 23 Nov (item 14): "Loading…" until the answer comes; "Preparing…" only once the server says so
 }
 
 function ShareCell({ l, flag }: { l: Line; flag?: string }) {
@@ -159,7 +159,7 @@ export function PortfolioTable({ lines, model, tab, period, limit, state, errorT
             <tr key={l.symbol}><td><ShareCell l={l} flag={flags?.[l.symbol]} /></td>
               {isReady(h)
                 ? tab === "overview" ? <OverviewCells l={l} h={h} model={model} cols={cols} maxCap={maxCap} /> : tab === "ratios" ? <RatioCells l={l} h={h} model={model} cols={cols} /> : <FinancialCells l={l} h={h} model={model} cols={cols} period={period} />
-                : <td colSpan={cols.length - 1} className="faint pf-wait">{h ? (h.status === "preparing" ? "Preparing… " : "") + h.reason : state === "error" ? "Not loaded." : "Preparing…"}</td>}
+                : <td colSpan={cols.length - 1} className="faint pf-wait">{h ? (h.status === "preparing" ? "Preparing… " : "") + h.reason : state === "error" ? "Not loaded." : "Loading…"}</td>}
               {tab === "overview" && actions && <td className="ra">{actions(l.symbol)}</td>}</tr>); })}
             {!shown.length && <tr><td colSpan={cols.length + (tab === "overview" && actions ? 1 : 0)} className="faint" style={{ textAlign: "center", padding: 24 }}>{lines.length ? "No share matches this filter." : "No shares yet."}</td></tr>}</tbody>
           {tab === "overview" && sum.scored > 0 && !band && !q.trim() && <tfoot><tr className="pf-avg"><th scope="row">Portfolio average<small className="muted">{sum.scored} scored {sum.scored === 1 ? "share" : "shares"}, counted equally</small></th>

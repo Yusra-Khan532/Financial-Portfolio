@@ -433,7 +433,8 @@ section.block .tr-c p.tr-in { display: flex; align-items: flex-start; gap: 8px; 
 /* task #299 (the team, 21 Nov 2026: "too much content written about each and every feature"): a header menu item is its name only; its one-line
    description sits behind an i on the row's right and shows on hover, a tap or keyboard focus on the item (the side menu's #300 i, the same look) */
 .ddr { position: relative; display: grid; }
-.ddr > a { padding-right: 40px; }
+.ddr > a, .ddm .ddg .ddr > a { padding-right: 40px; }   /* QA 23 Nov (item 20): account.css's `.ddm .ddg a { padding: 9px 10px }` had taken this room back, so a long label ran under its (i) */
+.ddr > a > span:last-child { flex: 1 1 auto; min-width: 0; } .ddr > a b { white-space: normal; overflow-wrap: break-word; }   /* QA 23 Nov (item 20): a long label wraps inside the row instead of running under its (i) */
 .ddq { position: absolute; top: 50%; right: 10px; transform: translateY(-50%); display: grid; }
 .ddq-b { width: 20px; height: 20px; display: grid; place-items: center; padding: 0; border: 1px solid var(--border-strong, var(--border)); border-radius: 50%; background: var(--s1);
   color: var(--muted); font: italic 600 var(--fs-12)/1 Georgia, "Times New Roman", serif; cursor: help; opacity: .75; transition: color .15s, border-color .15s, opacity .15s; }

@@ -26,7 +26,8 @@ export type ByValue = { prism?: number | null; spread?: { score: number; band: s
 
 /** The three tiles, one per tab. `spread`: the counts behind the Diversification analytics tile (macro sectors, sectors, industries, sizes held).
  *  `byValue` (developer file 28): the figures by value once every share has a quantity; each tile's (i) says which way it counts. */
-export function topTiles(shares: Share[], page: PageFigures, model: "prism" | "finlit", spread: { macro?: number; sectors?: number; industries: number; sizes: number }, byValue: ByValue | null = null): TopTile[] {
+export function topTiles(shares: Share[], page: PageFigures, model: "prism" | "finlit", spread: { macro?: number; sectors?: number; industries: number; sizes: number }, byValue: ByValue | null = null,
+  /** QA 23 Nov (item 14): the shares' scores are still loading: the tile says so, never "Not scored" or "45 not scored" */ loading = false): TopTile[] {
   // which way a tile counts, said in its (i): by value once the score sent the figure; on Gold, the same for every share until each has a quantity
   const basis = (on: boolean) => (on ? "Each share counts by its value now." : model === "prism" && !byValue ? "Every share counts the same until each share has a quantity; then each counts by its value now." : "Every share counts the same.");
   let portfolio: TopTile;
@@ -34,8 +35,10 @@ export function topTiles(shares: Share[], page: PageFigures, model: "prism" | "f
     const sc = shares.filter((s) => s.prism != null), mean = sc.length ? Math.round(sc.reduce((a, s) => a + (s.prism as number), 0) / sc.length) : null;
     const avg = byValue?.prism != null ? Math.round(byValue.prism) : mean;
     const c = (w: string) => sc.filter((s) => prismWord5(s.prism as number) === w).length, poor = c("Poor");
-    portfolio = { id: "portfolio", k: "Portfolio", v: avg == null ? "Not scored" : `${prismWord5(avg)} · ${avg}`, tone: "good", link: "Open Portfolio",
-      sub: `Average FinLit Prism${byValue?.prism != null ? " by value" : ""}: ${c("Strong")} strong · ${c("Healthy")} healthy · ${c("Average")} average · ${c("Weak")} weak${poor ? ` · ${poor} poor` : ""}${shares.length - sc.length ? ` · ${shares.length - sc.length} not scored` : ""}`,
+    // QA 23 Nov (item 16): this tile is the average FinLit Prism of the shares; the score panel beside it is the six-part portfolio score, so each says which it is
+    const wait = loading && !sc.length;
+    portfolio = { id: "portfolio", k: "Portfolio", v: wait ? "Loading scores…" : avg == null ? "Not scored" : `${prismWord5(avg)} · ${avg}`, tone: "good", link: "Open Portfolio",
+      sub: wait ? "Reading each share's stored FinLit Prism score…" : `Average FinLit Prism of your shares${byValue?.prism != null ? ", by value" : ""}: ${c("Strong")} strong · ${c("Healthy")} healthy · ${c("Average")} average · ${c("Weak")} weak${poor ? ` · ${poor} poor` : ""}${shares.length - sc.length ? ` · ${shares.length - sc.length} ${loading ? "still loading" : "not scored"}` : ""}`,
       help: `The average FinLit Prism score of your shares, from 0 to 100, and how many read Strong, Healthy, Average, Weak or Poor. ${basis(byValue?.prism != null)}`, how: "Strong is 80 and above, Healthy 65 to 79, Average 50 to 64, Weak 35 to 49, Poor below 35. Open the tab for each share." };
   } else {
     portfolio = { id: "portfolio", k: "Portfolio", v: "FinLit Prism · see plans", tone: "good", link: "Open Portfolio",

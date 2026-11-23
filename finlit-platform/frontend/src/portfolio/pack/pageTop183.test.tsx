@@ -18,7 +18,7 @@ describe("the top of the page: the score and one tile per tab", () => {
   it("Gold reads Prism in Prism's words (Strong, Healthy, Average, Weak); a plan without Prism sees no score (task #283)", () => {
     const g = topTiles(LIST, PAGE, "prism", { industries: 22, sizes: 3, macro: 9, sectors: 13 });
     expect(g.map((t) => [t.k, t.v])).toEqual([["Portfolio", "Average · 60"], ["Diversification analytics", "74 · Fairly spread"], ["Risk analytics", "Above · β 1.31"]]);
-    expect(g[0].sub).toBe("Average FinLit Prism: 1 strong · 0 healthy · 1 average · 1 weak");
+    expect(g[0].sub).toBe("Average FinLit Prism of your shares: 1 strong · 0 healthy · 1 average · 1 weak");
     expect(JSON.stringify(g[0])).not.toMatch(/Mixed|Watch|Fair\b|\bIQ\b/);
     expect(g[1].sub).toBe("9 macro sectors · 13 sectors · 22 industries · three of the four sizes");
     expect(topTiles(LIST, PAGE, "prism", { industries: 22, sizes: 4, macro: 9, sectors: 13 })[1].sub).toBe("9 macro sectors · 13 sectors · 22 industries · all four sizes");

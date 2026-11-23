@@ -54,7 +54,9 @@ export type Voice = "own" | "list";
 export function peerSentence(shares: Share[], voice: Voice = "own"): string {
   const lead = shares.filter((s) => s.peer?.label === "leader"), lag = shares.filter((s) => s.peer?.label === "laggard");
   // task #323 (developer file 21, part 11): "One of your 12 shares leads its peers and one lags", not "lead their peers ... lag"
-  let s = `${cap(num(lead.length))} of ${voice === "list" ? "the" : "your"} ${shares.length}${voice === "list" ? "" : " shares"} ${lead.length === 1 ? "leads its" : "lead their"} peers and ${num(lag.length)} ${lag.length === 1 ? "lags" : "lag"}.`;
+  // QA 23 Nov (item 18): zero reads "None of the 7 lead their peers, and two lag." / "… and none lag", never "No of …" or "and no lag"
+  const who = (n: number) => (n === 0 ? "none" : num(n));
+  let s = `${cap(who(lead.length))} of ${voice === "list" ? "the" : "your"} ${shares.length}${voice === "list" ? "" : " shares"} ${lead.length === 1 ? "leads its" : "lead their"} peers${lead.length === 0 ? "," : ""} and ${who(lag.length)} ${lag.length === 1 ? "lags" : "lag"}.`;
   const by = new Map<string, Share[]>(); shares.forEach((x) => { if (x.industry) by.set(x.industry, [...(by.get(x.industry) ?? []), x]); });
   const mixed = [...by.entries()].filter(([, xs]) => xs.length >= 3 && xs.some((x) => x.peer?.label === "leader") && xs.some((x) => x.peer?.label === "laggard")).sort((a, b) => b[1].length - a[1].length)[0];
   if (mixed) { const [ind, xs] = mixed, a = xs.filter((x) => x.peer?.label === "leader").map((x) => x.symbol), z = xs.filter((x) => x.peer?.label === "laggard").map((x) => x.symbol);

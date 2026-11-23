@@ -54,12 +54,12 @@ export function stockLists(followed: Followed[], watch: ReadonlySet<string>, hel
 /** Task #135: the rows of All, Mutual funds and ETFs. Shares and the watchlist from the quotes and the stock list (1-year move), funds from the MF portfolio
  *  (NAV, 1-year return, Mutual Fund Score) and each fund's page answer (the last NAV move and its date). ETFs from the ETF portfolio (task #223, D1): price, the day's
  *  move, 1 year and the price against NAV, as the ETF portfolio page shows them. */
-function buildInv(lists: ReturnType<typeof stockLists>, followed: Followed[], funds: MfHolding[], details: (FundDetail | undefined)[], qm: ReturnType<typeof quoteMap>,
+export function buildInv(lists: ReturnType<typeof stockLists>, followed: Followed[], funds: MfHolding[], details: (FundDetail | undefined)[], qm: ReturnType<typeof quoteMap>,
   oneYear: ReadonlyMap<string, number | null>, qty: ReadonlyMap<string, number>, etfItems: EtfRow[] = [], heldIn?: Record<"equity" | "mf" | "etf", ReadonlyMap<string, string[]>>): { all: InvRow[]; funds: InvRow[]; etfs: InvRow[] } {
   const nameOf = new Map(followed.map((f) => [f.symbol, f.name]));
   const stock = (sym: string, kind: "share" | "watch"): InvRow => {
     const q = qm.get(sym), n = qty.get(sym);
-    return { key: kind + ":" + sym, kind, symbol: sym, name: nameOf.get(sym) || sym, sub: [nameOf.get(sym) || "", kind === "share" ? "held" : "watchlist"].filter(Boolean).join(" · "),
+    return { key: kind + ":" + sym, kind, symbol: sym, name: nameOf.get(sym) || sym, sub: [nameOf.get(sym) || "", kind === "share" ? (n != null ? "held" : "in portfolio") : "watchlist"].filter(Boolean).join(" · "),   // QA 23 Nov: "held" only with a quantity; a name with no buys is "in portfolio"
       href: `/stocks/${sym}`, alertHref: "/alerts", price: q?.price ?? null, priceWhy: q?.price == null ? "No traded price held yet" : undefined,
       day: q?.chg ?? null, y1: oneYear.get(sym) ?? null, y1Why: oneYear.get(sym) == null ? "Listed less than a year, or no price a year ago" : undefined,
       value: n != null && q?.price != null ? n * q.price : null };
