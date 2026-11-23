@@ -13,6 +13,7 @@ export type AskTurn = { role: "user" | "assistant"; content: string };
 export type AskEvent =
   | { type: "meta"; limit: number; used: number; left: number; resets: string; cached: boolean }
   | { type: "status"; text: string }
+  | ({ type: "since" } & AskSinceData)
   | { type: "text"; text: string }
   | { type: "replace"; text: string }
   | { type: "done"; disclaimer: string; sources: string[]; pages?: AskPage[] }
@@ -29,6 +30,30 @@ export function safePages(p: unknown): AskPage[] {
     if (/^\/[a-z0-9]/i.test(to) && !to.startsWith("//") && !/[\s\\]/.test(to) && label && !out.some((o) => o.to === to)) out.push({ to, label });
   }
   return out.slice(0, 4);
+}
+
+/** Task #349 PR 3: "since you last asked". When the member asked the same or a similar question 1 hour to 30 days ago, the server sends this before
+ *  the words: when and what was asked, one line per change (each with its dates), the filings since then (FinLit's own pages only) and, for the
+ *  same question, the key lines said then. */
+export type AskSinceItem = { title: string; date: string; to: string };
+export type AskSinceData = { askedAt: string; question: string; match: "strong" | "weak"; changes: string[]; newItems: AskSinceItem[]; said: string[] };
+const strs = (x: unknown, n: number, len: number): string[] =>
+  (Array.isArray(x) ? x : []).filter((s): s is string => typeof s === "string" && !!s.trim()).slice(0, n).map((s) => s.trim().slice(0, len));
+/** The `since` event, checked: unknown fields dropped, at most 12 changes, 3 filings and 8 points; each filing's link one of this site's pages
+ *  (the same rule as safePages), or the filing is left out. Null when it is not a usable event. */
+export function safeSince(e: unknown): AskSinceData | null {
+  const r = e as Partial<Record<keyof AskSinceData, unknown>> | null;
+  if (!r || typeof r.askedAt !== "string" || Number.isNaN(Date.parse(r.askedAt))) return null;
+  const items: AskSinceItem[] = [];
+  for (const x of Array.isArray(r.newItems) ? r.newItems : []) {
+    const it = x as Partial<AskSinceItem> | null;
+    const title = typeof it?.title === "string" ? it.title.trim().slice(0, 140) : "";
+    const page = safePages([{ to: it?.to, label: title }])[0];
+    if (page && title && typeof it?.date === "string" && /^\d{4}-\d{2}-\d{2}/.test(it.date)) items.push({ title, date: it.date.slice(0, 10), to: page.to });
+    if (items.length >= 3) break;
+  }
+  return { askedAt: r.askedAt, question: typeof r.question === "string" ? r.question.slice(0, 500) : "", match: r.match === "weak" ? "weak" : "strong",
+    changes: strs(r.changes, 12, 240), newItems: items, said: r.match === "weak" ? [] : strs(r.said, 8, 200) };
 }
 
 /** Why a question could not be sent at all (before any answer): not signed in, the allowance used, not switched on, or another refusal. */
@@ -59,9 +84,40 @@ export function parseSse(buffer: string): { events: AskEvent[]; rest: string } {
   return { events, rest };
 }
 
-/** Sends one question and calls `on` for every event as it arrives. Throws AskRefused when the server refuses before answering. */
-export async function askAi(question: string, history: AskTurn[], symbol: string | null, on: (e: AskEvent) => void, signal?: AbortSignal): Promise<void> {
-  return send({ question, history: history.slice(-6), ...(symbol ? { symbol } : {}) }, on, signal);
+/** Task #349: each earlier turn sent with a follow-up is cut to this many characters (the server takes up to 4,000 and cuts the rest), so a long
+ *  answer never makes the next question fail. */
+export const TURN_CHARS = 3500;
+/** Task #349: a written answer gets this long in all; then it is stopped and the member is told, never left on "Reading…". */
+export const ASK_TIMEOUT_MS = 120_000;
+/** The codes of the error events the browser makes itself (task #349): the stream ended with no "done" or "error", or the answer took too long. */
+export const INTERRUPTED = "interrupted", TIMED_OUT = "timeout";
+
+export const trimTurn = (t: AskTurn): AskTurn => (t.content.length <= TURN_CHARS ? t : { ...t, content: t.content.slice(0, TURN_CHARS - 1).trimEnd() + "…" });
+
+/** Sends one question and calls `on` for every event as it arrives. Throws AskRefused when the server refuses before answering, and the abort
+ *  reason when `signal` stops it (the Stop button). Task #349: the answer always ends with "done" or "error": a stream that ends without either is
+ *  reported as an error event with code INTERRUPTED, and an answer still running after `timeoutMs` is stopped and reported with code TIMED_OUT. */
+export async function askAi(question: string, history: AskTurn[], symbol: string | null, on: (e: AskEvent) => void, signal?: AbortSignal,
+  timeoutMs = ASK_TIMEOUT_MS, opts: { fresh?: boolean } = {}): Promise<void> {
+  const ctl = new AbortController();
+  const stop = () => ctl.abort(signal?.reason);
+  if (signal?.aborted) stop(); else signal?.addEventListener("abort", stop, { once: true });
+  let late = false;
+  const timer = setTimeout(() => { late = true; ctl.abort(); }, timeoutMs);
+  let ended = false;
+  const seen = (e: AskEvent) => { if (e.type === "done" || e.type === "error") ended = true; on(e); };
+  try {
+    // task #349 PR 3: `fresh` asks for the full answer, without "since you last asked"
+    await send({ question, history: history.slice(-6).map(trimTurn), ...(symbol ? { symbol } : {}), ...(opts.fresh ? { fresh: true } : {}) }, seen, ctl.signal);
+  } catch (err) {
+    if (!late || signal?.aborted) throw err;              // a refusal, a network failure, or the member's Stop
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", stop);
+  }
+  if (ended) return;
+  on(late ? { type: "error", code: TIMED_OUT, text: "The answer took too long and was stopped. Ask again." }
+    : { type: "error", code: INTERRUPTED, text: "The answer was interrupted. Ask again." });
 }
 
 /** Task #228: the AI summary of the company's FinLit Prism card: what it means, in words. The server writes what is asked; it uses one of the
@@ -81,15 +137,24 @@ async function send(body: Record<string, unknown>, on: (e: AskEvent) => void, si
     throw new AskRefused(res.status, body.status || "failed", body.detail || "FinLit AI could not answer just now. Please try again.", body);
   }
   const reader = res.body.getReader(), dec = new TextDecoder();
+  // Task #349: stopping (Stop, the time limit) ends the read at once, whatever the transport does with the signal
+  const cancel = () => { void reader.cancel().catch(() => undefined); };
+  signal?.addEventListener("abort", cancel, { once: true });
   let buf = "";
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buf += dec.decode(value, { stream: true });
-    const { events, rest } = parseSse(buf);
-    buf = rest;
-    events.forEach(on);
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (signal?.aborted) break;
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const { events, rest } = parseSse(buf);
+      buf = rest;
+      events.forEach(on);
+    }
+  } finally {
+    signal?.removeEventListener("abort", cancel);
   }
+  if (signal?.aborted) throw signal.reason ?? new DOMException("Aborted", "AbortError");
   const { events } = parseSse(buf + "\n\n");
   events.forEach(on);
 }
