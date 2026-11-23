@@ -110,8 +110,8 @@ export function MfScreenerPage() {
         <span className="mfs-pl">Preset screens</span>
         <div className="mfs-prow">
           {PRESETS.map((p) => { const on = presetOn(q, p); return (
-            <button key={p.id} type="button" className={"fgx-chip mfs-preset" + (on ? " is-on" : "")} aria-pressed={on} disabled={!!p.off} title={p.off ?? p.say}
-              onClick={() => (on ? reset() : setSp(queryToParams(p.set(DEFAULTS)), { replace: false }))}>{on && <i aria-hidden="true">&#10003;</i>}{p.label}{p.off && <Icon name="lock" />}</button>); })}
+            <button key={p.id} type="button" className={"fgx-chip mfs-preset" + (on ? " is-on" : "")} aria-pressed={on} disabled={!!p.off || (!!p.gold && !gold)} title={p.off ?? (p.gold && !gold ? "The Mutual Fund Score filter is part of the Gold plan." : p.say)}
+              onClick={() => (on ? reset() : setSp(queryToParams(p.set(DEFAULTS)), { replace: false }))}>{on && <i aria-hidden="true">&#10003;</i>}{p.label}{(p.off || (p.gold && !gold)) && <Icon name="lock" />}</button>); })}
           {saved.map((s) => (
             <span key={s.name} className="mfs-saved"><button type="button" className="fgx-chip" onClick={() => setSp(new URLSearchParams(s.query))} title="A screen you saved in this browser">{s.name}</button>
               <button type="button" className="mfs-x" aria-label={`Delete the saved screen ${s.name}`} onClick={() => dropSaved(s.name)}>×</button></span>))}

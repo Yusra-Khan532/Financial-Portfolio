@@ -141,6 +141,6 @@ export const COMING: { id: string; label: string; why: string; route: string }[]
   { id: "capmix", label: "Large, mid and small cap share of holdings", why: "Needs the half-yearly AMFI large / mid / small list joined to holdings by ISIN.", route: "AMFI half-yearly cap list (F-D), or Nifty 100 / Midcap 150 / Smallcap 250 constituents (F-E)." },
   { id: "pe", label: "Portfolio P/E, P/B, quality and health", why: "Needs holdings joined to the stock database's ratios by ISIN.", route: "Join disclosure holdings to company ratios (F-E where a stock has none)." },
   { id: "moves", label: "Recent moves in a stock", why: "Needs two stored month-ends of holdings; only the latest is kept per fund today.", route: "Keep every month's holdings from now on (F-G)." },
-  { id: "score", label: "Pillar scores and rank inside group", why: "The Mutual Fund Score has its own column in the table for Gold members; its pillar scores and its rank inside the group are on the Fund score screener.", route: "Use the Fund score screener." },
+  { id: "score", label: "Rank inside group", why: "The score and its four parts are filters under FinLit Mutual Fund Score for Gold members; the rank inside the group is on the Fund score screener.", route: "Use the Fund score screener." },
   { id: "etfpanel", label: "ETF panel: traded value, premium or discount, 52-week range", why: "ETF price data exists but the panel is not built yet.", route: "Already stored in the ETF tables; next build." },
 ];

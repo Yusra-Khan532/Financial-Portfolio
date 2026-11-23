@@ -131,12 +131,12 @@ def test_the_other_kinds_name_their_finlit_tools_and_sites():
 def test_the_note_names_finlits_tools_first_and_the_sites_and_asks_for_site_and_date():
     n = R.note(["financials"])
     assert n.startswith("[Sources for this question") and "a company's financials: FinLit first (get_company_card, get_company_section, get_finlit_prism)" in n
-    assert "then on the web prefer Moneycontrol (moneycontrol.com)" in n and "The web search keeps to these sites." in n
+    assert "then on the web prefer Moneycontrol (moneycontrol.com)" in n and 'Search only these sites: put site: and one of them in the query (for example "site:moneycontrol.com")' in n
     assert "Name the site and the date of every figure taken from the web." in n
     e = R.note(["economy"])
     assert "the economy: FinLit first (get_india_economy)" in e and "Reserve Bank of India (RBI) (rbi.org.in)" in e
     m = R.note(["economy", "news"])
-    assert "the economy:" in m and "daily news:" in m and "keeps to these sites" not in m        # mixed: both routes, open search
+    assert "the economy:" in m and "daily news:" in m and "Search only these sites" not in m        # mixed: both routes, open search
     s = R.note(["sector:auto"])
     assert "automobiles: FinLit first (get_finance_framework)" in s and "Society of Indian Automobile Manufacturers (SIAM) (siam.in)" in s
     assert R.note([]) == ""
@@ -149,12 +149,11 @@ def test_one_kind_limits_the_web_search_and_a_mix_or_none_keeps_it_open():
     assert R.web_domains(["economy", "news"]) is None and R.web_domains([]) is None
 
 
-def test_the_tool_list_keeps_its_order_and_only_the_web_entry_changes():
-    open_, econ = T.definitions(), T.definitions(R.web_domains(["economy"]))
-    assert [d["name"] for d in open_] == [d["name"] for d in econ] and open_[-1]["name"] == "web_search"
-    assert open_[:-1] == econ[:-1]                                              # FinLit's tools: the same text, so their cache stays
-    assert "allowed_domains" not in open_[-1] and econ[-1]["allowed_domains"][0] == "rbi.org.in"
-    assert econ[-1]["max_uses"] == 2 and econ[-1]["user_location"]["country"] == "IN"
+def test_the_tool_list_is_one_list_for_every_kind_and_the_web_keeps_two_searches_india_first():
+    # task #349: the kind's sites are no longer the web search's allowed_domains (one cache entry per kind); they are named in the note
+    d = T.definitions()
+    assert d[-1]["name"] == "web_search" and "allowed_domains" not in d[-1]
+    assert d[-1]["max_uses"] == 2 and d[-1]["user_location"]["country"] == "IN"
 
 
 # ------------------------------------------------------------------------------------------------ 5. the note with the question; the scripted answer
@@ -198,11 +197,12 @@ async def test_the_note_goes_with_the_question_and_the_search_keeps_to_the_kinds
 
     async def emit(e, d):
         events.append((e, d))
-    res = await service.answer(client, "m", NS(), msgs, emit, None, R.web_domains(kinds))
+    res = await service.answer(client, "m", NS(), msgs, emit)
     sent = client.calls[0]
     user = sent["messages"][-1]["content"]
     assert "the economy: FinLit first (get_india_economy)" in user and user.endswith("repo rate kya hai")
-    assert sent["tools"][-1]["allowed_domains"][:2] == ["rbi.org.in", "data.rbi.org.in"]
+    assert 'Search only these sites: put site: and one of them in the query (for example "site:rbi.org.in")' in user   # task #349: in the note
+    assert sent["tools"] == T.definitions() and "allowed_domains" not in sent["tools"][-1]                              # the cached list is untouched
     assert "Sources for this question" not in sent["system"][0]["text"]           # never in the cached system prompt
     assert res["text"].startswith("The repo rate")
 
@@ -214,8 +214,8 @@ async def test_a_mixed_question_searches_openly():
 
     async def emit(e, d):
         return None
-    await service.answer(client, "m", NS(), msgs, emit, None, R.web_domains(R.classify(q)))
-    assert "allowed_domains" not in client.calls[0]["tools"][-1]
+    await service.answer(client, "m", NS(), msgs, emit)
+    assert "allowed_domains" not in client.calls[0]["tools"][-1] and "Search only these sites" not in client.calls[0]["messages"][-1]["content"]
 
 
 def test_the_instructions_ask_for_the_site_and_date_of_web_figures_and_the_framework_lists_sources_by_kind():

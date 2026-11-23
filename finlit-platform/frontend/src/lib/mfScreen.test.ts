@@ -75,9 +75,12 @@ describe("preset screens", () => {
       expect(presetOn({ ...q, family: true }, p), p.id).toBe(false);
     }
   });
-  it("the preset that needs the score filter is off and never applies", () => {
+  it("task #350: the score preset works now (Gold): total 65 or more and expense ratio at or below the category median", () => {
     const p = PRESETS.find((x) => x.id === "score-cost")!;
-    expect(p.off).toBeTruthy(); expect(presetOn(DEFAULTS, p)).toBe(false);
+    expect(p.off).toBeFalsy(); expect(p.gold).toBe(true); expect(presetOn(DEFAULTS, p)).toBe(false);
+    const q = p.set(DEFAULTS);
+    expect(q.sc).toEqual({ total: ["65", ""] }); expect(q.rng.ter_rel).toEqual(["", "1"]);
+    expect(queryToParams(q).getAll("sc")).toEqual(["total:65:"]);
   });
   it("preset names never recommend", () => {
     const words = /\b(buy|sell|hold|reduce|avoid|accumulate|target|best|top pick)\b/i;

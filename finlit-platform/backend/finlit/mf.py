@@ -2233,6 +2233,9 @@ async def list_funds(request: Request, q: str = Query("", max_length=80), catego
         scr = screen_spec.parse(request.query_params, ctx)
     except screen_spec.ScreenError as exc:
         raise fail(400, "bad_request", str(exc))
+    if scr.scores:   # task #350: a Mutual Fund Score filter says what the score says: Gold only, like the score sort
+        from .mfscore.api import require_score_plan
+        await require_score_plan(request)
     key = json.dumps([q.strip().lower(), scr.key, scr.family, sort, dir, page, size, extra], default=str)
 
     async def build():
@@ -2263,7 +2266,7 @@ async def list_funds(request: Request, q: str = Query("", max_length=80), catego
         return {"total": total, "page": page, "size": size, "pages": max(1, math.ceil(total / size)), "items": items, "peers": peers,
                 "checklist": {"checks": [{"key": k, "rule": t} for k, t in CHECKS], "minPeers": CHECK_MIN_PEERS}, **facts}
     res = await cached_json(request, "list", key, build)
-    if sort == "score":
+    if sort == "score" or scr.scores:
         res.headers["Cache-Control"], res.headers["Vary"] = "private, no-store", "Cookie"
     return res
 
@@ -2302,6 +2305,9 @@ async def filters(request: Request, screen: bool = False, fields: str = Query(""
             scr = screen_spec.parse(request.query_params, ctx)
         except screen_spec.ScreenError as exc:
             raise fail(400, "bad_request", str(exc))
+        if scr.scores:   # task #350: counts under a score filter tell the score too: Gold only
+            from .mfscore.api import require_score_plan
+            await require_score_plan(request)
         if fields.strip():
             want = {f.strip() for f in fields.split(",") if f.strip()}
             bad = sorted(want - set(screen_spec.NUM_BY_KEY))
@@ -2338,7 +2344,10 @@ async def filters(request: Request, screen: bool = False, fields: str = Query(""
         if block is not None:
             out["screen"] = block
         return out
-    return await cached_json(request, "filters", "all" if scr is None else json.dumps(["screen", q.strip().lower(), scr.key, scr.family, sorted(want or [])], default=str), build)
+    res = await cached_json(request, "filters", "all" if scr is None else json.dumps(["screen", q.strip().lower(), scr.key, scr.family, sorted(want or [])], default=str), build)
+    if scr is not None and scr.scores:   # task #350: never in a shared cache while a score filter is on
+        res.headers["Cache-Control"], res.headers["Vary"] = "private, no-store", "Cookie"
+    return res
 
 
 RANGES = (("1M", 1), ("6M", 6), ("1Y", 12), ("3Y", 36), ("5Y", 60), ("10Y", 120))
