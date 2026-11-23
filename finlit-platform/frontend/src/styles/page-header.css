@@ -63,6 +63,6 @@ section.ph.card { padding: 14px 18px 16px; }
 @media print { .ph { animation: none; } .ph-art-box { display: none; } }
 
 /* Task #345 (23 Nov 2026, Mutual funds list page): a header button with a gold edge and a gold crown (Fund industry trends, Import my funds). */
-.ph-lk.ph-gold { border-color: var(--gold); }
-.ph-lk.ph-gold:hover { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 10%, transparent); }
+.ph-lk.ph-gold { border-color: color-mix(in srgb, var(--gold) 60%, transparent); background: color-mix(in srgb, var(--gold) 10%, transparent); }   /* task #350: a subtle gold tint and border (Gold features) */
+.ph-lk.ph-gold:hover { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 18%, transparent); }
 .ph-lk .ph-crown { width: 15px; height: 15px; flex: none; color: var(--gold); }

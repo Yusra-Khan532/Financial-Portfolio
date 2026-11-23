@@ -21,8 +21,8 @@ const EXTRA: Record<string, string> = {
 const ALL: NavItem[] = [...SECTIONS, MORE].flatMap((s) => s.groups.flatMap((g) => g.items)).concat(PRICING);
 const base = (to: string) => to.split(/[?#]/)[0].replace(/(.)\/+$/, "$1");
 
-export type PhLink = string | { to: string; label?: string; primary?: boolean };
-export type ResolvedLink = { to: string; label: string; primary: boolean };
+export type PhLink = string | { to: string; label?: string; primary?: boolean; /** task #351: a Gold feature: gold border and tint with a crown */ gold?: boolean };
+export type ResolvedLink = { to: string; label: string; primary: boolean; gold?: boolean };
 
 /** The button for an address, or null when the site has no such page (it is then left out, never shown broken). */
 export function resolveLink(l: PhLink): ResolvedLink | null {
@@ -32,7 +32,7 @@ export function resolveLink(l: PhLink): ResolvedLink | null {
   const label = ("label" in o && o.label) || SHORT[b] || it?.label || EXTRA[b];
   const dyn = /^\/(stocks|funds|etfs|outlook|prism)\/[^/]+$/.test(b);   // a company / fund page: needs a label from the caller
   if (!label || (!it && !(b in EXTRA) && !(dyn && ("label" in o && o.label)))) return null;
-  return { to: o.to, label, primary: !!(typeof l !== "string" && l.primary) };
+  return { to: o.to, label, primary: !!(typeof l !== "string" && l.primary), ...(typeof l !== "string" && l.gold ? { gold: true } : {}) };
 }
 export const resolveLinks = (ls: PhLink[] = [], max = 4): ResolvedLink[] => ls.map(resolveLink).filter((x): x is ResolvedLink => !!x).slice(0, max);
 
