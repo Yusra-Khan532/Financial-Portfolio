@@ -24,4 +24,10 @@ describe("Correlation charts, Which companies (task #313)", () => {
     expect(rule(".adv-field")).toContain("display: grid");            // as before
     expect(rule(".adv-field label")).toContain("display: grid");      // as before (the company search and index pickers use it)
   });
+  it("rework (23 Nov, 'reduce the font size'): the Sector, Industry and Index lists are 13px with tighter rows, and each option names itself in full", () => {
+    expect(css).toMatch(/@media \(min-width: 701px\) \{ \.adv-fgrid select\[multiple\], \.adv-fgrid select, \.adv-fgrid input:not\(\[type="checkbox"\]\) \{ font-size: var\(--fs-13\) !important; \} \}/);   // beats typescale's 16px !important on a desktop only
+    expect(rule(".adv-fgrid select[multiple] option")).toContain("padding: 2px 6px");
+    const page = readFileSync(new URL("../pages/AdvancedCharts.tsx", import.meta.url), "utf8");
+    expect(page).toContain("<option key={o.v} value={o.v} title={o.l}>{o.l}</option>");
+  });
 });
