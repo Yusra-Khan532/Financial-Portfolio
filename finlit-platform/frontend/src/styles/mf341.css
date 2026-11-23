@@ -185,3 +185,13 @@
 }
 .mf-list .mf-catside fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 .mf-list .mf-catside .mf-alln { display: none; }   /* the section's own header already says "N of M selected" */
+
+/* Task #348 (23 Nov 2026, the team: "make the information and numbers center aligned in the table and make the column lines more evident"): every
+   column of the scheme table, its heading, its figures and the small band words under them, is centred (the Scheme column keeps names left, easier
+   to read, and is not marked in the team's pictures); every column has a clear line on its left (the strong border colour, light and dark alike). */
+.mf-list .mf-table thead th:not(:first-child), .mf-list .mf-table td, .mf-list .mf-table th.num, .mf-list .mf-table td.num, .mf-list .mf-table th.txt, .mf-list .mf-table td.txt { text-align: center; }
+.mf-list .mf-table td .mf-rf, .mf-list .mf-table td .mf-grf, .mf-list .mf-table td .mf-aum { justify-items: center; }
+.mf-list .mf-table td .mf-rf small, .mf-list .mf-table td .mf-grf .mf-gr { text-align: center; }
+.mf-list .mf-table thead th .mf-sort { justify-content: center; margin-inline: auto; }
+.mf-list .mf-table thead th:not(:first-child), .mf-list .mf-table tbody td { border-left: 1px solid var(--border-strong); }
+.mf-list .mf-table .mf-grouprow th + th { border-left: 1px solid var(--border-strong); }
