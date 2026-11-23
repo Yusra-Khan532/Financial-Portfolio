@@ -97,7 +97,9 @@ describe("SPEC §1: three linked lists", () => {
 
 describe("SPEC §3 and §4: rating words and trend words", () => {
   it("rating words from the Prism score: 80+, 65-79, 50-64, 35-49, below 35, none", () => {
-    expect([80, 79.9, 65, 64.5, 50, 49, 35, 34.9, 0, null].map(ratingOfScore)).toEqual(["STRONG", "HEALTHY", "HEALTHY", "AVERAGE", "AVERAGE", "WEAK", "WEAK", "POOR", "POOR", "NOT RATED"]);
+    expect([80, 79.4, 65, 64.4, 50, 49, 35, 34.4, 0, null].map(ratingOfScore)).toEqual(["STRONG", "HEALTHY", "HEALTHY", "AVERAGE", "AVERAGE", "WEAK", "WEAK", "POOR", "POOR", "NOT RATED"]);
+    // QA 23 Nov: the word follows the whole number the table shows: 64.6 shows "65" and reads Healthy like a 65.4 (ICICIBANK and AXISBANK both 65)
+    expect([64.6, 65.4, 79.5, 34.5, 49.5].map(ratingOfScore)).toEqual(["HEALTHY", "HEALTHY", "STRONG", "WEAK", "AVERAGE"]);
   });
   it("five trend words, from the Prism card's edges", () => {
     expect([60, 25, 0, -25, -70, null].map(trend5Of)).toEqual(["su", "u", "s", "d", "sd", null]);

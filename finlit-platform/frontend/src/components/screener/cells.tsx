@@ -11,8 +11,8 @@ import { LABEL_WORD, PRISM_STATUS_WORD, hasPrism, prismCell, prismReason } from 
  *  Average 50-64, Weak 35-49, Poor below 35); a company without one says why and (Gold) links to its Prism page, which starts the calculation. */
 export const PrismScore = ({ r, gold }: { r: Item; gold: boolean }) => {
   if (hasPrism(r)) {
-    const tone = scoreBand(r.prism_final), rating = ratingOfScore(r.prism_final), word = LABEL_WORD[rating];
-    return (<span className="pzs pzs-w"><span className={"ssp pzs-n " + tone}>{Math.round(r.prism_final as number)}</span><b className={"pzs-bw pzs-bw-" + rating.toLowerCase().replace(" ", "")}>{word}</b>{r.prism_status && r.prism_status !== "RATED" && <small className="pzs-st">{PRISM_STATUS_WORD[r.prism_status] ?? r.prism_status}</small>}</span>);
+    const shown = Math.round(r.prism_final as number), tone = scoreBand(shown), rating = ratingOfScore(shown), word = LABEL_WORD[rating];   // the number, its colour and its word from one value
+    return (<span className="pzs pzs-w"><span className={"ssp pzs-n " + tone}>{shown}</span><b className={"pzs-bw pzs-bw-" + rating.toLowerCase().replace(" ", "")}>{word}</b>{r.prism_status && r.prism_status !== "RATED" && <small className="pzs-st">{PRISM_STATUS_WORD[r.prism_status] ?? r.prism_status}</small>}</span>);
   }
   const why = prismReason(r, gold), cell = prismCell(r, gold);
   if (cell === "locked") return <span className="ssp na" title={why}><Icon name="lock" /><span className="sr">Not available: {why}</span></span>;

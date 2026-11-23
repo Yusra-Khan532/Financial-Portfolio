@@ -78,6 +78,9 @@ export function DiscBlock({ d, name }: { d: PanelDisc; name: string }) {
 }
 type Bar = { t: string; o: number | null; h: number | null; l: number | null; c: number; v: number | null; e: Record<string, number | null> };
 
+/** The day of a candle as "20 Nov" (QA 23 Nov: the panel's price had no date, so a chart a close or two behind the list read as a wrong price). */
+export const candleDay = (t: string): string => { const d = new Date(`${String(t).slice(0, 10)}T00:00:00Z`); return Number.isNaN(d.getTime()) ? String(t) : d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }); };
+
 /** Weekly candles from daily bars: first open, highest high, lowest low, last close, the week's volume, dated on the last trading day. */
 export function toWeekly(b: Bar[]): Bar[] {
   const out: Bar[] = []; let key = "";
@@ -309,7 +312,7 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false }: { ro
         {onStep && <span className="cp-nav" role="group" aria-label="Move between companies"><button type="button" onClick={() => onStep(-1)} aria-label="Previous company (up arrow)" title="Previous company (↑)">↑</button><button type="button" onClick={() => onStep(1)} aria-label="Next company (down arrow)" title="Next company (↓)">↓</button></span>}
         {!inline && <button type="button" className="cp-x" onClick={onClose} aria-label="Close chart">×</button>}
       </header>
-      <div className="cp-p"><b>₹{num(lastBar?.c ?? row.price)}</b>
+      <div className="cp-p"><b>₹{num(lastBar?.c ?? row.price)}</b>{lastBar && <small className="cp-asof" title="The chart's last candle. The list beside it shows the latest close, which can be newer while this chart is refreshed.">close of {candleDay(lastBar.t)}</small>}
         {r1 != null && <span title="Change over the last month">1M {pct(r1)}</span>}{r3 != null && <span title="Change over the last 3 months">3M {pct(r3)}</span>}
         {chg != null && <span className="cp-rng" title={`Change over the chart range (${opt.range})`}>{opt.range} {pct(chg)}</span>}
         {model && <ScoreChip className="cp-badge" v={scoreView(prismMap[row.symbol])} />}</div>

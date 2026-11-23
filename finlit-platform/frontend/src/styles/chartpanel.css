@@ -7,6 +7,7 @@
 .cp-p { display: flex; align-items: baseline; gap: 10px; font-size: var(--fs-24); }
 .cp-p span { font-size: var(--fs-14); }
 .cp-p .up { color: var(--gain); } .cp-p .dn { color: var(--loss); }
+.cp-p .cp-asof { font-size: var(--fs-13); color: var(--muted); font-weight: var(--ui-fw-medium); }   /* QA 23 Nov: the day of the last candle beside the price */
 .cp-p > span { white-space: nowrap; }   /* "6M -1.82%" never breaks across two lines (task #100) */
 .cp-f a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .cp-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }

@@ -64,7 +64,7 @@ export function figureText(figure: string | undefined, v: number | null): { t: s
 }
 
 /** A Top 10 screen: the API names it so ("Top 10 of 40 that pass"), or flags it. */
-export const isTop10 = (p: Preset) => !!p.top10 || /^Top \d+ of /.test(p.listText ?? "");
+export const isTop10 = (p: Preset) => !!p.top10 || /^Top \d+ of |the top \d+ first/.test(p.listText ?? "");
 
 /** One card: the name and one line of figures (pack R3). */
 export function Card({ p, group, on, planName, onPick, past }: { p: Preset; group: PresetGroup; on: boolean; planName: string; onPick: () => void;

@@ -722,6 +722,14 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
             m = re.search(rb'"version"\s*:\s*(\d+)', raw if isinstance(raw, bytes) else raw.encode())
             if m and int(m.group(1)) < SNAPSHOT_VERSION and await app.state.store.redis.set(f"repair:{symbol}:{statement}", 1, nx=True, ex=1800):
                 await app.state.store.enqueue(symbol, statement)
+                return
+            # QA 23 Nov: a chart opened only from a screener kept the candles of the day its report was built (NRL to 20 Nov, Keltech to 18 Nov) while the
+            # list showed the newest close. A report older than a day is refreshed as the full report does it (at most once an hour); the stored one is served now.
+            g = re.search(rb'"generatedAt"\s*:\s*"([^"]+)"', raw if isinstance(raw, bytes) else raw.encode())
+            if g:
+                made = datetime.fromisoformat(g.group(1).decode().replace("Z", "+00:00"))
+                if (datetime.now(made.tzinfo) - made).total_seconds() > 24 * 3600 and await app.state.store.redis.set(f"refresh:{symbol}:{statement}", 1, nx=True, ex=3600):
+                    await app.state.store.enqueue(symbol, statement)
         except Exception:   # nosec B110 - a failed check never stops the chart from being served
             pass
 
