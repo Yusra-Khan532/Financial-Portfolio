@@ -65,3 +65,49 @@ export function useEtfBook(on: boolean, names: string[]) {
   const withNames = [...rows, ...nameRows(names, rows, first)];
   return { rows: withNames, own: rows, pfs, ready, err, store, accounts, touch: save, get: () => [...cur.current.rows, ...withNames.filter((h) => !h.owned)], pending: () => dirty.current };
 }
+
+// ------------------------------------------------------------------------------------------------ developer file 35: a broker file into one account
+/** One ETF of a broker file (quantity, average buy price when the file has one). */
+export type FileItem = { symbol: string; qty: number | null; avg?: number };
+/** What a broker file does to one account of the book (the ETF page's Import, into the account picked under "ETFs you add or upload go to"):
+ *   - an ETF with no buys in this account: the file's line becomes its buy (`added`), whatever other accounts hold of it;
+ *   - with buys here and "Keep what I have": left as it is (`kept`);
+ *   - with buys here and "Use the file's quantities": one buy (or a quantity from before buys existed) takes the file's units (`set`); its price is the
+ *     file's average buy price, or, when the file has none, the buy's own price if the units went down (what is left of the same buy), else none (the
+ *     extra units' cost is not in the file: the page asks for it). Already the file's: `same`. Several buys, or a sale: not changed (`several`), because
+ *     one line of a holdings file cannot say which buy changed; the member changes them under Edit.
+ *  The server sets each ETF's units from every account's buys when the book is saved, so the units are set here, in the book. Until this file the
+ *  import only sent "replace" to the list, and the book saved right after put each ETF's units back to its buys'. */
+export function fileIntoAccount(own: Holding[], items: FileItem[], pf: string, useFile: boolean):
+  { adds: Omit<Holding, "id">[]; updates: { id: string; symbol: string; patch: Partial<Holding> }[]; added: string[]; set: string[]; same: string[]; kept: string[]; several: string[] } {
+  const out = { adds: [] as Omit<Holding, "id">[], updates: [] as { id: string; symbol: string; patch: Partial<Holding> }[], added: [] as string[], set: [] as string[], same: [] as string[], kept: [] as string[], several: [] as string[] };
+  for (const it of items) {
+    if (!(it.qty != null && it.qty > 0)) continue;
+    const mine = own.filter((h) => h.symbol === it.symbol && (h.pf ?? DEFAULT_PF) === pf && h.owned);
+    if (!mine.length) { out.adds.push({ symbol: it.symbol, qty: it.qty, price: it.avg ?? 0, owned: true, pf }); out.added.push(it.symbol); continue; }
+    if (!useFile) { out.kept.push(it.symbol); continue; }
+    const one = mine.length === 1 && mine[0].side !== "sell" ? mine[0] : null;
+    if (!one) { out.several.push(it.symbol); continue; }
+    const price = it.avg != null && it.avg > 0 ? it.avg : it.qty <= one.qty && one.price > 0 ? one.price : 0;
+    if (Math.abs(one.qty - it.qty) < 1e-9 && Math.abs((one.price || 0) - price) < 0.005) { out.same.push(it.symbol); continue; }
+    out.updates.push({ id: one.id, symbol: it.symbol, patch: { qty: it.qty, price } }); out.set.push(it.symbol);
+  }
+  return out;
+}
+
+/** The line after the import: "Imported into First account: 1 added; units set to the file's for NIFTYBEES and GOLDBEES; BANKBEES has several buys or a
+ *  sale in this account, so its units were not set: change them under Edit. The file's average buy price went to HDFCMID150 and NIFTYBEES." */
+export function fileMessage(account: string, r: { added: string[]; set: string[]; same: string[]; kept: string[]; several: string[] }, opts: { traded?: number; priced?: string[]; unpricedSet?: string[] } = {}): string {
+  const list = (xs: string[]) => (xs.length <= 3 ? (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`) : `${xs.slice(0, 3).join(", ")} and ${xs.length - 3} more`);
+  const one = (xs: string[]) => xs.length === 1;
+  const n = r.added.length + (opts.traded ?? 0);
+  const parts = [
+    n ? `${n} added` : "",
+    r.set.length ? `units set to the file's for ${list(r.set)}${opts.unpricedSet?.length ? ` (${list(opts.unpricedSet)}: no buy price in the file for the extra units; add ${one(opts.unpricedSet) ? "it" : "them"} under Edit)` : ""}` : "",
+    r.same.length ? `${list(r.same)} already ${one(r.same) ? "has" : "have"} the file's units` : "",
+    r.kept.length ? `${list(r.kept)} kept as you have ${one(r.kept) ? "it" : "them"}` : "",
+    r.several.length ? `${list(r.several)} ${one(r.several) ? "has" : "have"} several buys or a sale in this account, so ${one(r.several) ? "its" : "their"} units were not set: change them under Edit` : "",
+  ].filter(Boolean);
+  const priced = opts.priced?.length ? ` The file's average buy price went to ${list(opts.priced)}.` : "";
+  return parts.length ? `Imported into ${account}: ${parts.join("; ")}.${priced}` : `Nothing to import into ${account}.`;
+}
