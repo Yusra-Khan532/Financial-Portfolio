@@ -39,7 +39,7 @@ describe("Sector Pulse, the pack's header", () => {
     expect(within(tabs).getByRole("link", { name: "Sector Rotation" })).toBeTruthy();
     const view = screen.getByRole("group", { name: "View" });
     expect(within(view).getByRole("button", { name: "Simple" }).getAttribute("aria-pressed")).toBe("true");
-    expect(screen.getByRole("combobox")).toBeTruthy();
+    expect(screen.getByRole("combobox", { name: /Find/ })).toBeTruthy();
     expect(screen.getByLabelText("Market backdrop").textContent).toMatch(/Nifty 50 above its long-term average/);
     expect(document.querySelector(".sp-disclaimer")?.textContent).toMatch(/^Describes price data for NSE industries; not a recommendation to buy, sell or hold any security\./);
   });
@@ -57,8 +57,8 @@ describe("Sector Pulse, Simple view (pack 05)", () => {
     fireEvent.click(within(all).getByRole("tab", { name: /Over time$/ }));
     expect(h2()).toContain("The market's mood, day by day");
     expect(localStorage.getItem("finlit-sx-box-all")).toBe("time");          // remembered for the member
-    const chk = screen.getByRole("tablist", { name: "Checks on the price picture" });
-    fireEvent.click(within(chk).getByRole("tab", { name: /What happened next$/ }));
+    const chk = screen.getByRole("tablist", { name: "Three checks on the price picture" });
+    fireEvent.click(within(chk).getByRole("tab", { name: /What happened next/ }));
     expect(h2()).toContain("The cycle industries move through");
     // the closed rows: title, one line and Show; nothing inside is drawn until opened
     const folds = [...document.querySelectorAll("details.sx-fold > summary b")].map((b) => b.textContent);
@@ -143,7 +143,7 @@ describe("task #192 round 4a-2 (SECTOR-PAGES.md 2 to 8), Sector Pulse", () => {
   it("task #333: the section bar names every stop and sits after the guide; pressing a closed row's name opens it", () => {
     at();
     const bar = screen.getByRole("navigation", { name: "On this page" });
-    expect(within(bar).getAllByRole("link").map((a) => a.textContent)).toEqual(["1Today", "2Your industries", "3All 38 groups", "4Price checks", "5Standout stocks", "6Stocks counted", "7Words explained"]);
+    expect(within(bar).getAllByRole("link").map((a) => a.textContent)).toEqual(["1Today", "2Your industries", "3All 38 groups", "4Price checks", "5Inside an industry", "6Standout stocks", "7Stocks counted", "8Words explained"]);
     expect(document.querySelector(".sp-guide")!.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     fireEvent.click(within(bar).getByRole("link", { name: /Words explained$/ }));
     expect((document.getElementById("sx-words") as HTMLDetailsElement).open).toBe(true);
