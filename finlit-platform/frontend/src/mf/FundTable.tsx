@@ -137,7 +137,7 @@ export function FundTable({ rows, cols, q, onSort, picked, onPick, peers }: {
   const shown = cut ? rows.slice(0, PHONE_ROWS) : rows;
   return (
     <>
-    <HScroll label="schemes table" controls={false}>
+    <HScroll label="schemes table" controls={false} tall>{/* task #341: the header stays in view while the list scrolls down (styles/frozen.css) */}
       <table className="mf-table">
         <caption className="sr-only">Mutual fund schemes. Use the column buttons to sort.</caption>
         <thead>
@@ -160,7 +160,7 @@ export function FundTable({ rows, cols, q, onSort, picked, onPick, peers }: {
                 </label>
                 <span className="mf-nm">
                   {/* task #304 (the team, 22 Nov 2026): no score chip beside the name: the Mutual Fund Score column already gives it ("2 times score") */}
-                  <Link to={`/funds/${r.code}`}>{r.name}</Link>
+                  <Link to={`/funds/${r.code}`} title={r.name}>{r.name}</Link>
                   <small><span className="mf-house">{shortAmc(r.amc)}</span><PlanChip plan={r.plan} option={r.option} category={r.category} />{!r.active && <span className="chip ghost">Stopped publishing</span>}</small>
                   {r.nav != null && <small className="mf-navm">NAV <span className="mono" title={navFull(r.nav)}>{navText(r.nav)}</span></small>}
                 </span>
