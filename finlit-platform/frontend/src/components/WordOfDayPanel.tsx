@@ -12,16 +12,48 @@ import { usePrefs } from "../lib/prefs";
 import { termOfTheDay, type Term } from "../lib/glossary";
 import { parseFormula, toggleBookmark } from "../lib/wordOfDay";
 
-/** The formula box: "LHS =" then each part as a pill, joined by its operators; a clause that does not split cleanly is shown as written. */
+/** Drops one pair of brackets that wraps the whole part: inside a fraction, "(CPI now − CPI a year ago)" reads as "CPI now − CPI a year ago". */
+export function unwrapParens(s: string): string {
+  const t = s.trim();
+  if (!t.startsWith("(") || !t.endsWith(")")) return t;
+  let depth = 0;
+  for (let i = 0; i < t.length; i++) {
+    if (t[i] === "(") depth++;
+    else if (t[i] === ")" && --depth === 0 && i < t.length - 1) return t;   // the first bracket closes before the end: "(a) × (b)"
+  }
+  return t.slice(1, -1).trim();
+}
+
+/** The parts of one row as terms: "a ÷ b" becomes one fraction term (a over b); every other operator stays between the terms. */
+export function fractionTerms(parts: string[], ops: string[]): { terms: { num: string; den?: string }[]; ops: string[] } {
+  const terms: { num: string; den?: string }[] = [{ num: parts[0] }];
+  const out: string[] = [];
+  for (let j = 1; j < parts.length; j++) {
+    const op = ops[j - 1], last = terms[terms.length - 1];
+    if ((op === "÷" || op === "/") && last.den === undefined) last.den = parts[j];
+    else { out.push(op); terms.push({ num: parts[j] }); }
+  }
+  return { terms: terms.map((t) => (t.den === undefined ? t : { num: unwrapParens(t.num), den: unwrapParens(t.den) })), ops: out };
+}
+
+/** The formula box: "LHS =" then each part as a pill sized to its words, joined by its operators; a division is drawn as a written fraction, the
+ *  top part over a line over the bottom part. A clause that does not split cleanly is shown as written. */
 export function FormulaBox({ formula }: { formula: string }) {
   const rows = parseFormula(formula);
   if (!rows) return null;
   return (
     <div className="wod-fx" role="group" aria-label={`Formula: ${formula}`}>
-      {rows.map((r, i) => "text" in r
-        ? <p key={i} className="wod-fx-text">{r.text}</p>
-        : <div key={i} className={r.parts.length <= 3 ? "wod-fx-row wod-fx-row--few" : "wod-fx-row"} aria-hidden="true"><b className="wod-fx-lhs">{r.lhs} =</b>
-          {r.parts.map((p, j) => <span key={j} className="wod-fx-part">{j > 0 && <span className="wod-fx-op">{r.ops[j - 1]}</span>}<span className="wod-fx-pill">{p}</span></span>)}</div>)}
+      {rows.map((r, i) => {
+        if ("text" in r) return <p key={i} className="wod-fx-text">{r.text}</p>;
+        const f = fractionTerms(r.parts, r.ops);
+        return (
+          <div key={i} className="wod-fx-row" aria-hidden="true"><b className="wod-fx-lhs">{r.lhs} =</b><span className="wod-fx-rhs">
+            {f.terms.map((t, j) => <span key={j} className="wod-fx-part">{j > 0 && <span className="wod-fx-op">{f.ops[j - 1]}</span>}
+              {t.den === undefined ? <span className="wod-fx-pill">{t.num}</span>
+                : <span className="wod-fx-frac"><span className="wod-fx-fn">{t.num}</span><span className="wod-fx-bar" /><span className="wod-fx-fn">{t.den}</span></span>}</span>)}
+          </span></div>
+        );
+      })}
     </div>
   );
 }
