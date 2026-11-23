@@ -1068,6 +1068,15 @@ def _start_job_heartbeat():
     return asyncio.get_running_loop().create_task(beat())
 
 
+def export_failure_line(res: dict):
+    """The scores export's reason for a failed run as one line (task #326 follow-up): the day and the checker's words, or None when nothing failed.
+    Printed last, because the supervisor keeps a failed run's last output line as its reason (jobs/runner.py, tail)."""
+    failed = res.get("failed") or []
+    if not failed:
+        return None
+    return "; ".join(f"scores export FAILED {f.get('date')}: {f.get('why')}" for f in failed)[:300]
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Every worker command and its options. A function of its own so a test can check that each scheduled job's arguments (jobs/registry.py) are valid."""
     parser = argparse.ArgumentParser(prog="finlit.worker")
@@ -1724,7 +1733,11 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
             from .mf import record_run
             res = await scores_export.run(store)
             await record_run(store, args.cmd, res)
-            print(json.dumps(res, default=str)[:3000])
+            print(json.dumps(res.get("notes") or {}, default=str)[:3000])
+            print(json.dumps({k: v for k, v in res.items() if k != "notes"}, default=str)[:3000])
+            line = export_failure_line(res)
+            if line:
+                print(line)
             return 1 if res["failed"] else 0
         if args.cmd == "refresh-presets":
             from .presets import service as preset_service
