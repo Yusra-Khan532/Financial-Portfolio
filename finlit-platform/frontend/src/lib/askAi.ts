@@ -13,6 +13,7 @@ export type AskTurn = { role: "user" | "assistant"; content: string };
 export type AskEvent =
   | { type: "meta"; limit: number; used: number; left: number; resets: string; cached: boolean }
   | { type: "status"; text: string }
+  | ({ type: "since" } & AskSinceData)
   | { type: "text"; text: string }
   | { type: "replace"; text: string }
   | { type: "done"; disclaimer: string; sources: string[]; pages?: AskPage[] }
@@ -29,6 +30,30 @@ export function safePages(p: unknown): AskPage[] {
     if (/^\/[a-z0-9]/i.test(to) && !to.startsWith("//") && !/[\s\\]/.test(to) && label && !out.some((o) => o.to === to)) out.push({ to, label });
   }
   return out.slice(0, 4);
+}
+
+/** Task #349 PR 3: "since you last asked". When the member asked the same or a similar question 1 hour to 30 days ago, the server sends this before
+ *  the words: when and what was asked, one line per change (each with its dates), the filings since then (FinLit's own pages only) and, for the
+ *  same question, the key lines said then. */
+export type AskSinceItem = { title: string; date: string; to: string };
+export type AskSinceData = { askedAt: string; question: string; match: "strong" | "weak"; changes: string[]; newItems: AskSinceItem[]; said: string[] };
+const strs = (x: unknown, n: number, len: number): string[] =>
+  (Array.isArray(x) ? x : []).filter((s): s is string => typeof s === "string" && !!s.trim()).slice(0, n).map((s) => s.trim().slice(0, len));
+/** The `since` event, checked: unknown fields dropped, at most 12 changes, 3 filings and 8 points; each filing's link one of this site's pages
+ *  (the same rule as safePages), or the filing is left out. Null when it is not a usable event. */
+export function safeSince(e: unknown): AskSinceData | null {
+  const r = e as Partial<Record<keyof AskSinceData, unknown>> | null;
+  if (!r || typeof r.askedAt !== "string" || Number.isNaN(Date.parse(r.askedAt))) return null;
+  const items: AskSinceItem[] = [];
+  for (const x of Array.isArray(r.newItems) ? r.newItems : []) {
+    const it = x as Partial<AskSinceItem> | null;
+    const title = typeof it?.title === "string" ? it.title.trim().slice(0, 140) : "";
+    const page = safePages([{ to: it?.to, label: title }])[0];
+    if (page && title && typeof it?.date === "string" && /^\d{4}-\d{2}-\d{2}/.test(it.date)) items.push({ title, date: it.date.slice(0, 10), to: page.to });
+    if (items.length >= 3) break;
+  }
+  return { askedAt: r.askedAt, question: typeof r.question === "string" ? r.question.slice(0, 500) : "", match: r.match === "weak" ? "weak" : "strong",
+    changes: strs(r.changes, 12, 240), newItems: items, said: r.match === "weak" ? [] : strs(r.said, 8, 200) };
 }
 
 /** Why a question could not be sent at all (before any answer): not signed in, the allowance used, not switched on, or another refusal. */
@@ -73,7 +98,7 @@ export const trimTurn = (t: AskTurn): AskTurn => (t.content.length <= TURN_CHARS
  *  reason when `signal` stops it (the Stop button). Task #349: the answer always ends with "done" or "error": a stream that ends without either is
  *  reported as an error event with code INTERRUPTED, and an answer still running after `timeoutMs` is stopped and reported with code TIMED_OUT. */
 export async function askAi(question: string, history: AskTurn[], symbol: string | null, on: (e: AskEvent) => void, signal?: AbortSignal,
-  timeoutMs = ASK_TIMEOUT_MS): Promise<void> {
+  timeoutMs = ASK_TIMEOUT_MS, opts: { fresh?: boolean } = {}): Promise<void> {
   const ctl = new AbortController();
   const stop = () => ctl.abort(signal?.reason);
   if (signal?.aborted) stop(); else signal?.addEventListener("abort", stop, { once: true });
@@ -82,7 +107,8 @@ export async function askAi(question: string, history: AskTurn[], symbol: string
   let ended = false;
   const seen = (e: AskEvent) => { if (e.type === "done" || e.type === "error") ended = true; on(e); };
   try {
-    await send({ question, history: history.slice(-6).map(trimTurn), ...(symbol ? { symbol } : {}) }, seen, ctl.signal);
+    // task #349 PR 3: `fresh` asks for the full answer, without "since you last asked"
+    await send({ question, history: history.slice(-6).map(trimTurn), ...(symbol ? { symbol } : {}), ...(opts.fresh ? { fresh: true } : {}) }, seen, ctl.signal);
   } catch (err) {
     if (!late || signal?.aborted) throw err;              // a refusal, a network failure, or the member's Stop
   } finally {
