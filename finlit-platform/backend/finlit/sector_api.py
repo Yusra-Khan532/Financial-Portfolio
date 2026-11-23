@@ -27,7 +27,7 @@ import orjson
 from fastapi import APIRouter, Request, Response
 
 from . import sector_data as sd
-from . import sector_extra, sector_history
+from . import sector_extra, sector_history, sector_next
 from .rotation_insights import rotation_insights
 from .auth.entitlements import redact_rotation_map, redact_sector_board, redact_sector_industry, redact_sector_stock, sector_plan, sees_all
 from .auth.service import current
@@ -178,6 +178,31 @@ async def sector_state_history(request: Request, show: Optional[str] = None) -> 
     data = memo.get("value")
     if not data:
         reason = "The state history is not loaded yet: the current data set has too few sessions of history. It is rebuilt at the next nightly run."
+        return _reply(request, {"available": False, "status": "not_loaded", "reason": reason, "detail": reason}, started, status=503, cache=NO_STORE)
+    return _reply(request, {**data, "date": board.get("date")}, started)
+
+
+_next_memo: Dict[bool, Dict[str, Any]] = {}
+
+
+@router.get("/api/sector-next")
+async def sector_next_route(request: Request, show: Optional[str] = None) -> Response:
+    """Task #333 (file 30, addition 1): "What happened next", counted once per release and view from each group's year of daily readings (finlit/sector_next.py).
+    Open to every plan, like the states it counts."""
+    started = time.perf_counter()
+    rel = _base(sd.live_release(), show)
+    board = sd.read_json(rel / "sectors" / "_board.json") if rel else None
+    if not board:
+        return _no_board(request, started, show)
+    key = str(rel) + ":" + str((rel / "sectors" / "_board.json").stat().st_mtime_ns)
+    memo = _next_memo.setdefault(show == "sectors", {})
+    if memo.get("key") != key:
+        pages = [sd.read_json(rel / "sectors" / f"{r['slug']}.json") for r in board.get("rows", []) if isinstance(r, dict) and sd.SLUG.match(str(r.get("slug", "")))]
+        memo.clear()
+        memo.update(key=key, value=sector_next.build([p for p in pages if isinstance(p, dict)]))
+    data = memo.get("value")
+    if not data:
+        reason = "What happened next is not loaded yet: the current data set has too little history. It is rebuilt at the next weekly run."
         return _reply(request, {"available": False, "status": "not_loaded", "reason": reason, "detail": reason}, started, status=503, cache=NO_STORE)
     return _reply(request, {**data, "date": board.get("date")}, started)
 
