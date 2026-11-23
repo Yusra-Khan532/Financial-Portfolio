@@ -5,7 +5,8 @@ import { SECOND } from "../lib/questionBank";
 import { answerCompany, generalAnswer, matchQuestion, searchListed, type Match } from "../lib/askAnswers";
 import { apiGet, type SearchIndex } from "../lib/api";
 import type { Quotes } from "../lib/globalSearch";
-import { AskRefused, INTERRUPTED, TIMED_OUT, askAi, safePages, useAskQuota, type AskTurn } from "../lib/askAi";
+import { AskRefused, INTERRUPTED, TIMED_OUT, askAi, safePages, safeSince, useAskQuota, type AskSinceData, type AskTurn } from "../lib/askAi";
+import { AskSince } from "./AskSince";   // task #349 PR 3: "since you last asked"
 import { useAuth } from "../lib/auth";
 import { AskHistoryButton, AskHistoryView, AskMemoryNotice } from "./AskHistory";   // task #349 PR 2: question memory
 import { memoryApplies } from "../lib/askMemory";
@@ -37,7 +38,9 @@ import { coTitle, subLine, titleOf } from "../lib/companyLabel";
 export { OPEN_AI };
 /** `ai`: a written answer from FinLit AI (task #211): what it is reading while the words have not come yet, the disclaimer once done, a refusal, or the note
  *  that written answers are part of Silver and Gold (Basic and visitors keep the listed questions: founder, 17 Nov 2026). */
-type Msg = { role: "user" | "assistant"; content: string; link?: { to: string; label: string }; actions?: { to: string; label: string }[]; suggest?: Q[]; ai?: { status?: string; disclaimer?: string; error?: boolean; plans?: boolean; retry?: string } };
+type Msg = { role: "user" | "assistant"; content: string; link?: { to: string; label: string }; actions?: { to: string; label: string }[]; suggest?: Q[]; ai?: { status?: string; disclaimer?: string; error?: boolean; plans?: boolean; retry?: string };
+  /** task #349 PR 3: "since you last asked" for this answer, and the question it answers (re-sent with `fresh` by "Full answer") */
+  since?: AskSinceData; sinceQ?: string };
 type View = "home" | "segments" | "topic" | "company" | "chat" | "history" | "saved" | "funds" | "discovery";
 
 let indexPromise: Promise<SearchIndex> | null = null;
@@ -161,7 +164,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
   /** Task #138 (founder, 14 Nov 2026): no language model. A listed question answers at once: a general one from its written answer, a company one from
    *  that company's own FinLit figures. Anything else typed is matched against the listed questions and the closest ones are offered. */
   /** A question the listed answers do not cover: FinLit AI reads FinLit's own data as this member and the answer streams into the last bubble. */
-  const written = async (q: string, before: Msg[]) => {
+  const written = async (q: string, before: Msg[], fresh = false) => {
     const history: AskTurn[] = before.filter((m) => m.content && !m.ai?.error && !m.ai?.plans && !m.suggest).map((m) => ({ role: m.role, content: m.content }));
     while (history.length && history[0].role !== "user") history.shift();
     const pairs: AskTurn[] = [];                                         // only whole question-and-answer pairs, in order
@@ -174,13 +177,15 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
     try {
       await askAi(q, pairs, company, (e) => {
         if (e.type === "status") patch((m) => ({ ...m, ai: { ...m.ai, status: e.text } }));
+        // task #349 PR 3: what changed since the member last asked, shown above the words (it arrives before them)
+        else if (e.type === "since") { const s = safeSince(e); if (s) patch((m) => ({ ...m, since: s, sinceQ: q })); }
         else if (e.type === "text") patch((m) => ({ ...m, content: m.content + e.text, ai: { ...m.ai, status: undefined } }));
         // "" clears the words written before FinLit AI read more data (task #349): the bubble goes back to "Reading…"
         else if (e.type === "replace") patch((m) => ({ ...m, content: e.text, ai: { ...m.ai, status: e.text ? undefined : m.ai?.status || "Reading FinLit's data" } }));
         else if (e.type === "done") patch((m) => { const pages = safePages(e.pages); return { ...m, ai: { disclaimer: e.disclaimer }, ...(pages.length ? { actions: pages } : {}) }; });   // task #218: the FinLit pages the answer read
         else if (e.type === "error") patch((m) => ({ ...m, content: m.content ? `${m.content}\n\n${e.text}` : e.text,
           ai: { error: true, ...(e.code === INTERRUPTED || e.code === TIMED_OUT ? { retry: q } : {}) } }));   // task #349: an interrupted answer can be asked again
-      }, ctl.signal);
+      }, ctl.signal, undefined, { fresh });
     } catch (err) {
       if (ctl.signal.aborted) patch((m) => ({ ...m, content: m.content ? `${m.content}\n\nYou stopped this answer.` : "You stopped this answer.", ai: { error: true, retry: q } }));
       else {
@@ -199,6 +204,12 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
     const before = msgs.slice(0, i - 1);
     setMsgs(msgs.slice(0, i));
     void written(q, before);
+  };
+  /** Task #349 PR 3: "Full answer" under "Since you last asked": the same question again, as a new exchange, without the comparison. */
+  const fullAnswer = (q: string) => {
+    if (busy) return;
+    setMsgs((m) => [...m, { role: "user", content: q }]);
+    void written(q, [], true);
   };
   const ask = async (q: string, via: View, meta?: Partial<Match>) => {
     if (!q || busy) return;
@@ -454,7 +465,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
             </>}
 
             {view === "chat" && <>
-              {msgs.map((m, i) => <div key={i} className={"bub " + (m.role === "user" ? "me" : "bot") + (m.ai?.error ? " aif-bub-err" : "") + (big && m.role === "assistant" ? " aif-lab" : "")} style={m.role === "user" ? { whiteSpace: "pre-wrap" } : undefined} aria-busy={!!m.ai?.status || undefined}>{m.ai?.status && !m.content ? <span className="aif-reading" role="status"><i />{m.ai.status}…</span> : m.role === "assistant" ? <AnswerText text={m.content} /> : m.content}
+              {msgs.map((m, i) => <div key={i} className={"bub " + (m.role === "user" ? "me" : "bot") + (m.ai?.error ? " aif-bub-err" : "") + (big && m.role === "assistant" ? " aif-lab" : "")} style={m.role === "user" ? { whiteSpace: "pre-wrap" } : undefined} aria-busy={!!m.ai?.status || undefined}>{m.since && <AskSince data={m.since} busy={busy} onFull={m.sinceQ ? () => fullAnswer(m.sinceQ!) : undefined} onLeave={() => { if (!big) setOpen(false); }} />}{m.ai?.status && !m.content ? <span className="aif-reading" role="status"><i />{m.ai.status}…</span> : m.role === "assistant" ? <AnswerText text={m.content} /> : m.content}
                 {m.ai?.disclaimer && <small className="aif-disc">{m.ai.disclaimer}</small>}
                 {m.ai?.retry && i === msgs.length - 1 && !busy && <p className="aif-retry"><Button size="sm" onClick={() => retry(i, m.ai!.retry!)}>Ask again</Button></p>}
                 {m.ai?.plans && <Link className="aif-ans-link" to="/plans" onClick={() => { if (!big) setOpen(false); }}>See the plans <Icon name="arrow" /></Link>}{m.role === "user" && <button type="button" className={"aif-save" + (saved.includes(m.content) ? " on" : "")} aria-pressed={saved.includes(m.content)} aria-label={saved.includes(m.content) ? "Remove this question from saved" : "Save this question"} title={saved.includes(m.content) ? "Saved" : "Save this question"} onClick={() => setSaved((l) => toggleSaved(l, m.content))}><Icon name="star" /></button>}

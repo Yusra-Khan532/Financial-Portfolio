@@ -1,8 +1,7 @@
 """Task #349 PR 2: question memory for Ask FinLit AI (table ai_question_memory, migration 135; docs/ASK-AI.md "Question memory").
 
 What a Silver or Gold member asked, the key lines of the answer and the figures it cited (each with its as-of date), kept for 180 days (at most 200
-rows per member), so a later answer can say what changed "since you last asked". This module only stores, lists and deletes: nothing here changes
-an answer, and nothing here runs a model.
+rows per member), so a later answer can say what changed "since you last asked" (section 6, task #349 PR 3). Nothing here runs a model.
 
   topic_of(...)        "<kind>:<id>:<intent>" from what ask/api.py already worked out (the companies named, the page's company, routing.classify)
   extract_points(...)  the answer's key lines (at most 8 of at most 160 characters)
@@ -20,6 +19,7 @@ import asyncio
 import json
 import logging
 import re
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from . import quota, routing, service
@@ -410,21 +410,31 @@ _pending: Set["asyncio.Task[Any]"] = set()
 
 def after_answer(pool, ctx: Any, *, kind: str, question: str, result: Optional[Dict[str, Any]], named: Sequence[str], page: Optional[str],
                  kinds: Sequence[str], messages: Sequence[Dict[str, Any]], cards: Sequence[Tuple[str, Dict[str, Any], Dict[str, Any]]] = (),
-                 fund_ctx: Optional[Dict[str, Any]] = None) -> None:
+                 fund_ctx: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
     """Called by ask/api.py once an answer is complete. Returns at once: the row is written in the background, and any failure is logged, never
-    shown. Reads only what the answer already read (the cards and the tool results in `messages`)."""
+    shown. Reads only what the answer already read (the cards and the tool results in `messages`). Returns {"topic", "figures"} (task #349 PR 3:
+    kept with the cached answer, so a replay from the cache is kept too), or None when nothing is written."""
     if kind != "question" or not result or _viewing_as(ctx):
-        return
+        return None
     try:
         topic = topic_of(question, named, page, fund_ctx, kinds)
         figures = extract_figures(tool_results_of(messages, cards))
     except Exception:
         log.warning("ask memory: the answer's topic or figures could not be read", exc_info=True)
+        return None
+    keep(pool, ctx, question=question, result=result, topic=topic, figures=figures)
+    return {"topic": [*topic], "figures": figures}
+
+
+def keep(pool, ctx: Any, *, question: str, result: Dict[str, Any], topic: Sequence[str], figures: Dict[str, Any]) -> None:
+    """Writes the row in the background (record's rules apply); a failure is logged, never shown."""
+    if _viewing_as(ctx) or len(topic) != 4:
         return
+    t = (str(topic[0]), str(topic[1]), str(topic[2]), str(topic[3]))
 
     async def write() -> None:
         try:
-            await record(pool, ctx, kind=kind, question=question, result=result, topic=topic, figures=figures)
+            await record(pool, ctx, kind="question", question=question, result=result, topic=t, figures=figures)
         except Exception:
             log.warning("ask memory: the question could not be kept", exc_info=True)
 
@@ -437,3 +447,311 @@ async def drain() -> None:
     """Waits for the rows being written (tests, and a clean shutdown)."""
     while _pending:
         await asyncio.gather(*[*_pending], return_exceptions=True)
+
+
+# ------------------------------------------------------------------------------------------------ 6. "since you last asked" (task #349 PR 3)
+# A repeat of a question after a while is answered with what changed and what is new, not the same answer again. Everything here is deterministic:
+# which earlier row matches (match), what changed between its figures and today's (diff), and the note placed with the question (since_note). The
+# model only writes the words, from these facts.
+SINCE_AFTER = timedelta(hours=1)       # a repeat sooner than this is the same reading: no since block
+SINCE_WITHIN = timedelta(days=30)      # an older question is a new question
+SINCE_NEWS = 3                         # at most this many new filings are named
+_PLAN_RANK = {"basic": 0, "silver": 1, "gold": 2, "admin": 3}
+
+
+def since_miss_reason(question_kind: str, history: Sequence[Any], fresh: bool, topic: Tuple[str, str, str, str]) -> Optional[str]:
+    """Why no earlier answer is looked for (a follow-up, the member asked for the full answer, a concept question, no subject), else None."""
+    _, sk, _, intent = topic
+    if question_kind != "question":
+        return "summary"
+    if history:
+        return "followup"
+    if fresh:
+        return "fresh"
+    if sk == "concept" or intent == "concept":
+        return "concept"
+    if sk == "general":
+        return "no_subject"
+    return None
+
+
+async def has_recent(pool, user_id: str) -> bool:
+    """One cheap read before anything else: the member remembers (prefs.aiMemory) and has a question kept between 1 hour and 30 days ago. False
+    means no earlier answer can match, so nothing else is read and the answer is made exactly as before."""
+    async with pool.acquire() as conn:
+        return bool(await conn.fetchval(
+            "SELECT COALESCE((SELECT prefs->>'aiMemory' FROM user_state WHERE user_id = $1), '') <> 'false' AND EXISTS ("
+            "SELECT 1 FROM ai_question_memory WHERE user_id = $1 AND asked_at <= now() - make_interval(secs => $2) "
+            "AND asked_at >= now() - make_interval(secs => $3))", user_id, SINCE_AFTER.total_seconds(), SINCE_WITHIN.total_seconds()))
+
+
+async def match(pool, user_id: str, topic: Tuple[str, str, str, str]) -> Tuple[Optional[Dict[str, Any]], str]:
+    """The earlier answer this question repeats, and how: "strong" the same topic key; "weak" the same subject with another intent (a specific
+    subject only: a company, a fund, an ETF, a sector; not "all funds" or "the market"). Only when the newest row of the subject was asked at least
+    1 hour ago (asked 10 minutes ago, the member has just read it) and the matched row at most 30 days ago. Returns (row or None, the reason)."""
+    key, sk, sid, _ = topic
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT DISTINCT ON (topic_key = $4) id, asked_at, topic_key, question, points, figures, plan, (topic_key = $4) AS strong, "
+            "asked_at > now() - make_interval(secs => $5) AS recent FROM ai_question_memory "
+            "WHERE user_id = $1 AND subject_kind = $2 AND subject_id = $3 AND asked_at >= now() - make_interval(secs => $6) "
+            "ORDER BY (topic_key = $4), asked_at DESC, id DESC", user_id, sk, sid, key, SINCE_AFTER.total_seconds(), SINCE_WITHIN.total_seconds())
+    by = {bool(r["strong"]): r for r in rows}
+    newest = max(rows, key=lambda r: r["asked_at"], default=None)
+    if newest is None:
+        return None, "none"
+    if newest["recent"]:
+        return None, "recent"
+    strong = by.get(True)
+    if strong is not None:
+        return _match_row(strong, "strong"), "strong"
+    if sid in ("all", "india"):
+        return None, "weak_general"
+    return _match_row(by[False], "weak"), "weak"
+
+
+def _match_row(r: Any, how: str) -> Dict[str, Any]:
+    def js(v: Any, empty: Any) -> Any:
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except ValueError:
+                return empty
+        return v if v is not None else empty
+    return {"id": r["id"], "askedAt": r["asked_at"], "topic": r["topic_key"], "question": r["question"], "points": js(r["points"], []),
+            "figures": js(r["figures"], {}), "plan": r["plan"], "match": how}
+
+
+async def count_since(redis, field: str, hit: bool = False) -> None:
+    """Daily counters: `ask:memory:miss:<day>` (why no earlier answer was used) and `ask:memory:hit:<day>` (strong, weak). Never breaks an answer."""
+    try:
+        day = datetime.now(service.IST).date().isoformat()
+        k = f"ask:memory:{'hit' if hit else 'miss'}:{day}"
+        async with redis.pipeline(transaction=False) as p:
+            p.hincrby(k, field, 1)
+            p.expire(k, 120 * 86400)
+            await p.execute()
+    except Exception:   # nosec B110 - a counter must never break an answer
+        pass
+
+
+# --- dates and numbers, written the way the answer writes them
+def _when(v: Any) -> Optional[datetime]:
+    if isinstance(v, datetime):
+        return v
+    if not isinstance(v, str) or not v:
+        return None
+    try:
+        return datetime.fromisoformat(v.replace("Z", "+00:00"))
+    except ValueError:
+        try:
+            return datetime.combine(date.fromisoformat(v[:10]), datetime.min.time())
+        except ValueError:
+            return None
+
+
+def _ist_day(d: datetime) -> date:
+    return (d.astimezone(service.IST) if d.tzinfo is not None else d).date()
+
+
+def day_of(v: Any) -> Optional[str]:
+    """"20 Nov 2026" (India time when the moment carries a zone)."""
+    d = _when(v)
+    if d is None:
+        return None
+    d2 = _ist_day(d)
+    return f"{d2.day} {d2.strftime('%b %Y')}"
+
+
+def moment_of(v: Any) -> str:
+    """"20 Nov 2026, 3:52 pm IST": when the member asked."""
+    d = _when(v)
+    if d is None:
+        return ""
+    d = d.astimezone(service.IST) if d.tzinfo is not None else d
+    h = d.hour % 12 or 12
+    return f"{d.day} {d.strftime('%b %Y')}, {h}:{d.minute:02d} {'am' if d.hour < 12 else 'pm'} IST"
+
+
+def _group(n: int) -> str:
+    s = str(n)
+    if len(s) <= 3:
+        return s
+    head, parts = s[:-3], [s[-3:]]
+    while len(head) > 2:
+        parts.insert(0, head[-2:])
+        head = head[:-2]
+    return ",".join(([head] if head else []) + parts)
+
+
+def inr(v: float) -> str:
+    """₹2,880 or ₹2,880.50, in Indian grouping (₹1,23,456)."""
+    paise = int(round(abs(v) * 100))
+    return ("-" if v < 0 else "") + "₹" + _group(paise // 100) + (f".{paise % 100:02d}" if paise % 100 else "")
+
+
+def _num_text(v: float) -> str:
+    return str(int(v)) if float(v).is_integer() else f"{v:.1f}"
+
+
+def _signed(v: float) -> str:
+    v = round(v, 1)
+    return ("+" if v > 0 else "−" if v < 0 else "±") + _num_text(abs(v))
+
+
+def _dates(a: Any, b: Any) -> str:
+    da, db = day_of(a), day_of(b)
+    if da and db:
+        return f" ({da} → {db})"
+    return f" ({db})" if db else ""
+
+
+_PART_NAMES = {"fundamental": "fundamental and growth", "valuation": "valuation", "quality": "quality", "risk": "risk"}
+
+
+def locked_of(tool_results: Iterable[Tuple[str, Dict[str, Any], Any]]) -> Dict[str, Set[str]]:
+    """The figures a tool said are not included in the member's plan, per company (today only FinLit Prism carries such a marker)."""
+    out: Dict[str, Set[str]] = {}
+    for _name, args, text in tool_results:
+        env = _parse(text) or {}
+        data = env.get("data") if isinstance(env.get("data"), dict) else None
+        if not data:
+            continue
+        sym = _clean_id(str(data.get("symbol") or (args or {}).get("symbol") or "").upper())
+        p = data.get("finlitPrism")
+        if sym and isinstance(p, dict) and isinstance(p.get("unavailable"), str) and "plan" in p["unavailable"].lower():
+            out.setdefault(sym, set()).add("prism")
+    return out
+
+
+def new_items(feed_text: Any, asked_at: Any, limit: int = SINCE_NEWS) -> List[Dict[str, Any]]:
+    """The filings FinLit stored with a date after the day of the earlier question (India time), newest first, at most `limit`. The feed gives a
+    day, not a time: a filing of that same day may have come before the question, so it is never called new."""
+    env = _parse(feed_text) or {}
+    data = env.get("data") if isinstance(env.get("data"), dict) else {}
+    asked = _when(asked_at)
+    if asked is None:
+        return []
+    asked_day = _ist_day(asked)
+    rows: List[Dict[str, Any]] = []
+    for i in data.get("items") or []:
+        if not isinstance(i, dict):
+            continue
+        d = _when(i.get("date"))
+        if d is None or _ist_day(d) <= asked_day:
+            continue
+        title = re.sub(r"[<>\s]+", " ", str(i.get("title") or "")).strip()
+        if title:
+            rows.append({"title": _cut(title, 120), "date": _ist_day(d).isoformat(), "symbol": _clean_id(str(i.get("symbol") or "").upper()) or None})
+    rows.sort(key=lambda r: r["date"], reverse=True)
+    return rows[:limit]
+
+
+def _fact(kind: str, text: str) -> Dict[str, Any]:
+    return {"kind": kind, "text": text}
+
+
+def _diff_sector(p: Dict[str, Any], n: Dict[str, Any], name: str = "") -> List[Dict[str, Any]]:
+    if not p or not n:
+        return []
+    moved = [f"{f} {p[f]} → {n[f]}" for f in ("box", "state", "corner", "quadrant") if p.get(f) and n.get(f) and p[f] != n[f]]
+    if not moved:
+        return []
+    on = day_of(n.get("asOf"))
+    return [_fact("sector", f"{name}{n.get('name') or p.get('name') or 'Sector'}: " + "; ".join(moved) + (f" ({on})" if on else ""))]
+
+
+def _diff_company(p: Dict[str, Any], n: Dict[str, Any], locked: Set[str], downgraded: bool, asked_at: Any, name: str) -> List[Dict[str, Any]]:
+    out: List[Dict[str, Any]] = []
+    pp, np_ = p.get("price") or {}, n.get("price") or {}
+    pa, na = _when(pp.get("asOf")), _when(np_.get("asOf"))
+    older = pa is not None and na is not None and _ist_day(na) < _ist_day(pa)     # a price older than the one compared with is no change "since"
+    if _num(pp.get("value")) and _num(np_.get("value")) is not None and not older:
+        a, b = float(pp["value"]), float(np_["value"])
+        when = _dates(pp.get("asOf"), np_.get("asOf"))
+        if a != b:
+            out.append(_fact("price", f"{name}Price {inr(a)} → {inr(b)}, {'+' if b > a else '−'}{inr(abs(b - a))} ({_signed((b - a) / a * 100)}%){when}"))
+        else:
+            out.append(_fact("price", f"{name}Price unchanged at {inr(b)}{when}"))
+    pr, nr = p.get("prism") or {}, n.get("prism") or {}
+    if pr and not nr and ("prism" in locked or downgraded):
+        out.append(_fact("plan", f"{name}FinLit Prism: not included in your plan now"))
+    elif pr and nr and _num(pr.get("score")) is not None and _num(nr.get("score")) is not None:
+        when = _dates(pr.get("asOf"), nr.get("asOf"))
+        pv, nv = pr.get("modelVersion"), nr.get("modelVersion")
+        if pv and nv and pv != nv:
+            on = day_of(nr.get("asOf"))
+            out.append(_fact("formula", f"FinLit updated the Prism formula{' on ' + on if on else ' since then'}, so the score is not like for like"))
+        d = float(nr["score"]) - float(pr["score"])
+        if abs(d) >= 1:
+            out.append(_fact("prism", f"{name}FinLit Prism {_num_text(float(pr['score']))} → {_num_text(float(nr['score']))} ({_signed(d)}){when}"))
+        if pr.get("label") and nr.get("label") and pr["label"] != nr["label"]:
+            out.append(_fact("prism", f"{name}FinLit Prism label {pr['label']} → {nr['label']}{when}"))
+        moved = []
+        for k, v in (nr.get("parts") or {}).items():
+            was = (pr.get("parts") or {}).get(k)
+            if _num(was) is not None and _num(v) is not None and abs(float(v) - float(was)) >= 1:
+                moved.append(f"{_PART_NAMES.get(k, k)} {_num_text(float(was))} → {_num_text(float(v))} ({_signed(float(v) - float(was))})")
+        if moved:
+            out.append(_fact("prism", f"{name}Prism parts: " + "; ".join(moved) + when))
+    pres, nres = p.get("results") or {}, n.get("results") or {}
+    if nres:
+        nf, pf_, asked = _when(nres.get("filed")), _when(pres.get("filed")), _when(asked_at)
+        newer = (nf is not None and pf_ is not None and _ist_day(nf) > _ist_day(pf_)) or \
+                (not pres and nf is not None and asked is not None and _ist_day(nf) > _ist_day(asked))
+        if newer:
+            filed = day_of(nres.get("filed"))
+            out.append(_fact("results", f"{name}New results filed: {nres.get('period') or nres.get('title') or 'results'}" + (f", filed {filed}" if filed else "")))
+    elif pres and downgraded:
+        out.append(_fact("plan", f"{name}Results figures: not included in your plan now"))
+    out += _diff_sector(p.get("sector") or {}, n.get("sector") or {}, name)
+    if downgraded:
+        for f, label in (("pe", "P/E"), ("marketCap", "Market cap")):
+            if p.get(f) and not n.get(f):
+                out.append(_fact("plan", f"{name}{label}: not included in your plan now"))
+    return out
+
+
+def diff(prev_figures: Optional[Dict[str, Any]], now_figures: Optional[Dict[str, Any]], *, asked_at: Any = None, subject: Optional[str] = None,
+         prev_plan: str = "", now_plan: str = "", locked: Optional[Dict[str, Set[str]]] = None) -> List[Dict[str, Any]]:
+    """What changed between the figures of the earlier answer and today's, as a list of facts ({"kind", "text"}), with no model: the price (₹ and %
+    change, both dates), FinLit Prism (a move of 1 point or more, a new label, each part that moved 1 point or more; "FinLit updated the Prism
+    formula" when both model versions are known and differ), new results filed, a sector's box or state. A figure missing now because of the
+    member's plan is said plainly ("not included in your plan now"), never shown as a change; a figure missing for any other reason is left out.
+    `subject`: the company the question is about (only it is compared); else every company both answers read (at most 2)."""
+    prev_figures, now_figures, locked = prev_figures or {}, now_figures or {}, locked or {}
+    downgraded = bool(prev_plan and now_plan) and _PLAN_RANK.get(now_plan, 0) < _PLAN_RANK.get(prev_plan, 0)
+    pc, nc = prev_figures.get("companies") or {}, now_figures.get("companies") or {}
+    syms = [subject] if subject and subject in pc else [s for s in pc if s in nc or s in locked or downgraded][:2]
+    out: List[Dict[str, Any]] = []
+    for s in syms:
+        out += _diff_company(pc.get(s) or {}, nc.get(s) or {}, locked.get(s, set()), downgraded, asked_at, f"{s}: " if len(syms) > 1 else "")
+    return out + _diff_sector(prev_figures.get("sector") or {}, now_figures.get("sector") or {})
+
+
+NO_CHANGE = "No change in the figures FinLit compared (price, FinLit Prism, results, sector)"
+
+
+def since_payload(prev: Dict[str, Any], facts: List[Dict[str, Any]], items: List[Dict[str, Any]], subject: Optional[str]) -> Dict[str, Any]:
+    """The `since` event for the panel: when and what was asked, one line per change, the new filings as links to FinLit's own pages (the company's
+    News and filings section, never the exchange's site), and the key lines said then (a strong match only)."""
+    links = [{"title": i["title"], "date": i["date"], "to": f"/stocks/{i.get('symbol') or subject}#news" if (i.get("symbol") or subject) else "/news"}
+             for i in items]
+    at = prev["askedAt"]
+    return {"askedAt": at.isoformat() if hasattr(at, "isoformat") else str(at), "question": prev["question"], "match": prev["match"],
+            "changes": [f["text"] for f in facts] or ([NO_CHANGE] if not items else []), "newItems": links,
+            "said": [*(prev.get("points") or [])] if prev["match"] == "strong" else []}
+
+
+def since_note(prev: Dict[str, Any], facts: List[Dict[str, Any]], items: List[Dict[str, Any]]) -> str:
+    """The per-question note (after the cached prefix, so the system prompt and the tool list stay byte for byte the same): <since_last_asked>
+    with the facts and the new filings, <said_before> with the key lines of the earlier answer (a strong match only), and the instruction."""
+    when = moment_of(prev["askedAt"])
+    lines = [f"- {f['text']}" for f in facts] + [f"- New filing: {i['title']} ({day_of(i['date'])})" for i in items]
+    block = f"<since_last_asked asked=\"{when}\">\n" + "\n".join(lines or [f"- {NO_CHANGE}"]) + "\n</since_last_asked>"
+    strong = prev["match"] == "strong" and bool(prev.get("points"))
+    said = ("\n<said_before>\n" + "\n".join(f"- {p}" for p in prev["points"]) + "\n</said_before>") if strong else ""
+    how = "The member asked this before" if prev["match"] == "strong" else "The member asked another question on this subject before"
+    return (f"{block}{said}\n[{how}, on {when}. First, one line \"Since you last asked ({when}): ...\" using only the facts in <since_last_asked>, "
+            "each with its date. Then the new points and other important current items on the same subject."
+            + (" Do not repeat a <said_before> point unless its figure changed." if strong else "") + "]")

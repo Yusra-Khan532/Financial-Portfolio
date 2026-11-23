@@ -15,7 +15,7 @@ The month is the calendar month in India; the count renews on the 1st. An admini
 1. The panel (`frontend/src/components/Assistant.tsx`) answers a listed question at once, in the browser, as before (task #138). Only a question that is
    not listed, from a Silver or Gold member, goes to `POST /api/ask` (`frontend/src/lib/askAi.ts`).
 2. `backend/finlit/ask/api.py` checks the member (signed in, Origin, CSRF), the plan and the month's allowance (`ask/quota.py`, table `ai_usage`,
-   migration 107), then streams the answer as Server-Sent Events: `meta` (questions left), `status` ("Reading the ratios (TCS)"), `text` (the words as
+   migration 107), then streams the answer as Server-Sent Events: `meta` (questions left), `status` ("Reading the ratios (TCS)"), `since` (task #349 PR 3: what changed since the member last asked, before the words), `text` (the words as
    they are written), `replace` (an answer withdrawn as advice-like, or `""` to clear the words written before a tool round), `ping` (a keep-alive
    after 10 s of quiet), `done` (the disclaimer) or `error`. A stream that ends with neither `done` nor `error` is shown as interrupted (task #349).
 3. `ask/service.py` runs Claude (`ASK_MODEL`, default `claude-haiku-5-5`) with 34 read-only tools (`ask/tools.py`) and the web search: the company
@@ -204,8 +204,9 @@ memory on or off.
   overview, results, valuation, prism, news, documents, price, risks, ownership, concept, from the same words the classifiers read, English and
   Hinglish ("munafa", "share price kya hai", "sensex kyu gira"). Examples: `company:TCS:results`, `sector:pharma:overview`, `concept:pe:concept`.
 - **When nothing is written:** an AI summary of the Prism card, an answer that ended in an error, an answer withdrawn as advice-like, a refusal, an
-  administrator's "view as" preview, Basic members and visitors (no written answers), and a member who switched remembering off. A repeated first
-  question answered from the 30-minute cache is not written either (the cache holds no tool results, so the row would have no figures).
+  administrator's "view as" preview, Basic members and visitors (no written answers), and a member who switched remembering off. Since PR 3, a
+  repeated first question answered from the 30-minute cache is written too: the cached answer keeps the topic and the figures its first answer read
+  (each with its date), and the replay is kept with them.
 - **When it is written:** in the background once the answer is complete (`memory.after_answer`, one call in `ask/api.py`), so an answer is never
   held up and a failure here is logged, never shown.
 - **Retention:** 180 days and at most 200 rows per member. Each write deletes the member's rows older than 180 days and beyond the newest 200;
@@ -225,3 +226,52 @@ memory on or off.
 - **Files:** `backend/finlit/ask/memory.py`, `backend/finlit/ask/history.py`, `backend/finlit/migrations/135_ai_question_memory.sql`,
   `frontend/src/lib/askMemory.ts`, `frontend/src/components/AskHistory.tsx`, `frontend/src/components/AccountAiHistory.tsx`,
   `frontend/src/styles/ask-memory.css`. Tests: `backend/tests/test_ask_memory.py`, `frontend/src/components/askMemory349.test.tsx`.
+
+## Since you last asked (task #349, PR 3, 23 Nov 2026)
+
+Founder: "If I ask the same question again after some hours or a day, it should not give the same repetitive answer. If something changed: last
+time it was that, now it has increased. And the new points: what I read last time I already know, so give the new information and other
+important information in the market." The model is unchanged (the founder's choice); the extra tokens are a few lines in the note.
+
+- **Matching** (`memory.match`, no model). Only for a signed-in Silver or Gold member who remembers (`prefs.aiMemory`) and has a question kept
+  between 1 hour and 30 days ago: one cheap read (`memory.has_recent`) decides; anyone else is answered exactly as before. Then the subject is
+  worked out once (`api.subject_of`, the same steps as before, reused for the answer) and `memory.topic_of` gives the topic. **Strong:** the same
+  topic key, asked 1 hour to 30 days ago. **Weak:** the same subject (a company, fund, ETF or sector; not "all funds" or "the market") with another
+  intent: the figures block, no "said before". **None:** a follow-up in the same chat, a concept question, no subject, `fresh: true`, an
+  administrator's "view as", or when the newest question on the subject is under an hour old (the member has just read it). Every miss and hit is
+  counted in Redis: `ask:memory:miss:<day>` (`followup`, `fresh`, `no_rows`, `concept`, `no_subject`, `none`, `recent`, `weak_general`) and
+  `ask:memory:hit:<day>` (`strong`, `weak`), kept 120 days.
+- **What changed** (`memory.diff`, deterministic): the price before and after (₹ and % change, both dates; a price older than the one compared is
+  never a change); FinLit Prism when it moved 1 point or more, a new label, each part that moved 1 point or more, and "FinLit updated the Prism
+  formula on …" when both model versions are known and differ (the company card does not carry the version, so this shows only when a tool
+  returned it); a new results period filed; a sector's box or state. A figure missing now because of the plan (the card says Prism is not in the
+  plan, or the plan went down) is said as "not included in your plan now", never as a change; a figure simply not read this time is left out.
+  **New filings:** one in-process call to `get_news_and_filings` (the company's news, read with the cards, only when there is a match); up to 3 dated
+  after the day of the earlier question (India time; the feed gives a day, so a filing of that same day is never called new).
+- **Prompt.** The facts go in `<since_last_asked asked="…">`, the earlier answer's key lines in `<said_before>` (strong only), and one instruction:
+  first one line "Since you last asked (<date, IST>): …" from those facts only, then the new points and other important current items on the same
+  subject, without repeating a `<said_before>` point unless its figure changed. All of it is in the per-question note, so the system prompt and the
+  tool list stay byte for byte the same (the provider's cache). Example:
+
+  ```
+  <since_last_asked asked="20 Nov 2026, 3:52 pm IST">
+  - Price ₹2,880 → ₹2,950, +₹70 (+2.4%) (20 Nov 2026 → 23 Nov 2026)
+  - FinLit Prism 68 → 71 (+3) (20 Nov 2026 → 23 Nov 2026)
+  - New filing: Board meeting outcome (22 Nov 2026)
+  </since_last_asked>
+  <said_before>
+  - TCS traded at ₹2,880 [FinLit company page, 20 Nov 2026]
+  </said_before>
+  [The member asked this before, on 20 Nov 2026, 3:52 pm IST. First, one line "Since you last asked (20 Nov 2026, 3:52 pm IST): ..." using only the
+  facts in <since_last_asked>, each with its date. Then the new points and other important current items on the same subject. Do not repeat a
+  <said_before> point unless its figure changed.]
+  ```
+- **Cache.** When the since block applies, the 30-minute answer cache is neither read nor written for that answer (as for `get_my_*` answers).
+  Every other answer keeps the cache as before; a member with no earlier question gets the same request and the same cache key (golden test).
+- **Event and panel.** `since` `{askedAt, question, match, changes[], newItems[{title, date, to}], said[]}` comes before `text`.
+  `lib/askAi.ts safeSince` checks it (filing links: this site's pages only, the `safePages` rule; they point at the company's News and filings
+  section, `/stocks/<symbol>#news`). `components/AskSince.tsx`: a ui Card "Since you last asked · <date, time>" above the answer, one row per change,
+  the new filings, "What I said then" (folded) and "Full answer", which asks the same question again as a new first question with `fresh: true`
+  (no comparison). Styles: `styles/ask-since.css`, tokens only.
+- **Recording** stays as in PR 2: every answered question is kept, so the next repeat compares with the latest; the news read is kept with it.
+- Tests: `backend/tests/test_ask_since.py`, `frontend/src/components/AskSince349.test.tsx`, `frontend/src/lib/askSince349.test.ts`.
