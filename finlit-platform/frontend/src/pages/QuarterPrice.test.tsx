@@ -27,7 +27,9 @@ const resp = (over: Partial<QResp> = {}): QResp => ({
   distribution: { total: 5, sectors: [], caps: [] }, ...over,
 });
 const Where = () => { const l = useLocation(); return <output data-testid="loc">{l.pathname + l.search}</output>; };
-const open = (qs = "") => render(<MemoryRouter initialEntries={["/results/quarter" + qs]}><Routes><Route path="/results/quarter" element={<CompaniesView />} /></Routes><Where /></MemoryRouter>);
+// task #330: the growth and price filters open from the filter bar's "Growth and price filters" button (they were always in the side panel)
+const open = (qs = "") => { const r = render(<MemoryRouter initialEntries={["/results/quarter" + qs]}><Routes><Route path="/results/quarter" element={<CompaniesView />} /></Routes><Where /></MemoryRouter>);
+  fireEvent.click(screen.getByRole("button", { name: /Growth and price filters/ })); return r; };
 const loc = () => decodeURIComponent(screen.getByTestId("loc").textContent || "");
 // the page's own request (it carries the page offset); the six tiles ask for whole-quarter figures by size alongside it (task #194)
 const lastParams = () => st.params.filter((p) => "offset" in (p as object)).at(-1) as QParams;
@@ -120,9 +122,9 @@ describe("the combined card", () => {
     expect(panel().getByRole("button", { name: "Growth and near 52-week high" }).getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "Deep below the all-time high" }));
     expect(lastParams().pAthMin).toBe("40"); expect(lastParams().p52).toBeUndefined(); expect(lastParams().revQoQValue).toBeUndefined();
-    fireEvent.click(screen.getByRole("button", { name: "Reset filters" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear growth and price filters" }));
     expect(loc()).toBe("/results/quarter?quarter=2026-09");
-    expect((screen.getByRole("button", { name: "Reset filters" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "Clear growth and price filters" }) as HTMLButtonElement).disabled).toBe(true);
     expect(PRICE_PRESETS.map((p) => p.label)).toEqual(["Near the 52-week high", "Deep below the all-time high", "Growth and near 52-week high"]);
   });
   it("an old growth-only link is unaffected: price off, the growth filter still applied", () => {
@@ -170,6 +172,9 @@ describe("the result lines", () => {
 });
 
 describe("the table columns", () => {
+  // task #330: the price-position columns are in the Price position and All columns sets
+  beforeEach(() => { localStorage.setItem("finlit-results-cols", "all"); });
+  afterEach(() => { localStorage.removeItem("finlit-results-cols"); });
   it("are always there: distance, band, a dash with the reason when a high is not held, At high, and a stale marker", () => {
     st.resp = resp({ total: 4, rows: [mk(), mk({ symbol: "BBB", below52: 0, belowAth: 0 }), mk({ symbol: "CCC", below52: 0, stale52: true, high52: 90, price: 95 }), mk({ symbol: "DDD", below52: null, belowAth: null, high52: null, ath: null })] });
     open();

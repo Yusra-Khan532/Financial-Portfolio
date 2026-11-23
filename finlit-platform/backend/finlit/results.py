@@ -1001,6 +1001,15 @@ async def _answer(request: Request, quarter: str, q: str, sector: str, cap: str,
     return ctx, plan, quarters, entry, rows, entry.rows, today, (date_facts(decls, rng, qkey) if rng else None), (gsum, psum)
 
 
+def by_verdict(rows: List[dict], verdict: str, silver: bool):
+    """Task #330 (developer file 28): the Companies view's verdict chips (All · Strong · Good · In line · Weak · Poor · Loss). The counts are of the rows the
+    other filters leave, before the chip, so every chip says how many it would show; the chip then keeps one verdict. A verdict is a figure: Silver."""
+    if verdict and not silver:
+        raise fail(403, "plan_required", "Filtering by verdict is part of the Silver plan.", plan="silver")
+    counts = verdict_counts(rows) if silver else None
+    return ([r for r in rows if r.get("verdict") == verdict] if verdict else rows), counts
+
+
 def _dump(body: dict) -> Response:
     return Response(content=json.dumps(body, separators=(",", ":")), media_type="application/json", headers={**NO_STORE, "Vary": "Cookie"})
 
@@ -1012,7 +1021,8 @@ async def quarter_results(request: Request, quarter: str = Query("", max_length=
                           status: str = Query("", pattern="^(declared|awaiting|due|missing|upcoming)?$"), sort: str = Query("date", max_length=20), dir: str = Query("desc", pattern="^(asc|desc)$"),
                           offset: int = Query(0, ge=0, le=20000), limit: int = Query(PAGE, ge=1, le=100),
                           on: str = Query("", alias="date", max_length=10), from_: str = Query("", alias="from", max_length=10), to: str = Query("", max_length=10),
-                          growth: GrowthSpec = Depends(growth_params), price: PriceSpec = Depends(price_params)):
+                          growth: GrowthSpec = Depends(growth_params), price: PriceSpec = Depends(price_params),
+                          verdict: str = Query("", pattern="^(Strong|Good|In line|Weak|Poor|Loss)?$")):
     """One quarter's results, newest declaration first. Without `quarter` the latest quarter with declarations is used."""
     if sort not in SORTS:
         raise fail(400, "bad_request", "Unknown sort.")
@@ -1020,6 +1030,7 @@ async def quarter_results(request: Request, quarter: str = Query("", max_length=
     ctx, plan, quarters, entry, rows, all_rows, today, dates, sums = await _answer(request, quarter, q, sector, cap, index, scope, flagged, status, sort, dir, on, from_, to, growth, price, industry)
     gsum, psum = sums or (None, None)
     silver = has(plan, "silver")
+    rows, vcounts = by_verdict(rows, verdict, silver)
     if entry is None:
         return _dump({"plan": plan, "locked": not silver, "today": today.isoformat(), "quarter": None, "quarters": quarters, "rows": [], "total": 0, "offset": 0, "limit": limit,
                       "summary": summarize([], today), "totals": summarize([], today), "days": [], "facets": {"sectors": [], "indices": []}, "dates": dates,
@@ -1039,6 +1050,7 @@ async def quarter_results(request: Request, quarter: str = Query("", max_length=
                   "summary": summary, "totals": totals, "rows": out_rows, "days": [{"date": d, "n": n} for d, n in sorted(per_day.items(), reverse=True)], "updatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(entry.loaded)),
                   "facets": {"sectors": [{"name": n, "n": c} for n, c in entry.sectors], "indices": [{"code": c, "n": n} for c, n in idx_counts.items()]},
                   "dates": dates, "dateMeaning": DATE_MEANING, "gapFlag": GAP_FLAG, "growth": gsum, "price": psum, "priceStrip": price_strip(rows) if silver else None, "distribution": distribution(rows),
+                  "verdictCounts": vcounts,
                   "industries": industries(entry.rows) if silver else [{k: v for k, v in x.items() if k in ("name", "companies", "declared")} for x in industries(entry.rows)],
                   "took": round((time.perf_counter() - started) * 1000, 1)})
 
@@ -1049,7 +1061,8 @@ async def quarter_export(request: Request, quarter: str = Query("", max_length=7
                          scope: str = Query("all", pattern="^(all|watchlist|portfolio)$"), flagged: bool = False,
                          status: str = Query("", pattern="^(declared|awaiting|due|missing)?$"), sort: str = Query("date", max_length=20), dir: str = Query("desc", pattern="^(asc|desc)$"),
                          on: str = Query("", alias="date", max_length=10), from_: str = Query("", alias="from", max_length=10), to: str = Query("", max_length=10),
-                         growth: GrowthSpec = Depends(growth_params), price: PriceSpec = Depends(price_params)):
+                         growth: GrowthSpec = Depends(growth_params), price: PriceSpec = Depends(price_params),
+                         verdict: str = Query("", pattern="^(Strong|Good|In line|Weak|Poor|Loss)?$")):
     """The same rows without paging, as JSON the website turns into a CSV (Silver and Gold)."""
     if sort not in SORTS:
         raise fail(400, "bad_request", "Unknown sort.")
@@ -1057,6 +1070,7 @@ async def quarter_export(request: Request, quarter: str = Query("", max_length=7
     if not has(ctx.plan if ctx.authed else "basic", "silver"):
         raise fail(403, "plan_required", "Downloading the quarter's results is part of the Silver plan.", plan="silver")
     _, _, _, entry, rows, _, today, _, _ = await _answer(request, quarter, q, sector, cap, index, scope, flagged, status, sort, dir, on, from_, to, growth, price, industry)
+    rows, _ = by_verdict(rows, verdict, True)
     return _dump({"quarter": entry.quarter if entry else None, "today": today.isoformat(), "rows": rows[:EXPORT_ROWS]})
 
 

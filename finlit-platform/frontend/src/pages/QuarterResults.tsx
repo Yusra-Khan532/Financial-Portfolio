@@ -1,31 +1,26 @@
-import { titleOf } from "../lib/companyLabel";
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { SortTh } from "../components/SortTh";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { nextSort, type SortState } from "../lib/tableSort";
 import { Link, Navigate, useSearchParams } from "react-router";
-import { SIDE, SplitDivider, useSideWidth } from "../components/SplitDivider";
 import { Icon } from "../lib/icons";
 import { useAuth } from "../lib/auth";
 import { useUI } from "../lib/ui";
 import { ApiError, apiGet } from "../lib/api";
-import { dayLabel } from "../lib/feed";
 import { useResultsDelayedNote } from "../lib/jobsStatus";
-import { MINUS, nf } from "../lib/format";
-import { GROWTH_PRESETS, PRICE_PRESETS, activePreset, activePricePreset, applyPreset, priceIsDefault, DATE_MEANING, GAP_LABEL, PAGE, PAGE_SIZES, activeChip, cellHit, DEFAULT_GROWTH, DEFAULT_PRICE, PRICE_KEYS, PRICE_WORD, bandOf, bandShort, priceFromParams, priceHit, priceOn, priceQuery, priceToParams, priceWhy, type PriceKey, type PriceState, type CellKey, growthFromParams, growthOn, growthQuery, growthToParams, type GrowthState, awaitingNote, csvOf, dateChips, dateFromParams, dateProblem, describeSel, gapAlertLink, headline, isWeekend, longDay, queryString, signedPct, todayIST, useQuarterResults, weekdayName, type DateSel, type QDates, type QParams, type QRow } from "../lib/qresults";
+import { nf } from "../lib/format";
+import { GROWTH_PRESETS, PRICE_PRESETS, activePreset, activePricePreset, applyPreset, priceIsDefault, DATE_MEANING, PAGE, PAGE_SIZES, activeChip, cellHit, DEFAULT_GROWTH, DEFAULT_PRICE, PRICE_KEYS, bandShort, priceFromParams, priceHit, priceOn, priceQuery, priceToParams, type PriceKey, type PriceState, type CellKey, growthFromParams, growthOn, growthQuery, growthToParams, type GrowthState, csvOf, dateChips, dateFromParams, dateProblem, describeSel, isWeekend, longDay, queryString, todayIST, useQuarterResults, weekdayName, type DateSel, type QDates, type QParams, type QRow, NO_SIDE, VALUE_RE, cleanValue, GROWTH_CELLS, CELL_OF, GROWTH_METRICS, opWords, DEFAULT_COND, sideOn, PRICE_PARAM_KEYS } from "../lib/qresults";
 import { saveFile } from "../stock/derive";
 import { ChartHelp } from "../components/ChartHelp";
 import { HScroll } from "../components/HScroll";
 import { TableZoom } from "../components/TableZoom";
 import { pageList } from "../lib/scoreScreen";
 import { GrowthPanel } from "../components/QrGrowth";
-import { FilterGroup } from "../components/screener/FilterGroup";
 import "../styles/fgx.css";
 import "../styles/qresults.css";
-import { CoLogo } from "../components/CoLogo";
 import { short } from "../lib/pulsePack";
-import { VerdictCell } from "../components/results/pack/ResultsPack";
 import { GlanceCard } from "../components/results/pack/Glance";
-import type { VRow } from "../lib/resultsPack";
+import { CompaniesGrid, COL_SETS, type ColSet } from "../components/results/CompaniesGrid";
+import { VERDICTS } from "../lib/resultsPack";
+import "../styles/companies-table.css";
 import "../styles/sectors.css";
 import "../styles/sectors-pack.css";
 import "../styles/industry-pack.css";
@@ -43,137 +38,8 @@ const HEAD_WORD: Record<string, string> = { company: "Company name", revenueQoQ:
 const INDICES: [string, string][] = [["NIFTY50", "NIFTY 50"], ["NIFTY100", "NIFTY 100"], ["NIFTY500", "NIFTY 500"]];
 const STATUSES: [string, string][] = [["", "Any status"], ["declared", "Figures in"], ["awaiting", "Report being updated"], ["due", "Due"]];
 const CAPS = [["", "Any size"], ["Large", "Large cap"], ["Mid", "Mid cap"], ["Small", "Small cap"], ["Micro", "Micro cap"]];
-const COLS = 16;   // with the verdict against the industry (final pages pack, board 11)
-
-const money = (v: number | null) => (v == null ? "—" : (v < 0 ? MINUS : "") + nf(v, Math.abs(v) >= 1000 ? 0 : 2));
-const pc1 = (v: number | null) => (v == null ? "—" : (v < 0 ? MINUS : "") + nf(v, 1) + "%");
-const Chg = ({ v, why }: { v: number | null; why?: string | null }) =>
-  v == null && why ? <abbr className="qr-chg qr-na" title={why} tabIndex={0} aria-label={`Not available. ${why}`}>—</abbr>
-    : <span className={"qr-chg" + (v == null ? "" : v > 0 ? " pos" : v < 0 ? " neg" : "")}>{signedPct(v)}</span>;
-const Plain = ({ text, why }: { text: string; why?: string | null }) => (text === "—" && why ? <abbr className="qr-na" title={why} tabIndex={0} aria-label={`Not available. ${why}`}>—</abbr> : <>{text}</>);
-
-function Copy({ text }: { text: string }) {
-  const { toast } = useUI();
-  const [done, setDone] = useState(false);
-  const copy = async () => {
-    try { await navigator.clipboard.writeText(text); } catch {
-      const t = document.createElement("textarea"); t.value = text; t.style.position = "fixed"; t.style.opacity = "0"; document.body.appendChild(t); t.select();
-      try { document.execCommand("copy"); } catch { toast("Copy is not available in this browser."); t.remove(); return; }
-      t.remove();
-    }
-    setDone(true); toast("Summary copied."); window.setTimeout(() => setDone(false), 1800);
-  };
-  return <button type="button" className="btn qr-copy" onClick={copy} aria-label="Copy this summary">{done ? "Copied" : "Copy"}</button>;
-}
-
-function Company({ r }: { r: QRow }) {
-  return (
-    <div className="qr-co">
-      <Link to={`/stocks/${r.symbol}#quarter`} className="qr-sym"><b><CoLogo symbol={r.symbol} name={r.name} size={20} inline />{titleOf(r)}</b></Link>
-      <small>{r.name}{r.sector ? ` · ${r.sector}` : ""}</small>
-      <span className="qr-tags">
-        {r.indices.includes("NIFTY50") ? <i>N50</i> : r.indices.includes("NIFTY100") ? <i>N100</i> : r.indices.includes("NIFTY500") ? <i>N500</i> : null}
-        {r.cap && <i>{r.cap}</i>}
-        {r.loss && <i className="neg">Loss</i>}
-      </span>
-    </div>
-  );
-}
-
-/** "Detailed view": the same quarter, laid out in groups (revenue, operating profit, net profit, per share, basis), plus the one-line summary to copy.
- *  A native <details>, so it opens and closes with a click or the keyboard and needs no state. Every figure is the row's own; a missing one shows a dash. */
-function Detail({ r, fiscal, line }: { r: QRow; fiscal?: string; line: string }) {
-  const kv = (label: string, value: ReactNode) => <div className="qr-kv"><dt>{label}</dt><dd>{value}</dd></div>;
-  const groups: { title: string; rows: [string, ReactNode][] }[] = [
-    { title: "Revenue", rows: [["Rs crore", money(r.revenue)], ["Change on a year ago", <Chg v={r.revenueYoY} />], ["Change on the last quarter", <Chg v={r.revenueQoQ} />]] },
-    { title: "Operating profit", rows: [["Rs crore", <Plain text={money(r.operatingProfit)} why={r.opYoYWhy} />], ["Change on a year ago", <Chg v={r.opYoY} why={r.opYoYWhy} />], ["Change on the last quarter", <Chg v={r.opQoQ} why={r.opQoQWhy} />], ["Operating margin (OPM)", <Plain text={pc1(r.opm)} why={r.opYoYWhy} />]] },
-    { title: "Net profit", rows: [["Rs crore", <b>{money(r.netProfit)}</b>], ["Change on a year ago", <Chg v={r.profitYoY} />], ["Change on the last quarter", <Chg v={r.profitQoQ} />], ["Net margin (NPM)", pc1(r.npm)], ...(r.npmChange != null ? [["Net margin, change on a year ago", `${r.npmChange > 0 ? "+" : r.npmChange < 0 ? MINUS : ""}${nf(Math.abs(r.npmChange), 1)} pts`] as [string, ReactNode]] : [])] },
-    { title: "Per share and basis", rows: [["Earnings per share (Rs)", r.eps == null ? "—" : (r.eps < 0 ? MINUS : "") + nf(Math.abs(r.eps), 2)], ["Quarter", `${fiscal ? fiscal + " · " : ""}ended ${r.periodEnd ? new Date(r.periodEnd + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}`], ["Declared", dayLabel(r.date)], ["Accounts", r.basis === "standalone" ? "Standalone" : r.basis === "consolidated" ? "Consolidated" : "—"]] },
-  ];
-  return (
-    <details className="qr-detail">
-      <summary><span>Detailed view</span><Icon name="arrow" className="qr-chev" /></summary>
-      <div className="qr-groups">
-        {groups.map((g) => (
-          <section key={g.title} className="qr-group" aria-label={g.title}>
-            <h4>{g.title}</h4>
-            <dl>{g.rows.map(([label, value]) => <Fragment key={label}>{kv(label, value)}</Fragment>)}</dl>
-          </section>
-        ))}
-      </div>
-      <p className="qr-line"><code>{line}</code><Copy text={line} /></p>
-    </details>
-  );
-}
 
 
-const rsv = (v: number | null | undefined) => (v == null ? "" : "Rs" + nf(v, 2));
-const dayOf = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-/** One "Below ... high" cell: the distance, its band, a thin 0-100% bar, and the reason in a tooltip. A dash says why the figure is not held. */
-function PriceCell({ r, k, hit }: { r: QRow; k: PriceKey; hit: boolean }) {
-  const v = k === "w52" ? r.below52 : r.belowAth, stale = k === "w52" ? r.stale52 : r.staleAth, high = k === "w52" ? r.high52 : r.ath;
-  const cls = "qg4 qgs qr-pp" + (hit ? " qr-hit" : "");
-  if (v == null) { const why = priceWhy(r, k); return <td className={cls}><abbr className="qr-na" title={why} tabIndex={0} aria-label={`Not available. ${why}`}>—<small>{r.price == null ? "No price held" : k === "ath" ? "Loading history" : "Not held"}</small></abbr></td>; }
-  const tip = [`Price ${rsv(r.price)}; ${PRICE_WORD[k]} ${rsv(high)}${k === "ath" && r.athDate ? ` (highest close, week of ${dayOf(r.athDate)})` : ""}.`,
-    k === "w52" && r.low52 != null ? `52-week low ${rsv(r.low52)}${r.above52Low != null ? `; the price is ${nf(r.above52Low, 1)}% above it` : ""}.` : "",
-    stale ? `The price is above the stored ${PRICE_WORD[k]} (it is updated once a day), so the distance is shown as 0%.` : ""].filter(Boolean).join(" ");
-  const label = v === 0 ? `At ${PRICE_WORD[k]}${stale ? "*" : ""}` : `${nf(v, 1)}%`;
-  return (
-    <td className={cls}>
-      <span className="qr-ppv" title={tip} tabIndex={0} aria-label={`${v === 0 ? "At the " + PRICE_WORD[k] : nf(v, 1) + "% below the " + PRICE_WORD[k]}. ${tip}`}>
-        <b>{label}</b>
-        <small className="qr-band">{v === 0 ? "At the high" : bandShort(bandOf(v))}</small>
-        <i className="qr-bar" aria-hidden="true"><em style={{ left: `${Math.min(100, v)}%` }} /></i>
-        <small className="qr-hi">High {rsv(high)}</small>
-      </span>
-      {hit && <span className="sr-only"> (meets your price-position filter)</span>}
-    </td>
-  );
-}
-
-function Row({ r, fiscal, locked, onUnlock, hit, phit }: { r: QRow; fiscal?: string; locked: boolean; onUnlock: () => void; hit: (k: CellKey) => boolean; phit: (k: PriceKey) => boolean }) {
-  const h = (k: CellKey) => (hit(k) ? " qr-hit" : "");
-  const tag = (k: CellKey) => (hit(k) ? <span className="sr-only"> (meets your growth filter)</span> : null);
-  const line = !locked && r.hasNumbers ? headline(r, fiscal) : null;
-  const note = r.status === "awaiting" && r.awaitingStage === "late" ? <>{awaitingNote(r)}</>
-    : r.status === "awaiting" && r.awaitingWhy === "provider" ? <>{awaitingNote(r)}</>
-    : r.status === "awaiting" ? <>Declared on {dayLabel(r.date)}. <b>Report is being updated.</b> Figures appear here as soon as the company's report is refreshed.</>
-    : r.status === "due" ? <>Results due on {dayLabel(r.date)}{r.confirmed ? "" : " (board-meeting date)"}.</>
-    : r.status === "missing" ? <>Declared on {dayLabel(r.date)}. This quarter's figures are no longer stored{r.loadedPeriodEnd ? ` (we hold the quarter to ${new Date(r.loadedPeriodEnd + "T00:00:00").toLocaleDateString("en-IN", { month: "short", year: "numeric" })})` : ""}.</>
-    : null;
-  return (
-    <>
-      <tr className={"qr-r" + (r.flagged ? " flag" : "")}>
-        <td><Company r={r} /></td>
-        {note ? <td colSpan={COLS - 3} className="qr-note"><span className="qr-sticky">{note}</span></td>
-          : locked ? <td colSpan={COLS - 3} className="qr-note"><span className="qr-sticky"><button type="button" className="qr-unlock" onClick={onUnlock}><Icon name="lock" /> Figures are part of the Silver plan</button></span></td>
-          : <>
-            <td className="qg1 qgs">{money(r.revenue)}</td><td className={"qg1" + h("revYoY")}><Chg v={r.revenueYoY} />{tag("revYoY")}</td><td className={"qg1" + h("revQoQ")}><Chg v={r.revenueQoQ} />{tag("revQoQ")}</td>
-            <td className="qg2 qgs"><Plain text={money(r.operatingProfit)} why={r.opYoYWhy} /></td><td className={"qg2" + h("opYoY")}><Chg v={r.opYoY} why={r.opYoYWhy} />{tag("opYoY")}</td><td className={"qg2" + h("opQoQ")}><Chg v={r.opQoQ} why={r.opQoQWhy} />{tag("opQoQ")}</td><td className="qg2"><Plain text={pc1(r.opm)} why={r.opYoYWhy} /></td>
-            <td className="qg3 qgs"><b>{money(r.netProfit)}</b></td><td className={"qg3" + h("npYoY")}><Chg v={r.profitYoY} />{tag("npYoY")}</td><td className={"qg3" + h("npQoQ")}><Chg v={r.profitQoQ} />{tag("npQoQ")}</td><td className="qg3">{pc1(r.npm)}</td>
-            <td className="qgs">{r.eps == null ? "—" : (r.eps < 0 ? MINUS : "") + nf(r.eps, 2)}</td>
-            <td className="qgs"><VerdictCell r={r as VRow} /></td>
-          </>}
-        {locked ? <td colSpan={2} className="qg4 qgs qr-pp"><abbr className="qr-na" title="Price position is part of the Silver plan." tabIndex={0}>—</abbr></td>
-          : <><PriceCell r={r} k="w52" hit={phit("w52")} /><PriceCell r={r} k="ath" hit={phit("ath")} /></>}
-      </tr>
-      {(line || r.flagged) && (
-        <tr className={"qr-sub" + (r.flagged ? " flag" : "")}>
-          <td colSpan={COLS}>
-            <div className="qr-sticky qr-lines">
-              {r.flagged && (
-                <p className="qr-flag"><span className="chip down"><Icon name="alert" /> {GAP_LABEL}</span>
-                  <span>Revenue {signedPct(r.revenueYoY, 0)}, profit {signedPct(r.profitYoY, 0)}: {nf(r.gap || 0, 0)} points apart.</span>
-                  <Link to={gapAlertLink(r.symbol)}>Set the alert</Link><Link to={`/stocks/${r.symbol}#quarter`}>Open the report</Link></p>
-              )}
-              {line && <Detail r={r} fiscal={fiscal} line={line} />}
-            </div>
-          </td>
-        </tr>
-      )}
-    </>
-  );
-}
 
 function DateEmpty({ dates, sel, today, quarterLabel, filtersOn, onPick, onQuarter, onClearFilters }: {
   dates: QDates; sel: DateSel; today: string; quarterLabel: string; filtersOn: boolean; onPick: (day: string) => void; onQuarter: (key: string) => void; onClearFilters: () => void;
@@ -260,9 +126,10 @@ export function CompaniesView() {
   useEffect(() => { if (first.current) { first.current = false; return; } setF((x) => ({ ...x, ...fromUrl() })); setQuery(sp.get("q") || ""); setOffset(0); }, [urlKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [offset, setOffset] = useState(0);
-  const [sideW, setSide] = useSideWidth("results-quarter");   // the draggable divider: the width is remembered; dragged to the edge it hides the filters
-  const wide = sideW === 0;                                   // filters hidden, table at full width
-  const toggleWide = () => setSide(wide ? SIDE.def : 0);
+  // task #330 (file 28): the column set (remembered) and the growth and price panel under the filter bar
+  const [colSet, setColSetState] = useState<ColSet>(() => { try { const v = localStorage.getItem("finlit-results-cols"); return (COL_SETS.some(([k]) => k === v) ? v : "key") as ColSet; } catch { return "key"; } });
+  const setColSet = (v: ColSet) => { setColSetState(v); try { localStorage.setItem("finlit-results-cols", v); } catch { /* the choice lasts this visit */ } };
+  const [panel, setPanel] = useState(false);
   // Rows per page (50 or 100, the server's most). The table had only Previous / Next under 50 rows, so most of the 5,000-odd companies were out of
   // sight: the pager now sits above the table as well as below it, with page numbers and the rows-per-page choice (22 Nov 2026).
   const [size, setSize] = useState<number>(PAGE);
@@ -273,7 +140,21 @@ export function CompaniesView() {
   const hasDate = !!(sel.date || sel.from || sel.to);
   const growth = useMemo(() => growthFromParams(sp), [sp]);   // the growth filters live in the address, like the quarter and the dates
   const price = useMemo(() => priceFromParams(sp), [sp]);
-  const p: QParams = { ...f, quarter, q: f.q, offset, limit: size, ...sel, ...growthQuery(growth), ...priceQuery(price) };
+  // task #330: an applied filter can be switched off without losing it (its tick box). An unticked filter keeps its value in its control and in the address
+  // (off=sector,g:npYoY), is not sent to the server, and does not count in the Growth and price badge.
+  const off = useMemo(() => new Set((sp.get("off") || "").split(",").filter(Boolean)), [sp]);
+  const setOffKeys = (keys: string[], isOff: boolean) => {
+    const n = new URLSearchParams(sp), x = new Set(off);
+    for (const k of keys) { if (isOff) x.add(k); else x.delete(k); }
+    if (x.size) n.set("off", [...x].join(",")); else n.delete("off");
+    setSp(n, { replace: true }); setOffset(0);
+  };
+  const effGrowth = useMemo<GrowthState>(() => ({ ...growth, cells: Object.fromEntries(Object.entries(growth.cells).map(([k, c]) => [k, off.has("g:" + k) ? { ...c, value: "" } : c])) as GrowthState["cells"] }), [growth, off]);
+  const effPrice = useMemo<PriceState>(() => ({ ...price, w52: off.has("w52") ? NO_SIDE : price.w52, ath: off.has("ath") ? NO_SIDE : price.ath }), [price, off]);
+  const effF: QParams = { ...f, q: off.has("q") ? undefined : f.q, sector: off.has("sector") ? undefined : f.sector, cap: off.has("cap") ? undefined : f.cap, status: off.has("status") ? undefined : f.status,
+    verdict: off.has("verdict") ? undefined : f.verdict, flagged: off.has("flag") ? false : f.flagged, industry: off.has("industry") ? undefined : f.industry,
+    scope: off.has("co") ? "all" : f.scope, index: off.has("co") ? undefined : f.index };
+  const p: QParams = { ...effF, quarter, offset, limit: size, ...(off.has("date") ? {} : sel), ...growthQuery(effGrowth), ...priceQuery(effPrice) };
   const res = useQuarterResults(p);
   const d = res.data;
   const dateErr = res.error instanceof ApiError && res.error.status === 400 ? res.error.message : null;   // a bad or future date in the address: say so, never show a blank
@@ -332,7 +213,6 @@ export function CompaniesView() {
     if (!["company", "marketCap"].includes(k) && !silver) return need("Sorting by results figures is part of the Silver plan.");
     set({ sort: k, dir: TEXT_KEYS.has(k) ? (nx.dir === "desc" ? "asc" : "desc") : nx.dir });
   };
-  const QH = (k: string, l: ReactNode, cls?: string, after?: ReactNode, rowSpan?: number) => <SortTh key={k} k={k} label={l} className={cls} after={after} rowSpan={rowSpan} sort={headSort} onSort={onHead} />;
   const setScope = (scope: "all" | "watchlist" | "portfolio") => {
     if (scope !== "all" && !user) return need("Sign in to see only your watchlist or portfolio.");
     set({ scope });
@@ -354,24 +234,74 @@ export function CompaniesView() {
   const nFilters = [f.sector, f.cap, f.index, f.status, f.q, f.flagged, f.scope !== "all" ? f.scope : ""].filter(Boolean).length;
   const filtersOn = nFilters > 0;
   const clearFilters = () => { setF({ scope: "all", sort: "date", dir: "desc" }); setQuery(""); setOffset(0); };
-  const body = useMemo(() => {
-    const out: ReactNode[] = [];
-    let last = "", coming = false;
-    for (const r of d?.rows || []) {
-      if (grouped && !coming && r.date > (d?.today || "9999")) {
-        coming = true;
-        out.push(<tr key="coming" className="qr-up"><td colSpan={COLS}><div className="qr-sticky"><b>Still to declare</b><span>Board-meeting dates, soonest first</span></div></td></tr>);
-      }
-      if (grouped && r.date !== last) {
-        last = r.date;
-        out.push(<tr key={"d" + r.date} className="qr-day"><td colSpan={COLS}><div className="qr-sticky"><b>{dayLabel(r.date)}</b><span>{days.get(r.date) || ""} {days.get(r.date) === 1 ? "company" : "companies"}</span></div></td></tr>);
-      }
-      out.push(<Row key={r.symbol} r={r} fiscal={q?.fiscal} locked={locked} hit={(k) => cellHit(r, k, growth.cells[k])} phit={(k) => priceHit(r, k, price[k])} onUnlock={() => need("Results figures, growth and margin are part of the Silver plan.")} />);
-    }
-    return out;
-  }, [d?.rows, d?.today, days, grouped, q?.fiscal, locked, growth, price]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const delayed = useResultsDelayedNote();
+  // task #330: the quick fills (the five presets), in the Growth and price panel and the list at a glance
+  const fills = [
+    ...GROWTH_PRESETS.map((g) => { const on = activePreset(growth) === g.id && priceIsDefault(price); return { id: g.id, label: g.label, hint: g.hint, on, apply: () => setBoth(on ? DEFAULT_GROWTH : applyPreset(g), DEFAULT_PRICE) }; }),
+    ...PRICE_PRESETS.filter((x) => x.growth).map((x) => { const on = activePricePreset(growth, price) === x.id; return { id: x.id, label: x.label, hint: x.hint, on, apply: () => setBoth(on ? DEFAULT_GROWTH : applyPreset(x.growth!), on ? DEFAULT_PRICE : x.price) }; }),
+  ];
+  const vc = d?.verdictCounts ?? null, vAll = vc ? Object.values(vc).reduce((a, n) => a + n, 0) + (total - (f.verdict && !off.has("verdict") ? (vc[f.verdict] ?? 0) : total)) : total;
+  // every filter that is set, each with its own tick box and × (the chips under the bar)
+  const coLabel = f.index ? INDICES.find(([k]) => k === f.index)?.[1] : f.scope === "watchlist" ? "My watchlist" : f.scope === "portfolio" ? "Equity portfolio" : "";
+  const cellOn = (k: CellKey) => { const c = growth.cells[k]; return c.value.trim() !== "" && VALUE_RE.test(cleanValue(c.value)); };
+  const sideLabel = (k: PriceKey) => { const x = price[k]; return x.band !== "" ? bandShort(Number(x.band)) + " below" : `${x.min.trim() || "0"}–${x.max.trim() || "∞"}% below`; };
+  const applied: { k: string; label: string; clear: () => void }[] = [
+    ...(f.q ? [{ k: "q", label: `Search: “${f.q}”`, clear: () => { setQuery(""); set({ q: "" }); } }] : []),
+    ...(hasDate ? [{ k: "date", label: `Declared: ${describeSel(sel, today)}`, clear: () => setDates(null) }] : []),
+    ...(coLabel ? [{ k: "co", label: `Companies: ${coLabel}`, clear: () => set({ scope: "all", index: "" }) }] : []),
+    ...(f.industry ? [{ k: "industry", label: `Industry: ${short(f.industry)}`, clear: () => { set({ industry: undefined }); const n = new URLSearchParams(sp); n.delete("industry"); setSp(n, { replace: true }); } }] : []),
+    ...(f.sector ? [{ k: "sector", label: `Sector: ${f.sector}`, clear: () => set({ sector: "" }) }] : []),
+    ...(f.cap ? [{ k: "cap", label: `Size: ${f.cap} cap`, clear: () => set({ cap: "" }) }] : []),
+    ...(f.status ? [{ k: "status", label: `Status: ${STATUSES.find(([v]) => v === f.status)?.[1] ?? f.status}`, clear: () => set({ status: "" }) }] : []),
+    ...(f.verdict ? [{ k: "verdict", label: `Against its industry: ${f.verdict}`, clear: () => set({ verdict: undefined }) }] : []),
+    ...(f.flagged ? [{ k: "flag", label: "Only flagged", clear: () => set({ flagged: false }) }] : []),
+    ...GROWTH_CELLS.filter(cellOn).map((k) => { const [m, per] = CELL_OF[k], c = growth.cells[k];
+      return { k: "g:" + k, label: `${GROWTH_METRICS.find(([x]) => x === m)?.[1]} ${per === "qoq" ? "QoQ" : "YoY"} ${opWords(c.op)} ${cleanValue(c.value)}%`, clear: () => setGrowth({ ...growth, cells: { ...growth.cells, [k]: DEFAULT_COND } }) }; }),
+    ...PRICE_KEYS.filter((k) => sideOn(price[k])).map((k) => ({ k, label: `${k === "w52" ? "52-week high" : "All-time high"}: ${sideLabel(k)}`, clear: () => setPrice({ ...price, [k]: NO_SIDE }) })),
+  ];
+  const nAdv = GROWTH_CELLS.filter((k) => cellOn(k) && !off.has("g:" + k)).length + PRICE_KEYS.filter((k) => sideOn(price[k]) && !off.has(k)).length;
+  const resetAll = () => { clearFilters(); const n = new URLSearchParams(sp); for (const k of ["off", "industry", "scope", "status", "q", "date", "from", "to", ...GROWTH_CELLS.flatMap((c) => [c + "Op", c + "Value"]), "join", ...PRICE_PARAM_KEYS]) n.delete(k); setSp(n, { replace: true }); setQuery(""); };
+  const dateId = chipOn ?? (sel.date ? "day" : sel.from || sel.to ? "range" : "");
+  const [dateMode, setDateMode] = useState<"" | "day" | "range">("");
+  const showDay = dateMode === "day" || (dateId === "day" && dateMode !== "range"), showRange = dateMode === "range" || (dateId === "range" && dateMode !== "day");
+  const coValue = f.index || (f.scope !== "all" ? f.scope : "all");
+  const filterBar = (
+    <div className="cx-bar" role="search" aria-label="Filter the companies">
+      <form className="cx-q" onSubmit={(e) => { e.preventDefault(); set({ q: query.trim() }); }}>
+        <Icon name="search" /><input type="search" value={query} onChange={(e) => { setQuery(e.target.value); if (!e.target.value) set({ q: "" }); }} placeholder="Find a company or symbol" aria-label="Find a company or symbol" maxLength={60} />
+      </form>
+      <label className={"cx-f" + (hasDate ? " set" : "")}>Declared
+        <select value={showDay ? "day" : showRange ? "range" : dateId} aria-label="Declared" onChange={(e) => {
+          const v = e.target.value;
+          if (v === "day" || v === "range") { setDateMode(v); return; }
+          setDateMode(""); if (!v) setDates(null); else { const c = chips.find((x) => x.id === v); if (c) apply(c.sel); }
+        }}><option value="">Any date</option>{chips.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}<option value="day">Pick a day…</option><option value="range">Pick a range…</option></select></label>
+      <label className={"cx-f" + (coLabel ? " set" : "")}>Companies
+        <select value={coValue} aria-label="Companies" onChange={(e) => { const v = e.target.value; if (v === "all") set({ scope: "all", index: "" }); else if (v === "watchlist" || v === "portfolio") { set({ index: "" }); setScope(v); } else set({ scope: "all", index: v }); }}>
+          <option value="all">All</option><option value="watchlist">My watchlist</option><option value="portfolio">Equity portfolio</option>{INDICES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+      <label className={"cx-f" + (f.sector ? " set" : "")}>Sector
+        <select value={f.sector || ""} onChange={(e) => set({ sector: e.target.value })} aria-label="Sector"><option value="">All sectors</option>{(d?.facets.sectors || []).map((x) => <option key={x.name} value={x.name}>{x.name} ({x.n})</option>)}</select></label>
+      <label className={"cx-f" + (f.cap ? " set" : "")}>Size
+        <select value={f.cap || ""} onChange={(e) => set({ cap: e.target.value })} aria-label="Size">{CAPS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+      {(showDay || showRange) && <div className="cx-dates" role="group" aria-label="Declared on">
+        {showDay ? <label>Day <input type="date" max={today} value={sel.date || ""} onChange={(e) => (e.target.value ? apply({ date: e.target.value }) : setDates(null))} /></label> : <>
+          <label>From <input type="date" max={draft.to || today} value={draft.from} onChange={(e) => { setDraft({ ...draft, from: e.target.value }); if (e.target.value) apply({ from: e.target.value, to: draft.to || undefined }); else if (hasDate) setDates(null); }} /></label>
+          <label>To <input type="date" min={draft.from || undefined} max={today} value={draft.to} onChange={(e) => { setDraft({ ...draft, to: e.target.value }); if (draft.from) apply({ from: draft.from, to: e.target.value || undefined }); else if (e.target.value) setMsg("Choose the from date as well as the to date."); }} /></label></>}
+        <span className="muted">{d?.dateMeaning || DATE_MEANING}</span>{msg && <span className="qr-dmsg" role="alert">{msg}</span>}</div>}
+      <label className={"cx-f" + (f.status ? " set" : "")}>Status
+        <select value={f.status || ""} onChange={(e) => set({ status: e.target.value })} aria-label="Status">{STATUSES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+      <button type="button" className={"cx-btn" + (nAdv ? " set" : "")} aria-expanded={panel} aria-controls="cx-gp" onClick={() => setPanel((v) => !v)}>Growth and price filters{nAdv > 0 && <span className="cx-n">{nAdv}</span>} ▾</button>
+      <span className="cx-flagw"><label className="sw"><input type="checkbox" checked={!!f.flagged} onChange={(e) => (silver ? set({ flagged: e.target.checked }) : need("The sales-and-profit flag is part of the Silver plan."))} /><span aria-hidden="true" /><b>Only flagged</b></label><ChartHelp id="qr-gap" /></span>
+      <span className="cx-end">
+        <label className="cx-f">Sort by
+          <select value={f.sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort by">{SORTS.map(([v, l, x]) => <option key={v} value={v}>{l}{x && !silver ? " (Silver)" : ""}</option>)}{f.sort && !SORTS.some(([v]) => v === f.sort) && <option value={f.sort}>{HEAD_WORD[f.sort] ?? "The column you chose"}</option>}</select></label>
+        <button type="button" className="cx-btn" aria-label={f.dir === "desc" ? "Highest first" : "Lowest first"} onClick={() => set({ dir: f.dir === "desc" ? "asc" : "desc" })}>{grouped ? (f.dir === "desc" ? "Newest first" : "Oldest first") : f.dir === "desc" ? "High to low" : "Low to high"}</button>
+        <button type="button" className="cx-btn" disabled={!applied.length} onClick={resetAll}>Reset filters</button>
+        <button type="button" className="cx-btn" onClick={exportCsv}>CSV{silver ? "" : " (Silver)"}</button>
+      </span>
+    </div>
+  );
   return (
     <div className="ipo qr sp rs rs-latest">
       {delayed && <div className="rc-stale" role="status" data-testid="results-delayed">{delayed}</div>}
@@ -384,116 +314,71 @@ export function CompaniesView() {
           <button type="button" className="btn primary" onClick={() => need("Quarter results figures are part of the Silver plan.")}>See Silver</button></div>
       )}
 
-      {<>
-      {f.industry && <p className="qr-active" role="status">Showing {short(f.industry)} only. <button type="button" className="alx-link" onClick={() => { set({ industry: undefined }); const n = new URLSearchParams(sp); n.delete("industry"); setSp(n, { replace: true }); }}>Show every industry</button></p>}
-      <div className={"qr-split" + (wide ? " qr-wide" : "")} style={{ "--side-w": `${sideW}px` } as React.CSSProperties}>
-      <aside className="qr-side card" aria-label="Filters" id="qr-filters" hidden={wide}>
-        <div className="qr-side-h">
-          <h2>Filters</h2>
-          <button type="button" className="qr-side-x" onClick={toggleWide} aria-controls="qr-filters" aria-expanded={!wide} aria-label="Hide filters" title="Hide filters, widen table">
-            <svg viewBox="0 0 12 12" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M7.5 2.5 4 6l3.5 3.5" /></svg>
-          </button>
+      <div className="cx">
+        {filterBar}
+        {panel && <div className="cx-gp" id="cx-gp">
+          <div className="cx-gp-p"><GrowthPanel state={growth} onChange={setGrowth} summary={d?.growth} loading={res.isFetching} price={price} onPrice={setPrice} priceSummary={d?.price} onBoth={setBoth} onReset={() => setBoth(DEFAULT_GROWTH, DEFAULT_PRICE)} held={dateErr ? null : d?.priceStrip} /></div>
+        </div>}
+        {applied.length > 0 && <div className="cx-applied" role="group" aria-label="Filters applied">
+          <span className="cx-ap-k">Filters applied<small>{applied.filter((a) => !off.has(a.k)).length} of {applied.length} on</small></span>
+          {applied.map((a) => { const isOff = off.has(a.k); return (
+            <span key={a.k} className={"cx-ap" + (isOff ? " off" : "")}>
+              <label><input type="checkbox" className="cx-tk" checked={!isOff} onChange={() => setOffKeys([a.k], !isOff)} aria-label={`${isOff ? "Switch on" : "Switch off"}: ${a.label}`} /><span>{a.label}</span></label>
+              <button type="button" aria-label={`Remove: ${a.label}`} onClick={() => { a.clear(); if (isOff) setOffKeys([a.k], false); }}>×</button>
+            </span>); })}
+          {applied.length > 1 && <>{off.size > 0 && <button type="button" className="alx-link" onClick={() => setOffKeys(applied.map((a) => a.k), false)}>Tick all</button>}
+            {applied.some((a) => !off.has(a.k)) && <button type="button" className="alx-link" onClick={() => setOffKeys(applied.map((a) => a.k), true)}>Untick all</button>}</>}
+        </div>}
+        {f.q && !off.has("q") && d && !dateErr && !res.isFetching && <p className="qr-findnote" role="status">{total ? <><b>{nf(total, 0)}</b> {total === 1 ? "company matches" : "companies match"} “{f.q}” among the filtered results.</> : <>“{f.q}” is not in the filtered results. <button type="button" className="alx-link" onClick={() => { setQuery(""); set({ q: "" }); }}>Clear the search</button></>}</p>}
+        <details className="cx-glance"><summary>The list at a glance <small>by size and by macro sector</small><span className="cv" aria-hidden="true">▾</span></summary>
+          <GlanceCard dist={d?.distribution} growth={d?.growth} locked={!silver} fills={fills} /></details>
+        <div className="cx-row2">
+          <div className="sp-filters" role="group" aria-label="Against its industry">
+            <button type="button" className={"sp-fbtn" + (!f.verdict ? " on" : "")} aria-pressed={!f.verdict} onClick={() => set({ verdict: undefined })}>All {nf(vAll, 0)}</button>
+            {VERDICTS.map((v) => <button key={v} type="button" className={"sp-fbtn rs-fv-" + v.toLowerCase().replace(" ", "") + (f.verdict === v ? " on" : "")} aria-pressed={f.verdict === v}
+              disabled={!!vc && !vc[v] && f.verdict !== v} onClick={() => (silver ? set({ verdict: f.verdict === v ? undefined : v }) : need("Each company's verdict against its industry is part of the Silver plan."))}>{v}{vc ? ` · ${nf(vc[v] ?? 0, 0)}` : ""}</button>)}
+          </div>
+          <div className="cx-sets" role="group" aria-label="Columns">{COL_SETS.map(([k, l]) => <button key={k} type="button" aria-pressed={colSet === k} onClick={() => setColSet(k)}>{l}</button>)}</div>
         </div>
-        <FilterGroup id="qr-date" title="Announcement date" defaultOpen>
-        <div className="qr-fd" role="group" aria-label="Announcement date">
-          <div className="chips" role="group" aria-label="Quick dates">
-            {chips.map((c) => <button key={c.id} type="button" className={chipOn === c.id ? "on" : ""} aria-pressed={chipOn === c.id} onClick={() => (chipOn === c.id ? setDates(null) : apply(c.sel))}>{c.label}</button>)}
-          </div>
-          <div className="qr-dates">
-            <label className="wl-sel"><span>Day</span>
-              <input type="date" max={today} value={sel.date || ""} aria-describedby="qr-datenote" onChange={(e) => (e.target.value ? apply({ date: e.target.value }) : setDates(null))} /></label>
-            <span className="qr-or" aria-hidden="true">or</span>
-            <label className="wl-sel"><span>From</span>
-              <input type="date" max={draft.to || today} value={draft.from} aria-describedby="qr-datenote" onChange={(e) => { setDraft({ ...draft, from: e.target.value }); if (e.target.value) apply({ from: e.target.value, to: draft.to || undefined }); else if (hasDate) setDates(null); }} /></label>
-            <label className="wl-sel"><span>To</span>
-              <input type="date" min={draft.from || undefined} max={today} value={draft.to} aria-describedby="qr-datenote" onChange={(e) => { setDraft({ ...draft, to: e.target.value }); if (draft.from) apply({ from: draft.from, to: e.target.value || undefined }); else if (e.target.value) setMsg("Choose the from date as well as the to date."); }} /></label>
-            {hasDate && <button type="button" className="alx-link qr-dclear" onClick={() => { setDates(null); setDraft({ from: "", to: "" }); }}>Clear dates</button>}
-          </div>
-          <p id="qr-datenote" className="qr-datenote muted">{d?.dateMeaning || DATE_MEANING} Pick a day, or a from and to range (both days included), up to today.</p>
-          {msg && <p className="qr-dmsg" role="alert">{msg}</p>}
-        </div>
-        </FilterGroup>
-        <FilterGroup id="qr-co" title="Companies" defaultOpen>
-        <div className="qr-f1">
-          <div className="chips" role="group" aria-label="Whose results">
-            {([["all", "All companies"], ["watchlist", "My watchlist"], ["portfolio", "Equity portfolio"]] as const).map(([k, l]) => <button key={k} type="button" className={f.scope === k ? "on" : ""} aria-pressed={f.scope === k} onClick={() => setScope(k)}>{l}</button>)}
-            <span className="qr-sep" aria-hidden="true" />
-            {INDICES.map(([k, l]) => <button key={k} type="button" className={f.index === k ? "on" : ""} aria-pressed={f.index === k} onClick={() => set({ index: f.index === k ? "" : k })}>{l}</button>)}
-          </div>
-          <form className="qr-search" role="search" onSubmit={(e) => { e.preventDefault(); set({ q: query.trim() }); }}>
-            <input type="search" value={query} onChange={(e) => { setQuery(e.target.value); if (!e.target.value) set({ q: "" }); }} placeholder="Search company or symbol" aria-label="Search company or symbol" maxLength={60} />
-            <button className="btn" type="submit">Search</button>
-          </form>
-        </div>
-          <div className="qr-f2 qr-selects">
-          <label className="wl-sel"><span>Sector</span>
-            <select value={f.sector || ""} onChange={(e) => set({ sector: e.target.value })} aria-label="Sector"><option value="">All sectors</option>{(d?.facets.sectors || []).map((s) => <option key={s.name} value={s.name}>{s.name} ({s.n})</option>)}</select></label>
-          <label className="wl-sel"><span>Market cap</span>
-            <select value={f.cap || ""} onChange={(e) => set({ cap: e.target.value })} aria-label="Market cap band">{CAPS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
-          <label className="wl-sel"><span>Status</span>
-            <select value={f.status || ""} onChange={(e) => set({ status: e.target.value })} aria-label="Status">{STATUSES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
-          </div>
-        </FilterGroup>
-      <GrowthPanel state={growth} onChange={setGrowth} summary={d?.growth} loading={res.isFetching} price={price} onPrice={setPrice} priceSummary={d?.price} onBoth={setBoth} onReset={() => setBoth(DEFAULT_GROWTH, DEFAULT_PRICE)} held={dateErr ? null : d?.priceStrip} />
-      </aside>
-      <SplitDivider width={sideW} set={setSide} />
-      <div className="qr-main">
-      <div className="qr-toolbar" role="group" aria-label="Sort and export">
-          <button type="button" className="btn qr-widebtn" aria-pressed={wide} aria-controls="qr-filters" onClick={toggleWide}><Icon name="table" /> {wide ? "Show filters" : "Hide filters, widen table"}</button>
-          <form className="qr-find" role="search" onSubmit={(e) => { e.preventDefault(); set({ q: query.trim() }); }}>
-            <input type="search" value={query} onChange={(e) => { setQuery(e.target.value); if (!e.target.value) set({ q: "" }); }} placeholder="Find a company in these results" aria-label="Find a company in these results" maxLength={60} />
-            <button className="btn" type="submit">Find</button>
-          </form>
-          <label className="wl-sel"><span>Sort by</span>
-            <select value={f.sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort by">{SORTS.map(([v, l, s]) => <option key={v} value={v}>{l}{s && !silver ? " (Silver)" : ""}</option>)}{f.sort && !SORTS.some(([v]) => v === f.sort) && <option value={f.sort}>{HEAD_WORD[f.sort] ?? "The column you chose"}</option>}</select></label>
-          <button type="button" className="btn qr-dir" aria-label={f.dir === "desc" ? "Highest first" : "Lowest first"} onClick={() => set({ dir: f.dir === "desc" ? "asc" : "desc" })}>{grouped ? (f.dir === "desc" ? "Newest first" : "Oldest first") : f.dir === "desc" ? "High to low" : "Low to high"}</button>
-          <span className="qr-flagged"><label className="sw"><input type="checkbox" checked={!!f.flagged} onChange={(e) => (silver ? set({ flagged: e.target.checked }) : need("The sales-and-profit flag is part of the Silver plan."))} /><span aria-hidden="true" /><b>Only flagged</b></label><ChartHelp id="qr-gap" /></span>
-          <button type="button" className="btn qr-csv" onClick={exportCsv}><Icon name="table" /> CSV{silver ? "" : " (Silver)"}</button>
-          {filtersOn && <button type="button" className="alx-link" onClick={clearFilters}>Clear filters</button>}
+        <details className="sp-more rs-how cx-how"><summary>How we judge a result ▾</summary>
+          <ol className="sp-steps">
+            <li><b>Three checks.</b> Revenue growth from a year ago, profit growth from a year ago, and the change in profit margin.</li>
+            <li><b>Against similar companies.</b> Each figure is compared with the typical company in the same industry this quarter. A bank is compared with banks, a carmaker with carmakers.</li>
+            <li><b>Size does not count.</b> A small company faces the same yardstick as a large one in its industry. The size column is there for your information only.</li>
+            <li><b>The verdict.</b> Strong: better than typical on most checks. Good: better on balance. In line: close to typical. Weak and Poor: worse on balance, or on most checks. Loss: the company lost money.</li>
+          </ol>
+          <p className="rs-legend"><span><b className="rs-ck up">▲</b> better than typical</span><span><b className="rs-ck flat">●</b> close to typical</span><span><b className="rs-ck down">▼</b> worse than typical</span><span><b className="rs-ck loss">✕</b> loss</span></p>
+        </details>
+        <section className="card qr-card cx-sec">
+          <div className="card-h"><h3><span className="ci"><Icon name="notes" /></span>{q ? `${q.label}` : "Results"}<span className="muted qr-count"> · {nf(total, 0)} {total === 1 ? "company" : "companies"}</span></h3>
+            <span className="muted qr-unit">₹ crore, except EPS (₹) and per cent</span></div>
+          {hasDate && !off.has("date") && d && !dateErr && (
+            <p className="qr-active" role="status">
+              Showing companies {describeSel(sel, today)}{q ? ` for ${q.label}` : ""}: <b>{nf(total, 0)}</b>{filtersOn ? " after your filters" : ""}.
+              {d.dates && d.dates.quarters.filter((x) => x.key !== q?.key).map((x) => <span key={x.key}> {nf(x.n, 0)} announced {x.label} results in this window: <button type="button" className="alx-link" onClick={() => { const n = new URLSearchParams(sp); n.set("quarter", x.key); setSp(n); setOffset(0); }}>view</button>.</span>)}
+            </p>
+          )}
+          {dateErr ? null : res.isLoading && !d ? <div className="skeleton" style={{ height: 360 }} /> : !d?.rows.length && hasDate && !off.has("date") && d?.dates ? (
+            <DateEmpty dates={d.dates} sel={sel} today={today} quarterLabel={q?.label || "quarter"} filtersOn={filtersOn} onPick={(day) => setDates({ date: day }, true)}
+              onQuarter={(key) => { const n = new URLSearchParams(sp); n.set("quarter", key); setSp(n); setOffset(0); }} onClearFilters={clearFilters} />
+          ) : !d?.rows.length ? (
+            <div className="dw-empty"><span className="dw-ei"><Icon name="calendar" /></span><b>{d?.quarter ? "No companies match" : "No results dates yet"}</b><p>{d?.quarter ? (growthOn(effGrowth) || priceOn(effPrice) ? "No company meets the growth and price-position conditions you set. Try a wider band or lower threshold, or switch from Match all to Match any." : "Try removing a filter.") : "Results dates appear here as companies announce them."}</p>
+              {f.scope === "watchlist" && <Link className="btn" to="/watchlist">Build a watchlist</Link>}{f.scope === "portfolio" && <Link className="btn" to="/holdings">Add holdings</Link>}</div>
+          ) : (
+            <TableZoom label="Results table">
+            <div ref={tableTop} className="qr-ttop">{total > PAGE_SIZES[0] && <Pager at="top" offset={offset} total={total} size={size} onPage={goPage} onSize={pickSize} />}</div>
+            <HScroll label="results table" className="qr-scroll">
+              <CompaniesGrid rows={d.rows} set={colSet} sort={headSort} onSort={onHead} grouped={grouped} today={d.today || "9999"} days={days} locked={locked}
+                onUnlock={() => need("Results figures, growth and margin are part of the Silver plan.")}
+                hits={(r, k) => cellHit(r, k === "revg" ? "revYoY" : k === "opg" ? "opYoY" : "npYoY", effGrowth.cells[k === "revg" ? "revYoY" : k === "opg" ? "opYoY" : "npYoY"])}
+                phits={(r, k) => priceHit(r, k, effPrice[k])} />
+            </HScroll>
+            <div className="cx-foot">{total > PAGE_SIZES[0] ? <Pager at="bottom" offset={offset} total={total} size={size} onPage={goPage} onSize={pickSize} /> : <span>{nf(total, 0)} {total === 1 ? "company" : "companies"}</span>}</div>
+            </TableZoom>
+          )}
+          <ReadNote />
+        </section>
       </div>
-      {f.q && d && !dateErr && !res.isFetching && <p className="qr-findnote" role="status">{total ? <><b>{nf(total, 0)}</b> {total === 1 ? "company matches" : "companies match"} “{f.q}” among the filtered results.</> : <>“{f.q}” is not in the filtered results. <button type="button" className="alx-link" onClick={() => { setQuery(""); set({ q: "" }); }}>Clear the search</button></>}</p>}
-      <GlanceCard dist={d?.distribution} growth={d?.growth} locked={!silver} fills={[
-        ...GROWTH_PRESETS.map((g) => { const on = activePreset(growth) === g.id && priceIsDefault(price); return { id: g.id, label: g.label, hint: g.hint, on, apply: () => setBoth(on ? DEFAULT_GROWTH : applyPreset(g), DEFAULT_PRICE) }; }),
-        ...PRICE_PRESETS.filter((x) => x.growth).map((x) => { const on = activePricePreset(growth, price) === x.id; return { id: x.id, label: x.label, hint: x.hint, on, apply: () => setBoth(on ? DEFAULT_GROWTH : applyPreset(x.growth!), on ? DEFAULT_PRICE : x.price) }; }),
-      ]} />
-
-      <section className="card qr-card">
-        <div className="card-h"><h3><span className="ci"><Icon name="notes" /></span>{q ? `${q.label}` : "Results"}<span className="muted qr-count"> · {nf(total, 0)} {total === 1 ? "company" : "companies"}</span></h3>
-          <span className="muted qr-unit">Rs crore, except EPS (Rs) and per cent</span></div>
-        {hasDate && d && !dateErr && (
-          <p className="qr-active" role="status">
-            Showing companies {describeSel(sel, today)}{q ? ` for ${q.label}` : ""}: <b>{nf(total, 0)}</b>{filtersOn ? " after your filters" : ""}.
-            {d.dates && d.dates.quarters.filter((x) => x.key !== q?.key).map((x) => <span key={x.key}> {nf(x.n, 0)} announced {x.label} results in this window: <button type="button" className="alx-link" onClick={() => { const n = new URLSearchParams(sp); n.set("quarter", x.key); setSp(n); setOffset(0); }}>view</button>.</span>)}
-          </p>
-        )}
-        {dateErr ? null : res.isLoading && !d ? <div className="skeleton" style={{ height: 360 }} /> : !d?.rows.length && hasDate && d?.dates ? (
-          <DateEmpty dates={d.dates} sel={sel} today={today} quarterLabel={q?.label || "quarter"} filtersOn={filtersOn} onPick={(day) => setDates({ date: day }, true)}
-            onQuarter={(key) => { const n = new URLSearchParams(sp); n.set("quarter", key); setSp(n); setOffset(0); }} onClearFilters={clearFilters} />
-        ) : !d?.rows.length ? (
-          <div className="dw-empty"><span className="dw-ei"><Icon name="calendar" /></span><b>{d?.quarter ? "No companies match" : "No results dates yet"}</b><p>{d?.quarter ? (growthOn(growth) || priceOn(price) ? "No company meets the growth and price-position conditions you set. Try a wider band or lower threshold, or switch from Match all to Match any." : "Try removing a filter.") : "Results dates appear here as companies announce them."}</p>
-            {f.scope === "watchlist" && <Link className="btn" to="/watchlist">Build a watchlist</Link>}{f.scope === "portfolio" && <Link className="btn" to="/holdings">Add holdings</Link>}</div>
-        ) : (
-          // One enlarge arrow (the site's shared one, in the panel's corner): it opens the table WITH its pager, so every page can be read enlarged.
-          <TableZoom label="Results table">
-          <div ref={tableTop} className="qr-ttop">{total > PAGE_SIZES[0] && <Pager at="top" offset={offset} total={total} size={size} onPage={goPage} onSize={pickSize} />}</div>
-          <HScroll label="results table" className="qr-scroll">
-            <table className="qtt qr-t">
-              <thead>
-                <tr className="qr-grp">{QH("company", "Company", undefined, undefined, 2)}<th colSpan={3} scope="colgroup" className="qg1 qgs">Revenue</th><th colSpan={4} scope="colgroup" className="qg2 qgs">Operating profit</th><th colSpan={4} scope="colgroup" className="qg3 qgs">Net profit</th>{QH("eps", "EPS", "qgs", undefined, 2)}{QH("verdict", "Verdict", "qgs", <ChartHelp id="qr-verdict" />, 2)}<th colSpan={2} scope="colgroup" className="qg4 qgs">Price position</th></tr>
-                <tr>{QH("revenue", "Rs Cr", "qg1 qgs")}{QH("revenueYoY", "YoY", "qg1")}{QH("revenueQoQ", "QoQ", "qg1")}{QH("operatingProfit", "Rs Cr", "qg2 qgs")}{QH("opYoY", "YoY", "qg2")}{QH("opQoQ", "QoQ", "qg2")}{QH("opm", "OPM", "qg2")}{QH("netProfit", "Rs Cr", "qg3 qgs")}{QH("profitYoY", "YoY", "qg3")}{QH("profitQoQ", "QoQ", "qg3")}{QH("npm", "NPM", "qg3")}
-                  {PRICE_KEYS.map((k, i) => QH(k === "w52" ? "below52" : "belowAth", k === "w52" ? "Below 52-week high" : "Below all-time high", "qg4" + (i === 0 ? " qgs" : "")))}</tr>
-              </thead>
-              <tbody>{body}</tbody>
-            </table>
-          </HScroll>
-          {total > PAGE_SIZES[0] && <Pager at="bottom" offset={offset} total={total} size={size} onPage={goPage} onSize={pickSize} />}
-          </TableZoom>
-        )}
-        <ReadNote />
-      </section>
-      </div>
-      </div>
-      </>}
     </div>
   );
 }
