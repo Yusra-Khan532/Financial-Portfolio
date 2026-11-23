@@ -6,7 +6,7 @@ import { MINUS, csvText, nf } from "./format";
 
 export type QStatus = "declared" | "awaiting" | "due" | "missing";
 export type QRow = {
-  date: string; symbol: string; name: string; sector: string | null; marketCap: number | null; cap: "Large" | "Mid" | "Small" | "Micro" | null; indices: string[];
+  date: string; symbol: string; name: string; sector: string | null; /** the NSE industry the verdict compares with */ industry?: string | null; marketCap: number | null; cap: "Large" | "Mid" | "Small" | "Micro" | null; indices: string[];
   confirmed: boolean; periodEnd: string; loadedPeriodEnd: string | null; status: QStatus; awaiting: boolean; hasNumbers: boolean; locked: boolean;
   revenue: number | null; revenueYoY: number | null; revenueQoQ: number | null; operatingProfit: number | null; opYoY: number | null; opQoQ: number | null; opYoYWhy: string | null; opQoQWhy: string | null; opm: number | null;
   netProfit: number | null; profitYoY: number | null; profitQoQ: number | null; npm: number | null; npmChange: number | null; eps: number | null;
@@ -34,6 +34,7 @@ export type QResp = {
   total: number; offset: number; limit: number; summary: QSummary; totals: QSummary; rows: QRow[]; days: { date: string; n: number }[];
   facets: { sectors: { name: string; n: number }[]; indices: { code: string; n: number }[] }; gapFlag?: number; updatedAt?: string;
   dates?: QDates | null; dateMeaning?: string;
+  /** Task #330: each verdict's count over the rows the other filters leave (Silver; null below). */ verdictCounts?: Record<string, number> | null;
   /** Null when no growth filter is on. Counts are over every company with figures (before paging). */
   growth?: GrowthSummary | null; distribution?: QDistribution;
   /** Null when no price-position filter is on. */
@@ -57,7 +58,7 @@ export type QDates = {
 };
 export type QParams = {
   quarter?: string; q?: string; sector?: string; industry?: string; cap?: string; index?: string; scope?: "all" | "watchlist" | "portfolio"; flagged?: boolean; status?: string;
-  sort?: string; dir?: "asc" | "desc"; offset?: number; limit?: number;
+  sort?: string; dir?: "asc" | "desc"; offset?: number; limit?: number; /** Task #330: one verdict (the chips above the companies table) */ verdict?: string;
   date?: string; from?: string; to?: string;   // the announcement date (one day) or a from-to range, India dates as YYYY-MM-DD
 } & Partial<Record<`${CellKey}Op` | `${CellKey}Value` | "join" | PriceQueryKey, string>>;
 

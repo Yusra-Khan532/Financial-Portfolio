@@ -26,7 +26,9 @@ const resp = (over: Partial<QResp> = {}): QResp => ({
   distribution: { total: 5, sectors: [{ name: "IT", n: 3 }, { name: "Banks", n: 1 }, { name: "Others", n: 1 }], caps: [{ name: "Large", n: 4 }, { name: "Not classified", n: 1 }] }, ...over,
 });
 const Where = () => { const l = useLocation(); return <output data-testid="loc">{l.pathname + l.search}</output>; };
-const open = (qs = "") => render(<MemoryRouter initialEntries={["/results/quarter" + qs]}><Routes><Route path="/results/quarter" element={<CompaniesView />} /></Routes><Where /></MemoryRouter>);
+// task #330: the growth and price filters open from the filter bar's "Growth and price filters" button (they were always in the side panel)
+const open = (qs = "") => { const r = render(<MemoryRouter initialEntries={["/results/quarter" + qs]}><Routes><Route path="/results/quarter" element={<CompaniesView />} /></Routes><Where /></MemoryRouter>);
+  fireEvent.click(screen.getByRole("button", { name: /Growth and price filters/ })); return r; };
 const loc = () => decodeURIComponent(screen.getByTestId("loc").textContent || "");
 // the page's own request (it carries the page offset); the six tiles ask for whole-quarter figures by size alongside it (task #194)
 const lastParams = () => st.params.filter((p) => "offset" in (p as object)).at(-1) as QParams;
@@ -129,10 +131,10 @@ describe("the panel", () => {
     expect(lastParams()).toMatchObject({ quarter: "2026-09", revQoQValue: "10", revYoYValue: "10", npQoQValue: "10", npYoYValue: "10" });
     fireEvent.click(panel().getByRole("button", { name: "Revenue and net profit both growing" }));
     expect(lastParams()).toMatchObject({ revQoQOp: ">", revQoQValue: "0" });
-    fireEvent.click(screen.getByRole("button", { name: "Reset filters" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear growth and price filters" }));
     expect(loc()).toBe("/results/quarter?quarter=2026-09");
     expect(lastParams().revQoQValue).toBeUndefined();
-    expect((screen.getByRole("button", { name: "Reset filters" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "Clear growth and price filters" }) as HTMLButtonElement).disabled).toBe(true);
   });
   it("starts from an old shared link and from a grid link", () => {
     open("?quarter=2026-09&qoqMetric=revenue&qoqValue=1&yoyValue=-3&yoyOp=%3C%3D&join=or");
@@ -207,7 +209,8 @@ describe("the table", () => {
     st.resp = resp({ rows: [row], total: 1 });
     open("?revYoYValue=10&revQoQValue=0&npYoYOp=%3E&npYoYValue=29");
     const hits = Array.from(document.querySelectorAll("td.qr-hit")).map((td) => td.textContent);
-    expect(hits).toEqual(["+12.0% (meets your growth filter)", "+30.0% (meets your growth filter)"]);   // revenue QoQ -3 does not meet >= 0
+    expect(hits).toHaveLength(2);   // task #330: the growth cell carries QoQ under YoY; revenue QoQ -3 does not meet >= 0, so only the two YoY cells are marked
+    expect(hits[0]).toMatch(/^\+12\.0%.*\(meets your growth filter\)$/); expect(hits[1]).toMatch(/^\+30\.0%.*\(meets your growth filter\)$/);
   });
 });
 
@@ -245,31 +248,4 @@ describe("the list at a glance (task #194: one card replaces the three donut box
   });
 });
 
-describe("the filter box of Latest results", () => {
-  it("is headed Filters, and an arrow in it hides the box (the toolbar button brings it back)", () => {
-    open();
-    const box = screen.getByRole("complementary", { name: "Filters" });
-    expect(within(box).getByRole("heading", { name: "Filters" })).toBeTruthy();
-    const hide = within(box).getByRole("button", { name: "Hide filters" });
-    expect(hide.getAttribute("aria-expanded")).toBe("true");
-    fireEvent.click(hide);
-    expect(document.getElementById("qr-filters")?.hasAttribute("hidden")).toBe(true);
-    fireEvent.click(screen.getByRole("button", { name: /Show filters/ }));
-    expect(document.getElementById("qr-filters")?.hasAttribute("hidden")).toBe(false);
-  });
-  it("has a drag-and-pull bar between the filters and the results: arrow keys resize it, and Enter, a double-click or pulling it to the edge hides the filters", () => {
-    open();
-    const bar = screen.getByRole("separator", { name: /Resize the filters panel/ });
-    expect(bar.getAttribute("aria-valuenow")).toBe("330");
-    fireEvent.keyDown(bar, { key: "ArrowRight" });
-    expect(bar.getAttribute("aria-valuenow")).toBe("360");
-    for (let i = 0; i < 12; i++) fireEvent.keyDown(bar, { key: "ArrowLeft" });                 // the arrow keys stop at the narrowest useful width
-    expect(bar.getAttribute("aria-valuenow")).toBe("240");
-    fireEvent.keyDown(bar, { key: "Enter" });                                                   // Enter (or a double-click, or pulling it to the edge) hides the filters
-    expect(bar.getAttribute("aria-valuenow")).toBe("0");
-    expect(document.getElementById("qr-filters")?.hasAttribute("hidden")).toBe(true);
-    fireEvent.doubleClick(bar);                                                                 // and a double-click brings them back
-    expect(bar.getAttribute("aria-valuenow")).toBe("330");
-    expect(document.getElementById("qr-filters")?.hasAttribute("hidden")).toBe(false);
-  });
-});
+// task #330 (file 28): the filter side panel, its arrow and its drag bar are gone: the filters sit in a bar above a full-width table ("Hide filters, widen table: Gone")
