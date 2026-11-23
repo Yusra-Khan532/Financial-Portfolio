@@ -237,23 +237,31 @@ export function Momentum({ b, mine }: { b: Board; mine: Set<string> }) {
 }
 
 // ------------------------------------------------------------------------------------------------ Standout stocks in weak industries
-export function Standouts({ b }: { b: Board }) {
-  const [all, setAll] = useState(false);
-  const f = b.leader_flags;
+export function Standouts({ b, mine = new Set<string>() }: { b: Board; mine?: Set<string> }) {
+  const [all, setAll] = useState(false), [pick, setPick] = useState<"all" | "Strong" | "Early" | "mine">("all");   // task #333 (polish 7): All · Strong · Early · In my sectors
+  const every = b.leader_flags;
+  const f = every?.filter((x) => pick === "all" || (pick === "mine" ? mine.has(x.group_slug) : howStrong(x) === pick)) ?? null;
+  const count = (k: "Strong" | "Early" | "mine") => (every ?? []).filter((x) => (k === "mine" ? mine.has(x.group_slug) : howStrong(x) === k)).length;
   return (
     <Section id="sp-standouts" title={tw("Standout stocks in weak industries")} help={tw("Standout stocks. Stocks at a new 1-year high while their industry is still well below its own high. They are holding up better than their neighbours.")}
       sub={tw("Stocks at a new 1-year high while their own industry is still well below its high.")}
       why={tw("When most of an industry is down, a stock that keeps making new highs is showing strength of its own. It is a place to start your research, not a signal to act on.")}>
       {f == null ? <LockedBlock plan="silver" name="Platinum" title="The standout stocks are part of the Platinum plan">{tw("The industry states and the stocks rising are open to everyone. Platinum lists every stock at a new 1-year high inside a weak industry, with how far its industry is below its own high.")}</LockedBlock>
-        : !f.length ? <p className="sp-empty">{tw("No stock is at a new 1-year high inside a weak industry today.")}</p>
+        : !every?.length ? <p className="sp-empty">{tw("No stock is at a new 1-year high inside a weak industry today.")}</p>
         : <>
+          <div className="sx-fl" role="group" aria-label="Show"><span>Show</span>
+            <button type="button" aria-pressed={pick === "all"} onClick={() => setPick("all")}>All <small>{every.length}</small></button>
+            <button type="button" aria-pressed={pick === "Strong"} onClick={() => setPick("Strong")}>Strong <small>{count("Strong")}</small></button>
+            <button type="button" aria-pressed={pick === "Early"} onClick={() => setPick("Early")}>Early <small>{count("Early")}</small></button>
+            {mine.size > 0 && <button type="button" aria-pressed={pick === "mine"} onClick={() => setPick("mine")}>{tw("In my industries")} <small>{count("mine")}</small></button>}</div>
+          {!f!.length && <p className="sp-empty">No standout stock matches this filter.</p>}
           <Scroll label="standout stocks"><table className="sp-tb sp-stand">
             <thead><tr><th scope="col">Stock</th><th scope="col">{tw("Its industry")}</th><th scope="col">How strong<Tip text={tw("Strong: the industry is far below its own high, so the stock stands out the most. Early: the industry is a little less far below its high.")} /></th><th scope="col">New high</th><th scope="col">{tw("Its industry is")}</th></tr></thead>
-            <tbody>{(all ? f : f.slice(0, 8)).map((x) => { const r = b.rows.find((g) => g.slug === x.group_slug), s = howStrong(x); return (
+            <tbody>{(all || pick !== "all" ? f! : f!.slice(0, 8)).map((x) => { const r = b.rows.find((g) => g.slug === x.group_slug), s = howStrong(x); return (
               <tr key={x.symbol + x.group_slug}><td><Link to={`/stocks/${x.symbol}`} className="sp-sym big"><CoLogo symbol={x.symbol} size={26} inline /><b title={coTitle(x)}>{shortLabel(x)}</b></Link></td><td>{short(x.group)}</td>
                 <td><span className="sp-chipw"><span className={"sp-chip " + (s === "Strong" ? "sp-st-bouncing" : "sp-st-sold_off")}>{s}</span><Tip text={s === "Strong" ? tw("Strong: its industry is far below its own 1-year high, so this stock stands out the most.") : tw("Early: its industry is a little less far below its own 1-year high.")} label={`About “${s}”`} /></span></td><td className="sp-good">{newHigh(x)}</td><td>{r?.index_vs_52w_high != null ? `${belowHigh(r.index_vs_52w_high)} its high` : "–"}</td></tr>); })}</tbody>
           </table></Scroll>
-          {f.length > 8 && <button type="button" className="sp-morebtn" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer ▴" : `Show the other ${f.length - 8} standout stocks ▾`}</button>}
+          {pick === "all" && f!.length > 8 && <button type="button" className="sp-morebtn" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer ▴" : `Show the other ${f!.length - 8} standout stocks ▾`}</button>}
         </>}
     </Section>
   );

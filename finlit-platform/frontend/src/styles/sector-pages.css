@@ -267,3 +267,17 @@ svg a:focus-visible circle { stroke: var(--gold); stroke-width: 3px; }
 .sx-mr > b { font: 700 var(--fs-14)/1.2 var(--sans); } .sx-mr .sx-sm { flex: 1 1 100%; margin: 0; }
 .sx-mr span { display: inline-flex; align-items: center; gap: 4px; }
 @media (max-width: 760px) { .sx-mood { height: 190px; } .sx-col { min-width: 22px; } .sx-new .sx-mapw > svg { min-width: 680px; } }
+
+/* ---- the Full table: Key figures · All columns, the bell in its own column, tighter rows (third pass 1, final check 4 and 5) ---- */
+.sx-colset { margin: 8px 0; }
+.sx-ft.sx-key .sx-cx { display: none; }
+.sx-ft.sx-key thead tr:first-child { display: none; }
+.sx-ft .sx-lk { display: none; } .sx-ft.sx-key .sx-lk { display: inline; } .sx-ft.sx-key .sx-lf { display: none; }
+.sx-new .sx-ft td { padding-top: 7px !important; padding-bottom: 7px !important; vertical-align: middle; }
+.sx-new .sx-ft .sp-exp small { display: inline; margin-left: 8px; font-weight: 400; color: var(--sp-mute); white-space: nowrap; }
+.sx-new .sx-ft td:not(:first-child) { white-space: nowrap; }
+.sx-new .sx-ft em.sp-yours { margin-left: 6px; padding: 3px 6px; border-radius: var(--r-ctl); background: color-mix(in srgb, var(--gold) 22%, transparent); font: 700 var(--fs-12)/1 var(--sans); font-style: normal; letter-spacing: .06em; text-transform: uppercase; }
+.sx-new .sx-ft.sx-key { width: 100%; min-width: 0; }
+.sx-new .sx-ft .sx-alh, .sx-new .sx-ft .sx-alc { position: sticky; right: 0; width: 48px; background: var(--s1); text-align: center; }
+:root[data-theme="dark"] .sx-new .sp-gh .sp-chip:not(.sp-st-crash) { color: var(--bg); }
+@media (max-width: 900px) { .sx-new .sx-ft.sx-key { min-width: 680px; } .sx-new .sx-ft .sx-alh, .sx-new .sx-ft .sx-alc { position: static; } }

@@ -13,15 +13,26 @@ import type { Board, GroupRow, IndustryPage, RankedStock } from "../../../lib/se
 import type { SectorHistory, StateKey } from "../../../lib/sectorHistory";
 import { COLOUR, MEANING, ORDER, WORD, groupsN, groupsSplit, bounceIndex, bouncedShort, byState, dayMon, fridayCards, fridays, howStrong, inTableFilter, isEarly, keyOf, risingOf, short, standoutCounts, statesAt, tableCards, type Card, type TableFilter } from "../../../lib/pulsePack";
 import { BoxChip, Cards, InsideLine, InsightCard, Scroll, Spark, StateChip, Swatch, Tip, Why, useAccount } from "./Common";
+import { AlertBell } from "./SectorAlert";
 import { coTitle, shortLabel, subLine, titleOf } from "../../../lib/companyLabel";
 import { gl, sq, tw, wordsShow } from "../../../lib/groupWords";
 
 const pct0 = (v: number | null | undefined) => (v == null ? "–" : `${Math.round(v)}%`);
 const signed = (v: number | null | undefined) => (v == null ? "–" : `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(1)}%`);
 
+const COLS_KEY = "finlit-sx-cols-full";
+/** Task #333 (file 30, 2a): the two callouts above the Full table: a Warning first, then a Good sign, then the first other. */
+export function fullCards(rows: GroupRow[], week: Record<StateKey, number> | null): Card[] {
+  const all = tableCards(rows, week), rank = (c: Card) => (c.kind === "warning" ? 0 : c.kind === "good" ? 1 : 2);
+  return [...all].sort((a, c) => rank(a) - rank(c)).slice(0, 2);
+}
+export function FullCards({ b, h }: { b: Board; h: SectorHistory | undefined }) { return <Cards items={fullCards(b.rows, statesAt(h, 1))} />; }
+
 export function PulseTable({ b, h, mine }: { b: Board; h: SectorHistory | undefined; mine: Set<string> }) {
   const [f, setF] = useState<TableFilter>("all"), [open, setOpen] = useState<string | null>(null);
-  const week = statesAt(h, 1);
+  // task #333 (file 30, third pass 1): Columns: Key figures · All columns; opens on Key figures and is remembered in this browser
+  const [cols, setColsRaw] = useState<"key" | "all">(() => { try { return localStorage.getItem(COLS_KEY) === "all" ? "all" : "key"; } catch { return "key"; } });
+  const setCols = (c: "key" | "all") => { setColsRaw(c); try { localStorage.setItem(COLS_KEY, c); } catch { /* private window */ } };
   const groups = useMemo(() => byState(b.rows.filter((r) => inTableFilter(r, f, mine))), [b.rows, f, mine]);
   const n = (x: TableFilter) => b.rows.filter((r) => inTableFilter(r, x, mine)).length;
   const filters: [TableFilter, string][] = [["all", `All ${b.rows.length}`], ["bounce", `Bouncing back · ${n("bounce")}`], ["sold_off", `Sold off · ${n("sold_off")}`], ["losing", `Losing steam · ${n("losing")}`],
@@ -29,40 +40,43 @@ export function PulseTable({ b, h, mine }: { b: Board; h: SectorHistory | undefi
   const hist = (slug: string) => h?.groups.find((g) => g.slug === slug);
   return (
     <>
-      <Cards items={tableCards(b.rows, week)} />
       <section className="sp-sec" aria-labelledby="sp-every">
         <div className="sp-sec-h"><div><h2 id="sp-every">{tw("Every industry, every number")}<Tip text={tw("Every industry, every number. Every group with a reading on one table: its state and since when, how many of its counted stocks are above their short, medium and longer trend, how far it is below its 1-year high, its Sector Rotation box and the last bounce.")} label={tw("About “Every industry, every number”")} /></h2><p className="sp-sub">{tw("Grouped by state. Click any industry to see the stocks inside it, strongest 6 months first.")}</p></div></div>{/* task #333 (file 30): Download CSV removed; no plan offers downloads (Pranjal, 23 Nov 2026) */}
+        <div className="sx-src sx-colset" role="group" aria-label="Columns"><span>Columns</span>
+          <button type="button" aria-pressed={cols === "key"} onClick={() => setCols("key")}>Key figures</button><button type="button" aria-pressed={cols === "all"} onClick={() => setCols("all")}>All columns</button></div>
         <div className="sp-filters" role="group" aria-label="Show">{filters.map(([k, label]) => <button key={k} type="button" className={"sp-fbtn" + (f === k ? " on" : "")} aria-pressed={f === k} onClick={() => setF(k)}>{label}</button>)}</div>
         <div className="sp-ckey"><span><b>How to read the 6-month chart:</b> the <b>line</b> is the share of its stocks rising each day (dashed = half); the <b>shading</b> is its state that day; ▲ marks its last bounce.</span>
           {(["sold_off", "bouncing", "crash", "rising", "losing", "no_signal"] as StateKey[]).map((k) => <span key={k} className="sp-keyi"><Swatch k={k} />{WORD[k]}</span>)}</div>
-        <Scroll label={tw("every industry, every number")}><table className="sp-tb sp-full">
+        <Scroll label={tw("every industry, every number")}><table className={"sp-tb sp-full sx-ft" + (cols === "key" ? " sx-key" : "")}>
           <thead>
             <tr className="sp-full-g"><th colSpan={2} /><th colSpan={3} className="sp-g-trend">Above their trend<Tip text={tw("Out of the industry's counted stocks, the share above their short (about 2 weeks), medium (about a month) and longer (about 3 months) average price.")} /></th>
               <th colSpan={2} className="sp-g-fall">Depth of fall<Tip text={tw("How deep the fall was. Below high: how far the industry's typical stock is below its 1-year high. Held up: at the industry's last low, the share of stocks that stayed above their earlier low. A low figure (in red) means almost every stock fell to a new low: a crash.")} /></th>
-              <th colSpan={2} /><th colSpan={2} className="sp-g-vs">{tw("Vs other industries")}<Tip text={tw("The Sector Rotation box and rank: how the industry has done against the average group over recent months and weeks.")} /></th></tr>
+              <th colSpan={2} /><th colSpan={3} className="sp-g-vs">{tw("Vs other industries")}<Tip text={tw("The Sector Rotation box and rank: how the industry has done against the average group over recent months and weeks.")} /></th></tr>
             <tr><th scope="col">{tw("Industry")}</th><th scope="col">Last 6 months<Tip text="The line: out of every 100 of its counted stocks, how many were above their medium trend each day. The shading: its state that day." /></th>
-              <th scope="col" className="r">Short</th><th scope="col" className="r">Medium</th><th scope="col" className="r">Longer</th><th scope="col" className="r">Below high</th><th scope="col" className="r">Held up</th>
-              <th scope="col">Bounced<Tip text="When most of its stocks last turned up together, in trading days, and whether that bounce came after a crash or a sell-off." /></th><th scope="col" className="r">Standouts<Tip text={tw("How many of its stocks are at a new 1-year high while the industry is still well below its own high.")} /></th>
-              <th scope="col">Box</th><th scope="col" className="r">Rank</th></tr>
+              <th scope="col" className="r sx-cx">Short</th><th scope="col" className="r"><span className="sx-lk">Stocks rising</span><span className="sx-lf">Medium</span></th><th scope="col" className="r sx-cx">Longer</th>
+              <th scope="col" className="r"><span className="sx-lk">Below 1-yr high</span><span className="sx-lf">Below high</span></th><th scope="col" className="r sx-cx">Held up</th>
+              <th scope="col">Bounced<Tip text="When most of its stocks last turned up together, in trading days, and whether that bounce came after a crash or a sell-off." /></th><th scope="col" className="r sx-cx">Standouts<Tip text={tw("How many of its stocks are at a new 1-year high while the industry is still well below its own high.")} /></th>
+              <th scope="col">Box</th><th scope="col" className="r">Rank</th><th scope="col" className="sx-alh">Alert</th></tr>
           </thead>
           <tbody>
             {groups.map((g) => <Fragment key={g.key}>
-              <tr className={"sp-gh sp-gh-" + g.key}><td colSpan={11}><StateChip k={g.key} help /><b>{g.rows.length} {g.rows.length === 1 ? tw("industry") : tw("industries")}</b><span>{MEANING[g.key]}</span></td></tr>
+              <tr className={"sp-gh sp-gh-" + g.key}><td colSpan={12}><StateChip k={g.key} help /><b>{g.rows.length} {g.rows.length === 1 ? tw("industry") : tw("industries")}</b><span>{MEANING[g.key]}</span></td></tr>
               {g.rows.map((r) => { const hh = hist(r.slug), isOpen = open === r.slug; return (<Fragment key={r.slug}>
-                <tr className={"sp-row" + (isOpen ? " on" : "")}>
+                <tr className={"sp-row" + (isOpen ? " on" : "") + (mine.has(r.slug) ? " sx-mine" : "")}>
                   <td><button type="button" className="sp-exp" aria-expanded={isOpen} aria-controls={"sp-x-" + r.slug} onClick={() => setOpen(isOpen ? null : r.slug)}><span aria-hidden="true">{isOpen ? "▼" : "▶"}</span>
-                    <span><b>{short(r.name)}</b>{mine.has(r.slug) && <em className="sp-yours"> · Yours</em>}<small>{r.stocks_counted} stocks</small></span></button></td>
+                    <span><b>{short(r.name)}</b>{mine.has(r.slug) && <em className="sp-yours">Yours</em>}<small>{r.stocks_counted} stocks</small></span></button></td>
                   <td>{hh?.rising ? <Spark values={hh.rising} states={hh.states} mark={h ? bounceIndex(h.dates, r) : null} label={`${short(r.name)}: stocks rising over 6 months`} w={150} h={40} /> : <span className="sp-nil">–</span>}</td>
-                  <td className="r">{pct0(r.breadth.above_9)}</td><td className="r">{pct0(r.breadth.above_20)}</td><td className="r">{pct0(r.breadth.above_50)}</td>
+                  <td className="r sx-cx">{pct0(r.breadth.above_9)}</td><td className="r">{pct0(r.breadth.above_20)}</td><td className="r sx-cx">{pct0(r.breadth.above_50)}</td>
                   <td className="r">{r.index_vs_52w_high == null ? "–" : `${Math.abs(r.index_vs_52w_high).toFixed(1)}%`}</td>
-                  <td className={"r" + (r.held_up != null && r.held_up < 20 ? " sp-red" : "")}>{r.held_up == null ? "–" : `${Math.round(r.held_up)}%`}</td>
-                  <td>{bouncedShort(r) ?? "–"}</td><td className="r">{r.leader_flags == null ? <span className="sp-nil" title="Standout stocks are part of the Platinum plan">Platinum</span> : r.leader_flags || "–"}</td>
+                  <td className={"r sx-cx" + (r.held_up != null && r.held_up < 20 ? " sp-red" : "")}>{r.held_up == null ? "–" : `${Math.round(r.held_up)}%`}</td>
+                  <td>{bouncedShort(r) ?? "–"}</td><td className="r sx-cx">{r.leader_flags == null ? <span className="sp-nil" title="Standout stocks are part of the Platinum plan">Platinum</span> : r.leader_flags || "–"}</td>
                   <td><BoxChip corner={r.rotation?.corner} /></td><td className="r">{r.rotation?.rank ?? "–"}</td>
+                  <td className="sx-alc"><AlertBell slug={r.slug} name={short(r.name)} compact /></td>
                 </tr>
-                {isOpen && <tr className="sp-xrow"><td colSpan={11} id={"sp-x-" + r.slug}><Opened r={r} rising={hh?.rising ?? []} /></td></tr>}
+                {isOpen && <tr className="sp-xrow"><td colSpan={12} id={"sp-x-" + r.slug}><Opened r={r} rising={hh?.rising ?? []} /></td></tr>}
               </Fragment>); })}
             </Fragment>)}
-            {!groups.length && <tr><td colSpan={11}>{tw("No industry matches this filter today.")}</td></tr>}
+            {!groups.length && <tr><td colSpan={12}>{tw("No industry matches this filter today.")}</td></tr>}
           </tbody>
         </table></Scroll>
         <p className="sp-note">Red in "Held up" means very few stocks held above their earlier low: a crash.</p>
@@ -87,13 +101,13 @@ function SmallRow({ g, inside }: { g: { name: string; slug: string; kind?: strin
         : <span className="sp-smalls">{q.data.stocks.map((x) => <Link key={x.symbol} to={`/stocks/${x.symbol}`} className="sp-sym"><CoLogo symbol={x.symbol} size={16} inline />{x.symbol}{x.ret_6m != null && <small className={x.ret_6m >= 0 ? "sp-good" : "sp-red"}> {signed(x.ret_6m)}</small>}</Link>)}{q.data.note && <span className="sp-nil sp-smallnote">{q.data.note}</span>}</span>)}
     </details></li>);
 }
-export function TooSmallFull({ b }: { b: Board }) {
+export function TooSmallFull({ b, inFold }: { b: Board; inFold?: boolean }) {
   const few = b.too_few_stocks ?? [], acc = useAccount(b);
   if (!few.length) return null;
   return (
     <section className="sp-sec" aria-labelledby="sp-small-f">
-      <h2 id="sp-small-f">Too small for a reading</h2>
-      <p className="sp-sub">{groupsSplit(few)} have too few actively traded stocks for a steady reading.</p>
+      {!inFold && <h2 id="sp-small-f">Too small for a reading</h2>}
+      {!inFold && <p className="sp-sub">{groupsSplit(few)} have too few actively traded stocks for a steady reading.</p>}
       <Why>{tw("With only a handful of stocks, one share moving can flip the whole industry's state. Open any of them to see its stocks; we just do not give the industry a state.")}</Why>
       <ul className="sp-smallrows">{few.map((g) => <SmallRow key={g.slug} g={g} inside={acc?.inside[g.slug]} />)}</ul>
       {acc && <p className="sp-note" data-testid="all-59">{acc.line}</p>}

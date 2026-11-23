@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import { useSearchParams } from "react-router";
 import { useDocTitle } from "../lib/title";
 import { groupsN, groupsParen, groupsSplit } from "../lib/pulsePack";
-import { PulseGuide, SectionsBar } from "../components/sectors/pack/Guide";
+import { PulseGuide } from "../components/sectors/pack/Guide";
 import { SxBox, SxFold, SxNav } from "../components/sectors/pack/PulseLayout";
 import { InsideSector, PriceVsResults, WhatNext } from "../components/sectors/pack/PulseChecks";
 import { MoodWeeks, SectorMap } from "../components/sectors/pack/PulseMap";
@@ -20,7 +20,7 @@ import { Blank } from "../components/sectors/Parts";
 import { Tip, WhyFold, useFirstVisit } from "../components/sectors/pack/Common";
 import { Backdrop, PackHead, type View } from "../components/sectors/pack/PulseHead";
 import { ByState, CountedAndSmall, Cycle, Momentum, Standouts, TodayMinute, Words, YourIndustries } from "../components/sectors/pack/PulseSimple";
-import { PulseTable, SixMonths, StandoutsFull, TooSmallFull } from "../components/sectors/pack/PulseTable";
+import { FullCards, PulseTable, SixMonths, StandoutsFull, TooSmallFull } from "../components/sectors/pack/PulseTable";
 import "../styles/sectors.css";
 import "../styles/sectors-pack.css";
 import "../styles/sector-pages.css";
@@ -78,9 +78,6 @@ export function SectorPulsePage() {
         { id: "sx-today", label: "Today" }, { id: "sx-yours", label: tw("Your industries") }, { id: "sx-all", label: allLabel }, { id: "sx-chk", label: "Price checks" }, { id: "sx-inside", label: tw("Inside an industry") },
         { id: "sx-standouts", label: "Standout stocks" }, { id: "sx-counted", label: "Stocks counted" }, { id: "sx-words", label: "Words explained" },
       ]} />}
-      {b && view === "full" && <SectionsBar items={[
-        { id: "sp-every", label: "Every number" }, ...(h ? [{ id: "sp-six", label: "Six months" }] : []), { id: "sp-stand-f", label: "Standout stocks" }, ...((b.too_few_stocks ?? []).length ? [{ id: "sp-small-f", label: "Too small" }] : []),
-      ]} />}
       {b && view === "simple" && (
         <WhyFold.Provider value={firstVisit}>
           <TodayMinute b={b} h={h} mine={mine} />
@@ -96,19 +93,23 @@ export function SectorPulsePage() {
             { key: "next", label: "What happened next", isNew: true, content: <div><Cycle b={b} /><WhatNext /></div> },
           ]} />
           <InsideSector b={b} mine={mine} symbols={symbols} />
-          <SxFold id="sx-standouts" title={tw("Standout stocks in weak industries")} line={foldLine.standouts}><Standouts b={b} /></SxFold>
+          <SxFold id="sx-standouts" title={tw("Standout stocks in weak industries")} line={foldLine.standouts}><Standouts b={b} mine={mine} /></SxFold>
           <SxFold id="sx-counted" title="Which stocks are counted, and what is too small for a reading" line={foldLine.counted}><CountedAndSmall b={b} /></SxFold>
           <Words line="Every term on this page, in plain English." />
         </WhyFold.Provider>
       )}
       {b && view === "full" && (
-        <>
-          <PulseTable b={b} h={h} mine={mine} />
-          {h && <SixMonths h={h} />}
-          <StandoutsFull b={b} />
-          <TooSmallFull b={b} />
-          <Words />
-        </>
+        <WhyFold.Provider value={firstVisit}>
+          {/* task #333 (file 30, Full table): two callouts, then one box with a switch (its bar is the frozen one), then the closed row "Too small for a reading" */}
+          <FullCards b={b} h={h} />
+          <SxBox id="sx-full" store="finlit-sx-box-full" label={allLabel} sub="3 ways to look · press one" tabs={[
+            { key: "every", label: "Every number", content: <PulseTable b={b} h={h} mine={mine} /> },
+            ...(h ? [{ key: "six", label: "Six months, week by week", content: <SixMonths h={h} /> }] : []),
+            { key: "standouts", label: `Standout stocks${b.leader_flags ? ` (${b.leader_flags.length})` : ""}`, content: <StandoutsFull b={b} /> },
+          ]} />
+          {(b.too_few_stocks ?? []).length > 0 && <SxFold id="sx-small-f" title="Too small for a reading" line={tw(`${groupsSplit(b.too_few_stocks ?? [])} have too few actively traded stocks for a steady reading.`)}><TooSmallFull b={b} inFold /></SxFold>}
+          <Words line="Every term on this page, in plain English." />
+        </WhyFold.Provider>
       )}
       {b && <p className="sp-disclaimer">{tw(DISCLAIMER)}</p>}
     </div>

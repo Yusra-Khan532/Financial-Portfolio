@@ -103,7 +103,9 @@ describe("Sector Pulse, Full table view (pack 06)", () => {
     expect(text).toContain("Breadth is improving fast");
     expect(text).toContain("32 groups now have more than half their stocks above the short trend.");
     expect(text).toContain("In 29 of 38 groups half or fewer of the stocks are above their longer trend.");
-    expect(h2()).toEqual(expect.arrayContaining(["Every industry, every number", "Too small for a reading", "Six months of every industry"]));
+    expect(h2()).toContain("Every industry, every number");
+    fireEvent.click(screen.getByRole("tab", { name: /Six months, week by week/ }));      // task #333: the other parts are tabs of the one box
+    expect(h2()).toContain("Six months of every industry");
     expect(said()).not.toMatch(ADVICE);
   });
   it("groups the rows by state, and the filter buttons narrow them", () => {
@@ -121,6 +123,7 @@ describe("Sector Pulse, Full table view (pack 06)", () => {
   });
   it("draws one row of Friday squares per industry with a reading, today's column outlined", () => {
     at("/sectors?view=full");
+    fireEvent.click(screen.getByRole("tab", { name: /Six months, week by week/ }));
     const six = screen.getByRole("img", { name: /industries' state at \d+ Friday closes/ });
     expect(six.querySelectorAll("g").length).toBe(38);
     expect(six.querySelectorAll(".sp-fri-now").length).toBe(1);
@@ -164,13 +167,25 @@ describe("task #192 round 4a-2 (SECTOR-PAGES.md 2 to 8), Sector Pulse", () => {
     fireEvent.click(more);
     expect(more.getAttribute("aria-expanded")).toBe("true");
   });
-  it("Full table: 1 Every number → 2 Six months → 3 Standout stocks → 4 Too small, the table's i button, and the guide", () => {
+  it("task #333: Full table is one box (1 Every number · 2 Six months, week by week · 3 Standout stocks (N)), two callouts, Too small closed, no section strip", () => {
     at("/sectors?view=full");
-    const bar = screen.getByRole("navigation", { name: "Sections on this page" });
-    expect(within(bar).getAllByRole("link").map((a) => a.textContent)).toEqual(["1Every number", "2Six months", "3Standout stocks", "4Too small"]);
+    expect(screen.queryByRole("navigation", { name: "Sections on this page" })).toBeNull();
+    const tabs = within(screen.getByRole("tablist", { name: "All 38 groups" })).getAllByRole("tab").map((t) => t.textContent);
+    expect(tabs[0]).toBe("1Every number"); expect(tabs[1]).toBe("2Six months, week by week"); expect(tabs[2]).toMatch(/^3Standout stocks( \(\d+\))?$/);
+    expect(document.querySelectorAll(".sx-full > .sp-cards .sp-card")).toHaveLength(2);
     expect(screen.getByRole("button", { name: "About “Every industry, every number”" })).toBeTruthy();
     expect(screen.getByRole("button", { name: /How to read and use this page/ })).toBeTruthy();
-    const order = ["Every industry, every number", "Six months of every industry", "Standout stocks", "Too small for a reading"].map((t) => h2().findIndex((x) => x?.startsWith(t)));
-    expect(order.every((v, i) => v >= 0 && (i === 0 || v > order[i - 1]))).toBe(true);
+    expect([...document.querySelectorAll("details.sx-fold > summary b")].map((x) => x.textContent)).toContain("Too small for a reading");
+  });
+  it("task #333: Columns opens on Key figures (Stocks rising, Below 1-yr high, Alert), All columns adds Short, Longer, Held up and Standouts", () => {
+    at("/sectors?view=full");
+    const t = document.querySelector("table.sx-ft")!;
+    expect(t.className).toContain("sx-key");
+    expect(t.querySelectorAll("thead .sx-cx").length).toBe(4);                       // hidden by the Key figures set
+    expect(t.querySelector("th.sx-alh")!.textContent).toBe("Alert");
+    expect(t.querySelectorAll("tbody .sx-alc button").length).toBe(38);
+    fireEvent.click(within(screen.getByRole("group", { name: "Columns" })).getByRole("button", { name: "All columns" }));
+    expect(document.querySelector("table.sx-ft")!.className).not.toContain("sx-key");
+    expect(localStorage.getItem("finlit-sx-cols-full")).toBe("all");
   });
 });
