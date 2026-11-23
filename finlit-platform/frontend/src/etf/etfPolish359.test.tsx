@@ -20,14 +20,14 @@ const open = () => render(<MemoryRouter><EtfListPage /></MemoryRouter>);
 
 describe("task #359: the ETF page", () => {
   it("is named just ETFs", () => { open(); expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("ETFs"); });
-  it("has Hide filters inside the Filters box, and Show filters in the toolbar once hidden", () => {
+  it("has Hide filters inside the Filters box, and a Show filters button once hidden (task #360: in its own column)", () => {
     open();
     const panel = document.getElementById("etf-filters")!;
     const hide = within(panel).getByRole("button", { name: "Hide filters" });
     expect(document.querySelector(".etf-tools .etf-ftog")).toBeNull();
     fireEvent.click(hide);
     expect(document.getElementById("etf-filters")).toBeNull();
-    expect(document.querySelector(".etf-tools .etf-ftog")!.textContent).toBe("Show filters");
+    expect(document.querySelector(".etf-side.is-shut .etf-showf")!.textContent).toBe("Show filters");
   });
   it("keeps the panel's scrollbar inside the rounded box and the toolbar is a card", () => {
     open();

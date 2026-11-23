@@ -153,11 +153,13 @@ export function EtfListPage() {
               {drawer && <div className="scrim etf-dback" aria-hidden="true" onClick={() => setDrawer(false)} />}
               <aside className={"etf-side etf-drawer" + (drawer ? " is-open" : "")} id="etf-filters" role="dialog" aria-modal="true" aria-labelledby="etf-filters-h" hidden={!drawer}>{panel}</aside>
             </>
-          ) : fOpen ? <aside className="card etf-side" id="etf-filters" aria-labelledby="etf-filters-h"><div className="etf-side-in">{panel}</div></aside> : null}
+          ) : fOpen ? <aside className="card etf-side" id="etf-filters" aria-labelledby="etf-filters-h"><div className="etf-side-in">{panel}</div></aside>
+            : <aside className="etf-side is-shut" aria-label="Filters">{/* task #360: hidden filters leave a slim vertical Show filters in its own column, in view while scrolling, covering nothing */}
+                <button type="button" className="etf-showf" aria-expanded="false" aria-controls="etf-filters" onClick={() => setFOpen(true)}><Icon name="panel" /><span>Show filters</span>{nOn ? <b aria-label={`${nOn} on`}>{nOn}</b> : null}</button></aside>}
 
           <div className="etf-main">
             <div className="etf-tools">
-              {(small || !fOpen) && <button type="button" className={"btn etf-ftog" + (panelShown ? " is-on" : "")} aria-expanded={panelShown} aria-controls="etf-filters"
+              {small && <button type="button" className={"btn etf-ftog" + (panelShown ? " is-on" : "")} aria-expanded={panelShown} aria-controls="etf-filters"
                 onClick={() => (small ? setDrawer(true) : setFOpen(!fOpen))}><Icon name="panel" />{small ? "Filters" : fOpen ? "Hide filters" : "Show filters"}{nOn ? <b className="etf-ftog-n" aria-label={`${nOn} on`}>{nOn}</b> : null}</button>}
               <label className="etf-search"><Icon name="search" /><span className="sr-only">Search ETFs by name, symbol, fund house or ISIN</span>
                 <input type="search" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="Search: nifty bank, gold, liquid, HDFC, INF204KB14I2…" autoComplete="off" spellCheck={false} maxLength={60} />

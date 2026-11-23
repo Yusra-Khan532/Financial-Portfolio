@@ -104,3 +104,16 @@
 .etf-list .etf-side-in::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: var(--ui-r-pill); }
 .etf-list .etf-side-in::-webkit-scrollbar-button { display: none; height: 0; }
 .etf-list .etf-tools { padding: 8px; background: var(--s1); border: 1px solid var(--border); border-radius: var(--r-card); }
+
+/* task #360 (team, 23 Nov 2026): the toolbar (search, Columns) stays at the top of the section and no longer slides over the table while scrolling;
+   with the filters hidden, a slim vertical "Show filters" (as on the Mutual funds page and the screener) sits in its own 44px column, in view while
+   scrolling and covering nothing. */
+.etf-list .etf-tools { position: static; }
+.etf-list .etf-layout.is-shut { grid-template-columns: 44px minmax(0, 1fr); }
+.etf-list .etf-side.is-shut { position: sticky; top: 76px; padding: 0; border: 0; background: none; box-shadow: none; overflow: visible; animation: none; }
+.etf-list .etf-showf { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; width: 44px; min-height: 196px; padding: 14px 0; border: 2px solid color-mix(in srgb, var(--text) 70%, transparent); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font: 600 var(--fs-13) var(--sans); cursor: pointer; transition: border-color .16s ease, background-color .16s ease; }
+.etf-list .etf-showf:hover, .etf-list .etf-showf:focus-visible { border-color: var(--text); background: var(--s2); }
+.etf-list .etf-showf span { writing-mode: vertical-rl; transform: rotate(180deg); line-height: 1; }
+.etf-list .etf-showf .ico { width: 18px; height: 18px; }
+.etf-list .etf-showf b { min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--ui-r-pill); background: var(--gold); color: var(--on-gold); font: 600 var(--fs-12)/20px var(--sans); text-align: center; }
+@media (prefers-reduced-motion: reduce) { .etf-list .etf-showf { transition: none; } }

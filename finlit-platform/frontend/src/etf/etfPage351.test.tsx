@@ -65,12 +65,12 @@ describe("task #351: the ETF page", () => {
     expect(document.getElementById("etf-filters")).toBeNull();
     expect(document.querySelector(".etf-layout")!.classList.contains("is-shut")).toBe(true);
     const show = screen.getByRole("button", { name: /^Show filters/ });
-    expect(show.closest(".etf-tools")).toBeTruthy();                                  // in the toolbar above the table, which is pinned while scrolling
+    expect(show.closest(".etf-side.is-shut")).toBeTruthy();                           // task #360: a slim vertical button in its own column (the toolbar is no longer pinned)
     expect(screen.getAllByRole("button", { name: /^Show filters/ })).toHaveLength(1);
     fireEvent.click(show);
     expect(document.getElementById("etf-filters")).toBeTruthy();
-    expect(css).toMatch(/\.etf-list \.etf-tools \{ position: sticky; top: 64px;/);
-    expect(css).toMatch(/\.etf-list \.etf-layout\.is-shut \{ grid-template-columns: minmax\(0, 1fr\); \}/);
+    expect(css).toMatch(/\.etf-list \.etf-tools \{ position: static; \}/);
+    expect(css).toMatch(/\.etf-list \.etf-layout\.is-shut \{ grid-template-columns: 44px minmax\(0, 1fr\); \}/);
   });
   it("the ETF vs Index Fund card is gone; its header button stays, second, in gold with a crown", () => {
     open();
