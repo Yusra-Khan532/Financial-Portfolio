@@ -13,6 +13,9 @@ const MINUS = "−";
 const FIG = /((?:[+−-])?₹\s?[\d,]+(?:\.\d+)?(?:\s?(?:L Cr|Cr|lakh crore|crore|lakh))?|(?:[+−-])?\d[\d,]*(?:\.\d+)?\s?(?:%|×|x\b|L Cr\b|Cr\b|crore\b|lakh crore\b|bps\b))/g;
 const SOURCE = /^\s*(Source|Sources|Data|From)\s*:/i;
 const DISCLAIMER = /not a recommendation|not investment advice|Information only|Past returns do not guarantee/i;
+/** Task #349: the server's marker on an answer cut by its length or time ("(cut short; ask for the rest)") or stopped by a refusal ("(stopped
+ *  early: …)"): drawn as a plain note under the points, never as one of them. */
+export const CUT = /^\((?:cut short|stopped early)\b[^)]*\)$/i;
 
 /** A section heading: "1. Business growth", "**2. Asset quality**" or "## 3. Margins" (a numbered line that is not itself a point). */
 const HEAD = /^(?:#{1,4}\s*)?\**\s*(\d{1,2})[.)]\s+(.{2,80}?)\s*\**\s*:?\s*$/;
@@ -109,7 +112,8 @@ export function stanceOf(lines: string[]): { at: number; word: string; why: stri
 
 /** The answer, drawn: points, then the stance and its summary line (task #270), then the source and the disclaimer. */
 export function AnswerText({ text }: { text: string }) {
-  const all = text.split("\n").map((l) => l.trim()).filter(Boolean), st = stanceOf(all);
+  const lines0 = text.split("\n").map((l) => l.trim()).filter(Boolean), cut = lines0.filter((l) => CUT.test(l));
+  const all = lines0.filter((l) => !CUT.test(l)), st = stanceOf(all);
   const lines = st ? all.filter((_, i) => i !== st.at && !(st.sum != null && i === st.at + 1)) : all;
   const points = lines.filter((l) => !SOURCE.test(l) && !DISCLAIMER.test(l)), sources = lines.filter((l) => SOURCE.test(l)), notes = lines.filter((l) => !SOURCE.test(l) && DISCLAIMER.test(l));
   const tone = st ? (/^negative/i.test(st.word) ? "neg" : /cautiously negative/i.test(st.word) ? "cneg" : /^positive/i.test(st.word) ? "pos" : /cautiously positive/i.test(st.word) ? "cpos" : "mix") : "";
@@ -128,6 +132,7 @@ export function AnswerText({ text }: { text: string }) {
         <p className="aif-a-st-h"><b>Stance: {st.word}</b>{st.why && <span> ({st.why})</span>}</p>
         {st.sum && <p className="aif-a-st-s">{inline(st.sum, "st")}</p>}
       </div>}
+      {cut.map((l, i) => <p key={"c" + i} className="aif-a-cut" role="note">{l[1].toUpperCase() + l.slice(2, -1)}</p>)}
       {sources.map((l, i) => <p key={"s" + i} className="aif-a-src">{inline(l, "s" + i)}</p>)}
       {notes.map((l, i) => <p key={"d" + i} className="aif-a-disc">{l}</p>)}
     </div>);

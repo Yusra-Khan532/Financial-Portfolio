@@ -112,7 +112,7 @@ async def test_fast_settings_low_effort_cached_prefix_and_the_same_tools_for_eve
     client = FakeClient([{"text": ["P/E is price divided by earnings per share."]}])
     await collect(client, FakeGateway({}), "What is P/E?")
     p = client.calls[0]
-    assert p["model"] == "claude-haiku-5-5" and p["output_config"] == {"effort": "low"} and p["max_tokens"] <= 2000
+    assert p["model"] == "claude-haiku-5-5" and p["output_config"] == {"effort": "low"} and p["max_tokens"] == service.MAX_TOKENS
     assert p["system"][0]["cache_control"] == {"type": "ephemeral"} and p["cache_control"] == {"type": "ephemeral"}
     assert [t["name"] for t in p["tools"]] == [t["name"] for t in T.definitions()]          # one fixed list: the cache stays warm
     assert "Today is" not in p["system"][0]["text"] and "Today is" in p["messages"][-1]["content"]   # the date is after the cached prefix
@@ -534,7 +534,8 @@ def test_the_instructions_answer_every_question_shortly_and_never_pass_on_rating
         assert must in s, must
     assert "say briefly that FinLit AI answers questions about those" not in s                  # no more turning questions away
     assert "Under 90 words" not in s and "at most 4 short bullet points" not in s                # the owner, 19 Nov 2026: prose, not points
-    assert service.MAX_TOKENS <= 1200
+    # task #349: max_tokens is room for thinking, tool calls and the answer, not the answer's length (which the instructions set)
+    assert service.MAX_TOKENS == 6000 and "Length: the whole answer at most about 200 words" in s
 
 
 async def test_a_web_search_shows_searching_and_a_paused_turn_carries_on():
