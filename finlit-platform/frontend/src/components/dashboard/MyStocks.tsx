@@ -24,7 +24,7 @@ import { DASH_INV_SORTS } from "../../lib/prefs";
 import { useUI } from "../../lib/ui";
 import { useMfPortfolio, type Holding as MfHolding } from "../../lib/mfPortfolio";
 import type { FundDetail } from "../../lib/mf";
-import { INV_SORT_LABEL, KIND_TAG, etfRows, sortInv, type InvSort, healthText, investLine, investRows, navText, type InvRow } from "../../lib/dashInvest";
+import { INV_SORT_LABEL, KIND_TAG, etfRows, heldWord, sortInv, type InvSort, healthText, investLine, investRows, navText, type InvRow } from "../../lib/dashInvest";
 import { useEtfPortfolio, type EtfRow } from "../../lib/etfPortfolio";
 
 export type Followed = { symbol: string; name: string | null };
@@ -59,7 +59,7 @@ export function buildInv(lists: ReturnType<typeof stockLists>, followed: Followe
   const nameOf = new Map(followed.map((f) => [f.symbol, f.name]));
   const stock = (sym: string, kind: "share" | "watch"): InvRow => {
     const q = qm.get(sym), n = qty.get(sym);
-    return { key: kind + ":" + sym, kind, symbol: sym, name: nameOf.get(sym) || sym, sub: [nameOf.get(sym) || "", kind === "share" ? (n != null ? "held" : "in portfolio") : "watchlist"].filter(Boolean).join(" · "),   // QA 23 Nov: "held" only with a quantity; a name with no buys is "in portfolio"
+    return { key: kind + ":" + sym, kind, symbol: sym, name: nameOf.get(sym) || sym, sub: [nameOf.get(sym) || "", kind === "share" ? heldWord(n) : "watchlist"].filter(Boolean).join(" · "),   // QA 23 Nov: "held" only with a quantity; a name with no buys is "in portfolio"
       href: `/stocks/${sym}`, alertHref: "/alerts", price: q?.price ?? null, priceWhy: q?.price == null ? "No traded price held yet" : undefined,
       day: q?.chg ?? null, y1: oneYear.get(sym) ?? null, y1Why: oneYear.get(sym) == null ? "Listed less than a year, or no price a year ago" : undefined,
       value: n != null && q?.price != null ? n * q.price : null };

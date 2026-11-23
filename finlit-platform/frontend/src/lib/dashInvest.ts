@@ -47,11 +47,14 @@ export function navText(p: number | null | undefined): string {
   return `${r > 0 ? "+" : r < 0 ? "\u2212" : ""}${Math.abs(r).toFixed(2)}% vs NAV`;
 }
 
+/** QA 24 Nov: one rule for every kind of holding: "held" only with a quantity (or units) above 0; a name with no buys is "in portfolio". */
+export const heldWord = (qty: number | null | undefined): "held" | "in portfolio" => (qty != null && qty > 0 ? "held" : "in portfolio");
+
 /** Task #223 (D1): the ETF portfolio's ETFs as rows of "Your investments today", with the figures the ETF portfolio page shows. */
 export function etfRows(items: { symbol: string; name: string | null; gone: boolean; price?: number | null; changePct?: number | null; ret1y?: number | null; ret1yWhy?: string | null;
-  premium?: number | null; premiumWhy?: string | null; priceDate?: string | null; value?: number | null }[]): InvRow[] {
+  premium?: number | null; premiumWhy?: string | null; priceDate?: string | null; value?: number | null; qty?: number | null }[]): InvRow[] {
   return items.filter((e) => !e.gone).map((e) => ({
-    key: "etf:" + e.symbol, kind: "etf" as const, symbol: e.symbol, name: e.name || e.symbol, sub: [e.name || "", "held"].filter(Boolean).join(" · "),
+    key: "etf:" + e.symbol, kind: "etf" as const, symbol: e.symbol, name: e.name || e.symbol, sub: [e.name || "", heldWord(e.qty)].filter(Boolean).join(" · "),
     href: `/etfs/${encodeURIComponent(e.symbol)}`, alertHref: "/alerts",
     price: e.price ?? null, priceWhy: e.price == null ? "No traded price held yet" : undefined,
     day: e.changePct ?? null, y1: e.ret1y ?? null, y1Why: e.ret1y == null ? e.ret1yWhy ?? "Listed less than a year, or no price a year ago" : undefined,
