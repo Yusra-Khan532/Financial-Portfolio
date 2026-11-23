@@ -117,7 +117,9 @@ export function EtfListPage() {
       <div className="etf-side-h">
         <span className="etf-side-t" id="etf-filters-h">Filters</span>{nOn > 0 && <span className="etf-fs-n">{nOn} on</span>}
         {small ? <button type="button" className="btn sm etf-reset" onClick={() => setDrawer(false)} aria-label="Close the filters">Close</button>
-          : <button type="button" className="btn sm etf-reset" disabled={nOn === 0} onClick={resetFilters}>Reset all</button>}
+          : <>{/* task #359: Hide filters sits in the Filters box; Reset all is a link beside the title */}
+            {nOn > 0 && <button type="button" className="fgx-link etf-resetl" onClick={resetFilters}>Reset all</button>}
+            <button type="button" className="btn sm etf-hidef" aria-expanded="true" aria-controls="etf-filters" onClick={() => setFOpen(false)}><Icon name="panel" />Hide filters</button></>}
       </div>
       <FSec id="type" title="Type" help={HELP.type} on={state.asset.length} {...sec("type")}>
         <ul className="fgx-list etf-opts" aria-label="Type">{(data?.groups ?? []).filter((g) => g.count || state.asset.includes(g.key)).map((g) => (
@@ -140,7 +142,7 @@ export function EtfListPage() {
 
   return (
     <>
-      <PageHeader wrap plan="free" title="ETFs on the NSE" art="funds" links={["/etfs/compare", { to: "/etfs/compare-index-funds", gold: true }, "/funds"]}
+      <PageHeader wrap plan="free" title="ETFs" art="funds" links={["/etfs/compare", { to: "/etfs/compare-index-funds", gold: true }, "/funds"]}
         description="Price and 1-day, 1-year and 5-year returns of every NSE ETF; search, filter, compare up to four."
         stats={[{ icon: "layers", value: data ? data.universe : null, label: "ETFs listed" }]} />
 
@@ -151,12 +153,12 @@ export function EtfListPage() {
               {drawer && <div className="scrim etf-dback" aria-hidden="true" onClick={() => setDrawer(false)} />}
               <aside className={"etf-side etf-drawer" + (drawer ? " is-open" : "")} id="etf-filters" role="dialog" aria-modal="true" aria-labelledby="etf-filters-h" hidden={!drawer}>{panel}</aside>
             </>
-          ) : fOpen ? <aside className="card etf-side" id="etf-filters" aria-labelledby="etf-filters-h">{panel}</aside> : null}
+          ) : fOpen ? <aside className="card etf-side" id="etf-filters" aria-labelledby="etf-filters-h"><div className="etf-side-in">{panel}</div></aside> : null}
 
           <div className="etf-main">
             <div className="etf-tools">
-              <button type="button" className={"btn etf-ftog" + (panelShown ? " is-on" : "")} aria-expanded={panelShown} aria-controls="etf-filters"
-                onClick={() => (small ? setDrawer(true) : setFOpen(!fOpen))}><Icon name="panel" />{small ? "Filters" : fOpen ? "Hide filters" : "Show filters"}{nOn ? <b className="etf-ftog-n" aria-label={`${nOn} on`}>{nOn}</b> : null}</button>
+              {(small || !fOpen) && <button type="button" className={"btn etf-ftog" + (panelShown ? " is-on" : "")} aria-expanded={panelShown} aria-controls="etf-filters"
+                onClick={() => (small ? setDrawer(true) : setFOpen(!fOpen))}><Icon name="panel" />{small ? "Filters" : fOpen ? "Hide filters" : "Show filters"}{nOn ? <b className="etf-ftog-n" aria-label={`${nOn} on`}>{nOn}</b> : null}</button>}
               <label className="etf-search"><Icon name="search" /><span className="sr-only">Search ETFs by name, symbol, fund house or ISIN</span>
                 <input type="search" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="Search: nifty bank, gold, liquid, HDFC, INF204KB14I2…" autoComplete="off" spellCheck={false} maxLength={60} />
               </label>
