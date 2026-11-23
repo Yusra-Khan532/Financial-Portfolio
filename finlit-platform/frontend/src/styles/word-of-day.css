@@ -29,6 +29,9 @@
 .wod-scrim { position: fixed; inset: 0; z-index: 1250; }   /* clear on a desktop: the panel reads as a card under the button */
 .wod-panel { position: fixed; z-index: 1251; top: var(--wod-top, 72px); right: var(--wod-right, 16px); width: min(460px, calc(100vw - 32px)); max-height: calc(100vh - var(--wod-top, 72px) - 16px); overflow: auto;
   background: var(--s1); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-card); box-shadow: var(--ov-shadow); font: var(--ui-fw-regular) var(--fs-14)/var(--lh-14) var(--font-sans); }
+/* Task #335 (23 Nov 2026, "give a border to word of the day box"): the 1px --border edge disappeared on the dark page, so the panel had no edge of its
+   own. A 2px edge, gold mixed with the strong border, reads on the cream and the dark page alike. */
+.wod-panel { border: 2px solid color-mix(in srgb, var(--gold) 55%, var(--border-strong)); }
 .wod-panel:focus { outline: none; }
 .wod-head { display: flex; align-items: center; gap: 12px; padding: 16px 16px 14px 20px; background: var(--gain-soft); border-bottom: 1px solid var(--border); }
 .wod-cal { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 40px; height: 40px; border-radius: var(--r-ctl); background: var(--gain-soft); color: var(--gain); }

@@ -6,9 +6,11 @@ import { describe, expect, it } from "vitest";
 const css = readFileSync(join(__dirname, "ai-top.css"), "utf8");
 
 describe("Ask FinLit AI is golden (task #320)", () => {
-  it("a soft gold fill, a gold edge and a gold spark, from the gold tokens (light and dark follow)", () => {
-    expect(css).toContain(".top .ai-top { background: var(--gold-soft); border-color: color-mix(in srgb, var(--gold) 60%, transparent); color: var(--text); }");
-    expect(css).toContain(".top .ai-top svg { color: var(--gold); }");
-    expect(css).toContain(".top .ai-top:hover { background: color-mix(in srgb, var(--gold) 22%, transparent); border-color: var(--gold); }");
+  it("rework (23 Nov, 'still not golden'): the site's gold look (the Prism actions' gradient), dark words and spark, in light and dark", () => {
+    expect(css).toContain(".top .ai-top { background: linear-gradient(180deg, var(--gold-2), var(--gold-deep)); border-color: var(--gold-deep); color: var(--ui-on-prism); }");
+    expect(css).toContain(".top .ai-top svg { color: currentColor; }");
+    expect(css).not.toContain("var(--gold-soft)");
+    const ui = readFileSync(join(__dirname, "ui.css"), "utf8");
+    expect(ui).toContain(".ui-btn--prism { background: linear-gradient(180deg, var(--gold-2), var(--gold-deep)); color: var(--ui-on-prism); }");   // the same gold as Prism's buttons
   });
 });

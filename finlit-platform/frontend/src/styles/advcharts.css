@@ -191,6 +191,13 @@ line.adv-gl { stroke: var(--border); stroke-width: 1; }
 .adv-fgrid .adv-field, .adv-fgrid .adv-field label { align-content: start; }
 .adv-fgrid .adv-check { display: flex; align-items: flex-start; gap: 8px; }
 .adv-fgrid .adv-check input { width: auto; flex: none; margin-top: 2px; }
+/* Task #313 rework (23 Nov 2026, "reduce the font size"): the Sector, Industry and Index lists drew their names at the form's 16px, so long names were cut
+   ("Fast Moving Consumer G"). They are 13px with tighter rows; each option carries its full name as a title for the few still too long. */
+.adv-fgrid select[multiple] { line-height: 1.35; padding: 4px; }
+/* !important, as prism220.css does: the site sets every form control to 16px with !important so iOS never zooms; a phone (700px and under) keeps
+   16px, where each list is the full width and the names fit. */
+@media (min-width: 701px) { .adv-fgrid select[multiple], .adv-fgrid select, .adv-fgrid input:not([type="checkbox"]) { font-size: var(--fs-13) !important; } }   /* every field of the box one size */
+.adv-fgrid select[multiple] option { padding: 2px 6px; }
 .adv-filters .btn { margin-top: 10px; }
 .adv-defs dl { margin: 8px 0 0; display: grid; gap: 8px; font-size: var(--fs-13); }
 .adv-defs dt { font-weight: 600; } .adv-defs dd { margin: 2px 0 0; color: var(--muted); }
