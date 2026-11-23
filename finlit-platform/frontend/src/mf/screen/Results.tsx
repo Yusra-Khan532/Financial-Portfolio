@@ -72,7 +72,7 @@ export function ResultTable({ rows, q, onSort, loading, score, pick }: { rows: S
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.code} className={r.active ? "" : "mf-stopped"}>
+            <tr key={r.code} className={[r.active ? "" : "mf-stopped", pick.picked.includes(r.code) ? "is-picked" : ""].filter(Boolean).join(" ") || undefined}>
               <th scope="row" className="mfs-n">
                 <span className="mfs-nrow"><input type="checkbox" className="mfs-tick" checked={pick.picked.includes(r.code)} onChange={() => pick.onPick(r.code)} aria-label={`Compare ${r.name}`} />
                 <span className="mfs-nm"><Link to={`/funds/${r.code}`}>{r.name}</Link>

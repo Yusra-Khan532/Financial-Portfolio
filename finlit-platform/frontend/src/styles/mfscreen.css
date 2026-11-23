@@ -249,3 +249,7 @@
 .mfs-table th.mfs-n { width: 290px; min-width: 290px; max-width: 290px; box-shadow: inset -1px 0 0 var(--border-strong); }
 .mfs-table .mf-sort { text-align: inherit; }
 @media (max-width: 640px) { .mfs-table th.mfs-n { width: 200px; min-width: 190px; max-width: 220px; } }   /* a phone keeps room for the figures beside the pinned Fund column */
+/* task #350: the header a step raised from the rows; a fund ticked for compare reads as selected (its row tinted, the pinned name cell too) */
+.mfs-table thead th, .mfs-table thead th.mfs-n { background: var(--s2); }
+.mfs-table tbody tr.is-picked > * { background: var(--gold-soft); }
+.mfs-table tbody tr.is-picked > th.mfs-n { box-shadow: inset 3px 0 0 var(--gold), inset -1px 0 0 var(--border-strong); }
