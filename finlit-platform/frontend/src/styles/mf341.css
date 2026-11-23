@@ -120,3 +120,11 @@
 /* 17 (PR E): the page's questions follow 40-48px after the disclaimer (they sat 118px below it: the page's own bottom padding plus the FAQ's
    margin). Only this page: the shared FAQ is not changed elsewhere. */
 .wrap.mf-list { padding-bottom: 8px; }
+
+/* Task #343 (23 Nov 2026, the team, "Chosen categories | Ready list": "when selected it should fill properly we can see gaps"): the site's switch keeps
+   2-3px of track around the chosen button. On this page the three switches (Chosen categories / Ready list, Plan, Option) are edge to edge: the chosen
+   button fills its part of the box to the border, with no gap; the box's rounded corners clip the outer buttons. Other pages keep the shared switch. */
+.mf-list .seg { padding: 0; gap: 0; overflow: hidden; align-items: stretch; }
+.mf-list .seg button { border-radius: 0; min-height: 36px; padding: 0 14px; }
+.mf-list .seg button + button { border-left: 1px solid var(--border); }
+.mf-list .seg button[aria-pressed="true"], .mf-list .seg button[aria-pressed="true"] + button { border-left-color: transparent; }
