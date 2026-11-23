@@ -168,10 +168,10 @@ describe("fix 6: long pages open on tap", () => {
   });
   it("the dashboard's steps after the second, Sector Pulse's sections after the second, and the funds table's notes start closed on a phone", () => {
     expect(read("pages/Dashboard.tsx")).toMatch(/return ui\.sec !== "all" \|\| gi < 2 \? cells : <PhoneFold key=\{"fold-" \+ g\.step\.id\} page="dashboard"/);   // task #316: one section picked in the filter is drawn open
+    // task #333 (file 30) replaces Sector Pulse's phone folds: the page is shorter on every width (two boxes with a switch, three closed rows)
     const sp = read("pages/SectorPulse.tsx");
-    expect(sp.indexOf("<TodayMinute")).toBeLessThan(sp.indexOf("<PhoneFold"));
-    expect(sp.indexOf("<Cycle")).toBeLessThan(sp.indexOf("<PhoneFold"));
-    expect(sp.match(/<PhoneFold page="sectors"/g)?.length).toBe(7);
+    expect(sp.indexOf("<TodayMinute")).toBeLessThan(sp.indexOf("<SxBox"));
+    expect(sp.match(/<SxFold id=/g)?.length).toBe(2);
     expect(read("pages/Funds.tsx")).toContain('<PhoneFold page="funds" id="legend"');
     for (const f of ["components/StepsBar.tsx", "components/sectors/pack/Guide.tsx"]) expect(read(f), f).toMatch(/revealAndScroll\(/);
   });

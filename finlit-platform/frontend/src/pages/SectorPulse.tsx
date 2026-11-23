@@ -1,12 +1,12 @@
 // Sector Pulse (/sectors) as the "FinLit final pages" pack draws it (founder, 13 Nov 2026; docs/design/finlit-final-pages/05 and 06): the pack's header with the Market
 // backdrop, a Simple view and a Full table view (in the address: ?view=full). Every number is the server's (GET /api/sectors, /api/sector-history, /api/sector-map); what a
 // plan does not include arrives null with its reason and is said in words. Describes price and breadth data; never advice. Styles: styles/sectors-pack.css.
-import { PhoneFold } from "../components/PhoneFold";
 import { useMemo } from "react";
 import { useSearchParams } from "react-router";
 import { useDocTitle } from "../lib/title";
 import { groupsN, groupsParen, groupsSplit } from "../lib/pulsePack";
 import { PulseGuide, SectionsBar } from "../components/sectors/pack/Guide";
+import { SxBox, SxFold, SxNav } from "../components/sectors/pack/PulseLayout";
 import { useAuth } from "../lib/auth";
 import { usePortfolio } from "../lib/portfolio";
 import { failureText, useSectorBoard } from "../lib/sectors";
@@ -15,12 +15,13 @@ import { useIndustryMap } from "../lib/sectorExtra";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, apiGet } from "../lib/api";
 import { Blank } from "../components/sectors/Parts";
-import { Tip } from "../components/sectors/pack/Common";
+import { Tip, WhyFold, useFirstVisit } from "../components/sectors/pack/Common";
 import { Backdrop, PackHead, type View } from "../components/sectors/pack/PulseHead";
 import { ByState, CountedAndSmall, Cycle, IndustryMapPack, Momentum, Mood, Standouts, TodayMinute, Words, YourIndustries } from "../components/sectors/pack/PulseSimple";
 import { PulseTable, SixMonths, StandoutsFull, TooSmallFull } from "../components/sectors/pack/PulseTable";
 import "../styles/sectors.css";
 import "../styles/sectors-pack.css";
+import "../styles/sector-pages.css";
 import { showQuery } from "../lib/sectors";
 import { tw, useShow, useShowWords } from "../lib/groupWords";
 
@@ -45,12 +46,12 @@ export function SectorPulsePage() {
   const mem = useQuery<{ groups: Record<string, { slug: string }> }, ApiError>({ queryKey: ["sectors", "membership", key, show], queryFn: () => apiGet(`/api/sectors/membership?symbols=${encodeURIComponent(key)}` + showQuery(show, false)), enabled: symbols.length > 0, staleTime: 3_600_000, retry: false });
   const mine = useMemo(() => new Set(Object.values(mem.data?.groups ?? {}).map((g) => g.slug)), [mem.data]);
   const b = q.data, h = hq.data;
+  const firstVisit = useFirstVisit("sector-pulse");   // task #333 (fix 3): "Why it matters" opens on a member's first visit, closed after
   const d = b?.date ? new Date(b.date + "T00:00:00Z") : null;
   // task #310 F (05-phone.md, fix 6): a closed section's one line carries its live figure where the section already has it
   const foldLine = useMemo(() => {
     const flags = b?.leader_flags, u = b?.universe, few = b?.too_few_stocks ?? [];
     return {
-      bystate: b ? tw(`${groupsN(b.rows.length)} with a reading, grouped by their state today`) : "Every group with a reading, grouped by its state today",
       standouts: flags == null ? tw("Stocks at a new 1-year high while their industry is well below its own")
         : !flags.length ? tw("No stock is at a new 1-year high inside a weak industry today")
         : tw(`${flags.length.toLocaleString("en-IN")} ${flags.length === 1 ? "stock" : "stocks"} at a new 1-year high while their industry is well below its own`),
@@ -59,8 +60,10 @@ export function SectorPulsePage() {
     };
   }, [b]);
   const meta = b ? <>Updated every weekend, to the close of {d ? `${WEEKDAY[d.getUTCDay()]} ${b.date_label ?? b.date}` : b.date} · {b.universe ? b.universe.counted_in_groups_with_reading.toLocaleString("en-IN") : b.stocks_counted.toLocaleString("en-IN")} actively traded stocks<Tip text="Only actively traded, established stocks are counted, so a few rarely traded names cannot swing the reading. The list is reviewed once a month." /> · {groupsSplit(b.rows)}, as NSE groups them<Tip text={show === "sectors" ? "Each group is one of NSE's 22 sectors, read with all its industries together. A sector with too few actively traded stocks for a steady reading is listed under Too small." : "Each group is an NSE industry with enough actively traded stocks for a steady reading; small industries of the same NSE sector are read together as one sector group."} /></> : null;
+  const n = b?.rows.length ?? 0, sectorsView = show === "sectors";
+  const allLabel = sectorsView ? `All ${n} sectors` : `All ${n} groups`;          // final check 2: the Industries view's 38 are 33 industries and 5 sector groups
   return (
-    <div className="wrap sx sp" data-testid="sector-pulse">
+    <div className={"wrap sx sp sx-new" + (view === "full" ? " sx-full" : "")} data-testid="sector-pulse">
       <PackHead page="pulse" title={TITLE} desc={tw(HEAD_DESC)} meta={meta} view={view} onView={setView} industries={b?.rows ?? []} show={show} onShow={setShow}
         side={b ? <Backdrop pct={b.market?.pct_vs_200d ?? null} above={b.market?.above_200d ?? null} /> : null} />
       {pending && show === "industries" && <p className="sp-note sp-pending">{pending}</p>}
@@ -68,27 +71,31 @@ export function SectorPulsePage() {
       {q.isError && <div className="sp-sec"><Blank title={show === "sectors" ? "The Sectors view is not available right now" : "Sector Pulse is not available right now"} reason={failureText(q.error)}>
         <button type="button" className="btn" onClick={() => q.refetch()}>Try again</button>{show === "sectors" && <button type="button" className="btn" onClick={() => setShow("industries")}>Show industries</button>}</Blank></div>}
       {b && <PulseGuide stocks={b.universe?.counted_in_groups_with_reading ?? b.stocks_counted} groups={groupsParen(b.rows)} />}
-      {b && <SectionsBar items={view === "simple" ? [
-        { id: "sp-today", label: "Today" }, { id: "sp-cycle", label: "The cycle" }, { id: "sp-bystate", label: "By state" }, ...(mq.data ? [{ id: "sp-map", label: "Map" }] : []),
-        ...(h ? [{ id: "sp-mood", label: "Market mood" }] : []), { id: "sp-momentum", label: "Momentum × strength" }, { id: "sp-yours", label: tw("Your industries") },
-        { id: "sp-standouts", label: "Standout stocks" }, { id: b.universe ? "sp-counted" : "sp-small", label: "Counted / Too small" },
-      ] : [
+      {/* task #333 (file 30): the section bar, frozen under the site header, every stop with its real name (Simple); the Full table has its own frozen box bar */}
+      {b && view === "simple" && <SxNav items={[
+        { id: "sx-today", label: "Today" }, { id: "sx-yours", label: tw("Your industries") }, { id: "sx-all", label: allLabel }, { id: "sx-chk", label: "Price checks" },
+        { id: "sx-standouts", label: "Standout stocks" }, { id: "sx-counted", label: "Stocks counted" }, { id: "sx-words", label: "Words explained" },
+      ]} />}
+      {b && view === "full" && <SectionsBar items={[
         { id: "sp-every", label: "Every number" }, ...(h ? [{ id: "sp-six", label: "Six months" }] : []), { id: "sp-stand-f", label: "Standout stocks" }, ...((b.too_few_stocks ?? []).length ? [{ id: "sp-small-f", label: "Too small" }] : []),
       ]} />}
       {b && view === "simple" && (
-        <>
+        <WhyFold.Provider value={firstVisit}>
           <TodayMinute b={b} h={h} />
-          <Cycle b={b} />
-          {/* task #310 part E (05-phone.md, fix 6): on a phone the sections after the second start closed (name and one line); desktop unchanged */}
-          <PhoneFold page="sectors" id="bystate" title="By state" line={foldLine.bystate}><ByState b={b} mine={mine} /></PhoneFold>
-          {mq.data && <PhoneFold page="sectors" id="map" title={tw("Industry map")} line={tw("Each industry as a dot: how many of its stocks are rising, and how far it is below its 1-year high")}><IndustryMapPack m={mq.data} /></PhoneFold>}
-          {h && <PhoneFold page="sectors" id="mood" title="Market mood" line="How many groups were in each state, day by day"><Mood h={h} /></PhoneFold>}
-          <PhoneFold page="sectors" id="momentum" title="Momentum × strength" line="The Sector Pulse state beside the Sector Rotation box"><Momentum b={b} mine={mine} /></PhoneFold>
-          <PhoneFold page="sectors" id="yours" title={tw("Your industries")} line={tw("The industries of the shares in your portfolio, and how each is doing")}><YourIndustries b={b} h={h} symbols={symbols} signedIn={!!user} /></PhoneFold>
-          <PhoneFold page="sectors" id="standouts" title="Standout stocks" line={foldLine.standouts}><Standouts b={b} /></PhoneFold>
-          <PhoneFold page="sectors" id="counted" title="Counted / Too small" line={foldLine.counted}><CountedAndSmall b={b} /></PhoneFold>
-          <Words />
-        </>
+          <YourIndustries b={b} h={h} symbols={symbols} signedIn={!!user} />
+          <SxBox id="sx-all" store="finlit-sx-box-all" param="tab" label={allLabel} sub="3 ways to look · press one" tabs={[
+            { key: "state", label: "By state", content: <ByState b={b} mine={mine} /> },
+            { key: "map", label: "Map", content: mq.data ? <IndustryMapPack m={mq.data} /> : <div className="sp-sec"><p className="sp-empty">{mq.isLoading ? "Loading the map…" : tw("The map is not available right now.")}</p></div> },
+            { key: "time", label: "Over time", content: h ? <Mood h={h} /> : <div className="sp-sec"><p className="sp-empty">{hq.isLoading ? "Loading the history…" : "The history is not available right now."}</p></div> },
+          ]} />
+          <SxBox id="sx-chk" store="finlit-sx-box-chk" label="Checks on the price picture" sub="press one" tabs={[
+            { key: "others", label: tw("Against other industries"), content: <Momentum b={b} mine={mine} /> },
+            { key: "next", label: "What happened next", content: <Cycle b={b} /> },
+          ]} />
+          <SxFold id="sx-standouts" title={tw("Standout stocks in weak industries")} line={foldLine.standouts}><Standouts b={b} /></SxFold>
+          <SxFold id="sx-counted" title="Which stocks are counted, and what is too small for a reading" line={foldLine.counted}><CountedAndSmall b={b} /></SxFold>
+          <Words line="Every term on this page, in plain English." />
+        </WhyFold.Provider>
       )}
       {b && view === "full" && (
         <>
