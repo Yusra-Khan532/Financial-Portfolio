@@ -78,17 +78,17 @@ describe("ETF list (task #133)", () => {
     expect(screen.getByTestId("where").textContent).toContain("sort=turnover&order=asc");
   });
 
-  it("shows the filters without a click: Type in one row, the 12 most used categories with Show all, and both ranges", () => {
+  it("shows the filters without a click (task #351: in a panel on the left): Type, the 12 most used categories with Show all, and both ranges", () => {
     open();
     const f = document.getElementById("etf-filters")!;
     expect(f).toBeTruthy();
-    expect(within(f).getByRole("button", { name: /Equity/ })).toBeTruthy();
-    expect(within(f).queryByRole("button", { name: /Cat 12/ })).toBeNull();
-    expect(within(f).getByRole("button", { name: /Cat 11/ })).toBeTruthy();
+    expect(within(f).getByRole("checkbox", { name: /Equity/ })).toBeTruthy();
+    expect(within(f).queryByRole("checkbox", { name: /Cat 12/ })).toBeNull();
+    expect(within(f).getByRole("checkbox", { name: /Cat 11/ })).toBeTruthy();
     fireEvent.click(within(f).getByRole("button", { name: "Show all 15" }));
-    expect(within(f).getByRole("button", { name: /Cat 14/ })).toBeTruthy();
+    expect(within(f).getByRole("checkbox", { name: /Cat 14/ })).toBeTruthy();
     expect(f.querySelectorAll("fieldset.etf-range")).toHaveLength(2);
-    fireEvent.click(screen.getByRole("button", { name: /^Filters/ }));                  // Filters folds them
+    fireEvent.click(screen.getByRole("button", { name: /^Hide filters/ }));             // "Hide filters" folds the panel away
     expect(document.getElementById("etf-filters")).toBeNull();
     expect(screen.getByText("The 100 most traded open at once; the other 259 take a moment longer.")).toBeTruthy();
   });

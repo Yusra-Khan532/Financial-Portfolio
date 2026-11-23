@@ -75,7 +75,9 @@ export function PageHeader({ plan, title, description, eyebrow, stats, links, le
         <div className="ph-row">
           {lead}
           {btns.length > 0 ? <nav className="ph-links" aria-label="Related pages" style={{ display: "contents" }}>
-            {btns.map((l) => <HLink key={l.to} to={l.to} className={buttonClass("secondary", "sm", "ph-lk")}>{l.label}<span aria-hidden="true">→</span></HLink>)}
+            {btns.map((l) => l.gold
+              ? <HLink key={l.to} to={l.to} className={buttonClass("secondary", "sm", "ph-lk ph-gold")}><Icon name="crown" className="ph-crown" />{l.label}<span aria-hidden="true">→</span></HLink>   /* task #351: a Gold feature among the quick links */
+              : <HLink key={l.to} to={l.to} className={buttonClass("secondary", "sm", "ph-lk")}>{l.label}<span aria-hidden="true">→</span></HLink>)}
           </nav> : null}
           {actions}{learnEl}
         </div>
