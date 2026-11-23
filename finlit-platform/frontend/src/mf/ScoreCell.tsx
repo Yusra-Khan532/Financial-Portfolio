@@ -3,6 +3,7 @@ import { Icon } from "../lib/icons";
 import { GROWTH_SCORE_LABEL, PLAN_SCORE_NOTE } from "../lib/mf";
 import { bandOf, scoreText, wordBand, type ScoreItem } from "../lib/mfScore";
 import "../styles/mf.css";
+import "../styles/task358.css";   // task #358: the four parts in the score cell
 
 export function ScoreCell({ item, locked, why, loading = false }: { item?: ScoreItem; locked: boolean; why: string; loading?: boolean }) {
   if (locked) return <span className="mf-na" title="The Mutual Fund Score is part of the Gold plan."><Icon name="lock" /><span className="sr-only">Locked: Gold plan</span></span>;

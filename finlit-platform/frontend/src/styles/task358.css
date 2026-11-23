@@ -1,0 +1,22 @@
+/* Task #358: this task's rules, kept in their own file so parallel tasks do not edit the same end-of-file lines. */
+
+/* ---- moved from mfscreen.css ---- */
+/* task #358 (team, 23 Nov 2026): the filter groups under four headings (Start here · what and how, Quick shortlist, Risk, returns and cost, Narrow down),
+   each group folded until opened; the Mutual Fund Score group marked with a green edge as the quick shortlist */
+.mfs-sec { margin: 18px 0 4px; padding: 0 2px; font: 600 var(--fs-12)/1.4 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+#mfs-groups > .mfs-sec:first-child { margin-top: 6px; }
+.mfs-panel [data-fgx="score"] { box-shadow: inset 3px 0 0 var(--gain); }
+
+/* task #358: the two-handle slider of each score range (a filled band between the handles; the inputs stack over one track) */
+.mfs-sl { position: relative; height: 24px; margin: 2px 8px 0; }
+.mfs-sl-track { position: absolute; left: 0; right: 0; top: 10px; height: 4px; border-radius: var(--ui-r-pill); background: linear-gradient(to right, var(--border) var(--a), var(--gain) var(--a), var(--gain) var(--b), var(--border) var(--b)); }
+.mfs-sl input[type="range"] { position: absolute; inset: 0; width: 100%; margin: 0; background: none; pointer-events: none; -webkit-appearance: none; appearance: none; }
+.mfs-sl input[type="range"]::-webkit-slider-thumb { pointer-events: auto; -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--gain); border: 2px solid var(--s1); box-shadow: 0 0 0 1px var(--gain); cursor: grab; }
+.mfs-sl input[type="range"]::-moz-range-thumb { pointer-events: auto; width: 16px; height: 16px; border-radius: 50%; background: var(--gain); border: 2px solid var(--s1); cursor: grab; }
+.mfs-sl input[type="range"]:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--gold); outline-offset: 2px; }
+.mfs-sl input[type="range"]::-webkit-slider-runnable-track { background: none; }
+
+/* ---- moved from mf.css ---- */
+/* task #358: the four parts inside the Mutual Fund Score cell, P R C Q, each tinted by its word (Strong green, Fair amber, Weak red, not scored grey) */
+.mfs-parts { display: inline-flex; gap: 3px; margin-top: 4px; }
+.mfs-part { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: var(--ui-r-mark); font: 600 var(--fs-12)/1 var(--sans); font-style: normal; background: color-mix(in srgb, currentColor 16%, transparent); }

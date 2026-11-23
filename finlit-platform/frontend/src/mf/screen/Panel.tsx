@@ -16,6 +16,7 @@ import {
 import { rangeOf, toggleIn, useStockSearch, withRange, withScore, type SQ, type ScreenFacets } from "../../lib/mfScreen";
 import { FlowBars } from "./Graphics";
 import { RangeFilter } from "./RangeFilter";
+import "../../styles/task358.css";   // task #358: the section headings and the score sliders
 import { ScoreFilters, scoreOn } from "./ScoreFilter";
 
 

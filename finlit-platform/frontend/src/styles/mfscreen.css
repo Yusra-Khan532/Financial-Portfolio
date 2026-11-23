@@ -253,18 +253,3 @@
 .mfs-table thead th, .mfs-table thead th.mfs-n { background: var(--s2); }
 .mfs-table tbody tr.is-picked > * { background: var(--gold-soft); }
 .mfs-table tbody tr.is-picked > th.mfs-n { box-shadow: inset 3px 0 0 var(--gold), inset -1px 0 0 var(--border-strong); }
-
-/* task #358 (team, 23 Nov 2026): the filter groups under four headings (Start here · what and how, Quick shortlist, Risk, returns and cost, Narrow down),
-   each group folded until opened; the Mutual Fund Score group marked with a green edge as the quick shortlist */
-.mfs-sec { margin: 18px 0 4px; padding: 0 2px; font: 600 var(--fs-12)/1.4 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
-#mfs-groups > .mfs-sec:first-child { margin-top: 6px; }
-.mfs-panel [data-fgx="score"] { box-shadow: inset 3px 0 0 var(--gain); }
-
-/* task #358: the two-handle slider of each score range (a filled band between the handles; the inputs stack over one track) */
-.mfs-sl { position: relative; height: 24px; margin: 2px 8px 0; }
-.mfs-sl-track { position: absolute; left: 0; right: 0; top: 10px; height: 4px; border-radius: var(--ui-r-pill); background: linear-gradient(to right, var(--border) var(--a), var(--gain) var(--a), var(--gain) var(--b), var(--border) var(--b)); }
-.mfs-sl input[type="range"] { position: absolute; inset: 0; width: 100%; margin: 0; background: none; pointer-events: none; -webkit-appearance: none; appearance: none; }
-.mfs-sl input[type="range"]::-webkit-slider-thumb { pointer-events: auto; -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--gain); border: 2px solid var(--s1); box-shadow: 0 0 0 1px var(--gain); cursor: grab; }
-.mfs-sl input[type="range"]::-moz-range-thumb { pointer-events: auto; width: 16px; height: 16px; border-radius: 50%; background: var(--gain); border: 2px solid var(--s1); cursor: grab; }
-.mfs-sl input[type="range"]:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--gold); outline-offset: 2px; }
-.mfs-sl input[type="range"]::-webkit-slider-runnable-track { background: none; }

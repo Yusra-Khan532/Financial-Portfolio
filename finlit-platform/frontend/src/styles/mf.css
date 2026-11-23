@@ -547,7 +547,3 @@ h2.mf-h4 { font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-ser
    lighter tint (--ui-heat-scale), so in dark the tinted cell's figure takes --text and its band word --muted; the tint stays the signal. */
 :root[data-theme="dark"] .mf-table td.mf-tinted :is(.pos, .neg) { color: var(--text); }
 :root[data-theme="dark"] .mf-table td.mf-tinted .mf-band { color: var(--muted); }
-
-/* task #358: the four parts inside the Mutual Fund Score cell, P R C Q, each tinted by its word (Strong green, Fair amber, Weak red, not scored grey) */
-.mfs-parts { display: inline-flex; gap: 3px; margin-top: 4px; }
-.mfs-part { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: var(--ui-r-mark); font: 600 var(--fs-12)/1 var(--sans); font-style: normal; background: color-mix(in srgb, currentColor 16%, transparent); }
