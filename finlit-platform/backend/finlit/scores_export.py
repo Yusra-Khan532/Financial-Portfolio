@@ -330,6 +330,7 @@ async def build_day(store, day: date, live: bool, now: Optional[datetime] = None
     companies: List[dict] = []
     isin_of: Dict[str, str] = {}
     no_isin: List[str] = []
+    no_close: List[str] = []
     dup: List[str] = []
     used: Dict[str, str] = {}
     # a company with a Prism score first, so a repeated ISIN keeps the scored line
@@ -344,6 +345,11 @@ async def build_day(store, day: date, live: bool, now: Optional[datetime] = None
             continue
         used[isin] = s
         f = figs.get(s) or {}
+        if not (_num(f.get("close")) or 0) > 0:
+            # no close that day (task #326 follow-up, 23 Nov 2026): the owner's checker refuses a whole file for ONE such company, and the screener had no
+            # price for 53 scored companies on 22 Nov, so every night was refused. Left out and counted, as a company without an ISIN is; never a made-up price.
+            no_close.append(s)
+            continue
         nse, bse = meta.get("nse"), meta.get("bse")
         mcap = f.get("mcap_cr")
         companies.append({"isin": isin, "symbol": nse or bse or s, "exchange": "NSE" if nse else "BSE", "name": meta.get("name") or s,
@@ -369,6 +375,7 @@ async def build_day(store, day: date, live: bool, now: Optional[datetime] = None
     doc = {"schema": SCHEMA, "date": day.isoformat(), "prev_date": prev.isoformat(), "generated_at": now.astimezone(IST).isoformat(timespec="seconds"),
            "companies": companies, "screens": screens}
     notes.update({"mode": "live" if live else "history", "companiesNoIsin": len(no_isin), "noIsinSample": no_isin[:10], "isinRepeated": len(dup),
+                  "companiesNoClose": len(no_close), "noCloseSample": no_close[:10],
                   "screenRowsWithoutIsin": dropped_rows})
     return doc, notes
 

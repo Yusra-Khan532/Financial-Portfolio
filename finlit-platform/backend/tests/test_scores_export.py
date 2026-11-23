@@ -324,3 +324,37 @@ async def test_the_finished_day_uses_the_screeners_figures_while_its_close_is_cu
     doc = json.loads(gzip.decompress((tmp_path / "scores_2026-11-19.json.gz").read_bytes()))
     c = next(x for x in doc["companies"] if x["symbol"] == "CO002")
     assert c["close"] == 200.0 and c["chg_1d_pct"] == -1.25 and c["size"] == "Small" and c["below_52w_high_pct"] == 4.0 and c["fo"] == 1
+
+
+async def test_a_scored_company_with_no_price_does_not_refuse_the_whole_day(store, tmp_path, monkeypatch):
+    """Task #326 follow-up (23 Nov 2026): the live job failed 8 runs in a row. The screener had no price for 86 of its 5,844 companies (53 of them with a full
+    report, so Prism scores them), and the owner's checker refuses a file in which ANY company lacks a close: every night's file was refused. A company with
+    no close that day is now left out (counted in the notes, its screen rows with it); the rest of the day is written."""
+    await seed(store)
+    async with store.pool.acquire() as conn:
+        await conn.execute("INSERT INTO preset_meta (key, value) VALUES ('last_run', $1::jsonb)", json.dumps({"asOf": D2.isoformat()}))
+        await conn.execute("INSERT INTO screen_snapshots (preset_id, chips, session, symbol, rank, close, row) VALUES ($1, 'none', $2, 'CO007', 4, NULL, $3::jsonb)",
+                           MOM, D2, json.dumps({"symbol": "CO007", "rank": 4, "momentum_score": 70.0}))
+
+    async def figures(_store):
+        out = {s: {"close": 200.0, "chg_1d_pct": -1.25, "mcap_cr": 12000.0, "ret": {"m3": 1.0, "m6": 2.0, "y1": 3.0}, "below_52w_high_pct": 4.0, "fo": 1,
+                   "prism": {"final": 70.0, "fundamental": 1.0, "valuation": 2.0, "quality": 3.0, "risk": 4.0, "label": "Healthy"}, "tech": {"st": 5.0, "lt": 6.0}} for s in SYMS}
+        for s in ("CO007", "CO008", "CO009"):       # scored, but no price in the screener's table (production: 53 such companies on 22 Nov)
+            out[s] = {**out[s], "close": None, "chg_1d_pct": None}
+        return out, list(SYMS)
+    monkeypatch.setattr(X, "live_figures", figures)
+    res = await X.run(store, now=datetime(2026, 11, 19, 23, 45, tzinfo=IST), folder=tmp_path, backfill=0)
+    assert res["failed"] == [] and res["written"][0]["date"] == "2026-11-19"
+    doc = json.loads(gzip.decompress((tmp_path / "scores_2026-11-19.json.gz").read_bytes()))
+    assert validate(doc) == [] and not {"CO007", "CO008", "CO009"} & {c["symbol"] for c in doc["companies"]}
+    notes = res["notes"]["2026-11-19"]
+    assert notes["companiesNoClose"] == 3 and notes["noCloseSample"] == ["CO007", "CO008", "CO009"] and notes["screenRowsWithoutIsin"] == 2
+    assert [r["pos"] for r in next(s for s in doc["screens"] if s["id"] == MOM)["rows"]] == [1, 2]
+
+
+def test_a_refused_day_says_why_on_the_last_line_of_the_run():
+    """The supervisor keeps the last output line of a failed run as its reason: the worker ends with the checker's words."""
+    from finlit import worker
+    res = {"written": [], "skipped": [], "failed": [{"date": "2026-11-21", "why": "export not written: companies has 0 rows"}], "notes": {"x": "y" * 4000}}
+    assert worker.export_failure_line(res).startswith("scores export FAILED 2026-11-21: export not written: companies has 0 rows")
+    assert worker.export_failure_line({"failed": []}) is None

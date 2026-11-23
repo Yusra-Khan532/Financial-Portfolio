@@ -122,7 +122,7 @@ export function GrowthPanel({ state, onChange, summary, loading, price = DEFAULT
     <section className="qg qg-side" aria-labelledby="qg-h">
       <h2 className="sr-only" id="qg-h">Filter companies by growth and price position</h2>
       <p className="muted qg-lead">Growth filters and price-position filters apply together.</p>
-      <button type="button" className="btn qg-reset" disabled={growthIsDefault(state) && priceIsDefault(price)} onClick={reset}>Reset filters</button>
+      <button type="button" className="btn qg-reset" disabled={growthIsDefault(state) && priceIsDefault(price)} onClick={reset}>Clear growth and price filters</button>
       <FilterGroup id="qg-quick" title="Quick fills" defaultOpen>
       <div className="qg-presets" role="group" aria-label="Quick fills">
         <span className="qg-pl">Quick fills</span>
