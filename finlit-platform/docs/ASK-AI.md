@@ -18,7 +18,7 @@ The month is the calendar month in India; the count renews on the 1st. An admini
    migration 107), then streams the answer as Server-Sent Events: `meta` (questions left), `status` ("Reading the ratios (TCS)"), `relation` (task #349 PR 4: how the member is linked to the company, right after `meta`), `since` (task #349 PR 3: what changed since the member last asked, before the words), `text` (the words as
    they are written), `replace` (an answer withdrawn as advice-like, or `""` to clear the words written before a tool round), `ping` (a keep-alive
    after 10 s of quiet), `done` (the disclaimer) or `error`. A stream that ends with neither `done` nor `error` is shown as interrupted (task #349).
-3. `ask/service.py` runs Claude (`ASK_MODEL`, default `claude-haiku-5-5`) with 34 read-only tools (`ask/tools.py`) and the web search: the company
+3. `ask/service.py` runs Claude (`ASK_MODEL`, default `claude-haiku-5-5`) with 37 read-only tools (`ask/tools.py`; task #349 PR 5 added Sector Pulse and Sector Rotation) and the web search: the company
    page tools, the page tools of `ask/pages.py`, the FinLit MCP tools (quotes, statements, ratios, shareholding, price history, FinLit Prism, results,
    results calendar, screener, market overview, FII/DII flows, IPOs, funds, ETFs, data freshness) and the member's own Equity portfolio, mutual funds
    and watchlists.
@@ -334,3 +334,108 @@ choice on cost); the extra tokens are a few lines in the note with the question,
   "On your watchlist", "Alert set"; a name on the Equity portfolio with no quantity reads "In your portfolio list". A signed-out visitor never
   gets the event, and the component shows nothing without a signed-in member. Styles: `styles/ask-relation.css`, tokens only.
 - Tests: `backend/tests/test_ask_holdings.py` (real Postgres and Redis), `frontend/src/components/AskRelation349.test.tsx`.
+
+## What's new for me (task #349, PR 5, 23 Nov 2026)
+
+"Anything new in my holdings?", "what changed in my portfolio this week", "kya naya hai mere stocks mein", "what's new for me?" (and the panel's
+"What's new in my holdings?") are one intent, `mine:-:whatsnew` (`memory.asks_whatsnew`: a word for new or changed and a word for the member's own
+holdings, portfolio, stocks, shares or watchlist; a how-to such as "how do I add a new share to my portfolio" is not it). The model is unchanged
+(the founder's choice on cost): the extra tokens are a few dated lines in the note with the question.
+
+- **Who.** A signed-in Silver or Gold member, as for every written answer; Basic is refused as before and an administrator's "view as" preview is
+  answered as before. A member with no shares in the Equity portfolio and no company on a watchlist gets a plain answer at once, without the model
+  and without using a question: there is nothing to compare yet; add shares in Workspace > Equity portfolio or companies to a watchlist (links to
+  both pages).
+- **Which companies** (`ask/whatsnew.py kept`, scoped to the member's `user_id`): at most 5. The Equity portfolio first, by its weight (the page's
+  own rule, `portfolio_page.score.weights_of`, through PR 4's `mine.equity`), then by value, then as listed; then the watchlists in their order.
+- **Since when.** The company's last memory row within 30 days: a question about it, or an earlier "what's new" that compared it (its figures are
+  kept with that answer). With none, or with remembering switched off, the last 7 days.
+- **The diff, deterministic** (PR 3's `memory.diff` and news read):
+  - the close on or before the starting day (or the price the earlier answer read) against the latest stored close, both with their dates;
+  - FinLit Prism only when the earlier row had a score: read again as the member (`get_finlit_prism`), so the plan is respected; a Silver member
+    whose earlier answer was on Gold reads "FinLit Prism: not included in your plan now", never a change;
+  - the company's news and results filings dated after the starting day (`get_news_and_filings`, `memory.new_items`), results first, at most 3.
+  - A company with nothing new says so; one with no stored close says why.
+- **Order.** The biggest change first: the size of the price move in %, plus a weight for a Prism or results change and for each new filing.
+- **Prompt.** `<whats_new_for_you>` and one instruction, in the per-question note (the system prompt and the tool list stay byte for byte the same).
+  No company card, no page company (the page is not named in the context line, since the member asked about all their companies), no
+  `<since_last_asked>` and no `<member_relation>`. Example:
+
+  ```
+  <whats_new_for_you>
+  - TCS (on your watchlist 'IT'), last 7 days, since 16 Nov 2026:
+    - Price ₹3,000 → ₹3,150, +₹150 (+5%) (14 Nov 2026 → 22 Nov 2026)
+    - New results filing: Financial results for the quarter (21 Nov 2026)
+  - RELIANCE (you hold 40 shares; 100.0% of your Equity portfolio by value, close 22 Nov 2026), since your question of 21 Nov 2026, 8:54 pm IST:
+    - Price ₹2,880 → ₹2,950, +₹70 (+2.4%) (20 Nov 2026 → 22 Nov 2026)
+    - New filing: Outcome of board meeting (23 Nov 2026)
+  </whats_new_for_you>
+  [The member asked what is new in the companies they hold or watch. Answer from <whats_new_for_you>: lead with the biggest changes, one short line
+  each with its date; then one line naming the companies with no change. Every figure keeps its date. Describe only, never advise: never say to
+  buy, add, sell, trim, exit, hold or rebalance.]
+  ```
+- **Cache and memory.** Never read from or written to the 30-minute answer cache. The answer is kept as `mine:-:whatsnew` (subject kind `mine`,
+  "Your holdings" in Chat History) with the figures it compared, so the next "what's new" starts from it. PR 1's and PR 4's advice checks apply.
+- **Panel.** "What's new in my holdings?" is the first chip under "Try asking" for a signed-in member with written answers and questions left
+  (`aiReady`); visitors and Basic do not see it. The `done` event links "Your Equity portfolio" first.
+- Tests: `backend/tests/test_ask_whatsnew.py` (real Postgres and Redis), `frontend/src/components/AskWhatsNew349.test.tsx`.
+
+## Follow-ups keep the earlier figures (task #349, PR 5, 23 Nov 2026)
+
+Only the words of the last three exchanges go with a follow-up; the tool results did not, so "and its margins?" read everything again (the
+company's three documents included) or lost the numbers.
+
+- **The summary** (`ask/followup.py summary`, no model): from the tool results the answer read (the cards and documents read before the model,
+  and the model's own rounds), per company (at most two): the price with its time, FinLit Prism with its date, every key ratio with its period
+  (`keyMetrics` of the company card, `latest` of `get_ratios`), the 52-week range, the results filing and documents read with their filing dates;
+  a header "<SYMBOL>, read <date>". At most 600 characters, cut at a whole figure. Example:
+  `TCS, read 23 Nov 2026: price ₹2,460 (23 Nov 2026, 3:29 pm IST); FinLit Prism 71 Strong (20 Nov 2026); Market cap ₹8,92,474 crore (Today);
+  P/E 16.65x (As of 20 Nov 2026); ... Operating margin 25.83% (TTM); ...; 52-week ₹1,976–₹3,336.70 (23 Nov 2026)`.
+- **The round trip.** The `done` event carries it as `figures` (a cached answer too). The panel keeps it on the answer (`lib/askAi.ts safeFigures`:
+  text of at most 600 characters; never shown) and sends it back with that answer's turn (`AskTurn.figures`). The server takes it only on an
+  answer's turn, as plain text (tags and brackets removed, cut to 600, never refused: `api.Turn.figures`, `followup.clean`).
+- **The note.** A follow-up whose earlier answers carry summaries gets them in the per-question note (never the system prompt; the system prompt and
+  the tool list stay byte for byte the same):
+
+  ```
+  <figures_read>
+  - TCS, read 23 Nov 2026: price ₹2,460 (23 Nov 2026, 3:29 pm IST); FinLit Prism 71 Strong (20 Nov 2026); ... ROE 43.37% (TTM); ...
+  </figures_read>
+  [<figures_read> holds the figures FinLit read for the earlier answers in this chat, each with its date. Answer a follow-up from them when they
+  hold what is asked, with their dates; read again only what they lack.]
+  ```
+- **Fewer reads.** When the carried figures are about the same company and the follow-up names no document, the company's documents are not read
+  again before the model (it may still read one itself); "what did management say on the call?" still reads the transcript first.
+- A follow-up with no summary (an older panel, a listed answer, an answer that read no company figure), a first question, a visitor and Basic:
+  the request is exactly as before (golden test).
+- Tests: `backend/tests/test_ask_followup.py` (the scripted model answers "and its margins?" from the carried figures, with no new tool call),
+  `frontend/src/components/AskFollowup349.test.tsx`.
+
+## Sector Pulse and Sector Rotation (task #349, PR 5, 23 Nov 2026)
+
+Sector questions went to the web. Two read-only tools (`backend/finlit/ask/sectors.py`) now read the site's own feeds in-process, as the member,
+like every other tool: the routes decide what a plan sees (a locked field is null and `locked` names the plan; the tool says so in a note).
+
+| Tool | Reads | Gives |
+|---|---|---|
+| `get_sector_pulse(show = sectors \| industries, slug?)` | `/api/sectors?show=`, `/api/sectors/{slug}?show=` | Every group: state, breadth (above the 9/20/50-day averages, of 100), its index against its 52-week high, the last thrust with its date, its Rotation box; the state meanings once; the groups with too few stocks. One group: state since when, meaning, the page's summary, breadth, counted and listed stocks, the ranked stocks on Silver (15, strongest 6 months first) |
+| `get_sector_rotation(show, slug?)` | `/api/rotation?show=`, `/api/rotation/{slug}?show=` | Every group: box, weeks in it, rank and its 1- and 4-week change, points against the average industry, breadth; the groups that changed box this week; "what happened next" after each box (`what_next`: times entered, typical stay, where the stays went next, with the window's dates). One group: box since when, previous box, rank, best and worst rank of 26 weeks, the last 4 weeks, and what happened next after its own box |
+
+- `show` defaults to `sectors` (NSE's 22 sectors, the pages' default once loaded); when the Sectors view is not loaded the tool reads Industries and
+  says so. Every result carries the data's date (`20 Nov 2026`).
+- `slug` may be a loose name: the address, then the name, then every word (its first 4 letters: "banking" finds Banks, "pharma" finds
+  Pharmaceuticals & Biotechnology) starting a word of a group's name or, in the Sectors view, of an industry inside it ("cement" finds
+  Construction Materials). Several matches ("IT", "auto" in the Industries view) are returned for the model to choose; none is guessed.
+- The board fits one result: 38 industry groups in about 9,000 characters, 38 rotation rows with what happened next in about 10,600 (the cap is
+  12,000; nothing is cut).
+- A group's rotation box is kept with the answer's figures (`memory._sector_state`), so "since you last asked" can say when it moved.
+- **Routing.** A question about sectors or industries in general ("which sectors are strong", "sector rotation kya hai", "banking sector breadth")
+  is the kind `sectors` (`routing._SECTORS_Q`; not when a sector of `_SECTORS` is named, as those carry the tools already): the note with the
+  question names `get_sector_pulse` and `get_sector_rotation` first, then NSE and the business press. A named sector ("pharma sector outlook")
+  reads `get_sector_pulse`, `get_sector_rotation`, then `get_finance_framework`. The answer links "Sector Pulse" (`/sectors?show=...`) and "Sector
+  Rotation" (`/sectors/rotation?show=...`).
+- **The tool list changed once**, on purpose: two tools after the page tools. It is still one list for every question, member and plan (the
+  byte-identity test now includes sector questions; `test_ask_sectors.TOOLS_SHA256` records the new hash). The system prompt is unchanged
+  (`SYSTEM_SHA256`, the value of `main` before this PR): visitors, Basic and members with no history or links get the same prompts as before except
+  for the two new tool definitions.
+- Tests: `backend/tests/test_ask_sectors.py` on copies of the live feeds (`tests/fixtures/ask_sectors`, saved 23 Nov 2026 as a visitor).

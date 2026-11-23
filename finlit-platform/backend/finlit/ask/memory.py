@@ -32,8 +32,9 @@ MAX_ROWS = 200
 MAX_POINTS = 8
 POINT_CHARS = 160
 QUESTION_CHARS = 500
-INTENTS = ("overview", "results", "valuation", "prism", "news", "documents", "price", "risks", "ownership", "concept")
-KINDS = ("company", "fund", "etf", "sector", "economy", "market", "concept", "general")
+INTENTS = ("overview", "results", "valuation", "prism", "news", "documents", "price", "risks", "ownership", "concept", "whatsnew")
+KINDS = ("company", "fund", "etf", "sector", "economy", "market", "concept", "general", "mine")
+WHATSNEW_TOPIC = ("mine:-:whatsnew", "mine", "-", "whatsnew")     # task #349 PR 5: "what's new for me" (ask/whatsnew.py)
 
 # ------------------------------------------------------------------------------------------------ 1. the topic, without a model
 _PRISM = re.compile(r"\b(prism|finlit score|finlit rating|rating|g&p|score)\b", re.I)
@@ -55,6 +56,22 @@ _CONCEPT_STOP = set("""what whats is are was the a an of does do did mean means 
 kya hai hain hota hoti hote matlab samjhao samjha samjhaiye kaise kaam ka ki ke in for to and me mein please tell about difference between
 term terms concept by with on it this that why when which who can i we you meant called ratio ratios rule rules""".split())
 _WORDS = re.compile(r"[a-z0-9&/]+")
+# Task #349 PR 5: "anything new in my holdings?", "what changed in my portfolio this week", "kya naya hai mere stocks mein": what is new in the
+# companies the member holds or watches. Both a word for new or changed and a word for their own companies; "how do I add a new share to my
+# portfolio" is a how-to, not this.
+_WN_NEW = re.compile(r"\b(new|news|changed?|changes|happened|happening|updates?|moved|naya|nayi|naye|badla|badli|badle|badlav|kya hua|hua kya)\b", re.I)
+_WN_MINE = re.compile(r"\b(my|mere|meri|mera|apne|apni|apna)\s+(?:own\s+)?(holdings?|portfolio|stocks?|shares?|watch ?lists?|companies|investments?"
+                      r"|positions?)\b", re.I)
+_WN_FOR_ME = re.compile(r"\b(what'?s|whats|anything|kuch) new for me\b|\bwhat'?s new with me\b", re.I)
+_WN_NOT = re.compile(r"\b(how (?:do|can|to)|add|adding|import|upload|delete|remove|create|edit|rename|sort)\b", re.I)
+
+
+def asks_whatsnew(question: str) -> bool:
+    """Task #349 PR 5: the question asks what is new in the member's own companies (their holdings and watchlists)."""
+    q = question or ""
+    if _WN_NOT.search(q):
+        return False
+    return bool(_WN_FOR_ME.search(q) or (_WN_NEW.search(q) and _WN_MINE.search(q)))
 
 
 def _slug(text: str, n: int = 3) -> str:
@@ -98,6 +115,8 @@ def topic_of(question: str, named_companies: Sequence[str] = (), page_company: O
     company the question names, the page's company (ask/api.py passes it only when the question is about it), the fund or ETF in context, a fund
     or ETF question, a sector routing._SECTORS finds, the economy, the market, a term (a concept question), else general."""
     q = question or ""
+    if asks_whatsnew(q):
+        return WHATSNEW_TOPIC
     kinds = [*kind]
     intent = intent_of(q, kinds)
     sym = next((s for s in named_companies if s), None) or page_company
@@ -410,15 +429,16 @@ _pending: Set["asyncio.Task[Any]"] = set()
 
 def after_answer(pool, ctx: Any, *, kind: str, question: str, result: Optional[Dict[str, Any]], named: Sequence[str], page: Optional[str],
                  kinds: Sequence[str], messages: Sequence[Dict[str, Any]], cards: Sequence[Tuple[str, Dict[str, Any], Dict[str, Any]]] = (),
-                 fund_ctx: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+                 fund_ctx: Optional[Dict[str, Any]] = None, figures: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
     """Called by ask/api.py once an answer is complete. Returns at once: the row is written in the background, and any failure is logged, never
-    shown. Reads only what the answer already read (the cards and the tool results in `messages`). Returns {"topic", "figures"} (task #349 PR 3:
+    shown. Reads only what the answer already read (the cards and the tool results in `messages`); `figures` (task #349 PR 5, "what's new for
+    me") replaces them with the figures that answer compared, so the next "what's new" starts from them. Returns {"topic", "figures"} (task #349 PR 3:
     kept with the cached answer, so a replay from the cache is kept too), or None when nothing is written."""
     if kind != "question" or not result or _viewing_as(ctx):
         return None
     try:
         topic = topic_of(question, named, page, fund_ctx, kinds)
-        figures = extract_figures(tool_results_of(messages, cards))
+        figures = figures if figures is not None else extract_figures(tool_results_of(messages, cards))
     except Exception:
         log.warning("ask memory: the answer's topic or figures could not be read", exc_info=True)
         return None
@@ -468,6 +488,8 @@ def since_miss_reason(question_kind: str, history: Sequence[Any], fresh: bool, t
         return "followup"
     if fresh:
         return "fresh"
+    if sk == "mine":
+        return "whatsnew"                   # task #349 PR 5: answered from the member's own companies instead
     if sk == "concept" or intent == "concept":
         return "concept"
     if sk == "general":

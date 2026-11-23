@@ -9,7 +9,8 @@ import { useAuth } from "./auth";
 export type AskAllowance = { limit: number; used: number; left: number; resets: string };
 /** `summary` (task #228): the AI summaries of the FinLit Prism card, 10 a month on Silver and Gold, counted apart from the questions. */
 export type AskQuota = { enabled: boolean; signedIn: boolean; plan?: string; limit?: number; used?: number; left?: number; resets?: string; summary?: AskAllowance };
-export type AskTurn = { role: "user" | "assistant"; content: string };
+/** `figures` (task #349 PR 5): on an answer, the "figures read" summary its `done` event gave; sent back so a follow-up keeps those figures. */
+export type AskTurn = { role: "user" | "assistant"; content: string; figures?: string };
 export type AskEvent =
   | { type: "meta"; limit: number; used: number; left: number; resets: string; cached: boolean }
   | { type: "status"; text: string }
@@ -17,7 +18,7 @@ export type AskEvent =
   | { type: "relation"; tags: AskRelationTag[] }
   | { type: "text"; text: string }
   | { type: "replace"; text: string }
-  | { type: "done"; disclaimer: string; sources: string[]; pages?: AskPage[] }
+  | { type: "done"; disclaimer: string; sources: string[]; pages?: AskPage[]; figures?: string }
   | { type: "error"; code: string; text: string };
 
 /** A FinLit page an answer read (task #218): shown under the answer as "Read on FinLit" links. */
@@ -115,6 +116,14 @@ export const ASK_TIMEOUT_MS = 120_000;
 export const INTERRUPTED = "interrupted", TIMED_OUT = "timeout";
 
 export const trimTurn = (t: AskTurn): AskTurn => (t.content.length <= TURN_CHARS ? t : { ...t, content: t.content.slice(0, TURN_CHARS - 1).trimEnd() + "…" });
+
+/** Task #349 PR 5: the server's summary of the figures an answer read (at most 600 characters, each figure with its date), kept on the answer and
+ *  sent back with it. Anything else (not text, empty, too long) is not kept. */
+export const FIGURES_CHARS = 600;
+export const safeFigures = (x: unknown): string | undefined => {
+  const t = typeof x === "string" ? x.trim() : "";
+  return t && t.length <= FIGURES_CHARS ? t : undefined;
+};
 
 /** Sends one question and calls `on` for every event as it arrives. Throws AskRefused when the server refuses before answering, and the abort
  *  reason when `signal` stops it (the Stop button). Task #349: the answer always ends with "done" or "error": a stream that ends without either is

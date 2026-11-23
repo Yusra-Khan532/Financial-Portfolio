@@ -45,6 +45,7 @@ export function subjectLabel(i: Pick<AskHistoryItem, "subjectKind" | "subjectId"
     case "economy": return "The economy";
     case "market": return "The market";
     case "concept": return id && id !== "general" ? `Term: ${id.replace(/-/g, " ")}` : "A term";
+    case "mine": return "Your holdings";             // task #349 PR 5: "what's new" in the member's own companies
     default: return "General";
   }
 }

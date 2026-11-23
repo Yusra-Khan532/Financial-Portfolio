@@ -68,7 +68,12 @@ _ISSUE = re.compile(r"\b(issues?|problems?|red ?flags?|risks?|concerns?|worr(?:y
                     r"|how is \S+(?: \S+)? doing|what(?:'s| is) happening|kya (?:problem|dikkat|issue)|dikkat|pareshani|business model|outlook|prospects?"
                     r"|strengths?|positives?|pros|health)\b", re.I)
 
-TYPES = ("company", "economy", "financials", "news", "concept", "valuation", "regulation", "funds")
+# Task #349 PR 5: a question about sectors or industries in general ("which sectors are strong", "sector rotation", "banking sector breadth"),
+# when no sector of _SECTORS is named (those already carry the sector tools): Sector Pulse and Sector Rotation first, not the web.
+_SECTORS_Q = re.compile(r"\b(sectors?|sectoral|industries|industry groups?|sector pulse|sector rotation|rotation|breadth|washout|thrust (?:c|cap)"
+                        r"|leading (?:sectors?|industries)|lagging (?:sectors?|industries))\b", re.I)
+
+TYPES = ("company", "economy", "financials", "news", "concept", "valuation", "regulation", "funds", "sectors")
 # Task #254 rework (the owner, 19 Nov): the order a company question is answered from. The system prompt states it once; the note repeats it per question.
 COMPANY_ORDER = ["the company's investor presentation", "its results (the results filing, with FinLit's results figures)",
                  "its earnings calls (the call transcript)", "news and the web pages of the team's directory (Moneycontrol first)",
@@ -111,12 +116,13 @@ def classify(question: str, named_company: bool = False, on_company_page: bool =
         got.add("concept")
     if named_company:
         got.discard("concept")
+    named_sectors = [f"sector:{k}" for k, rx in _SECTORS.items() if rx.search(q)]
+    if not named_sectors and _SECTORS_Q.search(q):
+        got.add("sectors")
     # A question for a meaning inside a field ("what is the repo rate", "SIP kya hai", "what is DCF") belongs to that field: its sites explain it.
-    if "concept" in got and got & {"economy", "valuation", "regulation", "funds"}:
+    if "concept" in got and got & {"economy", "valuation", "regulation", "funds", "sectors"}:
         got.discard("concept")
-    out = [t for t in TYPES if t in got]
-    out += [f"sector:{k}" for k, rx in _SECTORS.items() if rx.search(q)]
-    return out
+    return [t for t in TYPES if t in got] + named_sectors
 
 
 # ------------------------------------------------------------------------------------------------ 2. where each kind is answered from
@@ -146,9 +152,12 @@ ROUTES: Dict[str, Dict[str, object]] = {
     "funds": {"label": "mutual funds",
               "finlit": ["search_funds", "get_fund_details", "get_my_funds"],
               "sites": ["amfiindia.com", "sebi.gov.in", "morningstar.com", "nism.ac.in"]},
+    "sectors": {"label": "sectors and industries",
+                "finlit": ["get_sector_pulse", "get_sector_rotation"],
+                "sites": ["nseindia.com", "business-standard.com", "economictimes.indiatimes.com", "livemint.com"]},
 }
 # A sector question also reads the sector's own measures; its sites are the directory's sector sources, then the business press.
-SECTOR_FINLIT = ["get_finance_framework"]
+SECTOR_FINLIT = ["get_sector_pulse", "get_sector_rotation", "get_finance_framework"]   # task #349 PR 5: the sector pages first
 SECTOR_PRESS = ["business-standard.com", "economictimes.indiatimes.com", "livemint.com"]
 SECTOR_LABEL = {"insurance": "insurance", "pharma": "pharma and healthcare", "energy_power": "power and energy", "metals_chemicals": "metals and mining",
                 "real_estate": "real estate and housing", "auto": "automobiles", "it": "IT services", "rural_agri": "rural and farm finance"}

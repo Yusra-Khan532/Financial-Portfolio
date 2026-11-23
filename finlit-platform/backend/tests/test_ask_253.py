@@ -138,7 +138,8 @@ def test_the_note_names_finlits_tools_first_and_the_sites_and_asks_for_site_and_
     m = R.note(["economy", "news"])
     assert "the economy:" in m and "daily news:" in m and "Search only these sites" not in m        # mixed: both routes, open search
     s = R.note(["sector:auto"])
-    assert "automobiles: FinLit first (get_finance_framework)" in s and "Society of Indian Automobile Manufacturers (SIAM) (siam.in)" in s
+    # task #349 PR 5 (deliberate): a sector question reads Sector Pulse and Sector Rotation first, then the sector's own measures
+    assert "automobiles: FinLit first (get_sector_pulse, get_sector_rotation, get_finance_framework)" in s and "Society of Indian Automobile Manufacturers (SIAM) (siam.in)" in s
     assert R.note([]) == ""
 
 

@@ -5,7 +5,7 @@ import { SECOND } from "../lib/questionBank";
 import { answerCompany, generalAnswer, matchQuestion, searchListed, type Match } from "../lib/askAnswers";
 import { apiGet, type SearchIndex } from "../lib/api";
 import type { Quotes } from "../lib/globalSearch";
-import { AskRefused, INTERRUPTED, TIMED_OUT, askAi, safePages, safeRelation, safeSince, useAskQuota, type AskRelationTag, type AskSinceData, type AskTurn } from "../lib/askAi";
+import { AskRefused, INTERRUPTED, TIMED_OUT, askAi, safeFigures, safePages, safeRelation, safeSince, useAskQuota, type AskRelationTag, type AskSinceData, type AskTurn } from "../lib/askAi";
 import { AskSince } from "./AskSince";   // task #349 PR 3: "since you last asked"
 import { AskRelation } from "./AskRelation";   // task #349 PR 4: holdings-aware answers
 import { useAuth } from "../lib/auth";
@@ -33,6 +33,8 @@ const AskDiscovery = lazy(() => import("./AskDiscovery").then((m) => ({ default:
 
 /** The theme card on the start screen (the other four are lib/askFlow.ts CATEGORIES). */
 const FUNDS_CARD = { id: "funds", title: "Mutual funds & ETFs", sub: "Funds, returns, costs, ETFs", icon: "pie" } as const;
+/** Task #349 PR 5: answered from the member's own holdings and watchlists, each compared with their last question on it or the last 7 days. */
+export const WHATS_NEW_Q = "What's new in my holdings?";
 
 import { OPEN_AI } from "./assistantEvents";
 import { coTitle, subLine, titleOf } from "../lib/companyLabel";
@@ -42,6 +44,8 @@ export { OPEN_AI };
 type Msg = { role: "user" | "assistant"; content: string; link?: { to: string; label: string }; actions?: { to: string; label: string }[]; suggest?: Q[]; ai?: { status?: string; disclaimer?: string; error?: boolean; plans?: boolean; retry?: string };
   /** task #349 PR 3: "since you last asked" for this answer, and the question it answers (re-sent with `fresh` by "Full answer") */
   since?: AskSinceData; sinceQ?: string;
+  /** task #349 PR 5: the figures this answer read, with their dates (the server's summary), sent back with it on a follow-up */
+  figures?: string;
   /** task #349 PR 4: how the member is linked to the company ("You hold this", "In 2 of your funds" ...), shown on the answer */
   relation?: AskRelationTag[] };
 type View = "home" | "segments" | "topic" | "company" | "chat" | "history" | "saved" | "funds" | "discovery";
@@ -168,7 +172,9 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
    *  that company's own FinLit figures. Anything else typed is matched against the listed questions and the closest ones are offered. */
   /** A question the listed answers do not cover: FinLit AI reads FinLit's own data as this member and the answer streams into the last bubble. */
   const written = async (q: string, before: Msg[], fresh = false) => {
-    const history: AskTurn[] = before.filter((m) => m.content && !m.ai?.error && !m.ai?.plans && !m.suggest).map((m) => ({ role: m.role, content: m.content }));
+    // task #349 PR 5: an answer's "figures read" goes back with it, so a follow-up keeps the figures (and their dates) without reading them again
+    const history: AskTurn[] = before.filter((m) => m.content && !m.ai?.error && !m.ai?.plans && !m.suggest)
+      .map((m) => ({ role: m.role, content: m.content, ...(m.role === "assistant" && m.figures ? { figures: m.figures } : {}) }));
     while (history.length && history[0].role !== "user") history.shift();
     const pairs: AskTurn[] = [];                                         // only whole question-and-answer pairs, in order
     for (let i = 0; i + 1 < history.length; i++) if (history[i].role === "user" && history[i + 1].role === "assistant") { pairs.push(history[i], history[i + 1]); i++; }
@@ -187,7 +193,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
         else if (e.type === "text") patch((m) => ({ ...m, content: m.content + e.text, ai: { ...m.ai, status: undefined } }));
         // "" clears the words written before FinLit AI read more data (task #349): the bubble goes back to "Reading…"
         else if (e.type === "replace") patch((m) => ({ ...m, content: e.text, ai: { ...m.ai, status: e.text ? undefined : m.ai?.status || "Reading FinLit's data" } }));
-        else if (e.type === "done") patch((m) => { const pages = safePages(e.pages); return { ...m, ai: { disclaimer: e.disclaimer }, ...(pages.length ? { actions: pages } : {}) }; });   // task #218: the FinLit pages the answer read
+        else if (e.type === "done") patch((m) => { const pages = safePages(e.pages), figures = safeFigures(e.figures); return { ...m, ai: { disclaimer: e.disclaimer }, ...(pages.length ? { actions: pages } : {}), ...(figures ? { figures } : {}) }; });   // task #218: the FinLit pages the answer read
         else if (e.type === "error") patch((m) => ({ ...m, content: m.content ? `${m.content}\n\n${e.text}` : e.text,
           ai: { error: true, ...(e.code === INTERRUPTED || e.code === TIMED_OUT ? { retry: q } : {}) } }));   // task #349: an interrupted answer can be asked again
       }, ctl.signal, undefined, { fresh });
@@ -281,7 +287,9 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
     active={keys.active} place={place} onPick={(q) => { setSgOpen(false); tapQ(q); }} onAsk={sendNow} />;
   /** Task #201: the start screen's search, above the cards: ask anything at once, with a few things to try. On the start screen it is the one box (the box at the
    *  bottom is hidden there), and the listed questions that match show under it. */
+  // task #349 PR 5: a Silver or Gold member with written answers on is offered "what's new" in their own holdings and watchlists first
   const TRY: { label: string; go: () => void }[] = [
+    ...(aiReady ? [{ label: WHATS_NEW_Q, go: () => void ask(WHATS_NEW_Q, "home") }] : []),
     { label: "Reliance financials", go: () => goCompany("RELIANCE", "financials") },
     { label: "P/E ratio", go: () => void ask("What is P/E and how is it used?", "home") },
     { label: "Sector outlook", go: () => void ask(MARKET_QUESTIONS[3].text, "home") },
