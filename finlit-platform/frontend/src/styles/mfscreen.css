@@ -253,3 +253,12 @@
 .mfs-table thead th, .mfs-table thead th.mfs-n { background: var(--s2); }
 .mfs-table tbody tr.is-picked > * { background: var(--gold-soft); }
 .mfs-table tbody tr.is-picked > th.mfs-n { box-shadow: inset 3px 0 0 var(--gold), inset -1px 0 0 var(--border-strong); }
+
+/* task #356 (team, 23 Nov 2026): the preset screens in labelled rows; the heading and the note on one line with a rule under them */
+.mfs-phead { display: flex; align-items: baseline; justify-content: space-between; gap: 6px 16px; flex-wrap: wrap; padding-bottom: 10px; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
+.mfs-phead .mfs-pl { margin: 0; }
+.mfs-pnote { margin: 0; color: var(--muted); font-size: var(--fs-13); }
+.mfs-pgroups { display: grid; gap: 10px; }
+.mfs-pgrp { display: grid; grid-template-columns: 160px minmax(0, 1fr); align-items: center; gap: 8px 16px; }
+.mfs-pg { font: 600 var(--fs-14) var(--sans); color: var(--gain); }
+@media (max-width: 720px) { .mfs-pgrp { grid-template-columns: minmax(0, 1fr); gap: 6px; } }

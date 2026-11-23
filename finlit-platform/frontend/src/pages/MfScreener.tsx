@@ -18,7 +18,7 @@ import { DEMO } from "../lib/demo";
 import { useDocTitle } from "../lib/title";
 import { useUI } from "../lib/ui";
 import {
-  DEFAULTS, PAGE_SIZE, PRESETS, chipsFor, isDefault, loadSaved, parseQuery, presetOn, queryToParams, storeSaved, useScreenFacets, useScreenList, type Saved, type SQ,
+  DEFAULTS, PAGE_SIZE, PRESETS, PRESET_GROUPS, chipsFor, isDefault, loadSaved, parseQuery, presetOn, queryToParams, storeSaved, useScreenFacets, useScreenList, type Saved, type SQ,
 } from "../lib/mfScreen";
 import { SORTS } from "../lib/mfScreenDefs";
 import { FlowBars, RiskReturn } from "../mf/screen/Graphics";
@@ -111,17 +111,26 @@ export function MfScreenerPage() {
         stats={[{ icon: "layers", value: list.data ? nf(total, 0) : null, label: "Funds match" }, { icon: "calendar", value: list.data?.dataDate ? dateIN(list.data.dataDate, { day: "numeric", month: "short", year: "numeric" }) : null, label: "NAV data date" }]} />
 
       {DEMO && <p className="mfs-demo" role="note"><Icon name="info" /> Preview build: the real AMFI NAVs and returns of 67 schemes are shown, but expense ratio, fund size, SIP, risk, portfolio and category figures here are sample values for layout only.</p>}
-      <section className="mfs-presets" aria-label="Preset screens">
-        <span className="mfs-pl">Preset screens</span>
-        <div className="mfs-prow">
-          {PRESETS.map((p) => { const on = presetOn(q, p); return (
-            <button key={p.id} type="button" className={"fgx-chip mfs-preset" + (on ? " is-on" : "")} aria-pressed={on} disabled={!!p.off || (!!p.gold && !gold)} title={p.off ?? (p.gold && !gold ? "The Mutual Fund Score filter is part of the Gold plan." : p.say)}
-              onClick={() => (on ? reset() : setSp(queryToParams(p.set(DEFAULTS)), { replace: false }))}>{on && <i aria-hidden="true">&#10003;</i>}{p.label}{(p.off || (p.gold && !gold)) && <Icon name="lock" />}</button>); })}
-          {saved.map((s) => (
-            <span key={s.name} className="mfs-saved"><button type="button" className="fgx-chip" onClick={() => setSp(new URLSearchParams(s.query))} title="A screen you saved in this browser">{s.name}</button>
-              <button type="button" className="mfs-x" aria-label={`Delete the saved screen ${s.name}`} onClick={() => dropSaved(s.name)}>×</button></span>))}
+      {/* Task #356 (team, 23 Nov 2026): the presets in labelled rows (Equity, Debt, Index and themes, Hybrid, FinLit Score), the note on the heading's line. */}
+      <section className="mfs-presets" aria-labelledby="mfs-pl">
+        <div className="mfs-phead"><span className="mfs-pl" id="mfs-pl">Preset screens</span>
+          <p className="mfs-pnote">Presets are plain starting points: they set filters you can change. They describe past figures and do not recommend any fund.</p></div>
+        <div className="mfs-pgroups">
+          {PRESET_GROUPS.map((g) => (
+            <div key={g.id} className="mfs-pgrp" role="group" aria-labelledby={`mfs-pg-${g.id}`}>
+              <span className="mfs-pg" id={`mfs-pg-${g.id}`}>{g.label}</span>
+              <div className="mfs-prow">
+                {g.ids.map((id) => PRESETS.find((x) => x.id === id)).filter((p): p is (typeof PRESETS)[number] => !!p).map((p) => { const on = presetOn(q, p); return (
+                  <button key={p.id} type="button" className={"fgx-chip mfs-preset" + (on ? " is-on" : "")} aria-pressed={on} disabled={!!p.off || (!!p.gold && !gold)} title={p.off ?? (p.gold && !gold ? "The Mutual Fund Score filter is part of the Gold plan." : p.say)}
+                    onClick={() => (on ? reset() : setSp(queryToParams(p.set(DEFAULTS)), { replace: false }))}>{on && <i aria-hidden="true">&#10003;</i>}{p.label}{(p.off || (p.gold && !gold)) && <Icon name="lock" />}</button>); })}
+              </div>
+            </div>))}
+          {saved.length > 0 && (
+            <div className="mfs-pgrp" role="group" aria-labelledby="mfs-pg-saved"><span className="mfs-pg" id="mfs-pg-saved">Saved</span>
+              <div className="mfs-prow">{saved.map((s) => (
+                <span key={s.name} className="mfs-saved"><button type="button" className="fgx-chip" onClick={() => setSp(new URLSearchParams(s.query))} title="A screen you saved in this browser">{s.name}</button>
+                  <button type="button" className="mfs-x" aria-label={`Delete the saved screen ${s.name}`} onClick={() => dropSaved(s.name)}>×</button></span>))}</div></div>)}
         </div>
-        <p className="fgx-note">Presets are plain starting points: they set filters you can change. They describe past figures and do not recommend any fund.</p>
       </section>
 
       <Toolbar q={text} setQ={setText} searchLabel="Search by fund or fund house, e.g. hdfc mid cap" buttons={[]}
