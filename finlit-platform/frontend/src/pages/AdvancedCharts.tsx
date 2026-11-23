@@ -474,7 +474,7 @@ function Filters({ st, set, pair, resp }: { st: AdvState; set: (p: Partial<AdvSt
   const forced = pair?.lenders === "excluded" || resp?.lenders?.forced;
   const setU = (patch: Partial<AdvState["universe"]>) => set({ universe: { ...u, ...patch } });
   const multi = (label: string, opts: { v: string; l: string }[], val: string[], on: (v: string[]) => void) => <div className="adv-field"><label>{label}
-    <select multiple size={Math.min(6, Math.max(3, opts.length))} value={val} onChange={(e) => on([...e.target.selectedOptions].map((o) => o.value))}>{opts.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}</select></label></div>;
+    <select multiple size={Math.min(6, Math.max(3, opts.length))} value={val} onChange={(e) => on([...e.target.selectedOptions].map((o) => o.value))}>{opts.map((o) => <option key={o.v} value={o.v} title={o.l}>{o.l}</option>)}</select></label></div>;
   const active = u.sector.length + u.industry.length + u.index.length + u.cap.length + (u.mcapMin != null ? 1 : 0) + (u.mcapMax != null ? 1 : 0) + (u.lenders !== "auto" ? 1 : 0) + (u.sameFy ? 1 : 0) + (st.trim ? 1 : 0);
   const industries = (f.data?.industries ?? []).filter((i) => !u.sector.length || (i.sector && u.sector.includes(i.sector)));
   return <details className="adv-filters"><summary>Which companies{active ? ` (${active} filter${active === 1 ? "" : "s"} on)` : ""}</summary>
