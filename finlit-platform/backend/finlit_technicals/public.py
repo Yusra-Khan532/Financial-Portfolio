@@ -368,7 +368,88 @@ def public_rotation(view: Dict[str, Any]) -> Dict[str, Any]:
     out["rank_weeks_labels"] = [date_label(d) for d in view.get("rank_weeks", [])]
     out["how_to_use"] = HOW_TO_USE_ROTATION
     out["disclaimer"] = DISCLAIMER_ROTATION
+    # "What happened next" (task #332): counted by the weekly sector job over a year of weekly closes; a data set written before then is counted here from
+    # the 26 weeks of the feed, and says so through its window
+    wn = view.get("what_next")
+    out["what_next"] = copy.deepcopy(wn) if isinstance(wn, dict) and wn.get("cards") is not None else what_next_from_history(view.get("rows") or [])
     return out
+
+
+# --------------------------------------------------------------------------------------------- What happened next (task #332)
+NEXT_ORDER = ("behind_gaining", "ahead_gaining", "ahead_slowing", "behind_slipping")     # the order the boxes usually turn in
+NEXT_CAPTION_END = "It shows what did happen, not what will."
+
+
+def _median(xs: List[int]) -> Optional[float]:
+    v = sorted(xs)
+    n = len(v)
+    if not n:
+        return None
+    return float(v[n // 2]) if n % 2 else (v[n // 2 - 1] + v[n // 2]) / 2
+
+
+def count_what_next(series: Dict[str, List[Optional[str]]], dates: List[str], unit: str = "groups") -> Optional[Dict[str, Any]]:
+    """"What happened next" (developer file 31, addition 1): for each box, how often groups entered it inside the window, where they went next, how long a
+    stay lasted and how many are in it now. `series` holds each group's box at every weekly close of the window (oldest first; a week without a reading is
+    None and is skipped, as the pack counted); `dates` are those weekly closes.
+
+    A stay is a run of weeks with the same box. "Times entered" counts stays that began inside the window (a stay already running at the first week is not
+    entered). "Where it went next" is the box of the stay that followed, only for stays that began inside the window and have ended; "Typical stay" is the
+    median length of those ended stays, in weeks. "In it now" is the number of groups whose latest stay is that box. Boxes nobody entered and nobody is in
+    are left out. Describes what happened; never a chance or a forecast."""
+    if not series or not dates:
+        return None
+    t: Dict[str, Dict[str, Any]] = {k: {"entered": 0, "next": {}, "stays": [], "now": 0} for k in NEXT_ORDER}
+    counted = 0
+    for seq in series.values():
+        vals = [v for v in seq if v in t]
+        if not vals:
+            continue
+        counted += 1
+        runs: List[tuple] = []
+        i = 0
+        while i < len(vals):
+            j = i
+            while j + 1 < len(vals) and vals[j + 1] == vals[i]:
+                j += 1
+            runs.append((vals[i], i, j))
+            i = j + 1
+        for n, (box, a, b) in enumerate(runs):
+            if a > 0:
+                t[box]["entered"] += 1
+            if n == len(runs) - 1:
+                t[box]["now"] += 1
+            elif a > 0:
+                nxt = runs[n + 1][0]
+                t[box]["next"][nxt] = t[box]["next"].get(nxt, 0) + 1
+                t[box]["stays"].append(b - a + 1)
+    cards = []
+    for k in NEXT_ORDER:
+        x = t[k]
+        if not x["entered"] and not x["now"]:
+            continue
+        med = _median(x["stays"])
+        nxt = sorted(x["next"].items(), key=lambda kv: (-kv[1], NEXT_ORDER.index(kv[0])))
+        cards.append({"box": k, "box_name": CORNER_MEANING_NAME[k], "entered": x["entered"], "ended": sum(x["next"].values()),
+                      "typical_weeks": None if med is None else (int(med) if med == int(med) else round(med, 1)),
+                      "now": x["now"], "next": [{"box": b, "box_name": CORNER_MEANING_NAME[b], "n": c} for b, c in nxt]})
+    first, last = dates[0], dates[-1]
+    caption = (f"Counted from the weekly closes of {date_label(first)} to {date_label(last)} ({_plural(len(dates), 'week', 'weeks')}), "
+               f"{_plural(counted, unit[:-1], unit)}. {NEXT_CAPTION_END}")
+    return {"from": first, "to": last, "from_label": date_label(first), "to_label": date_label(last), "weeks": len(dates),
+            "groups": counted, "cards": cards, "caption": caption}
+
+
+def what_next_from_history(rows: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """The same count from the page feed's own `rank_history` (26 weekly closes), for a data set written before the weekly job sent it."""
+    dates = sorted({h["date"] for r in rows for h in (r.get("rank_history") or []) if h.get("date")})
+    if not dates:
+        return None
+    series = {}
+    for r in rows:
+        by = {h.get("date"): h.get("corner") for h in r.get("rank_history") or []}
+        series[str(r.get("slug") or r.get("name"))] = [by.get(d) for d in dates]
+    return count_what_next(series, dates)
 
 
 def public_rotation_group(g: Dict[str, Any]) -> Dict[str, Any]:

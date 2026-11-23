@@ -227,3 +227,22 @@ taxonomy/sectors.csv, under NSE's own names):
   `tw()`, which swaps industry/industries for sector/sectors in the Sectors view and never touches "the average industry" (the yardstick is the same in both
   views; Rotation's yardstick card says so and counts the industry groups). Tests: `pages/SectorShow192.test.tsx` (no "industry" left in any of the 4 views),
   `pages/SectorIndustry.test.tsx` (a sector's page).
+
+## 15. Sector Rotation, developer file 31 (task #332, 23 Nov 2026)
+
+The Simple view is shorter: the section bar (`nav.sp-secbar.sx-nav`), Today in one minute, Your sectors, three boxes with a switch (the Results and IPOs views bar,
+`TabGroup`; box 1 takes `&tab=`, each box remembers its tab in the browser), Inside a sector and Words. The Full table is one box (Ranking, Six months of ranks,
+12-week change, May change next week) with Key figures / All columns and a bell column. Download CSV is gone (no plan offers downloads; it was built in the page, there
+was no server route). Code: `pages/SectorRotation.tsx`, `components/rotation/pack/Rotation332.tsx`, `lib/rotation332.ts`; styles `styles/rotation-332.css` and, until
+task #333 lands the shared sheet, `styles/vendor/sector-pages.pack.css` (the pack's sheet scoped under `.sx-new`).
+
+- **What happened next** is counted by the weekly sector job (`Rotation.what_next`, the rule in `finlit_technicals/public.py` `count_what_next`) from each group's
+  confirmed box at the real weekly closes of the last year (52), and sent with `GET /api/rotation` as `what_next`. A data set written before this is counted by the
+  website from the feed's 26 weeks of `rank_history` (same function). It costs the job a few milliseconds; no schedule changed. Tests: `tests/test_rotation_next.py`.
+- **Playback** reads `rows[].tail` (the 8 weekly closes of the 8-week paths). **Price against results** joins `/api/results/quarter?view=industries` in the page (plan
+  rules of the Results page apply). **Inside a sector** reads `/api/sectors/<slug>` and `/api/prism/scores`, which reads stored scores and never counts against the
+  daily Prism report limit (`tests/test_prism.py`).
+- **Alert me** on this page is the bell of task 333 (`components/sectors/pack/SectorAlert.tsx` AlertBell, `prefs.sectorAlerts`, sent by `finlit/sector_alerts.py`).
+- Fault 2 (the yardstick): both views measure against the Industries view's average group (`write_level_files` passes `rot.bench`), so the guide and the box both
+  say "all N industry groups counted equally". Fault 3 (37 ranked, 38 in boxes): a group with less than a year of readings has a box (its 6-month and 1-month
+  readings exist) but no rank, and the header now says so.

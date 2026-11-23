@@ -86,6 +86,7 @@ class RotationParams:
     move_places: int = 3               # rank moves of this many places or more are flagged
     tail_weeks: int = 8
     history_weeks: int = 26
+    next_weeks: int = 52               # "What happened next" (task #332): a year of weekly closes, as Sector Pulse's year
     year_sessions: int = 252
 
 
@@ -373,11 +374,25 @@ class Rotation:
             "climbers_4w": [{"name": r["name"], "slug": r["slug"], "rank": r["rank"], "change": r["rank_change_4w"]} for r in climbers],
             "fallers_4w": [{"name": r["name"], "slug": r["slug"], "rank": r["rank"], "change": r["rank_change_4w"]} for r in fallers],
             "rank_weeks": [_d(d) for d in self.weeks[-p.history_weeks:]],
+            "what_next": self.what_next(names),
             "method": METHOD,
             "params": {k: (list(v) if isinstance(v, tuple) else v) for k, v in asdict(p).items()},
             "study": self.study(),
             "disclaimer": DISCLAIMER,
         }
+
+    def what_next(self, names: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
+        """FinLit patch (task #332, developer file 31): "What happened next", counted once a week by the sector job from each group's confirmed box at the
+        real weekly closes of the last year (`next_weeks`), for the groups with a reading now. The count itself is public.count_what_next (plain Python, so
+        the website can count the same way from the feed's 26 weeks for a data set written before this)."""
+        from .public import count_what_next
+        try:
+            W = self.weeks[-self.p.next_weeks:]
+            names = self.group_names() if names is None else names
+            series = {g: [self.corner.at[d, g] or None for d in W] for g in names}
+            return count_what_next(series, [_d(d) for d in W])
+        except Exception:  # noqa: BLE001 - an extra card: the page feed is still written without it
+            return None
 
     def group_view(self, name: str) -> Dict[str, Any]:
         """One group's rotation card. `name` is a group name or slug."""
