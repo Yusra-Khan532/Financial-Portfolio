@@ -1,3 +1,4 @@
+import { tradeTime } from "../lib/liveQuote";
 import { AlertButton } from "../components/AlertComposer";
 import { DropChev } from "../components/DropChev";
 import { LEVELS, LEVEL_LABEL } from "../lib/taxonomy";
@@ -59,6 +60,7 @@ export function Hero({ s, ratios, jump }: { s: Summary; ratios?: Ratios; jump: (
             <div className="hxd-px">
               <span className="hx-price"><span className="hx-rs">₹</span>{q.price == null ? MINUS : nf(q.price)}</span>
               {q.change != null && <span className={"chip " + (good ? "up" : "down")}>{(q.change > 0 ? "+" : q.change < 0 ? MINUS : "") + nf(Math.abs(q.change))} · {signed(q.changePct)}</span>}
+              {q.price != null && tradeTime(q.asOf) && <span className="hx-asof" title="Time of the last trade in this price (NSE). It updates every 30 seconds while the market is open.">Last trade {tradeTime(q.asOf)}</span>}
               {q.price == null && cov && cov.reasons.length > 0 && <span className="cov-note" role="note">No price shown: {cov.reasons[0]}.</span>}
             </div>
             <span className="hx-acts icons"><div className="actions">

@@ -280,3 +280,6 @@ section.block .pr-nm b { white-space: normal; overflow: visible; text-overflow: 
 }
 /* Task #310 G: the day's change chip by the price read 4.4:1 in dark (green on its 14% green tint); a lighter tint keeps the green figure */
 :root[data-theme="dark"] .hx-d .hxd-px .chip { background: color-mix(in srgb, currentColor 8%, transparent); }
+
+/* Task #338: the time of the last trade beside the price, so a price from an earlier moment is never taken for the current one. */
+.hx-d .hxd-px .hx-asof { font: 500 var(--fs-12) var(--sans); color: var(--muted); white-space: nowrap; }

@@ -23,6 +23,7 @@ import orjson
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 
+from . import livequote
 from .auth.entitlements import has, sees_all
 from .auth.routes import SYMBOL, Ctx, fail, ip_of, secure_ctx
 from .prism_screen import PARTS
@@ -172,10 +173,12 @@ def prism_block(row: Optional[Dict[str, Any]]) -> Dict[str, Any]:
             "at": row["generated_at"].date().isoformat() if row.get("generated_at") else None, "reason": reason}
 
 
-def holding(sym: str, parts: Dict[str, Any], prism: Optional[Dict[str, Any]], gold: bool) -> Dict[str, Any]:
-    """One stored company as the page's row. `prism` is read only for Gold; a plan without FinLit Prism gets no score (task #283 PR C)."""
+def holding(sym: str, parts: Dict[str, Any], prism: Optional[Dict[str, Any]], gold: bool, latest: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """One stored company as the page's row. `prism` is read only for Gold; a plan without FinLit Prism gets no score (task #283 PR C).
+    `latest` (task #338): the company's latest quote, laid over the report's when newer, so the portfolio shows the price every other page shows."""
     s, r, f = parts.get("summary") or {}, parts.get("ratios") or {}, parts.get("financials") or {}
     prof, quote = s.get("profile") or {}, s.get("quote") or {}
+    quote = livequote.overlay(quote, latest) or quote
     lender = bool(s.get("isBank"))
     yearly = f.get("yearly") or {}
     yrows = yearly.get("rows") or {}
@@ -260,9 +263,10 @@ async def overview(request: Request, body: OverviewIn, ctx: Ctx = Depends(member
     why = await _queue(request, missing) if missing else {}
 
     rows: List[Dict[str, Any]] = []
+    latest = await livequote.read(store.redis, ready) if ready else {}
     for s in symbols:
         if s in ready:
-            rows.append(holding(s, parts[s], prism_rows.get(s), gold))
+            rows.append(holding(s, parts[s], prism_rows.get(s), gold, latest.get(s)))
         elif why.get(s):
             rows.append({"symbol": s, "status": "preparing", "reason": why[s]})
         else:
