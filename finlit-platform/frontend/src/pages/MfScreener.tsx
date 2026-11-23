@@ -7,6 +7,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { PageHeader } from "../components/PageHeader";
+import { buttonClass } from "../components/ui/Button";
 import { SortMenu, Toolbar } from "../components/screener/PageParts";
 import { Icon } from "../lib/icons";
 import { nf, dateIN } from "../lib/format";
@@ -46,6 +47,9 @@ export function defaultChips(q: SQ): { id: string; label: string; aria: string; 
   if (q.inst.length === 0) out.push({ id: "inst", label: "Mutual funds and ETFs", aria: "Remove Mutual funds and ETFs: show mutual funds only", drop: (s) => ({ ...s, inst: ["fund"], page: 1 }) });
   return out;
 }
+
+/** Task #350: Fund Compare as the screener's premium action: FinLit Gold treatment with a crown, first in the header row; same destination as before. */
+const COMPARE_GOLD = <Link className={buttonClass("secondary", "sm", "ph-lk ph-gold")} to="/funds/compare" title="Compare up to four funds side by side"><Icon name="crown" className="ph-crown" />Fund Compare <span aria-hidden="true">→</span></Link>;
 
 export function MfScreenerPage() {
   const { has, toast } = useUI();
@@ -102,7 +106,7 @@ export function MfScreenerPage() {
 
   return (
     <div className="wrap mf mfs-page">
-      <PageHeader plan="free" title={title} art="funds" links={["/funds", "/fund-score-screener", "/funds/compare", "/funds/insights"]} learn={false}
+      <PageHeader plan="free" title={title} art="funds" links={["/funds", "/fund-score-screener", "/funds/insights"]} learn={false} lead={COMPARE_GOLD}
         description="Filter every mutual fund and ETF by category, fund house, size, returns, cost, risk and portfolio."
         stats={[{ icon: "layers", value: list.data ? nf(total, 0) : null, label: "Funds match" }, { icon: "calendar", value: list.data?.dataDate ? dateIN(list.data.dataDate, { day: "numeric", month: "short", year: "numeric" }) : null, label: "NAV data date" }]} />
 
