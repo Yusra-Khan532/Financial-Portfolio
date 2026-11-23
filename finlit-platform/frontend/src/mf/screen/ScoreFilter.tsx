@@ -6,7 +6,7 @@ import { useEffect, useState, type KeyboardEvent } from "react";
 import { Link } from "react-router";
 import { Info } from "../../components/Info";
 import { Icon } from "../../lib/icons";
-import { PART_PRESETS, SCORE_FIELDS, SCORE_HELP, SCORE_NAME, TOTAL_PRESETS, presetOf, scoreRangeError, scoreRangeText, type ScoreField, type ScoreRange } from "../../lib/mfScoreFilter";
+import { PART_EDGES, PART_PRESETS, SCORE_FIELDS, SCORE_HELP, SCORE_NAME, TOTAL_PRESETS, presetOf, scoreRangeError, scoreRangeText, type ScoreField, type ScoreRange } from "../../lib/mfScoreFilter";
 
 type Props = { sc: Partial<Record<ScoreField, ScoreRange>>; onSet: (f: ScoreField, lo: string, hi: string) => void; canScore: boolean };
 
@@ -56,6 +56,7 @@ function ScoreRow({ f, r, onSet }: { f: ScoreField; r?: ScoreRange; onSet: (lo: 
           <button key={p.label} type="button" className={"fgx-chip" + (is ? " is-on" : "")} aria-pressed={is} onClick={() => (is ? onSet("", "") : onSet(p.lo, p.hi))}>
             {is && <i aria-hidden="true">&#10003;</i>}{p.label}</button>); })}
       </div>
+      <Slider f={f} lo={dLo} hi={dHi} onMove={(a, b) => { setDLo(a); setDHi(b); }} onDone={(a, b) => commit(a, b)} label={total ? "Total score" : SCORE_NAME[f]} />
       <div className="mfs-sc-mm">
         <label htmlFor={`${id}-min`}>Min</label>
         <label htmlFor={`${id}-max`}>Max (below)</label>
@@ -67,4 +68,26 @@ function ScoreRow({ f, r, onSet }: { f: ScoreField; r?: ScoreRange; onSet: (lo: 
       {err ? <p className="mfs-sc-err" role="alert">{err}</p>
         : <p className="mfs-sc-say" aria-live="polite">{r ? <>On: <b>{scoreRangeText(lo, hi)}</b>{on ? ` (${on.label.split(" ")[0]})` : ""}</> : "Any score"}</p>}
     </section>);
+}
+
+/** Task #358 (team, 23 Nov 2026): a two-handle slider over each score range, in step with Min and Max and the presets. The total moves freely from 0 to
+ *  100 (half points); a part snaps to its band edges (0, 50, 70, 100), as its Min and Max do. The range applies when a handle is let go. */
+function Slider({ f, lo, hi, onMove, onDone, label }: { f: ScoreField; lo: string; hi: string; onMove: (lo: string, hi: string) => void; onDone: (lo: string, hi: string) => void; label: string }) {
+  const part = f !== "total";
+  const toPos = (v: string, end: "lo" | "hi") => (v === "" ? (end === "lo" ? 0 : part ? 3 : 100) : part ? Math.max(0, PART_EDGES.indexOf(Number(v))) : Number(v));
+  const fromPos = (n: number, end: "lo" | "hi") => {
+    const v = part ? PART_EDGES[n] : n;
+    return (end === "lo" && v === 0) || (end === "hi" && v === 100) ? "" : String(v);
+  };
+  const a = toPos(lo, "lo"), b = toPos(hi, "hi"), max = part ? 3 : 100, step = part ? 1 : 0.5;
+  const pct = (n: number) => `${(n / max) * 100}%`;
+  const done = () => onDone(lo, hi);
+  return (
+    <div className="mfs-sl" style={{ "--a": pct(a), "--b": pct(b) } as React.CSSProperties}>
+      <span className="mfs-sl-track" aria-hidden="true" />
+      <input type="range" min={0} max={max} step={step} value={a} aria-label={`${label}, minimum`} aria-valuetext={part ? String(PART_EDGES[a]) : String(a)}
+        onChange={(e) => { const n = Math.min(Number(e.target.value), b - step); onMove(fromPos(n, "lo"), hi); }} onPointerUp={done} onKeyUp={done} onBlur={done} />
+      <input type="range" min={0} max={max} step={step} value={b} aria-label={`${label}, maximum`} aria-valuetext={part ? String(PART_EDGES[b]) : String(b)}
+        onChange={(e) => { const n = Math.max(Number(e.target.value), a + step); onMove(lo, fromPos(n, "hi")); }} onPointerUp={done} onKeyUp={done} onBlur={done} />
+    </div>);
 }
