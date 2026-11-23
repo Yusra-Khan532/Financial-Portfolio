@@ -25,7 +25,7 @@ import { clearPortfolioServer, undoClearPortfolioServer } from "../lib/account";
 import { PdfImport } from "../components/PdfImport";
 import { ACCEPT, entriesAndAmountsFromFile, type Entry, type GridAmounts } from "../lib/holdingsFile";
 import { addedMessage, attachAmounts, fileNotes, newHolding, tradeRows, tradesMessage, updateHeld, type Amounts, type ImportOpts } from "../lib/importAdd";
-import { fundsFromMissing } from "../lib/importFunds";
+import { fundsFromMissing, fundsFromSkipped, stillSkipped } from "../lib/importFunds";
 import { sendAllFunds, type ImportAccount } from "../lib/importEtf";
 import { isPdf } from "../lib/holdingsPdf";
 import { entryOf, makeMatcher, matchEntries, type Skipped, type ToCheck } from "../lib/holdingsMatch";
@@ -248,28 +248,32 @@ export function HoldingsPage() {
     });
     if (tradeAdds.length) portfolio.addMany(tradeAdds);
     const taken = new Set([...symbols, ...take.map((f) => f.symbol)]);
-    // task #323 (file 21, part 13): a broker's report names ETFs by symbol; lines that named no listed company are tried as ETFs, for the ETF portfolio
-    const funds = amounts && has(PLAN_FOR_PORTFOLIO) && !DEMO ? fundsFromMissing(m.missing, entries) : [];
-    let miss = m.missing;
+    // task #323 (file 21, part 13): a broker's report names ETFs by symbol; lines that named no listed company are tried as ETFs, for the ETF portfolio.
+    // Developer file 34: and lines left out by an ISIN of a fund unit (INF…), as a report with an ISIN column names its ETFs
+    const byIsinFunds = amounts && has(PLAN_FOR_PORTFOLIO) && !DEMO ? fundsFromSkipped(skip, entries) : [];
+    const funds = amounts && has(PLAN_FOR_PORTFOLIO) && !DEMO ? [...fundsFromMissing(m.missing, entries), ...byIsinFunds] : [];
+    let miss = m.missing, skipLeft = skip, etfByIsin = 0;
     setEtfNote(""); setEtfPf(null);
     if (funds.length) {
       try {
         const sent = await sendAllFunds(funds, importAcct(goTo));
         const notEtf = new Set(sent.notAdded.map((x) => x.toUpperCase()));
         miss = miss.filter((x) => !funds.some((f) => f.input === x) || notEtf.has(x.toUpperCase()));
+        skipLeft = stillSkipped(skip, byIsinFunds, sent.notAdded);
+        etfByIsin = byIsinFunds.filter((f) => !notEtf.has(f.input.toUpperCase())).length;
         setEtfNote(sent.msg); setEtfPf(sent.pf);
       } catch { setEtfNote("The ETF lines could not be sent to your ETF portfolio just now; add them on the ETF portfolio page."); }
     }
-    setMissing(miss); setChecks(check.filter((c) => !taken.has(c.symbol))); setSkipped(skip);
+    setMissing(miss); setChecks(check.filter((c) => !taken.has(c.symbol))); setSkipped(skipLeft);
     setImpNotes(amounts ? fileNotes(amounts, take) : []);
     // 22 Nov 2026: how the lines without an ISIN were matched: by an exact NSE or BSE symbol or code (added), or by name (to check)
     const byCode = m.found.filter((f) => f.code).length, rest = entries.length - isins.length;
     const tail = rest ? ` ${rest} without an ISIN: ${[byCode ? `${byCode} matched by their NSE or BSE symbol or code` : "", rest > byCode ? `${rest - byCode} by name (to check) or not recognised` : ""].filter(Boolean).join(", ")}.` : "";
-    setReadBy(isins.length ? `${byIsin} of ${entries.length} ${entries.length === 1 ? "line" : "lines"} matched by ISIN, against ${sourcesLine(res?.sources ?? null)}.${tail}`
+    setReadBy(isins.length ? `${byIsin} of ${entries.length} ${entries.length === 1 ? "line" : "lines"} matched by ISIN${etfByIsin ? ` to a company, and ${etfByIsin} to ${etfByIsin === 1 ? "an ETF" : "ETFs"} (for your ETF portfolio)` : ""}, against ${sourcesLine(res?.sources ?? null)}.${tail}`
       : from && byCode ? `${byCode} of ${entries.length} ${entries.length === 1 ? "line" : "lines"} matched by their NSE or BSE symbol or code${check.length ? `; ${check.length} by name, to check` : ""}.` : null);
     const plainHead = amounts ? addedMessage("file", plainTake, updated, amounts.price).replace(/\.$/, "") : take.length ? `Added ${take.length} ${take.length === 1 ? "share" : "shares"}` : "Nothing new to add";
     const head = amounts?.book ? [tradesMessage({ ...tr, dated: !!amounts.book.day, kind: amounts.book.kind }).replace(/\.$/, ""), plainTake.length || updated ? plainHead : ""].filter(Boolean).join("; ") : plainHead;
-    toast([head, check.length ? `${check.length} to check (listed below)` : "", skip.length ? `${skip.length} not added (reasons below)` : "",
+    toast([head, check.length ? `${check.length} to check (listed below)` : "", skipLeft.length ? `${skipLeft.length} not added (reasons below)` : "",
       miss.length ? `${miss.length} not recognised (listed below)` : "", fresh.length > room ? `your plan holds up to ${cap}` : ""].filter(Boolean).join(" · ") + ".");
   };
   /** The Add shares window's rows: a row with a quantity is a buy, one without follows the share by name (rowsToChanges); the plan's limit holds. */

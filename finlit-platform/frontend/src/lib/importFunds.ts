@@ -36,6 +36,30 @@ export function fundsFromMissing(missing: string[], entries: { name: string; isi
 }
 
 /** What the dialog shows for each fund line, from the preview: an ETF to add, one already there (its units are set), or a line not added and why. */
+type LineAmounts = { name: string; isin?: string; qty?: number; avg?: number; rate?: number; rateOn?: string; trades?: Trade[] };
+const amountsOf = (e: LineAmounts | undefined) => ({ ...(e?.qty != null ? { qty: e.qty } : {}), ...(e?.avg != null ? { avg: e.avg } : {}),
+  ...(e?.rate != null ? { rate: e.rate, ...(e.rateOn ? { rateOn: e.rateOn } : {}) } : {}), ...(e?.trades?.length ? { trades: e.trades } : {}) });
+
+/** Developer file 34: the lines left out by their ISIN that are fund units (an ISIN starting INF: an ETF or a mutual fund) are tried as ETFs, by that ISIN,
+ *  with the line's quantity, buy price and trades. A line with an ISIN is matched by its ISIN alone, and the ISIN check answers an ETF's ISIN as "not a
+ *  company's share", so until this file an ETF named by ISIN (as Zerodha's holdings and tradebook exports name it) was listed under "Not added" and never
+ *  reached the ETF portfolio. The ETF portfolio's own check says which are ETFs; a mutual fund unit stays under "Not added" with the ISIN check's reason. */
+export function fundsFromSkipped(skipped: { input: string; isin: string }[], entries: LineAmounts[]): FundLine[] {
+  const by = new Map(entries.filter((e) => e.isin).map((e) => [e.isin!.toUpperCase(), e]));
+  const seen = new Set<string>();
+  return skipped.flatMap((s): FundLine[] => {
+    const isin = s.isin.trim().toUpperCase();
+    if (!/^INF[A-Z0-9]{8}\d$/.test(isin) || seen.has(isin)) return [];
+    seen.add(isin);
+    return [{ input: s.input, isin, ...amountsOf(by.get(isin)) }];
+  });
+}
+/** The lines still "Not added" after the hand-off: those not tried as ETFs, and those the ETF portfolio did not take (`notAdded`, by the line's input). */
+export function stillSkipped<T extends { input: string }>(skipped: T[], tried: FundLine[], notAdded: string[]): T[] {
+  const sent = new Set(tried.map((f) => f.input.trim().toUpperCase())), no = new Set(notAdded.map((x) => x.trim().toUpperCase()));
+  return skipped.filter((s) => !sent.has(s.input.trim().toUpperCase()) || no.has(s.input.trim().toUpperCase()));
+}
+
 export type EtfPlan = {
   add: { symbol: string; name: string; qty: number; avg?: number; rate?: number; rateOn?: string; line: FundLine }[];
   have: { symbol: string; name: string; qty: number; avg?: number; rate?: number; rateOn?: string; line: FundLine }[];
