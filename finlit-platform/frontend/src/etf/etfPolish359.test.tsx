@@ -14,7 +14,7 @@ const LIST: ListOut = { items: [], total: 0, universe: 359, hotCount: 0, offset:
 vi.mock("../lib/etf", async (orig) => ({ ...(await orig<typeof import("../lib/etf")>()), useEtfList: () => ({ data: LIST, isLoading: false, isError: false, isFetching: false, refetch: () => undefined }) }));
 import { EtfListPage } from "./List";
 
-const css = readFileSync(join(__dirname, "../styles/etf351.css"), "utf8");
+const css = readFileSync(join(__dirname, "../styles/task359.css"), "utf8");
 afterEach(() => { cleanup(); try { localStorage.clear(); } catch { /* jsdom */ } });
 const open = () => render(<MemoryRouter><EtfListPage /></MemoryRouter>);
 
@@ -34,6 +34,6 @@ describe("task #359: the ETF page", () => {
     expect(document.querySelector("#etf-filters > .etf-side-in")).toBeTruthy();
     expect(css).toMatch(/\.etf-list \.etf-side:not\(\.etf-drawer\) \{ padding: 0; overflow: hidden; max-height: none; \}/);
     expect(css).toMatch(/\.etf-list \.etf-side-in::-webkit-scrollbar-track \{ background: none; margin: 14px 0; \}/);
-    expect(css).toMatch(/\.etf-list \.etf-tools \{ padding: 8px; background: var\(--s1\); border: 1px solid var\(--border\); border-radius: var\(--r-card\); \}/);
+    expect(css).toMatch(/\.wrap\.etf-list \.etf-tools \{ padding: 8px; background: var\(--s1\); border: 1px solid var\(--border\); border-radius: var\(--r-card\); \}/);
   });
 });

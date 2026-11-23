@@ -14,6 +14,7 @@ import type { Glossary } from "../lib/api";
 import { Info } from "../components/Info";
 import { CheckRow, Chev } from "../components/screener/FilterGroup";
 import "../styles/fgx.css";
+import "../styles/task359.css";   // task #359: Hide filters in the box, the scrollbar inside it, the toolbar card
 import "../styles/etf351.css";
 import "../styles/etfvs.css";
 

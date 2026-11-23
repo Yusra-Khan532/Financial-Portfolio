@@ -88,19 +88,3 @@
   .etf-list .etf-chev { transition: none; }
   .etf-list .etf-tw { scroll-behavior: auto; }
 }
-
-/* task #359 (team, 23 Nov 2026):
-   - Hide filters inside the Filters box (the toolbar's toggle shows only "Show filters" while the panel is hidden, as before);
-   - the panel's scrollbar inside the rounded box: the card clips, an inner box scrolls with a thin bar kept off the corners;
-   - the toolbar band read as a black strip: it is now a card like the rest (card colour, border, corners). */
-.etf-list .etf-resetl { font-size: var(--fs-13); }
-:root .etf-list .etf-side-h .btn.etf-hidef:not(.primary) { margin-left: auto; border: 2px solid color-mix(in srgb, var(--text) 70%, transparent); font-weight: 600; }
-:root .etf-list .etf-side-h .btn.etf-hidef:not(.primary):hover, :root .etf-list .etf-side-h .btn.etf-hidef:not(.primary):focus-visible { border-color: var(--text); }
-.etf-list .etf-side-h .etf-hidef .ico { width: 15px; height: 15px; }
-.etf-list .etf-side:not(.etf-drawer) { padding: 0; overflow: hidden; max-height: none; }
-.etf-list .etf-side-in { max-height: calc(100vh - 92px); overflow: auto; overscroll-behavior: contain; padding: 14px 16px 8px; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
-.etf-list .etf-side-in::-webkit-scrollbar { width: 6px; }
-.etf-list .etf-side-in::-webkit-scrollbar-track { background: none; margin: 14px 0; }
-.etf-list .etf-side-in::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: var(--ui-r-pill); }
-.etf-list .etf-side-in::-webkit-scrollbar-button { display: none; height: 0; }
-.etf-list .etf-tools { padding: 8px; background: var(--s1); border: 1px solid var(--border); border-radius: var(--r-card); }
