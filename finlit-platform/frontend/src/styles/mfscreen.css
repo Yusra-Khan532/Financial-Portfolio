@@ -251,16 +251,3 @@
 .mfs-table thead th, .mfs-table thead th.mfs-n { background: var(--s2); }
 .mfs-table tbody tr.is-picked > * { background: var(--gold-soft); }
 .mfs-table tbody tr.is-picked > th.mfs-n { box-shadow: inset 3px 0 0 var(--gold), inset -1px 0 0 var(--border-strong); }
-
-/* task #357 (team, 23 Nov 2026): hidden filters give the table the width (as on the Mutual funds page) and leave a slim vertical "Show filters" button
-   on the left, the same as the Mutual funds one (#355): 44px wide, button corners, icon and words centred, the 2px outline of Hide filters, the count
-   of filters on under the words, in view while the page scrolls. Replaces #350's kept column. */
-@media (min-width: 1001px) {
-  .mfs-layout.is-shut { grid-template-columns: 44px minmax(0, 1fr); gap: 16px; }
-}
-.mfs-side.is-shut { padding: 0; border: 0; background: none; box-shadow: none; }
-.mfs-showf { flex-direction: column; justify-content: center; gap: 12px; width: 44px; min-height: 196px; padding: 14px 0; border: 2px solid color-mix(in srgb, var(--text) 70%, transparent); background: var(--s1); }
-.mfs-showf:hover, .mfs-showf:focus-visible { border-color: var(--text); background: var(--s2); }
-.mfs-showf span { writing-mode: vertical-rl; transform: rotate(180deg); line-height: 1; }
-.mfs-showf .ico { color: var(--text); }
-.mfs-showf b { margin-left: 0; }

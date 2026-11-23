@@ -23,6 +23,7 @@ import {
 import { SORTS } from "../lib/mfScreenDefs";
 import { FlowBars, RiskReturn } from "../mf/screen/Graphics";
 import { Panel } from "../mf/screen/Panel";
+import "../styles/task357.css";   // task #357: hidden filters, the vertical Show filters (its rules start at .mfs-page, so load order does not matter)
 import { ResultTable } from "../mf/screen/Results";
 import "../styles/fgx.css";
 import "../styles/mf.css";
