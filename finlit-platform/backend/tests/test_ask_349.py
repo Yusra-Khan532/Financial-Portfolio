@@ -315,7 +315,9 @@ async def test_L_a_tool_round_without_words_sends_no_clearing_event():
 # ------------------------------------------------------------------------------------------------ cache. one tools payload for every question
 
 QUESTIONS = ["repo rate kya hai", "inflation news today", "what are TCS's margins", "is HDFC Bank's NIM falling", "what is an index fund",
-             "sebi rules on f&o", "it sector hiring", "what is DCF", "hello", "why did reliance fall today"]
+             "sebi rules on f&o", "it sector hiring", "what is DCF", "hello", "why did reliance fall today",
+             # task #349 PR 5: the sector tools changed the list once (test_ask_sectors.TOOLS_SHA256); sector questions get the very same list
+             "which sectors are strong right now", "sector rotation kya hai", "anything new in my holdings?"]
 
 
 async def test_cache_the_tools_payload_is_byte_identical_for_every_kind_of_question():

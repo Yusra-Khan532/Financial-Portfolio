@@ -981,6 +981,10 @@ def page_links(calls: Iterable[Tuple[str, Dict[str, Any]]]) -> List[Dict[str, st
             add("/documents" if args.get("kind") == "documents" else "/news", "Documents" if args.get("kind") == "documents" else "News & filings")
         elif name == "read_company_document":
             add("/documents", "Documents")
+        elif name == "get_sector_pulse":     # task #349 PR 5
+            add("/sectors" + ("?show=sectors" if args.get("show", "sectors") == "sectors" else "?show=industries"), "Sector Pulse")
+        elif name == "get_sector_rotation":
+            add("/sectors/rotation" + ("?show=sectors" if args.get("show", "sectors") == "sectors" else "?show=industries"), "Sector Rotation")
         elif name == "get_discovery":
             add("/discover", "Discover")   # task #241: Discovery is a page now; task #260: its address is /discover
         elif name == "screen_by_finlit_score":

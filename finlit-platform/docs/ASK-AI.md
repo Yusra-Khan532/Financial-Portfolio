@@ -18,7 +18,7 @@ The month is the calendar month in India; the count renews on the 1st. An admini
    migration 107), then streams the answer as Server-Sent Events: `meta` (questions left), `status` ("Reading the ratios (TCS)"), `relation` (task #349 PR 4: how the member is linked to the company, right after `meta`), `since` (task #349 PR 3: what changed since the member last asked, before the words), `text` (the words as
    they are written), `replace` (an answer withdrawn as advice-like, or `""` to clear the words written before a tool round), `ping` (a keep-alive
    after 10 s of quiet), `done` (the disclaimer) or `error`. A stream that ends with neither `done` nor `error` is shown as interrupted (task #349).
-3. `ask/service.py` runs Claude (`ASK_MODEL`, default `claude-haiku-5-5`) with 34 read-only tools (`ask/tools.py`) and the web search: the company
+3. `ask/service.py` runs Claude (`ASK_MODEL`, default `claude-haiku-5-5`) with 37 read-only tools (`ask/tools.py`; task #349 PR 5 added Sector Pulse and Sector Rotation) and the web search: the company
    page tools, the page tools of `ask/pages.py`, the FinLit MCP tools (quotes, statements, ratios, shareholding, price history, FinLit Prism, results,
    results calendar, screener, market overview, FII/DII flows, IPOs, funds, ETFs, data freshness) and the member's own Equity portfolio, mutual funds
    and watchlists.
@@ -410,3 +410,32 @@ company's three documents included) or lost the numbers.
   the request is exactly as before (golden test).
 - Tests: `backend/tests/test_ask_followup.py` (the scripted model answers "and its margins?" from the carried figures, with no new tool call),
   `frontend/src/components/AskFollowup349.test.tsx`.
+
+## Sector Pulse and Sector Rotation (task #349, PR 5, 23 Nov 2026)
+
+Sector questions went to the web. Two read-only tools (`backend/finlit/ask/sectors.py`) now read the site's own feeds in-process, as the member,
+like every other tool: the routes decide what a plan sees (a locked field is null and `locked` names the plan; the tool says so in a note).
+
+| Tool | Reads | Gives |
+|---|---|---|
+| `get_sector_pulse(show = sectors \| industries, slug?)` | `/api/sectors?show=`, `/api/sectors/{slug}?show=` | Every group: state, breadth (above the 9/20/50-day averages, of 100), its index against its 52-week high, the last thrust with its date, its Rotation box; the state meanings once; the groups with too few stocks. One group: state since when, meaning, the page's summary, breadth, counted and listed stocks, the ranked stocks on Silver (15, strongest 6 months first) |
+| `get_sector_rotation(show, slug?)` | `/api/rotation?show=`, `/api/rotation/{slug}?show=` | Every group: box, weeks in it, rank and its 1- and 4-week change, points against the average industry, breadth; the groups that changed box this week; "what happened next" after each box (`what_next`: times entered, typical stay, where the stays went next, with the window's dates). One group: box since when, previous box, rank, best and worst rank of 26 weeks, the last 4 weeks, and what happened next after its own box |
+
+- `show` defaults to `sectors` (NSE's 22 sectors, the pages' default once loaded); when the Sectors view is not loaded the tool reads Industries and
+  says so. Every result carries the data's date (`20 Nov 2026`).
+- `slug` may be a loose name: the address, then the name, then every word (its first 4 letters: "banking" finds Banks, "pharma" finds
+  Pharmaceuticals & Biotechnology) starting a word of a group's name or, in the Sectors view, of an industry inside it ("cement" finds
+  Construction Materials). Several matches ("IT", "auto" in the Industries view) are returned for the model to choose; none is guessed.
+- The board fits one result: 38 industry groups in about 9,000 characters, 38 rotation rows with what happened next in about 10,600 (the cap is
+  12,000; nothing is cut).
+- A group's rotation box is kept with the answer's figures (`memory._sector_state`), so "since you last asked" can say when it moved.
+- **Routing.** A question about sectors or industries in general ("which sectors are strong", "sector rotation kya hai", "banking sector breadth")
+  is the kind `sectors` (`routing._SECTORS_Q`; not when a sector of `_SECTORS` is named, as those carry the tools already): the note with the
+  question names `get_sector_pulse` and `get_sector_rotation` first, then NSE and the business press. A named sector ("pharma sector outlook")
+  reads `get_sector_pulse`, `get_sector_rotation`, then `get_finance_framework`. The answer links "Sector Pulse" (`/sectors?show=...`) and "Sector
+  Rotation" (`/sectors/rotation?show=...`).
+- **The tool list changed once**, on purpose: two tools after the page tools. It is still one list for every question, member and plan (the
+  byte-identity test now includes sector questions; `test_ask_sectors.TOOLS_SHA256` records the new hash). The system prompt is unchanged
+  (`SYSTEM_SHA256`, the value of `main` before this PR): visitors, Basic and members with no history or links get the same prompts as before except
+  for the two new tool definitions.
+- Tests: `backend/tests/test_ask_sectors.py` on copies of the live feeds (`tests/fixtures/ask_sectors`, saved 23 Nov 2026 as a visitor).

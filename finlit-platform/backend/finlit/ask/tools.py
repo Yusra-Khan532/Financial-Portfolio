@@ -13,6 +13,7 @@ from ..mcp.schema import SYMBOL_SCHEMA, ArgError, clean_symbol, validate
 from ..mcp.server import envelope
 from ..mcp.tools import TOOLS as MCP_TOOLS, Out, Tool
 from . import pages as P
+from . import sectors as S   # task #349 PR 5: Sector Pulse and Sector Rotation
 
 # A tool result is kept under about 3,000 tokens (the MCP server allows 100 KB): smaller is faster and cheaper, and the biggest list is cut with a note.
 RESULT_CAP = 12_000
@@ -170,7 +171,7 @@ MINE = [
     Tool("get_my_funds", "My mutual funds", "This member's own mutual fund portfolio on FinLit: the funds, units, value, and how the funds are spread and overlap, as their plan shows it.", {}, get_my_funds),
     Tool("get_my_watchlists", "My watchlists", "The names of this member's watchlists on FinLit and the companies in each.", {}, get_my_watchlists),
 ]
-TOOLS: List[Tool] = [*PAGE, *P.TOOLS, *MCP_TOOLS, *MINE]   # P: the other FinLit pages (task #218)
+TOOLS: List[Tool] = [*PAGE, *P.TOOLS, *S.TOOLS, *MCP_TOOLS, *MINE]   # P: the other FinLit pages (task #218); S: Sector Pulse and Rotation (task #349)
 BY_NAME: Dict[str, Tool] = {t.name: t for t in TOOLS}
 # What the panel says while a tool runs ("Reading RELIANCE's ratios…")
 DOING = {"search_stocks": "Finding the company", "get_stock_quote": "Reading the latest price", "get_batch_quotes": "Reading the latest prices",
@@ -181,7 +182,7 @@ DOING = {"search_stocks": "Finding the company", "get_stock_quote": "Reading the
          "search_funds": "Finding the fund", "get_fund_details": "Reading the fund details", "list_etfs": "Reading the ETF list", "get_etf": "Reading the ETF",
          "get_data_freshness": "Checking how fresh the data is", "get_my_portfolio": "Reading your portfolio", "get_my_funds": "Reading your mutual funds",
          "get_my_watchlists": "Reading your watchlists", "get_company_card": "Reading the company page", "get_finlit_prism": "Reading FinLit Prism",
-         "get_company_section": "Reading the company page", **P.DOING}
+         "get_company_section": "Reading the company page", **P.DOING, **S.DOING}
 
 
 # The web, for what FinLit's data does not hold (founder, 18 Nov 2026: answer every question, as Claude does, in a few simple lines). Run by the provider;
