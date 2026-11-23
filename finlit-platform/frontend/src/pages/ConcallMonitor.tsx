@@ -1,3 +1,6 @@
+// Task #339 (23 Nov 2026, the team: "remove the listen feature from this and transcript feature / just give document and ai summary feature in concall"):
+// each call has two actions, PPT (the investor presentation, shown in place) and AI Summary (still written from the transcript when one is filed); the
+// Listen and Transcript buttons, their Has filters and their counts are gone.
 // Concall Monitor (task #278): earnings calls from companies' own exchange filings. One row per call (logo, company, ticker, time) with four
 // independent actions: Listen (the recording, played on the page when the company filed an audio file), Transcript (the full text, page by page), PPT
 // (the investor presentation, shown in place) and AI Summary (written once from the transcript or presentation). Each row keeps its own open panel, so
@@ -14,29 +17,27 @@ import { CoLogo } from "../components/CoLogo";
 import { useAuth } from "../lib/auth";
 import { useDocTitle } from "../lib/title";
 import { ApiError } from "../lib/api";
-import { dayLabel, fileUrl, filedDay, shortDay, summaryBlocks, timeText, useCalls, useTranscript, writeSummary,
+import { dayLabel, fileUrl, filedDay, shortDay, summaryBlocks, timeText, useCalls, writeSummary,
   type Call, type CallList, type Has, type Scope, type Sort, type Summary, type Tab } from "../lib/concalls";
 import { Chips, Dd, Ico, OptList, Sw, type Opt } from "../discovery/Toolbar";
 import "../styles/concall.css";
 import "../discovery/discover.css";
 import "../styles/concall-compact.css";
 
-const SUBTITLE = "Listen to earnings call recordings, read transcripts & investor presentations, and track upcoming result meets.";   // the page's search description
-const HEAD_DESC = "Earnings call recordings, transcripts, investor presentations and upcoming result meets.";   // the header's one line (founder, 22 Nov 2026)
+const SUBTITLE = "Earnings call investor presentations and AI summaries, and upcoming result meets.";   // task #339: no recordings or transcripts   // the page's search description
+const HEAD_DESC = "Earnings call investor presentations, AI summaries and upcoming result meets.";   // the header's one line (founder, 22 Nov 2026)
 const SCOPES: [Scope, string][] = [["all", "All companies"], ["portfolio", "My portfolio"], ["watchlist", "My watchlist"]];
-const HAS: [Has, string][] = [["listen", "Recording"], ["transcript", "Transcript"], ["ppt", "Presentation"], ["summary", "AI summary possible"]];
+const HAS: [Has, string][] = [["ppt", "Presentation"], ["summary", "AI summary possible"]];
 const SORTS: [Sort, string][] = [["new", "Newest first"], ["old", "Oldest first"], ["az", "Company A–Z"]];
 const NO_QUARTER = "none";
 const nf = (n: number) => n.toLocaleString("en-IN");
-type Panel = "listen" | "transcript" | "ppt" | "summary";
+type Panel = "ppt" | "summary";
 
 const ICON: Record<Panel, ReactNode> = {
-  listen: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor" /></svg>,
-  transcript: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z M14 3v5h5 M9 13h6 M9 17h6" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /></svg>,
   ppt: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v10H4z M12 15v4 M8 19h8 M8 12l3-3 2 2 3-3" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" strokeLinecap="round" /></svg>,
   summary: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>,
 };
-const LABEL: Record<Panel, string> = { listen: "Listen", transcript: "Transcript", ppt: "PPT", summary: "AI Summary" };
+const LABEL: Record<Panel, string> = { ppt: "PPT", summary: "AI Summary" };
 
 function useNarrow(px = 640) {
   const [n, setN] = useState(() => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(`(max-width: ${px}px)`).matches);
@@ -52,33 +53,6 @@ function useNarrow(px = 640) {
 
 const Ext = ({ href, children }: { href: string; children: ReactNode }) => <a className="ccm-ext" href={href} target="_blank" rel="noopener noreferrer">{children} ↗</a>;
 const Why = ({ text }: { text: string }) => <p className="ccm-why" role="note">{text}</p>;
-
-function ListenPanel({ c }: { c: Call }) {
-  const l = c.listen;
-  if (l.audio) return (
-    <div>
-      <audio className="ccm-audio" controls preload="none" src={l.audio} aria-label={`Recording of the ${c.name} call`}>Your browser cannot play this file: <a href={l.audio}>open the recording</a>.</audio>
-      <p className="ccm-src">The audio file named in the company's letter{l.letter ? <> filed {filedDay(l.letter.filed)} · <Ext href={l.letter.link}>Letter</Ext></> : null} · <Ext href={l.audio}>Open the file</Ext></p>
-    </div>);
-  if (l.page) return <div><Why text={l.pageNote || ""} /><p className="ccm-src"><Ext href={l.page}>Open the recording page</Ext>{l.letter ? <> · <Ext href={l.letter.link}>Company's letter, filed {filedDay(l.letter.filed)}</Ext></> : null}</p></div>;
-  if (l.letter) return <div><Why text={l.pageNote || ""} /><p className="ccm-src"><Ext href={l.letter.link}>Company's letter, filed {filedDay(l.letter.filed)}</Ext></p></div>;
-  return <Why text={l.why || "No recording filed."} />;
-}
-
-function TranscriptPanel({ c }: { c: Call }) {
-  const doc = c.transcript.doc;
-  const t = useTranscript(doc ? doc.link : null);
-  if (!doc) return <Why text={c.transcript.why || "No transcript filed."} />;
-  return (
-    <div>
-      <p className="ccm-src">The transcript {c.name} filed with NSE on {filedDay(doc.filed)} · <Ext href={doc.link}>Original PDF</Ext></p>
-      {t.isPending ? <p className="ccm-why">Reading the transcript…</p> : t.isError ? <Why text={`The transcript could not be read just now (${t.error.message}). Open the original PDF instead.`} />
-        : t.data && t.data.pages.length ? (
-          <div className="ccm-text" tabIndex={0} aria-label={`Transcript of the ${c.name} call`}>
-            {t.data.pages.map((p, i) => p ? <section key={i}><h4>Page {i + 1}</h4><p>{p.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim()}</p></section> : null)}
-          </div>) : <Why text={t.data?.why || "No text in this file."} />}
-    </div>);
-}
 
 function PptPanel({ c }: { c: Call }) {
   const doc = c.ppt.doc;
@@ -126,9 +100,9 @@ function bold(t: string) {
   return esc.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
 }
 
-const has = (c: Call, p: Panel) => p === "listen" ? !c.listen.why : p === "transcript" ? !!c.transcript.doc : p === "ppt" ? !!c.ppt.doc : !!c.summary.link;
+const has = (c: Call, p: Panel) => p === "ppt" ? !!c.ppt.doc : !!c.summary.link;
 
-const whyOf = (c: Call, p: Panel) => (p === "listen" ? c.listen.why : p === "summary" ? c.summary.why : (c[p] as { why?: string }).why) || undefined;
+const whyOf = (c: Call, p: Panel) => (p === "summary" ? c.summary.why : c.ppt.why) || undefined;
 
 /** One call, one row. Its open panel is its own state: opening one row never changes another, and the row does not move. `az`: the list is sorted by
  *  company, so the row shows its date (there are no day headings then). */
@@ -152,7 +126,7 @@ export function CallCard({ c, az = false }: { c: Call; az?: boolean }) {
           <span title={time ? "IST, as the company's letter states it" : c.timeNote || undefined}>{time ? `${time} IST` : (c.timeNote || "Time not stated in the filings")}</span>
           {c.upcoming ? <i className="ccm-up">Upcoming</i> : null}
         </div>
-        <div className="p4-acts" role="group" aria-label={`${c.name}: recording, transcript, presentation, AI summary`}>
+        <div className="p4-acts" role="group" aria-label={`${c.name}: presentation, AI summary`}>
           {(Object.keys(LABEL) as Panel[]).map((p) => {
             const ok = has(c, p);
             return (
@@ -165,7 +139,7 @@ export function CallCard({ c, az = false }: { c: Call; az?: boolean }) {
       {c.dateNote && !c.date ? <p className="ccm-note">{c.dateNote}</p> : null}
       {open ? (
         <div className="ccm-panel" id={`${id}-p`} role="region" aria-label={`${LABEL[open]}: ${c.name}`}>
-          {open === "listen" ? <ListenPanel c={c} /> : open === "transcript" ? <TranscriptPanel c={c} /> : open === "ppt" ? <PptPanel c={c} /> : <SummaryPanel c={c} />}
+          {open === "ppt" ? <PptPanel c={c} /> : <SummaryPanel c={c} />}
         </div>) : null}
     </article>
   );
@@ -249,7 +223,7 @@ export function ConcallMonitorPage() {
           <Dd label="Has" badge={hasOn.length || null} icon={Ico.tune} title="Calls that have">
             {() => <>{HAS.map(([k, t]) => { const on = hasOn.includes(k), n = f ? f.has[k] : null;
               return <Sw key={k} label={t} on={on} n={n} disabled={!on && n === 0} onChange={(v) => toggleHas(k, v)} />; })}
-              <p className="dbx-pn">Recording: a link the company filed. Transcripts come within 5 working days of the call (SEBI LODR).</p></>}
+              <p className="dbx-pn">Presentation: the deck the company filed with NSE. AI summary: written from the call's transcript or presentation once one is filed.</p></>}
           </Dd>
           <Dd label="Quarter" value={quarter ? (quarter === NO_QUARTER ? "Not stated" : quarter) : ""} title="Quarter">
             {(close) => <OptList title="Quarter" items={quarterItems} onPick={(v) => { set({ quarter: v || null }); close(); }} />}
@@ -264,7 +238,7 @@ export function ConcallMonitorPage() {
         <div className="dbx-rbar p4-rbar">
           <span className="dbx-cnt"><b>{nf(total)}</b> {tab === "upcoming" ? (total === 1 ? "upcoming call" : "upcoming calls") : (total === 1 ? "call" : "calls")}{filtered ? " match" : ""}
             {shown < total ? ` · showing the ${sort === "new" ? (tab === "upcoming" ? "soonest" : "newest") : sort === "old" ? (tab === "upcoming" ? "furthest" : "oldest") : "first"} ${nf(shown)}` : ""}
-            {have ? <span className="p4-have">{nf(have.listen)} with a recording · {nf(have.transcript)} {have.transcript === 1 ? "transcript" : "transcripts"} · {nf(have.ppt)} {have.ppt === 1 ? "presentation" : "presentations"}</span> : null}</span>
+            {have ? <span className="p4-have">{nf(have.ppt)} {have.ppt === 1 ? "presentation" : "presentations"} · {nf(have.summary)} with an AI summary possible</span> : null}</span>
           <div className="p4-sort"><span className="dbx-sl">Sort</span>
             <Dd label={SORTS.find(([k]) => k === sort)![1]} title="Sort by" right>
               {(close) => <OptList title="Sort by" items={SORTS.map(([v, t]) => ({ v, t, sel: sort === v }))} onPick={(v) => { set({ sort: v === "new" ? null : v }); close(); }} />}

@@ -35,7 +35,8 @@
 .p4-when.none span { color: var(--faint); font: 400 var(--fs-13)/1.3 var(--sans); }
 .p4-when .ccm-up { align-self: flex-start; }
 /* the four actions in fixed columns, so they line up from row to row */
-.p4-acts { display: grid; grid-template-columns: 88px 114px 72px 120px; gap: 6px; justify-content: end; }
+/* task #339: two actions, PPT and AI Summary (Listen and Transcript removed) */
+.p4-acts { display: grid; grid-template-columns: 72px 120px; gap: 6px; justify-content: end; }
 .p4-acts .p4-ab { justify-self: start; }
 .p4-ab { appearance: none; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 11px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl);
   background: var(--s1); color: var(--text); font: 600 var(--fs-13)/1 var(--sans); cursor: pointer; white-space: nowrap; }
@@ -67,7 +68,7 @@
   .p4-tools .dbx-dds { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -10px; padding: 0 10px; max-width: calc(100% + 20px); }
   .p4-tools .dbx-dds::-webkit-scrollbar { display: none; }
   .p4-cr { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 10px; }
-  .p4-acts { padding-left: 0; grid-template-columns: repeat(4, auto); justify-content: start; }
+  .p4-acts { padding-left: 0; grid-template-columns: repeat(2, auto); justify-content: start; }
   .p4 .ccm-panel, .p4 .ccm-note { margin-left: 0; }
   .p4 .ccm-card.p4-cc { padding: 10px 12px; }
 }

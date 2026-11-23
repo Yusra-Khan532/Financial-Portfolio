@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Task #278 (Concall Monitor): the heading and subtitle; All / Portfolio / Watchlist, the search icon and Latest / Upcoming; one card per call with its
-// logo or initial, name, ticker, date and time; four independent buttons (Listen plays the recording on the page, Transcript shows the full text, PPT
-// shows the presentation, AI Summary writes the summary); a button with nothing to open says why, never a dead click; opening one card never changes
+// logo or initial, name, ticker, date and time; two independent buttons since task #339 (PPT shows the presentation, AI Summary writes the summary;
+// Listen and Transcript were removed); a button with nothing to open says why, never a dead click; opening one card never changes
 // another; the menu lists the page.
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
@@ -53,14 +53,14 @@ describe("Concall Monitor", () => {
   it("has the heading, the subtitle, one toolbar (Latest / Upcoming, a search box always there, Companies, Has, Quarter, Type)", async () => {
     open();
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Concall Monitor");
-    expect(screen.getByText("Earnings call recordings, transcripts, investor presentations and upcoming result meets.")).toBeTruthy();   // the one-line header (founder, 22 Nov 2026)
+    expect(screen.getByText("Earnings call investor presentations, AI summaries and upcoming result meets.")).toBeTruthy();   // the one-line header (task #339: no recordings or transcripts)
     expect(screen.getByRole("searchbox", { name: "Search a company" }).getAttribute("placeholder")).toBe("Search a company or symbol");   // task #306
     for (const l of ["Companies", "Has", "Quarter", "Type"]) expect(screen.getByRole("button", { name: new RegExp("^" + l) }).getAttribute("aria-haspopup")).toBe("dialog");
     await screen.findByText("Acme Ltd");
     expect(within(screen.getByRole("tablist", { name: "Latest or upcoming calls" })).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Latest2", "Upcoming1"]);
   });
 
-  it("each row shows the logo or initial, the name, the ticker, the call's time (its day as the heading), and four buttons", async () => {
+  it("each row shows the logo or initial, the name, the ticker, the call's time (its day as the heading), and two buttons (task #339: PPT and AI Summary)", async () => {
     open();
     await screen.findByText("Acme Ltd");
     const a = card("Acme Ltd");
@@ -69,18 +69,19 @@ describe("Concall Monitor", () => {
     expect(a.textContent).not.toContain("Nov 19, 2026");                             // task #306: no US date on every row; the day is the heading
     expect(a.closest("section")!.querySelector("h3")!.textContent).toMatch(/^Thu, 19 Nov1 call$/);
     expect(a.textContent).toContain("4:00 PM IST");
-    expect(within(a).getAllByRole("button").map((b) => b.textContent)).toEqual(["Listen", "Transcript", "PPT", "AI Summary"]);
+    expect(within(a).getAllByRole("button").map((b) => b.textContent)).toEqual(["PPT", "AI Summary"]);   // task #339: Listen and Transcript removed
+    expect(a.querySelector("audio")).toBeNull();
     expect(card("Beta Industries").textContent).toContain("Time not stated in the filings");      // never a made-up time
   });
 
-  it("Listen plays the recording on the page, and opening one card never opens or moves another", async () => {
+  it("task #339: no Listen or Transcript anywhere on the page (buttons, Has filter, count line); opening one card never opens another", async () => {
     open();
     await screen.findByText("Acme Ltd");
-    fireEvent.click(within(card("Acme Ltd")).getByRole("button", { name: "Listen" }));
-    const audio = card("Acme Ltd").querySelector("audio")!;
-    expect(audio.getAttribute("src")).toBe("https://acme.in/q2.mp3");
+    for (const n of ["Acme Ltd", "Beta Industries"]) expect(within(card(n)).queryByRole("button", { name: /^(Listen|Transcript)/ })).toBeNull();
+    expect(document.body.textContent).not.toMatch(/with a recording|Listen/);
+    fireEvent.click(within(card("Acme Ltd")).getByRole("button", { name: "PPT" }));
     expect(card("Beta Industries").querySelector(".ccm-panel")).toBeNull();
-    expect(within(card("Beta Industries")).getByRole("button", { name: /^Listen/ }).getAttribute("aria-expanded")).toBe("false");
+    expect(within(card("Beta Industries")).getByRole("button", { name: /^PPT/ }).getAttribute("aria-expanded")).toBe("false");
   });
 
   it("a button with nothing to open is greyed and says why when pressed (never a dead click)", async () => {
@@ -93,17 +94,12 @@ describe("Concall Monitor", () => {
     expect(ppt.getAttribute("title")).toBe("No investor presentation filed with this call.");
     fireEvent.click(ppt);
     expect(b.textContent).toContain("No investor presentation filed with this call.");
-    fireEvent.click(within(b).getByRole("button", { name: /^Transcript/ }));
-    expect(b.textContent).toContain("within 5 working days");
   });
 
-  it("Transcript shows the full text page by page; PPT shows the presentation in place with the original PDF", async () => {
+  it("PPT shows the presentation in place with the original PDF", async () => {
     open();
     await screen.findByText("Acme Ltd");
     const a = card("Acme Ltd");
-    fireEvent.click(within(a).getByRole("button", { name: "Transcript" }));
-    await waitFor(() => expect(a.textContent).toContain("CFO: revenue grew 12%."));
-    expect(within(a).getByText("Page 2")).toBeTruthy();
     fireEvent.click(within(a).getByRole("button", { name: "PPT" }));
     const f = a.querySelector("iframe")!;
     expect(f.getAttribute("src")).toContain("/api/concalls/file?link=" + encodeURIComponent("https://nsearchives.nseindia.com/p.pdf"));

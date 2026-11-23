@@ -78,7 +78,7 @@ const LINES: [string, string][] = [
   ["pages/Alerts.tsx", "Be told in the app or browser when a stock meets your price, technical, ratio, score or news rule."],
   ["pages/Forum.tsx", "Discuss, ask and share what you find in Indian companies' filings."],
   ["pages/Ipo.tsx", "Open, upcoming and just-listed issues, and every IPO since 2020; the offer document is the final word."],   // task #329: one page, IPOs
-  ["pages/ConcallMonitor.tsx", "Earnings call recordings, transcripts, investor presentations and upcoming result meets."],
+  ["pages/ConcallMonitor.tsx", "Earnings call investor presentations, AI summaries and upcoming result meets."],   // task #339
   ["pages/Macro.tsx", "Inflation, growth, jobs, RBI rates, reserves and the rupee, from MoSPI and the RBI, with history."],
   ["pages/SectorPulse.tsx", "Which industries are being sold, bouncing back or rising together, as of each Friday's close."],
   ["pages/SectorRotation.tsx", "Which industries lead the market, which lag, and which are changing places over the months."],

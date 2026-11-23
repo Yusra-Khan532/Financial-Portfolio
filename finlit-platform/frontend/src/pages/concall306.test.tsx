@@ -22,21 +22,21 @@ const day = (i: number) => `2026-11-${String(20 - Math.floor(i / 10)).padStart(2
 const mk = (i: number): Call => ({ id: `C${i}|${day(i)}`, symbol: `C${String(i).padStart(3, "0")}`, name: `Company ${String(i).padStart(3, "0")}`, date: day(i), time: "16:00",
   timeLabel: "04:00 PM", dateNote: null, timeNote: null, kind: "Earnings call", quarter: i % 2 ? "Q2 FY27" : null, upcoming: false, schedule: null,
   listen: i % 3 ? { why: "No recording link filed with the exchange for this call." } : { audio: "https://x.in/a.mp3" },
-  transcript: { why: "Not filed yet." }, ppt: { why: "No investor presentation filed with this call." }, summary: { why: "Neither is filed yet." },
+  transcript: { why: "Not filed yet." }, ppt: i % 3 ? { why: "No investor presentation filed with this call." } : { doc: { link: "https://x.in/p.pdf", title: "Presentation", filed: "2026-11-20", pages: 3 } }, summary: { why: "Neither is filed yet." },
   mine: i === 0 ? "portfolio" : i === 1 ? "watchlist" : null });
 const ALL = Array.from({ length: 75 }, (_, i) => mk(i));
-const FACETS = { scope: { all: 75, portfolio: 1, watchlist: 2 }, has: { listen: 25, transcript: 0, ppt: 0, summary: 0 },
+const FACETS = { scope: { all: 75, portfolio: 1, watchlist: 2 }, has: { listen: 0, transcript: 0, ppt: 25, summary: 0 },
   quarter: [{ v: "Q2 FY27", n: 37 }, { v: "none", n: 38 }], kind: [{ v: "Earnings call", n: 75 }] };
 const page = (u: URL): CallList => {
   const off = +(u.searchParams.get("offset") || 0), lim = +(u.searchParams.get("limit") || 30);
   let rows = ALL;
-  if (u.searchParams.get("has") === "listen") rows = rows.filter((c) => !c.listen.why);
+  if (u.searchParams.get("has") === "ppt") rows = rows.filter((c) => !!c.ppt.doc);   // task #339: Presentation in place of Recording
   if (u.searchParams.get("sort") === "az") rows = [...rows].sort((a, b) => a.name.localeCompare(b.name));
   const days: Record<string, number> = {};
   rows.forEach((c) => { days[c.date!] = (days[c.date!] || 0) + 1; });
   return { items: rows.slice(off, off + lim), total: rows.length, offset: off, counts: { latest: 75, upcoming: 0 }, scope: "all", tab: "latest", readAt: null,
     source: "The company's own filings with NSE", disclaimer: "Describes what the company said on its call, from its own filings; not a recommendation. Information only, not investment advice.",
-    scopeNote: null, signIn: false, facets: FACETS, have: { listen: rows.filter((c) => !c.listen.why).length, transcript: 0, ppt: 0, summary: 0 }, days };
+    scopeNote: null, signIn: false, facets: FACETS, have: { listen: 0, transcript: 0, ppt: rows.filter((c) => !!c.ppt.doc).length, summary: 0 }, days };
 };
 
 beforeEach(() => {
@@ -85,18 +85,18 @@ describe("task #306: the compact Concall Monitor", () => {
   it("the count line, and the Has switches with their counts send the filter to the server; chips with × and Clear all", async () => {
     open();
     await screen.findByText("Company 000");
-    expect(document.querySelector(".dbx-cnt")!.textContent).toBe("75 calls · showing the newest 3025 with a recording · 0 transcripts · 0 presentations");
+    expect(document.querySelector(".dbx-cnt")!.textContent).toBe("75 calls · showing the newest 3025 presentations · 0 with an AI summary possible");   // task #339: no recordings or transcripts
     fireEvent.click(screen.getByRole("button", { name: /^Has/ }));
     const pop = screen.getByRole("dialog", { name: "Calls that have" });
-    expect(pop.textContent).toContain("Recording: a link the company filed. Transcripts come within 5 working days of the call (SEBI LODR).");
-    const rec = within(pop).getByRole("checkbox", { name: /Recording/ });
-    expect(rec.closest("label")!.textContent).toBe("Recording25");
-    expect((within(pop).getByRole("checkbox", { name: /Transcript/ }) as HTMLInputElement).disabled).toBe(true);   // it would leave no call
+    expect(pop.textContent).toContain("Presentation: the deck the company filed with NSE.");
+    expect(within(pop).getAllByRole("checkbox").map((x) => x.closest("label")!.textContent)).toEqual(["Presentation25", "AI summary possible0"]);   // task #339: no Recording or Transcript
+    const rec = within(pop).getByRole("checkbox", { name: /Presentation/ });
+    expect((within(pop).getByRole("checkbox", { name: /AI summary/ }) as HTMLInputElement).disabled).toBe(true);   // it would leave no call
     fireEvent.click(rec);
-    await waitFor(() => expect(st.asked.some((u) => u.includes("has=listen"))).toBe(true));
+    await waitFor(() => expect(st.asked.some((u) => u.includes("has=ppt"))).toBe(true));
     await waitFor(() => expect(document.querySelector(".dbx-cnt")!.textContent).toMatch(/^25 calls match/));
     const chips = screen.getByRole("group", { name: "Filters on" });
-    expect(within(chips).getByRole("button", { name: "Remove filter Has recording" })).toBeTruthy();
+    expect(within(chips).getByRole("button", { name: "Remove filter Has presentation" })).toBeTruthy();
     fireEvent.click(within(chips).getByRole("button", { name: "Clear all" }));
     await waitFor(() => expect(screen.queryByRole("group", { name: "Filters on" })).toBeNull());
   });
@@ -126,13 +126,13 @@ describe("task #306: the compact Concall Monitor", () => {
     expect(first.querySelector(".p4-when b")!.textContent).toBe("20 Nov 2026");
   });
 
-  it("the Portfolio and Watchlist tags; the four actions in fixed columns; the stylesheet keeps to the pack", async () => {
+  it("the Portfolio and Watchlist tags; the two actions (task #339) in fixed columns; the stylesheet keeps to the pack", async () => {
     open();
     await screen.findByText("Company 000");
     expect(screen.getByRole("link", { name: "Company 000" }).closest("article")!.querySelector(".p4-tag.pf")!.textContent).toBe("Portfolio");
     expect(screen.getByRole("link", { name: "Company 001" }).closest("article")!.querySelector(".p4-tag.wl")!.textContent).toBe("Watchlist");
     const css = readFileSync(join(__dirname, "..", "styles", "concall-compact.css"), "utf8");
-    expect(css).toMatch(/\.p4-acts \{ display: grid; grid-template-columns: 88px 114px 72px 120px;/);
+    expect(css).toMatch(/\.p4-acts \{ display: grid; grid-template-columns: 72px 120px;/);
     expect(css).toMatch(/\.p4-ab\.off \{ justify-content: center; width: 32px; padding: 0; border-style: dashed;/);
     expect(css).toMatch(/@media \(max-width: 760px\)[\s\S]*\.p4-tools \.dbx-dds \{ flex-wrap: nowrap; overflow-x: auto;/);
   });
