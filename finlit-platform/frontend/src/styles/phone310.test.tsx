@@ -171,7 +171,7 @@ describe("fix 6: long pages open on tap", () => {
     // task #333 (file 30) replaces Sector Pulse's phone folds: the page is shorter on every width (two boxes with a switch, three closed rows)
     const sp = read("pages/SectorPulse.tsx");
     expect(sp.indexOf("<TodayMinute")).toBeLessThan(sp.indexOf("<SxBox"));
-    expect(sp.match(/<SxFold id=/g)?.length).toBe(2);
+    expect(sp.match(/<SxFold id=/g)?.length).toBe(3);   // Simple: Standout stocks, Stocks counted; Full table: Too small for a reading
     expect(read("pages/Funds.tsx")).toContain('<PhoneFold page="funds" id="legend"');
     for (const f of ["components/StepsBar.tsx", "components/sectors/pack/Guide.tsx"]) expect(read(f), f).toMatch(/revealAndScroll\(/);
   });
