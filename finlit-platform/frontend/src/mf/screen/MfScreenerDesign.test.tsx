@@ -74,10 +74,10 @@ describe("task #131: the Mutual Fund Screener as the team's design", () => {
     expect(within(panel()).getByRole("status").textContent).toMatch(/No filter matches “zzzz”/);
     expect([findGroup("ELSS")?.id, findGroup("worst fall")?.id, findGroup("expense")?.id, findGroup("x")]).toEqual(["subcat", "risk", "cost", null]);
   });
-  it("C-3 17 groups, each showing how many choices are on ('4 on'), the first five open and the rest closed", async () => {
+  it("C-3 18 groups, each showing how many choices are on ('4 on'), the first five open and the rest closed", async () => {
     mount(); await screen.findAllByText("Alpha Mid Cap Fund");
     const heads = [...panel().querySelectorAll(".fgx-g .fgx-t")].map((x) => x.textContent);
-    expect(heads).toEqual(GROUPS.map((g) => g.title)); expect(heads).toHaveLength(17);
+    expect(heads).toEqual(GROUPS.map((g) => g.title)); expect(heads).toHaveLength(18);
     const open = [...panel().querySelectorAll(".fgx-g")].map((g) => g.classList.contains("is-open"));
     expect(open.slice(0, 5)).toEqual([true, true, true, true, true]); expect(open.slice(5).every((o) => !o)).toBe(true);
     expect(within(panel()).getByRole("button", { name: /^Plan, option and status/ }).textContent).toMatch(/4 on/);
@@ -161,12 +161,12 @@ describe("task #131: the Mutual Fund Screener as the team's design", () => {
   it("C-11 the Fund column stays frozen while the table scrolls sideways", () => {
     expect(css).toMatch(/\.mfs-table th\.mfs-n \{[^}]*position: sticky; left: 0;/);
   });
-  it("C-12 on a phone the panel shows the search and one button, 'Show the 17 filter groups', which opens the groups in place", async () => {
+  it("C-12 on a phone the panel shows the search and one button, 'Show the 18 filter groups', which opens the groups in place", async () => {
     setNarrow(true);
     mount(); await screen.findAllByText("Alpha Mid Cap Fund");
     const p = panel();
     expect(within(p).getByPlaceholderText(/Find a filter/)).toBeTruthy();
-    const btn = within(p).getByRole("button", { name: "Show the 17 filter groups" });
+    const btn = within(p).getByRole("button", { name: "Show the 18 filter groups" });
     expect((p.querySelector("#mfs-groups") as HTMLElement).hidden).toBe(true);
     fireEvent.click(btn);
     expect((p.querySelector("#mfs-groups") as HTMLElement).hidden).toBe(false);

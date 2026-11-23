@@ -208,3 +208,21 @@
 /* the fund's name and its line in normal case, as the design draws them (a site-wide table rule set row headings in capitals) */
 .mfs-table tbody th.mfs-n, .mfs-table tbody th.mfs-n * { text-transform: none; letter-spacing: normal; }
 .mfs-table tbody th.mfs-n a { font-size: var(--fs-14); }
+
+/* task #350: the FinLit Mutual Fund Score group: the total and four parts, each its own block with an (i), presets, min and max, the range on, and Clear */
+.mfs-sc { display: grid; gap: 4px; }
+.mfs-sc-row { display: grid; gap: 8px; }
+.mfs-sc-row + .mfs-sc-row .mfs-sc-h { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+.mfs-sc-h { align-items: center; }
+.mfs-sc-h .info { margin-left: 2px; }
+.mfs-sc-clear { margin-left: auto; font-size: var(--fs-13); }
+.mfs-sc-mm { display: grid; grid-template-columns: 1fr 1fr; column-gap: 10px; row-gap: 4px; }
+.mfs-sc-mm label { color: var(--muted); font-size: var(--fs-13); }
+.mfs-sc-mm .mfs-box, .mfs-sc-sel { width: 100%; min-width: 0; }
+.mfs-sc-sel { height: 36px; padding: 0 8px; border-radius: var(--r-ctl); border: 1px solid var(--ui-field-line); background: var(--s1); color: var(--text); font: var(--fs-14) var(--sans); }
+.mfs-sc-sel:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.mfs-sc-say { margin: 0; color: var(--muted); font-size: var(--fs-13); }
+.mfs-sc-row.is-set .mfs-sc-say b { color: var(--text); }
+.mfs-sc-err { margin: 0; color: var(--dn); font-size: var(--fs-13); }
+.mfs-sc .mfs-box[aria-invalid="true"], .mfs-sc-sel[aria-invalid="true"] { border-color: var(--dn); }
+.mfs-sc-lock svg { width: 14px; height: 14px; vertical-align: -2px; color: var(--gold); }

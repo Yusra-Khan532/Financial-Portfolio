@@ -13,9 +13,11 @@ import {
   AUMRANK_OPTS, BASIS_OPTS, CAP_OPTS, CFLOW_OPTS, CHK_EACH, COMING, CSIZE_OPTS, CSTREAK_OPTS, EXIT_OPTS, FRESH_OPTS, HOUSE_OPTS, INST_OPTS, MAT_OPTS, NUM_BY, OPTION_OPTS, PFDATE_OPTS,
   PLAN_OPTS, RK_BANDS, STATUS_OPTS, STRUCT_OPTS, STYLE_OPTS, TAG_KIND_LABEL, TICK_DATA, TICK_FALL, TICK_LISTS, TYPE_OPTS, type Opt,
 } from "../../lib/mfScreenDefs";
-import { rangeOf, toggleIn, useStockSearch, withRange, type SQ, type ScreenFacets } from "../../lib/mfScreen";
+import { rangeOf, toggleIn, useStockSearch, withRange, withScore, type SQ, type ScreenFacets } from "../../lib/mfScreen";
 import { FlowBars } from "./Graphics";
 import { RangeFilter } from "./RangeFilter";
+import { ScoreFilters, scoreOn } from "./ScoreFilter";
+
 
 export type PanelProps = { q: SQ; set: (fn: (q: SQ) => SQ) => void; fac?: ScreenFacets; waiting: boolean; canScore: boolean; /** a phone: the groups fold behind one button */ fold?: boolean };
 
@@ -27,6 +29,7 @@ export const GROUPS: { id: string; title: string; words: string }[] = [
   { id: "style", title: "Investment style", words: "investment style active passive index" },
   { id: "struct", title: "Scheme structure", words: "scheme structure open ended close ended interval" },
   { id: "mat", title: "Debt maturity band", words: "debt maturity band duration sebi short long medium" },
+  { id: "score", title: "FinLit Mutual Fund Score", words: "finlit mutual fund score total pillar pillars performance quality rating gold" },   // task #350
   { id: "house", title: "Fund house", words: "fund house amc asset management company fund house size" },
   { id: "plan", title: "Plan, option and status", words: "plan direct regular option growth idcw dividend instrument etf mutual fund status still publishing stopped freshness family" },
   { id: "size", title: "Size and age", words: "size aum fund size assets age launch date net assets rank by size share" },
@@ -186,6 +189,11 @@ export function Panel({ q, set, fac, waiting, canScore, fold = false }: PanelPro
         {q.group === "" || q.group === "debt"
           ? <Chips opts={MAT_OPTS} sel={q.mat} counts={fac?.mat} onToggle={tog("mat")} label="Debt maturity band of the category" />
           : <p className="fgx-note">Only debt funds have a maturity band. Choose All or Debt under Type and category to use it.</p>}
+      </FilterGroup>
+
+      {/* ----- task #350: the FinLit Mutual Fund Score, the total and its four parts, each on its own (Gold) */}
+      <FilterGroup id="score" title="FinLit Mutual Fund Score" active={scoreOn(q.sc)} meta={canScore ? undefined : <span className="mfs-soon-n"><Icon name="lock" /> Gold</span>} {...og("score")}>
+        <ScoreFilters sc={q.sc} canScore={canScore} onSet={(f, lo, hi) => set((s) => withScore(s, f, lo, hi))} />
       </FilterGroup>
 
       {/* ----- fund house */}
