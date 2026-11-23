@@ -22,7 +22,7 @@ import threading
 from collections import OrderedDict
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Iterable, Optional, Tuple
 
 DEFAULT_NSE_DIR = "/data/nse"
 DEFAULT_OUT_DIR = "/data/sectors"
@@ -171,8 +171,12 @@ def clear_cache() -> None:
         _cache.clear()
 
 
-def resolve_slug(slug: str) -> str:
-    """A renamed group's old address answers with the new group's page."""
+def resolve_slug(slug: str, known: Optional[Iterable[str]] = None) -> str:
+    """A renamed group's old address answers with the new group's page. Task #333 (file 30, fault 1): the address is looked up in the chosen view first (`known`,
+    the slugs that view lists), and the old-address redirect is used only when nothing in that view matches. Before, "capital-goods" in the Sectors view was
+    turned into the industry "Agricultural Commercial & Construction Vehicles" and then not found, so the sector Capital Goods had no page."""
+    if known is not None and slug in set(known):
+        return slug
     return SLUG_ALIASES.get(slug, slug)
 
 

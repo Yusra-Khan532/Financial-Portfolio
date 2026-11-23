@@ -1,0 +1,136 @@
+/* Sector Pulse, the shorter page (task #333, developer file 30 "sector-pages.css", 23 Nov 2026), on the site's tokens. Every rule is sx- or sits under .sx-new, the
+   class the new layout puts on the page, so a page without it (Sector Rotation until its own task) is unchanged. The pack's raw sizes are the nearest type-scale
+   steps; its colours are the page's own (--sp-*) and the site's tokens. */
+
+/* ---- header: page tabs, smaller toggles, side padding ---- */
+.sx-new .sp-head.card { padding: 18px 22px 10px; }
+.sx-new .sp-tabs { gap: 4px; padding: 0; border-bottom: 2px solid var(--sp-line); background: none; border-radius: 0; }
+.sx-new .sp-tabs a.ui-tab { margin-bottom: -2px; padding: 10px 14px !important; border: 0 !important; border-bottom: 3px solid transparent !important; border-radius: 0 !important; background: none !important; box-shadow: none !important;
+  color: var(--sp-mute) !important; font: 600 var(--fs-16)/1 var(--sans) !important; }
+.sx-new .sp-tabs a.ui-tab.active { color: var(--sp-ink) !important; border-bottom-color: var(--sp-ink) !important; }
+.sx-new .sp-view .sp-vbtn { min-height: 32px !important; padding: 0 12px !important; font-size: var(--fs-13) !important; }
+.sx-new .sp-view > span { font-size: var(--fs-14); }
+/* "How to read" is one line */
+.sx-new .sp-guide-h small { display: none; }
+.sx-new .sp-guide-h { min-height: 44px; padding-top: 8px; padding-bottom: 8px; }
+
+/* ---- the section bar: "On this page", frozen under the site header; the section in view is black ---- */
+.sx-nav { position: sticky; top: 70px; z-index: 40; display: flex; align-items: center; gap: 8px; margin: 10px 0 14px; padding: 8px 12px; overflow-x: auto;
+  border: 1px solid var(--sp-line); border-radius: var(--r-card); background: var(--sp-panel); box-shadow: 0 8px 18px -14px color-mix(in srgb, var(--sp-ink) 40%, transparent); }
+.sx-nav-k { flex: none; font: 700 var(--fs-12)/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--sp-mute); }
+.sx-nav ol { display: flex; align-items: center; gap: 2px; margin: 0; padding: 0; list-style: none; white-space: nowrap; }
+.sx-nav a { display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 9px 0 5px; border: 1px solid transparent; border-radius: var(--ui-r-pill);
+  font: 600 var(--fs-13)/1 var(--sans); color: var(--sp-ink); text-decoration: none; }
+.sx-nav a:hover { background: var(--s2); }
+.sx-nav a i { display: grid; place-items: center; flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--s2); font: 700 var(--fs-12)/1 var(--sans); font-style: normal; color: var(--sp-mute); }
+.sx-nav a.on { background: var(--sp-ink); color: var(--sp-panel); }
+.sx-nav a.on i { background: var(--sp-panel); color: var(--sp-ink); }
+.sx-nav a:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.sx-nav-ar { opacity: .5; color: var(--sp-mute); }
+@media (max-width: 1360px) { .sx-nav-ar { display: none; } }
+.sx-new [id^="sx-"] { scroll-margin-top: 136px; }
+
+/* ---- a box with a switch: the bar (the Results and IPOs "views" bar), one pane open ---- */
+.sx-box { margin: 18px 0; }
+.sx-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 8px 10px; padding: 10px 14px; border: 1px solid var(--sp-line); border-left: 5px solid var(--sp-ink);
+  border-radius: var(--r-card) var(--r-card) 0 0; background: var(--sp-panel); }
+.sx-bar-ic { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border: 1px solid var(--sp-line); border-radius: var(--r-ctl); background: var(--s2); font-size: var(--fs-16); }
+.sx-bar-k { margin-right: 6px; font: 700 var(--fs-14)/1.2 var(--sans); color: var(--sp-ink); white-space: nowrap; }
+.sx-bar-k small { display: block; font: 400 var(--fs-12)/1.3 var(--sans); color: var(--sp-mute); }
+.sx-bar button { display: inline-flex; align-items: center; gap: 9px; min-height: 42px; padding: 0 14px 0 8px; border: 1.5px solid var(--sp-line); border-radius: var(--r-card); background: var(--bg);
+  color: var(--sp-ink); font: 600 var(--fs-14)/1 var(--sans); white-space: nowrap; cursor: pointer; }
+.sx-bar button i { display: grid; place-items: center; flex: none; width: 24px; height: 24px; border: 1px solid var(--sp-line); border-radius: 50%; background: var(--s2); font: 700 var(--fs-12)/1 var(--sans); font-style: normal; color: var(--sp-mute); }
+.sx-bar button .n { font: 700 var(--fs-12)/1 var(--sans); opacity: .75; }
+.sx-bar button:hover { border-color: var(--sp-ink); background: var(--s2); }
+.sx-bar button.on { border-color: var(--sp-ink); background: var(--sp-ink); color: var(--sp-panel); }
+.sx-bar button.on i { border-color: var(--sp-panel); background: var(--sp-panel); color: var(--sp-ink); }
+.sx-bar button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.sx-pane[hidden] { display: none !important; }
+.sx-pane > .sp-sec, .sx-pane > div > .sp-sec { margin: 0 !important; border-top: 0 !important; border-top-left-radius: 0 !important; border-top-right-radius: 0 !important; }
+/* the Full table view has no section bar, so its box bar is the frozen one */
+.sx-full .sx-bar { position: sticky; top: 70px; z-index: 30; box-shadow: 0 6px 18px -14px color-mix(in srgb, var(--sp-ink) 35%, transparent); }
+@media (max-width: 760px) {
+  .sx-bar { padding: 10px; } .sx-full .sx-bar { position: static; }
+  .sx-bar button { flex: 1 1 46%; justify-content: flex-start; } .sx-bar-k { flex: 1 1 60%; }
+  .sx-nav { top: 0; margin-left: -12px; margin-right: -12px; border-radius: 0; }
+}
+
+/* ---- closed rows: title, one line and Show ---- */
+.sx-fold { margin: 12px 0; }
+.sx-fold > summary .sx-fs { display: block; margin-top: 2px; font: 400 var(--fs-13)/1.4 var(--sans); color: var(--sp-mute); }
+.sx-fold > .sx-in { margin: 12px 0 0; }
+.sx-fold > .sx-in > .sp-sec, .sx-fold > .sx-in > .sp-two > .sp-sec { margin: 0 !important; padding: 0 !important; border: 0 !important; box-shadow: none !important; background: none !important; }
+.sx-fold > .sx-in > .sp-sec > .sp-sec-h:first-child h2, .sx-fold > .sx-in > .sp-sec > .sp-sec-h:first-child .sp-sub { display: none; }
+
+/* ---- Why it matters: a small button that opens the line ---- */
+.sx-why { margin: 6px 0 10px; font: 400 var(--fs-13)/1.5 var(--sans); }
+.sx-why summary { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--sp-line); border-radius: var(--ui-r-pill); list-style: none; cursor: pointer;
+  font: 700 var(--fs-12)/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--sp-mute); }
+.sx-why summary::-webkit-details-marker { display: none; }
+.sx-why summary::after { content: "▾"; } .sx-why[open] summary::after { content: "▴"; }
+.sx-why p { margin: 8px 0 0; color: var(--sp-ink); }
+
+/* ---- Today in one minute: the headline chip, the squares across the top, the counts as tiles in one row, three callouts in one row ---- */
+.sx-hl { display: inline-block; margin-right: 6px; padding: 2px 12px; border: 1px solid; border-radius: var(--ui-r-pill); }
+.sx-hl-bad { border-color: var(--sp-bad-bd); background: var(--sp-bad-bg); color: var(--sp-bad); }
+.sx-hl-watch { border-color: var(--sp-watch-bd); background: var(--sp-watch-bg); color: var(--sp-watch); }
+.sx-hl-good { border-color: var(--sp-good-bd); background: var(--sp-good-bg); color: var(--sp-good); }
+.sx-today .sp-squares { display: flex; flex-wrap: nowrap; gap: 5px; max-width: none; margin: 6px 0 12px; }
+.sx-today .sp-squares li { flex: 1 1 0; max-width: 44px; aspect-ratio: 1; }
+.sx-today .sp-squares li a { display: block; width: 100%; height: 100%; border-radius: var(--r-ctl); transition: transform .12s, box-shadow .12s; }
+.sx-today .sp-squares a:hover, .sx-today .sp-squares a:focus-visible { transform: translateY(-2px); box-shadow: 0 0 0 2px var(--sp-ink); outline: 0; }
+.sx-tiles { display: grid; grid-template-columns: repeat(var(--n, 5), minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.sx-tile { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 10px; row-gap: 2px; padding: 10px 12px; border: 1px solid var(--sp-line); border-radius: var(--r-card); background: var(--bg); }
+.sx-tile > b { grid-row: 1 / 3; min-width: 34px; font: 600 var(--fs-28)/1 var(--serif); font-variant-numeric: tabular-nums; }
+.sx-tile-k { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; font: 600 var(--fs-13)/1.25 var(--sans); }
+.sx-tile > small { font: 500 var(--fs-12)/1.2 var(--sans); color: var(--sp-mute); }
+.sx-today + .sp-cards { margin-top: 12px; }
+@media (max-width: 760px) {
+  .sx-today .sp-squares li { max-width: none; }
+  .sx-tiles { grid-template-columns: 1fr !important; gap: 6px; }
+  .sx-tile { grid-template-columns: 38px 1fr auto; padding: 8px 10px; } .sx-tile > b { grid-row: auto; font-size: var(--fs-24); } .sx-tile > small { text-align: right; }
+}
+
+/* ---- filters above a table ---- */
+.sx-fl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0 10px; font: 400 var(--fs-13)/1 var(--sans); color: var(--sp-mute); }
+.sx-fl button { min-height: 32px; padding: 0 12px; border: 1px solid var(--sp-line); border-radius: var(--ui-r-pill); background: var(--bg); color: var(--sp-ink); font: 600 var(--fs-13)/1 var(--sans); cursor: pointer; }
+.sx-fl button small { font-weight: 400; opacity: .7; }
+.sx-fl button[aria-pressed="true"] { border-color: var(--sp-ink); background: var(--sp-ink); color: var(--sp-panel); }
+
+/* ---- By state: the state groups flow into two balanced columns, a group never splits ---- */
+.sx-cols { display: block !important; columns: 2; column-gap: 16px; }
+.sx-cols > .sp-grp, .sx-cols > .sp-card { display: inline-block; width: 100%; margin: 0 0 14px; break-inside: avoid; }
+@media (max-width: 900px) { .sx-cols { columns: 1; } }
+
+/* ---- the member's own rows: a gold tint and a 4px gold left edge, in every table ---- */
+.sx-new tr.sx-mine > td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
+.sx-new tr.sx-mine > td:first-child { box-shadow: inset 4px 0 0 var(--gold); }
+
+/* ---- Momentum and strength: each name is its own chip; the member's own are bold with a gold edge; each cell shows how many it holds ---- */
+.sx-mx { grid-template-columns: 200px repeat(4, minmax(0, 1fr)) !important; min-width: 760px; }
+.sx-mx .sp-mx-cell { position: relative; min-height: 64px; padding: 10px 12px !important; }
+.sx-mx .sp-mx-cell:has(.sx-mxn) { padding-right: 30px !important; }
+.sx-mx .sp-mx-none { font: 400 var(--fs-13)/1.4 var(--sans); color: var(--sp-mute); }
+.sx-mx .sp-mx-col, .sx-mx .sp-mx-row { font-size: var(--fs-13); }
+.sx-mx .sp-mx-row .sp-chip { white-space: normal; text-align: left; line-height: 1.25; }
+.sx-mx .sp-mx-row .sp-chipw { align-items: flex-start; }
+.sx-mxl { display: flex; flex-wrap: wrap; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.sx-mxl li { padding: 4px 8px; border: 1px solid var(--sp-line); border-radius: var(--r-ctl); background: var(--bg); font: 500 var(--fs-13)/1.3 var(--sans); }
+.sx-mxl li a { color: var(--sp-ink); text-decoration: none; } .sx-mxl li a:hover { text-decoration: underline; }
+.sx-mxl li.sx-mxm { border-color: var(--gold); box-shadow: inset 3px 0 0 var(--gold); font-weight: 700; }
+.sx-mxn { position: absolute; top: 8px; right: 10px; font: 700 var(--fs-12)/1 var(--sans); color: var(--sp-mute); }
+
+/* ---- one line under the mood chart instead of its callouts ---- */
+.sx-howline { margin: 8px 0 0; font: 400 var(--fs-13)/1.45 var(--sans); color: var(--sp-mute); }
+.sx-howline b { color: var(--sp-ink); }
+
+/* ---- phone ---- */
+@media (max-width: 760px) {
+  .sx-new .sp-grp-h { display: flex !important; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+  .sx-new .sp-grp-h > p { flex: 1 1 100%; order: 3; margin: 0; }
+  .sx-new .sp-grp-h > b { margin-left: auto; }
+  .sx-new .sp-grp { overflow-x: auto; }
+  .sx-new .sp-grp-t td:first-child { min-width: 130px; }
+  .sx-new .sp-chartw { overflow-x: auto; }
+  .sx-new .sp-chartw > svg[data-testid="map-chart"] { min-width: 680px; }
+}

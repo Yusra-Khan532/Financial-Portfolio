@@ -60,6 +60,11 @@ describe("the words follow Show", () => {
     expect(toSectors("ahead of the average industry over 6 months")).toBe("ahead of the average industry over 6 months");
     expect(toSectors("an NSE industry or sector group")).toBe("an NSE sector");
     expect(toSectors("Banks are up")).toBe("Banks are up");
+    // task #333 (file 30): "groups" and "sectors" are never used for the same thing in the Sectors view; the yardstick keeps its name
+    expect(toSectors("2 of 19 groups are bouncing back")).toBe("2 of 19 sectors are bouncing back");
+    expect(toSectors("All 19 groups, by state")).toBe("All 19 sectors, by state");
+    expect(toSectors("against the average group")).toBe("against the average group");
+    expect(toSectors("3 inside 3 too-small sector groups")).toBe("3 inside 3 too-small sectors");
   });
 });
 
@@ -80,7 +85,10 @@ describe("Sector Pulse: Show: Sectors | Industries", () => {
   it("words every section for sectors: no 'industry' is left outside the switch and the yardstick", () => {
     at(<SectorPulsePage />, "/sectors");
     const h2 = screen.getAllByRole("heading", { level: 2 }).map((h) => (h.textContent ?? "").replace(/i$/, ""));
-    expect(h2).toEqual(expect.arrayContaining(["How your sectors are doing", "The cycle sectors move through", "Standout stocks in weak sectors"]));
+    expect(h2).toEqual(expect.arrayContaining(["How your sectors are doing", "Momentum and strength, side by side"]));
+    // task #333: the closed rows and the second box's tabs are worded for sectors too
+    expect([...document.querySelectorAll("details.sx-fold > summary b")].map((x) => x.textContent)).toContain("Standout stocks in weak sectors");
+    expect(within(screen.getByRole("tablist", { name: "Checks on the price picture" })).getAllByRole("tab").map((t) => t.textContent)).toContain("1Against other sectors");
     expect(industryWords()).toEqual([]);
     expect(document.querySelector(".sp-disclaimer")?.textContent).toMatch(/^Describes price data for NSE sectors; not a recommendation to buy, sell or hold any security\./);
   });

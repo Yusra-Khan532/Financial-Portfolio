@@ -46,25 +46,46 @@ describe("Sector Pulse, the pack's header", () => {
 });
 
 describe("Sector Pulse, Simple view (pack 05)", () => {
-  it("shows the pack's sections in its order, each title once", () => {
+  it("task #333 (file 30): Today, Your industries, the two boxes and the three closed rows, in that order, each title once", () => {
     at();
-    expect(h2()).toEqual(expect.arrayContaining(["The market's mood, day by day", "How your industries are doing", "The cycle industries move through", "All 38 groups, by state", "Momentum and strength, side by side", "Standout stocks in weak industries", "Which stocks are counted", "Too small for a reading"]));
-    // task #192 (SECTOR-PAGES.md 7): 1 Today → 2 The cycle → 3 All by state → 4 Map → 5 Market mood → 6 Momentum × strength → 7 Your industries → 8 Standout stocks → 9 Counted / Too small
-    const order = ["Today in one minute", "The cycle industries move through", "All 38 groups, by state", "The market's mood, day by day", "Momentum and strength, side by side", "How your industries are doing", "Standout stocks in weak industries", "Which stocks are counted"].map((t) => h2().findIndex((x) => x?.startsWith(t)));
+    const order = ["Today in one minute", "How your industries are doing", "All 38 groups, by state", "Momentum and strength, side by side"].map((t) => h2().findIndex((x) => x?.startsWith(t)));
     expect(order.every((v, i) => v >= 0 && (i === 0 || v > order[i - 1]))).toBe(true);
+    // box 1 opens on By state; Map and Over time are its other tabs; box 2 opens on Against other industries
+    const all = screen.getByRole("tablist", { name: "All 38 groups" });
+    expect(within(all).getAllByRole("tab").map((t) => t.textContent)).toEqual(["1By state", "2Map", "3Over time"]);
+    expect(within(all).getByRole("tab", { name: /By state$/ }).getAttribute("aria-selected")).toBe("true");
+    fireEvent.click(within(all).getByRole("tab", { name: /Over time$/ }));
+    expect(h2()).toContain("The market's mood, day by day");
+    expect(localStorage.getItem("finlit-sx-box-all")).toBe("time");          // remembered for the member
+    const chk = screen.getByRole("tablist", { name: "Checks on the price picture" });
+    fireEvent.click(within(chk).getByRole("tab", { name: /What happened next$/ }));
+    expect(h2()).toContain("The cycle industries move through");
+    // the closed rows: title, one line and Show; nothing inside is drawn until opened
+    const folds = [...document.querySelectorAll("details.sx-fold > summary b")].map((b) => b.textContent);
+    expect(folds).toEqual(["Standout stocks in weak industries", "Which stocks are counted, and what is too small for a reading", "Words on this page"]);
+    expect(document.querySelectorAll("details.sx-fold .sx-fs").length).toBe(3);
     expect(said()).not.toMatch(ADVICE);
   });
-  it("sections the pack lets you hide have Hide, and Hide leaves a Show bar", () => {
+  it("a link can open box 1 on a tab (&tab=map, &tab=time)", () => {
+    at("/sectors?tab=time");
+    expect(within(screen.getByRole("tablist", { name: "All 38 groups" })).getByRole("tab", { name: /Over time$/ }).getAttribute("aria-selected")).toBe("true");
+  });
+  it("no Hide buttons in the new layout; the headline is a coloured chip; three callouts under Today", () => {
     at();
-    const hide = screen.getAllByRole("button", { name: /^Hide: / }).map((b) => b.getAttribute("aria-label"));
-    expect(hide).toEqual(expect.arrayContaining(["Hide: The market's mood, day by day", "Hide: The cycle industries move through", "Hide: Momentum and strength, side by side"]));
-    fireEvent.click(screen.getByRole("button", { name: "Hide: The cycle industries move through" }));
-    expect(screen.getByRole("button", { name: "Show: The cycle industries move through" })).toBeTruthy();
+    expect(screen.queryAllByRole("button", { name: /^Hide: / })).toHaveLength(0);
+    const chip = document.querySelector(".sp-lead .sx-hl")!;
+    expect(chip.className).toMatch(/sx-hl-(bad|watch|good)/);
+    const today = document.getElementById("sx-today")!.closest("section")!;
+    expect(today.querySelectorAll(".sp-card")).toHaveLength(3);
+    expect(today.textContent).toMatch(/\d+ still marked Sold off/);
+    expect(today.querySelectorAll(".sx-tile").length).toBeGreaterThanOrEqual(5);
   });
   it("for Basic the standout stocks are locked in words, never an empty table", () => {
     st.board = { ...B, leader_flags: null, rows: B.rows.map((r) => ({ ...r, leader_flags: null })), locked: { leader_flags: "silver" } } as Board;
     at();
-    expect(screen.getByText("The standout stocks are part of the Silver plan")).toBeTruthy();
+    const fold = document.getElementById("sx-standouts") as HTMLDetailsElement;
+    fold.open = true; fireEvent(fold, new Event("toggle"));
+    expect(screen.getByText("The standout stocks are part of the Platinum plan")).toBeTruthy();   // task #333: Silver is retired
   });
   it("when the data is not loaded it says why, with the server's sentence and Try again", () => {
     st.board = new ApiError(503, { status: "not_loaded", reason: "Sector data is not loaded yet: the nightly sector job is switched off on this server." } as never);
@@ -96,7 +117,7 @@ describe("Sector Pulse, Full table view (pack 06)", () => {
     expect(rows()).toBe(2);
     fireEvent.click(within(show).getByRole("button", { name: "All 38" }));
     expect(rows()).toBe(38);
-    expect(screen.getByRole("button", { name: "Download CSV" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Download CSV" })).toBeNull();   // task #333: no plan offers downloads
   });
   it("draws one row of Friday squares per industry with a reading, today's column outlined", () => {
     at("/sectors?view=full");
@@ -119,18 +140,18 @@ describe("task #192 round 4a-2 (SECTOR-PAGES.md 2 to 8), Sector Pulse", () => {
     expect(rows.find((r) => r[0] === "No clear signal")?.[1]).toBe("No sell-off, bounce or broad rise: its stocks are not moving together.");
     expect(rows).toHaveLength(6);
   });
-  it("numbers the sections 1 to 9 in the pack's order, in a sections bar after the guide", () => {
+  it("task #333: the section bar names every stop and sits after the guide; pressing a closed row's name opens it", () => {
     at();
-    const bar = screen.getByRole("navigation", { name: "Sections on this page" });
-    expect(within(bar).getAllByRole("link").map((a) => a.textContent)).toEqual(["1Today", "2The cycle", "3By state", "4Market mood", "5Momentum × strength", "6Your industries", "7Standout stocks", "8Counted / Too small"]);   // no map in this test (no map data)
+    const bar = screen.getByRole("navigation", { name: "On this page" });
+    expect(within(bar).getAllByRole("link").map((a) => a.textContent)).toEqual(["1Today", "2Your industries", "3All 38 groups", "4Price checks", "5Standout stocks", "6Stocks counted", "7Words explained"]);
     expect(document.querySelector(".sp-guide")!.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.click(within(bar).getByRole("link", { name: /Words explained$/ }));
+    expect((document.getElementById("sx-words") as HTMLDetailsElement).open).toBe(true);
   });
-  it("adds the pack's i buttons and Hide buttons, and keeps Today in one minute always open", () => {
+  it("keeps the i buttons on titles and group headers, none beside a chip in a table row", () => {
     at();
-    for (const t of ["Today in one minute", "The cycle industries move through", "All 38 groups, by state", "Too small for a reading"]) expect(screen.getByRole("button", { name: `About “${t}”` })).toBeTruthy();
-    const hide = screen.getAllByRole("button", { name: /^Hide: / }).map((b) => b.getAttribute("aria-label"));
-    expect(hide).toEqual(expect.arrayContaining(["Hide: How your industries are doing", "Hide: All 38 groups, by state", "Hide: Standout stocks in weak industries"]));
-    expect(hide).not.toContain("Hide: Today in one minute");
+    for (const t of ["Today in one minute", "All 38 groups, by state", "How your industries are doing"]) expect(screen.getByRole("button", { name: `About “${t}”` })).toBeTruthy();
+    expect(document.querySelectorAll(".sp-yours tbody .sp-i").length).toBe(0);
   });
   it("starts each state group at 5 rows with Show all, and turns 'and 12 more' into +12 more ▾", () => {
     at();

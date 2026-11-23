@@ -132,7 +132,30 @@ async def board(request: Request, show: Optional[str] = None) -> Response:
     data = sd.read_json(rel / "sectors" / "_board.json") if rel else None
     if not data:
         return _no_board(request, started, show)
-    return _reply(request, {**redact_sector_board(public_board(data), await _plan(request)), "show": "sectors" if show == "sectors" else "industries"}, started)
+    out = redact_sector_board(public_board(data), await _plan(request))
+    if show == "sectors":
+        out = with_every_industry(out)
+    return _reply(request, {**out, "show": "sectors" if show == "sectors" else "industries"}, started)
+
+
+def with_every_industry(board: Dict[str, Any]) -> Dict[str, Any]:
+    """Sectors view (task #333, file 30): each sector row lists every NSE industry of that sector in NSE's own tree (finlit/data taxonomy, 59 industries), not only
+    those with counted stocks, so the 22 sectors account for all 59 industries. An industry already listed (in any spelling: "Agricultural Commercial & Construction
+    Vehicles" is NSE's "Agricultural, Commercial & Construction Vehicles") is not added twice. Only the list of names changes; no count or reading does."""
+    from . import taxonomy
+    by_sector: Dict[str, list] = {}
+    for ind in taxonomy.tree()["by"]["industry"].values():
+        by_sector.setdefault(taxonomy.key(ind["sector"]), []).append(ind["industry"])
+    rows = []
+    for r in board.get("rows") or []:
+        if isinstance(r, dict) and r.get("kind") == "sector":
+            have = list(r.get("industries") or [])
+            seen = {taxonomy.key(x) for x in have}
+            extra = sorted(x for x in by_sector.get(taxonomy.key(r.get("name")), []) if taxonomy.key(x) not in seen)
+            if extra:
+                r = {**r, "industries": have + extra}
+        rows.append(r)
+    return {**board, "rows": rows}
 
 
 _history_memo: Dict[bool, Dict[str, Any]] = {}
@@ -227,7 +250,7 @@ async def industry_year(slug: str, request: Request, show: Optional[str] = None)
     board = sd.read_json(rel / "sectors" / "_board.json") if rel else None
     if not board:
         return _no_board(request, started, show)
-    slug = sd.resolve_slug(slug)
+    slug = sd.resolve_slug(slug, sd.board_slugs(board))
     if not sd.SLUG.match(slug) or slug not in sd.board_slugs(board):
         return _not_found(request, started, "There is no industry or sector group with this address. The groups that are read are listed on Sector Pulse.")
     page = sd.read_json(rel / "sectors" / f"{slug}.json")
@@ -288,7 +311,7 @@ async def industry(slug: str, request: Request, top: Optional[int] = None, show:
     data = sd.read_json(rel / "sectors" / "_board.json") if rel else None
     if not data:
         return _no_board(request, started, show)
-    slug = sd.resolve_slug(slug)
+    slug = sd.resolve_slug(slug, sd.board_slugs(data))
     if not sd.SLUG.match(slug) or slug not in sd.board_slugs(data):       # only a slug the board lists is ever turned into a file name
         return _not_found(request, started, "There is no industry or sector group with this address. The groups that are read are listed on Sector Pulse.")
     page = sd.read_json(rel / "sectors" / f"{slug}.json")
@@ -348,7 +371,7 @@ async def rotation_card(slug: str, request: Request, show: Optional[str] = None)
     data = sd.read_json(rel / "rotation" / "_map.json") if rel else None
     if not data:
         return _sectors_missing(request, started) if show == "sectors" else _rotation_missing(request, started)
-    slug = sd.resolve_slug(slug)
+    slug = sd.resolve_slug(slug, {r.get("slug") for r in data.get("rows", [])})
     if not sd.SLUG.match(slug) or slug not in {r.get("slug") for r in data.get("rows", [])}:       # only a slug the map lists is ever turned into a file name
         why = "This group has no rotation reading: it has fewer than 8 counted stocks, or there is no group with this address."
         return _not_found(request, started, why)

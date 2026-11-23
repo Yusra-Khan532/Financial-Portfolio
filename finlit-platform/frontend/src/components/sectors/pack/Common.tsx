@@ -1,6 +1,6 @@
 // The small pieces every Sector Pulse and Sector Rotation section of the "FinLit final pages" pack (13 Nov 2026) is built from: the (i) button, the insight cards, the state and
 // box chips, the 6-month sparkline and the section frame with Hide. Styles: styles/sectors-pack.css (sp- prefix). Describes, never advises.
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Hideable } from "../../Hideable";
 import { placeFloating } from "../../../lib/floating";
@@ -108,12 +108,28 @@ export function Spark({ values, states, label, w = 170, h = 42, last, mark }: { 
   );
 }
 
+/** Task #333 (file 30, fix 3): on the new Sector Pulse each "Why it matters" line is a small button that opens it (details.sx-why), open on a member's first visit
+ *  to the page and closed after. The page provides true (first visit) or false; without a provider (Sector Rotation, the industry page) the line stays as it was. */
+export const WhyFold = createContext<boolean | null>(null);
+/** True on the first visit to `page` in this browser, false after (read once per page load, saved after the first render). */
+export function useFirstVisit(page: string): boolean {
+  const key = "finlit-seen-" + page;
+  const [first] = useState(() => { try { return localStorage.getItem(key) !== "1"; } catch { return false; } });
+  useEffect(() => { try { localStorage.setItem(key, "1"); } catch { /* private window: the line opens each time */ } }, [key]);
+  return first;
+}
+export function Why({ children }: { children: ReactNode }) {
+  const fold = useContext(WhyFold);
+  if (fold == null) return <p className="sp-why"><b>Why it matters</b> {children}</p>;
+  return <details className="sx-why" open={fold}><summary>Why it matters</summary><p>{children}</p></details>;
+}
+
 /** A pack section: the white rounded panel, the serif title with its (i), the line under it, and Hide / Show when `hide` names it. */
 export function Section({ id, title, help, how, sub, why, hide, right, children }: { id: string; title: string; help?: string; how?: string; sub?: ReactNode; why?: ReactNode; hide?: boolean; right?: ReactNode; children: ReactNode }) {
   const body = (
     <section className="sp-sec" aria-labelledby={id}>
       <div className="sp-sec-h"><div><h2 id={id}>{title}{help && <Tip text={help} how={how} label={`About “${title}”`} />}</h2>{sub && <p className="sp-sub">{sub}</p>}</div>{right}</div>
-      {why && <p className="sp-why"><b>Why it matters</b> {why}</p>}
+      {why && <Why>{why}</Why>}
       {children}
     </section>
   );

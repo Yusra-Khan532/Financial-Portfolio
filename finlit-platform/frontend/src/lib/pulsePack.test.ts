@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import board from "./__fixtures__/pulse-board-6nov.json";
 import type { Board, GroupRow } from "./sectors";
-import { BOX, byState, headline, isEarly, keyOf, matrix, matrixCards, meansForYou, risingOf, short, tableCards, toCsv, todayCards } from "./pulsePack";
+import { BOX, byState, headline, isEarly, keyOf, matrix, matrixCards, meansForYou, risingOf, short, tableCards, todayCards } from "./pulsePack";
 
 const b = board as unknown as Board;
 const rows = b.rows as GroupRow[];
@@ -76,11 +76,6 @@ describe("Full table (pack 06)", () => {
     expect(c[0]).toEqual({ kind: "good", title: "Breadth is improving fast", text: "32 groups now have more than half their stocks above the short trend. A week ago the market was in a broad sell-off." });
     // the pack's 29 counts the four industries at exactly 50%, so the words say "half or fewer" (the pack's "fewer than half" would be 25)
     expect(c[1].text).toBe("In 29 of 38 groups half or fewer of the stocks are above their longer trend. Bounces need time to become uptrends.");
-  });
-  it("downloads every industry as a CSV with a header line", () => {
-    const csv = toCsv(rows).split("\n");
-    expect(csv.length).toBe(39); expect(csv[0]).toMatch(/^Industry,State,Stocks counted/);
-    expect(csv.find((l) => l.startsWith("Finance,"))).toMatch(/^Finance,Bouncing back after a crash,67,86.6,67.2,44.8,10.1,/);
   });
 });
 

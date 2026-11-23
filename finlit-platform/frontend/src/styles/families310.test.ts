@@ -126,8 +126,9 @@ describe("family 4: markets, results and news (task #310 F, pages/04)", () => {
 
   it("Sector Pulse's closed phone rows carry live figures where the section has them", () => {
     const sp = read("pages/SectorPulse.tsx");
-    for (const id of ["bystate", "standouts", "counted"]) expect(sp).toContain(`line={foldLine.${id}}`);
-    expect(sp).toMatch(/groupsN\(b\.rows\.length\)\} with a reading/);
+    // task #333 (file 30): By state now sits in the "All" box; the closed rows on every width are Standout stocks and Stocks counted, each with its live line
+    for (const id of ["standouts", "counted"]) expect(sp).toContain(`line={foldLine.${id}}`);
+    expect(sp).toMatch(/<SxFold id="sx-standouts"/);
   });
 });
 

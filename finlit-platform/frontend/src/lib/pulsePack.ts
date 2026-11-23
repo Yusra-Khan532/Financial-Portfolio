@@ -33,7 +33,7 @@ export const STATE_HELP: Record<StateKey, string> = Object.fromEntries((Object.k
 export const short = (name: string) => nseName(name);
 
 /** A count of Sector Pulse / Rotation groups, which mix NSE industries and sector groups, never called "industries" (task #192, T9: no count mixes levels). */
-export const groupsN = (n: number) => `${n} ${n === 1 ? "group" : "groups"}`;
+export const groupsN = (n: number) => tw(`${n} ${n === 1 ? "group" : "groups"}`);   // "19 sectors" in the Sectors view (task #333)
 /** Where each of NSE's 59 industries is on Sector Pulse (task #192, T5: "accounts for all 59 industries"): its own group, inside a sector group, too small on its own, or
  *  inside a too-small sector group (which the board names without its industries: "Services" holds Engineering Services and Transport Infrastructure). `nse`: NSE's
  *  industries with their sector and listed companies (GET /api/taxonomy). */
@@ -48,6 +48,10 @@ export function accountFor(b: Pick<Board, "rows" | "too_few_stocks">, nse: { ind
     .map((i) => ({ industry: i.industry, companies: i.companies ?? null }));
   const placed = own.size + inSector.size + fewInd.size + Object.values(inside).reduce((s, v) => s + v.length, 0);
   const sectorGroups = b.rows.filter((r) => r.kind === "sector").length;
+  if (b.rows.length && b.rows.every((r) => r.kind === "sector")) {   // the Sectors view (task #333, file 30): the 22 sectors, then the 59 industries they hold
+    const sectors = new Set(nse.map((i) => i.sector && k(i.sector)).filter(Boolean)).size, few = (b.too_few_stocks ?? []).length;
+    return { inside, placed, line: `All ${sectors} NSE sectors: ${b.rows.length} with a reading and ${few} too small for one. Between them they hold all ${nse.length} NSE industries.` };
+  }
   const line = tw(`All ${nse.length} NSE industries: ${own.size} with a reading of their own, ${inSector.size} read together inside ${sectorGroups} sector ${sectorGroups === 1 ? "group" : "groups"}, `) +
     `${fewInd.size} too small on their own and ${placed - own.size - inSector.size - fewInd.size} inside ${smallSectors.length} too-small sector ${smallSectors.length === 1 ? "group" : "groups"}.`;
   return { inside, placed, line };
@@ -114,7 +118,7 @@ const plural = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? o
 const list = (xs: string[]) => (xs.length <= 1 ? xs.join("") : xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1]);
 
 /** The headline sentence and the line under it (pack: "The sell-off is easing. 15 of 38 industries are bouncing back; a week ago just 1 was. None has most of its stocks rising together yet."). */
-export function headline(rows: GroupRow[], _now: Record<StateKey, number> | null, week: Record<StateKey, number> | null): { lead: string; rest: string; sub: string | null } {
+export function headline(rows: GroupRow[], _now: Record<StateKey, number> | null, week: Record<StateKey, number> | null): { lead: string; rest: string; sub: string | null; tone: "bad" | "watch" | "good" } {
   const n = rows.length, cnt = (k: StateKey) => rows.filter((r) => keyOf(r) === k).length;
   const b = cnt("crash") + cnt("bouncing"), sold = cnt("sold_off"), rise = cnt("rising"), lose = cnt("losing");
   const bWeek = week ? week.crash + week.bouncing : null, sWeek = week ? week.sold_off : null;
@@ -127,7 +131,9 @@ export function headline(rows: GroupRow[], _now: Record<StateKey, number> | null
   const bounce = `${b} of ${n} groups ${b === 1 ? "is" : "are"} bouncing back` + (bWeek != null ? `; a week ago ${bWeek === 1 ? "just 1 was" : bWeek === 0 ? "none was" : `${bWeek} were`}` : "") + ".";
   const together = rise === 0 ? " None has most of its stocks rising together yet." : ` ${plural(rise, "group has", "groups have")} most of ${rise === 1 ? "its" : "their"} stocks rising together.`;
   const sub = sWeek != null ? `Sold off: ${plural(sWeek, "group", "groups")} a week ago, ${sold} today.` : lose ? `Losing steam: ${lose} today.` : null;
-  return { lead, rest: " " + bounce + together, sub };
+  // task #333 (fix 2): the headline chip is red when selling is spreading, green when rises or bounces are spreading, amber when the picture is shifting
+  const tone = lead === "The selling is spreading." ? "bad" : lead === "A mixed picture." ? "watch" : "good";
+  return { lead, rest: " " + bounce + together, sub, tone };
 }
 
 /** The four cards beside the squares (pack 05: good sign, watch out, insight, warning). */
@@ -152,6 +158,18 @@ export function todayCards(rows: GroupRow[]): Card[] {
   if (lose.length) out.push({ kind: "warning", title: `${plural(lose.length, "group is", "groups are")} losing steam`, text: `${list(lose.map((r) => short(r.name)))}: fewer of ${lose.length === 1 ? "its" : "their"} stocks are still rising.` });
   else if (by("sold_off").length * 2 >= rows.length) out.push({ kind: "warning", title: `${by("sold_off").length} of ${groupsN(rows.length)} are sold off`, text: "Most groups have most of their stocks below their trend, with no broad bounce yet." });
   return out.slice(0, 4);
+}
+
+/** Task #333 (file 30): the three callouts kept under "Today in one minute": the Good sign, the Warning, and "N still marked Sold off" (moved up from the map), which says
+ *  why a group can read Sold off while many of its stocks are rising. A box that is not there today is left out. */
+export function todayThree(rows: GroupRow[]): Card[] {
+  const all = todayCards(rows), out: Card[] = [];
+  const good = all.find((c) => c.kind === "good"), warn = all.find((c) => c.kind === "warning");
+  if (good) out.push(good);
+  if (warn) out.push(warn);
+  const soldRising = rows.filter((r) => keyOf(r) === "sold_off" && (r.breadth?.above_20 ?? 0) >= 50).length;
+  out.push({ kind: "watch", title: `${soldRising} still marked Sold off`, text: "Half or more of their stocks are rising, but the state has not changed yet; it changes more slowly than the count." });
+  return out;
 }
 
 // ------------------------------------------------------------------------------------------------ "How your industries are doing"
@@ -240,7 +258,7 @@ export const newHigh = (f: Pick<LeaderFlag, "sessions_ago">) => (f.sessions_ago 
 /** The three cards above the full table (pack 06). */
 export function tableCards(rows: GroupRow[], week: Record<StateKey, number> | null): Card[] {
   const shortUp = rows.filter((r) => (r.breadth.above_9 ?? 0) > 50).length, longDown = rows.filter((r) => (r.breadth.above_50 ?? 100) <= 50).length;   // half or fewer (four industries sit at exactly 50%: the pack counts them)
-  const out: Card[] = [{ kind: "good", title: shortUp * 2 >= rows.length ? "Breadth is improving fast" : "Breadth is still narrow",
+  const out: Card[] = [{ kind: shortUp * 2 >= rows.length ? "good" : "watch", title: shortUp * 2 >= rows.length ? "Breadth is improving fast" : "Breadth is still narrow",   // task #333: no "Good sign" on a box with no good news
     text: `${groupsN(shortUp)} now have more than half their stocks above the short trend.${week && week.sold_off * 2 >= rows.length ? " A week ago the market was in a broad sell-off." : ""}` }];
   if (longDown) out.push({ kind: "watch", title: "The longer trend has not turned", text: `In ${longDown} of ${groupsN(rows.length)} half or fewer of the stocks are above their longer trend. Bounces need time to become uptrends.` });
   const crash = rows.filter((r) => keyOf(r) === "crash" && r.held_up != null).sort((a, b) => (a.held_up ?? 100) - (b.held_up ?? 100)).slice(0, 2);
@@ -256,13 +274,6 @@ export function inTableFilter(r: GroupRow, f: TableFilter, mine: Set<string>): b
   if (f === "standouts") return (r.leader_flags ?? 0) > 0;
   if (f === "yours") return mine.has(r.slug);
   return true;
-}
-/** The full table as a CSV, one line per industry, the figures as shown. */
-export function toCsv(rows: GroupRow[]): string {
-  const head = [tw("Industry"), "State", "Stocks counted", "Above short trend %", "Above medium trend %", "Above longer trend %", "Below 1-year high %", "Held up %", "Last bounce", "Standout stocks", "Box", "Rank"];
-  const q = (v: unknown) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-  return [head, ...rows.map((r) => [r.name, WORD[keyOf(r)], r.stocks_counted, r.breadth.above_9, r.breadth.above_20, r.breadth.above_50, r.index_vs_52w_high == null ? "" : Math.abs(r.index_vs_52w_high), r.held_up ?? "",
-    bouncedShort(r) ?? "", r.leader_flags ?? "", r.rotation?.corner_name ?? "", r.rotation?.rank ?? ""])].map((l) => l.map(q).join(",")).join("\n");
 }
 export const boardDateLine = (b: Board) => b.date_label ?? b.date;
 
@@ -288,7 +299,7 @@ export function fridayCards(h: SectorHistory): Card[] {
   const turned = h.groups.filter((g) => bounceSet.has(g.states[z]) && !bounceSet.has(g.states[a])).length;
   const changed = h.groups.filter((g) => g.states[z] && g.states[a] && g.states[z] !== g.states[a]);
   const fromSold = changed.filter((g) => g.states[a] === "sold_off").length;
-  out.push({ kind: "good", title: `${turned} ${turned === 1 ? "group" : "groups"} turned to a bounce this week`,
+  out.push({ kind: turned ? "good" : "watch", title: `${turned} ${turned === 1 ? "group" : "groups"} turned to a bounce this week`,
     text: `${changed.length} of ${total} changed state since ${dayMon(h.dates[a])}${fromSold * 2 > changed.length ? "; most of them came out of a long sell-off" : ""}.` });
   let best = { name: "", run: 0 };
   for (const g of h.groups) {

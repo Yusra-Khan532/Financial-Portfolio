@@ -33,6 +33,14 @@ describe("all 59 industries accounted for (T5)", () => {
   });
 });
 
+describe("task #333: the Sectors view footnote counts sectors, then the industries they hold", () => {
+  it("says 22 sectors: 19 with a reading and 3 too small, holding all 59 industries", () => {
+    const b = { rows: [row("Power", "sector", ["Power"]), row("Realty", "sector", ["Realty"])], too_few_stocks: [{ name: "Utilities", slug: "utilities", kind: "sector", stocks_counted: 6 }] } as unknown as Board;
+    const nse = [{ industry: "Power", sector: "Power" }, { industry: "Realty", sector: "Realty" }, { industry: "Other Utilities", sector: "Utilities" }, { industry: "Gas", sector: "Utilities" }];
+    expect(accountFor(b, nse).line).toBe("All 3 NSE sectors: 2 with a reading and 1 too small for one. Between them they hold all 4 NSE industries.");
+  });
+});
+
 describe("a sector group's page (P16)", () => {
   it("calls itself a sector and names what the rank is out of", () => {
     expect(unitOf({ kind: "sector" } as never)).toBe("sector");

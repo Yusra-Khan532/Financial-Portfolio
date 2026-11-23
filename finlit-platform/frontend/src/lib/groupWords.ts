@@ -14,7 +14,7 @@ export function tw(s: string): string {
 }
 
 export function toSectors(s: string): string {
-  if (!s || !/industr/i.test(s)) return s;
+  if (!s || !/industr|group/i.test(s)) return s;
   const kept: string[] = [];
   let x = s.replace(/\baverage (industry|group)\b/gi, (m) => { kept.push(m); return `\u0001${kept.length - 1}\u0002`; });
   x = x.replace(/\bindustry (or|and) sector groups?\b/gi, (m) => (m[0] === "I" ? "Sector" : "sector"))           // "an industry or sector group" -> "a sector"
@@ -22,7 +22,11 @@ export function toSectors(s: string): string {
     .replace(/\bINDUSTRIES\b/g, "SECTORS").replace(/\bINDUSTRY\b/g, "SECTOR")
     .replace(/\bIndustries\b/g, "Sectors").replace(/\bIndustry\b/g, "Sector")
     .replace(/\bindustries\b/g, "sectors").replace(/\bindustry\b/g, "sector")
-    .replace(/\ba sector or sector\b/g, "a sector").replace(/\bsector and sector\b/g, "sector");
+    .replace(/\ba sector or sector\b/g, "a sector").replace(/\bsector and sector\b/g, "sector")
+    // task #333 (file 30): in the Sectors view every group is a sector, so "groups" and "sectors" are never used for the same thing ("2 of 19 sectors")
+    .replace(/\b(sector|Sector) (group|Group)(s?)\b/g, (_m, a: string, _g: string, pl: string) => a + (pl ? "s" : ""))
+    .replace(/\bGroups\b/g, "Sectors").replace(/\bGroup\b/g, "Sector").replace(/\bgroups\b/g, "sectors").replace(/\bgroup\b/g, "sector")
+    .replace(/\bsectors? sectors\b/g, "sectors").replace(/\bsector sector\b/g, "sector");
   return x.replace(/\u0001(\d+)\u0002/g, (_m, i: string) => kept[Number(i)]);
 }
 
