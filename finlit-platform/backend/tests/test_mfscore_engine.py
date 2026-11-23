@@ -419,3 +419,28 @@ async def test_the_etf_list_has_no_score_order(store, monkeypatch):
             assert r.status_code == 200 and r.headers["cache-control"].startswith("public"), plan         # no score order and no plan check: it is the plain list
             assert [i["symbol"] for i in r.json()["items"]] == [i["symbol"] for i in plain.json()["items"]], plan
             assert "final" not in r.text                                                                   # the list carries no score at all
+
+
+async def test_the_screener_score_filters_are_gold_only_and_private(store, monkeypatch):
+    """Task #350: filtering the fund list (and the screener's counts) by the Mutual Fund Score says what the score says: Gold only, never shared-cached."""
+    from finlit import mf
+    app = FastAPI()
+    app.include_router(score_api.router)
+    app.include_router(mf.router)
+    app.state.store = store
+    from finlit.auth.service import Ctx
+    ctx = {"v": Ctx(user_id="u", plan="basic")}
+
+    async def cur(request):
+        return ctx["v"]
+    monkeypatch.setattr(score_api, "current", cur)
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+        for url in ("/api/mf?sc=total:65:80", "/api/mf?sc=risk:70:100", "/api/mf/filters?screen=true&sc=total:65:80"):
+            r = await c.get(url)
+            assert r.status_code == 403 and r.json()["error"]["code"] == "plan_required" if isinstance(r.json().get("error"), dict) else r.status_code == 403, url
+        assert (await c.get("/api/mf")).status_code == 200                 # without a score filter nothing changes
+        ctx["v"] = Ctx(user_id="u", plan="gold")
+        for url in ("/api/mf?sc=total:65:80&sc=risk:70:100", "/api/mf/filters?screen=true&sc=total:65:80"):
+            r = await c.get(url)
+            assert r.status_code == 200 and r.headers["cache-control"] == "private, no-store", (url, r.text[:200])
+        assert (await c.get("/api/mf?sc=perf:55:100")).status_code == 400   # a part takes its band edges only
