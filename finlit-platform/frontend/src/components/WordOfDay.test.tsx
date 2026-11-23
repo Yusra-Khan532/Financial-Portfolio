@@ -137,3 +137,27 @@ describe("the dashboard's Your bookmark (checklists 6 and 7)", () => {
     expect(within(items[0]).getByRole("link").textContent).toBe(TERMS[1].term);
   });
 });
+
+describe("Word of the Day formula as a fraction (owner's screenshot of 23 Nov: Inflation)", () => {
+  it("draws 'a ÷ b' as a over b, drops the brackets that wrap a whole top part, and keeps the other operators between the terms", async () => {
+    const { fractionTerms, unwrapParens } = await import("./WordOfDayPanel");
+    expect(unwrapParens("(CPI now − CPI a year ago)")).toBe("CPI now − CPI a year ago");
+    expect(unwrapParens("(a) × (b)")).toBe("(a) × (b)");
+    expect(unwrapParens("EPS")).toBe("EPS");
+    expect(fractionTerms(["(CPI now − CPI a year ago)", "CPI a year ago", "100"], ["÷", "×"]))
+      .toEqual({ terms: [{ num: "CPI now − CPI a year ago", den: "CPI a year ago" }, { num: "100" }], ops: ["×"] });
+    expect(fractionTerms(["Net margin", "Asset turnover"], ["×"])).toEqual({ terms: [{ num: "Net margin" }, { num: "Asset turnover" }], ops: ["×"] });
+    expect(fractionTerms(["a", "b", "c"], ["÷", "÷"])).toEqual({ terms: [{ num: "a", den: "b" }, { num: "c" }], ops: ["÷"] });
+  });
+  it("renders the Inflation formula as one fraction and × 100", () => {
+    const t = { ...withFormula, formula: "Inflation % = (CPI now − CPI a year ago) ÷ CPI a year ago × 100" };
+    render(<MemoryRouter><WordPanel term={t} onClose={() => undefined} /></MemoryRouter>);
+    const dlg = screen.getByRole("dialog", { name: "FinLit Word of the Day" });
+    const frac = dlg.querySelector(".wod-fx-frac")!;
+    expect([...frac.querySelectorAll(".wod-fx-fn")].map((e) => e.textContent)).toEqual(["CPI now − CPI a year ago", "CPI a year ago"]);
+    expect([...dlg.querySelectorAll(".wod-fx-pill")].map((e) => e.textContent)).toEqual(["100"]);
+    expect(frac.querySelector(".wod-fx-bar")).not.toBeNull();
+    expect([...dlg.querySelectorAll(".wod-fx-op")].map((e) => e.textContent)).toEqual(["×"]);
+    expect(dlg.querySelector(".wod-fx-row")!.textContent).toBe("Inflation % =CPI now − CPI a year agoCPI a year ago×100");
+  });
+});

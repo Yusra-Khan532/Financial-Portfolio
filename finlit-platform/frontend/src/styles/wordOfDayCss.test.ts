@@ -34,3 +34,14 @@ describe("Word of the Day panel has an edge of its own (task #335)", () => {
     expect(css).toMatch(/\.wod-panel \{ top: auto;[^}]*border-bottom: 0;/);
   });
 });
+
+describe("Word of the Day formula: pills sized to their words, a division drawn as a fraction (owner's screenshot of 23 Nov)", () => {
+  it("no pill or part takes an equal share of the line (the rule that squeezed '(CPI now − CPI a year ago)' into four lines is gone)", () => {
+    for (const r of rules.filter((x) => /\.wod-fx/.test(x.sel))) expect(r.body, r.sel).not.toMatch(/flex:\s*1\b|flex:\s*1 1 0/);
+    expect(css).not.toMatch(/wod-fx-row--few/);
+  });
+  it("a fraction stacks its top and bottom with a full-width line between them", () => {
+    expect(rules.find((r) => r.sel === ".wod-fx-frac")!.body).toMatch(/flex-direction:\s*column/);
+    expect(rules.find((r) => r.sel === ".wod-fx-bar")!.body).toMatch(/align-self:\s*stretch[\s\S]*border-top:\s*2px solid var\(--text\)/);
+  });
+});
