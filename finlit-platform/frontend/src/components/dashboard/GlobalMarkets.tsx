@@ -124,7 +124,7 @@ function Spark({ line }: { line: [string, number][] }) {
 }
 
 const avgOf = (rows: GmRow[]) => { const d1s = rows.filter((r) => r.last != null).map((r) => r.d1).filter((v): v is number => v != null); return { avg: d1s.length ? d1s.reduce((a, b) => a + b, 0) / d1s.length : null, n: d1s.length }; };
-const short = (r: GmRow) => r.label.replace(/ \(.*\)$/, "").replace("Rupee per US dollar", "Rupee").replace("US 10-year yield", "US 10Y");
+const short = (r: GmRow) => r.label.replace(/ \(.*\)$/, "").replace("Rupee per US dollar", "Rupee").replace("US 10-year yield", "US 10Y").replace("Brent crude", "Brent");   // task #316 rework: fits a page tile
 /** Task #316: a region's 1-day summary in the Region dropdown (the tile's figure as text). */
 export function regionLine(g: string, rows: GmRow[]): string {
   if (INDEX_GROUPS.has(g)) { const { avg } = avgOf(rows); return avg == null ? "No data yet" : `${move(avg, "pts")} average 1D`; }
