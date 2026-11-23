@@ -6,6 +6,7 @@ import { useSearchParams } from "react-router";
 import { useDocTitle } from "../lib/title";
 import { groupsN, groupsParen, groupsSplit } from "../lib/pulsePack";
 import { PulseGuide } from "../components/sectors/pack/Guide";
+import { PhoneFold } from "../components/PhoneFold";
 import { SxBox, SxFold, SxNav } from "../components/sectors/pack/PulseLayout";
 import { InsideSector, PriceVsResults, WhatNext } from "../components/sectors/pack/PulseChecks";
 import { MoodWeeks, SectorMap } from "../components/sectors/pack/PulseMap";
@@ -82,17 +83,24 @@ export function SectorPulsePage() {
         <WhyFold.Provider value={firstVisit}>
           <TodayMinute b={b} h={h} mine={mine} />
           <YourIndustries b={b} h={h} symbols={symbols} signedIn={!!user} />
+          {/* task #333 follow-up: on a phone (860 px and under) the sections after the second start closed, as task #310 fix 6 had them; the section bar opens one */}
+          <PhoneFold page="sectors" id="all" title={allLabel} line="By state · Map · Over time">
           <SxBox id="sx-all" store="finlit-sx-box-all" param="tab" label={allLabel} sub="3 ways to look · press one" tabs={[
             { key: "state", label: "By state", content: <ByState b={b} mine={mine} /> },
             { key: "map", label: "Map", content: mq.data ? <SectorMap m={mq.data} b={b} mine={mine} /> : <div className="sp-sec"><p className="sp-empty">{mq.isLoading ? "Loading the map…" : tw("The map is not available right now.")}</p></div> },
             { key: "time", label: "Over time", content: h ? <MoodWeeks h={h} /> : <div className="sp-sec"><p className="sp-empty">{hq.isLoading ? "Loading the history…" : "The history is not available right now."}</p></div> },
           ]} />
+          </PhoneFold>
+          <PhoneFold page="sectors" id="chk" title="Three checks on the price picture" line={tw("Against other industries · Against results · What happened next")}>
           <SxBox id="sx-chk" store="finlit-sx-box-chk" label="Three checks on the price picture" sub="press one" tabs={[
             { key: "others", label: tw("Against other industries"), content: <Momentum b={b} mine={mine} /> },
             { key: "results", label: "Against results", isNew: true, content: <PriceVsResults b={b} mine={mine} /> },
             { key: "next", label: "What happened next", isNew: true, content: <div><Cycle b={b} /><WhatNext /></div> },
           ]} />
+          </PhoneFold>
+          <PhoneFold page="sectors" id="inside" title={tw("Inside an industry")} line={tw("Its 12 strongest stocks, with FinLit Prism")}>
           <InsideSector b={b} mine={mine} symbols={symbols} />
+          </PhoneFold>
           <SxFold id="sx-standouts" title={tw("Standout stocks in weak industries")} line={foldLine.standouts}><Standouts b={b} mine={mine} /></SxFold>
           <SxFold id="sx-counted" title="Which stocks are counted, and what is too small for a reading" line={foldLine.counted}><CountedAndSmall b={b} /></SxFold>
           <Words line="Every term on this page, in plain English." />
