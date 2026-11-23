@@ -64,7 +64,7 @@ function historyLoading(items: FundRow[]): boolean {
 function NoteCard({ title, short, children }: { title: string; short: React.ReactNode; children: React.ReactNode }) {
   return (
     <li className="mf-note-card">
-      <h3>{title}</h3>
+      <h4>{title}</h4>
       <p>{short}</p>
       <details><summary>Read more</summary><div className="mf-note-full">{children}</div></details>
     </li>
@@ -75,23 +75,34 @@ function Legend({ hidden, facts }: { hidden: number | null; facts?: { source?: s
   return (
     <section className="mf-legend" aria-labelledby="mf-legend-h">
       <h2 id="mf-legend-h">How to read this table</h2>
-      <ul className="mf-note-cards">
-        <NoteCard title="Returns" short={<>1 year is the total change in NAV; 3 and 5 years are yearly rates. SIP returns assume the same amount invested at each month-end.</>}>
+      {/* task #341 (prompt section 15): the same nine cards and their full text, in three groups */}
+      <div className="mf-note-groups">
+        <section className="mf-note-group" aria-labelledby="mf-ng-1"><h3 className="mf-ng-h" id="mf-ng-1"><i aria-hidden="true">1</i>Understanding returns</h3>
+        <ul className="mf-note-cards">
+          <NoteCard title="Returns" short={<>1 year is the total change in NAV; 3 and 5 years are yearly rates. SIP returns assume the same amount invested at each month-end.</>}>
           <p><b>1 year</b> is the total change in NAV over the year; <b>3 years</b> and <b>5 years</b> are yearly rates (<GTerm id="cagr-compound-annual-growth-rate">CAGR</GTerm>), not totals.
             <b> SIP returns</b> are the yearly rate (XIRR) of putting the same amount in every month for the last 3 or 5 years: one instalment at the last NAV of each month, everything valued at the latest NAV. A scheme without a month-end NAV for every one of those months shows a dash.
             Returns are worked out for <GTerm id="growth-option">Growth</GTerm> options only (<GTerm id="idcw-income-distribution-cum-capital-withdrawal">IDCW</GTerm> payouts change the NAV). Compare <GTerm id="direct-plan">Direct</GTerm> with Direct and <GTerm id="regular-plan">Regular</GTerm> with Regular.</p>
         </NoteCard>
-        <NoteCard title="Fund size and expense ratio" short="Fund size is assets under management from AMFI. Expense ratio is the plan's yearly cost from AMFI's TER file.">
-          <p><b>Fund size</b> is AMFI's average assets under management for the latest quarter, all plans of the scheme together (where AMFI lists none, the fund house's month-end net assets; the tooltip says which). <b>Expense ratio</b> is the plan's own total expense ratio from AMFI's latest file, percent a year.</p>
-        </NoteCard>
-        <NoteCard title="Mutual Fund Score" short="The fund's score, 0 to 100, from its NAV history, costs and holdings. It describes the past; it is not a forecast.">
-          <p><b>Mutual Fund Score</b> (Gold) rates each fund from 0 to 100, with its label. {MF_SCORE_COMPLIANCE} <Link to={MF_METHOD_URL}>What the score means</Link>.</p>
-        </NoteCard>
-        <NoteCard title="Return and cost bands" short="The small word under a return or an expense ratio places it in a band. Compare a fund with its own category.">
+          <NoteCard title="Return and cost bands" short="The small word under a return or an expense ratio places it in a band. Compare a fund with its own category.">
           <p><b>Return and cost bands.</b> The small word under a return places it in a band: for 1 year, Negative, 0–8%, 8–15% or Above 15%; for 3 and 5 years (yearly rates), Below 8%, 8–12%, 12–15% or Above 15%. Under an expense ratio it says Low, Moderate or High against the median of the same category and plan (20% or more under or over it).
             These are screening bands, not performance standards: equity, debt and hybrid funds need different yardsticks, so compare a fund with its own category. Funds younger than the period show <b>Insufficient history</b> rather than being left out. A fund's benchmark return is not shown yet because AMFI does not put it in the NAV files.</p>
         </NoteCard>
-        <NoteCard title="Fund size bands" short="Very large, Large, Medium, Small and Very small, by assets under management. Size is not a measure of quality.">
+          <NoteCard title="ELSS" short="ELSS units are locked in for three years. The 80C tax deduction applies under the old tax regime only.">
+          <p>ELSS: up to ₹1.5 lakh a year put into ELSS can be deducted under Section 80C in the old tax regime; at the 30% slab plus 4% cess that saves up to ₹46,800 of tax. The new tax regime has no 80C deduction. ELSS units are locked in for three years.</p>
+        </NoteCard>
+        </ul></section>
+        <section className="mf-note-group" aria-labelledby="mf-ng-2"><h3 className="mf-ng-h" id="mf-ng-2"><i aria-hidden="true">2</i>Understanding Mutual Fund Scores</h3>
+        <ul className="mf-note-cards">
+          <NoteCard title="Mutual Fund Score" short="The fund's score, 0 to 100, from its NAV history, costs and holdings. It describes the past; it is not a forecast.">
+          <p><b>Mutual Fund Score</b> (Gold) rates each fund from 0 to 100, with its label. {MF_SCORE_COMPLIANCE} <Link to={MF_METHOD_URL}>What the score means</Link>.</p>
+        </NoteCard>
+          <NoteCard title="The 5-check checklist" short="Five plain checks against funds of the same category and plan. Each filled mark is one check passed.">
+          <p>Five plain checks, each against the active Growth options of the same category and plan:</p>
+          <ol>{CHECKS.map((c) => <li key={c.key}><b>{c.label}</b>: {c.rule}.</li>)}</ol>
+          <p>“3/5” means three checks passed out of five that could be worked out. A check counts only when the scheme has the figure and at least 3 schemes of its category have it too. It sums up past figures; it is not a rating, a ranking or a recommendation, and no star ratings are shown. A dash (—) anywhere means no figure; hover or tap it for the reason.</p>
+        </NoteCard>
+          <NoteCard title="Fund size bands" short="Very large, Large, Medium, Small and Very small, by assets under management. Size is not a measure of quality.">
           <div className="mf-bands">
             <p>The word under the fund size is only a way to read scale: a very small fund can be young or niche, a very large one is harder to move quickly. Size is not a measure of quality.</p>
             <table><caption className="sr-only">Fund size bands in rupees crore</caption>
@@ -99,22 +110,21 @@ function Legend({ hidden, facts }: { hidden: number | null; facts?: { source?: s
               <tbody>{AUM_BUCKETS.map((b, i) => <tr key={b.label}><td>{b.range}</td><td><span className={"mf-size s" + (i + 1)}><i aria-hidden="true" />{b.label}</span></td></tr>)}</tbody></table>
           </div>
         </NoteCard>
-        <NoteCard title="The 5-check checklist" short="Five plain checks against funds of the same category and plan. Each filled mark is one check passed.">
-          <p>Five plain checks, each against the active Growth options of the same category and plan:</p>
-          <ol>{CHECKS.map((c) => <li key={c.key}><b>{c.label}</b>: {c.rule}.</li>)}</ol>
-          <p>“3/5” means three checks passed out of five that could be worked out. A check counts only when the scheme has the figure and at least 3 schemes of its category have it too. It sums up past figures; it is not a rating, a ranking or a recommendation, and no star ratings are shown. A dash (—) anywhere means no figure; hover or tap it for the reason.</p>
+        </ul></section>
+        <section className="mf-note-group" aria-labelledby="mf-ng-3"><h3 className="mf-ng-h" id="mf-ng-3"><i aria-hidden="true">3</i>Fund data and methodology</h3>
+        <ul className="mf-note-cards">
+          <NoteCard title="Fund size and expense ratio" short="Fund size is assets under management from AMFI. Expense ratio is the plan's yearly cost from AMFI's TER file.">
+          <p><b>Fund size</b> is AMFI's average assets under management for the latest quarter, all plans of the scheme together (where AMFI lists none, the fund house's month-end net assets; the tooltip says which). <b>Expense ratio</b> is the plan's own total expense ratio from AMFI's latest file, percent a year.</p>
         </NoteCard>
-        <NoteCard title="ELSS" short="ELSS units are locked in for three years. The 80C tax deduction applies under the old tax regime only.">
-          <p>ELSS: up to ₹1.5 lakh a year put into ELSS can be deducted under Section 80C in the old tax regime; at the 30% slab plus 4% cess that saves up to ₹46,800 of tax. The new tax regime has no 80C deduction. ELSS units are locked in for three years.</p>
-        </NoteCard>
-        <NoteCard title="Older schemes" short={hidden ? <>{hidden.toLocaleString("en-IN")} schemes that stopped publishing NAVs are hidden. Tick “Include schemes that stopped publishing NAVs” to see them.</> : <>Schemes that stopped publishing NAVs are hidden unless you tick “Include schemes that stopped publishing NAVs”.</>}>
+          <NoteCard title="Older schemes" short={hidden ? <>{hidden.toLocaleString("en-IN")} schemes that stopped publishing NAVs are hidden. Tick “Include schemes that stopped publishing NAVs” to see them.</> : <>Schemes that stopped publishing NAVs are hidden unless you tick “Include schemes that stopped publishing NAVs”.</>}>
           <p>A scheme that has stopped publishing NAVs (merged, wound up or closed) stays on record but is hidden from the list by default, so the figures shown are for schemes still running. Tick “Include schemes that stopped publishing NAVs” above the table to see them too; they carry a “Stopped publishing” tag and no returns.</p>
         </NoteCard>
-        <NoteCard title="Source" short="AMFI NAV and TER files. Some fund houses are not listed yet.">
+          <NoteCard title="Source" short="AMFI NAV and TER files. Some fund houses are not listed yet.">
           <p>Source: {facts?.source || "AMFI (Association of Mutual Funds in India), official NAV files"}; expense ratios from AMFI's TER file; fund size from AMFI's quarterly AUM report or the fund house's month-end portfolio file.</p>
           {facts?.excludedAmcs && facts.excludedAmcs.length > 0 && <p>Some fund houses are not listed here: {facts.excludedAmcs.join(", ")}.</p>}
         </NoteCard>
-      </ul>
+        </ul></section>
+      </div>
     </section>
   );
 }
@@ -181,7 +191,7 @@ export function FundListPage() {
   return (
     <>
       {HEAD(title, "Funds in your chosen categories by returns, SIP returns, latest NAV, checklist and more.", [{ icon: "layers", value: t ? t.active.toLocaleString("en-IN") : null, label: "Active schemes" }, { icon: "line", value: t ? t.withHistory.toLocaleString("en-IN") : null, label: "With return history" }])}
-      <div className="wrap mf">
+      <div className="wrap mf mf-list">
         <CategoryCards q={q} onPick={(c) => set(cardOn(q, c) ? { cats: null, view: "" } : { tab: c.tab, cats: [c.key], view: "" })} onScore={showByScore} />{/* task #340: pressing the chosen card again clears it (every category of its tab) */}
         <Link className="evi-promo" to="/funds/insights">
           <span className="evi-promo-ic" aria-hidden="true"><Icon name="line" /></span>

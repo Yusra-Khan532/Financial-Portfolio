@@ -1,5 +1,6 @@
 /* Task #341 (23 Nov 2026, the team: "at start make it 3x2 columns", with the Mutual Funds refinement prompt and its HTML; PR A = prompt sections 8 and 9).
-   Loaded only by the Mutual funds page (pages/Funds.tsx) after mf.css, so no other page changes. Every label, figure and link stays as it was; only the
+   Loaded by the Mutual funds page (pages/Funds.tsx) after mf.css; every rule starts at .mf-list, the list page's own wrapper, so the other
+   mutual fund pages (which share .mf, and keep this sheet once it has loaded in a visit) never change. Every label, figure and link stays as it was; only the
    layout and spacing move. Sizes are the site's own type scale (styles/typescale.css: 12, 13, 14, 16, 20, 24 ...), the nearest step to each size the
    prompt names (its 11px becomes 12px, the smallest the site uses; 15px becomes 16px; 22px becomes 24px). Tokens only, so light and dark follow.
    Section 7 (the heading card) keeps the shared page header (page-header.css, task #310: every quick link the same second button), as on every page.
@@ -8,91 +9,114 @@
    - 9  the two tool cards (Fund industry trends, Fund score screener): about 70px tall, 36px icon, Open aligned right. */
 
 /* 8: the six category cards, 3 x 2 */
-.mf .mf-cats { margin-top: 24px; margin-bottom: 20px; }
+.mf-list .mf-cats { margin-top: 24px; margin-bottom: 20px; }
 @media (min-width: 1001px) {
-  .mf .mf-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 14px; }
+  .mf-list .mf-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 14px; }
 }
 @media (min-width: 761px) and (max-width: 1000px) {
-  .mf .mf-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 12px; }
+  .mf-list .mf-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 12px; }
 }
-.mf .mf-qcard { padding: 16px 16px 14px; row-gap: 4px; transition: border-color .15s, background-color .15s, box-shadow .15s; }
-.mf .mf-qcard:hover { transform: none; border-color: color-mix(in srgb, var(--gold) 45%, var(--border-strong)); }
-.mf .mf-qcard b { font-size: var(--fs-16); line-height: var(--lh-16); }
-.mf .mf-qcard > span.mf-qcount { font-size: var(--fs-12); }
-.mf .mf-qcard > span:not(.ci):not(.mf-qcount) { font-size: var(--fs-13); line-height: var(--lh-13); }
-.mf .mf-qscore { padding: 12px 16px 14px; gap: 8px; }
-.mf .mf-qscore .mf-qs-n { font-size: var(--fs-24); }
-.mf .mf-qscore .mf-qs-t, .mf .mf-qdist-l { font-size: var(--fs-12); }
-.mf .mf-qdist { height: 6px; }
-.mf .mf-qscore a { font-size: var(--fs-13); }
+.mf-list .mf-qcard { padding: 16px 16px 14px; row-gap: 4px; transition: border-color .15s, background-color .15s, box-shadow .15s; }
+.mf-list .mf-qcard:hover { transform: none; border-color: color-mix(in srgb, var(--gold) 45%, var(--border-strong)); }
+.mf-list .mf-qcard b { font-size: var(--fs-16); line-height: var(--lh-16); }
+.mf-list .mf-qcard > span.mf-qcount { font-size: var(--fs-12); }
+.mf-list .mf-qcard > span:not(.ci):not(.mf-qcount) { font-size: var(--fs-13); line-height: var(--lh-13); }
+.mf-list .mf-qscore { padding: 12px 16px 14px; gap: 8px; }
+.mf-list .mf-qscore .mf-qs-n { font-size: var(--fs-24); }
+.mf-list .mf-qscore .mf-qs-t, .mf-list .mf-qdist-l { font-size: var(--fs-12); }
+.mf-list .mf-qdist { height: 6px; }
+.mf-list .mf-qscore a { font-size: var(--fs-13); }
 
 /* 9: the two tool cards */
-.mf .evi-promo { padding: 14px 18px; min-height: 70px; gap: 14px; margin-bottom: 12px; transition: border-color .15s, background-color .15s; }
-.mf .evi-promo:hover { box-shadow: none; background: color-mix(in srgb, var(--s2) 60%, var(--s1)); }
-.mf .evi-promo-ic { width: 36px; height: 36px; } .mf .evi-promo-ic svg { width: 18px; height: 18px; }
-.mf .evi-promo-t { gap: 2px; } .mf .evi-promo-t b { font-size: var(--fs-14); } .mf .evi-promo-t small { font-size: var(--fs-13); line-height: var(--lh-13); }
-.mf .evi-promo-go { font-size: var(--fs-13); align-self: center; }
+.mf-list .evi-promo { padding: 14px 18px; min-height: 70px; gap: 14px; margin-bottom: 12px; transition: border-color .15s, background-color .15s; }
+.mf-list .evi-promo:hover { box-shadow: none; background: color-mix(in srgb, var(--s2) 60%, var(--s1)); }
+.mf-list .evi-promo-ic { width: 36px; height: 36px; } .mf-list .evi-promo-ic svg { width: 18px; height: 18px; }
+.mf-list .evi-promo-t { gap: 2px; } .mf-list .evi-promo-t b { font-size: var(--fs-14); } .mf-list .evi-promo-t small { font-size: var(--fs-13); line-height: var(--lh-13); }
+.mf-list .evi-promo-go { font-size: var(--fs-13); align-self: center; }
 
 /* 11 (PR B): the filters in two rows. Row 1: Search, Fund house, Plan, Option, each with its small label above (the labels were read to screen
    readers only, except Fund house). Row 2: Return range and "Include schemes that stopped publishing NAVs", under a hairline. Controls 38px. */
-.mf .mf-ctl { gap: 12px; padding: 16px 18px; }
-.mf .mf-fbar { align-items: end; gap: 12px 14px; }
-.mf .mf-search-w { display: grid; gap: 4px; flex: 1 1 280px; min-width: 0; }
-.mf .mf-fbar .mf-search { height: 38px; }
-@media (min-width: 761px) { .mf .mf-fbar .mf-search input { font-size: var(--fs-14); } }   /* phones keep 16px inputs (no iOS zoom) */
-.mf .mf-fbar .mf-pick-b { height: 38px; min-width: 190px; }
-.mf .mf-fbar .mf-seg-w { display: grid; gap: 4px; }
-.mf .mf-fbar .label { margin: 0; font: 600 var(--fs-12)/var(--lh-12) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-.mf .mf-fbar2 { align-items: center; padding-top: 12px; border-top: 1px solid var(--border); }
-.mf .mf-fbar2 .mf-stopck { flex-basis: auto; }
-.mf .mf-fbar2 .mf-rangebtn { min-height: 38px; }
+.mf-list .mf-ctl { gap: 12px; padding: 16px 18px; }
+.mf-list .mf-fbar { align-items: end; gap: 12px 14px; }
+.mf-list .mf-search-w { display: grid; gap: 4px; flex: 1 1 280px; min-width: 0; }
+.mf-list .mf-fbar .mf-search { height: 38px; }
+@media (min-width: 761px) { .mf-list .mf-fbar .mf-search input { font-size: var(--fs-14); } }   /* phones keep 16px inputs (no iOS zoom) */
+.mf-list .mf-fbar .mf-pick-b { height: 38px; min-width: 190px; }
+.mf-list .mf-fbar .mf-seg-w { display: grid; gap: 4px; }
+.mf-list .mf-fbar .label { margin: 0; font: 600 var(--fs-12)/var(--lh-12) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.mf-list .mf-fbar2 { align-items: center; padding-top: 12px; border-top: 1px solid var(--border); }
+.mf-list .mf-fbar2 .mf-stopck { flex-basis: auto; }
+.mf-list .mf-fbar2 .mf-rangebtn { min-height: 38px; }
 @media (max-width: 760px) {
-  .mf .mf-search-w { flex-basis: 100%; }
-  .mf .mf-fbar .mf-pick { flex: 1 1 100%; } .mf .mf-fbar .mf-pick-b { min-width: 0; }
+  .mf-list .mf-search-w { flex-basis: 100%; }
+  .mf-list .mf-fbar .mf-pick { flex: 1 1 100%; } .mf-list .mf-fbar .mf-pick-b { min-width: 0; }
 }
 
 /* 10 (PR B): the category tabs and chips. Tabs 40px; "Select All" on its own line with "N of M selected", a hairline under it; every chip the same
    height (38px), its tick and name centred, its count in a small tabular badge, long names wrapping inside the chip. */
-.mf .mf-tabs button { min-height: 40px; padding-inline: 16px; }
-.mf .mf-allrow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding-bottom: 10px; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
-.mf .mf-allrow .mf-all { margin: 0; }
-.mf .mf-alln { font-size: var(--fs-12); color: var(--muted); font-variant-numeric: tabular-nums; }
-.mf .mf-subgrid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px 10px; }
-.mf .mf-subgrid .mf-check { min-height: 38px; align-items: center; gap: 8px; padding: 6px 10px; line-height: var(--lh-13); font-size: var(--fs-13); }
-.mf .mf-subgrid .mf-check input { width: 16px; height: 16px; flex: none; }
-.mf .mf-subgrid .mf-check small { margin-left: auto; padding: 1px 7px; border-radius: var(--ui-r-pill); background: var(--s3); font-size: var(--fs-12); font-variant-numeric: tabular-nums; color: var(--muted); }
+.mf-list .mf-tabs button { min-height: 40px; padding-inline: 16px; }
+.mf-list .mf-allrow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding-bottom: 10px; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
+.mf-list .mf-allrow .mf-all { margin: 0; }
+.mf-list .mf-alln { font-size: var(--fs-12); color: var(--muted); font-variant-numeric: tabular-nums; }
+.mf-list .mf-subgrid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px 10px; }
+.mf-list .mf-subgrid .mf-check { min-height: 38px; align-items: center; gap: 8px; padding: 6px 10px; line-height: var(--lh-13); font-size: var(--fs-13); }
+.mf-list .mf-subgrid .mf-check input { width: 16px; height: 16px; flex: none; }
+.mf-list .mf-subgrid .mf-check small { margin-left: auto; padding: 1px 7px; border-radius: var(--ui-r-pill); background: var(--s3); font-size: var(--fs-12); font-variant-numeric: tabular-nums; color: var(--muted); }
 
 /* 12 (PR C): the summary tiles. One quiet surface for all six (the tinted blue, green, amber and teal backgrounds made the row colourful), equal
    heights; the Schemes count, a count rather than a performance figure, is set apart with a raised surface and a firmer edge. */
-.mf .mf-sum { grid-auto-rows: 1fr; gap: 12px; }
-.mf .mf-sc, .mf .mf-sc.t-blue, .mf .mf-sc.t-green, .mf .mf-sc.t-amber, .mf .mf-sc.t-teal, .mf .mf-sc.t-grey { background: var(--s1); box-shadow: none; padding: 14px 16px; gap: 4px; }
-.mf .mf-sum > .mf-sc:first-child { background: var(--s2); border-color: var(--border-strong); }
-.mf .mf-sc span { font-size: var(--fs-12); line-height: var(--lh-12); }
+.mf-list .mf-sum { grid-auto-rows: 1fr; gap: 12px; }
+.mf-list .mf-sc, .mf-list .mf-sc.t-blue, .mf-list .mf-sc.t-green, .mf-list .mf-sc.t-amber, .mf-list .mf-sc.t-teal, .mf-list .mf-sc.t-grey { background: var(--s1); box-shadow: none; padding: 14px 16px; gap: 4px; }
+.mf-list .mf-sum > .mf-sc:first-child { background: var(--s2); border-color: var(--border-strong); }
+.mf-list .mf-sc span { font-size: var(--fs-12); line-height: var(--lh-12); }
 
 /* 13 (PR C): "Order by" list + three quick buttons, 36px. */
-.mf .mf-pills { gap: 8px 10px; }
-.mf .mf-sortsel { display: inline-flex; align-items: center; gap: 8px; }
-.mf .mf-sortsel select { height: 36px; min-width: 220px; padding: 0 10px; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font: inherit; font-size: var(--fs-14); }
-.mf .mf-qsorts { display: inline-flex; flex-wrap: wrap; gap: 8px; padding-left: 10px; border-left: 1px solid var(--border); }
-.mf .mf-pills button { min-height: 36px; }
+.mf-list .mf-pills { gap: 8px 10px; }
+.mf-list .mf-sortsel { display: inline-flex; align-items: center; gap: 8px; }
+.mf-list .mf-sortsel select { height: 36px; min-width: 220px; padding: 0 10px; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); font: inherit; font-size: var(--fs-14); }
+.mf-list .mf-qsorts { display: inline-flex; flex-wrap: wrap; gap: 8px; padding-left: 10px; border-left: 1px solid var(--border); }
+.mf-list .mf-pills button { min-height: 36px; }
 @media (max-width: 760px) {
-  .mf .mf-sortsel { flex: 1 1 100%; } .mf .mf-sortsel select { flex: 1; min-width: 0; font-size: var(--fs-16); }
-  .mf .mf-qsorts { padding-left: 0; border-left: 0; }
+  .mf-list .mf-sortsel { flex: 1 1 100%; } .mf-list .mf-sortsel select { flex: 1; min-width: 0; font-size: var(--fs-16); }
+  .mf-list .mf-qsorts { padding-left: 0; border-left: 0; }
 }
 
 /* 14 (PR D): the scheme table.
    - The header stays in view while the list scrolls down: the sideways-scrolling box is also the box that scrolls down on a desktop (HScroll "tall",
      styles/frozen.css), as tall as the window; the Scheme corner stays above both the frozen column and the header. A phone keeps one page scroll.
    - The header on a raised surface; scheme names at most two lines (the full name on hover), so rows stay about 60-64px; figures at 13px. */
-.mf .tw-tall thead th, .mf .mf-table thead th:first-child { background: var(--s2); }
-.mf .tw-tall thead th:first-child { z-index: 5; }
-.mf .mf-table thead th { padding-top: 12px; padding-bottom: 12px; }
-.mf .mf-table .mf-nm > a { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-weight: 600; line-height: var(--lh-14); }
-.mf .mf-table td.num { font-size: var(--fs-13); }
-.mf .mf-table tbody tr:hover th.mf-name, .mf .mf-table tbody tr:hover td { background: color-mix(in srgb, var(--gold) 6%, var(--s1)); }
-@media (max-width: 760px) { .mf .tw.tw-tall { max-height: none; } }
+.mf-list .tw-tall thead th, .mf-list .mf-table thead th:first-child { background: var(--s2); }
+.mf-list .tw-tall thead th:first-child { z-index: 5; }
+.mf-list .mf-table thead th { padding-top: 12px; padding-bottom: 12px; }
+.mf-list .mf-table .mf-nm > a { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-weight: 600; line-height: var(--lh-14); }
+.mf-list .mf-table td.num { font-size: var(--fs-13); }
+.mf-list .mf-table tbody tr:hover th.mf-name, .mf-list .mf-table tbody tr:hover td { background: color-mix(in srgb, var(--gold) 6%, var(--s1)); }
+@media (max-width: 760px) { .mf-list .tw.tw-tall { max-height: none; } }
 
 /* pager: left the count, centre the pages, right per page (as before); 36px buttons, the current page clearly marked */
-.mf .mf-pages { display: inline-flex; gap: 6px; align-items: center; }
-.mf .mf-pages .btn { min-width: 36px; min-height: 36px; padding: 0 10px; justify-content: center; }
-.mf .mf-pages .btn[aria-current="page"] { background: var(--ui-on-bg); color: var(--ui-on-fg); border-color: var(--ui-on-bg); font-weight: 600; }
+.mf-list .mf-pages { display: inline-flex; gap: 6px; align-items: center; }
+.mf-list .mf-pages .btn { min-width: 36px; min-height: 36px; padding: 0 10px; justify-content: center; }
+.mf-list .mf-pages .btn[aria-current="page"] { background: var(--ui-on-bg); color: var(--ui-on-fg); border-color: var(--ui-on-bg); font-weight: 600; }
+
+/* 15 (PR E): "How to read this table": the same nine cards and their full text, in three numbered groups side by side (Understanding returns,
+   Understanding Mutual Fund Scores, Fund data and methodology); one column on a phone. Card titles are h4 under each group's h3. */
+.mf-list .mf-note-groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.mf-list .mf-note-group { padding: 14px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--s1); }
+.mf-list .mf-ng-h { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font: 600 var(--fs-12)/var(--lh-12) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--gain); }
+.mf-list .mf-ng-h i { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--border-strong); font-style: normal; letter-spacing: 0; color: var(--muted); }
+.mf-list .mf-note-group .mf-note-cards { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.mf-list .mf-note-card { background: var(--s2); }
+.mf-list .mf-note-card h4 { margin: 0 0 6px; font: 600 var(--fs-14)/var(--lh-14) var(--sans); color: var(--text); }
+.mf-list .mf-note-card > p { line-height: var(--lh-13); }
+@media (max-width: 1000px) { .mf-list .mf-note-groups { grid-template-columns: minmax(0, 1fr); } }
+
+/* 16 (PR E): the disclaimer and source: one framed block, the risk line and the disclaimer first, then a hairline, then the source, data date and
+   last update (the date line in the accent so it is easy to find), the fund houses not listed last. Wording unchanged. */
+.mf-list .mf-foot { margin-top: 24px; padding: 16px 20px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--s1); }
+.mf-list .mf-foot p { margin: 0 0 6px; font-size: var(--fs-13); line-height: var(--lh-13); }
+.mf-list .mf-foot p:nth-child(2) { padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
+.mf-list .mf-foot p:nth-child(3), .mf-list .mf-foot p.faint { font-size: var(--fs-12); color: var(--muted); }
+
+/* 17 (PR E): the page's questions follow 40-48px after the disclaimer (they sat 118px below it: the page's own bottom padding plus the FAQ's
+   margin). Only this page: the shared FAQ is not changed elsewhere. */
+.wrap.mf-list { padding-bottom: 8px; }

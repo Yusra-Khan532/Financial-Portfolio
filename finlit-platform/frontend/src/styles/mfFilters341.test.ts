@@ -17,12 +17,12 @@ describe("Mutual funds filters in two rows (task #341 PR B)", () => {
   });
   it("Plan and Option show their label (not only to screen readers); 38px controls; phones keep 16px inputs", () => {
     expect(tsx).toContain('<span className="label" id={`seg-${label}`}>{label}</span>');
-    expect(css).toMatch(/\.mf \.mf-fbar \.mf-search \{ height: 38px; \}/);
-    expect(css).toMatch(/@media \(min-width: 761px\) \{ \.mf \.mf-fbar \.mf-search input \{ font-size: var\(--fs-14\); \} \}/);
+    expect(css).toMatch(/\.mf-list \.mf-fbar \.mf-search \{ height: 38px; \}/);
+    expect(css).toMatch(/@media \(min-width: 761px\) \{ \.mf-list \.mf-fbar \.mf-search input \{ font-size: var\(--fs-14\); \} \}/);
   });
   it("section 10: Select All on its own line with how many are ticked; chips 38px, the same height", () => {
     expect(dash).toContain('<span className="mf-alln" aria-live="polite">{picked} of {n} selected</span>');
     expect(dash).toContain("picked={q.cats === null ? subs.length : subs.filter((s) => q.cats!.includes(s.key)).length}");
-    expect(css).toMatch(/\.mf \.mf-subgrid \.mf-check \{ min-height: 38px;/);
+    expect(css).toMatch(/\.mf-list \.mf-subgrid \.mf-check \{ min-height: 38px;/);
   });
 });
