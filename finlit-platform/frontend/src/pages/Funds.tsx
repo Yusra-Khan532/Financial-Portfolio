@@ -15,7 +15,7 @@ import {
 } from "../lib/mf";
 import { keyLabel, selectionTitle, tabLabel } from "../lib/mfCategories";
 import { ColumnPicker, Controls, Pager } from "../mf/Controls";
-import { CategoryCards, CategoryPicker } from "../mf/Dashboard";
+import { CategoryCards, CategoryPicker, cardOn } from "../mf/Dashboard";
 import { FundChart, SERIES_STYLE } from "../mf/FundChart";
 import { FundTable } from "../mf/FundTable";
 import { LoadingNotice, SortPills, SummaryCards } from "../mf/Summary";
@@ -181,7 +181,7 @@ export function FundListPage() {
     <>
       {HEAD(title, "Funds in your chosen categories by returns, SIP returns, latest NAV, checklist and more.", [{ icon: "layers", value: t ? t.active.toLocaleString("en-IN") : null, label: "Active schemes" }, { icon: "line", value: t ? t.withHistory.toLocaleString("en-IN") : null, label: "With return history" }])}
       <div className="wrap mf">
-        <CategoryCards q={q} onPick={(c) => set({ tab: c.tab, cats: [c.key], view: "" })} onScore={showByScore} />
+        <CategoryCards q={q} onPick={(c) => set(cardOn(q, c) ? { cats: null, view: "" } : { tab: c.tab, cats: [c.key], view: "" })} onScore={showByScore} />{/* task #340: pressing the chosen card again clears it (every category of its tab) */}
         <Link className="evi-promo" to="/funds/insights">
           <span className="evi-promo-ic" aria-hidden="true"><Icon name="line" /></span>
           <span className="evi-promo-t"><b>Fund industry trends <span className="evi-badge">Industry</span></b>
