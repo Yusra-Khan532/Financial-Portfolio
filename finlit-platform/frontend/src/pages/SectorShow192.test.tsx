@@ -130,7 +130,7 @@ describe("Sector Rotation: the same switch, the same yardstick", () => {
     expect(yard).toContain(`All ${M.rows.length} industry groups counted equally, as in the Industries view.`);
     expect(yard).toContain("how far a sector is ahead of (+) or behind (−) this average");
     expect(within(screen.getByRole("navigation", { name: "Sector pages" })).getByRole("link", { name: "Sector Pulse" }).getAttribute("href")).toBe("/sectors?show=sectors");
-    expect((screen.getByRole("combobox") as HTMLInputElement).placeholder).toBe("A sector, e.g. Healthcare");
+    expect((document.getElementById("sp-find-in") as HTMLInputElement).placeholder).toBe("A sector, e.g. Healthcare");
     expect(industryWords()).toEqual([]);
   });
   it("Industries brings back the industries' map and its own yardstick", () => {

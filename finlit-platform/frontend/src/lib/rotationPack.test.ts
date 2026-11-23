@@ -32,7 +32,7 @@ describe("Today in one minute", () => {
   it("has the pack's four cards", () => {
     const c = rotationTodayCards(M, mine, pulse);
     expect(c.map((x) => x.title)).toEqual(["Automobiles made the biggest jump", "The leaders are steady", "7 groups may change box next week", "Electrical Equipment is sliding fast"]);
-    expect(c[0].text).toBe("From Behind and slipping to Ahead and gaining in one week, and up 23 places in 4 weeks to rank 4. It beat the average group by +10.8% last month.");
+    expect(c[0].text).toBe("From Behind and slipping to Ahead and gaining in one week, and up 23 places in 4 weeks to rank 4. It beat the average group by 10.8% last month.");
     expect(c[1].text).toBe("Pharmaceuticals & Biotechnology, Petroleum Products and Aerospace & Defense take the top 3 places. Pharmaceuticals & Biotechnology has stayed in the top 8 for all of the last 26 weeks.");
     expect(c[2].text).toBe("Banks, Finance and Realty are among them, all moving towards gaining. It fits what Sector Pulse shows: their stocks have started rising.");
     expect(c[3].text).toBe("Down 21 places in 4 weeks to rank 32. IT - Services and Chemicals & Petrochemicals also fell more than 15 places.");

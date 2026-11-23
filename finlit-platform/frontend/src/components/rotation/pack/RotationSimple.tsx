@@ -1,48 +1,23 @@
 // Sector Rotation, Simple view, as the "FinLit final pages" pack draws it (docs/design/finlit-final-pages/08): How to read, Today in one minute, How your industries compare,
 // the map, Who is ahead, Changed box this week, May change box next week, Biggest rank moves, The four boxes, Words. Figures from GET /api/rotation; the words and the
 // choices from lib/rotationPack. Styles: styles/sectors-pack.css (sp-) and styles/rotation-pack.css (rp-). Describes how industries have done; never advice.
-import { Fragment, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
+import { playFrames, FOUR_SHOW } from "../../../lib/rotation332";
 import { Link } from "react-router";
-import { CoLogo } from "../../CoLogo";
 import { Cards, InsightCard, Scroll, Section, Tip, BoxChip, useShowAll } from "../../sectors/pack/Common";
 import { BOX, groupsN, short, type Card } from "../../../lib/pulsePack";
 import { mapGeometry, placeLabels, sparkPath, type RotationMap, type RotationRow } from "../../../lib/rotation";
 import type { GroupRow } from "../../../lib/sectors";
 import {
-  BOXES, BOX_HELP, BOX_MEANING, CYCLE, LEVEL, WATCH_NEXT, aheadCards, boxCounts, changeMeaning, lastMonth, mapCards, mayMoveMeaning, mayMoveRows, meansForYou, movedRows, nextBox,
-  pc, pt, pulseAgrees, rankMoveCards, ranked, rotationHeadline, rotationTodayCards, sixMonths, turned, yourRotationCards, type Agree, type Box,
+  BOXES, BOX_HELP, BOX_MEANING, CYCLE, LEVEL, WATCH_NEXT, aheadCards, changeMeaning, lastMonth, mapCards, mayMoveMeaning, mayMoveRows, movedRows, nextBox,
+  pc, pt, pulseAgrees, rankMoveCards, ranked, sixMonths, turned, type Agree, type Box,
 } from "../../../lib/rotationPack";
 import { gl, tw } from "../../../lib/groupWords";
 
 export const BOX_COLOUR: Record<Box, string> = { ahead_gaining: "#0F6B3A", ahead_slowing: "#8F5400", behind_gaining: "#2F5A9E", behind_slipping: "#A8342B" };   // the pack's dot colours
-const Yours = () => <em className="rp-yours"> · Yours</em>;
+const Yours = () => <em className="sp-yours">Yours</em>;   // task #332: a small gold tag on the same line
 
 // ------------------------------------------------------------------------------------------------ Today in one minute
-export function TodayRot({ m, mine, pulse }: { m: RotationMap; mine: Set<string>; pulse: Map<string, GroupRow> }) {
-  const h = rotationHeadline(m, mine), cards = rotationTodayCards(m, mine, pulse), counts = boxCounts(m), total = m.rows.length;
-  return (
-    <section className="sp-sec" aria-labelledby="rp-today">
-      <h2 id="rp-today">Today in one minute<Tip text="Today in one minute. What changed at the latest weekly close: how many groups sit in each box now and a week ago, and the few moves worth knowing." label="About “Today in one minute”" /></h2>
-      <p className="sp-sub">{tw("Which industries are leading, which are fading, and what changed this week.")}</p>
-      <p className="sp-lead"><b>{h.lead}</b>{h.rest}</p>
-      <p className="sp-note">{h.line}</p>
-      <div className="rp-today">
-        <div>
-          <p className="sp-cap">All {groupsN(total)} by box</p>
-          <div className="rp-strip" role="img" aria-label={counts.map((c) => `${BOX[c.box].word} ${c.now}`).join(", ")}>{counts.map((c) => <i key={c.box} style={{ flex: c.now, background: BOX_COLOUR[c.box] }} />)}</div>
-          <table className="sp-tb rp-counts">
-            <thead><tr><th scope="col">Box</th><th scope="col" className="r">Now</th><th scope="col" className="r">Vs last week</th></tr></thead>
-            <tbody>{counts.map((c) => { const d = c.now - c.last; return (
-              <tr key={c.box}><td><span className="rp-boxname"><i className="rp-sq" style={{ background: BOX_COLOUR[c.box] }} aria-hidden="true" />{BOX[c.box].word}<Tip text={BOX_HELP[c.box]} label={`About “${BOX[c.box].word}”`} /></span></td>
-                <td className="r rp-big">{c.now}</td><td className={"r rp-vs" + (d > 0 ? " up" : d < 0 ? " dn" : "")}>{d > 0 ? `▲${d}` : d < 0 ? `▼${-d}` : "no change"}</td></tr>); })}</tbody>
-          </table>
-        </div>
-        <Cards items={cards} cols={2} />
-      </div>
-    </section>
-  );
-}
-
 // ------------------------------------------------------------------------------------------------ How your industries compare
 function RankLine({ r, w = 100, h = 28 }: { r: RotationRow; w?: number; h?: number }) {
   const hist = r.rank_history, worst = r.ranked || 37, d = sparkPath(hist, w, h, worst, 3);
@@ -56,40 +31,24 @@ function RankLine({ r, w = 100, h = 28 }: { r: RotationRow; w?: number; h?: numb
   );
 }
 export { RankLine };
-const RankCell = ({ r }: { r: RotationRow }) => {
-  const c = r.rank_change_4w;
-  return <span className="rp-rank"><span><b>{r.rank ?? "–"}</b>{r.rank != null && <> of {r.ranked}</>}</span><small className={c == null ? "" : c > 0 ? "up" : c < 0 ? "dn" : ""}>{c == null ? "" : c > 0 ? `▲ ${c} in 4 weeks` : c < 0 ? `▼ ${-c} in 4 weeks` : "same in 4 weeks"}</small></span>;
-};
-export function YourRot({ m, mine, shares, value, pulse, signedIn }: { m: RotationMap; mine: Set<string>; shares: Map<string, string[]>; value: Map<string, number>; pulse: Map<string, GroupRow>; signedIn: boolean }) {
-  const rows = m.rows.filter((r) => mine.has(r.slug)).sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999)), { shown: rowsShown, button: rowsMore } = useShowAll(rows, 5);
-  const nShares = [...shares.values()].reduce((s, x) => s + x.length, 0);
-  return (
-    <Section id="rp-yours" hide title={tw("How your industries compare")} help={tw("How your industries compare. The industries your shares belong to, each with its box, its rank among all industries and how it has done against the average group.")}
-      sub={rows.length ? tw(`The ${rows.length} industries your ${nShares} shares belong to, from the strongest rank to the weakest.`) : tw("The industries your shares belong to, from the strongest rank to the weakest.")}
-      why={tw("A share in a leading industry has the wind behind it; a share in a lagging one is swimming against the current. This shows which of your shares have which.")}>
-      {!rows.length ? <p className="sp-empty">{signedIn ? tw("Add shares to your portfolio to see how their industries compare.") : <>{tw("Sign in and add shares to your portfolio to see how their industries compare.")} <Link to="/login">Sign in</Link></>}</p> : <>
-        <Cards items={yourRotationCards(rows, value, shares, pulse)} />
-        <Scroll label={tw("your industries")}><table className="sp-tb rp-yourt">
-          <thead><tr><th scope="col">{tw("Industry and your shares")}</th><th scope="col">Its box<Tip text={tw("Its box: how the industry has done against the average group over the last several months and over the last month.")} /></th>
-            <th scope="col">Rank<Tip text="Its place among all ranked groups this week, 1 the strongest; below it, the places moved in 4 weeks." /></th><th scope="col">Rank, 26 weeks<Tip text="Its rank at each of the last 26 weekly closes: higher on the line is a better rank. The shaded band is the top third." /></th>
-            <th scope="col">Vs the average group<Tip text={tw("How much better (+) or worse (−) the industry did than the average group over the last month and the last 6 months.")} /></th><th scope="col">What it means for you</th></tr></thead>
-          <tbody>{rowsShown.map((r) => { const mf = meansForYou(r); return (
-            <tr key={r.slug}><td><Link to={gl(r.slug)} className="rp-ind"><b>{short(r.name)}</b></Link><span className="rp-shares">{(shares.get(r.slug) ?? []).map((s) => <Link key={s} to={`/stocks/${s}`} className="sp-sym rp-pill"><CoLogo symbol={s} size={18} inline />{s}</Link>)}</span></td>
-              <td><BoxChip corner={r.corner} help /></td><td><RankCell r={r} /></td><td><RankLine r={r} /></td>
-              <td className="rp-vsavg"><span>last month <b className={(lastMonth(r) ?? 0) > 0 ? "sp-good" : (lastMonth(r) ?? 0) < 0 ? "sp-red" : ""}>{pc(lastMonth(r))}</b></span><span>6 months <b className={(sixMonths(r) ?? 0) > 0 ? "sp-good" : (sixMonths(r) ?? 0) < 0 ? "sp-red" : ""}>{pc(sixMonths(r))}</b></span></td>
-              <td>{mf && <span className={"sp-mean rp-mean-" + mf.tone}>{mf.text}</span>}</td></tr>); })}</tbody>
-        </table></Scroll>
-        {rowsMore}
-      </>}
-    </Section>
-  );
-}
-
 // ------------------------------------------------------------------------------------------------ The map
-export function MapRot({ m, mine }: { m: RotationMap; mine: Set<string> }) {
+export function MapRot({ m, mine, pulse, watched, cards = 99, hover }: { m: RotationMap; mine: Set<string>; pulse?: Map<string, GroupRow>; watched?: Set<string>; cards?: number; hover?: (slug: string) => ReactNode }) {
   const rows = useMemo(() => ranked(m), [m]);
   const [on, setOn] = useState<Record<Box, boolean>>({ ahead_gaining: true, ahead_slowing: true, behind_gaining: true, behind_slipping: true });
   const [ring, setRing] = useState(true), [paths, setPaths] = useState(false), [pick, setPick] = useState<string | null>(null);
+  // task #332, playback: 8 weekly closes (the 8-week paths' weeks); the slider opens on the latest close; labels hide while it is off the latest week
+  const frames = useMemo(() => playFrames(m), [m]);
+  const lastF = frames.length - 1;
+  const [wk, setWk] = useState(lastF), [playing, setPlaying] = useState(false);
+  useEffect(() => { setWk(lastF); }, [lastF]);
+  useEffect(() => {
+    if (!playing) return;
+    const t = window.setInterval(() => setWk((w) => { if (w >= lastF) { setPlaying(false); return lastF; } return w + 1; }), 700);
+    return () => window.clearInterval(t);
+  }, [playing, lastF]);
+  const atLast = wk >= lastF, frame = frames[wk];
+  const [hv, setHv] = useState<{ slug: string; x: number; y: number } | null>(null);
+  void pulse; void watched;
   const W = 640, H = 460;
   const geo = mapGeometry(rows, W, H, 8, null, { left: 46, right: 12, top: 14, bottom: 36 });
   const lab = placeLabels(geo.dots, 6.6, 14, W, true, mine);
@@ -101,7 +60,7 @@ export function MapRot({ m, mine }: { m: RotationMap; mine: Set<string> }) {
   const q = (x1: number, y1: number, x2: number, y2: number, b: Box) => <rect x={Math.min(x1, x2)} y={Math.min(y1, y2)} width={Math.abs(x2 - x1)} height={Math.abs(y2 - y1)} className={"rp-q rp-q-" + b} />;
   const count = (b: Box) => rows.filter((r) => r.corner === b).length;
   return (
-    <Section id="rp-map" hide title={tw("The map: where every industry stands")} help={tw("The map. Each dot is an industry. Across: how far it is ahead of or behind the average group over the last several months. Up: whether it has been gaining on the average lately. The four boxes are the four parts of the map.")}
+    <Section id="rp-map" title={tw("The map: where every industry stands")} help={tw("The map. Each dot is an industry. Across: how far it is ahead of or behind the average group over the last several months. Up: whether it has been gaining on the average lately. The four boxes are the four parts of the map.")}
       sub={tw("Each dot is an industry. Choose which boxes to show.")}>
       <div className="rp-toggles" role="group" aria-label="What the map shows">
         {BOXES.map((b) => <button key={b} type="button" className={"rp-tg rp-tg-" + BOX[b].tone + (on[b] ? " on" : "")} aria-pressed={on[b]} onClick={() => setOn({ ...on, [b]: !on[b] })}><span className="rp-tick" aria-hidden="true">✓</span>{BOX[b].word} · {count(b)}</button>)}
@@ -123,15 +82,21 @@ export function MapRot({ m, mine }: { m: RotationMap; mine: Set<string> }) {
             <text className="rp-axt" x={(geo.left + geo.right) / 2} y={H - 3} textAnchor="middle">← Behind the average · over the last several months · Ahead of the average →</text>
             <text className="rp-axt" transform={`translate(12 ${(geo.top + geo.bottom) / 2}) rotate(-90)`} textAnchor="middle">Slipping lately ↓ · Gaining lately ↑</text>
             {paths && shown.map((d) => <path key={"p" + d.slug} d={d.path} fill="none" className="rp-path" style={{ stroke: BOX_COLOUR[d.row.corner as Box] }} />)}
-            {shown.map((d) => { const l = lab[d.slug], me = mine.has(d.slug); return (
-              <g key={d.slug} className={"rp-dot" + (pick === d.slug ? " sel" : "")}>
-                {ring && me && <circle cx={d.x} cy={d.y} r={9} className="rp-ring" />}
-                <circle cx={d.x} cy={d.y} r={me ? 5.5 : 4.5} style={{ fill: BOX_COLOUR[d.row.corner as Box] }} />
-                <circle cx={d.x} cy={d.y} r={12} className="rp-hit" tabIndex={0} role="button" aria-label={`${short(d.name)}: ${BOX[d.row.corner as Box].word}, rank ${d.row.rank} of ${d.row.ranked}, ${pc(d.row.strength_pts)} over the last several months, ${pc(d.row.change_pts)} lately`}
-                  onClick={() => setPick(pick === d.slug ? null : d.slug)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setPick(pick === d.slug ? null : d.slug); } }}><title>{`${short(d.name)} · rank ${d.row.rank}`}</title></circle>
-                {l && <text className={"rp-dl" + (me ? " me" : "")} x={l.x} y={l.y} textAnchor={l.anchor}>{short(d.name)}</text>}
+            {shown.map((d) => { const l = lab[d.slug], me = mine.has(d.slug), f = atLast ? null : frame?.dots[d.slug];
+              if (!atLast && !f) return null;                               // no reading at that weekly close
+              const x = f ? geo.x(f.strength) : d.x, y = f ? geo.y(f.change) : d.y, col = BOX_COLOUR[(f ? f.corner : d.row.corner) as Box] ?? BOX_COLOUR[d.row.corner as Box];
+              const show = () => setHv({ slug: d.slug, x: (x / W) * 100, y: (y / H) * 100 });
+              return (
+              <g key={d.slug} className={"rp-dot" + (pick === d.slug ? " sel" : "")} data-box={BOX[d.row.corner as Box].word}>
+                {ring && me && <circle cx={x} cy={y} r={9} className="rp-ring sx-mdot" />}
+                <circle cx={x} cy={y} r={me ? 5.5 : 4.5} style={{ fill: col }} />
+                <circle cx={x} cy={y} r={12} className="rp-hit" tabIndex={0} role="button" aria-label={`${short(d.name)}: ${BOX[d.row.corner as Box].word}, rank ${d.row.rank} of ${d.row.ranked}, ${pc(d.row.strength_pts)} over the last several months, ${pc(d.row.change_pts)} lately`}
+                  onMouseEnter={show} onFocus={show} onMouseLeave={() => setHv(null)} onBlur={() => setHv(null)}
+                  onClick={() => setPick(pick === d.slug ? null : d.slug)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setPick(pick === d.slug ? null : d.slug); } }} />
+                {atLast && l && <text className={"rp-dl" + (me ? " me" : "")} x={l.x} y={l.y} textAnchor={l.anchor}>{short(d.name)}</text>}
               </g>); })}
           </svg>
+          {hover && hv && <div className="sx-hc" style={{ left: `min(calc(${hv.x}% + 14px), calc(100% - 280px))`, top: `calc(${hv.y}% + 14px)` }} role="tooltip">{hover(hv.slug)}</div>}
           {picked && <p className="rp-pick" role="status">{short(picked.name)}: rank {picked.row.rank} of {picked.row.ranked}, {BOX[picked.row.corner as Box].word}. {pc(picked.row.strength_pts)} against the average over the last several months, {pc(picked.row.change_pts)} lately. <Link to={gl(picked.slug)}>Open {short(picked.name)} →</Link></p>}
         </div>
         <aside className="rp-howmap">
@@ -145,13 +110,19 @@ export function MapRot({ m, mine }: { m: RotationMap; mine: Set<string> }) {
           <p>Hover over any dot for its name and rank. Use the buttons above the map to hide or show each box.</p>
         </aside>
       </div>
-      <Cards items={mapCards(m)} />
+      {frames.length > 1 && <div className="sx-play">
+        <button type="button" className="sx-pb" aria-label={playing ? "Pause" : "Play the weeks"} onClick={() => { if (!playing && atLast) setWk(0); setPlaying(!playing); }}>{playing ? "❚❚ Pause" : "▶ Play"}</button>
+        <label>Week <input type="range" min={0} max={lastF} step={1} value={wk} aria-valuetext={frame?.label} onChange={(e) => { setPlaying(false); setWk(Number(e.target.value)); }} /></label>
+        <b className="sx-pd" aria-live="polite">{frame?.label}</b>
+        <span className="sx-pn">{tw(`Drag to see where every industry stood at each of the last ${frames.length} weekly closes.`)}{!atLast && " Names come back at the latest week."}</span>
+      </div>}
+      <Cards items={mapCards(m).slice(0, cards)} />
     </Section>
   );
 }
 
 // ------------------------------------------------------------------------------------------------ Who is ahead, and which way they are moving
-export function AheadRot({ m }: { m: RotationMap }) {
+export function AheadRot({ m, cards = 99 }: { m: RotationMap; cards?: number }) {
   const rows = m.rows.filter((r) => sixMonths(r) != null).sort((a, b) => sixMonths(b)! - sixMonths(a)!);
   const max = Math.max(1, ...rows.map((r) => Math.max(Math.abs(sixMonths(r)!), Math.abs(lastMonth(r) ?? 0))));
   const left = Math.max(1, ...rows.map((r) => Math.max(-(sixMonths(r) ?? 0), -(lastMonth(r) ?? 0), 0)));
@@ -160,7 +131,7 @@ export function AheadRot({ m }: { m: RotationMap }) {
   const turnedRows = rows.filter(turned), { shown: bars, button: barsMore } = useShowAll(rows, 10);
   void max;
   return (
-    <Section id="rp-ahead" hide title="Who is ahead, and which way they are moving" help={tw("Who is ahead. Each industry's return over 6 months against the average group (the bar) and over the last month (the dot), in percentage points.")}
+    <Section id="rp-ahead" title="Who is ahead, and which way they are moving" help={tw("Who is ahead. Each industry's return over 6 months against the average group (the bar) and over the last month (the dot), in percentage points.")}
       sub={tw("Bars: each industry's return over 6 months against the average group, in points. Dot: the same for the last month.")}>
       <ul className="sp-lgd"><li><i className="rp-lg rp-lg-up" />ahead over 6 months</li><li><i className="rp-lg rp-lg-dn" />behind over 6 months</li><li><i className="rp-lg rp-lg-dot" />last month</li></ul>
       <div className="rp-ahead" role="img" aria-label={`${groupsN(rows.length)} by their 6-month return against the average group, with last month's`}>
@@ -178,7 +149,7 @@ export function AheadRot({ m }: { m: RotationMap }) {
       </div>
       {barsMore}
       <p className="sp-note">A dot on the other side of the line from its bar is a change of direction (marked ↺ in the last column): a leader that slipped last month, or a laggard that gained.</p>
-      <Cards items={aheadCards(m)} />
+      <Cards items={aheadCards(m).slice(0, cards)} />
       {turnedRows.length > 0 && <details className="sp-more"><summary>{tw("Industries that changed direction (")}{turnedRows.length}) ▾</summary>
         <ul className="sp-changed">{turnedRows.map((r) => <li key={r.slug}><Link to={gl(r.slug)}>{short(r.name)}</Link>: {pt(sixMonths(r))} over 6 months, {pt(lastMonth(r))} last month</li>)}</ul></details>}
     </Section>
@@ -202,11 +173,11 @@ const AGREE_HELP = tw("Does Sector Pulse agree? Sector Pulse counts how many of 
 export function ChangedRot({ m, mine, pulse }: { m: RotationMap; mine: Set<string>; pulse: Map<string, GroupRow> }) {
   const mv = movedRows(m), { shown: mvShown, button: mvMore } = useShowAll(mv, 4);
   return (
-    <Section id="rp-changed" hide title={`Changed box this week · ${mv.length}`} help={tw("Changed box this week. Industries whose box at this weekly close is different from last week's.")} sub="What changed, and what each change means.">
+    <Section id="rp-changed" title={`Changed box this week · ${mv.length}`} help={tw("Changed box this week. Industries whose box at this weekly close is different from last week's.")} sub="What changed, and what each change means.">
       {!mv.length ? <p className="sp-empty">{tw("No industry changed box this week.")}</p> :
         <Scroll label={tw("industries that changed box this week")}><table className="sp-tb rp-chg">
           <thead><tr><th scope="col">{tw("Industry")}</th><th scope="col">Last week → this week<Tip text="The box at last week's close and at this week's close." /></th><th scope="col">Rank<Tip text="Its place among all ranked groups this week, 1 the strongest." /></th><th scope="col">What it means</th><th scope="col">Does Sector Pulse agree?<Tip text={tw(AGREE_HELP)} /></th></tr></thead>
-          <tbody>{mvShown.map((x) => <tr key={x.r.slug}><td><Link to={gl(x.r.slug)} className="rp-ind"><b>{short(x.r.name)}</b></Link>{mine.has(x.r.slug) && <Yours />}</td><td><FromTo from={x.from} to={x.to} /></td>
+          <tbody>{mvShown.map((x) => <tr key={x.r.slug} className={mine.has(x.r.slug) ? "sx-mine" : undefined}><td><Link to={gl(x.r.slug)} className="rp-ind"><b>{short(x.r.name)}</b></Link>{mine.has(x.r.slug) && <Yours />}</td><td><FromTo from={x.from} to={x.to} /></td>
             <td><b>{x.r.rank ?? "–"}</b> of {x.r.ranked}</td><td><Meaning {...changeMeaning(x.from, x.to, x.r)} /></td><td><AgreeCell a={pulseAgrees(x.from, x.to, pulse.get(x.r.slug))} /></td></tr>)}</tbody>
         </table></Scroll>}
       {mvMore}
@@ -216,12 +187,12 @@ export function ChangedRot({ m, mine, pulse }: { m: RotationMap; mine: Set<strin
 export function MayMoveRot({ m, mine, pulse, sub = tw("Industries whose newest weekly reading already sits in another box."), why = true }: { m: RotationMap; mine: Set<string>; pulse: Map<string, GroupRow>; sub?: string; why?: boolean }) {
   const mm = mayMoveRows(m), { shown: mmShown, button: mmMore } = useShowAll(mm, 4);
   return (
-    <Section id="rp-next" hide title={`May change box next week · ${mm.length}`} help={tw("May change box next week. An industry changes box only after a weekly close confirms it. These industries' newest weekly reading already sits in another box.")} sub={sub}
+    <Section id="rp-next" title={`May change box next week · ${mm.length}`} help={tw("May change box next week. An industry changes box only after a weekly close confirms it. These industries' newest weekly reading already sits in another box.")} sub={sub}
       why={why ? "This is an early look, not a forecast. Some readings flip back the next week." : undefined}>
       {!mm.length ? <p className="sp-empty">{tw("No industry's newest reading sits in another box.")}</p> :
         <Scroll label={tw("industries that may change box next week")}><table className="sp-tb rp-chg">
           <thead><tr><th scope="col">{tw("Industry")}</th><th scope="col">Now → may move to<Tip text="Its box now, and the box its newest weekly reading sits in." /></th><th scope="col">Rank<Tip text="Its place among all ranked groups this week, 1 the strongest." /></th><th scope="col">What it means</th><th scope="col">Does Sector Pulse agree?<Tip text={tw(AGREE_HELP)} /></th></tr></thead>
-          <tbody>{mmShown.map((x) => <tr key={x.r.slug}><td><Link to={gl(x.r.slug)} className="rp-ind"><b>{short(x.r.name)}</b></Link>{mine.has(x.r.slug) && <Yours />}</td><td><FromTo from={x.from} to={x.to} /></td>
+          <tbody>{mmShown.map((x) => <tr key={x.r.slug} className={mine.has(x.r.slug) ? "sx-mine" : undefined}><td><Link to={gl(x.r.slug)} className="rp-ind"><b>{short(x.r.name)}</b></Link>{mine.has(x.r.slug) && <Yours />}</td><td><FromTo from={x.from} to={x.to} /></td>
             <td><b>{x.r.rank}</b> of {x.r.ranked}</td><td><Meaning {...mayMoveMeaning(x.from, x.to)} /></td><td><AgreeCell a={pulseAgrees(x.from, x.to, pulse.get(x.r.slug))} /></td></tr>)}</tbody>
         </table></Scroll>}
       {mmMore}
@@ -230,18 +201,18 @@ export function MayMoveRot({ m, mine, pulse, sub = tw("Industries whose newest w
 }
 
 // ------------------------------------------------------------------------------------------------ Biggest rank moves in 4 weeks
-export function RankMovesRot({ m, mine }: { m: RotationMap; mine: Set<string> }) {
+export function RankMovesRot({ m, mine, cards = 99 }: { m: RotationMap; mine: Set<string>; cards?: number }) {
   const up = m.climbers_4w.slice(0, 5), dn = m.fallers_4w.slice(0, 5), max = Math.max(1, ...[...up, ...dn].map((x) => Math.abs(x.change)));
   const since = m.rank_weeks_labels?.[m.rank_weeks_labels.length - 5] ?? m.rank_weeks[m.rank_weeks.length - 5];
   const bar = (x: { slug: string; name: string; change: number }, up: boolean) => (
     <li key={x.slug} className={mine.has(x.slug) ? "me" : ""}><span>{short(x.name)}</span><span className="rp-mvtrack"><i className={up ? "up" : "dn"} style={{ width: (Math.abs(x.change) / max) * 100 + "%" }} /><b className={up ? "sp-good" : "sp-red"}>{up ? "▲" : "▼"} {Math.abs(x.change)}</b></span></li>
   );
   return (
-    <Section id="rp-moves" hide title="Biggest rank moves in 4 weeks" help={tw("Biggest rank moves. The industries that climbed or fell the most places in the ranking over the last 4 weekly closes.")}
+    <Section id="rp-moves" title="Biggest rank moves in 4 weeks" help={tw("Biggest rank moves. The industries that climbed or fell the most places in the ranking over the last 4 weekly closes.")}
       sub={tw(`Places climbed or fallen in the ranking since ${since ? since.replace(/ \d{4}$/, "") : "4 weeks ago"}. Highlighted: your industries.`)}>
       <div className="rp-moves">
         <div><p className="sp-cap sp-good">Climbed most · places</p><ul className="rp-mv">{up.map((x) => bar(x, true))}</ul><p className="sp-cap sp-red">Fell most · places</p><ul className="rp-mv">{dn.map((x) => bar(x, false))}</ul></div>
-        <div className="rp-mvcards">{rankMoveCards(m).map((c) => <InsightCard key={c.title} c={c} />)}</div>
+        <div className="rp-mvcards">{rankMoveCards(m).slice(0, cards).map((c) => <InsightCard key={c.title} c={c} />)}</div>
       </div>
     </Section>
   );
@@ -249,16 +220,19 @@ export function RankMovesRot({ m, mine }: { m: RotationMap; mine: Set<string> })
 
 // ------------------------------------------------------------------------------------------------ The four boxes
 export function FourBoxes({ m, mine }: { m: RotationMap; mine: Set<string> }) {
+  const [open, setOpen] = useState<Set<Box>>(new Set());
+  const nRanked = m.rows.filter((r) => r.rank != null).length;
   return (
-    <Section id="rp-four" hide title={tw("The four boxes, in the order industries usually move")} help={tw("The four boxes. Industries tend to move from Behind but gaining to Ahead and gaining, then Ahead but slowing, then Behind and slipping, and round again. The order is typical, not fixed.")}
-      sub={tw("The number is each industry's rank, 1 to 37. ★ marks your industries.")}>
-      <div className="rp-four">{CYCLE.map((b, i) => { const rows = m.rows.filter((r) => r.corner === b).sort((x, y) => (x.rank ?? 999) - (y.rank ?? 999)); return (
+    <Section id="rp-four" title={tw("The four boxes, in the order industries usually move")} help={tw("The four boxes. Industries tend to move from Behind but gaining to Ahead and gaining, then Ahead but slowing, then Behind and slipping, and round again. The order is typical, not fixed.")}
+      sub={tw(`The number is each industry's rank, 1 to ${nRanked}.`) + (mine.size ? tw(" ★ marks your industries.") : "")}>
+      <div className="rp-four">{CYCLE.map((b, i) => { const rows = m.rows.filter((r) => r.corner === b).sort((x, y) => (x.rank ?? 999) - (y.rank ?? 999)), all = open.has(b); return (
         <Fragment key={b}>
           {i > 0 && <span className="rp-four-arrow" aria-hidden="true">→</span>}
           <div className={"rp-fb rp-fb-" + BOX[b].tone}>
             <p className="rp-fb-h"><span className={"rp-fb-t rp-t-" + BOX[b].tone}>{BOX[b].arrow} {BOX[b].word}</span><Tip text={BOX_HELP[b]} label={`About “${BOX[b].word}”`} /><b>{rows.length}</b></p>
             <p className="rp-fb-x">{BOX_MEANING[b]}</p>
-            <ul className="rp-fb-l">{rows.map((r) => <li key={r.slug}><Link to={gl(r.slug)}><span className={"rp-fb-n rp-n-" + BOX[b].tone}>{r.rank ?? "–"}</span>{short(r.name)}{mine.has(r.slug) && " ★"}</Link></li>)}</ul>
+            <ul className="rp-fb-l">{(all ? rows : rows.slice(0, FOUR_SHOW)).map((r) => <li key={r.slug}><Link to={gl(r.slug)}><span className={"rp-fb-n rp-n-" + BOX[b].tone}>{r.rank ?? "–"}</span>{short(r.name)}{mine.has(r.slug) && " ★"}</Link></li>)}</ul>
+            {rows.length > FOUR_SHOW && <button type="button" className="sx-fbmore" aria-expanded={all} onClick={() => { const n = new Set(open); if (all) n.delete(b); else n.add(b); setOpen(n); }}>{all ? "Show fewer" : `Show all ${rows.length}`}</button>}
             <p className="rp-fb-w"><b>What to watch next:</b> {WATCH_NEXT[b]}</p>
           </div>
         </Fragment>); })}</div>
@@ -274,7 +248,7 @@ export const ROT_WORDS: [string, string][] = [
   ["Behind but gaining", BOX_MEANING.behind_gaining.replace(/\.$/, "")], ["Behind and slipping", BOX_MEANING.behind_slipping.replace(/\.$/, "")],
   ["Rank", tw("An industry's place on one list of all ranked groups each week, 1 the strongest")],
   ["May change box", "Its newest weekly reading already sits in another box; if the next weekly close agrees, it moves"],
-  ["Taking part", tw("How many of the industry's stocks are above their 50-day average: Most, Some or Few. A lead most stocks share is broad")],
+  ["Taking part", tw("How many of the industry's stocks are above their medium-term trend: Most, Some or Few. A lead most stocks share is broad")],
   ["Path", tw("The route an industry's dot took on the map over the last 8 weekly closes")],
   ["Points", tw("Percentage points: +5 means the industry did 5% better than the average group over that time")],
   ["Sector Pulse", tw("Our other sector page: it counts how many of each industry's stocks are rising, updated every weekend")],

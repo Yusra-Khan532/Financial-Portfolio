@@ -16,9 +16,11 @@ export type TabView = { key: string; label: string; content?: ReactNode; chip?: 
  *  bar under the page's sections bar while its section is on screen (top = --pzn-stick, set by the sections bar), with a shadow and a page-colour band
  *  when stuck, and a tab press (or Next view) while stuck shows the new panel from its start. */
 /** Task #329 (IPOs, developer file 29): `aside` is a short line after the tabs, in the bar ("Showing: …" for the view that is open). */
-export function TabGroup({ views, label, hint = "Tap a tab to switch", numbered = true, variant, value, onChange, next = true, initial, noun = "views", tools, sticky = false, aside }: {
+/** Task #332 (Sector Rotation, developer file 31): `title` names the box in the bar header ("All 19 sectors", with "4 ways to look · press one" under it) and
+ *  `className` marks the bar for its page; without them the bar is exactly as before. */
+export function TabGroup({ views, label, hint = "Tap a tab to switch", numbered = true, variant, value, onChange, next = true, initial, noun = "views", tools, sticky = false, aside, title, className }: {
   views: TabView[]; label: string; hint?: string; numbered?: boolean; variant?: "key" | "highlighted"; value?: string; onChange?: (key: string) => void; next?: boolean; initial?: string; noun?: string;
-  tools?: ReactNode; sticky?: boolean; aside?: ReactNode;
+  tools?: ReactNode; sticky?: boolean; aside?: ReactNode; title?: ReactNode; className?: string;
 }) {
   const uid = "ct" + useId().replace(/[^a-zA-Z0-9]/g, "");
   const [own, setOwn] = useState(initial ?? views[0]?.key);
@@ -78,10 +80,10 @@ export function TabGroup({ views, label, hint = "Tap a tab to switch", numbered 
   };
   return (
     <>
-      <div ref={bar} className={"ctabs" + (used ? " used" : "") + (variant ? " ct-" + variant : "") + (tools ? " has-tools" : "") + (sticky ? " ct-sticky" : "") + (stuck ? " stuck" : "")}>
+      <div ref={bar} className={"ctabs" + (className ? " " + className : "") + (used ? " used" : "") + (variant ? " ct-" + variant : "") + (tools ? " has-tools" : "") + (sticky ? " ct-sticky" : "") + (stuck ? " stuck" : "")}>
         <div className="ctabs-h">
           {variant === "key" && <span className="ct-crown" title="The key view of this section"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true" focusable="false"><path d="M3 18h18l-1.6-9-4.4 3.6L12 6l-3 6.6L4.6 9z" /></svg>KEY VIEW</span>}
-          <span className="ctabs-ic" aria-hidden="true">⇆</span><b>{n} {noun}</b><span className="ctabs-hint">{hint}</span>
+          <span className="ctabs-ic" aria-hidden="true">⇆</span>{title != null ? <b className="ct-title">{title}<small>{n} {noun} · {hint}</small></b> : <><b>{n} {noun}</b><span className="ctabs-hint">{hint}</span></>}
         </div>
         <div className="ct-list" role="tablist" aria-label={label}>
           {views.map((v, j) => (

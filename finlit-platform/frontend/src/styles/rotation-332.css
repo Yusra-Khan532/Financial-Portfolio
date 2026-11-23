@@ -1,0 +1,40 @@
+/* Sector Rotation, developer file 31 (task #332): the few rules this page needs beyond the pack's sector-pages.css (styles/vendor/sector-pages.pack.css, scoped
+   under .sx-new). Everything here is scoped to the page (.sx-new) and written on the site's tokens. */
+
+/* the boxes use the Results and IPOs views bar (TabGroup): its header names the box, with "N ways to look · press one" under it */
+.sx-new .ctabs.sx-bar { margin: 0; border-radius: var(--r-card) var(--r-card) 0 0; }
+.sx-new .ctabs.sx-bar .ctabs-h { display: flex; align-items: center; gap: 10px; }
+.sx-new .ctabs.sx-bar .ct-title { display: block; font: 700 var(--fs-14)/1.2 var(--sans); color: var(--text); white-space: nowrap; }
+.sx-new .ctabs.sx-bar .ct-title small { display: block; font: 400 var(--fs-12)/1.3 var(--sans); color: var(--muted); }
+.sx-new .ctabs.sx-bar .ct-list { flex-wrap: wrap; overflow: visible; }
+.sx-new .ctabs.sx-bar .ct-sc { font: 600 var(--fs-12)/1 var(--sans); font-style: normal; opacity: .75; }
+.sx-new .sx-box > .ct-panels > .ctab-panel > .sp-sec,
+.sx-new .sx-box > .ct-panels > .ctab-panel > div > .sp-sec { margin-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; border-top: 0; }
+/* the Simple view: the section bar is the frozen one, so the box bars scroll with the page; the Full table's box bar stays under the site header */
+.sx-new .sx-nav ~ .sx-box > .ctabs.sx-bar { position: static; }
+.sx-new .sx-box-full > .ctabs.sx-bar { position: sticky; top: 70px; z-index: 30; }
+@media (max-width: 760px) { .sx-new .sx-box-full > .ctabs.sx-bar { position: static; } }
+
+/* the hover card sits over the map, next to the dot */
+.sx-new .rp-mapbox { position: relative; }
+.sx-new .sx-hc { max-width: calc(100% - 16px); }
+
+
+/* the four box cards: the same height, at most six names each, "Show all N" under a longer list */
+.sx-new .rp-four .rp-fb { display: flex; flex-direction: column; }
+.sx-new .rp-four .rp-fb .rp-fb-w { margin-top: auto; }
+
+/* section bar: the number inside each stop */
+.sx-new .sx-nav .sp-secbar-n { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--s2); font: 700 var(--fs-12)/1 var(--sans); }
+.sx-new .sx-nav .sp-secbar-l li { display: inline-flex; align-items: center; }
+@media (max-width: 760px) { .sx-new .sx-nav { flex-wrap: nowrap; } .sx-new .sx-nav .sp-secbar-ar { display: none; } }
+
+/* "Yours" and "Watchlist": a small gold tag on the same line as the name, in every table */
+.sx-new td .sp-yours, .sx-new .rp-name .sp-yours { display: inline-block; margin-left: 6px; padding: 3px 6px; border-radius: var(--ui-r-mark); background: color-mix(in srgb, var(--gold) 22%, transparent);
+  color: var(--text); font: 700 var(--fs-12)/1 var(--sans); font-style: normal; letter-spacing: .06em; text-transform: uppercase; vertical-align: middle; white-space: nowrap; }
+.sx-new .ctabs.sx-bar [aria-selected="true"] .ct-sc { color: inherit; }
+
+/* the open tab is black (the views bar of Results and IPOs): the pack marks it with a class, TabGroup with aria-selected */
+.sx-new .ctabs.sx-bar .ct-list button[aria-selected="true"] { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); }
+.sx-new .ctabs.sx-bar .ct-list button[aria-selected="true"] .ct-n { background: var(--ui-on-fg); color: var(--ui-on-bg); }
+.sx-new .ctabs.sx-bar .ct-n { width: 24px; height: 24px; }

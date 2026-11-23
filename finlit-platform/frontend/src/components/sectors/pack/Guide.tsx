@@ -107,17 +107,20 @@ export function PulseGuide({ stocks, groups }: { stocks: number; groups: string 
   );
 }
 
-/** Sector Rotation: `ranked` groups are ranked this week; `total` are counted in the yardstick. */
-export function RotationGuide({ ranked, total }: { ranked: number; total: number }) {
+/** Sector Rotation: `ranked` groups are ranked this week; `yardstick` is the number of industry groups the average group counts. Task #332 (fault 2): the figures of
+ *  BOTH views are measured against the Industries view's average group (finlit_technicals/batch.py write_level_files: `Rotation(view, bench=rot.bench)`), so in the
+ *  Sectors view this says "all N industry groups counted equally", exactly as the header's yardstick box does, never "all 19". */
+export function RotationGuide({ ranked, yardstick, sectors = false }: { ranked: number; yardstick: number | null; sectors?: boolean }) {
+  const yard = yardstick != null ? `all ${yardstick} industry groups counted equally` : "the industry groups counted equally";
   return (
     <Fold sub="Four steps, what each box means, the yardstick, and what it leaves out · 2 min read">
-      <p className="sp-guide-intro">{tw("Money moves from one industry to another over months. Sector Rotation measures each of the")} {ranked} ranked groups against one yardstick, <b>the average group</b> (all {total} counted equally), and puts it in one of four boxes. It updates after each weekly close. <b>Simple</b> tells the story; <b>Full table</b> shows every number.</p>
+      <p className="sp-guide-intro">{tw("Money moves from one industry to another over months. Sector Rotation measures each of the")} {ranked} ranked {sectors ? "sectors" : "groups"} against one yardstick, <b>the average group</b> ({yard}{sectors ? ", as in the Industries view" : ""}), and puts it in one of four boxes. It updates after each weekly close. <b>Simple</b> tells the story; <b>Full table</b> shows every number.</p>
       <div className="sp-guide-two">
         <div><h3 className="sp-guide-k">Use it in four steps</h3>
           <Steps items={[
             <><b>Find the box.</b> {tw("Is the industry ahead of or behind the average group over the last several months? Is it gaining or slipping against it over the last month? The two answers give its box.")}</>,
-            <><b>Read the box with breadth.</b> <b>Taking part</b>: Most means most of its stocks are above their 50-day average; Few means a handful carry it. A broad lead has held up better than a narrow one.</>,
-            <><b>Watch the rank and what changed.</b> The rank puts every group on one list each week, 1 the strongest; the arrows show places moved in 1 and 4 weeks. <b>Changed box this week</b> and <b>May change box next week</b> show the moves.</>,
+            <><b>Read the box with breadth.</b> <b>Taking part</b>: Most means most of its stocks are above their medium-term trend; Few means a handful carry it. A broad lead has held up better than a narrow one.</>,
+            <><b>Watch the rank and what changed.</b> The rank puts every {sectors ? "sector" : "group"} on one list each week, 1 the strongest; the arrows show places moved in 1 and 4 weeks. <b>Changed box this week</b> and <b>May change box next week</b> show the moves.</>,
             <><b>Bring it to your shares.</b> <b>{tw("How your industries compare")}</b> {tw("ranks the industries your shares sit in.")} <b>Does Sector Pulse agree?</b> checks whether the stocks inside have turned up too.</>,
           ]} /></div>
         <div><h3 className="sp-guide-k">What each box means</h3>
