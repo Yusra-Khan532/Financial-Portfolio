@@ -218,12 +218,12 @@ export function FundListPage() {
             {!ready && t && !q.stopped && <span className="faint"> · {(t.schemes - t.active).toLocaleString("en-IN")} older schemes have stopped publishing and are hidden</span>}
             {facts?.dataDate && <span className="faint"> · NAVs up to {dateIN(facts.dataDate)}</span>}
           </p>
-          <ColumnPicker cols={cols} onChange={(c) => { setCols(c); writeCols(c); }} />
         </div>
 
         {ready ? (
           !hot.data ? <div className="card" aria-busy="true"><div className="skeleton" style={{ height: 420 }} /></div> : (
             <div className="card mf-tablecard">
+              <div className="mf-tbar">{/* task #346: the Columns button inside the table, beside its enlarge button */}<ColumnPicker cols={cols} onChange={(c) => { setCols(c); writeCols(c); }} /></div>
               <p className="faint mf-fine mf-pad">{hot.data.basis}</p>
               <FundTable rows={hotRows} cols={cols} q={q} onSort={onSort} picked={tray} onPick={pick} />
               <CompareBar tray={tray} onClear={clear} onOpen={() => nav(compareUrl(tray))} />
@@ -244,6 +244,7 @@ export function FundListPage() {
           {historyLoading(d.items) && <p className="mf-note" role="status"><Icon name="info" /><span><b>Return history is still loading.</b> None of the funds on this page has its 1, 3 or 5 year return yet because the NAV history from AMFI is loaded one fund house at a time. The figures appear as each house finishes; nothing here is missing for good.</span></p>}
           <SortPills q={eq} onSort={(sort, dir) => set({ sort: sort as SortKey, dir })} />
           <div className="card mf-tablecard">
+            <div className="mf-tbar">{/* task #346: the Columns button inside the table, beside its enlarge button */}<ColumnPicker cols={cols} onChange={(c) => { setCols(c); writeCols(c); }} /></div>
             <FundTable rows={d.items} cols={cols} q={eq} onSort={onSort} picked={tray} onPick={pick} peers={d.peers} />
             <CompareBar tray={tray} onClear={clear} onOpen={() => nav(compareUrl(tray))} />
             <Pager q={q} pages={d.pages} total={d.total} onPage={(p) => { set({ page: p }); window.scrollTo({ top: 0 }); }} onSize={(n) => set({ size: n })} />
