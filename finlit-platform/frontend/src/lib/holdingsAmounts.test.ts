@@ -8,7 +8,7 @@ import { statementAmounts } from "./holdingsAmounts";
 import { entriesWithAmounts } from "./holdingsFile";
 import { isSure, readPdfHoldings, readPdfItems, rowsFromPdfItems, setPdfLoader, type PdfFinds } from "./holdingsPdf";
 import { addedMessage, attachAmounts, fileNotes, newHolding, updateHeld } from "./importAdd";
-import { etfBuys, etfCommit, etfMessage, etfPlan, etfPreviewRows, fundsFromMissing, type EtfPreview } from "./importFunds";
+import { etfBuys, etfCommit, etfPlan, etfPreviewRows, fundsFromMissing, type EtfPreview } from "./importFunds";
 
 const dir = new URL("./fixtures/pdf/", import.meta.url);
 const INDEX: SearchRow[] = Object.entries(JSON.parse(readFileSync(new URL("index.json", dir), "utf8")) as Record<string, { name: string; bse: string }>).map(([s, v]) => [s, v.name, v.bse, 1, s] as unknown as SearchRow);
@@ -184,8 +184,14 @@ describe("spreadsheets: quantity and buy price on every line", () => {
     const r = entriesWithAmounts([["Symbol", "ISIN", "Qty", "Avg price"], ["INFY", "INE009A01021", "10", "1000"], ["INFY", "INE009A01021", "30", "2000"]]);
     expect(r.entries).toEqual([{ isin: "INE009A01021", name: "INFY", qty: 40, avg: 1750, avgHow: "column", lines: 2 }]);
   });
-  it("a tradebook gives names only: its buys are not holdings", () => {
+  it("a tradebook gives each buy and sale with its date (developer file 31; it gave names only until then)", () => {
     const r = entriesWithAmounts([["symbol", "isin", "trade_date", "exchange", "trade_type", "quantity", "price", "trade_id"], ["INFY", "INE009A01021", "2026-11-03", "NSE", "buy", "10", "1500", "1"]]);
+    expect(r.amounts.trades).toBe(true);
+    expect(r.entries[0]).toMatchObject({ qty: 10, avg: 1500, trades: [{ side: "buy", qty: 10, price: 1500, date: "2026-11-03", line: 2 }] });
+    expect(fileNotes(r.amounts, r.entries)[0]).toMatch(/^This file lists trades: 1 buy and no sales/);
+  });
+  it("a tradebook with no Buy / Sell column that can be read still gives names only: its lines are not holdings", () => {
+    const r = entriesWithAmounts([["symbol", "isin", "trade_date", "exchange", "quantity", "price", "trade_id"], ["INFY", "INE009A01021", "2026-11-03", "NSE", "10", "1500", "1"]]);
     expect(r.amounts.trades).toBe(true);
     expect(r.entries[0].qty).toBeUndefined();
     expect(fileNotes(r.amounts, r.entries)[0]).toMatch(/lists trades/);
@@ -217,7 +223,7 @@ describe("adding the shares", () => {
     expect(addedMessage("PDF", [{ qty: 20, rate: 10 }, { qty: 40, rate: 12 }], 0, null, { rateAsBuy: true, rateCol: "Rate", rateOn: "2026-11-20" }))
       .toBe("Added 2 shares from the PDF, each with its quantity and the statement's Rate (the price of 20 Nov 2026) as its buy price.");
   });
-  it("ETF lines go to the ETF portfolio: new ones added, ones already there get their units, mutual fund units are named", () => {
+  it("ETF lines go to the ETF portfolio: new ones added, ones already there keep their units (each account's buys set them), mutual fund units are named", () => {
     const funds = [
       { isin: "INF000000101", input: "SAMPLE GOLD ETF", qty: 1800, rate: 101.89, rateOn: "2026-11-20" },
       { isin: "INF000000202", input: "SAMPLE NASDAQ ETF", qty: 415, rate: 299.18, rateOn: "2026-11-20" },
@@ -235,10 +241,11 @@ describe("adding the shares", () => {
     expect(plan.notAdded[0].why).toMatch(/not an ETF FinLit lists/);
     expect(plan.over).toBe(0);
     const ticked = new Set(["SMPLGOLD", "SMPLNDQ"]);
-    expect(etfCommit(plan, ticked)).toEqual({ items: [{ symbol: "SMPLNDQ", qty: 415 }, { symbol: "SMPLGOLD", qty: 1800 }], existing: "replace" });
-    expect(etfBuys(plan, ticked, false, () => false)).toEqual([]);
+    // developer file 32: "skip", so a second account's file never writes over the first account's units (the book's buys set them)
+    expect(etfCommit(plan, ticked)).toEqual({ items: [{ symbol: "SMPLNDQ", qty: 415 }, { symbol: "SMPLGOLD", qty: 1800 }], existing: "skip" });
+    // every ticked ETF gets its buy, with no price when the file has none, so its units are in the account
+    expect(etfBuys(plan, ticked, false, () => false)).toEqual([{ symbol: "SMPLNDQ", qty: 415, price: 0, owned: true, pf: "main" }, { symbol: "SMPLGOLD", qty: 1800, price: 0, owned: true, pf: "main" }]);
     expect(etfBuys(plan, ticked, true, (s) => s === "SMPLGOLD")).toEqual([{ symbol: "SMPLNDQ", qty: 415, price: 299.18, owned: true, pf: "main", date: "2026-11-20" }]);
-    expect(etfMessage({ added: 6, replaced: 2 }, ["SMPLGOLD", "SMPLSILV"])).toBe("8 ETFs went to your ETF portfolio: 6 added, units set for SMPLGOLD and SMPLSILV.");
     expect(etfPlan(funds.slice(0, 2), { rows: pv.rows.slice(0, 2).map((r) => ({ ...r, existing: false })), capacity: { limit: 15, used: 14, room: 1 } }).over).toBe(1);
   });
   it("a holdings report with symbols only: the lines that name no company are tried as ETFs by symbol, with the file's average buy price", () => {

@@ -122,8 +122,9 @@ describe("PdfImport: the statement's Rate as the buy price, and the ETFs", () =>
     expect(calls.list[0]).toMatchObject({ method: "POST", path: "/api/me/etf-portfolio/import-preview" });
     fireEvent.click(screen.getByRole("button", { name: "Add 2 shares and 1 ETF" }));
     await waitFor(() => expect(onAdd).toHaveBeenCalled());
-    expect(calls.list.find((c) => c.path.endsWith("/import-commit"))?.body).toEqual({ items: [{ symbol: "NIFTYBEES", qty: 120 }], existing: "replace" });
-    expect(onAdd.mock.calls[0][1].etf).toMatch(/^1 ETF went to your ETF portfolio: 1 added\. Each has the statement's Rate of 20 Nov 2026 as its buy price\./);
+    expect(calls.list.find((c) => c.path.endsWith("/import-commit"))?.body).toEqual({ items: [{ symbol: "NIFTYBEES", qty: 120 }], existing: "skip" });
+    expect(onAdd.mock.calls[0][1].etf).toBe('1 ETF went to your ETF portfolio, account "My ETFs": NIFTYBEES is new to it. One has the statement\'s Rate of 20 Nov 2026 as the buy price.');
+    expect(onAdd.mock.calls[0][1].etfPf).toBe("main");                                 // developer file 32: the note links to that account
     // with the Rate ticked, the ETF gets one buy in the ETF book at the Rate, dated by the Rate's day
     const put = calls.list.find((c) => c.method === "PUT" && c.path.endsWith("/book"))?.body as { lots: { symbol: string; qty: number; price: number; date: string }[] };
     expect(put.lots).toMatchObject([{ symbol: "NIFTYBEES", qty: 120, price: 289.4, date: "2026-11-20", side: "buy", pf: "main" }]);

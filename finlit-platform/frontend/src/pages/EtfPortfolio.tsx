@@ -26,7 +26,9 @@ import { VIEW_COLOR } from "../portfolio/ViewKit";
 import type { LotsProps } from "../portfolio/HoldingCells";
 import { aggOf, ledgerOf, moneyOf } from "../lib/ledger";
 import { DEFAULT_PF } from "../lib/portfolio";
-import { useEtfBook } from "../lib/etfBook";
+import { tradeRows } from "../lib/importAdd";
+import type { Trade } from "../lib/tradeColumns";
+import { fileIntoAccount, fileMessage, useEtfBook } from "../lib/etfBook";
 import { AddBox, MenuButton, type Resolved, type Sugg } from "../portfolio/kit/AddBox";
 import { TopMoney } from "../portfolio/kit/TopMoney";
 import { NextView, ViewCards, useSeenViews, type ViewCard } from "../portfolio/kit/ViewCards";
@@ -56,7 +58,10 @@ const errText = (e: unknown) => ((e as { body?: { detail?: string } })?.body?.de
 
 /* --------------------------------------------------------------- import a broker file */
 const STATUS: Record<string, string> = { matched: "Matched", duplicate: "Repeated", ignored: "Company shares", not_found: "Not an ETF we list", invalid: "Not readable" };
-function ImportFile({ onDone }: { onDone: (m: string, items?: { symbol: string; qty: number | null; avg?: number }[]) => void }) {
+/** Developer file 35: `account` is the account the file goes into; `here` says whether an ETF already has buys there. onDone gets the ticked ETFs and the
+ *  member's choice for those with buys there ("Use the file's quantities"); the page puts them in the book (lib/etfBook fileIntoAccount). */
+function ImportFile({ onDone, account, here }: { onDone: (items: { symbol: string; qty: number | null; avg?: number; trades?: Trade[] }[], useFile: boolean) => void;
+  account: string; here: (symbol: string) => boolean }) {
   const w = useEtfWrites(), ref = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false), [err, setErr] = useState(""), [pv, setPv] = useState<Preview | null>(null), [skip, setSkip] = useState<Set<number>>(new Set()), [existing, setExisting] = useState<"skip" | "replace">("skip");
   const [raws, setRaws] = useState<RawRow[]>([]);
@@ -70,14 +75,19 @@ function ImportFile({ onDone }: { onDone: (m: string, items?: { symbol: string; 
   };
   // 22 Nov 2026: each ETF comes with the file's average buy price ("Avg. price", or Invested ÷ quantity), so Invested and Gain or loss can be worked out
   const avgs = useMemo(() => (pv ? avgBySymbol(pv, raws) : new Map<string, number>()), [pv, raws]);
-  const items = (pv?.rows ?? []).filter((r) => r.status === "matched" && r.etf && !skip.has(r.i)).map((r) => ({ symbol: r.etf!.symbol, qty: r.qty, ...(avgs.has(r.etf!.symbol) ? { avg: avgs.get(r.etf!.symbol)! } : {}) }));
-  const priced = items.filter((x) => x.avg != null).length;
+  // developer file 31: an ETF sold in full in a tradebook is shown, not offered (raws[i].soldOut)
+  const sold = (r: { i: number }) => !!raws[r.i]?.soldOut;
+  const items = (pv?.rows ?? []).filter((r) => r.status === "matched" && r.etf && !skip.has(r.i) && !sold(r)).map((r) => ({ symbol: r.etf!.symbol, qty: r.qty, ...(avgs.has(r.etf!.symbol) ? { avg: avgs.get(r.etf!.symbol)! } : {}),
+    ...(raws[r.i]?.trades?.length ? { trades: raws[r.i].trades } : {}) }));
+  const nTrades = raws.reduce((a, r) => a + (r.trades?.length ?? 0), 0);
   // a holdings report lists shares and ETFs together: the company-share lines go under a fold, so the ETFs are not lost among them (22 Nov 2026)
   const shares = (pv?.rows ?? []).filter((r) => r.status === "ignored"), shown = (pv?.rows ?? []).filter((r) => r.status !== "ignored" || (pv?.rows ?? []).length === shares.length);
-  const fresh = (pv?.rows ?? []).filter((r) => r.status === "matched" && !r.existing && !skip.has(r.i)).length, nOld = (pv?.rows ?? []).filter((r) => r.status === "matched" && r.existing).length;
+  // developer file 35: the choice is about the ETFs that already have buys in the account the file goes into (a tradebook's ETFs follow their own rule)
+  const fresh = (pv?.rows ?? []).filter((r) => r.status === "matched" && !r.existing && !skip.has(r.i) && !sold(r)).length, nOld = items.filter((x) => !x.trades?.length && here(x.symbol)).length;
   const go = async () => {
     setErr("");
-    try { const r = await w.commit.mutateAsync({ items: items.map(({ symbol, qty }) => ({ symbol, qty })), existing }); onDone(`Imported: ${r.added} added${r.replaced ? `, ${r.replaced} updated` : ""}${r.skipped ? `, ${r.skipped} already in your list (kept)` : ""}${priced ? `; ${priced === items.length ? "each" : priced} with the file's average buy price` : ""}.`, items); setPv(null); }
+    // the list only takes the new ETFs ("skip"); the units of each ETF come from its buys, which the page sets in the book next
+    try { await w.commit.mutateAsync({ items: items.map(({ symbol, qty }) => ({ symbol, qty })), existing: "skip" }); onDone(items, existing === "replace"); setPv(null); }
     catch (x) { setErr(errText(x)); }
   };
   return (<>
@@ -91,16 +101,17 @@ function ImportFile({ onDone }: { onDone: (m: string, items?: { symbol: string; 
         <thead><tr><th>Line</th><th>In your file</th><th>Status</th><th>ETF in FinLit</th><th>Quantity</th><th>Avg. buy price</th><th>Import</th></tr></thead>
         <tbody>{shown.map((r) => <tr key={r.i} className={"st-" + r.status}>
           <td data-label="Line">{r.row || r.i + 1}</td>
-          <td data-label="In your file"><b>{r.name || r.symbol || r.isin || "(blank)"}</b><small>{[r.isin, r.symbol].filter(Boolean).join(" · ")}</small></td>
+          <td data-label="In your file"><b>{r.name || r.symbol || r.isin || "(blank)"}</b><small>{[r.isin, r.symbol, raws[r.i]?.trades?.length ? `${raws[r.i].trades!.length} ${raws[r.i].trades!.length === 1 ? "trade" : "trades"}` : ""].filter(Boolean).join(" · ")}</small></td>
           <td data-label="Status"><span className={"mp-chip st-" + r.status}>{STATUS[r.status]}</span><small>{r.reason}</small></td>
           <td data-label="ETF in FinLit">{r.etf ? <><b>{r.etf.name}</b><small>{r.etf.symbol}{r.existing ? " · already in your list" : ""}</small></> : <span className="faint">—</span>}</td>
-          <td data-label="Quantity">{r.qty ?? "—"}</td>
+          <td data-label="Quantity">{sold(r) ? 0 : r.qty ?? "—"}</td>
           <td data-label="Avg. buy price">{r.status === "matched" && r.etf && avgs.has(r.etf.symbol) ? "₹" + avgs.get(r.etf.symbol)!.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—"}</td>
-          <td data-label="Import">{r.status === "matched" ? <input type="checkbox" aria-label={`Import line ${r.row || r.i + 1}`} checked={!skip.has(r.i)} onChange={(e) => setSkip((s) => { const n = new Set(s); if (e.target.checked) n.delete(r.i); else n.add(r.i); return n; })} /> : null}</td>
+          <td data-label="Import">{r.status === "matched" && sold(r) ? <small>Sold in full in this file</small> : r.status === "matched" ? <input type="checkbox" aria-label={`Import line ${r.row || r.i + 1}`} checked={!skip.has(r.i)} onChange={(e) => setSkip((s) => { const n = new Set(s); if (e.target.checked) n.delete(r.i); else n.add(r.i); return n; })} /> : null}</td>
         </tr>)}</tbody></table></div>
+      {nTrades > 0 && <p className="faint">This file lists trades: each ETF comes with what is left of its units, worked out first in, first out, and its buys and sales, dated, go to your book. An ETF sold in full in the file is not added.</p>}
       {shares.length > 0 && <details className="mp-shares"><summary>{shares.length} {shares.length === 1 ? "line is a company's shares" : "lines are company shares"}, left for the Equity portfolio</summary>
         <p className="faint">{shares.map((r) => `${r.symbol || r.isin || r.name} (line ${r.row || r.i + 1})`).join(", ")}</p></details>}
-      {nOld > 0 && <fieldset className="mp-ex"><legend>{nOld} of these ETFs are already in your list</legend>
+      {nOld > 0 && <fieldset className="mp-ex"><legend>{nOld} of these ETFs already {nOld === 1 ? "has" : "have"} buys in {account}</legend>
         <label><input type="radio" checked={existing === "skip"} onChange={() => setExisting("skip")} /> Keep what I have</label>
         <label><input type="radio" checked={existing === "replace"} onChange={() => setExisting("replace")} /> Use the file's quantities</label></fieldset>}
       {fresh > pv.capacity.room && <p className="mp-warn" role="status">Your plan holds {pv.capacity.limit} ETFs ({pv.capacity.used} in your list); untick {fresh - pv.capacity.room} {fresh - pv.capacity.room === 1 ? "line" : "lines"}.</p>}
@@ -289,9 +300,18 @@ export function EtfPortfolioPage() {
               book.accounts.rename(id, m, pfList); toast("Account renamed."); return null; }}
             onRemove={(id) => { const nm = pfName(id); book.accounts.remove(id, pfList); setCur("all"); toast(`${nm} removed.`); }} />}
         </header>
-        {panel === "import" && <section className="sp-sec mfp-import" aria-label="Import a broker file"><div className="sp-sec-h"><div><h2>Import a broker file</h2></div><button type="button" className="ptk-link" onClick={() => setPanel("")}>Close</button></div><ImportFile onDone={(m, its) => { toast(m); setPanel("");
-          for (const it of its ?? []) if (it.qty && !book.own.some((h) => h.symbol === it.symbol && (h.pf ?? DEFAULT_PF) === goTo)) book.store.add({ symbol: it.symbol, qty: it.qty, price: it.avg ?? 0, owned: true, pf: goTo });
-          book.touch(); }} /></section>}
+        {panel === "import" && <section className="sp-sec mfp-import" aria-label="Import a broker file"><div className="sp-sec-h"><div><h2>Import a broker file</h2></div><button type="button" className="ptk-link" onClick={() => setPanel("")}>Close</button></div><ImportFile account={pfName(goTo)} here={(s) => book.own.some((h) => h.symbol === s && (h.pf ?? DEFAULT_PF) === goTo)} onDone={(its, useFile) => { setPanel("");
+          let traded = 0;
+          for (const it of its) {
+            // developer file 31: an ETF from a tradebook brings its dated buys and sales (never a second history beside one already in the book)
+            if (it.trades?.length) { const r = tradeRows(it.symbol, it.trades, book.rows, goTo, { pf: goTo }); if (r.first) book.store.update(r.first.id, { ...r.first.patch, pf: goTo }); r.adds.forEach((a) => book.store.add({ ...a, pf: goTo })); if (r.first || r.adds.length) traded++; }
+          }
+          // developer file 35: a holdings line into the account: added, or with "Use the file's quantities" its one buy takes the file's units
+          const plain = its.filter((it) => !it.trades?.length), r = fileIntoAccount(book.own, plain, goTo, useFile);
+          r.adds.forEach((a) => book.store.add(a)); r.updates.forEach((u) => book.store.update(u.id, u.patch));
+          book.touch();
+          const got = [...r.added, ...r.set], priced = plain.filter((x) => x.avg != null && got.includes(x.symbol)).map((x) => x.symbol);
+          toast(fileMessage(pfName(goTo), r, { traded, priced, unpricedSet: r.updates.filter((u) => !u.patch.price).map((u) => u.symbol) })); }} /></section>}
         <GoTo list={pfList} value={goTo} onChange={(id) => (cur === "all" ? setGoTo(id) : setCur(id))} noun="ETFs" />
         {adding && <AddPortfolioDialog taken={pfList.map((x) => x.name)} kinds={BROKERS} start={[["empty", "An empty account", "Add ETFs to it by name, then their buys."], ["file", "The broker's holdings file", "Brings each ETF with its quantity and average buy price."]]}
           onClose={() => setAdding(false)} onSave={({ name, broker, start }) => { const id = book.accounts.add({ name, broker }, pfList); setAdding(false); setCur(id); setGoTo(id); toast(`${name} added.`); if (start === "file") setPanel("import"); }} />}

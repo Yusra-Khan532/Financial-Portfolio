@@ -3,6 +3,7 @@
  *  which rows are company shares) and which scheme each row is. Reuses the spreadsheet reader of the stock portfolio (lib/holdingsFile: 5 MB, 5,000 rows, the same Excel / CSV / HTML-table
  *  handling), so the two pages accept the same files. Nothing is guessed: a file without a recognisable header is refused with the headers it did find. */
 import { gridsFromFile, type Grid } from "./holdingsFile";
+import { lineOf } from "./gridLines";
 
 export const FIELDS = ["name", "isin", "amfi", "folio", "units", "avgCost", "invested", "current", "nav", "date", "kind"] as const;
 export type Field = (typeof FIELDS)[number];
@@ -73,7 +74,7 @@ export function rowsFromGrid(grid: Grid, located: Located): { rows: RawRow[]; sk
   for (let r = located.headerRow + 1; r < grid.length; r++) {
     const line = grid[r] || [];
     if (!line.some((c) => cellText(c))) continue;
-    const out: RawRow = { row: r + 1 };
+    const out: RawRow = { row: lineOf(grid, r) };   // the line in the file (developer file 30), not the place among the non-blank lines
     for (const f of FIELDS) { const c = located.map[f]; if (c !== undefined) { const t = cellText(line[c]); if (t) out[f] = t; } }
     const first = line.map(cellText).find(Boolean) || "";
     if (TOTAL.test(first) || TOTAL.test(out.name || "")) { skippedTotal++; continue; }

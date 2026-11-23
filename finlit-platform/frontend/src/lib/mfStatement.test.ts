@@ -116,7 +116,7 @@ describe("real files", () => {
   });
   it("a BOM and a title above a CSV do not matter", async () => {
     const st = await statementFromFile(f(["﻿Holdings as on 30-10-2026\n\nScheme Name,Units\nX Fund,5\n"], "x.csv"));
-    expect(st.rows).toEqual([{ row: 3, name: "X Fund", units: "5" }]);
+    expect(st.rows).toEqual([{ row: 4, name: "X Fund", units: "5" }]);   // line 4 of the file (title, blank line, headings); it read 3 until developer file 30
   });
   it("a file that is not a spreadsheet is refused with words", async () => {
     await expect(statementFromFile(f([new Uint8Array([0x50, 0x4b, 3, 4, 0, 0, 0, 0])], "broken.xlsx"))).rejects.toThrow(/could not be read/);
