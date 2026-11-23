@@ -27,6 +27,7 @@ import { ResultTable } from "../mf/screen/Results";
 import "../styles/fgx.css";
 import "../styles/mf.css";
 import "../styles/mfscreen.css";
+import "../styles/task354.css";   // task #354: the Hide filters outline
 import "../styles/tools.css";
 import { SIDE, SplitDivider, useSideWidth } from "../components/SplitDivider";
 

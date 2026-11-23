@@ -15,6 +15,7 @@ import { Info } from "../components/Info";
 import { CheckRow, Chev } from "../components/screener/FilterGroup";
 import "../styles/fgx.css";
 import "../styles/etf351.css";
+import "../styles/task354.css";   // task #354: the Hide filters outline
 import "../styles/etfvs.css";
 
 const COLS_KEY = "etf-cols";   // versioned by lib/persist: a different version or unknown column ids fall back to the default

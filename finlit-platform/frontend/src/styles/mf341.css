@@ -195,7 +195,3 @@
 .mf-list .mf-table thead th .mf-sort { justify-content: center; margin-inline: auto; }
 .mf-list .mf-table thead th:not(:first-child), .mf-list .mf-table tbody td { border-left: 1px solid var(--border-strong); }
 .mf-list .mf-table .mf-grouprow th + th { border-left: 1px solid var(--border-strong); }
-
-/* task #354 (team, 23 Nov 2026): "Hide filters" with a bolder outline: 2px in the text colour (was 1px in the soft border), semibold */
-.mf-list .mf-side .btn.mf-hidef:not(.primary) { border: 2px solid color-mix(in srgb, var(--text) 70%, transparent); font-weight: 600; }
-.mf-list .mf-side .btn.mf-hidef:not(.primary):hover, .mf-list .mf-side .btn.mf-hidef:not(.primary):focus-visible { border-color: var(--text); }

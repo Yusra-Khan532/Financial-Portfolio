@@ -87,7 +87,3 @@
   .etf-list .etf-chev { transition: none; }
   .etf-list .etf-tw { scroll-behavior: auto; }
 }
-
-/* task #354: the ETF page's "Hide filters" (the toggle while the panel is open) with the same bolder outline */
-:root .etf-list .btn.etf-ftog.is-on:not(.primary) { border: 2px solid color-mix(in srgb, var(--text) 70%, transparent); font-weight: 600; }
-:root .etf-list .btn.etf-ftog.is-on:not(.primary):hover, :root .etf-list .btn.etf-ftog.is-on:not(.primary):focus-visible { border-color: var(--text); }
