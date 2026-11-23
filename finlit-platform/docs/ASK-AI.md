@@ -334,3 +334,48 @@ choice on cost); the extra tokens are a few lines in the note with the question,
   "On your watchlist", "Alert set"; a name on the Equity portfolio with no quantity reads "In your portfolio list". A signed-out visitor never
   gets the event, and the component shows nothing without a signed-in member. Styles: `styles/ask-relation.css`, tokens only.
 - Tests: `backend/tests/test_ask_holdings.py` (real Postgres and Redis), `frontend/src/components/AskRelation349.test.tsx`.
+
+## What's new for me (task #349, PR 5, 23 Nov 2026)
+
+"Anything new in my holdings?", "what changed in my portfolio this week", "kya naya hai mere stocks mein", "what's new for me?" (and the panel's
+"What's new in my holdings?") are one intent, `mine:-:whatsnew` (`memory.asks_whatsnew`: a word for new or changed and a word for the member's own
+holdings, portfolio, stocks, shares or watchlist; a how-to such as "how do I add a new share to my portfolio" is not it). The model is unchanged
+(the founder's choice on cost): the extra tokens are a few dated lines in the note with the question.
+
+- **Who.** A signed-in Silver or Gold member, as for every written answer; Basic is refused as before and an administrator's "view as" preview is
+  answered as before. A member with no shares in the Equity portfolio and no company on a watchlist gets a plain answer at once, without the model
+  and without using a question: there is nothing to compare yet; add shares in Workspace > Equity portfolio or companies to a watchlist (links to
+  both pages).
+- **Which companies** (`ask/whatsnew.py kept`, scoped to the member's `user_id`): at most 5. The Equity portfolio first, by its weight (the page's
+  own rule, `portfolio_page.score.weights_of`, through PR 4's `mine.equity`), then by value, then as listed; then the watchlists in their order.
+- **Since when.** The company's last memory row within 30 days: a question about it, or an earlier "what's new" that compared it (its figures are
+  kept with that answer). With none, or with remembering switched off, the last 7 days.
+- **The diff, deterministic** (PR 3's `memory.diff` and news read):
+  - the close on or before the starting day (or the price the earlier answer read) against the latest stored close, both with their dates;
+  - FinLit Prism only when the earlier row had a score: read again as the member (`get_finlit_prism`), so the plan is respected; a Silver member
+    whose earlier answer was on Gold reads "FinLit Prism: not included in your plan now", never a change;
+  - the company's news and results filings dated after the starting day (`get_news_and_filings`, `memory.new_items`), results first, at most 3.
+  - A company with nothing new says so; one with no stored close says why.
+- **Order.** The biggest change first: the size of the price move in %, plus a weight for a Prism or results change and for each new filing.
+- **Prompt.** `<whats_new_for_you>` and one instruction, in the per-question note (the system prompt and the tool list stay byte for byte the same).
+  No company card, no page company (the page is not named in the context line, since the member asked about all their companies), no
+  `<since_last_asked>` and no `<member_relation>`. Example:
+
+  ```
+  <whats_new_for_you>
+  - TCS (on your watchlist 'IT'), last 7 days, since 16 Nov 2026:
+    - Price ₹3,000 → ₹3,150, +₹150 (+5%) (14 Nov 2026 → 22 Nov 2026)
+    - New results filing: Financial results for the quarter (21 Nov 2026)
+  - RELIANCE (you hold 40 shares; 100.0% of your Equity portfolio by value, close 22 Nov 2026), since your question of 21 Nov 2026, 8:54 pm IST:
+    - Price ₹2,880 → ₹2,950, +₹70 (+2.4%) (20 Nov 2026 → 22 Nov 2026)
+    - New filing: Outcome of board meeting (23 Nov 2026)
+  </whats_new_for_you>
+  [The member asked what is new in the companies they hold or watch. Answer from <whats_new_for_you>: lead with the biggest changes, one short line
+  each with its date; then one line naming the companies with no change. Every figure keeps its date. Describe only, never advise: never say to
+  buy, add, sell, trim, exit, hold or rebalance.]
+  ```
+- **Cache and memory.** Never read from or written to the 30-minute answer cache. The answer is kept as `mine:-:whatsnew` (subject kind `mine`,
+  "Your holdings" in Chat History) with the figures it compared, so the next "what's new" starts from it. PR 1's and PR 4's advice checks apply.
+- **Panel.** "What's new in my holdings?" is the first chip under "Try asking" for a signed-in member with written answers and questions left
+  (`aiReady`); visitors and Basic do not see it. The `done` event links "Your Equity portfolio" first.
+- Tests: `backend/tests/test_ask_whatsnew.py` (real Postgres and Redis), `frontend/src/components/AskWhatsNew349.test.tsx`.

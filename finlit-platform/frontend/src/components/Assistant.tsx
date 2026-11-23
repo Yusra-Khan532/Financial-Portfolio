@@ -33,6 +33,8 @@ const AskDiscovery = lazy(() => import("./AskDiscovery").then((m) => ({ default:
 
 /** The theme card on the start screen (the other four are lib/askFlow.ts CATEGORIES). */
 const FUNDS_CARD = { id: "funds", title: "Mutual funds & ETFs", sub: "Funds, returns, costs, ETFs", icon: "pie" } as const;
+/** Task #349 PR 5: answered from the member's own holdings and watchlists, each compared with their last question on it or the last 7 days. */
+export const WHATS_NEW_Q = "What's new in my holdings?";
 
 import { OPEN_AI } from "./assistantEvents";
 import { coTitle, subLine, titleOf } from "../lib/companyLabel";
@@ -281,7 +283,9 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
     active={keys.active} place={place} onPick={(q) => { setSgOpen(false); tapQ(q); }} onAsk={sendNow} />;
   /** Task #201: the start screen's search, above the cards: ask anything at once, with a few things to try. On the start screen it is the one box (the box at the
    *  bottom is hidden there), and the listed questions that match show under it. */
+  // task #349 PR 5: a Silver or Gold member with written answers on is offered "what's new" in their own holdings and watchlists first
   const TRY: { label: string; go: () => void }[] = [
+    ...(aiReady ? [{ label: WHATS_NEW_Q, go: () => void ask(WHATS_NEW_Q, "home") }] : []),
     { label: "Reliance financials", go: () => goCompany("RELIANCE", "financials") },
     { label: "P/E ratio", go: () => void ask("What is P/E and how is it used?", "home") },
     { label: "Sector outlook", go: () => void ask(MARKET_QUESTIONS[3].text, "home") },

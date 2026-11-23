@@ -38,6 +38,7 @@ from . import companies, pages, quota, routing, service, tools
 from .gateway import MemberGateway
 from . import memory   # task #349 PR 2: question memory (stores what was asked; changes no answer)
 from . import mine     # task #349 PR 4: how the member is linked to the company (holdings, funds, ETFs, watchlists, alerts)
+from . import whatsnew  # task #349 PR 5: "what's new for me" in the member's own companies
 
 log = logging.getLogger("finlit.ask")
 router = APIRouter(prefix="/api/ask", tags=["ask"])
@@ -215,11 +216,24 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
     # Task #349 PR 3: "since you last asked". A member with a question kept between 1 hour and 30 days ago: the question's subject is worked out
     # now, and the newest earlier answer on it is looked for. Anyone else is answered exactly as before (nothing more is read).
     started = time.monotonic()
-    early = await since_lookup(request, st, store, ctx, body, question) if kind == "question" else None
+    # Task #349 PR 5: "anything new in my holdings?" is answered from the member's own companies (at most 5), each compared with their last
+    # question on it or the last 7 days. A member who keeps no company gets a plain answer at once, without the model and without using a question.
+    wn = await whatsnew_lookup(store, ctx, question) if kind == "question" else None
+    if wn is not None and not wn["companies"]:
+        n0 = await quota.used(store.pool, ctx.user_id, month, kind)
+
+        async def nothing() -> AsyncIterator[bytes]:
+            yield sse("meta", {**quota.status(cap, n0, month), "cached": False})
+            yield sse("text", {"text": whatsnew.NOTHING_KEPT})
+            yield sse("done", {"disclaimer": service.DISCLAIMER, "sources": [], "pages": whatsnew.NOTHING_PAGES})
+        return StreamingResponse(nothing(), media_type="text/event-stream", headers={**STREAM_HEADERS})
+    early = await since_lookup(request, st, store, ctx, body, question) if kind == "question" and wn is None else None
     since_on = bool(early and early.get("prev"))
     # Task #349 PR 4: how the member is linked to the companies the question is about (their shares, funds, ETFs, watchlists, alerts). Only for a
     # member who keeps any of these (one cheap read); the subject worked out here is reused for the answer. No link: answered exactly as before.
-    rel = await relation_lookup(request, st, store, ctx, body, question, early) if kind == "question" else None
+    rel = await relation_lookup(request, st, store, ctx, body, question, early) if kind == "question" and wn is None else None
+    if wn is not None:                       # about the member's own companies: no company card, no page company, no since block
+        early = {"named": [], "page": None, "topic": None, "prev": None}
     if rel is not None and early is None:
         early = {"named": rel["named"], "page": rel["page"], "topic": None, "prev": None}
     rel_on = bool(rel and rel["rel"])
@@ -227,7 +241,7 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
     # A repeated first question (same words, same page, same plan, same day) is answered from the cache, at once and without using the allowance.
     # Not when "since you last asked" applies: that answer is the member's own (task #349 PR 3), like the answers about their own lists; nor when
     # the answer carries the member's own holdings (task #349 PR 4).
-    key = cache_key(st.ask_model, ctx, body) if not body.history else None
+    key = cache_key(st.ask_model, ctx, body) if not body.history and wn is None else None
     hit = None
     if key and not since_on and not rel_on:
         try:
@@ -305,7 +319,7 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
             # Task #253: the kind of question (a company, the economy, a company's financials, daily news, a term, valuation, rules, funds, a
             # sector) decides which sources come first and which of the team's sites the web search keeps to (named in the note with the question).
             # The AI summary is about the page's company only.
-            kinds = routing.classify(question, named_company=bool(named), on_company_page=bool(page)) if kind == "question" else []
+            kinds = routing.classify(question, named_company=bool(named), on_company_page=bool(page)) if kind == "question" and wn is None else []
             # Task #255 / #254: a question about what a company's own document says reads that document now. Task #254 rework (the owner, 19 Nov
             # 2026): any question about a company reads its newest presentation, results filing and call transcript first, in that order, each
             # bounded to its best pages; a question about its issues, risks or health also reads FinLit Prism and the ownership changes. The
@@ -341,14 +355,22 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
                 note = (note + "\n" if note else "") + memory.since_note(prev, facts, items)
             if rel_on:                       # task #349 PR 4: the member's own link to the company, in the note with the question
                 note = (note + "\n" if note else "") + mine.note(rel["rel"])
-            messages = service.build_messages([t.model_dump() for t in body.history], question, body.symbol, plan_key(ctx), card, note,
+            wn_figures = None
+            if wn is not None:               # task #349 PR 5: what is new in the member's own companies, worked out without a model
+                await emit("status", {"text": "Reading what is new in your companies"})
+                wn_asked = whatsnew.reads(wn)
+                got_wn = await within([tools.run(gw, n, a) for n, a in wn_asked], until)
+                entries, wn_figures = whatsnew.build(wn, [(n, a, x) for (n, a), x in zip(wn_asked, got_wn)], plan_key(ctx))
+                note = (note + "\n" if note else "") + whatsnew.note(entries)
+            # task #349 PR 5: "what's new" is about all the member's companies, the page's company among them: the page is not named
+            messages = service.build_messages([t.model_dump() for t in body.history], question, body.symbol if wn is None else None, plan_key(ctx), card, note,
                                               page_is_subject=bool(page) or kind != "question")
             prefetched = [r for r, _ in reads]
             if prefetched:
                 service.with_prefetches(messages, [(n, a, x) for (n, a), x in reads])
             result = await service.answer(client_for(st.anthropic_api_key), st.ask_model, gw, messages, emit, prefetched, max_tokens=st.ask_max_tokens)
             return {"result": result, "want": want, "named": named, "page": page, "kinds": kinds, "messages": messages,
-                    "cards": [(card_tool, {"symbol": s}, g) for s, g in zip(want[:2], got)] + extra_reads}
+                    "cards": [(card_tool, {"symbol": s}, g) for s, g in zip(want[:2], got)] + extra_reads, "wnFigures": wn_figures}
 
         yield sse("meta", {**quota.status(cap, n, month), "cached": False})
         if rel_on:                           # task #349 PR 4: the tags on the answer ("You hold this", "In 2 of your funds" ...)
@@ -415,9 +437,11 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
         personal = any(t.startswith("get_my_") for t in result["tools"])
         # "aligned with the web pages" (task #218): the FinLit pages this answer read, as links under it; the companies read before the model started count first
         links = pages.page_links([("get_company_card", {"symbol": s}) for s in want[:2]] + list(result.get("calls") or []))
+        if wn is not None:                  # task #349 PR 5: the answer is about the member's own companies
+            links = (whatsnew.NOTHING_PAGES[:1] + [x for x in links if x["to"] != "/holdings"])[:4]
         # Task #349 PR 2: question memory (ask/memory.py), written in the background from what this answer already read.
         snap = memory.after_answer(store.pool, ctx, kind=kind, question=question, result=result, named=done_["named"], page=done_["page"],
-                                   kinds=done_["kinds"], messages=done_["messages"], cards=done_["cards"])
+                                   kinds=done_["kinds"], messages=done_["messages"], cards=done_["cards"], figures=done_.get("wnFigures"))
         if key and result["text"] and result["stop"] in ("end_turn",) and not personal and not since_on and not rel_on:
             try:
                 await store.redis.set(key, json.dumps({"text": result["text"], "tools": result["tools"], "pages": links,
@@ -476,6 +500,18 @@ async def since_lookup(request: Request, st, store, ctx: Ctx, body: AskIn, quest
         return out
     except Exception:
         log.warning("ask: the earlier answer could not be looked for", exc_info=True)
+        return None
+
+
+async def whatsnew_lookup(store, ctx: Ctx, question: str) -> Optional[Dict[str, Any]]:
+    """Task #349 PR 5: for "anything new in my holdings?" from a Silver or Gold member, {companies: [...]} (whatsnew.lookup; empty when they keep
+    no company); None for any other question, an administrator's "view as" preview, or when it could not be read (then answered as before)."""
+    if not memory.asks_whatsnew(question) or memory._viewing_as(ctx) or quota.allowance(ctx) <= 0:
+        return None
+    try:
+        return await whatsnew.lookup(store.pool, ctx.user_id)
+    except Exception:
+        log.warning("ask: the member's companies could not be read for what is new", exc_info=True)
         return None
 
 
