@@ -37,7 +37,7 @@ describe("a filter that hides the company the reader typed", () => {
     const both = { sector: "Financial Services", cap: "large" as const };
     const h = hiddenMatches(IDX, "tcs", both)[0];
     expect(h.keys).toEqual(["sector"]);   // TCS is mega-cap: only the sector hides it
-    expect(relaxed(both, h.keys)).toEqual({ sector: null, cap: "large" });
+    expect(relaxed(both, h.keys)).toEqual({ sector: null, cap: "large", industry: null });
   });
   it("works for screener rows (compare page, watchlist)", () => {
     const rows = [{ symbol: "TCS", name: "Tata Consultancy", sector: "Information Technology", market_cap: 1400000 }];

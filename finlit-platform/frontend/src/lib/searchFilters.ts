@@ -8,15 +8,16 @@ import { searchStocks } from "./globalSearch";
 import type { SearchIndex, SearchRow } from "./api";
 
 export type CapId = CapBucket["id"];
-export type StockFilter = { sector: string | null; cap: CapId | null };
-export const NO_FILTER: StockFilter = { sector: null, cap: null };
-export const filterOn = (f: StockFilter) => !!f.sector || !!f.cap;
+/** `industry` (task #336): NSE's industry of the company, from the search index's `industries` / `ind`; optional, so older callers and rows without it keep working. */
+export type StockFilter = { sector: string | null; cap: CapId | null; industry?: string | null };
+export const NO_FILTER: StockFilter = { sector: null, cap: null, industry: null };
+export const filterOn = (f: StockFilter) => !!f.sector || !!f.cap || !!f.industry;
 
 export type Facet = { name: string; n: number };
 export type CapFacet = { id: CapId; label: string; range: string; n: number };
-export type Facets = { sectors: Facet[]; caps: CapFacet[]; unknown: { sector: number; cap: number }; total: number };
-/** What a filter needs to know about one company: its sector name and market value in rupees crore (null when unknown). */
-export type Sized = { sector: string | null; cap: number | null };
+export type Facets = { sectors: Facet[]; caps: CapFacet[]; industries: Facet[]; unknown: { sector: number; cap: number; industry: number }; total: number };
+/** What a filter needs to know about one company: its sector name, market value in rupees crore (null when unknown) and, where known, its NSE industry. */
+export type Sized = { sector: string | null; cap: number | null; industry?: string | null };
 
 const isCompany = (r: SearchRow) => !!r[0] && !r[0].startsWith("^");
 
@@ -24,26 +25,29 @@ const isCompany = (r: SearchRow) => !!r[0] && !r[0].startsWith("^");
 export const bandOf = (crore: number | null | undefined): CapBucket | null => (crore != null && crore > 0 ? capBucket(crore) : null);
 
 /** Does a company pass the filter? Unknown sector or size fails only the filter that needs it. */
-export function passesValues(sector: string | null | undefined, crore: number | null | undefined, f: StockFilter): boolean {
+export function passesValues(sector: string | null | undefined, crore: number | null | undefined, f: StockFilter, industry?: string | null): boolean {
   if (f.sector && sector !== f.sector) return false;
   if (f.cap && bandOf(crore)?.id !== f.cap) return false;
+  if (f.industry && industry !== f.industry) return false;
   return true;
 }
 
 /** Sectors that really occur in the data with their company counts (most first, ties by name), the six bands with counts, and how many are unknown. */
 export function facetsOf(items: Iterable<Sized>): Facets {
-  const sec = new Map<string, number>(), cap = new Map<CapId, number>();
-  let unknownSector = 0, unknownCap = 0, total = 0;
+  const sec = new Map<string, number>(), cap = new Map<CapId, number>(), ind = new Map<string, number>();
+  let unknownSector = 0, unknownCap = 0, unknownInd = 0, total = 0;
   for (const it of items) {
     total += 1;
     if (it.sector) sec.set(it.sector, (sec.get(it.sector) || 0) + 1); else unknownSector += 1;
+    if (it.industry) ind.set(it.industry, (ind.get(it.industry) || 0) + 1); else unknownInd += 1;
     const b = bandOf(it.cap);
     if (b) cap.set(b.id, (cap.get(b.id) || 0) + 1); else unknownCap += 1;
   }
   return {
     sectors: [...sec].map(([name, n]) => ({ name, n })).sort((a, b) => b.n - a.n || a.name.localeCompare(b.name)),
     caps: CAP_BUCKETS.map((b) => ({ id: b.id, label: b.label, range: b.range, n: cap.get(b.id) || 0 })),
-    unknown: { sector: unknownSector, cap: unknownCap }, total,
+    industries: [...ind].map(([name, n]) => ({ name, n })).sort((a, b) => b.n - a.n || a.name.localeCompare(b.name)),
+    unknown: { sector: unknownSector, cap: unknownCap, industry: unknownInd }, total,
   };
 }
 
@@ -51,6 +55,11 @@ export function facetsOf(items: Iterable<Sized>): Facets {
 export function sectorAt(idx: SearchIndex | undefined, i: number): string | null {
   const c = idx?.sec?.[i];
   return c != null && c >= 0 ? idx?.sectors?.[c] ?? null : null;
+}
+/** The NSE industry of index row i, or null when unknown (or when the server sends no industries). */
+export function industryAt(idx: SearchIndex | undefined, i: number): string | null {
+  const c = idx?.ind?.[i];
+  return c != null && c >= 0 ? idx?.industries?.[c] ?? null : null;
 }
 /** The size band of index row i, or null when the market value is unknown. */
 export function capAt(idx: SearchIndex | undefined, i: number): CapBucket | null {
@@ -64,12 +73,12 @@ const facetCache = new WeakMap<SearchIndex, Facets>();
 export function indexFacets(idx: SearchIndex | undefined): Facets {
   if (!idx) return facetsOf([]);
   let f = facetCache.get(idx);
-  if (!f) { f = facetsOf(idx.rows.flatMap((r, i) => (isCompany(r) ? [{ sector: sectorAt(idx, i), cap: idx.mc?.[i] ?? null }] : []))); facetCache.set(idx, f); }
+  if (!f) { f = facetsOf(idx.rows.flatMap((r, i) => (isCompany(r) ? [{ sector: sectorAt(idx, i), cap: idx.mc?.[i] ?? null, industry: industryAt(idx, i) }] : []))); facetCache.set(idx, f); }
   return f;
 }
 
 /** Does index row i pass the filter? */
-export const passes = (idx: SearchIndex | undefined, i: number, f: StockFilter) => passesValues(sectorAt(idx, i), idx?.mc?.[i], f);
+export const passes = (idx: SearchIndex | undefined, i: number, f: StockFilter) => passesValues(sectorAt(idx, i), idx?.mc?.[i], f, industryAt(idx, i));
 
 /** Index rows that pass the filter, largest market value first (rows when no filter is on: the index itself, untouched). Companies pickers rank on top of this. */
 export function filteredRows(idx: SearchIndex | undefined, f: StockFilter): SearchRow[] {
@@ -94,7 +103,7 @@ export function filterStocks(idx: SearchIndex | undefined, query: string, f: Sto
 
 /** "Mega-cap Information Technology" (the filter in words; empty when none). */
 export function filterPhrase(f: StockFilter): string {
-  return [f.cap ? CAP_BUCKETS.find((b) => b.id === f.cap)?.label : "", f.sector].filter(Boolean).join(" ");
+  return [f.cap ? CAP_BUCKETS.find((b) => b.id === f.cap)?.label : "", f.industry || f.sector].filter(Boolean).join(" ");   // the industry is the narrower of the two
 }
 /** "Mega-cap Information Technology companies", "Information Technology companies", "Mega-cap company" (n = 1). */
 export function filterNoun(f: StockFilter, n = 2): string {
@@ -102,28 +111,31 @@ export function filterNoun(f: StockFilter, n = 2): string {
 }
 
 // ---- why a company is not in the list: the filter hides it, and the reader is told so ----
-export type FilterKey = "sector" | "cap";
+export type FilterKey = "sector" | "cap" | "industry";
 export type HiddenHit = { symbol: string; name: string; keys: FilterKey[]; why: string };
 const capLabel = (id: CapId | null) => (id ? CAP_BUCKETS.find((b) => b.id === id)?.label ?? id : "");
 
 /** The active filters in words, one entry each: ["Sector: Information Technology", "Market cap: Mega-cap"]. Empty when none is on. */
 export function filterParts(f: StockFilter): string[] {
-  return [f.sector ? `Sector: ${f.sector}` : "", f.cap ? `Market cap: ${capLabel(f.cap)}` : ""].filter(Boolean);
+  return [f.sector ? `Sector: ${f.sector}` : "", f.industry ? `Industry: ${f.industry}` : "", f.cap ? `Market cap: ${capLabel(f.cap)}` : ""].filter(Boolean);
 }
 /** The filter with some of its parts removed (the part that hides a company). */
 export function relaxed(f: StockFilter, keys: readonly FilterKey[]): StockFilter {
-  return { sector: keys.includes("sector") ? null : f.sector, cap: keys.includes("cap") ? null : f.cap };
+  return { sector: keys.includes("sector") ? null : f.sector, cap: keys.includes("cap") ? null : f.cap, industry: keys.includes("industry") ? null : f.industry ?? null };
 }
 /** Which parts of the filter a company fails (unknown sector or size fails only the part that needs it). */
-export function failedKeys(sector: string | null | undefined, crore: number | null | undefined, f: StockFilter): FilterKey[] {
+export function failedKeys(sector: string | null | undefined, crore: number | null | undefined, f: StockFilter, industry?: string | null): FilterKey[] {
   const out: FilterKey[] = [];
   if (f.sector && sector !== f.sector) out.push("sector");
+  if (f.industry && industry !== f.industry) out.push("industry");
   if (f.cap && bandOf(crore)?.id !== f.cap) out.push("cap");
   return out;
 }
 /** "Hidden by your filter: Sector Information Technology (this company: Banks)". */
-export function whyHidden(keys: readonly FilterKey[], f: StockFilter, sector: string | null | undefined, crore: number | null | undefined): string {
-  const bits = keys.map((k) => k === "sector" ? `Sector ${f.sector}${sector ? ` (this one is in ${sector})` : " (this one has no sector on file)"}` : `Market cap ${capLabel(f.cap)}${bandOf(crore) ? ` (this one is ${bandOf(crore)!.label})` : " (this one has no market value on file)"}`);
+export function whyHidden(keys: readonly FilterKey[], f: StockFilter, sector: string | null | undefined, crore: number | null | undefined, industry?: string | null): string {
+  const bits = keys.map((k) => k === "sector" ? `Sector ${f.sector}${sector ? ` (this one is in ${sector})` : " (this one has no sector on file)"}`
+    : k === "industry" ? `Industry ${f.industry}${industry ? ` (this one is in ${industry})` : " (this one has no industry on file)"}`
+    : `Market cap ${capLabel(f.cap)}${bandOf(crore) ? ` (this one is ${bandOf(crore)!.label})` : " (this one has no market value on file)"}`);
   return `Hidden by your filter: ${bits.join(" and ")}`;
 }
 
@@ -133,9 +145,9 @@ export function hiddenMatches(idx: SearchIndex | undefined, query: string, f: St
   const hits = searchStocks(idx.rows, query, limit, new Set(), (i) => !passes(idx, i, f), idx.isin);
   const at = new Map(idx.rows.map((r, i) => [r[0], i] as [string, number]));
   return hits.map(({ row }) => {
-    const i = at.get(row[0])!, sector = sectorAt(idx, i), crore = idx.mc?.[i];
-    const keys = failedKeys(sector, crore, f);
-    return { symbol: row[0], name: row[1], keys, why: whyHidden(keys, f, sector, crore) };
+    const i = at.get(row[0])!, sector = sectorAt(idx, i), crore = idx.mc?.[i], industry = industryAt(idx, i);
+    const keys = failedKeys(sector, crore, f, industry);
+    return { symbol: row[0], name: row[1], keys, why: whyHidden(keys, f, sector, crore, industry) };
   });
 }
 /** The same for picker rows that carry sector and market_cap directly (screener rows). */
@@ -146,8 +158,8 @@ export function hiddenRowMatches<T extends { symbol: string; name?: string | nul
   for (const it of items) {
     if (out.length >= limit) break;
     if (!it.symbol.toLowerCase().includes(t) && !(it.name || "").toLowerCase().includes(t)) continue;
-    const z = size(it), keys = failedKeys(z.sector, z.cap, f);
-    if (keys.length) out.push({ symbol: it.symbol, name: it.name || it.symbol, keys, why: whyHidden(keys, f, z.sector, z.cap) });
+    const z = size(it), keys = failedKeys(z.sector, z.cap, f, z.industry);
+    if (keys.length) out.push({ symbol: it.symbol, name: it.name || it.symbol, keys, why: whyHidden(keys, f, z.sector, z.cap, z.industry) });
   }
   return out;
 }

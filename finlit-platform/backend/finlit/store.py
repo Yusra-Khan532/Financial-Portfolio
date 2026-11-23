@@ -28,7 +28,7 @@ from .config import Settings, get_settings
 
 log = logging.getLogger("finlit.store")
 MIGRATIONS = Path(__file__).parent / "migrations"
-SEARCH_KEY = "search-index:v2"   # v2 (22 Nov 2026): the list carries each company's BSE scrip ID (`bseId`); the new key makes every server build it at once
+SEARCH_KEY = "search-index:v3"   # v3 (23 Nov 2026, task #336): the list carries each company's NSE industry (`industries`, `ind`); v2 added `bseId`. A new key makes every server build it at once
 STOCK_TTL = 6 * 3600
 SEARCH_TTL = 6 * 3600   # the name list (~350 KB read from Postgres to build); a load or a universe refresh drops it sooner
 QUOTE_SYMBOLS_KEY = "quotes:symbols"   # who the minute-by-minute quote job updates: the list changes when a report is first loaded or pruned, not every minute
@@ -944,6 +944,17 @@ class Store:
                 counts[r["sector"]] = counts.get(r["sector"], 0) + 1
         sectors = sorted(counts, key=lambda k: (-counts[k], k))      # code 0 = the sector with most companies
         code = {name: i for i, name in enumerate(sectors)}
+        # task #336: each company's NSE industry (NSE's quote pages, the classification Sector Pulse groups by), as a table of names and a code per row
+        from .taxonomy import quote_pages
+        nse_ind = quote_pages()
+        ind_of = [nse_ind.get(str(r["symbol"]).upper()) or nse_ind.get(str(r["nse_code"] or "").upper()) for r in rows]
+        icount: dict = {}
+        for v in ind_of:
+            if v:
+                icount[v] = icount.get(v, 0) + 1
+        industries = sorted(icount, key=lambda k: (-icount[k], k))
+        icode = {name: i for i, name in enumerate(industries)}
+        ind = [icode.get(v, -1) if v else -1 for v in ind_of]     # -1: industry not known
         out, sec, mc, isin, bse_id = [], [], [], [], []
         for r in rows:
             isin.append(r["isin"] or "")
@@ -955,7 +966,8 @@ class Store:
             out.append(row)
             sec.append(code.get(r["sector"], -1))                       # -1: sector not known
             mc.append(int(math.ceil(r["mcap"])) if r["mcap"] and r["mcap"] > 0 else 0)   # market value in rupees crore, rounded up (every band edge is a whole number, so the band is unchanged); 0: not known
-        body = dumps({"fields": ["symbol", "name", "bse", "ready", "nse"], "rows": out, "sectors": sectors, "sec": sec, "mc": mc, "isin": isin, "bseId": bse_id})
+        body = dumps({"fields": ["symbol", "name", "bse", "ready", "nse"], "rows": out, "sectors": sectors, "sec": sec, "mc": mc, "isin": isin, "bseId": bse_id,
+                      "industries": industries, "ind": ind})
         packed = gzip.compress(body, compresslevel=9, mtime=0)
         etag = etag_for(body)
         try:
