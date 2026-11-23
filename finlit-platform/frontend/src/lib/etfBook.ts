@@ -18,6 +18,12 @@ export const toRow = (l: BookLot): Holding => ({ id: l.id, symbol: l.symbol, qty
 export const toLots = (hs: Holding[]) => hs.filter((h) => h.owned && h.qty > 0).map((h) => ({ id: h.id.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 40), symbol: h.symbol, pf: h.pf ?? DEFAULT_PF,
   side: h.side === "sell" ? "sell" : "buy", qty: h.qty, price: h.price > 0 ? h.price : null, date: h.date || null }));
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+/** An ETF in the list with no buys yet, as a row: a name in the first account, so its row offers "add a buy" (counted, not valued). */
+export const nameRows = (names: string[], rows: Holding[], first: string): Holding[] =>
+  names.filter((s) => !rows.some((r) => r.symbol === s)).map((s): Holding => ({ id: `name-${s}`, symbol: s, qty: 1, price: 0, owned: false, pf: first }));
+/** Developer file 33: the rows of a stored book as the ETF page reads them (its buys and sales, and the names in the first account), for a page that only
+ *  reads it (All my investments works out each account's ETFs from these, as the ETF page's own Your portfolios box does). */
+export const bookRows = (b: Book): Holding[] => { const rows = b.lots.map(toRow); return [...rows, ...nameRows(b.names ?? [], rows, b.portfolios[0]?.id ?? DEFAULT_PF)]; };
 
 /** The book in the page: rows, accounts, and a store with the shape lib/ledger's lotActions expects. Every change is saved after a short pause. */
 export function useEtfBook(on: boolean, names: string[]) {
@@ -56,6 +62,6 @@ export function useEtfBook(on: boolean, names: string[]) {
   };
   // an ETF in the list with no buys yet reads as a name in the first account, so its row offers "add a buy"
   const first = pfs[0]?.id ?? DEFAULT_PF;
-  const withNames = [...rows, ...names.filter((s) => !rows.some((r) => r.symbol === s)).map((s): Holding => ({ id: `name-${s}`, symbol: s, qty: 1, price: 0, owned: false, pf: first }))];
+  const withNames = [...rows, ...nameRows(names, rows, first)];
   return { rows: withNames, own: rows, pfs, ready, err, store, accounts, touch: save, get: () => [...cur.current.rows, ...withNames.filter((h) => !h.owned)], pending: () => dirty.current };
 }

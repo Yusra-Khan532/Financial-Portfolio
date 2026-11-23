@@ -15,6 +15,13 @@ export const keyOf = (holdingId: string) => holdingId.toUpperCase();
 export const lineRow = (hid: string, l: Line): Holding => ({ id: l.id, symbol: keyOf(hid), qty: l.units, price: l.invested != null && l.units > 0 ? Math.round((l.invested / l.units) * 10000) / 10000 : 0,
   ...(l.boughtOn ? { date: l.boughtOn } : {}), owned: true, pf: l.pf, ...(l.side === "sell" ? { side: "sell" as const } : {}) });
 const uid = () => "n" + Math.random().toString(36).slice(2, 10);
+/** The server's lines of every fund (held and sold in full) as page rows. */
+export const linesOf = (all: MfPortfolio): Holding[] => [...all.holdings.flatMap((h) => (h.lines ?? []).map((l) => lineRow(h.id, l))), ...(all.sold ?? []).flatMap((h) => h.lines.map((l) => lineRow(h.id, l)))];
+/** A fund only followed (no lines), as a row: a name in the first platform, so its row offers "add a buy" (counted, not valued). */
+export const fundNameRows = (all: MfPortfolio | undefined, rows: Holding[], first: string): Holding[] =>
+  (all?.holdings ?? []).filter((h) => !rows.some((r) => r.symbol === keyOf(h.id))).map((h): Holding => ({ id: `name-${keyOf(h.id)}`, symbol: keyOf(h.id), qty: 1, price: 0, owned: false, pf: first }));
+/** Developer file 33: the rows of the MF list as the MF page reads them, for a page that only reads it (All my investments, each platform's funds). */
+export const mfRows = (all: MfPortfolio, first: string): Holding[] => { const rows = linesOf(all); return [...rows, ...fundNameRows(all, rows, first)]; };
 
 export function useMfBook(on: boolean, all: MfPortfolio | undefined) {
   const qc = useQueryClient();
@@ -26,7 +33,7 @@ export function useMfBook(on: boolean, all: MfPortfolio | undefined) {
   // the server's lines are the truth whenever the list is read again (after a save, an import or a clear); rows still being typed stay
   useEffect(() => {
     if (!all) return;
-    const fromServer = [...all.holdings.flatMap((h) => (h.lines ?? []).map((l) => lineRow(h.id, l))), ...(all.sold ?? []).flatMap((h) => h.lines.map((l) => lineRow(h.id, l)))];
+    const fromServer = linesOf(all);
     setRows((old) => [...fromServer, ...old.filter((r) => r.owned && !(r.qty > 0) && !fromServer.some((x) => x.symbol === r.symbol && x.id === r.id))]);
   }, [all]);
   const saveFund = useCallback((sym: string) => {
@@ -55,6 +62,6 @@ export function useMfBook(on: boolean, all: MfPortfolio | undefined) {
   };
   // a fund only followed (no lines) reads as a name in the first platform, so its row offers "add a buy"
   const first = pfs[0]?.id ?? DEFAULT_PF;
-  const withNames = [...rows, ...(all?.holdings ?? []).filter((h) => !rows.some((r) => r.symbol === keyOf(h.id))).map((h): Holding => ({ id: `name-${keyOf(h.id)}`, symbol: keyOf(h.id), qty: 1, price: 0, owned: false, pf: first }))];
+  const withNames = [...rows, ...fundNameRows(all, rows, first)];
   return { rows: withNames, pfs, err, store, accounts, get: () => [...cur.current, ...withNames.filter((h) => !h.owned)] };
 }

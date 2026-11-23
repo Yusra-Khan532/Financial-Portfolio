@@ -18,11 +18,14 @@ import { StickySwitch, VIEW_ICON, type ViewDef } from "../portfolio/ViewKit";
 import "../portfolio/holdings-kit.css";
 import { ALL_SECTIONS, AllTogether } from "../myinvest/AllTogether";
 import { NextView, TopCard, ViewTiles, useViewsSeen, type AccRow } from "../myinvest/Top";
-import { aggOf } from "../lib/ledger";
 import { EQ_SECTIONS, ETF_SECTIONS, EquityTab, EtfTab, MF_SECTIONS, MfTab } from "../myinvest/KindTabs";
 import { QtyDialog } from "../myinvest/QtyDialog";
 import "../styles/myinvest.css";
 import { PLAN_FOR_PORTFOLIO } from "../lib/planGates";
+import { accountFigs, accountSub, type AccountFigs } from "../lib/accountMoney";
+import { bookRows, type Book } from "../lib/etfBook";
+import { keyOf, mfRows } from "../lib/mfBook";
+import { useMfPortfolio } from "../lib/mfPortfolio";
 
 const TABS: { id: Tab; label: string; sub: string; sections: { id: string; label: string }[] }[] = [
   { id: "all", label: "All together", sub: "Money, mix, every company, health and risk", sections: ALL_SECTIONS },
@@ -65,8 +68,18 @@ function Body() {
   const silver = has(PLAN_FOR_PORTFOLIO);
   const qAll = useAllInvestments(holdings, silver);
   const mfB = useQuery({ queryKey: ["mf-portfolio", "book"], queryFn: () => apiGet<{ portfolios: Portfolio[] }>("/api/me/mf-portfolio/book"), enabled: silver, staleTime: 60_000, retry: false });
-  const etfB = useQuery({ queryKey: ["etf-portfolio", "book"], queryFn: () => apiGet<{ portfolios: Portfolio[] }>("/api/me/etf-portfolio/book"), enabled: silver, staleTime: 60_000, retry: false });
+  const etfB = useQuery({ queryKey: ["etf-portfolio", "book"], queryFn: () => apiGet<Book>("/api/me/etf-portfolio/book"), enabled: silver, staleTime: 60_000, retry: false });
   const accs = useMemo(() => accountsOf(portfolios, holdings, mfB.data?.portfolios, etfB.data?.portfolios, qAll.data), [portfolios, holdings, mfB.data, etfB.data, qAll.data]);
+  // developer file 33: each account's funds and ETFs from the MF and ETF pages' own rows (the MF list is read only when there are two platforms or more)
+  const mfAccs = accs.filter((a) => a.mf).length, etfAccs = accs.filter((a) => a.etf).length;
+  const mfL = useMfPortfolio(silver && mfAccs > 1);
+  const figs = useMemo(() => {
+    const etfRows = etfB.data?.lots ? bookRows(etfB.data) : null;
+    const mfR = mfL.data ? mfRows(mfL.data, mfB.data?.portfolios?.[0]?.id ?? DEFAULT_PF) : null;
+    const navs = new Map((mfL.data?.holdings ?? []).map((h) => [keyOf(h.id), h.nav]));
+    const books = { all: qAll.data, hs: holdings, etfRows, mfRows: mfR, nav: (k: string) => navs.get(k) ?? null, etfAccounts: etfAccs, mfAccounts: mfAccs };
+    return new Map(accs.map((a) => [a.id, accountFigs(a, books)]));
+  }, [accs, holdings, qAll.data, etfB.data, mfL.data, mfB.data, etfAccs, mfAccs]);
   const [params, setParams] = useSearchParams();
   const acc = accs.find((a) => a.id === params.get("acc")) ?? null;
   const pick: AccountPick | null = acc && accs.length > 1 ? { eq: acc.eq, mf: acc.mf ?? "none", etf: acc.etf ?? "none" } : null;
@@ -76,11 +89,15 @@ function Body() {
   const hsIn = pick?.eq ? holdings.filter((h) => pick.eq!.includes(h.pf ?? DEFAULT_PF)) : holdings;
   const money = useMemo(() => (d ? moneyByKind(d, hsIn) : null), [d, hsIn]);
   const setAcc = (id: string) => setParams((p) => { const n = new URLSearchParams(p); if (id === "all") n.delete("acc"); else n.set("acc", id); return n; }, { replace: true });
-  const accFigs = (id: string) => { const dd = id === "all" ? qAll.data : id === acc?.id ? d : undefined; if (!dd) return { n: -1, now: 0, withQty: 0, gainPct: null };
-    const m = moneyByKind(dd, id === "all" ? holdings : hsIn).all; return { n: m.n, now: m.now, withQty: m.now ? m.n : 0, gainPct: m.full && m.invested ? (m.gain / m.invested) * 100 : null }; };
+  // the money of every account together, whichever account is picked (All accounts under Your portfolios, and in the sticky menu)
+  const moneyAll = useMemo(() => (qAll.data ? moneyByKind(qAll.data, holdings) : null), [qAll.data, holdings]);
+  // developer file 33: the sticky account menu gives each account its own figures (it read "-1 holdings" for an account not picked)
+  const accFigs = (id: string) => {
+    if (id === "all") { const m = moneyAll?.all; return m ? { n: m.n, now: m.now, withQty: m.now ? m.n : 0, gainPct: m.full && m.invested ? (m.gain / m.invested) * 100 : null } : { n: 0, now: 0, withQty: 0, gainPct: null }; }
+    const f = figs.get(id); return f ? { n: f.n, now: f.now, withQty: f.valued, gainPct: f.gainPct } : { n: 0, now: 0, withQty: 0, gainPct: null }; };
   const tab: Tab = isTab(params.get("tab")) ? (params.get("tab") as Tab) : "all";
   const seen = useViewsSeen(tab);
-  const accRows = useMemo(() => accRowsOf(accs, holdings, d, money), [accs, holdings, d, money]);
+  const accRows = useMemo(() => accRowsOf(accs, figs), [accs, figs]);
   const [qty, setQty] = useState(false);
   const toTab = (t: Tab, scroll?: string) => {
     setParams((p) => { const n = new URLSearchParams(p); if (t === "all") n.delete("tab"); else n.set("tab", t); return n; }, { replace: true });
@@ -96,7 +113,7 @@ function Body() {
     <>
       {/* task #277 (changes 1, 2): the compact top: title row, the money box that says what it covers, Your portfolios (they replace the header card,
           the accounts bar and the dark summary box) */}
-      <TopCard d={d} money={money} accs={accRows} cur={acc?.id ?? "all"} onPick={setAcc} openQty={() => setQty(true)} loading={q.isLoading} />
+      <TopCard d={d} money={money} allMoney={moneyAll} accs={accRows} cur={acc?.id ?? "all"} onPick={setAcc} openQty={() => setQty(true)} loading={q.isLoading} />
       {q.isLoading && <div className="skeleton mi-skel" aria-busy="true" aria-label="Reading your three lists" />}
       {q.isError && <div className="state" role="alert"><h2>Could not read your investments</h2><p>{q.error?.message || "Please try again in a moment."} <button className="btn" onClick={() => q.refetch()}>Try again</button></p></div>}
       {d && kindsHeld(d).length === 0 && (
@@ -127,25 +144,13 @@ function Body() {
 }
 
 /** Task #277 (change 2): one row per account under Your portfolios, with what it holds and, when its holdings have quantities and buy prices, its value and
- *  gain. Shares are summed from the account's own buys; a fund or ETF account shows money only when it is the only one of its kind (the page's figures are its). */
+ *  gain. Developer file 33: the account's shares, funds and ETFs, each from its own page's rows (lib/accountMoney), so a row is the Equity, MF and ETF
+ *  pages' rows of that name added up; until 23 Nov 2026 its funds and ETFs counted only when it was the only account of that kind. */
 const AV = ["#0e6471", "#4b4fc4", "#7a5c1f", "#a23b72", "#2f5a9e", "#134e4a"];
-function accRowsOf(accs: Acc[], hs: Holding[], d: AllInvestments | undefined, money: Record<Kind | "all", KindMoney> | null): AccRow[] {
-  const mfAccs = accs.filter((a) => a.mf).length, etfAccs = accs.filter((a) => a.etf).length;
+function accRowsOf(accs: Acc[], figs: Map<string, AccountFigs>): AccRow[] {
   return accs.map((a, i) => {
-    const mine = hs.filter((h) => a.eq.includes(h.pf ?? DEFAULT_PF)), syms = [...new Set(mine.map((h) => h.symbol.toUpperCase()))];
-    let now = 0, inv = 0, priced = 0, valued = 0, n = 0;
-    for (const s of syms) {
-      const g = aggOf(mine, s, "all"), px = d?.shares.find((x) => x.symbol === s)?.price ?? null;
-      if (g && g.qty === 0 && g.nBuys > 0) continue;                       // sold in full
-      n++;
-      if (g?.qty && px) { now += g.qty * px; valued++; if (g.invested != null) { inv += g.invested; priced++; } }
-    }
-    const nf_ = a.mf ? (mfAccs === 1 ? d?.counts.funds ?? 0 : null) : 0, ne = a.etf ? (etfAccs === 1 ? d?.counts.etfs ?? 0 : null) : 0;
-    for (const [k, on] of [["funds", a.mf && mfAccs === 1], ["etfs", a.etf && etfAccs === 1]] as const) {
-      const m = money?.[k]; if (on && m && m.now > 0) { now += m.now; valued++; if (m.full === m.n) { inv += m.invested; priced += m.full; } }
-    }
-    const parts = [n ? `${n} ${n === 1 ? "share" : "shares"}` : "", nf_ ? `${nf_} ${nf_ === 1 ? "fund" : "funds"}` : a.mf && nf_ == null ? "funds" : "", ne ? `${ne} ETF${ne === 1 ? "" : "s"}` : a.etf && ne == null ? "ETFs" : ""].filter(Boolean);
-    return { id: a.id, name: a.name, sub: parts.join(" · ") || "nothing yet", value: valued ? now : null, gainPct: priced && priced === valued && inv ? ((now - inv) / inv) * 100 : null, color: AV[i % AV.length], initial: a.name.trim().charAt(0).toUpperCase() || "P" };
+    const f = figs.get(a.id);
+    return { id: a.id, name: a.name, sub: f ? accountSub(f) : "nothing yet", value: f?.valued ? f.now : null, gainPct: f?.gainPct ?? null, color: AV[i % AV.length], initial: a.name.trim().charAt(0).toUpperCase() || "P" };
   });
 }
 
