@@ -52,13 +52,14 @@ def _chips(p: Preset) -> List[dict]:
 
 
 def _list_text(p: Preset, cached: dict | None) -> str | None:
-    """What the card says about its list: "Top 10 of 40 that pass" (the Top 10 screens), nothing for the others (they page through everything that passes)."""
+    """What the card says about its list: "40 pass · the top 10 first" (the Top 10 screens: the ten strongest first, then every other company that passes, as
+    the list shows them and as the screen's own list text says; QA 23 Nov: "Top 10 of 33 that pass" read as if only ten were listed), nothing for the others."""
     if not cached:
         return None
     if p.kind == "themes":
         return cached.get("listText")
     n = cached["count"]
-    return f"Top {p.limit} of {n} that pass" if p.top10 else None      # the other screens page through everything that passes: the count says it all
+    return f"{n} pass · the top {p.limit} first" if p.top10 else None      # the other screens page through everything that passes: the count says it all
 
 
 NEW_DAYS = 14      # task #243: a new screen's card carries the NEW tag ("new screen") for two weeks after its first run

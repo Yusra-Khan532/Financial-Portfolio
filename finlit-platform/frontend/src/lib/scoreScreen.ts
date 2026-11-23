@@ -416,7 +416,9 @@ export function trend5Of(score: number | null | undefined): Trend5 | null {
 function parseTrend5(s: string | null): Trend5[] { const w = (s || "").split(","); return TREND5.filter((b) => w.includes(b)); }
 
 /** SHARED §4: the rating word of a Prism score. Strong 80 and above, Healthy 65 to 79, Average 50 to 64, Weak 35 to 49, Poor below 35; Not rated without a score. */
-export const ratingOfScore = (v: number | null | undefined): PrismLabel => (v == null || !Number.isFinite(v) ? "NOT RATED" : v >= 80 ? "STRONG" : v >= 65 ? "HEALTHY" : v >= 50 ? "AVERAGE" : v >= 35 ? "WEAK" : "POOR");
+/** The rating word for a Prism score, read from the whole number the table shows (QA 23 Nov: 64.6 showed as "65" with "Average" beside a 65.4 "Healthy");
+ *  the filter and its counts use the same word, so a row never shows one word and filters under another. */
+export const ratingOfScore = (v: number | null | undefined): PrismLabel => { if (v == null || !Number.isFinite(v)) return "NOT RATED"; const s = Math.round(v); return s >= 80 ? "STRONG" : s >= 65 ? "HEALTHY" : s >= 50 ? "AVERAGE" : s >= 35 ? "WEAK" : "POOR"; };
 export const ratingOf = (r: Item): PrismLabel => ratingOfScore(r.prism_final);
 
 /** SPEC §3: the counts beside the rating words and the trend words, each given every other filter. */

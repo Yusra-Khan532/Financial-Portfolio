@@ -6,7 +6,7 @@ import { PrismPart, PrismScore, PrismTrend } from "../components/screener/cells"
 import { AdvancedUpgrade } from "../components/screener/AdvancedUpgrade";
 import { useScreener } from "../components/screener/useScreener";
 import { ColumnsMenu, PRICE_COL_COUNT, PriceCells, PriceHeads, usePriceColumns } from "../components/screener/PriceColumns";
-import { ScreensStrip } from "../components/screener/presets/ScreensStrip";
+import { ScreensStrip, closeDay } from "../components/screener/presets/ScreensStrip";
 import { PresetPage } from "../components/screener/presets/PresetPage";
 import { usePresetRoute } from "../components/screener/presets/usePresetRoute";
 import { useDocTitle } from "../lib/title";
@@ -27,6 +27,14 @@ import "../styles/scorescreen.css";
 
 /** Advanced stock screener (Gold only): the whole company universe with the FinLit Prism rating, its four parts and its two technical views.
  *  Informational; not a recommendation. Plans below Gold get the upgrade page and never request the universe. */
+/** The header's dates, each with its source. The ready-made screens are built each night after a close, so during the day their lists can be one close
+ *  behind the scores and prices (QA 23 Nov: "Updated after the 20 Nov close" beside "prices to 23 Nov"); the line names that close so the two do not read as a fault. */
+export function headerDateLine(prismAsOf: string | null | undefined, techAsOf: string | null | undefined, screensAsOf: string | null | undefined): string | null {
+  const day = closeDay(screensAsOf);
+  return [prismAsOf && `Prism: ${dateIN(prismAsOf)}`, techAsOf && `technical views: prices to ${dateIN(techAsOf)}`,
+    day && `ready-made screens: lists from the ${day} close (built each night after the close)`].filter(Boolean).join(" · ") || null;
+}
+
 export function AdvancedScoreScreener() {
   const { has } = useUI();
   useDocTitle("Advanced stock screener", "Every listed company with its FinLit Prism rating: the four financial-health parts and the short-term and long-term technical views. Gold plan.");
@@ -39,7 +47,7 @@ function Advanced() {
   const { cover, prismAsOf, techAsOf } = s;
   const route = usePresetRoute();   // the prebuilt screen in the address (?preset=...)
 
-  const dateLine = [prismAsOf && `Prism: ${dateIN(prismAsOf)}`, techAsOf && `technical views: prices to ${dateIN(techAsOf)}`].filter(Boolean).join(" · ") || null;
+  const dateLine = headerDateLine(prismAsOf, techAsOf, route.list.data?.asOf);
 
   if (route.id) return <PresetPage route={route} />;      // the four Prism views are server screens in the strip now (14 Nov N-35)
 
