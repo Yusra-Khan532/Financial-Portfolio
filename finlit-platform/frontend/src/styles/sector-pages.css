@@ -19,7 +19,7 @@
   border: 1px solid var(--sp-line); border-radius: var(--r-card); background: var(--sp-panel); box-shadow: 0 8px 18px -14px color-mix(in srgb, var(--sp-ink) 40%, transparent); }
 .sx-nav-k { flex: none; font: 700 var(--fs-12)/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--sp-mute); }
 .sx-nav ol { display: flex; align-items: center; gap: 2px; margin: 0; padding: 0; list-style: none; white-space: nowrap; }
-.sx-nav a { display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 9px 0 5px; border: 1px solid transparent; border-radius: var(--ui-r-pill);
+.sx-nav a { display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 9px 0 5px; white-space: nowrap; border: 1px solid transparent; border-radius: var(--ui-r-pill);
   font: 600 var(--fs-13)/1 var(--sans); color: var(--sp-ink); text-decoration: none; }
 .sx-nav a:hover { background: var(--s2); }
 .sx-nav a i { display: grid; place-items: center; flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--s2); font: 700 var(--fs-12)/1 var(--sans); font-style: normal; color: var(--sp-mute); }
@@ -219,3 +219,51 @@
 .sx-nxw .sp-chip { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sx-pane > div > .sp-sec + .sp-sec { margin-top: 0 !important; border-top-left-radius: 0; border-top-right-radius: 0; }
 @media (max-width: 760px) { .sx-nxl li { grid-template-columns: minmax(0, 150px) 1fr 24px 38px; } .sx-nxs dd { font-size: var(--fs-16); } }
+
+/* ---- hover card on a square or a dot (second pass 1) ---- */
+.sx-today, .sx-mapw { position: relative; }
+.sx-hc { position: absolute; z-index: 95; width: 270px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--s1); color: var(--text);
+  box-shadow: 0 16px 36px -16px color-mix(in srgb, var(--text) 55%, transparent); font: 400 var(--fs-13)/1.4 var(--sans); pointer-events: none; }
+.sx-hc > b { display: block; margin-bottom: 6px; font: 700 var(--fs-14)/1.3 var(--sans); }
+.sx-hc > b em { margin-left: 4px; padding: 3px 6px; border-radius: var(--r-ctl); background: color-mix(in srgb, var(--gold) 22%, transparent); font: 700 var(--fs-12)/1 var(--sans); font-style: normal; letter-spacing: .06em; text-transform: uppercase; vertical-align: middle; }
+.sx-hcc { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+.sx-hc dl { margin: 0; } .sx-hc dl div { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; border-top: 1px solid var(--border); }
+.sx-hc dt { color: var(--muted); } .sx-hc dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.sx-hc > small { display: block; margin-top: 6px; font-size: var(--fs-12); color: var(--muted); }
+
+/* ---- map filters: on is a solid dark border and a dark tick; off is dashed and faded (second pass 8); own dots ringed in the text colour (final 4) ---- */
+.sx-mapf .rp-tg { display: inline-flex; align-items: center; gap: 6px; border-style: dashed; opacity: .75; }
+.sx-mapf .rp-tg.on { border-style: solid; border-color: var(--sp-ink); opacity: 1; background: var(--bg); color: var(--sp-ink); }
+.sx-mapf .rp-tick { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: var(--r-ctl); font-size: var(--fs-12); opacity: .25; }
+.sx-mapf .rp-tg.on .rp-tick { opacity: 1; background: var(--sp-ink); color: var(--bg); }
+.sx-dot { display: inline-block; flex: none; width: 11px; height: 11px; border-radius: 50%; }
+svg circle.sx-mdot { stroke: var(--text) !important; stroke-width: 2.5px !important; }
+svg a:focus-visible circle { stroke: var(--gold); stroke-width: 3px; }
+
+/* ---- playback ---- */
+.sx-play { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 10px 0; padding: 10px 12px; border: 1px solid var(--sp-line); border-radius: var(--r-card); background: var(--s2); font: 400 var(--fs-13)/1.4 var(--sans); }
+.sx-play label { display: inline-flex; flex: 1 1 260px; align-items: center; gap: 8px; font-weight: 600; }
+.sx-play input[type="range"] { flex: 1; min-width: 160px; accent-color: var(--sp-ink); }
+.sx-pb { min-height: 36px; padding: 0 14px; border: 0; border-radius: var(--r-ctl); background: var(--sp-good); color: var(--bg); font: 700 var(--fs-13)/1 var(--sans); cursor: pointer; }
+.sx-pb:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.sx-pd { min-width: 96px; font: 700 var(--fs-14)/1 var(--sans); } .sx-pn { flex: 1 1 100%; color: var(--sp-mute); }
+
+/* ---- the mood, week by week ---- */
+.sx-mh { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin: 4px 0 10px; }
+.sx-seg { display: inline-flex; overflow: hidden; border: 1px solid var(--sp-line); border-radius: var(--r-ctl); }
+.sx-seg button { min-height: 34px; padding: 0 12px; border: 0; background: var(--bg); color: var(--sp-ink); font: 600 var(--fs-13)/1 var(--sans); cursor: pointer; }
+.sx-seg button[aria-pressed="true"] { background: var(--sp-ink); color: var(--sp-panel); }
+.sx-lg { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 0; list-style: none; font: 400 var(--fs-13)/1.3 var(--sans); }
+.sx-lg li { display: inline-flex; align-items: center; gap: 6px; } .sx-lg i { display: inline-block; flex: none; width: 11px; height: 11px; border-radius: var(--r-ctl); }
+.sx-mood { display: flex; gap: 8px; height: 230px; }
+.sx-my { display: flex; flex-direction: column; justify-content: space-between; min-width: 18px; padding-bottom: 22px; font: 400 var(--fs-12)/1 var(--sans); color: var(--sp-mute); text-align: right; }
+.sx-mc { display: flex; flex: 1; align-items: stretch; gap: 4px; overflow-x: auto; }
+.sx-col { display: flex; flex: 1 1 0; flex-direction: column; gap: 4px; min-width: 18px; padding: 0; border: 0; background: none; cursor: pointer; }
+.sx-stack { display: flex; flex: 1; flex-direction: column; overflow: hidden; border-radius: var(--r-ctl); outline: 2px solid transparent; outline-offset: 1px; }
+.sx-stack i { display: block; min-height: 1px; }
+.sx-col.on .sx-stack, .sx-col:focus-visible .sx-stack { outline-color: var(--sp-ink); }
+.sx-col small { height: 18px; font: 400 var(--fs-12)/18px var(--sans); color: var(--sp-mute); text-align: left; white-space: nowrap; }
+.sx-mr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin: 10px 0 4px; padding: 10px 12px; border: 1px solid var(--sp-line); border-radius: var(--r-card); background: var(--s2); }
+.sx-mr > b { font: 700 var(--fs-14)/1.2 var(--sans); } .sx-mr .sx-sm { flex: 1 1 100%; margin: 0; }
+.sx-mr span { display: inline-flex; align-items: center; gap: 4px; }
+@media (max-width: 760px) { .sx-mood { height: 190px; } .sx-col { min-width: 22px; } .sx-new .sx-mapw > svg { min-width: 680px; } }

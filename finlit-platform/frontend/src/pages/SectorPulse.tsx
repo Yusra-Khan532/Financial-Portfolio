@@ -8,6 +8,7 @@ import { groupsN, groupsParen, groupsSplit } from "../lib/pulsePack";
 import { PulseGuide, SectionsBar } from "../components/sectors/pack/Guide";
 import { SxBox, SxFold, SxNav } from "../components/sectors/pack/PulseLayout";
 import { InsideSector, PriceVsResults, WhatNext } from "../components/sectors/pack/PulseChecks";
+import { MoodWeeks, SectorMap } from "../components/sectors/pack/PulseMap";
 import { useAuth } from "../lib/auth";
 import { usePortfolio } from "../lib/portfolio";
 import { failureText, useSectorBoard } from "../lib/sectors";
@@ -18,7 +19,7 @@ import { ApiError, apiGet } from "../lib/api";
 import { Blank } from "../components/sectors/Parts";
 import { Tip, WhyFold, useFirstVisit } from "../components/sectors/pack/Common";
 import { Backdrop, PackHead, type View } from "../components/sectors/pack/PulseHead";
-import { ByState, CountedAndSmall, Cycle, IndustryMapPack, Momentum, Mood, Standouts, TodayMinute, Words, YourIndustries } from "../components/sectors/pack/PulseSimple";
+import { ByState, CountedAndSmall, Cycle, Momentum, Standouts, TodayMinute, Words, YourIndustries } from "../components/sectors/pack/PulseSimple";
 import { PulseTable, SixMonths, StandoutsFull, TooSmallFull } from "../components/sectors/pack/PulseTable";
 import "../styles/sectors.css";
 import "../styles/sectors-pack.css";
@@ -82,12 +83,12 @@ export function SectorPulsePage() {
       ]} />}
       {b && view === "simple" && (
         <WhyFold.Provider value={firstVisit}>
-          <TodayMinute b={b} h={h} />
+          <TodayMinute b={b} h={h} mine={mine} />
           <YourIndustries b={b} h={h} symbols={symbols} signedIn={!!user} />
           <SxBox id="sx-all" store="finlit-sx-box-all" param="tab" label={allLabel} sub="3 ways to look · press one" tabs={[
             { key: "state", label: "By state", content: <ByState b={b} mine={mine} /> },
-            { key: "map", label: "Map", content: mq.data ? <IndustryMapPack m={mq.data} /> : <div className="sp-sec"><p className="sp-empty">{mq.isLoading ? "Loading the map…" : tw("The map is not available right now.")}</p></div> },
-            { key: "time", label: "Over time", content: h ? <Mood h={h} /> : <div className="sp-sec"><p className="sp-empty">{hq.isLoading ? "Loading the history…" : "The history is not available right now."}</p></div> },
+            { key: "map", label: "Map", content: mq.data ? <SectorMap m={mq.data} b={b} mine={mine} /> : <div className="sp-sec"><p className="sp-empty">{mq.isLoading ? "Loading the map…" : tw("The map is not available right now.")}</p></div> },
+            { key: "time", label: "Over time", content: h ? <MoodWeeks h={h} /> : <div className="sp-sec"><p className="sp-empty">{hq.isLoading ? "Loading the history…" : "The history is not available right now."}</p></div> },
           ]} />
           <SxBox id="sx-chk" store="finlit-sx-box-chk" label="Three checks on the price picture" sub="press one" tabs={[
             { key: "others", label: tw("Against other industries"), content: <Momentum b={b} mine={mine} /> },
