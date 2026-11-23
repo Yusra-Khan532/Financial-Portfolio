@@ -32,6 +32,7 @@ from ..auth.routes import fail, ip_of, limit, secure_ctx
 from ..auth.service import VIEW_AS_HEADER, Ctx, cookie_name, current
 from . import companies, pages, quota, routing, service, tools
 from .gateway import MemberGateway
+from . import memory   # task #349 PR 2: question memory (stores what was asked; changes no answer)
 
 log = logging.getLogger("finlit.ask")
 router = APIRouter(prefix="/api/ask", tags=["ask"])
@@ -291,11 +292,13 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
             if prefetched:
                 service.with_prefetches(messages, [(n, a, x) for (n, a), x in reads])
             result = await service.answer(client_for(st.anthropic_api_key), st.ask_model, gw, messages, emit, prefetched, max_tokens=st.ask_max_tokens)
-            return {"result": result, "want": want}
+            return {"result": result, "want": want, "named": named, "page": page, "kinds": kinds, "messages": messages,
+                    "cards": [(card_tool, {"symbol": s}, g) for s, g in zip(want[:2], got)]}
 
         yield sse("meta", {**quota.status(cap, n, month), "cached": False})
         result: Optional[Dict[str, Any]] = None
         want: List[str] = []
+        done_: Dict[str, Any] = {}
         err: Optional[Dict[str, str]] = None
         task = asyncio.create_task(prepare())
         try:
@@ -361,6 +364,9 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
                                       ex=SUMMARY_CACHE_SECONDS if kind == "summary" else CACHE_SECONDS)
             except Exception:
                 pass
+        # Task #349 PR 2: question memory (ask/memory.py), written in the background from what this answer already read; it changes nothing above.
+        memory.after_answer(store.pool, ctx, kind=kind, question=question, result=result, named=done_["named"], page=done_["page"],
+                            kinds=done_["kinds"], messages=done_["messages"], cards=done_["cards"])
         state["delivered"] = True
         yield sse("done", {"disclaimer": service.DISCLAIMER, "sources": sorted(set(result["tools"])), "pages": links})
 

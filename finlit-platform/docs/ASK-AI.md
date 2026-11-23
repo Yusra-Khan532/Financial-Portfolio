@@ -185,3 +185,41 @@ substitute for current data and comes only after evaluated examples exist (and t
 - `scripts/ask_eval.py`: the reference's example questions asked of the real model, each answer checked against the checklist (run by hand
   on the server: `docker compose -f deploy/aws/docker-compose.aws.yml exec api python scripts/ask_eval.py`). When the set passes over time and
   enough good examples exist, the reference's next step (fine-tuning on stable patterns) can be weighed; it is not needed for current data.
+
+## Question memory (task #349, PR 2, 23 Nov 2026)
+
+FinLit AI keeps a Silver or Gold member's questions so that a later answer can say what changed "since you last asked" (the next PR). This PR
+only stores, lists and deletes: no answer changes. `backend/tests/test_ask_memory.py` holds a golden test of `build_messages` and the cache key
+(values taken from `main` before this PR), and an end-to-end test that the request to the model and the events to the member are identical with
+memory on or off.
+
+- **What is kept** (table `ai_question_memory`, migration 135): when it was asked, the question (at most 500 characters), a topic key, the answer's
+  key lines (`points`: at most 8 of at most 160 characters, no model) and the figures the answer read (`figures`, each with its as-of date: price,
+  52-week range, FinLit Prism score, label, parts and model version (only when the tool returned them), P/E, market cap, a sector's box or state,
+  the latest results period and filing date, the newest news item or filing), and the plan. Figures come only from the tool results this answer
+  already read (the company cards read first, the documents read before the model, the model's own tool rounds); nothing is looked up again.
+- **The topic key** (`ask/memory.py topic_of`, no model): `<kind>:<id>:<intent>`. The subject, in this order: the first company the question names
+  (`companies.named_in`), the page's company when the question is about it, a fund or ETF in context, a fund or ETF question, a sector
+  (`routing._SECTORS`), the economy, the market (Nifty, Sensex, flows), a term (`concept:<words>`), else `general:all`. The intent is one of
+  overview, results, valuation, prism, news, documents, price, risks, ownership, concept, from the same words the classifiers read, English and
+  Hinglish ("munafa", "share price kya hai", "sensex kyu gira"). Examples: `company:TCS:results`, `sector:pharma:overview`, `concept:pe:concept`.
+- **When nothing is written:** an AI summary of the Prism card, an answer that ended in an error, an answer withdrawn as advice-like, a refusal, an
+  administrator's "view as" preview, Basic members and visitors (no written answers), and a member who switched remembering off. A repeated first
+  question answered from the 30-minute cache is not written either (the cache holds no tool results, so the row would have no figures).
+- **When it is written:** in the background once the answer is complete (`memory.after_answer`, one call in `ask/api.py`), so an answer is never
+  held up and a failure here is logged, never shown.
+- **Retention:** 180 days and at most 200 rows per member. Each write deletes the member's rows older than 180 days and beyond the newest 200;
+  reading the list also deletes rows past 180 days.
+- **Privacy:** every query is scoped to the member's `user_id`; a member can never list or delete another member's rows (deleting another's row
+  answers 404). Deleting the account deletes them (`ON DELETE CASCADE`).
+- **Routes** (`ask/history.py`; signed in; deletes need the Origin and CSRF checks): `GET /api/ask/history?limit=50` (`items`: id, askedAt, topic,
+  subjectKind, subjectId, intent, question; `count`; `remember`; `retentionDays`; `maxRows`), `DELETE /api/ask/history` (clear all),
+  `DELETE /api/ask/history/{id}`. They reach the research API like `/api/ask` (the Vite proxy's `ask` prefix; Caddy sends every path to the app).
+- **The member's controls:** `prefs.aiMemory` (default on; older saved prefs load as on). The panel's Chat History reads the server's list for a
+  signed-in Silver or Gold member (date, subject, question; tap to ask again; × deletes one) and keeps the browser-only list for visitors and Basic.
+  Under the input, while remembering is on: "FinLit AI keeps your questions for 180 days to tell you what changed. Manage in Account.", linking to
+  Account > FinLit AI (`/account/ai`): the section "FinLit AI history" with "Remember my FinLit AI questions", how many are kept, and "Clear my
+  AI history" with a confirm step.
+- **Files:** `backend/finlit/ask/memory.py`, `backend/finlit/ask/history.py`, `backend/finlit/migrations/135_ai_question_memory.sql`,
+  `frontend/src/lib/askMemory.ts`, `frontend/src/components/AskHistory.tsx`, `frontend/src/components/AccountAiHistory.tsx`,
+  `frontend/src/styles/ask-memory.css`. Tests: `backend/tests/test_ask_memory.py`, `frontend/src/components/askMemory349.test.tsx`.

@@ -7,6 +7,8 @@ import { apiGet, type SearchIndex } from "../lib/api";
 import type { Quotes } from "../lib/globalSearch";
 import { AskRefused, INTERRUPTED, TIMED_OUT, askAi, safePages, useAskQuota, type AskTurn } from "../lib/askAi";
 import { useAuth } from "../lib/auth";
+import { AskHistoryView, AskMemoryNotice } from "./AskHistory";   // task #349 PR 2: question memory
+import { memoryApplies } from "../lib/askMemory";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   CATEGORIES, MARKET_QUESTIONS, QUARTERS, SEGMENTS, TABS, categoryQuestions, isLenderSector, financialYears, quarterQuestion, quarterTrendQuestion, related, tabQuestions,
@@ -118,13 +120,14 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
     return () => { live = false; clearTimeout(id); };
   }, [find, view]);
   const asked = useMemo(() => msgs.filter((m) => m.role === "user").map((m) => m.content), [msgs]);
-  const { user } = useAuth();
+  const { user, plan } = useAuth();
   const qc = useQueryClient();
   const quota = useAskQuota(open);
   const qd = quota.data;
   const aiOn = !!qd?.enabled;                                   // written answers are switched on (ANTHROPIC_API_KEY on the server)
   const aiPlan = aiOn && (!user || quota.data?.limit === 0);           // a visitor or a Basic member: written answers are part of Silver and Gold
   const aiReady = aiOn && !!user && (quota.data?.left ?? 0) > 0;        // a Silver or Gold member with questions left this month
+  const remembered = memoryApplies(!!user, plan);                       // task #349 PR 2: the server keeps a Silver or Gold member's questions
   // task #268: the company card of the side panel (the reference's): its price and day change, and its name from the site's search index
   const [coRow, setCoRow] = useState<[number, number | null] | null>(null);    // price and day change, read again each minute while the window is open
   useEffect(() => {
@@ -278,6 +281,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
         <button disabled={busy || !text.trim()} aria-label="Ask"><Icon name="arrow" /></button>
       </form>
       {suggest("aif-sg-top", "down")}
+      {remembered && <AskMemoryNotice onLeave={() => setOpen(false)} />}
       <p className="aif-try"><span>Try asking</span>{TRY.map((t) => <button key={t.label} type="button" onClick={t.go}>{t.label}</button>)}</p>
     </div>);
   // task #268: the five themes are the five cards (Mutual funds & ETFs is the fifth, no longer under "More"); Discovery stays here
@@ -359,11 +363,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
               {moreThemes}
             </>}
 
-            {view === "history" && <>
-              <div className="aif-h"><h2>Chat History</h2><p>Your recent questions, kept in this browser only.</p></div>
-              {recent.length ? <><ul className="aif-qs" aria-label="Recent questions">{recent.map((t) => <li key={t}><button type="button" className="aif-q" onClick={() => void ask(t, "home")}><Icon name="chat" /><span>{t}</span><Icon name="arrow" /></button></li>)}</ul>
-                <button type="button" className="aif-clear" onClick={() => setRecent(clearRecent())}>Clear history</button></> : <p className="aif-none">No questions yet. Ask one and it appears here.</p>}
-            </>}
+            {view === "history" && <AskHistoryView server={remembered} recent={recent} onAsk={(t) => void ask(t, "home")} onClearLocal={() => setRecent(clearRecent())} onLeave={() => setOpen(false)} />}
             {view === "saved" && <>
               <div className="aif-h"><h2>Saved Questions</h2><p>Questions you starred, kept in this browser only.</p></div>
               {saved.length ? <ul className="aif-qs" aria-label="Saved questions">{saved.map((t) => <li key={t} className="aif-sv"><button type="button" className="aif-q" onClick={() => void ask(t, "home")}><Icon name="star" /><span>{t}</span><Icon name="arrow" /></button><button type="button" className="aif-unsave" aria-label={`Remove from saved: ${t}`} onClick={() => setSaved((l) => toggleSaved(l, t))}>×</button></li>)}</ul>
@@ -479,6 +479,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
             <kbd className="aif-enter" aria-hidden="true">Enter</kbd>
             <button disabled={busy || !text.trim()} aria-label="Send"><Icon name="arrow" /></button>
           </form>
+          {remembered && <AskMemoryNotice onLeave={() => setOpen(false)} />}
           </div>
           <p className="ai-fine">General information, not investment advice.{aiOn && user && qd && (qd.limit ?? 0) > 0 && <> <span className="aif-left">FinLit AI: {qd.left} of {qd.limit} written answers left this month{qd.left === 0 && qd.resets ? `; they renew on ${new Date(qd.resets).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : ""}.</span></>}</p>
         </section>
