@@ -27,12 +27,14 @@ from fastapi.responses import Response
 from .auth.entitlements import has
 from .auth.service import current
 from .background import etag_matches
+from . import livequote
+from .dhan import plausible
 from .logos import AMC_SITES, amc_logos, logo_path
 from .store import dumps, etag_for
 
 router = APIRouter(prefix="/api/search")
 IST = timezone(timedelta(hours=5, minutes=30))
-TTL = 120
+TTL = 60     # task #338: the latest prices (livequote) change every minute in market hours; was 120
 CACHE = "private, no-cache"
 
 QUOTES_SQL = """
@@ -134,12 +136,31 @@ async def _raw_rows(store) -> list:
     return state["rows"]
 
 
+def with_latest(rows: list, latest: dict) -> list:
+    """Task #338: each row's price replaced by the company's latest quote (livequote) when that is from the same trading day or later and
+    passes the plausibility check, so the watchlist, the search list and the company page show one price for the same moment."""
+    for r in rows:
+        q = latest.get(r[0])
+        if not q or not q.get("price") or not q.get("asOf"):
+            continue
+        try:
+            day = datetime.fromisoformat(q["asOf"]).astimezone(IST).date()
+        except (TypeError, ValueError):
+            continue
+        if r[3] and day.isoformat() < r[3]:
+            continue
+        if r[1] and not plausible(q, {"price": r[1]}):   # a wrong company match: the row keeps its own price
+            continue
+        r[1], r[2], r[3] = _num(q["price"]), _num(q.get("changePct")), day.isoformat()
+    return rows
+
+
 async def build(app, level: str):
     store = app.state.store
     rows = [_hydrate(r) for r in await _raw_rows(store)]
     amc = await amc_logos(store)
     body = dumps({"fields": ["symbol", "price", "changePct", "priceDate", "score", "band", "logo"],
-                  "rows": quote_rows(rows, level, set(app.state.settings.showcase_symbols)),
+                  "rows": with_latest(quote_rows(rows, level, set(app.state.settings.showcase_symbols)), await livequote.read(store.redis)),
                   "amcLogos": {k: logo_path(v) for k, v in amc.items() if k in AMC_SITES},
                   "level": level, "builtAt": int(time.time())})
     packed = gzip.compress(body, compresslevel=6, mtime=0)
@@ -182,7 +203,9 @@ async def quotes(request: Request):
         body, packed, etag = hit[0], hit[1], hit[2].decode()
     wanted = wanted_symbols(request.query_params.get("symbols"))
     if wanted is not None:   # ?symbols=A,B: only those rows (the dashboard follows a handful of stocks, not 5,000); a filtered copy is built per request from the saved one
-        body = dumps(_only(orjson.loads(body), wanted))
+        doc = _only(orjson.loads(body), wanted)
+        doc["rows"] = with_latest(doc["rows"], await livequote.read(store.redis, sorted(wanted)))   # a handful of rows: the latest prices of this moment
+        body = dumps(doc)
         packed, etag = gzip.compress(body, compresslevel=6, mtime=0), etag_for(body)
     headers = {"ETag": etag, "Cache-Control": CACHE, "Vary": "Cookie, Accept-Encoding"}
     if etag_matches(request.headers.get("if-none-match"), etag):
@@ -190,3 +213,17 @@ async def quotes(request: Request):
     if "gzip" in (request.headers.get("accept-encoding") or ""):
         return Response(content=packed, media_type="application/json", headers={**headers, "Content-Encoding": "gzip"})
     return Response(content=body, media_type="application/json", headers=headers)
+
+
+LIVE_CACHE = "public, max-age=15"
+
+
+@router.get("/live")
+async def live(request: Request):
+    """Task #338: the latest quote of each company in ?symbols=A,B (at most MAX_SYMBOLS), the same prices the watchlist and search list show.
+    The company page asks again every 30 seconds in market hours and lays the quote over its report's price when it is newer; the trade time
+    (asOf) is shown beside the price. {"quotes": {symbol: {price, change, changePct, previousClose, open, high, low, volume, upperCircuit,
+    lowerCircuit, asOf}}}; a company with no latest quote is left out (the page keeps the report's price)."""
+    wanted = wanted_symbols(request.query_params.get("symbols")) or set()
+    body = dumps({"quotes": await livequote.read(request.app.state.store.redis, sorted(wanted)) if wanted else {}})
+    return Response(content=body, media_type="application/json", headers={"Cache-Control": LIVE_CACHE})

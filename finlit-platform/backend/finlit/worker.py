@@ -382,6 +382,12 @@ async def refresh_quotes(client: FinEdgeClient, store: Store, symbols: Optional[
         except Exception:
             log.exception("Dhan quotes failed, using FinEdge for all")
     phase["dhan"] = time.monotonic() - t0
+    if batch:   # task #338: every company's latest price is shared at once (finlit/livequote.py), before the slow per-company writes below
+        try:
+            from . import livequote
+            say(f"{await livequote.save(store.redis, batch)} latest prices shared")
+        except Exception:
+            log.exception("latest prices were not shared")
 
     async def one(symbol: str, statement: str):
         nonlocal updated

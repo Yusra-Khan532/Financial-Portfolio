@@ -5,6 +5,7 @@ import { visits } from "../lib/recentVisits";
 import { recents } from "../lib/mycompanies";
 import { useQueryClient } from "@tanstack/react-query";
 import type { OwnInsights } from "../lib/ownView";
+import { useWithLatest } from "../lib/liveQuote";
 import { ApiError, useSearchIndex, usePrice, useSection, useSummary, type Events, type Financials, type Ownership, type Peers, type Ratios, type Segments } from "../lib/api";
 import { Icon } from "../lib/icons";
 import { nf, signed } from "../lib/format";
@@ -65,7 +66,7 @@ export function StockPage() {
   useEffect(() => { if (symbol !== raw.toUpperCase()) nav(`/stocks/${symbol}`, { replace: true }); }, [symbol, raw]); // eslint-disable-line react-hooks/exhaustive-deps
   const { showcase } = useAuth();
   const sum = useSummary(symbol);
-  const s = sum.data;
+  const s = useWithLatest(sum.data);   // task #338: the latest price (asked again every 30 s in market hours), the same on every page
   const ready = !!s;
   const names = useSearchIndex(!s);   // the company's name for the waiting page, before its report exists (the list is cached for the search box anyway)
   // A report stored with its key numbers while ownership, peers, segments and announcements are still being fetched: ask again every 2.5 s (for up to 2 minutes) until it is complete.
