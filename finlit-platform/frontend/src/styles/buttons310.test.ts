@@ -24,7 +24,7 @@ describe("the main button", () => {
     // task #320 made the box golden: its colours may come from the gold tokens only; never --action-primary, a typed colour or its own corners
     for (const r of rules(strip(read("styles/ai-top.css"))).filter((x) => /\.ai-top/.test(x.sel))) {
       expect(r.body, r.sel).not.toMatch(/--action-primary|border-radius|#[0-9a-f]{3,8}\b|rgba?\(/i);
-      for (const d of r.body.match(/(?:background|color|border-color)\s*:[^;]*/g) ?? []) expect(d, r.sel).toMatch(/var\(--(gold|gold-soft|text)\)/);
+      for (const d of r.body.match(/(?:background|color|border-color)\s*:[^;]*/g) ?? []) expect(d, r.sel).toMatch(/var\(--(gold|gold-soft|gold-2|gold-deep|text|ui-on-prism)\)|currentColor/);   // #320 rework: the Prism gold gradient, dark words
     }
   });
   it("named cases: Create an alert and Add are the main button, Fund Screener and the other quick links the second button, Prism actions gold", () => {
