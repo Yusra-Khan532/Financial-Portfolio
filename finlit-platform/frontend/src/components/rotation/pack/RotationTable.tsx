@@ -1,6 +1,6 @@
 // Sector Rotation, Full table view, as the "FinLit final pages" pack draws it (docs/design/finlit-final-pages/09): three cards, the ranking of every industry grouped by box
 // (filters, CSV, an opened industry with its best and weakest 6-month stocks), Six months of ranks, How the ranking changed over 12 weeks. Describes the past; never advice.
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, apiGet } from "../../../lib/api";
@@ -10,12 +10,13 @@ import { LockedBlock } from "../../sectors/Parts";
 import { BOX, groupsN, keyOf, short } from "../../../lib/pulsePack";
 import type { RotationMap, RotationRow } from "../../../lib/rotation";
 import type { GroupRow, IndustryPage, RankedStock } from "../../../lib/sectors";
-import { BOXES, BOX_HELP, BOX_MEANING, breadthWord, byBox, climbers26, fullCards, inRotFilter, lastMonth, move, nextBox, pc, rankAgo, rotationCsv, rowSummary, sixMonthRankCards, sixMonths, threeMonths, twelveWeekCards, type Box, type RotFilter } from "../../../lib/rotationPack";
+import { BOXES, BOX_HELP, BOX_MEANING, breadthWord, byBox, climbers26, fullCards, inRotFilter, lastMonth, move, nextBox, pc, rankAgo, rowSummary, sixMonthRankCards, sixMonths, threeMonths, twelveWeekCards, type Box, type RotFilter } from "../../../lib/rotationPack";
 import { RankLine } from "./RotationSimple";
 import { coTitle, subLine, titleOf } from "../../../lib/companyLabel";
-import { gl, sq, tw, wordsShow } from "../../../lib/groupWords";
+import { gl, sq, wordsShow } from "../../../lib/groupWords";
+import { rw, rwCards } from "../../../lib/rotationWords";
 
-export const FullCardsRot = ({ m }: { m: RotationMap }) => <Cards items={fullCards(m)} />;
+export const FullCardsRot = ({ m }: { m: RotationMap }) => <Cards items={rwCards(fullCards(m))} />;
 
 const signed = (v: number | null | undefined) => (v == null ? "–" : `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(1)}%`);
 function Opened({ r }: { r: RotationRow }) {
@@ -27,48 +28,51 @@ function Opened({ r }: { r: RotationRow }) {
     <div className="rp-open">
       <p>{rowSummary(r)} <Link to={gl(r.slug)} className="sp-link">Open the {short(r.name)} page →</Link></p>
       {q.isLoading ? <div className="sx-skel" style={{ height: 80 }} role="status" aria-label={`Loading the stocks of ${short(r.name)}`} />
-        : q.data && q.data.stocks == null ? <LockedBlock plan="silver" title={tw("The stocks of each industry are part of the Silver plan")}>{tw("The boxes and ranks are open to everyone. Silver lists each industry's stocks, strongest 6 months first.")}</LockedBlock>
+        : q.data && q.data.stocks == null ? <LockedBlock plan="silver" title={rw("The stocks of each industry are part of the Silver plan")}>{rw("The boxes and ranks are open to everyone. Silver lists each industry's stocks, strongest 6 months first.")}</LockedBlock>
         : stocks.length ? <div className="rp-open-l"><div><p className="sp-cap sp-good">Strongest 6-month stocks</p><ul>{best.map(li)}</ul></div>{weak.length > 0 && <div><p className="sp-cap sp-red">Weakest</p><ul>{weak.map(li)}</ul></div>}</div>
-        : <p className="sp-nil">{tw("No stock list for this industry right now.")}</p>}
+        : <p className="sp-nil">{rw("No stock list for this industry right now.")}</p>}
     </div>
   );
 }
 
-export function RankingRot({ m, mine, pulse }: { m: RotationMap; mine: Set<string>; pulse: Map<string, GroupRow> }) {
-  const [f, setF] = useState<RotFilter>("all"), [open, setOpen] = useState<string | null>(null);
+/** Task #332 (developer file 31, third pass): "Columns: Key figures · All columns" above the table (opens on Key figures); the bell in its own last column, named
+ *  after the sector; "best 1 · worst 24" on one line beside the rank line; no Download CSV (decided 23 Nov: no plan offers downloads). */
+export function RankingRot({ m, mine, pulse, bell }: { m: RotationMap; mine: Set<string>; pulse: Map<string, GroupRow>; bell?: (r: RotationRow) => ReactNode }) {
+  const [f, setF] = useState<RotFilter>("all"), [open, setOpen] = useState<string | null>(null), [cols, setCols] = useState<"key" | "all">("key");
   const rows = useMemo(() => m.rows.filter((r) => inRotFilter(r, f, mine)), [m, f, mine]);
   const groups = byBox(rows);
   const n = (x: RotFilter) => m.rows.filter((r) => inRotFilter(r, x, mine)).length;
-  const filters: [RotFilter, string][] = [["all", `All ${m.rows.length}`], ...BOXES.map((b) => [b, `${BOX[b].word} · ${n(b)}`] as [RotFilter, string]), ["next", `May change next week · ${n("next")}`], ...(mine.size ? [["yours", tw(`Your industries · ${n("yours")}`)] as [RotFilter, string]] : [])];
-  const csv = () => { const blob = new Blob([rotationCsv(rows)], { type: "text/csv" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `sector-rotation-${m.date}.csv`; a.click(); URL.revokeObjectURL(a.href); };
+  const filters: [RotFilter, string][] = [["all", `All ${m.rows.length}`], ...BOXES.map((b) => [b, `${BOX[b].word} · ${n(b)}`] as [RotFilter, string]), ["next", `May change next week · ${n("next")}`], ...(mine.size ? [["yours", rw(`Your industries · ${n("yours")}`)] as [RotFilter, string]] : [])];
   const cls = (v: number | null) => (v == null ? "" : v > 0 ? "sp-good" : v < 0 ? "sp-red" : "");
   return (
-    <Section id="rp-rank" title={tw("Ranking of every industry")} help={tw("Ranking of every industry. Every ranked group on one list this week, 1 the strongest, grouped by box: its rank and moves, its box and how long it has been there, how it did against the average group, how many of its stocks take part, and its rank over 26 weeks.")} sub={tw("Grouped by box, strongest rank first. Click an industry for its summary and its strongest and weakest stocks.")} right={<button type="button" className="sp-dl" onClick={csv}>Download CSV</button>}>
+    <Section id="rp-rank" title={rw("Ranking of every industry")} help={rw("Ranking of every industry. Every ranked group on one list this week, 1 the strongest, grouped by box: its rank and moves, its box and how long it has been there, how it did against the average group, how many of its stocks take part, and its rank over 26 weeks.")} sub={rw("Grouped by box, strongest rank first. Click an industry for its summary and its strongest and weakest stocks.")}>
       <div className="sp-filters" role="group" aria-label="Show">{filters.map(([k, label]) => <button key={k} type="button" className={"sp-fbtn" + (f === k ? " on" : "")} aria-pressed={f === k} onClick={() => setF(k)}>{label}</button>)}</div>
-      <Scroll label={tw("ranking of every industry")}><table className="sp-tb rp-full">
+      <div className="sx-src sx-colset" role="group" aria-label="Columns"><span>Columns</span>{([["key", "Key figures"], ["all", "All columns"]] as const).map(([k, l]) => <button key={k} type="button" aria-pressed={cols === k} onClick={() => setCols(k)}>{l}</button>)}</div>
+      <Scroll label={rw("ranking of every industry")}><table className={"sp-tb rp-full sx-ft" + (cols === "key" ? " sx-key" : "")}>
         <thead>
           <tr className="rp-bands"><th colSpan={3} className="rp-band"><span>Ranking<Tip text="Its place among all ranked groups this week, 1 the strongest, and the places moved in 1 and 4 weeks." /></span></th><th colSpan={2} className="rp-band rp-band-box"><span>Box<Tip text="Its box and how many weekly closes it has been there." /></span></th>
-            <th colSpan={3} className="rp-band rp-band-vs"><span>Vs the average group<Tip text={tw("How much better (+) or worse (−) the industry did than the average group over 1, 3 and 6 months.")} /></span></th><th colSpan={2} className="rp-band rp-band-br"><span>Breadth<Tip text="Taking part: how many of its stocks are above their 50-day average (Most, Some, Few). Sector Pulse: its state there today." /></span></th>
-            <th className="rp-band rp-band-26"><span>26 weeks<Tip text="Its rank at each of the last 26 weekly closes, with its highest and lowest." /></span></th></tr>
-          <tr><th scope="col" className="rp-w">Now</th><th scope="col">1W / 4W</th><th scope="col">{tw("Industry")}</th><th scope="col">Box now</th><th scope="col" className="r">Weeks</th><th scope="col" className="r">1 month</th><th scope="col" className="r">3 months</th><th scope="col" className="r">6 months</th><th scope="col">Taking part</th><th scope="col">Sector Pulse</th><th scope="col">Rank line</th></tr>
+            <th colSpan={3} className="rp-band rp-band-vs"><span>Vs the average group<Tip text={rw("How much better (+) or worse (−) the industry did than the average group over 1, 3 and 6 months.")} /></span></th><th colSpan={2} className="rp-band rp-band-br"><span>Breadth<Tip text="Taking part: how many of its stocks are above their medium-term trend (Most, Some, Few). Sector Pulse: its state there today." /></span></th>
+            <th className="rp-band rp-band-26"><span>26 weeks<Tip text="Its rank at each of the last 26 weekly closes, with its best and worst." /></span></th><th aria-hidden="true" /></tr>
+          <tr><th scope="col" className="rp-w">Now</th><th scope="col">1W / 4W</th><th scope="col">{rw("Industry")}</th><th scope="col">Box now</th><th scope="col" className="r sx-cx">Weeks</th><th scope="col" className="r">1 month</th><th scope="col" className="r sx-cx">3 months</th><th scope="col" className="r">6 months</th><th scope="col">Taking part</th><th scope="col">Sector Pulse</th><th scope="col" className="sx-cx">Rank line</th>{bell && <th scope="col" className="sx-alh">Alert</th>}</tr>
         </thead>
         <tbody>{groups.map((g) => (
           <Fragment key={g.box}>
-            <tr className={"rp-gh rp-gh-" + BOX[g.box].tone}><td colSpan={11}><span className="rp-gh-in"><BoxChip corner={g.box} /><Tip text={BOX_HELP[g.box]} label={`About “${BOX[g.box].word}”`} /><b>{g.rows.length} {g.rows.length === 1 ? tw("industry") : tw("industries")}</b><span>{BOX_MEANING[g.box]}</span></span></td></tr>
+            <tr className={"rp-gh rp-gh-" + BOX[g.box].tone}><td colSpan={(cols === "key" ? 8 : 11) + (bell ? 1 : 0)}><span className="rp-gh-in"><BoxChip corner={g.box} /><Tip text={BOX_HELP[g.box]} label={`About “${BOX[g.box].word}”`} /><b>{g.rows.length} {g.rows.length === 1 ? rw("industry") : rw("industries")}</b><span>{BOX_MEANING[g.box]}</span></span></td></tr>
             {g.rows.map((r) => { const on = open === r.slug, bw = breadthWord(r), nb = nextBox(r), pg = pulse.get(r.slug); return (
               <Fragment key={r.slug}>
-                <tr className={"rp-row" + (on ? " on" : "")}>
+                <tr className={"rp-row" + (on ? " on" : "") + (mine.has(r.slug) ? " sx-mine" : "")}>
                   <td><button type="button" className="sp-exp" aria-expanded={on} aria-controls={"rp-x-" + r.slug} onClick={() => setOpen(on ? null : r.slug)}><span aria-hidden="true">{on ? "▼" : "▶"}</span><b className="rp-now">{r.rank ?? "–"}</b></button></td>
                   <td className="rp-mv2"><span className={(r.rank_change_1w ?? 0) > 0 ? "up" : (r.rank_change_1w ?? 0) < 0 ? "dn" : ""}>{move(r.rank_change_1w)}</span> / <span className={(r.rank_change_4w ?? 0) > 0 ? "up" : (r.rank_change_4w ?? 0) < 0 ? "dn" : ""}>{move(r.rank_change_4w)}</span></td>
-                  <td><span className="rp-name"><b>{short(r.name)}</b>{mine.has(r.slug) && <em className="rp-yours"> · Yours</em>}<small>{r.stocks_counted} stocks</small></span></td>
+                  <td><span className="rp-name"><b>{short(r.name)}</b>{mine.has(r.slug) && <em className="sp-yours">Yours</em>}<small>{r.stocks_counted} stocks</small></span></td>
                   <td><BoxChip corner={r.corner} />{nb && <small className={"rp-maymove rp-t-" + BOX[nb].tone}>may move to {BOX[nb].word}</small>}</td>
-                  <td className="r">{r.weeks_in_corner}</td>
-                  <td className={"r " + cls(lastMonth(r))}>{pc(lastMonth(r))}</td><td className={"r " + cls(threeMonths(r))}>{pc(threeMonths(r))}</td><td className={"r " + cls(sixMonths(r))}>{pc(sixMonths(r))}</td>
+                  <td className="r sx-cx">{r.weeks_in_corner}</td>
+                  <td className={"r " + cls(lastMonth(r))}>{pc(lastMonth(r))}</td><td className={"r sx-cx " + cls(threeMonths(r))}>{pc(threeMonths(r))}</td><td className={"r " + cls(sixMonths(r))}>{pc(sixMonths(r))}</td>
                   <td>{bw.w ? <span className="rp-bw"><b className={"rp-bw-" + bw.w.toLowerCase()}>{bw.w}</b> · {bw.pct}%</span> : "–"}</td>
                   <td>{pg?.state_code ? <span className="rp-pulse"><i className={"rp-pd rp-pd-" + keyOf(pg)} aria-hidden="true" />{StateWord(pg)}</span> : "–"}</td>
-                  <td><span className="rp-rl26">{r.rank != null ? <RankLine r={r} w={70} h={24} /> : <span className="sp-nil">too new</span>}<small>{r.rank_best_26w != null ? <>highest {r.rank_best_26w}<br />lowest {r.rank_worst_26w}</> : null}</small></span></td>
+                  <td className="sx-cx"><span className="rp-rl26">{r.rank != null ? <RankLine r={r} w={70} h={24} /> : <span className="sp-nil">too new</span>}<small>{r.rank_best_26w != null ? <>best {r.rank_best_26w} · worst {r.rank_worst_26w}</> : null}</small></span></td>
+                  {bell && <td className="sx-alc">{bell(r)}</td>}
                 </tr>
-                {on && <tr className="rp-xrow" id={"rp-x-" + r.slug}><td colSpan={11}><Opened r={r} /></td></tr>}
+                {on && <tr className="rp-xrow" id={"rp-x-" + r.slug}><td colSpan={(cols === "key" ? 8 : 11) + (bell ? 1 : 0)}><Opened r={r} /></td></tr>}
               </Fragment>); })}
           </Fragment>))}</tbody>
       </table></Scroll>
@@ -96,8 +100,8 @@ export function SixMonthRanks({ m }: { m: RotationMap }) {
   return (
     <Hideable id="pack.rp-six" title="Six months of ranks">
       <section className="sp-sec" aria-labelledby="rp-six">
-        <div className="sp-sec-h"><div><h2 id="rp-six">Six months of ranks<Tip text={tw("Each industry's rank at every weekly close for six months. Dark green is near the top of the ranking, dark red near the bottom.")} /></h2>
-          <p className="sp-sub">{tw("Each row is an industry, each square a week. Dark green is near the top of the ranking, dark red near the bottom. Sorted by this week's rank.")}</p></div></div>
+        <div className="sp-sec-h"><div><h2 id="rp-six">Six months of ranks<Tip text={rw("Each industry's rank at every weekly close for six months. Dark green is near the top of the ranking, dark red near the bottom.")} /></h2>
+          <p className="sp-sub">{rw("Each row is an industry, each square a week. Dark green is near the top of the ranking, dark red near the bottom. Sorted by this week's rank.")}</p></div></div>
         <p className="rp-heatkey"><span>Rank 1 (strongest)</span><i aria-hidden="true" /><span>Rank {n} (weakest)</span></p>
         <Scroll label="six months of ranks"><svg className="rp-heat" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Ranks of ${groupsN(rows.length)} at ${cols} weekly closes`}>
           {weeks.map((d, j) => (cols - 1 - j) % 4 === 0 && <text key={d} x={FX + j * FS + 10} y={14} className="rp-hd" textAnchor="middle">{dm(d)}</text>)}
@@ -110,8 +114,8 @@ export function SixMonthRanks({ m }: { m: RotationMap }) {
               <text x={FX + cols * FS + 40} y={y + 10} className={"rp-hm " + ((r.rank_change_4w ?? 0) > 0 ? "up" : (r.rank_change_4w ?? 0) < 0 ? "dn" : "")} textAnchor="middle">{r.rank_change_4w ? move(r.rank_change_4w) : "·"}</text>
             </g>); })}
         </svg></Scroll>
-        <p className="sp-note">{tw("A row turning from red to green is an industry climbing the ranking; the right-hand arrow is the change over the last 4 weeks.")}</p>
-        <Cards items={sixMonthRankCards(m)} />
+        <p className="sp-note">{rw("A row turning from red to green is an industry climbing the ranking; the right-hand arrow is the change over the last 4 weeks.")}</p>
+        <Cards items={rwCards(sixMonthRankCards(m))} />
         <details className="sp-more"><summary>Biggest climbers and fallers over {cols} weeks ▾</summary>
           <ul className="sp-changed">{c26.up.map((x) => <li key={x.r.slug}><Link to={gl(x.r.slug)}>{short(x.r.name)}</Link>: from rank {x.from} to rank {x.r.rank} (▲{x.d})</li>)}
             {c26.down.map((x) => <li key={x.r.slug}><Link to={gl(x.r.slug)}>{short(x.r.name)}</Link>: from rank {x.from} to rank {x.r.rank} (▼{-x.d})</li>)}</ul></details>
@@ -125,14 +129,14 @@ const TEAL = (rank: number | null, n: number) => { if (rank == null) return { bg
 export function TwelveWeeks({ m, mine }: { m: RotationMap; mine: Set<string> }) {
   const rows = m.rows.filter((r) => r.rank != null).sort((a, b) => a.rank! - b.rank!), weeks = m.rank_weeks.slice(-12), n = rows[0]?.ranked ?? 37;
   return (
-    <Section id="rp-twelve" hide title="How the ranking changed over 12 weeks" help={tw("How the ranking changed. Each industry's rank at the last 12 weekly closes, in today's order. The last column is the places gained or lost over the 12 weeks.")}
-      sub={tw("Each industry's rank at the last 12 weekly closes, in today's order. The last column is the places gained or lost.")}>
-      <div className="sp-ckey rp-tkey"><span><b>How to read it:</b> rank 1 <i className="rp-tgrad" aria-hidden="true" /> rank {n}</span><span>{tw("Each row is one industry; each column one week. A row getting")} <b>darker</b> towards the right is climbing; one getting <b>lighter</b> is falling back.</span></div>
-      <Cards items={twelveWeekCards(m)} />
+    <Section id="rp-twelve" title="How the ranking changed over 12 weeks" help={rw("How the ranking changed. Each industry's rank at the last 12 weekly closes, in today's order. The last column is the places gained or lost over the 12 weeks.")}
+      sub={rw("Each industry's rank at the last 12 weekly closes, in today's order. The last column is the places gained or lost.")}>
+      <div className="sp-ckey rp-tkey"><span><b>How to read it:</b> rank 1 <i className="rp-tgrad" aria-hidden="true" /> rank {n}</span><span>{rw("Each row is one industry; each column one week. A row getting")} <b>darker</b> towards the right is climbing; one getting <b>lighter</b> is falling back.</span></div>
+      <Cards items={rwCards(twelveWeekCards(m))} />
       <Scroll label="ranks over 12 weeks"><table className="sp-tb rp-12">
-        <thead><tr><th scope="col">{tw("Industry · rank now")}</th>{weeks.map((d) => <th key={d} scope="col" className="c">{dm(d)}</th>)}<th scope="col" className="r">12 weeks</th></tr></thead>
+        <thead><tr><th scope="col">{rw("Industry · rank now")}</th>{weeks.map((d) => <th key={d} scope="col" className="c">{dm(d)}</th>)}<th scope="col" className="r">12 weeks</th></tr></thead>
         <tbody>{rows.map((r) => { const by = new Map(r.rank_history.map((p) => [p.date, p.rank])), first = by.get(weeks[0]) ?? null, d = first == null ? null : first - r.rank!, big = d != null && Math.abs(d) >= 12; return (
-          <tr key={r.slug} className={big ? "big" : ""}><th scope="row">{r.rank}. {short(r.name)}{mine.has(r.slug) && " ★"}</th>
+          <tr key={r.slug} className={(big ? "big" : "") + (mine.has(r.slug) ? " sx-mine" : "")}><th scope="row">{r.rank}. {short(r.name)}{mine.has(r.slug) && " ★"}</th>
             {weeks.map((w) => { const v = by.get(w) ?? null, c = TEAL(v, n); return <td key={w} className="c"><span className="rp-cell" style={{ background: c.bg, color: c.fg }}>{v ?? ""}</span></td>; })}
             <td className={"r rp-12d" + (big ? " hl" : "") + (d == null ? "" : d > 0 ? " up" : d < 0 ? " dn" : "")}>{d == null ? "–" : d === 0 ? "same" : move(d)}</td></tr>); })}</tbody>
       </table></Scroll>

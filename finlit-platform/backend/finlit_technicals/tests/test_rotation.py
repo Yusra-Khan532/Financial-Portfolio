@@ -143,3 +143,18 @@ def test_study_runs_and_text_matches_numbers():
     assert f"{ag['cases']:,} cases" in st["text"]["ahead_gaining"]
     assert st["rank"]["mean_weekly_move_places"] is not None
     assert not ADVICE.search(" ".join(v for v in st["text"].values() if isinstance(v, str)))
+
+
+def test_what_happened_next_is_counted_from_a_year_of_real_weekly_closes():
+    """Task #332: the weekly job counts "What happened next" from each group's confirmed box at the real weekly closes (week_ends), over a year."""
+    rot = RT.Rotation(groups=_groups())
+    v = rot.view()
+    wn = v["what_next"]
+    assert wn["weeks"] == min(52, len(rot.weeks)) == 52
+    assert wn["to"] == v["date"] and wn["from"] == RT._d(rot.weeks[-52])     # real weekly closes, not every fifth day
+    assert wn["groups"] == 5
+    assert sum(c["now"] for c in wn["cards"]) == 5
+    for c in wn["cards"]:
+        assert c["ended"] == sum(x["n"] for x in c["next"]) <= c["entered"]
+    assert "It shows what did happen, not what will." in wn["caption"]
+    assert not ADVICE.search(wn["caption"])

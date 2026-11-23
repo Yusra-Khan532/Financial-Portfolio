@@ -1028,6 +1028,19 @@ async def test_scores_carry_only_the_needed_fields(env):
     assert "report" not in t and "financialHistory" not in json.dumps(body)
 
 
+async def test_scores_never_count_against_the_daily_report_limit(env, monkeypatch):
+    """Task #332 ("Inside a sector" reads 12 stocks' scores): /api/prism/scores reads stored scores only, so it never touches the daily calculation count."""
+    app, _ = env
+    monkeypatch.setattr(prism, "DAILY_LIMIT", 1)
+    gold = await member(app, "gold")
+    assert (await generate(gold)).status_code == 200                              # the one calculation of the day
+    key = f"prism:day:{gold.user_id}:{datetime.now(prism.IST):%Y%m%d}"
+    before = await app.state.store.redis.get(key)
+    for _ in range(5):
+        assert (await gold.get("/api/prism/scores?symbols=TCS," + ",".join(f"S{i}" for i in range(11)))).status_code == 200
+    assert await app.state.store.redis.get(key) == before
+
+
 async def test_scores_prefer_consolidated_and_withhold_parts_when_not_rated(env):
     app, _ = env
     gold = await member(app, "gold")

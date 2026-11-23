@@ -12,6 +12,7 @@ import { COLOUR, MEANING, ORDER, WORD } from "../../../lib/pulsePack";
 import { BOX, BOX_ORDER } from "../../../lib/pulsePack";
 import { BOX_MEANING } from "../../../lib/rotationPack";
 import { BOX_COLOUR } from "../../rotation/pack/RotationSimple";
+import { rw } from "../../../lib/rotationWords";
 import { tw } from "../../../lib/groupWords";
 import { SECTION_BAR_MIN } from "../../../lib/nav";
 
@@ -107,32 +108,35 @@ export function PulseGuide({ stocks, groups }: { stocks: number; groups: string 
   );
 }
 
-/** Sector Rotation: `ranked` groups are ranked this week; `total` are counted in the yardstick. */
-export function RotationGuide({ ranked, total }: { ranked: number; total: number }) {
+/** Sector Rotation: `ranked` groups are ranked this week; `yardstick` is the number of industry groups the average group counts. Task #332 (fault 2): the figures of
+ *  BOTH views are measured against the Industries view's average group (finlit_technicals/batch.py write_level_files: `Rotation(view, bench=rot.bench)`), so in the
+ *  Sectors view this says "all N industry groups counted equally", exactly as the header's yardstick box does, never "all 19". */
+export function RotationGuide({ ranked, yardstick, sectors = false }: { ranked: number; yardstick: number | null; sectors?: boolean }) {
+  const yard = yardstick != null ? `all ${yardstick} industry groups counted equally` : "the industry groups counted equally";
   return (
     <Fold sub="Four steps, what each box means, the yardstick, and what it leaves out · 2 min read">
-      <p className="sp-guide-intro">{tw("Money moves from one industry to another over months. Sector Rotation measures each of the")} {ranked} ranked groups against one yardstick, <b>the average group</b> (all {total} counted equally), and puts it in one of four boxes. It updates after each weekly close. <b>Simple</b> tells the story; <b>Full table</b> shows every number.</p>
+      <p className="sp-guide-intro">{rw("Money moves from one industry to another over months. Sector Rotation measures each of the")} {ranked} ranked {sectors ? "sectors" : "groups"} against one yardstick, <b>the average group</b> ({yard}{sectors ? ", as in the Industries view" : ""}), and puts it in one of four boxes. It updates after each weekly close. <b>Simple</b> tells the story; <b>Full table</b> shows every number.</p>
       <div className="sp-guide-two">
         <div><h3 className="sp-guide-k">Use it in four steps</h3>
           <Steps items={[
-            <><b>Find the box.</b> {tw("Is the industry ahead of or behind the average group over the last several months? Is it gaining or slipping against it over the last month? The two answers give its box.")}</>,
-            <><b>Read the box with breadth.</b> <b>Taking part</b>: Most means most of its stocks are above their 50-day average; Few means a handful carry it. A broad lead has held up better than a narrow one.</>,
-            <><b>Watch the rank and what changed.</b> The rank puts every group on one list each week, 1 the strongest; the arrows show places moved in 1 and 4 weeks. <b>Changed box this week</b> and <b>May change box next week</b> show the moves.</>,
-            <><b>Bring it to your shares.</b> <b>{tw("How your industries compare")}</b> {tw("ranks the industries your shares sit in.")} <b>Does Sector Pulse agree?</b> checks whether the stocks inside have turned up too.</>,
+            <><b>Find the box.</b> {rw("Is the industry ahead of or behind the average group over the last several months? Is it gaining or slipping against it over the last month? The two answers give its box.")}</>,
+            <><b>Read the box with breadth.</b> <b>Taking part</b>: Most means most of its stocks are above their medium-term trend; Few means a handful carry it. A broad lead has held up better than a narrow one.</>,
+            <><b>Watch the rank and what changed.</b> The rank puts every {sectors ? "sector" : "group"} on one list each week, 1 the strongest; the arrows show places moved in 1 and 4 weeks. <b>Changed box this week</b> and <b>May change box next week</b> show the moves.</>,
+            <><b>Bring it to your shares.</b> <b>{rw("How your industries compare")}</b> {rw("ranks the industries your shares sit in.")} <b>Does Sector Pulse agree?</b> checks whether the stocks inside have turned up too.</>,
           ]} /></div>
         <div><h3 className="sp-guide-k">What each box means</h3>
           <table className="sp-guide-t"><thead><tr><th scope="col">Box</th><th scope="col">When</th></tr></thead>
             <tbody>{BOX_ORDER.map((b) => <tr key={b}><td><i className="sp-sw" style={{ background: BOX_COLOUR[b] }} aria-hidden="true" /><b>{BOX[b].arrow} {BOX[b].word}</b></td><td>{BOX_MEANING[b]}</td></tr>)}</tbody></table>
-          <p className="sp-guide-p"><b>Points.</b> {tw("+5 means the industry did 5 percentage points better than the average group; −5, 5 worse.")}</p>
-          <p className="sp-guide-p"><b>The usual order.</b> {tw("Behind but gaining → Ahead and gaining → Ahead but slowing → Behind and slipping, then round again. Industries can skip a box or turn back.")}</p>
+          <p className="sp-guide-p"><b>Points.</b> {rw("+5 means the industry did 5 percentage points better than the average group; −5, 5 worse.")}</p>
+          <p className="sp-guide-p"><b>The usual order.</b> {rw("Behind but gaining → Ahead and gaining → Ahead but slowing → Behind and slipping, then round again. Industries can skip a box or turn back.")}</p>
         </div>
       </div>
       <div className="sp-guide-two sp-guide-low">
         <div><h3 className="sp-guide-k">Check it against history</h3>
-          <p>Turn on the 8-week paths on <b>The map</b> {tw("to see the route each industry took.")} <b>Six months of ranks</b> and <b>How the ranking changed over 12 weeks</b> (Full table) show whether a lead has lasted or keeps changing hands. <b>Words on this page</b>, near the bottom, explains every term.</p></div>
+          <p>Turn on the 8-week paths on <b>The map</b> {rw("to see the route each industry took.")} <b>Six months of ranks</b> and <b>How the ranking changed over 12 weeks</b> (Full table) show whether a lead has lasted or keeps changing hands. <b>Words on this page</b>, near the bottom, explains every term.</p></div>
         <div><h3 className="sp-guide-k">Keep in mind</h3>
           <ul className="sp-guide-ul">
-            <li>{tw("A box says how an industry has done, not what it will do. It is not advice, and not a reason to act on its own.")}</li>
+            <li>{rw("A box says how an industry has done, not what it will do. It is not advice, and not a reason to act on its own.")}</li>
             <li><b>May change box</b> is an early look, not a forecast: some readings flip back the next week.</li>
             <li>A big climb can be the start of a new lead or a short catch-up. The box and Sector Pulse help tell the two apart.</li>
             <li>Read every lead against the market backdrop: the Nifty 50 against its long-term average.</li>

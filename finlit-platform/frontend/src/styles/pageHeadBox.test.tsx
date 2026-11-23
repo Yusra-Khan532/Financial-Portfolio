@@ -172,8 +172,8 @@ describe("the one-line descriptions (founder, 22 Nov 2026)", () => {
   it("the long sentences stay the pages' search descriptions, not the header", () => {
     for (const f of ["pages/SectorPulse.tsx", "pages/SectorRotation.tsx", "pages/LearnSectorRotation.tsx", "pages/LearnSectorSignals.tsx"]) {
       const t = read(f);
-      expect(t).toMatch(/useDocTitle\(TITLE, (tw\()?DESC\)?\)/);
-      expect(t).toMatch(/desc(ription)?=\{(tw\()?HEAD_DESC\)?\}/);
+      expect(t).toMatch(/useDocTitle\(TITLE, ((?:tw|rw)\()?DESC\)?\)/);     // rw(): Sector Rotation's own words for its two views (task #332)
+      expect(t).toMatch(/desc(ription)?=\{((?:tw|rw)\()?HEAD_DESC\)?\}/);
     }
     expect(read("pages/ConcallMonitor.tsx")).toContain('useDocTitle("Concall Monitor", SUBTITLE)');
     expect(read("pages/ConcallMonitor.tsx")).toContain("description={HEAD_DESC}");
