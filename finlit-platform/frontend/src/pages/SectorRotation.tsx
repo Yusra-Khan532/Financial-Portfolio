@@ -32,7 +32,7 @@ import "../styles/rotation-pack.css";
 import "../styles/sector-pages.css";
 import "../styles/rotation-332.css";
 import { showQuery, type Show } from "../lib/sectors";
-import { useShow, useShowWords } from "../lib/groupWords";
+import { tw, useShow, useShowWords } from "../lib/groupWords";
 import { rw, rwCards } from "../lib/rotationWords";
 
 const TITLE = "Sector Rotation";
@@ -106,7 +106,7 @@ export function SectorRotationPage() {
   // which it does not have yet), so the header says why it has a box and no rank
   const meta = m ? <>Updated after the weekly close, {d ? `${WEEKDAY[d.getUTCDay()]} ${m.date_label ?? m.date}` : m.date} · {gw(nRanked)} ranked<Tip text={rw("Each week every industry with a full year of readings is ranked, 1 the strongest. One with less has a box (it has the 6-month and 1-month readings) but no rank yet.")} />
     {unranked.length > 0 && <> · {unranked.join(", ")} {unranked.length === 1 ? "has" : "have"} a box but no rank yet: a rank needs a full year of readings</>}</> : null;
-  const disclaimer = m ? rw(`Describes past prices of NSE industry groups against the average group; not a forecast and not a recommendation to buy, sell or hold any security. NSE daily data, equal-weighted industry groups, the same counted stocks as Sector Pulse. Data as of ${d ? `${WEEKDAY[d.getUTCDay()]} ${m.date_label ?? m.date}` : m.date}, after the close.`) : "";
+  const disclaimer = m ? tw(`Describes past prices of NSE industry groups against the average group; not a forecast and not a recommendation to buy, sell or hold any security. NSE daily data, equal-weighted industry groups, the same counted stocks as Sector Pulse. Data as of ${d ? `${WEEKDAY[d.getUTCDay()]} ${m.date_label ?? m.date}` : m.date}, after the close.`) : "";
   const allName = m ? (sectors ? `All ${m.rows.length} sectors` : `All ${m.rows.length} groups`) : "All";
   const hover = m ? hoverCard(m, pulse, mine, watchedOnly) : undefined;
   const bell = (r: { slug: string; name: string }) => <AlertBell slug={r.slug} name={short(r.name)} compact />;

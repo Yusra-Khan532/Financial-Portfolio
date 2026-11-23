@@ -5,12 +5,12 @@ import type { CornerCode, GroupRow } from "./sectors";
 import type { RotationMap, RotationRow } from "./rotation";
 import { BOX, isEarly, keyOf, short } from "./pulsePack";
 import type { Card } from "./pulsePack";
-import { wordsShow } from "./groupWords";
+import { tw } from "./groupWords";
 import { rw } from "./rotationWords";
 
 /** Task #332 (three levels): the Sectors view says "sector(s)", never "group(s)"; the Industries view says "group(s)" for its 38 (33 industries and 5 sectors). */
-export const gw = (n: number) => `${n} ${wordsShow() === "sectors" ? (n === 1 ? "sector" : "sectors") : n === 1 ? "group" : "groups"}`;
-export const gWord = (n = 2) => (wordsShow() === "sectors" ? (n === 1 ? "sector" : "sectors") : n === 1 ? "group" : "groups");
+export const gw = (n: number) => `${n} ${tw(n === 1 ? "group" : "groups")}`;   // tw() (task #333) says sector(s) in the Sectors view
+export const gWord = (n = 2) => tw(n === 1 ? "group" : "groups");
 /** "beat the average group by 1.2%" or "trailed the average group by 0.6%": never "beat by" with a negative figure (task #332). */
 export const beatOrTrail = (v: number | null | undefined) => (v == null ? "had no figure against the average group" : v < 0 ? `trailed the average group by ${Math.abs(v).toFixed(1)}%` : `beat the average group by ${v.toFixed(1)}%`);
 

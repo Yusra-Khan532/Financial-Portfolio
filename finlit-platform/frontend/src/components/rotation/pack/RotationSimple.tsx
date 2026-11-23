@@ -246,7 +246,7 @@ export function FourBoxes({ m, mine }: { m: RotationMap; mine: Set<string> }) {
 }
 
 export const ROT_WORDS: [string, string][] = [
-  ["The average group", ("All the industries counted equally. Every figure on this page is how far an industry is ahead of (+) or behind (−) it")],
+  ["The average group", ("All the industry groups counted equally, in both views. Every figure on this page is how far an industry is ahead of (+) or behind (−) it")],
   ["Box", ("Where an industry sits on the map: ahead or behind the average group over the last several months, and gaining or slipping against it lately")],
   ["Ahead and gaining", BOX_MEANING.ahead_gaining.replace(/\.$/, "")], ["Ahead but slowing", BOX_MEANING.ahead_slowing.replace(/\.$/, "")],
   ["Behind but gaining", BOX_MEANING.behind_gaining.replace(/\.$/, "")], ["Behind and slipping", BOX_MEANING.behind_slipping.replace(/\.$/, "")],

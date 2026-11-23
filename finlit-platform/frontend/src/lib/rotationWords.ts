@@ -17,6 +17,13 @@ export function toGroups(s: string): string {
 }
 
 /** tw() for Sector Rotation: "sectors" in the Sectors view, "groups" for the rows in the Industries view. */
-export const rw = (s: string): string => (wordsShow() === "sectors" ? tw(s) : toGroups(s));
+export const rw = (s: string): string => (wordsShow() === "sectors" ? toSectorsKeepingYardstick(s) : toGroups(s));
+/** The Sectors view: tw(), except that the yardstick stays "industry groups" (fault 2: both views measure against the average of the industry groups). */
+const YARD = /\b(?:industry groups?|Industries view)\b/gi;
+function toSectorsKeepingYardstick(s: string): string {
+  const kept: string[] = [];
+  const x = tw(s.replace(YARD, (m) => { kept.push(m); return `\u0003${kept.length - 1}\u0004`; }));
+  return x.replace(/\u0003(\d+)\u0004/g, (_m, i: string) => kept[Number(i)]);
+}
 /** The same for a list of insight cards (some are written by the server). */
 export const rwCards = (cards: Card[]): Card[] => cards.map((c) => ({ ...c, title: rw(c.title), text: rw(c.text) }));

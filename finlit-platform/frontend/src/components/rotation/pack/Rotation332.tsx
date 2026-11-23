@@ -218,8 +218,9 @@ export function WhatNextCards({ m, sectors }: { m: RotationMap; sectors: boolean
 // ------------------------------------------------------------------------------------------------ Inside a sector
 export function Inside({ m, held, watched, mine, pulse, sectors, syms }: { m: RotationMap; held: string[]; watched: string[]; mine: Set<string>; pulse: Map<string, GroupRow>; sectors: boolean; syms: Set<string> }) {
   const start = insideStart(m.rows, held, watched);
-  const [slug, setSlug] = useState<string | null>(start);
-  useEffect(() => { if (!slug || !m.rows.some((r) => r.slug === slug)) setSlug(start); }, [start]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // the member's first sector once their shares are known; their own pick after that
+  const [picked, setSlug] = useState<string | null>(null);
+  const slug = picked && m.rows.some((r) => r.slug === picked) ? picked : start;
   const [f, setF] = useState<InsideFilter>("all"), [all, setAll] = useState(false);
   const gold = useGold();
   const q = useQuery<IndustryPage, ApiError>({ queryKey: ["sector", slug, sectors ? "sectors" : "industries"], queryFn: () => apiGet<IndustryPage>(`/api/sectors/${encodeURIComponent(slug!)}` + sq()), enabled: !!slug, staleTime: 300_000, retry: false });
