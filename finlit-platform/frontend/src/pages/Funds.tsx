@@ -36,6 +36,7 @@ import "../styles/prism-card.css";   // the (i) beside Volatility (task #311)
 import { InfoTip } from "../stock/PrismCardView";
 import "../styles/etfvs.css";
 import "../styles/mf341.css";   // task #341: the page refinement (after mf.css and etfvs.css)
+import "../styles/task355.css";   // task #355: the folded Show filters handle
 import { ChartZoom } from "../components/ChartZoom";
 /** Task #311 (developer file 21, fund page row 1): the formula is off the page; one plain sentence behind the (i). */
 const VOL_TIP = "How much the NAV moves from day to day, shown as a yearly figure.";

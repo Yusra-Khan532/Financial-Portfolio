@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const css = readFileSync(join(__dirname, "mf341.css"), "utf8");
+const css = readFileSync(join(__dirname, "task355.css"), "utf8");
 describe("task #355: the folded Show filters handle", () => {
   it("is a centred slim button with the Hide filters outline", () => {
     expect(css).toMatch(/\.mf-list \.mf-showf \{ justify-content: center; gap: 12px; min-height: 196px; padding: 14px 0; border: 2px solid color-mix\(in srgb, var\(--text\) 70%, transparent\); border-radius: var\(--r-ctl\);/);
