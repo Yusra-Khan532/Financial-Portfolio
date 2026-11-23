@@ -325,6 +325,8 @@ class PrefsIn(BaseModel):
     dashV: int = Field(default=0, ge=0, le=99)   # the dashboard layout version the member's layout follows (task #195: 2); the site moves an older layout once
     # industries the member watches from an industry page ("Add to watch", final pages pack 07): their Sector Rotation alerts come too (finlit/rotation_alerts.py)
     sectorWatch: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,79}$")]] = Field(default_factory=list, max_length=60)
+    # task #333 (file 30): Sector Pulse "Alert me", one entry per alert: "<state|box|top5>:<sectors|industries>:<slug>" (finlit/sector_alerts.py)
+    sectorAlerts: List[Annotated[str, StringConstraints(pattern=r"^(state|box|top5):(sectors|industries):[a-z0-9][a-z0-9-]{0,79}$")]] = Field(default_factory=list, max_length=180)
     dashPortfolios: Optional[DashPortfolios] = None   # task #248: the dashboard's Showing bar; none means All accounts everywhere
     # task #251: themes the member follows on Discover (their slugs). Stored with the account; no alert reads them yet.
     followThemes: List[Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,79}$")]] = Field(default_factory=list, max_length=40)
