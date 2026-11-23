@@ -195,3 +195,8 @@
 .mf-list .mf-table thead th .mf-sort { justify-content: center; margin-inline: auto; }
 .mf-list .mf-table thead th:not(:first-child), .mf-list .mf-table tbody td { border-left: 1px solid var(--border-strong); }
 .mf-list .mf-table .mf-grouprow th + th { border-left: 1px solid var(--border-strong); }
+
+/* task #353 (team, 23 Nov 2026): the same 16px gap between every box of the main column (the category tabs, the summary tiles, the order-by row,
+   the table card), as between the page header and the cards above it; the boxes used to touch (0px). */
+.mf-list .mf-main { display: flex; flex-direction: column; gap: 16px; }
+.mf-list .mf-main > * { margin-top: 0; margin-bottom: 0; }

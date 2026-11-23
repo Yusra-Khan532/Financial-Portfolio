@@ -253,3 +253,9 @@
 .mfs-table thead th, .mfs-table thead th.mfs-n { background: var(--s2); }
 .mfs-table tbody tr.is-picked > * { background: var(--gold-soft); }
 .mfs-table tbody tr.is-picked > th.mfs-n { box-shadow: inset 3px 0 0 var(--gold), inset -1px 0 0 var(--border-strong); }
+
+/* task #353: one 16px gap between the boxes of the results column (count, active filters, result at a glance, table, pages, notes); was 10/14/18/14 */
+.mfs-main > .mfs-rbar, .mfs-main > .mfs-active, .mfs-main > .mfs-glance-wrap { margin-bottom: 16px; }
+.mfs-main > .mfs-pages { margin: 16px 0 0; }
+.mfs-main > .mfs-fine { margin-top: 16px; }
+.mfs-main > .mfs-glance-wrap > :last-child { margin-bottom: 0; }   /* its 18px margin collapsed through the 16px gap */
