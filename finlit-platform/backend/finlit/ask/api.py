@@ -5,6 +5,8 @@ Silver and Gold members only (Basic keeps the instant listed questions); each pl
     status  {"text"}                                         while FinLit data is being read ("Reading the ratios (TCS)")
     since   {"askedAt", "question", "match", "changes", "newItems", "said"}   before "text", only when the member asked the same or a similar
                                                              question 1 hour to 30 days ago (task #349 PR 3, docs/ASK-AI.md "Since you last asked")
+    relation {"tags": [{"kind", "text", "tip"}]}               right after meta, only when the member holds, watches or has an alert on the company
+                                                             (task #349 PR 4, docs/ASK-AI.md "Your holdings")
     text    {"text"}                                         pieces of the answer as they are written
     replace {"text"}                                         the answer so far is replaced (withdrawn as advice-like; "" clears a tool round's lead-in)
     ping    {}                                               a keep-alive after 10 s of quiet, while FinLit data is read or the model thinks
@@ -35,6 +37,7 @@ from ..auth.service import VIEW_AS_HEADER, Ctx, cookie_name, current
 from . import companies, pages, quota, routing, service, tools
 from .gateway import MemberGateway
 from . import memory   # task #349 PR 2: question memory (stores what was asked; changes no answer)
+from . import mine     # task #349 PR 4: how the member is linked to the company (holdings, funds, ETFs, watchlists, alerts)
 
 log = logging.getLogger("finlit.ask")
 router = APIRouter(prefix="/api/ask", tags=["ask"])
@@ -214,12 +217,19 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
     started = time.monotonic()
     early = await since_lookup(request, st, store, ctx, body, question) if kind == "question" else None
     since_on = bool(early and early.get("prev"))
+    # Task #349 PR 4: how the member is linked to the companies the question is about (their shares, funds, ETFs, watchlists, alerts). Only for a
+    # member who keeps any of these (one cheap read); the subject worked out here is reused for the answer. No link: answered exactly as before.
+    rel = await relation_lookup(request, st, store, ctx, body, question, early) if kind == "question" else None
+    if rel is not None and early is None:
+        early = {"named": rel["named"], "page": rel["page"], "topic": None, "prev": None}
+    rel_on = bool(rel and rel["rel"])
 
     # A repeated first question (same words, same page, same plan, same day) is answered from the cache, at once and without using the allowance.
-    # Not when "since you last asked" applies: that answer is the member's own (task #349 PR 3), like the answers about their own lists.
+    # Not when "since you last asked" applies: that answer is the member's own (task #349 PR 3), like the answers about their own lists; nor when
+    # the answer carries the member's own holdings (task #349 PR 4).
     key = cache_key(st.ask_model, ctx, body) if not body.history else None
     hit = None
-    if key and not since_on:
+    if key and not since_on and not rel_on:
         try:
             hit = await store.redis.get(key)
         except Exception:
@@ -329,6 +339,8 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
                 items = memory.new_items(feed["text"], prev["askedAt"]) if extra_reads else []
                 await emit("since", memory.since_payload(prev, facts, items, subj))
                 note = (note + "\n" if note else "") + memory.since_note(prev, facts, items)
+            if rel_on:                       # task #349 PR 4: the member's own link to the company, in the note with the question
+                note = (note + "\n" if note else "") + mine.note(rel["rel"])
             messages = service.build_messages([t.model_dump() for t in body.history], question, body.symbol, plan_key(ctx), card, note,
                                               page_is_subject=bool(page) or kind != "question")
             prefetched = [r for r, _ in reads]
@@ -339,6 +351,8 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
                     "cards": [(card_tool, {"symbol": s}, g) for s, g in zip(want[:2], got)] + extra_reads}
 
         yield sse("meta", {**quota.status(cap, n, month), "cached": False})
+        if rel_on:                           # task #349 PR 4: the tags on the answer ("You hold this", "In 2 of your funds" ...)
+            yield sse("relation", {"tags": mine.tags(rel["rel"])})
         result: Optional[Dict[str, Any]] = None
         want: List[str] = []
         done_: Dict[str, Any] = {}
@@ -404,7 +418,7 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
         # Task #349 PR 2: question memory (ask/memory.py), written in the background from what this answer already read.
         snap = memory.after_answer(store.pool, ctx, kind=kind, question=question, result=result, named=done_["named"], page=done_["page"],
                                    kinds=done_["kinds"], messages=done_["messages"], cards=done_["cards"])
-        if key and result["text"] and result["stop"] in ("end_turn",) and not personal and not since_on:
+        if key and result["text"] and result["stop"] in ("end_turn",) and not personal and not since_on and not rel_on:
             try:
                 await store.redis.set(key, json.dumps({"text": result["text"], "tools": result["tools"], "pages": links,
                                                        **({"memory": snap} if snap else {})}, default=str),
@@ -462,6 +476,34 @@ async def since_lookup(request: Request, st, store, ctx: Ctx, body: AskIn, quest
         return out
     except Exception:
         log.warning("ask: the earlier answer could not be looked for", exc_info=True)
+        return None
+
+
+async def relation_lookup(request: Request, st, store, ctx: Ctx, body: AskIn, question: str, early: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Task #349 PR 4: {"named", "page", "rel"} for a member who keeps shares, funds, ETFs, watchlists or alerts, else None. `rel` is mine.relation
+    for the companies the question is about (the page's company when it is the subject, then the companies named), {} when none is linked. The
+    subject is the one since_lookup worked out when it did; otherwise it is worked out here, once, and reused for the answer. Never fails an answer."""
+    try:
+        if memory._viewing_as(ctx) or quota.allowance(ctx) <= 0:
+            return None
+        if not await mine.linked_any(store.pool, ctx.user_id):
+            return None
+        if early is not None:
+            named, page = early["named"], early["page"]
+        else:
+            gw = MemberGateway(request.app, request.headers.get("host", "localhost"), ip_of(request), cookie_name=cookie_name(st),
+                               cookie=request.cookies.get(cookie_name(st), ""), csrf=ctx.csrf or "",
+                               origin=request.headers.get("origin") or f"{request.url.scheme}://{request.headers.get('host', 'localhost')}",
+                               view_as=request.headers.get(VIEW_AS_HEADER))
+            try:
+                named, page = await subject_of(gw, body, question, "question", time.monotonic() + PREREAD_SECONDS)
+            finally:
+                await gw.aclose()
+        want = (([page] if page else []) + list(named))[:2]
+        rel = await mine.relation(store.pool, ctx.user_id, want, redis=store.redis) if want else {}
+        return {"named": named, "page": page, "rel": rel}
+    except Exception:
+        log.warning("ask: the member's holdings could not be read", exc_info=True)
         return None
 
 

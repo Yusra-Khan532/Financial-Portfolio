@@ -133,7 +133,18 @@ ADVICE = re.compile(
     r"|\bmulti-?baggers?\b|\btop picks?\b|\bmust[- ]buy\b|\bgood (?:time|stock|share|fund) to (?:buy|sell|invest)\b"
     r"|\bbest (?:stock|share|fund|etf|company|investment|bet|pick)s? (?:to (?:buy|invest|own|hold|pick|accumulate|add)|for (?:you|your|now|today|investors))\b"
     r"|(?<!which )(?<!what )\b(?:is|are) (?:the|our|my|a) (?:very )?best (?:stock|share|fund|etf|investment|bet|pick|buy)s?\b"
-    r"|\b(?:buy|sell) (?:now|today|at current levels|on dips?|the dip)\b", re.I)
+    r"|\b(?:buy|sell) (?:now|today|at current levels|on dips?|the dip)\b"
+    # Task #349 PR 4 (holdings-aware answers): advice about the member's own position. Describing it ("You hold 40 shares", "12.4% of your Equity
+    # portfolio", "22.9% above the average buy price you entered") is not advice; telling them what to do with it is.
+    r"|" + _NOT_ASKED + r"\byou (?:could|can|may|might|may wish to|might wish to|could look to|may like to) (?:add (?:more|to (?:it|them|your|the position|the holding))|buy (?:more|some more|the dip|on dips?)|average|top up|accumulate|increase your|trim|reduce your|exit|sell (?:some|part|it|them|your)|book (?:profits?|gains?|some)|rebalance|switch)\b"
+    r"|\b(?:buy|add) more (?:shares|units|of (?:it|this|the stock|the shares|them))\b|\baverag(?:e|ing) (?:it |your (?:position|holding|cost|price) |the cost )?down\b"
+    r"|\bconsider(?:ing)? (?:trimming|reducing|exiting|selling|booking(?: some| partial)? profits?|adding|buying|accumulating|increasing|topping up|lightening|cutting|rebalancing|switching)\b"
+    r"|\b(?:(?:a|the) )?(?:good|right|ideal|better|best) time to (?:buy|sell|add|exit|book|trim|enter|accumulate|reduce)\b|\b(?:it is|it's|now is|this is|may be|might be|could be) (?:the |a )?time to (?:buy|sell|add|exit|book|trim|enter|accumulate|reduce)\b"
+    r"|\brebalanc(?:e|ing) (?:your|the) (?:portfolio|holdings?|position|allocation|exposure)\b|\b(?:you|to|should|could|consider|may want to|might want to) rebalance\b"
+    r"|\b(?:reduce|cut|trim|lower|lighten|increase|raise|grow|build|add to|top up) (?:your|the member's) (?:exposure|stake|position|holding|allocation|weight)s?\b"
+    r"|\bsafe to (?:hold|buy|own|keep|stay|add)\b|\bkeep holding\b|\bcontinue (?:to hold|holding)\b|\b(?:stay|remain) invested\b"
+    r"|\b(?:overweight|underweight|over-?concentrated|too (?:concentrated|heavy|large a|big a|much of))\b[^.\n]{0,60}?\bso\b"
+    r"|\byou(?:'re| are) (?:overweight|underweight|over-?exposed|under-?exposed|too concentrated)\b", re.I)
 
 # Task #270 (the team, 20 Nov 2026): "do the two stance format for necessary questions i.e at the end just give a small 2 line summary of whatever you
 # have given as the ans". The team's example: "**Stance: Cautiously negative (bearish on inflation, cautiously positive on growth).**" then one line

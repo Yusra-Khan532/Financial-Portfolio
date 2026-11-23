@@ -5,8 +5,9 @@ import { SECOND } from "../lib/questionBank";
 import { answerCompany, generalAnswer, matchQuestion, searchListed, type Match } from "../lib/askAnswers";
 import { apiGet, type SearchIndex } from "../lib/api";
 import type { Quotes } from "../lib/globalSearch";
-import { AskRefused, INTERRUPTED, TIMED_OUT, askAi, safePages, safeSince, useAskQuota, type AskSinceData, type AskTurn } from "../lib/askAi";
+import { AskRefused, INTERRUPTED, TIMED_OUT, askAi, safePages, safeRelation, safeSince, useAskQuota, type AskRelationTag, type AskSinceData, type AskTurn } from "../lib/askAi";
 import { AskSince } from "./AskSince";   // task #349 PR 3: "since you last asked"
+import { AskRelation } from "./AskRelation";   // task #349 PR 4: holdings-aware answers
 import { useAuth } from "../lib/auth";
 import { AskHistoryButton, AskHistoryView, AskMemoryNotice } from "./AskHistory";   // task #349 PR 2: question memory
 import { memoryApplies } from "../lib/askMemory";
@@ -40,7 +41,9 @@ export { OPEN_AI };
  *  that written answers are part of Silver and Gold (Basic and visitors keep the listed questions: founder, 17 Nov 2026). */
 type Msg = { role: "user" | "assistant"; content: string; link?: { to: string; label: string }; actions?: { to: string; label: string }[]; suggest?: Q[]; ai?: { status?: string; disclaimer?: string; error?: boolean; plans?: boolean; retry?: string };
   /** task #349 PR 3: "since you last asked" for this answer, and the question it answers (re-sent with `fresh` by "Full answer") */
-  since?: AskSinceData; sinceQ?: string };
+  since?: AskSinceData; sinceQ?: string;
+  /** task #349 PR 4: how the member is linked to the company ("You hold this", "In 2 of your funds" ...), shown on the answer */
+  relation?: AskRelationTag[] };
 type View = "home" | "segments" | "topic" | "company" | "chat" | "history" | "saved" | "funds" | "discovery";
 
 let indexPromise: Promise<SearchIndex> | null = null;
@@ -179,6 +182,8 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
         if (e.type === "status") patch((m) => ({ ...m, ai: { ...m.ai, status: e.text } }));
         // task #349 PR 3: what changed since the member last asked, shown above the words (it arrives before them)
         else if (e.type === "since") { const s = safeSince(e); if (s) patch((m) => ({ ...m, since: s, sinceQ: q })); }
+        // task #349 PR 4: the member's own link to the company, as tags on the answer (it arrives right after meta)
+        else if (e.type === "relation") { const t = safeRelation(e); if (t.length) patch((m) => ({ ...m, relation: t })); }
         else if (e.type === "text") patch((m) => ({ ...m, content: m.content + e.text, ai: { ...m.ai, status: undefined } }));
         // "" clears the words written before FinLit AI read more data (task #349): the bubble goes back to "Reading…"
         else if (e.type === "replace") patch((m) => ({ ...m, content: e.text, ai: { ...m.ai, status: e.text ? undefined : m.ai?.status || "Reading FinLit's data" } }));
@@ -465,7 +470,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
             </>}
 
             {view === "chat" && <>
-              {msgs.map((m, i) => <div key={i} className={"bub " + (m.role === "user" ? "me" : "bot") + (m.ai?.error ? " aif-bub-err" : "") + (big && m.role === "assistant" ? " aif-lab" : "")} style={m.role === "user" ? { whiteSpace: "pre-wrap" } : undefined} aria-busy={!!m.ai?.status || undefined}>{m.since && <AskSince data={m.since} busy={busy} onFull={m.sinceQ ? () => fullAnswer(m.sinceQ!) : undefined} onLeave={() => { if (!big) setOpen(false); }} />}{m.ai?.status && !m.content ? <span className="aif-reading" role="status"><i />{m.ai.status}…</span> : m.role === "assistant" ? <AnswerText text={m.content} /> : m.content}
+              {msgs.map((m, i) => <div key={i} className={"bub " + (m.role === "user" ? "me" : "bot") + (m.ai?.error ? " aif-bub-err" : "") + (big && m.role === "assistant" ? " aif-lab" : "")} style={m.role === "user" ? { whiteSpace: "pre-wrap" } : undefined} aria-busy={!!m.ai?.status || undefined}>{m.relation && <AskRelation tags={m.relation} signedIn={!!user} />}{m.since &&<AskSince data={m.since} busy={busy} onFull={m.sinceQ ? () => fullAnswer(m.sinceQ!) : undefined} onLeave={() => { if (!big) setOpen(false); }} />}{m.ai?.status && !m.content ? <span className="aif-reading" role="status"><i />{m.ai.status}…</span> : m.role === "assistant" ? <AnswerText text={m.content} /> : m.content}
                 {m.ai?.disclaimer && <small className="aif-disc">{m.ai.disclaimer}</small>}
                 {m.ai?.retry && i === msgs.length - 1 && !busy && <p className="aif-retry"><Button size="sm" onClick={() => retry(i, m.ai!.retry!)}>Ask again</Button></p>}
                 {m.ai?.plans && <Link className="aif-ans-link" to="/plans" onClick={() => { if (!big) setOpen(false); }}>See the plans <Icon name="arrow" /></Link>}{m.role === "user" && <button type="button" className={"aif-save" + (saved.includes(m.content) ? " on" : "")} aria-pressed={saved.includes(m.content)} aria-label={saved.includes(m.content) ? "Remove this question from saved" : "Save this question"} title={saved.includes(m.content) ? "Saved" : "Save this question"} onClick={() => setSaved((l) => toggleSaved(l, m.content))}><Icon name="star" /></button>}
