@@ -32,3 +32,32 @@
 .mf .evi-promo-ic { width: 36px; height: 36px; } .mf .evi-promo-ic svg { width: 18px; height: 18px; }
 .mf .evi-promo-t { gap: 2px; } .mf .evi-promo-t b { font-size: var(--fs-14); } .mf .evi-promo-t small { font-size: var(--fs-13); line-height: var(--lh-13); }
 .mf .evi-promo-go { font-size: var(--fs-13); align-self: center; }
+
+/* 11 (PR B): the filters in two rows. Row 1: Search, Fund house, Plan, Option, each with its small label above (the labels were read to screen
+   readers only, except Fund house). Row 2: Return range and "Include schemes that stopped publishing NAVs", under a hairline. Controls 38px. */
+.mf .mf-ctl { gap: 12px; padding: 16px 18px; }
+.mf .mf-fbar { align-items: end; gap: 12px 14px; }
+.mf .mf-search-w { display: grid; gap: 4px; flex: 1 1 280px; min-width: 0; }
+.mf .mf-fbar .mf-search { height: 38px; }
+@media (min-width: 761px) { .mf .mf-fbar .mf-search input { font-size: var(--fs-14); } }   /* phones keep 16px inputs (no iOS zoom) */
+.mf .mf-fbar .mf-pick-b { height: 38px; min-width: 190px; }
+.mf .mf-fbar .mf-seg-w { display: grid; gap: 4px; }
+.mf .mf-fbar .label { margin: 0; font: 600 var(--fs-12)/var(--lh-12) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.mf .mf-fbar2 { align-items: center; padding-top: 12px; border-top: 1px solid var(--border); }
+.mf .mf-fbar2 .mf-stopck { flex-basis: auto; }
+.mf .mf-fbar2 .mf-rangebtn { min-height: 38px; }
+@media (max-width: 760px) {
+  .mf .mf-search-w { flex-basis: 100%; }
+  .mf .mf-fbar .mf-pick { flex: 1 1 100%; } .mf .mf-fbar .mf-pick-b { min-width: 0; }
+}
+
+/* 10 (PR B): the category tabs and chips. Tabs 40px; "Select All" on its own line with "N of M selected", a hairline under it; every chip the same
+   height (38px), its tick and name centred, its count in a small tabular badge, long names wrapping inside the chip. */
+.mf .mf-tabs button { min-height: 40px; padding-inline: 16px; }
+.mf .mf-allrow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding-bottom: 10px; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
+.mf .mf-allrow .mf-all { margin: 0; }
+.mf .mf-alln { font-size: var(--fs-12); color: var(--muted); font-variant-numeric: tabular-nums; }
+.mf .mf-subgrid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px 10px; }
+.mf .mf-subgrid .mf-check { min-height: 38px; align-items: center; gap: 8px; padding: 6px 10px; line-height: var(--lh-13); font-size: var(--fs-13); }
+.mf .mf-subgrid .mf-check input { width: 16px; height: 16px; flex: none; }
+.mf .mf-subgrid .mf-check small { margin-left: auto; padding: 1px 7px; border-radius: var(--ui-r-pill); background: var(--s3); font-size: var(--fs-12); font-variant-numeric: tabular-nums; color: var(--muted); }

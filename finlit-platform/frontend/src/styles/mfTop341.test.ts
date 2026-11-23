@@ -14,7 +14,7 @@ describe("Mutual funds page, top (task #341 PR A)", () => {
   it("six category cards: 3 x 2 on a desktop, 2 columns on a tablet, equal heights; phone unchanged", () => {
     expect(css).toMatch(/@media \(min-width: 1001px\) \{\s*\.mf \.mf-cards \{ grid-template-columns: repeat\(3, minmax\(0, 1fr\)\); grid-auto-rows: 1fr;/);
     expect(css).toMatch(/@media \(min-width: 761px\) and \(max-width: 1000px\) \{\s*\.mf \.mf-cards \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
-    expect(css).not.toMatch(/max-width: 760px/);
+    expect(css).not.toMatch(/max-width: 760px\)[^}]*\.mf-cards/);   // the phone keeps its sideways row of cards
   });
   it("the site's type scale on the cards and the tool cards", () => {
     expect(css).toMatch(/\.mf \.mf-qcard b \{ font-size: var\(--fs-16\);/);   // the site's scale: the nearest step to the prompt's 15px
