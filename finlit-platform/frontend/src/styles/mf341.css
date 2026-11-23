@@ -136,3 +136,52 @@
 .mf-list .mf-tbar { position: absolute; top: 8px; right: 58px; z-index: 10; }
 .mf-list .mf-tbar .mf-cols > .btn { min-height: 36px; }
 @media (max-width: 760px) { .mf-list .mf-tbar { right: 54px; } }
+
+/* Task #347 (23 Nov 2026): the filter panel on the left of the table. Desktop: a 320px column beside the list; "Hide filters" folds it to a 44px
+   handle in the same place ("Show filters", written down the handle), never on the table. Tablet and phone: the panel sits above the list and folds to
+   one "Show filters" button. Inside: the search at the top, the fund types as sections (the open one is the type shown, its box ticked or partly
+   ticked), then fund house, plan, option, return range and the stopped tick, one column. */
+.mf-list .mf-layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 16px; align-items: start; margin-top: 16px; }
+.mf-list .mf-layout.closed { grid-template-columns: 44px minmax(0, 1fr); }
+.mf-list .mf-main { min-width: 0; }
+.mf-list .mf-side { min-width: 0; padding: 14px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--s1); }
+.mf-list .mf-layout.closed .mf-side { padding: 0; border: 0; background: none; }
+.mf-list .mf-side-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.mf-list .mf-side-h h2 { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }
+.mf-list .mf-hidef { min-height: 34px; }
+.mf-list .mf-side-b { display: grid; gap: 12px; }
+.mf-list .mf-showf { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 44px; min-height: 180px; padding: 12px 0; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--s1); color: var(--text); font: 600 var(--fs-13) var(--sans); cursor: pointer; }
+.mf-list .mf-showf span { writing-mode: vertical-rl; transform: rotate(180deg); }
+.mf-list .mf-showf svg { width: 18px; height: 18px; }
+.mf-list .mf-showf:hover, .mf-list .mf-showf:focus-visible { border-color: var(--gold); }
+/* inside the panel: one column */
+.mf-list .mf-side .mf-ctl { padding: 0; border: 0; background: none; box-shadow: none; }
+.mf-list .mf-side .mf-fbar { flex-direction: column; align-items: stretch; gap: 12px; }
+.mf-list .mf-side .mf-fbar > * { flex: none; width: 100%; min-width: 0; }
+.mf-list .mf-side .mf-fbar .mf-pick-b { min-width: 0; width: 100%; }
+.mf-list .mf-side .mf-seg-w .seg { width: 100%; } .mf-list .mf-side .mf-seg-w .seg button { flex: 1; padding: 0 8px; }
+.mf-list .mf-side .mf-fbar2 { align-items: stretch; }
+.mf-list .mf-side .mf-search-w { flex: none; }
+.mf-list .mf-catside { display: grid; gap: 8px; }
+.mf-list .mf-catside .mf-freq { padding: 0 0 12px; }
+.mf-list .mf-catside .mf-freq-info ul { grid-template-columns: minmax(0, 1fr); }
+.mf-list .mf-acc { border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); }
+.mf-list .mf-acc.on { border-color: var(--border-strong); }
+.mf-list .mf-acc-h { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 0 12px; cursor: pointer; font: 600 var(--fs-14) var(--sans); color: var(--text); }
+.mf-list .mf-acc-h:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: var(--r-ctl); }
+.mf-list .mf-acc-t { flex: 1; }
+.mf-list .mf-acc-h small { font: 500 var(--fs-12) var(--sans); color: var(--muted); font-variant-numeric: tabular-nums; }
+.mf-list .mf-acc-box { display: inline-grid; place-items: center; width: 18px; height: 18px; flex: none; border: 1.5px solid var(--border-strong); border-radius: var(--ui-r-mark); font: 700 var(--fs-12)/1 var(--sans); color: var(--on-gold); }
+.mf-list .mf-acc-box.all, .mf-list .mf-acc-box.some { background: var(--gold); border-color: var(--gold); }
+.mf-list .mf-acc-car { color: var(--muted); font-size: var(--fs-12); }
+.mf-list .mf-acc-b { padding: 4px 12px 12px; }
+.mf-list .mf-catside .mf-subgrid { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.mf-list .mf-catside .mf-allrow { margin-bottom: 8px; padding-bottom: 8px; }
+@media (max-width: 1100px) {
+  .mf-list .mf-layout, .mf-list .mf-layout.closed { grid-template-columns: minmax(0, 1fr); }
+  .mf-list .mf-showf { flex-direction: row; justify-content: center; width: 100%; min-height: 44px; padding: 0 14px; }
+  .mf-list .mf-showf span { writing-mode: horizontal-tb; transform: none; }
+  .mf-list .mf-catside .mf-subgrid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+}
+.mf-list .mf-catside fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.mf-list .mf-catside .mf-alln { display: none; }   /* the section's own header already says "N of M selected" */

@@ -12,7 +12,8 @@ describe("Mutual funds filters in two rows (task #341 PR B)", () => {
   it("row 1 holds search, fund house, plan and option; row 2 the return range and the stopped tick", () => {
     const r1 = tsx.indexOf('<div className="mf-fbar">'), r2 = tsx.indexOf('<div className="mf-fbar mf-fbar2">');
     expect(r1).toBeGreaterThan(-1); expect(r2).toBeGreaterThan(r1);
-    for (const x of ['className="mf-search"', '<Pick label="Fund house"', '<Seg label="Plan"', '<Seg label="Option"']) { const i = tsx.indexOf(x); expect(i, x).toBeGreaterThan(r1); expect(i, x).toBeLessThan(r2); }
+    expect(tsx).toContain('{part !== "rest" && search}');   // the search (since task #347 also shown on its own at the top of the filter panel)
+    for (const x of ['{part !== "rest" && search}', '<Pick label="Fund house"', '<Seg label="Plan"', '<Seg label="Option"']) { const i = tsx.indexOf(x); expect(i, x).toBeGreaterThan(r1); expect(i, x).toBeLessThan(r2); }
     for (const x of ['mf-rangebtn', 'mf-stopck']) expect(tsx.indexOf(x), x).toBeGreaterThan(r2);
   });
   it("Plan and Option show their label (not only to screen readers); 38px controls; phones keep 16px inputs", () => {
@@ -22,7 +23,8 @@ describe("Mutual funds filters in two rows (task #341 PR B)", () => {
   });
   it("section 10: Select All on its own line with how many are ticked; chips 38px, the same height", () => {
     expect(dash).toContain('<span className="mf-alln" aria-live="polite">{picked} of {n} selected</span>');
-    expect(dash).toContain("picked={q.cats === null ? subs.length : subs.filter((s) => q.cats!.includes(s.key)).length}");
+    expect(dash).toContain("const picked = q.cats === null ? subs.length : subs.filter((s) => q.cats!.includes(s.key)).length;");
+    expect(dash).toContain("picked={picked}");
     expect(css).toMatch(/\.mf-list \.mf-subgrid \.mf-check \{ min-height: 38px;/);
   });
 });
