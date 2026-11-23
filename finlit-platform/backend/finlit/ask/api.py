@@ -10,7 +10,8 @@ Silver and Gold members only (Basic keeps the instant listed questions); each pl
     text    {"text"}                                         pieces of the answer as they are written
     replace {"text"}                                         the answer so far is replaced (withdrawn as advice-like; "" clears a tool round's lead-in)
     ping    {}                                               a keep-alive after 10 s of quiet, while FinLit data is read or the model thinks
-    done    {"disclaimer", "sources", "pages"}               last, on success; pages: the FinLit pages the answer read, [{"to", "label"}] (task #218)
+    done    {"disclaimer", "sources", "pages", "figures"?}   last, on success; pages: the FinLit pages the answer read, [{"to", "label"}] (task #218);
+                                                             figures: what the answer read, with dates, for a follow-up to send back (task #349 PR 5)
     error   {"code", "text"}                                 last, on failure (the question is given back when nothing was written)
 A stream that ends with neither "done" nor "error" was cut: the panel says the answer was interrupted (task #349).
 Without ANTHROPIC_API_KEY the endpoint answers 503 "not_enabled" and the panel keeps its instant listed answers."""
@@ -39,6 +40,7 @@ from .gateway import MemberGateway
 from . import memory   # task #349 PR 2: question memory (stores what was asked; changes no answer)
 from . import mine     # task #349 PR 4: how the member is linked to the company (holdings, funds, ETFs, watchlists, alerts)
 from . import whatsnew  # task #349 PR 5: "what's new for me" in the member's own companies
+from . import followup  # task #349 PR 5: follow-ups keep the figures the earlier answers read
 
 log = logging.getLogger("finlit.ask")
 router = APIRouter(prefix="/api/ask", tags=["ask"])
@@ -59,11 +61,23 @@ class Turn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     role: Literal["user", "assistant"]
     content: str = Field(min_length=1)
+    figures: Optional[str] = None    # task #349 PR 5: the "figures read" summary the `done` event gave this answer, sent back by the panel
 
     @field_validator("content")
     @classmethod
     def cut(cls, v: str) -> str:
         return v if len(v) <= TURN_CHARS else v[:TURN_CHARS - 1].rstrip() + "…"
+
+    @field_validator("figures")
+    @classmethod
+    def plain(cls, v: Optional[str]) -> Optional[str]:
+        return followup.clean(v)       # plain text, at most 600 characters: cut, never refused
+
+    @model_validator(mode="after")
+    def answers_only(self) -> "Turn":
+        if self.role != "assistant":
+            self.figures = None
+        return self
 
 
 class AskIn(BaseModel):
@@ -255,7 +269,8 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
         async def replay() -> AsyncIterator[bytes]:
             yield sse("meta", {**quota.status(cap, n, month), "cached": True})
             yield sse("text", {"text": cached["text"]})
-            yield sse("done", {"disclaimer": service.DISCLAIMER, "sources": cached.get("tools", []), "pages": cached.get("pages", [])})
+            yield sse("done", {"disclaimer": service.DISCLAIMER, "sources": cached.get("tools", []), "pages": cached.get("pages", []),
+                               **({"figures": cached["figures"]} if cached.get("figures") else {})})
             mem = cached.get("memory")              # task #349 PR 3: a replay is kept too, with the figures the first answer read
             if kind == "question" and isinstance(mem, dict) and isinstance(mem.get("topic"), list):
                 memory.keep(store.pool, ctx, question=question, result={"text": cached["text"], "stop": "end_turn"}, topic=mem["topic"],
@@ -326,6 +341,11 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
             # company the question names comes first, then the page's company; with no company there is nothing to read.
             doc_kinds = service.company_documents(question, kinds) if kind == "question" else []
             doc_sym = (named or ([page] if page else []) or [None])[0]
+            # Task #349 PR 5: a follow-up carries the figures its earlier answers read. When they are about the same company and the follow-up
+            # names no document ("and its margins?"), its documents are not read again before the model (it may still read one itself).
+            carried = followup.note(body.history) if kind == "question" and body.history else ""
+            if carried and doc_sym and followup.about(carried, doc_sym) and not service.document_intents(question):
+                doc_kinds = []
             lens = question
             if doc_sym and service.bank_like(got[want.index(doc_sym)]["text"] if doc_sym in want[:2] and not got[want.index(doc_sym)]["error"] else None):
                 lens = f"{question[:150]} {pages.BANK_TERMS}"          # a bank, an NBFC or an insurer is read for its own measures
@@ -355,6 +375,8 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
                 note = (note + "\n" if note else "") + memory.since_note(prev, facts, items)
             if rel_on:                       # task #349 PR 4: the member's own link to the company, in the note with the question
                 note = (note + "\n" if note else "") + mine.note(rel["rel"])
+            if carried:                      # task #349 PR 5: the figures the earlier answers of this chat read, with their dates
+                note = (note + "\n" if note else "") + carried
             wn_figures = None
             if wn is not None:               # task #349 PR 5: what is new in the member's own companies, worked out without a model
                 await emit("status", {"text": "Reading what is new in your companies"})
@@ -442,15 +464,17 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
         # Task #349 PR 2: question memory (ask/memory.py), written in the background from what this answer already read.
         snap = memory.after_answer(store.pool, ctx, kind=kind, question=question, result=result, named=done_["named"], page=done_["page"],
                                    kinds=done_["kinds"], messages=done_["messages"], cards=done_["cards"], figures=done_.get("wnFigures"))
+        # Task #349 PR 5: the figures this answer read, with their dates, for the panel to send back with a follow-up.
+        figs = followup.summary(memory.tool_results_of(done_["messages"], done_["cards"])) if kind == "question" else ""
         if key and result["text"] and result["stop"] in ("end_turn",) and not personal and not since_on and not rel_on:
             try:
-                await store.redis.set(key, json.dumps({"text": result["text"], "tools": result["tools"], "pages": links,
+                await store.redis.set(key, json.dumps({"text": result["text"], "tools": result["tools"], "pages": links, **({"figures": figs} if figs else {}),
                                                        **({"memory": snap} if snap else {})}, default=str),
                                       ex=SUMMARY_CACHE_SECONDS if kind == "summary" else CACHE_SECONDS)
             except Exception:
                 pass
         state["delivered"] = True
-        yield sse("done", {"disclaimer": service.DISCLAIMER, "sources": sorted(set(result["tools"])), "pages": links})
+        yield sse("done", {"disclaimer": service.DISCLAIMER, "sources": sorted(set(result["tools"])), "pages": links, **({"figures": figs} if figs else {})})
 
     state = {"delivered": False, "returned": False}
 

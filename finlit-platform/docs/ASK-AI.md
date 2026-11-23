@@ -379,3 +379,34 @@ holdings, portfolio, stocks, shares or watchlist; a how-to such as "how do I add
 - **Panel.** "What's new in my holdings?" is the first chip under "Try asking" for a signed-in member with written answers and questions left
   (`aiReady`); visitors and Basic do not see it. The `done` event links "Your Equity portfolio" first.
 - Tests: `backend/tests/test_ask_whatsnew.py` (real Postgres and Redis), `frontend/src/components/AskWhatsNew349.test.tsx`.
+
+## Follow-ups keep the earlier figures (task #349, PR 5, 23 Nov 2026)
+
+Only the words of the last three exchanges go with a follow-up; the tool results did not, so "and its margins?" read everything again (the
+company's three documents included) or lost the numbers.
+
+- **The summary** (`ask/followup.py summary`, no model): from the tool results the answer read (the cards and documents read before the model,
+  and the model's own rounds), per company (at most two): the price with its time, FinLit Prism with its date, every key ratio with its period
+  (`keyMetrics` of the company card, `latest` of `get_ratios`), the 52-week range, the results filing and documents read with their filing dates;
+  a header "<SYMBOL>, read <date>". At most 600 characters, cut at a whole figure. Example:
+  `TCS, read 23 Nov 2026: price ₹2,460 (23 Nov 2026, 3:29 pm IST); FinLit Prism 71 Strong (20 Nov 2026); Market cap ₹8,92,474 crore (Today);
+  P/E 16.65x (As of 20 Nov 2026); ... Operating margin 25.83% (TTM); ...; 52-week ₹1,976–₹3,336.70 (23 Nov 2026)`.
+- **The round trip.** The `done` event carries it as `figures` (a cached answer too). The panel keeps it on the answer (`lib/askAi.ts safeFigures`:
+  text of at most 600 characters; never shown) and sends it back with that answer's turn (`AskTurn.figures`). The server takes it only on an
+  answer's turn, as plain text (tags and brackets removed, cut to 600, never refused: `api.Turn.figures`, `followup.clean`).
+- **The note.** A follow-up whose earlier answers carry summaries gets them in the per-question note (never the system prompt; the system prompt and
+  the tool list stay byte for byte the same):
+
+  ```
+  <figures_read>
+  - TCS, read 23 Nov 2026: price ₹2,460 (23 Nov 2026, 3:29 pm IST); FinLit Prism 71 Strong (20 Nov 2026); ... ROE 43.37% (TTM); ...
+  </figures_read>
+  [<figures_read> holds the figures FinLit read for the earlier answers in this chat, each with its date. Answer a follow-up from them when they
+  hold what is asked, with their dates; read again only what they lack.]
+  ```
+- **Fewer reads.** When the carried figures are about the same company and the follow-up names no document, the company's documents are not read
+  again before the model (it may still read one itself); "what did management say on the call?" still reads the transcript first.
+- A follow-up with no summary (an older panel, a listed answer, an answer that read no company figure), a first question, a visitor and Basic:
+  the request is exactly as before (golden test).
+- Tests: `backend/tests/test_ask_followup.py` (the scripted model answers "and its margins?" from the carried figures, with no new tool call),
+  `frontend/src/components/AskFollowup349.test.tsx`.
