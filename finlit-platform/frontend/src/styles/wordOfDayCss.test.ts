@@ -26,3 +26,11 @@ describe("Word of the Day formula pills", () => {
     expect(rules.find((r) => r.sel === ".wod-fx-text")!.body).not.toMatch(/anywhere|break-all/);
   });
 });
+
+describe("Word of the Day panel has an edge of its own (task #335)", () => {
+  it("a 2px gold-mixed border, after the base rule, so it reads on the dark page; the phone sheet keeps no bottom edge", () => {
+    const edge = rules.filter((r) => r.sel === ".wod-panel" && /border:/.test(r.body));
+    expect(edge.at(-1)!.body).toMatch(/border:\s*2px solid color-mix\(in srgb, var\(--gold\) 55%, var\(--border-strong\)\)/);
+    expect(css).toMatch(/\.wod-panel \{ top: auto;[^}]*border-bottom: 0;/);
+  });
+});
