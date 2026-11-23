@@ -87,15 +87,22 @@ describe("compare bar (C-9)", () => {
 
 describe("page layout (C-5, C-6, C-12)", () => {
   const src = readFileSync(resolve(__dirname, "../pages/Funds.tsx"), "utf8");
-  it("no separate category cards (task #344): the promo cards, then the picker carrying the frequently visited funds", () => {
+  it("no separate category cards (task #344) and no promo cards (task #345): the picker carries the frequently visited funds", () => {
     expect(src).not.toContain("<CategoryCards");
-    const b = src.indexOf('to="/funds/insights"'), c = src.indexOf('to="/fund-score-screener"'), d = src.indexOf("<CategoryPicker");
-    expect(b).toBeGreaterThan(0); expect(b).toBeLessThan(c); expect(c).toBeLessThan(d);
+    expect(src).not.toContain('className="evi-promo"');
+    const d = src.indexOf("<CategoryPicker");
+    expect(d).toBeGreaterThan(0);
     expect(src.slice(d, src.indexOf("/>", d))).toContain("frequent={{ onPick:");
   });
-  it("the score screener card has no plan tag and no download wording", () => {
-    const card = src.slice(src.indexOf('to="/fund-score-screener"'), src.indexOf("<CategoryPicker"));
-    expect(card).not.toMatch(/evi-badge|Gold|download|CSV/i);
+  it("task #345: Fund industry trends and Import my funds are the header's first two buttons, gold-edged with a crown (list page only)", () => {
+    const lead = src.slice(src.indexOf("const GOLD_LEAD"), src.indexOf("const HEAD ="));
+    const order = [...lead.matchAll(/to="([^"]+)"/g)].map((m) => m[1]);
+    expect(order).toEqual(["/funds/insights", "/mf-portfolio?tab=import"]);
+    expect((lead.match(/ph-lk ph-gold/g) || []).length).toBe(2);
+    expect((lead.match(/<Icon name="crown"/g) || []).length).toBe(2);
+    expect(src).toMatch(/lead=\{gold \? GOLD_LEAD : undefined\}/);
+    expect(src).toMatch(/label: "With return history" \}\], true\)\}/);   // the list page asks for them; Fund compare keeps its own header
+    expect(src).toMatch(/\{ to: "\/fund-score-screener", primary: true \}/);   // the score screener stays reachable from the header
   });
   it("the Gold sort is only asked for when the plan allows it", () => {
     expect(src).toMatch(/canScore \? \{ sort: "score"/);

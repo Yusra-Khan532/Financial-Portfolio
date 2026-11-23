@@ -15,7 +15,4 @@ describe("Mutual funds page, top (task #341 PR A)", () => {
     expect(css).not.toMatch(/\.mf-cards \{/);
     expect(css).toMatch(/\.mf-list \.mf-freq-row \{ display: flex; flex-wrap: wrap;/);
   });
-  it("the site's type scale on the cards and the tool cards", () => {
-    expect(css).toMatch(/\.mf-list \.evi-promo \{ padding: 14px 18px; min-height: 70px;/);
-  });
 });
