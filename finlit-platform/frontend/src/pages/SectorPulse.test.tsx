@@ -55,7 +55,7 @@ describe("Sector Pulse, Simple view (pack 05)", () => {
     expect(within(all).getAllByRole("tab").map((t) => t.textContent)).toEqual(["1By state", "2Map", "3Over time"]);
     expect(within(all).getByRole("tab", { name: /By state$/ }).getAttribute("aria-selected")).toBe("true");
     fireEvent.click(within(all).getByRole("tab", { name: /Over time$/ }));
-    expect(h2()).toContain("The market's mood, day by day");
+    expect(h2()).toContain("The market's mood, week by week");
     expect(localStorage.getItem("finlit-sx-box-all")).toBe("time");          // remembered for the member
     const chk = screen.getByRole("tablist", { name: "Three checks on the price picture" });
     fireEvent.click(within(chk).getByRole("tab", { name: /What happened next/ }));

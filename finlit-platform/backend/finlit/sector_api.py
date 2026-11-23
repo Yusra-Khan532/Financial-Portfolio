@@ -207,6 +207,30 @@ async def sector_next_route(request: Request, show: Optional[str] = None) -> Res
     return _reply(request, {**data, "date": board.get("date")}, started)
 
 
+_play_memo: Dict[bool, Dict[str, Any]] = {}
+
+
+@router.get("/api/sector-playback")
+async def sector_playback(request: Request, show: Optional[str] = None) -> Response:
+    """Task #333 (file 30, addition 4): every group at each weekly close of the last year, for the Sector map's playback. Open to every plan, like the map."""
+    started = time.perf_counter()
+    rel = _base(sd.live_release(), show)
+    board = sd.read_json(rel / "sectors" / "_board.json") if rel else None
+    if not board:
+        return _no_board(request, started, show)
+    key = str(rel) + ":" + str((rel / "sectors" / "_board.json").stat().st_mtime_ns)
+    memo = _play_memo.setdefault(show == "sectors", {})
+    if memo.get("key") != key:
+        pages = [sd.read_json(rel / "sectors" / f"{r['slug']}.json") for r in board.get("rows", []) if isinstance(r, dict) and sd.SLUG.match(str(r.get("slug", "")))]
+        memo.clear()
+        memo.update(key=key, value=sector_next.playback([p for p in pages if isinstance(p, dict)]))
+    data = memo.get("value")
+    if not data:
+        reason = "The map's playback is not loaded yet: the current data set has too little history. It is rebuilt at the next weekly run."
+        return _reply(request, {"available": False, "status": "not_loaded", "reason": reason, "detail": reason}, started, status=503, cache=NO_STORE)
+    return _reply(request, {**data, "date": board.get("date")}, started)
+
+
 _NSE_FULL: Dict[str, Any] = {}
 
 
