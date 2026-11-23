@@ -33,19 +33,23 @@ function RangeBox({ label, lo, hi, onLo, onHi }: { label: string; lo: string; hi
  *  Fund house, Plan (Direct · Regular · All) and Option (Growth · IDCW · Not stated · All), each with its label above it; row 2 the extra ones,
  *  "Return range" (opening in place) and the stopped-schemes tick, with Clear. The same controls and the same behaviour as before.
  *  The categories are chosen above it (mf/Dashboard). */
-export function Controls({ q, text, onText, set, filters, loading }: { q: ListQuery; text: string; onText: (t: string) => void; set: (p: Partial<ListQuery>) => void; filters?: FundFilters; loading: boolean }) {
+export function Controls({ q, text, onText, set, filters, loading, part }: { q: ListQuery; text: string; onText: (t: string) => void; set: (p: Partial<ListQuery>) => void; filters?: FundFilters; loading: boolean;
+  /** task #347: in the filter panel the search sits at the top on its own ("search") and the other filters under the categories ("rest") */ part?: "search" | "rest" }) {
   const amcs: PickItem[] = useMemo(() => (filters?.amcs || []).filter((a) => q.stopped || a.active > 0).map((a) => ({ value: a.name, label: a.name, count: q.stopped ? a.total : a.active })), [filters, q.stopped]);
   const n = activeFilterCount(q);
   const ranged = RANGES.some((r) => q[`min${r.k}` as "min1y"] || q[`max${r.k}` as "max1y"]);
   const [more, setMore] = useState(ranged);
-  return (
-    <section className="card mf-ctl" aria-label="Search and filters">
-      <div className="mf-fbar">
+  const search = (
         <div className="mf-search-w"><span className="label" aria-hidden="true">Search</span>
         <label className="mf-search"><Icon name="search" /><span className="sr-only">Search schemes by name or fund house</span>
           <input type="search" value={text} onChange={(e) => onText(e.target.value)} placeholder="Search a scheme or fund house…" autoComplete="off" spellCheck={false} />
           {loading && <span className="mf-busy" role="status">Loading…</span>}
-        </label></div>
+        </label></div>);
+  if (part === "search") return <div className="mf-ctl mf-ctl-search" role="search" aria-label="Search schemes">{search}</div>;
+  return (
+    <section className={"mf-ctl" + (part === "rest" ? " mf-ctl-rest" : " card")} aria-label={part === "rest" ? "More filters" : "Search and filters"}>
+      <div className="mf-fbar">
+        {part !== "rest" && search}
         <Pick label="Fund house" value={q.amc} items={amcs} any="All fund houses" onChange={(v) => set({ amc: v })} />
         <Seg label="Plan" value={q.plan} onChange={(v) => set({ plan: v })} options={[["Direct", "Direct"], ["Regular", "Regular"], ["", "All"]]} />
         <Seg label="Option" value={q.option} onChange={(v) => set({ option: v })} options={[["", "Growth"], ["IDCW", "IDCW"], ["Other", "Not stated"], ["All", "All"]]} />

@@ -187,6 +187,11 @@ export function FundListPage() {
     requestAnimationFrame(() => document.getElementById("mf-list")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
   const hot = useHotList(ready);
+  // task #347: the filter panel's open or folded state, remembered in this browser; with nothing saved it starts open on a desktop and folded on a phone
+  // (where it would sit above the list and push it down)
+  const [fOpen, setFOpen] = useState(() => { let v: string | null = null; try { v = localStorage.getItem("finlit-mf-filters"); } catch { /* */ }
+    return v ? v !== "closed" : !(typeof window !== "undefined" && window.matchMedia?.("(max-width: 760px)").matches); });
+  const setF = (v: boolean) => { setFOpen(v); try { localStorage.setItem("finlit-mf-filters", v ? "open" : "closed"); } catch { /* private window: not remembered */ } };
   const none = q.tab !== "all" && q.cats !== null && q.cats.length === 0;
   const d = ready || none ? undefined : list.data;
   const hotRows = useMemo(() => {
@@ -202,10 +207,21 @@ export function FundListPage() {
     <>
       {HEAD(title, "Funds in your chosen categories by returns, SIP returns, latest NAV, checklist and more.", [{ icon: "layers", value: t ? t.active.toLocaleString("en-IN") : null, label: "Active schemes" }, { icon: "line", value: t ? t.withHistory.toLocaleString("en-IN") : null, label: "With return history" }], true)}
       <div className="wrap mf mf-list">
-        <CategoryPicker q={q} subs={subs} loading={filt.isLoading} onTab={(tab) => set({ tab, cats: null, ...tabDefaults(tab) })} onCats={(cats) => set({ cats })}
+        {/* Task #347 (23 Nov 2026, the team): the categories and the filters are one filter panel on the left of the table, "Hide filters" folds it to a
+            narrow "Show filters" handle in the same place (never on the table), and it has the search box at the top. The choice is remembered here. */}
+        <div className={"mf-layout" + (fOpen ? "" : " closed")}>
+          <aside className="mf-side" aria-label="Filters">
+            {fOpen ? (<>
+              <div className="mf-side-h"><h2>Filters</h2><button type="button" className="btn mf-hidef" aria-expanded="true" aria-controls="mf-side-b" onClick={() => setF(false)}>Hide filters</button></div>
+              <div id="mf-side-b" className="mf-side-b">
+                <Controls part="search" q={q} text={text} onText={setText} set={set} filters={filt.data} loading={list.isFetching} />
+        <CategoryPicker side q={q} subs={subs} loading={filt.isLoading} onTab={(tab) => set({ tab, cats: null, ...tabDefaults(tab) })} onCats={(cats) => set({ cats })}
           frequent={{ onPick: (c) => set(cardOn(q, c) ? { cats: null, view: "" } : { tab: c.tab, cats: [c.key], view: "" }), onScore: showByScore }} />{/* task #344: the six frequently visited categories in the box (was "Six categories most people start with"); task #340: pressed again clears */}
-        <Controls q={q} text={text} onText={setText} set={set} filters={filt.data} loading={list.isFetching} />
-
+                <Controls part="rest" q={q} text={text} onText={setText} set={set} filters={filt.data} loading={list.isFetching} />
+              </div></>)
+              : <button type="button" className="mf-showf" aria-expanded="false" aria-controls="mf-side-b" onClick={() => setF(true)}><Icon name="panel" /><span>Show filters</span></button>}
+          </aside>
+          <div className="mf-main">
         <div className="mf-bar" id="mf-list">
           <div className="seg" role="group" aria-label="Which schemes to show">
             <button aria-pressed={!ready} onClick={() => set({ view: "" })}>Chosen categories</button>
@@ -251,6 +267,8 @@ export function FundListPage() {
           </div>
           </>
         )}
+          </div>
+        </div>
         <PhoneFold page="funds" id="legend" title="How to read this table" line="What each column means and where the figures come from"><Legend hidden={t && !q.stopped ? t.schemes - t.active : null} facts={facts} /></PhoneFold>
         <Foot facts={facts} />
       </div>

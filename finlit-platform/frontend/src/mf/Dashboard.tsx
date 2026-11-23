@@ -69,9 +69,10 @@ export function FrequentFunds({ q, onPick, onScore }: { q: ListQuery; onPick: (c
 }
 
 /** Equity | Hybrid | Debt | Solution Oriented | Others (and All funds), and under the chosen tab its sub-categories with how many schemes each shows. */
-export function CategoryPicker({ q, subs, loading, onTab, onCats, frequent }: {
+export function CategoryPicker({ q, subs, loading, onTab, onCats, frequent, side = false }: {
   q: ListQuery; subs: SubCat[]; loading: boolean; onTab: (t: TabKey | "all") => void; onCats: (c: string[] | null) => void;
   /** task #344: the frequently visited categories at the top of the box */ frequent?: { onPick: (c: Card) => void; onScore: (c: Card) => void };
+  /** task #347: inside the filter panel beside the table: the fund types as sections that open (the open one is the type shown) */ side?: boolean;
 }) {
   const tabs: { key: TabKey | "all"; label: string }[] = [...TABS, { key: "all", label: "All funds" }];
   const keys = subs.map((s) => s.key);
@@ -84,6 +85,38 @@ export function CategoryPicker({ q, subs, loading, onTab, onCats, frequent }: {
     onTab(next);
     requestAnimationFrame(() => document.getElementById(`mf-tab-${next}`)?.focus());
   };
+  const picked = q.cats === null ? subs.length : subs.filter((s) => q.cats!.includes(s.key)).length;
+  const body = q.tab === "all" ? <p className="muted mf-fine">Every category: search and filter all mutual fund schemes AMFI lists.</p>
+    : loading && !subs.length ? <div className="skeleton" style={{ height: 96 }} aria-busy="true" />
+      : !subs.length ? <p className="muted mf-fine">No schemes in this group for the plan and option chosen below.</p> : (
+        <fieldset>
+          <legend className="sr-only">Sub-categories to show</legend>
+          <SelectAll all={q.cats === null} some={!!q.cats?.length} n={subs.length} picked={picked} onChange={() => onCats(toggleAll(q.cats))} />
+          <div className="mf-subgrid">
+            {subs.map((s) => (
+              <label key={s.key} className="mf-check" title={s.names.join(" · ")}>
+                <input type="checkbox" checked={on(s.key)} onChange={() => onCats(toggleCat(q.cats, s.key, keys))} />
+                <span>{s.label}</span><small>{s.count.toLocaleString("en-IN")}</small>
+              </label>))}
+          </div>
+        </fieldset>);
+  if (side) return (
+    /* Task #347 (23 Nov 2026, the team's picture): in the filter panel the fund types are sections; the open one (its box ticked, all or some of its
+       categories as "N of M selected") is the type the list shows, with its categories under it. Opening another switches to it, as the tabs did. */
+    <section className="mf-catpick mf-catside" aria-label="Choose categories">
+      {frequent && <FrequentFunds q={q} onPick={frequent.onPick} onScore={frequent.onScore} />}
+      {tabs.map((t) => { const open = q.tab === t.key, all = open && (t.key === "all" || q.cats === null), some = open && !all && picked > 0; return (
+        <div key={t.key} className={"mf-acc" + (open ? " on" : "")}>
+          <button type="button" className="mf-acc-h" id={`mf-acc-${t.key}`} aria-expanded={open} aria-controls={`mf-acc-b-${t.key}`} onClick={() => { if (!open) onTab(t.key); }}>
+            <span className={"mf-acc-box" + (all ? " all" : some ? " some" : "")} aria-hidden="true">{all ? "✓" : some ? "–" : ""}</span>
+            <span className="mf-acc-t">{t.label}</span>
+            {open && t.key !== "all" && subs.length > 0 && <small>{picked} of {subs.length} selected</small>}
+            <span className="mf-acc-car" aria-hidden="true">{open ? "▴" : "▾"}</span>
+          </button>
+          {open && <div className="mf-acc-b" id={`mf-acc-b-${t.key}`} role="region" aria-labelledby={`mf-acc-${t.key}`}>{body}</div>}
+        </div>); })}
+    </section>
+  );
   return (
     <section className="card mf-catpick" aria-label="Choose categories">
       {frequent && <FrequentFunds q={q} onPick={frequent.onPick} onScore={frequent.onScore} />}
@@ -93,20 +126,7 @@ export function CategoryPicker({ q, subs, loading, onTab, onCats, frequent }: {
             onClick={() => onTab(t.key)} onKeyDown={(e) => onTabKey(e, i)}>{t.label}</button>))}
       </div>
       <div id="mf-subcats" role="tabpanel" aria-labelledby={`mf-tab-${q.tab}`} className="mf-subcats">
-        {q.tab === "all" ? <p className="muted mf-fine">Every category: search and filter all mutual fund schemes AMFI lists.</p>
-          : loading && !subs.length ? <div className="skeleton" style={{ height: 96 }} aria-busy="true" />
-            : !subs.length ? <p className="muted mf-fine">No schemes in this group for the plan and option chosen below.</p> : (
-              <fieldset>
-                <legend className="sr-only">Sub-categories to show</legend>
-                <SelectAll all={q.cats === null} some={!!q.cats?.length} n={subs.length} picked={q.cats === null ? subs.length : subs.filter((s) => q.cats!.includes(s.key)).length} onChange={() => onCats(toggleAll(q.cats))} />
-                <div className="mf-subgrid">
-                  {subs.map((s) => (
-                    <label key={s.key} className="mf-check" title={s.names.join(" · ")}>
-                      <input type="checkbox" checked={on(s.key)} onChange={() => onCats(toggleCat(q.cats, s.key, keys))} />
-                      <span>{s.label}</span><small>{s.count.toLocaleString("en-IN")}</small>
-                    </label>))}
-                </div>
-              </fieldset>)}
+        {body}
       </div>
     </section>
   );
