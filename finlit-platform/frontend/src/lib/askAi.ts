@@ -14,6 +14,7 @@ export type AskEvent =
   | { type: "meta"; limit: number; used: number; left: number; resets: string; cached: boolean }
   | { type: "status"; text: string }
   | ({ type: "since" } & AskSinceData)
+  | { type: "relation"; tags: AskRelationTag[] }
   | { type: "text"; text: string }
   | { type: "replace"; text: string }
   | { type: "done"; disclaimer: string; sources: string[]; pages?: AskPage[] }
@@ -54,6 +55,27 @@ export function safeSince(e: unknown): AskSinceData | null {
   }
   return { askedAt: r.askedAt, question: typeof r.question === "string" ? r.question.slice(0, 500) : "", match: r.match === "weak" ? "weak" : "strong",
     changes: strs(r.changes, 12, 240), newItems: items, said: r.match === "weak" ? [] : strs(r.said, 8, 200) };
+}
+
+/** Task #349 PR 4: how the member is linked to the company the answer is about ("You hold this", "In 2 of your funds", "In your ETF", "On your
+ *  watchlist", "Alert set"), sent right after `meta` only when they hold, watch or have an alert on it. `tip`: the shares and weight, the funds'
+ *  % with their disclosure dates, the lists, the alerts. */
+export type AskRelationKind = "hold" | "fund" | "etf" | "watch" | "alert";
+export type AskRelationTag = { kind: AskRelationKind; text: string; tip?: string };
+const RELATION_KINDS: readonly AskRelationKind[] = ["hold", "fund", "etf", "watch", "alert"];
+/** The `relation` event, checked: known kinds only, plain text cut to size, at most 10 tags, each text once. Empty when nothing is usable. */
+export function safeRelation(e: unknown): AskRelationTag[] {
+  const tags = (e as { tags?: unknown } | null)?.tags;
+  const out: AskRelationTag[] = [];
+  for (const x of Array.isArray(tags) ? tags : []) {
+    const t = x as Partial<AskRelationTag> | null;
+    const kind = RELATION_KINDS.find((k) => k === t?.kind), text = typeof t?.text === "string" ? t.text.trim().slice(0, 48) : "";
+    if (!kind || !text || out.some((o) => o.text === text)) continue;
+    const tip = typeof t?.tip === "string" && t.tip.trim() ? t.tip.trim().slice(0, 240) : undefined;
+    out.push({ kind, text, ...(tip ? { tip } : {}) });
+    if (out.length >= 10) break;
+  }
+  return out;
 }
 
 /** Why a question could not be sent at all (before any answer): not signed in, the allowance used, not switched on, or another refusal. */

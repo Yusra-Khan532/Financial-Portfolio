@@ -15,7 +15,7 @@ The month is the calendar month in India; the count renews on the 1st. An admini
 1. The panel (`frontend/src/components/Assistant.tsx`) answers a listed question at once, in the browser, as before (task #138). Only a question that is
    not listed, from a Silver or Gold member, goes to `POST /api/ask` (`frontend/src/lib/askAi.ts`).
 2. `backend/finlit/ask/api.py` checks the member (signed in, Origin, CSRF), the plan and the month's allowance (`ask/quota.py`, table `ai_usage`,
-   migration 107), then streams the answer as Server-Sent Events: `meta` (questions left), `status` ("Reading the ratios (TCS)"), `since` (task #349 PR 3: what changed since the member last asked, before the words), `text` (the words as
+   migration 107), then streams the answer as Server-Sent Events: `meta` (questions left), `status` ("Reading the ratios (TCS)"), `relation` (task #349 PR 4: how the member is linked to the company, right after `meta`), `since` (task #349 PR 3: what changed since the member last asked, before the words), `text` (the words as
    they are written), `replace` (an answer withdrawn as advice-like, or `""` to clear the words written before a tool round), `ping` (a keep-alive
    after 10 s of quiet), `done` (the disclaimer) or `error`. A stream that ends with neither `done` nor `error` is shown as interrupted (task #349).
 3. `ask/service.py` runs Claude (`ASK_MODEL`, default `claude-haiku-5-5`) with 34 read-only tools (`ask/tools.py`) and the web search: the company
@@ -275,3 +275,62 @@ important information in the market." The model is unchanged (the founder's choi
   (no comparison). Styles: `styles/ask-since.css`, tokens only.
 - **Recording** stays as in PR 2: every answered question is kept, so the next repeat compares with the latest; the news read is kept with it.
 - Tests: `backend/tests/test_ask_since.py`, `frontend/src/components/AskSince349.test.tsx`, `frontend/src/lib/askSince349.test.ts`.
+
+## Your holdings (task #349, PR 4, 23 Nov 2026)
+
+Founder: "If I ask about Reliance and it is in my portfolio, or my ETF, or anywhere I am related to it, it should give more importance to that in
+a personalised way. It can't say buy more or sell, but it can give more importance according to that." The model is unchanged (the founder's
+choice on cost); the extra tokens are a few lines in the note with the question, only for a member who is linked to the company.
+
+- **Who.** A signed-in Silver or Gold member (the plans that have written answers) who keeps shares, funds, ETFs, watchlists or alerts: one cheap
+  read (`mine.linked_any`) decides. Visitors, Basic and members with no link to the company get no block: their request and cache key are byte for
+  byte as before (golden test). An administrator's "view as" preview gets none.
+- **The companies.** The page's company when the question is about it, then the companies the question names (`api.subject_of`, worked out once and
+  reused for the answer; the same subject PR 3 uses), at most two.
+- **What is read** (`backend/finlit/ask/mine.py relation(pool, user_id, symbols)`, one SQL query per source, each scoped to the member's `user_id`):
+  - **Equity portfolio:** `user_state.portfolio.holdings`. Only rows marked `owned` give a quantity (a name added without one is kept as qty 1, not
+    owned); sales are matched first in, first out within each portfolio (the page's `lib/ledger.ts` rule, `etfportfolio.book.open_units`). The
+    price is the latest stored close (`price_daily`) with its day. **Weight:** `portfolio_page.score.weights_of`, the function behind the Equity
+    portfolio page's score: by value only when every share has a quantity and a price; otherwise no weight by value is given, and the line says why.
+    **Cost:** only a buy price the member entered; a price taken from a statement's Rate column (`priceFrom: "rate"`) is said as the "statement
+    rate" with its date, never as what was paid, and no gain is worked out from it.
+  - **ETFs:** `etf_holdings` (the open units the ETF book writes back from `etf_lots`) → the ETF's ISIN → its scheme family (`mf_schemes`) → the
+    family's latest `disclosure_portfolios` file: the company's % weight and the file's date, and about how many rupees of the member's units that is
+    (units × the ETF's latest price, with its date).
+  - **Mutual funds:** `mf_holdings` → `mf_schemes` → family → `disclosure_portfolios`: the % weight and the file's date; about how many rupees of the
+    member's units (open units, first in, first out, × the latest NAV, with its date).
+  - **Watchlists:** the lists that hold the company. **Alerts:** active alerts on the company (paused ones are not said), and Sector Pulse alerts
+    (`prefs.sectorAlerts`) on its NSE sector or industry.
+  - Kept in Redis for 10 minutes: `ask:rel:v1:<user>:<user_state updated_at>:<symbols>` (a change to the member's lists moves `updated_at`, so it
+    is read at once).
+- **Prompt.** A `<member_relation>` block per company and one instruction, in the per-question note (never the system prompt: the provider's
+  cache stays warm, and PR 1's byte-identity test passes). Every figure carries its date. Example:
+
+  ```
+  <member_relation company="RELIANCE">
+  - Equity portfolio: 40 shares; ₹1,18,000 at ₹2,950 (close 21 Nov 2026); 12.4% of the Equity portfolio by value, the largest of 9.
+  - Average buy price you entered ₹2,400; gain ₹22,000 (+22.9%) at the close of 21 Nov 2026.
+  - Through funds: Parag Parikh Flexi Cap Fund holds 4.1% (31 Oct 2026 disclosure), about ₹6,200 of your units (NAV 21 Nov 2026).
+  - Through ETFs: Nippon India ETF Nifty BeES holds 9.8% (31 Oct 2026 disclosure), about ₹4,939 of your units (price 21 Nov 2026).
+  - Watchlist 'Energy'. Alert: price above ₹3,000, active, not fired yet.
+  </member_relation>
+  [The member is linked to this company as <member_relation> says. Open with one line on how they are linked, from those facts only, each with its
+  date. Then put first the facts that touch their position: the price against their own cost, the latest results, FinLit Prism, new filings.
+  Describe only, never advise: never say to buy, add, average down, trim, reduce, exit, book profits, rebalance, keep holding or stay invested, and
+  never call the holding too large or too small.]
+  ```
+- **Cache.** When a relation block applies, the 30-minute answer cache is neither read nor written for that answer (the rule of `get_my_*` and of
+  "since you last asked"). Every other answer keeps the cache as before.
+- **Stricter advice check.** `service.ADVICE` also withdraws personal advice about the member's position: "you could add / buy more / average
+  down", "consider trimming / reducing / exiting / booking profits", "time to sell / good time to add", "rebalance your portfolio / reduce your
+  exposure / increase your stake", "safe to hold / keep holding / stay invested", "overweight / underweight / too concentrated, so …". Describing
+  the position stays: "You hold 40 shares; at ₹2,950 they are worth ₹1,18,000", "This is 12.4% of your Equity portfolio by value, the largest of
+  your 9 holdings", "Against the average buy price you entered (₹2,400), the price is 22.9% higher", a fund's % with its disclosure date, a
+  watchlist and an alert that has not fired, results filed since the member last asked. PR 1's false-positive table still passes (also "You can
+  add shares in Workspace", "the Nifty rebalance", "promoters increased their stake").
+- **Event and panel.** `relation` `{tags: [{kind, text, tip}]}` comes right after `meta` (kinds: `hold`, `fund`, `etf`, `watch`, `alert`).
+  `lib/askAi.ts safeRelation` checks it (known kinds only, plain text cut to size, at most 10). `components/AskRelation.tsx` shows ui Chips on the
+  answer: "You hold this" (tooltip: the shares and the weight, with the close's date), "In 2 of your funds" / "In your fund", "In your ETF",
+  "On your watchlist", "Alert set"; a name on the Equity portfolio with no quantity reads "In your portfolio list". A signed-out visitor never
+  gets the event, and the component shows nothing without a signed-in member. Styles: `styles/ask-relation.css`, tokens only.
+- Tests: `backend/tests/test_ask_holdings.py` (real Postgres and Redis), `frontend/src/components/AskRelation349.test.tsx`.
