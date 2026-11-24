@@ -1162,6 +1162,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_cc.add_argument("symbols", nargs="*", help="only these companies")
     p_fs = sub.add_parser("feed-sort", help="daily: when the feed's sorting rules changed, re-sort every stored filing once (kind and FinLit topic; resumable; task #309)")
     p_fs.add_argument("--max-minutes", type=float, default=20.0, help="stop after this many minutes; the next run continues")
+    p_ss = sub.add_parser("score-sentiment", help="nightly: the sentiment score of every news item and filing not scored yet (task #365; finlit/sentiment.py)")
+    p_ss.add_argument("--limit", type=int, default=40000, help="items scored in this run")
+    p_ss.add_argument("--max-minutes", type=float, default=30.0, help="stop after this many minutes; the next run continues")
     p_dc = sub.add_parser("refresh-discovery", help="nightly: read each company's newest investor presentation (Documents) and put it in the Discovery themes (docs/DISCOVERY.md)")
     p_dc.add_argument("--limit", type=int, default=300, help="presentations read in this run")
     p_dc.add_argument("--max-minutes", type=float, default=40.0, help="start no new presentation after this many minutes")
@@ -1709,6 +1712,13 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
             from . import feed as feed_mod
             from .mf import record_run
             res = await feed_mod.ensure_sorted(store, max_minutes=args.max_minutes)
+            await record_run(store, args.cmd, res)
+            print(json.dumps(res, default=str)[:3000])
+            return 0
+        if args.cmd == "score-sentiment":
+            from . import sentiment as sentiment_mod
+            from .mf import record_run
+            res = await sentiment_mod.score_pending(store, limit=args.limit, max_minutes=args.max_minutes)
             await record_run(store, args.cmd, res)
             print(json.dumps(res, default=str)[:3000])
             return 0

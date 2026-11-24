@@ -25,3 +25,6 @@ pandas==3.1.0
 scipy==1.18.1
 scikit-learn==1.9.1
 anthropic==2.10.0        # Ask FinLit AI (finlit/ask): the official SDK, async streaming with tools
+# News sentiment (task #365, finlit/sentiment.py): the int8 ONNX model and its tokenizer, read without PyTorch (the model is exported at image build)
+onnxruntime==1.20.1
+tokenizers==0.20.3

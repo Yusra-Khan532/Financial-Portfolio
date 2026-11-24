@@ -359,6 +359,11 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
             what="Concall Monitor (task #278): new earnings-call filings (schedule, recording, transcript, presentation) from the stored announcements; reads each "
                  "letter once from the exchange (the call's date and time, the audio link), keeps a transcript's text for the page and FinLit AI; 160 letters a run, "
                  "newest first, none started after 20 min; a file the exchange does not give is tried again on later runs (three tries, the reason kept) (docs/CONCALLS.md)"),
+        Job("news-sentiment", ("score-sentiment", "--max-minutes", "30", "--limit", "40000"), cls="bulk", priority=44, max_runtime_min=40, weight_mb=350,
+            stall_min=20, windows=(W("NIGHT", 20), W("MORNING", 14)), interval_min=180, sla=Sla("hours", 30), resumable=True, catchup=True, max_attempts=5,
+            what="News sentiment (task #365): scores every news item and exchange filing not scored yet with the financial-news language model "
+                 "(finlit/sentiment.py: an int8 ONNX DistilRoBERTa, one thread, about 300 MB), newest first, up to 40,000 a run; the score is "
+                 "P(positive) - P(negative) from -1 to +1. Database only; continues where it stopped"),
         Job("feed-sort", ("feed-sort", "--max-minutes", "20"), priority=45, max_runtime_min=30, weight_mb=120, stall_min=20,
             windows=(W("NIGHT", 20), W("MORNING", 14)), interval_min=180, sla=Sla("hours", 30), resumable=True, catchup=True,
             what="News & filings sorting (task #309): when the feed's sorting rules change (feed.SORT_RULES), re-sorts every stored filing once into result / "

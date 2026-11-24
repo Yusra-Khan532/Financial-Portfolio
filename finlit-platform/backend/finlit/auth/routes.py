@@ -1144,7 +1144,16 @@ def feed_json(r: Any) -> Dict[str, Any]:
     from ..feed import topic_of
     return {"id": r["id"], "kind": r["kind"], "title": r["title"], "symbol": r["symbol"], "company": r["company"], "source": r["source"], "link": r["link"],
             "date": r["item_date"].isoformat(), "category": r["category"], "period": r["period"], "summary": r["summary"], "auto": r["auto"],
-            "topic": r["topic"] or topic_of(r["kind"], r["category"], r["title"])}
+            "topic": r["topic"] or topic_of(r["kind"], r["category"], r["title"]), "sentiment": _sentiment_json(r)}
+
+
+def _sentiment_json(r: Any) -> Optional[Dict[str, Any]]:
+    """Task #365: the item's sentiment score (-1 .. +1) and band, or None while it is not scored yet."""
+    from ..sentiment import band
+    keys = r.keys() if hasattr(r, "keys") else ()
+    if "s_score" not in keys or r["s_score"] is None:
+        return None
+    return {"score": round(float(r["s_score"]), 2), "band": band(float(r["s_score"]))}
 
 
 FEED_KINDS = r"^(news|result|document)(,(news|result|document)){0,2}$"
@@ -1215,11 +1224,27 @@ async def feed(request: Request, kind: str = Query("news", pattern=FEED_KINDS), 
         where.append(f"item_date < ${len(args)}")
     args.append(limit)
     order = "item_date ASC, id" if upcoming else "item_date DESC, id DESC"
-    sql = "SELECT * FROM feed_items WHERE " + " AND ".join(where) + f" ORDER BY {order} LIMIT ${len(args)}"  # nosec B608 - fragments are fixed; values are bound
+    sql = ("SELECT feed_items.*, fs.score AS s_score FROM feed_items LEFT JOIN feed_sentiment fs ON fs.feed_id = feed_items.id WHERE "   # nosec B608 - fragments are fixed; values are bound
+           + " AND ".join(where) + f" ORDER BY {order} LIMIT ${len(args)}")
     async with request.app.state.store.pool.acquire() as conn:
         rows = await conn.fetch(sql, *args)
     return Response(content=json.dumps({"items": [feed_json(r) for r in rows]}), media_type="application/json",
                     headers={"Cache-Control": "public, max-age=60, stale-while-revalidate=300"})
+
+
+@router.get("/feed/sentiment")
+async def feed_sentiment(request: Request, symbol: str = Query(..., max_length=20)):
+    """Public. Task #365: the sentiment of one company's scored filings and news of the last two years (date, link, title, score, band), so the
+    company report's News and filings section can show each item's score next to its own announcements (matched by link, else date and title)."""
+    sym = symbol.strip().upper()
+    if not SYMBOL.match(sym):
+        raise fail(400, "invalid_symbol")
+    async with request.app.state.store.pool.acquire() as conn:
+        rows = await conn.fetch("SELECT f.item_date, f.link, f.title, s.score AS s_score FROM feed_items f JOIN feed_sentiment s ON s.feed_id = f.id "
+                                "WHERE f.symbol = $1 AND f.item_date >= current_date - 730 ORDER BY f.item_date DESC, f.id DESC LIMIT 1500", sym)
+    items = [{"date": r["item_date"].isoformat(), "link": r["link"], "title": r["title"], **(_sentiment_json(r) or {})} for r in rows]
+    return Response(content=json.dumps({"items": items}), media_type="application/json",
+                    headers={"Cache-Control": "public, max-age=300, stale-while-revalidate=900"})
 
 
 @router.get("/feed/counts")
