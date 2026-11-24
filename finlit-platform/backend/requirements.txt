@@ -19,7 +19,7 @@ pypdf==6.21.4
 pdfplumber==0.11.10
 # Sector pages (docs/SECTORS.md): the finlit_technicals package (backend/finlit_technicals) needs numpy and pandas. They are imported only by the nightly
 # `refresh-sectors` job process, never by the website process.
-numpy==2.5.4
+numpy==2.5.5
 pandas==3.1.0
 # Diversification card (docs/DIVERSIFICATION.md): scipy and scikit-learn, imported only when a request needs them
 scipy==1.18.1
