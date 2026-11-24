@@ -26,11 +26,11 @@ jobs:
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       RUN: ${{ inputs.run || (github.event.schedule == '11 18 * * 0' && 'weekly') || 'smoke' }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           sparse-checkout: finlit-platform
-      - uses: grafana/setup-k6-action@v1
+      - uses: grafana/setup-k6-action@c47136d33d365efbeb9ae7266908b5dcf98cdece # v1.3.0
       - name: Run k6
         id: k6
         run: |
@@ -43,7 +43,7 @@ jobs:
       - name: Report to the admin console
         if: always()
         run: python3 finlit-platform/scripts/monitor_report.py k6 "$RUN" summary.json "${{ steps.k6.outputs.code || 1 }}" "${{ steps.k6.outputs.vus || 0 }}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: k6-${{ env.RUN }}-summary
