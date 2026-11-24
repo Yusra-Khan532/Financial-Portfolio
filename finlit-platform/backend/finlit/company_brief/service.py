@@ -24,6 +24,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
+from .. import netguard
 from ..earnings import transcripts as T
 from ..earnings.provider import GeminiProvider, NotConfigured, Pacer, ProviderError, RateLimited
 from . import config as C
@@ -46,9 +47,12 @@ REASONS = {
 
 class BriefFetcher(T.Fetcher):
     """The exchange-archive fetcher, widened to the https addresses an administrator set for annual reports (the company's own site). Same rules: robots.txt, an
-    identifying agent, a pause, a budget, a byte cap. A host that resolves to a private address is refused."""
+    identifying agent, a pause, a budget, a byte cap. A host that resolves to a private address is refused, and every connection is opened to the public
+    address that was checked, not to a second lookup (netguard.PinnedTransport; DNS rebinding). `transport` is replaced in tests."""
 
     def __init__(self, extra_hosts=(), resolve: Optional[Callable[[str], List[str]]] = None, **kw):
+        if kw.get("transport") is None:
+            kw["transport"] = netguard.PinnedTransport()
         super().__init__(**kw)
         self.extra_hosts = {h.lower() for h in extra_hosts}
         self._resolve = resolve or _resolve
@@ -71,7 +75,8 @@ class BriefFetcher(T.Fetcher):
         if h not in self.extra_hosts or _is_ip(h):
             return False
         try:
-            return all(ipaddress.ip_address(a).is_global for a in self._resolve(h))
+            addrs = self._resolve(h)
+            return bool(addrs) and not any(netguard.unsafe_address(a) for a in addrs)
         except Exception:
             return False
 

@@ -9,8 +9,8 @@ Rules (the same as every other source in this repo):
 - one plain, identifying user agent; robots.txt is obeyed; a refusal, a rate limit or a bot check marks the site 'blocked' for 30 days.
   Nothing spoofs a header or goes around a challenge.
 - https (plain http only where a site offers nothing else), standard ports only; every address a host resolves to must be public (no
-  private, loopback or link-local targets), checked again on each of at most 3 redirects; every download is streamed with a byte cap and a
-  short timeout.
+  private, loopback or link-local targets), checked again on each of at most 3 redirects, and the connection is opened to the address that was
+  checked, never to a second lookup (netguard.PinnedTransport); every download is streamed with a byte cap and a short timeout.
 - an image is kept only if its bytes really are PNG, ICO, GIF, JPEG or WebP (magic bytes, not the Content-Type), 16 to 1024 px, not far
   from square and at most MAX_BYTES. SVG is never accepted (it can carry script).
 - logos are served from our own origin under the image's hash, cached for a year (immutable), so a browser never asks twice.
@@ -21,7 +21,6 @@ import asyncio
 import base64
 import binascii
 import hashlib
-import ipaddress
 import logging
 import re
 import socket
@@ -39,6 +38,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
+from . import netguard
 from .auth.routes import NO_STORE, Ctx, admin_ctx, fail
 
 log = logging.getLogger("finlit.logos")
@@ -245,11 +245,13 @@ class Blocked(Exception):
 
 
 class Fetcher:
-    """GET with the safety rules above. `transport` and `resolver` are replaced in tests."""
+    """GET with the safety rules above. `transport` and `resolver` are replaced in tests. By default every connection goes through
+    netguard.PinnedTransport: the address the socket is opened to is the public address that was checked, not a second lookup (DNS rebinding)."""
 
     def __init__(self, transport: Optional[httpx.AsyncBaseTransport] = None, resolver: Optional[Resolver] = None):
-        self.http = httpx.AsyncClient(transport=transport, timeout=TIMEOUT, follow_redirects=False, headers={"User-Agent": USER_AGENT, "Accept": "*/*"})
         self.resolver = resolver or _resolve
+        self.http = httpx.AsyncClient(transport=transport or netguard.PinnedTransport(resolver=self.resolver), timeout=TIMEOUT, follow_redirects=False,
+                                      headers={"User-Agent": USER_AGENT, "Accept": "*/*"})
         self.robots: Dict[str, Optional[RobotFileParser]] = {}
 
     async def aclose(self):
@@ -260,7 +262,7 @@ class Fetcher:
             addrs = await self.resolver(host)
         except Exception as exc:
             raise Rejected(f"host does not resolve ({type(exc).__name__})") from exc
-        if not addrs or any(not ipaddress.ip_address(a.split("%")[0]).is_global for a in addrs):
+        if not addrs or any(netguard.unsafe_address(a) for a in addrs):
             raise Rejected("host resolves to a private or reserved address")
 
     async def _allowed(self, url: str) -> bool:
