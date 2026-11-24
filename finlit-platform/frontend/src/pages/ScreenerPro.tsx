@@ -26,12 +26,13 @@ import { Safe3D } from "../three/Safe3D";
 import { supports3d, whenIdle } from "../three/support";
 import { rankMetrics } from "../lib/metricSearch";
 import { CheckRow, SearchBox } from "../components/screener/FilterGroup";
-import { Donut, SectorBars } from "../components/screener/PageParts";
 import { ScreenerHead, STOCK_DESC } from "../components/screener/ScreenerHead";
 import { ChartPanel, type PanelRow } from "../components/screener/ChartPanel";
 import { PanelTabs, ReadyOn, ReadyScreens, type PanelTab } from "../components/screener/ReadyScreens";
 import { RuleCard, startRange } from "../components/screener/RuleCard";
 import { RulePicker } from "../components/screener/RulePicker";
+import { RuleTopics } from "../components/screener/RuleTopics";
+import "../styles/task364.css";   // task #364: the Score and Filters panel
 import { RuleFigures } from "../components/screener/RuleFigures";
 import { parseRules } from "../lib/typeRules";
 import "../styles/fgx.css";
@@ -122,7 +123,7 @@ function Fold({ id, title, summary, open, setOpen, children, named }: { id: stri
 }
 
 export function ScreenerPro() {
-  const { isAdmin, user } = useAuth();
+  const { user } = useAuth();
   useDocTitle("Stock screener", "Filter every listed Indian company by size, valuation, growth, debt, ownership and price trend. Start from a ready-made screen or add your own rules; the list updates as you go.");
   const { upgrade, toast, plan: uiPlan } = useUI();
   const nav = useNavigate();
@@ -136,6 +137,7 @@ export function ScreenerPro() {
   const [q, setQ] = useState(""), [pg, setPg] = useState({ k: "", p: 0 });
   const [order, setOrder] = useState<string[]>([]);          // the rule cards, in the order they were added (task #75: any number at once)
   const [hot, setHot] = useState<string | null>(null);
+  const [find, setFind] = useState("");   // task #364: the search over every filter in the Score and Filters panel
   const [picker, setPicker] = useState<false | { group?: string; q?: string }>(false), [colMenu, setColMenu] = useState(false), [colFind, setColFind] = useState("");
   const [saveOpen, setSaveOpen] = useState<null | "save" | "tell">(null), [saveName, setSaveName] = useState("");
   const [from, setFrom] = useState<string | null>(null);     // the ready-made screen the rules started from
@@ -371,13 +373,13 @@ export function ScreenerPro() {
 
 
         <button type="button" className={"btn ssw-rtoggle" + (rulesOpen ? "" : " min")} aria-expanded={rulesOpen} aria-controls="ssw-rules" onClick={() => setRulesOpen(!rulesOpen)}>
-          Screens and rules{nActive + nWaiting ? ` (${nActive + nWaiting})` : ""}{onScreens.length ? ` · ${onScreens.length} ${onScreens.length === 1 ? "screen" : "screens"} on` : ""} · {res.data ? `${nf(total, 0)} companies` : "…"} <i aria-hidden="true">{rulesOpen ? "▴" : "▾"}</i></button>
+          <span className="ssw-rt-ico" aria-hidden="true"><Icon name="layers" /></span><b>Score and Filters</b>{nActive + nWaiting ? ` (${nActive + nWaiting})` : ""}{onScreens.length ? ` · ${onScreens.length} ${onScreens.length === 1 ? "screen" : "screens"} on` : ""} · {res.data ? `${nf(total, 0)} companies` : "…"} <i aria-hidden="true">{rulesOpen ? "▴" : "▾"}</i></button>
 
         <div className={"ssw-work" + (rulesOpen ? "" : " rules-min")} style={{ "--side-w": `${sideW || SIDE.def}px` } as React.CSSProperties}>
-          <aside id="ssw-rules" className={"card ssw-rules" + (rulesOpen ? " open" : "")} aria-label="Screens and rules">
+          <aside id="ssw-rules" className={"card ssw-rules" + (rulesOpen ? " open" : "")} aria-label="Score and Filters">
             {/* task #243 (pack S, v3): a calm header row (the label and the minimise button), then the three tabs on their own row */}
-            <div className="ssw-rh xsp-rh"><h2>Screens and rules</h2>
-              <button type="button" className="ssw-rmin" onClick={minimizeRules} aria-controls="ssw-rules" aria-expanded={rulesOpen} aria-label="Minimize Screens and rules" title="Minimize Screens and rules (your rules stay on)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button></div>
+            <div className="ssw-rh xsp-rh"><h2>Score and Filters</h2>
+              <button type="button" className="ssw-rmin" onClick={minimizeRules} aria-controls="ssw-rules" aria-expanded={rulesOpen} aria-label="Minimize Score and Filters" title="Minimize Score and Filters (your rules stay on)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button></div>
             <SizeNote link={!!init.current.moved} saved={saved.some((x) => !!x.sizesMoved)} />
             <PanelTabs tab={ptab} setTab={setPtab} nOn={onScreens.length} nReady={ready.data?.screens.length ?? null} />
             <div role="tabpanel" id="xsp-p-rules" aria-labelledby="xsp-t-rules" hidden={ptab !== "rules"} className="xsp-panel">
@@ -390,10 +392,14 @@ export function ScreenerPro() {
             {cat.isError && <div className="state"><p>The filters are not available right now. Please try again in a moment.</p><button className="btn" onClick={() => cat.refetch()}>Try again</button></div>}
             {cat.isLoading && <div className="skeleton" style={{ height: 320 }} />}
             {data && <>
-              <div className="ssw-sec"><h3>Market cap</h3>
-                <div className="ssw-chips" role="group" aria-label="Market cap">{data.caps.map((c) => <button key={c.name} type="button" className="ssw-chip" aria-pressed={F.caps.includes(c.name)} onClick={() => toggle("caps", c.name)}>{c.name} <span>{nf(c.n, 0)}</span></button>)}</div>
+              {/* task #364: the search over every filter, near the top; it narrows the topic groups below at once (Enter opens the full list) */}
+              <label className="ssw-size-q srt-find"><Icon name="search" /><span className="sr">Search every filter</span><input type="search" placeholder="Search filters, e.g. debt, ROE, promoter" value={find}
+                onChange={(e) => setFind(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setPicker({ q: find }); } }} /></label>
+              <p className="srt-grp">Start here</p>
+              <div className="ssw-sec ssw-start"><h3>Market cap</h3>
+                <div className="ssw-chips" role="group" aria-label="Market cap">{data.caps.map((c) => <button key={c.name} type="button" className="ssw-chip" aria-pressed={F.caps.includes(c.name)} onClick={() => toggle("caps", c.name)}><b>{c.name}</b> <span>{nf(c.n, 0)}</span></button>)}</div>
                 <p className="ssw-note">{CAP_BUCKETS.map((b) => `${b.short} ${b.range.replace(/^(Above|Below)/, (w) => w.toLowerCase())}`).join(" · ")}</p></div>
-              <div className="ssw-sec"><h3>Sector, industry and index</h3>
+              <div className="ssw-sec ssw-start"><h3 className="sr">Sector, industry and index</h3>
                 {!!data.macros?.length && <Fold id="macro" named title="Macro sector" summary={pickedMacros.length ? `${pickedMacros.length} picked` : `All ${data.macros?.length ?? 12}`} open={folds.macro ?? pickedMacros.length > 0} setOpen={(o) => setFolds((x) => ({ ...x, macro: o }))}>
                   <Checks items={macroItems} picked={pickedMacros} toggle={(k) => pickLevel("macros", k)} /></Fold>}
                 {!!data.nseSectors?.length && <Fold id="nsector" named title="Sector" summary={pickedNs.length ? `${pickedNs.length} picked` : `All ${pickedMacros.length ? nsItems.length : data.nseSectors?.length ?? 22}`} open={folds.nsector ?? pickedNs.length > 0} setOpen={(o) => setFolds((x) => ({ ...x, nsector: o }))}>
@@ -402,16 +408,13 @@ export function ScreenerPro() {
                   <Checks search items={industryItems} picked={[...f.industries, ...f.sectors]} toggle={toggleSector} /></Fold>
                 {data.indices.length > 0 && <Fold id="index" title="Index" summary={f.indices.length ? `Index: ${f.indices.map((c) => data.indices.find((i) => i.code === c)?.label ?? c).join(", ")}` : `Index: any (${data.indices.length} lists)`} open={folds.index ?? f.indices.length > 0} setOpen={(o) => setFolds((x) => ({ ...x, index: o }))}>
                   <Checks items={data.indices.map((x) => ({ key: x.code, label: x.label, n: x.n }))} picked={f.indices} toggle={(k) => toggle("indices", k)} /></Fold>}</div>
-              <div className="ssw-sec"><h3>Rules on numbers</h3>
-                <div className="ssw-size" role="group" aria-label="Every filter, by group">
-                  <p className="ssw-size-n"><b>{nf(nFilters, 0)} filters</b> in {numGroups.length} groups</p>
-                  <label className="ssw-size-q"><Icon name="search" /><span className="sr">Search the filters</span><input type="search" placeholder="Search filters, e.g. debt, ROE, promoter" value=""
-                    onChange={(e) => setPicker({ q: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setPicker({}); } }} /></label>
-                  <ul className="ssw-groups">{numGroups.map((g) => { const on = g.metrics.filter((m) => rules.includes(m.key) || F.ranges[m.key]).length;
-                    return <li key={g.id}><button type="button" onClick={() => setPicker({ group: g.id })} aria-label={`${g.label}: ${g.n} filters${on ? `, ${on} on` : ""}`}>
-                      <span>{g.label}</span>{on > 0 && <em>{on} on</em>}<small>{g.n}</small></button></li>; })}
-                    </ul>
-                </div>
+              {/* task #364: quick shortlist: the ready-made screens and the member's saved screens, one tap from here */}
+              <p className="srt-grp">Quick shortlist</p>
+              <div className="srt-quick">
+                <button type="button" className="srt-qrow" onClick={() => setPtab("ready")}><span><b>Ready-made screens</b><small>{ready.data ? `${ready.data.screens.length} screens · pick one to apply` : "Pick one to apply"}{onScreens.length ? ` · ${onScreens.length} on` : ""}</small></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg></button>
+                <button type="button" className="srt-qrow" onClick={() => setPtab("ready")}><span><b>Saved screens</b><small>{saved.length ? `${saved.length} saved` : "None saved yet"}</small></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg></button>
+              </div>
+              <div className="ssw-sec ssw-rulesec"><h3 className="sr">Rules on numbers</h3>
                 {onScreens.filter((x) => !x.state).map((x) => <div key={x.id} className="ssr-rule ssr-model" role="group" aria-label={`Screen on FinLit Prism: ${x.label}`}><div className="ssr-rt"><b>{x.label}</b>
                   <button type="button" className="ssr-x" aria-label={`Turn off ${x.label}`} onClick={() => toggleScreen(x)}>×</button></div>
                   <p className="ssr-say">{x.says}. Its cut-offs stay on the server.</p></div>)}
@@ -423,7 +426,9 @@ export function ScreenerPro() {
                   <button type="button" className="lnk" onClick={() => openRatio(r)}>Change</button><button type="button" className="ssr-x" aria-label={`Remove ${r.name}`} onClick={() => setRatios(ratios.filter((x) => x.id !== r.id))}>×</button></div>
                   <p className="ssr-say">{byKey.get(r.num)?.label ?? r.num} ÷ {byKey.get(r.den)?.label ?? r.den} · {valueText(r)}</p>
                   {stepOf(r.id) && <p className="ssr-cnt">keeps <b>{nf(stepOf(r.id)!.after, 0)}</b> of {nf(stepOf(r.id)!.before, 0)}</p>}</div>)}
-                <button type="button" className="btn ssw-add" onClick={() => setPicker({})}>+ Add a rule</button>
+                <p className="srt-total"><b>{nf(nFilters, 0)} filters</b> in {numGroups.length} groups</p>
+                <RuleTopics groups={numGroups} q={find} has={(k) => rules.includes(k) || !!F.ranges[k]} add={addRule} go={goToRule} ask={ask} />
+                <button type="button" className="btn ssw-add" onClick={() => setPicker({ q: find })}>+ Add a rule</button>
                 <form className="ssw-typed" onSubmit={(e) => { e.preventDefault(); const r = parseRules(typed, (k) => byKey.has(k)); setTypedErr(r.errors); const ok = Object.entries(r.ranges).filter(([k]) => !byKey.get(k)?.locked);
                   const lockedOnes = Object.keys(r.ranges).filter((k) => byKey.get(k)?.locked); if (lockedOnes.length) setTypedErr((x) => [...x, `${lockedOnes.map((k) => byKey.get(k)!.label).join(", ")}: part of a higher plan.`]);
                   if (ok.length) { setF((o) => ({ ...o, ranges: { ...o.ranges, ...Object.fromEntries(ok) } })); setOrder((o) => [...o, ...ok.map(([k]) => baseOf(k)).filter((k) => !o.includes(k))]); setPg({ k: "", p: 0 }); if (!r.errors.length && !lockedOnes.length) setTyped(""); } }}>
@@ -529,11 +534,7 @@ export function ScreenerPro() {
         </div>
         {data && data.withReport < data.total && <p className="faint scr-foot">All {nf(data.total, 0)} listed companies, with price and market cap. {nf(data.total - data.withReport, 0)} {data.total - data.withReport === 1 ? "has" : "have"} no ratios yet, so a rule on a ratio leaves {data.total - data.withReport === 1 ? "it" : "them"} out.</p>}
         <p id="scr-about" className="faint scr-foot">A screen narrows a long list; it does not say what to buy. Open a company's report to see why a number looks the way it does. Index lists come from NSE Indices. General information, not investment advice.</p>
-        {isAdmin && data && data.total > 0 && (
-          <div className="fgx-two">
-            <Donut part={data.withReport} total={data.total} partLabel="With ratios" restLabel="Price and market cap only" title={`${nf(data.total - data.withReport, 0)} of ${nf(data.total, 0)} companies have no ratios yet.`} />
-            <SectorBars title="Listed companies by sector (Top 5)" rows={[...data.industries].sort((a, b) => b.n - a.n).slice(0, 5).map((x) => ({ label: x.name, n: x.n, pct: (x.n / data.total) * 100 }))} />
-          </div>)}
+        {/* task #364: the coverage ring and "Listed companies by sector (Top 5)" cards are gone, by the team's picture "what not to add" */}
       </div>
       {rd && data && crGold && <RatioDrawer groups={data.groups} byKey={byKey} start={rd.start} ratiosOn={ratios.length} firstSymbols={rows.map((r) => r.symbol)} countWith={countWith} currentTotal={res.data ? total : null}
         onAdd={addRatio} onSave={saveRatio} onClose={() => setRd(null)} onUseFilter={(m) => { setRd(null); addRule(m); }} />}

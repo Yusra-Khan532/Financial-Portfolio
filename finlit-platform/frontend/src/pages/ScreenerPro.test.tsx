@@ -62,7 +62,7 @@ const ruleHeads = () => Array.from(table().querySelectorAll("thead tr.ssw-hd th.
 const colBtn = () => screen.getByRole("button", { name: /^Columns/ }).textContent;
 const ready = () => waitFor(() => expect(table()).toBeTruthy());
 const last = () => st.bodies.filter((b) => !b.q || b.q === "").at(-1)!;
-const rulesPanel = () => screen.getByRole("complementary", { name: "Screens and rules" });
+const rulesPanel = () => screen.getByRole("complementary", { name: "Score and Filters" });
 /** Task #243 (pack S): the left panel's tabs; the ready-made screens and Custom ratio each sit in their own tab. */
 const openTab = (n: RegExp) => fireEvent.click(screen.getByRole("tab", { name: n }));
 const addRule = async (label: string) => {
@@ -216,19 +216,29 @@ describe("the head and the ready-made screens (file 04 §2, §8)", () => {
 });
 
 describe("task #64 Part 4: the panel and the header", () => {
-  it("S-1: without a click the panel shows how many filters there are and every group with its count; a group row opens the picker on that group", async () => {
+  it("S-1 (task #364): the panel shows how many filters there are and every group, under its topic, as a closed accordion with its count; opening one lists its filters", async () => {
     mount(); await ready();
-    const box = screen.getByRole("group", { name: "Every filter, by group" });
-    expect(box.querySelector(".ssw-size-n")?.textContent).toBe("11 filters in 6 groups");          // hidden period variants are not counted; task #283: no group of the retired score
-    expect(within(box).getAllByRole("button").map((b) => b.querySelector("span")?.firstChild?.textContent)).toEqual(["Valuation", "Profitability", "Growth", "Financial health", "Returns", "Size & price"]);
-    expect(within(box).queryByRole("link", { name: /Custom ratio/ })).toBeNull();                      // task #243 (S3): Custom ratio left the groups for its own tab
-    fireEvent.click(within(box).getByRole("button", { name: /^Profitability: 2 filters/ }));
-    const dlg = await screen.findByRole("dialog");
-    expect(within(dlg).getByRole("button", { name: /Profitability/, pressed: true })).toBeTruthy();
+    expect(document.querySelector(".srt-total")?.textContent).toBe("11 filters in 6 groups");          // hidden period variants are not counted; task #283: no group of the retired score
+    expect([...document.querySelectorAll(".srt-h")].map((h) => h.textContent)).toEqual(["Valuation & financial performance", "Returns & business performance"]);
+    expect([...document.querySelectorAll(".srt-at")].map((h) => h.textContent)).toEqual(["Valuation", "Profitability", "Growth", "Financial health", "Size & price", "Returns"]);
+    expect(document.querySelectorAll(".srt-b").length).toBe(0);                                         // all closed until clicked
+    expect(screen.queryByRole("link", { name: /Custom ratio/ })).toBeNull();                              // task #243 (S3): Custom ratio left the groups for its own tab
+    fireEvent.click(screen.getByRole("button", { name: /^Profitability/ }));
+    const body = document.getElementById("srt-b-profitability")!;
+    expect(within(body).getByRole("button", { name: "Add Return on equity" })).toBeTruthy();
   });
-  it("S-1: a group with rules set says how many are on", async () => {
+  it("S-1: a group with rules set says how many are on, and its filter reads Added", async () => {
     mount("?s=" + encodeState(norm({ ranges: { roe: { min: 15 } } }), "market_cap", "desc")); await ready();
-    expect(within(screen.getByRole("group", { name: "Every filter, by group" })).getByRole("button", { name: "Profitability: 2 filters, 1 on" })).toBeTruthy();
+    const h = screen.getByRole("button", { name: /^Profitability/ });
+    expect(h.textContent).toMatch(/1 on/);
+    fireEvent.click(h);
+    expect(within(document.getElementById("srt-b-profitability")!).getByRole("button", { name: "Return on equity is added: go to its rule" })).toBeTruthy();
+  });
+  it("task #364: the search narrows every group at once and opens the ones that match", async () => {
+    mount(); await ready();
+    fireEvent.change(screen.getByPlaceholderText("Search filters, e.g. debt, ROE, promoter"), { target: { value: "roe" } });
+    expect([...document.querySelectorAll(".srt-at")].map((h) => h.textContent)).toEqual(["Profitability"]);
+    expect(within(document.getElementById("srt-b-profitability")!).getByRole("button", { name: "Add Return on equity" })).toBeTruthy();
   });
   it("S-9: the header names the data date in India time, in its date chip", async () => {
     st.cat = { ...catalog(), pricesAt: "2026-11-12T10:05:00Z", scoresAt: "2026-11-12T23:00:00Z" };
@@ -519,7 +529,7 @@ describe("Your rules (file 04 §3, §4; task #75)", () => {
     mount(); await ready();
     await addRule("Dividend yield");
     expect(within(rulesPanel()).getByRole("status").textContent).toMatch(/1 rule has no range yet/);
-    expect(screen.getByRole("button", { name: /^Screens and rules \(1\)/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Score and Filters \(1\)/ })).toBeTruthy();
     expect(within(rulesPanel()).getByRole("group", { name: "Dividend yield" })).toBeTruthy();
     await waitFor(() => expect(heads()).toContain("Dividend yield"));                                    // its column is there already
     fireEvent.click(within(rulesPanel()).getByRole("button", { name: "Clear all" }));
@@ -755,9 +765,9 @@ describe("task #140: Your rules can be minimized", () => {
     const work = () => document.querySelector(".ssw-work") as HTMLElement;
     expect(rulesPanel().className).toContain("open");
     expect(work().className).not.toContain("rules-min");
-    fireEvent.click(within(rulesPanel()).getByRole("button", { name: "Minimize Screens and rules" }));
+    fireEvent.click(within(rulesPanel()).getByRole("button", { name: "Minimize Score and Filters" }));
     await waitFor(() => expect(work().className).toContain("rules-min"));
-    const bar = screen.getByRole("button", { name: /^Screens and rules/ });
+    const bar = screen.getByRole("button", { name: /^Score and Filters/ });
     expect(bar.getAttribute("aria-expanded")).toBe("false"); expect(bar.className).toContain("min");
     expect(localStorage.getItem("finlit-screener-rules-min")).toBe("1");          // remembered on a wide screen
     expect(loc()).toContain("caps=Large");                                         // minimizing never drops a rule
@@ -769,7 +779,7 @@ describe("task #140: Your rules can be minimized", () => {
     localStorage.setItem("finlit-screener-rules-min", "1");
     mount(); await ready();
     expect((document.querySelector(".ssw-work") as HTMLElement).className).toContain("rules-min");
-    fireEvent.click(screen.getByRole("button", { name: /^Screens and rules/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Score and Filters/ }));
     await waitFor(() => expect(rulesPanel().className).toContain("open"));
     fireEvent.click(within(rulesPanel()).getByRole("button", { name: /^Show / }));
     await waitFor(() => expect((document.querySelector(".ssw-work") as HTMLElement).className).toContain("rules-min"));
@@ -789,7 +799,7 @@ describe("task #140 (team note): the sliding bar beside Your rules, as on the ad
     fireEvent.keyDown(screen.getByRole("separator", { name: /Resize the filters panel/ }), { key: "Enter" });     // Enter or a double-click hides it, as on the advanced screeners
     await waitFor(() => expect(work().className).toContain("rules-min"));
     expect(screen.queryByRole("separator", { name: /Resize the filters panel/ })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /^Screens and rules/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Score and Filters/ }));
     await waitFor(() => expect(work().className).not.toContain("rules-min"));
     expect(work().style.getPropertyValue("--side-w")).toBe("240px");                 // reopens at the last width it had
   });
