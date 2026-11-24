@@ -90,7 +90,7 @@ PUBLIC: Dict[str, Page] = {
 }
 
 # Pages a visitor reaches only after signing in, or that have no content of their own: kept out of search results.
-PRIVATE = ("account", "dashboard", "console", "admin", "login", "verify-email", "forgot-password", "reset-password", "watchlist", "holdings", "mf-portfolio", "etf-portfolio", "my-investments", "alerts", "baskets",
+PRIVATE = ("account", "dashboard", "console", "admin", "login", "verify-email", "unsubscribe", "forgot-password", "reset-password", "watchlist", "holdings", "mf-portfolio", "etf-portfolio", "my-investments", "alerts", "baskets",
            "query-builder", "premium", "portfolio", "feedback", "forum", "graphs", "advanced-score-screener", "outlook", "results/quarter", "funds/screener", "funds/compare",
            "funds/insights", "etfs/compare", "etfs/compare-index-funds", "sectors/rotation", "sectors/capital-goods", "research/stress-lab", "reverse-valuation",
            "discovery")      # task #260: the old address of Discover, now a redirect to /discover
