@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate } from "react-router";
 import { Icon } from "../lib/icons";
 import { nf, MINUS } from "../lib/format";
+import { safeUrl } from "../lib/safe";   // security: only http(s) document links
 import { downloadCsv, prefetchMarkets, qs, useGold, usePremium, type Feed as FeedT } from "../lib/premium";
 import { useDocTitle } from "../lib/title";
 import { GoldLock, PremiumHead } from "./Premium";
@@ -94,7 +95,7 @@ function EventFeed({ kind, big }: { kind: "announcements" | "transcripts"; big: 
               <td data-l="Company"><b>{txt(r.symbol)}</b>{s.co && s.co !== r.symbol ? <small className="faint mk-u">{s.co}</small> : null}</td>
               {ann && <td data-l="Category"><span className="chip mk-cat">{catLabel(r.category) || MINUS}</span></td>}
               <td className="wrapc mk-what" data-l={ann ? "Announcement" : "Call or meeting"}>{s.what || <span className="faint">No detail given; see the document</span>}</td>
-              <td className="mk-nw" data-l="Document">{r.document_url ? <a href={r.document_url} target="_blank" rel="noopener noreferrer">Open ↗</a> : MINUS}</td>
+              <td className="mk-nw" data-l="Document">{(() => { const du = safeUrl(r.document_url); return du ? <a href={du} target="_blank" rel="noopener noreferrer">Open ↗</a> : MINUS; })()}</td>
             </tr>); })}
             {!shown.length && <tr><td colSpan={ann ? 5 : 4} className="mk-none">{who === "mine" && !mine.size ? "Add companies to a watchlist or your portfolio to see their filings here." : "Nothing matches. Clear the filter to see every row."}</td></tr>}</tbody>
         </table></div>

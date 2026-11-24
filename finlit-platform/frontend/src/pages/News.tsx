@@ -5,6 +5,7 @@
 // every row and in the Category dropdown. The list comes 60 at a time; "Show more" continues from the last item's date and id.
 // Toolbar parts are Discover's (discovery/Toolbar.tsx, .dbx-); page classes start .p4- (styles/news-page.css).
 import { SentimentChip } from "../components/SentimentChip";   // task #365
+import { safeUrl } from "../lib/safe";   // security: only http(s) links from the feed
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { PageHeader } from "../components/PageHeader";
@@ -129,13 +130,14 @@ export function NewsPage() {
         <section key={g.d} className="feed-g p4-fg"><h2>{dayLabel(g.d)}{dayCount[g.d] ? <span>{nf(dayCount[g.d])} {dayCount[g.d] === 1 ? "filing" : "filings"}</span> : null}</h2>
           <div className="card feed-card"><ul className="feed-n p4-fn">{g.r.map((e) => {
             const tp = e.topic && TL[e.topic] ? TL[e.topic] : "Filing";
+            const href = safeUrl(e.link);   // security: a feed link is untrusted exchange/news content
             const text = <><b>{shortName(e.company)}</b> {headline(e)}</>;
             return <li key={e.id}>
               {e.symbol ? <Link className="feed-sym p4-sym" to={`/stocks/${e.symbol}`} title={coTitle({ symbol: e.symbol, name: e.company })}><CoLogo symbol={e.symbol} size={18} inline /><span>{shortLabel({ symbol: e.symbol, name: e.company })}</span></Link> : <span className="feed-sym alt">Market</span>}
-              <div className="p4-nb"><p>{e.link ? <a href={e.link} target="_blank" rel="noopener noreferrer" title={e.title}>{text}</a> : text}</p>
+              <div className="p4-nb"><p>{href ? <a href={href} target="_blank" rel="noopener noreferrer" title={e.title}>{text}</a> : text}</p>
                 <small><SentimentChip s={e.sentiment} /> <span className={"ui-chip p4-tp t-" + (e.topic || "x")}>{tp}</span>{e.category && e.category !== tp ? <> · <span className="p4-cat">{e.category}</span></> : null}{e.source ? <span className="p4-src"> · {e.source}</span> : null}{tag(e.symbol)}</small>
                 {e.summary && <p className="muted p4-sum">{e.summary}</p>}</div>
-              {e.link ? <a className="p4-open" href={e.link} target="_blank" rel="noopener noreferrer" aria-label="Open the filing">{Ico.ext}</a> : <span />}
+              {href ? <a className="p4-open" href={href} target="_blank" rel="noopener noreferrer" aria-label="Open the filing">{Ico.ext}</a> : <span />}
             </li>;
           })}</ul></div></section>))}
       {list.hasNextPage && rows.length < total && <button type="button" className="p4-more" disabled={list.isFetchingNextPage} onClick={() => list.fetchNextPage()}>

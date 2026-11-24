@@ -39,6 +39,9 @@ export function mountStressLab(root, E, D, opts) {
   function esc(s) { return String(s === null || s === undefined ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function short(co) { return co.short || String(co.name || co.symbol).replace(/ Ltd\.?$/, ''); }
   function poss(co) { var n = typeof co === 'string' ? co : short(co); return n + (/s$/.test(n) ? '’' : '’s'); }
+  // security: the company identity/classification fields are rendered into innerHTML in many places, some unescaped (short()/poss()); strip the
+  // HTML-dangerous characters once at the source so a crafted name/sector cannot inject markup anywhere downstream, escaped sink or not.
+  function cleanCo(co) { if (!co) return; ['name', 'symbol', 'short', 'sector', 'industry'].forEach(function (k) { if (co[k] != null) co[k] = String(co[k]).replace(/[<>"]/g, ''); }); }
   function dt(iso) { if (!iso) return ''; var m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; var p = iso.split('-'); return (+p[2]) + ' ' + m[+p[1] - 1] + ' ' + p[0]; }
   /** The base window as readers say it, "Oct 2025 to Sep 2026" (the first date is the end of the quarter before the four quarters); text that is not an ISO date is kept. */
   function winWords(w) {
@@ -98,6 +101,7 @@ export function mountStressLab(root, E, D, opts) {
   var SAMEQ = !!(opts.peer && opts.peer.same_quarter);
   function shortName(co) { co.name = co.name || co.symbol; return co.name.replace(/ (Ltd|Limited)\.?$/i, ''); }
   A.short = shortName(A); if (B) B.short = shortName(B);
+  cleanCo(A); cleanCo(B);   // security (task sec): neutralise untrusted company fields before any innerHTML render
   var CHIPS = ['today', '2022', '2020', 'oil', 'rupee', 'rates', 'slowdown', 'custom'];
   var LOCKED = {}; (D.locked_scenarios || []).forEach(function (x) { LOCKED[x.id] = x.name; }); if (!GOLD) LOCKED.custom = 'Custom';
   var ALL_IDS = ['today', 'today_eia', '2022', '2020', 'oil', 'rupee', 'rates', 'slowdown'].filter(function (id) { return SC[id]; });
