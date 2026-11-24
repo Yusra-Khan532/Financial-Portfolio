@@ -957,3 +957,27 @@ async def test_never_verified_accounts_go_after_seven_days_and_free_their_mobile
     assert "confirm" in (await last_mail(app, "realowner@example.com"))["subject"].lower()
     async with app.state.store.pool.acquire() as conn:
         assert await conn.fetchval("SELECT mobile FROM users WHERE email = 'realowner@example.com'") == "+91" + squatted
+
+
+async def test_the_reset_email_keeps_the_code_out_of_the_subject(app, anon):
+    """Security checkup (24 Nov 2026): a subject shows in phone lock-screen previews, inbox lists and mail logs, so the code is only in the body."""
+    import re as _re
+    await signup(app, anon, "asha@example.com")
+    await anon.post("/api/auth/forgot", json={"email": "asha@example.com"}, headers=ORIGIN)
+    mail = await last_mail(app, "asha@example.com")
+    code = await code_from_mail(app, "asha@example.com")
+    assert code and code in mail["body"]
+    assert not _re.search(r"\d{6}", mail["subject"]) and "reset code" in mail["subject"].lower()
+
+
+async def test_changing_the_password_cancels_a_pending_reset_link_and_code(app):
+    """Security checkup (24 Nov 2026): after the member changes the password under Account, a reset email still in the inbox no longer works."""
+    c = await signed_in(app, "asha@example.com")
+    async with new_client(app) as anon:
+        await anon.post("/api/auth/forgot", json={"email": "asha@example.com"}, headers=ORIGIN)
+        token, code = await token_from_mail(app, "asha@example.com"), await code_from_mail(app, "asha@example.com")
+        assert (await c.post("/api/me/password", json={"current": PW, "new": "brand-new-phrase-12"})).status_code == 200
+        assert (await anon.post("/api/auth/reset", json={"token": token, "password": "third-strong-phrase-34"}, headers=ORIGIN)).status_code == 400
+        r = await anon.post("/api/auth/reset-code", json={"email": "asha@example.com", "code": code, "password": "third-strong-phrase-34"}, headers=ORIGIN)
+        assert r.status_code == 400
+    assert (await login(c, "asha@example.com", "brand-new-phrase-12")).status_code == 200

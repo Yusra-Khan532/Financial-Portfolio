@@ -832,6 +832,12 @@ async def change_password(request: Request, body: ChangePw, ctx: Ctx = Depends(s
     pw = await crypto.hash_password(body.new)
     async with pool.acquire() as conn:
         await conn.execute("UPDATE users SET password_hash = $2, password_changed_at = now() WHERE id = $1", ctx.user_id, pw)
+        # security checkup (24 Nov 2026): a reset email still in the inbox stops working too, as it does after a reset by code or link
+        await conn.execute("UPDATE email_tokens SET used_at = now() WHERE user_id = $1 AND kind = 'reset' AND used_at IS NULL", ctx.user_id)
+    try:
+        await request.app.state.store.redis.delete(f"auth:resetcode:{ctx.user_id}", f"auth:resetcode:tries:{ctx.user_id}")
+    except Exception:
+        pass
     await revoke_all(request.app, ctx.user_id, keep_session=ctx.session_id)
     await audit(pool, ctx.user_id, "password_changed", None, ip_of(request))
     return {"status": "password_changed"}
