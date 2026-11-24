@@ -31,7 +31,7 @@ The jobs' own health (`/api/jobs/status`) is already watched by the site; Gatus 
 
 Alert email goes through **Resend's SMTP** (owner's choice, 24 Nov 2026): host `smtp.resend.com`, port `465` (TLS), username `resend`, password
 = the site's existing `RESEND_API_KEY`, from **FinLit Alerts <alerts@finlitventures.com>** (finlitventures.com is the verified Resend domain),
-replies to hello@finlitventures.com (the outside check sets Reply-To; Gatus cannot set one). Recipient: `finlit.start@gmail.com`; add more,
+replies to alerts@finlitventures.com (the outside check sets Reply-To; Gatus cannot set one). Recipient: `finlit.start@gmail.com`; add more,
 comma-separated, in `ALERT_EMAIL_TO`. No new mail secret is needed. Secrets stay in `/opt/finlit/.env.aws` and GitHub's secrets, never in the
 repository or chat.
 

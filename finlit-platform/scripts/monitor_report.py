@@ -47,7 +47,7 @@ def k6_body(run: str, summary: dict, code: int, vus: int) -> dict:
 
 
 FROM = "FinLit Alerts <alerts@finlitventures.com>"
-REPLY_TO = "hello@finlitventures.com"
+REPLY_TO = "alerts@finlitventures.com"
 
 
 def email(subject: str, text: str) -> int:
