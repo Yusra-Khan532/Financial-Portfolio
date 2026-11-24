@@ -13,12 +13,19 @@ Nothing Critical or High turned up anywhere in the review. It covered:
 - the code that landed on `main` during the review (monitoring and the sign-up mobile number);
 - non-destructive live probes of the site, its DNS and its email setup.
 
-The codebase was already mature. The review found five Medium issues:
+The codebase was already mature. The review found seven Medium issues:
 - unpinned CI actions;
 - three abuse paths in the new mobile-number feature;
-- DMARC not enforced (a DNS setting, fixed by the owner).
+- DMARC not enforced (a DNS setting);
+- admins could sign in without the authenticator (a server setting);
+- changing the password did not cancel a pending reset email.
 
-Everything else was Low, latent or defense-in-depth. Every code-level finding was fixed in a pull request with tests, and each new test was shown to fail on the old code. The rest are owner steps (DNS, AWS, server settings) or were checked and found safe.
+Everything else was Low, latent or defense-in-depth. **All of it is closed** (24-25 Nov 2026):
+- every code-level finding was fixed in a pull request (#892-#906) with tests, each new test shown to fail on the old code;
+- every DNS, AWS and server step was done by the owner and checked;
+- the rest was checked and found safe.
+
+The one item left is on a timer: DMARC `p=reject` about 8 Dec 2026.
 
 ## Scope & method
 
@@ -82,26 +89,34 @@ Everything else was Low, latent or defense-in-depth. Every code-level finding wa
 | Monitoring (new) | The public status page would show it if the scores-export lock broke | Low | **Fixed** #902: the security group is admin-only |
 | Plans | Plan rank table has no "platinum" | — | **Not reachable:** `users.plan` CHECK allows only basic/silver/gold (migration 009); no change |
 | site-api | `X-Frame-Options: SAMEORIGIN` rather than DENY | — | **Intentional:** the Blog embeds same-origin PDFs from `/api/content/assets/`; other sites still can't frame it |
-| Email (DNS) | DMARC `p=none`: mail faking `@finlitventures.com` isn't rejected | Medium | **Owner step** 1 (quarantine), then step 7 (reject) |
-| DNS | No CAA record | Low | **Owner step** 2 |
-| Infra | Origin firewall should accept web traffic only from Cloudflare | Low | **Owner step** 3 |
-| Server config | Live `.env` hardening (production mode and related settings) | Low | **Owner steps** 4 and 6 (given to the owner directly) |
-| Secrets | The monitoring tools share the site's main mail key | Low | **Owner step** 5: separate, restricted key |
+| Email (DNS) | DMARC `p=none`: mail faking `@finlitventures.com` isn't rejected | Medium | **Done (owner, 24 Nov):** `p=quarantine` with Cloudflare DMARC reports; `p=reject` about 8 Dec |
+| DNS | No CAA record | Low | **Done (owner, 24 Nov):** CAA issue for letsencrypt.org, sectigo.com, pki.goog, ssl.com (Cloudflare adds its own) |
+| Infra | Origin firewall should accept web traffic only from Cloudflare | Low | **Done (owner, 24 Nov):** EC2 security group 80/443 = the 15 Cloudflare IPv4 ranges only; direct requests to the server address time out |
+| Infra | SSH (22) open to every address | Low | **Done (owner, 25 Nov):** 22 = EC2 Instance Connect (Sydney, `13.239.158.0/29`) only; checked blocked from outside |
+| Server config | Live `.env` hardening (production mode and related settings) | Low | **Done (owner, 24 Nov):** production mode, email confirmation on, real host list, explicit CORS origin; `config.validate()` reports no problems |
+| Admin access | Admins could sign in without the authenticator | Medium | **Done (owner, 24 Nov):** `ADMIN_REQUIRE_MFA=1`, authenticator set up, admin password changed, old sessions ended; a fresh sign-in asks for the code |
+| Secrets | The monitoring tools share the site's main mail key | Low | **Done:** separate sending-only key (#904 + owner, 24 Nov; test alert delivered); unused old Resend key deleted |
+| Server | 14 pending OS security updates incl. a kernel | Low | **Done (owner, 25 Nov):** all installed, rebooted onto the new kernel, 0 pending |
+| Deploy | The deploy self-check read the 3-host `DOMAIN` list as one address, so every deploy warned "HTTP 000" | Low | **Fixed** #904 |
+| Password reset | The 6-digit reset code was in the email subject (lock-screen previews) | Low | **Fixed** #906 |
+| Password reset | Changing the password under Account did not cancel a reset email still in the inbox (link up to 1 h, code 15 min) | Medium | **Fixed** #906 (test shows the old link resetting the password before the fix) |
 
-## Owner steps (one at a time, outside the code)
+## Owner steps: done 24-25 Nov 2026
 
-1. DMARC from `p=none` to `p=quarantine`, with Cloudflare DMARC reporting on (Cloudflare dashboard).
-2. CAA record allowing only the certificate authorities in use (Cloudflare DNS).
-3. EC2 security group: ports 80/443 only from Cloudflare's published ranges; SSH stays limited to the owner (AWS console).
-4. Server settings to production mode, after a dry-run check that `config.validate()` passes (server).
-5. A separate, restricted Resend key for the monitoring tools (Resend, GitHub secret, server).
-6. Remove the bootstrap admin and demo passwords from the server environment (server).
-7. About two weeks after step 1, with the DMARC reports clean, set `p=reject`.
+1. ✅ DMARC `p=none` → `p=quarantine`, Cloudflare DMARC reports on.
+2. ✅ CAA records for the certificate authorities in use.
+3. ✅ EC2 security group: 80/443 from Cloudflare's ranges only.
+4. ✅ Production mode (`ENVIRONMENT=production`, `AUTO_VERIFY_EMAIL=0`, `ALLOWED_HOSTS`, `CORS_ORIGINS`), after a dry-run `config.validate()`.
+5. ✅ Separate sending-only Resend key for monitoring (server, GitHub secret), test alert delivered; unused old key deleted.
+6. ✅ `ADMIN_REQUIRE_MFA=1`, authenticator set up, admin password changed. `ADMIN_PASSWORD` stays in `.env.aws` (deploy.sh requires it; it is the way back in), but it is no longer the live password.
+7. ✅ OS security updates and the new kernel installed, rebooted.
+8. ✅ SSH limited to EC2 Instance Connect. To SSH from a PC, add that PC's `/32` to port 22, never `0.0.0.0/0`.
+9. ⏳ **About 8 Dec 2026:** if Cloudflare → Email → DMARC Management lists only Resend, Amazon SES and Cloudflare as senders, set `p=reject`.
 
 ## For the team
 
 - **Dependabot:** about 18 update PRs are open. Today's `pip-audit` and `npm audit` are clean, so none of them fixes a known vulnerability. Several are major-version upgrades to review normally; the two docker-action bumps (#791, #527) need a rebase onto the SHA pins.
-- **Amazon SES (#891):** add SES's DKIM records in Cloudflare before DMARC goes to `reject`. `config.validate()` currently requires `MAIL_MODE=resend`, so production mode must allow SES too.
+- **Amazon SES (#891):** its three DKIM records are already in Cloudflare; confirm the domain shows "Verified" in the SES console before merging, and before DMARC goes to `reject`. `config.validate()` currently requires `MAIL_MODE=resend`, so production mode must allow SES too.
 - **Mobile numbers:** one-account-per-mobile without SMS verification can only be made costly, not impossible, to abuse. If SMS one-time codes are ever added, enforce uniqueness only on verified numbers.
 
 ## Running deeper (dynamic) testing
@@ -114,3 +129,6 @@ Use `PENTAGI-RUNBOOK.md`:
 - teardown afterwards.
 
 Triage every autonomous finding by hand, and ship confirmed issues as PRs with a test that fails before the fix and passes after.
+
+- **Not security, seen during the checkup:** the `dhan-check` job has not passed since 18 Nov. Its credentials work (token auto-renews, data plan Active, instruments load) but the live-price probe returns no price (`incomplete`). Still inside its 400-hour limit.
+- **OS release:** the server offers Ubuntu 26.04; 24.04 LTS is supported for years. A release upgrade is a planned maintenance job (full backup, quiet window), not part of this checkup.
