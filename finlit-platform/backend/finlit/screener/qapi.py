@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Literal, Optional
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 
-from ..auth.routes import NO_STORE, Ctx, fail, secure_ctx
+from ..auth.routes import NO_STORE, Ctx, fail, read_limit, secure_ctx
 from ..auth.service import current
 from ..auth.routes import limits_for
 from .api import BASIC_ROWS, DEFAULT_COLUMNS
@@ -33,6 +33,9 @@ from .ql import MAX_CHARS, MAX_CONDITIONS, TIER_NAME, Analysis, Problem, analyze
 from .qeval import data_warnings, run
 
 router = APIRouter(prefix="/api/screener")
+# Per visitor IP / per signed-in member. /ql/run is sent on Run, a sort or a page turn (not while typing: that is /ql/validate); the CSV per 10 minutes.
+RUN_VISITOR, RUN_MEMBER = 30, 90
+EXPORT_VISITOR, EXPORT_MEMBER, EXPORT_WINDOW = 10, 30, 600
 UNIT_LABEL = {"Cr": "₹ crore", "Rs": "₹", "%": "%", "x": "times", "d": "days", "n": "count", "pts": "points", "flag": "yes / no"}
 OPERATORS = [
     {"op": ">", "say": "greater than"}, {"op": ">=", "say": "at least"}, {"op": "<", "say": "less than"}, {"op": "<=", "say": "at most"},
@@ -169,7 +172,9 @@ def _execute(t: Table, body: RunIn, plan: str) -> Dict[str, Any]:
 
 @router.post("/ql/run")
 async def run_query(request: Request, body: RunIn):
-    plan = plan_of(await current(request))
+    ctx = await current(request)
+    await read_limit(request, ctx, "ql_run", RUN_VISITOR, RUN_MEMBER)
+    plan = plan_of(ctx)
     t = await _table(request)
     return _json(await asyncio.to_thread(_execute, t, body, plan))
 
@@ -180,7 +185,9 @@ def _cell(v: Any) -> Any:
 
 @router.post("/ql/export")
 async def export(request: Request, body: RunIn):
-    plan = plan_of(await current(request))
+    ctx = await current(request)
+    await read_limit(request, ctx, "ql_export", EXPORT_VISITOR, EXPORT_MEMBER, EXPORT_WINDOW)
+    plan = plan_of(ctx)
     if not allowed(plan, "silver"):
         raise fail(403, "plan_required", "Downloading results is part of the Silver plan.", plan="silver")
     t = await _table(request)

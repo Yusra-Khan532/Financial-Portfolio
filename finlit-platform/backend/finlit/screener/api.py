@@ -8,7 +8,7 @@ from typing import Dict, List, Literal, Optional
 from fastapi import APIRouter, Query, Request, Response
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from ..auth.routes import NO_STORE, fail
+from ..auth.routes import NO_STORE, fail, read_limit
 from ..auth.service import current
 from .catalog import BY_KEY, CAPS, CATALOG, GROUP_LABEL, GROUPS, GROUP_TIER, HIDDEN, INDEX_LISTS, SCALE, VARIANTS, allowed, family, offered, ratioable
 from .data import get_table, nse_levels
@@ -16,6 +16,9 @@ from .ready import BY_ID as READY_BY_ID, READY, public as ready_public, shown_to
 
 router = APIRouter(prefix="/api/screener")
 BASIC_ROWS = 25
+# POST /query per minute (visitor by IP, member by account). The page sends one per filter change (150 ms debounce) or typed search (250 ms), and repeats
+# are cached in the browser for a minute, so a person using it stays far below; a script calling it nonstop is stopped.
+READ_VISITOR, READ_MEMBER = 90, 180
 # The table opens with company, market cap and price only; the website adds a column for each filter the visitor adds (and takes it away with the filter).
 DEFAULT_COLUMNS = ["market_cap", "price"]
 # The Stock screener opens with the company name and the market cap only (task #145, 14 Nov 2026: "only name of company and market cap should be visible";
@@ -362,7 +365,9 @@ def _facets(t, body, plan: str) -> Dict[str, Dict[str, int]]:
 @router.post("/query")
 async def query(request: Request, body: Query_):
     started = time.perf_counter()
-    plan = _plan(await current(request))
+    ctx = await current(request)
+    await read_limit(request, ctx, "screener_query", READ_VISITOR, READ_MEMBER)
+    plan = _plan(ctx)
     t = await _table(request)
     idx, cols, rv = _run(t, body, plan)
     total = len(idx)
