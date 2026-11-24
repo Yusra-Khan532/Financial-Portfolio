@@ -50,3 +50,8 @@
 .fx-size button[aria-pressed=true] small{color:color-mix(in srgb,var(--bg) 80%,transparent)}
 .fx-seg button[disabled]{opacity:.45;cursor:not-allowed}
 @media (max-width:900px){.fx{grid-template-areas:"top" "l" "r"}}
+.fx-wide{overflow-x:auto;max-width:100%;padding-bottom:4px}
+.fx-wide:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.fx-r .fx-more{margin:4px 0 6px}
+.fx-many{gap:4px}
+.fx-many .fx-v{font-size:var(--fs-12);padding:0}

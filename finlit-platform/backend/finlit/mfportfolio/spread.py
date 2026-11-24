@@ -62,6 +62,27 @@ def by_isin(holdings: Optional[List[Dict[str, Any]]]) -> Tuple[Optional[List[Dic
     return out, unmatched
 
 
+def master_names(funds: List[Dict[str, Any]], names: Dict[str, str]) -> int:
+    """Task #389 (fault 10): every holding line with an ISIN the listed-company master knows (disclosure_isin -> companies) takes the master's name
+    ("EQ - BHARTI AIRTEL LTD." and "ITC LTD" arrive as the fund files wrote them, some cut short: "EQ - ADANI PORTS AND SPECIAL ECONO"); the fund file's
+    own text stays beside it as `fileName`. A line with no match keeps the file's name. `names`: ISIN (upper case) -> master name. Returns how many
+    lines were renamed. Changes the lines in place, before spread() reads them, so every stock list, grid cell and top-stocks row carries the same name."""
+    n = 0
+    for f in funds:
+        hs = f.get("holdings")
+        if not hs:
+            continue
+        out = []
+        for h in hs:
+            m = names.get((h.get("isin") or "").upper())
+            if m and m != h.get("name"):
+                h = {**h, "name": m, "fileName": h.get("name")}
+                n += 1
+            out.append(h)
+        f["holdings"] = out
+    return n
+
+
 def spread(funds: List[Dict[str, Any]], size_of: Callable[[Optional[str], Optional[str]], Optional[str]]) -> Dict[str, Any]:
     """funds: [{code, name, amc, category, units?, nav?, holdings: [...] | None, assetSplit: {...} | None, series: {t, v} | None}]
     size_of(isin, symbol) -> 'Large' | 'Mid' | 'Small' | 'Micro' | None"""

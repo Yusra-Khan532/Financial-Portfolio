@@ -11,6 +11,7 @@ import { crores, pct1, rupees, typeOf, type Holding, type MfSpread } from "../..
 import { fundName, type FundRisk, type MfRisk } from "../../lib/mfPack";
 import { GroupBand, HoldingHeads, HoldingRowCells, LotRows, LotToggle, TotalRow, holdingFigs, type LotsProps } from "../../portfolio/HoldingCells";
 import { keyOf } from "../../lib/mfBook";
+import { betaRangeWord } from "../../portfolio/shared/words";   // task #389: the range names by their key (file 32, Risk 1)
 
 export type FundsView = "overview" | "returns" | "risk" | "type";
 type Col = { k: string; label: string; help?: [string, string]; num?: boolean; get: (h: Holding, f?: FundRisk) => number | string | null };
@@ -156,11 +157,11 @@ export function FundsTable({ hs, rk, sp, actions, listLabel, lots, stuck, lead }
       {view === "risk" && <Scroll label="risk of each fund"><table className="sp-tb mff-t kit-grid"><thead><tr>{cols.map((c) => th(c))}</tr></thead>
         <tbody>{rows.map((h) => { const f = by.get(h.code); return <tr key={h.id}>{fundCell(h)}
           <td className="r">{f?.swing == null ? "–" : `${f.swing.toFixed(1)}%`}</td><td className="r sp-red">{f?.worstFall == null ? "–" : `${f.worstFall < 0 ? "−" : ""}${Math.abs(f.worstFall).toFixed(1)}%`}</td>
-          <td className="r">{f?.compared === false ? <span className="sp-note">Not compared</span> : f?.betaOwn == null ? <span className="sp-note">{f?.why ?? "Under a year"}</span> : <><b>{b2(f.betaOwn)}</b> {f.band && <span className={"mff-rd r-" + f.band.key}>{f.band.word}</span>}</>}</td>
+          <td className="r">{f?.compared === false ? <span className="sp-note">Not compared</span> : f?.betaOwn == null ? <span className="sp-note">{f?.why ?? "Under a year"}</span> : <><b>{b2(f.betaOwn)}</b> {f.band && <span className={"mff-rd r-" + f.band.key}>{betaRangeWord(f.band.key, f.band.word)}</span>}</>}</td>
           <td>{f?.benchmark ?? "–"}{f?.standIn && <span className="mff-tag stand" title={f.benchWhy ?? undefined}>Stand-in</span>}</td>
           <td className="r">{f?.riskShare == null ? "–" : `${f.riskShare.toFixed(1)}%`}</td></tr>; })}</tbody>
         <tfoot><tr><th scope="row">Your list</th><td className="r">{rk?.list.swing == null ? "–" : `${rk.list.swing.toFixed(1)}%`}</td><td className="r sp-red">{rk?.list.worstFall == null ? "–" : `−${Math.abs(rk.list.worstFall).toFixed(1)}%`}</td>
-          <td className="r"><b>{b2(risk?.betaOwn)}</b> {risk?.betaOwnBand && <span className={"mff-rd r-" + risk.betaOwnBand.key}>{risk.betaOwnBand.word}</span>}</td><td>Each fund's own</td><td className="r">100%</td></tr>
+          <td className="r"><b>{b2(risk?.betaOwn)}</b> {risk?.betaOwnBand && <span className={"mff-rd r-" + risk.betaOwnBand.key}>{betaRangeWord(risk.betaOwnBand.key, risk.betaOwnBand.word)}</span>}</td><td>Each fund's own</td><td className="r">100%</td></tr>
           <tr><th scope="row">Nifty 500</th><td className="r">{rk?.bench.swing == null ? "–" : `${rk.bench.swing.toFixed(1)}%`}</td><td className="r sp-red">{rk?.bench.worstFall == null ? "–" : `−${Math.abs(rk.bench.worstFall).toFixed(1)}%`}</td><td className="r">1.00</td><td>–</td><td /></tr></tfoot></table></Scroll>}
       {view === "type" && <div className="mff-types"><div className="mff-oa"><button type="button" className="eq-oa" onClick={() => setOpen(open.size ? new Set() : new Set(stripShown.map((g) => g.type)))}>{open.size ? "Close all" : "Open all"}</button></div>
         <Scroll label="funds by type"><table className="sp-tb mff-t kit-grid"><thead><tr><th scope="col">Fund</th><th scope="col">Category</th><th scope="col" className="r">Health Score</th><th scope="col" className="r">Swing a year · 3 yrs</th></tr></thead>

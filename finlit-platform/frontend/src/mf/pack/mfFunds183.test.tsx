@@ -97,7 +97,7 @@ describe("Your funds (M5)", () => {
     expect(screen.getByRole("note").textContent).toMatch(/IDCW options show no 1, 3 or 5 year return/);
     fireEvent.click(screen.getByRole("button", { name: "Risk" }));
     const mnc = screen.getByText("ICICI Prudential MNC Fund").closest("tr")!;
-    expect(mnc.textContent).toMatch(/0\.82 Defensive.*Nifty 500Stand-in.*39\.5%/);
+    expect(mnc.textContent).toMatch(/0\.82 Less sensitive.*Nifty 500Stand-in.*39\.5%/);   // task #389: the server's "Defensive" reads by its key
     expect(screen.getByText("JioBlackRock Liquid Fund").closest("tr")!.textContent).toMatch(/Not compared/);
     expect(Array.from(document.querySelectorAll(".mff-t tfoot th")).map((t) => t.textContent)).toEqual(["Your list", "Nifty 500"]);
     fireEvent.click(screen.getByRole("button", { name: "By fund type" }));

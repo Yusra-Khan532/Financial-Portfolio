@@ -165,17 +165,17 @@ export function BetaBuild({ r, basis = "equal", nameOf = ident }: { r: RiskAnswe
 }
 
 // ------------------------------------------------------------------------------------------------ the beta scale and the range boxes (task #388, file 36, change 10)
-type Pin = { k: string; short: string; b: number; band: RiskShare["band"]; list?: boolean; pick?: boolean };
+export type Pin = { k: string; short: string; b: number; band: RiskShare["band"]; list?: boolean; pick?: boolean };
 /** The six ranges with a label for each figure on the scale itself ("1.29× Your list"): one row with curved lines on a laptop, stepped rows with straight
  *  lines on a phone (betaLabels.ts). A band name that does not fit inside its band is hidden (the colour stays; the range boxes name every range). */
-export function BetaScale({ pins }: { pins: Pin[] }) {
+export function BetaScale({ pins, fmt = times }: { pins: Pin[]; /** a figure's text on its label: "1.29×" (default); the MF page (task #389, file 32) writes "0.84" */ fmt?: (b: number) => string }) {
   const box = useRef<HTMLDivElement>(null), labs = useRef<Record<string, HTMLSpanElement | null>>({}), bands = useRef<HTMLDivElement>(null);
   const [L, setL] = useState<ScaleLayout | null>(null), [tight, setTight] = useState<Set<string>>(new Set());
   const sig = pins.map((p) => `${p.k}:${p.b}`).join("|");
   useLayoutEffect(() => {
     const el = box.current; if (!el) return;
     const fit = () => { const w = el.clientWidth || 600;
-      setL(placeLabels(pins.map((p) => ({ key: p.k, x: (Math.max(0, Math.min(MAX, p.b)) / MAX) * w, w: labs.current[p.k]?.offsetWidth || 24 + 8 * (times(p.b).length + p.short.length) })), w));
+      setL(placeLabels(pins.map((p) => ({ key: p.k, x: (Math.max(0, Math.min(MAX, p.b)) / MAX) * w, w: labs.current[p.k]?.offsetWidth || 24 + 8 * (fmt(p.b).length + p.short.length) })), w));
       const hide = new Set<string>(); bands.current?.querySelectorAll<HTMLElement>("span[data-k]").forEach((b) => { if (b.scrollWidth > b.clientWidth + 1) hide.add(b.dataset.k!); });
       setTight((t) => (t.size === hide.size && [...hide].every((k) => t.has(k)) ? t : hide)); };
     fit();
@@ -186,7 +186,7 @@ export function BetaScale({ pins }: { pins: Pin[] }) {
   return <div className="eqr-scale eqb-scale">
     <div className={"eqb-labs" + (L ? " " + L.mode : "")} ref={box} style={{ height: L ? `${L.height}px` : undefined }}>
       {pins.map((p) => { const q = at2(p.k); return <span key={p.k} ref={(n) => { labs.current[p.k] = n; }} className={"eqb-lab" + (p.list ? " list" : "") + (p.pick ? " pick" : "")}
-        style={q ? { left: `${q.left}px`, top: `${q.top}px` } : { visibility: "hidden" }} title={`${p.k} ${times(p.b)}${p.band ? ` · ${rangeWord(p.band)}` : ""}`}><b>{times(p.b)}</b>{p.short}</span>; })}
+        style={q ? { left: `${q.left}px`, top: `${q.top}px` } : { visibility: "hidden" }} title={`${p.k} ${fmt(p.b)}${p.band ? ` · ${rangeWord(p.band)}` : ""}`}><b>{fmt(p.b)}</b>{p.short}</span>; })}
       {L && <svg className="eqb-lnk" width="100%" height={L.height} aria-hidden="true">{L.lines.map((ln) => { const p = pins.find((x) => x.k === ln.key); const c = p?.list ? "list" : undefined;
         return <g key={ln.key}><path d={ln.d} className={c} /><circle cx={ln.x2} cy={ln.y2 - 4} r={4} className={c} /></g>; })}</svg>}
     </div>
@@ -212,7 +212,7 @@ export function RangeBoxes({ ranges, pin, onPin, nameOf }: { ranges: Range[]; pi
     </div>; })}</div>;
 }
 /** A small pop-up under its button: title, ×; Esc or a tap outside closes it. */
-function Popup({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+export function Popup({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   const me = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };

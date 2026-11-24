@@ -35,7 +35,7 @@ describe("MF Key figures (change 9)", () => {
   });
   it("Risk: the beta against its own benchmark beside the Nifty 500's weekly past-year figure (fix 4), the swing and the worst fall with their windows", () => {
     const [a, b, c] = mfKeyFigures("risk", C);
-    expect(a.lead + a.rest).toBe("Beta 0.91: it has moved about 9% when its benchmark moved 10%.");
+    expect(a.lead + a.rest).toBe("0.91×: it has moved about 9% when its benchmark moved 10%.");
     expect(a.rows!.map((r) => `${r.label} ${r.text}`)).toEqual(["Own benchmark 0.91", "Nifty 500 0.50"]);
     expect(a.line).toBe(1);
     expect(a.from).toMatch(/Nifty 500: weekly, past year/);

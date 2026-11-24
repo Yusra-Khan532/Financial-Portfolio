@@ -28,7 +28,7 @@ describe("Risk at a glance (M7, step 1)", () => {
     expect(riskLede(RK)).toEqual({ lead: "Your list moves less than its markets.", rest: "Each fund against its own benchmark, the list has moved 0.71% for every 1% move in them, and it swings 9.6% in a typical year against 14.3% for the Nifty 500 (3 yrs, daily)." });
     expect(glanceTiles(RK).map((t) => [t.k, t.v, t.vs, t.sub])).toEqual([
       ["Typical swing in a year · 3 yrs", "9.6%", "Nifty 500: 14.3% (3 yrs, daily)", "A calmer ride than the index."], ["Worst fall from a high · 3 yrs", "−8.2%", "Nifty 500: −18.8% (3 yrs, daily)", "Less than half as deep."],
-      ["In the 10 worst weeks · past year", "−1.8%", "Nifty 500: −2.5% (past year, weekly)", "Falls less when the market falls."], ["Beta, own benchmarks", "0.71", "benchmarks: 1.00", "Moves less than its markets."]]);
+      ["In the 10 worst weeks · past year", "−1.8%", "Nifty 500: −2.5% (past year, weekly)", "Falls less when the market falls."], ["Moves with its markets", "0.71×", "its markets: 1.00×", "Moves less than its markets."]]);
     view(<GlanceSection rk={RK} />);
     expect(screen.getByText(/beta and weekly figures from the past year, to 13 Nov 2026/)).toBeTruthy();
   });
@@ -41,7 +41,7 @@ describe("How the beta is built and Reading a beta (M7, step 2)", () => {
     expect(g.reduce((a, x) => a + (x.adds ?? 0), 0)).toBeCloseTo(0.71, 2);
     view(<BuildSection rk={RK} />);
     expect(document.querySelector(".eqr-sum")!.textContent).toMatch(/0\.71.*0\.34 \+ 0\.20 \+ 0\.17 \+ 0\.00 = 0\.71/);
-    expect(Array.from(document.querySelectorAll(".eqr-pin")).map((p) => p.textContent)).toEqual(["0.71 Your list Defensive", "0.89 Without liquid Defensive"]);
+    expect(Array.from(document.querySelectorAll(".eqb-lab")).map((p) => [p.textContent, p.getAttribute("title")])).toEqual([["0.71Your list", "Your list 0.71 · Less sensitive"], ["0.89Without liquid", "Without liquid 0.89 · Less sensitive"]]);   // task #389: labels on the scale
     expect(Array.from(document.querySelectorAll(".eqr-b3 .eqr-v b")).map((b) => b.textContent)).toEqual(["0.71", "0.89", "0.65"]);
     fireEvent.click(screen.getByRole("button", { name: "Kotak MNC" }));
     expect(screen.getByText(/Kotak MNC: 0\.90 against Nifty MNC, similar; 85% of its moves explained/)).toBeTruthy();

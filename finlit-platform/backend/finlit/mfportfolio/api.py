@@ -236,6 +236,14 @@ async def size_ranks(conn, isins: List[str]) -> Dict[str, str]:
     return out
 
 
+async def company_names(conn, isins: List[str]) -> Dict[str, str]:
+    """ISIN -> the listed-company master's name (companies.name through disclosure_isin), for the ISINs the master knows. Task #389 (fault 10)."""
+    if not isins:
+        return {}
+    rows = await conn.fetch("SELECT d.isin, c.name FROM disclosure_isin d JOIN companies c ON c.symbol = d.symbol WHERE d.isin = ANY($1::text[]) AND c.name <> c.symbol", isins)
+    return {r["isin"].upper(): r["name"].strip() for r in rows if r["name"] and r["name"].strip()}
+
+
 async def nav_history(conn, r: Dict[str, Any]) -> Tuple[List[int], List[float]]:
     """Every stored daily NAV of a fund's Growth option (the same plan of the same fund; an IDCW option has no steady NAV line), as date ordinals and NAVs."""
     from ..mf import unpack_series
@@ -280,7 +288,7 @@ async def trend_block(request: Request, funds: List[Dict[str, Any]], top: List[D
 async def diversification(request: Request, ctx: Ctx = Depends(member_ctx), pf: Optional[str] = Query(None, pattern=PF_QUERY)):
     """How spread the member's funds are: words and plain figures only. The levels and bands that give the overall word stay here."""
     from .. import portfolios
-    from .spread import public_view, spread
+    from .spread import master_names, public_view, spread
     store = request.app.state.store
     async with store.pool.acquire() as conn:
         held = await holdings_of(conn, ctx.user_id, pf)
@@ -308,6 +316,7 @@ async def diversification(request: Request, ctx: Ctx = Depends(member_ctx), pf: 
     isins = sorted({h["isin"] for f in funds for h in (f["holdings"] or []) if h.get("isin") and h.get("assetClass") == "equity"})
     async with store.pool.acquire() as conn:
         sizes = await size_ranks(conn, isins)
+        master_names(funds, await company_names(conn, isins))   # task #389 (fault 10): the listed-company master's name for every ISIN it knows
     out = public_view(spread(funds, lambda isin, sym: sizes.get(isin or "")))
     out["funds"] = [{"code": f["code"], "name": f["name"], "amc": f["amc"], "category": f["category"], "weight": round(f["w"] * 100, 1), "holdingsAsOf": f["asOf"], "assetSplit": f.get("assetSplit"),
                      "why": None if f["holdings"] else "The fund house's monthly portfolio disclosure is not loaded yet."} for f in funds]
@@ -319,6 +328,16 @@ async def diversification(request: Request, ctx: Ctx = Depends(member_ctx), pf: 
         out["trendLocked"] = True
     out.update(count=len(funds), disclaimer=DISCLAIMER)
     return reply(out)
+
+
+def not_compared(f: Dict[str, Any]) -> Dict[str, Any]:
+    """Task #389 (fault 6): a fund the own-benchmark step marks not compared (liquid, debt, overseas, gold) follows no share index, so its share of the Nifty
+    500's falls is no reading (a liquid fund rises on those days and read "−4 per 100"): blank, with the reason, as its beta is. Other funds keep theirs.
+    risk.fund_figures stays as it is (the ETF page and All my investments share it)."""
+    if f.get("compared") is False and f.get("fallsTaken") is not None:
+        f["fallsTaken"] = None
+        f["fallsWhy"] = "Not compared: it follows no share index, so the Nifty 500's falls are no measure for it."
+    return f
 
 
 @router.get("/risk")
@@ -365,6 +384,8 @@ async def fund_risk(request: Request, ctx: Ctx = Depends(member_ctx), pf: Option
         by = {r["code"]: r for r in own.pop("funds")}
         for f in funds:
             f.update(by.get(f["code"], {}))
+    for f in funds:
+        not_compared(f)
     return reply({"count": len(funds), "basis": "value" if valued else "equal", "funds": funds, "own": own,
                   "bench": {"name": "NIFTY 500", "swing": risk.r1(bench_swing), "worstFall": risk.r1(risk.worst_fall(bv)), "from": date.fromordinal(bd[0]).isoformat(), "to": date.fromordinal(bd[-1]).isoformat()},
                   "list": {"swing": risk.r1(list_swing), "worstFall": risk.r1(risk.worst_fall(lv)) if len(lv) >= risk.MIN_DAYS else None,
@@ -418,6 +439,9 @@ async def own_benchmarks(request: Request, schemes: Dict[int, Dict[str, Any]], h
         rows = indices.shape_levels(raw, 2)["rows"] if raw else []
         if rows:
             closes[code] = ([date.fromisoformat(r["d"]).toordinal() for r in rows], [float(r["c"]) for r in rows])
+    for f in funds:   # task #389 (fault 4): an index fund whose tracked index has no closes today is set against the Nifty 500, tagged Stand-in with the reason
+        if f["bench"].get("tracks") and f["bench"]["tracks"] not in closes:
+            f["bench"] = bench.stand_in_for(f["bench"])
     gold = None
     if any(leg == "GOLD" for f in funds for leg, _ in f["bench"]["legs"]):
         async with request.app.state.store.pool.acquire() as conn:
