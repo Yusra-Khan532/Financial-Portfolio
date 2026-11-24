@@ -7,3 +7,13 @@ frontend/dist
 backend/tests/__pycache__
 .env.aws
 deploy/aws/.env.aws
+# secrets / credentials: never let a stray env file or key leak into the public image. The Dockerfiles use selective COPY, so this is defense-in-depth.
+**/.env
+**/.env.*
+*.pem
+*.key
+**/*.pem
+**/*.key
+**/credentials.json
+**/*.p12
+**/id_rsa*
