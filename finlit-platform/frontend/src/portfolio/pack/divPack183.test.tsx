@@ -33,11 +33,11 @@ describe("the three sub-tabs (D54)", () => {
   });
   it("switches the sector panel between Macro sector and Sector, and reads a tapped cell (D56, D59)", () => {
     view(<DivSubTabs d={d} />);
-    fireEvent.click(screen.getByRole("button", { name: "Industrials and Utilities: 0.40" }));
+    fireEvent.click(screen.getByRole("button", { name: "Industrials and Utilities: 0.40, partly linked" }));
     expect(screen.getByText(/Industrials · Utilities: 0.40/).closest("p")!.textContent).toMatch(/Across 3 pairs of shares, they are partly linked/)   // task #385: file 33's correlation words;
     fireEvent.click(screen.getByRole("button", { name: "Sector · 4" }));
     expect(screen.getByRole("heading", { name: /Do your sectors move together\?/ })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Capital Goods and Capital Goods: 0.80" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Capital Goods and Capital Goods: 0.80, closely linked" })).toBeTruthy();
   });
   it("filters the stock groups: all, crossing sectors, one sector (D61, D62)", () => {
     view(<DivSubTabs d={d} />);
@@ -56,7 +56,7 @@ describe("share by share (D67–D69)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Most independent first" }));   // task #385: the order buttons say what they do
     expect(names()).toEqual(["D", "C", "E", "A", "B"]);
     fireEvent.click(screen.getByRole("checkbox", { name: /Only pairs across sectors/ }));
-    expect(screen.queryByRole("button", { name: "A and B: 0.80" })).toBeNull(); expect(screen.getByRole("button", { name: "A and E: 0.60" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "A and B: 0.80, closely linked" })).toBeNull(); expect(screen.getByRole("button", { name: "A and E: 0.60, closely linked" })).toBeTruthy();
     fireEvent.click(within(document.querySelector(".eqd-sheat tbody")!).getByRole("button", { name: "D" }));
     const read = document.querySelector(".eqv-rc1")!.textContent!;   // task #385: the full-width reading panel
     expect(read).toMatch(/D · Information Technology/); expect(read).toMatch(/0\.13Barely linked with the rest/);

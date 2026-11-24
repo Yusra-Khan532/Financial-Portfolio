@@ -192,9 +192,11 @@ describe("the whole Risk view", () => {
     vi.stubGlobal("matchMedia", (q: string) => ({ matches: q === PHONE_Q, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} }));
     all(<RiskView answer={BOTH} page={page} sectorOf={() => "Industrials"} shares={shares} gold value={null} card={card} nameOf={nameOf} />);
     const lines = Array.from(document.querySelectorAll(".eqf-sum .s")).map((s) => s.textContent);
-    expect(lines).toHaveLength(6);
-    expect(lines[1]).toMatch(/^Moves \d\.\d\d× as much as its markets · (Similar|More sensitive|High|Less sensitive|Much less sensitive|Very high)$/);
-    expect(lines[2]).toMatch(/^Large: rises more, falls less · Mid: moves less both ways · /);
-    expect(lines[5]).toBe("Alpha Motors moves the most with its market: 1.72×");
+    // task #388 (file 36, change 8): Key figures has no step (and no fold) of its own; it sits in step 1 after Risk at a glance
+    expect(lines).toHaveLength(5);
+    expect(Array.from(document.querySelectorAll(".eqf-h")).map((h) => h.textContent)).not.toContain("Key figures");
+    expect(lines[0]).toMatch(/^Moves \d\.\d\d× as much as its markets · (Similar|More sensitive|High|Less sensitive|Much less sensitive|Very high)$/);
+    expect(lines[1]).toMatch(/^Large: rises more, falls less · Mid: moves less both ways · /);
+    expect(lines[4]).toBe("Alpha Motors moves the most with its market: 1.72×");
   });
 });

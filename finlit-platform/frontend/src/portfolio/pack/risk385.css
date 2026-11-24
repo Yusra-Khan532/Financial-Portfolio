@@ -89,3 +89,50 @@
 /* the three risk tables span their card (the site's .tw pads 24px inside the card's own padding) */
 .eq .eqs-frz:has(> table.eqr-sb, > table.eqr-rs, > table.eqr-each) { margin-left: 0; margin-right: 0; padding-left: 0; padding-right: 0; }
 .eq table.eqr-sb tbody tr:last-child > th, .eq table.eqr-rs tbody tr:last-child > th { border-bottom: 0; }
+
+/* Task #388 (developer file 36, change 10): How your list's beta is built. Labels sit on the scale, each joined to its point (betaLabels.ts); band names that
+   do not fit are hidden; six range boxes of one size with room for 3 shares and a line for "+N more"; three tabs fill the row. F2: band names and range counts
+   in darker ink on light, lighter ink on dark, 4.5:1 or better. Classes: eqb-. */
+.eq .eqb-scale { margin: 8px 0 6px; }
+.eq .eqb-labs { position: relative; min-height: 58px; }
+.eq .eqb-lab { position: absolute; z-index: 2; display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); background: var(--s1); color: var(--text); font: 500 var(--fs-12)/1 var(--sans); white-space: nowrap; box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 6%, transparent); box-sizing: border-box; }
+.eq .eqb-lab b { font: 700 var(--fs-13)/1 var(--sans); font-variant-numeric: tabular-nums; }
+.eq .eqb-lab.list { background: var(--text); border-color: var(--text); color: var(--s1); }
+.eq .eqb-lab.pick { border-style: dashed; }
+.eq svg.eqb-lnk { position: absolute; left: 0; top: 0; z-index: 1; overflow: visible; pointer-events: none; }
+.eq svg.eqb-lnk path { fill: none; stroke: var(--muted); stroke-width: 1.25; }
+.eq svg.eqb-lnk path.list { stroke: var(--text); stroke-width: 1.75; }
+.eq svg.eqb-lnk circle { fill: var(--s1); stroke: var(--text); stroke-width: 1.5; }
+.eq svg.eqb-lnk circle.list { fill: var(--text); }
+.eq .eqr-bands span.eqb-tight { color: transparent !important; }
+/* F2: readable band names (on the scale) and range counts (under it) */
+.eq :is(.eqr-bands, .eqr-spread) .r-less { color: var(--ui-beta-less); } .eq :is(.eqr-bands, .eqr-spread) .r-defensive { color: var(--ui-beta-defensive); }
+.eq :is(.eqr-bands, .eqr-spread) .r-similar { color: var(--ui-beta-similar); } .eq :is(.eqr-bands, .eqr-spread) .r-more { color: var(--ui-beta-more); }
+.eq :is(.eqr-bands, .eqr-spread) .r-high { color: var(--ui-beta-high); } .eq :is(.eqr-bands, .eqr-spread) .r-very_high { color: var(--ui-beta-very-high); }
+/* six boxes of one size: one row on a laptop, three on a tablet, one per row on a phone (each keeping only the room its shares need) */
+.eq .eqb-ranges { grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: stretch; }
+@media (max-width: 1100px) { .eq .eqb-ranges { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .eq .eqb-ranges { grid-template-columns: minmax(0, 1fr); } }
+.eq .eqb-ranges .eqr-range { display: flex; flex-direction: column; min-width: 0; }
+.eq .eqb-ranges .eqr-range ul { min-height: calc(3 * 31px); margin-bottom: 0; }
+.eq .eqb-ranges .eqr-range li { min-height: 31px; padding: 3px 0; flex-wrap: nowrap; box-sizing: border-box; }
+.eq .eqb-ranges .eqr-range li > b { flex: none; font-variant-numeric: tabular-nums; }
+.eq .eqb-ranges .eqr-nm { flex: 1; min-width: 0; text-align: left; }
+.eq .eqb-ranges .eqr-nm > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eq .eqb-ranges .eqr-nm i { flex: none; }
+.eq .eqb-ranges li.eqb-none { border-top: 0; color: var(--muted); font: 400 var(--fs-13)/1.3 var(--sans); }
+.eq .eqb-foot { display: flex; align-items: flex-end; min-height: 34px; margin-top: auto; padding-top: 4px; }
+@media (max-width: 640px) { .eq .eqb-ranges .eqr-range ul { min-height: 0; } .eq .eqb-foot { min-height: 0; } .eq .eqb-foot:empty { display: none; } }
+.eq .eqb-mw { position: relative; }
+.eq .eqb-more { min-height: 30px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); background: var(--s1); font: 500 var(--fs-13)/1 var(--sans); color: var(--text); cursor: pointer; }
+.eq .eqb-more:hover, .eq .eqb-more[aria-expanded="true"] { background: var(--s2); }
+.eq .eqb-pop { position: absolute; left: 0; top: calc(100% + 6px); z-index: 30; width: min(300px, calc(100vw - 20px)); max-height: 60vh; overflow: auto; padding: 12px 14px 14px; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--s1); color: var(--text); box-shadow: 0 22px 50px -20px color-mix(in srgb, var(--text) 45%, transparent); }
+.eq .eqr-range:nth-child(6n) .eqb-pop, .eq .eqr-range:nth-child(6n - 1) .eqb-pop { left: auto; right: 0; }
+.eq .eqb-poph { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 6px; font: 600 var(--fs-14)/1.3 var(--sans); }
+.eq .eqb-popx { flex: none; width: 30px; height: 30px; border: 1px solid var(--border); border-radius: 50%; background: var(--s1); font: 400 var(--fs-18, 18px)/1 var(--sans); color: var(--text); cursor: pointer; }
+.eq .eqb-popl { list-style: none; margin: 0; padding: 0; }
+.eq .eqb-popl li { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 32px; border-top: 1px solid var(--border); font-size: var(--fs-13); }
+.eq .eqb-popl .eqr-nm { flex: 1; min-width: 0; } .eq .eqb-popl .eqr-nm > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* three tabs fill the row; on a phone two, then "Three ways to measure" across the full width */
+.pfx .xtabs.eqb-tabs3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 900px) { .pfx .xtabs.eqb-tabs3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pfx .xtabs.eqb-tabs3 > :nth-child(3) { grid-column: 1 / -1; } }

@@ -330,6 +330,11 @@ async def test_saved_state_and_plan_limits(app):
     for bad in ({"wordBookmarks": ["DuPont"]}, {"wordBookmarks": ["-x"]}, {"wordBookmarks": ["a b"]}, {"wordBookmarks": ["x" * 81]}, {"wordBookmarks": "ebitda"},
                 {"wordBookmarks": [f"t{i}" for i in range(201)]}, {"wordSeen": "23-11-2026"}, {"wordSeen": "2026-11-23T00:00"}, {"wordSeen": 20261123}):
         assert (await basic.put("/api/me/prefs", json=bad)).status_code == 422, bad
+    # task #388 (file 36, change 9): a block the member hid ("eq:grid", Share by share) is kept with the account, so it stays hidden on every device
+    assert (await basic.put("/api/me/prefs", json={"hiddenBlocks": ["eq:grid"]})).status_code == 200
+    assert (await basic.get("/api/me/state")).json()["prefs"]["hiddenBlocks"] == ["eq:grid"]
+    for bad in ({"hiddenBlocks": ["grid"]}, {"hiddenBlocks": ["EQ:grid"]}, {"hiddenBlocks": "eq:grid"}, {"hiddenBlocks": [f"eq:g{i}" for i in range(41)]}):
+        assert (await basic.put("/api/me/prefs", json=bad)).status_code == 422, bad
     # one user never sees another's state
     assert (await silver.get("/api/me/state")).json()["prefs"] == {}
     for c in (basic, silver):

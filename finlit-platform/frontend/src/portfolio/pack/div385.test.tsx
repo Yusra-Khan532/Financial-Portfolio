@@ -9,8 +9,9 @@ import { StyleTiltPack } from "./EquityPack";
 import { bannedIn } from "../shared";
 import { PAGE_BANNED } from "../wordingRules";
 import type { PageObject } from "../types";
+import { prefs } from "../../lib/prefs";
 
-beforeEach(() => { vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} }); });
+beforeEach(() => { vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} }); prefs.set({ hiddenBlocks: [] }, true); });
 afterEach(cleanup);
 
 const MACROS = ["Consumer Discretionary", "Financial Services", "Industrials", "Information Technology", "Healthcare", "Energy", "Utilities", "Commodities", "Services", "Telecommunication", "Diversified", "Fast Moving Consumer Goods"];
@@ -109,13 +110,52 @@ describe("Share by share (rows 154–163)", () => {
     expect(document.querySelectorAll(".eqv-pl li")).toHaveLength(4);
     expect(document.querySelectorAll(".eqv-rest li")).toHaveLength(8); expect(screen.getByRole("button", { name: /Show all 13 shares/ })).toBeTruthy();
   });
-  it("a 100-share list: the grid starts closed, the chart draws bars", () => {
+  it("a 100-share list: the grid is open on load (task #388), the chart draws bars", () => {
     view(<ShareGrid d={sample(100)} />);
-    expect(screen.getByRole("button", { name: /Show the grid.*every pair of your 100 shares, 4,950 in all/ })).toBeTruthy();
-    expect(document.querySelector(".eqd-sheat")).toBeNull();
+    // task #388 (file 36, change 9): open at any list size unless the member hid it; the old "closed above 20 shares" is gone
+    expect(document.querySelector(".eqv-gfb")!.textContent).toBe("Hide the grid");
+    expect(document.querySelectorAll(".eqd-sheat tbody tr")).toHaveLength(100);
+    expect(document.querySelector(".eqv-gx")!.textContent).toBe("Expand ⤢");
     expect(document.querySelectorAll(".eqv-pc rect").length).toBeGreaterThan(5); expect(document.querySelectorAll(".eqv-pc circle")).toHaveLength(0);
     fireEvent.click(document.querySelector(".eqv-pc rect")!);
     expect(document.querySelector(".eqv-pcr")!.textContent).toMatch(/^\d+ pairs? between \d\.\d\d and \d\.\d\d · the (closest of them|pair): /);
+  }, 60_000);   // 9,900 grid cells: slow in jsdom on a busy machine
+  it("Hide the grid is remembered with the member's settings, across views and visits; Show brings it back (task #388, change 9)", () => {
+    const first = view(<ShareGrid d={sample(13)} />);
+    fireEvent.click(document.querySelector(".eqv-gfb")!);
+    expect(prefs.get().hiddenBlocks).toEqual(["eq:grid"]);
+    expect(document.querySelector(".eqd-sheat")).toBeNull(); expect(document.querySelector(".eqv-gx")).toBeNull();   // Expand hides with the grid
+    first.unmount();                                                   // another view, then back: the grid stays hidden
+    view(<ShareGrid d={sample(13)} />);
+    expect(document.querySelector(".eqv-gfb")!.textContent).toMatch(/^Show the grid/);
+    fireEvent.click(document.querySelector(".eqv-gfb")!);
+    expect(prefs.get().hiddenBlocks).toEqual([]);
+    expect(document.querySelector(".eqd-sheat")).toBeTruthy();
+  });
+  it("Expand opens the grid on its own screen: title, line, Close × and Esc, bigger cells, taps work as on the page (task #388, change 9)", () => {
+    view(<ShareGrid d={sample(13)} />);
+    fireEvent.click(screen.getByRole("button", { name: "Expand" }));
+    const dlg = screen.getByRole("dialog", { name: "Share by share" });
+    expect(dlg.textContent).toMatch(/^Share by shareEvery pair of your 13 shares · darker cells move together moreClose ×/);
+    expect(document.documentElement.classList.contains("eqv-noscroll")).toBe(true);
+    expect(dlg.querySelector("table.eqd-sheat.eqd-sheat-big")).toBeTruthy();
+    expect(document.activeElement?.className).toBe("eqv-ovlx");
+    fireEvent.click(within(dlg).getByRole("button", { name: /^S1 and S2: / }));
+    expect(document.querySelector(".eqv-rc1")!.textContent).toMatch(/Sample Company 1 and Sample Company 2/);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull(); expect(document.documentElement.classList.contains("eqv-noscroll")).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Expand" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+  it("grid figures: two decimals with the 0, the word in each cell's label, ink that reads on the cell (task #388, part B item 5, F3)", () => {
+    view(<ShareGrid d={sample(5)} />);
+    const cells = Array.from(document.querySelectorAll<HTMLButtonElement>(".eqd-sheat td button"));
+    expect(cells.every((b) => /^0\.\d\d$/.test(b.textContent!))).toBe(true);
+    cells.forEach((b) => { expect(b.getAttribute("aria-label")).toMatch(new RegExp(`^S\\d and S\\d: ${b.textContent!.replace(".", "\\.")}, (barely|loosely|partly|closely) linked$`)); expect(b.title).toBe(b.getAttribute("aria-label")); });
+    cells.forEach((b) => { expect(b.style.getPropertyValue("--eqd-ink-l")).toMatch(/^#(10201c|fff)$/); expect(b.style.getPropertyValue("--eqd-ink-d")).toMatch(/^#(10201c|fff)$/); });
+    // Each share against the rest: the word after each figure
+    expect(Array.from(document.querySelectorAll(".eqv-rest .v")).every((v) => /^0\.\d\d (barely|loosely|partly|closely)$/.test(v.textContent!))).toBe(true);
   });
   it("tapping a cell, a name or a line reads it in the panel", () => {
     view(<ShareGrid d={sample(5)} />);

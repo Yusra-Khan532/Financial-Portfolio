@@ -78,14 +78,14 @@ describe("views", () => {
     const sw = screen.getByRole("group", { name: "Group by" });
     expect(within(sw).getAllByRole("button").map((b) => b.textContent)).toEqual(["Macro sector · 2", "Sector · 2", "Industry · 3"]);
     const rows = () => [...document.querySelectorAll(".pfx-secrow button")].map((b) => b.textContent?.replace(/\s+/g, " ").trim());
-    expect(rows()).toEqual([expect.stringMatching(/^▸Capital Goods 3 shares75% of the list · move together \.43 \(partly\)/), expect.stringMatching(/^▸Financial Services 1 share25% of the list/)]);
+    expect(rows()).toEqual([expect.stringMatching(/^▸Capital Goods 3 shares75% of the list · move together 0\.43 \(partly\)/), expect.stringMatching(/^▸Financial Services 1 share25% of the list/)]);
     expect(order()).toEqual([]);                                                                         // folded at first
     fireEvent.click(screen.getByRole("button", { name: "Open all" })); expect(order()).toHaveLength(4);
     fireEvent.click(screen.getByRole("button", { name: "Close all" })); expect(order()).toHaveLength(0);
     fireEvent.click(within(sw).getByRole("button", { name: /^Macro sector/ }));
     expect(rows().map((r) => r?.replace(/^▸/, "").split(" ")[0])).toEqual(["Industrials", "Financial"]);
     fireEvent.click(within(sw).getByRole("button", { name: /^Industry/ }));
-    expect(rows().some((r) => r?.includes("Electrical Equipment") && r.includes("move together .80 (closely)"))).toBe(true);
+    expect(rows().some((r) => r?.includes("Electrical Equipment") && r.includes("move together 0.80 (closely)"))).toBe(true);
   });
   it("By company size: group rows plus four size cards (task #262), adding up to the list", () => {
     open("prism", "size");

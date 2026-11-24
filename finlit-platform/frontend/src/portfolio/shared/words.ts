@@ -68,6 +68,10 @@ export const indexName = (s: string | null | undefined) => String(s ?? "").repla
 /** How closely two things move together, in words (file 33): below 0.2 barely, 0.2 to 0.4 loosely, 0.4 to 0.6 partly, 0.6 and above closely. */
 export type CorrWord = "barely" | "loosely" | "partly" | "closely";
 export function corrWord(v: number): CorrWord { const a = Math.abs(v); return a < 0.2 ? "barely" : a < 0.4 ? "loosely" : a < 0.6 ? "partly" : "closely"; }
+/** A correlation's figure: two decimals with the 0 in front, a real minus ("0.56", "−0.03"). Task #388 (file 36, part B item 5): the same everywhere. */
+export const corr2 = (v: number) => `${v < 0 ? MINUS : ""}${Math.abs(v).toFixed(2)}`;
+/** A grid cell's label: "MOTHERSON and TVSMOTOR: 0.56, partly linked" (the cell shows the figure only; its label carries the word). */
+export const corrCellLabel = (a: string, b: string, v: number) => `${a} and ${b}: ${corr2(v)}, ${corrWord(v)} linked`;
 /** "0.34 (loosely linked)": the figure always beside its word, two decimals. */
 export const corrText = (v: number) => `${v < 0 ? MINUS : ""}${Math.abs(v).toFixed(2)} (${corrWord(v)} linked)`;
 /** The share of two shares' weekly moves they have in common: the correlation squared × 100, rounded. */
