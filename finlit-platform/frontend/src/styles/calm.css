@@ -47,7 +47,7 @@ code, pre, kbd, samp, .qb-box textarea, .qb-mirror { font-family: var(--code); }
 /* every bar whose input sits inside its own bordered box (tasks #111: on Reverse valuation, DCF and EPS the dark theme's input box and its light-green focus ring
    showed as a second box inside the bar; the command palette's input sits in the palette's own box) */
 .side-find input, .scr-find input, .mf-search input, .scr-search input, .etf-search input, .ol-search input, .cb-field input,
-.dcf-search input, .oc-search input, .gp-search input, .gl-s input, .ssw-size-q input, .aif-exs input, .wp-pill input, .pl-mm label input, .pl-mm input, .palette input { border: 0 !important; background: none !important; box-shadow: none !important; outline: 0 !important; }
+.dcf-search input, .oc-search input, .gp-search input, .ma-find input, .gl-s input, .ssw-size-q input, .aif-exs input, .wp-pill input, .pl-mm label input, .pl-mm input, .palette input { border: 0 !important; background: none !important; box-shadow: none !important; outline: 0 !important; }
 
 /* ---- the pillar / part cards: neutral surface, one icon tone; colour stays only in the ring, the status word and the score bar ---- */
 :root .dk-tile, :root .dk-tile.band-hi, :root .dk-tile.band-mid, :root .dk-tile.band-lo {
