@@ -253,6 +253,10 @@ cmd_deploy() {
   say "Starting the website (the jobs container is moved separately, below)"
   # Everything except `jobs`: a website deploy never stops a running job (founder, 14 Nov 2026). An older layout's single app container is replaced here.
   dc up -d --remove-orphans db redis app caddy backup
+  # Monitoring (docs/MONITORING.md): the uptime checker always; Uptime Kuma only when the env file has COMPOSE_PROFILES=kuma. A monitor that
+  # cannot start never stops the deploy: the site is already up at this point.
+  dc up -d --no-deps gatus || echo "note: the uptime checker (gatus) did not start; the site is not affected" >&2
+  if grep -qE '^COMPOSE_PROFILES=.*kuma' "$ENV_FILE" 2>/dev/null; then dc up -d --no-deps uptime-kuma || echo "note: uptime-kuma did not start" >&2; fi
   echo "$commit" > "$STATE/current_commit"
   # Caddyfile and backup.sh are single files mounted into containers; git replaces files with new ones, so a running container would keep
   # reading the old copy. When either changed since the last deploy, recreate those two containers (a second of downtime for the front door).

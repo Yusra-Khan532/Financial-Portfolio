@@ -14,6 +14,14 @@ ORIGIN = {"Origin": "http://test"}
 PW = "a-long-unusual-phrase-42"
 
 
+_mobiles = iter(range(9000000001, 9099999999))
+
+
+def mob() -> str:
+    """A different valid mobile for each sign-up (the column is unique)."""
+    return str(next(_mobiles))
+
+
 @pytest.fixture
 async def app(ingested):  # noqa: F811
     from finlit.screener import data as screener_data
@@ -44,7 +52,7 @@ async def token_from_mail(app, to):
 
 
 async def signup(app, c, email, password=PW):
-    r = await c.post("/api/auth/register", json={"email": email, "password": password, "name": "Asha", "accept_terms": True}, headers=ORIGIN)
+    r = await c.post("/api/auth/register", json={"email": email, "password": password, "name": "Asha", "mobile": mob(), "accept_terms": True}, headers=ORIGIN)
     assert r.status_code == 202, r.text
     r = await c.post("/api/auth/verify-email", json={"token": await token_from_mail(app, email)}, headers=ORIGIN)
     assert r.status_code == 200, r.text
@@ -75,7 +83,7 @@ async def test_visitor_identity_and_plan(anon):
 
 
 async def test_register_verify_login_logout(app, anon):
-    r = await anon.post("/api/auth/register", json={"email": "Asha@Example.com", "password": PW, "accept_terms": True}, headers=ORIGIN)
+    r = await anon.post("/api/auth/register", json={"email": "Asha@Example.com", "password": PW, "mobile": mob(), "accept_terms": True}, headers=ORIGIN)
     assert r.status_code == 202
     assert (await login(anon, "asha@example.com")).status_code == 403  # not verified yet
     mail = await last_mail(app, "asha@example.com")
@@ -99,8 +107,8 @@ async def test_register_verify_login_logout(app, anon):
 
 async def test_signup_does_not_reveal_existing_accounts(app, anon):
     await signup(app, anon, "asha@example.com")
-    first = await anon.post("/api/auth/register", json={"email": "new@example.com", "password": PW, "accept_terms": True}, headers=ORIGIN)
-    again = await anon.post("/api/auth/register", json={"email": "asha@example.com", "password": PW, "accept_terms": True}, headers=ORIGIN)
+    first = await anon.post("/api/auth/register", json={"email": "new@example.com", "password": PW, "mobile": mob(), "accept_terms": True}, headers=ORIGIN)
+    again = await anon.post("/api/auth/register", json={"email": "asha@example.com", "password": PW, "mobile": mob(), "accept_terms": True}, headers=ORIGIN)
     assert first.status_code == again.status_code == 202 and first.json() == again.json()
     assert "already" in (await last_mail(app, "asha@example.com"))["subject"].lower()
 
@@ -122,7 +130,7 @@ async def test_signup_existing_email_spends_the_same_hashing_as_a_new_account(ap
 
 
 async def test_signup_rules(app, anon):
-    bad = {"email": "x@example.com", "password": PW, "accept_terms": True}
+    bad = {"email": "x@example.com", "password": PW, "mobile": mob(), "accept_terms": True}
     assert (await anon.post("/api/auth/register", json={**bad, "password": "short"}, headers=ORIGIN)).status_code == 422
     assert (await anon.post("/api/auth/register", json={**bad, "accept_terms": False}, headers=ORIGIN)).status_code == 422
     assert (await anon.post("/api/auth/register", json={**bad, "email": "nope"}, headers=ORIGIN)).status_code == 422
@@ -637,14 +645,14 @@ async def test_auto_verify_email_confirms_new_accounts_at_sign_up_for_staging(in
     app = create_app(make_settings(auto_verify_email=True), store=ingested)
     async with app.router.lifespan_context(app):
         async with new_client(app) as c:
-            r = await c.post("/api/auth/register", json={"email": "new@example.com", "password": PW, "name": "New", "accept_terms": True}, headers=ORIGIN)
+            r = await c.post("/api/auth/register", json={"email": "new@example.com", "password": PW, "name": "New", "mobile": mob(), "accept_terms": True}, headers=ORIGIN)
             assert r.status_code == 201 and r.json()["status"] == "created"
             assert await last_mail(app, "new@example.com") is None  # no confirmation mail is needed
             assert (await login(c, "new@example.com")).status_code == 200  # and the member can sign in at once
 
 
 async def test_without_auto_verify_a_new_member_cannot_sign_in_before_confirming(app, anon):
-    r = await anon.post("/api/auth/register", json={"email": "later@example.com", "password": PW, "accept_terms": True}, headers=ORIGIN)
+    r = await anon.post("/api/auth/register", json={"email": "later@example.com", "password": PW, "mobile": mob(), "accept_terms": True}, headers=ORIGIN)
     assert r.status_code == 202
     assert (await login(anon, "later@example.com")).status_code in (401, 403)
 
@@ -690,7 +698,7 @@ async def test_admin_gets_a_cms_token_the_site_backend_accepts(ingested):
 async def test_admin_can_confirm_a_members_email_by_hand(app):
     import time
     member = new_client(app)
-    r = await member.post("/api/auth/register", json={"email": "pending@example.com", "password": PW, "accept_terms": True}, headers=ORIGIN)  # not the signup helper: it confirms by mail
+    r = await member.post("/api/auth/register", json={"email": "pending@example.com", "password": PW, "mobile": mob(), "accept_terms": True}, headers=ORIGIN)  # not the signup helper: it confirms by mail
     assert r.status_code == 202
     assert (await login(member, "pending@example.com")).status_code in (401, 403)  # not confirmed, and no mail service to confirm with
     admin = await make_admin(app)
@@ -791,3 +799,41 @@ async def test_the_reset_email_carries_the_code_and_the_link_and_stores_no_code(
     keys = [k async for k in app.state.store.redis.scan_iter(match="auth:resetcode:*")]
     stored = [await app.state.store.redis.get(k) for k in keys]
     assert stored and all(code.encode() not in (v or b"") for v in stored)                # only a keyed hash is kept
+
+
+
+async def test_signup_takes_only_its_fields_and_the_server_sets_the_role(app, anon):
+    """Owner, 24 Nov: sign-up takes name, mobile, email and password only; role/admin/plan in the request are refused (422) and never stored."""
+    base = {"email": "hack@example.com", "password": PW, "name": "H", "mobile": "98765 43210", "accept_terms": True}
+    for extra in ({"role": "admin"}, {"is_admin": True}, {"plan": "gold"}, {"email_verified_at": "2026-01-01"}, {"status": "active"}):
+        r = await anon.post("/api/auth/register", json={**base, **extra}, headers=ORIGIN)
+        assert r.status_code == 422, extra
+    async with app.state.store.pool.acquire() as conn:
+        assert await conn.fetchval("SELECT count(*) FROM users WHERE email = 'hack@example.com'") == 0
+    r = await anon.post("/api/auth/register", json=base, headers=ORIGIN)
+    assert r.status_code in (201, 202)
+    async with app.state.store.pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT role, plan, mobile FROM users WHERE email = 'hack@example.com'")
+    assert (row["role"], row["plan"], row["mobile"]) == ("investor", "basic", "+919876543210")
+
+
+async def test_signup_needs_a_valid_mobile(app, anon):
+    base = {"email": "m@example.com", "password": PW, "accept_terms": True}
+    assert (await anon.post("/api/auth/register", json=base, headers=ORIGIN)).status_code == 422                       # missing
+    for bad in ("12345", "5123456789", "+44 7700 900123", "98765abcde"):
+        r = await anon.post("/api/auth/register", json={**base, "mobile": bad}, headers=ORIGIN)
+        assert r.status_code == 422, bad
+
+
+async def test_profile_edit_takes_only_name_and_mobile(app):
+    c = await signed_in(app, "prof@example.com")
+    h = {}
+    for extra in ({"role": "admin"}, {"plan": "gold"}, {"email": "x@example.com"}):
+        assert (await c.patch("/api/me", json={"name": "P", **extra}, headers=h)).status_code == 422, extra
+    r = await c.patch("/api/me", json={"name": "P", "mobile": "09123456780"}, headers=h)
+    assert r.status_code == 200 and r.json()["mobile"] == "+919123456780"
+    assert (await c.patch("/api/me", json={"mobile": "123"}, headers=h)).status_code == 422
+    me = (await c.get("/api/me/profile")).json()
+    assert me["mobile"] == "+919123456780" and me["email"] == "prof@example.com"
+    async with app.state.store.pool.acquire() as conn:
+        assert await conn.fetchval("SELECT role FROM users WHERE email = 'prof@example.com'") == "investor"

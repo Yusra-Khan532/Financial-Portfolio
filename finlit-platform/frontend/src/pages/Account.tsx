@@ -53,13 +53,22 @@ function Profile() {
   const { user, refresh, signOut } = useAuth();
   const nav = useNavigate();
   const [name, setName] = useState(user?.name || "");
-  const save = useMutation({ mutationFn: () => acct.updateProfile(name.trim()), onSuccess: () => refresh() });
+  const [mobile, setMobile] = useState<string | null>(null);   // null until the member edits it; shows their stored number meanwhile
+  const prof = useQuery({ queryKey: ["me-profile"], queryFn: acct.myProfile, staleTime: 60_000 });
+  const shown = mobile ?? prof.data?.mobile ?? "";
+  const save = useMutation({
+    mutationFn: () => {
+      if (mobile != null && mobile.trim() && !acct.isMobile(mobile)) throw new Error("Enter a valid 10-digit Indian mobile number.");
+      return acct.updateProfile(name.trim(), mobile?.trim() || undefined);
+    },
+    onSuccess: () => { refresh(); void prof.refetch(); setMobile(null); } });
   return (
     <section className="card acct-c">
       <h2>Profile</h2>
       <form className="form" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
         <label>Name<input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} autoComplete="name" /></label>
         <label>Email<input value={user?.email} readOnly aria-readonly="true" /></label>
+        <label>Mobile number<input type="tel" inputMode="tel" autoComplete="tel" placeholder="98765 43210" value={shown} onChange={(e) => setMobile(e.target.value)} maxLength={16} /></label>
         <Status m={save} ok="Saved." />
         <div className="row"><button className="btn primary" disabled={save.isPending}>Save changes</button>
           <button type="button" className="btn" onClick={async () => { await signOut(); nav("/"); }}>Sign out</button></div>

@@ -14,13 +14,14 @@ import json
 import logging
 import time
 import re
+import asyncpg
 import secrets
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from typing import Annotated, Any, Dict, List, Literal, Optional, Tuple, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
-from pydantic import BaseModel, Field, StringConstraints, field_validator, model_validator
+from pydantic import BaseModel, Field, StringConstraints, field_validator, model_validator, ConfigDict
 
 from .. import wake
 from ..config import Settings
@@ -105,9 +106,12 @@ def need_plan(ctx: Ctx, tier: str) -> None:
 
 # ------------------------------------------------------------------ models
 class SignUp(BaseModel):
+    """Sign-up takes only these fields. Anything else (role, is_admin, plan, verified, ...) is refused with 422: the server alone sets those."""
+    model_config = ConfigDict(extra="forbid")
     email: str = Field(max_length=254)
     password: str = Field(min_length=1, max_length=200)
     name: Optional[str] = Field(default=None, max_length=80)
+    mobile: str = Field(min_length=1, max_length=20)
     accept_terms: bool = False
 
 
@@ -141,7 +145,10 @@ class ChangePw(BaseModel):
 
 
 class ProfileIn(BaseModel):
+    """A member edits only their name and mobile; role, plan, email and status are never taken from the request (extra fields: 422)."""
+    model_config = ConfigDict(extra="forbid")
     name: Optional[str] = Field(default=None, max_length=80)
+    mobile: Optional[str] = Field(default=None, max_length=20)
 
 
 class CodeIn(BaseModel):
@@ -458,6 +465,9 @@ async def register(request: Request, body: SignUp):
     problem = crypto.password_problem(body.password, email)
     if problem:
         raise fail(422, "weak_password", problem)
+    mobile = crypto.normalise_mobile(body.mobile)
+    if not mobile:
+        raise fail(422, "invalid_mobile", "Enter a valid 10-digit Indian mobile number.")
     await limit(request, "regmail", email_hash(email), 3, 3600)
     name = (body.name or "").strip()[:80] or None
     async with pool.acquire() as conn:
@@ -470,9 +480,10 @@ async def register(request: Request, body: SignUp):
     pw = await crypto.hash_password(body.password)
     async with pool.acquire() as conn:
         try:
-            uid = await conn.fetchval("INSERT INTO users (email, name, password_hash, email_verified_at) VALUES ($1, $2, $3, CASE WHEN $4 THEN now() END) RETURNING id",
-                                      email, name, pw, st.auto_verify_email)
-        except Exception:  # a parallel sign-up won the unique index: behave like the existing-account branch
+            # the server sets every other column (role 'investor', plan, status) from the table's defaults; nothing else comes from the request
+            uid = await conn.fetchval("INSERT INTO users (email, name, password_hash, email_verified_at, mobile) VALUES ($1, $2, $3, CASE WHEN $4 THEN now() END, $5) RETURNING id",
+                                      email, name, pw, st.auto_verify_email, mobile)
+        except Exception:  # a parallel sign-up won the unique index (email, or a mobile already in use): behave like the existing-account branch
             return Response(content=json.dumps(GENERIC_SIGNUP), status_code=202, media_type="application/json", headers=NO_STORE)
     await audit(pool, str(uid), "register", email_hash(email), ip, terms=True)
     if st.auto_verify_email:  # staging only (refused in production): the account is already confirmed
@@ -749,13 +760,32 @@ async def me(request: Request):
     return Response(content=json.dumps(body), media_type="application/json", headers={**NO_STORE, "Vary": "Cookie"})
 
 
+@router.get("/me/profile")
+async def my_profile(request: Request, ctx: Ctx = Depends(secure_ctx)):
+    """The member's own name, email and mobile (the mobile is shown only to its owner)."""
+    async with request.app.state.store.pool.acquire() as conn:
+        r = await conn.fetchrow("SELECT name, email, mobile FROM users WHERE id = $1", ctx.user_id)
+    return Response(content=json.dumps({"name": r["name"], "email": r["email"], "mobile": r["mobile"]} if r else {}), media_type="application/json", headers=NO_STORE)
+
+
 @router.patch("/me")
 async def update_profile(request: Request, body: ProfileIn, ctx: Ctx = Depends(secure_ctx)):
     name = (body.name or "").strip()[:80] or None
+    mobile = None
+    if body.mobile is not None:
+        mobile = crypto.normalise_mobile(body.mobile)
+        if not mobile:
+            raise fail(422, "invalid_mobile", "Enter a valid 10-digit Indian mobile number.")
     async with request.app.state.store.pool.acquire() as conn:
-        await conn.execute("UPDATE users SET name = $2 WHERE id = $1", ctx.user_id, name)
+        try:
+            if mobile:
+                await conn.execute("UPDATE users SET name = $2, mobile = $3 WHERE id = $1", ctx.user_id, name, mobile)
+            else:
+                await conn.execute("UPDATE users SET name = $2 WHERE id = $1", ctx.user_id, name)
+        except asyncpg.UniqueViolationError:
+            raise fail(409, "mobile_taken", "That mobile number cannot be used. Try another.") from None
     await forget_cached(request.app, ctx.user_id)
-    return {"status": "saved", "name": name}
+    return {"status": "saved", "name": name, **({"mobile": mobile} if mobile else {})}
 
 
 @router.post("/me/password")

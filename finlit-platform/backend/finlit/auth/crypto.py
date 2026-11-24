@@ -136,3 +136,15 @@ def verify_totp(secret_b32: str, code: str, last_step: int, now: Optional[float]
 def totp_uri(secret_b32: str, email: str, issuer: str = "FinLit Ventures") -> str:
     from urllib.parse import quote
     return f"otpauth://totp/{quote(issuer)}:{quote(email)}?secret={secret_b32}&issuer={quote(issuer)}&algorithm=SHA1&digits=6&period=30"
+
+
+def normalise_mobile(raw: str | None) -> str | None:
+    """An Indian mobile as +91 and 10 digits starting 6-9 (accepts spaces, dashes, brackets, a leading 0, 91 or +91); None when it is not one."""
+    s = re.sub(r"[\s\-().]", "", raw or "")
+    if s.startswith("+91"):
+        s = s[3:]
+    elif len(s) == 12 and s.startswith("91"):
+        s = s[2:]
+    elif len(s) == 11 and s.startswith("0"):
+        s = s[1:]
+    return "+91" + s if re.fullmatch(r"[6-9]\d{9}", s) else None

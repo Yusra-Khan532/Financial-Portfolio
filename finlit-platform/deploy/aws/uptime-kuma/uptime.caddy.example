@@ -1,0 +1,18 @@
+# Uptime Kuma's web page at its own address, behind a password (docs/MONITORING.md, "Switch on Uptime Kuma").
+# Copy to the server as /opt/finlit/caddy-extra/uptime.caddy (the main Caddyfile imports that folder), after:
+#   1. a DNS record:  uptime.finlitventures.com  ->  the server (in Cloudflare, like the main site)
+#   2. a password hash, made on the server:  docker run --rm caddy:2 caddy hash-password --plaintext 'YOUR-LONG-PASSWORD'
+#      and pasted below in place of PASTE_THE_HASH_HERE (the hash, never the password itself)
+# Then: bash /opt/finlit/src/finlit-platform/deploy/aws/deploy.sh compose up -d --force-recreate --no-deps caddy
+# Kuma also asks for its own sign-in after this password, so there are two locks.
+
+uptime.finlitventures.com {
+	basic_auth {
+		admin PASTE_THE_HASH_HERE
+	}
+	header {
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+	reverse_proxy uptime-kuma:3001
+}
