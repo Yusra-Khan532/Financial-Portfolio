@@ -6,6 +6,7 @@ import { apiGet, apiSend } from "./api";
 import { useAuth } from "./auth";
 import { useUI } from "./ui";
 import { DEMO } from "./demo";
+import { safeUrl } from "./safe";   // security: only http(s) when a notification click navigates
 import { LIMITS, METRICS, TIER_LABEL, describe, fmtValue, isEvent, tierLocked, type Op } from "./alertCatalog";
 import type { Row } from "./screener";
 
@@ -240,7 +241,7 @@ export function useBrowserNotify(items: Notice[]) {
     for (const n of items) {
       if (n.read || !n.push || shown.current.has(n.id)) continue;
       shown.current.add(n.id);
-      try { const x = new Notification(`FinLit ${noticeLabels(n).head.toLowerCase()}`, { body: n.title, tag: "finlit-" + n.id, icon: "/icon-192.png" }); x.onclick = () => { window.focus(); if (n.link) location.assign(n.link); }; } catch { /* some browsers only allow this from a service worker */ }
+      try { const x = new Notification(`FinLit ${noticeLabels(n).head.toLowerCase()}`, { body: n.title, tag: "finlit-" + n.id, icon: "/icon-192.png" }); x.onclick = () => { window.focus(); const u = safeUrl(n.link); if (u) location.assign(u); }; } catch { /* some browsers only allow this from a service worker */ }
     }
     try { sessionStorage.setItem("finlit-notified", JSON.stringify([...shown.current].slice(-200))); } catch { /* private mode */ }
   }, [items]);
