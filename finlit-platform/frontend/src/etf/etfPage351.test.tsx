@@ -18,6 +18,7 @@ vi.mock("../lib/etf", async (orig) => ({ ...(await orig<typeof import("../lib/et
 import { EtfListPage } from "./List";
 
 const css = readFileSync(join(__dirname, "../styles/etf351.css"), "utf8");
+const css360 = readFileSync(join(__dirname, "../styles/task360.css"), "utf8");   // task #360 rules live in their own file
 afterEach(() => { cleanup(); try { localStorage.clear(); } catch { /* jsdom */ } });
 const item = (o: Partial<EtfItem>): EtfItem => ({ isin: "INF0", fundHouse: "A", category: "gold", categoryLabel: "Gold", assetClass: "gold", previousClose: 100, priceDate: "2026-11-20", volume: 1,
   symbol: "GOLDBEES", name: "Nippon India ETF Gold BeES", price: 102.21, changePct: -3.85, ret1y: 0.65, ret5y: 139.87, avgTurnover: 5e9, premium: 0.18, why: {}, ter: 0.81, terDate: "2026-11-20", ...o } as EtfItem);
@@ -65,12 +66,12 @@ describe("task #351: the ETF page", () => {
     expect(document.getElementById("etf-filters")).toBeNull();
     expect(document.querySelector(".etf-layout")!.classList.contains("is-shut")).toBe(true);
     const show = screen.getByRole("button", { name: /^Show filters/ });
-    expect(show.closest(".etf-tools")).toBeTruthy();                                  // in the toolbar above the table, which is pinned while scrolling
+    expect(show.closest(".etf-side.is-shut")).toBeTruthy();                           // task #360: a slim vertical button in its own column (the toolbar is no longer pinned)
     expect(screen.getAllByRole("button", { name: /^Show filters/ })).toHaveLength(1);
     fireEvent.click(show);
     expect(document.getElementById("etf-filters")).toBeTruthy();
-    expect(css).toMatch(/\.etf-list \.etf-tools \{ position: sticky; top: 64px;/);
-    expect(css).toMatch(/\.etf-list \.etf-layout\.is-shut \{ grid-template-columns: minmax\(0, 1fr\); \}/);
+    expect(css360).toMatch(/\.etf-list \.etf-tools \{ position: static; \}/);
+    expect(css360).toMatch(/\.etf-list \.etf-layout\.is-shut \{ grid-template-columns: 44px minmax\(0, 1fr\); \}/);
   });
   it("the ETF vs Index Fund card is gone; its header button stays, second, in gold with a crown", () => {
     open();
