@@ -51,7 +51,7 @@ def reset_mail(link: str, code: str = "") -> tuple[str, str]:
     if not code:
         return ("Reset your FinLit password", f"Someone asked to reset the password for this FinLit account.\n\nChoose a new one here:\n{link}\n\n"
                 "The link works once and expires in 1 hour. If this was not you, ignore this message; your password is unchanged.\n\nFinLit Ventures")
-    return (f"Your FinLit reset code: {code}", f"Someone asked to reset the password for this FinLit account.\n\nYour code: {code}\n\n"
+    return ("Your FinLit password reset code", f"Someone asked to reset the password for this FinLit account.\n\nYour code: {code}\n\n"
             "Enter it on the FinLit page that asked for it, with your new password. It works once and expires in 15 minutes.\n\n"
             f"Or choose a new password with this link instead (expires in 1 hour):\n{link}\n\n"
             "Never share this code: FinLit will never ask you for it. If this was not you, ignore this message; your password is unchanged.\n\nFinLit Ventures")
