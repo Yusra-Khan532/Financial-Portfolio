@@ -1562,6 +1562,10 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
             await record_run(store, args.cmd, {"status": result.get("status"), "why": str(result.get("why") or "")[:200],
                                                "parts": {k: v.get("status") for k, v in parts.items()},
                                                "stored": sum(int(v.get("stored") or 0) for v in result.get("amc", {}).values()),
+                                               # task #281 (24 Nov): the exit-load step's counts only, so its progress shows on /api/mf/status
+                                               "loads": {k: (parts.get("loads") or {}).get(k) for k in ("asked", "loadsStored", "blank", "refused429", "familiesLeft",
+                                                                                                          "housesReached", "housesWithWork", "houseListsCached")}
+                                               if isinstance(parts.get("loads"), dict) else None,
                                                "failed": [f"{k}: {str(v.get('why') or '')[:80]}" for k, v in parts.items() if v.get("status") in ("error", "refused")][:8]})
             print(json.dumps(result, default=str)[:4000])
             return 0 if result.get("status") in ("ok", "partial") else 1

@@ -161,7 +161,7 @@ async def test_loads_one_at_a_time_store_exit_load_launch_and_minimum(monkeypatc
         out = await P.step_loads(FakePool(), c, FakeIdx(), P._today())
     assert out["status"] == "ok" and out["loadsStored"] == 20 and out["asked"] == 20
     kinds = {k for _f, k, *_ in stored}
-    assert kinds == {"exitload", "launch_details", "min_amount_amfi"}
+    assert kinds == {"exitload", "launch_details", "min_amount_amfi", P.KIND_LIST}    # task #281 (24 Nov): the fund house's scheme list is kept a week
     mins = [v for _f, k, _d, v, *_ in stored if k == "min_amount_amfi"]
     assert mins[0]["rupees"] == 5000
 
