@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const css = readFileSync(join(__dirname, "../styles/etf351.css"), "utf8");
+const css = readFileSync(join(__dirname, "../styles/task360.css"), "utf8");
 const page = readFileSync(join(__dirname, "List.tsx"), "utf8");
 describe("task #360: the ETF toolbar stays put; Show filters in its own column", () => {
   it("the toolbar is not pinned", () => { expect(css).toMatch(/\.etf-list \.etf-tools \{ position: static; \}/); });

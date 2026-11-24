@@ -13,7 +13,7 @@ describe("D1: ETFs in Your investments today", () => {
     const rows = etfRows([E("GOLDBEES", 0.03), E("MID150BEES", -0.13), E("OLD", 0, true)]);
     expect(rows.map((r) => [r.kind, r.symbol, r.href, r.price, r.day, r.y1, navText(r.premium)])).toEqual([
       ["etf", "GOLDBEES", "/etfs/GOLDBEES", 109.92, -0.13, 7.8, "+0.03% vs NAV"], ["etf", "MID150BEES", "/etfs/MID150BEES", 109.92, -0.13, 7.8, "−0.13% vs NAV"]]);
-    expect(rows[0].sub).toBe("GOLDBEES ETF · held");
+    expect(rows[0].sub).toBe("GOLDBEES ETF · in portfolio");
   });
   it("they are counted in All: 14 shares + 1 fund + 4 ETFs + 3 watchlist-only = 22", () => {
     const sh = (s: string) => ({ key: "share:" + s, kind: "share" as const, symbol: s, name: s, sub: "", href: "", alertHref: "", price: 1, day: 0, y1: null, value: null });

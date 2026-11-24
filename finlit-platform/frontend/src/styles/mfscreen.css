@@ -23,8 +23,6 @@
 .mfs-side-body { animation: mfs-in .16s ease; }
 @keyframes mfs-in { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .mfs-side-body { animation: none; } .mfs-showf { transition: none; } }
-.mfs-split-ph { min-width: 0; }
-@media (max-width: 1000px) { .mfs-split-ph { display: none; } }
 .mfs-grab, .mfs-foot { display: none; }
 .mfs-sh-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 0 10px; font: 600 var(--fs-13) var(--sans); color: var(--muted); flex-wrap: wrap; }
 .mfs-sh-t { color: var(--text); }
@@ -253,3 +251,9 @@
 .mfs-table thead th, .mfs-table thead th.mfs-n { background: var(--s2); }
 .mfs-table tbody tr.is-picked > * { background: var(--gold-soft); }
 .mfs-table tbody tr.is-picked > th.mfs-n { box-shadow: inset 3px 0 0 var(--gold), inset -1px 0 0 var(--border-strong); }
+
+/* task #353: one 16px gap between the boxes of the results column (count, active filters, result at a glance, table, pages, notes); was 10/14/18/14 */
+.mfs-main > .mfs-rbar, .mfs-main > .mfs-active, .mfs-main > .mfs-glance-wrap { margin-bottom: 16px; }
+.mfs-main > .mfs-pages { margin: 16px 0 0; }
+.mfs-main > .mfs-fine { margin-top: 16px; }
+.mfs-main > .mfs-glance-wrap > :last-child { margin-bottom: 0; }   /* its 18px margin collapsed through the 16px gap */

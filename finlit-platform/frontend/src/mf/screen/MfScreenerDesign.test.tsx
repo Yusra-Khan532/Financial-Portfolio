@@ -48,10 +48,10 @@ beforeEach(() => { st.calls = []; st.gold = true; setNarrow(false); try { localS
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 describe("task #131: the Mutual Fund Screener as the team's design", () => {
-  it("C-1 the 11 presets are one wrapping row of buttons; the one that is on is dark and its filters show as chips; clicking again turns it off", async () => {
+  it("C-1 the 11 presets (task #356: in five labelled rows); the one that is on is dark and its filters show as chips; clicking again turns it off", async () => {
     mount(); await screen.findAllByText("Alpha Mid Cap Fund");
-    const row = document.querySelector(".mfs-prow")!;
-    expect(row.querySelectorAll(".mfs-preset")).toHaveLength(11);
+    expect(document.querySelectorAll(".mfs-presets .mfs-preset")).toHaveLength(11);
+    expect([...document.querySelectorAll(".mfs-pgrp .mfs-pg")].map((x) => x.textContent)).toEqual(["Equity", "Debt", "Index and themes", "Hybrid", "Mutual Fund Score"]);
     fireEvent.click(screen.getByRole("button", { name: /Defence and aerospace funds/ }));
     await waitFor(() => expect(screen.getByTestId("loc").textContent).toContain("tags=defence"));
     expect(screen.getByRole("button", { name: /Defence and aerospace funds/ }).className).toContain("is-on");
@@ -74,15 +74,19 @@ describe("task #131: the Mutual Fund Screener as the team's design", () => {
     expect(within(panel()).getByRole("status").textContent).toMatch(/No filter matches “zzzz”/);
     expect([findGroup("ELSS")?.id, findGroup("worst fall")?.id, findGroup("expense")?.id, findGroup("x")]).toEqual(["subcat", "risk", "cost", null]);
   });
-  it("C-3 18 groups, each showing how many choices are on ('4 on'), the first five open and the rest closed", async () => {
+  it("C-3 18 groups (task #358: under four headings, all folded until opened), each showing how many choices are on ('4 on')", async () => {
     mount(); await screen.findAllByText("Alpha Mid Cap Fund");
     const heads = [...panel().querySelectorAll(".fgx-g .fgx-t")].map((x) => x.textContent);
     expect(heads).toEqual(GROUPS.map((g) => g.title)); expect(heads).toHaveLength(18);
+    expect([...panel().querySelectorAll(".mfs-sec")].map((x) => x.textContent)).toEqual(["Start here · what and how", "Quick shortlist", "Risk, returns and cost", "Narrow down"]);
+    expect(heads.slice(0, 4)).toEqual(["Type and category", "Sub-category", "Plan, option and status", "FinLit Mutual Fund Score"]);
+    expect(heads.slice(4, 7)).toEqual(["Risk", "Returns", "Cost"]);
     const open = [...panel().querySelectorAll(".fgx-g")].map((g) => g.classList.contains("is-open"));
-    expect(open.slice(0, 5)).toEqual([true, true, true, true, true]); expect(open.slice(5).every((o) => !o)).toBe(true);
+    expect(open.every((o) => !o)).toBe(true);
     expect(within(panel()).getByRole("button", { name: /^Plan, option and status/ }).textContent).toMatch(/4 on/);
     expect(planOn(DEFAULTS)).toBe(4);
     expect(within(panel()).getByRole("button", { name: /^Data quality and lists/ }).textContent).toMatch(/Needs a data source 10/);
+    fireEvent.click(within(panel()).getByRole("button", { name: /^Debt maturity band/ }));
     expect(panel().textContent).toMatch(/The band SEBI sets for the category/);
   });
   it("C-4 a Sort button with a short menu replaces the native select; same choices; Mutual Fund Score sort has no Gold tag", async () => {

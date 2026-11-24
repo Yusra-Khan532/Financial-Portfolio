@@ -1,0 +1,12 @@
+/* Task #355: this task's rules, kept in their own file so parallel tasks do not edit the same end-of-file lines. */
+
+/* ---- moved from mf341.css ---- */
+/* task #355 (team, 23 Nov 2026): the folded "Show filters" handle, aligned and in step with the rest: a slim vertical button (button corners, not a
+   bubble), the icon and the words centred together, the same 2px outline as Hide filters (#354), level with the top of the tabs, and it stays in view
+   while the table is scrolled (as on the Mutual Fund Screener). */
+.mf-list .mf-layout.closed .mf-side { position: sticky; top: 76px; }
+.mf-list .mf-showf { justify-content: center; gap: 12px; min-height: 196px; padding: 14px 0; border: 2px solid color-mix(in srgb, var(--text) 70%, transparent); border-radius: var(--r-ctl); transition: border-color .16s ease, background-color .16s ease; }
+.mf-list .mf-showf:hover, .mf-list .mf-showf:focus-visible { border-color: var(--text); background: var(--s2); }
+.mf-list .mf-showf span { line-height: 1; letter-spacing: .01em; }
+@media (prefers-reduced-motion: reduce) { .mf-list .mf-showf { transition: none; } }
+@media (max-width: 1100px) { .mf-list .mf-layout.closed .mf-side { position: static; } .mf-list .mf-showf { min-height: 44px; padding: 0 14px; } }

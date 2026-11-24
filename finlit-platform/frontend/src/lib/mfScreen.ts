@@ -216,6 +216,14 @@ export type PresetDef = { id: string; label: string; say: string; set: (q: SQ) =
 const base = (): SQ => ({ ...DEFAULTS, rng: {}, sc: {}, plans: [...DEFAULTS.plans], options: [...DEFAULTS.options] });
 const rng = (q: SQ, field: string, lo = "", hi = ""): SQ => withRange(q, field, lo, hi);
 /** Presets are plain filter settings; a preset is a starting point and everything stays editable. Names describe, they do not recommend. */
+/** Task #356 (team, 23 Nov 2026): the preset screens in labelled rows, so each row says what kind of fund its presets are for. */
+export const PRESET_GROUPS: { id: string; label: string; ids: string[] }[] = [
+  { id: "equity", label: "Equity", ids: ["lowcost-large", "steady-mid", "small-fell-less", "elss-record"] },
+  { id: "debt", label: "Debt", ids: ["short-debt", "debt-calm"] },
+  { id: "index", label: "Index and themes", ids: ["cheap-index", "defence", "ai-tech"] },
+  { id: "hybrid", label: "Hybrid", ids: ["steady-hybrid"] },
+  { id: "score", label: "Mutual Fund Score", ids: ["score-cost"] }, // the picture names the score row by the FinLit name; the site calls it Mutual Fund Score (noFinlitScoreWord.test)
+];
 export const PRESETS: PresetDef[] = [
   { id: "lowcost-large", label: "Large caps at lower cost", say: "Large Cap, Direct plan, expense ratio at or below the category median, fund size above ₹2,000 Cr.",
     set: () => rng(rng({ ...base(), cap: ["large"] }, "ter_rel", "", "1"), "aum", "2000") },

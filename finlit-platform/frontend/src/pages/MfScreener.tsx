@@ -18,15 +18,18 @@ import { DEMO } from "../lib/demo";
 import { useDocTitle } from "../lib/title";
 import { useUI } from "../lib/ui";
 import {
-  DEFAULTS, PAGE_SIZE, PRESETS, chipsFor, isDefault, loadSaved, parseQuery, presetOn, queryToParams, storeSaved, useScreenFacets, useScreenList, type Saved, type SQ,
+  DEFAULTS, PAGE_SIZE, PRESETS, PRESET_GROUPS, chipsFor, isDefault, loadSaved, parseQuery, presetOn, queryToParams, storeSaved, useScreenFacets, useScreenList, type Saved, type SQ,
 } from "../lib/mfScreen";
 import { SORTS } from "../lib/mfScreenDefs";
+import "../styles/task356.css";   // task #356: the preset rows
 import { FlowBars, RiskReturn } from "../mf/screen/Graphics";
 import { Panel } from "../mf/screen/Panel";
+import "../styles/task357.css";   // task #357: hidden filters, the vertical Show filters (its rules start at .mfs-page, so load order does not matter)
 import { ResultTable } from "../mf/screen/Results";
 import "../styles/fgx.css";
 import "../styles/mf.css";
 import "../styles/mfscreen.css";
+import "../styles/task354.css";   // task #354: the Hide filters outline
 import "../styles/tools.css";
 import { SIDE, SplitDivider, useSideWidth } from "../components/SplitDivider";
 
@@ -111,38 +114,47 @@ export function MfScreenerPage() {
         stats={[{ icon: "layers", value: list.data ? nf(total, 0) : null, label: "Funds match" }, { icon: "calendar", value: list.data?.dataDate ? dateIN(list.data.dataDate, { day: "numeric", month: "short", year: "numeric" }) : null, label: "NAV data date" }]} />
 
       {DEMO && <p className="mfs-demo" role="note"><Icon name="info" /> Preview build: the real AMFI NAVs and returns of 67 schemes are shown, but expense ratio, fund size, SIP, risk, portfolio and category figures here are sample values for layout only.</p>}
-      <section className="mfs-presets" aria-label="Preset screens">
-        <span className="mfs-pl">Preset screens</span>
-        <div className="mfs-prow">
-          {PRESETS.map((p) => { const on = presetOn(q, p); return (
-            <button key={p.id} type="button" className={"fgx-chip mfs-preset" + (on ? " is-on" : "")} aria-pressed={on} disabled={!!p.off || (!!p.gold && !gold)} title={p.off ?? (p.gold && !gold ? "The Mutual Fund Score filter is part of the Gold plan." : p.say)}
-              onClick={() => (on ? reset() : setSp(queryToParams(p.set(DEFAULTS)), { replace: false }))}>{on && <i aria-hidden="true">&#10003;</i>}{p.label}{(p.off || (p.gold && !gold)) && <Icon name="lock" />}</button>); })}
-          {saved.map((s) => (
-            <span key={s.name} className="mfs-saved"><button type="button" className="fgx-chip" onClick={() => setSp(new URLSearchParams(s.query))} title="A screen you saved in this browser">{s.name}</button>
-              <button type="button" className="mfs-x" aria-label={`Delete the saved screen ${s.name}`} onClick={() => dropSaved(s.name)}>×</button></span>))}
+      {/* Task #356 (team, 23 Nov 2026): the presets in labelled rows (Equity, Debt, Index and themes, Hybrid, Mutual Fund Score), the note on the heading's line. */}
+      <section className="mfs-presets" aria-labelledby="mfs-pl">
+        <div className="mfs-phead"><span className="mfs-pl" id="mfs-pl">Preset screens</span>
+          <p className="mfs-pnote">Presets are plain starting points: they set filters you can change. They describe past figures and do not recommend any fund.</p></div>
+        <div className="mfs-pgroups">
+          {PRESET_GROUPS.map((g) => (
+            <div key={g.id} className="mfs-pgrp" role="group" aria-labelledby={`mfs-pg-${g.id}`}>
+              <span className="mfs-pg" id={`mfs-pg-${g.id}`}>{g.label}</span>
+              <div className="mfs-prow">
+                {g.ids.map((id) => PRESETS.find((x) => x.id === id)).filter((p): p is (typeof PRESETS)[number] => !!p).map((p) => { const on = presetOn(q, p); return (
+                  <button key={p.id} type="button" className={"fgx-chip mfs-preset" + (on ? " is-on" : "")} aria-pressed={on} disabled={!!p.off || (!!p.gold && !gold)} title={p.off ?? (p.gold && !gold ? "The Mutual Fund Score filter is part of the Gold plan." : p.say)}
+                    onClick={() => (on ? reset() : setSp(queryToParams(p.set(DEFAULTS)), { replace: false }))}>{on && <i aria-hidden="true">&#10003;</i>}{p.label}{(p.off || (p.gold && !gold)) && <Icon name="lock" />}</button>); })}
+              </div>
+            </div>))}
+          {saved.length > 0 && (
+            <div className="mfs-pgrp" role="group" aria-labelledby="mfs-pg-saved"><span className="mfs-pg" id="mfs-pg-saved">Saved</span>
+              <div className="mfs-prow">{saved.map((s) => (
+                <span key={s.name} className="mfs-saved"><button type="button" className="fgx-chip" onClick={() => setSp(new URLSearchParams(s.query))} title="A screen you saved in this browser">{s.name}</button>
+                  <button type="button" className="mfs-x" aria-label={`Delete the saved screen ${s.name}`} onClick={() => dropSaved(s.name)}>×</button></span>))}</div></div>)}
         </div>
-        <p className="fgx-note">Presets are plain starting points: they set filters you can change. They describe past figures and do not recommend any fund.</p>
       </section>
 
       <Toolbar q={text} setQ={setText} searchLabel="Search by fund or fund house, e.g. hdfc mid cap" buttons={[]}
         sort={<SortMenu value={sortVal} options={sorts.map((s) => ({ v: `${s.v}:${s.dir}`, label: s.label }))}
           onPick={(v) => { const [k, d] = v.split(":"); go({ sort: k, dir: d as "asc" | "desc", page: 1 }); }} />} />
 
-      {/* Task #350: hiding the filters keeps their column, so the results never move: the column holds a slim "Show filters" button that stays in view
-          while the page scrolls (the column is sticky), and reopens the panel in the same place. */}
+      {/* Task #357 (team, 23 Nov 2026, replacing #350's kept column): hiding the filters lets the table take the width, and a slim vertical "Show filters"
+          button stays at the left in view while the page scrolls (the column is sticky), as on the Mutual funds page. */}
       <div className={"mfs-layout" + (shut ? " is-shut" : "")} style={{ "--side-w": `${sideW || SIDE.def}px` } as React.CSSProperties}>
         <aside className={"card mfs-side" + (shut ? " is-shut" : "")} aria-label="Filters">
           {shut ? <button type="button" className="mfs-showf" onClick={showPanel} aria-expanded="false" aria-controls="mfs-side-body"><Icon name="panel" /><span>Show filters</span>{shown > 0 && <b aria-label={`${shown} on`}>{shown}</b>}</button> : <div id="mfs-side-body" className="mfs-side-body">
           <div className="mfs-sh-top">
             <span className="mfs-sh-t">Filters{shown > 0 ? ` · ${shown} on` : ""}</span>
             <span className="fgx-tl">{!isDefault(q) && <button type="button" className="btn sm" onClick={reset}>Clear</button>}
-              {!small && <button type="button" className="btn sm" aria-expanded="true" aria-controls="mfs-side-body" onClick={togglePanel}>Hide filters</button>}</span>
+              {!small && <button type="button" className="btn sm mfs-hidef" aria-expanded="true" aria-controls="mfs-side-body" onClick={togglePanel}>Hide filters</button>}</span>
           </div>
           <Panel q={q} set={set} fac={fac} waiting={facets.isFetching && !fac} canScore={gold} fold={small} />
           {small && <div className="mfs-foot"><button type="button" className="btn primary" onClick={() => document.getElementById("mfs-results")?.scrollIntoView({ block: "start" })}>Show {list.data ? nf(total, 0) : ""} fund{total === 1 ? "" : "s"}</button></div>}
           </div>}
         </aside>
-        {!small && (shut ? <div className="mfs-split-ph" aria-hidden="true" /> : <SplitDivider width={sideW || SIDE.def} set={resizePanel} />)}
+        {!small && !shut && <SplitDivider width={sideW || SIDE.def} set={resizePanel} />}   {/* task #357: hidden filters give the table the width; no reserved column */}
 
         <section className="card mfs-main" id="mfs-results" aria-label="Results">
           <div className="mfs-rbar">
