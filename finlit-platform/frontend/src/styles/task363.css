@@ -1,0 +1,9 @@
+/* Task #363 (Chinmay, 24 Nov 2026): "why so much extra space inside the button". The folded "Show filters" buttons on Mutual funds (#355), the Mutual Fund
+   Screener (#357) and ETFs (#360) had a fixed 196px height, leaving about 45px empty above the icon and below the words. Each now fits what it holds:
+   12px above and below, 8px between the icon, the words and (screener, ETFs) the count of filters on. Selectors carry one more class than the earlier
+   rules, so they win whatever the load order. The phone and narrow-window bar of Mutual funds (44px high, under 1101px) is left as it is. */
+@media (min-width: 1101px) {
+  .mf-list .mf-layout .mf-showf { min-height: 0; padding: 12px 0; gap: 8px; }
+}
+.mfs-page .mfs-side .mfs-showf { min-height: 0; padding: 12px 0; gap: 8px; }
+.etf-list .etf-side .etf-showf { min-height: 0; padding: 12px 0; gap: 8px; }

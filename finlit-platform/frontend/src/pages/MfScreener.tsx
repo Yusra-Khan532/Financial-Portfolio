@@ -25,6 +25,7 @@ import "../styles/task356.css";   // task #356: the preset rows
 import { FlowBars, RiskReturn } from "../mf/screen/Graphics";
 import { Panel } from "../mf/screen/Panel";
 import "../styles/task357.css";   // task #357: hidden filters, the vertical Show filters (its rules start at .mfs-page, so load order does not matter)
+import "../styles/task363.css";   // task #363: the folded Show filters fits its words
 import { ResultTable } from "../mf/screen/Results";
 import "../styles/fgx.css";
 import "../styles/mf.css";
