@@ -1,5 +1,6 @@
 // COMPANY BRIEF on every company page: what the company does, how the group is held, each business with its latest figures, where the money comes from, recent
 // developments and what is missing, every line cited to the company's own filings. Shows the PUBLISHED brief only; with none it says why. Describes, never advises.
+import { AiFeedback } from "../components/AiFeedback";   // task #366
 import { useState } from "react";
 import { dateIN } from "../lib/format";
 import { COMPLIANCE, PART_NAMES, citeUrl, citedPages, shares, shortName, useCompanyBrief, type Brief, type BriefReply, type Cite, type Doc, type MixSide } from "../lib/companyBrief";
@@ -179,6 +180,8 @@ export function BriefBody({ r }: { r: Extract<BriefReply, { state: "published" }
 
       <p className="cb-disc">{r.disclaimer || b.disclaimer}</p>
       <p className="cb-disc">{r.compliance || COMPLIANCE}</p>
+      <AiFeedback surface="company_brief" refKey={`${r.symbol}|${(r.asOf || "").slice(0, 10) || "-"}`} label="this company brief"
+        getText={() => (document.querySelector(".cbr")?.textContent || "").replace(/\s+/g, " ").trim()} />
     </div>
   );
 }

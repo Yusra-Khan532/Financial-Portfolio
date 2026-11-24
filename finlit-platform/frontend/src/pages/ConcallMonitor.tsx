@@ -10,6 +10,7 @@
 // with Sort, the calls grouped by day, rows about 58 px high with the four actions in fixed columns (one that cannot be used is a dashed 32 px icon with
 // its reason), and "Show more" that adds the next 30 (it used to ask the server for 90, beyond its cap of 60, and the list disappeared).
 // Styles: styles/concall-compact.css (p4-), discovery/discover.css (dbx-).
+import { AiFeedback } from "../components/AiFeedback";   // task #366
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router";
 import { PageHeader } from "../components/PageHeader";
@@ -91,6 +92,7 @@ function SummaryPanel({ c }: { c: Call }) {
       <p className="ccm-src">Written by FinLit AI from the {s.source === "transcript" ? "call's transcript" : "investor presentation (no transcript filed yet)"}
         {s.cached ? " · opened free (written earlier)" : ` · ${s.used} of ${s.limit} AI summaries used this month`}</p>
       <p className="ccm-disc">{s.disclaimer}</p>
+      {link && <AiFeedback surface="concall_summary" refKey={link} text={s.text} label="this summary" />}
     </div>);
 }
 

@@ -1,4 +1,6 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { AiFeedback } from "./AiFeedback";   // task #366
+import { askRef } from "../lib/aiFeedback";
 import { useLocation } from "react-router";
 import { faqForPath } from "../lib/pageFaqs";
 import { SECOND } from "../lib/questionBank";
@@ -480,6 +482,9 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
             {view === "chat" && <>
               {msgs.map((m, i) => <div key={i} className={"bub " + (m.role === "user" ? "me" : "bot") + (m.ai?.error ? " aif-bub-err" : "") + (big && m.role === "assistant" ? " aif-lab" : "")} style={m.role === "user" ? { whiteSpace: "pre-wrap" } : undefined} aria-busy={!!m.ai?.status || undefined}>{m.relation && <AskRelation tags={m.relation} signedIn={!!user} />}{m.since &&<AskSince data={m.since} busy={busy} onFull={m.sinceQ ? () => fullAnswer(m.sinceQ!) : undefined} onLeave={() => { if (!big) setOpen(false); }} />}{m.ai?.status && !m.content ? <span className="aif-reading" role="status"><i />{m.ai.status}…</span> : m.role === "assistant" ? <AnswerText text={m.content} /> : m.content}
                 {m.ai?.disclaimer && <small className="aif-disc">{m.ai.disclaimer}</small>}
+                {m.role === "assistant" && m.ai && !m.ai.status && !m.ai.error && m.content && !(streaming && i === msgs.length - 1) && (() => {
+                  const q = msgs.slice(0, i).reverse().find((x) => x.role === "user")?.content ?? "";   // task #366: copy and rate this answer
+                  return <AiFeedback surface="ask" refKey={askRef(company, q)} text={m.content} question={q} />; })()}
                 {m.ai?.retry && i === msgs.length - 1 && !busy && <p className="aif-retry"><Button size="sm" onClick={() => retry(i, m.ai!.retry!)}>Ask again</Button></p>}
                 {m.ai?.plans && <Link className="aif-ans-link" to="/plans" onClick={() => { if (!big) setOpen(false); }}>See the plans <Icon name="arrow" /></Link>}{m.role === "user" && <button type="button" className={"aif-save" + (saved.includes(m.content) ? " on" : "")} aria-pressed={saved.includes(m.content)} aria-label={saved.includes(m.content) ? "Remove this question from saved" : "Save this question"} title={saved.includes(m.content) ? "Saved" : "Save this question"} onClick={() => setSaved((l) => toggleSaved(l, m.content))}><Icon name="star" /></button>}
                 {m.link && <Link className="aif-ans-link" to={m.link.to} onClick={() => { if (!big) setOpen(false); }}>{m.link.label} <Icon name="arrow" /></Link>}
