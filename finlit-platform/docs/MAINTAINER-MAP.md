@@ -154,7 +154,8 @@ Written 17 Nov 2026 from a full read of the repository, the team workspace and t
 Caddy trusts `CF-Connecting-IP` only from Cloudflare's published ranges (#515) and overwrites any `X-Forwarded-For` a visitor sends, so the login lock-out and per-visitor limits count real visitors and the address cannot be faked (verified 24 Nov). Keep true:
 - SSL mode must be "Full (strict)" (checked in the Cloudflare dashboard; not visible from outside).
 - `/api` must not be cached at the edge. Verified 24 Nov: `/api` answers come back `cf-cache-status: DYNAMIC` with `cache-control: no-store`.
-- The EC2 security group should accept ports 80/443 only from Cloudflare's ranges (or use Authenticated Origin Pulls). Otherwise anyone who learns the server's address reaches Caddy directly and skips the edge protections. The address is in this file and in old DNS history, so treat it as known. Owner step: see `docs/security/SECURITY-CHECKUP-2026-11.md`.
+- The EC2 security group (sg-047e835589b07f531) accepts ports 80/443 **only from Cloudflare's 15 IPv4 ranges** (24 Nov 2026), so nobody can reach Caddy directly by the server's address. If Cloudflare publishes new ranges (https://www.cloudflare.com/ips-v4/), add them for 80 and 443 (and to `trusted_proxies` in the Caddyfile).
+- **SSH (22) only from EC2 Instance Connect** (`13.239.158.0/29`, Sydney; 25 Nov 2026): use AWS console → EC2 → finlit → Connect → EC2 Instance Connect. To SSH from a PC, add that PC's public IPv4 as a `/32` rule on port 22; never re-open `0.0.0.0/0`. Nothing automated uses SSH (deploys are pulled by the server).
 
 **AWS:** one EC2 t3.small in Sydney (54.253.190.17; 2 GB of memory plus 2 GB swap). Docker Compose runs:
 
@@ -224,7 +225,7 @@ Before a push: `bash scripts/preflight.sh`.
 - #206 asks to recolour the whole site from a photo, which conflicts with the final-pages pack and the site-green work (#161). Ask the founder before building.
 - #210 (Prism CAGR ladders and PEG fallback) looks already shipped in PR #503 (Prism 3.6.19) but is still todo. Check it live, then mark it done.
 - #191 (Zerodha, Upstox, Groww connection), #212 (superinvestor portfolios from FinEdge) and #211 ("claude integration check") need scoping first.
-- ~~Should Cloudflare's proxy be turned on?~~ Done (on by 24 Nov 2026). Remaining: limit the EC2 security group to Cloudflare's ranges (above).
+- ~~Should Cloudflare's proxy be turned on?~~ Done (on by 24 Nov 2026), and the EC2 security group is limited to Cloudflare's ranges (above).
 - Cheap safety fixes worth doing between tasks:
   - deploy only after CI passes;
   - one central plan-check dependency on the backend;
