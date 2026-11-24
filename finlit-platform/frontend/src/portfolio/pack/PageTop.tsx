@@ -91,9 +91,12 @@ export function useHeaderHeight() {
   }, []);
 }
 
-export function SectionsBar<T extends string = TabKey>({ tab, all, onTab, lead, steps: scr = false, onAll }: { tab: T; all: Record<T, { label: string; secs: Sec[] }>; onTab: (t: T, then?: string) => void; lead?: ReactNode;
+export function SectionsBar<T extends string = TabKey>({ tab, all, onTab, lead, steps: scr = false, onAll, step, onStep }: { tab: T; all: Record<T, { label: string; secs: Sec[] }>; onTab: (t: T, then?: string) => void; lead?: ReactNode;
   /** task #274 (Equity, change 11): the steps scroll inside the bar with ‹ › arrows when they do not fit; All sections shows every hidden section and goes to the top of the view */
-  steps?: boolean; onAll?: () => void }) {
+  steps?: boolean; onAll?: () => void;
+  /** task #385 (Equity, developer file 33): one section at a time. `step` is the step shown ("all": every section on one page); a chip shows its
+   *  step, All sections puts everything back. Without it the bar jumps to sections as before. */
+  step?: string; onStep?: (id: string) => void }) {
   const stepsBox = useRef<HTMLSpanElement>(null), [over, setOver] = useState({ any: false, l: false, r: false });
   useEffect(() => {   // recheck the fit whenever the bar changes width (the portfolio and views appear on sticking)
     const el = stepsBox.current; if (!scr || !el) return;
@@ -121,10 +124,10 @@ export function SectionsBar<T extends string = TabKey>({ tab, all, onTab, lead, 
     addEventListener("click", close); addEventListener("scroll", sc, { passive: true }); return () => { removeEventListener("click", close); removeEventListener("scroll", sc); };
   }, [menu]);
   useEffect(() => {   // task #274: the open step slides into view inside the steps box
-    const box = stepsBox.current, c = box?.querySelector<HTMLElement>(".eqt-chip[aria-current=true]"); if (!scr || !box || !c) return;
+    const box = stepsBox.current, c = box?.querySelector<HTMLElement>(".eqt-chip[aria-current]"); if (!scr || !box || !c) return;
     const l = c.offsetLeft - box.offsetLeft, r = l + c.offsetWidth;
     if (l < box.scrollLeft) box.scrollTo?.({ left: Math.max(0, l - 24), behavior: "smooth" }); else if (r > box.scrollLeft + box.clientWidth) box.scrollTo?.({ left: r - box.clientWidth + 24, behavior: "smooth" });
-  }, [on, scr, over.any]);
+  }, [on, scr, over.any, step]);
   useEffect(() => {   // task #274: at the bottom of the page the last section on screen is marked
     if (!scr) return;
     const end = () => { if (innerHeight + scrollY < document.documentElement.scrollHeight - 4) return; const vis = secs.map(([id]) => document.getElementById(id)).filter((e): e is HTMLElement => !!e && e.getBoundingClientRect().top < innerHeight); if (vis.length) setOn(vis[vis.length - 1].id); };
@@ -135,14 +138,17 @@ export function SectionsBar<T extends string = TabKey>({ tab, all, onTab, lead, 
     const sw = stuck ? el.querySelector<HTMLElement>(":scope > .x-sw")?.offsetWidth ?? 0 : 0, l = c.offsetLeft - el.offsetLeft, r = l + c.offsetWidth;
     if (l < el.scrollLeft + sw) el.scrollLeft = Math.max(0, l - sw - 8); else if (r > el.scrollLeft + el.clientWidth) el.scrollLeft = r - el.clientWidth + 8;
   }, [on, stuck]);
+  const stepMode = !!onStep, cur = stepMode && step && step !== "all" ? step : on;
   const chips = secs.map(([id, label, badge], i) => <span key={id} className="eqt-chipw">{i > 0 && <span className="eqt-arrow" aria-hidden="true">→</span>}
-    <button type="button" className="eqt-chip" aria-current={on === id ? "true" : undefined} onClick={() => { setOn(id); jumpTo(id); }}><span className="eqt-n">{i + 1}</span>{label}{badge && <span className="eqt-badge">{badge}</span>}</button></span>);
+    <button type="button" className="eqt-chip" aria-current={cur === id && (!stepMode || step !== "all" || on === id) ? (stepMode && step !== "all" ? "step" : "true") : undefined}
+      onClick={() => { setOn(id); if (stepMode) onStep!(id); else jumpTo(id); }}><span className="eqt-n">{i + 1}</span>{label}{badge && <span className="eqt-badge">{badge}</span>}</button></span>);
   if (scr) {
     const nudge = (d: 1 | -1) => { const el = stepsBox.current; if (el) el.scrollBy?.({ left: d * Math.max(160, el.clientWidth * 0.6), behavior: "smooth" }); };
     return (
       <nav ref={bar} className={"eqt-bar eqt-scr sw-host" + (stuck ? " stuck" : "") + (stuck && lead ? " x-sw-on" : "")} aria-label="Sections on this tab">
         {lead}
-        <button type="button" className="eqt-all" onClick={() => { setOn(secs[0]?.[0] ?? ""); onAll?.(); }} title="Show every hidden section again and go to the top of the view">All sections</button>
+        {stepMode ? <button type="button" className="eqt-all" aria-pressed={step === "all"} onClick={() => { setOn(secs[0]?.[0] ?? ""); onStep!("all"); }} title="Every section of this view on one page">All sections</button>
+          : <button type="button" className="eqt-all" onClick={() => { setOn(secs[0]?.[0] ?? ""); onAll?.(); }} title="Show every hidden section again and go to the top of the view">All sections</button>}
         {over.any && <button type="button" className="eqt-sa" aria-label="Earlier sections" disabled={!over.l} onClick={() => nudge(-1)}>‹</button>}
         <span ref={stepsBox} className={"eqt-steps" + (over.l ? " f-l" : "") + (over.r ? " f-r" : "")}>{chips}</span>
         {over.any && <button type="button" className="eqt-sa" aria-label="Later sections" disabled={!over.r} onClick={() => nudge(1)}>›</button>}

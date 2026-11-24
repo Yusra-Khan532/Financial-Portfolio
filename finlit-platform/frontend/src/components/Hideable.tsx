@@ -6,7 +6,10 @@ import "../styles/hideable.css";
 const key = (id: string) => `finlit.hide.${id}`;
 /** Task #323 (developer file 21, part 9; file 22, W1): panels that start closed until the member opens them once (Show stores "0", so it stays open):
  *  the equity portfolio's three Key figures sections, and the Watchlists page's. Every other panel starts open, as before. */
-export const CLOSED_BY_DEFAULT = new Set(["pack.eq-keys", "pack.eq-keysd", "pack.eq-keysr", "pack.wl-keys"]);
+export const CLOSED_BY_DEFAULT = new Set(["pack.wl-keys"]);   // task #385 (developer file 33): the equity portfolio's Key figures open by default
+/** Task #385 (Equity portfolio, developer file 33, "Added in this check" 2): with one section at a time the round Hide button on each section's corner
+ *  goes. A page sets this to false; a section the member already hid keeps its slim Show row. */
+export const HideButtons = createContext(true);
 const read = (id: string) => { try { const v = localStorage.getItem(key(id)); return v == null ? CLOSED_BY_DEFAULT.has(id) : v === "1"; } catch { return CLOSED_BY_DEFAULT.has(id); } };
 
 // Task #274: a change made elsewhere on the page (the Equity view bar's All sections, its Sections menu) reaches every panel at once.
@@ -26,7 +29,7 @@ export function useHideable(id: string): [boolean, (v: boolean) => void] {
 export const HideSlim = createContext(false);
 
 export function Hideable({ id, title, children, className = "", sub }: { id: string; title: string; children: ReactNode; className?: string; sub?: string }) {
-  const [hidden, setHidden] = useHideable(id), slim = useContext(HideSlim), refocus = useRef(false), on = useRef<HTMLButtonElement>(null);
+  const [hidden, setHidden] = useHideable(id), slim = useContext(HideSlim), withBtn = useContext(HideButtons), refocus = useRef(false), on = useRef<HTMLButtonElement>(null);
   useEffect(() => { if (!hidden && refocus.current) { refocus.current = false; on.current?.focus(); } }, [hidden]);
   if (hidden) {
     return (
@@ -35,6 +38,7 @@ export function Hideable({ id, title, children, className = "", sub }: { id: str
         <button type="button" className="hz-btn" aria-expanded="false" aria-label={`Show: ${title}`} onClick={() => { refocus.current = slim; setHidden(false); }}>{slim ? "Show ▾" : "Show"}</button>
       </section>);
   }
+  if (!withBtn) return <div className={"hz " + className}>{children}</div>;
   return (
     <div className={"hz " + className}>
       {children}

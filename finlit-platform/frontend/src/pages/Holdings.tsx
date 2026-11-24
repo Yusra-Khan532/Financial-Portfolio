@@ -1,4 +1,3 @@
-import { PortfolioDisclaimer } from "../components/PortfolioDisclaimer";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -45,18 +44,24 @@ import { capBucket } from "../lib/capBuckets";
 import { useIndices } from "../lib/indices";
 import { dayWord } from "../lib/dashPack";
 import { useLeadershipList } from "../lib/leadership";
-import { sharesCards, type Share, type Size } from "../lib/equityPack";
+import { peerSentence, sharesCards, type Share, type Size } from "../lib/equityPack";
 import { shareOf as buildShare } from "../lib/equityShares";
-import { topTiles, type TabKey } from "../lib/equityTop";
+import type { TabKey } from "../lib/equityTop";
 import { SectionsBar, SectionsMenu, jumpTo, type Sec } from "../portfolio/pack/PageTop";
-import { HideSlim, isHidden, setHidden } from "../components/Hideable";
+import { HideButtons, HideSlim } from "../components/Hideable";
 import { KeyAnswers } from "../portfolio/pack/KeyAnswers";
-import { divAnswers, portfolioAnswers, riskAnswers } from "../lib/keyAnswers";
+import { divAnswers, riskAnswers } from "../lib/keyAnswers";
 import { OrderWinNotice, WhatChanged, FilingChip, useWhatChanged } from "../components/changes/WhatChanged";
 import { useWatchlist } from "../lib/watchlist";
 import { ThemePill, YourThemes, themeView } from "../portfolio/pack/EqThemes";
 import { useBoard } from "../discovery/model";
-import { EqTitle, MoneyBox, NextView, PfPicker, ScorePanel, ViewCards, YourPortfolios, useEqViewsSeen, type DayMove, type ViewCard } from "../portfolio/pack/EqTop";
+import { EqTitle, MoneyBox, NextView, PfPicker, YourPortfolios, type DayMove } from "../portfolio/pack/EqTop";
+import { DataAsOf, PageEnd, ScoreCards, SinceVisit, SixParts, dayOf, sinceText, type CardsInput } from "../portfolio/pack/EqTop385";
+import { GainLossSection, Step, StepCtx, stepOf, type StepDef } from "../portfolio/pack/EqSteps385";
+import { KeyFigures, Info, coName, countOf, namesInText, portfolioKeyFigs, shortCo, type GLRow } from "../portfolio/shared";
+import { prismWord5 } from "../lib/equityTop";
+import { holdingFigs } from "../portfolio/HoldingCells";
+import { dayMonth } from "../lib/whatChanged";
 import { GoldLock, InShort, Insights, LeadersSection, StyleTiltPack, PeersSection, TrendSection, SizeFold, eqViews, type View } from "../portfolio/pack/EquityPack";
 import { StickySwitch } from "../portfolio/ViewKit";
 import { BetaBuild, EachShareRisk, Fall10, RiskGlancePack, RiskShareSection, SizeBench, riskSplit, usePortfolioRisk } from "../portfolio/pack/RiskPack";
@@ -66,7 +71,7 @@ import "../styles/sectors-pack.css";
 import "../styles/industry-pack.css";
 import "../styles/dashboard.css";
 import "../portfolio/pack/equity-pack.css";
-import { coTitle, shortLabel, subLine, titleOf } from "../lib/companyLabel";
+import { coTitle, subLine, titleOf } from "../lib/companyLabel";
 import { PLAN_FOR_PORTFOLIO } from "../lib/planGates";
 
 /** Equity portfolio: give it the names of the shares you own (typed, pasted or from a broker file) and it describes the list: how strong each share is, where the list sits by
@@ -83,7 +88,8 @@ const UPLOAD_NOTE = <>
             <p>Upload the PDF here. It is read on your device; only the ISINs are sent, to be looked up, and the quantities are added up across your accounts. Nothing is sent to a broker.</p></details>
 </>;
 
-const SECS: Record<TabKey, { label: string; secs: Sec[] }> = {
+/** Task #385: the steps are built in the page (stepsOf), so the section bar and the steps cannot drift apart. Kept for reference: the live bar's names. */
+export const SECS_274: Record<TabKey, { label: string; secs: Sec[] }> = {
   portfolio: { label: "Portfolio", secs: [["pf-shares", "Your shares"], ["eq-keys", "Key figures"], ["eq-wc", "What changed"], ["eq-trend", "Trends"], ["eq-peers", "Peers"], ["eq-leaders", "Group leaders"], ["eq-themes", "Themes"]] },
   // task #274 (change 17): the pack's steps for both views, each ending with What this means, in short
   diversification: { label: "Diversification analytics", secs: [["eq-where", "Where it sits"], ["eq-keysd", "Key figures"], ["eq-spread", "Spread"], ["eq-moves", "Moving together"], ["eq-grid", "Share by share"], ["eq-style", "Style tilt"], ["eq-short", "What this means"]] },
@@ -93,7 +99,7 @@ const SECS: Record<TabKey, { label: string; secs: Sec[] }> = {
 export function HoldingsPage() {
   useDocTitle("Equity portfolio", "Add the shares you own, by name or from a broker file, and see how strong each one is, how spread out the list is, what moves together and where the risk comes from.");
   const { plan, toast, has } = useUI();
-  const { seesAll } = useAuth();
+  const { seesAll, limits, plan: myPlan } = useAuth();
   const qc = useQueryClient();
   const model = modelFor(plan, seesAll);          // Gold: FinLit Prism. Silver: no company score (task #283). Basic: the page is gated.
   const [params, setParams] = useSearchParams();
@@ -114,10 +120,12 @@ export function HoldingsPage() {
   const uni = useUniverse(), idx = useSearchIndex(true);
   const by = useMemo(() => new Map((uni.data?.rows || []).map((r) => [r.symbol, r])), [uni.data]);
   const index = useMemo(() => rowsWithBseIds(idx.data), [idx.data]);   // with each BSE scrip ID, so "SPICY" in a broker's file finds BSE 540084
-  const cap = limitsFor(plan).holdings;
+  // task #385 (developer file 33, live bug 2): the share limit is the plan limit the server sends with the member (/api/auth/me), never written in the page;
+  // an admin previewing another plan reads that plan's limits
+  const cap = (!seesAll && plan === myPlan && limits?.holdings) || limitsFor(plan).holdings;
   const [one, setOne] = useState(""), [missing, setMissing] = useState<string[]>([]);
   // task #274 (pack change 1): the Add shares window (Add: with the picked company; Add several: empty; Import ▾: Paste a list or Upload) and the Import menu
-  const [addWin, setAddWin] = useState<{ tab: AddTab; pre: CompanyHit | null } | null>(null), [impOpen, setImpOpen] = useState(false);
+  const [addWin, setAddWin] = useState<{ tab: AddTab; pre: CompanyHit | null } | null>(null);
   // task #274 (pack change 3): Edit | Sell under each share open these windows
   const [esWin, setEsWin] = useState<{ what: "edit" | "sell"; symbol: string } | null>(null);
   const [checks, setChecks] = useState<(ToCheck & Amounts)[]>([]), [skipped, setSkipped] = useState<Skipped[]>([]), [readBy, setReadBy] = useState<string | null>(null);
@@ -303,7 +311,6 @@ export function HoldingsPage() {
   const shares: Share[] = useMemo(() => lines.map((l) => buildShare(l.symbol, l.name, l.ov, by.get(l.symbol), leadList.data, meta[l.symbol]))
   , [lines, by, leadList.data, meta]);   // eslint-disable-line react-hooks/exhaustive-deps
   const shareOf = useMemo(() => new Map(shares.map((x) => [x.symbol, x])), [shares]);
-  const counts = useMemo(() => { const c: Record<string, string[]> = {}; ids.forEach((sym) => { const k = meta[sym]?.sector || `${sym} (not classified)`; (c[k] ??= []).push(sym); }); return c; }, [ids, meta]);
   const sizeCount = useMemo(() => { const c = { Large: 0, Mid: 0, Small: 0, Micro: 0 } as Record<Size, number>; shares.forEach((x) => { if (x.size) c[x.size]++; }); return c; }, [shares]);
   // Diversification analytics (task #183 W7): each share's NSE levels (stored classification, else its industry's place in NSE's tree), size and score band
   const div: DivInput | null = useMemo(() => {
@@ -318,33 +325,16 @@ export function HoldingsPage() {
       return !w ? null : w === "STRONG" || w === "HEALTHY" ? "g" : w === "AVERAGE" ? "m" : w === "WEAK" || w === "POOR" ? "b" : null; };
     return { page, symbols: ids, levelOf, sizeOf: (sym) => shareOf.get(sym)?.size ?? null, band, gold: model === "prism", nameOf: (sym) => meta[sym]?.name ?? sym };
   }, [page, ids, meta, byOv, shareOf, model]);
-  // the Diversification analytics tile counts each NSE level (task #183 A4/A5): "9 macro sectors · 13 sectors · 22 industries · all four sizes"
-  const lvN = (l: "macro" | "sector" | "industry") => (div ? new Set(ids.map((x) => div.levelOf(x, l))).size : undefined);
   // developer file 28: once every share has a quantity, the cards read the score's figures by value (the average Prism, the spread score, the NIFTY 50 measures)
   const scA = sc.data && !sc.data.locked ? sc.data : null, byValue = scA?.basis === "value" && scA.byValue ? scA.byValue : null;
-  const scoresLoading = ov.isPending && !DEMO && symbols.length > 0;   // QA 23 Nov (item 14): the tile says the scores are loading, not "Not scored"
-  const top = topTiles(shares, page as never, model === "prism" ? "prism" : "finlit", { macro: lvN("macro"), sectors: lvN("sector"), industries: lvN("industry") ?? Object.keys(counts).length, sizes: (["Large", "Mid", "Small", "Micro"] as Size[]).filter((k) => sizeCount[k]).length }, byValue, scoresLoading);
   // task #274 (changes 2 and 16): the money box's day line and what the money covers, the three view cards, and the views opened once
   const dayCount = useMemo(() => {
-    const xs = shares.filter((x) => x.chg != null).map((x): DayMove => ({ symbol: x.symbol, label: shortLabel(x), chg: x.chg! }));
+    const xs = shares.filter((x) => x.chg != null).map((x): DayMove => ({ symbol: x.symbol, label: coName(x), chg: x.chg! }));   // task #385: short names
     const best = xs.length ? xs.reduce((a, b) => (b.chg > a.chg ? b : a)) : null, worst = xs.length ? xs.reduce((a, b) => (b.chg < a.chg ? b : a)) : null;
     return { up: xs.filter((x) => x.chg > 0).length, down: xs.filter((x) => x.chg < 0).length, best: best && best.chg > 0 ? best : null, worst: worst && worst.chg < 0 ? worst : null };
   }, [shares]);
   // task #323 (file 21, part 6): the shares really in the money (a share with no price today was never in `missing`, so "not missing" listed it as covered)
-  const haveBuys = useMemo(() => { const cov = new Set(money.covered); return shares.filter((x) => cov.has(x.symbol)).map((x) => ({ symbol: x.symbol, label: shortLabel(x) })); }, [shares, money.covered]);
-  const seen = useEqViewsSeen(view);
-  const BAND_TONE: Record<string, string> = { STRONG: "var(--eqx-hi)", HEALTHY: "var(--eqx-hi)", AVERAGE: "var(--eqx-mid)", WEAK: "var(--eqx-lo)", POOR: "var(--eqx-lo)" };
-  const MACRO_C = ["#4b4fc4", "#b5541c", "#a23b72", "#0e6471", "#7a8c2e", "#9a6b12", "#2f5a9e", "#5b6170", "#13606b", "#c08a1e"];
-  const viewCards: ViewCard[] = top.map((t) => {
-    let bar: ViewCard["bar"];
-    if (t.id === "portfolio" && model === "prism") { const c = new Map<string, number>(); shares.forEach((x) => { const k = BAND_TONE[x.prismWord?.toUpperCase() ?? ""] ?? "var(--eqx-none)"; c.set(k, (c.get(k) ?? 0) + 1); });
-      bar = ["var(--eqx-hi)", "var(--eqx-mid)", "var(--eqx-lo)", "var(--eqx-none)"].filter((k) => c.get(k)).map((k) => ({ n: c.get(k)!, c: k, label: `${c.get(k)} ${k.includes("hi") ? "strong or healthy" : k.includes("mid") ? "average" : k.includes("lo") ? "weak" : "not scored"}` })); }
-    if (t.id === "diversification" && div) { const c = new Map<string, number>(); ids.forEach((x) => { const k = div.levelOf(x, "macro"); c.set(k, (c.get(k) ?? 0) + 1); });
-      bar = [...c].sort((a, b) => b[1] - a[1]).map(([k, n], i) => ({ n, c: MACRO_C[i % MACRO_C.length], label: `${k} ${n}` })); }
-    return { id: t.id as View, v: t.v, x: t.sub, help: t.help, how: t.how, bar };
-  });
-  /** All sections (task #274, change 11): every hidden section of the open view comes back, and the page goes to the top of the view */
-  const showAllSecs = () => { SECS[view].secs.forEach(([id]) => setHidden("pack." + id, false)); setTimeout(() => document.getElementById("eq-tabs")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60); };
+  const haveBuys = useMemo(() => { const cov = new Set(money.covered); return shares.filter((x) => cov.has(x.symbol)).map((x) => ({ symbol: x.symbol, label: coName(x) })); }, [shares, money.covered]);
   // task #274 (change 19): What changed at your companies, from Discover: the section (Your shares or Watchlist), the chip under each share for a filing
   // since the last visit, the notice over the table for a new order win, and "N new" on the step
   const wl = useWatchlist();
@@ -352,40 +342,106 @@ export function HoldingsPage() {
   const onWatch = useMemo(() => new Set(wl.lists.flatMap((x) => x.symbols)), [wl]);
   const [wcList, setWcList] = useState<"equity" | "watch">("equity");
   const wcQ = useWhatChanged(DEMO ? [] : symbols, "equity-portfolio");
-  const secsLive = useMemo(() => ({ ...SECS, portfolio: { ...SECS.portfolio, secs: SECS.portfolio.secs.map((x): Sec => (x[0] === "eq-wc" && wcQ.newN ? [x[0], x[1], `${wcQ.newN} new`] : x)) } }), [wcQ.newN]);
   // task #274 (change 20): Themes, from Discover: the pill beside the size, Your themes (Your shares or Watchlists) and the Theme filter on Your shares
   const boardQ = useBoard();
   const [thList, setThList] = useState<"shares" | "watch">("shares"), [themeF, setThemeF] = useState<string | null>(null);
   const thShares = useMemo(() => (boardQ.data ? themeView(boardQ.data, uni.data?.rows, symbols) : null), [boardQ.data, uni.data, symbols]);
   const thWatch = useMemo(() => (boardQ.data ? themeView(boardQ.data, uni.data?.rows, watchSyms) : null), [boardQ.data, uni.data, watchSyms]);
   const mainTheme = useMemo(() => { const m = new Map<string, { short: string; slug: string; name: string }>(); thShares?.themes.forEach((t) => t.mine.forEach((x) => m.set(x.s, { short: t.short, slug: t.slug, name: t.name }))); return m; }, [thShares]);
-  const labelOf = (x: string) => { const y = shareOf.get(x); return y ? shortLabel(y) : x; };
+  const labelOf = (x: string) => { const y = shareOf.get(x); return y ? coName(y) : shortCo(meta[x]?.name, x); };
   const renamePf = (id: string, name: string) => { const n = name.trim(); if (!n) return "Give the portfolio a name."; if (pfList.some((x) => x.id !== id && x.name.trim().toLowerCase() === n.toLowerCase())) return `You already have a portfolio called ${n}. Try another name, such as "${n} (joint)".`;
     if (!st.portfolios?.length) portfolio.replace({ ...portfolio.get(), portfolios: pfList.map((x) => ({ ...x })) }); portfolio.renamePortfolio(id, n); toast("Portfolio renamed."); return null; };
   const riskSp = useMemo(() => (page && rk.data && div ? riskSplit(page, rk.data, (x) => div.levelOf(x, "macro")) : null), [page, rk.data, div]);
 
+  // ---------------------------------------------------------------- task #385 (developer file 33)
+  const nameOfSym = (sym: string) => { const y = shareOf.get(sym); return y ? coName(y) : shortCo(meta[sym]?.name ?? by.get(sym)?.name, sym); };
+  // open item 10: one price date for the page, the latest close behind the shares' own prices (the title row and Data as of)
+  const priceDay = useMemo(() => { const ds = (ov.data?.holdings ?? []).map((h) => (h.status === "ready" ? h.priceAsOf : null)).filter((d): d is string => !!d).sort(); return ds.length ? ds[ds.length - 1] : null; }, [ov.data]);
+  // the four calm cards
+  const cardsIn: CardsInput = useMemo(() => {
+    const sc5 = shares.filter((x) => x.prism != null), mean = sc5.length ? sc5.reduce((a, x) => a + (x.prism as number), 0) / sc5.length : null;
+    const avg = byValue?.prism ?? mean, words = ["Strong", "Healthy", "Average", "Weak", "Poor"];
+    const sp = byValue?.spread ?? page?.score ?? null, m = byValue?.market ?? page?.market.eq ?? null;
+    return { locked: !scoreOn, score: scA ? { total: scA.total ?? null, band: scA.band ?? null } : null,
+      strength: model === "prism" ? { avg, word: avg == null ? null : prismWord5(avg), byValue: byValue?.prism != null, counts: words.map((w): [string, number] => [w, sc5.filter((x) => prismWord5(x.prism as number) === w).length]) } : null,
+      spread: sp ? { score: Math.round(sp.score), word: sp.band, byCount: byValue?.spread && page ? page.score.score : null } : null,
+      risk: m ? { beta: m.beta, swing: m.vol, swingIndex: m.vol_nifty, bench: "NIFTY 50", byValue: !!byValue?.market } : null };
+  }, [shares, byValue, page, scA, scoreOn, model]);
+  const [sixOpen, setSixOpen] = useState(false);
+  // since your last visit: the visit before this one (POST /api/visits/equity-portfolio) and the filings of the last 90 days
+  const wcFiled = (wcQ.q.data?.companies ?? []).filter((c) => Object.keys(c.ev).length > 0).length;
+  const since = sinceText(wcQ.lastVisit ? dayMonth(wcQ.lastVisit) : null, wcQ.newN, wcFiled, symbols.length, wcQ.rows.length, wcQ.q.data?.days ?? 90);
+  // where the gain or loss came from: value now minus what was paid, for each share held now
+  const glRows = useMemo(() => { const rows: GLRow[] = []; let noPrice = 0;
+    symbols.forEach((sym) => { const f = holdingFigs(lots, sym); if (f.a?.qty === 0) return; if (f.gain == null) { if (f.a?.qty && f.a.invested == null) noPrice++; return; }
+      rows.push({ symbol: sym, name: nameOfSym(sym), gain: f.gain, pct: f.gainPct }); });
+    return { rows, noPrice }; }, [symbols, st.holdings, cur, byOv]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const hasLaggard = shares.some((x) => x.peer?.label === "laggard");
+  const [leaderLine, setLeaderLine] = useState("");
+  const inShortItems = useMemo(() => { const m = new Map<string, string>(); ids.forEach((x) => m.set(x, nameOfSym(x)));
+    return (page?.summary.eq ?? []).map((r) => ({ ...r, text: namesInText(r.text, m) })); }, [page, ids, shareOf, meta]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // the summary line of each folded section on a phone (All sections)
+  const kf = portfolioKeyFigs(shares, model === "prism"), kfTrend = kf.find((c) => c.q === "Are their prices rising?");
+  const lines385 = {
+    wc: !wcQ.q.data ? "Reading what your companies filed…" : `${countOf(wcQ.rows.length, "update")} from ${wcFiled} of your ${countOf(symbols.length, "company")} in the last ${wcQ.q.data.days ?? 90} days`,
+    trend: kfTrend ? `${kfTrend.big} ${kfTrend.ans}${kfTrend.sub ? ` · ${kfTrend.sub}` : ""}` : "Where each share's short-term trend sits against its long-term one",
+    peers: peerSentence(shares).split(/(?<=\.)\s/)[0],
+    leaders: "Your laggards against the #1 share of their peer group",
+    themes: thShares ? `${thShares.placed} of ${countOf(thShares.total, "share")} ${thShares.placed === 1 ? "is" : "are"} placed in a theme; ${countOf(thShares.themes.length, "main theme")} between them.` : "Reading Discover's themes…",
+  };
+  // one section at a time: the steps of each view (Portfolio's first step holds Your shares, the gain or loss and Key figures)
+  const stepsOf = (v: View): StepDef[] => v === "portfolio" ? [
+      { id: "pf-shares", label: "Your shares", secs: ["pf-shares", "eq-gl", "eq-keys", "pf-sold"] },
+      ...(DEMO ? [] : [{ id: "eq-wc", label: "What changed", secs: ["eq-wc"], badge: wcQ.newN ? `${wcQ.newN} new` : undefined }]),
+      { id: "eq-trend", label: "Trends", secs: ["eq-trend"] }, { id: "eq-peers", label: "Peers", secs: ["eq-peers"] },
+      ...(model !== "prism" || hasLaggard ? [{ id: "eq-leaders", label: "Group leaders", secs: ["eq-leaders"] }] : []),
+      ...(DEMO ? [] : [{ id: "eq-themes", label: "Themes", secs: ["eq-themes"] }]),
+      ...(inShortItems.length ? [{ id: "eq-short", label: "In short", secs: ["eq-short"] }] : [])]
+    : v === "diversification" ? [{ id: "eq-spread", label: "Spread", secs: ["eq-spread"] }, { id: "eq-where", label: "Where it sits", secs: ["eq-where"] }, { id: "eq-keysd", label: "Key figures", secs: ["eq-keysd"] },
+      { id: "eq-moves", label: "Moving together", secs: ["eq-moves", "eq-sectors", "eq-groups", "eq-sizes"] }, { id: "eq-grid", label: "Share by share", secs: ["eq-grid"] }, { id: "eq-style", label: "Style tilt", secs: ["eq-style"] },
+      ...(inShortItems.length ? [{ id: "eq-short", label: "In short", secs: ["eq-short"] }] : [])]
+    : [{ id: "eq-rg", label: "At a glance", secs: ["eq-rg"] }, { id: "eq-keysr", label: "Key figures", secs: ["eq-keysr"] }, { id: "eq-build", label: "Beta build", secs: ["eq-build", "eq-read"] }, { id: "eq-sizeb", label: "Size benchmarks", secs: ["eq-sizeb"] },
+      { id: "eq-mr", label: "Risk share", secs: ["eq-mr"] }, { id: "eq-fall", label: "If the market fell", secs: ["eq-fall"] }, { id: "eq-each", label: "Each share", secs: ["eq-each"] },
+      ...(inShortItems.length ? [{ id: "eq-short", label: "In short", secs: ["eq-short"] }] : [])];
+  const steps = stepsOf(view);
+  const secsLive: Record<View, { label: string; secs: Sec[] }> = { portfolio: { label: "Portfolio", secs: stepsOf("portfolio").map((x): Sec => [x.id, x.label, x.badge]) },
+    diversification: { label: "Diversification analytics", secs: stepsOf("diversification").map((x): Sec => [x.id, x.label]) }, risk: { label: "Risk analytics", secs: stepsOf("risk").map((x): Sec => [x.id, x.label]) } };
+  const [stepBy, setStepBy] = useState<Partial<Record<View, string>>>({});
+  const step = stepBy[view] && (stepBy[view] === "all" || steps.some((x) => x.id === stepBy[view])) ? stepBy[view]! : steps[0]?.id ?? "all";
+  /** Show the step that holds a section (or "all"); `jump` then scrolls to the section, otherwise to the top of the view when the page is below it. */
+  const goStep = (id: string, jump = true) => {
+    const to = id === "all" ? "all" : stepOf(stepsOf(view), id) ?? stepOf(steps, id) ?? id;
+    setStepBy((x) => ({ ...x, [view]: to }));
+    setTimeout(() => { const el = jump && id !== to ? document.getElementById(id) : null; if (el) { jumpTo(id); return; }
+      const bar = document.getElementById("eq-panel"); if (bar && bar.getBoundingClientRect().top < 0) bar.scrollIntoView?.({ behavior: "smooth", block: "start" }); }, 80);
+  };
+  const showAllSecs = () => goStep("all", false);
+  useEffect(() => { const f = (e: Event) => { const id = (e as CustomEvent<string>).detail; if (typeof id === "string") goStep(id); }; addEventListener("eq-step", f); return () => removeEventListener("eq-step", f); });
+  const asOfParts = [priceDay ? `Prices: close of ${dayOf(priceDay)}` : "",
+    ...(view === "portfolio" ? [`Filings: the last ${wcQ.q.data?.days ?? 90} days`, thShares?.updated ? `Themes: to ${dayOf(thShares.updated, true)}` : ""] : []),
+    ...(view === "diversification" ? ["Moving together: the past year of weekly closes"] : []),
+    ...(view === "risk" && rk.data?.to ? [`Risk figures: weekly closes to ${dayOf(rk.data.to)}`] : [])].filter(Boolean);
+
   return (
-    <HideSlim.Provider value={true}><div className="wrap ipo pfx sp eq">
+    <HideSlim.Provider value={true}><HideButtons.Provider value={false}><div className="wrap ipo pfx sp eq">
       <Gate tier={PLAN_FOR_PORTFOLIO} title="Score your portfolio" points={["FinLit Prism for every share you own (Gold)", "How spread out the list is, and what moves together", "Share of risk and the NIFTY 50 comparison", "Import Excel, CSV or PDF statements"]}>
         <div className="pfx-flow">
         <section className="card eqx-top" aria-label="Equity portfolio">
-          <EqTitle plan={TIER[plan].n} asOf={idxQ.data?.asOf} add={<>
+          <EqTitle plan={TIER[plan].n} asOf={priceDay ?? idxQ.data?.asOf} add={<>
           <form className="pfx-add" onSubmit={(e) => { e.preventDefault(); const t = one.trim(); if (!t) { setAddWin({ tab: "search", pre: null }); return; }
             const hit = suggest(index, t, isinOf)[0]; if (hit) { setOne(""); setAddWin({ tab: "search", pre: hit }); } else { void add([entryOf(t)]); setOne(""); } }}>
             <label className="pfx-input"><Icon name="search" />
               <CompanyCombo index={index} isin={isinOf} held={heldSet} info={coInfo} label="Add a share by name, symbol or ISIN" inputRef={addBox} value={one} onChange={setOne}
                 onPick={(h) => { setOne(""); setAddWin({ tab: "search", pre: h }); }} /></label>
-            <button className={buttonClass("primary", "md", "pfx-solid")}>Add</button>
-            <span className="eq-add2"><button type="button" className="pfx-btn" onClick={() => setAddWin({ tab: "search", pre: null })}>Add several</button>
-            <span className="pfa-impw"><button type="button" className="pfx-btn" aria-haspopup="menu" aria-expanded={impOpen} onClick={() => setImpOpen((v) => !v)} disabled={busy}>{busy ? "Reading…" : "Import ▾"}</button>
-              {impOpen && <div className="x-swm pfa-imp" role="menu" aria-label="Import" onKeyDown={(e) => { if (e.key === "Escape") { setImpOpen(false); (e.currentTarget.previousElementSibling as HTMLElement | null)?.focus(); } }}>
-                <button type="button" role="menuitem" autoFocus onClick={() => { setImpOpen(false); setAddWin({ tab: "paste", pre: null }); }}><span className="x-swm-t"><b>Paste a list</b><small>Names, symbols or ISINs, one a line</small></span></button>
-                <button type="button" role="menuitem" onClick={() => { setImpOpen(false); setAddWin({ tab: "upload", pre: null }); }}><span className="x-swm-t"><b>Upload a broker file or CAS</b><small>Excel, CSV or PDF; read by ISIN</small></span></button></div>}</span>
+            <button className={buttonClass("primary", "md", "pfx-solid")}>{busy ? "Reading…" : "Add shares"}</button>
             <input ref={file} type="file" accept={ACCEPT + ",.pdf,application/pdf"} hidden onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; setAddWin(null); if (isPdf(f)) { setPdf(f); return; } setBusy(true);
               try { const r = await entriesAndAmountsFromFile(f, matcher); await add(r.entries, f.name, true, r.amounts); } catch (err) { toast(err instanceof Error && err.message.startsWith("That file") ? err.message : "That file could not be read. Save it as .xlsx or .csv, or paste the share names instead."); } finally { setBusy(false); } }} />
-            </span>
           </form>
-          </>} clear={<>
+          </>} more={<>
+            <button type="button" role="menuitem" onClick={() => setAddWin({ tab: "search", pre: null })}><b>Add several</b><small>Several shares in one window</small></button>
+            <button type="button" role="menuitem" onClick={() => setAddWin({ tab: "paste", pre: null })}><b>Import: paste a list</b><small>Names, symbols or ISINs, one a line</small></button>
+            <button type="button" role="menuitem" onClick={() => setAddWin({ tab: "upload", pre: null })}><b>Import: upload a broker file or CAS</b><small>Excel, CSV or PDF; read by ISIN</small></button>
+            <span className="eqx-menu-sep" role="separator" /></>} clear={<>
             <ClearPortfolio count={symbols.length} noun="share" kind="equity" className="eqx-clear" goes={["the quantities you added", "the figures worked out from them: score, diversification and risk"]}
               onClear={async () => { const before = portfolio.get(); await clearPortfolioServer(); localBefore.current = before; portfolio.reset(); }}
               onUndo={async () => {
@@ -436,77 +492,82 @@ export function HoldingsPage() {
           {money.nSales > 0 && <MoneyRow t={money} onAdd={openFor} />}
           {sold.length > 0 && <SoldList items={sold} all={cur === "all" && pfList.length > 1} pfName={pfName} nameOf={(sym) => meta[sym]?.name ?? sym} onRemoveSale={(id) => portfolio.remove(id)} />}</div> : model && <>
           <div className="eqx-row2" id="eq-tabs">
-            <ScorePanel locked={!scoreOn} total={scA ? scA.total ?? null : null} band={scA ? scA.band : null} shares={symbols.length}
-              missing={symbols.filter((x) => !qtyBySymbol.get(x)).length} onAdd={() => { const sym = symbols.find((x) => !qtyBySymbol.get(x)); if (sym) openFor(sym, "qty"); }}
-              basis={scA?.basis} noPrice={(scA?.noQuantity ?? []).filter((x) => qtyBySymbol.get(x))} />
-            <ViewCards cards={viewCards} view={view} onView={(v) => setView(v)} seen={seen} />
+            <ScoreCards c={cardsIn} view={view} onView={(v) => setView(v)} sixOpen={sixOpen} onSix={() => setSixOpen((o) => !o)} />
+            {scA && scA.readings && <SixParts s={scA} choices={choices} onChoices={pick} nameOf={nameOfSym} open={sixOpen} />}
+            {!DEMO && <SinceVisit lead={since.lead} rest={since.rest} onSee={() => { setView("portfolio"); goStep("eq-wc"); }} />}
           </div>
           {data && data.unknown.length > 0 && <p className="pfx-warn" role="status">Not in FinLit's company list, so left out of the figures: {data.unknown.join(", ")}.</p>}
-          {data && data.noPrices.length > 0 && <p className="pfx-note" role="status">No stored prices yet for {data.noPrices.join(", ")}: {plural(data.noPrices.length, "share")} left out of the co-movement figures.</p>}
           {DEMO && <p className="pfx-note" role="status">The diversification figures are not available in the demo preview.</p>}
           {state === "error" && <p className="pfx-warn" role="alert">{pg.error?.body?.detail || "The figures for this list could not be loaded. Try again in a moment."}</p>}
-          <SectionsBar tab={view} all={secsLive} steps onAll={showAllSecs} onTab={(t, then) => { setView(t); if (then) setTimeout(() => jumpTo(then), 120); }}
-            lead={<StickySwitch list={pfList} cur={cur} onPick={(id) => { setCur(id); setOpenLots(new Set()); }} figs={pfFigs} defs={eqViews(lines.length)} view={view} onView={(v) => setView(v)} tabsId="eq-tabs" fresh={(["portfolio", "diversification", "risk"] as View[]).filter((v) => !seen.has(v))} />} />
-          <div id="eq-panel" role="tabpanel" aria-labelledby={`eq-tab-${view}`}>
+          <SectionsBar tab={view} all={secsLive} steps onAll={showAllSecs} step={step} onStep={(id) => goStep(id, false)} onTab={(t, then) => { setView(t); if (then) setTimeout(() => goStep(then), 120); }}
+            lead={<StickySwitch list={pfList} cur={cur} onPick={(id) => { setCur(id); setOpenLots(new Set()); }} figs={pfFigs} defs={eqViews(lines.length)} view={view} onView={(v) => setView(v)} tabsId="eq-tabs" fresh={[]} />} />
+          <StepCtx.Provider value={{ step, firstStep: steps[0]?.id ?? "" }}>
+          <div id="eq-panel" role="region" aria-label={`${view === "portfolio" ? "Portfolio" : view === "diversification" ? "Diversification" : "Risk"} view`}>
+          <DataAsOf parts={asOfParts} />
           {view !== "portfolio" && <AnalysingBar list={pfList} cur={cur} onPick={(id) => { setCur(id); setOpenLots(new Set()); }} n={symbols.length} />}
           {view === "portfolio" && <>
+            <Step id="pf-shares" title="Your shares" line="">
             <OrderWinNotice row={wcQ.notice} page="equity-portfolio" />
             <SharesTable chip={(sym) => <FilingChip row={wcQ.chip(sym)} />} themePill={(sym) => <ThemePill t={mainTheme.get(sym) ?? null} name={meta[sym]?.name ?? by.get(sym)?.name ?? sym} />}
               theme={themeF ? { label: thShares?.themes.find((t) => t.name === themeF)?.short ?? themeF, has: (sym) => mainTheme.get(sym)?.name === themeF, onClear: () => setThemeF(null) } : null} stuckLead={<>
-              <StickySwitch list={pfList} cur={cur} onPick={(id) => { setCur(id); setOpenLots(new Set()); }} figs={pfFigs} defs={eqViews(lines.length)} view={view} onView={(v) => setView(v)} tabsId="eq-tabs" fresh={(["portfolio", "diversification", "risk"] as View[]).filter((v) => !seen.has(v))} />
-              <SectionsMenu secs={secsLive.portfolio.secs} here="pf-shares" isHidden={(id) => isHidden("pack." + id)} show={(id) => setHidden("pack." + id, false)} onAll={showAllSecs} /></>}
+              <StickySwitch list={pfList} cur={cur} onPick={(id) => { setCur(id); setOpenLots(new Set()); }} figs={pfFigs} defs={eqViews(lines.length)} view={view} onView={(v) => setView(v)} tabsId="eq-tabs" fresh={[]} />
+              <SectionsMenu secs={secsLive.portfolio.secs} here="pf-shares" isHidden={() => false} show={(id) => goStep(id)} onAll={() => goStep("all", false)} /></>}
               lots={lots} editSell={{ onEdit: (sym) => setEsWin({ what: "edit", symbol: sym }), onSell: (sym) => setEsWin({ what: "sell", symbol: sym }) }} qtyOf={(sym) => qtyBySymbol.get(sym) ?? null} onQty={onQty} lines={lines} meta={meta} page={page} mode={mode} colors={colors} model={model} tab={tab} period={period} limit={cap} state={ov.isError ? "error" : ov.isPending && !DEMO ? "loading" : "ready"}
               errorText={DEMO ? "Scores are not available in the demo preview." : ov.error?.body?.detail} onTab={(t) => go(t)} onPeriod={(pd) => go("financials", pd)}
-              peerOf={(sym) => shareOf.get(sym)} day={day} cards={tab === "overview" ? <div className="eq-cards"><Insights items={sharesCards(shares, day)} scope="eq.shares" /></div> : null}
+              peerOf={(sym) => shareOf.get(sym)} day={day} cards={tab === "overview" ? <div className="eq-cards"><Insights items={sharesCards(shares, day).map((c) => { const m = new Map(shares.map((x) => [x.symbol, coName(x)])); return { ...c, title: namesInText(c.title, m), text: namesInText(c.text, m) }; })} scope="eq.shares" /></div> : null}
               actions={(sym) => <button className="pfx-x" aria-label={`Remove ${sym}`} title={`Remove ${sym}${cur === "all" ? "" : ` from ${pfName(cur)}`}`} onClick={() => { st.holdings.filter((h) => h.symbol === sym && (cur === "all" || pfOf(h) === cur)).forEach((h) => portfolio.remove(h.id)); toast(`${sym} removed.`); }}>×</button>} />
             <SoldList items={sold} all={cur === "all" && pfList.length > 1} pfName={pfName} nameOf={(sym) => meta[sym]?.name ?? sym} onRemoveSale={(id, sym) => { portfolio.remove(id); setOpenLots((c) => new Set([...c, sym]));
               setTimeout(() => { const r = document.getElementById(`lots-${sym}`)?.previousElementSibling as HTMLElement | null; r?.classList.add("x-flash"); r?.scrollIntoView?.({ behavior: "smooth", block: "center" }); setTimeout(() => r?.classList.remove("x-flash"), 2300); }, 150); }} />
-            <KeyAnswers id="eq-keys" sub={`What your ${plural(lines.length, "share")} add up to, from the table above and the sections below.`} items={portfolioAnswers(shares, model === "prism", (x) => shortLabel(x))} shares={shares} />
-            {!DEMO && <WhatChanged title="What changed at your companies" symbols={wcList === "equity" ? symbols : watchSyms} listName={wcList === "equity" ? "your shares" : "your watchlists"}
+            {cur !== "all" || pfList.length >= 1 ? <GainLossSection rows={glRows.rows} noPrice={glRows.noPrice} /> : null}
+            <KeyFigures id="eq-keys" sub={`What your ${countOf(lines.length, "share")} add up to, from the table above and the sections below.`} cards={portfolioKeyFigs(shares, model === "prism", (x) => holdingFigs(lots, x).now)} about="Key figures, Portfolio" />
+            <SizeFold counts={sizeCount} />
+            </Step>
+            {!DEMO && <Step id="eq-wc" title="What changed at your companies" line={lines385.wc}><WhatChanged title="What changed at your companies" symbols={wcList === "equity" ? symbols : watchSyms} listName={wcList === "equity" ? "your shares" : "your watchlists"}
               listRef={wcList === "equity" ? "equity" : "watch"} page="equity-portfolio" lists={[{ id: "equity", label: "Your shares", count: symbols.length }, { id: "watch", label: "Watchlist", count: watchSyms.length }]}
               activeList={wcList} onPickList={(id) => setWcList(id === "watch" ? "watch" : "equity")} nameOf={(x) => meta[x]?.name ?? by.get(x)?.name}
-              sub={wcList === "equity" ? (x) => (onWatch.has(x) ? "★ also on a watchlist" : null) : undefined} className="sp-sec wc eq-wc" hId="wc-h-eq" id="eq-wc" />}
-            <SizeFold counts={sizeCount} />
+              sub={wcList === "equity" ? (x) => (onWatch.has(x) ? "★ also on a watchlist" : null) : undefined} className="sp-sec wc eq-wc" hId="wc-h-eq" id="eq-wc"
+              plain shortName={(s, n) => shortCo(meta[s]?.name ?? n, n || s)} help={<Info about="What changed at your companies" text="Exchange filings from the last 90 days for the companies you own, grouped by kind. From Discover." how="An update is one kind of news from one company; a row may bundle several filings." />} /></Step>}
             {/* Trends, Peers and Group leaders: Gold only (FinLit Prism); Silver sees a dashed lock card for each (the pack) */}
             {model === "prism" ? <>
-              {tr.data?.trend ? <TrendSection t={tr.data.trend} shares={shares} /> : <section className="sp-sec" aria-labelledby="eq-trend"><h2 id="eq-trend">Short- and long-term trend</h2><p className="sp-note">{tr.isError ? "The trend readings could not be loaded. Try again in a moment." : "Loading the trend readings…"}</p></section>}
-              <PeersSection shares={shares} />
-              <LeadersSection shares={shares} />
+              <Step id="eq-trend" title="Short- and long-term trend" line={lines385.trend}>{tr.data?.trend ? <TrendSection t={tr.data.trend} shares={shares} /> : <section className="sp-sec" aria-labelledby="eq-trend"><h2 id="eq-trend">Short- and long-term trend</h2><p className="sp-note">{tr.isError ? "The trend readings could not be loaded. Try again in a moment." : "Loading the trend readings…"}</p></section>}</Step>
+              <Step id="eq-peers" title="Against their peers" line={lines385.peers}><PeersSection shares={shares} /></Step>
+              {hasLaggard && <Step id="eq-leaders" title="What if you had owned the group leader instead?" line={leaderLine || lines385.leaders}><LeadersSection shares={shares} onLine={setLeaderLine} /></Step>}
             </> : <>
-              <GoldLock id="eq-trend" title="Short- and long-term trend" text="Where each share's short-term trend sits against its long-term one, from FinLit Prism's technical view." />
-              <GoldLock id="eq-peers" title="Against their peers" text="Whether each share leads or lags similar companies over 12 months." />
-              <GoldLock id="eq-leaders" title="What if you had owned the group leader instead?" text="Your laggards against the #1 share of their peer group over 12 months." />
+              <Step id="eq-trend" title="Short- and long-term trend" line="Gold and up"><GoldLock id="eq-trend" title="Short- and long-term trend" text="Where each share's short-term trend sits against its long-term one, from FinLit Prism's technical view." /></Step>
+              <Step id="eq-peers" title="Against their peers" line="Gold and up"><GoldLock id="eq-peers" title="Against their peers" text="Whether each share leads or lags similar companies over 12 months." /></Step>
+              <Step id="eq-leaders" title="What if you had owned the group leader instead?" line="Gold and up"><GoldLock id="eq-leaders" title="What if you had owned the group leader instead?" text="Your laggards against the #1 share of their peer group over 12 months." /></Step>
             </>}
             {/* task #323 (developer file 21, part 12): Your themes moves below Group leaders, so the readings about each share come first */}
-            {!DEMO && <YourThemes v={thList === "shares" ? thShares : thWatch} list={thList} onList={setThList} theme={themeF} label={labelOf}
+            {!DEMO && <Step id="eq-themes" title="Your themes, from Discover" line={lines385.themes}><YourThemes v={thList === "shares" ? thShares : thWatch} list={thList} onList={setThList} theme={themeF} label={labelOf}
               counts={{ shares: { placed: thShares?.placed ?? 0, total: symbols.length }, watch: { placed: thWatch?.placed ?? 0, total: watchSyms.length } }}
-              onShow={thList === "shares" ? (name) => { setThemeF(name); setTimeout(() => jumpTo("pf-shares"), 60); } : undefined} />}
+              onShow={thList === "shares" ? (name) => { setThemeF(name); goStep("pf-shares"); } : undefined} /></Step>}
           </>}
+          {view === "diversification" && data && data.noPrices.length > 0 && <p className="pfx-note" role="status">No stored prices yet for {data.noPrices.map((x) => nameOfSym(x)).join(", ")}: {plural(data.noPrices.length, "share")} left out of the co-movement figures.</p>}
           {view === "diversification" && (page && common && div ? <>
-            <WhereSitsGrid d={div} />
-            <KeyAnswers id="eq-keysd" sub="How spread out your list really is, in three answers." items={divAnswers(divFacts(div), (x) => { const y = shareOf.get(x); return y ? shortLabel(y) : x; })} shares={shares} />
-            <SpreadPack d={div} />
-            <DivSubTabs d={div} />
-            <ShareGrid d={div} />
-            {model === "prism" ? <StyleTiltPack tilt={data?.styleTilt} /> : <GoldLock id="eq-style" title="Style tilt" text="Where your list's average share ranks among all the companies FinLit Prism rates, part by part." />}
+            <Step id="eq-spread" title="How spread out is the list?" line="The spread score and how independently your shares move"><SpreadPack d={div} /></Step>
+            <Step id="eq-where" title="Where your list sits" line="Your shares by macro sector and size"><WhereSitsGrid d={div} /></Step>
+            <Step id="eq-keysd" title="Key figures" line="How spread out your list really is, in three answers"><KeyAnswers id="eq-keysd" sub="How spread out your list really is, in three answers." items={divAnswers(divFacts(div), (x) => { const y = shareOf.get(x); return y ? coName(y) : x; })} shares={shares} /></Step>
+            <Step id="eq-moves" title="How the list moves together" line="Sectors, groups and sizes that move together"><DivSubTabs d={div} /></Step>
+            <Step id="eq-grid" title="Share by share" line="How closely each pair of your shares moves"><ShareGrid d={div} /></Step>
+            <Step id="eq-style" title="Style tilt" line="Where your average share ranks, part by part">{model === "prism" ? <StyleTiltPack tilt={data?.styleTilt} /> : <GoldLock id="eq-style" title="Style tilt" text="Where your list's average share ranks among all the companies FinLit Prism rates, part by part." />}</Step>
           </> : <p className="sp-note">{state === "loading" ? "Working out the figures…" : "The diversification figures need at least two shares with a year of weekly prices."}</p>)}
           {view === "risk" && (page && rk.data && riskSp ? <>
-            <RiskGlancePack r={rk.data} split={riskSp} compare={scoreOn ? { value: choices.benchmark, onChange: (v) => pick({ ...choices, benchmark: v }) } : undefined} />
-            <KeyAnswers id="eq-keysr" sub="Where the list's risk sits, in three answers." items={riskAnswers(rk.data, riskSp.bySize, (x) => { const y = shareOf.get(x); return y ? shortLabel(y) : x; })} shares={shares} />
-            <BetaBuild r={rk.data} />
-            <SizeBench r={rk.data} />
-            <RiskShareSection r={rk.data} split={riskSp} />
-            <Fall10 r={rk.data} value={money.n && money.withQty === money.n ? { now: money.now, name: cur === "all" ? "All accounts" : pfName(cur) } : null} />
-            <EachShareRisk r={rk.data} split={riskSp} shares={shares} gold={model === "prism"} />
+            <Step id="eq-rg" title="Risk at a glance" line="How much the list swings and how far it has fallen"><RiskGlancePack r={rk.data} split={riskSp} compare={scoreOn ? { value: choices.benchmark, onChange: (v) => pick({ ...choices, benchmark: v }) } : undefined} /></Step>
+            <Step id="eq-keysr" title="Key figures" line="Where the list's risk sits, in three answers"><KeyAnswers id="eq-keysr" sub="Where the list's risk sits, in three answers." items={riskAnswers(rk.data, riskSp.bySize, (x) => { const y = shareOf.get(x); return y ? coName(y) : x; })} shares={shares} /></Step>
+            <Step id="eq-build" title="How your list's beta is built" line="What each size adds to how much the list moves"><BetaBuild r={rk.data} /></Step>
+            <Step id="eq-sizeb" title="Each size against its own benchmark" line="Each size against the index of companies its size"><SizeBench r={rk.data} /></Step>
+            <Step id="eq-mr" title="Share of the list vs share of the risk" line="Which parts carry more than their share of the ups and downs"><RiskShareSection r={rk.data} split={riskSp} /></Step>
+            <Step id="eq-fall" title="If the market fell 10%" line="What a 10% fall in the market has meant for the list"><Fall10 r={rk.data} value={money.n && money.withQty === money.n ? { now: money.now, name: cur === "all" ? "All accounts" : pfName(cur) } : null} /></Step>
+            <Step id="eq-each" title="Each share's risk" line="Every share against its own size index"><EachShareRisk r={rk.data} split={riskSp} shares={shares} gold={model === "prism"} /></Step>
           </> : <p className="sp-note">{state === "loading" || rk.isPending ? "Working out the figures…" : rk.isError ? (rk.error?.body?.detail || "The risk figures could not be loaded. Try again in a moment.") : "The risk figures need shares with a year of weekly prices."}</p>)}
+          {page && <Step id="eq-short" title="What this means, in short" line={inShortItems[0]?.text ?? ""}><InShort items={inShortItems} /></Step>}
           <NextView view={view} onView={(v) => setView(v, true)} />
           </div>
-          {page && <InShort items={page.summary.eq} />}
+          </StepCtx.Provider>
         </>}
         </div>
       </Gate>
-      <details className="sp-sec sp-fold eq-disc"><summary><span><b className="sp-ft">Disclaimer</b><small>What this page is, and is not</small></span><span className="sp-show">Show ▾</span></summary><PortfolioDisclaimer kind="equity" /></details>
-      <p className="eq-end">Information only, not investment advice.</p>
-    </div></HideSlim.Provider>
+      <PageEnd />
+    </div></HideButtons.Provider></HideSlim.Provider>
   );
 }

@@ -57,7 +57,7 @@ const DAY = (iso: string | null | undefined) => {
 };
 
 // ------------------------------------------------------------------------------------------------ title row
-export function EqTitle({ plan, asOf, add, clear }: { plan: string; asOf: string | null | undefined; add: ReactNode; clear: ReactNode }) {
+export function EqTitle({ plan, asOf, add, clear, more }: { plan: string; asOf: string | null | undefined; add: ReactNode; clear: ReactNode; /** task #385: Add several and Import, in ⋯ */ more?: ReactNode }) {
   const m = useMenu(), day = DAY(asOf);
   return (<>
     <div className="eqx-t1">
@@ -70,7 +70,8 @@ export function EqTitle({ plan, asOf, add, clear }: { plan: string; asOf: string
         {add}
         <span className="eqx-menu" ref={m.box}>
           <button type="button" className="pfx-btn eqx-more" aria-haspopup="menu" aria-expanded={m.open} aria-label="More: related pages and Clear portfolio" onClick={() => m.setOpen(!m.open)}>⋯</button>
-          <span className="eqx-menu-m" role="menu" hidden={!m.open}>
+          <span className="eqx-menu-m" role="menu" hidden={!m.open} onClick={(e) => { if ((e.target as HTMLElement).closest("button[role=menuitem]")) m.setOpen(false); }}>
+            {more}
             <Link role="menuitem" to="/mf-portfolio">MF portfolio</Link><Link role="menuitem" to="/watchlist">Watchlists</Link>
             <Link role="menuitem" to="/alerts">Alerts</Link><Link role="menuitem" to="/learn/portfolio">Learn more</Link>
             <span className="eqx-menu-sep" role="separator" />{clear}
