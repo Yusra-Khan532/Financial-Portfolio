@@ -38,6 +38,7 @@ import { parseRules } from "../lib/typeRules";
 import "../styles/fgx.css";
 import "../styles/stockscreener.css";
 import "../styles/tools.css";
+import "../styles/task364b.css";   // task #364 PR B: the results table
 import { SIDE, SplitDivider, useSideWidth } from "../components/SplitDivider";
 import { CoLogo } from "../components/CoLogo";
 import { PLAN_FOR_SCREENER } from "../lib/planGates";

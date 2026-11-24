@@ -1,0 +1,45 @@
+/* Task #364 PR B (Chinmay, 24 Nov 2026): the Stock screener's results table. Every figure (market cap, the short and long technical views, LTP and its day
+   change, the rule and custom-ratio columns) is centred under its centred header; the company stays left. A 1px line between columns, the band row and the
+   column row at even heights, headers that wrap on two lines instead of cutting, a clear hover and a clear selected row (the one open in the chart panel).
+   The header row and the Company column stay pinned (unchanged, from task #243). Rules start at .wrap.ssw so they win whatever the load order. */
+
+/* centre every figure; the company stays left */
+.wrap.ssw .ssw-t.scr-t th:not(.stick), .wrap.ssw .ssw-t.scr-t td:not(.stick) { text-align: center; }
+.wrap.ssw .ssw-t.scr-t thead tr.ssw-band th:not(.stick) { text-align: center; }
+.wrap.ssw .ssw-t.scr-t thead th:not(.stick) button { margin: 0 auto; justify-content: center; }
+.wrap.ssw .ssw-t.scr-t th.xst-c-size button { margin: 0 auto; }
+.wrap.ssw .ssw-t.scr-t td.ssw-iq > * { margin-left: auto; margin-right: auto; }
+.wrap.ssw .ssw-t.scr-t td.ssw-iq { text-align: center; }
+.wrap.ssw .ssw-t.scr-t td small, .wrap.ssw .ssw-t.scr-t th small { text-align: inherit; }
+
+/* a line between columns, on both header rows and every body row */
+.wrap.ssw .ssw-t.scr-t th + th, .wrap.ssw .ssw-t.scr-t td + td { border-left: 1px solid var(--border); }
+.wrap.ssw .ssw-t.scr-t thead tr.ssw-band th { border-bottom: 1px solid var(--border); }
+
+/* header rows: even heights, the group line in small caps above the column names; long names wrap on two lines */
+.wrap.ssw .ssw-t.scr-t thead tr.ssw-band th { height: 34px; padding: 6px 12px; vertical-align: middle; font: 600 var(--fs-12)/1.25 var(--sans); }
+.wrap.ssw .ssw-t.scr-t thead tr.ssw-hd th:not(.stick):not(.ssw-rep) { min-width: 92px; }
+.wrap.ssw .ssw-t.scr-t thead tr.ssw-hd th { height: 56px; padding: 6px 12px; vertical-align: middle; font-weight: 500; }
+.wrap.ssw .ssw-t.scr-t thead tr.ssw-hd th button { white-space: normal; max-width: 140px; line-height: 1.25; font: 600 var(--fs-12)/1.25 var(--sans); text-align: center; }
+.wrap.ssw .ssw-t.scr-t thead tr.ssw-hd th.stick button { text-align: left; margin: 0; }
+.wrap.ssw .ssw-t.scr-t thead tr.ssw-hd th small { font: 400 var(--fs-12)/1.3 var(--sans); color: var(--muted); }
+
+/* body: values 13px semibold with tabular figures; the company name 13px semibold over its line in 12px */
+.wrap.ssw .ssw-t.scr-t tbody td { height: 56px; font: 600 var(--fs-13)/1.3 var(--sans); font-variant-numeric: tabular-nums; }
+.wrap.ssw .ssw-t.scr-t tbody td.stick .co { gap: 10px; }
+.wrap.ssw .ssw-t.scr-t tbody td.stick .co b { font: 600 var(--fs-13)/1.3 var(--sans); }
+.wrap.ssw .ssw-t.scr-t tbody td.stick .co small { display: block; margin-top: 2px; font: 400 var(--fs-12)/1.3 var(--sans); color: var(--muted); }
+.wrap.ssw .ssw-t.scr-t tbody td small { font-weight: 500; }
+
+/* hover and the selected row */
+.wrap.ssw .ssw-t tbody tr { transition: background-color .16s ease; }
+.wrap.ssw .ssw-t tbody tr:hover td { background: color-mix(in srgb, var(--gain) 7%, var(--s1)); }
+.wrap.ssw .ssw-t tbody tr.cp-row td { background: color-mix(in srgb, var(--gain) 14%, var(--s1)); }
+.wrap.ssw .ssw-t tbody tr.cp-row td.stick { box-shadow: inset 3px 0 0 var(--gain); }
+.wrap.ssw .ssw-t tbody tr:focus-visible td { outline: 0; background: color-mix(in srgb, var(--gain) 10%, var(--s1)); }
+
+/* the pager: 12px text, 32px controls */
+.wrap.ssw .ssw-pager { font-size: var(--fs-12); }
+.wrap.ssw .ssw-pager .btn { min-height: 32px; }
+
+@media (prefers-reduced-motion: reduce) { .wrap.ssw .ssw-t tbody tr { transition: none; } }
