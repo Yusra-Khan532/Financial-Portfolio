@@ -63,9 +63,9 @@ describe("Business and price: In between (change 7)", () => {
     expect(boxes.map((b) => b.querySelector(".eq-bpr-t b")!.textContent)).toEqual(["Business and price agree (strong)", "Price behind the business", "Price ahead of the business", "Business and price agree (weak)", "In between"]);
     const mid = boxes[4];
     expect(mid.querySelector(".eq-bpr-t")!.textContent).toBe("In between47%");
-    expect(mid.textContent).toMatch(/7 stocks · Prism 50 to 64, or a flat long-term trend/);
+    expect(mid.textContent).toMatch(/7 stocks · Average Prism, or a flat long-term trend/);
     const chips = Array.from(mid.querySelectorAll("a.eq-co")).map((a) => a.textContent);
-    expect(chips).toContain("TECHM · Prism 56"); expect(chips).toContain("ZENSARTECH · Prism 64 · flat trend");
+    expect(chips.some((c) => /· Prism 56$/.test(c ?? ""))).toBe(true); expect(chips.some((c) => /· Prism 64 · flat trend$/.test(c ?? ""))).toBe(true);   // task #385: short names on the Equity portfolio
     const all = boxes.flatMap((b) => Array.from(b.querySelectorAll("a.eq-co")).map((a) => a.getAttribute("href")));
     expect(all).toHaveLength(15); expect(new Set(all).size).toBe(15);
     expect(screen.queryByText(/rated shares sit in between/)).toBeNull();   // the old line goes

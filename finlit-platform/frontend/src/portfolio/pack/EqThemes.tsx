@@ -151,7 +151,9 @@ export function YourThemes({ v, list, onList, counts, label, onShow, theme, voic
                 {t.listed > t.rated && <small>{t.listed - t.rated} of the {t.listed} have no trend reading yet</small>}</> : <span title="The long-term trend comes from FinLit Prism, on the Gold plan">–</span>}</td>
               <td data-l="Also mention it">{t.mention.length ? <>{list2(t.mention.slice(0, ALSO).map(co))}{t.mention.length > ALSO && <details className="eqh-mm"><summary>{t.mention.length - ALSO} more</summary>{list2(t.mention.slice(ALSO).map(co))}</details>}</> : "—"}</td></tr>; })}</tbody>
         </table></div>
-        {v.notPlaced.length > 0 && <p className="eqh-np"><b>Not in Discover yet ({v.notPlaced.length}):</b> {v.notPlaced.map(co).reduce<React.ReactNode[]>((a, x, i) => (i ? [...a, ", ", x] : [x]), [])}. A company is placed once FinLit reads its newest investor presentation.</p>}
+        {v.notPlaced.length > 0 && (L ? <p className="eqh-np"><b>Not in Discover yet ({v.notPlaced.length}):</b> {v.notPlaced.map(co).reduce<React.ReactNode[]>((a, x, i) => (i ? [...a, ", ", x] : [x]), [])}. A company is placed once FinLit reads its newest investor presentation.</p>
+          : <details className="wc-np eqh-npd"><summary>Not in Discover yet · {v.notPlaced.length} <span aria-hidden="true">▸</span></summary>   {/* task #385: lists of what is left out start closed */}
+            <p className="eqh-np">{v.notPlaced.map(co).reduce<React.ReactNode[]>((a, x, i) => (i ? [...a, ", ", x] : [x]), [])}. A company is placed once FinLit reads its newest investor presentation.</p></details>)}
         <p className="sp-note">A theme comes from the words of a company's own presentation; it is not proof of business in it. Check the figures, orders and status in the company's documents. Not a recommendation.</p>
         <Insights items={cards} scope="eq.themes" />
       </>}

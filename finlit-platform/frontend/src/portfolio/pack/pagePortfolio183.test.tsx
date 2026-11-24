@@ -45,14 +45,14 @@ describe("the short- and long-term trend (C43–C46)", () => {
     fireEvent.click(more);
     expect(c.querySelector("[hidden]")).toBeNull(); expect(more.textContent).toBe("Show fewer ▴");
   });
-  it("lists Business and price as four rows with the Prism 65 / 50 rule, full lists, and the count in between", () => {
+  it("lists Business and price as four rows in Prism words (task #385: no cut-offs on the page), full lists, and the count in between", () => {
     view(<TrendSection t={t} shares={[]} />);
     const rows = Array.from(document.querySelectorAll(".eq-bpr"));
     expect(rows.map((r) => r.querySelector(".eq-bpr-t b")!.textContent)).toEqual(["Business and price agree (strong)", "Price behind the business", "Price ahead of the business", "Business and price agree (weak)"]);
-    expect(rows[0].textContent).toMatch(/7 stocks · Prism 65 or above, long-term uptrend/);
+    expect(rows[0].textContent).toMatch(/7 stocks · Strong or Healthy Prism, long-term uptrend/);
     expect(within(rows[0] as HTMLElement).getByRole("button", { name: "+3 more ▾" })).toBeTruthy();
-    expect(rows[2].textContent).toMatch(/Prism below 50, long-term uptrend/);
-    expect(screen.getByText("18 of 35 rated shares sit in between (Prism 50 to 64, or a flat long-term trend).")).toBeTruthy();   // an older reading without the list
+    expect(rows[2].textContent).toMatch(/Weak Prism, long-term uptrend/);
+    expect(screen.getByText("18 of 35 rated shares sit in between (an Average Prism, or a flat long-term trend).")).toBeTruthy();   // an older reading without the list
     expect(screen.getByRole("button", { name: "About Business and price" })).toBeTruthy();
   });
   it("writes its three things to know, closed until opened", () => {

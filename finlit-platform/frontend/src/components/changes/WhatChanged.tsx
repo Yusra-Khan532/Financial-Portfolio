@@ -45,7 +45,10 @@ export function OrderWinNotice({ row, page }: { row: ChangeRow | null; page: str
   );
 }
 
-export function WhatChanged({ symbols, listName, listRef, page, lists, activeList, onPickList, nameOf, title = "What changed at these companies", sub, lede, foot, countLabel, alertLabel, className = "wp-sec wc", hId = "wc-h", id = "what-changed", newTab = false }: {
+export function WhatChanged({ symbols, listName, listRef, page, lists, activeList, onPickList, nameOf, title = "What changed at these companies", sub, lede, foot, countLabel, alertLabel, className = "wp-sec wc", hId = "wc-h", id = "what-changed", newTab = false, plain = false, help, shortName }: {
+  /** task #385 (Equity portfolio, developer file 33): tiles count updates ("1 update", "4 updates") with a line on what an update is; rows say "· 10 filings";
+   *  the "Not in Discover yet" list starts closed. Other pages keep their block as it was. */ plain?: boolean;
+  /** task #385: the i beside the heading (its own text) */ help?: ReactNode; /** task #385: the short company name for a row */ shortName?: (symbol: string, name: string) => string;
   symbols: string[]; listName: string; listRef: string; page: string; lists?: ListTab[]; activeList?: string; onPickList?: (id: string) => void;
   nameOf?: (s: string) => string | undefined; title?: string;
   /** task #276 (the portfolio pages): a line under each company, e.g. "0.36% of your ETFs · SMALL250"; task #277: how it is held ("D F E 2.36% of everything") */
@@ -63,7 +66,7 @@ export function WhatChanged({ symbols, listName, listRef, page, lists, activeLis
   const visit = dayMonth(lastVisit);
   return (
     <section className={className} id={id} aria-labelledby={hId}>
-      <h2 id={hId}>{title}</h2>
+      <h2 id={hId}>{title}{help}</h2>
       <p className="wp-sub">{lede ?? headline(q.data, symbols.length, listName)}</p>
       {alertOpen && <AlertMeForm listRef={listRef} listLabel={alertLabel ?? listName} onClose={() => setAlertOpen(false)} />}
       <div className="wc-bar">
@@ -78,9 +81,10 @@ export function WhatChanged({ symbols, listName, listRef, page, lists, activeLis
       <div className="wc-tiles" role="group" aria-label="Filter by kind of filing">
         {KINDS.map((k) => (
           <button key={k.k} type="button" className={"wc-tile " + k.tone} aria-pressed={kind === k.k} onClick={() => { setKind(kind === k.k ? null : k.k); setAll(false); }}>
-            <span><i className={"wc-dot " + k.tone} aria-hidden="true" />{k.tile}</span><b>{tiles[k.k]}</b>
+            <span><i className={"wc-dot " + k.tone} aria-hidden="true" />{k.tile}</span><b>{tiles[k.k]}{plain && <small className="wc-unit">{tiles[k.k] === 1 ? "update" : "updates"}</small>}</b>
           </button>))}
       </div>
+      {plain && <p className="wc-upn">An update is one kind of news from one company. Some bundle several filings; the row then says how many.</p>}
       {q.isLoading && symbols.length > 0 ? <div className="skeleton" style={{ height: 160 }} aria-busy="true" aria-label="Loading what changed" />
         : q.isError ? <p className="wp-empty">What changed could not be loaded just now. Your list is safe; try again in a minute. <button type="button" className="wc-lnk" onClick={() => q.refetch()}>Try again</button></p>
         : !symbols.length ? <p className="wp-empty">Add companies to this list to see what they filed.</p>
@@ -89,9 +93,9 @@ export function WhatChanged({ symbols, listName, listRef, page, lists, activeLis
             {list.map((r) => (
               <li key={r.s + r.k} className={r.fresh ? "is-new" : r.k === "order" ? "is-ow" : ""}>
                 <span className="wc-d">{r.t ? dayMonth(r.d) : "—"}</span>
-                {sub ? <span className="wc-cow"><Link className="wc-co" to={`/stocks/${encodeURIComponent(r.s)}`}>{r.n}</Link>{sub(r.s) && <small className="wc-cs">{sub(r.s)}</small>}</span>
-                  : <Link className="wc-co" to={`/stocks/${r.s}`}>{r.n}</Link>}
-                <span className="wc-k"><i className={"wc-dot " + KIND[r.k].tone} aria-hidden="true" />{KIND[r.k].row}{r.count > 1 && <small> × {r.count}</small>}</span>
+                {sub ? <span className="wc-cow"><Link className="wc-co" to={`/stocks/${encodeURIComponent(r.s)}`}>{shortName ? shortName(r.s, r.n) : r.n}</Link>{sub(r.s) && <small className="wc-cs">{sub(r.s)}</small>}</span>
+                  : <Link className="wc-co" to={`/stocks/${r.s}`}>{shortName ? shortName(r.s, r.n) : r.n}</Link>}
+                <span className="wc-k"><i className={"wc-dot " + KIND[r.k].tone} aria-hidden="true" />{KIND[r.k].row}{r.count > 1 && <small>{plain ? ` · ${r.count} filings` : ` × ${r.count}`}</small>}</span>
                 <span className="wc-t">{r.t ?? `${r.count} ${r.count === 1 ? KIND[r.k].one : KIND[r.k].many} in ${q.data?.days ?? 90} days · the subjects are in Discover`}{r.fresh > 0 && <em className="wc-new">New</em>}</span>
                 <span className="wc-ln2">
                   {r.t && r.l && <a href={r.l} target="_blank" rel="noopener noreferrer">Filing ↗</a>}
@@ -100,7 +104,9 @@ export function WhatChanged({ symbols, listName, listRef, page, lists, activeLis
               </li>))}
           </ul>}
       {shown.length > FIRST && <button type="button" className="wc-more" aria-expanded={all} onClick={() => setAll((v) => !v)}>{all ? "Show fewer ▴" : `Show all ${shown.length} ▾`}</button>}
-      <p className="wc-note">{foot ? `${foot} ` : ""}{footnote(q.data, nameOf ?? (() => undefined))}</p>
+      {plain && (q.data?.notPlaced ?? []).length > 0 && <details className="wc-np"><summary>Not in Discover yet · {q.data!.notPlaced.length} <span aria-hidden="true">▸</span></summary>
+        <p className="wc-note">{q.data!.notPlaced.map((x) => (shortName ? shortName(x.s, nameOf?.(x.s) || x.n) : nameOf?.(x.s) || x.n)).join(", ")}. A company is placed once Discover reads its filings.</p></details>}
+      <p className="wc-note">{foot ? `${foot} ` : ""}{plain ? footnote({ ...(q.data ?? { days: 90, events: [], companies: [] }), notPlaced: [] }, () => undefined) : footnote(q.data, nameOf ?? (() => undefined))}</p>
     </section>
   );
 }
