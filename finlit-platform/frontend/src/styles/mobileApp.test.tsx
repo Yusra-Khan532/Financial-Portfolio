@@ -189,3 +189,20 @@ describe("the styles: phone only, compact, 44px taps", () => {
     expect(read("components/Layout.tsx")).toContain("Back to the mobile site");
   });
 });
+
+describe("upgrade round 1: locked parts, the company report's actions, tap areas", () => {
+  it("a locked part is one compact card on a phone (no blurred example, no list of points), only when locked", () => {
+    expect(css).toMatch(/:root:root \.gate\.is-locked > :not\(\.lock\) \{ display: none; \}/);
+    expect(css).toMatch(/:root:root \.gate\.is-locked > \.lock \{ position: static; display: block; padding: 0; \}/);
+    expect(css).toMatch(/:root:root \.gate\.is-locked \.lock-card ul \{ display: none; \}/);
+    expect(css).not.toMatch(/\.gate:not\(\.is-locked\)/);   // an unlocked part is never touched
+  });
+  it("the company report's four actions sit in one sideways row", () => {
+    expect(css).toMatch(/:root:root main \.hx-acts \.actions \{ flex-wrap: nowrap; overflow-x: auto;/);
+  });
+  it("small links and buttons get a transparent tap area that moves nothing", () => {
+    expect(css).toMatch(/\.dbx-ddb\)::after \{ content: ""; position: absolute; inset: -13px -4px; \}/);
+    expect(css).toMatch(/\.feed-sym, \.p4-open, \.p4-ab, \.ccm-name/);
+  });
+});
+
