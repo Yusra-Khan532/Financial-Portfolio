@@ -61,25 +61,37 @@ describe("how the beta is built, and reading a beta (E73–E78)", () => {
     // task #235 (pack B4): two cards always shown, then four tabs with By size open
     expect(document.querySelector(".eqb-sum")!.textContent).toMatch(/Moves with its markets1\.82×.*has moved about 18\.2% when they moved 10%.*What adds up to 1\.82×.*Small moves 1\.98×, on 80% of the list: adds 1\.58/);
     expect(document.querySelector(".eqb-sum")!.textContent).not.toMatch(/β/);
-    expect(screen.getAllByRole("tab").map((t) => `${t.querySelector("b")!.textContent}${t.getAttribute("aria-selected") === "true" ? "*" : ""}`)).toEqual(["By size*", "Where your shares sit", "Three ways to measure", "How it is worked out"]);
+    // task #388 (file 36, change 10): "How it is worked out" goes; three tabs fill the row, "3 ways to look · tap one"
+    expect(screen.getAllByRole("tab").map((t) => `${t.querySelector("b")!.textContent}${t.getAttribute("aria-selected") === "true" ? "*" : ""}`)).toEqual(["By size*", "Where your shares sit", "Three ways to measure"]);
+    expect(document.querySelector(".xtabs")!.classList.contains("eqb-tabs3")).toBe(true);
+    expect(document.querySelector(".x2-k")!.textContent).toBe("How it is built 3 ways to look · tap one");
     expect(document.querySelector(".eqr-steps")).toBeNull();
-    fireEvent.click(screen.getByRole("tab", { name: /How it is worked out/ }));
-    expect(document.querySelector(".eqr-sum")).toBeNull();
-    expect(Array.from(document.querySelectorAll(".eqr-steps b")).map((b) => b.textContent)).toEqual(["Sort by size", "Match a benchmark", "Measure each share", "Average by size", "Weight by the list"]);
     fireEvent.click(screen.getByRole("tab", { name: /Three ways to measure/ }));
     expect(Array.from(document.querySelectorAll(".eqr-b3 .eqr-v b")).map((b) => b.textContent)).toEqual(["1.82×", "1.86×", "1.13×"]);
     expect(Array.from(document.querySelectorAll(".eqr-b3 .eqr-tag")).map((b) => b.textContent)).toEqual(["Headline figure", "Alternate", "Alternate"]);   // open item 13
   });
-  it("filters by size, lists at most 6 names per range with Show all, and places a tapped share on the scale", () => {
+  it("filters by size, shows 3 names per range with +N more in a pop-up, says when a range is empty, and places a tapped share on the scale", () => {
     view(<BetaBuild r={R} />);
     fireEvent.click(screen.getByRole("tab", { name: /Where your shares sit/ }));
+    // task #388 (file 36, change 10): every box has room for 3 shares (highest first) and "+N more"; an empty range says so; no second description line
     const vh = document.querySelector(".eqr-range.r-very_high")!;
-    expect(vh.querySelectorAll("li")).toHaveLength(5);   // task #385: a range with more than 7 shares shows 5
-    fireEvent.click(within(vh as HTMLElement).getByRole("button", { name: "Show all 8 shares" }));
-    expect(vh.querySelectorAll("li")).toHaveLength(8);
-    fireEvent.click(within(vh as HTMLElement).getByRole("button", { name: /S8/ }));
+    expect(vh.querySelectorAll("ul > li")).toHaveLength(3);
+    const figs = Array.from(vh.querySelectorAll("ul > li > b")).map((b) => parseFloat(b.textContent!));
+    expect(figs[0]).toBe(2.15); expect(figs).toEqual([...figs].sort((x, y) => y - x));
+    expect(document.querySelector(".eqr-range.r-less ul")!.textContent).toBe("None of your shares");
+    expect(vh.querySelectorAll(".eqr-mute")).toHaveLength(1);
+    fireEvent.click(within(vh as HTMLElement).getByRole("button", { name: "+5 more" }));
+    const pop = screen.getByRole("dialog", { name: /^Very high · 8 shares · \d+%$/ });
+    expect(pop.querySelectorAll("li")).toHaveLength(8);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    fireEvent.click(within(vh as HTMLElement).getByRole("button", { name: "+5 more" }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: /S8/ }));
+    expect(screen.queryByRole("dialog")).toBeNull();   // tapping a name places it on the scale and closes the pop-up
     expect(screen.getByText(/S8: 2\.15× as much as the Nifty Smallcap 250, very high/)).toBeTruthy();
-    expect(Array.from(document.querySelectorAll(".eqr-pin")).map((p) => p.textContent)).toContain("2.15× S8 Very high");
+    // the figures are labels on the scale itself: "2.15× S8", with the range in the tooltip
+    expect(Array.from(document.querySelectorAll(".eqb-lab")).map((p) => p.textContent)).toContain("2.15×S8");
+    expect((document.querySelector(".eqb-lab.list") as HTMLElement).title).toMatch(/^Your list 1\.82× · /);
     fireEvent.click(screen.getByRole("button", { name: "Large" }));
     expect(Array.from(document.querySelectorAll(".eqr-f4 b")).map((b) => b.textContent)).toEqual(["0.95×", "about 9.5%", "0 of 1", "0 of 1"]);
     expect(readingFigures(shares, 1.82)[2].v).toBe("9 of 10");   // High or Very high: MIDCO (1.40) and the eight smalls (1.80 to 2.15)

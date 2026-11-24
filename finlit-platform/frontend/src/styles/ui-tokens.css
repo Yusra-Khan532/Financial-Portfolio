@@ -118,6 +118,19 @@
   --ui-crown-ink: #1c1a15;
 }
 
+/* Task #388 (Equity portfolio, developer file 36, F2 and F3). The beta range names on the scale and the range counts under it: darker ink in light mode,
+   lighter in dark, each at 4.5:1 or better on its band (portfolio/pack/risk385.css). The share grids' heat colour in dark mode is #2f7a82 (was #7cc7d2),
+   so the figures read in white or dark ink (portfolio/pack/div385.css; shared/divFigs.ts cellInk works out the same colours). */
+:root, :root[data-theme="light"] {
+  --ui-beta-less: #1f6b49; --ui-beta-defensive: #245c42; --ui-beta-similar: #2a4f8c; --ui-beta-more: #6e5410; --ui-beta-high: #8f3f14; --ui-beta-very-high: #932b22;
+  --ui-grid-heat: #2E6B6F;
+}
+:root[data-theme="dark"],
+:root:not([data-theme="light"]) {
+  --ui-beta-less: #8fd3b0; --ui-beta-defensive: #a9dcc0; --ui-beta-similar: #a9c2ee; --ui-beta-more: #e3c46c; --ui-beta-high: #f2a676; --ui-beta-very-high: #f3a198;
+  --ui-grid-heat: #2f7a82;
+}
+
 /* --action-primary is left alone on purpose: only "Ask FinLit AI" (button.ai-top) reads it, and pointing it at --btn-bg would put a
    second main button on every page. That button is restyled in the source in a later step. */
 

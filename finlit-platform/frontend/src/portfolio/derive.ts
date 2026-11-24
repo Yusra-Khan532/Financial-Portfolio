@@ -5,8 +5,9 @@ import type { Meta, Mode, PageObject, Reading, SizeCode } from "./types";
 
 export { ordinal };
 export const MINUS = "−";
-/** 0.78 -> ".78", -0.01 -> "−.01" (grid cells); full = "0.78". */
-export const short2 = (v: number) => (v < 0 ? MINUS : "") + Math.abs(v).toFixed(2).replace(/^0/, "");
+/** A correlation as the page prints it everywhere: 0.78 -> "0.78", -0.01 -> "−0.01". Task #388 (developer file 36, part B item 5): the leading 0 stays
+ *  (it was ".78" in the grid and Moves with rest, "0.78" elsewhere). Kept under its old name for its importers; the same as `two`. */
+export const short2 = (v: number) => (v < 0 ? MINUS : "") + Math.abs(v).toFixed(2);
 export const two = (v: number) => (v < 0 ? MINUS : "") + Math.abs(v).toFixed(2);
 export const pct = (v: number) => (v > 0 && v < 0.1 ? "under 0.1%" : `${v.toFixed(1)}%`);
 export const signedPct1 = (v: number) => (v < 0 ? MINUS : "") + Math.abs(v).toFixed(1) + "%";

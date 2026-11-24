@@ -50,21 +50,28 @@ function useMenu() {
   return { open, setOpen, box };
 }
 
-const DAY = (iso: string | null | undefined) => {
+/** Task #388 (developer file 36, part B item 8): the header names the prices actually used. A trade time in the last minute of the session or later (15:29 IST; the last trades of a day are stamped 15:29:5x) or a date with no
+ *  time) is that day's close: "Prices at close · 23 Nov"; a time inside the session is a live price: "Prices at 11:05 · 24 Nov". Dates in India time,
+ *  whatever the viewer's clock. */
+export function priceStamp(iso: string | null | undefined): string | null {
   if (!iso) return null;
-  const d = new Date(iso.length <= 10 ? iso + "T00:00:00" : iso);
-  return Number.isNaN(+d) ? null : d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
-};
+  const d = new Date(iso.length <= 10 ? iso + "T00:00:00+05:30" : iso);
+  if (Number.isNaN(+d)) return null;
+  const day = d.toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
+  if (iso.length <= 10) return `Prices at close · ${day}`;
+  const [h, m] = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" }).split(":").map(Number);
+  return h * 60 + m >= 15 * 60 + 29 || h < 9 ? `Prices at close · ${day}` : `Prices at ${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")} · ${day}`;
+}
 
 // ------------------------------------------------------------------------------------------------ title row
 export function EqTitle({ plan, asOf, add, clear, more }: { plan: string; asOf: string | null | undefined; add: ReactNode; clear: ReactNode; /** task #385: Add several and Import, in ⋯ */ more?: ReactNode }) {
-  const m = useMenu(), day = DAY(asOf);
+  const m = useMenu(), stamp = priceStamp(asOf);
   return (<>
     <div className="eqx-t1">
       <div className="eqx-ht">
         <h1 className="ui-title">Equity portfolio</h1><span className="eqx-plan">{plan}</span>
         <Tip text="How strong your shares are, how well spread they are, and how risky the whole list is. Start with names; add quantities when you want the figures to follow your money." how="Nothing is sent to a broker. Information only, not investment advice." label="About the Equity portfolio" />
-        {day && <span className="eqx-asof">Prices at close · {day}</span>}
+        {stamp && <span className="eqx-asof">{stamp}</span>}
       </div>
       <div className="eqx-acts">
         {add}

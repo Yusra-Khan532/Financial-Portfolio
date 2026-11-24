@@ -64,6 +64,7 @@ export type DivKeyIn = {
   /** the shares with a year of prices (the correlation matrix's order), and the groups found from them */ counted: string[]; groups: { members: string[] }[];
   /** "moves like": by what you own now when every share has a value, else each share counted equally */ eff: number; byValue: boolean;
   worth?: (s: string) => number | null | undefined; label: (s: string) => string;
+  /** task #388: the weekly returns behind every moving-together figure (page.weeks), said in each i */ weeks?: number;
 };
 /** The Diversification view's Key figures (file 33). 1 Where is most of your list? "38% in Consumer Discretionary", line "5 of your 13 shares · 36.8% of
  *  your money". 2 Which shares move as one? "4 of 13 move together in two groups", line "the other 9 move on their own", worth a look "In the groups:
@@ -87,7 +88,7 @@ export function divKeyFigs(d: DivKeyIn): KeyFig[] {
   const C = d.counted.length;
   if (C >= 2) {
     const inG = d.groups.reduce((a, g) => a + g.members.length, 0), G = d.groups.length, rest = C - inG;
-    const tipG = "Groups found from each pair of shares' weekly prices over the past year, not from sector labels: the shares in a group average a correlation of 0.50 or more with each other (partly linked or closer), so they have tended to rise and fall together.";
+    const tipG = `Groups found from each pair of shares' weekly prices over ${togetherWindow(d.weeks)}, not from sector labels: the shares in a group average a correlation of 0.50 or more with each other (partly linked or closer), so they have tended to rise and fall together.`;
     out.push(inG ? { q: "Which shares move as one?", big: `${inG} of ${C}`, ans: `move together in ${numWord(G)} ${G === 1 ? "group" : "groups"}`,
       sub: rest === 0 ? "every share is in a group" : rest === 1 ? "the other share moves on its own" : `the other ${rest} move on their own`, tip: tipG,
       bar: [{ label: "In a group", n: inG, c: SERIES[1] }, { label: "Move on their own", n: rest, c: GREY }].filter((b) => b.n > 0),
@@ -97,7 +98,7 @@ export function divKeyFigs(d: DivKeyIn): KeyFig[] {
     const e = Math.max(1, Math.min(C, d.eff)), ov = Math.max(0, C - e);
     out.push({ q: "How many separate bets are in your list?", big: e.toFixed(1), ans: e.toFixed(1) === "1.0" ? "separate bet" : "separate bets",
       sub: ov < 0.05 ? `among your ${countOf(C, "share")}; they barely overlap` : `among your ${countOf(C, "share")}; the rest overlap`,
-      tip: `Shares that rise and fall together count as one bet. "${e.toFixed(1)} separate bets" means your ${countOf(C, "share")} with a year of prices have behaved like about ${e.toFixed(1)} shares that each move on their own. ${d.byValue ? "Counted by what you own now, as on the Diversification card." : "Each share counted equally, until every share has a quantity."}`,
+      tip: `Shares that rise and fall together count as one bet. "${e.toFixed(1)} separate bets" means your ${countOf(C, "share")} with a year of prices have behaved like about ${e.toFixed(1)} shares that each move on their own, over ${togetherWindow(d.weeks)}. ${d.byValue ? "Counted by what you own now, as on the Diversification card." : "Each share counted equally, until every share has a quantity."}`,
       bar: [{ label: "Separate bets", n: Number(e.toFixed(1)), c: SERIES[0] }, { label: "Overlap", n: Number(ov.toFixed(1)), c: GREY }].filter((b) => b.n > 0), go: "See share by share", to: "eq-grid" });
   }
   return out;
@@ -143,11 +144,11 @@ export function spreadNote(mode: "value" | "equal", equal: SpreadFigs, byValue: 
 }
 /** Open item 12: why a short list reads low on "How independently they move" while "Moves like" says every share moves on its own. The scale counts how
  *  many shares move on their own, not what part of the list does. */
-export function independentNote(s: SpreadFigs, n: number): string {
+export function independentNote(s: SpreadFigs, n: number, weeks?: number): string {
   const all = n > 0 && s.effective_stocks >= n - 0.15;
   return all
     ? `Reads ${Math.round(s.comovement)} although your ${countOf(n, "share")} ${n === 1 ? "moves" : "move"} like ${s.effective_stocks.toFixed(1)}: the scale counts how many shares move on their own, not what part of the list does, so a short list reads low even when every share goes its own way.`
-    : `From a year of weekly prices: the more of your shares move on their own, the higher it reads. The scale counts how many do (here about ${s.effective_stocks.toFixed(1)}), not what part of the list does.`;
+    : `From ${togetherWindow(weeks)}: the more of your shares move on their own, the higher it reads. The scale counts how many do (here about ${s.effective_stocks.toFixed(1)}), not what part of the list does.`;
 }
 /** The three things to know under the score. The good sign fires only with two or more macro sectors (open item 11). */
 export function spreadCards(a: { n: number; macro: number; sector: number; ind: number; top: [string, number] | null; ones: number; sizes: number[] }) {
@@ -182,3 +183,34 @@ export function sectorsLine(cross: { a: string; b: string; avg: number }[], only
 export const gridLine = (n: number, eff: number) => `${countOf(n, "share")} ${n === 1 ? "moves" : "move"} like ${eff.toFixed(1)} independent ${eff.toFixed(1) === "1.0" ? "one" : "ones"}.`;
 /** The first sentence of a note. */
 export const firstSentence = (s: string | null | undefined) => { const t = String(s ?? "").trim(); const m = t.match(/^(.+?[.!?])(\s|$)/); return m ? m[1] : t; };
+
+// ------------------------------------------------------------------------------------------------ one window for every "moving together" figure (task #388)
+/** Task #388 (developer file 36, part B item 6): every "moving together" figure of the page (the share-by-share grid, macro sectors, How independently they
+ *  move, Which shares move as one?, Each share against the rest, Moves with rest) comes from ONE correlation matrix the server works out on the same weekly
+ *  returns: the last 104 complete weeks (backend metrics.WEEKS, page.weeks), each pair over the weeks both shares have (a share needs 52). This is that
+ *  window in words: "two years" (100 weeks and more), "year" (50 to 55), else "N weeks". */
+export function togetherSpan(weeks: number | null | undefined): string {
+  if (weeks == null || !Number.isFinite(weeks) || weeks <= 0) return "two years";
+  return weeks >= 100 ? "two years" : weeks >= 50 && weeks <= 55 ? "year" : `${Math.round(weeks)} weeks`;
+}
+/** "the past two years of weekly closes" (the i texts and Data as of). */
+export const togetherWindow = (weeks: number | null | undefined) => `the past ${togetherSpan(weeks)} of weekly closes`;
+/** The sentence every "moving together" i ends with: the window, and what a younger share counts. */
+export const togetherNote = (weeks: number | null | undefined) =>
+  `From ${togetherWindow(weeks)}, the same window for every moving-together figure on this page; a share listed more recently counts from its first week (it needs at least a year).`;
+
+// ------------------------------------------------------------------------------------------------ grid figures that read on their cell (task #388, F3)
+const HEAT = { light: ["#2E6B6F", "#EEF2EF"], dark: ["#2F7A82", "#1E2A27"] } as const;   // --eqd-heat and --eqd-heat0 of the grids (div-pack.css, div385.css)
+const INK_DARK = "#10201c", INK_LIGHT = "#fff";
+const rgb = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const lum = (c: number[]) => c.map((x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }).reduce((a, x, i) => a + x * [0.2126, 0.7152, 0.0722][i], 0);
+/** The contrast of two colours (WCAG). */
+export const contrast = (a: number[], b: number[]) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+/** The colour of a grid cell at `t` (0 to 1): the heat colour mixed into the empty cell, as `color-mix(in srgb, heat t%, heat0)` draws it. */
+export const cellColour = (t: number, theme: "light" | "dark") => { const [h, z] = HEAT[theme].map(rgb), k = Math.round(Math.max(0, Math.min(1, t)) * 100) / 100;
+  return h.map((x, i) => x * k + z[i] * (1 - k)); };
+/** The ink for a cell's figure: dark #10201c or white, whichever reads better on the cell. */
+export function cellInk(t: number, theme: "light" | "dark"): string {
+  const bg = cellColour(t, theme);
+  return contrast(bg, rgb(INK_DARK)) >= contrast(bg, [255, 255, 255]) ? INK_DARK : INK_LIGHT;
+}

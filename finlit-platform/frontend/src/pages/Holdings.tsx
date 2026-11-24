@@ -53,11 +53,11 @@ import { OrderWinNotice, WhatChanged, FilingChip, useWhatChanged } from "../comp
 import { useWatchlist } from "../lib/watchlist";
 import { ThemePill, YourThemes, themeView } from "../portfolio/pack/EqThemes";
 import { useBoard } from "../discovery/model";
-import { EqTitle, MoneyBox, NextView, PfPicker, YourPortfolios, type DayMove } from "../portfolio/pack/EqTop";
+import { EqTitle, MoneyBox, priceStamp, NextView, PfPicker, YourPortfolios, type DayMove } from "../portfolio/pack/EqTop";
 import { DataAsOf, PageEnd, ScoreCards, SinceVisit, SixParts, dayOf, sinceText, type CardsInput } from "../portfolio/pack/EqTop385";
 import { GainLossSection, Step, StepCtx, stepOf, type StepDef } from "../portfolio/pack/EqSteps385";
 import { KeyFigures, Info, coName, countOf, namesInText, portfolioKeyFigs, shortCo, type GLRow } from "../portfolio/shared";
-import { divKeyFigs, firstSentence } from "../portfolio/shared";   // task #385 phase 2 (Diversification)
+import { divKeyFigs, firstSentence, togetherWindow } from "../portfolio/shared";   // task #385 phase 2 (Diversification)
 import { prismWord5 } from "../lib/equityTop";
 import { holdingFigs } from "../portfolio/HoldingCells";
 import { dayMonth } from "../lib/whatChanged";
@@ -396,7 +396,7 @@ export function HoldingsPage() {
   const worthNow = useCallback((sym: string) => holdingFigs(lots, sym).now, [lots]);
   const [whereLine, setWhereLine] = useState("");
   const divKf = useMemo(() => (div ? divKeyFigs({ symbols: div.symbols, macroOf: (x) => div.levelOf(x, "macro"), counted: div.page.order, groups: div.page.groups,
-    eff: byValue?.spread?.effective_stocks ?? div.page.score.effective_stocks, byValue: !!byValue?.spread, worth: worthNow, label: nameOfSym }) : []), [div, byValue, worthNow]);   // eslint-disable-line react-hooks/exhaustive-deps
+    eff: byValue?.spread?.effective_stocks ?? div.page.score.effective_stocks, byValue: !!byValue?.spread, worth: worthNow, label: nameOfSym, weeks: div.page.weeks }) : []), [div, byValue, worthNow]);   // eslint-disable-line react-hooks/exhaustive-deps
   const divFold = useMemo(() => ({ where: whereLine, ...(div ? divLines(div, byValue?.spread?.effective_stocks) : { sectors: "", grid: "" }) }), [div, whereLine, byValue]);
   const tiltNote = data?.styleTilt && !("locked" in data.styleTilt) ? data.styleTilt.sentence : null;
   const styleLine = firstSentence(tiltNote) || "Where your average share ranks, part by part";
@@ -408,10 +408,11 @@ export function HoldingsPage() {
       ...(model !== "prism" || hasLaggard ? [{ id: "eq-leaders", label: "Group leaders", secs: ["eq-leaders"] }] : []),
       ...(DEMO ? [] : [{ id: "eq-themes", label: "Themes", secs: ["eq-themes"] }]),
       ...(inShortItems.length ? [{ id: "eq-short", label: "In short", secs: ["eq-short"] }] : [])]
-    : v === "diversification" ? [{ id: "eq-spread", label: "Spread", secs: ["eq-spread"] }, { id: "eq-where", label: "Where it sits", secs: ["eq-where"] }, { id: "eq-keysd", label: "Key figures", secs: ["eq-keysd"] },
+    // task #388 (developer file 36, change 8): Key figures has no step of its own in Diversification and Risk; its cards sit in step 1, after the first section
+    : v === "diversification" ? [{ id: "eq-spread", label: "Spread", secs: ["eq-spread", "eq-keysd"] }, { id: "eq-where", label: "Where it sits", secs: ["eq-where"] },
       { id: "eq-moves", label: "Moving together", secs: ["eq-moves", "eq-sectors", "eq-groups", "eq-sizes"] }, { id: "eq-grid", label: "Share by share", secs: ["eq-grid"] }, { id: "eq-style", label: "Style tilt", secs: ["eq-style"] },
       ...(inShortItems.length ? [{ id: "eq-short", label: "In short", secs: ["eq-short"] }] : [])]
-    : [{ id: "eq-rg", label: "At a glance", secs: ["eq-rg"] }, { id: "eq-keysr", label: "Key figures", secs: ["eq-keysr"] }, { id: "eq-build", label: "Beta build", secs: ["eq-build", "eq-read"] }, { id: "eq-sizeb", label: "Size benchmarks", secs: ["eq-sizeb"] },
+    : [{ id: "eq-rg", label: "At a glance", secs: ["eq-rg", "eq-keysr"] }, { id: "eq-build", label: "Beta build", secs: ["eq-build", "eq-read"] }, { id: "eq-sizeb", label: "Size benchmarks", secs: ["eq-sizeb"] },
       { id: "eq-mr", label: "Risk share", secs: ["eq-mr"] }, { id: "eq-fall", label: "If the market fell", secs: ["eq-fall"] }, { id: "eq-each", label: "Each share", secs: ["eq-each"] },
       ...(inShortItems.length ? [{ id: "eq-short", label: "In short", secs: ["eq-short"] }] : [])];
   const steps = stepsOf(view);
@@ -428,9 +429,13 @@ export function HoldingsPage() {
   };
   const showAllSecs = () => goStep("all", false);
   useEffect(() => { const f = (e: Event) => { const id = (e as CustomEvent<string>).detail; if (typeof id === "string") goStep(id); }; addEventListener("eq-step", f); return () => removeEventListener("eq-step", f); });
-  const asOfParts = [priceDay ? `Prices: close of ${dayOf(priceDay)}` : "",
+  // task #388 (file 36, part B item 8): the prices actually used. A live price in the session says its time; shares still on an older close are counted
+  const priceOlder = useMemo(() => { if (!priceDay) return 0; const d0 = dayOf(priceDay); return (ov.data?.holdings ?? []).filter((h) => h.status === "ready" && h.priceAsOf && dayOf(h.priceAsOf) !== d0).length; }, [ov.data, priceDay]);
+  const priceLine = (priceStamp(priceDay) ?? "").replace(/^Prices at close · /, "Prices: close of ").replace(/^Prices at (\d\d:\d\d) · /, "Prices: $1 on ");
+  const asOfParts = [priceLine ? `${priceLine}${priceOlder ? ` (${countOf(priceOlder, "share")} on an earlier close)` : ""}` : "",
     ...(view === "portfolio" ? [`Filings: the last ${wcQ.q.data?.days ?? 90} days`, thShares?.updated ? `Themes: to ${dayOf(thShares.updated, true)}` : ""] : []),
-    ...(view === "diversification" ? [`Moving together: the past ${page && page.weeks < 90 ? "year" : "two years"} of weekly closes`] : []),
+    // task #388 (file 36, part B item 6): one window for every moving-together figure (page.weeks), said here and in each i
+    ...(view === "diversification" && page ? [`Moving together: ${togetherWindow(page.weeks)}${page.to ? ` to ${dayOf(page.to)}` : ""}`] : []),
     ...(view === "risk" && rk.data?.to ? [`Risk figures: weekly closes to ${dayOf(rk.data.to)}`] : [])].filter(Boolean);
 
   return (
@@ -553,9 +558,9 @@ export function HoldingsPage() {
           </>}
           {view === "diversification" && data && data.noPrices.length > 0 && <p className="pfx-note" role="status">No stored prices yet for {data.noPrices.map((x) => nameOfSym(x)).join(", ")}: {plural(data.noPrices.length, "share")} left out of the co-movement figures.</p>}
           {view === "diversification" && (page && common && div ? <>
-            <Step id="eq-spread" title="How spread out is the list?" line="The spread score and how independently your shares move"><SpreadPack d={div} byValue={byValue?.spread ?? null} /></Step>
+            <Step id="eq-spread" title="How spread out is the list?" line="The spread score and how independently your shares move"><SpreadPack d={div} byValue={byValue?.spread ?? null} />
+              <KeyFigures id="eq-keysd" sub="How spread out your list really is, in three answers." cards={divKf} about="Key figures, Diversification" /></Step>
             <Step id="eq-where" title="Where your list sits" line={divFold.where || divKf[0]?.ans || ""}><WhereSitsGrid d={div} worth={worthNow} onLine={setWhereLine} /></Step>
-            <Step id="eq-keysd" title="Key figures" line={divKf[0] ? `${divKf[0].big} ${divKf[0].ans}${divKf[0].sub ? ` · ${divKf[0].sub}` : ""}` : ""}><KeyFigures id="eq-keysd" sub="How spread out your list really is, in three answers." cards={divKf} about="Key figures, Diversification" /></Step>
             <Step id="eq-moves" title="How the list moves together" line={divFold.sectors}><DivSubTabs d={div} /></Step>
             <Step id="eq-grid" title="Share by share" line={divFold.grid}><ShareGrid d={div} eff={byValue?.spread?.effective_stocks} /></Step>
             <Step id="eq-style" title="Style tilt" line={styleLine}>{model === "prism" ? <StyleTiltPack tilt={data?.styleTilt} nameOf={nameOfSym} /> : <GoldLock id="eq-style" title="Style tilt" text="Where your list's average share ranks among all the companies FinLit Prism rates, part by part." />}</Step>

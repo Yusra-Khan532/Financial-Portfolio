@@ -6,7 +6,8 @@
 // way (open item 1); the shared Key figures replace the old answers; each size gets an Overall reading; each share's risk fits a laptop, in column groups,
 // with a group row per size; tables keep their first column on a phone; folded sections on a phone carry their own summary line. Words: risk385.ts.
 import { BENCHMARKS } from "../useScore";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { placeLabels, type ScaleLayout } from "./betaLabels";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { apiSend, type ApiError, busyRetry } from "../../lib/api";
@@ -19,7 +20,7 @@ import type { Share } from "../../lib/equityPack";
 import type { PageObject } from "../types";
 import { Step } from "./EqSteps385";
 import { CAP_DEFAULT, FrozenTable, Info, KeyFigures, ShowAll, SortHead, capRows, countOf, signedNum, sortRows, times, useSort, MINUS, type SortCol } from "../shared";
-import { OVERALL_RANK, RANGE_LINE, RANGE_RANK, SIZE_C, SIZE_ORDER, basisWords, buildNotes, cardLine, coverageLine, foldLines, glanceLede, glanceNotes, measureLine, overallOf, pickBasis, rangeWord, riskKeyFigs, type Basis } from "./risk385";
+import { OVERALL_RANK, RANGE_RANK, SIZE_C, SIZE_ORDER, basisWords, buildNotes, cardLine, coverageLine, foldLines, glanceLede, glanceNotes, measureLine, overallOf, pickBasis, rangeWord, riskKeyFigs, type Basis } from "./risk385";
 import "./risk-pack.css";
 import "./risk385.css";
 import { coTitle, subLine, titleOf } from "../../lib/companyLabel";
@@ -68,8 +69,9 @@ export function RiskView({ answer, page, sectorOf, shares, gold, compare, value,
       <Info about="How the list is weighted" text="By what you hold now: each share counts by its value today (quantity × last close), as the Risk card does. Equal amounts: every share counts the same, whatever the amounts." how="Every figure in this view follows the switch: how much the list moves, its swing and worst fall, the risk split and a 10% fall." />
       {!answer.byValue && <span className="n">{noQty.length ? `${countOf(noQty.length, "share")} without a quantity (${noQty.slice(0, 3).map(nameOf).join(", ")}${noQty.length > 3 ? " and more" : ""}), so every share counts the same.` : "Add quantities to read the list by what you hold now."}</span>}
     </div>
-    <Step id="eq-rg" title="Risk at a glance" line={lines.glance}><RiskGlancePack r={r} split={split} compare={compare} basis={basis} card={card} nameOf={nameOf} /></Step>
-    <Step id="eq-keysr" title="Key figures" line={lines.keys}><KeyFigures id="eq-keysr" sub={`Where the list's risk sits, in three answers, ${basisWords(basis)}.`} cards={riskKeyFigs(r, split.bySize, nameOf, basis)} about="Key figures, Risk" /></Step>
+    {/* task #388 (change 8): Key figures sits in step 1, after Risk at a glance; no step of its own */}
+    <Step id="eq-rg" title="Risk at a glance" line={lines.glance}><RiskGlancePack r={r} split={split} compare={compare} basis={basis} card={card} nameOf={nameOf} />
+      <KeyFigures id="eq-keysr" sub={`Where the list's risk sits, in three answers, ${basisWords(basis)}.`} cards={riskKeyFigs(r, split.bySize, nameOf, basis)} about="Key figures, Risk" /></Step>
     <Step id="eq-build" title="How your list's beta is built" line={lines.build}><BetaBuild r={r} basis={basis} nameOf={nameOf} /></Step>
     <Step id="eq-sizeb" title="Each size against its own benchmark" line={lines.sizeb}><SizeBench r={r} basis={basis} /></Step>
     <Step id="eq-mr" title="Share of the list vs share of the risk" line={lines.mr}><RiskShareSection r={r} split={split} basis={basis} nameOf={nameOf} /></Step>
@@ -103,17 +105,18 @@ export function RiskGlancePack({ r, split, compare, basis = "equal", card = null
 }
 
 // ------------------------------------------------------------------------------------------------ 2 How your list's beta is built + Reading a beta
-const STEPS: [string, string][] = [["Sort by size", "Large, mid, small or micro by company value"], ["Match a benchmark", "Nifty 50 · Midcap 150 · Smallcap 250 · Microcap 250"], ["Measure each share", "Against its own benchmark, weekly, one year"], ["Average by size", "One figure for each size"], ["Weight by the list", "By what you hold now, or equal amounts (the switch above)"]];
+// task #388 (file 36, change 10): "How it is worked out" and its five steps go; "By size" and the i texts cover them.
 const BAR = SIZE_C;   // task #385: the same size colours as Key figures
-export const WHERE_CAP = { over: 7, keep: 5 };   // file 33: a range with more than 7 shares shows 5 and "Show all N shares"
+export const RANGE_SHOW = 3;   // task #388 (file 36, change 10): each range box has room for 3 shares; the rest sit behind "+N more"
 export function BetaBuild({ r, basis = "equal", nameOf = ident }: { r: RiskAnswer; basis?: Basis; nameOf?: (s: string) => string }) {
-  const [tab, setTab] = useState<"size" | "where" | "three" | "how">("size"), [f, setF] = useState<"All" | "Large" | "Mid" | "Small" | "Micro">("All"), [pin, setPin] = useState<string | null>(null), [open, setOpen] = useState<Record<string, boolean>>({});
+  const [tab, setTab] = useState<"size" | "where" | "three">("size"), [f, setF] = useState<"All" | "Large" | "Mid" | "Small" | "Micro">("All"), [pin, setPin] = useState<string | null>(null);
   const sizes = r.sizes.filter((s) => s.n), w = r.betas.weighted;
   const shown = r.shares.filter((s) => s.beta != null && (f === "All" || s.size === f)), beta = f === "All" ? w : r.sizes.find((s) => s.size === f)?.avgBeta ?? null;
   const ranges = rangeCards(shown), picked = pin ? r.shares.find((s) => s.symbol === pin) : null;
-  const pins = [...(f === "All" && w != null ? [{ k: "Your list", b: w, band: r.betas.weightedBand }] : []), ...sizes.filter((s) => (f === "All" || s.size === f) && s.avgBeta != null).map((s) => ({ k: `${s.size} companies`, b: s.avgBeta as number, band: s.band })),
-    ...(picked?.beta != null ? [{ k: nameOf(picked.symbol), b: picked.beta, band: picked.band }] : [])];
-  const TABS: [typeof tab, string, string][] = [["size", "By size", "Each size against its own index"], ["where", "Where your shares sit", "The six ranges, share by share"], ["three", "Three ways to measure", "By size index, blended, Nifty 50"], ["how", "How it is worked out", "The five steps"]];
+  const pins: Pin[] = [...(f === "All" && w != null ? [{ k: "Your list", short: "Your list", b: w, band: r.betas.weightedBand, list: true }] : []),
+    ...sizes.filter((s) => (f === "All" || s.size === f) && s.avgBeta != null).map((s) => ({ k: `${s.size} companies`, short: s.size, b: s.avgBeta as number, band: s.band })),
+    ...(picked?.beta != null ? [{ k: nameOf(picked.symbol), short: nameOf(picked.symbol), b: picked.beta, band: picked.band, pick: true }] : [])];
+  const TABS: [typeof tab, string, string][] = [["size", "By size", "Each size against its own index"], ["where", "Where your shares sit", "The six ranges, share by share"], ["three", "Three ways to measure", "By size index, blended, Nifty 50"]];
   const hi = shown.filter((s) => (s.beta as number) >= 1.35).length, lo = shown.filter((s) => (s.beta as number) < 0.9).length;
   return (
     <Section id="eq-build" hide title="How your list's beta is built" help={`Each share is measured against the index of companies its own size (Nifty 50, Midcap 150, Smallcap 250, Microcap 250) over the past year of weekly closes; the sizes are then combined by their share of the list, ${basisWords(basis)}.`} how="Each size adds its part; the parts add up to how much the whole list moves with its markets."
@@ -126,7 +129,7 @@ export function BetaBuild({ r, basis = "equal", nameOf = ident }: { r: RiskAnswe
           <ul className="eqb-leg">{sizes.map((s) => <li key={s.size}><b>{s.size}</b> moves {times(s.avgBeta)}, on {Math.round(s.listShare)}% of the list: adds <b>{s.adds?.toFixed(2) ?? MINUS}</b></li>)}</ul></div>
       </div>
       <p className="x2-k" aria-hidden="true">How it is built <small>{TABS.length} ways to look · tap one</small></p>
-      <div className="xtabs" role="tablist" aria-label="How your list's beta is built">{TABS.map(([k, t, x], i) => (
+      <div className="xtabs eqb-tabs3" role="tablist" aria-label="How your list's beta is built">{TABS.map(([k, t, x], i) => (
         <button key={k} type="button" role="tab" id={"eqb-t-" + k} aria-selected={tab === k} aria-controls={"eqb-p-" + k} tabIndex={tab === k ? 0 : -1} onClick={() => setTab(k)}
           onKeyDown={(e) => { const n = e.key === "ArrowRight" ? i + 1 : e.key === "ArrowLeft" ? i - 1 : null; if (n == null) return; e.preventDefault(); const to = TABS[(n + TABS.length) % TABS.length][0]; setTab(to); setTimeout(() => document.getElementById("eqb-t-" + to)?.focus(), 0); }}>
           <span className="xn" aria-hidden="true">{i + 1}</span><b>{t}</b><small>{x}</small></button>))}</div>
@@ -144,29 +147,81 @@ export function BetaBuild({ r, basis = "equal", nameOf = ident }: { r: RiskAnswe
         <div className="eqr-f4">{[{ v: times(beta), k: f === "All" ? "how much your list moves with its markets" : `how much ${f.toLowerCase()} companies move, on average` },
           { v: beta == null ? MINUS : `about ${(beta * 10).toFixed(1)}%`, k: "its usual move when its markets move 10%" }, { v: `${hi} of ${shown.length}`, k: "shares in the High or Very high range" },
           { v: `${lo} of ${shown.length}`, k: "shares that move less than their market" }].map((x) => <div key={x.k}><b>{x.v}</b><small>{x.k}</small></div>)}</div>
-        <div className="eqr-scale"><div className="eqr-pins" style={{ height: `${pins.length * 26 + 6}px` }}>{pins.map((p, i) => <span key={p.k} className="eqr-pin" style={{ left: at(p.b), top: `${i * 26}px`, ["--stem" as string]: `${(pins.length - i) * 26 - 18}px` }}><b>{times(p.b)}</b> {p.k}{p.band && <em> {rangeWord(p.band)}</em>}</span>)}</div>
-          <div className="eqr-bands">{RANGE_EDGES.map(([k, lo2, hi2]) => <span key={k} className={"r-" + k} style={{ width: `${((hi2 - lo2) / MAX) * 100}%` }} title={rangeWord({ key: k, word: k })}>{rangeWord({ key: k, word: k })}</span>)}</div>
-          <p className="eqr-ticks">{[0, 0.65, 0.9, 1.1, 1.35, 1.75, 2.5].map((t) => <span key={t} style={{ left: at(t) }}>{t}</span>)}</p></div>
+        <BetaScale pins={pins} />
         <p className="sp-cap">How your {countOf(shown.length, "share")} spread across the ranges</p>
         <div className="eqr-spread">{ranges.filter((x) => x.who.length).map((x) => <span key={x.key} className={"r-" + x.key} style={{ flexGrow: x.who.length }}><b>{x.who.length}</b><small>{rangeWord({ key: x.key, word: x.key })}</small></span>)}</div>
         <p className="eqr-hint">{picked ? <>{nameOf(picked.symbol)}: {times(picked.beta)} as much as the {picked.benchmark}, {rangeWord(picked.band).toLowerCase()}; {picked.explained}% of its weekly moves explained by that index. <button type="button" className="eqd-link" onClick={() => setPin(null)}>Clear</button></> : "Tap a share's name below to place it on the scale and see its details."}</p>
-        <div className="eqr-ranges">{ranges.map((x) => { const c = capRows(x.who, WHERE_CAP, !!open[x.key]); return (
-          <div key={x.key} className={"eqr-range r-" + x.key}><Chip band={{ key: x.key as RangeKey, word: x.key }} />
-            <p className="eqr-mute">{x.key === "less" ? `below ${x.hi}×` : x.key === "very_high" ? `above ${x.lo}×` : `${x.lo.toFixed(2)}× – ${x.hi.toFixed(2)}×`}</p>
-            <p className="eqr-n"><b>{x.who.length}</b> {x.who.length === 1 ? "share" : "shares"} · {Math.round(x.pct)}%</p><p className="eqr-mute">{RANGE_LINE[x.key as RangeKey]}</p>
-            <ul id={"eqr-rg-" + x.key}>{c.shown.map((s) => <li key={s.symbol}><button type="button" className="eqr-nm" aria-pressed={pin === s.symbol} onClick={() => setPin(s.symbol)}><i className={"z-" + (SIZE_LETTER[s.size ?? ""] ?? "U")}>{SIZE_LETTER[s.size ?? ""] ?? MINUS}</i>{nameOf(s.symbol)}</button><b>{times(s.beta)}</b></li>)}</ul>
-            {c.capped && <ShowAll n={x.who.length} open={!!open[x.key]} onToggle={() => setOpen({ ...open, [x.key]: !open[x.key] })} controls={"eqr-rg-" + x.key} />}</div>); })}</div>
+        <RangeBoxes ranges={ranges} pin={pin} onPin={setPin} nameOf={nameOf} />
       </div>}
       {tab === "three" && <div className="eqr-b3">
         <div className="eqr-tile"><p className="sp-cap">Each share against its own size index<Info about="Each share against its own size index" text="Each share against the index of companies its size; each size's average times its share of the list. This is the headline figure everywhere on this view." how="1.00× moves as much as its own markets; above, more; below, less." /></p><p className="eqr-v"><b>{times(r.betas.weighted)}</b><Chip band={r.betas.weightedBand} /></p><p className="eqr-sub"><span className="eqr-tag">Headline figure</span> The figure in Key figures, the folded line and If the market fell.</p></div>
         <div className="eqr-tile"><p className="sp-cap">Against a blended benchmark<Info about="Against a blended benchmark" text="The whole list against the size indices mixed in the list's own proportions." how="It checks the headline figure: close to it, the two agree." /></p><p className="eqr-v"><b>{times(r.betas.blended)}</b><Chip band={r.betas.blendedBand} /></p><p className="eqr-sub"><span className="eqr-tag">Alternate</span> {sizes.map((s) => `${Math.round(s.listShare)}% ${s.benchmark}`).join(" + ")}. {r.betas.blended != null && r.betas.weighted != null && Math.abs(r.betas.blended - r.betas.weighted) <= 0.1 ? "Close to the headline figure, which checks it." : "It checks the headline figure."}</p></div>
         <div className="eqr-tile"><p className="sp-cap">Against the Nifty 50 alone<Info about="Against the Nifty 50 alone" text="The whole list against the Nifty 50 only, the measure the Risk card on top uses." how="The figure for what a Nifty 50 fall has meant. Mid, small and micro companies move less in step with it." /></p><p className="eqr-v"><b>{times(r.betas.nifty)}</b><Chip band={r.betas.niftyBand} /></p><p className="eqr-sub"><span className="eqr-tag">Alternate</span> The Risk card's measure, for "what if the Nifty 50 falls". Mid, small and micro companies move less in step with it.</p></div>
       </div>}
-      {tab === "how" && <ol className="eqr-steps">{STEPS.map(([t, x], i) => <li key={t}><span>{i + 1}</span><b>{t}</b><small>{x}</small></li>)}</ol>}
       </div>
       <Insights items={buildNotes(r, basis)} scope="eq.beta" />
     </Section>
   );
+}
+
+// ------------------------------------------------------------------------------------------------ the beta scale and the range boxes (task #388, file 36, change 10)
+type Pin = { k: string; short: string; b: number; band: RiskShare["band"]; list?: boolean; pick?: boolean };
+/** The six ranges with a label for each figure on the scale itself ("1.29× Your list"): one row with curved lines on a laptop, stepped rows with straight
+ *  lines on a phone (betaLabels.ts). A band name that does not fit inside its band is hidden (the colour stays; the range boxes name every range). */
+export function BetaScale({ pins }: { pins: Pin[] }) {
+  const box = useRef<HTMLDivElement>(null), labs = useRef<Record<string, HTMLSpanElement | null>>({}), bands = useRef<HTMLDivElement>(null);
+  const [L, setL] = useState<ScaleLayout | null>(null), [tight, setTight] = useState<Set<string>>(new Set());
+  const sig = pins.map((p) => `${p.k}:${p.b}`).join("|");
+  useLayoutEffect(() => {
+    const el = box.current; if (!el) return;
+    const fit = () => { const w = el.clientWidth || 600;
+      setL(placeLabels(pins.map((p) => ({ key: p.k, x: (Math.max(0, Math.min(MAX, p.b)) / MAX) * w, w: labs.current[p.k]?.offsetWidth || 24 + 8 * (times(p.b).length + p.short.length) })), w));
+      const hide = new Set<string>(); bands.current?.querySelectorAll<HTMLElement>("span[data-k]").forEach((b) => { if (b.scrollWidth > b.clientWidth + 1) hide.add(b.dataset.k!); });
+      setTight((t) => (t.size === hide.size && [...hide].every((k) => t.has(k)) ? t : hide)); };
+    fit();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(fit); ro.observe(el); return () => ro.disconnect();
+  }, [sig]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const at2 = (k: string) => L?.labels.find((x) => x.key === k);
+  return <div className="eqr-scale eqb-scale">
+    <div className={"eqb-labs" + (L ? " " + L.mode : "")} ref={box} style={{ height: L ? `${L.height}px` : undefined }}>
+      {pins.map((p) => { const q = at2(p.k); return <span key={p.k} ref={(n) => { labs.current[p.k] = n; }} className={"eqb-lab" + (p.list ? " list" : "") + (p.pick ? " pick" : "")}
+        style={q ? { left: `${q.left}px`, top: `${q.top}px` } : { visibility: "hidden" }} title={`${p.k} ${times(p.b)}${p.band ? ` · ${rangeWord(p.band)}` : ""}`}><b>{times(p.b)}</b>{p.short}</span>; })}
+      {L && <svg className="eqb-lnk" width="100%" height={L.height} aria-hidden="true">{L.lines.map((ln) => { const p = pins.find((x) => x.k === ln.key); const c = p?.list ? "list" : undefined;
+        return <g key={ln.key}><path d={ln.d} className={c} /><circle cx={ln.x2} cy={ln.y2 - 4} r={4} className={c} /></g>; })}</svg>}
+    </div>
+    <div className="eqr-bands" ref={bands}>{RANGE_EDGES.map(([k, lo2, hi2]) => <span key={k} data-k={k} className={"r-" + k + (tight.has(k) ? " eqb-tight" : "")} style={{ width: `${((hi2 - lo2) / MAX) * 100}%` }} title={rangeWord({ key: k, word: k })}>{rangeWord({ key: k, word: k })}</span>)}</div>
+    <p className="eqr-ticks">{[0, 0.65, 0.9, 1.1, 1.35, 1.75, 2.5].map((t) => <span key={t} style={{ left: at(t) }}>{t}</span>)}</p></div>;
+}
+
+type Range = ReturnType<typeof rangeCards>[number];
+const rangeOf = (x: Range) => (x.key === "less" ? `below ${x.hi}×` : x.key === "very_high" ? `above ${x.lo}×` : `${x.lo.toFixed(2)}× – ${x.hi.toFixed(2)}×`);
+/** Six boxes of one size whatever their counts: chip, range, "N shares · x%", room for 3 shares (highest figure first), then one line for "+N more", which
+ *  opens every share of that range in a pop-up (× , Esc or a tap outside closes it; tapping a name places it on the scale). An empty range says so. */
+export function RangeBoxes({ ranges, pin, onPin, nameOf }: { ranges: Range[]; pin: string | null; onPin: (s: string) => void; nameOf: (s: string) => string }) {
+  const [pop, setPop] = useState<string | null>(null);
+  const item = (s: RiskShare, close = false) => <li key={s.symbol}><button type="button" className="eqr-nm" aria-pressed={pin === s.symbol} title={nameOf(s.symbol)} onClick={() => { onPin(s.symbol); if (close) setPop(null); }}>
+    <i className={"z-" + (SIZE_LETTER[s.size ?? ""] ?? "U")}>{SIZE_LETTER[s.size ?? ""] ?? MINUS}</i><span>{nameOf(s.symbol)}</span></button><b>{times(s.beta)}</b></li>;
+  return <div className="eqr-ranges eqb-ranges">{ranges.map((x) => { const head = `${rangeWord({ key: x.key as RangeKey, word: x.key })} · ${countOf(x.who.length, "share")} · ${Math.round(x.pct)}%`;
+    return <div key={x.key} className={"eqr-range r-" + x.key}><Chip band={{ key: x.key as RangeKey, word: x.key }} />
+      <p className="eqr-mute">{rangeOf(x)}</p>
+      <p className="eqr-n"><b>{x.who.length}</b> {x.who.length === 1 ? "share" : "shares"} · {Math.round(x.pct)}%</p>
+      <ul id={"eqr-rg-" + x.key}>{x.who.length ? x.who.slice(0, RANGE_SHOW).map((s) => item(s)) : <li className="eqb-none">None of your shares</li>}</ul>
+      <div className="eqb-foot">{x.who.length > RANGE_SHOW && <span className="eqb-mw"><button type="button" className="eqb-more" aria-haspopup="dialog" aria-expanded={pop === x.key} onClick={() => setPop(pop === x.key ? null : x.key)}>+{x.who.length - RANGE_SHOW} more</button>
+        {pop === x.key && <Popup title={head} onClose={() => setPop(null)}><ul className="eqb-popl">{x.who.map((s) => item(s, true))}</ul></Popup>}</span>}</div>
+    </div>; })}</div>;
+}
+/** A small pop-up under its button: title, ×; Esc or a tap outside closes it. */
+function Popup({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  const me = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const out = (e: MouseEvent) => { const t = e.target as Node; if (me.current && !me.current.contains(t) && !me.current.parentElement?.contains(t)) onClose(); };
+    document.addEventListener("keydown", key); document.addEventListener("mousedown", out);
+    me.current?.querySelector<HTMLElement>(".eqb-popx")?.focus();
+    return () => { document.removeEventListener("keydown", key); document.removeEventListener("mousedown", out); };
+  }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+  return <div className="eqb-pop" role="dialog" aria-label={title} ref={me}><p className="eqb-poph"><b>{title}</b><button type="button" className="eqb-popx" aria-label="Close" onClick={onClose}>×</button></p>{children}</div>;
 }
 
 // ------------------------------------------------------------------------------------------------ 3 Each size against its own benchmark

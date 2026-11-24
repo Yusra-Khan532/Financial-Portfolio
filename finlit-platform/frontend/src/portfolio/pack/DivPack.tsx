@@ -2,17 +2,19 @@
 // one chip per share), How spread out is the list?, three sub-tabs (how sectors move together · how stocks move together · large, mid, small and micro), Share by share,
 // and the style tilt (Gold). Figures from the server's page answer, worked out in lib/eqDiv. Every class is eqd-. Describes how prices moved; never advice.
 import type { DivFacts } from "../../lib/keyAnswers";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Section } from "../../components/sectors/pack/Common";
-import { FrozenTable, Info, ShowAll, cap1, corrText, corrWord, countOf, gridLine, macroNote, sectorsLine, moneyGrid, pluralOf, rowMoneyLine, shareText, shortCo, spreadCards, spreadNote, independentNote, useCap, whereLine, withCorrWords, type SpreadFigs } from "../shared";
+import { FrozenTable, Info, ShowAll, cap1, cellInk, corr2, corrCellLabel, corrText, corrWord, togetherSpan, togetherWindow, countOf, gridLine, macroNote, sectorsLine, moneyGrid, pluralOf, rowMoneyLine, shareText, shortCo, spreadCards, spreadNote, independentNote, useCap, whereLine, withCorrWords, type SpreadFigs } from "../shared";
 import { GridFold, PairsChart, ReadPanel, type Pick } from "./Div385";
 import { Insights, More } from "./EquityPack";
 import { averageLinkage, divKeyCards, effective, groupCard, heatOf, looserFamilies, pairsOf, sameVsDiff, sectorCards, sizeCards, sizeFigures, tiesOf, two, whereGrid, SIZES3, type Level, type Size3 } from "../../lib/eqDiv";
 import type { PageObject } from "../types";
 import "./div-pack.css";
 
-/** A cell's shade: deeper with a closer link (0 to 1). */
-const shade = (v: number | null) => (v == null ? undefined : { background: `color-mix(in srgb, var(--eqd-heat) ${Math.round(Math.max(0, Math.min(1, v)) * 100)}%, var(--eqd-heat0))`, color: v >= 0.45 ? "#fff" : undefined });
+/** A cell's shade: deeper with a closer link (0 to 1). Task #388 (file 36, F3): its figure takes the ink that reads better on that shade, dark #10201c or
+ *  white, worked out for the light and the dark heat colours (--eqd-ink-l, --eqd-ink-d; div385.css picks one by theme). */
+const shade = (v: number | null) => { if (v == null) return undefined; const t = Math.max(0, Math.min(1, v));
+  return { background: `color-mix(in srgb, var(--eqd-heat) ${Math.round(t * 100)}%, var(--eqd-heat0))`, "--eqd-ink-l": cellInk(t, "light"), "--eqd-ink-d": cellInk(t, "dark") } as CSSProperties; };
 /** Plain words for one correlation (kept for its importers; task #385 reads every correlation with corrWord from ../shared, file 33's cut-offs). */
 export const linkWord = (v: number) => (v >= 0.65 ? "move almost as one" : v >= 0.5 ? "move together closely" : v >= 0.35 ? "move together somewhat" : v >= 0.2 ? "are loosely linked" : "mostly go their own way");
 
@@ -115,7 +117,7 @@ export function SpreadPack({ d, byValue = null }: { d: DivInput; byValue?: Sprea
           <div className="spx-p"><div className="spx-ph"><b>Across sectors</b><span>{Math.round(s.sector_spread)}</span></div><div className="spx-bar" aria-hidden="true"><i style={{ width: `${Math.round(s.sector_spread)}%` }} /></div>
             <p>{countOf(N, "share")} across {countOf(macro, "macro sector")}, {countOf(sector, "sector")} and {countOf(ind, "industry")}{top && N > 1 && top[1] / N >= 0.25 ? `; ${top[1] === N ? "all of them are" : `${top[1]} of them ${top[1] === 1 ? "is" : "are"}`} ${top[0]}, so ${by} the list spreads like about ${es} ${es === "1.0" ? "macro sector" : "macro sectors"}` : `; ${by} the list spreads like about ${es} macro sectors`}.</p></div>
           <div className="spx-p"><div className="spx-ph"><b>How independently they move</b><span>{Math.round(s.comovement)}</span></div><div className="spx-bar" aria-hidden="true"><i style={{ width: `${Math.round(s.comovement)}%` }} /></div>
-            <p>{independentNote(s, n)}</p></div>
+            <p>{independentNote(s, n, d.page.weeks)}</p></div>
         </div>
         <div className="spx-bets"><p className="spx-k">Moves like<Info about="Moves like" text={`Shares that rise and fall together count as one bet. "Moves like ${s.effective_stocks.toFixed(1)} of ${n}" means the ${countOf(n, "share")} have behaved like about ${s.effective_stocks.toFixed(1)} shares that each move on their own. ${use === "value" ? "Here each share counts by what you own now, as on the Diversification card." : "Here each share counts equally."}`} /></p>
           <p className="spx-big"><b>{s.effective_stocks.toFixed(1)}</b> of {countOf(n, "share")}</p>
@@ -163,8 +165,8 @@ function SectorsPanel({ d }: { d: DivInput }) {
   const cw = (v: number | null | undefined) => (v == null ? null : <span className="eqv-cw">{cap1(corrWord(v))} linked</span>);
   const pairLi = (x: { a: string; b: string; avg: number }) => <li key={x.a + x.b}><span title={`${x.a} and ${x.b}`}><b>{x.a}</b> and <b>{x.b}</b></span><small>{corrWord(x.avg)}</small><b>{two(x.avg)}</b></li>;
   return (
-    <Section id="eq-sectors" hide title={`Do your ${word}s move together?`} help={`For each pair of ${word}s, the average correlation of their shares' weekly prices over the past two years.`} how="0 means no link; 1 means they move as one. Below 0.2 reads barely linked, 0.2 to 0.4 loosely, 0.4 to 0.6 partly, 0.6 and above closely."
-      sub="0 means no link; 1 means they move as one. Weekly prices, past two years.">
+    <Section id="eq-sectors" hide title={`Do your ${word}s move together?`} help={`For each pair of ${word}s, the average correlation of their shares' weekly prices over ${togetherWindow(d.page.weeks)}.`} how="0 means no link; 1 means they move as one. Below 0.2 reads barely linked, 0.2 to 0.4 loosely, 0.4 to 0.6 partly, 0.6 and above closely."
+      sub={`0 means no link; 1 means they move as one. Weekly prices, past ${togetherSpan(d.page.weeks)}.`}>
       <div className="eqd-tools"><div className="eqd-seg" role="group" aria-label="Level"><button type="button" aria-pressed={lv === "macro"} onClick={() => { setLv("macro"); setPick(null); }}>Macro sector · {nMacro}</button><button type="button" aria-pressed={lv === "sector"} onClick={() => { setLv("sector"); setPick(null); }}>Sector · {nSec}</button></div></div>
       <div className="eqd-k3">
         <div className="eqd-kpi"><p className="sp-cap">Shares in the same {word}<Info about={`Shares in the same ${word}`} text={`The average correlation of every pair of your shares in the same ${word}.`} how="0 means no link; 1 means they move as one. Compare it with the next figure." /></p><b>{two(sd.same.avg)}</b>{cw(sd.same.avg)}<small>{countOf(sd.same.pairs, "pair")}</small></div>
@@ -173,13 +175,13 @@ function SectorsPanel({ d }: { d: DivInput }) {
       </div>
       <div className="eqd-two">
         <div>
-          <h3 className="eqd-h3">{Title}<Info about={Title} text={`How closely each pair of ${word}s moves, from their shares' weekly prices.`} how={`Darker: the two ${word}s move together more. Outlined: shares inside one ${word}. Tap a cell to read it.`} /></h3>
+          <h3 className="eqd-h3">{Title}<Info about={Title} text={`How closely each pair of ${word}s moves, from their shares' weekly prices over ${togetherWindow(d.page.weeks)}.`} how={`Darker: the two ${word}s move together more. Outlined: shares inside one ${word}. Tap a cell to read it.`} /></h3>
           <p className="sp-note">Darker: the two {word}s move together more. Outlined: shares inside one {word}. Tap a cell.</p>
           <GridFold rows={heat.names.length} what={`every pair of ${word}s, with its figure`}>
             <FrozenTable label={Title} className="eqv-frz"><table className="eqd-heat"><thead><tr><td />{heat.names.map((c) => <th key={c} scope="col" title={lv === "macro" ? macroNote(c) : undefined}>{c}</th>)}</tr></thead>
               <tbody>{heat.names.map((r) => <tr key={r}><th scope="row" title={lv === "macro" ? macroNote(r) : undefined}>{r} · {heat.count[r]}</th>{heat.names.map((c) => { const x = heat.cell(r, c), self = r === c;
                 return <td key={c} className={self ? "self" : ""}>{x.avg == null ? <span className="eqd-one">{self ? "1 share" : "–"}</span>
-                  : <button type="button" style={self ? undefined : shade(x.avg)} aria-pressed={!!pick && ((pick[0] === r && pick[1] === c) || (pick[0] === c && pick[1] === r))} aria-label={`${r} and ${c}: ${two(x.avg)}`} onClick={() => setPick([r, c])}>{two(x.avg)}</button>}</td>; })}</tr>)}</tbody></table></FrozenTable>
+                  : <button type="button" style={self ? undefined : shade(x.avg)} aria-pressed={!!pick && ((pick[0] === r && pick[1] === c) || (pick[0] === c && pick[1] === r))} aria-label={corrCellLabel(r, c, x.avg)} title={corrCellLabel(r, c, x.avg)} onClick={() => setPick([r, c])}>{two(x.avg)}</button>}</td>; })}</tr>)}</tbody></table></FrozenTable>
           </GridFold>
           <div className="eqd-reader" aria-live="polite"><h3 className="eqd-h3">Read a cell<Info about={`Read a cell of the ${word} grid`} text="The pair you tapped in the grid, in words." how="Tap any cell in the grid; this box says how closely those two move and how many pairs of shares the figure rests on." /></h3>
             {pick && sel?.avg != null ? <p><b>{pick[0] === pick[1] ? `Inside ${pick[0]}` : `${pick[0]} · ${pick[1]}`}: {two(sel.avg)}</b>. Across {countOf(sel.pairs, "pair")} of shares, they are {corrWord(sel.avg)} linked.</p> : null}
@@ -208,7 +210,7 @@ function GroupsPanel({ d }: { d: DivInput }) {
   const shown = groups.filter((g) => f === "all" || (f === "cross") === g.cross), first = more ? shown : shown.slice(0, 6);
   const fam = useMemo(() => looserFamilies(o, C, d.page.groups), [o, C, d.page.groups]);
   return (
-    <Section id="eq-groups" hide title="How stocks move together" help="Groups found from each pair of shares' weekly prices, not from sector labels: average-linkage clustering on 1 − correlation, cut at 0.5." how="Shares in one group average a correlation of 0.50 or more (partly linked or closer): they have tended to rise and fall together. Crosses sectors: the group joins shares from different sectors."
+    <Section id="eq-groups" hide title="How stocks move together" help={`Groups found from each pair of shares' weekly prices over ${togetherWindow(d.page.weeks)}, not from sector labels: average-linkage clustering on 1 − correlation, cut at 0.5.`} how="Shares in one group average a correlation of 0.50 or more (partly linked or closer): they have tended to rise and fall together. Crosses sectors: the group joins shares from different sectors."
       sub="Found from each pair of shares, not from sector labels. A group's shares average a correlation of 0.50 or more.">
       <div className="eqd-tools"><div className="eqd-seg" role="group" aria-label="Show"><button type="button" aria-pressed={f === "all"} onClick={() => setF("all")}>All groups</button><button type="button" aria-pressed={f === "cross"} onClick={() => setF("cross")}>Crosses sectors</button><button type="button" aria-pressed={f === "same"} onClick={() => setF("same")}>One sector</button></div></div>
       {!groups.length ? <p className="sp-empty">No group of shares moves together closely (0.50 or more): your shares move fairly independently of each other.</p> : <>
@@ -236,7 +238,7 @@ function SizesPanel({ d }: { d: DivInput }) {
   const f = useMemo(() => sizeFigures(d.page.order, d.page.corr, d.sizeOf), [d]);
   const maxTop = Math.max(1, ...f.mix.map((m) => m.top)), lead = f.mix[0];
   return (
-    <Section id="eq-sizes" hide title="Do large, mid, small and micro companies move together?" help="How closely shares move with others of the same size, and with the other sizes, from weekly prices." how="0 means no link; 1 means they move as one. A size that moves closely with itself acts more like one bet."
+    <Section id="eq-sizes" hide title="Do large, mid, small and micro companies move together?" help={`How closely shares move with others of the same size, and with the other sizes, from weekly prices over ${togetherWindow(d.page.weeks)}.`} how="0 means no link; 1 means they move as one. A size that moves closely with itself acts more like one bet."
       sub="How closely shares move with others of the same size, and with the other sizes. 0 means no link; 1 means they move as one.">
       <div className="eqd-k3">{f.within.map((w) => <div key={w.k} className="eqd-kpi"><p className="sp-cap">{w.k} companies · {w.n} counted</p><b>{two(w.avg)}</b>{w.avg != null && w.n > 1 && <span className="eqv-cw">{cap1(corrWord(w.avg))} linked</span>}<small>{w.n > 1 && w.avg != null ? `with each other. ${w.n} shares move like about ${w.eff.toFixed(1)} independent ones.` : w.n === 1 ? "One share: nothing to compare it with." : "None in the list."}</small></div>)}</div>
       <div className="eqd-two">
@@ -273,19 +275,23 @@ export function ShareGrid({ d, eff }: { d: DivInput; /** task #385 (open item 7)
   const dot = (n: string) => `var(--chart-${(Math.abs(hash(n)) % 6) + 1})`;
   const N = p.order.length, P = (N * (N - 1)) / 2;
   const on = (r: string, s: string) => !!pick && (pick.b ? (pick.a === r && pick.b === s) || (pick.a === s && pick.b === r) : pick.a === r || pick.a === s);
+  /** The grid itself; `big`: on its own screen (Expand), cells at least 64 × 44 with 14 px figures. Each cell shows the figure (0.56) and its label the word. */
+  const grid = (big: boolean) => <table className={"eqd-sheat" + (big ? " eqd-sheat-big" : "")}><thead><tr><td />{o.map((s) => <th key={s} scope="col" className={pick && !pick.b && pick.a === s ? "on" : undefined}><button type="button" className="eqd-v" title={d.nameOf(s)} onClick={() => setPick({ a: s })}>{s}</button></th>)}</tr></thead>
+    <tbody>{o.map((r) => <tr key={r}><th scope="row" className={pick && !pick.b && pick.a === r ? "on" : undefined}><button type="button" className="eqd-rw" title={d.nameOf(r)} onClick={() => setPick({ a: r })}><i className={"s-" + Math.abs(hash(of(r))) % 8} aria-hidden="true" />{r}</button></th>{o.map((s) => { if (r === s) return <td key={s} className="self" />; const v = c(r, s), hide = crossOnly && of(r) === of(s);
+      return <td key={s} className={(on(r, s) ? "on " : "") + (hide ? "off" : "")}>{hide ? "" : <button type="button" style={shade(v)} aria-label={corrCellLabel(r, s, v)} title={corrCellLabel(r, s, v)} onClick={() => setPick({ a: r, b: s })}>{corr2(v)}</button>}</td>; })}</tr>)}</tbody></table>;
   return (
-    <Section id="eq-grid" hide title="Share by share" help="How closely each pair of shares moves, from weekly prices over the past two years." how="0 means the two are unrelated; near 1, they rise and fall as one. Tap a cell for the pair, or a name for that share."
+    <Section id="eq-grid" hide title="Share by share" help={`How closely each pair of shares moves, from weekly prices over ${togetherWindow(p.weeks)}.`} how="0 means the two are unrelated; near 1, they rise and fall as one. Tap a cell for the pair, or a name for that share."
       sub={`${eff != null ? gridLine(N, eff).replace(/\.$/, ", by what you own now.") : gridLine(N, p.score.effective_stocks)}${sd.same.pairs ? ` Same sector: ${countOf(sd.same.pairs, "pair")} at ${two(sd.same.avg)} on average.` : ""}${sd.diff.pairs ? ` Different sectors: ${countOf(sd.diff.pairs, "pair")} at ${two(sd.diff.avg)}.` : ""}`}>
-      <PairsChart pairs={ps} label={lab} onPick={(x) => setPick({ a: x.a, b: x.b })} />
+      <PairsChart pairs={ps} label={lab} onPick={(x) => setPick({ a: x.a, b: x.b })} weeks={p.weeks} />
       <div className="eqd-sctl"><div className="eqd-seg" role="group" aria-label="Order of the grid">{ORDERS.map(([k, t]) => <button key={k} type="button" aria-pressed={ord === k} onClick={() => setOrd(k)}>{t}</button>)}</div>
         <label className="eqd-tgl"><input type="checkbox" checked={crossOnly} onChange={(e) => setCrossOnly(e.target.checked)} /> Only pairs across sectors</label></div>
-      <GridFold rows={N} what={`every pair of your ${countOf(N, "share")}, ${P.toLocaleString("en-IN")} in all`}>
-        <FrozenTable label={`Share by share · ${countOf(N, "share")}`} className="eqv-frz"><table className="eqd-sheat"><thead><tr><td />{o.map((s) => <th key={s} scope="col" className={pick && !pick.b && pick.a === s ? "on" : undefined}><button type="button" className="eqd-v" title={d.nameOf(s)} onClick={() => setPick({ a: s })}>{s}</button></th>)}</tr></thead>
-          <tbody>{o.map((r) => <tr key={r}><th scope="row" className={pick && !pick.b && pick.a === r ? "on" : undefined}><button type="button" className="eqd-rw" title={d.nameOf(r)} onClick={() => setPick({ a: r })}><i className={"s-" + Math.abs(hash(of(r))) % 8} aria-hidden="true" />{r}</button></th>{o.map((s) => { if (r === s) return <td key={s} className="self" />; const v = c(r, s), hide = crossOnly && of(r) === of(s);
-            return <td key={s} className={(on(r, s) ? "on " : "") + (hide ? "off" : "")}>{hide ? "" : <button type="button" style={shade(v)} aria-label={`${r} and ${s}: ${two(v)}`} onClick={() => setPick({ a: r, b: s })}>{v.toFixed(2).replace(/^0\./, ".").replace(/^-0\./, "−.")}</button>}</td>; })}</tr>)}</tbody></table></FrozenTable>
+      {/* task #388 (file 36, change 9): open at any size unless the member hid it (remembered with the account); Expand ⤢ shows it on its own screen */}
+      <GridFold rows={N} what={`every pair of your ${countOf(N, "share")}, ${P.toLocaleString("en-IN")} in all`} remember="eq:grid"
+        expand={{ title: "Share by share", line: `Every pair of your ${countOf(N, "share")} · darker cells move together more` }} big={grid(true)}>
+        <FrozenTable label={`Share by share · ${countOf(N, "share")}`} className="eqv-frz">{grid(false)}</FrozenTable>
         <p className="eqd-key2"><span>Independent</span><i aria-hidden="true" /><span>Move as one</span><span>· Tap a cell for the pair, or a name for that share</span></p>
       </GridFold>
-      <ReadPanel order={p.order} corrOf={c} rest={rest} sectorOf={of} label={lab} pick={pick} onPick={setPick} secRows={secRows} typical={typical} dot={dot} />
+      <ReadPanel order={p.order} corrOf={c} rest={rest} sectorOf={of} label={lab} pick={pick} onPick={setPick} secRows={secRows} typical={typical} dot={dot} weeks={p.weeks} />
     </Section>
   );
 }
