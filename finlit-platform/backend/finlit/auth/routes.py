@@ -65,11 +65,20 @@ def pre_session_guard(request: Request) -> None:
         raise fail(403, "bad_origin", "This request did not come from the FinLit website.")
 
 
-async def limit(request: Request, name: str, key: str, count: int, seconds: int) -> None:
-    allowed, retry = await request.app.state.limiter.hit(name, key, count, seconds, fail_open=False)
+async def limit(request: Request, name: str, key: str, count: int, seconds: int, fail_open: bool = False) -> None:
+    allowed, retry = await request.app.state.limiter.hit(name, key, count, seconds, fail_open=fail_open)
     if not allowed:
         raise HTTPException(status_code=429, detail={"status": "rate_limited", "detail": "Too many attempts. Please wait and try again.",
                                                       "retryAfter": retry}, headers={"Retry-After": str(retry)})
+
+
+async def read_limit(request: Request, ctx: Ctx, name: str, visitor: int, member: int, seconds: int = 60) -> None:
+    """Budget for a costly read that anyone may call (screener, compare, charts, CSV downloads): a visitor counted by IP, a signed-in member by
+    account with the larger budget. Sized well above what a person using the page sends. Redis down: the read stays up (the site-wide limit still applies)."""
+    if ctx.authed and ctx.user_id:
+        await limit(request, name + ":member", ctx.user_id, member, seconds, fail_open=True)
+    else:
+        await limit(request, name + ":visitor", ip_of(request), visitor, seconds, fail_open=True)
 
 
 async def user_ctx(request: Request) -> Ctx:
