@@ -1,0 +1,16 @@
+{
+  "_about": "The email notification and the monitors to create in Uptime Kuma (docs/MONITORING.md, 'Uptime Kuma: first sign-in'). Kuma's JSON import is deprecated, so these are typed in once (about five minutes). Never paste the password into this file.",
+  "notification": {"type": "SMTP (Email)", "friendlyName": "FinLit alerts (Resend)", "hostname": "smtp.resend.com", "port": 465, "security": "TLS (465)", "username": "resend",
+                   "password": "the RESEND_API_KEY value from /opt/finlit/.env.aws (typed into Kuma only)", "from": "FinLit Alerts <alerts@finlitventures.com>",
+                   "to": "finlit.start@gmail.com", "defaultEnabled": true, "applyOnAllExisting": true},
+  "monitors": [
+    {"name": "Home page", "type": "HTTP(s)", "url": "https://finlitventures.com/", "interval": 60, "retries": 2},
+    {"name": "Site health (API)", "type": "HTTP(s) - Keyword", "url": "https://finlitventures.com/api/health", "keyword": "\"ok\":true", "interval": 60, "retries": 2},
+    {"name": "Company report data", "type": "HTTP(s)", "url": "https://finlitventures.com/api/stocks/RELIANCE/brief", "interval": 120, "retries": 2},
+    {"name": "Mutual fund page data", "type": "HTTP(s)", "url": "https://finlitventures.com/api/mf/118955", "interval": 300, "retries": 2},
+    {"name": "News and filings", "type": "HTTP(s)", "url": "https://finlitventures.com/api/feed?limit=1", "interval": 300, "retries": 2},
+    {"name": "Background jobs", "type": "HTTP(s) - Keyword", "url": "https://finlitventures.com/api/jobs/status", "keyword": "\"healthy\": true", "interval": 300, "retries": 1},
+    {"name": "Certificate", "type": "HTTP(s)", "url": "https://finlitventures.com/", "interval": 3600, "certificateExpiryNotification": true},
+    {"name": "Team workspace", "type": "HTTP(s)", "url": "https://workspace.finlitventures.com/", "interval": 300, "retries": 2}
+  ]
+}

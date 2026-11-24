@@ -16,6 +16,7 @@ import { AmfiImport } from "../components/admin/AmfiImport";
 import { FundFiles } from "../components/admin/FundFiles";
 import { MacroAdmin } from "../components/admin/MacroAdmin";
 import { BriefAdmin } from "../components/admin/BriefAdmin";
+import { Monitoring } from "../components/admin/Monitoring";
 import { MailAdmin } from "../components/admin/MailAdmin";
 import { fundJobLine, fundPollMs } from "../lib/fundJobs";
 import { codeText } from "../lib/companyLabel";
@@ -69,10 +70,10 @@ function Features() {
 export function Console() {
   useDocTitle("Admin console", "FinLit administrators: manage members, plans and the audit log.");
   const { user, ready, isAdmin } = useAuth();
-  type Tab = "users" | "requests" | "content" | "data" | "macro" | "brief" | "mail" | "audit";
+  type Tab = "users" | "requests" | "content" | "data" | "monitoring" | "macro" | "brief" | "mail" | "audit";
   const [sp] = useSearchParams();   // task #281 round 7: /console?tab=data opens Data health directly (a link, or a browser assistant following steps)
   const asked = sp.get("tab");
-  const [tab, setTab] = useState<Tab>((["users", "requests", "content", "data", "macro", "brief", "mail", "audit"] as Tab[]).includes(asked as Tab) ? (asked as Tab) : "requests");
+  const [tab, setTab] = useState<Tab>((["users", "requests", "content", "data", "monitoring", "macro", "brief", "mail", "audit"] as Tab[]).includes(asked as Tab) ? (asked as Tab) : "requests");
   if (!ready) return <div className="wrap state" role="status"><div className="skeleton" style={{ height: 14, width: 200, margin: "40px auto" }} /></div>;
   if (!user) return <Navigate to="/login?next=%2Fconsole" replace />;
   if (!isAdmin) return <div className="wrap state"><h1 className="ui-title">Administrators only</h1><p className="muted">This area is for the FinLit team.</p><Link className="btn" to="/dashboard">Back to your dashboard</Link></div>;
@@ -81,12 +82,13 @@ export function Console() {
     <div className="wrap console">
       <header className="dash-h"><div><div className="eyebrow">Admin</div><h1 className="ui-title">Console</h1><p className="muted">Members, plan requests and the audit trail. Blog posts and website enquiries are in the <Link to="/admin">content tools</Link> (no second sign-in).</p></div></header>
       <div className="seg" role="tablist" aria-label="Console sections" style={{ marginBottom: 18 }}>
-        {([["requests", "Plan requests"], ["users", "Members"], ["content", "Calendar & news"], ["data", "Data health"], ["macro", "Macro outlook"], ["brief", "Company brief"], ["mail", "Email"], ["audit", "Audit log"]] as const).map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</button>)}
+        {([["requests", "Plan requests"], ["users", "Members"], ["content", "Calendar & news"], ["data", "Data health"], ["monitoring", "Monitoring"], ["macro", "Macro outlook"], ["brief", "Company brief"], ["mail", "Email"], ["audit", "Audit log"]] as const).map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</button>)}
       </div>
       {tab === "requests" && <Requests />}
       {tab === "users" && <Users />}
       {tab === "content" && <ContentAdmin />}
       {tab === "data" && <><Health /><ScoreAdminPanel /><FundLoads /><AmfiImport /><FundFiles /><LogoCoverage /><Features /><NotifyList /></>}
+      {tab === "monitoring" && <Monitoring />}
       {tab === "macro" && <MacroAdmin />}
       {tab === "brief" && <BriefAdmin />}
       {tab === "mail" && <MailAdmin />}

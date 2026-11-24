@@ -848,6 +848,8 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(forum_api.router)
     app.include_router(page_feedback_api.router)
     app.include_router(ai_feedback_api.router)   # task #366: thumbs up / down on AI-written text
+    app.include_router(__import__("finlit.monitoring", fromlist=["public"]).public)   # /api/status/public and /api/monitor/ingest (docs/MONITORING.md)
+    app.include_router(__import__("finlit.monitoring", fromlist=["admin"]).admin)    # /api/admin/monitoring
     app.include_router(dcf_api.router)
     app.include_router(__import__("finlit.stress.router", fromlist=["router"]).router)   # /api/stress/*: Stress Lab (Silver page, Gold runs)
     app.include_router(options_api.router)

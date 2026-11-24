@@ -5,7 +5,7 @@ import type { User } from "./auth";
 import type { Prefs } from "./prefs";
 
 export type SignInResult = { user: User; csrf: string; mfaSetupRequired: boolean };
-export const signUp = (b: { email: string; password: string; name?: string; accept_terms: boolean }) => apiSend("POST", "/api/auth/register", b);
+export const signUp = (b: { email: string; password: string; name?: string; mobile: string; accept_terms: boolean }) => apiSend("POST", "/api/auth/register", b);
 export const verifyEmail = (token: string) => apiSend("POST", "/api/auth/verify-email", { token });
 export const resendVerification = (email: string) => apiSend("POST", "/api/auth/resend-verification", { email });
 export const signIn = (b: { email: string; password: string; code?: string }) => apiSend<SignInResult>("POST", "/api/auth/login", b);
@@ -14,7 +14,11 @@ export const resetPassword = (token: string, password: string) => apiSend("POST"
 /** The second page of "Forgot password" (owner, 17 Nov 2026): the 6-digit code from the email and the new password. */
 export const resetPasswordWithCode = (email: string, code: string, password: string) => apiSend("POST", "/api/auth/reset-code", { email, code, password });
 
-export const updateProfile = (name: string) => apiSend("PATCH", "/api/me", { name });
+export const updateProfile = (name: string, mobile?: string) => apiSend("PATCH", "/api/me", mobile ? { name, mobile } : { name });
+/** The member's own name, email and mobile (owner, 24 Nov 2026). */
+export const myProfile = () => apiGet<{ name: string | null; email: string; mobile: string | null }>("/api/me/profile");
+/** An Indian mobile: 10 digits starting 6-9, with an optional +91 / 91 / 0 and spaces or dashes (the server checks it again). */
+export const isMobile = (s: string): boolean => /^(?:\+?91|0)?[6-9]\d{9}$/.test(s.replace(/[\s\-().]/g, ""));
 export const changePassword = (current: string, next: string) => apiSend("POST", "/api/me/password", { current, new: next });
 export type SessionRow = { id: string; current: boolean; ip: string | null; agent: string; createdAt: string; lastSeenAt: string };
 export const listSessions = () => apiGet<{ sessions: SessionRow[] }>("/api/me/sessions");
@@ -50,6 +54,13 @@ export type DbWake = { available: boolean; wakesToday: number | null; awakeMinut
 /** Task #281: every fund data gap of the active schemes, counted each time the Data health panel opens (null when the count could not be read). */
 export type FundGaps = { active: number; at: string; gaps: { key: string; label: string; count: number; of: number; among: string; fix: string; examples: string[] }[] };
 export type DataHealth = { fundGaps?: FundGaps | null; coverage?: { byState: Record<string, number>; mismatches: { symbol: string; lines: string[]; at: string }[]; providerEmpty: { symbol: string; name: string | null }[] }; universe: number; loaded: number; scored: number; queued: number; lastLoad: string | null; calendars?: { resultsAt: string | null; resultsThrough: string | null; ipoAt: string | null }; runs24h: Record<string, number>; /** Task #283 PR C: listed companies with the retired overall score but no FinLit Prism score (admin only). */ prismGap?: { listed: number; retiredScored: number; prismScored: number; retiredNoPrism: number } | null; recentProblems: { symbol: string; status: string; at: string; detail: string }[]; funds?: { etf: { n: number; active: number; last: string | null } | null; mf: { n: number; active: number; with_history: number; last: string | null } | null }; clientIp?: { header: string | null; chain: string | null; peer: string | null; resolved: string }; dbWake?: DbWake; resultsLight?: { days: number; declared: number; filled: number; fromFullReport: number; fromLightRow: number; awaitingProvider: number; awaitingOurs: number } | null; integrity?: { at: string; level: "green" | "amber" | "red"; sampled: number; checks: { key: string; label: string; level: "green" | "amber" | "red"; checked: number; bad: number; message: string; examples: string[] }[] } | null };
+export type MonCheck = { key: string; name: string; group: string; up: boolean | null; latencyMs: number | null; checkedAt: string | null; goodPct: number | null; checks: number; errors: string[] };
+export type Monitoring = { checks: MonCheck[]; note: string | null; incidents: { name: string; type: string; at: string }[]; failingJobs: string[];
+  outside: { ok: boolean; status: number | null; ms: number | null; version: string | null; failsInARow: number; at: string } | null;
+  outsideRecent: { ok: boolean; at: string }[];
+  k6: { run: string; passed: boolean; requests: number; p95Ms: number | null; avgMs: number | null; errorPct: number | null; vus: number | null; runUrl: string | null; at: string } | null;
+  kumaUrl: string | null; asOf: string };
+export const adminMonitoring = () => apiGet<Monitoring>("/api/admin/monitoring");
 export const adminHealth = () => apiGet<DataHealth>("/api/admin/data-health");
 
 export const addIpo = (b: Record<string, unknown>) => apiSend("POST", "/api/admin/ipos", b);

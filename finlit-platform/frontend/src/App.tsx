@@ -71,6 +71,7 @@ const Console = lazy(() => import("./pages/Console").then((m) => ({ default: m.C
 const IpoPage = lazy(() => import("./pages/Ipo").then((m) => ({ default: m.IpoPage })));
 const IpoAllRedirect = lazy(() => import("./pages/IpoHistory").then((m) => ({ default: m.IpoAllRedirect })));   // task #329: /ipo/all -> /ipo?view=all
 const IpoReportPage = lazy(() => import("./pages/IpoReport").then((m) => ({ default: m.IpoReportPage })));
+const StatusPage = lazy(() => import("./pages/Status").then((m) => ({ default: m.StatusPage })));
 const ConcallMonitorPage = lazy(() => import("./pages/ConcallMonitor").then((m) => ({ default: m.ConcallMonitorPage })));
 const ResultsPage = lazy(() => import("./pages/Results").then((m) => ({ default: m.ResultsPage })));
 const QuarterResultsPage = lazy(() => import("./pages/QuarterResults").then((m) => ({ default: m.QuarterResultsPage })));
@@ -164,6 +165,7 @@ export default function App() {
             <Route path="ipo" element={<IpoPage />} />
             <Route path="ipo/all" element={<IpoAllRedirect />} />
             <Route path="ipo/:id" element={<IpoReportPage />} />
+            <Route path="status" element={<StatusPage />} />
             <Route path="concalls" element={<ConcallMonitorPage />} />
             <Route path="macro" element={<MacroPage />} />
             <Route path="sectors" element={<SectorPulsePage />} />

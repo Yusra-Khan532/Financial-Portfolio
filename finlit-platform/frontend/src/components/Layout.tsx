@@ -165,7 +165,7 @@ function SlimFooter() {
       <div className="wrap">
         <div className="fslim">
           <div><span className="lg-mark" role="img" aria-label="FinLit" /><h2>Follow the numbers, not the noise.</h2></div>
-          <nav aria-label="Footer"><Link to="/about">About</Link><Link to="/plans">Pricing</Link><Link to="/blog">Blog</Link><Link to="/faq">FAQs</Link><Link to="/browser-extension">Browser extension</Link><Link to="/contact">Contact</Link><Link to="/legal/terms">Terms</Link><Link to="/legal/privacy">Privacy</Link><Link to="/legal/disclosures">Disclosures</Link></nav>
+          <nav aria-label="Footer"><Link to="/about">About</Link><Link to="/plans">Pricing</Link><Link to="/blog">Blog</Link><Link to="/faq">FAQs</Link><Link to="/browser-extension">Browser extension</Link><Link to="/contact">Contact</Link><Link to="/legal/terms">Terms</Link><Link to="/legal/privacy">Privacy</Link><Link to="/legal/disclosures">Disclosures</Link><Link to="/status">Status</Link></nav>
         </div>
         <div className="ffine"><span>{COMPANY.disclaimer} Market data may be delayed. Past performance does not indicate future results.</span><span>© {new Date().getFullYear()} {COMPANY.name}</span></div>
       </div>
@@ -190,7 +190,7 @@ function Footer() {
             <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a><a href={COMPANY.linkedin} target="_blank" rel="noopener noreferrer">LinkedIn</a></div>
           {FOOT.map((col) => <div key={col.title}><b>{col.title}</b>{col.items.filter(offeredTo(gold)).map((it) => <Link key={it.to} to={it.to}>{it.label}</Link>)}</div>)}
           <div><b>Company</b><Link to="/about">About</Link><Link to="/why-we-exist">Why we exist</Link><Link to="/browser-extension">Browser extension</Link><Link to="/services">Services</Link><Link to="/plans">Pricing</Link><Link to="/blog">Blog</Link><Link to="/forum">Discussion forums</Link><Link to="/companies">All companies</Link><Link to="/glossary">Glossary</Link><Link to="/faq">FAQs</Link><Link to="/mcp">Connect AI</Link><Link to="/contact">Contact</Link>
-            <Link to="/legal/terms">Terms</Link><Link to="/legal/privacy">Privacy</Link><Link to="/legal/disclosures">Research disclosures</Link>{!user && <Link to="/login">Sign in</Link>}</div>
+            <Link to="/legal/terms">Terms</Link><Link to="/legal/privacy">Privacy</Link><Link to="/legal/disclosures">Research disclosures</Link><Link to="/status">Status</Link>{!user && <Link to="/login">Sign in</Link>}</div>
         </div>
         <div className="ffine">
           <span>{COMPANY.disclaimer} Market data may be delayed. Past performance does not indicate future results.</span>

@@ -4,7 +4,7 @@ export { PasswordField };   // kept for older imports
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router";
 import { useMutation } from "@tanstack/react-query";
 import { ApiError } from "../lib/api";
-import { resendVerification, signIn, signUp } from "../lib/account";
+import { isMobile, resendVerification, signIn, signUp } from "../lib/account";
 import { useAuth } from "../lib/auth";
 import { safeNext } from "../lib/safe";
 import { Icon } from "../lib/icons";
@@ -18,7 +18,7 @@ export function Login() {
   const next = safeNext(params.get("next"));
   const nav = useNavigate();
   const { refresh, user } = useAuth();
-  const [email, setEmail] = useState(""), [password, setPassword] = useState(""), [name, setName] = useState(""), [code, setCode] = useState("");
+  const [email, setEmail] = useState(""), [password, setPassword] = useState(""), [name, setName] = useState(""), [mobile, setMobile] = useState(""), [code, setCode] = useState("");
   const [terms, setTerms] = useState(false);
   const [needCode, setNeedCode] = useState(false);
   const [unverified, setUnverified] = useState(false);
@@ -48,7 +48,7 @@ export function Login() {
     },
   });
   const register = useMutation({
-    mutationFn: () => signUp({ email: email.trim(), password, name: name.trim() || undefined, accept_terms: terms }),
+    mutationFn: () => signUp({ email: email.trim(), password, name: name.trim() || undefined, mobile: mobile.trim(), accept_terms: terms }),
     onSuccess: (r) => { setCreated((r as { status?: string } | undefined)?.status === "created"); setSent(email.trim()); },
     onError: (e) => setErr(explain(e)),
   });
@@ -56,6 +56,7 @@ export function Login() {
   const submit = (e: React.FormEvent) => {
     e.preventDefault(); setErr(null); setOfferReset(false);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) return setErr("Enter a valid email address.");
+    if (mode === "signup" && !isMobile(mobile)) return setErr("Enter a valid 10-digit Indian mobile number.");
     if (mode === "signup") { if (!terms) return setErr("Please accept the Terms and Privacy Notice to continue."); register.mutate(); } else login.mutate();
   };
   const setMode = (m: "signin" | "signup") => { setErr(null); setNeedCode(false); setUnverified(false); const p = new URLSearchParams(params); if (m === "signup") p.set("mode", "signup"); else p.delete("mode"); setParams(p, { replace: true }); };
@@ -97,6 +98,7 @@ export function Login() {
               <h2 style={{ font: "400 28px var(--serif)", margin: "16px 0 6px" }}>{mode === "signup" ? "Create your free account" : needCode ? "Two-step check" : "Welcome back"}</h2>
               <p className="muted" style={{ margin: "0 0 18px" }}>{mode === "signup" ? "Free forever on the Basic plan. No card needed." : needCode ? "Enter the 6-digit code from your authenticator app." : "Sign in to open your watchlists, dashboard and plan."}</p>
               {mode === "signup" && <label>Name <span className="faint">(optional)</span><input autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} /></label>}
+              {mode === "signup" && <label>Mobile number<input type="tel" inputMode="tel" autoComplete="tel" required placeholder="98765 43210" value={mobile} onChange={(e) => setMobile(e.target.value)} maxLength={16} /></label>}
               {!needCode && <>
                 <label>Email address<input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required /></label>
                 <PasswordField value={password} onChange={setPassword} autoComplete={mode === "signup" ? "new-password" : "current-password"} hint={mode === "signup"} />
