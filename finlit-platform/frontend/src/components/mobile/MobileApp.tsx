@@ -25,14 +25,13 @@ const store = {
 
 /** The five tabs: Home, Markets, Discover, Portfolio, Menu. A tab is lit on every page of its group; the Menu tab opens the Menu sheet. */
 export function MobileTabs() {
-  const { user } = useAuth();
   const { pathname } = useLocation();
   const here = tabFor(pathname);
-  const tabs: [TabId, string, string][] = [["home", "home", user ? "Home" : "Home"], ["markets", "activity", "Markets"], ["discover", "globe", "Discover"], ["folio", "wallet", "Portfolio"]];
+  const tabs: [TabId, string, string][] = [["home", "home", "Home"], ["markets", "activity", "Markets"], ["discover", "globe", "Discover"], ["folio", "wallet", "Portfolio"]];
   return (
     <nav className="ma-tabs" aria-label="Main">
       {tabs.map(([id, icon, label]) => {
-        const to = tabHome(id, !!user), on = here === id;
+        const to = tabHome(id), on = here === id;
         return <Link key={id} to={to} className={"ma-tab" + (on ? " on" : "")} aria-current={on ? "page" : undefined}><Icon name={icon} /><span>{label}</span></Link>;
       })}
       <button type="button" className="ma-tab" onClick={() => dispatchEvent(new Event(OPEN_PHONE_MENU))} aria-haspopup="dialog"><Icon name="list" /><span>Menu</span></button>

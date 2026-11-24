@@ -3,7 +3,7 @@
    so the desktop site, and "Desktop site" in a phone browser (about 980px wide), are unchanged. Class prefix ma- (checked unused elsewhere).
    Sizes from ui-tokens.css; stacking from the --z scale of overlay.css. Locked in by styles/mobileApp.test.tsx. */
 
-.ma-tabs, .ma-hub, .ma-fab, .ma-fabp, .ma-scrim, .ma-menu, .ma-foot { display: none; }
+.ma-tabs, .ma-hub, .ma-fab, .ma-fabp, .ma-scrim, .ma-menu, .ma-foot, .ma-doors { display: none; }
 
 @media (max-width: 860px) {
   /* ---- the top bar: logo, a search box that says what it finds, Ask FinLit AI (and the bell for a member) ---- */
@@ -125,6 +125,21 @@
   .ma-fr:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   /* toasts sit above the Tools button */
   :root:root:root :is(.toast, .prep-toast, .cpf-toast, .alx-toasts) { bottom: calc(var(--ui-bar-h) + 84px + env(safe-area-inset-bottom, 0px)); }
+
+  /* ---- the landing's doors (owner, 25 Nov 2026): a member's dashboard first, then the three places people start most ---- */
+  .ma-doors { display: grid; gap: 10px; margin: 4px 0 18px; }
+  .ma-door { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 12px 14px; border-radius: var(--r-ctl); background: var(--btn-bg); color: var(--btn-fg); text-decoration: none; }
+  .ma-door-i { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: var(--r-ctl); background: color-mix(in srgb, var(--btn-fg) 16%, transparent); }
+  .ma-door-i svg { width: 19px; height: 19px; }
+  .ma-door-t { flex: 1; min-width: 0; display: grid; gap: 2px; }
+  .ma-door-t b { font: var(--ui-fw-semibold) var(--fs-16)/1.25 var(--font-sans); }
+  .ma-door-t small { font: var(--ui-fw-regular) var(--fs-12)/1.35 var(--font-sans); opacity: .85; }
+  .ma-door > svg { flex: none; width: 18px; height: 18px; }
+  .ma-door-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .ma-door-s { display: grid; justify-items: center; align-content: center; gap: 6px; min-height: 72px; padding: 10px 4px; border-radius: var(--r-ctl); border: 1px solid var(--border);
+    background: var(--s1); color: var(--text); font: var(--ui-fw-semibold) var(--fs-13)/1.2 var(--font-sans); text-align: center; text-decoration: none; }
+  .ma-door-s svg { width: 20px; height: 20px; color: var(--gold); }
+  :is(.ma-door, .ma-door-s):focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
   /* ---- compact page titles (checklist 14, 15, 24): the title card no longer fills the first screen ----
      one smaller title, no eyebrow line above it, the description in two lines, the quick links in one sideways row, the sibling tabs (Sector
