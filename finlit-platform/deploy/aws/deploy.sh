@@ -66,8 +66,12 @@ public_ip() {
   printf '%s' "$ip"
 }
 
+domains() {  # DOMAIN may list several hosts for Caddy ("finlitventures.com, www.finlitventures.com, app.finlitventures.com"): one per line
+  envval DOMAIN | tr ', ' '\n\n' | sed '/^$/d'
+}
+
 site_url() {
-  local d; d="$(envval DOMAIN)"
+  local d; d="$(domains | head -n 1)"
   if [ -n "$d" ]; then printf 'https://%s' "$d"; else printf 'http://%s' "$(public_ip)"; fi
 }
 
@@ -144,10 +148,12 @@ wait_healthy() {  # wait_healthy -> 0 when /api/ping and then /api/health answer
   done
   info "/api/health is ok"
   # the same through the front door (Caddy)
-  local d code; d="$(envval DOMAIN)"
-  if [ -n "$d" ]; then
-    code="$(curl -ks -o /dev/null -w '%{http_code}' -m 10 --resolve "$d:443:127.0.0.1" "https://$d/api/ping" || true)"
-    [ "$code" = 200 ] && info "https://$d answers" || info "https://$d does not answer yet (HTTP $code): the certificate can take a minute, and the DNS A record must point at this server. Check: bash $0 logs caddy"
+  local d code hosts; hosts="$(domains)"
+  if [ -n "$hosts" ]; then
+    for d in $hosts; do   # each host Caddy serves, asked on this server (not through the internet or Cloudflare)
+      code="$(curl -ks -o /dev/null -w '%{http_code}' -m 10 --resolve "$d:443:127.0.0.1" "https://$d/api/ping" || true)"
+      [ "$code" = 200 ] && info "https://$d answers" || info "https://$d does not answer yet (HTTP $code): the certificate can take a minute. Check: bash $0 logs caddy"
+    done
   else
     code="$(curl -s -o /dev/null -w '%{http_code}' -m 10 http://127.0.0.1:${FRONT_HTTP_PORT:-80}/api/ping || true)"
     [ "$code" = 200 ] && info "the front door (Caddy, port 80) answers" || { echo "Caddy does not answer on port 80 (HTTP $code)" >&2; return 1; }

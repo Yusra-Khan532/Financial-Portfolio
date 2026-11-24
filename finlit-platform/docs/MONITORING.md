@@ -32,7 +32,9 @@ The jobs' own health (`/api/jobs/status`) is already watched by the site; Gatus 
 Alert email goes through **Resend's SMTP** (owner's choice, 24 Nov 2026): host `smtp.resend.com`, port `465` (TLS), username `resend`, password
 = the site's existing `RESEND_API_KEY`, from **FinLit Alerts <alerts@finlitventures.com>** (finlitventures.com is the verified Resend domain),
 replies to alerts@finlitventures.com (the outside check sets Reply-To; Gatus cannot set one). Recipient: `finlit.start@gmail.com`; add more,
-comma-separated, in `ALERT_EMAIL_TO`. No new mail secret is needed. Secrets stay in `/opt/finlit/.env.aws` and GitHub's secrets, never in the
+comma-separated, in `ALERT_EMAIL_TO`. No new mail secret is needed, but a separate one is recommended (security checkup, 24 Nov 2026): create a
+second Resend key with **Sending access** only, put it in `ALERT_RESEND_API_KEY` on the server (Gatus then uses it instead of the main key) and in
+GitHub's `RESEND_API_KEY` secret and Uptime Kuma, so the monitoring tools never hold the site's main mail key. Secrets stay in `/opt/finlit/.env.aws` and GitHub's secrets, never in the
 repository or chat.
 
 Each step runs where it says: **server window** = the terminal whose prompt starts `ubuntu@ip-`; **browser** = your own browser.
