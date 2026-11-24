@@ -16,14 +16,14 @@ describe("item 8: the Prism card's date says what it is", () => {
   });
 });
 
-describe("item 9: the earnings alert in its own section sits in the page, never over it", () => {
+describe("item 9, changed by the founder on 24 Nov 2026: the earnings alert is a pop-up again", () => {
   const css = readFileSync(resolve(__dirname, "../styles/plflags.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-  it("the in-place card is in the flow (position relative, no z-index layer); only the card opened from the edge tab floats", () => {
-    const m = css.match(/:root:root \.plf-note:not\(\.plf-floating\)\s*\{([^}]*)\}/);
-    expect(m, "in-place rule").not.toBeNull();
-    expect(m![1]).toMatch(/position:\s*relative/);
-    expect(m![1]).toMatch(/z-index:\s*auto/);
-    expect(m![1]).toMatch(/top:\s*auto/);
+  it("no rule puts the card into the page: the card floats (position fixed, its own layer) from the start to the end of section 05", () => {
+    expect(css).not.toMatch(/\.plf-note:not\(\.plf-floating\)/);
+    const base = css.match(/^\.plf-note\s*\{([^}]*)\}/m);
+    expect(base, "card rule").not.toBeNull();
+    expect(base![1]).toMatch(/position:\s*fixed/);
+    expect(base![1]).toMatch(/z-index:\s*\d+/);
   });
 });
 
