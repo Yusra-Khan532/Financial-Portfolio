@@ -94,7 +94,7 @@ export function RatioDrawer({ groups, byKey, start, ratiosOn, firstSymbols, coun
   return (
     <>
       <div className="scrim rd-back" onClick={onClose} aria-hidden="true" />
-      <div className="rd" role="dialog" aria-modal="true" aria-labelledby="rd-h" ref={box}>
+      <div className="rd-drawer" role="dialog" aria-modal="true" aria-labelledby="rd-h" ref={box}>
         <div className="rd-head"><h2 id="rd-h">{editing ? "Change this ratio" : "Build a custom ratio"}</h2><button type="button" className="rd-x" onClick={onClose} aria-label="Close">×</button></div>
         <div className="rd-body">
           <p className="rd-intro">Divide one company figure by another. The result becomes a column in the table, and a filter too if you set a condition.</p>

@@ -113,6 +113,8 @@
 .tr-bar { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; margin-bottom: 16px; }
 .mb { position: relative; } .mb svg { width: 100%; height: auto; display: block; } .mb rect { transition: opacity .15s; }
 .mb-tip { position: absolute; top: 0; transform: translateX(-50%); z-index: 4; min-width: 130px; display: grid; gap: 3px; padding: 8px 10px; border-radius: var(--r-ctl); background: var(--s1); border: 1px solid var(--border-strong); box-shadow: var(--lift); font-size: var(--fs-12); pointer-events: none; } .mb-tip b { color: var(--faint); font-size: var(--fs-12); } .mb-tip span { display: flex; align-items: center; gap: 6px; } .mb-tip i { width: 8px; height: 8px; border-radius: var(--ui-r-mark); } .mb-tip em { margin-left: auto; font: 600 var(--fs-12) var(--mono); font-style: normal; }
+/* 24 Nov 2026 (developer file 39): a value never breaks inside itself ("3.15" over "L" in Cash and borrowings); the box takes the width it needs */
+.mb-tip em { white-space: nowrap; }
 
 /* ---- header Tools menu ---- */
 .dd { position: relative; display: inline-flex; } .ddb { display: inline-flex; gap: 6px; align-items: center; background: none; border: 0; color: inherit; font: inherit; cursor: pointer; padding: 0; opacity: .85; } .ddb:hover, .ddb.hl { opacity: 1; color: var(--gold); } .ddb svg { width: 11px; height: 11px; transform: rotate(90deg); }
