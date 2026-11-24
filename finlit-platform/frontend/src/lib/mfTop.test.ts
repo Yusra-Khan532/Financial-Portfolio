@@ -1,6 +1,6 @@
 // Task #183 part 2 (MF portfolio), M4: the list box, the three tiles and each tab's Key figures, from the pack's five funds (the owner's live list, 15 Nov).
 import { describe, expect, it } from "vitest";
-import { fundsCards, listBox, mfTiles, mixCards, riskCards, MF_SECS } from "./mfTop";
+import { fundsCards, listBox, mfSteps, mfTiles, mixCards, riskCards, stepFromParam, stepParam } from "./mfTop";
 import type { Holding, MfSpread } from "./mfPortfolio";
 import type { MfRisk } from "./mfPack";
 
@@ -27,31 +27,45 @@ describe("MF portfolio top (M4)", () => {
   });
   it("has one tile per tab, as the pack writes them", () => {
     expect(mfTiles(HS, SP, RK).map((t) => [t.id, t.k, t.v, t.sub])).toEqual([
-      ["funds", "Your funds", "Average health · 62", "2 healthy · 3 average, by Fund Health Score"],
+      ["funds", "Your funds", "Average · 62", "2 healthy · 3 average · each fund counted equally"],
       ["mix", "Mix & overlap", "Moves like 1.3 of 4", "Equity-type funds move almost as one; the closest pair shares 10%"],
-      ["risk", "Risk analytics", "Lower · β 0.71", "Each fund against its own benchmark; swings 9.6% a year vs 14.3%"]]);
+      ["risk", "Risk analytics", "Lower · moves 0.71×", "Each fund against its own benchmark; swings 9.6% a year vs 14.3%"]]);
     expect(mfTiles(HS, SP, RK).every((t) => t.help && t.how)).toBe(true);
   });
   it("has three Key figures cards on each tab, each jumping to its section", () => {
     expect(fundsCards(HS, SP).map((c) => [c.k, c.v, c.text, c.to])).toEqual([
       ["One theme twice", "MNC × 2", "ICICI Prudential MNC and Kotak MNC follow the same theme from two fund houses.", "mfp-move"],
-      ["Weakest health part", "Performance 28", "ICICI Prudential MNC's performance part is the lowest in the list.", "mfp-funds"],
+      ["Weakest Score part", "Performance 28", "ICICI Prudential MNC's performance part is the lowest in the list.", "mfp-funds"],
       ["Liquid counts as a fund", "20%", "Until units are added, the liquid fund weighs as much as each equity fund.", "mfp-units"]]);
     expect(mixCards(SP).map((c) => [c.k, c.v, c.text])).toEqual([
       ["Move almost as one", "1.3 of 4", "Four equity-type funds with different labels behave like 1.3 independent funds."],
-      ["Little overlap in stocks", "10% at most", "The closest pair of funds keeps 10% of its money in the same stocks."],
+      ["Little overlap in stocks", "10% at most", "The closest pair shares 10% of their money."],
       ["Stocks underneath", "235", "36 are held through two or more funds; 9% of the shares sit in companies below ₹10,000 Cr."]]);
     expect(riskCards(RK).map((c) => [c.k, c.v, c.text])).toEqual([
       ["Moves less than its markets", "β 0.71", "Each fund against its own benchmark, the list has moved 0.71% for each 1%."],
       ["Most risk for its size", "Kotak MNC 29%", "20% of the list, 29% of its ups and downs."],
       ["Highest beta", "1.02", "ICICI Prudential Multi Asset Allocation against its 68% Nifty 500 + 21% debt + 11% gold blend."]]);
-    const ids = new Set(Object.values(MF_SECS).flatMap((t) => t.secs.map((s) => s[0])));
+    const ids = new Set((["funds", "mix", "risk"] as const).flatMap((v) => mfSteps(v).flatMap((s) => s.secs)));
     for (const c of [...fundsCards(HS, SP), ...mixCards(SP), ...riskCards(RK)]) expect(ids.has(c.to) || c.to === "mfp-units").toBe(true);
   });
-  it("lists the sections in the pack's order", () => {
-    // task #275 (change 9): Key figures sit under the main section of each view
-    expect(MF_SECS.funds.secs.map((s) => s[1])).toEqual(["Your funds", "Key figures"]);
-    expect(MF_SECS.mix.secs.map((s) => s[1])).toEqual(["What they own", "Key figures", "Spread", "Money in", "Sectors inside", "Move together", "Shared stocks", "Company sizes", "Biggest stocks", "Trend"]);
-    expect(MF_SECS.risk.secs.map((s) => s[1])).toEqual(["At a glance", "Key figures", "Beta build", "Own benchmark", "Risk share", "If the Nifty 500 fell", "Each fund"]);
+  it("lists the steps in the pack's order, Key figures inside step 1 of every view (task #389, Update 25 Nov row 1)", () => {
+    const lab = (v: "funds" | "mix" | "risk") => mfSteps(v).map((s) => s.label);
+    expect(lab("funds")).toEqual(["Your funds", "What changed", "In short"]);
+    expect(lab("mix")).toEqual(["What they own", "Spread", "Money in", "Sectors inside", "Move together", "Shared stocks", "Company sizes", "Biggest stocks", "Trend", "In short"]);
+    expect(lab("risk")).toEqual(["At a glance", "Beta build", "Own benchmark", "Risk share", "If the Nifty 500 fell", "Each fund", "In short"]);
+    expect(mfSteps("funds")[0].secs).toEqual(expect.arrayContaining(["mfp-funds", "mfp-gl", "mfp-kf-funds"]));
+    expect(mfSteps("mix")[0].secs).toContain("mfp-kf-mix");
+    expect(mfSteps("risk")[0].secs).toContain("mfp-kf-risk");
+  });
+  it("reads the step from the address: none is the first step, all is All sections, a remembered Key figures opens step 1 (RB7, U1b)", () => {
+    const st = mfSteps("mix");
+    expect(stepFromParam(st, null)).toBe("mfp-own");
+    expect(stepFromParam(st, "all")).toBe("all");
+    expect(stepFromParam(st, "move")).toBe("mfp-move");
+    expect(stepFromParam(st, "kf-mix")).toBe("mfp-own");
+    expect(stepFromParam(mfSteps("funds"), "mfp-kf-funds")).toBe("mfp-funds");
+    expect(stepFromParam(st, "no-such-step")).toBe("mfp-own");
+    expect(stepParam("mfp-move")).toBe("move");
+    expect(stepParam("all")).toBe("all");
   });
 });

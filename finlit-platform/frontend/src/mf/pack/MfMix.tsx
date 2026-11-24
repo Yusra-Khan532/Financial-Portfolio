@@ -2,10 +2,11 @@
 // 1 What they own (macro sector · 12 | sector · 22 × size look-through, chips with the plan's reading, "+N more ▾") → 2 Spread (six readings) → three sub-tabs:
 // What they hold (3 Money in, 4 Sectors inside) · How funds move together (5 Move together with a pair reader, 6 Shared stocks) · Large, mid, small and micro (7) →
 // 8 Biggest stocks (5, then Show all 10) → 9 Trend (Gold, folded; a lock card below Gold). Figures are the server's; this file only draws and words them.
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { Scroll, Section } from "../../components/sectors/pack/Common";
 import { Insights, GoldLock } from "../../portfolio/pack/EquityPack";
+import { Step, StepCtx } from "../../portfolio/pack/EqSteps385";
 import { WideBox } from "../../portfolio/pack/DivPack";
 import { TrendCard } from "../Spread";
 import type { Card } from "../../lib/pulsePack";
@@ -14,7 +15,7 @@ import { shortFund } from "../../lib/mfPack";
 import { codeText } from "../../lib/companyLabel";
 import { holdingName, holdingShort } from "../../lib/holdingName";
 import { GridScreen } from "../../portfolio/pack/Div385";
-import { ShowAll, andList, cap1, capRows, corr2, corrWord, countOf, inCommon, CAP_DEFAULT } from "../../portfolio/shared";
+import { Info, ShowAll, andList, cap1, capRows, corr2, corrWord, countOf, inCommon, CAP_DEFAULT } from "../../portfolio/shared";
 
 export type Level = "macro" | "sector";
 export type Reading = { word: string | null; score: number | null } | null;
@@ -292,21 +293,30 @@ export function useSub(): [Sub, (s: Sub) => void] {
   useEffect(() => { const on = (e: Event) => { const s = SUB_OF[(e as CustomEvent).detail as string]; if (s) setSub(s); }; addEventListener("eq-jump", on); return () => removeEventListener("eq-jump", on); }, []);
   return [sub, setSub];
 }
+/** Task #389 (developer file 32, Section bar, with Mix 1): with one step chosen, the sub-view is the one that holds that step's section; a sub-view tab then
+ *  opens that sub-view's first section (its step). With All sections the tabs switch as before. The tabs stay at the top of the view in both. */
+const SUB_FIRST: Record<Sub, string> = { hold: "mfp-money", move: "mfp-move", size: "mfp-sizes" };
+export function useStepSub(): [Sub, (s: Sub) => void] {
+  const [sub0, setSub] = useSub(), { step } = useContext(StepCtx), forced = SUB_OF[step] as Sub | undefined;
+  const pick = (k: Sub) => { setSub(k); if (step !== "all") window.dispatchEvent(new CustomEvent("eq-step", { detail: SUB_FIRST[k] })); };
+  return [forced ?? sub0, pick];
+}
 const TABS: [Sub, string, string][] = [["hold", "What they hold", "Shares, debt, gold and sectors"], ["move", "How funds move together", "NAV moves and shared stocks"], ["size", "Large, mid, small and micro", "Company sizes inside each fund"]];
 /** Task #389 (file 32, Mix 1): the three sub-view tabs, drawn at the top of the view (MixTab); the selected (black) tab's second line is white at 78%. */
 export function SubBar({ sub, onSub }: { sub: Sub; onSub: (s: Sub) => void }) {
   return <div className="eqd-subbar mfm-subtabs" role="tablist" aria-label="Mix and overlap views">{TABS.map(([k, t, s]) => <button key={k} type="button" role="tab" aria-selected={sub === k} className={sub === k ? "on" : ""} onClick={() => onSub(k)}><b>{t}</b><small>{s}</small></button>)}</div>;
 }
+/** The chosen sub-view's sections, one step each (task #389 PR A). */
 export function SubBody({ sp, sub, level, onLevel }: { sp: MfSpread; sub: Sub; level: Level; onLevel: (l: Level) => void }) {
   return <>
-    {sub === "hold" && <><MoneySection sp={sp} /><SectorsInside sp={sp} level={level} onLevel={onLevel} /></>}
-    {sub === "move" && <><MoveSection sp={sp} /><SharedSection sp={sp} /></>}
-    {sub === "size" && <SizesSection sp={sp} />}
+    {sub === "hold" && <><Step id="mfp-money" title="What your money is in" line=""><MoneySection sp={sp} /></Step><Step id="mfp-secin" title="Sectors inside each fund" line=""><SectorsInside sp={sp} level={level} onLevel={onLevel} /></Step></>}
+    {sub === "move" && <><Step id="mfp-move" title="How your funds move together" line=""><MoveSection sp={sp} /></Step><Step id="mfp-shared" title="Stocks they share" line=""><SharedSection sp={sp} /></Step></>}
+    {sub === "size" && <Step id="mfp-sizes" title="Large, mid, small and micro" line=""><SizesSection sp={sp} /></Step>}
   </>;
 }
 /** The tabs with their sections right under them (kept for the tests and any page that wants them together). */
 export function MixSubTabs({ sp, level, onLevel }: { sp: MfSpread; level: Level; onLevel: (l: Level) => void }) {
-  const [sub, setSub] = useSub();
+  const [sub, setSub] = useStepSub();
   return <><SubBar sub={sub} onSub={setSub} /><SubBody sp={sp} sub={sub} level={level} onLevel={onLevel} /></>;
 }
 
@@ -333,21 +343,21 @@ export function TrendUnder({ sp, gold }: { sp: MfSpread; gold: boolean }) {
   if (!gold || !sp.trend) return <GoldLock id="mfp-trend" title="Short- and long-term trend underneath" text="How the stocks inside your funds are trending, short and long term, from FinLit Prism's technical view." />;
   const rated = sp.trend.all.rated, n = sp.trend.all.n;
   return (
-    <section className="sp-sec" aria-labelledby="mfp-trend"><details className="mfm-fold"><summary><span><h2 id="mfp-trend">Short- and long-term trend underneath</h2><small>{rated} of {n} stocks rated, by share of your funds. From FinLit Prism's technical views.</small></span><span className="sp-show">Show ▾</span></summary>
+    <section className="sp-sec" aria-labelledby="mfp-trend"><details className="mfm-fold"><summary><span><h2 id="mfp-trend">Short- and long-term trend underneath<span className="mfm-ti" onClick={(e) => e.preventDefault()}><Info about="Short- and long-term trend underneath" text="How the stocks inside your funds are trending, by their share of your funds: the long-term trend over months and the short-term trend over the last few weeks, from FinLit Prism's technical view." how="It describes past prices, not what comes next." /></span></h2><small>{rated} of {n} stocks rated, by share of your funds. From FinLit Prism's technical views.</small></span><span className="sp-show">Show ▾</span></summary>
       <TrendCard matrix t={sp.trend} nm={(c) => shortFund(sp.funds.find((f) => f.code === c)?.name)} /></details></section>
   );
 }
 
 export function MixTab({ sp, readingOf, gold, big, kf }: { sp: MfSpread; readingOf: (s: string | null) => Reading; gold: boolean; big: Big[]; /** task #275 (change 9): Key figures, under the main section */ kf?: ReactNode }) {
-  const [level, setLevel] = useLevel(), [sub, setSub] = useSub();
+  const [level, setLevel] = useLevel(), [sub, setSub] = useStepSub();
+  // task #389 (developer file 32): the sub-view tabs at the top of the view (Mix 1); one section per step, Key figures in step 1 after What they own (Update row 1)
   return <>
     <SubBar sub={sub} onSub={setSub} />
-    <OwnSection sp={sp} level={level} onLevel={setLevel} readingOf={readingOf} gold={gold} />
-    {kf}
-    <SpreadSection sp={sp} />
+    <Step id="mfp-own" title="What your funds own: sector and size" line=""><OwnSection sp={sp} level={level} onLevel={setLevel} readingOf={readingOf} gold={gold} />{kf}</Step>
+    <Step id="mfp-spread" title="How spread are your funds?" line=""><SpreadSection sp={sp} /></Step>
     <SubBody sp={sp} sub={sub} level={level} onLevel={setLevel} />
-    {big.length > 0 && <BiggestSection rows={big} sp={sp} readingOf={readingOf} gold={gold} />}
-    <TrendUnder sp={sp} gold={gold} />
+    {big.length > 0 && <Step id="mfp-biggest" title="Biggest stocks underneath" line=""><BiggestSection rows={big} sp={sp} readingOf={readingOf} gold={gold} /></Step>}
+    <Step id="mfp-trend" title="Short- and long-term trend underneath" line=""><TrendUnder sp={sp} gold={gold} /></Step>
   </>;
 }
 

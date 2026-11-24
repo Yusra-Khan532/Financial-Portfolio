@@ -9,6 +9,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Scroll, Section, Tip } from "../../components/sectors/pack/Common";
 import { Insights } from "../../portfolio/pack/EquityPack";
+import { Step } from "../../portfolio/pack/EqSteps385";
 import { MarketFall } from "../../portfolio/pack/MarketFall";
 import { BetaScale, Popup, type Pin } from "../../portfolio/pack/RiskPack";
 import { OVERALL_RANK, overallOf } from "../../portfolio/pack/risk385";
@@ -297,5 +298,8 @@ export function EachFundSection({ rk }: { rk: MfRisk }) {
 }
 
 export function RiskTab({ rk, value, kf }: { rk: MfRisk; value?: { now: number; name?: string } | null; /** task #275 (change 9): Key figures, under the main section */ kf?: ReactNode }) {
-  return <><GlanceSection rk={rk} />{kf}<BuildSection rk={rk} /><OwnBenchSection rk={rk} /><RiskShareSection rk={rk} /><FallSection rk={rk} value={value} /><EachFundSection rk={rk} /></>;
+  // task #389 (developer file 32, Section bar; Update 25 Nov row 1): one section per step; Key figures sits in step 1, after Risk at a glance
+  return <><Step id="mfp-glance" title="Risk at a glance" line=""><GlanceSection rk={rk} />{kf}</Step><Step id="mfp-build" title="How your list's beta is built" line=""><BuildSection rk={rk} /></Step>
+    <Step id="mfp-ownb" title="Each fund against its own benchmark" line=""><OwnBenchSection rk={rk} /></Step><Step id="mfp-share" title="Share of the list vs share of the risk" line=""><RiskShareSection rk={rk} /></Step>
+    <Step id="mfp-fall" title="If the Nifty 500 fell 10%" line=""><FallSection rk={rk} value={value} /></Step><Step id="mfp-each" title="Each fund's risk" line=""><EachFundSection rk={rk} /></Step></>;
 }

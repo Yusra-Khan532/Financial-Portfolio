@@ -1,6 +1,7 @@
 // Task #276 (shared portfolio parts, §9 "Key figures"): a section under the main section of each view, with up to three cards. Each card: what it is about,
 // one full sentence with the numbers, a small bar with a legend, what it rests on, and a link. A card with nothing to say never reaches here (keyFigs.ts).
 import { Section } from "./KitSection";
+import { Info } from "../shared/parts";
 import type { KfCard, KfGo } from "./keyFigs";
 import "./kit.css";
 
@@ -26,13 +27,17 @@ export function KeyFigsBox({ id, sub, cards, onGo }: { id: string; sub: string; 
   if (!cards.length) return null;
   return (
     <Section id={id} hide title="Key figures" help="Up to three figures that matter most in this view, each from a section of the page, in one sentence and a small bar." how="A card with nothing to say is left out. The link under each card goes to the section it comes from." sub={sub}>
-      <div className="ptk-kf">{cards.map((c) => (
-        <article key={c.id} className={"ptk-kf-c ptk-t-" + c.tone} aria-label={c.k}>
-          <p className="ptk-kf-k">{c.k}</p>
-          <p className="ptk-kf-s"><b>{c.lead}</b>{c.rest}</p>
+      <div className="ptk-kf">{cards.map((c, i) => (
+        <article key={c.id} className={"ptk-kf-c ptk-t-" + c.tone + (c.q ? " ptk-kf-qc" : "")} aria-label={c.q ?? c.k}>
+          {c.q ? <>
+            <p className="ptk-kf-q"><span className="ptk-kf-qn" aria-hidden="true">{i + 1}</span><span className="t">{c.q}</span>
+              <Info about={c.q} text={c.from ? `From: ${c.from}.` : "From the figures on this page."} how={c.note} /></p>
+            <div className="ptk-kf-big"><b>{c.big ?? c.lead}</b>{c.ans && <span><strong>{c.ans}</strong></span>}</div>
+          </> : <><p className="ptk-kf-k">{c.k}</p>
+            <p className="ptk-kf-s"><b>{c.lead}</b>{c.rest}</p></>}
           <Bars c={c} />
           {c.note && <p className="ptk-kf-n">{c.note}</p>}
-          {c.from && <p className="ptk-kf-f">From: {c.from}</p>}
+          {c.from && !c.q && <p className="ptk-kf-f">From: {c.from}</p>}
           <button type="button" className="ptk-kf-go" onClick={() => onGo(c.go)}>{c.go.label} →</button>
         </article>))}</div>
     </Section>

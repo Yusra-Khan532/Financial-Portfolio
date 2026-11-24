@@ -12,9 +12,10 @@ export type Ops = { add: (h: Omit<Holding, "id">) => void; update: (id: string, 
 export type PfOpt = { id: string; name: string };
 
 /** "Edit | Sell" under a holding's name. Sell is greyed out (still focusable, with the reason) until there is a quantity to sell. */
-export function EditSell({ name, held, onEdit, onSell }: { name: string; held: number; onEdit: () => void; onSell: () => void }) {
+export function EditSell({ name, held, onEdit, onSell, sell = "Sell" }: { name: string; held: number; onEdit: () => void; onSell: () => void;
+  /** task #389 (developer file 32, Your funds 1): the MF page's button reads "Record a sale" (it records a sale made elsewhere; FinLit places no orders) */ sell?: string }) {
   return <span className="ptk-es"><button type="button" onClick={onEdit} aria-label={`Edit ${name}`}>Edit</button><i aria-hidden="true">|</i>
-    <button type="button" aria-disabled={held <= 0} title={held <= 0 ? "Add a buy first" : undefined} aria-label={held <= 0 ? `Sell ${name}: add a buy first` : `Sell ${name}`} onClick={() => { if (held > 0) onSell(); }}>Sell</button></span>;
+    <button type="button" aria-disabled={held <= 0} title={held <= 0 ? "Add a buy first" : undefined} aria-label={sell === "Sell" ? (held <= 0 ? `Sell ${name}: add a buy first` : `Sell ${name}`) : held <= 0 ? `${sell} of ${name}: add a buy first` : `${sell} of ${name}`} onClick={() => { if (held > 0) onSell(); }}>{sell}</button></span>;
 }
 
 function useEsc(onClose: () => void) { useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; addEventListener("keydown", k); return () => removeEventListener("keydown", k); }, [onClose]); }
@@ -88,8 +89,9 @@ export function salePreview(hs: Holding[], symbol: string, pf: string, qty: numb
   return { held: before.qty ?? 0, fig: l.sales.find((s) => s.row.id === "__preview") ?? null, buys: l.buys };
 }
 
-export function SellDialog({ symbol, holdings, pfs, pf0, ops, onClose, price, name, priceWord = "price" }: { symbol: string; holdings: Holding[]; pfs: PfOpt[]; pf0: string; ops: Ops; onClose: () => void; price?: number | null;
-  /** task #275: the name shown, and "NAV" for funds */ name?: string; priceWord?: string }) {
+export function SellDialog({ symbol, holdings, pfs, pf0, ops, onClose, price, name, priceWord = "price", record = false }: { symbol: string; holdings: Holding[]; pfs: PfOpt[]; pf0: string; ops: Ops; onClose: () => void; price?: number | null;
+  /** task #275: the name shown, and "NAV" for funds */ name?: string; priceWord?: string;
+  /** task #389 (developer file 32, Your funds 1): "Record a sale of …", the NAV "at the sale" (no "Sell" wording; FinLit places no orders) */ record?: boolean }) {
   useEsc(onClose);
   const nm = name ?? symbol;
   const held = (p: string) => ledgerOf(holdings, symbol, p).qty ?? 0;
@@ -110,12 +112,12 @@ export function SellDialog({ symbol, holdings, pfs, pf0, ops, onClose, price, na
   return (
     <div className="acc-dlg" role="dialog" aria-modal="true" aria-labelledby="ptk-sl-h" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="acc-dlg-in ptk-dlg">
-        <h2 id="ptk-sl-h">Sell {nm}</h2>
+        <h2 id="ptk-sl-h">{record ? `Record a sale of ${nm}` : `Sell ${nm}`}</h2>
         <p className="acc-dlg-p">Record a sale you made at your broker. It uses up the earliest buys first (first in, first out); what is left stays in the list. {qf(held(pf))} held{pfs.length > 1 ? ` in ${pfs.find((p) => p.id === pf)?.name}` : ""}.</p>
         <PfSelect pfs={opts} value={pf} onChange={setPf} id="ptk-sl-pf" />
         <div className="ptk-buy three">
           <label className="ptk-fld"><span>Quantity sold</span><input inputMode="decimal" placeholder={`up to ${qf(held(pf))}`} aria-label={`Quantity of ${nm} sold`} value={qty} onChange={(e) => setQty(e.target.value)} autoFocus /></label>
-          <label className="ptk-fld"><span>Sell {priceWord}</span><span className="ptk-rs"><i aria-hidden="true">₹</i><input inputMode="decimal" aria-label={`Sell ${priceWord} of ${nm}`} value={px} onChange={(e) => setPx(e.target.value)} /></span></label>
+          <label className="ptk-fld"><span>{record ? `${priceWord} at the sale` : `Sell ${priceWord}`}</span><span className="ptk-rs"><i aria-hidden="true">₹</i><input inputMode="decimal" aria-label={record ? `${priceWord} at the sale of ${nm}` : `Sell ${priceWord} of ${nm}`} value={px} onChange={(e) => setPx(e.target.value)} /></span></label>
           <label className="ptk-fld ptk-fd"><span>Sold on</span><input type="date" max={today()} aria-label={`Date of the sale of ${nm}`} value={date} onChange={(e) => setDate(e.target.value)} /></label>
         </div>
         {undated(pf) && !date && <p className="ptk-note">A buy has no date, so the sale is counted after it. Add the dates in Edit to place the sale on its day.</p>}

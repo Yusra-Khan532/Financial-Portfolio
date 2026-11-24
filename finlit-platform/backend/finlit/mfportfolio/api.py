@@ -131,10 +131,15 @@ def _scheme_fields(s: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     if s is None:
         return {"name": None, "amc": None, "plan": None, "option": None, "category": None, "categoryLabel": None, "active": False,
                 "returns": {"r1y": None, "r3y": None, "r5y": None, "asOf": None, "why": "The scheme is no longer in the fund list."},
-                "ter": None, "terDate": None, "terWhy": "The scheme is no longer in the fund list.", "aum": None, "aumAsOf": None, "aumWhy": "The scheme is no longer in the fund list."}
+                "ter": None, "terDate": None, "terWhy": "The scheme is no longer in the fund list.", "aum": None, "aumAsOf": None, "aumWhy": "The scheme is no longer in the fund list.",
+                "change": None, "changeWhy": "The scheme is no longer in the fund list."}
     item = mf.list_item(s)
     why = mf.why_no_returns(s)
+    # Task #389 (developer file 32, fault 8): the day's NAV change, the same figure the public fund page shows (mf.day_change: against the previous NAV AMFI
+    # gave, named by its date), so the page's Today tile reads from the NAV feed instead of saying it is not loaded.
+    change = mf.day_change(s)
     return {
+        "change": change, "changeWhy": None if change else "AMFI has not given a previous NAV for this scheme yet, so the day's change is not known.",
         "name": s["name"], "amc": s["amc"], "plan": s["plan"], "option": s["option_label"] or s["option_class"], "optionClass": s["option_class"],
         "category": s["category"], "categoryLabel": mf.classify(s["category"])[2], "active": bool(s["active"]), "isin": s["isin"],
         "returns": {"r1y": item["r1y"], "r3y": item["r3y"], "r5y": item["r5y"], "asOf": item["retDate"], "why": NO_RETURNS.get(why or "") if why else None,

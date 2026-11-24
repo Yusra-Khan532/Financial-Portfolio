@@ -9,6 +9,7 @@ vi.mock("../../lib/auth", () => ({ useAuth: () => ({ user: null }) }));
 import { FundsTable, typeStrip, fundsInsights } from "./MfFunds";
 import type { Holding, MfSpread } from "../../lib/mfPortfolio";
 import type { MfRisk } from "../../lib/mfPack";
+globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} } as never;   // task #389: the funds table pins its heading row (HScroll)
 
 afterEach(cleanup);
 const S = (final: number, label: string, p: number[], w: string[], rank: [number, number], status = "RATED") => ({ locked: false, final, label, status, reason: null, runDate: null, inherited: null,
@@ -101,7 +102,7 @@ describe("Your funds (M5)", () => {
     expect(screen.getByText("JioBlackRock Liquid Fund").closest("tr")!.textContent).toMatch(/Not compared/);
     expect(Array.from(document.querySelectorAll(".mff-t tfoot th")).map((t) => t.textContent)).toEqual(["Your list", "Nifty 500"]);
     fireEvent.click(screen.getByRole("button", { name: "By fund type" }));
-    const g = screen.getByRole("button", { name: /Equity · 2 funds · 67% of the list · average health 54 · average swing 14\.6%/ });
+    const g = screen.getByRole("button", { name: /Equity · 2 funds · 67% of the list · average score 54 · average swing 14\.6%/ });
     expect(names()).toHaveLength(3);
     fireEvent.click(g);
     expect(g.getAttribute("aria-expanded")).toBe("false");
