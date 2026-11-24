@@ -41,7 +41,7 @@ describe("MF portfolio whole page (M8)", () => {
       ["Data", "Kotak MNC's monthly holdings are not loaded yet, so it is left out of the stock, sector and overlap readings. Its NAV is used for the risk figures. 1 share ISIN is not matched to a listed company: shown as \"Not sized\"."],
       ["Moves together", "Your four equity-type funds move like 1.3 independent funds. The closest pair is ICICI Prudential Multi Asset Allocation and ICICI Prudential MNC (0.90), from different categories."],
       ["Inside", "Half the list is in shares: 57% large, 29% mid, 8% small and 6% micro, by FinLit's ₹ sizes (Large above ₹75,000 Cr, Mid ₹25,000–75,000 Cr, Small ₹10,000–25,000 Cr, Micro below ₹10,000 Cr)."],
-      ["Risk", "Against their own benchmarks the funds read Defensive to Similar. The liquid fund holds the list's beta down to 0.71."]]);
+      ["Risk", "Against their own benchmarks the funds range from less sensitive to similar. The liquid fund holds the list's beta down to 0.71."]]);
   });
   it("task #275 (number fix 10): the in-short sizes are the four sizes, from the same totals as the grid (85% large, 5% mid, 4% small, 6% micro on 20 Nov)", () => {
     const sp = { basis: "equal", knownShares: 0.97, size: { Large: 0.8245, Mid: 0.0485, Small: 0.0388, Micro: 0.0582, Other: 0.03 }, readings: { together: { independent: 1 } },

@@ -2,6 +2,7 @@
 // figures, and the sources line that ends the page. Describes; never advice.
 import type { MfSpread } from "../../lib/mfPortfolio";
 import { shortFund, type MfRisk } from "../../lib/mfPack";
+import { betaRangeWord } from "../../portfolio/shared/words";
 
 const p0 = (x: number) => `${Math.round(x * 100)}%`;
 /** The four lines. Exported for tests. */
@@ -29,8 +30,9 @@ export function shortLines(sp: MfSpread | undefined, rk: MfRisk | undefined): [s
   }
   const o = rk?.own?.list;
   if (rk && o?.betaOwn != null) {
-    const words = [...new Set(rk.funds.filter((f) => f.compared && f.band).sort((a, b) => (a.betaOwn ?? 0) - (b.betaOwn ?? 0)).map((f) => f.band!.word))];
-    out.push(["Risk", `Against their own benchmarks the funds read ${words.length > 1 ? `${words[0]} to ${words[words.length - 1]}` : words[0] ?? "–"}.${o.liquidShare ? ` The liquid fund holds the list's beta down to ${o.betaOwn.toFixed(2)}.` : ` The list's beta is ${o.betaOwn.toFixed(2)}.`}`]);
+    // task #389 (file 32, Risk 7 and Words): the range names by their key, in one pass ("Defensive" never shows), and "range from … to …" in lower case
+    const words = [...new Set(rk.funds.filter((f) => f.compared && f.band).sort((a, b) => (a.betaOwn ?? 0) - (b.betaOwn ?? 0)).map((f) => betaRangeWord(f.band!.key, f.band!.word).toLowerCase()))];
+    out.push(["Risk", `Against their own benchmarks ${words.length > 1 ? `the funds range from ${words[0]} to ${words[words.length - 1]}` : words.length ? `every fund reads ${words[0]}` : "the funds have no reading yet"}.${o.liquidShare ? ` The liquid fund holds the list's beta down to ${o.betaOwn.toFixed(2)}.` : ` The list's beta is ${o.betaOwn.toFixed(2)}.`}`]);
   }
   return out;
 }

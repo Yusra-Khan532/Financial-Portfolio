@@ -5,6 +5,7 @@ import { pickCards, type KfCandidate, type KfCard, type KfGo } from "../portfoli
 import type { Holding, MfSpread } from "./mfPortfolio";
 import type { MfRisk } from "./mfPack";
 import { fundName } from "./mfPack";
+import { betaRangeWord } from "../portfolio/shared/words";
 
 export type MfKfCtx = { hs: Holding[]; sp?: MfSpread; rk?: MfRisk; /** the server's list score and band (the health card's), used over a local average */ list?: { value: number | null; label: string | null } };
 type Cand = KfCandidate<MfKfCtx>;
@@ -118,9 +119,10 @@ export const movesWithMarket: Cand = ({ rk, hs }) => {
   if (o?.betaOwn == null) return null;
   const b = o.betaOwn, n5 = o.beta500, max = Math.max(1.5, b, n5 ?? 0), one = (rk?.funds ?? []).filter((f) => f.compared);
   return { id: "beta", tone: "good", k: hs.length === 1 ? "How it moves with its market" : "How the list moves with its markets",
-    lead: `Beta ${b.toFixed(2)}`, rest: `: it has moved about ${Math.round(b * 10)}% when ${hs.length === 1 ? "its benchmark" : "its benchmarks"} moved 10%.`,
+    // task #389 (file 32, Phone and Words): the folded line reads "0.84×: it has moved…", not "Beta 0.84: …"; the range name by its key (no "Defensive")
+    lead: `${b.toFixed(2)}×`, rest: `: it has moved about ${Math.round(b * 10)}% when ${hs.length === 1 ? "its benchmark" : "its benchmarks"} moved 10%.`,
     rows: [{ label: hs.length === 1 ? "Own benchmark" : "Own benchmarks", value: b, max, text: b.toFixed(2) }, ...(n5 != null ? [{ label: "Nifty 500", value: Math.max(0, n5), max, text: n5.toFixed(2) }] : [])], line: 1,
-    note: one.length === 1 && one[0].benchmark ? `Against its own benchmark, the ${one[0].benchmark}, it reads ${one[0].band?.word ?? ""}${n5 != null ? `; against the Nifty 500 alone it reads ${n5.toFixed(2)}` : ""}.` : undefined,
+    note: one.length === 1 && one[0].benchmark ? `Against its own benchmark, the ${one[0].benchmark}, it reads ${betaRangeWord(one[0].band?.key, one[0].band?.word ?? "").toLowerCase()}${n5 != null ? `; against the Nifty 500 alone it reads ${n5.toFixed(2)}` : ""}.` : undefined,
     from: "Weekly NAVs, past year · Nifty 500: weekly, past year", go: go("See how the beta is built", "jump", "mfp-build") };
 };
 /** How much it swings: the typical year's swing beside the Nifty 500's, over the same window (number fix 5). */

@@ -7,7 +7,8 @@ export type FundOwn = {
   band?: BetaBand; downPer100?: number | null; upPer100?: number | null; oneYear?: number | null; benchOneYear?: number | null; beta500?: number | null; weeks?: number;
   riskShare?: number | null; saysLittle?: boolean; type?: string; listShare?: number;
 };
-export type FundRisk = { code: number; name: string; short: string; category: string; swing: number | null; worstFall: number | null; beta: number | null; fallsTaken: number | null; from: string | null; to: string | null; years: number | null; why: string | null } & FundOwn;
+export type FundRisk = { code: number; name: string; short: string; category: string; swing: number | null; worstFall: number | null; beta: number | null; fallsTaken: number | null; from: string | null; to: string | null; years: number | null; why: string | null;
+  /** task #389 (fault 6): why "falls taken" is blank for a fund the own-benchmark step does not compare */ fallsWhy?: string } & FundOwn;
 export type MfOwnList = {
   betaOwn: number | null; betaOwnBand: BetaBand; betaExLiquid: number | null; betaExLiquidBand: BetaBand; beta500: number | null; beta500Band: BetaBand; liquidShare: number | null;
   worst10: { list: number | null; nifty500: number | null }; fall10: { own: number | null; nifty500: number | null };

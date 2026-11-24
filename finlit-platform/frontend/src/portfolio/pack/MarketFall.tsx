@@ -5,6 +5,7 @@
 import { useState, type ReactNode } from "react";
 import { Section } from "../../components/sectors/pack/Common";
 import { lk } from "../money";
+import { ShowAll, type CapRule } from "../shared/parts";
 import "./market-fall.css";
 
 export type FallScenario = { label: string; beta: number | null; src: string; parts: boolean; na?: string };
@@ -15,7 +16,18 @@ export type FallProps = {
   /** the heading's word: "market" (Equity) or "Nifty 500" (MF, ETF, All my investments) */ what?: string;
   /** no rupee line at all (All my investments shows no ₹ until quantities are in) */ noRupees?: boolean;
   /** the word after the gap in the chip: "pts" (default) or, on the Equity portfolio (task #385, no "pts" on that page), "points" */ unit?: string;
+  /** task #389 (file 32, Build these too 2): above `over` parts the chart shows the `keep` deepest falls and "Show all N <noun>s"; the market and the list
+   *  stay first. Off unless asked for (the other pages keep every bar). */
+  cap?: CapRule & { noun: string };
 };
+
+/** The parts the chart draws: all of them, or, above the cap and while closed, the `keep` deepest falls (deepest first in both states, so opening only
+ *  adds bars at the end). */
+export function fallBars<T extends { fall: number }>(parts: T[], cap: CapRule | undefined, open: boolean): { shown: T[]; capped: boolean } {
+  if (!cap || parts.length <= cap.over) return { shown: parts, capped: false };
+  const deep = parts.map((p, i) => [p, i] as const).sort((a, b) => a[0].fall - b[0].fall || a[1] - b[1]).map(([p]) => p);
+  return { shown: open ? deep : deep.slice(0, cap.keep), capped: true };
+}
 
 const f1 = (v: number) => `${v < 0 ? "−" : v > 0 ? "+" : ""}${Math.abs(v).toFixed(1)}%`;
 const fs = (n: number) => String(Math.round(n * 10) / 10);
@@ -37,12 +49,13 @@ export function fallFigures(p: Pick<FallProps, "scenarios" | "parts" | "value" |
 }
 
 export function MarketFall(p: FallProps) {
-  const [F, setF] = useState(10), [i, setI] = useState(0);
+  const [F, setF] = useState(10), [i, setI] = useState(0), [open, setOpen] = useState(false);
   const x = fallFigures(p, F, i), idx = p.idx ?? "market", si = x.d === p.scenarios[i] ? i : 0;
+  const fb = fallBars(x.parts, p.cap, open);
   const sizes: { f: number; small?: string }[] = [{ f: 5 }, { f: 10 }, ...(p.worst && p.worst.pct > 0 ? [{ f: Math.round(p.worst.pct * 10) / 10, small: p.worst.line }] : []), { f: 20 }];
   const mk = p.market ?? { label: "Market", sub: "each size’s own index" }, ls = p.list ?? { label: "Your list", sub: "size-weighted" };
   const bars = [{ k: "mkt", label: mk.label, sub: mk.sub, v: -F }, ...(x.big != null ? [{ k: "list", label: ls.label, sub: ls.sub, v: x.big }] : []),
-    ...x.parts.map((q) => ({ k: "part " + (x.deep(q.fall) ? "deep" : "soft"), label: q.label, sub: q.sub, v: q.fall }))];
+    ...fb.shown.map((q) => ({ k: "part " + (x.deep(q.fall) ? "deep" : "soft"), label: q.label, sub: q.sub, v: q.fall }))];
   return (
     <Section id={p.id} hide title={`If the ${p.what ?? "market"} fell ${fs(F)}%`} help="A rough size guide from past betas: each part falls about its beta times the market's fall." how="Pick the size of the fall above the cards. The rupee line uses the value now of the portfolio you picked, or ₹10 lakh until quantities are in. Real falls are uneven; this is not a forecast."
       sub="A rough size guide from past betas. Real falls are uneven; this is not a forecast.">
@@ -58,10 +71,13 @@ export function MarketFall(p: FallProps) {
           <p className="fx-src">{x.d.beta == null ? "Not enough prices for a beta yet." : x.d.src}</p>
         </div>
         <div className="fx-r"><p className="fx-k">How deep each part would fall</p>
-          <div className="fx-ch" role="img" aria-label={`If the ${idx} fell ${fs(F)}%: ${bars.map((b) => `${b.label} ${f1(b.v)}`).join("; ")}`}>
+          {(() => { const ch = <div className={"fx-ch" + (fb.capped ? " fx-many" : "")} role="img" style={fb.capped ? { minWidth: `${bars.length * (open ? 76 : 54)}px` } : undefined} aria-label={`If the ${idx} fell ${fs(F)}%: ${bars.map((b) => `${b.label} ${f1(b.v)}`).join("; ")}`}>
             <span className="fx-ref" style={{ top: `${x.ref}px` }} />
             {bars.map((b) => { const h = x.h(b.v); return <div key={b.label + b.k} className={"fx-c " + b.k}><div className="fx-bw"><i style={{ height: `${h}px` }} /><span className="fx-v" style={{ top: `${h + 4}px` }}>{f1(b.v)}</span></div><b>{b.label}</b><small>{b.sub}</small></div>; })}
-          </div>
+          </div>;
+            // every bar of a long list keeps a readable width: the chart scrolls sideways inside its card, never the page
+            return fb.capped ? <div className="fx-wide" role="region" aria-label={open ? "How deep each part would fall, every part" : "How deep each part would fall, the deepest"} tabIndex={0}>{ch}</div> : ch; })()}
+          {fb.capped && x.d.parts && <ShowAll n={x.parts.length} noun={p.cap!.noun} open={open} onToggle={() => setOpen(!open)} className="fx-more" />}
           <p className="fx-note"><span aria-hidden="true" className="fx-dash" />The {idx}’s {fs(F)}% fall. The bars scale with the size of the fall: each part falls about its beta times the {idx}’s fall. A rough guide from past betas; in big falls shares tend to move together more, so real falls can be deeper and uneven. Not a forecast.{p.extraNote ? ` ${p.extraNote}` : ""}</p>
         </div>
       </div>

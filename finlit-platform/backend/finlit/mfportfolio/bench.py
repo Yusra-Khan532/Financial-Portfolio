@@ -10,7 +10,11 @@ fund reads calm because half of it is debt. So each fund is set against the inde
     Aggressive Hybrid -> 65% Nifty 50 + 35% debt          Balanced Advantage / Dynamic Asset Allocation -> 50% Nifty 50 + 50% debt
     Conservative Hybrid -> 25% Nifty 50 + 75% debt          Equity Savings -> 35% Nifty 50 + 65% debt
     Multi Asset Allocation -> its own latest split: shares -> Nifty 500, debt and cash -> debt, gold and other -> gold
-    Index funds, fund of funds (India) -> Nifty 500 (their own index gives about 1 by design)
+    Index funds and ETFs -> the index they track (task #389, fault 4: UTI Nifty 50 Index was set against the Nifty 500), read from the scheme's name against
+        the site's index list by one shared rule, tracked_index (the ETF vs index page's detector: "Nifty 50" never matches "Nifty 500" or "Nifty Next 50",
+        and a variant such as "Nifty 500 Value 50" never counts as its parent); the Nifty 500 tagged "Stand-in", with the reason, when no index on the site
+        matches or the tracked index has no closes today
+    Fund of funds (India) -> Nifty 500
     Overseas fund of funds -> not compared (a different market);  liquid, overnight, money market, arbitrage and every debt fund -> not compared, 0 in the list
 The site has no NSE bond index, so the debt leg is a steady rate (DEBT_RATE a year, the same every week: it moves the blend's level, not its swings), tagged
 "Stand-in"; the gold leg is a gold ETF's NAV, tagged "Stand-in". Every blend is labelled as a blend.
@@ -44,7 +48,8 @@ THEMES: List[Tuple[str, str]] = [(r"\bmnc\b|multinational", "NIFMNC"), (r"privat
                                  (r"services", "NIFSERSEC"), (r"realty|real estate", "NIFREA"), (r"metal", "NIFMET"), (r"oil|gas", "NIFOILGAS")]
 NOT_COMPARED = {"overnight", "liquid", "money-market", "arbitrage", "fof-overseas", "gold-etf", "silver-etf", "index-debt", "etf-debt"}
 SIZE_INDEX = {"large-cap": "NIF100", "large-mid-cap": "NIFLAR250", "mid-cap": "NIFMID150", "small-cap": "NIFSMA250"}
-BROAD = {"flexi-cap", "focused", "value", "contra", "dividend-yield", "elss", "equity-other", "index-funds", "fof-domestic", "etf",
+PASSIVE = {"index-funds", "etf"}  # task #389 (fault 4): set against the index they track (tracked_index)
+BROAD = {"flexi-cap", "focused", "value", "contra", "dividend-yield", "elss", "equity-other", "fof-domestic",
          "retirement", "childrens", "life-cycle", "solution-other", "hybrid-other", "other"}
 HYBRID = {"aggressive-hybrid": 0.65, "balanced-advantage": 0.50, "balanced-hybrid": 0.50, "equity-savings": 0.35, "conservative-hybrid": 0.25}
 BANDS = [(0.65, "less", "Less sensitive"), (0.90, "defensive", "Defensive"), (1.10, "similar", "Similar"), (1.35, "more", "More sensitive"),
@@ -60,6 +65,32 @@ def band_of(beta: Optional[float]) -> Optional[Dict[str, str]]:
 
 def pct(x: float) -> str:
     return f"{round(x * 100)}%"
+
+
+def tracked_index(name: Optional[str]) -> Optional[Tuple[str, str]]:
+    """The index an index fund or ETF tracks, read from its scheme name: (the index's code at the index data provider, its name on the site), or None
+    when the name names no index on the site, a variant of one ("Nifty 50 Equal Weight", "Nifty 500 Value 50") or two different ones. One rule for every
+    passive fund on the site: the ETF vs index page's own detector (etf_vs_index.detect), so the MF and ETF pages can never disagree. Task #389 (fault 4)."""
+    from .. import etf_vs_index   # imported here: the index list lives with the ETF vs index page
+    row = etf_vs_index.INDEX_BY.get(etf_vs_index.detect(name) or "")
+    return (row[2], row[1]) if row and row[2] else None
+
+
+def passive_benchmark(name: Optional[str]) -> Dict[str, Any]:
+    """An index fund's or ETF's benchmark: the index it tracks, or the Nifty 500 tagged "Stand-in" with the reason when no index on the site matches."""
+    hit = tracked_index(name)
+    if hit:
+        code, label = hit
+        return {"compared": True, "name": label, "legs": [(code, 1.0)], "standIn": False, "why": f"The index it tracks, named in the fund's name: the {label}.",
+                "kind": "index", "tracks": code}
+    return {"compared": True, "name": NIFTY500[1], "legs": [(NIFTY500[0], 1.0)], "standIn": True, "kind": "index", "tracks": None,
+            "why": "Stand-in: the index this fund tracks is not on the site yet, so it is set against the Nifty 500."}
+
+
+def stand_in_for(b: Dict[str, Any]) -> Dict[str, Any]:
+    """The Nifty 500 stand-in for a passive fund whose tracked index has no closes today: the fund still gets a figure, and the page says why."""
+    return {**b, "name": NIFTY500[1], "legs": [(NIFTY500[0], 1.0)], "standIn": True, "tracks": None,
+            "why": f"Stand-in: the {b['name']} it tracks has no index closes on the site today, so it is set against the Nifty 500."}
 
 
 def benchmark_for(tab: str, key: str, name: str, split: Optional[Dict[str, float]] = None) -> Dict[str, Any]:
@@ -84,6 +115,8 @@ def benchmark_for(tab: str, key: str, name: str, split: Optional[Dict[str, float
             return {"compared": True, "name": INDEX_NAME[hit], "legs": [(hit, 1.0)], "standIn": False, "why": None, "kind": "index"}
         return {"compared": True, "name": NIFTY500[1], "legs": [(NIFTY500[0], 1.0)], "standIn": True,
                 "why": "Stand-in: this fund's theme has no index on the site yet, so it is set against the Nifty 500.", "kind": "index"}
+    if key in PASSIVE:
+        return passive_benchmark(name)
     if key in HYBRID:
         e = HYBRID[key]
         return {"compared": True, "name": f"{pct(e)} Nifty 50 + {pct(1 - e)} debt", "legs": [("NIF50", e), ("DEBT", 1 - e)], "standIn": True,
