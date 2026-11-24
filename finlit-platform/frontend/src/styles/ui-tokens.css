@@ -123,3 +123,26 @@
 
 /* Never on a button, tab, pill or link: chart and score colours (--k1 to --k8, --c1 to --c5, --p-*, --pz-*, --pzr-*, --band-*, --ld-*).
    They are for charts, heat maps and score marks only (scripts/check-ui.mjs flags them on control selectors). */
+
+/* Task #388 (Equity portfolio, developer file 36): Against their peers as one chart and the page's pop-ups. In line #6e6140 under white text (6.1:1);
+   its dot #8b7d5c (#c9b57e in dark) and its group label #6f6142 (#d8c99c in dark); white on the Lead and Lag segments in light, #12160f in dark,
+   where those colours are light; the "weakening" arrow #a2761f (#e3c46c in dark); the pop-ups' shadow. Used only by portfolio/pack/round388.css. */
+:root, :root[data-theme="light"] {
+  --ui-eqp-mid: #6e6140;
+  --ui-eqp-mid-dot: #8b7d5c;
+  --ui-eqp-mid-ink: #6f6142;
+  --ui-eqp-on: #fff;
+  --ui-eqp-on-gl: #fff;
+  --ui-eqp-weak: #a2761f;
+  --ui-pop-shadow: 0 22px 50px -20px rgba(0, 0, 0, .45);
+}
+:root[data-theme="dark"],
+:root:not([data-theme="light"]) {
+  --ui-eqp-mid: #6e6140;
+  --ui-eqp-mid-dot: #c9b57e;
+  --ui-eqp-mid-ink: #d8c99c;
+  --ui-eqp-on: #fff;
+  --ui-eqp-on-gl: #12160f;
+  --ui-eqp-weak: #e3c46c;
+  --ui-pop-shadow: 0 22px 50px -20px rgba(0, 0, 0, .7);
+}

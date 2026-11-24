@@ -42,7 +42,7 @@ describe("Top of the page: four calm cards (file 33)", () => {
     expect(document.querySelectorAll(".eqc-c")).toHaveLength(4);
     expect(document.querySelectorAll(".eqc-crown")).toHaveLength(4);
     const labels = [...document.querySelectorAll(".sp-i")].map((b) => b.getAttribute("aria-label"));
-    expect(labels).toEqual(["About “Your portfolio score”", "About “Strength”", "About “Spread”", "About “Risk”"]);
+    expect(labels).toEqual(["About “Your portfolio score”", "About “Strength”", "About “Diversification”", "About “Risk”"]);   // task #388 (file 36, change 7): Spread is Diversification again
     expect(screen.getByText("You are here").closest(".eqc-c")!.textContent).toMatch(/Strength/);
     fireEvent.click(screen.getByRole("button", { name: "Open the Risk view" })); expect(onView).toHaveBeenCalledWith("risk");
     expect(document.querySelector(".eqc-sc")!.className).toMatch(/b-mid/);   // the score card takes its band's colour
@@ -68,7 +68,7 @@ describe("Top of the page: four calm cards (file 33)", () => {
   });
   it("open item 1: the Risk card names the last weekly close its figures run to", () => {
     wrap(<ScoreCards c={{ ...CARDS, risk: { ...CARDS.risk!, to: "2026-11-20" } }} view="risk" onView={() => {}} sixOpen={false} onSix={() => {}} />);
-    expect(document.querySelector(".eqc-strip")!.textContent).toContain("Typical swing in a year, by what you hold now · weekly closes to 20 Nov");
+    expect(document.querySelector(".eqc-strip")!.textContent).toContain("Typical swing in a year, by what you hold now · past year of weekly closes to 20 Nov");   // task #388 (file 36, B7)
   });
   it("Added in this check 1: Style tilt has its own i", () => {
     wrap(<StyleTiltPack tilt={{ parts: [{ part: "Value", avgPercentile: 50, band: "typical" }], notRated: [], sentence: "" } as never} />);
@@ -93,7 +93,7 @@ describe("the six parts (file 33; open item 4; open item 9)", () => {
     expect(rows[4].querySelector(".eqc-num")).toBeNull();                     // valuation: a word, no figure behind it
     expect(rows[3].textContent).toContain("Uses FinLit Prism's technical view, long term");
     expect(rows[5].textContent).toContain("Largest: Alpha Gears 31% · 3 shares in all");
-    expect(rows[2].textContent).toMatch(/Moves 1\.08× as much as the Nifty 50/);
+    expect(rows[2].textContent).toMatch(/Past year: moves 1\.08× as much as the Nifty 50/);   // task #388 (file 36, B7)
     const labels = [...document.querySelectorAll(".sp-i")].map((b) => b.getAttribute("aria-label"));
     expect(new Set(labels).size).toBe(labels.length);
     fireEvent.click(screen.getByRole("button", { name: "Make the score yours" }));
@@ -210,8 +210,9 @@ describe("Your shares (file 33)", () => {
   });
   it("a share in two accounts says how many in each; Record a sale; Today in every view; 0.0% for a change that rounds to zero", () => {
     table();
-    expect(document.querySelector('tr[data-sym="AAA"] .pfs-acc')!.textContent).toBe("30 in Main account · 20 in Second broker");
-    expect(document.querySelector('tr[data-sym="BBB"] .pfs-acc')).toBeNull();
+    // task #388 (file 36, change 5): "2 accounts ▾" opens By account (round388.test.tsx has the pop-up)
+    expect(document.querySelector('tr[data-sym="AAA"] .eq8a-btn')!.textContent).toBe("2 accounts ▾");
+    expect(document.querySelector('tr[data-sym="BBB"] .eq8a-btn')).toBeNull();
     expect(screen.getAllByRole("button", { name: /^Record a sale of/ })).toHaveLength(3);
     expect(document.body.textContent).not.toMatch(/(^|\s)Sell(\s|$)/);
     expect([...document.querySelectorAll("#pf-panel thead th")].some((t) => /^Today/.test(t.textContent ?? ""))).toBe(true);
@@ -234,9 +235,9 @@ describe("Your shares (file 33)", () => {
     table("sector");
     const sub = [...document.querySelectorAll("tr.eqs-sub")];
     expect(sub.length).toBeGreaterThan(0);
-    const banks = sub.find((r) => /2 of 3 shares/.test(r.textContent ?? ""))!;
-    // Financial Services: AAA 50 × 120 = 6,000 and BBB 10 × 450 = 4,500 of 15,500 in all: 67.7% of the money; paid 5,200 + 5,000
-    expect(banks.textContent).toMatch(/67\.7% of the money, 2 of 3 shares/);
+    const banks = sub.find((r) => /2 shares/.test(r.textContent ?? ""))!;
+    // Financial Services: AAA 50 × 120 = 6,000 and BBB 10 × 450 = 4,500 of 15,500 in all: 67.7% of money (task #388 change 6: two lines); paid 5,200 + 5,000
+    expect(banks.textContent).toMatch(/2 shares67\.7% of money/);
     expect(banks.textContent).toContain("₹10,200"); expect(banks.textContent).toContain("₹10,500"); expect(banks.textContent).toContain("+₹300");
   });
   it("above 30 shares, 25 rows then Show all N shares, after any sort or filter", () => {
@@ -275,9 +276,11 @@ describe("numbers and words in the other sections", () => {
   it("live bug 15: a change that rounds to zero prints 0.0% with no colour", () => { expect(pct(-0.04)).toBe("0.0%"); expect(tone(-0.04)).toBe(""); expect(pct(-2.61)).toBe("−2.6%"); });
   it("Against their peers: points in words, the line on points, short names", () => {
     wrap(<PeersSection shares={[sh("AAA", "Alpha Gears Ltd", { peer: { label: "leader", raw: null, rank: 1, of: 9, group: "Auto", vs: 46.6, bench: "NIFTY Auto", direction: null } }), sh("BBB", "Beta Motor Ltd", { peer: { label: "laggard", raw: null, rank: 9, of: 9, group: "Auto", vs: -5.5, bench: "NIFTY Auto", direction: "weakening" } })]} />);
+    // task #388 (file 36, change 1): signed points with "vs …" under them; the note on points sits behind the heading's i
     const t = document.body.textContent!;
-    expect(t).toContain("Beat the Nifty Auto by 46.6 points over 12 months"); expect(t).toContain("Trailed the Nifty Auto by 5.5 points over 12 months · weakening lately");
-    expect(t).toContain("Points are percentage points: the share’s 12-month return minus the return of the group or index it is compared with.");
+    expect(t).toContain("+46.6vs Nifty Auto"); expect(t).toContain("−5.5vs Nifty Auto"); expect(t).toContain("weakening lately");
+    fireEvent.click(document.querySelector("#eq-peers .sp-i")!);
+    expect(document.body.textContent).toContain("Points are percentage points: the share’s 12-month return minus the return of the group or index it is compared with.");
     expect(t).not.toMatch(/\bpts\b/); expect(screen.getByRole("link", { name: "Alpha Gears" })).toBeTruthy();
   });
   it("In short: names, never share codes (the page passes the sentences through namesInText)", () => {

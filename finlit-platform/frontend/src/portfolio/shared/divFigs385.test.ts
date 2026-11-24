@@ -97,9 +97,9 @@ describe("the pairs chart", () => {
 describe("How spread out is the list?", () => {
   const eq = { score: 62, band: "Fairly spread", comovement: 65, sector_spread: 58, effective_stocks: 5.7, effective_sectors: 3.3 };
   const bv = { ...eq, score: 61, effective_stocks: 5.5 };
-  it("ties the score to the Spread card in both counts (row 142, open item 7)", () => {
-    expect(spreadNote("equal", eq, bv, 13)).toBe("This score counts each share equally. By what you own now it reads 61, moving like 5.5 of 13 shares: the figures on the Spread card.");
-    expect(spreadNote("value", eq, bv, 13)).toMatch(/^This score counts each share by what you own now: the figures on the Spread card. Counting each share equally it reads 62, moving like 5.7 of 13 shares\.$/);
+  it("ties the score to the Diversification card (task #388 change 7) in both counts (row 142, open item 7)", () => {
+    expect(spreadNote("equal", eq, bv, 13)).toBe("This score counts each share equally. By what you own now it reads 61, moving like 5.5 of 13 shares: the figures on the Diversification card.");
+    expect(spreadNote("value", eq, bv, 13)).toMatch(/^This score counts each share by what you own now: the figures on the Diversification card. Counting each share equally it reads 62, moving like 5.7 of 13 shares\.$/);
     expect(spreadNote("equal", eq, null, 13)).toMatch(/Once every share has a quantity/);
   });
   it("explains how 'How independently they move' is scaled on a short list (open item 12)", () => {

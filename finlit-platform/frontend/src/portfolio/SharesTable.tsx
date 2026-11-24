@@ -22,8 +22,9 @@ import { EditSellLinks } from "./EditSell";
 import { FilterChips, FilterRow, applyFilters, filterDefs, trendScoreWord, trendWord, type Getters, type Picks } from "./ShareFilters";
 import { aggOf } from "../lib/ledger";
 import { CAP_SHARES, CAP_PHONE_LIST, Info, Pct, ShowAll, TREND_READINGS, capRows, corrWord, countOf, nextSort, rupees, rupeesSigned, sortRows, trendReading, trendSide, trendTone,
-  SIDE_WORD, type SortCol, type SortKind, type SortState } from "./shared";
+  SIDE_WORD, nameCase, type SortCol, type SortKind, type SortState } from "./shared";
 import { PhoneList } from "./pack/PhoneList385";
+import { AccountsButton, DeskOnly, type AccountQty } from "./pack/Round388";
 
 const SHORT_LABEL: Record<string, string> = { fundamental: "G&P", valuation: "Val.", quality: "Qual.", risk: "Risk", growth: "Growth", profitability: "Profit.", balance: "Balance", technical: "Tech." };
 /** Task #183 / #283: the words of the band filter: FinLit Prism's, on a plan with Prism; none on a plan without it (no company score is shown). */
@@ -68,8 +69,6 @@ type Props = {
   lots?: LotsProps;
   /** Task #274 (pack change 3): Edit | Sell under each share open their windows; the buy rows inside the table and the × at the end of the row go. */
   editSell?: { onEdit: (symbol: string) => void; onSell: (symbol: string) => void };
-  /** task #274 (change 11): what the row inside the table adds once it takes the view bar's place: the portfolio picker, the three views and Sections ▾ */
-  stuckLead?: ReactNode;
   /** task #274 (change 19): a chip beside Edit | Sell for a filing since the last visit ("● Fund raising ↗"), from Discover */
   chip?: (symbol: string) => ReactNode;
   /** task #274 (change 20): the share's main Discover theme as a pill beside its size, opening the theme with the company found */
@@ -104,9 +103,10 @@ export function SharesTable(p: Props) {
     if (!p.editSell) return;
     const on = () => { const el = toolsRef.current, sec = el?.closest("section"); if (!el || !sec) return;
       const top = parseFloat(getComputedStyle(el).top) || 0, r = el.getBoundingClientRect(), b = sec.getBoundingClientRect().bottom;
-      const now = r.top <= top + 1 && b > top + r.height + 120 && scrollY > 0; setStuck(now); document.documentElement.classList.toggle("eq-rowup", now); };
+      // task #388 (file 36, F1): the row now sticks under the section bar (round388.css), so the bar stays where it is (no "eq-rowup")
+      const now = r.top <= top + 1 && b > top + r.height + 120 && scrollY > 0; setStuck(now); };
     on(); addEventListener("scroll", on, { passive: true }); addEventListener("resize", on);
-    return () => { removeEventListener("scroll", on); removeEventListener("resize", on); document.documentElement.classList.remove("eq-rowup"); };
+    return () => { removeEventListener("scroll", on); removeEventListener("resize", on); };
   }, [p.editSell]);
   // task #274 (pack change 18): the five filters; they stay set across Overview, By sector, By company size, Ratios and Financials (this component's state)
   const [picks, setPicks] = useState<Picks>({});
@@ -195,8 +195,9 @@ export function SharesTable(p: Props) {
         {p.editSell ? <td className="pfx-name pfs-name"><div className="pfs-cell"><CoLogo symbol={l.symbol} name={name} size={26} />
           {/* task #274 (pack change 8): symbol bold (BSE-only: the name), the full name on one line (BSE-only: its code), then Edit | Sell; every row one height */}
           <div className="pfs-t"><Link to={`/stocks/${l.symbol}`} className="pfs-sym" title={[coTitle({ symbol: l.symbol, name }), letter.has(l.symbol) ? `group ${letter.get(l.symbol)}` : ""].filter(Boolean).join(" · ")}>{titleOf({ symbol: l.symbol, name })}</Link>
-            <span className="pfs-full" title={isBseCode(l.symbol) ? undefined : name}>{isBseCode(l.symbol) ? `BSE ${l.symbol}` : name || l.symbol}</span>
-            {ov && p.lots && accountSplit(p.lots, l.symbol) && <span className="pfs-acc">{accountSplit(p.lots, l.symbol)}</span>}
+            <span className="pfs-full" title={isBseCode(l.symbol) ? undefined : nameCase(name)}>{isBseCode(l.symbol) ? `BSE ${l.symbol}` : nameCase(name) || l.symbol}</span>
+            {/* task #388 (file 36, change 5): "3 accounts ▾" opens By account; a share in one account shows nothing */}
+            {ov && p.lots && accountList(p.lots, l.symbol).length > 1 && <AccountsButton list={accountList(p.lots, l.symbol)} />}
             {ov && p.lots && <span className="pfs-acts"><EditSellLinks p={p.lots} symbol={l.symbol} onEdit={() => p.editSell!.onEdit(l.symbol)} onSell={() => p.editSell!.onSell(l.symbol)} />{p.chip?.(l.symbol)}</span>}</div></div></td>
           : <td className="pfx-name"><span className="x-nl"><Link to={`/stocks/${l.symbol}`} className="pfx-co"><CoLogo symbol={l.symbol} size={22} inline /><b title={coTitle({ symbol: l.symbol, name })}>{titleOf({ symbol: l.symbol, name })}</b></Link>{letter.has(l.symbol) && <span className="pfx-letter sm" title={`Group ${letter.get(l.symbol)}`}>{letter.get(l.symbol)}</span>}{ov && p.lots && <LotToggle p={p.lots} symbol={l.symbol} />}</span><small>{subLine({ symbol: l.symbol, name }, pk ? (pk.industry ?? name) : isBseCode(l.symbol) ? ((isReady(h) ? h.industry : null) ?? name) : name)}</small></td>}
         {ov && (p.editSell ? <td className="pfs-ind"><span className="pfs-indn" title={indOf(l) ?? undefined}>{indOf(l) ?? (isReady(h) ? <Dash why="No industry in the stored report." /> : <span className="faint">Loading…</span>)}</span>
@@ -264,14 +265,14 @@ export function SharesTable(p: Props) {
   return (
     <section className={"pfx-card pfx-wide" + (full ? " eqs-full" : "")} id="pf-shares" aria-labelledby="pfx-sh" {...(full ? { role: "dialog", "aria-modal": true } : {})} onScroll={full ? () => window.dispatchEvent(new Event("scroll")) : undefined}>
       {full && <button type="button" className="eqs-fullx" onClick={() => setFull(false)}>Close <span aria-hidden="true">×</span></button>}
-      <div className="pfx-h pfx-h-shares"><div><h2 id="pfx-sh">Your shares{p.editSell && <Info about="Your shares" text="Every share in the portfolio you picked: what you paid, what it is worth now, its FinLit Prism and both trends." how="Click a column heading to sort; the filters and Columns menu sit in the row above the table." />}</h2>{p.peerOf && <p className="sp-sub">{p.editSell ? `${countOf(lines.length, "share")} · up to ${p.limit.toLocaleString("en-IN")} on your plan · click a column heading to sort` : <>{plural(lines.length, "share")} · limit {p.limit}. Click a heading to sort.</>}</p>}</div>
+      <div className="pfx-h pfx-h-shares"><div><h2 id="pfx-sh">Your shares{p.editSell && <Info about="Your shares" text="Every share in the portfolio you picked: what you paid, what it is worth now, its FinLit Prism and both trends." how="Click a column heading to sort; the filters and Columns menu sit in the row above the table." />}</h2>{p.peerOf && <p className="sp-sub">{p.editSell ? <>{countOf(lines.length, "share")} · up to {p.limit.toLocaleString("en-IN")} on your plan<DeskOnly> · click a column heading to sort</DeskOnly></> : <>{plural(lines.length, "share")} · limit {p.limit}. Click a heading to sort.</>}</p>}</div>
         <div className="pfx-tabs" role="tablist" aria-label="Portfolio views">{TABS.map((t, i) => (
           <button key={t.id} type="button" role="tab" id={`pf-tab-${t.id}`} aria-selected={tab === t.id} aria-controls="pf-panel" tabIndex={tab === t.id ? 0 : -1} className={"pfx-pillbtn" + (tab === t.id ? " on" : "")} onClick={() => p.onTab(t.id)}
             onKeyDown={(e) => { const to = nextTab(TABS[i].id, e.key); if (to) { e.preventDefault(); p.onTab(to); document.getElementById(`pf-tab-${to}`)?.focus(); } }}>{t.label}</button>))}</div></div>
       {p.cards}
       {sizeCards}
       <div ref={toolsRef} className={"pfx-tools" + (p.editSell ? " pfh" + (stuck ? " stuck sw-host x-sw-on" : "") : "")}>
-        {p.editSell && stuck && p.stuckLead}
+        {/* task #388 (F1): the section bar above holds the account switcher and the views, so the stuck row no longer repeats them (stuckLead) */}
         {p.editSell && stuck && <label className="pfh-tab"><span className="sr-only">Table</span><select value={tab} onChange={(e) => p.onTab(e.target.value as Tab)}>{TABS.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}</select></label>}
         {p.editSell && stuck && !q && !findOpen ? <button type="button" className="pfh-mag" aria-label="Find a share in your list" onClick={() => { setFindOpen(true); setTimeout(() => findRef.current?.focus(), 0); }}><Icon name="search" /></button>
         : p.editSell ? <label className="pfh-find"><Icon name="search" />
@@ -304,13 +305,16 @@ export function SharesTable(p: Props) {
             {tab !== "sector" && tab !== "size" && capped.shown.map((l) => row(l))}
             {tab !== "sector" && tab !== "size" && capped.capped && <tr className="eqs-capr"><td colSpan={nCols}><ShowAll n={shown.length} open={capOpen} onToggle={() => setCapOpen(!capOpen)} /></td></tr>}
             {groups.map(({ g, ms }) => { const open = isOpen(g), t = together(ms), a = mean(ms.map((l) => scoreOf(l.ov, model).value)), sub = p.lots && ov ? subtotal(p.lots, ms) : null;
-              const btn = <button type="button" aria-expanded={open} onClick={() => toggle(g)}>
+              // task #388 (file 36, change 6): two lines, the name, then "4 shares · ▬ 27.6% of money"; moving together goes into the row's tooltip
+              const two = !!(sub && p.editSell), tip = t != null ? `Moves together ${corrWord(t)} (${t < 0 ? MINUS : ""}${Math.abs(t).toFixed(2)})` : undefined;
+              const btn = <button type="button" aria-expanded={open} onClick={() => toggle(g)} title={two ? [g, tip].filter(Boolean).join(" · ") : undefined}>
                   <span className="car" aria-hidden="true">{open ? "▾" : "▸"}</span>{tab === "sector" && <i className="pfx-dot" style={{ background: colors[g] }} aria-hidden="true" />}<b>{g}</b> <span className="n">{plural(ms.length, "share")}</span>
-                  <span className="m">{sub && sub.share != null ? `${sub.share.toFixed(1)}% of the money, ${ms.length} of ${countOf(lines.length, "share")}` : `${Math.round((ms.length / Math.max(1, lines.length)) * 100)}% of the list`}{t != null ? ` · move together ${short2(t)} (${corrWord(t)})` : ""}</span>
+                  {two ? <span className="m">{sub!.share != null ? <span className="eq8-gm"><i className="eq8-gbar" aria-hidden="true"><b style={{ width: `${Math.max(0, Math.min(100, sub!.share))}%` }} /></i>{sub!.share.toFixed(1)}% of money</span> : `${Math.round((ms.length / Math.max(1, lines.length)) * 100)}% of the list`}</span>
+                  : <span className="m">{sub && sub.share != null ? `${sub.share.toFixed(1)}% of the money, ${ms.length} of ${countOf(lines.length, "share")}` : `${Math.round((ms.length / Math.max(1, lines.length)) * 100)}% of the list`}{t != null ? ` · move together ${short2(t)} (${corrWord(t)})` : ""}</span>}
                   {!sub && <span className="a">{a != null && <Chip v={a} big />}</span>}</button>;
               return (
               <FragmentRows key={g}>
-                {sub ? <tr className={"pfx-secrow eqs-sub" + (open ? " open" : "")}><td colSpan={2} className="pfx-name">{btn}{sub.share != null && <span className="eqs-subbar" aria-hidden="true"><i style={{ width: `${Math.min(100, sub.share)}%` }} /></span>}</td>
+                {sub ? <tr className={"pfx-secrow eqs-sub" + (open ? " open" : "")}><td colSpan={2} className="pfx-name">{btn}{!p.editSell && sub.share != null && <span className="eqs-subbar" aria-hidden="true"><i style={{ width: `${Math.min(100, sub.share)}%` }} /></span>}</td>
                   <td className="x-c1 x-gs cg-h" /><td className="x-c1 cg-h" /><td className="r x-c1 cg-h">{sub.invested == null ? "" : rupees(sub.invested)}</td>
                   <td className="x-c2 x-gs cg-h" /><td className="x-c2 cg-h" /><td className="r x-c2 cg-h">{sub.now == null ? "" : rupees(sub.now)}</td>
                   <td className={"r x-c3 x-gs cg-h"}>{sub.gain == null ? "" : <b className={sub.gain > 0.5 ? "x-up" : sub.gain < -0.5 ? "x-dn" : ""}>{rupeesSigned(sub.gain)}</b>}</td>
@@ -322,7 +326,7 @@ export function SharesTable(p: Props) {
               </FragmentRows>); })}
             {!shown.length && <tr><td colSpan={nCols} className="pfx-empty">{lines.length ? <>No share matches {p.editSell ? "these filters" : "this filter"}.{p.editSell && <> <button type="button" className="pff-clear" onClick={() => { setPicks({}); setQ(""); }}>Clear filters</button></>}</> : "No shares yet."}</td></tr>}
           </tbody>
-          {ov && shown.length > 0 && <tfoot>{p.lots && <TotalRow p={p.lots} symbols={shown.map((l) => l.symbol)} lead={2} rest={nCols - 2 - HOLD_COLS} />}{foot(shown, "List average")}</tfoot>}
+          {ov && shown.length > 0 && <tfoot>{p.lots && <TotalRow p={p.lots} symbols={shown.map((l) => l.symbol)} lead={2} rest={nCols - 2 - HOLD_COLS} />}{!p.editSell && foot(shown, "List average")}</tfoot>}
         </table></HScroll>
       </div>
       <p className="pfx-fine">{ov ? TABLE_FOOT : tab === "ratios" ? "These are the figures on each company's own page (the data provider's, with the period on hover). A dash says why on hover. Information only, not investment advice." : `The latest ${period === "year" ? "full year" : "quarter"} in each company's stored statements, in ₹ crore except EPS. Information only, not investment advice.`}</p>
@@ -344,6 +348,12 @@ function TechCell({ st, lt, below }: { st: { score: number | null; word: string 
 }
 
 /** "30 in My portfolio · 20 in Upstox": how many of a share sit in each account, when it sits in two or more (All accounts only). */
+/** Task #388 (change 5): each account that holds the share and its quantity, in All accounts with two or more accounts; empty otherwise. */
+export function accountList(p: LotsProps, symbol: string): AccountQty[] {
+  if (p.cur !== "all" || p.nPortfolios < 2) return [];
+  const a = aggOf(p.holdings, symbol, "all");
+  return (a?.ledgers ?? []).filter((l) => (l.qty ?? 0) > 0).map((l) => ({ name: p.pfName(l.pf), qty: l.qty as number }));
+}
 export function accountSplit(p: LotsProps, symbol: string): string | null {
   if (p.cur !== "all" || p.nPortfolios < 2) return null;
   const a = aggOf(p.holdings, symbol, "all");

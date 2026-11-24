@@ -1,6 +1,8 @@
 // Hand-written set for /holdings (the new Equity portfolio page): the six questions of the design. It takes the place of the PDF-built set for this route
 // (lib/pageFaqs.ts lists hand-written sets first). Descriptive only; information, not investment advice.
 import type { PageFaq } from "./pageFaqs";
+import { plansFromText } from "../lib/planNames";
+import { PLAN_FOR_PORTFOLIO } from "../lib/planGates";
 
 export const MY_PORTFOLIO_FAQ: PageFaq = {
   id: "my-portfolio", title: "Equity portfolio", section: "Your workspace", routes: ["/holdings"],
@@ -10,6 +12,6 @@ export const MY_PORTFOLIO_FAQ: PageFaq = {
     { q: "How is diversification worked out?", a: "It looks at two things: how closely the shares in your list move together, from a year of weekly prices, and how widely the list is spread across sectors. They combine into one score from 0 to 100. The score describes how spread out the list is, not how safe it is." },
     { q: "What does \"moves like\" mean?", a: "Shares that rise and fall together count as one bet. \"Moves like 6.5 of 13\" means the 13 shares have behaved like about 6.5 shares that move independently. The closer the two numbers, the more each share adds its own movement to the list." },
     { q: "How is the risk against the index worked out?", a: "From the list's weekly price changes over the last year, as if equal amounts were held, set against the Nifty 50's. Beta is how much the list has tended to move when the index moved 1%. The typical swing is how much it has risen and fallen in a year. Both describe the past, not what comes next." },
-    { q: "Is anything sent to my broker?", a: "No. FinLit never connects to a broker or places orders. The names you add stay in this browser; on Silver and Gold they are also saved to your FinLit account so they follow you to other devices. A broker file you upload is read on your device for the ISINs and share names only, and each line is matched by its ISIN when it has one; the file itself never leaves it. An ISIN that is not in FinLit's company list is looked up on FinLit's own server, and nothing from the file is stored." },
+    { q: "Is anything sent to my broker?", a: `No. FinLit never connects to a broker or places orders. The names you add stay in this browser; on ${plansFromText(PLAN_FOR_PORTFOLIO)} they are also saved to your FinLit account so they follow you to other devices. A broker file you upload is read on your device for the ISINs and share names only, and each line is matched by its ISIN when it has one; the file itself never leaves it. An ISIN that is not in FinLit's company list is looked up on FinLit's own server, and nothing from the file is stored.` },
   ],
 };

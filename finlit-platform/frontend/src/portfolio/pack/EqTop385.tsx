@@ -42,7 +42,9 @@ export function riskPill(beta: number, swing: number, swingIndex: number) {
 export function ScoreCards({ c, view, onView, sixOpen, onSix }: { c: CardsInput; view: View; onView: (v: View) => void; sixOpen: boolean; onSix: () => void }) {
   const sc = c.score, total = sc?.total == null ? null : Math.max(0, Math.min(100, sc.total)), b = bandOf(sc?.band), C = 2 * Math.PI * 26;
   const card = (id: View, name: string, about: string, body: ReactNode) => { const on = id === view;
-    return <div className={"eqc-c eqc-v" + (on ? " on" : "")} style={{ ["--vc" as string]: ACCENT[id] }}>
+    // task #388 (developer file 36, change 7): the whole card opens its view; its i, links and the Open button keep their own action
+    return <div className={"eqc-c eqc-v" + (on ? " on" : " eqc-go")} style={{ ["--vc" as string]: ACCENT[id] }}
+      onClick={on ? undefined : (e) => { if ((e.target as HTMLElement).closest("button, a, select, input, .sp-i, [role=dialog]")) return; onView(id); }}>
       {CROWN}
       <p className="eqc-k"><span className="eqc-ic">{ICON[id]}</span>{name}<Info about={name} text={about} />
         {on ? <em className="eqc-here">You are here</em> : <button type="button" className="eqc-open" id={`eq-tab-${id}`} onClick={() => onView(id)} aria-label={`Open the ${id === "portfolio" ? "Portfolio" : id === "diversification" ? "Diversification" : "Risk"} view`}>Open →</button>}</p>
@@ -71,7 +73,7 @@ export function ScoreCards({ c, view, onView, sixOpen, onSix }: { c: CardsInput;
           <p className="eqc-fs">FinLit Prism · fundamental score</p>
           {tot > 0 && <span className="eqc-seg" aria-hidden="true">{c.strength.counts.filter(([, n]) => n).map(([w, n]) => <i key={w} className={bandOf(w)} style={{ flex: n }} />)}</span>}
           <p className="eqc-x">{c.strength.counts.filter(([, n]) => n).map(([w, n]) => `${n} ${w.toLowerCase()}`).join(" · ") || "No share scored yet"}</p></>)}
-      {card("diversification", "Spread", "The diversification score, 0 to 100: how widely the shares spread across NSE's macro sectors and how independently they move. It measures how spread out the list is, not how safe it is.",
+      {card("diversification", "Diversification", "The diversification score, 0 to 100: how widely the shares spread across NSE's macro sectors and how independently they move. It measures how spread out the list is, not how safe it is.",
         !c.spread ? <p className="eqc-x">Needs at least two shares with a year of weekly prices.</p>
         : <><p className="eqc-v1"><b>{c.spread.score}</b><span className="eqc-pill n">{c.spread.word}</span></p>
           <span className="eqc-track" aria-hidden="true"><i style={{ width: `${Math.max(0, Math.min(100, c.spread.score))}%` }} /></span>
@@ -82,7 +84,7 @@ export function ScoreCards({ c, view, onView, sixOpen, onSix }: { c: CardsInput;
           return <><p className="eqc-v1"><b>{times(r.beta)}</b><span className="eqc-pill n">{riskPill(r.beta, r.swing, r.swingIndex)}</span></p>
             <p className="eqc-fs">as much as the {indexName(r.bench)} moves</p>
             <span className="eqc-two" aria-hidden="true"><span><em>Your list</em><i style={{ width: `${(r.swing / mx) * 100}%` }} /><b>{r.swing.toFixed(1)}%</b></span><span className="ix"><em>Index</em><i style={{ width: `${(r.swingIndex / mx) * 100}%` }} /><b>{r.swingIndex.toFixed(1)}%</b></span></span>
-            <p className="eqc-x">Typical swing in a year{r.byValue ? ", by what you hold now" : ", each share counted equally"}{r.to ? ` · weekly closes to ${dayOf(r.to)}` : ""}</p></>; })())}
+            <p className="eqc-x">Typical swing in a year{r.byValue ? ", by what you hold now" : ", each share counted equally"}{r.to ? ` · past year of weekly closes to ${dayOf(r.to)}` : ""}</p></>; })())}
     </section>);
 }
 
@@ -124,12 +126,12 @@ export function SixParts({ s, choices, onChoices, nameOf, open }: { s: ScoreAnsw
         {row("strength", "Strength", "The same reading as the Strength card: the average FinLit Prism, the fundamental score, of your shares by value.",
           <><b className="eqc-num">{st.figure ?? MINUS}</b>{st.figure != null && <small>of 100</small>}{st.word && <span className={"eqc-pill " + bandOf(st.word)}>{st.word}</span>}</>,
           st.figure != null ? `Average FinLit Prism of the shares, by value · ${st.scoredShare === 1 ? `all ${s.of} rated` : `${pc(st.scoredShare)} of the value rated`}` : st.why, "Same as the Strength card")}
-        {row("spread", "Spread", "The same reading as the Spread card. Moves like counts shares that rise and fall together as one bet.",
+        {row("spread", "Spread", "The same reading as the Diversification card. Moves like counts shares that rise and fall together as one bet.",
           <><b className="eqc-num">{sp.figure ?? MINUS}</b>{sp.figure != null && <small>of 100</small>}<span className="eqc-pill n">{sp.word}</span></>,
-          sp.figure != null ? (sv ? `Moves like ${sv.effective_stocks.toFixed(1)} of ${s.of} shares · spread like ${sv.effective_sectors.toFixed(1)} sectors` : "Counting each share equally") : sp.why, "Same as the Spread card")}
+          sp.figure != null ? (sv ? `Moves like ${sv.effective_stocks.toFixed(1)} of ${s.of} shares · spread like ${sv.effective_sectors.toFixed(1)} sectors` : "Counting each share equally") : sp.why, "Same as the Diversification card")}
         {row("risk", "Risk against the index", "How bumpy the list has been against the index, and whether that sits within the risk level the score is set for.",
           <>{W("risk", rk.against ? String(rk.against).replace(/ with the index$/, "") : rk.word)}{rk.against && <span className={"eqc-pill t-" + wordTone("risk", rk.word)}>{rk.word}</span>}</>,
-          rk.beta != null ? `Moves ${times(rk.beta)} as much as the ${bench} · swing ${Number(rk.swing).toFixed(1)}% a year vs ${Number(rk.swingIndex).toFixed(1)}% · worst fall ${MINUS}${Math.abs(rk.worstFall).toFixed(1)}% vs ${MINUS}${Math.abs(rk.worstFallIndex).toFixed(1)}%` : rk.why, "Same as the Risk card")}
+          rk.beta != null ? `Past year: moves ${times(rk.beta)} as much as the ${bench} · swing ${Number(rk.swing).toFixed(1)}% a year vs ${Number(rk.swingIndex).toFixed(1)}% · worst fall ${MINUS}${Math.abs(rk.worstFall).toFixed(1)}% vs ${MINUS}${Math.abs(rk.worstFallIndex).toFixed(1)}%` : rk.why, "Same as the Risk card")}
         {row("trend", "Price trend", "How much of the list's value is in a long-term uptrend or downtrend, from FinLit Prism's technical view. The only part that reads price trends.",
           <>{W("trend", tr.word)}<span className="eqc-tech">Technical view</span></>,
           tr.upShare != null ? <>{up}% of the value in uptrends, {dn}% in downtrends<span className="eqc-ud" aria-hidden="true"><i className="u" style={{ flex: up }} /><i style={{ flex: Math.max(0, 100 - up - dn) }} /><i className="d" style={{ flex: dn }} /></span></> : tr.why,

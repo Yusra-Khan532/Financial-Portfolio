@@ -83,7 +83,7 @@ export function WhereSitsGrid({ d, worth, onLine }: { d: DivInput; worth?: (s: s
 
 // ------------------------------------------------------------------------------------------------ 2 How spread out is the list?
 /** Task #385: the score counts by what you own now when every share has a quantity (open item 7), with "Equal amounts" as a switch; chips read the singular
- *  for one; one note under the two readings ties it to the Spread card; "How independently they move" says how it is scaled (open item 12); the good sign
+ *  for one; one note under the two readings ties it to the Diversification card; "How independently they move" says how it is scaled (open item 12); the good sign
  *  needs two or more macro sectors (open item 11). `byValue`: the score by value (POST /api/portfolio/score), null until every share has a quantity. */
 export function SpreadPack({ d, byValue = null }: { d: DivInput; byValue?: SpreadFigs | null }) {
   const [mode, setMode] = useState<"value" | "equal">("value");
@@ -100,7 +100,7 @@ export function SpreadPack({ d, byValue = null }: { d: DivInput; byValue?: Sprea
     <Section id="eq-spread" hide title="How spread out is the list?" help="The diversification score, 0 to 100: how widely the shares spread across NSE's 12 macro sectors and how independently they move." how="Higher means more spread. Moves like counts shares that rise and fall together as one bet, so a list of many shares can still read as fewer. It measures how spread out the list is, not how safe it is."
       sub="Two readings: how widely the list is spread across sectors, and how independently the shares move.">
       {byValue && <div className="eqv-sw"><div className="eqd-seg" role="group" aria-label="Count each share"><button type="button" aria-pressed={use === "value"} onClick={() => setMode("value")}>By what you own now</button><button type="button" aria-pressed={use === "equal"} onClick={() => setMode("equal")}>Equal amounts</button></div>
-        <span>{use === "value" ? "Each share counts by what it is worth now, as on the Spread card." : "Each share counts the same, whatever it is worth."}</span></div>}
+        <span>{use === "value" ? "Each share counts by what it is worth now, as on the Diversification card." : "Each share counts the same, whatever it is worth."}</span></div>}
       <div className="spx">
         <div className="spx-sc">
           <div className="spx-ring" role="img" aria-label={`Spread score ${Math.round(s.score)} out of 100, ${s.band}`}>
@@ -117,7 +117,7 @@ export function SpreadPack({ d, byValue = null }: { d: DivInput; byValue?: Sprea
           <div className="spx-p"><div className="spx-ph"><b>How independently they move</b><span>{Math.round(s.comovement)}</span></div><div className="spx-bar" aria-hidden="true"><i style={{ width: `${Math.round(s.comovement)}%` }} /></div>
             <p>{independentNote(s, n)}</p></div>
         </div>
-        <div className="spx-bets"><p className="spx-k">Moves like<Info about="Moves like" text={`Shares that rise and fall together count as one bet. "Moves like ${s.effective_stocks.toFixed(1)} of ${n}" means the ${countOf(n, "share")} have behaved like about ${s.effective_stocks.toFixed(1)} shares that each move on their own. ${use === "value" ? "Here each share counts by what you own now, as on the Spread card." : "Here each share counts equally."}`} /></p>
+        <div className="spx-bets"><p className="spx-k">Moves like<Info about="Moves like" text={`Shares that rise and fall together count as one bet. "Moves like ${s.effective_stocks.toFixed(1)} of ${n}" means the ${countOf(n, "share")} have behaved like about ${s.effective_stocks.toFixed(1)} shares that each move on their own. ${use === "value" ? "Here each share counts by what you own now, as on the Diversification card." : "Here each share counts equally."}`} /></p>
           <p className="spx-big"><b>{s.effective_stocks.toFixed(1)}</b> of {countOf(n, "share")}</p>
           <div className="spx-dots" role="img" aria-label={`${countOf(n, "share")} behave like about ${s.effective_stocks.toFixed(1)} independent ones`}>
             <div className="r1">{Array.from({ length: n }, (_, i) => <i key={i} />)}</div><span className="ar" aria-hidden="true">↓</span>
