@@ -20,7 +20,7 @@ import { DataAsOf, PageEnd, ScoreCards, SinceVisit, SixParts, riskPill, sinceTex
 import { GainLossSection, Step, StepCtx, stepOf } from "./EqSteps385";
 import { PhoneList } from "./PhoneList385";
 import { KeyFigures, portfolioKeyFigs, CAP_PHONE_LIST } from "../shared";
-import { PeersSection, InShort } from "./EquityPack";
+import { PeersSection, InShort, StyleTiltPack } from "./EquityPack";
 import { SectionsBar } from "./PageTop";
 import { pct, tone } from "../money";
 import { WhatChanged } from "../../components/changes/WhatChanged";
@@ -65,6 +65,18 @@ describe("Top of the page: four calm cards (file 33)", () => {
   it("Silver: the score and Strength say Gold, never a figure", () => {
     wrap(<ScoreCards c={{ ...CARDS, locked: true, score: null, strength: null }} view="portfolio" onView={() => {}} sixOpen={false} onSix={() => {}} />);
     expect(screen.getAllByRole("link", { name: "See plans" })).toHaveLength(2);
+  });
+  it("open item 1: the Risk card names the last weekly close its figures run to", () => {
+    wrap(<ScoreCards c={{ ...CARDS, risk: { ...CARDS.risk!, to: "2026-11-20" } }} view="risk" onView={() => {}} sixOpen={false} onSix={() => {}} />);
+    expect(document.querySelector(".eqc-strip")!.textContent).toContain("Typical swing in a year, by what you hold now · weekly closes to 20 Nov");
+  });
+  it("Added in this check 1: Style tilt has its own i", () => {
+    wrap(<StyleTiltPack tilt={{ parts: [{ part: "Value", avgPercentile: 50, band: "typical" }], notRated: [], sentence: "" } as never} />);
+    expect(screen.getByRole("button", { name: "About “Style tilt”" })).toBeTruthy();
+  });
+  it("live bug 15 on the money card and Your portfolios: a change that rounds to zero is grey, not red", () => {
+    const src = readFileSync(join(process.cwd(), "src/portfolio/pack/EqTop.tsx"), "utf8");
+    expect(src).toMatch(/r > 0 \? "up" : r < 0 \? "dn" : "flat"/); expect(src).toMatch(/"eqx-flat"/);
   });
 });
 

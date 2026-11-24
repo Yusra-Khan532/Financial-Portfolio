@@ -236,7 +236,7 @@ export function StyleTiltPack({ tilt }: { tilt: StyleTilt | undefined }) {
   if ("locked" in tilt) return <section className="sp-sec" aria-labelledby="eq-style"><h2 id="eq-style">Style tilt</h2><LockedBlock plan="gold" title="Style tilt is part of the Gold plan">{tilt.reason}</LockedBlock></section>;
   const rated = tilt.parts.some((p) => p.avgPercentile != null);
   return (
-    <Section id="eq-style" hide title="Style tilt" sub="Where the list's average share ranks among all companies FinLit Prism rates. The darker band, 35th to 65th, reads as typical.">
+    <Section id="eq-style" hide title="Style tilt" help="Where the average share in your list ranks among all the companies FinLit Prism rates, part by part: size, value, quality and momentum." how="The darker band in the middle reads as typical; each part says which way is higher." sub="Where the list's average share ranks among all companies FinLit Prism rates. The darker band, 35th to 65th, reads as typical.">
       {!rated ? <p className="sp-note">None of these shares has a Prism rating yet, so there is no style tilt to show.</p> : <>
         <ul className="eq-tilt">{tilt.parts.map((p) => { const at = p.avgPercentile; return (
           <li key={p.part}><span>{p.part.replace(/ technical view$/i, " trend").replace(/^Short-term trend|^Long-term trend/, (x) => x)}</span>

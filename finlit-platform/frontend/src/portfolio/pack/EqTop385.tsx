@@ -30,7 +30,7 @@ export type CardsInput = {
   score: { total: number | null; band: string | null } | null;
   strength: { avg: number | null; word: string | null; counts: [string, number][]; byValue: boolean } | null;
   spread: { score: number; word: string; byCount: number | null } | null;
-  risk: { beta: number; swing: number; swingIndex: number; bench: string; byValue: boolean } | null;
+  risk: { beta: number; swing: number; swingIndex: number; bench: string; byValue: boolean; /** the last weekly close both figures run to (open item 1) */ to?: string | null } | null;
 };
 
 /** The pill of the Risk card: how the list's beta sits against 1 (Above, Below, In line) and how its yearly swing sits beside the index's. */
@@ -82,7 +82,7 @@ export function ScoreCards({ c, view, onView, sixOpen, onSix }: { c: CardsInput;
           return <><p className="eqc-v1"><b>{times(r.beta)}</b><span className="eqc-pill n">{riskPill(r.beta, r.swing, r.swingIndex)}</span></p>
             <p className="eqc-fs">as much as the {indexName(r.bench)} moves</p>
             <span className="eqc-two" aria-hidden="true"><span><em>Your list</em><i style={{ width: `${(r.swing / mx) * 100}%` }} /><b>{r.swing.toFixed(1)}%</b></span><span className="ix"><em>Index</em><i style={{ width: `${(r.swingIndex / mx) * 100}%` }} /><b>{r.swingIndex.toFixed(1)}%</b></span></span>
-            <p className="eqc-x">Typical swing in a year{r.byValue ? ", by what you hold now" : ", each share counted equally"}</p></>; })())}
+            <p className="eqc-x">Typical swing in a year{r.byValue ? ", by what you hold now" : ", each share counted equally"}{r.to ? ` · weekly closes to ${dayOf(r.to)}` : ""}</p></>; })())}
     </section>);
 }
 

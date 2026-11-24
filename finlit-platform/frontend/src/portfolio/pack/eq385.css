@@ -225,3 +225,5 @@ html.eqs-noscroll { overflow: hidden; }
   .eq .eqp-sort { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .eq .eqp-sort button { flex: none; }
 }
+/* the money card and Your portfolios: a change that rounds to zero is grey */
+.eq .eqx-pp.flat, .eq .eqx-flat { color: var(--muted); }
