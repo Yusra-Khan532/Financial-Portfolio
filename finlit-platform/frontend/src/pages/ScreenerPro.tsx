@@ -39,6 +39,7 @@ import "../styles/fgx.css";
 import "../styles/stockscreener.css";
 import "../styles/tools.css";
 import "../styles/task364b.css";   // task #364 PR B: the results table
+import "../styles/task364c.css";   // task #364 PR C: page width, lower section, the phone drawer
 import { SIDE, SplitDivider, useSideWidth } from "../components/SplitDivider";
 import { CoLogo } from "../components/CoLogo";
 import { PLAN_FOR_SCREENER } from "../lib/planGates";
@@ -154,6 +155,12 @@ export function ScreenerPro() {
   // narrower or wider, drag it far left (or double-click it) to minimize the panel, which the Your rules bar then brings back. The width is remembered.
   const [sideW, setSideW] = useSideWidth("pro");
   const resizeRules = (w: number, snap = false) => { if (w < (snap ? SIDE.min / 2 : 1)) { setRulesOpen(false); return; } setSideW(w); };
+  // task #364 PR C: on a phone the open panel is a full-height drawer, so the page behind it does not scroll
+  useEffect(() => {
+    if (!rulesOpen || !window.matchMedia?.("(max-width: 720px)").matches) return;
+    const was = document.body.style.overflow; document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = was; };
+  }, [rulesOpen]);
   const minimizeRules = () => {
     setRulesOpen(false);
     requestAnimationFrame(() => document.querySelector<HTMLElement>(".ssw-rtoggle")?.focus({ preventScroll: true }));
