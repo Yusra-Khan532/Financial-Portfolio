@@ -473,6 +473,7 @@ async def register(request: Request, body: SignUp):
     async with pool.acquire() as conn:
         exists = await conn.fetchrow("SELECT id, name FROM users WHERE lower(email) = $1", email)
     if exists:
+        await crypto.verify_password(crypto.dummy_hash(), body.password)   # timing: spend the same Argon2 cost as the new-account branch, so the response time never reveals whether the email already has an account (as login does for an unknown account)
         subject, text = mail.already_mail(f"{st.public_site_url}/login")
         await request.app.state.mailer.send(email, subject, text)
         return Response(content=json.dumps(GENERIC_SIGNUP), status_code=202, media_type="application/json", headers=NO_STORE)

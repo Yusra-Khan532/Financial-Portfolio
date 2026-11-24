@@ -113,6 +113,22 @@ async def test_signup_does_not_reveal_existing_accounts(app, anon):
     assert "already" in (await last_mail(app, "asha@example.com"))["subject"].lower()
 
 
+async def test_signup_existing_email_spends_the_same_hashing_as_a_new_account(app, anon, monkeypatch):
+    """Timing (SEC-B): registering an already-known email must run the same Argon2 cost as a new one, so the response time never reveals the account."""
+    from finlit.auth import crypto
+    await signup(app, anon, "asha@example.com")
+    n = [0]
+    real = crypto.verify_password
+
+    async def counting(stored, pw):
+        n[0] += 1
+        return await real(stored, pw)
+
+    monkeypatch.setattr(crypto, "verify_password", counting)
+    r = await anon.post("/api/auth/register", json={"email": "asha@example.com", "password": PW, "mobile": mob(), "accept_terms": True}, headers=ORIGIN)
+    assert r.status_code == 202 and n[0] == 1   # the existing-email branch ran exactly one hash (the equaliser), as the new-account branch hashes
+
+
 async def test_signup_rules(app, anon):
     bad = {"email": "x@example.com", "password": PW, "mobile": mob(), "accept_terms": True}
     assert (await anon.post("/api/auth/register", json={**bad, "password": "short"}, headers=ORIGIN)).status_code == 422
