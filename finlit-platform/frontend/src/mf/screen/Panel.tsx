@@ -14,7 +14,6 @@ import {
   PLAN_OPTS, RK_BANDS, STATUS_OPTS, STRUCT_OPTS, STYLE_OPTS, TAG_KIND_LABEL, TICK_DATA, TICK_FALL, TICK_LISTS, TYPE_OPTS, type Opt,
 } from "../../lib/mfScreenDefs";
 import { rangeOf, toggleIn, useStockSearch, withRange, withScore, type SQ, type ScreenFacets } from "../../lib/mfScreen";
-import { FlowBars } from "./Graphics";
 import { RangeFilter } from "./RangeFilter";
 import "../../styles/task358.css";   // task #358: the section headings and the score sliders
 import { ScoreFilters, scoreOn } from "./ScoreFilter";
@@ -309,8 +308,8 @@ export function Panel({ q, set, fac, waiting, canScore, fold = false }: PanelPro
         <Sub>Category size</Sub>
         <Chips opts={CSIZE_OPTS} sel={q.csize} counts={fac?.csize} onToggle={tog("csize")} label="Category size" />
         {figured("mkt", MARKET_FIGS)}
-        <Sub>Net flow of the categories in this result</Sub>
-        <FlowBars flows={fac?.flows} />
+        {/* task #367 (Chinmay, 24 Nov 2026): "Net flow of the categories in this result" left the filter list; the same bars stay in the result's own
+            category market view ("Where the money is moving", pages/MfScreener.tsx), where they belong */}
       </FilterGroup>
       <FilterGroup id="checklist" title="FinLit checklist" active={(q.chk ? 1 : 0) + q.chkEach.length} {...og("checklist")}>
         <p className="fgx-hint">Five plain checks against funds of the same category and plan. It sums up past figures; it is not a rating.</p>
