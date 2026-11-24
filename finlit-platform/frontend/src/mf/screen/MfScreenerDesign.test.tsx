@@ -77,7 +77,7 @@ describe("task #131: the Mutual Fund Screener as the team's design", () => {
   it("C-3 18 groups (task #358: under four headings, all folded until opened), each showing how many choices are on ('4 on')", async () => {
     mount(); await screen.findAllByText("Alpha Mid Cap Fund");
     const heads = [...panel().querySelectorAll(".fgx-g .fgx-t")].map((x) => x.textContent);
-    expect(heads).toEqual(GROUPS.map((g) => g.title)); expect(heads).toHaveLength(18);
+    expect(heads).toEqual(GROUPS.map((g) => g.title)); expect(heads).toHaveLength(17);
     expect([...panel().querySelectorAll(".mfs-sec")].map((x) => x.textContent)).toEqual(["Start here · what and how", "Quick shortlist", "Risk, returns and cost", "Narrow down"]);
     expect(heads.slice(0, 4)).toEqual(["Type and category", "Sub-category", "Plan, option and status", "FinLit Mutual Fund Score"]);
     expect(heads.slice(4, 7)).toEqual(["Risk", "Returns", "Cost"]);
@@ -85,7 +85,7 @@ describe("task #131: the Mutual Fund Screener as the team's design", () => {
     expect(open.every((o) => !o)).toBe(true);
     expect(within(panel()).getByRole("button", { name: /^Plan, option and status/ }).textContent).toMatch(/4 on/);
     expect(planOn(DEFAULTS)).toBe(4);
-    expect(within(panel()).getByRole("button", { name: /^Data quality and lists/ }).textContent).toMatch(/Needs a data source 10/);
+    expect(within(panel()).queryByRole("button", { name: /^Data quality and lists/ })).toBeNull();   // task #368: off the list
     fireEvent.click(within(panel()).getByRole("button", { name: /^Debt maturity band/ }));
     expect(panel().textContent).toMatch(/The band SEBI sets for the category/);
   });
@@ -165,12 +165,12 @@ describe("task #131: the Mutual Fund Screener as the team's design", () => {
   it("C-11 the Fund column stays frozen while the table scrolls sideways", () => {
     expect(css).toMatch(/\.mfs-table th\.mfs-n \{[^}]*position: sticky; left: 0;/);
   });
-  it("C-12 on a phone the panel shows the search and one button, 'Show the 18 filter groups', which opens the groups in place", async () => {
+  it("C-12 on a phone the panel shows the search and one button, 'Show the 17 filter groups', which opens the groups in place", async () => {
     setNarrow(true);
     mount(); await screen.findAllByText("Alpha Mid Cap Fund");
     const p = panel();
     expect(within(p).getByPlaceholderText(/Find a filter/)).toBeTruthy();
-    const btn = within(p).getByRole("button", { name: "Show the 18 filter groups" });
+    const btn = within(p).getByRole("button", { name: "Show the 17 filter groups" });
     expect((p.querySelector("#mfs-groups") as HTMLElement).hidden).toBe(true);
     fireEvent.click(btn);
     expect((p.querySelector("#mfs-groups") as HTMLElement).hidden).toBe(false);

@@ -4,14 +4,13 @@
 // Task #131 (the team's 14 Nov design): a "Find a filter" box at the top jumps to the matching group and opens it; 17 groups, each showing how many
 // choices are on ("4 on"), the first five open; on a phone the groups fold behind one button, "Show the 17 filter groups".
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Link } from "react-router";
 import { Icon } from "../../lib/icons";
 import { nf } from "../../lib/format";
 import { isBoolMap, loadUi, saveUi } from "../../lib/persist";
 import { CheckRow, FilterGroup, SearchBox } from "../../components/screener/FilterGroup";
 import {
-  AUMRANK_OPTS, BASIS_OPTS, CAP_OPTS, CFLOW_OPTS, CHK_EACH, COMING, CSIZE_OPTS, CSTREAK_OPTS, EXIT_OPTS, FRESH_OPTS, HOUSE_OPTS, INST_OPTS, MAT_OPTS, NUM_BY, OPTION_OPTS, PFDATE_OPTS,
-  PLAN_OPTS, RK_BANDS, STATUS_OPTS, STRUCT_OPTS, STYLE_OPTS, TAG_KIND_LABEL, TICK_DATA, TICK_FALL, TICK_LISTS, TYPE_OPTS, type Opt,
+  AUMRANK_OPTS, BASIS_OPTS, CAP_OPTS, CFLOW_OPTS, CHK_EACH, CSIZE_OPTS, CSTREAK_OPTS, EXIT_OPTS, FRESH_OPTS, HOUSE_OPTS, INST_OPTS, MAT_OPTS, NUM_BY, OPTION_OPTS, PFDATE_OPTS,
+  PLAN_OPTS, RK_BANDS, STATUS_OPTS, STRUCT_OPTS, STYLE_OPTS, TAG_KIND_LABEL, TICK_FALL, TYPE_OPTS, type Opt,
 } from "../../lib/mfScreenDefs";
 import { rangeOf, toggleIn, useStockSearch, withRange, withScore, type SQ, type ScreenFacets } from "../../lib/mfScreen";
 import { FlowBars } from "./Graphics";
@@ -41,7 +40,6 @@ export const GROUPS: { id: string; title: string; words: string }[] = [
   { id: "tags", title: "Theme, sector and strategy", words: "theme sector strategy defence aerospace ai technology global factor index tracked" },
   { id: "market", title: "Category market view", words: "category market view net flow inflow streak category size folios share of industry" },
   { id: "checklist", title: "FinLit checklist", words: "finlit checklist checks each check" },
-  { id: "quality", title: "Data quality and lists", words: "data quality lists needs a data source risk-o-meter health score" },
 ];
 /** The first group "Find a filter" matches: every word typed must be in the group's title or words (case does not matter). */
 export function findGroup(term: string): (typeof GROUPS)[number] | null {
@@ -318,20 +316,7 @@ export function Panel({ q, set, fac, waiting, canScore, fold = false }: PanelPro
         <Sub>Each check</Sub>
         <Opts opts={CHK_EACH} sel={q.chkEach} counts={fac?.chk_each} onToggle={tog("chkEach")} label="Each check" />
       </FilterGroup>
-      <FilterGroup id="quality" title="Data quality and lists" meta={<span className="mfs-soon-n">Needs a data source {COMING.length}</span>} active={q.tick.filter((t) => [...TICK_DATA, ...TICK_LISTS].some((o) => o.v === t && t !== "has_hist3" && t !== "has_hist5")).length} {...og("quality")}>
-        <Opts opts={TICK_DATA.filter((o) => o.v !== "has_hist3" && o.v !== "has_hist5")} sel={q.tick} counts={fac?.tick} onToggle={tog("tick")} label="Data quality" />
-        <Sub>Lists</Sub>
-        <Opts opts={TICK_LISTS} sel={q.tick} counts={fac?.tick} onToggle={tog("tick")} label="Lists" />
-        {/* ----- what is not built (task #131: inside this group, as the design draws it) */}
-        <Sub>Needs a data source</Sub>
-        <p className="fgx-hint">These filters are planned and are shown here so nothing is hidden. Each waits for data we do not hold yet; none is simulated.</p>
-        <ul className="mfs-soon" aria-label="Filters that need a data source">
-          {COMING.map((c) => (
-            <li key={c.id} aria-disabled="true"><span className="mfs-lock" aria-hidden="true"><Icon name="lock" /></span>
-              <div><b>{c.label}</b><small>{c.why}</small><small className="mfs-route">Free route: {c.route}</small>
-                {c.id === "score" && canScore && <Link className="fgx-link" to="/fund-score-screener">Open the Fund score screener</Link>}</div></li>))}
-        </ul>
-      </FilterGroup>
+      {/* task #368 (Chinmay, 24 Nov 2026): "Data quality and lists" (and its "Needs a data source" list) is off the filter list completely */}
       </div>
     </div>
   );

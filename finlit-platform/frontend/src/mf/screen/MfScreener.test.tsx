@@ -60,12 +60,12 @@ describe("Mutual Fund Screener page", () => {
     expect(sp.disabled).toBe(false); fireEvent.click(sp);
     await waitFor(() => expect(screen.getByTestId("loc").textContent).toContain("sc=total%3A65%3A"));
   });
-  it("shows the no-data count and the groups that need a data source, disabled and explained", async () => {
+  it("shows the no-data count; the 'Data quality and lists' group and its 'Needs a data source' list are gone (task #368)", async () => {
     mount("/funds/screener?rng=ter:0:1");
     await screen.findByText("Alpha Mid Cap Fund");
     expect(screen.getAllByText(/of/).length).toBeGreaterThan(0);
-    expect(document.body.textContent).toMatch(/Needs a data source/);
-    expect(document.body.textContent).toMatch(/Risk-o-meter/);
+    expect(document.body.textContent).not.toMatch(/Needs a data source/);
+    expect(document.body.textContent).not.toMatch(/Data quality and lists/);
   });
   it("uses no advice wording and keeps the disclaimer", async () => {
     mount();
