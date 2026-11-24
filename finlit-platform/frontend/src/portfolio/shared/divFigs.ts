@@ -81,7 +81,7 @@ export function divKeyFigs(d: DivKeyIn): KeyFig[] {
   const bar = secs.length <= SERIES.length ? secs.map((s, i) => ({ label: s.name, n: s.n, c: SERIES[i] }))
     : [...secs.slice(0, SERIES.length - 1).map((s, i) => ({ label: s.name, n: s.n, c: SERIES[i] })), { label: "Others", n: secs.slice(SERIES.length - 1).reduce((a, s) => a + s.n, 0), c: GREY }];
   out.push({ q: "Where is most of your list?", big: `${Math.round((100 * top.n) / N)}%`, ans: `in ${top.name}`,
-    sub: [N === 1 ? "your only share" : top.n === N ? `all ${N} of your shares` : `${top.n} of your ${countOf(N, "share")}`, money != null && N > 1 ? `${shareText(money)} of your money` : ""].filter(Boolean).join(" · "),
+    sub: [N === 1 ? "your only share" : top.n === N ? (N === 2 ? "both your shares" : `all ${N} of your shares`) : `${top.n} of your ${countOf(N, "share")}`, money != null && N > 1 ? `${shareText(money)} of your money` : ""].filter(Boolean).join(" · "),
     tip: "Each macro sector's share of your list, counting each share once. The line under it adds that macro sector's share of your money: what its shares are worth now over what the whole list is worth.",
     bar, go: "See where it sits", to: "eq-where" });
   const C = d.counted.length;

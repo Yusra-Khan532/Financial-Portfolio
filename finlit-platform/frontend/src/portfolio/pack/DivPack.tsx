@@ -188,10 +188,11 @@ function SectorsPanel({ d }: { d: DivInput }) {
         <div>
           <h3 className="eqd-h3">Tied to the rest of your list<Info about={`Each ${word} tied to the rest of your list`} text={`Each ${word}'s shares against every share outside it: their average correlation.`} how="A short bar moves least with the rest and steadies the list most; a long bar moves with it." /></h3>
           <p className="sp-note">Shortest first. A short bar steadies the list most.</p>
+          {!ties.length && <p className="sp-note">All your shares sit in one {word}, so there is nothing outside it to set them against.</p>}
           <ul className="eqd-ties" id="eqd-ties">{tiesCap.shown.map((t) => <li key={t.name}><span>{t.name} · {t.n}</span><span className="t" aria-hidden="true"><i style={{ width: `${(t.avg / maxTie) * 100}%` }} /></span><b>{two(t.avg)}<small>{corrWord(t.avg)}</small></b></li>)}</ul>
           {tiesCap.capped && <ShowAll n={ties.length} noun={word} open={tiesCap.open} onToggle={tiesCap.toggle} controls="eqd-ties" />}
-          <div className="eqd-pairs"><p className="sp-cap">Different {word}s, moving together</p><ul>{hi.slice(0, 3).map(pairLi)}</ul></div>
-          <div className="eqd-pairs"><p className="sp-cap">Most independent {word}s</p><ul>{[...hi].reverse().slice(0, 3).map(pairLi)}</ul></div>
+          {hi.length > 0 && <div className="eqd-pairs"><p className="sp-cap">Different {word}s, moving together</p><ul>{hi.slice(0, 3).map(pairLi)}</ul></div>}
+          {hi.length > 1 && <div className="eqd-pairs"><p className="sp-cap">Most independent {word}s</p><ul>{[...hi].reverse().slice(0, 3).map(pairLi)}</ul></div>}
         </div>
       </div>
       <Insights items={sectorCards(ties, heat, word).map((c) => ({ ...c, text: withCorrWords(c.text) }))} scope={"eq.sectors." + lv} />
@@ -274,7 +275,7 @@ export function ShareGrid({ d, eff }: { d: DivInput; /** task #385 (open item 7)
   const on = (r: string, s: string) => !!pick && (pick.b ? (pick.a === r && pick.b === s) || (pick.a === s && pick.b === r) : pick.a === r || pick.a === s);
   return (
     <Section id="eq-grid" hide title="Share by share" help="How closely each pair of shares moves, from weekly prices over the past two years." how="0 means the two are unrelated; near 1, they rise and fall as one. Tap a cell for the pair, or a name for that share."
-      sub={`${eff != null ? gridLine(N, eff).replace(/\.$/, ", by what you own now.") : gridLine(N, p.score.effective_stocks)} Same sector: ${countOf(sd.same.pairs, "pair")} at ${two(sd.same.avg)} on average. Different sectors: ${countOf(sd.diff.pairs, "pair")} at ${two(sd.diff.avg)}.`}>
+      sub={`${eff != null ? gridLine(N, eff).replace(/\.$/, ", by what you own now.") : gridLine(N, p.score.effective_stocks)}${sd.same.pairs ? ` Same sector: ${countOf(sd.same.pairs, "pair")} at ${two(sd.same.avg)} on average.` : ""}${sd.diff.pairs ? ` Different sectors: ${countOf(sd.diff.pairs, "pair")} at ${two(sd.diff.avg)}.` : ""}`}>
       <PairsChart pairs={ps} label={lab} onPick={(x) => setPick({ a: x.a, b: x.b })} />
       <div className="eqd-sctl"><div className="eqd-seg" role="group" aria-label="Order of the grid">{ORDERS.map(([k, t]) => <button key={k} type="button" aria-pressed={ord === k} onClick={() => setOrd(k)}>{t}</button>)}</div>
         <label className="eqd-tgl"><input type="checkbox" checked={crossOnly} onChange={(e) => setCrossOnly(e.target.checked)} /> Only pairs across sectors</label></div>

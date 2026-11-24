@@ -90,4 +90,6 @@
 .eq .eqv-frz table.eqd-heat th[scope="row"], .eq .eqv-frz table.eqd-sheat th[scope="row"] { background: var(--s1); }
 .eq .eqd-ws tbody th small.eqv-macro { text-transform: none; letter-spacing: 0; }
 /* the macro sector grid's column names wrap, so more of the grid fits a laptop */
-.eq .eqd-heat thead th { white-space: normal; min-width: 64px; max-width: 104px; line-height: 1.25; vertical-align: bottom; }
+.eq .eqd-heat thead th { white-space: normal; min-width: 64px; line-height: 1.25; vertical-align: bottom; }
+/* a short list keeps its grid at its own size, not stretched across the card */
+.eq .eqv-frz table.eqd-sheat, .eq .eqv-frz table.eqd-heat { width: auto; }
