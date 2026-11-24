@@ -672,52 +672,102 @@ def min_amount(raw: str) -> Tuple[Optional[str], Optional[float]]:
     return t[:200], (v if v is not None and 0 < v <= 10_000_000 else None)
 
 
+LOAD_RETRY_DAYS = 14                 # task #281 (24 Nov): a family AMFI answered with no exit-load text (or a hard error) is asked again only after this many days
+LIST_CACHE_DAYS = 7                  # task #281 (24 Nov): a fund house's AMFI scheme list is kept this many days, so the list phase costs almost nothing most nights
+KIND_TRIED = "exitload_tried"        # disclosure_facts kind: a family asked with no exit load stored, {"outcome": "blank" | "error"}
+KIND_LIST = "amfi_scheme_list"       # disclosure_facts kind: fkey "amfi-house:<mfId>", {"rows": [[scheme_name, scheme_id], ...]}
+
+
+def loads_queue(by_house, tried_at):
+    """Task #281 (24 Nov): the order schemes are asked in. Within a fund house: families never tried first, then those tried longest ago. Across houses:
+    round-robin, one family per house in turn, so one big house (or the first in AMFI's alphabetical list) cannot use a whole night's calls.
+    by_house: {house: [(family, candidates), ...]}; tried_at: {family: datetime}. Returns [(house, family, candidates), ...]."""
+    lanes = []
+    for house, fams in by_house.items():
+        never = [x for x in fams if x[0] not in tried_at]
+        old = sorted((x for x in fams if x[0] in tried_at), key=lambda x: tried_at[x[0]])
+        lanes.append((house, never + old))
+    lanes.sort(key=lambda h: -sum(1 for f, _ in h[1] if f not in tried_at))      # houses with most never-tried families lead each round
+    out = []
+    i = 0
+    while any(i < len(f) for _h, f in lanes):
+        for house, fams in lanes:
+            if i < len(fams):
+                out.append((house, fams[i][0], fams[i][1]))
+        i += 1
+    return out
+
+
 async def step_loads(pool, client, idx: Index, today: date) -> dict:
-    """Exit load text from AMFI's scheme details: one list call per fund house, then one call per scheme that matches an active scheme family here and has no
-    load text from the last LOAD_MAX_AGE_DAYS days. Resumable: whatever was written stays; the next run asks only for the rest."""
+    """Exit load text from AMFI's scheme details: one list call per fund house (kept LIST_CACHE_DAYS), then one call per scheme that matches an active
+    scheme family here, has no load text from the last LOAD_MAX_AGE_DAYS days and was not asked in vain in the last LOAD_RETRY_DAYS. Families are asked
+    never-tried first and round-robin across fund houses (task #281, 24 Nov: the queue followed AMFI's alphabetical house list and families with a blank
+    answer stored nothing, so they were asked again at the front every night and the later houses were never reached). Resumable."""
     async with pool.acquire() as conn:
         active = {r["family"] for r in await conn.fetch("SELECT DISTINCT family FROM mf_schemes WHERE active")}
         fresh = {r["fkey"] for r in await conn.fetch("SELECT fkey FROM disclosure_facts WHERE kind = 'exitload' AND updated_at > now() - make_interval(days => $1)", LOAD_MAX_AGE_DAYS)}
+        tried_rows = await conn.fetch("SELECT fkey, updated_at FROM disclosure_facts WHERE kind = $1", KIND_TRIED)
+        cached = {r["fkey"]: r["value"] for r in await conn.fetch(
+            "SELECT fkey, value FROM disclosure_facts WHERE kind = $1 AND updated_at > now() - make_interval(days => $2)", KIND_LIST, LIST_CACHE_DAYS)}
+    now = datetime.now(timezone.utc)
+    tried_at = {r["fkey"]: r["updated_at"] for r in tried_rows}
+    recent = {f for f, t in tried_at.items() if t is not None and (now - t).days < LOAD_RETRY_DAYS}
     deadline = time.monotonic() + LOAD_MAX_SECONDS
     houses = await get_json(client, URL_MF_LIST)
-    want: Dict[str, List[Tuple[str, str]]] = defaultdict(list)          # family -> [(mf id, AMFI scheme id)], newest id first
-    unmapped = 0
-    lists_skipped = 0
+    by_house: Dict[str, list] = {}
+    seen_fam: Dict[str, List[Tuple[str, str]]] = {}
+    unmapped = lists_skipped = lists_cached = 0
     for h in houses or []:
         if excluded_amc(str(h.get("mfName") or "")):
             continue
-        if time.monotonic() > deadline:
-            lists_skipped += 1
-            continue
-        try:
-            rows = await get_json(client, URL_SCHEMES, params={"MF_ID": h["mfId"]})
-        except Exception:      # one fund house's scheme list refused (e.g. 429 after the waits): skip it this run; it is asked again on the next
-            lists_skipped += 1
+        hid = str(h["mfId"])
+        c = cached.get(f"amfi-house:{hid}")
+        c = json.loads(c) if isinstance(c, str) else c
+        if c and isinstance(c.get("rows"), list):
+            rows = [{"scheme_name": nm, "scheme_id": sid} for nm, sid in c["rows"]]
+            lists_cached += 1
+        else:
+            if time.monotonic() > deadline:
+                lists_skipped += 1
+                continue
+            try:
+                rows = await get_json(client, URL_SCHEMES, params={"MF_ID": h["mfId"]})
+            except Exception:      # one fund house's scheme list refused (e.g. 429 after the waits): skip it this run; it is asked again on the next
+                lists_skipped += 1
+                await asyncio.sleep(LOAD_PAUSE_S)
+                continue
+            await put_facts(pool, [(f"amfi-house:{hid}", KIND_LIST, today, {"rows": [[str(r.get("scheme_name") or ""), str(r.get("scheme_id"))] for r in rows or []]},
+                                    SRC_DETAILS, "https://www.amfiindia.com/otherdata/scheme-details")])
             await asyncio.sleep(LOAD_PAUSE_S)
-            continue
+        lane = by_house.setdefault(hid, [])
         for r in rows or []:
             fam, _ = idx.resolve([str(r.get("scheme_name") or "")])
             if not fam:
                 unmapped += 1
-            elif fam in active and fam not in fresh:
-                want[fam].append((str(h["mfId"]), str(r["scheme_id"])))
-        await asyncio.sleep(LOAD_PAUSE_S)
+            elif fam in active and fam not in fresh and fam not in recent:
+                if fam not in seen_fam:
+                    seen_fam[fam] = []
+                    lane.append((fam, seen_fam[fam]))
+                seen_fam[fam].append((hid, str(r["scheme_id"])))
     facts: list = []
     st = {"asked": 0, "blank": 0, "stored": 0, "refused429": 0, "in_a_row": 0, "errors": 0}
 
     async def one(fam: str, cands: List[Tuple[str, str]]) -> None:
         launch_done = min_done = False
+        answered = errored = False
         for mf_id, sid in sorted(cands, key=lambda c: -int(c[1]) if c[1].isdigit() else 0)[:3]:   # the newest listing of a scheme first
             st["asked"] += 1
             try:
                 d = ((await get_json(client, URL_DETAILS, params={"MF_ID": mf_id, "scheme_id": sid})).get("data") or [{}])[0]
                 st["in_a_row"] = 0
+                answered = True
             except httpx.HTTPStatusError as exc:
-                if exc.response.status_code == 429:      # AMFI: "too many requests" even after the waits _retry made; this scheme is asked on a later run
+                if exc.response.status_code == 429:      # AMFI: "too many requests" even after the waits _retry made; not recorded, asked on a later run
                     st["refused429"] += 1
                     st["in_a_row"] += 1
                     return
                 st["errors"] += 1
+                answered = errored = True                # AMFI answered with an error for this scheme: recorded below, asked again after LOAD_RETRY_DAYS
                 continue
             except Exception:
                 st["errors"] += 1
@@ -738,10 +788,14 @@ async def step_loads(pool, client, idx: Index, today: date) -> dict:
                 st["stored"] += 1
                 return
         st["blank"] += 1
+        if answered:        # task #281 (24 Nov): remember the vain ask, so this family no longer sits at the front of every night's queue
+            facts.append((fam, KIND_TRIED, None, {"outcome": "error" if errored else "blank", "on": today.isoformat()}, SRC_DETAILS, None))
 
-    items = list(want.items())
+    items = loads_queue(by_house, tried_at)
     stopped = None
-    for n, (f, c) in enumerate(items, start=1):   # one scheme at a time (task #281 round 6: AMFI answered 429 to three at a time); written every 40
+    reached: set = set()
+    done = 0
+    for n, (house, f, c) in enumerate(items, start=1):   # one scheme at a time (task #281 round 6: AMFI answered 429 to three at a time); written every 40
         left = len(items) - n + 1
         if time.monotonic() > deadline:
             stopped = f"this run's time budget of {LOAD_MAX_SECONDS // 60} minutes was used; the next run continues with the {left} schemes left"
@@ -752,13 +806,17 @@ async def step_loads(pool, client, idx: Index, today: date) -> dict:
         if st["in_a_row"] >= LOAD_STOP_AFTER_429:
             stopped = f"AMFI answered 'too many requests' (429) {st['in_a_row']} times in a row; stopped for this run, the next run continues with the {left} schemes left"
             break
+        reached.add(house)
         await one(f, c)
+        done = n
         if n % 40 == 0:
             await put_facts(pool, facts)
             facts.clear()
     await put_facts(pool, facts)
-    out = {"status": "partial" if stopped else "ok", "families": len(want), "asked": st["asked"], "loadsStored": st["stored"], "blank": st["blank"],
-           "refused429": st["refused429"], "errors": st["errors"], "alreadyFresh": len(fresh & active), "namesNotMatched": unmapped, "houseListsSkipped": lists_skipped}
+    out = {"status": "partial" if stopped else "ok", "families": len(items), "asked": st["asked"], "loadsStored": st["stored"], "blank": st["blank"],
+           "refused429": st["refused429"], "errors": st["errors"], "alreadyFresh": len(fresh & active), "namesNotMatched": unmapped, "houseListsSkipped": lists_skipped,
+           "houseListsCached": lists_cached, "housesReached": len(reached), "housesWithWork": sum(1 for v in by_house.values() if v),
+           "familiesLeft": len(items) - done, "triedRecently": len(recent & active)}
     if stopped:
         out["why"] = stopped
     return out
