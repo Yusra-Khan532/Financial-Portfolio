@@ -68,8 +68,9 @@ def build(symbols: List[str], values: Dict[str, float], cards: Dict[str, Dict[st
     scored_share = sum(total_w[s] for s in symbols if cards.get(s, {}).get("prism_final") is not None)
     valuation = _wavg([(cards.get(s, {}).get("prism_valuation"), total_w[s]) for s in symbols])
 
-    # price trend (short term for a horizon under a year)
-    key = "st" if horizon == "lt1" else "lt"
+    # price trend: the short-term trend for a horizon under three years (task #385, developer file 33 open item 9: "for a 1-3 year horizon the trend part
+    # reads the short-term trend"), the long-term trend otherwise
+    key = "st" if horizon in ("lt1", "1-3") else "lt"
     items = [{"symbol": s, "weight": total_w[s], "st": cards.get(s, {}).get("prism_st_score"), "lt": cards.get(s, {}).get("prism_lt_score"), "prismLabel": cards.get(s, {}).get("prism_label")} for s in symbols]
     tr = trend_fn(items)
     rated = [x for x in items if x["st"] is not None and x["lt"] is not None and x["weight"] > 0]
@@ -88,7 +89,9 @@ def build(symbols: List[str], values: Dict[str, float], cards: Dict[str, Dict[st
     risk_pts = risk_points(market["beta"], _COMFORT_BETA[risk]) if market else None
 
     readings: Dict[str, Any] = {}
-    readings["strength"] = ({"word": word3(strength), "figure": round(strength), "scoredShare": round(scored_share, 2)} if strength is not None
+    # task #385 (developer file 33, open item 4): the strength reading is the average FinLit Prism, so its word is Prism's own (Strong, Healthy, Average,
+    # Weak, Poor), the word the Strength card and every share use; it read Fair (Strong 70+, Fair 50+) beside a card saying Healthy for the same 67
+    readings["strength"] = ({"word": label_of(strength), "figure": round(strength), "scoredShare": round(scored_share, 2)} if strength is not None
                             else {"word": "Not scored", "why": "None of the shares has a stored FinLit Prism score yet."})
     readings["spread"] = ({"word": page_score["band"], "figure": page_score["score"]} if page_score else {"word": "Not enough data", "why": "Needs 3 shares with a year of weekly prices."})
     if market:
