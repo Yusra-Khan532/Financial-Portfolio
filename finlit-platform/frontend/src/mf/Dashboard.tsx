@@ -76,6 +76,9 @@ export function CategoryPicker({ q, subs, loading, onTab, onCats, frequent, side
 }) {
   const tabs: { key: TabKey | "all"; label: string }[] = [...TABS, { key: "all", label: "All funds" }];
   const keys = subs.map((s) => s.key);
+  /** Task #362 (Chinmay, 24 Nov 2026): which box of the filter panel is open, apart from which type the list shows. Every box starts closed; opening one
+   *  closes the one that was open, and its own header closes it again. The type in use keeps its tick (and "N of M selected") while folded. */
+  const [exp, setExp] = useState<string | null>(null);
   const on = (k: string) => q.cats === null || q.cats.includes(k);
   const onTabKey = (e: React.KeyboardEvent, i: number) => {   // arrow keys move between the tabs, as a tab list should
     const d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
@@ -105,12 +108,13 @@ export function CategoryPicker({ q, subs, loading, onTab, onCats, frequent, side
        categories as "N of M selected") is the type the list shows, with its categories under it. Opening another switches to it, as the tabs did. */
     <section className="mf-catpick mf-catside" aria-label="Choose categories">
       {frequent && <FrequentFunds q={q} onPick={frequent.onPick} onScore={frequent.onScore} />}
-      {tabs.map((t) => { const open = q.tab === t.key, all = open && (t.key === "all" || q.cats === null), some = open && !all && picked > 0; return (
-        <div key={t.key} className={"mf-acc" + (open ? " on" : "")}>
-          <button type="button" className="mf-acc-h" id={`mf-acc-${t.key}`} aria-expanded={open} aria-controls={`mf-acc-b-${t.key}`} onClick={() => { if (!open) onTab(t.key); }}>
+      {tabs.map((t) => { const used = q.tab === t.key, open = used && exp === t.key, all = used && (t.key === "all" || q.cats === null), some = used && !all && picked > 0; return (
+        <div key={t.key} className={"mf-acc" + (used ? " on" : "") + (open ? " open" : "")}>
+          <button type="button" className="mf-acc-h" id={`mf-acc-${t.key}`} aria-expanded={open} aria-controls={`mf-acc-b-${t.key}`}
+            onClick={() => { if (open) { setExp(null); return; } if (!used) onTab(t.key); setExp(t.key); }}>
             <span className={"mf-acc-box" + (all ? " all" : some ? " some" : "")} aria-hidden="true">{all ? "✓" : some ? "–" : ""}</span>
             <span className="mf-acc-t">{t.label}</span>
-            {open && t.key !== "all" && subs.length > 0 && <small>{picked} of {subs.length} selected</small>}
+            {used && t.key !== "all" && subs.length > 0 && <small>{picked} of {subs.length} selected</small>}
             <span className="mf-acc-car" aria-hidden="true">{open ? "▴" : "▾"}</span>
           </button>
           {open && <div className="mf-acc-b" id={`mf-acc-b-${t.key}`} role="region" aria-labelledby={`mf-acc-${t.key}`}>{body}</div>}
