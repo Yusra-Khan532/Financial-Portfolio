@@ -49,7 +49,6 @@ import { shareOf as buildShare } from "../lib/equityShares";
 import type { TabKey } from "../lib/equityTop";
 import { SectionsBar, SectionsMenu, jumpTo, type Sec } from "../portfolio/pack/PageTop";
 import { HideButtons, HideSlim } from "../components/Hideable";
-import { KeyAnswers } from "../portfolio/pack/KeyAnswers";
 import { OrderWinNotice, WhatChanged, FilingChip, useWhatChanged } from "../components/changes/WhatChanged";
 import { useWatchlist } from "../lib/watchlist";
 import { ThemePill, YourThemes, themeView } from "../portfolio/pack/EqThemes";
