@@ -18,7 +18,9 @@ ENV PIP_NO_CACHE_DIR=1
 RUN pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1 \
  && pip install numpy==2.5.4 "onnx==1.23.2" onnxruntime==1.20.1 transformers==4.46.3 tokenizers==0.20.3
 COPY backend/scripts/export_sentiment_model.py /tmp/export_sentiment_model.py
-RUN python /tmp/export_sentiment_model.py /models/sentiment
+# A failed export (the model host down, a network fault) must never stop a deploy: the image then ships without the model, the nightly
+# news-sentiment job scores nothing (finlit/sentiment.py returns None) and the next build tries again.
+RUN mkdir -p /models/sentiment && (python /tmp/export_sentiment_model.py /models/sentiment || (echo "sentiment model export failed; shipping without it" && rm -f /models/sentiment/*))
 
 FROM python:3.13-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
