@@ -46,7 +46,7 @@ describe("What they own (M6, step 1)", () => {
     const cell = screen.getByText("HDFCBANK").closest("td")!;
     expect(cell.querySelectorAll(".mfm-chip")).toHaveLength(4);
     expect(cell.querySelector(".mfm-chip .mfm-dot.g")).toBeTruthy();
-    expect(screen.getByText("ICICIBANK").querySelector(".mfm-dot.b")).toBeTruthy();
+    expect(screen.getByText("ICICIBANK").parentElement!.querySelector(".mfm-dot.b")).toBeTruthy();   // task #389: the name sits in its own span beside the dot
     fireEvent.click(screen.getByRole("button", { name: "+2 more ▾" }));
     expect(cell.querySelectorAll(".mfm-chip")).toHaveLength(6);
     expect(document.querySelector(".mfm-g tfoot")!.textContent).toMatch(/50\.0% in shares/);
@@ -67,7 +67,7 @@ describe("Spread, the sub-tabs and the pair reader (M6, steps 2 to 7)", () => {
       "Same theme: Repeated MNC", "Fund houses: Leans on one 2 of 3", "Asset mix: Mostly equity 70%"]);
   });
   it("reads a pair: its correlation, the stocks they share, and category and fund house", () => {
-    expect(pairText(SP, 1, 2)).toBe("ICICI Prudential MNC and Kotak MNC: 0.85. They rise and fall almost as one. They keep 10% of their money in the same 30 stocks. The same category, different fund houses.");
+    expect(pairText(SP, 1, 2)).toBe("ICICI Prudential MNC and Kotak MNC: 0.85. Closely linked: about 72% of their weekly moves in common. They keep 10% of their money in the same 30 stocks. The same category, different fund houses.");
   });
   it("opens the sub-tab of a section the sections bar jumps to", () => {
     wrap(<MixSubTabs sp={SP} level="macro" onLevel={() => undefined} />);
@@ -77,7 +77,7 @@ describe("Spread, the sub-tabs and the pair reader (M6, steps 2 to 7)", () => {
     expect(screen.getByRole("tab", { name: /How funds move together/ }).getAttribute("aria-selected")).toBe("true");
     expect(screen.getByText("Stocks they share")).toBeTruthy();
     expect(document.querySelector(".mfm-card.dashed")!.textContent).toMatch(/JioBlackRock Liquid.*not loaded yet/);
-    fireEvent.click(screen.getByRole("button", { name: "ICICI Prudential MNC and Kotak MNC: 0.85" }));
+    fireEvent.click(screen.getByRole("button", { name: "ICICI Prudential MNC and Kotak MNC: 0.85, closely linked" }));
     act(() => { dispatchEvent(new CustomEvent("eq-jump", { detail: "mfp-sizes" })); });
     expect(screen.getByText(/SEBI's fund categories rank companies instead/)).toBeTruthy();
   });

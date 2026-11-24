@@ -11,7 +11,10 @@ import { TrendCard } from "../Spread";
 import type { Card } from "../../lib/pulsePack";
 import type { MfSpread } from "../../lib/mfPortfolio";
 import { shortFund } from "../../lib/mfPack";
-import { coTitle, subLine, titleOf } from "../../lib/companyLabel";
+import { codeText } from "../../lib/companyLabel";
+import { holdingName, holdingShort } from "../../lib/holdingName";
+import { GridScreen } from "../../portfolio/pack/Div385";
+import { ShowAll, andList, cap1, capRows, corr2, corrWord, countOf, inCommon, CAP_DEFAULT } from "../../portfolio/shared";
 
 export type Level = "macro" | "sector";
 export type Reading = { word: string | null; score: number | null } | null;
@@ -46,20 +49,30 @@ export function gridRows(sp: Grid, level: Level) {
     .sort((a, b) => b.total - a.total);
 }
 
-export function Cell({ c, max, readingOf, link }: { c?: { w: number; n: number; stocks: { name: string; symbol: string | null; w: number }[] }; max: number; readingOf: (s: string | null) => Reading;
-  /** task #276 (ETF page, change 5): each chip opens the company report */ link?: boolean }) {
+export function Cell({ c, max, readingOf, link, names }: { c?: { w: number; n: number; stocks: { name: string; symbol: string | null; w: number }[] }; max: number; readingOf: (s: string | null) => Reading;
+  /** task #276 (ETF page, change 5): each chip opens the company report */ link?: boolean;
+  /** task #389 (MF page, file 32 Mix 2 and 4): chips with short company names, "N companies", one dashed "+N more" pill. The ETF page keeps codes until its own task (#390). */ names?: boolean }) {
   const [open, setOpen] = useState(false);
   if (!c || c.w <= 0) return <td className="mfm-c empty" />;
   const show = open ? c.stocks : c.stocks.slice(0, 4), rest = c.stocks.length - 4;
+  // task #389 (file 32, Mix 2): each chip shows the company's short name (lib/holdingName), "…" inside the cell when long; the full name leads its title
   return <td className="mfm-c" style={{ ["--mfm-a" as string]: String(Math.min(1, c.w / max) * 0.55) }}>
-    <span className="mfm-chips">{show.map((s) => { const r = readingOf(s.symbol); const tip = `${s.name}: ${p1(s.w)} of your list${r?.word ? ` · ${r.word}` : ""}`;
-      const inner = <><i className={"mfm-dot " + tone(r?.word)} aria-hidden="true" />{s.symbol ?? s.name.split(" ")[0]}</>;
+    <span className="mfm-chips">{show.map((s) => { const r = readingOf(s.symbol); const tip = `${names ? holdingName(s.name) || s.symbol : s.name}: ${p1(s.w)} of your list${r?.word ? ` · ${r.word}` : ""}`;
+      const inner = <><i className={"mfm-dot " + tone(r?.word)} aria-hidden="true" />{names ? <span className="mfm-cn">{holdingShort(s.name, s.symbol ?? "")}</span> : s.symbol ?? s.name.split(" ")[0]}</>;
       // task #275 (change 5) and #276: a listed company's chip opens its company report (every page; `link={false}` keeps plain labels); one with no listed
       // symbol (an ISIN not matched) has no report and stays a label that says so
       return (link ?? true) && s.symbol ? <Link key={s.symbol} className="mfm-chip mfm-chip-a ptk-chipl" to={`/stocks/${encodeURIComponent(s.symbol)}`} title={`${tip}. Open the company report`}>{inner}</Link>
         : <span key={s.symbol ?? s.name} className="mfm-chip" title={s.symbol ? tip : `${tip} · no company report (not matched to a listed company)`}>{inner}</span>; })}
-      {rest > 0 && <button type="button" className="eq-more" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "Show fewer ▴" : `+${rest} more ▾`}</button>}</span>
-    <small className="mfm-cw">{p1(c.w)} · {c.n} {c.n === 1 ? "co" : "cos"}</small></td>;
+      {rest > 0 && <button type="button" className={names ? "mfm-more" : "eq-more"} aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "Show fewer ▴" : `+${rest} more ▾`}</button>}</span>
+    <small className="mfm-cw">{p1(c.w)} · {names ? countOf(c.n, "company") : `${c.n} ${c.n === 1 ? "co" : "cos"}`}</small></td>;
+}
+
+/** Task #389 (file 32, fault 7): the grid's footer counts sectors only; shares listed abroad (and any not classified) are named, not counted
+ *  ("12 macro sectors and shares listed abroad", as the "Macro sector · 12" switch above). */
+export function gridCount(rows: { name: string }[], level: Level) {
+  const n = rows.filter((r) => r.name !== "Listed abroad" && r.name !== "Not classified").length;
+  const extra = [rows.some((r) => r.name === "Listed abroad") ? "shares listed abroad" : null, rows.some((r) => r.name === "Not classified") ? "shares not classified" : null].filter(Boolean) as string[];
+  return andList([countOf(n, level === "macro" ? "macro sector" : "sector"), ...extra]);
 }
 
 function rest(sp: MfSpread) {
@@ -89,12 +102,12 @@ export function OwnSection({ sp, level, onLevel, readingOf, gold, mfOnly }: { sp
     <Section id="mfp-own" hide title="What your funds own: sector and size" help="The shares inside your funds, added up from each fund house's latest monthly file, by NSE sector and company size. Each chip is one company." how="Darker cells hold more of your list. A chip's dot is its reading on your plan; +N more opens the rest of the cell."
       sub={`The shares inside your funds, added up from each fund house's latest monthly file. ${mfOnly || !gold ? "Each chip is one company." : "Each chip is one company; its dot shows its FinLit Prism band."} Darker cells hold more of your list.`}>
       <LevelSwitch level={level} onLevel={onLevel} sp={sp} />
-      <Scroll label="what your funds own"><table className="sp-tb mfm-g">
+      <Scroll label="what your funds own"><table className="sp-tb mfm-g mfm-gn">
         <thead><tr><th scope="col">{level === "macro" ? "Macro sector" : "Sector"}</th>{sizes.map((s) => <th key={s} scope="col">{SIZE_HEAD[s][0]}<small>{SIZE_HEAD[s][1]}</small></th>)}<th scope="col" className="r">Of your list</th></tr></thead>
         <tbody>{shown.map((r) => <tr key={r.name}><th scope="row"><b>{r.name}</b>{level === "sector" && macroOf(r.name) && macroOf(r.name) !== r.name && <small>{macroOf(r.name)}</small>}</th>
-          {sizes.map((s) => <Cell key={s} c={r.cells[s]} max={max} readingOf={mfOnly || !gold ? () => null : readingOf} />)}
+          {sizes.map((s) => <Cell key={s} c={r.cells[s]} max={max} readingOf={mfOnly || !gold ? () => null : readingOf} names />)}
           <td className="r mfm-tot"><b>{p1(r.total)}</b><i className="mfm-bar"><u style={{ width: `${(r.total / (rows[0]?.total || 1)) * 100}%` }} /></i><small>{p0(r.total / (sp.knownShares || 1))} of the shares</small></td></tr>)}</tbody>
-        <tfoot><tr><th scope="row">All {level === "macro" ? "macro sectors" : "sectors"} · {rows.length}</th>{sizes.map((s) => <td key={s}><b>{p1(colTot(s))}</b> of the list · {p0(colTot(s) / (sp.knownShares || 1))} of the shares</td>)}<td className="r"><b>{p1(sp.knownShares)}</b> in shares</td></tr></tfoot>
+        <tfoot><tr><th scope="row">{gridCount(rows, level)}</th>{sizes.map((s) => <td key={s}><b>{p1(colTot(s))}</b> of the list · {p0(colTot(s) / (sp.knownShares || 1))} of the shares</td>)}<td className="r"><b>{p1(sp.knownShares)}</b> in shares</td></tr></tfoot>
       </table></Scroll>
       {level === "sector" && rows.length > 8 && <button type="button" className="eq-more mfm-all" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer ▴" : `Show all ${rows.length} sectors ▾`}</button>}
       <p className="sp-note">{mfOnly || !gold ? "Names only on this plan: the dots show FinLit Prism, FinLit's only company score (see plans)." : <><i className="mfm-dot g" /> Strong or Healthy · <i className="mfm-dot m" /> Average · <i className="mfm-dot b" /> Weak.</>} Chips: the biggest holdings with a reading; "+N more" opens the rest of that cell. {rest(sp)}</p>
@@ -111,7 +124,7 @@ export function readingTiles(sp: MfSpread) {
     theme: r.theme.theme || "–", houses: `${r.houses.count} of ${sp.count}`, assets: p0(r.assets.equityShare) };
   const line: Record<string, string> = {
     together: r.together.range ? `Weekly NAV changes line up between ${r.together.range[0].toFixed(2)} and ${r.together.range[1].toFixed(2)}.` : "Needs two equity-type funds with a year of NAVs.",
-    underneath: `${r.underneath.inTwoOrMore} are held through two or more funds.`, overlap: top ? "The most two funds keep in the same stocks." : "Needs the holdings of two funds.",
+    underneath: `${r.underneath.inTwoOrMore} are held through two or more funds.`, overlap: top ? "What the two most alike funds hold in common." : "Needs the holdings of two funds.",
     theme: r.theme.theme ? `${r.theme.funds.length === 2 ? "Two" : r.theme.funds.length} thematic funds follow it.` : "No two thematic funds share a theme.", houses: `${r.houses.top} runs ${r.houses.count} of your funds.`,
     assets: "In shares, counting funds whose split is not loaded as shares." };
   return READS.map(([k, label]) => ({ k, label, word: (r[k] as { word: string }).word, fig: fig[k], line: line[k] }));
@@ -119,7 +132,7 @@ export function readingTiles(sp: MfSpread) {
 export function SpreadSection({ sp }: { sp: MfSpread }) {
   const r = sp.readings, cards: Card[] = [];
   if (r.together.of > 1) cards.push({ kind: r.together.word === "Move as one" ? "watch" : "good", title: r.together.word === "Move as one" ? `${r.together.of === 4 ? "Four" : r.together.of} funds move almost as one` : "Your funds move apart", text: `Your ${r.together.of} equity-type funds behave like ${r.together.independent.toFixed(1)} independent funds.` });
-  if (r.overlap.top) cards.push({ kind: r.overlap.word === "Low" ? "good" : "watch", title: r.overlap.word === "Low" ? "Little stock overlap" : "Funds share many stocks", text: `The most two funds keep in the same stocks is ${Math.round(r.overlap.top.pct)}%.` });
+  if (r.overlap.top) cards.push({ kind: r.overlap.word === "Low" ? "good" : "watch", title: r.overlap.word === "Low" ? "Little stock overlap" : "Funds share many stocks", text: `The two most alike funds keep ${Math.round(r.overlap.top.pct)}% of their money in the same stocks.` });
   if (r.theme.theme) cards.push({ kind: "insight", title: r.houses.word === "Leans on one" ? "One theme, two fund houses" : "One theme twice", text: `${r.theme.funds.length} funds follow the ${r.theme.theme} theme; ${r.houses.top} runs ${r.houses.count} of your funds.` });
   return (
     <Section id="mfp-spread" hide title="How spread are your funds?" help="Six readings across your funds, from how their NAVs move to what sits inside them." how="Each card is a word, a figure and one line. Together they say whether the funds are as different as their labels."
@@ -131,6 +144,8 @@ export function SpreadSection({ sp }: { sp: MfSpread }) {
 }
 
 // ------------------------------------------------------------------------------------------------ sub-tab 1: what they hold
+/** Task #389 (file 32, Mix 5): a slice of the big bar under 14% keeps its % and drops its word; under 4% it drops both (the legend names it). */
+export const sliceLabel = (v: number) => ({ pct: v >= 0.04, word: v >= 0.14 });
 const MIX: [string, string, string][] = [["shares", "Shares", "s"], ["debt", "Debt and money market", "d"], ["other", "Gold and other", "o"], ["sharesUnknown", "Not loaded", "u"]];
 export function MoneySection({ sp }: { sp: MfSpread }) {
   const nm = (n: string) => shortFund(n);
@@ -138,7 +153,7 @@ export function MoneySection({ sp }: { sp: MfSpread }) {
     <Section id="mfp-money" hide title="What your money is in" help="Your list split into shares, debt and money market, and gold and other, from each fund's latest monthly file." how="The top bar is the whole list; one bar per fund below it. Grey stripes: a fund whose file is not loaded."
       sub={`Each fund's latest monthly file, each fund counting ${sp.basis === "value" ? "by the value of your units" : "the same"}.`}>
       <div className="mfm-stack big" role="img" aria-label={MIX.filter(([k]) => sp.mix[k as keyof MfSpread["mix"]] > 0.0005).map(([k, l]) => `${l} ${p0(sp.mix[k as keyof MfSpread["mix"]])}`).join(", ")}>
-        {MIX.map(([k, l, c]) => { const v = sp.mix[k as keyof MfSpread["mix"]]; return v > 0.0005 ? <i key={k} className={"mfm-" + c} style={{ width: `${v * 100}%` }}><b>{p0(v)}</b><small>{l}</small></i> : null; })}</div>
+        {MIX.map(([k, l, c]) => { const v = sp.mix[k as keyof MfSpread["mix"]], t = sliceLabel(v); return v > 0.0005 ? <i key={k} className={"mfm-" + c} style={{ width: `${v * 100}%` }} title={`${l} ${p0(v)}`}>{t.pct && <b>{p0(v)}</b>}{t.word && <small>{l}</small>}</i> : null; })}</div>
       <div className="mfm-fbars">{sp.funds.map((f) => { const a = f.assetSplit, t = a ? (a.equity ?? 0) + (a.debt ?? 0) + (a.cash ?? 0) + (a.other ?? 0) : 0;
         return <div key={f.code} className="mfm-fb"><b>{nm(f.name)}</b>{a && t ? <span className="mfm-stack">{[["s", (a.equity ?? 0) / t, "Shares"], ["d", ((a.debt ?? 0) + (a.cash ?? 0)) / t, "Debt"], ["o", (a.other ?? 0) / t, "Gold and other"]].map(([c, v, l]) =>
           (v as number) > 0.005 ? <i key={c as string} className={"mfm-" + c} style={{ width: `${(v as number) * 100}%` }} title={`${l} ${p0(v as number)}`}>{(v as number) > 0.12 ? `${l} ${p0(v as number)}` : ""}</i> : null)}</span>
@@ -176,42 +191,76 @@ export function SectorsInside({ sp, level, onLevel }: { sp: MfSpread; level: Lev
 }
 
 // ------------------------------------------------------------------------------------------------ sub-tab 2: how funds move together
-const linkWord = (v: number) => (v >= 0.8 ? "rise and fall almost as one" : v >= 0.6 ? "move together closely" : v >= 0.4 ? "move together somewhat" : v >= 0.2 ? "are loosely linked" : "mostly go their own way");
-export function pairText(sp: MfSpread, a: number, b: number) {
+/** Task #389 (file 32, Mix 7): the pair's figure in words: below 0.2 Barely, 0.2 to 0.4 Loosely, 0.4 to 0.6 Partly, 0.6 and up Closely linked, then the part of
+ *  their weekly moves in common (the figure squared). 0.99 → "Closely linked: about 98% of their weekly moves in common." */
+export const pairWords = (v: number) => { const f = Math.round(v * 100) / 100;   // the figure as shown (0.985 reads 0.99, so 98%, as the file's example)
+  return `${cap1(corrWord(f))} linked: about ${inCommon(f)}% of their weekly moves in common.`; };
+/** The reader's parts for one pair: the two names, the figure (a real minus sign below 0), its words and what else the pair has in common. */
+export function pairRead(sp: MfSpread, a: number, b: number) {
   const i = sp.together.codes.indexOf(a), j = sp.together.codes.indexOf(b);
-  if (i < 0 || j < 0) return "";
+  if (i < 0 || j < 0) return null;
   const fa = sp.funds.find((f) => f.code === a)!, fb = sp.funds.find((f) => f.code === b)!, v = sp.together.C[i][j];
   const ov = sp.overlap.find((o) => (o.a === a && o.b === b) || (o.a === b && o.b === a));
   const same = [fa.category === fb.category ? "the same category" : "different categories", fa.amc === fb.amc ? "the same fund house" : "different fund houses"];
-  return `${shortFund(fa.name)} and ${shortFund(fb.name)}: ${v.toFixed(2)}. They ${linkWord(v)}. ${ov ? `They keep ${Math.round(ov.pct)}% of their money in the same ${ov.n} stocks.` : "One of them has no holdings loaded, so shared stocks are not known."} ${same[0].charAt(0).toUpperCase() + same[0].slice(1)}, ${same[1]}.`;
+  const shared = !ov ? "One of them has no holdings loaded, so shared stocks are not known." : ov.n === 0 ? "They hold none of the same stocks."
+    : `They keep ${ov.pct > 0 && ov.pct < 0.5 ? "less than 1" : Math.round(ov.pct)}% of their money in the same ${countOf(ov.n, "stock")}.`;
+  return { a: shortFund(fa.name), b: shortFund(fb.name), v, fig: corr2(v), words: pairWords(v), more: `${shared} ${cap1(same[0])}, ${same[1]}.` };
+}
+export function pairText(sp: MfSpread, a: number, b: number) {
+  const r = pairRead(sp, a, b);
+  return r ? `${r.a} and ${r.b}: ${r.fig}. ${r.words} ${r.more}` : "";
+}
+function Reader({ sp, pick, big }: { sp: MfSpread; pick: [number, number] | null; big?: boolean }) {
+  const r = pick ? pairRead(sp, pick[0], pick[1]) : null;
+  return <div className={"mfm-reader" + (big ? " mfm-reader-big" : "")} aria-live="polite"><p className="sp-cap">Read a pair</p>
+    {r ? <><p className="mfm-rn">{r.a} <span>and</span> {r.b}</p><p className="mfm-rv"><b>{r.fig}</b> <span className="mfm-cwd">{r.words}</span></p><p className="mfm-rm">{r.more}</p></> : <p>Tap a cell.</p>}</div>;
 }
 export function MoveSection({ sp }: { sp: MfSpread }) {
   const codes = sp.together.codes, nm = (c: number) => shortFund(sp.funds.find((f) => f.code === c)?.name);
-  const [pick, setPick] = useState<[number, number] | null>(codes.length > 1 ? [codes[0], codes[1]] : null);
+  const [pick, setPick] = useState<[number, number] | null>(codes.length > 1 ? [codes[0], codes[1]] : null), [full, setFull] = useState(false);
+  const isOn = (a: number, b: number) => !!pick && ((pick[0] === a && pick[1] === b) || (pick[0] === b && pick[1] === a));
+  // task #389 (file 32, Update 25 Nov row 6): open at any list size; Expand ⤢ shows the same grid on its own screen (big cells), with the reader kept beside it
+  const grid = (big: boolean) => <table className={"sp-tb mfm-cg" + (big ? " mfm-cg-big" : "")}><thead><tr><th><span className="sr-only">Fund</span></th>{codes.map((c) => <th key={c} scope="col"><span>{nm(c)}</span></th>)}</tr></thead>
+    <tbody>{codes.map((a, i) => <tr key={a}><th scope="row">{nm(a)}</th>{codes.map((b, j) => i === j ? <td key={b} className="self">–</td> :
+      <td key={b} style={{ ["--mfm-a" as string]: String(Math.max(0, sp.together.C[i][j]) * 0.7) }} className={isOn(a, b) ? "on" : undefined}>
+        <button type="button" aria-label={`${nm(a)} and ${nm(b)}: ${corr2(sp.together.C[i][j])}, ${corrWord(Math.round(sp.together.C[i][j] * 100) / 100)} linked`} onClick={() => setPick([a, b])}>{corr2(sp.together.C[i][j])}</button></td>)}</tr>)}</tbody></table>;
   return (
-    <Section id="mfp-move" hide title="How your funds move together" help="How closely each pair of your equity-type funds has moved, from weekly NAV changes over the past year. Liquid and overnight funds are left out." how="1.00: in step; near 0: unrelated. Tap a cell to read the pair: its correlation, the stocks they share, and whether they are the same category or fund house."
+    <Section id="mfp-move" hide title="How your funds move together" help="How closely each pair of your equity-type funds has moved, from weekly NAV changes over the past year. Liquid and overnight funds are left out." how="1.00: in step; near 0: unrelated. Tap a cell to read the pair: its correlation in words, the stocks they share, and whether they are the same category or fund house."
       sub={`Weekly NAV changes of each fund's Growth option, past year (${sp.together.weeks} weeks). Liquid funds are left out.`}>
-      {codes.length > 1 ? <div className="mfm-pair">
-        <Scroll label="how your funds move together"><table className="sp-tb mfm-cg"><thead><tr><th><span className="sr-only">Fund</span></th>{codes.map((c) => <th key={c} scope="col"><span>{nm(c)}</span></th>)}</tr></thead>
-          <tbody>{codes.map((a, i) => <tr key={a}><th scope="row">{nm(a)}</th>{codes.map((b, j) => i === j ? <td key={b} className="self">–</td> :
-            <td key={b} style={{ ["--mfm-a" as string]: String(Math.max(0, sp.together.C[i][j]) * 0.7) }} className={pick && ((pick[0] === a && pick[1] === b) || (pick[0] === b && pick[1] === a)) ? "on" : undefined}>
-              <button type="button" aria-label={`${nm(a)} and ${nm(b)}: ${sp.together.C[i][j].toFixed(2)}`} onClick={() => setPick([a, b])}>{sp.together.C[i][j].toFixed(2)}</button></td>)}</tr>)}</tbody></table></Scroll>
-        <div className="mfm-reader" aria-live="polite"><p className="sp-cap">Read a pair</p><p>{pick ? pairText(sp, pick[0], pick[1]) : "Tap a cell."}</p></div>
-      </div> : <p className="sp-note">Needs a year of NAVs for at least two equity-type funds.</p>}
+      {codes.length > 1 ? <>
+        <div className="mfm-gxrow"><button type="button" className="eqv-gx" aria-haspopup="dialog" aria-expanded={full} onClick={() => setFull(true)}>Expand <span aria-hidden="true">⤢</span></button></div>
+        <div className="mfm-pair"><Scroll label="how your funds move together">{grid(false)}</Scroll><Reader sp={sp} pick={pick} /></div>
+        {full && <GridScreen title="How your funds move together" line={`Every pair of your ${countOf(codes.length, "fund")} · darker cells move together more`} onClose={() => setFull(false)}>
+          <div className="mfm-ovl"><Reader sp={sp} pick={pick} big />{grid(true)}</div></GridScreen>}
+      </> : <p className="sp-note">Needs a year of NAVs for at least two equity-type funds.</p>}
     </Section>
   );
 }
+/** Task #389 (file 32, Mix 8): the pair cards. Pairs that hold none of the same stocks leave the cards for one line under them; above 10 pairs, 8 show. */
+export function sharedPairs(sp: MfSpread) {
+  const all = [...sp.overlap].sort((a, b) => b.pct - a.pct);
+  return { cards: all.filter((o) => o.n > 0 && o.pct > 0), none: all.filter((o) => !(o.n > 0 && o.pct > 0)) };
+}
+export function noneLine(names: string[]) {
+  if (!names.length) return "";
+  const shown = names.length > 8 ? `${names.slice(0, 8).join(", ")} and ${names.length - 8} more` : andList(names);
+  return `${countOf(names.length, "pair")} of funds ${names.length === 1 ? "shares" : "share"} no stocks: ${shown}.`;
+}
 export function SharedSection({ sp }: { sp: MfSpread }) {
   const nm = (c: number) => shortFund(sp.funds.find((f) => f.code === c)?.name);
-  const pairs = [...sp.overlap].sort((a, b) => b.pct - a.pct), th = sp.readings.theme;
+  const { cards, none } = sharedPairs(sp), th = sp.readings.theme, [all, setAll] = useState(false);
+  const cap = capRows(cards, CAP_DEFAULT, all);
   const corr = (a: number, b: number) => { const i = sp.together.codes.indexOf(a), j = sp.together.codes.indexOf(b); return i >= 0 && j >= 0 ? sp.together.C[i][j] : null; };
+  const pc = (p: number) => (p < 0.5 ? "<1%" : `${Math.round(p)}%`);
   return (
     <Section id="mfp-shared" hide title="Stocks they share" help="For each pair of funds, the share of money both keep in the same stocks: for each stock in both, the smaller of the two weights, added up." how="Higher means the two funds hold more of the same. A fund whose file is not loaded is shown with a dashed line."
       sub="One card per pair of funds whose holdings are loaded.">
-      <div className="mfm-cards">{pairs.map((o) => <div key={`${o.a}-${o.b}`} className="mfm-card"><p className="sp-cap">{nm(o.a)} · {nm(o.b)}</p><p className="mfm-rw"><b>{Math.round(o.pct)}%</b> <span>in {o.n} {o.n === 1 ? "stock" : "stocks"}</span></p></div>)}
-        {sp.coverage.missing.map((c) => <div key={c} className="mfm-card dashed"><p className="sp-cap">{nm(c)}</p><p className="mfm-rl">Its monthly holdings are not loaded yet, so the stocks it shares are not known.</p></div>)}
-        {th.theme && th.funds.length > 1 && <div className="mfm-card theme"><p className="sp-cap">Same theme twice</p><p className="mfm-rw"><b>{th.theme}</b> <span>{th.funds.map(nm).join(" · ")}</span></p>
-          {corr(th.funds[0], th.funds[1]) != null && <p className="mfm-rl">They move together {corr(th.funds[0], th.funds[1])!.toFixed(2)}.</p>}</div>}</div>
+      <div className="mfm-cards" id="mfm-pairs">{cap.shown.map((o) => <div key={`${o.a}-${o.b}`} className="mfm-card"><p className="mfm-pt">{nm(o.a)} · {nm(o.b)}</p><p className="mfm-rw"><b>{pc(o.pct)}</b> <span>in {countOf(o.n, "stock")}</span></p></div>)}
+        {sp.coverage.missing.map((c) => <div key={c} className="mfm-card dashed"><p className="mfm-pt">{nm(c)}</p><p className="mfm-rl">Its monthly holdings are not loaded yet, so the stocks it shares are not known.</p></div>)}
+        {th.theme && th.funds.length > 1 && <div className="mfm-card theme"><p className="mfm-pt">Same theme twice</p><p className="mfm-rw"><b>{th.theme}</b> <span>{th.funds.map(nm).join(" · ")}</span></p>
+          {corr(th.funds[0], th.funds[1]) != null && <p className="mfm-rl">They move together {corr2(corr(th.funds[0], th.funds[1])!)}.</p>}</div>}</div>
+      {cap.capped && <ShowAll n={cards.length} noun="pair" open={all} onToggle={() => setAll(!all)} controls="mfm-pairs" className="mfm-showall" />}
+      {none.length > 0 && <p className="sp-note mfm-none">{noneLine(none.map((o) => `${nm(o.a)} · ${nm(o.b)}`))}</p>}
     </Section>
   );
 }
@@ -237,16 +286,28 @@ export function SizesSection({ sp }: { sp: MfSpread }) {
 // ------------------------------------------------------------------------------------------------ the three sub-tabs
 type Sub = "hold" | "move" | "size";
 const SUB_OF: Record<string, Sub> = { "mfp-money": "hold", "mfp-secin": "hold", "mfp-move": "move", "mfp-shared": "move", "mfp-sizes": "size" };
-export function MixSubTabs({ sp, level, onLevel }: { sp: MfSpread; level: Level; onLevel: (l: Level) => void }) {
+/** The chosen sub-view; a step in the sections bar that sits under another sub-view opens it (the page's "eq-jump" event). */
+export function useSub(): [Sub, (s: Sub) => void] {
   const [sub, setSub] = useState<Sub>("hold");
   useEffect(() => { const on = (e: Event) => { const s = SUB_OF[(e as CustomEvent).detail as string]; if (s) setSub(s); }; addEventListener("eq-jump", on); return () => removeEventListener("eq-jump", on); }, []);
-  const TABS: [Sub, string, string][] = [["hold", "What they hold", "Shares, debt, gold and sectors"], ["move", "How funds move together", "NAV moves and shared stocks"], ["size", "Large, mid, small and micro", "Company sizes inside each fund"]];
+  return [sub, setSub];
+}
+const TABS: [Sub, string, string][] = [["hold", "What they hold", "Shares, debt, gold and sectors"], ["move", "How funds move together", "NAV moves and shared stocks"], ["size", "Large, mid, small and micro", "Company sizes inside each fund"]];
+/** Task #389 (file 32, Mix 1): the three sub-view tabs, drawn at the top of the view (MixTab); the selected (black) tab's second line is white at 78%. */
+export function SubBar({ sub, onSub }: { sub: Sub; onSub: (s: Sub) => void }) {
+  return <div className="eqd-subbar mfm-subtabs" role="tablist" aria-label="Mix and overlap views">{TABS.map(([k, t, s]) => <button key={k} type="button" role="tab" aria-selected={sub === k} className={sub === k ? "on" : ""} onClick={() => onSub(k)}><b>{t}</b><small>{s}</small></button>)}</div>;
+}
+export function SubBody({ sp, sub, level, onLevel }: { sp: MfSpread; sub: Sub; level: Level; onLevel: (l: Level) => void }) {
   return <>
-    <div className="eqd-subbar mfm-subtabs" role="tablist" aria-label="Mix and overlap views">{TABS.map(([k, t, s]) => <button key={k} type="button" role="tab" aria-selected={sub === k} className={sub === k ? "on" : ""} onClick={() => setSub(k)}><b>{t}</b><small>{s}</small></button>)}</div>
     {sub === "hold" && <><MoneySection sp={sp} /><SectorsInside sp={sp} level={level} onLevel={onLevel} /></>}
     {sub === "move" && <><MoveSection sp={sp} /><SharedSection sp={sp} /></>}
     {sub === "size" && <SizesSection sp={sp} />}
   </>;
+}
+/** The tabs with their sections right under them (kept for the tests and any page that wants them together). */
+export function MixSubTabs({ sp, level, onLevel }: { sp: MfSpread; level: Level; onLevel: (l: Level) => void }) {
+  const [sub, setSub] = useSub();
+  return <><SubBar sub={sub} onSub={setSub} /><SubBody sp={sp} sub={sub} level={level} onLevel={onLevel} /></>;
 }
 
 // ------------------------------------------------------------------------------------------------ 8 Biggest stocks, 9 Trend
@@ -259,7 +320,9 @@ export function BiggestSection({ rows, sp, readingOf, gold, mfOnly }: { rows: Bi
       sub={`The ${rows.length} largest holdings across your funds, and which funds hold them. Reading: ${mfOnly || !gold ? "names only on this plan" : "FinLit Prism"}.`}>
       <Scroll label="biggest stocks underneath"><table className="sp-tb mfm-big kit-grid"><thead><tr><th scope="col">Stock</th><th scope="col">Macro sector</th><th scope="col">Size</th><th scope="col" className="r">Of your funds</th><th scope="col">Held by</th><th scope="col">FinLit Prism</th></tr></thead>
         <tbody>{shown.map((r) => { const rd = readingOf(r.symbol); return <tr key={r.symbol ?? r.name}>
-          <th scope="row">{r.symbol ? <Link to={`/stocks/${r.symbol}`} title={coTitle({ symbol: r.symbol, name: r.name })}>{titleOf({ symbol: r.symbol, name: r.name })}</Link> : r.name}<small className="mfp-sub">{r.symbol ? subLine({ symbol: r.symbol, name: r.name }, r.name) : r.name}</small></th><td>{r.macro ?? "–"}</td><td>{r.size ? <span className="mfm-sz">{r.size[0]}</span> : "–"}</td>
+          {/* task #389 (file 32, Mix 9, W22): the company's short name first, its share code under it */}
+          <th scope="row">{r.symbol ? <Link to={`/stocks/${encodeURIComponent(r.symbol)}`} title={`${holdingName(r.name) || r.symbol}. Open the company report`}>{holdingShort(r.name, r.symbol)}</Link> : <span title={holdingName(r.name)}>{holdingShort(r.name)}</span>}
+            <small className="mfp-sub">{r.symbol ? codeText(r.symbol) : "Not matched to a listed company"}</small></th><td>{r.macro ?? "–"}</td><td>{r.size ? <span className="mfm-sz">{r.size[0]}</span> : "–"}</td>
           <td className="r">{(r.w * 100).toFixed(2)}%</td><td><span className="mfm-held">{r.funds.map((c) => <span key={c}>{nm(c)}</span>)}</span></td>
           <td>{mfOnly || !gold ? <Link to="/plans" className="mfm-lock">🔒 FinLit Prism · see plans</Link> : rd?.score != null ? <span className="mff-score"><b className={"mff-num " + tone(rd.word)}>{Math.round(rd.score)}</b> <span className={"mff-w " + tone(rd.word)}>{rd.word}</span></span> : <span className="sp-note">Not rated</span>}</td></tr>; })}</tbody></table></Scroll>
       {rows.length > 5 && <button type="button" className="eq-more" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer ▴" : `Show all ${rows.length} ▾`}</button>}
@@ -276,12 +339,13 @@ export function TrendUnder({ sp, gold }: { sp: MfSpread; gold: boolean }) {
 }
 
 export function MixTab({ sp, readingOf, gold, big, kf }: { sp: MfSpread; readingOf: (s: string | null) => Reading; gold: boolean; big: Big[]; /** task #275 (change 9): Key figures, under the main section */ kf?: ReactNode }) {
-  const [level, setLevel] = useLevel();
+  const [level, setLevel] = useLevel(), [sub, setSub] = useSub();
   return <>
+    <SubBar sub={sub} onSub={setSub} />
     <OwnSection sp={sp} level={level} onLevel={setLevel} readingOf={readingOf} gold={gold} />
     {kf}
     <SpreadSection sp={sp} />
-    <MixSubTabs sp={sp} level={level} onLevel={setLevel} />
+    <SubBody sp={sp} sub={sub} level={level} onLevel={setLevel} />
     {big.length > 0 && <BiggestSection rows={big} sp={sp} readingOf={readingOf} gold={gold} />}
     <TrendUnder sp={sp} gold={gold} />
   </>;

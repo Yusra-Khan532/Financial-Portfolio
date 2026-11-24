@@ -28,7 +28,7 @@ describe("MF portfolio top (M4)", () => {
   it("has one tile per tab, as the pack writes them", () => {
     expect(mfTiles(HS, SP, RK).map((t) => [t.id, t.k, t.v, t.sub])).toEqual([
       ["funds", "Your funds", "Average health · 62", "2 healthy · 3 average, by Fund Health Score"],
-      ["mix", "Mix & overlap", "Moves like 1.3 of 4", "The equity-type funds rise and fall almost as one; the most two share is 10%"],
+      ["mix", "Mix & overlap", "Moves like 1.3 of 4", "Equity-type funds move almost as one; the closest pair shares 10%"],
       ["risk", "Risk analytics", "Lower · β 0.71", "Each fund against its own benchmark; swings 9.6% a year vs 14.3%"]]);
     expect(mfTiles(HS, SP, RK).every((t) => t.help && t.how)).toBe(true);
   });
@@ -39,7 +39,7 @@ describe("MF portfolio top (M4)", () => {
       ["Liquid counts as a fund", "20%", "Until units are added, the liquid fund weighs as much as each equity fund.", "mfp-units"]]);
     expect(mixCards(SP).map((c) => [c.k, c.v, c.text])).toEqual([
       ["Move almost as one", "1.3 of 4", "Four equity-type funds with different labels behave like 1.3 independent funds."],
-      ["Little overlap in stocks", "10% at most", "The most two funds share is 10% of their money."],
+      ["Little overlap in stocks", "10% at most", "The closest pair of funds keeps 10% of its money in the same stocks."],
       ["Stocks underneath", "235", "36 are held through two or more funds; 9% of the shares sit in companies below ₹10,000 Cr."]]);
     expect(riskCards(RK).map((c) => [c.k, c.v, c.text])).toEqual([
       ["Moves less than its markets", "β 0.71", "Each fund against its own benchmark, the list has moved 0.71% for each 1%."],
