@@ -28,6 +28,8 @@ import "../styles/ai-top.css";
 import { buttonClass } from "./ui";
 import { WordOfDayButton, WordOfDayMenuItem, useWodInMenu } from "./WordOfDay";
 import { SheetTools } from "./SheetTools";
+import { HubChips, MobileMenu, MobileTabs, PhoneFootLinks, ToolsButton } from "./mobile/MobileApp";
+import { desktopSiteOn, setDesktopSite } from "../lib/mobileNav";
 
 /** One header dropdown, built from lib/nav.ts. */
 function Menu({ m, open, setOpen, path, extra }: { m: NavSection; open: boolean; setOpen: (v: string | null) => void; path: string; extra?: React.ReactNode }) {
@@ -167,6 +169,8 @@ function SlimFooter() {
           <div><span className="lg-mark" role="img" aria-label="FinLit" /><h2>Follow the numbers, not the noise.</h2></div>
           <nav aria-label="Footer"><Link to="/about">About</Link><Link to="/plans">Pricing</Link><Link to="/blog">Blog</Link><Link to="/faq">FAQs</Link><Link to="/browser-extension">Browser extension</Link><Link to="/contact">Contact</Link><Link to="/legal/terms">Terms</Link><Link to="/legal/privacy">Privacy</Link><Link to="/legal/disclosures">Disclosures</Link><Link to="/status">Status</Link></nav>
         </div>
+        <PhoneFootLinks />
+        {desktopSiteOn() && <p className="ma-back"><button type="button" className="btn" onClick={() => setDesktopSite(false)}>Back to the mobile site</button></p>}
         <div className="ffine"><span>{COMPANY.disclaimer} Market data may be delayed. Past performance does not indicate future results.</span><span>© {new Date().getFullYear()} {COMPANY.name}</span></div>
       </div>
     </footer>
@@ -192,6 +196,8 @@ function Footer() {
           <div><b>Company</b><Link to="/about">About</Link><Link to="/why-we-exist">Why we exist</Link><Link to="/browser-extension">Browser extension</Link><Link to="/services">Services</Link><Link to="/plans">Pricing</Link><Link to="/blog">Blog</Link><Link to="/forum">Discussion forums</Link><Link to="/companies">All companies</Link><Link to="/glossary">Glossary</Link><Link to="/faq">FAQs</Link><Link to="/mcp">Connect AI</Link><Link to="/contact">Contact</Link>
             <Link to="/legal/terms">Terms</Link><Link to="/legal/privacy">Privacy</Link><Link to="/legal/disclosures">Research disclosures</Link><Link to="/status">Status</Link>{!user && <Link to="/login">Sign in</Link>}</div>
         </div>
+        <PhoneFootLinks />
+        {desktopSiteOn() && <p className="ma-back"><button type="button" className="btn" onClick={() => setDesktopSite(false)}>Back to the mobile site</button></p>}
         <div className="ffine">
           <span>{COMPANY.disclaimer} Market data may be delayed. Past performance does not indicate future results.</span>
           <span>© {new Date().getFullYear()} {COMPANY.name}<br /><span className="ver" title="Quote this when you contact support">{versionLine()}</span><br /><Link to="/legal/terms">Terms</Link> · <Link to="/legal/privacy">Privacy</Link> · <Link to="/legal/disclosures">Disclosures</Link></span>
@@ -201,26 +207,7 @@ function Footer() {
   );
 }
 
-const OPEN_MENU = "finlit:open-menu", OPEN_SIDE = "finlit:open-side";
-
-/** Phones: an app-style bar along the bottom, so the main places are one thumb-tap away and the header can stay small.
- *  "Menu" opens the product drawer on pages that have one, the site menu everywhere else. */
-function MobileTabs({ onSearch }: { onSearch: () => void }) {
-  const { user } = useAuth();
-  const home = user ? "/dashboard" : "/";
-  const menu = () => dispatchEvent(new Event(document.querySelector(".shell") ? OPEN_SIDE : OPEN_MENU));
-  const tab = (to: string, icon: string, label: string, end = false) =>
-    <NavLink to={to} end={end} className={({ isActive }) => "mt-i" + (isActive ? " on" : "")}><Icon name={icon} /><span>{label}</span></NavLink>;
-  return (
-    <nav className="mtabs" aria-label="Quick navigation">
-      {tab(home, "home", user ? "Dashboard" : "Home", true)}
-      {tab("/research", "quality", "Research")}
-      <button type="button" className="mt-i mt-search" onClick={onSearch} aria-label="Search stocks, funds and ETFs"><span className="mt-orb"><Icon name="search" /></span><span>Search</span></button>
-      {tab("/screener", "table", "Screener")}
-      <button type="button" className="mt-i" onClick={menu} aria-label="Open the menu"><Icon name="panel" /><span>Menu</span></button>
-    </nav>
-  );
-}
+const OPEN_MENU = "finlit:open-menu";
 
 export function Layout() {
   useWarmMyCompanies();
@@ -257,13 +244,13 @@ export function Layout() {
         <Header onSearch={() => setSearch(true)} />
         {!bare && <ExtensionBanner />}
         <AdminViewStrip />
-        <main id="main">{!onAuth && <AccountNotice />}<ErrorBoundary key={loc.pathname}><Outlet /></ErrorBoundary><PageFaqs /></main>
+        <main id="main">{!bare && <HubChips />}{!onAuth && <AccountNotice />}<ErrorBoundary key={loc.pathname}><Outlet /></ErrorBoundary><PageFaqs /></main>
         {!bare && <Footer />}
         <SearchPalette open={search} onClose={() => setSearch(false)} />
         <AlertToasts />
         {!onAuth && <AssistantLauncher />}
         {!bare && <PageFeedbackHost />}
-        {!bare && <MobileTabs onSearch={() => setSearch(true)} />}
+        {!bare && <><MobileTabs /><MobileMenu /><ToolsButton /></>}
       </EnquiryProvider>
     </InfoProvider>
   );

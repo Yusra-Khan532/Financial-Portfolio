@@ -16,6 +16,7 @@ const SRC = join(process.cwd(), "src") + "/";
 
 /** Files whose charts carry the shared arrow: each must use ChartZoom (or MiniBars' zoomLabel). */
 const ZOOM = [
+  "pages/MarketsToday.tsx",   // the Nifty 50 line (docs/MOBILE-APP.md)
   // company page
   "charts/MiniBars.tsx", "charts/PriceChart.tsx", "charts/IntradayChart.tsx", "charts/FinChart.tsx", "charts/LineChart.tsx", "charts/RoeLines.tsx", "charts/Waterfall.tsx", "charts/Radar.tsx", "charts/OutlookChart.tsx",
   "stock/Sections.tsx", "stock/Sections2.tsx", "stock/Sections3.tsx", "stock/ChartLab.tsx", "stock/SegmentMix.tsx", "stock/ProfitReality.tsx", "stock/RevenueCash.tsx",
@@ -37,6 +38,7 @@ const OWN: { file: string; needle: RegExp; why: string }[] = [
 
 /** Drawings with nothing to enlarge: sparklines, gauges and rings that show one figure, decorative art, icons, tiny inline bars. */
 const EXEMPT: Record<string, string> = {
+  "components/mobile/MobileApp.tsx": "icons only: the Menu sheet's close mark and the Tools button's plus (docs/MOBILE-APP.md)",
   "portfolio/kit/AddBox.tsx": "the add box's magnifier icon (task #276); no data",
   "pages/IpoHistory.tsx": "only the toolbar's icons on All IPOs (task #308): magnifier, chevrons, More filters, ×, tick; no data",
   "superinvestors/Follow.tsx": "the bell icon of the Follow button (task #289); no data",

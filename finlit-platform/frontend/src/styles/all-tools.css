@@ -1,0 +1,19 @@
+/* All tools (pages/AllTools.tsx): tiles three to a row on a phone, more on a computer. Class prefix atl- (checked unused elsewhere). */
+.atl { max-width: 980px; padding-top: 12px; padding-bottom: 16px; }
+.atl-h h1 { margin: 4px 2px 2px; }   /* ui-title: the page title role */
+.atl-h p { margin: 0 2px; font-size: var(--fs-13); color: var(--muted); line-height: 1.45; }
+.atl-g { margin-top: 22px; }
+.atl-g h2 { margin: 0 2px 10px; font: 600 var(--fs-label)/1 var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+.atl-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (min-width: 640px) { .atl-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (min-width: 900px) { .atl-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+.atl-t { position: relative; display: flex; flex-direction: column; gap: 8px; min-height: 88px; padding: 11px 10px; border-radius: var(--r-ctl); background: var(--s1); border: 1px solid var(--border);
+  color: var(--text); text-decoration: none; }
+.atl-t:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.atl-i { display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--r-ctl); background: var(--gold-soft); color: var(--gold); }
+.atl-i svg { width: 17px; height: 17px; }
+.atl-t b { font: 600 var(--fs-13)/1.25 var(--font-sans); }
+.atl-tag { position: absolute; top: 8px; right: 8px; font: 700 var(--fs-12)/1 var(--font-sans); font-style: normal; letter-spacing: .04em; text-transform: uppercase; padding: 3px 5px; border-radius: var(--ui-r-mark); }
+.atl-tag.gold { background: var(--gold-soft); color: var(--gold); }
+.atl-tag.new { background: var(--gain-soft); color: var(--gain); }
+.atl-disc { margin: 24px 2px 4px; font-size: var(--fs-12); color: var(--faint); line-height: 1.5; }

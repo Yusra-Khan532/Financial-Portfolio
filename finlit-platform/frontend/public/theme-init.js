@@ -10,6 +10,8 @@
   if (d === "compact") root.setAttribute("data-density", d);
   // The opening logo animation plays once per browser session: a visitor who has already seen it this session goes straight in.
   try { if (sessionStorage.getItem("finlit-splash") === "1") root.setAttribute("data-splash", "seen"); } catch (e) {}
+  // "Desktop site" chosen in the phone Menu (lib/mobileNav.ts): lay the page out 1180px wide before the first paint, so the desktop site shows
+  try { if (localStorage.getItem("finlit-desktop-site") === "1") { var vp = document.querySelector('meta[name="viewport"]'); if (vp) vp.setAttribute("content", "width=1180"); } } catch (e) {}
   // The member's palette, saved as ready-made variables by the app, so the first paint is already in their colours.
   try {
     var v = pv && JSON.parse(pv);

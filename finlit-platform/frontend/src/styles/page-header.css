@@ -60,6 +60,17 @@ section.ph.card { padding: 14px 18px 16px; }
   .ph-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ph-learn, .ph-qbtn { min-height: 40px; }
 }
+/* The phone app (docs/MOBILE-APP.md, checklist 24): under 860px the header is one compact card: no eyebrow, a two-line description, a one-line
+   note, and the quick links in one sideways row instead of a stack of buttons (the IPO header was 394px tall, 250px of it links). */
+@media (max-width: 860px) {
+  :root:root main .ph { padding: 14px; margin-block: 10px 12px; gap: 8px; }
+  :root:root main .ph-eyebrow { display: none; }
+  :root:root main .ph-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: var(--fs-14); line-height: var(--lh-14); }
+  :root:root main .ph-meta { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+  :root:root main .ph-row { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -14px; padding: 2px 14px; align-self: stretch; }
+  :root:root main .ph-row::-webkit-scrollbar { display: none; }
+  :root:root main .ph-row > * { flex: none; }
+}
 @media print { .ph { animation: none; } .ph-art-box { display: none; } }
 
 /* Task #345 (23 Nov 2026, Mutual funds list page): a header button with a gold edge and a gold crown (Fund industry trends, Import my funds). */
