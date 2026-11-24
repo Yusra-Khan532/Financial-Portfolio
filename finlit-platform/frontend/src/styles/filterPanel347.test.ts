@@ -24,8 +24,8 @@ describe("Mutual funds filter panel (task #347)", () => {
     expect(page).toContain('return v ? v !== "closed" : !(typeof window !== "undefined" && window.matchMedia?.("(max-width: 760px)").matches);');   // nothing saved: open on a desktop, folded on a phone
     expect(css).toMatch(/\.mf-list \.mf-layout\.closed \{ grid-template-columns: 44px minmax\(0, 1fr\); \}/);
   });
-  it("the fund types as sections; the open one is the type shown", () => {
+  it("the fund types as sections; opening one shows that type (task #362: all start closed, one open at a time)", () => {
     expect(dash).toContain('<section className="mf-catpick mf-catside" aria-label="Choose categories">');
-    expect(dash).toMatch(/aria-expanded=\{open\}[^>]*onClick=\{\(\) => \{ if \(!open\) onTab\(t\.key\); \}\}/);
+    expect(dash).toMatch(/aria-expanded=\{open\}[^>]*onClick=\{\(\) => \{ if \(open\) \{ setExp\(null\); return; \} if \(!used\) onTab\(t\.key\); setExp\(t\.key\); \}\}/);
   });
 });
