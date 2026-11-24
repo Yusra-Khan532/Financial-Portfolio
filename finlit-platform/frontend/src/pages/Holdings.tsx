@@ -424,6 +424,76 @@ export function HoldingsPage() {
     ...(view === "diversification" ? ["Moving together: the past year of weekly closes"] : []),
     ...(view === "risk" && rk.data?.to ? [`Risk figures: weekly closes to ${dayOf(rk.data.to)}`] : [])].filter(Boolean);
 
+  // ---------------------------------------------------------------- task #385 (developer file 33)
+  const nameOfSym = (sym: string) => { const y = shareOf.get(sym); return y ? coName(y) : shortCo(meta[sym]?.name ?? by.get(sym)?.name, sym); };
+  // open item 10: one price date for the page, the latest close behind the shares' own prices (the title row and Data as of)
+  const priceDay = useMemo(() => { const ds = (ov.data?.holdings ?? []).map((h) => (h.status === "ready" ? h.priceAsOf : null)).filter((d): d is string => !!d).sort(); return ds.length ? ds[ds.length - 1] : null; }, [ov.data]);
+  // the four calm cards
+  const cardsIn: CardsInput = useMemo(() => {
+    const sc5 = shares.filter((x) => x.prism != null), mean = sc5.length ? sc5.reduce((a, x) => a + (x.prism as number), 0) / sc5.length : null;
+    const avg = byValue?.prism ?? mean, words = ["Strong", "Healthy", "Average", "Weak", "Poor"];
+    const sp = ids.length < 2 ? null : byValue?.spread ?? page?.score ?? null,   // a one-share list has no spread to read
+    m = byValue?.market ?? page?.market.eq ?? null;
+    return { locked: !scoreOn, score: scA ? { total: scA.total ?? null, band: scA.band ?? null } : null,
+      strength: model === "prism" ? { avg, word: avg == null ? null : prismWord5(avg), byValue: byValue?.prism != null, counts: words.map((w): [string, number] => [w, sc5.filter((x) => prismWord5(x.prism as number) === w).length]) } : null,
+      spread: sp ? { score: Math.round(sp.score), word: sp.band, byCount: byValue?.spread && page ? page.score.score : null } : null,
+      risk: m ? { beta: m.beta, swing: m.vol, swingIndex: m.vol_nifty, bench: "NIFTY 50", byValue: !!byValue?.market, to: page?.to ?? null } : null };
+  }, [shares, byValue, page, scA, scoreOn, model, ids]);
+  const [sixOpen, setSixOpen] = useState(false);
+  // since your last visit: the visit before this one (POST /api/visits/equity-portfolio) and the filings of the last 90 days
+  const wcFiled = (wcQ.q.data?.companies ?? []).filter((c) => Object.keys(c.ev).length > 0).length;
+  const since = sinceText(wcQ.lastVisit ? dayMonth(wcQ.lastVisit) : null, wcQ.newN, wcFiled, symbols.length, wcQ.rows.length, wcQ.q.data?.days ?? 90);
+  // where the gain or loss came from: value now minus what was paid, for each share held now
+  const glRows = useMemo(() => { const rows: GLRow[] = []; let noPrice = 0;
+    symbols.forEach((sym) => { const f = holdingFigs(lots, sym); if (f.a?.qty === 0) return; if (f.gain == null) { if (f.a?.qty && f.a.invested == null) noPrice++; return; }
+      rows.push({ symbol: sym, name: nameOfSym(sym), gain: f.gain, pct: f.gainPct }); });
+    return { rows, noPrice }; }, [symbols, st.holdings, cur, byOv]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const hasLaggard = shares.some((x) => x.peer?.label === "laggard");
+  const [leaderLine, setLeaderLine] = useState("");
+  const inShortItems = useMemo(() => { const m = new Map<string, string>(); ids.forEach((x) => m.set(x, nameOfSym(x)));
+    return (page?.summary.eq ?? []).map((r) => ({ ...r, text: namesInText(r.text, m) })); }, [page, ids, shareOf, meta]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // the summary line of each folded section on a phone (All sections)
+  const kf = portfolioKeyFigs(shares, model === "prism"), kfTrend = kf.find((c) => c.q === "Are their prices rising?");
+  const lines385 = {
+    wc: !wcQ.q.data ? "Reading what your companies filed…" : `${countOf(wcQ.rows.length, "update")} from ${wcFiled} of your ${countOf(symbols.length, "company")} in the last ${wcQ.q.data.days ?? 90} days`,
+    trend: kfTrend ? `${kfTrend.big} ${kfTrend.ans}${kfTrend.sub ? ` · ${kfTrend.sub}` : ""}` : "Where each share's short-term trend sits against its long-term one",
+    peers: peerSentence(shares).split(/(?<=\.)\s/)[0],
+    leaders: "Your laggards against the #1 share of their peer group",
+    themes: thShares ? `${thShares.placed} of ${countOf(thShares.total, "share")} ${thShares.placed === 1 ? "is" : "are"} placed in a theme; ${countOf(thShares.themes.length, "main theme")} between them.` : "Reading Discover's themes…",
+  };
+  // one section at a time: the steps of each view (Portfolio's first step holds Your shares, the gain or loss and Key figures)
+  const stepsOf = (v: View): StepDef[] => v === "portfolio" ? [
+      { id: "pf-shares", label: "Your shares", secs: ["pf-shares", "eq-gl", "eq-keys", "pf-sold"] },
+      ...(DEMO ? [] : [{ id: "eq-wc", label: "What changed", secs: ["eq-wc"], badge: wcQ.newN ? `${wcQ.newN} new` : undefined }]),
+      { id: "eq-trend", label: "Trends", secs: ["eq-trend"] }, { id: "eq-peers", label: "Peers", secs: ["eq-peers"] },
+      ...(model !== "prism" || hasLaggard ? [{ id: "eq-leaders", label: "Group leaders", secs: ["eq-leaders"] }] : []),
+      ...(DEMO ? [] : [{ id: "eq-themes", label: "Themes", secs: ["eq-themes"] }]),
+      ...(inShortItems.length ? [{ id: "eq-short", label: "In short", secs: ["eq-short"] }] : [])]
+    : v === "diversification" ? [{ id: "eq-spread", label: "Spread", secs: ["eq-spread"] }, { id: "eq-where", label: "Where it sits", secs: ["eq-where"] }, { id: "eq-keysd", label: "Key figures", secs: ["eq-keysd"] },
+      { id: "eq-moves", label: "Moving together", secs: ["eq-moves", "eq-sectors", "eq-groups", "eq-sizes"] }, { id: "eq-grid", label: "Share by share", secs: ["eq-grid"] }, { id: "eq-style", label: "Style tilt", secs: ["eq-style"] },
+      ...(inShortItems.length ? [{ id: "eq-short", label: "In short", secs: ["eq-short"] }] : [])]
+    : [{ id: "eq-rg", label: "At a glance", secs: ["eq-rg"] }, { id: "eq-keysr", label: "Key figures", secs: ["eq-keysr"] }, { id: "eq-build", label: "Beta build", secs: ["eq-build", "eq-read"] }, { id: "eq-sizeb", label: "Size benchmarks", secs: ["eq-sizeb"] },
+      { id: "eq-mr", label: "Risk share", secs: ["eq-mr"] }, { id: "eq-fall", label: "If the market fell", secs: ["eq-fall"] }, { id: "eq-each", label: "Each share", secs: ["eq-each"] },
+      ...(inShortItems.length ? [{ id: "eq-short", label: "In short", secs: ["eq-short"] }] : [])];
+  const steps = stepsOf(view);
+  const secsLive: Record<View, { label: string; secs: Sec[] }> = { portfolio: { label: "Portfolio", secs: stepsOf("portfolio").map((x): Sec => [x.id, x.label, x.badge]) },
+    diversification: { label: "Diversification analytics", secs: stepsOf("diversification").map((x): Sec => [x.id, x.label]) }, risk: { label: "Risk analytics", secs: stepsOf("risk").map((x): Sec => [x.id, x.label]) } };
+  const [stepBy, setStepBy] = useState<Partial<Record<View, string>>>({});
+  const step = stepBy[view] && (stepBy[view] === "all" || steps.some((x) => x.id === stepBy[view])) ? stepBy[view]! : steps[0]?.id ?? "all";
+  /** Show the step that holds a section (or "all"); `jump` then scrolls to the section, otherwise to the top of the view when the page is below it. */
+  const goStep = (id: string, jump = true) => {
+    const to = id === "all" ? "all" : stepOf(stepsOf(view), id) ?? stepOf(steps, id) ?? id;
+    setStepBy((x) => ({ ...x, [view]: to }));
+    setTimeout(() => { const el = jump && id !== to ? document.getElementById(id) : null; if (el) { jumpTo(id); return; }
+      const bar = document.getElementById("eq-panel"); if (bar && bar.getBoundingClientRect().top < 0) bar.scrollIntoView?.({ behavior: "smooth", block: "start" }); }, 80);
+  };
+  const showAllSecs = () => goStep("all", false);
+  useEffect(() => { const f = (e: Event) => { const id = (e as CustomEvent<string>).detail; if (typeof id === "string") goStep(id); }; addEventListener("eq-step", f); return () => removeEventListener("eq-step", f); });
+  const asOfParts = [priceDay ? `Prices: close of ${dayOf(priceDay)}` : "",
+    ...(view === "portfolio" ? [`Filings: the last ${wcQ.q.data?.days ?? 90} days`, thShares?.updated ? `Themes: to ${dayOf(thShares.updated, true)}` : ""] : []),
+    ...(view === "diversification" ? ["Moving together: the past year of weekly closes"] : []),
+    ...(view === "risk" && rk.data?.to ? [`Risk figures: weekly closes to ${dayOf(rk.data.to)}`] : [])].filter(Boolean);
+
   return (
     <HideSlim.Provider value={true}><HideButtons.Provider value={false}><div className="wrap ipo pfx sp eq">
       <Gate tier={PLAN_FOR_PORTFOLIO} title="Score your portfolio" points={["FinLit Prism for every share you own (Gold)", "How spread out the list is, and what moves together", "Share of risk and the NIFTY 50 comparison", "Import Excel, CSV or PDF statements"]}>
