@@ -6,6 +6,7 @@
 // 10 AI summaries, counted apart from the FinLit AI questions. Anyone else, or when written answers are off or the summaries are used, gets an
 // instant summary of what the card means, written from the card itself, said plainly as such. Neither repeats the scores: they are on the card.
 // Describes; never advises: the AI's own checks apply, and the card summary only puts the card into words.
+import { AiFeedback } from "../components/AiFeedback";   // task #366
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -198,7 +199,8 @@ export function PrismAiSummary({ symbol, name, r, parts, a, scoredAt }: { symbol
           {state.kind === "done" && <>
             <AnswerText text={state.text} />
             <p className="pai2-meta"><span>Written by FinLit AI from this card{day ? ` (scores of ${day})` : ""} · {stamp(state.at)}{state.cached ? " · written earlier today, opened free" : ""} · {DISCLAIMER}</span>
-              <button type="button" className="pai2-x" onClick={() => setHidden(true)}>Hide</button></p></>}
+              <button type="button" className="pai2-x" onClick={() => setHidden(true)}>Hide</button></p>
+            <AiFeedback surface="prism_summary" refKey={`${symbol}|${scoredAt?.slice(0, 10) || "-"}`} text={state.text} label="this summary" /></>}
           {state.kind === "empty" && own(state.reason, true)}
           {state.kind === "card" && own(state.note, false)}
         </div>)}

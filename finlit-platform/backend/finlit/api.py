@@ -46,6 +46,7 @@ from .mfscore import admin as mf_score_admin
 from . import graphviews as graphviews_api
 from . import forum as forum_api
 from . import page_feedback as page_feedback_api
+from . import ai_feedback as ai_feedback_api   # task #366
 from . import dcf as dcf_api
 from . import logos as logos_api
 from . import amfi_import as amfi_import_api
@@ -846,6 +847,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(graphviews_api.router)
     app.include_router(forum_api.router)
     app.include_router(page_feedback_api.router)
+    app.include_router(ai_feedback_api.router)   # task #366: thumbs up / down on AI-written text
     app.include_router(dcf_api.router)
     app.include_router(__import__("finlit.stress.router", fromlist=["router"]).router)   # /api/stress/*: Stress Lab (Silver page, Gold runs)
     app.include_router(options_api.router)
