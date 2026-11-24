@@ -16,6 +16,7 @@ const Contact = lazy(() => import("./pages/Contact").then((m) => ({ default: m.C
 const FaqsPage = lazy(() => import("./pages/Faqs").then((m) => ({ default: m.FaqsPage })));
 import { Legal, NotFound } from "./pages/Legal";
 const Login = lazy(() => import("./pages/Login").then((m) => ({ default: m.Login })));
+const Unsubscribe = lazy(() => import("./pages/Unsubscribe").then((m) => ({ default: m.Unsubscribe })));
 import { ForgotPassword, ResetPassword, VerifyEmail } from "./pages/AccountFlows";
 
 // Heavier pages load on demand so the first visit stays small and fast.
@@ -202,6 +203,7 @@ export default function App() {
           <Route path="blog/:slug" element={<BlogPost />} />
           <Route path="legal/:doc" element={<Legal />} />
           <Route path="login" element={<Login />} />
+          <Route path="unsubscribe" element={<Unsubscribe />} />
           <Route path="verify-email" element={<VerifyEmail />} />
           <Route path="forgot-password" element={<ForgotPassword />} />
           <Route path="reset-password" element={<ResetPassword />} />

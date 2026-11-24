@@ -94,7 +94,8 @@ Written 17 Nov 2026 from a full read of the repository, the team workspace and t
   | NSE archives | Sectors, flows, transcripts |
   | RBI, MoSPI, World Bank, FBIL, NSDL, EIA | Macro data |
   | Gemini | Summaries |
-  | Resend | Email |
+  | Resend | Email (sign-up codes, alerts; Gmail "Send mail as" contact@) |
+  | Amazon SES (Sydney) | Bulk mail from contact@finlitventures.com: Console > Email (`finlit/mailer.py`, task #387). Key: IAM user finlit-ses-sender (send-only) in `SES_REGION`, `SES_ACCESS_KEY_ID`, `SES_SECRET_ACCESS_KEY`. Out of the sandbox since 24 Nov 2026: 50,000 a day, 14 a second |
 - **Plans:**
   - `auth/entitlements.py` holds `RANK`, `has()`, `LIMITS` and the `redact_*` functions.
   - Every route checks the plan itself (24 files); there is no central dependency, so **a new route must add its own check**.
