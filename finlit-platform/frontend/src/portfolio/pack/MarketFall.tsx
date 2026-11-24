@@ -14,6 +14,7 @@ export type FallProps = {
   worst?: { pct: number; line: string } | null; value: { now: number; name?: string } | null; idx?: string; after?: ReactNode; extraNote?: string;
   /** the heading's word: "market" (Equity) or "Nifty 500" (MF, ETF, All my investments) */ what?: string;
   /** no rupee line at all (All my investments shows no ₹ until quantities are in) */ noRupees?: boolean;
+  /** the word after the gap in the chip: "pts" (default) or, on the Equity portfolio (task #385, no "pts" on that page), "points" */ unit?: string;
 };
 
 const f1 = (v: number) => `${v < 0 ? "−" : v > 0 ? "+" : ""}${Math.abs(v).toFixed(1)}%`;
@@ -21,12 +22,12 @@ const fs = (n: number) => String(Math.round(n * 10) / 10);
 const H = 140;
 
 /** The figures for one size of fall F (in %) and one scenario: the list's fall, the chip, the rupee line, the bars and the scale (pack market-fall.js). */
-export function fallFigures(p: Pick<FallProps, "scenarios" | "parts" | "value" | "idx">, F: number, i: number) {
+export function fallFigures(p: Pick<FallProps, "scenarios" | "parts" | "value" | "idx" | "unit">, F: number, i: number) {
   const d = p.scenarios[i]?.beta != null && !p.scenarios[i].na ? p.scenarios[i] : p.scenarios[0], idx = p.idx ?? "market";
   const big = d.beta == null ? null : -Math.round(d.beta * F * 10) / 10;
   const diff = big == null ? 0 : Math.abs(big) - F;
   const chip = big == null ? null : Math.abs(diff) < 0.05 ? { cls: "eq", text: `About the same as the ${idx}` }
-    : { cls: diff > 0 ? "more" : "less", text: `${Math.abs(diff).toFixed(1)} pts ${diff > 0 ? "more" : "less"} than the ${idx}’s ${fs(F)}%` };
+    : { cls: diff > 0 ? "more" : "less", text: `${Math.abs(diff).toFixed(1)} ${p.unit === "points" && Math.abs(diff).toFixed(1) === "1.0" ? "point" : p.unit ?? "pts"} ${diff > 0 ? "more" : "less"} than the ${idx}’s ${fs(F)}%` };
   const on = p.value && p.value.now > 0 ? p.value : null;
   const rs = big == null ? null : { v: `−${lk(((on?.now ?? 1e6) * Math.abs(big)) / 100)}`, x: on ? `on your ${lk(on.now)} value now${on.name && on.name !== "All accounts" ? ` in ${on.name}` : ""}` : "on ₹10 lakh" };
   const parts = p.parts.map((x) => ({ ...x, fall: -Math.round(x.beta * F * 10) / 10 }));

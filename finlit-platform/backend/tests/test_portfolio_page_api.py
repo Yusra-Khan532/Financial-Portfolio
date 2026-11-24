@@ -171,6 +171,15 @@ async def test_task_183_risk_by_size_each_share_against_its_own_index(app):  # n
     assert sum(s["n"] for s in j["sizes"]) == j["counted"] == len(counted)
     assert j["betas"]["weighted"] == round(sum((s["avgBeta"] or 0) * s["listShare"] / 100 for s in j["sizes"]), 2) or abs(j["betas"]["weighted"] - sum((s["avgBeta"] or 0) * s["listShare"] / 100 for s in j["sizes"])) < 0.02
     assert j["glance"]["list"]["swing"] > 0 and j["glance"]["nifty"]["worstFall"] <= 0 and j["glance"]["worst10"]["nifty"] < 0
+    assert j["basis"] == "equal" and "byValue" not in j and j["glance"]["nifty"]["grain"] == "weekly"   # task #385 open item 1: the index read weekly, as the shares
+    # task #385 (open item 7): with a quantity for every share the answer adds the same figures by what is held now; one share without a quantity keeps equal amounts
+    syms = list(SAMPLE)
+    v = (await silver.post("/api/portfolio/risk", json={"symbols": syms, "qty": [10 * (i + 1) for i in range(len(syms))]})).json()
+    assert v["byValue"]["basis"] == "value" and v["noQuantity"] == [] and v["betas"] == j["betas"]
+    assert abs(sum(x["listShare"] or 0 for x in v["byValue"]["shares"]) - 100) < 0.5 and v["byValue"]["betas"]["weighted"] is not None
+    part = (await silver.post("/api/portfolio/risk", json={"symbols": syms, "qty": [None] + [5] * (len(syms) - 1)})).json()
+    assert "byValue" not in part and part["noQuantity"] == [syms[0]]
+    assert (await silver.post("/api/portfolio/risk", json={"symbols": syms, "qty": [-1] * len(syms)})).status_code == 422
 
 
 async def test_task_183_card_and_page_agree_when_nse_levels_are_stored(app):  # noqa: F811

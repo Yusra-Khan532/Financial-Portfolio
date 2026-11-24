@@ -6,7 +6,7 @@ import { Link } from "react-router";
 import { Info } from "./parts";
 import { jumpTo } from "../pack/PageTop";
 
-export type KeyBarPart = { label: string; n: number; c: string };
+export type KeyBarPart = { label: string; n: number; c: string; /** the figure as printed in the legend (default: n, one decimal) */ shown?: string };
 export type WorthName = { symbol: string; label: string; note?: string };
 export type KeyFig = {
   /** the card's question, numbered on the page */ q: string;
@@ -37,8 +37,8 @@ export function KeyFigures({ id, sub, cards, about = "Key figures" }: { id: stri
           {c.rows ? <div className="eqkf-rows" role="img" aria-label={c.rows.map((r) => `${r.label} ${r.v.toFixed(2)}`).join(", ") + "; line at 1.00"}>
             {c.rows.map((r) => <div key={r.label} className="eqkf-row"><span>{r.label}</span><span className="eqkf-track"><i style={{ width: `${(r.v / max) * 100}%` }} /><b style={{ left: `${(1 / max) * 100}%` }} aria-hidden="true" /></span><em>{r.v.toFixed(2)}×</em></div>)}</div>
           : c.bar && tot > 0 && <>
-            <span className="eqkf-bar" role="img" aria-label={c.bar.map((b) => `${b.label} ${fmt(b.n)}`).join(", ")}>{c.bar.map((b) => <i key={b.label} style={{ width: `${(b.n / tot) * 100}%`, background: b.c }} />)}</span>
-            <ul className="eqkf-leg" aria-hidden="true">{c.bar.map((b) => <li key={b.label}><i style={{ background: b.c }} />{b.label} <b>{fmt(b.n)}</b></li>)}</ul></>}
+            <span className="eqkf-bar" role="img" aria-label={c.bar.map((b) => `${b.label} ${b.shown ?? fmt(b.n)}`).join(", ")}>{c.bar.map((b) => <i key={b.label} style={{ width: `${(b.n / tot) * 100}%`, background: b.c }} />)}</span>
+            <ul className="eqkf-leg" aria-hidden="true">{c.bar.map((b) => <li key={b.label}><i style={{ background: b.c }} />{b.label} <b>{b.shown ?? fmt(b.n)}</b></li>)}</ul></>}
           {c.worth && c.worth.names.length > 0 && <p className="eqkf-worth"><em>{c.worth.label}</em><WorthNames names={c.worth.names} /></p>}
           <button type="button" className="eqkf-go" onClick={() => { if (c.sort) window.dispatchEvent(new CustomEvent("eq-sort", { detail: c.sort })); window.dispatchEvent(new CustomEvent("eq-step", { detail: c.to })); setTimeout(() => jumpTo(c.to), 80); }}>{c.go} →</button>
         </article>; })}</div>

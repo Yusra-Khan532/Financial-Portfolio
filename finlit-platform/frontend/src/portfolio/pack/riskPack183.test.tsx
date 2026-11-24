@@ -6,7 +6,9 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../lib/auth", () => ({ useAuth: () => ({ user: null }) }));
-import { BetaBuild, EachShareRisk, Fall10, RiskGlancePack, RiskShareSection, SizeBench, riskKeys, riskSplit } from "./RiskPack";
+globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} } as never;   // task #385: the tables keep their first column (HScroll)
+import { BetaBuild, EachShareRisk, Fall10, RiskGlancePack, RiskShareSection, SizeBench, riskSplit } from "./RiskPack";
+import { riskKeyFigs } from "./risk385";
 import { fallLines, glanceTiles, readingFigures, riskLede, type RiskAnswer, type RiskShare } from "../../lib/eqRisk";
 import type { PageObject } from "../types";
 
@@ -41,39 +43,45 @@ describe("risk at a glance (E72)", () => {
       ["Typical swing in a year · 3 yrs", "25.9%", "13.1%", "About 2.0 times as bumpy as the index."], ["Worst fall from a high · 3 yrs", "−24.6%", "−14.9%", "Deeper than the index."],
       ["In the 10 worst weeks · past year", "−3.9%", "−2.7%", "Falls more when the market falls."], ["Beta, size-weighted", "1.82", "1.13", "More sensitive than its market (its own benchmarks)."]]);   // task #274: under it, the whole list's beta against the index compared with (Nifty 50 here)
     view(<RiskGlancePack r={R} split={split} />);
-    expect(screen.getByText(/beta for 10 shares \(FRACTAL has under a year of prices\)/)).toBeTruthy();
+    // task #385 (open item 3): the shares left out of the beta and the swing are named, with why; the measuring notes are one small line
+    expect(document.querySelector(".eqr-cover")!.textContent).toBe("FRACTAL has under a year of prices: left out of the beta and the list's swing; its own swing shows in Each share's risk.");
+    expect(document.querySelector(".eqr-meas")!.textContent).toMatch(/all to 13 Nov 2026 · 10 shares counted$/);
   });
   it("names the key figures: how the list moves, which size carries the risk, the highest beta", () => {
-    expect(riskKeys(R, split).map((c) => [c.k, c.v])).toEqual([["Moves more than its markets", "β 1.82"], ["Small companies carry the risk", "90%"], ["Highest beta", "S8 2.15"]]);
+    // task #385: the shared Key figures, beta in plain words
+    expect(riskKeyFigs(R, split.bySize, (x) => x, "equal").map((c) => [c.q, c.big, c.ans])).toEqual([["How much does your list move with the market?", "1.82×", "as much as its markets move"],
+      ["Where do the ups and downs come from?", "90%", "from small companies"], ["Which share moves most with the market?", "2.15×", "S8"]]);
   });
 });
 
 describe("how the beta is built, and reading a beta (E73–E78)", () => {
   it("adds each size's part to the size-weighted beta, and shows the three beta figures", () => {
     view(<BetaBuild r={R} />);
-    expect(document.querySelector(".eqr-sum")!.textContent).toMatch(/1\.82.*0\.10 \+ 0\.14 \+ 1\.58/);
+    expect(document.querySelector(".eqr-sum")!.textContent).toMatch(/1\.82×.*0\.10 \+ 0\.14 \+ 1\.58/);
     // task #235 (pack B4): two cards always shown, then four tabs with By size open
-    expect(document.querySelector(".eqb-sum")!.textContent).toMatch(/Your list's beta1\.82.*Has moved about 18\.2% when its benchmarks moved 10%.*What adds up to 1\.82.*Small β 1\.98 × 80% = 1\.58/);
+    expect(document.querySelector(".eqb-sum")!.textContent).toMatch(/Moves with its markets1\.82×.*has moved about 18\.2% when they moved 10%.*What adds up to 1\.82×.*Small moves 1\.98×, on 80% of the list: adds 1\.58/);
+    expect(document.querySelector(".eqb-sum")!.textContent).not.toMatch(/β/);
     expect(screen.getAllByRole("tab").map((t) => `${t.querySelector("b")!.textContent}${t.getAttribute("aria-selected") === "true" ? "*" : ""}`)).toEqual(["By size*", "Where your shares sit", "Three ways to measure", "How it is worked out"]);
     expect(document.querySelector(".eqr-steps")).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: /How it is worked out/ }));
     expect(document.querySelector(".eqr-sum")).toBeNull();
-    expect(Array.from(document.querySelectorAll(".eqr-steps b")).map((b) => b.textContent)).toEqual(["Sort by size", "Match a benchmark", "Beta for each share", "Average by size", "Weight by the list"]);
+    expect(Array.from(document.querySelectorAll(".eqr-steps b")).map((b) => b.textContent)).toEqual(["Sort by size", "Match a benchmark", "Measure each share", "Average by size", "Weight by the list"]);
     fireEvent.click(screen.getByRole("tab", { name: /Three ways to measure/ }));
-    expect(Array.from(document.querySelectorAll(".eqr-b3 .eqr-v b")).map((b) => b.textContent)).toEqual(["1.82", "1.86", "1.13"]);
+    expect(Array.from(document.querySelectorAll(".eqr-b3 .eqr-v b")).map((b) => b.textContent)).toEqual(["1.82×", "1.86×", "1.13×"]);
+    expect(Array.from(document.querySelectorAll(".eqr-b3 .eqr-tag")).map((b) => b.textContent)).toEqual(["Headline figure", "Alternate", "Alternate"]);   // open item 13
   });
   it("filters by size, lists at most 6 names per range with Show all, and places a tapped share on the scale", () => {
     view(<BetaBuild r={R} />);
     fireEvent.click(screen.getByRole("tab", { name: /Where your shares sit/ }));
     const vh = document.querySelector(".eqr-range.r-very_high")!;
-    expect(vh.querySelectorAll("li")).toHaveLength(6);
-    fireEvent.click(within(vh as HTMLElement).getByRole("button", { name: "Show all 8 ▾" }));
+    expect(vh.querySelectorAll("li")).toHaveLength(5);   // task #385: a range with more than 7 shares shows 5
+    fireEvent.click(within(vh as HTMLElement).getByRole("button", { name: "Show all 8 shares" }));
     expect(vh.querySelectorAll("li")).toHaveLength(8);
     fireEvent.click(within(vh as HTMLElement).getByRole("button", { name: /S8/ }));
-    expect(screen.getByText(/S8: 2\.15 against Nifty Smallcap 250, very high/)).toBeTruthy();
-    expect(Array.from(document.querySelectorAll(".eqr-pin")).map((p) => p.textContent)).toContain("2.15 S8 Very high");
+    expect(screen.getByText(/S8: 2\.15× as much as the Nifty Smallcap 250, very high/)).toBeTruthy();
+    expect(Array.from(document.querySelectorAll(".eqr-pin")).map((p) => p.textContent)).toContain("2.15× S8 Very high");
     fireEvent.click(screen.getByRole("button", { name: "Large" }));
-    expect(Array.from(document.querySelectorAll(".eqr-f4 b")).map((b) => b.textContent)).toEqual(["0.95", "about 9.5%", "0 of 1", "0 of 1"]);
+    expect(Array.from(document.querySelectorAll(".eqr-f4 b")).map((b) => b.textContent)).toEqual(["0.95×", "about 9.5%", "0 of 1", "0 of 1"]);
     expect(readingFigures(shares, 1.82)[2].v).toBe("9 of 10");   // High or Very high: MIDCO (1.40) and the eight smalls (1.80 to 2.15)
   });
 });
@@ -82,21 +90,21 @@ describe("each size, the risk split, a 10% fall (E79–E81)", () => {
   it("shows each size against its own index: 1 year, per 100 in down and up weeks", () => {
     view(<SizeBench r={R} />);
     const rows = Array.from(document.querySelectorAll(".eqr-sb tbody tr")).map((r) => r.textContent);
-    expect(rows[0]).toBe("Large· 1 shareNifty 50+13.6%−2.1%74per 100116per 100");
+    expect(rows[0]).toBe("Large· 1 shareNifty 50Yours +13.6%Index −2.1%74per 100116per 100Rises more, falls less");
   });
   it("splits the list and the risk by size, sector or share; the risk adds to 100% and the share view adds Beta and Reading", () => {
     view(<RiskShareSection r={R} split={split} />);
     const risk = () => Array.from(document.querySelectorAll(".eqr-rs tbody td:last-child")).map((t) => parseFloat(t.textContent!));
     expect(Math.round(risk().reduce((a, b) => a + b, 0))).toBe(100);
     fireEvent.click(screen.getByRole("button", { name: "By share" }));
-    expect(Array.from(document.querySelectorAll(".eqr-rs thead th")).map((t) => t.textContent)).toEqual(["Share", "Bars", "Beta", "Reading", "List", "Risk"]);
+    expect(Array.from(document.querySelectorAll(".eqr-rs thead th")).map((t) => t.querySelector("button")?.textContent ?? t.textContent)).toEqual(["Share", "Bars", "Moves with its index", "Range", "List", "Ups and downs▼"]);
     expect(document.querySelector(".eqr-rs tbody tr.more")).toBeTruthy();   // shaded: more of the risk than of the list
   });
   it("sizes a 10% fall from the betas and puts it on ₹10 lakh", () => {
     expect(fallLines(R)).toMatchObject({ weighted: -18.2, nifty: -11.3, rupee: "On ₹10 lakh, a 10% fall in every size index has meant roughly ₹1.82 lakh; a 10% fall in the Nifty 50 alone, roughly ₹1.13 lakh." });
     view(<Fall10 r={R} />);   // task #235 (pack B8): the two-card picture
     const big = () => document.querySelector(".fx-big b")!.textContent;
-    expect(big()).toBe("−18.2%"); expect(screen.getByText("8.2 pts more than the market’s 10%")).toBeTruthy();
+    expect(big()).toBe("−18.2%"); expect(screen.getByText("8.2 points more than the market’s 10%")).toBeTruthy();
     expect(document.querySelector(".fx-rs")!.textContent).toBe("In rupees−₹1.82 Lon ₹10 lakh");
     fireEvent.click(screen.getByRole("button", { name: "Only the Nifty 50 falls" }));
     expect(big()).toBe("−11.3%"); expect(document.querySelector(".fx")!.className).toContain("fx-noparts");
@@ -122,12 +130,12 @@ describe("each share's risk (E82–E84)", () => {
   it("groups by size, folds, says Under a year, and shows Prism Risk on Gold only", () => {
     const { rerender } = view(<EachShareRisk r={R} split={split} shares={[]} gold />);
     const groups = () => Array.from(document.querySelectorAll(".eqr-g button")).map((b) => b.textContent);
-    expect(groups()[0]).toMatch(/Large companies · 1 share · against Nifty 50 · average beta 0.95, similar · 4% of the risk · Show/);
+    expect(groups()[0]).toBe("▸Large companies1 shareagainst Nifty 50on average 0.95× its index, similar4% of the riskShow");
     fireEvent.click(screen.getByRole("button", { name: "Open all" }));
     expect(screen.getByText("Under a year")).toBeTruthy();
-    expect(Array.from(document.querySelectorAll(".eqr-each thead th")).map((t) => t.textContent)).toContain("Prism Riski");
-    expect(Array.from(document.querySelectorAll(".eqr-each thead th")).map((t) => t.textContent)).toEqual(expect.arrayContaining(["Explained by benchmarki", "Swing a year, 3 yrs", "Worst fall, 3 yrs"]));
+    const heads = () => Array.from(document.querySelectorAll(".eqr-each thead tr:last-child th button.eqs-sort")).map((t) => t.textContent);
+    expect(heads()).toEqual(["Share▲", "Moves with its index", "Explained by its index", "Swing a year", "Worst fall", "1 year", "Below 1-yr high", "1 month", "Share of risk", "Prism Risk", "What stands out"]);
     rerender(<MemoryRouter><EachShareRisk r={R} split={split} shares={[]} gold={false} /></MemoryRouter>);
-    expect(Array.from(document.querySelectorAll(".eqr-each thead th")).map((t) => t.textContent)).not.toContain("Prism Riski");
+    expect(heads()).not.toContain("Prism Risk");
   });
 });
