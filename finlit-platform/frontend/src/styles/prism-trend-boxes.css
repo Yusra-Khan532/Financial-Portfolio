@@ -1,0 +1,82 @@
+/* Founder, 24 Nov 2026 ("in the FinLit Prism the formatting is not right, there are no boxes"): the Prism report's trend cards get the boxes of the
+   approved Prism report pack of 18 Nov (its reference styles for #prism and #pzt-clone), which task #220 left out. Only the Prism report page
+   (.pzr-rep): the score card at the top (.pzr-cardtop) and 02 Technical view (.pzt-clone, the same component rendered again). The company report's
+   own Prism card is not touched.
+   - each horizon (short term, long term) is its own box, tinted in its band colour (green uptrend, red downtrend, amber in between), with the
+     colour on its left edge; the score badge, the trend word as a pill, a round marker on the bar;
+   - the trend alignment is a box of its own in its colour;
+   - 02's copy sits outside the card body that defines the card's colour variables, so the bar's middle zone, its ticks and its marker had no
+     colour and the bar looked split in two: the variables are given to it here, and the bar's parts use the site's own colours.
+   Every rule starts with :root:root .pzr-rep so it outranks the card's base rules (prism-card.css) and the report's frame (prism220.css) whatever
+   order the files load in. */
+.pzr-rep .pzt-clone { --dk-w: 255, 255, 255; --dk-ink: var(--text); --dk-b: var(--s1); }
+:root[data-theme="light"] .pzr-rep .pzt-clone { --dk-w: 40, 34, 20; }
+
+/* the frame that held both horizons goes; each horizon is a box */
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-tp { gap: 12px; border: 0; border-radius: 0; background: none; }
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-tp > .pcx-hz {
+  --ink: var(--text);
+  position: relative; overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--pc) 40%, var(--border)); border-left: 4px solid var(--pc); border-radius: var(--r-card);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--pc) 16%, var(--s1)), color-mix(in srgb, var(--pc) 4%, var(--s1)) 70%);
+}
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-tp > .pcx-hz::after {
+  content: ""; position: absolute; right: -40px; bottom: -60px; width: 160px; height: 160px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, color-mix(in srgb, var(--pc) 16%, transparent), transparent 70%);
+}
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-hz > * { position: relative; z-index: 1; }
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-hz.pos { --ink: var(--band-hi-ink); }
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-hz.mixed { --ink: var(--band-mid-ink); }
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-hz.neg { --ink: var(--band-lo-ink); }
+
+/* the score and the trend word */
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-badge {
+  color: var(--ink); background: color-mix(in srgb, var(--pc) 24%, var(--s1)); border: 1.5px solid color-mix(in srgb, var(--pc) 60%, transparent);
+  box-shadow: 0 6px 16px -10px var(--pc);
+}
+/* narrow boxes (the score card's column, phones): the title gives way (two lines) so the score and a word such as "Downtrend" stay on its row */
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-hn { flex-basis: 110px; }
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-hw {
+  color: var(--ink); padding: 6px 12px; border-radius: var(--ui-r-pill); font-size: var(--fs-14);
+  background: color-mix(in srgb, var(--pc) 18%, transparent); border: 1px solid color-mix(in srgb, var(--pc) 45%, transparent);
+}
+
+/* the bar: five zones, ticks as gaps between them, the fill from 0 to the reading, a line at 0 and a round marker */
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-sc { height: 10px; margin-top: 10px; }
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-zones .z1 { background: color-mix(in srgb, var(--band-lo) 70%, transparent); }
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-zones .z2 { background: color-mix(in srgb, var(--band-mid) 55%, transparent); }
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-zones .z3 { background: color-mix(in srgb, var(--muted) 22%, transparent); }
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-zones .z4 { background: color-mix(in srgb, var(--band-hi) 50%, transparent); }
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-zones .z5 { background: color-mix(in srgb, var(--band-hi) 75%, transparent); }
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-sc u { top: 0; bottom: 0; background: color-mix(in srgb, var(--s1) 80%, transparent); }
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-sc .pcx-tfill { top: -2px; bottom: -2px; }
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-sc .pcx-tfill.up { box-shadow: 0 0 10px -2px var(--gain); }
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-sc .pcx-tfill.down { box-shadow: 0 0 10px -2px var(--loss); }
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-sc em {
+  top: 50%; bottom: auto; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; z-index: 2;
+  background: var(--s1); border: 3px solid var(--pc); box-shadow: 0 0 0 4px color-mix(in srgb, var(--pc) 22%, transparent);
+}
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-sl { margin-top: 2px; }
+
+/* the trend alignment: a box in its own colour; its shape, icon and name in the matching ink */
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-al {
+  border: 1px solid color-mix(in srgb, var(--pc) 45%, var(--border)); border-left: 4px solid var(--pc); border-radius: var(--r-card);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--pc) 18%, var(--s1)), color-mix(in srgb, var(--pc) 5%, var(--s1)) 75%);
+}
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-ai { background: color-mix(in srgb, var(--pc) 22%, transparent); }
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-ash { width: 28px; height: 28px; font-size: var(--fs-13); background: color-mix(in srgb, var(--pc) 30%, transparent); }
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-al.pos :is(.pcx-ai, .pcx-at b) { color: var(--band-hi-ink); }
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-al.mixed :is(.pcx-ai, .pcx-at b) { color: var(--band-mid-ink); }
+:root:root .pzr-rep :is(.pzr-cardtop, .pzt-clone) .pcx-al.neg :is(.pcx-ai, .pcx-at b) { color: var(--band-lo-ink); }
+
+/* 02's Trend map view: in a box, as the Every signal view's two lists are; the cells (card colour) stand out on the box's subtle fill */
+.pzr-rep .pzt-mapblk { padding: 16px 18px 12px; border-radius: var(--r-card); border: 1px solid var(--border); background: var(--s2); box-shadow: var(--shadow); }
+/* phones: the map keeps all but 2 px of its width (the cells' own 4 px spacing is their inset); the heading keeps a side margin */
+@media (max-width: 560px) { .pzr-rep .pzt-mapblk { padding: 14px 0 8px; } .pzr-rep .pzt-mapblk h4 { padding: 0 10px; } }
+
+/* 02's What the market shows: the six facts were four in a row and two under them; now rows of three (two rows of two when there are four),
+   one column on phones as before */
+@media (min-width: 900px) {
+  .pzr-rep .pzt-obs:has(> :nth-child(4)) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .pzr-rep .pzt-obs:has(> :nth-child(4):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

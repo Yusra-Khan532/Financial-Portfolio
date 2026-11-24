@@ -2,7 +2,7 @@
  *
  *  Modes (derived from three facts, so there is no way to be in two at once):
  *   - "dismissed": the reader pressed the x on the in-place card. Nothing shows, not even the edge icon, until a different alert or a reload.
- *   - "inplace":   the reader is on the alert's own section. The card shows.
+ *   - "inplace":   the reader is on the alert's own section (section 05, from its start to its end). The card pops up over the page.
  *   - "away":      the reader is on another section. The card is hidden and the edge icon shows.
  *   - "opened":    the reader clicked the edge icon while away. The card floats; it closes by Esc, a click outside, the x, or by scrolling back to its section.
  *

@@ -92,13 +92,10 @@ td[data-flag-cell] { background: color-mix(in srgb, var(--gold) 22%, transparent
 @keyframes plf-grow { from { transform: scaleX(0); } }
 @media (prefers-reduced-motion: reduce) { .plf-note, .plf-box, .plf-tile, .plf-pane, .plf-c, .plf-bar-i { animation: none; } .plf-c, .plf-edge { transition: none; } }
 
-/* QA of 23 Nov (task #328): the card that drops in on the alert's own section takes its place in the page, under the results bar and above the
-   section, instead of floating over it, so it can never cover section 05's tabs or anything the reader is pressing. It still shows every time the
-   reader comes back to the section (founder, 5 Nov). Only the card opened from the edge tab, while the reader is elsewhere, floats.
-   Specificity (0,4,0) beats the shared overlay layer's ':root:root :is(.plf-note)' (0,3,0), which loads last. */
-:root:root .plf-note:not(.plf-floating) { position: relative; top: auto; left: auto; right: auto; z-index: auto; width: 100%; max-width: 100%; max-height: none; overflow: visible; margin: 12px 0 4px; box-shadow: none; }
+/* Founder, 24 Nov 2026: the alert is a pop-up again. It drops in over the page when the reader reaches section 05, and goes when the whole of
+   section 05 has been scrolled past or by its x (PlFlagsLayer.tsx isAway). The in-page card of the QA of 23 Nov (task #328, item 9) is undone. */
 
-/* a card that was opened from the edge tab floats over whatever the reader is on */
+/* the card opened from the edge tab, while the reader is elsewhere, floats over whatever the reader is on, with a deeper shadow */
 .plf-floating { box-shadow: 0 22px 60px rgba(0, 0, 0, .5); }
 
 /* phone: the whole card is a sheet that scrolls if it must */

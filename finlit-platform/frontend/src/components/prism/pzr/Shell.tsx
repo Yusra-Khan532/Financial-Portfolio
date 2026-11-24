@@ -4,13 +4,14 @@
 //   TopDisclaimer the disclaimer as a drop-down box under the company line, closed on load (README 2.1)
 //   PrismSecNav   the sticky sections bar: Score · 01 … 05 · Questions, the mini chip once the score card has scrolled away, the selected item kept in
 //                 view by scrolling the bar itself (never scrollIntoView), jumps that land just under the bar (README 1.2)
-// Styles: styles/prism220.css.
+// Styles: styles/prism220.css; the trend cards' boxes (founder, 24 Nov 2026): styles/prism-trend-boxes.css.
 import { useEffect, useRef, useState } from "react";
 import { DropChev } from "../../DropChev";
 import { Icon } from "../../../lib/icons";
 import { PRISM_NAME, score1, type PrismReport } from "../../../lib/prism";
 import { LabelChip } from "./Hero";
 import "../../../styles/prism220.css";
+import "../../../styles/prism-trend-boxes.css";
 import { coTitle, shortLabel } from "../../../lib/companyLabel";
 
 /** The disclaimer, the same at the top and in the footer; its last sentence is the proprietary one (README 1.4). */
