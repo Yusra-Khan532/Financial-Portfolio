@@ -63,13 +63,13 @@ describe("Where your list sits (rows 143–147)", () => {
 
 describe("How spread out is the list? (rows 141–142, open items 7, 11, 12)", () => {
   const bv = { score: 58, band: "Fairly spread", comovement: 60, sector_spread: 55, effective_stocks: 5.1, effective_sectors: 3.0 };
-  it("reads by what you own now by default, with Equal amounts as a switch and the note tying it to the Spread card", () => {
+  it("reads by what you own now by default, with Equal amounts as a switch and the note tying it to the Diversification card", () => {
     view(<SpreadPack d={sample(13)} byValue={bv} />);
     expect(document.querySelector(".spx-n b")!.textContent).toBe("58");
     expect(document.querySelector(".spx-note")!.textContent).toMatch(/^This score counts each share by what you own now/);
     fireEvent.click(screen.getByRole("button", { name: "Equal amounts" }));
     expect(document.querySelector(".spx-n b")!.textContent).toBe("62");
-    expect(document.querySelector(".spx-note")!.textContent).toBe("This score counts each share equally. By what you own now it reads 58, moving like 5.1 of 13 shares: the figures on the Spread card.");
+    expect(document.querySelector(".spx-note")!.textContent).toBe("This score counts each share equally. By what you own now it reads 58, moving like 5.1 of 13 shares: the figures on the Diversification card.");
   });
   it("chips read the singular for one, the good sign stays off with one macro sector, and the 26 is explained", () => {
     const d = sample(2, () => "Industrials");

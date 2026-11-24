@@ -27,7 +27,7 @@ const view = (ui: React.ReactNode) => render(<MemoryRouter>{ui}</MemoryRouter>);
 describe("the short- and long-term trend (C43–C46)", () => {
   it("reads as a matrix with both axes, each with an (i), and arrows on the heads", () => {
     view(<TrendSection t={t} shares={[share("FRACTAL", "leader", 1, 10, null)]} />);
-    expect(screen.getByText(/^Short-term trend →/)).toBeTruthy(); expect(screen.getByText(/^Long-term trend ↓/)).toBeTruthy();
+    expect(screen.getByText(/^Short-term trend →/)).toBeTruthy(); expect(document.querySelector(".eq-tm-y")!.textContent).toMatch(/^Long-term trend ↓/);   // task #388: the label and its arrow in two spans (down the side)
     expect(screen.getByRole("button", { name: "About the short-term trend" })).toBeTruthy(); expect(screen.getByRole("button", { name: "About the long-term trend" })).toBeTruthy();
     const table = screen.getByRole("table");
     expect(within(table).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Long-term trend", "↑ Up", "→ Sideways", "↓ Down"]);   // task #274: Up first
@@ -65,8 +65,8 @@ describe("the short- and long-term trend (C43–C46)", () => {
 
 describe("against their peers (C47, C49)", () => {
   const xs = [...Array.from({ length: 5 }, (_, i) => share(`L${i}`, "leader", i + 1, 20)), share("M0", "in_line"), share("G0", "laggard", 9, 10), share("NC", null)];
-  it("shows 3 shares per column, then Show all N ▾", () => {
-    view(<PeersSection shares={xs} />);
+  it("shows 3 shares per column, then Show all N ▾ (the Watchlists page; the Equity portfolio reads one chart since task #388)", () => {
+    view(<PeersSection shares={xs} voice="list" />);
     const lead = document.getElementById("eq-pc-leader")!;
     expect(lead.querySelectorAll("li")).toHaveLength(3);
     fireEvent.click(screen.getByRole("button", { name: "Show all 5 ▾" }));

@@ -1,6 +1,7 @@
 // Task #183 (Equity portfolio, the 15 Nov pack): the top of the page (the score and one tile per tab, the whole tile opens its tab), each tab's Key figures
 // row (three cards, foldable, remembers open or closed per tab in this browser; each button jumps to its section and flashes it), and the sticky sections
 // bar (numbered chips with arrows for the open tab, the one in view underlined; All sections lists every section of the three tabs).
+import { useBarBottom } from "./Round388";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router";
@@ -107,6 +108,7 @@ export function SectionsBar<T extends string = TabKey>({ tab, all, onTab, lead, 
   }, [scr, tab]);
   const secs = all[tab].secs, [on, setOn] = useState(secs[0]?.[0] ?? ""), [menu, setMenu] = useState(false), [at, setAt] = useState({ top: 0, left: 0 }), [stuck, setStuck] = useState(false), bar = useRef<HTMLElement>(null);
   useHeaderHeight();
+  useBarBottom(bar, scr);   // task #388 (file 36, F1): --eq-bar-b, the place just under this bar, for the rows that stick under it
   useEffect(() => {   // "stuck": the bar has reached its sticky place under the header
     const on = () => { const el = bar.current; if (!el) return; const top = parseFloat(getComputedStyle(el).top) || 0; setStuck(el.getBoundingClientRect().top <= top + 1 && scrollY > 0); };
     on(); addEventListener("scroll", on, { passive: true }); return () => removeEventListener("scroll", on);

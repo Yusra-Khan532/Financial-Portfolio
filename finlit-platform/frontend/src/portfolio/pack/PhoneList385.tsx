@@ -9,7 +9,7 @@ import { holdingFigs, type LotsProps } from "../HoldingCells";
 import { PEER_WORD, type Share } from "../../lib/equityPack";
 import { prismBandWord } from "../../lib/scoreBands";
 import { titleOf } from "../../lib/companyLabel";
-import { MINUS, Pct, RECORD_SALE, ShowAll, capRows, pointsLine, rupees, rupeesSigned, signedNum, sortRows, trendReading, trendTone, type CapRule } from "../shared";
+import { MINUS, Pct, RECORD_SALE, ShowAll, capRows, nameCase, pointsLine, rupees, rupeesSigned, signedNum, sortRows, trendReading, trendTone, type CapRule } from "../shared";
 
 type Key = "value" | "today" | "gain" | "prism";
 const CHIPS: [Key, string][] = [["value", "Value"], ["today", "Today"], ["gain", "Gain or loss"], ["prism", "Prism"]];
@@ -33,7 +33,7 @@ export function PhoneList({ lines, total, lots, peerOf, model, rule, onEdit, onS
         return <li key={l.symbol} className={on ? "on" : undefined}>
           <button type="button" className="eqp-row" aria-expanded={on} aria-controls={`eqp-d-${l.symbol}`} onClick={() => setOpen(on ? null : l.symbol)}>
             <b className="eqp-sym">{titleOf({ symbol: l.symbol, name: l.name || null })}</b><span className="eqp-v">{f.now == null ? MINUS : rupees(f.now)}</span>
-            <small className="eqp-nm">{name || l.symbol}{f.a?.qty != null ? ` · ${f.a.qty.toLocaleString("en-IN")} ${f.a.qty === 1 ? "share" : "shares"}` : ""}</small>
+            <small className="eqp-nm">{nameCase(name) || l.symbol}{f.a?.qty != null ? ` · ${f.a.qty.toLocaleString("en-IN")} ${f.a.qty === 1 ? "share" : "shares"}` : ""}</small>
             <span className="eqp-g">{f.gain == null ? MINUS : <><span className={Math.round(f.gain) > 0 ? "up" : Math.round(f.gain) < 0 ? "dn" : "flat"}>{rupeesSigned(f.gain)}</span> · <Pct v={f.gainPct} /></>}</span>
             <span className="eqp-tags">{model === "prism" && sc != null && <span className={"eqp-chip b-" + (sc >= 65 ? "hi" : sc >= 50 ? "mid" : "lo")}><i aria-hidden="true" />Prism {Math.round(sc)} {prismBandWord(sc, h?.prism?.label)}</span>}
               {r && <span className={"eqp-chip t-" + trendTone(r)}><i aria-hidden="true" />{r}</span>}

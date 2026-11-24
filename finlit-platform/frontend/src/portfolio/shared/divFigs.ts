@@ -97,7 +97,7 @@ export function divKeyFigs(d: DivKeyIn): KeyFig[] {
     const e = Math.max(1, Math.min(C, d.eff)), ov = Math.max(0, C - e);
     out.push({ q: "How many separate bets are in your list?", big: e.toFixed(1), ans: e.toFixed(1) === "1.0" ? "separate bet" : "separate bets",
       sub: ov < 0.05 ? `among your ${countOf(C, "share")}; they barely overlap` : `among your ${countOf(C, "share")}; the rest overlap`,
-      tip: `Shares that rise and fall together count as one bet. "${e.toFixed(1)} separate bets" means your ${countOf(C, "share")} with a year of prices have behaved like about ${e.toFixed(1)} shares that each move on their own. ${d.byValue ? "Counted by what you own now, as on the Spread card." : "Each share counted equally, until every share has a quantity."}`,
+      tip: `Shares that rise and fall together count as one bet. "${e.toFixed(1)} separate bets" means your ${countOf(C, "share")} with a year of prices have behaved like about ${e.toFixed(1)} shares that each move on their own. ${d.byValue ? "Counted by what you own now, as on the Diversification card." : "Each share counted equally, until every share has a quantity."}`,
       bar: [{ label: "Separate bets", n: Number(e.toFixed(1)), c: SERIES[0] }, { label: "Overlap", n: Number(ov.toFixed(1)), c: GREY }].filter((b) => b.n > 0), go: "See share by share", to: "eq-grid" });
   }
   return out;
@@ -133,13 +133,13 @@ export const slotLine = (s: { lo: number; hi: number; pairs: Pair[] }, label: (x
 
 // ------------------------------------------------------------------------------------------------ How spread out is the list?
 export type SpreadFigs = { score: number; band: string; comovement: number; sector_spread: number; effective_stocks: number; effective_sectors: number };
-/** The line under the two readings that ties the section to the Spread card (file 33 row 142, with open item 7 done): what this basis reads and what the
+/** The line under the two readings that ties the section to the Diversification card (file 33 row 142, with open item 7 done): what this basis reads and what the
  *  other one reads. `byValue`: the figures by what you own now, null when a share has no quantity. */
 export function spreadNote(mode: "value" | "equal", equal: SpreadFigs, byValue: SpreadFigs | null, n: number): string {
   if (!byValue) return "This score counts each share equally. Once every share has a quantity, it can also be read by what you own now.";
   return mode === "equal"
-    ? `This score counts each share equally. By what you own now it reads ${Math.round(byValue.score)}, moving like ${byValue.effective_stocks.toFixed(1)} of ${countOf(n, "share")}: the figures on the Spread card.`
-    : `This score counts each share by what you own now: the figures on the Spread card. Counting each share equally it reads ${Math.round(equal.score)}, moving like ${equal.effective_stocks.toFixed(1)} of ${countOf(n, "share")}.`;
+    ? `This score counts each share equally. By what you own now it reads ${Math.round(byValue.score)}, moving like ${byValue.effective_stocks.toFixed(1)} of ${countOf(n, "share")}: the figures on the Diversification card.`
+    : `This score counts each share by what you own now: the figures on the Diversification card. Counting each share equally it reads ${Math.round(equal.score)}, moving like ${equal.effective_stocks.toFixed(1)} of ${countOf(n, "share")}.`;
 }
 /** Open item 12: why a short list reads low on "How independently they move" while "Moves like" says every share moves on its own. The scale counts how
  *  many shares move on their own, not what part of the list does. */

@@ -23,13 +23,21 @@ export const andList = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.s
 /** At most `max` names, then "and N more" ("A, B, C and 2 more"). */
 export const namesUpTo = (xs: string[], max = 3) => (xs.length <= max ? andList(xs) : `${xs.slice(0, max).join(", ")} and ${xs.length - max} more`);
 
+/** Task #388 (developer file 36, part B item 9): inside a company name "Of", "And" and "The" read "of", "and" and "the", unless the word comes first
+ *  ("Bank Of Maharashtra Ltd" → "Bank of Maharashtra Ltd"; "The Federal Bank" keeps its "The"). Anywhere a name appears on the page. */
+export function nameCase(name: string | null | undefined): string {
+  const n = String(name ?? "");
+  return n.replace(/(?<=\S\s+)\b(Of|And|The)\b(?=\s)/g, (w) => w.toLowerCase());
+}
+
 /** The short company name for sentences, lists, cards and charts (file 33, Names): drop "Ltd", "Limited" and "Company"; above 24 characters keep
- *  the first two or three words ("Samvardhana Motherson International Ltd" → "Samvardhana Motherson"). "Of" inside a name reads "of". */
+ *  the first two or three words ("Samvardhana Motherson International Ltd" → "Samvardhana Motherson"). "Of", "And" and "The" inside a name read lower case
+ *  (nameCase). */
 export function shortCo(name: string | null | undefined, symbol = ""): string {
   let n = String(name ?? "").replace(/\s+/g, " ").trim();
   if (!n) return symbol;
   for (let i = 0; i < 3; i++) n = n.replace(/[\s,]+(Ltd\.?|Limited|Company|Co\.?)$/i, "").trim();
-  n = n.replace(/\bOf\b/g, "of").replace(/\bAnd\b/g, "and");
+  n = nameCase(n);
   const w = n.split(" ");
   if (n.length > 24 && w.length > 2) { n = w.slice(0, w.length > 3 ? 3 : 2).join(" "); if (n.length > 24) n = w.slice(0, 2).join(" "); }
   return n.replace(/[\s,&-]+$/, "") || symbol;

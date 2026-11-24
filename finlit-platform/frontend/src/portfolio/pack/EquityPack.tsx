@@ -1,7 +1,7 @@
 // The Equity portfolio's sections as the "FinLit final pages" pack draws them (docs/design/finlit-final-pages/12-14): the score tiles, the three tabs, Against their peers
 // with the group-leader comparison, How spread out is the list?, Where your list sits, the packs that move together, Risk at a glance, Share of the money vs share of the risk,
 // If the market fell 10%, Each share's risk, and What this means, in short. Figures are the server's; words from lib/equityPack. Describes; never advice.
-import { useEffect, useId, useMemo, useState } from "react";
+import { useContext, useEffect, useId, useMemo, useState } from "react";
 import { POINTS_NOTE, coName, namesInText, pointsLine } from "../shared";
 import { Link } from "react-router";
 import { useQueries } from "@tanstack/react-query";
@@ -19,10 +19,13 @@ import { ordinal, tiltRead } from "../../components/diversification/wording";
 import { LockedBlock } from "../../components/sectors/Parts";
 import { DashCards, DashCardsProvider, OpenAll } from "../../components/dashboard/DashCards";
 import { useAuth } from "../../lib/auth";
+import { planName } from "../../lib/planNames";
+import { PLAN_FOR_PRISM } from "../../lib/planGates";
 import type { Card } from "../../lib/pulsePack";
 import type { TrendRead } from "../../lib/mfPortfolio";
 import { VIEW_COLOR, VIEW_ICON, ViewTabsKit, type ViewDef } from "../ViewKit";
 import { coTitle, shortLabel } from "../../lib/companyLabel";
+import { KnowButton, KnowPop, PeersChart } from "./Round388";
 
 
 // ------------------------------------------------------------------------------------------------ the score
@@ -47,8 +50,9 @@ export function More({ names, show = 4, empty = "–" }: { names: string[]; show
 }
 /** A section's "N things to know": the dashboard's dropdown cards, closed on load, with one Open all / Close all (the pack: every insight card opens on click). */
 export function Insights({ items, scope }: { items: Card[]; scope: string }) {
-  const { user } = useAuth();
+  const { user } = useAuth(), pop = useContext(KnowPop);
   if (!items.length) return null;
+  if (pop) return <KnowButton items={items} scope={scope} />;   // task #388 (file 36, change 3): the Equity portfolio shows a pill by the heading and a pop-up
   return <DashCardsProvider userId={user?.id} remember={false}><div className="eq-ins">
     <div className="eq-ins-h"><span className="sp-cap">{items.length === 1 ? "One thing to know" : `${num(items.length)} things to know`}</span><OpenAll scope={scope} n={items.length} /></div>
     <DashCards items={items} scope={scope} cols={Math.min(3, items.length)} />
@@ -58,7 +62,8 @@ const NUM = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight
 const num = (n: number) => (n <= 10 ? NUM[n] : String(n));
 /** The dashed card Silver sees in place of a Gold-only section, with the section's own title and line (the pack's lock card). */
 export function GoldLock({ id, title, text }: { id: string; title: string; text: string }) {
-  return <section className="sp-sec eq-lock" aria-labelledby={id}><span className="sp-cap">Gold and up</span><h2 id={id}>{title} <span aria-hidden="true">🔒</span></h2><p className="sp-sub">{text} Available on Gold. <Link to="/plans">See plans</Link></p></section>;
+  const g = planName(PLAN_FOR_PRISM);   // task #388 (file 36, B2): the plan name from the plan list, never a fixed string
+  return <section className="sp-sec eq-lock" aria-labelledby={id}><span className="sp-cap">{g} and up</span><h2 id={id}>{title} <span aria-hidden="true">🔒</span></h2><p className="sp-sub">{text} Available on {g}. <Link to="/plans">See plans</Link></p></section>;
 }
 
 // ------------------------------------------------------------------------------------------------ Short- and long-term trend (Gold)
@@ -109,7 +114,8 @@ export function TrendSection({ t, shares, voice = "own" }: { t: TrendRead; share
       {!t.rated ? <p className="sp-empty">{L ? "None of the companies on this list has" : "None of the shares in your list has"} a stored FinLit Prism trend reading yet.</p> : <div className="eq-tr">
         <div className="eq-tm">
           <p className="eq-tm-x">Short-term trend →<Tip text="The share's price trend over the last few weeks." how="Read across: from up on the left to down on the right." label="About the short-term trend" /></p>
-          <p className="eq-tm-y">Long-term trend ↓<Tip text="The share's price trend over the last year." how="Read down the side: from up at the top to down at the bottom." label="About the long-term trend" /></p>
+          {/* task #388 (change 2): on the Equity portfolio the label runs down the left side, its arrow and i under it (round388.css) */}
+          <p className="eq-tm-y"><span>Long-term trend</span> <span className="eq8-va" aria-hidden="true">↓</span><Tip text="The share's price trend over the last year." how="Read down the side: from up at the top to down at the bottom." label="About the long-term trend" /></p>
           <Scroll label="trend matrix"><table className="eq-tg" aria-label="Trend matrix: long-term trend down the side, short-term trend across"><thead><tr><th><span className="sr-only">Long-term trend</span></th>{ST_COLS.map(([k, l]) => <th key={k} scope="col">{l}</th>)}</tr></thead>
             <tbody>{LT_ROWS.map(([r, rl]) => <tr key={r}><th scope="row">{rl}</th>{ST_COLS.map(([c]) => { const g = t.grid[`${r},${c}`], n = g?.n ?? 0, sh = g?.share ?? 0;
               return <td key={c} className={"eq-tg-c t" + (+r + +c) + (n ? "" : " e")} style={{ ["--k" as string]: `${Math.round(8 + Math.min(1, sh / 0.4) * 30)}%` }}>
@@ -142,6 +148,7 @@ const peerWords = (s: Share) => (!s.peer ? "" : [s.peer.vs == null ? "" : points
 const list2 = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 
 // ------------------------------------------------------------------------------------------------ Against their peers (Gold)
+const WHY_PEERS = "A share can rise 20% and still be a weak pick if similar companies rose 60%. Comparing each share with its own peer group shows whether your shares are the strong ones in each group, and which of them trail their group.";
 /** Three columns (Leaders, In line, Laggards): 3 shares each, then "Show all N ▾" (the pack). */
 export function PeersSection({ shares, voice = "own" }: { shares: Share[]; voice?: Voice }) {
   const L = voice === "list";
@@ -154,11 +161,19 @@ export function PeersSection({ shares, voice = "own" }: { shares: Share[]; voice
         {xs.length > 3 && <button type="button" className="eq-more" aria-expanded={open} aria-controls={"eq-pc-" + label} onClick={() => setAll({ ...all, [label]: !open })}>{open ? "Show fewer ▴" : `Show all ${xs.length} ▾`}</button>}
         {!xs.length && <p className="sp-note">None.</p>}</div>);
   };
+  const own = L ? null : named(peerCards(shares, voice), shares, voice);
+  // task #388 (developer file 36, change 1): the Equity portfolio reads its peers as one chart; "Why it matters" and the note on points move behind the i
+  if (own) return (
+    <Section id="eq-peers" hide title="Against their peers" help={`Why it matters: ${WHY_PEERS}`} how={`${POINTS_NOTE} Leader: among the strongest of its group and ahead of the index. Laggard: among the weakest and behind it. It describes the past, not the future.`}
+      sub="Each share against similar companies, over the last 12 months.">
+      <PeersChart shares={shares} />
+      <Insights items={own} scope="eq.peers" />
+    </Section>);
   return (
     <Section id="eq-peers" hide title="Against their peers" help="Each share's price over the last 12 months against similar companies (its peer group) and its sector index." how="Leader: among the strongest of its group and ahead of the index. Laggard: among the weakest and behind it. It describes the past, not the future."
       sub={`For each ${L ? "company on the list" : "share"}: was it among the strongest or the weakest of similar companies over the last 12 months?`}
       why={L ? "A share can rise 20% and still trail if similar companies rose 60%. Comparing each company with its own peer group shows which companies on this list are the strong ones in each group, and which of them trail their group."
-        : "A share can rise 20% and still be a weak pick if similar companies rose 60%. Comparing each share with its own peer group shows whether your shares are the strong ones in each group, and which of them trail their group."}>
+        : WHY_PEERS}>
       <p className="sp-lead eq-lead"><LinkNames text={L ? peerSentence(shares, voice) : namesInText(peerSentence(shares, voice), nameMap(shares))} shares={shares} /></p>
       <div className="eq-pcs">{col("leader", "Leaders", "good")}{col("in_line", "In line", "mid")}{col("laggard", "Laggards", "bad")}</div>
       {!L && <p className="eq-ptn">{POINTS_NOTE}</p>}

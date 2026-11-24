@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useLocation, useNavigate } from "react-router";
 import { useAuth, type Plan } from "./auth";
 import { DEMO } from "./demo";
+import { planName } from "./planNames";
 import { applyPalette } from "./palettes";
 import { usePrefs } from "./prefs";
 import { getInitialTheme, THEME_STORAGE_KEY, type Theme } from "./theme";
@@ -10,9 +11,9 @@ import { getInitialTheme, THEME_STORAGE_KEY, type Theme } from "./theme";
 export type { Plan };
 export const RANK: Record<Plan, number> = { basic: 0, silver: 1, gold: 2 };
 export const TIER: Record<Plan, { n: string; ic: string; tc: string }> = {
-  basic: { n: "Basic", ic: "sprout", tc: "--t-basic" },
-  silver: { n: "Silver", ic: "medal", tc: "--t-silver" },
-  gold: { n: "Gold", ic: "crown", tc: "--t-gold" },
+  basic: { n: planName("basic"), ic: "sprout", tc: "--t-basic" },   // task #388: the names come from the plan list (lib/planNames)
+  silver: { n: planName("silver"), ic: "medal", tc: "--t-silver" },
+  gold: { n: planName("gold"), ic: "crown", tc: "--t-gold" },
 };
 
 type UI = {

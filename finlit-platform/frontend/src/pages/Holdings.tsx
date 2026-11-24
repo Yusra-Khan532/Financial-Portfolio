@@ -47,7 +47,7 @@ import { useLeadershipList } from "../lib/leadership";
 import { peerSentence, sharesCards, type Share, type Size } from "../lib/equityPack";
 import { shareOf as buildShare } from "../lib/equityShares";
 import type { TabKey } from "../lib/equityTop";
-import { SectionsBar, SectionsMenu, jumpTo, type Sec } from "../portfolio/pack/PageTop";
+import { SectionsBar, jumpTo, type Sec } from "../portfolio/pack/PageTop";
 import { HideButtons, HideSlim } from "../components/Hideable";
 import { OrderWinNotice, WhatChanged, FilingChip, useWhatChanged } from "../components/changes/WhatChanged";
 import { useWatchlist } from "../lib/watchlist";
@@ -71,7 +71,9 @@ import "../styles/industry-pack.css";
 import "../styles/dashboard.css";
 import "../portfolio/pack/equity-pack.css";
 import { coTitle, subLine, titleOf } from "../lib/companyLabel";
-import { PLAN_FOR_PORTFOLIO } from "../lib/planGates";
+import { PLAN_FOR_PORTFOLIO, PLAN_FOR_PRISM } from "../lib/planGates";
+import { planName } from "../lib/planNames";   // task #388 (file 36, B2): plan names from the plan list
+import { KnowPop, closePops } from "../portfolio/pack/Round388";   // task #388 part A (developer file 36)
 
 /** Equity portfolio: give it the names of the shares you own (typed, pasted or from a broker file) and it describes the list: how strong each share is, where the list sits by
  *  sector and size, what moves together, where the risk comes from and how the list has moved against the NIFTY 50. Names are enough; task #217 adds each share's buy history
@@ -303,7 +305,7 @@ export function HoldingsPage() {
 
   // ---------------------------------------------------------------- the final pages pack (boards 12-14)
   const view: View = params.get("view") === "diversification" ? "diversification" : params.get("view") === "risk" ? "risk" : "portfolio";
-  const setView = (v: View, scroll = false) => { const n = new URLSearchParams(params); if (v === "portfolio") n.delete("view"); else n.set("view", v); setParams(n, { replace: true }); if (scroll) setTimeout(() => document.getElementById("eq-tabs")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0); };
+  const setView = (v: View, scroll = false) => { closePops(); const n = new URLSearchParams(params); if (v === "portfolio") n.delete("view"); else n.set("view", v); setParams(n, { replace: true }); if (scroll) setTimeout(() => document.getElementById("eq-tabs")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0); };
   // task #235 (the 18 Nov pack, live bug E4): one read of every share's peer label, not one call per share (which failed under load with 503s)
   const leadList = useLeadershipList(symbols, !!model && !DEMO);
   const idxQ = useIndices(), day = dayWord(new Date(), idxQ.data?.asOf ?? null);
@@ -432,8 +434,8 @@ export function HoldingsPage() {
     ...(view === "risk" && rk.data?.to ? [`Risk figures: weekly closes to ${dayOf(rk.data.to)}`] : [])].filter(Boolean);
 
   return (
-    <HideSlim.Provider value={true}><HideButtons.Provider value={false}><div className="wrap ipo pfx sp eq">
-      <Gate tier={PLAN_FOR_PORTFOLIO} title="Score your portfolio" points={["FinLit Prism for every share you own (Gold)", "How spread out the list is, and what moves together", "Share of risk and the NIFTY 50 comparison", "Import Excel, CSV or PDF statements"]}>
+    <HideSlim.Provider value={true}><HideButtons.Provider value={false}><KnowPop.Provider value={true}><div className="wrap ipo pfx sp eq">
+      <Gate tier={PLAN_FOR_PORTFOLIO} title="Score your portfolio" points={[`FinLit Prism for every share you own (${planName(PLAN_FOR_PRISM)})`, "How spread out the list is, and what moves together", "Share of risk and the NIFTY 50 comparison", "Import Excel, CSV or PDF statements"]}>
         <div className="pfx-flow">
         <section className="card eqx-top" aria-label="Equity portfolio">
           <EqTitle plan={TIER[plan].n} asOf={priceDay ?? idxQ.data?.asOf} add={<>
@@ -518,9 +520,7 @@ export function HoldingsPage() {
             <Step id="pf-shares" title="Your shares" line="">
             <OrderWinNotice row={wcQ.notice} page="equity-portfolio" />
             <SharesTable chip={(sym) => <FilingChip row={wcQ.chip(sym)} />} themePill={(sym) => <ThemePill t={mainTheme.get(sym) ?? null} name={meta[sym]?.name ?? by.get(sym)?.name ?? sym} />}
-              theme={themeF ? { label: thShares?.themes.find((t) => t.name === themeF)?.short ?? themeF, has: (sym) => mainTheme.get(sym)?.name === themeF, onClear: () => setThemeF(null) } : null} stuckLead={<>
-              <StickySwitch list={pfList} cur={cur} onPick={(id) => { setCur(id); setOpenLots(new Set()); }} figs={pfFigs} defs={eqViews(lines.length)} view={view} onView={(v) => setView(v)} tabsId="eq-tabs" fresh={[]} />
-              <SectionsMenu secs={secsLive.portfolio.secs} here="pf-shares" isHidden={() => false} show={(id) => goStep(id)} onAll={() => goStep("all", false)} /></>}
+              theme={themeF ? { label: thShares?.themes.find((t) => t.name === themeF)?.short ?? themeF, has: (sym) => mainTheme.get(sym)?.name === themeF, onClear: () => setThemeF(null) } : null}
               lots={lots} editSell={{ onEdit: (sym) => setEsWin({ what: "edit", symbol: sym }), onSell: (sym) => setEsWin({ what: "sell", symbol: sym }) }} qtyOf={(sym) => qtyBySymbol.get(sym) ?? null} onQty={onQty} lines={lines} meta={meta} page={page} mode={mode} colors={colors} model={model} tab={tab} period={period} limit={cap} state={ov.isError ? "error" : ov.isPending && !DEMO ? "loading" : "ready"}
               errorText={DEMO ? "Scores are not available in the demo preview." : ov.error?.body?.detail} onTab={(t) => go(t)} onPeriod={(pd) => go("financials", pd)}
               peerOf={(sym) => shareOf.get(sym)} day={day} cards={tab === "overview" ? <div className="eq-cards"><Insights items={sharesCards(shares, day).map((c) => { const m = new Map(shares.map((x) => [x.symbol, coName(x)])); return { ...c, title: namesInText(c.title, m), text: namesInText(c.text, m) }; })} scope="eq.shares" /></div> : null}
@@ -542,9 +542,9 @@ export function HoldingsPage() {
               <Step id="eq-peers" title="Against their peers" line={lines385.peers}><PeersSection shares={shares} /></Step>
               {hasLaggard && <Step id="eq-leaders" title="What if you had owned the group leader instead?" line={leaderLine || lines385.leaders}><LeadersSection shares={shares} onLine={setLeaderLine} /></Step>}
             </> : <>
-              <Step id="eq-trend" title="Short- and long-term trend" line="Gold and up"><GoldLock id="eq-trend" title="Short- and long-term trend" text="Where each share's short-term trend sits against its long-term one, from FinLit Prism's technical view." /></Step>
-              <Step id="eq-peers" title="Against their peers" line="Gold and up"><GoldLock id="eq-peers" title="Against their peers" text="Whether each share leads or lags similar companies over 12 months." /></Step>
-              <Step id="eq-leaders" title="What if you had owned the group leader instead?" line="Gold and up"><GoldLock id="eq-leaders" title="What if you had owned the group leader instead?" text="Your laggards against the #1 share of their peer group over 12 months." /></Step>
+              <Step id="eq-trend" title="Short- and long-term trend" line={`${planName(PLAN_FOR_PRISM)} and up`}><GoldLock id="eq-trend" title="Short- and long-term trend" text="Where each share's short-term trend sits against its long-term one, from FinLit Prism's technical view." /></Step>
+              <Step id="eq-peers" title="Against their peers" line={`${planName(PLAN_FOR_PRISM)} and up`}><GoldLock id="eq-peers" title="Against their peers" text="Whether each share leads or lags similar companies over 12 months." /></Step>
+              <Step id="eq-leaders" title="What if you had owned the group leader instead?" line={`${planName(PLAN_FOR_PRISM)} and up`}><GoldLock id="eq-leaders" title="What if you had owned the group leader instead?" text="Your laggards against the #1 share of their peer group over 12 months." /></Step>
             </>}
             {/* task #323 (developer file 21, part 12): Your themes moves below Group leaders, so the readings about each share come first */}
             {!DEMO && <Step id="eq-themes" title="Your themes, from Discover" line={lines385.themes}><YourThemes v={thList === "shares" ? thShares : thWatch} list={thList} onList={setThList} theme={themeF} label={labelOf}
@@ -575,6 +575,6 @@ export function HoldingsPage() {
         </div>
       </Gate>
       <PageEnd />
-    </div></HideButtons.Provider></HideSlim.Provider>
+    </div></KnowPop.Provider></HideButtons.Provider></HideSlim.Provider>
   );
 }
