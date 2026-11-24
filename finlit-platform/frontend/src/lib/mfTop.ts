@@ -43,8 +43,9 @@ export function mfTiles(hs: Holding[], sp: MfSpread | undefined, rk: MfRisk | un
       sub: avg == null ? "None of your funds has a Health Score yet" : `${ORDER.filter((w) => words.get(w)).map((w) => `${words.get(w)} ${w}`).join(" · ")}${hs.length - scored.length ? ` · ${hs.length - scored.length} not scored` : ""}, by Fund Health Score`,
       help: "The average Fund Health Score of your funds, from 0 to 100, and how many read Strong, Healthy, Average, Weak or Poor.", how: "Higher reads healthier. Each fund's own score and its four parts are in the Your funds tab." },
     { id: "mix", k: "Mix & overlap", v: t && t.of ? `Moves like ${t.independent.toFixed(1)} of ${t.of}` : "–", tone: "info", link: "Open Mix & overlap",
-      sub: t && t.of ? `The equity-type funds ${t.word === "Move as one" ? "rise and fall almost as one" : t.word === "Move partly together" ? "move partly together" : "move on their own"}${top ? `; the most two share is ${pct(top.pct)}` : ""}` : "Needs two or more equity-type funds with a year of NAVs",
-      help: "How many truly separate funds your equity-type funds behave like, from their weekly NAV changes over the past year, and the most two of them share in the same stocks.",
+      // task #389 (file 32, Mix 10, W16, fault 11): "the most two share is 61%" → "Equity-type funds move almost as one; the closest pair shares 61%"
+      sub: t && t.of ? `Equity-type funds ${t.word === "Move as one" ? "move almost as one" : t.word === "Move partly together" ? "move partly together" : "move on their own"}${top ? `; the closest pair shares ${pct(top.pct)}` : ""}` : "Needs two or more equity-type funds with a year of NAVs",
+      help: "How many truly separate funds your equity-type funds behave like, from their weekly NAV changes over the past year, and how much of their money the closest pair keeps in the same stocks.",
       how: "Moves like 1.3 of 4: the four rise and fall almost as one. Closer to the count of funds: they move more on their own." },
     { id: "risk", k: "Risk analytics", v: own?.betaOwn != null ? `${word} · β ${b2(own.betaOwn)}` : "–", tone: "watch", link: "Open Risk analytics",
       sub: own?.betaOwn != null ? `Each fund against its own benchmark; swings ${rk?.list.swing != null ? `${rk.list.swing.toFixed(1)}% a year vs ${rk.bench.swing?.toFixed(1)}%` : "–"}` : rk?.list.why ?? "Working out the risk figures",
@@ -75,7 +76,7 @@ export function mixCards(sp: MfSpread | undefined): KeyCard[] {
   if (r.together.of) out.push({ tone: r.together.word === "Move as one" ? "warn" : "info", k: r.together.word === "Move as one" ? "Move almost as one" : r.together.word === "Move partly together" ? "Move partly together" : "Move on their own",
     v: `${r.together.independent.toFixed(1)} of ${r.together.of}`, text: `${num(r.together.of).replace(/^./, (c) => c.toUpperCase())} equity-type funds with different labels behave like ${r.together.independent.toFixed(1)} independent funds.`, go: "See how they move", to: "mfp-move" });
   if (r.overlap.top) out.push({ tone: r.overlap.word === "Low" ? "good" : "watch", k: r.overlap.word === "Low" ? "Little overlap in stocks" : r.overlap.word === "Moderate" ? "Some overlap in stocks" : "Much overlap in stocks",
-    v: `${pct(r.overlap.top.pct)} at most`, text: `The most two funds share is ${pct(r.overlap.top.pct)} of their money.`, go: "See shared stocks", to: "mfp-shared" });
+    v: `${pct(r.overlap.top.pct)} at most`, text: `The closest pair of funds keeps ${pct(r.overlap.top.pct)} of its money in the same stocks.`, go: "See shared stocks", to: "mfp-shared" });
   // task #262: "below ₹10,000 Cr" was the old Small; it is the Micro size now, so the figure reads Micro and keeps its meaning
   const small = (sp.size.Micro ?? 0) * 100;
   out.push({ tone: "info", k: "Stocks underneath", v: String(r.underneath.stocks), text: `${r.underneath.inTwoOrMore} are held through two or more funds; ${pct(small)} of the shares sit in companies below ₹10,000 Cr.`, go: "See the biggest", to: "mfp-biggest" });

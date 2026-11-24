@@ -243,3 +243,52 @@ a.mfm-chip.mfm-chip-a:focus-visible { outline: 2px solid var(--gold); outline-of
 .mfp-hc-m { position: absolute; bottom: 100%; margin-bottom: 2px; transform: translateX(-50%); display: grid; justify-items: center; line-height: 1; }
 .mfp-hc-m b { font: 600 var(--fs-18)/1 var(--sans); } .mfp-hc-m i { font-style: normal; font-size: var(--fs-12); }
 .mfp-hc-t { display: flex; justify-content: space-between; margin-top: 4px; color: inherit; opacity: .78; }
+
+/* Task #389 PR B (developer file 32, Mix & overlap). Scoped to the MF page: its own new classes, the grid's .mfm-gn, or .mfp:not(.efp) (the ETF page shares these classes; its round is #390). */
+/* Mix 1: the sub-view tabs at the top of the view; the selected (black) tab's second line in its own ink at 78% (white at 78% in light mode) */
+.mfp:not(.efp) .mfm-subtabs { margin: 0 0 16px; }
+.mfp:not(.efp) .mfm-subtabs button[aria-selected="true"] small { color: color-mix(in srgb, var(--ui-on-fg) 78%, transparent); }
+/* Mix 2: chips show the company's short name and end in "…" inside the cell; the full name is the chip's title */
+.mfm-gn .mfm-chips .mfm-chip { max-width: 100%; min-width: 0; }
+.mfm-chip .mfm-cn { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Mix 3: sector names wrap instead of running into the first chip */
+.mfp .mfm-gn tbody th { white-space: normal; overflow-wrap: anywhere; padding-right: 10px; }
+/* fault 7: the footer's "12 macro sectors and shares listed abroad" wraps inside its own column, in plain case */
+.mfp .mfm-gn tfoot th { white-space: normal; text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--sp-ink); }
+/* Mix 4: every "+N more" in the grid is one dashed pill, 12 px, 600 weight */
+.mfm-more { display: inline-flex; align-items: center; min-height: 24px; padding: 1px 9px; border: 1px dashed var(--border-strong); border-radius: var(--ui-r-pill); background: var(--sp-panel); color: var(--sp-ink); font: 600 var(--fs-12)/1.4 var(--sans); white-space: nowrap; cursor: pointer; }
+.mfm-more:hover { border-color: var(--gold); } .mfm-more:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+/* Update 25 Nov row 7: in dark mode the figures in the sector and size grid's cells read #eef3ee (token --ui-mfm-cell-fig) */
+.mfp .mfm-gn .mfm-cw { color: var(--ui-mfm-cell-fig, var(--sp-mute)); }
+/* Mix 5 (and the standing 4.5:1 rule): figures on the light slices of the bars in dark ink */
+.mfp:not(.efp) .mfm-stack :is(i.mfm-d, i.mfm-o, i.mfm-zM, i.mfm-zS) { color: var(--ui-mfm-on-light); }
+.mfp:not(.efp) .mfm-stack i.mfm-zX { color: var(--ui-mfm-on-micro); }
+/* Mix 6: Sectors inside each fund, column headers in plain case at 12 px, at least 96 px wide, wrapping */
+.mfp:not(.efp) .mfm-heat thead th { min-width: 96px; text-transform: none; letter-spacing: 0; font-size: var(--fs-12); white-space: normal; vertical-align: bottom; }
+.mfp:not(.efp) .mfm-heat thead th span { max-width: none; }
+.mfp:not(.efp) .mfm-heat thead th:first-child { min-width: 0; }
+/* Mix 7 and Update row 6: Expand above the grid; the reader in words, kept in view beside the grid */
+.mfm-gxrow { display: flex; justify-content: flex-end; margin: 0 0 8px; }
+.mfm-reader .mfm-rn { margin: 0 0 4px; font: 600 var(--fs-14)/1.4 var(--sans); color: var(--sp-ink); } .mfm-reader .mfm-rn span { font-weight: 400; color: var(--sp-mute); }
+.mfm-reader .mfm-rv { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 0 0 6px; }
+.mfm-reader .mfm-rv b { font: 600 var(--fs-24)/1.1 var(--serif); color: var(--sp-ink); }
+.mfm-reader .mfm-cwd { font: 600 var(--fs-14)/1.4 var(--sans); color: var(--sp-ink); }
+.mfm-reader .mfm-rm { font-size: var(--fs-13); color: var(--sp-mute); }
+@media (min-width: 761px) { .mfp:not(.efp) .mfm-pair > .mfm-reader { position: sticky; top: calc(var(--top-h, 63px) + 76px); } }
+/* on its own screen: the reader sits above the grid and stays in view both ways while the grid scrolls (the box spans the whole table, so it can stick left) */
+.mfm-ovl { width: max-content; min-width: 100%; padding-top: 12px; }
+.mfm-ovl .mfm-reader { position: sticky; top: 0; left: 0; z-index: 3; box-sizing: border-box; width: min(720px, calc(100vw - 60px)); margin: 0 0 12px; box-shadow: var(--ui-pop-shadow); }
+.mfm-ovl .mfm-reader p { margin-bottom: 2px; }
+.mfm-cg-big th, .mfm-cg-big td { min-width: 64px; height: 44px; }
+.mfm-cg-big td button { box-sizing: border-box; width: 100%; min-height: 42px; text-align: center; font-size: var(--fs-14); }
+@media (max-width: 760px) { .mfm-ovl .mfm-reader { width: calc(100vw - 16px); padding: 10px 12px; } .mfm-ovl .mfm-reader .mfm-rm { display: none; } }
+/* Mix 8: Stocks they share, card titles in plain case at 13 px; the pairs with no stock in common in one line under the cards */
+.mfm-card .mfm-pt { margin: 0 0 4px; font: 600 var(--fs-13)/1.35 var(--sans); color: var(--sp-ink); }
+.mfp .mfm-showall { margin-top: 10px; }
+.mfp .mfm-none { margin: 10px 0 0; }
+/* Phone: the sector and size grid keeps cells at least 150 px wide (sector name 118 px) and scrolls sideways inside its box */
+@media (max-width: 760px) {
+  .mfp .mfm-gn { table-layout: auto; min-width: 0; width: max-content; }
+  .mfp .mfm-gn thead th:first-child, .mfp .mfm-gn tbody th { width: 118px; min-width: 118px; max-width: 118px; }
+  .mfp .mfm-gn td.mfm-c, .mfp .mfm-gn thead th:not(:first-child):not(:last-child) { min-width: 150px; width: 150px; }
+}

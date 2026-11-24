@@ -131,6 +131,22 @@
   --ui-grid-heat: #2f7a82;
 }
 
+/* Task #389 (MF portfolio, developer file 32, Update 25 Nov row 7): in dark mode the figures in the Mix & overlap sector and size grid's cells
+   ("17.3% · 26 companies") read #eef3ee on the tinted cells; light mode keeps the grid's muted ink (mf/pack/mf-pack.css .mfm-cw). */
+:root[data-theme="dark"],
+:root:not([data-theme="light"]) {
+  --ui-mfm-cell-fig: #eef3ee;
+}
+/* Task #389: the labels on the light slices of the MF page's bars (debt #8fa8a6, gold #b8892f, mid #8fa8a6, small #c9a35a) read in dark ink in both modes
+   (the slices keep their colours in dark mode); white on them was 2.2 to 3.2:1. */
+:root, :root[data-theme] {
+  --ui-mfm-on-light: #12160f;
+}
+/* the Micro slice (--k7) is violet #6250d6 in light (white reads 5.9:1) and #9c92f0 in dark, where white read 2.6:1: dark ink there */
+:root, :root[data-theme="light"] { --ui-mfm-on-micro: #fff; }
+:root[data-theme="dark"],
+:root:not([data-theme="light"]) { --ui-mfm-on-micro: #12160f; }
+
 /* --action-primary is left alone on purpose: only "Ask FinLit AI" (button.ai-top) reads it, and pointing it at --btn-bg would put a
    second main button on every page. That button is restyled in the source in a later step. */
 
