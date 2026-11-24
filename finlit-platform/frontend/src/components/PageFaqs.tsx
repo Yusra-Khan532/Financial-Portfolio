@@ -87,8 +87,10 @@ export function PageFaqs({ inline = false }: { inline?: boolean }) {
         <footer className="pfq-f"><span>Information only, not investment advice.</span><Link to="/faq">All FAQs</Link></footer>
       </div>
   );
-  // The dashboard keeps its questions folded away: one line with the question count, opened on request (or by a #faq link).
-  if (pathname === "/dashboard") return (
+  // The dashboard keeps its questions folded away: one line with the question count, opened on request (or by a #faq link). On a phone every page
+  // does the same (docs/MOBILE-APP.md, checklist 23: the questions added 400-1,100px to most pages there).
+  const phone = typeof matchMedia === "function" && matchMedia("(max-width: 860px)").matches;
+  if (pathname === "/dashboard" || phone) return (
     <section className="pfq pm-noprint pzr-noprint" id="faq" aria-label="Questions about this page" key={faq.id}>
       <details className="pfq-fold pfq-card" open={hash === "#faq"}><summary><span><b>Questions about this page</b><small>{faq.title} · {faq.items.length} questions</small></span><span className="pfq-show" aria-hidden="true" /></summary>{inner}</details>
     </section>

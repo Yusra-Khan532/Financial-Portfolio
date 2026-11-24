@@ -41,6 +41,7 @@ import "./styles/site-green.css";   // task #161: the landing green is the dark 
 import "./styles/ui-tokens.css";   // task #310: the design rules as variables (after every theme layer, so they win)
 import "./styles/ui.css";   // task #310: the shared ui- pieces (Button, Tabs, Card, PageTitle, Input, Chip in components/ui)
 import "./styles/phone310.css";   // task #310 part E: the phone layer under 860px (header, bottom bar, toasts, 44px taps)
+import "./styles/mobile-app.css";   // the phone app (docs/MOBILE-APP.md): tabs, section chips, Menu sheet, Tools button, slim footer, under 860px
 import "./styles/overlay.css";
 import { purgeLegacy } from "./lib/persist";
 

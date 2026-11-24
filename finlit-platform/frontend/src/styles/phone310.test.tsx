@@ -92,16 +92,14 @@ describe("fixes 1 and 2: the header", () => {
 });
 
 describe("fix 3: what stays on screen", () => {
-  it("the bottom bar: Dashboard, Research, Search, Screener, Menu, flat along the bottom, 56px, the current page in text colour", () => {
+  it("the bottom bar is now the phone app's five tabs (owner, 25 Nov 2026: docs/MOBILE-APP.md; locked in by styles/mobileApp.test.tsx); 56px; the bar never covers the end of a page", () => {
     const layout = read("components/Layout.tsx");
-    const bar = layout.slice(layout.indexOf('<nav className="mtabs"'), layout.indexOf("</nav>", layout.indexOf('<nav className="mtabs"')));
-    expect([...bar.matchAll(/tab\([^,]+, "\w+", ("[^"]+"|user \? "Dashboard" : "Home")/g)].map((m) => m[1])).toEqual(['user ? "Dashboard" : "Home"', '"Research"', '"Screener"']);
-    expect(bar).toContain("<span>Search</span>");
-    expect(bar).toContain("<span>Menu</span>");
-    expect(block).toMatch(/\.mtabs \{ display: grid; grid-template-columns: repeat\(5, minmax\(0, 1fr\)\); position: fixed; left: 0; right: 0; bottom: 0;/);
-    expect(block).toMatch(/\.mt-i \{[^}]*min-height: var\(--ui-bar-h\);[^}]*font: var\(--ui-fw-medium\) var\(--fs-12\)/);
-    expect(block).toMatch(/\.mt-i\[aria-current="page"\] \{ color: var\(--text\); font-weight: var\(--ui-fw-semibold\); \}/);
-    expect(block).toMatch(/main \{ padding-bottom: calc\(var\(--ui-bar-h\) \+ 16px/);   // the bar never covers the end of a page
+    expect(layout).not.toContain('<nav className="mtabs"');
+    expect(layout).toContain("<MobileTabs /><MobileMenu /><ToolsButton />");
+    const app = strip(read("styles/mobile-app.css"));
+    expect(app).toMatch(/\.ma-tabs \{ display: grid; grid-template-columns: repeat\(5, minmax\(0, 1fr\)\); position: fixed; left: 0; right: 0; bottom: 0;/);
+    expect(app).toMatch(/\.ma-tab \{[^}]*min-height: var\(--ui-bar-h\);[^}]*font: var\(--ui-fw-medium\) var\(--fs-12\)/);
+    expect(block).toMatch(/main \{ padding-bottom: calc\(var\(--ui-bar-h\) \+ 16px/);
   });
   it("nothing else floats: no floating Menu button anywhere, and the report's edge tab is off on a phone", () => {
     for (const p of files(SRC, /\.(css|tsx?)$/)) expect(readFileSync(p, "utf8"), p).not.toMatch(/shell-fab/);

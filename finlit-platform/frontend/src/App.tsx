@@ -7,6 +7,11 @@ import { UpdateBanner } from "./components/UpdateBanner";
 import { AppShell } from "./components/AppShell";
 import { SearchPalette } from "./components/SearchPalette";
 import { Home } from "./pages/Home";
+import { useIsPhone } from "./components/PhoneFold";
+const MarketsToday = lazy(() => import("./pages/MarketsToday").then((m) => ({ default: m.MarketsToday })));
+const AllToolsPage = lazy(() => import("./pages/AllTools").then((m) => ({ default: m.AllToolsPage })));
+/** The home address: on a phone (under 860px) a visitor opens Markets today, charts first (docs/MOBILE-APP.md); a computer, or "Desktop site", keeps the landing page. */
+function IndexPage() { return useIsPhone() ? <MarketsToday home /> : <Home />; }
 const Research = lazy(() => import("./pages/Research").then((m) => ({ default: m.Research })));
 const PlansPage = lazy(() => import("./pages/Plans").then((m) => ({ default: m.PlansPage })));   // task #295: the landing page no longer holds the plans band, so /plans loads on its own
 const Services = lazy(() => import("./pages/Services").then((m) => ({ default: m.Services })));
@@ -105,10 +110,12 @@ export default function App() {
     <Suspense fallback={<Fallback />}>
       <Routes>
         <Route element={<Layout />}>
-          <Route index element={<Home />} />
+          <Route index element={<IndexPage />} />
           <Route element={<AppShell />}>
             <Route path="research" element={<><Research onSearch={() => setSearch(true)} /><SearchPalette open={search} onClose={() => setSearch(false)} /></>} />
             <Route path="dashboard" element={<Dashboard />} />
+            <Route path="markets" element={<MarketsToday />} />
+            <Route path="tools" element={<AllToolsPage />} />
             <Route path="screener" element={<Screener />} />
             <Route path="query-builder" element={<QueryBuilder />} />
             <Route path="baskets" element={<BasketsPage />} />
