@@ -16,7 +16,7 @@ const ROWS: [string, string, string[], string[]][] = [
   ["P1 company report", "./stock/KeyFindings.tsx", ["not investment advice"], []],
   ["P1 company report", "./stock/MacroOutlook.tsx", ["How this reading is made", "model v{c.modelVersion}"], ["An early estimate for the company's"]],
   ["P2 Prism", "./components/prism/pzr/Landing.tsx", ["starts calculating", "Each member can calculate 20 a day", "Opening one never starts a calculation", "and which inputs are missing"], ["The latest rating for each company."]],
-  ["P3 screener", "./pages/ScreenerPro.tsx", ["until a company's report is loaded", "no full report loaded yet", "Report loaded"], ["have no ratios yet", "With ratios"]],
+  ["P3 screener", "./pages/ScreenerPro.tsx", ["until a company's report is loaded", "no full report loaded yet", "Report loaded"], []],   // task #364: "have no ratios yet" and "With ratios" left with the coverage ring, which the team asked off the page; the foot line still gives the count
   ["P3 screener", "./components/screener/PageParts.tsx", ["({nf(pct, 0)}%)</li>"], []],
   ["P4 superinvestors", "./superinvestors/TrackedTab.tsx", ["the same-size market is the median move"], ["against companies of the same size. It is not the investor's own return."]],
   ["P4 superinvestors", "./pages/Superinvestors.tsx", ["Built from the filings of", "(fetched"], ["companies covered."]],
