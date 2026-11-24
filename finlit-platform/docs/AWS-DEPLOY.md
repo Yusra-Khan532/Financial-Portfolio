@@ -169,7 +169,9 @@ The $100 credit therefore lasts roughly 4 months of continuous running; the free
 - [ ] SSH only from your address: the security group rule is "My IP" and `ADMIN_IP=... bootstrap.sh` was run (update both if your home address changes).
 - [ ] **MFA turned on for the AWS root user**, and a billing alarm exists. Use an IAM user for daily work, not root.
 - [ ] No secrets in git. The only place for them is `/opt/finlit/.env.aws` (permissions 600). `deploy.sh` re-applies `chmod 600` on every run.
-- [ ] `ADMIN_REQUIRE_MFA=1` and the administrator's authenticator app is set up. Delete `ADMIN_PASSWORD` from the file afterwards (redeploy once).
+- [ ] `ADMIN_REQUIRE_MFA=1` and the administrator's authenticator app is set up. Then change the administrator's password once under Account: the
+  live password is then no longer the value in the file. **Keep `ADMIN_PASSWORD` in the file**: `deploy.sh` refuses to run without it, and typing a
+  NEW value there is the way back in without a shell (applied at the next start, every session signed out).
 - [ ] The database and Redis have no published ports; only 22, 80, 443 are open. Do not add rules for 5432 or 6379.
 - [ ] Ubuntu security updates install themselves; once a month run `sudo reboot` at a quiet time if `/var/run/reboot-required` exists, then `finlit status`.
 - [ ] A copy of a recent backup is on your own computer.
