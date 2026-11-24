@@ -1,0 +1,44 @@
+/* Task #383 (Chinmay, 24 Nov 2026): "correct the ui in this it is looking too odd align it properly and make the show filter and hide filter button and
+   scroller like it is in Mutual Fund and mutual fund screener. DONT AFFECT Mutual fund and Mutual fund screener. just make the changes in stock screener".
+   Only .ssw- classes of the Stock screener (pages/ScreenerPro.tsx); the Mutual Fund Screener's .mfs- rules (mfscreen.css, task357/363/354) are copied, not
+   shared, so nothing on the fund pages changes.
+   - Wide screens: the open panel has "Hide filters" (the 2px outline of task #354) instead of the small ×; hidden filters leave a slim vertical "Show filters"
+     on the left, 44px wide, in view while the page scrolls, with the number of rules on, and the table takes the width. The full-width
+     "Score and Filters · N companies ▾" bar is no longer shown on a wide screen.
+   - Phones and narrow windows (1000px and below): the drawer keeps its opener bar and its ×; the bar's words now sit left to right (icon, title, count) with the
+     arrow at the end, instead of being spread across the bar.
+   - The table's scroller (◀ slider ▶, "First column … Last column") comes from components/HScroll, as on the fund pages. */
+
+.wrap.ssw .ssw-showf { display: none; }
+.wrap.ssw .ssw-hidef { display: none; }
+
+@media (min-width: 1001px) {
+  .wrap.ssw .ssw-rtoggle.min { display: none; }
+  .wrap.ssw .ssw-work.rules-min { grid-template-columns: 44px minmax(0, 1fr); gap: 16px; }
+  .wrap.ssw .ssw-rmin { display: none; }
+  .wrap.ssw .ssw-hidef { display: inline-flex; flex: none; align-items: center; border: 2px solid color-mix(in srgb, var(--text) 70%, transparent); font-weight: 600; }
+  .wrap.ssw .ssw-hidef:hover, .wrap.ssw .ssw-hidef:focus-visible { border-color: var(--text); }
+  .wrap.ssw .ssw-showf {
+    position: sticky; top: 72px; align-self: start;   /* the Mutual Fund Screener panel's own sticky top (mfscreen.css) */
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+    width: 44px; padding: 12px 0; border-radius: var(--r-ctl); border: 2px solid color-mix(in srgb, var(--text) 70%, transparent);
+    background: var(--s1); color: var(--text); font: 600 var(--fs-13) var(--sans); cursor: pointer;
+  }
+  .wrap.ssw .ssw-showf:hover, .wrap.ssw .ssw-showf:focus-visible { border-color: var(--text); background: var(--s2); }
+  .wrap.ssw .ssw-showf:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .wrap.ssw .ssw-showf span { writing-mode: vertical-rl; transform: rotate(180deg); line-height: 1; }
+  .wrap.ssw .ssw-showf .ico { width: 16px; height: 16px; color: var(--text); }
+  .wrap.ssw .ssw-showf b { min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--ui-r-pill); background: var(--gold); color: var(--on-gold); font: var(--ui-fw-medium) var(--fs-12)/20px var(--sans); text-align: center; }
+}
+
+/* the phone and narrow-window opener: words from the left, the arrow at the end */
+@media (max-width: 1000px) {
+  .wrap.ssw .ssw-rtoggle { justify-content: flex-start; text-align: left; }
+  .wrap.ssw .ssw-rtoggle > i { margin-left: auto; }
+}
+
+/* the panel's title stays on one line beside Hide filters (it wrapped to two at the panel's starting width) */
+@media (min-width: 1001px) {
+  .wrap.ssw .ssw-rh.xsp-rh { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .wrap.ssw .ssw-rh.xsp-rh h2 { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--ui-fs-h3); }
+}

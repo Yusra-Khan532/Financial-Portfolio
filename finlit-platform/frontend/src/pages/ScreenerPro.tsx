@@ -33,6 +33,7 @@ import { RuleCard, startRange } from "../components/screener/RuleCard";
 import { RulePicker } from "../components/screener/RulePicker";
 import { RuleTopics } from "../components/screener/RuleTopics";
 import "../styles/task364.css";   // task #364: the Score and Filters panel
+import "../styles/task383.css";   // task #383: Show filters / Hide filters and the table's scroller, as on the Mutual Fund Screener
 import { RuleFigures } from "../components/screener/RuleFigures";
 import { parseRules } from "../lib/typeRules";
 import "../styles/fgx.css";
@@ -288,7 +289,8 @@ export function ScreenerPro() {
     ...F.bands.map((s) => ({ label: `Prism rating: ${BAND_WORD[s] ?? s}`, clear: () => toggle("bands", s) })),
   ];
 
-  const nOn = chips.filter((c) => !c.label.endsWith(" (column)")).length + (q.trim() ? 1 : 0);   // what Clear all takes away; a ratio shown as a column is not a filter
+  const nFiltersOn = chips.filter((c) => !c.label.endsWith(" (column)")).length;   // task #383: the filters on, counted on the folded Show filters (the search is not a filter)
+  const nOn = nFiltersOn + (q.trim() ? 1 : 0);   // what Clear all takes away; a ratio shown as a column is not a filter
 
   // a ready-made screen turns on or off; several can be on, and each adds its filters to the reader's and to the other screens' (task #64 P-4)
   const toggleScreen = (s: ReadyScreen) => {
@@ -384,9 +386,13 @@ export function ScreenerPro() {
           <span className="ssw-rt-ico" aria-hidden="true"><Icon name="layers" /></span><b>Score and Filters</b>{nActive + nWaiting ? ` (${nActive + nWaiting})` : ""}{onScreens.length ? ` · ${onScreens.length} ${onScreens.length === 1 ? "screen" : "screens"} on` : ""} · {res.data ? `${nf(total, 0)} companies` : "…"} <i aria-hidden="true">{rulesOpen ? "▴" : "▾"}</i></button>
 
         <div className={"ssw-work" + (rulesOpen ? "" : " rules-min")} style={{ "--side-w": `${sideW || SIDE.def}px` } as React.CSSProperties}>
+          {/* task #383: hidden filters leave a slim vertical "Show filters" on the left (wide screens), as on the Mutual Fund Screener; the table takes the width */}
+          {!rulesOpen && <button type="button" className="ssw-showf" onClick={() => setRulesOpen(true)} aria-expanded="false" aria-controls="ssw-rules"><Icon name="panel" /><span>Show filters</span>{nFiltersOn > 0 && <b aria-label={`${nFiltersOn} on`}>{nFiltersOn}</b>}</button>}
           <aside id="ssw-rules" className={"card ssw-rules" + (rulesOpen ? " open" : "")} aria-label="Score and Filters">
             {/* task #243 (pack S, v3): a calm header row (the label and the minimise button), then the three tabs on their own row */}
+            {/* task #383: on a wide screen "Hide filters", as on the Mutual Fund Screener; on a phone the drawer keeps its × */}
             <div className="ssw-rh xsp-rh"><h2>Score and Filters</h2>
+              <button type="button" className="btn sm ssw-hidef" onClick={minimizeRules} aria-controls="ssw-rules" aria-expanded={rulesOpen} title="Hide the filters (your rules stay on)">Hide filters</button>
               <button type="button" className="ssw-rmin" onClick={minimizeRules} aria-controls="ssw-rules" aria-expanded={rulesOpen} aria-label="Minimize Score and Filters" title="Minimize Score and Filters (your rules stay on)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button></div>
             <SizeNote link={!!init.current.moved} saved={saved.some((x) => !!x.sizesMoved)} />
             <PanelTabs tab={ptab} setTab={setPtab} nOn={onScreens.length} nReady={ready.data?.screens.length ?? null} />
@@ -503,7 +509,7 @@ export function ScreenerPro() {
                 <>
                   {total === 0 && tight && <div className="ssw-zero" role="status"><b>No company passes every rule.</b> {stepName(tight.key)} is the tightest: it leaves none of the {nf(tight.before, 0)} companies before it.
                     <button type="button" className="btn" onClick={() => removeStep(tight.key)}>Remove {stepName(tight.key)}</button></div>}
-                  <TableZoom label="Stock screener results"><HScroll className={"scr-tw ssw-tw" + (res.isFetching ? " is-busy" : "")} label="results table" tall controls={false}><table className="scr-t ssw-t">
+                  <TableZoom label="Stock screener results"><HScroll className={"scr-tw ssw-tw" + (res.isFetching ? " is-busy" : "")} label="results table" tall><table className="scr-t ssw-t">
                     <thead>
                       <tr className="ssw-band"><th className="stick">Company</th>{bandsOf(shown.filter((k) => base.includes(k))).map((b, i) => <th key={i} colSpan={b.n} className={"xst-b-" + b.kind}>{
                         b.kind === "size" ? "Market cap" : b.kind === "tech" ? <>{prismOnly ? "FinLit Prism · " : ""}{b.n} technical {b.n === 1 ? "pillar" : "pillars"}<small>−100 to +100</small></> : b.kind === "score" ? "FinLit Prism" : `${b.n} ${b.n === 1 ? "column" : "columns"}`}</th>)}{ruleCount > 0 && <th colSpan={ruleCount} className="rb">Your rules</th>}{ratios.length > 0 && <th colSpan={ratios.length} className="cr-th">Custom ratios</th>}<th aria-label="Report" /></tr>
