@@ -144,14 +144,16 @@ Written 17 Nov 2026 from a full read of the repository, the team workspace and t
 
 **Live:** `finlitventures.com` (main), with `www` redirecting to it and `app.` serving the same site with a canonical link to the main domain.
 
-**Cloudflare** is DNS only (records not proxied, checked 17 Nov). It provides:
+**Cloudflare** proxies the site (orange cloud). Live responses on 24 Nov 2026 carried `server: cloudflare` and `cf-ray` in front of `via: 1.1 Caddy`; on 17 Nov the records were still DNS only. It provides:
+- the proxy: edge DDoS protection and the server's address kept out of DNS;
 - DNS;
 - Email Routing (MX and SPF records);
 - the Worker relay in `deploy/amfi-relay/` for AMFI files and NSE/BSE pages, which refuse the AWS address. If the relay breaks, fund facts, company briefs and earnings calls stop updating.
 
-Caddy already trusts `CF-Connecting-IP` from Cloudflare's ranges (#515), so turning the proxy on needs no code. Two caveats:
-- SSL mode must be "Full (strict)".
-- `/api` must not be cached at the edge.
+Caddy trusts `CF-Connecting-IP` only from Cloudflare's published ranges (#515) and overwrites any `X-Forwarded-For` a visitor sends, so the login lock-out and per-visitor limits count real visitors and the address cannot be faked (verified 24 Nov). Keep true:
+- SSL mode must be "Full (strict)" (checked in the Cloudflare dashboard; not visible from outside).
+- `/api` must not be cached at the edge. Verified 24 Nov: `/api` answers come back `cf-cache-status: DYNAMIC` with `cache-control: no-store`.
+- The EC2 security group should accept ports 80/443 only from Cloudflare's ranges (or use Authenticated Origin Pulls). Otherwise anyone who learns the server's address reaches Caddy directly and skips the edge protections. The address is in this file and in old DNS history, so treat it as known. Owner step: see `docs/security/SECURITY-CHECKUP-2026-11.md`.
 
 **AWS:** one EC2 t3.small in Sydney (54.253.190.17; 2 GB of memory plus 2 GB swap). Docker Compose runs:
 
@@ -221,7 +223,7 @@ Before a push: `bash scripts/preflight.sh`.
 - #206 asks to recolour the whole site from a photo, which conflicts with the final-pages pack and the site-green work (#161). Ask the founder before building.
 - #210 (Prism CAGR ladders and PEG fallback) looks already shipped in PR #503 (Prism 3.6.19) but is still todo. Check it live, then mark it done.
 - #191 (Zerodha, Upstox, Groww connection), #212 (superinvestor portfolios from FinEdge) and #211 ("claude integration check") need scoping first.
-- Should Cloudflare's proxy be turned on? It adds an edge cache, DDoS protection and hides the server's address.
+- ~~Should Cloudflare's proxy be turned on?~~ Done (on by 24 Nov 2026). Remaining: limit the EC2 security group to Cloudflare's ranges (above).
 - Cheap safety fixes worth doing between tasks:
   - deploy only after CI passes;
   - one central plan-check dependency on the backend;
