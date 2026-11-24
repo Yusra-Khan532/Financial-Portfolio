@@ -22,7 +22,6 @@ jobs:
     timeout-minutes: 20
     env:
       BASE_URL: ${{ vars.FINLIT_SITE_URL || 'https://finlitventures.com' }}
-      MONITOR_INGEST_KEY: ${{ secrets.MONITOR_INGEST_KEY }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       RUN: ${{ inputs.run || (github.event.schedule == '11 18 * * 0' && 'weekly') || 'smoke' }}
     steps:
@@ -42,6 +41,8 @@ jobs:
           { echo "code=$code"; echo "vus=$vus"; } >> "$GITHUB_OUTPUT"
       - name: Report to the admin console
         if: always()
+        env:
+          MONITOR_INGEST_KEY: ${{ secrets.MONITOR_INGEST_KEY }}   # only this step sees the key (not the third-party k6 action)
         run: python3 finlit-platform/scripts/monitor_report.py k6 "$RUN" summary.json "${{ steps.k6.outputs.code || 1 }}" "${{ steps.k6.outputs.vus || 0 }}"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()

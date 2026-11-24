@@ -16,8 +16,6 @@ jobs:
     timeout-minutes: 5
     env:
       BASE_URL: ${{ vars.FINLIT_SITE_URL || 'https://finlitventures.com' }}
-      MONITOR_INGEST_KEY: ${{ secrets.MONITOR_INGEST_KEY }}
-      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}   # Resend's SMTP; without it the alert opens a GitHub issue instead
       ALERT_EMAIL_TO: ${{ vars.ALERT_EMAIL_TO || 'finlit.start@gmail.com' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -40,6 +38,7 @@ jobs:
           { echo "ok=$ok"; echo "code=$code"; echo "ms=$ms"; echo "version=$ver"; echo "fails=$fails"; } >> "$GITHUB_OUTPUT"
       - name: Report to the admin console
         env:
+          MONITOR_INGEST_KEY: ${{ secrets.MONITOR_INGEST_KEY }}   # secrets go only to the step that uses them
           P_OK: ${{ steps.probe.outputs.ok }}
           P_CODE: ${{ steps.probe.outputs.code }}
           P_MS: ${{ steps.probe.outputs.ms }}
@@ -49,6 +48,7 @@ jobs:
       - name: Alert (two failures in a row)
         if: steps.probe.outputs.fails == '2'
         env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}   # Resend's SMTP; without it the alert opens a GitHub issue instead
           GH_TOKEN: ${{ github.token }}
           RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           P_CODE: ${{ steps.probe.outputs.code }}
