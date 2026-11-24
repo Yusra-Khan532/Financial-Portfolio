@@ -2,7 +2,9 @@
 admin console's Monitoring tab. Owner's request of 24 Nov 2026; docs/MONITORING.md.
 
     GET  /api/status/public       anyone: each check's name, up or down, its share of good checks lately, and when it was last checked.
-                                  Nothing else: no addresses, no error text, no response times. Cached 30 s, at most 30 asks a minute per visitor.
+                                  Nothing else: no addresses, no error text, no response times, and no check in a private group (PRIVATE_GROUPS:
+                                  "security", e.g. the export lock; a failing one would tell every visitor where a lock is open). Cached 30 s,
+                                  at most 30 asks a minute per visitor (the site's shared Redis limiter, IPv6 counted per /64).
     GET  /api/admin/monitoring     administrators: every check with its response time, recent incidents, the failing jobs, the last outside check,
                                   the last load test and the Uptime Kuma link.
     POST /api/monitor/ingest       the outside check and the load test report here, with the header X-Monitor-Key = MONITOR_INGEST_KEY.
@@ -17,9 +19,8 @@ import hmac
 import json
 import os
 import time
-from collections import deque
 from datetime import datetime, timezone
-from typing import Any, Deque, Dict, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
 import httpx
 from fastapi import APIRouter, Depends, Request
@@ -33,11 +34,11 @@ admin = APIRouter()
 
 CACHE_S = 30.0
 PUBLIC_PER_MIN = 30
+PRIVATE_GROUPS = frozenset({"security"})   # Gatus groups (deploy/aws/gatus/config.yaml) the public page leaves out; admins still see them
 OUTSIDE_KEY, OUTSIDE_LOG_KEY, K6_KEY = "monitor:outside:last", "monitor:outside:log", "monitor:k6:last"
 OUTSIDE_LOG_MAX = 288   # a day of five-minute checks
 
 _cache: Dict[str, Tuple[float, Any]] = {}
-_hits: Dict[str, Deque[float]] = {}
 
 
 def gatus_url() -> str:
@@ -71,9 +72,14 @@ def summarize(raw: Any) -> List[Dict[str, Any]]:
     return rows
 
 
+def is_public(row: Dict[str, Any]) -> bool:
+    """A check visitors may see: any group but the private ones (matched by group, so renaming a check never leaks it)."""
+    return str(row.get("group") or "").strip().lower() not in PRIVATE_GROUPS
+
+
 def public_view(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Only what a visitor may see: no address, no error text, no response time, no internal group name."""
-    return [{"name": r["name"], "up": r["up"], "goodPct": r["goodPct"], "checks": r["checks"], "checkedAt": r["checkedAt"]} for r in rows]
+    """Only what a visitor may see: no address, no error text, no response time, no internal group name, no private-group check."""
+    return [{"name": r["name"], "up": r["up"], "goodPct": r["goodPct"], "checks": r["checks"], "checkedAt": r["checkedAt"]} for r in rows if is_public(r)]
 
 
 def incidents(rows: List[Dict[str, Any]], limit: int = 20) -> List[Dict[str, Any]]:
@@ -103,26 +109,17 @@ async def gatus_rows(client: Optional[httpx.AsyncClient] = None) -> Tuple[Option
     return out
 
 
-def _limited(ip: str) -> bool:
-    now = time.monotonic()
-    q = _hits.setdefault(ip, deque())
-    while q and now - q[0] > 60:
-        q.popleft()
-    if len(q) >= PUBLIC_PER_MIN:
-        return True
-    q.append(now)
-    if len(_hits) > 5000:   # keep the table small
-        for k in [k for k, v in _hits.items() if not v][:2500]:
-            _hits.pop(k, None)
-    return False
-
-
 @public.get("/api/status/public")
 async def status_public(request: Request):
-    if _limited(ip_of(request)):
-        return JSONResponse({"detail": "Too many requests; try again in a minute."}, status_code=429, headers={"Retry-After": "60"})
+    # The site's shared limiter: counters in Redis that expire with their minute (nothing kept in this process), IPv6 counted per /64. Fails
+    # open when Redis is down, like the other public reads: the page is cheap (cached 30 s) and the global per-IP limit still applies.
+    allowed, retry = await request.app.state.limiter.hit("status_public", ip_of(request), PUBLIC_PER_MIN, 60, fail_open=True)
+    if not allowed:
+        return JSONResponse({"status": "rate_limited", "detail": "Too many requests. Please wait and try again.", "retryAfter": retry}, status_code=429,
+                            headers={"Retry-After": str(retry), "Cache-Control": "no-store"})
     rows, why = await gatus_rows()
-    body = {"checks": public_view(rows) if rows is not None else [], "allUp": bool(rows) and all(r["up"] for r in rows),
+    shown = public_view(rows) if rows is not None else []
+    body = {"checks": shown, "allUp": bool(shown) and all(r["up"] for r in shown),   # from the shown checks only: nothing hidden is given away
             "note": why, "asOf": datetime.now(timezone.utc).isoformat(timespec="seconds")}
     return JSONResponse(body, headers={"Cache-Control": "public, max-age=30"})
 

@@ -84,6 +84,9 @@ Without Kuma everything else works; it is a second opinion with its own dashboar
 - Site side: `backend/finlit/monitoring.py` — `/api/status/public` (names, up/down and recent record only; no addresses, errors or timings; cached
   30 s; 30 requests a minute per visitor), `/api/admin/monitoring` (admins: everything), `/api/monitor/ingest` (GitHub reports with `X-Monitor-Key`;
   only the listed fields are kept, in Redis).
+- The public view leaves out every check in Gatus's `security` group (now "Scores export link locked"; `PRIVATE_GROUPS` in monitoring.py) and
+  works out "Everything is up" from the shown checks only, so a broken lock is never announced to visitors; admins still see it in Console → Monitoring.
+  Its 30-a-minute limit uses the site's shared Redis limiter (IPv6 counted per /64; if Redis is down the page still answers).
 - Pages: `/status` (`frontend/src/pages/Status.tsx`, linked in the footer) and Console → Monitoring (`frontend/src/components/admin/Monitoring.tsx`).
 - GitHub: `.github/workflows/platform-uptime.yml` (outside check), `.github/workflows/platform-load.yml` (k6), `scripts/monitor_report.py`.
 - k6 scripts: `tests/load/smoke.js`, `tests/load/weekly.js` — public, read-only pages only; never sign in, never write. Run by hand:
