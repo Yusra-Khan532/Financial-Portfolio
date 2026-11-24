@@ -34,7 +34,7 @@ describe("the three sub-tabs (D54)", () => {
   it("switches the sector panel between Macro sector and Sector, and reads a tapped cell (D56, D59)", () => {
     view(<DivSubTabs d={d} />);
     fireEvent.click(screen.getByRole("button", { name: "Industrials and Utilities: 0.40" }));
-    expect(screen.getByText(/Industrials · Utilities: 0.40/).closest("p")!.textContent).toMatch(/Across 3 pairs of shares, they move together somewhat/);
+    expect(screen.getByText(/Industrials · Utilities: 0.40/).closest("p")!.textContent).toMatch(/Across 3 pairs of shares, they are partly linked/)   // task #385: file 33's correlation words;
     fireEvent.click(screen.getByRole("button", { name: "Sector · 4" }));
     expect(screen.getByRole("heading", { name: /Do your sectors move together\?/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Capital Goods and Capital Goods: 0.80" })).toBeTruthy();
@@ -53,12 +53,13 @@ describe("share by share (D67–D69)", () => {
     view(<ShareGrid d={d} />);
     const names = () => Array.from(document.querySelectorAll(".eqd-sheat tbody th")).map((t) => t.textContent);
     expect(names()).toEqual(["A", "B", "C", "D", "E"]);
-    fireEvent.click(screen.getByRole("button", { name: "Order by “Rest”" }));
+    fireEvent.click(screen.getByRole("button", { name: "Most independent first" }));   // task #385: the order buttons say what they do
     expect(names()).toEqual(["D", "C", "E", "A", "B"]);
     fireEvent.click(screen.getByRole("checkbox", { name: /Only pairs across sectors/ }));
     expect(screen.queryByRole("button", { name: "A and B: 0.80" })).toBeNull(); expect(screen.getByRole("button", { name: "A and E: 0.60" })).toBeTruthy();
     fireEvent.click(within(document.querySelector(".eqd-sheat tbody")!).getByRole("button", { name: "D" }));
-    expect(screen.getByText(/D · Information Technology/).closest("p")!.textContent).toMatch(/With the rest of the list: 0.13/);
+    const read = document.querySelector(".eqv-rc1")!.textContent!;   // task #385: the full-width reading panel
+    expect(read).toMatch(/D · Information Technology/); expect(read).toMatch(/0\.13Barely linked with the rest/);
   });
 });
 
@@ -66,7 +67,7 @@ describe("where it sits (D52, D53)", () => {
   it("shows a chip per share with its band, darker cells, the row share and a 100% total", () => {
     view(<WhereSitsGrid d={d} />);
     const rows = Array.from(document.querySelectorAll(".eqd-ws tbody tr"));
-    expect(rows.map((r) => r.querySelector("th")!.textContent)).toEqual(["Industrials", "Information Technology", "Utilities"]);
+    expect(rows.map((r) => r.querySelector("th")!.firstChild!.textContent)).toEqual(["Industrials", "Information Technology", "Utilities"]);   // task #385: a note under each name
     expect(rows[0].querySelector(".eqd-of")!.textContent).toBe("60.0%3 shares");
     expect(document.querySelector(".eqd-ws tfoot")!.textContent).toMatch(/100%$/);
     expect(rows[1].querySelector(".eqd-chip i")!.className).toBe("b-b");

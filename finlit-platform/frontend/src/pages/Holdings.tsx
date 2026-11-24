@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Gate } from "../components/Gate";
@@ -50,7 +50,6 @@ import type { TabKey } from "../lib/equityTop";
 import { SectionsBar, SectionsMenu, jumpTo, type Sec } from "../portfolio/pack/PageTop";
 import { HideButtons, HideSlim } from "../components/Hideable";
 import { KeyAnswers } from "../portfolio/pack/KeyAnswers";
-import { divAnswers } from "../lib/keyAnswers";
 import { OrderWinNotice, WhatChanged, FilingChip, useWhatChanged } from "../components/changes/WhatChanged";
 import { useWatchlist } from "../lib/watchlist";
 import { ThemePill, YourThemes, themeView } from "../portfolio/pack/EqThemes";
@@ -59,13 +58,14 @@ import { EqTitle, MoneyBox, NextView, PfPicker, YourPortfolios, type DayMove } f
 import { DataAsOf, PageEnd, ScoreCards, SinceVisit, SixParts, dayOf, sinceText, type CardsInput } from "../portfolio/pack/EqTop385";
 import { GainLossSection, Step, StepCtx, stepOf, type StepDef } from "../portfolio/pack/EqSteps385";
 import { KeyFigures, Info, coName, countOf, namesInText, portfolioKeyFigs, shortCo, type GLRow } from "../portfolio/shared";
+import { divKeyFigs, firstSentence } from "../portfolio/shared";   // task #385 phase 2 (Diversification)
 import { prismWord5 } from "../lib/equityTop";
 import { holdingFigs } from "../portfolio/HoldingCells";
 import { dayMonth } from "../lib/whatChanged";
 import { GoldLock, InShort, Insights, LeadersSection, StyleTiltPack, PeersSection, TrendSection, SizeFold, eqViews, type View } from "../portfolio/pack/EquityPack";
 import { StickySwitch } from "../portfolio/ViewKit";
 import { RiskView, usePortfolioRisk } from "../portfolio/pack/RiskPack";
-import { DivSubTabs, ShareGrid, SpreadPack, WhereSitsGrid, divFacts, type DivInput } from "../portfolio/pack/DivPack";
+import { DivSubTabs, ShareGrid, SpreadPack, WhereSitsGrid, divLines, type DivInput } from "../portfolio/pack/DivPack";
 import { nseLevels } from "../lib/nseTaxonomy";
 import "../styles/sectors-pack.css";
 import "../styles/industry-pack.css";
@@ -391,6 +391,14 @@ export function HoldingsPage() {
     leaders: "Your laggards against the #1 share of their peer group",
     themes: thShares ? `${thShares.placed} of ${countOf(thShares.total, "share")} ${thShares.placed === 1 ? "is" : "are"} placed in a theme; ${countOf(thShares.themes.length, "main theme")} between them.` : "Reading Discover's themes…",
   };
+  // task #385 phase 2 (Diversification): each share's value now (By money, the Key figures' money line), the three Key figures, the folded summary lines
+  const worthNow = useCallback((sym: string) => holdingFigs(lots, sym).now, [lots]);
+  const [whereLine, setWhereLine] = useState("");
+  const divKf = useMemo(() => (div ? divKeyFigs({ symbols: div.symbols, macroOf: (x) => div.levelOf(x, "macro"), counted: div.page.order, groups: div.page.groups,
+    eff: byValue?.spread?.effective_stocks ?? div.page.score.effective_stocks, byValue: !!byValue?.spread, worth: worthNow, label: nameOfSym }) : []), [div, byValue, worthNow]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const divFold = useMemo(() => ({ where: whereLine, ...(div ? divLines(div, byValue?.spread?.effective_stocks) : { sectors: "", grid: "" }) }), [div, whereLine, byValue]);
+  const tiltNote = data?.styleTilt && !("locked" in data.styleTilt) ? data.styleTilt.sentence : null;
+  const styleLine = firstSentence(tiltNote) || "Where your average share ranks, part by part";
   // one section at a time: the steps of each view (Portfolio's first step holds Your shares, the gain or loss and Key figures)
   const stepsOf = (v: View): StepDef[] => v === "portfolio" ? [
       { id: "pf-shares", label: "Your shares", secs: ["pf-shares", "eq-gl", "eq-keys", "pf-sold"] },
@@ -421,7 +429,7 @@ export function HoldingsPage() {
   useEffect(() => { const f = (e: Event) => { const id = (e as CustomEvent<string>).detail; if (typeof id === "string") goStep(id); }; addEventListener("eq-step", f); return () => removeEventListener("eq-step", f); });
   const asOfParts = [priceDay ? `Prices: close of ${dayOf(priceDay)}` : "",
     ...(view === "portfolio" ? [`Filings: the last ${wcQ.q.data?.days ?? 90} days`, thShares?.updated ? `Themes: to ${dayOf(thShares.updated, true)}` : ""] : []),
-    ...(view === "diversification" ? ["Moving together: the past year of weekly closes"] : []),
+    ...(view === "diversification" ? [`Moving together: the past ${page && page.weeks < 90 ? "year" : "two years"} of weekly closes`] : []),
     ...(view === "risk" && rk.data?.to ? [`Risk figures: weekly closes to ${dayOf(rk.data.to)}`] : [])].filter(Boolean);
 
   return (
@@ -546,12 +554,12 @@ export function HoldingsPage() {
           </>}
           {view === "diversification" && data && data.noPrices.length > 0 && <p className="pfx-note" role="status">No stored prices yet for {data.noPrices.map((x) => nameOfSym(x)).join(", ")}: {plural(data.noPrices.length, "share")} left out of the co-movement figures.</p>}
           {view === "diversification" && (page && common && div ? <>
-            <Step id="eq-spread" title="How spread out is the list?" line="The spread score and how independently your shares move"><SpreadPack d={div} /></Step>
-            <Step id="eq-where" title="Where your list sits" line="Your shares by macro sector and size"><WhereSitsGrid d={div} /></Step>
-            <Step id="eq-keysd" title="Key figures" line="How spread out your list really is, in three answers"><KeyAnswers id="eq-keysd" sub="How spread out your list really is, in three answers." items={divAnswers(divFacts(div), (x) => { const y = shareOf.get(x); return y ? coName(y) : x; })} shares={shares} /></Step>
-            <Step id="eq-moves" title="How the list moves together" line="Sectors, groups and sizes that move together"><DivSubTabs d={div} /></Step>
-            <Step id="eq-grid" title="Share by share" line="How closely each pair of your shares moves"><ShareGrid d={div} /></Step>
-            <Step id="eq-style" title="Style tilt" line="Where your average share ranks, part by part">{model === "prism" ? <StyleTiltPack tilt={data?.styleTilt} /> : <GoldLock id="eq-style" title="Style tilt" text="Where your list's average share ranks among all the companies FinLit Prism rates, part by part." />}</Step>
+            <Step id="eq-spread" title="How spread out is the list?" line="The spread score and how independently your shares move"><SpreadPack d={div} byValue={byValue?.spread ?? null} /></Step>
+            <Step id="eq-where" title="Where your list sits" line={divFold.where || divKf[0]?.ans || ""}><WhereSitsGrid d={div} worth={worthNow} onLine={setWhereLine} /></Step>
+            <Step id="eq-keysd" title="Key figures" line={divKf[0] ? `${divKf[0].big} ${divKf[0].ans}${divKf[0].sub ? ` · ${divKf[0].sub}` : ""}` : ""}><KeyFigures id="eq-keysd" sub="How spread out your list really is, in three answers." cards={divKf} about="Key figures, Diversification" /></Step>
+            <Step id="eq-moves" title="How the list moves together" line={divFold.sectors}><DivSubTabs d={div} /></Step>
+            <Step id="eq-grid" title="Share by share" line={divFold.grid}><ShareGrid d={div} eff={byValue?.spread?.effective_stocks} /></Step>
+            <Step id="eq-style" title="Style tilt" line={styleLine}>{model === "prism" ? <StyleTiltPack tilt={data?.styleTilt} nameOf={nameOfSym} /> : <GoldLock id="eq-style" title="Style tilt" text="Where your list's average share ranks among all the companies FinLit Prism rates, part by part." />}</Step>
           </> : <p className="sp-note">{state === "loading" ? "Working out the figures…" : "The diversification figures need at least two shares with a year of weekly prices."}</p>)}
           {view === "risk" && (page && rk.data && div ? <>
             {/* task #385 phase 2: the Risk view's steps, the weighting switch and the shared Key figures (portfolio/pack/RiskPack.tsx RiskView) */}

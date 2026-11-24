@@ -5,3 +5,4 @@ export * from "./sort";
 export * from "./parts";
 export * from "./KeyFigures";
 export * from "./portfolioFigs";
+export * from "./divFigs";

@@ -231,7 +231,7 @@ function LeaderCompare({ shares, voice = "own", onLine }: { shares: Share[]; voi
 
 // ------------------------------------------------------------------------------------------------ Diversification analytics: DivPack.tsx (task #183 W7)
 /** Style tilt: where the list's average share ranks among all the companies FinLit Prism rates, part by part (Gold). */
-export function StyleTiltPack({ tilt }: { tilt: StyleTilt | undefined }) {
+export function StyleTiltPack({ tilt, nameOf = (s) => s }: { tilt: StyleTilt | undefined; /** task #385: names, not codes, in its sentences */ nameOf?: (s: string) => string }) {
   if (!tilt) return null;
   if ("locked" in tilt) return <section className="sp-sec" aria-labelledby="eq-style"><h2 id="eq-style">Style tilt</h2><LockedBlock plan="gold" title="Style tilt is part of the Gold plan">{tilt.reason}</LockedBlock></section>;
   const rated = tilt.parts.some((p) => p.avgPercentile != null);
@@ -239,11 +239,11 @@ export function StyleTiltPack({ tilt }: { tilt: StyleTilt | undefined }) {
     <Section id="eq-style" hide title="Style tilt" help="Where the average share in your list ranks among all the companies FinLit Prism rates, part by part: size, value, quality and momentum." how="The darker band in the middle reads as typical; each part says which way is higher." sub="Where the list's average share ranks among all companies FinLit Prism rates. The darker band, 35th to 65th, reads as typical.">
       {!rated ? <p className="sp-note">None of these shares has a Prism rating yet, so there is no style tilt to show.</p> : <>
         <ul className="eq-tilt">{tilt.parts.map((p) => { const at = p.avgPercentile; return (
-          <li key={p.part}><span>{p.part.replace(/ technical view$/i, " trend").replace(/^Short-term trend|^Long-term trend/, (x) => x)}</span>
+          <li key={p.part}><span>{p.part.replace(/ technical view$/i, " trend").replace(/^Short-term trend|^Long-term trend/, (x) => x)}{/^valuation/i.test(p.part) ? <small className="eqv-tilt-h">higher = cheaper</small> : /^risk/i.test(p.part) ? <small className="eqv-tilt-h">higher = safer</small> : null}</span>
             <span className="eq-tt" aria-hidden="true"><i className="band" />{at != null && <b style={{ left: `${at}%` }} />}</span>
             <span className="eq-tv">{at == null ? tiltRead(p) : <><b>{ordinal(Math.round(at))}</b> · {tiltRead(p)}</>}</span></li>); })}</ul>
         <p className="sp-note">{tilt.sentence ? tilt.sentence + " " : ""}Valuation: higher means cheaper. Risk: higher means lower risk.</p>
-        {tilt.notRated.length > 0 && <p className="sp-note">Not rated by Prism yet, so left out: {tilt.notRated.join(", ")}.</p>}
+        {tilt.notRated.length > 0 && <p className="sp-note">Not rated by Prism yet, so left out: {tilt.notRated.map(nameOf).join(", ")}.</p>}
       </>}
     </Section>
   );
