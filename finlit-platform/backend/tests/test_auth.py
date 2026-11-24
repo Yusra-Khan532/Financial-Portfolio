@@ -125,7 +125,7 @@ async def test_signup_existing_email_spends_the_same_hashing_as_a_new_account(ap
         return await real(stored, pw)
 
     monkeypatch.setattr(crypto, "verify_password", counting)
-    r = await anon.post("/api/auth/register", json={"email": "asha@example.com", "password": PW, "accept_terms": True}, headers=ORIGIN)
+    r = await anon.post("/api/auth/register", json={"email": "asha@example.com", "password": PW, "mobile": mob(), "accept_terms": True}, headers=ORIGIN)
     assert r.status_code == 202 and n[0] == 1   # the existing-email branch ran exactly one hash (the equaliser), as the new-account branch hashes
 
 
