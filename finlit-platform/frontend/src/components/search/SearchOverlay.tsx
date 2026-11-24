@@ -1,6 +1,7 @@
 // Site-wide search (Ctrl K or "/"): stocks, mutual funds, ETFs and news in one box, with filter pills, recent visits, live prices,
 // scores, logos and a preview of the highlighted result. Stocks are matched in the browser over every listed company (no wait); funds,
 // ETFs and news are asked from the server after a short pause in typing. Information only: no buy or sell words anywhere.
+import { SENT_WORD, fmtScore, type Sentiment } from "../../lib/sentiment";   // task #365
 import { useUniverse } from "../../lib/screener";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router";
@@ -27,7 +28,7 @@ import { FlagIN, Hl, Logo, PriceChange, Range52, ScoreRing, Spark } from "./part
 import "../../styles/search.css";
 import "../../styles/mfup.css";   // task #287: the score chip's band colours (the chip was drawn unstyled in the search box)
 
-type News = { id: number; title: string; symbol: string | null; company: string | null; source: string | null; link: string | null; date: string; category: string | null };
+type News = { id: number; title: string; symbol: string | null; company: string | null; source: string | null; link: string | null; date: string; category: string | null; sentiment?: Sentiment | null };
 const PLACEHOLDER: Record<Tab, string> = {
   all: "Search stocks, mutual funds, ETFs and news", stocks: "Company name, NSE symbol or BSE code", mf: "Fund name or fund house, e.g. flexi cap, SBI",
   etf: "ETF name or symbol, e.g. NIFTYBEES, gold", news: "Company or headline (3 letters or more)", global: "Global markets are coming soon",
@@ -86,7 +87,7 @@ const etfItems = (rows: EtfItem[] | undefined, logos: Quotes["amcLogos"] | undef
   metrics: [{ label: "1Y return", value: r.ret1y }, { label: "From 52W high", value: r.from52 }],
 }));
 const newsItems = (rows: News[] | undefined): Item[] => (rows || []).map((n) => ({
-  kind: "news", key: "news:" + n.id, title: n.title, sub: [n.company, dateIN(n.date, { day: "numeric", month: "short" })].filter(Boolean).join(" · "),
+  kind: "news", key: "news:" + n.id, title: n.title, sub: [n.company, dateIN(n.date, { day: "numeric", month: "short" }), n.sentiment ? `Sentiment ${fmtScore(n.sentiment.score)} ${SENT_WORD[n.sentiment.band]}` : null].filter(Boolean).join(" · "),   // task #365
   href: n.link || (n.symbol ? `/stocks/${encodeURIComponent(n.symbol)}` : "/news"), external: !!n.link, tag: n.category || "News", meta: n.source || undefined,
 }));
 
