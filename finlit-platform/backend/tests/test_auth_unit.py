@@ -6,6 +6,13 @@ from finlit.auth.entitlements import LIMITS, has, redact_section, redact_univers
 RFC_SECRET = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"  # base32 of "12345678901234567890"
 
 
+def test_normalise_mobile_owner_24_nov():
+    for ok in ("9876543210", "98765 43210", "+91 98765-43210", "919876543210", "09876543210", "(987) 654-3210"):
+        assert crypto.normalise_mobile(ok) == "+919876543210", ok
+    for bad in ("", None, "12345", "5876543210", "+44 7700 900123", "98765432101", "9876x43210"):
+        assert crypto.normalise_mobile(bad) is None, bad
+
+
 def test_totp_matches_rfc6238_vector():
     assert crypto.totp_code(RFC_SECRET, 59 // 30) == "287082"
     assert crypto.totp_code(RFC_SECRET, 1111111109 // 30) == "081804"
