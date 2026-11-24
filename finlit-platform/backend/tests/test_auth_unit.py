@@ -13,6 +13,16 @@ def test_normalise_mobile_owner_24_nov():
         assert crypto.normalise_mobile(bad) is None, bad
 
 
+def test_normalise_mobile_takes_only_ascii_digits():
+    """Python's \\d also matches other scripts' digits: a Devanagari or full-width number must not become a second account for the same mobile."""
+    for ok in ("+91 98765 43210", "098765-43210", "919876543210"):
+        assert crypto.normalise_mobile(ok) == "+919876543210", ok
+    deva = "९८७६५४३२१०"          # 9876543210 in Devanagari digits
+    full = "９８７６５４３２１０"          # 9876543210 in full-width digits
+    for bad in (deva, "+91 " + deva, "0" + deva, "98765" + deva[5:], full, "+91" + full):
+        assert crypto.normalise_mobile(bad) is None, bad
+
+
 def test_totp_matches_rfc6238_vector():
     assert crypto.totp_code(RFC_SECRET, 59 // 30) == "287082"
     assert crypto.totp_code(RFC_SECRET, 1111111109 // 30) == "081804"

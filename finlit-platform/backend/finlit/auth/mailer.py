@@ -1,5 +1,5 @@
 """Outgoing email. Development writes to the `outbox` table so flows can be tested without sending anything;
-production sends through Resend. Messages are plain text with one link: nothing sensitive is ever in the body."""
+production sends through Resend. Messages are plain text with a link or two: nothing sensitive is ever in the body."""
 
 from __future__ import annotations
 
@@ -60,3 +60,15 @@ def reset_mail(link: str, code: str = "") -> tuple[str, str]:
 def already_mail(link: str) -> tuple[str, str]:
     return ("You already have a FinLit account", f"Someone tried to sign up with this email address, but an account already exists.\n\n"
             f"Sign in or reset your password here:\n{link}\n\nIf this was not you, no action is needed.\n\nFinLit Ventures")
+
+
+def mobile_taken_mail(link: str, contact: str, name: Optional[str] = None) -> tuple[str, str]:
+    """Sign-up with a mobile number that another FinLit account already has (one account per mobile): no account is made, and the address that
+    signed up is told so, instead of waiting for a confirmation that never comes. It never names the other account."""
+    hello = f"Hello {name}," if name else "Hello,"
+    return ("Your mobile number is already linked to a FinLit account",
+            f"{hello}\n\nSomeone tried to create a FinLit account with this email address and a mobile number that is already linked to a FinLit "
+            "account. Each mobile number can be used for one account only, so no new account was made.\n\n"
+            f"If you already have an account with this number, sign in or reset your password here:\n{link}\n\n"
+            "You can also sign up again with a different mobile number. If the number is yours and you did not create an account with it, "
+            f"contact us here:\n{contact}\n\nIf this was not you, no action is needed.\n\nFinLit Ventures")

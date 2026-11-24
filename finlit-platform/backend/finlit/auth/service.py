@@ -185,3 +185,35 @@ async def audit(pool, actor: Optional[str], action: str, target: Optional[str] =
     async with pool.acquire() as conn:
         await conn.execute("INSERT INTO audit_events (actor_id, action, target, ip, meta) VALUES ($1, $2, $3, $4, $5::jsonb)",
                            actor, action, target, ip[:64], json.dumps(meta))
+
+
+UNVERIFIED_DAYS = 7          # an account whose email was never confirmed is removed after this many days (it cannot sign in; it only holds the mobile)
+UNVERIFIED_BATCH = 500       # accounts per delete statement, each its own commit
+
+
+async def prune_unverified_accounts(conn, days: int = UNVERIFIED_DAYS, timeout: Optional[float] = None) -> int:
+    """Delete accounts that never confirmed their email, made more than `days` days ago, with nothing else on them; returns how many went.
+
+    One account per mobile (migration 138) means a sign-up with a made-up email and someone else's mobile would hold that number for ever: such an
+    account cannot sign in (sign-in needs a confirmed email) and nobody can confirm it. Kept whatever their age: administrators, accounts an
+    administrator gave a plan to or switched off, and any with a sign-in, a session, saved state, a plan request, an authenticator or a bootstrap
+    password. Rows in other tables go with the account (their foreign keys are ON DELETE CASCADE or SET NULL, as when a member deletes their account).
+    Run by the nightly `prune` job (Store.prune)."""
+    cond = ("u.email_verified_at IS NULL AND u.created_at < now() - make_interval(days => $1::int) AND u.role = 'investor' AND u.plan = 'basic' "
+            "AND u.plan_until IS NULL AND u.status = 'active' AND u.last_login_at IS NULL AND u.totp_enabled_at IS NULL AND u.bootstrap_pw_hash IS NULL "
+            "AND NOT EXISTS (SELECT 1 FROM sessions s WHERE s.user_id = u.id) AND NOT EXISTS (SELECT 1 FROM user_state us WHERE us.user_id = u.id) "
+            "AND NOT EXISTS (SELECT 1 FROM plan_requests p WHERE p.user_id = u.id)")
+    total = 0
+    while True:
+        # the conditions are checked again on the row being deleted, so an account confirmed while this runs is kept
+        n = int((await conn.execute(
+            f"DELETE FROM users u WHERE u.id IN (SELECT u.id FROM users u WHERE {cond} LIMIT {UNVERIFIED_BATCH}) AND {cond}",  # nosec B608 - fixed SQL
+            days, timeout=timeout)).split()[-1])
+        total += n
+        if n < UNVERIFIED_BATCH:
+            break
+    if total:
+        await conn.execute("INSERT INTO audit_events (actor_id, action, target, ip, meta) VALUES (NULL, 'unverified_accounts_removed', NULL, '', $1::jsonb)",
+                           json.dumps({"count": total, "days": days}), timeout=timeout)
+        log.info("removed %d accounts that never confirmed their email (older than %d days)", total, days)
+    return total

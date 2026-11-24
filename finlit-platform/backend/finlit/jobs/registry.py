@@ -304,7 +304,7 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
             catchup=False, what="weekly week-ahead email"),
         # ---------------------------------------------------------------- bulk: one at a time, in this order
         Job("prune", ("prune",), cls="bulk", priority=5, max_runtime_min=30, weight_mb=150, windows=(W("NIGHT", 20),), sla=Sla("hours", 30),
-            owns=("disk",), what="old prices and logs out of the database (keeps the disk from filling)"),
+            owns=("disk",), what="old prices and logs out of the database (keeps the disk from filling); never-confirmed accounts after 7 days"),
         Job("technicals", ("refresh-technicals",), cls="bulk", priority=10, max_runtime_min=75, weight_mb=350, resumable=True, probe="technicals",
             windows=(W("AFTER_CLOSE", 0), W("MORNING", 0)), sla=Sla("session", 12), owns=("technicals", "daily_prices"),
             what="technical view of every stored Prism report from fresh Dhan daily candles (resumable, yields to members)"),
