@@ -7,7 +7,7 @@ import { Icon } from "../../lib/icons";
 import { useAuth } from "../../lib/auth";
 import { useUI } from "../../lib/ui";
 import { useIsGold } from "../../lib/planGate";
-import { DASHBOARD, MENU, MORE, PRICING, isNew, offeredTo } from "../../lib/nav";
+import { DASHBOARD, MENU, MORE, PRICING, isNew, menuMatch, offeredTo } from "../../lib/nav";
 import { HUBS, MOST_USED, chipFor, desktopSiteOn, setDesktopSite, tabFor, tabHome, toolsList, type TabId } from "../../lib/mobileNav";
 import { OPEN_AI } from "../assistantEvents";
 import { HelpActions } from "../PageFeedback";
@@ -79,8 +79,10 @@ export function MobileMenu() {
   const { pathname } = useLocation();
   const panel = useRef<HTMLDivElement>(null);
   const [fab, setFab] = useState(() => store.get("finlit.tools.button", true));
+  const [find, setFind] = useState("");
   useEffect(() => { const o = () => setOpen((v) => !v); addEventListener(OPEN_PHONE_MENU, o); return () => removeEventListener(OPEN_PHONE_MENU, o); }, []);
   useEffect(() => { setOpen(false); }, [pathname]);
+  useEffect(() => { if (!open) setFind(""); }, [open]);
   useEffect(() => {
     if (!open) return;
     const k = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
@@ -92,7 +94,9 @@ export function MobileMenu() {
   if (!open) return null;
   const go = (to: string) => { setOpen(false); nav(to); };
   const flipFab = () => { const v = !fab; setFab(v); store.set("finlit.tools.button", v); dispatchEvent(new Event("finlit:tools-button")); };
-  const groups = [{ id: "dash", title: "Dashboard", items: user ? [DASHBOARD] : [] }, ...MENU, { id: "about", title: "About FinLit", items: [...MORE.groups[2].items, PRICING] }].filter((g) => g.items.length);
+  const all = [{ id: "dash", title: "Dashboard", items: user ? [DASHBOARD] : [] }, ...MENU, { id: "about", title: "About FinLit", items: [...MORE.groups[2].items, PRICING] }];
+  const groups = all.map((g) => ({ ...g, items: g.items.filter((it) => menuMatch(find, it, g)) })).filter((g) => g.items.length);
+  const finding = find.trim().length > 0;
   return (
     <div className="ma-menu" role="dialog" aria-modal="true" aria-label="Menu">
       <div className="ma-menu-h"><b>Menu</b><button type="button" className="ma-x" onClick={() => setOpen(false)} aria-label="Close the menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg></button></div>
@@ -111,8 +115,11 @@ export function MobileMenu() {
         </div>
         {!user && <Link to="/login?mode=signup" className="ma-cta" onClick={() => setOpen(false)}>Create a free account</Link>}
 
-        <h3 className="ma-gt">Most used</h3>
-        <div className="ma-grid">{MOST_USED.map((m) => <Link key={m.to} to={m.to} className="ma-tool" onClick={() => setOpen(false)}><span><Icon name={m.icon} /></span>{m.label}</Link>)}</div>
+        <label className="ma-find"><Icon name="search" /><input type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find a page, e.g. IPO, DCF, glossary" aria-label="Find a page" enterKeyHint="search" /></label>
+        {finding && !groups.length && <p className="ma-fine">No page matches “{find}”. Try another word, or search for a company in the top bar.</p>}
+
+        {!finding && <><h3 className="ma-gt">Most used</h3>
+        <div className="ma-grid">{MOST_USED.map((m) => <Link key={m.to} to={m.to} className="ma-tool" onClick={() => setOpen(false)}><span><Icon name={m.icon} /></span>{m.label}</Link>)}</div></>}
 
         {groups.map((g) => (
           <section key={g.id} className="ma-grp" aria-label={g.title}>
@@ -156,6 +163,14 @@ export function ToolsButton() {
   const kb = useRef(false);
   useEffect(() => { const o = () => setOn(store.get("finlit.tools.button", true)); addEventListener("finlit:tools-button", o); return () => removeEventListener("finlit:tools-button", o); }, []);
   useEffect(() => { setOpen(false); setHid(false); }, [pathname]);
+  // Round 3: while a text box has the focus the phone keyboard is open, and the button would sit on the field: it steps aside until typing ends.
+  const [typing, setTyping] = useState(false);
+  useEffect(() => {
+    const isText = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || /^(TEXTAREA|SELECT)$/.test(t.tagName) || (t.tagName === "INPUT" && !/^(checkbox|radio|button|submit|range|color|file|reset|image)$/i.test((t as HTMLInputElement).type)));
+    const fin = (e: FocusEvent) => setTyping(isText(e.target)), fout = () => setTyping(false);
+    document.addEventListener("focusin", fin); document.addEventListener("focusout", fout);
+    return () => { document.removeEventListener("focusin", fin); document.removeEventListener("focusout", fout); };
+  }, []);
   useEffect(() => {
     let last = scrollY;
     const s = () => {
@@ -189,7 +204,7 @@ export function ToolsButton() {
         <span><Icon name={t.icon} /></span><b>{t.label}</b></Link>)}
       <Link to="/tools" role="menuitem" className="ma-fr all" style={{ "--i": 0 } as React.CSSProperties} onClick={() => setOpen(false)}><span><Icon name="grid" /></span><b>All tools</b></Link>
     </div>
-    <button ref={btn} type="button" className={"ma-fab" + (open ? " open" : "") + (hid && !open ? " hid" : "")} aria-expanded={open} aria-controls="ma-tools" aria-label={open ? "Close tools" : "Tools"}
+    <button ref={btn} type="button" className={"ma-fab" + (open ? " open" : "") + ((hid || typing) && !open ? " hid" : "")} aria-expanded={open} aria-controls="ma-tools" aria-label={open ? "Close tools" : "Tools"}
       onClick={(e) => { kb.current = e.detail === 0; setOpen((v) => !v); }}>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg><span>Tools</span>
     </button>

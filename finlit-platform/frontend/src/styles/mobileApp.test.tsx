@@ -206,3 +206,39 @@ describe("upgrade round 1: locked parts, the company report's actions, tap areas
   });
 });
 
+describe("upgrade rounds 2 to 5", () => {
+  it("round 2: Sector Pulse's backdrop box and controls take less height on a phone", () => {
+    expect(css).toMatch(/:root:root main \.sp-side \{ padding: 12px 14px; \}/);
+    expect(css).toMatch(/:root:root main \.sp-head-bar \{ margin-top: 12px; padding-top: 12px; gap: 8px 12px; \}/);
+  });
+  it("round 2: the index cards on Markets today show figures only (their detail page is a Gold page)", () => {
+    const page = read("pages/MarketsToday.tsx");
+    expect(page).toContain('<div role="listitem" key={x.code} className="mkt-ix">');
+    expect(page).not.toContain('to="/premium/markets" className="mkt-ix"');
+  });
+  it("round 3: the Tools button steps aside while a text box has the focus (the keyboard is open)", () => {
+    at("/", <><input aria-label="Name" /><ToolsButton /></>);
+    const b = screen.getByRole("button", { name: "Tools" });
+    expect(b.className).not.toContain("hid");
+    act(() => { screen.getByLabelText("Name").focus(); });
+    expect(b.className).toContain("hid");
+    act(() => { (document.activeElement as HTMLElement).blur(); });
+    expect(b.className).not.toContain("hid");
+  });
+  it("round 4: Markets today lists the latest filings", () => {
+    expect(read("pages/MarketsToday.tsx")).toMatch(/<Sec title="Latest filings" to="\/news" link="All news"><LatestFilings \/><\/Sec>/);
+  });
+  it("round 5: Find a page in the Menu filters every page by name, line, group and alias", () => {
+    at("/", <MobileMenu />);
+    act(() => { dispatchEvent(new Event(OPEN_PHONE_MENU)); });
+    const box = screen.getByRole("searchbox", { name: "Find a page" });
+    fireEvent.change(box, { target: { value: "dcf" } });
+    const d = screen.getByRole("dialog", { name: "Menu" });
+    expect(d.querySelector('a[href="/dcf"]')).toBeTruthy();
+    expect(d.querySelector('a[href="/ipo"]')).toBeNull();
+    expect(d.textContent).not.toContain("Most used");
+    fireEvent.change(box, { target: { value: "zzzz" } });
+    expect(d.textContent).toContain("No page matches");
+  });
+});
+

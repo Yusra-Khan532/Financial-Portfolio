@@ -12,6 +12,7 @@ import { useFlows } from "../lib/flows";
 import { useIpos, type Ipo } from "../lib/ipo";
 import { useSectorBoard } from "../lib/sectors";
 import { useResultsCalendar } from "../lib/resultsCalendar";
+import { useFeed } from "../lib/feed";
 import { MINUS, nf } from "../lib/format";
 import { Icon } from "../lib/icons";
 import { ChartZoom } from "../components/ChartZoom";
@@ -26,7 +27,7 @@ export const dm = (iso: string | null | undefined) => (iso ? `${+iso.slice(8, 10
 export const sgn = (v: number | null | undefined, d = 2, unit = "%") => (v == null ? "—" : (v > 0 ? "+" : v < 0 ? MINUS : "") + nf(v, d) + unit);
 export const tone = (v: number | null | undefined) => (v == null || v === 0 ? "" : v > 0 ? " up" : " dn");
 const crore = (v: number | null | undefined) => (v == null ? "—" : (v > 0 ? "+" : v < 0 ? MINUS : "") + "₹" + nf(v, 0) + " Cr");
-const ixName = (n: string) => n.replace(/^NIFTY /, "Nifty ").replace("BSE SENSEX", "Sensex").replace("INDIA VIX", "India VIX").replace("Smallcap", "Smallcap");
+const ixName = (n: string) => n.replace(/^NIFTY /, "Nifty ").replace("BSE SENSEX", "Sensex").replace("INDIA VIX", "India VIX");
 
 /** A line chart drawn in the page's own colours: green when the period ended higher, red when lower. */
 export function Line({ c, h = 96, id }: { c: number[]; h?: number; id: string }) {
@@ -73,10 +74,10 @@ function IndexChips() {
   return (
     <div className="mkt-hs" role="list" aria-label="Indices">
       {rows.map((x) => { const p = x.high != null && x.low != null && x.close != null && x.high > x.low ? ((x.close - x.low) / (x.high - x.low)) * 100 : 50;
-        return <Link role="listitem" key={x.code} to="/premium/markets" className="mkt-ix"><small>{ixName(x.name)}</small><b className="num">{x.close != null ? nf(x.close, 2) : "—"}</b>
+        return <div role="listitem" key={x.code} className="mkt-ix"><small>{ixName(x.name)}</small><b className="num">{x.close != null ? nf(x.close, 2) : "—"}</b>
           <span className={"mkt-pill sm" + tone(x.changePct)}>{sgn(x.changePct)}</span>
           {x.high != null && x.low != null && <><span className="mkt-rng" aria-hidden="true"><i style={{ left: `${Math.max(0, Math.min(100, p)).toFixed(0)}%` }} /></span>
-            <span className="mkt-rngl num"><span>{nf(x.low, 0)}</span><span>{nf(x.high, 0)}</span></span></>}</Link>; })}
+            <span className="mkt-rngl num" aria-label={`Day range ${nf(x.low, 0)} to ${nf(x.high, 0)}`}><span>{nf(x.low, 0)}</span><span>{nf(x.high, 0)}</span></span></>}</div>; })}
     </div>
   );
 }
@@ -154,6 +155,21 @@ function ResultsWeek() {
   );
 }
 
+/** The newest exchange filings, one line each (round 4): what companies told the exchange today, with the time it was filed. */
+function LatestFilings() {
+  const q = useFeed("news", { limit: 5 });
+  const rows = (q.data ?? []).slice(0, 5);
+  if (q.isLoading) return <div className="mkt-card mkt-skel" aria-busy="true" />;
+  if (!rows.length) return <p className="mkt-why">No filings have come in yet today. <Link to="/news">News & filings</Link></p>;
+  return (
+    <div className="mkt-list">
+      {rows.map((n) => <Link key={n.id} to={n.symbol ? `/stocks/${encodeURIComponent(n.symbol)}` : "/news"} className="mkt-row">
+        <span className="mkt-rm"><b>{(n.company || n.symbol || "A listed company").replace(/\s+(Limited|Ltd\.?)$/i, "")}</b><small>{n.category || n.title}</small></span>
+        <span className="mkt-rv"><small>{dm(n.date.slice(0, 10))}</small></span></Link>)}
+    </div>
+  );
+}
+
 type Gm = { rows: { key: string; label: string; group: string; last: number | null; asOf: string | null; d1: number | null; unit: string }[] };
 function World() {
   const q = useQuery<Gm>({ queryKey: ["global-markets"], queryFn: () => apiGet("/api/global-markets"), staleTime: 300_000, retry: 1 });
@@ -192,6 +208,7 @@ export function MarketsToday({ home = false }: { home?: boolean }) {
       <Sec title="Money in and out" to="/fii-dii" link="FII & DII"><FlowsCard /></Sec>
       <Sec title="IPOs this week" to="/ipo" link="All IPOs"><IpoCards /></Sec>
       <Sec title="Results this week" to="/results" link="Calendar"><ResultsWeek /></Sec>
+      <Sec title="Latest filings" to="/news" link="All news"><LatestFilings /></Sec>
       <Sec title="World markets"><World /></Sec>
       {home && <Sec title="Explore">
         <div className="mkt-grid">{MOST_USED.map((m) => <Link key={m.to} to={m.to} className="mkt-tool"><span><Icon name={m.icon} /></span>{m.label}</Link>)}</div>

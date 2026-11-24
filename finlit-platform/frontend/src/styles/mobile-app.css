@@ -74,6 +74,13 @@
   .ma-gold, .ma-new { flex: none; font-style: normal; font: 700 var(--fs-12)/1 var(--font-sans); letter-spacing: .04em; text-transform: uppercase; padding: 3px 6px; border-radius: var(--ui-r-mark); }
   .ma-gold { background: var(--gold-soft); color: var(--gold); }
   .ma-new { background: var(--gain-soft, var(--s2)); color: var(--gain); }
+  .ma-find { display: flex; align-items: center; gap: 8px; height: var(--ui-ctl-h); margin-top: 14px; padding: 0 12px; border-radius: var(--r-ctl); background: var(--s1); border: 1px solid var(--ui-field-line); color: var(--faint); }
+  .ma-find svg { width: 17px; height: 17px; flex: none; }
+  .ma-find input { all: unset; flex: 1; min-width: 0; font: var(--ui-fw-regular) var(--fs-16)/1.2 var(--font-sans); color: var(--text); }
+  .ma-find:focus-within { border-color: var(--focus); }
+  :root:root .ma-find input { -webkit-appearance: none; appearance: none; border: 0; outline: none; box-shadow: none; background: transparent; padding: 0; height: auto; min-height: 0; }
+  :root:root .ma-find input::-webkit-search-cancel-button { -webkit-appearance: none; }
+  :root:root .ma-find input:is(:focus, :focus-visible) { outline: none; box-shadow: none; border: 0; }   /* the box itself shows the focus (.ma-find:focus-within) */
   .ma-gt { display: flex; align-items: baseline; justify-content: space-between; margin: 22px 4px 8px; font: var(--ui-fw-semibold) var(--fs-12)/1 var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
   .ma-gt small { font-weight: var(--ui-fw-medium); letter-spacing: 0; }
   .ma-cta { display: flex; align-items: center; justify-content: center; min-height: 44px; margin-top: 10px; border-radius: var(--r-ctl); background: var(--btn-bg); color: var(--btn-fg); font: var(--ui-fw-semibold) var(--fs-16)/1 var(--font-sans); text-decoration: none; }
@@ -82,8 +89,12 @@
   .ma-tool span { display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--r-ctl); background: var(--s1); border: 1px solid var(--border); color: var(--gold); }
   .ma-tool svg { width: 18px; height: 18px; }
   .ma-tool:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-  .ma-help { padding: 4px 6px; }
-  .ma-help > * { min-height: 44px; }
+  .ma-help { padding: 0; }
+  :root:root .ma-help > :is(button, a) { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 8px 12px;
+    border-top: 1px solid var(--border); color: var(--text); font: var(--ui-fw-medium) var(--fs-14)/1.3 var(--font-sans); cursor: pointer; }
+  :root:root .ma-help > :is(button, a):first-child { border-top: 0; }
+  :root:root .ma-help > :is(button, a) svg { width: 18px; height: 18px; flex: none; color: var(--gold); }
+  :root:root .ma-help > :is(button, a):focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
   .ma-fine { margin: 18px 4px 0; color: var(--faint); font-size: var(--fs-12); line-height: 1.5; }
 
   /* ---- the Tools button: bottom right, 16px above the tabs; hides while scrolling down; a list of labelled tools rises from it ---- */
@@ -127,6 +138,13 @@
   :root:root main .xsh-nav { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 6px; }
   :root:root main .xsh-nav > * { flex: none; width: auto; }
   body:has(.ma-hub) main .page-tabs { display: none; }
+
+  /* ---- upgrade round 2: Sector Pulse and Sector Rotation (the Markets tab's next chips). The market backdrop box and the Show / View / Find
+     controls take less height: smaller padding, the reading at 24px instead of 28px, 12px between the control rows. ---- */
+  :root:root main .sp-side { padding: 12px 14px; }
+  :root:root main .sp-side-v b { font-size: var(--fs-24); }
+  :root:root main .sp-side-x { font-size: var(--fs-13); }
+  :root:root main .sp-head-bar { margin-top: 12px; padding-top: 12px; gap: 8px 12px; }
 
   /* ---- a locked part (components/Gate.tsx) is one compact card on a phone: what it is, the plan, the unlock button. The blurred example
      behind it is not drawn there (the company report's Prism lock was 1,148px tall, a screen and a half of nothing usable). A member whose
