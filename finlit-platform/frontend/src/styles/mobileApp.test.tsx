@@ -242,3 +242,14 @@ describe("upgrade rounds 2 to 5", () => {
   });
 });
 
+describe("the installed app's launch screen (owner, 25 Nov 2026: the logo animation, not a white screen, at the start)", () => {
+  it("Android's launch screen has the logo animation's own background, so the icon hands over to the animation with no white flash", () => {
+    const manifest = JSON.parse(read("../public/manifest.webmanifest"));
+    const lightBg = /--bg: (#[0-9A-Fa-f]{6});/.exec(read("styles/luxe.css"))![1];
+    expect(manifest.background_color.toLowerCase()).toBe(lightBg.toLowerCase());
+    expect(manifest.theme_color.toLowerCase()).toBe(lightBg.toLowerCase());
+    expect(read("styles/logo-loader.css")).toMatch(/\.ll-splash \{[^}]*background: var\(--bg\);/);   // the animation is drawn on that page colour
+    expect(read("../index.html")).toContain('<div id="ll-boot">');                                      // and starts with the page's first paint
+  });
+});
+
