@@ -25,6 +25,8 @@ export type Holding = {
   /** task #235: every buy and sale as stored (platform, side); `lots` is what is left of each buy, first in, first out */ lines?: Line[];
   name: string | null; amc: string | null; plan: string | null; option: string | null; category: string | null; categoryLabel: string | null; active: boolean; isin?: string | null; isinWhy?: string | null;
   nav: number | null; navDate: string | null; navStale: boolean; navNote: string | null;
+  /** task #389 (fault 8): the change against the previous NAV AMFI gave (the public fund page's own figure), named by that NAV's date; null with its reason */
+  change?: { abs: number; pct: number; since: string | null } | null; changeWhy?: string | null;
   invested: number | null; investedWhy: string | null; current: number | null; currentWhy: string | null;
   gain: number | null; gainPct: number | null; gainWhy: string | null;
   xirr: number | null; xirrWhy: string | null; xirrKind: "cagr" | "xirr";

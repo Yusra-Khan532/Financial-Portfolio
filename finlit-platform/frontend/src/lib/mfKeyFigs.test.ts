@@ -18,7 +18,7 @@ describe("MF Key figures (change 9)", () => {
     const [a, b, c] = mfKeyFigures("funds", C);
     expect([a.k, a.lead + a.rest]).toEqual(["How healthy your fund is", "Your fund scores 29 of 100: Poor."]);
     expect(a.stack!.map((s) => `${s.label} ${s.text}`)).toEqual(["Healthy 0", "Average 0", "Weak 0", "Poor 1"]);
-    expect(a.note).toBe("ICICI Prudential FMCG ranks 216th of 223 in its category by the Fund Health Score.");
+    expect(a.note).toBe("ICICI Prudential FMCG ranks 216th of 223 in its category by the Mutual Fund Score.");
     expect(a.go).toEqual({ label: "Show the Poor fund", kind: "sort", arg: "health:Poor" });
     expect([b.k, b.lead + b.rest]).toEqual(["Its weakest part", "Performance: 1 of 100, the lowest of its four parts."]);
     expect(b.rows!.map((r) => `${r.label} ${r.text}`)).toEqual(["Performance 1", "Risk 28", "Cost 38", "Quality 74"]);
@@ -40,7 +40,7 @@ describe("MF Key figures (change 9)", () => {
     expect(a.line).toBe(1);
     expect(a.from).toMatch(/Nifty 500: weekly, past year/);
     expect(b.lead + b.rest).toBe("12.8% in a typical year, against 14.4% for the Nifty 500.");
-    expect(b.from).toBe("3 yrs, daily");
+    expect(b.from).toBe("3 years of daily NAVs");
     expect(c.lead + c.rest).toBe("−34.0% from a high, deeper than the Nifty 500's −18.8%.");
     expect(c.note).toBe("Over 3 years. In the 10 worst weeks of the past year it fell less than the index: −2.0% against −2.8%.");
   });
@@ -64,7 +64,7 @@ describe("What changed at the companies inside your funds (change 19)", () => {
         "Consumer|Large": { w: 0.03, n: 2, stocks: [{ name: "Hindustan Unilever", symbol: "HINDUNILVR", w: 0.03 }, { name: "Unlisted", symbol: null, w: 0.01 }] } }, sector: {} } } as unknown as MfSpread;
     const cos = mfInsideCompanies(sp);
     expect(cos.map((c) => [c.symbol, +c.w.toFixed(1)])).toEqual([["HINDUNILVR", 12], ["ITC", 9.6]]);          // Tiny is 0.2%, under 0.3%; an unmatched holding has no symbol
-    expect(mfInsideLine(cos[0])).toBe("12.0% of your funds · ICICI Prudential FMCG, Kotak MNC");
+    expect(mfInsideLine(cos[0])).toBe("12.0% of your funds · ICICI Prudential FMCG and Kotak MNC");
     expect(mfInsideLine(cos[1])).toBe("9.6% of your funds · ICICI Prudential FMCG");
   });
   it("names the one fund when there is only one", () => {
@@ -84,5 +84,52 @@ describe("Key figures read the server's band and whole shares that add up", () =
     expect(whole([95, 5, 0, 0])).toEqual([95, 5, 0, 0]);
     expect(mfKeyFigures("funds", { hs: [FMCG], sp: { ...SP, mix: { shares: 0.485, sharesUnknown: 0, debt: 0.515, other: 0 } } as unknown as MfSpread })[2].lead + mfKeyFigures("funds", { hs: [FMCG], sp: { ...SP, mix: { shares: 0.485, sharesUnknown: 0, debt: 0.515, other: 0 } } as unknown as MfSpread })[2].rest)
       .toBe("49% in shares, 51% in debt and money market.");
+  });
+});
+
+// Task #389 (developer file 32, Key figures K1–K10): each card asks one question and answers it with one big figure and the line beside it; the method sits
+// behind the card's i (`from`); share codes become company names. The pack's 8-fund sample (made-up "Preview sample") for the list cards.
+describe("Key figures as questions (task #389, K1–K10)", () => {
+  const P = (performance: number, risk: number, cost: number, quality: number) => ({ performance, risk, cost, quality });
+  const H = (code: number, name: string, final: number, label: string, parts: ReturnType<typeof P>, rank?: [number, number]) =>
+    ({ id: String(code), code, name, score: { final, label, parts, rank: rank ? { rank: rank[0], of: rank[1] } : null } }) as unknown as Holding;
+  const HS = [H(122639, "Parag Parikh Flexi Cap Fund", 70, "HEALTHY", P(70, 75, 70, 80)), H(118632, "Nippon India Large Cap Fund", 66, "HEALTHY", P(60, 66, 62, 80)),
+    H(120716, "UTI Nifty 50 Index Fund", 55, "AVERAGE", P(40, 64, 90, 60)), H(120505, "Axis Midcap Fund", 52, "AVERAGE", P(35, 60, 50, 70)),
+    H(125497, "SBI Small Cap Fund", 45, "WEAK", P(26, 62, 57, 53), [25, 30]), H(135781, "Mirae Asset ELSS Tax Saver Fund", 60, "AVERAGE", P(55, 60, 50, 75)),
+    H(118968, "HDFC Balanced Advantage Fund", 58, "AVERAGE", P(50, 65, 55, 70)), H(119091, "HDFC Liquid Fund", 74, "AVERAGE", P(48, 60, 62, 80))];
+  const SP8 = { count: 8, knownShares: 0.75, mix: { shares: 0.75, sharesUnknown: 0.18, debt: 0.05, other: 0.02 }, readings: { underneath: { stocks: 266, inTwoOrMore: 40 } },
+    lookThrough: { macro: { "Financial Services|Large": { w: 0.21, n: 20, stocks: [] }, "Information Technology|Large": { w: 0.15, n: 9, stocks: [] }, "Healthcare|Mid": { w: 0.1, n: 9, stocks: [] } }, sector: {} },
+    topStocks: [{ name: "HDFC Bank Ltd.", symbol: "HDFCBANK", w: 0.043, funds: [122639] }, { name: "ICICI Bank Ltd.", symbol: "ICICIBANK", w: 0.031, funds: [122639] }] } as unknown as MfSpread;
+  const RK8 = { funds: [], list: { swing: 11.0, worstFall: -13.0 }, bench: { swing: 14.4, worstFall: -18.8 }, own: { list: { betaOwn: 0.84, beta500: 0.7, worst10: null } } } as unknown as MfRisk;
+  const names: Record<string, string> = { HDFCBANK: "HDFC Bank", ICICIBANK: "ICICI Bank" };
+  const C8 = { hs: HS, sp: SP8, rk: RK8, list: { value: 59, label: "AVERAGE" }, nameOf: (s: string | null, n: string) => (s && names[s]) || n };
+  const qa = (v: "funds" | "mix" | "risk") => mfKeyFigures(v, C8).map((c) => [c.q, c.big, c.ans]);
+  it("Your funds: K1 how healthy, K2 the weakest part, K3 what the money buys", () => {
+    expect(qa("funds")).toEqual([["How healthy are your funds?", "59 of 100", "Average"], ["Which part is weakest?", "26 of 100", "Performance, SBI Small Cap's lowest of four"],
+      ["What does your money buy?", "75%", "in shares, 5% in debt and money market, 2% in gold and other"]]);
+  });
+  it("Mix & overlap: K4 where most of the money is, K5 company sizes, K6 the biggest company, named (HDFCBANK → HDFC Bank, K10c)", () => {
+    const [a, b, c] = mfKeyFigures("mix", C8);
+    expect([a.q, a.big, a.ans]).toEqual(["Where is most of your money underneath?", "21.0%", "of your list is in Financial Services"]);
+    expect([b.q, b.ans]).toEqual(["How big are the companies underneath?", "of your list is in large companies"]);
+    expect([c.q, c.big, c.ans]).toEqual(["Which company do you own most of?", "4.3%", "of your funds is in HDFC Bank"]);
+    expect(c.rows!.map((r) => r.label)).toEqual(["HDFC Bank", "ICICI Bank"]);
+    expect(c.rows!.some((r) => /HDFCBANK|ICICIBANK/.test(r.label))).toBe(false);
+  });
+  it("Risk: K7 moves with its markets, K8 the swing, K9 the worst fall", () => {
+    expect(qa("risk")).toEqual([["How much does your list move with its markets?", "0.84×", "it has moved about 8% when its benchmarks moved 10%"],
+      ["How much does it swing in a year?", "11.0%", "in a typical year, against 14.4% for the Nifty 500"], ["How far has it fallen from a high?", "−13.0%", "from a high, shallower than the Nifty 500's −18.8%"]]);
+  });
+  it("every card keeps its method for the i, and no card names the score anything but the Mutual Fund Score", () => {
+    for (const v of ["funds", "mix", "risk"] as const) for (const c of mfKeyFigures(v, C8)) { expect(c.from).toBeTruthy(); expect(JSON.stringify(c)).not.toMatch(/Health Score|Health parts/); }
+  });
+  it("without a name from FinLit's company list, the fund file's name is tidied, never the share code", () => {
+    const c = mfKeyFigures("mix", { ...C8, nameOf: undefined, sp: { ...SP8, topStocks: [{ name: "EQ - BHARTI AIRTEL LTD.", symbol: "BHARTIARTL", w: 0.05, funds: [1] }, { name: "ITC LTD", symbol: "ITC", w: 0.04, funds: [1] }] } as unknown as MfSpread })[2];
+    expect(c.ans).toBe("of your funds is in Bharti Airtel");
+    expect(c.rows!.map((r) => r.label)).toEqual(["Bharti Airtel", "ITC"]);
+  });
+  it("What changed rows: at most two fund names, then “and N more” (Your funds 11)", () => {
+    expect(mfInsideLine({ symbol: "HDFCBANK", name: "HDFC Bank", w: 4.3, funds: ["Parag Parikh Flexi Cap", "Nippon India Large Cap", "UTI Nifty 50 Index", "Axis Midcap"] }))
+      .toBe("4.3% of your funds · Parag Parikh Flexi Cap, Nippon India Large Cap and 2 more");
   });
 });

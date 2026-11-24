@@ -94,36 +94,37 @@
 @media (max-width: 860px) { .eq .eqt-bar.eqt-scr .eqt-all { display: inline-flex; flex: none; } }
 
 /* ===== phone, All sections: a folded section ===== */
-.eq .eqf { padding: 16px 18px; }
-.eq .eqf-h { margin: 0; font: 500 var(--fs-20)/1.25 var(--serif); }
-.eq .eqf-sum { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; margin: 10px 0 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s2); color: var(--text); font: 400 var(--fs-14)/1.4 var(--sans); text-align: left; cursor: pointer; }
-.eq .eqf-sum .c, .eq .eqf-close { display: inline-flex; align-items: center; gap: 5px; flex: none; font: 600 var(--fs-13)/1 var(--sans); color: var(--text); }
-.eq .eqf-sum i, .eq .eqf-close i { font-style: normal; }
-.eq .eqf-close { margin: 10px 0 -4px auto; padding: 6px 0; border: 0; background: none; cursor: pointer; }
-.eq .eqf-open { display: flex; flex-direction: column; }
+:is(.eq, .mfp) .eqf { padding: 16px 18px; }
+:is(.eq, .mfp) .eqf-h { margin: 0; font: 500 var(--fs-20)/1.25 var(--serif); }
+:is(.eq, .mfp) .eqf-sum { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; margin: 10px 0 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s2); color: var(--text); font: 400 var(--fs-14)/1.4 var(--sans); text-align: left; cursor: pointer; }
+:is(.eq, .mfp) .eqf-sum .c, :is(.eq, .mfp) .eqf-close { display: inline-flex; align-items: center; gap: 5px; flex: none; font: 600 var(--fs-13)/1 var(--sans); color: var(--text); }
+:is(.eq, .mfp) .eqf-sum i, :is(.eq, .mfp) .eqf-close i { font-style: normal; }
+:is(.eq, .mfp) .eqf-close { margin: 10px 0 -4px auto; padding: 6px 0; border: 0; background: none; cursor: pointer; }
+:is(.eq, .mfp) .eqf-open { display: flex; flex-direction: column; }
 
 /* ===== where your gain or loss came from ===== */
-.eq .eqg-lead { max-width: 860px; margin: 14px 0 4px; padding: 12px 14px; border-radius: var(--r-ctl); background: var(--s2); font: 400 var(--fs-14)/1.5 var(--sans); color: var(--text); }
-.eq .eqg-lead b { font-weight: 700; }
-.eq .eqg-l { margin: 12px 0 0; padding: 0; list-style: none; }
-.eq .eqg-l li { display: grid; grid-template-columns: minmax(150px, 220px) minmax(0, 1fr) 104px 64px; align-items: center; gap: 12px; padding: 7px 0; border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent); font: 400 var(--fs-14)/1.3 var(--serif); color: var(--text); }
-.eq .eqg-l li:first-child { border-top: 0; }
-.eq .eqg-l .n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: inherit; text-decoration: none; }
-.eq .eqg-l li.k .n { font-weight: 700; }
-.eq .eqg-l .bar { display: grid; grid-template-columns: 1fr 1fr; height: 14px; }
-.eq .eqg-l .h { display: flex; height: 100%; } .eq .eqg-l .h.l { justify-content: flex-end; border-right: 2px solid var(--border-strong); }
-.eq .eqg-l .h i { display: block; height: 100%; min-width: 2px; }
-.eq .eqg-l .h.l i { background: var(--loss); border-radius: var(--ui-r-mark) 0 0 var(--ui-r-mark); }
-.eq .eqg-l .h.r i { background: var(--gain); border-radius: 0 var(--ui-r-mark) var(--ui-r-mark) 0; }
-.eq .eqg-l .v { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
-.eq .eqg-l .v.up { color: var(--gain); } .eq .eqg-l .v.dn { color: var(--loss); } .eq .eqg-l .v.flat { color: var(--muted); }
-.eq .eqg-l .p { text-align: right; font-size: var(--fs-13); color: var(--muted); font-variant-numeric: tabular-nums; }
-.eq .eqg-note { margin: 10px 0 0; font: 400 var(--fs-13)/1.4 var(--sans); color: var(--muted); }
+:is(.eq, .mfp) .eqg-lead { max-width: 860px; margin: 14px 0 4px; padding: 12px 14px; border-radius: var(--r-ctl); background: var(--s2); font: 400 var(--fs-14)/1.5 var(--sans); color: var(--text); }
+:is(.eq, .mfp) .eqg-lead b { font-weight: 700; }
+:is(.eq, .mfp) .eqg-l { margin: 12px 0 0; padding: 0; list-style: none; }
+:is(.eq, .mfp) .eqg-l li { display: grid; grid-template-columns: minmax(150px, 220px) minmax(0, 1fr) 104px 64px; align-items: center; gap: 12px; padding: 7px 0; border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent); font: 400 var(--fs-14)/1.3 var(--serif); color: var(--text); }
+:is(.eq, .mfp) .eqg-l li:first-child { border-top: 0; }
+:is(.eq, .mfp) .eqg-l .n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: inherit; text-decoration: none; }
+:is(.eq, .mfp) .eqg-l li.k .n { font-weight: 700; }
+:is(.eq, .mfp) .eqg-l .bar { display: grid; grid-template-columns: 1fr 1fr; height: 14px; }
+:is(.eq, .mfp) .eqg-l .h { display: flex; height: 100%; } :is(.eq, .mfp) .eqg-l .h.l { justify-content: flex-end; border-right: 2px solid var(--border-strong); }
+:is(.eq, .mfp) .eqg-l .h i { display: block; height: 100%; min-width: 2px; }
+:is(.eq, .mfp) .eqg-l .h.l i { background: var(--loss); border-radius: var(--ui-r-mark) 0 0 var(--ui-r-mark); }
+:is(.eq, .mfp) .eqg-l .h.r i { background: var(--gain); border-radius: 0 var(--ui-r-mark) var(--ui-r-mark) 0; }
+:is(.eq, .mfp) .eqg-l .v { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+:is(.eq, .mfp) .eqg-l .v.up { color: var(--gain); } :is(.eq, .mfp) .eqg-l .v.dn { color: var(--loss); } :is(.eq, .mfp) .eqg-l .v.flat { color: var(--muted); }
+:is(.eq, .mfp) .eqg-l .p { text-align: right; font-size: var(--fs-13); color: var(--muted); font-variant-numeric: tabular-nums; }
+:is(.eq, .mfp) .eqg-note { margin: 10px 0 0; font: 400 var(--fs-13)/1.4 var(--sans); color: var(--muted); }
+:is(.eq, .mfp) .eqg-lead .eqg-nw { white-space: nowrap; }   /* task #389 (file 32, L7): "(+₹55,227)" stays on one line with its fund */
 @media (max-width: 640px) {
-  .eq .eqg-l li { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; padding: 9px 0; }
-  .eq .eqg-l .n { grid-column: 1; } .eq .eqg-l .v { grid-column: 2; grid-row: 1; }
-  .eq .eqg-l .bar { grid-column: 1 / -1; grid-row: 2; height: 10px; }
-  .eq .eqg-l .p { display: none; }
+  :is(.eq, .mfp) .eqg-l li { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; padding: 9px 0; }
+  :is(.eq, .mfp) .eqg-l .n { grid-column: 1; } :is(.eq, .mfp) .eqg-l .v { grid-column: 2; grid-row: 1; }
+  :is(.eq, .mfp) .eqg-l .bar { grid-column: 1 / -1; grid-row: 2; height: 10px; }
+  :is(.eq, .mfp) .eqg-l .p { display: none; }
 }
 
 /* ===== Your shares: headings, the technical view, the account split, subtotal rows, Enlarge ===== */
@@ -160,12 +161,12 @@
 html.eqs-noscroll { overflow: hidden; }
 
 /* What changed: updates on the tiles, filings on the rows */
-.eq .wc-unit { margin-left: 6px; font: 500 var(--fs-13)/1 var(--sans); letter-spacing: 0; color: var(--muted); }
-.eq .wc-upn { margin: 8px 0 12px; font: 400 var(--fs-13)/1.45 var(--sans); color: var(--muted); }
-.eq .wc-np { margin: 10px 0 0; }
-.eq .wc-np > summary { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); font: 600 var(--fs-13) var(--sans); cursor: pointer; list-style: none; }
-.eq .wc-np > summary::-webkit-details-marker { display: none; }
-.eq .wc-np[open] > summary span { display: inline-block; transform: rotate(90deg); }
+:is(.eq, .mfp) .wc-unit { margin-left: 6px; font: 500 var(--fs-13)/1 var(--sans); letter-spacing: 0; color: var(--muted); }
+:is(.eq, .mfp) .wc-upn { margin: 8px 0 12px; font: 400 var(--fs-13)/1.45 var(--sans); color: var(--muted); }
+:is(.eq, .mfp) .wc-np { margin: 10px 0 0; }
+:is(.eq, .mfp) .wc-np > summary { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); font: 600 var(--fs-13) var(--sans); cursor: pointer; list-style: none; }
+:is(.eq, .mfp) .wc-np > summary::-webkit-details-marker { display: none; }
+:is(.eq, .mfp) .wc-np[open] > summary span { display: inline-block; transform: rotate(90deg); }
 .eq .eq-ptn { margin: 12px 0 0; font: 400 var(--fs-13)/1.45 var(--sans); color: var(--muted); }
 
 /* ===== phone: the shares list instead of the wide table ===== */

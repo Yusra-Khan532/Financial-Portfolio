@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // MF portfolio, rebuilt from the 15 Nov pack (task #183 part 2): the page as a whole. The parts are tested in mf/pack/mf*183.test.tsx and lib/mfTop.test.ts.
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -18,6 +18,7 @@ vi.mock("../lib/ui", () => ({ useUI: () => ({ toast: vi.fn(), plan: "gold", upgr
 vi.mock("../lib/title", () => ({ useDocTitle: () => undefined }));
 vi.mock("../lib/auth", async (orig) => ({ ...(await orig<typeof import("../lib/auth")>()), useAuth: () => ({ user: { id: 1 } }) }));
 import { MfPortfolioPage } from "./MfPortfolio";
+globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} } as never;   // task #389: the funds table pins its heading row (HScroll)
 
 const H = (id: string, name: string, category: string, categoryLabel: string, code: number): Holding => ({
   id, code, folio: "", units: 10, lots: [], name, amc: "A", plan: "Direct", option: "Growth", category, categoryLabel, active: true,
@@ -48,9 +49,12 @@ describe("MF portfolio page (task #183 part 2)", () => {
     expect(screen.getByRole("heading", { level: 1, name: "MF portfolio" }).closest(".ptk-ht")).toBeTruthy();
     expect(screen.getByRole("combobox", { name: /Add a fund by name or ISIN/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Add several" })).toBeTruthy();
-    expect(document.querySelector(".mfp-hc .ptk-sk")!.firstChild!.textContent).toBe("Your funds' health");
-    expect(within(screen.getByRole("tablist", { name: "Views" })).getAllByRole("tab").map((t) => t.querySelector(".ptk-vk")!.textContent)).toEqual(["Your funds", "Mix & overlap", "Risk analytics"]);
-    expect(document.querySelectorAll(".ptk-vnew").length).toBeGreaterThan(0);                                  // a view not opened yet says so
+    // task #389 (developer file 32, Top 2 and 4): the Mutual Fund Score card and three calm view cards; no badges, no "seen three ways"
+    expect(document.querySelector(".px-sc .px-k")!.firstChild!.textContent).toBe("Mutual Fund Score");
+    expect([...document.querySelectorAll(".px-vw .px-k")].map((k) => k.firstChild!.textContent)).toEqual(["Your funds", "Mix & overlap", "Risk analytics"]);
+    expect([...document.querySelectorAll(".px-vw .px-k em")].map((k) => k.textContent)).toEqual(["You are here", "Open →", "Open →"]);
+    expect(document.querySelectorAll(".ptk-vnew").length).toBe(0);
+    expect(document.body.textContent).not.toMatch(/seen three ways|Not opened yet/);
     expect(screen.getByRole("navigation", { name: "Views and sections" }).textContent).toMatch(/All sections.*1Your funds/);
     expect(screen.queryByRole("heading", { name: "Key figures" })).toBeNull();      // no card has anything to say for this test list (no scores, theme or liquid fund): the row is left out
   });

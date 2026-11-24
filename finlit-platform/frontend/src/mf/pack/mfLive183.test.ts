@@ -20,7 +20,7 @@ describe("MF portfolio live fixes (M1)", () => {
     expect(all).not.toContain("Export CSV");
     expect(MF_PORTFOLIO_FAQ.items.find((i) => i.q === "How many funds can I add?")!.a).toMatch(/The portfolio pages have no download\./);
     expect(MF_PORTFOLIO_FAQ.items.map((i) => i.q)).toEqual(["How does FinLit see inside my funds?", "Why is each fund compared with a different benchmark?", "How are company sizes decided here?", "How do I add my mutual funds?",
-      "What does the Health Score show here?", "Why are the 1, 3 and 5 year returns blank for some funds?", "Why does the liquid fund lower every risk figure?", "What happens when the same fund appears twice?", "How many funds can I add?"]);   // the pack's nine
+      "What does the Mutual Fund Score show here?", "Why are the 1, 3 and 5 year returns blank for some funds?", "Why does the liquid fund lower every risk figure?", "What happens when the same fund appears twice?", "How many funds can I add?"]);   // the pack's nine
   });
   it("says why IDCW returns are blank, and that a liquid fund counts as a full share until units are added", () => {
     expect(readFileSync(resolve(__dirname, "./MfFunds.tsx"), "utf8")).toContain("The fund's Growth plan shows the full return.");   // inside Your funds since M5

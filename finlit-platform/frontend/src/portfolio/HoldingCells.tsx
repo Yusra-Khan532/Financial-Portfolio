@@ -67,7 +67,7 @@ export function HoldingRowCells({ p, symbol, priceCell, changeCell }: { p: LotsP
     {/* task #249: the buys open from the drop-down next to the name (LotToggle); the quantity cell is plain text in the old button's box */}
     <td className="r x-qty x-c1 x-gs cg-h"><span className="x-ro x-qtyt"><b>{a.qty == null ? MINUS : uq(p, a.qty)}</b><small>{a.nBuys ? lbl : "no buys"}</small></span></td>
     <td className="r x-avg x-c1 cg-h">{a.qty === 0 ? <span className="x-ro"><b>{MINUS}</b><small>all sold</small></span>
-      : a.avg != null ? <span className="x-ro"><b>{inr(a.avg, p.mf ? 4 : 2)}</b><small>{a.nSales ? "average of what is left" : `average of ${a.nBuys}`}</small></span>
+      : a.avg != null ? <span className="x-ro"><b>{inr(a.avg, 2)}</b><small>{a.nSales ? "average of what is left" : `average of ${a.nBuys}`}</small></span>
       : a.nBuys ? <button type="button" className={buttonClass("quiet", "sm", "x-need-b")} onClick={() => p.onOpen(symbol, true)} title={priceMissing ? "A buy has no price yet" : undefined}>{p.mf ? "add a buy NAV" : "add a buy price"}</button>
       : <button type="button" className={buttonClass("quiet", "sm", "x-need-b")} onClick={() => { p.add(symbol, p.cur === "all" ? (a.pfs[0] ?? p.goTo) : p.cur, "buy"); p.onOpen(symbol, true); }}>add a buy</button>}</td>
     <td className="r x-inv x-c1 cg-h">{a.qty === 0 || a.qty == null ? MINUS : a.invested == null ? <span className="x-need">add buy price</span> : inr(a.invested)}</td>
@@ -110,7 +110,7 @@ export function LotRows({ p, symbol, lead, rest }: { p: LotsProps; symbol: strin
         autoFocus={row.id === lastDraft || (p.focus?.symbol === symbol && p.focus.what === "qty" && row.id === rows[0]?.row.id)} />
         {note && <small className="x-lot-n" title={title || undefined} aria-live="polite">{note}</small>}</td>
       <td className="r l-avg x-c1 cg-h"><span className={"x-pin" + (row.price > 0 ? "" : " need")}><span aria-hidden="true">₹</span>
-        <NumBox value={row.price} label={`${S ? (p.mf ? "Sell NAV in this sale" : "Sell price in this sale") : (p.mf ? "Buy NAV in this buy" : "Buy price in this buy")} of ${nm}`} placeholder={S ? (p.mf ? "Sell NAV" : "Sell price") : (p.mf ? "Buy NAV" : "Buy price")} onSave={(v) => p.edit(row.id, { price: v })}
+        <NumBox value={row.price} label={`${S ? (p.mf ? "NAV at this sale" : "Sell price in this sale") : (p.mf ? "Buy NAV in this buy" : "Buy price in this buy")} of ${nm}`} placeholder={S ? (p.mf ? "Sale NAV" : "Sell price") : (p.mf ? "Buy NAV" : "Buy price")} onSave={(v) => p.edit(row.id, { price: v })}
           autoFocus={p.focus?.symbol === symbol && p.focus.what === "price" && row.id === rows.find((r) => !r.sale && !(r.row.price > 0))?.row.id} /></span></td>
       {S ? <>
         <td className="r l-inv x-c1 cg-h">{!x || x.err != null || !(row.qty > 0) ? MINUS : x.cost != null ? <>{inr(x.cost)}<small>cost, first in first out</small></> : <span className="x-need">add buy price</span>}</td>

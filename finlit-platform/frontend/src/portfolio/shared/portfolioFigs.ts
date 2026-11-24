@@ -6,7 +6,7 @@ import type { Share } from "../../lib/equityPack";
 import { scoreBand } from "../../lib/scoreBands";
 import type { KeyFig } from "./KeyFigures";
 import { rupees, rupeesSigned } from "./numbers";
-import { andList, cap1, coName, countOf, numWord, trendReading, trendSide } from "./words";
+import { andList, cap1, coName, countOf, numWord, pluralOf, trendReading, trendSide } from "./words";
 
 export const KF_C = { hi: "var(--gain)", hiSoft: "color-mix(in srgb, var(--gain) 45%, var(--s1))", mid: "var(--warn)", lo: "var(--loss)", none: "var(--border-strong)" };
 export const ordinal = (n: number) => { const s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
@@ -63,7 +63,9 @@ export type GainLoss = { rows: GLRow[]; total: number; key: Set<string>; lead: {
  *  loss. <A> is down ₹x; the other 12 shares are up ₹y together." (two or three: "<A> (−₹x) and <B> (−₹y) are down ₹z between them"). Not found: "The loss
  *  is spread out. The three biggest losses, <A>, <B> and <C>, come to ₹z; 6 of your 13 shares are in profit." Gains mirror this.
  *  `noPrice`: shares held without a buy price (left out, counted in one line). Above 12 rows the 5 biggest gains, the 5 biggest losses and any named share show. */
-export function gainLoss(input: GLRow[], noPrice = 0): GainLoss {
+export function gainLoss(input: GLRow[], noPrice = 0, noun = "share"): GainLoss {
+  // task #389 (developer file 32, Your funds 7): the MF page counts funds ("Three funds explain the whole gain"); the rule is the same
+  const N1 = noun, Ns = pluralOf(noun);
   const rows = [...input].sort((a, b) => b.gain - a.gain), N = rows.length, total = rows.reduce((a, r) => a + r.gain, 0);
   const key = new Set<string>();
   let lead: GainLoss["lead"] = null;
@@ -75,16 +77,16 @@ export function gainLoss(input: GLRow[], noPrice = 0): GainLoss {
     if (hit && k < N) {
       const who = side.slice(0, k), os = total - c, oth = N - k; who.forEach((r) => key.add(r.symbol));
       const named = k === 1 ? `${who[0].name} is ${loss ? "down" : "up"} ${rupees(Math.abs(who[0].gain))}` : `${andList(who.map((r) => `${r.name} (${rupeesSigned(r.gain)})`))} are ${loss ? "down" : "up"} ${rupees(Math.abs(c))} between them`;
-      const others = Math.abs(os) < 1 ? `${oth === 1 ? "the other share is" : `the other ${oth} shares are`} flat` : `${oth === 1 ? "the other share is" : `the other ${oth} shares are`} ${os > 0 ? "up" : "down"} ${rupees(Math.abs(os))}${oth > 1 ? " together" : ""}`;
-      lead = { bold: `${k === 1 ? "One share explains" : `${cap1(numWord(k))} shares explain`} the whole ${w}.`, rest: `${named}; ${others}.` };
+      const others = Math.abs(os) < 1 ? `${oth === 1 ? `the other ${N1} is` : `the other ${oth} ${Ns} are`} flat` : `${oth === 1 ? `the other ${N1} is` : `the other ${oth} ${Ns} are`} ${os > 0 ? "up" : "down"} ${rupees(Math.abs(os))}${oth > 1 ? " together" : ""}`;
+      lead = { bold: `${k === 1 ? `One ${N1} explains` : `${cap1(numWord(k))} ${Ns} explain`} the whole ${w}.`, rest: `${named}; ${others}.` };
     } else if (hit && k === N) {
       // every share is on the same side (a list of two or three): there are no "others" to set against them
       side.forEach((r) => key.add(r.symbol));
-      lead = { bold: `${N === 2 ? "Both shares are" : `All ${numWord(N)} shares are`} ${loss ? "down" : "up"}.`, rest: `${andList(side.map((r) => `${r.name} (${rupeesSigned(r.gain)})`))} come to ${rupees(Math.abs(c))} together.` };
+      lead = { bold: `${N === 2 ? `Both ${Ns} are` : `All ${numWord(N)} ${Ns} are`} ${loss ? "down" : "up"}.`, rest: `${andList(side.map((r) => `${r.name} (${rupeesSigned(r.gain)})`))} come to ${rupees(Math.abs(c))} together.` };
     } else {
       const top = side.slice(0, 3); top.forEach((r) => key.add(r.symbol));
       const sum = top.reduce((a, r) => a + r.gain, 0), up = rows.filter((r) => r.gain > 0).length;
-      if (top.length) lead = { bold: `The ${w} is spread out.`, rest: `${top.length > 1 ? `The ${numWord(top.length)} biggest ${loss ? "losses" : "gains"}, ${andList(top.map((r) => r.name))}, come` : `The biggest ${w}, ${top[0].name}, comes`} to ${rupees(Math.abs(sum))}; ${up} of your ${countOf(N, "share")} ${up === 1 ? "is" : "are"} in profit.` };
+      if (top.length) lead = { bold: `The ${w} is spread out.`, rest: `${top.length > 1 ? `The ${numWord(top.length)} biggest ${loss ? "losses" : "gains"}, ${andList(top.map((r) => r.name))}, come` : `The biggest ${w}, ${top[0].name}, comes`} to ${rupees(Math.abs(sum))}; ${up} of your ${countOf(N, N1, Ns)} ${up === 1 ? "is" : "are"} in profit.` };
     }
   }
   const capped = N > 12;

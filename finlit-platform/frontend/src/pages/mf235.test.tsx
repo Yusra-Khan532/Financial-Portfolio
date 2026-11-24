@@ -22,6 +22,7 @@ vi.mock("../lib/ui", () => ({ useUI: () => ({ toast: vi.fn(), plan: "gold", upgr
 vi.mock("../lib/title", () => ({ useDocTitle: () => undefined }));
 vi.mock("../lib/auth", async (orig) => ({ ...(await orig<typeof import("../lib/auth")>()), useAuth: () => ({ user: { id: 1 } }) }));
 import { MfPortfolioPage } from "./MfPortfolio";
+globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} } as never;   // task #389: the funds table pins its heading row (HScroll)
 
 const ln = (id: string, units: number, nav: number, boughtOn: string, pf: string, side: "buy" | "sell" = "buy"): Line => ({ id, units, invested: Math.round(units * nav * 100) / 100, boughtOn, pf, side });
 const H = (id: string, name: string, nav: number, lines: Line[]): Holding => ({
@@ -67,7 +68,7 @@ describe("MF platforms, buys and sales (pack C1, C5, C6)", () => {
     const rows = [...document.querySelectorAll('tr.x-lot[data-lsym="AAA"]')];
     expect(rows).toHaveLength(6);
     expect(rows[0].textContent).toMatch(/all sold/); expect(rows[1].textContent).toMatch(/3\.123 left · 1\.877 sold/);
-    expect(within(rows[5] as HTMLElement).getByLabelText("Sell NAV in this sale of ICICI Prudential FMCG Fund")).toBeTruthy();
+    expect(within(rows[5] as HTMLElement).getByLabelText("NAV at this sale of ICICI Prudential FMCG Fund")).toBeTruthy();
     expect(document.querySelector("tr.x-lot .l-day")).toBeNull();                       // no Today: NAVs change once a day
     expect(document.querySelector("tr.x-tot")!.textContent).toMatch(/^Total · 2 funds in 2 portfolios/);
   });
@@ -80,7 +81,7 @@ describe("MF platforms, buys and sales (pack C1, C5, C6)", () => {
   });
   it("a change is saved as the fund's lines, each with its platform and side", async () => {
     await show();
-    fireEvent.click(screen.getByRole("button", { name: /of Quant Small Cap Fund$/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^(Show|Hide|Add a buy).* of Quant Small Cap Fund$/ }));
     vi.useFakeTimers();
     fireEvent.change(screen.getByLabelText("Units in this buy of Quant Small Cap Fund"), { target: { value: "25.5" } });
     await act(async () => { vi.advanceTimersByTime(1000); });
@@ -89,7 +90,7 @@ describe("MF platforms, buys and sales (pack C1, C5, C6)", () => {
   });
 });
 
-describe("task #275 (change 3): Edit | Sell under each fund, in the shared dialogs", () => {
+describe("task #275 (change 3), #389: Edit | Record a sale under each fund, in the shared dialogs", () => {
   it("shows Edit | Sell in place of Remove; Edit lists the fund's buys on a platform by name, with Avg buy NAV", async () => {
     await show();
     expect(screen.queryByRole("button", { name: /^Remove ICICI/ })).toBeNull();
@@ -102,10 +103,10 @@ describe("task #275 (change 3): Edit | Sell under each fund, in the shared dialo
   });
   it("Sell saves a sale line on the chosen platform (PUT the fund's lines)", async () => {
     await show();
-    fireEvent.click(screen.getByRole("button", { name: "Sell Quant Small Cap Fund" }));
-    const dlg = screen.getByRole("dialog", { name: "Sell Quant Small Cap Fund" });
+    fireEvent.click(screen.getByRole("button", { name: "Record a sale of Quant Small Cap Fund" }));   // task #389 (developer file 32, Your funds 1): no Sell wording
+    const dlg = screen.getByRole("dialog", { name: "Record a sale of Quant Small Cap Fund" });
     fireEvent.change(within(dlg).getByLabelText("Quantity of Quant Small Cap Fund sold"), { target: { value: "5" } });
-    fireEvent.change(within(dlg).getByLabelText("Sell NAV of Quant Small Cap Fund"), { target: { value: "260" } });
+    fireEvent.change(within(dlg).getByLabelText("NAV at the sale of Quant Small Cap Fund"), { target: { value: "260" } });
     fireEvent.change(within(dlg).getByLabelText("Date of the sale of Quant Small Cap Fund"), { target: { value: "2026-11-18" } });
     fireEvent.click(within(dlg).getByRole("button", { name: /^(Sell|Save|Record)/ }));
     await waitFor(() => expect(st.put.some((p) => p.path === "/api/me/mf-portfolio/bbb")).toBe(true), { timeout: 3000 });

@@ -89,11 +89,15 @@ export function useStepInView(ids: string[]) {
   return on;
 }
 
-export function ViewBar<T extends string>({ pick, defs, view, onView, seen, all, onSec, away }: {
+export function ViewBar<T extends string>({ pick, defs, view, onView, seen, all, onSec, away, step, onStep }: {
   pick: Pick; defs: ViewDefB<T>[]; view: T; onView: (v: T) => void; seen: Set<string>; all: ViewSteps<T>; onSec: (v: T, id: string) => void; away?: boolean;
+  /** task #389 (MF portfolio, developer file 32, Section bar): one section at a time. `step` is the step shown ("all": every section); a step shows that
+   *  section only and All sections (pressed) puts every section back. Without it the bar jumps to sections as before (the ETF page). */
+  step?: string; onStep?: (id: string) => void;
 }) {
   useHeaderHeight();
-  const steps = all[view].steps, on = useStepInView(steps.map((s) => s.id)), box = useRef<HTMLSpanElement>(null), [edge, setEdge] = useState({ l: false, r: false });
+  const steps = all[view].steps, inView = useStepInView(steps.map((s) => s.id)), box = useRef<HTMLSpanElement>(null), [edge, setEdge] = useState({ l: false, r: false });
+  const one = !!onStep, on = one ? (step === "all" ? "" : step ?? "") : inView;
   const measure = () => { const el = box.current; if (!el) return; setEdge({ l: el.scrollLeft > 2, r: el.scrollLeft + el.clientWidth < el.scrollWidth - 2 }); };
   useEffect(() => { measure(); const el = box.current; el?.addEventListener("scroll", measure, { passive: true }); addEventListener("resize", measure); return () => { el?.removeEventListener("scroll", measure); removeEventListener("resize", measure); }; }, [view]);
   useEffect(() => {   // the open step is kept in view inside the bar
@@ -105,10 +109,11 @@ export function ViewBar<T extends string>({ pick, defs, view, onView, seen, all,
   return (
     <nav className={"ptk-bar sw-host" + (away ? " away" : "")} aria-label="Views and sections" aria-hidden={away || undefined}>
       <span className="x-sw ptk-lead"><AccountPicker p={pick} /><ViewSeg defs={defs} view={view} onView={onView} seen={seen} /></span>
-      <SectionsMenu all={all} view={view} onSec={onSec} here={on} label="All sections" btnClass="eqt-all" mode="all" />
+      {one ? <button type="button" className="eqt-all" aria-pressed={step === "all"} onClick={() => onStep!("all")}>All sections</button>
+        : <SectionsMenu all={all} view={view} onSec={onSec} here={on} label="All sections" btnClass="eqt-all" mode="all" />}
       <button type="button" className="ptk-bsc" aria-label="Show earlier steps" hidden={!edge.l && !edge.r} disabled={!edge.l} onClick={() => by(-1)}>‹</button>
       <span ref={box} className={"ptk-steps" + (edge.l ? " fl" : "") + (edge.r ? " fr" : "")}>
-        {steps.map((s, i) => <button key={s.id} type="button" className="eqt-chip" aria-current={on === s.id ? "true" : undefined} onClick={() => { if (isHidden(s.id)) setHidden(s.id, false); jumpTo(s.id); }}>
+        {steps.map((s, i) => <button key={s.id} type="button" className="eqt-chip" aria-current={on === s.id ? "true" : undefined} onClick={() => { if (isHidden(s.id)) setHidden(s.id, false); if (one) onStep!(s.id); else jumpTo(s.id); }}>
           <span className="eqt-n">{i + 1}</span>{s.label}{s.badge && <span className="ptk-stepnew">{s.badge}</span>}</button>)}
       </span>
       <button type="button" className="ptk-bsc" aria-label="Show later steps" hidden={!edge.l && !edge.r} disabled={!edge.r} onClick={() => by(1)}>›</button>

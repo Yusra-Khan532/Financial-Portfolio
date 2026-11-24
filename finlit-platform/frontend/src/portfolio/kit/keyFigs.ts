@@ -13,6 +13,8 @@ export type KfCard = {
   /** the sentence: its bold lead with the number, then the rest */ lead: string; rest?: string;
   rows?: KfRow[]; /** a line across the bars at this value (beta 1) */ line?: number; stack?: KfPart[];
   /** one line under the bar */ note?: string; /** what it rests on */ from?: string; go: KfGo;
+  /** task #389 (developer file 32, Key figures): the card asks one question and answers it with one big figure and the line beside it; "From: …" moves
+   *  behind the card's i. Without `q` the card reads as before (the ETF page). */ q?: string; big?: string; ans?: string;
 };
 export type KfCandidate<C> = (c: C) => KfCard | null;
 
