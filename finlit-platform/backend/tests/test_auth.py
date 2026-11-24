@@ -837,3 +837,123 @@ async def test_profile_edit_takes_only_name_and_mobile(app):
     assert me["mobile"] == "+919123456780" and me["email"] == "prof@example.com"
     async with app.state.store.pool.acquire() as conn:
         assert await conn.fetchval("SELECT role FROM users WHERE email = 'prof@example.com'") == "investor"
+
+
+# ------------------------------------------------------------------ one account per mobile, without an oracle (security review of PR #889, 24 Nov 2026)
+REG = "/api/auth/register"
+
+
+async def _mails(app, to):
+    async with app.state.store.pool.acquire() as conn:
+        return await conn.fetch("SELECT subject, body FROM outbox WHERE to_email = $1 ORDER BY id", to)
+
+
+async def test_mobile_changes_are_limited_per_account_and_name_only_saves_are_not(app):
+    """Five mobile changes a day per account; the sixth is refused with 429. A taken number still answers 409 and counts. Name-only saves, and a save
+    that sends the number already stored, change no mobile and are never limited."""
+    other = await signed_in(app, "holder@example.com")
+    taken = (await other.get("/api/me/profile")).json()["mobile"]
+    c = await signed_in(app, "lim@example.com")
+    codes = [(await c.patch("/api/me", json={"name": "L", "mobile": mob()})).status_code for _ in range(4)]
+    codes.append((await c.patch("/api/me", json={"name": "L", "mobile": taken})).status_code)          # the taken number: 409, and it counts
+    codes.append((await c.patch("/api/me", json={"name": "L", "mobile": mob()})).status_code)
+    assert codes == [200, 200, 200, 200, 409, 429], codes
+    r = await c.patch("/api/me", json={"name": "L", "mobile": mob()})
+    assert r.status_code == 429 and r.json()["detail"]["status"] == "rate_limited" and int(r.headers["retry-after"]) > 0
+    current = (await c.get("/api/me/profile")).json()["mobile"]
+    for i in range(8):                                                                                   # name-only saves: never limited
+        r = await c.patch("/api/me", json={"name": f"Name {i}"})
+        assert r.status_code == 200, r.text
+    r = await c.patch("/api/me", json={"name": "Same", "mobile": current})                             # the stored number sent again: not a change
+    assert r.status_code == 200 and r.json()["mobile"] == current
+    assert (await c.get("/api/me/profile")).json() == {"name": "Same", "email": "lim@example.com", "mobile": current}
+
+
+async def test_mobile_changes_are_limited_per_address(app, monkeypatch):
+    """The per-address budget catches one person spreading the tries over several accounts."""
+    from finlit.auth import routes
+    monkeypatch.setattr(routes, "MOBILE_CHANGES_PER_ADDRESS", 3)
+    a = await signed_in(app, "a1@example.com")
+    b = await signed_in(app, "b1@example.com")
+    assert [(await a.patch("/api/me", json={"mobile": mob()})).status_code for _ in range(2)] == [200, 200]
+    assert (await b.patch("/api/me", json={"mobile": mob()})).status_code == 200
+    assert (await b.patch("/api/me", json={"mobile": mob()})).status_code == 429                      # b's own count is 1: the address budget is spent
+    assert (await b.patch("/api/me", json={"name": "B"})).status_code == 200
+
+
+async def test_signup_with_a_taken_mobile_answers_the_same_and_sends_one_plain_email(app, anon):
+    """The same 202 and body as a new account, and exactly one email to the address that signed up, saying the number is already linked. No account
+    is made. Before: no email at all, which told the person (or a prober) that the number has an account and left a real owner waiting."""
+    taken = mob()
+    first = await anon.post(REG, json={"email": "owner@example.com", "password": PW, "mobile": taken, "accept_terms": True}, headers=ORIGIN)
+    again = await anon.post(REG, json={"email": "second@example.com", "password": PW, "name": "S", "mobile": f"+91 {taken[:5]} {taken[5:]}",
+                                       "accept_terms": True}, headers=ORIGIN)
+    assert first.status_code == again.status_code == 202
+    assert first.json() == again.json() and first.headers["cache-control"] == again.headers["cache-control"] == "no-store"
+    mails = await _mails(app, "second@example.com")
+    assert len(mails) == 1, mails
+    assert "already linked" in mails[0]["subject"].lower() and "already linked to a finlit account" in mails[0]["body"].lower()
+    assert "/login" in mails[0]["body"] and "/contact" in mails[0]["body"] and "owner@example.com" not in mails[0]["body"]
+    assert "token=" not in mails[0]["body"]
+    async with app.state.store.pool.acquire() as conn:
+        assert await conn.fetchval("SELECT count(*) FROM users WHERE email = 'second@example.com'") == 0
+    assert len(await _mails(app, "owner@example.com")) == 1                                            # the owner's own verify mail only
+
+
+async def test_signup_race_on_the_email_answers_the_same_and_sends_the_already_mail(app, anon, monkeypatch):
+    """A parallel sign-up with the same email wins the unique index between the check and the insert: the generic 202, and the existing 'already' mail."""
+    real = crypto.hash_password
+
+    async def racing(password):
+        async with app.state.store.pool.acquire() as conn:
+            await conn.execute("INSERT INTO users (email, password_hash, mobile) VALUES ('race@example.com', 'x', $1)", "+91" + mob())
+        return await real(password)
+
+    monkeypatch.setattr(crypto, "hash_password", racing)
+    r = await anon.post(REG, json={"email": "race@example.com", "password": PW, "mobile": mob(), "accept_terms": True}, headers=ORIGIN)
+    assert r.status_code == 202 and r.json()["status"] == "check_email"
+    mails = await _mails(app, "race@example.com")
+    assert len(mails) == 1 and "already" in mails[0]["subject"].lower()
+
+
+async def test_signup_does_not_hide_a_real_database_error_as_check_your_email(app, monkeypatch):
+    """Only the unique-index answer is the expected one; any other database error is the app's normal error (500), not a fake 'check your email'."""
+    async def broken(password):
+        return None                                                                                      # password_hash NOT NULL: a different DB error
+
+    monkeypatch.setattr(crypto, "hash_password", broken)
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app, raise_app_exceptions=False), base_url="http://test") as c:
+        r = await c.post(REG, json={"email": "dberr@example.com", "password": PW, "mobile": mob(), "accept_terms": True}, headers=ORIGIN)
+    assert r.status_code == 500 and r.json()["status"] == "error", r.text
+    assert len(await _mails(app, "dberr@example.com")) == 0
+
+
+async def test_never_verified_accounts_go_after_seven_days_and_free_their_mobile(app, anon):
+    """The nightly prune removes accounts that never confirmed their email, made more than 7 days ago, with nothing else on them; their mobile
+    can then be used. A confirmed account, a recent one, an administrator and one an administrator gave a plan to are kept."""
+    from finlit.auth.service import prune_unverified_accounts
+    squatted = mob()
+    for email, m in (("squat@example.com", squatted), ("recent@example.com", mob()), ("adm@example.com", mob()), ("granted@example.com", mob())):
+        r = await anon.post(REG, json={"email": email, "password": PW, "mobile": m, "accept_terms": True}, headers=ORIGIN)
+        assert r.status_code == 202
+    await signup(app, anon, "kept@example.com")
+    async with app.state.store.pool.acquire() as conn:
+        await conn.execute("UPDATE users SET created_at = now() - interval '8 days' WHERE email <> 'recent@example.com'")
+        await conn.execute("UPDATE users SET created_at = now() - interval '6 days' WHERE email = 'recent@example.com'")
+        await conn.execute("UPDATE users SET role = 'admin' WHERE email = 'adm@example.com'")
+        await conn.execute("UPDATE users SET plan = 'gold' WHERE email = 'granted@example.com'")
+        squat_id = await conn.fetchval("SELECT id FROM users WHERE email = 'squat@example.com'")
+        assert await conn.fetchval("SELECT count(*) FROM email_tokens WHERE user_id = $1", squat_id) == 1
+    out = await app.state.store.prune(keep_top=10 ** 6)
+    assert out["unverified_accounts"] == 1, out
+    async with app.state.store.pool.acquire() as conn:
+        left = {r["email"] for r in await conn.fetch("SELECT email FROM users")}
+        assert await conn.fetchval("SELECT count(*) FROM email_tokens WHERE user_id = $1", squat_id) == 0    # its tokens went with it
+        assert await prune_unverified_accounts(conn) == 0                                                     # a second run finds nothing
+    assert "squat@example.com" not in left
+    assert {"recent@example.com", "adm@example.com", "granted@example.com", "kept@example.com"} <= left
+    r = await anon.post(REG, json={"email": "realowner@example.com", "password": PW, "mobile": squatted, "accept_terms": True}, headers=ORIGIN)
+    assert r.status_code == 202
+    assert "confirm" in (await last_mail(app, "realowner@example.com"))["subject"].lower()
+    async with app.state.store.pool.acquire() as conn:
+        assert await conn.fetchval("SELECT mobile FROM users WHERE email = 'realowner@example.com'") == "+91" + squatted

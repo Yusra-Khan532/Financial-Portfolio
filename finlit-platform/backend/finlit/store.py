@@ -860,6 +860,15 @@ class Store:
             out["history"] = await batched("score_history", "day < current_date - 800")
             from .mfscore.scorehist import prune as prune_mf_score_history   # Mutual Fund Score history: three years
             out["mf_score_history"] = 0 if over() else await prune_mf_score_history(conn, timeout=T)
+            # accounts that never confirmed their email, older than 7 days and with nothing else on them: they cannot sign in and would hold their
+            # mobile for ever (one account per mobile, migration 138). A few rows a night, so it runs even when the time budget is spent; a failure
+            # here is logged and counted, and never fails the rest of the prune.
+            from .auth.service import prune_unverified_accounts
+            try:
+                out["unverified_accounts"] = await prune_unverified_accounts(conn, timeout=T)
+            except Exception:
+                log.exception("prune: removing never-confirmed accounts failed; the rest of the prune is kept")
+                out["unverified_accounts"], out["unverified_accounts_failed"] = 0, 1
         for sym in done:
             for st in ("consolidated", "standalone"):
                 try:

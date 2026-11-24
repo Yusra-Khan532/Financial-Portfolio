@@ -456,6 +456,11 @@ def clear_session_cookie(request: Request, response: Response) -> None:
 
 
 GENERIC_SIGNUP = {"status": "check_email", "detail": "If that address can be used, we have sent a message to confirm it."}
+MOBILE_INDEX = "users_mobile_uniq"   # migration 138: one account per mobile
+# Changing the mobile answers 409 when another account has the number (one account per mobile), so the changes are counted: per account per day,
+# and per address per hour (one person with several accounts). Only a request that would change the stored number counts; name-only saves never do.
+MOBILE_CHANGES_PER_DAY = 5
+MOBILE_CHANGES_PER_ADDRESS = 20
 
 
 # ------------------------------------------------------------------ sign up / verify / sign in
@@ -492,7 +497,15 @@ async def register(request: Request, body: SignUp):
             # the server sets every other column (role 'investor', plan, status) from the table's defaults; nothing else comes from the request
             uid = await conn.fetchval("INSERT INTO users (email, name, password_hash, email_verified_at, mobile) VALUES ($1, $2, $3, CASE WHEN $4 THEN now() END, $5) RETURNING id",
                                       email, name, pw, st.auto_verify_email, mobile)
-        except Exception:  # a parallel sign-up won the unique index (email, or a mobile already in use): behave like the existing-account branch
+        except asyncpg.UniqueViolationError as exc:
+            # Only the unique indexes are an expected answer here; any other database error goes to the app's normal error handling. Every path
+            # ends in exactly one email and the same 202: a missing email would tell whoever signed up that the mobile has an account, and leave
+            # a real owner who typed their own number waiting for a confirmation that never comes.
+            if getattr(exc, "constraint_name", None) == MOBILE_INDEX:   # one account per mobile (owner, 24 Nov): say so to the address that signed up
+                subject, text = mail.mobile_taken_mail(f"{st.public_site_url}/login", f"{st.public_site_url}/contact", name)
+            else:   # a parallel sign-up with this email won the email index: the existing-account mail
+                subject, text = mail.already_mail(f"{st.public_site_url}/login")
+            await request.app.state.mailer.send(email, subject, text)
             return Response(content=json.dumps(GENERIC_SIGNUP), status_code=202, media_type="application/json", headers=NO_STORE)
     await audit(pool, str(uid), "register", email_hash(email), ip, terms=True)
     if st.auto_verify_email:  # staging only (refused in production): the account is already confirmed
@@ -779,13 +792,21 @@ async def my_profile(request: Request, ctx: Ctx = Depends(secure_ctx)):
 
 @router.patch("/me")
 async def update_profile(request: Request, body: ProfileIn, ctx: Ctx = Depends(secure_ctx)):
+    """Name and mobile. A mobile change is limited to MOBILE_CHANGES_PER_DAY per account and MOBILE_CHANGES_PER_ADDRESS an hour per address (429)."""
     name = (body.name or "").strip()[:80] or None
     mobile = None
     if body.mobile is not None:
         mobile = crypto.normalise_mobile(body.mobile)
         if not mobile:
             raise fail(422, "invalid_mobile", "Enter a valid 10-digit Indian mobile number.")
-    async with request.app.state.store.pool.acquire() as conn:
+    pool = request.app.state.store.pool
+    if mobile:
+        async with pool.acquire() as conn:
+            stored = await conn.fetchval("SELECT mobile FROM users WHERE id = $1", ctx.user_id)
+        if mobile != stored:   # a real change: counted, so the 409 cannot be used to test many numbers for an account
+            await limit(request, "mobchg", ctx.user_id, MOBILE_CHANGES_PER_DAY, 86400)
+            await limit(request, "mobchgip", ip_of(request), MOBILE_CHANGES_PER_ADDRESS, 3600)
+    async with pool.acquire() as conn:
         try:
             if mobile:
                 await conn.execute("UPDATE users SET name = $2, mobile = $3 WHERE id = $1", ctx.user_id, name, mobile)
