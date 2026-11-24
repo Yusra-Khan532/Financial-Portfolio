@@ -1,0 +1,55 @@
+name: Load test (k6)
+# Read-only load tests of the live site with Grafana k6 (docs/MONITORING.md; scripts in finlit-platform/tests/load/).
+#   smoke:  every night at 02:31 IST, 2 virtual visitors for 1 minute
+#   weekly: Sunday 23:41 IST, up to 10 virtual visitors for about 8 minutes
+# Public pages only: never signs in, never writes. The summary is kept as an artifact and sent to the admin console (MONITOR_INGEST_KEY).
+on:
+  schedule:
+    - {cron: "1 21 * * *"}     # 02:31 IST
+    - {cron: "11 18 * * 0"}    # Sunday 23:41 IST
+  workflow_dispatch:
+    inputs:
+      run:
+        description: smoke or weekly
+        required: false
+        default: smoke
+permissions:
+  contents: read
+concurrency: {group: load-test, cancel-in-progress: false}
+jobs:
+  k6:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BASE_URL: ${{ vars.FINLIT_SITE_URL || 'https://finlitventures.com' }}
+      MONITOR_INGEST_KEY: ${{ secrets.MONITOR_INGEST_KEY }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      RUN: ${{ inputs.run || (github.event.schedule == '11 18 * * 0' && 'weekly') || 'smoke' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          sparse-checkout: finlit-platform
+      - uses: grafana/setup-k6-action@v1
+      - name: Run k6
+        id: k6
+        run: |
+          case "$RUN" in weekly) script=weekly.js; vus=10;; *) script=smoke.js; vus=2;; esac
+          set +e
+          k6 run --quiet --summary-export=summary.json -e BASE_URL="$BASE_URL" -e VUS="$vus" "finlit-platform/tests/load/$script"
+          code=$?
+          set -e
+          { echo "code=$code"; echo "vus=$vus"; } >> "$GITHUB_OUTPUT"
+      - name: Report to the admin console
+        if: always()
+        run: python3 finlit-platform/scripts/monitor_report.py k6 "$RUN" summary.json "${{ steps.k6.outputs.code || 1 }}" "${{ steps.k6.outputs.vus || 0 }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-${{ env.RUN }}-summary
+          path: summary.json
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: Fail the run when a limit was missed
+        if: steps.k6.outputs.code != '0'
+        run: echo "k6 limits missed (exit ${{ steps.k6.outputs.code }}); see the summary artifact" && exit 1

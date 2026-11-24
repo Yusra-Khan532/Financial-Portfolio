@@ -1,0 +1,105 @@
+# Gatus: the uptime checker that runs on the server next to the site (docs/MONITORING.md).
+# Every check asks the PUBLIC address (through Caddy and Cloudflare, exactly as a visitor would), so a broken certificate, a dead Caddy or a
+# stopped app all show. ${...} values come from the gatus service's environment in docker-compose.aws.yml (never put a password here).
+# The site reads these results for /status and the admin console (backend/finlit/monitoring.py); Gatus itself is not published to the internet.
+
+storage:
+  type: sqlite
+  path: /data/gatus.db          # history kept across restarts (the gatus_data volume)
+
+web:
+  port: 8080
+
+alerting:
+  # Email on a failure and again on recovery. With SMTP_* empty, Gatus logs that email is not set up and keeps checking; nothing else changes.
+  email:
+    from: "${ALERT_EMAIL_FROM}"
+    username: "${SMTP_USERNAME}"
+    password: "${SMTP_PASSWORD}"
+    host: "${SMTP_HOST}"
+    port: ${SMTP_PORT}
+    to: "${ALERT_EMAIL_TO}"
+    default-alert:
+      enabled: true
+      send-on-resolved: true
+      failure-threshold: 3       # three bad checks in a row (about 3 minutes) before an email: one slow answer is not an incident
+      success-threshold: 2
+      description: "FinLit check failed"
+
+endpoint-defaults: &defaults
+  interval: 60s
+  client:
+    timeout: 15s
+  alerts:
+    - type: email
+
+endpoints:
+  - name: Home page
+    group: site
+    <<: *defaults
+    url: "${PUBLIC_SITE_URL}/"
+    conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 3000"
+
+  - name: Site health (API)
+    group: api
+    <<: *defaults
+    url: "${PUBLIC_SITE_URL}/api/health"
+    conditions:
+      - "[STATUS] == 200"
+      - "[BODY].ok == true"
+      - "has([BODY].version) == true"
+      - "[RESPONSE_TIME] < 2000"
+
+  - name: Company report data
+    group: api
+    <<: *defaults
+    url: "${PUBLIC_SITE_URL}/api/stocks/RELIANCE/brief"
+    conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 3000"
+
+  - name: Mutual fund page data
+    group: api
+    <<: *defaults
+    interval: 5m
+    url: "${PUBLIC_SITE_URL}/api/mf/118955"
+    conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 4000"
+
+  - name: News and filings
+    group: api
+    <<: *defaults
+    interval: 5m
+    url: "${PUBLIC_SITE_URL}/api/feed?limit=1"
+    conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 4000"
+
+  - name: Stock screener data
+    group: api
+    <<: *defaults
+    interval: 5m                  # a large answer (every company): every five minutes is enough
+    url: "${PUBLIC_SITE_URL}/api/screener/universe"
+    conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 8000"
+
+  - name: Background jobs
+    group: jobs
+    <<: *defaults
+    interval: 5m
+    url: "${PUBLIC_SITE_URL}/api/jobs/status"
+    conditions:
+      - "[STATUS] == 200"
+      - "[BODY].healthy == true"
+
+  - name: Scores export link locked
+    group: security
+    <<: *defaults
+    interval: 15m
+    url: "${PUBLIC_SITE_URL}/internal/export/scores/dates"
+    conditions:
+      - "[STATUS] == 401"           # without the key it must refuse; 200 here would mean the lock is gone
