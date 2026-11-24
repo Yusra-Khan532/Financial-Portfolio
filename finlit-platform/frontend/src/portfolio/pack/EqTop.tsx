@@ -57,7 +57,7 @@ const DAY = (iso: string | null | undefined) => {
 };
 
 // ------------------------------------------------------------------------------------------------ title row
-export function EqTitle({ plan, asOf, add, clear }: { plan: string; asOf: string | null | undefined; add: ReactNode; clear: ReactNode }) {
+export function EqTitle({ plan, asOf, add, clear, more }: { plan: string; asOf: string | null | undefined; add: ReactNode; clear: ReactNode; /** task #385: Add several and Import, in ⋯ */ more?: ReactNode }) {
   const m = useMenu(), day = DAY(asOf);
   return (<>
     <div className="eqx-t1">
@@ -70,7 +70,8 @@ export function EqTitle({ plan, asOf, add, clear }: { plan: string; asOf: string
         {add}
         <span className="eqx-menu" ref={m.box}>
           <button type="button" className="pfx-btn eqx-more" aria-haspopup="menu" aria-expanded={m.open} aria-label="More: related pages and Clear portfolio" onClick={() => m.setOpen(!m.open)}>⋯</button>
-          <span className="eqx-menu-m" role="menu" hidden={!m.open}>
+          <span className="eqx-menu-m" role="menu" hidden={!m.open} onClick={(e) => { if ((e.target as HTMLElement).closest("button[role=menuitem]")) m.setOpen(false); }}>
+            {more}
             <Link role="menuitem" to="/mf-portfolio">MF portfolio</Link><Link role="menuitem" to="/watchlist">Watchlists</Link>
             <Link role="menuitem" to="/alerts">Alerts</Link><Link role="menuitem" to="/learn/portfolio">Learn more</Link>
             <span className="eqx-menu-sep" role="separator" />{clear}
@@ -83,7 +84,8 @@ export function EqTitle({ plan, asOf, add, clear }: { plan: string; asOf: string
 }
 
 // ------------------------------------------------------------------------------------------------ the money box
-const Pill = ({ v, d = 1 }: { v: number; d?: number }) => <span className={"eqx-pp " + (v > 0 ? "up" : v < 0 ? "dn" : "")}>{pct(v, d)}</span>;
+/** Task #385 (live bug 15): a change that rounds to zero prints 0.0% and takes no colour. */
+const Pill = ({ v, d = 1 }: { v: number; d?: number }) => { const r = Number(v.toFixed(d)); return <span className={"eqx-pp " + (r > 0 ? "up" : r < 0 ? "dn" : "flat")}>{pct(v, d)}</span>; };
 const Arrow = ({ v }: { v: number }) => (v === 0 ? null : <span aria-hidden="true" className={v > 0 ? "eqx-up" : "eqx-dn"}>{v > 0 ? "▲ " : "▼ "}</span>);
 export type DayMove = { symbol: string; label: string; chg: number };
 
@@ -107,7 +109,7 @@ export function MoneyBox({ t, picker, best, worst, up, down, have, onAdd }: { t:
         {best && <>best {co(best)} <span className="eqx-up">▲{Math.abs(best.chg).toFixed(2)}%</span></>}{best && worst && " · "}
         {worst && <>worst {co(worst)} <span className="eqx-dn">▼{Math.abs(worst.chg).toFixed(2)}%</span></>}</p>}
       {t.rate.length > 0 && <p className="eqx-rate" role="note"><b>Buy prices from your statement's Rate.</b> For {t.rate.length === t.n ? `all ${t.n} shares` : `${t.rate.length} of ${t.n} shares`} it is the price{dayLabel(t.rateOn) ? ` of ${dayLabel(t.rateOn)}` : " on the statement's date"}: what the shares were worth that day, not what you paid. So Invested is their value{dayLabel(t.rateOn) ? ` on ${dayLabel(t.rateOn)}` : " that day"}, and Gain or loss counts from that day. Type what you paid under Edit to change it.</p>}
-      {t.n > 0 && (all ? <p className="eqx-cov ok" role="note">All {t.n} shares have a quantity and buy price, so the money figures cover the whole list.</p>
+      {t.n > 0 && (all ? <p className="eqx-cov ok" role="note">{t.n === 1 ? "The share has" : `All ${t.n} shares have`} a quantity and buy price, so the money figures cover the whole list.</p>
         : <div className="eqx-cov">
           <span className="eqx-bar" role="img" aria-label={`${have.length} of ${t.n} shares have a quantity and buy price`}><i style={{ width: `${(have.length / t.n) * 100}%` }} /></span>
           <p><b>Money figures cover {have.length} of {t.n} shares.</b> {have.length === 0 && t.withQty > 0 ? <>None has a buy price yet, so Invested and Gain or loss stay blank; value now covers {t.withQty} of {t.n}. All {t.n} </>
@@ -142,7 +144,7 @@ export function YourPortfolios({ list, cur, figs, onPick, onAdd, onRename, onRem
     return <button key={id} type="button" role="radio" aria-checked={cur === id} onClick={() => onPick(id)}>
       <span className="acc-av" style={{ ["--av" as string]: a.av }} aria-hidden="true">{a.ini}</span>
       <span className="eqx-pn"><b>{nm}</b><small>{f.n} {f.n === 1 ? "share" : "shares"}</small></span>
-      <span className="eqx-pv">{f.withQty ? <><b>{inr(f.now)}</b>{f.gainPct != null && <small className={f.gainPct >= 0 ? "eqx-up" : "eqx-dn"}>{pct(f.gainPct)}</small>}</> : <small>{f.noPrice ? "no price yet" : "no buys yet"}</small>}</span></button>; };
+      <span className="eqx-pv">{f.withQty ? <><b>{inr(f.now)}</b>{f.gainPct != null && <small className={Number(f.gainPct.toFixed(1)) > 0 ? "eqx-up" : Number(f.gainPct.toFixed(1)) < 0 ? "eqx-dn" : "eqx-flat"}>{pct(f.gainPct)}</small>}</> : <small>{f.noPrice ? "no price yet" : "no buys yet"}</small>}</span></button>; };
   return (
     <section className="eqx-box eqx-ports" aria-labelledby="eqx-pk">
       <div className="eqx-ph"><p className="eqx-k" id="eqx-pk">Your portfolios · {list.length}<Tip text="One portfolio for each broker account. All accounts adds them up and scores them as one list." how="Tap one to show only its shares. New shares go to the portfolio you pick in the Add window." label="About Your portfolios" /></p>

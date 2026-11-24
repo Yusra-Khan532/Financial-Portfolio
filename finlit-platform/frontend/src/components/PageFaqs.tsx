@@ -62,7 +62,7 @@ export const FaqPlan = ({ plan }: { plan?: string }) => plan ? <span className={
 
 /** "Questions about this page": shown at the bottom of every page that has a set in content/pageFaqs.ts, chosen by the address. Nothing otherwise. */
 /** Pages that place their own "Questions about this page" (the dashboard puts it above its disclaimer, as the final pages pack draws it); the layout's copy skips them. */
-const OWN_PLACE = new Set(["/dashboard", "/watchlist", "/glossary", "/etf-portfolio"]);   // the ETF portfolio puts its questions above its disclaimer (task #136)
+const OWN_PLACE = new Set(["/dashboard", "/watchlist", "/glossary", "/etf-portfolio", "/holdings"]);   // task #385: the Equity portfolio keeps its questions behind a button (PageEnd)   // the ETF portfolio puts its questions above its disclaimer (task #136)
 export function PageFaqs({ inline = false }: { inline?: boolean }) {
   const { pathname, hash } = useLocation();
   // /glossary/<term> is placed by its page too; a Prism report (/prism/<SYMBOL>) places its questions inside its own container (task #220)

@@ -29,7 +29,7 @@ describe("the main button", () => {
   });
   it("named cases: Create an alert and Add are the main button, Fund Screener and the other quick links the second button, Prism actions gold", () => {
     expect(read("components/dashboard/NewsBlocks.tsx")).toContain('<Link className={buttonClass("primary", "md")} to="/alerts">Create an alert</Link>');
-    expect(read("pages/Holdings.tsx")).toContain('<button className={buttonClass("primary", "md", "pfx-solid")}>Add</button>');
+    expect(read("pages/Holdings.tsx")).toContain('<button className={buttonClass("primary", "md", "pfx-solid")}>{busy ? "Reading…" : "Add shares"}</button>');
     expect(read("components/PageHeader.tsx")).toContain('className={buttonClass("secondary", "sm", "ph-lk")}');
     expect(strip(read("styles/page-header.css"))).not.toMatch(/\.ph-lk\.primary/);
     expect(read("stock/PrismCompare.tsx")).toMatch(/className=\{buttonClass\("prism", "sm", "dk-b"\)\} to=\{`\/prism\//);

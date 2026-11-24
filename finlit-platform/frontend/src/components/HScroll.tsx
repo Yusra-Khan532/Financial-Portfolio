@@ -8,7 +8,8 @@ import "../styles/frozen.css";
  *  first column gets a soft shadow on its edge while there is more to the right (`has-more`). */
 /** `pinBelow`: a CSS selector of a sticky bar; the column names stay under it while the page scrolls past the table (task #64, B-1 / V-1). A header inside a
  *  sideways-scrolling box cannot use position: sticky against the page, so it is moved with a transform; the box keeps no inner vertical scroll. */
-export function HScroll({ children, className = "", label = "table", tall = false, controls = true, pinBelow, barBottom = false, pinCells = false }: { children: ReactNode; className?: string; label?: string; tall?: boolean; controls?: boolean; pinBelow?: string;
+export function HScroll({ children, className = "", label = "table", tall = false, controls = true, pinBelow, barBottom = false, pinCells = false, zoom = true }: { children: ReactNode; className?: string; label?: string; tall?: boolean; controls?: boolean; pinBelow?: string;
+  /** task #385 (Equity, developer file 33): false leaves out the floating enlarge arrow (the page puts its own Enlarge in the tools row) */ zoom?: boolean;
   /** task #274: move each header cell rather than the header group (Chromium draws a moved table header group with the rows faintly showing through) */ pinCells?: boolean;
   /** task #274 (Equity, change 11): the sideways scrollbar sits at the bottom of the screen while the table is on screen */ barBottom?: boolean }) {
   const box = useRef<HTMLDivElement>(null);
@@ -74,11 +75,10 @@ export function HScroll({ children, className = "", label = "table", tall = fals
         </div>
       )
   );
-  return (
-    <TableZoom label={label.charAt(0).toUpperCase() + label.slice(1)}>
+  const inner = (<>
       {!barBottom && bar}
       <div ref={box} className={"tw " + className + (tall ? " tw-tall" : "") + (pinBelow ? " tw-pin" : "") + (scrolled ? " is-scrolled" : "") + (max > 4 && pos < max - 1 ? " has-more" : "")}>{children}</div>
       {barBottom && <div className="hs-bottom">{bar}</div>}
-    </TableZoom>
-  );
+    </>);
+  return zoom ? <TableZoom label={label.charAt(0).toUpperCase() + label.slice(1)}>{inner}</TableZoom> : inner;
 }

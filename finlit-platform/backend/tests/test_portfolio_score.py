@@ -93,3 +93,20 @@ def test_response_holds_no_weights_points_or_blend():
     text = json.dumps(run({"A": 3.0, "B": 1.0})).lower()
     for k in ("weight", "points", "blend", "level", "cutoff"):
         assert k not in text, k
+
+
+def test_one_to_three_years_reads_the_short_term_trend_385():
+    """Task #385 (developer file 33, open item 9): for a 1-3 year horizon the trend part reads the short-term trend; 3-5 years and longer keep the long term."""
+    assert run({"A": 1.0, "B": 1.0}, horizon="1-3")["readings"]["trend"]["term"] == "short"
+    assert run({"A": 1.0, "B": 1.0}, horizon="3-5")["readings"]["trend"]["term"] == "long"
+    assert run({"A": 1.0, "B": 1.0}, horizon="gt5")["readings"]["trend"]["term"] == "long"
+
+
+def test_strength_reads_in_finlit_prisms_words_385():
+    """Task #385 (developer file 33, open item 4): the strength word is FinLit Prism's, the Strength card's word for the same figure (67 read Fair beside
+    a card saying Healthy)."""
+    cards = {"A": {**CARDS["A"], "prism_final": 67}, "B": {**CARDS["B"], "prism_final": 67}}
+    out = score.build(["A", "B"], {}, cards, PAGE, MARKET, "3-5", "medium", "grow", "NIF50", portfolio_trend)
+    assert out["readings"]["strength"] == {"word": "Healthy", "figure": 67, "scoredShare": 1.0}
+    assert run({})["readings"]["strength"]["word"] == "Average"                  # 60
+    assert run({"A": 1.0, "B": 9.0})["readings"]["strength"]["word"] == "Weak"   # 44

@@ -32,10 +32,10 @@ const heads = () => [...document.querySelectorAll("thead tr:last-child th")].map
 const order = () => [...document.querySelectorAll("tbody tr td.pfx-name b")].map((b) => b.textContent);
 
 describe("columns by plan", () => {
-  it("Gold: Prism, then four parts, then two technical views; a band names the groups and a thick divider follows the score", () => {
+  it("Gold: Prism, then four parts, then one Technical view column (task #385); a band names the groups and a thick divider follows the score", () => {
     open("prism");
-    expect(heads()).toEqual(["Share", "Size", "Qty", "Value", "Latest price", "Today", "Prism", "G&P", "Val.", "Qual.", "Risk", "Short term", "Long term", "Moves with rest"]);
-    expect([...document.querySelectorAll(".eq-band th")].map((t) => t.textContent).filter(Boolean)).toEqual(["FinLit Prism", "Fundamental pillars", "Technical pillars", "Against peers"]);
+    expect(heads()).toEqual(["Share", "Size", "Qty", "Value", "Latest price", "Today", "Prism", "G&P", "Val.", "Qual.", "Risk", "Trend", "Moves with rest"]);
+    expect([...document.querySelectorAll(".eq-band th")].map((t) => t.textContent).filter(Boolean)).toEqual(["FinLit Prism · fundamental scorei", "Technical viewi", "Against peers"]);   // each with its i (task #385)
     expect(document.querySelector("thead tr:last-child th.eq-div")?.textContent).toMatch(/^G&P/);
     expect(document.body.textContent).not.toMatch(/FinLit IQ/);
   });
@@ -52,10 +52,11 @@ describe("sorting, filters and weak rows", () => {
     open("prism");
     const click = (n: string) => fireEvent.click(screen.getByRole("button", { name: new RegExp(`^${n}`) }));
     click("Share"); expect(order()).toEqual(["BHEL", "ICICIBANK", "KRN", "SUZLON"]); click("Share"); expect(order()).toEqual(["SUZLON", "KRN", "ICICIBANK", "BHEL"]);
-    click("Value"); expect(order()).toEqual(["KRN", "ICICIBANK", "BHEL", "SUZLON"]); click("Value"); expect(order()[0]).toBe("SUZLON");
-    click("Qty"); expect(order()).toEqual(["KRN", "ICICIBANK", "BHEL", "SUZLON"]);
+    // task #385 (file 33, Sorting): figures sort high to low on the first click, text A to Z, words by rank (Large > Mid > Small > Micro)
+    click("Value"); expect(order()).toEqual(["SUZLON", "BHEL", "ICICIBANK", "KRN"]); click("Value"); expect(order()[0]).toBe("KRN");
+    click("Qty"); expect(order()).toEqual(["SUZLON", "BHEL", "ICICIBANK", "KRN"]);
     click("Size"); expect(order()[3]).toBe("KRN");                                                       // large, large, large, small
-    expect(document.querySelector('th[aria-sort="ascending"]')?.textContent).toMatch(/^Size▲/);
+    expect(document.querySelector('th[aria-sort="descending"]')?.textContent).toMatch(/^Size▼/);
   });
   it("band filters use FinLit Prism's words (Strong / Healthy / Average / Weak); a plan without Prism has none (task #283)", () => {
     open("prism");
@@ -77,14 +78,14 @@ describe("views", () => {
     const sw = screen.getByRole("group", { name: "Group by" });
     expect(within(sw).getAllByRole("button").map((b) => b.textContent)).toEqual(["Macro sector · 2", "Sector · 2", "Industry · 3"]);
     const rows = () => [...document.querySelectorAll(".pfx-secrow button")].map((b) => b.textContent?.replace(/\s+/g, " ").trim());
-    expect(rows()).toEqual([expect.stringMatching(/^▸Capital Goods 3 shares75% of the list · moves together \.43/), expect.stringMatching(/^▸Financial Services 1 share25% of the list/)]);
+    expect(rows()).toEqual([expect.stringMatching(/^▸Capital Goods 3 shares75% of the list · move together \.43 \(partly\)/), expect.stringMatching(/^▸Financial Services 1 share25% of the list/)]);
     expect(order()).toEqual([]);                                                                         // folded at first
     fireEvent.click(screen.getByRole("button", { name: "Open all" })); expect(order()).toHaveLength(4);
     fireEvent.click(screen.getByRole("button", { name: "Close all" })); expect(order()).toHaveLength(0);
     fireEvent.click(within(sw).getByRole("button", { name: /^Macro sector/ }));
     expect(rows().map((r) => r?.replace(/^▸/, "").split(" ")[0])).toEqual(["Industrials", "Financial"]);
     fireEvent.click(within(sw).getByRole("button", { name: /^Industry/ }));
-    expect(rows().some((r) => r?.includes("Electrical Equipment") && r.includes("moves together .80"))).toBe(true);
+    expect(rows().some((r) => r?.includes("Electrical Equipment") && r.includes("move together .80 (closely)"))).toBe(true);
   });
   it("By company size: group rows plus four size cards (task #262), adding up to the list", () => {
     open("prism", "size");

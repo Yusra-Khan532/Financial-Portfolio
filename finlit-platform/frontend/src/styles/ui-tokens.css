@@ -106,6 +106,18 @@
   --ui-heat-scale: .66;
 }
 
+/* Task #385 (Equity portfolio, developer file 33): the small crown on the four score cards marks FinLit's own model. Gold #b8892b in light,
+   #d9b96c in dark, with its ink. Used only by the crown (portfolio/pack/eq385.css). */
+:root, :root[data-theme="light"] {
+  --ui-crown: #b8892b;
+  --ui-crown-ink: #fffdf7;
+}
+:root[data-theme="dark"],
+:root:not([data-theme="light"]) {
+  --ui-crown: #d9b96c;
+  --ui-crown-ink: #1c1a15;
+}
+
 /* --action-primary is left alone on purpose: only "Ask FinLit AI" (button.ai-top) reads it, and pointing it at --btn-bg would put a
    second main button on every page. That button is restyled in the source in a later step. */
 

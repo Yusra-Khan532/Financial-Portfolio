@@ -31,7 +31,7 @@ describe("insight cards (H97)", () => {
   });
   it("the share list's cards use the same closed dropdowns, not the always-open cards", () => {
     const h = here("../../pages/Holdings.tsx");
-    expect(h).toContain('<Insights items={sharesCards(shares, day)} scope="eq.shares" />');
+    expect(h).toMatch(/<Insights items=\{sharesCards\(shares, day\)\.map\([^\n]*namesInText[^\n]*scope="eq\.shares" \/>/);   // task #385: names, never codes
     expect(h).not.toMatch(/<Cards\b/);
   });
 });
@@ -63,6 +63,10 @@ describe("the end of the page (H99)", () => {
     for (const f of PAGE) expect(here(f)).not.toMatch(/Export CSV|download=|Download/);
     expect(h).not.toMatch(/Export CSV|download=/);
     const tail = h.slice(h.lastIndexOf("</Gate>"));
-    expect(tail).toMatch(/<PortfolioDisclaimer kind="equity" \/><\/details>\s*<p className="eq-end">Information only, not investment advice\.<\/p>\s*<\/div>/);
+    // task #385: Questions and the disclaimer stay closed behind two buttons, with "Information only, not investment advice." beside them (PageEnd)
+    expect(tail).toMatch(/<PageEnd \/>\s*<\/div>/);
+    const end = here("./EqTop385.tsx");
+    expect(end).toContain('<span className="eqc-endn">Information only, not investment advice.</span>');
+    expect(end).toContain('<PortfolioDisclaimer kind="equity" />');
   });
 });
