@@ -147,6 +147,9 @@ describe("where your gain or loss came from (file 33)", () => {
     expect(r.shown(true).length).toBe(16);
   });
   it("a one-share list has no summary line", () => { expect(gainLoss(gl([["A", 100]])).lead).toBeNull(); });
+  it("a two-share list with both down names both", () => {
+    expect(gainLoss(gl([["A", -300], ["B", -100]])).lead).toEqual({ bold: "Both shares are down.", rest: "A Co (−₹300) and B Co (−₹100) come to ₹400 together." });
+  });
 });
 
 // ------------------------------------------------------------------------------------------------ Key figures

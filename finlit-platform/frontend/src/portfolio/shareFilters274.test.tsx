@@ -41,7 +41,7 @@ describe("the filter row", () => {
     expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Prism ▾", "Size ▾", "Trend ▾", "Vs peers ▾", "Buys ▾"]);
     fireEvent.click(screen.getByRole("button", { name: /^Prism/ }));
     const menu = screen.getByRole("group", { name: "Prism" });
-    expect(within(menu).getByText("Weak").closest("label")!.textContent).toMatch(/Weakbelow 503/);
+    expect(within(menu).getByText("Weak").closest("label")!.textContent).toMatch(/^Weak3$/);   // task #385: no scoring cut-offs on the page
     fireEvent.click(within(menu).getByRole("checkbox", { name: /Weak/ }));
     fireEvent.keyDown(document, { key: "Escape" });
     const prism = screen.getByRole("button", { name: /^Prism: Weak/ });

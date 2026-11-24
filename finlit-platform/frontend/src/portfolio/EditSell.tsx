@@ -120,9 +120,9 @@ export function SellWindow({ p, symbol, title, name, onClose, onSave }: {
   </Win>;
 }
 
-/** "Edit | Sell" under a share's name. Sell is greyed out with no quantity ("Add a buy first"). */
+/** "Edit | Record a sale" under a share's name. Sell is greyed out with no quantity ("Add a buy first"). */
 export function EditSellLinks({ p, symbol, onEdit, onSell }: { p: LotsProps; symbol: string; onEdit: () => void; onSell: () => void }) {
   const a = aggOf(p.holdings, symbol, p.cur), canSell = !!a && (a.qty ?? 0) > 0;
   return <span className="pfe-links"><button type="button" onClick={onEdit} aria-label={`Edit ${symbol}: its buys`}>Edit</button><span aria-hidden="true">|</span>
-    <button type="button" onClick={onSell} disabled={!canSell} title={canSell ? undefined : "Add a buy first"} aria-label={canSell ? `Sell ${symbol}` : `Sell ${symbol}: add a buy first`}>Sell</button></span>;
+    <button type="button" onClick={onSell} disabled={!canSell} title={canSell ? undefined : "Add a buy first"} aria-label={canSell ? `Record a sale of ${symbol}` : `Record a sale of ${symbol}: add a buy first`}>Record a sale</button></span>;   // task #385 (developer file 33): "Sell" becomes "Record a sale"
 }

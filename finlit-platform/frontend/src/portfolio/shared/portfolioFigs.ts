@@ -20,7 +20,7 @@ export function portfolioKeyFigs(shares: Share[], gold: boolean, valueOf: (symbo
   const L = shares.filter((s) => s.peer?.label === "leader"), M = shares.filter((s) => s.peer?.label === "in_line"), G = shares.filter((s) => s.peer?.label === "laggard"), X = shares.filter((s) => !s.peer);
   if (L.length + M.length + G.length) {
     const worst = [...G].sort((a, b) => b.peer!.rank / b.peer!.of - a.peer!.rank / a.peer!.of);
-    out.push({ q: "Do your shares beat similar companies?", big: `${L.length} of ${N}`, ans: N <= 2 && L.length === 1 ? "leads its peer group" : "lead their peer group",
+    out.push({ q: "Do your shares beat similar companies?", big: `${L.length} of ${N}`, ans: N === 1 || (N === 2 && L.length === 1) ? "leads its peer group" : "lead their peer group",
       sub: [`${G.length} ${G.length === 1 ? "trails" : "trail"} it`, `${M.length} in the middle`, X.length ? `${X.length} not compared` : "", "over the last 12 months"].filter(Boolean).join(" · "),
       tip: "Each share's price over the last 12 months against similar companies (its peer group). Leading: among the strongest of its group; trailing: among the weakest. It describes the past, not the future.",
       bar: [{ label: "Strongest", n: L.length, c: KF_C.hi }, { label: "Middle", n: M.length, c: KF_C.mid }, { label: "Weakest", n: G.length, c: KF_C.lo }, { label: "Not compared", n: X.length, c: KF_C.none }].filter((b) => b.n > 0),
@@ -77,6 +77,10 @@ export function gainLoss(input: GLRow[], noPrice = 0): GainLoss {
       const named = k === 1 ? `${who[0].name} is ${loss ? "down" : "up"} ${rupees(Math.abs(who[0].gain))}` : `${andList(who.map((r) => `${r.name} (${rupeesSigned(r.gain)})`))} are ${loss ? "down" : "up"} ${rupees(Math.abs(c))} between them`;
       const others = Math.abs(os) < 1 ? `${oth === 1 ? "the other share is" : `the other ${oth} shares are`} flat` : `${oth === 1 ? "the other share is" : `the other ${oth} shares are`} ${os > 0 ? "up" : "down"} ${rupees(Math.abs(os))}${oth > 1 ? " together" : ""}`;
       lead = { bold: `${k === 1 ? "One share explains" : `${cap1(numWord(k))} shares explain`} the whole ${w}.`, rest: `${named}; ${others}.` };
+    } else if (hit && k === N) {
+      // every share is on the same side (a list of two or three): there are no "others" to set against them
+      side.forEach((r) => key.add(r.symbol));
+      lead = { bold: `${N === 2 ? "Both shares are" : `All ${numWord(N)} shares are`} ${loss ? "down" : "up"}.`, rest: `${andList(side.map((r) => `${r.name} (${rupeesSigned(r.gain)})`))} come to ${rupees(Math.abs(c))} together.` };
     } else {
       const top = side.slice(0, 3); top.forEach((r) => key.add(r.symbol));
       const sum = top.reduce((a, r) => a + r.gain, 0), up = rows.filter((r) => r.gain > 0).length;

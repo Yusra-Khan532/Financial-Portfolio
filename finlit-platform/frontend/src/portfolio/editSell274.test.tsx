@@ -56,7 +56,7 @@ describe("the Sell window", () => {
 describe("Edit | Sell links", () => {
   it("Sell is greyed out for a share with no quantity: 'Add a buy first'", () => {
     render(<EditSellLinks p={lotsOf(H)} symbol="INFY" onEdit={() => {}} onSell={() => {}} />);
-    const sell = screen.getByRole("button", { name: /Sell INFY/ }) as HTMLButtonElement;
+    const sell = screen.getByRole("button", { name: /Record a sale of INFY/ }) as HTMLButtonElement;
     expect(sell.disabled).toBe(true); expect(sell.title).toBe("Add a buy first");
   });
 });

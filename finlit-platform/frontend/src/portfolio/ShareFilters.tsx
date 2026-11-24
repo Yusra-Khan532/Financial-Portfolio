@@ -10,13 +10,15 @@ export type FilterKey = "prism" | "size" | "trend" | "peers" | "buys";
 export type Picks = Partial<Record<FilterKey, string[]>>;
 export type FilterDef = { key: FilterKey; label: string; choices: { v: string; note?: string; dot?: string }[] };
 /** The five buttons. `scoreName` is "Prism" (the only company score since task #283); `bands` are its words. */
-export function filterDefs(scoreName: string, bands: string[]): FilterDef[] {
-  const BAND_NOTE: Record<string, string> = { Strong: "80–100", Healthy: "65–79", Average: "50–64", Weak: "below 50" };
+/** Task #385 (developer file 33): the Trend filter adds the nine readings and each trend on its own ("Both trends: …", "Long term: …", "Short term: …");
+ *  `readings`: the nine readings the list holds, in their order. No scoring cut-offs on the page: the Prism and Trend choices carry no numbers. */
+export function filterDefs(scoreName: string, bands: string[], readings: readonly string[] = []): FilterDef[] {
   const BAND_DOT: Record<string, string> = { Strong: "#1f6b45", Healthy: "#3a7f5a", Average: "#8a5a0b", Weak: "#b4572f", Mixed: "#8a5a0b", Watch: "#b4572f" };
   return [
-    { key: "prism", label: scoreName, choices: [...bands.map((b) => ({ v: b, note: scoreName === "Prism" ? BAND_NOTE[b] : undefined, dot: BAND_DOT[b] })), { v: "Not scored" }] },
+    { key: "prism", label: scoreName, choices: [...bands.map((b) => ({ v: b, dot: BAND_DOT[b] })), { v: "Not scored" }] },
     { key: "size", label: "Size", choices: [{ v: "Large", note: "above ₹75,000 Cr" }, { v: "Mid", note: "₹25,000–75,000 Cr" }, { v: "Small", note: "₹10,000–25,000 Cr" }, { v: "Micro", note: "below ₹10,000 Cr" }, { v: "Not known" }] },
-    { key: "trend", label: "Trend", choices: [{ v: "Rising", note: "long term +20 or more" }, { v: "Flat", note: "long term −19 to +19" }, { v: "Falling", note: "long term −20 or less" }, { v: "Not rated" }] },
+    { key: "trend", label: "Trend", choices: [...readings.map((r) => ({ v: `Both trends: ${r}` })),
+      ...["Rising", "Flat", "Falling"].map((w) => ({ v: `Long term: ${w}` })), ...["Rising", "Flat", "Falling"].map((w) => ({ v: `Short term: ${w}` })), { v: "Not rated" }] },
     { key: "peers", label: "Vs peers", choices: [{ v: "Leader" }, { v: "In line" }, { v: "Laggard" }, { v: "Not compared" }] },
     { key: "buys", label: "Buys", choices: [{ v: "With buys" }, { v: "No buys yet" }] },
   ];
@@ -26,13 +28,15 @@ export const trendWord = (lt: number | null | undefined) => (lt == null ? "Not r
 /** The word under a trend score in the table (task #274 change 13), on the same ±20 lines: Rising strongly +50 or more, Rising +20 to +49, Flat −19 to +19,
  *  Falling −20 to −49, Falling sharply −50 or less. */
 export const trendScoreWord = (v: number) => { const r = Math.round(v); return r >= 50 ? "Rising strongly" : r >= 20 ? "Rising" : r > -20 ? "Flat" : r > -50 ? "Falling" : "Falling sharply"; };
-export type Getters = Record<FilterKey, (symbol: string) => string>;
+/** A getter gives a share's value for a filter, or several (task #385: the Trend filter reads the pair, the long term and the short term at once). */
+export type Getters = Record<FilterKey, (symbol: string) => string | string[]>;
+const has = (v: string | string[], x: string) => (Array.isArray(v) ? v.includes(x) : v === x);
 /** The symbols every set filter keeps: AND across buttons, OR inside one button. */
 export function applyFilters(symbols: string[], picks: Picks, get: Getters, skip?: FilterKey): string[] {
-  return symbols.filter((s) => (Object.keys(picks) as FilterKey[]).every((k) => k === skip || !picks[k]?.length || picks[k]!.includes(get[k](s))));
+  return symbols.filter((s) => (Object.keys(picks) as FilterKey[]).every((k) => k === skip || !picks[k]?.length || picks[k]!.some((x) => has(get[k](s), x))));
 }
 /** How many shares a choice would leave, given the other filters. */
-export const countFor = (symbols: string[], picks: Picks, get: Getters, key: FilterKey, v: string) => applyFilters(symbols, picks, get, key).filter((s) => get[key](s) === v).length;
+export const countFor = (symbols: string[], picks: Picks, get: Getters, key: FilterKey, v: string) => applyFilters(symbols, picks, get, key).filter((s) => has(get[key](s), v)).length;
 
 export function FilterRow({ defs, symbols, picks, get, onChange }: { defs: FilterDef[]; symbols: string[]; picks: Picks; get: Getters; onChange: (p: Picks) => void }) {
   const [open, setOpen] = useState<FilterKey | null>(null);
