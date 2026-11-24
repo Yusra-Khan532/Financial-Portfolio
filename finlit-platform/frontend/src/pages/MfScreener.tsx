@@ -27,6 +27,7 @@ import { ResultTable } from "../mf/screen/Results";
 import "../styles/fgx.css";
 import "../styles/mf.css";
 import "../styles/mfscreen.css";
+import "../styles/task354.css";   // task #354: the Hide filters outline
 import "../styles/tools.css";
 import { SIDE, SplitDivider, useSideWidth } from "../components/SplitDivider";
 
@@ -136,7 +137,7 @@ export function MfScreenerPage() {
           <div className="mfs-sh-top">
             <span className="mfs-sh-t">Filters{shown > 0 ? ` · ${shown} on` : ""}</span>
             <span className="fgx-tl">{!isDefault(q) && <button type="button" className="btn sm" onClick={reset}>Clear</button>}
-              {!small && <button type="button" className="btn sm" aria-expanded="true" aria-controls="mfs-side-body" onClick={togglePanel}>Hide filters</button>}</span>
+              {!small && <button type="button" className="btn sm mfs-hidef" aria-expanded="true" aria-controls="mfs-side-body" onClick={togglePanel}>Hide filters</button>}</span>
           </div>
           <Panel q={q} set={set} fac={fac} waiting={facets.isFetching && !fac} canScore={gold} fold={small} />
           {small && <div className="mfs-foot"><button type="button" className="btn primary" onClick={() => document.getElementById("mfs-results")?.scrollIntoView({ block: "start" })}>Show {list.data ? nf(total, 0) : ""} fund{total === 1 ? "" : "s"}</button></div>}

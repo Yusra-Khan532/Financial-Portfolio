@@ -38,7 +38,6 @@
 .etf-list .etf-tools .btn { min-height: 34px; white-space: nowrap; }
 .etf-list .etf-search { height: 38px; flex: 1 1 auto; }
 .etf-list .etf-search input { font-size: var(--fs-14); }
-.etf-list .etf-ftog.is-on { border-color: var(--gold); }
 .etf-list .etf-ftog-n { min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--ui-r-pill); background: var(--gold); color: var(--on-gold); font: 600 var(--fs-12)/20px var(--sans); text-align: center; }
 .etf-list .etf-countrow { display: flex; align-items: baseline; justify-content: space-between; gap: 6px 12px; flex-wrap: wrap; }
 .etf-list .etf-countrow .etf-count { margin: 0 0 4px; }

@@ -32,6 +32,7 @@ import { MF_METHOD_URL, MF_SCORE_COMPLIANCE } from "../lib/mfScore";
 import { ScoreCompare } from "../mf/ScoreCompare";
 import { FundHeadToHead } from "./FundHeadToHead";
 import "../styles/mf.css";
+import "../styles/task354.css";   // task #354: the Hide filters outline
 import "../styles/prism-card.css";   // the (i) beside Volatility (task #311)
 import { InfoTip } from "../stock/PrismCardView";
 import "../styles/etfvs.css";
