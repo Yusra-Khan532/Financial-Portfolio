@@ -14,7 +14,7 @@ import { DEFAULTS, withScore, type SQ } from "../../lib/mfScreen";
 afterEach(cleanup);
 describe("task #358: sections", () => {
   it("orders the groups as the picture: what and how, the score, risk/returns/cost, then the rest", () => {
-    expect(GROUPS.map((g) => g.id)).toEqual(["type", "subcat", "plan", "score", "risk", "returns", "cost", "size", "house", "cap", "style", "mat", "struct", "portfolio", "tags", "market", "checklist", "quality"]);
+    expect(GROUPS.map((g) => g.id)).toEqual(["type", "subcat", "plan", "score", "risk", "returns", "cost", "size", "house", "cap", "style", "mat", "struct", "portfolio", "tags", "market", "checklist"]);   // task #368: "Data quality and lists" removed
   });
 });
 
