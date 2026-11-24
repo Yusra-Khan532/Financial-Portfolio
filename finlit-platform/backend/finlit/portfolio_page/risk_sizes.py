@@ -13,6 +13,11 @@ company's market value (finlit/sizes.py: Large above ₹75,000 Cr, Mid ₹25,000
 - The list's 10 worst weeks are the Nifty 50's 10 worst weeks of the past year.
 - Each size against its own index: the size's shares held in equal amounts, the past year's return, and how much they moved for every 100 the index moved in its
   down weeks and in its up weeks.
+- Task #385 (developer file 33, open item 1): the shares and the index are measured the same way: both from Friday closes (the index's daily closes are read
+  weekly too), so the list's swing and worst fall sit beside the Nifty 50's on one footing, to the same last full week (`to`).
+- Task #385 (open item 7): `weights` (each share's value now) weights every list figure by what is held: each size's share of the list and average beta, the
+  size-weighted, blended and Nifty 50 betas, each size's 1 year and down- and up-week figures, the swing and worst fall, the 10 worst weeks, and each share's
+  part of the list's ups and downs (`riskShare`, w_i (Σw)_i / w'Σw over the past year's weekly returns). Without weights every share counts the same.
 
 Pure functions on plain inputs (pandas), so every figure is checked against a hand calculation in tests/test_risk_sizes_183.py. Describes past prices; not advice.
 """
@@ -113,12 +118,42 @@ def swing_and_fall(s: pd.Series, end: pd.Timestamp) -> Dict[str, Any]:
     return {"swing": float(r.std(ddof=1) * math.sqrt(PER_YEAR[g]) * 100), "worstFall": dd, "years": years, "grain": g}
 
 
+def fridays(s: pd.Series) -> pd.Series:
+    """The last close of each week, dated its Friday (task #385, open item 1: the index's daily closes and the shares' weekly ones read the same way)."""
+    return s.resample("W-FRI").last().dropna()
+
+
+def wmean(frame: pd.DataFrame, w: Dict[str, float]) -> pd.Series:
+    """Each row's average over the columns that have a figure, weighted by `w` (equal weights give the plain average)."""
+    ww = pd.Series({c: float(w[c]) for c in frame.columns})
+    num = frame.mul(ww, axis=1).sum(axis=1, min_count=1)
+    den = frame.notna().mul(ww, axis=1).sum(axis=1)
+    return num / den.replace(0, np.nan)
+
+
+def risk_parts(rets: pd.DataFrame, w: Dict[str, float]) -> Dict[str, Optional[float]]:
+    """Each share's part of the list's ups and downs, in %: w_i (Σw)_i / w'Σw over the weeks every share has (they add to 100)."""
+    if rets.shape[1] == 1:
+        return {rets.columns[0]: 100.0}
+    d = rets.dropna()
+    if len(d) < 10:
+        return {c: None for c in rets.columns}
+    v = np.array([float(w[c]) for c in d.columns])
+    m = d.cov().values @ v
+    tot = float(v @ m)
+    if tot <= 0:
+        return {c: None for c in rets.columns}
+    return {c: float(x) for c, x in zip(d.columns, v * m / tot * 100)}
+
+
 def r2(v: Optional[float], d: int = 2) -> Optional[float]:
     return None if v is None or not math.isfinite(float(v)) else round(float(v), d)   # plain floats (numpy values are not JSON)
 
 
-def build(prices: Dict[str, Optional[dict]], index_rows: Dict[str, List[dict]], sizes: Dict[str, Optional[str]], sectors: Dict[str, str]) -> Dict[str, Any]:
-    """prices: symbol -> {t, c} daily closes; index_rows: code -> [{d, c}] daily index closes (NIF50, NIFMID150, NIFSMA250, NIFMIC250); sizes: symbol -> Large/Mid/Small/None."""
+def build(prices: Dict[str, Optional[dict]], index_rows: Dict[str, List[dict]], sizes: Dict[str, Optional[str]], sectors: Dict[str, str],
+          weights: Optional[Dict[str, float]] = None) -> Dict[str, Any]:
+    """prices: symbol -> {t, c} closes; index_rows: code -> [{d, c}] daily index closes (NIF50, NIFMID150, NIFSMA250, NIFMIC250); sizes: symbol -> Large/Mid/Small/None.
+    weights: symbol -> value now (task #385, open item 7); used when every counted share has one above 0, otherwise every share counts the same."""
     idx = {code: daily([r["d"] for r in rows], [r["c"] for r in rows]) for code, rows in index_rows.items() if rows}
     nifty = idx.get("NIF50")
     if nifty is None or nifty.empty:
@@ -138,7 +173,7 @@ def build(prices: Dict[str, Optional[dict]], index_rows: Dict[str, List[dict]], 
             shares.append(row)
             continue
         s = daily(p["t"], p["c"])
-        row.update({k: r2(v, 1) if k not in ("years", "grain") else v for k, v in swing_and_fall(s, end).items()})
+        row.update({k: r2(v, 1) if k not in ("years", "grain") else v for k, v in swing_and_fall(fridays(s), end).items()})
         w = weekly(s, end)
         r = w.pct_change().dropna()
         if len(r) < MIN_WEEKS or (s.index[0] > end - pd.Timedelta(days=360)):
@@ -160,39 +195,49 @@ def build(prices: Dict[str, Optional[dict]], index_rows: Dict[str, List[dict]], 
 
     counted = [x for x in shares if x["beta"] is not None]
     n = len(counted)
+    by_value = bool(weights) and n > 0 and all(float((weights or {}).get(x["symbol"]) or 0) > 0 for x in counted)
+    raw = {x["symbol"]: (float((weights or {})[x["symbol"]]) if by_value else 1.0) for x in counted}
+    tot = sum(raw.values()) or 1.0
+    cw = {k: v / tot for k, v in raw.items()}                    # each counted share's part of the list (equal amounts: 1/n)
     by_size: List[Dict[str, Any]] = []
     for k in SIZES:
         xs = [x for x in counted if x["size"] == k]
-        avg = float(np.mean([x["beta"] for x in xs])) if xs else None
-        share = len(xs) / n if n else 0.0
+        share = sum(cw[x["symbol"]] for x in xs)
+        avg = float(sum(cw[x["symbol"]] * x["beta"] for x in xs) / share) if xs and share > 0 else None
         code, name = SIZE_INDEX[k]
-        port = pd.concat([rets[x["symbol"]] for x in xs], axis=1).mean(axis=1) if xs else None
+        port = wmean(pd.concat({x["symbol"]: rets[x["symbol"]] for x in xs}, axis=1), cw) if xs else None
         b = bw.get(code)
         dn, up = capture(port, b) if port is not None and b is not None else (None, None)
-        yr = (lambda q: float((1 + q).prod() - 1) * 100)
+        yr = (lambda q: float((1 + q.dropna()).prod() - 1) * 100)
         by_size.append({"size": k, "benchmark": name, "n": len(xs), "avgBeta": r2(avg), "band": band_of(avg), "listShare": r2(share * 100, 1),
                         "adds": r2(avg * share if avg is not None else None), "oneYear": r2(yr(port), 1) if port is not None else None,
                         "benchOneYear": r2(yr(b), 1) if b is not None else None, "downPer100": r2(dn, 0), "upPer100": r2(up, 0)})
     weighted = sum((s["avgBeta"] or 0) * (s["listShare"] or 0) / 100 for s in by_size) if n else None
-    lst = pd.concat([rets[x["symbol"]] for x in counted], axis=1).mean(axis=1) if counted else None
+    frame = pd.concat({x["symbol"]: rets[x["symbol"]] for x in counted}, axis=1) if counted else None
+    lst = wmean(frame, cw) if frame is not None else None
+    parts_of = risk_parts(frame, cw) if frame is not None else {}
+    for x in shares:
+        x["listShare"] = r2(cw[x["symbol"]] * 100, 1) if x["symbol"] in cw else None
+        x["riskShare"] = r2(parts_of.get(x["symbol"]), 1) if x["symbol"] in cw else None
     blend = None
     if lst is not None:
-        parts = [bw[SIZE_INDEX[s["size"]][0]] * (s["n"] / n) for s in by_size if s["n"] and SIZE_INDEX[s["size"]][0] in bw]
+        parts = [bw[SIZE_INDEX[s["size"]][0]] * ((s["listShare"] or 0) / 100) for s in by_size if s["n"] and SIZE_INDEX[s["size"]][0] in bw]
         blend = pd.concat(parts, axis=1).sum(axis=1, min_count=1) if parts else None
     b_blend = ols_beta(lst, blend)[0] if lst is not None and blend is not None else None
     b_nifty = ols_beta(lst, bw["NIF50"])[0] if lst is not None else None
 
-    # the list as a whole, equal amounts: swing and worst fall over 3 years of daily closes; its 10 worst weeks are the Nifty 50's 10 worst of the past year
-    daily_rets = [daily(p["t"], p["c"]).pct_change() for s, p in prices.items() if p and p.get("t") and s in rets]
+    # the list as a whole (equal amounts, or by value): swing and worst fall over 3 years of Friday closes (task #385, open item 1: the same way as the index);
+    # its 10 worst weeks are the Nifty 50's 10 worst of the past year
+    week_rets = {s: fridays(daily(p["t"], p["c"])).pct_change() for s, p in prices.items() if p and p.get("t") and s in rets}
     glance: Dict[str, Any] = {}
-    if daily_rets:
-        dr = pd.concat(daily_rets, axis=1)
-        dr = dr[(dr.index > end - pd.Timedelta(days=DAYS_3Y)) & (dr.index <= end)].mean(axis=1, skipna=True).dropna()
+    if week_rets:
+        dr = pd.concat(week_rets, axis=1)
+        dr = wmean(dr[(dr.index > end - pd.Timedelta(days=DAYS_3Y)) & (dr.index <= end)], cw).dropna()
         lvl = (1 + dr).cumprod()
-        g = grain_of(dr.index)                                  # task #274 fix 1: the shares' closes are weekly, so √52, not √252
+        g = grain_of(dr.index)
         glance["list"] = {"swing": r2(float(dr.std(ddof=1) * math.sqrt(PER_YEAR[g]) * 100), 1), "worstFall": r2(float((lvl / lvl.cummax() - 1).min() * 100), 1),
                           "grain": g, "years": round((dr.index[-1] - dr.index[0]).days / 365.25, 1) if len(dr) > 1 else None}
-    nf = swing_and_fall(nifty, end)
+    nf = swing_and_fall(fridays(nifty), end)             # task #385 open item 1: the index from its Friday closes, as the shares
     glance["nifty"] = {"swing": r2(nf["swing"], 1), "worstFall": r2(nf["worstFall"], 1), "grain": nf["grain"], "years": nf["years"]}
     nw = bw["NIF50"]
     worst = nw.nsmallest(10).index
@@ -205,7 +250,7 @@ def build(prices: Dict[str, Optional[dict]], index_rows: Dict[str, List[dict]], 
         lv = idx.get(code)
         if lv is None or lv.empty:
             continue
-        sf = swing_and_fall(lv, end)
+        sf = swing_and_fall(fridays(lv), end)
         wk = bw.get(code)                                       # the same weekly returns as every other figure here (the past year, to the last full week)
         if wk is None or wk.empty:
             continue
@@ -215,5 +260,6 @@ def build(prices: Dict[str, Optional[dict]], index_rows: Dict[str, List[dict]], 
                     "beta": r2(ols_beta(lst, wk)[0]) if lst is not None else None}
     glance["vs"] = vs
     return {"to": end.date().isoformat(), "from": (end - pd.Timedelta(weeks=YEAR_WEEKS)).date().isoformat(), "counted": n, "shares": shares, "sizes": by_size,
+            "basis": "value" if by_value else "equal",
             "betas": {"weighted": r2(weighted), "blended": r2(b_blend), "nifty": r2(b_nifty), "weightedBand": band_of(weighted), "blendedBand": band_of(b_blend), "niftyBand": band_of(b_nifty)},
             "glance": glance, "ranges": [{"key": k, "word": w, "below": None if math.isinf(t) else t} for t, k, w in BANDS]}

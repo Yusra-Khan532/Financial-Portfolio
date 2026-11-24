@@ -1,0 +1,91 @@
+/* Task #385 phase 2 (developer file 33, Risk view): the weighting switch, Risk at a glance's larger figures and one measuring line, the Overall pill, the key
+   beside the risk split, and Each share's risk in column groups that fit a laptop. Tokens only; nothing under 12px. Classes: eqr-. */
+
+/* the weighting switch over the whole view */
+.eq .eqr-basis { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 14px; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--s1); }
+.eq .eqr-basis .k { font: 700 var(--fs-12)/1.2 var(--sans); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.eq .eqr-basis .n { flex: 1 1 260px; font: 400 var(--fs-13)/1.45 var(--sans); color: var(--muted); }
+.eq .eqr-basis button[disabled] { opacity: .5; cursor: default; }
+
+/* Risk at a glance: one headline sentence, larger figures, one small measuring line */
+.eq .eqr-lede { max-width: none; margin: 6px 0 14px; font: 400 var(--fs-14)/1.5 var(--sans); color: var(--muted); }
+.eq .eqr-lede b { display: block; margin-bottom: 2px; font: 500 var(--fs-20)/1.3 var(--serif); color: var(--text); }
+.eq .eqr-tile { padding: 14px 16px; }
+.eq .eqr-tile .sp-cap { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; font: 700 var(--fs-12)/1.3 var(--sans); letter-spacing: .06em; color: var(--muted); }
+.eq .eqr-tile .sp-cap .w { font-weight: 500; letter-spacing: .04em; }
+.eq .eqr-tiles .eqr-v { margin: 8px 0 6px; gap: 4px 10px; }
+.eq .eqr-tiles .eqr-v b { font: 500 var(--fs-32)/1.1 var(--serif); color: var(--text); }
+.eq .eqr-tiles .eqr-v small { font: 500 var(--fs-13)/1.3 var(--sans); color: var(--muted); }
+.eq .eqr-tiles .eqr-sub { margin: 0; font: 500 var(--fs-13)/1.5 var(--sans); color: var(--text); }
+.eq .eqr-meas { margin: 0 0 10px; font: 400 var(--fs-12)/1.5 var(--sans); color: var(--muted); }
+.eq .eqr-tie, .eq .eqr-cover { margin: 0 0 12px; padding: 8px 12px; border-left: 3px solid var(--border-strong); border-radius: 0 var(--r-ctl) var(--r-ctl) 0; background: var(--s2); font: 400 var(--fs-13)/1.5 var(--sans); color: var(--muted); }
+.eq .eqr-tag { display: inline-block; margin-right: 4px; padding: 1px 8px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); font: 600 var(--fs-12)/1.4 var(--sans); color: var(--text); }
+
+/* text inside the beta boxes: Inter 13px, 1.5 line height (file 33, added check 3) */
+.eq .eqb-sum p:not(.sp-cap), .eq .eqr-card p:not(.sp-cap):not(.eqr-big), .eq .eqr-card dl div, .eq .eqr-range p:not(.eqr-n), .eq .eqr-b3 .eqr-sub, .eq .eqr-hint, .eq .eqb-leg { font-family: var(--sans); font-size: var(--fs-13); line-height: 1.5; }
+.eq .eqb-big b { font-variant-numeric: tabular-nums; }
+.eq .eqr-range .eqs-more { font-size: var(--fs-13); }
+
+/* each size against its own benchmark: Yours / Index and Overall */
+.eq table.eqr-sb .ix { font: 500 var(--fs-12)/1 var(--sans); color: var(--muted); }
+.eq .eqr-ov { display: inline-block; padding: 4px 9px; border-radius: var(--ui-r-pill); background: var(--s2); font: 600 var(--fs-13)/1.2 var(--sans); color: var(--text); white-space: nowrap; }
+.eq .eqr-ov.g { background: var(--gain-soft); color: var(--gain); }
+.eq .eqr-ov.r { background: var(--loss-soft); color: var(--loss); }
+.eq table.eqr-sb th small { display: block; }
+
+/* share of the list vs share of the risk: the key beside the switch */
+.eq .eqr-rs-tools { align-items: center; justify-content: space-between; gap: 10px 18px; }
+.eq .eqr-key { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin: 0; font: 500 var(--fs-13)/1.3 var(--sans); color: var(--muted); }
+.eq .eqr-key span { display: inline-flex; align-items: center; gap: 7px; }
+.eq .eqr-key i { display: inline-block; width: 18px; height: 5px; border-radius: var(--ui-r-pill); }
+.eq .eqr-key i.l { background: var(--muted); opacity: .45; }
+.eq .eqr-key i.m { width: 14px; height: 14px; border-radius: var(--ui-r-mark); border: 1px solid var(--border); background: color-mix(in srgb, var(--loss) 6%, var(--s1)); }
+.eq table.eqr-rs th[scope="row"] b { display: block; font-weight: 600; }
+.eq table.eqr-rs th[scope="row"] small { display: block; font-size: var(--fs-12); color: var(--muted); }
+.eq .eqs-frz table.eqr-rs tbody tr.more > * { background: color-mix(in srgb, var(--loss) 6%, var(--s1)); }
+
+/* each share's risk: column groups with dividing lines, a group row per size, all columns on a laptop */
+.eq table.eqr-each { font-size: var(--fs-13); }
+.eq table.eqr-each .eqr-gs { border-left: 1px solid var(--border); }
+.eq table.eqr-each thead tr.eqr-thg th { padding: 10px 8px 2px; border-bottom: 0; font: 700 var(--fs-12)/1.2 var(--sans); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); text-align: center; white-space: nowrap; }
+.eq table.eqr-each thead tr.eqr-thg th.eqr-gs { border-top: 2px solid var(--border-strong); }
+.eq table.eqr-each thead tr:last-child th { vertical-align: bottom; white-space: normal; line-height: 1.25; }
+.eq table.eqr-each thead th .eqs-sort { text-align: inherit; }
+.eq table.eqr-each .eqr-safer { display: block; margin-top: 2px; font: 500 var(--fs-12)/1.2 var(--sans); letter-spacing: 0; text-transform: none; color: var(--muted); }
+.eq table.eqr-each tr.eqr-g td { padding: 0; background: var(--s2); border-top: 1px solid var(--border-strong); }
+.eq table.eqr-each tr.eqr-g button { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; width: 100%; min-height: 42px; padding: 8px 12px; border: 0; background: none; color: var(--text); font: 500 var(--fs-13)/1.3 var(--sans); text-align: left; cursor: pointer; }
+.eq table.eqr-each tr.eqr-g button b { margin-right: 4px; font: 600 var(--fs-14)/1.2 var(--sans); }
+.eq table.eqr-each tr.eqr-g .t { padding: 4px 9px; border: 1px solid var(--border); border-radius: var(--ui-r-pill); background: var(--s1); font: 500 var(--fs-12)/1 var(--sans); color: var(--muted); }
+.eq table.eqr-each tr.eqr-g .h { margin-left: auto; font: 600 var(--fs-13)/1 var(--sans); text-decoration: underline; text-underline-offset: 3px; }
+.eq table.eqr-each tr.eqr-more td { padding: 0 12px 10px; }
+.eq table.eqr-each td.eq-so { font-size: var(--fs-12); line-height: 1.35; color: var(--muted); white-space: normal; }
+.eq table.eqr-each .eqr-chip { white-space: nowrap; }
+/* the Share cell takes its row's colour: the frozen first cell follows the row's hover */
+.eq .eqs-frz table.eqr-each tbody tr.eqr-er:hover > td, .eq .eqs-frz table.eqr-each tbody tr.eqr-er:focus-within > td { background: var(--s2); }
+.eq .eqs-frz table.eqr-each tr.eqr-g > td:first-child { position: static; background: var(--s2); }
+.eq .eqs-frz table.eqr-each tr.eqr-g > td:first-child > button { position: sticky; left: 0; }
+@media (min-width: 1100px) {
+  .eq .eqr-each-w, .eq .eqr-each-w .tw { overflow-x: visible; }
+  .eq table.eqr-each { width: 100%; min-width: 0; table-layout: fixed; }
+  .eq table.eqr-each th, .eq table.eqr-each td { padding-left: 7px; padding-right: 7px; white-space: normal; overflow-wrap: anywhere; }
+  .eq table.eqr-each thead th { letter-spacing: .03em; }
+  .eq table.eqr-each td:nth-child(2) { white-space: nowrap; }
+  .eq table.eqr-each col.c1 { width: 16%; } .eq table.eqr-each col.c2 { width: 13%; } .eq table.eqr-each col.c3 { width: 8%; }
+  .eq table.eqr-each col.c4, .eq table.eqr-each col.c5, .eq table.eqr-each col.c6, .eq table.eqr-each col.c7, .eq table.eqr-each col.c8, .eq table.eqr-each col.c9, .eq table.eqr-each col.c10 { width: 7.3%; }
+  .eq table.eqr-each col.c11 { width: 11.9%; }
+  .eq table.eqr-each.g10 col.c10 { width: 14%; }
+  .eq table.eqr-each .ip-sym small { white-space: normal; }
+}
+@media (max-width: 1099px) {
+  .eq table.eqr-each { min-width: 980px; }
+  /* the group row stays in view while the table scrolls sideways inside its box */
+  .eq .eqs-frz table.eqr-each tr.eqr-g > td:first-child > button { width: auto; max-width: calc(100vw - 60px); }
+}
+@media (max-width: 860px) {
+  /* Open all / Close all go under the heading on a phone */
+  .eq .sp-sec-h:has(> .eqr-oc) { flex-wrap: wrap; }
+  .eq .sp-sec-h:has(> .eqr-oc) > div { flex: 1 1 100%; }
+}
+/* the three risk tables span their card (the site's .tw pads 24px inside the card's own padding) */
+.eq .eqs-frz:has(> table.eqr-sb, > table.eqr-rs, > table.eqr-each) { margin-left: 0; margin-right: 0; padding-left: 0; padding-right: 0; }
+.eq table.eqr-sb tbody tr:last-child > th, .eq table.eqr-rs tbody tr:last-child > th { border-bottom: 0; }

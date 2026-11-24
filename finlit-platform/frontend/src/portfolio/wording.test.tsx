@@ -11,7 +11,8 @@ import { FAQ_BANNED, PAGE_BANNED } from "./wordingRules";
 import * as W from "./words";
 import { MY_PORTFOLIO_FAQ } from "../content/myPortfolioFaqs";
 import { InShort, StyleTiltPack } from "./pack/EquityPack";
-import { BetaBuild, EachShareRisk, Fall10, RiskGlancePack, RiskShareSection, SizeBench, riskKeys, riskSplit } from "./pack/RiskPack";
+import { BetaBuild, EachShareRisk, Fall10, RiskGlancePack, RiskShareSection, SizeBench, riskSplit } from "./pack/RiskPack";
+import { riskKeyFigs } from "./pack/risk385";
 import type { RiskAnswer } from "../lib/eqRisk";
 import { DivSubTabs, ShareGrid, SpreadPack, WhereSitsGrid, divKeys, type DivInput } from "./pack/DivPack";
 import { SharesTable } from "./SharesTable";
@@ -23,7 +24,9 @@ import type { Meta, Mode, PageObject } from "./types";
 const TILT = { universe: 650, notRated: [], sentence: "This list leans towards faster-growing and lower-risk companies.", parts: [{ part: "Valuation", listAverage: 60, universeMedian: 50, avgPercentile: 62, lean: "typical" as const, wording: null, stocks: 12 }, { part: "Risk", listAverage: 80, universeMedian: 50, avgPercentile: 86, lean: "high" as const, wording: "lower-risk companies", stocks: 12 }] };
 
 function scan(text: string, where: string) {
-  const m = text.match(PAGE_BANNED);
+  // task #385 (developer file 33, open item 7): "by what you hold now" is the pack's name for weighting by value (as the Risk and Spread cards say); it
+  // describes the list, so that one phrase is set aside before the advice words are looked for
+  const m = text.replace(/\bwhat you hold now\b/gi, "").match(PAGE_BANNED);
   expect(m, `${where}: "${m?.[0]}" in ${text.slice(0, 120)}`).toBeNull();
   expect(/\b(?:\d*[02-9])?[123]th\b/.test(text), `${where}: wrong ordinal`).toBe(false);
 }
@@ -51,7 +54,7 @@ describe.each(cases)("the page text, %s", (_n, s) => {
   it.each(["eq", "mc"] as Mode[])("holds no advice wording in mode %s", (mode) => {
     const { container } = render(<MemoryRouter><div>
       <WhereSitsGrid d={d} /><SpreadPack d={d} /><DivSubTabs d={d} /><ShareGrid d={d} /><p>{divKeys(d).map((c) => `${c.k} ${c.v} ${c.text}`).join(" ")}</p><StyleTiltPack tilt={TILT} />
-      <RiskGlancePack r={RISK} split={sp} /><BetaBuild r={RISK} /><SizeBench r={RISK} /><RiskShareSection r={RISK} split={sp} /><Fall10 r={RISK} /><EachShareRisk r={RISK} split={sp} shares={[]} gold /><p>{riskKeys(RISK, sp).map((c) => `${c.k} ${c.v} ${c.text}`).join(" ")}</p><InShort items={page.summary[mode]} />
+      <RiskGlancePack r={RISK} split={sp} /><BetaBuild r={RISK} /><SizeBench r={RISK} /><RiskShareSection r={RISK} split={sp} /><Fall10 r={RISK} /><EachShareRisk r={RISK} split={sp} shares={[]} gold /><p>{riskKeyFigs(RISK, sp.bySize, (x) => x, "value").map((c) => `${c.q} ${c.big} ${c.ans} ${c.sub ?? ""} ${c.tip}`).join(" ")}</p><InShort items={page.summary[mode]} />
       <SharesTable qtyOf={() => null} onQty={() => {}} lines={symbols.map((x) => ({ symbol: x, name: meta[x].name }))} meta={meta} page={page} mode={mode} colors={colors} model="prism" tab="overview" period="year" limit={500} state="ready" onTab={() => {}} onPeriod={() => {}} actions={() => null} />
     </div></MemoryRouter>);
     const text = container.textContent || "";

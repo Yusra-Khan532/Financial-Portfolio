@@ -21,7 +21,7 @@ from typing import Any, Dict, List, Literal, Optional
 
 import orjson
 from fastapi import APIRouter, Depends, Request, Response
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ..auth.entitlements import has, sees_all
 from ..auth.routes import Ctx, fail, ip_of, secure_ctx
@@ -55,6 +55,26 @@ class PageIn(BaseModel):
             if s not in out:
                 out.append(s)
         return out
+
+
+class RiskIn(PageIn):
+    """Task #385 (developer file 33, open item 7): the share names and, optionally, the quantity of each, in the same order (null where a share has none).
+    With a quantity for every share, the answer adds `byValue`: the same figures weighted by what is held now. Quantities are used for this answer only:
+    never stored, cached or logged."""
+    qty: Optional[List[Optional[float]]] = None
+
+    @field_validator("qty")
+    @classmethod
+    def amounts(cls, v: Optional[List[Optional[float]]]) -> Optional[List[Optional[float]]]:
+        if v is not None and any(q is not None and not (0 < q <= 1_000_000_000) for q in v):
+            raise ValueError("bad quantity")
+        return v
+
+    @model_validator(mode="after")
+    def same_length(self) -> "RiskIn":
+        if self.qty is not None and len(self.qty) != len(self.symbols):
+            raise ValueError("one quantity for each share")
+        return self
 
 
 async def member_ctx(request: Request, ctx: Ctx = Depends(secure_ctx)) -> Ctx:
@@ -137,9 +157,11 @@ async def page(request: Request, body: PageIn, ctx: Ctx = Depends(member_ctx)) -
 
 
 @router.post("/risk")
-async def risk_page(request: Request, body: PageIn, ctx: Ctx = Depends(member_ctx)) -> Response:
+async def risk_page(request: Request, body: RiskIn, ctx: Ctx = Depends(member_ctx)) -> Response:
     """Risk analytics by company size (task #183 W8): each share against its own size index (Nifty 50, Midcap 150, Smallcap 250, Microcap 250) from index closes, the
-    size-weighted, blended and Nifty 50 betas, each size against its index, and swing and worst fall over 3 years of daily closes. Silver and Gold."""
+    size-weighted, blended and Nifty 50 betas, each size against its index, and swing and worst fall over 3 years of Friday closes (the shares and the index
+    read the same way, task #385 open item 1). Silver and Gold. Task #385 (open item 7): with a quantity for every share the answer adds `byValue`, the same
+    figures weighted by what is held now (quantity × last stored close); that part is worked out each time and never cached."""
     app = request.app
     allowed, retry = await app.state.limiter.hit("portfolio_page", ip_of(request), 30, 60, fail_open=False)
     if not allowed:
@@ -148,14 +170,15 @@ async def risk_page(request: Request, body: PageIn, ctx: Ctx = Depends(member_ct
     from ..indices import _cached, _fetch_levels, shape_levels
     from . import risk_sizes
     symbols = body.symbols
+    qty = {s: q for s, q in zip(symbols, body.qty or []) if q}
     week = div.unfinished_week(div.now_ist())
-    key = "pfrisk:" + ":".join(["v4", week, hashlib.sha1(",".join(sorted(symbols)).encode()).hexdigest()[:24]])   # nosec B324 - cache key
+    key = "pfrisk:" + ":".join(["v5", week, hashlib.sha1(",".join(sorted(symbols)).encode()).hexdigest()[:24]])   # nosec B324 - cache key
     redis = app.state.store.redis
     try:
         cached = await redis.get(key)
     except Exception:
         cached = None
-    if cached:
+    if cached and not qty:
         return Response(cached, media_type="application/json", headers=NO_STORE)
     facts = div._facts(await app.state.store.diversification_facts(symbols))
     known = [s for s in symbols if s in facts]
@@ -170,14 +193,24 @@ async def risk_page(request: Request, body: PageIn, ctx: Ctx = Depends(member_ct
     prices = await div._prices(app, known) if known else {}
     sizes = {s: risk_sizes.size_of(float(facts[s]["mcap"]) if facts[s].get("mcap") else None) for s in known}
     sectors = {s: (classes.get(s.upper()) or {}).get("macro_sector") or facts[s].get("sector") or None for s in known}
-    out = await asyncio.to_thread(risk_sizes.build, prices, index_rows, sizes, sectors)
-    out.update({"week": week, "unknown": [s for s in symbols if s not in facts], "missingIndex": missing})
-    body_bytes = orjson.dumps(out, option=orjson.OPT_SERIALIZE_NUMPY)
-    try:
-        await redis.set(key, body_bytes, ex=CACHE_SECONDS)
-    except Exception:
-        pass
-    return Response(body_bytes, media_type="application/json", headers=NO_STORE)
+    if cached:
+        out = orjson.loads(cached)
+    else:
+        out = await asyncio.to_thread(risk_sizes.build, prices, index_rows, sizes, sectors)
+        out.update({"week": week, "unknown": [s for s in symbols if s not in facts], "missingIndex": missing})
+        try:
+            await redis.set(key, orjson.dumps(out, option=orjson.OPT_SERIALIZE_NUMPY), ex=CACHE_SECONDS)
+        except Exception:
+            pass
+    if qty:
+        # by what is held now: every priced share needs a quantity, as the score's own rule (score.weights_of); otherwise the page stays on equal amounts
+        priced = [s for s in known if prices.get(s) and prices[s].get("c")]
+        values = {s: float(qty[s]) * float(prices[s]["c"][-1]) for s in priced if s in qty and prices[s]["c"][-1]}
+        out = {**out, "noQuantity": [s for s in priced if s not in values]}
+        if priced and len(values) == len(priced):
+            by_value = await asyncio.to_thread(risk_sizes.build, prices, index_rows, sizes, sectors, values)
+            out["byValue"] = {**by_value, "week": week, "unknown": out.get("unknown", []), "missingIndex": missing}
+    return Response(orjson.dumps(out, option=orjson.OPT_SERIALIZE_NUMPY), media_type="application/json", headers=NO_STORE)
 
 
 @router.post("/trend")

@@ -50,7 +50,7 @@ import type { TabKey } from "../lib/equityTop";
 import { SectionsBar, SectionsMenu, jumpTo, type Sec } from "../portfolio/pack/PageTop";
 import { HideButtons, HideSlim } from "../components/Hideable";
 import { KeyAnswers } from "../portfolio/pack/KeyAnswers";
-import { divAnswers, riskAnswers } from "../lib/keyAnswers";
+import { divAnswers } from "../lib/keyAnswers";
 import { OrderWinNotice, WhatChanged, FilingChip, useWhatChanged } from "../components/changes/WhatChanged";
 import { useWatchlist } from "../lib/watchlist";
 import { ThemePill, YourThemes, themeView } from "../portfolio/pack/EqThemes";
@@ -64,7 +64,7 @@ import { holdingFigs } from "../portfolio/HoldingCells";
 import { dayMonth } from "../lib/whatChanged";
 import { GoldLock, InShort, Insights, LeadersSection, StyleTiltPack, PeersSection, TrendSection, SizeFold, eqViews, type View } from "../portfolio/pack/EquityPack";
 import { StickySwitch } from "../portfolio/ViewKit";
-import { BetaBuild, EachShareRisk, Fall10, RiskGlancePack, RiskShareSection, SizeBench, riskSplit, usePortfolioRisk } from "../portfolio/pack/RiskPack";
+import { RiskView, usePortfolioRisk } from "../portfolio/pack/RiskPack";
 import { DivSubTabs, ShareGrid, SpreadPack, WhereSitsGrid, divFacts, type DivInput } from "../portfolio/pack/DivPack";
 import { nseLevels } from "../lib/nseTaxonomy";
 import "../styles/sectors-pack.css";
@@ -151,11 +151,12 @@ export function HoldingsPage() {
   const ovAll = useOverview(allSymbols, !!model && !DEMO && cur !== "all");
   const pg = usePortfolioPage(symbols, !!model && !DEMO);
   const tr = usePortfolioTrend(symbols, model === "prism" && !DEMO);
-  const rk = usePortfolioRisk(symbols, !!model && !DEMO);   // Risk analytics by company size (task #183 W8)   // Gold only (FinLit Prism); Silver sees the lock card
   const [choices, setChoices] = useState<Choices>(() => loadChoices());
   const pick = (c: Choices) => { setChoices(c); saveChoices(c); };
   // what is left of each share in the selected portfolio, first in, first out (task #235): the score weighs by it
   const qtyBySymbol = useMemo(() => { const m = new Map<string, number>(); symbols.forEach((s) => { const q = aggOf(st.holdings, s, cur)?.qty; if (q) m.set(s, q); }); return m; }, [st.holdings, symbols, cur]);
+  // Risk analytics by company size (task #183 W8); task #385 (open item 7): with each share's quantity, also by what you hold now
+  const rk = usePortfolioRisk(symbols, !!model && !DEMO, symbols.map((s) => qtyBySymbol.get(s) ?? null));
   // task #235 (pack B9, B11): each holding's buys and sales, first in, first out within its portfolio. A bare quantity (a statement import) is set only on a
   // share with no buys yet in that portfolio; it never replaces a history.
   const acts = useMemo(() => lotActions(() => portfolio.get().holdings, portfolio), []);
@@ -351,7 +352,7 @@ export function HoldingsPage() {
   const labelOf = (x: string) => { const y = shareOf.get(x); return y ? coName(y) : shortCo(meta[x]?.name, x); };
   const renamePf = (id: string, name: string) => { const n = name.trim(); if (!n) return "Give the portfolio a name."; if (pfList.some((x) => x.id !== id && x.name.trim().toLowerCase() === n.toLowerCase())) return `You already have a portfolio called ${n}. Try another name, such as "${n} (joint)".`;
     if (!st.portfolios?.length) portfolio.replace({ ...portfolio.get(), portfolios: pfList.map((x) => ({ ...x })) }); portfolio.renamePortfolio(id, n); toast("Portfolio renamed."); return null; };
-  const riskSp = useMemo(() => (page && rk.data && div ? riskSplit(page, rk.data, (x) => div.levelOf(x, "macro")) : null), [page, rk.data, div]);
+  const sectorOfRisk = useMemo(() => (x: string) => div?.levelOf(x, "macro") ?? "Not classified", [div]);
 
   // ---------------------------------------------------------------- task #385 (developer file 33)
   const nameOfSym = (sym: string) => { const y = shareOf.get(sym); return y ? coName(y) : shortCo(meta[sym]?.name ?? by.get(sym)?.name, sym); };
@@ -552,14 +553,12 @@ export function HoldingsPage() {
             <Step id="eq-grid" title="Share by share" line="How closely each pair of your shares moves"><ShareGrid d={div} /></Step>
             <Step id="eq-style" title="Style tilt" line="Where your average share ranks, part by part">{model === "prism" ? <StyleTiltPack tilt={data?.styleTilt} /> : <GoldLock id="eq-style" title="Style tilt" text="Where your list's average share ranks among all the companies FinLit Prism rates, part by part." />}</Step>
           </> : <p className="sp-note">{state === "loading" ? "Working out the figures…" : "The diversification figures need at least two shares with a year of weekly prices."}</p>)}
-          {view === "risk" && (page && rk.data && riskSp ? <>
-            <Step id="eq-rg" title="Risk at a glance" line="How much the list swings and how far it has fallen"><RiskGlancePack r={rk.data} split={riskSp} compare={scoreOn ? { value: choices.benchmark, onChange: (v) => pick({ ...choices, benchmark: v }) } : undefined} /></Step>
-            <Step id="eq-keysr" title="Key figures" line="Where the list's risk sits, in three answers"><KeyAnswers id="eq-keysr" sub="Where the list's risk sits, in three answers." items={riskAnswers(rk.data, riskSp.bySize, (x) => { const y = shareOf.get(x); return y ? coName(y) : x; })} shares={shares} /></Step>
-            <Step id="eq-build" title="How your list's beta is built" line="What each size adds to how much the list moves"><BetaBuild r={rk.data} /></Step>
-            <Step id="eq-sizeb" title="Each size against its own benchmark" line="Each size against the index of companies its size"><SizeBench r={rk.data} /></Step>
-            <Step id="eq-mr" title="Share of the list vs share of the risk" line="Which parts carry more than their share of the ups and downs"><RiskShareSection r={rk.data} split={riskSp} /></Step>
-            <Step id="eq-fall" title="If the market fell 10%" line="What a 10% fall in the market has meant for the list"><Fall10 r={rk.data} value={money.n && money.withQty === money.n ? { now: money.now, name: cur === "all" ? "All accounts" : pfName(cur) } : null} /></Step>
-            <Step id="eq-each" title="Each share's risk" line="Every share against its own size index"><EachShareRisk r={rk.data} split={riskSp} shares={shares} gold={model === "prism"} /></Step>
+          {view === "risk" && (page && rk.data && div ? <>
+            {/* task #385 phase 2: the Risk view's steps, the weighting switch and the shared Key figures (portfolio/pack/RiskPack.tsx RiskView) */}
+            <RiskView answer={rk.data} page={page} sectorOf={sectorOfRisk} shares={shares} gold={model === "prism"} nameOf={nameOfSym}
+              compare={scoreOn ? { value: choices.benchmark, onChange: (v) => pick({ ...choices, benchmark: v }) } : undefined}
+              value={money.n && money.withQty === money.n ? { now: money.now, name: cur === "all" ? "All accounts" : pfName(cur) } : null}
+              card={cardsIn.risk ? { beta: cardsIn.risk.beta, swing: cardsIn.risk.swing, byValue: cardsIn.risk.byValue, worstFall: (byValue?.market ?? page.market.eq)?.max_fall ?? null } : null} />
           </> : <p className="sp-note">{state === "loading" || rk.isPending ? "Working out the figures…" : rk.isError ? (rk.error?.body?.detail || "The risk figures could not be loaded. Try again in a moment.") : "The risk figures need shares with a year of weekly prices."}</p>)}
           {page && <Step id="eq-short" title="What this means, in short" line={inShortItems[0]?.text ?? ""}><InShort items={inShortItems} /></Step>}
           <NextView view={view} onView={(v) => setView(v, true)} />

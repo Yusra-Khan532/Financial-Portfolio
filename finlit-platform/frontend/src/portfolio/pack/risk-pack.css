@@ -56,7 +56,7 @@
 /* size benchmarks, risk share, fall, each share */
 .eqr-sb td small, .eqr-sb th small { display: block; font-size: var(--fs-caption); color: var(--sp-mute); }
 .eqr-rs tbody tr.more { background: color-mix(in srgb, #B4362B 6%, transparent); } .eqr-rs th[scope="row"] { text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--sp-ink); }
-.eqr-bars { min-width: 160px; } .eqr-bars span { display: block; height: 5px; margin: 2px 0; border-radius: var(--ui-r-pill); } .eqr-bars .l { background: var(--sp-mute); opacity: .45; } .eqr-bars .k { background: #2E6B6F; }
+.eqr-bars { min-width: 160px; } .eqr-bars span { display: block; height: 5px; margin: 2px 0; border-radius: var(--ui-r-pill); } .eqr-bars .l { background: var(--sp-mute); opacity: .45; } .eqr-bars .k, .eqr-key i.k { background: #2E6B6F; }
 .eqr-fall { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(0, 1.4fr) auto; align-items: center; gap: 12px; margin: 0 0 12px; font-size: var(--fs-small); }
 .eqr-fall small { display: block; color: var(--sp-mute); font-size: var(--fs-caption); } .eqr-fall.sm { margin-bottom: 8px; }
 .eqr-fb { position: relative; display: block; height: 10px; border-radius: var(--ui-r-pill); background: var(--s2); } .eqr-fb i { position: absolute; inset: 0 auto 0 0; border-radius: var(--ui-r-pill); background: #B4362B; } .eqr-fall.sm .eqr-fb i { background: #C9705A; }

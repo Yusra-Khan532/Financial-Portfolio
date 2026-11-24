@@ -118,3 +118,43 @@ def test_task274_the_glance_figures_against_each_compare_index():
     assert vs["NIFMID150"]["worst10"]["list"] == pytest.approx(round(float(1.2 * worst.mean() * 100), 1), abs=0.11)
     assert vs["NIF50"]["swing"] == out["glance"]["nifty"]["swing"] and vs["NIF50"]["worstFall"] == out["glance"]["nifty"]["worstFall"]   # the Nifty 50 as before
     assert "NIF500" not in rs.build({"MIDCO": series(path(big))}, IDX, {"MIDCO": "Mid"}, {})["glance"]["vs"]   # no closes, no figures
+
+
+def test_task385_the_index_is_read_from_friday_closes_as_the_shares_are():
+    """Open item 1 (developer file 33): the list's swing came from weekly closes and the Nifty 50's from daily ones (14.3% beside 13.6%). Both now come from
+    Friday closes, so a share that is the index itself reads the index's own swing and worst fall."""
+    days = pd.bdate_range(end=FRIDAYS[-1], periods=3 * 252 + 10)
+    d = 100 * np.cumprod(1 + np.random.default_rng(11).normal(0.0004, 0.01, len(days)))
+    idx = {"NIF50": [{"d": t.date().isoformat(), "c": float(c)} for t, c in zip(days, d)]}
+    same = {"t": [t.date().isoformat() for t in days], "c": [float(c) for c in d]}
+    out = rs.build({"IDXCO": same}, idx, {"IDXCO": "Large"}, {})
+    g = out["glance"]
+    assert g["nifty"]["grain"] == "weekly" == g["list"]["grain"]
+    assert g["list"]["swing"] == g["nifty"]["swing"] and g["list"]["worstFall"] == g["nifty"]["worstFall"]
+    assert out["shares"][0]["swing"] == g["nifty"]["swing"]
+
+
+def test_task385_by_value_weights_every_list_figure_by_what_is_held():
+    """Open item 7: with each share's value now, each size's share of the list, its average beta, the size-weighted beta and each share's part of the ups
+    and downs follow the money; without values every share counts the same, as before."""
+    prices = {"BIG": series(path(1.5 * NIFTY)), "BIG2": series(path(0.5 * NIFTY)), "MIDCO": series(path(0.8 * MID))}
+    sizes, sec = {"BIG": "Large", "BIG2": "Large", "MIDCO": "Mid"}, {}
+    eq = rs.build(prices, IDX, sizes, sec)
+    assert eq["basis"] == "equal"
+    assert [x["listShare"] for x in eq["shares"]] == [33.3, 33.3, 33.3]
+    val = rs.build(prices, IDX, sizes, sec, {"BIG": 600.0, "BIG2": 200.0, "MIDCO": 200.0})
+    assert val["basis"] == "value"
+    sz = {s["size"]: s for s in val["sizes"]}
+    assert (sz["Large"]["listShare"], sz["Mid"]["listShare"]) == (80.0, 20.0)
+    assert sz["Large"]["avgBeta"] == round((0.6 * 1.5 + 0.2 * 0.5) / 0.8, 2)          # 1.25: the value-weighted average inside the size
+    assert val["betas"]["weighted"] == round(0.8 * 1.25 + 0.2 * 0.8, 2)
+    by = {x["symbol"]: x for x in val["shares"]}
+    assert [by[s]["listShare"] for s in ("BIG", "BIG2", "MIDCO")] == [60.0, 20.0, 20.0]
+    assert abs(sum(by[s]["riskShare"] for s in by) - 100) < 0.2
+    assert by["BIG"]["riskShare"] > by["BIG"]["listShare"]                              # the high-beta share carries more of the ups and downs than its money
+    hand = (0.6 * 1.5 * NIFTY[-52:] + 0.2 * 0.5 * NIFTY[-52:] + 0.2 * 0.8 * MID[-52:])
+    assert val["betas"]["nifty"] == round(float(np.cov(hand, NIFTY[-52:], ddof=1)[0, 1] / np.var(NIFTY[-52:], ddof=1)), 2)
+    # a counted share without a value: the whole answer stays on equal amounts
+    assert rs.build(prices, IDX, sizes, sec, {"BIG": 600.0, "BIG2": 200.0})["basis"] == "equal"
+    one = rs.build({"BIG": series(path(1.5 * NIFTY))}, IDX, {"BIG": "Large"}, {}, {"BIG": 10.0})
+    assert one["shares"][0]["riskShare"] == 100.0 and one["shares"][0]["listShare"] == 100.0

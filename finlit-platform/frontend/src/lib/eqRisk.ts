@@ -6,7 +6,8 @@ import type { Card } from "./pulsePack";
 export type RangeKey = "less" | "defensive" | "similar" | "more" | "high" | "very_high";
 export type Band = { key: RangeKey; word: string } | null;
 export type RiskShare = { symbol: string; size: "Large" | "Mid" | "Small" | "Micro" | null; sector: string | null; benchmark: string | null; beta: number | null; explained: number | null; band: Band; why: string | null;
-  swing: number | null; worstFall: number | null; years: number | null; oneYear: number | null; grain?: Grain | null };
+  swing: number | null; worstFall: number | null; years: number | null; oneYear: number | null; grain?: Grain | null;
+  /** task #385: the share's part of the list and of its ups and downs, in %, by the basis of the answer (absent from an answer cached before it) */ listShare?: number | null; riskShare?: number | null };
 export type RiskSize = { size: "Large" | "Mid" | "Small" | "Micro"; benchmark: string; n: number; avgBeta: number | null; band: Band; listShare: number; adds: number | null; oneYear: number | null; benchOneYear: number | null; downPer100: number | null; upPer100: number | null };
 /** How far apart the closes behind a figure are (task #274, number fix 1: the shares' closes are weekly, the index's daily). */
 export type Grain = "daily" | "weekly" | "monthly";
@@ -24,6 +25,8 @@ export type RiskAnswer = {
     /** task #274: the same figures against each "Compare with" index (absent from an answer cached before it) */
     vs?: Record<string, { name: string; swing: number | null; worstFall: number | null; grain?: Grain | null; years?: number | null; worst10: { list: number | null; index: number | null }; beta: number | null }> };
   ranges: { key: RangeKey; word: string; below: number | null }[];
+  /** task #385 (open item 7): how the list is weighted, the same figures by what is held now (sent when every share has a quantity), and the shares without one */
+  basis?: "value" | "equal"; byValue?: RiskAnswer; noQuantity?: string[];
 };
 export const RANGE_EDGES: [RangeKey, number, number][] = [["less", 0, 0.65], ["defensive", 0.65, 0.9], ["similar", 0.9, 1.1], ["more", 1.1, 1.35], ["high", 1.35, 1.75], ["very_high", 1.75, 2.5]];
 export const RANGE_SUB: Record<RangeKey, string> = { less: "Less sensitive than its market", defensive: "Relatively defensive", similar: "Similar to its market", more: "More sensitive than its market", high: "High market sensitivity", very_high: "Very high market sensitivity" };
