@@ -26,7 +26,7 @@ import httpx
 
 from .. import netguard
 from ..earnings import transcripts as T
-from ..earnings.provider import GeminiProvider, NotConfigured, Pacer, ProviderError, RateLimited
+from ..earnings.provider import GeminiProvider, NotConfigured, Pacer, ProviderError, RateLimited, Truncated
 from . import config as C
 from . import core as B
 from . import discovery as D
@@ -35,6 +35,7 @@ log = logging.getLogger("finlit.company_brief")
 HOST_REFUSALS = 3            # refused files in a row before a host is left alone for the rest of the run (task #328)
 GAVE_UP_RETRY_DAYS = 7       # a company given up after MAX_ATTEMPTS is tried again once a week, not never (task #328)
 TRACE_KEEP = 40              # downloads kept in the run record
+SHORT_PER_PART, SHORT_MAX_CHARS = 6, 90_000   # task #328: the second, shorter prompt after an answer was cut off (the first: 12 pages a part, 180,000 characters)
 
 REASONS = {
     "no_annual_report": "No annual report was found for this company on the exchanges' listings, so its brief has not been written.",
@@ -42,7 +43,13 @@ REASONS = {
     "unreadable": "The annual report was downloaded but holds no readable text (a scan or a locked file).",
     "download": "The annual report could not be downloaded",
     "failed": "The writer's answer did not pass the checks; it is tried again.",
+    # task #328: each way a writing attempt can end without a draft, with its own state (company_brief_sources.last_state) and reason
+    "writer_error": "The writing service did not answer",
+    "cut_off": "The writer's answer was cut off at its length limit, also when asked again with fewer pages",
+    "unreadable_answer": "The writer's answer could not be read as the brief's JSON",
+    "no_parts": "The writer's answer held none of the brief's parts",
 }
+OUTCOMES_KEEP = 12           # per-company outcomes kept in the run record (counts only, never text)
 
 
 class BriefFetcher(T.Fetcher):
@@ -489,14 +496,25 @@ def failure_state(tries: Sequence[Dict[str, Any]]) -> Tuple[str, str]:
     return "failed_download", f"{REASONS['download']}: {said}"
 
 # ------------------------------------------------------------------------------------------------ one company
-async def ask_model(provider, pacer: Pacer, prompt: str, report: dict, sleep) -> Tuple[Optional[str], Optional[str]]:
-    """(text, stop). `stop` names why the whole run must stop: budget | not_configured | quota; None when only this company failed (text None) or all is well."""
+async def ask_model(provider, pacer: Pacer, prompt: str, report: dict, sleep, meta: Optional[dict] = None) -> Tuple[Optional[str], Optional[str]]:
+    """(text, stop). `stop` names why the whole run must stop: budget | not_configured | quota; None when only this company failed (text None) or all is well.
+    `meta` (task #328) gets this call's outcome: "ok", "cut_off" (the reply stopped at its length limit) or "writer_error", and the reply's finishReason and
+    token counts."""
+    meta = {} if meta is None else meta
+    meta.clear()
     if not await pacer.take():
         return None, "budget"
     report["llm_asked"] = report.get("llm_asked", 0) + 1         # every call made, also those the provider refused ("llm_calls" counts answers)
     for wait_n in (0, 1):
         try:
-            return await provider.generate("You write a factual company brief as JSON. Output JSON only.", prompt), None
+            text = await provider.generate("You write a factual company brief as JSON. Output JSON only.", prompt)
+            meta.update(getattr(provider, "last", None) or {}, outcome="ok")
+            return text, None
+        except Truncated as e:
+            meta.update(getattr(provider, "last", None) or {}, outcome="cut_off", partial_chars=len(e.partial or ""))
+            report["cut_off"] = report.get("cut_off", 0) + 1
+            log.info("brief writer reply cut off (%s)", e.finish_reason)
+            return None, None
         except NotConfigured:
             return None, "not_configured"
         except RateLimited as e:
@@ -510,9 +528,19 @@ async def ask_model(provider, pacer: Pacer, prompt: str, report: dict, sleep) ->
             await sleep(min(90.0, max(e.retry_after, 20.0)))
         except ProviderError as e:
             report["provider_errors"] = report.get("provider_errors", 0) + 1
+            meta.update(getattr(provider, "last", None) or {}, outcome="writer_error", error=str(e)[:80])
             log.info("brief writer failed: %s", e)
             return None, None
+    meta.update(outcome="writer_error", error="rate limited twice")
     return None, None
+
+
+def note_outcome(report: dict, symbol: str, outcome: str, meta: dict, prompt_chars: int) -> None:
+    """One line per company in the run record (task #328): why its writing attempt ended as it did. Counts only, never text."""
+    rows = report.setdefault("outcomes", [])
+    if len(rows) < OUTCOMES_KEEP:
+        rows.append({"symbol": symbol, "outcome": outcome, "finish": meta.get("finish"), "prompt_chars": prompt_chars, "out_tokens": meta.get("out_tokens"),
+                     "thought_tokens": meta.get("thought_tokens")})
 
 
 async def write_one(store, provider, pacer, fetcher, c: dict, report: dict, today: date, sleep) -> Optional[str]:
@@ -591,9 +619,26 @@ async def write_one(store, provider, pacer, fetcher, c: dict, report: dict, toda
         names = [s.get("name") for s in row["brief"].get("segments") or []]
         extra = f"10. Segments: keep exactly these names {json.dumps(names)}; for each give only \"name\" and \"points\" (what changed in the latest filings).\n"
     prompt = B.build_prompt(name, symbol, read, pages, td, parts=parts, extra=extra)
-    text, stop = await ask_model(provider, pacer, prompt, report, sleep)
+    meta: dict = {}
+    text, stop = await ask_model(provider, pacer, prompt, report, sleep, meta)
     if stop:
         return stop
+    if meta.get("outcome") == "cut_off":
+        # task #328: the answer stopped at its length limit (a long annual report leaves a thinking model little room): ask once more with half the pages
+        prompt = B.build_prompt(name, symbol, read, pages, td, per_part=SHORT_PER_PART, max_chars=SHORT_MAX_CHARS, parts=parts, extra=extra)
+        text, stop = await ask_model(provider, pacer, prompt, report, sleep, meta)
+        if stop:
+            return stop
+        report["shorter_retries"] = report.get("shorter_retries", 0) + 1
+    if meta.get("outcome") in ("writer_error", "cut_off"):
+        state = "failed_writer" if meta["outcome"] == "writer_error" else "failed_cutoff"
+        reason = REASONS["writer_error"] + (f" ({meta.get('error')})" if meta.get("error") else "") if state == "failed_writer" else REASONS["cut_off"]
+        report[state] = report.get(state, 0) + 1
+        note_outcome(report, symbol, meta["outcome"], meta, len(prompt))
+        async with store.pool.acquire() as conn:
+            # a service that did not answer is no fault of the company's filings: it does not count toward MAX_ATTEMPTS (tried again after RETRY_AFTER_HOURS)
+            await note_source(conn, symbol, state, reason[:600], sig, state == "failed_cutoff")
+        return None
     report["llm_calls"] = report.get("llm_calls", 0) + 1
     result = parse_json(text or "")
     outcome = evaluate(row, result, parts, read, pages, name, symbol, td, points_only)
@@ -614,15 +659,19 @@ async def write_one(store, provider, pacer, fetcher, c: dict, report: dict, toda
                 outcome["checks"]["fixed"] = [f"{len(bad.split('; '))} citation(s) were corrected on a second pass."]
     if result is None or outcome["merged"] is None:
         report["failed"] = report.get("failed", 0) + 1
+        what = "unreadable_answer" if result is None else "no_parts"
+        note_outcome(report, symbol, what, meta, len(prompt))
         async with store.pool.acquire() as conn:
-            await note_source(conn, symbol, "failed_output", REASONS["failed"], sig, True)
+            await note_source(conn, symbol, "failed_output" if result is None else "failed_noparts", REASONS[what], sig, True)
         return None
     if row is not None and outcome["problems"]:
         # never replace a draft or a brief that is waiting with one that is worse; the reviewer keeps what they have
         report["failed"] = report.get("failed", 0) + 1
+        note_outcome(report, symbol, "checks_failed", meta, len(prompt))
         async with store.pool.acquire() as conn:
-            await note_source(conn, symbol, "failed_output", "The new text did not pass: " + "; ".join(outcome["problems"][:3]), sig, True)
+            await note_source(conn, symbol, "failed_checks", "The new text did not pass: " + "; ".join(outcome["problems"][:3]), sig, True)
         return None
+    note_outcome(report, symbol, "written", meta, len(prompt))
     async with store.pool.acquire() as conn:
         await conn.execute(
             "INSERT INTO company_briefs (symbol, status, brief, as_of, checks, problems, flags, parts_written, written_at, written_by, prompt_version, rewrite_asked) "
@@ -698,7 +747,8 @@ async def run(store, settings, provider=None, fetcher=None, env: Optional[Mappin
     started = time.monotonic()
     model = (env.get("BRIEF_LLM_MODEL") or "").strip() or settings.gemini_model
     key = (env.get("BRIEF_GEMINI_API_KEY") or "").strip() or settings.gemini_api_key    # task #328: a key of its own keeps the brief off the shared daily quota
-    provider = provider or GeminiProvider(key, model, max_output_tokens=C.MAX_TOKENS_OUT, user_agent="FinLit-brief/1.0 (+https://finlitventures.com)")
+    provider = provider or GeminiProvider(key, model, max_output_tokens=C.MAX_TOKENS_OUT, user_agent="FinLit-brief/1.0 (+https://finlitventures.com)",
+                                          thinking=C.thinking(env))
     report: dict = {"status": "ok", "model": provider.model, "prompt_version": C.PROMPT_VERSION,
                     "key": "own (BRIEF_GEMINI_API_KEY)" if (env.get("BRIEF_GEMINI_API_KEY") or "").strip() else "shared (GEMINI_API_KEY)"}
     if not provider.configured:

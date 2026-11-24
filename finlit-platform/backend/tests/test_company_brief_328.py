@@ -229,7 +229,9 @@ def test_the_brief_key_of_its_own_is_used_when_set():
 
 # ------------------------------------------------------------------------------------------------ 5. the page says the real state
 @pytest.mark.parametrize("state,code,words", [("failed_download", "report_not_downloaded", "could not be downloaded"), ("failed_unreadable", "report_unread", "could not be read"),
-                                              ("failed_output", "writer_failed", "did not pass the citation checks")])
+                                              ("failed_checks", "writer_failed", "did not pass the citation checks"),
+                                              ("failed_output", "writer_unreadable", "could not be read"), ("failed_writer", "writer_unavailable", "did not answer"),
+                                              ("failed_cutoff", "writer_cut_off", "cut off"), ("failed_noparts", "writer_empty", "none of the brief's parts")])
 def test_the_page_states_why_there_is_no_brief(state, code, words):
     v = A.public_view(None, {"last_state": state, "ar_url": FEED_AR}, "RELIANCE", "Reliance Industries Ltd")
     assert v["code"] == code and words in v["reason"] and "tried again" in v["reason"] and v["disclaimer"] == B.DISCLAIMER
