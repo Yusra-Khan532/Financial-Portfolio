@@ -11,10 +11,16 @@ import "../../components/clearportfolio.css";
 export type FundHit = Fund & { category?: string | null };
 export type FundGroup = { key: string; name: string; amc: string; category: string; variants: FundHit[]; plans: string[]; options: string[] };
 
-/** The search asks for enough rows to hold every plan and option of the first few funds (AMFI has up to 8 or 10 per fund). */
-export const GROUP_PAGE = 60;
-export const searchFundRows = (q: string) =>
-  apiGet<{ items: FundHit[] }>(`/api/mf?q=${encodeURIComponent(q)}&option=All&size=${GROUP_PAGE}`).then((r) => r.items);
+/** Developer file 37: the boxes ask GET /api/mf/search, one row per fund with every plan and option, best match first and, among equal matches, the
+ *  larger fund first; `total` counts every fund that matches. Before, they asked /api/mf for 60 scheme rows (about 15 funds), showed the first 8 and
+ *  broke ties by the shorter name, so "quant" listed quant PSU, BFSI and Gilt, and quant Small Cap could only be found by typing "quant small". */
+export const SEARCH_FUNDS = 30;
+export type FundSearch = { q: string; total: number; items: { key: string; name: string; amc: string; category: string | null; aum: number | null; variants: FundHit[] }[] };
+export const searchFunds = (q: string): Promise<{ groups: FundGroup[]; total: number }> =>
+  apiGet<FundSearch>(`/api/mf/search?q=${encodeURIComponent(q)}&limit=${SEARCH_FUNDS}`)
+    .then((r) => ({ groups: groupFunds(r.items.flatMap((f) => f.variants)), total: r.total }));
+/** "30 of 112 funds shown · keep typing to narrow" when the box shows fewer than match; nothing when every match is shown. Exported for tests. */
+export const moreLine = (shown: number, total: number) => (total > shown ? `${shown} of ${total} funds shown · keep typing to narrow` : "");
 
 const PLAN_ORDER = ["Regular", "Direct"];
 const optionRank = (o: string) => (/^growth$/i.test(o) ? 0 : /growth/i.test(o) ? 1 : /payout/i.test(o) ? 2 : /reinvest/i.test(o) ? 3 : 4);
@@ -69,13 +75,16 @@ const errText = (e: unknown) => ((e as { body?: { detail?: string } })?.body?.de
 
 /** The search box: one row per fund. */
 export function FundGroupSearch({ onPick, label = "Search a mutual fund by name or ISIN", placeholder = "Search a fund by name or ISIN…", autoFocus }: { onPick: (g: FundGroup) => void; label?: string; placeholder?: string; autoFocus?: boolean }) {
-  const [q, setQ] = useState(""), [groups, setGroups] = useState<FundGroup[]>([]), [busy, setBusy] = useState(false), [err, setErr] = useState("");
+  const [q, setQ] = useState(""), [groups, setGroups] = useState<FundGroup[]>([]), [total, setTotal] = useState(0), [busy, setBusy] = useState(false), [err, setErr] = useState("");
   useEffect(() => {
-    if (q.trim().length < 3) { setGroups([]); setErr(""); return; }
+    if (q.trim().length < 3) { setGroups([]); setTotal(0); setErr(""); return; }
     setBusy(true);
-    const t = setTimeout(() => searchFundRows(q.trim()).then((r) => { setGroups(groupFunds(r).slice(0, 8)); setErr(""); }).catch(() => setErr("The fund search is not available right now.")).finally(() => setBusy(false)), 250);
-    return () => clearTimeout(t);
+    let live = true;
+    const t = setTimeout(() => searchFunds(q.trim()).then((r) => { if (!live) return; setGroups(r.groups); setTotal(r.total); setErr(""); })
+      .catch(() => { if (live) setErr("The fund search is not available right now."); }).finally(() => { if (live) setBusy(false); }), 250);
+    return () => { live = false; clearTimeout(t); };
   }, [q]);
+  const more = moreLine(groups.length, total);
   return (
     <div className="mp-search mfa-search">
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={placeholder} aria-label={label} maxLength={80} autoComplete="off" autoFocus={autoFocus} />
@@ -85,6 +94,7 @@ export function FundGroupSearch({ onPick, label = "Search a mutual fund by name 
           {!err && !busy && !groups.length && <li className="none">No fund matches “{q}”.</li>}
           {groups.map((g) => <li key={g.key} role="option" aria-selected="false"><button type="button" onClick={() => { onPick(g); setQ(""); setGroups([]); }}>
             <b>{g.name}</b><small>{g.amc}{g.category ? ` · ${g.category}` : ""}</small><small className="mfa-vars">{variantsLine(g)}</small></button></li>)}
+          {!err && more && <li className="none">{more}</li>}
         </ul>)}
     </div>
   );
@@ -197,16 +207,18 @@ export function AddSeveralDialog({ onClose, onDone, room }: { onClose: () => voi
  *  it. A pick opens the plan and option step; `groupOf` finds the fund behind a suggestion. */
 const lastGroups = new Map<string, FundGroup>();
 export const groupOf = (id: string) => lastGroups.get(id) ?? null;
-export function useFundGroupResults(q: string): { items: { id: string; title: string; sub: string; line?: string }[]; loading: boolean; error: boolean } {
-  const [st, setSt] = useState<{ q: string; groups: FundGroup[]; error: boolean }>({ q: "", groups: [], error: false }), [loading, setLoading] = useState(false);
+export function useFundGroupResults(q: string): { items: { id: string; title: string; sub: string; line?: string }[]; loading: boolean; error: boolean; total: number | null } {
+  const [st, setSt] = useState<{ q: string; groups: FundGroup[]; total: number; error: boolean }>({ q: "", groups: [], total: 0, error: false }), [loading, setLoading] = useState(false);
   useEffect(() => {
     const t0 = q.trim();
-    if (t0.length < 2) { setSt({ q: "", groups: [], error: false }); setLoading(false); return; }
+    if (t0.length < 2) { setSt({ q: "", groups: [], total: 0, error: false }); setLoading(false); return; }
     setLoading(true);
     let live = true;
-    const t = setTimeout(() => searchFundRows(t0).then((r) => { if (!live) return; const g = groupFunds(r).slice(0, 8); g.forEach((x) => lastGroups.set(x.key, x)); setSt({ q: t0, groups: g, error: false }); })
-      .catch(() => { if (live) setSt({ q: t0, groups: [], error: true }); }).finally(() => { if (live) setLoading(false); }), 250);
+    const t = setTimeout(() => searchFunds(t0).then((r) => { if (!live) return; r.groups.forEach((x) => lastGroups.set(x.key, x)); setSt({ q: t0, groups: r.groups, total: r.total, error: false }); })
+      .catch(() => { if (live) setSt({ q: t0, groups: [], total: 0, error: true }); }).finally(() => { if (live) setLoading(false); }), 250);
     return () => { live = false; clearTimeout(t); };
   }, [q]);
-  return { items: st.groups.map((g) => ({ id: g.key, title: g.name, sub: `${g.amc}${g.category ? ` · ${g.category}` : ""}`, line: variantsLine(g) })), loading, error: st.error };
+  // the box's own last line says "30 of 112 funds shown · keep typing to narrow"; given only when some matches are not shown
+  return { items: st.groups.map((g) => ({ id: g.key, title: g.name, sub: `${g.amc}${g.category ? ` · ${g.category}` : ""}`, line: variantsLine(g) })), loading, error: st.error,
+    total: st.total > st.groups.length ? st.total : null };
 }

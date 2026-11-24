@@ -808,16 +808,21 @@ OPTIONAL_WORDS = frozenset({"fund", "funds", "scheme", "the"})
 class SearchIndex:
     """Names and fund houses in memory (about 14,000 short strings) for typo- and space-tolerant search: 'hdfc mid cap', 'hdfcmidcap' and 'hdfc midcp' find HDFC Mid Cap."""
 
-    def __init__(self, rows: Iterable[Tuple[int, str, str]]):
+    def __init__(self, rows: Iterable[Sequence]):
+        """rows: (code, name, fund house) or (code, name, fund house, fund size in lakh, all plans together; None when not known)."""
         self.codes: List[int] = []
         self.names: List[str] = []
+        self.sizes: List[float] = []
         self.toks: List[List[str]] = []
         self.compact: List[str] = []
         vocab = set()
-        for code, name, amc in rows:
+        for row in rows:
+            code, name, amc = row[0], row[1], row[2]
+            size = row[3] if len(row) > 3 else None
             t = tokens(f"{name} {amc}")
             self.codes.append(code)
             self.names.append(name)
+            self.sizes.append(float(size) if size is not None and size > 0 else 0.0)
             self.toks.append(t)
             self.compact.append("".join(w for w in t if w not in JOINERS))   # 'Large & Mid Cap' and 'Large and Mid Cap' read alike
             vocab.update(w for w in t if len(w) >= 4)
@@ -833,7 +838,11 @@ class SearchIndex:
     def search(self, query: str, limit: int = 5000) -> Optional[List[int]]:
         """Scheme codes best match first, or None when the query has no letters or digits (then there is nothing to search for).
         Every word of the query must match: as a whole word (best), the start of a word, or anywhere in the name with spaces ignored; a word that
-        matches nothing anywhere is also tried as the nearest real words (one or two typos)."""
+        matches nothing anywhere is also tried as the nearest real words (one or two typos).
+        Equal matches (every fund of a house matches 'quant' alike): the larger fund first (fund size, all plans together; a fund with no size after
+        those with one), then the shorter name. Before, the shorter name alone decided, so 'quant' listed quant PSU, BFSI and Gilt before the house's
+        largest funds, and a box that shows the first few never reached quant Small Cap. The plans and options of one fund share its size and name,
+        so they stay together."""
         qt = tokens(query)
         if not qt:
             return None
@@ -848,7 +857,7 @@ class SearchIndex:
             if len(t) >= 4 and not any(t in c for c in self.compact):
                 a += [(w, 0.8) for w in self.near(t)]
             alts.append(a)
-        scored: List[Tuple[float, int, str, int]] = []
+        scored: List[Tuple[float, float, int, str, int]] = []
         for i, cn in enumerate(self.compact):
             tn = self.toks[i]
             total = 0.0
@@ -871,9 +880,9 @@ class SearchIndex:
             if total:
                 if qc in cn:   # the whole query, spaces ignored: 'midcap' against 'Mid Cap'
                     total += 2 + (1 if cn.startswith(qc) else 0)
-                scored.append((-total, len(self.names[i]), self.names[i], self.codes[i]))
+                scored.append((-total, -self.sizes[i], len(self.names[i]), self.names[i], self.codes[i]))
         scored.sort()
-        return [s[3] for s in scored[:limit]]
+        return [s[4] for s in scored[:limit]]
 
 
 # ====================================================================================== downloading AMFI's files
@@ -2173,8 +2182,8 @@ async def _search_index(store) -> SearchIndex:
     ver = await _version(store.redis)
     if _index_cache["ver"] != ver or _index_cache["index"] is None:
         async with store.pool.acquire() as conn:
-            rows = await conn.fetch("SELECT code, name, amc FROM mf_schemes")
-        _index_cache["index"], _index_cache["ver"] = await asyncio.to_thread(SearchIndex, [(r["code"], r["name"], r["amc"]) for r in rows]), ver
+            rows = await conn.fetch("SELECT code, name, amc, aum_lakh FROM mf_schemes")
+        _index_cache["index"], _index_cache["ver"] = await asyncio.to_thread(SearchIndex, [(r["code"], r["name"], r["amc"], r["aum_lakh"]) for r in rows]), ver
     return _index_cache["index"]   # type: ignore[return-value]
 
 
@@ -2515,6 +2524,53 @@ async def run_status(request: Request) -> Response:
         rows = await conn.fetch("SELECT key, value, updated_at FROM mf_meta WHERE key LIKE 'run:%' OR key = 'refresh'")
     body = {r["key"]: (json.loads(r["value"]) if isinstance(r["value"], str) else r["value"]) for r in rows}
     return Response(content=json.dumps(body, default=str), media_type="application/json", headers={"Cache-Control": "no-store"})
+
+
+# ---- developer file 37: the add boxes' fund search (MF portfolio: the add box and Add several)
+SEARCH_FUNDS_MAX = 50
+
+
+def fund_groups(rows: Sequence) -> List[dict]:
+    """Scheme rows (in search order) -> one row per fund, the way the add boxes show them: fund house + name (case and spaces ignored), every plan and
+    option under `variants`, in the order the search ranked them. The fund size is the fund's own (all plans together), in crore."""
+    out: List[dict] = []
+    at: Dict[str, dict] = {}
+    for r in rows:
+        key = f"{(r['amc'] or '').strip().lower()}|{r['name'].strip().lower()}"
+        g = at.get(key)
+        if g is None:
+            aum = r["aum_lakh"]
+            g = at[key] = {"key": key, "name": r["name"].strip(), "amc": r["amc"], "category": r["category"],
+                           "aum": None if aum is None else round(aum / 100, 2), "aumAsOf": iso(r["aum_asof"]), "variants": []}
+            out.append(g)
+        g["variants"].append({"code": r["code"], "name": r["name"], "amc": r["amc"], "category": r["category"], "plan": r["plan"],
+                              "option": r["option_label"], "active": r["active"], "navDate": iso(r["nav_date"])})
+    return out
+
+
+@router.get("/search")
+async def search_funds(request: Request, q: str = Query("", max_length=80), limit: int = Query(30, ge=1, le=SEARCH_FUNDS_MAX)) -> Response:
+    """One row per fund for the add boxes, best match first and, among equal matches, the larger fund first (`SearchIndex.search`). `total` counts every
+    fund that matches, so a box can say it shows 30 of 35 and that typing more narrows it. A fund is found by its ISIN too. Schemes that stopped
+    publishing NAVs are left out, as in the list. Fewer than two letters or digits: nothing."""
+    text = q.strip()
+
+    async def build():
+        store = request.app.state.store
+        codes: List[int] = []
+        if ISIN_RE.match(text.upper()):
+            async with store.pool.acquire() as conn:
+                codes = [r["code"] for r in await conn.fetch("SELECT code FROM mf_schemes WHERE isin = $1 OR isin_reinvest = $1 ORDER BY code", text.upper())]
+        elif len(re.sub(r"[^0-9A-Za-z]", "", text)) >= 2:
+            codes = (await _search_index(store)).search(text) or []
+        rows: Sequence = []
+        if codes:
+            async with store.pool.acquire() as conn:
+                rows = await conn.fetch("SELECT code, name, amc, category, plan, option_label, active, nav_date, aum_lakh, aum_asof FROM mf_schemes "
+                                        "WHERE active AND code = ANY($1::int[]) ORDER BY array_position($1::int[], code)", codes)
+        funds = fund_groups(rows)
+        return {"q": text, "total": len(funds), "items": funds[:limit]}
+    return await cached_json(request, "search", json.dumps([text.lower(), limit]), build)
 
 
 @router.get("/hot")

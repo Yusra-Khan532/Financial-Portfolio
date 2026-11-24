@@ -7,7 +7,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const calls: { path: string; body?: unknown }[] = [];
 vi.mock("../../lib/api", async (orig) => ({
   ...(await orig<typeof import("../../lib/api")>()),
-  apiGet: vi.fn(async (path: string) => { calls.push({ path }); return { items: ROWS }; }),
+  // developer file 37: the boxes ask GET /api/mf/search, which answers one row per fund (live schemes only), grouped as the server's fund_groups does
+  apiGet: vi.fn(async (path: string) => { calls.push({ path }); return path.startsWith("/api/mf/search") ? searchAnswer(ROWS) : { items: ROWS }; }),
   apiSend: vi.fn(async (_m: string, path: string, body: unknown) => { calls.push({ path, body }); return { id: "h1", merged: false }; }),
 }));
 import { AddSeveralDialog, FundGroupSearch, PlanOptionDialog, buyOf, catName, groupFunds, optionsFor, variantOf, variantsLine } from "./MfAdd";
@@ -21,6 +22,15 @@ const ROWS: FundHit[] = [ppl(143260, "Regular", "Growth"), ppl(143261, "Regular"
   { code: 122640, name: "Parag Parikh Flexi Cap Fund", amc: "PPFAS Mutual Fund", category: "Flexi Cap Fund", plan: "Regular", option: "Growth", active: true, navDate: "2026-11-19" },
   { code: 100001, name: "Parag Parikh Flexi Cap Fund", amc: "PPFAS Mutual Fund", category: "Flexi Cap Fund", plan: "Regular", option: "Bonus", active: false, navDate: "2019-01-01" }];
 
+function searchAnswer(rows: FundHit[]) {
+  const by = new Map<string, { key: string; name: string; amc: string; category: string | null; aum: number | null; variants: FundHit[] }>();
+  for (const r of rows.filter((x) => x.active)) {
+    const key = `${r.amc.toLowerCase()}|${r.name.toLowerCase()}`;
+    if (!by.has(key)) by.set(key, { key, name: r.name, amc: r.amc, category: r.category ?? null, aum: null, variants: [] });
+    by.get(key)!.variants.push(r);
+  }
+  return { q: "", total: by.size, items: [...by.values()] };
+}
 afterEach(() => { cleanup(); calls.length = 0; });
 const wrap = (ui: React.ReactNode) => render(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>);
 
@@ -54,12 +64,12 @@ describe("grouping the search rows (change 1)", () => {
 });
 
 describe("the box, the plan and option step, Add several", () => {
-  it("lists one row per fund in the box, asking for enough rows to hold every plan", async () => {
+  it("lists one row per fund in the box, from the per-fund search (developer file 37)", async () => {
     const pick = vi.fn();
     wrap(<FundGroupSearch onPick={pick} />);
     fireEvent.change(screen.getByRole("textbox", { name: /Search a mutual fund/ }), { target: { value: "parag" } });
     await waitFor(() => expect(screen.getAllByRole("option")).toHaveLength(2));
-    expect(calls[0].path).toMatch(/size=60/);
+    expect(calls[0].path).toBe("/api/mf/search?q=parag&limit=30");
     expect(screen.getAllByRole("option")[0].textContent).toBe("Parag Parikh Liquid FundPPFAS Mutual Fund · Liquid Fund8 plans and options: Regular or Direct · Growth or IDCW");
     fireEvent.click(screen.getAllByRole("option")[0].querySelector("button")!);
     expect(pick.mock.calls[0][0].variants).toHaveLength(8);
