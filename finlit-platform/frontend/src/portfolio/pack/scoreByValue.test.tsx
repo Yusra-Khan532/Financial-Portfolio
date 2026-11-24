@@ -75,7 +75,7 @@ describe("the equity page passes the score's figures to the cards", () => {
     expect(src).toMatch(/byValue = scA\?\.basis === "value" && scA\.byValue \? scA\.byValue : null/);
     // task #385: the four calm cards read the same figures: the average Prism, the spread score and the NIFTY 50 measures by value when sent
     expect(src).toMatch(/const avg = byValue\?\.prism \?\? mean/);
-    expect(src).toMatch(/const sp = byValue\?\.spread \?\? page\?\.score \?\? null, m = byValue\?\.market \?\? page\?\.market\.eq \?\? null;/);
+    expect(src).toMatch(/const sp = ids\.length < 2 \? null : byValue\?\.spread \?\? page\?\.score \?\? null,/); expect(src).toMatch(/m = byValue\?\.market \?\? page\?\.market\.eq \?\? null;/);
     expect(src).toMatch(/<SixParts s=\{scA\}/);
   });
 });

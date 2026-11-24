@@ -109,7 +109,7 @@ export function MoneyBox({ t, picker, best, worst, up, down, have, onAdd }: { t:
         {best && <>best {co(best)} <span className="eqx-up">▲{Math.abs(best.chg).toFixed(2)}%</span></>}{best && worst && " · "}
         {worst && <>worst {co(worst)} <span className="eqx-dn">▼{Math.abs(worst.chg).toFixed(2)}%</span></>}</p>}
       {t.rate.length > 0 && <p className="eqx-rate" role="note"><b>Buy prices from your statement's Rate.</b> For {t.rate.length === t.n ? `all ${t.n} shares` : `${t.rate.length} of ${t.n} shares`} it is the price{dayLabel(t.rateOn) ? ` of ${dayLabel(t.rateOn)}` : " on the statement's date"}: what the shares were worth that day, not what you paid. So Invested is their value{dayLabel(t.rateOn) ? ` on ${dayLabel(t.rateOn)}` : " that day"}, and Gain or loss counts from that day. Type what you paid under Edit to change it.</p>}
-      {t.n > 0 && (all ? <p className="eqx-cov ok" role="note">All {t.n} shares have a quantity and buy price, so the money figures cover the whole list.</p>
+      {t.n > 0 && (all ? <p className="eqx-cov ok" role="note">{t.n === 1 ? "The share has" : `All ${t.n} shares have`} a quantity and buy price, so the money figures cover the whole list.</p>
         : <div className="eqx-cov">
           <span className="eqx-bar" role="img" aria-label={`${have.length} of ${t.n} shares have a quantity and buy price`}><i style={{ width: `${(have.length / t.n) * 100}%` }} /></span>
           <p><b>Money figures cover {have.length} of {t.n} shares.</b> {have.length === 0 && t.withQty > 0 ? <>None has a buy price yet, so Invested and Gain or loss stay blank; value now covers {t.withQty} of {t.n}. All {t.n} </>

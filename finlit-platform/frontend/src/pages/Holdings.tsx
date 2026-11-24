@@ -361,12 +361,13 @@ export function HoldingsPage() {
   const cardsIn: CardsInput = useMemo(() => {
     const sc5 = shares.filter((x) => x.prism != null), mean = sc5.length ? sc5.reduce((a, x) => a + (x.prism as number), 0) / sc5.length : null;
     const avg = byValue?.prism ?? mean, words = ["Strong", "Healthy", "Average", "Weak", "Poor"];
-    const sp = byValue?.spread ?? page?.score ?? null, m = byValue?.market ?? page?.market.eq ?? null;
+    const sp = ids.length < 2 ? null : byValue?.spread ?? page?.score ?? null,   // a one-share list has no spread to read
+    m = byValue?.market ?? page?.market.eq ?? null;
     return { locked: !scoreOn, score: scA ? { total: scA.total ?? null, band: scA.band ?? null } : null,
       strength: model === "prism" ? { avg, word: avg == null ? null : prismWord5(avg), byValue: byValue?.prism != null, counts: words.map((w): [string, number] => [w, sc5.filter((x) => prismWord5(x.prism as number) === w).length]) } : null,
       spread: sp ? { score: Math.round(sp.score), word: sp.band, byCount: byValue?.spread && page ? page.score.score : null } : null,
       risk: m ? { beta: m.beta, swing: m.vol, swingIndex: m.vol_nifty, bench: "NIFTY 50", byValue: !!byValue?.market, to: page?.to ?? null } : null };
-  }, [shares, byValue, page, scA, scoreOn, model]);
+  }, [shares, byValue, page, scA, scoreOn, model, ids]);
   const [sixOpen, setSixOpen] = useState(false);
   // since your last visit: the visit before this one (POST /api/visits/equity-portfolio) and the filings of the last 90 days
   const wcFiled = (wcQ.q.data?.companies ?? []).filter((c) => Object.keys(c.ev).length > 0).length;
