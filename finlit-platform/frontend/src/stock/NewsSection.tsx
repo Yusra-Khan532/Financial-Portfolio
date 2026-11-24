@@ -10,6 +10,8 @@ import { ChartHelp } from "../components/ChartHelp";
 import { SectionHead } from "./Sections";
 import { FilingScores } from "./FilingScores";
 import "../styles/news-filings.css";
+import { SentimentChip } from "../components/SentimentChip";
+import { meanSentiment, useSymbolSentiment } from "../lib/sentiment";
 import { GROUP, GROUPS, dayNum, filingsPlain, highlights, monShort, monthHead, sortFilings, type Filing, type GroupKey } from "../lib/filings";
 
 const FIRST = 6;   // task #328 (developer file 27, change 7): six shown first (was eight)
@@ -22,6 +24,7 @@ export function NewsSection({ e, name, symbol }: { e?: Events; name: string; /**
   const [routine, setRoutine] = useState(false);
   const [open, setOpen] = useState<Set<string>>(() => new Set());   // the filings whose whole text is open
   const card = useRef<HTMLDivElement>(null);
+  const sentOf = useSymbolSentiment(symbol);   // task #365: each filing's sentiment score, matched by its link, else its date and title
   const fs = useMemo(() => sortFilings(e?.announcements ?? []), [e]);
   if (!e) return null;
   const live = fs.filter((f) => !f.routine), nRoutine = fs.length - live.length;
@@ -57,8 +60,8 @@ export function NewsSection({ e, name, symbol }: { e?: Events; name: string; /**
         <div className="card-h"><h3><span className="ci"><Icon name="notes" /></span>All filings<ChartHelp id="news-filings" label="About these filings" /></h3>
           <span className="s nf-s"><span className="nf-n">{g === "all" && nInView < live.length ? `${nInView} of ${live.length} filings shown` : `${nInView} filing${nInView === 1 ? "" : "s"}`}</span>{nRoutine > 0 && <> · <button type="button" className="nf-rtb" aria-pressed={routine} onClick={() => setRoutine(!routine)}>{routine ? "Hide routine filings" : `Show ${nRoutine} routine filing${nRoutine === 1 ? "" : "s"}`}</button></>}</span></div>
         {live.length > 0 && <div className="fchips nf-f" role="group" aria-label="Show filings by group">
-          <button type="button" className={"chip-b" + (g === "all" ? " on" : "")} aria-pressed={g === "all"} onClick={() => setG("all")}>All <span>{live.length}</span></button>
-          {GROUPS.filter((x) => counts[x.key] > 0).map((x) => <button key={x.key} type="button" className={"chip-b" + (g === x.key ? " on" : "")} aria-pressed={g === x.key} style={{ "--gc": x.colour } as React.CSSProperties} onClick={() => setG(x.key)}><i aria-hidden="true" />{x.label} <span>{counts[x.key]}</span></button>)}
+          <button type="button" className={"chip-b" + (g === "all" ? " on" : "")} aria-pressed={g === "all"} onClick={() => setG("all")}>All <span>{live.length}</span><SentimentChip s={meanSentiment(live.map(sentOf))} word={false} avg /></button>
+          {GROUPS.filter((x) => counts[x.key] > 0).map((x) => <button key={x.key} type="button" className={"chip-b" + (g === x.key ? " on" : "")} aria-pressed={g === x.key} style={{ "--gc": x.colour } as React.CSSProperties} onClick={() => setG(x.key)}><i aria-hidden="true" />{x.label} <span>{counts[x.key]}</span><SentimentChip s={meanSentiment(live.filter((f) => f.group === x.key).map(sentOf))} word={false} avg /></button>)}
         </div>}
         <div className="nf-list">
           {months.map((m) => { const inMonth = rowsAll.filter((f) => f.date.startsWith(m)), hidMonth = inMonth.every((f) => later(f));
@@ -67,7 +70,7 @@ export function NewsSection({ e, name, symbol }: { e?: Events; name: string; /**
             return <li key={k} className={"nf-r" + (f.routine ? " nf-rt" : "") + (later(f) ? " nf-hid" : "") + (isOpen ? " open" : "")}>
               <span className="nf-d"><b>{dayNum(f.date)}</b>{monShort(f.date)}{f.time && <small>{f.time}</small>}</span>
               <Tag className="nf-b" style={{ "--gc": GROUP[f.group].colour } as React.CSSProperties} {...(link ? { href: link, target: "_blank", rel: "noopener noreferrer" } : {})}>
-                <span className="nf-c" title={GROUP[f.group].label}><span className="nf-cl">{GROUP[f.group].short ?? GROUP[f.group].label}</span></span><span className="nf-t">{f.title}</span><span className="nf-k">NSE category: {f.category}</span>{link && <span className="nf-go" aria-hidden="true">PDF ↗</span>}
+                <span className="nf-c" title={GROUP[f.group].label}><span className="nf-cl">{GROUP[f.group].short ?? GROUP[f.group].label}</span></span><span className="nf-t">{f.title}</span><SentimentChip s={sentOf(f)} /><span className="nf-k">NSE category: {f.category}</span>{link && <span className="nf-go" aria-hidden="true">PDF ↗</span>}
               </Tag>
               <button type="button" className="nf-exp" aria-expanded={isOpen} aria-label={isOpen ? "Show one line" : "Show the whole text"} onClick={() => flip(k)}>▾</button></li>;
           })}</ol></div>; })}

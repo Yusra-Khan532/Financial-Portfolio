@@ -4,6 +4,7 @@
 // finlit/feed.py TOPICS), shown as chips with their counts for the dates chosen (GET /api/feed/counts). The exchange's own category stays on
 // every row and in the Category dropdown. The list comes 60 at a time; "Show more" continues from the last item's date and id.
 // Toolbar parts are Discover's (discovery/Toolbar.tsx, .dbx-); page classes start .p4- (styles/news-page.css).
+import { SentimentChip } from "../components/SentimentChip";   // task #365
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { PageHeader } from "../components/PageHeader";
@@ -132,7 +133,7 @@ export function NewsPage() {
             return <li key={e.id}>
               {e.symbol ? <Link className="feed-sym p4-sym" to={`/stocks/${e.symbol}`} title={coTitle({ symbol: e.symbol, name: e.company })}><CoLogo symbol={e.symbol} size={18} inline /><span>{shortLabel({ symbol: e.symbol, name: e.company })}</span></Link> : <span className="feed-sym alt">Market</span>}
               <div className="p4-nb"><p>{e.link ? <a href={e.link} target="_blank" rel="noopener noreferrer" title={e.title}>{text}</a> : text}</p>
-                <small><span className={"ui-chip p4-tp t-" + (e.topic || "x")}>{tp}</span>{e.category && e.category !== tp ? <> · <span className="p4-cat">{e.category}</span></> : null}{e.source ? <span className="p4-src"> · {e.source}</span> : null}{tag(e.symbol)}</small>
+                <small><SentimentChip s={e.sentiment} /> <span className={"ui-chip p4-tp t-" + (e.topic || "x")}>{tp}</span>{e.category && e.category !== tp ? <> · <span className="p4-cat">{e.category}</span></> : null}{e.source ? <span className="p4-src"> · {e.source}</span> : null}{tag(e.symbol)}</small>
                 {e.summary && <p className="muted p4-sum">{e.summary}</p>}</div>
               {e.link ? <a className="p4-open" href={e.link} target="_blank" rel="noopener noreferrer" aria-label="Open the filing">{Ico.ext}</a> : <span />}
             </li>;

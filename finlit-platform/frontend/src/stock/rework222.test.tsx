@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it } from "vitest";
 import raw from "../lib/__fixtures__/events-TDPOWERSYS-19nov.json";
 import type { Events } from "../lib/api";
@@ -21,7 +22,7 @@ const css = (f: string) => readFileSync(join(__dirname, "..", "styles", f), "utf
 
 describe("18 News and filings (S1)", () => {
   it("the head, the simple words, 4 tiles that open their PDF in a new tab, the chips with counts and 6 rows first", () => {
-    const { container: c } = render(<MemoryRouter><NewsSection e={EV} name="TD Power Systems Ltd" /></MemoryRouter>);
+    const { container: c } = render(<QueryClientProvider client={new QueryClient()}><MemoryRouter><NewsSection e={EV} name="TD Power Systems Ltd" /></MemoryRouter></QueryClientProvider>);
     expect(c.querySelector("#news h2")!.textContent).toBe("What the company has told the exchange");
     expect(c.querySelector("#news .no")!.textContent).toContain("News and filings");
     expect(c.querySelector(".plain")!.textContent).toContain("TD Power Systems has made 24 filings with NSE since 11 Aug 2026, the latest on 16 Nov.");
@@ -41,7 +42,7 @@ describe("18 News and filings (S1)", () => {
     expect(rows(c)[1].classList.contains("open")).toBe(false);
   });
   it("Show all 24 / Show fewer, a chip shows only its group (no empty months), and the routine filing on request (dashed)", () => {
-    const { container: c } = render(<MemoryRouter><NewsSection e={EV} name="TD Power Systems Ltd" /></MemoryRouter>);
+    const { container: c } = render(<QueryClientProvider client={new QueryClient()}><MemoryRouter><NewsSection e={EV} name="TD Power Systems Ltd" /></MemoryRouter></QueryClientProvider>);
     fireEvent.click(screen.getByText("Show all 24"));
     expect(rows(c).length).toBe(24);
     expect(months(c)).toEqual(["November 2026", "October 2026", "September 2026", "August 2026"]);

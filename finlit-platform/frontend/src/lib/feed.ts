@@ -1,7 +1,9 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { apiGet } from "./api";
+import type { Sentiment } from "./sentiment";
 
-export type FeedItem = { id: number; kind: "news" | "result" | "document"; title: string; symbol: string | null; company: string | null; source: string | null; link: string | null; date: string; category: string | null; period: string | null; summary: string | null; auto: boolean; topic?: FeedTopic };
+export type FeedItem = { id: number; kind: "news" | "result" | "document"; title: string; symbol: string | null; company: string | null; source: string | null; link: string | null; date: string; category: string | null; period: string | null; summary: string | null; auto: boolean; topic?: FeedTopic;
+  /** task #365: the sentiment of its wording (-1 .. +1 and its band), null while not scored yet */ sentiment?: Sentiment | null };
 /** FinLit's own topics above the exchange's category, in the order the News & filings page shows them (backend: finlit/feed.py TOPICS). */
 export const FEED_TOPICS = [["results", "Results"], ["orders", "Orders & contracts"], ["people", "Management & board"], ["deals", "Deals & tie-ups"],
   ["capital", "Shares & fund raising"], ["rating", "Credit rating"], ["legal", "Regulatory & legal"], ["meetings", "Meetings & votes"],
