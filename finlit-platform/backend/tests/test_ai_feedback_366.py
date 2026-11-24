@@ -72,3 +72,27 @@ async def test_the_team_reads_totals_by_feature_and_thumbs_down_first(fapp):
     assert {t["surface"]: (t["up"], t["down"]) for t in j["totals"]} == {"ask": (1, 0), "prism_summary": (0, 1)}
     assert j["items"][0]["rating"] == -1
     assert (await c.get("/api/admin/ai-feedback")).status_code in (401, 403)
+
+
+async def test_a_visitor_cannot_vote_on_the_same_answer_again_later_the_same_day(fapp, monkeypatch):
+    """Security checkup (24 Nov 2026): the visitor key used to change every hour, so one address could add a fresh vote on the same answer each
+    hour. It now holds for the whole day: later the same day the vote is changed, not added."""
+    day = 20_000 * 86400
+    monkeypatch.setattr(fb.time, "time", lambda: day + 3600)            # 01:00
+    async with new_client(fapp) as anon:
+        assert (await anon.post("/api/ai-feedback", json=vote(surface="company_brief", ref="TCS|2026-11-20"), headers=ORIGIN)).status_code == 201
+        monkeypatch.setattr(fb.time, "time", lambda: day + 23 * 3600)   # 23:00, same day
+        assert (await anon.post("/api/ai-feedback", json=vote(surface="company_brief", ref="TCS|2026-11-20", rating=-1), headers=ORIGIN)).status_code == 201
+    [r] = await rows(fapp)
+    assert r["rating"] == -1
+
+
+async def test_the_team_sees_member_and_visitor_votes_apart(fapp):
+    c = await signed_in(fapp, "m2@example.com")
+    await c.post("/api/ai-feedback", json=vote())
+    async with new_client(fapp) as anon:
+        await anon.post("/api/ai-feedback", json=vote(rating=-1), headers=ORIGIN)
+    admin = await mfa_admin(fapp, "lead2@example.com")
+    [t] = (await admin.get("/api/admin/ai-feedback")).json()["totals"]
+    assert (t["up"], t["down"]) == (1, 1)
+    assert (t["up_members"], t["down_members"], t["up_visitors"], t["down_visitors"]) == (1, 0, 0, 1)

@@ -42,8 +42,10 @@ def _out(body: Any, status: int = 200) -> Response:
 
 
 def _visitor(request: Request) -> str:
-    """An hourly salted hash of the caller's address: enough to stop one visitor voting many times, never the address itself."""
-    salt = os.environ.get("SESSION_SECRET", "finlit") + str(int(time.time() // 3600))
+    """A daily salted hash of the caller's address: one visitor gets one vote per answer per day, and the address itself is never stored.
+    (Security checkup, 24 Nov 2026: the salt used to change every hour, so one address could vote on the same answer again each hour, up to
+    24 times a day, and tilt the team's totals; a day still keeps a visitor's votes unlinkable from one day to the next.)"""
+    salt = os.environ.get("SESSION_SECRET", "finlit") + str(int(time.time() // 86400))
     return hashlib.sha256((salt + ip_of(request)).encode()).hexdigest()[:24]
 
 
@@ -90,7 +92,8 @@ async def vote(request: Request, body: VoteIn):
 @router.get("/admin/ai-feedback")
 async def admin_list(request: Request, ctx=Depends(admin_ctx), surface: str = Query("", max_length=20), days: int = Query(30, ge=1, le=365),
                      limit_rows: int = Query(100, ge=1, le=500, alias="limit")):
-    """Totals by feature (up and down) over the last `days`, and the latest votes, thumbs down first."""
+    """Totals by feature (up and down) over the last `days`, also split into signed-in members and anonymous visitors (members' votes are one per
+    account and the harder signal to tilt), and the latest votes, thumbs down first."""
     pool = request.app.state.store.pool
     where, args = ["created_at > now() - make_interval(days => $1)"], [days]
     if surface in SURFACES:
@@ -98,7 +101,9 @@ async def admin_list(request: Request, ctx=Depends(admin_ctx), surface: str = Qu
         where.append(f"surface = ${len(args)}")
     w = " AND ".join(where)
     async with pool.acquire() as conn:
-        totals = await conn.fetch(f"SELECT surface, count(*) FILTER (WHERE rating = 1) AS up, count(*) FILTER (WHERE rating = -1) AS down "   # nosec B608 - fixed fragments, bound values
+        totals = await conn.fetch(f"SELECT surface, count(*) FILTER (WHERE rating = 1) AS up, count(*) FILTER (WHERE rating = -1) AS down, "   # nosec B608 - fixed fragments, bound values
+                                  "count(*) FILTER (WHERE rating = 1 AND user_id IS NOT NULL) AS up_members, count(*) FILTER (WHERE rating = -1 AND user_id IS NOT NULL) AS down_members, "
+                                  "count(*) FILTER (WHERE rating = 1 AND user_id IS NULL) AS up_visitors, count(*) FILTER (WHERE rating = -1 AND user_id IS NULL) AS down_visitors "
                                   f"FROM ai_feedback WHERE {w} GROUP BY surface ORDER BY surface", *args)
         args.append(limit_rows)
         rows = await conn.fetch(f"SELECT id, surface, ref, rating, question, excerpt, plan, user_id IS NOT NULL AS member, created_at, updated_at "   # nosec B608 - fixed fragments, bound values
