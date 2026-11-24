@@ -37,3 +37,12 @@ def llm_per_minute(env: Mapping[str, str] = os.environ) -> int:
 
 def llm_per_day(env: Mapping[str, str] = os.environ) -> int:
     return _int(env, "BRIEF_LLM_PER_DAY", LLM_REQUESTS_PER_DAY)
+
+
+THINKING = "low"   # task #328: the writer's thinking before it answers. A thinking model spends MAX_TOKENS_OUT on thinking AND the answer, so with a long annual
+                   # report the JSON was cut off (finishReason MAX_TOKENS). BRIEF_THINKING: minimal | low | medium | high | off (the model's own default)
+
+
+def thinking(env: Mapping[str, str] = os.environ) -> str:
+    v = str(env.get("BRIEF_THINKING", THINKING) or "").strip().lower()
+    return "" if v in ("off", "none", "default") else v

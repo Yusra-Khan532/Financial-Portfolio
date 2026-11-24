@@ -32,6 +32,34 @@ class ProviderError(Exception):
     """Any other failure of one request (5xx, malformed reply, blocked content). The caller counts it and moves on."""
 
 
+class Truncated(ProviderError):
+    """Task #328: the reply stopped at the output limit (finishReason MAX_TOKENS), so its JSON is cut off. `partial` is whatever text came back. A thinking
+    model spends the same output budget on its thinking, so a long prompt can leave little or no room for the answer."""
+
+    def __init__(self, partial: str = "", finish_reason: str = "MAX_TOKENS"):
+        super().__init__(f"the reply was cut off (finishReason {finish_reason})")
+        self.partial, self.finish_reason = partial, finish_reason
+
+
+THINKING_LEVELS = ("minimal", "low", "medium", "high")
+_BUDGET = {"minimal": 0, "low": 1024, "medium": 4096, "high": 8192}
+
+
+def thinking_config(model: str, level: str) -> Optional[dict]:
+    """Task #328: how much the model may think before it answers, in the field its family takes. Gemini 3 and later: thinkingLevel; Gemini 2.5: a token budget
+    (Flash may think 0 tokens, Pro at least 128); other models: none. An empty level or "off" sends nothing (the model's own default)."""
+    lv = (level or "").strip().lower()
+    if lv not in THINKING_LEVELS:
+        return None
+    m = (model or "").lower()
+    if re.match(r"gemini-([3-9]|[1-9]\d)", m):
+        return {"thinkingLevel": lv}
+    if m.startswith("gemini-2.5"):
+        b = _BUDGET[lv]
+        return {"thinkingBudget": b if "flash" in m else max(128, b)}
+    return None
+
+
 class LlmProvider(Protocol):
     name: str
     model: str
@@ -50,8 +78,10 @@ class GeminiProvider:
     BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 
     def __init__(self, api_key: str, model: str, transport: Optional[httpx.AsyncBaseTransport] = None, timeout: float = 180.0, max_output_tokens: int = 8192,
-                 user_agent: str = "FinLit-earnings/1.0 (+https://finlitventures.com)"):
+                 user_agent: str = "FinLit-earnings/1.0 (+https://finlitventures.com)", thinking: str = ""):
         self.api_key, self.model, self.max_output_tokens = (api_key or "").strip(), model, max_output_tokens
+        self.thinking = thinking_config(model, thinking)       # None: the model's default (the earnings-call summaries keep theirs)
+        self.last: dict = {}                                   # the last reply's finishReason and token counts (task #328); never the text
         self._client = httpx.AsyncClient(timeout=httpx.Timeout(timeout, connect=15.0), transport=transport, headers={"User-Agent": user_agent})
 
     @property
@@ -61,12 +91,18 @@ class GeminiProvider:
     async def generate(self, system: str, user: str) -> str:
         if not self.api_key:
             raise NotConfigured("GEMINI_API_KEY is empty")
-        body = {"systemInstruction": {"parts": [{"text": system}]}, "contents": [{"role": "user", "parts": [{"text": user}]}],
-                "generationConfig": {"temperature": 0.0, "responseMimeType": "application/json", "maxOutputTokens": self.max_output_tokens}}
-        try:
-            r = await self._client.post(f"{self.BASE}/{self.model}:generateContent", json=body, headers={"x-goog-api-key": self.api_key})
-        except httpx.TransportError as exc:
-            raise ProviderError(f"network: {type(exc).__name__}") from None
+        gen = {"temperature": 0.0, "responseMimeType": "application/json", "maxOutputTokens": self.max_output_tokens}
+        if self.thinking:
+            gen["thinkingConfig"] = dict(self.thinking)
+        body = {"systemInstruction": {"parts": [{"text": system}]}, "contents": [{"role": "user", "parts": [{"text": user}]}], "generationConfig": gen}
+        self.last = {}
+        r = await self._post(body)
+        if r.status_code == 400 and "thinkingConfig" in gen and re.search(r"thinking", r.text or "", re.I):
+            # this model does not take the thinking setting: send without it from now on (one wasted request, never a failed company)
+            log.info("gemini %s refused thinkingConfig; sending without it", self.model)
+            self.thinking = None
+            gen.pop("thinkingConfig")
+            r = await self._post(body)
         if r.status_code == 429:
             raise RateLimited(*_retry_after(r), detail=_quota_ids(r))
         if r.status_code in (401, 403):
@@ -75,15 +111,29 @@ class GeminiProvider:
             raise ProviderError(f"HTTP {r.status_code}")
         try:
             data = r.json()
-            parts = data["candidates"][0]["content"]["parts"]
-            return "".join(p.get("text", "") for p in parts)
-        except (ValueError, KeyError, IndexError, TypeError):
-            reason = ""
-            try:
-                reason = str(r.json().get("promptFeedback") or r.json()["candidates"][0].get("finishReason") or "")[:80]
-            except Exception:
-                pass
-            raise ProviderError("no text in the reply " + reason) from None
+        except ValueError:
+            raise ProviderError("the reply was not JSON") from None
+        if not isinstance(data, dict):
+            raise ProviderError("the reply was not an object")
+        cand = (data.get("candidates") or [{}])[0] or {}
+        finish = str(cand.get("finishReason") or "")
+        use = data.get("usageMetadata") or {}
+        self.last = {"finish": finish or None, "prompt_tokens": use.get("promptTokenCount"), "out_tokens": use.get("candidatesTokenCount"),
+                     "thought_tokens": use.get("thoughtsTokenCount")}
+        parts = (cand.get("content") or {}).get("parts") or []
+        text = "".join(p.get("text", "") for p in parts if isinstance(p, dict) and not p.get("thought"))
+        if finish == "MAX_TOKENS":
+            raise Truncated(text, finish)
+        if not text:
+            why = finish or str(data.get("promptFeedback") or "")[:80]
+            raise ProviderError(f"no text in the reply (finishReason {why or 'none'})")
+        return text
+
+    async def _post(self, body: dict) -> httpx.Response:
+        try:
+            return await self._client.post(f"{self.BASE}/{self.model}:generateContent", json=body, headers={"x-goog-api-key": self.api_key})
+        except httpx.TransportError as exc:
+            raise ProviderError(f"network: {type(exc).__name__}") from None
 
     async def aclose(self) -> None:
         await self._client.aclose()

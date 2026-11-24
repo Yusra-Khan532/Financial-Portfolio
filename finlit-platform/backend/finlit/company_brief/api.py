@@ -42,8 +42,14 @@ REASONS = {
     "report_not_downloaded": "The annual report could not be downloaded from the address on file; it will be tried again.",
     "report_unread": "The annual report could not be read; it will be tried again.",
     "writer_failed": "A brief was written but did not pass the citation checks; it will be tried again.",
+    # task #328: the other ways a writing attempt ends without a draft, each said as it is (the citation wording above only for that case)
+    "writer_unavailable": "The writing service did not answer; it will be tried again.",
+    "writer_cut_off": "The writer's answer was cut off; it will be tried again with fewer pages.",
+    "writer_unreadable": "The writer's answer could not be read; it will be tried again.",
+    "writer_empty": "The writer's answer held none of the brief's parts; it will be tried again.",
 }
-FAILED = {"failed_download": "report_not_downloaded", "failed_unreadable": "report_unread", "failed_output": "writer_failed"}
+FAILED = {"failed_download": "report_not_downloaded", "failed_unreadable": "report_unread", "failed_checks": "writer_failed",
+          "failed_writer": "writer_unavailable", "failed_cutoff": "writer_cut_off", "failed_output": "writer_unreadable", "failed_noparts": "writer_empty"}
 
 
 def _obj(v: Any) -> Any:
