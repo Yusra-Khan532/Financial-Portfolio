@@ -18,6 +18,7 @@ import "../styles/task359.css";   // task #359: Hide filters in the box, the scr
 import "../styles/etf351.css";
 import "../styles/task354.css";   // task #354: the Hide filters outline
 import "../styles/task360.css";   // task #360: the toolbar stays in place; hidden filters leave a slim Show filters column
+import "../styles/task363.css";   // task #363: the folded Show filters fits its words
 import "../styles/etfvs.css";
 
 const COLS_KEY = "etf-cols";   // versioned by lib/persist: a different version or unknown column ids fall back to the default
