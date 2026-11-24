@@ -24,6 +24,7 @@ import { SORTS } from "../lib/mfScreenDefs";
 import "../styles/task356.css";   // task #356: the preset rows
 import { FlowBars, RiskReturn } from "../mf/screen/Graphics";
 import { Panel } from "../mf/screen/Panel";
+import "../styles/task357.css";   // task #357: hidden filters, the vertical Show filters (its rules start at .mfs-page, so load order does not matter)
 import { ResultTable } from "../mf/screen/Results";
 import "../styles/fgx.css";
 import "../styles/mf.css";
@@ -139,8 +140,8 @@ export function MfScreenerPage() {
         sort={<SortMenu value={sortVal} options={sorts.map((s) => ({ v: `${s.v}:${s.dir}`, label: s.label }))}
           onPick={(v) => { const [k, d] = v.split(":"); go({ sort: k, dir: d as "asc" | "desc", page: 1 }); }} />} />
 
-      {/* Task #350: hiding the filters keeps their column, so the results never move: the column holds a slim "Show filters" button that stays in view
-          while the page scrolls (the column is sticky), and reopens the panel in the same place. */}
+      {/* Task #357 (team, 23 Nov 2026, replacing #350's kept column): hiding the filters lets the table take the width, and a slim vertical "Show filters"
+          button stays at the left in view while the page scrolls (the column is sticky), as on the Mutual funds page. */}
       <div className={"mfs-layout" + (shut ? " is-shut" : "")} style={{ "--side-w": `${sideW || SIDE.def}px` } as React.CSSProperties}>
         <aside className={"card mfs-side" + (shut ? " is-shut" : "")} aria-label="Filters">
           {shut ? <button type="button" className="mfs-showf" onClick={showPanel} aria-expanded="false" aria-controls="mfs-side-body"><Icon name="panel" /><span>Show filters</span>{shown > 0 && <b aria-label={`${shown} on`}>{shown}</b>}</button> : <div id="mfs-side-body" className="mfs-side-body">
@@ -153,7 +154,7 @@ export function MfScreenerPage() {
           {small && <div className="mfs-foot"><button type="button" className="btn primary" onClick={() => document.getElementById("mfs-results")?.scrollIntoView({ block: "start" })}>Show {list.data ? nf(total, 0) : ""} fund{total === 1 ? "" : "s"}</button></div>}
           </div>}
         </aside>
-        {!small && (shut ? <div className="mfs-split-ph" aria-hidden="true" /> : <SplitDivider width={sideW || SIDE.def} set={resizePanel} />)}
+        {!small && !shut && <SplitDivider width={sideW || SIDE.def} set={resizePanel} />}   {/* task #357: hidden filters give the table the width; no reserved column */}
 
         <section className="card mfs-main" id="mfs-results" aria-label="Results">
           <div className="mfs-rbar">

@@ -23,8 +23,6 @@
 .mfs-side-body { animation: mfs-in .16s ease; }
 @keyframes mfs-in { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .mfs-side-body { animation: none; } .mfs-showf { transition: none; } }
-.mfs-split-ph { min-width: 0; }
-@media (max-width: 1000px) { .mfs-split-ph { display: none; } }
 .mfs-grab, .mfs-foot { display: none; }
 .mfs-sh-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 0 10px; font: 600 var(--fs-13) var(--sans); color: var(--muted); flex-wrap: wrap; }
 .mfs-sh-t { color: var(--text); }
