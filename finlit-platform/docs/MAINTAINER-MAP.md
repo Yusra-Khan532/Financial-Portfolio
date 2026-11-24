@@ -76,6 +76,7 @@ Written 17 Nov 2026 from a full read of the repository, the team workspace and t
     - `supervisor.py`, `runner.py`: run each job and kill it by process group.
   - Time windows (IST): night 23:00–05:00, morning 05:00–08:00, after close 18:30–21:30.
   - Nightly scores export (task #326, `docs/SCORES-EXPORT.md`): job `scores-export` after presets writes one file per market day to the `scores_export` volume; the owner's Mac reads `/internal/export/scores` with `X-Export-Key` (`EXPORT_KEY` in `/opt/finlit/.env.aws`).
+  - Monitoring (owner, 24 Nov 2026, `docs/MONITORING.md`): the `gatus` container checks the public site every minute and emails on failure and recovery through Resend's SMTP (`RESEND_API_KEY`, `ALERT_EMAIL_TO` in `.env.aws`); GitHub Actions `platform-uptime.yml` (outside check, every 5 min) and `platform-load.yml` (k6, nightly and Sunday night); optional `uptime-kuma` (`COMPOSE_PROFILES=kuma`). Public `/status`, admin Console → Monitoring (`backend/finlit/monitoring.py`).
 - **Database:**
   - `finlit/migrations/NNN_*.sql` are applied in filename order. The latest is `106_company_classification.sql`, and numbers have gaps, so the next one is `107_`.
   - Migrations only go forward: a rollback does not undo them.
