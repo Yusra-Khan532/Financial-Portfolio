@@ -14,6 +14,7 @@ import { TABLE_FOOT } from "./words";
 import type { Meta, Mode, PageObject } from "./types";
 import { PEER_WORD, type Share } from "../lib/equityPack";
 import { prismBandWord } from "../lib/scoreBands";
+import { bandLegend, fmtScore, ratingWord, type TrendTone } from "../lib/prismTechnical";
 import { nseLevels } from "../lib/nseTaxonomy";
 import { capBucket, SIZE_SHORTS } from "../lib/capBuckets";
 import { coTitle, isBseCode, sortLabel, subLine, titleOf } from "../lib/companyLabel";
@@ -21,7 +22,7 @@ import { GroupBand, HOLD_COLS, HoldingHeads, HoldingRowCells, LotRows, LotToggle
 import { EditSellLinks } from "./EditSell";
 import { FilterChips, FilterRow, applyFilters, filterDefs, trendScoreWord, trendWord, type Getters, type Picks } from "./ShareFilters";
 import { aggOf } from "../lib/ledger";
-import { CAP_SHARES, CAP_PHONE_LIST, Info, Pct, ShowAll, TREND_READINGS, capRows, corrWord, countOf, togetherWindow, nextSort, rupees, rupeesSigned, sortRows, trendReading, trendSide, trendTone,
+import { CAP_SHARES, CAP_PHONE_LIST, Info, Pct, ShowAll, TREND_READINGS, capRows, corrWord, countOf, togetherWindow, nextSort, rupees, rupeesSigned, sortRows, trendReading, trendSide,
   SIDE_WORD, nameCase, type SortCol, type SortKind, type SortState } from "./shared";
 import { PhoneList } from "./pack/PhoneList385";
 import { AccountsButton, DeskOnly, type AccountQty } from "./pack/Round388";
@@ -85,7 +86,7 @@ export function SharesTable(p: Props) {
   const allCols = useMemo(() => columnsFor(tab, model, period).filter((c) => c.id !== "share" && !(ov && c.id === "cap")), [tab, model, period, ov]);
   // task #235 (pack B7): with the holding groups, Latest price and Today sit in WHAT IT IS WORTH NOW, not among the score columns
   const PRICE_COL = allCols.find((c) => c.id === "price")!, CHANGE_COL = allCols.find((c) => c.id === "change")!;
-  const cols = useMemo(() => (ov && p.lots ? allCols.filter((c) => c.id !== "price" && c.id !== "change") : allCols).filter((c) => !(ov && c.id === "t_shortTerm")), [allCols, ov, p.lots]);
+  const cols = useMemo(() => (ov && p.lots ? allCols.filter((c) => c.id !== "price" && c.id !== "change") : allCols), [allCols, ov, p.lots]);
   const rest = page?.avg_with_rest ?? {};
   const letter = useMemo(() => new Map((page?.groups ?? []).flatMap((g) => g.members.map((m) => [m, g.letter] as const))), [page]);
   // task #385 (developer file 33, Sorting; live bug 16): one rule for every column: text A to Z first, figures high to low first, words by rank
@@ -129,11 +130,11 @@ export function SharesTable(p: Props) {
       now: (l: Line) => holdingFigs(p.lots!, l.symbol).now, gain: (l: Line) => holdingFigs(p.lots!, l.symbol).gain, gainPct: (l: Line) => holdingFigs(p.lots!, l.symbol).gainPct,
       qty: (l: Line) => holdingFigs(p.lots!, l.symbol).a?.qty ?? null, price: (l: Line) => priceOf(l), change: (l: Line) => (isReady(l.ov) ? l.ov.changePct : null) } : {}), rest: (l) => rest[l.symbol] ?? null };
   const techOf = (l: Line) => (isReady(l.ov) ? trendReading(l.ov.prism?.shortTerm?.score, l.ov.prism?.longTerm?.score) : null);
-  const kindOf = (id: string): SortKind => (id === "share" || id === "yearEnd" || id === "basis" ? "text" : id === "size" ? { rank: ["Large", "Mid", "Small", "Micro"] } : id === "peer" ? { rank: "peer" } : id === "tech" ? { rank: "trend" } : "num");
+  // task #388 (developer file 38, A3): Short term and Long term sort by their scores like the Prism column, high to low first
+  const kindOf = (id: string): SortKind => (id === "share" || id === "yearEnd" || id === "basis" ? "text" : id === "size" ? { rank: ["Large", "Mid", "Small", "Micro"] } : id === "peer" ? { rank: "peer" } : "num");
   const getOf = (id: string): ((l: Line) => string | number | null | undefined) => {
     if (extra[id]) return extra[id];
     if (id === "peer") return (l) => { const pk = p.peerOf?.(l.symbol)?.peer; return pk ? PEER_WORD[pk.label] : p.peerOf?.(l.symbol) ? "Not compared" : null; };
-    if (id === "tech") return techOf;
     const c = allCols.find((x) => x.id === id);
     return (l) => (c?.sort && isReady(l.ov) ? (c.sort(l.ov) as string | number | null) : null);
   };
@@ -170,12 +171,15 @@ export function SharesTable(p: Props) {
   const groupCls = (id: string) => (ov && id === firstPart ? "eq-div" : ov && id === firstTech ? "eq-div2" : ov && p.editSell && id === "score" ? "eq-divp" : "");
   const cell = (h: Ready, c: Col): ReactNode => {
     const g = groupCls(c.id);
-    if (c.id === "price") return <td key={c.id} className="r">{h.price == null ? <Dash why="No price in the stored report." /> : priceText(h.price)}</td>;
-    if (c.id === "change") return <td key={c.id} className="r">{h.changePct == null ? <Dash why="No change in the stored report." /> : <span className={h.changePct > 0 ? "pfx-up" : h.changePct < 0 ? "pfx-down" : ""}>{changeText(h.changePct)}</span>}</td>;
+    // task #388 (developer file 38, T3): in the holding groups, Latest price and Today carry their group's classes like Value now, so the blue line and
+    // tint of WHAT IT IS WORTH NOW run from the heading to the last row (and the Columns menu hides them with their headings)
+    const inWorth = ov && !!p.lots;
+    if (c.id === "price") return <td key={c.id} className={inWorth ? "r x-c2 x-gs cg-h" : "r"}>{h.price == null ? <Dash why="No price in the stored report." /> : priceText(h.price)}</td>;
+    if (c.id === "change") return <td key={c.id} className={inWorth ? "r x-c2 cg-h" : "r"}>{h.changePct == null ? <Dash why="No change in the stored report." /> : <span className={h.changePct > 0 ? "pfx-up" : h.changePct < 0 ? "pfx-down" : ""}>{changeText(h.changePct)}</span>}</td>;
     if (c.id === "cap") return <td key={c.id} className="r">{h.marketCapCr == null ? <Dash why="No market cap in the stored report." /> : `₹${money(h.marketCapCr)} Cr`}</td>;
     if (c.id === "score") { const v = scoreOf(h, model).value; return <td key={c.id} className={("c " + groupCls(c.id)).trim()}><span className="eq-ps"><Chip v={v} big why={scoreWhy(h, model) || undefined} />{v != null && <small className={"eq-pw " + (v >= 70 ? "hi" : v >= 50 ? "mid" : "lo")}>{prismBandWord(v, h.prism?.label)}</small>}</span></td>; }
     if (c.id.startsWith("p_")) { const k = c.id.slice(2), d = parts.find((x) => x.id === k); return <td key={c.id} className={("c " + g).trim()}><PartChip v={d?.get(h)} why={`${c.label}: not scored for this company`} /></td>; }
-    if (ov && c.id === "t_longTerm") return <td key={c.id} className={(g + " eq-tvc").trim()}><TechCell st={h.prism?.shortTerm} lt={h.prism?.longTerm} below={p.peerOf?.(h.symbol)?.below52 ?? null} /></td>;
+    if (ov && c.id.startsWith("t_")) return <td key={c.id} className={("c eq-tvx " + g).trim()}><TechChip t={h.prism?.[c.id.slice(2) as "shortTerm" | "longTerm"]} /></td>;
     if (c.id.startsWith("t_")) return <td key={c.id} className={g || undefined}><TrendCell t={h.prism?.[c.id.slice(2) as "shortTerm" | "longTerm"]} /></td>;
     if (c.id === "yearEnd") { const st = h.financials[period]; return <td key={c.id}>{st.periodEnd ? monthYear(st.periodEnd) : <Dash why={blankWhy(h, "revenue", period) || "No statement is stored yet."} />}</td>; }
     if (c.id === "basis") return <td key={c.id}>{h.basis ? BASIS_WORD[h.basis] : <Dash why="The report does not say which statement it used." />}</td>;
@@ -244,18 +248,16 @@ export function SharesTable(p: Props) {
       {ov && p.peerOf && <td />}{ov && <td className="r">{restAvg(ls) == null ? "" : short2(restAvg(ls)!)}</td>}{!p.editSell && <td />}</tr>);
   const nParts = cols.filter((c) => c.id.startsWith("p_") || (c.id.startsWith("f_") && c.id !== "f_technical")).length, nTech = cols.filter((c) => c.id.startsWith("t_") || c.id === "f_technical").length;
   const band1 = ov && (<tr className="eq-band" aria-hidden="true">{p.lots ? <><th colSpan={2} /><GroupBand /></> : <th colSpan={lead + cols.filter((c) => c.id === "price" || c.id === "change").length} />}
-    {model === "prism" && <><th colSpan={1 + nParts} scope="colgroup" className="c cg-s eq-gpr">FinLit Prism · fundamental score<Info about="FinLit Prism" text="FinLit Prism is the fundamental score, 0 to 100, from four parts read from the company's own figures: G&P (growth and profitability), valuation, quality and risk. The trends are not part of it." /></th>
-      <th colSpan={nTech} scope="colgroup" className="eq-div2 cg-s eq-gtv">Technical view<Info about="Technical view" text="FinLit Prism's technical view, kept out of the score: the short-term trend (the last few weeks) and the long-term trend (months), each from −100 to +100, and the reading the two make together: the same nine readings as the Trends section." /></th></>}
+    {/* task #388 (developer file 38, T4/F4): the Prism group heading carries the same 3px line as its columns (eq-divp), so the line no longer breaks */}
+    {model === "prism" && <><th colSpan={1 + nParts} scope="colgroup" className={"c cg-s eq-gpr" + (p.editSell ? " eq-divp" : "")}>FinLit Prism · fundamental score<Info about="FinLit Prism" text="FinLit Prism is the fundamental score, 0 to 100, from four parts read from the company's own figures: G&P (growth and profitability), valuation, quality and risk. The trends are not part of it." /></th>
+      <th colSpan={nTech} scope="colgroup" className="eq-div2 cg-s eq-gtv">Technical view<Info about="Technical view" text={`FinLit Prism's technical view, kept out of the score: the short-term trend (the last few weeks) and the long-term trend (months), each from −100 to +100 with its word, as on the company report. ${bandLegend()} What the two make together is in the Short- and long-term trend section.`} /></th></>}
     <th colSpan={(p.peerOf ? 1 : 0) + 2} className="eq-div2 cg-s">Against peers</th></tr>);
   const th = (<tr>{head({ id: "share", label: "Share" })}
     {ov && head({ id: "size", label: p.editSell ? "Industry · size" : "Size", cls: p.editSell ? "pfs-indh" : undefined })}
     {ov && !p.lots && head({ id: "qty", label: "Qty", num: true })}
     {ov && p.lots && <HoldingHeads sortHead={(id, label, cls) => head({ id, label, num: true, cls })} today="Today" />}
     {ov && !p.lots && head({ id: "value", label: "Value", num: true })}
-    {cols.map((c) => ov && c.id === "t_longTerm" ? <th key="tech" scope="col" className={(groupCls(c.id) + " eq-tvh").trim()} aria-sort={sortId === "tech" || sortId === "t_shortTerm" || sortId === "t_longTerm" ? (dir === 1 ? "ascending" : "descending") : "none"}>
-        <button type="button" className="pfx-sort" onClick={() => clickSort("tech")}>Trend<i aria-hidden="true">{sortId === "tech" ? (dir === 1 ? "▲" : "▼") : ""}</i></button>
-        <span className="eq-tvs" role="group" aria-label="Sort by one trend">{([["t_shortTerm", "Short"], ["t_longTerm", "Long"]] as const).map(([id, l]) => <button key={id} type="button" aria-pressed={sortId === id} aria-label={`Sort by the ${l.toLowerCase()}-term trend`} onClick={() => clickSort(id)}>{l}{sortId === id ? (dir === 1 ? " ▲" : " ▼") : ""}</button>)}</span></th>
-      : head({ id: c.id, cls: groupCls(c.id), label: ov && (c.id.startsWith("p_") || c.id.startsWith("f_")) ? (model === "finlit" ? c.label : parts.find((d) => d.id === c.id.slice(2))?.short ?? c.label) : c.id === "score" ? "Prism" : c.id === "t_shortTerm" ? "Short term" : c.id === "t_longTerm" ? "Long term" : c.id === "change" ? "Today" : c.label.replace(/ \(.*\)$/, ""), hint: c.hint ? `${c.label}. ${c.hint}` : c.label, num: c.num && !c.id.startsWith("t_"),
+    {cols.map((c) => head({ id: c.id, cls: ((ov && c.id.startsWith("t_") ? "c " : "") + groupCls(c.id)).trim(), label: ov && (c.id.startsWith("p_") || c.id.startsWith("f_")) ? (model === "finlit" ? c.label : parts.find((d) => d.id === c.id.slice(2))?.short ?? c.label) : c.id === "score" ? "Prism" : c.id === "t_shortTerm" ? "Short term" : c.id === "t_longTerm" ? "Long term" : c.id === "change" ? "Today" : c.label.replace(/ \(.*\)$/, ""), hint: c.hint ? `${c.label}. ${c.hint}` : c.label, num: c.num && !c.id.startsWith("t_"),
         sub: c.id === "p_valuation" ? "Strong = cheaper" : c.id === "p_risk" ? "Strong = safer" : undefined }))}
     {ov && p.peerOf && head({ id: "peer", label: "Vs its peers", cls: "eq-div2", extra: <Info about="Vs its peers" text="The share price over the last 12 months against similar companies and the sector index, with its place among them." how="Leader: among the strongest and ahead of the index. In line: in between. Laggard: among the weakest and behind it. It describes the past, not the future." /> })}
     {ov && head({ id: "rest", label: "Moves with rest", hint: "A share's average correlation with the other shares in the list", num: true, extra: <Info about="Moves with rest" text={`The share's average correlation with the other shares in the list, from ${togetherWindow(page?.weeks)} (the same figure as Each share against the rest in Diversification): near 0 it goes its own way, near 1 it moves with them. The word beside it reads the figure: below 0.2 barely, 0.2 to 0.4 loosely, 0.4 to 0.6 partly, 0.6 and up closely.`} /> })}{!p.editSell && <th scope="col"><span className="sr-only">Actions</span></th>}</tr>);
@@ -336,15 +338,19 @@ export function SharesTable(p: Props) {
 }
 const FragmentRows = ({ children }: { children: ReactNode }) => <>{children}</>;
 
-/** Task #385 (developer file 33): one cell for both trends, under the Technical view heading: the reading the pair makes (the nine readings of the Trends
- *  section), both bars with their scores, and how far the share is below its 1-year high. */
-function TechCell({ st, lt, below }: { st: { score: number | null; word: string | null } | null | undefined; lt: { score: number | null; word: string | null } | null | undefined; below: number | null }) {
-  const r = trendReading(st?.score, lt?.score);
-  const bar = (v: number | null | undefined, k: string) => { if (v == null) return <span className="eq-tvr"><em>{k}</em><span className="pfx-dash">{MINUS}</span></span>; const x = Math.max(-100, Math.min(100, v));
-    return <span className="eq-tvr"><em>{k}</em><span className="eq-trb" aria-hidden="true"><i className={x >= 0 ? "up" : "dn"} style={{ width: `${Math.abs(x) / 2}%`, [x >= 0 ? "left" : "right"]: "50%" } as React.CSSProperties} /></span><b>{x > 0 ? "+" : x < 0 ? MINUS : ""}{Math.abs(Math.round(x))}</b></span>; };
-  if (!r && st?.score == null && lt?.score == null) return <span className="pfx-dash" title="Not calculated for this rating.">{MINUS}<span className="sr-only"> not calculated for this rating</span></span>;
-  return <span className="eq-tv">{r && <b className={"eq-ts t-" + trendTone(r)}>{r}</b>}{bar(st?.score, "Short")}{bar(lt?.score, "Long")}
-    {below != null && <small className="eq-hi">{below <= 0.05 ? "At its 1-year high" : `${below.toFixed(1)}% below its 1-year high`}</small>}</span>;
+/** Task #388 (developer file 38, A3): a technical horizon read like the Prism cell: a score chip ("+57", "−22", "0") and its word, both from the
+ *  company report header's own functions (fmtScore, ratingWord: bands 50 / 20 / −20 / −50), so the table and the report never disagree. The colour is
+ *  the report's: green for an uptrend, orange sideways, red a downtrend. No score: a dash that says why. */
+export const TECH_TONE_BAND: Record<TrendTone, "hi" | "mid" | "lo" | null> = { strongpos: "hi", pos: "hi", neutral: "mid", neg: "lo", strongneg: "lo", na: null };
+export function techView(t: { score: number | null; word: string | null } | null | undefined): { score: string; word: string; band: "hi" | "mid" | "lo" } | null {
+  if (!t || t.score == null || !Number.isFinite(t.score)) return null;
+  const w = ratingWord(t.word, t.score), band = TECH_TONE_BAND[w.tone];
+  return band ? { score: fmtScore(t.score), word: w.word, band } : null;
+}
+function TechChip({ t }: { t: { score: number | null; word: string | null } | null | undefined }) {
+  const v = techView(t);
+  if (!v) return <span className="pfx-sc na" title="Not calculated for this rating.">{MINUS}<span className="sr-only"> not calculated for this rating</span></span>;
+  return <span className="eq-ps"><span className="pfx-sc big" style={{ background: `color-mix(in srgb, ${bandVar(v.band)} 18%, var(--s1))`, color: bandInk(v.band) }}>{v.score}</span><small className={"eq-pw " + v.band}>{v.word}</small></span>;
 }
 
 /** "30 in My portfolio · 20 in Upstox": how many of a share sit in each account, when it sits in two or more (All accounts only). */

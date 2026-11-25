@@ -145,7 +145,7 @@ describe("E1 and S3: nothing shows above, below or round the floating bar", () =
   });
   it("the CSS: the header (and the phone's chips) paint the 8px strip without touching their own shadows, the tools row paints the 6px gap, the bars' rounded ends are backed", () => {
     const top = src("./pagetop.css"), kit = src("../kit/kit.css"), r = src("./round388.css");
-    expect(top).toMatch(/:root\.x-hstrip \.top::before, :root\.x-hstrip \.ma-hub::before \{ content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 8px; background: var\(--bg\); pointer-events: none; \}/);
+    expect(top).toMatch(/:root\.x-hstrip \.top::before, :root\.x-hstrip \.ma-hub::before \{ content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 8px; background: var\(--bg\); \}/);   // task #388 (file 38, F5): a real cover, no pointer-events: none
     expect(top).not.toMatch(/x-hstrip[^{]*\{[^}]*box-shadow/);
     expect(r).toMatch(/\.eq #pf-shares \.pfx-tools\.pfh\.stuck \{ box-shadow: 0 -6px 0 var\(--bg\), var\(--ui-row-shadow\); \}/);
     expect(src("../add-shares.css")).toMatch(/\.pfx-tools\.pfh\.stuck \{[^}]*box-shadow: 0 10px 18px -16px rgba\(0, 0, 0, \.45\);/);   // the token is the row's own shadow

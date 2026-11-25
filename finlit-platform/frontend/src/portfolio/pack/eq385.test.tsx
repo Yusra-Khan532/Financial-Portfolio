@@ -213,17 +213,18 @@ const table = (tab: "overview" | "sector" | "ratios" = "overview", lines = LINES
 const order = () => [...document.querySelectorAll("#pf-panel tbody tr[data-sym]")].map((r) => r.getAttribute("data-sym"));
 
 describe("Your shares (file 33)", () => {
-  it("the count reads up to the plan's limit; one heading over the score and its four parts; Strong = cheaper / safer; one Technical view column", () => {
+  it("the count reads up to the plan's limit; one heading over the score and its four parts; Strong = cheaper / safer; Technical view as Short term and Long term (file 38, A3)", () => {
     table();
     expect(document.querySelector(".pfx-count")!.textContent).toBe("3 shares · up to 50");
     const band = [...document.querySelectorAll(".eq-band th")].map((t) => t.textContent).filter(Boolean);
     expect(band).toContain("FinLit Prism · fundamental scorei"); expect(band).toContain("Technical viewi");
     expect(document.querySelector(".eq-gpr")!.getAttribute("colspan")).toBe("5");
     expect(document.querySelector("#pf-panel thead")!.textContent).toMatch(/Val\.[^]*Strong = cheaper/); expect(document.querySelector("#pf-panel thead")!.textContent).toMatch(/Risk[^]*Strong = safer/);
-    expect(document.querySelector("#pf-panel thead")!.textContent).not.toMatch(/Short term|Long term/);
-    const aaa = document.querySelector('tr[data-sym="AAA"] .eq-tv')!.textContent!;
-    expect(aaa).toMatch(/^Rising/); expect(aaa).toContain("7.6% below its 1-year high");
-    expect(document.querySelector('tr[data-sym="BBB"] .eq-ts')!.textContent).toBe("Rising but dipping");
+    // task #388 (developer file 38, A3): two columns with a chip and its word; the pair word and the 1-year high left this table (A3a)
+    expect(document.querySelector("#pf-panel thead")!.textContent).toMatch(/Short term[^]*Long term/);
+    expect([...document.querySelectorAll('tr[data-sym="AAA"] td.eq-tvx')].map((c) => c.textContent)).toEqual(["+30Uptrend", "+60Strong uptrend"]);
+    expect(document.querySelector('tr[data-sym="AAA"]')!.textContent).not.toMatch(/1-year high|Rising/);
+    expect(document.querySelector('tr[data-sym="BBB"] td.eq-tvx')!.textContent).toBe("−30Downtrend");
   });
   it("a share in two accounts says how many in each; Record a sale; Today in every view; 0.0% for a change that rounds to zero", () => {
     table();
@@ -245,8 +246,10 @@ describe("Your shares (file 33)", () => {
     fireEvent.click(head(/^Value now/)); expect(order()).toEqual(["AAA", "CCC", "BBB"]); expect(head(/^Value now/).textContent).toContain("▼");
     fireEvent.click(head(/^Vs its peers/)); expect(order()).toEqual(["AAA", "BBB", "CCC"]);   // Leader, Laggard, Not compared
     fireEvent.click(head(/^Val\./)); expect(order()[0]).toBe("CCC");                        // the part's own figure, high to low
-    fireEvent.click(head(/^Trend/)); expect(order()).toEqual(["AAA", "BBB", "CCC"]);        // Rising > Rising but dipping > Falling
-    fireEvent.click(screen.getByRole("button", { name: "Sort by the short-term trend" })); expect(order()).toEqual(["AAA", "BBB", "CCC"]);
+    fireEvent.click(head(/^Short term/)); expect(order()).toEqual(["AAA", "BBB", "CCC"]);   // +30 > −30 > −40, high to low first (file 38, A3)
+    expect(head(/^Short term/).closest("th")!.getAttribute("aria-sort")).toBe("descending");
+    fireEvent.click(head(/^Short term/)); expect(order()).toEqual(["CCC", "BBB", "AAA"]);
+    fireEvent.click(head(/^Long term/)); expect(order()[2]).toBe("CCC");                       // −50 last
   });
   it("Moves with rest keeps its word; By sector reads as subtotal rows with the group's share of the money", () => {
     table("sector");

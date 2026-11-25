@@ -20,9 +20,13 @@ th[aria-sort="ascending"] .eqs-sort, th[aria-sort="descending"] .eqs-sort { colo
 .eqs-frz table th:first-child, .eqs-frz table td:first-child { position: sticky; left: 0; z-index: 2; background: var(--s1); }
 .eqs-frz table thead th { background: var(--s1); }
 .eqs-frz table thead th:first-child { z-index: 4; }
-.eqs-frz thead.is-pinned th { transform: translateY(var(--pin, 0px)); z-index: 5; position: relative; }
-.eqs-frz thead.is-pinned th:first-child { position: sticky; z-index: 6; }
-.eqs-frz thead.is-pinned tr:last-child th { box-shadow: 0 8px 12px -12px color-mix(in srgb, var(--text) 50%, transparent); }
+/* Task #388 (developer file 38, F2): every heading cell moves with the pin, a <td> as well as a <th> (the Diversification grids' corner was a <td>, so the
+   row headings slid over the pinned heading; the corners are <th> now and this keeps any other table safe), and the pinned heading has a clear lower
+   edge (a line and a soft shadow), so a half-hidden row never reads as part of it */
+.eqs-frz thead.is-pinned > tr > :is(th, td) { transform: translateY(var(--pin, 0px)); z-index: 5; position: relative; }
+.eqs-frz thead.is-pinned > tr > td { background-color: var(--s1); }
+.eqs-frz thead.is-pinned > tr > :is(th, td):first-child { position: sticky; z-index: 6; }
+.eqs-frz thead.is-pinned tr:last-child > :is(th, td) { box-shadow: 0 1px 0 var(--border-strong), 0 8px 12px -12px color-mix(in srgb, var(--text) 55%, transparent); }
 .eqs-frz.is-scrolled table td:first-child, .eqs-frz.is-scrolled table th:first-child { box-shadow: 6px 0 8px -6px color-mix(in srgb, var(--text) 30%, transparent); }
 
 /* ===== Key figures: a question, one big answer, worth a look ===== */

@@ -130,16 +130,18 @@
 /* ===== Your shares: headings, the technical view, the account split, subtotal rows, Enlarge ===== */
 .eq .eqs-hsub { display: block; margin-top: 2px; font: 500 var(--fs-12)/1.2 var(--sans); letter-spacing: 0; text-transform: none; color: var(--muted); }
 .eq .eq-gpr, .eq .eq-gtv { white-space: nowrap; }
-.eq .eq-tvh { min-width: 170px; }
-.eq .eq-tvs { display: inline-flex; gap: 4px; margin-left: 6px; vertical-align: middle; }
-.eq .eq-tvs button { min-height: 24px; padding: 0 7px; border: 1px solid var(--border); border-radius: var(--ui-r-pill); background: var(--s1); color: var(--text); font: 600 var(--fs-12)/1 var(--sans); letter-spacing: 0; text-transform: none; cursor: pointer; }
-.eq .eq-tvs button[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); border-color: var(--ui-on-bg); }
 .eq .eq-tv { display: grid; gap: 4px; min-width: 160px; }
-.eq .eq-ts { font: 600 var(--fs-13)/1.25 var(--sans); white-space: nowrap; }
-.eq .eq-ts.t-hi { color: var(--gain); } .eq .eq-ts.t-lo, .eq .eq-ts.t-lo2 { color: var(--loss); } .eq .eq-ts.t-mid { color: var(--warn); }
-.eq .eq-tvr { display: grid; grid-template-columns: 3.2em 64px auto; align-items: center; gap: 6px; font: 500 var(--fs-12)/1.2 var(--sans); color: var(--muted); }
-.eq .eq-tvr em { font-style: normal; } .eq .eq-tvr b { color: var(--text); font-variant-numeric: tabular-nums; }
-.eq .eq-hi { font: 400 var(--fs-12)/1.3 var(--sans); color: var(--muted); white-space: nowrap; }
+/* task #388 (developer file 38, A3): Short term and Long term, each a chip and its word like the Prism cell (TECH) */
+.eq #pf-shares .x-grp td.eq-tvx, .eq #pf-shares .x-grp td.eq-tvx .eq-pw { white-space: nowrap; }
+/* F3 (T5): the empty group cell over Share and Industry is the heading's colour, not the page's */
+.eq #pf-shares .x-grp thead tr:first-child > th:first-child { background: linear-gradient(var(--s1), var(--s1)), var(--bg); }
+/* F6 (T8): the column-heading row is 48px, two lines at most: no wrapped "Moves with rest" with its i on a line of its own, no empty band under short labels */
+.eq #pf-shares .x-grp .eqs-hsub { white-space: nowrap; }
+.eq #pf-shares .x-grp thead tr:last-child th { vertical-align: bottom; padding-top: 6px; padding-bottom: 8px; }
+.eq #pf-shares .x-grp thead tr:last-child th:last-child { min-width: 132px; }
+.eq #pf-shares .x-grp thead tr:last-child th:has(> .sp-i) { white-space: nowrap; }
+.eq #pf-shares .x-grp thead tr:last-child th > .pfx-sort { display: inline; white-space: normal; }
+.eq #pf-shares .x-grp thead tr:last-child th > .sp-i { display: inline-grid; vertical-align: middle; margin-left: 4px; }
 .eq .eq-mwr { display: inline-flex; flex-direction: column; align-items: flex-end; }
 .eq .eq-mwr small { font: 500 var(--fs-12)/1.2 var(--sans); color: var(--muted); }
 .eq .pfs-acc { display: block; font: 500 var(--fs-12)/1.3 var(--sans); color: var(--gold); }
@@ -155,7 +157,11 @@
 .eq tr.eqs-capr .eqs-more { margin: 0; }
 .eq .pfh-enl { flex: none; min-height: 36px; margin-left: 6px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); background: var(--s1); color: var(--text); font: 600 var(--fs-13) var(--sans); cursor: pointer; }
 .eq .pfh-enl[aria-pressed="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); }
-.eq #pf-shares.eqs-full { position: fixed; inset: 0; z-index: 80; margin: 0; max-width: none; overflow: auto; border-radius: 0; background: var(--bg); padding: 16px 20px 40px; }
+.eq #pf-shares.eqs-full { position: fixed; inset: 0; z-index: 80; margin: 0; max-width: none; overflow: auto; border-radius: 0; background: var(--bg); --card-pad: 20px; padding: 0 var(--card-pad) 40px; }
+/* task #388 (developer file 38, F5, T6): no padding above the sticky tools row (rows showed in it); the first item keeps its 16px. T11: the frame bleeds by
+   the card's padding (20px here), so the frozen Share column is not cut at the screen's edge */
+.eq #pf-shares.eqs-full > :first-child { margin-top: 16px; }
+.eq #pf-shares .tw { --tw-pad: var(--card-pad, 24px); }
 .eq #pf-shares.eqs-full .pfx-tools.pfh { position: sticky; top: 0; }
 .eq .eqs-fullx { position: sticky; top: 0; z-index: 3; float: right; min-height: 36px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); background: var(--s1); color: var(--text); font: 600 var(--fs-13) var(--sans); cursor: pointer; }
 html.eqs-noscroll { overflow: hidden; }
