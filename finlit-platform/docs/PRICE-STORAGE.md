@@ -21,7 +21,9 @@ changing a single figure any page or job reads. Step 2, storing each daily price
    compression, one segment per company, newest day first, for days older than `COMPRESS_AFTER` (30) days. Usually 80 to 90% smaller. Every query reads
    them as before; a change to a compressed day (a split) still lands. TimescaleDB's background job compresses each chunk once it is old enough.
 3. **The prune drops whole old chunks** (`drop_chunks`) instead of deleting rows: instant, and the only way that works on compressed chunks (a row
-   delete by `ctid`, as before, is not possible on compressed data). On a plain Postgres it deletes rows as before.
+   delete by `ctid`, as before, is not possible on compressed data). On a plain Postgres it deletes rows as before. A chunk holds 7 days, so up to
+   a week past the 500 days can stay until its whole chunk is old enough. It reports how many rows went. If TimescaleDB's compression job holds a
+   chunk at that moment, it tries twice more and otherwise leaves it for the next night. It is skipped when the prune's time budget is spent.
 4. **`daily_candles` stops growing**: days older than 1,200 are removed by the nightly prune (no reader looks back further than 1,150).
 
 Nothing a page or job reads changes: the same rows are there, with the same values.

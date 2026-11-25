@@ -114,3 +114,30 @@ async def test_the_prune_drops_old_prices_and_old_candles(store):  # noqa: F811
         p = sorted((today - r["day"]).days for r in await conn.fetch("SELECT day FROM price_daily WHERE symbol = 'PXE'"))
         assert p == [3]
     assert out["candle_days"] == 2 and "price_days" in out
+
+
+@pytest.mark.integration
+async def test_a_price_write_that_meets_the_compression_job_is_tried_again_and_never_fails_the_report(store, monkeypatch):  # noqa: F811
+    """A report save writes its prices in a savepoint: a deadlock with TimescaleDB's compression job (seen in the test suite) is tried again,
+    and if it keeps happening the prices are left for the next save while the report itself is saved."""
+    today = date.today()
+    calls = {"n": 0}
+    real = store_mod.Store._write_prices
+
+    async def flaky(self, conn, symbol, daily, fail_times):
+        calls["n"] += 1
+        if calls["n"] <= fail_times:
+            await conn.execute("SELECT 1")   # something done inside the savepoint first, then rolled back
+            raise asyncpg.exceptions.DeadlockDetectedError("deadlock detected")
+        return await real(self, conn, symbol, daily)
+
+    async with store.pool.acquire() as conn:
+        await conn.execute("DELETE FROM price_daily WHERE symbol IN ('PXF', 'PXG')")
+    monkeypatch.setattr(store_mod.Store, "_write_prices", lambda self, conn, s, d: flaky(self, conn, s, d, 1))
+    assert await write(store, "PXF", series(20, today)) == 20 and calls["n"] == 2        # once busy, then written
+    calls["n"] = 0
+    monkeypatch.setattr(store_mod.Store, "_write_prices", lambda self, conn, s, d: flaky(self, conn, s, d, 99))
+    async with store.pool.acquire() as conn, conn.transaction():                          # the report's own transaction carries on
+        assert await store._upsert_prices(conn, "PXG", series(20, today)) == 0
+        assert await conn.fetchval("SELECT 1") == 1
+    assert calls["n"] == 3 and await rows(store, "PXG") == {}

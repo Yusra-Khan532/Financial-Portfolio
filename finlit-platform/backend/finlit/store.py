@@ -12,6 +12,7 @@ import json
 import math
 import logging
 import time
+import asyncio
 import zlib
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -266,6 +267,27 @@ class Store:
             await conn.execute(f"SELECT add_compression_policy('price_daily', INTERVAL '{COMPRESS_AFTER} days', if_not_exists => TRUE)")  # nosec B608 - a constant
         except Exception:
             log.exception("price_daily: compression could not be switched on; prices stay uncompressed")
+
+    async def _drop_old_price_chunks(self, conn, days: int, timeout: float) -> int:
+        """Drops the whole price_daily chunks older than `days` and returns how many rows went (counted first, chunk by chunk). TimescaleDB's own
+        compression job can hold a chunk at that moment: a deadlock or lock wait is tried again twice, then left for the next night (logged)."""
+        for attempt in range(3):
+            try:
+                async with conn.transaction():
+                    chunks = [r["c"] for r in await conn.fetch("SELECT show_chunks('price_daily', older_than => (current_date - $1::int))::text AS c",
+                                                               days, timeout=timeout)]
+                    rows = 0
+                    for c in chunks:
+                        rows += int(await conn.fetchval(f"SELECT count(*) FROM {c}", timeout=timeout))   # nosec B608 - a chunk name from show_chunks
+                    if chunks:
+                        await conn.fetch("SELECT drop_chunks('price_daily', older_than => (current_date - $1::int))", days, timeout=timeout)
+                    return rows
+            except (asyncpg.exceptions.DeadlockDetectedError, asyncpg.exceptions.LockNotAvailableError):
+                if attempt == 2:
+                    log.warning("prune: old price chunks were busy (compression job); left for the next night")
+                    return 0
+                await asyncio.sleep(2 * (attempt + 1))
+        return 0
 
     # ------------------------------------------------------------ writes (worker)
 
@@ -615,6 +637,21 @@ class Store:
         return {"listed": r["listed"], "retiredScored": r["retired"], "prismScored": r["prism"], "retiredNoPrism": r["gap"]}
 
     async def _upsert_prices(self, conn, symbol: str, daily: dict) -> int:
+        """Writes the prices (below) in a savepoint of the report's save. TimescaleDB's compression job can hold a chunk at that moment (a deadlock
+        or a lock wait): the write is tried again twice, and then left out, logged, so the report itself is always saved; the next save writes
+        the prices (they are compared row by row, so nothing is lost)."""
+        for attempt in range(3):
+            try:
+                async with conn.transaction():
+                    return await self._write_prices(conn, symbol, daily)
+            except (asyncpg.exceptions.DeadlockDetectedError, asyncpg.exceptions.LockNotAvailableError):
+                if attempt == 2:
+                    log.warning("price_daily: %s's prices were busy (compression job); left for the next save", symbol)
+                    return 0
+                await asyncio.sleep(0.2 * (attempt + 1))
+        return 0
+
+    async def _write_prices(self, conn, symbol: str, daily: dict) -> int:
         """The company's daily prices into price_daily, which keeps the last PRICE_DAYS days (the nightly prune drops older ones). Only the days inside
         that window are written, and only the rows that are new or changed: a report save used to write all six years again, every time, rows the prune
         then deleted that same night, and every day already stored was rewritten unchanged. With the older days compressed (TimescaleDB), rewriting
@@ -944,7 +981,7 @@ class Store:
             out["orphan_scores"] = await batched("scores", "NOT EXISTS (SELECT 1 FROM companies c WHERE c.symbol = scores.symbol)")
             price_days = price_days or PRICE_DAYS
             if getattr(self, "timescale", False):   # whole chunks older than the window: instant, and the only way for compressed days
-                out["price_days"] = len(await conn.fetch("SELECT drop_chunks('price_daily', older_than => (current_date - $1::int))", price_days, timeout=T))
+                out["price_days"] = 0 if over() else await self._drop_old_price_chunks(conn, price_days, T)
             else:
                 out["price_days"] = await batched("price_daily", "day < current_date - $1::int", price_days)
             # exchange candles: the readers look back at most candles.DEFAULT_DAYS (1150, the weekly bars of the chart patterns); older ones go
