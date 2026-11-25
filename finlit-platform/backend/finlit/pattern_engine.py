@@ -165,6 +165,11 @@ def vol_dry(s, k=10):
     return float(s.v[-k:].mean() / s.v50[-1]) if not math.isnan(s.v50[-1]) and s.v50[-1] > 0 else float('nan')
 
 
+def when(k):
+    """The signal day counted to the list's own close (k = 1 is the last bar), never "Today": a list is read on later days too (task #394, file 37 F5)."""
+    return 'The list day' if k == 1 else f'{k - 1} session{"s" if k > 2 else ""} before the list'
+
+
 def hit(s, facts, draw, q, status=''):
     return dict(symbol=s.sym, facts=facts, draw=draw, q=q, status=status)
 
@@ -332,7 +337,7 @@ def big_reversal(s, rs):
         vx = s.v[i] / s.v20[i - 1] if s.v20[i - 1] > 0 else 0
         pos = (s.c[i] - s.l[i]) / (s.h[i] - s.l[i]) if s.h[i] > s.l[i] else 0
         if down and cm >= max(7.0, 2.5 * s.adr100) and vx >= 2.5 and pos >= 0.7 and s.last >= s.l[i]:
-            facts = {'When': 'Today' if k == 1 else f'{k - 1} session{"s" if k > 2 else ""} ago', "Day's close against the day before": f'{cm:+.1f}%', 'In daily ranges': round(cm / s.adr100, 1), 'Volume against its 20-day average': f'{vx:.1f}x', 'Closed in the day\'s range at': f'{pos * 100:.0f}%', 'Since that close': f'{(s.last / s.c[i] - 1) * 100:+.1f}%', 'Below its 6-month high before': f'{(1 - pc / s.h[max(0, i - 126):i].max()) * 100:.0f}%'}
+            facts = {'When': when(k), "Day's close against the day before": f'{cm:+.1f}%', 'In daily ranges': round(cm / s.adr100, 1), 'Volume against its 20-day average': f'{vx:.1f}x', 'Closed in the day\'s range at': f'{pos * 100:.0f}%', 'Since that close': f'{(s.last / s.c[i] - 1) * 100:+.1f}%', 'Below its 6-month high before': f'{(1 - pc / s.h[max(0, i - 126):i].max()) * 100:.0f}%'}
             return hit(s, facts, dict(marks=[[s.d[i], round(float(s.l[i]), 2), 'Reversal day']], level=[s.d[i], round(float(s.l[i]), 2), 'Low of the day']), quality([(cm / (5 * s.adr100), 3), (vx / 6, 3), (pos, 2)]), 'Today' if k == 1 else 'This week')
 
 
@@ -365,7 +370,7 @@ def fresh_breakout(s, rs):
             pos = (s.c[i] - s.l[i]) / (s.h[i] - s.l[i]) if s.h[i] > s.l[i] else 0
             ext = (s.last / L['lvl'] - 1) * 100
             if s.c[i] > L['lvl'] and s.c[i - 1] <= L['lvl'] and vx >= 1.5 and pos >= 0.5 and 0 <= ext <= 2 * s.adr and s.c[i:].min() >= L['lvl'] * 0.99:
-                facts = {'Closed above': f"Rs {L['lvl']:.2f}", 'When': 'Today' if k == 1 else f'{k - 1} session{"s" if k > 2 else ""} ago', 'Volume that day against 50-day': f'{vx:.1f}x', 'Now above the level': f'{ext:.1f}%', 'In daily ranges': round(ext / s.adr, 1), 'Level age': f"{L['age']} sessions", 'Base depth': f"{L['depth']:.1f}%"}
+                facts = {'Closed above': f"Rs {L['lvl']:.2f}", 'When': when(k), 'Volume that day against 50-day': f'{vx:.1f}x', 'Now above the level': f'{ext:.1f}%', 'In daily ranges': round(ext / s.adr, 1), 'Level age': f"{L['age']} sessions", 'Base depth': f"{L['depth']:.1f}%"}
                 return hit(s, facts, dict(level=[s.d[L['i']], round(L['lvl'], 2), 'Level'], marks=[[s.d[i], round(float(s.h[i]), 2), 'Close above']]), quality([(vx / 4, 3), (1 - ext / (2 * s.adr), 2), (pos, 1), (rs / 99, 2)]), 'Today' if k == 1 else 'This week')
 
 

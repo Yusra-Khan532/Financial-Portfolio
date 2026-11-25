@@ -17,7 +17,7 @@ def test_overlay_puts_the_latest_price_on_each_row_and_never_an_older_one():
     rows = [{"symbol": "APOLLOHOSP", "price": 8738.0, "ret_1d": -0.9}, {"symbol": "OLD", "price": 100.0, "ret_1d": 1.0}, {"symbol": "NONE", "price": 5.0, "ret_1d": 0.0}]
     latest = {"APOLLOHOSP": (9141.0, 4.61, "2026-11-20"), "OLD": (90.0, -2.0, "2026-11-18")}
     assert papi.overlay_prices(rows, latest, "2026-11-19T00:00:00") == 1
-    assert rows[0] == {"symbol": "APOLLOHOSP", "price": 9141.0, "ret_1d": 4.61, "price_day": "2026-11-20"}        # the company page's figure
+    assert rows[0] == {"symbol": "APOLLOHOSP", "price": 9141.0, "ret_1d": 4.61, "price_day": "2026-11-20", "price_live": True}        # the company page's figure, said to be live
     assert rows[1] == {"symbol": "OLD", "price": 100.0, "ret_1d": 1.0}            # a price older than the list is never put over the list's close
     assert rows[2] == {"symbol": "NONE", "price": 5.0, "ret_1d": 0.0}             # no latest price: the list's own stays
     same = [{"symbol": "A", "price": 1.0, "ret_1d": 0.0}]
@@ -42,8 +42,11 @@ async def test_latest_prices_reads_the_saved_search_quotes():
 
 
 @pytest.mark.integration
-async def test_a_screen_shows_the_latest_price_and_its_day(app, store):  # noqa: F811
+async def test_a_screen_shows_the_latest_price_and_its_day(app, store, monkeypatch):  # noqa: F811
+    # task #394 (developer file 37, F3, C10): the live price only during market hours, and the price column says so, with the time
+    from datetime import datetime, timezone
     from test_presets_api import row, wipe
+    monkeypatch.setattr(papi, "_now", lambda: datetime(2026, 11, 25, 6, 10, tzinfo=timezone.utc))        # a Wednesday, 11:40 IST
 
     data._table = Table([row(f"S{i:02d}", market_cap=5000 + i, flag_count=1.0, sales_cagr_3y=20, profit_cagr_3y=20, q_sales_yoy=15, q_profit_yoy=15, q_sales_up=4,
                              q_revenue=100, roce=20, debt_to_equity=0.2, is_bank=0, price=100.0, ret_1d=-0.9) for i in range(30)], {}, {})
@@ -60,6 +63,8 @@ async def test_a_screen_shows_the_latest_price_and_its_day(app, store):  # noqa:
         assert got[sym]["price"] == 123.45 and got[sym]["ret_1d"] == 4.61 and got[sym]["price_day"] == later
         assert "price_day" not in got[other] and got[other].get("price") == first["rows"][1].get("price")     # no latest price: the list's own
         assert b["priceDay"] == later and b["asOf"][:10] == day      # the list's own date stays; the prices say theirs
+        assert got[sym]["price_live"] is True and b["priceLive"] == "11:40"
+        assert next(c for c in b["columns"] if c["key"] == "price")["label"] == "Live (₹) · 11:40"
         e = await gold.get("/api/screener/presets/emerging-tech/export?chip=none")
         assert e.status_code == 200
         await gold.aclose()

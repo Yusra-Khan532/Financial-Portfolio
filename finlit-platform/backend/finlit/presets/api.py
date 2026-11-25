@@ -15,7 +15,8 @@ from fastapi import APIRouter, Request, Response
 from ..auth.entitlements import has, sees_all
 from ..auth.routes import NO_STORE, fail
 from ..auth.service import current
-from datetime import date as _date
+from datetime import date as _date, datetime, timezone
+from zoneinfo import ZoneInfo
 
 from ..screener.data import get_table
 from . import engine, history, savedlists, service
@@ -208,7 +209,7 @@ async def _body(request: Request, p: Preset, active: List[str]) -> dict:
         out = {**base, "rows": snap["rows"], "exportRows": snap["rows"], "count": snap["count"], "shown": len(snap["rows"]), "asOn": snap["session"],
                "asOf": snap["session"], "benchSincePct": history._pct(b0, b1), "list": figs}      # L1: the date picked, everywhere
         out.pop("listText", None)
-        out["columns"] = _bands_now(_history_columns(out.get("columns") or [], p, then=True))
+        out["columns"] = price_label(_bands_now(_history_columns(out.get("columns") or [], p, then=True)), None)
         return _with_meta(out, p)
     body = await service.get_result(store, p, active)
     if body is None:
@@ -226,15 +227,20 @@ async def _body(request: Request, p: Preset, active: List[str]) -> dict:
         body["columns"] = _history_columns(body.get("columns") or [], p, then=False)
     except Exception:
         log.warning("saved-list figures not added for %s", p.id, exc_info=True)
-    try:       # task #269: today's price and day change, the same as the company page, the search box and the dashboard
-        latest = await latest_prices(request.app)
-        seen = {id(r): r for r in (body.get("rows") or []) + (body.get("exportRows") or [])}
-        if overlay_prices(list(seen.values()), latest, str(body["asOf"])):
-            days = sorted({r["price_day"] for r in seen.values() if r.get("price_day")})
-            body["priceDay"] = days[-1] if days else None
+    live_at = None
+    try:       # task #269: during market hours, today's live price and day change, the same as the company page, the search box and the dashboard
+        now = _now()
+        if market_open(now):        # task #394 (developer file 37, F3): after the close the row keeps the official close of the list's day (price_on)
+            latest = await latest_prices(request.app)
+            seen = {id(r): r for r in (body.get("rows") or []) + (body.get("exportRows") or [])}
+            if overlay_prices(list(seen.values()), latest, str(body["asOf"])):
+                days = sorted({r["price_day"] for r in seen.values() if r.get("price_day") and r.get("price_live")})
+                body["priceDay"] = days[-1] if days else None
+                live_at = now.astimezone(IST).strftime("%H:%M")
+                body["priceLive"] = live_at
     except Exception:
         log.warning("latest prices not added for %s", p.id, exc_info=True)
-    body["columns"] = _bands_now(body.get("columns") or [])
+    body["columns"] = price_label(_bands_now(body.get("columns") or []), live_at)
     body["name"] = p.name          # a list stored under an older name is served with today's (14 Nov N-35)
     return _with_meta(body, p)
 
@@ -255,15 +261,39 @@ async def latest_prices(app) -> Dict[str, tuple]:
     return {r[0]: (r[1], r[2], r[3]) for r in doc.get("rows") or [] if r[1] is not None and r[3]}
 
 
+IST = ZoneInfo("Asia/Kolkata")
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def market_open(now: datetime) -> bool:
+    """Weekday 09:15 to 15:30 IST, the exchange's session (jobs/schedule.market_open)."""
+    from ..jobs.schedule import market_open as is_open
+    return is_open(now)
+
+
+def price_label(cols: List[dict], live_at: Optional[str]) -> List[dict]:
+    """C10 (developer file 37): the table's price column says what its prices are: "Close (₹)" (the official close of the list's day) or, during market
+    hours, "Live (₹) · 11:40" (the live price, with the time it was read)."""
+    for c in cols:
+        if c.get("key") == "price":
+            c["label"] = f"Live (₹) · {live_at}" if live_at else "Close (₹)"
+    return cols
+
+
 def overlay_prices(rows: List[dict], latest: Dict[str, tuple], list_day: str) -> int:
-    """Each row's price and day change set to the latest when it is from the list's own trading day or later (an older one is never put over a newer
-    close); the row says which day its price is from (price_day). Whether a company is on the screen still follows the list's rules. Returns how many changed."""
+    """During market hours: each row's price and day change set to the live price when it is from the list's own trading day or later (an older one is
+    never put over a newer close); the row says which day its price is from (price_day) and that it is live (price_live). Its official close of the list
+    day stays in price_on. Whether a company is on the screen still follows the list's rules. Returns how many changed."""
     n = 0
     for r in rows:
         q = latest.get(r.get("symbol"))
         if q is None or q[2] < list_day[:10]:
             continue
-        r["price"], r["ret_1d"], r["price_day"] = q[0], q[1], q[2]
+        r["price"], r["ret_1d"], r["price_day"], r["price_live"] = q[0], q[1], q[2], True
+        r.pop("ret_1d_note", None)
         n += 1
     return n
 
