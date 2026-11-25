@@ -665,3 +665,28 @@ async def test_job_is_registered_never_switchable_off_and_has_a_freshness_datase
     f = freshness.evaluate_facts({"macro_outlook_run": datetime.now(timezone.utc) - timedelta(hours=80), "expected": D(2026, 11, 5)}, datetime.now(timezone.utc))
     ds = {d["key"]: d for d in f["datasets"]}
     assert ds["macro_outlook"]["status"] == "stale"
+
+
+def test_every_nse_industry_label_maps_to_a_sector():
+    """Owner, 25 Nov 2026: Adani Enterprises (Sector 'Trading - Minerals' / Industry 'Metals & Minerals Trading') showed "Macro outlook not available".
+    15 NSE industry labels had no rule, and tractor/truck makers went to Infrastructure on the word "construction"."""
+    from finlit.macro_outlook import store as ST
+    from finlit.macro_outlook.seed import LABEL_RULES
+    rules = [dict(label_kind=k, match_type=m, pattern=p, sector_code=s, priority=pr) for k, m, p, s, pr, _ in LABEL_RULES]
+    nse = ["Industrial Products", "Finance", "Consumer Durables", "Textiles & Apparels", "Chemicals & Petrochemicals", "Pharmaceuticals & Biotechnology", "Auto Components", "Realty",
+           "Construction", "Commercial Services & Supplies", "Industrial Manufacturing", "Agricultural Food & other Products", "Electrical Equipment", "IT - Software", "Leisure Services",
+           "IT - Services", "Capital Markets", "Food Products", "Transport Services", "Retailing", "Fertilizers & Agrochemicals", "Healthcare Services", "Banks", "Entertainment", "Power",
+           "Cement & Cement Products", "Aerospace & Defense", "Paper Forest & Jute Products", "Ferrous Metals", "Other Consumer Services", "Telecom - Services", "Automobiles", "Beverages",
+           "Oil", "Transport Infrastructure", "Non - Ferrous Metals", "Petroleum Products", "Agricultural Commercial & Construction Vehicles", "Insurance", "Media",
+           "Financial Technology (Fintech)", "IT - Hardware", "Other Utilities", "Gas", "Household Products", "Healthcare Equipment & Supplies", "Minerals & Mining", "Personal Products",
+           "Diversified", "Telecom - Equipment & Accessories", "Metals & Minerals Trading", "Other Construction Materials", "Consumable Fuels", "Diversified FMCG",
+           "Cigarettes & Tobacco Products", "Diversified Metals", "Printing & Publication", "Engineering Services"]
+    missing = [i for i in nse if not ST.resolve(rules, "ZZ", None, i)]
+    assert missing == []
+    assert ST.resolve(rules, "ADANIENT", "Trading - Minerals", "Metals & Minerals Trading")[0] == "metals_mining"
+    assert ST.resolve(rules, "ESCORTS", None, "Agricultural Commercial & Construction Vehicles")[0] == "autos"
+    assert ST.resolve(rules, "TRENT", None, "Retailing")[0] == "consumer_durables"
+    assert ST.resolve(rules, "ITC", None, "Cigarettes & Tobacco Products")[0] == "fmcg"
+    assert ST.resolve(rules, "COALINDIA", None, "Consumable Fuels")[0] == "metals_mining"
+    pats = [(k, m, p) for k, m, p, *_ in LABEL_RULES]
+    assert len(pats) == len(set(pats))   # the table's unique key (label_kind, match_type, pattern): no rule may repeat

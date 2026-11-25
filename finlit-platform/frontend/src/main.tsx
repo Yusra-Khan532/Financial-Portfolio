@@ -43,6 +43,7 @@ import "./styles/ui.css";   // task #310: the shared ui- pieces (Button, Tabs, C
 import "./styles/task370.css";   // task #370: .btn.sm is the small button on every page (was only in dcf.css)
 import "./styles/phone310.css";   // task #310 part E: the phone layer under 860px (header, bottom bar, toasts, 44px taps)
 import "./styles/mobile-app.css";   // the phone app (docs/MOBILE-APP.md): tabs, section chips, Menu sheet, Tools button, slim footer, under 860px
+import "./styles/ask-check.css";
 import "./styles/overlay.css";
 import { purgeLegacy } from "./lib/persist";
 
