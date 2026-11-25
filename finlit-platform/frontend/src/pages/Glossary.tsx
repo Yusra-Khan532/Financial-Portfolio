@@ -7,7 +7,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import { PageFaqs } from "../components/PageFaqs";
 import { Icon } from "../lib/icons";
 import { LETTERS, TERMS, TOPICS, search, type Term } from "../lib/glossary";
-import { DESC, EDU, FINLIT_WORDS, FOOT, SEARCH_HINT, badge, countLine, counts, firstLetter, letterCounts, pick, tabs, tiles, type Tab } from "../lib/glossaryPack";
+import { DESC, EDU, FINLIT_WORDS, FOOT, SEARCH_HINT, badge, fmtCount, countLine, counts, firstLetter, letterCounts, pick, tabs, tiles, type Tab } from "../lib/glossaryPack";
 import { useDocTitle } from "../lib/title";
 import "../styles/sectors-pack.css";
 import "../styles/glossary-pack.css";
@@ -38,7 +38,7 @@ function Row({ t, open, onToggle, solo }: { t: Term; open: boolean; onToggle: ()
 export function GlossaryPage() {
   const { id } = useParams();                                   // /glossary/<term>: one term on its own address (searchable and shareable)
   const one = id ? TERMS.find((t) => t.id === id) : undefined;
-  useDocTitle(one ? `${one.term}: meaning and formula` : "Glossary", one ? one.meaning.slice(0, 155) : `FinLit Glossary: ${TERMS.length} investing terms in plain words, from A to Z, with formulas and how FinLit measures them.`);
+  useDocTitle(one ? `${one.term}: meaning and formula` : "Glossary", one ? one.meaning.slice(0, 155) : `FinLit Glossary: ${fmtCount(TERMS.length)} investing terms in plain words, from A to Z, with formulas and how FinLit measures them.`);
   const nav = useNavigate();
   const [tab, setTab] = useState<Tab>("az"), [q, setQ] = useState(""), [topic, setTopic] = useState(""), [changed, setChanged] = useState(false);
   const counted = useMemo(() => letterCounts(TERMS, LETTERS, { topic, changed }), [topic, changed]);
@@ -79,7 +79,7 @@ export function GlossaryPage() {
           <nav className="gp-links" aria-label="Related pages"><Link to="/blog">Insights &amp; blog →</Link><Link to="/faq">FAQs →</Link><Link to="/stocks/RELIANCE">Company report →</Link></nav>
         </div>
         <label className="gp-search"><Icon name="search" /><input ref={box} type="search" value={q} onChange={(e) => { setQ(e.target.value); fresh(); if (one) nav("/glossary"); }} placeholder={SEARCH_HINT(C.terms)} aria-label="Search the glossary" /><kbd>Ctrl K</kbd></label>
-        <div className="gp-tiles">{tiles(C).map((x) => <div key={x.k} className="gp-tile"><span>{x.k}</span><b>{x.v}</b><small>{x.s}</small></div>)}</div>
+        <div className="gp-tiles">{tiles(C).map((x) => <div key={x.k} className="gp-tile"><span>{x.k}</span><b>{fmtCount(x.v)}</b><small>{x.s}</small></div>)}</div>
         <p className="gp-edu">{EDU}</p>
       </header>
 
@@ -91,15 +91,15 @@ export function GlossaryPage() {
         <aside className="gp-side" aria-label="Topics">
           <p className="gp-k">Topic</p>
           <label className="gp-topsel"><span className="sr-only">Topic</span><select value={topic} onChange={(e) => { setTopic(e.target.value); setTab("az"); fresh(); if (one) nav("/glossary"); }}>
-            <option value="">All topics ({C.terms})</option>{TOPICS.map((tp) => <option key={tp} value={tp}>{tp} ({TERMS.filter((t) => t.topic === tp).length})</option>)}</select></label>
+            <option value="">All topics ({fmtCount(C.terms)})</option>{TOPICS.map((tp) => <option key={tp} value={tp}>{tp} ({TERMS.filter((t) => t.topic === tp).length})</option>)}</select></label>
           <ul>
-            <li><button type="button" aria-pressed={!topic} onClick={() => { setTopic(""); setTab("az"); fresh(); if (one) nav("/glossary"); }}><span>All topics</span><b>{C.terms}</b></button></li>
+            <li><button type="button" aria-pressed={!topic} onClick={() => { setTopic(""); setTab("az"); fresh(); if (one) nav("/glossary"); }}><span>All topics</span><b>{fmtCount(C.terms)}</b></button></li>
             {TOPICS.map((tp) => <li key={tp}><button type="button" aria-pressed={topic === tp} onClick={() => { setTopic(tp); setTab("az"); fresh(); if (one) nav("/glossary"); }}><span>{tp}</span><b>{TERMS.filter((t) => t.topic === tp).length}</b></button></li>)}
           </ul>
         </aside>
 
         <section className="gp-main" aria-labelledby="gp-h">
-          {one ? <p className="gp-back"><Link to="/glossary">All {C.terms} glossary terms</Link></p> : tab === "az" && !query && (<>
+          {one ? <p className="gp-back"><Link to="/glossary">All {fmtCount(C.terms)} glossary terms</Link></p> : tab === "az" && !query && (<>
             <div className="gp-letters" role="group" aria-label="Letters">{LETTERS.map((l) => <button key={l} type="button" aria-pressed={letter === l} disabled={!counted[l]} onClick={() => { setLetter(l); fresh(); }}>{l}</button>)}</div>
             <div className="gp-chips" role="group" aria-label="Show">
               <button type="button" className="gp-chip" aria-pressed={!changed} onClick={() => { setChanged(false); fresh(); }}>All terms</button>
