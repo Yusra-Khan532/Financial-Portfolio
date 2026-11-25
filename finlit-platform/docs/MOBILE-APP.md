@@ -72,3 +72,10 @@ Silver and Gold see what their plan allows; desktop and phone, light and dark; n
 
 Not touched: desktop layouts (everything new sits under 860 px or in new phone-only components), the portfolio pages other sessions hold
 (#388, #389), data, wording of pages, jobs.
+
+## Change of 25 Nov 2026 (owner): the landing page first
+
+Opening the site on a phone showed Markets today, and a member's Home tab opened the dashboard. The owner: "first the person should go on the
+landing page. After that, from there should be option to go on dashboard". Now `/` is the landing page at every width and the Home tab opens it
+for everyone; on a phone the landing starts with its doors: "Continue to your dashboard" (members), then Markets today, Find a company and
+Screener. Markets today stays at `/markets`, the Markets tab. The installed app's launch screen has the logo animation's own cream background.

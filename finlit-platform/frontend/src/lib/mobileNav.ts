@@ -58,9 +58,9 @@ export function tabFor(path: string): TabId | null {
   return chipFor(path)?.tab ?? null;
 }
 
-/** Where each tab opens. Home is the dashboard for a member and the phone home for a visitor. */
-export const tabHome = (tab: TabId, signedIn: boolean): string =>
-  tab === "home" ? (signedIn ? "/dashboard" : "/") : HUBS[tab][0].to;
+/** Where each tab opens. Home is the landing page for everyone (owner, 25 Nov 2026: the landing first, then the dashboard from there); a member's
+ *  landing opens with "Continue to your dashboard". */
+export const tabHome = (tab: TabId): string => (tab === "home" ? "/" : HUBS[tab][0].to);
 
 /** The phone "Most used" row of the Menu sheet and the Home tools grid (priority research: what people open first). */
 export const MOST_USED: { to: string; label: string; icon: string }[] = [
