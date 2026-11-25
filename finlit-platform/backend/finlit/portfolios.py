@@ -16,6 +16,7 @@ This is information only, never advice.
 from __future__ import annotations
 
 import argparse
+import html
 import asyncio
 import time
 import json
@@ -406,8 +407,9 @@ async def extra_facts(pool, key) -> Optional[dict]:
     if tr and (tr[0].get("regular") is not None or tr[0].get("direct") is not None):
         out["ter"] = fact({"regular": tr[0].get("regular"), "direct": tr[0].get("direct")}, tr[1])
     el = val("exitload")
-    if el:
-        out["exitLoad"] = fact(el[0]["text"], el[1])
+    if el:   # task #281: a readable line, never a cut-off fragment (those are being read again from AMFI by the loads step)
+        shown = exit_load_shown(el[0].get("text"))
+        out["exitLoad"] = fact(shown, el[1]) if shown else {"unavailable": EXIT_LOAD_NOT_STATED}
     bm = val("benchmark")
     if bm:
         out["benchmark"] = fact(bm[0]["name"], bm[1])
@@ -640,23 +642,75 @@ async def step_performance(pool, client, idx: Index, today: date) -> dict:
     return {"status": "ok", "reportDate": d.isoformat(), "schemes": len(rows), "families": len(seen), "unmapped": len(unmapped), "unmappedSample": unmapped[:15], "duplicates": dup}
 
 
-_EXIT = re.compile(r"exit\s*load\s*[:\-]?\s*", re.I)
+# Task #281 (24 Nov, cut-off loads): the old cleaner cut the text after the FIRST "exit load" anywhere in it, so "Exit Load of 1.00%" was stored as
+# "of 1.00%" and Baroda BNP Paribas's three-rule text as its last sentence ("will be applicable on a FIFO ... basis", from "The above Exit Load will be
+# ..."). Only a label is taken off now: "Exit load:" / "Exit load -" at the start or right after the entry-load part, or a leading "Exit load (of|is)"
+# before the figure. "Exit load" inside a sentence is part of the rule and is kept.
+_ENTRY = r"entry\s*load\s*[:\-\u2013]?\s*(?:nil|none|not\s+applicable|n\.?\s?a\.?|-|\u2013)?\s*[,;.|]?\s*"
+_EXIT_HEAD = re.compile(r"^\W*(?:" + _ENTRY + r"|entry\s*(?:&|and)\s*)?exit\s*loads?\s*(?:\([^)]{0,60}\)\s*)?"
+                        r"(?:[:\-\u2013\u2014]+\s*|(?:of|is)\s+(?=\d)|(?=\d|nil\b|n\.?a\b\.?|not\s+applicable))", re.I)
+_EXIT_LABEL = re.compile(r"\bexit\s*loads?\s*(?:\([^)]{0,60}\)\s*)?[:\-\u2013\u2014]+\s*", re.I)
 _NIL = re.compile(r"^(nil|none|not applicable|n\.?a\.?|no exit load)\W*$", re.I)
+EXIT_TEXT_V = 2                      # the cleaner's version, stored with each text: rows without it were cleaned by the old cutter (see step_loads)
+_FRAGMENT = re.compile(r"^(?:of|will|shall|would|is|are|be|being|applicable|charged|levied|payable|structure|period|as|which|and|or|at|on|in|the)\b")
+EXIT_LOAD_NOT_STATED = ("Exit load not stated by AMFI in a readable form: the text AMFI's scheme details gave was cut, and it is being read again on the next "
+                        "nightly run. The scheme's own documents state it.")
 
 
 def exit_load_text(raw: str) -> Optional[str]:
-    """The exit-load part of AMFI's 'load' text ('Entry Load: Nil Exit Load: 1% if redeemed within 1 year ...'), tidied. None when blank."""
-    t = re.sub(r"\s+", " ", (raw or "")).strip()
+    """The exit-load rule in AMFI's 'load' text ('Entry Load: Nil Exit Load: 1% if redeemed within 1 year ...'), whole and tidied: the entry-load part and
+    the "Exit load:" label are taken off, bullet and line breaks become "; ". None when blank."""
+    t = html.unescape(raw or "").replace("\r", "")                                                 # AMFI sends some as "Entry &amp; Exit Load: Nil"
+    t = re.sub(r"\s*[\u2022\u25cf\u25aa\u00b7]\s*", "\n", t)                                         # a bullet before each rule: one rule a line
+    t = re.sub(r"\s*\n\s*(?:[-\u2013]\s+)?", "\n", t).strip()                                        # and "- rule" at the start of a line
+    t = re.sub(r"(?<=[^.;:,\n])\n+(?=[A-Z])", "; ", t)                                              # a new rule on a new line, after no stop
+    t = t.replace("\n", " ")                                                                       # a sentence that runs on to the next line
+    t = re.sub(r"\s+", " ", t).strip(" ;")
     if not t or t.upper() in ("NA", "N.A.", "-"):
         return None
-    m = _EXIT.search(t)
+    m = _EXIT_HEAD.match(t)
     if m:
-        t = t[m.end():].strip(" ,;:-\u2013\u2014")
-    t = re.sub(r"^entry\s*load\s*[:\-]?\s*(nil|not applicable|n\.?a\.?)\s*[,;.]?\s*", "", t, flags=re.I).strip()
+        t = t[m.end():]
+    else:
+        lab = _EXIT_LABEL.search(t)                                                                # "Entry load: not applicable as per SEBI ... Exit load: 1% ..."
+        if lab and re.search(r"entry\s*load", t[:lab.start()], re.I) and not re.search(r"exit\s*load", t[:lab.start()], re.I):
+            t = t[lab.end():]
+        else:
+            t = re.sub(r"^\W*entry\s*load\s*[:\-\u2013]?\s*(?:nil|none|not\s+applicable|n\.?\s?a\.?)(?!\w)\s*[,;.|]?\s*", "", t, count=1, flags=re.I)
     t = t.strip(" ,;:-\u2013\u2014")
     if not t:
         return None
-    return "Nil" if _NIL.match(t) else t[:600]
+    if _NIL.match(t):
+        return "Nil"
+    if len(t) > 600:
+        t = t[:600].rsplit(" ", 1)[0].rstrip(" ,;:") + " \u2026"
+    return t
+
+
+def exit_load_fragment(text: Optional[str]) -> bool:
+    """True for a text the old cleaner cut in the middle of a sentence ("of 1.00%", "will be applicable on a FIFO ... basis"): it starts with a joining
+    word in small letters, which no whole rule does."""
+    return bool(text) and bool(_FRAGMENT.match(text.strip()))
+
+
+def exit_load_recut(value) -> bool:
+    """Task #281: a stored exit-load fact the old cleaner cut ("of 1.00%"): it has no cleaner version and its text is a fragment. step_loads treats such a
+    family as not fresh, so it is asked again at the next run (the queue's never-tried lane) and stored whole; texts stored by this cleaner are never re-asked early."""
+    v = json.loads(value) if isinstance(value, str) else (value or {})
+    return isinstance(v, dict) and not v.get("v") and exit_load_fragment(v.get("text"))
+
+
+def exit_load_shown(text: Optional[str]) -> Optional[str]:
+    """The line the fund page shows for a stored text, or None (the page then says why it is not shown): a cut-off fragment is never shown, and a load
+    that AMFI's scheme details give with no holding period says so."""
+    from .mfscore import exitload
+    t = exit_load_text(text or "")
+    if not t or exit_load_fragment(t):
+        return None
+    p = exitload.parse(t)
+    if p.rule == "a load with no holding period" and re.fullmatch(r"[\d.]+\s*%\.?", t):
+        return f"{t.rstrip('.')} (AMFI's scheme details state no holding period; the scheme's own documents give the full rule)"
+    return t
 
 
 _RUPEES = re.compile(r"(\d{1,3}(?:,\d{2,3})+|\d+)(?:\.\d+)?")
@@ -705,10 +759,12 @@ async def step_loads(pool, client, idx: Index, today: date) -> dict:
     answer stored nothing, so they were asked again at the front every night and the later houses were never reached). Resumable."""
     async with pool.acquire() as conn:
         active = {r["family"] for r in await conn.fetch("SELECT DISTINCT family FROM mf_schemes WHERE active")}
-        fresh = {r["fkey"] for r in await conn.fetch("SELECT fkey FROM disclosure_facts WHERE kind = 'exitload' AND updated_at > now() - make_interval(days => $1)", LOAD_MAX_AGE_DAYS)}
+        fresh_rows = await conn.fetch("SELECT fkey, value FROM disclosure_facts WHERE kind = 'exitload' AND updated_at > now() - make_interval(days => $1)", LOAD_MAX_AGE_DAYS)
         tried_rows = await conn.fetch("SELECT fkey, updated_at FROM disclosure_facts WHERE kind = $1", KIND_TRIED)
         cached = {r["fkey"]: r["value"] for r in await conn.fetch(
             "SELECT fkey, value FROM disclosure_facts WHERE kind = $1 AND updated_at > now() - make_interval(days => $2)", KIND_LIST, LIST_CACHE_DAYS)}
+    fresh = {r["fkey"] for r in fresh_rows if not exit_load_recut(r["value"])}
+    recut = {r["fkey"] for r in fresh_rows} - fresh   # task #281: cut by the old cleaner; asked again at this run, not after LOAD_MAX_AGE_DAYS
     now = datetime.now(timezone.utc)
     tried_at = {r["fkey"]: r["updated_at"] for r in tried_rows}
     recent = {f for f, t in tried_at.items() if t is not None and (now - t).days < LOAD_RETRY_DAYS}
@@ -784,7 +840,7 @@ async def step_loads(pool, client, idx: Index, today: date) -> dict:
                 min_done = True
             txt_ = exit_load_text(str(d.get("Scheme_load") or ""))
             if txt_:
-                facts.append((fam, "exitload", today, {"text": txt_}, SRC_DETAILS, "https://www.amfiindia.com/otherdata/scheme-details"))
+                facts.append((fam, "exitload", today, {"text": txt_, "v": EXIT_TEXT_V}, SRC_DETAILS, "https://www.amfiindia.com/otherdata/scheme-details"))
                 st["stored"] += 1
                 return
         st["blank"] += 1
@@ -816,7 +872,7 @@ async def step_loads(pool, client, idx: Index, today: date) -> dict:
     out = {"status": "partial" if stopped else "ok", "families": len(items), "asked": st["asked"], "loadsStored": st["stored"], "blank": st["blank"],
            "refused429": st["refused429"], "errors": st["errors"], "alreadyFresh": len(fresh & active), "namesNotMatched": unmapped, "houseListsSkipped": lists_skipped,
            "houseListsCached": lists_cached, "housesReached": len(reached), "housesWithWork": sum(1 for v in by_house.values() if v),
-           "familiesLeft": len(items) - done, "triedRecently": len(recent & active)}
+           "familiesLeft": len(items) - done, "triedRecently": len(recent & active), "cutTextsToReread": len(recut & active)}
     if stopped:
         out["why"] = stopped
     return out

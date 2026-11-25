@@ -22,7 +22,7 @@ _WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven
 _NUM = r"(\d+(?:\.\d+)?|" + "|".join(_WORDS) + r")"
 _PCT = re.compile(r"(\d+(?:\.\d+)?)\s*(?:%|per\s*cent|percent)", re.I)
 _PERIOD = re.compile(_NUM + r"\s*(?:-\s*)?(days?|weeks?|months?|years?|yrs?|yr)\b", re.I)
-_NIL = re.compile(r"\b(nil|no\s+exit\s+load|no\s+load|not\s+applicable|zero)\b", re.I)
+_NIL = re.compile(r"\b(nil|no\s+exit\s+load|no\s+load|not\s+applicable|not\s+be\s+(?:applicable|charged|levied)|zero)\b", re.I)
 _ALLOWANCE = re.compile(r"(?:of|upto|up\s+to)\s+(?:the\s+)?(?:units|investment|allotted\s+units|amount|holding)|(?:units|investment)\s*\)?\s*(?:can|may|are|is)\b", re.I)
 
 
@@ -58,7 +58,8 @@ def parse(text: Optional[str]) -> ExitLoad:
     loads = []
     for m in _PCT.finditer(t):
         tail = t[m.end(): m.end() + 40]
-        if _ALLOWANCE.match(tail.strip()) or re.match(r"\s*(?:of|upto|up to)\s+(?:the\s+)?(?:units|investment)", tail, re.I):
+        if (_ALLOWANCE.match(tail.strip()) or re.match(r"\s*(?:of|upto|up to)\s+(?:the\s+)?(?:units|investment)", tail, re.I)
+                or re.match(r"\s*(?:limit|free\b)", tail, re.I)):   # task #281: "redeemed over and above the 10% limit" names the allowance again
             continue   # a free allowance, not a load
         loads.append(float(m.group(1)))
     periods = [_days(_num(m.group(1)), m.group(2)) for m in _PERIOD.finditer(t)]

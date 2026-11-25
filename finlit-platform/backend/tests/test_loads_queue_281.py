@@ -45,7 +45,7 @@ class Conn:
         if "FROM mf_schemes" in sql:
             return [{"family": f} for f in self.s.families]
         if "kind = 'exitload'" in sql:
-            return [{"fkey": f} for (f, k), (v, t) in self.s.facts.items() if k == "exitload" and (now - t).days < a[0]]
+            return [{"fkey": f, "value": v} for (f, k), (v, t) in self.s.facts.items() if k == "exitload" and (now - t).days < a[0]]
         if "updated_at > now()" in sql:      # cached house lists
             return [{"fkey": f, "value": v} for (f, k), (v, t) in self.s.facts.items() if k == a[0] and (now - t).days < a[1]]
         return [{"fkey": f, "updated_at": t} for (f, k), (v, t) in self.s.facts.items() if k == a[0]]
