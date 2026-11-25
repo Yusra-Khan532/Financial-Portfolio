@@ -1,5 +1,6 @@
 import { PageHeader } from "../components/PageHeader";
 import { CoLogo } from "../components/CoLogo";
+import { SentimentChip } from "../components/SentimentChip";
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { Icon } from "../lib/icons";
@@ -33,7 +34,7 @@ export function DocumentsPage() {
       {!loading && !shown.length && <div className="card dw-empty"><span className="dw-ei"><Icon name="book" /></span><b>No documents yet</b><p>Filings appear as companies are loaded.</p></div>}
       <div className="doc-grid">{shown.map((i) => { const t = docType(i); return (
         <article key={i.id} className="card ui-card ui-card--sm doc-c" style={{ "--tc": COLOUR[t] } as React.CSSProperties}>
-          <span className="doc-t"><i />{t}</span><h3>{i.link ? <a href={i.link} target="_blank" rel="noopener noreferrer">{i.title}</a> : i.title}</h3>
+          <span className="doc-th"><span className="doc-t"><i />{t}</span><SentimentChip s={i.sentiment} /></span><h3>{i.link ? <a href={i.link} target="_blank" rel="noopener noreferrer">{i.title}</a> : i.title}</h3>
           <p>{i.symbol ? <Link to={`/stocks/${i.symbol}`}><CoLogo symbol={i.symbol} name={i.company} size={20} inline /><b title={coTitle({ symbol: i.symbol, name: i.company })}>{titleOf({ symbol: i.symbol, name: i.company })}</b></Link> : null}{i.symbol && i.company ? ((s) => (s ? ` ${s}` : ""))(subLine({ symbol: i.symbol, name: i.company }, i.company)) : i.company ? ` ${i.company}` : ""} · {dayLabel(i.date)}</p></article>); })}</div>
     </div>
   );

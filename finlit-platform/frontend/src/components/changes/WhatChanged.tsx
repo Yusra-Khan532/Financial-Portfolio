@@ -8,6 +8,7 @@ import {
   DISCOVER_CHANGES, KINDS, KIND, chipFor, dayMonth, discoverLink, footnote, headline, newCount, orderWinNotice, rowsOf, tileCounts, useChanges, useLastVisit, type ChangeRow,
 } from "../../lib/whatChanged";
 import { AlertMeForm } from "./AlertMe";
+import { SentimentChip } from "../SentimentChip";
 import "../../styles/what-changed.css";
 
 const FIRST = 6;
@@ -96,7 +97,7 @@ export function WhatChanged({ symbols, listName, listRef, page, lists, activeLis
                 {sub ? <span className="wc-cow"><Link className="wc-co" to={`/stocks/${encodeURIComponent(r.s)}`}>{shortName ? shortName(r.s, r.n) : r.n}</Link>{sub(r.s) && <small className="wc-cs">{sub(r.s)}</small>}</span>
                   : <Link className="wc-co" to={`/stocks/${r.s}`}>{shortName ? shortName(r.s, r.n) : r.n}</Link>}
                 <span className="wc-k"><i className={"wc-dot " + KIND[r.k].tone} aria-hidden="true" />{KIND[r.k].row}{r.count > 1 && <small>{plain ? ` · ${r.count} filings` : ` × ${r.count}`}</small>}</span>
-                <span className="wc-t">{r.t ?? `${r.count} ${r.count === 1 ? KIND[r.k].one : KIND[r.k].many} in ${q.data?.days ?? 90} days · the subjects are in Discover`}{r.fresh > 0 && <em className="wc-new">New</em>}</span>
+                <span className="wc-t"><span className="wc-tt">{r.t ?? `${r.count} ${r.count === 1 ? KIND[r.k].one : KIND[r.k].many} in ${q.data?.days ?? 90} days · the subjects are in Discover`}{r.fresh > 0 && <em className="wc-new">New</em>}</span>{r.t && <SentimentChip s={r.snt} />}</span>
                 <span className="wc-ln2">
                   {r.t && r.l && <a href={r.l} target="_blank" rel="noopener noreferrer">Filing ↗</a>}
                   <Link to={discoverLink(r.k, r.n)} {...(newTab ? NEW_TAB : {})}>Details in Discover ↗</Link>

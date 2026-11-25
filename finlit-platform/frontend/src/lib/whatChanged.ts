@@ -6,12 +6,13 @@ import { useQuery } from "@tanstack/react-query";
 import { apiGet, apiSend } from "./api";
 import { useAuth } from "./auth";
 import { DEMO } from "./demo";
+import type { Sentiment } from "./sentiment";
 
-export type KindFiling = { n: number; d: string; t: string | null; l: string | null; dates: string[] };
+export type KindFiling = { n: number; d: string; t: string | null; l: string | null; dates: string[]; /** task #365: the newest filing's sentiment, null while not scored */ snt?: Sentiment | null };
 export type ChangesCompany = { s: string; n: string; ev: Record<string, KindFiling> };
 export type Changes = { days: number; events: string[]; companies: ChangesCompany[]; notPlaced: { s: string; n: string }[] };
 /** One row of the block: a company and a kind, with its count and newest filing. */
-export type ChangeRow = { s: string; n: string; k: string; count: number; d: string; t: string | null; l: string | null; fresh: number };
+export type ChangeRow = { s: string; n: string; k: string; count: number; d: string; t: string | null; l: string | null; fresh: number; /** task #365 */ snt: Sentiment | null };
 
 /** Discover's eight kinds, in the pack's order: the tile titles, the row's kind word and its colour class. */
 export const KINDS: { k: string; tile: string; row: string; tone: string; one: string; many: string }[] = [
@@ -46,7 +47,7 @@ export function rowsOf(data: Changes | undefined, lastVisit: string | null): Cha
   const out: ChangeRow[] = [];
   for (const c of data?.companies ?? []) for (const k of KINDS) {
     const e = c.ev[k.k]; if (!e) continue;
-    out.push({ s: c.s, n: c.n, k: k.k, count: e.n, d: e.d, t: e.t, l: e.l, fresh: since ? e.dates.filter((x) => x >= since).length : 0 });
+    out.push({ s: c.s, n: c.n, k: k.k, count: e.n, d: e.d, t: e.t, l: e.l, fresh: since ? e.dates.filter((x) => x >= since).length : 0, snt: e.snt ?? null });
   }
   return out.sort((a, b) => (a.k === "order" ? 0 : 1) - (b.k === "order" ? 0 : 1) || b.d.localeCompare(a.d) || a.n.localeCompare(b.n));
 }

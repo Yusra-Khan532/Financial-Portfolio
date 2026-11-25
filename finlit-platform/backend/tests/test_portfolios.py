@@ -145,6 +145,15 @@ async def test_portfolio_facts_merge_into_the_fund_page_facts(store):
     assert await portfolios.extra_facts(store.pool, 999999) is None and await disclosure.get_facts(store.pool, 999999) is None
 
 
+async def test_281_a_cut_off_exit_load_is_never_shown_on_the_fund_page(store):
+    """Task #281: "of 1.00%" (what the old cleaner stored for 119648) gives the page a reason, never the fragment; a whole rule is shown as stored."""
+    await portfolios.put_facts(store.pool, [(FAM, "exitload", TODAY, {"text": "of 1.00%"}, portfolios.SRC_DETAILS, None)])
+    f = await disclosure.get_facts(store.pool, 152657)
+    assert f["exitLoad"] == {"unavailable": portfolios.EXIT_LOAD_NOT_STATED} and "not stated by AMFI" in f["exitLoad"]["unavailable"]
+    await portfolios.put_facts(store.pool, [(FAM, "exitload", TODAY, {"text": "1.00% if redeemed within 365 days; nil after", "v": 2}, portfolios.SRC_DETAILS, None)])
+    assert (await disclosure.get_facts(store.pool, 152657))["exitLoad"]["value"] == "1.00% if redeemed within 365 days; nil after"
+
+
 async def test_a_shorter_reread_never_replaces_a_good_portfolio(store):
     p = parse_rows(iter(sheet("sbi_automotive_2026_09.json")), "SBI", "u")
     await portfolios.store_portfolio(store.pool, FAM, "SBI Mutual Fund", p)
