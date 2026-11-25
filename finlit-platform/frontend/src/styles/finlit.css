@@ -765,3 +765,8 @@ footer.band { padding-block: 0; border-top: 1px solid rgba(255,255,255,.08); }
 /* Logo.dev's credit (lib/logoCdn.ts): a plain line under the legal links, only while its logos can show */
 .logo-credit { display: block; margin-top: 4px; }
 .logo-credit a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+/* Console > Data health: set logos from links (components/admin/LogoCoverage.tsx) */
+.lg-links { display: grid; gap: 8px; margin: 12px 0 16px; }
+.lg-links textarea { width: 100%; font: var(--fs-13)/1.5 var(--font-mono, monospace); }
+.lg-res { margin: 0; padding-left: 18px; font-size: var(--fs-13); }
+.lg-res .ok { color: var(--gain); } .lg-res .no { color: var(--loss); }

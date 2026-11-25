@@ -94,8 +94,10 @@ def quote_rows(rows, level: str, showcase: set, cdn: bool = False) -> list:
         if price is None and logo is None:
             continue                                   # nothing to add to the name list
         when = None if not at or price is None else (session_of(at) if use_report else at.astimezone(IST).date())   # a score row's time is when it was written, not when it traded
-        out.append([r["symbol"], _num(price), _num(chg), when.isoformat() if when else None,
-                    score, band, logo])
+        row = [r["symbol"], _num(price), _num(chg), when.isoformat() if when else None, score, band, logo]
+        if cdn and logo is None and r.get("sha8"):
+            row.append(logo_path(r["sha8"]))   # the small own logo, kept as the page's backup when Logo.dev has no image for this company
+        out.append(row)
     return out
 
 
@@ -167,6 +169,19 @@ def with_latest(rows: list, latest: dict) -> list:
     return rows
 
 
+# Companies whose Logo.dev image is wrong or poor, from a by-eye review of the 400 largest companies (owner, 25 Nov 2026: "the TCS logo is the
+# Tata logo"). Logo.dev maps them to a parent or group brand, or serves a blurred or cropped image. They keep their own logo, else the initials
+# tile, until a correct official logo is set by hand (Console > Data health), which always wins. Add a symbol here when a review finds another.
+LOGO_CDN_SKIP = (
+    "TCS", "TATATECH", "TATAINVEST", "LTTS", "M&M", "M&MFIN", "JIOFIN", "GILLETTE",            # a parent or group brand, not the company's own
+    "EICHERMOT", "ADANIGREEN", "ATGL", "MAHABANK", "BEL", "CHOLAHLDNG", "EIHOTEL", "INOXINDIA", "CRAFTSMAN", "LODHA",   # blurred, cropped or unclear
+    # One identical image served for unrelated companies (scan of all 5,760, 25 Nov 2026): a placeholder, not their logo. Shared images within one
+    # group (JSW, Adani, Tata Motors, Kirloskar, Godrej, Welspun, Rane, Ujjivan, SKF, Sanofi...) are that group's real brand and are kept.
+    "BFINVEST", "IWEL", "KCK", "STEELCITY", "EROSMEDIA", "ESSENTIA", "FOCUS", "HEXATRADEX", "LORDSCHLO", "MCCHRLS-B", "MEGAFLEX",
+    "AHLWEST", "JAICORPLTD", "SILINV", "SAB", "STLSTRINF", "AHLEAST", "SPLIL", "BIOFILCHEM", "NARMADA", "CRESTO",
+)
+
+
 def logo_cdn_key(key: str) -> Optional[str]:
     """Only a Logo.dev PUBLISHABLE key goes to the page; a secret key (sk_...) or anything else is never sent."""
     key = (key or "").strip()
@@ -177,10 +192,11 @@ async def build(app, level: str):
     store = app.state.store
     rows = [_hydrate(r) for r in await _raw_rows(store)]
     amc = await amc_logos(store)
-    body = dumps({"fields": ["symbol", "price", "changePct", "priceDate", "score", "band", "logo"],
+    body = dumps({"fields": ["symbol", "price", "changePct", "priceDate", "score", "band", "logo", "logoBackup"],
                   "rows": with_latest(quote_rows(rows, level, set(app.state.settings.showcase_symbols), cdn=bool(logo_cdn_key(app.state.settings.logo_dev_key))), await livequote.read(store.redis)),
                   "amcLogos": {k: logo_path(v) for k, v in amc.items() if k in AMC_SITES},
                   "logoCdn": logo_cdn_key(app.state.settings.logo_dev_key),
+                  "logoCdnSkip": list(LOGO_CDN_SKIP),
                   "level": level, "builtAt": int(time.time())})
     packed = gzip.compress(body, compresslevel=6, mtime=0)
     etag = etag_for(body)

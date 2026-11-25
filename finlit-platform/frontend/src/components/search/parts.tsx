@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { apiUrl } from "../../lib/api";
 import { DEMO } from "../../lib/demo";
-import { isCdnLogo } from "../../lib/logoCdn";
+import { altOf, isCdnLogo } from "../../lib/logoCdn";
 import { MINUS, dateIN, initials, nf } from "../../lib/format";
 import { BAND_LABEL, highlight, type Band, type Kind } from "../../lib/globalSearch";
 
@@ -14,10 +14,13 @@ const logoSrc = (path: string) => (isCdnLogo(path) ? path : DEMO ? `${import.met
 /** The company's own logo on a light tile (readable on both themes); initials in a coloured tile when there is none or it fails to load. */
 export function Logo({ src, name, kind, size = 40 }: { src?: string | null; name: string; kind: Kind; size?: number }) {
   const [broken, setBroken] = useState(false);
+  const [onAlt, setOnAlt] = useState(false);   // Logo.dev had no image: our own small logo instead (lib/logoCdn.ts logoFor)
+  const alt = src ? altOf(src) : null;
   const style = { width: size, height: size, borderRadius: Math.round(size * 0.28) };
   if (kind === "news") return <span className="gs-logo gs-logo-news" style={style} aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h11v16H6a2 2 0 0 1-2-2V5a1 1 0 0 1 1-1Zm11 5h3a1 1 0 0 1 1 1v8a2 2 0 0 1-4 0M8 8h5M8 12h5M8 16h3" /></svg></span>;
   if (src && !broken) {
-    return <span className="gs-logo gs-logo-img" style={style}><img src={logoSrc(src)} alt="" loading="lazy" decoding="async" width={size} height={size} onError={() => setBroken(true)} referrerPolicy={isCdnLogo(src) ? "strict-origin" : "no-referrer"} /></span>;
+    const cur = onAlt && alt ? alt : src;
+    return <span className="gs-logo gs-logo-img" style={style}><img key={cur} src={logoSrc(cur)} alt="" loading="lazy" decoding="async" width={size} height={size} onError={() => (alt && !onAlt ? setOnAlt(true) : setBroken(true))} referrerPolicy={isCdnLogo(cur) ? "strict-origin" : "no-referrer"} /></span>;
   }
   return <span className="gs-logo gs-logo-txt" style={{ ...style, background: `linear-gradient(140deg, ${tint(name)}, color-mix(in srgb, ${tint(name)} 55%, #000))`, fontSize: size >= 44 ? "var(--fs-16)" : size >= 36 ? "var(--fs-14)" : "var(--fs-12)" }} aria-hidden="true">{initials(name.replace(/^the\s+/i, ""))}</span>;
 }

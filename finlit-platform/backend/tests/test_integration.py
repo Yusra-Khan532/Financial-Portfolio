@@ -423,7 +423,7 @@ async def test_search_quotes_and_logos(ingested):
                 body = r.json()
                 rows = {x[0]: x for x in body["rows"]}
                 rel = rows["RELIANCE"]
-                assert body["fields"] == ["symbol", "price", "changePct", "priceDate", "score", "band", "logo"] and body["level"] == "basic"
+                assert body["fields"] == ["symbol", "price", "changePct", "priceDate", "score", "band", "logo", "logoBackup"] and body["level"] == "basic"
                 assert rel[1] > 0 and len(rel[3]) == 10 and rel[6] == f"/api/logos/{sha}.png"
                 assert rel[4] is None and rel[5] is None and want in ("open", "locked")   # task #283 PR C: the score and band held the retired FinLit IQ; never sent
                 assert body["amcLogos"] == {"sbi": f"/api/logos/{sha}.png"}
