@@ -48,6 +48,8 @@ jobs:
         run: bash ../deploy/aws/test-deploy-jobs.sh
       - name: Prebuilt image checks (deploy.sh pull_prebuilt)
         run: bash ../deploy/aws/test-prebuilt-image.sh
+      - name: Backup retention checks (backup.sh prune)
+        run: bash ../deploy/aws/test-backup-prune.sh
 
   site-api:
     runs-on: ubuntu-latest

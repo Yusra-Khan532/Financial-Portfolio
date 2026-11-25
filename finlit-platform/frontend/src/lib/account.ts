@@ -62,6 +62,21 @@ export type Monitoring = { checks: MonCheck[]; note: string | null; incidents: {
   kumaUrl: string | null; asOf: string };
 export const adminMonitoring = () => apiGet<Monitoring>("/api/admin/monitoring");
 export const adminHealth = () => apiGet<DataHealth>("/api/admin/data-health");
+/** Console > Storage (finlit/storage.py): the server disk, what fills it, the database by table, the backups and the daily growth. Bytes throughout. */
+export type StorageTable = { name: string; group: string; total: number; data: number; indexes: number; largeValues: number; live: number; dead: number; chunks?: number; compressedChunks?: number };
+export type StoragePart = { name: string; bytes: number | null; note?: string };
+export type StorageReport = {
+  at: string; alertPct: number;
+  disk: { total: number; used: number; free: number } | null;
+  parts: StoragePart[];
+  database: { bytes: number; walBytes: number | null; walWhy?: string; tables: StorageTable[]; tableCount: number; otherTables: number; otherTablesBytes: number;
+    groups: { name: string; bytes: number; tables: number }[]; systemBytes: number; deadRows: number; hypertables: { name: string; chunks: number; compressed: number }[] };
+  backups: { available: false; why: string } | { available: true; count: number; bytes: number; files: { name: string; bytes: number; at: string }[] };
+  folders: { name: string; path: string; bytes: number | null }[];
+  history: { day: string; diskUsed: number | null; diskTotal: number | null; dbBytes: number | null; backupsBytes: number | null }[];
+  growth: { known: false; why: string } | { known: true; fromDay: string; toDay: string; days: number; diskPerDay: number; dbPerDay: number | null; daysToAlert: number | null; daysToFull: number | null; steady?: boolean };
+};
+export const adminStorage = () => apiGet<StorageReport>("/api/admin/storage");
 
 export const addIpo = (b: Record<string, unknown>) => apiSend("POST", "/api/admin/ipos", b);
 export const deleteIpo = (id: number) => apiSend("DELETE", `/api/admin/ipos/${id}`);
