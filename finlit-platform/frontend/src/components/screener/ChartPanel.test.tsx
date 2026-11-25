@@ -63,7 +63,7 @@ describe("ChartPanel", () => {
     show("setup-ema9-consolidation");
     expect(lines).toContain("#06b6d4"); expect(lines).not.toContain("#f59e0b");
     fireEvent.click(screen.getByRole("button", { name: /Indicators/ }));
-    fireEvent.click(screen.getByLabelText(/EMA 50/));
+    fireEvent.click(screen.getByLabelText(/50-day EMA/));   // task #394 (W3): averages are named by their unit
     expect(JSON.parse(sessionStorage.getItem("fl.chart.ind") || "{}")).toMatchObject({ ema9: true, ema50: true });
   });
   it("draws a line, never dots, when a bar has no open, high or low", () => {

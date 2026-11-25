@@ -87,6 +87,8 @@ export type Technical = {
 };
 export type PriceRange = {
   meta: Meta; range: string; grain: "daily" | "weekly"; technical: Technical; complete: boolean; startsAt: string | null; provisionalLastBar: boolean;
+  /** task #394 (file 37, W1/W2): a weekly answer (3Y, 5Y) says the server can also send this range as daily candles (?grain=daily); an older server sends none */
+  dailyAvailable?: boolean;
   series: { t: string[]; o?: Series; h?: Series; l?: Series; c: number[]; v: Series; ema9?: Series; ema20?: Series; ema50: Series; ema200: Series };
 };
 /** Intraday candles from Dhan (1D 1-minute, 5D 5-minute, 1M hourly). Times are ISO with +05:30; `asOf` is when Dhan was asked. */
@@ -192,9 +194,13 @@ function sectionQuery<T>(symbol: string, path: string, extra?: Partial<UseQueryO
 
 export const useSummary = (s: string, enabled = true) => { const b = useBasis(s); return useQuery<Summary, ApiError>({ ...sectionQuery<Summary>(s, "", undefined, b), placeholderData: (prev) => (prev?.meta.symbol === s.toUpperCase() ? prev : undefined), enabled: enabled && !!s }); };
 export const useSection = <T,>(s: string, name: string, enabled = true, basis?: Basis) => { const own = useBasis(s), b = basis ?? own; return useQuery<T, ApiError>({ ...sectionQuery<T>(s, `/${name}`, undefined, b), placeholderData: (prev) => ((prev as { meta?: { symbol?: string } } | undefined)?.meta?.symbol === s.toUpperCase() ? prev : undefined), enabled }); };
-export const usePrice = (s: string, range: string, enabled = true) => {
+/** The price answer for a range. While a new range of the SAME company loads, the one before stays on screen; another company's never does (task #394, F7:
+ *  stepping with the arrows showed the previous company's candles under the new name while the next one loaded or was being prepared).
+ *  `grain` "daily" asks for daily candles over a range the server keeps as weekly (3Y, 5Y), when its answer says dailyAvailable (W2). */
+export const samePricePlaceholder = (symbol: string) => (prev: PriceRange | undefined): PriceRange | undefined => (prev?.meta?.symbol === symbol.toUpperCase() ? prev : undefined);
+export const usePrice = (s: string, range: string, enabled = true, grain?: "daily") => {
   const b = useBasis(s);
-  return useQuery<PriceRange, ApiError>({ ...sectionQuery<PriceRange>(s, `/price?range=${range}`, undefined, b), placeholderData: (prev) => prev, enabled });
+  return useQuery<PriceRange, ApiError>({ ...sectionQuery<PriceRange>(s, `/price?range=${range}${grain ? `&grain=${grain}` : ""}`, undefined, b), placeholderData: samePricePlaceholder(s), enabled });
 };
 
 /** While the market is open (or in pre-open) the server keeps a copy for a minute, so the chart asks again each minute. 401/403/404 are answers, not failures. */

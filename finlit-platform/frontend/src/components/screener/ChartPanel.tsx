@@ -12,6 +12,7 @@ import "../../styles/chartpanel.css";
 import { DISC_EVENTS, type DiscEvent, type DiscLatest } from "../../lib/presets";
 import { themePath } from "../../discovery/model";
 import { dateIN } from "../../lib/format";
+import { EVENT_KEY, axisPrice, behindNote, changeTo, datedWeeks, eventLetter, factValue, factsHeading, levelTitle, legendHead, lineLabel, listClose, singleMark, todayIST, volumeLine, type Bar } from "./chartPanelParts";
 
 /** The chart that opens from a row of the stock screeners, built to the 11 Nov design: candles, bars or a line, daily or weekly, volume in its own pane, an Indicators menu
  *  (EMA 9/20/50/200, SMA 10/20/50, volume average, highest volume in 3 months, strength against NIFTY 500, events, the pattern), Compare, Measure and a reset.
@@ -32,11 +33,13 @@ type Mode = "candles" | "bars" | "line";
 type Ind = { ema9: boolean; ema20: boolean; ema50: boolean; ema200: boolean; sma10: boolean; sma20: boolean; sma50: boolean; volAvg: boolean; hiVol: boolean; rs: boolean; events: boolean; draw: boolean };
 type Cmp = { nifty: boolean; peers: string[] };
 const KEY = "fl.chart.v2", IND_KEY = "fl.chart.ind";
-const LINES: { k: keyof Ind; label: string; color: string; src: "ema" | "sma"; n: number }[] = [
-  { k: "ema9", label: "EMA 9", color: "#06b6d4", src: "ema", n: 9 }, { k: "ema20", label: "EMA 20", color: "#ec4899", src: "ema", n: 20 },
-  { k: "ema50", label: "EMA 50", color: "#f59e0b", src: "ema", n: 50 }, { k: "ema200", label: "EMA 200", color: "#6366f1", src: "ema", n: 200 },
-  { k: "sma10", label: "SMA 10", color: "#14b8a6", src: "sma", n: 10 }, { k: "sma20", label: "SMA 20", color: "#84cc16", src: "sma", n: 20 }, { k: "sma50", label: "SMA 50", color: "#f97316", src: "sma", n: 50 },
+/** Task #394 (W3): each line is named by its unit where it is shown ("50-day EMA", "50-week SMA" on weekly candles), from src and n (lineLabel). */
+const LINES: { k: keyof Ind; color: string; src: "ema" | "sma"; n: number }[] = [
+  { k: "ema9", color: "#06b6d4", src: "ema", n: 9 }, { k: "ema20", color: "#ec4899", src: "ema", n: 20 },
+  { k: "ema50", color: "#f59e0b", src: "ema", n: 50 }, { k: "ema200", color: "#6366f1", src: "ema", n: 200 },
+  { k: "sma10", color: "#14b8a6", src: "sma", n: 10 }, { k: "sma20", color: "#84cc16", src: "sma", n: 20 }, { k: "sma50", color: "#f97316", src: "sma", n: 50 },
 ];
+const BASE_COLOR = LINES[3].color;   // the base box and its marks share the 200-day line's indigo, as before
 const PEER_COLORS = ["#8b5cf6", "#ef4444", "#10b981"], NIFTY_COLOR = "#0ea5e9";
 const OFF: Ind = { ema9: false, ema20: false, ema50: false, ema200: false, sma10: false, sma20: false, sma50: false, volAvg: false, hiVol: false, rs: false, events: true, draw: true };
 /** The lines a screen opens with: 9-day for "Consolidating above the 9 EMA", 20-day for "Closed above the 52-week high, then eased back", otherwise 50 and 200. */
@@ -55,9 +58,12 @@ const palette = () => ({ up: css("--gain", "#16a34a"), down: css("--loss", "#dc2
 
 /** What a chart-pattern scan found, as the server words it: facts ([label, value]) and the drawing (level, box, pole, swings, bar, dates already worked out). The page never sees a rule. */
 export type Draw = { level?: number; from?: string | null; box?: { from: string | null; to: string | null; low: number; high: number }; pole?: { from: string | null; low: number; to: string | null; high: number };
-  swings?: { date: string | null; price: number; kind: string }[]; bar?: string | null; ema?: number };
+  swings?: { date: string | null; price: number; kind: string }[]; bar?: string | null; ema?: number; /** task #394 (C4): the level's name, "Level" or "Pivot" */ levelLabel?: string | null };
 export type PanelRow = { symbol: string; name?: string | null; sector?: string | null; price?: number | null; facts?: [string, string | null][]; draw?: Draw; screen?: string;
-  /** Task #325 (file 25, section 4): on Emerging tech, what Discover knows of the company. */ disc?: PanelDisc | null };
+  /** Task #325 (file 25, section 4): on Emerging tech, what Discover knows of the company. */ disc?: PanelDisc | null;
+  /** Task #394 (file 37): the list's day (the screen's asOf), the row's official close of that day (price_on) and the day "What the chart shows" is worked
+   *  out from (factsAsOf, sent by the server when it has it). Each is optional: without them the panel reads as before. */
+  listDay?: string | null; priceOn?: number | null; factsAsOf?: string | null };
 export type PanelDisc = { placed: boolean; stage?: string | null; themes?: string[]; ev?: Partial<Record<DiscEvent, number>>; latest?: DiscLatest | null };
 
 /** Task #325 (file 25, section 4, screenshot 03): the chart panel's "From Discover" block: themes, stage, counts of the four filing kinds over 90 days,
@@ -76,7 +82,6 @@ export function DiscBlock({ d, name }: { d: PanelDisc; name: string }) {
       {main && <Link className="cp-dlink" to={`${themePath(main)}?q=${encodeURIComponent(name)}`}>Open in Discover ›</Link>}
     </div>);
 }
-type Bar = { t: string; o: number | null; h: number | null; l: number | null; c: number; v: number | null; e: Record<string, number | null> };
 
 /** The day of a candle as "20 Nov" (QA 23 Nov: the panel's price had no date, so a chart a close or two behind the list read as a wrong price). */
 export const candleDay = (t: string): string => { const d = new Date(`${String(t).slice(0, 10)}T00:00:00Z`); return Number.isNaN(d.getTime()) ? String(t) : d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }); };
@@ -114,7 +119,8 @@ class BoxPrimitive implements ISeriesPrimitive<Time> {
 
 /** `inline` (task #325, List + chart): the panel sits beside the list instead of over the page; it has no close button, keeps no focus trap, and Escape does not
  *  close it. Up and down arrows still move through the list. */
-export function ChartPanel({ row, onClose, onStep, extra, inline = false }: { row: PanelRow; onClose: () => void; onStep?: (dir: 1 | -1) => void; extra?: React.ReactNode; inline?: boolean }) {
+export function ChartPanel({ row, onClose, onStep, extra, inline = false, onChartEnd }: { row: PanelRow; onClose: () => void; onStep?: (dir: 1 | -1) => void; extra?: React.ReactNode; inline?: boolean;
+  /** task #394 (C11): told the day of this company's last daily candle once the chart has it, so the list can mark a row whose chart is behind */ onChartEnd?: (symbol: string, day: string) => void }) {
   const [opt, setOpt] = useState(readOpt);
   const [ind, setInd] = useState(() => readInd(row.screen));
   const [cmp, setCmp] = useState<Cmp>({ nifty: false, peers: [] });
@@ -126,7 +132,12 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false }: { ro
   useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify({ ...opt, log })); } catch { /* private window */ } }, [opt, log]);
   const touch = (n: Ind) => { setInd(n); try { sessionStorage.setItem(IND_KEY, JSON.stringify(n)); } catch { /* private window */ } };
   const theme = useThemeKey();
-  const q = usePrice(row.symbol, opt.range);
+  // W2 (task #394): 3Y and 5Y come as weekly candles. When the server says it can send them daily (dailyAvailable), D asks for ?grain=daily; weekly stays the default there.
+  const [longDaily, setLongDaily] = useState(false);
+  const qRange = usePrice(row.symbol, opt.range);
+  const dailyAvail = qRange.data?.grain === "weekly" && qRange.data?.dailyAvailable === true;
+  const qDaily = usePrice(row.symbol, opt.range, dailyAvail && longDaily, "daily");
+  const q = dailyAvail && longDaily ? qDaily : qRange;
   const q6 = usePrice(row.symbol, "6M");
   const peers = useSection<Peers>(row.symbol, "peers", menu === "cmp" || cmp.peers.length > 0).data;
   const box = useRef<HTMLDivElement>(null), host = useRef<HTMLDivElement>(null), chart = useRef<IChartApi | null>(null), main = useRef<ISeriesApi<SeriesType> | null>(null);
@@ -154,8 +165,18 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false }: { ro
       e: { ema9: s.ema9?.[i] ?? null, ema20: s.ema20?.[i] ?? null, ema50: s.ema50?.[i] ?? null, ema200: s.ema200?.[i] ?? null } })).filter((b) => b.c != null);
   }, [s]);
   const grain = q.data?.grain ?? "daily";
-  const canDaily = grain === "daily", weekly = !canDaily || opt.weekly;     // 3Y and 5Y arrive as weekly candles from the server; there is no daily to switch to
-  const bars = useMemo(() => (grain === "daily" && opt.weekly ? toWeekly(daily) : daily), [daily, grain, opt.weekly]);
+  const canDaily = grain === "daily", weekly = !canDaily || opt.weekly;     // 3Y and 5Y arrive as weekly candles from the server; daily only when it says so (W2)
+  // the daily candle days the panel holds: this range's when daily, else the 6-month answer's (always daily). They count each week's sessions (W4) and date it (W5).
+  const s6 = q6.data?.grain === "daily" ? q6.data.series : undefined;
+  const dailyDays = useMemo(() => (canDaily && s ? s.t : s6?.t ?? []), [canDaily, s, s6]);
+  const bars = useMemo(() => (!weekly ? daily : datedWeeks(canDaily ? toWeekly(daily) : daily, dailyDays)), [daily, canDaily, weekly, dailyDays]);
+  const lastDaily = s6?.t?.length ? s6.t[s6.t.length - 1] : canDaily && s?.t?.length ? s.t[s.t.length - 1] : null;
+  useEffect(() => { if (lastDaily && onChartEnd) onChartEnd(row.symbol, lastDaily); }, [lastDaily, onChartEnd, row.symbol]);
+  // events drawn on the chart, worked out once for the marks, the legend and the key under the chart (C4)
+  const evs = useMemo(() => {
+    const acts = ind.events && bars.length ? eq.data?.actions ?? [] : [];
+    return acts.filter((a) => a.date >= bars[0].t).map((a) => ({ a, d: bars.find((b) => b.t >= a.date)?.t ?? bars[bars.length - 1].t, txt: eventLetter(a.type) })).filter((x) => x.txt);
+  }, [ind.events, bars, eq.data]);
   const hasOHL = bars.length > 0 && bars.every((b) => b.o != null && b.h != null && b.l != null);
   const mode: Mode = !hasOHL ? "line" : opt.mode;                 // a bar with no open, high or low is never drawn as a dot: the chart falls back to a line
   const hasLock = (k: "ema200") => !!s && s[k] === undefined;      // ema200 is removed from the response below Silver
@@ -172,14 +193,15 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false }: { ro
       layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: pal.text, attributionLogo: false, panes: { enableResize: true, separatorColor: pal.line, separatorHoverColor: pal.strong } },
       grid: { vertLines: { visible: false }, horzLines: { visible: false } }, crosshair: { mode: CrosshairMode.Normal, vertLine: { color: pal.strong, labelBackgroundColor: pal.strong }, horzLine: { color: pal.strong, labelBackgroundColor: pal.strong } },
       rightPriceScale: { borderColor: pal.line, mode: compareOn ? PriceScaleMode.Percentage : log ? PriceScaleMode.Logarithmic : PriceScaleMode.Normal },
-      timeScale: { borderColor: pal.line, rightOffset: 4, minimumHeight: 28, fixLeftEdge: false, tickMarkFormatter: dayTick },
+      timeScale: { borderColor: pal.line, rightOffset: 4, minimumHeight: 28, fixLeftEdge: true, tickMarkFormatter: dayTick },     // C7: no empty slots left of the first candle
     });
     chart.current = c;
     const T = (t: string) => t as Time;
+    const pf = compareOn ? {} : { priceFormat: { type: "custom" as const, formatter: axisPrice, minMove: 0.01 } };   // C3: "14,000", not "14000.00"; the volume scale keeps K and M
     let m: ISeriesApi<SeriesType>;
-    if (mode === "line") { m = c.addSeries(LineSeries, { color: pal.up, lineWidth: 2, priceLineStyle: LineStyle.Dashed, title: compareOn ? row.symbol : "" }); m.setData(bars.map((b) => ({ time: T(b.t), value: b.c }))); }
-    else if (mode === "bars") { m = c.addSeries(BarSeries, { upColor: pal.up, downColor: pal.down, priceLineStyle: LineStyle.Dashed, title: compareOn ? row.symbol : "" }); m.setData(bars.map((b) => ({ time: T(b.t), open: b.o as number, high: b.h as number, low: b.l as number, close: b.c }))); }
-    else { m = c.addSeries(CandlestickSeries, { upColor: pal.up, downColor: pal.down, borderUpColor: pal.up, borderDownColor: pal.down, wickUpColor: pal.up, wickDownColor: pal.down, priceLineStyle: LineStyle.Dashed, title: compareOn ? row.symbol : "" }); m.setData(bars.map((b) => ({ time: T(b.t), open: b.o as number, high: b.h as number, low: b.l as number, close: b.c }))); }
+    if (mode === "line") { m = c.addSeries(LineSeries, { ...pf, color: pal.up, lineWidth: 2, priceLineStyle: LineStyle.Dashed, title: compareOn ? row.symbol : "" }); m.setData(bars.map((b) => ({ time: T(b.t), value: b.c }))); }
+    else if (mode === "bars") { m = c.addSeries(BarSeries, { ...pf, upColor: pal.up, downColor: pal.down, priceLineStyle: LineStyle.Dashed, title: compareOn ? row.symbol : "" }); m.setData(bars.map((b) => ({ time: T(b.t), open: b.o as number, high: b.h as number, low: b.l as number, close: b.c }))); }
+    else { m = c.addSeries(CandlestickSeries, { ...pf, upColor: pal.up, downColor: pal.down, borderUpColor: pal.up, borderDownColor: pal.down, wickUpColor: pal.up, wickDownColor: pal.down, priceLineStyle: LineStyle.Dashed, title: compareOn ? row.symbol : "" }); m.setData(bars.map((b) => ({ time: T(b.t), open: b.o as number, high: b.h as number, low: b.l as number, close: b.c }))); }
     main.current = m;
 
     // volume in pane 1 (its divider drags), with the 20-bar average and the highest-volume-in-3-months bars in blue
@@ -222,43 +244,52 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false }: { ro
       c.priceScale("right", pane).applyOptions({ mode: PriceScaleMode.Normal });
       c.panes()[pane]?.setStretchFactor(1);
     }
-    if (ind.events && eq.data?.actions?.length) {
-      const mk = eq.data.actions.map((a) => ({ a, d: snap(a.date) })).filter((x) => x.d && x.a.date >= bars[0].t).map(({ a, d }) => ({ time: T(d as string), position: "aboveBar" as const, color: pal.gold, shape: "circle" as const, text: /dividend/i.test(a.type) ? "D" : /bonus/i.test(a.type) ? "B" : /split/i.test(a.type) ? "S" : /right/i.test(a.type) ? "Rt" : "" })).filter((x) => x.text);
-      if (mk.length) createSeriesMarkers(m, mk.sort((a, b) => String(a.time).localeCompare(String(b.time))));
-    }
+    type Mk = { time: Time; position: "aboveBar" | "belowBar"; color: string; shape: "circle" | "arrowUp" | "arrowDown"; text: string };
+    const marks: Mk[] = evs.map((x) => ({ time: T(x.d), position: "aboveBar" as const, color: pal.gold, shape: "circle" as const, text: x.txt }));
     const dr = ind.draw ? row.draw : undefined;
     if (dr) {
-      if (dr.level != null) m.createPriceLine({ price: dr.level, color: pal.gold, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: "Pivot" });
+      if (dr.level != null) m.createPriceLine({ price: dr.level, color: pal.gold, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: levelTitle(dr) });   // C4
       if (dr.box) {
         const a = snap(dr.box.from), b = snap(dr.box.to);
-        if (a && b) m.attachPrimitive(new BoxPrimitive(c, m, { x1: T(a), x2: T(b), low: dr.box.low, high: dr.box.high }, "#6366f1"));
-        else { m.createPriceLine({ price: dr.box.high, color: "#6366f1", lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: "Top of base" }); m.createPriceLine({ price: dr.box.low, color: "#6366f1", lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: "Bottom of base" }); }
+        if (a && b) m.attachPrimitive(new BoxPrimitive(c, m, { x1: T(a), x2: T(b), low: dr.box.low, high: dr.box.high }, BASE_COLOR));
+        else { m.createPriceLine({ price: dr.box.high, color: BASE_COLOR, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: "Top of base" }); m.createPriceLine({ price: dr.box.low, color: BASE_COLOR, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: "Bottom of base" }); }
       }
       if (dr.pole) m.createPriceLine({ price: dr.pole.high, color: pal.up, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: "Run-up high" });
       if (dr.swings && dr.swings.length > 1) {
         const pts = dr.swings.filter((w) => w.date).map((w) => ({ time: T(snap(w.date) as string), value: w.price }));
         if (pts.length > 1) c.addSeries(LineSeries, { color: "#a855f7", lineWidth: 2, priceLineVisible: false, lastValueVisible: false }).setData(pts);
       }
-      if (dr.bar) createSeriesMarkers(m, [{ time: T(snap(dr.bar) as string), position: "belowBar", color: pal.gold, shape: "arrowUp", text: "" }]);
+      else {      // C2: a single mark ("Close above" on Fresh close above a base, "Base low" on the bases) is drawn too, above or below its candle
+        const one = singleMark(dr.swings, bars, el.clientWidth > 0 && el.clientWidth < 520, { level: pal.gold, base: BASE_COLOR });
+        if (one) marks.push({ ...one, time: T(one.time) });
+      }
+      if (dr.bar) marks.push({ time: T(snap(dr.bar) as string), position: "belowBar", color: pal.gold, shape: "arrowUp", text: "" });
     }
-    c.timeScale().fitContent();
-    const pad = Math.max(2, Math.ceil(bars.length * 0.04));     // room left of the first bar, so the first label on the time axis ("2022") is not cut off
-    c.timeScale().setVisibleLogicalRange({ from: -pad, to: bars.length - 1 + 4 });
+    if (marks.length) createSeriesMarkers(m, marks.sort((a, b) => String(a.time).localeCompare(String(b.time))));
+    const fit = () => {
+      c.timeScale().fitContent();
+      const pad = Math.max(2, Math.ceil(bars.length * 0.04));     // room left of the first bar, so the first label on the time axis ("2022") is not cut off
+      c.timeScale().setVisibleLogicalRange({ from: -pad, to: bars.length - 1 + 4 });
+    };
+    fit();
+    // C7: the chart refits when its box gets wider or narrower (the window or the panel is resized), so its left never stays empty
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") { let w = el.clientWidth; ro = new ResizeObserver(() => { if (Math.abs(el.clientWidth - w) > 4) { w = el.clientWidth; fit(); } }); ro.observe(el); }
 
-    // the legend at the pointer: the price line, every line that is on with its value, the volume with its 20-day average and the relative volume, and the events of that day
-    const idx = new Map(bars.map((b, i) => [b.t, i])), avgV = smaOf(vols.map((v) => v ?? 0), 20);
+    // the legend at the pointer: the day and its prices, every line that is on with its value (named by unit, W3), the volume against its 50-day average (C5;
+    // a weekly candle against full weeks, and none for a week in progress, W4), and the events of that day
+    const idx = new Map(bars.map((b, i) => [b.t, i])), today = todayIST();
     const show = (p: MouseEventParams<Time>) => {
       const i = p.time != null ? idx.get(String(p.time)) : bars.length - 1;
       const b = i == null ? null : bars[i];
       if (!b || i == null) { setLegend([]); return; }
-      const prev = i > 0 ? bars[i - 1].c : null, ch = prev ? ((b.c / prev - 1) * 100) : null;
-      const out = [`${b.t}  ${b.o != null ? `O ${num(b.o)}  H ${num(b.h)}  L ${num(b.l)}  ` : ""}C ${num(b.c)}${ch != null ? `  ${ch >= 0 ? "+" : ""}${num(ch)}%` : ""}`];
-      const ls = LINES.filter((L) => ind[L.k]).map((L) => { const v = L.src === "sma" ? smaOf(closes, L.n)[i] : b.e[L.k]; return v == null ? null : `${L.label} ${num(v)}`; }).filter(Boolean) as string[];
-      if (ls.length) out.push(ls.join("  "));
-      if (b.v != null) { const a = avgV[i]; out.push(`Volume ${num(b.v, 0)}${i >= 19 && a ? `  20-${weekly ? "week" : "day"} average ${num(a, 0)}  Relative volume ${num(b.v / a)}×` : ""}`); }
+      const out = [legendHead(bars, i, weekly, today, num)];
+      const ls = LINES.filter((L) => ind[L.k]).map((L) => { const v = L.src === "sma" ? smaOf(closes, L.n)[i] : b.e[L.k]; return v == null ? null : `${lineLabel(L.src, L.n, weekly)} ${num(v)}`; }).filter(Boolean) as string[];
+      if (ls.length) out.push(ls.join(" · "));
+      const vl = volumeLine(bars, i, weekly, today); if (vl) out.push(vl);
       if (cmp.nifty && benchRows.length) { const r = benchRows.find((x) => x.d === b.t), f = benchRows[0]; if (r && f) out.push(`NIFTY 500 ${num((r.c / f.c - 1) * 100)}% since ${f.d}`); }
-      const ev = ind.events ? eq.data?.actions?.filter((a) => snap(a.date) === b.t && a.date >= bars[0].t).map((a) => a.title || a.type) : null;
-      if (ev?.length) out.push(`Event: ${ev.join("; ")}`);
+      const ev = evs.filter((x) => x.d === b.t).map((x) => x.a.title || x.a.type);     // C4: the event's name on its day
+      if (ev.length) out.push(`Event: ${ev.join("; ")}`);
       setLegend(out);
     };
     c.subscribeCrosshairMove(show);
@@ -274,10 +305,10 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false }: { ro
         return { on: false, a: null, out: `${ms.a.t} → ${pt.t}:  ${ch >= 0 ? "+" : ""}${num(pc)}%  ·  ${ch >= 0 ? "+" : "−"}₹${num(Math.abs(ch))}  ·  ${Math.abs(i2 - i1)} ${weekly ? "weeks" : "sessions"}` };
       });
     });
-    return () => { c.remove(); chart.current = null; main.current = null; };
+    return () => { ro?.disconnect(); c.remove(); chart.current = null; main.current = null; };
   // the chart is drawn again when the data, the view or the choices change; colour changes on a theme switch go through applyOptions below
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bars, mode, weekly, log, ind, cmp, compareOn, bq.data, eq.data, row.draw, pq.map((x) => x.dataUpdatedAt).join(",")]);
+  }, [bars, mode, weekly, log, ind, cmp, compareOn, bq.data, evs, row.draw, pq.map((x) => x.dataUpdatedAt).join(",")]);
   useEffect(() => build(), [build]);
 
   // a theme switch while the panel is open: new colours through applyOptions, without redrawing or losing the zoom
@@ -298,10 +329,15 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false }: { ro
     const from = end.toISOString().slice(0, 10); let i = t.findIndex((x) => x >= from); if (i < 0 || (d === 3 && t[0] > from)) return null; if (i === 0 && t[0] > from) return null;
     return (c[c.length - 1] / c[i] - 1) * 100;
   };
-  const r1 = ret(1), r3 = ret(3);
+  // C1: the list's official close of its day beside the chart (price_on), when the row has it and the day is one the chart can stand on; 1M and 3M then run to it
+  const lc = listClose(row, s6?.t ?? []);
+  const r1 = lc && s6 ? changeTo(s6.t, s6.c, lc.day, lc.price, 1) : ret(1), r3 = lc && s6 ? changeTo(s6.t, s6.c, lc.day, lc.price, 3) : ret(3);
+  const note = behindNote(lastDaily, row.listDay, row.priceOn);      // F6
+  const keyOn = EVENT_KEY.filter(([k]) => evs.some((x) => x.txt === k));    // C4: the key lists the letters drawn on the chart
+  const prep = (q.failureReason as { status?: number } | null)?.status === 202 || (q.error as { status?: number } | null)?.status === 202;   // F7
   const first = bars[0], chg = lastBar && first ? (lastBar.c / first.c - 1) * 100 : null;
   const tog = (k: keyof Ind) => touch({ ...ind, [k]: !ind[k] });
-  const reset = () => { touch(defaultIndicators(row.screen)); setCmp({ nifty: false, peers: [] }); setLog(false); setOpt((o) => ({ ...o, mode: "candles", weekly: false })); setMeasure({ on: false, a: null, out: null }); chart.current?.timeScale().fitContent(); };
+  const reset = () => { touch(defaultIndicators(row.screen)); setCmp({ nifty: false, peers: [] }); setLog(false); setLongDaily(false); setOpt((o) => ({ ...o, mode: "candles", weekly: false })); setMeasure({ on: false, a: null, out: null }); chart.current?.timeScale().fitContent(); };
   const peerList = (peers?.symbols ?? []).filter((p) => p !== row.symbol).slice(0, 8);
   const pct = (v: number | null) => v == null ? null : <span className={v >= 0 ? "up" : "dn"}>{v >= 0 ? "+" : ""}{num(v)}%</span>;
   return (
@@ -312,25 +348,27 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false }: { ro
         {onStep && <span className="cp-nav" role="group" aria-label="Move between companies"><button type="button" onClick={() => onStep(-1)} aria-label="Previous company (up arrow)" title="Previous company (↑)">↑</button><button type="button" onClick={() => onStep(1)} aria-label="Next company (down arrow)" title="Next company (↓)">↓</button></span>}
         {!inline && <button type="button" className="cp-x" onClick={onClose} aria-label="Close chart">×</button>}
       </header>
-      <div className="cp-p"><b>₹{num(lastBar?.c ?? row.price)}</b>{lastBar && <small className="cp-asof" title="The chart's last candle. The list beside it shows the latest close, which can be newer while this chart is refreshed.">close of {candleDay(lastBar.t)}</small>}
-        {r1 != null && <span title="Change over the last month">1M {pct(r1)}</span>}{r3 != null && <span title="Change over the last 3 months">3M {pct(r3)}</span>}
+      <div className="cp-p">{lc ? <><b>₹{num(lc.price)}</b><small className="cp-asof" title={`The list's official close of ${candleDay(lc.day)}, the same day as the list`}>{candleDay(lc.day)} close</small></>
+        : <><b>₹{num(lastBar?.c ?? row.price)}</b>{lastBar && <small className="cp-asof" title="The chart's last candle. The list beside it shows the latest close, which can be newer while this chart is refreshed.">close of {candleDay(lastBar.t)}</small>}</>}
+        {r1 != null && <span title={lc ? `Change over the month to ${candleDay(lc.day)}` : "Change over the last month"}>1M {pct(r1)}</span>}{r3 != null && <span title={lc ? `Change over the 3 months to ${candleDay(lc.day)}` : "Change over the last 3 months"}>3M {pct(r3)}</span>}
         {chg != null && <span className="cp-rng" title={`Change over the chart range (${opt.range})`}>{opt.range} {pct(chg)}</span>}
         {model && <ScoreChip className="cp-badge" v={scoreView(prismMap[row.symbol])} />}</div>
-      {!!row.facts?.filter(([, v]) => v != null).length && <div className="cp-fbox" aria-label="What the chart shows"><b>What the chart shows</b>
-        <dl className="cp-facts">{row.facts.filter(([, v]) => v != null).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl></div>}
+      {note && <p className="cp-note" role="note"><b>{note[0]}</b> {note[1]}</p>}
+      {!!row.facts?.filter(([, v]) => v != null).length && <div className="cp-fbox" aria-label="What the chart shows"><b>{factsHeading(row.factsAsOf)}</b>
+        <dl className="cp-facts">{row.facts.filter(([, v]) => v != null).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{factValue(k, v)}</dd></div>)}</dl></div>}
       <div className="cp-bar" role="group" aria-label="Chart range and tools">
         <span className="cp-seg" role="group" aria-label="Daily or weekly">
-          <button type="button" className={!weekly ? "on" : ""} aria-pressed={!weekly} disabled={!canDaily} title={canDaily ? "Daily candles" : "3 and 5 years are shown as weekly candles"} onClick={() => setOpt((o) => ({ ...o, weekly: false }))}>D</button>
-          <button type="button" className={weekly ? "on" : ""} aria-pressed={weekly} onClick={() => setOpt((o) => ({ ...o, weekly: true }))} title="Weekly candles">W</button></span>
+          <button type="button" className={!weekly ? "on" : ""} aria-pressed={!weekly} disabled={!canDaily && !dailyAvail} title={canDaily || dailyAvail ? "Daily candles" : "3 and 5 years are shown as weekly candles"} onClick={() => { if (dailyAvail) setLongDaily(true); setOpt((o) => ({ ...o, weekly: false })); }}>D</button>
+          <button type="button" className={weekly ? "on" : ""} aria-pressed={weekly} onClick={() => { setLongDaily(false); setOpt((o) => ({ ...o, weekly: true })); }} title="Weekly candles">W</button></span>
         <span className="cp-seg" role="group" aria-label="Chart type">
           {(["candles", "bars", "line"] as Mode[]).map((m) => <button type="button" key={m} className={mode === m ? "on" : ""} aria-pressed={mode === m} disabled={m !== "line" && !hasOHL} onClick={() => setOpt((o) => ({ ...o, mode: m }))}>{m[0].toUpperCase() + m.slice(1)}</button>)}</span>
         <span className="cp-seg" role="group" aria-label="Range">
-          {RANGES.map((r) => <button type="button" key={r} className={opt.range === r ? "on" : ""} aria-pressed={opt.range === r} onClick={() => setOpt((o) => ({ ...o, range: r }))}>{r}</button>)}</span>
+          {RANGES.map((r) => <button type="button" key={r} className={opt.range === r ? "on" : ""} aria-pressed={opt.range === r} onClick={() => { setLongDaily(false); setOpt((o) => ({ ...o, range: r })); }}>{r}</button>)}</span>
       </div>
       <div className="cp-bar" role="group" aria-label="Lines, compare and measure">
         <span className="cp-menu"><button type="button" className={"cp-dd" + (menu === "ind" ? " on" : "")} aria-haspopup="true" aria-expanded={menu === "ind"} onClick={() => setMenu(menu === "ind" ? null : "ind")}>Indicators ▾</button>
           {menu === "ind" && <div className="cp-pop" role="group" aria-label="Indicators">
-            {LINES.map((L) => { const lock = L.k === "ema200" && hasLock("ema200"); return <label key={L.k} className={lock ? "lk" : ""}><input type="checkbox" checked={ind[L.k] && !lock} disabled={lock} onChange={() => tog(L.k)} /><i style={{ background: L.color }} />{L.label}{lock ? " (Silver)" : ""}</label>; })}
+            {LINES.map((L) => { const lock = L.k === "ema200" && hasLock("ema200"); return <label key={L.k} className={lock ? "lk" : ""}><input type="checkbox" checked={ind[L.k] && !lock} disabled={lock} onChange={() => tog(L.k)} /><i style={{ background: L.color }} />{lineLabel(L.src, L.n, weekly)}{lock ? " (Silver)" : ""}</label>; })}
             <hr />
             <label><input type="checkbox" checked={ind.volAvg} onChange={() => tog("volAvg")} />Volume average (20)</label>
             <label><input type="checkbox" checked={ind.hiVol} onChange={() => tog("hiVol")} /><i style={{ background: "#2563eb" }} />Highest volume in 3 months</label>
@@ -348,12 +386,14 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false }: { ro
         <button type="button" className={measure.on ? "on" : ""} aria-pressed={measure.on} onClick={() => setMeasure((m) => ({ on: !m.on, a: null, out: m.on ? null : "Click the start point" }))}>Measure</button>
         <button type="button" onClick={reset} aria-label="Reset the chart" title="Reset the chart">↺</button>
       </div>
+      {!canDaily && <p className="cp-wk">3Y and 5Y show weekly candles.</p>}
       {measure.out && <div className="cp-meas" role="status">{measure.out}</div>}
       <div className="cp-leg" aria-live="off">{legend.length ? legend.map((l, i) => <div key={i}>{l}</div>) : " "}</div>
       <div className="cp-c" ref={host}>
-        {q.isLoading && <p className="cp-m">Loading the chart…</p>}
-        {!q.isLoading && !bars.length && <p className="cp-m">{q.isError ? "The chart could not be loaded." : "No price history yet for this company."}{q.isError && <button type="button" className="btn" onClick={() => q.refetch()}>Try again</button>}</p>}
+        {q.isLoading && <p className="cp-m">{prep ? "Preparing this company's chart…" : "Loading the chart…"}</p>}
+        {!q.isLoading && !bars.length && <p className="cp-m">{q.isError ? (prep ? "Preparing this company's chart. It is taking longer than usual." : "The chart could not be loaded.") : "No price history yet for this company."}{q.isError && <button type="button" className="btn" onClick={() => q.refetch()}>Try again</button>}</p>}
       </div>
+      {keyOn.length > 0 && <div className="cp-key" aria-label="Marks on the chart">{keyOn.map(([k, w]) => <span key={k}><i>{k}</i>{w}</span>)}</div>}
       {model === "prism" && prismParts(prismMap[row.symbol]).length > 0 && <ul className="cp-score cp-pz" aria-label="FinLit Prism scores">{prismParts(prismMap[row.symbol]).map((p) => <li key={p.key} className={"pb-" + p.band}><small>{p.label}</small><b>{p.text}</b><em>{p.word ?? (p.value == null ? "Not available" : p.key === "risk" ? "Higher means lower risk" : "Higher is better")}</em></li>)}</ul>}
       {extra}
       {row.disc && <DiscBlock d={row.disc} name={row.name || row.symbol} />}
