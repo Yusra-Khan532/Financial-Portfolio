@@ -339,8 +339,10 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
             shards=prism_workers, resumable=True, probe="prism", interval_min=10, windows=(W("NIGHT", 20), W("MORNING", 14)), sla=Sla("hours", 26), boot=True, prerequisites=("ingest", "score"),
             gate=Gate("PRISM_PRECOMPUTE_ENABLED", "Prism pre-compute is switched off: PRISM_PRECOMPUTE_ENABLED is not 1", forced=True), owns=("prism",),
             what="FinLit Prism rating of every company with a full report (resumable, one company at a time per worker)"),
+        # task #394 (developer file 37, F4): the ready-made lists are built only after the charts are brought up to the newest candles (price-sections,
+        # itself after candles), so a list, its figures and its charts read one close
         Job("presets", ("refresh-presets",), cls="bulk", priority=42, max_runtime_min=40, weight_mb=350, windows=(W("NIGHT", 20), W("MORNING", 14)), sla=Sla("hours", 30),
-            prerequisites=("prism",), catchup=False,
+            prerequisites=("prism", "price-sections"), catchup=False,
             what="prebuilt screens: momentum and growth scores, industry breadth and theme states, every screen's list into the cache (after the Prism batch; database only)"),
         # task #326: one file per market day for the owner's archive, started by the presets job's completion (its probe sees the finished day without a file;
         # presets is its prerequisite, so it never reads while the lists are being rewritten). Stored results only: a few seconds. Back-fill of earlier days,

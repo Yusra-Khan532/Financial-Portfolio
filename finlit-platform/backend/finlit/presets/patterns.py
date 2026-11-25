@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import re
 import logging
-from datetime import date
+from datetime import date, timedelta
 from typing import Any, Dict, List, Optional
 
 from . import candles as candles_mod
@@ -18,6 +18,7 @@ LIQUID_FLOOR_CR = 1000.0         # market value: below this the scans are not ru
 META_KEY = "patterns"
 MIN_COVERAGE = 0.98             # the share of the scanned companies whose candles reach the close: below it the run stops instead of publishing thin lists
 SUSPENDED_DAYS = 45             # candles that end this many days before the close belong to a suspended or delisted company: it leaves the scan universe
+YEAR_DAYS = 366                 # the daily bars the scans read: one year, as the stored one-year prices (snapshot.PRICE_RANGES["1Y"])
 
 # Task #325 (developer file 26, 22 Nov 2026): engine 2 (finlit/pattern_engine.py). Twelve scans (Fresh close above a base is new; the pack called it "Fresh breakout", renamed because "breakout" stays out of what readers see, task #64); names, card lines and
 # "How this screen works" are the pack's pattern-text.json, word for word.
@@ -245,13 +246,141 @@ def draw_of(d: Dict[str, Any], s: Any) -> Dict[str, Any]:
     return out
 
 
+def inr(v: Any) -> Optional[str]:
+    """Rupees with Indian commas and two decimals: 11353 -> "₹11,353.00", 123456.7 -> "₹1,23,456.70" (task #394, C6)."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    if f != f:
+        return None
+    sign, f = ("-" if f < 0 else ""), abs(f)
+    whole, frac = f"{f:.2f}".split(".")
+    if len(whole) > 3:
+        head, tail = whole[:-3], whole[-3:]
+        groups: List[str] = []
+        while len(head) > 2:
+            groups.insert(0, head[-2:])
+            head = head[:-2]
+        whole = ",".join(([head] if head else []) + groups + [tail])
+    return f"{sign}₹{whole}.{frac}"
+
+
+def _day_words(iso: str, list_iso: str) -> str:
+    """'19 Nov', with the year when it is not the list's own year."""
+    d, ref = date.fromisoformat(str(iso)[:10]), date.fromisoformat(str(list_iso)[:10])
+    return f"{d.day} {d.strftime('%b')}" + ("" if d.year == ref.year else f" {d.year}")
+
+
+def _before_list(n: int, unit: str = "session") -> str:
+    return "the list day" if n <= 0 else f"{n} {unit}{'s' if n != 1 else ''} before the list"
+
+
+def _index_of(days: Any, iso: Any) -> Optional[int]:
+    if not iso:
+        return None
+    try:
+        return [str(x)[:10] for x in days].index(str(iso)[:10])
+    except ValueError:
+        return None
+
+
+def _times(v: Any, base: str) -> Any:
+    """'0.24x' -> '0.24× its 50-day average' (C6)."""
+    t = str(v)
+    if v is None or t.startswith("nan"):
+        return None
+    return f"{t[:-1] if t.endswith('x') else t}× its {base} average"
+
+
+def plain_facts(pattern: Optional[str], facts: Dict[str, Any], draw: Dict[str, Any], s: Any) -> List[List[Any]]:
+    """What the chart shows, in plain words (developer file 37, C6), worked out on the series the scan ran on, which ends on the list's own close (F5):
+    the distance from the level from that close, the close above and the level counted in sessions to the list day, money as rupees with Indian
+    commas. The list's own columns keep the engine's labels and numbers (pack section 0); only this box reads differently."""
+    days = [str(x)[:10] for x in (getattr(s, "d", None) if getattr(s, "d", None) is not None else [])]
+    list_iso = days[-1] if days else None
+    last = float(getattr(s, "last", float("nan")))
+    lv = draw.get("level")
+    lvl = float(lv[1]) if isinstance(lv, (list, tuple)) and len(lv) > 1 and lv[1] is not None else None
+    lvl_day = str(lv[0])[:10] if isinstance(lv, (list, tuple)) and lv and lv[0] else None
+    marks = {m[2]: m for m in draw.get("marks") or [] if isinstance(m, (list, tuple)) and len(m) >= 3}
+    out: List[List[Any]] = []
+    for k, v in facts.items():
+        if k in ("Level (Rs)", "Closed above") and (lvl is not None or k == "Level (Rs)"):
+            out.append(["Level", inr(lvl if lvl is not None else number_of(k, v))])
+        elif k.endswith(" (Rs)"):
+            out.append([k[:-5], inr(number_of(k, v))])
+        elif k == "When" and list_iso:
+            mark = marks.get("Close above") or marks.get("Reversal day")
+            i = _index_of(days, mark[0]) if mark else None
+            label = "Closed above it on" if "Close above" in marks else "Reversal day"
+            out.append([label, f"{_day_words(mark[0], list_iso)} · {_before_list(len(days) - 1 - i)}" if mark and i is not None else worded(v)])
+        elif k in ("Below the level", "Now above the level") and lvl and last == last:
+            pos = (last / lvl - 1) * 100
+            if k == "Now above the level":
+                out.append(["Now above the level" if pos >= 0 else "Now under the level", f"{abs(pos):.1f}%"])
+            else:
+                out.append(["Below the level" if pos <= 0 else "Above the level", f"{abs(pos):.1f}%"])
+        elif k == "In daily ranges":
+            out.append(["In usual daily moves", worded(v)])
+        elif k == "Level age" and lvl_day and list_iso:
+            if pattern == "fresh_breakout" and "Close above" in marks:
+                a, b = _index_of(days, lvl_day), _index_of(days, marks["Close above"][0])
+                n = (b - a) if a is not None and b is not None else int(number_of(k, v) or 0)
+                out.append(["Level set on", f"{_day_words(lvl_day, list_iso)} · {n} session{'s' if n != 1 else ''} before the close above"])
+            elif pattern == "weekly_base":
+                out.append(["Level set on", f"the week to {_day_words(lvl_day, list_iso)} · {_before_list(int(number_of(k, v) or 0), 'week')}"])
+            else:
+                a = _index_of(days, lvl_day)
+                out.append(["Level set on", f"{_day_words(lvl_day, list_iso)} · {_before_list(len(days) - 1 - a if a is not None else int(number_of(k, v) or 0))}"])
+        elif k == "Base depth":
+            out.append(["Base, top to bottom", worded(v)])
+        elif k == "Rally before it":
+            out.append(["Rise before the level", worded(v)])
+        elif k == "Times tested":
+            out.append(["Times the level was tested", worded(v)])
+        elif k == "Volume that day against 50-day":
+            out.append(["Volume that day", _times(v, "50-day")])
+        elif k == "Volume against its 20-day average":
+            out.append(["Volume that day", _times(v, "20-day")])
+        elif k in ("Volume, last 10 against 50", "Volume, last 5 against 50"):
+            out.append([f"Volume, last {k.split()[2]} days", _times(v, "50-day")])
+        else:
+            out.append([k, worded(v)])
+    return out
+
+
+# F4 (developer file 37): the rule a list states, checked again on the list's own close. Lists built on an older close showed Trent and Axis Bank on
+# Fresh close above a base under their level, and Dr Lal PathLabs and Sudeep Pharma on Near pivot above theirs.
+UNDER_LEVEL = {"near_pivot": "lt", "daily_base": "le", "weekly_base": "le", "ipo_base": "le"}
+ABOVE_LEVEL = {"fresh_breakout"}
+
+
+def rule_holds(pattern: Optional[str], h: Dict[str, Any], close: Optional[float]) -> bool:
+    """Whether a hit still meets its list's rule at the list day's close: Near pivot under its level, the bases not above it, Fresh close above a base at
+    or above it. The other lists have no level rule to check here."""
+    lv = (h.get("draw") or {}).get("level")
+    lvl = lv[1] if isinstance(lv, (list, tuple)) and len(lv) > 1 else None
+    if lvl is None or close is None or close != close:
+        return True
+    if pattern in ABOVE_LEVEL:
+        return close >= lvl
+    rule = UNDER_LEVEL.get(pattern or "")
+    return close < lvl if rule == "lt" else close <= lvl if rule == "le" else True
+
+
 def record_of(h: Dict[str, Any], s: Any) -> Dict[str, Any]:
-    """What the screens keep for one hit: every figure worded for the panel, the figures as numbers for the columns, the status, How clean, the order key
-    (the quality, never shown), the strength rank and the drawing."""
+    """What the screens keep for one hit: every figure worded for the panel in plain words (C6), the figures as numbers for the columns (the engine's
+    labels), the status, How clean, the order key (the quality, never shown), the strength rank, the drawing, and the list day's close the figures are
+    worked out from with the close before it (F3, F5: the row shows that price and that day change)."""
     f = h.get("facts") or {}
-    return {"facts": [[k, worded(v)] for k, v in f.items()], "nums": {k: number_of(k, v) for k, v in f.items()},
+    c = getattr(s, "c", None)
+    close = float(c[-1]) if c is not None and len(c) else None
+    prev = float(c[-2]) if c is not None and len(c) > 1 else None
+    return {"facts": plain_facts(h.get("pattern"), f, h.get("draw") or {}, s), "nums": {k: number_of(k, v) for k, v in f.items()},
             "status": h.get("status") or None, "clean": h.get("clean"), "q": h.get("q"), "rs": h.get("rs"),
-            "draw": draw_of(h.get("draw") or {}, s), "last": s.d[-1]}
+            "draw": draw_of(h.get("draw") or {}, s), "last": str(s.d[-1])[:10], "close": round(close, 2) if close is not None else None,
+            "prev": round(prev, 2) if prev is not None else None, "prevDay": str(s.d[-2])[:10] if len(s.d) > 1 else None}
 
 
 async def _bench_map(store, code: str) -> Optional[Dict[str, float]]:
@@ -381,27 +510,40 @@ async def scan_all(store, table, expected_day: date) -> Dict[str, Any]:
     benches = [(name, m) for name, m in [("Nifty MidSmallcap 400", await _bench_map(store, "NIFMID400")), ("Nifty 500", await _bench_map(store, "NIF500"))] if m]
     scans: Dict[str, Dict[str, Any]] = {k: {} for k in SCAN_IDS}
     stale: List[List[str]] = []
+    rule_off: List[List[str]] = []
     series: Dict[str, Any] = {}
     young: Dict[str, Any] = {}
     checked = suspended = 0
-    for i, sym in enumerate(table.symbols):
-        if not table.full[i] or mc[i] != mc[i] or mc[i] < LIQUID_FLOOR_CR:
-            continue
+    cands = [(i, sym) for i, sym in enumerate(table.symbols) if table.full[i] and mc[i] == mc[i] and mc[i] >= LIQUID_FLOOR_CR]
+    try:        # the exchange candles the charts are written from (price_sections.py), in one query; three years, for the weekly bars too
+        from .. import candles as exch
+        long = await exch.bulk(store, [sym for _, sym in cands], 1150)
+    except Exception:
+        long = {}
+    exp_iso = expected_day.isoformat()
+    year_ago = (expected_day - timedelta(days=YEAR_DAYS)).isoformat()
+    for i, sym in cands:
         try:
-            sr = await candles_mod.series(store, sym)                         # the same series the coverage gate counted
+            ex = long.get(sym)
+            # Task #394 (developer file 37, F4, F5): the daily bars are the company's chart candles when it has them, so the list, its figures and the
+            # chart read one close; else the series the coverage gate counted (stored prices, or the fresher Dhan candles the technicals job keeps).
+            # Never a bar after the list's day: the figures are those of the list's own close.
+            sr = ex if ex and ex.get("t") else await candles_mod.series(store, sym)
             t, c = sr.get("t") or [], sr.get("c") or []
             if len(t) < 8 or len(c) != len(t):
                 continue
             o, h, lo, v = (sr.get(k) or c for k in ("o", "h", "l", "v"))
+            from_ = year_ago if sr is ex else ""         # the chart candles reach three years back: the scans read one year, as the stored series
             rows = [(str(t[k])[:10], o[k], h[k], lo[k], c[k], v[k]) for k in range(len(t))
-                    if None not in (o[k], h[k], lo[k], c[k]) and c[k] > 0 and lo[k] > 0 and v[k] not in (None, 0)]   # a zero-volume row is the Muhurat copy of the day before (file 26, 5.1 row 5)
+                    if from_ <= str(t[k])[:10] <= exp_iso
+                    and None not in (o[k], h[k], lo[k], c[k]) and c[k] > 0 and lo[k] > 0 and v[k] not in (None, 0)]   # a zero-volume row is the Muhurat copy of the day before (file 26, 5.1 row 5)
             if len(rows) < 8:
                 continue
             last = date.fromisoformat(rows[-1][0])
             if (expected_day - last).days > SUSPENDED_DAYS:
                 suspended += 1                  # suspended or delisted: out of the scan universe, not "left out"
                 continue
-            if last < expected_day:
+            if last < expected_day:             # F4: the company's last candle is not the list's day: left off, counted in the job's result and logged
                 stale.append([sym, f"candles end {last.strftime('%d %b').lstrip('0')}, before the {expected_day.strftime('%d %b').lstrip('0')} close"])
                 continue
             d_, o_, h_, l_, c_, v_ = (list(x) for x in zip(*rows))
@@ -418,13 +560,11 @@ async def scan_all(store, table, expected_day: date) -> Dict[str, Any]:
                 series[sym] = s
         except Exception:
             log.warning("pattern series skipped for %s", sym, exc_info=True)
-    try:                                         # three years of weekly bars from the exchange candles, in one query
-        from .. import candles as exch
-        long = await exch.bulk(store, list(series), 1150)
-    except Exception:
-        long = {}
-    for sym, s in series.items():
+    for sym, s in series.items():                # three years of weekly bars from the exchange candles read above, up to the list's day
         w = long.get(sym)
+        if w and w["t"] and w["t"][-1] > exp_iso:
+            n = sum(1 for x in w["t"] if x <= exp_iso)
+            w = {k: (v[:n] if isinstance(v, list) else v) for k, v in w.items()}
         if w and len(w["t"]) >= 300 and all(x is not None for x in w["c"]):
             s.wd, s.wh, s.wl, s.wc = pe.weekly_bars(w["t"], w["h"], w["l"], w["c"])
         else:
@@ -434,10 +574,15 @@ async def scan_all(store, table, expected_day: date) -> Dict[str, Any]:
     for group, is_young in ((series, False), (young, True)):
         for sym, s in group.items():
             for h in pe.scan(s, ranks.get(sym), benches, young=is_young):
+                if not rule_holds(h["pattern"], h, s.last):        # F4: the list's rule, again on the list day's close
+                    rule_off.append([sym, h["pattern"]])
+                    continue
                 scans[h["pattern"]][sym] = record_of(h, s)
     if stale:
         log.info("pattern scans: %d companies left out (candles behind the close): %s", len(stale), stale[:50])      # the list stays in the log; the page gets a count
-    return {"as_of": expected_day.isoformat(), "scans": scans, "left_out": stale, "checked": checked, "suspended": suspended, "bench": bool(benches), "engine": 2}
+    if rule_off:
+        log.warning("pattern scans: %d hits left out (their list's rule does not hold at the %s close): %s", len(rule_off), exp_iso, rule_off[:50])
+    return {"as_of": exp_iso, "scans": scans, "left_out": stale, "rule_off": rule_off, "checked": checked, "suspended": suspended, "bench": bool(benches), "engine": 2}
 
 
 async def save(store, result: Dict[str, Any], previous: Optional[Dict[str, Any]]) -> None:

@@ -24,11 +24,18 @@ Rules run through the Query builder's own parser/evaluator (`screener/ql.py`, `q
 Groups: Top rated, Trend, Growth, Themes, Value and income, Safety, Ownership, Prism basics (the page's 4 quick views, listed, `handledBy: frontend`, no server detail).
 Missing-value rules: screens 1-3 count a missing red-flag count as 0; screens 5, 6, 13 do so for banks/lenders only; screen 5 exempts banks from ROCE and D/E.
 
-## Nightly job `refresh-presets` (worker command; supervisor job `presets`: bulk, priority 42, after `prism`, NIGHT 20 h / MORNING 14 h windows, SLA 30 h; backend/finlit/jobs/registry.py 06:40)
+## Nightly job `refresh-presets` (worker command; supervisor job `presets`: bulk, priority 42, after `prism` and `price-sections`, NIGHT 20 h / MORNING 14 h windows, SLA 30 h; backend/finlit/jobs/registry.py 06:40)
 Tops up `theme_tags` from `seed.py`, rebuilds `industry_clean`, stores `preset_scores` (momentum, growth), `industry_breadth_daily` (60 sessions; `*` = market), outlier caps (`preset_meta`), then every live screen for its default chip set and each single chip into `preset_results` (Postgres) and Redis (36 h). API only reads; an empty cache is computed on demand behind a Redis lock (45 s bound).
 Percentile = average rank among stocks of Rs 1,000 Cr or more, scaled 0..1. Growth score needs 2 of 4 numbers (quarter numbers drop out under Rs 50 Cr sales).
 Sector themes: universe Rs 1,000 Cr+, grouped by the Sector LABEL (see "Which field is the sector"), generic labels excluded, groups of 8+ are themes, 5-7 are "small groups" (chip), states In play / Emerging / Fading / None as spec p10; Emerging/Fading appear only once 20 sessions are stored (no backfill is invented). Never-empty rule shows up to 3 "closest".
 Usage: `preset_usage(day, preset_id, event open|export, plan, n)`: counts only, no user id or IP.
+
+Task #394 (developer file 37, PR B; `presets/listday.py`): the job runs after `price-sections` too, so the lists, their figures and their charts read one close.
+- **The list's day** (`asOf`, "after the 23 Nov close") is the last session in `daily_candles` on or before the weekday rule's day (a day with candles for 50+ companies and at least half the busiest day's count; never a weekend or a holiday). A chart-pattern list is dated by the close its scan ran on.
+- **One price a day (F3):** after the close each row shows the official close of the list's day (`price`, `price_on`, `price_day`) and the day change from the same candles (close / previous close - 1); a blank day change carries `ret_1d_note`. During market hours the API puts the live price over it (`price_live`, body `priceLive`) and the table's price column reads "Live (₹) · 11:40"; otherwise "Close (₹)" (C10).
+- **Fresh candles only (F4, F5):** the scans read each company's chart candles up to the list's day (never a later bar); a company whose candles end before it is left off (`left_out`, `staleCount`), and a hit whose list rule does not hold at that close is dropped (`rule_off`: Near pivot under its level, the bases not above it, Fresh close above a base at or above it). The figures box ("What the chart shows") is worded in plain labels (C6) from that close and dated by `factsAsOf`; "When" counts sessions to the list's day.
+- **No trade in five sessions (F8):** left off every list, counted in the job's result (`notTradedLeftOff`) and named in the log.
+- **Saved closes (F9):** the close saved with each list is the row's `price_on` (the candle of that day), so "Left the list" and "Since added" read real closes.
 
 ## Data fixes: done / not done
 Done: cleaned industry (trim, case, merge variants incl. Oil/Gas and Media-Publication, strays DVR/Engineering to none) as derived `industry_clean`; raw data untouched; theme_tags + seed; breadth job; outlier caps; market-cap floor in place of volume.
