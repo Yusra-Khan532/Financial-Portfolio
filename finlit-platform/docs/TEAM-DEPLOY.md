@@ -31,6 +31,7 @@ Open pull requests directly in the company repository. Run `bash finlit-platform
 
 ## 5. Automatic deploys (merge to `main` and the site updates by itself)
 A timer on the server (`deploy/aws/auto-deploy.sh`, installed by `deploy/aws/install-auto-deploy.sh`) looks at the company repository every 5 minutes. When `main` has a new commit it:
+0. waits until that commit's checks on GitHub are green (the checks gate, 25 Nov 2026): a commit whose checks fail is never deployed (a re-run that passes, or the next green commit, is); `... skip-ci` deploys without waiting, for emergencies only,
 1. takes a database backup,
 2. runs the normal deploy (`deploy.sh`: fetch, rebuild, restart, wait for `/api/health`),
 3. if the new version is not healthy, goes back to the previous build by itself and does NOT retry that commit (it waits for the next new commit),
@@ -40,10 +41,10 @@ So the team only merges a pull request to `main`; the change is live within abou
 **Install once, on the server** (after the company repository's `main` contains the kit, i.e. after the sync pull request is merged):
 `bash /opt/finlit/src/finlit-platform/deploy/aws/install-auto-deploy.sh`
 (the settings default to the company repository, branch `main`, folder `finlit-platform`; override with REPO_URL / REPO_BRANCH / REPO_SUBDIR).
-Look: `bash /opt/finlit/bin/auto-deploy.sh status`. Check now: `... now`. Stop: `... pause` (and `... resume`). Remove: `sudo systemctl disable --now finlit-auto-deploy.timer`.
+Look: `bash /opt/finlit/bin/auto-deploy.sh status`. Check now: `... now` (says what the checks gate sees). Deploy without waiting for the checks: `... skip-ci`. Stop: `... pause` (and `... resume`). Remove: `sudo systemctl disable --now finlit-auto-deploy.timer`.
 Private repository: put a read-only token alone in `/opt/finlit/git-token` (`chmod 600`).
 
-**Protect `main` on GitHub** (repository Settings, Branches, rule for `main`: require a pull request and at least one approval, no direct pushes). Whatever lands on `main` runs on the server, so this review step is the safety gate. Do not give the server a token that can push.
+**Protect `main` on GitHub** (repository Settings, Branches, rule for `main`: require a pull request and at least one approval, no direct pushes). Whatever lands on `main` with green checks runs on the server, so this review step and the checks are the safety gates; also require the status checks (Platform CI, Security) to pass before merging. Do not give the server a token that can push.
 
 ## 6. Disk space (what keeps it from filling)
 The server disk is about 19 GB. What grows: database backups (about 85 MB each; one is taken before every automatic deploy and one every night), Docker build cache (up to a gigabyte a day with automatic deploys), and the database.
