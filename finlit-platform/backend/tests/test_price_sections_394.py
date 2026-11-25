@@ -363,10 +363,41 @@ async def test_a_candles_run_that_leaves_companies_is_partial_not_done(store, mo
         rec = await _meta(conn, "run:refresh-candles")
     assert rec["status"] == "partial" and rec["left"] == 3 and "3 companies left" in rec["why"]
 
+    from datetime import datetime as _dt, timezone as _tz
+    from finlit.prism_candles import expected_session
+    expected = expected_session(_dt.now(_tz.utc)).isoformat()
+
     async def done(store, dc, **kw):
-        return {"asked": 10, "loaded": 10, "rows": 10, "no_match": 0, "empty": 0, "failed": 0, "nse": 10, "bse": 0, "left": 0}
+        return {"asked": 10, "loaded": 10, "rows": 10, "no_match": 0, "empty": 0, "failed": 0, "nse": 10, "bse": 0, "left": 0, "newestSession": expected}
     monkeypatch.setattr(candles, "refresh", done)
     assert await worker.main(["refresh-candles"], settings=make_settings()) == 0
     async with store.pool.acquire() as conn:
         assert (await _meta(conn, "run:refresh-candles"))["status"] == "ok"
+
+    # live, 25 Nov: the 18:30 IST run found no 25 Nov candles (the exchange's file was not out yet) and was recorded "ok", so the session counted as
+    # done and every chart stayed on 23 Nov until the next evening. Now a full run that ends without the expected session is partial and tried again.
+    async def behind(store, dc, **kw):
+        return {"asked": 10, "loaded": 10, "rows": 10, "no_match": 0, "empty": 0, "failed": 0, "nse": 10, "bse": 0, "left": 0, "newestSession": "2000-01-03"}
+    monkeypatch.setattr(candles, "refresh", behind)
+    assert await worker.main(["refresh-candles"], settings=make_settings()) == PARTIAL_EXIT
+    async with store.pool.acquire() as conn:
+        rec = await _meta(conn, "run:refresh-candles")
+    assert rec["status"] == "partial" and rec["expectedSession"] == expected and f"waiting for the exchange's {expected} candles" in rec["why"]
+    # a run for named companies only is not judged on the whole market's session
+    assert await worker.main(["refresh-candles", "RELIANCE"], settings=make_settings()) == 0
     await _clean(store)
+
+
+async def test_the_newest_session_needs_many_companies_not_one_stray_candle(store):  # noqa: F811
+    from datetime import date, timedelta
+    from finlit import candles
+    d1, d2 = date.today() - timedelta(days=3), date.today() - timedelta(days=2)
+    async with store.pool.acquire() as conn:
+        await conn.execute("DELETE FROM daily_candles WHERE symbol LIKE 'ZZT%'")
+        rows = [(f"ZZT{i:03d}", d1, 10.0, 11.0, 9.0, 10.5, 1000, "NSE") for i in range(60)] + [("ZZT000", d2, 10.0, 11.0, 9.0, 10.5, 1000, "NSE")]
+        await conn.executemany("INSERT INTO daily_candles (symbol, day, open, high, low, close, volume, exch) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)", rows)
+    try:
+        assert await candles.newest_session(store) == d1.isoformat()   # one company's candle on d2 is not a session
+    finally:
+        async with store.pool.acquire() as conn:
+            await conn.execute("DELETE FROM daily_candles WHERE symbol LIKE 'ZZT%'")
