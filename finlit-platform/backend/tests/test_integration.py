@@ -1,10 +1,12 @@
 """End-to-end: fixtures -> worker -> Postgres/Redis -> API. Needs DATABASE_URL and REDIS_URL;
 skipped when they are not reachable (CI provides both as service containers)."""
 
+import asyncio
 import os
 import statistics
 import time
 
+import asyncpg
 import httpx
 import orjson
 import pytest
@@ -39,12 +41,19 @@ async def store():
     except Exception as exc:  # pragma: no cover
         await s.close()
         pytest.skip(f"redis not available: {exc}")
-    async with s.pool.acquire() as conn:
-        # Timescale refuses to drop a hypertable in the same statement as other tables.
-        await conn.execute("DROP TABLE IF EXISTS price_daily CASCADE")
-        await conn.execute("DROP TABLE IF EXISTS snapshots, scores, companies, ingest_runs, "
-                           "ingest_queue, schema_migrations, users, sessions, email_tokens, audit_events, user_state, "
-                           "plan_requests, outbox, score_history, alert_state, ipos, feed_items, screen_state, digest_log CASCADE")
+    for attempt in range(5):   # TimescaleDB's compression job (price_daily, docs/PRICE-STORAGE.md) can hold a chunk: a deadlock is tried again
+        try:
+            async with s.pool.acquire() as conn:
+                # Timescale refuses to drop a hypertable in the same statement as other tables.
+                await conn.execute("DROP TABLE IF EXISTS price_daily CASCADE")
+                await conn.execute("DROP TABLE IF EXISTS snapshots, scores, companies, ingest_runs, "
+                                   "ingest_queue, schema_migrations, users, sessions, email_tokens, audit_events, user_state, "
+                                   "plan_requests, outbox, score_history, alert_state, ipos, feed_items, screen_state, digest_log CASCADE")
+            break
+        except asyncpg.exceptions.DeadlockDetectedError:
+            if attempt == 4:
+                raise
+            await asyncio.sleep(0.5 * (attempt + 1))
     await s.redis.flushdb()
     await s.migrate()
     async with s.pool.acquire() as conn:   # tables the drop list above does not cover but tests here write to
@@ -184,7 +193,18 @@ async def test_prices_and_scores_persisted(ingested):
         days = await conn.fetchval("SELECT count(*) FROM price_daily WHERE symbol = 'RELIANCE'")
         score = await conn.fetchrow("SELECT * FROM scores WHERE symbol = 'RELIANCE'")
         run = await conn.fetchrow("SELECT * FROM ingest_runs ORDER BY id DESC LIMIT 1")
-    assert days > 400 and score["overall"] is not None and run["status"] in ("ok", "warnings") and run["calls"] >= 21
+    # price_daily keeps the last PRICE_DAYS days (docs/PRICE-STORAGE.md): exactly the recorded days inside that window are stored
+    import datetime as dt
+    import json
+    import pathlib
+    from finlit.store import PRICE_DAYS
+    since = dt.date.today() - dt.timedelta(days=PRICE_DAYS)
+    recorded = json.loads((pathlib.Path(__file__).parent / "fixtures" / "finedge" / "daily_quotes_reliance.json").read_text())["price"]
+    inside = {str(r["quote_date"])[:10] for r in recorded if str(r["quote_date"])[:10] >= since.isoformat()}
+    assert score["overall"] is not None and run["status"] in ("ok", "warnings") and run["calls"] >= 21
+    async with ingested.pool.acquire() as conn:
+        oldest = await conn.fetchval("SELECT min(day) FROM price_daily WHERE symbol = 'RELIANCE'")
+    assert abs(days - len(inside)) <= 5 and (oldest is None or oldest >= since)   # a few recorded days are dropped as bad ticks
 
 
 async def test_refresh_quotes_patches_summary(ingested):
