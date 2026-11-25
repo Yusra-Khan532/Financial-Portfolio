@@ -40,14 +40,75 @@ def test_every_equity_line_counts_including_shares_listed_abroad():
 
 def test_without_quantities_each_kind_counts_the_same_one_third_each():
     """B1 and D8: without quantities each kind counts the same (1/3 each with three kinds) and each holding the same inside its kind; no total (D9)."""
-    s = [dict(SH[0], qty=None), SH[1]]
-    split = calc.split_parts(s, FU, ET)
-    assert not split["byValue"] and split["total"] is None and split["missing"] == ["shares"]
+    s = [dict(x, qty=None) for x in SH]
+    nf = [dict(FU[0], units=None)]
+    ne = [dict(ET[0], qty=None)]
+    split = calc.split_parts(s, nf, ne)
+    assert not split["byValue"] and split["total"] is None and split["missing"] == ["shares", "funds", "etfs"]
     assert all(math.isclose(v, 1 / 3) for v in split["part"].values())
-    assert split["shares"]["w"] == [0.5, 0.5]
-    two = calc.split_parts(s, FU)
+    assert split["shares"]["w"] == [0.5, 0.5] and split["noQuantity"] == []
+    two = calc.split_parts(s, nf)
     assert two["part"] == {"shares": 0.5, "funds": 0.5, "etfs": 0.0}
     assert calc.split_parts([], [], [])["part"] == {"shares": 0.0, "funds": 0.0, "etfs": 0.0}
+
+
+# ------------------------------------------------------------------------------------------------ task #391 (developer file 35)
+# A made-up list of the live shape: 13 shares all with a quantity, 9 funds with units for 8, 5 ETFs with a quantity for 3 (24 of 27).
+F1_SH = [{"symbol": f"SH{i}", "name": f"Share {i}", "qty": 10, "price": 100.0 * (i + 1)} for i in range(13)]            # 10 x 100 ... 10 x 1,300 = 91,000
+F1_FU = [{"code": 100 + i, "short": f"Fund {i}", "units": 100, "nav": 50.0, "holdings": []} for i in range(8)] + \
+        [{"code": 108, "short": "Fund followed", "units": None, "nav": 70.0, "holdings": [{"stockSymbol": "SH0", "pct": 9.0, "assetClass": "equity"}]}]   # 8 x 5,000
+F1_ET = [{"symbol": f"ET{i}", "name": f"ETF {i}", "qty": 20, "price": 150.0, "holdings": []} for i in range(3)] + \
+        [{"symbol": "ETNOQ1", "qty": None, "price": 200.0, "holdings": []}, {"symbol": "ETNOQ2", "qty": None, "price": 90.0, "holdings": []}]          # 3 x 3,000
+
+
+def test_391_f1_kinds_weigh_by_the_value_of_the_holdings_that_have_a_quantity():
+    """Fault 1: 24 of 27 with a quantity used to send all three kinds to 1/3 ("each kind counts as 1/3 although 24 of the 27 holdings have a quantity").
+    Now every kind weighs by value; the fund and the two ETFs without a quantity weigh 0, are still listed and named, and the counts are sent."""
+    split = calc.split_parts(F1_SH, F1_FU, F1_ET)
+    total = 91000 + 40000 + 9000
+    assert split["byValue"] and split["missing"] == [] and math.isclose(split["total"], total)
+    assert math.isclose(split["part"]["shares"], 91000 / total) and math.isclose(split["part"]["funds"], 40000 / total) and math.isclose(split["part"]["etfs"], 9000 / total)
+    assert split["funds"]["w"][8] == 0 and split["etfs"]["w"][3:] == [0, 0] and math.isclose(sum(split["funds"]["w"]), 1)
+    assert split["noQuantity"] == [{"kind": "funds", "i": 8}, {"kind": "etfs", "i": 3}, {"kind": "etfs", "i": 4}]
+    assert [(split[k]["counted"], split[k]["of"]) for k in calc.KINDS] == [(13, 13), (8, 9), (3, 5)]
+    rows = {r["key"]: r for r in calc.look_through(F1_SH, F1_FU, F1_ET, split)}
+    assert rows["SH0"]["funds"] == 0 and rows["SH0"]["viaFunds"] == [] and rows["SH0"]["held"] == ["D"]    # the followed fund adds nothing
+
+
+def test_391_f1_a_kind_with_no_quantity_at_all_keeps_its_equal_part_and_the_others_share_the_rest_by_value():
+    """Fault 1: "use 1/3 only for a kind that has none"."""
+    ne = [dict(e, qty=None) for e in F1_ET]
+    split = calc.split_parts(F1_SH, F1_FU, ne)
+    assert not split["byValue"] and split["total"] is None and split["missing"] == ["etfs"]
+    assert math.isclose(split["part"]["etfs"], 1 / 3) and split["etfs"]["w"] == [0.2] * 5
+    assert math.isclose(split["part"]["shares"], 2 / 3 * 91000 / 131000) and math.isclose(split["part"]["funds"], 2 / 3 * 40000 / 131000)
+    assert math.isclose(sum(split["part"].values()), 1)
+
+
+def test_391_f1_a_share_without_a_quantity_weighs_0_but_is_still_held_directly():
+    """Fault 1 (Q4): a share on the list without a quantity, inside shares that have values: 0 in the money split, still in the company list as held
+    directly, still in the What changed list and the Only direct filter, never "Not on your list"."""
+    sh = F1_SH[:2] + [{"symbol": "NOQTY", "name": "No Qty Co", "qty": None, "price": 500.0}]
+    split = calc.split_parts(sh, [], [])
+    assert split["byValue"] and split["shares"]["w"][2] == 0 and split["noQuantity"] == [{"kind": "shares", "i": 2}]
+    comp = calc.look_through(sh, [], [], split)
+    row = next(c for c in comp if c["symbol"] == "NOQTY")
+    assert row["all"] == 0 and row["held"] == ["D"] and calc.direct_held(row)
+    assert "NOQTY" in calc.changes_list(comp)["direct"] and calc.filter_counts(comp)["direct"] == 3
+
+
+def test_391_f7_band_keys_on_the_shared_scale_and_the_new_words():
+    """Fault 7: the ranges by key, as mfportfolio.bench.BANDS (not changed); words Much less sensitive / Less sensitive ...; edges 0.64/0.65/0.89/0.90."""
+    from finlit.mfportfolio import bench
+    assert [calc.beta_band_key(b) for b in (0.64, 0.65, 0.89, 0.9, 1.09, 1.1, 1.35, 1.75, None)] == ["less", "defensive", "defensive", "similar", "similar", "more", "high", "very_high", None]
+    assert [bench.band_of(b)["key"] for b in (0.64, 0.65, 0.89, 0.9)] == ["less", "defensive", "defensive", "similar"]
+    assert calc.band_says(0.79) == "Less sensitive: moves a little less than the market. When the Nifty 500 moved 1%, this moved about 0.79%."
+    assert calc.band_says(0.5).startswith("Much less sensitive: moves much less") and calc.band_says(None) is None
+    t = calc.risk_together({"shares": {"share": 0.5, "beta": 0.8}, "funds": {"share": 0.5, "beta": 0.6}}, None)
+    assert t["bandKey"] == "defensive" and t["bandSays"].startswith("Less sensitive:") and [p["bandKey"] for p in t["parts"]] == ["defensive", "less"]
+    gap = calc.risk_together({"shares": {"share": 0.4, "beta": 1.0}, "funds": {"share": 0.3, "beta": None}, "etfs": {"share": 0.3, "beta": None}}, None)
+    assert gap["why"].startswith("No beta for your mutual funds and ETFs")
+    assert calc.and_list(["A", "B", "C"]) == "A, B and C" and calc.and_list(["A"]) == "A"
 
 
 def test_company_table_filters_have_counts():

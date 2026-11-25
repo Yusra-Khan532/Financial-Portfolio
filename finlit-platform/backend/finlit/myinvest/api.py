@@ -17,7 +17,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from collections import Counter, defaultdict
+from collections import Counter
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
@@ -118,7 +118,8 @@ def beta500_weekly(series: List[Tuple[List[int], List[float]]], weights: List[fl
     n500 = mfb.changes(mfb.weekly(bd, [bench[d] for d in bd], weeks_at))
     chs = [mfb.changes(mfb.weekly(d, v, weeks_at)) for d, v in series]
     each = [mfb.r2(mfb.ols(c, n500)[0]) for c in chs]
-    keep = [k for k, c in enumerate(chs) if sum(1 for x in c if x is not None) >= mfb.MIN_WEEKS]
+    # task #391 (file 35, fault 1): a holding that weighs 0 in the split (no quantity) is not part of the list's line
+    keep = [k for k, c in enumerate(chs) if sum(1 for x in c if x is not None) >= mfb.MIN_WEEKS and (weights[k] > 0 or not any(w > 0 for w in weights))]
     tw = sum(weights[k] for k in keep) or 1.0
     lw = {k: weights[k] / tw for k in keep}
     rows = [i for i in range(len(n500)) if keep and all(chs[k][i] is not None for k in keep)]
@@ -130,6 +131,74 @@ def beta500_weekly(series: List[Tuple[List[int], List[float]]], weights: List[fl
     return {"beta": mfb.r2(b), "each": each, "window": {"index": "Nifty 500", "grain": "weekly", "window": "past year", "weeks": len(rows),
             "from": date.fromordinal(weeks_at[0]).isoformat(), "to": date.fromordinal(weeks_at[-1]).isoformat(),
             "counted": len(keep), "of": len(chs), "short": short}}
+
+
+def fund_units(held: List[Dict[str, Any]]) -> Tuple[Dict[int, Dict[str, Any]], set]:
+    """Task #391 (developer file 35, fault 2): each fund's open lots, added up across every account it is held in (My funds, an imported account, ...):
+    {code: {units, lots, priced, unitsPriced, paid}}, and the codes with a lot of unknown units. `paid` adds the cost of the lots that have a buy amount
+    only, so one account's lot without an amount never wipes the buy price of the fund's other lots (it used to set the whole fund's cost to None, and
+    Invested and Gain dropped every fund held in two accounts)."""
+    out: Dict[int, Dict[str, Any]] = {}
+    unknown = set()
+    for h in held:
+        x = out.setdefault(h["code"], {"units": Decimal(0), "lots": 0, "priced": 0, "unitsPriced": Decimal(0), "paid": Decimal(0)})
+        for lot in h["lots"]:
+            if lot["units"] is None:
+                unknown.add(h["code"])
+                continue
+            u = Decimal(str(lot["units"]))
+            x["units"] += u
+            x["lots"] += 1
+            if lot["invested"] is not None:
+                x["priced"] += 1
+                x["unitsPriced"] += u
+                x["paid"] += Decimal(str(lot["invested"]))
+    return out, unknown
+
+
+def fund_cost(x: Optional[Dict[str, Any]], nav: Optional[float], unknown: bool) -> Dict[str, Any]:
+    """A fund's units and what they cost. `invested`: what ALL the units still held cost (None while a lot has no buy amount, so Gain = value now -
+    invested stays like for like). Task #391 (fault 2), optional: `investedPriced` what the lots with a buy amount cost, `unitsPriced` their units,
+    `valuePriced` their value now (units x NAV, so a gain on them is like for like), `lotsPriced` of `lots` ("1 of 2 with a buy price")."""
+    if not x or unknown or x["units"] <= 0:
+        return {"units": None, "invested": None, "investedPriced": None, "unitsPriced": None, "valuePriced": None,
+                "lots": x["lots"] if x else 0, "lotsPriced": x["priced"] if x else 0}
+    priced = x["priced"] > 0
+    return {"units": float(x["units"]), "invested": float(x["paid"]) if x["priced"] == x["lots"] else None,
+            "investedPriced": float(x["paid"]) if priced else None, "unitsPriced": float(x["unitsPriced"]) if priced else None,
+            "valuePriced": calc.r(float(x["unitsPriced"]) * nav) if priced and nav else None, "lots": x["lots"], "lotsPriced": x["priced"]}
+
+
+def name_of(kind: str, item: Dict[str, Any]) -> Dict[str, Any]:
+    """A holding named for a list: a share by its symbol and name, a fund by its code and short name, an ETF by its symbol and name."""
+    if kind == "funds":
+        return {"code": item.get("code"), "name": item.get("short") or item.get("name")}
+    return {"symbol": item.get("symbol"), "name": item.get("name") or item.get("symbol")}
+
+
+SWING_GRAIN = {"weekly": "weekly prices", "daily": "daily NAVs and prices"}
+KIND_WORD = {"shares": "Shares", "funds": "Mutual funds", "etfs": "ETFs"}
+
+
+def swing_window(grain: str, years: Optional[float]) -> Optional[Dict[str, Any]]:
+    """Task #391 (developer file 35, fault 12; decision: keep each kind's window, as on its portfolio page, and say it): the window of a kind's swing
+    and worst fall, {grain, years, label}: "weekly prices, 2 years" for shares (the Equity portfolio's), "daily NAVs and prices, 3 years" for funds and ETFs."""
+    if years is None:
+        return None
+    y = round(years) if abs(years - round(years)) < 0.05 else years
+    return {"grain": grain, "years": years, "label": f"{SWING_GRAIN[grain]}, {y:g} {'year' if y == 1 else 'years'}"}
+
+
+def swing_windows(kinds: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+    """Whether the kinds' swing windows differ, and one line that says each ("Shares: weekly prices, 2 years. Mutual funds and ETFs: daily NAVs and
+    prices, 3 years."), for the risk table's column header."""
+    by: Dict[str, List[str]] = {}
+    for k in calc.KINDS:
+        w = (kinds.get(k) or {}).get("swingWindow")
+        if w:
+            by.setdefault(w["label"], []).append(k)
+    line = " ".join(f"{calc.and_list([KIND_WORD[k] if i == 0 else calc.PART_WORD[k] for i, k in enumerate(ks)])}: {label}." for label, ks in by.items())
+    return {"differ": len(by) > 1, "line": line or None}
 
 
 def _days_closes(p: Optional[Dict[str, Any]]) -> Tuple[List[int], List[float]]:
@@ -271,16 +340,7 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
                        "chg1d": q["changePct"] if q.get("price") and q.get("changePct") is not None else (last / prev - 1) * 100 if last and prev else None,
                        "chg1y": _year_change(days, vals), "mcap": calc._num(f.get("mcap"))})
 
-    units: Dict[int, Decimal] = defaultdict(Decimal)
-    paid: Dict[int, Optional[Decimal]] = defaultdict(Decimal)        # task #235 (pack C3): what the units still held cost; None when a buy has no amount
-    unknown_units = set()
-    for h in held:
-        for lot in h["lots"]:
-            if lot["units"] is None:
-                unknown_units.add(h["code"])
-            else:
-                units[h["code"]] += Decimal(str(lot["units"]))
-                paid[h["code"]] = None if paid[h["code"]] is None or lot["invested"] is None else paid[h["code"]] + Decimal(str(lot["invested"]))
+    units, unknown_units = fund_units(held)
     funds: List[Dict[str, Any]] = []
     for c in codes:
         s = schemes.get(c)
@@ -291,11 +351,23 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
         nav = float(s["nav"]) if s.get("nav") is not None else (vals[-1] if vals else None)
         sc = fscores.get(c) or {}
         funds.append({"code": c, "name": s["name"], "short": mfrisk.short_name(s["name"]), "type": mf.classify(s["category"])[2] if s.get("category") else None,
-                      "units": float(units[c]) if units.get(c) and c not in unknown_units else None, "nav": nav, "navDate": s["nav_date"].isoformat() if s.get("nav_date") else None,
+                      "nav": nav, "navDate": s["nav_date"].isoformat() if s.get("nav_date") else None,
                       "chg1y": _year_change(days, vals), "ter": calc._num(float(s["ter"])) if s.get("ter") is not None else None,
                       "holdings": (port or {}).get("holdings") or [], "assetSplit": ((port or {}).get("summary") or {}).get("assetSplit"), "asOf": (port or {}).get("asOf"),
                       "score": sc.get("final"), "label": sc.get("label"), "parts": sc.get("parts"), "scoreWhy": None if not gold or sc.get("final") is not None else sc.get("reason"),
-                      "days": days, "closes": vals, "invested": float(paid[c]) if paid.get(c) is not None and units.get(c) and c not in unknown_units else None})
+                      "days": days, "closes": vals, **fund_cost(units.get(c), nav, c in unknown_units)})
+
+    # task #391 (file 35, fault 10): every fund and ETF line with an ISIN the listed-company master knows takes the master's name (the fund file's text
+    # stays as fileName), as the MF and ETF portfolio pages (#389, #390), before the look-through, so every list on this page carries the same name
+    isins = sorted({str(h["isin"]).upper() for x in funds + etfs for h in x.get("holdings") or [] if h.get("isin")})
+    if isins:
+        try:
+            from ..mfportfolio.api import company_names
+            from ..mfportfolio.spread import master_names
+            async with store.pool.acquire() as conn:
+                master_names(funds + etfs, await company_names(conn, isins))
+        except Exception as exc:     # the names are a nicety: the page keeps the files' names when the master cannot be read
+            log.warning("all-investments: master names not read: %s", type(exc).__name__)
 
     split = calc.split_parts(shares, funds, etfs)
     companies = calc.look_through(shares, funds, etfs, split)
@@ -339,18 +411,22 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
     if shares:
         kind_risk["shares"] = {"beta": (b500["shares"] or {}).get("beta"), "betaWindow": (b500["shares"] or {}).get("window"),
                                "swing": (s_market or {}).get("vol"), "worstFall": (s_market or {}).get("max_fall"),
-                               "years": (s_market or {}).get("years"), "benchSwing": (s_market or {}).get("vol_nifty"), "benchWorstFall": (s_market or {}).get("max_fall_nifty"),
+                               "years": (s_market or {}).get("years"), "swingWindow": swing_window("weekly", (s_market or {}).get("years")),
+                               "benchSwing": (s_market or {}).get("vol_nifty"), "benchWorstFall": (s_market or {}).get("max_fall_nifty"),
                                "why": NO_BENCH if not bench_rows else None if s_market else "Needs about a year of weekly prices for your shares."}
     for kind, items in (("funds", funds), ("etfs", etfs)):
         if not items:
             continue
         b = (b500[kind] or {}).get("beta")
         cover = round(sum(w for f, w in zip(items, split[kind]["w"]) if f["beta"] is not None) / (sum(split[kind]["w"]) or 1) * 100, 1)
-        parts = [(f["days"], f["closes"], w) for f, w in zip(items, split[kind]["w"]) if f["swing"] is not None]
+        parts = [(f["days"], f["closes"], w) for f, w in zip(items, split[kind]["w"]) if f["swing"] is not None and w > 0]   # task #391: weight 0 is not in the list
         lr = _list_risk(parts, end) if end else {"swing": None, "worstFall": None, "years": None}
-        kind_risk[kind] = {"beta": b, "betaWindow": (b500[kind] or {}).get("window"), "cover": cover, **lr, "why": NO_BENCH if not bench else None if b is not None else
+        kind_risk[kind] = {"beta": b, "betaWindow": (b500[kind] or {}).get("window"), "cover": cover, **lr, "swingWindow": swing_window("daily", lr.get("years")), "why": NO_BENCH if not bench else None if b is not None else
                            f"Your {calc.PART_WORD[kind]} do not share most of a year of weekly prices yet."}
+    for v in kind_risk.values():
+        v["bandKey"] = calc.beta_band_key(v.get("beta"))
     together = calc.risk_together({k: {"share": split["part"][k], "beta": v["beta"]} for k, v in kind_risk.items()}, split["total"])
+    together["swingWindows"] = swing_windows(kind_risk)
     bench_fig = None
     if bench:
         bd, bv = mfrisk.window(sorted(bench), [bench[d] for d in sorted(bench)], end)
@@ -384,7 +460,9 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
         order = sorted(zip(items, sp["w"]), key=lambda x: -x[1]) if sp["valued"] else list(zip(items, sp["w"]))
         return {"count": len(items), "valued": sp["valued"], "value": calc.r(sp["value"]) if split["byValue"] else None, "share": calc.r(split["part"][kind] * 100),
                 "chg1y": calc.r(chg), "beta": (kind_risk.get(kind) or {}).get("beta"), "betaBand": calc.beta_band((kind_risk.get(kind) or {}).get("beta")),
-                "first": [{"name": i.get("short") or i.get("name"), "symbol": i.get("symbol"), "code": i.get("code"), "w": calc.r(w * 100, 1)} for i, w in order[:3]],
+                "betaBandKey": calc.beta_band_key((kind_risk.get(kind) or {}).get("beta")), "counted": sp["counted"], "of": sp["of"],
+                "noQuantity": [name_of(kind, items[x["i"]]) for x in split["noQuantity"] if x["kind"] == kind],
+                "first": [{"name": i.get("short") or i.get("name"), "symbol": i.get("symbol"), "code": i.get("code"), "w": calc.r(w * 100, 1)} for i, w in order[:3] if w > 0 or not sp["valued"]],
                 "firstIs": "largest" if sp["valued"] else "list"}
 
     cards = {"shares": card("shares", shares), "funds": card("funds", funds), "etfs": card("etfs", etfs)}
@@ -404,7 +482,8 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
                    "value": calc.r(s["qty"] * s["price"]) if s["qty"] and s["price"] else None, "of": calc.r(split["part"]["shares"] * w * 100),
                    "alsoIn": next(({"funds": calc.r(c["funds"]), "etfs": calc.r(c["etfs"]), "all": calc.r(c["all"]), "via": [fund_name.get(x, str(x)) for x in c["viaFunds"]] + c["viaEtfs"]}
                                    for c in companies if c["symbol"] == s["symbol"] and c["ways"] > 1), None)} for s, w in zip(shares, split["shares"]["w"])]
-    out_funds = [{**{k: f[k] for k in ("code", "name", "short", "type", "units", "nav", "navDate", "ter", "asOf", "score", "label", "parts", "scoreWhy", "beta", "swing", "worstFall", "riskWhy", "invested")},
+    out_funds = [{**{k: f[k] for k in ("code", "name", "short", "type", "units", "nav", "navDate", "ter", "asOf", "score", "label", "parts", "scoreWhy", "beta", "swing", "worstFall", "riskWhy", "invested",
+                                       "investedPriced", "unitsPriced", "valuePriced", "lots", "lotsPriced")},
                   "chg1y": calc.r(f["chg1y"]), "value": calc.r(f["units"] * f["nav"]) if f["units"] and f["nav"] else None, "of": calc.r(split["part"]["funds"] * w * 100),
                   "file": bool(f["holdings"]), "equityLines": sum(1 for h in f["holdings"] if (h.get("assetClass") or "equity") == "equity")}
                  for f, w in zip(funds, split["funds"]["w"])]
@@ -416,7 +495,7 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
                       "via": [fund_name.get(x, str(x)) for x in c["viaFunds"]] + list(c["viaEtfs"]),
                       "score": None if c["abroad"] or not c["symbol"] else (scores.get(c["symbol"]) or {}).get("score"),
                       "label": None if c["abroad"] or not c["symbol"] else calc.word_case((scores.get(c["symbol"]) or {}).get("label")),
-                      "peer": calc.peer_word(peer_raw.get(c["symbol"] or ""), c["direct"] > 0)} for c in companies]
+                      "peer": calc.peer_word(peer_raw.get(c["symbol"] or ""), calc.direct_held(c)), **({"noQuantity": True} if c["onList"] and c["direct"] <= 0 else {})} for c in companies]
     changes = calc.changes_list(companies)
     if body.mfPf in (None, "all") and body.etfPf in (None, "all"):   # task #277 (change 19): all accounts: keep the list for the "All my investments" alert
         try:
@@ -429,6 +508,10 @@ async def all_investments(request: Request, body: Body, ctx: Ctx = Depends(membe
     files = [f["asOf"] for f in funds + etfs if f.get("asOf")]
     body_out = {
         "plan": "gold" if gold else "silver", "byValue": split["byValue"], "total": calc.r(split["total"]), "missing": split["missing"],
+        # task #391 (file 35, fault 1): the holdings the money split leaves out (no quantity or no price, in a kind that has values), named; how many it counts
+        "noQuantity": [{"kind": x["kind"], **name_of(x["kind"], {"shares": shares, "funds": funds, "etfs": etfs}[x["kind"]][x["i"]])} for x in split["noQuantity"]],
+        "counted": {"byValue": sum(split[k]["counted"] for k in calc.KINDS), "equal": sum(split[k]["of"] for k in split["missing"]),
+                    "notCounted": len(split["noQuantity"]), "of": len(shares) + len(funds) + len(etfs)},
         "counts": {"shares": len(shares), "funds": len(funds), "etfs": len(etfs)}, "quantities": {"have": have, "of": len(shares) + len(funds) + len(etfs)},
         "chg1y": calc.r(calc.weighted_mean([cards[k]["chg1y"] for k in calc.KINDS], [split["part"][k] for k in calc.KINDS])),
         "cards": cards, "madeOf": made, "sectors": sectors, "sizes": sizes, "companies": out_companies, "filters": calc.filter_counts(companies), "changes": changes,

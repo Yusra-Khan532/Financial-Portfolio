@@ -136,3 +136,29 @@ async def test_235_one_account_across_the_three_pages_and_what_was_invested(app)
     dhan = (await c.post(URL, json={"shares": [], "mfPf": "none", "etfPf": "dhan"})).json()
     assert dhan["counts"] == {"shares": 0, "funds": 0, "etfs": 1} and dhan["etfs"][0]["invested"] == 2500.0
     assert (await c.post(URL, json={"shares": [], "mfPf": "Bad!"})).status_code == 422
+
+
+async def test_391_f1_f2_a_fund_in_two_accounts_and_an_etf_without_a_quantity(app):  # noqa: F811
+    """Task #391 (developer file 35), made-up list. F2: a fund held in two accounts, one lot with a buy amount and one without: its units add up and the
+    priced lot keeps its buy price (before: invested None, and Invested and Gain dropped the fund). F1: one ETF without a quantity (before: every kind
+    1/2, byValue false, "Add quantities"): now the fund and the priced ETF weigh by value, the ETF without a quantity weighs 0 and is named."""
+    c = await signed_in(app, "f391@example.com", plan="silver")
+    hid = (await add(c, BASE + 1, "100", invested="10000", boughtOn="2025-01-10", pf="upstox")).json()["id"]
+    r = await c.put(f"/api/me/mf-portfolio/{hid}", json={"lots": [{"units": "100", "invested": "10000", "boughtOn": "2025-01-10", "pf": "upstox"},
+                                                                {"units": "200", "boughtOn": "2025-03-10", "pf": "dhan"}]})
+    assert r.status_code == 200, r.text
+    await etf(c, "NIFTYBEES", "10")                                                                     # 10 x 286.64
+    await etf(c, "MON100")                                                                              # no quantity
+    b = (await c.post(URL, json={"shares": []})).json()
+    f = b["funds"][0]
+    assert f["units"] == 300.0 and f["invested"] is None                                                # all 300 units: cost not known for 200 of them
+    assert f["investedPriced"] == 10000.0 and f["unitsPriced"] == 100.0 and f["valuePriced"] == 15000.0 and (f["lotsPriced"], f["lots"]) == (1, 2)
+    assert b["byValue"] is True and b["missing"] == [] and b["total"] == pytest.approx(45000 + 2866.4, abs=0.01)
+    assert b["cards"]["funds"]["share"] == pytest.approx(45000 / 47866.4 * 100, abs=0.01)
+    assert b["noQuantity"] == [{"kind": "etfs", "symbol": "MON100", "name": b["etfs"][1]["name"]}]
+    assert (b["cards"]["etfs"]["counted"], b["cards"]["etfs"]["of"]) == (1, 2) and b["cards"]["etfs"]["noQuantity"][0]["symbol"] == "MON100"
+    assert b["counted"] == {"byValue": 2, "equal": 0, "notCounted": 1, "of": 3}
+    assert {e["symbol"]: e["of"] for e in b["etfs"]}["MON100"] == 0
+    assert not any("MON100" in x["via"] for x in b["companies"])                                       # weight 0: nothing is held through it
+    k = b["risk"]["kinds"]
+    assert all("bandKey" in v and "swingWindow" in v for v in k.values()) and "swingWindows" in b["risk"]
