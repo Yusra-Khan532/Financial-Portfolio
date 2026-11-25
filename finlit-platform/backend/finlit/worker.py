@@ -1862,7 +1862,18 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                     log.warning("refresh-candles stopped at its %g-minute time box with %d companies left; they are first in line on the next try", args.max_minutes, res["left"])
                     await record_run(store, args.cmd, {"status": "partial", "why": f"{res['left']} companies left at the {args.max_minutes:g}-minute time box; continued on the next try", **res})
                     return PARTIAL_EXIT
-                await record_run(store, args.cmd, {"status": "ok", **res})
+                # task #394 (live, 25 Nov): the run at 18:30 IST found no 25 Nov candles yet (Dhan had not published them) and was recorded "ok", so the
+                # session counted as done and every chart stayed on 23 Nov. A full run that ends without the expected session's candles is partial: it is
+                # tried again (night and morning), and the chart job follows it. On an exchange holiday this clears with the next session's candles.
+                from datetime import datetime as _dt, timezone as _tz
+                from .prism_candles import expected_session
+                expected = expected_session(_dt.now(_tz.utc)).isoformat()
+                if not args.symbols and not args.limit and (res.get("newestSession") or "") < expected:
+                    why = f"waiting for the exchange's {expected} candles (the newest stored session is {res.get('newestSession') or 'none'}); tried again later"
+                    log.warning("refresh-candles: %s", why)
+                    await record_run(store, args.cmd, {"status": "partial", "why": why, "expectedSession": expected, **res})
+                    return PARTIAL_EXIT
+                await record_run(store, args.cmd, {"status": "ok", "expectedSession": expected, **res})
             elif args.cmd == "refresh-price-sections":
                 from . import price_sections
                 from .mf import record_run
