@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 
 const read = (p: string) => readFileSync(resolve(__dirname, "..", p), "utf8");
 const css = read("discovery/discover.css").replace(/\/\*[\s\S]*?\*\//g, "");
-const rule = (sel: string) => { const m = new RegExp(`(^|\\n)${sel.replace(/[.[\]()]/g, "\\$&")} \\{([^}]*)\\}`).exec(css); expect(m, sel).not.toBeNull(); return m![2]; };
+const rule = (sel: string) => { const m = new RegExp(`(^|\\n)${sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\{([^}]*)\\}`).exec(css); expect(m, sel).not.toBeNull(); return m![2]; };
 
 describe("the Discover view bar", () => {
   it("two groups, each with its label above its views: From investor presentations (four views) and From earnings calls", () => {
