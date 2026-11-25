@@ -42,6 +42,7 @@ const EXEMPT: Record<string, string> = {
   "portfolio/kit/AddBox.tsx": "the add box's magnifier icon (task #276); no data",
   "pages/IpoHistory.tsx": "only the toolbar's icons on All IPOs (task #308): magnifier, chevrons, More filters, ×, tick; no data",
   "superinvestors/Follow.tsx": "the bell icon of the Follow button (task #289); no data",
+  "mf/FundTable.tsx": "the wishlist star beside each scheme (task #375); the table itself enlarges with its card's own arrow; no chart",
   "components/dashboard/MarketToday.tsx": "the Nifty 50 and Sensex chart of Market today enlarges with the card's own expand button, the dashboard's expanded view (task #316, dashboard file 22: it replaces Enlarge chart)",
   "components/dashboard/dx.tsx": "only the icons of the dashboard's dropdowns, expand button and card menu (task #316); no chart",
   "components/dashboard/MarketRead.tsx": "only the chevron of the Show the six readings fold (task #316); no chart",
