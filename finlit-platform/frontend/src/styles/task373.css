@@ -14,3 +14,6 @@
 .mfs-disc > p:first-of-type { padding-top: 10px; }
 @media (prefers-reduced-motion: reduce) { .mfs-disc-chev { transition: none; } }
 .mfs-fine:has(> .mfs-disc) { padding-top: 0; border-top: 0; }   /* the box has its own edge */
+/* task #379 (team, 24 Nov 2026): the Disclaimer box sits under both columns, the full width of the page (the team's red box), not inside the table's card */
+.mfs-page > .mfs-fine { margin: 16px 0 0; padding: 0; border: 0; max-width: none; }
+.mfs-page > .mfs-fine .mfs-disc { border-radius: var(--r-card, var(--r-ctl)); }

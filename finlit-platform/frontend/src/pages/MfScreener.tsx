@@ -195,20 +195,20 @@ export function MfScreenerPage() {
               <button className="btn sm" disabled={q.page >= pages} onClick={() => go({ page: q.page + 1 })}>Next</button>
             </nav>)}
 
-          {/* Task #373 (team, 24 Nov 2026): the disclaimer as a neat drop-down. The statutory mutual fund line stays in view in the closed row; the rest opens below. */}
-          <footer className="mfs-fine faint" aria-label="How to read this page">
-            <details className="mfs-disc">
-              <summary><span className="mfs-disc-k">Disclaimer</span><b className="mfs-disc-l">Mutual fund investments are subject to market risks; read all scheme-related documents carefully.</b>
-                <span className="mfs-disc-more" aria-hidden="true">Details<i className="mfs-disc-chev" /></span></summary>
-            <p><b>{DISCLAIMER}</b> The figures describe past data; they are not a recommendation.</p>
-            <p>Risk figures are to the end of last month. Ranks compare funds of the same category and plan. A dash means the fund has no figure: the reason is in its tooltip, and the “N of M funds have this figure” line under each slider counts them.
-              {where && <> Screener figures worked out {where.run ? dateIN(where.run) : ""}{where.portfolioDate ? `; portfolios as of ${dateIN(where.portfolioDate)}` : ""}.</>}
-              {fac && fac.built.rows === 0 && <> The nightly job that works out risk, ranks, portfolio and category figures has not run yet, so those filters show “no data”.</>}
-              {" "}Source: AMFI and each fund house's own disclosures. <Link to="/funds">All schemes</Link> · <Link to="/funds/insights">Fund industry trends</Link></p>
-            </details>
-          </footer>
         </section>
       </div>
+      {/* Task #373 (team, 24 Nov 2026): the disclaimer as a neat drop-down. Task #379: under both columns, the full width of the page (the team's red box). The statutory mutual fund line stays in view in the closed row; the rest opens below. */}
+      <footer className="mfs-fine faint" aria-label="How to read this page">
+        <details className="mfs-disc">
+          <summary><span className="mfs-disc-k">Disclaimer</span><b className="mfs-disc-l">Mutual fund investments are subject to market risks; read all scheme-related documents carefully.</b>
+            <span className="mfs-disc-more" aria-hidden="true">Details<i className="mfs-disc-chev" /></span></summary>
+        <p><b>{DISCLAIMER}</b> The figures describe past data; they are not a recommendation.</p>
+        <p>Risk figures are to the end of last month. Ranks compare funds of the same category and plan. A dash means the fund has no figure: the reason is in its tooltip, and the “N of M funds have this figure” line under each slider counts them.
+          {where && <> Screener figures worked out {where.run ? dateIN(where.run) : ""}{where.portfolioDate ? `; portfolios as of ${dateIN(where.portfolioDate)}` : ""}.</>}
+          {fac && fac.built.rows === 0 && <> The nightly job that works out risk, ranks, portfolio and category figures has not run yet, so those filters show “no data”.</>}
+          {" "}Source: AMFI and each fund house's own disclosures. <Link to="/funds">All schemes</Link> · <Link to="/funds/insights">Fund industry trends</Link></p>
+        </details>
+      </footer>
     </div>
   );
 }
