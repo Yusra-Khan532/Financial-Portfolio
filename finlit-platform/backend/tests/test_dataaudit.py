@@ -22,6 +22,16 @@ def settings():
     return Settings(finedge_api_key="test", finedge_mode="fixtures", database_url=TEST_DB, redis_url=TEST_REDIS)
 
 
+async def _quiet_compression(conn):
+    """TimescaleDB's price compression job (store._compress_prices, #953) runs in the background of the test database and holds locks on price_daily's
+    chunks while it works; the TRUNCATE below then waited past the command time limit (TimeoutError in CI on 25 Nov 2026, three runs). The job is paused
+    and a run already going is stopped, in the test database only. Plain Postgres has no such job."""
+    if not await conn.fetchval("SELECT 1 FROM pg_extension WHERE extname = 'timescaledb'"):
+        return
+    await conn.execute("SELECT alter_job(job_id, scheduled => false) FROM timescaledb_information.jobs WHERE proc_name = 'policy_compression'")
+    await conn.execute("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE backend_type LIKE 'Compression Policy%' AND pid <> pg_backend_pid()")
+
+
 @pytest.fixture
 async def store():
     try:
@@ -31,9 +41,13 @@ async def store():
         pytest.skip(f"postgres/redis not available: {exc}")
     await s.migrate()
     async with s.pool.acquire() as conn:
+        await _quiet_compression(conn)
         await conn.execute("TRUNCATE " + ", ".join(WIPE) + " CASCADE")  # nosec B608 - table names come from the module's own fixed list
     await s.redis.flushdb()
     yield s
+    async with s.pool.acquire() as conn:     # the job back on for the tests that follow
+        if await conn.fetchval("SELECT 1 FROM pg_extension WHERE extname = 'timescaledb'"):
+            await conn.execute("SELECT alter_job(job_id, scheduled => true) FROM timescaledb_information.jobs WHERE proc_name = 'policy_compression'")
     await s.close()
 
 
