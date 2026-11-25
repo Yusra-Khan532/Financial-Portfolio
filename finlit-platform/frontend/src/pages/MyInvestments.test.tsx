@@ -70,34 +70,41 @@ describe("task #137: All my investments (15 Nov pack)", () => {
     expect(money).not.toMatch(/₹/);                                           // no rupee value of the member's money anywhere
     expect(screen.getAllByRole("button", { name: "Add quantities" }).length).toBeGreaterThan(1);
   });
-  it("D3, D4: four tabs; each tile opens its tab", async () => {
+  it("D3, D4: four views; each card opens its view in the page (task #391: calm cards, Open → keeps switching the view)", async () => {
     mount(); await screen.findByText("Where your money sits");
-    // task #277 (change 16): the four views drawn as tabs; the open one has a check, the others an arrow that opens them
-    expect(screen.getAllByRole("tab").map((t) => t.closest(".mi7-tile")!.querySelector(".mi7-tk")!.textContent)).toEqual(["All together", "Equity", "Mutual funds", "ETFs"]);
-    fireEvent.click(screen.getByRole("tab", { name: /^Go to Mutual funds/ }));
+    const strip = document.getElementById("mi-tabs")!;
+    expect([...strip.querySelectorAll(".mi391-k")].map((k) => k.firstChild!.textContent)).toEqual(["All together", "Equity", "Mutual funds", "ETFs"]);
+    fireEvent.click(screen.getByRole("button", { name: /^Mutual funds: .*Open this view$/ }));
     await screen.findByRole("heading", { name: /^Your funds/ });
-    expect(screen.getByRole("tab", { selected: true }).textContent).toContain("Mutual funds");
+    expect(screen.getByRole("button", { name: /^Mutual funds: .*You are here$/ }).getAttribute("aria-pressed")).toBe("true");
   });
   it("D5, D6: the sections bar numbers the open tab's sections; All sections lists every tab's", async () => {
     mount(); await screen.findByText("Where your money sits");
     const bar = screen.getByRole("navigation", { name: "Sections of All together" });
-    // task #277 (change 11): Steps 1–6 keep their numbers; Key figures sits after Step 4 with a dot
-    expect([...bar.querySelectorAll(".stb-chip")].map((c) => c.textContent)).toEqual(["1Your money", "2Made of", "3Sectors and sizes", "4Every company", "·Key figures", "·What changed", "5Health", "6Risk"]);
-    fireEvent.click(within(bar).getByRole("button", { name: /All sections/ }));
-    const menu = screen.getByRole("dialog", { name: "All sections" });
-    expect([...menu.querySelectorAll("h5")].map((h) => h.textContent)).toEqual(["All together", "Equity", "Mutual funds", "ETFs"]);
-    fireEvent.click(within(menu).getByRole("button", { name: "1 · Your ETFs" }));
-    await screen.findByText("Price vs value");
+    // task #391 (developer file 35, Section bar, fault 5): every stop numbered 1 to 7, Key figures inside stop 1, no dots
+    expect([...bar.querySelectorAll(".stb-chip")].map((c) => c.textContent)).toEqual(["1Your money", "2Made of", "3Sectors and sizes", "4Every company", "5What changed", "6Health", "7Risk"]);
+    expect(bar.querySelector(".stb-n0")).toBeNull();
+    cleanup(); mount("/my-investments?tab=mf"); await screen.findByRole("heading", { name: /^Your funds/ });
+    // task #391 (with PR B): the other views are one step at a time too, every step numbered, Key figures inside step 1
+    const bar2 = screen.getByRole("navigation", { name: "Sections of Mutual funds" });
+    expect([...bar2.querySelectorAll(".stb-chip")].map((c) => c.textContent)).toEqual(["1Your funds", "2Inside", "3Risk"]);
+    expect(screen.getByRole("heading", { name: "Key figures" })).toBeTruthy();
+    expect(document.getElementById("mi-mf-risk")).toBeNull();
+    fireEvent.click(within(bar2).getByRole("button", { name: "Risk" }));
+    await waitFor(() => expect(document.getElementById("mi-mf-risk")).toBeTruthy());
+    expect(document.getElementById("mi-mf-list")).toBeNull();
+    fireEvent.click(within(bar2).getByRole("button", { name: /All sections/ }));
+    await waitFor(() => expect(document.getElementById("mi-mf-list")).toBeTruthy());
   });
-  it("D7: All together has Key figures above the six steps, in order", async () => {
-    mount(); await screen.findByText("Where your money sits");
-    const order = ["Key figures", "Where your money sits", "What it is made of", "Sectors and company sizes, counted through everything", "Every company you own, counted once", "How healthy it is", "How risky it is, all together"];
+  it("D7 (task #391, Update 25 Nov row 1): All sections shows the seven stops in order, Key figures inside stop 1 right after Where your money sits", async () => {
+    mount("/my-investments?step=all"); await screen.findByText("Where your money sits");
+    const order = ["Where your money sits", "Key figures", "What it is made of", "Sectors and company sizes, counted through everything", "Every company you own, counted once", "What changed at the companies you own", "How healthy it is", "How risky it is, all together"];
     const pos = order.map((t) => text().indexOf(t));
     expect(pos.every((p, i) => p >= 0 && (i === 0 || p > pos[i - 1]))).toBe(true);
-    expect(text()).toMatch(/Held more than one way.*Biggest single company.*Where the market risk comes from/);
+    expect(text()).toMatch(/How many companies do you hold more than one way\?.*Which company is the biggest part of everything\?.*Which kind brings the most market risk\?/);
   });
   it("D10-D12, L10: the company table: All together second, Held third, filters with counts, Leader / In line / Laggard, never raw codes", async () => {
-    mount(); await screen.findByText("Every company you own, counted once");
+    mount("/my-investments?step=all"); await screen.findByText("Every company you own, counted once");
     const table = document.querySelector(".mi-co")!;
     expect([...table.querySelectorAll("thead th")].slice(0, 3).map((t) => t.textContent)).toEqual(["Company", "All together", "Held"]);
     const d = withQty();
@@ -111,39 +118,43 @@ describe("task #137: All my investments (15 Nov pack)", () => {
     expect(table.textContent).toContain("Not on your list");
   });
   it("L6: \"Held more than one way\" sets the company filter", async () => {
-    mount(); await screen.findByText("Every company you own, counted once");
+    mount("/my-investments?step=all"); await screen.findByText("Every company you own, counted once");
     fireEvent.click(screen.getByRole("button", { name: /^Show the \d+ →$/ }));   // task #277 (change 9): the Key figures card's link
     expect(screen.getByRole("button", { name: /^Held: More than one way/ }).className).toContain("on");   // task #277: the Held filter, set and named
     const rows = document.querySelectorAll(".mi-co tbody tr");
     expect(rows.length).toBe(withQty().filters.twice);
   });
   it("D15: names the fund whose file is not loaded", async () => {
-    mount(); await screen.findByText("What it is made of");
+    mount("/my-investments?step=all"); await screen.findByText("What it is made of");
+    // task #391 (Update 25 Nov row 2): the notes open from the pill at the heading
+    fireEvent.click(document.getElementById("mi-made")!.querySelector(".eq8k-btn")!);
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Two things to know" })).getByRole("button", { name: /Open all/ }));
     expect(text()).toMatch(/No monthly portfolio file is loaded yet for HDFC Mid-Cap Opportunities/);
   });
   it("B5: sectors are NSE macro sectors, not basic industries", async () => {
-    mount(); await screen.findByText("Sectors and company sizes, counted through everything");
-    expect(text()).toContain("Macro sectors · ");
+    mount("/my-investments?step=all"); await screen.findByText("Sectors and company sizes, counted through everything");
+    expect(text()).toMatch(/Macro sectors · \d+|\d+ macro sectors and shares listed abroad/);
     expect(text()).toContain("Financial Services");
     expect(text()).not.toMatch(/Computers - Software|Private Sector Bank/);
   });
   it("B3, D18, B9: Health shows each kind with its own measure; one fund carries its own band label", async () => {
-    mount(); await screen.findByText("How healthy it is");
+    mount("/my-investments?step=all"); await screen.findByText("How healthy it is");
     for (const c of document.querySelectorAll(".mi-hc .mi-hv")) expect(c.textContent).not.toMatch(/\d+\s*·\s*\d+/);    // never two scores in one number
     expect(text()).toContain("Shares · FinLit Prism");
     expect(text()).toContain("Funds · Mutual Fund Score");
     const one = withQty(); one.funds = [one.funds[2]]; one.counts.funds = 1; one.cards.funds.count = 1;
-    cleanup(); st.answer = one; mount(); await screen.findByText("How healthy it is");
+    cleanup(); st.answer = one; mount("/my-investments?step=all"); await screen.findByText("How healthy it is");
     expect(text()).toContain("Mutual Fund Score");
     expect(text()).not.toMatch(/average 2\d · Poor/i);
   });
   it("D16, D30, B7: risk together with Beta in words, never β; no \"same than\"", async () => {
-    mount(); await screen.findByText("How risky it is, all together");
+    mount("/my-investments?step=all"); await screen.findByText("How risky it is, all together");
     expect(text()).not.toContain("β");
     expect(text()).not.toContain("same than");
     expect(text()).toContain("Beta vs Nifty 500");
     expect(text()).toContain("If the Nifty 500 fell 10%");
-    expect(text()).toContain("Beta is not a floor");
+    expect(text()).toContain("Swing and worst fall are each kind’s own figure, as on its portfolio page.");
+    expect(text()).not.toMatch(/\bpts\b|Defensive|Together Beta/);
   });
   it("D19, D20: Equity, Mutual funds and ETFs tabs, each ending with a link to its full portfolio page", async () => {
     for (const [tab, link, to] of [["equity", "Open the full Equity portfolio →", "/holdings"], ["mf", "Open the full MF portfolio →", "/mf-portfolio"], ["etf", "Open the full ETF portfolio →", "/etf-portfolio"]]) {
@@ -197,18 +208,18 @@ describe("task #137: All my investments (15 Nov pack)", () => {
   });
   it("D24, D25 (task #283): Silver lists shares without a score, Gold reads them with FinLit Prism; Basic sees the plan gate", async () => {
     const s = withQty(); s.plan = "silver"; st.answer = s; st.plan = "silver";
-    mount(); await screen.findByText("Every company you own, counted once");
+    mount("/my-investments?step=all"); await screen.findByText("Every company you own, counted once");
     expect(document.querySelector(".mi-co thead")!.textContent).not.toMatch(/FinLit Prism|\bIQ\b/);
     expect(document.body.textContent).not.toMatch(/\bIQ\b/);
-    cleanup(); st.plan = "gold"; st.answer = withQty(); mount(); await screen.findByText("Every company you own, counted once");
+    cleanup(); st.plan = "gold"; st.answer = withQty(); mount("/my-investments?step=all"); await screen.findByText("Every company you own, counted once");
     expect(document.querySelector(".mi-co thead")!.textContent).toContain("FinLit Prism");
     cleanup(); st.plan = "basic"; mount();
     expect(screen.getByTestId("gate").textContent).toBe("See all your investments together");
   });
-  it("D26, D27: every callout has a dropdown; every section heading and tile label has an i button", async () => {
-    mount(); await screen.findByText("Where your money sits");
-    for (const c of document.querySelectorAll(".cl")) expect(c.querySelector(".cl-dd")).toBeTruthy();
-    expect(document.querySelectorAll(".cl").length).toBeGreaterThan(5);
+  it("D26, D27: things to know open from a pill by each heading (task #391); every section heading and tile label has an i button", async () => {
+    mount("/my-investments?step=all"); await screen.findByText("Where your money sits");
+    expect(document.querySelectorAll(".mi-step .eq8k-btn").length).toBeGreaterThan(3);
+    expect(document.querySelector(".mi-notes")).toBeNull();
     for (const h of document.querySelectorAll(".mi-sh h2")) expect(h.querySelector("button.info")).toBeTruthy();
     for (const t of document.querySelectorAll(".mi-tile:not(.empty) > .mi-cap:first-child")) expect(t.querySelector("button.info")).toBeTruthy();
   });

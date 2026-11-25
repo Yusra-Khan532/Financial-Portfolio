@@ -125,10 +125,11 @@ export function Why({ children }: { children: ReactNode }) {
 }
 
 /** A pack section: the white rounded panel, the serif title with its (i), the line under it, and Hide / Show when `hide` names it. */
-export function Section({ id, title, help, how, sub, why, hide, right, children }: { id: string; title: string; help?: string; how?: string; sub?: ReactNode; why?: ReactNode; hide?: boolean; right?: ReactNode; children: ReactNode }) {
+export function Section({ id, title, help, how, sub, why, hide, right, info, children }: { id: string; title: string; help?: string; how?: string; sub?: ReactNode; why?: ReactNode; hide?: boolean; right?: ReactNode;
+  /** task #391: the page's own i button in place of this plain i (All my investments) */ info?: ReactNode; children: ReactNode }) {
   const body = (
     <section className="sp-sec" aria-labelledby={id}>
-      <div className="sp-sec-h"><div><h2 id={id}>{title}{help && <Tip text={help} how={how} label={`About “${title}”`} />}</h2>{sub && <p className="sp-sub">{sub}</p>}</div>{right}</div>
+      <div className="sp-sec-h"><div><h2 id={id}>{title}{info ?? (help && <Tip text={help} how={how} label={`About “${title}”`} />)}</h2>{sub && <p className="sp-sub">{sub}</p>}</div>{right}</div>
       {why && <Why>{why}</Why>}
       {children}
     </section>

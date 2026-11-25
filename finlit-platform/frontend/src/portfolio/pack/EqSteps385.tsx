@@ -33,7 +33,7 @@ export function foldSentence(text: string | null | undefined): string {
   if (t.length > 140) t = t.slice(0, 139).replace(/[\s,;:·]+\S*$/, "") + "…";
   return t;
 }
-const lineOf = (el: HTMLElement | null) => { const s = el?.querySelector<HTMLElement>(".sp-sub, .wp-sub") ?? el?.querySelector<HTMLElement>("section p"); return foldSentence(s?.textContent); };
+const lineOf = (el: HTMLElement | null) => { const s = el?.querySelector<HTMLElement>(".sp-sub, .wp-sub, .mi-sh-l") ?? el?.querySelector<HTMLElement>("section p"); return foldSentence(s?.textContent); };
 
 function Fold({ id, title, line, children }: { id: string; title: string; line: string; children: ReactNode }) {
   const [open, setOpen] = useState(false), body = useRef<HTMLDivElement>(null), [own, setOwn] = useState("");

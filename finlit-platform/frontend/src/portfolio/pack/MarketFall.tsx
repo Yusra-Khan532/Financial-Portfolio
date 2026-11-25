@@ -19,6 +19,9 @@ export type FallProps = {
   /** task #389 (file 32, Build these too 2): above `over` parts the chart shows the `keep` deepest falls and "Show all N <noun>s"; the market and the list
    *  stay first. Off unless asked for (the other pages keep every bar). */
   cap?: CapRule & { noun: string };
+  /** task #391 (developer file 35, fault 8): no Hide of its own (All my investments shows one section at a time) and the page's own i button in place of
+   *  the plain one. Off unless asked for: the other pages keep theirs. */
+  noHide?: boolean; info?: ReactNode;
 };
 
 /** The parts the chart draws: all of them, or, above the cap and while closed, the `keep` deepest falls (deepest first in both states, so opening only
@@ -57,7 +60,7 @@ export function MarketFall(p: FallProps) {
   const bars = [{ k: "mkt", label: mk.label, sub: mk.sub, v: -F }, ...(x.big != null ? [{ k: "list", label: ls.label, sub: ls.sub, v: x.big }] : []),
     ...fb.shown.map((q) => ({ k: "part " + (x.deep(q.fall) ? "deep" : "soft"), label: q.label, sub: q.sub, v: q.fall }))];
   return (
-    <Section id={p.id} hide title={`If the ${p.what ?? "market"} fell ${fs(F)}%`} help="A rough size guide from past betas: each part falls about its beta times the market's fall." how="Pick the size of the fall above the cards. The rupee line uses the value now of the portfolio you picked, or ₹10 lakh until quantities are in. Real falls are uneven; this is not a forecast."
+    <Section id={p.id} hide={!p.noHide} info={p.info} title={`If the ${p.what ?? "market"} fell ${fs(F)}%`} help="A rough size guide from past betas: each part falls about its beta times the market's fall." how="Pick the size of the fall above the cards. The rupee line uses the value now of the portfolio you picked, or ₹10 lakh until quantities are in. Real falls are uneven; this is not a forecast."
       sub="A rough size guide from past betas. Real falls are uneven; this is not a forecast.">
       <div className={"fx" + (x.d.parts ? "" : " fx-noparts")}>
         <div className="fx-top"><div className="fx-size" role="group" aria-label="Size of the fall"><span>Size of the fall</span>

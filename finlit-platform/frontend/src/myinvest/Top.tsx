@@ -2,23 +2,23 @@
 //   TopCard    the compact top: the title row (plan, i, "Prices at close", Add quantities · Import ▾ · ⋯, no add box: change 1), then a money box that
 //              says what it covers (value now; invested, gain or loss and holdings side by side; a bar for how many holdings have a quantity and buy price,
 //              or a green line once every one has) and Your portfolios (All accounts and each account; past four, the three largest and "N more ▾").
-//   ViewTiles  the four views drawn as tabs (they replace the dark summary box and the three kind tiles): the open one has a check, a heavier border and a
-//              notch; the others an arrow and open from anywhere on the card. "Everything, seen 4 ways" counts the views opened; a view not yet opened has
-//              an orange "Not opened yet" tag and edge, kept per member (prefs.viewsSeen).
+//   MiCards    task #391 (developer file 35): the four views as calm cards with a crown each, "You are here" / "Open →" (they replaced task #277's
+//              coloured view tiles and the "Everything, seen 4 ways" progress line; prefs.viewsSeen is left as it is stored).
 //   NextView   at the end of each view, a card that leads on (All together → Equity → Mutual funds → ETFs → All together).
-// Describes the member's lists; never advises. Styles: styles/mi7.css (class prefix mi7-).
+// Describes the member's lists; never advises. Styles: styles/mi7.css (class prefix mi7-), styles/mi391.css (mi391-).
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { nf } from "../lib/format";
-import { KIND_NAME, SCORE_NAME, betaTxt, chg, dateShort, kindsHeld, pctOf, rupees, toneOf, type AllInvestments, type Kind, type KindMoney, type Tab } from "../lib/myInvest";
-import { prefs, usePrefs } from "../lib/prefs";
+import { chg, dateShort, rupees, type AllInvestments, type Kind, type KindMoney, type Tab } from "../lib/myInvest";
+import { planName } from "../lib/planNames";
+import { coLabel, moneyNote, viewCard } from "../lib/mi391";
+import { CROWN } from "../mf/pack/MfTop";
 import { I } from "./parts";
 import "../styles/mi7.css";
+import "../styles/mi391.css";
 
 export const VIEW_ORDER: Tab[] = ["all", "equity", "mf", "etf"];
 export const VIEW_NAME: Record<Tab, string> = { all: "All together", equity: "Equity", mf: "Mutual funds", etf: "ETFs" };
-const TAB_KIND: Record<Exclude<Tab, "all">, Kind> = { equity: "shares", mf: "funds", etf: "etfs" };
-const seenKey = (t: Tab) => `mi:${t}`;
 
 /** What is inside a view, as its tab says it ("Inside: your shares, how they are spread, risk"). */
 export function insideOf(t: Tab, d: AllInvestments): string {
@@ -26,13 +26,6 @@ export function insideOf(t: Tab, d: AllInvestments): string {
   if (t === "equity") return "your shares, how they are spread, risk";
   if (t === "mf") return `your ${d.counts.funds === 1 ? "fund" : "funds"}, what is inside, risk`;
   return "your ETFs, what is inside, risk";
-}
-
-/** The views opened once, kept with the member's settings; the open one counts as seen as soon as it is shown. */
-export function useViewsSeen(open: Tab): Set<Tab> {
-  const p = usePrefs();
-  useEffect(() => { if (!p.viewsSeen.includes(seenKey(open))) prefs.set({ viewsSeen: [...p.viewsSeen, seenKey(open)] }); }, [open]);   // eslint-disable-line react-hooks/exhaustive-deps
-  return new Set(VIEW_ORDER.filter((t) => t === open || p.viewsSeen.includes(seenKey(t))));
 }
 
 // ------------------------------------------------------------------------------------------------ the top
@@ -61,9 +54,8 @@ export function TopCard({ d, money, allMoney, accs, cur, onPick, openQty, loadin
   const m = money?.all, [moreOpen, setMoreOpen] = useState(false);
   const counts = d ? `${nf(d.counts.shares, 0)} share${d.counts.shares === 1 ? "" : "s"} · ${nf(d.counts.funds, 0)} fund${d.counts.funds === 1 ? "" : "s"} · ${nf(d.counts.etfs, 0)} ETF${d.counts.etfs === 1 ? "" : "s"}` : loading ? "Reading your three lists…" : "";
   const n = m?.n ?? 0, have = m ? m.n - m.missing.length : 0, all = n > 0 && have === n;
-  const withQty = d ? d.shares.filter((s) => s.qty && s.price).length + d.funds.filter((f) => f.units && f.nav).length + d.etfs.filter((e) => e.qty && e.price).length : 0;
-  const haveNames = d && m ? [...d.shares.map((s) => s.symbol), ...d.funds.map((f) => f.short || f.name), ...d.etfs.map((e) => e.symbol)].filter((x) => !m.missing.includes(x)) : [];
-  const nKinds = d ? kindsHeld(d).length : 0, frac = nKinds === 3 ? "⅓" : nKinds === 2 ? "½" : "all";
+  const split = !!m && m.full > 0 && m.full < m.withQty;
+  const haveNames = d && m ? [...d.shares.map((s) => ({ code: s.symbol, name: coLabel(s), link: true })), ...d.funds.map((f) => ({ code: f.short || f.name, name: f.short || f.name, link: false })), ...d.etfs.map((e) => ({ code: e.symbol, name: e.symbol, link: false }))].filter((x) => !m.missing.includes(x.code)) : [];
   const sorted = [...accs].sort((a, b) => (b.value ?? -1) - (a.value ?? -1));
   const fold = accs.length > 4 && !moreOpen;
   const shown = fold ? accs.filter((a) => a.id === cur || sorted.slice(0, 3).some((x) => x.id === a.id)) : accs;
@@ -80,7 +72,7 @@ export function TopCard({ d, money, allMoney, accs, cur, onPick, openQty, loadin
       <div className="mi7-t1">
         <div className="mi7-ht">
           <h1 className="ui-title">All my investments</h1>
-          {d && <span className="mi7-plan">{d.plan === "gold" ? "Gold" : "Silver"}</span>}
+          {d && <span className="mi7-plan">{planName(d.plan)}</span>}
           <I k="All my investments" what="Your shares, mutual funds and ETFs read together: how much you have and where it sits, what it is made of, what you really own underneath, how healthy it is and how risky it is as a whole."
             read="This page reads your three portfolio lists. Add or remove a holding on its own page and it changes here. Nothing is sent to a broker." />
           {d?.sources.pricesTo && <span className="mi7-asof">Prices at close · {dateShort(d.sources.pricesTo).replace(/ \d{4}$/, "")}</span>}
@@ -95,17 +87,22 @@ export function TopCard({ d, money, allMoney, accs, cur, onPick, openQty, loadin
       {d && m && <div className="mi7-t2">
         <section className="mi7-box mi7-money" aria-label="All your investments">
           <p className="mi7-k">All your investments</p>
-          {m.now > 0 ? <p className="mi7-big">{rupees(m.now)}<small>value now{d.byValue ? "" : `, of the ${nf(withQty, 0)} with a quantity`}</small></p> : <p className="mi7-big">{n} {n === 1 ? "holding" : "holdings"}<small>no quantities yet</small></p>}
+          {/* task #391 (developer file 35, fault 3): the big figure covers the same holdings as Invested and Gain beside it (those with a buy price); the value
+              of every holding with a quantity sits on its own labelled line under them */}
+          {m.now > 0 ? <p className="mi7-big">{rupees(split ? m.nowPriced : m.now)}<small>{split ? `value now, of the ${nf(m.full, 0)} with a buy price` : all ? "value now" : m.full ? `value now, of the ${nf(m.withQty, 0)} with a quantity and buy price` : `value now, of the ${nf(m.withQty, 0)} with a quantity`}</small></p> : <p className="mi7-big">{n} {n === 1 ? "holding" : "holdings"}<small>no quantities yet</small></p>}
           <div className="mi7-sub3">
             <div><span className="mi7-k">Invested</span><b>{have ? rupees(m.invested) : "—"}</b><small>what you paid</small></div>
             <div><span className="mi7-k">Gain or loss</span>{have && m.invested ? <b className={m.gain >= 0 ? "x-up" : "x-dn"}><span aria-hidden="true">{m.gain >= 0 ? "▲ " : "▼ "}</span>{rupees(Math.abs(m.gain))} <span className="mi7-pp">{chg((m.gain / m.invested) * 100)}</span></b> : <b>—</b>}<small>on what you invested</small></div>
             <div><span className="mi7-k">Holdings</span><b>{d.counts.shares} · {d.counts.funds} · {d.counts.etfs}</b><small>shares · funds · ETFs</small></div>
           </div>
+          {split && <p className="mi391-allv"><span className="mi7-k">Value now of all {nf(m.withQty, 0)} with a quantity</span><b>{rupees(m.now)}</b></p>}
           {all ? <p className="mi7-cov ok" role="note">All {n} holdings have a quantity and buy price, so the money figures cover the whole list.</p>
             : <div className="mi7-cov">
               <div className="mi7-bar" role="img" aria-label={`${have} of ${n} holdings have a quantity and buy price`}><i style={{ width: `${n ? (have / n) * 100 : 0}%` }} /></div>
-              <p><b>Money figures cover {have} of {n} holdings.</b> {have === 0 ? <>None has a quantity and buy price yet; </> : have <= 3 ? <>Only {haveNames.map((x, i) => <span key={x}>{i > 0 ? (i === haveNames.length - 1 ? " and " : ", ") : ""}{d.shares.some((s) => s.symbol === x) ? <Link to={`/stocks/${encodeURIComponent(x)}`}>{x}</Link> : x}</span>)} {have === 1 ? "has" : "have"} a quantity and buy price; </> : null}
-                the other {n - have} count in every reading but not in the money{!d.byValue && nKinds > 1 ? <>, and each kind counts as {frac}</> : null}. <button type="button" className="mi7-lnk" onClick={openQty}>Add quantities</button></p>
+              {/* task #391 (fault 4): three sentences, each starting with a capital; the last one only while each kind still counts the same */}
+              <p><b>Money figures cover {have} of {n} holdings.</b> {have === 0 ? <>None has a quantity and buy price yet. </> : have <= 3 ? <>Only {haveNames.map((x, i) => <span key={x.code}>{i > 0 ? (i === haveNames.length - 1 ? " and " : ", ") : ""}{x.link ? <Link to={`/stocks/${encodeURIComponent(x.code)}`}>{x.name}</Link> : x.name}</span>)} {have === 1 ? "has" : "have"} a quantity and buy price. </> : null}
+                {/* task #391 (fault 1, with PR B): who is out of the money, who is out of the split (named), and the equal part only while a kind has no quantity */}
+                {moneyNote(d, have, n).join(" ")} <button type="button" className="mi7-lnk" onClick={openQty}>Add quantities</button></p>
             </div>}
         </section>
         <section className="mi7-box mi7-ports" aria-label="Your portfolios">
@@ -121,62 +118,22 @@ export function TopCard({ d, money, allMoney, accs, cur, onPick, openQty, loadin
     </header>);
 }
 
-// ------------------------------------------------------------------------------------------------ the four views as tabs
-const HI = "var(--mi7-hi)", MID = "var(--mi7-mid)", LO = "var(--mi7-lo)", NONE = "var(--mi7-none)";
-const toneColor = (label: string) => ({ pos: HI, mid: MID, neg: LO, none: NONE })[toneOf(label === "Not rated" ? null : label)];
-
-function tileOf(t: Tab, d: AllInvestments): { v: string; x: string; bar: { n: number; c: string; label: string }[]; empty?: string } {
-  if (t === "all") {
-    const kinds = kindsHeld(d), n = kinds.reduce((a, k) => a + d.counts[k], 0), frac = kinds.length === 3 ? "⅓" : kinds.length === 2 ? "½" : "";
-    return { v: d.byValue && d.total != null ? rupees(d.total) : `${n} ${n === 1 ? "holding" : "holdings"}`,
-      x: `${d.counts.shares} shares · ${d.counts.funds} ${d.counts.funds === 1 ? "fund" : "funds"} · ${d.counts.etfs} ETFs${!d.byValue && frac ? `, ${frac} each until you add quantities` : ""}`,
-      bar: kinds.map((k) => ({ n: d.cards[k].share, c: `var(--mi-${k})`, label: `${KIND_NAME[k]} ${pctOf(d.cards[k].share, 0)}` })) };
-  }
-  const k = TAB_KIND[t], c = d.cards[k];
-  if (!c.count) return { v: "None yet", x: `Nothing on your ${t === "equity" ? "Equity" : t === "mf" ? "MF" : "ETF"} portfolio yet.`, bar: [], empty: "none" };
-  const bands = (c.bands ?? []).filter((b) => b.count > 0);
-  if (t === "equity") {
-    const model = SCORE_NAME.replace(/^FinLit /, "");
-    return { v: `${c.scoreLocked ? `${SCORE_NAME} · see plans` : c.score != null ? `${model} ${nf(c.score, 0)}` : `${model}: not rated`} · Beta ${betaTxt(c.beta)}`,
-      x: `${c.count} ${c.count === 1 ? "share" : "shares"}${bands.length ? " · " + bands.map((b) => `${b.count} ${b.label.toLowerCase()}`).join(" · ") : ""}`,
-      bar: bands.map((b) => ({ n: b.count, c: toneColor(b.label), label: `${b.count} ${b.label}` })) };
-  }
-  if (t === "mf") {
-    const one = c.count === 1, word = one ? d.funds[0]?.label : c.scoreWord;
-    return { v: c.scoreLocked ? "Mutual Fund Score on Gold" : c.score != null ? `Score ${nf(c.score, 0)}${word ? ` · ${word}` : ""}` : "No Mutual Fund Score yet",
-      x: `${c.count} ${one ? "fund" : "funds"} · Beta ${betaTxt(c.beta)} against the Nifty 500`,
-      bar: c.scoreLocked ? [] : bands.map((b) => ({ n: b.count, c: toneColor(b.label), label: `${b.count} ${b.label}` })) };
-  }
-  const types = c.types ?? [];
-  return { v: `${c.ter != null ? `${pctOf(c.ter, 2)} a year` : "Cost not published"} · Beta ${betaTxt(c.beta)}`,
-    x: `${c.count} ETFs${types.length ? ": " + types.map((x) => x.label.toLowerCase()).join(", ") : ""}`,
-    bar: types.map((x, i) => ({ n: x.count, c: `var(--mi7-type${i % 4})`, label: `${x.count} ${x.label}` })) };
-}
-
-export function ViewTiles({ d, view, onView, seen }: { d: AllInvestments; view: Tab; onView: (t: Tab) => void; seen: Set<Tab> }) {
-  const left = VIEW_ORDER.filter((t) => !seen.has(t));
+// ------------------------------------------------------------------------------------------------ the four views as calm cards
+/** Task #391 (developer file 35, Top 1–5, Phone): four calm cards with a crown each (they replace the coloured tiles and the "Everything, seen 4 ways"
+ *  progress line). The open one says "You are here", the others "Open →" and switch the view in the page, as before. On a phone they stack one per row
+ *  with the name and the figure only. */
+const CARD_COLOR: Record<Tab, string> = { all: "var(--mi7-type2)", equity: "var(--mi-shares)", mf: "var(--mi-funds)", etf: "var(--mi-etfs)" };
+export function MiCards({ d, view, onView }: { d: AllInvestments; view: Tab; onView: (t: Tab) => void }) {
   return (
-    <section className="mi7-views" id="mi-tabs" aria-label="The views">
-      <div className="mi7-vhead" id="mi7-vhint"><b>Everything, seen 4 ways</b>
-        <span className="mi7-prog" aria-hidden="true">{VIEW_ORDER.map((t) => <i key={t} className={seen.has(t) ? "on" : ""} />)}</span>
-        <span>{seen.size} of 4 opened{left.length ? ` · ${left.map((t) => VIEW_NAME[t]).join(", ").replace(/, ([^,]*)$/, " and $1")} still to see` : " · every view seen"}</span></div>
-      <div className="mi7-tiles" role="tablist" aria-label="All my investments views">
-        {VIEW_ORDER.map((t) => {
-          const on = t === view, tile = tileOf(t, d), fresh = !seen.has(t);
-          return (
-            <div key={t} className={"mi7-tile v-" + t + (on ? " on" : "") + (fresh ? " fresh" : "")} onClick={() => !on && onView(t)}>
-              <p className="mi7-tk">{VIEW_NAME[t]}</p>
-              {on ? <span className="mi7-state" title="You are on this view" role="tab" aria-selected="true" id={`mi-t-${t}`} aria-controls={`mi-p-${t}`} tabIndex={0}>
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg><span className="sr-only">{VIEW_NAME[t]}: you are on this view</span></span>
-                : <button type="button" className="mi7-go" role="tab" aria-selected="false" id={`mi-t-${t}`} aria-describedby="mi7-vhint" onClick={(e) => { e.stopPropagation(); onView(t); }} title={`Go to ${VIEW_NAME[t]}`}>
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg><span className="sr-only">Go to {VIEW_NAME[t]}: inside: {insideOf(t, d)}</span></button>}
-              <p className="mi7-tv">{tile.v}</p>
-              <p className="mi7-tx">{tile.x}</p>
-              {tile.bar.length > 0 && <span className="mi7-stk" role="img" aria-label={tile.bar.map((b) => b.label).join(", ")}>{tile.bar.map((b) => <i key={b.label} style={{ flex: Math.max(b.n, 0.5), background: b.c }} />)}</span>}
-              <p className="mi7-what">{fresh && <span className="mi7-new">Not opened yet</span>}Inside: {insideOf(t, d)}</p>
-            </div>);
-        })}
-      </div>
+    <section className="mi391-strip" id="mi-tabs" aria-label="The four views">
+      {VIEW_ORDER.map((t) => { const c = viewCard(t, d), on = t === view;
+        return <button key={t} type="button" id={`mi-t-${t}`} className={"mi391-c" + (on ? " on" : "")} style={{ ["--vc" as string]: CARD_COLOR[t] }} aria-pressed={on}
+          aria-label={`${c.k}: ${c.v}. ${on ? "You are here" : "Open this view"}`} onClick={() => { if (!on) onView(t); }}>
+          {CROWN}
+          <p className="mi391-k">{c.k}<em>{on ? "You are here" : "Open →"}</em></p>
+          <p className="mi391-v">{c.v}</p>
+          <p className="mi391-x">{c.x}</p>
+        </button>; })}
     </section>);
 }
 

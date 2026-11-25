@@ -7,6 +7,8 @@ import { useMemo, useState } from "react";
 import { WhatChanged, type ListTab } from "../components/changes/WhatChanged";
 import { pctOf, type AllInvestments, type Company } from "../lib/myInvest";
 import { useWatchlist } from "../lib/watchlist";
+import { coLabel } from "../lib/mi391";
+import { I } from "./parts";
 
 export const THROUGH_MIN = 0.1;
 type Pick = "all" | "direct" | "through" | "watch";
@@ -52,6 +54,11 @@ export function InvestChanges({ d }: { d: AllInvestments }) {
     <div className="mi7-wc">
       <WhatChanged symbols={s.symbols} listName={s.name} listRef={s.ref} page="myinvest" lists={tabs} activeList={pick} onPickList={(id) => setPick(id as Pick)}
         title="What changed at the companies you own" nameOf={(x) => bySym.get(x)?.name} sub={(x) => <HeldLine c={bySym.get(x)} />}
-        foot={smallLine(d, ch)} newTab />
+        foot={smallLine(d, ch)} newTab
+        /* task #391 (developer file 35, Sections 4): tiles count updates, rows count filings, short company names, a closed "Not in Discover yet" list
+           and the line on what an update is (the Equity page's block since task #385) */
+        plain shortName={(x, n) => coLabel({ symbol: x, name: bySym.get(x)?.name ?? (n && n !== x ? n : null) })}
+        help={<I k="what changed at the companies you own" what="Exchange filings from the last 90 days for the companies you own directly, and the larger ones you own through funds and ETFs, grouped by kind. From Discover."
+          read="An update is one kind of news from one company; a row may bundle several filings, and then says how many." />} />
     </div>);
 }

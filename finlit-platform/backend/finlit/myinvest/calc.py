@@ -7,7 +7,10 @@ MF portfolio, ETF portfolio) and from the data those portfolio pages already use
 Weights ("How the numbers are worked out", README of the pack):
 - with quantities: value = quantity x last price (shares, ETFs) or units x NAV (funds); the share of everything is value / total;
 - without quantities: each kind counts the same (1/3 each when all three are held, 1/2 with two kinds) and each holding counts the same inside its kind.
-  The money decides only when every kind present has a quantity for every holding; the page says so wherever a split appears.
+  Task #391 (developer file 35, fault 1): the money decides for every kind with at least one holding that has a quantity and a price (it used to decide
+  only when EVERY holding of EVERY kind had one, so one fund without units sent all three kinds to 1/3). Inside such a kind a holding without a quantity
+  weighs 0 in the split but stays listed and named (`noQuantity`); only a kind with no quantity at all takes the equal part (1/3 with three kinds), the
+  kinds with values sharing the rest by value. `byValue` is true when every kind held has a value; the page says how many holdings are counted.
 
 Look-through: your share of a company through a fund = your share of that fund x the company's weight in the fund's latest monthly file, added up across
 funds, and the same way for ETFs. All together = direct + through funds + through ETFs. Every equity line of each file is counted.
@@ -41,17 +44,31 @@ TYPE_BUCKET = {"gold": "gold", "silver": "gold", "debt": "debt", "liquid": "debt
 from ..sizes import SIZES as _FOUR, size_of as _size_of
 SIZES = _FOUR + ("Listed abroad", "Not sized")   # task #262: four sizes (finlit/sizes.py), then the two that are not sized by FinLit
 
-# The owner's beta bands (README step 6): the edge is the upper limit of each band.
-BETA_BANDS = ((0.65, "Less sensitive"), (0.9, "Defensive"), (1.1, "Similar"), (1.35, "More sensitive"), (1.75, "High"), (math.inf, "Very high"))
+# The owner's beta bands (README step 6): the edge is the upper limit of each band. Task #391 (developer file 35, fault 7): the same six ranges as the
+# shared scale (mfportfolio.bench.BANDS, the MF and ETF pages'), sent by KEY (less, defensive, similar, more, high, very_high) beside the word, so the page
+# names each range from portfolio/shared/words.ts BETA_RANGE_WORD ("Much less sensitive" below 0.65, "Less sensitive" 0.65 to 0.90, ...), as the MF and
+# ETF pages do. `band` and `bandLine` keep the scale's stored words until every reader has moved to the key; BAND_WORD and `bandSays` carry the new words.
+from ..mfportfolio.bench import BANDS as _SCALE
+BETA_BANDS = tuple((edge, word) for edge, _k, word in _SCALE)
+BETA_KEYS = tuple((edge, key) for edge, key, _w in _SCALE)
+BAND_WORD = {"less": "Much less sensitive", "defensive": "Less sensitive", "similar": "Similar", "more": "More sensitive", "high": "High", "very_high": "Very high"}
 # Task #277 (live number fix 6): what each band says, so the word and the sentence under it come from the same band ("0.79 · Defensive" sat over "Similar moves")
-BAND_SAYS = {"Less sensitive": "moves much less than the market", "Defensive": "moves a little less than the market", "Similar": "moves about with the market",
-             "More sensitive": "moves more than the market", "High": "moves much more than the market", "Very high": "moves far more than the market"}
+SAYS = {"less": "moves much less than the market", "defensive": "moves a little less than the market", "similar": "moves about with the market",
+        "more": "moves more than the market", "high": "moves much more than the market", "very_high": "moves far more than the market"}
+BAND_SAYS = {word: SAYS[key] for _e, key, word in _SCALE}    # by the stored word (bandLine)
 
 
 def band_line(beta: Optional[float]) -> Optional[str]:
-    """"Defensive: moves a little less than the market. When the Nifty 500 moved 1%, this moved about 0.79%." (None without a beta)."""
+    """"Defensive: moves a little less than the market. When the Nifty 500 moved 1%, this moved about 0.79%." (None without a beta). The stored word."""
     w = beta_band(beta)
     return None if w is None else f"{w}: {BAND_SAYS[w]}. When the Nifty 500 moved 1%, this moved about {beta:.2f}%."
+
+
+def band_says(beta: Optional[float]) -> Optional[str]:
+    """Task #391: the same sentence in the page's words: "Less sensitive: moves a little less than the market. When the Nifty 500 moved 1%, this moved
+    about 0.79%." (None without a beta)."""
+    k = beta_band_key(beta)
+    return None if k is None else f"{BAND_WORD[k]}: {SAYS[k]}. When the Nifty 500 moved 1%, this moved about {beta:.2f}%."
 RISK_RED_POINTS = 10.0     # Key figures: "red when the risk share is more than 10 points above the money share"
 
 PEER_WORD = {"leader": "Leader", "in_line": "In line", "laggard": "Laggard"}
@@ -68,36 +85,52 @@ def r(v: Optional[float], dp: int = 2) -> Optional[float]:
     return None if v is None else round(v, dp)
 
 
+def and_list(xs: Sequence[str]) -> str:
+    """"A, B and C" (the site's list joiner, portfolio/shared/words.ts andList)."""
+    xs = list(xs)
+    return "".join(xs) if len(xs) <= 1 else ", ".join(xs[:-1]) + " and " + xs[-1]
+
+
 # ------------------------------------------------------------------------------------------------ weights
 
+def has_value(item: Dict[str, Any], qty_key: str, price_key: str) -> bool:
+    """A holding counts in the money split when it has a quantity above 0 and a price above 0."""
+    return (_num(item.get(qty_key)) or 0) > 0 and (_num(item.get(price_key)) or 0) > 0
+
+
 def part_weights(items: Sequence[Dict[str, Any]], qty_key: str, price_key: str) -> Tuple[bool, Optional[float], List[float]]:
-    """(valued, total value or None, each item's weight inside the kind). Valued only when every item has a quantity above 0 and a price."""
+    """(valued, total value or None, each item's weight inside the kind). Task #391 (file 35, fault 1): valued when at least one item has a quantity
+    and a price; the items without one weigh 0 (they stay in the lists). A kind with no value at all: each item counts the same."""
     if not items:
         return False, None, []
-    vals = [(_num(i.get(qty_key)) or 0) * (_num(i.get(price_key)) or 0) for i in items]
-    valued = all((_num(i.get(qty_key)) or 0) > 0 and (_num(i.get(price_key)) or 0) > 0 for i in items)
-    if valued and sum(vals) > 0:
-        tot = sum(vals)
+    vals = [(_num(i.get(qty_key)) or 0) * (_num(i.get(price_key)) or 0) if has_value(i, qty_key, price_key) else 0.0 for i in items]
+    tot = sum(vals)
+    if tot > 0:
         return True, tot, [v / tot for v in vals]
     return False, None, [1 / len(items)] * len(items)
 
 
 def split_parts(shares: Sequence[Dict[str, Any]], funds: Sequence[Dict[str, Any]], etfs: Sequence[Dict[str, Any]] = ()) -> Dict[str, Any]:
-    """The weight of each kind in everything, and how it was decided. `missing`: the kinds held without a quantity for every holding."""
+    """The weight of each kind in everything, and how it was decided.
+    `byValue`: every kind held has a value (then `total` is the rupee value of everything counted). `missing`: the kinds with no quantity at all (each
+    takes the equal part, 1/3 with three kinds; the kinds with values share the rest by value). `noQuantity`: the holdings of a valued kind without a
+    quantity or a price ({kind, i}: weight 0 in the split, still listed). Each kind's `counted` / `of`: how many of its holdings the split counts by value."""
     items = {"shares": shares, "funds": funds, "etfs": etfs}
     out: Dict[str, Any] = {}
     for k in KINDS:
         v, tot, w = part_weights(items[k], *QTY[k])
-        out[k] = {"valued": v, "value": tot, "w": w}
+        n = sum(1 for i in items[k] if has_value(i, *QTY[k]))
+        out[k] = {"valued": v, "value": tot, "w": w, "counted": n if v else 0, "of": len(items[k])}
     present = [k for k in KINDS if items[k]]
-    by_value = bool(present) and all(out[k]["valued"] for k in present)
-    if by_value:
-        total = sum(out[k]["value"] or 0 for k in present)
-        part = {k: ((out[k]["value"] or 0) / total if k in present else 0.0) for k in KINDS}
-    else:
-        total = None
-        part = {k: (1 / len(present) if k in present else 0.0) for k in KINDS}
-    return {"byValue": by_value, "total": total, "part": part, "present": present, "missing": [k for k in present if not out[k]["valued"]], **out}
+    valued = [k for k in present if out[k]["valued"]]
+    missing = [k for k in present if not out[k]["valued"]]
+    by_value = bool(present) and not missing
+    equal = 1 / len(present) if present else 0.0
+    worth = sum(out[k]["value"] or 0 for k in valued)
+    rest = 1 - equal * len(missing)               # what the kinds with values share by value
+    part = {k: (equal if k in missing else (out[k]["value"] or 0) / worth * rest if k in valued and worth else 0.0) for k in KINDS}
+    no_qty = [{"kind": k, "i": j} for k in valued for j, i in enumerate(items[k]) if not has_value(i, *QTY[k])]
+    return {"byValue": by_value, "total": worth if by_value else None, "part": part, "present": present, "missing": missing, "noQuantity": no_qty, **out}
 
 
 # ------------------------------------------------------------------------------------------------ look-through
@@ -126,14 +159,18 @@ def look_through(shares: Sequence[Dict[str, Any]], funds: Sequence[Dict[str, Any
         got = rows.get(key)
         if got is None:
             got = rows[key] = {"key": key, "symbol": symbol, "name": name, "isin": isin, "abroad": abroad, "macro": None,
-                               "direct": 0.0, "funds": 0.0, "etfs": 0.0, "viaFunds": [], "viaEtfs": []}
+                               "direct": 0.0, "funds": 0.0, "etfs": 0.0, "viaFunds": [], "viaEtfs": [], "onList": False}
         return got
 
     for s, w in zip(shares, split["shares"]["w"]):
-        row(s["symbol"], s["symbol"], s.get("name") or s["symbol"], s.get("isin"), False)["direct"] += split["part"]["shares"] * w * 100
+        x = row(s["symbol"], s["symbol"], s.get("name") or s["symbol"], s.get("isin"), False)
+        x["direct"] += split["part"]["shares"] * w * 100
+        x["onList"] = True          # task #391 (fault 1): a share held without a quantity weighs 0 but is still held directly (lists, filters, What changed)
     for kind, items, via, ident in (("funds", funds, "viaFunds", "code"), ("etfs", etfs, "viaEtfs", "symbol")):
         for f, w in zip(items, split[kind]["w"]):
             share = split["part"][kind] * w
+            if share <= 0:
+                continue                # task #391 (fault 1): a fund or ETF without a quantity weighs 0, so its companies are not "held through" it
             for h in f.get("holdings") or []:
                 pct = _num(h.get("pct"))
                 if pct is None or pct <= 0 or (h.get("assetClass") or "equity") != "equity":
@@ -148,7 +185,7 @@ def look_through(shares: Sequence[Dict[str, Any]], funds: Sequence[Dict[str, Any
     out = []
     for x in rows.values():
         x["all"] = x["direct"] + x["funds"] + x["etfs"]
-        x["held"] = [m for m, k in (("D", "direct"), ("F", "funds"), ("E", "etfs")) if x[k] > 0]
+        x["held"] = [m for m, k in (("D", "direct"), ("F", "funds"), ("E", "etfs")) if x[k] > 0 or (k == "direct" and x["onList"])]
         x["ways"] = len(x["held"])
         x["twice"] = x["ways"] >= 2
         out.append(x)
@@ -162,14 +199,19 @@ def changes_list(companies: List[Dict[str, Any]]) -> Dict[str, List[str]]:
     """Task #277 (change 19): the companies of "What changed at the companies you own": held directly, or 0.1% or more of everything through funds
     and ETFs. Listed in India only (Discover reads NSE filings); largest first."""
     ok = [c for c in companies if c.get("symbol") and not c.get("abroad")]
-    return {"direct": [c["symbol"] for c in ok if c["direct"] > 0],
-            "through": [c["symbol"] for c in ok if c["direct"] == 0 and c["all"] >= THROUGH_MIN]}
+    return {"direct": [c["symbol"] for c in ok if direct_held(c)],
+            "through": [c["symbol"] for c in ok if not direct_held(c) and c["all"] >= THROUGH_MIN]}
+
+
+def direct_held(c: Dict[str, Any]) -> bool:
+    """Held directly: on the member's share list (with or without a quantity: task #391, fault 1)."""
+    return c["direct"] > 0 or bool(c.get("onList"))
 
 
 def filter_counts(companies: Sequence[Dict[str, Any]]) -> Dict[str, int]:
     """The company table's four filters, each with its count."""
     return {"all": len(companies), "twice": sum(1 for c in companies if c["ways"] >= 2),
-            "through": sum(1 for c in companies if c["direct"] == 0 and c["ways"] == 1), "direct": sum(1 for c in companies if c["direct"] > 0 and c["ways"] == 1)}
+            "through": sum(1 for c in companies if not direct_held(c) and c["ways"] == 1), "direct": sum(1 for c in companies if direct_held(c) and c["ways"] == 1)}
 
 
 def peer_word(raw: Optional[str], direct: bool) -> str:
@@ -315,7 +357,13 @@ def band_counts(labels: Sequence[Optional[str]], weights: Sequence[float], order
 # ------------------------------------------------------------------------------------------------ risk (step 6)
 
 def beta_band(beta: Optional[float]) -> Optional[str]:
+    """The scale's stored word (kept for readers that have not moved to the key)."""
     return None if beta is None else next(w for edge, w in BETA_BANDS if beta < edge)
+
+
+def beta_band_key(beta: Optional[float]) -> Optional[str]:
+    """Task #391 (file 35, fault 7): the range's key on the shared scale (less, defensive, similar, more, high, very_high); the page names it."""
+    return None if beta is None else next(k for edge, k in BETA_KEYS if beta < edge)
 
 
 def kind_beta(betas: Sequence[Optional[float]], weights: Sequence[float]) -> Tuple[Optional[float], float]:
@@ -333,14 +381,14 @@ def risk_together(kinds: Dict[str, Dict[str, Any]], total: Optional[float]) -> D
     if not held:
         return {"beta": None, "why": "Nothing on your lists yet.", "parts": []}
     if missing:
-        return {"beta": None, "band": None, "why": "No beta for your " + " and ".join(PART_WORD[k] for k in missing) + " yet, so the figure for everything together cannot be added up.",
-                "parts": [{"kind": k, "money": r(v["share"] * 100, 1), "beta": r(v.get("beta")), "riskShare": None, "red": False} for k, v in held.items()]}
+        return {"beta": None, "band": None, "bandKey": None, "why": "No beta for your " + and_list([PART_WORD[k] for k in missing]) + " yet, so the figure for everything together cannot be added up.",
+                "parts": [{"kind": k, "money": r(v["share"] * 100, 1), "beta": r(v.get("beta")), "riskShare": None, "red": False, "bandKey": beta_band_key(v.get("beta"))} for k, v in held.items()]}
     tog = sum(v["share"] * v["beta"] for v in held.values())
     parts = []
     for k, v in held.items():
         rs = v["share"] * v["beta"] / tog * 100 if tog else None
-        parts.append({"kind": k, "money": r(v["share"] * 100, 1), "beta": r(v["beta"]), "band": beta_band(v["beta"]), "riskShare": r(rs, 1),
+        parts.append({"kind": k, "money": r(v["share"] * 100, 1), "beta": r(v["beta"]), "band": beta_band(v["beta"]), "bandKey": beta_band_key(v["beta"]), "riskShare": r(rs, 1),
                       "red": rs is not None and rs > v["share"] * 100 + RISK_RED_POINTS})
     top = max(parts, key=lambda p: p["riskShare"] or 0)
-    return {"beta": r(tog), "band": beta_band(tog), "bandLine": band_line(r(tog)), "why": None, "parts": parts, "largest": top["kind"],
+    return {"beta": r(tog), "band": beta_band(r(tog)), "bandKey": beta_band_key(r(tog)), "bandLine": band_line(r(tog)), "bandSays": band_says(r(tog)), "why": None, "parts": parts, "largest": top["kind"],
             "fall10": {"pct": r(-tog * 10, 1), "value": r(-total * tog * 0.10, 0) if total else None}}

@@ -26,7 +26,13 @@ export type Card = {
   score?: number | null; scoreModel?: "prism"; scoreLocked?: boolean; scoreWord?: string | null; bands?: Band[] | null; peers?: Record<string, number>;
   overlap?: { pct: number; a: string; b: string; n: number } | null; sharedCompanies?: number; ter?: number | null; repeats?: { key: string; label: string | null; symbols: string[] }[];
   types?: { label: string; count: number }[];
+  /** task #391 PR B (optional): how many of the kind count in the money split, of how many; the ones with no quantity; the range key */
+  counted?: number; of?: number; noQuantity?: NamedHolding[]; betaBandKey?: string | null;
 };
+/** Task #391 PR B: a holding named for a list (a share or an ETF by symbol, a fund by code). */
+export type NamedHolding = { kind?: Kind; symbol?: string | null; code?: number | null; name: string | null };
+/** Task #391 PR B: a kind's swing window ("weekly prices, 2 years"). */
+export type SwingWindow = { grain: string; years: number; label: string };
 export type MixRow = { key: "indian" | "abroad" | "gold" | "debt" | "other" | "notLoaded"; label: string; shares: number; funds: number; etfs: number; all: number };
 export type MadeOf = { rows: MixRow[]; each: { kind: Kind; name: string; how: "file" | "type" | "none"; asOf: string | null; mix: Partial<Record<MixRow["key"], number>> }[];
   notLoaded: { kind: Kind; name: string }[]; byType: { kind: Kind; name: string }[]; outsideIndianShares: number };
@@ -44,14 +50,17 @@ export const betaWindowTxt = (w: BetaWindow | null | undefined) => {
   const left = (w.short ?? []).filter(Boolean);
   return `${base} · ${w.counted} of ${w.of}${left.length ? ` (${left.length <= 3 ? joinWords(left) : `${left.slice(0, 2).join(", ")} and ${left.length - 2} more`}: under a year of prices)` : ""}`;
 };
-export type KindRisk = { beta: number | null; betaWindow?: BetaWindow | null; swing: number | null; worstFall: number | null; years: number | null; why: string | null; cover?: number; benchSwing?: number | null; benchWorstFall?: number | null };
-export type RiskPart = { kind: Kind; money: number | null; beta: number | null; band?: string | null; riskShare: number | null; red: boolean };
-export type Risk = { beta: number | null; band?: string | null; /** task #277 (fix 6): the band word and its sentence, from one band */ bandLine?: string | null; why: string | null; parts: RiskPart[]; largest?: Kind; fall10?: { pct: number | null; value: number | null };
+export type KindRisk = { beta: number | null; betaWindow?: BetaWindow | null; /** task #391 PR B (fault 12): the swing window and the range key */ swingWindow?: SwingWindow | string | null; bandKey?: string | null; swing: number | null; worstFall: number | null; years: number | null; why: string | null; cover?: number; benchSwing?: number | null; benchWorstFall?: number | null };
+export type RiskPart = { kind: Kind; money: number | null; beta: number | null; band?: string | null; /** task #391 PR B: the range key (words.ts BETA_RANGE_WORD) */ bandKey?: string | null; riskShare: number | null; red: boolean };
+export type Risk = { beta: number | null; band?: string | null; /** task #391 PR B: the range key, the sentence in the page's words, the windows said once */ bandKey?: string | null; bandSays?: string | null;
+  swingWindows?: { differ: boolean; line: string | null } | null; /** task #277 (fix 6): the band word and its sentence, from one band */ bandLine?: string | null; why: string | null; parts: RiskPart[]; largest?: Kind; fall10?: { pct: number | null; value: number | null };
   kinds: Partial<Record<Kind, KindRisk>>; bench: { name: string; swing: number | null; worstFall: number | null; from: string; to: string } | null };
 export type ShareRow = { symbol: string; name: string; qty: number | null; price: number | null; priceDate: string | null; chg1d: number | null; chg1y: number | null; beta: number | null;
   score: number | null; label: string | null; macro: string; size: string | null; peer: string; value: number | null; of: number;
   alsoIn: { funds: number; etfs: number; all: number; via: string[] } | null };
-export type FundRow = { /** task #235: what the units still held cost */ invested?: number | null; code: number; name: string; short: string; type: string | null; units: number | null; nav: number | null; navDate: string | null; ter: number | null; asOf: string | null;
+export type FundRow = { /** task #235: what the units still held cost */ invested?: number | null;
+  /** task #391 PR B (fault 2): what the lots with a buy amount cost, their units and value now, and how many lots of how many have one */
+  investedPriced?: number | null; unitsPriced?: number | null; valuePriced?: number | null; lotsPriced?: number; lots?: number; code: number; name: string; short: string; type: string | null; units: number | null; nav: number | null; navDate: string | null; ter: number | null; asOf: string | null;
   score: number | null; label: string | null; parts: Record<string, number | null> | null; scoreWhy: string | null; beta: number | null; swing: number | null; worstFall: number | null;
   riskWhy: string | null; chg1y: number | null; value: number | null; of: number; file: boolean; equityLines: number };
 export type EtfRow = { /** task #235: what the units still held cost */ invested?: number | null; symbol: string; name: string | null; isin: string | null; qty: number | null; price: number | null; priceDate: string | null; chg1d: number | null; chg1y: number | null;
@@ -68,6 +77,8 @@ export type AllInvestments = {
   cards: Record<Kind, Card>; madeOf: MadeOf; sectors: Sector[]; sizes: Size[]; companies: Company[]; filters: { all: number; twice: number; through: number; direct: number };
   /** task #277 (change 19): the companies of What changed: held directly, or 0.1% or more of everything through funds and ETFs (server: calc.changes_list) */
   changes?: { direct: string[]; through: string[] };
+  /** task #391 PR B (fault 1): the holdings the money split leaves out (no quantity in a kind that has values), and how many it counts */
+  noQuantity?: NamedHolding[]; counted?: { byValue: number; equal: number; notCounted: number; of: number };
   health: Health; risk: Risk; shares: ShareRow[]; funds: FundRow[]; etfs: EtfRow[];
   sources: { pricesTo: string | null; navsTo: string | null; filesFrom: string | null; filesTo: string | null }; unknown: string[]; gone: string[]; disclaimer: string;
 };
@@ -136,19 +147,30 @@ export const dateShort = (iso: string | null | undefined) => (iso ? new Date(iso
 export const lower = (s: string) => (/^Indian\b/.test(s) ? s : s.charAt(0).toLowerCase() + s.slice(1));
 
 // ------------------------------------------------------------------------------------------------ task #235 (pack C3): money by value, with gain
-export type KindMoney = { n: number; full: number; invested: number; now: number; gain: number; missing: string[] };
+/** Task #391 (developer file 35, fault 3): `now` is the value of every holding with a quantity; `nowPriced` the value of only those that also have a buy
+ *  price, so it reads beside `invested` and `gain` (which cover the same holdings); `withQty` counts the holdings with a quantity. */
+export type KindMoney = { n: number; full: number; invested: number; now: number; nowPriced: number; withQty: number; gain: number; missing: string[];
+  /** task #391: holdings counted by their priced lots only (a fund with a buy amount for some of its lots) */ part: number };
 /** What each kind cost and is worth now, from the page's figures: shares from their buys (lib/ledger, the same as the Equity page), funds and ETFs
  *  from the server's cost of the units still held. A holding without a buy price is left out of Invested and Gain and named. */
 export function moneyByKind(d: AllInvestments, hs: Holding[]): Record<Kind | "all", KindMoney> {
-  const mk = (): KindMoney => ({ n: 0, full: 0, invested: 0, now: 0, gain: 0, missing: [] });
+  const mk = (): KindMoney => ({ n: 0, full: 0, invested: 0, now: 0, nowPriced: 0, withQty: 0, gain: 0, missing: [], part: 0 });
   const out: Record<Kind | "all", KindMoney> = { shares: mk(), funds: mk(), etfs: mk(), all: mk() };
   const add = (k: Kind, name: string, now: number | null, inv: number | null | undefined) => {
-    const m = out[k]; m.n++; if (now != null) m.now += now;
-    if (now != null && inv != null) { m.full++; m.invested += inv; m.gain += now - inv; } else m.missing.push(name);
+    const m = out[k]; m.n++; if (now != null) { m.now += now; m.withQty++; }
+    if (now != null && inv != null) { m.full++; m.invested += inv; m.nowPriced += now; m.gain += now - inv; } else m.missing.push(name);
   };
   for (const s of d.shares) { const a = aggOf(hs, s.symbol, "all"); add("shares", s.symbol, s.qty && s.price ? s.qty * s.price : null, a?.invested ?? null); }
-  for (const f of d.funds) add("funds", f.short || f.name, f.units && f.nav ? f.units * f.nav : null, f.invested);
+  for (const f of d.funds) {
+    // task #391 (fault 2, with PR B): a fund held in two accounts with a buy amount for some lots only: Invested and Gain cover those lots (their cost
+    // against their value now), never the whole fund's value against part of its cost; value now still covers every unit
+    if (f.invested == null && f.investedPriced != null && f.valuePriced != null && f.units && f.nav) {
+      const m = out.funds; m.n++; m.withQty++; m.now += f.units * f.nav; m.full++; m.part++; m.invested += f.investedPriced; m.nowPriced += f.valuePriced; m.gain += f.valuePriced - f.investedPriced;
+      continue;
+    }
+    add("funds", f.short || f.name, f.units && f.nav ? f.units * f.nav : null, f.invested);
+  }
   for (const e of d.etfs) add("etfs", e.symbol, e.qty && e.price ? e.qty * e.price : null, e.invested);
-  for (const k of ["shares", "funds", "etfs"] as Kind[]) { const a = out.all, m = out[k]; a.n += m.n; a.full += m.full; a.invested += m.invested; a.now += m.now; a.gain += m.gain; a.missing.push(...m.missing); }
+  for (const k of ["shares", "funds", "etfs"] as Kind[]) { const a = out.all, m = out[k]; a.n += m.n; a.full += m.full; a.invested += m.invested; a.now += m.now; a.nowPriced += m.nowPriced; a.withQty += m.withQty; a.gain += m.gain; a.part += m.part; a.missing.push(...m.missing); }
   return out;
 }

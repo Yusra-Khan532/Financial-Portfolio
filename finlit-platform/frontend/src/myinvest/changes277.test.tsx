@@ -44,7 +44,7 @@ describe("the section", () => {
     watch.replace({ lists: [{ id: "main", name: "My watchlist", symbols: ["TCS", "WHEELS"] }], meta: {} });
     const d = D(); d.changes = { direct: ["HDFCBANK", "RELIANCE"], through: ["TCS"] };
     mount(d);
-    expect(screen.getByRole("heading", { name: "What changed at the companies you own" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /^What changed at the companies you own/ })).toBeTruthy();
     const sw = screen.getByRole("group", { name: "Which list" });
     expect(within(sw).getAllByRole("button").map((b) => b.textContent)).toEqual(["Everything · 3", "Direct · 2", "Through funds and ETFs, 0.1% or more · 1", "Watchlists · 2"]);
     const row = (await screen.findByRole("link", { name: "HDFC Bank" })).closest("li")!;
