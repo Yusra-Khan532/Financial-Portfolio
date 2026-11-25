@@ -70,26 +70,67 @@ export function MailAdmin() {
   );
 }
 
+// Pasted addresses (owner, 25 Nov 2026): one or many, one per line or separated by commas or semicolons, each either an address or "Name <address>".
+// They become a small CSV (email, name) and go through the same import as a file, so the same checks run and nobody is added twice.
+export function parsePasted(text: string): { rows: { email: string; name: string }[]; skipped: string[] } {
+  const rows: { email: string; name: string }[] = [], skipped: string[] = [];
+  const parts: string[] = [];
+  let cur = "", quoted = false, angle = false;     // a comma inside "Shah, Priya" or <...> does not split
+  for (const ch of text) {
+    if (ch === '"') quoted = !quoted; else if (ch === "<") angle = true; else if (ch === ">") angle = false;
+    if (ch === "\n" || ch === "\r" || ((ch === "," || ch === ";") && !quoted && !angle)) { parts.push(cur); cur = ""; quoted = false; angle = false; } else cur += ch;
+  }
+  parts.push(cur);
+  for (const raw of parts) {
+    const t = raw.trim();
+    if (!t) continue;
+    const m = t.match(/^(.*?)<\s*([^<>\s]+@[^<>\s]+)\s*>\s*$/);
+    if (m) { rows.push({ email: m[2], name: m[1].trim().replace(/^["']|["']$/g, "") }); continue; }
+    if (t.includes("@") && !/\s/.test(t)) rows.push({ email: t, name: "" });
+    else skipped.push(t);
+  }
+  return { rows, skipped };
+}
+const csvCell = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+export const pastedCsv = (rows: { email: string; name: string }[]) => ["email,name", ...rows.map((r) => `${csvCell(r.email)},${csvCell(r.name)}`)].join("\n") + "\n";
+const textBase64 = (t: string) => { const b = new TextEncoder().encode(t); let s = ""; b.forEach((x) => { s += String.fromCharCode(x); }); return btoa(s); };
+
 function Upload({ onDone }: { onDone: () => void }) {
   const [source, setSource] = useState(""), [file, setFile] = useState<File | null>(null), [res, setRes] = useState<ImportResult | null>(null), [err, setErr] = useState("");
+  const [mode, setMode] = useState<"paste" | "file">("paste"), [pasted, setPasted] = useState(""), [skipped, setSkipped] = useState<string[]>([]);
   const input = useRef<HTMLInputElement>(null);
+  const parsed = parsePasted(pasted);
   const go = useMutation({
-    mutationFn: async () => apiSend<ImportResult>("POST", "/api/admin/mail/import", { filename: file!.name, data: await toBase64(file!), source }),
-    onSuccess: (r) => { setRes(r); setErr(""); setFile(null); if (input.current) input.current.value = ""; onDone(); }, onError: (e) => { setErr(msg(e)); setRes(null); },
+    mutationFn: async () => mode === "paste"
+      ? apiSend<ImportResult>("POST", "/api/admin/mail/import", { filename: "pasted.csv", data: textBase64(pastedCsv(parsed.rows)), source })
+      : apiSend<ImportResult>("POST", "/api/admin/mail/import", { filename: file!.name, data: await toBase64(file!), source }),
+    onSuccess: (r) => { setRes(r); setErr(""); if (mode === "paste") { setSkipped(parsed.skipped); setPasted(""); } else { setSkipped([]); setFile(null); if (input.current) input.current.value = ""; } onDone(); },
+    onError: (e) => { setErr(msg(e)); setRes(null); },
   });
+  const ready = source.trim().length >= 3 && (mode === "paste" ? parsed.rows.length > 0 : !!file);
   return (
-    <form className="form mla-form" onSubmit={(e) => { e.preventDefault(); if (file) go.mutate(); }}>
+    <form className="form mla-form" onSubmit={(e) => { e.preventDefault(); if (ready) go.mutate(); }}>
       <h4>Add people</h4>
-      <p className="muted">A CSV or Excel file with a column whose heading contains "email" (and, if you have it, "name"). Up to 5 MB. Uploading the same people again adds nobody twice.</p>
+      <div className="mla-mode" role="radiogroup" aria-label="How to add them">
+        <label><input type="radio" name="mla-mode" checked={mode === "paste"} onChange={() => { setMode("paste"); setErr(""); }} />Paste addresses</label>
+        <label><input type="radio" name="mla-mode" checked={mode === "file"} onChange={() => { setMode("file"); setErr(""); }} />Upload a file</label>
+      </div>
+      <p className="muted">{mode === "paste"
+        ? "Paste one address or many: one per line, or separated by commas or semicolons. \"Priya Shah <priya@example.com>\" keeps the name too. Adding the same people again adds nobody twice."
+        : "A CSV or Excel file with a column whose heading contains \"email\" (and, if you have it, \"name\"). Up to 5 MB. Uploading the same people again adds nobody twice."}</p>
       <label>Where these people gave their address (required)<input value={source} onChange={(e) => setSource(e.target.value)} placeholder="e.g. XYZ Hackathon, Oct 2026" maxLength={160} required minLength={3} /></label>
-      <label>File<input ref={input} type="file" accept=".csv,.xlsx" onChange={(e) => setFile(e.target.files?.[0] ?? null)} required /></label>
-      <button className="btn primary" disabled={!file || source.trim().length < 3 || go.isPending}>{go.isPending ? "Checking the list…" : "Check and add"}</button>
+      {mode === "paste"
+        ? <label>Email addresses<textarea value={pasted} onChange={(e) => setPasted(e.target.value)} rows={6} placeholder={"priya@example.com\nRahul Verma <rahul@example.com>\nanu@example.com, dev@example.com"} spellCheck={false} />
+            <small className="faint" aria-live="polite">{parsed.rows.length ? `${nf(parsed.rows.length)} ${parsed.rows.length === 1 ? "address" : "addresses"} found` : "No address yet"}{parsed.skipped.length ? ` · ${nf(parsed.skipped.length)} ${parsed.skipped.length === 1 ? "piece is" : "pieces are"} not an address and will be left out` : ""}</small></label>
+        : <label>File<input ref={input} type="file" accept=".csv,.xlsx" onChange={(e) => setFile(e.target.files?.[0] ?? null)} required /></label>}
+      <button className="btn primary" disabled={!ready || go.isPending}>{go.isPending ? "Checking the list…" : "Check and add"}</button>
       {err && <p className="mla-err" role="alert">{err}</p>}
       {res && <div className="mla-res" role="status">
         <p><b>{nf(res.added)} added</b> of {nf(res.rows)} rows. {res.alreadyThere ? `${nf(res.alreadyThere)} were already on the list. ` : ""}{res.duplicates ? `${nf(res.duplicates)} repeated in the file. ` : ""}</p>
         <Left title="not valid email addresses" n={res.invalidCount} xs={res.invalid} />
-        <Left title="look misspelt (for example gmial.com); fix them in the file and upload again" n={res.typoCount} xs={res.typos} />
+        <Left title="look misspelt (for example gmial.com); fix them and add them again" n={res.typoCount} xs={res.typos} />
         <Left title="have a domain that cannot receive mail" n={res.noMailServerCount} xs={res.noMailServer} />
+        <Left title="not an address (no @ in it)" n={skipped.length} xs={skipped.slice(0, 50)} />
       </div>}
     </form>
   );
