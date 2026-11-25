@@ -33,6 +33,24 @@ MAX_TOKENS = 6000
 CUT_SHORT = "(cut short; ask for the rest)"
 STOPPED_EARLY = "(stopped early: FinLit AI could not finish this answer; ask again, or ask in other words)"
 DISCLAIMER = "Describes the company's financial health from its filings and prices; not a recommendation. Information only, not investment advice."
+# Task #349 fix C: an answer about the economy, a sector, the market, funds, the member's own holdings or a term carries its own describe-only line,
+# not the company one (a BSE disclaimer under an RBI answer, seen in the founder's Gold QA of 24 Nov 2026).
+FIELD_DISCLAIMERS = {
+    "economy": "Describes the economy from published figures and FinLit's data; not a recommendation. Information only, not investment advice.",
+    "sector": "Describes sectors and industries from FinLit's Sector Pulse and Rotation data; not a recommendation. Information only, not investment advice.",
+    "market": "Describes the market from published figures and FinLit's data; not a recommendation. Information only, not investment advice.",
+    "fund": "Describes funds from their published figures; not a recommendation. Information only, not investment advice.",
+    "etf": "Describes funds from their published figures; not a recommendation. Information only, not investment advice.",
+    "mine": "Describes your own holdings and watchlists from FinLit's prices and filings; not a recommendation. Information only, not investment advice.",
+}
+GENERAL_DISCLAIMER = "General information from FinLit's data and published sources; not a recommendation. Information only, not investment advice."
+
+
+def disclaimer_for(subject_kind: Optional[str]) -> str:
+    """The disclaimer under an answer, by what it is about: the company one for a company (or when unknown), else the field's own."""
+    if not subject_kind or subject_kind == "company":
+        return DISCLAIMER
+    return FIELD_DISCLAIMERS.get(subject_kind, GENERAL_DISCLAIMER)
 WITHDRAWN = ("This answer was withdrawn because it read like investment advice, which FinLit does not give. Ask for the figures instead, for example "
              "\"What are TCS's margins and sales growth over five years?\"")
 

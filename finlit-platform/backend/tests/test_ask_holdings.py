@@ -123,7 +123,11 @@ async def test_an_equity_holding_without_the_owned_flag_gives_no_quantity(app):
     await put_state(app, uid, [h("RELIANCE", 40, 2400)])                    # qty 40 typed in the list, but never marked owned
     eq = (await rel_of(app, uid))["RELIANCE"]["equity"]
     assert eq["qty"] is None and "value" not in eq and "weight" not in eq and "cost" not in eq
-    assert mine.lines((await rel_of(app, uid))["RELIANCE"]) == ["Equity portfolio: on your list with no quantity saved (no shares counted)."]
+    # task #349 fix F: "RELIANCE is on your Equity portfolio (no quantity saved)", never "You hold" without a quantity
+    assert mine.lines((await rel_of(app, uid))["RELIANCE"], "RELIANCE") == ["RELIANCE is on your Equity portfolio (no quantity saved), so no shares are counted."]
+    block = mine.note(await rel_of(app, uid))
+    assert "RELIANCE is on your Equity portfolio (no quantity saved)" in block and "you hold" not in block.split("</member_relation>")[0].lower()
+    assert 'Say "You hold" only with the number of shares' in mine.INSTRUCTION
     assert mine.tags(await rel_of(app, uid))[0] == {"kind": "hold", "text": "In your portfolio list", "tip": "On your Equity portfolio with no quantity saved"}
     await put_state(app, uid, [h("RELIANCE", 40, 2400, owned=True), h("RELIANCE", 10, 0)])   # only the owned row counts
     assert (await rel_of(app, uid))["RELIANCE"]["equity"]["qty"] == 40

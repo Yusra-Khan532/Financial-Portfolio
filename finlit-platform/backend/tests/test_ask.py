@@ -269,7 +269,7 @@ async def test_silver_uses_its_fifty_then_gets_a_clear_message(app):
     for n in (49, 50):
         r, ev = await ask(m, f"Question number {n}?")
         assert r.status_code == 200 and r.headers["content-type"].startswith("text/event-stream")
-        assert ev[0] == ("meta", {"limit": 50, "used": n, "left": 50 - n, "resets": ev[0][1]["resets"], "cached": False})
+        assert ev[0] == ("meta", {"limit": 50, "used": n, "left": 50 - n, "resets": ev[0][1]["resets"], "cached": False, "subject": {"kind": "general", "id": "all"}})
         assert ev[-1][0] == "done" and "not investment advice" in ev[-1][1]["disclaimer"]
     r, _ = await ask(m, "One more?")
     d = r.json()["detail"]
@@ -304,7 +304,7 @@ async def test_ai_summaries_have_their_own_ten_a_month_apart_from_the_questions(
     q = (await m.get("/api/ask/quota")).json()
     assert (q["limit"], q["left"]) == (100, 100) and q["summary"] == {"limit": 10, "used": 0, "left": 10, "resets": q["resets"]}
     r, ev = await summary(m)
-    assert r.status_code == 200 and ev[0] == ("meta", {"limit": 10, "used": 1, "left": 9, "resets": q["resets"], "cached": False})
+    assert r.status_code == 200 and ev[0] == ("meta", {"limit": 10, "used": 1, "left": 9, "resets": q["resets"], "cached": False, "subject": {"kind": "company", "id": "RELIANCE"}})
     sent = client.calls[0]["messages"][-1]["content"]
     assert "<company_card" in sent and sent.rstrip().endswith(service.summary_question("RELIANCE"))     # the server's own question, about the page's card
     assert ev[-1][0] == "done" and "not investment advice" in ev[-1][1]["disclaimer"]

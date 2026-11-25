@@ -303,6 +303,6 @@ async def test_the_finished_answer_carries_the_finlit_pages_it_read_and_a_cached
     m = await signed_in(app, "links@example.com", plan="silver")
     _, ev = await _ask(m, "What is ROCE?")
     done = [d for e, d in ev if e == "done"][0]
-    assert done["pages"] == [{"to": "/glossary", "label": "Glossary"}] and done["disclaimer"] == service.DISCLAIMER
+    assert done["pages"] == [{"to": "/glossary", "label": "Glossary"}] and done["disclaimer"] == service.disclaimer_for("concept") == service.GENERAL_DISCLAIMER   # task #349 fix C: a term, not a company
     _, ev2 = await _ask(m, "what is roce?")
     assert ev2[0][1]["cached"] is True and [d for e, d in ev2 if e == "done"][0]["pages"] == [{"to": "/glossary", "label": "Glossary"}]

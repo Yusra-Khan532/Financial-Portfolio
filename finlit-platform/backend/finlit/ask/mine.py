@@ -43,7 +43,9 @@ MAX_FUNDS = 3                                   # funds and ETFs named in the bl
 INSTRUCTION = ("[The member is linked to this company as <member_relation> says. Open with one line on how they are linked, from those facts only, "
                "each with its date. Then put first the facts that touch their position: the price against their own cost, the latest results, "
                "FinLit Prism, new filings. Describe only, never advise: never say to buy, add, average down, trim, reduce, exit, book profits, "
-               "rebalance, keep holding or stay invested, and never call the holding too large or too small.]")
+               "rebalance, keep holding or stay invested, and never call the holding too large or too small. Say \"You hold\" only with the "
+               "number of shares it gives; a company with no quantity saved is on their list, not held: say \"<company> is on your Equity "
+               "portfolio (no quantity saved)\".]")
 
 KIND_WORDS = {"state": "when its state changes", "box": "when it moves to another box", "top5": "when it enters or leaves the top 5"}
 SECTOR_ALERT = re.compile(r"^(state|box|top5):(sectors|industries):([a-z0-9][a-z0-9-]{0,79})$")
@@ -388,8 +390,10 @@ def _alert_text(a: Dict[str, Any]) -> str:
     return f"{base}, active, {fired}"
 
 
-def lines(f: Dict[str, Any]) -> List[str]:
-    """The facts of one company, one line each, every figure with its date."""
+def lines(f: Dict[str, Any], symbol: Optional[str] = None) -> List[str]:
+    """The facts of one company, one line each, every figure with its date. Task #349 fix F: a company with no quantity saved is "on your Equity
+    portfolio", never "held" (the founder saw "You hold BSE on your Equity portfolio with no quantity saved")."""
+    name = symbol or "This company"
     out: List[str] = []
     eq = f.get("equity")
     if eq:
@@ -417,9 +421,9 @@ def lines(f: Dict[str, Any]) -> List[str]:
             elif eq.get("close"):
                 out.append("No buy price entered, so no gain or loss is worked out.")
         elif eq.get("sold"):
-            out.append("Equity portfolio: on your list; every share entered has been sold, so none is held now.")
+            out.append(f"{name} is on your Equity portfolio; every share entered has been sold, so none is held now.")
         else:
-            out.append("Equity portfolio: on your list with no quantity saved (no shares counted).")
+            out.append(f"{name} is on your Equity portfolio (no quantity saved), so no shares are counted.")
     for key, word, price_word in (("funds", "Through funds", "NAV"), ("etfs", "Through ETFs", "price")):
         items = f.get(key) or []
         if not items:
@@ -450,7 +454,7 @@ def note(rel: Dict[str, Dict[str, Any]]) -> str:
         return ""
     blocks = []
     for s, f in rel.items():
-        ls = lines(f)
+        ls = lines(f, s)
         if ls:
             blocks.append(f"<member_relation company=\"{s}\">\n" + "\n".join(f"- {x}" for x in ls) + "\n</member_relation>")
     return ("\n".join(blocks) + "\n" + INSTRUCTION) if blocks else ""

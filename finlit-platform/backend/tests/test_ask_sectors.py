@@ -8,6 +8,7 @@ the board, one group by a loose name, several matches never guessed; rotation bo
 one fixed list for every kind of question (its new hash is recorded below, on purpose)."""
 
 import hashlib
+import re
 import json
 from pathlib import Path
 from typing import Any, Dict
@@ -56,10 +57,10 @@ async def test_the_board_gives_every_groups_state_and_breadth_with_the_date():
     out = await run(gw, "get_sector_pulse", {"show": "industries"})
     d = out["data"]
     assert gw.calls == [("/api/sectors", {"show": "industries"})]
-    assert d["date"] == "20 Nov 2026" and d["market"] == "The Nifty 50 is 7.3% above its 200-day average." and d["counts"]["Washout"] == 18
+    assert d["date"] == "20 Nov 2026" and d["market"] == "The Nifty 50 is 7.3% above its long-term trend." and d["counts"]["Washout"] == 18
     assert len(d["groups"]) == 38 and out["truncated"] is False
     banks = next(g for g in d["groups"] if g["slug"] == "banks")
-    assert banks == {"name": "Banks", "slug": "banks", "state": "Confirmed", "above9/20/50": "81/92/86", "vs52wHighPct": 0.0, "stocks": 36,
+    assert banks == {"name": "Banks", "slug": "banks", "state": "Confirmed", "aboveShort/Near/MediumTrend": "81/92/86", "vs52wHighPct": 0.0, "stocks": 36,
                      "lastThrust": "C 10 Jul 2026", "box": "Ahead and gaining"}
     assert d["stateMeanings"]["Confirmed"] == "Most stocks trending up together"
     assert "Services" in d["tooFewStocksForAReading"] and "Sector Pulse" in out["source"]
@@ -77,7 +78,7 @@ async def test_one_group_by_a_loose_name(asked, slug):
     g = d["group"]
     assert g["slug"] == slug and g["state"] and g["date"] == "20 Nov 2026" and g["summary"]
     if slug == "banks":
-        assert g["state"] == "Confirmed" and g["since"] == "11 Nov 2026" and g["breadth"] == {"above_9": 80.6, "above_20": 91.7, "above_50": 86.1}
+        assert g["state"] == "Confirmed" and g["since"] == "11 Nov 2026" and g["breadth"] == {"shortTerm": 80.6, "nearTerm": 91.7, "mediumTerm": 86.1}
         assert g["lastThrust"] == "C on 10 Jul 2026 (92 sessions ago)" and "stocks" not in d                    # Basic: the table is Silver
 
 
@@ -105,6 +106,27 @@ async def test_the_sectors_view_not_loaded_falls_back_to_industries_and_says_so(
     gw.answers[("/api/sectors", "sectors")] = ToolError("The Sectors view is not loaded yet.")
     out = await run(gw, "get_sector_pulse", {"show": "sectors"})
     assert out["data"]["show"] == "industries" and any("Sectors view could not be read" in n for n in out["notes"])
+
+
+async def test_washout_is_said_consistently_and_no_day_count_reaches_the_model():
+    """Task #349 fix I: "Financial Services: Washout" beside "56.2% of its stocks above their 50-day average" read as a contradiction, and printed
+    a scoring rule. A Washout group (live fixture: Cement, 68 of every 100 above the medium-term trend) is said in one consistent sentence, and
+    no "N-day average" is in any Sector Pulse result the model reads."""
+    board = load("pulse_industries.json")
+    wash = next(r for r in board["rows"] if r.get("state_code") == "washout" and r["slug"] == "cement-cement-products")
+    page = {**load("pulse_banks.json"), "name": wash["name"], "slug": wash["slug"], "state": "Washout", "state_code": "washout", "breadth": wash["breadth"],
+            "summary": "Cement & Cement Products stocks have been sold broadly: 68% of them are above their 50-day average today, and no broad rebound has followed yet."}
+    gw = Gw({**live().answers, f"/api/sectors/{wash['slug']}": page})
+    out = await run(gw, "get_sector_pulse", {"show": "industries", "slug": "cement"})
+    g = out["data"]["group"]
+    assert g["summary"] == ("Cement & Cement Products was sold broadly in recent weeks (Washout), and no broad rebound has followed yet. "
+                            "Today 68 of every 100 of its stocks are above their medium-term trend.")
+    assert S.PLAIN_NOTE in out["notes"] and "never as a contradiction" in S.PLAIN_NOTE
+    for args in ({"show": "industries"}, {"show": "sectors"}, {"show": "industries", "slug": "banks"}, {"show": "industries", "slug": "cement"}):
+        r = await T.run(gw, "get_sector_pulse", args)
+        body = json.loads(r["text"])
+        assert not re.search(r"\b\d+-day average", json.dumps(body["data"])), args
+    assert S.plain("above their 9, 20 and 50-day averages; the 200-day average") == "above their short, near and medium-term trends; the long-term trend"
 
 
 async def test_a_route_that_refuses_is_said_in_plain_words():
