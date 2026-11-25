@@ -41,6 +41,7 @@ from . import memory   # task #349 PR 2: question memory (stores what was asked;
 from . import mine     # task #349 PR 4: how the member is linked to the company (holdings, funds, ETFs, watchlists, alerts)
 from . import whatsnew  # task #349 PR 5: "what's new for me" in the member's own companies
 from . import followup  # task #349 PR 5: follow-ups keep the figures the earlier answers read
+from . import blueprints, shape, variant   # the answer style v2 (blueprints), the shape check, and its console switch
 
 log = logging.getLogger("finlit.ask")
 router = APIRouter(prefix="/api/ask", tags=["ask"])
@@ -89,6 +90,10 @@ class AskIn(BaseModel):
     history: List[Turn] = Field(default_factory=list, max_length=12)
     symbol: Optional[str] = Field(default=None, max_length=20)
     fresh: bool = False     # task #349 PR 3: the full answer, without "since you last asked"
+    # The Answer check (ask/check.py), administrators only (ignored for anyone else): which answer style to use ("v1" today's, "v2" the
+    # blueprints), and `check` = a test question: no allowance used, no cache, nothing kept in the question memory.
+    variant: Optional[Literal["v1", "v2"]] = None
+    check: bool = False
 
     @model_validator(mode="after")
     def by_kind(self) -> "AskIn":
@@ -226,6 +231,11 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
     kind = body.kind
     month, cap = quota.month_of(), quota.allowance(ctx, kind)
     question = service.summary_question(body.symbol or "") if kind == "summary" else body.question.strip()
+    is_admin = sees_all(ctx) or getattr(ctx, "role", None) == "admin"
+    checking = bool(body.check and is_admin and kind == "question")
+    v2 = (body.variant == "v2") if (body.variant and is_admin) else await variant.answer_v2_on(request.app.state.store.pool)
+    if checking:
+        body = body.model_copy(update={"fresh": True})          # a test question: the full answer, never "since you last asked"
     if cap <= 0 and kind == "summary":
         raise fail(403, "plan_required", "AI summaries from FinLit AI are part of the Silver and Gold plans (10 a month).", plan="silver")
     if cap <= 0:      # Basic (founder, 17 Nov 2026): the listed questions only, which answer in the browser and never reach this endpoint
@@ -263,7 +273,7 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
     # A repeated first question (same words, same page, same plan, same day) is answered from the cache, at once and without using the allowance.
     # Not when "since you last asked" applies: that answer is the member's own (task #349 PR 3), like the answers about their own lists; nor when
     # the answer carries the member's own holdings (task #349 PR 4).
-    key = cache_key(st.ask_model, ctx, body) if not body.history and wn is None else None
+    key = cache_key(st.ask_model + (":v2" if v2 else ""), ctx, body) if not body.history and wn is None and not checking else None
     hit = None
     if key and not since_on and not rel_on:
         try:
@@ -286,7 +296,7 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
                             figures=mem.get("figures") or {})
         return StreamingResponse(replay(), media_type="text/event-stream", headers={**STREAM_HEADERS})
 
-    n = await quota.take(store.pool, ctx.user_id, cap, month, kind)
+    n = await quota.used(store.pool, ctx.user_id, month, kind) if checking else await quota.take(store.pool, ctx.user_id, cap, month, kind)
     if n is None and kind == "summary":
         nxt = quota.next_month(month).strftime("%d %b %Y")
         raise fail(429, "quota_used", f"You have used all {cap} AI summaries of this month. They renew on {nxt}. Your FinLit AI questions are counted "
@@ -375,6 +385,9 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
             if len(reads) < len(asked):
                 log.warning("ask: %d of %d reads before the model were not finished in %ss", len(asked) - len(reads), len(asked), int(PREREAD_SECONDS))
             note = routing.note(kinds) + ("\n" + service.stance_note(question) if kind == "question" and service.stance_note(question) else "")   # task #270
+            shape_kind = blueprints.kind_of(question, kinds, bank=lens != question) if kind == "question" and wn is None else None
+            if v2 and shape_kind:            # answer style v2: the shape of the answer for this kind of question (ask/blueprints.py)
+                note = (note + "\n" if note else "") + blueprints.blueprint(shape_kind)
             extra_reads = [("get_news_and_filings", feed_args, feed)] if feed and not feed.get("error") else []
             if prev:
                 # Task #349 PR 3: what changed since the earlier answer, worked out without a model from what was read just now (the cards, the
@@ -403,8 +416,9 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
             prefetched = [r for r, _ in reads]
             if prefetched:
                 service.with_prefetches(messages, [(n, a, x) for (n, a), x in reads])
-            result = await service.answer(client_for(st.anthropic_api_key), st.ask_model, gw, messages, emit, prefetched, max_tokens=st.ask_max_tokens)
-            return {"result": result, "want": want, "named": named, "page": page, "kinds": kinds, "messages": messages,
+            result = await service.answer(client_for(st.anthropic_api_key), st.ask_model, gw, messages, emit, prefetched, max_tokens=st.ask_max_tokens,
+                                          effort=st.ask_effort_v2 if v2 else st.ask_effort)
+            return {"result": result, "want": want, "named": named, "page": page, "kinds": kinds, "messages": messages, "shapeKind": shape_kind,
                     "cards": [(card_tool, {"symbol": s}, g) for s, g in zip(want[:2], got)] + extra_reads, "wnFigures": wn_figures}
 
         yield sse("meta", {**quota.status(cap, n, month), "cached": False, "subject": subject})
@@ -468,6 +482,21 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
             yield sse("error", err)
             return
         assert result is not None
+        shape_kind = done_.get("shapeKind")
+        if v2 and result["text"] and result["stop"] == "end_turn":   # answer style v2: small slips mended without a model (ask/shape.py)
+            tidied = shape.tidy(result["text"])
+            if tidied != result["text"]:
+                result["text"] = tidied
+                yield sse("replace", {"text": tidied})
+        m = shape.measure(result["text"] or "")
+        log.info("ask shape: style=%s kind=%s words=%s sections=%s points=%s figures=%s cited=%s problems=%s", "v2" if v2 else "v1", shape_kind,
+                 m["words"], m["sections"], m["points"], m["figures"], m["citedFigures"], "; ".join(shape.problems(m, shape_kind)) or "-")
+        if checking:                         # a test question: the text and its measures, nothing kept, nothing counted
+            state["delivered"] = True
+            yield sse("done", {"disclaimer": service.disclaimer_for((subject or {}).get("kind")), "sources": sorted(set(result["tools"])), "pages": [],
+                               "check": {"style": "v2" if v2 else "v1", "kind": shape_kind, "measures": m, "problems": shape.problems(m, shape_kind),
+                                         "usage": result.get("usage"), "stop": result.get("stop")}})
+            return
         await record(store, result)
         personal = any(t.startswith("get_my_") for t in result["tools"])
         # "aligned with the web pages" (task #218): the FinLit pages this answer read, as links under it; the companies read before the model started count first

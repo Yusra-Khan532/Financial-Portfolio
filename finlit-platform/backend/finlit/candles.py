@@ -99,6 +99,14 @@ async def bulk(store, symbols: List[str], days: int = 400) -> Dict[str, Dict[str
     return out
 
 
+async def newest_session(store, min_companies: int = 50) -> Optional[str]:
+    """Task #394: the newest day the candle store holds as a real session (candles for at least `min_companies` companies, so one stray row is not a
+    session), or None. The job compares it with the session it expected, so a night the exchange's candles were not out yet is not counted as done."""
+    async with store.pool.acquire() as conn:
+        d = await conn.fetchval("SELECT day FROM daily_candles WHERE day >= current_date - 15 GROUP BY day HAVING count(*) >= $1 ORDER BY day DESC LIMIT 1", min_companies)
+    return d.isoformat() if d else None
+
+
 async def refresh(store, dhan, symbols: Optional[List[str]] = None, days: int = DEFAULT_DAYS, max_minutes: float = 45.0, limit: Optional[int] = None) -> dict:
     """Bring `daily_candles` up to yesterday's close (today's, once the session is over), oldest-loaded companies first.
 
@@ -122,6 +130,7 @@ async def refresh(store, dhan, symbols: Optional[List[str]] = None, days: int = 
         for n, sym in enumerate(chunk):
             if time.monotonic() - started > max_minutes * 60:
                 out["left"] = len(order) - i - n
+                out["newestSession"] = await newest_session(store)
                 return out
             hit = ids.get(sym)
             if not hit:
@@ -148,4 +157,5 @@ async def refresh(store, dhan, symbols: Optional[List[str]] = None, days: int = 
                         [(sym, r["day"], r.get("open"), r.get("high"), r.get("low"), r["close"], int(r["volume"]) if r.get("volume") is not None else None, exch) for r in rows])
                 out["loaded"] += 1; out["rows"] += len(rows); out["nse" if exch == "NSE" else "bse"] += 1
             await asyncio.sleep(CALL_GAP)
+    out["newestSession"] = await newest_session(store)
     return out

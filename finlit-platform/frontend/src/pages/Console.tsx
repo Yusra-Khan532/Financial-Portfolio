@@ -19,6 +19,7 @@ import { BriefAdmin } from "../components/admin/BriefAdmin";
 import { Monitoring } from "../components/admin/Monitoring";
 import { StorageAdmin } from "../components/admin/StorageAdmin";
 import { MailAdmin } from "../components/admin/MailAdmin";
+import { AnswerCheck } from "../components/admin/AnswerCheck";
 import { fundJobLine, fundPollMs } from "../lib/fundJobs";
 import { codeText } from "../lib/companyLabel";
 
@@ -52,7 +53,7 @@ function Features() {
     onSuccess: (_d, v) => { qc.invalidateQueries({ queryKey: ["admin-features"] }); qc.removeQueries({ queryKey: ["leadership"] }); toast(v.enabled ? "Switched on for everyone." : "Switched off: only administrators see it."); },
     onError: (e) => toast(msg(e)),
   });
-  const LABEL: Record<string, string> = { leadership: "Leader / In line / Laggard label", macro_sectors: "Macro backdrop per sector (tailwind / headwind)" };
+  const LABEL: Record<string, string> = { leadership: "Leader / In line / Laggard label", macro_sectors: "Macro backdrop per sector (tailwind / headwind)", ask_answer_v2: "FinLit AI: the new answer shape (v2; compare first in Console > FinLit AI)" };
   if (q.isError) return null;
   return (
     <section className="card acct-c">
@@ -71,10 +72,10 @@ function Features() {
 export function Console() {
   useDocTitle("Admin console", "FinLit administrators: manage members, plans and the audit log.");
   const { user, ready, isAdmin } = useAuth();
-  type Tab = "users" | "requests" | "content" | "data" | "storage" | "monitoring" | "macro" | "brief" | "mail" | "audit";
+  type Tab = "users" | "requests" | "content" | "data" | "storage" | "monitoring" | "macro" | "brief" | "mail" | "ai" | "audit";
   const [sp] = useSearchParams();   // task #281 round 7: /console?tab=data opens Data health directly (a link, or a browser assistant following steps)
   const asked = sp.get("tab");
-  const [tab, setTab] = useState<Tab>((["users", "requests", "content", "data", "storage", "monitoring", "macro", "brief", "mail", "audit"] as Tab[]).includes(asked as Tab) ? (asked as Tab) : "requests");
+  const [tab, setTab] = useState<Tab>((["users", "requests", "content", "data", "storage", "monitoring", "macro", "brief", "mail", "ai", "audit"] as Tab[]).includes(asked as Tab) ? (asked as Tab) : "requests");
   if (!ready) return <div className="wrap state" role="status"><div className="skeleton" style={{ height: 14, width: 200, margin: "40px auto" }} /></div>;
   if (!user) return <Navigate to="/login?next=%2Fconsole" replace />;
   if (!isAdmin) return <div className="wrap state"><h1 className="ui-title">Administrators only</h1><p className="muted">This area is for the FinLit team.</p><Link className="btn" to="/dashboard">Back to your dashboard</Link></div>;
@@ -83,7 +84,7 @@ export function Console() {
     <div className="wrap console">
       <header className="dash-h"><div><div className="eyebrow">Admin</div><h1 className="ui-title">Console</h1><p className="muted">Members, plan requests and the audit trail. Blog posts and website enquiries are in the <Link to="/admin">content tools</Link> (no second sign-in).</p></div></header>
       <div className="seg" role="tablist" aria-label="Console sections" style={{ marginBottom: 18 }}>
-        {([["requests", "Plan requests"], ["users", "Members"], ["content", "Calendar & news"], ["data", "Data health"], ["storage", "Storage"], ["monitoring", "Monitoring"], ["macro", "Macro outlook"], ["brief", "Company brief"], ["mail", "Email"], ["audit", "Audit log"]] as const).map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</button>)}
+        {([["requests", "Plan requests"], ["users", "Members"], ["content", "Calendar & news"], ["data", "Data health"], ["storage", "Storage"], ["monitoring", "Monitoring"], ["macro", "Macro outlook"], ["brief", "Company brief"], ["mail", "Email"], ["ai", "FinLit AI"], ["audit", "Audit log"]] as const).map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</button>)}
       </div>
       {tab === "requests" && <Requests />}
       {tab === "users" && <Users />}
@@ -94,6 +95,7 @@ export function Console() {
       {tab === "macro" && <MacroAdmin />}
       {tab === "brief" && <BriefAdmin />}
       {tab === "mail" && <MailAdmin />}
+      {tab === "ai" && <AnswerCheck />}
       {tab === "audit" && <Audit />}
     </div>
   );
