@@ -64,14 +64,16 @@ export function priceStamp(iso: string | null | undefined): string | null {
 }
 
 // ------------------------------------------------------------------------------------------------ title row
-export function EqTitle({ plan, asOf, add, clear, more }: { plan: string; asOf: string | null | undefined; add: ReactNode; clear: ReactNode; /** task #385: Add several and Import, in ⋯ */ more?: ReactNode }) {
-  const m = useMenu(), stamp = priceStamp(asOf);
+/** `asOf`: the date of the prices the page shows, and only those (task #388 reopened, developer file 38 E3): while they load `loading` says so and no
+ *  date is printed, so an older date (the index's last close) never stands in for them. */
+export function EqTitle({ plan, asOf, loading = false, add, clear, more }: { plan: string; asOf: string | null | undefined; loading?: boolean; add: ReactNode; clear: ReactNode; /** task #385: Add several and Import, in ⋯ */ more?: ReactNode }) {
+  const m = useMenu(), stamp = loading ? "Loading prices…" : priceStamp(asOf);
   return (<>
     <div className="eqx-t1">
       <div className="eqx-ht">
         <h1 className="ui-title">Equity portfolio</h1><span className="eqx-plan">{plan}</span>
         <Tip text="How strong your shares are, how well spread they are, and how risky the whole list is. Start with names; add quantities when you want the figures to follow your money." how="Nothing is sent to a broker. Information only, not investment advice." label="About the Equity portfolio" />
-        {stamp && <span className="eqx-asof">{stamp}</span>}
+        {stamp && <span className="eqx-asof" aria-live="polite">{stamp}</span>}
       </div>
       <div className="eqx-acts">
         {add}

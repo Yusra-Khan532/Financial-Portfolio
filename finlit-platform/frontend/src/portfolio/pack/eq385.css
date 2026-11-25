@@ -14,6 +14,12 @@
 .eq .eqc-here { padding: 3px 8px; border-radius: var(--ui-r-pill); background: var(--vc, var(--text)); color: var(--s1); }
 .eq .eqc-v { border-top: 3px solid var(--vc); }
 .eq .eqc-v.on { background: color-mix(in srgb, var(--vc) 7%, var(--s1)); border-color: color-mix(in srgb, var(--vc) 45%, var(--border)); border-top-color: var(--vc); }
+/* task #388 reopened (developer file 38, E4): a card that opens its view looks and acts like a link: pointer, a hover edge in its colour, a focus ring */
+.eq .eqc-v.eqc-go { cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.eq .eqc-v.eqc-go:hover { border-color: color-mix(in srgb, var(--vc) 45%, var(--border)); border-top-color: var(--vc); box-shadow: 0 6px 16px -12px color-mix(in srgb, var(--vc) 60%, transparent); }
+.eq .eqc-v.eqc-go:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.eq .eqc-v.eqc-go:hover .eqc-open { text-decoration-thickness: 2px; }
+@media (prefers-reduced-motion: reduce) { .eq .eqc-v.eqc-go { transition: none; } }
 .eq .eqc-v1 { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 2px 0 0; }
 .eq .eqc-v1 > b { font: 500 var(--fs-32)/1 var(--serif); color: var(--text); font-variant-numeric: tabular-nums; }
 .eq .eqc-pill { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: var(--ui-r-pill); font: 600 var(--fs-12)/1.2 var(--sans); background: var(--s2); color: var(--text); }

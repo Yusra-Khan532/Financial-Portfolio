@@ -105,3 +105,14 @@
 .eqt-secm .eqt-secall { display: block; margin-top: 4px; border-top: 1px solid var(--border); border-radius: 0 0 var(--r-ctl) var(--r-ctl); font-weight: 700; }
 .eqt-secb:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .eqt-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: var(--ui-r-pill); background: #c2410c; color: #fff; font: 700 var(--fs-12) var(--sans); vertical-align: 1px; }
+
+/* Task #388 reopened (developer file 38, S3 and E1): the floating bar of the equity, MF and ETF pages sits 8px under the site header. While such a bar is
+   on the page (useHeaderHeight(true) puts x-hstrip on <html>), the header paints that strip in the page colour, and on a phone so do the section chips
+   under it, so no row scrolls through it. A pseudo-element under each, so the header's own shadows (light and dark) stay as they are. */
+:root.x-hstrip .top::before, :root.x-hstrip .ma-hub::before { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 8px; background: var(--bg); pointer-events: none; }
+:root.x-hstrip .ma-hub::before { top: calc(100% + 1px); }   /* below the chips' own bottom line */
+/* the rounded ends: a page-coloured rectangle behind the stuck bar fills the corners outside its curve; the bar's own background and border are drawn
+   again over it (::after inherits them), so the bar looks the same and nothing shows round its ends */
+.eq .eqt-bar.eqt-scr.stuck::before, .eq .eqt-bar.eqt-scr.stuck::after { content: ""; position: absolute; inset: -1px; z-index: -1; pointer-events: none; }
+.eq .eqt-bar.eqt-scr.stuck::before { background: var(--bg); }
+.eq .eqt-bar.eqt-scr.stuck::after { background: inherit; border: inherit; border-radius: inherit; }

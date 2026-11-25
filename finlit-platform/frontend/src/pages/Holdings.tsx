@@ -443,7 +443,9 @@ export function HoldingsPage() {
       <Gate tier={PLAN_FOR_PORTFOLIO} title="Score your portfolio" points={[`FinLit Prism for every share you own (${planName(PLAN_FOR_PRISM)})`, "How spread out the list is, and what moves together", "Share of risk and the NIFTY 50 comparison", "Import Excel, CSV or PDF statements"]}>
         <div className="pfx-flow">
         <section className="card eqx-top" aria-label="Equity portfolio">
-          <EqTitle plan={TIER[plan].n} asOf={priceDay ?? idxQ.data?.asOf} add={<>
+          {/* task #388 reopened (developer file 38, E3): the date of the shares' own prices only; while they load, "Loading prices…" (the index's last
+              close stood in for about 5 seconds and showed an older day). An empty list has no prices, so no date. */}
+          <EqTitle plan={TIER[plan].n} asOf={priceDay} loading={!!model && !DEMO && symbols.length > 0 && ov.isPending} add={<>
           <form className="pfx-add" onSubmit={(e) => { e.preventDefault(); const t = one.trim(); if (!t) { setAddWin({ tab: "search", pre: null }); return; }
             const hit = suggest(index, t, isinOf)[0]; if (hit) { setOne(""); setAddWin({ tab: "search", pre: hit }); } else { void add([entryOf(t)]); setOne(""); } }}>
             <label className="pfx-input"><Icon name="search" />

@@ -322,3 +322,9 @@ a.ptk-chipl:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px;
 .ptk-frow.stuck .ptk-filt, .ptk-frow.stuck .ptk-lead { flex-wrap: nowrap; }
 .ptk-frow.stuck .ptk-lead { border-bottom: 0; padding: 0 8px 0 0; border-right: 1px solid var(--border); overflow: visible; }
 .ptk-score .sp-i { background: transparent; border-color: #f3eee2; color: #f3eee2; }
+/* Task #388 reopened (developer file 38, S3): the MF and ETF pages' floating bar and the filter row that takes its place have rounded ends; a
+   page-coloured rectangle behind them fills the corners outside the curve (the bar's own background and border are drawn again over it by ::after),
+   so no row shows round the ends. The strip above them is painted by the header (pagetop.css, x-hstrip). */
+.ptk-bar::before, .ptk-bar::after, .ptk-frow.stuck::before, .ptk-frow.stuck::after { content: ""; position: absolute; inset: -1px; z-index: -1; pointer-events: none; }
+.ptk-bar::before, .ptk-frow.stuck::before { background: var(--bg); }
+.ptk-bar::after, .ptk-frow.stuck::after { background: inherit; border: inherit; border-radius: inherit; }

@@ -95,7 +95,7 @@ export function ViewBar<T extends string>({ pick, defs, view, onView, seen, all,
    *  section only and All sections (pressed) puts every section back. Without it the bar jumps to sections as before (the ETF page). */
   step?: string; onStep?: (id: string) => void;
 }) {
-  useHeaderHeight();
+  useHeaderHeight(".ptk-bar:not(.away), .ptk-frow.stuck");   // task #388 reopened (S3): the MF and ETF pages' floating bars, 8px under the header
   const steps = all[view].steps, inView = useStepInView(steps.map((s) => s.id)), box = useRef<HTMLSpanElement>(null), [edge, setEdge] = useState({ l: false, r: false });
   const one = !!onStep, on = one ? (step === "all" ? "" : step ?? "") : inView;
   const measure = () => { const el = box.current; if (!el) return; setEdge({ l: el.scrollLeft > 2, r: el.scrollLeft + el.clientWidth < el.scrollWidth - 2 }); };

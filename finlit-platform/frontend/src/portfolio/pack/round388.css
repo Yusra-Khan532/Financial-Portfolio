@@ -118,6 +118,14 @@ button.eq8p-seg { cursor: pointer; }
 
 /* ===== F1: the shares table's tools row sticks under the section bar ===== */
 .eq .pfx-tools.pfh { top: var(--eq-bar-b, var(--top-h, 63px)); }
+/* task #388 reopened (developer file 38, E1): the 6px between the section bar and the stuck tools row is painted in the page colour, so no row shows
+   through it; the row's own shadow below stays */
+.eq #pf-shares .pfx-tools.pfh.stuck { box-shadow: 0 -6px 0 var(--bg), var(--ui-row-shadow); }
+/* The same 6px over Against their peers: its column headings (.eq8p-rh) and, on a phone, its group headings (.eq8p-gh) stick at --eq-bar-b too. Each
+   paints the 6px above itself. The shadow shows only while the heading is stuck: at rest it would fall outside its own box, which clips (the table's
+   overflow: clip, and its group's, below), because each heading is the first row of that box. */
+.eq .eq8p-rh, .eq .eq8p-gh { box-shadow: 0 -6px 0 var(--bg); }
+.eq .eq8p-g { overflow: clip; }
 
 /* ===== part B item 4: no "click a column heading to sort" on a phone ===== */
 @media (max-width: 760px) { .eq .eq8-desk { display: none; } }
