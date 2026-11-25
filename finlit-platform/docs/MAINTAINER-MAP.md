@@ -136,7 +136,7 @@ Written 17 Nov 2026 from a full read of the repository, the team workspace and t
 - **Tests:**
   - Vitest: about 305 files and 2,800 cases. jsdom is chosen per file with `// @vitest-environment jsdom`.
   - Browser checks are standalone Playwright scripts in `e2e/`, for example `layout_guard.mjs` (`docs/LAYOUT-GUARD.md`). CI runs none of them.
-  - There is no ESLint, although the code has about 97 `exhaustive-deps` suppressions.
+  - **ESLint, React hooks rules only (25 Nov 2026):** `npm run lint:install` once, then `npm run lint` (CI's Website workflow and `scripts/preflight.sh` run it). It lives in `frontend/lint/` with its own packages, because typescript-eslint parses with TypeScript 5.9 and cannot use the app's TypeScript 7. `react-hooks/rules-of-hooks` is an error; `react-hooks/exhaustive-deps` warnings may not grow past `--max-warnings` in `package.json` (60 on 25 Nov; lower it when you fix some, never raise it). About 160 older `eslint-disable-line react-hooks/exhaustive-deps` comments remain.
 - **Large files:**
   - `src/stress/stressLab.js` (untyped).
   - Pages: `AdvancedCharts.tsx`, `ScreenerPro.tsx`, `Dcf.tsx`, `EpsCalculator.tsx`, `Funds.tsx`.
@@ -230,7 +230,7 @@ Before a push: `bash scripts/preflight.sh`.
 - Cheap safety fixes worth doing between tasks:
   - deploy only after CI passes;
   - one central plan-check dependency on the backend;
-  - ESLint for React hooks;
+  - ~~ESLint for React hooks~~ (done 25 Nov 2026, `frontend/lint/`);
   - the layout guard in CI.
 - Out-of-date docs:
   - `TEAM-DEPLOY.md`: misses the prebuilt image and the separate jobs container.

@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, apiGet, useQuotesFor } from "../../lib/api";
 import { quoteMap } from "../../lib/globalSearch";
 import { Logo } from "../search/parts";
-import { BOARD_NAME, DISCLAIMER, ago, buildTree, draftProblem, forumMe, linkify, pageWindow, send, validHandle, type CommentSort, type Node, type Page, type Post } from "../../lib/forum";
+import { BOARD_NAME, DISCLAIMER, ago, buildTree, draftProblem, useForumMe, linkify, pageWindow, send, validHandle, type CommentSort, type Node, type Page, type Post } from "../../lib/forum";
 import "../../styles/search.css";
 import "../../styles/forum.css";
 import { coTitle, subLine, titleOf } from "../../lib/companyLabel";
@@ -22,7 +22,7 @@ export const Disclaimer = ({ compact = false }: { compact?: boolean }) => compac
 
 /** Which board the viewer is on: the forum is split by plan, so a message reaches only members of the same plan. */
 export function BoardNote({ board, compact = false }: { board?: string; compact?: boolean }) {
-  const { data: me } = forumMe();
+  const { data: me } = useForumMe();
   if (!me) return null;
   const on = (board || me.board) as keyof typeof BOARD_NAME | null;
   if (!me.signedIn) return <p className="fo-board" role="note"><b>Each plan has its own board.</b> Basic, Silver and Gold members talk among their own plan. <Link to={`/login?next=${encodeURIComponent(here())}`}>Sign in</Link> (free) to see yours.</p>;
@@ -73,7 +73,7 @@ function JoinForm() {
 
 /** Gate for writing: visitors sign in, members without a name pick one. */
 export function Writer({ children, quiet = false }: { children: ReactNode; quiet?: boolean }) {
-  const { data: me } = forumMe();
+  const { data: me } = useForumMe();
   if (!me) return null;
   if (!me.signedIn) return quiet ? null : <p className="muted"><Link to={`/login?next=${encodeURIComponent(here())}`}>Sign in</Link> (free) to read and join the discussion on your plan's board.</p>;
   if (me.banned) return <p className="fo-err">Posting is paused on your account.</p>;
@@ -113,7 +113,7 @@ const Avatar = ({ name }: { name: string }) => <span className="fo-av" aria-hidd
 
 /** Upvote: members vote on others' posts (one vote each, can take it back); everyone sees the count. */
 export function Vote({ p, onChange, row = false }: { p: Post; onChange: () => void; row?: boolean }) {
-  const { data: me } = forumMe();
+  const { data: me } = useForumMe();
   const m = useMutation({ mutationFn: () => send(p.voted ? "DELETE" : "PUT", `/api/forum/posts/${p.id}/vote`), onSuccess: onChange });
   const can = !!me?.signedIn && !p.mine && p.status === "visible";
   const label = `${p.upvotes} upvote${p.upvotes === 1 ? "" : "s"}`;
@@ -158,7 +158,7 @@ export function ThreadList({ symbol, board = "", onOpen, linkTo = (t) => `/forum
     const n = new URLSearchParams(sp); v && !(k === "sort" && v === "active") ? n.set(k, v) : n.delete(k); if (k !== "page") n.delete("page"); setSp(n, { replace: true });
   };
   const [text, setText] = useState(cur.q), [compose, setCompose] = useState(false);
-  const qc = useQueryClient(), { data: me } = forumMe();
+  const qc = useQueryClient(), { data: me } = useForumMe();
   const list = useQuery<Page<{ threads: Post[] }>>({
     queryKey: ["forum", "threads", symbol || "", cur.sort, cur.q, cur.page, board, per],
     queryFn: () => apiGet(`/api/forum/threads?sort=${cur.sort}&page=${cur.page}&per=${per}${symbol ? `&symbol=${encodeURIComponent(symbol)}` : ""}${cur.q ? `&q=${encodeURIComponent(cur.q)}` : ""}${board ? `&board=${board}` : ""}`),
@@ -193,7 +193,7 @@ export function ThreadList({ symbol, board = "", onOpen, linkTo = (t) => `/forum
 
 /** One comment with its replies underneath, indented with a line you can click to fold the branch (as on Reddit). */
 function Comment({ n, thread, depth, onChange, open }: { n: Node; thread: Post; depth: number; onChange: () => void; open: boolean }) {
-  const p = n.post, { data: me } = forumMe();
+  const p = n.post, { data: me } = useForumMe();
   const [folded, setFolded] = useState(false), [rep, setRep] = useState(false), [edit, setEdit] = useState(false), [body, setBody] = useState(p.body || "");
   const act = useMutation({ mutationFn: (f: () => Promise<unknown>) => f(), onSuccess: onChange });
   const gone = p.body === null;
@@ -229,7 +229,7 @@ function Comment({ n, thread, depth, onChange, open }: { n: Node; thread: Post; 
 
 /** A discussion: the opening post, then every comment as a tree. Used on its own page and inside the company report. */
 export function ThreadView({ id, onBack, backLabel, header }: { id: number; onBack?: () => void; backLabel?: string; header?: (t: Post) => ReactNode }) {
-  const qc = useQueryClient(), { data: me } = forumMe();
+  const qc = useQueryClient(), { data: me } = useForumMe();
   const [sort, setSort] = useState<CommentSort>("best"), [writing, setWriting] = useState(false), [edit, setEdit] = useState(false), [title, setTitle] = useState(""), [body, setBody] = useState("");
   const q = useQuery<Page<{ thread: Post; replies: Post[]; truncated?: boolean }>>({ queryKey: ["forum", "thread", id, "tree"], queryFn: () => apiGet(`/api/forum/threads/${id}?tree=1`), retry: false });
   const act = useMutation({ mutationFn: (f: () => Promise<unknown>) => f(), onSuccess: () => qc.invalidateQueries({ queryKey: ["forum"] }) });
