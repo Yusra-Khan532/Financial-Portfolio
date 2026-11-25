@@ -211,7 +211,7 @@ export function MfScreenerPage() {
           <footer className="mfs-fine faint" aria-label="How to read this page">
             <details className="mfs-disc">
               <summary><span className="mfs-disc-k">Disclaimer</span><b className="mfs-disc-l">Mutual fund investments are subject to market risks; read all scheme-related documents carefully.</b>
-                <span className="mfs-disc-more" aria-hidden="true">Details<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg></span></summary>
+                <span className="mfs-disc-more" aria-hidden="true">Details<i className="mfs-disc-chev" /></span></summary>
             <p><b>{DISCLAIMER}</b> The figures describe past data; they are not a recommendation.</p>
             <p>Risk figures are to the end of last month. Ranks compare funds of the same category and plan. A dash means the fund has no figure: the reason is in its tooltip, and the “N of M funds have this figure” line under each slider counts them.
               {where && <> Screener figures worked out {where.run ? dateIN(where.run) : ""}{where.portfolioDate ? `; portfolios as of ${dateIN(where.portfolioDate)}` : ""}.</>}

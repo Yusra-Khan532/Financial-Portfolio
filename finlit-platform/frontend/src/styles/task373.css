@@ -7,9 +7,10 @@
 .mfs-disc-k { flex: none; padding: 2px 8px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); font: 700 var(--fs-12)/1.4 var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--text); }
 .mfs-disc-l { flex: 1 1 260px; min-width: 0; }
 .mfs-disc-more { flex: none; display: inline-flex; align-items: center; gap: 4px; margin-left: auto; font-weight: 600; color: var(--text); }
-.mfs-disc-more svg { transition: transform .15s ease; }
-.mfs-disc[open] .mfs-disc-more svg { transform: rotate(180deg); }
+.mfs-disc-chev { width: 7px; height: 7px; margin: 0 3px 3px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); transition: transform .15s ease; }
+.mfs-disc[open] .mfs-disc-chev { margin-bottom: -3px; transform: rotate(-135deg); }
 .mfs-disc > p { margin: 0; padding: 0 12px 10px; }
-.mfs-disc > p:first-of-type { padding-top: 10px; border-top: 1px solid var(--border); }
-@media (prefers-reduced-motion: reduce) { .mfs-disc-more svg { transition: none; } }
+.mfs-disc[open] > summary { border-bottom: 1px solid var(--border); }
+.mfs-disc > p:first-of-type { padding-top: 10px; }
+@media (prefers-reduced-motion: reduce) { .mfs-disc-chev { transition: none; } }
 .mfs-fine:has(> .mfs-disc) { padding-top: 0; border-top: 0; }   /* the box has its own edge */

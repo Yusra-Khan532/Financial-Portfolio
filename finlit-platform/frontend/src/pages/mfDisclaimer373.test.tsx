@@ -24,7 +24,7 @@ describe("task #373: the screener disclaimer drop-down", () => {
   });
   it("the drop-down is a full-size tap target with a turning chevron and a visible focus ring", () => {
     expect(css).toMatch(/\.mfs-disc > summary \{[^}]*min-height: var\(--ui-ctl-h\)/);
-    expect(css).toMatch(/\.mfs-disc\[open\] \.mfs-disc-more svg \{ transform: rotate\(180deg\)/);
+    expect(css).toMatch(/\.mfs-disc\[open\] \.mfs-disc-chev \{[^}]*transform: rotate\(-135deg\)/);
     expect(css).toMatch(/summary:focus-visible \{ outline: 2px solid/);
   });
 });
