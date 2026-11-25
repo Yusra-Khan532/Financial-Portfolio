@@ -39,7 +39,7 @@ export function ListChart({ rows, pick, onPick, toPanel, figure, listDay = null 
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPick(r.symbol); } }} tabIndex={on ? 0 : -1}>
               <CoLogo symbol={r.symbol} name={r.name} size={22} />
               <span className="psx-lc-n"><b>{titleOf(r as never)}</b><small>{(r.sector as string) || ""}</small></span>
-              <span className="psx-lc-p">{price != null ? nf(price, 2) : MINUS}{chg != null && <small className={chg >= 0 ? "up" : "down"}>{signed(chg)}</small>}</span>
+              <span className="psx-lc-p">{price != null ? nf(price, 2) : MINUS}{chg != null && <small className={chg >= 0 ? "up" : "down"}>{signed(chg)}</small>}{chg == null && typeof r.ret_1d_note === "string" && <small title={r.ret_1d_note} aria-label={`Day change not shown: ${r.ret_1d_note}`}>{MINUS}</small>}</span>   {/* task #394: a blank day change says why */}
               {figure && <span className="psx-lc-f"><small>{figure.label}</small>{figure.show(r)}</span>}
               {mark && <span className="psx-lc-mk"><span>{mark}</span></span>}
             </li>);

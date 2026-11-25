@@ -168,7 +168,7 @@ function Table({ d, cols, rows, sort, setSort, onDay, latest, picked, setPicked,
   };
   const cell = (r: PresetRow, c: PresetColumn) => {
     const v = r[c.key], hatch = empty.has(c.key) ? " psx3-hatch" : "";
-    if (c.key === "price") return <td key={c.key} className={"psx-a-right" + hatch}><b>{typeof r.price === "number" ? nf(r.price, 2) : MINUS}</b>{typeof r.ret_1d === "number" && <small className={"psx-chg " + (r.ret_1d >= 0 ? "up" : "dn")}>{signed(r.ret_1d)}%</small>}</td>;
+    if (c.key === "price") return <td key={c.key} className={"psx-a-right" + hatch}><b>{typeof r.price === "number" ? nf(r.price, 2) : MINUS}</b>{typeof r.ret_1d === "number" && <small className={"psx-chg " + (r.ret_1d >= 0 ? "up" : "dn")}>{signed(r.ret_1d)}%</small>}{typeof r.ret_1d !== "number" && typeof r.ret_1d_note === "string" && <small className="psx-chg" title={r.ret_1d_note} aria-label={`Day change not shown: ${r.ret_1d_note}`}>{MINUS}</small>}</td>;
     if (TECH_KEYS.test(c.key) || c.key === "pillar_technical") return <td key={c.key} className={"psx-a-left" + hatch}>{typeof v === "number" ? (TECH_KEYS.test(c.key) ? <TechPill v={v} /> : <ScorePill v={v} />) : <CellValue v={v} f={c.format} />}</td>;
     if (c.format === "pct" || c.format === "since") {
       const bench = c.key === "since_added_pct" ? r.bench_since_added_pct : c.key === "since_then_pct" ? r.bench_since_then_pct : null;
