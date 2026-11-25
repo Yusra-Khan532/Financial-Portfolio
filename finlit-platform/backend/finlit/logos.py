@@ -47,7 +47,9 @@ router = APIRouter(prefix="/api/logos")
 USER_AGENT = "FinLit-logo/1.0 (+https://finlitventures.com; one request per page, robots.txt obeyed)"
 MAX_HTML = 256 * 1024
 MAX_BYTES = 128 * 1024              # 64 KB refused many current apple-touch-icons (Coal India's is 68 KB, 25 Nov 2026); 128 KB is still small to serve, cached for a year
-MIN_PX, MAX_PX = 16, 1024             # many company sites publish only a 16 px favicon; it is shown at its own size, never blown up
+MIN_PX, MAX_PX = 16, 1024
+MAX_PX_HAND = 4096                    # a hand-set logo (Console): official media-kit files run to a few thousand pixels
+# (many company sites publish only a 16 px favicon; it is shown at its own size, never blown up)
 TIMEOUT = 6.0
 MAX_REDIRECTS = 3
 PARALLEL = 4
@@ -156,11 +158,12 @@ def sniff(data: bytes, wide: bool = False) -> Tuple[bytes, str, int, int]:
         out, mime, (w, h) = data, "image/webp", _webp_size(data)
     else:
         raise Rejected("unknown image format")
-    if not (MIN_PX <= min(w, h) and max(w, h) <= MAX_PX):
-        raise Rejected(f"size {w}x{h} outside {MIN_PX}-{MAX_PX} px")
-    lo, hi = (0.33, 3.0) if wide else (0.66, 1.5)   # a hand-set official logo may be a wordmark up to 3:1 (the tile fits it, never crops)
+    top = MAX_PX_HAND if wide else MAX_PX              # media-kit logos are often large (LTTS's is 3227x1202); the byte cap still keeps them light
+    if not (MIN_PX <= min(w, h) and max(w, h) <= top):
+        raise Rejected(f"size {w}x{h} outside {MIN_PX}-{top} px")
+    lo, hi = (0.25, 4.0) if wide else (0.66, 1.5)   # a hand-set official logo may be a wordmark up to 4:1 (the tile fits it, never crops; wider is unreadable)
     if not h or not lo <= w / h <= hi:
-        raise Rejected(f"not square enough ({w}x{h})" if not wide else f"too wide or tall ({w}x{h}); at most 3:1")
+        raise Rejected(f"not square enough ({w}x{h})" if not wide else f"too wide or tall ({w}x{h}); at most 4:1, use the company's square mark instead")
     if len(out) > MAX_BYTES:
         raise Rejected(f"file too large ({len(out) // 1024} KB)")
     return out, mime, w, h
