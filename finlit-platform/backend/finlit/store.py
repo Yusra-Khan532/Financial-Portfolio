@@ -904,8 +904,10 @@ class Store:
                     pipe.hset(key, mapping={section: body, f"{section}:etag": row["etag"].encode()})
                     pipe.expire(key, STOCK_TTL)
                     await pipe.execute()
-            except Exception:
-                pass
+            except aioredis.RedisError:
+                pass             # the cache is busy or down: the page is served from Postgres all the same
+            except Exception:    # never fail a read over the cache, but a fault that is not Redis's must be seen, not swallowed
+                log.exception("cache write-back of %s failed", key)
         return body, row["etag"]
 
     async def get_etag(self, symbol: str, statement: str, section: str) -> Optional[str]:

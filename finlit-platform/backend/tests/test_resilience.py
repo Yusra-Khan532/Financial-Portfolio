@@ -6,20 +6,48 @@ import redis.asyncio as aioredis
 from test_integration import ingested, make_settings, store  # noqa: F401
 
 
+class _DownPipeline:
+    """As redis-py's: queued commands are plain calls; only `execute` reaches the server, and fails."""
+    def __init__(self, owner):
+        self.owner = owner
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+    def __getattr__(self, name):
+        return lambda *a, **k: self
+
+    async def execute(self):
+        self.owner.failed.append("pipeline.execute")
+        raise aioredis.ConnectionError("No connection available.")
+
+
 class _DownRedis:
-    """Stands in for a Redis whose pool is exhausted: every command fails at once."""
+    """Stands in for a Redis whose pool is exhausted: every command fails at once. `pipeline()` is a plain call, as in redis-py, so the
+    store's write-back is tried and refused the way a real one is (not skipped by a TypeError)."""
+    def __init__(self):
+        self.failed = []
+
+    def pipeline(self, *a, **k):
+        return _DownPipeline(self)
+
     def __getattr__(self, name):
         async def fail(*a, **k):
+            self.failed.append(name)
             raise aioredis.ConnectionError("No connection available.")
         return fail
 
 
 async def test_stock_pages_and_search_read_postgres_when_redis_fails(ingested):  # noqa: F811
     real = ingested.redis
-    ingested.redis = _DownRedis()
+    down = ingested.redis = _DownRedis()
     try:
         got = await ingested.get_section("RELIANCE", "consolidated", "summary")
         assert got is not None and got[0]
+        assert down.failed[:2] == ["hmget", "pipeline.execute"]     # read from Postgres, then the cache write-back was tried and refused quietly
         body, packed, etag = await ingested.search_index()
         assert b"RELIANCE" in body and packed and etag
         assert await ingested.get_etag("RELIANCE", "consolidated", "summary") is None
