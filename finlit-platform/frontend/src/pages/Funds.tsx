@@ -40,6 +40,8 @@ import "../styles/mf341.css";   // task #341: the page refinement (after mf.css 
 import "../styles/task355.css";   // task #355: the folded Show filters handle
 import "../styles/task363.css";   // task #363: the folded Show filters fits its words
 import { ChartZoom } from "../components/ChartZoom";
+import { useFundWishlist, useWishRows, WISH_MAX } from "../lib/fundWishlist";   // task #375: the Wishlist tab and the star on each scheme
+import "../styles/task375.css";
 /** Task #311 (developer file 21, fund page row 1): the formula is off the page; one plain sentence behind the (i). */
 const VOL_TIP = "How much the NAV moves from day to day, shown as a yearly figure.";
 
@@ -171,8 +173,8 @@ export function FundListPage() {
   const filt = useFundFilters();
   const subs = useMemo(() => (q.tab === "all" ? [] : subCats(filt.data?.categories, q.tab, q)), [filt.data, q]);
   const names = useMemo(() => (q.tab === "all" || q.cats === null ? null : filt.data ? catNames(filt.data.categories, q.tab, q.cats) : undefined), [filt.data, q.tab, q.cats]);
-  const ready = q.view === "ready";
-  const list = useFundList(eq, names, !ready);
+  const ready = q.view === "ready", wishing = q.view === "wish";
+  const list = useFundList(eq, names, !ready && !wishing);
   const year = (filt.data?.dataDate || list.data?.dataDate || new Date().toISOString()).slice(0, 4);
   const chosen = q.tab === "all" ? [] : (q.cats ?? []).map(keyLabel).sort((a, b) => a.localeCompare(b));
   const title = `${selectionTitle(q.tab, chosen, q.cats === null)} mutual funds ${year}`;
@@ -191,20 +193,36 @@ export function FundListPage() {
     requestAnimationFrame(() => document.getElementById("mf-list")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
   const hot = useHotList(ready);
+  // task #375: the member's wishlist (mutual funds and ETFs, by scheme code) and the star's messages
+  const wish = useFundWishlist();
+  const wishRows = useWishRows(wish.codes, wishing);
+  const onWish = (code: number, name: string) => {
+    const r = wish.toggle(code);
+    toast(r === "added" ? `${name} is in your wishlist (Wishlist tab).` : r === "removed" ? `${name} is out of your wishlist.`
+      : r === "full" ? `Your wishlist keeps up to ${WISH_MAX} schemes. Remove one to add another.` : "Sign in to keep a wishlist: it is free, and it follows you to every device.");
+  };
+  const wishProp = { has: wish.has, toggle: onWish };
+  useEffect(() => { if (wish.failed) toast("Your wishlist could not be saved just now. Please try again."); }, [wish.failed]);   // eslint-disable-line react-hooks/exhaustive-deps
   // task #347: the filter panel's open or folded state, remembered in this browser; with nothing saved it starts open on a desktop and folded on a phone
   // (where it would sit above the list and push it down)
   const [fOpen, setFOpen] = useState(() => { let v: string | null = null; try { v = localStorage.getItem("finlit-mf-filters"); } catch { /* */ }
     return v ? v !== "closed" : !(typeof window !== "undefined" && window.matchMedia?.("(max-width: 760px)").matches); });
   const setF = (v: boolean) => { setFOpen(v); try { localStorage.setItem("finlit-mf-filters", v ? "open" : "closed"); } catch { /* private window: not remembered */ } };
   const none = q.tab !== "all" && q.cats !== null && q.cats.length === 0;
-  const d = ready || none ? undefined : list.data;
+  const d = ready || wishing || none ? undefined : list.data;
   const hotRows = useMemo(() => {
     const rows = hot.data?.items || [];
     if (!q.sort) return rows;
     const key = q.sort, sgn = q.dir === "desc" ? -1 : 1;
     return [...rows].sort((a, b) => { const x = rowSortValue(a, key), y = rowSortValue(b, key); return x == null ? 1 : y == null ? -1 : (x < y ? -1 : x > y ? 1 : 0) * sgn; });
   }, [hot.data, q.sort, q.dir]);
-  const facts = (ready ? hot.data : d) || filt.data;
+  const wishSorted = useMemo(() => {   // task #375: the kept order (newest first) unless a column is sorted
+    const rows = wishRows.data?.items || [];
+    if (!q.sort) return rows;
+    const key = q.sort, sgn = q.dir === "desc" ? -1 : 1;
+    return [...rows].sort((a, b) => { const x = rowSortValue(a, key), y = rowSortValue(b, key); return x == null ? 1 : y == null ? -1 : (x < y ? -1 : x > y ? 1 : 0) * sgn; });
+  }, [wishRows.data, q.sort, q.dir]);
+  const facts = (ready ? hot.data : wishing ? wishRows.data : d) || filt.data;
   const t = filt.data?.totals;
 
   return (
@@ -228,24 +246,41 @@ export function FundListPage() {
           <div className="mf-main">
         <div className="mf-bar" id="mf-list">
           <div className="seg" role="group" aria-label="Which schemes to show">
-            <button aria-pressed={!ready} onClick={() => set({ view: "" })}>Chosen categories</button>
+            <button aria-pressed={!ready && !wishing} onClick={() => set({ view: "" })}>Chosen categories</button>
             <button aria-pressed={ready} onClick={() => set({ view: "ready" })}>Ready list ({hot.data?.items.length ?? 100})</button>
+            <button aria-pressed={wishing} onClick={() => set({ view: "wish" })}><svg className="mf-wish-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z" /></svg>Wishlist{wish.signedIn ? ` (${wish.codes.length})` : ""}</button>
           </div>
           <p className="mf-count" role="status" aria-live="polite">
-            {ready ? (hot.data ? <>The <b>{hot.data.items.length}</b> schemes kept ready for instant opening, from every category.</> : "Loading…")
+            {wishing ? (!wish.signedIn ? "Your wishlist: the mutual funds and ETFs you keep, for a signed-in member." : wish.loading ? "Loading your wishlist…"
+              : <>Your wishlist: <b>{wish.codes.length}</b> scheme{wish.codes.length === 1 ? "" : "s"} you keep (mutual funds and ETFs), newest first. Press the star on any scheme to add or remove it.</>)
+              : ready ? (hot.data ? <>The <b>{hot.data.items.length}</b> schemes kept ready for instant opening, from every category.</> : "Loading…")
               : none ? "No category ticked."
                 : d ? <>Showing <b>{d.total.toLocaleString("en-IN")}</b> scheme{d.total === 1 ? "" : "s"}{q.tab === "all" ? (q.plan === "" && q.option === "All" ? " · every plan and option" : "") : " in the chosen categories"}{d.total === 0 ? " (none match)" : ""}</> : "Loading schemes…"}
-            {!ready && t && !q.stopped && <span className="faint"> · {(t.schemes - t.active).toLocaleString("en-IN")} older schemes have stopped publishing and are hidden</span>}
+            {!ready && !wishing && t && !q.stopped && <span className="faint"> · {(t.schemes - t.active).toLocaleString("en-IN")} older schemes have stopped publishing and are hidden</span>}
             {facts?.dataDate && <span className="faint"> · NAVs up to {dateIN(facts.dataDate)}</span>}
           </p>
         </div>
 
-        {ready ? (
+        {wishing ? (
+          !wish.signedIn ? <div className="pm-empty mf-empty mf-wishempty"><b>Keep the funds you follow in one place.</b><p>Sign in to add any mutual fund or ETF to your wishlist with the star beside its name. It is free, and it is kept with your account, on every device.</p>
+            <Link className="btn primary" to={`/login?next=${encodeURIComponent("/funds?view=wish")}`}>Sign in</Link> <Link className="btn" to={`/login?mode=signup&next=${encodeURIComponent("/funds?view=wish")}`}>Create a free account</Link></div>
+          : wish.loading || (wish.codes.length > 0 && !wishRows.data && !wishRows.isError) ? <div className="card" aria-busy="true"><div className="skeleton" style={{ height: 240 }} /></div>
+          : wish.codes.length === 0 ? <div className="pm-empty mf-empty mf-wishempty"><b>Your wishlist is empty.</b><p>Press the star beside any scheme in “Chosen categories” or the “Ready list”, or on a fund's own page, to keep it here. Mutual funds and ETFs both go in.</p>
+            <button className="btn" onClick={() => set({ view: "" })}>Browse the schemes</button></div>
+          : wishRows.isError ? <Problem title="Your wishlist could not be shown right now" text="It is saved; please try again in a moment." retry={() => wishRows.refetch()} />
+          : (
+            <div className="card mf-tablecard">
+              <div className="mf-tbar"><ColumnPicker cols={cols} onChange={(c) => { setCols(c); writeCols(c); }} /></div>
+              {wishSorted.length < wish.codes.length && <p className="faint mf-fine mf-pad">{wish.codes.length - wishSorted.length} kept scheme{wish.codes.length - wishSorted.length === 1 ? " is" : "s are"} no longer in AMFI's list and cannot be shown.</p>}
+              <FundTable rows={wishSorted} cols={cols} q={q} onSort={onSort} picked={tray} onPick={pick} peers={wishRows.data?.peers} wish={wishProp} />
+              <CompareBar tray={tray} onClear={clear} onOpen={() => nav(compareUrl(tray))} />
+            </div>)
+        ) : ready ? (
           !hot.data ? <div className="card" aria-busy="true"><div className="skeleton" style={{ height: 420 }} /></div> : (
             <div className="card mf-tablecard">
               <div className="mf-tbar">{/* task #346: the Columns button inside the table, beside its enlarge button */}<ColumnPicker cols={cols} onChange={(c) => { setCols(c); writeCols(c); }} /></div>
               <p className="faint mf-fine mf-pad">{hot.data.basis}</p>
-              <FundTable rows={hotRows} cols={cols} q={q} onSort={onSort} picked={tray} onPick={pick} />
+              <FundTable rows={hotRows} cols={cols} q={q} onSort={onSort} picked={tray} onPick={pick} wish={wishProp} />
               <CompareBar tray={tray} onClear={clear} onOpen={() => nav(compareUrl(tray))} />
             </div>)
         ) : none ? (
@@ -265,7 +300,7 @@ export function FundListPage() {
           <SortPills q={eq} onSort={(sort, dir) => set({ sort: sort as SortKey, dir })} />
           <div className="card mf-tablecard">
             <div className="mf-tbar">{/* task #346: the Columns button inside the table, beside its enlarge button */}<ColumnPicker cols={cols} onChange={(c) => { setCols(c); writeCols(c); }} /></div>
-            <FundTable rows={d.items} cols={cols} q={eq} onSort={onSort} picked={tray} onPick={pick} peers={d.peers} />
+            <FundTable rows={d.items} cols={cols} q={eq} onSort={onSort} picked={tray} onPick={pick} peers={d.peers} wish={wishProp} />
             <CompareBar tray={tray} onClear={clear} onOpen={() => nav(compareUrl(tray))} />
             <Pager q={q} pages={d.pages} total={d.total} onPage={(p) => { set({ page: p }); window.scrollTo({ top: 0 }); }} onSize={(n) => set({ size: n })} />
           </div>
@@ -335,6 +370,7 @@ export function FundDetailPage() {
   const { toast } = useUI();
   const [tray, toggle] = useTray();
   const facts = useFundFacts(code), portfolio = useFundPortfolio(code);
+  const wish = useFundWishlist();   // task #375: add this scheme (a mutual fund or an ETF) to the wishlist on the Mutual Funds page
   useDocTitle(d ? d.name : "Mutual fund", d ? `${d.name}: NAV, returns and risk from AMFI data. Information only.` : undefined);
   useEffect(() => { if (d?.code) visits.add({ k: "mf", id: String(d.code), name: d.name.replace(/\s*[-–(]\s*(direct|regular)\b.*$/i, ""), sub: d.amc }); }, [d?.code]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -368,6 +404,11 @@ export function FundDetailPage() {
           <div className="mf-acts">
             <button className={"btn" + (inTray ? " on" : "")} aria-pressed={inTray} onClick={() => { if (!toggle(d.code)) toast(`You can compare up to ${TRAY_MAX} schemes at a time.`); }}><Icon name="compare" />{inTray ? "Chosen to compare" : "Add to compare"}</button>
             {tray.length >= 2 && <button className="btn primary" onClick={() => nav(compareUrl(tray))}>Compare {tray.length}</button>}
+            <button className={"btn mf-wishbtn" + (wish.has(d.code) ? " on" : "")} aria-pressed={wish.has(d.code)} onClick={() => {
+              const r = wish.toggle(d.code);
+              toast(r === "added" ? "In your wishlist: see it under Mutual Funds, Wishlist." : r === "removed" ? "Out of your wishlist." : r === "full" ? `Your wishlist keeps up to ${WISH_MAX} schemes. Remove one to add another.` : "Sign in to keep a wishlist: it is free, and it follows you to every device.");
+            }}><Icon name="star" />{wish.has(d.code) ? "In your wishlist" : "Add to wishlist"}</button>
+            {wish.has(d.code) && <Link className="mf-wishlink" to="/funds?view=wish">Open wishlist →</Link>}
           </div>
         </div>
       </header>

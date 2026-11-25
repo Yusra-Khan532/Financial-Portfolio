@@ -240,6 +240,11 @@ class WatchlistIn(BaseModel):
     meta: Dict[str, WMeta] = Field(default_factory=dict, max_length=1000)
 
 
+class FundWishIn(BaseModel):
+    """Task #375: the Mutual Funds page's wishlist, scheme codes (mutual funds and ETFs alike are AMFI schemes), newest first."""
+    codes: List[Annotated[int, Field(gt=0, lt=10_000_000)]] = Field(max_length=100)
+
+
 class Range(BaseModel):
     min: Optional[float] = Field(default=None, ge=-1e12, le=1e12)
     max: Optional[float] = Field(default=None, ge=-1e12, le=1e12)
@@ -968,10 +973,26 @@ async def put_watchlist(request: Request, body: WatchlistIn, ctx: Ctx = Depends(
     if len(set(ids)) != len(ids):
         raise fail(422, "duplicate_list")
     meta = {k: v.model_dump() for k, v in body.meta.items() if SYMBOL.match(k)}
-    await save_state(request, ctx, "watchlist", {"lists": [lst.model_dump(exclude_none=True) for lst in body.lists], "meta": meta})
+    # task #375: the stock lists are saved without touching the fund wishlist kept beside them (watchlist.funds, saved by PUT /me/fund-wishlist)
+    async with request.app.state.store.pool.acquire() as conn:
+        await conn.execute("INSERT INTO user_state (user_id, watchlist) VALUES ($1, $2::jsonb) ON CONFLICT (user_id) DO UPDATE SET "
+                           "watchlist = EXCLUDED.watchlist || jsonb_build_object('funds', COALESCE(user_state.watchlist -> 'funds', '[]'::jsonb)), updated_at = now()",
+                           ctx.user_id, json.dumps({"lists": [lst.model_dump(exclude_none=True) for lst in body.lists], "meta": meta}))
     if any(m.get("target") for m in meta.values()):
         await wake.set_alerts_flag(request.app.state.store.redis, True)   # a price target now exists: the market-hours check must run (the next DB window corrects a false alarm)
     return {"status": "saved"}
+
+
+@router.put("/me/fund-wishlist")
+async def put_fund_wishlist(request: Request, body: FundWishIn, ctx: Ctx = Depends(secure_ctx)):
+    """Task #375 ("add a wishlist button here and a person can add in their wishlist a MF or an ETF and they can see it from here"): the schemes a
+    member keeps on the Mutual Funds page. Any signed-in member (everything stays free), at most 100. Saved beside the stock lists, never over them."""
+    codes = list(dict.fromkeys(body.codes))
+    async with request.app.state.store.pool.acquire() as conn:
+        await conn.execute("INSERT INTO user_state (user_id, watchlist) VALUES ($1, jsonb_build_object('funds', $2::jsonb)) ON CONFLICT (user_id) DO UPDATE SET "
+                           "watchlist = COALESCE(user_state.watchlist, '{}'::jsonb) || jsonb_build_object('funds', $2::jsonb), updated_at = now()",
+                           ctx.user_id, json.dumps(codes))
+    return {"status": "saved", "count": len(codes)}
 
 
 @router.put("/me/portfolio")

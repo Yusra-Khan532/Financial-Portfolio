@@ -108,8 +108,10 @@ function shortWhy(code: FundRow["noReturns"], young: string): string {
   }
 }
 
-export function FundTable({ rows, cols, q, onSort, picked, onPick, peers }: {
+export function FundTable({ rows, cols, q, onSort, picked, onPick, peers, wish }: {
   rows: FundRow[]; cols: ColId[]; q: ListQuery; onSort: (s: SortKey) => void; picked: number[]; onPick: (code: number, name?: string) => void; peers?: Record<string, PeerStats>;
+  /** Task #375: the Mutual Funds page's wishlist star on each scheme (left out where the table is drawn elsewhere). */
+  wish?: { has: (code: number) => boolean; toggle: (code: number, name: string) => void };
 }) {
   const defs = COLUMNS.filter((c) => cols.includes(c.id));
   const { has } = useUI();
@@ -155,9 +157,14 @@ export function FundTable({ rows, cols, q, onSort, picked, onPick, peers }: {
           {shown.map((r) => (
             <tr key={r.code} className={r.active ? "" : "mf-stopped"}>
               <th scope="row" className="mf-name">
+                <span className="mf-rowacts">{/* task #375: the compare tick and, under it, the wishlist star */}
                 <label className="mf-pickbox" title={picked.includes(r.code) ? "Remove from comparison" : "Add to comparison"}>
                   <input type="checkbox" checked={picked.includes(r.code)} onChange={() => onPick(r.code, r.name)} aria-label={`Compare ${r.name}`} />
                 </label>
+                  {wish && <button type="button" className="mf-wish" aria-pressed={wish.has(r.code)} onClick={() => wish.toggle(r.code, r.name)}
+                    aria-label={wish.has(r.code) ? `Remove ${r.name} from your wishlist` : `Add ${r.name} to your wishlist`} title={wish.has(r.code) ? "In your wishlist: press to remove" : "Add to your wishlist"}>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z" /></svg></button>}
+                </span>
                 <span className="mf-nm">
                   {/* task #304 (the team, 22 Nov 2026): no score chip beside the name: the Mutual Fund Score column already gives it ("2 times score") */}
                   <Link to={`/funds/${r.code}`} title={r.name}>{r.name}</Link>
