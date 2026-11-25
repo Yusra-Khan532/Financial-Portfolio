@@ -1,6 +1,7 @@
 // The phone app's map (docs/MOBILE-APP.md): which bottom tab a page belongs to, the section chips at the top of that tab's pages, the Tools
 // button's list and the Menu sheet's "Most used" row. Built on lib/nav.ts, so a page keeps one name everywhere. Phone only (under 860px).
 import { MENU, type NavItem } from "./nav";
+import { PLAN_FOR_PORTFOLIO, PLAN_FOR_WATCHLIST } from "./planGates";
 
 export type TabId = "home" | "markets" | "discover" | "folio";
 export type Chip = { to: string; label: string; /** other addresses that light this chip (a page under it, a sibling tool) */ also?: string[] };
@@ -58,9 +59,9 @@ export function tabFor(path: string): TabId | null {
   return chipFor(path)?.tab ?? null;
 }
 
-/** Where each tab opens. Home is the dashboard for a member and the phone home for a visitor. */
-export const tabHome = (tab: TabId, signedIn: boolean): string =>
-  tab === "home" ? (signedIn ? "/dashboard" : "/") : HUBS[tab][0].to;
+/** Where each tab opens. Home is the landing page for everyone (owner, 25 Nov 2026: the landing first, then the dashboard from there); a member's
+ *  landing opens with "Continue to your dashboard". */
+export const tabHome = (tab: TabId): string => (tab === "home" ? "/" : HUBS[tab][0].to);
 
 /** The phone "Most used" row of the Menu sheet and the Home tools grid (priority research: what people open first). */
 export const MOST_USED: { to: string; label: string; icon: string }[] = [
@@ -147,3 +148,22 @@ export function setDesktopSite(on: boolean) {
   location.reload();
 }
 export const desktopSiteOn = () => { try { return localStorage.getItem(DESKTOP_KEY) === "1"; } catch { return false; } };
+
+/** What a free (Basic) account really keeps, read from the plan gates so the phone copy can never promise a gated feature (audit of 24 Nov 2026:
+ *  the site said "a free account keeps your watchlist" while watchlists open on Silver). Alerts: 3 on Basic (docs/accounts-and-plans.md). */
+export function freeAccountLine(): string {
+  const parts = ["3 alerts", "saved screens", "your own dashboard"];
+  if (PLAN_FOR_WATCHLIST === "basic") parts.unshift("watchlists");
+  if (PLAN_FOR_PORTFOLIO === "basic") parts.push("your portfolio");
+  return parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1];
+}
+
+/** The paid side of the same card: which of watchlists and portfolio tracking a plan adds, and which plan, from the same gates. */
+export function planAddsLine(): string {
+  const g: [string, string][] = [];
+  if (PLAN_FOR_WATCHLIST !== "basic") g.push([PLAN_FOR_WATCHLIST, "watchlists"]);
+  if (PLAN_FOR_PORTFOLIO !== "basic") g.push([PLAN_FOR_PORTFOLIO, "portfolio tracking"]);
+  if (!g.length) return "";
+  const plans = [...new Set(g.map(([p]) => p[0].toUpperCase() + p.slice(1)))];
+  return `${plans.join(" and ")} ${plans.length > 1 ? "add" : "adds"} ${g.map(([, w]) => w).join(" and ")}.`;
+}

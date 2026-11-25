@@ -45,12 +45,11 @@ describe("which tab and chip a page lights", () => {
     expect(tabFor("/about")).toBeNull();
     expect(tabFor("/plans")).toBeNull();
   });
-  it("each tab opens its first chip; Home is the dashboard for a member, the phone home for a visitor", () => {
-    expect(tabHome("home", false)).toBe("/");
-    expect(tabHome("home", true)).toBe("/dashboard");
-    expect(tabHome("markets", false)).toBe("/markets");
-    expect(tabHome("discover", false)).toBe("/screener");
-    expect(tabHome("folio", false)).toBe("/watchlist");
+  it("each tab opens its first chip; Home is the landing page for everyone (owner, 25 Nov 2026: the landing first)", () => {
+    expect(tabHome("home")).toBe("/");
+    expect(tabHome("markets")).toBe("/markets");
+    expect(tabHome("discover")).toBe("/screener");
+    expect(tabHome("folio")).toBe("/watchlist");
   });
   it("every chip and every Most used page is a real page of the site (in the menu, or one of the two new phone pages)", () => {
     const known = new Set([...MENU.flatMap((g) => g.items.map((i) => i.to)), "/markets", "/tools", "/premium/markets"]);
@@ -59,7 +58,11 @@ describe("which tab and chip a page lights", () => {
     const app = read("App.tsx");
     expect(app).toMatch(/<Route path="markets" element=\{<MarketsToday \/>\} \/>/);
     expect(app).toMatch(/<Route path="tools" element=\{<AllToolsPage \/>\} \/>/);
-    expect(app).toMatch(/function IndexPage\(\) \{ return useIsPhone\(\) \? <MarketsToday home \/> : <Home \/>; \}/);
+    expect(app).toMatch(/<Route index element=\{<Home \/>\} \/>/);   // the landing page first, at every width
+    expect(app).not.toContain("<MarketsToday home />");
+    const home = read("pages/Home.tsx");
+    expect(home).toContain("<PhoneDoors />");
+    expect(home).toContain('<Link to="/dashboard" className="ma-door ma-door--me">');
   });
   it("All tools lists every group of tools from the menus", () => {
     expect(TOOL_GROUPS.map((g) => g.title)).toEqual(["Find stocks", "Analyse a company", "Compare & chart", "Valuation & SIP calculators", "Markets & economy", "Mutual funds & ETFs"]);
@@ -95,10 +98,12 @@ describe("the bottom tabs", () => {
     fireEvent.click(screen.getByRole("button", { name: "Menu" }));
     expect(screen.getByRole("dialog", { name: "Menu" })).toBeTruthy();
   });
-  it("a member's Home tab opens the dashboard", () => {
+  it("a member's Home tab opens the landing page too; the landing offers the dashboard first", () => {
     signedIn = true;
-    at("/", <MobileTabs />);
-    expect(screen.getByRole("navigation", { name: "Main" }).querySelector('a[href="/dashboard"]')).toBeTruthy();
+    at("/dashboard", <MobileTabs />);
+    const home = screen.getByRole("navigation", { name: "Main" }).querySelector(".ma-tab");
+    expect(home?.getAttribute("href")).toBe("/");
+    expect(home?.className).toContain("on");   // the dashboard still lights Home
   });
 });
 
@@ -167,7 +172,7 @@ describe("the Tools button", () => {
 
 describe("the styles: phone only, compact, 44px taps", () => {
   it("nothing of the phone app is drawn above 860px", () => {
-    expect(css).toMatch(/^\.ma-tabs, \.ma-hub, \.ma-fab, \.ma-fabp, \.ma-scrim, \.ma-menu, \.ma-foot \{ display: none; \}/m);
+    expect(css).toMatch(/^\.ma-tabs, \.ma-hub, \.ma-fab, \.ma-fabp, \.ma-scrim, \.ma-menu, \.ma-foot, \.ma-doors \{ display: none; \}/m);
     expect(css).toMatch(/@media \(max-width: 860px\) \{/);
     const main = read("main.tsx");
     expect(main.indexOf('import "./styles/mobile-app.css"')).toBeGreaterThan(main.indexOf('import "./styles/phone310.css"'));
@@ -197,8 +202,9 @@ describe("upgrade round 1: locked parts, the company report's actions, tap areas
     expect(css).toMatch(/:root:root \.gate\.is-locked \.lock-card ul \{ display: none; \}/);
     expect(css).not.toMatch(/\.gate:not\(\.is-locked\)/);   // an unlocked part is never touched
   });
-  it("the company report's four actions sit in one sideways row", () => {
-    expect(css).toMatch(/:root:root main \.hx-acts \.actions \{ flex-wrap: nowrap; overflow-x: auto;/);
+  it("the company report's four actions sit two to a row, all in view (the sideways row hid Value (DCF) and Share)", () => {
+    expect(css).toMatch(/:root:root main \.hx-acts \.actions \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(css).not.toMatch(/\.hx-acts \.actions \{ flex-wrap: nowrap; overflow-x: auto;/);
   });
   it("small links and buttons get a transparent tap area that moves nothing", () => {
     expect(css).toMatch(/\.dbx-ddb\)::after \{ content: ""; position: absolute; inset: -13px -4px; \}/);
@@ -242,3 +248,42 @@ describe("upgrade rounds 2 to 5", () => {
   });
 });
 
+describe("the installed app's launch screen (owner, 25 Nov 2026: the logo animation, not a white screen, at the start)", () => {
+  it("Android's launch screen has the logo animation's own background, so the icon hands over to the animation with no white flash", () => {
+    const manifest = JSON.parse(read("../public/manifest.webmanifest"));
+    const lightBg = /--bg: (#[0-9A-Fa-f]{6});/.exec(read("styles/luxe.css"))![1];
+    expect(manifest.background_color.toLowerCase()).toBe(lightBg.toLowerCase());
+    expect(manifest.theme_color.toLowerCase()).toBe(lightBg.toLowerCase());
+    expect(read("styles/logo-loader.css")).toMatch(/\.ll-splash \{[^}]*background: var\(--bg\);/);   // the animation is drawn on that page colour
+    expect(read("../index.html")).toContain('<div id="ll-boot">');                                      // and starts with the page's first paint
+  });
+});
+
+
+describe("phone audit of 24 Nov 2026: layout faults and the free-account promise", () => {
+  it("the Results calendar fits a phone: seven narrow days, counts only, no 780px grid", () => {
+    expect(css).toMatch(/:root:root main \.rs-cal \{ min-width: 0; grid-template-columns: repeat\(7, minmax\(0, 1fr\)\);/);
+    expect(css).toMatch(/:root:root main \.rs-cal-c :is\(\.rs-cal-x, em, \.rs-cal-w\) \{ display: none; \}/);
+    expect(read("components/results/pack/ResultsPack.tsx")).toContain('<span className="rs-cal-w"> {past ? "declared" : "due"}</span>');
+  });
+  it("Sector Pulse's section bar does not stick over the top bar; Concalls has the page gutter; Markets rows bleed by the 14px gutter", () => {
+    expect(css).toMatch(/:root:root main \.sx-nav \{ position: static; \}/);
+    expect(css).toMatch(/:root:root main \.page\.ccm \{ padding-left: max\(14px/);
+    expect(read("styles/markets-today.css")).toMatch(/@media \(max-width: 860px\) \{ \.mkt-hs \{ margin-inline: -14px; padding-inline: 14px;/);
+    expect(read("styles/luxe.css")).toMatch(/\.wrap \{ padding-left: max\(14px/);   // the gutter the bleed matches
+  });
+  it("no page promises a free watchlist or portfolio while the plan gates put them on a paid plan", async () => {
+    const g = await import("../lib/planGates"), nav = await import("../lib/mobileNav");
+    const free = nav.freeAccountLine();
+    if (g.PLAN_FOR_WATCHLIST !== "basic") expect(free).not.toMatch(/watchlist/i);
+    if (g.PLAN_FOR_PORTFOLIO !== "basic") expect(free).not.toMatch(/portfolio/i);
+    expect(free).toMatch(/^3 alerts, /);
+    if (g.PLAN_FOR_WATCHLIST !== "basic") expect(nav.planAddsLine()).toMatch(/watchlists/);
+    for (const f of ["pages/MarketsToday.tsx", "components/mobile/MobileApp.tsx", "pages/Login.tsx", "pages/Home.tsx"]) {
+      const src = read(f);
+      expect(src).not.toMatch(/free account keeps your watchlist/i);
+      expect(src).not.toMatch(/Free account: watchlists/);
+      expect(src).not.toMatch(/Watchlists that follow you/);
+    }
+  });
+});

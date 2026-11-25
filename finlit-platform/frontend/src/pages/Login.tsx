@@ -10,9 +10,10 @@ import { safeNext } from "../lib/safe";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
 import { DEMO } from "../lib/demo";
+import { planAddsLine } from "../lib/mobileNav";
 
 export function Login() {
-  useDocTitle("Sign in", "Sign in to your FinLit account or create one free: saved watchlists, your plan, and your own dashboard.");
+  useDocTitle("Sign in", "Sign in to your FinLit account or create one free: alerts, saved screens and your own dashboard.");
   const [params, setParams] = useSearchParams();
   const mode = params.get("mode") === "signup" ? "signup" : "signin";
   const next = safeNext(params.get("next"));
@@ -74,7 +75,7 @@ export function Login() {
           <h1 className="ui-title ui-title--marketing">Your research, <em>your way</em>.</h1>
           <p className="lede-xl">A free account saves what you follow and keeps your plan, your colours and your dashboard exactly as you left them, on any device.</p>
           <ul className="trustl">
-            <li><span className="fi"><Icon name="wallet" /></span><div><b>Watchlists that follow you</b><span>Lists, notes and price targets are saved to your account, not just this browser.</span></div></li>
+            <li><span className="fi"><Icon name="wallet" /></span><div><b>Alerts and screens that follow you</b><span>Your alerts, saved screens and settings are kept in your account, not just this browser. {planAddsLine()}</span></div></li>
             <li><span className="fi"><Icon name="quality" /></span><div><b>Your own dashboard</b><span>Choose the widgets and the colour palette. Change them any time.</span></div></li>
             <li><span className="fi"><Icon name="users" /></span><div><b>Protected sign-in</b><span>Strong password storage, sign-out of every device, and optional authenticator-app codes.</span></div></li>
           </ul>
@@ -96,7 +97,7 @@ export function Login() {
                 <button type="button" role="tab" aria-selected={mode === "signup"} onClick={() => setMode("signup")}>Create account</button>
               </div>
               <h2 style={{ font: "400 28px var(--serif)", margin: "16px 0 6px" }}>{mode === "signup" ? "Create your free account" : needCode ? "Two-step check" : "Welcome back"}</h2>
-              <p className="muted" style={{ margin: "0 0 18px" }}>{mode === "signup" ? "Free forever on the Basic plan. No card needed." : needCode ? "Enter the 6-digit code from your authenticator app." : "Sign in to open your watchlists, dashboard and plan."}</p>
+              <p className="muted" style={{ margin: "0 0 18px" }}>{mode === "signup" ? "Free forever on the Basic plan. No card needed." : needCode ? "Enter the 6-digit code from your authenticator app." : "Sign in to open your alerts, dashboard and plan."}</p>
               {mode === "signup" && <label>Name <span className="faint">(optional)</span><input autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} /></label>}
               {mode === "signup" && <label>Mobile number<input type="tel" inputMode="tel" autoComplete="tel" required placeholder="98765 43210" value={mobile} onChange={(e) => setMobile(e.target.value)} maxLength={16} /></label>}
               {!needCode && <>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
+import { useAuthMaybe } from "../lib/auth";
 import { ExploreTools, OPEN_EXPLORE } from "../components/ExploreTools";
 import { PrismShowcase } from "../components/PrismShowcase";
 import { MfScoreShowcase } from "../components/MfScoreShowcase";
@@ -45,11 +46,28 @@ export function Tour() {
   );
 }
 
+/** On a phone (mobile-app.css shows it under 860px only): the landing's first doors. A member sees "Continue to your dashboard" first; everyone sees
+ *  the three places people start most (Markets today, a company, the screener). Owner, 25 Nov 2026: open on the landing, go on from there. */
+function PhoneDoors() {
+  const user = useAuthMaybe()?.user;
+  return (
+    <div className="ma-doors">
+      {user && <Link to="/dashboard" className="ma-door ma-door--me"><span className="ma-door-i"><Icon name="table" /></span><span className="ma-door-t"><b>Continue to your dashboard</b><small>{user.name ? `Welcome back, ${user.name.split(" ")[0]}` : "Welcome back"}: your stocks, alerts and portfolio</small></span><Icon name="arrow" /></Link>}
+      <nav className="ma-door-row" aria-label="Start here">
+        <Link to="/markets" className="ma-door-s"><Icon name="activity" /><span>Markets today</span></Link>
+        <Link to="/research" className="ma-door-s"><Icon name="search" /><span>Find a company</span></Link>
+        <Link to="/screener" className="ma-door-s"><Icon name="table" /><span>Screener</span></Link>
+      </nav>
+    </div>
+  );
+}
+
 export function Home() {
   useDocTitle("Research deeper. Invest with clarity.", "Explore statistical scoring models, customizable analytical tools, comprehensive company reports, sector insights and much more for every listed Indian company, all in one platform. Information only, not investment advice.");
   return (
     <div className="hh">
       <section className="hh-top" aria-labelledby="hh-title"><div className="wrap">
+        <PhoneDoors />
         <p className="hh-strip"><span>Quantify the market</span><i aria-hidden="true">×</i><span>Research deeper</span><i aria-hidden="true">×</i><em>Track what matters.</em></p>
         <div className="hh-top-cols">
           <div>

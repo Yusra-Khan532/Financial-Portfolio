@@ -72,3 +72,21 @@ Silver and Gold see what their plan allows; desktop and phone, light and dark; n
 
 Not touched: desktop layouts (everything new sits under 860 px or in new phone-only components), the portfolio pages other sessions hold
 (#388, #389), data, wording of pages, jobs.
+
+## Change of 25 Nov 2026 (owner): the landing page first
+
+Opening the site on a phone showed Markets today, and a member's Home tab opened the dashboard. The owner: "first the person should go on the
+landing page. After that, from there should be option to go on dashboard". Now `/` is the landing page at every width and the Home tab opens it
+for everyone; on a phone the landing starts with its doors: "Continue to your dashboard" (members), then Markets today, Find a company and
+Screener. Markets today stays at `/markets`, the Markets tab. The installed app's launch screen has the logo animation's own cream background.
+
+## Change of 25 Nov 2026: faults from the phone audit, and an honest free account
+
+A page-by-page audit of the live phone site (390 x 844, light and dark) measured these faults; each is fixed in the phone layer only (under 860px):
+
+- Markets today scrolled 2px sideways: the index and IPO rows bled by 16px into a 14px gutter. They now bleed by the gutter itself.
+- Results: the month calendar was a 780px grid, so Thursday to Sunday sat off the screen. On a phone it is seven narrow days with the count; a day still opens its companies.
+- Sector Pulse and Rotation: "On this page" stuck at 70px and covered the top bar and chips. It now scrolls with the page (one sticky row at a time).
+- Company report: the four actions sat in a sideways row with "Value (DCF)" and "Share" past the edge. They are now two to a row, all in view.
+- Concalls had no side margin; it gets the 14px page gutter.
+- The free account: the site said "a free account keeps your watchlist" while watchlists open on Silver. The phone copy now comes from `freeAccountLine()` and `planAddsLine()` in `lib/mobileNav.ts`, which read `PLAN_FOR_WATCHLIST` and `PLAN_FOR_PORTFOLIO`, so it changes when the plan map changes; the sign-in page says the same. A test fails if any of these pages promises a gated feature.

@@ -8,7 +8,7 @@ import { CategoryPicker } from "./Dashboard";
 import type { ListQuery, SubCat } from "../lib/mf";
 
 afterEach(cleanup);
-const Q = { q: "", amc: "", plan: "", option: "", stopped: false, sort: "", dir: "desc", page: 1, size: 25, min1y: "", max1y: "", min5y: "", max5y: "", view: "", tab: "equity", cats: null } as ListQuery;
+const Q = { q: "", amc: "", plan: "", option: "", status: "", sort: "", dir: "desc", page: 1, size: 25, min1y: "", max1y: "", min5y: "", max5y: "", view: "", tab: "equity", cats: null } as ListQuery;
 const SUBS: SubCat[] = [{ key: "a", label: "Aggressive Hybrid", names: [], count: 30 }, { key: "b", label: "Arbitrage", names: [], count: 35 }];
 let tabs: string[] = [];
 function Harness() {

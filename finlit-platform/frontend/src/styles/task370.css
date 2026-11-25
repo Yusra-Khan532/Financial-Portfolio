@@ -1,0 +1,14 @@
+/* Task #370 (team, 24 Nov 2026): "reduce button sizes so they fit properly ... in filter box of mutual funds".
+   Cause: `.btn.sm` (the small button) was only ever written in dcf.css, which loads with the DCF pages, and never overrode the base .btn height, so every
+   "btn sm" (the filter box's Clear and Hide filters, Result at a glance's Hide, the ETF filter box, pagination ...) showed as a full 40-42px button.
+   Now one global rule gives it the design system's small size: 36px on desktop (--ui-ctl-h-sm), 44px on a phone so the tap target stays (--ui-ctl-h). */
+.btn.sm { height: auto; min-height: var(--ui-ctl-h-sm); padding: 0 12px; font-size: var(--fs-13); gap: 6px; }
+.btn.sm svg { width: 15px; height: 15px; }
+
+/* the Mutual fund screener's filter box header is the densest row: 32px buttons with less side padding on desktop (the 32px was already intended by
+   mfscreen.css, but the base .btn height hid it) */
+.mfs-sh-top .btn.sm { padding: 0 10px; }
+
+@media (max-width: 860px) {
+  :root .btn.sm, :root .mfs-sh-top .btn.sm { min-height: var(--ui-ctl-h); }   /* :root so page rules such as .mfs-glance-h .btn (36px) cannot shrink a tap target */
+}

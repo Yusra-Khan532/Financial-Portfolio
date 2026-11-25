@@ -2,6 +2,8 @@
 // The Stock screener (task #64, file 04, with tasks #73, #74 and #75): the short head and ready-made screens, Your rules (rule cards, the picker, quick
 // ranges, the funnel, Type rules, the one Sector filter), the nine standard columns with a "Your rules" band, the colour note, the side panel's figures,
 // and the address that holds the whole screen.
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
@@ -756,6 +758,36 @@ describe("the address holds the whole screen", () => {
     const raw = btoa(JSON.stringify({ sn: ["Software"], sx: ["NIFTY 50"], m: "<script>" })).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
     const s = decodeState(raw).state;
     expect(s.industries).toEqual(["Software"]); expect(s.indices).toEqual(["NIFTY 50"]); expect(s.model).toBeUndefined(); expect(s.on).toBeUndefined();
+  });
+});
+
+describe("task #383: Show filters / Hide filters and the scroller, as on the Mutual Fund Screener", () => {
+  it("the panel has Hide filters; hidden filters leave a vertical Show filters with the number of rules on, which brings the panel back", async () => {
+    mount("?s=" + encodeState({ ...norm({ ranges: { roe: { min: 15 } } }), caps: ["Large"] }, "market_cap", "desc")); await ready();
+    const work = () => document.querySelector(".ssw-work") as HTMLElement;
+    const hide = within(rulesPanel()).getByRole("button", { name: "Hide filters" });
+    expect(hide.className).toContain("ssw-hidef");
+    expect(screen.queryByRole("button", { name: /^Show filters/ })).toBeNull();
+    fireEvent.click(hide);
+    await waitFor(() => expect(work().className).toContain("rules-min"));
+    const show = screen.getByRole("button", { name: /^Show filters/ });
+    expect(show.className).toContain("ssw-showf"); expect(show.getAttribute("aria-expanded")).toBe("false");
+    expect(show.querySelector("b")?.textContent).toBe("2");                         // two filters on: ROE from 15% and Large cap
+    expect(work().firstElementChild).toBe(show);                                   // the tab sits on the left of the results
+    expect(document.querySelectorAll(".ssw-a").length).toBe(2);                    // hiding never drops a rule
+    fireEvent.click(show);
+    await waitFor(() => expect(work().className).not.toContain("rules-min"));
+    expect(screen.queryByRole("button", { name: /^Show filters/ })).toBeNull();
+  });
+  it("the results table has the scroller (no controls={false}), and the wide-screen rules hide the full-width bar and the ×; the fund pages' files are not touched", () => {
+    const page = readFileSync(join(process.cwd(), "src/pages/ScreenerPro.tsx"), "utf8"), css = readFileSync(join(process.cwd(), "src/styles/task383.css"), "utf8");
+    expect(page).not.toMatch(/controls=\{false\}/);
+    expect(page).toContain('import "../styles/task383.css"');
+    expect(css).toMatch(/@media \(min-width: 1001px\) \{\s*\.wrap\.ssw \.ssw-rtoggle\.min \{ display: none; \}/);
+    expect(css).toMatch(/\.wrap\.ssw \.ssw-work\.rules-min \{ grid-template-columns: 44px minmax\(0, 1fr\); gap: 16px; \}/);
+    expect(css).toMatch(/\.wrap\.ssw \.ssw-rmin \{ display: none; \}/);
+    expect(css.replace(/\/\*[\s\S]*?\*\//g, "")).not.toMatch(/\.mfs-|\.mf-list|\.etf-/);   // the Mutual Fund and ETF pages' classes are not touched
+    for (const sel of css.replace(/\/\*[\s\S]*?\*\//g, "").match(/[^{}]+(?=\{)/g) ?? []) if (!sel.trim().startsWith("@media")) expect(sel.trim()).toMatch(/^\.wrap\.ssw /);
   });
 });
 

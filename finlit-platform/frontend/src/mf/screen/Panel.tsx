@@ -2,7 +2,7 @@
 // and numeric filters (histogram + slider + typed boxes + quick ranges + "N of M funds have this figure"). It only edits the query; the page asks the server.
 // Groups the spec lists but whose data we do not hold are drawn at the bottom as "Needs a data source", disabled, with the reason: never hidden, never faked.
 // Task #131 (the team's 14 Nov design): a "Find a filter" box at the top jumps to the matching group and opens it; 17 groups, each showing how many
-// choices are on ("4 on"), the first five open; on a phone the groups fold behind one button, "Show the 17 filter groups".
+// choices are on (task #369: none on arrival), the first five open; on a phone the groups fold behind one button, "Show the 17 filter groups".
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Icon } from "../../lib/icons";
 import { nf } from "../../lib/format";
@@ -184,8 +184,9 @@ export function Panel({ q, set, fac, waiting, canScore, fold = false }: PanelPro
         <Sub>Instrument</Sub>
         <Chips opts={INST_OPTS} sel={q.inst} counts={fac?.inst} onToggle={tog("inst")} label="Instrument" />
         <Sub>Status</Sub>
-        <Chips opts={STATUS_OPTS} sel={q.status === "both" ? ["active", "stopped"] : [q.status]} counts={fac?.status} label="Status"
-          onToggle={(v) => { const cur = new Set(q.status === "both" ? ["active", "stopped"] : [q.status]); cur.has(v) ? cur.delete(v) : cur.add(v); upd({ status: cur.size === 2 || cur.size === 0 ? "both" : (cur.has("stopped") ? "stopped" : "active") }); }} />
+        {/* task #369: no status chosen ("All") lists both; one chosen narrows to it, the other one switches to it, and choosing it again goes back to All */}
+        <Chips opts={STATUS_OPTS} sel={q.status === "both" ? [] : [q.status]} counts={fac?.status} label="Status" any={() => upd({ status: "both" })}
+          onToggle={(v) => upd({ status: q.status === v ? "both" : (v as "active" | "stopped") })} />
         <Sub>Data freshness</Sub>
         <Chips opts={FRESH_OPTS} sel={q.fresh ? [q.fresh] : []} counts={fac?.fresh} onToggle={(v) => upd({ fresh: q.fresh === v ? "" : v })} label="Data freshness" />
         <Sub>Family view</Sub>
@@ -321,5 +322,5 @@ export function Panel({ q, set, fac, waiting, canScore, fold = false }: PanelPro
   );
 }
 
-/** How many choices "Plan, option and status" has on, the default ones included (the design's "4 on": Direct, Growth, Still publishing, mutual funds and ETFs). */
-export const planOn = (q: SQ) => (q.plans.length || 1) + (q.options.length || 1) + (q.inst.length || 1) + (q.status === "both" ? 0 : 1) + (q.family ? 1 : 0) + (q.fresh ? 1 : 0);
+/** How many choices "Plan, option and status" has on. Task #369: nothing is chosen on arrival, so it starts at 0 (it read "4 on" with the old defaults). */
+export const planOn = (q: SQ) => q.plans.length + q.options.length + q.inst.length + (q.status === "both" ? 0 : 1) + (q.family ? 1 : 0) + (q.fresh ? 1 : 0);

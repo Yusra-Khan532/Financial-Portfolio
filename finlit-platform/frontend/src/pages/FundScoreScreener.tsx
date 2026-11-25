@@ -150,7 +150,7 @@ function Screener() {
         ]} active={filterCount} filtersOpen={filtersOpen} onFilters={() => (narrow() ? setDrawer(true) : setCollapsed((c) => !c))} />
         <Toolbar q={q.q} setQ={(v) => set({ q: v })} searchLabel="Search in results by fund name" buttons={[
           { id: "category", label: "Category", active: q.subs.length, onClick: () => showPanel("category") },
-          { id: "plan", label: "Plan", active: q.plan !== "Direct" ? 1 : 0, onClick: () => showPanel("plan") },
+          { id: "plan", label: "Plan", active: q.plan !== "all" ? 1 : 0, onClick: () => showPanel("plan") },
           { id: "scores", label: "Score filters", active: nz(q.min, q.max) + PARTS.reduce((n, k) => n + nz(q[k][0], q[k][1]), 0), onClick: () => showPanel("score") }]}
           sort={<label className="fgx-sort"><span className="sr-only">Sort by</span><select aria-label="Sort by" value={sortVal} onChange={(e) => { const [k, d] = e.target.value.split(":"); set({ sort: k, dir: d as "asc" | "desc" }); }}>
             {!SORTS.some(([k, d]) => `${k}:${d}` === sortVal) && <option value={sortVal}>Sorted by column</option>}
@@ -167,7 +167,7 @@ function Screener() {
               <FilterGroup id="search" title="Search fund" defaultOpen active={nz(q.q)}>
                 <SearchBox value={q.q} onChange={(v) => set({ q: v })} placeholder="Part of a fund name" label="Fund name" />
               </FilterGroup>
-              <FilterGroup id="plan" title="Plan" defaultOpen active={q.plan !== "Direct" ? 1 : 0}>
+              <FilterGroup id="plan" title="Plan" defaultOpen active={q.plan !== "all" ? 1 : 0}>
                 <div role="group" aria-label="Plan" style={{ display: "grid", gap: 8 }}>{PLANS.map(([v, l]) => <QuickRow key={v} label={l} on={q.plan === v} onClick={() => set({ plan: v })} />)}</div>
               </FilterGroup>
               <FilterGroup id="category" title="Category" defaultOpen active={q.subs.length}>
