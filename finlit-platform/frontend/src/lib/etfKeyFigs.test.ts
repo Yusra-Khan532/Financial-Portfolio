@@ -50,7 +50,7 @@ describe("Key figures of each view (the README's table)", () => {
     expect(say(cs[0])).toBe("Indian shares: 50%. Gold 24.6%, silver 25%, debt and cash under 1%.");
     expect(cs[0].note).toBe("");
     expect(say(cs[1])).toBe("Financial Services: 11.3% of your list, just ahead of Consumer Discretionary at 11.0%.");
-    expect(say(cs[2])).toBe("Mostly mid-sized companies: 22.8% of your list.");
+    expect(say(cs[2])).toBe("22.8% of your list is in mid-sized companies.");   // task #390 (fault 5): "Mostly" only above 50% of the list
   });
   it("names the metal ETF read without its metal, the reason the money shows as debt (before the server's fix 2)", () => {
     const i = ins(); i.mix = { indian: 50, abroad: 0, gold: 24.6, silver: 0, debt: 25.4 };
@@ -59,7 +59,7 @@ describe("Key figures of each view (the README's table)", () => {
   });
   it("Risk: beta with its window, where the swings come from, how much it swings against the Nifty 500 with the index's window", () => {
     const cs = etfKeyFigures("risk", { d: d(), ins: ins(), rk: rk() });
-    expect(cs.map((c) => say(c))).toEqual(["Beta 0.54: it has moved about 5% when the Nifty 500 moved 10%.", "SILVERBEES: 54% of the swings, from 25% of the list.", "17.0% in a typical year, against 14.4% for the Nifty 500."]);
+    expect(cs.map((c) => say(c))).toEqual(["0.54×: it has moved about 5% when the Nifty 500 moved 10%.", "SILVERBEES: 54% of the swings, from 25% of the list.", "17.0% in a typical year, against 14.4% for the Nifty 500."]);
     expect(cs[0].from).toBe("vs Nifty 500 · weekly · past year");
     expect(cs[0].line).toBe(1);
     expect(cs[2].from).toBe("Nifty 500 14.4% · 3 yrs, daily");

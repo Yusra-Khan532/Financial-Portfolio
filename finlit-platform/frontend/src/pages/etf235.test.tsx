@@ -24,6 +24,7 @@ vi.mock("../lib/etfPortfolio", async (orig) => {
     useEtfRisk: () => ({ data: FX("risk"), isPending: false, isError: false }), useEtfInside: () => ({ data: FX("inside"), isPending: false, isError: false }),
     useEtfWrites: () => ({ add: mut, quantities: mut, preview: mut, commit: mut, clear: mut, undoClear: mut, remove: mut }) };
 });
+globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} } as never;   // the pinned tables (HScroll) measure themselves
 import { EtfPortfolioPage } from "./EtfPortfolio";
 
 afterEach(() => { cleanup(); localStorage.clear(); st.put = []; st.asked = []; });
@@ -42,7 +43,7 @@ describe("ETF accounts, buys and sales (pack C2, C5, C6)", () => {
     const radios = [...document.querySelectorAll(".ptk-plist [role=radio]")];
     expect(radios.map((t) => t.querySelector("b")!.textContent)).toEqual(["All accounts", "Upstox", "Dhan"]);   // largest value first after All accounts
     expect(radios[2].textContent).toBe("DDhan5 ETFs₹8,688+7.3%");   // NIFTYBEES: 30 left of the 270 buy = 8,100; 30 × 289.6; and the four ETFs with no buys yet
-    expect(screen.getByLabelText("ETFs you add or upload go to")).toBeTruthy();
+    expect(screen.getByRole("combobox", { name: "ETFs you add go to" }).closest(".px-addto")).toBeTruthy();   // task #390 (T1): "Add to" in the add row
     fireEvent.click(screen.getByRole("radio", { name: /Upstox/ }));
     expect(st.asked).toContain("upstox");
   });
@@ -71,8 +72,8 @@ describe("ETF accounts, buys and sales (pack C2, C5, C6)", () => {
   it("Sell previews the buys it uses in the account; a change is saved as the whole book", async () => {
     st.book = BOOK;
     await open();
-    fireEvent.click(screen.getByRole("button", { name: "Sell NIFTYBEES" }));
-    const dlg = screen.getByRole("dialog", { name: "Sell NIFTYBEES" });
+    fireEvent.click(screen.getByRole("button", { name: "Record a sale of NIFTYBEES" }));   // task #390 (E1)
+    const dlg = screen.getByRole("dialog", { name: "Record a sale of NIFTYBEES" });
     fireEvent.change(within(dlg).getByLabelText("Quantity of NIFTYBEES sold"), { target: { value: "10" } });
     expect([...dlg.querySelectorAll(".ptk-fifo li")].map((l) => l.textContent)).toEqual(["10 from the buy of 10 Jun 2025 at ₹270.00"]);
     vi.useFakeTimers();

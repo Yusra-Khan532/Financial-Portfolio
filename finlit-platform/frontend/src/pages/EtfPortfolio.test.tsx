@@ -38,6 +38,7 @@ vi.mock("../lib/etfPortfolio", async (orig) => {
     useEtfRisk: () => ({ data: FX("risk"), isPending: false, isError: false }), useEtfInside: () => ({ data: FX("inside"), isPending: false, isError: false }),
     useEtfWrites: () => ({ add: { mutateAsync: st.add, isPending: false }, quantities: mut, preview: mut, commit: mut, clear: { mutateAsync: st.clear, isPending: false }, undoClear: { mutateAsync: st.undo, isPending: false }, remove: { mutateAsync: st.remove, isPending: false } }) };
 });
+globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} } as never;   // the pinned tables (HScroll) measure themselves
 import { EtfPortfolioPage, etfSteps } from "./EtfPortfolio";
 
 beforeEach(() => { st.plan = "gold"; st.user = { id: "u1" }; st.book = null; st.put = []; st.list = FX("list"); st.add.mockClear(); });
@@ -45,7 +46,7 @@ afterEach(() => { cleanup(); localStorage.clear(); });
 const open = async (path = "/etf-portfolio") => {
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false, enabled: false } } })}><MemoryRouter initialEntries={[path]}><EtfPortfolioPage /></MemoryRouter></QueryClientProvider>);
   await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
-  if (!path.includes("view=")) await waitFor(() => expect(document.querySelector("td.x-qty")).toBeTruthy());   // the saved buys are read
+  if (!path.includes("view=") && !/step=(?!all)/.test(path)) await waitFor(() => expect(document.querySelector("td.x-qty")).toBeTruthy());   // the saved buys are read
 };
 const text = (sel: string) => document.querySelector(sel)?.textContent ?? "";
 const row = (sym: string) => screen.getAllByRole("link", { name: sym }).find((a) => a.closest("tbody"))!.closest("tr")!;
@@ -55,14 +56,14 @@ describe("the plan gate", () => {
   it("Basic sees the plan gate, not the list", () => {
     st.plan = "basic";
     render(<QueryClientProvider client={new QueryClient()}><MemoryRouter><EtfPortfolioPage /></MemoryRouter></QueryClientProvider>);
-    expect(document.querySelector(".ptk-views")).toBeNull();
+    expect(document.querySelector(".px-strip")).toBeNull();
     expect(screen.getByText("Track your ETFs")).toBeTruthy();
   });
   it("Silver sees the page with its own plan on the badge", async () => {
     st.plan = "silver";
     await open();
     expect(text(".ptk-plan")).toBe("Silver");
-    expect(document.querySelector(".ptk-views")).toBeTruthy();
+    expect(document.querySelector(".px-strip")).toBeTruthy();
   });
 });
 
@@ -135,57 +136,45 @@ describe("2 Compact top: the money box says what it covers; Your portfolios besi
   });
 });
 
-describe("16 Score and views: What your ETFs cost, then the three views as tabs", () => {
-  it("the cost card lists each ETF's expense ratio; the open view has a check, the others an arrow and Not opened yet", async () => {
+// task #390 (developer file 34, Top 2–5): the dark cost card and the coloured view cards became four calm crowned cards; "You are here" / "Open →"
+describe("16 Score and views: What your ETFs cost, then the three views (task #390: calm cards)", () => {
+  it("the cost card lists each ETF's expense ratio; the open view says You are here, the others Open →", async () => {
     await open();
-    expect(text(".ptk-sline")).toBe("Your ETFs cost 0.50% a year");
-    expect([...document.querySelectorAll(".ptk-sbars li")].map((l) => l.textContent)).toEqual(["GOLDBEES0.81%", "SILVERBEES0.58%", "SMALL2500.33%", "MID150BEES0.28%"]);
-    const tabs = screen.getAllByRole("tab");
-    expect(tabs.map((t) => t.querySelector(".ptk-vk")!.textContent)).toEqual(["Your ETFs", "What's inside", "Risk analytics"]);
-    expect(tabs[0].getAttribute("aria-selected")).toBe("true");
-    expect(tabs[0].querySelector(".ptk-vstate")).toBeTruthy();
-    expect(tabs[1].querySelector(".ptk-vgo")).toBeTruthy();
-    expect(tabs.map((t) => !!t.querySelector(".ptk-vnew"))).toEqual([false, true, true]);
-    expect(tabs[0].querySelector(".ptk-vv")!.textContent).toBe("0.50% a year");
-    expect(tabs[0].querySelector(".ptk-vx")!.textContent).toBe("Average cost of your 4 ETFs; SILVERBEES trades 0.48% below its value");
-    expect(tabs[1].querySelector(".ptk-vv")!.textContent).toBe("About 400 companies");
-    expect(tabs[1].querySelector(".ptk-vx")!.textContent).toBe("Through 2 share ETFs · 4 sizes · 12 macro sectors");
-    expect(tabs[2].querySelector(".ptk-vv")!.textContent).toBe("Lower · β 0.54");
-    expect(tabs[2].querySelector(".ptk-vx")!.textContent).toBe("Swings 17.0% a year; the Nifty 500 14.4%");
-    expect(text(".ptk-vhead")).toBe("Your list, seen three ways1 of 3 opened · What's inside and Risk analytics still to see");
+    expect(text(".px-cost .px-v")).toBe("0.50% a year");
+    expect([...document.querySelectorAll(".px-cb li")].map((l) => l.textContent)).toEqual(["GOLDBEES0.81%", "SILVERBEES0.58%", "SMALL2500.33%", "MID150BEES0.28%"]);
+    expect(text(".px-cost .px-x")).toBe("About ₹500 a year on ₹1 lakh. AMFI, 31 Oct.");
+    const cards = [...document.querySelectorAll("button.px-vw")];
+    expect(cards.map((t) => t.querySelector(".px-k")!.firstChild!.textContent)).toEqual(["Your ETFs", "What's inside", "Risk analytics"]);
+    expect(cards.map((t) => t.querySelector(".px-k em")!.textContent)).toEqual(["You are here", "Open →", "Open →"]);
+    expect(cards.map((t) => t.querySelector(".px-v")!.textContent)).toEqual(["4 ETFs", "About 400 companies", "Lower · moves 0.54×"]);
+    expect(cards.map((t) => t.querySelector(".px-x")!.textContent)).toEqual(["SILVERBEES trades 0.48% below its value", "Through 2 share ETFs · 4 sizes · 12 macro sectors", "Swings 17.0% a year; the Nifty 500 14.4%"]);
+    expect(document.body.textContent).not.toMatch(/seen three ways|Not opened yet|β/);
   });
-  it("a card opens its view from anywhere on it; the views opened are kept per user; a Next view card ends each view", async () => {
+  it("a card opens its view from anywhere on it; a Next view card ends each view", async () => {
     await open();
-    fireEvent.click(screen.getAllByRole("tab")[1].querySelector(".ptk-vx")!);
-    expect(screen.getAllByRole("tab")[1].getAttribute("aria-selected")).toBe("true");
-    expect(text(".ptk-vhead")).toMatch(/2 of 3 opened · Risk analytics still to see$/);
-    expect(JSON.parse(localStorage.getItem("finlit-views-seen:etf-portfolio:u1")!).sort()).toEqual(["etfs", "inside"]);
+    fireEvent.click(document.querySelectorAll("button.px-vw")[1].querySelector(".px-x")!);
+    expect(document.querySelectorAll("button.px-vw")[1].getAttribute("aria-pressed")).toBe("true");
     expect(screen.getByRole("button", { name: /^Next view\s*Risk analytics/ })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /^Next view\s*Risk analytics/ }));
-    expect(text(".ptk-vhead")).toMatch(/All 3 views opened$/);
-    cleanup(); st.user = { id: "u2" };
-    await open();
-    expect(text(".ptk-vhead")).toMatch(/1 of 3 opened/);   // another user on this browser keeps their own
+    expect(document.querySelectorAll("button.px-vw")[2].getAttribute("aria-pressed")).toBe("true");
   });
 });
 
 describe("11 View bar (Bar B)", () => {
-  it("the picker, the views (an orange dot on one not opened yet), All sections, then the open view's numbered steps", async () => {
+  it("the picker, the views, All sections, then the open view's numbered steps (one section per step)", async () => {
     await open();
     const bar = screen.getByRole("navigation", { name: "Views and sections" });
     expect(within(bar).getByRole("button", { name: "Portfolio: All accounts. Switch portfolio" })).toBeTruthy();
-    expect(within(bar).getAllByRole("button", { name: /\(not opened yet\)/ }).map((b) => b.textContent)).toEqual(["What's inside (not opened yet)", "Risk analytics (not opened yet)"]);
-    await waitFor(() => expect([...bar.querySelectorAll(".eqt-chip")].map((c) => c.textContent)).toEqual(["1Your ETFs", "2Key figures", "3What changed2 new", "4In short"]));
+    expect(within(bar).queryAllByRole("button", { name: /\(not opened yet\)/ })).toHaveLength(0);
+    await waitFor(() => expect([...bar.querySelectorAll(".eqt-chip")].map((c) => c.textContent)).toEqual(["1Your ETFs", "2What changed2 new", "3In short"]));
     fireEvent.click(within(bar).getByRole("button", { name: "All sections" }));
-    const menu = screen.getByRole("menu", { name: "All sections" });
-    expect([...menu.querySelectorAll(".ptk-pop-k")].map((p) => p.textContent)).toEqual(["Your ETFs", "What's inside", "Risk analytics"]);
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(screen.queryByRole("menu", { name: "All sections" })).toBeNull();
+    expect(within(bar).getByRole("button", { name: "All sections" }).getAttribute("aria-pressed")).toBe("true");
   });
-  it("each view has its steps; Key figures and In short in every view", () => {
+  it("each view has its steps; Key figures sit in step 1; In short in every view", () => {
     const s = etfSteps(0);
-    expect(s.inside.steps.map((x) => x.label)).toEqual(["What they own", "Key figures", "Money in", "Sectors in each", "Move together", "Shared stocks", "Company sizes", "Largest stocks", "In short"]);
-    expect(s.risk.steps.map((x) => x.label)).toEqual(["At a glance", "Key figures", "Beta build", "Against the Nifty 500", "If the market fell", "Risk share", "Each ETF", "In short"]);
+    expect(s.etfs.steps.map((x) => x.label)).toEqual(["Your ETFs", "What changed", "In short"]);
+    expect(s.inside.steps.map((x) => x.label)).toEqual(["What they own", "Money in", "Sectors in each", "Move together", "Shared stocks", "Company sizes", "Largest stocks", "In short"]);
+    expect(s.risk.steps.map((x) => x.label)).toEqual(["At a glance", "Beta build", "Against the Nifty 500", "If the market fell", "Risk share", "Each ETF", "In short"]);
   });
 });
 
@@ -225,14 +214,14 @@ describe("8 ETF column and Tracks · type; 3 Edit | Sell", () => {
     const heads = [...document.querySelectorAll("table.x-grp thead tr:last-child th")].map((t) => t.textContent!.replace(/[▲▼]/g, "").trim());
     expect(heads.slice(0, 3)).toEqual(["ETF", "Tracks · type", "Qty"]);
     const mid = row("MID150BEES");
-    expect(mid.querySelector("th")!.textContent).toBe("MID150BEESNippon India ETF Nifty Midcap 150INF204KB1V68Edit|Sell");
+    expect(mid.querySelector("th")!.textContent).toBe("MID150BEESNippon India ETF Nifty Midcap 150INF204KB1V68Edit|Record a sale");   // task #390 (E1)
     expect(mid.querySelector(".etp-tracks")!.textContent).toBe("Nifty Midcap 150Indian shares");
     expect(row("GOLDBEES").querySelector(".etp-tracks")!.textContent).toBe("GoldCommodity");
     expect(screen.queryByRole("button", { name: /^Remove / })).toBeNull();
   });
   it("Sell is greyed out with no quantity; Edit lists the buys with + Add a buy and Remove from this portfolio", async () => {
     await open();
-    const sell = screen.getByRole("button", { name: "Sell GOLDBEES: add a buy first" });
+    const sell = screen.getByRole("button", { name: "Record a sale of GOLDBEES: add a buy first" });
     expect(sell.getAttribute("aria-disabled")).toBe("true");
     fireEvent.click(sell);
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -248,7 +237,7 @@ describe("8 ETF column and Tracks · type; 3 Edit | Sell", () => {
     await act(async () => { vi.advanceTimersByTime(1000); });
     vi.useRealTimers();
     expect((st.put.at(-1) as { lots: { symbol: string; qty: number; price: number }[] }).lots).toEqual([expect.objectContaining({ symbol: "GOLDBEES", qty: 50, price: 80 })]);
-    await waitFor(() => expect(screen.getByRole("button", { name: "Sell GOLDBEES" }).getAttribute("aria-disabled")).toBe("false"));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Record a sale of GOLDBEES" }).getAttribute("aria-disabled")).toBe("false"));
     fireEvent.click(screen.getByRole("button", { name: "Edit GOLDBEES" }));
     fireEvent.click(screen.getByRole("button", { name: "Remove from this portfolio" }));
     fireEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Remove" }));
@@ -257,10 +246,10 @@ describe("8 ETF column and Tracks · type; 3 Edit | Sell", () => {
   it("Sell previews which buys it uses, first in, first out, with the booked gain", async () => {
     st.book = { portfolios: [], names: [], lots: [L("b1", "MID150BEES", "main", "2025-01-10", 10, 200), L("b2", "MID150BEES", "main", "2025-06-10", 10, 220)] };
     await open();
-    fireEvent.click(screen.getByRole("button", { name: "Sell MID150BEES" }));
-    const dlg = screen.getByRole("dialog", { name: "Sell MID150BEES" });
+    fireEvent.click(screen.getByRole("button", { name: "Record a sale of MID150BEES" }));
+    const dlg = screen.getByRole("dialog", { name: "Record a sale of MID150BEES" });
     fireEvent.change(within(dlg).getByLabelText("Quantity of MID150BEES sold"), { target: { value: "15" } });
-    fireEvent.change(within(dlg).getByLabelText("Sell price of MID150BEES"), { target: { value: "240" } });
+    fireEvent.change(within(dlg).getByLabelText("price at the sale of MID150BEES"), { target: { value: "240" } });
     expect([...dlg.querySelectorAll(".ptk-fifo li")].map((l) => l.textContent)).toEqual(["10 from the buy of 10 Jan 2025 at ₹200.00", "5 from the buy of 10 Jun 2025 at ₹220.00"]);
     expect(dlg.querySelector(".ptk-fifo")!.textContent).toMatch(/Booked gain or loss: \+₹500 on a cost of ₹3,100\./);
     fireEvent.change(within(dlg).getByLabelText("Quantity of MID150BEES sold"), { target: { value: "25" } });
@@ -269,14 +258,16 @@ describe("8 ETF column and Tracks · type; 3 Edit | Sell", () => {
 });
 
 describe("9 Key figures under the main section of each view; 5 company chips", () => {
-  const kf = () => [...document.querySelectorAll(".ptk-kf-c")].map((c) => `${c.querySelector(".ptk-kf-k")!.textContent}: ${c.querySelector(".ptk-kf-s")!.textContent}`);
+  // task #390 (E6, K1–K10): each card asks a question and answers with one big figure and its line
+  const kf = () => [...document.querySelectorAll(".ptk-kf-c")].map((c) => `${c.querySelector(".ptk-kf-q .t")!.textContent} ${c.querySelector(".ptk-kf-big > b")!.textContent} ${c.querySelector(".ptk-kf-big strong")!.textContent}`);
   it("Your ETFs: cost, price against value (labelled by sign), the past year; each card with a bar, what it rests on and a link", async () => {
     await open();
-    expect(kf()).toEqual(["What they cost: 0.50% a year on average: about ₹500 on ₹1 lakh.", "Furthest below its value: SILVERBEES traded 0.48% below its value on 19 Nov, the furthest of the four.",
-      "The past year: +3.10% on average over the past year, price only."]);
+    expect(kf()).toEqual(["What do your ETFs cost a year? 0.50% a year on average: about ₹500 on ₹1 lakh", "Which ETF trades furthest from its value? 0.48% SILVERBEES traded below its value on 19 Nov, the furthest of the four",
+      "How did they do over the past year? +3.10% on average over the past year, price only"]);
     const cards = [...document.querySelectorAll(".ptk-kf-c")];
     expect(cards.map((c) => c.querySelector(".ptk-kf-go")!.textContent)).toEqual(["Sort by cost →", "Open the Trading columns →", "Sort by 1 year →"]);
-    expect(cards[0].querySelector(".ptk-kf-f")!.textContent).toBe("From: AMFI's TER file of 31 Oct 2026");
+    expect(cards[0].querySelector(".ptk-kf-f")).toBeNull();   // the method line sits behind the card's i (E6b)
+    expect(cards.map((c) => c.querySelector(".ptk-kf-q .sp-i")!.getAttribute("aria-label"))).toEqual(["About “What do your ETFs cost a year?”", "About “Which ETF trades furthest from its value?”", "About “How did they do over the past year?”"]);
     expect(cards[1].querySelectorAll(".ptk-kf-rows li")).toHaveLength(4);
     fireEvent.click(cards[0].querySelector(".ptk-kf-go")!);
     expect([...document.querySelectorAll("tbody .mfp-fund")].map((a) => a.textContent)[0]).toBe("GOLDBEES");   // sorted by cost, highest first
@@ -285,9 +276,9 @@ describe("9 Key figures under the main section of each view; 5 company chips", (
     await act(async () => { await new Promise((r) => setTimeout(r, 120)); });   // the link's jump to the table runs after a short pause
   });
   it("What's inside: silver shows as silver (fix 2) in the key figure and in What your money is in; company chips open the company report", async () => {
-    await open("/etf-portfolio?view=inside");
-    expect(kf()).toEqual(["Where the money is: Indian shares: 50%. Gold 24.6%, silver 25%, debt and cash under 1%.", "Largest sector underneath: Financial Services: 11.3% of your list, just ahead of Consumer Discretionary at 11.0%.",
-      "Company sizes underneath: Mostly mid-sized companies: 22.8% of your list."]);
+    await open("/etf-portfolio?view=inside&step=all");
+    expect(kf()).toEqual(["What does your money hold? 50% Indian shares. Gold 24.6%, silver 25%, debt and cash under 1%", "Where is most of your money underneath? 11.3% of your list is in Financial Services, just ahead of Consumer Discretionary at 11.0%",
+      "How big are the companies underneath? 22.8% of your list is in mid-sized companies"]);
     expect([...document.querySelectorAll(".ptk-kf-leg")][0].textContent).toBe("Indian shares 50%Gold 24.6%Silver 25%Debt and cash 0.4%");
     expect(text(".etp-keys")).toMatch(/Silver 25%/);
     expect(text(".etp-keys")).not.toMatch(/Overnight lending and debt 2\d%/);
@@ -297,14 +288,14 @@ describe("9 Key figures under the main section of each view; 5 company chips", (
   });
   it("Risk: beta with its window, where the swings come from, how much it swings with the index's window", async () => {
     await open("/etf-portfolio?view=risk");
-    expect(kf()).toEqual(["How it moves with the market: Beta 0.54: it has moved about 5% when the Nifty 500 moved 10%.", "Where the swings come from: SILVERBEES: 54% of the swings, from 25% of the list.",
-      "How much it swings: 17.0% in a typical year, against 14.4% for the Nifty 500."]);
-    expect([...document.querySelectorAll(".ptk-kf-f")].map((f) => f.textContent)).toEqual(["From: vs Nifty 500 · weekly · past year", "From: Weekly prices, past year", "From: Nifty 500 14.4% · 3 yrs, daily"]);
+    expect(kf()).toEqual(["How much does your list move with the market? 0.54× it has moved about 5% when the Nifty 500 moved 10%", "Which ETF brings the most swing? 54% of the swings come from SILVERBEES, 25% of the list",
+      "How much does it swing in a year? 17.0% in a typical year, against 14.4% for the Nifty 500"]);
+    expect(document.querySelectorAll(".ptk-kf-f")).toHaveLength(0);
   });
   it("a Key figures card with nothing to say is skipped, and the section hides to a slim card with Hidden · its subtitle and Show ▾", async () => {
     const l = FX("list") as { items: { premium: number | null }[] }; l.items.forEach((e) => { e.premium = null; }); st.list = l;
     await open();
-    expect(kf().map((k) => k.split(":")[0])).toEqual(["What they cost", "The past year"]);
+    expect(kf().map((k) => k.split("?")[0])).toEqual(["What do your ETFs cost a year", "How did they do over the past year"]);
     fireEvent.click(screen.getByRole("button", { name: "Hide: Key figures" }));
     const slim = document.querySelector(".ptk-hz")!;
     expect(slim.textContent).toBe("Key figuresHidden · What your 4 ETFs add up to, from the table above and the sections below.Show ▾");
@@ -315,21 +306,24 @@ describe("9 Key figures under the main section of each view; 5 company chips", (
 
 describe("19 What changed at the companies inside your ETFs", () => {
   it("lists the two order wins with their ETF and weight; Details opens Discover; Alert me opens the form", async () => {
-    await open();
+    await open("/etf-portfolio?step=wc");
     const sec = await waitFor(() => { const s = document.getElementById("what-changed"); expect(s?.querySelector(".wc-rows")).toBeTruthy(); return s!; });
-    expect(sec.querySelector("h2")!.textContent).toBe("What changed at the companies inside your ETFs");
+    expect(sec.querySelector("h2")!.firstChild!.textContent).toBe("What changed at the companies inside your ETFs");
     expect(sec.querySelector(".wp-sub")!.textContent).toBe("From Discover: companies that make up 0.3% or more of your ETFs and filed one of these in the last 90 days. GOLDBEES and SILVERBEES hold no companies.");
     expect(sec.querySelector(".wc-ln")!.textContent).toMatch(/^Inside your ETFs · \d+ companies$/);
     const tile = within(sec).getByRole("button", { name: /Order wins/ });
-    expect(tile.textContent).toBe("Order wins2");
+    expect(tile.textContent).toBe("Order wins2updates");   // task #390 (E7a): the count says what it counts
+    expect(sec.textContent).toMatch(/An update is one kind of news from one company\. Some bundle several filings; the row then says how many\./);
     const rows = [...sec.querySelectorAll(".wc-rows li")].slice(0, 2);
     expect(rows.map((r) => r.querySelector(".wc-cow")!.textContent)).toEqual(["Welspun Corp0.36% of your ETFs · SMALL250", "GE Vernova T&D India0.33% of your ETFs · MID150BEES"]);
-    expect(rows.map((r) => r.querySelector(".wc-k")!.textContent)).toEqual(["Order win × 3", "Order win"]);
+    expect(rows.map((r) => r.querySelector(".wc-k")!.textContent)).toEqual(["Order win · 3 filings", "Order win"]);   // E8a
     expect(rows.map((r) => r.querySelector(".wc-t")!.textContent!.replace(/New$/, ""))).toEqual(["3 order wins in 90 days · the subjects are in Discover", "1 order win in 90 days · the subjects are in Discover"]);
     expect(within(rows[0] as HTMLElement).getByRole("link", { name: "Details in Discover ↗" }).getAttribute("href")).toBe("/discover/changes/order?q=Welspun%20Corp");
     expect(within(rows[1] as HTMLElement).getByRole("link", { name: "Details in Discover ↗" }).getAttribute("href")).toBe("/discover/changes/order?q=GE%20Vernova%20T%26D%20India");
     expect(sec.querySelector(".wc-st")!.textContent).toBe("2 new since your last visit on 12 Nov");
-    expect(sec.querySelector(".wc-note")!.textContent).toMatch(/^MID150BEES and SMALL250 hold about 400 companies between them; smaller holdings than 0\.3% of your ETFs are left out here/);
+    expect(sec.querySelector("details summary")!.textContent).toMatch(/^Not in Discover yet · 2/);   // E10: a closed list
+    expect((sec.querySelector("details") as HTMLDetailsElement).open).toBe(false);
+    expect([...sec.querySelectorAll(".wc-note")].at(-1)!.textContent).toMatch(/^MID150BEES and SMALL250 hold about 400 companies between them; smaller holdings than 0\.3% of your ETFs are left out here/);
     fireEvent.click(within(sec).getByRole("button", { name: "Alert me" }));
     expect(within(sec).getByRole("form", { name: "Tell me when a company in the companies inside your ETFs files" })).toBeTruthy();
   });
@@ -337,7 +331,7 @@ describe("19 What changed at the companies inside your ETFs", () => {
 
 describe("Risk: the window of every beta and index figure (fixes 4, 5) and the level sentence (fix 3)", () => {
   it("prints 'vs Nifty 500 · weekly · past year' under each beta and the index's window beside its swing", async () => {
-    await open("/etf-portfolio?view=risk");
+    await open("/etf-portfolio?view=risk&step=all");
     expect(text(".etp-level")).toBe("A little higher than the Nifty 500, because three of your four ETFs swing more than it.");
     expect(document.querySelector(".eqr-tiles")!.textContent).toMatch(/Nifty 500: 14\.4% \(3 yrs, daily\)/);
     const each = document.querySelector(".eqr-each")!;
@@ -353,7 +347,7 @@ describe("Risk: the window of every beta and index figure (fixes 4, 5) and the l
 
 describe("the end of the page", () => {
   it("ends with What this means in short, the questions, the disclaimer and the sources line", async () => {
-    await open();
+    await open("/etf-portfolio?step=all");
     expect(screen.getByText("What this means, in short")).toBeTruthy();
     expect(screen.getByText("Why is the beta against the Nifty 500 and not each ETF's own index?")).toBeTruthy();
     expect(screen.getAllByText("Disclaimer").length).toBeGreaterThan(0);

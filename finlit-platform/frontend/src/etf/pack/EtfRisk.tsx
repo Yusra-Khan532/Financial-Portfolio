@@ -12,6 +12,8 @@ import { RANGE_EDGES, RANGE_SUB, type RangeKey } from "../../lib/eqRisk";
 import type { Card } from "../../lib/pulsePack";
 import type { Band, EtfPortfolio, EtfRisk, Inside } from "../../lib/etfPortfolio";
 import { live } from "../../lib/etfTop";
+import { andList } from "../../portfolio/shared/words";
+import { Step } from "../../portfolio/pack/EqSteps385";
 import { benchText, benchWindow, betaWindowText, swingCheck } from "../../lib/etfKeyFigs";
 import type { ReactNode } from "react";
 import "../../portfolio/pack/risk-pack.css";
@@ -102,7 +104,7 @@ export function BuildSection({ rk, d }: P) {
   const ranges = RANGE_EDGES.map(([k, lo, hi]) => ({ key: k, lo, hi, who: compared.filter((e) => e.band?.key === k) }));
   const fig = [{ k: "beta of your list against the Nifty 500", v: b2(o?.betaOwn) }, { k: "its usual move when the Nifty 500 moves 10%", v: o?.betaOwn != null ? `about ${(o.betaOwn * 10).toFixed(1)}%` : "–" },
     { k: `average of the ${num(ind.length)} Indian share ${ind.length === 1 ? "ETF" : "ETFs"}`, v: b2(o?.betaIndian) },
-    { k: `ETFs the Nifty 500 explains little of${little.length ? `: ${little.map((e) => e.type?.word.toLowerCase() ?? e.symbol).join(" and ")}` : ""}`, v: `${little.length} of ${compared.length}` }];
+    { k: `ETFs the Nifty 500 explains little of${little.length ? `: ${andList(little.map((e) => e.type?.word.toLowerCase() ?? e.symbol))}` : ""}`, v: `${little.length} of ${compared.length}` }];
   const steps: [string, string][] = [["Sort by type", groups.map((g) => g.word.toLowerCase()).join(", ").replace(/^./, (c) => c.toUpperCase())], ["One benchmark", "The Nifty 500 for every ETF"], ["Beta for each ETF", "Weekly prices, one year"], ["Average by type", "One beta for each type"], ["Weight by the list", "By count now; by money once quantities are in"]];
   const cards: Card[] = [];
   const calmBig = rk.etfs.filter((e) => e.differentAsset && e.swing != null && e.betaPast != null && e.betaPast < 0.3 && e.swing > 10)[0];
@@ -174,8 +176,8 @@ export function RiskShareSection({ rk }: { rk: EtfRisk }) {
   const max = Math.max(1, ...rows.flatMap((r) => [r.list, r.risk]));
   const over = rows.filter((r) => shaded(r.list, r.risk)), calm = rows.filter((r) => r.list > 0 && r.risk < r.list * 0.8 && r.risk > 0.5);
   const cards: Card[] = [];
-  if (over.length) cards.push({ kind: "watch", title: `${over.map((r) => r.k).join(" and ")} ${over.length === 1 ? "carries" : "carry"} more than ${over.length === 1 ? "its" : "their"} share`, text: over.map((r) => `${r.k}: ${Math.round(r.list)}% of the list, ${r.risk.toFixed(1)}% of the swings`).join("; ") + "." });
-  if (calm.length) cards.push({ kind: "good", title: `${calm.map((r) => r.k).join(" and ")} ${calm.length === 1 ? "carries" : "carry"} less than ${calm.length === 1 ? "its" : "their"} share`, text: calm.map((r) => `${r.k}: ${Math.round(r.list)}% of the list, ${r.risk.toFixed(1)}% of the swings`).join("; ") + "." });
+  if (over.length) cards.push({ kind: "watch", title: `${andList(over.map((r) => r.k))} ${over.length === 1 ? "carries" : "carry"} more than ${over.length === 1 ? "its" : "their"} share`, text: over.map((r) => `${r.k}: ${Math.round(r.list)}% of the list, ${r.risk.toFixed(1)}% of the swings`).join("; ") + "." });
+  if (calm.length) cards.push({ kind: "good", title: `${andList(calm.map((r) => r.k))} ${calm.length === 1 ? "carries" : "carry"} less than ${calm.length === 1 ? "its" : "their"} share`, text: calm.map((r) => `${r.k}: ${Math.round(r.list)}% of the list, ${r.risk.toFixed(1)}% of the swings`).join("; ") + "." });
   return (
     <Section id="etp-share" hide title="Share of the list vs share of the risk" help="Each ETF's share of the list beside its share of the list's weekly ups and downs over the past year. The risk shares add to 100%." how="Grey: share of the list. Colour: share of the risk. A shaded row carries clearly more of the risk than of the list."
       sub="Grey: share of the list. Colour: share of the list's ups and downs. Shaded rows carry more of the swings than their size.">
@@ -201,7 +203,7 @@ export function FallSection({ rk, value }: { rk: EtfRisk; value?: { now: number;
       ...(ind > 0 ? [{ label: "Indian share ETFs only", beta: o?.betaIndian ?? null, src: `The Indian share ETFs' average beta ${b2(o?.betaIndian)}`, parts: false }] : [])]}
     market={{ label: "Nifty 500", sub: "the index" }} list={{ label: "Your ETFs", sub: rk.basis === "value" ? "by value" : "each counts the same" }}
     parts={rk.etfs.filter((e) => e.betaPast != null && e.compared !== false && !out.has(e.symbol)).map((e) => ({ label: e.symbol, beta: e.betaPast as number, sub: `${Math.round(e.weight)}% of the list` }))}
-    extraNote={[metal ? "Gold and silver ETFs do not follow the index closely, so their bars say little." : "", out.size ? `${[...out].join(" and ")} ${out.size === 1 ? "is" : "are"} left out: the Nifty 500 explains too little of ${out.size === 1 ? "its" : "their"} moves to size a fall.` : ""].filter(Boolean).join(" ")}
+    extraNote={[metal ? "Gold and silver ETFs do not follow the index closely, so their bars say little." : "", out.size ? `${andList([...out])} ${out.size === 1 ? "is" : "are"} left out: the Nifty 500 explains too little of ${out.size === 1 ? "its" : "their"} moves to size a fall.` : ""].filter(Boolean).join(" ")}
     after={<Insights items={items} scope="etf.fall" />} />;
 }
 
@@ -231,6 +233,15 @@ export function EachEtfSection({ rk, d, ins }: P) {
   );
 }
 
+/** Task #390 PR A (developer file 34, Section bar, Update 25 Nov row 1): one section per step (portfolio/pack/EqSteps385 Step); Key figures sit in step 1
+ *  after At a glance; on a phone with All sections on, every step after the first folds to its heading and its own first line. */
 export function RiskTab({ rk, d, ins, value, kf }: P & { kf?: ReactNode }) {
-  return <><GlanceSection rk={rk} />{kf}<BuildSection rk={rk} d={d} /><N500Section rk={rk} d={d} /><FallSection rk={rk} value={value} /><RiskShareSection rk={rk} /><EachEtfSection rk={rk} d={d} ins={ins} /></>;
+  return <>
+    <Step id="etp-glance" title="Risk at a glance" line=""><GlanceSection rk={rk} />{kf}</Step>
+    <Step id="etp-build" title="How your list's beta is built" line=""><BuildSection rk={rk} d={d} /></Step>
+    <Step id="etp-n500" title="Each ETF against the Nifty 500" line=""><N500Section rk={rk} d={d} /></Step>
+    <Step id="etp-fall" title="If the Nifty 500 fell 10%" line=""><FallSection rk={rk} value={value} /></Step>
+    <Step id="etp-share" title="Share of the list vs share of the risk" line=""><RiskShareSection rk={rk} /></Step>
+    <Step id="etp-each" title="Each ETF's risk" line=""><EachEtfSection rk={rk} d={d} ins={ins} /></Step>
+  </>;
 }

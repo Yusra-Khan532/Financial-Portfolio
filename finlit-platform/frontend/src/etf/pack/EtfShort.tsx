@@ -2,6 +2,7 @@
 // Describes; never advice.
 import type { EtfPortfolio, EtfRisk, Inside } from "../../lib/etfPortfolio";
 import { furthest, live } from "../../lib/etfTop";
+import { andList } from "../../portfolio/shared/words";
 
 const num = (n: number) => ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"][n] ?? String(n);
 /** The four lines. Exported for tests. */
@@ -11,17 +12,17 @@ export function shortLines(d: EtfPortfolio | undefined, ins: Inside | undefined,
   const xs = live(d);
   if (ins) {
     const miss = ins.files.filter((f) => f.why).map((f) => f.symbol), noTer = xs.filter((e) => e.ter?.value == null).map((e) => e.symbol);
-    out.push(["Data", [miss.length ? `${miss.join("'s and ")}'s monthly ${miss.length === 1 ? "file is" : "files are"} not loaded yet. ${miss.length === 1 ? "Its price is" : "Their prices are"} used for the risk figures.` : "Every ETF's monthly file is loaded.",
-      noTer.length ? `No expense ratio is published for ${noTer.join(" and ")} in AMFI's file.` : "Expense ratios are AMFI's."].join(" ")]);
+    out.push(["Data", [miss.length ? `${andList(miss.map((m) => `${m}'s`))} monthly ${miss.length === 1 ? "file is" : "files are"} not loaded yet. ${miss.length === 1 ? "Its price is" : "Their prices are"} used for the risk figures.` : "Every ETF's monthly file is loaded.",
+      noTer.length ? `No expense ratio is published for ${andList(noTer)} in AMFI's file.` : "Expense ratios are AMFI's."].join(" ")]);
   }
   for (const r of d.repeats) {
     const p = ins?.overlap.pairs.find((x) => r.symbols.includes(x.a) && r.symbols.includes(x.b)), share = xs.filter((e) => r.symbols.includes(e.symbol)).reduce((a, e) => a + (e.weight ?? 0), 0);
-    out.push(["Same index", `${r.symbols.join(" and ")} hold the same ${p?.n ?? ""} companies${p ? ` (${p.pct.toFixed(1)}% overlap)` : ""}; together they are ${Math.round(share)}% of the list.`.replace("same  companies", "same companies")]);
+    out.push(["Same index", `${andList(r.symbols)} hold the same ${p?.n ?? ""} companies${p ? ` (${p.pct.toFixed(1)}% overlap)` : ""}; together they are ${Math.round(share)}% of the list.`.replace("same  companies", "same companies")]);
   }
   const f = furthest(d);
   if (f.far && Math.abs(f.far.premium as number) >= 1) out.push(["Price against value", `${f.far.symbol} closed ${Math.abs(f.far.premium as number).toFixed(1)}% ${(f.far.premium as number) > 0 ? "above" : "below"} its last NAV. ${f.near === f.others ? `The other ${num(f.others)} were within 0.2%.` : `${f.near} of the other ${num(f.others)} were within 0.2%.`}`]);
   const o = rk?.own?.list, ind = xs.filter((e) => e.type?.key === "indian").length, calm = [...new Set(xs.filter((e) => e.type?.key !== "indian").map((e) => e.type?.key === "liquid" ? "the liquid ETF" : e.type?.word.toLowerCase()))];
-  if (o?.betaOwn != null) out.push(["Risk", `${ind ? `The ${num(ind)} Indian share ${ind === 1 ? "ETF moves" : "ETFs move"} ${(o.betaIndian ?? 0) >= 0.9 ? "almost as one with the market" : "less than the market"}. ` : ""}${calm.length ? `${calm.join(", ").replace(/, ([^,]*)$/, " and $1").replace(/^./, (c) => c.toUpperCase())} bring the list's beta down to ${o.betaOwn.toFixed(2)}.` : `The list's beta is ${o.betaOwn.toFixed(2)}.`}`]);
+  if (o?.betaOwn != null) out.push(["Risk", `${ind ? `The ${num(ind)} Indian share ${ind === 1 ? "ETF moves" : "ETFs move"} ${(o.betaIndian ?? 0) >= 0.9 ? "almost as one with the market" : "less than the market"}. ` : ""}${calm.length ? `${andList(calm as string[]).replace(/^./, (c) => c.toUpperCase())} bring the list's beta down to ${o.betaOwn.toFixed(2)}.` : `The list's beta is ${o.betaOwn.toFixed(2)}.`}`]);
   return out;
 }
 
