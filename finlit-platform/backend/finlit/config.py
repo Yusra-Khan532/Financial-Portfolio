@@ -109,6 +109,9 @@ class Settings:
     auto_verify_email: bool = field(default_factory=lambda: os.getenv("AUTO_VERIFY_EMAIL", "").lower() in ("1", "true", "yes"))
     mail_mode: str = field(default_factory=lambda: os.getenv("MAIL_MODE", "console"))
     resend_api_key: str = field(default_factory=lambda: os.getenv("RESEND_API_KEY", ""))
+    # Logo.dev's PUBLISHABLE key (pk_..., made to sit in a web page; owner's decision of 25 Nov 2026): the logo of a company whose own website gave
+    # none is drawn from img.logo.dev by its NSE/BSE ticker. Empty = off (initials tiles). Set it in /opt/finlit/.env.aws, never in code.
+    logo_dev_key: str = field(default_factory=lambda: os.getenv("LOGO_DEV_PUBLISHABLE_KEY", "").strip())
     mail_from: str = field(default_factory=lambda: os.getenv("MAIL_FROM", "FinLit <hello@finlitventures.com>"))
     # Where each query raised on a page is emailed (finlit/page_feedback.py): the team's mailbox, chosen by the founder. FEEDBACK_NOTIFY_EMAIL changes it; set it to "-" to switch the email off.
     # Every query and every piece of feedback is stored either way and read at /admin/feedback.

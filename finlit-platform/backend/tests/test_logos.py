@@ -275,3 +275,23 @@ async def test_the_hand_set_logo_route_accepts_a_128_kb_image_as_base64_and_noth
     assert (await c.post("/api/logos/admin/manual", content=body)).status_code == 413                       # no session: the small cap
     assert (await c.post("/api/contact", content=body, headers=cookie)).status_code == 413                   # other routes keep 64 KB
     assert (await c.post("/api/logos/admin/manual", content=b"x" * (MAX_LOGO_BODY + 1), headers=cookie)).status_code == 413
+
+
+def test_only_a_publishable_logo_dev_key_reaches_the_page():
+    from finlit.search import logo_cdn_key
+    assert logo_cdn_key("pk_AbC123_x-y") == "pk_AbC123_x-y"
+    assert logo_cdn_key("  pk_AbC123  ") == "pk_AbC123"
+    for bad in ("", "sk_secret123", "pk_", "pk_bad key", "pk_" + "a" * 100, "token"):
+        assert logo_cdn_key(bad) is None
+
+
+def test_a_small_favicon_gives_way_to_the_sharp_cdn_logo_only_when_a_key_is_set():
+    """Owner, 25 Nov 2026: blurry logos. A 16-48px favicon is dropped for Logo.dev's 128px image when the key is on; a hand-set logo always stays."""
+    from finlit.search import quote_rows
+    base = {"sp": 10.0, "sc": 1.0, "su": None, "qp": None, "qc": None, "qt": None, "sha8": "e49a9b94449af6e2"}
+    rows = [{**base, "symbol": "SMALL", "lw": 32, "lh": 32, "ls": "ok"}, {**base, "symbol": "BIG", "lw": 180, "lh": 180, "ls": "ok"},
+            {**base, "symbol": "HAND", "lw": 40, "lh": 40, "ls": "manual"}, {**base, "symbol": "OLD"}]
+    on = {r[0]: r[6] for r in quote_rows(rows, "basic", set(), cdn=True)}
+    off = {r[0]: r[6] for r in quote_rows(rows, "basic", set())}
+    assert on["SMALL"] is None and on["BIG"] and on["HAND"] and on["OLD"]
+    assert all(off.values())   # without a key nothing is dropped (a small logo beats the initials tile)

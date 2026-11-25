@@ -39,7 +39,7 @@ CACHE = "private, no-cache"
 
 QUOTES_SQL = """
 SELECT c.symbol, s.price AS sp, s.change_pct AS sc, s.updated_at AS su,
-       q.price AS qp, q.change_pct AS qc, coalesce(q.traded_at, q.updated_at) AS qt, g.sha8
+       q.price AS qp, q.change_pct AS qc, coalesce(q.traded_at, q.updated_at) AS qt, g.sha8, g.width AS lw, g.height AS lh, g.status AS ls
 FROM companies c
 LEFT JOIN LATERAL (SELECT price, change_pct, updated_at FROM scores
                    WHERE symbol = c.symbol AND model = 'v1' ORDER BY (statement = 'consolidated') DESC, updated_at DESC LIMIT 1) s ON true
@@ -48,7 +48,7 @@ LEFT JOIN logos g ON g.owner_kind = 'stock' AND g.owner_key = c.symbol AND g.sta
 """
 # The rows behind both levels, kept in Redis: a rebuild reads only the companies whose score or listing row changed since the last one (about 5,800 rows
 # of ~80 bytes is half a megabyte, and the minute-by-minute prices would otherwise make every two-minute rebuild read all of it).
-RAW_KEY = "search-quotes:raw"
+RAW_KEY = "search-quotes:raw:v2"   # v2 (25 Nov 2026): rows carry the logo's size and status
 FULL_EVERY = 6 * 3600     # all rows again (also catches companies that left or joined and a changed logo)
 MARGIN = 120
 PROBE_SQL = ("SELECT (SELECT count(*) FROM scores WHERE model = 'v1') AS sn, (SELECT max(changed_at) FROM scores WHERE model = 'v1') AS sa, "
@@ -69,7 +69,19 @@ def session_of(at: datetime) -> date:
     return d
 
 
-def quote_rows(rows, level: str, showcase: set) -> list:
+SHARP_PX = 96   # owner, 25 Nov 2026: logos looked blurry. A company header draws a logo at about 56px (112 real pixels on a phone); a 16-48px favicon
+               # blown up to that is a blur. With a Logo.dev key set, such a small icon is left out and the page draws Logo.dev's 128px image instead.
+
+
+def sharp_logo(r) -> Optional[str]:
+    """Our own logo's path, unless a Logo.dev key is on and it is a small favicon (a hand-set logo is always kept)."""
+    path = logo_path(r.get("sha8"))
+    if path and r.get("_cdn") and r.get("ls") != "manual" and r.get("lw") and r.get("lh") and min(r["lw"], r["lh"]) < SHARP_PX:
+        return None
+    return path
+
+
+def quote_rows(rows, level: str, showcase: set, cdn: bool = False) -> list:
     """The compact rows above. The score and band positions are always null: they held the retired FinLit IQ (task #283 PR C)."""
     out = []
     for r in rows:
@@ -78,7 +90,7 @@ def quote_rows(rows, level: str, showcase: set) -> list:
         use_report = r["sp"] is not None and (r["qp"] is None or r["qt"] is None or (r["su"] is not None and session_of(r["su"]) > r["qt"].astimezone(IST).date()))
         price, chg, at = (r["sp"], r["sc"], r["su"]) if use_report else (r["qp"], r["qc"], r["qt"])
         score, band = None, None
-        logo = logo_path(r["sha8"])
+        logo = sharp_logo({**r, "_cdn": cdn}) if cdn else logo_path(r["sha8"])
         if price is None and logo is None:
             continue                                   # nothing to add to the name list
         when = None if not at or price is None else (session_of(at) if use_report else at.astimezone(IST).date())   # a score row's time is when it was written, not when it traded
@@ -155,13 +167,20 @@ def with_latest(rows: list, latest: dict) -> list:
     return rows
 
 
+def logo_cdn_key(key: str) -> Optional[str]:
+    """Only a Logo.dev PUBLISHABLE key goes to the page; a secret key (sk_...) or anything else is never sent."""
+    key = (key or "").strip()
+    return key if key.startswith("pk_") and key[3:].replace("_", "").replace("-", "").isalnum() and len(key) <= 80 else None
+
+
 async def build(app, level: str):
     store = app.state.store
     rows = [_hydrate(r) for r in await _raw_rows(store)]
     amc = await amc_logos(store)
     body = dumps({"fields": ["symbol", "price", "changePct", "priceDate", "score", "band", "logo"],
-                  "rows": with_latest(quote_rows(rows, level, set(app.state.settings.showcase_symbols)), await livequote.read(store.redis)),
+                  "rows": with_latest(quote_rows(rows, level, set(app.state.settings.showcase_symbols), cdn=bool(logo_cdn_key(app.state.settings.logo_dev_key))), await livequote.read(store.redis)),
                   "amcLogos": {k: logo_path(v) for k, v in amc.items() if k in AMC_SITES},
+                  "logoCdn": logo_cdn_key(app.state.settings.logo_dev_key),
                   "level": level, "builtAt": int(time.time())})
     packed = gzip.compress(body, compresslevel=6, mtime=0)
     etag = etag_for(body)
