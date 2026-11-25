@@ -9,12 +9,12 @@ const dash = readFileSync(join(__dirname, "..", "mf", "Dashboard.tsx"), "utf8");
 const css = readFileSync(join(__dirname, "mf341.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
 
 describe("Mutual funds filters in two rows (task #341 PR B)", () => {
-  it("row 1 holds search, fund house, plan and option; row 2 the return range and the stopped tick", () => {
+  it("row 1 holds search, fund house, plan and option; row 2 the return range and the status choice (task #369: was the stopped tick)", () => {
     const r1 = tsx.indexOf('<div className="mf-fbar">'), r2 = tsx.indexOf('<div className="mf-fbar mf-fbar2">');
     expect(r1).toBeGreaterThan(-1); expect(r2).toBeGreaterThan(r1);
     expect(tsx).toContain('{part !== "rest" && search}');   // the search (since task #347 also shown on its own at the top of the filter panel)
     for (const x of ['{part !== "rest" && search}', '<Pick label="Fund house"', '<Seg label="Plan"', '<Seg label="Option"']) { const i = tsx.indexOf(x); expect(i, x).toBeGreaterThan(r1); expect(i, x).toBeLessThan(r2); }
-    for (const x of ['mf-rangebtn', 'mf-stopck']) expect(tsx.indexOf(x), x).toBeGreaterThan(r2);
+    for (const x of ['mf-rangebtn', '<Seg label="Status"']) expect(tsx.indexOf(x), x).toBeGreaterThan(r2);
   });
   it("Plan and Option show their label (not only to screen readers); 38px controls; phones keep 16px inputs", () => {
     expect(tsx).toContain('<span className="label" id={`seg-${label}`}>{label}</span>');

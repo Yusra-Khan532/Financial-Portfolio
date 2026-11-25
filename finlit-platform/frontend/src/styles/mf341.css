@@ -23,7 +23,6 @@
 .mf-list .mf-fbar .mf-seg-w { display: grid; gap: 4px; }
 .mf-list .mf-fbar .label { margin: 0; font: 600 var(--fs-12)/var(--lh-12) var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .mf-list .mf-fbar2 { align-items: center; padding-top: 12px; border-top: 1px solid var(--border); }
-.mf-list .mf-fbar2 .mf-stopck { flex-basis: auto; }
 .mf-list .mf-fbar2 .mf-rangebtn { min-height: 38px; }
 @media (max-width: 760px) {
   .mf-list .mf-search-w { flex-basis: 100%; }

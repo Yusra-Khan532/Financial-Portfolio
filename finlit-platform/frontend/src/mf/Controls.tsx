@@ -31,11 +31,13 @@ function RangeBox({ label, lo, hi, onLo, onHi }: { label: string; lo: string; hi
 
 /** The filters (task #130 C-6), in two rows since task #341 (the Mutual Funds refinement prompt, section 11): row 1 the main filters, search,
  *  Fund house, Plan (Direct · Regular · All) and Option (Growth · IDCW · Not stated · All), each with its label above it; row 2 the extra ones,
- *  "Return range" (opening in place) and the stopped-schemes tick, with Clear. The same controls and the same behaviour as before.
+ *  "Return range" (opening in place) and Status (still publishing · stopped · All; task #369, was a tick box), with Clear. Nothing is chosen on arrival
+ *  (task #369): every plan, option and status shows.
  *  The categories are chosen above it (mf/Dashboard). */
 export function Controls({ q, text, onText, set, filters, loading, part }: { q: ListQuery; text: string; onText: (t: string) => void; set: (p: Partial<ListQuery>) => void; filters?: FundFilters; loading: boolean;
   /** task #347: in the filter panel the search sits at the top on its own ("search") and the other filters under the categories ("rest") */ part?: "search" | "rest" }) {
-  const amcs: PickItem[] = useMemo(() => (filters?.amcs || []).filter((a) => q.stopped || a.active > 0).map((a) => ({ value: a.name, label: a.name, count: q.stopped ? a.total : a.active })), [filters, q.stopped]);
+  const amcs: PickItem[] = useMemo(() => (filters?.amcs || []).map((a) => ({ value: a.name, label: a.name, count: q.status === "active" ? a.active : q.status === "stopped" ? a.total - a.active : a.total }))
+    .filter((a) => a.count > 0), [filters, q.status]);
   const n = activeFilterCount(q);
   const ranged = RANGES.some((r) => q[`min${r.k}` as "min1y"] || q[`max${r.k}` as "max1y"]);
   const [more, setMore] = useState(ranged);
@@ -56,8 +58,9 @@ export function Controls({ q, text, onText, set, filters, loading, part }: { q: 
       </div>
       <div className="mf-fbar mf-fbar2">
         <button type="button" className={"btn mf-rangebtn" + (ranged ? " on" : "")} aria-expanded={more} aria-controls="mf-ranges" onClick={() => setMore((m) => !m)}>Return range{ranged ? " · on" : ""} <span aria-hidden="true">{more ? "▴" : "▾"}</span></button>
-        <label className="mf-check mf-stopck"><input type="checkbox" checked={q.stopped} onChange={(e) => set({ stopped: e.target.checked })} /> Include schemes that stopped publishing NAVs</label>
-        {n > 0 && <button type="button" className="mf-linkbtn" onClick={() => set({ amc: "", ...tabDefaults(q.tab), stopped: false, min1y: "", max1y: "", min5y: "", max5y: "" })}>Clear {n} filter{n > 1 ? "s" : ""}</button>}
+        {/* task #369: every scheme is listed on arrival; still publishing or stopped is a filter the user chooses (it was a tick box that added the stopped ones) */}
+        <Seg label="Status" value={q.status} onChange={(v) => set({ status: v as ListQuery["status"] })} options={[["active", "Still publishing"], ["stopped", "Stopped"], ["", "All"]]} />
+        {n > 0 && <button type="button" className="mf-linkbtn" onClick={() => set({ amc: "", ...tabDefaults(q.tab), status: "", min1y: "", max1y: "", min5y: "", max5y: "" })}>Clear {n} filter{n > 1 ? "s" : ""}</button>}
       </div>
       {more && (
         <div className="mf-ranges" id="mf-ranges">
