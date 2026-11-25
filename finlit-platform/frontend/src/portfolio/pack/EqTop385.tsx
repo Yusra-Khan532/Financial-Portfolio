@@ -24,6 +24,7 @@ const CROWN = <span className="eqc-crown" title="FinLit's own model"><svg viewBo
 export const bandOf = (w: string | null | undefined): "hi" | "mid" | "lo" | "na" => { const x = (w ?? "").toLowerCase(); return /strong|healthy/.test(x) ? "hi" : /average|fair/.test(x) ? "mid" : /weak|poor/.test(x) ? "lo" : "na"; };
 const ACCENT: Record<View, string> = { portfolio: VIEW_COLOR.first, diversification: VIEW_COLOR.second, risk: VIEW_COLOR.risk };
 const ICON: Record<View, ReactNode> = { portfolio: VIEW_ICON.case, diversification: VIEW_ICON.pie, risk: VIEW_ICON.pulse };
+const VIEW_NAME: Record<View, string> = { portfolio: "Portfolio", diversification: "Diversification", risk: "Risk" };
 
 export type CardsInput = {
   locked: boolean;
@@ -41,13 +42,19 @@ export function riskPill(beta: number, swing: number, swingIndex: number) {
 
 export function ScoreCards({ c, view, onView, sixOpen, onSix }: { c: CardsInput; view: View; onView: (v: View) => void; sixOpen: boolean; onSix: () => void }) {
   const sc = c.score, total = sc?.total == null ? null : Math.max(0, Math.min(100, sc.total)), b = bandOf(sc?.band), C = 2 * Math.PI * 26;
-  const card = (id: View, name: string, about: string, body: ReactNode) => { const on = id === view;
-    // task #388 (developer file 36, change 7): the whole card opens its view; its i, links and the Open button keep their own action
+  const card = (id: View, name: string, about: string, body: ReactNode) => { const on = id === view, vn = VIEW_NAME[id];
+    // task #388 (developer file 36, change 7): the whole card opens its view; its i, links and the Open button keep their own action.
+    // Task #388 reopened (developer file 38, E4): live, the card had a click but read as plain text: no link role, no Tab stop, no Enter or Space, an
+    // arrow cursor. Now it is a link (role, tabindex 0, Enter and Space, pointer cursor and a focus ring, eq385.css); the Open button stays for the mouse
+    // and leaves the Tab order to the card, so a keyboard meets each card once.
+    const inner = (t: EventTarget) => (t as HTMLElement).closest("button, a, select, input, .sp-i, [role=dialog]");
     return <div className={"eqc-c eqc-v" + (on ? " on" : " eqc-go")} style={{ ["--vc" as string]: ACCENT[id] }}
-      onClick={on ? undefined : (e) => { if ((e.target as HTMLElement).closest("button, a, select, input, .sp-i, [role=dialog]")) return; onView(id); }}>
+      {...(on ? {} : { role: "link", tabIndex: 0, "aria-label": `Open the ${vn} view (${name} card)` })}
+      onClick={on ? undefined : (e) => { if (inner(e.target)) return; onView(id); }}
+      onKeyDown={on ? undefined : (e) => { if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return; e.preventDefault(); onView(id); }}>
       {CROWN}
       <p className="eqc-k"><span className="eqc-ic">{ICON[id]}</span>{name}<Info about={name} text={about} />
-        {on ? <em className="eqc-here">You are here</em> : <button type="button" className="eqc-open" id={`eq-tab-${id}`} onClick={() => onView(id)} aria-label={`Open the ${id === "portfolio" ? "Portfolio" : id === "diversification" ? "Diversification" : "Risk"} view`}>Open →</button>}</p>
+        {on ? <em className="eqc-here">You are here</em> : <button type="button" className="eqc-open" id={`eq-tab-${id}`} tabIndex={-1} onClick={() => onView(id)} aria-label={`Open the ${vn} view`}>Open →</button>}</p>
       {body}</div>; };
   const tot = (c.strength?.counts ?? []).reduce((a, [, n]) => a + n, 0);
   return (

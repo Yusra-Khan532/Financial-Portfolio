@@ -80,16 +80,33 @@ function KeyCardBox({ c, panel, on, flip, n, noun, id }: { c: KeyCard; panel: Re
 }
 
 export type Sec = [id: string, label: string, badge?: string];   // task #274: an optional badge on the step ("2 new")
-/** Task #235 (pack B6): the site header's height, kept in --top-h so a sticky bar sits just under the header at every width. */
-export function useHeaderHeight() {
+/** Task #235 (pack B6): the site header's height, kept in --top-h so a sticky bar sits just under the header at every width.
+ *  Task #388 reopened (developer file 38, S3): on a phone the section chips under the header (.ma-hub, sticky) count too, or the bar slid under them and
+ *  hid its top line (the account switcher). `strip`: the selector of this page's floating bars (8px under the header); while one of them is stuck there,
+ *  <html> carries `x-hstrip`, so the header (and the phone's chips) paint that 8px strip in the page colour and no row scrolls through it
+ *  (pagetop.css). Only while stuck: at the top of the page the strip stays the page's own background (the dark theme's glow). */
+export const HSTRIP = "x-hstrip";
+export const headerBottom = (h: HTMLElement | null, hub: HTMLElement | null) => {
+  const hb = h ? h.getBoundingClientRect().height : 0;
+  if (!hub || getComputedStyle(hub).position !== "sticky" || !hub.offsetHeight) return hb;
+  return hb + hub.getBoundingClientRect().height;
+};
+/** True when one of `sel` sits at its sticky place under the header (within a pixel) and the page has scrolled. */
+export const barStuck = (sel: string) => scrollY > 0 && [...document.querySelectorAll<HTMLElement>(sel)].some((el) => {
+  const top = parseFloat(getComputedStyle(el).top); return el.offsetHeight > 0 && Number.isFinite(top) && Math.abs(el.getBoundingClientRect().top - top) <= 1; });
+export function useHeaderHeight(strip = "") {
   useEffect(() => {
-    const h = document.querySelector<HTMLElement>("header.top");
-    if (!h) return;
-    const set = () => document.documentElement.style.setProperty("--top-h", `${Math.round(h.getBoundingClientRect().height)}px`);
-    set();
-    if (typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(set); ro.observe(h); return () => ro.disconnect();
-  }, []);
+    const root = document.documentElement, h = document.querySelector<HTMLElement>("header.top");
+    const hub = () => document.querySelector<HTMLElement>(".ma-hub");
+    const set = () => { if (h) root.style.setProperty("--top-h", `${Math.round(headerBottom(h, hub()))}px`); };
+    let raf = 0;
+    const paint = () => { if (strip) root.classList.toggle(HSTRIP, barStuck(strip)); };
+    const soon = () => { paint(); cancelAnimationFrame(raf); raf = requestAnimationFrame(paint); };   // again after the frame: a bar's own .stuck/.away comes with the render
+    set(); paint(); addEventListener("resize", set);
+    if (strip) addEventListener("scroll", soon, { passive: true });
+    const ro = typeof ResizeObserver === "undefined" || !h ? null : new ResizeObserver(set); if (h) ro?.observe(h); const x = hub(); if (x) ro?.observe(x);
+    return () => { removeEventListener("resize", set); removeEventListener("scroll", soon); cancelAnimationFrame(raf); ro?.disconnect(); if (strip) root.classList.remove(HSTRIP); };
+  }, [strip]);
 }
 
 export function SectionsBar<T extends string = TabKey>({ tab, all, onTab, lead, steps: scr = false, onAll, step, onStep }: { tab: T; all: Record<T, { label: string; secs: Sec[] }>; onTab: (t: T, then?: string) => void; lead?: ReactNode;
@@ -107,7 +124,7 @@ export function SectionsBar<T extends string = TabKey>({ tab, all, onTab, lead, 
     return () => { el.removeEventListener("scroll", fit); ro?.disconnect(); };
   }, [scr, tab]);
   const secs = all[tab].secs, [on, setOn] = useState(secs[0]?.[0] ?? ""), [menu, setMenu] = useState(false), [at, setAt] = useState({ top: 0, left: 0 }), [stuck, setStuck] = useState(false), bar = useRef<HTMLElement>(null);
-  useHeaderHeight();
+  useHeaderHeight(scr ? ".eq .eqt-bar.eqt-scr" : "");   // the floating bar of the equity page (steps mode): the strip above it is painted while stuck
   useBarBottom(bar, scr);   // task #388 (file 36, F1): --eq-bar-b, the place just under this bar, for the rows that stick under it
   useEffect(() => {   // "stuck": the bar has reached its sticky place under the header
     const on = () => { const el = bar.current; if (!el) return; const top = parseFloat(getComputedStyle(el).top) || 0; setStuck(el.getBoundingClientRect().top <= top + 1 && scrollY > 0); };
