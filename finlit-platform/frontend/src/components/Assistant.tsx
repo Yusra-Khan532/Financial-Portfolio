@@ -75,6 +75,7 @@ const companyOf = (pathname: string) => { const m = /^\/stocks\/([A-Za-z0-9&.\-]
 /** Ask FinLit AI. The flow: a general landing, a choice of segment, a company with its question tabs (Q1 to Q4 for results), then answers with related
  *  questions, the company kept in context. Chosen questions answer from written text or the company's own FinLit figures (task #138: no language model); nothing here is advice. */
 export function Assistant({ sector, startOpen = false }: { sector?: string | null; startOpen?: boolean } = {}) {
+  const win = useRef<HTMLElement>(null);   // the panel itself (the pop-up keeps Tab inside it)
   const [open, setOpen] = useState(startOpen);   // AssistantLauncher mounts it on the first "open" event, which fired before this panel listened
   const [view, setView] = useState<View>("home");
   const [back, setBack] = useState<View>("home");          // where the back arrow goes from the conversation
@@ -114,7 +115,17 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
   }, [msgs, view, tab, open, busy, found]);
   useEffect(() => {   // Esc closes the panel (a dialog must)
     if (!open) return;
-    const k = (e: KeyboardEvent) => { if (e.key !== "Escape") return; if (big) setBig(false); else setOpen(false); };   // Esc leaves the full window first
+    const k = (e: KeyboardEvent) => {
+      if (e.key === "Tab" && big && win.current) {   // the pop-up is modal: Tab and Shift+Tab stay inside it (the page behind is dimmed and inert)
+        const f = [...win.current.querySelectorAll<HTMLElement>("a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex='-1'])")].filter((x) => x.offsetParent !== null);
+        if (!f.length) return;
+        const first = f[0], last = f[f.length - 1], at = document.activeElement as HTMLElement | null;
+        if (e.shiftKey && (at === first || !win.current.contains(at))) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && (at === last || !win.current.contains(at))) { e.preventDefault(); first.focus(); }
+        return;
+      }
+      if (e.key !== "Escape") return; if (big) setBig(false); else setOpen(false);
+    };   // Esc leaves the full window first
     document.addEventListener("keydown", k); return () => document.removeEventListener("keydown", k);
   }, [open, big]);
   useEffect(() => {   // the page behind a full window does not scroll
@@ -332,8 +343,9 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
 
   return (
     <>
+      {open && big && <div className="aif-scrim" aria-hidden="true" onClick={() => setOpen(false)} />}{/* the founder, 25 Nov 2026: a pop-up over the page, not the whole page */}
       {open && (
-        <section className={"ai aif" + (big ? " full" : "") + (big && !menuOpen ? " nomenu" : "")} role="dialog" aria-label="FinLit AI assistant">
+        <section className={"ai aif" + (big ? " full" : "") + (big && !menuOpen ? " nomenu" : "")} ref={win} role="dialog" aria-modal={big || undefined} aria-label="FinLit AI assistant">
           {big && !menuOpen && <button type="button" className="aif-unfold" onClick={() => setMenuOpen(true)} aria-label="Show the menu" title="Show the menu"><Icon name="bars" /></button>}
           {big && menuOpen && <aside className="aif-side" aria-label="FinLit AI menu">
             <div className="aif-brand"><Icon name="bars" /><b>FinLit</b><span>AI</span><button type="button" className="aif-fold" onClick={() => setMenuOpen(false)} aria-label="Hide the menu" title="Hide the menu"><Icon name="bars" /></button></div>
@@ -359,7 +371,11 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
             <p className="aif-sl"><Icon name="spark" /> Popular Questions</p>
             <ul className="aif-pop">{STARTERS.slice(0, 4).map((x) => <li key={x.q}><button type="button" title={x.q} onClick={() => void ask(x.q, "home")}><Icon name="chat" /><span>{x.q}</span></button></li>)}</ul>
             <button type="button" className="aif-va" onClick={() => setView("home")}>View all <Icon name="arrow" /></button>
-            <Link className="aif-pro" to="/pricing" onClick={() => setOpen(false)}><Icon name="crown" /><span><b>FinLit AI <em>Pro</em></b><small>Deeper analysis · More questions</small></span><Icon name="arrow" /></Link>
+            {aiOn && user && qd && (qd.limit ?? 0) > 0 && <div className={"aif-quota" + ((qd.left ?? 0) <= Math.max(3, Math.round((qd.limit ?? 0) / 10)) ? " low" : "")} aria-label="Written answers left this month">
+              <span>Answers left <b>{qd.left} of {qd.limit}</b></span>
+              <i aria-hidden="true"><i style={{ width: `${Math.max(0, Math.min(100, Math.round(((qd.left ?? 0) / (qd.limit || 1)) * 100)))}%` }} /></i>
+              {qd.resets && <small>Renews on {new Date(qd.resets).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</small>}</div>}
+            {plan !== "gold" && <Link className="aif-pro" to="/pricing" onClick={() => setOpen(false)}><Icon name="crown" /><span><b>FinLit AI <em>Pro</em></b><small>Deeper analysis · More questions</small></span><Icon name="arrow" /></Link>}
           </aside>}
           <header className={big ? "aif-hd" : undefined}>
             {view !== "home" && <button type="button" className="aif-back" onClick={goBack} aria-label="Back"><Icon name="arrow" /></button>}
