@@ -26,8 +26,8 @@ describe("task #371: a bigger score and parts that name themselves", () => {
   });
   it("is loaded with the cell and makes the score and the letters bigger", () => {
     expect(readFileSync(join(process.cwd(), "src/mf/ScoreCell.tsx"), "utf8")).toContain('import "../styles/task371.css";');
-    expect(css).toContain(".mfs-cell .mfs-pv { font-size: var(--fs-18); }");
-    expect(css).toContain(":root .mfs-table td.mfs-hs .mfs-pv { font-size: var(--fs-18);");     // the screener's pill was 13px
+    expect(css).toContain(".mfs-cell .mfs-pv { font-size: var(--fs-20); }");   // task #378: larger again (18 -> 20px)
+    expect(css).toContain(":root .mfs-table td.mfs-hs .mfs-pv { font-size: var(--fs-20);");     // the screener's pill was 13px
     expect(css).toMatch(/\.mfs-cell \.mfs-part \{ position: relative; width: 22px; height: 22px; font-size: var\(--fs-13\);/);   // were 16px, 12px
   });
   it("shows the tip on hover and on focus (keyboard, or a tap on a phone)", () => {

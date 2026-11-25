@@ -2,11 +2,11 @@
    pillar and their score", in the Mutual funds list and the Mutual Fund Screener (both draw the cell with mf/ScoreCell). */
 
 /* the total score: 18px (was 13px in the screener's pill, 16px in the Mutual funds list) */
-.mfs-cell .mfs-pv { font-size: var(--fs-18); }
-:root .mfs-table td.mfs-hs .mfs-pv { font-size: var(--fs-18); padding: 3px 10px; }
+.mfs-cell .mfs-pv { font-size: var(--fs-20); }   /* task #378: larger again (18 -> 20px) */
+:root .mfs-table td.mfs-hs .mfs-pv { font-size: var(--fs-20); padding: 3px 10px; }   /* task #378 */
 
 /* the four parts P R C Q: 22px squares with 13px letters (were 16px with 12px) */
-.mfs-cell .mfs-parts { gap: 4px; margin-top: 6px; }
+.mfs-cell .mfs-parts { gap: 8px; margin-top: 6px; }   /* task #378: P R C Q a little further apart (4 -> 8px) */
 .mfs-cell .mfs-part { position: relative; width: 22px; height: 22px; font-size: var(--fs-13); cursor: help; }
 .mfs-cell .mfs-part:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 

@@ -101,7 +101,7 @@
 /* task #281: an IDCW row shows its same-plan Growth option's score and returns, always labelled as that option's (never as its own NAV change) */
 .mf-grf { display: inline-grid; justify-items: end; gap: 2px; }
 .mf-grf .mf-gr, .mfs-cell .mfs-inh { font-size: var(--fs-12); font-weight: 400; font-style: italic; color: var(--muted); line-height: 1.25; max-width: 104px; text-align: right; white-space: normal; overflow-wrap: break-word; }
-.mfs-cell .mfs-inh { display: block; }
+.mfs-cell .mfs-inh { display: block; text-align: center; }   /* task #378: centred with the score */
 .mf-plannote { margin: 8px 2px 0; font-size: var(--fs-12); color: var(--muted); }
 .mf-grblock { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
 .mf-grblock .mf-h4 { margin: 0 0 8px; }
@@ -378,7 +378,7 @@ h2.mf-h4 { font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-ser
 .mfs-gaps { margin: 12px 0 4px; font-size: var(--fs-13); color: var(--muted); } .mfs-gaps summary { cursor: pointer; font-weight: 600; } .mfs-gaps ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px; }
 .mfs-scale { display: flex; margin-top: 16px; border-radius: var(--ui-r-mark); overflow: hidden; font-size: var(--fs-12); text-align: center; }
 .mfs-scale span { padding: 3px 0; color: var(--muted); background: var(--s2); border-left: 1px solid var(--bg); }
-.mfs-cell { display: inline-flex; flex-direction: column; align-items: flex-end; line-height: 1.2; } .mfs-cell small { font-size: var(--fs-12); color: var(--muted); }
+.mfs-cell { display: inline-flex; flex-direction: column; align-items: center; text-align: center; line-height: 1.2; }   /* task #378: centred (the score, its word and P R C Q on one axis; was flex-end, which pushed the score right of the parts) */ .mfs-cell small { font-size: var(--fs-12); color: var(--muted); }
 .mfs-metrics td, .mfs-metrics th { font-size: var(--fs-13); }
 .mfs-list { padding-left: 18px; display: grid; gap: 8px; line-height: 1.55; } .mfs-method .card p { line-height: 1.6; max-width: 80ch; }
 @media (max-width: 640px) {
