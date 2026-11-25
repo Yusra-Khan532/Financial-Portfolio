@@ -12,7 +12,7 @@
 .cp-f a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .cp-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .cp-bar button { border: 1px solid var(--border); background: transparent; color: inherit; border-radius: var(--ui-r-pill); padding: 4px 11px; font-size: var(--fs-13); cursor: pointer; min-height: 32px; }
-.cp-bar button.on, .cp-seg button.on { background: var(--gold); border-color: var(--gold); color: var(--on-gold); }
+.cp-bar button.on, .cp-seg button.on { background: var(--ui-on-bg); border-color: var(--ui-on-bg); color: var(--ui-on-fg); }   /* task #394 C9: the shared selected state (black in light, cream in dark), not gold */
 .cp-gap { flex: 1; }
 .cp-leg { font-size: var(--fs-12); color: var(--muted); font-variant-numeric: tabular-nums; min-height: 16px; }
 .cp-c { position: relative; min-height: 360px; flex: 1 1 360px; }
@@ -76,3 +76,13 @@ tr.cp-row > td { background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .cp-disc > b { display: block; margin-bottom: 6px; font: 700 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .cp-disc p { margin: 0; font: 400 13px/1.45 var(--sans); color: var(--muted); }
 .cp-dlink { display: inline-block; margin-top: 8px; font: 600 13px var(--sans); }
+
+/* Task #394 (developer file 37): added beside what is there, each shown only when it has something to say. Classes cp-note, cp-wk, cp-key, psx-lc-mk
+   (grep: used only here, ChartPanel.tsx and ListChart.tsx). Colours are the site's tokens, so light and dark follow by themselves. */
+.cp-note { margin: 0; padding: 9px 12px; border: 1px solid var(--warn, var(--gold)); border-radius: var(--r-ctl); background: color-mix(in srgb, var(--warn, var(--gold)) 12%, var(--s1)); color: var(--text); font-size: var(--fs-13); line-height: 1.45; }
+.cp-note b { font-weight: 700; }
+.cp-wk { margin: 0; font-size: var(--fs-13); color: var(--muted); }
+.cp-key { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: var(--fs-12); color: var(--muted); }
+.cp-key i { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; margin-right: 5px; border-radius: var(--ui-r-pill); background: var(--gold); color: var(--on-gold); font: 700 var(--fs-12)/1 var(--sans); font-style: normal; vertical-align: -5px; }
+.psx-lc-list li .psx-lc-mk { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 4px; margin-top: -4px; }
+.psx-lc-mk > span { display: inline-block; max-width: 100%; padding: 1px 8px; border: 1px solid var(--warn, var(--gold)); border-radius: var(--ui-r-pill); background: color-mix(in srgb, var(--warn, var(--gold)) 12%, var(--s1)); color: var(--text); font: 600 var(--fs-12)/1.5 var(--sans); white-space: normal; }

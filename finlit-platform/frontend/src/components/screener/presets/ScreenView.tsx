@@ -373,6 +373,9 @@ export function ScreenView({ route }: { route: PresetRoute }) {
   useEffect(() => { setCardPage(0); }, [pageKey, bar, sort]);
   const name = d?.name ?? preset?.name ?? "";                   // L13: never the raw screen id while loading
   const openRow = useCallback((r: PresetRow): PanelRow => ({ symbol: r.symbol, name: r.name, sector: r.sector as string | undefined, price: r.price as number | undefined, facts: r.facts as PanelRow["facts"], draw: r.draw as PanelRow["draw"], screen: d?.id,
+    // task #394 (file 37): the list's day, the row's official close of it (price_on) and the day of its figures (factsAsOf, when the server sends it)
+    listDay: d?.asOf ? String(d.asOf).slice(0, 10) : null, priceOn: typeof r.price_on === "number" ? r.price_on : null,
+    factsAsOf: typeof r.factsAsOf === "string" ? r.factsAsOf : d?.factsAsOf ?? null,
     disc: d?.discover ? { placed: r.disc_placed !== false, stage: r.disc_stage as string | null, themes: r.disc_themes as string[] | undefined, ev: r.disc_ev as PanelDisc["ev"], latest: r.disc_latest as DiscLatest | null } : null }), [d]);
   const step = (dir: 1 | -1) => { const i = rows.findIndex((r) => r.symbol === chart?.symbol), n = rows[i + dir]; if (i >= 0 && n) setChart(openRow(n)); };
   const maxCompare = has("gold") ? 4 : 2;
@@ -477,7 +480,7 @@ export function ScreenView({ route }: { route: PresetRoute }) {
                   figure: ownCol && r[ownCol.key] != null ? [ownCol.label, <CellValue key="f" v={r[ownCol.key]} f={ownCol.format} k={ownCol.key} />] : null }))} />
               {rows.length > CARDS && <div className="pm-pager psx-wallpg"><button type="button" className="btn" disabled={cardPage === 0} onClick={() => setCardPage((p) => p - 1)}>Previous</button>
                 <span>Page {cardPage + 1} of {Math.ceil(rows.length / CARDS)}</span><button type="button" className="btn" disabled={(cardPage + 1) * CARDS >= rows.length} onClick={() => setCardPage((p) => p + 1)}>Next</button></div>}</>
-              : view === "list" && banded ? <ListChart rows={rows} pick={pick} onPick={setPick} toPanel={openRow}
+              : view === "list" && banded ? <ListChart rows={rows} pick={pick} onPick={setPick} toPanel={openRow} listDay={d.asOf ? String(d.asOf).slice(0, 10) : null}
                   figure={ownCol ? { label: ownCol.label, show: (r) => <CellValue v={r[ownCol.key]} f={ownCol.format} k={ownCol.key} /> } : null} />
               : <HScroll className="scr-tw psx3-tw" label="results table" tall controls={false}><Table {...tableProps} cols={shown} rows={rows} first={d.offset ?? 0} spark={prices.data} /></HScroll>}
             <SelectionBar n={picked.length} maxCompare={maxCompare} onCompare={() => nav(`/compare?c=${picked.join(",")}`)} onWatch={addPicked} onClear={() => setPicked([])} />
