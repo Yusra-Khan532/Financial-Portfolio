@@ -111,13 +111,14 @@ export function riskCards(rk: MfRisk | undefined): KeyCard[] {
 }
 
 /** Task #389 (developer file 32, Section bar, and Update 25 Nov row 1): one section per step. Key figures is no longer a step of its own: its cards sit in
- *  step 1 of every view (so do Where your gain or loss came from and Sold on Your funds), and a remembered "Key figures" opens step 1. `secs`: the DOM ids
+ *  step 1 of every view (so does Sold on Your funds; task #389 file 40 v4 A1: "Where your gain or loss came from" left the page, and with it mfp-gl and
+ *  eq-gl), and a remembered "Key figures" opens step 1. `secs`: the DOM ids
  *  a step holds (a jump to one of them opens the step). The address carries the step without its "mfp-" (`&step=move`). */
 export type MfStep = { id: string; label: string; badge?: string; secs: string[] };
 export function mfSteps(view: MfTab, o: { wcNew?: number; biggest?: boolean } = {}): MfStep[] {
   const S = (id: string, label: string, more: string[] = []): MfStep => ({ id, label, secs: [id, ...more] });
   const short = S("mfp-short", "In short", ["mfs-short-h"]);
-  if (view === "funds") return [S("mfp-funds", "Your funds", ["mfp-gl", "eq-gl", "mfp-kf-funds", "mfp-sold"]), { ...S("mfp-wc", "What changed", ["wc-h-mf", "what-changed"]), ...(o.wcNew ? { badge: `${o.wcNew} new` } : {}) }, short];
+  if (view === "funds") return [S("mfp-funds", "Your funds", ["mfp-kf-funds", "mfp-sold"]), { ...S("mfp-wc", "What changed", ["wc-h-mf", "what-changed"]), ...(o.wcNew ? { badge: `${o.wcNew} new` } : {}) }, short];
   if (view === "mix") return [S("mfp-own", "What they own", ["mfp-kf-mix"]), S("mfp-spread", "Spread"), S("mfp-money", "Money in"), S("mfp-secin", "Sectors inside"), S("mfp-move", "Move together"),
     S("mfp-shared", "Shared stocks"), S("mfp-sizes", "Company sizes"), ...(o.biggest === false ? [] : [S("mfp-biggest", "Biggest stocks")]), S("mfp-trend", "Trend"), short];
   return [S("mfp-glance", "At a glance", ["mfp-kf-risk"]), S("mfp-build", "Beta build", ["mfp-read"]), S("mfp-ownb", "Own benchmark"), S("mfp-share", "Risk share"), S("mfp-fall", "If the Nifty 500 fell"), S("mfp-each", "Each fund"), short];

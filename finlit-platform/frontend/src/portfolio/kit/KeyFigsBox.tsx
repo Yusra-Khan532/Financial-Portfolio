@@ -23,10 +23,12 @@ function Bars({ c }: { c: KfCard }) {
   </ul>;
 }
 
-export function KeyFigsBox({ id, sub, cards, onGo }: { id: string; sub: string; cards: KfCard[]; onGo: (g: KfGo) => void }) {
+/** `visit` (task #389, developer file 40 v4 A2): closed on every visit, opening lasts for the visit only (the page wraps itself in VisitFolds); without it the
+ *  member's Hide is kept in this browser, as before. */
+export function KeyFigsBox({ id, sub, cards, onGo, visit = false }: { id: string; sub: string; cards: KfCard[]; onGo: (g: KfGo) => void; visit?: boolean }) {
   if (!cards.length) return null;
   return (
-    <Section id={id} hide title="Key figures" help="Up to three figures that matter most in this view, each from a section of the page, in one sentence and a small bar." how="A card with nothing to say is left out. The link under each card goes to the section it comes from." sub={sub}>
+    <Section id={id} hide visit={visit} title="Key figures" help="Up to three figures that matter most in this view, each from a section of the page, in one sentence and a small bar." how="A card with nothing to say is left out. The link under each card goes to the section it comes from." sub={sub}>
       <div className="ptk-kf">{cards.map((c, i) => (
         <article key={c.id} className={"ptk-kf-c ptk-t-" + c.tone + (c.q ? " ptk-kf-qc" : "")} aria-label={c.q ?? c.k}>
           {c.q ? <>

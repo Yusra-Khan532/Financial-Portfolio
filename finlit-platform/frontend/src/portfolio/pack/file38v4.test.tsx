@@ -78,8 +78,8 @@ describe("A1: Where your gain or loss came from leaves the Equity page", () => {
     expect(h).toContain('{ id: "pf-shares", label: "Your shares", secs: ["pf-shares", "eq-keys", "pf-sold"] }');
     expect(h).toMatch(/<Step id="pf-shares" title="Your shares"/);
   });
-  it("the shared section stays for the MF and ETF pages, each with its own id", () => {
-    expect(readFileSync(join(__dirname, "../../pages/MfPortfolio.tsx"), "utf8")).toMatch(/<GainLossSection [^>]*id="mfp-gl"/);
+  it("the shared section stays for the ETF page (the MF page dropped it in file 40 v4 A1)", () => {
+    expect(readFileSync(join(__dirname, "../../pages/MfPortfolio.tsx"), "utf8")).not.toMatch(/GainLossSection|mfp-gl/);   // task #389 file 40 v4 A1: the MF page dropped it too
     expect(readFileSync(join(__dirname, "../../pages/EtfPortfolio.tsx"), "utf8")).toMatch(/<GainLossSection [^>]*id="etp-gl"/);
     expect(src("./EqSteps385.tsx")).not.toMatch(/id = "eq-gl"/);
   });
