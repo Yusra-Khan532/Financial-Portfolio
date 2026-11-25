@@ -6,13 +6,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AllInvestments, Kind, KindMoney } from "../lib/myInvest";
 import { prefs } from "../lib/prefs";
 import QTY from "./sample-qty.json";
-import { NextView, TopCard, ViewTiles, VIEW_ORDER, type AccRow } from "./Top";
+import { MiCards, NextView, TopCard, VIEW_ORDER, type AccRow } from "./Top";
 
 afterEach(cleanup);
 beforeEach(() => prefs.set({ viewsSeen: [] }));
 const D = () => structuredClone(QTY) as unknown as AllInvestments;
 const M = (n: number, missing: string[], now: number, invested: number): Record<Kind | "all", KindMoney> => {
-  const k = { n, full: n - missing.length, invested, now, gain: now - invested, missing };
+  const k = { n, full: n - missing.length, invested, now, nowPriced: now, withQty: n - missing.length, part: 0, gain: now - invested, missing };
   return { all: k, shares: k, funds: { ...k, n: 0, missing: [] }, etfs: { ...k, n: 0, missing: [] } };
 };
 const ACC = (id: string, name: string, value: number | null): AccRow => ({ id, name, sub: "1 share", value, gainPct: value ? 4.6 : null, color: "#0e6471", initial: name[0] });
@@ -31,11 +31,11 @@ describe("the compact top (changes 1, 2)", () => {
   });
   it("the money box says what it covers: 1 of 20, the one with buys named, each kind ⅓; a bar for 1 of 20", () => {
     const missing = Array.from({ length: 19 }, (_, i) => "X" + i);
-    const d = D(); d.byValue = false; d.shares[0].symbol = "TIPSMUSIC";
+    const d = D(); d.byValue = false; d.missing = ["shares", "funds", "etfs"]; d.shares[0].symbol = "TIPSMUSIC"; d.shares[0].name = "Tips Music Ltd";
     top(M(20, missing, 16311, 15600), [], vi.fn(), { ...d, shares: [d.shares[0]], funds: [], etfs: [] });
     const box = screen.getByRole("region", { name: "All your investments" });
     expect(box.textContent).toContain("₹16,311"); expect(box.textContent).toContain("₹15,600");
-    expect(box.textContent).toContain("Money figures cover 1 of 20 holdings. Only TIPSMUSIC has a quantity and buy price; the other 19 count in every reading but not in the money, and each kind counts as ⅓.");
+    expect(box.textContent).toContain("Money figures cover 1 of 20 holdings. Only Tips Music has a quantity and buy price. The other 19 count in every reading but not in the money. For now each kind counts as ⅓.");
     expect(screen.getByRole("img", { name: "1 of 20 holdings have a quantity and buy price" })).toBeTruthy();
   });
   it("once every holding has buys: a green line, no bar", () => {
@@ -58,22 +58,16 @@ describe("the compact top (changes 1, 2)", () => {
   });
 });
 
-describe("the four views as tabs (change 16) and Next view", () => {
-  it("the open one has a check; the others an arrow, Not opened yet, and open from anywhere on the card; 1 of 4 opened", () => {
+describe("the four views as calm cards (task #391, developer file 35, Top 1) and Next view", () => {
+  it("four cards with a crown each; the open one says You are here, the others Open → and switch the view in the page; no progress line", () => {
     const go = vi.fn();
-    render(<ViewTiles d={D()} view="all" onView={go} seen={new Set(["all"])} />);
-    expect(screen.getByText(/1 of 4 opened · Equity, Mutual funds and ETFs still to see/)).toBeTruthy();
-    expect(screen.getByRole("tab", { selected: true }).textContent).toContain("you are on this view");
-    expect(screen.getAllByText("Not opened yet")).toHaveLength(3);
-    fireEvent.click(screen.getByRole("tab", { name: /^Go to ETFs/ })); expect(go).toHaveBeenLastCalledWith("etf");
-    fireEvent.click(screen.getByText("Mutual funds", { selector: ".mi7-tk" })); expect(go).toHaveBeenLastCalledWith("mf");
-    expect(document.body.textContent).not.toContain("β");
-  });
-  it("opening a view is kept in the member's settings, so its mark goes for good", async () => {
-    const { useViewsSeen } = await import("./Top");
-    function Probe({ v }: { v: "equity" }) { const s = useViewsSeen(v); return <span>{[...s].join(",")}</span>; }
-    render(<Probe v="equity" />);
-    expect(prefs.get().viewsSeen).toContain("mi:equity");
+    render(<MiCards d={D()} view="all" onView={go} />);
+    const cards = screen.getAllByRole("button");
+    expect(cards).toHaveLength(4);
+    expect(cards.map((c) => c.querySelector(".mi391-k em")!.textContent)).toEqual(["You are here", "Open →", "Open →", "Open →"]);
+    expect(document.querySelectorAll(".px-crown")).toHaveLength(4);
+    fireEvent.click(screen.getByRole("button", { name: /^ETFs:/ })); expect(go).toHaveBeenLastCalledWith("etf");
+    expect(document.body.textContent).not.toMatch(/seen 4 ways|Not opened yet|of 4 opened|β|Beta/);
   });
   it("Next view leads on: All together → Equity → Mutual funds → ETFs → All together", () => {
     const go = vi.fn();

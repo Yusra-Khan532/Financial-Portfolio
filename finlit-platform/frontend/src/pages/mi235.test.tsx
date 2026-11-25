@@ -54,12 +54,12 @@ describe("All my investments by account and by value (pack C3)", () => {
     expect(box).toContain("Money figures cover 10 of 12 holdings.");
     const head = [...document.querySelectorAll(".mi-tb thead th")].slice(0, 5).map((t) => t.textContent);
     expect(head).toEqual(["Kind", "Holdings", "Invested", "Value now", "Gain / loss"]);
-    expect(document.querySelector(".x-miss")!.textContent).toBe("10 of 12 holdings have a quantity and a buy price. Add the buy price for KPITTECH, HDFC Mid-Cap Opportunities on their portfolio pages to count them in Invested and Gain.");
+    expect(document.querySelector(".x-miss")!.textContent).toBe("10 of 12 holdings have a quantity and a buy price. Add the buy price for KPIT Technologies, HDFC Mid-Cap Opportunities on their portfolio pages to count them in Invested and Gain.");
     expect(document.querySelector(".mi7-count")!.textContent).toBe("6 shares · 3 funds · 3 ETFs");
     expect(document.querySelector(".mi-short")!.textContent).toMatch(/By value now: shares 37%, mutual funds 47%, ETFs 16%\. \+₹[\d.,]+ L? ?\(\+[\d.]+%\) on ₹6\.72 L invested; buy prices for 10 of 12\./);
   });
-  it("Step 6 shows the fall as the Equity page's picture, by value, with each kind's share of the money and the Nifty 500's worst fall", async () => {
-    mount(); await screen.findByText("Where your money sits");
+  it("Step 7 (task #391) shows the fall as the Equity page's picture, by value, with each kind's share of the money and the Nifty 500's worst fall", async () => {
+    mount("/my-investments?step=risk"); await screen.findByText("How risky it is, all together");
     expect(screen.getByRole("heading", { name: /If the Nifty 500 fell 10%/ })).toBeTruthy();
     expect(document.querySelector(".fx-big b")!.textContent).toBe("−9.1%");                   // beta together 0.91
     expect([...document.querySelectorAll(".fx-size button")].map((b) => b.textContent)[2]).toBe("17.3%the Nifty 500’s worst in 3 years");

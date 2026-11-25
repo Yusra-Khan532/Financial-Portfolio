@@ -48,7 +48,8 @@ function KStep({ id, title, line, children }: { id: string; title: string; line:
 }
 const stepsOf = (secs: { id: string; label: string }[]): StepDef[] => secs.map((s, i) => ({ id: s.id, label: s.label, secs: i === 0 ? [s.id, "mi-kf"] : [s.id] }));
 export const EQ_STEPS = stepsOf(EQ_SECTIONS), MF_STEPS = stepsOf(MF_SECTIONS), ETF_STEPS = stepsOf(ETF_SECTIONS);
-const go = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+/** Task #391 PR A: a link to a section asks the page to open the step that holds it (one section at a time), then go to it; with no page listening it scrolls. */
+const go = (id: string) => { const e = new CustomEvent("mi-open", { detail: id, cancelable: true }); if (window.dispatchEvent(e)) document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }); };
 const TOP = 10;
 const tone = (v: number | null | undefined) => (v == null ? "" : v > 0 ? "mi-up" : v < 0 ? "mi-down" : "");
 const MIX_CLS: Record<string, string> = { indian: "m-in", abroad: "m-ab", gold: "m-au", debt: "m-dc", other: "m-ot", notLoaded: "m-nl" };

@@ -4,20 +4,23 @@
 // nothing to say returns null and the next one moves up (pack code F). Describes; never advises. Styles: styles/mi7.css (mi7-kf*).
 import type { ReactNode } from "react";
 import { nf } from "../lib/format";
-import { KIND_NAME, betaTxt, dateShort, joinWords, pctOf, type AllInvestments, type Company, type Kind, type Tab } from "../lib/myInvest";
+import { KIND_NAME, dateShort, joinWords, pctOf, type AllInvestments, type Company, type Kind, type Tab } from "../lib/myInvest";
+import { coLabel, movesAsMuchNifty } from "../lib/mi391";
+import { andList } from "../portfolio/shared/words";
 
 export type Seg = { label: string; n: number; color: string; unit?: "%" };
-export type KfCard = { tone: "info" | "warn" | "good"; k: string; say: ReactNode; bar: { kind: "stack"; segs: Seg[] } | { kind: "bars"; rows: { label: string; v: number; color?: string; txt: string }[]; max: number } | null;
+export type KfCard = { /** task #391: the card's plain question (All together) */ q?: string; tone: "info" | "warn" | "good"; k: string; say: ReactNode; bar: { kind: "stack"; segs: Seg[] } | { kind: "bars"; rows: { label: string; v: number; color?: string; txt: string }[]; max: number } | null;
   rest: ReactNode; link: { label: string; go: () => void } } | null;
 
 const C = { sh: "var(--mi-shares)", fu: "var(--mi-funds)", et: "var(--mi-etfs)", hi: "var(--mi7-hi)", mid: "var(--mi7-mid)", lo: "var(--mi7-lo)", none: "var(--mi7-none)", grey: "var(--mi7-none)" };
 const SEQ = ["#0e6471", "#2f5a9e", "#7a5c1f", "#a23b72", "#4b8a5f", "#8a6a4f", "#5b6577"];
-const name = (c: Company) => c.symbol ?? c.name;
+/** Task #391 (developer file 35, Sections 2, fault 10): a company by its short name ("Bank of Konkan", "Sahyadri Peripherals": made-up names), not its code. */
+const name = (c: Company) => coLabel(c);
 const tenX = (b: number) => nf(b * 10, 0);
 
 /** How a company is held, in words: "directly and through MID150BEES". */
 function howHeld(c: Company): string {
-  const via = c.via.length ? c.via.join(" and ") : null;
+  const via = c.via.length ? andList(c.via) : null;   // task #391: "A, B and C", not "A and B and C"
   if (c.held.length === 1) return c.held[0] === "D" ? "all of it directly" : `all of it through ${via ?? (c.held[0] === "F" ? "your fund" : "your ETF")}`;
   return `${c.held.includes("D") ? "directly and " : ""}through ${via ?? "your funds and ETFs"}`;
 }
@@ -29,7 +32,7 @@ function heldMoreWays(d: AllInvestments, go: Go): KfCard {
   const de = multi.filter((c) => c.held.includes("D") && c.held.includes("E") && !c.held.includes("F")).length, fe = multi.filter((c) => !c.held.includes("D") && c.held.includes("F") && c.held.includes("E")).length;
   const df = multi.length - de - fe, onlyD = d.companies.filter((c) => c.held.length === 1 && c.held[0] === "D").length, one = d.companies.length - multi.length - onlyD;
   const ex = multi.slice(0, 3), via = [...new Set(ex.flatMap((c) => c.via))];
-  return { tone: "info", k: "Held more than one way", say: <><b>{multi.length} {multi.length === 1 ? "company" : "companies"}</b> you hold more than one way.</>,
+  return { q: "How many companies do you hold more than one way?", tone: "info", k: "Held more than one way", say: <><b>{multi.length} {multi.length === 1 ? "company" : "companies"}</b> you hold more than one way.</>,
     bar: { kind: "stack", segs: [{ label: "Direct and through an ETF", n: de, color: C.sh }, { label: "Through your fund and an ETF", n: fe, color: C.fu }, { label: "Direct and through a fund", n: df, color: C.et },
       { label: "Only direct", n: onlyD, color: "var(--mi7-type2)" }, { label: "Through one fund or ETF", n: one, color: C.grey }].filter((s) => s.n > 0) },
     rest: <>{joinWords(ex.map(name))}, for example: you hold {ex.length === 1 ? "it" : "them"} {ex.every((c) => c.held.includes("D")) ? "directly and " : ""}through {via.length ? joinWords(via) : "your funds and ETFs"}.</>,
@@ -39,7 +42,7 @@ function biggest(d: AllInvestments, go: Go): KfCard {
   const top = [...d.companies].sort((a, b) => b.all - a.all), c = top[0];
   if (!c) return null;
   const five = top.slice(0, 5), sum5 = five.reduce((a, x) => a + x.all, 0);
-  return { tone: "warn", k: "Biggest single company", say: <><b>{name(c)}: {pctOf(c.all, 1)} of everything</b>, {howHeld(c)}.</>,
+  return { q: "Which company is the biggest part of everything?", tone: "warn", k: "Biggest single company", say: <><b>{name(c)}: {pctOf(c.all, 1)} of everything</b>, {howHeld(c)}.</>,
     bar: { kind: "bars", rows: five.map((x) => ({ label: name(x), v: x.all, txt: pctOf(x.all, 2) })), max: Math.max(...five.map((x) => x.all)) * 1.1 },
     rest: <>The five largest add up to {pctOf(sum5, 1)}.{d.byValue ? "" : " Each kind counts the same until you add quantities."}</>,
     link: { label: "See every company", go: () => go("mi-every") } };
@@ -48,10 +51,10 @@ function riskFrom(d: AllInvestments, go: Go): KfCard {
   const r = d.risk, parts = r.parts.filter((p) => p.riskShare != null);
   if (r.beta == null || !parts.length) return null;
   const lead = [...parts].sort((a, b) => (b.riskShare ?? 0) - (a.riskShare ?? 0))[0];
-  return { tone: "good", k: "Where the market risk comes from", say: <><b>{KIND_NAME[lead.kind]}: {pctOf(lead.riskShare, 0)} of the market risk</b>, on {pctOf(lead.money, 0)} of the money.</>,
+  return { q: "Which kind brings the most market risk?", tone: "good", k: "Where the market risk comes from", say: <><b>{KIND_NAME[lead.kind]}: {pctOf(lead.riskShare, 0)} of the market risk</b>, on {pctOf(lead.money, 0)} of the money.</>,
     bar: { kind: "stack", segs: parts.map((p) => ({ label: KIND_NAME[p.kind], n: p.riskShare ?? 0, color: C[(({ shares: "sh", funds: "fu", etfs: "et" }) as Record<Kind, "sh" | "fu" | "et">)[p.kind]], unit: "%" as const })) },
-    rest: <>All together the beta is {betaTxt(r.beta)} against the Nifty 500: it has moved about {tenX(r.beta)}% when the index moved 10%.</>,
-    link: { label: "See Step 6", go: () => go("mi-risk") } };
+    rest: <>All together it {movesAsMuchNifty(r.beta)}: about {tenX(r.beta)}% when the index moved 10%.</>,
+    link: { label: "See Step 7", go: () => go("mi-risk") } };
 }
 
 // ------------------------------------------------------------------------------------------------ Equity
@@ -78,7 +81,7 @@ function spread(d: AllInvestments, go: Go): KfCard {
 function risky(d: AllInvestments, go: Go): KfCard {
   const x = d.risk.kinds.shares;
   if (!x || x.beta == null) return null;
-  return { tone: "warn", k: "How risky", say: <><b>Beta {betaTxt(x.beta)}</b>: your shares have moved about {tenX(x.beta)}% when the Nifty 500 moved 10%.</>,
+  return { tone: "warn", k: "How risky", say: <><b>Moves {x.beta.toFixed(2)}×</b>: your shares have moved about {tenX(x.beta)}% when the Nifty 500 moved 10%.</>,
     bar: x.swing != null && x.benchSwing != null ? { kind: "bars", rows: [{ label: "Your shares", v: x.swing, color: C.lo, txt: pctOf(x.swing) }, { label: "Nifty 500", v: x.benchSwing, color: C.grey, txt: pctOf(x.benchSwing) }], max: Math.max(x.swing, x.benchSwing) * 1.1 } : null,
     rest: x.swing != null ? <>They swing {pctOf(x.swing)} in a typical year, against {pctOf(x.benchSwing)} for the Nifty 500 (weekly prices).</> : x.why ?? "No swing figure yet.",
     link: { label: "See the risk", go: () => go("mi-eq-risk") } };
@@ -148,7 +151,7 @@ export function trackNames(e: { symbol: string; name?: string | null; tracks?: s
 function twice(d: AllInvestments, go: Go): KfCard {
   const rep = d.cards.etfs.repeats ?? [], e = d.etfs;
   if (!e.length) return null;
-  if (rep.length) return { tone: "warn", k: "The same index twice", say: <><b>{rep.length === 1 ? `${rep[0].label}: ${rep[0].symbols.join(" and ")}` : `${rep.length} indices followed twice`}</b>.</>, bar: null,
+  if (rep.length) return { tone: "warn", k: "The same index twice", say: <><b>{rep.length === 1 ? `${rep[0].label}: ${andList(rep[0].symbols)}` : `${rep.length} indices followed twice`}</b>.</>, bar: null,
     rest: "Two ETFs on one index hold the same companies in the same weights.", link: { label: "See your ETFs", go: () => go("mi-etf-list") } };
   if (e.length < 2) return null;
   return { tone: "good", k: "No two the same", say: <><b>Each ETF follows a different index</b>.</>, bar: null,
@@ -162,7 +165,7 @@ const ORDER: Record<Tab, ((d: AllInvestments, go: Go) => KfCard)[]> = {
 };
 export const keyFiguresOf = (t: Tab, d: AllInvestments, go: Go) => ORDER[t].map((f) => f(d, go)).filter((x): x is NonNullable<KfCard> => x != null).slice(0, 3);
 const SUB: Record<Tab, (d: AllInvestments) => string> = {
-  all: () => "What everything adds up to, from Step 4 above and the steps around it.",
+  all: () => "What everything adds up to, from the steps that follow.",
   equity: (d) => `What your ${d.counts.shares} ${d.counts.shares === 1 ? "share adds" : "shares add"} up to, from the steps around this one.`,
   mf: (d) => `What your ${d.counts.funds === 1 ? "fund adds" : `${d.counts.funds} funds add`} up to, from the steps around this one.`,
   etf: (d) => `What your ${d.counts.etfs} ${d.counts.etfs === 1 ? "ETF adds" : "ETFs add"} up to, from the steps around this one.`,
@@ -182,9 +185,10 @@ export function KeyFiguresSection({ d, view, go }: { d: AllInvestments; view: Ta
   return (
     <section className="card mi7-kf" id="mi-kf" aria-labelledby="mi-kf-h">
       <div className="mi7-kfh"><h2 id="mi-kf-h">Key figures</h2><p>{SUB[view](d)}</p></div>
-      <div className={"mi7-kfrow n" + cards.length}>{cards.map((c) => (
+      <div className={"mi7-kfrow n" + cards.length}>{cards.map((c, i) => (
         <article key={c.k} className={"mi7-kfc t-" + c.tone}>
-          <p className="mi7-k">{c.k}</p>
+          {/* task #391 (developer file 35, Sections 3): on All together each card opens with one plain, numbered question; the bold answer stays */}
+          {c.q ? <p className="mi391-kq"><span className="mi391-kn" aria-hidden="true">{i + 1}</span><span>{c.q}</span></p> : <p className="mi7-k">{c.k}</p>}
           <p className="mi7-kfsay">{c.say}</p>
           <Bar bar={c.bar} />
           <p className="mi7-kfrest">{c.rest}</p>

@@ -7,14 +7,22 @@ import { Info } from "../components/Info";
 import { cardIds } from "../components/dashboard/DashCards";
 import { nf } from "../lib/format";
 import { toneOf, type Band } from "../lib/myInvest";
+import { KnowButton } from "../portfolio/pack/Round388";
 
 /** An i button: "What it shows" and "How to read it". */
 export function I({ k, what, read }: { k: string; what: string; read: string }) {
   return <Info g={{ key: "mi-" + k, label: k, what: "What it shows: " + what, read: "How to read it: " + read }} />;
 }
 
-/** A section heading: its number in the open tab, the title with its i button, a one-line description, and anything on the right. */
-export function SecHead({ id, n, title, line, info, aside }: { id: string; n?: number; title: string; line?: ReactNode; info: [string, string]; aside?: ReactNode }) {
+/** Task #391 (developer file 35, Update 25 Nov row 2): a section's things to know as one pill at the right of its heading ("●● 2 things to know") that
+ *  opens them in a pop-up (portfolio/pack/Round388 KnowButton: Open all, ×, Esc, a tap outside; one pop-up at a time). Plain text cards. */
+export type KnowNote = { kind: CalloutKind; title: string; text: string };
+
+/** A section heading: its number in the open tab, the title with its i button, a one-line description, and anything on the right. `know`: the
+ *  section's things to know as a pill and a pop-up (task #391). */
+export function SecHead({ id, n, title, line, info, aside, know }: { id: string; n?: number; title: string; line?: ReactNode; info: [string, string]; aside?: ReactNode;
+  know?: { scope: string; items: KnowNote[] } }) {
+  const right = <>{aside}{know && know.items.length > 0 && <KnowButton inline scope={"mi:" + know.scope} items={know.items} />}</>;
   return (
     <div className="mi-sh" id={id}>
       {n != null && <span className="mi-sh-n" aria-hidden="true">{n}</span>}
@@ -23,7 +31,7 @@ export function SecHead({ id, n, title, line, info, aside }: { id: string; n?: n
         <h2>{title}<I k={title} what={info[0]} read={info[1]} /></h2>
         {line ? <p className="mi-sh-l">{line}</p> : null}
       </div>
-      {aside ? <div className="mi-sh-r">{aside}</div> : null}
+      {aside || (know && know.items.length) ? <div className="mi-sh-r">{right}</div> : null}
     </div>
   );
 }

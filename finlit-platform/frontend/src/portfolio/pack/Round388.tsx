@@ -69,19 +69,21 @@ const DOT: Record<Card["kind"], string> = { good: "g", watch: "w", warning: "w",
 /** The heading a section's pill sits in: the section's heading row, or the shares table's title block. */
 const hostOf = (el: HTMLElement | null): HTMLElement | null => { const sec = el?.closest("section"); return sec?.querySelector<HTMLElement>(":scope .sp-sec-h") ?? sec?.querySelector<HTMLElement>(":scope .pfx-h > div") ?? null; };
 
-export function KnowButton({ items, scope }: { items: Card[]; scope: string }) {
+/** `inline` (task #391, All my investments): the pill stays where it is placed (the page puts it at the right of its own heading) instead of moving into the
+ *  section's first heading row. */
+export function KnowButton({ items, scope, inline = false }: { items: Card[]; scope: string; inline?: boolean }) {
   const { user } = useAuth();
   const here = useRef<HTMLSpanElement>(null), btn = useRef<HTMLButtonElement>(null), pop = useRef<HTMLDivElement>(null);
   const [host, setHost] = useState<HTMLElement | null | undefined>(undefined);
   const [open, setOpen] = usePop([btn, pop]), [at, setAt] = useState({ left: 0, top: 0, width: 460 });
-  useLayoutEffect(() => { setHost(hostOf(here.current)); }, []);
+  useLayoutEffect(() => { setHost(inline ? null : hostOf(here.current)); }, [inline]);
   const n = items.length, cap = n === 1 ? "One thing to know" : `${n <= 10 ? NUM[n].charAt(0).toUpperCase() + NUM[n].slice(1) : n} things to know`, popId = "eq8k-" + useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const button = <button ref={btn} type="button" className={"eq8k-btn" + (host?.matches(".pfx-h > div") ? " in-sub" : "")} aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? popId : undefined}
     onClick={() => { if (!open) setAt(placeUnder(btn.current, 460, !host?.matches(".pfx-h > div"))); setOpen(!open); }}>
     <span className="eq8k-dots" aria-hidden="true">{items.map((c, i) => <i key={i} className={DOT[c.kind] ?? "n"} />)}</span>{n === 1 ? "1 thing to know" : `${n} things to know`}</button>;
   return <DashCardsProvider userId={user?.id} remember={false}>
     <span ref={here} hidden />
-    {host === undefined ? null : host ? createPortal(button, host) : <div className="eq8k-inline">{button}</div>}
+    {host === undefined ? null : host ? createPortal(button, host) : inline ? button : <div className="eq8k-inline">{button}</div>}
     {open && createPortal(<div ref={pop} id={popId} className="eq8k-pop eq" role="dialog" aria-label={cap} style={{ left: at.left, top: at.top, width: at.width }}>
       <div className="eq8k-h"><b>{cap}</b><OpenAll scope={scope} n={n} /><button type="button" className="eq8k-x" aria-label="Close" onClick={() => { setOpen(false); btn.current?.focus(); }}>×</button></div>
       <div className="eq-ins">{/* the page's quiet card list (eq385.css "things to know") */}<DashCards items={items} scope={scope} cols={1} /></div>

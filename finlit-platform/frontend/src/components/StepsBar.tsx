@@ -20,7 +20,11 @@ function headerHeight(): number {
   const h = document.querySelector<HTMLElement>("header.top");
   if (!h) return 0;
   const pos = getComputedStyle(h).position;
-  return pos === "sticky" || pos === "fixed" ? Math.round(h.getBoundingClientRect().height) : 0;
+  if (pos !== "sticky" && pos !== "fixed") return 0;
+  // task #391: on a phone the app's section chips (.ma-hub) stick right under the header; the bar sits under them, not behind them
+  const hub = document.querySelector<HTMLElement>(".ma-hub"), hp = hub ? getComputedStyle(hub) : null;
+  const hubH = hub && hp && hp.display !== "none" && (hp.position === "sticky" || hp.position === "fixed") ? hub.getBoundingClientRect().height : 0;
+  return Math.round(h.getBoundingClientRect().height + hubH);
 }
 
 /** The step in view: the last step heading whose top has passed just under the bar. Exported for tests. */
@@ -30,9 +34,14 @@ export function stepInView(tops: { id: string; top: number }[], line: number): s
   return cur;
 }
 
-export function StepsBar({ steps, label = "Sections", menu, lead, arrows = false }: { steps: Step[]; label?: string; menu?: MenuGroup[]; /** task #235 (pack B12): shown at the left once the bar sticks */ lead?: ReactNode;
-  /** task #277 (Equity file §11): the steps scroll inside the bar with ‹ › at its ends and a faded edge where steps are hidden; each arrow greys out at its end. Opt-in. */ arrows?: boolean }) {
-  const [active, setActive] = useState<string | null>(steps[0]?.id ?? null);
+export function StepsBar({ steps, label = "Sections", menu, lead, arrows = false, step, onStep }: { steps: Step[]; label?: string; menu?: MenuGroup[]; /** task #235 (pack B12): shown at the left once the bar sticks */ lead?: ReactNode;
+  /** task #277 (Equity file §11): the steps scroll inside the bar with ‹ › at its ends and a faded edge where steps are hidden; each arrow greys out at its end. Opt-in. */ arrows?: boolean;
+  /** task #391 (developer file 35, Section bar): one section at a time. `step` is the stop shown ("all": every section); pressing a stop calls `onStep`
+   *  with it and "All sections" (pressed while every section shows) calls it with "all". Without `onStep` the bar scrolls to sections as before. */
+  step?: string; onStep?: (id: string) => void }) {
+  const one = !!onStep;
+  const [spied, setActive] = useState<string | null>(steps[0]?.id ?? null);
+  const active = one ? (step === "all" ? null : step ?? null) : spied;
   const [open, setOpen] = useState(false);
   const [top, setTop] = useState(0), [stuck, setStuck] = useState(false);
   const bar = useRef<HTMLDivElement>(null), btn = useRef<HTMLButtonElement>(null), pop = useRef<HTMLDivElement>(null);
@@ -53,6 +62,7 @@ export function StepsBar({ steps, label = "Sections", menu, lead, arrows = false
   }, [lead]);
   // Underline the step in view.
   useEffect(() => {
+    if (one) return;   // one section at a time: the chip of the shown stop is the current one
     let t = 0;
     const spy = () => {
       cancelAnimationFrame(t);
@@ -64,15 +74,15 @@ export function StepsBar({ steps, label = "Sections", menu, lead, arrows = false
     };
     spy(); addEventListener("scroll", spy, { passive: true }); addEventListener("resize", spy);
     return () => { cancelAnimationFrame(t); removeEventListener("scroll", spy); removeEventListener("resize", spy); };
-  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [key, one]); // eslint-disable-line react-hooks/exhaustive-deps
   // Keep the chip of the step in view visible on a phone, where the bar scrolls sideways.
   useEffect(() => {
     const b = bar.current, c = b?.querySelector<HTMLElement>(`[data-step="${active}"]`);
     if (!b || !c || b.scrollWidth <= b.clientWidth) return;
     if (active === steps[0]?.id) { if (b.scrollLeft > 0) b.scrollTo({ left: 0, behavior: "smooth" }); return; }   // the first step: "All sections" stays in sight
-    const left = c.offsetLeft - 48;
+    const left = c.offsetLeft - (one ? (b.querySelector<HTMLElement>(".stb-all")?.offsetWidth ?? 0) + 56 : 48);   // task #391: clear of the pinned All sections
     if (left < b.scrollLeft || c.offsetLeft + c.offsetWidth > b.scrollLeft + b.clientWidth) b.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
-  }, [active]);
+  }, [active, one && stuck]);   // task #391: once the bar sticks (and the switcher takes room) the chosen stop is brought back into view
   // The menu closes on Escape (focus back to its button) and on a click outside.
   useEffect(() => {
     if (!open) return;
@@ -93,24 +103,27 @@ export function StepsBar({ steps, label = "Sections", menu, lead, arrows = false
     return () => { b.removeEventListener("scroll", m); ro?.disconnect(); };
   }, [arrows, steps.length, stuck]);
   const slide = (dir: number) => bar.current?.scrollBy({ left: dir * Math.max(160, (bar.current?.clientWidth ?? 600) * 0.6), behavior: "smooth" });
-  if (steps.length < SECTION_BAR_MIN) return null;   // task #310 part D: a section bar only on a page with four or more sections
+  if (steps.length < (one ? 2 : SECTION_BAR_MIN)) return null;   // task #310 part D: a section bar only on a page with four or more sections (task #391: in step mode the bar is how the stops open, so it shows from two)
   const go = (id: string, step: string) => { setOpen(false); setActive(step); scrollTo(id); };
   return (
-    <div className={"stb-wrap" + (arrows ? " stb-arw" + (edge.l ? " edge-l" : "") + (edge.r ? " edge-r" : "") : "")} style={{ top }}>
+    <div className={"stb-wrap" + (one ? " stb-one" : "") + (arrows ? " stb-arw" + (edge.l ? " edge-l" : "") + (edge.r ? " edge-r" : "") : "")} style={{ top }}>
       {/* task #277 (QA of 21 Nov, item 13): with the arrows the switcher sits before the scrolling steps, not pinned over them (it hid the first steps) */}
       {arrows && lead && stuck && <div className="stb-lead sw-host x-sw-on">{lead}</div>}
       {arrows && (edge.l || edge.r) && <button type="button" className="stb-sl l" aria-label="Earlier steps" disabled={!edge.l} onClick={() => slide(-1)}>‹</button>}
       <nav className={"stb sw-host" + (stuck && lead && !arrows ? " x-sw-on" : "")} ref={bar} aria-label={label}>
         {!arrows && lead}
-        <button type="button" ref={btn} className="stb-all" aria-haspopup="true" aria-expanded={open} aria-controls={popId} onClick={() => setOpen(!open)}>
+        {one ? <button type="button" className="stb-all" aria-pressed={step === "all"} onClick={() => onStep!("all")}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" focusable="false"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
           All sections
-        </button>
+        </button> : <button type="button" ref={btn} className="stb-all" aria-haspopup="true" aria-expanded={open} aria-controls={popId} onClick={() => setOpen(!open)}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" focusable="false"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
+          All sections
+        </button>}
         <span className="stb-sep" aria-hidden="true" />
         {steps.map((s, i) => (
           <span className="stb-item" key={s.id}>
             {i > 0 && <span className="stb-arrow" aria-hidden="true">→</span>}
-            <button type="button" className="stb-chip" data-step={s.id} aria-current={active === s.id ? "step" : undefined} onClick={() => go(s.id, s.id)}>
+            <button type="button" className="stb-chip" data-step={s.id} aria-current={active === s.id ? "step" : undefined} onClick={() => (one ? onStep!(s.id) : go(s.id, s.id))}>
               {s.n > 0 ? <span className="stb-n" aria-hidden="true">{s.n}</span> : <span className="stb-n stb-n0" aria-hidden="true">·</span>}{s.title}{s.dot && <i className="stb-dot" role="img" aria-label="not seen yet" />}
             </button>
           </span>

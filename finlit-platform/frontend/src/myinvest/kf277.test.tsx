@@ -60,7 +60,7 @@ describe("the words", () => {
     expect(document.querySelectorAll(".mi7-kfc")).toHaveLength(3);
     const multi = (demo as unknown as AllInvestments).companies.filter((c) => c.held.length > 1).length;
     fireEvent.click(screen.getByRole("button", { name: `Show the ${multi} →` }));
-    fireEvent.click(screen.getByRole("button", { name: "See Step 6 →" }));
+    fireEvent.click(screen.getByRole("button", { name: "See Step 7 →" }));
     expect(go.mock.calls).toEqual([["held"], ["mi-risk"]]);
   });
   it("never advises", () => {

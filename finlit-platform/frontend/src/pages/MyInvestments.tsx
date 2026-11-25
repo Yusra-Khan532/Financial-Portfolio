@@ -3,25 +3,36 @@
 // inside. It keeps no list of its own: a change on a portfolio page shows here after a refresh. Layout: header, summary row (dark box + one tile per kind),
 // four tabs (All together · Equity · Mutual funds · ETFs), the numbered sections bar of the open tab, then "What this means, in short", the disclaimer,
 // the FAQ and the sources. Plans: Silver and Gold (shares with FinLit Prism on Gold, names only on Silver; Mutual Fund Score on Gold). Describes; never advises.
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+// Task #391 PR A (developer file 35, 24 Nov updated 25 Nov): four calm cards, Since your last visit, Data as of under the section bar, and All together one
+// stop at a time (7 numbered stops, Key figures inside stop 1, All sections puts them back), with &step= in the address and the member's last stop kept.
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router";
 import { Gate } from "../components/Gate";
-import { StepsBar, type MenuGroup, type Step } from "../components/StepsBar";
+import { StepsBar, type Step } from "../components/StepsBar";
 import { usePortfolio } from "../lib/portfolio";
 import { useDocTitle } from "../lib/title";
 import { useUI } from "../lib/ui";
-import { KIND_NAME, betaTxt, chg, dateShort, joinWords, kindsHeld, lower, moneyByKind, pctOf, rupees, splitLine, useAllInvestments, type AccountPick, type AllInvestments, type Kind, type KindMoney, type Tab } from "../lib/myInvest";
+import { KIND_NAME, chg, dateShort, joinWords, kindsHeld, lower, moneyByKind, pctOf, rupees, splitLine, useAllInvestments, type AccountPick, type AllInvestments, type Kind, type KindMoney, type Tab } from "../lib/myInvest";
 import { apiGet } from "../lib/api";
 import { DEFAULT_PF, type Holding, type Portfolio } from "../lib/portfolio";
 import { StickySwitch, VIEW_ICON, type ViewDef } from "../portfolio/ViewKit";
 import "../portfolio/holdings-kit.css";
 import { ALL_SECTIONS, AllTogether } from "../myinvest/AllTogether";
-import { NextView, TopCard, ViewTiles, useViewsSeen, type AccRow } from "../myinvest/Top";
-import { EQ_SECTIONS, ETF_SECTIONS, EquityTab, EtfTab, MF_SECTIONS, MfTab } from "../myinvest/KindTabs";
+import { MiCards, NextView, TopCard, type AccRow } from "../myinvest/Top";
+import { MiStepCtx } from "../myinvest/Steps391";
+import { MI_STEPS, asOfParts, kindStepFromParam, kindStepParam, miSince, miStepFromParam, miStepParam, stepIn, movesAsMuchNifty, readMiStep, riskWord, saveMiStep, coLabel } from "../lib/mi391";
+import { useWhatChanged } from "../components/changes/WhatChanged";
+import { changesOf } from "../myinvest/Changes277";
+import { dayMonth } from "../lib/whatChanged";
+import { useAuth } from "../lib/auth";
+import { useBarBottom } from "../portfolio/pack/Round388";
+import { planName, plansFromText } from "../lib/planNames";
+import { EQ_SECTIONS, EQ_STEPS, ETF_SECTIONS, ETF_STEPS, EquityTab, EtfTab, MF_SECTIONS, MF_STEPS, MfTab } from "../myinvest/KindTabs";
+import { StepCtx } from "../portfolio/pack/EqSteps385";
 import { QtyDialog } from "../myinvest/QtyDialog";
 import "../styles/myinvest.css";
-import { PLAN_FOR_PORTFOLIO } from "../lib/planGates";
+import { PLAN_FOR_PORTFOLIO, PLAN_FOR_PRISM } from "../lib/planGates";
 import { accountFigs, accountSub, type AccountFigs } from "../lib/accountMoney";
 import { bookRows, type Book } from "../lib/etfBook";
 import { keyOf, mfRows } from "../lib/mfBook";
@@ -34,6 +45,9 @@ const TABS: { id: Tab; label: string; sub: string; sections: { id: string; label
   { id: "etf", label: "ETFs", sub: "What they track, cost and how close to value", sections: ETF_SECTIONS },
 ];
 const isTab = (v: string | null): v is Tab => TABS.some((t) => t.id === v);
+/** Task #391: each view's stops (one section at a time). */
+const TAB_STEPS: Record<Tab, { id: string; label: string; secs: string[] }[]> = { all: MI_STEPS, equity: EQ_STEPS, mf: MF_STEPS, etf: ETF_STEPS };
+const VIEW_IDS: Tab[] = ["all", "equity", "mf", "etf"];
 /** Pack B2 and C3: the four views, each with its colour and icon (All together #134e4a, Equity #0e6471, Mutual funds #9a6b12, ETFs #2f5a9e). */
 const VIEW_LOOK: Record<Tab, [string, ReactNode, string]> = { all: ["#134e4a", VIEW_ICON.pie, "All together"], equity: ["#0e6471", VIEW_ICON.case, "Equity"], mf: ["#9a6b12", VIEW_ICON.pulse, "Mutual funds"], etf: ["#2f5a9e", VIEW_ICON.case, "ETFs"] };
 const VIEWS: ViewDef<Tab>[] = TABS.map((t) => ({ id: t.id, label: t.label, short: VIEW_LOOK[t.id][2], sub: t.sub, color: VIEW_LOOK[t.id][0], icon: VIEW_LOOK[t.id][1] }));
@@ -96,19 +110,51 @@ function Body() {
     if (id === "all") { const m = moneyAll?.all; return m ? { n: m.n, now: m.now, withQty: m.now ? m.n : 0, gainPct: m.full && m.invested ? (m.gain / m.invested) * 100 : null } : { n: 0, now: 0, withQty: 0, gainPct: null }; }
     const f = figs.get(id); return f ? { n: f.n, now: f.now, withQty: f.valued, gainPct: f.gainPct } : { n: 0, now: 0, withQty: 0, gainPct: null }; };
   const tab: Tab = isTab(params.get("tab")) ? (params.get("tab") as Tab) : "all";
-  const seen = useViewsSeen(tab);
   const accRows = useMemo(() => accRowsOf(accs, figs), [accs, figs]);
   const [qty, setQty] = useState(false);
+  const { user } = useAuth();
+  // task #391 (Section bar, Rules R8 and R9): one stop at a time in every view. The stop is in the address (&step=; none = the view's first stop, "all"
+  // = All sections); on All together, with no step in the address, the member's last stop in this browser opens; the address wins
+  const steps391 = TAB_STEPS[tab];
+  const step = tab === "all" ? miStepFromParam(params.get("step")) : kindStepFromParam(steps391, params.get("step"));
+  const placed = useRef(false);
+  useEffect(() => {
+    if (placed.current || !d) return; placed.current = true;
+    if (tab !== "all" || params.get("step")) return;
+    const last = readMiStep(user?.id); if (!last || last === MI_STEPS[0].id) return;
+    setParams((p) => { const n = new URLSearchParams(p); n.set("step", miStepParam(last)); return n; }, { replace: true });
+  }, [d]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const ready = !!d;
+  useEffect(() => { if (tab === "all" && ready && placed.current && (params.get("step") || !readMiStep(user?.id) || step !== MI_STEPS[0].id)) saveMiStep(user?.id, step); }, [tab, step, user?.id, ready]);   // eslint-disable-line react-hooks/exhaustive-deps
+  /** Back to the section bar's place when the page is below it (a new stop starts at its top). */
+  const toBar = () => window.setTimeout(() => { const a = document.getElementById("mi-steps-top"); if (a && a.getBoundingClientRect().top < 0) a.scrollIntoView({ behavior: "smooth", block: "start" }); }, 40);
+  const withView = (n: URLSearchParams, t: Tab) => { if (t === "all") n.delete("tab"); else n.set("tab", t); };
+  const setStep = (id: string) => { setParams((p) => { const n = new URLSearchParams(p); withView(n, tab); n.set("step", tab === "all" ? miStepParam(id) : kindStepParam(id)); return n; }, { replace: true }); toBar(); };
+  /** Opens the stop that holds a section (in this view when it has it, else in the view that does) and goes to it. All sections stays on if it is. */
+  const openSec = (id: string, in0?: Tab) => {
+    const t = in0 ?? ([tab, ...VIEW_IDS.filter((x) => x !== tab)].find((x) => stepIn(TAB_STEPS[x], id)) ?? tab);
+    const to = stepIn(TAB_STEPS[t], id) ?? TAB_STEPS[t][0].id;
+    setParams((p) => { const n = new URLSearchParams(p); const keepAll = t === tab && n.get("step") === "all"; withView(n, t); if (!keepAll) n.set("step", t === "all" ? miStepParam(to) : kindStepParam(to)); return n; }, { replace: true });
+    window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+  };
+  // the Equity, Mutual funds and ETFs views ask for a section by an event (KindTabs go): the page opens its step
+  useEffect(() => { const f = (e: Event) => { const id = (e as CustomEvent<string>).detail; if (typeof id === "string" && stepIn(TAB_STEPS[tab], id)) { e.preventDefault(); openSec(id, tab); } };
+    addEventListener("mi-open", f); return () => removeEventListener("mi-open", f); });
   const toTab = (t: Tab, scroll?: string) => {
-    setParams((p) => { const n = new URLSearchParams(p); if (t === "all") n.delete("tab"); else n.set("tab", t); return n; }, { replace: true });
+    if (scroll && stepIn(TAB_STEPS[t], scroll)) { openSec(scroll, t); return; }
+    setParams((p) => { const n = new URLSearchParams(p); withView(n, t); n.delete("step"); return n; }, { replace: true });
     window.setTimeout(() => document.getElementById(scroll ?? "mi-tabs")?.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
   };
-  // task #277 (change 11): the page keeps its own Step 1–6 numbers; Key figures (after Step 4 on All together, after Step 1 elsewhere) carries a dot, not a number
-  const steps: Step[] = (TABS.find((t) => t.id === tab)?.sections ?? []).flatMap((s, i) => {
-    const st: Step = { id: s.id, n: i + 1, title: s.label, sections: [] };
-    return (tab === "all" ? s.id === "mi-every" : i === 0) ? [st, { id: "mi-kf", n: 0, title: "Key figures", sections: [] }, ...(tab === "all" ? [{ id: "what-changed", n: 0, title: "What changed", sections: [] }] : [])] : [st];
-  });
-  const menu: MenuGroup[] = TABS.map((t) => ({ title: t.label, items: t.sections.map((s, i) => ({ id: s.id, label: `${i + 1} · ${s.label}`, go: () => toTab(t.id, s.id) })) }));
+  // task #391 (Top 6): what is new since the last visit, from the What changed feed of the companies you own (one request, shared with stop 5)
+  const ch = d ? changesOf(d) : { direct: [], through: [] };
+  const wc = useWhatChanged(d ? [...ch.direct, ...ch.through] : [], "myinvest");
+  // task #391 (Update 25 Nov, row 3): the filter row of Every company stops just under the section bar (--eq-bar-b)
+  const bar = useRef<HTMLElement | null>(null), [barOn, setBarOn] = useState(false);
+  useLayoutEffect(() => { const el = document.querySelector<HTMLElement>(".wrap.mi .stb-wrap"); bar.current = el; setBarOn(!!el); });
+  useBarBottom(bar, barOn);
+  // task #391: every stop numbered (fault 5): All together's seven, Key figures inside stop 1; the Equity, Mutual funds and ETFs views' steps (PR B's
+  // EQ/MF/ETF_STEPS), Key figures inside their step 1 too
+  const steps: Step[] = steps391.map((s, i) => ({ id: s.id, n: i + 1, title: s.label, sections: [] }));
   return (
     <>
       {/* task #277 (changes 1, 2): the compact top: title row, the money box that says what it covers, Your portfolios (they replace the header card,
@@ -119,16 +165,22 @@ function Body() {
       {d && kindsHeld(d).length === 0 && (
         <section className="card mi-empty"><h2>Nothing to read yet</h2><p>Add shares on the <Link to="/holdings">Equity portfolio</Link>, funds on the <Link to="/mf-portfolio">MF portfolio</Link> or ETFs on the <Link to="/etf-portfolio">ETF portfolio</Link>. This page reads the three lists; it keeps no list of its own.</p></section>)}
       {d && kindsHeld(d).length > 0 && <>
-        {/* task #277 (change 16): the four views drawn as tabs; they replace the three kind tiles */}
-        <ViewTiles d={d} view={tab} onView={(t) => toTab(t)} seen={seen} />
-        <StepsBar key={tab} arrows steps={steps} menu={menu} label={`Sections of ${TABS.find((t) => t.id === tab)?.label}`}
+        {/* task #391 (Top 1–5): four calm cards with a crown each; Open → switches the view in the page, as before */}
+        <MiCards d={d} view={tab} onView={(t) => toTab(t)} />
+        {/* task #391 (Top 6): one line under the cards; See what changed → opens stop 5 */}
+        {wc.q.data && <MiSinceLine visit={wc.lastVisit ? dayMonth(wc.lastVisit) : null} fresh={wc.newN} onSee={() => openSec("what-changed")} />}
+        <div id="mi-steps-top" className="mi391-anchor" aria-hidden="true" />
+        <StepsBar key={tab} arrows steps={steps} step={step} onStep={setStep} label={`Sections of ${TABS.find((t) => t.id === tab)?.label}`}
           lead={<StickySwitch list={accs.length > 1 ? accs : []} cur={acc?.id ?? "all"} onPick={setAcc} figs={accFigs} defs={VIEWS} view={tab} onView={(t) => toTab(t)} tabsId="mi-tabs" noun={["holding", "holdings"]} />} />
+        {/* task #391 (Top 7): which date each kind of figure runs to, one line under the section bar */}
+        <AsOf parts={asOfParts(d, wc.q.data?.days ?? null)} />
         <div role="tabpanel" id={`mi-p-${tab}`} aria-labelledby={`mi-t-${tab}`} className="mi-panel">
-          {tab === "all" && <AllTogether d={d} money={money} toTab={toTab} openQty={() => setQty(true)}
-            stickyLead={<StickySwitch list={accs.length > 1 ? accs : []} cur={acc?.id ?? "all"} onPick={setAcc} figs={accFigs} defs={VIEWS} view={tab} onView={(t) => toTab(t)} tabsId="mi-tabs" noun={["holding", "holdings"]} />} />}
-          {tab === "equity" && <EquityTab d={d} />}
-          {tab === "mf" && <MfTab d={d} />}
-          {tab === "etf" && <EtfTab d={d} />}
+          {tab === "all" && <MiStepCtx.Provider value={{ step, first: MI_STEPS[0].id }}><AllTogether d={d} money={money} toTab={toTab} openQty={() => setQty(true)} go={openSec} /></MiStepCtx.Provider>}
+          {tab !== "all" && <StepCtx.Provider value={{ step, firstStep: steps391[0].id }}>
+            {tab === "equity" && <EquityTab d={d} />}
+            {tab === "mf" && <MfTab d={d} />}
+            {tab === "etf" && <EtfTab d={d} />}
+          </StepCtx.Provider>}
           <NextView d={d} view={tab} onView={(t) => toTab(t)} />
         </div>
         <InShort d={d} money={money} />
@@ -160,14 +212,27 @@ function InShort({ d, money }: { d: AllInvestments; money: Record<Kind | "all", 
   const mix = d.madeOf.rows.filter((r) => r.all > 0).map((r) => `${lower(r.label)} ${pctOf(r.all, 0)}`);
   const lines: [string, string][] = [
     ["Data", d.byValue ? `By value now: shares ${share("shares")}%, mutual funds ${share("funds")}%, ETFs ${share("etfs")}%.${m && m.full ? ` ${m.gain >= 0 ? "+" : "−"}${rupees(Math.abs(m.gain))} (${chg((m.gain / m.invested) * 100)}) on ${rupees(m.invested)} invested; buy prices for ${m.full} of ${m.n}.` : ""}` : `${splitLine(d)} Quantities for ${d.quantities.have} of ${d.quantities.of}.${d.madeOf.notLoaded.length ? ` ${joinWords(d.madeOf.notLoaded.map((x) => x.name))}: file not loaded yet.` : ""}`],
-    ["Held twice", twice.length ? `${twice.length} ${twice.length === 1 ? "company is" : "companies are"} held more than one way, led by ${top.symbol ?? top.name} (${pctOf(top.all, 2)} of everything, ${top.held.length} ways).` : "No company is held more than one way."],
+    ["Held twice", twice.length ? `${twice.length} ${twice.length === 1 ? "company is" : "companies are"} held more than one way, led by ${coLabel(top)} (${pctOf(top.all, 2)} of everything, ${top.held.length} ways).` : "No company is held more than one way."],
     ["Mix", mix.length ? joinWords(mix) + "." : "—"],
-    ["Risk", d.risk.beta != null ? `Together Beta ${betaTxt(d.risk.beta)} against the Nifty 500: ${d.risk.band?.toLowerCase()}.${d.risk.largest ? ` ${KIND_NAME[d.risk.largest]} carry ${pctOf(d.risk.parts.find((p) => p.kind === d.risk.largest)?.riskShare, 0)} of the market risk on ${pctOf(d.risk.parts.find((p) => p.kind === d.risk.largest)?.money, 0)} of the money.` : ""}` : d.risk.why ?? "—"],
+    // task #391 (X7, X8, X9): "Together it moves 0.91× as much as the Nifty 500: similar." with the range word in the shared words
+    ["Risk", d.risk.beta != null ? `Together it ${movesAsMuchNifty(d.risk.beta)}${riskWord(d.risk.band, d.risk.beta, d.risk.bandKey) ? `: ${riskWord(d.risk.band, d.risk.beta, d.risk.bandKey)!.toLowerCase()}` : ""}.${d.risk.largest ? ` ${KIND_NAME[d.risk.largest]} carry ${pctOf(d.risk.parts.find((p) => p.kind === d.risk.largest)?.riskShare, 0)} of the market risk on ${pctOf(d.risk.parts.find((p) => p.kind === d.risk.largest)?.money, 0)} of the money.` : ""}` : d.risk.why ?? "—"],
   ];
   return (
     <section className="card mi-short" aria-labelledby="mi-short-h"><h2 id="mi-short-h">What this means, in short</h2><p className="mi-small">Written from your figures{d.byValue ? "" : ", with each kind counting the same until you add quantities"}.</p>
       <dl>{lines.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl></section>
   );
+}
+
+/** Task #391 (Top 6): "Since your last visit on 23 Nov: 1 new filing at companies you own." with See what changed → when something is new. */
+export function MiSinceLine({ visit, fresh, onSee }: { visit: string | null; fresh: number; onSee: () => void }) {
+  const t = miSince(visit, fresh);
+  return <div className="mi391-since" role="note"><i className="mi391-dot" aria-hidden="true" /><span><b>{t.lead}</b> {t.rest}</span>
+    {visit && fresh > 0 && <button type="button" onClick={onSee}>See what changed →</button>}</div>;
+}
+/** Task #391 (Top 7): "Data as of · Prices close of 23 Nov · Fund and ETF holdings each file of 31 Oct 2026 · Filings the last 90 days · Risk weekly prices, past year". */
+export function AsOf({ parts }: { parts: [string, string][] }) {
+  if (!parts.length) return null;
+  return <p className="mi391-asof"><b>Data as of</b>{parts.map(([k, t], i) => <span key={k} className="mi391-ai">{i > 0 && <i aria-hidden="true">·</i>}<span className="mi391-ak">{k}</span> {t}</span>)}</p>;
 }
 
 const FAQ: [string, string][] = [
@@ -177,7 +242,8 @@ const FAQ: [string, string][] = [
   ["How is profit or loss worked out?", "Gain or loss is today's value minus what you paid, from the buy price you gave. A holding without a buy price is left out and listed so you can add one. Dividends, charges and taxes are not included."],
   ["Why is a company counted more than one way?", "You can own it directly and also through a fund or an ETF. The company table adds the ways together so you see your real share of it; Held shows D (direct), F (through a fund) and E (through an ETF)."],
   ["Why is the beta against the Nifty 500?", "Shares, funds and ETFs each have their own benchmark on their own pages. To add them up, this page measures every kind against one yardstick, the Nifty 500."],
-  ["What does my plan show here?", "Silver: your shares, funds and ETFs together, with the shares by name (FinLit Prism, FinLit's only company score, comes with Gold). Gold: shares read with FinLit Prism, and each fund's Mutual Fund Score."],
+  // task #391 (C8, fault 11): the plan names come from the plan list (lib/planNames), never a fixed string
+  ["What does my plan show here?", `This page is in ${plansFromText(PLAN_FOR_PORTFOLIO)}: your shares, mutual funds and ETFs together. On ${planName(PLAN_FOR_PRISM)} the shares are read with FinLit Prism, FinLit's only company score, and each fund with its Mutual Fund Score; below it the shares show by name.`],
   ["Is anything sent to my broker?", "No. The lists stay in your FinLit account; nothing is sent to a broker."],
 ];
 function Faq() {
