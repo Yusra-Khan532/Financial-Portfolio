@@ -1,0 +1,13 @@
+/* Console > FinLit AI: the answer check (components/admin/AnswerCheck.tsx). Tokens only. */
+.ack-now { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 12px 0; }
+.ack-go { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 0 0 12px; }
+.ack-run { display: inline-flex; align-items: center; gap: 10px; color: var(--muted); }
+.ack-v { margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-ctl); color: var(--text); }
+.ack-v.ok { border-color: var(--gain); }
+.ack-t td.up { color: var(--gain); font-weight: 600; } .ack-t td.dn { color: var(--loss); font-weight: 600; }
+.ack-q { border: 0; background: none; padding: 0; color: var(--text); font: inherit; text-align: left; cursor: pointer; text-decoration: underline dotted; }
+.ack-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.ack-pair pre { white-space: pre-wrap; word-break: break-word; font: var(--fs-13)/1.5 var(--sans); margin: 6px 0; max-height: 320px; overflow: auto; }
+.ack-pair ul { margin: 4px 0; padding-left: 18px; color: var(--loss); font-size: var(--fs-13); }
+.ack-h { margin-top: 12px; } .ack-h ul { margin: 6px 0 0; padding-left: 18px; font-size: var(--fs-13); color: var(--muted); }
+@media (max-width: 720px) { .ack-pair { grid-template-columns: minmax(0, 1fr); } }
