@@ -31,6 +31,7 @@ import "../styles/fgx.css";
 import "../styles/mf.css";
 import "../styles/mfscreen.css";
 import "../styles/task354.css";   // task #354: the Hide filters outline
+import "../styles/task373.css";   // task #373: the disclaimer drop-down under the table
 import "../styles/tools.css";
 import { SIDE, SplitDivider, useSideWidth } from "../components/SplitDivider";
 
@@ -206,12 +207,17 @@ export function MfScreenerPage() {
               <button className="btn sm" disabled={q.page >= pages} onClick={() => go({ page: q.page + 1 })}>Next</button>
             </nav>)}
 
+          {/* Task #373 (team, 24 Nov 2026): the disclaimer as a neat drop-down. The statutory mutual fund line stays in view in the closed row; the rest opens below. */}
           <footer className="mfs-fine faint" aria-label="How to read this page">
-            <p><b>Mutual fund investments are subject to market risks; read all scheme-related documents carefully.</b> <b>{DISCLAIMER}</b> The figures describe past data; they are not a recommendation.</p>
+            <details className="mfs-disc">
+              <summary><span className="mfs-disc-k">Disclaimer</span><b className="mfs-disc-l">Mutual fund investments are subject to market risks; read all scheme-related documents carefully.</b>
+                <span className="mfs-disc-more" aria-hidden="true">Details<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg></span></summary>
+            <p><b>{DISCLAIMER}</b> The figures describe past data; they are not a recommendation.</p>
             <p>Risk figures are to the end of last month. Ranks compare funds of the same category and plan. A dash means the fund has no figure: the reason is in its tooltip, and the “N of M funds have this figure” line under each slider counts them.
               {where && <> Screener figures worked out {where.run ? dateIN(where.run) : ""}{where.portfolioDate ? `; portfolios as of ${dateIN(where.portfolioDate)}` : ""}.</>}
               {fac && fac.built.rows === 0 && <> The nightly job that works out risk, ranks, portfolio and category figures has not run yet, so those filters show “no data”.</>}
               {" "}Source: AMFI and each fund house's own disclosures. <Link to="/funds">All schemes</Link> · <Link to="/funds/insights">Fund industry trends</Link></p>
+            </details>
           </footer>
         </section>
       </div>
