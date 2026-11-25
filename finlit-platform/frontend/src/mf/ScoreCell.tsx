@@ -1,15 +1,23 @@
 // Mutual Fund Score cell of a table row (funds list, ETF list): the number with its colour band and label; a lock below Gold; the specific reason where there is no score.
 import { Icon } from "../lib/icons";
+import "../styles/task374.css";   // task #374: the "i" on a missing score
 import { GROWTH_SCORE_LABEL, PLAN_SCORE_NOTE } from "../lib/mf";
 import { bandOf, scoreText, wordBand, type ScoreItem } from "../lib/mfScore";
 import "../styles/mf.css";
 import "../styles/task358.css";   // task #358: the four parts in the score cell
 import "../styles/task371.css";   // task #371: a bigger score and parts; each part names itself on hover, focus or tap
 
-export function ScoreCell({ item, locked, why, loading = false }: { item?: ScoreItem; locked: boolean; why: string; loading?: boolean }) {
+/** Task #374 (team, 24 Nov 2026): a missing score shows an "i"; hovering, focusing or tapping it names why, in the team's words first ("Missing data from
+ *  AMFI", or for an ETF "Scoring not available"), then the specific reason. */
+export const missingScoreTip = (etf: boolean, reason: string) => `${etf ? "Scoring not available" : "Missing data from AMFI"}. ${reason}`;
+export const isEtfCategory = (category?: string | null) => /\bETFs?\b/i.test(category ?? "");
+
+export function ScoreCell({ item, locked, why, loading = false, etf = false }: { item?: ScoreItem; locked: boolean; why: string; loading?: boolean; etf?: boolean }) {
   if (locked) return <span className="mf-na" title="The Mutual Fund Score is part of the Gold plan."><Icon name="lock" /><span className="sr-only">Locked: Gold plan</span></span>;
   if (loading && !item) return <span className="mf-na" aria-busy="true"><span className="sr-only">Loading</span>…</span>;
-  if (!item || item.final == null) return <span className="mf-na" title={item?.reason || why} aria-label={`No score. ${item?.reason || why}`}>—{item?.status === "NOT RATED" && <small>not rated</small>}</span>;
+  if (!item || item.final == null) { const tip = missingScoreTip(etf || !!item?.symbol, item?.reason || why);
+    return <span className="mf-na mf-na-x"><span aria-hidden="true">—</span>{item?.status === "NOT RATED" && <small>not rated</small>}
+      <i className="mf-na-i" tabIndex={0} role="img" data-tip={tip} aria-label={`No score. ${tip}`}>i</i></span>; }
   const band = bandOf(item.final);
   const inh = item.inherited;   // task #281: an IDCW row shows its same-plan Growth option's score, labelled as that option's
   return <span className="mfs-cell" title={`${inh ? `${GROWTH_SCORE_LABEL} (${inh.name}). ${inh.why} ` : ""}${item.label}${item.status === "PROVISIONAL" ? ", provisional" : ""}. ${PLAN_SCORE_NOTE} Describes the past; not a recommendation.`}>

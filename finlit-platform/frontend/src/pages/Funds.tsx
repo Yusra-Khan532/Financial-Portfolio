@@ -38,6 +38,7 @@ import "../styles/etfvs.css";
 import "../styles/mf341.css";   // task #341: the page refinement (after mf.css and etfvs.css)
 import "../styles/task355.css";   // task #355: the folded Show filters handle
 import "../styles/task363.css";   // task #363: the folded Show filters fits its words
+import "../styles/task374.css";   // task #374: the Ready list caption in line with Columns
 import "../styles/task376.css";   // task #376: How to read this table as a drop-down at the top; Reset filters beside Hide filters
 import { ChartZoom } from "../components/ChartZoom";
 import { useFundWishlist, useWishRows, WISH_MAX } from "../lib/fundWishlist";   // task #375: the Wishlist tab and the star on each scheme
@@ -298,7 +299,7 @@ export function FundListPage() {
           !hot.data ? <div className="card" aria-busy="true"><div className="skeleton" style={{ height: 420 }} /></div> : (
             <div className="card mf-tablecard">
               <div className="mf-tbar">{/* task #346: the Columns button inside the table, beside its enlarge button */}<ColumnPicker cols={cols} onChange={(c) => { setCols(c); writeCols(c); }} /></div>
-              <p className="faint mf-fine mf-pad">{hot.data.basis}</p>
+              <p className="faint mf-fine mf-tbar-cap">{hot.data.basis}</p>{/* task #374: on the same line as Columns and the enlarge button */}
               <FundTable rows={hotRows} cols={cols} q={q} onSort={onSort} picked={tray} onPick={pick} wish={wishProp} />
               <CompareBar tray={tray} onClear={clear} onOpen={() => nav(compareUrl(tray))} />
             </div>)

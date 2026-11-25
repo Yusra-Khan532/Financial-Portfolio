@@ -1,0 +1,19 @@
+/* Task #374 (team, 24 Nov 2026), the Mutual Funds list (/funds):
+   (1) the Ready list caption ("Largest schemes by assets under management…") stands in one straight line with the Columns and enlarge buttons:
+       its row is centred on the same line as the buttons (8px down, 36px tall) and starts where the table's text starts; on a phone, where the buttons
+       take the row, the caption sits on its own line under them instead of running beneath them;
+   (2) a missing Mutual Fund Score shows a small "i" beside the dash; hovering, focusing or tapping it shows why. */
+.mf-list .mf-tablecard > .mf-tbar-cap { display: flex; align-items: center; min-height: 40px; max-width: none; margin: 0 0 8px; padding: 0 252px 0 10px; }
+@media (max-width: 760px) { .mf-list .mf-tablecard > .mf-tbar-cap { min-height: 0; padding: 52px 12px 0 10px; } }
+
+.mf-na-x { display: inline-flex; align-items: center; gap: 6px; cursor: default; }
+.mf-na-i { position: relative; display: inline-grid; place-items: center; width: 18px; height: 18px; border: 1px solid var(--border-strong); border-radius: 50%;
+  font: italic 700 var(--fs-12)/1 var(--serif); color: var(--muted); cursor: help; }
+.mf-na-i::before { content: ""; position: absolute; inset: -13px; }   /* a 44px tap target around the 18px mark */
+.mf-na-i:hover, .mf-na-i:focus-visible { color: var(--text); border-color: var(--text); }
+.mf-na-i:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.mf-na-i[data-tip]:hover::after, .mf-na-i[data-tip]:focus::after {
+  content: attr(data-tip); position: absolute; right: 50%; bottom: calc(100% + 8px); transform: translateX(50%); z-index: 30; width: max-content; max-width: 260px;
+  padding: 7px 10px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); box-shadow: var(--shadow);
+  font: 500 var(--fs-12)/1.4 var(--sans); font-style: normal; text-align: left; white-space: normal; letter-spacing: 0; text-transform: none; pointer-events: none;
+}

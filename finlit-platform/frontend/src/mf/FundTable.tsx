@@ -13,7 +13,7 @@ import { Fig, PlanChip } from "./Bits";
 import { tintOf } from "../lib/mfSummary";
 import { useUI } from "../lib/ui";
 import { useScores, type ScoreItem } from "../lib/mfScore";
-import { ScoreCell } from "./ScoreCell";
+import { isEtfCategory, ScoreCell } from "./ScoreCell";
 
 const shortAmc = (a: string) => a.replace(/\s*mutual fund\s*$/i, "");
 const MARK = { pass: "✓", fail: "✗", unknown: "–" } as const;
@@ -93,7 +93,7 @@ function cell(c: ColDef, r: FundRow, peers?: Record<string, PeerStats>, scale: S
         return <span className="mf-aum" title={`Total expense ratio of the ${r.plan} plan, percent a year${r.terDate ? `, as of ${dateIN(r.terDate)}` : ""} (AMFI)`}>{terText(r.ter)}
           {cost && <small className={"mf-band c" + cost.step} title="Against the median of the same category and plan: low is 20% or more under it, high is 20% or more over it.">{cost.label} for category</small>}</span>;
       })();
-    case "score": return <ScoreCell item={scores?.map.get(r.code)} locked={!!scores?.locked} loading={!!scores?.loading} why={r.optionClass !== "Growth" ? "Not scored: IDCW and other options show the score of the Growth option of the same plan, and this fund has none scored." : !r.active ? "Not scored: stopped publishing NAVs." : "Not scored yet."} />;
+    case "score": return <ScoreCell item={scores?.map.get(r.code)} locked={!!scores?.locked} loading={!!scores?.loading} etf={isEtfCategory(r.category)} why={r.optionClass !== "Growth" ? "Not scored: IDCW and other options show the score of the Growth option of the same plan, and this fund has none scored." : !r.active ? "Not scored: stopped publishing NAVs." : "Not scored yet."} />;
     case "checklist": return <ChecklistCell r={r} peers={peers} />;
   }
 }

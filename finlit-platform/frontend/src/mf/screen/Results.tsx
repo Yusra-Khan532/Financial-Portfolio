@@ -9,7 +9,7 @@ import { GROWTH_RETURNS_LABEL, PLAN_SCORE_NOTE, aumText, categoryShort, growthFi
 import { figureOf, type ScreenRow, type SQ } from "../../lib/mfScreen";
 import { NUM_BY, unitText } from "../../lib/mfScreenDefs";
 import { PlanChip } from "../Bits";
-import { ScoreCell } from "../ScoreCell";
+import { isEtfCategory, ScoreCell } from "../ScoreCell";
 import type { ScoreItem } from "../../lib/mfScore";
 
 type Col = { id: string; label: string; sort?: string; field?: string; hint: string; cell: (r: ScreenRow) => string; why?: (r: ScreenRow) => string };
@@ -80,7 +80,7 @@ export function ResultTable({ rows, q, onSort, loading, score, pick }: { rows: S
                   {!r.active && <span className="chip ghost">Stopped publishing</span>}</small>
                 <small className="mfs-nav"><span className="mfs-cat" title={r.category}>{categoryShort(r.category)}</span>{r.nav != null && <> · NAV <span className="mono">{navText(r.nav)}</span>{r.navDate ? ` on ${dateIN(r.navDate, { day: "numeric", month: "short" })}` : ""}</>}</small></span></span>
               </th>
-              <td className="mfs-hs"><ScoreCell item={score.items.get(r.code)} locked={!score.gold} why={NO_SCORE} loading={score.loading} /></td>
+              <td className="mfs-hs"><ScoreCell item={score.items.get(r.code)} locked={!score.gold} why={NO_SCORE} loading={score.loading} etf={isEtfCategory(r.category)} /></td>
               {cols.map((c) => { const t = c.cell(r); const g = !t && RET_IDS.has(c.id) ? <GrowthRet r={r} id={c.id as "r1y" | "r3y" | "r5y"} /> : null;
                 return <td key={c.id} className="num">{t ? t.replace("-", MINUS) : growthFigure(r, c.id as "r1y") != null ? g : <span className="mf-na" title={c.why?.(r)} aria-label={`No figure. ${c.why?.(r) ?? ""}`}>—</span>}</td>; })}
             </tr>))}
