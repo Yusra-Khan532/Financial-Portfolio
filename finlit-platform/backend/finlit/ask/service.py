@@ -190,22 +190,30 @@ def reads_like_advice(text: str) -> bool:
     return bool(ADVICE.search(text or ""))
 
 
-SUMMARY_VERSION = "v4"   # task #228 rework 3: bucket headlines; a new version is not served an older cached summary
+SUMMARY_VERSION = "v5"   # task #382: every figure with its meaning; a new version is not served an older cached summary
 
 
 def summary_question(symbol: str) -> str:
     """The AI summary at the top of the FinLit Prism card of the company page (task #228; task #312 (developer file 20): written from the card's own
     figures, get_finlit_prism, read before the model starts). Task #228 rework 3 (the team, 22 Nov 2026): "make it summarize the score and nothing else
-    in pointer not paragraphs not big sentence instead create a major bucket headline then give point": numbered bucket headlines, each with one or
-    two short points of the card's own figures. Written here, never by the browser: the summary allowance (quota kind "summary") can only ever ask this."""
+    in pointer not paragraphs not big sentence instead create a major bucket headline then give point": numbered bucket headlines, each with short
+    points of the card's own figures. Task #382 (the team, 24 Nov 2026): "explain the meaning behind every number": every figure keeps its number and
+    band, followed by what it means and why it matters, read off the card's whatEachFigureMeans sheet (ask/prism_meaning, the method's own bands and
+    words), never made up; a figure the sheet cannot interpret is flagged. Written here, never by the browser: the summary allowance (quota kind
+    "summary") can only ever ask this."""
     return (f"Summarise the FinLit Prism score of {symbol} (the card read above) and nothing else: no company news, business description or advice. "
             "Write it as bucket headlines, each on its own line and numbered, in this order: \"1. Overall\", \"2. Sound\", \"3. In between\", "
-            "\"4. Weighs on it\", \"5. Price trend\". Under each headline write one or two points, each on its own line starting with \"- \", "
-            "at most 12 words, no full sentences: the part's name, its score and what it measures, with key figures in **bold**. "
-            "Overall: the overall score, its label and whether it is Rated or Provisional. Weighs on it: the weak parts and the main reason the card "
-            "gives (its topPros and topCons). Price trend: the short-term and long-term technical scores and what they mean together "
-            "(a higher Risk score means lower risk). Use only the card's figures, as the card states them. Leave out a headline that has nothing "
-            "under it. No paragraph. Describe, never advise.")
+            "\"4. Weighs on it\", \"5. Price trend\". Under each headline, one point per figure, each on its own line starting with \"- \": first the "
+            "figure in **bold** with its number and band exactly as the card states them (for example **Valuation 37.8 (Weak)**), then a colon and one "
+            "short line, at most 22 words, saying what that band means and why it matters, taken from the card's whatEachFigureMeans sheet. "
+            "Sound: the parts that are Strong or Healthy. In between: Average. Weighs on it: Weak or Poor. Add the main reason the card gives where "
+            "it has one (its topPros and topCons, figures as stated, for example a profit streak as growth quarters out of the quarters judged). Overall: the overall score, its "
+            "label, whether it is Rated or Provisional, and what the label means. For Risk always say that a higher Risk score means lower risk. "
+            "Price trend: the short-term and the long-term score with their words, then the alignment and what it means; say these describe the share "
+            "price, not the business. Keep the business (Fundamental and growth, Quality), the price against earnings (Valuation) and the share's "
+            "trading (Risk, the trends) apart. If the sheet says a figure CANNOT BE INTERPRETED, write the figure with \"cannot be interpreted\" and "
+            "the sheet's reason; never guess. Use only the card's figures and the sheet's meanings, nothing that would fit any company. Leave out a "
+            "headline that has nothing under it. No paragraph. Describe, never advise: no should, consider, buy, sell, hold or avoid.")
 
 
 # Task #255 ("chatbot is still not taking investor presentation data"): a question about what a company's own document says is answered from the

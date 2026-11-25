@@ -240,6 +240,25 @@
 @media (prefers-reduced-motion: reduce) { .pai2-dots i { animation: none; opacity: .7; } }
 .pai2-out { display: grid; gap: 8px; margin-top: 8px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--s1); font: 400 var(--fs-14)/1.55 var(--sans); color: var(--text); }
 .pai2-list { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+/* Task #382: each figure prominent, its band beside it, its meaning on the line below, an (i) for the detail; the business kept apart from the price. */
+.pai2-g { margin: 4px 0 0; font: 600 var(--fs-12)/1.35 var(--sans); color: var(--muted); letter-spacing: .02em; }
+.pai2-list:has(> .pai2-p) { padding-left: 0; list-style: none; gap: 8px; }
+.pai2-p { display: grid; gap: 2px; padding-left: 10px; border-left: 3px solid var(--border); }
+.pai2-p[data-tone="good"] { border-left-color: var(--band-hi); } .pai2-p[data-tone="mixed"] { border-left-color: var(--band-mid); }
+.pai2-p[data-tone="weak"] { border-left-color: var(--band-lo); } .pai2-p[data-tone="na"] { border-left-style: dashed; }
+.pai2-h { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.pai2-bi { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.pai2-h > b { font: 600 var(--fs-14)/1.35 var(--sans); color: var(--text); }
+.pai2-num { font: 700 var(--fs-16)/1.2 var(--sans); font-variant-numeric: tabular-nums; }
+.pai2-band { font: 600 var(--fs-12)/1.2 var(--sans); padding: 2px 8px; border-radius: var(--r-ctl); border: 1px solid currentColor; color: var(--muted); }
+.pai2-p[data-tone="good"] .pai2-band { color: var(--band-hi-ink); } .pai2-p[data-tone="mixed"] .pai2-band { color: var(--band-mid-ink); }
+.pai2-p[data-tone="weak"] .pai2-band { color: var(--band-lo-ink); }
+.pai2-i { inline-size: 24px; block-size: 24px; display: inline-grid; place-items: center; border-radius: 50%; border: 1px solid var(--border); background: none; color: var(--muted); font: italic 600 var(--fs-12)/1 var(--serif, var(--sans)); cursor: pointer; padding: 0; }
+.pai2-i[aria-expanded="true"], .pai2-i:hover { color: var(--text); border-color: var(--gold); }
+.pai2-i:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.pai2-m { font: 400 var(--fs-14)/1.5 var(--sans); color: var(--text); }
+.pai2-r { font: 400 var(--fs-13)/1.45 var(--sans); color: var(--muted); }
+.pai2-more { font: 400 var(--fs-13)/1.5 var(--sans); color: var(--muted); padding: 6px 8px; border-radius: var(--r-ctl); background: var(--s2, var(--s1)); }
 .pai2-msg { margin: 0; padding: 8px 10px; border-radius: var(--r-ctl); background: color-mix(in srgb, var(--loss) 8%, var(--s1)); font-size: var(--fs-13); }
 .pai2-note { margin: 0; font-size: var(--fs-13); color: var(--muted); }
 .pai2-meta { margin: 2px 0 0; font: 400 var(--fs-12)/1.4 var(--sans); color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
