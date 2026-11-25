@@ -72,6 +72,6 @@ describe("MF portfolio page (task #183 part 2)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Import" }));                                           // task #275 (change 2): Import ▾ in the title row
     expect(screen.getByText(/Each fund is read by its ISIN, which names the exact plan and option/)).toBeTruthy();
     const foot = document.querySelector(".mfp-foot")!;
-    expect(foot.textContent).toMatch(/index levels from NSE\. Information only, not investment advice\.$/);
+    expect(foot.textContent).toMatch(/Index levels: NSE\. Filings: from Discover\. Information only, not investment advice\.$/);   // task #389 file 40 v4 E1: the shared bottom's sources line
   });
 });

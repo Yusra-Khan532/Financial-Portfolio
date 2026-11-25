@@ -1,4 +1,3 @@
-import { PortfolioDisclaimer } from "../components/PortfolioDisclaimer";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { capBucket } from "../lib/capBuckets";
@@ -26,10 +25,9 @@ import { Tip } from "../components/sectors/pack/Common";
 import { useAuth } from "../lib/auth";
 import { MfAsOf, MfCards, MfParts, MfSince } from "../mf/pack/MfTop";
 import { Step, StepCtx } from "../portfolio/pack/EqSteps385";
-import { GainLossSection } from "../portfolio/pack/EqSteps385";
 import { KnowPop, closePops } from "../portfolio/pack/Round388";
-import { Info, RECORD_SALE, andList, countOf, shortCo, type GLRow } from "../portfolio/shared";
-import { holdingFigs } from "../portfolio/HoldingCells";
+import { Info, RECORD_SALE, VisitFolds, andList, countOf, shortCo } from "../portfolio/shared";
+import { PageBottom } from "../portfolio/shared/PageBottom";
 import { dayMonth } from "../lib/whatChanged";
 import "../portfolio/pack/eq385.css";
 import { dm } from "../lib/etfKeyFigs";
@@ -68,6 +66,7 @@ import "../portfolio/pack/pagetop.css";
 import "../styles/sectors-pack.css";
 import "../styles/industry-pack.css";
 import "../mf/pack/mf-pack.css";
+import "../mf/pack/spacing389.css";   // task #389 (file 40 v4, Part D): the page's spacing, after the pack CSS
 import { PLAN_FOR_PORTFOLIO, PLAN_FOR_PRISM } from "../lib/planGates";
 import { PageTabs } from "../components/PageTabs";
 
@@ -295,7 +294,7 @@ export function MfPortfolioPage() {
     openSec(g.arg);
   };
   const coName = (sym: string | null, name: string) => { const u = sym ? byU.get(sym) : undefined; return shortCo(u?.name ?? name, sym ?? ""); };
-  const kf = (v: MfView, sub: string) => <KeyFigsBox id={`mfp-kf-${v}`} sub={sub} cards={mfKeyFigures(v, { hs: all, sp: sp.data, rk: rk.data, list: d ? { value: d.summary.score.value, label: d.summary.score.label } : undefined, nameOf: coName })} onGo={onGo} />;
+  const kf = (v: MfView, sub: string) => <KeyFigsBox id={`mfp-kf-${v}`} sub={sub} cards={mfKeyFigures(v, { hs: all, sp: sp.data, rk: rk.data, list: d ? { value: d.summary.score.value, label: d.summary.score.label } : undefined, nameOf: coName })} onGo={onGo} visit />;   // A2 (file 40 v4): closed on every visit
   const lead: ReactNode = <><AccountPicker p={pick} compact /><ViewSeg defs={VIEW_DEFS.map((x) => (x.id === "risk" ? { ...x, label: "Risk" } : x))} view={view} onView={(v) => goTab(v)} seen={seen} />
     <SectionsMenu all={barSteps} view={view} onSec={onSec} here={step === "all" ? undefined : step} label="Sections ▾" btnClass="ptk-btn ptk-secb" mode="view" /></>;
   const setView = (v: MfView, scroll = false) => { const n = new URLSearchParams(params); if (v === "funds") n.delete("view"); else n.set("view", v); n.delete("step"); setParams(n, { replace: true }); if (v !== view) closePops();
@@ -321,13 +320,6 @@ export function MfPortfolioPage() {
   const uni = useUniverse(), byU = useMemo(() => new Map((uni.data?.rows ?? []).map((r) => [r.symbol, r])), [uni.data]);
   const top = useMemo(() => sp.data?.topStocks ?? [], [sp.data]);
   const tiles = mfTiles(all, sp.data, rk.data), box = listBox(all, sp.data);
-  // task #389 (Your funds 7): each fund's gain or loss in rupees, from the funds table's own figures; funds held without a buy NAV are left out and counted
-  const glRows = useMemo(() => { const rows: GLRow[] = []; let noPrice = 0;
-    for (const h of all) { const k = keyOf(h.id), f = holdingFigs(lots, k); if (!f.a?.qty) continue;
-      if (f.gain == null) { if (f.now != null) noPrice++; continue; }
-      rows.push({ symbol: k, name: (fundName(h.name) || `Scheme ${h.code}`).replace(/ Fund$/, ""), gain: f.gain, pct: f.gainPct }); }
-    return { rows, noPrice }; }, [all, book.rows, cur, navs]);   // eslint-disable-line react-hooks/exhaustive-deps
-  const codeOfKey = (k: string) => navs.get(k)?.code ?? k;
   // task #389 (Top 6): which date each kind of figure runs to
   const holdDates = [...new Set((sp.data?.funds ?? []).map((f) => f.holdingsAsOf).filter((x): x is string => !!x))].sort().reverse().map((x) => dm(x) + " " + x.slice(0, 4));
   const asOf: [string, ReactNode][] = [
@@ -348,7 +340,9 @@ export function MfPortfolioPage() {
   useEffect(() => { const on = (e: Event) => { if ((e as CustomEvent).detail === "mfp-units") addUnits(); }; addEventListener("eq-jump", on); return () => removeEventListener("eq-jump", on); }, []);
 
   return (
-    <KnowPop.Provider value={true}><div className="wrap ipo mp sp mfp">
+    // task #389 (developer file 40 v4, D1 / SHARED.md SP1): `pfx`, as on the Equity and ETF pages, so the page has their width (with funds and without);
+    // A2: VisitFolds keeps Key figures (and the bottom's two folds) open for the rest of the visit once opened, closed on every new visit
+    <KnowPop.Provider value={true}><VisitFolds><div className="wrap ipo mp sp mfp pfx">
       <Gate tier={PLAN_FOR_PORTFOLIO} title="Track your mutual funds" points={["How healthy each fund is: the Mutual Fund Score and its four parts", "What sits inside your funds, and how alike they are", "Each fund against its own benchmark, and the list together", "Import your CAS PDF, or Excel / CSV statements, read by ISIN"]}>
         {/* task #275 (change 2): the compact top: title, plan, as-of and the add box in one row; the money box that says what it covers, and Your portfolios */}
         <header className="ptk-head card" id="mfp-top">
@@ -414,9 +408,6 @@ export function MfPortfolioPage() {
             <FundsTable hs={rows} rk={rk.data} sp={sp.data} listLabel={d.summary.score.label} lots={lots} stuck={inTable} lead={lead}
               actions={(h) => { const k = keyOf(h.id); return <EditSell name={fundName(h.name) || `Scheme ${h.code}`} sell={RECORD_SALE} held={aggOf(book.rows, k, cur)?.qty ?? 0} onEdit={() => setDlg({ kind: "edit", k })} onSell={() => setDlg({ kind: "sell", k })} />; }} />
             <SoldList items={sold} all={cur === "all" && pfList.length > 1} pfName={pfName} onRemoveSale={(id) => book.store.remove(id)} noun={["fund", "funds"]} />
-            {/* task #389 (Your funds 7): Where your gain or loss came from, its own section after the funds table */}
-            <GainLossSection rows={glRows.rows} noPrice={glRows.noPrice} noun="fund" id="mfp-gl" link={(k) => `/funds/${codeOfKey(k)}`}
-              tip="Value now minus what you paid, for each fund you hold now. Sales you have recorded and dividends paid out are not counted here." />
             {kf("funds", `What your ${all.length === 1 ? "fund adds" : `${all.length} funds add`} up to, from the table above and the sections below.`)}
             </Step>
             <Step id="mfp-wc" title="What changed at the companies inside your funds" line={wcLine}>
@@ -454,8 +445,9 @@ export function MfPortfolioPage() {
           onRemove={(pf) => removeFund(dlg.k, pf)} onClose={() => setDlg(null)} />}
         {dlg?.kind === "sell" && <SellDialog key={dlg.k} record name={fundName(nameOf(dlg.k)) || nameOf(dlg.k)} priceWord="NAV" symbol={dlg.k} holdings={book.rows} pfs={dlgPfs} pf0={pfOfFund(dlg.k)} ops={book.store} price={priceOf(dlg.k)} onClose={() => setDlg(null)} />}
       </Gate>
-      <details className="sp-sec sp-fold mfp-disc"><summary><span><b className="sp-ft">Disclaimer</b><small>What this page is, and is not</small></span><span className="sp-show">Show ▾</span></summary><PortfolioDisclaimer kind="mf" /></details>
-      <p className="mfp-foot">{SOURCES}</p>
-    </div></KnowPop.Provider>
+      {/* task #389 (developer file 40 v4, D3 and E1 / SHARED.md SP9, SP11): the shared page bottom inside the page column: Questions (closed, at every
+          width), then the Disclaimer fold, then the sources line, 18 px apart; the layout no longer adds its own Questions box below the page */}
+      <PageBottom kind="mf" sources={SOURCES} />
+    </div></VisitFolds></KnowPop.Provider>
   );
 }

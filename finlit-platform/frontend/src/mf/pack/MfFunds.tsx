@@ -83,7 +83,8 @@ export const TABLE_VIEWS: [string, string][] = [["overview", "Overview"], ["retu
  *  NAVs change once a day), and a total row sits at the foot. */
 /** The table's frame: the heading row follows the page down under the section bar, or the table's own filter row once it takes the bar's place. */
 function Frame({ label, children }: { label: string; children: ReactNode }) {
-  return <FrozenTable label={label} pinBelow=".ptk-frow.stuck, .ptk-bar:not(.away)" className="mff-frz">{children}</FrozenTable>;
+  // task #389 (developer file 40 v4, M5 / SHARED.md S2): under the LOWEST of these bars, worked out again whenever either bar changes class (stuck, away)
+  return <FrozenTable label={label} pinBelow=".ptk-frow.stuck, .ptk-bar:not(.away)" pinWatch=".ptk-bar, .ptk-frow" className="mff-frz">{children}</FrozenTable>;
 }
 
 export function FundsTable({ hs, rk, sp, actions, listLabel, lots, stuck, lead, after }: { hs: Holding[]; rk: MfRisk | undefined; sp: MfSpread | undefined; actions: (h: Holding) => ReactNode; listLabel: string | null; lots?: LotsProps;
@@ -148,9 +149,9 @@ export function FundsTable({ hs, rk, sp, actions, listLabel, lots, stuck, lead, 
     <tr key={h.id} className={TONE(s.label) === "b" ? "mff-weak" : undefined}>{fundCell(h, true)}
       {catCell(h, true)}
       {lots ? <HoldingRowCells p={lots} symbol={keyOf(h.id)} priceCell={navCell(h, "r x-c2 x-gs cg-h")} changeCell={null} /> : navCell(h)}
-      <td className="mff-sc">{s.final == null ? <span className="sp-note" title={s.reason || undefined}>{STATUS(s.status) || "No score"}</span> : <span className="mff-score"><b className={"mff-num " + TONE(s.label)}>{Math.round(s.final)}</b> <span className={"mff-w " + TONE(s.label)}>{cap(s.label)}</span></span>}</td>
+      <td className="mff-sc mff-div">{s.final == null ? <span className="sp-note" title={s.reason || undefined}>{STATUS(s.status) || "No score"}</span> : <span className="mff-score"><b className={"mff-num " + TONE(s.label)}>{Math.round(s.final)}</b> <span className={"mff-w " + TONE(s.label)}>{cap(s.label)}</span></span>}</td>
       {PARTS.map(([k], i) => <td key={k} className={"c" + (i === 0 ? " mff-div" : "")}>{s.parts ? <Word w={s.words?.[k] ?? null} n={s.parts[k]} /> : "–"}</td>)}
-      <td className="mff-st">{s.status ? <span className={"mff-status " + (s.status === "RATED" ? "g" : "m")}>{STATUS(s.status)}</span> : "–"}
+      <td className="mff-st mff-div">{s.status ? <span className={"mff-status " + (s.status === "RATED" ? "g" : "m")}>{STATUS(s.status)}</span> : "–"}
         {s.rank && <small className="mfp-sub">{s.rank.rank} of {s.rank.of} in category</small>}{s.inherited && <small className="mfp-sub">Growth plan's score</small>}</td>
       </tr>);
     return lots ? [row, lots.open.has(keyOf(h.id)) && <LotRows key={h.id + ":lots"} p={lots} symbol={keyOf(h.id)} lead={2} rest={6} />] : row; };
@@ -167,13 +168,15 @@ export function FundsTable({ hs, rk, sp, actions, listLabel, lots, stuck, lead, 
       <div id="mfp-zone">
       <FilterRow rows={hs} facets={FACETS} picks={picks} setPicks={setPicks} q={fq} setQ={setFq} text={fundText} find="Find a fund" noun={["fund", "funds"]} cols={TABLE_VIEWS} col={view}
         setCol={(c) => { setView(c as FundsView); setSort({ k: "name", dir: 1 }); }} shown={shown.length} stuck={stuck} lead={lead} />
+      {/* task #389 (developer file 40 v4, M2 / SHARED.md F4): every column group has its line, as Score parts has: Mutual Fund Score and Score had none
+          (check-tables.js "lines"); the group heading, the column heading and the body column each carry mff-div */}
       {view === "overview" && <Frame label="your funds"><table className={"sp-tb mff-t kit-grid" + (lots ? " x-grp" : "")}>
-        <thead><tr className="mff-groups">{lots ? <><th colSpan={2} /><GroupBand mf /></> : <th colSpan={3} />}<th className="mff-gh">Mutual Fund Score</th><th colSpan={4} className="mff-gh mff-div">Score parts<Tip text="Each part of the Mutual Fund Score against funds in the same category: performance, risk, cost and quality." how="Strong, Fair or Weak, with the part's number under it. A strong Risk part means lower risk; a strong Cost part means cheaper." label="About “Score parts”" /></th><th className="mff-gh">Score</th><th /></tr>
-          {lots ? <tr>{cols.slice(0, 2).map((c) => th(c))}<HoldingHeads mf sortHead={(id, _l, cls) => th(cols.find((c) => c.k === id)!, cls)} />{th(cols[9], "mff-sc")}{cols.slice(10, 14).map((c, i) => th(c, "c" + (i === 0 ? " mff-div" : "")))}{th(cols[14])}</tr>
-            : <tr>{cols.slice(0, 3).map((c) => th(c))}{th(cols[3], "mff-sc")}{cols.slice(4, 8).map((c, i) => th(c, "c" + (i === 0 ? " mff-div" : "")))}{th(cols[8])}</tr>}</thead>
+        <thead><tr className="mff-groups">{lots ? <><th colSpan={2} /><GroupBand mf /></> : <th colSpan={3} />}<th className="mff-gh mff-div">Mutual Fund Score</th><th colSpan={4} className="mff-gh mff-div">Score parts<Tip text="Each part of the Mutual Fund Score against funds in the same category: performance, risk, cost and quality." how="Strong, Fair or Weak, with the part's number under it. A strong Risk part means lower risk; a strong Cost part means cheaper." label="About “Score parts”" /></th><th className="mff-gh mff-div">Score</th><th /></tr>
+          {lots ? <tr>{cols.slice(0, 2).map((c) => th(c))}<HoldingHeads mf sortHead={(id, _l, cls) => th(cols.find((c) => c.k === id)!, cls)} />{th(cols[9], "mff-sc mff-div")}{cols.slice(10, 14).map((c, i) => th(c, "c" + (i === 0 ? " mff-div" : "")))}{th(cols[14], "mff-div")}</tr>
+            : <tr>{cols.slice(0, 3).map((c) => th(c))}{th(cols[3], "mff-sc mff-div")}{cols.slice(4, 8).map((c, i) => th(c, "c" + (i === 0 ? " mff-div" : "")))}{th(cols[8], "mff-div")}</tr>}</thead>
         <tbody>{shownRows.map(overviewRow)}</tbody>
-        <tfoot>{lots && <TotalRow p={lots} symbols={hs.map((h) => keyOf(h.id))} lead={2} rest={6} noun={["fund", "funds"]} />}<tr><th scope="row" colSpan={lots ? 9 : 3}>List average</th><td className="mff-sc">{listAvg == null ? "–" : <span className="mff-score"><b className={"mff-num " + TONE(labelOf())}>{Math.round(listAvg)}</b> <span className={"mff-w " + TONE(labelOf())}>{cap(labelOf())}</span></span>}</td>
-          {PARTS.map(([k], i) => { const v = avg(hs.map((h) => h.score.parts?.[k])); return <td key={k} className={"c" + (i === 0 ? " mff-div" : "")}><b>{v == null ? "–" : Math.round(v)}</b></td>; })}<td /></tr></tfoot>
+        <tfoot>{lots && <TotalRow p={lots} symbols={hs.map((h) => keyOf(h.id))} lead={2} rest={6} noun={["fund", "funds"]} />}<tr><th scope="row" colSpan={lots ? 9 : 3}>List average</th><td className="mff-sc mff-div">{listAvg == null ? "–" : <span className="mff-score"><b className={"mff-num " + TONE(labelOf())}>{Math.round(listAvg)}</b> <span className={"mff-w " + TONE(labelOf())}>{cap(labelOf())}</span></span>}</td>
+          {PARTS.map(([k], i) => { const v = avg(hs.map((h) => h.score.parts?.[k])); return <td key={k} className={"c" + (i === 0 ? " mff-div" : "")}><b>{v == null ? "–" : Math.round(v)}</b></td>; })}<td className="mff-div" /></tr></tfoot>
       </table></Frame>}
       {view === "returns" && <Frame label="returns and costs"><table className="sp-tb mff-t kit-grid"><thead><tr>{cols.map((c) => th(c))}</tr></thead>
         <tbody>{shownRows.map((h) => <tr key={h.id}>{fundCell(h)}{catCell(h)}

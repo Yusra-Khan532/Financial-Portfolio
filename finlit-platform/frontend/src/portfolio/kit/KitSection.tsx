@@ -4,6 +4,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Tip } from "../../components/sectors/pack/Common";
 import "../../styles/hideable.css";
+import { useVisitFold } from "../shared/VisitFold";
 import "./kit.css";
 
 const key = (id: string) => `finlit.hide.pack.${id}`;
@@ -18,13 +19,23 @@ export function useHidden(id: string): [boolean, (v: boolean) => void] {
   return [h, (v) => { set(v); setHidden(id, v); }];
 }
 
+/** Task #389 (developer file 40 v4, A2; SHARED.md KF): a section that is closed (the slim card) on every visit and, once the member opens it, stays open for
+ *  the rest of the visit only (the page's VisitFolds; nothing is kept in the browser). The Sections menu's setHidden(id, false) still opens it. */
+export function useVisitHidden(id: string): [boolean, (v: boolean) => void] {
+  const [open, setOpen] = useVisitFold(id);
+  useEffect(() => { const on = (e: Event) => { const d = (e as CustomEvent<{ id: string; v: boolean }>).detail; if (d?.id === id) setOpen(!d.v); }; addEventListener("ptk-hide", on); return () => removeEventListener("ptk-hide", on); }, [id, setOpen]);
+  return [!open, (v) => setOpen(!v)];
+}
+
 export const EYE = <svg className="hz-ic" viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M3 3l14 14M8.6 5.2A8 8 0 0 1 10 5c4 0 6.8 3.2 7.8 5-.4.8-1.2 1.9-2.3 2.9M12.8 12.9A4 4 0 0 1 7.1 7.2M5.2 6.6C3.9 7.6 3 8.9 2.2 10c1 1.8 3.8 5 7.8 5 1 0 1.9-.2 2.7-.5" /></svg>;
 
 /** The live page's section (sp-sec) with the slim hidden card. `subText`: the subtitle in words for the hidden card (the sub itself when it is text). */
-export function Section({ id, title, help, how, sub, subText, hide, right, children, className = "" }: {
+export function Section({ id, title, help, how, sub, subText, hide, visit = false, right, children, className = "" }: {
   id: string; title: string; help?: string; how?: string; sub?: ReactNode; subText?: string; hide?: boolean; right?: ReactNode; children: ReactNode; className?: string;
+  /** with `hide`: closed on every visit, open for the rest of the visit once opened (useVisitHidden) instead of the choice kept in this browser */ visit?: boolean;
 }) {
-  const [hidden, setH] = useHidden(id);
+  const kept = useHidden(id), once = useVisitHidden(id);
+  const [hidden, setH] = visit ? once : kept;
   const sw = typeof sub === "string" ? sub : subText ?? "";
   if (hide && hidden) return (
     <section className="ptk-hz" aria-labelledby={id}>

@@ -41,8 +41,8 @@ export function ShowAll({ n, noun = "share", open, onToggle, controls, className
 }
 
 /** A table whose header follows the page down under `pinBelow` (a sticky bar's selector) and whose first column stays put sideways. */
-export function FrozenTable({ label, pinBelow = ".eqt-bar", className = "", children }: { label: string; pinBelow?: string; className?: string; children: ReactNode }) {
-  return <HScroll label={label} pinBelow={pinBelow} pinCells controls={false} zoom={false} className={"eqs-frz " + className}>{children}</HScroll>;
+export function FrozenTable({ label, pinBelow = ".eqt-bar", pinWatch, className = "", children }: { label: string; pinBelow?: string; pinWatch?: string; className?: string; children: ReactNode }) {
+  return <HScroll label={label} pinBelow={pinBelow} pinWatch={pinWatch} pinCells controls={false} zoom={false} className={"eqs-frz " + className}>{children}</HScroll>;
 }
 
 /** A change in percent with its colour: green up, red down, grey when it rounds to zero. */
