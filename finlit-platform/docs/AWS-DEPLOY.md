@@ -134,7 +134,7 @@ Private repository? `export GIT_TOKEN=<read-only deploy token>` before running `
 Different source? `REPO_URL`, `REPO_BRANCH`, `REPO_SUBDIR` can be set the same way.
 
 ## 9. Backups and restore
-- A backup container saves the database **every night at 02:00 IST** into the `backups` Docker volume, keeps the newest **7**, and checks each file can be read. List them: `finlit backups`.
+- A backup container saves the database **every night at 02:00 IST** into the `backups` Docker volume (and once more before every automatic deploy), keeps today's newest 3 and **one per earlier day for 7 days**, and checks each file can be read. The backups are for recovery only; nothing on the site reads them. Console > Storage shows how many there are and how much space they take. List them: `finlit backups`.
 - **Copy the newest to your own computer now and then** (a backup on the same disk does not survive losing the server). On the server:
   `docker cp finlit-backup-1:/backups/FILENAME.dump ~/` then, on your computer: `scp -i finlit.pem ubuntu@YOUR.ELASTIC.IP:FILENAME.dump .`
 - **Restore** (replaces the current database, after taking a safety backup first): `finlit restore FILENAME.dump`. It asks you to type `restore`.

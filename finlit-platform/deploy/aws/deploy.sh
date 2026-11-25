@@ -168,12 +168,12 @@ disk_pct() { df --output=pcent / | tail -n 1 | tr -dc '0-9'; }
 
 # Free what is safe to free (task: the "disk is almost full" alert kept coming back on days with many automatic deploys, because each build adds image layers and
 # build cache and the old rule kept a whole day of cache). Never touches the running containers, the database volume, the backups volume or the two images a rollback needs.
-#   - the build cache is capped by size (BUILD_CACHE_KEEP, default 2gb), not by age
+#   - the build cache is capped by size (BUILD_CACHE_KEEP, default 512mb: the image is built on GitHub and pulled, so the server seldom builds), not by age
 #   - every finlit-app image other than current, previous and pending is removed, then dangling images, stopped containers and unused networks
 #   - the journal is cut to 200 MB and the package cache is emptied, when those exist
 cmd_clean() {
   local before after keep id tag
-  before="$(disk_pct)"; keep="${BUILD_CACHE_KEEP:-2gb}"
+  before="$(disk_pct)"; keep="${BUILD_CACHE_KEEP:-512mb}"
   info "disk ${before:-?}% full before cleaning"
   docker builder prune -af --keep-storage "$keep" >/dev/null 2>&1 || docker builder prune -af >/dev/null 2>&1 || true
   for id in $(docker images "$IMAGE" -q 2>/dev/null | sort -u); do
@@ -279,7 +279,7 @@ cmd_deploy() {
   fi
   cmd_jobs || info "WARNING: the jobs container could not be moved to the new code now; auto-deploy tries again at its next check (bash $0 jobs)"
   docker image prune -f >/dev/null 2>&1 || true
-  docker builder prune -af --keep-storage "${BUILD_CACHE_KEEP:-2gb}" >/dev/null 2>&1 || true   # the cache is capped by size: many automatic deploys in one day fill the disk otherwise
+  docker builder prune -af --keep-storage "${BUILD_CACHE_KEEP:-512mb}" >/dev/null 2>&1 || true   # the cache is capped by size: many automatic deploys in one day fill the disk otherwise
   say "Done: FinLit is running (commit $commit)"
   info "Open:        $(site_url)"
   info "Check it:    cd $PROJ && bash scripts/smoke.sh $(site_url)"
