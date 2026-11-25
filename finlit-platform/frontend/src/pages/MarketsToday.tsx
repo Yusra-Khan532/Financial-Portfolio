@@ -16,7 +16,7 @@ import { useFeed } from "../lib/feed";
 import { MINUS, nf } from "../lib/format";
 import { Icon } from "../lib/icons";
 import { ChartZoom } from "../components/ChartZoom";
-import { MOST_USED } from "../lib/mobileNav";
+import { MOST_USED, freeAccountLine, planAddsLine } from "../lib/mobileNav";
 import { COMPANY } from "../content/site";
 import { useDocTitle } from "../lib/title";
 import "../styles/sectors.css";
@@ -213,7 +213,7 @@ export function MarketsToday({ home = false }: { home?: boolean }) {
       {home && <Sec title="Explore">
         <div className="mkt-grid">{MOST_USED.map((m) => <Link key={m.to} to={m.to} className="mkt-tool"><span><Icon name={m.icon} /></span>{m.label}</Link>)}</div>
       </Sec>}
-      {home && <div className="mkt-card mkt-join"><span className="mkt-ji"><Icon name="star" /></span><span><b>A free account keeps your watchlist</b><small>Alerts, your portfolio in one screen, and your companies' filings first.</small></span><Link to="/login?mode=signup">Sign up</Link></div>}
+      {home && <div className="mkt-card mkt-join"><span className="mkt-ji"><Icon name="star" /></span><span><b>A free account, no card</b><small>{`It keeps ${freeAccountLine()}. ${planAddsLine()}`.trim()}</small></span><Link to="/login?mode=signup">Sign up</Link></div>}
       <p className="mkt-disc">{COMPANY.disclaimer} Prices and figures as published by the exchanges and the named sources; market data may be delayed.</p>
     </div>
   );

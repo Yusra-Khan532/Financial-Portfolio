@@ -94,3 +94,5 @@ a.mkt-card:focus-visible, .mkt-ix:focus-visible, .mkt-row:focus-visible { outlin
 .mkt-join a { flex: none; display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border-radius: var(--r-ctl); background: var(--btn-bg); color: var(--btn-fg); font: 600 var(--fs-13)/1 var(--font-sans); text-decoration: none; }
 .mkt-disc { margin: 24px 2px 4px; font-size: var(--fs-12); color: var(--faint); line-height: 1.5; }
 @media (min-width: 861px) { .mkt { padding-top: 24px; } }
+/* the sideways rows bleed to the screen edge by exactly the page gutter (14px on a phone, luxe.css); 16px made the page 2px wider than the screen */
+@media (max-width: 860px) { .mkt-hs { margin-inline: -14px; padding-inline: 14px; scroll-padding-inline: 14px; } }
