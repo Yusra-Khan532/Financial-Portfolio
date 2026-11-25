@@ -37,29 +37,42 @@ describe("number text", () => {
 });
 
 describe("list address", () => {
-  it("an empty address is the page's default view: every Equity category, Direct plan, Growth option", () => {
+  it("task #369: an empty address preselects nothing: All funds, every plan, every option, still publishing and stopped", () => {
     expect(parseQuery(new URLSearchParams(""))).toEqual(PAGE_DEFAULTS);
-    expect(PAGE_DEFAULTS).toMatchObject({ tab: "equity", cats: null, plan: "Direct", option: "" });
+    expect(PAGE_DEFAULTS).toMatchObject({ tab: "all", cats: null, plan: "", option: "All", status: "" });
     expect(queryToParams(PAGE_DEFAULTS).toString()).toBe("");
+    expect(activeFilterCount(PAGE_DEFAULTS)).toBe(0);
+    // the request asks the API for every scheme: no plan, every option, both statuses (the API alone would answer Growth options still publishing)
+    const p = new URL(listPath(effectiveQuery(PAGE_DEFAULTS)), "http://x").searchParams;
+    expect(p.get("plan")).toBeNull(); expect(p.get("option")).toBe("All"); expect(p.get("status")).toBe("both"); expect(p.get("group")).toBeNull();
+    // a category tab preselects no plan or option either (task #242 kept Direct and Growth there)
+    for (const t of ["equity", "debt", "hybrid", "solution", "other"] as const) expect(tabDefaults(t)).toEqual({ plan: "", option: "All" });
+    expect(parseQuery(new URLSearchParams("tab=debt"))).toMatchObject({ tab: "debt", plan: "", option: "All", status: "" });
   });
   it("round-trips every field", () => {
-    const q = { ...PAGE_DEFAULTS, q: "hdfc mid", amc: "HDFC Mutual Fund", plan: "Regular", option: "Growth", stopped: true, sort: "sip5y" as const,
+    const q = { ...PAGE_DEFAULTS, q: "hdfc mid", amc: "HDFC Mutual Fund", plan: "Regular", option: "IDCW", status: "active" as const, sort: "sip5y" as const,
       dir: "desc" as const, page: 3, size: 25, min1y: "5", max1y: "40.5", min5y: "10", max5y: "30", view: "ready" as const, tab: "debt" as const, cats: ["corporate-bond", "money-market"] };
     expect(parseQuery(queryToParams(q))).toEqual(q);
-    for (const extra of [{ plan: "" }, { tab: "all" as const, cats: null }, { cats: [] as string[] }, { sort: "checklist" as const }]) {
+    for (const extra of [{ plan: "" }, { option: "" }, { status: "stopped" as const }, { tab: "all" as const, cats: null }, { cats: [] as string[] }, { sort: "checklist" as const }]) {
       const r = { ...q, ...extra };
-      // task #242: on All funds an explicit Growth reads back as the Growth button's own value ("": the same filter, shown as chosen)
-      expect(parseQuery(queryToParams(r))).toEqual(r.tab === "all" && r.option === "Growth" ? { ...r, option: "" } : r);
+      expect(parseQuery(queryToParams(r))).toEqual(r);
     }
   });
   it("keeps the address short and readable", () => {
-    expect(queryToParams({ ...PAGE_DEFAULTS, cats: ["mid-cap", "large-cap"] }).toString()).toBe("cats=large-cap%2Cmid-cap");
-    expect(queryToParams({ ...PAGE_DEFAULTS, plan: "" }).toString()).toBe("plan=All");
-    expect(queryToParams({ ...PAGE_DEFAULTS, tab: "all", cats: ["x"], ...tabDefaults("all") }).toString()).toBe("tab=all");   // "all" has no sub-categories
-    expect(queryToParams({ ...PAGE_DEFAULTS, cats: [] }).toString()).toBe("cats=");                   // none ticked is a state of its own
+    expect(queryToParams({ ...PAGE_DEFAULTS, tab: "equity", cats: ["mid-cap", "large-cap"] }).toString()).toBe("tab=equity&cats=large-cap%2Cmid-cap");
+    expect(queryToParams({ ...PAGE_DEFAULTS, plan: "Direct", option: "" }).toString()).toBe("option=Growth&plan=Direct");
+    expect(queryToParams({ ...PAGE_DEFAULTS, status: "active" }).toString()).toBe("status=active");
+    expect(queryToParams({ ...PAGE_DEFAULTS, tab: "all", cats: ["x"] }).toString()).toBe("");   // "all" has no sub-categories
+    expect(queryToParams({ ...PAGE_DEFAULTS, tab: "equity", cats: [] }).toString()).toBe("tab=equity&cats=");   // none ticked is a state of its own
+  });
+  it("links from before task #369 still open what they named", () => {
+    expect(parseQuery(new URLSearchParams("cats=large-cap"))).toMatchObject({ tab: "equity", cats: ["large-cap"] });   // Equity was the first tab, left out of the address
+    expect(parseQuery(new URLSearchParams("tab=all&plan=All&sort=aum&dir=desc"))).toMatchObject({ tab: "all", plan: "", option: "All", sort: "aum", dir: "desc" });
+    expect(parseQuery(new URLSearchParams("stopped=1")).status).toBe("");   // "include stopped schemes" is what the page now does anyway
+    expect(parseQuery(new URLSearchParams("option=Growth")).option).toBe("");   // the Growth button
   });
   it("junk in the address falls back to safe values", () => {
-    const q = parseQuery(new URLSearchParams("plan=Gold&option=x&sort=drop&dir=sideways&page=-4&size=9999&min1y=abc&max1y=1e9&stopped=yes&tab=bonds"));
+    const q = parseQuery(new URLSearchParams("plan=Gold&option=x&sort=drop&dir=sideways&page=-4&size=9999&min1y=abc&max1y=1e9&stopped=yes&status=closed&tab=bonds"));
     expect(q).toEqual(PAGE_DEFAULTS);
     expect(parseQuery(new URLSearchParams("page=2.5")).page).toBe(1);
     expect(parseQuery(new URLSearchParams("q=" + "x".repeat(200))).q).toHaveLength(80);
@@ -75,11 +88,12 @@ describe("list address", () => {
     expect(queryToParams({ ...PAGE_DEFAULTS, dir: "desc" }).toString()).toBe("");
     expect(queryToParams({ ...PAGE_DEFAULTS, sort: "name", dir: "desc" }).toString()).toBe("sort=name&dir=desc");
   });
-  it("API address: a whole tab as group, ticked sub-categories as their AMFI names, page and size always", () => {
-    expect(listPath(EMPTY_QUERY)).toBe("/api/mf?page=1&size=50");
-    expect(listPath(PAGE_DEFAULTS)).toBe("/api/mf?group=equity&plan=Direct&page=1&size=50");
-    expect(listPath({ ...EMPTY_QUERY, q: "axis liquid", plan: "Direct", stopped: true, sort: "r1y", dir: "desc", min1y: "0" })).toBe("/api/mf?q=axis+liquid&plan=Direct&min1y=0&stopped=true&sort=r1y&dir=desc&page=1&size=50");
-    const p = new URL(listPath({ ...PAGE_DEFAULTS, cats: ["large-cap"] }, ["Equity Schemes - Large Cap Fund", "Equity Scheme - Large Cap Fund"]), "http://x").searchParams;
+  it("API address: a whole tab as group, ticked sub-categories as their AMFI names, the status, page and size always", () => {
+    expect(listPath(EMPTY_QUERY)).toBe("/api/mf?status=both&page=1&size=50");
+    expect(listPath(PAGE_DEFAULTS)).toBe("/api/mf?option=All&status=both&page=1&size=50");
+    expect(listPath({ ...PAGE_DEFAULTS, tab: "equity" })).toBe("/api/mf?group=equity&option=All&status=both&page=1&size=50");
+    expect(listPath({ ...EMPTY_QUERY, q: "axis liquid", plan: "Direct", status: "active", sort: "r1y", dir: "desc", min1y: "0" })).toBe("/api/mf?q=axis+liquid&plan=Direct&min1y=0&status=active&sort=r1y&dir=desc&page=1&size=50");
+    const p = new URL(listPath({ ...PAGE_DEFAULTS, tab: "equity", cats: ["large-cap"] }, ["Equity Schemes - Large Cap Fund", "Equity Scheme - Large Cap Fund"]), "http://x").searchParams;
     expect(p.getAll("categories")).toEqual(["Equity Scheme - Large Cap Fund", "Equity Schemes - Large Cap Fund"]) ; expect(p.get("group")).toBeNull();
   });
   it("orders by fund size when no order is chosen, by match while searching", () => {
@@ -93,8 +107,9 @@ describe("list address", () => {
   });
   it("counts filters beyond the categories and the defaults, not search or sort", () => {
     expect(activeFilterCount(PAGE_DEFAULTS)).toBe(0);
-    expect(activeFilterCount({ ...PAGE_DEFAULTS, q: "x", sort: "r1y", amc: "A", min1y: "1", stopped: true, cats: ["elss"] })).toBe(3);
-    expect(activeFilterCount({ ...PAGE_DEFAULTS, plan: "" })).toBe(1);
+    expect(activeFilterCount({ ...PAGE_DEFAULTS, q: "x", sort: "r1y", amc: "A", min1y: "1", status: "active", cats: ["elss"] })).toBe(3);
+    expect(activeFilterCount({ ...PAGE_DEFAULTS, plan: "Direct" })).toBe(1);
+    expect(activeFilterCount({ ...PAGE_DEFAULTS, option: "" })).toBe(1);   // Growth chosen
   });
   it("the table offers the owner's columns: returns over 1, 3 and 5 years, SIP over 3 and 5, fund size, expense ratio, health score, checklist", () => {
     const ids = COLUMNS.map((c) => c.id);
@@ -185,18 +200,19 @@ describe("category map", () => {
   it("sub-categories merge both spellings, count for the plan chosen, and hide empty ones unless ticked", () => {
     const cats = [cat("Equity Scheme - Large Cap Fund", { direct: 30, regular: 31, growth: 61 }), cat("Equity Schemes - Large Cap Fund", { direct: 20, regular: 21, growth: 41 }),
       cat("Equity Scheme - Contra Fund", { direct: 0, regular: 0, growth: 0, active: 0 }), cat("Debt Scheme - Gilt Fund"), cat("ELSS", { active: 5 })];
-    const base = { plan: "Direct", option: "", stopped: false, cats: null };
+    const base = { plan: "Direct", option: "", status: "active" as const, cats: null };
     const subs = subCats(cats, "equity", base);
     expect(subs.map((s) => [s.key, s.count])).toEqual([["elss", 5], ["large-cap", 50]]);   // A to Z by name; contra has none
     expect(subs[1].names).toEqual(["Equity Scheme - Large Cap Fund", "Equity Schemes - Large Cap Fund"]);
     expect(subCats(cats, "equity", { ...base, plan: "" }).find((s) => s.key === "large-cap")!.count).toBe(102);
     expect(subCats(cats, "equity", { ...base, plan: "Regular" }).find((s) => s.key === "large-cap")!.count).toBe(52);
     expect(subCats(cats, "equity", { ...base, option: "IDCW" }).find((s) => s.key === "large-cap")!.count).toBe(20);   // only `active` is known for IDCW
-    expect(subCats(cats, "equity", { ...base, stopped: true }).find((s) => s.key === "large-cap")!.count).toBe(24);
+    expect(subCats(cats, "equity", { ...base, status: "" }).find((s) => s.key === "large-cap")!.count).toBe(24);   // no status chosen: every scheme (total)
+    expect(subCats(cats, "equity", { ...base, status: "stopped" }).find((s) => s.key === "large-cap")!.count).toBe(4);   // total minus active
     expect(subCats(cats, "equity", { ...base, cats: ["contra"] }).map((s) => s.key)).toContain("contra");
     expect(catNames(cats, "equity", ["large-cap", "elss"])).toEqual(["ELSS", "Equity Scheme - Large Cap Fund", "Equity Schemes - Large Cap Fund"]);
     expect(catNames(cats, "debt", ["large-cap"])).toEqual([]);
-    expect(catCount(cat("X"), { plan: "Direct", option: "", stopped: false })).toBe(10);   // an older answer without per-plan counts
+    expect(catCount(cat("X"), { plan: "Direct", option: "", status: "active" })).toBe(10);   // an older answer without per-plan counts
   });
   it("ticking and Select All", () => {
     const all = ["contra", "elss", "large-cap"];
@@ -376,11 +392,11 @@ describe("return and cost bands", () => {
 });
 
 describe("All funds shows every plan and option (task #242)", () => {
-  it("the All funds tab opens on every plan and option; the category tabs keep Direct and Growth", () => {
+  it("the All funds tab opens on every plan and option; since task #369 the category tabs do too", () => {
     const all = parseQuery(new URLSearchParams("tab=all"));
     expect(all).toMatchObject({ tab: "all", plan: "", option: "All" });
-    expect(queryToParams(all).toString()).toBe("tab=all");                                   // its defaults never go into the address
-    expect(parseQuery(new URLSearchParams("tab=debt"))).toMatchObject({ plan: "Direct", option: "" });
+    expect(queryToParams(all).toString()).toBe("");                                          // All funds is the page's own start since task #369
+    expect(parseQuery(new URLSearchParams("tab=debt"))).toMatchObject({ plan: "", option: "All" });
     expect(activeFilterCount(all)).toBe(0);                                                    // a tab's own defaults are no filter
   });
   it("a choice on All funds is kept in the address and read back the same", () => {
@@ -390,7 +406,7 @@ describe("All funds shows every plan and option (task #242)", () => {
       expect(back).toMatchObject({ tab: "all", plan: q.plan, option: q.option });
       expect(activeFilterCount(back)).toBe(Object.keys(patch).length);
     }
-    expect(queryToParams({ ...parseQuery(new URLSearchParams("tab=all")), option: "" }).toString()).toBe("tab=all&option=Growth");
+    expect(queryToParams({ ...parseQuery(new URLSearchParams("tab=all")), option: "" }).toString()).toBe("option=Growth");
   });
   it("old links keep their meaning", () => {
     expect(parseQuery(new URLSearchParams("tab=all&plan=Direct"))).toMatchObject({ plan: "Direct", option: "All" });

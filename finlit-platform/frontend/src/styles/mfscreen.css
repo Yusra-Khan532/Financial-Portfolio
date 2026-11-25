@@ -194,8 +194,6 @@
 .mfs-find-say { margin: 6px 2px 0; font-size: var(--fs-12); color: var(--muted); min-height: 0; } .mfs-find-say:empty { display: none; }
 .mfs-fold { width: 100%; justify-content: center; min-height: 44px; margin: 0 0 8px; }
 .mfs-soon-n { font: 500 var(--fs-12) var(--sans); color: var(--muted); }
-.mfs-active .mfs-dv { font: 600 var(--fs-13) var(--sans); color: var(--muted); margin-right: 2px; }
-.mfs-active .mfs-dchip { background: var(--s2); }
 .mfs-glance-wrap { margin: 0 0 18px; }
 .mfs-glance-wrap .mfs-glance-h { margin: 0 0 10px; }
 .mfs-table .mfs-nh { display: inline-flex; align-items: center; gap: 10px; } .mfs-tick-h { font: 500 var(--fs-12) var(--sans); color: var(--faint); }

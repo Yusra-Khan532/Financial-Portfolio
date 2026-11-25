@@ -19,8 +19,6 @@ export const CARDS: { id: Card; title: string; sub: string }[] = [
   { id: "costs", title: "Costs & benchmark", sub: "Expense ratio & alpha" },
 ];
 export const DEFAULT_PERIOD: Period = "5Y";
-/** Shown first when the address names no category (the owner's example); any wording of it, see backend mf_compare.cat_key. */
-export const DEFAULT_CATEGORY = /^flexi\s*cap/i;
 
 // ------------------------------------------------------------------------------------------------ API types
 
@@ -93,11 +91,11 @@ export function h2hToParams(s: H2HState): URLSearchParams {
 export const h2hPath = (a: number, b: number, period: Period) => `/api/mf-compare?a=${a}&b=${b}&period=${period}`;
 
 /** The category entry the address means: AMFI words some categories two ways ("Equity Scheme -" / "Equity Schemes -"), and the server lists both
- *  as one entry named after the commoner wording, so an older link with the other wording still finds it. Without a category: Flexi Cap. */
+ *  as one entry named after the commoner wording, so an older link with the other wording still finds it. Without a category: none (task #369, 24 Nov
+ *  2026, "dont preselect any filter in any of the mutual fund pages": the page used to open on Flexi Cap; now the user picks the category). */
 export function pickCategory(cats: CompareCategory[] | undefined, wanted: string): CompareCategory | undefined {
-  if (!cats) return undefined;
-  if (wanted) return cats.find((c) => c.name === wanted || c.variants?.includes(wanted));
-  return cats.find((c) => /^equity/i.test(c.group) && DEFAULT_CATEGORY.test(c.short));
+  if (!cats || !wanted) return undefined;
+  return cats.find((c) => c.name === wanted || c.variants?.includes(wanted));
 }
 
 // ------------------------------------------------------------------------------------------------ names, periods
