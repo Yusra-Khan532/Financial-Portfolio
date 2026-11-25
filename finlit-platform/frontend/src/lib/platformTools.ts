@@ -47,7 +47,7 @@ export const BUCKETS: Bucket[] = [
     { id: "ipo-calendar", title: "IPO Calendar", badge: "FREE", link: "/ipo", what: "Discover IPO opportunities from opening to listing.", points: ["Explore IPOs currently open", "Track upcoming IPO launches", "View recently listed companies"], image: "ipo-calendar-light" },
   ] },
   { id: "learn", name: "Learn & connect", line: "Learn the terms, ask questions, get help.", cards: [
-    { id: "glossary", title: "Glossary & Guides", badge: "FREE", link: "/glossary", what: "Investing terms in plain words, with formulas.", points: ["440+ terms from A to Z: what each means, why it matters, how to use it", "Guides to how sector signals and sector rotation work", "Research notes and explainers"], image: "glossary-light" },
+    { id: "glossary", title: "Glossary & Guides", badge: "FREE", link: "/glossary", what: "Investing terms in plain words, with formulas.", points: ["1,200+ terms from A to Z: what each means, why it matters, how to use it", "Guides to how sector signals and sector rotation work", "Research notes and explainers"], image: "glossary-light" },
     { id: "discussion-forum", title: "Discussion Forums", badge: "FREE", link: "/forum", what: "Talk about listed companies with other investors.", points: ["A discussion page for every listed company", "Trending, most discussed and companies you follow", "Moderated; information and opinion only"], image: "discussion-forum-dark", dark: true },
     { id: "browser-extension", title: "Browser Extension", badge: "FREE", link: "/browser-extension", what: "Get instant financial insights while browsing any website.", points: ["Understand financial terms instantly", "View FinLit scores for listed companies", "Access FinLit Prism scores on a plan that has it"], image: "browser-extension-light" },
     { id: "insights-blog", title: "Investing & Finance Articles", rowTitle: "Insights & Blog", badge: "FREE", link: "/blog", what: "Explore investing, finance and market insights in simple language.", points: ["Read in-depth investing explainers", "Discover market trends and myth-busters", "Learn through expert perspectives and analysis"], image: "insights-blog-light" },
@@ -62,18 +62,18 @@ export const SHORT: Record<string, string> = {
   "reverse-valuation": "what the price assumes", "dcf-calculator": "value a share", "profit-revenue-outlook": "1, 3, 5-year estimates", "eps-calculator": "EPS and target P/E", "sip-calculator": "monthly investing", "stress-lab": "shock the earnings",
   "watchlists": "follow your stocks", "equity-portfolio": "strength and spread", "mf-portfolio": "NAV, returns, health", "alerts": "price and filing alerts", "compare-funds": "head to head", "etf-portfolio": "track, cost, overlap",
   "sector-pulse": "which industries move", "sector-rotation": "who is pulling ahead", "market-events": "the week ahead", "market-data": "FII/DII, economy", "news-filings": "headlines and filings", "results-calendar": "who reports when", "ipo-calendar": "open, upcoming, listed",
-  "glossary": "440+ terms", "discussion-forum": "talk to investors", "browser-extension": "insights on any site", "insights-blog": "articles and explainers", "finlit-bot": "ask the assistant",
+  "glossary": "1,200+ terms", "discussion-forum": "talk to investors", "browser-extension": "insights on any site", "insights-blog": "articles and explainers", "finlit-bot": "ask the assistant",
 };
 
 /** One number per tool where the product has one (task #89): shown under the tool's name in the platform directory. Every figure is a count the product itself states or can be counted from it
- *  (the 215 screener filters and Query-builder ratios, the 448-term glossary, the 4 Prism parts, ...), written as a floor ("190+") where the data grows. A tool with no honest count has none. */
+ *  (the 215 screener filters and Query-builder ratios, the 1,260-term glossary, the 4 Prism parts, ...), written as a floor ("190+") where the data grows. A tool with no honest count has none. */
 export const FIGURE: Record<string, [string, string]> = {
   "stock-screener": ["190+", "filters"], "advanced-score-screener": ["4", "Prism parts"], "query-builder": ["190+", "ratios"],
   "mutual-funds": ["8,300+", "funds"], "etfs": ["350+", "ETFs"], "fund-health-score": ["1,200+", "funds scored"],
   "company-report": ["20", "sections"], "correlation-charts": ["10", "sections"], "finlit-prism": ["4", "parts + 2 tech views"], "compare-companies": ["2–4", "companies at once"],
   "reverse-valuation": ["4", "answers it solves for"], "profit-revenue-outlook": ["1, 3, 5", "year estimates"], "stress-lab": ["5", "shocks to test"], "alerts": ["5", "alert types"], "compare-funds": ["4", "return periods"],
   "sector-pulse": ["38", "industry and sector groups"], "sector-rotation": ["4", "corners"], "market-events": ["3", "calendars"],
-  "glossary": ["440+", "terms"], "discussion-forum": ["5,800+", "company pages"],
+  "glossary": ["1,200+", "terms"], "discussion-forum": ["5,800+", "company pages"],
 };
 
 /** Tools with a tall picture for the Expand view (1200 × 1500, public/landing/expanded). Chart Builder, the Discussion Forum, MF Portfolio, IPO Calendar, EPS Calculator, Stress Lab, Browser Extension and Insights & Blog have none yet: their large view uses the card picture. */
