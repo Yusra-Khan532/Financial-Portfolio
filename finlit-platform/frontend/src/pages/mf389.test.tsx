@@ -29,7 +29,6 @@ import { MfCards, MfParts, sinceLine } from "../mf/pack/MfTop";
 import { mfTiles, partsAverage } from "../lib/mfTop";
 import { foldSentence } from "../portfolio/pack/EqSteps385";
 import { KnowPop } from "../portfolio/pack/Round388";
-import { gainLoss } from "../portfolio/shared";
 import { MF_PORTFOLIO_FAQ } from "../content/mfPortfolioFaqs";
 import { planName } from "../lib/planNames";
 import { PLAN_FOR_PORTFOLIO } from "../lib/planGates";
@@ -234,36 +233,8 @@ describe("The funds table (F3–F6)", () => {
   });
 });
 
-describe("Where your gain or loss came from (F7, L1–L8)", () => {
-  // the pack's sample (Preview sample, made up for the file): eight funds' gains in rupees
-  const R = (name: string, gain: number) => ({ symbol: name, name, gain, pct: null });
-  const rows = [R("Parag Parikh Flexi Cap", 55227), R("Mirae Asset ELSS Tax Saver", 24075), R("HDFC Balanced Advantage", 18951), R("Nippon India Large Cap", 18784),
-    R("UTI Nifty 50 Index", 13298), R("HDFC Liquid", 6486), R("Axis Midcap", -15498), R("SBI Small Cap", -27062)];
-  it("L4: three funds explain the whole gain, in the file's words", () => {
-    const g = gainLoss(rows, 0, "fund");
-    expect(`${g.lead!.bold} ${g.lead!.rest}`).toBe("Three funds explain the whole gain. Parag Parikh Flexi Cap (+₹55,227), Mirae Asset ELSS Tax Saver (+₹24,075) and HDFC Balanced Advantage (+₹18,951) are up ₹98,253 between them; the other 5 funds are down ₹3,992 together.");
-    expect([...g.key]).toEqual(["Parag Parikh Flexi Cap", "Mirae Asset ELSS Tax Saver", "HDFC Balanced Advantage"]);
-    expect(g.rows[0].name).toBe("Parag Parikh Flexi Cap");
-  });
-  it("L5: a spread-out gain, and losses mirror it; L4b: one fund, the others flat", () => {
-    const even = [R("A", 10), R("B", 10), R("C", 10), R("D", 10), R("E", 10)];
-    expect(`${gainLoss(even, 0, "fund").lead!.bold} ${gainLoss(even, 0, "fund").lead!.rest}`).toBe("The gain is spread out. The three biggest gains, A, B and C, come to ₹30; 5 of your 5 funds are in profit.");
-    const loss = even.map((r) => ({ ...r, gain: -r.gain }));
-    expect(gainLoss(loss, 0, "fund").lead!.bold).toBe("The loss is spread out.");
-    expect(gainLoss([R("A", 500), R("B", 0.1), R("C", -0.2)], 0, "fund").lead!.rest).toBe("A is up ₹500; the other 2 funds are flat.");
-  });
-  it("L6: above 12 funds the 5 biggest gains, the 5 biggest losses and any named fund show, then Show all", () => {
-    const many = Array.from({ length: 16 }, (_, i) => R(`F${i}`, (8 - i) * 100));
-    const g = gainLoss(many, 0, "fund");
-    expect(g.capped).toBe(true);
-    expect(g.shown(false).length).toBeLessThan(16);
-    expect(g.shown(true)).toHaveLength(16);
-  });
-  it("L8: no words about what to do next", () => {
-    const t = JSON.stringify(gainLoss(rows, 0, "fund").lead);
-    expect(t).not.toMatch(/\b(buy|sell|hold|reduce|switch|exit|target|best)\b/i);
-  });
-});
+// "Where your gain or loss came from" (F7, L1–L8) left the page in task #389 reopened (developer file 40 v4, A1): see mf40v4.test.tsx. The shared
+// gainLoss() stays tested in portfolio/shared/shared385.test.ts and pages/etf390.test.tsx (the ETF page still shows it).
 
 describe("Phone (P2–P4)", () => {
   it("P2c: a section's sentence is its first line, cut at the first full stop after 30 characters, at most 140", () => {

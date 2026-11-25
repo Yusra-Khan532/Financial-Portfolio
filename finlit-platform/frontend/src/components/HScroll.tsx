@@ -2,13 +2,36 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { TableZoom } from "./TableZoom";
 import "../styles/frozen.css";
 
+/** Task #389 (developer file 40 v4, M5 / SHARED.md S2): the pin line is the bottom of the LOWEST visible bar that matches `pinBelow`, not of the first match
+ *  in page order. The MF and ETF pages pass ".ptk-frow.stuck, .ptk-bar:not(.away)": while scrolling down the section bar (ends 4 px higher) was still the
+ *  first match, so the heading slipped 4 px under the filter row. A single bar (the Equity tools row) gives the same line as before. */
+export function pinLine(sel: string): number {
+  let bottom = 0;
+  for (const el of document.querySelectorAll(sel)) {
+    const b = el.getBoundingClientRect();
+    if (b.height > 0 && b.bottom > 0 && getComputedStyle(el).visibility !== "hidden") bottom = Math.max(bottom, b.bottom);
+  }
+  return bottom;
+}
+/** S2: work the pin out again when a bar changes state (a class or style change such as stuck / away is not a resize), not only on the next scroll; and
+ *  when a bar's slide in or out ends (the section bar's .away is a transition: at the class change it is still off screen, so the line read then was 0
+ *  and the heading sat under the returning bar at the end of the table, measured at 390 px, until the next scroll). */
+export function watchBars(sel: string, repin: () => void): () => void {
+  const mo = typeof MutationObserver !== "undefined" ? new MutationObserver(repin) : null;
+  const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(repin) : null;
+  const els = [...document.querySelectorAll(sel)];
+  for (const el of els) { mo?.observe(el, { attributes: true, attributeFilter: ["class", "style"] }); ro?.observe(el); el.addEventListener("transitionend", repin); }
+  return () => { mo?.disconnect(); ro?.disconnect(); for (const el of els) el.removeEventListener("transitionend", repin); };
+}
+
 /** A wide table's scroll box with its own controls: ◀ ▶ buttons and a slider, shown only when the table is wider than the space,
  *  so it can be moved sideways without a mouse wheel or trackpad. The slider and the table stay in step both ways. */
 /** `controls={false}`: no ◀ ▶ buttons and no slider (the Stock screener, task #64 S-5): the box scrolls with the trackpad or its own scrollbar, and the frozen
  *  first column gets a soft shadow on its edge while there is more to the right (`has-more`). */
 /** `pinBelow`: a CSS selector of a sticky bar; the column names stay under it while the page scrolls past the table (task #64, B-1 / V-1). A header inside a
  *  sideways-scrolling box cannot use position: sticky against the page, so it is moved with a transform; the box keeps no inner vertical scroll. */
-export function HScroll({ children, className = "", label = "table", tall = false, controls = true, pinBelow, barBottom = false, pinCells = false, zoom = true }: { children: ReactNode; className?: string; label?: string; tall?: boolean; controls?: boolean; pinBelow?: string;
+export function HScroll({ children, className = "", label = "table", tall = false, controls = true, pinBelow, pinWatch, barBottom = false, pinCells = false, zoom = true }: { children: ReactNode; className?: string; label?: string; tall?: boolean; controls?: boolean; pinBelow?: string;
+  /** task #389 (S2): the bars to watch for a state change, without their state classes (MF: ".ptk-bar, .ptk-frow"); default `pinBelow` */ pinWatch?: string;
   /** task #385 (Equity, developer file 33): false leaves out the floating enlarge arrow (the page puts its own Enlarge in the tools row) */ zoom?: boolean;
   /** task #274: move each header cell rather than the header group (Chromium draws a moved table header group with the rows faintly showing through) */ pinCells?: boolean;
   /** task #274 (Equity, change 11): the sideways scrollbar sits at the bottom of the screen while the table is on screen */ barBottom?: boolean }) {
@@ -46,8 +69,7 @@ export function HScroll({ children, className = "", label = "table", tall = fals
       raf = 0;
       const el = box.current, head = el?.querySelector("table")?.tHead;
       if (!el || !head) return;
-      const bar = document.querySelector(pinBelow);
-      const top = bar ? bar.getBoundingClientRect().bottom : 0;
+      const top = pinLine(pinBelow);
       const r = el.getBoundingClientRect(), hh = head.getBoundingClientRect().height;
       const d = Math.max(0, Math.min(top - r.top, r.height - hh));
       if (pinCells) head.style.setProperty("--pin", `${d}px`); else head.style.transform = d > 0 ? `translateY(${d}px)` : "";
@@ -56,10 +78,11 @@ export function HScroll({ children, className = "", label = "table", tall = fals
     const ask = () => { if (!raf) raf = requestAnimationFrame(place); };
     window.addEventListener("scroll", ask, { passive: true }); window.addEventListener("resize", ask);
     // task #274: the bar it pins under can change height without a scroll (the Equity filter row grows when it sticks); follow it
-    const target = document.querySelector(pinBelow), ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(ask) : null; if (target) ro?.observe(target); ro?.observe(document.body);   // content above that loads late moves the table without a scroll
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(ask) : null; ro?.observe(document.body);   // content above that loads late moves the table without a scroll
+    const stop = watchBars(pinWatch || pinBelow, ask);   // S2: every bar (was the first match only), its size and its stuck / away state
     place();
-    return () => { window.removeEventListener("scroll", ask); window.removeEventListener("resize", ask); ro?.disconnect(); if (raf) cancelAnimationFrame(raf); };
-  }, [pinBelow, pinCells]);
+    return () => { window.removeEventListener("scroll", ask); window.removeEventListener("resize", ask); ro?.disconnect(); stop(); if (raf) cancelAnimationFrame(raf); };
+  }, [pinBelow, pinWatch, pinCells]);
   const go = (to: number) => box.current?.scrollTo({ left: Math.max(0, Math.min(max, to)), behavior: "smooth" });
   const step = () => Math.max(160, (box.current?.clientWidth || 600) * 0.6);
   const bar = (

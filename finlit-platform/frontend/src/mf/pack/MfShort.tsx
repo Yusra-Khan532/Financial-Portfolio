@@ -47,4 +47,5 @@ export function InShort({ sp, rk }: { sp: MfSpread | undefined; rk: MfRisk | und
   );
 }
 
-export const SOURCES = "NAVs, costs and categories from AMFI; holdings from each fund house's monthly portfolio file; index levels from NSE. Information only, not investment advice.";
+/** The page's sources line (task #389, developer file 40 v4 E1: the shared page bottom, in the Equity page's form "Prices: NSE. Scores: …"): what the page reads. */
+export const SOURCES = "NAVs, costs and categories: AMFI. Holdings: each fund house's monthly portfolio file. Scores: the Mutual Fund Score. Index levels: NSE. Filings: from Discover. Information only, not investment advice.";

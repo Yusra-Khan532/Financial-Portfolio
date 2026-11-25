@@ -62,7 +62,7 @@ export const FaqPlan = ({ plan }: { plan?: string }) => plan ? <span className={
 
 /** "Questions about this page": shown at the bottom of every page that has a set in content/pageFaqs.ts, chosen by the address. Nothing otherwise. */
 /** Pages that place their own "Questions about this page" (the dashboard puts it above its disclaimer, as the final pages pack draws it); the layout's copy skips them. */
-const OWN_PLACE = new Set(["/dashboard", "/watchlist", "/glossary", "/etf-portfolio", "/holdings"]);   // task #388 (file 38, E1): the Equity portfolio places its questions in the shared page bottom (portfolio/shared/PageBottom)   // the ETF portfolio puts its questions above its disclaimer (task #136)
+const OWN_PLACE = new Set(["/dashboard", "/watchlist", "/glossary", "/etf-portfolio", "/holdings", "/mf-portfolio"]);   // task #389 (file 40 v4, D3 / E1): the MF portfolio places its questions in the shared page bottom too   // task #388 (file 38, E1): the Equity portfolio places its questions in the shared page bottom (portfolio/shared/PageBottom)   // the ETF portfolio puts its questions above its disclaimer (task #136)
 /** `fold` (task #388, developer file 38 E1 / SHARED.md SP11, the shared portfolio page bottom): the folded form at every width, "Questions about this page · N"
  *  with Show ▾ / Hide ▴, its open state kept by the caller (closed on arrival). Only the count: no topic line. Implies `inline`. */
 export function PageFaqs({ inline = false, fold }: { inline?: boolean; fold?: { open: boolean; onOpen: (open: boolean) => void } }) {

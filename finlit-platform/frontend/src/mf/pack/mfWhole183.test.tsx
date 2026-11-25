@@ -26,9 +26,10 @@ describe("MF portfolio whole page (M8)", () => {
     expect(here("../../portfolio/pack/EquityPack.tsx")).toContain("<DashCardsProvider userId={user?.id} remember={false}>");
   });
   it("ends with the sources and the closing words", () => {
-    expect(SOURCES).toBe("NAVs, costs and categories from AMFI; holdings from each fund house's monthly portfolio file; index levels from NSE. Information only, not investment advice.");
+    // task #389 (developer file 40 v4, E1): the shared page bottom (Questions, the Disclaimer fold, the sources line), in the Equity page's sources form
+    expect(SOURCES).toBe("NAVs, costs and categories: AMFI. Holdings: each fund house's monthly portfolio file. Scores: the Mutual Fund Score. Index levels: NSE. Filings: from Discover. Information only, not investment advice.");
     const page = here("../../pages/MfPortfolio.tsx"), tail = page.slice(page.lastIndexOf("</Gate>"));
-    expect(tail).toMatch(/<PortfolioDisclaimer kind="mf" \/><\/details>\s*<p className="mfp-foot">\{SOURCES\}<\/p>\s*<\/div>/);
+    expect(tail).toMatch(/<PageBottom kind="mf" sources=\{SOURCES\} \/>\s*<\/div><\/VisitFolds>/);
   });
   it("writes What this means, in short from the funds' figures", () => {
     const sp = { basis: "equal", knownShares: 0.504, size: { Large: 0.3, Mid: 0.155, Small: 0.045, Micro: 0.03, Other: 0 }, readings: { together: { independent: 1.3 } },

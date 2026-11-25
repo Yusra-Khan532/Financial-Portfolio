@@ -53,7 +53,7 @@ describe("MF portfolio top (M4)", () => {
     expect(lab("funds")).toEqual(["Your funds", "What changed", "In short"]);
     expect(lab("mix")).toEqual(["What they own", "Spread", "Money in", "Sectors inside", "Move together", "Shared stocks", "Company sizes", "Biggest stocks", "Trend", "In short"]);
     expect(lab("risk")).toEqual(["At a glance", "Beta build", "Own benchmark", "Risk share", "If the Nifty 500 fell", "Each fund", "In short"]);
-    expect(mfSteps("funds")[0].secs).toEqual(expect.arrayContaining(["mfp-funds", "mfp-gl", "mfp-kf-funds"]));
+    expect(mfSteps("funds")[0].secs).toEqual(["mfp-funds", "mfp-kf-funds", "mfp-sold"]);   // task #389 file 40 v4 A1: no mfp-gl, no eq-gl
     expect(mfSteps("mix")[0].secs).toContain("mfp-kf-mix");
     expect(mfSteps("risk")[0].secs).toContain("mfp-kf-risk");
   });
