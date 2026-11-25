@@ -91,6 +91,8 @@ MAX_IMPORT_BODY = 2 * 1024 * 1024
 # that carries a session cookie gets the room; the routes themselves are admin-only (admin_ctx) and check the file's type from its bytes.
 ADMIN_FILE_PREFIXES = ("/api/admin/amfi/", "/api/admin/fund-files")
 MAX_ADMIN_FILE_BODY = 36 * 1024 * 1024
+LOGO_MANUAL_PATH = "/api/logos/admin/manual"
+MAX_LOGO_BODY = 192 * 1024   # logos.ManualLogoIn: a file of at most 128 KB, as base64 in JSON
 CACHE_PRIVATE = "private, no-cache"  # the browser keeps a copy but asks (cheap 304) every time, so a new plan shows at once
 
 
@@ -139,6 +141,8 @@ class BodyLimitMiddleware:
         limit = MAX_UPLOAD_BODY if upload else MAX_IMPORT_BODY if scope.get("path", "").startswith(IMPORT_PREFIX) and scope["method"] == "POST" else self.limit   # the large allowance only for a request that carries a CMS token, or a member's fund-statement rows (the route needs a signed-in session and rate limits)
         if scope["method"] == "POST" and scope.get("path", "").startswith(ADMIN_FILE_PREFIXES) and headers.get(b"cookie"):
             limit = MAX_ADMIN_FILE_BODY
+        elif scope["method"] == "POST" and scope.get("path", "") == LOGO_MANUAL_PATH and headers.get(b"cookie"):
+            limit = MAX_LOGO_BODY   # an administrator's hand-set logo: a 128 KB image is about 175 KB as base64, over the 64 KB JSON cap
         too_big = JSONResponse({"status": "too_large", "detail": "Request is too large."}, status_code=413,
                                headers={"Cache-Control": "no-store"})
         if declared and declared.isdigit() and int(declared) > limit:

@@ -7,13 +7,13 @@ import { useUI } from "../../lib/ui";
 import { coTitle, subLine, titleOf } from "../../lib/companyLabel";
 
 type Missing = { items: { symbol: string; name: string; marketCapCr: number | null; status: string; reason: string }[]; companies: number; withLogo: number; top500WithLogo: number; top500: number };
-const MAX_BYTES = 64 * 1024;
+const MAX_BYTES = 128 * 1024;
 const msg = (e: unknown) => (e instanceof ApiError ? e.body.detail || e.body.status || "Failed" : "Could not reach the server.");
 
-/** The file as base64 (the part after the comma of a data URL); refused here when it is over the server's 64 KB limit, so the person gets the reason at once. */
+/** The file as base64 (the part after the comma of a data URL); refused here when it is over the server's 128 KB limit, so the person gets the reason at once. */
 export function readImage(f: File): Promise<string> {
   return new Promise((resolve, reject) => {
-    if (f.size > MAX_BYTES) { reject(new Error(`This file is ${Math.ceil(f.size / 1024)} KB. A logo can be at most 64 KB.`)); return; }
+    if (f.size > MAX_BYTES) { reject(new Error(`This file is ${Math.ceil(f.size / 1024)} KB. A logo can be at most 128 KB.`)); return; }
     const r = new FileReader();
     r.onerror = () => reject(new Error("The file could not be read."));
     r.onload = () => resolve(String(r.result).split(",")[1] || "");
@@ -54,7 +54,7 @@ export function LogoCoverage() {
       {q.isError ? <div className="formerr">{msg(q.error)}</div> : !d ? <div className="skeleton" style={{ height: 60 }} /> : (
         <>
           <p className="muted">{d.withLogo.toLocaleString("en-IN")} of {d.companies.toLocaleString("en-IN")} companies have a logo. Of the {d.top500} largest, {d.top500WithLogo} do. The others show their initials.
-            Logos come from each company's own website; a site that blocks automated requests or has no usable icon stays blank. Add an official image (PNG, JPEG, WebP, GIF or ICO, square-ish, at most 64 KB) for the largest ones first.</p>
+            Logos come from each company's own website; a site that blocks automated requests or has no usable icon stays blank. Add an official image (PNG, JPEG, WebP, GIF or ICO, square-ish, at most 128 KB) for the largest ones first.</p>
           {d.items.length === 0 ? <p className="muted">Every company has a logo.</p> : (
             <div className="tw"><table className="qtt"><thead><tr><th>Company</th><th>Market cap (₹ Cr)</th><th>Why there is no logo</th><th /></tr></thead>
               <tbody>{d.items.map((r) => <Row key={r.symbol} r={r} onDone={() => qc.invalidateQueries({ queryKey: ["admin-logos"] })} />)}</tbody></table></div>
