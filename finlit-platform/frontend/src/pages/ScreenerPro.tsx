@@ -34,6 +34,7 @@ import { RulePicker } from "../components/screener/RulePicker";
 import { RuleTopics } from "../components/screener/RuleTopics";
 import "../styles/task364.css";   // task #364: the Score and Filters panel
 import "../styles/task383.css";   // task #383: Show filters / Hide filters and the table's scroller, as on the Mutual Fund Screener
+import "../styles/task384.css";   // task #384: the filter panel's scrollbar, the divider's button, the results header row
 import { RuleFigures } from "../components/screener/RuleFigures";
 import { parseRules } from "../lib/typeRules";
 import "../styles/fgx.css";

@@ -202,8 +202,9 @@ describe("upgrade round 1: locked parts, the company report's actions, tap areas
     expect(css).toMatch(/:root:root \.gate\.is-locked \.lock-card ul \{ display: none; \}/);
     expect(css).not.toMatch(/\.gate:not\(\.is-locked\)/);   // an unlocked part is never touched
   });
-  it("the company report's four actions sit in one sideways row", () => {
-    expect(css).toMatch(/:root:root main \.hx-acts \.actions \{ flex-wrap: nowrap; overflow-x: auto;/);
+  it("the company report's four actions sit two to a row, all in view (the sideways row hid Value (DCF) and Share)", () => {
+    expect(css).toMatch(/:root:root main \.hx-acts \.actions \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(css).not.toMatch(/\.hx-acts \.actions \{ flex-wrap: nowrap; overflow-x: auto;/);
   });
   it("small links and buttons get a transparent tap area that moves nothing", () => {
     expect(css).toMatch(/\.dbx-ddb\)::after \{ content: ""; position: absolute; inset: -13px -4px; \}/);
@@ -258,3 +259,31 @@ describe("the installed app's launch screen (owner, 25 Nov 2026: the logo animat
   });
 });
 
+
+describe("phone audit of 24 Nov 2026: layout faults and the free-account promise", () => {
+  it("the Results calendar fits a phone: seven narrow days, counts only, no 780px grid", () => {
+    expect(css).toMatch(/:root:root main \.rs-cal \{ min-width: 0; grid-template-columns: repeat\(7, minmax\(0, 1fr\)\);/);
+    expect(css).toMatch(/:root:root main \.rs-cal-c :is\(\.rs-cal-x, em, \.rs-cal-w\) \{ display: none; \}/);
+    expect(read("components/results/pack/ResultsPack.tsx")).toContain('<span className="rs-cal-w"> {past ? "declared" : "due"}</span>');
+  });
+  it("Sector Pulse's section bar does not stick over the top bar; Concalls has the page gutter; Markets rows bleed by the 14px gutter", () => {
+    expect(css).toMatch(/:root:root main \.sx-nav \{ position: static; \}/);
+    expect(css).toMatch(/:root:root main \.page\.ccm \{ padding-left: max\(14px/);
+    expect(read("styles/markets-today.css")).toMatch(/@media \(max-width: 860px\) \{ \.mkt-hs \{ margin-inline: -14px; padding-inline: 14px;/);
+    expect(read("styles/luxe.css")).toMatch(/\.wrap \{ padding-left: max\(14px/);   // the gutter the bleed matches
+  });
+  it("no page promises a free watchlist or portfolio while the plan gates put them on a paid plan", async () => {
+    const g = await import("../lib/planGates"), nav = await import("../lib/mobileNav");
+    const free = nav.freeAccountLine();
+    if (g.PLAN_FOR_WATCHLIST !== "basic") expect(free).not.toMatch(/watchlist/i);
+    if (g.PLAN_FOR_PORTFOLIO !== "basic") expect(free).not.toMatch(/portfolio/i);
+    expect(free).toMatch(/^3 alerts, /);
+    if (g.PLAN_FOR_WATCHLIST !== "basic") expect(nav.planAddsLine()).toMatch(/watchlists/);
+    for (const f of ["pages/MarketsToday.tsx", "components/mobile/MobileApp.tsx", "pages/Login.tsx", "pages/Home.tsx"]) {
+      const src = read(f);
+      expect(src).not.toMatch(/free account keeps your watchlist/i);
+      expect(src).not.toMatch(/Free account: watchlists/);
+      expect(src).not.toMatch(/Watchlists that follow you/);
+    }
+  });
+});

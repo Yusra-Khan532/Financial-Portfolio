@@ -89,7 +89,7 @@ export function MonthCalendar({ month, setMonth, days, today, pick, onPick, only
           return (
             <button key={i} type="button" role="gridcell" disabled={!c} className={"rs-cal-c" + (k === today ? " today" : "") + (pick === k ? " on" : "") + (c ? (past ? " done" : " due") : "")} onClick={() => onPick(k)} aria-label={`${dayShort(k)}: ${c ? `${c.n} ${past ? "declared" : "due"}` : "no results"}`}>
               <b>{d.getDate()}</b>
-              {c && <><span className="rs-cal-n">{n0(c.n)} {past ? "declared" : "due"}</span>{c.names.slice(0, 3).map((x) => <span key={x} className="rs-cal-x">{x}</span>)}{c.n > 3 && <em>+{n0(c.n - Math.min(3, c.names.length))} more</em>}</>}
+              {c && <><span className="rs-cal-n">{n0(c.n)}<span className="rs-cal-w"> {past ? "declared" : "due"}</span></span>{c.names.slice(0, 3).map((x) => <span key={x} className="rs-cal-x">{x}</span>)}{c.n > 3 && <em>+{n0(c.n - Math.min(3, c.names.length))} more</em>}</>}
             </button>);
         })}
       </div></Scroll>

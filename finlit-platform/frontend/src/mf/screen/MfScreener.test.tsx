@@ -34,12 +34,12 @@ beforeEach(() => { st.calls = []; });
 afterEach(cleanup);
 
 describe("Mutual Fund Screener page", () => {
-  it("asks the server once for the counts and once for the list, with the defaults spelled out", async () => {
+  it("asks the server once for the counts and once for the list, with no choice spelled out (every option, both statuses)", async () => {
     mount();
     await screen.findByText("Alpha Mid Cap Fund");
     const f = st.calls.filter((c) => c.startsWith("/api/mf/filters")), l = st.calls.filter((c) => c.startsWith("/api/mf?"));
     expect(f).toHaveLength(1); expect(l).toHaveLength(1);
-    expect(f[0]).toContain("screen=true"); expect(f[0]).toContain("plans=Direct"); expect(f[0]).toContain("options=Growth"); expect(l[0]).toContain("extra=true");
+    expect(f[0]).toContain("screen=true"); expect(f[0]).not.toContain("plans="); expect(f[0]).toContain("option=All"); expect(f[0]).toContain("status=both"); expect(l[0]).toContain("extra=true");   // task #369: nothing preselected
   });
   it("ticking a sub-category edits the address and asks again", async () => {
     mount();

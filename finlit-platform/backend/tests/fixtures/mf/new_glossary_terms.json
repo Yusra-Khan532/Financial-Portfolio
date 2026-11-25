@@ -105,7 +105,7 @@
   "formula": "",
   "id": "open-ended-and-closed-ended-funds",
   "letter": "O",
-  "finlit": "FinLit marks closed-ended and interval schemes from AMFI's headings and hides schemes that stopped publishing NAVs unless you ask to see them.",
+  "finlit": "FinLit marks closed-ended and interval schemes from AMFI's headings and lists schemes that stopped publishing NAVs too, marked as stopped; the Status filter leaves them out.",
   "aliases": [
    "Open ended",
    "Close ended",

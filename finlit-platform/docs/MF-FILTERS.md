@@ -21,7 +21,7 @@ Built = works on stored data today. Partial = works, with a stated coverage gap 
 | 3 Geography | Not built | Needs scheme-name keywords + holdings ISIN check (F-F, F-B). |
 | 3 House parentage | Not built | Needs the 45-row hand table (F-F). Owner action. |
 | 3 House has full data | Partial | Tick "Has a portfolio" and the portfolio group's no-data count say it per fund. |
-| 4 Plan, option, instrument, status, family view, freshness | Built | Defaults: Direct, Growth, still publishing, funds + ETFs. Instrument: ETF list or AMFI ETF categories. |
+| 4 Plan, option, instrument, status, family view, freshness | Built | No filter on arrival (task #369, 24 Nov 2026): every plan, option, status and instrument, so all schemes on record show (14,005 on 24 Nov 2026: 8,345 still publishing, 5,660 stopped). Presets still set Direct, Growth, still publishing, as visible chips. The API on its own still defaults to Growth options still publishing; the page states option=All and status=both. Instrument: ETF list or AMFI ETF categories. |
 | 5 Size (AUM), basis, rank by size, share of category, net-assets change, age, launch date | Built / Partial | Size and TER coverage depends on the AMFI fetch (see owner actions). Net-assets change uses the 3 stored month-ends only (F-G for longer). |
 | 6 Returns 1Y/3Y/5Y, SIP 3Y/5Y, excess over category, rank/quartile, 1 day, 1M, 6M | Built / Partial | 1M and 6M exist for the ~100 largest funds only (F-H to fill all). Calendar-year returns (the three full years before the run's year, December to December month-end NAV) and the biggest monthly gain of the last 36: Built (`x_cy1..3`, `x_up_month`, migration 086). |
 | 6 Consistency | Built | Share of last 36 months ahead of the peer median. |

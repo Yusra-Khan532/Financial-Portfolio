@@ -1,0 +1,16 @@
+/* Task #384 (24 Nov 2026, the team's picture with three red boxes: "correct it and nothing shall be affected"). Stock screener only: every selector
+   starts .wrap.ssw, so no other page changes.
+   1. The filter panel's own scrollbar: the browser's wide default bar (with arrow buttons on Windows) stood in the panel's rounded top corner. It is
+      now the thin bar in the theme's colours that the other screeners' filter panels use (tools.css .scr-side), kept inside the card. */
+.wrap.ssw .ssw-rules { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; scrollbar-gutter: stable; overscroll-behavior: contain; }
+/* 2. The "<" button on the divider repeated "Hide filters" in the panel's header (task #383) and floated between the two cards. The divider itself
+      stays: drag it to resize, double-click or Enter to hide. */
+@media (min-width: 1001px) { .wrap.ssw .ssw-work > .scr-split .scr-split-btn { display: none; } }
+/* 3. The results header: "Save screen" and "Tell me when a company joins" touched (no gap on a wide screen), and the enlarge arrow sat 10px into
+      the corner, 9px above the buttons' line and apart from them. Now one row: the two buttons 8px apart, the arrow 40px tall on the same line,
+      8px after them, inside the card's own padding. */
+.wrap.ssw .ssw-pop { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+@media (min-width: 641px) and (pointer: fine) {
+  .wrap.ssw .ssw-res .ssw-rhd { padding-right: 48px !important; }   /* beats the shared [data-cz-head] 56px (chartzoom.css): the arrow is 40px + 8px */
+  .wrap.ssw .ssw-res .cz-btn.cz-at-box { width: 40px; height: 40px; top: calc(var(--cz-dt, 0px) + 17px); right: calc(var(--cz-dr, 0px) + 18px); }
+}
