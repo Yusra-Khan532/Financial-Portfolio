@@ -85,7 +85,7 @@ export function LogoCoverage() {
       {q.isError ? <div className="formerr">{msg(q.error)}</div> : !d ? <div className="skeleton" style={{ height: 60 }} /> : (
         <>
           <p className="muted">{d.withLogo.toLocaleString("en-IN")} of {d.companies.toLocaleString("en-IN")} companies have a logo. Of the {d.top500} largest, {d.top500WithLogo} do. The others show their initials.
-            Logos come from each company's own website; a site that blocks automated requests or has no usable icon stays blank. Add an official image (PNG, JPEG, WebP, GIF or ICO, square or a wordmark up to 3:1, at most 128 KB) for the largest ones first. A logo set here always wins over every other source.</p>
+            Logos come from each company's own website; a site that blocks automated requests or has no usable icon stays blank. Add an official image (PNG, JPEG, WebP, GIF or ICO, square or a wordmark up to 4:1, at most 128 KB) for the largest ones first. A logo set here always wins over every other source.</p>
           <FromLinks onDone={() => qc.invalidateQueries({ queryKey: ["admin-logos"] })} />
           {d.items.length === 0 ? <p className="muted">Every company has a logo.</p> : (
             <div className="tw"><table className="qtt"><thead><tr><th>Company</th><th>Market cap (₹ Cr)</th><th>Why there is no logo</th><th /></tr></thead>

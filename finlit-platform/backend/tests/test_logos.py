@@ -311,8 +311,12 @@ def test_a_hand_set_wordmark_may_be_wide_but_the_nightly_job_keeps_square_icons(
     assert sniff(png(200, 100), wide=True)[2:] == (200, 100)
     with pytest.raises(Rejected, match="square"):
         sniff(png(200, 100))
-    with pytest.raises(Rejected, match="at most 3:1"):
-        sniff(png(400, 100), wide=True)
+    assert sniff(png(390, 100), wide=True)[2:] == (390, 100)                # 3.9:1 (Gillette, BEL, Rubicon) is fine
+    assert sniff(png(3227, 1202), wide=True)[2:] == (3227, 1202)            # a media-kit size (LTTS)
+    with pytest.raises(Rejected, match="at most 4:1"):
+        sniff(png(500, 100), wide=True)
+    with pytest.raises(Rejected, match="outside"):
+        sniff(png(3227, 1202))                                              # the nightly job keeps its 1024px limit
 
 
 async def test_logos_from_links_set_each_line_and_report_each_failure(app, monkeypatch):
