@@ -175,6 +175,10 @@ def with_latest(rows: list, latest: dict) -> list:
 LOGO_CDN_SKIP = (
     "TCS", "TATATECH", "TATAINVEST", "LTTS", "M&M", "M&MFIN", "JIOFIN", "GILLETTE",            # a parent or group brand, not the company's own
     "EICHERMOT", "ADANIGREEN", "ATGL", "MAHABANK", "BEL", "CHOLAHLDNG", "EIHOTEL", "INOXINDIA", "CRAFTSMAN", "LODHA",   # blurred, cropped or unclear
+    # One identical image served for unrelated companies (scan of all 5,760, 25 Nov 2026): a placeholder, not their logo. Shared images within one
+    # group (JSW, Adani, Tata Motors, Kirloskar, Godrej, Welspun, Rane, Ujjivan, SKF, Sanofi...) are that group's real brand and are kept.
+    "BFINVEST", "IWEL", "KCK", "STEELCITY", "EROSMEDIA", "ESSENTIA", "FOCUS", "HEXATRADEX", "LORDSCHLO", "MCCHRLS-B", "MEGAFLEX",
+    "AHLWEST", "JAICORPLTD", "SILINV", "SAB", "STLSTRINF", "AHLEAST", "SPLIL", "BIOFILCHEM", "NARMADA", "CRESTO",
 )
 
 
