@@ -49,6 +49,7 @@ async def store():
     await s.migrate()
     async with s.pool.acquire() as conn:   # tables the drop list above does not cover but tests here write to
         await conn.execute("DELETE FROM index_members")
+        await conn.execute("DELETE FROM feedback")        # test_feedback counts every row: a second run on the same database saw the first run's too
     yield s
     await s.close()
 
