@@ -54,10 +54,10 @@ describe("AppShell rail", () => {
     expect(container.querySelector(".side-gn, .side-gs, .side-gw")).toBeNull();
     // the lines are kept, each behind its group's i, as a hidden note
     const notes = [...container.querySelectorAll<HTMLElement>(".side-g > p.side-desc")];
-    expect(notes.map((n) => n.textContent)).toEqual(["Your holdings, watchlists, alerts and baskets", "Screeners, themes and what big investors hold",
+    expect(notes.map((n) => n.textContent)).toEqual(["Your holdings, watchlists and alerts", "Screeners, themes and what big investors hold",
       "One company in depth: report, rating, financials, forecasts", "Companies side by side, and any figure on a chart", "Fair value, P/E, DCF and how a SIP grows",
       "Sectors, FII and DII money, the economy, commodities", "Who reports when, the latest results, IPOs and filings", "Find, screen and compare funds and ETFs",
-      "Glossary, how-to guides, research notes and the forum", "FinLit in your browser and in your AI assistant", "Your profile, appearance and plan"]);
+      "Glossary, bookmarked words, research notes and the forum", "FinLit in your browser and in your AI assistant", "Your profile, appearance and plan"]);
     expect(notes.every((n) => n.hidden)).toBe(true);
   });
   it("the i opens its note under the heading without opening the group; one note at a time; Escape closes it", () => {

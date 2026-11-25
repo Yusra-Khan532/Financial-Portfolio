@@ -90,7 +90,8 @@ function Page() {
   </div>;
 }
 
-/** Task #303: the six ways to look in one tab bar (four, a divider, then the two read from calls and results). Same links and paths as the two strips had. */
+/** Task #303: the ways to look in one tab bar. Founder, 25 Nov 2026: Results filings is gone (its addresses open Earnings calls); each group has
+ *  its own label above its tabs, "From investor presentations" and "From earnings calls", and every tab is a button that reads as one to press. */
 function Tabs() {
   const c = useDsc(), r = c.route, nav = useRef<HTMLElement>(null);
   const four: [View, string, number][] = [
@@ -99,7 +100,7 @@ function Tabs() {
     ["sectors", "Sectors", c.sectors.length],
     ["all-companies", "All companies", c.d.rows.length],
   ];
-  const two: [View, string, number][] = [["calls", SOURCES.calls.label, SOURCES.calls.n], ["results", SOURCES.results.label, SOURCES.results.n]];
+  const calls: [View, string, number][] = [["calls", SOURCES.calls.label, SOURCES.calls.n]];
   // the tab of this page in view when the bar scrolls sideways (phones)
   useEffect(() => {
     const tb = nav.current, at = tb?.querySelector<HTMLElement>("[data-on]");
@@ -109,17 +110,20 @@ function Tabs() {
     const on = r.view === k, here = on && !r.theme && !r.event && !r.macro && !r.industry && !r.bucket;
     return <Link key={k} to={VIEW_PATH[k]} className="dw-tab" aria-current={here ? "page" : undefined} data-on={on || undefined}>{l}<span>{n.toLocaleString("en-IN")}</span></Link>;
   };
-  return <div className="dw-tabsbox"><nav ref={nav} className="dw-tabs" aria-label="Discover views">{four.map(tab)}<span className="dw-tsep" aria-hidden="true" />
-    <span className="dw-tlab" aria-hidden="true">From calls and results</span>{two.map(tab)}</nav></div>;
+  const group = (id: string, label: string, tabs: [View, string, number][]) =>
+    <div className="dw-grp" role="group" aria-labelledby={id}><span className="dw-glab" id={id}>{label}</span><div className="dw-gb">{tabs.map(tab)}</div></div>;
+  return <div className="dw-tabsbox"><nav ref={nav} className="dw-tabs" aria-label="Discover views">
+    {group("dw-g-pres", "From investor presentations", four)}<span className="dw-tsep" aria-hidden="true" />{group("dw-g-calls", "From earnings calls", calls)}</nav></div>;
 }
 
 function Body() {
   const c = useDsc(), r = c.route, b = c.d.board!;
   const detail = !!(r.theme || r.event || r.macro || r.industry || r.bucket);
-  const src = isSource(r.view) ? r.view : null, sd = useSources(src).data;     // task #267: the calls / results view's own caution and method
+  const src = isSource(r.view) && r.view !== "results" ? r.view : null, sd = useSources(src).data;     // task #267: the calls view's own caution and method
   const top = useRef<HTMLDivElement>(null), first = useRef(true);
   const where = [r.view, r.theme, r.event, r.macro, r.sector, r.industry, r.bucket].join("|");
   useEffect(() => { if (first.current) { first.current = false; return; } top.current?.scrollIntoView?.({ block: "start" }); }, [where]);
+  if (r.view === "results") return <Navigate to={VIEW_PATH.calls} replace />;   // Results filings is no longer a view (founder, 25 Nov 2026): old links open Earnings calls
   return <>
     {!detail && <YourNames />}
     <div ref={top} className="dsc-anchor" />

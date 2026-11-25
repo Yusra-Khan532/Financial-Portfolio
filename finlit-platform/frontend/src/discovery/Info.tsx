@@ -43,7 +43,7 @@ export function infoText(k: InfoKey, rotDate: string): ReactNode {
     case "map": return <>Each number is how many companies of that row have the column’s theme as their main theme; switch to % to compare rows of different size. Darker means more. Click a number to list those companies.</>;
     case "inds": return <>NSE’s <b>59 industries</b>, each with its sector, how its stocks have moved, and its <b>Sector Rotation</b> box and <b>Sector Pulse</b> reading. An industry with no reading has too few liquid stocks; a small industry is read as part of its sector.</>;
     case "kw": return <>One of this bucket’s keywords from FinLit’s directory, searched with its related terms as whole words. The number beside each is how many companies in this list name it, given your other filters.</>;
-    case "named": return <>How many different keywords of this bucket the company’s call transcript (results filing) names. A company counts in a bucket when it names 2 different keywords, or one of them 5 times.</>;
+    case "named": return <>How many different keywords of this bucket the company’s call transcript names. A company counts in a bucket when it names 2 different keywords, or one of them 5 times.</>;
     case "wtone": return <>Positive minus negative finance words in the whole document. It describes the wording of the document, not the business.</>;
     case "filed": return <>When the document was filed with NSE, counted back from today.</>;
     case "m1y": return <>The middle 1-year price change of these companies: half did better, half worse.</>;

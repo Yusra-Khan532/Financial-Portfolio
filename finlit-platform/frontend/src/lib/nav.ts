@@ -27,19 +27,19 @@ export type MenuGroup = { id: string; title: string; line: string; short: string
 export const DASHBOARD: NavItem = i("/dashboard", "Dashboard", "Your day at a glance: prices, alerts and scores of what you follow", "table");
 
 export const MENU: MenuGroup[] = [
-  { id: "mine", title: "My portfolio & watchlists", line: "Your holdings, watchlists, alerts and baskets", short: "Portfolio", icon: "wallet", items: [
+  { id: "mine", title: "My portfolio & watchlists", line: "Your holdings, watchlists and alerts", short: "Portfolio", icon: "wallet", items: [
     i("/my-investments", "All my investments", "Your shares, mutual funds and ETFs together, looked through to the companies inside", "layers"),   // task #137 (NEW tag in the rail)
     i("/holdings", "Equity portfolio", "Score and mix of the shares you hold", "pie"),
     i("/mf-portfolio", "MF portfolio", "Score, value and returns of the mutual funds you hold", "pie"),
     i("/etf-portfolio", "ETF portfolio", "What your ETFs track and cost, what sits inside them and how risky they are together", "pie", { newUntil: "2026-12-15" }),
     i("/watchlist", "Watchlists", "Follow stocks in named lists", "wallet"),
     i("/alerts", "Alerts", "Price, signals, scores and filings", "bell"),
-    i("/baskets", "My baskets", "Saved groups of companies from the query builder", "layers"),
+    // founder, 25 Nov 2026: My baskets is part of the Query builder page now (/baskets opens it there)
   ] },
   { id: "find", title: "Find stocks", line: "Screeners, themes and what big investors hold", short: "Find", icon: "search", items: [
     i("/screener", "Stock screener", "Filter every listed company by size, valuation, growth and debt", "table"),
     i("/advanced-score-screener", "Advanced stock screener", "Every listed company with its FinLit Prism rating: four financial-health parts and two technical views", "layers", { gold: true }),
-    i("/query-builder", "Query builder", "Type a rule like P/E < 15, get the companies; save baskets", "notes"),
+    i("/query-builder", "Query builder", "Type a rule like P/E < 15, get the companies; your baskets on the same page", "notes"),
     // task #260 (SHARED §6 of the 20 Nov pack): Discover sits after Query builder, with the green New tag and the pack's line
     i("/discover", "Discover", "Companies by what they are building: themes, filings, sectors", "globe", { newUntil: "2026-12-20" }),
     i("/superinvestors", "Superinvestor portfolios", "What named investors of 1% or more hold, from company filings", "users", { newUntil: "2026-12-17" }),
@@ -80,11 +80,11 @@ export const MENU: MenuGroup[] = [
     i("/funds/screener", "Mutual fund screener", "Filter every fund by type, cost, returns, risk and portfolio", "layers"),
     i("/etfs", "ETFs", "Exchange-traded funds: price, returns and risk", "bars"),
   ] },
-  { id: "learn", title: "Learn", line: "Glossary, how-to guides, research notes and the forum", short: "Learn", icon: "book", items: [
+  { id: "learn", title: "Learn", line: "Glossary, bookmarked words, research notes and the forum", short: "Learn", icon: "book", items: [
     i("/glossary", "Glossary", "Terms in plain words, with formulas", "book"),
     i("/dashboard#dsh-learn", "Your bookmark", "The words you bookmarked from Word of the Day, on your dashboard", "book"),   // task #315 (the team's name)
-    i("/learn/sector-signals", "How to use Sector Pulse", "Reading the states, the breadth bars and the leader flags", "book"),
-    i("/learn/sector-rotation", "How to use Sector Rotation", "Reading the four corners and the rotation rank", "book"),
+    // founder, 25 Nov 2026: the two Sector Pulse and Sector Rotation guides are off the Learn menu (and Find a page); they stay at their
+    // addresses and open from the "full guide" link on Sector Pulse and Sector Rotation
     i("/blog", "Insights & blog", "Research notes and explainers", "spark"),
     i("/forum", "Discussion forums", "Information and opinion only, moderated", "users"),
   ] },
@@ -101,6 +101,7 @@ export const ALIASES: Record<string, string[]> = {
   "/documents": ["documents", "annual report", "presentation"],
   "/advanced-score-screener": ["advanced", "prism screener", "advanced screener"],
   "/mcp": ["mcp", "claude", "chatgpt"],
+  "/query-builder": ["my baskets", "saved queries"],   // founder, 25 Nov 2026: My baskets is on the Query builder page ("baskets" is already in its line)
 };
 export function menuMatch(q: string, it: NavItem, g?: { title: string }): boolean {
   const s = q.trim().toLowerCase();

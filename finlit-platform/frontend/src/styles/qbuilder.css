@@ -167,3 +167,28 @@
   .qb-chips { flex-wrap: nowrap; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 8px; margin-inline: -2px; padding-inline: 2px; }
   .qb-ex { flex: 0 0 78%; scroll-snap-align: start; }
 }
+
+/* My baskets on the Query builder page (founder, 25 Nov 2026: one page for the Query builder and My baskets): a drop-down between the rules and the
+   examples, closed at first. A light bar (the rules bar above it is dark), the count on it; open, the baskets as on the old page. */
+.qb-bks-wrap { min-width: 0; scroll-margin-top: 96px; }
+.qb-bks { display: grid; gap: 10px; min-width: 0; }
+.qb-bks-bar { margin: 0; font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); }   /* an h2, as the rules bar */
+.qb-bks-bar button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 10px 18px; border-radius: var(--r-card); border: 1px solid var(--border-strong); background: var(--s1); color: var(--text); cursor: pointer; text-align: left; font: inherit; box-shadow: var(--shadow); }
+.qb-bks-bar button:hover { border-color: var(--text); background: var(--s2); }
+.qb-bks-bar button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.qb-bks-ico { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: var(--r-ctl); background: var(--s2); color: var(--text); } .qb-bks-ico .ico { width: 20px; height: 20px; }
+.qb-bks-t { min-width: 0; }
+.qb-bks-n { font: var(--ui-fw-medium) var(--fs-13)/1.3 var(--font-sans); color: var(--muted); padding: 4px 10px; border-radius: var(--ui-r-pill); background: var(--s2); white-space: nowrap; }
+.qb-bks-act { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font: var(--ui-fw-semibold) var(--fs-13)/1 var(--font-sans); color: var(--muted); white-space: nowrap; }
+.qb-bks-chev { flex: none; transition: transform .2s; } .qb-bks.is-open .qb-bks-chev { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .qb-bks-chev { transition: none; } }
+.qb-bks-body { display: grid; gap: 14px; padding: 16px 18px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--s2); min-width: 0; }
+.qb-bks-body > .state { padding: 8px 0; } .qb-bks-body > .state h3 { margin: 0 0 6px; font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); } .qb-bks-body > .state p { margin: 0 0 10px; }
+.qb-bks-body .qb-bkbar { margin: 0; } .qb-bks-body .qb-foot { margin: 0; }
+.qb-bk.is-current { border-color: var(--gold); }
+.qb-bk-in { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: var(--ui-r-pill); background: var(--s2); color: var(--muted); font: var(--ui-fw-semibold) var(--fs-12)/1.5 var(--font-sans); vertical-align: middle; }
+@media (max-width: 640px) {
+  .qb-bks-bar button { padding: 10px 14px; gap: 10px; flex-wrap: wrap; }
+  .qb-bks-n { order: 3; flex-basis: 100%; width: max-content; max-width: max-content; margin-left: 46px; }
+  .qb-bks-body { padding: 14px 12px; }
+}

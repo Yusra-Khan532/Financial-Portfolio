@@ -70,10 +70,10 @@ beforeEach(() => { st.plan = "gold"; try { localStorage.clear(); } catch { /* no
 afterEach(() => { cleanup(); });
 
 describe("#303: the frame", () => {
-  it("one tab bar: six links on the same paths, the right tab marked on every route, a divider before calls and results", async () => {
+  it("one tab bar: five links on the same paths, the right tab marked on every route, a divider before Earnings calls (founder, 25 Nov 2026: Results filings is gone)", async () => {
     await show("/discover");
     const links = [...tabs().querySelectorAll("a")];
-    expect(links.map((a) => a.getAttribute("href"))).toEqual(["/discover", "/discover/changes", "/discover/sectors", "/discover/companies", "/discover/calls", "/discover/results"]);
+    expect(links.map((a) => a.getAttribute("href"))).toEqual(["/discover", "/discover/changes", "/discover/sectors", "/discover/companies", "/discover/calls"]);
     expect(tabs().querySelector(".dw-tsep")).toBeTruthy();
     expect(tabs().closest(".dw-tabsbox")).toBeTruthy();
     expect(document.querySelectorAll(".dsc-ways, .dsc-way")).toHaveLength(0);            // the two "Explore Discover" strips are gone

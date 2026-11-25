@@ -25,7 +25,7 @@ website (FastAPI, no pandas) reads /data/sectors/current/*.json  ->  /api/sector
 | registry and freshness | `backend/finlit/jobs/registry.py` (job `sectors`), `jobs/freshness.py` (dataset `sectors`) |
 | pages | `frontend/src/pages/SectorPulse.tsx`, `SectorIndustry.tsx`, `LearnSectorSignals.tsx`, `stock/SectorPeers.tsx`, `components/sectors/`, `lib/sectors.ts`, `lib/sectorStudy.ts`, `styles/sectors.css` |
 
-Routes: `/sectors`, `/sectors/:slug`, `/learn/sector-signals`; the stock page gets a "Sector & peers" section (`#sector`, after Peers). Sidebar: Markets > Sector Pulse; More > Learn > How sector signals work.
+Routes: `/sectors`, `/sectors/:slug`, `/learn/sector-signals`; the stock page gets a "Sector & peers" section (`#sector`, after Peers). Sidebar: Markets > Sector Pulse. The guide is off the Learn menu since 25 Nov 2026 (the founder); it opens from the "full guide" link on Sector Pulse.
 
 ## 2. Plans (enforced on the server, never only in the browser)
 

@@ -1,4 +1,4 @@
-// Task #267: Discover's "Earnings calls" and "Results filings" views (/discover/calls, /discover/results, each bucket at /discover/<view>/<slug>). The
+// Task #267: Discover's "Earnings calls" and "Results filings" views (founder, 25 Nov 2026: Results filings is no longer shown; /discover/results opens Earnings calls) (/discover/calls, /discover/results, each bucket at /discover/<view>/<slug>). The
 // keyword directory's call buckets (8) and results buckets (7), read from each company's newest call transcript and results filing of the last 400 days,
 // drawn as the Themes view: a card per bucket with its company count; a bucket's page lists its companies with the sentences that name a keyword and
 // hold a figure, the document's date and its exchange link, and the bucket's "What to verify". Data: GET /api/discovery/sources (model.ts useSources).
@@ -40,7 +40,7 @@ export function SourcesView({ src }: { src: Source }) {
     return <>
       {/* task #291 (the team, 21 Nov 2026: "remove this paragraph and add something like plans coming soon"): the method paragraph above the buckets is
           gone (each empty card still says why); in its place one short line that plans are coming soon and these views are open to everyone for now */}
-      <p className="dsc-soon" role="note"><span className="dsc-flg teal">Coming soon</span> Paid plans are coming soon. For now, every earnings-call and results-filing view here is open to everyone.</p>
+      <p className="dsc-soon" role="note"><span className="dsc-flg teal">Coming soon</span> Paid plans are coming soon. For now, every earnings-call view here is open to everyone.</p>
       <div className="dsc-grid" aria-label={S.label + " buckets"}>{d.buckets.map((b) => <BucketCard key={b.name} src={src} b={b} />)}</div>
     </>;
   }}</Status>;

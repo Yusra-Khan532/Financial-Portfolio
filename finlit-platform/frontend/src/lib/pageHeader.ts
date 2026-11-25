@@ -14,7 +14,7 @@ const SHORT: Record<string, string> = {
 /** Pages that exist but are not in the menus. */
 const EXTRA: Record<string, string> = {
   "/fund-score-screener": "Fund score screener", "/funds/compare": "Fund Compare", "/funds/insights": "Fund Trends", "/etfs/compare": "Compare ETFs",
-  "/etfs/compare-index-funds": "ETF vs Index Fund", "/baskets": "My Baskets", "/plans": "Plans", "/faq": "FAQs", "/methodology/mf-score": "What the score means",
+  "/etfs/compare-index-funds": "ETF vs Index Fund", "/plans": "Plans", "/faq": "FAQs", "/methodology/mf-score": "What the score means",
   "/premium": "Gold Dashboards", "/account": "Account", "/portfolio": "Portfolio Report", "/leadership-label": "Leadership Label",
 };
 

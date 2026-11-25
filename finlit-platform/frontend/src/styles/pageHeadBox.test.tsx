@@ -51,7 +51,7 @@ const LINES: [string, string][] = [
   ["components/screener/ScreenerHead.tsx", "Every company's Prism score, its four health parts and two trend views: filter, sort, compare."],
   ["pages/Discovery.tsx", "Companies grouped by what they are building, from their newest investor presentations."],
   ["pages/QueryBuilder.tsx", "</code>; we check it as you type and list every match."],
-  ["pages/Baskets.tsx", "Your named queries: your own screens, not model portfolios, with today's matches for each."],
+  // pages/Baskets.tsx's line went with the page: My baskets is a drop-down on the Query builder page (founder, 25 Nov 2026)
   ["pages/Premium.tsx", "Gold research tools, kept up to date from the same sources our analysts use."],
   ["pages/Markets.tsx", "This week's company disclosures, and every index against its own history, with commodity indices."],
   ["pages/PremiumReport.tsx", "A one-document research report on any company, to print or save as a PDF."],
