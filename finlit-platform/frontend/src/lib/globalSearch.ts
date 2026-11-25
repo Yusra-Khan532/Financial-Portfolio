@@ -13,7 +13,7 @@ export const TABS: { key: Tab; label: string }[] = [
 export type Band = "strong" | "healthy" | "mixed" | "watch" | "insufficient" | "locked" | null;
 /** One row of /api/search/quotes. */
 export type QuoteRow = [symbol: string, price: number | null, changePct: number | null, priceDate: string | null, score: number | null, band: Band, logo: string | null];
-export type Quotes = { fields: string[]; rows: QuoteRow[]; amcLogos: Record<string, string>; level: string; builtAt: number; /** Logo.dev publishable key, when set on the server */ logoCdn?: string | null };
+export type Quotes = { fields: string[]; rows: QuoteRow[]; amcLogos: Record<string, string>; level: string; builtAt: number; /** Logo.dev publishable key, when set on the server */ logoCdn?: string | null; /** companies whose Logo.dev image is wrong */ logoCdnSkip?: string[] };
 export type Quote = { price: number | null; chg: number | null; date: string | null; score: number | null; band: Band; logo: string | null };
 
 export type Item = {
@@ -29,7 +29,7 @@ export const KIND_LABEL: Record<Kind, string> = { stock: "Stock", mf: "Fund", et
 
 export function quoteMap(q: Quotes | undefined): Map<string, Quote> {
   const m = new Map<string, Quote>();
-  for (const r of q?.rows || []) m.set(r[0], { price: r[1], chg: r[2], date: r[3], score: r[4], band: r[5], logo: logoFor(String(r[0]), r[6], q?.logoCdn, (r as unknown[])[7] as string | null | undefined) });
+  for (const r of q?.rows || []) m.set(r[0], { price: r[1], chg: r[2], date: r[3], score: r[4], band: r[5], logo: logoFor(String(r[0]), r[6], q?.logoCdn, (r as unknown[])[7] as string | null | undefined, q?.logoCdnSkip) });
   return m;
 }
 

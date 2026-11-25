@@ -18,8 +18,9 @@ export function cdnLogo(symbol: string, key: string | null | undefined): string 
 /** Our own sharp logo when there is one, else Logo.dev's. `backup` is our own small logo (a favicon the server set aside because it would look
  *  blurry): it rides on the Logo.dev URL as "#alt=" (a fragment is never sent to Logo.dev), and the Logo component switches to it if Logo.dev has
  *  no image for this company, so a company never falls from a small logo to the initials tile. */
-export function logoFor(symbol: string, own: string | null | undefined, key: string | null | undefined, backup?: string | null): string | null {
+export function logoFor(symbol: string, own: string | null | undefined, key: string | null | undefined, backup?: string | null, skip?: readonly string[] | null): string | null {
   if (own) return own;
+  if (skip?.includes(symbol.toUpperCase())) return backup || null;   // Logo.dev's image for this company is wrong or poor (server's LOGO_CDN_SKIP)
   const cdn = cdnLogo(symbol, key);
   if (!cdn) return backup || null;
   return backup ? `${cdn}#alt=${encodeURIComponent(backup)}` : cdn;

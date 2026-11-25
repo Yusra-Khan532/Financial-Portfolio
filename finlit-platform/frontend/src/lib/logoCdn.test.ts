@@ -47,3 +47,12 @@ describe("a company never falls from its small logo to the initials tile", () =>
     expect(p).toContain("onError={() => (alt && !onAlt ? setOnAlt(true) : setBroken(true))}");
   });
 });
+
+describe("a wrong Logo.dev logo is never shown (owner: the TCS logo was the Tata logo)", () => {
+  it("a company on the server's skip list gets its own small logo or the initials tile, never Logo.dev", () => {
+    expect(logoFor("TCS", null, KEY, null, ["TCS"])).toBeNull();
+    expect(logoFor("TCS", null, KEY, "/api/logos/0123456789abcdef.png", ["TCS"])).toBe("/api/logos/0123456789abcdef.png");
+    expect(logoFor("TCS", "/api/logos/hand.png", KEY, null, ["TCS"])).toBe("/api/logos/hand.png");   // a hand-set logo always wins
+    expect(logoFor("INFY", null, KEY, null, ["TCS"])).toContain("/ticker/INFY.NS?");
+  });
+});

@@ -169,6 +169,15 @@ def with_latest(rows: list, latest: dict) -> list:
     return rows
 
 
+# Companies whose Logo.dev image is wrong or poor, from a by-eye review of the 400 largest companies (owner, 25 Nov 2026: "the TCS logo is the
+# Tata logo"). Logo.dev maps them to a parent or group brand, or serves a blurred or cropped image. They keep their own logo, else the initials
+# tile, until a correct official logo is set by hand (Console > Data health), which always wins. Add a symbol here when a review finds another.
+LOGO_CDN_SKIP = (
+    "TCS", "TATATECH", "TATAINVEST", "LTTS", "M&M", "M&MFIN", "JIOFIN", "GILLETTE",            # a parent or group brand, not the company's own
+    "EICHERMOT", "ADANIGREEN", "ATGL", "MAHABANK", "BEL", "CHOLAHLDNG", "EIHOTEL", "INOXINDIA", "CRAFTSMAN", "LODHA",   # blurred, cropped or unclear
+)
+
+
 def logo_cdn_key(key: str) -> Optional[str]:
     """Only a Logo.dev PUBLISHABLE key goes to the page; a secret key (sk_...) or anything else is never sent."""
     key = (key or "").strip()
@@ -183,6 +192,7 @@ async def build(app, level: str):
                   "rows": with_latest(quote_rows(rows, level, set(app.state.settings.showcase_symbols), cdn=bool(logo_cdn_key(app.state.settings.logo_dev_key))), await livequote.read(store.redis)),
                   "amcLogos": {k: logo_path(v) for k, v in amc.items() if k in AMC_SITES},
                   "logoCdn": logo_cdn_key(app.state.settings.logo_dev_key),
+                  "logoCdnSkip": list(LOGO_CDN_SKIP),
                   "level": level, "builtAt": int(time.time())})
     packed = gzip.compress(body, compresslevel=6, mtime=0)
     etag = etag_for(body)

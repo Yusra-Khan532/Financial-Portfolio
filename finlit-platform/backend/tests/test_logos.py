@@ -297,3 +297,10 @@ def test_a_small_favicon_gives_way_to_the_sharp_cdn_logo_only_when_a_key_is_set(
     backup = {r[0]: r[7] for r in quote_rows(rows, "basic", set(), cdn=True) if len(r) > 7}
     assert backup == {"SMALL": "/api/logos/e49a9b94449af6e2.png"}   # the small logo rides along as the page's backup when Logo.dev has none
     assert all(off.values())   # without a key nothing is dropped (a small logo beats the initials tile)
+
+
+def test_the_reviewed_wrong_logo_dev_companies_are_skipped():
+    from finlit.search import LOGO_CDN_SKIP
+    for s in ("TCS", "TATATECH", "LTTS", "M&M", "JIOFIN", "GILLETTE"):
+        assert s in LOGO_CDN_SKIP
+    assert len(set(LOGO_CDN_SKIP)) == len(LOGO_CDN_SKIP)

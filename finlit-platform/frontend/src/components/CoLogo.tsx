@@ -15,7 +15,7 @@ export function useLogoMap(enabled = true): Map<string, string> | undefined {
   // eslint-disable-next-line react-hooks/rules-of-hooks
   return useQuery<Quotes, ApiError, Map<string, string>>({
     queryKey: ["search-quotes"], queryFn: () => apiGet("/api/search/quotes"), enabled, staleTime: 300_000, gcTime: 600_000, retry: 1,
-    select: (q) => { const m = new Map<string, string>(); for (const r of q?.rows || []) { const src = logoFor(String(r[0]), r[6], q?.logoCdn, (r as unknown[])[7] as string | null | undefined); if (src) m.set(String(r[0]).toUpperCase(), src); } return m; },
+    select: (q) => { const m = new Map<string, string>(); for (const r of q?.rows || []) { const src = logoFor(String(r[0]), r[6], q?.logoCdn, (r as unknown[])[7] as string | null | undefined, q?.logoCdnSkip); if (src) m.set(String(r[0]).toUpperCase(), src); } return m; },
   }).data;
 }
 
