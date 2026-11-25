@@ -74,6 +74,10 @@ async def test_one_reading_a_day_at_most_hourly_and_old_ones_go(app):  # noqa: F
 
 @pytest.mark.integration
 async def test_the_console_report_is_for_administrators_only_and_measures_everything(app, anon):  # noqa: F811
+    # starts from no readings: an earlier test leaves one dated 2026-11-25, and from 18:30 UTC "today" in IST is the next day, so the report's own
+    # reading made two days and the growth became "known" (this test failed every evening from midnight IST to midnight UTC)
+    async with app.state.store.pool.acquire() as conn:
+        await conn.execute("DELETE FROM storage_daily")
     assert (await anon.get("/api/admin/storage")).status_code == 401
     member = await signed_in(app, "storage-member@example.com")
     assert (await member.get("/api/admin/storage")).status_code == 403
