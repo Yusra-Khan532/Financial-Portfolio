@@ -51,6 +51,10 @@ describe("pure helpers", () => {
     expect(back).toMatchObject({ plan: "all", subs: ["large-cap"], labels: ["Strong"], min: "60", full: true, sort: "ter", dir: "asc", page: 3 });
     expect(back.cost).toEqual(["70", ""]);
     expect(queryToParams(emptyQuery()).toString()).toBe("");
+    // task #369: no plan is preselected: every plan is asked for and no chip shows; a chosen plan is a chip that clears back to every plan
+    expect(paramsToQuery(new URLSearchParams("")).plan).toBe("all"); expect(serverParams(emptyQuery(), null).get("plan")).toBe("all"); expect(chips(emptyQuery())).toEqual([]);
+    expect(chips({ ...emptyQuery(), plan: "Direct" }).map((c) => c.text)).toEqual(["Direct plan"]); expect(clearChip({ ...emptyQuery(), plan: "Direct" }, "plan").plan).toBe("all");
+    expect(queryToParams({ ...emptyQuery(), plan: "Direct" }).toString()).toBe("plan=Direct");
     const sp = serverParams(q, { limit: 50, offset: 100 });
     expect(sp.get("cost_min")).toBe("70");
     expect(sp.get("offset")).toBe("100");
@@ -152,7 +156,7 @@ describe("screener", () => {
     setup(); wrap(<FundScoreScreenerPage />);
     expect(await screen.findByText("Fund 1")).toBeTruthy();
     expect(document.querySelector(".mf-count")!.textContent).toMatch(/120/);
-    expect(st.calls.some((c) => c.startsWith("/api/mf/score-screener?") && c.includes("plan=Direct") && c.includes("limit=50"))).toBe(true);
+    expect(st.calls.some((c) => c.startsWith("/api/mf/score-screener?") && c.includes("plan=all") && c.includes("limit=50"))).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Strong" }));
     expect(screen.getByTestId("loc").textContent).toContain("labels=Strong");
     fireEvent.click(document.querySelector("[data-fgx=score] .fgx-hb")!);

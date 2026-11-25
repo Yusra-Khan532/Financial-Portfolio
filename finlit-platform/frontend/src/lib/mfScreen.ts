@@ -2,7 +2,8 @@
 // and the data hooks. Everything pure lives here and is tested without the page (mfScreen.test.ts). The server (backend/finlit/mfscreen) owns what each filter means.
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { ApiError } from "./api";
-import { loadUi, saveUi } from "./persist";
+import { loadUi, removeUi, saveUi } from "./persist";
+import { nf } from "./format";
 import { mfGet, type FundRow, type Facts } from "./mf";
 import {
   AUMRANK_OPTS, BASIS_OPTS, CAP_OPTS, CFLOW_OPTS, CHK_EACH, CSIZE_OPTS, CSTREAK_OPTS, EXIT_OPTS, FRESH_OPTS, HOUSE_OPTS, INST_OPTS, MAT_OPTS, NUM_BY, OPTION_OPTS, PFDATE_OPTS,
@@ -21,9 +22,10 @@ export type SQ = {
   sc: Partial<Record<ScoreField, ScoreRange>>;
   sort: string; dir: "asc" | "desc"; page: number;
 };
-/** The page's starting point (spec section 1): Direct plan, Growth option, still publishing, mutual funds and ETFs together. */
+/** The page's starting point. Task #369 (team, 24 Nov 2026: "show all 8500+ funds", "dont preselect any filter"): no filter at all, so every scheme on
+ *  record shows: every plan, every option, still publishing and stopped, mutual funds and ETFs. Each of those is an optional filter the user turns on. */
 export const DEFAULTS: SQ = {
-  q: "", group: "", subs: [], cap: [], style: [], struct: [], mat: [], amcs: [], house: [], plans: ["Direct"], options: ["Growth"], inst: [], status: "active", family: false, fresh: "",
+  q: "", group: "", subs: [], cap: [], style: [], struct: [], mat: [], amcs: [], house: [], plans: [], options: [], inst: [], status: "both", family: false, fresh: "",
   aumbasis: [], aumrank: [], launchFrom: "", launchTo: "", rng: {}, nd: [], rk: [], chk: "", chkEach: [], exit: [], tick: [], tags: [], sector: "", sectorMin: "", holds: "", pfdate: [],
   cflow: [], cstreak: [], csize: [], sc: {}, sort: "aum", dir: "desc", page: 1,
 };
@@ -43,12 +45,12 @@ export const cleanNum = (s: string): string => { const t = s.trim().replace(/,/g
 
 /** The address bar's parameters -> a query. Unknown field names and malformed numbers are dropped, never trusted. */
 export function parseQuery(p: URLSearchParams): SQ {
-  const q: SQ = { ...DEFAULTS, rng: {}, sc: {}, plans: [...DEFAULTS.plans], options: [...DEFAULTS.options] };
+  const q: SQ = { ...DEFAULTS, rng: {}, sc: {} };
   const many = (name: string) => p.getAll(name).flatMap((v) => v.split(",")).map((s) => s.trim()).filter(Boolean);
   for (const k of LISTS) { const v = k === "amcs" ? p.getAll("amcs").map((s) => s.trim()).filter(Boolean) : many(PARAM[k]); if (v.length || p.has(PARAM[k])) q[k] = [...new Set(v)] as never; }
   q.q = (p.get("q") || "").slice(0, 80);
   q.group = ["equity", "debt", "hybrid", "solution", "other"].includes(p.get("group") || "") ? p.get("group")! : "";
-  const st = p.get("status"); q.status = st === "stopped" || st === "both" ? st : "active";
+  const st = p.get("status"); q.status = st === "active" || st === "stopped" ? st : "both";
   q.family = p.get("family") === "true";
   q.fresh = p.get("fresh") === "today" || p.get("fresh") === "week" ? p.get("fresh")! : "";
   q.launchFrom = /^\d{4}-\d{2}-\d{2}$/.test(p.get("launch_from") || "") ? p.get("launch_from")! : "";
@@ -66,15 +68,14 @@ export function parseQuery(p: URLSearchParams): SQ {
   return q;
 }
 
-/** The parameters the SERVER gets: every choice stated, the defaults too. */
+/** The parameters the SERVER gets: every choice stated, "no choice" too (the API on its own answers Growth options still publishing). */
 export function apiParams(q: SQ): URLSearchParams {
   const p = new URLSearchParams();
   if (q.q.trim()) p.set("q", q.q.trim());
   if (q.group) p.set("group", q.group);
-  for (const k of LISTS) if (q[k].length && k !== "nd" && k !== "plans" && k !== "options") for (const v of q[k]) p.append(PARAM[k], v);
-  for (const k of ["plans", "options"] as const) for (const v of q[k]) p.append(PARAM[k], v);
+  for (const k of LISTS) if (q[k].length && k !== "nd") for (const v of q[k]) p.append(PARAM[k], v);
   if (!q.options.length) p.set("option", "All");   // no option chosen means every option: the server would otherwise default to Growth
-  p.set("status", q.status);
+  p.set("status", q.status);                       // "both" when none is chosen: the server would otherwise show only schemes still publishing
   if (q.family) p.set("family", "true");
   if (q.fresh) p.set("fresh", q.fresh);
   if (q.launchFrom) p.set("launch_from", q.launchFrom);
@@ -91,11 +92,8 @@ export function apiParams(q: SQ): URLSearchParams {
 /** The address bar: only what differs from the defaults, so a fresh page has a clean address. */
 export function queryToParams(q: SQ): URLSearchParams {
   const p = apiParams(q);
-  if (same(q.plans, DEFAULTS.plans)) p.delete("plans");
-  else if (!q.plans.length) p.set("plans", "");
-  if (same(q.options, DEFAULTS.options)) p.delete("options");
-  else if (!q.options.length) { p.delete("option"); p.set("options", ""); }
-  if (q.status === "active") p.delete("status");
+  if (!q.options.length) p.delete("option");
+  if (q.status === DEFAULTS.status) p.delete("status");
   if (q.sort !== DEFAULTS.sort || q.dir !== DEFAULTS.dir) { p.set("sort", q.sort); p.set("dir", q.dir); }
   if (q.page > 1) p.set("page", String(q.page));
   return p;
@@ -185,10 +183,9 @@ export function chipsFor(q: SQ, subLabel: (k: string) => string = (k) => k, tagL
   out.push(...q.subs.map((v) => ({ id: `subs:${v}`, label: subLabel(v), clear: (s: SQ) => ({ ...s, subs: s.subs.filter((x) => x !== v), page: 1 }) })));
   out.push(...listChips(q, "cap", "Cap: ", CAP_OPTS), ...listChips(q, "style", "Style: ", STYLE_OPTS), ...listChips(q, "struct", "", STRUCT_OPTS), ...listChips(q, "mat", "Maturity (category band): ", MAT_OPTS));
   out.push(...listChips(q, "amcs", "", null).map((c) => ({ ...c, label: c.label.replace(/\s*mutual fund\s*$/i, "") })), ...listChips(q, "house", "House size: ", HOUSE_OPTS));
-  if (!same(q.plans, DEFAULTS.plans)) out.push(...(q.plans.length ? listChips(q, "plans", "Plan: ", PLAN_OPTS) : [{ id: "plans:all", label: "All plans", clear: (s: SQ) => ({ ...s, plans: [...DEFAULTS.plans], page: 1 }) }]));
-  if (!same(q.options, DEFAULTS.options)) out.push(...(q.options.length ? listChips(q, "options", "Option: ", OPTION_OPTS) : [{ id: "options:all", label: "All options", clear: (s: SQ) => ({ ...s, options: [...DEFAULTS.options], page: 1 }) }]));
+  out.push(...listChips(q, "plans", "Plan: ", PLAN_OPTS), ...listChips(q, "options", "Option: ", OPTION_OPTS));
   out.push(...listChips(q, "inst", "", INST_OPTS));
-  if (q.status !== "active") out.push({ id: "status", label: q.status === "stopped" ? "Stopped publishing" : "Including stopped funds", clear: (s) => ({ ...s, status: "active", page: 1 }) });
+  if (q.status !== "both") out.push({ id: "status", label: q.status === "stopped" ? "Stopped publishing" : "Still publishing", clear: (s) => ({ ...s, status: "both", page: 1 }) });
   if (q.family) out.push({ id: "family", label: "One row per fund family", clear: (s) => ({ ...s, family: false, page: 1 }) });
   if (q.fresh) out.push({ id: "fresh", label: optLabel(FRESH_OPTS, q.fresh), clear: (s) => ({ ...s, fresh: "", page: 1 }) });
   out.push(...listChips(q, "aumbasis", "Size basis: ", BASIS_OPTS), ...listChips(q, "aumrank", "Size rank: ", AUMRANK_OPTS));
@@ -210,10 +207,22 @@ export function chipsFor(q: SQ, subLabel: (k: string) => string = (k) => k, tagL
   return out;
 }
 
+/** Task #369 (team, 24 Nov 2026): the page opens with no filter on, so every scheme on record is listed. With no status chosen, the count line says how
+ *  many of them still publish a NAV and how many stopped (the two add up to the total). */
+export function statusSplit(q: SQ, status: Record<string, number> | undefined, total: number): string | null {
+  if (q.status !== "both" || !status) return null;
+  const a = status.active ?? 0, s = status.stopped ?? 0;
+  if (a + s !== total || !s) return null;   // the counts answer another query (still loading), or nothing stopped: no split to show
+  return `${nf(a, 0)} still publishing a NAV, ${nf(s, 0)} stopped`;
+}
+
 // ------------------------------------------------------------------------------------------------ preset screens (spec section 14)
 
 export type PresetDef = { id: string; label: string; say: string; set: (q: SQ) => SQ; off?: string; /** uses the score filter: Gold only */ gold?: boolean };
-const base = (): SQ => ({ ...DEFAULTS, rng: {}, sc: {}, plans: [...DEFAULTS.plans], options: [...DEFAULTS.options] });
+/** Task #369: the page opens with no filter, but a preset still compares like with like: it turns on Direct plan, Growth option and still publishing
+ *  as it always did, shown as chips the user can remove. */
+export const PRESET_BASE: Pick<SQ, "plans" | "options" | "status"> = { plans: ["Direct"], options: ["Growth"], status: "active" };
+const base = (): SQ => ({ ...DEFAULTS, rng: {}, sc: {}, ...PRESET_BASE, plans: [...PRESET_BASE.plans], options: [...PRESET_BASE.options] });
 const rng = (q: SQ, field: string, lo = "", hi = ""): SQ => withRange(q, field, lo, hi);
 /** Presets are plain filter settings; a preset is a starting point and everything stays editable. Names describe, they do not recommend. */
 /** Task #356 (team, 23 Nov 2026): the preset screens in labelled rows, so each row says what kind of fund its presets are for. */
@@ -260,8 +269,27 @@ export function presetOn(q: SQ, p: PresetDef): boolean {
 
 export type Saved = { name: string; query: string };
 const validSaved = (d: unknown): Saved[] | null => (Array.isArray(d) ? d.filter((x): x is Saved => !!x && typeof x.name === "string" && typeof x.query === "string").slice(0, 8) : null);
-export const loadSaved = (): Saved[] => loadUi("mfscreen.saved", 1, validSaved, []);
-export const storeSaved = (s: Saved[]) => saveUi("mfscreen.saved", 1, s.slice(0, 8));
+/** Task #369: a screen saved before 24 Nov 2026 left out the page's old defaults (Direct plan, Growth option, still publishing); they are written into it
+ *  so it still opens the same funds now that the page starts with no filter. An old "every plan / option / status" mark is simply dropped. */
+export function migrateSavedQuery(query: string): string {
+  const p = new URLSearchParams(query);
+  if (!p.has("plans")) p.set("plans", "Direct"); else if (!p.getAll("plans").join("")) p.delete("plans");
+  if (!p.has("options") && !p.has("option")) p.set("options", "Growth"); else if (p.has("options") && !p.getAll("options").join("")) p.delete("options");
+  if (p.get("option") === "All") p.delete("option");
+  if (!p.has("status")) p.set("status", "active"); else if (p.get("status") === "both") p.delete("status");
+  return p.toString();
+}
+const SAVED_KEY = "mfscreen.screens";   // task #369: the old key ("mfscreen.saved") held queries read against the old defaults
+export function loadSaved(): Saved[] {
+  const now = loadUi<Saved[] | null>(SAVED_KEY, 1, validSaved, null);
+  if (now) return now;
+  const old = loadUi<Saved[] | null>("mfscreen.saved", 1, validSaved, null);
+  if (!old) return [];
+  const moved = old.map((s) => ({ ...s, query: migrateSavedQuery(s.query) }));
+  saveUi(SAVED_KEY, 1, moved); removeUi("mfscreen.saved");
+  return moved;
+}
+export const storeSaved = (s: Saved[]) => saveUi(SAVED_KEY, 1, s.slice(0, 8));
 
 // ------------------------------------------------------------------------------------------------ small helpers for the page
 

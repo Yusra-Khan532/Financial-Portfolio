@@ -450,6 +450,9 @@ async def test_the_company_card_holds_what_the_page_shows_and_prism_follows_the_
     assert gd["profile"]["name"] and len(g["text"].encode()) <= T.RESULT_CAP + 2000
     p = json.loads((await T.run(gold, "get_finlit_prism", {"symbol": "RELIANCE"}))["text"])["data"]["finlitPrism"]
     assert p["score"] == 85.4 and p["topPros"] == ["Strong margins"] and p["topCons"] == ["Cyclical demand"]
+    sheet = json.loads((await T.run(gold, "get_finlit_prism", {"symbol": "RELIANCE"}))["text"])["data"]["whatEachFigureMeans"]   # task #382
+    assert any(x.startswith("Overall 85.4 (Strong, Rated") for x in sheet) and any(x.startswith("Valuation 71 (Healthy)") for x in sheet)
+    assert "whatEachFigureMeans" not in json.loads((await T.run(silver, "get_finlit_prism", {"symbol": "RELIANCE"}))["text"])["data"]   # no card, no sheet
     sec = await T.run(gold, "get_company_section", {"symbol": "RELIANCE", "section": "dividends_and_actions"})
     assert not sec["error"] and '"section":"dividends_and_actions"' in sec["text"]
     assert (await T.run(gold, "get_company_section", {"symbol": "RELIANCE", "section": "passwords"}))["error"] is True
@@ -632,7 +635,7 @@ def test_the_ai_summary_is_pointers_with_bold_key_words_and_reads_the_technical_
     """Task #228 rework 2 (20 Nov 2026): "make it in pointers its too big of a paragaph and highlight keywords"; the team's picture also shows "I could
     not read the short-term and long-term technical views": the Prism summary FinLit AI reads carried only the technical view's dates."""
     q = service.summary_question("RELIANCE")
-    assert "bucket headlines" in q and 'starting with "- "' in q and "at most 12 words" in q and "**bold**" in q and "No paragraph" in q   # task #228 rework 3
+    assert "bucket headlines" in q and 'starting with "- "' in q and "at most 22 words" in q and "**bold**" in q and "No paragraph" in q   # task #228 rework 3; #382: 22 words, for the meaning
     from finlit import prism
     tech = {"shortTerm": {"score": 38.0, "rating": "Buy", "status": "ready"}, "longTerm": {"score": -32.0, "rating": "Reduce", "status": "ready"},
             "verdict": {"label": "BOUNCE ONLY, DON'T INVEST", "tone": "caution"}}

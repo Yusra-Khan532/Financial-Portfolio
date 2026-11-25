@@ -4,7 +4,8 @@
 // The button sits under the two cards (Fundamental analysis and Technical analysis). A Silver or Gold member gets FinLit AI's summary of what the
 // card means, in words (the server writes what is asked: backend ask/service.summary_question), streamed in place, using one of the month's
 // 10 AI summaries, counted apart from the FinLit AI questions. Anyone else, or when written answers are off or the summaries are used, gets an
-// instant summary of what the card means, written from the card itself, said plainly as such. Neither repeats the scores: they are on the card.
+// instant summary of what the card means, written from the card itself, said plainly as such. Task #382: both keep every figure and say what it
+// means, read off the method's own bands and words (stock/prismMeaning; the server's copy is ask/prism_meaning).
 // Describes; never advises: the AI's own checks apply, and the card summary only puts the card into words.
 import { AiFeedback } from "../components/AiFeedback";   // task #366
 import { useEffect, useRef, useState } from "react";
@@ -14,72 +15,99 @@ import { AskRefused, askSummary, type AskQuota } from "../lib/askAi";
 import { apiGet } from "../lib/api";
 import { Icon } from "../lib/icons";
 import { useAuth } from "../lib/auth";
-import { trendBand, verdictView, type TechAssessment, type TrendBand } from "../lib/prismTechnical";
+import { type TechAssessment, type TechHorizon, type TrendTone } from "../lib/prismTechnical";
+import { LABEL_WORD } from "../lib/prism";
 import { AnswerText } from "../components/AnswerText";
 import { partWord, type CardPart } from "./prismCardLogic";
-import { type PrismLatest } from "./PrismCard";
+import { type PrismLatest, type PrismReviewItem } from "./PrismCard";
+import { figure, OVERALL, OVERALL_DETAIL, PARTS, partDetail, trendAlignment, trendDetail, trendMeaning, type Tone } from "./prismMeaning";
 
 const DISCLAIMER = "Describes the company's financial health from its filings and prices; not a recommendation. Information only, not investment advice.";
 
-type Tone = "good" | "mixed" | "weak";
 const toneOf = (v: number): Tone => { const t = partWord(v)[1]; return t === "strong" || t === "healthy" ? "good" : t === "mixed" ? "mixed" : "weak"; };
-/** What each band of each part means, in the words of what the model measures (prismCardLogic PART_LINE). A higher Risk score means lower risk. */
-const MEANING: Record<string, Record<Tone, string>> = {
-  fundamental: { good: "sales and profit have grown steadily, with sound margins", mixed: "sales and profit growth and margins are middling",
-    weak: "sales and profit growth has been slow or uneven, or margins are thin" },
-  valuation: { good: "the share price looks modest against its earnings and its own history", mixed: "the share price is roughly in line with its earnings and its own history",
-    weak: "the share price looks high against its earnings and its own history" },
-  quality: { good: "borrowing is under control, interest is well covered and profits are backed by cash", mixed: "borrowing, interest cover, returns and cash backing are middling",
-    weak: "borrowing is heavy, interest cover or returns are thin, or profits are not well backed by cash" },
-  risk: { good: "the share price has moved calmly, with smaller falls, ample trading and few pledged shares", mixed: "price swings, falls and trading activity are moderate",
-    weak: "the share price swings widely or has fallen sharply, trading is thin or shares are pledged" },
-};
-/** The overall reading: its key word (bold on the page) and what it means. */
-const OVERALL: Record<string, [string, string]> = {
-  STRONG: ["strong", "most of what FinLit Prism measures is sound"],
-  HEALTHY: ["healthy", "more of what FinLit Prism measures is sound than weighs on it"],
-  AVERAGE: ["mixed", "some parts are sound while others weigh on it"],
-  WEAK: ["weak", "more of what FinLit Prism measures weighs on it than is sound"],
-  POOR: ["poor", "most of what FinLit Prism measures weighs on it"],
-};
-const TONE_WORD: Record<Tone, string> = { good: "sound", mixed: "in between", weak: "weighs on it" };
-const SHORT: Record<TrendBand, string> = { positive: "the price has been rising over the last few weeks", neutral: "the price has moved sideways over the last few weeks",
-  negative: "the price has been falling over the last few weeks" };
-const LONG: Record<TrendBand, string> = { positive: "the longer trend over months is up", neutral: "the longer trend over months is flat", negative: "the longer trend over months is down" };
+const trendTone = (t: TrendTone): Tone => (t === "strongpos" || t === "pos" ? "good" : t === "neutral" ? "mixed" : "weak");
+const TONE_OF_VERDICT: Record<string, Tone> = { pos: "good", mixed: "mixed", neg: "weak" };
 const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+const FLAG = "Cannot be interpreted";
 
-/** One pointer: a bold label, the text, and the key words inside it to bold too. */
-export type Pointer = { head: string; text: string; key?: string };
-/** What the card means, as short pointers from the card itself (no model) and without its numbers (they are on the card). Task #228 rework 2 (the
- *  team, 20 Nov 2026): "make it in pointers its too big of a paragaph and highlight keywords". The overall reading, then one pointer for each part
- *  (strongest first) labelled with what it is, then the price trends. Exported for the tests. */
-export function cardSummary(name: string, r: PrismLatest["rating"], parts: CardPart[], a: TechAssessment | null): Pointer[] {
+/** One pointer: a bold label, the figure as the card states it and its band (task #382), the one-line meaning with its key words in bold, the
+ *  method's main reason where the report gives one, and the detail behind its (i). `group` keeps the business apart from the share price. */
+export type Pointer = { head: string; text: string; key?: string; fig?: string; band?: string; tone?: Tone | "na"; reason?: string; more?: string;
+  group?: "score" | "price" };
+
+/** The method's own reason for a part, from its first pro (a sound part) or con (a part that weighs on it). A streak reads as growth quarters out of
+ *  the quarters judged, each against the same quarter a year before (site-api premium_engine.streak). */
+export function reasonOf(item: PrismReviewItem | undefined): string | undefined {
+  if (!item?.label) return undefined;
+  const m = /(\d+) growth quarters? across (\d+) comparable quarters?/.exec(item.summary || "");
+  if (m) return `${item.label}: growth in ${m[1]} of ${m[2]} quarters judged, each against the same quarter a year before${/Loss-making/.test(item.summary) ? "; loss-making quarters do not count" : ""}.`;
+  const first = (item.summary || "").split(/(?<=\.)\s/)[0];
+  return `${item.label}${item.valueText && !/^Not /.test(item.valueText) ? ` (${item.valueText})` : ""}: ${first}`.trim();
+}
+
+/** What the card means, as short pointers from the card itself (no model). Task #228 rework 2 (the team, 20 Nov 2026): pointers with key words in
+ *  bold. Task #382 (the team, 24 Nov 2026): every figure is kept, prominent, with its band, a one-line meaning and why it matters (its (i)), all
+ *  read off the method's own bands and words (stock/prismMeaning); a figure without a score is flagged, never guessed. The overall reading, then
+ *  each part (strongest first), then the share price trends, kept apart from the business. Exported for the tests. */
+export function cardSummary(name: string, r: PrismLatest["rating"], parts: CardPart[], a: TechAssessment | null, review?: PrismLatest["review"]): Pointer[] {
   const out: Pointer[] = [];
   const o = OVERALL[r.label];
-  if (r.status === "NOT RATED" || r.final == null || !o) out.push({ head: "Overall", text: `${name} has no overall FinLit Prism rating at the moment: too little of the data it needs is available.` });
-  else out.push({ head: "Overall", text: `${name}'s business and finances read as ${o[0]}: ${o[1]}.${r.status === "PROVISIONAL" ? " A first view: some of the data it needs is missing." : ""}`, key: `read as ${o[0]}` });
-  const four = parts.filter((p) => p.key !== "technical" && MEANING[p.key] && p.value != null) as (CardPart & { value: number })[];
+  if (r.status === "NOT RATED" || r.final == null || !o) out.push({ head: "Overall", band: FLAG, tone: "na", group: "score", text: `${name} has no overall FinLit Prism rating at the moment: too little of the data it needs is available.` });
+  else out.push({ head: "Overall", fig: figure(r.final), band: `${LABEL_WORD[r.label]} · ${r.status === "PROVISIONAL" ? "Provisional" : "Rated"}`,
+    tone: toneOf(r.final), group: "score", more: OVERALL_DETAIL,
+    text: `${name}'s business and finances read as ${o[0]}: ${o[1]}.${r.status === "PROVISIONAL" ? " A first view: some of the data it needs is missing." : ""}`, key: `read as ${o[0]}` });
+  const four = parts.filter((p) => p.key !== "technical" && PARTS[p.key] && p.value != null) as (CardPart & { value: number })[];
   const rank: Record<Tone, number> = { good: 0, mixed: 1, weak: 2 };
+  const rv = (key: string, t: Tone) => { const part = review?.parts?.find((x) => x.key === key); return t === "mixed" ? undefined : reasonOf((t === "good" ? part?.pros : part?.cons)?.[0]); };
   for (const p of [...four].sort((x, y) => rank[toneOf(x.value)] - rank[toneOf(y.value)])) {
     const t = toneOf(p.value);
-    out.push({ head: `${p.name}, ${TONE_WORD[t]}`, text: cap(MEANING[p.key][t]) + "." });
+    out.push({ head: p.name, fig: figure(p.value), band: partWord(p.value)[0], tone: t, group: "score", text: cap(PARTS[p.key][t]) + ".", reason: rv(p.key, t),
+      more: partDetail(p.key) ?? undefined });
   }
-  const none = parts.filter((p) => p.key !== "technical" && MEANING[p.key] && p.value == null).map((p) => p.name);
-  if (none.length && r.status !== "NOT RATED") out.push({ head: "Not enough data yet", text: `${none.join(", ")}.` });
+  if (r.status !== "NOT RATED")
+    for (const p of parts.filter((p) => p.key !== "technical" && PARTS[p.key] && p.value == null))
+      out.push({ head: p.name, band: FLAG, tone: "na", group: "score", text: "No score yet: too little data for this part, so it is not read here.", more: partDetail(p.key) ?? undefined });
   if (a) {
-    const st = trendBand(a.shortTerm.score), lt = trendBand(a.longTerm.score);
-    if (st && lt) {
-      const v = verdictView(a);
-      out.push({ head: "Price trend", text: `${cap(SHORT[st])}, ${st === lt ? "and" : "while"} ${LONG[lt]}${v.tone !== "na" ? ` (${v.word.toLowerCase()})` : ""}.`, key: v.tone !== "na" ? v.word.toLowerCase() : undefined });
-    } else if (st || lt) out.push({ head: "Price trend", text: `${st ? cap(SHORT[st]) : "The short-term view is not available"}; ${lt ? LONG[lt] : "the long-term view is not available"}.` });
+    const span = (h: TechHorizon, fallback: string) => (h?.horizon ? `the last ${h.horizon.replace(/sessions?/, "trading sessions")}` : fallback);
+    for (const [h, head, fb] of [[a.shortTerm, "Short-term trend", "the last 5–20 trading sessions"], [a.longTerm, "Long-term trend", "the last 6–18 months"]] as const) {
+      const m = trendMeaning(h);
+      out.push(m && h.score != null
+        ? { head, fig: figure(h.score, true), band: m.word, tone: trendTone(m.tone), group: "price", text: `${m.text}, over ${span(h, fb)}.`, more: trendDetail(span(h, fb)) }
+        : { head, band: FLAG, tone: "na", group: "price", text: "No score: a required price signal is missing." });
+    }
+    const al = trendAlignment(a.shortTerm?.score, a.longTerm?.score);
+    out.push(al ? { head: "Alignment", band: al.label, tone: TONE_OF_VERDICT[al.tone] ?? "mixed", group: "price", text: `${al.text}.`,
+      more: "The short-term and the long-term trend read together. It describes the share price, not the business." }
+      : { head: "Alignment", band: FLAG, tone: "na", group: "price", text: "It needs both trend scores." });
   }
   return out;
 }
 
-/** A pointer drawn: its label in bold, then the text with its key words in bold. */
+/** A pointer drawn (task #382): the label and the figure in bold, the band beside them, the one-line meaning below, the method's reason, and an (i)
+ *  that opens the detail in place (a tap on a phone, a click or Enter with a keyboard). */
 function PointerText({ p }: { p: Pointer }) {
+  const [open, setOpen] = useState(false);
   const i = p.key ? p.text.indexOf(p.key) : -1;
-  return <li><b>{p.head}:</b> {i < 0 ? p.text : <>{p.text.slice(0, i)}<b>{p.key}</b>{p.text.slice(i + (p.key as string).length)}</>}</li>;
+  return (
+    <li className="pai2-p" data-tone={p.tone}>
+      <span className="pai2-h"><b>{p.head}{p.fig ? <> <span className="pai2-num">{p.fig}</span></> : null}</b>
+        <span className="pai2-bi">{p.band ? <span className="pai2-band">{p.band}</span> : null}
+        {p.more ? <button type="button" className="pai2-i" aria-expanded={open} aria-label={`What ${p.head} means`} onClick={() => setOpen((x) => !x)}>i</button> : null}</span></span>
+      <span className="pai2-m">{i < 0 ? p.text : <>{p.text.slice(0, i)}<b>{p.key}</b>{p.text.slice(i + (p.key as string).length)}</>}</span>
+      {p.reason ? <span className="pai2-r">Main reason: {p.reason}</span> : null}
+      {open && p.more ? <span className="pai2-more">{p.more}</span> : null}
+    </li>);
+}
+
+/** The pointers in two lists, so the business is never read as the share price (task #382 rule 5). */
+function Pointers({ ps }: { ps: Pointer[] }) {
+  const score = ps.filter((p) => p.group !== "price"), price = ps.filter((p) => p.group === "price");
+  return <>
+    <p className="pai2-g">Business and finances: the FinLit Prism score</p>
+    <ul className="pai2-list">{score.map((p) => <PointerText key={p.head} p={p} />)}</ul>
+    {price.length ? <><p className="pai2-g">Share price trend: the price, not the business</p>
+      <ul className="pai2-list">{price.map((p) => <PointerText key={p.head} p={p} />)}</ul></> : null}
+  </>;
 }
 
 /** The session, or null where the page is drawn without the sign-in context (a preview, the card's own tests): then it acts as for a visitor. */
@@ -144,7 +172,7 @@ export async function runSummary(symbol: string, set: (s: State) => void, outer:
  *  9 of 10 left this month" and Summarise); while writing, three dots, the status and Stop; the text opens under the bar, before the panels it
  *  summarises; done: the bullets, who wrote it from what and when, and Hide; a failure says why, that it was not counted, and gives the card's own
  *  summary. `scoredAt`: the date of the card's scores. */
-export function PrismAiSummary({ symbol, name, r, parts, a, scoredAt }: { symbol: string; name: string; r: PrismLatest["rating"]; parts: CardPart[]; a: TechAssessment | null; scoredAt?: string | null }) {
+export function PrismAiSummary({ symbol, name, r, parts, a, scoredAt, review }: { symbol: string; name: string; r: PrismLatest["rating"]; parts: CardPart[]; a: TechAssessment | null; scoredAt?: string | null; review?: PrismLatest["review"] }) {
   const auth = useViewer(), user = auth?.user ?? null, plan = auth?.plan ?? "basic";
   // the same query (and cache key) as lib/askAi useAskQuota, read only for a signed-in member
   const quota = useQuery<AskQuota>({ queryKey: ["ask-quota", user?.id ?? null], queryFn: () => apiGet<AskQuota>("/api/ask/quota"), enabled: !!user, staleTime: 60_000, retry: false });
@@ -176,7 +204,7 @@ export function PrismAiSummary({ symbol, name, r, parts, a, scoredAt }: { symbol
   const own = (note: string, warn: boolean) => (
     <>
       <p className={warn ? "pai2-msg" : "pai2-note"} role={warn ? "alert" : undefined}>{note}{!warn && (!user || !paid) ? <> <Link to="/plans">Compare plans</Link></> : null}</p>
-      <ul className="pai2-list">{cardSummary(name, r, parts, a).map((p) => <PointerText key={p.head} p={p} />)}</ul>
+      <Pointers ps={cardSummary(name, r, parts, a, review)} />
       <p className="pai2-meta"><span>The card's own summary{day ? `, from its scores of ${day}` : ""} · {DISCLAIMER}</span>
         <button type="button" className="pai2-x" onClick={() => setHidden(true)}>Hide</button></p>
     </>);

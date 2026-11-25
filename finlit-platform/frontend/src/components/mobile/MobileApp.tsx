@@ -8,7 +8,7 @@ import { useAuth } from "../../lib/auth";
 import { useUI } from "../../lib/ui";
 import { useIsGold } from "../../lib/planGate";
 import { DASHBOARD, MENU, MORE, PRICING, isNew, menuMatch, offeredTo } from "../../lib/nav";
-import { HUBS, MOST_USED, chipFor, desktopSiteOn, setDesktopSite, tabFor, tabHome, toolsList, type TabId } from "../../lib/mobileNav";
+import { HUBS, MOST_USED, chipFor, desktopSiteOn, freeAccountLine, setDesktopSite, tabFor, tabHome, toolsList, type TabId } from "../../lib/mobileNav";
 import { OPEN_AI } from "../assistantEvents";
 import { HelpActions } from "../PageFeedback";
 import { SystemControl } from "../SystemControl";
@@ -25,14 +25,13 @@ const store = {
 
 /** The five tabs: Home, Markets, Discover, Portfolio, Menu. A tab is lit on every page of its group; the Menu tab opens the Menu sheet. */
 export function MobileTabs() {
-  const { user } = useAuth();
   const { pathname } = useLocation();
   const here = tabFor(pathname);
-  const tabs: [TabId, string, string][] = [["home", "home", user ? "Home" : "Home"], ["markets", "activity", "Markets"], ["discover", "globe", "Discover"], ["folio", "wallet", "Portfolio"]];
+  const tabs: [TabId, string, string][] = [["home", "home", "Home"], ["markets", "activity", "Markets"], ["discover", "globe", "Discover"], ["folio", "wallet", "Portfolio"]];
   return (
     <nav className="ma-tabs" aria-label="Main">
       {tabs.map(([id, icon, label]) => {
-        const to = tabHome(id, !!user), on = here === id;
+        const to = tabHome(id), on = here === id;
         return <Link key={id} to={to} className={"ma-tab" + (on ? " on" : "")} aria-current={on ? "page" : undefined}><Icon name={icon} /><span>{label}</span></Link>;
       })}
       <button type="button" className="ma-tab" onClick={() => dispatchEvent(new Event(OPEN_PHONE_MENU))} aria-haspopup="dialog"><Icon name="list" /><span>Menu</span></button>
@@ -107,7 +106,7 @@ export function MobileMenu() {
               <span className="ma-rt"><b>{user.name || "Your account"}</b><small>{plan[0].toUpperCase() + plan.slice(1)} plan · {user.email}</small></span><Icon name="arrow" className="ma-chev" /></button>
           </> : <>
             <button type="button" className="ma-row" onClick={() => go("/login")}><span className="ma-av" aria-hidden="true"><Icon name="users" /></span>
-              <span className="ma-rt"><b>Sign in</b><small>Free account: watchlists, alerts and your portfolio in one place</small></span><Icon name="arrow" className="ma-chev" /></button>
+              <span className="ma-rt"><b>Sign in</b><small>{`Free account: ${freeAccountLine()}`}</small></span><Icon name="arrow" className="ma-chev" /></button>
           </>}
           <Switch on={theme === "dark"} label="Dark theme" icon="spark" onClick={toggleTheme} />
           <Switch on={fab} label="Tools button" sub="Bottom right on every page" icon="grid" onClick={flipFab} />

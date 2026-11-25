@@ -3,7 +3,7 @@
    so the desktop site, and "Desktop site" in a phone browser (about 980px wide), are unchanged. Class prefix ma- (checked unused elsewhere).
    Sizes from ui-tokens.css; stacking from the --z scale of overlay.css. Locked in by styles/mobileApp.test.tsx. */
 
-.ma-tabs, .ma-hub, .ma-fab, .ma-fabp, .ma-scrim, .ma-menu, .ma-foot { display: none; }
+.ma-tabs, .ma-hub, .ma-fab, .ma-fabp, .ma-scrim, .ma-menu, .ma-foot, .ma-doors { display: none; }
 
 @media (max-width: 860px) {
   /* ---- the top bar: logo, a search box that says what it finds, Ask FinLit AI (and the bell for a member) ---- */
@@ -126,6 +126,21 @@
   /* toasts sit above the Tools button */
   :root:root:root :is(.toast, .prep-toast, .cpf-toast, .alx-toasts) { bottom: calc(var(--ui-bar-h) + 84px + env(safe-area-inset-bottom, 0px)); }
 
+  /* ---- the landing's doors (owner, 25 Nov 2026): a member's dashboard first, then the three places people start most ---- */
+  .ma-doors { display: grid; gap: 10px; margin: 4px 0 18px; }
+  .ma-door { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 12px 14px; border-radius: var(--r-ctl); background: var(--btn-bg); color: var(--btn-fg); text-decoration: none; }
+  .ma-door-i { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: var(--r-ctl); background: color-mix(in srgb, var(--btn-fg) 16%, transparent); }
+  .ma-door-i svg { width: 19px; height: 19px; }
+  .ma-door-t { flex: 1; min-width: 0; display: grid; gap: 2px; }
+  .ma-door-t b { font: var(--ui-fw-semibold) var(--fs-16)/1.25 var(--font-sans); }
+  .ma-door-t small { font: var(--ui-fw-regular) var(--fs-12)/1.35 var(--font-sans); opacity: .85; }
+  .ma-door > svg { flex: none; width: 18px; height: 18px; }
+  .ma-door-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .ma-door-s { display: grid; justify-items: center; align-content: center; gap: 6px; min-height: 72px; padding: 10px 4px; border-radius: var(--r-ctl); border: 1px solid var(--border);
+    background: var(--s1); color: var(--text); font: var(--ui-fw-semibold) var(--fs-13)/1.2 var(--font-sans); text-align: center; text-decoration: none; }
+  .ma-door-s svg { width: 20px; height: 20px; color: var(--gold); }
+  :is(.ma-door, .ma-door-s):focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
   /* ---- compact page titles (checklist 14, 15, 24): the title card no longer fills the first screen ----
      one smaller title, no eyebrow line above it, the description in two lines, the quick links in one sideways row, the sibling tabs (Sector
      Pulse | Sector Rotation, the three portfolios) left to the section chips above, and no ticker strip (Markets today shows the indices). */
@@ -162,10 +177,22 @@
   :root:root .gate.is-locked .lock-card .btn { margin-top: 10px; min-height: var(--ui-ctl-h); }
   :root:root .gate.is-locked .lock-card .sub { margin-top: 6px; text-align: center; }
 
-  /* ---- the company report's top card: the four actions in one sideways row instead of two rows ---- */
-  :root:root main .hx-acts .actions { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 6px; }
-  :root:root main .hx-acts .actions::-webkit-scrollbar { display: none; }
-  :root:root main .hx-acts .actions > * { flex: none; }
+  /* ---- the company report's top card: the four actions two to a row, all in view. The sideways row of v1 hid "Value (DCF)" and "Share"
+     past the right edge with nothing to say more was there (phone audit, 24 Nov 2026). ---- */
+  :root:root main .hx-acts .actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; overflow: visible; }
+  :root:root main .hx-acts .actions > * { min-width: 0; min-height: 44px; justify-content: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ---- layout faults the phone audit measured (24 Nov 2026) ---- */
+  /* Results: the month calendar fits the screen, seven narrow days with the count; a day still opens its companies below.
+     Before, a 780px grid hid Thursday to Sunday off the right edge. */
+  :root:root main .rs-cal { min-width: 0; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+  :root:root main .rs-cal-h { padding: 4px 0; text-align: center; letter-spacing: .02em; }
+  :root:root main .rs-cal-c { min-height: 48px; padding: 5px 2px; align-items: center; gap: 1px; text-align: center; }
+  :root:root main .rs-cal-c :is(.rs-cal-x, em, .rs-cal-w) { display: none; }
+  /* Sector Pulse and Rotation: "On this page" scrolls with the page instead of sticking at 70px, where it covered the top bar and the chips. */
+  :root:root main .sx-nav { position: static; }
+  /* Concalls: the page had no side margin (it is not inside .wrap); the site's 14px phone gutter. */
+  :root:root main .page.ccm { padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); }
 
   /* ---- tap areas (checklist 9 and 26): small links and buttons the phone check found under 40px get a transparent 40px-plus tap area that
      does not move anything on screen (the way the i buttons already have one, phone310.css). Calendar day cells stay as they are: a calendar

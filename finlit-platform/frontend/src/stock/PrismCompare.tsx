@@ -74,7 +74,7 @@ function Body({ state, symbol, statement, name }: { state: Exclude<PrismCardStat
   return (
     <>
       {/* task #312 (developer file 20, change 3): the AI summary is the first thing in the card, not a row 996 px down after both panels */}
-      <PrismAiSummary symbol={symbol} name={name} r={r} parts={parts} a={parseTechnical(rep.technicalAssessment)} scoredAt={rep.completedAt || rep.createdAt} />
+      <PrismAiSummary symbol={symbol} name={name} r={r} parts={parts} a={parseTechnical(rep.technicalAssessment)} scoredAt={rep.completedAt || rep.createdAt} review={rep.review} />
       <div className="pcx-body" role="group" aria-label={prismSummary(r)}>
         <FundamentalSection r={r} parts={parts}>
           <div className="dk-words">

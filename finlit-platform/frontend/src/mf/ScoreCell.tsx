@@ -4,6 +4,7 @@ import { GROWTH_SCORE_LABEL, PLAN_SCORE_NOTE } from "../lib/mf";
 import { bandOf, scoreText, wordBand, type ScoreItem } from "../lib/mfScore";
 import "../styles/mf.css";
 import "../styles/task358.css";   // task #358: the four parts in the score cell
+import "../styles/task371.css";   // task #371: a bigger score and parts; each part names itself on hover, focus or tap
 
 export function ScoreCell({ item, locked, why, loading = false }: { item?: ScoreItem; locked: boolean; why: string; loading?: boolean }) {
   if (locked) return <span className="mf-na" title="The Mutual Fund Score is part of the Gold plan."><Icon name="lock" /><span className="sr-only">Locked: Gold plan</span></span>;
@@ -24,9 +25,12 @@ const PARTS: { key: string; letter: string; name: string }[] = [
 export function Parts({ parts }: { parts?: Record<string, string | null> | null }) {
   if (!parts || !PARTS.some((p) => parts[p.key])) return null;
   const say = PARTS.map((p) => `${p.name}: ${parts[p.key] ?? "Not scored"}`).join(" · ");
+  // task #371 (team, 24 Nov 2026): hovering a letter shows that part's name and its word ("Performance: Strong"); focusable, so a keyboard or a tap on a
+  // phone shows it too. title="" keeps the whole cell's long tooltip from stacking on top. The word is the part's score as the site shows it (never a figure).
   return (
-    <span className="mfs-parts" title={say} aria-label={`The four parts. ${say}`}>
-      {PARTS.map((p) => <i key={p.key} className={"mfs-part b-" + wordBand(parts[p.key])} aria-hidden="true">{p.letter}</i>)}
+    <span className="mfs-parts" role="group" aria-label={`The four parts. ${say}`}>
+      {PARTS.map((p) => { const tip = `${p.name}: ${parts[p.key] ?? "Not scored"}`;
+        return <i key={p.key} className={"mfs-part b-" + wordBand(parts[p.key])} tabIndex={0} title="" data-tip={tip} aria-label={tip}>{p.letter}</i>; })}
     </span>);
 }
 

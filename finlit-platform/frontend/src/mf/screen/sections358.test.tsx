@@ -46,7 +46,8 @@ describe("task #358: the four parts in the score cell", () => {
       pillars: { performance: "Strong", risk: "Fair", cost: "Weak", quality: "Not scored" } }} />);
     const parts = document.querySelector(".mfs-cell .mfs-parts")!;
     expect([...parts.querySelectorAll(".mfs-part")].map((x) => `${x.textContent}:${x.className.split(" ")[1]}`)).toEqual(["P:b-hi", "R:b-mid", "C:b-lo", "Q:b-na"]);
-    expect(parts.getAttribute("title")).toBe("Performance: Strong · Risk: Fair · Cost: Weak · Quality: Not scored");
+    // task #371 replaced the one tooltip on the group with one per letter (same words); the group keeps them for screen readers
+    expect(parts.getAttribute("aria-label")).toBe("The four parts. Performance: Strong · Risk: Fair · Cost: Weak · Quality: Not scored");
   });
   it("draws nothing without the parts (locked or no score)", () => {
     const { container } = render(<Parts parts={null} />);
