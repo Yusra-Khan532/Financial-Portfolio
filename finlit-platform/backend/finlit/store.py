@@ -12,8 +12,9 @@ import json
 import math
 import logging
 import time
+import asyncio
 import zlib
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -188,6 +189,13 @@ COMPANY_ISIN_SQL = """
     FROM companies c WHERE c.symbol = ANY($1::text[])"""
 
 
+
+# Daily prices (price_daily): the last PRICE_DAYS days are kept, those older than COMPRESS_AFTER days compressed (TimescaleDB). docs/STORAGE.md
+PRICE_DAYS = 500
+COMPRESS_AFTER = 30
+# Exchange candles (daily_candles, finlit/candles.py): kept CANDLE_DAYS days, a little over what any reader asks for (candles.DEFAULT_DAYS = 1150)
+CANDLE_DAYS = 1200
+
 class Store:
     db_tag = ""
 
@@ -244,7 +252,42 @@ class Store:
             return False
         await conn.execute("CREATE EXTENSION IF NOT EXISTS timescaledb")
         await conn.execute("SELECT create_hypertable('price_daily', 'day', if_not_exists => TRUE, migrate_data => TRUE)")
+        await self._compress_prices(conn)
         return True
+
+    async def _compress_prices(self, conn) -> None:
+        """Daily prices older than COMPRESS_AFTER days are kept compressed (TimescaleDB columnstore, one segment per company, newest day first): usually
+        80 to 90% smaller, and every query reads them as before. TimescaleDB's own background job compresses each chunk once it is old enough. Set once,
+        then left alone (idempotent). A failure is logged and the site runs on with uncompressed prices."""
+        try:
+            on = await conn.fetchval("SELECT compression_enabled FROM timescaledb_information.hypertables WHERE hypertable_name = 'price_daily'")
+            if not on:
+                await conn.execute("ALTER TABLE price_daily SET (timescaledb.compress, timescaledb.compress_segmentby = 'symbol', "
+                                   "timescaledb.compress_orderby = 'day DESC')")
+            await conn.execute(f"SELECT add_compression_policy('price_daily', INTERVAL '{COMPRESS_AFTER} days', if_not_exists => TRUE)")  # nosec B608 - a constant
+        except Exception:
+            log.exception("price_daily: compression could not be switched on; prices stay uncompressed")
+
+    async def _drop_old_price_chunks(self, conn, days: int, timeout: float) -> int:
+        """Drops the whole price_daily chunks older than `days` and returns how many rows went (counted first, chunk by chunk). TimescaleDB's own
+        compression job can hold a chunk at that moment: a deadlock or lock wait is tried again twice, then left for the next night (logged)."""
+        for attempt in range(3):
+            try:
+                async with conn.transaction():
+                    chunks = [r["c"] for r in await conn.fetch("SELECT show_chunks('price_daily', older_than => (current_date - $1::int))::text AS c",
+                                                               days, timeout=timeout)]
+                    rows = 0
+                    for c in chunks:
+                        rows += int(await conn.fetchval(f"SELECT count(*) FROM {c}", timeout=timeout))   # nosec B608 - a chunk name from show_chunks
+                    if chunks:
+                        await conn.fetch("SELECT drop_chunks('price_daily', older_than => (current_date - $1::int))", days, timeout=timeout)
+                    return rows
+            except (asyncpg.exceptions.DeadlockDetectedError, asyncpg.exceptions.LockNotAvailableError):
+                if attempt == 2:
+                    log.warning("prune: old price chunks were busy (compression job); left for the next night")
+                    return 0
+                await asyncio.sleep(2 * (attempt + 1))
+        return 0
 
     # ------------------------------------------------------------ writes (worker)
 
@@ -593,18 +636,46 @@ class Store:
             return None
         return {"listed": r["listed"], "retiredScored": r["retired"], "prismScored": r["prism"], "retiredNoPrism": r["gap"]}
 
-    async def _upsert_prices(self, conn, symbol: str, daily: dict):
-        rows = [(symbol, date.fromisoformat(t), daily["o"][i], daily["h"][i], daily["l"][i], daily["c"][i], daily["v"][i])
-                for i, t in enumerate(daily["t"])]
+    async def _upsert_prices(self, conn, symbol: str, daily: dict) -> int:
+        """Writes the prices (below) in a savepoint of the report's save. TimescaleDB's compression job can hold a chunk at that moment (a deadlock
+        or a lock wait): the write is tried again twice, and then left out, logged, so the report itself is always saved; the next save writes
+        the prices (they are compared row by row, so nothing is lost)."""
+        for attempt in range(3):
+            try:
+                async with conn.transaction():
+                    return await self._write_prices(conn, symbol, daily)
+            except (asyncpg.exceptions.DeadlockDetectedError, asyncpg.exceptions.LockNotAvailableError):
+                if attempt == 2:
+                    log.warning("price_daily: %s's prices were busy (compression job); left for the next save", symbol)
+                    return 0
+                await asyncio.sleep(0.2 * (attempt + 1))
+        return 0
+
+    async def _write_prices(self, conn, symbol: str, daily: dict) -> int:
+        """The company's daily prices into price_daily, which keeps the last PRICE_DAYS days (the nightly prune drops older ones). Only the days inside
+        that window are written, and only the rows that are new or changed: a report save used to write all six years again, every time, rows the prune
+        then deleted that same night, and every day already stored was rewritten unchanged. With the older days compressed (TimescaleDB), rewriting
+        them would unpack and repack them on each save. A split or bonus changes past prices: those rows differ, so they are still written."""
+        since = date.today() - timedelta(days=PRICE_DAYS)
+        rows = [(symbol, d, daily["o"][i], daily["h"][i], daily["l"][i], daily["c"][i], daily["v"][i])
+                for i, t in enumerate(daily["t"]) if (d := date.fromisoformat(t)) >= since]
+        if not rows:
+            return 0
         await conn.execute("CREATE TEMP TABLE IF NOT EXISTS _prices (LIKE price_daily) ON COMMIT DROP")
         await conn.copy_records_to_table("_prices", records=rows)
-        await conn.execute(
-            """INSERT INTO price_daily SELECT * FROM _prices
+        written = await conn.execute(
+            """INSERT INTO price_daily SELECT p.* FROM _prices p
+               LEFT JOIN price_daily d ON d.symbol = p.symbol AND d.day = p.day
+               WHERE d.day IS NULL OR (d.open, d.high, d.low, d.close, d.volume) IS DISTINCT FROM (p.open, p.high, p.low, p.close, p.volume)
                ON CONFLICT (symbol, day) DO UPDATE SET open = EXCLUDED.open, high = EXCLUDED.high,
                low = EXCLUDED.low, close = EXCLUDED.close, volume = EXCLUDED.volume""")
-        # Dates FinEdge no longer reports (bad ticks we dropped) must not linger.
-        await conn.execute("DELETE FROM price_daily WHERE symbol = $1 AND day >= $2 AND NOT (day = ANY($3::date[]))",
-                           symbol, rows[0][1], [r[1] for r in rows])
+        # Dates the provider no longer reports (bad ticks we dropped) must not linger: looked up first, deleted only when there are some (a delete on
+        # compressed days unpacks them even when it finds nothing).
+        gone = await conn.fetch("SELECT day FROM price_daily WHERE symbol = $1 AND day >= $2 AND NOT (day = ANY($3::date[]))",
+                                symbol, rows[0][1], [r[1] for r in rows])
+        if gone:
+            await conn.execute("DELETE FROM price_daily WHERE symbol = $1 AND day = ANY($2::date[])", symbol, [r["day"] for r in gone])
+        return int(written.split()[-1]) + len(gone)   # rows written (new or changed) and removed; 0 when the save changed nothing
 
     async def upsert_companies(self, rows: Iterable[dict]) -> int:
         records = [(str(r["symbol"]).upper(), r.get("name") or r["symbol"], r.get("nse_code"), r.get("bse_code"),
@@ -855,7 +926,7 @@ class Store:
     PRUNE_STMT_S = 120               # time limit of one prune statement (the pool's default is 10 s, made for page requests)
     PRUNE_BUDGET_S = 20 * 60         # no new batch after this long: the job's limit is 30 minutes; what is left goes the next night
 
-    async def prune(self, keep_top: int, keep_viewed_days: int = 21, price_days: int = 500, feed_days: int = 400,
+    async def prune(self, keep_top: int, keep_viewed_days: int = 21, price_days: int = 0, feed_days: int = 400,
                     budget_s: Optional[float] = None) -> Dict[str, int]:
         """Keep the free database inside its storage limit: drop the stored reports and daily prices of companies outside the top `keep_top` that
         nobody opened in `keep_viewed_days` (they are rebuilt in seconds if someone asks again), daily prices older than `price_days`, old feed rows
@@ -908,7 +979,13 @@ class Store:
                 return n
             # scores of companies that are no longer in the symbol list (delisted or renamed)
             out["orphan_scores"] = await batched("scores", "NOT EXISTS (SELECT 1 FROM companies c WHERE c.symbol = scores.symbol)")
-            out["price_days"] = await batched("price_daily", "day < current_date - $1::int", price_days)
+            price_days = price_days or PRICE_DAYS
+            if getattr(self, "timescale", False):   # whole chunks older than the window: instant, and the only way for compressed days
+                out["price_days"] = 0 if over() else await self._drop_old_price_chunks(conn, price_days, T)
+            else:
+                out["price_days"] = await batched("price_daily", "day < current_date - $1::int", price_days)
+            # exchange candles: the readers look back at most candles.DEFAULT_DAYS (1150, the weekly bars of the chart patterns); older ones go
+            out["candle_days"] = await batched("daily_candles", "day < current_date - $1::int", CANDLE_DAYS)
             out["feed"] = await batched("feed_items", "item_date < current_date - $1::int", feed_days)
             out["runs"] = await batched("ingest_runs", "started_at < now() - interval '30 days'")
             out["history"] = await batched("score_history", "day < current_date - 800")
