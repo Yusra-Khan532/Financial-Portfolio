@@ -85,13 +85,7 @@
 .eq .eqc-asof { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 12px 0; font: 700 var(--fs-12)/1.3 var(--sans); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
 .eq .eqc-asof b { padding: 3px 9px; border: 1px solid var(--border); border-radius: var(--ui-r-pill); background: var(--s1); font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--text); }
 
-/* ===== the end of the page ===== */
-.eq .eqc-end { margin: 28px 0 8px; }
-.eq .eqc-endb { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
-.eq .eqc-endbtn { min-height: 40px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill); background: var(--s1); color: var(--text); font: 600 var(--fs-13) var(--sans); cursor: pointer; }
-.eq .eqc-endbtn[aria-expanded="true"] { background: var(--ui-on-bg); color: var(--ui-on-fg); }
-.eq .eqc-endn { font: 400 var(--fs-13) var(--sans); color: var(--muted); }
-.eq #eqc-faq, .eq #eqc-disc { margin-top: 12px; }
+/* the end of the page: the shared bottom (portfolio/shared/shared.css, .pgb; task #388 file 38 E1) */
 
 /* ===== the section bar: one section at a time ===== */
 .eq .eqt-all[aria-pressed="true"] { background: var(--ui-on-bg) !important; color: var(--ui-on-fg) !important; border-color: var(--ui-on-bg) !important; }

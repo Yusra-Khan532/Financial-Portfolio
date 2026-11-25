@@ -62,12 +62,14 @@ export const FaqPlan = ({ plan }: { plan?: string }) => plan ? <span className={
 
 /** "Questions about this page": shown at the bottom of every page that has a set in content/pageFaqs.ts, chosen by the address. Nothing otherwise. */
 /** Pages that place their own "Questions about this page" (the dashboard puts it above its disclaimer, as the final pages pack draws it); the layout's copy skips them. */
-const OWN_PLACE = new Set(["/dashboard", "/watchlist", "/glossary", "/etf-portfolio", "/holdings"]);   // task #385: the Equity portfolio keeps its questions behind a button (PageEnd)   // the ETF portfolio puts its questions above its disclaimer (task #136)
-export function PageFaqs({ inline = false }: { inline?: boolean }) {
+const OWN_PLACE = new Set(["/dashboard", "/watchlist", "/glossary", "/etf-portfolio", "/holdings"]);   // task #388 (file 38, E1): the Equity portfolio places its questions in the shared page bottom (portfolio/shared/PageBottom)   // the ETF portfolio puts its questions above its disclaimer (task #136)
+/** `fold` (task #388, developer file 38 E1 / SHARED.md SP11, the shared portfolio page bottom): the folded form at every width, "Questions about this page · N"
+ *  with Show ▾ / Hide ▴, its open state kept by the caller (closed on arrival). Only the count: no topic line. Implies `inline`. */
+export function PageFaqs({ inline = false, fold }: { inline?: boolean; fold?: { open: boolean; onOpen: (open: boolean) => void } }) {
   const { pathname, hash } = useLocation();
   // /glossary/<term> is placed by its page too; a Prism report (/prism/<SYMBOL>) places its questions inside its own container (task #220)
   const own = [...OWN_PLACE].some((r) => pathname === r || pathname.startsWith(r + "/")) || /^\/prism\/[^/]+/.test(pathname);
-  const found = own && !inline ? undefined : faqForPath(pathname);
+  const found = own && !inline && !fold ? undefined : faqForPath(pathname);
   const model = usePlanModel();
   const faq = found && found.id === "company-report" ? { ...found, items: reportFaqFor(found.items, model) } : found;   // task #216: one score per screen
   useEffect(() => { if (faq && hash === "#faq") setTimeout(() => document.getElementById("faq")?.scrollIntoView({ behavior: "smooth" }), 150); }, [faq, hash]);
@@ -89,6 +91,12 @@ export function PageFaqs({ inline = false }: { inline?: boolean }) {
   );
   // The dashboard keeps its questions folded away: one line with the question count, opened on request (or by a #faq link). On a phone every page
   // does the same (docs/MOBILE-APP.md, checklist 23: the questions added 400-1,100px to most pages there).
+  if (fold) return (
+    <section className="pfq pm-noprint pzr-noprint" id="faq" aria-label="Questions about this page" key={faq.id}>
+      <details className="pfq-fold pfq-card" open={fold.open} onToggle={(e) => { const o = (e.currentTarget as HTMLDetailsElement).open; if (o !== fold.open) fold.onOpen(o); }}>
+        <summary><span><b>Questions about this page · {faq.items.length}</b></span><span className="pfq-show" aria-hidden="true" /></summary>{inner}</details>
+    </section>
+  );
   const phone = typeof matchMedia === "function" && matchMedia("(max-width: 860px)").matches;
   if (pathname === "/dashboard" || phone) return (
     <section className="pfq pm-noprint pzr-noprint" id="faq" aria-label="Questions about this page" key={faq.id}>

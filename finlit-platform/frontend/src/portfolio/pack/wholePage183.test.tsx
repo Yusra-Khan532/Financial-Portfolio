@@ -63,10 +63,10 @@ describe("the end of the page (H99)", () => {
     for (const f of PAGE) expect(here(f)).not.toMatch(/Export CSV|download=|Download/);
     expect(h).not.toMatch(/Export CSV|download=/);
     const tail = h.slice(h.lastIndexOf("</Gate>"));
-    // task #385: Questions and the disclaimer stay closed behind two buttons, with "Information only, not investment advice." beside them (PageEnd)
+    // task #388 (file 38 E1): the shared bottom (Questions fold, Disclaimer fold, sources line ending "Information only, not investment advice.")
     expect(tail).toMatch(/<PageEnd \/>\s*<\/div>/);
     const end = here("./EqTop385.tsx");
-    expect(end).toContain('<span className="eqc-endn">Information only, not investment advice.</span>');
-    expect(end).toContain('<PortfolioDisclaimer kind="equity" />');
+    expect(end).toContain('<PageBottom kind="equity" sources={EQ_SOURCES} />');
+    expect(end).toMatch(/EQ_SOURCES = ".*Information only, not investment advice\.";/);
   });
 });

@@ -16,7 +16,7 @@ import type { Line, Ready } from "../../lib/portfolioOverview";
 import type { LotsProps } from "../HoldingCells";
 import type { Share } from "../../lib/equityPack";
 import { SharesTable } from "../SharesTable";
-import { DataAsOf, PageEnd, ScoreCards, SinceVisit, SixParts, riskPill, sinceText, type CardsInput } from "./EqTop385";
+import { DataAsOf, EQ_SOURCES, PageEnd, ScoreCards, SinceVisit, SixParts, riskPill, sinceText, type CardsInput } from "./EqTop385";
 import { GainLossSection, Step, StepCtx, stepOf } from "./EqSteps385";
 import { PhoneList } from "./PhoneList385";
 import { KeyFigures, portfolioKeyFigs, CAP_PHONE_LIST } from "../shared";
@@ -110,12 +110,28 @@ describe("Since your last visit, Data as of, the end of the page", () => {
     const see = vi.fn(); wrap(<SinceVisit lead="a" rest="b" onSee={see} />); fireEvent.click(screen.getByRole("button", { name: "See what changed →" })); expect(see).toHaveBeenCalled();
   });
   it("Data as of lists each date", () => { wrap(<DataAsOf parts={["Prices: close of 23 Nov", "Filings: the last 90 days"]} />); expect(document.querySelector(".eqc-asof")!.textContent).toBe("Data as ofPrices: close of 23 NovFilings: the last 90 days"); });
-  it("Questions and the disclaimer stay closed behind two buttons, with the line beside them", () => {
-    wrap(<PageEnd />);
-    expect(screen.getByRole("button", { name: /Questions about this page/ }).getAttribute("aria-expanded")).toBe("false");
-    expect(screen.getByRole("button", { name: "Disclaimer" }).getAttribute("aria-expanded")).toBe("false");
-    expect(screen.getByText("Information only, not investment advice.")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Disclaimer" })); expect(document.getElementById("eqc-disc")!.hidden).toBe(false);
+  it("file 38 E1 (SP11): the shared bottom, in order: the Questions fold (only the count), the Disclaimer fold, the sources line; both closed on arrival", () => {
+    const { container } = render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={["/holdings"]}><PageEnd /></MemoryRouter></QueryClientProvider>);
+    const end = container.querySelector(".pgb")!;
+    expect([...end.children].map((x) => x.matches("section#faq.pfq") ? "faq" : x.matches("details.sp-sec.sp-fold") ? "disc" : x.matches("p.mfp-foot") ? "src" : x.tagName)).toEqual(["faq", "disc", "src"]);
+    const [q, d] = [...end.querySelectorAll("details")] as HTMLDetailsElement[];
+    expect(q.className).toBe("pfq-fold pfq-card");
+    expect(q.querySelector("summary")!.textContent).toBe("Questions about this page · 6");       // the count only, no topic line
+    expect(d.querySelector("summary")!.textContent).toBe("DisclaimerWhat this page is, and is notShow ▾");
+    expect(q.open).toBe(false); expect(d.open).toBe(false);
+    expect(end.querySelector(".pgb-src")!.textContent).toBe(EQ_SOURCES);
+    expect(EQ_SOURCES).toMatch(/Information only, not investment advice\.$/);
+    // the six questions and the disclaimer text are the page's own, unchanged
+    expect(q.querySelectorAll(".pfq-i")).toHaveLength(6);
+    expect(d.querySelector(".pdisc p")!.textContent).toMatch(/^This page describes the shares in your list using FinLit Prism scores/);
+    // opening shows Hide ▴
+    d.open = true; fireEvent(d, new Event("toggle"));
+    expect(d.querySelector("summary .sp-show")!.textContent).toBe("Hide ▴");
+    expect(document.querySelector(".eqc-end, .eqc-endbtn")).toBeNull();   // the old compact row is gone
+  });
+  it("file 38 E1: a #faq address opens the Questions fold", () => {
+    const { container } = render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={["/holdings#faq"]}><PageEnd /></MemoryRouter></QueryClientProvider>);
+    expect((container.querySelector(".pgb details.pfq-card") as HTMLDetailsElement).open).toBe(true);
   });
 });
 
@@ -144,14 +160,15 @@ describe("the section bar: one section at a time, All sections, the phone folds 
     fireEvent.click(sum); expect(document.querySelector(".eqf-close")!.textContent).toBe("Close ▴"); expect(screen.getByText("B body")).toBeTruthy();
     void rerender;
   });
-  it("a jump finds its step", () => { expect(stepOf([{ id: "pf-shares", label: "Your shares", secs: ["pf-shares", "eq-gl", "eq-keys"] }], "eq-keys")).toBe("pf-shares"); });
+  it("a jump finds its step", () => { expect(stepOf([{ id: "pf-shares", label: "Your shares", secs: ["pf-shares", "eq-keys"] }], "eq-keys")).toBe("pf-shares"); });
 });
 
 // ------------------------------------------------------------------------------------------------ gain or loss, key figures
-describe("Where your gain or loss came from (file 33)", () => {
+// file 38 A1: the section left the Equity page; the shared component stays for the MF and ETF pages (their own ids)
+describe("Where your gain or loss came from, the shared section (file 33)", () => {
   const rows = [{ symbol: "A", name: "Alpha Gears", gain: 9000, pct: 12 }, { symbol: "B", name: "Beta Motor", gain: -40000, pct: -30 }, { symbol: "C", name: "Gamma Labs", gain: 5000, pct: 4 }];
   it("biggest gain at the top, a bar each, the named share bold, the i's own text, and one line on shares without a buy price", () => {
-    wrap(<GainLossSection rows={rows} noPrice={1} />);
+    wrap(<GainLossSection rows={rows} noPrice={1} id="x-gl" />);
     expect([...document.querySelectorAll(".eqg-l .n")].map((x) => x.textContent)).toEqual(["Alpha Gears", "Gamma Labs", "Beta Motor"]);
     expect(document.querySelector(".eqg-l li.k .n")!.textContent).toBe("Beta Motor");
     expect(document.querySelector(".eqg-lead")!.textContent).toBe("One share explains the whole loss. Beta Motor is down ₹40,000; the other 2 shares are up ₹14,000 together.");
@@ -159,7 +176,7 @@ describe("Where your gain or loss came from (file 33)", () => {
     expect(screen.getByText("1 share without a buy price is left out.")).toBeTruthy();
     expect(document.querySelector(".eqg-l .h.l i")).toBeTruthy(); expect(document.querySelectorAll(".eqg-l .h.r i")).toHaveLength(2);
   });
-  it("a one-share account hides the section", () => { wrap(<GainLossSection rows={[rows[0]]} noPrice={0} />); expect(document.getElementById("eq-gl")).toBeNull(); });
+  it("a one-share account hides the section", () => { wrap(<GainLossSection rows={[rows[0]]} noPrice={0} id="x-gl" />); expect(document.getElementById("x-gl")).toBeNull(); });
 });
 
 const sh = (symbol: string, name: string, p: Partial<Share> = {}): Share => ({ symbol, name, industry: "Sample", size: "Large", chg: 0, prism: 60, prismWord: "Average", valuation: 60, risk: 60, st: 30, lt: 30, below52: 5, m1: 0,

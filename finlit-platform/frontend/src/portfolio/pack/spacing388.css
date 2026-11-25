@@ -1,0 +1,39 @@
+/* Task #388 reopened (developer file 38 v4, Part D; SHARED.md SP2, SP5, SP6, SP7 and SP8, the Equity parts): one spacing system for the Equity portfolio.
+   18 px between any two boxes top to bottom; 28 px above the view cards (18 clear above their 10 px crowns); 12 px side by side (chip rows stay 8);
+   18 px corners for a box on the page. Scoped to the page (.wrap.eq); the ETF, MF and All my investments pages follow in files 39–41.
+   Tokens: --pf-gap, --pf-gap-x, --pf-crown (set here on the page's wrap only). */
+.wrap.eq { --pf-gap: 18px; --pf-gap-x: 12px; --pf-crown: 10px; }
+
+/* SP2 (D1, D2, D3). The page is a flex column, so margins added to its 20 px gap instead of merging: 42 px above the view cards, 46 px from the section
+   bar to "Data as of", and Your shares had no bottom margin (it touched the next section). */
+.eq .pfx-flow { gap: var(--pf-gap); }                                    /* was 20 */
+.eq .eqc-strip { margin-top: var(--pf-crown); }                          /* was 22: 42 px above the cards; now 18 + 10 = 28 */
+.eq .eqc-since { margin-top: var(--pf-gap); }                            /* was 12 */
+.eq .pfx-flow > .eqt-bar { margin-bottom: 0; }                           /* was 14 */
+#eq-panel > * { margin-top: 0; margin-bottom: var(--pf-gap); }           /* every block of every view and step, 18 apart */
+#eq-panel > :last-child { margin-bottom: 0; }
+
+/* SP5 (D6). Same corners for the same kind of box: Your shares, the account bar (Diversification, Risk) and the Next card had 12 px among 18 px ones.
+   Enlarge keeps its square corners. */
+.eq .pfx-card:not(.eqs-full), .eq .x-axbar, .eq .eqx-nextb { border-radius: var(--r-card); }   /* 18px */
+
+/* SP6 (D5, D9). The four view cards line up: the coloured top line is drawn as a 3 px inset shadow on a 1 px border (as on ETF), so no card's crown or
+   content sits 2 px higher; the score card's content is top-aligned (its title was 30 px lower); the title row is 20 px tall ("Strength" sat 2 px lower). */
+.eq .eqc-v { border-top: 1px solid var(--border); box-shadow: inset 0 3px 0 var(--vc); }
+.eq .eqc-v.on { border-color: color-mix(in srgb, var(--vc) 50%, var(--border)); }
+.eq .eqc-v.eqc-go:hover { border-top-color: color-mix(in srgb, var(--vc) 45%, var(--border)); box-shadow: inset 0 3px 0 var(--vc), 0 6px 16px -12px color-mix(in srgb, var(--vc) 60%, transparent); }
+.eq .eqc-sc { align-items: flex-start; }
+.eq .eqc-k { min-height: 20px; }
+/* stacked cards (two columns, or one on a phone): each crown gets the same 18 px clear above it (was 12 px apart, the crown 2 px under the card above) */
+@media (max-width: 1100px) { .eq .eqc-strip { row-gap: calc(var(--pf-gap) + var(--pf-crown)); } }
+
+/* SP7 (D7). 12 px between boxes side by side: the two boxes in the top card, Key figures, the Leaders cards, the risk tiles and cards, the market-fall boxes
+   (.fx); and, found by check-spacing.js on this page, the spread score row (.spx, 14), the sector-link figures (.eqd-k3, 10), the grid and its reader (.eqd-two, 20),
+   the three pair readers (.eqv-rp, 14) and the beta build summary (.eqb-sum, 14) */
+.eq :is(.eqx-t2, .eqkf-grid, .eqr-tiles, .eqr-cards, .eqr-b3, .eqr-f4, .eq-lc, .fx, .spx, .eqd-k3, .eqd-two, .eqv-rp, .eqb-sum) { gap: var(--pf-gap-x); }
+
+/* SP8 (D8). Sub-tab bars: 18 px under them, like everything else (was 16) */
+.eq :is(.eqd-subbar, .xtabs) { margin-bottom: var(--pf-gap); }
+
+/* D4 / E1. The shared bottom (portfolio/shared/shared.css .pgb) sits 18 px under the last box */
+.wrap.eq > .pgb { margin-top: var(--pf-gap); }
