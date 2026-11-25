@@ -125,6 +125,30 @@ def classify(question: str, named_company: bool = False, on_company_page: bool =
     return [t for t in TYPES if t in got] + named_sectors
 
 
+# Task #349 fix C (the founder's Gold QA, 24 Nov 2026): with BSE pinned, the RBI and banking answers carried BSE's tag, report link, related
+# questions and the company disclaimer, because a question naming no other company kept the page's company. A question about a field (the economy,
+# sectors, a named sector, the market, funds, rules, valuation methods, or what a term means) is not about the pinned company unless it points at
+# it ("this company", "here", "its margins").
+_FIELDS = {"economy", "sectors", "funds", "regulation", "valuation", "concept"}
+_MARKET_Q = re.compile(r"\b(nifty|sensex|the market|markets|stock market|share market|bazaar|bazar|indices|bank nifty|midcap index|smallcap index"
+                       r"|fii flows?|dii flows?)\b", re.I)
+_ECONOMY_WORDS = re.compile(r"\b(rbi|reserve bank|repo|inflation|mehngai|mahangai|cpi|wpi|gdp|monetary policy|union budget|fiscal|rupee|bond yields?"
+                            r"|interest rates?|rate (?:cut|hike|decision))\b", re.I)
+_POINTS_AT = re.compile(r"\b(its|iska|iski|iske|this company|the company|this stock|this share|this business|is company|here)\b", re.I)
+
+
+def off_company(question: str) -> bool:
+    """True when the question is about a field, not about a company it does not name (task #349 fix C). Classified as if asked from no company's
+    page, so the page cannot make a field question look like the company's."""
+    q = question or ""
+    if _POINTS_AT.search(q):
+        return False
+    kinds = classify(q)
+    if "financials" in kinds or "company" in kinds:
+        return False
+    return bool(_FIELDS & set(kinds)) or any(k.startswith("sector:") for k in kinds) or bool(_MARKET_Q.search(q) or _ECONOMY_WORDS.search(q))
+
+
 # ------------------------------------------------------------------------------------------------ 2. where each kind is answered from
 ROUTES: Dict[str, Dict[str, object]] = {
     "company": {"label": "a company",

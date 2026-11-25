@@ -85,13 +85,14 @@ def test_these_are_not(q):
 # ------------------------------------------------------------------------------------------------------------------ 2. which companies
 
 @pg
-async def test_at_most_five_companies_the_portfolio_by_weight_first_then_the_watchlists(app):
+async def test_every_company_the_portfolio_by_weight_first_then_the_watchlists(app):
     _, uid = await member(app, "wn-1@example.com")
     await prices(app, {"RELIANCE": [(d(1), 2950)], "TCS": [(d(1), 3500)], "INFY": [(d(1), 1500)]})
     await put_state(app, uid, [h("RELIANCE", 40, 2400, owned=True), h("TCS", 10, 3000, owned=True), h("INFY", 100, 1400, owned=True)],
                     lists=[{"id": "a", "name": "Banks", "symbols": ["HDFCBANK", "TCS", "ICICIBANK", "SBIN"]}])
     got = await whatsnew.kept(app.state.store.pool, uid)
-    assert [x["symbol"] for x in got] == ["INFY", "RELIANCE", "TCS", "HDFCBANK", "ICICIBANK"]          # 1,50,000 > 1,18,000 > 35,000; then the list
+    # task #349 fix A: every company, not the first 5 (SBIN was cut before)
+    assert [x["symbol"] for x in got] == ["INFY", "RELIANCE", "TCS", "HDFCBANK", "ICICIBANK", "SBIN"]  # 1,50,000 > 1,18,000 > 35,000; then the list
     assert got[0]["link"] == f"you hold 100 shares; 49.5% of your Equity portfolio by value, close {label(d(1))}"
     assert got[3] == {"symbol": "HDFCBANK", "how": "watch", "link": "on your watchlist 'Banks'"}
     _, other = await member(app, "wn-1b@example.com")
@@ -236,3 +237,70 @@ def test_no_stored_price_is_said_with_its_reason():
                            "row": None, "before": None, "now": None}]}
     entries, figs = whatsnew.build(plan, [], "gold")
     assert figs == {} and "No stored close to compare (FinLit holds no daily price for it yet), and no new filing" in whatsnew.note(entries)
+
+
+# ------------------------------------------------------------------------------------------------------------------ 7. task #349 fix A (Gold QA, 24 Nov)
+# "What's new in my holdings" read only the first 5 of 45 holdings (alphabetical A-B) and stale prices ("newest prices from 18 Nov" while the site
+# had 23 Nov closes), and missed the real biggest mover. A MADE-UP portfolio of 45 shares, none with a quantity (as the founder's), stored closes
+# that stop 6 days ago, newer quotes on the report (and one from the shared latest quote), the biggest mover far down the alphabet.
+
+FAKE = [f"ZQH{i:02d}" for i in range(1, 46)]
+
+
+async def quote(app, symbol: str, price: float, on: date, prev: float = None) -> None:
+    async with app.state.store.pool.acquire() as c:
+        await c.execute("INSERT INTO snapshots (symbol, statement, section, body, etag, generated_at) VALUES ($1, 'consolidated', 'summary', $2, 'e', now()) "
+                        "ON CONFLICT (symbol, statement, section) DO UPDATE SET body = EXCLUDED.body",
+                        symbol, json.dumps({"quote": {"price": price, "previousClose": prev or price, "changePct": 0.5,
+                                                      "asOf": f"{on.isoformat()}T15:30:00+05:30"}}))
+
+
+@pg
+async def test_45_holdings_are_all_compared_with_the_latest_close_the_biggest_mover_first(app):
+    from finlit import livequote
+    m, uid = await member(app, "wn-45@example.com")
+    await put_state(app, uid, [h(s, 1, 0) for s in FAKE])                                    # no quantity saved for any of them
+    await prices(app, {s: [(d(12), 100.0), (d(6), 101.0)] for s in FAKE})                    # the stored closes stop 6 days ago
+    for i, s in enumerate(FAKE):
+        await quote(app, s, 100.0 + (i % 7) * 0.3, d(1))                                     # small moves for most, from the report's quote
+    await quote(app, "ZQH44", 110.69, d(1))                                                  # the biggest mover, near the end of the alphabet
+    await quote(app, "ZQH30", 99.0, d(3), prev=99.0)
+    await livequote.save(app.state.store.redis, {"ZQH30": {"price": 93.0, "previousClose": 98.0, "asOf": f"{d(1).isoformat()}T15:30:00+05:30"}})
+    await clear_cache(app)
+    plan = await whatsnew.lookup(app.state.store.pool, uid, redis=app.state.store.redis)
+    assert len(plan["companies"]) == 45 and {c["symbol"] for c in plan["companies"]} == set(FAKE)
+    assert all(c["now"][1] == d(1) for c in plan["companies"])                               # the latest close, not the stored one of 6 days ago
+    assert {c["symbol"]: c["now"][0] for c in plan["companies"]}["ZQH30"] == 93.0             # the shared latest quote, as /holdings shows it
+
+    client = FakeClient([{"text": ["ZQH44 rose 10.7%."]}])
+    enable(app, client)
+    r, ev = await asked(m, "What's new in my holdings?")
+    assert r.status_code == 200 and ev[-1][0] == "done"
+    text = note_of(client)
+    block = text[text.index("<whats_new_for_you>"):text.index("</whats_new_for_you>")]
+    lines = block.split("\n")
+    assert lines[1].startswith("Compared all 45 of your companies (45 on your Equity portfolio, 0 on watchlists only), the biggest price move first")
+    assert lines[2] == f"- ZQH44 (on your Equity portfolio, no quantity saved), last 7 days, since {label(d(7))}:"
+    assert lines[3].startswith("  - Price ₹100 → ₹110.69, +₹10.69 (+10.7%)") and f"({label(d(12))} → {label(d(1))})" in lines[3]
+    assert lines[4].startswith("- ZQH30 ") and "₹93" in lines[5] and f"→ {label(d(1))})" in lines[5]       # −7%, the second biggest
+    assert f"- The other 33 (latest prices of {label(d(1))}): smaller moves: " in block
+    assert all(s in block for s in FAKE)                                                     # none silently left out
+    assert label(d(6)) not in block                                                          # never the stale stored close
+    assert "you hold" not in block.lower()                                                   # no quantity: never "you hold"
+    assert dict(ev)["meta"]["subject"] == {"kind": "mine", "id": "-"}
+    assert dict(ev)["done"]["disclaimer"] == service.disclaimer_for("mine")
+
+
+def test_the_note_ranks_by_the_size_of_the_move_whatever_the_order_kept():
+    since = datetime.now(timezone.utc) - timedelta(days=7)
+
+    def co(s, a, b):
+        return {"symbol": s, "how": "list", "link": "on your Equity portfolio, no quantity saved", "since": since, "row": None,
+                "before": (a, d(8)), "now": (b, d(1)), "items": []}
+    plan = {"companies": [co("AAA", 100, 101), co("BBB", 100, 97), co("SAMBHV", 100, 110.69), co("CCC", 100, 100)]}
+    entries, figs = whatsnew.build(plan, [], "gold")
+    assert [e["symbol"] for e in entries] == ["SAMBHV", "BBB", "AAA", "CCC"]
+    out = whatsnew.note(entries, top=2)
+    assert "the 2 biggest are listed one by one, the other 2 on the last line" in out
+    assert "- The other 2 (latest prices of " in out and "smaller moves: AAA +1.0%" in out and "price unchanged: CCC" in out
+    assert set(figs["companies"]) == {"AAA", "BBB", "SAMBHV", "CCC"}                          # every latest price is kept for the next time

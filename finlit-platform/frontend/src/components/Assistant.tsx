@@ -7,7 +7,7 @@ import { SECOND } from "../lib/questionBank";
 import { answerCompany, generalAnswer, matchQuestion, searchListed, type Match } from "../lib/askAnswers";
 import { apiGet, type SearchIndex } from "../lib/api";
 import type { Quotes } from "../lib/globalSearch";
-import { AskRefused, INTERRUPTED, TIMED_OUT, askAi, safeFigures, safePages, safeRelation, safeSince, useAskQuota, type AskRelationTag, type AskSinceData, type AskTurn } from "../lib/askAi";
+import { AskRefused, INTERRUPTED, TIMED_OUT, aboutPinned, askAi, disclaimerFor, pagesFor, safeFigures, safePages, safeRelation, safeSince, safeSubject, useAskQuota, type AskRelationTag, type AskSinceData, type AskSubject, type AskTurn } from "../lib/askAi";
 import { AskSince } from "./AskSince";   // task #349 PR 3: "since you last asked"
 import { AskRelation } from "./AskRelation";   // task #349 PR 4: holdings-aware answers
 import { useAuth } from "../lib/auth";
@@ -49,7 +49,9 @@ type Msg = { role: "user" | "assistant"; content: string; link?: { to: string; l
   /** task #349 PR 5: the figures this answer read, with their dates (the server's summary), sent back with it on a follow-up */
   figures?: string;
   /** task #349 PR 4: how the member is linked to the company ("You hold this", "In 2 of your funds" ...), shown on the answer */
-  relation?: AskRelationTag[] };
+  relation?: AskRelationTag[];
+  /** task #349 fix C: what a written answer is about (meta.subject); the pinned company's tag, links and related questions only for a company answer */
+  subject?: AskSubject };
 type View = "home" | "segments" | "topic" | "company" | "chat" | "history" | "saved" | "funds" | "discovery";
 
 let indexPromise: Promise<SearchIndex> | null = null;
@@ -64,6 +66,9 @@ async function findCompanies(q: string): Promise<{ symbol: string; name: string 
   const has = rows.filter((r) => !starts.includes(r) && r.name.toLowerCase().includes(t));
   return [...starts, ...has].slice(0, 6);
 }
+
+/** Task #349 fix G: the financial year in the company box, short enough to read whole ("FY26 (Apr 2025 to Mar 2026)" was cut before its bracket). */
+export const fyLabel = (y: string): string => { const n = Number(y.slice(2)), yy = (v: number) => String((v + 100) % 100).padStart(2, "0"); return `${y} (Apr ’${yy(n - 1)}–Mar ’${yy(n)})`; };
 
 const companyOf = (pathname: string) => { const m = /^\/stocks\/([A-Za-z0-9&.\-]{1,20})\/?$/.exec(pathname); return m ? decodeURIComponent(m[1]).toUpperCase() : null; };
 
@@ -81,6 +86,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const run = useRef<AbortController | null>(null);           // task #349: the written answer being streamed, so Stop can end it
+  const thread = useRef(0);                                   // task #349 fix B: bumped by "New chat", so an answer still arriving never lands in the new thread
   const [streaming, setStreaming] = useState(false);
   const [find, setFind] = useState("");
   const [sgOpen, setSgOpen] = useState(false);              // task #268: the suggestion panel of the box being typed in
@@ -167,7 +173,16 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
   if (loc.pathname.startsWith("/admin")) return null;
 
   const pool: Q[] = category ? categoryQuestions(category) : company ? [...tabQuestions(tab, company, lender), ...tabQuestions("suggested", company, lender)] : [];
-  const relatedQs = related(pool, asked);
+  // task #349 fix C: the pinned company's related questions only under an answer about that company (not under an RBI or a sector answer)
+  const lastSubject = [...msgs].reverse().find((m) => m.role === "assistant")?.subject;
+  const relatedQs = !category && company && !aboutPinned(lastSubject, company) ? [] : related(pool, asked);
+  /** Task #349 fix B: a new, empty thread (Home and reopening the panel keep the current one); the earlier questions stay in Chat History. */
+  const newChat = () => {
+    thread.current += 1;
+    run.current?.abort();
+    setMsgs([]); setText(""); setSgOpen(false); setBack("home"); setCategory(null);
+    setView(company && pageCompany === company ? "company" : "home");
+  };
 
   const goCompany = (sym: string, t: TabId) => { setCompany(sym); setTab(t); setFind(""); setFound([]); setView("company"); };
   /** Task #138 (founder, 14 Nov 2026): no language model. A listed question answers at once: a general one from its written answer, a company one from
@@ -180,22 +195,24 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
     while (history.length && history[0].role !== "user") history.shift();
     const pairs: AskTurn[] = [];                                         // only whole question-and-answer pairs, in order
     for (let i = 0; i + 1 < history.length; i++) if (history[i].role === "user" && history[i + 1].role === "assistant") { pairs.push(history[i], history[i + 1]); i++; }
-    const patch = (f: (m: Msg) => Msg) => setMsgs((ms) => { const c = [...ms]; c[c.length - 1] = f(c[c.length - 1]); return c; });
+    const mine = thread.current;                                         // task #349 fix B: after "New chat" this answer writes nowhere
+    const patch = (f: (m: Msg) => Msg) => { if (thread.current === mine) setMsgs((ms) => { if (!ms.length) return ms; const c = [...ms]; c[c.length - 1] = f(c[c.length - 1]); return c; }); };
     setMsgs((m) => [...m, { role: "assistant", content: "", ai: { status: "Reading FinLit's data" } }]);
     setBusy(true);
     const ctl = new AbortController();
     run.current = ctl; setStreaming(true);
     try {
       await askAi(q, pairs, company, (e) => {
-        if (e.type === "status") patch((m) => ({ ...m, ai: { ...m.ai, status: e.text } }));
+        if (e.type === "meta") { const s = safeSubject(e.subject); if (s) patch((m) => ({ ...m, subject: s })); }   // task #349 fix C
+        else if (e.type === "status") patch((m) => ({ ...m, ai: { ...m.ai, status: e.text } }));
         // task #349 PR 3: what changed since the member last asked, shown above the words (it arrives before them)
         else if (e.type === "since") { const s = safeSince(e); if (s) patch((m) => ({ ...m, since: s, sinceQ: q })); }
         // task #349 PR 4: the member's own link to the company, as tags on the answer (it arrives right after meta)
-        else if (e.type === "relation") { const t = safeRelation(e); if (t.length) patch((m) => ({ ...m, relation: t })); }
+        else if (e.type === "relation") { const t = safeRelation(e); if (t.length) patch((m) => (m.subject && m.subject.kind !== "company" ? m : { ...m, relation: t })); }
         else if (e.type === "text") patch((m) => ({ ...m, content: m.content + e.text, ai: { ...m.ai, status: undefined } }));
         // "" clears the words written before FinLit AI read more data (task #349): the bubble goes back to "Reading…"
         else if (e.type === "replace") patch((m) => ({ ...m, content: e.text, ai: { ...m.ai, status: e.text ? undefined : m.ai?.status || "Reading FinLit's data" } }));
-        else if (e.type === "done") patch((m) => { const pages = safePages(e.pages), figures = safeFigures(e.figures); return { ...m, ai: { disclaimer: e.disclaimer }, ...(pages.length ? { actions: pages } : {}), ...(figures ? { figures } : {}) }; });   // task #218: the FinLit pages the answer read
+        else if (e.type === "done") patch((m) => { const pages = pagesFor(m.subject, safePages(e.pages)), figures = safeFigures(e.figures); return { ...m, ai: { disclaimer: disclaimerFor(m.subject, e.disclaimer) }, ...(pages.length ? { actions: pages } : {}), ...(figures ? { figures } : {}) }; });   // task #218: the FinLit pages the answer read; task #349 fix C: by subject
         else if (e.type === "error") patch((m) => ({ ...m, content: m.content ? `${m.content}\n\n${e.text}` : e.text,
           ai: { error: true, ...(e.code === INTERRUPTED || e.code === TIMED_OUT ? { retry: q } : {}) } }));   // task #349: an interrupted answer can be asked again
       }, ctl.signal, undefined, { fresh });
@@ -321,6 +338,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
           {big && menuOpen && <aside className="aif-side" aria-label="FinLit AI menu">
             <div className="aif-brand"><Icon name="bars" /><b>FinLit</b><span>AI</span><button type="button" className="aif-fold" onClick={() => setMenuOpen(false)} aria-label="Hide the menu" title="Hide the menu"><Icon name="bars" /></button></div>
             <nav aria-label="FinLit AI sections">
+              <button type="button" className="aif-nav-new" onClick={newChat} disabled={!msgs.length} title={msgs.length ? "Start a new chat (earlier questions stay in Chat History)" : "This chat is empty"}><Icon name="pencil" />New chat</button>
               <button type="button" className={view === "home" ? "on" : ""} aria-current={view === "home" ? "page" : undefined} onClick={() => setView("home")}><Icon name="home" />Home</button>
               <button type="button" className={view === "history" ? "on" : ""} aria-current={view === "history" ? "page" : undefined} onClick={() => setView("history")}><Icon name="refresh" />Chat History</button>
               <button type="button" className={view === "saved" ? "on" : ""} aria-current={view === "saved" ? "page" : undefined} onClick={() => setView("saved")}><Icon name="star" />Saved Questions</button>
@@ -336,8 +354,10 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
             <p className="aif-sl"><Icon name="refresh" /> History</p>
             {recent.length ? <ul className="aif-hist" aria-label="Your recent questions">{recent.slice(0, 5).map((t) => <li key={t}><button type="button" title={t} onClick={() => void ask(t, "home")}>{t}</button></li>)}</ul>
               : <p className="aif-hist-none">Nothing yet. Ask a question and it collects here.</p>}
+            {/* task #349 fix E: the side list shows the newest 5; every earlier question is one tap away in Chat History, never gone */}
+            {(recent.length > 5 || remembered) && <button type="button" className="aif-va" onClick={() => setView("history")}>All your questions <Icon name="arrow" /></button>}
             <p className="aif-sl"><Icon name="spark" /> Popular Questions</p>
-            <ul className="aif-pop">{STARTERS.slice(0, 4).map((x) => <li key={x.q}><button type="button" onClick={() => void ask(x.q, "home")}><Icon name="chat" /><span>{x.q}</span></button></li>)}</ul>
+            <ul className="aif-pop">{STARTERS.slice(0, 4).map((x) => <li key={x.q}><button type="button" title={x.q} onClick={() => void ask(x.q, "home")}><Icon name="chat" /><span>{x.q}</span></button></li>)}</ul>
             <button type="button" className="aif-va" onClick={() => setView("home")}>View all <Icon name="arrow" /></button>
             <Link className="aif-pro" to="/pricing" onClick={() => setOpen(false)}><Icon name="crown" /><span><b>FinLit AI <em>Pro</em></b><small>Deeper analysis · More questions</small></span><Icon name="arrow" /></Link>
           </aside>}
@@ -345,6 +365,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
             {view !== "home" && <button type="button" className="aif-back" onClick={goBack} aria-label="Back"><Icon name="arrow" /></button>}
             <div className="aif-title"><b>FinLit AI</b><span>{sub ?? "Your investing & market research assistant"}</span></div>
             {company && view !== "home" && <button type="button" className="aif-change" onClick={() => { setCompany(null); setView("segments"); }}>Change company</button>}
+            {msgs.length > 0 && <button type="button" className="aif-new" onClick={newChat} aria-label="New chat" title="Start a new chat (earlier questions stay in Chat History)"><Icon name="pencil" /><span className="aif-new-l">New chat</span></button>}
             {view !== "history" && <AskHistoryButton onOpen={() => setView("history")} />}
             <button type="button" className="aif-full" onClick={toggleBig} aria-pressed={big} aria-label={big ? "Back to the small window" : "Open in a full window"} title={big ? "Back to the small window" : "Full window"}><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{big ? <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" /> : <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />}</svg></button>
             {big && <Link className="aif-help" to="/faq" onClick={() => setOpen(false)} aria-label="Help and frequently asked questions" title="Help"><Icon name="info" /></Link>}
@@ -444,7 +465,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
                   {QUARTERS.map((q) => <button key={q.n} type="button" className={qtr === q.n ? "on" : ""} aria-pressed={qtr === q.n} onClick={() => setQtr(qtr === q.n ? null : q.n)}><b>Q{q.n}</b><small>{q.months}</small></button>)}
                 </div>
                 <label className="aif-label" htmlFor="aif-fy">Financial year</label>
-                <select id="aif-fy" value={fy} onChange={(e) => setFy(e.target.value)}>{financialYears().map((y) => <option key={y} value={y}>{y} (Apr {2000 + Number(y.slice(2)) - 1} to Mar {2000 + Number(y.slice(2))})</option>)}</select>
+                <select id="aif-fy" value={fy} onChange={(e) => setFy(e.target.value)}>{financialYears().map((y) => <option key={y} value={y} title={`${y}: April ${2000 + Number(y.slice(2)) - 1} to March ${2000 + Number(y.slice(2))}`}>{fyLabel(y)}</option>)}</select>
                 <button type="button" className="btn primary aif-askq" disabled={qtr == null || busy} onClick={() => { const q = QUARTERS.find((x) => x.n === qtr); if (q) void ask(quarterQuestion(company, q, fy), "company", { id: "quarter", sym: company, quarter: q.n, fy }); }}>{qtr == null ? "Choose a quarter to ask" : `Ask about Q${qtr} ${fy}`}</button>
                 <button type="button" className="aif-qtrend" onClick={() => void ask(quarterTrendQuestion(company), "company", { id: "quarter-trend", sym: company })}>Compare Q1 to Q4 over two years <Icon name="arrow" /></button>
                 <p className="aif-note">Answers are general information drawn from the company's reported figures, filings and prices. They are not investment advice.</p>

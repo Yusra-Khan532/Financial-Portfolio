@@ -940,3 +940,30 @@ describe("Sector, industry and index: three linked lists (task #259)", () => {
     expect(fold(/^Industry: All 4$/)).toBeTruthy();
   });
 });
+
+describe("task #384: the three red boxes (filter panel scrollbar, divider button, results header row), stock screener only", () => {
+  const css = readFileSync(join(__dirname, "../styles/task384.css"), "utf8");
+  const rules = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  it("is loaded by the page, after task #383's styles, and touches no other page", () => {
+    const src = readFileSync(join(__dirname, "ScreenerPro.tsx"), "utf8");
+    expect(src.indexOf('import "../styles/task384.css"')).toBeGreaterThan(src.indexOf('import "../styles/task383.css"'));
+    const selectors = rules.replace(/@media[^{]+\{/g, "").split("}").map((b) => b.split("{")[0].trim()).filter(Boolean);
+    expect(selectors.length).toBeGreaterThan(3);
+    for (const s of selectors) for (const one of s.split(",")) expect(one.trim().startsWith(".wrap.ssw "), one).toBe(true);
+  });
+  it("box 1: the filter panel scrolls with the thin bar in the theme's colours, kept inside the card", () => {
+    expect(rules).toMatch(/\.wrap\.ssw \.ssw-rules \{[^}]*scrollbar-width: thin;[^}]*scrollbar-color: var\(--border-strong\) transparent;[^}]*scrollbar-gutter: stable;/);
+  });
+  it("box 2: the divider's own arrow button is gone on a wide screen; the divider still resizes and hides", () => {
+    expect(rules).toMatch(/@media \(min-width: 1001px\) \{ \.wrap\.ssw \.ssw-work > \.scr-split \.scr-split-btn \{ display: none; \} \}/);
+    expect(rules).not.toMatch(/\.scr-split \{[^}]*display: none/);
+  });
+  it("box 3: Save screen and Tell me are 8px apart, and the enlarge arrow is 40px on their line, 8px after them", async () => {
+    expect(rules).toMatch(/\.wrap\.ssw \.ssw-pop \{[^}]*display: inline-flex;[^}]*gap: 8px;/);
+    expect(rules).toMatch(/\.ssw-rhd \{ padding-right: 48px !important; \}/);
+    expect(rules).toMatch(/\.cz-btn\.cz-at-box \{ width: 40px; height: 40px; top: calc\(var\(--cz-dt, 0px\) \+ 17px\); right: calc\(var\(--cz-dr, 0px\) \+ 18px\); \}/);
+    mount(""); await ready();
+    const pop = document.querySelector(".ssw-res .ssw-rhd .ssw-acts .ssw-pop") as HTMLElement;
+    expect([...pop.querySelectorAll(":scope > button")].map((b) => b.textContent)).toEqual(["Save screen", "Tell me when a company joins"]);   // nothing else changed
+  });
+});

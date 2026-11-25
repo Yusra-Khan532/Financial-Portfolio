@@ -293,6 +293,23 @@
 .aif-hist button { all: unset; box-sizing: border-box; cursor: pointer; display: block; width: 100%; padding: 7px 10px; border-radius: var(--r-ctl); font: var(--fs-13)/1.4 var(--sans); color: var(--muted);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .aif-hist button:hover, .aif-hist button:focus-visible { background: var(--s2); color: var(--text); }
 .aif-hist-none { margin: 0 10px 8px; font: var(--fs-13)/1.45 var(--sans); color: var(--faint); }
+/* Task #349 fix G (the founder's Gold QA): the side menu scrolled sideways (scrollWidth 370 against 229): its lists are grids whose one column grew to
+   a long question's width. Each column is now the menu's width, every child may shrink, long items end in an ellipsis (the whole question shows on
+   hover, from title), and the menu never scrolls sideways. */
+.aif-side { overflow-x: hidden; }
+.aif-side > * { min-width: 0; max-width: 100%; }
+.aif-hist, .aif-pop { grid-template-columns: minmax(0, 1fr); }
+.aif-pop button > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aif-side nav button.aif-nav-new:disabled { opacity: .55; cursor: default; background: none; }
+/* Task #349 fix B: "New chat" in the panel header (the full window's side menu has its own from 981px) */
+.aif .aif-new { display: inline-flex; align-items: center; gap: 6px; width: auto; height: 32px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: var(--ui-r-pill);
+  background: var(--s1); color: var(--text); font: 600 var(--fs-12) var(--sans); white-space: nowrap; cursor: pointer; }
+.aif .aif-new:hover { border-color: var(--gold); } .aif .aif-new svg { width: 14px; height: 14px; }
+.aif .aif-new:focus-visible { outline: 2px solid var(--aif-g, var(--gold)); outline-offset: 2px; }
+@media (min-width: 981px) { .aif.full:not(.nomenu) .aif-new { display: none; } }
+@media (max-width: 480px) { .aif .aif-new { height: 44px; min-width: 44px; padding: 0 10px; } }
+/* Task #349 fix G: the financial-year choice reads whole ("FY26 (Apr 2025 to Mar 2026)" was cut before its closing bracket) */
+.aif-cp select { text-overflow: ellipsis; }
 /* the five themes as five cards (the four entry cards and Mutual funds & ETFs) */
 .aif.full .aif-cats.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 @media (max-width: 1180px) { .aif.full .aif-cats.five { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

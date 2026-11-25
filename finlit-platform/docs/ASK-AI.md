@@ -317,8 +317,11 @@ choice on cost); the extra tokens are a few lines in the note with the question,
   [The member is linked to this company as <member_relation> says. Open with one line on how they are linked, from those facts only, each with its
   date. Then put first the facts that touch their position: the price against their own cost, the latest results, FinLit Prism, new filings.
   Describe only, never advise: never say to buy, add, average down, trim, reduce, exit, book profits, rebalance, keep holding or stay invested, and
-  never call the holding too large or too small.]
+  never call the holding too large or too small. Say "You hold" only with the number of shares it gives; a company with no quantity saved is on
+  their list, not held: say "<company> is on your Equity portfolio (no quantity saved)".]
   ```
+  Fix F (24 Nov): a share with no quantity reads "BSE is on your Equity portfolio (no quantity saved), so no shares are counted." (it read
+  "Equity portfolio: on your list with no quantity saved", and the answer said "You hold BSE ... with no quantity saved").
 - **Cache.** When a relation block applies, the 30-minute answer cache is neither read nor written for that answer (the rule of `get_my_*` and of
   "since you last asked"). Every other answer keeps the cache as before.
 - **Stricter advice check.** `service.ADVICE` also withdraws personal advice about the member's position: "you could add / buy more / average
@@ -346,23 +349,30 @@ holdings, portfolio, stocks, shares or watchlist; a how-to such as "how do I add
   answered as before. A member with no shares in the Equity portfolio and no company on a watchlist gets a plain answer at once, without the model
   and without using a question: there is nothing to compare yet; add shares in Workspace > Equity portfolio or companies to a watchlist (links to
   both pages).
-- **Which companies** (`ask/whatsnew.py kept`, scoped to the member's `user_id`): at most 5. The Equity portfolio first, by its weight (the page's
-  own rule, `portfolio_page.score.weights_of`, through PR 4's `mine.equity`), then by value, then as listed; then the watchlists in their order.
+- **Which companies** (`ask/whatsnew.py kept`, scoped to the member's `user_id`): every one (fix A, 24 Nov: it was the first 5, so 40 of the
+  founder's 45 holdings were never read). The whole Equity portfolio, shares with no quantity included (they count by their price move), then the
+  watchlists; `MAX = 300` is only a guard.
 - **Since when.** The company's last memory row within 30 days: a question about it, or an earlier "what's new" that compared it (its figures are
   kept with that answer). With none, or with remembering switched off, the last 7 days.
 - **The diff, deterministic** (PR 3's `memory.diff` and news read):
-  - the close on or before the starting day (or the price the earlier answer read) against the latest stored close, both with their dates;
-  - FinLit Prism only when the earlier row had a score: read again as the member (`get_finlit_prism`), so the plan is respected; a Silver member
-    whose earlier answer was on Gold reads "FinLit Prism: not included in your plan now", never a change;
-  - the company's news and results filings dated after the starting day (`get_news_and_filings`, `memory.new_items`), results first, at most 3.
+  - the close on or before the starting day (or the price the earlier answer read) against the LATEST price, from the source the Equity portfolio
+    page (/holdings) and the dashboard show (`whatsnew.latest`: the report's quote with the shared latest quote laid over it, `livequote`, or the
+    newest `price_daily` close when that is newer), both with their dates (fix A: the newest `price_daily` close alone was days old: "newest prices
+    from 18 Nov" while the site had 23 Nov);
+  - FinLit Prism only when the earlier row had a score: read again as the member (`get_finlit_prism`, at most 10), so the plan is respected; a
+    Silver member whose earlier answer was on Gold reads "FinLit Prism: not included in your plan now", never a change;
+  - the company's news and results filings dated after the starting day and up to today (`whatsnew.filings`: one query on the public feed for
+    every company), results first, at most 3.
   - A company with nothing new says so; one with no stored close says why.
-- **Order.** The biggest change first: the size of the price move in %, plus a weight for a Prism or results change and for each new filing.
+- **Order.** The biggest price move first (fix A); new results, Prism moves and filings break ties. The first line says "Compared all N of your
+  companies"; the 12 biggest are listed one by one and the rest summed up on one last line with their moves, so none is silently left out.
 - **Prompt.** `<whats_new_for_you>` and one instruction, in the per-question note (the system prompt and the tool list stay byte for byte the same).
   No company card, no page company (the page is not named in the context line, since the member asked about all their companies), no
   `<since_last_asked>` and no `<member_relation>`. Example:
 
   ```
   <whats_new_for_you>
+  Compared all 2 of your companies (1 on your Equity portfolio, 1 on watchlists only), the biggest price move first.
   - TCS (on your watchlist 'IT'), last 7 days, since 16 Nov 2026:
     - Price ₹3,000 → ₹3,150, +₹150 (+5%) (14 Nov 2026 → 22 Nov 2026)
     - New results filing: Financial results for the quarter (21 Nov 2026)
@@ -370,9 +380,10 @@ holdings, portfolio, stocks, shares or watchlist; a how-to such as "how do I add
     - Price ₹2,880 → ₹2,950, +₹70 (+2.4%) (20 Nov 2026 → 22 Nov 2026)
     - New filing: Outcome of board meeting (23 Nov 2026)
   </whats_new_for_you>
-  [The member asked what is new in the companies they hold or watch. Answer from <whats_new_for_you>: lead with the biggest changes, one short line
-  each with its date; then one line naming the companies with no change. Every figure keeps its date. Describe only, never advise: never say to
-  buy, add, sell, trim, exit, hold or rebalance.]
+  [The member asked what is new in the companies they hold or watch. Answer from <whats_new_for_you>: first say how many of their companies were
+  compared, as its first line says; lead with the biggest moves, in its order, one short line each with its dates; then one line for the companies
+  with smaller or no moves. Every figure keeps its date. A company with no quantity saved is on their list: never say they hold it. Describe only,
+  never advise: never say to buy, add, sell, trim, exit, hold or rebalance.]
   ```
 - **Cache and memory.** Never read from or written to the 30-minute answer cache. The answer is kept as `mine:-:whatsnew` (subject kind `mine`,
   "Your holdings" in Chat History) with the figures it compared, so the next "what's new" starts from it. PR 1's and PR 4's advice checks apply.
@@ -439,3 +450,37 @@ like every other tool: the routes decide what a plan sees (a locked field is nul
   (`SYSTEM_SHA256`, the value of `main` before this PR): visitors, Basic and members with no history or links get the same prompts as before except
   for the two new tool definitions.
 - Tests: `backend/tests/test_ask_sectors.py` on copies of the live feeds (`tests/fixtures/ask_sectors`, saved 23 Nov 2026 as a visitor).
+
+## Fixes after the founder's signed-in Gold QA (task #349, 24 Nov 2026)
+
+The model, the system prompt and the tool list are unchanged (the founder's choice on cost; the byte-identity tests still pass).
+
+- **A. What's new reads every holding and the latest prices** (see "What's new for me" above): all companies, ranked by the size of the move,
+  "Compared all N", the latest price as /holdings shows it. Tests: `test_ask_whatsnew.py` (45 made-up holdings, stale stored closes, the biggest
+  mover far down the alphabet).
+- **B. New chat.** A "New chat" button in the panel header (small window, phones and any width under 981px) and at the top of the full window's
+  side menu: an empty thread; the earlier questions stay in Chat History. An answer still arriving never lands in the new thread.
+- **C. The pinned company stays out of field answers.** `meta` carries `subject: {kind, id}` (company | economy | sector | market | fund | etf |
+  mine | concept | general; `api.answer_subject` over `memory.topic_of`). A question about a field (`routing.off_company`: the economy, RBI, rates,
+  inflation, sectors, the market, funds, rules, a term) asked with a company pinned is not about it unless it names it or points at it ("its",
+  "this company", "here"), and does not inherit the conversation's company. The `relation` event is sent only for a company answer; a non-company
+  answer links no `/stocks/` or `/prism/` page; the disclaimer follows the subject (`service.disclaimer_for`: the company one for a company, a
+  describe-only line of its own for the economy, sectors, the market, funds and your holdings, a general one otherwise). The panel shows the pinned
+  company's related questions only under an answer about that company, and never the company disclaimer under another subject.
+- **D. Chat History labels by subject:** Economy, Sectors (or "Pharma and healthcare sector"), Market, Funds, Your holdings, a term, or the company
+  symbol only for a company question. Rows kept before fix C (an RBI question stored as "company BSE") are shown by their field
+  (`memory.shown_subject`); nothing stored is changed.
+- **E. Nothing silently disappears.** Questions asked before the server kept them (23 Nov), and listed answers, live only in the browser's list;
+  Chat History now shows them under the server's, marked "On this device", and Account > FinLit AI says how many. The side menu keeps the newest 5
+  with "All your questions". Pruning was checked: 180 days, at most 200, newest kept.
+- **F.** No "You hold" without a quantity (above); a source in square brackets anywhere in a line is drawn as a source (`AnswerText`).
+- **G.** The side menu never scrolls sideways (its lists are one column the menu's width; long items end in an ellipsis with the whole question on
+  hover); the financial year reads "FY26 (Apr ’25–Mar ’26)".
+- **H.** On the company report, the six Prism dots wrap inside the name column (the technical S L under the four financial-health dots) instead of
+  running under the price.
+- **I.** The CPI quarter averages are calendar quarters ("2026 Q3" is Jul-Sep 2026, Q2 FY27); the model read "Q3 FY27". `macro.target_watch` adds
+  each quarter's months and financial-year name, and `pages.target_watch_for_ai` gives the model only those (only complete quarters exist). Sector
+  Pulse results name the averages in words (short, near, medium and long-term trend; never "50-day average"), and a Washout group is said in one
+  consistent sentence: sold broadly in recent weeks, no broad rebound yet, and how many of every 100 stocks are back above their medium-term trend.
+- Tests: `backend/tests/test_ask_349_fixes.py`, `test_ask_whatsnew.py`, `test_ask_sectors.py`, `test_ask_holdings.py`;
+  `frontend/src/components/AskFixes349.test.tsx`, `askMemory349.test.tsx`.

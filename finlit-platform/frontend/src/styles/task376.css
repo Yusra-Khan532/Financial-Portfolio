@@ -1,0 +1,25 @@
+/* Task #376 (team, 24 Nov 2026), the Mutual funds list (/funds):
+   (1) "How to read this table" is a drop-down at the top, above the filters and the table, closed at first: one row (title, a short line, Show/Hide);
+   (2) Reset filters sits beside Hide filters, the two the same small size, so the filter box header keeps its proportions. */
+.mf-list .mf-howto { margin: 0 0 16px; border: 1px solid var(--border); border-radius: var(--r-card, var(--r-ctl)); background: var(--s1); }
+.mf-list .mf-howto > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: var(--ui-ctl-h); padding: 10px 16px; cursor: pointer; list-style: none; }
+.mf-list .mf-howto > summary::-webkit-details-marker { display: none; }
+.mf-list .mf-howto > summary:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; border-radius: var(--r-ctl); }
+.mf-howto-tx { display: grid; gap: 2px; min-width: 0; }
+.mf-howto-tx b { font: 700 var(--fs-16)/1.3 var(--sans); color: var(--text); }
+.mf-howto-tx small { font-size: var(--fs-13); color: var(--muted); }
+.mf-howto-show { flex: none; display: inline-flex; align-items: center; gap: 6px; font: 700 var(--fs-13)/1 var(--sans); color: var(--text); }
+.mf-howto-h { display: none; } .mf-howto[open] .mf-howto-s { display: none; } .mf-howto[open] .mf-howto-h { display: inline; }
+.mf-howto-chev { width: 7px; height: 7px; margin: 0 2px 3px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); transition: transform .15s ease; }
+.mf-howto[open] .mf-howto-chev { margin-bottom: -3px; transform: rotate(-135deg); }
+.mf-list .mf-howto[open] > summary { border-bottom: 1px solid var(--border); }
+.mf-list .mf-howto > .mf-legend { margin: 0; padding: 16px; border: 0; }
+@media (prefers-reduced-motion: reduce) { .mf-howto-chev { transition: none; } }
+
+.mf-list .mf-side-h { flex-wrap: wrap; }
+/* the panel is ~290px inside: the title on its row, then the pair side by side at equal widths (one line each, no lone button hanging right) */
+.mf-list .mf-side-acts { flex: 1 0 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mf-list .mf-side-acts .btn { width: 100%; justify-content: center; }
+.mf-list .mf-side-acts .btn.sm { min-height: var(--ui-ctl-h-sm); }
+.mf-list .mf-resetf:disabled { opacity: .55; cursor: default; }
+@media (max-width: 860px) { .mf-list .mf-side-acts .btn.sm { min-height: var(--ui-ctl-h); } }

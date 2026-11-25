@@ -184,6 +184,12 @@ async def subject_of(gw, body: "AskIn", question: str, kind: str, until: float) 
     # other company. A question naming another company ("why is icici low", asked on HCLTECH's page), or a word that starts several
     # companies' names, is about that company; a follow-up with no company keeps the company the conversation was about.
     page = body.symbol
+    # Task #349 fix C: a question about a field (the RBI, inflation, a sector, the market, a term) asked with a company pinned is not about that
+    # company unless it names it or points at it, and does not inherit the company of the conversation either.
+    if page and kind == "question" and not named and routing.off_company(question):
+        own = (await within([companies.named_in(gw, question, 3)], until))[0] or []
+        if page not in own:
+            return named, None
     if page and kind == "question" and not companies.points_at_page(question, strong_only=True):
         other = bool(named)
         if not other:
@@ -237,9 +243,9 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
         n0 = await quota.used(store.pool, ctx.user_id, month, kind)
 
         async def nothing() -> AsyncIterator[bytes]:
-            yield sse("meta", {**quota.status(cap, n0, month), "cached": False})
+            yield sse("meta", {**quota.status(cap, n0, month), "cached": False, "subject": dict(MINE)})
             yield sse("text", {"text": whatsnew.NOTHING_KEPT})
-            yield sse("done", {"disclaimer": service.DISCLAIMER, "sources": [], "pages": whatsnew.NOTHING_PAGES})
+            yield sse("done", {"disclaimer": service.disclaimer_for("mine"), "sources": [], "pages": whatsnew.NOTHING_PAGES})
         return StreamingResponse(nothing(), media_type="text/event-stream", headers={**STREAM_HEADERS})
     early = await since_lookup(request, st, store, ctx, body, question) if kind == "question" and wn is None else None
     since_on = bool(early and early.get("prev"))
@@ -250,7 +256,9 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
         early = {"named": [], "page": None, "topic": None, "prev": None}
     if rel is not None and early is None:
         early = {"named": rel["named"], "page": rel["page"], "topic": None, "prev": None}
-    rel_on = bool(rel and rel["rel"])
+    # Task #349 fix C: what the answer is about ({kind, id}), sent with meta; the company's tag, links and disclaimer only for a company question
+    subject = answer_subject(kind, question, early, body.symbol, wn) if early is not None or kind == "summary" else None
+    rel_on = bool(rel and rel["rel"]) and (subject or {}).get("kind") == "company"
 
     # A repeated first question (same words, same page, same plan, same day) is answered from the cache, at once and without using the allowance.
     # Not when "since you last asked" applies: that answer is the member's own (task #349 PR 3), like the answers about their own lists; nor when
@@ -267,9 +275,10 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
         cached = json.loads(hit)
 
         async def replay() -> AsyncIterator[bytes]:
-            yield sse("meta", {**quota.status(cap, n, month), "cached": True})
+            subj = cached.get("subject") if isinstance(cached.get("subject"), dict) else subject
+            yield sse("meta", {**quota.status(cap, n, month), "cached": True, **({"subject": subj} if subj else {})})
             yield sse("text", {"text": cached["text"]})
-            yield sse("done", {"disclaimer": service.DISCLAIMER, "sources": cached.get("tools", []), "pages": cached.get("pages", []),
+            yield sse("done", {"disclaimer": service.disclaimer_for((subj or {}).get("kind")), "sources": cached.get("tools", []), "pages": cached.get("pages", []),
                                **({"figures": cached["figures"]} if cached.get("figures") else {})})
             mem = cached.get("memory")              # task #349 PR 3: a replay is kept too, with the figures the first answer read
             if kind == "question" and isinstance(mem, dict) and isinstance(mem.get("topic"), list):
@@ -292,6 +301,10 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
                        cookie=request.cookies.get(cookie_name(st), ""), csrf=ctx.csrf or "",
                        origin=request.headers.get("origin") or f"{request.url.scheme}://{request.headers.get('host', 'localhost')}",
                        view_as=request.headers.get(VIEW_AS_HEADER))
+    if subject is None:                      # task #349 fix C: the subject is worked out once, before meta, and reused for the answer
+        named0, page0 = await subject_of(gw, body, question, kind, time.monotonic() + PREREAD_SECONDS)
+        early = {"named": named0, "page": page0, "topic": None, "prev": None}
+        subject = answer_subject(kind, question, early, body.symbol, wn)
 
     async def run() -> AsyncIterator[bytes]:
         out: List[bytes] = []
@@ -394,7 +407,7 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
             return {"result": result, "want": want, "named": named, "page": page, "kinds": kinds, "messages": messages,
                     "cards": [(card_tool, {"symbol": s}, g) for s, g in zip(want[:2], got)] + extra_reads, "wnFigures": wn_figures}
 
-        yield sse("meta", {**quota.status(cap, n, month), "cached": False})
+        yield sse("meta", {**quota.status(cap, n, month), "cached": False, "subject": subject})
         if rel_on:                           # task #349 PR 4: the tags on the answer ("You hold this", "In 2 of your funds" ...)
             yield sse("relation", {"tags": mine.tags(rel["rel"])})
         result: Optional[Dict[str, Any]] = None
@@ -459,6 +472,8 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
         personal = any(t.startswith("get_my_") for t in result["tools"])
         # "aligned with the web pages" (task #218): the FinLit pages this answer read, as links under it; the companies read before the model started count first
         links = pages.page_links([("get_company_card", {"symbol": s}) for s in want[:2]] + list(result.get("calls") or []))
+        if subject.get("kind") != "company":  # task #349 fix C: no company report or Prism link under an economy, sector or market answer
+            links = [x for x in links if not x["to"].startswith(("/stocks/", "/prism/"))]
         if wn is not None:                  # task #349 PR 5: the answer is about the member's own companies
             links = (whatsnew.NOTHING_PAGES[:1] + [x for x in links if x["to"] != "/holdings"])[:4]
         # Task #349 PR 2: question memory (ask/memory.py), written in the background from what this answer already read.
@@ -468,13 +483,13 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
         figs = followup.summary(memory.tool_results_of(done_["messages"], done_["cards"])) if kind == "question" else ""
         if key and result["text"] and result["stop"] in ("end_turn",) and not personal and not since_on and not rel_on:
             try:
-                await store.redis.set(key, json.dumps({"text": result["text"], "tools": result["tools"], "pages": links, **({"figures": figs} if figs else {}),
+                await store.redis.set(key, json.dumps({"text": result["text"], "tools": result["tools"], "pages": links, "subject": subject, **({"figures": figs} if figs else {}),
                                                        **({"memory": snap} if snap else {})}, default=str),
                                       ex=SUMMARY_CACHE_SECONDS if kind == "summary" else CACHE_SECONDS)
             except Exception:
                 pass
         state["delivered"] = True
-        yield sse("done", {"disclaimer": service.DISCLAIMER, "sources": sorted(set(result["tools"])), "pages": links, **({"figures": figs} if figs else {})})
+        yield sse("done", {"disclaimer": service.disclaimer_for(subject.get("kind")), "sources": sorted(set(result["tools"])), "pages": links, **({"figures": figs} if figs else {})})
 
     state = {"delivered": False, "returned": False}
 
@@ -491,6 +506,22 @@ async def ask(request: Request, body: AskIn, ctx: Ctx = Depends(secure_ctx)):   
                 asyncio.get_running_loop().create_task(_give_back(store, ctx.user_id, month, kind))
 
     return StreamingResponse(guarded(), media_type="text/event-stream", headers={**STREAM_HEADERS})
+
+
+MINE = {"kind": "mine", "id": "-"}
+
+
+def answer_subject(kind: str, question: str, early: Optional[Dict[str, Any]], symbol: Optional[str], wn: Optional[Dict[str, Any]]) -> Dict[str, str]:
+    """Task #349 fix C: {kind, id} of what the answer is about, from what was already worked out (memory.topic_of over the companies named, the
+    page's company when the question is about it, and routing.classify): company | economy | sector | market | fund | etf | mine | concept | general."""
+    if kind == "summary":
+        return {"kind": "company", "id": symbol or ""}
+    if wn is not None:
+        return dict(MINE)
+    named, page = list((early or {}).get("named") or []), (early or {}).get("page")
+    kinds = routing.classify(question, named_company=bool(named), on_company_page=bool(page))
+    _, sk, sid, _ = memory.topic_of(question, named, page, None, kinds)
+    return {"kind": sk, "id": sid}
 
 
 async def since_lookup(request: Request, st, store, ctx: Ctx, body: AskIn, question: str) -> Optional[Dict[str, Any]]:
@@ -533,7 +564,7 @@ async def whatsnew_lookup(store, ctx: Ctx, question: str) -> Optional[Dict[str, 
     if not memory.asks_whatsnew(question) or memory._viewing_as(ctx) or quota.allowance(ctx) <= 0:
         return None
     try:
-        return await whatsnew.lookup(store.pool, ctx.user_id)
+        return await whatsnew.lookup(store.pool, ctx.user_id, redis=store.redis)
     except Exception:
         log.warning("ask: the member's companies could not be read for what is new", exc_info=True)
         return None

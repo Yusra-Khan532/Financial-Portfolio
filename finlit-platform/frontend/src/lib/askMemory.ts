@@ -34,16 +34,18 @@ export const clearAskHistory = () => apiSend<{ status: string; deleted: number }
 const SECTOR: Record<string, string> = { insurance: "Insurance", pharma: "Pharma and healthcare", energy_power: "Power and energy", metals_chemicals: "Metals and mining",
   real_estate: "Real estate", auto: "Automobiles", it: "IT services", rural_agri: "Rural and farm" };
 
-/** What a kept question was about, in a few words ("TCS", "Pharma and healthcare sector", "The economy"). */
+/** What a kept question was about, in a few words. Task #349 fix D (the founder's Gold QA): by its subject, never by the company pinned when it was
+ *  asked: "Economy", "Sectors" (or "Pharma and healthcare sector"), "Market", "Funds", "Your holdings", a term, or the company symbol only for a
+ *  company question (the server labels rows kept before the fix by their field). */
 export function subjectLabel(i: Pick<AskHistoryItem, "subjectKind" | "subjectId">): string {
   const id = i.subjectId;
   switch (i.subjectKind) {
-    case "company": return id;
-    case "fund": return id && id !== "all" ? `Fund ${id}` : "Mutual funds";
+    case "company": return id || "A company";
+    case "fund": return id && id !== "all" ? `Fund ${id}` : "Funds";
     case "etf": return id && id !== "all" ? `ETF ${id}` : "ETFs";
-    case "sector": return `${SECTOR[id] ?? id.replace(/[_-]/g, " ")} sector`;
-    case "economy": return "The economy";
-    case "market": return "The market";
+    case "sector": return !id || id === "all" ? "Sectors" : `${SECTOR[id] ?? id.replace(/[_-]/g, " ")} sector`;
+    case "economy": return "Economy";
+    case "market": return "Market";
     case "concept": return id && id !== "general" ? `Term: ${id.replace(/-/g, " ")}` : "A term";
     case "mine": return "Your holdings";             // task #349 PR 5: "what's new" in the member's own companies
     default: return "General";

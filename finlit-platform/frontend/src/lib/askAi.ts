@@ -12,7 +12,7 @@ export type AskQuota = { enabled: boolean; signedIn: boolean; plan?: string; lim
 /** `figures` (task #349 PR 5): on an answer, the "figures read" summary its `done` event gave; sent back so a follow-up keeps those figures. */
 export type AskTurn = { role: "user" | "assistant"; content: string; figures?: string };
 export type AskEvent =
-  | { type: "meta"; limit: number; used: number; left: number; resets: string; cached: boolean }
+  | { type: "meta"; limit: number; used: number; left: number; resets: string; cached: boolean; subject?: unknown }
   | { type: "status"; text: string }
   | ({ type: "since" } & AskSinceData)
   | { type: "relation"; tags: AskRelationTag[] }
@@ -78,6 +78,32 @@ export function safeRelation(e: unknown): AskRelationTag[] {
   }
   return out;
 }
+
+/** Task #349 fix C (the founder's Gold QA, 24 Nov 2026): what an answer is about, from `meta.subject`. With BSE pinned, the RBI and banking answers
+ *  showed BSE's tag, report link, related questions and the company disclaimer. The company's own context now shows only for a company answer. */
+export type AskSubjectKind = "company" | "economy" | "sector" | "market" | "fund" | "etf" | "mine" | "concept" | "general";
+export type AskSubject = { kind: AskSubjectKind; id: string };
+const SUBJECT_KINDS: readonly AskSubjectKind[] = ["company", "economy", "sector", "market", "fund", "etf", "mine", "concept", "general"];
+/** `meta.subject`, checked: a known kind and a short plain id; null when missing or unusable (an older server: the panel behaves as before). */
+export function safeSubject(x: unknown): AskSubject | null {
+  const r = x as Partial<AskSubject> | null;
+  const kind = SUBJECT_KINDS.find((k) => k === r?.kind);
+  if (!kind) return null;
+  const id = typeof r?.id === "string" ? r.id.trim().toUpperCase().slice(0, 80) : "";
+  return { kind, id: kind === "company" ? id : id.toLowerCase() };
+}
+/** The pinned company's own context (its related questions, "More about" it) belongs under an answer only when the answer is about that company.
+ *  An answer with no subject (a listed answer, an older server) keeps the company as before. */
+export const aboutPinned = (s: AskSubject | null | undefined, pinned: string | null): boolean => !s || (s.kind === "company" && !!pinned && s.id === pinned.toUpperCase());
+/** The company disclaimer (service.DISCLAIMER) and the one every other subject gets, should an answer come without its own. */
+export const COMPANY_ASK_DISCLAIMER = "Describes the company's financial health from its filings and prices; not a recommendation. Information only, not investment advice.";
+export const FIELD_ASK_DISCLAIMER = "General information from FinLit's data and published sources; not a recommendation. Information only, not investment advice.";
+/** The disclaimer shown under a written answer: the server's, except that the company one never stands under a non-company answer. */
+export const disclaimerFor = (s: AskSubject | null | undefined, given: string | undefined): string | undefined =>
+  s && s.kind !== "company" && (!given || given === COMPANY_ASK_DISCLAIMER) ? FIELD_ASK_DISCLAIMER : given;
+/** The answer's "Read on FinLit" links: a non-company answer never links a company report or Prism page (the server already leaves them out). */
+export const pagesFor = (s: AskSubject | null | undefined, pages: AskPage[]): AskPage[] =>
+  s && s.kind !== "company" ? pages.filter((p) => !/^\/(stocks|prism)\//.test(p.to)) : pages;
 
 /** Why a question could not be sent at all (before any answer): not signed in, the allowance used, not switched on, or another refusal. */
 export class AskRefused extends Error {
