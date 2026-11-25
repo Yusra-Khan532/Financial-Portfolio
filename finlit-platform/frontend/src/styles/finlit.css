@@ -400,7 +400,12 @@ h2 { font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); m
 .ftile svg.sp { width: 96px; height: 34px; }
 
 /* Tables */
-.tw { overflow-x: auto; margin: 0 -24px; padding: 0 24px; }
+.tw { overflow-x: auto; --tw-pad: 24px; margin: 0 calc(-1 * var(--tw-pad)); padding: 0; }
+/* Task #388 (developer file 38, F1): the frame bleeds into the card's padding and the inset sits on the table's margin, not on the frame's padding.
+   A frozen first column sticks at the frame's padding edge, so with the inset as padding the columns scrolled sideways showed in a 24px strip to its
+   left (equity Your shares, the Diversification sector grid, ETF, MF). Same look at rest; once scrolled, the frozen column sits flush with the frame's
+   edge. max-width (not width) so a table whose own rule says width: 100% still fits, and one wider than the frame still scrolls. */
+.tw > table { margin-left: var(--tw-pad); margin-right: var(--tw-pad); max-width: calc(100% - 2 * var(--tw-pad)); }
 table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: var(--fs-14); }
 th { text-align: right; font-size: var(--fs-12); font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); padding: 11px 12px; white-space: nowrap; background: var(--s2); }
 th:first-child { border-radius: var(--r-ctl) 0 0 var(--r-ctl); } th:last-child { border-radius: 0 var(--r-ctl) var(--r-ctl) 0; }
@@ -664,7 +669,7 @@ footer.band { padding-block: 0; border-top: 1px solid rgba(255,255,255,.08); }
   .px { font-size: var(--fs-32); }
   .spark-hero { display: none; }
   .card { padding: 18px 16px; border-radius: var(--r-card); }
-  .tw { margin: 0 -16px; padding: 0 16px; }
+  .tw { --tw-pad: 16px; }
   .mini { display: none; }
   .hide-sm { display: none !important; }
   section.block { padding-top: 48px; }
@@ -752,3 +757,8 @@ footer.band { padding-block: 0; border-top: 1px solid rgba(255,255,255,.08); }
 :root[data-theme="light"] { --band-hi: #1E9A60; --band-mid: #CC7A00; --band-lo: #D33A3F; --band-hi-ink: #11794D; --band-mid-ink: #8F5400; --band-lo-ink: #B82A30; }
 .lock-card .tier { color: var(--text-primary); border-color: var(--tc); }   /* the plan name stays readable on the card in both themes (gold on white was 2:1) */
 .kpi .s.kpi-why { color: var(--muted); white-space: normal; line-height: 1.3; }   /* task #197: why a headline figure has no number */
+
+/* Task #388 (F1): the frames that set no inset today keep none (their own rules set margin and padding to 0): the stock and MF screeners, ETF compare,
+   quarterly results, Sector Pulse, MF, the ETF data table, the zoomed table and the three Risk tables. Two classes deep, so it wins at every width. */
+.tw:is(.scr-tw, .etf-tw, .qr-scroll, .sx-scroll), :is(.mf, .sx-tablebox, .etf-datatable, .cz-body .cz-host) .tw,
+.eq .tw.eqs-frz:has(> table.eqr-sb, > table.eqr-rs, > table.eqr-each) { --tw-pad: 0px; }

@@ -125,5 +125,5 @@ html.eqv-noscroll, html.eqv-noscroll body { overflow: hidden; }
 .eq .eqd-sheat-big thead th button { font-size: var(--fs-13); }
 .eq .eqd-sheat-big tbody th { position: sticky; left: 0; z-index: 1; background: var(--s1); height: 44px; padding: 0 10px 0 0; }
 .eq .eqd-sheat-big tbody th button { font-size: var(--fs-13); }
-.eq .eqd-sheat-big thead td:first-child { position: sticky; left: 0; top: 0; z-index: 3; background: var(--s1); }
+.eq .eqd-sheat-big thead :is(td, th):first-child { position: sticky; left: 0; top: 0; z-index: 3; background: var(--s1); }
 .eq .eqv-rest .v small.eqv-vw { margin-left: 4px; font: 400 var(--fs-12)/1 var(--sans); color: var(--muted); }

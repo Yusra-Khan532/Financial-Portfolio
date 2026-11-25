@@ -4,5 +4,6 @@ export * from "./numbers";
 export * from "./sort";
 export * from "./parts";
 export * from "./KeyFigures";
+export * from "./VisitFold";
 export * from "./portfolioFigs";
 export * from "./divFigs";

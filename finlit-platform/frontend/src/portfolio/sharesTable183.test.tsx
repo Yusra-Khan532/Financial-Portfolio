@@ -32,9 +32,9 @@ const heads = () => [...document.querySelectorAll("thead tr:last-child th")].map
 const order = () => [...document.querySelectorAll("tbody tr td.pfx-name b")].map((b) => b.textContent);
 
 describe("columns by plan", () => {
-  it("Gold: Prism, then four parts, then one Technical view column (task #385); a band names the groups and a thick divider follows the score", () => {
+  it("Gold: Prism, then four parts, then Short term and Long term under Technical view (task #388, file 38, A3); a band names the groups and a thick divider follows the score", () => {
     open("prism");
-    expect(heads()).toEqual(["Share", "Size", "Qty", "Value", "Latest price", "Today", "Prism", "G&P", "Val.", "Qual.", "Risk", "Trend", "Moves with rest"]);
+    expect(heads()).toEqual(["Share", "Size", "Qty", "Value", "Latest price", "Today", "Prism", "G&P", "Val.", "Qual.", "Risk", "Short term", "Long term", "Moves with rest"]);
     expect([...document.querySelectorAll(".eq-band th")].map((t) => t.textContent).filter(Boolean)).toEqual(["FinLit Prism · fundamental scorei", "Technical viewi", "Against peers"]);   // each with its i (task #385)
     expect(document.querySelector("thead tr:last-child th.eq-div")?.textContent).toMatch(/^G&P/);
     expect(document.body.textContent).not.toMatch(/FinLit IQ/);

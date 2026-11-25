@@ -55,8 +55,8 @@ import { ThemePill, YourThemes, themeView } from "../portfolio/pack/EqThemes";
 import { useBoard } from "../discovery/model";
 import { EqTitle, MoneyBox, priceStamp, NextView, PfPicker, YourPortfolios, type DayMove } from "../portfolio/pack/EqTop";
 import { DataAsOf, PageEnd, ScoreCards, SinceVisit, SixParts, dayOf, sinceText, type CardsInput } from "../portfolio/pack/EqTop385";
-import { GainLossSection, Step, StepCtx, stepOf, type StepDef } from "../portfolio/pack/EqSteps385";
-import { KeyFigures, Info, coName, countOf, namesInText, portfolioKeyFigs, shortCo, type GLRow } from "../portfolio/shared";
+import { Step, StepCtx, stepOf, type StepDef } from "../portfolio/pack/EqSteps385";
+import { KeyFigures, Info, VisitFolds, coName, countOf, namesInText, portfolioKeyFigs, shortCo } from "../portfolio/shared";   // VisitFolds: task #388 file 38 A2, Key figures stays open for the visit once opened
 import { divKeyFigs, firstSentence, togetherWindow } from "../portfolio/shared";   // task #385 phase 2 (Diversification)
 import { prismWord5 } from "../lib/equityTop";
 import { holdingFigs } from "../portfolio/HoldingCells";
@@ -374,11 +374,6 @@ export function HoldingsPage() {
   // since your last visit: the visit before this one (POST /api/visits/equity-portfolio) and the filings of the last 90 days
   const wcFiled = (wcQ.q.data?.companies ?? []).filter((c) => Object.keys(c.ev).length > 0).length;
   const since = sinceText(wcQ.lastVisit ? dayMonth(wcQ.lastVisit) : null, wcQ.newN, wcFiled, symbols.length, wcQ.rows.length, wcQ.q.data?.days ?? 90);
-  // where the gain or loss came from: value now minus what was paid, for each share held now
-  const glRows = useMemo(() => { const rows: GLRow[] = []; let noPrice = 0;
-    symbols.forEach((sym) => { const f = holdingFigs(lots, sym); if (f.a?.qty === 0) return; if (f.gain == null) { if (f.a?.qty && f.a.invested == null) noPrice++; return; }
-      rows.push({ symbol: sym, name: nameOfSym(sym), gain: f.gain, pct: f.gainPct }); });
-    return { rows, noPrice }; }, [symbols, st.holdings, cur, byOv]);   // eslint-disable-line react-hooks/exhaustive-deps
   const hasLaggard = shares.some((x) => x.peer?.label === "laggard");
   const [leaderLine, setLeaderLine] = useState("");
   const inShortItems = useMemo(() => { const m = new Map<string, string>(); ids.forEach((x) => m.set(x, nameOfSym(x)));
@@ -400,9 +395,10 @@ export function HoldingsPage() {
   const divFold = useMemo(() => ({ where: whereLine, ...(div ? divLines(div, byValue?.spread?.effective_stocks) : { sectors: "", grid: "" }) }), [div, whereLine, byValue]);
   const tiltNote = data?.styleTilt && !("locked" in data.styleTilt) ? data.styleTilt.sentence : null;
   const styleLine = firstSentence(tiltNote) || "Where your average share ranks, part by part";
-  // one section at a time: the steps of each view (Portfolio's first step holds Your shares, the gain or loss and Key figures)
+  // one section at a time: the steps of each view (Portfolio's first step holds Your shares and Key figures; task #388 file 38 A1: "Where your gain or
+  // loss came from" left this page, the step still lands on Your shares)
   const stepsOf = (v: View): StepDef[] => v === "portfolio" ? [
-      { id: "pf-shares", label: "Your shares", secs: ["pf-shares", "eq-gl", "eq-keys", "pf-sold"] },
+      { id: "pf-shares", label: "Your shares", secs: ["pf-shares", "eq-keys", "pf-sold"] },
       ...(DEMO ? [] : [{ id: "eq-wc", label: "What changed", secs: ["eq-wc"], badge: wcQ.newN ? `${wcQ.newN} new` : undefined }]),
       { id: "eq-trend", label: "Trends", secs: ["eq-trend"] }, { id: "eq-peers", label: "Peers", secs: ["eq-peers"] },
       ...(model !== "prism" || hasLaggard ? [{ id: "eq-leaders", label: "Group leaders", secs: ["eq-leaders"] }] : []),
@@ -439,7 +435,7 @@ export function HoldingsPage() {
     ...(view === "risk" && rk.data?.to ? [`Risk figures: weekly closes to ${dayOf(rk.data.to)}`] : [])].filter(Boolean);
 
   return (
-    <HideSlim.Provider value={true}><HideButtons.Provider value={false}><KnowPop.Provider value={true}><div className="wrap ipo pfx sp eq">
+    <HideSlim.Provider value={true}><HideButtons.Provider value={false}><KnowPop.Provider value={true}><VisitFolds><div className="wrap ipo pfx sp eq">
       <Gate tier={PLAN_FOR_PORTFOLIO} title="Score your portfolio" points={[`FinLit Prism for every share you own (${planName(PLAN_FOR_PRISM)})`, "How spread out the list is, and what moves together", "Share of risk and the NIFTY 50 comparison", "Import Excel, CSV or PDF statements"]}>
         <div className="pfx-flow">
         <section className="card eqx-top" aria-label="Equity portfolio">
@@ -534,7 +530,6 @@ export function HoldingsPage() {
               actions={(sym) => <button className="pfx-x" aria-label={`Remove ${sym}`} title={`Remove ${sym}${cur === "all" ? "" : ` from ${pfName(cur)}`}`} onClick={() => { st.holdings.filter((h) => h.symbol === sym && (cur === "all" || pfOf(h) === cur)).forEach((h) => portfolio.remove(h.id)); toast(`${sym} removed.`); }}>×</button>} />
             <SoldList items={sold} all={cur === "all" && pfList.length > 1} pfName={pfName} nameOf={(sym) => meta[sym]?.name ?? sym} onRemoveSale={(id, sym) => { portfolio.remove(id); setOpenLots((c) => new Set([...c, sym]));
               setTimeout(() => { const r = document.getElementById(`lots-${sym}`)?.previousElementSibling as HTMLElement | null; r?.classList.add("x-flash"); r?.scrollIntoView?.({ behavior: "smooth", block: "center" }); setTimeout(() => r?.classList.remove("x-flash"), 2300); }, 150); }} />
-            {cur !== "all" || pfList.length >= 1 ? <GainLossSection rows={glRows.rows} noPrice={glRows.noPrice} /> : null}
             <KeyFigures id="eq-keys" sub={`What your ${countOf(lines.length, "share")} add up to, from the table above and the sections below.`} cards={portfolioKeyFigs(shares, model === "prism", (x) => holdingFigs(lots, x).now)} about="Key figures, Portfolio" />
             <SizeFold counts={sizeCount} />
             </Step>
@@ -582,6 +577,6 @@ export function HoldingsPage() {
         </div>
       </Gate>
       <PageEnd />
-    </div></KnowPop.Provider></HideButtons.Provider></HideSlim.Provider>
+    </div></VisitFolds></KnowPop.Provider></HideButtons.Provider></HideSlim.Provider>
   );
 }
