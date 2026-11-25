@@ -407,7 +407,7 @@ async def _run_tools(gw, calls: List[Any], timeout: float) -> List[Dict[str, Any
 
 
 async def answer(client: anthropic.AsyncAnthropic, model: str, gw, messages: List[Dict[str, Any]], emit: Emit,
-                 prefetched: Optional[List[Any]] = None, max_tokens: int = MAX_TOKENS) -> Dict[str, Any]:
+                 prefetched: Optional[List[Any]] = None, max_tokens: int = MAX_TOKENS, effort: str = "low") -> Dict[str, Any]:
     """Runs the conversation until Claude has written its answer. Emits ("status", {text}), ("text", {text}) and ("replace", {text}): a withdrawn
     answer, or "" to clear the lead-in words of a tool round ("Let me check ...") before the answer is written. Returns {"text", "tools", "calls",
     "usage", "stop"}; raises on an API failure (the caller decides what the member sees). `prefetched`: (name, arguments) of tools read before the
@@ -444,7 +444,7 @@ async def answer(client: anthropic.AsyncAnthropic, model: str, gw, messages: Lis
             stop = "deadline"
             break
         params: Dict[str, Any] = dict(model=model, max_tokens=max_tokens, system=system, tools=defs, messages=messages,
-                                      output_config={"effort": "low"}, cache_control={"type": "ephemeral"})
+                                      output_config={"effort": effort}, cache_control={"type": "ephemeral"})
         if rescue or rounds >= MAX_ROUNDS or elapsed >= TOOLS_UNTIL:
             params["tool_choice"] = {"type": "none"}          # out of rounds, time or room: write the answer from what has been read
         msg = None

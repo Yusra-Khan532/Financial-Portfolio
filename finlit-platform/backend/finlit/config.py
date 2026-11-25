@@ -19,6 +19,11 @@ def _list(value: str) -> List[str]:
     return [v.strip() for v in value.split(",") if v.strip()]
 
 
+def _effort(value: str, default: str) -> str:
+    v = (value or "").strip().lower()
+    return v if v in ("low", "medium", "high") else default
+
+
 def _ask_max_tokens(value: str) -> int:
     """ASK_MAX_TOKENS (task #349): a whole number between 2,000 and 16,000; empty or unreadable means the default, 6,000."""
     try:
@@ -126,6 +131,10 @@ class Settings:
     # Task #349: the room for one request's output (the model's thinking, its tool calls and the answer; not the answer's length, which the
     # instructions set). Optional ASK_MAX_TOKENS, kept between 2,000 and 16,000; default 6,000.
     ask_max_tokens: int = field(default_factory=lambda: _ask_max_tokens(os.getenv("ASK_MAX_TOKENS", "")))
+    # How much the model thinks before it answers (low / medium / high), for today's answer style and for the answer style v2 (ask/variant.py).
+    # Haiku's own default is medium; v2 uses it. ASK_EFFORT / ASK_EFFORT_V2 change them.
+    ask_effort: str = field(default_factory=lambda: _effort(os.getenv("ASK_EFFORT", ""), "low"))
+    ask_effort_v2: str = field(default_factory=lambda: _effort(os.getenv("ASK_EFFORT_V2", ""), "medium"))
     # Free sample reports shown in full to everyone (the home page example).
     # The separate site backend (blog/CMS, portfolio report, contact forms, chat, ticker). Empty = those /api routes answer 404.
     site_api_url: str = field(default_factory=lambda: site_api_url_default())

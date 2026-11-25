@@ -279,11 +279,13 @@ async def features(request: Request, ctx: Ctx = Depends(admin_ctx)) -> Response:
 
 @router.put("/api/admin/features/{name}")
 async def set_feature(request: Request, name: str, body: FlagIn, ctx: Ctx = Depends(admin_ctx)) -> Response:
-    if name not in (FLAG, "macro_sectors"):
+    if name not in (FLAG, "macro_sectors", "ask_answer_v2"):
         return _bad("unknown_feature", 404)
     async with request.app.state.store.pool.acquire() as conn:
         await conn.execute("UPDATE feature_flags SET enabled = $2, updated_at = now(), updated_by = $3 WHERE name = $1", name, body.enabled, ctx.email)
     _flag["at"] = 0.0
     from .macro_sectors import _flag as macro_flag
     macro_flag["at"] = 0.0
+    from .ask import variant as ask_variant   # FinLit AI's answer style
+    ask_variant.reset()
     return Response(content=orjson.dumps({"name": name, "enabled": body.enabled}), media_type="application/json", headers={"Cache-Control": PRIVATE})
