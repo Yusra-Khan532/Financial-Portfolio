@@ -92,3 +92,12 @@ describe("2.4 key figures", () => {
     expect(css("report216.css")).toMatch(/\.kpis \.kpi \.kl > button\.info \{ position: absolute; top: 10px; right: 10px;/);
   });
 });
+
+describe("the company header never squeezes the name (owner, 25 Nov 2026: TCS stood one letter per line at a 1150px window)", () => {
+  it("the top row follows the card's width: actions on their own row under 1320px of card, price too under 760px", () => {
+    const r = readFileSync(join(__dirname, "../styles/report216.css"), "utf8");
+    expect(r).toContain(".hx-d { container: hxd / inline-size; }");
+    expect(r).toMatch(/@container hxd \(max-width: 1320px\) \{\s*\.hx-d \.hxd-top \{ grid-template-columns: auto minmax\(0, 1fr\) auto; \}\s*\.hx-d \.hxd-top \.hx-acts \{ grid-column: 1 \/ -1; \}/);
+    expect(r).toMatch(/@container hxd \(max-width: 760px\) \{\s*\.hx-d \.hxd-top \{ grid-template-columns: auto minmax\(0, 1fr\); \}/);
+  });
+});
