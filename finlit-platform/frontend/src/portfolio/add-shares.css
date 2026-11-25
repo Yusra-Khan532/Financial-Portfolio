@@ -155,7 +155,7 @@
    magnifier, the five filters, Columns); the bar slides up under the site header and comes back after the table. The column headers freeze under the row
    (HScroll pinBelow) and the sideways scrollbar sits at the bottom of the screen while the table is on screen. */
 .pfx-tools.pfh { position: sticky; top: var(--top-h, 63px); z-index: 34; background: linear-gradient(var(--s1), var(--s1)), var(--bg); padding: 6px 0; }
-.pfx-tools.pfh.stuck { flex-wrap: nowrap; gap: 6px; margin-left: -18px; margin-right: -18px; padding: 6px 18px; border-bottom: 1px solid var(--border); box-shadow: 0 10px 18px -16px rgba(0, 0, 0, .45); overflow-x: auto; scrollbar-width: none; }
+.pfx-tools.pfh.stuck { flex-wrap: nowrap; gap: 6px; margin-left: calc(-1 * var(--card-pad, 18px)); margin-right: calc(-1 * var(--card-pad, 18px)); padding: 6px var(--card-pad, 18px); border-bottom: 1px solid var(--border); box-shadow: 0 10px 18px -16px rgba(0, 0, 0, .45); overflow-x: auto; scrollbar-width: none; }   /* task #388 (file 38, F5, T10): the bleed is the card's own padding (24, 16 on a phone, 20 in Enlarge), so no row shows at either end; the pills stay put */
 .pfx-tools.pfh.stuck::-webkit-scrollbar { display: none; }
 .pfx-tools.pfh.stuck > .x-sw { position: sticky; left: 0; z-index: 2; flex: 0 0 auto; background: linear-gradient(var(--s1), var(--s1)), var(--bg); }   /* if the row ever overflows, the portfolio and views stay pinned */
 .pfx-tools.pfh.stuck .pff-b, .pfx-tools.pfh.stuck .eqt-secb, .pfx-tools.pfh.stuck .pfh-cols select, .pfx-tools.pfh.stuck .pfh-tab select { padding-left: 10px; padding-right: 10px; font-size: var(--fs-13); }
@@ -183,7 +183,7 @@ html.eq-rowup .eq .eqt-bar { transform: translateY(-160%); opacity: 0; pointer-e
 #pf-shares .pfx-table thead.is-pinned th { transform: translateY(var(--pin, 0px)); z-index: 6; }
 #pf-shares .pfx-table thead.is-pinned th:not(:first-child) { position: relative; }
 #pf-shares .pfx-table thead.is-pinned th:first-child { z-index: 7; }
-#pf-shares .pfx-table thead.is-pinned tr:last-child th { box-shadow: 0 8px 12px -12px rgba(0, 0, 0, .5); }
+#pf-shares .pfx-table thead.is-pinned tr:last-child th { box-shadow: 0 1px 0 var(--border-strong), 0 8px 12px -12px color-mix(in srgb, var(--text) 55%, transparent); }   /* task #388 (file 38, F2, T9): a clear lower edge */
 #pf-shares .pfx-table thead.is-pinned th::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(var(--s1), var(--s1)), var(--bg); }   /* --s1 is slightly see-through in light: lay it on the solid page colour */
 /* task #274 change 19: the filing chip sits beside Edit | Sell on the same line, so rows keep their height */
 .pfs-acts { display: flex; align-items: center; gap: 8px; min-width: 0; white-space: nowrap; } .pfs-acts .wc-chip { overflow: hidden; text-overflow: ellipsis; max-width: 130px; }

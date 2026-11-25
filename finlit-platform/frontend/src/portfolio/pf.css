@@ -11,7 +11,7 @@
 :where(.pfx) :is(h2, h3, p, ul) { margin: 0; padding: 0; }
 :where(.pfx) ul { list-style: none; }
 .pfx-serif { font-family: var(--serif); }
-.pfx-card { background: var(--s1); border: 1px solid var(--pfx-line); border-radius: var(--r-ctl); padding: 24px; min-width: 0; }
+.pfx-card { background: var(--s1); border: 1px solid var(--pfx-line); border-radius: var(--r-ctl); --card-pad: 24px; padding: var(--card-pad); min-width: 0; }   /* task #388 (file 38, F5): the padding in --card-pad, which the stuck tools row and the table frame bleed by */
 .pfx-card h2 { font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-serif); color: var(--pfx-ink); }
 .pfx-card h3 { font: var(--ui-fw-semibold) var(--ui-fs-h3)/var(--lh-16) var(--font-sans); color: var(--pfx-ink); }
 .pfx-row { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
@@ -266,7 +266,7 @@
 /* phone and narrow */
 @media (max-width: 1100px) { .pfx-sum { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pfx-gsplit { grid-template-columns: minmax(0, 1fr); } .pfx-tilt li { grid-template-columns: 150px minmax(0, 1fr) 190px; } }
 @media (max-width: 760px) {
-  .pfx-card { padding: 16px; border-radius: var(--r-ctl); }
+  .pfx-card { --card-pad: 16px; padding: var(--card-pad); border-radius: var(--r-ctl); }
   .pfx-long { display: none; } .pfx-compact { display: inline; }
   .pfx-sum { gap: 10px; } .pfx-k { padding: 16px; } .pfx-big { font-size: var(--fs-32); line-height: 40px; }
   .pfx-bar-row { flex-direction: column; align-items: stretch; } .pfx-nav { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; } .pfx-nav .pfx-pillbtn { flex: 0 0 auto; }

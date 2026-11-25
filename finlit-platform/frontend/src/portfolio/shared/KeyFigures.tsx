@@ -1,9 +1,12 @@
 // Task #385 (developer file 33, Key figures, "same pattern in all three views"): three cards, open by default. Each card has a numbered plain question
 // with an i (the method text moves behind it), one big figure with a short answer and one line under it, the coloured bar with its legend, a "worth a look"
 // box naming at most three shares ("and 2 more" after that), and the link to its section. Phase 2 passes its own cards (Diversification, Risk).
+// Task #388 (developer file 38, A2; SHARED.md KF): Key figures is the site's own fold (VisitFold), closed until clicked in all three views: the summary
+// holds "Key figures" with its i, the one line and Show ▾ / Hide ▴; closed on every visit, opening lasts for the visit.
 // Classes: eqkf-. Describes figures; never advice.
 import { Link } from "react-router";
 import { Info } from "./parts";
+import { VisitFold, keepFold } from "./VisitFold";
 import { jumpTo } from "../pack/PageTop";
 
 export type KeyBarPart = { label: string; n: number; c: string; /** the figure as printed in the legend (default: n, one decimal) */ shown?: string };
@@ -28,8 +31,8 @@ export function WorthNames({ names, max = 3 }: { names: WorthName[]; max?: numbe
 export function KeyFigures({ id, sub, cards, about = "Key figures" }: { id: string; sub: string; cards: KeyFig[]; about?: string }) {
   if (!cards.length) return null;
   return (
-    <section className="sp-sec eqkf" aria-labelledby={id}>
-      <div className="sp-sec-h"><div><h2 id={id}>Key figures<Info about={about} text="Three plain questions about your list, each answered from the figures on this page." how="Each card names the shares worth a look and links to the section with the detail." /></h2><p className="sp-sub">{sub}</p></div></div>
+    <VisitFold id={id} className="eqkf" line={sub}
+      title={<h2 id={id} className="sp-ft pgb-h">Key figures<span className="pgb-i" onClick={keepFold}><Info about={about} text="Three plain questions about your list, each answered from the figures on this page." how="Each card names the shares worth a look and links to the section with the detail." /></span></h2>}>
       <div className="eqkf-grid">{cards.map((c, i) => { const tot = (c.bar ?? []).reduce((a, b) => a + b.n, 0), max = Math.max(2, ...(c.rows ?? []).map((r) => r.v));
         return <article key={c.q} className="eqkf-c" aria-label={c.q}>
           <p className="eqkf-q"><span className="eqkf-n" aria-hidden="true">{i + 1}</span><span className="t">{c.q}</span><Info about={c.q} text={c.tip} /></p>
@@ -42,5 +45,5 @@ export function KeyFigures({ id, sub, cards, about = "Key figures" }: { id: stri
           {c.worth && c.worth.names.length > 0 && <p className="eqkf-worth"><em>{c.worth.label}</em><WorthNames names={c.worth.names} /></p>}
           <button type="button" className="eqkf-go" onClick={() => { if (c.sort) window.dispatchEvent(new CustomEvent("eq-sort", { detail: c.sort })); window.dispatchEvent(new CustomEvent("eq-step", { detail: c.to })); setTimeout(() => jumpTo(c.to), 80); }}>{c.go} →</button>
         </article>; })}</div>
-    </section>);
+    </VisitFold>);
 }

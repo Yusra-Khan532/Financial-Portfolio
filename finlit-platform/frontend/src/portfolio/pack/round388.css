@@ -121,6 +121,9 @@ button.eq8p-seg { cursor: pointer; }
 /* task #388 reopened (developer file 38, E1): the 6px between the section bar and the stuck tools row is painted in the page colour, so no row shows
    through it; the row's own shadow below stays */
 .eq #pf-shares .pfx-tools.pfh.stuck { box-shadow: 0 -6px 0 var(--bg), var(--ui-row-shadow); }
+/* task #388 (developer file 38, F5, T7): the same 6px as a real box, a page-coloured top border on the stuck row, which sticks 6px higher and gives the 6px
+   back from its top margin, so nothing moves; a shadow paints over rows for the eye but leaves them on top for a click and for the table check */
+.eq #pf-shares:not(.eqs-full) .pfx-tools.pfh.stuck { top: calc(var(--eq-bar-b, var(--top-h, 63px)) - 6px); margin-top: 10px; border-top: 6px solid var(--bg); box-shadow: var(--ui-row-shadow); }
 /* The same 6px over Against their peers: its column headings (.eq8p-rh) and, on a phone, its group headings (.eq8p-gh) stick at --eq-bar-b too. Each
    paints the 6px above itself. The shadow shows only while the heading is stuck: at rest it would fall outside its own box, which clips (the table's
    overflow: clip, and its group's, below), because each heading is the first row of that box. */

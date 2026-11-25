@@ -1,5 +1,6 @@
-// Task #385 (developer file 33): one section at a time, and the new "Where your gain or loss came from".
-//   StepCtx / Step   the section bar shows one step at a time (step 1 on Portfolio is Your shares, Where your gain or loss came from and Key figures; each
+// Task #385 (developer file 33): one section at a time, and "Where your gain or loss came from" (now on the MF and ETF pages only: task #388, developer
+// file 38 A1, took it off the Equity portfolio).
+//   StepCtx / Step   the section bar shows one step at a time (step 1 on the Equity Portfolio view is Your shares and Key figures; each
 //                    later step one section); "All sections" puts every section back on one page. On a phone, with All sections on, every section after
 //                    the first step folds to its heading and one line with its headline figure and "Open ▾"; tapping the line opens it ("Close ▴" at its
 //                    top). Choosing a step from the bar shows that section open.
@@ -52,11 +53,12 @@ export const GL_TIP = "Value now minus what you paid, for each share you hold no
 /** Rows: each share held now with a quantity, a buy price and a price today. `noPrice`: shares held without a buy price (left out, one line says how many). */
 /** Task #389 (developer file 32, Your funds 7, L7): each "(+₹N)" stays on one line with its name. */
 const keepTogether = (s: string) => s.split(/( \([+−]₹[\d,]+\))/).map((x, i) => (i % 2 ? <span key={i} className="eqg-nw">{x}</span> : x));
-/** `noun`, `link`, `tip`, `id`: the MF page's funds (task #389): "fund", the fund's page, its own i text and section id; the Equity page keeps its shares. */
+/** `noun`, `link`, `tip`, `id`: the MF page's funds (task #389): "fund", the fund's page, its own i text and section id. `id` has no default: the Equity page,
+ *  whose id ("eq-gl") it was, no longer shows the section (task #388, developer file 38 A1). */
 /** `left`, `countSide`: the ETF page (task #390, E5d and L4) adds "ETFs with no quantity are left out." to the line under the heading, and a spread-out loss
  *  counts the ETFs in loss ("3 of your 6 ETFs are in loss"). */
-export function GainLossSection({ rows, noPrice, noun = "share", link = (s) => `/stocks/${encodeURIComponent(s)}`, tip = GL_TIP, id = "eq-gl", left = "", countSide = false }: { rows: GLRow[]; noPrice: number;
-  noun?: string; link?: (symbol: string) => string; tip?: string; id?: string; left?: string; countSide?: boolean }) {
+export function GainLossSection({ rows, noPrice, noun = "share", link = (s) => `/stocks/${encodeURIComponent(s)}`, tip = GL_TIP, id, left = "", countSide = false }: { rows: GLRow[]; noPrice: number;
+  noun?: string; link?: (symbol: string) => string; tip?: string; id: string; left?: string; countSide?: boolean }) {
   const [open, setOpen] = useState(false);
   if (rows.length + noPrice < 2) return null;    // a one-share account hides the section
   const g = gainLoss(rows, noPrice, noun, countSide), mx = Math.max(1, ...g.rows.map((r) => Math.abs(r.gain))), shown = g.shown(open);

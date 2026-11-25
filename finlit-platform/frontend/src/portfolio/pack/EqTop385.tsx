@@ -6,7 +6,8 @@
 //                reading and an i; and "Make the score yours" (open item 9: the choices the score request already sends).
 //   SinceVisit   "Since your last visit on 24 Nov: nothing new from your companies. In the last 90 days, 6 of your 13 companies filed 17 updates."
 //   DataAsOf     one line at the top of each view: which date each kind of figure runs to.
-//   PageEnd      Questions and the disclaimer behind two buttons, with "Information only, not investment advice." beside them.
+//   PageEnd      the shared page bottom (portfolio/shared/PageBottom, task #388 file 38 E1 / SP11): the Questions fold, the Disclaimer fold and the
+//                sources line, full width, 18 px apart, closed on arrival.
 // Figures are the page's own (the score answer, the shares, the risk answer). Describes; never advice. Classes: eqc-.
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
@@ -14,10 +15,9 @@ import { Info, MINUS, countOf, indexName, shortCo, times } from "../shared";
 import { BENCHMARKS, GOALS, HORIZONS, RISKS, type Choices, type ScoreAnswer } from "../useScore";
 import { VIEW_COLOR, VIEW_ICON } from "../ViewKit";
 import type { View } from "./EquityPack";
-import { PortfolioDisclaimer } from "../../components/PortfolioDisclaimer";
-import { PageFaqs } from "../../components/PageFaqs";
-import { faqForPath } from "../../lib/pageFaqs";
+import { PageBottom } from "../shared/PageBottom";
 import "./eq385.css";
+import "./spacing388.css";   // task #388 reopened (developer file 38 v4, Part D): the page's spacing system
 
 const CROWN = <span className="eqc-crown" title="FinLit's own model"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M3 8.2l4.6 3.9L12 5l4.4 7.1L21 8.2 19.3 18H4.7z" fill="currentColor" /></svg></span>;
 /** Prism's five words, to the band each colours: good (Strong, Healthy), middle (Average), bad (Weak, Poor). */
@@ -173,16 +173,10 @@ export const dayOf = (iso: string | null | undefined, year = false) => {
 };
 
 // ------------------------------------------------------------------------------------------------ the end of the page
+/** The Equity portfolio's sources: where its prices, scores, filings and themes come from (task #388, file 38 E1: the sources line of the shared bottom). */
+export const EQ_SOURCES = "Prices: NSE. Scores: FinLit Prism and technical trend scores. Filings and themes: from Discover. Information only, not investment advice.";
 export function PageEnd() {
-  const n = faqForPath("/holdings")?.items.length ?? 0;
-  const [faq, setFaq] = useState(false), [disc, setDisc] = useState(false);
-  return <div className="eqc-end">
-    <div className="eqc-endb"><button type="button" className="eqc-endbtn" aria-expanded={faq} aria-controls="eqc-faq" onClick={() => setFaq(!faq)}>Questions about this page{n ? ` · ${n}` : ""}</button>
-      <button type="button" className="eqc-endbtn" aria-expanded={disc} aria-controls="eqc-disc" onClick={() => setDisc(!disc)}>Disclaimer</button>
-      <span className="eqc-endn">Information only, not investment advice.</span></div>
-    <div id="eqc-faq" hidden={!faq}>{faq && <PageFaqs inline />}</div>
-    <div id="eqc-disc" className="sp-sec" hidden={!disc}>{disc && <PortfolioDisclaimer kind="equity" />}</div>
-  </div>;
+  return <PageBottom kind="equity" sources={EQ_SOURCES} />;
 }
 
 /** A share's name for the six parts: the short name from the company record. */
