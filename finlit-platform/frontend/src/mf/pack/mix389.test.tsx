@@ -189,7 +189,7 @@ describe("How your funds move together (Mix 7, Update 25 Nov row 6)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Expand" }));
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(MF_CSS).toMatch(/\.mfp:not\(\.efp\) \.mfm-pair > \.mfm-reader \{ position: sticky;/);
+    expect(MF_CSS).toMatch(/\.wrap\.mfp \.mfm-pair > \.mfm-reader \{ position: sticky;/);   // task #390: .wrap.mfp (as specific as the old rule that left the ETF page out) now takes the ETF page too
   });
 });
 

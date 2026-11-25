@@ -1,8 +1,9 @@
 // Task #183 part 3 (ETF portfolio, pack 03): "What this means, in short", written from the ETFs' figures, and the sources line that ends the page.
-// Describes; never advice.
+// Describes; never advice. Task #390 PR B (developer file 34, W14, F4): the risk line in the new words ("moves 0.58× as much as the Nifty 500", no "beta"),
+// lists as "A, B and C".
+import { andList, movesAsMuch } from "../../portfolio/shared";
 import type { EtfPortfolio, EtfRisk, Inside } from "../../lib/etfPortfolio";
 import { furthest, live } from "../../lib/etfTop";
-import { andList } from "../../portfolio/shared/words";
 
 const num = (n: number) => ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"][n] ?? String(n);
 /** The four lines. Exported for tests. */
@@ -22,7 +23,7 @@ export function shortLines(d: EtfPortfolio | undefined, ins: Inside | undefined,
   const f = furthest(d);
   if (f.far && Math.abs(f.far.premium as number) >= 1) out.push(["Price against value", `${f.far.symbol} closed ${Math.abs(f.far.premium as number).toFixed(1)}% ${(f.far.premium as number) > 0 ? "above" : "below"} its last NAV. ${f.near === f.others ? `The other ${num(f.others)} were within 0.2%.` : `${f.near} of the other ${num(f.others)} were within 0.2%.`}`]);
   const o = rk?.own?.list, ind = xs.filter((e) => e.type?.key === "indian").length, calm = [...new Set(xs.filter((e) => e.type?.key !== "indian").map((e) => e.type?.key === "liquid" ? "the liquid ETF" : e.type?.word.toLowerCase()))];
-  if (o?.betaOwn != null) out.push(["Risk", `${ind ? `The ${num(ind)} Indian share ${ind === 1 ? "ETF moves" : "ETFs move"} ${(o.betaIndian ?? 0) >= 0.9 ? "almost as one with the market" : "less than the market"}. ` : ""}${calm.length ? `${andList(calm as string[]).replace(/^./, (c) => c.toUpperCase())} bring the list's beta down to ${o.betaOwn.toFixed(2)}.` : `The list's beta is ${o.betaOwn.toFixed(2)}.`}`]);
+  if (o?.betaOwn != null) out.push(["Risk", `${ind ? `The ${num(ind)} Indian share ${ind === 1 ? "ETF moves" : "ETFs move"} ${(o.betaIndian ?? 0) >= 0.9 ? "almost as one with the market" : "less than the market"}. ` : ""}${calm.length ? `${andList(calm as string[]).replace(/^./, (c) => c.toUpperCase())} bring the list down: it moves ${movesAsMuch(o.betaOwn, "the Nifty 500")}.` : `The list moves ${movesAsMuch(o.betaOwn, "the Nifty 500")}.`}`]);
   return out;
 }
 

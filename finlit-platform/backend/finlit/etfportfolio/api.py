@@ -216,6 +216,15 @@ async def size_of_isins(app, isins: List[str]) -> Dict[str, str]:
         return await size_ranks(conn, isins)
 
 
+async def names_of_isins(app, isins: List[str]) -> Dict[str, str]:
+    """ISIN -> the listed-company master's name, for the ISINs it knows (the MF route's company_names, task #389 fault 10). Task #390 (file 34, fault 9)."""
+    if not isins:
+        return {}
+    from ..mfportfolio.api import company_names
+    async with app.state.store.pool.acquire() as conn:
+        return await company_names(conn, isins)
+
+
 # ------------------------------------------------------------------------------------------------------------------------ reading
 
 def _ter(f: Dict[str, Any]) -> Dict[str, Any]:
@@ -297,7 +306,12 @@ async def inside(request: Request, ctx: Ctx = Depends(member_ctx), pf: Optional[
         files.append({"symbol": e["symbol"], "asOf": (p or {}).get("asOf"), "source": (p or {}).get("source"), "why": None if p and p.get("holdings") else why or "No monthly portfolio file found for this ETF yet."})
     isins = sorted({h["isin"] for e in etfs for h in (e["holdings"] or []) if h.get("isin") and h.get("assetClass") == "equity" and not calc.abroad(h["isin"], e["assetClass"])})
     sizes = await size_of_isins(app, isins) if isins else {}
-    top = calc.top_stocks(etfs, indian_only=True)          # task #183: the top 8 Indian holdings; holdings abroad sit in abroadTop
+    # task #390 (file 34, fault 9): every holding with an ISIN the listed-company master knows takes the master's name ("Sona Blw Precision Forgings Ltd."
+    # reads "Sona BLW Precision Forgings Ltd"); the fund file's text stays beside it as fileName; a line with no match keeps the file's name. Before
+    # top_stocks and look_through, so the grid's chips, the largest stocks and every other list carry the same name.
+    from ..mfportfolio.spread import master_names
+    master_names(etfs, await names_of_isins(app, isins))
+    top = calc.top_stocks(etfs, indian_only=True)        # task #183: the top 8 Indian holdings; holdings abroad sit in abroadTop
     syms = sorted({t["symbol"] for t in top if t["symbol"] and not t["abroad"]})
     gold = is_gold(ctx)
     scores = await scores_for(app, syms, gold)

@@ -283,7 +283,9 @@ describe("9 Key figures under the main section of each view; 5 company chips", (
     expect(text(".etp-keys")).toMatch(/Silver 25%/);
     expect(text(".etp-keys")).not.toMatch(/Overnight lending and debt 2\d%/);
     expect(document.querySelector(".mfm-fbars")!.textContent).toMatch(/SILVERBEESSilver 99%/);
-    const chip = screen.getAllByRole("link", { name: "FEDERALBNK" }).find((a) => a.classList.contains("ptk-chipl"))!;
+    // task #390 (file 34, I2): the chip shows the company's short name; it still opens the company report
+    const chip = [...document.querySelectorAll<HTMLAnchorElement>("a.ptk-chipl")].find((a) => a.getAttribute("href") === "/stocks/FEDERALBNK")!;
+    expect(chip.textContent).toBe("The Federal Bank");
     expect(chip.getAttribute("href")).toBe("/stocks/FEDERALBNK");
   });
   it("Risk: beta with its window, where the swings come from, how much it swings with the index's window", async () => {
