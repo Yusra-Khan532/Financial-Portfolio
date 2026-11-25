@@ -391,7 +391,7 @@ def test_golden_build_messages_and_cache_key_are_unchanged(monkeypatch):
     assert ask_api.cache_key("m1", Ctx(user_id="u", plan="gold"), ask_api.AskIn(question="What is TCS's ROE?", symbol="tcs")) == \
         "ask:answer:m1:gold:2026-11-23:ab28c738ad90ce1f008706a4f3ac690b"
     assert ask_api.cache_key("m1", Ctx(user_id="u", plan="silver"), ask_api.AskIn(kind="summary", symbol="RELIANCE")) == \
-        "ask:answer:summary:v4:m1:RELIANCE:2026-11-23"
+        "ask:answer:summary:v5:m1:RELIANCE:2026-11-23"
 
 
 @pg

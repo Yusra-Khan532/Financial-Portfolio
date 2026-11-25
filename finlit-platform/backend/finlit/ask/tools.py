@@ -13,6 +13,7 @@ from ..mcp.schema import SYMBOL_SCHEMA, ArgError, clean_symbol, validate
 from ..mcp.server import envelope
 from ..mcp.tools import TOOLS as MCP_TOOLS, Out, Tool
 from . import pages as P
+from . import prism_meaning   # task #382: what each FinLit Prism figure means
 from . import sectors as S   # task #349 PR 5: Sector Pulse and Sector Rotation
 
 # A tool result is kept under about 3,000 tokens (the MCP server allows 100 KB): smaller is faster and cheaper, and the biggest list is cut with a note.
@@ -124,8 +125,10 @@ async def get_company_card(gw: Gateway, a: Dict[str, Any]) -> Out:
 async def get_finlit_prism(gw: Gateway, a: Dict[str, Any]) -> Out:
     sym = clean_symbol(a["symbol"])
     card = await _prism(gw, sym)
-    return Out({"symbol": sym, "finlitPrism": card}, as_of=card.get("calculatedAt") if isinstance(card, dict) else None, source=SOURCE_PAGE,
-               routes=["/api/prism/reports/latest"])
+    # Task #382: what each figure means, read off the method's own bands and words (ask/prism_meaning), so an explanation is never made up.
+    sheet = prism_meaning.meaning(card)
+    return Out({"symbol": sym, "finlitPrism": card, **({"whatEachFigureMeans": sheet} if sheet else {})},
+               as_of=card.get("calculatedAt") if isinstance(card, dict) else None, source=SOURCE_PAGE, routes=["/api/prism/reports/latest"])
 
 
 SECTIONS = {   # name -> (route, what it is)
