@@ -327,7 +327,7 @@ export function FundListPage() {
         )}
           </div>
         </div>
-        <Foot facts={facts} />
+        <Foot facts={facts} fold />{/* task #377: the box named Disclaimer, a drop-down closed at first */}
       </div>
 
 

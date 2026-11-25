@@ -1,0 +1,7 @@
+/* Task #377 (team, 24 Nov 2026), the Mutual funds list (/funds): the boxed notes at the foot of the page are named "Disclaimer" and fold into a drop-down,
+   closed at first. The drop-down (.mfs-disc) brings its own edge and fill (styles/task373.css), so the footer's own box steps back. */
+.mf-list .mf-foot.mf-foot-fold { padding: 0; border: 0; background: none; }
+.mf-foot-fold .mfs-disc { border-radius: var(--r-card); }
+.mf-foot-fold .mfs-disc > p { margin: 0; padding: 0 16px 8px; }
+.mf-foot-fold .mfs-disc > p:first-of-type { padding-top: 12px; }
+.mf-foot-fold .mfs-disc > p:last-child { padding-bottom: 14px; }

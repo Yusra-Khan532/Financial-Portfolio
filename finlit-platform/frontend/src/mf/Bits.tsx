@@ -4,6 +4,8 @@ import { TERMS, type Term } from "../lib/glossary";
 import { Info } from "../components/Info";
 import { dateIN } from "../lib/format";
 import { AMFI_RISK_LINE, DISCLAIMER, MIRROR_LABEL, pctText, tone, type Facts, type FundDetail } from "../lib/mf";
+import "../styles/task373.css";   // task #377: the Disclaimer drop-down shares the screener's look (task #373)
+import "../styles/task377.css";   // task #377: the folded footer box on the Mutual funds list
 
 const termById = (id: string): Term | undefined => TERMS.find((t) => t.id === id);
 
@@ -24,10 +26,10 @@ export function Fig({ v, why, d = 2, plus = true, plain = false }: { v: number |
 }
 
 /** Source, data date, last update and the standing disclaimer: on every page of the section. */
-export function Foot({ facts, history }: { facts?: Facts | null; history?: FundDetail["history"] | null }) {
-  return (
-    <footer className="mf-foot" aria-label="Source and disclaimer">
-      <p className="mf-amfi">{AMFI_RISK_LINE}</p>
+/** Task #377 (team, 24 Nov 2026): with `fold` (the Mutual funds list), the box is named "Disclaimer" and is a drop-down, closed at first, the same as
+ *  the screener's (task #373, styles/task373.css): the statutory mutual fund line stays in view in the closed row, the rest opens below. */
+export function Foot({ facts, history, fold = false }: { facts?: Facts | null; history?: FundDetail["history"] | null; fold?: boolean }) {
+  const rest = (<>
       <p><b>{DISCLAIMER}</b></p>
       <p>
         Source: {facts?.source || "AMFI (Association of Mutual Funds in India), official NAV files"}.
@@ -37,6 +39,19 @@ export function Foot({ facts, history }: { facts?: Facts | null; history?: FundD
       </p>
       {history?.earlier && <p className="mf-earlier">{history.earlier.note} Earlier NAVs: AMFI data via its public mirror (api.mfapi.in), scheme code {history.earlier.oldCode}.</p>}
       {facts?.excludedAmcs && facts.excludedAmcs.length > 0 && <p className="faint">Some fund houses are not listed here (list: {facts.excludedAmcs.join(", ")}).</p>}
+  </>);
+  if (fold) return (
+    <footer className="mf-foot mf-foot-fold" aria-label="Source and disclaimer">
+      <details className="mfs-disc">
+        <summary><span className="mfs-disc-k">Disclaimer</span><b className="mfs-disc-l">{AMFI_RISK_LINE}</b>
+          <span className="mfs-disc-more" aria-hidden="true">Details<i className="mfs-disc-chev" /></span></summary>
+        {rest}
+      </details>
+    </footer>);
+  return (
+    <footer className="mf-foot" aria-label="Source and disclaimer">
+      <p className="mf-amfi">{AMFI_RISK_LINE}</p>
+      {rest}
     </footer>
   );
 }
