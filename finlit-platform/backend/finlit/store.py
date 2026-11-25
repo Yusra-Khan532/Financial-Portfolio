@@ -84,6 +84,17 @@ ON CONFLICT (symbol, statement, model) DO UPDATE SET
 """
 
 
+# Store.save_sections: refresh the fields of a cached company's hash, never create the hash and never touch its TTL (HSET and HDEL keep it).
+# KEYS[1] the stock hash; ARGV[1] how many of the following ARGV are field/value pairs to set; the ARGV after those are fields to remove.
+REFRESH_IF_CACHED_LUA = """
+if redis.call('EXISTS', KEYS[1]) == 0 then return 0 end
+local n = tonumber(ARGV[1])
+if n > 0 then redis.call('HSET', KEYS[1], unpack(ARGV, 2, n + 1)) end
+if #ARGV > n + 1 then redis.call('HDEL', KEYS[1], unpack(ARGV, n + 2, #ARGV)) end
+return 1
+"""
+
+
 def dumps(value: Any) -> bytes:
     return orjson.dumps(value, option=orjson.OPT_NON_STR_KEYS | orjson.OPT_SERIALIZE_NUMPY)
 
@@ -268,8 +279,8 @@ class Store:
 
     async def save_sections(self, symbol: str, statement: str, sections: Dict[str, Optional[dict]]) -> Dict[str, str]:
         """Some sections of a stored report only (task #394: the nightly chart job rewrites the price-* sections from daily_candles). Each section is
-        upserted as save_snapshot upserts it and the same Redis copies are refreshed (`_cache`); nothing else of the report is touched: no score row,
-        no prices table, no figure inputs. A section given as None is removed (row and cached copy)."""
+        upserted as save_snapshot upserts it; in Redis only a company already cached is refreshed (see below); nothing else of the report is
+        touched: no score row, no prices table, no figure inputs. A section given as None is removed (row and cached copy)."""
         symbol = symbol.upper()
         drop = [name for name, body in sections.items() if body is None]
         encoded = {name: dumps(body) for name, body in sections.items() if body is not None}
@@ -295,12 +306,18 @@ class Store:
                 )
             if drop:
                 await conn.execute("DELETE FROM snapshots WHERE symbol = $1 AND statement = $2 AND section = ANY($3::text[])", symbol, statement, drop)
-        await self._cache(symbol, statement, encoded, etags)
-        if drop:
-            try:
-                await self.redis.hdel(stock_key(symbol, statement), *[k for name in drop for k in (name, f"{name}:etag")])
-            except Exception:   # nosec B110 - the stored row is gone; a cached copy expires with STOCK_TTL
-                pass
+        # Redis: only a company that is already cached there is refreshed (the free Redis is small: a stock nobody opens leaves it, STOCK_TTL), so
+        # a nightly rewrite of every report never loads thousands of companies into it. One atomic script: the fields are set (or removed) only if
+        # the company's hash exists, and its TTL is left exactly as it is. An uncached company is read from Postgres when it is next opened.
+        fields: List[Any] = []
+        for name, body in encoded.items():
+            if name != "price":   # the full history is never cached (as _cache)
+                fields += [name, body, f"{name}:etag", etags[name]]
+        try:
+            await self.redis.eval(REFRESH_IF_CACHED_LUA, 1, stock_key(symbol, statement), str(len(fields)), *fields,
+                                  *[k for name in drop for k in (name, f"{name}:etag")])
+        except Exception:
+            log.warning("cached copy of %s %s not refreshed: it is replaced from Postgres when it expires (STOCK_TTL)", symbol, statement)
         return etags
 
     # ------------------------------------------------------------ NSE classification (task #192, finlit/taxonomy.py)

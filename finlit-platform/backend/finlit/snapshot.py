@@ -32,10 +32,21 @@ SECTIONS = ("summary", "financials", "ratios", "price", "ownership", "events", "
 # Short ranges keep daily candles; long ranges are downsampled to weekly closes.
 PRICE_RANGES = {"1M": (31, "daily"), "6M": (183, "daily"), "1Y": (366, "daily"),
                 "3Y": (1096, "weekly"), "5Y": (1827, "weekly"), "MAX": (None, "weekly")}
-# Task #394 W1 (developer file 37): 3Y is also stored on daily candles (about 740), in its own section, served for ?range=3Y&grain=daily (the
-# chart's D button). 5Y stays weekly only: the exchange's candles reach back about three years (candles.DEFAULT_DAYS).
-PRICE_3Y_DAILY = "price-3Y-daily"
-PRICE_SECTIONS = tuple(f"price-{r}" for r in PRICE_RANGES) + (PRICE_3Y_DAILY,)   # every stored chart section (the API's allowed names)
+# Task #394 W1 (developer file 37): ?range=3Y&grain=daily (the chart's D button) is answered on daily candles, built per request from that one
+# company's daily_candles (api.py, price_sections.daily_3y) and kept in Redis for 30 minutes; it is NOT stored (about 92 KB a report, 530 MB for
+# every report). The stored weekly 3Y says whether the candles cover it (`dailyAvailable`). 5Y stays weekly only: the candles reach about three years.
+PRICE_SECTIONS = tuple(f"price-{r}" for r in PRICE_RANGES)   # every stored chart section (the API's allowed names)
+DAILY_3Y_DAYS = PRICE_RANGES["3Y"][0]
+
+
+def daily_3y_covers(candle_days: List[str], weekly_first: Optional[str]) -> bool:
+    """True when the exchange candles (oldest first, ISO days) cover as much of 3Y as the weekly 3Y does: they reach back to the start of 3Y
+    (within a week), or the company is younger than that and the candles start no later than the weekly 3Y's first bar. Then D can be offered."""
+    if not candle_days:
+        return False
+    start = date.fromisoformat(candle_days[-1]) - timedelta(days=DAILY_3Y_DAYS)
+    first = date.fromisoformat(candle_days[0])
+    return first <= start + timedelta(days=7) or not weekly_first or candle_days[0] <= weekly_first
 EMA_WINDOWS = (50, 200, 9, 20)      # the chart's average lines; 9 and 20 days for the chart panel (task #64, CH-3)
 EMA_NAMES = tuple(f"ema{n}" for n in EMA_WINDOWS)
 
@@ -257,7 +268,8 @@ def build(bundle: Dict[str, Any], now: Optional[datetime] = None) -> Dict[str, d
     # The chart's own technical block reads the same official closes as its candles (the nightly price_sections job writes it the same way);
     # the report's technical view (summary, score, price section) keeps the live quote as before.
     chart_technical = indicators.technical_snapshot(official["c"]) if provisional else technical
-    ranges = chart_sections(official, meta, chart_technical, source.get("exchange") if isinstance(source, dict) else None)
+    held = [d for d in (source.get("from"), source.get("to")) if d] if isinstance(source, dict) else []   # the exchange candles held (candles.apply)
+    ranges = chart_sections(official, meta, chart_technical, source.get("exchange") if isinstance(source, dict) else None, held if len(held) == 2 else None)
 
     sections = {
         **ranges,
@@ -485,7 +497,8 @@ def chart_body(series: dict, emas: Dict[str, Dict[str, Optional[float]]]) -> dic
 
 def chart_section(history: dict, emas: Dict[str, Dict[str, Optional[float]]], label: str, grain: str, meta: dict, technical: dict,
                   source: Optional[str]) -> dict:
-    """One stored chart section (price-1M ... price-MAX, price-3Y-daily) from a daily history of OFFICIAL candles, oldest first."""
+    """One chart section (the stored price-1M ... price-MAX, or the 3Y on daily candles served on demand) from a daily history of OFFICIAL
+    candles, oldest first."""
     first_day = parse_date(history["t"][0]) if history["t"] else None
     last_day = parse_date(history["t"][-1]) if history["t"] else None
     start = range_start(label, last_day, first_day)
@@ -503,15 +516,15 @@ def chart_section(history: dict, emas: Dict[str, Dict[str, Optional[float]]], la
     }
 
 
-def chart_sections(history: dict, meta: dict, technical: dict, source: Optional[str]) -> Dict[str, dict]:
-    """Every stored chart section from a daily history of OFFICIAL candles (never the live quote: task #394 F2): price-1M ... price-MAX, plus
-    price-3Y-daily (W1) when the history reaches back to the start of 3Y or the company is younger than that (the daily candles then cover every
-    day the weekly 3Y covers). snapshot.build writes these; the nightly price_sections job writes the same bodies from daily_candles."""
+def chart_sections(history: dict, meta: dict, technical: dict, source: Optional[str], candle_days: Optional[List[str]] = None) -> Dict[str, dict]:
+    """Every stored chart section, price-1M ... price-MAX, from a daily history of OFFICIAL candles (never the live quote: task #394 F2).
+    snapshot.build writes these; the nightly price_sections job writes the same bodies from daily_candles. `candle_days` (oldest first; the first
+    and last are enough) are the exchange candles held for the company: the weekly 3Y says whether they cover it, so the chart can offer D on 3Y
+    (answered on demand from those candles, W1)."""
     emas = ema_lines(history)
     out = {f"price-{label}": chart_section(history, emas, label, grain, meta, technical, source) for label, (_, grain) in PRICE_RANGES.items()}
-    if history["t"]:
-        out[PRICE_3Y_DAILY] = chart_section(history, emas, "3Y", "daily", meta, technical, source)
-    out["price-3Y"]["dailyAvailable"] = PRICE_3Y_DAILY in out
+    weekly = out["price-3Y"]["series"]["t"]
+    out["price-3Y"]["dailyAvailable"] = daily_3y_covers(list(candle_days or []), weekly[0] if weekly else None)
     return out
 
 

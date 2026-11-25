@@ -1233,7 +1233,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_cdl.add_argument("--days", type=int, default=1150, help="history to load for a company seen for the first time")
     p_cdl.add_argument("--limit", type=int, default=None)
     p_cdl.add_argument("--max-minutes", type=float, default=150.0, help="time box; companies left when it is reached are first in line on the job's next try (the run is recorded as partial)")
-    p_ps = sub.add_parser("refresh-price-sections", help="nightly, after refresh-candles: rewrite ONLY the chart sections (price-1M ... price-MAX, price-3Y-daily) of every stored report from daily_candles; no provider calls; resumable (a chart already at its newest candle is left alone)")
+    p_ps = sub.add_parser("refresh-price-sections", help="nightly, after refresh-candles: rewrite ONLY the chart sections (price-1M ... price-MAX) of every stored report from daily_candles; no provider calls; resumable (a chart already at its newest candle is left alone)")
     p_ps.add_argument("symbols", nargs="*", help="only these companies (default: every stored report)")
     p_ps.add_argument("--force", action="store_true", help="rewrite charts that already end on their newest candle too")
     p_ps.add_argument("--max-minutes", type=float, default=40.0, help="no new chunk of companies after this long; the next run continues (it skips charts already current)")

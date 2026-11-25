@@ -17,7 +17,7 @@ from finlit import price_sections, snapshot
 from finlit.analytics import indicators
 from finlit.jobs.reasons import PARTIAL_EXIT
 from finlit.jobs.registry import by_name, limit_policy
-from finlit.snapshot import PRICE_3Y_DAILY, PRICE_SECTIONS, build, chart_sections
+from finlit.snapshot import PRICE_SECTIONS, build, chart_sections
 from test_integration import make_settings, store  # noqa: F401  (fixtures)
 
 LAST = date(2026, 11, 23)          # the latest close (24 Nov 2026 was a market holiday)
@@ -82,13 +82,15 @@ def test_the_exchange_is_named_when_the_report_reads_the_exchange_candles(relian
     assert {s[n]["source"] for n in PRICE_SECTIONS} == {"NSE"}
 
 
-def test_a_report_stores_3y_on_daily_candles_and_says_so_on_the_weekly_3y(reliance_sections):
-    daily, weekly = reliance_sections[PRICE_3Y_DAILY], reliance_sections["price-3Y"]
-    assert daily["grain"] == "daily" and daily["range"] == "3Y" and weekly["grain"] == "weekly" and weekly["dailyAvailable"] is True
-    assert daily["series"]["t"][0] <= weekly["series"]["t"][0] and daily["series"]["t"][-1] == weekly["series"]["t"][-1]
-    assert len(daily["series"]["t"]) > 4 * len(weekly["series"]["t"])
-    assert all(len(daily["series"][k]) == len(daily["series"]["t"]) for k in ("o", "h", "l", "c", "v", "ema50", "ema200", "ema9", "ema20"))
-    assert "price-5Y-daily" not in reliance_sections and "price-MAX-daily" not in reliance_sections          # 5Y stays weekly
+def test_a_report_stores_only_the_six_charts_and_says_on_the_weekly_3y_whether_the_candles_cover_it(reliance_bundle, reliance_sections):
+    assert not [n for n in reliance_sections if n.startswith("price-") and n not in PRICE_SECTIONS]       # no 3Y (or 5Y) on daily candles is stored
+    assert PRICE_SECTIONS == ("price-1M", "price-6M", "price-1Y", "price-3Y", "price-5Y", "price-MAX")
+    assert reliance_sections["price-3Y"]["dailyAvailable"] is False             # the provider's series: no exchange candles held, D is not offered
+    weekly_first = reliance_sections["price-3Y"]["series"]["t"][0]
+    held = build({**reliance_bundle, "price_source": {"exchange": "NSE", "via": "dhan", "days": 800, "from": "2023-11-01", "to": "2026-09-28"}})
+    assert held["price-3Y"]["dailyAvailable"] is True                           # candles from three years back: D on 3Y can be offered
+    short = build({**reliance_bundle, "price_source": {"exchange": "NSE", "via": "dhan", "days": 60, "from": "2026-07-01", "to": "2026-09-28"}})
+    assert short["price-3Y"]["dailyAvailable"] is False and weekly_first < "2026-07-01"   # candles shorter than the weekly 3Y: weekly only
 
 
 # ---------------------------------------------------------------- F1: the sections from the candles
@@ -128,7 +130,9 @@ def test_weekly_ranges_keep_the_stored_older_weeks_and_add_the_candle_weeks():
     five = out["price-5Y"]
     assert five["series"]["t"][0] < "2022-01-01" and five["complete"] and five["grain"] == "weekly"   # 5Y reaches back five years, not three
     three = out["price-3Y"]
-    assert three["dailyAvailable"] is True and out[PRICE_3Y_DAILY]["series"]["t"][-1] == "2026-11-23" and out[PRICE_3Y_DAILY]["complete"]
+    assert three["dailyAvailable"] is True and set(out) == set(PRICE_SECTIONS)      # the candles cover 3Y; nothing on daily candles is stored
+    short = price_sections.build(stored, candle_rows(start=date(2026, 6, 1)), META)
+    assert short["price-3Y"]["dailyAvailable"] is False                           # candles shorter than the weekly 3Y: D is not offered
 
 
 def test_a_split_the_stored_chart_has_not_absorbed_is_skipped():
@@ -190,28 +194,54 @@ async def test_a_chart_that_ended_20_nov_ends_23_nov_after_the_job(store):  # no
     await _clean(store, "ZZCHART")
 
 
-async def test_save_sections_writes_only_the_price_sections_and_their_cached_copies(store):  # noqa: F811
-    summary = await _seed(store, "ZZONLY")
+async def _rows(store, symbol):
     async with store.pool.acquire() as conn:
-        before = {r["section"]: (r["body"], r["etag"], r["generated_at"]) for r in await conn.fetch("SELECT section, body, etag, generated_at FROM snapshots WHERE symbol = 'ZZONLY'")}
-    await store.redis.hset("stock:ZZONLY:consolidated", mapping={"summary": orjson.dumps(summary), "summary:etag": before["summary"][1]})
+        return {r["section"]: (r["body"], r["etag"], r["generated_at"]) for r in
+                await conn.fetch("SELECT section, body, etag, generated_at FROM snapshots WHERE symbol = $1", symbol)}
+
+
+async def test_save_sections_writes_only_the_price_sections_and_refreshes_a_cached_company_without_extending_it(store):  # noqa: F811
+    summary = await _seed(store, "ZZONLY")              # save_snapshot cached it, as a full report build does
+    key = "stock:ZZONLY:consolidated"
+    before = await _rows(store, "ZZONLY")
+    await store.redis.expire(key, 500)                  # an entry close to leaving: the nightly job must not keep it longer
     res = await price_sections.refresh(store, symbols=["ZZONLY"], pause_s=0)
     assert res["written"] == 1
-    async with store.pool.acquire() as conn:
-        after = {r["section"]: (r["body"], r["etag"], r["generated_at"]) for r in await conn.fetch("SELECT section, body, etag, generated_at FROM snapshots WHERE symbol = 'ZZONLY'")}
+    after = await _rows(store, "ZZONLY")
     assert after["summary"] == before["summary"]                                   # the report itself is not touched
-    assert set(after) == set(before) | {PRICE_3Y_DAILY} == {"summary", *PRICE_SECTIONS}
+    assert set(after) == set(before) == {"summary", *PRICE_SECTIONS}               # no other section is stored (no 3Y on daily candles)
     for name in PRICE_SECTIONS:
-        if name in before:
-            assert after[name][1] != before[name][1] and after[name][2] == before[name][2], name   # new body and etag; the report's time kept
-    cached = await store.redis.hgetall("stock:ZZONLY:consolidated")
-    assert orjson.loads(cached[b"price-1M"])["priceAsOf"] == "2026-11-23" and cached[b"price-1M:etag"].decode() == after["price-1M"][1]
-    assert orjson.loads(cached[b"summary"]) == summary                              # the cached summary is not touched either
+        assert after[name][1] != before[name][1] and after[name][2] == before[name][2], name   # new body and etag; the report's time kept
+    cached = await store.redis.hgetall(key)
+    for name in PRICE_SECTIONS:                                                    # the cached copies are the new ones ...
+        assert cached[name.encode()].decode() == after[name][0] and cached[f"{name}:etag".encode()].decode() == after[name][1], name
+    assert orjson.loads(cached[b"summary"]) == summary                              # ... the cached summary is left as it was
+    assert 0 < await store.redis.ttl(key) <= 500                                    # and the entry still leaves when it would have
     assert await store.get_section("ZZONLY", "consolidated", "price-1M") == (cached[b"price-1M"], after["price-1M"][1])
     # a section given as None is removed, row and cached copy
-    await store.save_sections("ZZONLY", "consolidated", {PRICE_3Y_DAILY: None})
-    assert await store.get_section("ZZONLY", "consolidated", PRICE_3Y_DAILY) is None
+    await store.save_sections("ZZONLY", "consolidated", {"price-5Y": None})
+    assert await store.redis.hget(key, "price-5Y") is None and await store.get_section("ZZONLY", "consolidated", "price-5Y") is None
     await _clean(store, "ZZONLY")
+    await store.redis.delete(key)
+
+
+async def test_save_sections_leaves_redis_alone_for_a_company_nobody_has_opened(store):  # noqa: F811
+    await _seed(store, "ZZCOLD")
+    key = "stock:ZZCOLD:consolidated"
+    await store.redis.delete(key)                       # nobody opened it: it left Redis (STOCK_TTL)
+    assert (await price_sections.refresh(store, symbols=["ZZCOLD"], pause_s=0))["written"] == 1
+    assert await store.redis.exists(key) == 0                                       # the nightly job does not load it into Redis
+    await store.save_sections("ZZCOLD", "consolidated", {"price-5Y": None})
+    assert await store.redis.exists(key) == 0                                       # a removal does not create it either
+    # the next read fills it from Postgres, as before: a missing hash, then a hash that lacks the asked section
+    stored = await _rows(store, "ZZCOLD")
+    hit = await store.get_section("ZZCOLD", "consolidated", "price-1M")
+    assert hit == (stored["price-1M"][0].encode(), stored["price-1M"][1]) and 0 < await store.redis.ttl(key)
+    assert await store.redis.hget(key, "price-1Y") is None
+    hit = await store.get_section("ZZCOLD", "consolidated", "price-1Y")
+    assert hit == (stored["price-1Y"][0].encode(), stored["price-1Y"][1]) and await store.redis.hget(key, "price-1Y") == hit[0]
+    await _clean(store, "ZZCOLD")
+    await store.redis.delete(key)
 
 
 async def test_the_job_skips_an_unabsorbed_split_and_counts_companies_without_candles(store):  # noqa: F811
@@ -241,19 +271,57 @@ async def test_the_probe_runs_the_job_again_when_candles_were_stored_after_it(st
 
 # ---------------------------------------------------------------- W1: daily candles on 3Y when asked
 
-async def test_3y_daily_is_served_when_asked_and_the_weekly_3y_when_it_is_not_stored(store):  # noqa: F811
+async def _cache_keys(store, symbol):
+    return [k async for k in store.redis.scan_iter(match=f"p3yd:{symbol}:*")]
+
+
+async def test_3y_daily_is_built_on_demand_cached_answers_304_and_falls_back_to_weekly(store):  # noqa: F811
     await _seed(store, "ZZTHREE")
+    await _seed(store, "ZZYOUNG", rows=candle_rows(start=date(2026, 6, 1)))      # candles shorter than its weekly 3Y
+    for k in await _cache_keys(store, "ZZTHREE") + await _cache_keys(store, "ZZYOUNG"):
+        await store.redis.delete(k)
     app, transport = await _api(store)
     async with app.router.lifespan_context(app), httpx.AsyncClient(transport=transport, base_url="http://test") as api:
-        daily = await api.get("/api/stocks/ZZTHREE/price", params={"range": "3Y", "grain": "daily"})
-        assert daily.status_code == 200 and daily.json()["grain"] == "daily" and len(daily.json()["series"]["t"]) > 700   # about 740 candles
+        q = {"range": "3Y", "grain": "daily"}
+        first = await api.get("/api/stocks/ZZTHREE/price", params=q)
+        body = first.json()
+        rows = candle_rows()
+        want = [t for t in rows["t"] if t >= (LAST - timedelta(days=1096)).isoformat()]
+        assert first.status_code == 200 and body["grain"] == "daily" and body["range"] == "3Y" and body["series"]["t"] == want and len(want) > 700
+        assert body["series"]["c"][-1] == rows["c"][-1] and body["priceAsOf"] == "2026-11-23" and body["provisionalLastBar"] is False
+        assert body["meta"] == {**META, "symbol": "ZZTHREE"} and body["source"] == "NSE" and body["complete"]   # the stored weekly 3Y's meta
+        assert first.headers["etag"]
+        # kept in Redis for about 30 minutes under its own key: a second request does not read the candles again
+        keys = await _cache_keys(store, "ZZTHREE")
+        assert len(keys) == 1 and 1700 < await store.redis.ttl(keys[0]) <= 1800
+        async with store.pool.acquire() as conn:
+            await conn.execute("DELETE FROM daily_candles WHERE symbol = 'ZZTHREE'")
+        again = await api.get("/api/stocks/ZZTHREE/price", params=q)
+        assert again.status_code == 200 and again.content == first.content and again.headers["etag"] == first.headers["etag"]
+        unchanged = await api.get("/api/stocks/ZZTHREE/price", params=q, headers={"If-None-Match": first.headers["etag"]})
+        assert unchanged.status_code == 304 and unchanged.content == b""
+        # without grain=daily, and on 5Y, the stored weekly charts as before
         weekly = (await api.get("/api/stocks/ZZTHREE/price", params={"range": "3Y"})).json()
-        assert weekly["grain"] == "weekly" and weekly["dailyAvailable"] is True
-        assert (await api.get("/api/stocks/ZZTHREE/price", params={"range": "5Y", "grain": "daily"})).json()["grain"] == "weekly"   # 5Y stays weekly
-        await store.save_sections("ZZTHREE", "consolidated", {PRICE_3Y_DAILY: None})         # a report that holds no daily 3Y
-        fallback = await api.get("/api/stocks/ZZTHREE/price", params={"range": "3Y", "grain": "daily"})
-        assert fallback.status_code == 200 and fallback.json()["grain"] == "weekly"
-    await _clean(store, "ZZTHREE")
+        assert weekly["grain"] == "weekly" and weekly["dailyAvailable"] is False        # built without the exchange candles: D not offered yet
+        assert (await api.get("/api/stocks/ZZTHREE/price", params={"range": "5Y", "grain": "daily"})).json()["grain"] == "weekly"
+        await _seed(store, "ZZTHREE")                                                   # candles back; the nightly job rewrites the charts
+        assert (await price_sections.refresh(store, symbols=["ZZTHREE"], pause_s=0))["written"] == 1
+        assert (await api.get("/api/stocks/ZZTHREE/price", params={"range": "3Y"})).json()["dailyAvailable"] is True
+        fresh = await api.get("/api/stocks/ZZTHREE/price", params=q)                    # a new weekly 3Y: a new answer, its own key
+        assert fresh.json()["grain"] == "daily" and len(await _cache_keys(store, "ZZTHREE")) == 2
+        # candles that do not reach back as far as the weekly 3Y: the stored weekly 3Y, no error (and that answer is remembered too)
+        young = await api.get("/api/stocks/ZZYOUNG/price", params=q)
+        assert young.status_code == 200 and young.json()["grain"] == "weekly"
+        assert len(await _cache_keys(store, "ZZYOUNG")) == 1
+        assert (await api.get("/api/stocks/ZZYOUNG/price", params=q)).json()["grain"] == "weekly"
+        # a company with no stored report at all answers as any missing report does (no daily answer is invented)
+        assert (await api.get("/api/stocks/ZZNOREPORT/price", params=q)).status_code != 200
+    async with store.pool.acquire() as conn:   # nothing on daily candles is stored anywhere
+        assert await conn.fetchval("SELECT count(*) FROM snapshots WHERE section NOT IN ('summary', 'price-1M', 'price-6M', 'price-1Y', 'price-3Y', "
+                                   "'price-5Y', 'price-MAX') AND section LIKE 'price-%'") == 0
+    for k in await _cache_keys(store, "ZZTHREE") + await _cache_keys(store, "ZZYOUNG"):
+        await store.redis.delete(k)
+    await _clean(store, "ZZTHREE", "ZZYOUNG")
 
 
 # ---------------------------------------------------------------- the jobs

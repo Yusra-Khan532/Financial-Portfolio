@@ -70,7 +70,7 @@ from .siteproxy import register_catch_all, register_stock_admin
 from .web import mount_frontend
 from .security import RateLimiter, SecurityHeadersMiddleware, client_ip
 from .finedge import ESSENTIAL_KEYS
-from .snapshot import PRICE_3Y_DAILY, PRICE_SECTIONS, SECTIONS, SNAPSHOT_VERSION
+from .snapshot import PRICE_SECTIONS, SECTIONS, SNAPSHOT_VERSION
 from .store import Store, code_version, refused_key
 from .background import etag_matches, spawn
 
@@ -579,12 +579,24 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     @app.get("/api/stocks/{symbol}/price")
     async def price(request: Request, symbol: str, range: str = Query("1Y"), statement: str = Query("consolidated"), grain: str = Query("")):
         name = f"price-{range.upper()}"
-        # task #394 W1: 3Y on daily candles when asked (the chart's D button). A report that holds no daily 3Y yet answers with its weekly 3Y, no
-        # error: the weekly section says dailyAvailable false, so the chart keeps D off.
+        # task #394 W1: 3Y on daily candles when asked (the chart's D button), built from the company's daily_candles on demand and kept in Redis
+        # for 30 minutes (price_sections.daily_3y; not stored: about 92 KB a report). When the candles do not cover as much as the weekly 3Y, the
+        # stored weekly 3Y is the answer, with no error (it says dailyAvailable false, so the chart keeps D off).
         if grain.strip().lower() == "daily" and name == "price-3Y":
+            started = time.perf_counter()
             sym = symbol.strip().upper()
-            if SYMBOL.match(sym) and statement in ("consolidated", "standalone") and await app.state.store.get_section(sym, statement, PRICE_3Y_DAILY) is not None:
-                name = PRICE_3Y_DAILY
+            if SYMBOL.match(sym) and statement in ("consolidated", "standalone"):
+                weekly = await app.state.store.get_section(sym, statement, name)
+                if weekly is not None:
+                    from . import price_sections
+                    try:
+                        daily = await price_sections.daily_3y(app.state.store, sym, statement, weekly)
+                    except Exception:   # the candles could not be read: the weekly 3Y is served
+                        log.exception("3Y daily chart not built for %s", sym)
+                        daily = None
+                    if daily is not None:
+                        await rebuild_if_old(sym, statement, weekly[0])
+                        return await serve_hit(request, sym, statement, "price-3Y-daily", daily, started)
         return await section(request, symbol, name, statement)
 
     async def broken(symbol: str, statement: str, body: bytes) -> bool:

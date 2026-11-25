@@ -5,8 +5,10 @@ report was rebuilt (snapshot.build). A report is rebuilt for a few hundred compa
 charts stopped on the day their report was last built (25 Nov 2026: 42% of the ready-made lists' charts ended on 20 Nov or earlier, while
 `daily_candles` already held 23 Nov). This job rewrites ONLY the price sections, from `daily_candles`, with no provider call:
 
-  * 1M, 6M and 1Y (daily) and 3Y on daily candles (`price-3Y-daily`, for ?grain=daily): from the candles. They hold about three years
-    (candles.DEFAULT_DAYS), so the 200-day average is a true one from the first day of 1Y.
+  * 1M, 6M and 1Y (daily): from the candles. They hold about three years (candles.DEFAULT_DAYS), so the 200-day average is a true one from the
+    first day of 1Y.
+  * 3Y on daily candles (?range=3Y&grain=daily, W1) is NOT stored (about 92 KB a report): `daily_3y` builds it per request from that one
+    company's candles and keeps it in Redis for 30 minutes. This job only sets `dailyAvailable` on the stored weekly 3Y from the candles' coverage.
   * 3Y, 5Y and MAX (weekly): the candles do not reach five years, so these are never rebuilt from the candles alone (that would cut 5Y and MAX
     short). The stored weekly bars strictly before the first full week the candles cover are kept as stored (with their stored averages); the
     weeks from there on are made from the candles (market.weekly, the downsampler snapshot.build uses) with the daily averages read on each
@@ -24,6 +26,7 @@ report whose chart already ends on its newest candle is left alone (`current`), 
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import time
 from datetime import date, timedelta
@@ -34,12 +37,12 @@ import orjson
 from . import candles
 from .analytics import indicators
 from .normalize import market
-from .snapshot import EMA_NAMES, PRICE_3Y_DAILY, PRICE_RANGES, PRICE_SECTIONS, chart_body, chart_section, ema_lines, range_start
+from .snapshot import EMA_NAMES, PRICE_RANGES, PRICE_SECTIONS, chart_body, chart_section, daily_3y_covers, ema_lines, range_start
 
 log = logging.getLogger(__name__)
 
 READ_DAYS = 4000          # every stored candle (they start about three years back and grow a session a night)
-CHUNK = 50                # companies per read: 50 x about 800 candles plus their stored charts (about 150 KB of JSON a report): well under 200 MB
+CHUNK = 50                # companies per read: 50 x about 800 candles plus their six stored charts (about 90 KB of JSON a report): well under 100 MB
 PAUSE_S = 0.2             # between chunks: the web server keeps the CPU it needs
 ADJUST_LIMIT = 0.02       # stored close against candle close at the join: more than 2% apart = an adjustment one side has not absorbed
 STEP_ASIDE_S = 60.0       # at most this long per chunk waiting for a visitor's report to finish
@@ -131,7 +134,7 @@ def _fill_warmup(section: dict, old: dict, grain: str) -> dict:
 
 
 def build(stored: Dict[str, dict], rows: Dict[str, Any], meta: dict) -> Dict[str, Optional[dict]]:
-    """{section name: body, or None to remove it} for one report: its stored price sections and its stored candles (candles.bulk's arrays).
+    """{section name: body} for one report: its stored price sections and its stored candles (candles.bulk's arrays).
     Raises AdjustmentGap when the stored chart and the candles cannot be joined."""
     hist = history_from(rows)
     source = rows.get("exch")
@@ -142,23 +145,60 @@ def build(stored: Dict[str, dict], rows: Dict[str, Any], meta: dict) -> Dict[str
         out[f"price-{label}"] = joined_section(stored.get(f"price-{label}"), hist, emas, label, "daily", meta, technical, source)
     for label in WEEKLY_RANGES:
         out[f"price-{label}"] = joined_section(stored.get(f"price-{label}"), hist, emas, label, "weekly", meta, technical, source)
-    daily3 = joined_section(stored.get(PRICE_3Y_DAILY), hist, emas, "3Y", "daily", meta, technical, source)
-    weekly3 = out["price-3Y"]
-    # D on 3Y is offered only when the daily candles cover as much as the weekly 3Y does (a three-year history, or a company younger than that)
-    d3, w3 = daily3["series"]["t"], weekly3["series"]["t"]
-    covers = bool(d3) and (daily3["complete"] or not w3 or d3[0] <= w3[0])
-    out[PRICE_3Y_DAILY] = daily3 if covers else None
-    weekly3["dailyAvailable"] = covers
+    # D on 3Y (answered on demand, daily_3y) is offered only when the candles cover as much as the weekly 3Y does
+    weekly3 = out["price-3Y"]["series"]["t"]
+    out["price-3Y"]["dailyAvailable"] = daily_3y_covers(hist["t"], weekly3[0] if weekly3 else None)
     return out
 
 
 def is_current(stored: Dict[str, dict], last_candle: str) -> bool:
     """The report's charts already end on its newest candle, written by this job or by a rebuild of today's code (resumable runs skip it)."""
     one = stored.get("price-1M") or {}
-    three = stored.get("price-3Y") or {}
-    return (one.get("priceAsOf") == last_candle and one.get("provisionalLastBar") is False and "dailyAvailable" in three
-            and all(name in stored for name in PRICE_SECTIONS if name != PRICE_3Y_DAILY)
-            and (PRICE_3Y_DAILY in stored) == bool(three.get("dailyAvailable")))
+    return (one.get("priceAsOf") == last_candle and one.get("provisionalLastBar") is False and "dailyAvailable" in (stored.get("price-3Y") or {})
+            and all(name in stored for name in PRICE_SECTIONS))
+
+
+# ---------------------------------------------------------------- W1: 3Y on daily candles, on demand
+
+DAILY_3Y_TTL = 1800       # seconds an answer is kept in Redis (the house's small caches: 30 minutes)
+DAILY_3Y_NONE = b"-"      # kept in place of an answer when the candles do not cover 3Y: the weekly 3Y is served, without a query each time
+
+
+def daily_3y_key(symbol: str, statement: str, weekly_etag: str) -> str:
+    """Keyed by the stored weekly 3Y's etag: when the nightly job or a rebuild rewrites the charts, the next request builds a new answer."""
+    return f"p3yd:{symbol.upper()}:{statement}:{weekly_etag.strip(chr(34))}"
+
+
+def etag_of(body: bytes) -> str:
+    return '"' + hashlib.sha1(body).hexdigest()[:20] + '"'  # nosec B324 - cache validator, not security
+
+
+async def daily_3y(store, symbol: str, statement: str, weekly: Tuple[bytes, str]) -> Optional[Tuple[bytes, str]]:
+    """(body, etag) of the 3Y chart on daily candles for one company, or None when its candles do not cover as much as the stored weekly 3Y
+    (`weekly`: that section's stored (body, etag)); the caller then serves the weekly 3Y. Built from that one company's daily_candles (one
+    indexed query) with the chart code the stored sections use, the weekly 3Y's meta, no live quote; kept in Redis for DAILY_3Y_TTL."""
+    key = daily_3y_key(symbol, statement, weekly[1])
+    try:
+        hit = await store.redis.get(key)
+    except Exception:
+        hit = None
+    if hit is not None:
+        return None if hit == DAILY_3Y_NONE else (hit, etag_of(hit))
+    rows = await candles.rows_for(store, symbol, READ_DAYS)
+    body: Optional[bytes] = None
+    if rows:
+        hist = history_from({"t": [r["day"].isoformat() for r in rows], "o": [r["open"] for r in rows], "h": [r["high"] for r in rows],
+                             "l": [r["low"] for r in rows], "c": [r["close"] for r in rows], "v": [r["volume"] for r in rows]})
+        stored = orjson.loads(weekly[0])
+        wt = (stored.get("series") or {}).get("t") or []
+        if daily_3y_covers(hist["t"], wt[0] if wt else None):
+            section = chart_section(hist, ema_lines(hist), "3Y", "daily", stored.get("meta") or {}, indicators.technical_snapshot(hist["c"]), rows[-1]["exch"])
+            body = orjson.dumps(section)
+    try:
+        await store.redis.set(key, body if body is not None else DAILY_3Y_NONE, ex=DAILY_3Y_TTL)
+    except Exception:   # nosec B110 - the answer is still served; the next request builds it again
+        pass
+    return (body, etag_of(body)) if body is not None else None
 
 
 def _note(names: List[str], text: str, limit: int = 40) -> None:

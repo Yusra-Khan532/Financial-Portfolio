@@ -82,7 +82,7 @@ async def apply(store, bundle: dict, symbol: str) -> Optional[str]:
     if len(rows) < MIN_ROWS and not young:
         return None
     bundle["daily_quotes"] = merge(bundle.get("daily_quotes"), rows)
-    bundle["price_source"] = {"exchange": rows[-1]["exch"], "via": "dhan", "days": len(rows), "to": rows[-1]["day"].isoformat()}
+    bundle["price_source"] = {"exchange": rows[-1]["exch"], "via": "dhan", "days": len(rows), "from": rows[0]["day"].isoformat(), "to": rows[-1]["day"].isoformat()}
     (bundle.get("errors") or {}).pop("daily_quotes", None)
     return rows[-1]["exch"]
 
