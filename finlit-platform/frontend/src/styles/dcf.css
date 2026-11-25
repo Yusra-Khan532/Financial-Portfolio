@@ -46,7 +46,7 @@
 .dcf-grid3 input { font: 400 var(--fs-14) var(--mono); padding: 8px 10px; border: 1px solid var(--ui-field-line); border-radius: var(--r-ctl); background: var(--s1); color: var(--text); }
 .dcf-grid3 small { font-weight: 400; font-size: var(--fs-12); }
 .dcf-capm { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-size: var(--fs-14); }
-.btn.sm { padding: 6px 12px; font-size: var(--fs-13); }
+/* .btn.sm is global now (styles/task370.css, task #370) */
 
 /* errors and warnings */
 .dcf-errors { border-color: var(--loss); }
