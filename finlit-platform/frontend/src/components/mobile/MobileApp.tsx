@@ -8,7 +8,7 @@ import { useAuth } from "../../lib/auth";
 import { useUI } from "../../lib/ui";
 import { useIsGold } from "../../lib/planGate";
 import { DASHBOARD, MENU, MORE, PRICING, isNew, menuMatch, offeredTo } from "../../lib/nav";
-import { HUBS, MOST_USED, chipFor, desktopSiteOn, setDesktopSite, tabFor, tabHome, toolsList, type TabId } from "../../lib/mobileNav";
+import { HUBS, MOST_USED, chipFor, desktopSiteOn, freeAccountLine, setDesktopSite, tabFor, tabHome, toolsList, type TabId } from "../../lib/mobileNav";
 import { OPEN_AI } from "../assistantEvents";
 import { HelpActions } from "../PageFeedback";
 import { SystemControl } from "../SystemControl";
@@ -106,7 +106,7 @@ export function MobileMenu() {
               <span className="ma-rt"><b>{user.name || "Your account"}</b><small>{plan[0].toUpperCase() + plan.slice(1)} plan · {user.email}</small></span><Icon name="arrow" className="ma-chev" /></button>
           </> : <>
             <button type="button" className="ma-row" onClick={() => go("/login")}><span className="ma-av" aria-hidden="true"><Icon name="users" /></span>
-              <span className="ma-rt"><b>Sign in</b><small>Free account: watchlists, alerts and your portfolio in one place</small></span><Icon name="arrow" className="ma-chev" /></button>
+              <span className="ma-rt"><b>Sign in</b><small>{`Free account: ${freeAccountLine()}`}</small></span><Icon name="arrow" className="ma-chev" /></button>
           </>}
           <Switch on={theme === "dark"} label="Dark theme" icon="spark" onClick={toggleTheme} />
           <Switch on={fab} label="Tools button" sub="Bottom right on every page" icon="grid" onClick={flipFab} />

@@ -85,7 +85,7 @@ function NoteCard({ title, short, children }: { title: string; short: React.Reac
   );
 }
 
-function Legend({ hidden, facts }: { hidden: number | null; facts?: { source?: string | null; excludedAmcs?: string[] | null } | null }) {
+function Legend({ stopped, facts }: { stopped: number | null; facts?: { source?: string | null; excludedAmcs?: string[] | null } | null }) {
   return (
     <section className="mf-legend" aria-labelledby="mf-legend-h">
       <h2 id="mf-legend-h">How to read this table</h2>
@@ -130,8 +130,8 @@ function Legend({ hidden, facts }: { hidden: number | null; facts?: { source?: s
           <NoteCard title="Fund size and expense ratio" short="Fund size is assets under management from AMFI. Expense ratio is the plan's yearly cost from AMFI's TER file.">
           <p><b>Fund size</b> is AMFI's average assets under management for the latest quarter, all plans of the scheme together (where AMFI lists none, the fund house's month-end net assets; the tooltip says which). <b>Expense ratio</b> is the plan's own total expense ratio from AMFI's latest file, percent a year.</p>
         </NoteCard>
-          <NoteCard title="Older schemes" short={hidden ? <>{hidden.toLocaleString("en-IN")} schemes that stopped publishing NAVs are hidden. Tick “Include schemes that stopped publishing NAVs” to see them.</> : <>Schemes that stopped publishing NAVs are hidden unless you tick “Include schemes that stopped publishing NAVs”.</>}>
-          <p>A scheme that has stopped publishing NAVs (merged, wound up or closed) stays on record but is hidden from the list by default, so the figures shown are for schemes still running. Tick “Include schemes that stopped publishing NAVs” above the table to see them too; they carry a “Stopped publishing” tag and no returns.</p>
+          <NoteCard title="Older schemes" short={stopped ? <>{stopped.toLocaleString("en-IN")} schemes on record have stopped publishing NAVs. They are listed too; choose Status “Still publishing” to leave them out.</> : <>Schemes that stopped publishing NAVs are listed too; choose Status “Still publishing” to leave them out.</>}>
+          <p>A scheme that has stopped publishing NAVs (merged, wound up or closed) stays on record, and the list shows it with every other scheme, as no filter is chosen when the page opens. It carries a “Stopped publishing” tag and no returns, and with the list in fund size order it comes after the schemes still running. Choose Status “Still publishing” above the table to list only schemes still running, or “Stopped” to list only the others.</p>
         </NoteCard>
           <NoteCard title="Source" short="AMFI NAV and TER files. Some fund houses are not listed yet.">
           <p>Source: {facts?.source || "AMFI (Association of Mutual Funds in India), official NAV files"}; expense ratios from AMFI's TER file; fund size from AMFI's quarterly AUM report or the fund house's month-end portfolio file.</p>
@@ -236,7 +236,10 @@ export function FundListPage() {
             {ready ? (hot.data ? <>The <b>{hot.data.items.length}</b> schemes kept ready for instant opening, from every category.</> : "Loading…")
               : none ? "No category ticked."
                 : d ? <>Showing <b>{d.total.toLocaleString("en-IN")}</b> scheme{d.total === 1 ? "" : "s"}{q.tab === "all" ? (q.plan === "" && q.option === "All" ? " · every plan and option" : "") : " in the chosen categories"}{d.total === 0 ? " (none match)" : ""}</> : "Loading schemes…"}
-            {!ready && t && !q.stopped && <span className="faint"> · {(t.schemes - t.active).toLocaleString("en-IN")} older schemes have stopped publishing and are hidden</span>}
+            {/* task #369: every scheme is listed on arrival; on "All funds" with no plan, option or status chosen the two parts add up to the total shown */}
+            {!ready && d && t && q.tab === "all" && !q.status && d.total === t.schemes &&
+              <span className="faint"> ({t.active.toLocaleString("en-IN")} still publishing a NAV, {(t.schemes - t.active).toLocaleString("en-IN")} stopped)</span>}
+            {!ready && t && q.tab === "all" && q.status === "active" && <span className="faint"> · {(t.schemes - t.active).toLocaleString("en-IN")} schemes that stopped publishing are left out by the Status filter</span>}
             {facts?.dataDate && <span className="faint"> · NAVs up to {dateIN(facts.dataDate)}</span>}
           </p>
         </div>
@@ -274,7 +277,7 @@ export function FundListPage() {
         )}
           </div>
         </div>
-        <PhoneFold page="funds" id="legend" title="How to read this table" line="What each column means and where the figures come from"><Legend hidden={t && !q.stopped ? t.schemes - t.active : null} facts={facts} /></PhoneFold>
+        <PhoneFold page="funds" id="legend" title="How to read this table" line="What each column means and where the figures come from"><Legend stopped={t ? t.schemes - t.active : null} facts={facts} /></PhoneFold>
         <Foot facts={facts} />
       </div>
 
@@ -429,7 +432,7 @@ function Picker({ ids, onAdd }: { ids: number[]; onAdd: (code: number) => void }
   const [text, setText] = useState("");
   const [debounced, setDebounced] = useState("");
   useEffect(() => { const t = window.setTimeout(() => setDebounced(text.trim()), 300); return () => window.clearTimeout(t); }, [text]);
-  const res = useFundList({ ...EMPTY_QUERY, q: debounced.length >= 2 ? debounced : "", size: 25, option: "Growth" });
+  const res = useFundList({ ...EMPTY_QUERY, q: debounced.length >= 2 ? debounced : "", size: 25, option: "Growth", status: "active" });   // the compare picker: Growth options still publishing, as before
   const show = debounced.length >= 2 ? (res.data?.items || []) : [];
   return (
     <div className="mf-picker">

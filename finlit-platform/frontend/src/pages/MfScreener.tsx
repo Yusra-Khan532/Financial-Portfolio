@@ -1,7 +1,7 @@
 // /funds/screener: the Mutual Fund Screener. A left panel of filters (a bottom sheet on narrow screens), preset screens, the active filters as removable chips,
 // a sort menu, two small graphics and a table. Every count comes from the server in one call (/api/mf/filters?screen=1); the list is /api/mf?extra=true.
 // Information only: figures describe past data, nothing here says what to do. Plan: free.
-// Task #131 (the team's 14 Nov design): presets in one row (the one on is dark), a Sort button with a short menu, the default view as removable chips,
+// Task #131 (the team's 14 Nov design): presets in one row (the one on is dark), a Sort button with a short menu, (the default view chips were removed by task #369: the page opens with no filter),
 // Result at a glance open on arrival with a Hide button, a Mutual Fund Score column (Gold, no Gold tag on the sort), tick boxes to compare up to 4 with the
 // compare bar under the table, and on a phone the filter panel in place with its groups behind one button.
 import { useEffect, useMemo, useState } from "react";
@@ -18,7 +18,7 @@ import { DEMO } from "../lib/demo";
 import { useDocTitle } from "../lib/title";
 import { useUI } from "../lib/ui";
 import {
-  DEFAULTS, PAGE_SIZE, PRESETS, PRESET_GROUPS, chipsFor, isDefault, loadSaved, parseQuery, presetOn, queryToParams, storeSaved, useScreenFacets, useScreenList, type Saved, type SQ,
+  DEFAULTS, PAGE_SIZE, PRESETS, PRESET_GROUPS, chipsFor, isDefault, loadSaved, parseQuery, presetOn, queryToParams, statusSplit, storeSaved, useScreenFacets, useScreenList, type Saved, type SQ,
 } from "../lib/mfScreen";
 import { SORTS } from "../lib/mfScreenDefs";
 import "../styles/task356.css";   // task #356: the preset rows
@@ -42,16 +42,6 @@ function useNarrow(): boolean {
   useEffect(() => { const m = window.matchMedia?.(NARROW); if (!m) return; const f = () => setN(m.matches); f(); m.addEventListener?.("change", f); return () => m.removeEventListener?.("change", f); }, []);
   return n;
 }
-/** The default view as chips (task #131): each one still in force, and what removing it turns on. */
-export function defaultChips(q: SQ): { id: string; label: string; aria: string; drop: (s: SQ) => SQ }[] {
-  const out: { id: string; label: string; aria: string; drop: (s: SQ) => SQ }[] = [];
-  if (q.plans.length === 1 && q.plans[0] === "Direct") out.push({ id: "plan", label: "Direct plan", aria: "Remove Direct plan: show every plan", drop: (s) => ({ ...s, plans: [], page: 1 }) });
-  if (q.options.length === 1 && q.options[0] === "Growth") out.push({ id: "option", label: "Growth option", aria: "Remove Growth option: show every option", drop: (s) => ({ ...s, options: [], page: 1 }) });
-  if (q.status === "active") out.push({ id: "status", label: "Still publishing", aria: "Remove Still publishing: include funds that stopped", drop: (s) => ({ ...s, status: "both", page: 1 }) });
-  if (q.inst.length === 0) out.push({ id: "inst", label: "Mutual funds and ETFs", aria: "Remove Mutual funds and ETFs: show mutual funds only", drop: (s) => ({ ...s, inst: ["fund"], page: 1 }) });
-  return out;
-}
-
 /** Task #350: Fund Compare as the screener's premium action: FinLit Gold treatment with a crown, first in the header row; same destination as before. */
 const COMPARE_GOLD = <Link className={buttonClass("secondary", "sm", "ph-lk ph-gold")} to="/funds/compare" title="Compare up to four funds side by side"><Icon name="crown" className="ph-crown" />Fund Compare <span aria-hidden="true">→</span></Link>;
 
@@ -87,7 +77,7 @@ export function MfScreenerPage() {
   const chips = chipsFor(q, subLabel, tagLabel);
   const shown = chips.length;
   const sortVal = `${q.sort}:${q.dir}`;
-  const defaults = defaultChips(q);
+  const split = statusSplit(q, fac?.status, total);
   const onSort = (key: string) => go({ sort: key, dir: q.sort === key ? (q.dir === "asc" ? "desc" : "asc") : (key === "name" || key === "ter" || key === "fall" || key === "rank3y" || key === "gap" || key === "worst" || key === "negshare" || key === "downdev" ? "asc" : "desc"), page: 1 });
   const showPanel = () => { setPanelOpen(true); saveUi("mfscreen.panel", 1, true); };
   // Task #140 (team note): the advanced screeners' sliding bar between the filters and the results: drag to resize, drag far left or double-click to hide.
@@ -159,12 +149,10 @@ export function MfScreenerPage() {
 
         <section className="card mfs-main" id="mfs-results" aria-label="Results">
           <div className="mfs-rbar">
-            <p className="mf-count" role="status" aria-live="polite">{list.isLoading ? "Loading funds…" : list.isError ? "Could not load the funds." : <><b>{nf(total, 0)}</b> fund{total === 1 ? "" : "s"}{list.data?.dataDate ? <> · NAV data of {dateIN(list.data.dataDate)}</> : null}{loadingNow && !list.isLoading ? <span className="mfs-busy"> · updating…</span> : null}</>}</p>
+            <p className="mf-count" role="status" aria-live="polite">{list.isLoading ? "Loading funds…" : list.isError ? "Could not load the funds." : <><b>{nf(total, 0)}</b> fund{total === 1 ? "" : "s"}{split ? <span className="mfs-split"> ({split})</span> : null}{list.data?.dataDate ? <> · NAV data of {dateIN(list.data.dataDate)}</> : null}{loadingNow && !list.isLoading ? <span className="mfs-busy"> · updating…</span> : null}</>}</p>
           </div>
 
           <div className="mfs-active" aria-label="Active filters">
-            {defaults.length > 0 && <span className="mfs-dv">Default view</span>}
-            {defaults.map((c) => <button key={"d:" + c.id} type="button" className="fchip mfs-dchip" onClick={() => set((s) => c.drop(s))} aria-label={c.aria}>{c.label} <span aria-hidden="true">×</span></button>)}
             {chips.map((c) => <button key={c.id} type="button" className="fchip" onClick={() => set((s) => c.clear(s))} aria-label={`Remove filter: ${c.label}`}>{c.label} <span aria-hidden="true">×</span></button>)}
             {chips.length > 0 && <><button type="button" className="fgx-link" onClick={reset}>Reset</button>
               <button type="button" className="fgx-link" onClick={saveScreen}>Save screen</button></>}

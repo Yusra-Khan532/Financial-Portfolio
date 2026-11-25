@@ -488,11 +488,10 @@ h2.mf-h4 { font: var(--ui-fw-medium) var(--ui-fs-h2)/var(--lh-24) var(--font-ser
 .mf-qs-go:hover, .mf-qs-go:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
 .mf-qs-go:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: var(--ui-r-mark); }
 
-/* one filter bar that wraps: search, fund house, Plan and Option segments, Return range, the stopped-schemes tick */
+/* one filter bar that wraps: search, fund house, Plan and Option segments, Return range, Status (task #369; was the stopped-schemes tick) */
 .mf-fbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
 .mf-fbar .mf-search { flex: 1 1 280px; min-width: 0; }
 .mf-fbar .mf-seg-w { display: flex; }
-.mf-fbar .mf-stopck { flex-basis: 100%; }
 .mf-rangebtn.on { border-color: var(--gold); color: var(--gold); }
 
 /* the summary tiles in words, on the soft tile colours of the MF portfolio */

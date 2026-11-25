@@ -32,7 +32,7 @@ vi.mock("../../lib/api", async (orig) => ({
   }),
 }));
 vi.mock("../../lib/ui", () => ({ useUI: () => ({ has: (p: string) => (p === "gold" ? st.gold : true), upgrade: vi.fn(), toast: vi.fn() }), TIER: {} }));
-import { MfScreenerPage, defaultChips } from "../../pages/MfScreener";
+import { MfScreenerPage } from "../../pages/MfScreener";
 import { flowRows, axisPct } from "./Graphics";
 import { GROUPS, findGroup, planOn } from "./Panel";
 import { DEFAULTS } from "../../lib/mfScreen";
@@ -74,7 +74,7 @@ describe("task #131: the Mutual Fund Screener as the team's design", () => {
     expect(within(panel()).getByRole("status").textContent).toMatch(/No filter matches “zzzz”/);
     expect([findGroup("ELSS")?.id, findGroup("worst fall")?.id, findGroup("expense")?.id, findGroup("x")]).toEqual(["subcat", "risk", "cost", null]);
   });
-  it("C-3 18 groups (task #358: under four headings, all folded until opened), each showing how many choices are on ('4 on')", async () => {
+  it("C-3 18 groups (task #358: under four headings, all folded until opened), each showing how many choices are on (task #369: none on arrival)", async () => {
     mount(); await screen.findAllByText("Alpha Mid Cap Fund");
     const heads = [...panel().querySelectorAll(".fgx-g .fgx-t")].map((x) => x.textContent);
     expect(heads).toEqual(GROUPS.map((g) => g.title)); expect(heads).toHaveLength(17);
@@ -83,8 +83,9 @@ describe("task #131: the Mutual Fund Screener as the team's design", () => {
     expect(heads.slice(4, 7)).toEqual(["Risk", "Returns", "Cost"]);
     const open = [...panel().querySelectorAll(".fgx-g")].map((g) => g.classList.contains("is-open"));
     expect(open.every((o) => !o)).toBe(true);
-    expect(within(panel()).getByRole("button", { name: /^Plan, option and status/ }).textContent).toMatch(/4 on/);
-    expect(planOn(DEFAULTS)).toBe(4);
+    expect(within(panel()).getByRole("button", { name: /^Plan, option and status/ }).textContent).not.toMatch(/\d+ on/);
+    expect(planOn(DEFAULTS)).toBe(0);
+    expect(planOn({ ...DEFAULTS, plans: ["Direct"], status: "active" })).toBe(2);
     expect(within(panel()).queryByRole("button", { name: /^Data quality and lists/ })).toBeNull();   // task #368: off the list
     fireEvent.click(within(panel()).getByRole("button", { name: /^Debt maturity band/ }));
     expect(panel().textContent).toMatch(/The band SEBI sets for the category/);
@@ -99,15 +100,27 @@ describe("task #131: the Mutual Fund Screener as the team's design", () => {
     fireEvent.click(screen.getByRole("menuitemradio", { name: /expense ratio, low to high/i }));
     await waitFor(() => expect(screen.getByTestId("loc").textContent).toContain("sort=ter"));
   });
-  it("C-5 the default view shows as removable chips, not a sentence", async () => {
+  it("task #369: nothing is preselected: no chip, every scheme asked for (every plan, option and status), a chosen filter shows as a chip", async () => {
     mount(); await screen.findAllByText("Alpha Mid Cap Fund");
     const bar = screen.getByLabelText("Active filters");
-    expect(within(bar).getByText("Default view")).toBeTruthy();
-    expect([...bar.querySelectorAll(".mfs-dchip")].map((c) => c.textContent!.replace(/\s*×$/, ""))).toEqual(["Direct plan", "Growth option", "Still publishing", "Mutual funds and ETFs"]);
-    expect(bar.textContent).not.toMatch(/Choose a filter on the left/);
-    fireEvent.click(within(bar).getByRole("button", { name: /Remove Direct plan/ }));
-    await waitFor(() => expect(screen.getByTestId("loc").textContent).toMatch(/plans=(&|$)|plans=$/));
-    expect(defaultChips({ ...DEFAULTS, status: "both", inst: ["fund"] }).map((c) => c.id)).toEqual(["plan", "option"]);
+    expect(bar.querySelectorAll("button")).toHaveLength(0);
+    expect(bar.textContent).not.toMatch(/Default view|Direct plan|Growth option|Still publishing/);
+    // the list request (the bug: it asked for plans=Direct, options=Growth, status=active, 1,719 funds on 24 Nov 2026)
+    const list = new URL(st.calls.find((c) => c.startsWith("/api/mf?"))!, "http://x").searchParams;
+    expect(list.getAll("plans")).toEqual([]); expect(list.getAll("options")).toEqual([]); expect(list.get("option")).toBe("All"); expect(list.get("status")).toBe("both");
+    expect(screen.getByTestId("loc").textContent).toBe("");
+    // in the panel only the neutral "All" choices are pressed in Plan, Option and Status
+    fireEvent.click(within(panel()).getByRole("button", { name: /^Plan, option and status/ }));
+    for (const g of ["Plan", "Option", "Status"]) {
+      const on = [...within(panel()).getByRole("group", { name: g }).querySelectorAll('[aria-pressed="true"]')].map((b) => b.textContent!.replace("✓", ""));
+      expect(on, g).toEqual(["All"]);
+    }
+    expect([...within(panel()).getByRole("group", { name: "Instrument" }).querySelectorAll('[aria-pressed="true"]')]).toHaveLength(0);
+    // choosing one turns it on as a removable chip
+    fireEvent.click(within(within(panel()).getByRole("group", { name: "Status" })).getByRole("button", { name: /Still publishing/ }));
+    await waitFor(() => expect(screen.getByTestId("loc").textContent).toContain("status=active"));
+    fireEvent.click(within(screen.getByLabelText("Active filters")).getByRole("button", { name: "Remove filter: Still publishing" }));
+    await waitFor(() => expect(screen.getByTestId("loc").textContent).toBe(""));
   });
   it("C-6 Result at a glance is open on arrival with both parts, and Hide hides it", async () => {
     try { localStorage.setItem("finlit.ui.mfscreen.glance", JSON.stringify({ v: 1, d: false })); } catch { /* none */ }

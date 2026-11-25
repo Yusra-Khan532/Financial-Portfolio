@@ -790,7 +790,7 @@ export const PAGE_FAQS: PageFaq[] = [
   "items": [
    {
     "q": "Which funds are listed?",
-    "a": "Schemes from AMFI's NAV files, by group (Equity, Hybrid, Debt, Solution oriented, Others) and sub-category. Older schemes that stopped publishing NAVs are hidden unless you tick the option to include them. A few fund houses are not listed; they are named at the bottom of the page."
+    "a": "Schemes from AMFI's NAV files, by group (Equity, Hybrid, Debt, Solution oriented, Others) and sub-category. Every scheme is listed when the page opens, older schemes that stopped publishing NAVs too (marked \u201cStopped publishing\u201d); choose Status \u201cStill publishing\u201d to leave them out. A few fund houses are not listed; they are named at the bottom of the page."
    },
    {
     "q": "Direct or Regular, Growth or IDCW?",

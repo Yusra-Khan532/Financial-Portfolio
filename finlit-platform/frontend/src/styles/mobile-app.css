@@ -177,10 +177,22 @@
   :root:root .gate.is-locked .lock-card .btn { margin-top: 10px; min-height: var(--ui-ctl-h); }
   :root:root .gate.is-locked .lock-card .sub { margin-top: 6px; text-align: center; }
 
-  /* ---- the company report's top card: the four actions in one sideways row instead of two rows ---- */
-  :root:root main .hx-acts .actions { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 6px; }
-  :root:root main .hx-acts .actions::-webkit-scrollbar { display: none; }
-  :root:root main .hx-acts .actions > * { flex: none; }
+  /* ---- the company report's top card: the four actions two to a row, all in view. The sideways row of v1 hid "Value (DCF)" and "Share"
+     past the right edge with nothing to say more was there (phone audit, 24 Nov 2026). ---- */
+  :root:root main .hx-acts .actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; overflow: visible; }
+  :root:root main .hx-acts .actions > * { min-width: 0; min-height: 44px; justify-content: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ---- layout faults the phone audit measured (24 Nov 2026) ---- */
+  /* Results: the month calendar fits the screen, seven narrow days with the count; a day still opens its companies below.
+     Before, a 780px grid hid Thursday to Sunday off the right edge. */
+  :root:root main .rs-cal { min-width: 0; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+  :root:root main .rs-cal-h { padding: 4px 0; text-align: center; letter-spacing: .02em; }
+  :root:root main .rs-cal-c { min-height: 48px; padding: 5px 2px; align-items: center; gap: 1px; text-align: center; }
+  :root:root main .rs-cal-c :is(.rs-cal-x, em, .rs-cal-w) { display: none; }
+  /* Sector Pulse and Rotation: "On this page" scrolls with the page instead of sticking at 70px, where it covered the top bar and the chips. */
+  :root:root main .sx-nav { position: static; }
+  /* Concalls: the page had no side margin (it is not inside .wrap); the site's 14px phone gutter. */
+  :root:root main .page.ccm { padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); }
 
   /* ---- tap areas (checklist 9 and 26): small links and buttons the phone check found under 40px get a transparent 40px-plus tap area that
      does not move anything on screen (the way the i buttons already have one, phone310.css). Calendar day cells stay as they are: a calendar
