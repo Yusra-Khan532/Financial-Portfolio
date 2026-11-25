@@ -20,7 +20,8 @@ import {
 } from "../lib/askFlow";
 import { Icon } from "../lib/icons";
 import { Link } from "react-router";
-import { clearRecent, loadRecent, loadSaved, pushRecent, toggleSaved } from "../lib/askExplorer";
+import { clearRecent, loadNames, loadPinned, loadRecent, loadSaved, pushRecent, removeRecent, renameChat, sideList, toggleSaved, togglePinned } from "../lib/askExplorer";
+import { AskChatItem } from "./AskChatMenu";
 import { STARTERS } from "../lib/questionBank";
 import "../styles/ask-ai.css";
 import { CoLogo } from "./CoLogo";
@@ -103,6 +104,10 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
   const [pick, setPick] = useState(0);                      // bumps when the input must select XYZ
   const [fundCtx, setFundCtx] = useState<FundCtx>({});   // task #203: the fund or ETF in context for the next fund question   // the question explorer of the full window
   const [recent, setRecent] = useState<string[]>(() => loadRecent()), [saved, setSaved] = useState<string[]>(() => loadSaved());
+  const [pinned, setPinned] = useState<string[]>(() => loadPinned()), [names, setNames] = useState<Record<string, string>>(() => loadNames());   // the ⋯ menu on a History chat
+  const chatItem = (t: string) => <AskChatItem key={t} text={t} name={names[t]} pinned={pinned.includes(t)} saved={saved.includes(t)} onAsk={() => void ask(t, "home")}
+    onPin={() => setPinned((l) => togglePinned(l, t))} onRename={(n) => setNames((x) => renameChat(x, t, n))} onSave={() => setSaved((l) => toggleSaved(l, t))}
+    onDelete={() => { setRecent((l) => removeRecent(l, t)); setPinned((l) => (l.includes(t) ? togglePinned(l, t) : l)); setNames((x) => renameChat(x, t, "")); }} />;
   const loc = useLocation();
   const pageCompany = companyOf(loc.pathname);
   const lender = isLenderSector(sector);
@@ -364,7 +369,7 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
               <button type="button" className="aif-sco-c" onClick={() => { setCompany(null); setView("segments"); }}>Change company</button>
             </div>}
             <p className="aif-sl"><Icon name="refresh" /> History</p>
-            {recent.length ? <ul className="aif-hist" aria-label="Your recent questions">{recent.slice(0, 5).map((t) => <li key={t}><button type="button" title={t} onClick={() => void ask(t, "home")}>{t}</button></li>)}</ul>
+            {recent.length || pinned.length ? <ul className="aif-hist" aria-label="Your recent questions">{sideList(recent, pinned).map(({ text: t }) => chatItem(t))}</ul>
               : <p className="aif-hist-none">Nothing yet. Ask a question and it collects here.</p>}
             {/* task #349 fix E: the side list shows the newest 5; every earlier question is one tap away in Chat History, never gone */}
             {(recent.length > 5 || remembered) && <button type="button" className="aif-va" onClick={() => setView("history")}>All your questions <Icon name="arrow" /></button>}
@@ -427,7 +432,8 @@ export function Assistant({ sector, startOpen = false }: { sector?: string | nul
               {moreThemes}
             </>}
 
-            {view === "history" && <AskHistoryView server={remembered} recent={recent} onAsk={(t) => void ask(t, "home")} onClearLocal={() => setRecent(clearRecent())} onLeave={() => setOpen(false)} />}
+            {view === "history" && <AskHistoryView server={remembered} recent={recent} onAsk={(t) => void ask(t, "home")} onClearLocal={() => setRecent(clearRecent())} onLeave={() => setOpen(false)}
+              item={chatItem} order={sideList(recent, pinned, 50).map((x) => x.text)} />}
             {view === "saved" && <>
               <div className="aif-h"><h2>Saved Questions</h2><p>Questions you starred, kept in this browser only.</p></div>
               {saved.length ? <ul className="aif-qs" aria-label="Saved questions">{saved.map((t) => <li key={t} className="aif-sv"><button type="button" className="aif-q" onClick={() => void ask(t, "home")}><Icon name="star" /><span>{t}</span><Icon name="arrow" /></button><button type="button" className="aif-unsave" aria-label={`Remove from saved: ${t}`} onClick={() => setSaved((l) => toggleSaved(l, t))}>×</button></li>)}</ul>
