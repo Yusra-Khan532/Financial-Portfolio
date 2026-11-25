@@ -36,7 +36,6 @@ const MarketsPage = lazy(() => import("./pages/Markets").then((m) => ({ default:
 const PremiumReportPage = lazy(() => import("./pages/PremiumReport").then((m) => ({ default: m.PremiumReportPage })));
 const PrismPage = lazy(() => import("./pages/Prism").then((m) => ({ default: m.PrismPage })));
 const QueryBuilder = lazy(() => import("./pages/QueryBuilder").then((m) => ({ default: m.QueryBuilder })));
-const BasketsPage = lazy(() => import("./pages/Baskets").then((m) => ({ default: m.BasketsPage })));
 const AdvancedScoreScreener = lazy(() => import("./pages/AdvancedScoreScreener").then((m) => ({ default: m.AdvancedScoreScreener })));
 const Compare = lazy(() => import("./pages/Compare").then((m) => ({ default: m.Compare })));
 const GraphStudio = lazy(() => import("./pages/GraphStudio").then((m) => ({ default: m.GraphStudio })));
@@ -115,7 +114,7 @@ export default function App() {
             <Route path="tools" element={<AllToolsPage />} />
             <Route path="screener" element={<Screener />} />
             <Route path="query-builder" element={<QueryBuilder />} />
-            <Route path="baskets" element={<BasketsPage />} />
+            <Route path="baskets" element={<Navigate to="/query-builder?view=baskets" replace />} />{/* founder, 25 Nov 2026: My baskets is on the Query builder page */}
             {/* task #283: the Basic stock screener is retired with its score; an old link (any query string) opens the Advanced stock screener. The server answers 301 too (finlit/seo.py REDIRECTS). */}
             <Route path="score-screener" element={<Navigate to="/advanced-score-screener" replace />} />
             <Route path="advanced-score-screener" element={<AdvancedScoreScreener />} />

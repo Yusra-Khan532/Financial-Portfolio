@@ -34,7 +34,6 @@ export const HUBS: Record<Exclude<TabId, "home">, Chip[]> = {
     { to: "/mf-portfolio", label: "Funds" },
     { to: "/etf-portfolio", label: "ETFs" },
     { to: "/alerts", label: "Alerts" },
-    { to: "/baskets", label: "Baskets" },
   ],
 };
 
@@ -114,7 +113,7 @@ export function toolsForPage(path: string): { to: string; label: string; icon: s
   ];
   if (under(path, "/screener") || under(path, "/advanced-score-screener")) return [
     { to: "/query-builder", label: "Query builder", icon: "notes" },
-    { to: "/baskets", label: "My baskets", icon: "layers" },
+    { to: "/query-builder?view=baskets", label: "My baskets", icon: "layers" },   // on the Query builder page (founder, 25 Nov 2026)
   ];
   if (["/watchlist", "/my-investments", "/holdings", "/mf-portfolio", "/etf-portfolio"].some((p) => under(path, p))) return [
     { to: "/alerts", label: "New alert", icon: "bell" },

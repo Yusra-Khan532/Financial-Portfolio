@@ -110,7 +110,7 @@ describe("#260: the page and its addresses", () => {
     await show();
     const ways = [...views().querySelectorAll("a")].map((a) => [a.textContent, a.getAttribute("href")]);
     expect(ways).toEqual([["Themes4", "/discover"], ["What changed8", "/discover/changes"], ["Sectors3", "/discover/sectors"], ["All companies5", "/discover/companies"],
-      ["Earnings calls8", "/discover/calls"], ["Results filings7", "/discover/results"]]);
+      ["Earnings calls8", "/discover/calls"]]);   // founder, 25 Nov 2026: Results filings is gone
     fireEvent.click(within(views()).getByRole("link", { name: /Sectors/ }));
     expect(loc).toBe("/discover/sectors");
     cleanup(); await show("/discover/themes/defence-and-aerospace");

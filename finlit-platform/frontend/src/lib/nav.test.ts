@@ -11,7 +11,7 @@ describe("site map", () => {
       ["Valuation & SIP calculators", "Calculators"], ["Markets & economy", "Markets"], ["Results, IPOs & news", "News"], ["Mutual funds & ETFs", "Funds"], ["Learn", "Learn"], ["Apps & add-ons", "Apps"]]);
     const names = (id: string) => MENU.find((g) => g.id === id)!.items.map((i) => i.label);
     expect(DASHBOARD.to).toBe("/dashboard");
-    expect(names("mine")).toEqual(["All my investments", "Equity portfolio", "MF portfolio", "ETF portfolio", "Watchlists", "Alerts", "My baskets"]);
+    expect(names("mine")).toEqual(["All my investments", "Equity portfolio", "MF portfolio", "ETF portfolio", "Watchlists", "Alerts"]);   // founder, 25 Nov 2026: My baskets is on the Query builder page
     expect(names("find")).toEqual(["Stock screener", "Advanced stock screener", "Query builder", "Discover", "Superinvestor portfolios"]);   // task #283: the Basic stock screener is retired
     expect(names("company")).toEqual(["Company report", "FinLit Prism", "Profit and revenue forecasting", "Stress Lab", "Annual reports & presentations"]);
     expect(names("compare")).toEqual(["Compare companies", "Chart builder", "Correlation charts"]);
@@ -19,7 +19,7 @@ describe("site map", () => {
     expect(names("markets")).toEqual(["Sector Pulse", "Sector Rotation", "Market events & index", "FII & DII flows", "India economy"]);   // task #317: Commodity prices is off the site
     expect(names("news")).toEqual(["Results", "Concall Monitor", "IPOs", "News & filings"]);   // task #278 (after the pack): its line covers results and filings; task #329: one IPOs entry; task #330: one Results entry
     expect(names("funds")).toEqual(["Mutual funds", "Mutual fund screener", "ETFs"]);
-    expect(names("learn")).toEqual(["Glossary", "Your bookmark", "How to use Sector Pulse", "How to use Sector Rotation", "Insights & blog", "Discussion forums"]);
+    expect(names("learn")).toEqual(["Glossary", "Your bookmark", "Insights & blog", "Discussion forums"]);   // founder, 25 Nov 2026: the two sector guides are off the menu
     expect(names("apps")).toEqual(["Browser extension", "Connect AI assistants"]);
     // the rules for a heading: four words or fewer, one line under it, no plan names as headings
     for (const g of MENU) { expect(g.title.split(/\s+/).filter((w) => w !== "&").length, g.title).toBeLessThanOrEqual(4); expect(g.line.length, g.line).toBeLessThanOrEqual(59); expect(g.title).not.toMatch(/Gold|Silver|Basic/); }
@@ -32,11 +32,18 @@ describe("site map", () => {
   it("marks the Gold tools, and every page of the old menu is in the new one", () => {
     expect(MENU.flatMap((g) => g.items).filter((i) => i.gold).map((i) => i.to).sort()).toEqual(["/advanced-score-screener", "/dcf", "/outlook", "/premium/markets", "/prism", "/reverse-valuation"]);
     const inMenu = new Set([DASHBOARD.to, ...MENU.flatMap((g) => g.items.map((i) => i.to))]);
-    for (const p of ["/dashboard", "/watchlist", "/my-investments", "/holdings", "/mf-portfolio", "/etf-portfolio", "/alerts", "/baskets", "/screener", "/advanced-score-screener", "/query-builder", "/discover", "/superinvestors",
+    for (const p of ["/dashboard", "/watchlist", "/my-investments", "/holdings", "/mf-portfolio", "/etf-portfolio", "/alerts", "/screener", "/advanced-score-screener", "/query-builder", "/discover", "/superinvestors",
       "/research", "/compare", "/prism", "/outlook", "/research/stress-lab", "/eps-calculator", "/dcf", "/reverse-valuation", "/sip-calculator", "/graphs", "/graphs/advanced", "/sectors", "/sectors/rotation", "/fii-dii", "/macro",
       "/results", "/concalls",   // task #330: /results/quarter redirects to /results?view=companies
       "/ipo", "/news", "/funds", "/funds/screener", "/etfs", "/premium/markets", "/glossary", "/browser-extension", "/blog", "/documents", "/forum",
-      "/learn/sector-signals", "/learn/sector-rotation", "/mcp"]) expect(inMenu.has(p), p).toBe(true);
+      "/mcp"]) expect(inMenu.has(p), p).toBe(true);
+  });
+  it("founder, 25 Nov 2026: How to use Sector Pulse and How to use Sector Rotation are off the Learn menu and Find a page", () => {
+    const learn = MENU.find((g) => g.id === "learn")!.items.map((i) => i.to);
+    expect(learn).toEqual(["/glossary", "/dashboard#dsh-learn", "/blog", "/forum"]);
+    const all = [DASHBOARD, ...MENU.flatMap((g) => g.items)].map((i) => i.to);
+    expect(all).not.toContain("/learn/sector-signals");
+    expect(all).not.toContain("/learn/sector-rotation");
   });
   it("task #317: Commodity prices and Company financials are in no menu and not in Find a page", () => {
     const all = [DASHBOARD, ...MENU.flatMap((g) => g.items)];

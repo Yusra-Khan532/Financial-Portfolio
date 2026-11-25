@@ -60,12 +60,12 @@ const strip = () => screen.getByRole("navigation", { name: "Discover views" });
 afterEach(() => { cleanup(); seen.length = 0; });
 
 describe("#267: Earnings calls and Results filings in Discover", () => {
-  it("adds two views after the four in the tab bar, behind a divider and the 'From calls and results' label", async () => {
+  it("adds Earnings calls after the four in the tab bar, behind a divider and its own label (founder, 25 Nov 2026: Results filings is gone)", async () => {
     await show("/discover");
     const ways = [...strip().querySelectorAll("a")].map((a) => [a.textContent, a.getAttribute("href")]);
-    expect(ways.slice(4)).toEqual([["Earnings calls8", "/discover/calls"], ["Results filings7", "/discover/results"]]);
-    expect(ways).toHaveLength(6);
-    expect(strip().querySelector(".dw-tlab")!.textContent).toBe("From calls and results");
+    expect(ways.slice(4)).toEqual([["Earnings calls8", "/discover/calls"]]);
+    expect(ways).toHaveLength(5);
+    expect([...strip().querySelectorAll(".dw-glab")].map((x) => x.textContent)).toEqual(["From investor presentations", "From earnings calls"]);
     expect(seen.some((p) => p.startsWith("/api/discovery/sources"))).toBe(false);          // the Themes view does not load the new views' data
     fireEvent.click(within(strip()).getByRole("link", { name: /Earnings calls/ }));
     expect(loc).toBe("/discover/calls");
@@ -83,7 +83,7 @@ describe("#267: Earnings calls and Results filings in Discover", () => {
     expect(capex.querySelector(".dsc-ex")!.textContent).toBe("Acme Industries, Quiet Co");
     expect(cards[2].textContent).toMatch(/None of the 2 call transcripts read names 2 of this bucket's keywords, or one of them 5 times\./);
     expect(document.querySelector(".dsc-toolbar")).toBeNull();                                          // task #291: the method paragraph above the buckets is removed
-    expect(screen.getByRole("note").textContent).toBe("Coming soon Paid plans are coming soon. For now, every earnings-call and results-filing view here is open to everyone.");
+    expect(screen.getByRole("note").textContent).toBe("Coming soon Paid plans are coming soon. For now, every earnings-call view here is open to everyone.");
     expect(document.body.textContent).not.toMatch(/buckets of FinLit’s keyword directory/);
     const caution = document.querySelector(".dsc-caution")!.textContent!;
     expect(caution).toMatch(/A keyword mention by itself is not proof of material business exposure/);
@@ -128,13 +128,13 @@ describe("#267: Earnings calls and Results filings in Discover", () => {
     expect(document.querySelectorAll("tr[data-src-co]")).toHaveLength(1);
   });
 
-  it("Results filings before any read: every bucket says why it is empty; an unknown bucket says so", async () => {
+  it("founder, 25 Nov 2026: Results filings is no longer a view; its addresses (and any bucket under them) open Earnings calls, without loading the results data", async () => {
     await show("/discover/results");
-    const card = (await screen.findAllByRole("link", { name: /Income Statement Line Items/ }))[0];
-    expect(card.querySelector(".n")!.textContent).toBe("0companies");
-    expect(card.textContent).toMatch(/No results filing has been read yet: the nightly job reads each company's newest results filing filed with NSE in the last 400 days/);
-    cleanup(); await show("/discover/results/tulips");
-    expect(await screen.findByText(/There is no such bucket\./)).toBeTruthy();
+    expect(loc).toBe("/discover/calls");
+    expect(seen.some((p) => p === "/api/discovery/sources?source=results")).toBe(false);
+    cleanup(); await show("/discover/results/income-statement-line-items");
+    expect(loc).toBe("/discover/calls");
+    expect(within(strip()).getByRole("link", { name: /Earnings calls/ }).getAttribute("aria-current")).toBe("page");
   });
 
   it("the addresses: /discover/calls[/<bucket>] and /discover/results[/<bucket>]", () => {

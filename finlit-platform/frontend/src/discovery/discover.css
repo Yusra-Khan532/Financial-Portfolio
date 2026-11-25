@@ -449,17 +449,21 @@ tr.dsc-det > td { padding: 14px 16px; background: var(--s3); }
 
 /* one tab bar for the six ways to look; it sticks under the site header (--dw-top, measured) */
 .dw-tabsbox { position: sticky; top: var(--dw-top, 64px); z-index: 30; margin: 0 0 18px; background: var(--bg); box-shadow: 0 8px 12px -12px #0003; }
-.dw-tabs { display: flex; align-items: stretch; gap: 2px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+/* founder, 25 Nov 2026: each group of views has its label above it ("From investor presentations", "From earnings calls"), and every view is a
+   button to press: a bordered card-coloured button, darker on hover, the open view filled (the site's selected look, main text colour as fill) */
+.dw-tabs { position: relative; display: flex; align-items: flex-end; gap: 0 16px; padding: 12px 0 14px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
 .dw-tabs::-webkit-scrollbar { display: none; }
-.dw-tab { position: relative; display: inline-flex; align-items: center; gap: 7px; padding: 12px 12px 13px; white-space: nowrap; color: var(--muted); font: 600 var(--fs-14)/1 var(--sans); text-decoration: none; border-radius: var(--r-ctl) var(--r-ctl) 0 0; }
-.dw-tab span { min-width: 20px; padding: 3px 6px; border-radius: var(--ui-r-pill); background: var(--s2); border: 1px solid var(--border); font: 700 var(--fs-12)/1 var(--sans); color: var(--faint); text-align: center; font-variant-numeric: tabular-nums; }
-.dw-tab:hover { color: var(--text); background: var(--s1); }
-.dw-tab[data-on] { color: var(--text); }
-.dw-tab[data-on]::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 3px; border-radius: var(--ui-r-pill) var(--ui-r-pill) 0 0; background: var(--dsc-teal); }
-.dw-tab[data-on] span { background: var(--dsc-teal-b); border-color: var(--dsc-teal); color: var(--dsc-teal); }
-.dw-tab:focus-visible { outline: 2px solid var(--dsc-teal); outline-offset: -2px; }
-.dw-tsep { flex: none; width: 1px; margin: 10px 8px; background: var(--border); }
-.dw-tlab { align-self: center; flex: none; margin-right: 4px; font: 700 var(--fs-12)/1 var(--sans); letter-spacing: .07em; text-transform: uppercase; color: var(--faint); white-space: nowrap; }
+.dw-grp { flex: none; display: grid; gap: 8px; min-width: 0; }
+.dw-glab { font: 700 var(--fs-12)/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.dw-gb { display: flex; gap: 8px; }
+.dw-tab { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; white-space: nowrap; color: var(--text); font: 600 var(--fs-14)/1 var(--sans); text-decoration: none; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); cursor: pointer; transition: background-color .15s, border-color .15s; }
+.dw-tab span { min-width: 22px; padding: 3px 7px; border-radius: var(--ui-r-pill); background: var(--s2); border: 1px solid var(--border); font: 700 var(--fs-12)/1 var(--sans); color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }
+.dw-tab:hover { border-color: var(--text); background: var(--s2); }
+.dw-tab[data-on] { background: var(--ui-on-bg); color: var(--ui-on-fg); border-color: var(--ui-on-bg); }
+.dw-tab[data-on] span { background: var(--ui-on-fg); color: var(--ui-on-bg); border-color: transparent; }
+.dw-tab:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .dw-tab { transition: none; } }
+.dw-tsep { flex: none; align-self: stretch; width: 1px; margin: 2px 0; background: var(--border); }
 #dsc-tbl-top { scroll-margin-top: calc(var(--dw-top, 64px) + 56px); }
 
 /* detail pages: the header's buttons and dropdowns */
@@ -695,9 +699,8 @@ tr.dbx-d > td { padding: 2px 16px 20px; background: var(--dsc-teal-b); }
 .dbx-empty p { margin: 0 0 12px; }
 
 @media (max-width: 1280px) {
-  .dw-tlab { display: none; }
-  .dw-tab { padding: 12px 9px 13px; gap: 6px; }
-  .dw-tsep { margin: 10px 4px; }
+  .dw-tab { padding: 0 12px; gap: 6px; }
+  .dw-tabs { gap: 0 12px; }
 }
 @media (min-width: 761px) and (max-width: 1100px) {
   .dw-tab span { display: none; }
@@ -711,7 +714,8 @@ tr.dbx-d > td { padding: 2px 16px 20px; background: var(--dsc-teal-b); }
 @media (max-width: 760px) {
   .dw-head { gap: 10px; }
   .dw-meta { font-size: var(--fs-13); gap: 2px 14px; }
-  .dw-tab { padding: 11px 10px 12px; }
+  .dw-tab { padding: 0 12px; min-height: 44px; }   /* a phone's tap target (UI spec: 44 px) */
+  .dw-tabs { padding: 10px 0 12px; }
   .dw-rr > .dbx-dd .dbx-ddl { display: none; }
   .dw-rr > .dbx-sortd .dbx-ddl { display: inline; }
   .dw-foot { display: none; }

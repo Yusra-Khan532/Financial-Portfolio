@@ -1,6 +1,7 @@
 // Query builder: type a rule in plain words, get the listed companies that match it, and keep it as a basket. The language, every error and the
 // matching happen on the server (backend/finlit/screener/ql.py, qeval.py); this page helps a person write the query without mistakes:
 // autocomplete, live checking with one-click fixes, an "Add a condition" helper, examples and a list of every ratio.
+// Founder, 25 Nov 2026: My baskets is part of this page (a drop-down between the rules and the examples); /baskets opens it here.
 import { viewAsHeader } from "../lib/adminView";
 import { titleOf, subOf, codeNote } from "../lib/companyLabel";
 import { PageHeader } from "../components/PageHeader";
@@ -20,6 +21,7 @@ import {
   type Basket, type Completion, type Problem, type Ratio, type Reading, type RunBad, type RunBody, type RunOk, type Validation,
 } from "../lib/query";
 import { QueryRules } from "../components/QueryRules";
+import { BasketsView } from "../components/BasketsView";
 import { FindStocksTabs } from "../components/screener/FindStocksTabs";
 import { onlyFix, ruleFor } from "../lib/queryRules";
 import { saveFile } from "../stock/derive";
@@ -120,7 +122,7 @@ function RatioDrawer({ ratios, open, onClose, seed, onAdd, onInsert, ask }: { ra
 }
 
 export function QueryBuilder() {
-  useDocTitle("Query builder", "Type a rule such as Market cap > 500 AND P/E < 15 and get every listed Indian company that matches. Live checking, one-click fixes, examples and saved baskets.");
+  useDocTitle("Query builder", "Type a rule such as Market cap > 500 AND P/E < 15 and get every listed Indian company that matches. Live checking, one-click fixes, examples, and your saved baskets on the same page.");
   const { upgrade, toast } = useUI();
   const { user } = useAuth();
   const nav = useNavigate();
@@ -143,18 +145,37 @@ export function QueryBuilder() {
   const [res, setRes] = useState<RunOk | null>(null), [bad, setBad] = useState<RunBad | null>(null), [ranText, setRanText] = useState(""), [runErr, setRunErr] = useState("");
   const [caret, setCaret] = useState(0), [hi, setHi] = useState(0), [force, setForce] = useState(false), [closed, setClosed] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false), [hot, setHot] = useState("");
+  const [bksOpen, setBksOpen] = useState(() => params.get("view") === "baskets");   // My baskets: closed at first, open when the page is reached from /baskets
   const [drawer, setDrawer] = useState(false), [seed, setSeed] = useState(""), [helper, setHelper] = useState(false), [colMenu, setColMenu] = useState(false);
   const [saveName, setSaveName] = useState(""), [saveNote, setSaveNote] = useState(""), [saveErr, setSaveErr] = useState("");
   const taRef = useRef<HTMLTextAreaElement>(null), mirrorRef = useRef<HTMLDivElement>(null), seq = useRef(0), loadedFor = useRef<string | null>(null);
 
-  // ---- a basket opened from ?basket=
+  // ---- a basket opened from ?basket= (or with Open in My baskets)
   const basket: Basket | undefined = loaded.data?.basket;
+  const putBasket = (b: Basket) => {
+    loadedFor.current = b.id;
+    setText(b.query); setCols(b.columns); setRecent(b.recent); setSaveName(b.name); setSaveNote(b.note || ""); if (b.sort) setSort(b.sort);
+    setRes(null); setBad(null); setUndo(null);
+  };
   useEffect(() => {
     if (!basket || loadedFor.current === basket.id) return;
-    loadedFor.current = basket.id;
-    setText(basket.query); setCols(basket.columns); setRecent(basket.recent); setSaveName(basket.name); setSaveNote(basket.note || ""); if (basket.sort) setSort(basket.sort);
-    setRes(null); setBad(null);
-  }, [basket]);
+    putBasket(basket);
+  }, [basket]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- My baskets, on this page: /baskets (and any link with ?view=baskets) opens the drop-down and brings it into view
+  const bksRef = useRef<HTMLDivElement>(null);
+  const showBaskets = useCallback(() => { setBksOpen(true); requestAnimationFrame(() => bksRef.current?.scrollIntoView?.({ block: "start", behavior: "smooth" })); }, []);
+  useEffect(() => {
+    if (params.get("view") !== "baskets") return;
+    showBaskets();
+    const n = new URLSearchParams(params); n.delete("view"); setParams(n, { replace: true });
+  }, [params, setParams, showBaskets]);
+  /** Open: the basket's query goes into the box (its saved version, even when it is open already), the drop-down closes and the box comes into view. */
+  const openBasket = (b: Basket) => {
+    if (b.id === basketId) putBasket(b); else setParams({ basket: b.id });
+    setBksOpen(false);
+    requestAnimationFrame(() => { const t = taRef.current; if (!t) return; t.scrollIntoView?.({ block: "center", behavior: "smooth" }); t.focus({ preventScroll: true }); });
+  };
   useEffect(() => { if (!basketId) { loadedFor.current = null; } }, [basketId]);
   useEffect(() => { if (!basketId) keepDraft(text); }, [text, basketId]);
 
@@ -281,12 +302,13 @@ export function QueryBuilder() {
 
   return (
     <>
-      <PageHeader wrap plan="free" title="Query builder" art="search" links={["/screener", "/baskets", "/advanced-score-screener"]}
+      <PageHeader wrap plan="free" title="Query builder" art="search" links={["/screener", "/advanced-score-screener"]}
         description={<>Type a rule like <code className="qb-inl">Market cap &gt; 500 AND P/E &lt; 15</code>; we check it as you type and list every match.</>} />
       <div className="wrap qb">
         <FindStocksTabs />
         {/* page flow: the rules, then the examples, then the box (an example fills the box below it) */}
         <QueryRules open={rulesOpen} onToggle={toggleRules} onInsert={(q) => { loadExample(q); requestAnimationFrame(() => taRef.current?.focus()); }} />
+        <div ref={bksRef} className="qb-bks-wrap"><BasketsView open={bksOpen} onToggle={() => setBksOpen((o) => !o)} onOpen={openBasket} current={basketId} /></div>
         <section className="qb-examples" aria-label="Examples">
           <div className="label">Start from an example</div>
           <div className="qb-chips">{(rat.data?.examples ?? []).map((x) => <button key={x.id} className="qb-ex" onClick={() => pickExample(x.query)} title={x.about}><b>{x.title}</b><small>{x.about}</small>{x.locked && <span className="qb-lk"><Icon name="lock" />{TIER[x.plan].n}</span>}</button>)}
@@ -369,7 +391,7 @@ export function QueryBuilder() {
                 {basket ? <><button className="btn primary" onClick={update} disabled={!!saveBlock || act.update.isPending || !dirty}>{dirty ? `Update “${basket.name}”` : "Saved"}</button>
                   <button className="btn" onClick={() => { loadedFor.current = null; setParams({}, { replace: true }); setSaveName(saveName + " copy"); }} title="Start a new basket from this query">Save as new</button></>
                   : <button className="btn primary" onClick={saveNew} disabled={!!saveBlock || act.create.isPending}>Save as basket</button>}
-                <Link className="btn" to="/baskets">My baskets{baskets.data ? ` · ${baskets.data.baskets.length}/${baskets.data.max}` : ""}</Link>
+                <button type="button" className="btn" onClick={showBaskets}>My baskets{baskets.data ? ` · ${baskets.data.baskets.length}/${baskets.data.max}` : ""}</button>
               </div>
             </div>
             {(saveBlock && (saveName.trim() || text.trim())) ? <p className="qb-sub" aria-live="polite">{saveBlock}</p> : null}
@@ -414,7 +436,7 @@ export function QueryBuilder() {
           <Plain>The table lists companies that meet your rules. It does not say what to buy or sell. Open a company's report to see why a number looks the way it does. Figures are as of the last data refresh. General information, not investment advice.</Plain>
         </section>}
 
-        <div className="qb-foot faint"><Icon name="info" /> {rat.data ? `${nf(rat.data.ratios.length, 0)} ratios, ${nf(rat.data.aliases, 0)} accepted names. ` : ""}Ratios we do not calculate give an error instead of being ignored. Your baskets live under <Link to="/baskets" className="alx-link">My baskets</Link>.</div>
+        <div className="qb-foot faint"><Icon name="info" /> {rat.data ? `${nf(rat.data.ratios.length, 0)} ratios, ${nf(rat.data.aliases, 0)} accepted names. ` : ""}Ratios we do not calculate give an error instead of being ignored. Your baskets are under <button type="button" className="alx-link" onClick={showBaskets}>My baskets</button>, above the examples.</div>
       </div>
 
       <RatioDrawer ratios={ratios} open={drawer} onClose={() => setDrawer(false)} seed={seed} ask={ask} onInsert={insertName} onAdd={(r) => addLine(r.example)} />

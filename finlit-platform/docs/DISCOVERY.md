@@ -126,5 +126,6 @@ The team: "in discovery tab we need to add call transcript as well as result fil
 - **Route**: `GET /api/discovery/sources?source=calls|results` (every bucket with companies, how many with evidence, first names, what to verify,
   and the reason when empty), `&bucket=<name>` (its companies: keywords, evidence, document date and exchange link, what to verify, tone),
   `&symbol=<SYM>` (one company's buckets, or why there are none). Open on every plan, like the rest of Discover.
-- **Page**: "Earnings calls" (`/discover/calls`) and "Results filings" (`/discover/results`), in a strip of their own under the four ways; a
+- **Page** (25 Nov 2026, the founder: Results filings is no longer shown; `/discover/results` opens Earnings calls; the bar has two labelled groups,
+  "From investor presentations" and "From earnings calls"): "Earnings calls" (`/discover/calls`) and "Results filings" (`/discover/results`), in a strip of their own under the four ways; a
   bucket at `/discover/calls/<slug>` (`discovery/Sources.tsx`, styles `dsc-kd-`).
