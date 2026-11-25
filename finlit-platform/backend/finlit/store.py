@@ -13,7 +13,7 @@ import math
 import logging
 import time
 import zlib
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -81,6 +81,17 @@ ON CONFLICT (symbol, statement, model) DO UPDATE SET
     profit_cagr = EXCLUDED.profit_cagr, operating_margin = EXCLUDED.operating_margin,
     change_pct = EXCLUDED.change_pct, return_1m = EXCLUDED.return_1m, return_1y = EXCLUDED.return_1y, industry = EXCLUDED.industry, macro_sector = EXCLUDED.macro_sector,
     metrics = EXCLUDED.metrics, updated_at = now(), changed_at = now()
+"""
+
+
+# Store.save_sections: refresh the fields of a cached company's hash, never create the hash and never touch its TTL (HSET and HDEL keep it).
+# KEYS[1] the stock hash; ARGV[1] how many of the following ARGV are field/value pairs to set; the ARGV after those are fields to remove.
+REFRESH_IF_CACHED_LUA = """
+if redis.call('EXISTS', KEYS[1]) == 0 then return 0 end
+local n = tonumber(ARGV[1])
+if n > 0 then redis.call('HSET', KEYS[1], unpack(ARGV, 2, n + 1)) end
+if #ARGV > n + 1 then redis.call('HDEL', KEYS[1], unpack(ARGV, n + 2, #ARGV)) end
+return 1
 """
 
 
@@ -264,6 +275,49 @@ class Store:
 
         await self._cache(symbol, statement, encoded, etags)
         await self._cache_inputs(symbol, statement, sections)
+        return etags
+
+    async def save_sections(self, symbol: str, statement: str, sections: Dict[str, Optional[dict]]) -> Dict[str, str]:
+        """Some sections of a stored report only (task #394: the nightly chart job rewrites the price-* sections from daily_candles). Each section is
+        upserted as save_snapshot upserts it; in Redis only a company already cached is refreshed (see below); nothing else of the report is
+        touched: no score row, no prices table, no figure inputs. A section given as None is removed (row and cached copy)."""
+        symbol = symbol.upper()
+        drop = [name for name, body in sections.items() if body is None]
+        encoded = {name: dumps(body) for name, body in sections.items() if body is not None}
+        etags = {name: etag_for(body) for name, body in encoded.items()}
+        if not encoded and not drop:
+            return etags
+        # The row keeps the report's own time (meta.generatedAt, as save_snapshot stores it): the canary reads max(generated_at) as "when the
+        # report's prices were stored", and the stored-sections audit dates a report by it; a price-only rewrite changes neither meaning.
+        def made(body: dict) -> datetime:
+            try:
+                return datetime.fromisoformat(str(body["meta"]["generatedAt"]).replace("Z", "+00:00"))
+            except Exception:
+                return datetime.now(timezone.utc)
+        times = {name: made(body) for name, body in sections.items() if body is not None}
+        async with self.pool.acquire() as conn, conn.transaction():
+            if encoded:
+                await conn.executemany(
+                    """INSERT INTO snapshots(symbol, statement, section, body, etag, generated_at)
+                       VALUES($1, $2, $3, $4, $5, $6)
+                       ON CONFLICT (symbol, statement, section)
+                       DO UPDATE SET body = EXCLUDED.body, etag = EXCLUDED.etag, generated_at = EXCLUDED.generated_at""",
+                    [(symbol, statement, name, body.decode(), etags[name], times[name]) for name, body in encoded.items()],
+                )
+            if drop:
+                await conn.execute("DELETE FROM snapshots WHERE symbol = $1 AND statement = $2 AND section = ANY($3::text[])", symbol, statement, drop)
+        # Redis: only a company that is already cached there is refreshed (the free Redis is small: a stock nobody opens leaves it, STOCK_TTL), so
+        # a nightly rewrite of every report never loads thousands of companies into it. One atomic script: the fields are set (or removed) only if
+        # the company's hash exists, and its TTL is left exactly as it is. An uncached company is read from Postgres when it is next opened.
+        fields: List[Any] = []
+        for name, body in encoded.items():
+            if name != "price":   # the full history is never cached (as _cache)
+                fields += [name, body, f"{name}:etag", etags[name]]
+        try:
+            await self.redis.eval(REFRESH_IF_CACHED_LUA, 1, stock_key(symbol, statement), str(len(fields)), *fields,
+                                  *[k for name in drop for k in (name, f"{name}:etag")])
+        except Exception:
+            log.warning("cached copy of %s %s not refreshed: it is replaced from Postgres when it expires (STOCK_TTL)", symbol, statement)
         return etags
 
     # ------------------------------------------------------------ NSE classification (task #192, finlit/taxonomy.py)

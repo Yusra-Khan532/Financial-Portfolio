@@ -309,10 +309,17 @@ def build_jobs(env: Optional[Mapping[str, str]] = None) -> List[Job]:
             windows=(W("AFTER_CLOSE", 0), W("MORNING", 0)), sla=Sla("session", 12), owns=("technicals", "daily_prices"),
             what="technical view of every stored Prism report from fresh Dhan daily candles (resumable, yields to members)"),
         # task #325 (developer file 26, 5.5): the exchange's own daily candles (NSE first, Dhan) for prices, volume and the chart patterns; three years on first
-        # sight, then only new sessions; time-boxed and resumable (the longest-unloaded company first), so a short night is picked up the next night
-        Job("candles", ("refresh-candles", "--max-minutes", "45"), cls="bulk", priority=9, max_runtime_min=55, weight_mb=150, resumable=True,
+        # sight, then only new sessions; resumable (the longest-unloaded company first). Task #394 (developer file 37, F1): it finishes every night: the
+        # time box is 150 minutes (was 45, which left companies a night behind), and a run that still stops with companies left exits partial (degraded,
+        # with the count) so the supervisor tries it again, never silently "done"
+        Job("candles", ("refresh-candles", "--max-minutes", "150"), cls="bulk", priority=9, max_runtime_min=160, weight_mb=150, resumable=True,
             windows=(W("AFTER_CLOSE", 0), W("MORNING", 0)), sla=Sla("session", 12), owns=("daily_candles",),
             what="daily candles from the exchange (Dhan, NSE first, BSE only where there is no NSE row) into daily_candles: the prices, volume and chart patterns read them"),
+        # task #394 (developer file 37, F1 and W1): the charts of every stored report from the candles just loaded; database only, a few minutes
+        Job("price-sections", ("refresh-price-sections", "--max-minutes", "40"), cls="bulk", priority=11, max_runtime_min=50, weight_mb=200, resumable=True,
+            prerequisites=("candles",), probe="price-sections", min_gap_min=30,
+            windows=(W("AFTER_CLOSE", 0), W("MORNING", 0)), sla=Sla("session", 12), owns=("price_sections",),
+            what="the price charts (1M to MAX, and 3Y on daily candles) of every stored report from daily_candles, after the candles job: every chart ends on the latest close, no part-day candle; no provider calls"),
         # weekend nights only, at the lowest bulk priority (owner, 18 Nov 2026; docs/JOBS.md "The sector job on weekend nights"): one full build a week on the
         # week's data up to Friday's close; every daily and weekly job of the night goes first; never on a weekday night
         Job("sectors", ("refresh-sectors",), cls="bulk", priority=95, max_runtime_min=90, weight_mb=SECTORS_WEIGHT_MB, stall_min=45, prerequisites=("technicals",), resumable=True,

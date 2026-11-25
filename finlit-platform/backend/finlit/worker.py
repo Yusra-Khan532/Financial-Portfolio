@@ -1232,7 +1232,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_cdl.add_argument("symbols", nargs="*", help="only these companies (default: every company, the longest-unloaded first)")
     p_cdl.add_argument("--days", type=int, default=1150, help="history to load for a company seen for the first time")
     p_cdl.add_argument("--limit", type=int, default=None)
-    p_cdl.add_argument("--max-minutes", type=float, default=45.0)
+    p_cdl.add_argument("--max-minutes", type=float, default=150.0, help="time box; companies left when it is reached are first in line on the job's next try (the run is recorded as partial)")
+    p_ps = sub.add_parser("refresh-price-sections", help="nightly, after refresh-candles: rewrite ONLY the chart sections (price-1M ... price-MAX) of every stored report from daily_candles; no provider calls; resumable (a chart already at its newest candle is left alone)")
+    p_ps.add_argument("symbols", nargs="*", help="only these companies (default: every stored report)")
+    p_ps.add_argument("--force", action="store_true", help="rewrite charts that already end on their newest candle too")
+    p_ps.add_argument("--max-minutes", type=float, default=40.0, help="no new chunk of companies after this long; the next run continues (it skips charts already current)")
     p_di = sub.add_parser("refresh-instruments", help="weekly: Dhan's public instrument file (ISIN, surveillance flag, margin eligibility, F&O status of every NSE and BSE equity); needs no account")
     p_di.add_argument("--max-age-hours", type=float, default=None, help="skip when this ran fine in the last N hours")
     p_cm = sub.add_parser("refresh-commodities", help="commodity prices: MCX futures from Dhan and international prices from metals.dev / MetalpriceAPI into Redis (--loop: keeps running)")
@@ -1847,8 +1851,29 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
             elif args.cmd == "refresh-candles":
                 from . import candles
                 from .dhan import DhanClient
+                from .jobs.reasons import PARTIAL_EXIT
+                from .mf import record_run
                 async with DhanClient(settings, store.redis) as dc:
-                    print(await candles.refresh(store, dc, symbols=[x.upper() for x in args.symbols] or None, days=args.days, max_minutes=args.max_minutes, limit=args.limit))
+                    res = await candles.refresh(store, dc, symbols=[x.upper() for x in args.symbols] or None, days=args.days, max_minutes=args.max_minutes, limit=args.limit)
+                print(res)
+                # task #394 F1: a run that reached its time box with companies left is not "done": it is recorded as partial with the count, the
+                # supervisor shows it as degraded and tries again (the companies left are the longest-unloaded, so first in line), and it is logged.
+                if res.get("left"):
+                    log.warning("refresh-candles stopped at its %g-minute time box with %d companies left; they are first in line on the next try", args.max_minutes, res["left"])
+                    await record_run(store, args.cmd, {"status": "partial", "why": f"{res['left']} companies left at the {args.max_minutes:g}-minute time box; continued on the next try", **res})
+                    return PARTIAL_EXIT
+                await record_run(store, args.cmd, {"status": "ok", **res})
+            elif args.cmd == "refresh-price-sections":
+                from . import price_sections
+                from .mf import record_run
+                res = await price_sections.refresh(store, symbols=[x.upper() for x in args.symbols] or None, force=args.force, max_minutes=args.max_minutes)
+                print(json.dumps(res, default=str)[:3000])
+                if res["left"]:   # stopped at its time box: recorded as partial and tried again (it continues: current charts are skipped)
+                    from .jobs.reasons import PARTIAL_EXIT
+                    log.warning("refresh-price-sections stopped at its %g-minute time box with %d reports left", args.max_minutes, res["left"])
+                    await record_run(store, args.cmd, {"status": "partial", "why": f"{res['left']} reports left at the {args.max_minutes:g}-minute time box", **res})
+                    return PARTIAL_EXIT
+                await record_run(store, args.cmd, {"status": "ok", **res})
             elif args.cmd == "refresh-quotes":
                 from .dhan import DhanClient
                 async with DhanClient(settings, store.redis) as dc:
