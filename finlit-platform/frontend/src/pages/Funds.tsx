@@ -1,7 +1,6 @@
 // Mutual funds: the scheme list, one scheme's page and the side-by-side comparison. Data is AMFI's own NAV files (see backend/finlit/mf.py); the section is free.
 // Information only: no ranking, no "best", no advice. Every page shows the source, the data date and the disclaimer.
 import { useEffect, useMemo, useState } from "react";
-import { PhoneFold } from "../components/PhoneFold";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { Icon } from "../lib/icons";
 import { buttonClass } from "../components/ui";
@@ -10,7 +9,7 @@ import { visits } from "../lib/recentVisits";
 import { useDocTitle } from "../lib/title";
 import { dateIN, nf } from "../lib/format";
 import {
-  AUM_BUCKETS, CHECKS, EMPTY_QUERY, GROWTH_RETURNS_LABEL, RETURN_LABELS, TRAY_MAX, catNames, growthFigure, categoryShort, compareUrl, effectiveQuery, navFull, navText, parseIds, parseQuery, pctText, queryToParams, readCols, rememberName, rowSortValue, subCats, tone, trayName,
+  AUM_BUCKETS, CHECKS, EMPTY_QUERY, PAGE_DEFAULTS, GROWTH_RETURNS_LABEL, RETURN_LABELS, TRAY_MAX, catNames, growthFigure, categoryShort, compareUrl, effectiveQuery, navFull, navText, parseIds, parseQuery, pctText, queryToParams, readCols, rememberName, rowSortValue, subCats, tone, trayName,
   useFundCompare, useFundDetail, useFundFacts, useFundFilters, useFundList, useFundPortfolio, useHotList, useTray, writeCols,
   tabDefaults, type ColId, type CompareFund, type FundDetail, type FundRow, type ListQuery, type RangeKey, type SortKey,
 } from "../lib/mf";
@@ -39,6 +38,7 @@ import "../styles/etfvs.css";
 import "../styles/mf341.css";   // task #341: the page refinement (after mf.css and etfvs.css)
 import "../styles/task355.css";   // task #355: the folded Show filters handle
 import "../styles/task363.css";   // task #363: the folded Show filters fits its words
+import "../styles/task376.css";   // task #376: How to read this table as a drop-down at the top; Reset filters beside Hide filters
 import { ChartZoom } from "../components/ChartZoom";
 /** Task #311 (developer file 21, fund page row 1): the formula is off the page; one plain sentence behind the (i). */
 const VOL_TIP = "How much the NAV moves from day to day, shown as a yearly figure.";
@@ -85,9 +85,9 @@ function NoteCard({ title, short, children }: { title: string; short: React.Reac
 }
 
 function Legend({ stopped, facts }: { stopped: number | null; facts?: { source?: string | null; excludedAmcs?: string[] | null } | null }) {
+  // task #376: shown inside the "How to read this table" drop-down at the top of the page, whose summary is its heading (mf-howto-t)
   return (
-    <section className="mf-legend" aria-labelledby="mf-legend-h">
-      <h2 id="mf-legend-h">How to read this table</h2>
+    <section className="mf-legend" aria-labelledby="mf-howto-t">
       {/* task #341 (prompt section 15): the same nine cards and their full text, in three groups */}
       <div className="mf-note-groups">
         <section className="mf-note-group" aria-labelledby="mf-ng-1"><h3 className="mf-ng-h" id="mf-ng-1"><i aria-hidden="true">1</i>Understanding returns</h3>
@@ -196,6 +196,11 @@ export function FundListPage() {
   const [fOpen, setFOpen] = useState(() => { let v: string | null = null; try { v = localStorage.getItem("finlit-mf-filters"); } catch { /* */ }
     return v ? v !== "closed" : !(typeof window !== "undefined" && window.matchMedia?.("(max-width: 760px)").matches); });
   const setF = (v: boolean) => { setFOpen(v); try { localStorage.setItem("finlit-mf-filters", v ? "open" : "closed"); } catch { /* private window: not remembered */ } };
+  // task #376: the filters are at their start when nothing differs from the page's defaults (the address carries only what differs)
+  //   the order, the page size and the Chosen/Ready view are not filters: they stay as they are
+  const keep = { view: q.view, sort: q.sort, dir: q.dir, size: q.size };
+  const atStart = queryToParams({ ...q, page: 1, view: "", sort: "", dir: "asc", size: 50 }).toString() === "" && !text.trim();
+  const resetAll = () => { setText(""); setSp(queryToParams({ ...PAGE_DEFAULTS, ...keep }), { replace: false }); };
   const none = q.tab !== "all" && q.cats !== null && q.cats.length === 0;
   const d = ready || none ? undefined : list.data;
   const hotRows = useMemo(() => {
@@ -213,10 +218,21 @@ export function FundListPage() {
       <div className="wrap mf mf-list">
         {/* Task #347 (23 Nov 2026, the team): the categories and the filters are one filter panel on the left of the table, "Hide filters" folds it to a
             narrow "Show filters" handle in the same place (never on the table), and it has the search box at the top. The choice is remembered here. */}
+        {/* Task #376 (team, 24 Nov 2026): "How to read this table" is a drop-down, closed at first, at the top of the page above the filters and the table
+            (where the team's arrow points); it was a long open section under the table. */}
+        <details className="mf-howto">
+          <summary><span className="mf-howto-tx"><b id="mf-howto-t">How to read this table</b><small>What each column means and where the figures come from</small></span>
+            <span className="mf-howto-show" aria-hidden="true"><span className="mf-howto-s">Show</span><span className="mf-howto-h">Hide</span><i className="mf-howto-chev" /></span></summary>
+          <Legend stopped={t ? t.schemes - t.active : null} facts={facts} />
+        </details>
         <div className={"mf-layout" + (fOpen ? "" : " closed")}>
           <aside className="mf-side" aria-label="Filters">
             {fOpen ? (<>
-              <div className="mf-side-h"><h2>Filters</h2><button type="button" className="btn mf-hidef" aria-expanded="true" aria-controls="mf-side-b" onClick={() => setF(false)}>Hide filters</button></div>
+              <div className="mf-side-h"><h2>Filters</h2>
+                {/* task #376: Reset filters beside Hide filters, the pair the same size; it goes back to the page's start (every scheme, no filter) */}
+                <span className="mf-side-acts">
+                  <button type="button" className="btn sm mf-resetf" disabled={atStart} title={atStart ? "No filter is set" : "Clear every filter and the search"} onClick={resetAll}>Reset filters</button>
+                  <button type="button" className="btn sm mf-hidef" aria-expanded="true" aria-controls="mf-side-b" onClick={() => setF(false)}>Hide filters</button></span></div>
               <div id="mf-side-b" className="mf-side-b">
                 <Controls part="search" q={q} text={text} onText={setText} set={set} filters={filt.data} loading={list.isFetching} />
         <CategoryPicker side q={q} subs={subs} loading={filt.isLoading} onTab={(tab) => set({ tab, cats: null, ...tabDefaults(tab) })} onCats={(cats) => set({ cats })}
@@ -276,7 +292,6 @@ export function FundListPage() {
         )}
           </div>
         </div>
-        <PhoneFold page="funds" id="legend" title="How to read this table" line="What each column means and where the figures come from"><Legend stopped={t ? t.schemes - t.active : null} facts={facts} /></PhoneFold>
         <Foot facts={facts} />
       </div>
 

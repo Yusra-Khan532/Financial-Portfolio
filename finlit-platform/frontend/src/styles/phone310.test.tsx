@@ -173,7 +173,7 @@ describe("fix 6: long pages open on tap", () => {
     // task #333 follow-up: on a phone the sections after the second (the two boxes and Inside a sector) start closed again
     expect(sp.match(/<PhoneFold page="sectors" id="(all|chk|inside)"/g)?.length).toBe(3);
     expect(sp.indexOf("<YourIndustries")).toBeLessThan(sp.indexOf("<PhoneFold"));   // Simple: Standout stocks, Stocks counted; Full table: Too small for a reading
-    expect(read("pages/Funds.tsx")).toContain('<PhoneFold page="funds" id="legend"');
+    expect(read("pages/Funds.tsx")).toMatch(/<details className="mf-howto">\s*<summary>/);   // task #376: closed on every width, at the top of the page
     for (const f of ["components/StepsBar.tsx", "components/sectors/pack/Guide.tsx"]) expect(read(f), f).toMatch(/revealAndScroll\(/);
   });
   it("the funds list shows its first 5 schemes on a phone, then Show all", () => {
