@@ -762,3 +762,6 @@ footer.band { padding-block: 0; border-top: 1px solid rgba(255,255,255,.08); }
    quarterly results, Sector Pulse, MF, the ETF data table, the zoomed table and the three Risk tables. Two classes deep, so it wins at every width. */
 .tw:is(.scr-tw, .etf-tw, .qr-scroll, .sx-scroll), :is(.mf, .sx-tablebox, .etf-datatable, .cz-body .cz-host) .tw,
 .eq .tw.eqs-frz:has(> table.eqr-sb, > table.eqr-rs, > table.eqr-each) { --tw-pad: 0px; }
+/* Logo.dev's credit (lib/logoCdn.ts): a plain line under the legal links, only while its logos can show */
+.logo-credit { display: block; margin-top: 4px; }
+.logo-credit a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }

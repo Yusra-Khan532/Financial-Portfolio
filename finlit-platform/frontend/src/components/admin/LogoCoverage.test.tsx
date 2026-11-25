@@ -40,12 +40,12 @@ describe("company logo coverage", () => {
     expect(typeof b.image).toBe("string"); expect(b.image.length).toBeGreaterThan(100);
     await waitFor(() => expect(st.toast).toHaveBeenCalledWith("Logo saved for SBIN."));
   });
-  it("refuses a file over 64 KB at once, with the reason, and sends nothing", async () => {
-    await expect(readImage(file(70 * 1024))).rejects.toThrow(/at most 64 KB/);
+  it("refuses a file over 128 KB at once, with the reason, and sends nothing", async () => {
+    await expect(readImage(file(140 * 1024))).rejects.toThrow(/at most 128 KB/);
     wrap();
     await screen.findByText("SBIN");
-    fireEvent.change(screen.getByLabelText("Logo file for SBIN"), { target: { files: [file(70 * 1024)] } });
-    await screen.findByText(/at most 64 KB/);
+    fireEvent.change(screen.getByLabelText("Logo file for SBIN"), { target: { files: [file(140 * 1024)] } });
+    await screen.findByText(/at most 128 KB/);
     expect(st.sent.length).toBe(0);
   });
 });

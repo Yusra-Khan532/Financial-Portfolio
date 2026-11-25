@@ -15,6 +15,7 @@ import { SystemControl } from "./SystemControl";
 import { AssistantLauncher } from "./AssistantLauncher";
 import { OPEN_AI } from "./assistantEvents";
 import { PageFaqs } from "./PageFaqs";
+import { LogoCredit } from "./CoLogo";
 import { EnquiryProvider, useEnquiry } from "./Enquiry";
 import { InfoProvider } from "./Info";
 import { DEMO } from "../lib/demo";
@@ -200,7 +201,7 @@ function Footer() {
         {desktopSiteOn() && <p className="ma-back"><button type="button" className="btn" onClick={() => setDesktopSite(false)}>Back to the mobile site</button></p>}
         <div className="ffine">
           <span>{COMPANY.disclaimer} Market data may be delayed. Past performance does not indicate future results.</span>
-          <span>© {new Date().getFullYear()} {COMPANY.name}<br /><span className="ver" title="Quote this when you contact support">{versionLine()}</span><br /><Link to="/legal/terms">Terms</Link> · <Link to="/legal/privacy">Privacy</Link> · <Link to="/legal/disclosures">Disclosures</Link></span>
+          <span>© {new Date().getFullYear()} {COMPANY.name}<br /><span className="ver" title="Quote this when you contact support">{versionLine()}</span><br /><Link to="/legal/terms">Terms</Link> · <Link to="/legal/privacy">Privacy</Link> · <Link to="/legal/disclosures">Disclosures</Link><LogoCredit /></span>
         </div>
       </div>
     </footer>

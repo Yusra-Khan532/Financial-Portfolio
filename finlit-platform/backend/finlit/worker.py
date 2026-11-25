@@ -1259,7 +1259,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_bf.add_argument("--amc", default="all", help="AMFI fund house id or name, or all")
     p_bf.add_argument("--force", action="store_true")
     p_lg = sub.add_parser("refresh-logos", help="nightly: company and fund-house logos from their own websites (robots.txt obeyed; blocked sites are left alone)")
-    p_lg.add_argument("--limit", type=int, default=150, help="sites to try in one run")
+    p_lg.add_argument("--limit", type=int, default=300, help="sites to try in one run (300: about 6-10 minutes at 4 at a time, inside the job's 30)")
     p_lg.add_argument("--profiles", type=int, default=100, help="provider company-profile calls for large companies with no website on file")
     p_mc = sub.add_parser("refresh-macro", help="nightly: India macro data from MoSPI (CPI, WPI, GDP, IIP, PLFS) and the RBI (policy rates, weekly reserves and credit)")
     p_mc.add_argument("--full", action="store_true", help="reload the full history (the first run does this by itself)")

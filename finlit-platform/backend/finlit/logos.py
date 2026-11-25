@@ -46,7 +46,7 @@ router = APIRouter(prefix="/api/logos")
 
 USER_AGENT = "FinLit-logo/1.0 (+https://finlitventures.com; one request per page, robots.txt obeyed)"
 MAX_HTML = 256 * 1024
-MAX_BYTES = 64 * 1024
+MAX_BYTES = 128 * 1024              # 64 KB refused many current apple-touch-icons (Coal India's is 68 KB, 25 Nov 2026); 128 KB is still small to serve, cached for a year
 MIN_PX, MAX_PX = 16, 1024             # many company sites publish only a 16 px favicon; it is shown at its own size, never blown up
 TIMEOUT = 6.0
 MAX_REDIRECTS = 3
@@ -523,7 +523,7 @@ async def missing(request: Request, limit: int = Query(100, ge=1, le=500), offse
 
 class ManualLogoIn(BaseModel):
     symbol: str = Field(min_length=1, max_length=24, pattern=r"^[A-Za-z0-9&._-]+$")
-    image: str = Field(min_length=8, max_length=100_000, description="the image file, base64 (the file itself is at most 64 KB)")
+    image: str = Field(min_length=8, max_length=180_000, description="the image file, base64 (the file itself is at most 128 KB)")
 
 
 @router.post("/admin/manual", status_code=201)

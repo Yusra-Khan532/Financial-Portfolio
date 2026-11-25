@@ -50,7 +50,7 @@ def test_sniff_accepts_real_square_bitmaps():
     (png(8, 8), "outside"),
     (png(2048, 2048), "outside"),
     (png(200, 60), "square"),
-    (png(128, 128, pad=70_000), "too large"),
+    (png(128, 128, pad=140_000), "too large"),   # over the 128 KB cap
 ])
 def test_sniff_rejects(data, why):
     with pytest.raises(Rejected, match=why):
@@ -241,3 +241,57 @@ async def test_coverage_and_manual_logo_are_admin_only_and_checked(app):
     assert served.status_code == 200 and served.headers["content-type"] == "image/png"          # anyone can see it, like any logo
     again = (await admin.get("/api/logos/admin/missing?limit=20")).json()
     assert "ZZLOGO1" not in {i["symbol"] for i in again["items"]} and again["withLogo"] >= 1   # it left the missing list
+
+
+def test_a_current_size_apple_touch_icon_passes():
+    """25 Nov 2026: Coal India's apple-touch-icon is 68 KB and was refused by the old 64 KB cap; the cap is now 128 KB, still checked."""
+    assert logos.MAX_BYTES == 128 * 1024
+    out, mime, w, h = sniff(png(180, 180, pad=70 * 1024))
+    assert mime == "image/png" and (w, h) == (180, 180) and len(out) > 64 * 1024
+    with pytest.raises(Rejected, match="too large"):
+        sniff(png(180, 180, pad=130 * 1024))
+
+
+async def test_the_hand_set_logo_route_accepts_a_128_kb_image_as_base64_and_nothing_bigger():
+    """The 64 KB JSON cap refused any hand-set logo over about 47 KB (its base64 is a third larger); that route alone gets 192 KB, with a session cookie."""
+    from fastapi import FastAPI
+
+    from finlit.api import BodyLimitMiddleware, MAX_LOGO_BODY
+    app = FastAPI()
+
+    @app.post("/api/logos/admin/manual")
+    async def manual_stub():
+        return {"ok": True}
+
+    @app.post("/api/contact")
+    async def other():
+        return {"ok": True}
+    app.add_middleware(BodyLimitMiddleware)
+    c = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t")
+    body = b'{"symbol":"X","image":"' + base64.b64encode(b"x" * (128 * 1024)) + b'"}'
+    assert len(body) < MAX_LOGO_BODY
+    cookie = {"Cookie": "finlit_session=x"}
+    assert (await c.post("/api/logos/admin/manual", content=body, headers=cookie)).status_code == 200
+    assert (await c.post("/api/logos/admin/manual", content=body)).status_code == 413                       # no session: the small cap
+    assert (await c.post("/api/contact", content=body, headers=cookie)).status_code == 413                   # other routes keep 64 KB
+    assert (await c.post("/api/logos/admin/manual", content=b"x" * (MAX_LOGO_BODY + 1), headers=cookie)).status_code == 413
+
+
+def test_only_a_publishable_logo_dev_key_reaches_the_page():
+    from finlit.search import logo_cdn_key
+    assert logo_cdn_key("pk_AbC123_x-y") == "pk_AbC123_x-y"
+    assert logo_cdn_key("  pk_AbC123  ") == "pk_AbC123"
+    for bad in ("", "sk_secret123", "pk_", "pk_bad key", "pk_" + "a" * 100, "token"):
+        assert logo_cdn_key(bad) is None
+
+
+def test_a_small_favicon_gives_way_to_the_sharp_cdn_logo_only_when_a_key_is_set():
+    """Owner, 25 Nov 2026: blurry logos. A 16-48px favicon is dropped for Logo.dev's 128px image when the key is on; a hand-set logo always stays."""
+    from finlit.search import quote_rows
+    base = {"sp": 10.0, "sc": 1.0, "su": None, "qp": None, "qc": None, "qt": None, "sha8": "e49a9b94449af6e2"}
+    rows = [{**base, "symbol": "SMALL", "lw": 32, "lh": 32, "ls": "ok"}, {**base, "symbol": "BIG", "lw": 180, "lh": 180, "ls": "ok"},
+            {**base, "symbol": "HAND", "lw": 40, "lh": 40, "ls": "manual"}, {**base, "symbol": "OLD"}]
+    on = {r[0]: r[6] for r in quote_rows(rows, "basic", set(), cdn=True)}
+    off = {r[0]: r[6] for r in quote_rows(rows, "basic", set())}
+    assert on["SMALL"] is None and on["BIG"] and on["HAND"] and on["OLD"]
+    assert all(off.values())   # without a key nothing is dropped (a small logo beats the initials tile)
