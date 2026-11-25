@@ -26,14 +26,6 @@ const trend = ({ title, what, y, read, why, x = PERIOD }: TrendArgs): ChartHelpE
 
 export const CHART_HELP: Record<string, ChartHelpEntry> = {
   /* ---------------------------------------------------------------- stock page: price */
-  "price-candles": {
-    title: "Price, moving averages and volume",
-    what: "One candle per trading day. The thick body runs from the day's opening to closing price and the thin line shows its highest and lowest price. The dashed orange line is the 50-day average and the green line is the 200-day average.",
-    x: "Trading date, for the 1 month, 6 month or 1 year range you choose.",
-    y: "Share price in rupees (left scale). The small bars at the bottom show shares traded that day, scaled to the busiest day shown.",
-    read: "A green candle closed higher than it opened and a red one closed lower. Price above a rising average means the recent trend is up; below it, down. Tall volume bars mark days with unusually heavy trading.",
-    why: "It shows the direction, the size of the swings and how much trading backed each move, in one picture.",
-  },
   "price-section": {
     title: "Price over time",
     what: "The closing price of the share over the range you pick, with the 50-day and 200-day averages and trading volume as optional extras.",
@@ -126,14 +118,6 @@ export const CHART_HELP: Record<string, ChartHelpEntry> = {
     read: "Watch how the colours change in size. A growing cash and investments slice gives the company room to move; a growing work-in-progress slice means projects that are not earning yet.",
     why: "It shows what the business is made of and where its money has been put to work.",
   },
-  "bs-funding": {
-    title: "How it is paid for",
-    what: "How the company's assets are funded: by owners' money, by borrowing, or by other liabilities such as money owed to suppliers.",
-    x: "Financial year (balance sheet date).",
-    y: "Per cent of total assets, so every column adds up to 100%.",
-    read: "Owners' money is the safest funding. A red borrowings slice that is shrinking means the company relies less on debt, which it must repay with interest.",
-    why: "A business funded mostly by its owners is generally better placed to ride out a bad year than one that owes a lot.",
-  },
   "bs-treemap": {
     title: "Assets at a glance",
     what: "The latest year's assets as a set of boxes, one per kind of asset.",
@@ -142,14 +126,6 @@ export const CHART_HELP: Record<string, ChartHelpEntry> = {
   },
 
   /* ---------------------------------------------------------------- stock page: cash flow */
-  "cf-streams": {
-    title: "Operating, investing and financing cash flow",
-    what: "Three streams of cash for each year: cash made by running the business, cash spent on or received from investments, and cash from or paid to lenders and shareholders.",
-    x: "Financial year (April to March).",
-    y: "Rupees crore. Bars above zero are cash coming in and bars below zero are cash going out.",
-    read: "A healthy business usually shows a tall positive operations bar. Investing is often negative because the company is spending on growth. Financing shows borrowing, repayments and dividends.",
-    why: "Profit is an accounting figure while cash is what actually arrives, so this shows whether the business turns profit into cash.",
-  },
   "cf-bridge": {
     title: "Cash bridge",
     what: "A walk showing how the latest year's three cash streams add up to the overall change in the company's cash.",
@@ -158,54 +134,8 @@ export const CHART_HELP: Record<string, ChartHelpEntry> = {
     read: "Green steps add cash and red steps remove it. The final bar is the sum, so a positive result means the company ended the year with more cash than it started.",
     why: "It explains in one view why a company's cash balance went up or down.",
   },
-  "cf-fcf": {
-    title: "Free cash flow against capex",
-    what: "Free cash flow is the cash from operations left after the company pays for its factories, equipment and other capital spending (capex). The chart sets it beside the capex itself.",
-    x: "Financial year (April to March).",
-    y: "Rupees crore. Capex is drawn below zero because it is money going out.",
-    read: "Tall free cash flow bars mean plenty is left over. If capex is large and free cash flow is thin or negative, the company is spending heavily on growth.",
-    why: "Free cash flow is the money available for dividends, repaying debt or buybacks, so it shows what the business can actually afford.",
-  },
 
   /* ---------------------------------------------------------------- stock page: ownership */
-  "own-table": {
-    title: "Shareholding pattern, quarter by quarter",
-    what: "The share of the company held by each group of owners in the last eight quarters, with how much each group's share moved.",
-    x: "Quarter reported, oldest to latest, then the change against the last quarter and against a year ago.",
-    y: "Owner groups: promoters, foreign investors, Indian institutions, the public and government. Cells are per cent of all shares.",
-    read: "Read along a row to see one group's holding rise or fall. The last two columns give the change in percentage points (pts); green is an increase and red a decrease.",
-    why: "Who is buying or selling, especially the founders and large institutions, tells you how the people closest to the company feel about it.",
-  },
-  "own-lines": {
-    title: "How each group's share has moved",
-    what: "One line for each group of owners showing the share of the company it has held over time.",
-    x: "Quarter reported.",
-    y: "Per cent of all shares held by that group.",
-    read: "Follow each line on its own: a rising line means that group owns more of the company than before. Hover for the exact figure.",
-    why: "Slow, steady shifts in ownership are easier to see as lines than in a table of numbers.",
-  },
-  "own-mix": {
-    title: "Latest ownership mix",
-    what: "A ring split into slices, one per group of owners, using the most recent shareholding report.",
-    read: "A bigger slice means that group holds a bigger share of the company. The figure in the middle is the largest group's share.",
-    why: "It shows at a glance who controls the company: founders, institutions or ordinary investors.",
-  },
-  "own-slope": {
-    title: "Change since the first quarter",
-    what: "For each group of owners, a line joining its share in the earliest quarter on record to its share in the latest.",
-    x: "Two points in time: the earliest quarter and the latest quarter.",
-    y: "Per cent of all shares held by the group at each point.",
-    read: "A line sloping up means the group now owns more than before and one sloping down means it owns less. Steeper means a bigger change.",
-    why: "It shows who has been increasing or reducing their stake over the whole period.",
-  },
-  "own-change-1y": {
-    title: "Change over the last year",
-    what: "How much each group of owners added to or gave up from its holding over the past year.",
-    x: "Change in percentage points of the company's shares. Bars to the right are increases and bars to the left are decreases.",
-    y: "The owner groups, one row each.",
-    read: "A long green bar means the group bought a lot more of the company. A long red bar means it sold down.",
-    why: "It highlights the most important buyers and sellers, such as foreign funds or the founders.",
-  },
   "own-donut": {
     title: "Owners today",
     what: "A ring showing the share of the company held by each group of owners in the latest report.",
@@ -222,34 +152,12 @@ export const CHART_HELP: Record<string, ChartHelpEntry> = {
   },
 
   /* ---------------------------------------------------------------- stock page: valuation, events, peers */
-  "val-dumbbell": {
-    title: "Today against the usual level",
-    what: "For price to earnings (P/E), price to book (P/B) and price to sales (P/S), the usual value over the company's history next to the value today.",
-    x: "The valuation multiple in times (×). It is how many rupees investors pay for each rupee of profit, book value or sales.",
-    y: "The three multiples: P/E, P/B and P/S.",
-    read: "If the 'Now' dot sits to the right of the 'Usual' dot, the share is dearer than it has been; to the left, cheaper. The usual value is the median of the company's own history.",
-    why: "It shows whether the market is paying more or less than usual, though cheap does not always mean good, so check the quality scores too.",
-  },
   "events-timeline": {
     title: "Dividends, bonus and splits",
     what: "A timeline of the company's corporate actions: dividends, bonus shares, stock splits and rights offers.",
     x: "Date of each action.",
-    read: "Gold dots on the line are cash dividends. Larger dots above the line are bonus issues, splits or rights offers. Hover a dot for the details.",
+    read: "Dots on the line are cash dividends. Larger dots above the line are bonus issues, splits or rights offers. Hover a dot for the details.",
     why: "Regular payouts show a company that shares profit, and bonuses or splits change the number of shares you hold.",
-  },
-  "peers-mcap": {
-    title: "Market value against peers",
-    what: "The company's market value next to that of its peers in the same industry.",
-    x: "Market value in rupees crore, which is the share price times the number of shares.",
-    y: "The company and its peers, largest at the top.",
-    read: "A longer bar is a bigger company by stock market value. The company you are viewing is highlighted.",
-    why: "Size affects stability and how easily a share trades, and it tells you where the company stands in its industry.",
-  },
-  "peers-treemap": {
-    title: "Share of the group's value",
-    what: "The same peer group as boxes, sized by market value.",
-    read: "The bigger the box, the larger that company's share of the group's combined market value. The company you are viewing is shown in gold.",
-    why: "It shows how dominant the company is, or how small, within its peer group.",
   },
 
   /* ---------------------------------------------------------------- stock page: sections */

@@ -21,11 +21,14 @@ import { Plain } from "../components/Plain";
 import { ChartZoom } from "../components/ChartZoom";
 import { TabGroup } from "../components/TabGroup";
 import { ForecastCard } from "./ForecastCard";
+import { BsCharts, CfCharts, PlCharts, PriceStats } from "./MoreCharts";
+import { Defer } from "./Defer";
+import { sectionNo } from "../lib/sectionNav";
 
 const css = (v: string) => `var(${v})`;
 /** Section header (task #216, compact): the number large (40 px; 32 on phones), a thin rule, the eyebrow with the plan badge, the title (24 px), and under it
  *  one line: the counts as coloured chips (if any), a dot, then the description (13 px, muted). Controls (toggles, a link) go on the right in `aside`.
- *  A section without a number (Chart lab) keeps its icon tile. */
+ *  The number comes from the report's one order (lib/sectionNav); a heading without one keeps its icon tile. */
 import "../styles/insights.css";
 import { PLAN_FOR_REPORT_EXTRAS } from "../lib/planGates";
 export type HeadCount = { n: number; label: string; tone: "red" | "amb" | "pos" };
@@ -43,7 +46,8 @@ export function CountChips({ counts }: { counts: HeadCount[] }) {
   return <span className="cchips">{counts.map((c) => <span key={c.label} className={"cchip " + (c.n === 0 ? "zero" : c.tone)}><b>{c.n}</b> {c.label}</span>)}</span>;
 }
 export function SectionHead({ id, no, icon, tier, title, sub, color, aside, counts }: { id: string; no: string; icon: string; tier?: "basic" | "silver" | "gold"; title: string; sub?: string; color: string; aside?: React.ReactNode; counts?: HeadCount[] }) {
-  const m = /^(\d{1,2})\s*·\s*(.+)$/.exec(no);
+  // developer file 41: a report section's number comes from the one order in lib/sectionNav (pass its name only); "07 · Name" still works elsewhere
+  const n = sectionNo(id), m = /^(\d{1,2})\s*·\s*(.+)$/.exec(no) ?? (n ? [no, n, no] : null);
   return (
     <div className="sh" id={id} style={{ "--sc": `var(${color})` } as React.CSSProperties}>
       <div className="sh-l">
@@ -83,7 +87,7 @@ export function PriceSection({ s, symbol, ratios }: { s: Summary; symbol: string
   };
   return (
     <section className="block" style={{ "--sc": "var(--p-tech)" } as React.CSSProperties}>
-      <SectionHead id="price" no="04 · Price & technicals" icon="line" tier="basic" title="How the stock has traded" sub="Intraday bars from Dhan for 1D, 5D and 1M; daily closes up to one year, weekly closes beyond. Hover the chart for detail." color="--p-tech" />
+      <SectionHead id="price" no="Price & technicals" icon="line" tier="basic" title="How the stock has traded" sub="Intraday bars from Dhan for 1D, 5D and 1M; daily closes up to one year, weekly closes beyond. Hover the chart for detail." color="--p-tech" />
       {intra && idata?.series && chg != null && <Plain tone={chg >= 0 ? "good" : "warn"}>Since the open {idata.sessions.length > 1 ? "of " + istDay(idata.sessions[0]) : "on " + istDay(idata.session ?? "")}, the price {chg >= 0 ? "rose" : "fell"} {nf(Math.abs(chg), 2)}%.</Plain>}
       {!intra && chg != null && <Plain tone={chg >= 0 ? "good" : "warn"}>Over this period the price {chg >= 0 ? "rose" : "fell"} {nf(Math.abs(chg), 1)}%.{t?.vsEma200Pct != null && <> It trades {nf(Math.abs(t.vsEma200Pct), 1)}% {t.vsEma200Pct < 0 ? "below" : "above"} its 200-day average, {longTrend(t)}.</>}</Plain>}
       <div className="grid g3">
@@ -122,9 +126,12 @@ export function PriceSection({ s, symbol, ratios }: { s: Summary; symbol: string
           </div>
         </Gate>
       </div>
+      {/* developer file 41: the price statistics of the old Chart lab (section 08), drawn when the section comes near the screen */}
+      <div className="rp-more"><p className="label rp-more-h">Price statistics <TierChip tier={PLAN_FOR_REPORT_EXTRAS} /></p><Defer all={false} onShow={noop} height={560}><PriceStats symbol={symbol} /></Defer></div>
     </section>
   );
 }
+const noop = () => {};
 
 /** The intraday chart with what it shows (session, source, as-of time), or why it cannot be shown. */
 function IntradayBody({ q, data, showVol, chg }: { q: { isPending: boolean; isError: boolean; error: ApiError | null }; data?: Intraday; showVol: boolean; chg: number | null }) {
@@ -195,7 +202,7 @@ export function FinancialsSection({ f: page }: { f?: Financials }) {
   const alt = useSection<Financials>(sym, "financials", !!page && basis === "consolidated" && years > 0 && years < 5 && !wasChosen(sym), "standalone");
   const altYears = alt.data?.yearly.pl.periods.length ?? 0;
   useEffect(() => { if (basis === "consolidated" && years > 0 && altYears >= years + 2) setBasis(sym, "standalone", true); }, [basis, years, altYears, sym]);
-  if (!page) return <section className="block"><SectionHead id="financials" no="06 · Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow, quarterly and yearly" color="--p-growth" /><div className="skeleton" style={{ height: 380 }} /></section>;
+  if (!page) return <section className="block"><SectionHead id="financials" no="Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow, quarterly and yearly" color="--p-growth" /><div className="skeleton" style={{ height: 380 }} /></section>;
   const name = (b: Basis) => (b === "consolidated" ? "Consolidated" : "Standalone");
   const active: Basis = chosen ?? page.meta.statement;
   const basisSeg = (
@@ -214,7 +221,7 @@ export function FinancialsSection({ f: page }: { f?: Financials }) {
         : `Loading ${(chosen as Basis)} accounts…`;
     return (
       <section className="block" style={{ "--sc": "var(--p-growth)" } as React.CSSProperties}>
-        <SectionHead id="financials" no="06 · Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow, quarterly and yearly" sub={`${name(chosen as Basis)}, ₹ crore. L Cr = lakh crore. FY = April–March.`} color="--p-growth" />
+        <SectionHead id="financials" no="Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow, quarterly and yearly" sub={`${name(chosen as Basis)}, ₹ crore. L Cr = lakh crore. FY = April–March.`} color="--p-growth" />
         <div className="card acc" style={{ "--ac": "var(--p-growth)" } as React.CSSProperties}>
           <div className="tools"><span className="faint" style={{ fontSize: "var(--fs-13)" }}>Accounts</span><div className="tools-r">{basisSeg}</div></div>
           <p className={noneFor || other.isError ? "muted" : "faint"} role="status" style={{ fontSize: "var(--fs-14)", margin: "6px 0 0" }}>{why}</p>
@@ -232,7 +239,7 @@ export function FinancialsSection({ f: page }: { f?: Financials }) {
   const last = tbl.periods.length - 1;
   return (
     <section className="block" style={{ "--sc": "var(--p-growth)" } as React.CSSProperties}>
-      <SectionHead id="financials" no="06 · Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow, quarterly and yearly" sub={`${f.meta.statement === "consolidated" ? "Consolidated" : "Standalone"}, ₹ crore. L Cr = lakh crore. FY = April–March.`} color="--p-growth" aside={<ForecastCard f={f} />} />
+      <SectionHead id="financials" no="Financials" icon="bars" tier="basic" title="Profit and loss, balance sheet and cash flow, quarterly and yearly" sub={`${f.meta.statement === "consolidated" ? "Consolidated" : "Standalone"}, ₹ crore. L Cr = lakh crore. FY = April–March.`} color="--p-growth" aside={<ForecastCard f={f} />} />
       {(() => { const [rv, np, , mg] = tiles; return rv.delta != null && np.delta != null ? <Plain tone={np.delta >= 0 ? "good" : "warn"}>Sales {rv.delta >= 0 ? "grew" : "fell"} {nf(Math.abs(rv.delta), 1)}% last year and profit {np.delta >= 0 ? "rose" : "fell"} {nf(Math.abs(np.delta), 1)}%.{typeof mg.value === "number" && <> Out of every ₹100 of sales, about ₹{nf(mg.value, 1)} is kept as profit.</>}</Plain> : null; })()}
       <div className="grid g4" style={{ marginBottom: 16 }}>
         {tiles.map((t) => (
@@ -272,6 +279,9 @@ export function FinancialsSection({ f: page }: { f?: Financials }) {
             <tr key={k} className={tot ? "tot" : ""} data-row-key={k}><td>{kind === "bs" || kind === "cf" ? label : (PL_LABEL[k] ?? label)}{(kind === "pl" || kind === "q") && PL_INFO[k] && <> <Info g={PL_INFO[k]} /></>}</td>{v.map((x, i) => <td key={i} className={i === last ? "latest" : ""}>{plCell(k, x)}</td>)}{kind === "q" ? <>{cell(y)}{cell(y4)}</> : kind !== "cf" && cell(y)}<td><Spark values={v} color="var(--muted)" w={76} h={24} /></td></tr>); })}</tbody>
         </table></HScroll></div>
       </div>
+      {/* developer file 41: the old Chart lab's charts of the statement shown (yearly), on the same accounts as the table */}
+      <div className="rp-more"><p className="label rp-more-h">{{ pl: "Profit and loss", q: "Profit and loss", bs: "Balance sheet", cf: "Cash flow" }[kind]} in charts{kind === "q" ? ", yearly" : ""}</p>
+        {kind === "bs" ? <BsCharts f={f} /> : kind === "cf" ? <CfCharts f={f} /> : <PlCharts f={f} />}</div>
     </section>
   );
 }

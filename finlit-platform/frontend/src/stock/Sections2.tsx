@@ -15,6 +15,8 @@ import { ChartZoom } from "../components/ChartZoom";
 import { CoLogo } from "../components/CoLogo";
 import { useClassification } from "../lib/taxonomy";
 import { divPlain, divView } from "../lib/dividends17";
+import { ActionsTimeline } from "./MoreCharts";
+import { sectionNo } from "../lib/sectionNav";
 
 const v = (n: string) => `var(${n})`;
 
@@ -38,7 +40,7 @@ export function BusinessSection({ s }: { s: Summary }) {
   ];
   return (
     <section className="block" style={{ "--sc": "var(--p-growth)" } as React.CSSProperties}>
-      <SectionHead id="business" no="01 · Company overview" icon="building" tier="basic" title={`What ${p.name.split(" ")[0]} does`} color="--p-growth" />
+      <SectionHead id="business" no="Company overview" icon="building" tier="basic" title={`What ${p.name.split(" ")[0]} does`} color="--p-growth" />
       <div className="biz2">
         <div className="card acc biz-main" style={{ "--ac": "var(--p-growth)" } as React.CSSProperties}>
           <svg className="skyline" viewBox="0 0 400 120" aria-hidden="true" preserveAspectRatio="xMaxYMax meet">
@@ -75,7 +77,7 @@ export function DividendsSection({ e, price, r }: { e?: Events; price?: number |
   const partLabel = d.partial ? (divs.filter((x) => x.forFY === d.partial!.p).length === 1 && divs.find((x) => x.forFY === d.partial!.p)?.type === "interim_dividend" ? "the interim dividend declared so far" : "the dividends declared so far") : "";
   return (
     <section className="block" style={{ "--sc": "var(--gold-deep)" } as React.CSSProperties}>
-      <SectionHead id="dividends" no="17 · Dividends" icon="coins" tier="basic" title="Cash returned to shareholders" sub="Amounts are adjusted for splits and bonuses." color="--gold-deep" />
+      <SectionHead id="dividends" no="Dividends" icon="coins" tier="basic" title="Cash returned to shareholders" sub="Amounts are adjusted for splits and bonuses." color="--gold-deep" />
       {e.dividendYieldTtm != null && <Plain tone={d.streak >= 5 && d.rising >= 3 ? "good" : "info"}>{divPlain(e.dividendYieldTtm, d, payout, nf)}</Plain>}
       <div className="dvk">
         <div className="dk" style={{ "--dc": "var(--gold)" } as React.CSSProperties}>
@@ -138,8 +140,10 @@ export function DividendsSection({ e, price, r }: { e?: Events; price?: number |
         </div>
       </div>
         </> },
+        // developer file 41: the corporate actions timeline of the old Chart lab (section 08, Events & peers) is a view of this section
+        { key: "actions", label: "Bonus and splits", content: <ActionsTimeline e={e} /> },
       ]} />
-      <p className="faint nf-x">Board decisions, record dates and other dividend notices are listed in <a href="#news">18 News and filings</a>.</p>
+      <p className="faint nf-x">Board decisions, record dates and other dividend notices are listed in <a href="#news">{sectionNo("news")} News and filings</a>.</p>
     </section>
   );
 }

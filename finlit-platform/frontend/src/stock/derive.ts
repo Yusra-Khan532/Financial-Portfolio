@@ -1,6 +1,4 @@
 import type { Financials, Ratios, Summary } from "../lib/api";
-import { capSize } from "../lib/format";
-import type { Classification } from "../lib/taxonomy";
 
 export const PILLAR_COLOR: Record<string, string> = { quality: "--p-quality", growth: "--p-growth", profitability: "--p-profit", balance: "--p-balance", technical: "--p-tech" };
 export const PILLAR_ICON: Record<string, string> = { quality: "quality", growth: "growth", profitability: "profit", balance: "balance", technical: "tech" };
@@ -29,18 +27,7 @@ export function finTiles(f: Financials) {
   ];
 }
 
-export function buckets(s: Summary, r: Ratios | undefined, tech: { rsi14: number | null } | undefined, cls?: Classification | null) {
-  const out: [string, string, string, string][] = [];
-  const cap = capSize(s.profile.marketCapCr); if (cap) out.push(["cap", "Size", cap, "--p-growth"]);
-  const pe = metric(s, "pe")?.value, pb = metric(s, "pb")?.value;
-  if (pe != null) out.push(["tag", "Style", pe < 15 || (pb != null && pb < 1.5) ? "Value" : pe > 35 ? "Premium growth" : "Blend", "--p-quality"]);
-  const dy = metric(s, "dividend_yield")?.value; if (dy != null) out.push(["coins", "Income", dy >= 3 ? "High dividend" : dy >= 1 ? "Moderate dividend" : "Low dividend", "--t-gold"]);
-  // NSE's levels, each under its own name (task #192): the provider's `sector` mixed sectors with basic industries, and its macro sector was sometimes an industry
-  if (cls?.sector) out.push(["factory", "Sector", cls.sector, "--p-profit"]);
-  if (cls?.macro_sector && cls.macro_sector !== cls.sector) out.push(["building", "Macro sector", cls.macro_sector, "--p-balance"]);
-  const rsi = tech?.rsi14; if (rsi != null) out.push(["activity", "Momentum", rsi < 30 ? "Oversold" : rsi > 70 ? "Overbought" : "Neutral", "--p-tech"]);
-  void r; return out;
-}
+// buckets() (Size, Style, Income, Sector, Macro sector, Momentum) went with Gold insights, the section that drew them (developer file 41).
 
 export function ownershipSlices(latest: { key: string; value: number | null }[]) {
   const col: Record<string, string> = { promoters: "--c1", fii: "--c2", dii: "--c3", public: "--c4", government: "--c5", others: "--faint" };

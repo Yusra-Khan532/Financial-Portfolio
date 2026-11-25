@@ -31,19 +31,19 @@ describe("task #216 round 1: removals", () => {
     const src = visible(read("PrismCompare.tsx") + read("Hero.tsx"));   // task #283: the old score card (ScoreCard.tsx) is gone
     expect(src).not.toContain("What supports and weighs"); expect(src).not.toMatch(/Show full breakdown|Hide full breakdown|PrismDetail|ScoreDetail|DashToggle/);
   });
-  it("live section 17 is gone from the page and the section bar; Community is 19 (task #222 added 18 News and filings); the score history sits under the Prism card", () => {
+  it("live section 17 is gone from the page and the section bar; Community is the last section (17 since developer file 41); the score history sits under the Prism card", () => {
     expect(read("StockPage.tsx")).not.toContain("MethodSection");
     expect(NAV.map(([id]) => id)).not.toContain("method");
-    expect(read("CommunitySection.tsx")).toContain('no="19 · Community"');
+    expect(read("CommunitySection.tsx")).toContain('<SectionHead id="community" no="Community"');
+    expect(NAV[NAV.length - 1][0]).toBe("community");
     const hero = read("Hero.tsx");
     expect(hero.indexOf("<ScoreMovesCard")).toBeGreaterThan(hero.indexOf("<PrismCompare"));
   });
-  it("02 shows \"Sector impact\" only when it has more than one row", () => {
+  it("Economy and sector shows \"Sector impact\" only when it has more than one row", () => {
     expect(read("MacroOutlook.tsx")).toContain("{rows.length > 1 && <SectorTable rows={rows} />}");
   });
-  it("15's trigger cards keep their title but not 03's text, and the card header links to 03", () => {
-    const s3 = read("Sections3.tsx"), ins = s3.slice(s3.indexOf("export function InsightsSection"), s3.indexOf("export function SegmentsSection"));
-    expect(ins).not.toContain("<p>{n.text}</p>"); expect(ins).toContain("<b>{n.title}</b>");
-    expect(ins).toContain('href="#notes"'); expect(ins).toContain("Full findings in 03 ↑");
+  it("Gold insights, with its trigger cards, is gone (developer file 41: the founder removed section 15); the findings stay in What's going well and what to watch", () => {
+    expect(read("Sections3.tsx")).not.toContain("export function InsightsSection");
+    expect(read("StockPage.tsx")).toContain("<KeyFindings ");
   });
 });

@@ -139,3 +139,7 @@
 /* 6 · task #328: under 1180 px the driven-by box is narrow (two boxes side by side, about 400 px): the direction goes under the name and the values */
 .dp-sum .dp-stat{min-width:0}
 @media (max-width:1180px){.dp-drv li{grid-template-columns:minmax(0,1fr) auto}.dp-drv .e{grid-column:1/-1;white-space:normal}}
+/* developer file 41: the old Chart lab's charts inside their own sections (Price & technicals: the price statistics; Financials: under the statement
+   table), each block with a small label naming what it shows */
+.rp-more{margin-top:var(--block-gap)}
+.rp-more-h{margin:0 0 var(--sp-3)}

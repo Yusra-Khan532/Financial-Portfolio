@@ -46,7 +46,7 @@ export function NewsSection({ e, name, symbol }: { e?: Events; name: string; /**
   };
   return (
     <section className="block nf-block" style={{ "--sc": "var(--k1)" } as React.CSSProperties}>
-      <SectionHead id="news" no="18 · News and filings" icon="notes" tier="basic" title="What the company has told the exchange" sub="Filings to NSE, newest first. Each one opens the company's own document on the NSE website." color="--k1" />
+      <SectionHead id="news" no="News and filings" icon="notes" tier="basic" title="What the company has told the exchange" sub="Filings to NSE, newest first. Each one opens the company's own document on the NSE website." color="--k1" />
       {plain && <Plain>{plain}</Plain>}
       {tiles.length > 0 && <>
         <p className="nf-cap label">Latest in each group</p>

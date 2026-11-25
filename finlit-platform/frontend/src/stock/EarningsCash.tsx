@@ -17,6 +17,7 @@ import { Pill } from "./EarningsIntel";
 import "../styles/insights.css";
 import "../styles/earningscash.css";
 import { DropChev } from "../components/DropChev";
+import { sectionNo } from "../lib/sectionNav";
 
 /** The colour of a verdict tile (task #129): green ("s") for the good verdict, orange ("w") for the one to watch, red ("f") for the alarm, none when there is no verdict.
  *  One map for the three tiles: Earnings quality (Strong / Mixed / Needs a closer look), Cash backing (the pill's ok / watch / alert) and Cash conversion
@@ -57,11 +58,11 @@ export function useEarningsFindings(symbol: string, lender: boolean, sector?: st
 }
 
 /** An item that came as one sentence or more: the first sentence is its title, the rest its explanation (task #216, README 3.11). A question with nothing
- *  after it is explained by where section 11 looks at it. */
+ *  after it is explained by where Earnings & cash quality looks at it (its number from lib/sectionNav, developer file 41). */
 export function splitTitle(t: string): { title: string; text: string } {
   const m = t.match(/^(.+?[.?!])(\s+|$)([\s\S]*)$/);
   const title = (m ? m[1] : t).replace(/\.$/, "").trim(), rest = (m ? m[3] : "").trim();
-  return { title, text: rest || "Section 11 looks at this in step 3, \u201cIs the profit clean?\u201d." };
+  return { title, text: rest || `Section ${sectionNo("earnings")} looks at this in step 3, \u201cIs the profit clean?\u201d.` };
 }
 export type EarnItem = { key: string; title: string; text: string; to: string; tag?: string };
 /** Section 11's own findings as list items for section 03 (the 7 Nov merge rule, README 3.3): the red flag, the watch items, then the items to investigate. */

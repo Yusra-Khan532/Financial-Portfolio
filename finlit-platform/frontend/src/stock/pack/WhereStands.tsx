@@ -53,7 +53,7 @@ export function WhereStands({ symbol, name, s, peers }: { symbol: string; name: 
   return (
     <section className="block sp ws" aria-label={`Where ${short1} stands`} data-testid="where-stands">
       {/* task #216: numbered 14 with the report's own section heading (number, "Sector, peers and risk", Gold, title, one line) */}
-      <SectionHead id="sector" no="14 · Sector, peers and risk" icon="layers" tier="gold" title={`Where ${short1} stands`} sub="Its industry, its peers, its own price and its risk: one question per tab." color="--gold" />
+      <SectionHead id="sector" no="Sector, peers and risk" icon="layers" tier="gold" title={`Where ${short1} stands`} sub="Its industry, its peers, its own price and its risk: one question per tab." color="--gold" />
       <div className="sp-sec ws-head">
         {h && <p className="ws-lead"><b>{h.lead}</b>{h.rest}</p>}
         {h?.recent && <p className="sp-note">{h.recent}</p>}

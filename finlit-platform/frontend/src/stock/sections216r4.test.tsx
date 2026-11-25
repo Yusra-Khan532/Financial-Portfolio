@@ -78,11 +78,11 @@ describe("02 Macro outlook (README 3.2)", () => {
 });
 
 describe("10, 12, 13, 15 drop-downs and the ranking status (README 3.10, 3.12, 3.13, 3.15)", () => {
-  it("10's findings, 12's insight cards and 15's trigger are drop-downs", () => {
+  it("DuPont's findings and Ownership's insight cards are drop-downs (15's trigger cards went with Gold insights, developer file 41)", () => {
     expect(src("DecodeRoe.tsx")).toContain("dp-insc xdd");
     expect(src("own/OwnInsightCards.tsx")).toContain("ow-icard xdd");
     expect(src("own/OwnInsightCards.tsx")).not.toContain('href="#method"');
-    expect(src("Sections3.tsx")).toContain("Why it matters, and what to watch");
+    expect(src("Sections3.tsx")).not.toContain("Why it matters, and what to watch");
   });
   it("13: the label chip alone, its rank and reading and its method in two drop-downs", () => {
     const s = src("Leadership.tsx");

@@ -1,6 +1,6 @@
 // The chart lab's drawing kit: hand-built SVG/HTML charts that read the theme tokens, so they follow the light/dark theme and
 // the member's colour palette. Each takes plain arrays; none fetches anything.
-import { useId, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { MINUS, nf } from "../lib/format";
 
 type N = number | null;
@@ -10,6 +10,22 @@ const sgn = (v: number, d = 1) => (v > 0 ? "+" : v < 0 ? MINUS : "") + nf(v, d);
 const day = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
 function Readout({ children }: { children: ReactNode }) { return <div className="rd" aria-live="polite">{children}</div>; }
+
+/** Developer file 41: screen pixels per viewBox unit of a drawn chart (the SVG scales with its box, while text should stay legible), so labels can
+ *  wrap or thin out instead of running into each other on a phone. 1 until measured (and where ResizeObserver is missing, as in tests). */
+function usePxPerUnit(ref: RefObject<SVGSVGElement | null>, units: number): number {
+  const [k, setK] = useState(1);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => { const w = el.getBoundingClientRect().width; if (w > 0) setK(w / units); });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ref, units]);
+  return k;
+}
+/** A label's width on screen at the charts' 11 px type (Inter's average figure and letter width). */
+const labelPx = (s: string) => s.length * 6.4;
 
 /* ---------- candlesticks with moving averages and volume ---------- */
 export function Candles({ t, o, h, l, c, v, ema50, ema200, w: W = 1000 }: { t: string[]; o: N[]; h: N[]; l: N[]; c: number[]; v: N[]; ema50?: N[]; ema200?: N[]; w?: number }) {
@@ -123,24 +139,43 @@ export function Box({ years }: { years: BoxRow[] }) {
 
 /* ---------- waterfall ---------- */
 export type Step = { label: string; value: number; total?: boolean };
-export function Waterfall({ steps, fmt, height = 280, w: W = 1000 }: { steps: Step[]; fmt: (x: number) => string; height?: number; w?: number }) {
+/** A step's name in at most two lines: on one line when it fits the slot, else its first word, then the rest (it used to break only after the second
+ *  word, so "Operating profit" and "Other income" ran into each other on a phone). */
+export const labelLines = (label: string, room: number): string[] => {
+  const w = label.split(" ");
+  if (labelPx(label) <= room || w.length < 2) return [label];
+  if (w.length > 2 && labelPx(w.slice(0, 2).join(" ")) <= room) return [w.slice(0, 2).join(" "), w.slice(2).join(" ")];
+  return [w[0], w.slice(1).join(" ")];
+};
+/** `fit`: drawn at the box's own width when every step gets at least 64 px (a few steps, as the cash bridge's four on a phone), so it needs no
+ *  sideways scroll; otherwise 1000 units across, which a phone scrolls inside the box (developer file 41). */
+export function Waterfall({ steps, fmt, height = 280, w: W0 = 1000, fit }: { steps: Step[]; fmt: (x: number) => string; height?: number; w?: number; fit?: boolean }) {
   const [hv, setHv] = useState<number | null>(null);
-  const H = height, pl = 12, pr = 12, pt = 24, pb = 44, n = steps.length;
+  const box = useRef<HTMLDivElement>(null), [cw, setCw] = useState(0);
+  useEffect(() => {
+    const el = box.current;
+    if (!fit || !el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => setCw(Math.floor(el.clientWidth)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [fit]);
+  const W = fit && cw && cw / steps.length >= 64 ? cw : W0;
+  const svg = useRef<SVGSVGElement>(null), k = usePxPerUnit(svg, W), kk = Math.min(1, k);   // the type stays 11 px when the chart is drawn smaller (a phone)
+  const H = height, pl = 12, pr = 12, pt = 24, pb = 44 / kk, n = steps.length;
   const bars = useMemo(() => { let run = 0; return steps.map((s) => { if (s.total) { run = s.value; return { from: 0, to: s.value, end: s.value }; } const from = run; run += s.value; return { from, to: run, end: run }; }); }, [steps]);
   const all = bars.flatMap((b) => [b.from, b.to, 0]);
   const lo = Math.min(...all), hi = Math.max(...all), span = hi - lo || 1;
   const step = (W - pl - pr) / n, bw = Math.min(54, step * 0.62), X = (i: number) => pl + (i + 0.5) * step, Y = (x: number) => pt + (1 - (x - lo) / span) * (H - pt - pb);
   return (
-    <div className="mb">
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Waterfall chart" onMouseLeave={() => setHv(null)}>
+    <div className="mb" ref={box}>
+      <svg ref={svg} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Waterfall chart" onMouseLeave={() => setHv(null)}>
         <line x1={pl} x2={W - pr} y1={Y(0)} y2={Y(0)} stroke="var(--border-strong)" />
         {steps.map((s, i) => { const b = bars[i], top = Y(Math.max(b.from, b.to)), bot = Y(Math.min(b.from, b.to)); const col = s.total ? "var(--c1)" : s.value >= 0 ? "var(--gain)" : "var(--loss)";
           return <g key={s.label + i} opacity={hv == null || hv === i ? 1 : 0.5} onMouseEnter={() => setHv(i)}>
             {i > 0 && <line x1={X(i - 1) + bw / 2} x2={X(i) - bw / 2} y1={Y(bars[i - 1].end)} y2={Y(bars[i - 1].end)} stroke="var(--border-strong)" />}
             <rect x={X(i) - bw / 2} y={top} width={bw} height={Math.max(2, bot - top)} rx="3" fill={col} />
             <text x={X(i)} y={top - 6} textAnchor="middle" fontSize="11" fontWeight="600" fill="var(--text)" fontFamily="var(--mono)">{s.total ? fmt(s.value) : (s.value > 0 ? "+" : "") + fmt(s.value)}</text>
-            <text x={X(i)} y={H - 24} textAnchor="middle" fontSize="11" fill={AX}>{s.label.split(" ").slice(0, 2).join(" ")}</text>
-            {s.label.split(" ").length > 2 && <text x={X(i)} y={H - 11} textAnchor="middle" fontSize="11" fill={AX}>{s.label.split(" ").slice(2).join(" ")}</text>}
+            {labelLines(s.label, step * k - 8).map((ln, j) => <text key={j} x={X(i)} y={H - (24 - j * 13) / kk} textAnchor="middle" fontSize="11" fill={AX}>{ln}</text>)}
             <rect x={X(i) - step / 2} y={pt} width={step} height={H - pt} fill="transparent" /></g>; })}
       </svg>
     </div>
@@ -265,8 +300,16 @@ export function RankBars({ rows, fmt, diverging = false }: { rows: { label: stri
 }
 
 /* ---------- event timeline ---------- */
+/** The year labels that fit: from the newest back, each kept only when it clears the one after it on screen (developer file 41: on a phone the
+ *  first year, pinned to the left edge, ran into the next). */
+export const yearLabels = (years: string[], at: (y: string) => number, k: number): [string, number][] => {
+  const out: [string, number][] = []; let next = Infinity;
+  for (const y of [...years].reverse()) { const x = at(y), half = labelPx(y) / 2 / k; if (x + half + 6 / k <= next) { out.unshift([y, x]); next = x - half; } }
+  return out;
+};
 export function Timeline({ events, w: W = 1000 }: { events: { date: string; label: string; kind: string }[]; w?: number }) {
   const [hv, setHv] = useState<number | null>(null);
+  const svg = useRef<SVGSVGElement>(null), k = usePxPerUnit(svg, W);
   const ev = [...events].sort((a, b) => a.date.localeCompare(b.date));
   if (ev.length < 1) return null;
   const t0 = new Date(ev[0].date).getTime(), t1 = new Date(ev[ev.length - 1].date).getTime(), span = t1 - t0 || 1;
@@ -277,9 +320,10 @@ export function Timeline({ events, w: W = 1000 }: { events: { date: string; labe
   return (
     <div className="mb">
       <Readout>{cur ? <><b>{day(cur.date)}</b> <span>{cur.label}</span></> : <span>Hover a marker to read the event.</span>}</Readout>
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Corporate action timeline" onMouseLeave={() => setHv(null)}>
+      <svg ref={svg} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Corporate action timeline" onMouseLeave={() => setHv(null)}>
         <line x1={pl} x2={W - pr} y1={90} y2={90} stroke="var(--border-strong)" strokeWidth="2" />
-        {years.map((y) => <g key={y}><line x1={X(`${y}-01-01`)} x2={X(`${y}-01-01`)} y1={84} y2={96} stroke={AX} /><text x={Math.max(pl, X(`${y}-01-01`))} y={118} fontSize="11" fill={AX} textAnchor="middle">{y}</text></g>)}
+        {years.map((y) => <line key={y} x1={X(`${y}-01-01`)} x2={X(`${y}-01-01`)} y1={84} y2={96} stroke={AX} />)}
+        {yearLabels(years, (y) => Math.max(pl, X(`${y}-01-01`)), k).map(([y, x]) => <text key={y} x={x} y={118} fontSize="11" fill={AX} textAnchor="middle">{y}</text>)}
         {ev.map((e, i) => <circle key={i} cx={X(e.date)} cy={e.kind === "dividend" ? 90 : 66} r={e.kind === "dividend" ? 5 : 7} fill={color[e.kind] || color.other} stroke="var(--s1)" strokeWidth="2" opacity={hv == null || hv === i ? 1 : 0.5} onMouseEnter={() => setHv(i)} />)}
       </svg>
       <div className="clg">{[["dividend", "Dividend"], ["bonus", "Bonus"], ["split", "Split"], ["rights", "Rights"]].filter(([k]) => ev.some((e) => e.kind === k)).map(([k, l]) => <span key={k}><i style={{ background: color[k] }} />{l}</span>)}</div>

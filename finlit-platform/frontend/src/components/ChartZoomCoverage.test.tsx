@@ -24,7 +24,7 @@ const ZOOM = [
   "components/lab/TradingJournal.tsx", // Trading Lab > Order Flow > Trading journal: the cumulative P&L curve and the daily P&L calendar
   // company page
   "charts/MiniBars.tsx", "charts/PriceChart.tsx", "charts/IntradayChart.tsx", "charts/FinChart.tsx", "charts/LineChart.tsx", "charts/RoeLines.tsx", "charts/Waterfall.tsx", "charts/Radar.tsx", "charts/OutlookChart.tsx",
-  "stock/Sections.tsx", "stock/Sections2.tsx", "stock/Sections3.tsx", "stock/ChartLab.tsx", "stock/SegmentMix.tsx", "stock/ProfitReality.tsx", "stock/RevenueCash.tsx",
+  "stock/Sections.tsx", "stock/Sections2.tsx", "stock/Sections3.tsx", "stock/MoreCharts.tsx", "stock/SegmentMix.tsx", "stock/ProfitReality.tsx", "stock/RevenueCash.tsx",
   "stock/ScoreMoves.tsx", "stock/PrismHistory.tsx", "stock/MacroOutlook.tsx", "stock/own/OwnCharts.tsx", "stock/own/OwnersToday.tsx", "components/prism/pzr/History.tsx",
   // markets, flows, macro, sectors
   "pages/marketsIndex.tsx", "components/FlowsCharts.tsx", "pages/Macro.tsx",

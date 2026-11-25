@@ -59,7 +59,7 @@ describe("the three filings, point by point", () => {
       C: { name: "Earnings call transcript", status: "none" }, R: { name: "Results filing", status: "unreadable", why: "The exchange did not send a readable copy of this file. FinLit tries again tomorrow.", doc: { title: "y", date: "2026-10-15", link: "https://nsearchives.nseindia.com/b.pdf", source: "section18" } } } });
     const cards = await screen.findAllByRole("article");
     expect(cards[0].textContent).toContain("Reading the file from the exchange");
-    expect(cards[1].textContent).toContain("No earnings call transcript in Section 18 or in the company's stored filings of the last 400 days.");
+    expect(cards[1].textContent).toContain("No earnings call transcript in Section 16 or in the company's stored filings of the last 400 days.");   // News and filings, its number from the report's order (developer file 41)
     expect(cards[2].textContent).toContain("The exchange did not send a readable copy");
     expect(document.querySelector(".fs-co")).toBeNull();
   });

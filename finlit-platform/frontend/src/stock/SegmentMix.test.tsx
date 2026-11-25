@@ -73,24 +73,26 @@ describe("segment card with history", () => {
   });
 });
 
-describe("Segments section and the report numbering (task #11, renumbered in task #34)", () => {
+describe("Segments section and the report numbering (task #11, renumbered in task #34 and developer file 41)", () => {
   const read = (f: string) => readFileSync(join(__dirname, f), "utf8");
-  it("Where the revenue comes from is its own Segments section (16, task #216), no longer a box inside Gold insights", () => {
+  it("Where the revenue comes from is its own Segments section, right after Trends (developer file 41; Gold insights, where it once was a box, is gone)", () => {
     const s3 = read("Sections3.tsx");
-    expect(s3).toContain('no="16 · Segments"');
+    expect(s3).toContain('<SectionHead id="segments" no="Segments"');
     expect(s3).toContain('title="Where the revenue comes from"');
-    const insights = s3.slice(s3.indexOf("export function InsightsSection"), s3.indexOf("export function SegmentsSection"));
-    expect(insights).not.toContain("SegmentCard");
-    expect(insights).toContain('no="15 · Gold insights"');
-  });
-  it("the sections after it are numbered 17 (Dividends), 18 (News and filings) and 19 (community, the last section), in page order (tasks #216, #222)", () => {
-    expect(read("Sections2.tsx")).toContain('no="17 · Dividends"');
-    expect(read("NewsSection.tsx")).toContain('no="18 · News and filings"');
-    expect(read("CommunitySection.tsx")).toContain('no="19 · Community"');   // tasks #105 and #113: the discussions are their own section, the last one
+    expect(s3).not.toContain("export function InsightsSection");
     const page = read("StockPage.tsx");
     const at = (s: string) => page.indexOf(s);
-    expect(at("<InsightsSection")).toBeLessThan(at("<SegmentsSection"));
-    expect(at("<SegmentsSection")).toBeLessThan(at("<DividendsSection"));
+    expect(at("<TrendsSection")).toBeLessThan(at("<SegmentsSection"));
+    expect(at("<SegmentsSection")).toBeLessThan(at("<RatiosSection"));
+  });
+  it("Dividends, News and filings and Community take their numbers from the report's order (developer file 41); Community is last", () => {
+    expect(read("Sections2.tsx")).toContain('<SectionHead id="dividends" no="Dividends"');
+    expect(read("NewsSection.tsx")).toContain('<SectionHead id="news" no="News and filings"');
+    expect(read("CommunitySection.tsx")).toContain('<SectionHead id="community" no="Community"');   // tasks #105 and #113: the discussions are their own section, the last one
+    const page = read("StockPage.tsx");
+    const at = (s: string) => page.indexOf(s);
+    expect(at("<DividendsSection")).toBeLessThan(at("<NewsSection"));
+    expect(at("<NewsSection")).toBeLessThan(at("<CommunitySection symbol"));
   });
   it("the Trends section no longer draws a Revenue by segment chart", () => {
     const s4 = read("Sections4.tsx");
