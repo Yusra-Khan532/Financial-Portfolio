@@ -4,6 +4,7 @@
 import type { KeyCard } from "./equityTop";
 import type { EtfPortfolio, EtfRisk, EtfRow, Inside } from "./etfPortfolio";
 import type { Sec } from "../portfolio/pack/PageTop";
+import { andList, countOf } from "../portfolio/shared/words";
 
 export type EtfTab = "etfs" | "inside" | "risk";
 export type EtfTile = { id: EtfTab; k: string; v: string; sub: string; link: string; tone: "good" | "info" | "watch"; help: string; how: string; tag?: string };
@@ -67,7 +68,7 @@ export function etfTiles(d: EtfPortfolio | undefined, ins: Inside | undefined, r
       help: "What your ETFs cost a year on average (AMFI's expense ratios, each ETF weighted like the list), and the ETF whose last close sat furthest from its NAV.",
       how: "A lower cost keeps more of the index's return. A price well above the NAV means buyers paid more than the holdings were worth that day." },
     { id: "inside", k: "What's inside", v: `${idx} ${idx === 1 ? "index" : "indexes"}`, tag: twice ? `${twice.label.toUpperCase()} TWICE` : undefined, tone: "info", link: "Open What's inside",
-      sub: [mv ? `The list moves like ${mv.independent.toFixed(1)} of ${mv.of} ETFs` : null, twice ? `${twice.symbols.join(" and ")} hold the same ${pair?.n ?? ""} companies`.replace("  ", " ") : null].filter(Boolean).join("; ") || "What your ETFs hold, and how alike they are",
+      sub: [mv ? `The list moves like ${mv.independent.toFixed(1)} of ${mv.of} ETFs` : null, twice ? `${andList(twice.symbols)} hold the same ${pair?.n ?? ""} companies`.replace("  ", " ") : null].filter(Boolean).join("; ") || "What your ETFs hold, and how alike they are",
       help: "How many different indexes or assets your ETFs follow, how many truly separate ETFs they behave like (weekly prices, past year), and whether two follow the same index.",
       how: "Moves like 2.2 of 6: the six rise and fall like about two separate ETFs. A TWICE tag: two ETFs follow one index, so the second adds no spread." },
     { id: "risk", k: "Risk analytics", v: beta != null ? `${word} · β ${b2(beta)}` : "–", tone: "watch", link: "Open Risk analytics",
@@ -80,7 +81,7 @@ export function etfTiles(d: EtfPortfolio | undefined, ins: Inside | undefined, r
 // ------------------------------------------------------------------------------------------------ Key figures, one row per tab
 export function etfsCards(d: EtfPortfolio | undefined): KeyCard[] {
   const out: KeyCard[] = [], rep = d?.repeats ?? [], f = furthest(d), cost = yearlyCost(d);
-  if (rep[0]) out.push({ tone: "watch", k: "Same index twice", v: `${rep[0].label} × ${rep[0].symbols.length}`, text: `${rep[0].symbols.join(" and ")} hold the same companies; the second adds no spread.`, go: "See the overlap", to: "etp-shared" });
+  if (rep[0]) out.push({ tone: "watch", k: "Same index twice", v: `${rep[0].label} × ${rep[0].symbols.length}`, text: `${andList(rep[0].symbols)} hold the same companies; the second adds no spread.`, go: "See the overlap", to: "etp-shared" });
   if (f.far && Math.abs(f.far.premium as number) >= 1) out.push({ tone: "warn", k: (f.far.premium as number) > 0 ? "Far above its value" : "Far below its value", v: `${f.far.symbol} ${sp(f.far.premium as number)}`,
     text: `It closed ${Math.abs(f.far.premium as number).toFixed(1)}% ${(f.far.premium as number) > 0 ? "above" : "below"} its NAV. ${f.near === f.others ? `The other ${num(f.others)} were within 0.2%.` : `${Num(f.near)} of the other ${num(f.others)} were within 0.2%.`}`, go: "See trading", to: "etp-trading" });
   if (cost.avg != null) out.push({ tone: "info", k: "Yearly cost", v: `${cost.avg.toFixed(2)}%`, text: `About ₹${Math.round(cost.avg * 1000).toLocaleString("en-IN")} a year on ₹1 lakh.${cost.top ? ` ${cost.top.symbol} costs the most, ${cost.top.ter!.value!.toFixed(2)}%.` : ""}`, go: "See costs", to: "etp-etfs" });
@@ -119,3 +120,46 @@ export const ETF_SECS: Record<EtfTab, { label: string; secs: Sec[] }> = {
     ["etp-sizes", "Company sizes"], ["etp-largest", "Largest stocks"]] },
   risk: { label: "Risk analytics", secs: [["etp-glance", "At a glance"], ["etp-build", "Beta build"], ["etp-n500", "Against the Nifty 500"], ["etp-fall", "If the Nifty 500 fell"], ["etp-share", "Risk share"], ["etp-each", "Each ETF"]] },
 };
+
+// ------------------------------------------------------------------------------------------------ task #390 (developer file 34): the calm top and the steps
+/** The three view cards (T3–T5, F3): Your ETFs counts the ETFs (the cost has its own card beside it) and names the ETF furthest from its value; Risk
+ *  analytics reads "Lower · moves 0.58×" (no β) with the swing beside the Nifty 500's. What's inside keeps its companies, sizes and macro sectors. */
+export type EtfCard = { id: EtfTab; k: string; v: string; sub: string };
+export function etfCards(d: EtfPortfolio | undefined, u: { companies: number; sizes: number; macros: number; shareEtfs: string[] } | null, rk: EtfRisk | undefined,
+  o: { insidePending?: boolean; insideError?: boolean; riskPending?: boolean; riskError?: string | null; about?: (n: number) => string } = {}): EtfCard[] {
+  const xs = live(d), f = furthest(d), about = o.about ?? ((n: number) => String(n));
+  const far = f.far && Math.abs(f.far.premium as number) >= 0.1 ? `${f.far.symbol} trades ${Math.abs(f.far.premium as number).toFixed(2)}% ${(f.far.premium as number) > 0 ? "above" : "below"} its value` : null;
+  const b = rk?.own?.list.beta500 ?? rk?.own?.list.betaOwn ?? null, word = b == null ? null : b < 0.9 ? "Lower" : b > 1.1 ? "Higher" : "In line";
+  const idx = new Set(xs.map((e) => e.tracks.key ?? e.symbol)).size;
+  return [
+    { id: "etfs", k: "Your ETFs", v: countOf(xs.length, "ETF"), sub: far ?? "What each tracks, costs and earned, and how it trades" },
+    { id: "inside", k: "What's inside", v: u && u.companies ? `${about(u.companies)} companies` : o.insidePending ? "Reading the files…" : countOf(idx, "index", "indexes"),
+      sub: u && u.companies ? `Through ${countOf(u.shareEtfs.length, "share ETF")} · ${u.sizes} sizes · ${u.macros} macro sectors` : o.insideError ? "What sits inside could not be read right now" : "What your ETFs hold, and how alike they are" },
+    { id: "risk", k: "Risk analytics", v: b == null ? (o.riskPending ? "Working it out…" : "–") : `${word} · moves ${b.toFixed(2)}×`,
+      sub: rk?.list.swing != null && rk.bench.swing != null ? `Swings ${rk.list.swing.toFixed(1)}% a year; the Nifty 500 ${rk.bench.swing.toFixed(1)}%` : rk?.list.why ?? o.riskError ?? "Against the Nifty 500" },
+  ];
+}
+
+/** Task #390 (developer file 34, Section bar, and Update 25 Nov row 1): one section per step. Key figures is no longer a step of its own: its cards sit in
+ *  step 1 of every view (so do Where your gain or loss came from and Sold on Your ETFs), and a remembered "Key figures" opens step 1. `secs`: the DOM ids a
+ *  step holds (a jump to one of them opens the step). The address carries the step without its "etp-" (`&step=move`). */
+export type EtfStep = { id: string; label: string; badge?: string; secs: string[] };
+export const ETF_LABEL: Record<EtfTab, string> = { etfs: "Your ETFs", inside: "What's inside", risk: "Risk analytics" };
+export function etfStepsOf(view: EtfTab, o: { wcNew?: number; largest?: boolean; short?: boolean } = {}): EtfStep[] {
+  const S = (id: string, label: string, more: string[] = []): EtfStep => ({ id, label, secs: [id, ...more] });
+  const short = o.short === false ? [] : [S("etp-short", "In short", ["etp-short-h"])];
+  if (view === "etfs") return [S("etp-etfs", "Your ETFs", ["etp-gl", "etp-kf-etfs", "etp-sold", "etp-zone"]), { ...S("etp-wc", "What changed", ["wc-h-etf", "what-changed"]), ...(o.wcNew ? { badge: `${o.wcNew} new` } : {}) }, ...short];
+  if (view === "inside") return [S("etp-own", "What they own", ["etp-kf-inside"]), S("etp-money", "Money in"), S("etp-secin", "Sectors in each"), S("etp-move", "Move together"),
+    S("etp-shared", "Shared stocks"), S("etp-sizes", "Company sizes"), ...(o.largest === false ? [] : [S("etp-largest", "Largest stocks")]), ...short];
+  return [S("etp-glance", "At a glance", ["etp-kf-risk"]), S("etp-build", "Beta build", ["etp-read"]), S("etp-n500", "Against the Nifty 500"), S("etp-fall", "If the market fell"),
+    S("etp-share", "Risk share"), S("etp-each", "Each ETF"), ...short];
+}
+/** The step that holds a section id ("etp-kf-risk" → "etp-glance"), or null. */
+export const etfStepOf = (steps: EtfStep[], id: string) => steps.find((s) => s.id === id || s.secs.includes(id))?.id ?? null;
+/** The step in the address: "all", a step, or the first step (none given, or one this view does not have). A remembered "Key figures" opens step 1. */
+export function etfStepFromParam(steps: EtfStep[], p: string | null | undefined): string {
+  if (p === "all") return "all";
+  const id = p ? (p.startsWith("etp-") ? p : `etp-${p}`) : "";
+  return (id && etfStepOf(steps, id)) || steps[0]?.id || "all";
+}
+export const etfStepParam = (id: string) => (id === "all" ? "all" : id.replace(/^etp-/, ""));

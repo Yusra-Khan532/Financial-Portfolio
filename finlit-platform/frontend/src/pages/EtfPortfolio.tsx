@@ -4,7 +4,11 @@
 // of each view, What changed at the companies inside your ETFs (Discover, with Alert me), a Next view card, What this means in short, the questions and the
 // sources line. Figures are the server's (/api/me/etf-portfolio, /inside, /risk); words come from lib/etfKeyFigs, lib/etfTop and etf/pack. Silver and Gold, up
 // to the plan's number of ETFs. Describes; never advice. Information only, not investment advice.
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+// Task #390 PR A (developer file 34): "Add to [select]" in the add row; four calm crowned cards (What your ETFs cost, then the three views: "5 ETFs",
+// "Lower · moves 0.58×"); Since your last visit; Data as of under the section bar; one section per step (All sections puts them back) with &step= and the
+// member's last view and step remembered, Key figures inside step 1 of every view; things to know as a pop-up beside each heading; Record a sale; the
+// table's pinned heading and cap; Where your gain or loss came from; question-style Key figures; What changed in "updates" and "filings"; phone folds.
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router";
 import { Gate } from "../components/Gate";
 import { PageFaqs } from "../components/PageFaqs";
@@ -17,13 +21,21 @@ import { TIER, useUI } from "../lib/ui";
 import { limitsFor, useAuth } from "../lib/auth";
 import { etfGet, useEtfSearch, type EtfList } from "../lib/etf";
 import { avgBySymbol, etfRowsFromFile, toSend, useEtfInside, useEtfPortfolio, useEtfRisk, useEtfWrites, type EtfRow, type Preview, type RawRow } from "../lib/etfPortfolio";
-import { furthest, type EtfTab } from "../lib/etfTop";
-import { aboutN, costCard, dm, etfKeyFigures, insideCompanies, insideLine, typeStack, underneath } from "../lib/etfKeyFigs";
+import { ETF_LABEL, etfCards, etfStepFromParam, etfStepOf, etfStepParam, etfStepsOf, type EtfStep, type EtfTab } from "../lib/etfTop";
+import { aboutN, costCard, dm, etfKeyFigures, insideCompanies, insideLine, underneath } from "../lib/etfKeyFigs";
 import { jumpTo } from "../portfolio/pack/PageTop";
-import { AddPortfolioDialog, BROKERS, GoTo, type PfInfo } from "../portfolio/Portfolios";
+import { AddPortfolioDialog, BROKERS, type PfInfo } from "../portfolio/Portfolios";
 import { SoldList, soldOf } from "../portfolio/MoneyRow";
 import { VIEW_COLOR } from "../portfolio/ViewKit";
-import type { LotsProps } from "../portfolio/HoldingCells";
+import { holdingFigs, type LotsProps } from "../portfolio/HoldingCells";
+import { EtfCards, EtfSince } from "../etf/pack/EtfTop";
+import { MfAsOf } from "../mf/pack/MfTop";
+import { GainLossSection, Step, StepCtx } from "../portfolio/pack/EqSteps385";
+import { KnowPop, closePops } from "../portfolio/pack/Round388";
+import { Info, RECORD_SALE, andList, countOf, shortCo, type GLRow } from "../portfolio/shared";
+import { dayMonth } from "../lib/whatChanged";
+import "../portfolio/pack/eq385.css";
+import "../styles/what-changed.css";
 import { aggOf, ledgerOf, moneyOf } from "../lib/ledger";
 import { DEFAULT_PF } from "../lib/portfolio";
 import { tradeRows } from "../lib/importAdd";
@@ -31,8 +43,8 @@ import type { Trade } from "../lib/tradeColumns";
 import { fileIntoAccount, fileMessage, useEtfBook } from "../lib/etfBook";
 import { AddBox, MenuButton, type Resolved, type Sugg } from "../portfolio/kit/AddBox";
 import { TopMoney } from "../portfolio/kit/TopMoney";
-import { NextView, ViewCards, useSeenViews, type ViewCard } from "../portfolio/kit/ViewCards";
-import { AccountPicker, SectionsMenu, ViewBar, ViewSeg, useInside, useStepInView, type Pick, type ViewSteps } from "../portfolio/kit/ViewBar";
+import { NextView } from "../portfolio/kit/ViewCards";
+import { AccountPicker, SectionsMenu, ViewBar, ViewSeg, useInside, type Pick, type ViewSteps } from "../portfolio/kit/ViewBar";
 import { FilterRow, applyFilters, type Facet, type Picks } from "../portfolio/kit/FilterRow";
 import { EditDialog, EditSell, SellDialog } from "../portfolio/kit/HoldingDialog";
 import { KeyFigsBox } from "../portfolio/kit/KeyFigsBox";
@@ -42,7 +54,7 @@ import "../portfolio/holdings-kit.css";
 import { EtfsTable, VIEWS, type EtfView, type Sort } from "../etf/pack/EtfList";
 import { InsideTab } from "../etf/pack/EtfInside";
 import { RiskTab } from "../etf/pack/EtfRisk";
-import { InShort, SOURCES } from "../etf/pack/EtfShort";
+import { InShort, SOURCES, shortLines } from "../etf/pack/EtfShort";
 import "../portfolio/pack/pagetop.css";
 import "../styles/mfportfolio.css";
 import "../styles/sectors-pack.css";
@@ -145,29 +157,20 @@ const COLORS: Record<EtfTab, string> = { etfs: VIEW_COLOR.first, inside: VIEW_CO
 const LABEL: Record<EtfTab, string> = { etfs: "Your ETFs", inside: "What's inside", risk: "Risk analytics" };
 const WHAT: Record<EtfTab, string> = { etfs: "Inside: cost, returns, trading and risk of each", inside: "Inside: asset mix, sectors, sizes, overlap", risk: "Inside: beta, swings, falls, each ETF" };
 const NEXT: Record<EtfTab, EtfTab> = { etfs: "inside", inside: "risk", risk: "etfs" };
-/** Each view's numbered steps in Bar B (the sections in the page's order). Exported for tests. */
-export const etfSteps = (newN: number): ViewSteps<EtfTab> => ({
-  etfs: { label: "Your ETFs", steps: [{ id: "etp-etfs", label: "Your ETFs" }, { id: "etp-kf-etfs", label: "Key figures" }, { id: "wc-h-etf", label: "What changed", ...(newN ? { badge: `${newN} new` } : {}) }, { id: "etp-short-h", label: "In short" }] },
-  inside: { label: "What's inside", steps: [{ id: "etp-own", label: "What they own" }, { id: "etp-kf-inside", label: "Key figures" }, { id: "etp-money", label: "Money in" }, { id: "etp-secin", label: "Sectors in each" },
-    { id: "etp-move", label: "Move together" }, { id: "etp-shared", label: "Shared stocks" }, { id: "etp-sizes", label: "Company sizes" }, { id: "etp-largest", label: "Largest stocks" }, { id: "etp-short-h", label: "In short" }] },
-  risk: { label: "Risk analytics", steps: [{ id: "etp-glance", label: "At a glance" }, { id: "etp-kf-risk", label: "Key figures" }, { id: "etp-build", label: "Beta build" }, { id: "etp-n500", label: "Against the Nifty 500" },
-    { id: "etp-fall", label: "If the market fell" }, { id: "etp-share", label: "Risk share" }, { id: "etp-each", label: "Each ETF" }, { id: "etp-short-h", label: "In short" }] },
-});
+const VIEWS3: EtfTab[] = ["etfs", "inside", "risk"];
+const ALL_SEEN = new Set<string>(VIEWS3);   // task #390 (T3b): the "not opened" badges and ticks go; every view reads as seen in the bar
+const isView = (v: string | null | undefined): v is EtfTab => v === "etfs" || v === "inside" || v === "risk";
+/** Each view's numbered steps in Bar B (one section per step; Key figures inside step 1). Exported for tests. */
+export const etfSteps = (newN: number): ViewSteps<EtfTab> =>
+  Object.fromEntries(VIEWS3.map((v) => [v, { label: ETF_LABEL[v], steps: etfStepsOf(v, { wcNew: newN }).map(({ id, label, badge }) => ({ id, label, ...(badge ? { badge } : {}) })) }])) as ViewSteps<EtfTab>;
 
-/** "What your ETFs cost": the score card of this page (each ETF's expense ratio). */
-function CostCard({ d }: { d: NonNullable<ReturnType<typeof useEtfPortfolio>["data"]> }) {
-  const c = costCard(d), max = Math.max(1, ...c.rows.map((r) => r.ter));
-  return (
-    <div className="ptk-score">
-      <p className="ptk-sk">What your ETFs cost<Tip text="Each ETF's expense ratio: what it charges a year, as a share of the money in it, from AMFI's TER file. The average weighs each ETF like the list." how="Until quantities are added every ETF counts the same. A lower cost keeps more of the index's return." label="About “What your ETFs cost”" /></p>
-      <p className="ptk-sline">{c.ter == null ? "No expense ratio is published for these ETFs yet" : <>Your ETFs cost <b>{c.ter.toFixed(2)}% a year</b></>}</p>
-      {c.rows.length > 0 && <ul className="ptk-sbars" aria-label={`Expense ratio a year: ${c.rows.map((r) => `${r.symbol} ${r.ter.toFixed(2)}%`).join(", ")}`}>
-        {c.rows.map((r) => <li key={r.symbol}><span>{r.symbol}</span><i aria-hidden="true"><b style={{ width: `${(r.ter / max) * 100}%` }} /></i><b>{r.ter.toFixed(2)}%</b></li>)}</ul>}
-      {c.missing.map((m) => <p key={m.symbol} className="ptk-sx">{m.symbol}: {m.why}</p>)}
-      {c.perLakh != null && <p className="ptk-sx">About ₹{c.perLakh.toLocaleString("en-IN")} a year on ₹1 lakh.{c.asOf ? ` AMFI, ${dm(c.asOf)}.` : ""}</p>}
-    </div>
-  );
+// Task #390 (developer file 34, Rules to build RB8): the member's last view and step on this page, kept in this browser per member, as the MF page keeps
+// its place. An address that names a view or a step wins; a remembered "Key figures" opens step 1 (lib/etfTop etfStepFromParam).
+const PLACE_KEY = (who: string | number | null | undefined) => `finlit-etf-portfolio-place:${who || "guest"}`;
+export function readPlace(who: string | number | null | undefined): { view: EtfTab; step: string } | null {
+  try { const v = JSON.parse(localStorage.getItem(PLACE_KEY(who)) || "null"); return v && isView(v.view) && typeof v.step === "string" ? { view: v.view, step: v.step } : null; } catch { return null; }
 }
+const savePlace = (who: string | number | null | undefined, view: EtfTab, step: string) => { try { localStorage.setItem(PLACE_KEY(who), JSON.stringify({ view, step })); } catch { /* private window: the address still holds it */ } };
 
 /* --------------------------------------------------------------- page */
 export function EtfPortfolioPage() {
@@ -200,9 +203,19 @@ export function EtfPortfolioPage() {
   const money = moneyOf(book.rows, cur, priceOf, changeOf), sold = soldOf(book.rows, cur);
   const pfFigs = (id: string | "all") => { const m = moneyOf(book.rows, id, priceOf, changeOf); return { n: m.n, now: m.now, withQty: m.withQty, gainPct: m.full && m.invested ? (m.gain / m.invested) * 100 : null }; };
   const pick: Pick = { list: pfList, cur, onPick: setCur, figs: pfFigs, noun: ["ETF", "ETFs"] };
-  const view = (["inside", "risk"].includes(params.get("view") || "") ? params.get("view") : "etfs") as EtfTab;
-  const setView = (v: EtfTab, scroll = false) => { const p = new URLSearchParams(params); if (v === "etfs") p.delete("view"); else p.set("view", v); setParams(p, { replace: true }); if (scroll) setTimeout(() => document.getElementById("etp-tabsbox")?.scrollIntoView?.({ behavior: "smooth", block: "start" }), 50); };
-  const seen = useSeenViews("etf-portfolio", user?.id, view);
+  const view: EtfTab = isView(params.get("view")) ? (params.get("view") as EtfTab) : "etfs";
+  // task #390: a change of view opens its first step (no `step` in the address) and closes any pop-up
+  const setView = (v: EtfTab, scroll = false) => { const p = new URLSearchParams(params); if (v === "etfs") p.delete("view"); else p.set("view", v); p.delete("step"); setParams(p, { replace: true }); if (v !== view) closePops();
+    if (scroll) setTimeout(() => document.getElementById("etp-tabsbox")?.scrollIntoView?.({ behavior: "smooth", block: "start" }), 50); };
+  const seen = ALL_SEEN;
+  // task #390 (RB8): the place kept for this member; a bare address opens there
+  const restored = useRef(false);
+  useEffect(() => {
+    if (restored.current || !user) return; restored.current = true;
+    if (params.get("view") || params.get("step")) return;
+    const s = readPlace(user.id); if (!s) return;
+    const n = new URLSearchParams(params); if (s.view === "etfs") n.delete("view"); else n.set("view", s.view); n.set("step", etfStepParam(s.step)); setParams(n, { replace: true });
+  }, [user]);   // eslint-disable-line react-hooks/exhaustive-deps
   const [panel, setPanel] = useState<"" | "import">(params.get("tab") === "import" ? "import" : "");
   const limit = d?.limit ?? limitsFor(plan).etf_holdings;
   const items = useMemo(() => d?.items ?? [], [d]);
@@ -217,21 +230,30 @@ export function EtfPortfolioPage() {
   const cos = useMemo(() => (d ? insideCompanies(d, ins.data) : []), [d, ins.data]);
   const coBy = useMemo(() => new Map(cos.map((c) => [c.symbol, c])), [cos]);
   const wc = useWhatChanged(cos.map((c) => c.symbol), "etf-portfolio");
-  const steps = etfSteps(wc.newN);
-  const onSec = (v: EtfTab, id: string) => { if (v !== view) { setView(v); setTimeout(() => jumpTo(id), 80); } else jumpTo(id); };
+  // task #390 (developer file 34, Section bar, Update 25 Nov row 1): one section per step, Key figures inside step 1 of every view; the step in the address
+  // (&step=, "all" for All sections, none for the first step)
+  const hasShort = shortLines(d, ins.data, rk.data).length > 0;
+  const stepsOf = (v: EtfTab): EtfStep[] => etfStepsOf(v, { wcNew: wc.newN, largest: !ins.data || ins.data.top.length > 0, short: hasShort });
+  const steps = stepsOf(view), step = etfStepFromParam(steps, params.get("step"));
+  const barSteps = Object.fromEntries(VIEWS3.map((v) => [v, { label: ETF_LABEL[v], steps: stepsOf(v).map(({ id, label, badge }) => ({ id, label, ...(badge ? { badge } : {}) })) }])) as ViewSteps<EtfTab>;
+  useEffect(() => { if (user) savePlace(user.id, view, step); }, [user, view, step]);
+  /** Opens the step that holds a section, in its view; then goes to the section (or to the top of the view when the page is below it). */
+  const openSec = (id: string, v0?: EtfTab) => {
+    const v = v0 ?? (VIEWS3.find((x) => etfStepOf(stepsOf(x), id)) ?? view), to = etfStepOf(stepsOf(v), id) ?? id;
+    const n = new URLSearchParams(params); if (v === "etfs") n.delete("view"); else n.set("view", v); n.set("step", etfStepParam(to)); setParams(n, { replace: true });
+    if (v !== view) closePops();
+    setTimeout(() => { if (id !== to && document.getElementById(id)) { jumpTo(id); return; }
+      const p = document.getElementById("etp-panel"); if (p && p.getBoundingClientRect().top < 0) p.scrollIntoView?.({ behavior: "smooth", block: "start" }); }, 90);
+  };
+  const setStep = (id: string) => { if (id === "all") { const n = new URLSearchParams(params); n.set("step", "all"); setParams(n, { replace: true }); return; } openSec(id, view); };
+  useEffect(() => { const f = (e: Event) => { const id = (e as CustomEvent<string>).detail; if (typeof id === "string" && id) openSec(id); }; addEventListener("eq-step", f); return () => removeEventListener("eq-step", f); });
+  const onSec = (v: EtfTab, id: string) => openSec(id, v);
   const goTab = (t: EtfTab) => { setView(t); setTimeout(() => document.getElementById("etp-tabsbox")?.scrollIntoView?.({ behavior: "smooth", block: "start" }), 50); };
-  const onGo = useCallback((g: KfGo) => {
-    if (g.kind === "jump") jumpTo(g.arg);
-    else { setTview(g.kind === "cols" ? (g.arg as EtfView) : "returns"); if (g.kind === "sort") setSort({ k: g.arg, dir: -1 }); setTimeout(() => jumpTo("etp-etfs"), 40); }
-  }, []);
-  // a jump to a section of another view opens that view first (Key figures' links, All sections)
-  const viewRef = useRef(view); viewRef.current = view;
-  useEffect(() => {
-    const on = (e: Event) => { const id = (e as CustomEvent).detail as string, all = etfSteps(0);
-      const t = (Object.keys(all) as EtfTab[]).find((k) => all[k].steps.some((s) => s.id === id) && !all[viewRef.current].steps.some((s) => s.id === id));
-      if (t && t !== viewRef.current) { setView(t); setTimeout(() => jumpTo(id, false), 80); } };
-    addEventListener("eq-jump", on); return () => removeEventListener("eq-jump", on);
-  }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+  // a Key figures link opens the step that holds its section (in its view); a sort or a set of columns opens step 1 of Your ETFs
+  const onGo = (g: KfGo) => {
+    if (g.kind === "jump") { openSec(g.arg); return; }
+    setTview(g.kind === "cols" ? (g.arg as EtfView) : "returns"); if (g.kind === "sort") setSort({ k: g.arg, dir: -1 }); openSec("etp-zone", "etfs");
+  };
   const remove = async (sym: string, pf: string | "all" = cur) => {
     if (pf !== "all" && pfList.length > 1) { book.own.filter((h) => h.symbol === sym && (h.pf ?? DEFAULT_PF) === pf).forEach((h) => book.store.remove(h.id)); toast(`${sym} removed from ${pfName(pf)}.`); return; }
     try { await w.remove.mutateAsync(sym); book.own.filter((h) => h.symbol === sym).forEach((h) => book.store.remove(h.id)); toast(`${sym} removed.`); } catch (x) { toast(errText(x)); } };
@@ -241,31 +263,34 @@ export function EtfPortfolioPage() {
   const searchUniverse = useRef<number | null>(null);
   const useResults = (qq: string) => { const r = useEtfResults(qq); if (r.universe) searchUniverse.current = r.universe; return r; };
   const full = !!d && d.count >= limit;
-  const ownSteps = steps[view].steps.map((s) => s.id), here = useStepInView(ownSteps);
-  const lead: ReactNode = <><AccountPicker p={pick} compact /><ViewSeg defs={(Object.keys(LABEL) as EtfTab[]).map((k) => ({ id: k, label: k === "risk" ? "Risk" : LABEL[k], color: COLORS[k] }))} view={view} onView={(v) => goTab(v)} seen={seen} />
-    <SectionsMenu all={steps} view={view} onSec={onSec} here={here} label="Sections ▾" btnClass="ptk-btn ptk-secb" mode="view" /></>;
+  const lead: ReactNode = <><AccountPicker p={pick} compact /><ViewSeg defs={VIEWS3.map((k) => ({ id: k, label: k === "risk" ? "Risk" : LABEL[k], color: COLORS[k] }))} view={view} onView={(v) => goTab(v)} seen={seen} />
+    <SectionsMenu all={barSteps} view={view} onSec={onSec} here={step === "all" ? undefined : step} label="Sections ▾" btnClass="ptk-btn ptk-secb" mode="view" /></>;
   const [wcHidden, setWcHidden] = useHidden("etp-wc");
   const lastDay = d?.asOf ? dm(d.asOf) : null;
   const und = d ? underneath(ins.data, d) : null;
-  const far = furthest(d);
-  const cards: ViewCard<EtfTab>[] = d ? [
-    { id: "etfs", k: "Your ETFs", tone: "good", color: COLORS.etfs, what: WHAT.etfs, v: (() => { const c = costCard(d); return c.ter == null ? "Cost not published" : `${c.ter.toFixed(2)}% a year`; })(),
-      x: `Average cost of your ${live.length} ${live.length === 1 ? "ETF" : "ETFs"}${far.far && Math.abs(far.far.premium as number) >= 0.1 ? `; ${far.far.symbol} trades ${Math.abs(far.far.premium as number).toFixed(2)}% ${(far.far.premium as number) > 0 ? "above" : "below"} its value` : ""}`,
-      viz: <span className="ptk-stk">{typeStack(d).map((t) => <i key={t.key} style={{ flex: t.v, background: t.color }} />)}</span> },
-    { id: "inside", k: "What's inside", tone: "info", color: COLORS.inside, what: WHAT.inside,
-      v: und && und.companies ? `${aboutN(und.companies)} companies` : ins.isPending ? "Reading the files…" : `${new Set(live.map((e) => e.tracks.key ?? e.symbol)).size} indexes`,
-      x: und && und.companies ? `Through ${und.shareEtfs.length} share ${und.shareEtfs.length === 1 ? "ETF" : "ETFs"} · ${und.sizes} sizes · ${und.macros} macro sectors` : ins.isError ? "What sits inside could not be read right now" : "What your ETFs hold, and how alike they are",
-      viz: ins.data ? <span className="ptk-stk">{([["indian", "#0e6471"], ["gold", "#b8892f"], ["silver", "#8fa8a6"], ["abroad", "#4b4fc4"], ["debt", "#9aa3ad"]] as const).filter(([k]) => (ins.data!.mix[k] ?? 0) > 0.05).map(([k, c]) => <i key={k} style={{ flex: ins.data!.mix[k], background: c }} />)}</span> : undefined },
-    { id: "risk", k: "Risk analytics", tone: "watch", color: COLORS.risk, what: WHAT.risk,
-      v: (() => { const b = rk.data?.own?.list.beta500 ?? rk.data?.own?.list.betaOwn; return b == null ? (rk.isPending ? "Working it out…" : "–") : `${b < 0.9 ? "Lower" : b > 1.1 ? "Higher" : "In line"} · β ${b.toFixed(2)}`; })(),
-      x: rk.data?.list.swing != null && rk.data.bench.swing != null ? `Swings ${rk.data.list.swing.toFixed(1)}% a year; the Nifty 500 ${rk.data.bench.swing.toFixed(1)}%` : rk.data?.list.why ?? (rk.isError ? errText(rk.error) : "Against the Nifty 500"),
-      viz: rk.data?.list.swing != null && rk.data.bench.swing != null ? (() => { const l = rk.data!.list.swing!, b = rk.data!.bench.swing!, m = Math.max(l, b); return <span className="ptk-viz2"><span>List</span><i style={{ width: `${(l / m) * 100}%` }} /><b>{l.toFixed(1)}%</b><span>Index</span><i className="ix" style={{ width: `${(b / m) * 100}%` }} /><b>{b.toFixed(1)}%</b></span>; })() : undefined },
-  ] : [];
+  const cost = useMemo(() => (d ? costCard(d) : null), [d]);
+  const cards = etfCards(d, und, rk.data, { insidePending: ins.isPending, insideError: ins.isError, riskPending: rk.isPending, riskError: rk.isError ? errText(rk.error) : null, about: aboutN });
   const kf = (v: EtfTab, sub: string) => d ? <KeyFigsBox id={`etp-kf-${v}`} sub={sub} cards={etfKeyFigures(v, { d, ins: ins.data, rk: rk.data })} onGo={onGo} /> : null;
   const next = <NextView k={LABEL[NEXT[view]]} what={WHAT[NEXT[view]]} color={COLORS[NEXT[view]]} onGo={() => goTab(NEXT[view])} />;
   const dlgPfs = pfList.map((p) => ({ id: p.id, name: p.name }));
+  // task #390 (E5, L1–L6): each ETF's gain or loss in rupees, from the ETF table's own figures; ETFs held without a buy price are left out and counted
+  const glRows = useMemo(() => { const rows: GLRow[] = []; let noPrice = 0;
+    for (const e of live) { const f = holdingFigs(lots, e.symbol); if (!f.a?.qty) continue;
+      if (f.gain == null) { if (f.now != null) noPrice++; continue; }
+      rows.push({ symbol: e.symbol, name: e.symbol, gain: f.gain, pct: f.gainPct }); }
+    return { rows, noPrice }; }, [live, book.rows, cur, px]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // task #390 (T7): which date each kind of figure runs to
+  const asOf: [string, ReactNode][] = [
+    ["Prices", lastDay ? `close of ${lastDay}` : "the last close"],
+    ...(view === "etfs" ? [["Filings", `the last ${wc.q.data?.days ?? 90} days`] as [string, ReactNode]] : []),
+    ...(view !== "risk" && ins.data?.asOf ? [["Holdings", `each fund house’s ${dm(ins.data.asOf)} ${ins.data.asOf.slice(0, 4)} file`] as [string, ReactNode]] : []),
+    ...(view === "risk" ? [["Risk figures", "weekly prices, past year · swings and falls over 3 years"] as [string, ReactNode]] : []),
+  ];
+  // task #390 (P2d): What changed folds to "N companies filed in the last 90 days · N new since D"
+  const wcFiled = new Set(wc.rows.map((r) => r.s)).size;
+  const wcLine = !wc.q.data ? "Reading what the companies inside your ETFs filed…" : `${countOf(wcFiled, "company", "companies")} filed in the last ${wc.q.data.days ?? 90} days${wc.lastVisit ? ` · ${wc.newN} new since ${dayMonth(wc.lastVisit)}` : ""}`;
   return (
-    <div className="wrap ipo mp sp mfp efp pfx">
+    <KnowPop.Provider value={true}><div className="wrap ipo mp sp mfp efp pfx">
       <Gate tier={PLAN_FOR_PORTFOLIO} title="Track your ETFs" points={["What each ETF tracks and costs, and how close it trades to its NAV", "What sits inside them: asset mix, overlap and the largest stocks", "Each ETF against the Nifty 500, and the list together", "Import a broker file, read by ISIN, then symbol"]}>
         <header className="ptk-head card" id="etp-top">
           <div className="ptk-t1">
@@ -292,7 +317,10 @@ export function EtfPortfolioPage() {
                   <ClearPortfolio count={d?.count ?? 0} noun="ETF" kind="ETF" className="btn" goes={["each ETF and its quantity", "the figures worked out from them: cost, what's inside and risk"]}
                     onClear={async () => { await w.clear.mutateAsync(); }}
                     onUndo={async () => { try { await w.undoClear.mutateAsync(); } catch (x) { if ((x as { status?: number }).status === 410) throw new Error("The clear is final: Undo is only possible for 10 seconds."); throw x; } }} />
-                  <p>{d ? `${d.count} ${d.count === 1 ? "ETF" : "ETFs"} · ${limit} on your plan` : `${limit} on your plan`}{searchUniverse.current ? ` · ${searchUniverse.current} ETFs to choose from` : ""}</p></>}</MenuButton></>} />
+                  <p>{d ? `${d.count} ${d.count === 1 ? "ETF" : "ETFs"} · ${limit} on your plan` : `${limit} on your plan`}{searchUniverse.current ? ` · ${searchUniverse.current} ETFs to choose from` : ""}</p></>}</MenuButton>
+                {/* task #390 (developer file 34, T1): "Add to [select]" in the add row, after Import and ⋯ (the full-width "ETFs you add or upload go to" bar goes) */}
+                {pfList.length > 1 && <label className="px-addto"><span>Add to</span><select aria-label="ETFs you add go to" value={goTo} onChange={(e) => (cur === "all" ? setGoTo(e.target.value) : setCur(e.target.value))}>
+                  {pfList.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>}</>} />
           </div>
           <PageTabs set="portfolios" className="pf-sibs" />{/* task #310 part D: the three portfolios as page tabs under the title */}
           {d && d.count > 0 && <TopMoney t={money} all={live.map((e) => e.symbol)} noun={["ETF", "ETFs"]} pick={pick} onAddQty={addQty} onAddPf={() => setAdding(true)}
@@ -312,7 +340,6 @@ export function EtfPortfolioPage() {
           book.touch();
           const got = [...r.added, ...r.set], priced = plain.filter((x) => x.avg != null && got.includes(x.symbol)).map((x) => x.symbol);
           toast(fileMessage(pfName(goTo), r, { traded, priced, unpricedSet: r.updates.filter((u) => !u.patch.price).map((u) => u.symbol) })); }} /></section>}
-        <GoTo list={pfList} value={goTo} onChange={(id) => (cur === "all" ? setGoTo(id) : setCur(id))} noun="ETFs" />
         {adding && <AddPortfolioDialog taken={pfList.map((x) => x.name)} kinds={BROKERS} start={[["empty", "An empty account", "Add ETFs to it by name, then their buys."], ["file", "The broker's holdings file", "Brings each ETF with its quantity and average buy price."]]}
           onClose={() => setAdding(false)} onSave={({ name, broker, start }) => { const id = book.accounts.add({ name, broker }, pfList); setAdding(false); setCur(id); setGoTo(id); toast(`${name} added.`); if (start === "file") setPanel("import"); }} />}
         {book.err && <p className="pfx-warn" role="alert">{book.err}</p>}
@@ -324,18 +351,30 @@ export function EtfPortfolioPage() {
           <div className="mfp-empty-b"><button type="button" className="btn primary" onClick={() => (document.querySelector(".ptk-input input") as HTMLInputElement | null)?.focus()}>Add an ETF</button>
             <button type="button" className="btn" onClick={() => setPanel("import")}>Import a broker file</button></div></section>}
         {d && d.count > 0 && <>
-          <ViewCards score={<CostCard d={d} />} cards={cards} view={view} onView={(v) => setView(v)} seen={seen} tabsId="etp-tabsbox" panel="etp-panel" label="What your ETFs cost and the views" />
-          <ViewBar pick={pick} defs={(Object.keys(LABEL) as EtfTab[]).map((k) => ({ id: k, label: LABEL[k], color: COLORS[k] }))} view={view} onView={(v) => setView(v)} seen={seen} all={steps} onSec={onSec} away={inTable} />
-          <div id="etp-panel" role="tabpanel" aria-labelledby={`ptk-tab-${view}`}>
+          {/* task #390 (developer file 34, Top 2–6): four calm crowned cards (What your ETFs cost, then the three views) and Since your last visit */}
+          <div id="etp-tabsbox">
+          {cost && <EtfCards cost={cost} asOf={cost.asOf ? dm(cost.asOf) : ""} cards={cards} colors={COLORS} view={view} onView={(v) => setView(v)} weighted={d.basis === "value"} />}
+          {ins.data && wc.q.data && <EtfSince visit={wc.lastVisit ? dayMonth(wc.lastVisit) : null} fresh={wc.newN} onSee={() => openSec("etp-wc", "etfs")} />}
+          </div>
+          <ViewBar pick={pick} defs={VIEWS3.map((k) => ({ id: k, label: LABEL[k], color: COLORS[k] }))} view={view} onView={(v) => setView(v)} seen={seen} all={barSteps} onSec={onSec} away={inTable} step={step} onStep={setStep} />
+          <StepCtx.Provider value={{ step, firstStep: steps[0]?.id ?? "" }}>
+          <div id="etp-panel" role="region" aria-label={`${LABEL[view]} view`}>
+            <MfAsOf parts={asOf} />
             {view === "etfs" && <>
               {rk.isError && <p className="sp-note" role="status">{errText(rk.error)}</p>}
+              <Step id="etp-etfs" title="Your ETFs" line="">
               <EtfsTable d={d} rk={rk.data} rows={shown} lots={book.ready ? lots : undefined} view={tview} sort={sort} setSort={setSort}
                 tools={<FilterRow rows={live} facets={facets} picks={picks} setPicks={setPicks} q={fq} setQ={setFq} text={ftext} find="Find an ETF" noun={["ETF", "ETFs"]} cols={VIEWS} col={tview}
                   setCol={(c) => { setTview(c as EtfView); setSort({ k: "name", dir: 1 }); }} stuck={inTable} lead={lead} shown={shown.length} />}
-                actions={(e) => <EditSell name={e.symbol} held={heldIn(e.symbol)} onEdit={() => setDlg({ kind: "edit", symbol: e.symbol })} onSell={() => setDlg({ kind: "sell", symbol: e.symbol })} />}
+                actions={(e) => <EditSell name={e.symbol} sell={RECORD_SALE} held={heldIn(e.symbol)} onEdit={() => setDlg({ kind: "edit", symbol: e.symbol })} onSell={() => setDlg({ kind: "sell", symbol: e.symbol })} />}
                 gone={(e) => <button type="button" className="mff-rm" aria-label={`Remove ${e.symbol}`} onClick={() => remove(e.symbol)}>Remove</button>} />
               <SoldList items={sold} all={cur === "all" && pfList.length > 1} pfName={pfName} onRemoveSale={(id) => book.store.remove(id)} noun={["ETF", "ETFs"]} />
+              {/* task #390 (E5): Where your gain or loss came from, its own section after the ETF table */}
+              <GainLossSection rows={glRows.rows} noPrice={glRows.noPrice} noun="ETF" id="etp-gl" link={(s) => `/etfs/${encodeURIComponent(s)}`} left="ETFs with no quantity are left out." countSide
+                tip="Value now minus what you paid, for each ETF you hold now. Sales you have recorded and dividends paid out are not counted here." />
               {kf("etfs", `What your ${live.length} ${live.length === 1 ? "ETF adds" : "ETFs add"} up to, from the table above and the sections below.`)}
+              </Step>
+              <Step id="etp-wc" title="What changed at the companies inside your ETFs" line={wcLine}>
               {wcHidden ? <section className="ptk-hz" aria-labelledby="wc-h-etf"><div className="ptk-hz-t"><h2 id="wc-h-etf">What changed at the companies inside your ETFs</h2><p>Hidden · From Discover: what the companies inside your ETFs filed in the last 90 days</p></div>
                 <button type="button" className="ptk-hz-b" aria-expanded="false" aria-label="Show: What changed at the companies inside your ETFs" onClick={() => setWcHidden(false)}>Show ▾</button></section>
                 : <div className="hz">
@@ -343,10 +382,13 @@ export function EtfPortfolioPage() {
                     : ins.isError ? <section className="sp-sec wc" aria-labelledby="wc-h-etf"><h2 id="wc-h-etf">What changed at the companies inside your ETFs</h2><p className="sp-note" role="status">The companies inside your ETFs could not be read right now, so what they filed is not shown. {errText(ins.error)}</p></section>
                     : <WhatChanged symbols={cos.map((c) => c.symbol)} listName="the companies inside your ETFs" countLabel="Inside your ETFs" listRef="etf" page="etf-portfolio" className="sp-sec wc ptk-wc" hId="wc-h-etf" id="what-changed"
                       title="What changed at the companies inside your ETFs" nameOf={(s) => coBy.get(s)?.name}
+                      plain shortName={(s, n) => shortCo(n, s)}
+                      help={<Info about="What changed at the companies inside your ETFs" text="Exchange filings from the last 90 days for the companies that make up 0.3% or more of your ETFs, grouped by kind. From Discover." how="An update is one kind of news from one company; a row may bundle several filings." />}
                       sub={(s) => { const c = coBy.get(s); return c ? insideLine(c) : undefined; }}
-                      lede={(() => { const none = live.filter((e) => e.type?.key !== "indian" && e.type?.key !== "abroad").map((e) => e.symbol); return `From Discover: companies that make up 0.3% or more of your ETFs and filed one of these in the last 90 days.${none.length ? ` ${none.join(" and ")} hold${none.length === 1 ? "s" : ""} no companies.` : ""}${!cos.length ? " None of your ETFs holds a company at 0.3% or more of the list." : ""}`; })()}
-                      foot={(() => { const sh = und?.shareEtfs ?? []; return sh.length ? `${sh.join(" and ")} hold ${und && und.companies ? aboutN(und.companies).toLowerCase() : "their"} companies between them; smaller holdings than 0.3% of your ETFs are left out here and open in Discover with Only my names. Holdings from each fund house's file${ins.data?.asOf ? ` of ${dm(ins.data.asOf)} ${ins.data.asOf.slice(0, 4)}` : ""}.` : ""; })()} />}
+                      lede={(() => { const none = live.filter((e) => e.type?.key !== "indian" && e.type?.key !== "abroad").map((e) => e.symbol); return `From Discover: companies that make up 0.3% or more of your ETFs and filed one of these in the last 90 days.${none.length ? ` ${andList(none)} hold${none.length === 1 ? "s" : ""} no companies.` : ""}${!cos.length ? " None of your ETFs holds a company at 0.3% or more of the list." : ""}`; })()}
+                      foot={(() => { const sh = und?.shareEtfs ?? []; return sh.length ? `${andList(sh)} hold ${und && und.companies ? aboutN(und.companies).toLowerCase() : "their"} companies between them; smaller holdings than 0.3% of your ETFs are left out here and open in Discover with Only my names. Holdings from each fund house's file${ins.data?.asOf ? ` of ${dm(ins.data.asOf)} ${ins.data.asOf.slice(0, 4)}` : ""}.` : ""; })()} />}
                   <button type="button" className="hz-btn hz-on" aria-expanded="true" aria-label="Hide: What changed at the companies inside your ETFs" onClick={() => setWcHidden(true)}>{EYE}Hide</button></div>}
+              </Step>
             </>}
             {view === "inside" && <>
               {ins.isPending && <p className="sp-note" aria-busy="true">Reading what sits inside your ETFs…</p>}
@@ -359,17 +401,18 @@ export function EtfPortfolioPage() {
               {rk.data && rk.data.count > 0 && <RiskTab rk={rk.data} d={d} ins={ins.data} kf={kf("risk", "What the risk adds up to, from the figures above and the sections below.")}
                 value={money.n && money.withQty === money.n ? { now: money.now, name: cur === "all" ? "All accounts" : pfName(cur) } : null} />}
             </>}
+            {hasShort && <Step id="etp-short" title="What this means, in short" line=""><InShort d={d} ins={ins.data} rk={rk.data} /></Step>}
             {next}
           </div>
-          <InShort d={d} ins={ins.data} rk={rk.data} />
+          </StepCtx.Provider>
         </>}
         {dlg?.kind === "edit" && book.ready && <EditDialog key={dlg.symbol} noun="ETF" symbol={dlg.symbol} holdings={book.rows} pfs={dlgPfs} pf0={firstPf(dlg.symbol)} ops={book.store} newRow={dlg.fresh}
           onRemove={(pf) => remove(dlg.symbol, pfList.length > 1 ? pf : "all")} onClose={() => setDlg(null)} />}
-        {dlg?.kind === "sell" && book.ready && <SellDialog key={dlg.symbol} symbol={dlg.symbol} holdings={book.rows} pfs={dlgPfs} pf0={firstPf(dlg.symbol)} ops={book.store} price={priceOf(dlg.symbol)} onClose={() => setDlg(null)} />}
+        {dlg?.kind === "sell" && book.ready && <SellDialog key={dlg.symbol} record symbol={dlg.symbol} holdings={book.rows} pfs={dlgPfs} pf0={firstPf(dlg.symbol)} ops={book.store} price={priceOf(dlg.symbol)} onClose={() => setDlg(null)} />}
       </Gate>
       <PageFaqs inline />
       <details className="sp-sec sp-fold mfp-disc"><summary><span><b className="sp-ft">Disclaimer</b><small>What this page is, and is not</small></span><span className="sp-show">Show ▾</span></summary><PortfolioDisclaimer kind="etf" /></details>
       <p className="mfp-foot">{SOURCES}</p>
-    </div>
+    </div></KnowPop.Provider>
   );
 }

@@ -244,10 +244,10 @@ a.mfm-chip.mfm-chip-a:focus-visible { outline: 2px solid var(--gold); outline-of
 .mfp-hc-m b { font: 600 var(--fs-18)/1 var(--sans); } .mfp-hc-m i { font-style: normal; font-size: var(--fs-12); }
 .mfp-hc-t { display: flex; justify-content: space-between; margin-top: 4px; color: inherit; opacity: .78; }
 
-/* Task #389 PR B (developer file 32, Mix & overlap). Scoped to the MF page: its own new classes, the grid's .mfm-gn, or .mfp:not(.efp) (the ETF page shares these classes; its round is #390). */
+/* Task #389 PR B (developer file 32, Mix & overlap), and task #390 PR B (developer file 34, the ETF page, .mfp.efp, takes the same rules): the MF and ETF pages only (.wrap.mfp, as specific as the old rule that left the ETF page out, their own new classes, the grid's .mfm-gn). */
 /* Mix 1: the sub-view tabs at the top of the view; the selected (black) tab's second line in its own ink at 78% (white at 78% in light mode) */
-.mfp:not(.efp) .mfm-subtabs { margin: 0 0 16px; }
-.mfp:not(.efp) .mfm-subtabs button[aria-selected="true"] small { color: color-mix(in srgb, var(--ui-on-fg) 78%, transparent); }
+.wrap.mfp .mfm-subtabs { margin: 0 0 16px; }
+.wrap.mfp .mfm-subtabs button[aria-selected="true"] small { color: color-mix(in srgb, var(--ui-on-fg) 78%, transparent); }
 /* Mix 2: chips show the company's short name and end in "…" inside the cell; the full name is the chip's title */
 .mfm-gn .mfm-chips .mfm-chip { max-width: 100%; min-width: 0; }
 .mfm-chip .mfm-cn { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -261,12 +261,12 @@ a.mfm-chip.mfm-chip-a:focus-visible { outline: 2px solid var(--gold); outline-of
 /* Update 25 Nov row 7: in dark mode the figures in the sector and size grid's cells read #eef3ee (token --ui-mfm-cell-fig) */
 .mfp .mfm-gn .mfm-cw { color: var(--ui-mfm-cell-fig, var(--sp-mute)); }
 /* Mix 5 (and the standing 4.5:1 rule): figures on the light slices of the bars in dark ink */
-.mfp:not(.efp) .mfm-stack :is(i.mfm-d, i.mfm-o, i.mfm-zM, i.mfm-zS) { color: var(--ui-mfm-on-light); }
-.mfp:not(.efp) .mfm-stack i.mfm-zX { color: var(--ui-mfm-on-micro); }
+.wrap.mfp .mfm-stack :is(i.mfm-d, i.mfm-o, i.mfm-zM, i.mfm-zS) { color: var(--ui-mfm-on-light); }
+.wrap.mfp .mfm-stack i.mfm-zX { color: var(--ui-mfm-on-micro); }
 /* Mix 6: Sectors inside each fund, column headers in plain case at 12 px, at least 96 px wide, wrapping */
-.mfp:not(.efp) .mfm-heat thead th { min-width: 96px; text-transform: none; letter-spacing: 0; font-size: var(--fs-12); white-space: normal; vertical-align: bottom; }
-.mfp:not(.efp) .mfm-heat thead th span { max-width: none; }
-.mfp:not(.efp) .mfm-heat thead th:first-child { min-width: 0; }
+.wrap.mfp .mfm-heat thead th { min-width: 96px; text-transform: none; letter-spacing: 0; font-size: var(--fs-12); white-space: normal; vertical-align: bottom; }
+.wrap.mfp .mfm-heat thead th span { max-width: none; }
+.wrap.mfp .mfm-heat thead th:first-child { min-width: 0; }
 /* Mix 7 and Update row 6: Expand above the grid; the reader in words, kept in view beside the grid */
 .mfm-gxrow { display: flex; justify-content: flex-end; margin: 0 0 8px; }
 .mfm-reader .mfm-rn { margin: 0 0 4px; font: 600 var(--fs-14)/1.4 var(--sans); color: var(--sp-ink); } .mfm-reader .mfm-rn span { font-weight: 400; color: var(--sp-mute); }
@@ -274,7 +274,7 @@ a.mfm-chip.mfm-chip-a:focus-visible { outline: 2px solid var(--gold); outline-of
 .mfm-reader .mfm-rv b { font: 600 var(--fs-24)/1.1 var(--serif); color: var(--sp-ink); }
 .mfm-reader .mfm-cwd { font: 600 var(--fs-14)/1.4 var(--sans); color: var(--sp-ink); }
 .mfm-reader .mfm-rm { font-size: var(--fs-13); color: var(--sp-mute); }
-@media (min-width: 761px) { .mfp:not(.efp) .mfm-pair > .mfm-reader { position: sticky; top: calc(var(--top-h, 63px) + 76px); } }
+@media (min-width: 761px) { .wrap.mfp .mfm-pair > .mfm-reader { position: sticky; top: calc(var(--top-h, 63px) + 76px); } }
 /* on its own screen: the reader sits above the grid and stays in view both ways while the grid scrolls (the box spans the whole table, so it can stick left) */
 .mfm-ovl { width: max-content; min-width: 100%; padding-top: 12px; }
 .mfm-ovl .mfm-reader { position: sticky; top: 0; left: 0; z-index: 3; box-sizing: border-box; width: min(720px, calc(100vw - 60px)); margin: 0 0 12px; box-shadow: var(--ui-pop-shadow); }

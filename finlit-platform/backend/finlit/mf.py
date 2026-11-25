@@ -2595,6 +2595,32 @@ async def hot_list(request: Request) -> Response:
     return Response(content=body, media_type="application/json", headers={"Cache-Control": CACHE_HEADER})
 
 
+WISH_MAX = 100   # task #375: the most schemes a member keeps in the Mutual Funds wishlist (routes PUT /api/me/fund-wishlist checks the same)
+
+
+@router.get("/rows")
+async def rows_by_code(request: Request, codes: str = Query("", max_length=900)) -> Response:
+    """Task #375: the list rows of the schemes given by code (at most 100, comma separated), in the order given, for the Mutual Funds page's
+    Wishlist tab: the same row shape, checklist peers and data dates as the list, so the same table draws them. A code that is no scheme is left out."""
+    try:
+        want = [int(c) for c in codes.split(",") if c.strip()]
+    except ValueError:
+        raise fail(400, "bad_request", "codes: scheme codes, comma separated.")
+    want = list(dict.fromkeys(c for c in want if 0 < c < 10_000_000))[:WISH_MAX]
+    if not want:
+        return Response(content=dumps({"items": [], "peers": {}}), media_type="application/json", headers={"Cache-Control": CACHE_HEADER})
+    store = request.app.state.store
+    async with store.pool.acquire() as conn:
+        rows = await conn.fetch(f"SELECT {LIST_COLS} FROM mf_schemes LEFT JOIN mf_screen ON x_code = code WHERE code = ANY($1::int[])", want)  # nosec B608 - fixed column list; the codes are a bound parameter
+        facts = await _facts(conn)
+        dash = await _meta(conn, "dashboard") or {}
+        by = {r["code"]: list_item(r) for r in rows}
+        items = [by[c] for c in want if c in by]
+        await attach_growth_returns(conn, items)
+    peers = {k: v for k, v in (dash.get("peers") or {}).items() if k in {i["checklist"]["peer"] for i in items if i["checklist"]}}
+    return Response(content=dumps({"items": items, "peers": peers, **facts}), media_type="application/json", headers={"Cache-Control": CACHE_HEADER})
+
+
 FACT_KEYS = ("aum", "terRegular", "terDirect", "exitLoad", "benchmark", "managers", "riskometer", "launchDate", "minInvestment")
 NO_FACTS = "The fund house's monthly disclosure is not loaded yet."
 NO_PORTFOLIO = "The fund house's monthly portfolio disclosure is not loaded yet."

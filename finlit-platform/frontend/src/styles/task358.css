@@ -5,7 +5,7 @@
    each group folded until opened; the Mutual Fund Score group marked with a green edge as the quick shortlist */
 .mfs-sec { margin: 18px 0 4px; padding: 0 2px; font: 600 var(--fs-12)/1.4 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 #mfs-groups > .mfs-sec:first-child { margin-top: 6px; }
-.mfs-panel [data-fgx="score"] { box-shadow: inset 3px 0 0 var(--gain); }
+/* task #372: the green edge on the score group is replaced by a gold crown (styles/task372.css) */
 
 /* task #358: the two-handle slider of each score range (a filled band between the handles; the inputs stack over one track) */
 .mfs-sl { position: relative; height: 24px; margin: 2px 8px 0; }

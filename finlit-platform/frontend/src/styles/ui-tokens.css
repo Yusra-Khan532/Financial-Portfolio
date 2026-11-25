@@ -118,6 +118,12 @@
   --ui-crown-ink: #1c1a15;
 }
 
+/* Task #390 (ETF portfolio, developer file 34): the cost card's teal (its tint and its bars) and the dark ink on the gold and silver badges (Update 25 Nov
+   row 7b). Used only by styles/etfportfolio.css. */
+:root, :root[data-theme="light"] { --ui-etf-cost: #1f6f78; --ui-etf-badge-ink: #1c1a15; }
+:root[data-theme="dark"],
+:root:not([data-theme="light"]) { --ui-etf-cost: #5fb3bb; --ui-etf-badge-ink: #1c1a15; }
+
 /* Task #388 (Equity portfolio, developer file 36, F2 and F3). The beta range names on the scale and the range counts under it: darker ink in light mode,
    lighter in dark, each at 4.5:1 or better on its band (portfolio/pack/risk385.css). The share grids' heat colour in dark mode is #2f7a82 (was #7cc7d2),
    so the figures read in white or dark ink (portfolio/pack/div385.css; shared/divFigs.ts cellInk works out the same colours). */

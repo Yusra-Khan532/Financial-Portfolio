@@ -196,7 +196,7 @@ export function writeCols(cols: ColId[]) { saveUi(COLS_KEY, 5, cols); }
  *  at all" (other pages search with it); /funds starts from PAGE_DEFAULTS. */
 export type ListQuery = {
   q: string; amc: string; plan: string; option: string; status: "" | "active" | "stopped"; sort: SortKey | ""; dir: "asc" | "desc"; page: number; size: number;
-  min1y: string; max1y: string; min5y: string; max5y: string; view: "" | "ready"; tab: TabKey | "all"; cats: string[] | null;
+  min1y: string; max1y: string; min5y: string; max5y: string; view: "" | "ready" | "wish"; tab: TabKey | "all"; cats: string[] | null;
 };
 export const SIZES = [25, 50, 100];
 export const EMPTY_QUERY: ListQuery = { q: "", amc: "", plan: "", option: "", status: "", sort: "", dir: "asc", page: 1, size: 50, min1y: "", max1y: "", min5y: "", max5y: "", view: "", tab: "all", cats: null };
@@ -232,7 +232,7 @@ export function parseQuery(sp: URLSearchParams): ListQuery {
     // `stopped=1` (before task #369: "include stopped schemes") is now the default, so it reads as no status choice
     status: st === "active" || st === "stopped" ? st : "",
     sort: SORT_KEYS.has(get("sort")) ? (get("sort") as SortKey) : "", dir: get("dir") === "desc" ? "desc" : "asc",
-    page: Number.isInteger(page) && page >= 1 && page <= 2000 ? page : 1, size: SIZES.includes(size) ? size : 50, view: get("view") === "ready" ? "ready" : "",
+    page: Number.isInteger(page) && page >= 1 && page <= 2000 ? page : 1, size: SIZES.includes(size) ? size : 50, view: get("view") === "ready" ? "ready" : get("view") === "wish" ? "wish" : "",   // task #375: the Wishlist tab
     tab, cats: sp.has("cats") ? cleanCats(get("cats")) : null,
   };
   if (q.tab === "all") q.cats = null;

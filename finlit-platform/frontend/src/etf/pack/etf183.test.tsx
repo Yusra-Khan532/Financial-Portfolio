@@ -36,9 +36,10 @@ describe("What's inside (pack 03 §3)", () => {
     expect(document.querySelector(".mfm-g tfoot")!.textContent).toMatch(/All macro sectors · 12.*42\.7% in Indian shares/);
     const first = document.querySelector(".mfm-g tbody tr th")!.textContent;
     expect(first).toBe("Financial Services");
-    const cell = screen.getByText("HDFCBANK", { selector: ".mfm-chip" }).closest("td")!;
+    // task #390 (file 34, I2): chips show the company's short name; the "+N more" pill is the dashed one (.mfm-more)
+    const cell = screen.getByText("HDFC Bank", { selector: ".mfm-cn" }).closest("td")!;
     expect(cell.querySelectorAll(".mfm-chip")).toHaveLength(4);
-    fireEvent.click(cell.querySelector("button.eq-more")!);
+    fireEvent.click(cell.querySelector("button.mfm-more")!);
     expect(cell.querySelectorAll(".mfm-chip")).toHaveLength(35);
     expect(screen.getByText(/The rest: HDFCSML250, not loaded \(14%\), gold, shares abroad and liquid \(43%\)\./)).toBeTruthy();
     expect(restLine(d, ins)).toBe("The rest: HDFCSML250, not loaded (14%), gold, shares abroad and liquid (43%).");
@@ -62,8 +63,9 @@ describe("What's inside (pack 03 §3)", () => {
     act(() => { dispatchEvent(new CustomEvent("eq-jump", { detail: "etp-move" })); });
     expect(screen.getByRole("tab", { name: /How ETFs move together/ }).getAttribute("aria-selected")).toBe("true");
     expect(screen.getByText(/LIQUIDCASE is left out\./)).toBeTruthy();
-    expect(pairText(d, ins, rk, "NIFTYBEES", "SBINIFTY50")).toBe("NIFTYBEES and SBINIFTY50: 1.00. They rise and fall almost as one. They keep 100.0% of their money in the same 50 stocks. The same index, different fund houses.");
-    expect(pairText(d, ins, rk, "NIFTYBEES", "GOLDBEES")).toBe("NIFTYBEES and GOLDBEES: 0.03. They go their own way. Different kinds of asset, the same fund house.");
+    // task #390 (file 34, I5): the figure in words, then the part of their weekly moves in common
+    expect(pairText(d, ins, rk, "NIFTYBEES", "SBINIFTY50")).toBe("NIFTYBEES and SBINIFTY50: 1.00. Closely linked: about 100% of their weekly moves in common. They keep 100.0% of their money in the same 50 stocks. The same index, different fund houses.");
+    expect(pairText(d, ins, rk, "NIFTYBEES", "GOLDBEES")).toBe("NIFTYBEES and GOLDBEES: 0.03. Barely linked: about 0% of their weekly moves in common. Different kinds of asset, the same fund house.");
     expect(document.querySelector(".etp-twicecard")!.textContent).toMatch(/NIFTYBEES \(Nippon India\) and SBINIFTY50 \(SBI\) · same 50 stocks · move together 1\.00 · costs and trading differ: NIFTYBEES trades ₹[\d,.]+ Cr a day, SBINIFTY50 ₹[\d,.]+ Cr\./);
     expect(screen.getByText("HDFCSML250 and the others")).toBeTruthy();
     act(() => { dispatchEvent(new CustomEvent("eq-jump", { detail: "etp-sizes" })); });
@@ -76,7 +78,9 @@ describe("What's inside (pack 03 §3)", () => {
     expect(document.querySelectorAll(".mfm-big tbody tr")).toHaveLength(5);
     expect(screen.getAllByRole("columnheader").map((c) => c.textContent)).toContain("FinLit Prism");
     fireEvent.click(screen.getByRole("button", { name: "Show all 8 ▾" }));
-    expect([...document.querySelectorAll(".mfm-big tbody th a")].map((a) => a.textContent)).toEqual(["HDFCBANK", "ICICIBANK", "RELIANCE", "BHARTIARTL", "LT", "INFY", "SBIN", "AXISBANK"]);
+    // task #390 (file 34, I7): the company's short name first, its share code under it
+    expect([...document.querySelectorAll(".mfm-big tbody th a")].map((a) => a.textContent)).toEqual(["HDFC Bank", "ICICI Bank", "Reliance Industries", "Bharti Airtel", "Larsen & Toubro", "Infosys", "State Bank of India", "Axis Bank"]);
+    expect([...document.querySelectorAll(".mfm-big tbody th small")].map((a) => a.textContent).slice(0, 2)).toEqual(["HDFCBANK", "ICICIBANK"]);
     expect(document.querySelector(".mfm-big tbody tr")!.textContent).toMatch(/Financial Services.*2\.84%.*NIFTYBEESSBINIFTY50/);
   });
 });
@@ -85,7 +89,7 @@ describe("Risk analytics (pack 03 §4)", () => {
   it("leads against the Nifty 500, with the window of each figure", () => {
     expect(riskLede(rk)).toEqual({ lead: "Your list moves less than the Indian market.", rest: "It has moved 0.63% for every 1% move in the Nifty 500, and over 3 years it has swung 10.6% in a typical year against 14.6% for the Nifty 500 (3 yrs, daily)." });
     expect(glanceTiles(rk).map((t) => [t.k, t.v, t.vs])).toEqual([["Typical swing in a year · 3 yrs", "10.6%", "Nifty 500: 14.6% (3 yrs, daily)"], ["Worst fall from a high · 3 yrs", "−8.8%", "Nifty 500: −18.8%"],
-      ["In the 10 worst weeks · past year", "−1.6%", "Nifty 500: −2.8%"], ["Beta, Nifty 500", "0.63", "market: 1.00"]]);
+      ["In the 10 worst weeks · past year", "−1.6%", "Nifty 500: −2.8%"], ["Moves with the Nifty 500", "0.63×", "market: 1.00×"]]);   // task #390 (file 34, R2a, W11)
   });
   it("builds the list's beta by type, liquid as 0, and shows the three figures and the readings", () => {
     const g = byType(rk);
@@ -94,10 +98,11 @@ describe("Risk analytics (pack 03 §4)", () => {
     wrap(<RiskTab rk={rk} d={d} ins={ins} />);
     expect(screen.getByText(/An index ETF copies its own index, so its beta against that index is about 1 by design/)).toBeTruthy();
     expect([...document.querySelectorAll(".eqr-b3 .eqr-v b")].map((b) => b.textContent)).toEqual(["0.63", "0.74", "0.98"]);
-    expect([...document.querySelectorAll(".eqr-pin")].map((p) => p.textContent)).toEqual(["0.63 Your list Less sensitive", "0.98 Indian share ETFs Similar"]);
+    // task #390 (file 34, Update row 3): the figures are labels on the scale itself (RiskPack BetaScale)
+    expect([...document.querySelectorAll(".eqb-lab")].map((p) => p.textContent)).toEqual(["0.63Your list", "0.98Indian share ETFs"]);
     expect(screen.queryByRole("button", { name: "LIQUIDCASE" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "GOLDBEES" }));
-    expect(screen.getByText(/GOLDBEES: 0\.02 against the Nifty 500, less sensitive; 0% of its moves explained by it\. A different asset: the beta says little\./)).toBeTruthy();
+    expect(screen.getByText(/GOLDBEES: 0\.02 against the Nifty 500, much less sensitive; 0% of its moves explained by it\. A different asset: the beta says little\./)).toBeTruthy();
     expect(screen.getByText("A low beta is not a calm ride")).toBeTruthy();
   });
   it("tags different assets, adds the risk to 100%, and leaves gold and shares abroad out of the 10% fall", () => {
