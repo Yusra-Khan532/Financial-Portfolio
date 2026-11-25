@@ -13,7 +13,7 @@ import orjson
 from .. import prism_screen
 from ..prism_candles import expected_session
 from ..screener.data import get_table
-from . import derive, engine, history as hist_mod, industry as ind_mod, patterns as pat_mod, sectorread, theme_map, themes
+from . import derive, engine, history as hist_mod, industry as ind_mod, listday, patterns as pat_mod, sectorread, theme_map, themes
 from .registry import ALL, REGISTRY_VERSION, Preset
 
 log = logging.getLogger("finlit.presets")
@@ -38,8 +38,12 @@ def nse_industries() -> Dict[str, str]:
 
 async def build_frame(store, persist: bool = False, now: Optional[datetime] = None) -> engine.Frame:
     now = now or datetime.now(timezone.utc)
-    as_of = expected_session(now)
+    expected = expected_session(now)
     table = await get_table(store)
+    # Task #394 (developer file 37, F3): the lists are dated by the last trading session in the exchange candles they are built on, never by the
+    # weekday rule alone (24 Nov 2026, Guru Nanak Jayanti, an NSE holiday, was the date of every list); each company's close of that day comes with it
+    market = await listday.load(store, table.symbols, expected)
+    as_of = market.day or expected
     prism = prism_screen.cards(await store.prism_cards(None))
     async with store.pool.acquire() as conn:
         overrides = {r["symbol"]: r["industry"] for r in await conn.fetch("SELECT symbol, industry FROM industry_override")}
@@ -60,6 +64,7 @@ async def build_frame(store, persist: bool = False, now: Optional[datetime] = No
     pos = table.pos
     ev = themes.evaluate(table, themes.by_nse_industry(table, industry), themes.history_from_rows(hist_rows))      # grouped by the 58 NSE industries (fix 6)
     fr = engine.Frame(table, prism, as_of, tags, industry, ev, listed=listed)
+    fr.market = market
     fr.history_days = history_days
     fr.sector_dates = {"sectors": (reading or {}).get("date"), "rotation": (reading or {}).get("rotationDate")}
     fr.patterns = await pat_mod.load(store)          # the nightly chart-pattern run (None until the first one has been made)
@@ -337,6 +342,7 @@ async def refresh_presets(store, settings=None) -> dict:
             await pat_mod.save(store, found, previous)
             fr.patterns = found
             pattern_note = {"patternsAsOf": day.isoformat(), "patternsChecked": found["checked"], "patternHits": {k: len(v) for k, v in found["scans"].items()}, "patternsLeftOut": len(found["left_out"]),
+                            "patternsRuleOff": len(found.get("rule_off") or []),
                             "patternsSuspended": found.get("suspended", 0), "patternCoverage": round(cov["ratio"], 4), **topped}
     except Exception as exc:
         log.exception("chart-pattern scans failed; the last saved run stays in use")
@@ -366,7 +372,9 @@ async def refresh_presets(store, settings=None) -> dict:
         history_note = {"historyError": type(exc).__name__}
     async with store.pool.acquire() as conn:
         await conn.execute("DELETE FROM preset_results WHERE registry <> $1", REGISTRY_VERSION)
-    summary = {"asOf": fr.as_of.isoformat(), "results": done, "failed": failed, "themeTagged": len(fr.tags), "themeLabelsUnmatched": theme_map.unmatched_labels(fr.t.sector_label),
+    if fr.not_traded_off:        # F8: the companies left off a list for no trade in the last five sessions, counted here and named in the log
+        log.info("ready-made lists: %d companies left off for no trade in the last %d sessions: %s", len(fr.not_traded_off), listday.NO_TRADE_SESSIONS, sorted(fr.not_traded_off)[:50])
+    summary = {"asOf": fr.as_of.isoformat(), "listDayFromCandles": fr.market.day is not None, "notTradedLeftOff": len(fr.not_traded_off), "results": done, "failed": failed, "themeTagged": len(fr.tags), "themeLabelsUnmatched": theme_map.unmatched_labels(fr.t.sector_label),
             "benchReady": bench_ready, "momentum": len(fr.momentum), "growth": len(fr.growth), "inPlay": len(fr.theme_eval.in_play) if fr.theme_eval else 0, **pattern_note, **history_note}
     try:        # the night's summary (counts and notes only) for the self-check page: why a pattern run was held, how many companies were left out, ...
         async with store.pool.acquire() as conn:

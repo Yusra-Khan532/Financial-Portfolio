@@ -294,4 +294,50 @@ def test_a_small_favicon_gives_way_to_the_sharp_cdn_logo_only_when_a_key_is_set(
     on = {r[0]: r[6] for r in quote_rows(rows, "basic", set(), cdn=True)}
     off = {r[0]: r[6] for r in quote_rows(rows, "basic", set())}
     assert on["SMALL"] is None and on["BIG"] and on["HAND"] and on["OLD"]
+    backup = {r[0]: r[7] for r in quote_rows(rows, "basic", set(), cdn=True) if len(r) > 7}
+    assert backup == {"SMALL": "/api/logos/e49a9b94449af6e2.png"}   # the small logo rides along as the page's backup when Logo.dev has none
     assert all(off.values())   # without a key nothing is dropped (a small logo beats the initials tile)
+
+
+def test_the_reviewed_wrong_logo_dev_companies_are_skipped():
+    from finlit.search import LOGO_CDN_SKIP
+    for s in ("TCS", "TATATECH", "LTTS", "M&M", "JIOFIN", "GILLETTE"):
+        assert s in LOGO_CDN_SKIP
+    assert len(set(LOGO_CDN_SKIP)) == len(LOGO_CDN_SKIP)
+
+
+def test_a_hand_set_wordmark_may_be_wide_but_the_nightly_job_keeps_square_icons():
+    """The "tcs" wordmark is about 2:1; the tile fits a logo without cropping, so a hand-set logo may be up to 3:1."""
+    assert sniff(png(200, 100), wide=True)[2:] == (200, 100)
+    with pytest.raises(Rejected, match="square"):
+        sniff(png(200, 100))
+    with pytest.raises(Rejected, match="at most 3:1"):
+        sniff(png(400, 100), wide=True)
+
+
+async def test_logos_from_links_set_each_line_and_report_each_failure(app, monkeypatch):
+    """Owner, 25 Nov 2026: a browser assistant finds official logo links; the Console sends "SYMBOL link" lines; each is downloaded with the
+    job's rules and set by hand. One bad line never stops the others."""
+    async with app.state.store.pool.acquire() as conn:
+        await conn.execute("DELETE FROM logos WHERE owner_kind = 'stock' AND owner_key IN ('ZZLINK1', 'ZZLINK2')")
+        await conn.execute("DELETE FROM companies WHERE symbol IN ('ZZLINK1', 'ZZLINK2')")
+        await conn.execute("INSERT INTO companies (symbol, name) VALUES ('ZZLINK1', 'Link Test One Ltd'), ('ZZLINK2', 'Link Test Two Ltd')")
+    web = site({"/robots.txt": (200, b"User-agent: *\nAllow: /\n", {}), "/wide.png": (200, png(240, 120), {}),
+                "/logo.svg": (200, b'<svg xmlns="http://www.w3.org/2000/svg"></svg>', {}), "/deny.png": (403, b"Access Denied", {})})
+    monkeypatch.setattr(logos, "Fetcher", lambda *a, **k: Fetcher(web, public))
+    user = await signed_in(app, "plain-links@example.com")
+    body = {"items": [{"symbol": "ZZLINK1", "url": "https://brand.example/wide.png"}]}
+    assert (await new_client(app).post("/api/logos/admin/from-links", json=body)).status_code in (401, 403)
+    assert (await user.post("/api/logos/admin/from-links", json=body)).status_code == 403
+    admin = await _admin(app)
+    r = (await admin.post("/api/logos/admin/from-links", json={"items": [
+        {"symbol": "zzlink1", "url": "https://brand.example/wide.png"}, {"symbol": "ZZLINK2", "url": "https://brand.example/logo.svg"},
+        {"symbol": "ZZLINK2", "url": "https://brand.example/deny.png"}, {"symbol": "NOSUCHCO", "url": "https://brand.example/wide.png"}]})).json()
+    res = r["results"]
+    assert r["set"] == 1 and res[0]["ok"] and res[0]["path"].startswith("/api/logos/")
+    assert not res[1]["ok"] and "SVG" in res[1]["why"]
+    assert not res[2]["ok"] and "refused" in res[2]["why"]
+    assert not res[3]["ok"] and "no listed company" in res[3]["why"]
+    async with app.state.store.pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT status, width, height, source_url FROM logos WHERE owner_kind = 'stock' AND owner_key = 'ZZLINK1'")
+    assert row["status"] == "manual" and (row["width"], row["height"]) == (240, 120) and row["source_url"].endswith("/wide.png")

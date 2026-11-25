@@ -60,7 +60,7 @@ def test_a_hit_becomes_a_record_with_numbers_status_and_the_drawing_in_the_panel
          "q": 79, "status": "At the level", "clean": "Clean", "rs": 75}
     r = P.record_of(h, s)
     assert r["nums"] == {"Level (Rs)": 418.5, "Below the level": 1.8, "Level age": 89.0, "Volume, last 10 against 50": 0.5, "Kind": "Flag"}
-    assert r["facts"][0] == ["Level (Rs)", "418.50"] and r["status"] == "At the level" and r["clean"] == "Clean" and r["q"] == 79 and r["last"] == s.d[-1]
+    assert r["facts"][0] == ["Level", "₹418.50"] and r["status"]       # task #394 (file 37, C6): plain labels, rupees in the figures box == "At the level" and r["clean"] == "Clean" and r["q"] == 79 and r["last"] == s.d[-1]
     d = r["draw"]
     assert d["level"] == 418.5 and d["from"] == "2026-07-15" and d["levelLabel"] == "Level" and d["box"] == {"from": "2026-07-15", "to": "2026-11-20", "low": 320.0, "high": 418.5}
     assert d["swings"] == [{"date": "2026-10-23", "price": 320.0, "kind": "Base low"}] and d["pole"] == {"from": "2026-10-01", "low": 100.0, "to": "2026-10-15", "high": 150.0}

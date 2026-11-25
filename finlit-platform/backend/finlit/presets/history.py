@@ -165,18 +165,30 @@ async def repair_closes(store) -> dict:
 
 async def record(store, fr, results: Sequence[Tuple[Any, List[str], dict]]) -> dict:
     """Write tonight's lists and spells for every screen (`results`: preset, active chips, the engine's answer). Returns counts for the job's summary."""
-    session = fr.as_of
     sessions_done = spells_opened = spells_closed = 0
-    price = {s: fr.get(i, "price") for i, s in enumerate(fr.symbols)}
+    table_price = {s: fr.get(i, "price") for i, s in enumerate(fr.symbols)}
     real = await day_closes(store, [r["symbol"] for _, _, b in results for r in (b.get("exportRows") or b.get("rows") or [])])
-    for sym, byday in real.items():
-        c = byday.get(session.isoformat())
-        if c:
-            price[sym] = c            # the real close of the session, not the quote of the moment
+    market = getattr(fr, "market", None)
+
+    def close_on(sym: str, day: date, row: Optional[dict] = None) -> Optional[float]:
+        """The close saved with a list (task #394, developer file 37, F3 and F9): the row's own close of the list day (price_on, from the exchange
+        candles the chart is drawn from) when the row carries one, even None (no trade that day: nothing is guessed); else the exchange candle of
+        that day; else the stored daily prices of that day; else, for a company with no daily prices at all, the table's price as before."""
+        if row is not None and "price_on" in row:
+            return row["price_on"]
+        dc = market.closes.get(sym) if market is not None else None
+        if dc is not None:
+            return dc.close if dc.day == day.isoformat() else None
+        c = (real.get(sym) or {}).get(day.isoformat())
+        return c if c else table_price.get(sym)
+
     for preset, active, body in results:
         rows = body.get("exportRows") or body.get("rows") or []
         if not rows and preset.kind in ("blocked", "quickview"):
             continue
+        # the list's own day (a chart-pattern list is dated by the close its scan ran on, which can be before the frame's when that scan was held)
+        session = _list_session(body, fr.as_of)
+        price = {r["symbol"]: close_on(r["symbol"], session, r) for r in rows}
         ckey = engine.chip_key(active)
         syms = [r["symbol"] for r in rows]
         async with store.pool.acquire() as conn:
@@ -202,15 +214,22 @@ async def record(store, fr, results: Sequence[Tuple[Any, List[str], dict]]) -> d
                     for g in gone:
                         n_on = await conn.fetchval("SELECT count(*) FROM screen_runs WHERE preset_id=$1 AND chips=$2 AND session >= $3 AND session < $4", preset.id, ckey, g["added_on"], session)
                         await conn.execute("UPDATE screen_spells SET left_on=$1, left_reason=$2, close_left=$3, sessions_on=$4, registry_left=$5 WHERE id=$6",
-                                           session, RULES_UPDATED if changed else why.get(g["symbol"], GENERIC), price.get(g["symbol"]), int(n_on or 0), body.get("version") or 0, g["id"])
+                                           session, RULES_UPDATED if changed else why.get(g["symbol"], GENERIC), close_on(g["symbol"], session), int(n_on or 0), body.get("version") or 0, g["id"])
                     spells_closed += len(gone)
         sessions_done += 1
     async with store.pool.acquire() as conn:
-        cut = session - timedelta(days=KEEP_DAYS)
+        cut = fr.as_of - timedelta(days=KEEP_DAYS)
         await conn.execute("DELETE FROM screen_snapshots WHERE session < $1", cut)
         await conn.execute("DELETE FROM screen_runs WHERE session < $1", cut)
         await conn.execute("DELETE FROM gainers WHERE session < $1", cut)
     return {"historyScreens": sessions_done, "spellsOpened": spells_opened, "spellsClosed": spells_closed}
+
+
+def _list_session(body: dict, default: date) -> date:
+    try:
+        return date.fromisoformat(str(body.get("asOf"))[:10]) if body.get("asOf") else default
+    except ValueError:
+        return default
 
 
 async def _reasons(fr, preset, active, symbols: Sequence[str]) -> Dict[str, str]:
@@ -241,6 +260,10 @@ async def gainers(store, fr, bench: Dict[str, float]) -> dict:
     from .registry import ALL as PRESETS      # every screen, the Prism basics too
     session = fr.as_of
     price = {s: fr.get(i, "price") for i, s in enumerate(fr.symbols)}
+    closes = getattr(getattr(fr, "market", None), "closes", None) or {}
+    for sym, dc in closes.items():          # task #394 (F3): the close of the list day from the exchange candles, the price the lists show
+        if dc.day == session.isoformat():
+            price[sym] = dc.close
     order = {p.id: n for n, p in enumerate(PRESETS)}
     names = {p.id: p.name for p in PRESETS}
     stored = 0

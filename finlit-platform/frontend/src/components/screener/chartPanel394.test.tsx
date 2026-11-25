@@ -314,3 +314,12 @@ describe("stepping through the list (live check 25 Nov: the row stepped away fro
     expect(src).toContain("if (el && list.current?.contains(document.activeElement) && document.activeElement !== el) el.focus({ preventScroll: true });");
   });
 });
+
+describe("a blank day change says why (task #394 PR B sends ret_1d_note)", () => {
+  it("the list row and the table's price cell show a dash carrying the reason when there is no day change", () => {
+    const lc = readFileSync(join(process.cwd(), "src/components/screener/presets/ListChart.tsx"), "utf8");
+    const sv = readFileSync(join(process.cwd(), "src/components/screener/presets/ScreenView.tsx"), "utf8");
+    expect(lc).toContain('{chg == null && typeof r.ret_1d_note === "string" && <small title={r.ret_1d_note} aria-label={`Day change not shown: ${r.ret_1d_note}`}>{MINUS}</small>}');
+    expect(sv).toContain('{typeof r.ret_1d !== "number" && typeof r.ret_1d_note === "string" && <small className="psx-chg" title={r.ret_1d_note}');
+  });
+});

@@ -42,6 +42,8 @@ async def build_supervisor(settings: Any, store: Any, dry_run: bool = False) -> 
 
     async def extra(now):
         out = []
+        from .. import storage   # Console > Storage: one reading an hour of the disk, the database and the backups (never raises, never slows a job)
+        await storage.record(store.pool)
         disk = disk_percent()
         if disk is not None and disk >= freshness.DISK_ALERT_PCT:
             out.append(("disk", "FinLit server disk is almost full", f"The server disk is {disk:.0f}% full (alert at {freshness.DISK_ALERT_PCT:.0f}%). On the server run: bash /opt/finlit/src/finlit-platform/deploy/aws/deploy.sh clean "

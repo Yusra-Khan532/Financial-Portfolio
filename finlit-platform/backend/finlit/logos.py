@@ -139,7 +139,7 @@ def _ico_best(b: bytes) -> Tuple[bytes, str, int, int]:
     return b, "image/x-icon", w, h
 
 
-def sniff(data: bytes) -> Tuple[bytes, str, int, int]:
+def sniff(data: bytes, wide: bool = False) -> Tuple[bytes, str, int, int]:
     """(bytes to keep, MIME type, width, height) for an accepted image; raises Rejected otherwise. Decided by the bytes, never the header."""
     head = data[:64].lstrip().lower()
     if head.startswith((b"<svg", b"<?xml", b"<!doctype", b"<html")):
@@ -158,8 +158,9 @@ def sniff(data: bytes) -> Tuple[bytes, str, int, int]:
         raise Rejected("unknown image format")
     if not (MIN_PX <= min(w, h) and max(w, h) <= MAX_PX):
         raise Rejected(f"size {w}x{h} outside {MIN_PX}-{MAX_PX} px")
-    if not h or not 0.66 <= w / h <= 1.5:
-        raise Rejected(f"not square enough ({w}x{h})")
+    lo, hi = (0.33, 3.0) if wide else (0.66, 1.5)   # a hand-set official logo may be a wordmark up to 3:1 (the tile fits it, never crops)
+    if not h or not lo <= w / h <= hi:
+        raise Rejected(f"not square enough ({w}x{h})" if not wide else f"too wide or tall ({w}x{h}); at most 3:1")
     if len(out) > MAX_BYTES:
         raise Rejected(f"file too large ({len(out) // 1024} KB)")
     return out, mime, w, h
@@ -526,26 +527,86 @@ class ManualLogoIn(BaseModel):
     image: str = Field(min_length=8, max_length=180_000, description="the image file, base64 (the file itself is at most 128 KB)")
 
 
+async def _set_manual(conn, sym: str, data: bytes, source_url: Optional[str]) -> str:
+    """Checks the image (wide allowed) and stores it as the company's hand-set logo; returns its path. Raises Rejected."""
+    out, mime, w, h = sniff(data, wide=True)
+    sha = hashlib.sha256(out).hexdigest()[:16]
+    await conn.execute(
+        """INSERT INTO logos (owner_kind, owner_key, domain, status, mime, width, height, sha8, bytes, source_url, note, fetched_at, next_try_at)
+           VALUES ('stock', $1, NULL, 'manual', $2, $3, $4, $5, $6, $7, 'Set by hand', now(), now() + interval '3650 days')
+           ON CONFLICT (owner_kind, owner_key) DO UPDATE SET status = 'manual', mime = EXCLUDED.mime, width = EXCLUDED.width, height = EXCLUDED.height, sha8 = EXCLUDED.sha8,
+               bytes = EXCLUDED.bytes, source_url = EXCLUDED.source_url, note = 'Set by hand', fetched_at = now(), next_try_at = EXCLUDED.next_try_at""",
+        sym, mime, w, h, sha, out, source_url)
+    return logo_path(sha)
+
+
+async def _drop_quotes_cache(store) -> None:
+    """A new hand-set logo shows at once: the cached quotes lists are rebuilt from the database on the next request."""
+    try:
+        await store.redis.delete("search-quotes:basic", "search-quotes:silver", "search-quotes:raw:v2")
+    except Exception:   # nosec B110 - Redis down: the lists rebuild within their 60 s lifetime anyway
+        pass
+
+
 @router.post("/admin/manual", status_code=201)
 async def manual(request: Request, body: ManualLogoIn, ctx: Ctx = Depends(admin_ctx)) -> JSONResponse:
-    """Administrators: set a company's logo by hand (an official brand image). The same checks as the automatic ones (real bitmap, square-ish, size); it is kept as
-    'manual', which the nightly job never overwrites."""
+    """Administrators: set a company's logo by hand (an official brand image). Real bitmap, at most 3:1, size checked; kept as 'manual', which
+    the nightly job never overwrites and which wins over every other source."""
     try:
         data = base64.b64decode(body.image, validate=True)
     except (binascii.Error, ValueError):
         raise fail(422, "bad_image", "The image could not be read. Send the file as base64.")
-    try:
-        out, mime, w, h = sniff(data)
-    except Rejected as exc:
-        raise fail(422, "rejected", f"This image is not accepted: {exc}.")
     sym = body.symbol.upper()
-    sha = hashlib.sha256(out).hexdigest()[:16]
     async with request.app.state.store.pool.acquire() as conn:
         if not await conn.fetchval("SELECT 1 FROM companies WHERE symbol = $1", sym):
             raise fail(404, "not_found", "No listed company has this symbol.")
-        await conn.execute(
-            """INSERT INTO logos (owner_kind, owner_key, domain, status, mime, width, height, sha8, bytes, source_url, note, fetched_at, next_try_at)
-               VALUES ('stock', $1, NULL, 'manual', $2, $3, $4, $5, $6, NULL, 'Set by hand', now(), now() + interval '3650 days')
-               ON CONFLICT (owner_kind, owner_key) DO UPDATE SET status = 'manual', mime = EXCLUDED.mime, width = EXCLUDED.width, height = EXCLUDED.height, sha8 = EXCLUDED.sha8,
-                   bytes = EXCLUDED.bytes, note = 'Set by hand', fetched_at = now(), next_try_at = EXCLUDED.next_try_at""", sym, mime, w, h, sha, out)
-    return JSONResponse({"symbol": sym, "status": "manual", "path": logo_path(sha)}, status_code=201, headers=NO_STORE)
+        try:
+            path = await _set_manual(conn, sym, data, None)
+        except Rejected as exc:
+            raise fail(422, "rejected", f"This image is not accepted: {exc}.")
+    await _drop_quotes_cache(request.app.state.store)
+    return JSONResponse({"symbol": sym, "status": "manual", "path": path}, status_code=201, headers=NO_STORE)
+
+
+class LinkItem(BaseModel):
+    symbol: str = Field(min_length=1, max_length=24, pattern=r"^[A-Za-z0-9&._-]+$")
+    url: str = Field(min_length=10, max_length=600)
+
+
+class LinksIn(BaseModel):
+    items: List[LinkItem] = Field(min_length=1, max_length=60)
+
+
+@router.post("/admin/from-links")
+async def from_links(request: Request, body: LinksIn, ctx: Ctx = Depends(admin_ctx)) -> JSONResponse:
+    """Administrators (owner, 25 Nov 2026: a browser assistant finds each company's official logo and pastes "SYMBOL link" lines in the
+    Console): each link is downloaded by the server with the nightly job's rules (public addresses only, robots.txt, byte cap, real bitmap,
+    SVG refused) and set as that company's hand-set logo. One result per line; one failure never stops the others."""
+    out = []
+    f = Fetcher()
+    try:
+        async with request.app.state.store.pool.acquire() as conn:
+            known = {r["symbol"] for r in await conn.fetch("SELECT symbol FROM companies WHERE symbol = ANY($1::text[])", [i.symbol.upper() for i in body.items])}
+            for it in body.items:
+                sym = it.symbol.upper()
+                if sym not in known:
+                    out.append({"symbol": sym, "ok": False, "why": "no listed company has this symbol"})
+                    continue
+                try:
+                    st, _, data, final = await f.get(it.url.strip(), MAX_BYTES * 2)
+                    if st != 200:
+                        raise Rejected(f"the link answered HTTP {st}")
+                    path = await _set_manual(conn, sym, data, final)
+                    out.append({"symbol": sym, "ok": True, "path": path})
+                except Blocked as exc:
+                    out.append({"symbol": sym, "ok": False, "why": f"the site refused the download ({exc}); save the file and upload it in the table instead"})
+                except Rejected as exc:
+                    out.append({"symbol": sym, "ok": False, "why": str(exc)})
+                except (httpx.HTTPError, OSError) as exc:
+                    out.append({"symbol": sym, "ok": False, "why": f"could not connect ({type(exc).__name__})"})
+                await asyncio.sleep(PAUSE)
+    finally:
+        await f.aclose()
+    if any(o["ok"] for o in out):
+        await _drop_quotes_cache(request.app.state.store)
+    return JSONResponse({"results": out, "set": sum(1 for o in out if o["ok"])}, headers=NO_STORE)

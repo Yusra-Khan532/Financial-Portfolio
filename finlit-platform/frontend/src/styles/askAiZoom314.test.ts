@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const css = readFileSync("src/styles/ask-ai.css", "utf8");
-const block = css.slice(css.indexOf("/* ---- Task #314"));
+const block = css.slice(css.indexOf("/* ---- Task #314"), css.indexOf("/* ---- The founder, 25 Nov 2026") > 0 ? css.indexOf("/* ---- The founder, 25 Nov 2026") : undefined);   // up to the pop-up (25 Nov 2026), which has its own tests
 const rule = (sel: string) => { const all = [...block.matchAll(new RegExp(sel.replace(/[.()>:]/g, "\\$&") + " \\{([^}]*)\\}", "g"))]; return all[all.length - 1]?.[1] ?? ""; };
 
 describe("task #314: FinLit AI's full window, one step smaller", () => {
