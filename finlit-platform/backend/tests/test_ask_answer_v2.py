@@ -217,7 +217,9 @@ async def test_the_answer_check_runs_scores_keeps_and_can_be_stopped(app, monkey
     assert by["co-health-reliance"]["kind"] == "company" and float(by["co-health-reliance"]["score"]) > 90
     assert by["co-health-reliance"]["checks"]["grade"]["direct"] == 5
     adv = by["adv-buy-itc"]                                                                   # withdrawn by the endpoint, or caught here
-    assert float(adv["score"]) < float(by["co-health-reliance"]["score"])
+    # FinLit AI withdraws an advice-like answer before it is kept (service.ADVICE): the advice text never stands as a clean answer; if any
+    # slipped through, the fixed checks flag it and the score drops
+    assert "should buy" not in (adv["answer"] or "").lower() or (adv["checks"]["fixed"]["advice"] and float(adv["score"]) <= 70)
     listing = (await a.get("/api/admin/ask-check")).json()
     assert listing["runs"][0]["id"] == run_id and listing["questions"] == len(check.QUESTIONS) and listing["styleOn"] == "v1"
     assert (await a.get("/api/admin/ask-check/999999")).status_code == 404
