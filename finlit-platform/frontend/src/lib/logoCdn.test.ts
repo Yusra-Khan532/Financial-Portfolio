@@ -6,10 +6,10 @@ import { describe, expect, it } from "vitest";
 import { cdnLogo, isCdnLogo, logoFor } from "./logoCdn";
 import { quoteMap } from "./globalSearch";
 
-const KEY = "pk_TestKey_123";
+const KEY = "pk_demo";
 describe("company logos from Logo.dev when our own fetch has none", () => {
   it("builds the ticker URL: NSE symbol .NS, BSE code .BO, encoded, one 128px PNG, 404 instead of a monogram", () => {
-    expect(cdnLogo("TCS", KEY)).toBe("https://img.logo.dev/ticker/TCS.NS?token=pk_TestKey_123&size=128&format=png&fallback=404");
+    expect(cdnLogo("TCS", KEY)).toBe("https://img.logo.dev/ticker/TCS.NS?token=pk_demo&size=128&format=png&fallback=404");
     expect(cdnLogo("M&M", KEY)).toContain("/ticker/M%26M.NS?");
     expect(cdnLogo("544937", KEY)).toContain("/ticker/544937.BO?");
     expect(isCdnLogo(cdnLogo("TCS", KEY)!)).toBe(true);
