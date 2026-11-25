@@ -1,0 +1,19 @@
+/* Task #371 (team, 24 Nov 2026): "increase the size of total score and also the pillar : P R C Q and when we hover on P R C Q then we can see the name of
+   pillar and their score", in the Mutual funds list and the Mutual Fund Screener (both draw the cell with mf/ScoreCell). */
+
+/* the total score: 18px (was 13px in the screener's pill, 16px in the Mutual funds list) */
+.mfs-cell .mfs-pv { font-size: var(--fs-18); }
+:root .mfs-table td.mfs-hs .mfs-pv { font-size: var(--fs-18); padding: 3px 10px; }
+
+/* the four parts P R C Q: 22px squares with 13px letters (were 16px with 12px) */
+.mfs-cell .mfs-parts { gap: 4px; margin-top: 6px; }
+.mfs-cell .mfs-part { position: relative; width: 22px; height: 22px; font-size: var(--fs-13); cursor: help; }
+.mfs-cell .mfs-part:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+
+/* hover (or keyboard focus, or a tap on a phone) shows that part's name and its word, e.g. "Performance: Strong" (the site shows parts as words,
+   never as figures). Styled like the screener's chart tip. */
+.mfs-cell .mfs-part[data-tip]:hover::after, .mfs-cell .mfs-part[data-tip]:focus::after {
+  content: attr(data-tip); position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%); z-index: 30; width: max-content;
+  padding: 6px 9px; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); background: var(--s1); color: var(--text);
+  box-shadow: var(--shadow); font: 600 var(--fs-12)/1.3 var(--sans); white-space: nowrap; pointer-events: none;
+}
