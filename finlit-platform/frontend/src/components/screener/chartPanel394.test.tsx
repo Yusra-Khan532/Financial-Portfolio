@@ -129,7 +129,8 @@ describe("C1 and F6: the list's close beside the chart, and a chart that ends be
     expect(listClose({ priceOn: 11649, listDay: "2026-11-23" }, d)).toEqual({ price: 11649, day: "2026-11-23" });
     expect(listClose({ priceOn: 11649, listDay: "2026-11-22" }, d)).toBeNull();              // a Sunday
     expect(listClose({ priceOn: 11649, listDay: "2026-11-21" }, ["2026-11-20", "2026-11-23"])).toBeNull();
-    expect(listClose({ priceOn: 2039, listDay: "2026-11-23" }, ["2026-11-12", "2026-11-13"])).toEqual({ price: 2039, day: "2026-11-23" });   // chart behind: the list's close
+    expect(listClose({ priceOn: 2039, listDay: "2026-11-23" }, ["2026-11-12", "2026-11-13"])).toBeNull();   // chart behind: the list's day is not proven a session, so no day is claimed
+    expect(listClose({ priceOn: 2031, listDay: "2026-11-24" }, ["2026-11-20", "2026-11-23"])).toBeNull();   // 24 Nov 2026, an exchange holiday: never "24 Nov close"
     expect(listClose({ priceOn: 11000, listDay: "2026-11-20" }, d)).toBeNull();               // a past list: the chart runs past it
     expect(listClose({ priceOn: null, listDay: "2026-11-23" }, d)).toBeNull();               // only the live price: as before
   });
@@ -146,12 +147,13 @@ describe("C1 and F6: the list's close beside the chart, and a chart that ends be
     expect(document.querySelector(".cp-p .cp-asof")!.textContent).toBe("close of 23 Nov");
   });
   it("says it above the figures when the chart ends before the list's close", () => {
-    expect(behindNote("2026-11-13", "2026-11-23", 2039)).toEqual(["This chart ends 13 Nov.", "The list is from the 23 Nov close (₹2,039.00)."]);
+    expect(behindNote("2026-11-13", "2026-11-23", 2039)).toEqual(["This chart ends 13 Nov.", "The list beside it is from a later close (₹2,039.00)."]);
+    expect(behindNote("2026-11-23", "2026-11-24", 2031)?.[1]).not.toMatch(/24 Nov/);   // a holiday list day is never named
     expect(behindNote("2026-11-23", "2026-11-23", 2039)).toBeNull();
     const s = dailyTo("2026-11-13"); priceState = (range) => ok(range, s);
     panel({ priceOn: 2039, listDay: "2026-11-23", facts: [["Level (Rs)", "2038.60"]] });
     const n = document.querySelector(".cp-note")!;
-    expect(n.textContent).toBe("This chart ends 13 Nov. The list is from the 23 Nov close (₹2,039.00).");
+    expect(n.textContent).toBe("This chart ends 13 Nov. The list beside it is from a later close (₹2,039.00).");
     expect(n.nextElementSibling!.className).toBe("cp-fbox");
   });
   it("shows no note when the chart reaches the list's day", () => {
@@ -292,5 +294,23 @@ describe("C11: the mark under a list row whose chart is behind", () => {
     expect(li[0].lastElementChild!.className).toBe("psx-lc-mk");
     expect(li[1].querySelector(".psx-lc-mk")).toBeNull();          // not opened yet: nothing to say
     expect(css).toMatch(/\.psx-lc-list li \.psx-lc-mk \{ grid-column: 2 \/ -1;/);
+  });
+});
+
+describe("while a company's chart loads (live check 25 Nov: Line looked selected and the header price had no word for what it was)", () => {
+  const src = readFileSync(join(process.cwd(), "src/components/screener/ChartPanel.tsx"), "utf8");
+  it("the chosen chart kind stays selected and enabled until candles arrive; only a loaded series with no open/high/low falls back to a line", () => {
+    expect(src).toContain('const mode: Mode = bars.length > 0 && !hasOHL ? "line" : opt.mode;');
+    expect(src).toContain('disabled={m !== "line" && bars.length > 0 && !hasOHL}');
+  });
+  it("before the chart loads, the header's price is labelled as the list's price, not as a close", () => {
+    expect(src).toMatch(/\{!lastBar && row\.price != null && <small className="cp-asof"[^>]*>list price<\/small>\}/);
+  });
+});
+
+describe("stepping through the list (live check 25 Nov: the row stepped away from kept its focus ring)", () => {
+  it("focus follows the selected row when it was in the list", () => {
+    const src = readFileSync(join(process.cwd(), "src/components/screener/presets/ListChart.tsx"), "utf8");
+    expect(src).toContain("if (el && list.current?.contains(document.activeElement) && document.activeElement !== el) el.focus({ preventScroll: true });");
   });
 });

@@ -120,6 +120,8 @@ export function listClose(row: { priceOn?: number | null; listDay?: string | nul
   const day = iso(row.listDay), w = dow(day), last = daily[daily.length - 1];
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || w === 0 || w === 6) return null;
   if (last > day) return null;
+  // only a day the chart has a candle on: the list's day can be an exchange holiday (24 Nov 2026), and no price is ever dated with a day there was no session
+  if (!daily.includes(day)) return null;
   return { price: row.priceOn, day };
 }
 
@@ -142,7 +144,7 @@ export const chartToMark = (lastDaily: string | null | undefined, listDay: strin
 /** F6: the note above the figures, in two parts (the first is bold on the page). */
 export function behindNote(lastDaily: string | null | undefined, listDay: string | null | undefined, priceOn?: number | null): [string, string] | null {
   const b = behindList(lastDaily, listDay); if (!b || !listDay) return null;
-  return [`This chart ends ${dayShort(b)}.`, `The list is from the ${dayShort(listDay)} close${priceOn != null && Number.isFinite(priceOn) ? ` (${rupees(priceOn)})` : ""}.`];
+  return [`This chart ends ${dayShort(b)}.`, `The list beside it is from a later close${priceOn != null && Number.isFinite(priceOn) ? ` (${rupees(priceOn)})` : ""}.`];   // no day named: the list's day may not be a session
 }
 
 /** C8: the heading of "What the chart shows", with the day its figures are from when the server sends it (factsAsOf). */

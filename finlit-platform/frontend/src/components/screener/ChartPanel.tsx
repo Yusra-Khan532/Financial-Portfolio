@@ -178,7 +178,7 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false, onChar
     return acts.filter((a) => a.date >= bars[0].t).map((a) => ({ a, d: bars.find((b) => b.t >= a.date)?.t ?? bars[bars.length - 1].t, txt: eventLetter(a.type) })).filter((x) => x.txt);
   }, [ind.events, bars, eq.data]);
   const hasOHL = bars.length > 0 && bars.every((b) => b.o != null && b.h != null && b.l != null);
-  const mode: Mode = !hasOHL ? "line" : opt.mode;                 // a bar with no open, high or low is never drawn as a dot: the chart falls back to a line
+  const mode: Mode = bars.length > 0 && !hasOHL ? "line" : opt.mode;   // while the chart loads the chosen kind stays selected (it is not a line chart yet)                 // a bar with no open, high or low is never drawn as a dot: the chart falls back to a line
   const hasLock = (k: "ema200") => !!s && s[k] === undefined;      // ema200 is removed from the response below Silver
 
   const compareOn = cmp.nifty || cmp.peers.length > 0;
@@ -349,7 +349,7 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false, onChar
         {!inline && <button type="button" className="cp-x" onClick={onClose} aria-label="Close chart">×</button>}
       </header>
       <div className="cp-p">{lc ? <><b>₹{num(lc.price)}</b><small className="cp-asof" title={`The list's official close of ${candleDay(lc.day)}, the same day as the list`}>{candleDay(lc.day)} close</small></>
-        : <><b>₹{num(lastBar?.c ?? row.price)}</b>{lastBar && <small className="cp-asof" title="The chart's last candle. The list beside it shows the latest close, which can be newer while this chart is refreshed.">close of {candleDay(lastBar.t)}</small>}</>}
+        : <><b>₹{num(lastBar?.c ?? row.price)}</b>{!lastBar && row.price != null && <small className="cp-asof" title="The price in the list; the chart's close shows when it has loaded">list price</small>}{lastBar && <small className="cp-asof" title="The chart's last candle. The list beside it shows the latest close, which can be newer while this chart is refreshed.">close of {candleDay(lastBar.t)}</small>}</>}
         {r1 != null && <span title={lc ? `Change over the month to ${candleDay(lc.day)}` : "Change over the last month"}>1M {pct(r1)}</span>}{r3 != null && <span title={lc ? `Change over the 3 months to ${candleDay(lc.day)}` : "Change over the last 3 months"}>3M {pct(r3)}</span>}
         {chg != null && <span className="cp-rng" title={`Change over the chart range (${opt.range})`}>{opt.range} {pct(chg)}</span>}
         {model && <ScoreChip className="cp-badge" v={scoreView(prismMap[row.symbol])} />}</div>
@@ -361,7 +361,7 @@ export function ChartPanel({ row, onClose, onStep, extra, inline = false, onChar
           <button type="button" className={!weekly ? "on" : ""} aria-pressed={!weekly} disabled={!canDaily && !dailyAvail} title={canDaily || dailyAvail ? "Daily candles" : "3 and 5 years are shown as weekly candles"} onClick={() => { if (dailyAvail) setLongDaily(true); setOpt((o) => ({ ...o, weekly: false })); }}>D</button>
           <button type="button" className={weekly ? "on" : ""} aria-pressed={weekly} onClick={() => { setLongDaily(false); setOpt((o) => ({ ...o, weekly: true })); }} title="Weekly candles">W</button></span>
         <span className="cp-seg" role="group" aria-label="Chart type">
-          {(["candles", "bars", "line"] as Mode[]).map((m) => <button type="button" key={m} className={mode === m ? "on" : ""} aria-pressed={mode === m} disabled={m !== "line" && !hasOHL} onClick={() => setOpt((o) => ({ ...o, mode: m }))}>{m[0].toUpperCase() + m.slice(1)}</button>)}</span>
+          {(["candles", "bars", "line"] as Mode[]).map((m) => <button type="button" key={m} className={mode === m ? "on" : ""} aria-pressed={mode === m} disabled={m !== "line" && bars.length > 0 && !hasOHL} onClick={() => setOpt((o) => ({ ...o, mode: m }))}>{m[0].toUpperCase() + m.slice(1)}</button>)}</span>
         <span className="cp-seg" role="group" aria-label="Range">
           {RANGES.map((r) => <button type="button" key={r} className={opt.range === r ? "on" : ""} aria-pressed={opt.range === r} onClick={() => { setLongDaily(false); setOpt((o) => ({ ...o, range: r })); }}>{r}</button>)}</span>
       </div>

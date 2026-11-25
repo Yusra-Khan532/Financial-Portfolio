@@ -22,7 +22,12 @@ export function ListChart({ rows, pick, onPick, toPanel, figure, listDay = null 
   const onChartEnd = useCallback((sym: string, day: string) => setEnds((e) => (e[sym] === day ? e : { ...e, [sym]: day })), []);
   const cur = rows.find((r) => r.symbol === pick) ?? rows[0];
   const step = (dir: 1 | -1) => { const i = rows.findIndex((r) => r.symbol === cur?.symbol), n = rows[i + dir]; if (n) onPick(n.symbol); };
-  useEffect(() => { list.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.scrollIntoView?.({ block: "nearest" }); }, [cur?.symbol]);
+  useEffect(() => {
+    const el = list.current?.querySelector<HTMLElement>('[aria-selected="true"]');
+    el?.scrollIntoView?.({ block: "nearest" });
+    // task #394 (live check 25 Nov): when focus is in the list, it moves with the selection, so the row stepped away from keeps no focus ring (two rows looked picked)
+    if (el && list.current?.contains(document.activeElement) && document.activeElement !== el) el.focus({ preventScroll: true });
+  }, [cur?.symbol]);
   if (!cur) return null;
   return (
     <div className="psx-lc">
