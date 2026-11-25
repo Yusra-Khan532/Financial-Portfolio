@@ -15,6 +15,7 @@ import {
 import { rangeOf, toggleIn, useStockSearch, withRange, withScore, type SQ, type ScreenFacets } from "../../lib/mfScreen";
 import { RangeFilter } from "./RangeFilter";
 import "../../styles/task358.css";   // task #358: the section headings and the score sliders
+import "../../styles/task372.css";   // task #372: section headings above the group titles, the score group's crown
 import { ScoreFilters, scoreOn } from "./ScoreFilter";
 
 
@@ -22,10 +23,10 @@ export type PanelProps = { q: SQ; set: (fn: (q: SQ) => SQ) => void; fac?: Screen
 
 /** The 17 groups in their order, with the words "Find a filter" matches on: the group's title, its sub-headings and the measures inside it. */
 export const GROUPS: { id: string; title: string; words: string }[] = [
+  { id: "score", title: "FinLit Mutual Fund Score", words: "finlit mutual fund score total pillar pillars performance quality rating gold" },   // task #350
   { id: "type", title: "Type and category", words: "type equity debt hybrid solution oriented others" },
   { id: "subcat", title: "Sub-category", words: "sub-category subcategory category index funds sectoral thematic fof fund of funds liquid flexi cap elss tax saver gilt overnight arbitrage" },
   { id: "plan", title: "Plan, option and status", words: "plan direct regular option growth idcw dividend instrument etf mutual fund status still publishing stopped freshness family" },
-  { id: "score", title: "FinLit Mutual Fund Score", words: "finlit mutual fund score total pillar pillars performance quality rating gold" },   // task #350
   { id: "risk", title: "Risk", words: "risk volatility downside deviation biggest fall worst fall worst month worst 12 months falling month time below high downside capture sharpe" },
   { id: "returns", title: "Returns", words: "returns return 1 year 3 years 5 years sip xirr category median rank short-term change calendar year monthly gain months ahead track record" },
   { id: "cost", title: "Cost", words: "cost expense expense ratio ter regular direct gap fee share exit load" },
@@ -161,6 +162,11 @@ export function Panel({ q, set, fac, waiting, canScore, fold = false }: PanelPro
       {fold && <button type="button" className="btn mfs-fold" aria-expanded={showGroups} aria-controls="mfs-groups" onClick={() => setShowGroups(!showGroups)}>{showGroups ? "Hide the filter groups" : `Show the ${GROUPS.length} filter groups`}</button>}
       <div id="mfs-groups" hidden={groupsHidden}>
       {/* Task #358 (team, 23 Nov 2026): the groups under four headings so a reader knows what each filter is for, in the team's order. */}
+      {/* Task #372 (team, 24 Nov 2026): the Mutual Fund Score is the topmost filter, marked with a gold crown (no green edge). */}
+      <p className="mfs-sec" id="mfs-sec-short">Quick shortlist</p>
+      <FilterGroup id="score" icon="crown" title="FinLit Mutual Fund Score" active={scoreOn(q.sc)} meta={canScore ? undefined : <span className="mfs-soon-n"><Icon name="lock" /> Gold</span>} {...og("score")}>
+        <ScoreFilters sc={q.sc} canScore={canScore} onSet={(f, lo, hi) => set((s) => withScore(s, f, lo, hi))} />
+      </FilterGroup>
       <p className="mfs-sec" id="mfs-sec-start">Start here · what and how</p>
       <FilterGroup id="type" title="Type and category" active={q.group ? 1 : 0} {...og("type")}>
         <Tabs label="Type" value={q.group} onPick={(v) => upd({ group: v === q.group ? "" : v, subs: v === q.group ? q.subs : [] })}
@@ -190,10 +196,6 @@ export function Panel({ q, set, fac, waiting, canScore, fold = false }: PanelPro
         <Chips opts={FRESH_OPTS} sel={q.fresh ? [q.fresh] : []} counts={fac?.fresh} onToggle={(v) => upd({ fresh: q.fresh === v ? "" : v })} label="Data freshness" />
         <Sub>Family view</Sub>
         <CheckRow label="One row per fund family (plans and options collapsed)" checked={q.family} onChange={() => upd({ family: !q.family })} />
-      </FilterGroup>
-      <p className="mfs-sec" id="mfs-sec-short">Quick shortlist</p>
-      <FilterGroup id="score" title="FinLit Mutual Fund Score" active={scoreOn(q.sc)} meta={canScore ? undefined : <span className="mfs-soon-n"><Icon name="lock" /> Gold</span>} {...og("score")}>
-        <ScoreFilters sc={q.sc} canScore={canScore} onSet={(f, lo, hi) => set((s) => withScore(s, f, lo, hi))} />
       </FilterGroup>
       <p className="mfs-sec" id="mfs-sec-rrc">Risk, returns and cost</p>
       <FilterGroup id="risk" title="Risk" active={nr(fieldsOf(RISK_FIGS)) + q.tick.filter((t) => TICK_FALL.some((o) => o.v === t)).length} {...og("risk")}>

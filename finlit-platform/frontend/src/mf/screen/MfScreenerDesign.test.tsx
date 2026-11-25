@@ -78,8 +78,10 @@ describe("task #131: the Mutual Fund Screener as the team's design", () => {
     mount(); await screen.findAllByText("Alpha Mid Cap Fund");
     const heads = [...panel().querySelectorAll(".fgx-g .fgx-t")].map((x) => x.textContent);
     expect(heads).toEqual(GROUPS.map((g) => g.title)); expect(heads).toHaveLength(17);
-    expect([...panel().querySelectorAll(".mfs-sec")].map((x) => x.textContent)).toEqual(["Start here · what and how", "Quick shortlist", "Risk, returns and cost", "Narrow down"]);
-    expect(heads.slice(0, 4)).toEqual(["Type and category", "Sub-category", "Plan, option and status", "FinLit Mutual Fund Score"]);
+    expect([...panel().querySelectorAll(".mfs-sec")].map((x) => x.textContent)).toEqual(["Quick shortlist", "Start here · what and how", "Risk, returns and cost", "Narrow down"])   // task #372: the score first
+    const first = panel().querySelector("#mfs-groups .fgx-g")!; expect(first.getAttribute("data-fgx")).toBe("score");   // task #372: the topmost filter, with a crown
+    expect(first.querySelector(".fgx-gi")).not.toBeNull();
+    expect(heads.slice(0, 4)).toEqual(["FinLit Mutual Fund Score", "Type and category", "Sub-category", "Plan, option and status"]);   // task #372
     expect(heads.slice(4, 7)).toEqual(["Risk", "Returns", "Cost"]);
     const open = [...panel().querySelectorAll(".fgx-g")].map((g) => g.classList.contains("is-open"));
     expect(open.every((o) => !o)).toBe(true);
