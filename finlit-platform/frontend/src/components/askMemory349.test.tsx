@@ -54,7 +54,9 @@ describe("the history view: the server's for Silver and Gold, the browser's for 
     expect(rows[0].textContent).toContain("TCS Q2 results?");
     expect(rows[0].textContent).toContain(`${askedOn("2026-11-22T09:00:00Z")} · TCS`);
     expect(rows[1].textContent).toContain("Pharma and healthcare sector");
-    expect(screen.queryByText("only in this browser")).toBeNull();                       // the server's list, not the browser's
+    // task #349 fix E: a browser-only question is not in the server list; it shows below it, marked "On this device", never hidden
+    expect(within(list).queryByText("only in this browser")).toBeNull();
+    expect(within(screen.getByRole("list", { name: "Questions asked on this device" })).getByText("only in this browser")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Manage in Account" }).getAttribute("href")).toBe("/account/ai");
     fireEvent.click(within(rows[1]).getByTitle("Ask again"));
     expect(onAsk).toHaveBeenCalledWith("pharma sector outlook");
@@ -85,9 +87,12 @@ describe("the history view: the server's for Silver and Gold, the browser's for 
   it("memoryApplies only to signed-in Silver and Gold; subjects read in words", () => {
     expect([memoryApplies(false, "gold"), memoryApplies(true, "basic"), memoryApplies(true, "silver"), memoryApplies(true, "gold"), memoryApplies(true, undefined)])
       .toEqual([false, false, true, true, false]);
-    expect(subjectLabel({ subjectKind: "economy", subjectId: "india" })).toBe("The economy");
+    expect(subjectLabel({ subjectKind: "economy", subjectId: "india" })).toBe("Economy");
     expect(subjectLabel({ subjectKind: "concept", subjectId: "pe-ratio" })).toBe("Term: pe ratio");
-    expect(subjectLabel({ subjectKind: "fund", subjectId: "all" })).toBe("Mutual funds");
+    expect(subjectLabel({ subjectKind: "fund", subjectId: "all" })).toBe("Funds");
+    // task #349 fix D: by subject: Economy, Sectors, Market, Funds, Your holdings; the symbol only for a company question
+    expect(["sector", "market", "mine", "company"].map((k) => subjectLabel({ subjectKind: k, subjectId: k === "company" ? "BSE" : k === "sector" ? "all" : "india" }))).toEqual(["Sectors", "Market", "Your holdings", "BSE"]);
+    expect(subjectLabel({ subjectKind: "sector", subjectId: "pharma" })).toBe("Pharma and healthcare sector");
   });
 });
 

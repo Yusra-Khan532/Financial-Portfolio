@@ -72,6 +72,35 @@ async def get_superinvestors(gw: Gateway, a: Dict[str, Any]) -> Out:
 SOURCE_MACRO = "FinLit's India economy page (finlitventures.com/macro): MoSPI, RBI and the other official publishers named with each figure"
 
 
+_CAL_Q = re.compile(r"^(\d{4}) Q([1-4])$")
+
+
+def target_watch_for_ai(w: Any) -> Any:
+    """Task #349 fix I: the page's quarterly CPI averages are CALENDAR quarters ("2026 Q3" is Jul-Sep 2026, Q2 of FY27), each complete (all three
+    months). FinLit AI read "2026 Q3" as "Q3 FY27" (Oct-Dec 2026, not over yet). Here each quarter is named by its months and its financial-year
+    quarter, and the ambiguous label is left out, so the model cannot mislabel a quarter or call an unfinished one complete."""
+    from ..macro import fy_quarter, quarter_months
+    if not isinstance(w, dict):
+        return w
+
+    def name(label: Any) -> Optional[Dict[str, str]]:
+        m = _CAL_Q.match(str(label or ""))
+        return {"months": quarter_months(int(m[1]), int(m[2])), "financialYearQuarter": fy_quarter(int(m[1]), int(m[2]))} if m else None
+    out = {k: v for k, v in w.items() if k not in ("quarters", "lastQuarter", "lastQuarterMonths", "lastQuarterFy")}
+    qs = []
+    for q in w.get("quarters") or []:
+        if isinstance(q, dict):
+            n = name(q.get("q"))
+            qs.append({**(n or {"quarter": q.get("q")}), "averageCpi": q.get("avg"), "complete": True})
+    out["quarters"] = qs
+    last = name(w.get("lastQuarter"))
+    if last:
+        out["latestCompleteQuarter"] = last
+    out["note"] = ("Quarterly averages of monthly CPI over complete calendar quarters only (all three months published). Name each quarter by its "
+                   "months and its financial-year quarter as given; a quarter not listed is not complete.")
+    return out
+
+
 def macro_digest(m: Dict[str, Any]) -> Dict[str, Any]:
     """The page's own headline cards, insights, policy rates, reserves and inflation by spending group, each with its date; not the long histories."""
     divs = []
@@ -81,7 +110,7 @@ def macro_digest(m: Dict[str, Any]) -> Dict[str, Any]:
             divs.append({"group": d.get("label"), "latest": pts[-1][1], "month": pts[-1][0], "yearBefore": pts[-13][1] if len(pts) >= 13 else None})
     res = (m.get("reserves") or {})
     cards = [{k: v for k, v in c.items() if k != "spark"} for c in m.get("cards") or []]     # the cards' small charts are long histories; the reading is enough
-    return {"updatedAt": m.get("updatedAt"), "headline": cards, "insights": m.get("insights"), "inflationTarget": m.get("targetWatch"),
+    return {"updatedAt": m.get("updatedAt"), "headline": cards, "insights": m.get("insights"), "inflationTarget": target_watch_for_ai(m.get("targetWatch")),
             "policyAndFx": m.get("rates"), "recentRateDecisions": (m.get("decisions") or [])[-4:], "brentCrude": m.get("brent"),
             "reserves": {k: res.get(k) for k in ("reserves", "m3_yoy", "asOf", "week", "link") if k in res},
             "cpiBySpendingGroup": divs, "dataIssues": m.get("issues"), "sources": m.get("sources")}

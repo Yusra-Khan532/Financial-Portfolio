@@ -732,6 +732,18 @@ def quarterly_avg(pts: S.Points) -> Dict[Tuple[int, int], float]:
     return {k: round(sum(v) / 3, 2) for k, v in acc.items() if len(v) == 3}
 
 
+def quarter_months(year: int, n: int) -> str:
+    """A calendar quarter by its months: (2026, 3) -> "Jul-Sep 2026"."""
+    return f"{['Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Dec'][n - 1]} {year}"
+
+
+def fy_quarter(year: int, n: int) -> str:
+    """A calendar quarter as India's financial-year quarter (April to March): (2026, 3) -> "Q2 FY27", (2026, 1) -> "Q4 FY26"."""
+    q = (n + 2) % 4 + 1
+    fy = year + 1 if n >= 2 else year
+    return f"Q{q} FY{str(fy)[2:]}"
+
+
 def target_watch(cpi: S.Points) -> dict:
     """The accountability rule of the inflation-targeting framework: CPI inflation above 6% or below 2% for three consecutive quarters
     (quarterly averages) is a failure the RBI must explain to the Government."""
@@ -744,8 +756,12 @@ def target_watch(cpi: S.Points) -> dict:
             break
         side, run = s, run + 1
     last = keys[-1] if keys else None
-    return {"target": TARGET, "band": list(BAND), "quarters": [{"q": f"{y} Q{n}", "avg": q[(y, n)]} for y, n in keys[-8:]],
+    # Task #349 fix I: "2026 Q3" is a CALENDAR quarter (Jul-Sep 2026), which is Q2 of FY27; FinLit AI read it as "Q3 FY27" (Oct-Dec 2026, not
+    # over yet). Each quarter also carries its months and its financial-year name, so it is never mislabelled. Only complete quarters are here.
+    return {"target": TARGET, "band": list(BAND),
+            "quarters": [{"q": f"{y} Q{n}", "months": quarter_months(y, n), "fy": fy_quarter(y, n), "avg": q[(y, n)]} for y, n in keys[-8:]],
             "streak": run, "side": side, "lastQuarter": f"{last[0]} Q{last[1]}" if last else None,
+            "lastQuarterMonths": quarter_months(*last) if last else None, "lastQuarterFy": fy_quarter(*last) if last else None,
             "rule": "If CPI inflation averages above 6% or below 2% for three quarters in a row, the RBI must report to the Government why, and what it will do."}
 
 

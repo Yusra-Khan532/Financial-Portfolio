@@ -128,7 +128,9 @@ def topic_of(question: str, named_companies: Sequence[str] = (), page_company: O
         sk, sid = ("etf" if _ETF.search(q) else "fund"), "all"
     elif any(k.startswith("sector:") for k in kinds):
         sk, sid = "sector", next(k for k in kinds if k.startswith("sector:")).split(":", 1)[1]
-    elif "economy" in kinds:
+    elif "sectors" in kinds:                # task #349 fix D: "how is the banking sector doing?", "which sectors are leading?"
+        sk, sid = "sector", "all"
+    elif "economy" in kinds or routing._ECONOMY_WORDS.search(q):       # task #349 fix D: "what did RBI do on rates?"
         sk, sid = "economy", "india"
     elif _MARKET.search(q):
         sk, sid = "market", "india"
@@ -389,8 +391,22 @@ async def _prune(conn, user_id: str) -> None:
                        "ORDER BY asked_at DESC, id DESC OFFSET $2)", user_id, MAX_ROWS)
 
 
+def shown_subject(question: str, subject_kind: str, subject_id: str) -> Tuple[str, str]:
+    """Task #349 fix D: the subject a history row is labelled with. Rows kept before fix C took the pinned company as the subject of an RBI or
+    a sector question ("· BSE"); such a row (a field question that does not name its company) is labelled by its field instead. Nothing stored
+    is changed."""
+    if subject_kind != "company" or not routing.off_company(question):
+        return subject_kind, subject_id
+    q = re.sub(r"\s+", "", (question or "").lower())
+    if subject_id and subject_id.lower() in q:
+        return subject_kind, subject_id
+    _, sk, sid, _ = topic_of(question, (), None, None, routing.classify(question))
+    return sk, sid
+
+
 def _row(r: Any) -> Dict[str, Any]:
-    return {"id": r["id"], "askedAt": r["asked_at"].isoformat(), "topic": r["topic_key"], "subjectKind": r["subject_kind"], "subjectId": r["subject_id"],
+    sk, sid = shown_subject(r["question"], r["subject_kind"], r["subject_id"])
+    return {"id": r["id"], "askedAt": r["asked_at"].isoformat(), "topic": r["topic_key"], "subjectKind": sk, "subjectId": sid,
             "intent": r["intent"], "question": r["question"]}
 
 

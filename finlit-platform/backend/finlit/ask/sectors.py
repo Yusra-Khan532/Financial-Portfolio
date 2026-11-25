@@ -59,6 +59,50 @@ def pick_group(rows: List[Dict[str, Any]], want: str) -> Tuple[Optional[Dict[str
     return (found[0], []) if len(found) == 1 else (None, found)
 
 
+# Task #349 fix I (the founder's Gold QA, 24 Nov 2026): the banking answer called Financial Services "Washout" while saying "56.2% of its stocks
+# above their 50-day average". Both were right by the rule (Washout: in recent weeks most of the group fell below its medium-term trend, and no
+# broad rebound has followed; the share above it today can already be higher), but read as a contradiction, and it printed a scoring rule
+# ("50-day average"), which the house rule keeps off the page. The model is given plain names for the averages and the Washout reading in words.
+TREND_WORDS = {"9": "short-term trend", "20": "near-term trend", "50": "medium-term trend", "200": "long-term trend"}
+_ALL_THREE = re.compile(r"\b9, 20 and 50-day averages\b")
+_DAYS = re.compile(r"\b(9|20|50|200)-day (?:moving )?averages?\b")
+PLAIN_NOTE = ("Never name day counts or rule thresholds (no \"9-day\", \"20-day\", \"50-day\" or \"200-day average\"): say short-term, "
+              "near-term, medium-term and long-term trend. Washout means that in recent weeks most of the group's stocks fell below their "
+              "medium-term trend and no broad rebound has followed yet; the share above it today can already be higher, so say both together "
+              "(for example \"Washout: sold broadly in recent weeks, no broad rebound yet; 56 of every 100 stocks are back above their "
+              "medium-term trend\"), never as a contradiction.")
+
+
+def plain(v: Any) -> Any:
+    """Text with the averages named in words (TREND_WORDS); dicts and lists are walked."""
+    if isinstance(v, str):
+        return _DAYS.sub(lambda m: TREND_WORDS[m[1]] + ("s" if m[0].endswith("s") else ""),
+                         _ALL_THREE.sub("short, near and medium-term trends", v))
+    if isinstance(v, dict):
+        return {k: plain(x) for k, x in v.items()}
+    if isinstance(v, list):
+        return [plain(x) for x in v]
+    return v
+
+
+def _trend(br: Any) -> Any:
+    """{above_9, above_20, above_50} as {shortTerm, nearTerm, mediumTerm}: how many of every 100 stocks are above each trend."""
+    if not isinstance(br, dict):
+        return br
+    names = {"above_9": "shortTerm", "above_20": "nearTerm", "above_50": "mediumTerm"}
+    return {names.get(k, k): v for k, v in br.items()}
+
+
+def washout_words(page: Dict[str, Any]) -> str:
+    """A Washout group's reading in one consistent sentence: sold broadly in recent weeks, no broad rebound yet, and how many of every 100 of its
+    stocks are above their medium-term trend today (which can already be more than half)."""
+    nm = page.get("name") or "This group"
+    br = page.get("breadth") if isinstance(page.get("breadth"), dict) else {}
+    now = br.get("above_50")
+    today = f" Today {now:.0f} of every 100 of its stocks are above their medium-term trend." if isinstance(now, (int, float)) else ""
+    return f"{nm} was sold broadly in recent weeks (Washout), and no broad rebound has followed yet.{today}"
+
+
 def _locked(data: Dict[str, Any]) -> List[str]:
     lk = data.get("locked") if isinstance(data.get("locked"), dict) else {}
     return [f"{_LOCK_WORDS.get(k, k.replace('_', ' '))} is part of the {str(v).title()} plan, which this member's plan does not include"
@@ -84,7 +128,7 @@ def _pulse_row(r: Dict[str, Any]) -> Dict[str, Any]:
     above = "/".join("–" if br.get(k) is None else f"{br[k]:.0f}" for k in ("above_9", "above_20", "above_50")) if br else None
     return {k: v for k, v in {        # compact: every group of the board fits one result (the meanings are given once, in stateMeanings)
         "name": r.get("name"), "slug": r.get("slug"), "state": r.get("state"),
-        "above9/20/50": above, "vs52wHighPct": r.get("index_vs_52w_high"), "stocks": r.get("stocks_counted"),
+        "aboveShort/Near/MediumTrend": above, "vs52wHighPct": r.get("index_vs_52w_high"), "stocks": r.get("stocks_counted"),
         "lastThrust": f"{lt.get('type')} {lt.get('date_label')}" if lt.get("date_label") else None,
         "box": rot.get("corner_name"),
         "industries": r.get("industries") if r.get("kind") == "sector" and len(r.get("industries") or []) > 1 else None}.items() if v not in (None, [], {})}
@@ -94,14 +138,14 @@ async def get_sector_pulse(gw: Gateway, a: Dict[str, Any]) -> Out:
     show = a.get("show") or "sectors"
     board, show, notes = await _board(gw, show)
     rows = [r for r in board.get("rows") or [] if isinstance(r, dict)]
-    base = {"show": show, "date": board.get("date_label") or board.get("date"), "market": (board.get("market") or {}).get("note")}
+    base = {"show": show, "date": board.get("date_label") or board.get("date"), "market": plain((board.get("market") or {}).get("note"))}
     if not a.get("slug"):
-        out = {**base, "counts": board.get("counts"), "stateMeanings": board.get("state_meanings"), "groups": [_pulse_row(r) for r in rows],
+        out = {**base, "counts": board.get("counts"), "stateMeanings": plain(board.get("state_meanings")), "groups": [_pulse_row(r) for r in rows],
                "tooFewStocksForAReading": [x.get("name") for x in board.get("too_few_stocks") or [] if isinstance(x, dict)]}
         return Out(out, as_of=board.get("date"), source=SOURCE_PULSE, routes=["/api/sectors"],
-                   notes=notes + _locked(board) + ["above9/20/50: how many of every 100 counted stocks are above their 9, 20 and 50-day averages. "
+                   notes=notes + _locked(board) + ["aboveShort/Near/MediumTrend: how many of every 100 counted stocks are above their short, near and medium-term trends. "
                                                    "box: the group's Sector Rotation box (get_sector_rotation has its rank). "
-                                                   "vs52wHighPct: the equal-weighted group index against its 52-week high. Describe; never call a group a buy."])
+                                                   "vs52wHighPct: the equal-weighted group index against its 52-week high. Describe; never call a group a buy.", PLAIN_NOTE])
     hit, cands = pick_group(rows, a["slug"])
     if hit is None:
         small = [x.get("name") for x in board.get("too_few_stocks") or [] if isinstance(x, dict) and pick_group([x], a["slug"])[0]]
@@ -117,14 +161,16 @@ async def get_sector_pulse(gw: Gateway, a: Dict[str, Any]) -> Out:
     lt = page.get("last_thrust") if isinstance(page.get("last_thrust"), dict) else {}
     one = {**base, "group": {k: v for k, v in {
         "name": page.get("name"), "slug": page.get("slug"), "kind": page.get("kind"), "sector": page.get("sector"), "state": page.get("state"),
-        "since": page.get("since_label"), "meaning": page.get("meaning"), "summary": page.get("summary"), "how": page.get("how"),
-        "breadth": page.get("breadth"), "vs52wHighPct": page.get("index_vs_52w_high"), "stocksCounted": page.get("stocks_counted"),
+        "since": page.get("since_label"), "meaning": plain(page.get("meaning")), "summary": plain(page.get("summary")), "how": plain(page.get("how")),
+        "breadth": _trend(page.get("breadth")), "vs52wHighPct": page.get("index_vs_52w_high"), "stocksCounted": page.get("stocks_counted"),
         "stocksListed": page.get("stocks_listed"), "lastThrust": f"{lt.get('type')} on {lt.get('date_label')} ({lt.get('when')})" if lt.get("date_label") else None,
         "industries": page.get("industries"), "date": page.get("date_label")}.items() if v not in (None, [], {})}}
+    if page.get("state_code") == "washout":        # fix I: the Washout reading in words, with today's share above the medium-term trend
+        one["group"]["summary"] = washout_words(page)
     if stocks is not None:
         one["stocks"] = stocks
         one["stocksTotal"] = page.get("stocks_total")
-    return Out(one, as_of=page.get("date"), source=SOURCE_PULSE, routes=[f"/api/sectors/{hit['slug']}"], notes=notes + _locked(page))
+    return Out(one, as_of=page.get("date"), source=SOURCE_PULSE, routes=[f"/api/sectors/{hit['slug']}"], notes=notes + _locked(page) + [PLAIN_NOTE])
 
 
 def _rot_row(r: Dict[str, Any]) -> Dict[str, Any]:
@@ -181,7 +227,7 @@ async def get_sector_rotation(gw: Gateway, a: Dict[str, Any]) -> Out:
         "rank": card.get("rank_label"), "rankChange1w": card.get("rank_change_1w"), "rankChange4w": card.get("rank_change_4w"),
         "bestRank26w": card.get("rank_best_26w"), "worstRank26w": card.get("rank_worst_26w"), "vsAverage6mPts": card.get("strength_pts"),
         "vsAverage1mPts": card.get("change_pts"), "breadth": card.get("breadth_name"), "pulseState": card.get("sector_state"),
-        "summary": card.get("summary"), "lastWeeks": tail_pts or None, "asOf": base["date"]}.items() if v not in (None, [], {})}
+        "summary": plain(card.get("summary")), "lastWeeks": tail_pts or None, "asOf": base["date"]}.items() if v not in (None, [], {})}
     return Out({**base, "rotation": rotation, "whatHappenedNextAfterThisBox": _what_next(m.get("what_next"), card.get("corner"))},
                as_of=m.get("date"), source=SOURCE_ROTATION, routes=["/api/rotation", f"/api/rotation/{hit['slug']}"], notes=notes + _locked(m) + tail)
 

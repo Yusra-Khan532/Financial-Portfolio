@@ -40,8 +40,25 @@ function Point({ line, k }: { line: string; k: string }) {
   return <li>{inline(text, k)}{cite && <span className="aif-a-cite"> {cite[1]}</span>}{s && <Bars points={s.points} unit={s.unit} />}</li>;
 }
 
-/** **bold** marked by the answer itself, then the figures. */
+/** Task #349 fix F (the founder's Gold QA): a source label in square brackets anywhere in a line ("[FinLit portfolio page, 24 Nov 2026]"), not only at
+ *  the end of a point, nor only in a point (a lead line too): it showed as plain text. A bracket is a source when it holds a date or a source's name;
+ *  a Markdown link "[text](url)" is not one. */
+const CITE_ANY = /(\s*\[[^\]\n]{3,120}\](?!\())/g;
+const CITE_LIKE = /\d{1,2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w* \d{4}|\b(?:19|20)\d{2}\b|\b(?:FinLit|page|filing|report|card|disclosure|transcript|presentation|call|NSE|BSE|RBI|MoSPI|AMFI|SEBI|Sector Pulse|Sector Rotation|Prism|Moneycontrol|source)\b/i;
+export const isCite = (bracketed: string): boolean => CITE_LIKE.test(bracketed);
+
+/** **bold** marked by the answer itself, then the figures; a source in square brackets is drawn small and muted, wherever it sits. */
 function inline(text: string, key: string): ReactNode[] {
+  const out: ReactNode[] = [];
+  text.split(CITE_ANY).forEach((seg, c) => {
+    const inner = c % 2 ? seg.trim().slice(1, -1) : "";
+    if (c % 2 && isCite(inner)) { out.push(<span key={`${key}c${c}`} className="aif-a-cite"> {inner}</span>); return; }
+    out.push(...bolded(seg, `${key}.${c}`));
+  });
+  return out;
+}
+
+function bolded(text: string, key: string): ReactNode[] {
   const out: ReactNode[] = [];
   text.split(/(\*\*[^*\n]+\*\*)/g).forEach((part, i) => {
     if (part.length > 4 && part.startsWith("**") && part.endsWith("**")) { out.push(<b key={`${key}b${i}`}>{part.slice(2, -2)}</b>); return; }

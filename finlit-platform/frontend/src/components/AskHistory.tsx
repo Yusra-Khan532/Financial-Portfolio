@@ -42,6 +42,9 @@ export function AskHistoryView({ server, recent, onAsk, onClearLocal, onLeave }:
   if (!data) return <><div className="aif-h"><h2>Chat History</h2></div><p className="aif-none" role="status">Reading your FinLit AI history…</p></>;
 
   const items = data.items.filter((i) => !gone.includes(i.id));
+  // Task #349 fix E (the founder's Gold QA, 24 Nov 2026): questions asked before the server kept them (23 Nov), and listed questions, live only in
+  // this browser's list; they were hidden once the server list showed. They stay, under the server's, marked "on this device".
+  const deviceOnly = onDevice(recent, data.items);
   const remove = (id: number) => {
     setDelErr("");
     deleteAskHistoryItem(id).then(() => setGone((g) => [...g, id])).catch(() => setDelErr("That question could not be deleted just now. Please try again."));
@@ -57,8 +60,22 @@ export function AskHistoryView({ server, recent, onAsk, onClearLocal, onLeave }:
           <span className="aim-q"><span>{i.question}</span><small className="aim-meta">{askedOn(i.askedAt)} · {subjectLabel(i)}</small></span><Icon name="arrow" /></button>
         <button type="button" className="aif-unsave" aria-label={`Delete from history: ${i.question}`} title="Delete" onClick={() => remove(i.id)}>×</button>
       </li>))}</ul>
-      : <p className="aif-none">No questions kept yet. Your written answers from FinLit AI appear here.</p>}
+      : !deviceOnly.length && <p className="aif-none">No questions kept yet. Your written answers from FinLit AI appear here.</p>}
+    {deviceOnly.length > 0 && <section className="aim-dev" aria-label="Asked on this device">
+      <p className="aif-label">On this device</p>
+      <p className="aim-off">Earlier questions kept in this browser only (listed answers, and questions from before FinLit AI kept them for you).</p>
+      <ul className="aif-qs" aria-label="Questions asked on this device">{deviceOnly.map((t) => <li key={t}><button type="button" className="aif-q" onClick={() => onAsk(t)} title="Ask again"><Icon name="chat" />
+        <span className="aim-q"><span>{t}</span><small className="aim-meta">On this device</small></span><Icon name="arrow" /></button></li>)}</ul>
+      <button type="button" className="aif-clear" onClick={onClearLocal}>Clear this device's list</button>
+    </section>}
   </>;
+}
+
+/** Task #349 fix E: the browser's own questions that the server list does not hold (same words, ignoring case and spaces), newest first. */
+export function onDevice(recent: string[], server: { question: string }[]): string[] {
+  const norm = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
+  const kept = new Set(server.map((i) => norm(i.question)));
+  return recent.filter((t) => t.trim() && !kept.has(norm(t)));
 }
 
 /** The panel header's way into Chat History (the lead, 23 Nov 2026): the full window's side menu holds it from 981px up, but the small window
