@@ -890,6 +890,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
     app.include_router(__import__("finlit.calendar_feed", fromlist=["router"]).router)   # /api/me/calendar and /api/calendar/<token>.ics: task #297, Google Calendar
     app.include_router(__import__("finlit.portfolio_overview", fromlist=["router"]).router)   # POST /api/portfolio/overview: Equity portfolio page, before the site-backend catch-all
     app.include_router(__import__("finlit.portfolio_page.api", fromlist=["router"]).router)
+    app.include_router(__import__("finlit.ask.check", fromlist=["admin"]).admin)   # /api/admin/ask-check: the Answer check (Console > FinLit AI)
     app.include_router(__import__("finlit.ask.api", fromlist=["router"]).router)   # /api/ask: Ask FinLit AI, answered from FinLit's data (before the site-backend catch-all)   # POST /api/portfolio/page: the new Equity portfolio page figures (names only)
     app.include_router(__import__("finlit.ask.history", fromlist=["router"]).router)   # /api/ask/history: the member's FinLit AI history (task #349 PR 2)
     app.include_router(__import__("finlit.mailer", fromlist=["router"]).router)   # /api/admin/mail and /api/mail/unsubscribe: mail from contact@ through SES (task #387), before the site-backend catch-all
