@@ -94,8 +94,10 @@ def quote_rows(rows, level: str, showcase: set, cdn: bool = False) -> list:
         if price is None and logo is None:
             continue                                   # nothing to add to the name list
         when = None if not at or price is None else (session_of(at) if use_report else at.astimezone(IST).date())   # a score row's time is when it was written, not when it traded
-        out.append([r["symbol"], _num(price), _num(chg), when.isoformat() if when else None,
-                    score, band, logo])
+        row = [r["symbol"], _num(price), _num(chg), when.isoformat() if when else None, score, band, logo]
+        if cdn and logo is None and r.get("sha8"):
+            row.append(logo_path(r["sha8"]))   # the small own logo, kept as the page's backup when Logo.dev has no image for this company
+        out.append(row)
     return out
 
 
@@ -177,7 +179,7 @@ async def build(app, level: str):
     store = app.state.store
     rows = [_hydrate(r) for r in await _raw_rows(store)]
     amc = await amc_logos(store)
-    body = dumps({"fields": ["symbol", "price", "changePct", "priceDate", "score", "band", "logo"],
+    body = dumps({"fields": ["symbol", "price", "changePct", "priceDate", "score", "band", "logo", "logoBackup"],
                   "rows": with_latest(quote_rows(rows, level, set(app.state.settings.showcase_symbols), cdn=bool(logo_cdn_key(app.state.settings.logo_dev_key))), await livequote.read(store.redis)),
                   "amcLogos": {k: logo_path(v) for k, v in amc.items() if k in AMC_SITES},
                   "logoCdn": logo_cdn_key(app.state.settings.logo_dev_key),

@@ -29,7 +29,7 @@ export const KIND_LABEL: Record<Kind, string> = { stock: "Stock", mf: "Fund", et
 
 export function quoteMap(q: Quotes | undefined): Map<string, Quote> {
   const m = new Map<string, Quote>();
-  for (const r of q?.rows || []) m.set(r[0], { price: r[1], chg: r[2], date: r[3], score: r[4], band: r[5], logo: logoFor(String(r[0]), r[6], q?.logoCdn) });
+  for (const r of q?.rows || []) m.set(r[0], { price: r[1], chg: r[2], date: r[3], score: r[4], band: r[5], logo: logoFor(String(r[0]), r[6], q?.logoCdn, (r as unknown[])[7] as string | null | undefined) });
   return m;
 }
 

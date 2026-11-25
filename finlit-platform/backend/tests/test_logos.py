@@ -294,4 +294,6 @@ def test_a_small_favicon_gives_way_to_the_sharp_cdn_logo_only_when_a_key_is_set(
     on = {r[0]: r[6] for r in quote_rows(rows, "basic", set(), cdn=True)}
     off = {r[0]: r[6] for r in quote_rows(rows, "basic", set())}
     assert on["SMALL"] is None and on["BIG"] and on["HAND"] and on["OLD"]
+    backup = {r[0]: r[7] for r in quote_rows(rows, "basic", set(), cdn=True) if len(r) > 7}
+    assert backup == {"SMALL": "/api/logos/e49a9b94449af6e2.png"}   # the small logo rides along as the page's backup when Logo.dev has none
     assert all(off.values())   # without a key nothing is dropped (a small logo beats the initials tile)

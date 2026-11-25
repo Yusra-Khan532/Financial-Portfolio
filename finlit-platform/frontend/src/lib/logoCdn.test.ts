@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { cdnLogo, isCdnLogo, logoFor } from "./logoCdn";
+import { altOf, cdnLogo, isCdnLogo, logoFor } from "./logoCdn";
 import { quoteMap } from "./globalSearch";
 
 const KEY = "pk_demo";
@@ -30,6 +30,20 @@ describe("company logos from Logo.dev when our own fetch has none", () => {
     const co = readFileSync(join(__dirname, "../components/CoLogo.tsx"), "utf8");
     expect(co).toContain('Logos provided by Logo.dev');
     expect(co).toMatch(/enabled: false, select: \(q\) => q\?\.logoCdn \?\? null/);   // never fetches the big list just for the footer
-    expect(readFileSync(join(__dirname, "../components/search/parts.tsx"), "utf8")).toContain('referrerPolicy={isCdnLogo(src) ? "strict-origin" : "no-referrer"}');
+    expect(readFileSync(join(__dirname, "../components/search/parts.tsx"), "utf8")).toContain('referrerPolicy={isCdnLogo(cur) ? "strict-origin" : "no-referrer"}');
+  });
+});
+
+describe("a company never falls from its small logo to the initials tile", () => {
+  it("carries our small logo behind the Logo.dev URL as #alt= (never sent to Logo.dev), and reads it back", () => {
+    const src = logoFor("TINYCO", null, KEY, "/api/logos/0123456789abcdef.png")!;
+    expect(src.startsWith("https://img.logo.dev/ticker/TINYCO.NS?")).toBe(true);
+    expect(altOf(src)).toBe("/api/logos/0123456789abcdef.png");
+    expect(logoFor("TINYCO", null, null, "/api/logos/0123456789abcdef.png")).toBe("/api/logos/0123456789abcdef.png");   // no key: the small logo itself
+    expect(altOf("/api/logos/x.png")).toBeNull();
+  });
+  it("the Logo component switches to the backup on a Logo.dev miss, then to initials", () => {
+    const p = readFileSync(join(__dirname, "../components/search/parts.tsx"), "utf8");
+    expect(p).toContain("onError={() => (alt && !onAlt ? setOnAlt(true) : setBroken(true))}");
   });
 });
