@@ -53,7 +53,7 @@ export function NewsSection({ e, name, symbol }: { e?: Events; name: string; /**
         <div className="nf-hl">{tiles.map((h) => {
           const link = safe(h.filing.link), Tag = link ? "a" : "div";
           return <Tag key={h.group + h.filing.date + h.filing.i} className="nf-h" style={{ "--gc": GROUP[h.group].colour } as React.CSSProperties} {...(link ? { href: link, target: "_blank", rel: "noopener noreferrer" } : {})}>
-            <span className="nf-hk">{GROUP[h.group].label}</span><b>{h.title}</b><span className="nf-hd">{dayNum(h.filing.date)} {monShort(h.filing.date)} {h.filing.date.slice(0, 4)}{link ? <> · PDF <i aria-hidden="true">↗</i></> : null}</span></Tag>;
+            <span className="nf-hk">{GROUP[h.group].label}</span><b>{h.title}</b><SentimentChip s={sentOf(h.filing)} /><span className="nf-hd">{dayNum(h.filing.date)} {monShort(h.filing.date)} {h.filing.date.slice(0, 4)}{link ? <> · PDF <i aria-hidden="true">↗</i></> : null}</span></Tag>;
         })}</div>
       </>}
       <div className={"card acc nf-card" + (routine ? " rt" : "") + (all ? " all" : "")} id="announcements" ref={card} style={{ "--ac": "var(--k1)" } as React.CSSProperties}>
