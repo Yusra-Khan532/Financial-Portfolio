@@ -13,7 +13,7 @@ import math
 import logging
 import time
 import zlib
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -264,6 +264,43 @@ class Store:
 
         await self._cache(symbol, statement, encoded, etags)
         await self._cache_inputs(symbol, statement, sections)
+        return etags
+
+    async def save_sections(self, symbol: str, statement: str, sections: Dict[str, Optional[dict]]) -> Dict[str, str]:
+        """Some sections of a stored report only (task #394: the nightly chart job rewrites the price-* sections from daily_candles). Each section is
+        upserted as save_snapshot upserts it and the same Redis copies are refreshed (`_cache`); nothing else of the report is touched: no score row,
+        no prices table, no figure inputs. A section given as None is removed (row and cached copy)."""
+        symbol = symbol.upper()
+        drop = [name for name, body in sections.items() if body is None]
+        encoded = {name: dumps(body) for name, body in sections.items() if body is not None}
+        etags = {name: etag_for(body) for name, body in encoded.items()}
+        if not encoded and not drop:
+            return etags
+        # The row keeps the report's own time (meta.generatedAt, as save_snapshot stores it): the canary reads max(generated_at) as "when the
+        # report's prices were stored", and the stored-sections audit dates a report by it; a price-only rewrite changes neither meaning.
+        def made(body: dict) -> datetime:
+            try:
+                return datetime.fromisoformat(str(body["meta"]["generatedAt"]).replace("Z", "+00:00"))
+            except Exception:
+                return datetime.now(timezone.utc)
+        times = {name: made(body) for name, body in sections.items() if body is not None}
+        async with self.pool.acquire() as conn, conn.transaction():
+            if encoded:
+                await conn.executemany(
+                    """INSERT INTO snapshots(symbol, statement, section, body, etag, generated_at)
+                       VALUES($1, $2, $3, $4, $5, $6)
+                       ON CONFLICT (symbol, statement, section)
+                       DO UPDATE SET body = EXCLUDED.body, etag = EXCLUDED.etag, generated_at = EXCLUDED.generated_at""",
+                    [(symbol, statement, name, body.decode(), etags[name], times[name]) for name, body in encoded.items()],
+                )
+            if drop:
+                await conn.execute("DELETE FROM snapshots WHERE symbol = $1 AND statement = $2 AND section = ANY($3::text[])", symbol, statement, drop)
+        await self._cache(symbol, statement, encoded, etags)
+        if drop:
+            try:
+                await self.redis.hdel(stock_key(symbol, statement), *[k for name in drop for k in (name, f"{name}:etag")])
+            except Exception:   # nosec B110 - the stored row is gone; a cached copy expires with STOCK_TTL
+                pass
         return etags
 
     # ------------------------------------------------------------ NSE classification (task #192, finlit/taxonomy.py)

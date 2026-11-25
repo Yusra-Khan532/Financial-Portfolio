@@ -70,7 +70,7 @@ from .siteproxy import register_catch_all, register_stock_admin
 from .web import mount_frontend
 from .security import RateLimiter, SecurityHeadersMiddleware, client_ip
 from .finedge import ESSENTIAL_KEYS
-from .snapshot import PRICE_RANGES, SECTIONS, SNAPSHOT_VERSION
+from .snapshot import PRICE_3Y_DAILY, PRICE_SECTIONS, SECTIONS, SNAPSHOT_VERSION
 from .store import Store, code_version, refused_key
 from .background import etag_matches, spawn
 
@@ -577,8 +577,15 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
         return cached(request, body, etag, CACHE_INDEX, started)
 
     @app.get("/api/stocks/{symbol}/price")
-    async def price(request: Request, symbol: str, range: str = Query("1Y"), statement: str = Query("consolidated")):
-        return await section(request, symbol, f"price-{range.upper()}", statement)
+    async def price(request: Request, symbol: str, range: str = Query("1Y"), statement: str = Query("consolidated"), grain: str = Query("")):
+        name = f"price-{range.upper()}"
+        # task #394 W1: 3Y on daily candles when asked (the chart's D button). A report that holds no daily 3Y yet answers with its weekly 3Y, no
+        # error: the weekly section says dailyAvailable false, so the chart keeps D off.
+        if grain.strip().lower() == "daily" and name == "price-3Y":
+            sym = symbol.strip().upper()
+            if SYMBOL.match(sym) and statement in ("consolidated", "standalone") and await app.state.store.get_section(sym, statement, PRICE_3Y_DAILY) is not None:
+                name = PRICE_3Y_DAILY
+        return await section(request, symbol, name, statement)
 
     async def broken(symbol: str, statement: str, body: bytes) -> bool:
         """True for a stored summary that is unusable (no price) or built by older code, and a rebuild has just been queued or is under way.
@@ -704,7 +711,7 @@ def create_app(settings: Optional[Settings] = None, store: Optional[Store] = Non
             return JSONResponse({"status": "invalid_symbol"}, status_code=400)
         if statement not in ("consolidated", "standalone"):
             return JSONResponse({"status": "invalid_statement"}, status_code=400)
-        allowed = PUBLIC_SECTIONS | {f"price-{r}" for r in PRICE_RANGES}
+        allowed = PUBLIC_SECTIONS | set(PRICE_SECTIONS)
         if name not in allowed:
             return JSONResponse({"status": "unknown_section", "sections": sorted(allowed)}, status_code=404)
         hit = await app.state.store.get_section(symbol, statement, name)

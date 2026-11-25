@@ -374,7 +374,8 @@ async def test_price_history_equals_the_price_routes(app):  # noqa: F811
         rows = got["data"]["prices"]
         s = p["series"]
         assert [r["close"] for r in rows] == s["c"][-len(rows):] and [r["date"] for r in rows] == s["t"][-len(rows):] and [r["volume"] for r in rows] == s["v"][-len(rows):]
-        assert rows[-1]["close"] == 1184.0 and got["asOf"] == s["t"][-1] == got["data"]["to"] and got["data"]["interval"] == "daily"
+        # the last official close (28 Sep); the 29 Sep live quote (1,184.00) is never a candle of the stored chart (task #394 F2)
+        assert rows[-1]["close"] == 1198.5 and rows[-1]["date"] == "2026-09-28" and not p["provisionalLastBar"] and got["asOf"] == s["t"][-1] == got["data"]["to"] and got["data"]["interval"] == "daily"
         assert (date.fromisoformat(s["t"][-1]) - date.fromisoformat(rows[0]["date"])).days <= 30
         wk = (await ok(c, "get_price_history", {"symbol": "RELIANCE", "days": 30, "interval": "weekly"}))["data"]["prices"]
         assert len(wk) < len(rows) and wk[-1]["close"] == rows[-1]["close"] and sum(r["volume"] for r in wk) == sum(r["volume"] for r in rows)

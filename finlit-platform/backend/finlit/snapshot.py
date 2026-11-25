@@ -32,6 +32,12 @@ SECTIONS = ("summary", "financials", "ratios", "price", "ownership", "events", "
 # Short ranges keep daily candles; long ranges are downsampled to weekly closes.
 PRICE_RANGES = {"1M": (31, "daily"), "6M": (183, "daily"), "1Y": (366, "daily"),
                 "3Y": (1096, "weekly"), "5Y": (1827, "weekly"), "MAX": (None, "weekly")}
+# Task #394 W1 (developer file 37): 3Y is also stored on daily candles (about 740), in its own section, served for ?range=3Y&grain=daily (the
+# chart's D button). 5Y stays weekly only: the exchange's candles reach back about three years (candles.DEFAULT_DAYS).
+PRICE_3Y_DAILY = "price-3Y-daily"
+PRICE_SECTIONS = tuple(f"price-{r}" for r in PRICE_RANGES) + (PRICE_3Y_DAILY,)   # every stored chart section (the API's allowed names)
+EMA_WINDOWS = (50, 200, 9, 20)      # the chart's average lines; 9 and 20 days for the chart panel (task #64, CH-3)
+EMA_NAMES = tuple(f"ema{n}" for n in EMA_WINDOWS)
 
 # Shown as the headline metric strip on the summary card, in this order.
 KEY_METRICS = ["market_cap", "pe", "pb", "dividend_yield", "roe", "roce", "debt_to_equity",
@@ -79,6 +85,9 @@ def build(bundle: Dict[str, Any], now: Optional[datetime] = None) -> Dict[str, d
     if live_day and live_day.year < 1990:  # FinEdge sends 0001-01-01 for quotes it has no date for
         live_day = None
     as_of: Optional[date] = live_day or (parse_date(history["t"][-1]) if history["t"] else None)
+    # The stored chart sections (price-<range>) are built from the official daily candles only (task #394, developer file 37, F2): a report built
+    # during market hours used to keep the live quote as a part-day candle in its chart until the next rebuild (Abbott India 23 Nov at 10:38).
+    official = {k: (list(v) if isinstance(v, list) else v) for k, v in history.items()}
     # The live quote is newer than the last daily bar (end-of-day files land after the close). Add it as
     # a provisional bar so the header price, chart, returns and technicals all agree with each other.
     provisional = _append_live_bar(history, live, as_of)
@@ -242,30 +251,13 @@ def build(bundle: Dict[str, Any], now: Optional[datetime] = None) -> Dict[str, d
         "announcements": events.announcements(bundle.get("announcements")),
     }
 
-    # Moving averages are computed once on the full daily history, then sampled on each range's dates,
-    # so a 1M chart still shows a true 200-day average.
-    ema50 = dict(zip(history["t"], indicators.ema(history["c"], 50))) if history["c"] else {}
-    ema200 = dict(zip(history["t"], indicators.ema(history["c"], 200))) if history["c"] else {}
-    ema9 = dict(zip(history["t"], indicators.ema(history["c"], 9))) if history["c"] else {}       # the 9- and 20-day lines of the chart panel (task #64, CH-3)
-    ema20 = dict(zip(history["t"], indicators.ema(history["c"], 20))) if history["c"] else {}
-    first_day = parse_date(history["t"][0]) if history["t"] else None
-    ranges = {}
-    for label, (days, grain) in PRICE_RANGES.items():
-        start = last_day - timedelta(days=days) if days and last_day else first_day
-        cut = market.slice_since(history, start.isoformat()) if days and last_day else history
-        series = cut if grain == "daily" else market.weekly(cut)
-        out = {k: series[k] for k in ("t", "o", "h", "l", "c", "v") if k in series}
-        out["ema50"] = [_r(ema50.get(t)) for t in series["t"]]
-        out["ema200"] = [_r(ema200.get(t)) for t in series["t"]]
-        out["ema9"] = [_r(ema9.get(t)) for t in series["t"]]
-        out["ema20"] = [_r(ema20.get(t)) for t in series["t"]]
-        ranges[f"price-{label}"] = {
-            "meta": meta, "range": label, "grain": grain, "technical": technical, "series": out,
-            # False when history does not reach back to the start of the range (e.g. 5Y on a 2-year listing).
-            "complete": bool(first_day and start and first_day <= start + timedelta(days=7)) or label == "MAX",
-            "startsAt": series["t"][0] if series["t"] else None,
-            "provisionalLastBar": provisional,
-        }
+    # Moving averages are computed once on the full daily history, then sampled on each range's dates, so a 1M chart still shows a true
+    # 200-day average. The chart sections read the official candles only (F2 above): no part-day candle, whatever the hour of the build.
+    source = bundle.get("price_source")
+    # The chart's own technical block reads the same official closes as its candles (the nightly price_sections job writes it the same way);
+    # the report's technical view (summary, score, price section) keeps the live quote as before.
+    chart_technical = indicators.technical_snapshot(official["c"]) if provisional else technical
+    ranges = chart_sections(official, meta, chart_technical, source.get("exchange") if isinstance(source, dict) else None)
 
     sections = {
         **ranges,
@@ -471,6 +463,56 @@ def _explain_gaps(score: dict, lender: bool, annual: int, quarterly: int, days: 
 
 def _r(value: Optional[float]) -> Optional[float]:
     return round(value, 2) if value is not None else None
+
+
+def range_start(label: str, last_day: Optional[date], first_day: Optional[date]) -> Optional[date]:
+    days = (PRICE_RANGES.get(label) or (None, None))[0]
+    return last_day - timedelta(days=days) if days and last_day else first_day
+
+
+def ema_lines(history: dict) -> Dict[str, Dict[str, Optional[float]]]:
+    """{"ema50": {day: value}, ...}: each average worked out once on the whole daily history, read on any range's dates."""
+    closes = history.get("c") or []
+    return {f"ema{n}": (dict(zip(history["t"], indicators.ema(closes, n))) if closes else {}) for n in EMA_WINDOWS}
+
+
+def chart_body(series: dict, emas: Dict[str, Dict[str, Optional[float]]]) -> dict:
+    out = {k: series[k] for k in ("t", "o", "h", "l", "c", "v") if k in series}
+    for name in EMA_NAMES:
+        out[name] = [_r(emas[name].get(t)) for t in series["t"]]
+    return out
+
+
+def chart_section(history: dict, emas: Dict[str, Dict[str, Optional[float]]], label: str, grain: str, meta: dict, technical: dict,
+                  source: Optional[str]) -> dict:
+    """One stored chart section (price-1M ... price-MAX, price-3Y-daily) from a daily history of OFFICIAL candles, oldest first."""
+    first_day = parse_date(history["t"][0]) if history["t"] else None
+    last_day = parse_date(history["t"][-1]) if history["t"] else None
+    start = range_start(label, last_day, first_day)
+    days = PRICE_RANGES[label][0]
+    cut = market.slice_since(history, start.isoformat()) if days and last_day else history
+    series = cut if grain == "daily" else market.weekly(cut)
+    return {
+        "meta": meta, "range": label, "grain": grain, "technical": technical, "series": chart_body(series, emas),
+        # False when history does not reach back to the start of the range (e.g. 5Y on a 2-year listing).
+        "complete": bool(first_day and start and first_day <= start + timedelta(days=7)) or label == "MAX",
+        "startsAt": series["t"][0] if series["t"] else None,
+        "provisionalLastBar": False,                          # official candles only (task #394 F2): never a part of a day
+        "priceAsOf": history["t"][-1] if history["t"] else None,   # the last official candle the chart holds
+        "source": source,                                     # the exchange of the candles (NSE or BSE); None for the provider's own series
+    }
+
+
+def chart_sections(history: dict, meta: dict, technical: dict, source: Optional[str]) -> Dict[str, dict]:
+    """Every stored chart section from a daily history of OFFICIAL candles (never the live quote: task #394 F2): price-1M ... price-MAX, plus
+    price-3Y-daily (W1) when the history reaches back to the start of 3Y or the company is younger than that (the daily candles then cover every
+    day the weekly 3Y covers). snapshot.build writes these; the nightly price_sections job writes the same bodies from daily_candles."""
+    emas = ema_lines(history)
+    out = {f"price-{label}": chart_section(history, emas, label, grain, meta, technical, source) for label, (_, grain) in PRICE_RANGES.items()}
+    if history["t"]:
+        out[PRICE_3Y_DAILY] = chart_section(history, emas, "3Y", "daily", meta, technical, source)
+    out["price-3Y"]["dailyAvailable"] = PRICE_3Y_DAILY in out
+    return out
 
 
 def _append_live_bar(history: dict, live: dict, as_of: Optional[date]) -> bool:

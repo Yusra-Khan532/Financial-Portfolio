@@ -71,7 +71,7 @@ Written 17 Nov 2026 from a full read of the repository, the team workspace and t
 - **Jobs:**
   - `finlit/worker.py`: about 59 CLI commands.
   - `finlit/jobs/`:
-    - `registry.py`: 54 jobs with windows, time limits, SLAs and prerequisites.
+    - `registry.py`: 63 jobs with windows, time limits, SLAs and prerequisites.
     - `due.py`: what runs when.
     - `supervisor.py`, `runner.py`: run each job and kill it by process group.
   - Time windows (IST): night 23:00–05:00, morning 05:00–08:00, after close 18:30–21:30.
