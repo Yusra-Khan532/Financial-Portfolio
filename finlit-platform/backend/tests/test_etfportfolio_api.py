@@ -19,6 +19,7 @@ URL = "/api/me/etf-portfolio"
 MIGRATION = Path(ep.__file__).parent.parent / "migrations" / "104_etf_portfolio.sql"
 TODAY = date(2026, 11, 13)
 REAL_TER_FOR = ep.ter_for          # the fixture below stands in for it; one test reads the real one
+REAL_NAMES_FOR = ep.names_of_isins   # task #390: the same for the master's names
 
 
 def row(sym, name, isin, cat, cls, price, prem, ter=None, **kw):
@@ -43,6 +44,9 @@ HOLD = {
                    {"name": "ICICI Bank Ltd", "isin": "INE090A01021", "stockSymbol": "ICICIBANK", "sector": "Banks", "assetClass": "equity", "pct": 9.0}],
     "MON100": [{"name": "NVIDIA Corp", "isin": "US67066G1040", "stockSymbol": None, "sector": "Semiconductors", "assetClass": "equity", "pct": 9.0}],
 }
+
+
+MASTER: dict = {}      # ISIN -> the listed-company master's name, as names_of_isins answers (task #390, fault 9); empty unless a test fills it
 
 
 def walk(seed, vol, base=None, drift=0.0003):
@@ -103,8 +107,11 @@ async def etf_data(app, monkeypatch):  # noqa: F811
         return {"value": float(t.split("%")[0]), "asOf": "2026-11-06", "source": "AMFI, TER of mutual fund schemes", "why": None} if t else \
             {"value": None, "why": "AMFI's TER file shows no figure for the Direct plan (the scheme may not offer it)."}
 
+    async def names(_app, isins):          # task #390 (fault 9): the master's names; none by default, so the fund files' text stays (a test below sets some)
+        return {i: MASTER[i] for i in isins if i in MASTER}
+
     for name, fn in (("etf_rows", rows), ("facts_for", facts), ("index_keys", idx), ("tracking_for", track), ("holdings_for", holds), ("closes_for", closes),
-                     ("nifty500", bench), ("scores_for", scores), ("size_of_isins", sizes), ("ter_for", ter)):
+                     ("nifty500", bench), ("scores_for", scores), ("size_of_isins", sizes), ("ter_for", ter), ("names_of_isins", names)):
         monkeypatch.setattr(ep, name, fn)
     yield
 
@@ -201,6 +208,39 @@ async def test_whats_inside_mix_overlap_and_largest_stocks_by_plan(app):  # noqa
         assert b["perEtf"]["NIFTYBEES"]["size"] == {"Large": pytest.approx(0.19)} and "MON100" not in b["perEtf"]
         why = {f["symbol"]: f["why"] for f in b["files"]}
         assert why["GOLDBEES"] and why["NIFTYBEES"] is None
+
+
+async def test_task_390_inside_names_come_from_the_listed_company_master(app, monkeypatch):  # noqa: F811
+    """File 34, fault 9: a holding whose ISIN the master knows takes the master's name in the largest stocks and in every grid chip; one with no match keeps
+    the fund file's text; holdings abroad are not looked up. The stored fund-file lines are not changed."""
+    monkeypatch.setitem(MASTER, "INE040A01034", "HDFC Bank Ltd")         # the fixture's files say "HDFC Bank Limited" (NIFTYBEES) and "HDFC Bank Ltd" (SBINIFTY50)
+    asked: list = []
+    real = ep.names_of_isins
+
+    async def spy(a, isins):
+        asked.extend(isins)
+        return await real(a, isins)
+    monkeypatch.setattr(ep, "names_of_isins", spy)
+    c = await signed_in(app, "gold390@example.com", plan="gold")
+    await fill(c)
+    b = (await c.get(URL + "/inside")).json()
+    top = {t["isin"]: t["name"] for t in b["top"]}
+    assert top["INE040A01034"] == "HDFC Bank Ltd" and top["INE090A01021"] == "ICICI Bank Limited"      # ICICI: no master match, the file's name stays
+    chips = {st["symbol"]: st["name"] for cells in b["lookThrough"].values() for cl in cells.values() for st in cl["stocks"]}
+    assert chips["HDFCBANK"] == "HDFC Bank Ltd" and chips["ICICIBANK"] == "ICICI Bank Limited"
+    assert "US67066G1040" not in asked and b["abroadTop"]["MON100"][0]["name"] == "NVIDIA Corp"
+    assert HOLD["NIFTYBEES"][0]["name"] == "HDFC Bank Limited"                                         # the fund file's own lines are left as they were
+
+
+async def test_task_390_names_of_isins_reads_the_master(app):  # noqa: F811
+    """The real lookup: disclosure_isin -> companies.name; an ISIN the master does not know, or a company whose name is only its symbol, is left out."""
+    async with app.state.store.pool.acquire() as conn:
+        for sym, name, isin in (("ZZSONA", "Zz Sona Precision Forgings Ltd", "INE0ZZ390011"), ("ZZBARE", "ZZBARE", "INE0ZZ390021")):
+            await conn.execute("INSERT INTO companies (symbol, name) VALUES ($1, $2) ON CONFLICT (symbol) DO UPDATE SET name = EXCLUDED.name", sym, name)
+            await conn.execute("INSERT INTO disclosure_isin (isin, symbol) VALUES ($1, $2) ON CONFLICT (isin) DO UPDATE SET symbol = EXCLUDED.symbol", isin, sym)
+    got = await REAL_NAMES_FOR(app, ["INE0ZZ390011", "INE0ZZ390021", "INE0ZZ390099"])
+    assert got == {"INE0ZZ390011": "Zz Sona Precision Forgings Ltd"}
+    assert await REAL_NAMES_FOR(app, []) == {}
 
 
 async def test_risk_against_the_nifty_500_together_and_each_ones_share(app):  # noqa: F811

@@ -1,0 +1,15 @@
+/* Task #390 PR B (developer file 34, What's inside and Risk analytics): the ETF page's few own rules on top of the MF page's (mf-pack.css .wrap.mfp,
+   mf-risk389.css .mfr). Scoped to the ETF page (.efp), so the MF and Equity pages are untouched. Nothing under 12 px; every label 4.5:1 or better. */
+/* What's inside, the standing 4.5:1 rule (as the MF page's Mix 5): figures on the light gold and silver slices of the bars in dark ink (white read 2.5 to 2.9:1) */
+.efp :is(.mfm-stack, .etp-bar) i:is(.etp-zG, .etp-zS) { color: var(--ui-mfm-on-light); }
+/* Risk, fault 2: without a liquid ETF the three figures are two; they share the row */
+.efp .eqr-b3.etp-b2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 900px) { .efp .eqr-b3.etp-b2 { grid-template-columns: minmax(0, 1fr); } }
+/* Risk, the range boxes: the type badge, then the name, then the figure, on one line */
+.efp .mfr-ranges .eqr-range li { display: flex; gap: 6px; }
+.efp .mfr-ranges .eqr-range li > .etp-badge { margin-right: 0; }
+.efp .eqb-popl li { justify-content: flex-start; } .efp .eqb-popl li > b { margin-left: auto; }
+/* Risk, O5: "Moves on its own market" in grey */
+.efp .mfr-ov.x { background: var(--s2); color: var(--sp-mute); font-weight: 500; }
+/* Risk, If the Nifty 500 fell 10% (B4): on a phone, up to 12 bars with long ETF codes keep their width; the chart scrolls sideways inside its card, never the page */
+@media (max-width: 520px) { .efp .fx-r { min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; } .efp .fx-r .fx-ch { min-width: max-content; } }

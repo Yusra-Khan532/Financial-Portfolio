@@ -22,7 +22,7 @@ export function ListBox({ box, onUnits }: { box: ReturnType<typeof listBox>; onU
   );
 }
 
-const CROWN = <span className="px-crown" title="FinLit’s own model"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M3 8.2l4.6 3.9L12 5l4.4 7.1L21 8.2 19.3 18H4.7z" fill="currentColor" /></svg></span>;
+export const CROWN = <span className="px-crown" title="FinLit’s own model"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M3 8.2l4.6 3.9L12 5l4.4 7.1L21 8.2 19.3 18H4.7z" fill="currentColor" /></svg></span>;
 /** The band a score word colours: good (Strong, Healthy), middle (Average, Fair), bad (Weak, Poor). */
 export const bandOfWord = (w: string | null | undefined): "hi" | "mid" | "lo" | "na" => { const x = (w ?? "").toLowerCase(); return /strong|healthy/.test(x) ? "hi" : /average|fair/.test(x) ? "mid" : /weak|poor/.test(x) ? "lo" : "na"; };
 const wordCase = (w: string | null | undefined) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : null);
@@ -70,9 +70,10 @@ export function MfParts({ parts, open }: { parts: ReturnType<typeof partsAverage
 }
 
 /** "Since your last visit on 23 Nov: 1 new filing at companies inside your funds." / "…: nothing new at the companies inside your funds." Exported for tests. */
-export function sinceLine(visit: string | null, fresh: number): { lead: string; rest: string } {
-  if (!visit) return { lead: "Since your last visit:", rest: "what is new at the companies inside your funds shows from your next visit." };
-  return { lead: `Since your last visit on ${visit}:`, rest: fresh ? `${countOf(fresh, "new filing")} at companies inside your funds.` : "nothing new at the companies inside your funds." };
+/** `where`: "your funds" here; the ETF page (task #390) says "your ETFs". */
+export function sinceLine(visit: string | null, fresh: number, where = "your funds"): { lead: string; rest: string } {
+  if (!visit) return { lead: "Since your last visit:", rest: `what is new at the companies inside ${where} shows from your next visit.` };
+  return { lead: `Since your last visit on ${visit}:`, rest: fresh ? `${countOf(fresh, "new filing")} at companies inside ${where}.` : `nothing new at the companies inside ${where}.` };
 }
 export function MfSince({ visit, fresh, onSee }: { visit: string | null; fresh: number; onSee: () => void }) {
   const t = sinceLine(visit, fresh);

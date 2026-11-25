@@ -63,7 +63,8 @@ export type GainLoss = { rows: GLRow[]; total: number; key: Set<string>; lead: {
  *  loss. <A> is down ₹x; the other 12 shares are up ₹y together." (two or three: "<A> (−₹x) and <B> (−₹y) are down ₹z between them"). Not found: "The loss
  *  is spread out. The three biggest losses, <A>, <B> and <C>, come to ₹z; 6 of your 13 shares are in profit." Gains mirror this.
  *  `noPrice`: shares held without a buy price (left out, counted in one line). Above 12 rows the 5 biggest gains, the 5 biggest losses and any named share show. */
-export function gainLoss(input: GLRow[], noPrice = 0, noun = "share"): GainLoss {
+/** `countSide` (the ETF page, task #390 L4): a spread-out loss counts the lines in loss ("3 of your 6 ETFs are in loss"), a gain those in profit. */
+export function gainLoss(input: GLRow[], noPrice = 0, noun = "share", countSide = false): GainLoss {
   // task #389 (developer file 32, Your funds 7): the MF page counts funds ("Three funds explain the whole gain"); the rule is the same
   const N1 = noun, Ns = pluralOf(noun);
   const rows = [...input].sort((a, b) => b.gain - a.gain), N = rows.length, total = rows.reduce((a, r) => a + r.gain, 0);
@@ -85,8 +86,8 @@ export function gainLoss(input: GLRow[], noPrice = 0, noun = "share"): GainLoss 
       lead = { bold: `${N === 2 ? `Both ${Ns} are` : `All ${numWord(N)} ${Ns} are`} ${loss ? "down" : "up"}.`, rest: `${andList(side.map((r) => `${r.name} (${rupeesSigned(r.gain)})`))} come to ${rupees(Math.abs(c))} together.` };
     } else {
       const top = side.slice(0, 3); top.forEach((r) => key.add(r.symbol));
-      const sum = top.reduce((a, r) => a + r.gain, 0), up = rows.filter((r) => r.gain > 0).length;
-      if (top.length) lead = { bold: `The ${w} is spread out.`, rest: `${top.length > 1 ? `The ${numWord(top.length)} biggest ${loss ? "losses" : "gains"}, ${andList(top.map((r) => r.name))}, come` : `The biggest ${w}, ${top[0].name}, comes`} to ${rupees(Math.abs(sum))}; ${up} of your ${countOf(N, N1, Ns)} ${up === 1 ? "is" : "are"} in profit.` };
+      const sum = top.reduce((a, r) => a + r.gain, 0), up = rows.filter((r) => r.gain > 0).length, inLoss = countSide && loss, cnt = inLoss ? rows.filter((r) => r.gain < 0).length : up;
+      if (top.length) lead = { bold: `The ${w} is spread out.`, rest: `${top.length > 1 ? `The ${numWord(top.length)} biggest ${loss ? "losses" : "gains"}, ${andList(top.map((r) => r.name))}, come` : `The biggest ${w}, ${top[0].name}, comes`} to ${rupees(Math.abs(sum))}; ${cnt} of your ${countOf(N, N1, Ns)} ${cnt === 1 ? "is" : "are"} in ${inLoss ? "loss" : "profit"}.` };
     }
   }
   const capped = N > 12;

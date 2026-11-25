@@ -3,19 +3,27 @@
 // three sub-tabs: What your money is in (2 Money in: the list's asset bar and one bar per ETF, holdings abroad apart; 3 Sectors inside each share ETF) ·
 // How ETFs move together (4 the correlation grid without liquid ETFs and a pair reader; 5 Shared stocks and "Same index twice") · Large, mid, small and micro (6) →
 // 7 Largest stocks underneath (5, then Show all 8). Figures are the server's (/inside, /risk); this file only draws and words them. Describes; never advice.
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+// Task #390 PR B (developer file 34, What's inside and Update 25 Nov row 6): the sub-view tabs at the top of the view (I1), chips with company names and
+// "N companies" (I2, I3; the names are the listed-company master's, fault 9), the reader in words (I5), Expand (U6), the pairs with no stock in common
+// in one line (I6), the largest stocks name first (I7), lists as "A, B and C" (F4). The MF page's pieces (MfMix) are reused; the ETF ids stay etp-.
+import { useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { Scroll } from "../../components/sectors/pack/Common";
 import { Section } from "../../portfolio/kit/KitSection";
 import { Insights } from "../../portfolio/pack/EquityPack";
 import { WideBox } from "../../portfolio/pack/DivPack";
 import { Cell, LevelSwitch, gridRows, tone, useLevel, type Level, type Reading } from "../../mf/pack/MfMix";
+import { Step, StepCtx } from "../../portfolio/pack/EqSteps385";
+import { GridScreen } from "../../portfolio/pack/Div385";
+import { ShowAll, andList, cap1, capRows, corr2, corrWord, countOf, inCommon, CAP_DEFAULT } from "../../portfolio/shared";
+import { holdingName, holdingShort } from "../../lib/holdingName";
+import { codeText } from "../../lib/companyLabel";
+import "./etf390.css";
 import { traded } from "../../lib/etf";
 import type { Card } from "../../lib/pulsePack";
 import type { EtfPortfolio, EtfRisk, Inside } from "../../lib/etfPortfolio";
 import { live, movesLike } from "../../lib/etfTop";
 import { metalGaps } from "../../lib/etfKeyFigs";
-import { coTitle, subLine, titleOf } from "../../lib/companyLabel";
 
 const SIZES = ["Large", "Mid", "Small", "Micro"] as const;   // FinLit's four sizes (lib/capBuckets.ts, task #262)
 const SIZE_HEAD: Record<string, [string, string]> = { Large: ["Large", "above ₹75,000 Cr"], Mid: ["Mid", "₹25,000–75,000 Cr"], Small: ["Small", "₹10,000–25,000 Cr"], Micro: ["Micro", "below ₹10,000 Cr"], Unsized: ["Not sized", "not matched to a listed company"] };
@@ -35,7 +43,7 @@ export function restLine(d: EtfPortfolio, ins: Inside) {
   const w = weightOf(d), miss = missingShares(d, ins), others = notShares(d);
   const kinds = [...new Set(others.map((e) => TYPE_PHRASE[e.type?.key ?? ""] ?? "other"))];
   const ow = others.reduce((a, e) => a + (w.get(e.symbol) ?? 0), 0);
-  const parts = [...miss.map((s) => `${s}, not loaded (${p0(w.get(s) ?? 0)})`), ...(others.length ? [`${kinds.length > 1 ? kinds.slice(0, -1).join(", ") + " and " + kinds[kinds.length - 1] : kinds[0]} (${p0(ow)})`] : [])];
+  const parts = [...miss.map((s) => `${s}, not loaded (${p0(w.get(s) ?? 0)})`), ...(others.length ? [`${andList(kinds)} (${p0(ow)})`] : [])];
   return parts.length ? `The rest: ${parts.join(", ")}.` : "";
 }
 
@@ -63,15 +71,15 @@ export function OwnSection({ d, ins, level, onLevel }: Props & { level: Level; o
   // task #262: "Large" is above ₹75,000 Cr now (the 70% line is unchanged); the second figure was "below ₹10,000 Cr", the old Small, which is the Micro column now
   if (known) cards.push({ kind: large >= 0.7 ? "insight" : "watch", title: large >= 0.7 ? "Large companies lead" : "Not only large companies", text: `${p0(large)} of the Indian shares inside your ETFs are in companies above ₹75,000 Cr, ${p0(colTot("Micro") / (known || 1))} below ₹10,000 Cr.` });
   if (top) cards.push({ kind: "watch", title: `${top.name} is the biggest block`, text: `${p1(top.total)} of your list sits in ${top.name}, through ${top.n} companies across your ETFs.` });
-  if (miss.length) cards.push({ kind: "insight", title: miss.length === 1 ? "One file is missing" : `${word(miss.length)} files are missing`, text: `${miss.join(" and ")}'s monthly ${miss.length === 1 ? "file is" : "files are"} not loaded yet, so ${miss.length === 1 ? "it is" : "they are"} left out of this grid, not spread over the others.` });
+  if (miss.length) cards.push({ kind: "insight", title: miss.length === 1 ? "One file is missing" : `${word(miss.length)} files are missing`, text: `${andList(miss)}'s monthly ${miss.length === 1 ? "file is" : "files are"} not loaded yet, so ${miss.length === 1 ? "it is" : "they are"} left out of this grid, not spread over the others.` });
   return (
     <Section id="etp-own" hide title="What your ETFs own: macro sector and size" help="The Indian shares inside your ETFs, added up from each fund house's latest monthly file, by NSE macro sector or sector and company size. Each chip is one company." how="Darker cells hold more of your list. A chip's dot is its reading on your plan; +N more opens the rest of the cell."
-      sub={`The Indian shares inside your ETFs, from each fund house's ${month(ins.asOf)} file. ${gold ? "Each chip is one company; its dot shows the FinLit Prism band." : "Each chip is one company (names only on this plan; the dots show FinLit Prism, see plans)."}${miss.length ? ` ${miss.join(" and ")}'s file ${miss.length === 1 ? "is" : "are"} not loaded yet.` : ""}`}>
-      <LevelSwitch level={level} onLevel={onLevel} sp={sp} />
-      {rows.length ? <Scroll label="what your ETFs own"><table className="sp-tb mfm-g">
+      sub={`The Indian shares inside your ETFs, from each fund house's ${month(ins.asOf)} file. ${gold ? "Each chip is one company; its dot shows the FinLit Prism band." : "Each chip is one company (names only on this plan; the dots show FinLit Prism, see plans)."}${miss.length ? ` ${andList(miss)}'s file ${miss.length === 1 ? "is" : "are"} not loaded yet.` : ""}`}>
+      <LevelSwitch level={level} onLevel={onLevel} sp={sp} noun="ETFs" />
+      {rows.length ? <Scroll label="what your ETFs own"><table className="sp-tb mfm-g mfm-gn">
         <thead><tr><th scope="col">{level === "macro" ? "Macro sector" : "Sector"}</th>{sizes.map((s) => <th key={s} scope="col">{SIZE_HEAD[s][0]}<small>{SIZE_HEAD[s][1]}</small></th>)}<th scope="col" className="r">Of your list</th></tr></thead>
         <tbody>{shown.map((r) => <tr key={r.name}><th scope="row"><b>{r.name}</b>{level === "sector" && macroOf(r.name) && macroOf(r.name) !== r.name && <small>{macroOf(r.name)}</small>}</th>
-          {sizes.map((s) => <Cell key={s} c={r.cells[s]} max={max} readingOf={readingOf} link />)}
+          {sizes.map((s) => <Cell key={s} c={r.cells[s]} max={max} readingOf={readingOf} link names />)}
           <td className="r mfm-tot"><b>{p1(r.total)}</b><i className="mfm-bar"><u style={{ width: `${(r.total / (rows[0]?.total || 1)) * 100}%` }} /></i><small>{p0(r.total / (known || 1))} of the shares</small></td></tr>)}</tbody>
         <tfoot><tr><th scope="row">All {level === "macro" ? "macro sectors" : "sectors"} · {rows.length}</th>{sizes.map((s) => <td key={s}><b>{p1(colTot(s))}</b> of the list · {p0(colTot(s) / (known || 1))} of the shares</td>)}<td className="r"><b>{p1(known)}</b> in Indian shares</td></tr></tfoot>
       </table></Scroll> : <p className="sp-note">None of your ETFs holds Indian shares with a monthly file loaded.</p>}
@@ -110,7 +118,7 @@ function MoneySection({ d, ins }: Props) {
     <Section id="etp-money" hide title="What your money is in" help="The list's money by asset, from each ETF's latest monthly file (an ETF without one by its type), then one bar per ETF." how="Each ETF counts like the list; the grey part of a bar is cash and other." sub={`Each ETF's latest monthly file, each ETF counting ${d.basis === "value" ? "by your money" : "the same"}.`}>
       <div className="etp-bar" role="img" aria-label={BAR.filter(([k]) => bar[k] > 0.05).map(([k, l]) => `${l} ${Math.round(bar[k])}%`).join(", ")}>{BAR.filter(([k]) => bar[k] > 0.05).map(([k, l, c]) => <i key={k} className={c} style={{ flexGrow: bar[k] }} title={`${l} ${Math.round(bar[k])}%`}>{bar[k] >= 8 ? `${Math.round(bar[k])}%` : ""}</i>)}</div>
       <p className="sp-note etp-keys">{BAR.filter(([k]) => bar[k] > 0.05).map(([k, l, c]) => <span key={k}><i className={"mfm-key " + c} /> {l} {bar[k] < 0.5 ? "under 1" : Math.round(bar[k])}%</span>)}</p>
-      {metalGaps(d, ins).length > 0 && <p className="sp-note" role="status">Data to check: {metalGaps(d, ins).join(" and ")} {metalGaps(d, ins).length === 1 ? "is" : "are"} read without {metalGaps(d, ins).length === 1 ? "its" : "their"} metal in the fund house's file, so {metalGaps(d, ins).length === 1 ? "it shows" : "they show"} as debt and cash here.</p>}
+      {metalGaps(d, ins).length > 0 && <p className="sp-note" role="status">Data to check: {andList(metalGaps(d, ins))} {metalGaps(d, ins).length === 1 ? "is" : "are"} read without {metalGaps(d, ins).length === 1 ? "its" : "their"} metal in the fund house's file, so {metalGaps(d, ins).length === 1 ? "it shows" : "they show"} as debt and cash here.</p>}
       <div className="mfm-fbars">{live(d).map((e) => { const s = split(e.symbol); return <div key={e.symbol} className="mfm-fb"><b>{e.symbol}</b>
         {s ? <span className="mfm-stack">{s.map((x) => <i key={x.k} className={x.c} style={{ width: `${x.v}%` }} title={`${x.k} ${Math.round(x.v)}%`}>{x.v >= 12 ? `${x.k} ${Math.round(x.v)}%` : ""}</i>)}</span> : <span className="mfm-stack etp-none">Holdings not loaded yet</span>}</div>; })}</div>
       {abroad.map(([sym, hs]) => <div key={sym} className="etp-abroad"><p className="sp-cap">{sym}'s five largest holdings · listed abroad</p>
@@ -127,7 +135,7 @@ function SectorsInside({ d, ins, level, onLevel }: Props & { level: Level; onLev
   return (
     <Section id="etp-secin" hide title="Sectors inside each share ETF" help="Each share ETF's own money by NSE macro sector or sector, from its latest monthly file; the last row is your list's Indian shares." how="Darker cells hold more of that ETF. Read across a row for one ETF's lean; down a column for how many ETFs share it."
       sub="Share of each ETF's money in each sector. Darker cells hold more. The last row adds up your list's Indian shares.">
-      <LevelSwitch level={level} onLevel={onLevel} sp={sp} />
+      <LevelSwitch level={level} onLevel={onLevel} sp={sp} noun="ETFs" />
       <WideBox title="Sectors inside each share ETF"><table className="sp-tb mfm-heat">
         <thead><tr><th scope="col">ETF</th>{rows.map((r) => <th key={r.name} scope="col"><span>{r.name}</span></th>)}</tr></thead>
         <tbody>{etfs.map((e) => <tr key={e.symbol}><th scope="row">{e.symbol}</th>{rows.map((r) => { const v = ins.perEtf?.[e.symbol]?.[level]?.[r.name] ?? 0;
@@ -140,47 +148,80 @@ function SectorsInside({ d, ins, level, onLevel }: Props & { level: Level; onLev
 }
 
 // ------------------------------------------------------------------------------------------------ sub-tab 2: how ETFs move together
-const linkWord = (v: number) => (v >= 0.8 ? "rise and fall almost as one" : v >= 0.6 ? "move together closely" : v >= 0.4 ? "move together somewhat" : v >= 0.2 ? "are loosely linked" : "go their own way");
-/** The pair reader's words. Exported for tests. */
-export function pairText(d: EtfPortfolio, ins: Inside, rk: EtfRisk, a: string, b: string) {
-  const p = rk.together.pairs.find((x) => (x.a === a && x.b === b) || (x.a === b && x.b === a));
-  if (!p || p.r == null) return `${a} and ${b}: ${p?.why ?? "not enough weeks in common."}`;
-  const ea = live(d).find((e) => e.symbol === a), eb = live(d).find((e) => e.symbol === b);
-  const ov = ins.overlap.pairs.find((x) => (x.a === a && x.b === b) || (x.a === b && x.b === a));
+const pairOf = <T extends { a: string; b: string }>(xs: T[], a: string, b: string) => xs.find((x) => (x.a === a && x.b === b) || (x.a === b && x.b === a));
+/** Task #390 (file 34, I5): the pair's figure in words: below 0.2 Barely, 0.2 to 0.4 Loosely, 0.4 to 0.6 Partly, 0.6 and up Closely linked, then the part
+ *  of their weekly moves in common (the figure squared, as shown). 0.81 → "Closely linked: about 66% of their weekly moves in common." */
+export const pairWords = (v: number) => { const f = Math.round(v * 100) / 100;
+  return `${cap1(corrWord(f))} linked: about ${inCommon(f)}% of their weekly moves in common.`; };
+/** The reader's parts for one pair: the figure (a real minus sign below 0), its words and what else the two have in common. Exported for tests. */
+export function pairRead(d: EtfPortfolio, ins: Inside, rk: EtfRisk, a: string, b: string) {
+  const p = pairOf(rk.together.pairs, a, b);
+  if (!p || p.r == null) return { a, b, fig: null, words: "", more: p?.why ?? "Not enough weeks in common.", why: p?.why ?? "not enough weeks in common." };
+  const ea = live(d).find((e) => e.symbol === a), eb = live(d).find((e) => e.symbol === b), ov = pairOf(ins.overlap.pairs, a, b);
   const same = ea?.tracks.key && ea.tracks.key === eb?.tracks.key ? "The same index" : ea?.type?.key === eb?.type?.key ? "The same kind of asset, different indexes" : "Different kinds of asset";
-  const shared = ov ? (ov.n ? `They keep ${ov.pct.toFixed(1)}% of their money in the same ${ov.n} ${ov.n === 1 ? "stock" : "stocks"}.` : "They share no stocks.") : ea?.type?.key === eb?.type?.key ? "One of them has no holdings file loaded, so shared stocks are not known." : "";
-  return [`${a} and ${b}: ${p.r.toFixed(2)}.`, `They ${linkWord(p.r)}.`, shared, `${same}, ${ea?.fundHouse === eb?.fundHouse ? "the same fund house" : "different fund houses"}.`].filter(Boolean).join(" ");
+  const shared = ov ? (ov.n ? `They keep ${ov.pct.toFixed(1)}% of their money in the same ${countOf(ov.n, "stock")}.` : "They share no stocks.") : ea?.type?.key === eb?.type?.key ? "One of them has no holdings file loaded, so shared stocks are not known." : "";
+  return { a, b, why: "", fig: corr2(p.r), words: pairWords(p.r), more:[shared, `${same}, ${ea?.fundHouse === eb?.fundHouse ? "the same fund house" : "different fund houses"}.`].filter(Boolean).join(" ") };
+}
+/** The reader's words in one line. Exported for tests. */
+export function pairText(d: EtfPortfolio, ins: Inside, rk: EtfRisk, a: string, b: string) {
+  const r = pairRead(d, ins, rk, a, b);
+  return r.fig == null ? `${a} and ${b}: ${r.why}` : `${a} and ${b}: ${r.fig}. ${r.words} ${r.more}`;
+}
+function Reader({ d, ins, rk, pick, big }: Props & { pick: [string, string] | null; big?: boolean }) {
+  const r = pick && rk ? pairRead(d, ins, rk, pick[0], pick[1]) : null, mv = movesLike(rk);
+  return <div className={"mfm-reader" + (big ? " mfm-reader-big" : "")} aria-live="polite"><p className="sp-cap">Read a pair</p>
+    {r ? <><p className="mfm-rn">{r.a} <span>and</span> {r.b}</p>{r.fig != null && <p className="mfm-rv"><b>{r.fig}</b> <span className="mfm-cwd">{r.words}</span></p>}<p className="mfm-rm">{r.more}</p></> : <p>Tap a cell to compare two ETFs.</p>}
+    {mv && !big && <p className="etp-mv"><b>{mv.independent.toFixed(1)}</b> independent ETFs out of {mv.of}</p>}</div>;
 }
 function MoveSection({ d, ins, rk }: Props) {
-  const t = rk?.together, syms = t?.symbols ?? [], [pick, setPick] = useState<[string, string] | null>(syms.length > 1 ? [syms[0], syms[1]] : null);
-  const r = (a: string, b: string) => t?.pairs.find((x) => (x.a === a && x.b === b) || (x.a === b && x.b === a))?.r ?? null;
-  const mv = movesLike(rk), track = (s: string) => live(d).find((e) => e.symbol === s)?.tracks.label;
+  const t = rk?.together, syms = t?.symbols ?? [], [pick, setPick] = useState<[string, string] | null>(syms.length > 1 ? [syms[0], syms[1]] : null), [full, setFull] = useState(false);
+  const r = (a: string, b: string) => (t ? pairOf(t.pairs, a, b)?.r ?? null : null);
+  const track = (s: string) => live(d).find((e) => e.symbol === s)?.tracks.label;
+  const isOn = (a: string, b: string) => !!pick && ((pick[0] === a && pick[1] === b) || (pick[0] === b && pick[1] === a));
+  // task #390 (file 34, Update 25 Nov row 6): open at any list size; Expand ⤢ shows the same grid on its own screen, the reader kept above it
+  const grid = (big: boolean) => <table className={"sp-tb mfm-cg" + (big ? " mfm-cg-big" : "")}><thead><tr><th><span className="sr-only">ETF</span></th>{syms.map((s) => <th key={s} scope="col"><span>{s}</span></th>)}</tr></thead>
+    <tbody>{syms.map((a) => <tr key={a}><th scope="row">{a}{!big && <small className="mfp-sub">{track(a)}</small>}</th>{syms.map((b) => { const v = r(a, b); return a === b ? <td key={b} className="self">–</td> :
+      <td key={b} style={{ ["--mfm-a" as string]: String(Math.max(0, v ?? 0) * 0.7) }} className={isOn(a, b) ? "on" : undefined}>
+        <button type="button" aria-label={`${a} and ${b}: ${v == null ? "not enough weeks" : `${corr2(v)}, ${corrWord(Math.round(v * 100) / 100)} linked`}`} onClick={() => setPick([a, b])}>{v == null ? "–" : corr2(v)}</button></td>; })}</tr>)}</tbody></table>;
   return (
-    <Section id="etp-move" hide title="How your ETFs move together" help="How closely each pair of ETFs has moved, from weekly price changes over the past year. Liquid ETFs are left out: their price barely moves." how="1.00 means two ETFs rise and fall in step; below 0 they tend to move opposite ways. Tap a cell to read the pair."
-      sub={`1.00 means two ETFs rise and fall in step; below 0 they tend to move opposite ways.${t?.leftOut.length ? ` ${t.leftOut.join(" and ")} ${t.leftOut.length === 1 ? "is" : "are"} left out.` : ""}`}>
-      {t && syms.length > 1 ? <div className="mfm-pair">
-        <Scroll label="how your ETFs move together"><table className="sp-tb mfm-cg"><thead><tr><th><span className="sr-only">ETF</span></th>{syms.map((s) => <th key={s} scope="col"><span>{s}</span></th>)}</tr></thead>
-          <tbody>{syms.map((a) => <tr key={a}><th scope="row">{a}<small className="mfp-sub">{track(a)}</small></th>{syms.map((b) => { const v = r(a, b); return a === b ? <td key={b} className="self">–</td> :
-            <td key={b} style={{ ["--mfm-a" as string]: String(Math.max(0, v ?? 0) * 0.7) }} className={pick && ((pick[0] === a && pick[1] === b) || (pick[0] === b && pick[1] === a)) ? "on" : undefined}>
-              <button type="button" aria-label={`${a} and ${b}: ${v == null ? "not enough weeks" : v.toFixed(2)}`} onClick={() => setPick([a, b])}>{v == null ? "–" : v.toFixed(2)}</button></td>; })}</tr>)}</tbody></table></Scroll>
-        <div className="mfm-reader" aria-live="polite"><p className="sp-cap">Read a pair</p><p>{pick && rk ? pairText(d, ins, rk, pick[0], pick[1]) : "Tap a cell to compare two ETFs."}</p>
-          {mv && <p className="etp-mv"><b>{mv.independent.toFixed(1)}</b> independent ETFs out of {mv.of}</p>}</div>
-      </div> : <p className="sp-note">Needs a year of weekly prices for at least two ETFs that are not liquid.</p>}
+    <Section id="etp-move" hide title="How your ETFs move together" help="How closely each pair of ETFs has moved, from weekly price changes over the past year. Liquid ETFs are left out: their price barely moves." how="1.00 means two ETFs rise and fall in step; below 0 they tend to move opposite ways. Tap a cell to read the pair in words."
+      sub={`1.00 means two ETFs rise and fall in step; below 0 they tend to move opposite ways.${t?.leftOut.length ? ` ${andList(t.leftOut)} ${t.leftOut.length === 1 ? "is" : "are"} left out.` : ""}`}>
+      {t && syms.length > 1 ? <>
+        <div className="mfm-gxrow"><button type="button" className="eqv-gx" aria-haspopup="dialog" aria-expanded={full} onClick={() => setFull(true)}>Expand <span aria-hidden="true">⤢</span></button></div>
+        <div className="mfm-pair"><Scroll label="how your ETFs move together">{grid(false)}</Scroll><Reader d={d} ins={ins} rk={rk} pick={pick} /></div>
+        {full && <GridScreen title="How your ETFs move together" line={`Every pair of your ${countOf(syms.length, "ETF")} · darker cells move together more`} onClose={() => setFull(false)}>
+          <div className="mfm-ovl"><Reader d={d} ins={ins} rk={rk} pick={pick} big />{grid(true)}</div></GridScreen>}
+      </> : <p className="sp-note">Needs a year of weekly prices for at least two ETFs that are not liquid.</p>}
     </Section>
   );
 }
+/** Task #390 (file 34, I6): the pair cards; pairs that hold none of the same stocks leave the cards for one line under them. Exported for tests. */
+export function sharedPairs(ins: Inside) {
+  const all = [...ins.overlap.pairs].sort((a, b) => b.pct - a.pct);
+  return { cards: all.filter((o) => o.n > 0 && o.pct > 0), none: all.filter((o) => !(o.n > 0 && o.pct > 0)) };
+}
+export function noneLine(names: string[]) {
+  if (!names.length) return "";
+  const shown = names.length > 8 ? `${names.slice(0, 8).join(", ")} and ${names.length - 8} more` : andList(names);
+  return `${countOf(names.length, "pair")} of share ETFs ${names.length === 1 ? "shares" : "share"} no stocks: ${shown}.`;
+}
 function SharedSection({ d, ins, rk }: Props) {
-  const pairs = [...ins.overlap.pairs].sort((a, b) => b.pct - a.pct), miss = missingShares(d, ins), byS = new Map(live(d).map((e) => [e.symbol, e]));
-  const r = (a: string, b: string) => rk?.together.pairs.find((x) => (x.a === a && x.b === b) || (x.a === b && x.b === a))?.r ?? null;
+  const { cards, none } = sharedPairs(ins), [all, setAll] = useState(false), cap = capRows(cards, CAP_DEFAULT, all);
+  const miss = missingShares(d, ins), byS = new Map(live(d).map((e) => [e.symbol, e]));
+  const r = (a: string, b: string) => (rk ? pairOf(rk.together.pairs, a, b)?.r ?? null : null);
+  const any = cap.shown.length + miss.length + d.repeats.length > 0;
   return (
     <Section id="etp-shared" hide title="Stocks they share" help="For each pair of share ETFs, the share of money both keep in the same stocks: for each stock in both, the smaller of the two weights, added up." how="Higher means the two hold more of the same. An ETF whose file is not loaded is shown with a dashed line."
       sub="For each pair of share ETFs, the share of money both keep in the same stocks.">
-      <div className="mfm-cards">{pairs.map((o) => <div key={`${o.a}-${o.b}`} className="mfm-card"><p className="sp-cap">{o.a} and {o.b}</p>
-        <p className="mfm-rw"><b>{o.pct.toFixed(1)}%</b> <span>{o.n ? (byS.get(o.a)?.tracks.key && byS.get(o.a)?.tracks.key === byS.get(o.b)?.tracks.key ? `All ${o.n} stocks shared` : `in ${o.n} ${o.n === 1 ? "stock" : "stocks"}`) : "No shared stocks"}</span></p></div>)}
-        {miss.map((s) => <div key={s} className="mfm-card dashed"><p className="sp-cap">{s} and the others</p><p className="mfm-rl">Holdings not loaded yet, so the stocks it shares are not known.</p></div>)}
-        {d.repeats.map((rp) => { const [a, b] = rp.symbols, ea = byS.get(a), eb = byS.get(b), ov = ins.overlap.pairs.find((x) => (x.a === a && x.b === b) || (x.a === b && x.b === a)), v = r(a, b);
-          return <div key={rp.key} className="mfm-card theme etp-twicecard"><p className="sp-cap">Same index twice</p>
-            <p className="mfm-rl">{a} ({(ea?.fundHouse || "").replace(/\s+mutual\s+fund$/i, "")}) and {b} ({(eb?.fundHouse || "").replace(/\s+mutual\s+fund$/i, "")}){ov ? ` · same ${ov.n} stocks` : ""}{v != null ? ` · move together ${v.toFixed(2)}` : ""} · costs and trading differ: {a} trades {traded(ea?.avgTurnover)} a day, {b} {traded(eb?.avgTurnover)}.</p></div>; })}</div>
+      {any && <div className="mfm-cards" id="etp-pairs">{cap.shown.map((o) => <div key={`${o.a}-${o.b}`} className="mfm-card"><p className="mfm-pt">{o.a} · {o.b}</p>
+        <p className="mfm-rw"><b>{o.pct.toFixed(1)}%</b> <span>{byS.get(o.a)?.tracks.key && byS.get(o.a)?.tracks.key === byS.get(o.b)?.tracks.key ? `All ${o.n} stocks shared` : `in ${countOf(o.n, "stock")}`}</span></p></div>)}
+        {miss.map((s) => <div key={s} className="mfm-card dashed"><p className="mfm-pt">{s} and the others</p><p className="mfm-rl">Holdings not loaded yet, so the stocks it shares are not known.</p></div>)}
+        {d.repeats.map((rp) => { const [a, b] = rp.symbols, ea = byS.get(a), eb = byS.get(b), ov = pairOf(ins.overlap.pairs, a, b), v = r(a, b);
+          return <div key={rp.key} className="mfm-card theme etp-twicecard"><p className="mfm-pt">Same index twice</p>
+            <p className="mfm-rl">{a} ({(ea?.fundHouse || "").replace(/\s+mutual\s+fund$/i, "")}) and {b} ({(eb?.fundHouse || "").replace(/\s+mutual\s+fund$/i, "")}){ov ? ` · same ${ov.n} stocks` : ""}{v != null ? ` · move together ${corr2(v)}` : ""} · costs and trading differ: {a} trades {traded(ea?.avgTurnover)} a day, {b} {traded(eb?.avgTurnover)}.</p></div>; })}</div>}
+      {cap.capped && <ShowAll n={cards.length} noun="pair" open={all} onToggle={() => setAll(!all)} controls="etp-pairs" className="mfm-showall" />}
+      {none.length > 0 && <p className="sp-note mfm-none">{noneLine(none.map((o) => `${o.a} · ${o.b}`))}</p>}
+      {!ins.overlap.pairs.length && !any && <p className="sp-note">Needs the holdings files of two share ETFs.</p>}
     </Section>
   );
 }
@@ -194,7 +235,7 @@ function SizesSection({ d, ins }: Props) {
   const cards: Card[] = [];
   const mid = etfs.find((e) => /mid/i.test(e.tracks.label || "") && (ins.perEtf?.[e.symbol]?.size?.Large ?? 0) > 0.5);
   if (mid) cards.push({ kind: "insight", title: "The midcap ETF is mostly large here", text: `${mid.symbol} reads ${p0(ins.perEtf![mid.symbol].size.Large ?? 0)} large and ${p0(ins.perEtf![mid.symbol].size.Mid ?? 0)} mid on FinLit's ₹ sizes: its index picks companies by rank (101st to 250th), and most of them are above ₹75,000 Cr.` });
-  if (miss.size) cards.push({ kind: "watch", title: "Smaller companies are missing from the view", text: `${[...miss].join(" and ")}'s holdings are not loaded, so the smaller companies ${miss.size === 1 ? "it holds are" : "they hold are"} not in the list total.` });
+  if (miss.size) cards.push({ kind: "watch", title: "Smaller companies are missing from the view", text: `${andList([...miss])}'s holdings are not loaded, so the smaller companies ${miss.size === 1 ? "it holds are" : "they hold are"} not in the list total.` });
   return (
     <Section id="etp-sizes" hide title="Company sizes inside each share ETF" help="The Indian shares inside each share ETF by company size, on FinLit's ₹ rule: large above ₹75,000 Cr, mid ₹25,000 to 75,000 Cr, small ₹10,000 to 25,000 Cr, micro below ₹10,000 Cr." how="One bar per share ETF; the last bar adds up the Indian shares inside your loaded ETFs."
       sub="Large: above ₹75,000 Cr market value. Mid: ₹25,000 to 75,000 Cr. Small: ₹10,000 to 25,000 Cr. Micro: below ₹10,000 Cr. FinLit uses these amounts on every page; SEBI's fund categories rank companies instead, so a fund's category and its sizes here can differ.">
@@ -207,19 +248,39 @@ function SizesSection({ d, ins }: Props) {
   );
 }
 
+
 // ------------------------------------------------------------------------------------------------ the three sub-tabs
 type Sub = "hold" | "move" | "size";
 const SUB_OF: Record<string, Sub> = { "etp-money": "hold", "etp-secin": "hold", "etp-move": "move", "etp-shared": "move", "etp-sizes": "size" };
-export function InsideSubTabs(p: Props & { level: Level; onLevel: (l: Level) => void }) {
-  const [sub, setSub] = useState<Sub>("hold");
+const SUB_FIRST: Record<Sub, string> = { hold: "etp-money", move: "etp-move", size: "etp-sizes" };
+/** The chosen sub-view, the one mechanism for the tabs (task #390 PR A's step sync and PR B's tabs at the top). A step of the sections bar that sits under
+ *  another sub-view opens it (the page's "eq-jump" event); with one step chosen, the sub-view is the one that holds that step's section (and stays chosen
+ *  when All sections comes back), and a tab opens that sub-view's first step (the "eq-step" event), as on the MF page. With All sections on, the tabs
+ *  pick what shows. */
+export function useEtfSub(): [Sub, (s: Sub) => void] {
+  const [sub, setSub] = useState<Sub>("hold"), { step } = useContext(StepCtx), forced = SUB_OF[step] as Sub | undefined;
   useEffect(() => { const on = (e: Event) => { const s = SUB_OF[(e as CustomEvent).detail as string]; if (s) setSub(s); }; addEventListener("eq-jump", on); return () => removeEventListener("eq-jump", on); }, []);
-  const TABS: [Sub, string, string][] = [["hold", "What your money is in", "Shares, gold, debt and sectors"], ["move", "How ETFs move together", "Price moves and shared stocks"], ["size", "Large, mid, small and micro", "Company sizes inside each ETF"]];
+  useEffect(() => { if (forced) setSub(forced); }, [forced]);
+  const pick = (k: Sub) => { setSub(k); if (step !== "all") window.dispatchEvent(new CustomEvent("eq-step", { detail: SUB_FIRST[k] })); };
+  return [forced ?? sub, pick];
+}
+const TABS: [Sub, string, string][] = [["hold", "What your money is in", "Shares, gold, debt and sectors"], ["move", "How ETFs move together", "Price moves and shared stocks"], ["size", "Large, mid, small and micro", "Company sizes inside each ETF"]];
+/** Task #390 (file 34, I1): the three sub-view tabs, drawn at the top of the view (InsideTab); the selected (black) tab's second line is white at 78%. */
+export function EtfSubBar({ sub, onSub }: { sub: Sub; onSub: (s: Sub) => void }) {
+  return <div className="eqd-subbar mfm-subtabs" role="tablist" aria-label="What's inside views">{TABS.map(([k, t, s]) => <button key={k} type="button" role="tab" aria-selected={sub === k} className={sub === k ? "on" : ""} onClick={() => onSub(k)}><b>{t}</b><small>{s}</small></button>)}</div>;
+}
+/** The chosen sub-view's sections, one step each (task #390 PR A). */
+export function EtfSubBody(p: Props & { sub: Sub; level: Level; onLevel: (l: Level) => void }) {
   return <>
-    <div className="eqd-subbar mfm-subtabs" role="tablist" aria-label="What's inside views">{TABS.map(([k, t, s]) => <button key={k} type="button" role="tab" aria-selected={sub === k} className={sub === k ? "on" : ""} onClick={() => setSub(k)}><b>{t}</b><small>{s}</small></button>)}</div>
-    {sub === "hold" && <><MoneySection {...p} /><SectorsInside {...p} /></>}
-    {sub === "move" && <><MoveSection {...p} /><SharedSection {...p} /></>}
-    {sub === "size" && <SizesSection {...p} />}
+    {p.sub === "hold" && <><Step id="etp-money" title="What your money is in" line=""><MoneySection {...p} /></Step><Step id="etp-secin" title="Sectors inside each share ETF" line=""><SectorsInside {...p} /></Step></>}
+    {p.sub === "move" && <><Step id="etp-move" title="How your ETFs move together" line=""><MoveSection {...p} /></Step><Step id="etp-shared" title="Stocks they share" line=""><SharedSection {...p} /></Step></>}
+    {p.sub === "size" && <Step id="etp-sizes" title="Company sizes inside each share ETF" line=""><SizesSection {...p} /></Step>}
   </>;
+}
+/** The tabs with their sections right under them (kept for the tests). */
+export function InsideSubTabs(p: Props & { level: Level; onLevel: (l: Level) => void }) {
+  const [sub, setSub] = useEtfSub();
+  return <><EtfSubBar sub={sub} onSub={setSub} /><EtfSubBody {...p} sub={sub} /></>;
 }
 
 // ------------------------------------------------------------------------------------------------ 7 Largest stocks underneath
@@ -231,7 +292,9 @@ export function LargestSection({ ins }: { ins: Inside }) {
       sub={gold ? `The ${rows.length} largest Indian holdings across your ETFs, with their ${model} reading.` : `The ${rows.length} largest Indian holdings across your ETFs (names only on this plan).`}>
       <Scroll label="largest stocks underneath"><table className="sp-tb mfm-big kit-grid"><thead><tr><th scope="col">Stock</th><th scope="col">Macro sector</th><th scope="col">Size</th><th scope="col" className="r">Of your ETFs</th><th scope="col">Held by</th><th scope="col">{model}</th></tr></thead>
         <tbody>{shown.map((r) => <tr key={r.isin ?? r.name}>
-          <th scope="row">{r.symbol ? <Link to={`/stocks/${r.symbol}`} title={coTitle({ symbol: r.symbol, name: r.name })}>{titleOf({ symbol: r.symbol, name: r.name })}</Link> : r.name}<small className="mfp-sub">{r.symbol ? subLine({ symbol: r.symbol, name: r.name }, r.name) : r.name}</small></th><td>{(r.symbol && macroOf.get(r.symbol)) ?? r.industry ?? "–"}</td><td>{r.size ? <span className="mfm-sz">{r.size[0]}</span> : "–"}</td>
+          {/* task #390 (file 34, I7, W21): the company's short name first, its share code under it */}
+          <th scope="row">{r.symbol ? <Link to={`/stocks/${encodeURIComponent(r.symbol)}`} title={`${holdingName(r.name) || r.symbol}. Open the company report`}>{holdingShort(r.name, r.symbol)}</Link> : <span title={holdingName(r.name)}>{holdingShort(r.name)}</span>}
+            <small className="mfp-sub">{r.symbol ? codeText(r.symbol) : "Not matched to a listed company"}</small></th><td>{(r.symbol && macroOf.get(r.symbol)) ?? r.industry ?? "–"}</td><td>{r.size ? <span className="mfm-sz">{r.size[0]}</span> : "–"}</td>
           <td className="r">{r.w.toFixed(2)}%</td><td><span className="mfm-held">{r.etfs.map((s) => <span key={s}>{s}</span>)}</span></td>
           <td>{!gold ? <Link to="/plans" className="mfm-lock">FinLit Prism · see plans</Link> : r.score?.score != null ? <span className="mff-score"><b className={"mff-num " + tone(r.score.label)}>{Math.round(r.score.score)}</b> <span className={"mff-w " + tone(r.score.label)}>{r.score.label ? r.score.label.charAt(0) + r.score.label.slice(1).toLowerCase() : ""}</span></span> : <span className="sp-note">{r.scoreWhy ?? "Not rated"}</span>}</td></tr>)}</tbody></table></Scroll>
       {rows.length > 5 && <button type="button" className="eq-more" aria-expanded={all} onClick={() => setAll(!all)}>{all ? "Show fewer ▴" : `Show all ${rows.length} ▾`}</button>}
@@ -240,11 +303,13 @@ export function LargestSection({ ins }: { ins: Inside }) {
 }
 
 export function InsideTab({ d, ins, rk, kf }: Props & { kf?: ReactNode }) {
-  const [level, setLevel] = useLevel("finlit-etf-level");
+  const [level, setLevel] = useLevel("finlit-etf-level"), [sub, setSub] = useEtfSub();
+  // task #390 PR B (file 34, I1): the sub-view tabs at the top of the view, under "Data as of"; their sections stay where they were.
+  // Task #390 PR A: one section per step; Key figures sit in step 1 after What they own.
   return <>
-    <OwnSection d={d} ins={ins} rk={rk} level={level} onLevel={setLevel} />
-    {kf}
-    <InsideSubTabs d={d} ins={ins} rk={rk} level={level} onLevel={setLevel} />
-    {ins.top.length > 0 && <LargestSection ins={ins} />}
+    <EtfSubBar sub={sub} onSub={setSub} />
+    <Step id="etp-own" title="What your ETFs own: macro sector and size" line=""><OwnSection d={d} ins={ins} rk={rk} level={level} onLevel={setLevel} />{kf}</Step>
+    <EtfSubBody d={d} ins={ins} rk={rk} sub={sub} level={level} onLevel={setLevel} />
+    {ins.top.length > 0 && <Step id="etp-largest" title="Largest stocks underneath" line=""><LargestSection ins={ins} /></Step>}
   </>;
 }

@@ -35,10 +35,10 @@ export function useLevel(key = LKEY): [Level, (l: Level) => void] {
   return [l, (v: Level) => { setL(v); try { localStorage.setItem(key, v); } catch { /* not kept */ } }];
 }
 
-export function LevelSwitch({ level, onLevel, sp }: { level: Level; onLevel: (l: Level) => void; sp: Grid }) {
+export function LevelSwitch({ level, onLevel, sp, noun = "funds" }: { level: Level; onLevel: (l: Level) => void; sp: Grid; /** task #390: "in your ETFs" on the ETF page */ noun?: string }) {
   const n = (lv: Level) => new Set(Object.keys(sp.lookThrough?.[lv] ?? {}).map((k) => k.split("|")[0]).filter((s) => s !== "Listed abroad" && s !== "Not classified")).size;
   return <div className="sp-view mfm-lv" role="group" aria-label="Group the shares by">{(["macro", "sector"] as Level[]).map((l) =>
-    <button key={l} type="button" className={"sp-vbtn" + (level === l ? " on" : "")} aria-pressed={level === l} onClick={() => onLevel(l)}>{l === "macro" ? "Macro sector" : "Sector"} · {l === "macro" ? 12 : 22}<span className="sr-only"> ({n(l)} in your funds)</span></button>)}</div>;
+    <button key={l} type="button" className={"sp-vbtn" + (level === l ? " on" : "")} aria-pressed={level === l} onClick={() => onLevel(l)}>{l === "macro" ? "Macro sector" : "Sector"} · {l === "macro" ? 12 : 22}<span className="sr-only"> ({n(l)} in your {noun})</span></button>)}</div>;
 }
 
 /** The grid's rows: each sector's cells by size, its total, biggest first. Exported for tests. */
@@ -52,7 +52,7 @@ export function gridRows(sp: Grid, level: Level) {
 
 export function Cell({ c, max, readingOf, link, names }: { c?: { w: number; n: number; stocks: { name: string; symbol: string | null; w: number }[] }; max: number; readingOf: (s: string | null) => Reading;
   /** task #276 (ETF page, change 5): each chip opens the company report */ link?: boolean;
-  /** task #389 (MF page, file 32 Mix 2 and 4): chips with short company names, "N companies", one dashed "+N more" pill. The ETF page keeps codes until its own task (#390). */ names?: boolean }) {
+  /** task #389 (MF page, file 32 Mix 2 and 4): chips with short company names, "N companies", one dashed "+N more" pill; the ETF page too since task #390. */ names?: boolean }) {
   const [open, setOpen] = useState(false);
   if (!c || c.w <= 0) return <td className="mfm-c empty" />;
   const show = open ? c.stocks : c.stocks.slice(0, 4), rest = c.stocks.length - 4;

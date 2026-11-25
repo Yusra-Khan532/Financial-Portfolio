@@ -32,3 +32,21 @@
 .efp .etp-b-gold { background: #b8892f; } .efp .etp-b-abroad { background: #6b5ea8; } .efp .etp-b-silver { background: #8fa8a6; } .efp .etp-b-debt, .efp .etp-b-liquid { background: #9aa3ad; }
 :root[data-theme="dark"] .efp .etp-twice { color: var(--gold); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .efp .etp-twice { color: var(--gold); } }
+
+/* task #390 PR A (developer file 34): the calm cost card (the MF page's .px-* cards in mf/pack/mf389.css carry the rest), the header i that copies as one
+   label, and the gold and silver badges in dark ink (U7b). All under .efp; nothing under 12px. Classes px-cost, px-cb, px-cbm (grep: used only here). */
+.efp .px-sc.px-cost { --bc: var(--ui-etf-cost); align-items: flex-start; background: color-mix(in srgb, var(--ui-etf-cost) 6%, var(--s1)); border-color: color-mix(in srgb, var(--ui-etf-cost) 30%, var(--border)); }
+.efp .px-cost .px-sb { flex: 1; }
+.efp .px-cost .px-v { margin: 2px 0 10px; font: 500 var(--fs-28)/1.1 var(--serif); }
+.efp .px-cb { display: grid; gap: 5px; margin: 0 0 8px; padding: 0; list-style: none; }
+.efp .px-cb li { display: grid; grid-template-columns: minmax(0, 96px) minmax(0, 1fr) 46px; align-items: center; gap: 8px; font: 500 var(--fs-12)/1.2 var(--sans); color: var(--text); }
+.efp .px-cb li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.efp .px-cb li i { display: block; height: 6px; overflow: hidden; border-radius: var(--ui-r-pill); background: var(--s3); }
+.efp .px-cb li i b { display: block; height: 100%; border-radius: var(--ui-r-pill); background: var(--ui-etf-cost); }
+.efp .px-cb li em { font-style: normal; text-align: right; font-variant-numeric: tabular-nums; }
+.efp .px-cbm { margin: 0 0 6px; font: 400 var(--fs-12)/1.35 var(--sans); color: var(--muted); }
+/* a section with Hide (top right) and a things-to-know pill: the pill sits left of Hide, never under it */
+.efp .hz > .sp-sec .sp-sec-h:has(> .eq8k-btn) { padding-right: 92px; }
+.efp .hz > .sp-sec .sp-sec-h:has(> .eq8k-btn) > div:first-child { padding-right: 0; }
+.efp .mff-t thead .sp-i { user-select: none; }   /* F6: copied heading text reads one label */
+.efp .etp-b-gold, .efp .etp-b-silver { color: var(--ui-etf-badge-ink); }

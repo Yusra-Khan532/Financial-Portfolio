@@ -53,15 +53,17 @@ export const GL_TIP = "Value now minus what you paid, for each share you hold no
 /** Task #389 (developer file 32, Your funds 7, L7): each "(+₹N)" stays on one line with its name. */
 const keepTogether = (s: string) => s.split(/( \([+−]₹[\d,]+\))/).map((x, i) => (i % 2 ? <span key={i} className="eqg-nw">{x}</span> : x));
 /** `noun`, `link`, `tip`, `id`: the MF page's funds (task #389): "fund", the fund's page, its own i text and section id; the Equity page keeps its shares. */
-export function GainLossSection({ rows, noPrice, noun = "share", link = (s) => `/stocks/${encodeURIComponent(s)}`, tip = GL_TIP, id = "eq-gl" }: { rows: GLRow[]; noPrice: number;
-  noun?: string; link?: (symbol: string) => string; tip?: string; id?: string }) {
+/** `left`, `countSide`: the ETF page (task #390, E5d and L4) adds "ETFs with no quantity are left out." to the line under the heading, and a spread-out loss
+ *  counts the ETFs in loss ("3 of your 6 ETFs are in loss"). */
+export function GainLossSection({ rows, noPrice, noun = "share", link = (s) => `/stocks/${encodeURIComponent(s)}`, tip = GL_TIP, id = "eq-gl", left = "", countSide = false }: { rows: GLRow[]; noPrice: number;
+  noun?: string; link?: (symbol: string) => string; tip?: string; id?: string; left?: string; countSide?: boolean }) {
   const [open, setOpen] = useState(false);
   if (rows.length + noPrice < 2) return null;    // a one-share account hides the section
-  const g = gainLoss(rows, noPrice, noun), mx = Math.max(1, ...g.rows.map((r) => Math.abs(r.gain))), shown = g.shown(open);
+  const g = gainLoss(rows, noPrice, noun, countSide), mx = Math.max(1, ...g.rows.map((r) => Math.abs(r.gain))), shown = g.shown(open);
   return (
     <section className="sp-sec eqg" aria-labelledby={`${id}-h`} id={id}>
       <div className="sp-sec-h"><div><h2 id={`${id}-h`}>Where your gain or loss came from<Info about="Where your gain or loss came from" text={tip} /></h2>
-        <p className="sp-sub">Each {noun}'s gain or loss in rupees, on what you paid for it. Biggest gain at the top.</p></div></div>
+        <p className="sp-sub">Each {noun}'s gain or loss in rupees, on what you paid for it. Biggest gain at the top.{left ? ` ${left}` : ""}</p></div></div>
       {g.lead && <p className="eqg-lead"><b>{g.lead.bold}</b> {keepTogether(g.lead.rest)}</p>}
       {g.rows.length > 0 ? <ul className="eqg-l" id={`${id}-list`} aria-label={`Gain or loss by ${noun}`}>{shown.map((r) => { const w = `${((100 * Math.abs(r.gain)) / mx).toFixed(1)}%`, neg = r.gain < 0;
         return <li key={r.symbol} className={g.key.has(r.symbol) ? "k" : undefined}>
