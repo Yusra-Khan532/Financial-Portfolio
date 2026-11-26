@@ -319,7 +319,10 @@ async def refresh(store, settings, *, limit: int = 2500, max_minutes: float = 45
             # a transport failure (Dhan or the site backend not answering) counts towards the stop after five; "no candles" is Dhan answering that it holds nothing
             # for that one company, so it only stops the run after a long unbroken run of them (12 Nov 2026: the same five large companies with no candles came first
             # in every run, so each run stopped after 4 seconds and 679 companies stayed on 9 Nov)
-            streak = streak + 1 if outcome == Outcome.FAILED and reason in ("candles_error", "site_backend_0", "site_backend_502", "site_backend_503") else 0
+            # a refusal by the site backend (400/401/403: on 26 Nov "Invalid host header" for every company) is as systemic as an outage: five in a row stop
+            # the run instead of sending 2,500 requests that cannot succeed
+            streak = streak + 1 if outcome == Outcome.FAILED and reason in ("candles_error", "site_backend_0", "site_backend_400", "site_backend_401",
+                                                                             "site_backend_403", "site_backend_502", "site_backend_503") else 0
             blanks = blanks + 1 if outcome == Outcome.UNAVAILABLE else 0
             await asyncio.sleep(0.05)
         if out["unavailable"] and not out["updated"] and not out["failed"] and out["status"] == "ok" and "probes_ok" not in out:
@@ -328,7 +331,9 @@ async def refresh(store, settings, *, limit: int = 2500, max_minutes: float = 45
                 out["probes_ok"] = 1
             else:
                 out.update(status="failed", stopped="no candles for any company, and Dhan gave none for the large companies either (Dhan is not answering)")
-        if out["failed"] and not out["updated"] and out["status"] == "ok":
+        if out["failed"] and not out["updated"] and out["status"] in ("ok", "partial"):
+            # 26 Nov 2026: a run that stopped early after failing every company it tried was "partial", which reset the failure count, so the admin bell
+            # said "Resolved: FinLit job failing: technicals" while every refresh still failed. Nothing updated and something failed is a failed run.
             out["status"] = "failed"
         elif out["failed"] and out["status"] == "ok":
             out["status"] = "partial"
