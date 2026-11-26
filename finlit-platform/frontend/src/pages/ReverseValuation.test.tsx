@@ -33,7 +33,7 @@ describe("reverse valuation page", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: /Result:/ }).textContent).toMatch(/Required revenue CAGR/));
     expect(screen.getByText(/revenue must grow/)).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Miss scenarios" })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: /Two-way grid/ })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /Sensitivity grid: value per share/ })).toBeTruthy();
     expect(document.querySelectorAll(".rv-heat tbody tr").length).toBe(5);
     fireEvent.click(screen.getByRole("button", { name: "Margin" }));
     await waitFor(() => expect(screen.getByRole("heading", { name: /Result:/ }).textContent).toMatch(/Required final EBITDA margin/));
@@ -46,8 +46,8 @@ describe("reverse valuation page", () => {
     open();
     await waitFor(() => expect(screen.getByRole("heading", { name: "Miss scenarios" })).toBeTruthy());
     expect(document.querySelectorAll(".rv-miss tbody tr").length).toBe(13);                       // 3 growth, 3 margin, 3 multiple, 2 rate, 2 combined
-    expect(screen.getByRole("columnheader", { name: "Implied return" })).toBeTruthy();
-    expect(screen.getByRole("columnheader", { name: "Years to recover" })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: /^Implied return/ })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: /^Years to recover/ })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "If it beats" }));
     expect(screen.getByRole("heading", { name: "Upside scenarios" })).toBeTruthy();
     expect(document.querySelectorAll(".rv-miss tbody tr").length).toBe(8);
@@ -57,7 +57,7 @@ describe("reverse valuation page", () => {
     expect(screen.getByRole("region", { name: "Methodology" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Raise Discount rate (required return)" }));
     expect(screen.getByRole("button", { name: "Copy a link to this view" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Download the working (CSV)" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Download working CSV" })).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Growth path") as HTMLSelectElement, { target: { value: "fade" } });
     await waitFor(() => expect(screen.getByRole("heading", { name: /Result:/ })).toBeTruthy());
   });
