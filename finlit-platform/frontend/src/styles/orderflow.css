@@ -474,3 +474,4 @@ a.oflow-tab:hover:not([aria-current]) { background: color-mix(in srgb, var(--gol
 .oflow-tring .oflow-ring-bg, .oflow-tring .oflow-ring-fg { stroke-width: 4; } .oflow-tring.gain .oflow-ring-fg { stroke: var(--gain); } .oflow-tring.loss .oflow-ring-fg { stroke: var(--loss); }
 .oflow-tile .oflow-candles { overflow: visible; }
 .oflow-tile-path .a { fill: currentColor; fill-opacity: 0.12; } .oflow-tile-path .l { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-opacity: 0.8; }
+.oflow-how { margin: 16px 0 0; font-size: var(--fs-13); } .oflow-how summary { cursor: pointer; color: var(--muted); } .oflow-how .oflow-method { margin-top: 8px; }

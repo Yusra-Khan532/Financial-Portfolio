@@ -434,7 +434,7 @@ export function FlowBoard({ d }: { d: Ready }) {
   return (
     <section className="card oflow-board" aria-labelledby="oflow-board-h">
       <div className="oflow-hero-h">
-        <div><h2 id="oflow-board-h">Flow board</h2><p className="muted">Each stock's line of the day ends in the tower (rising on top, falling below), then runs to its own tile. {narrow ? "Tap" : "Point at"} any line, tick or tile to light its path and see its detail; choose a sector, a direction or a build-up to list its stocks.</p></div>
+        <div><h2 id="oflow-board-h">Flow board</h2><p className="muted">{narrow ? "Tap" : "Point at"} any stock for its detail; choose a sector or build-up to list its stocks.</p></div>
       </div>
       {narrow ? <>
         <div className="oflow-dirs" role="group" aria-label="Direction">{[{ up: true, n: B.rising.count, name: "rising" }, { up: false, n: B.falling.count, name: "falling" }].map((x) => (
@@ -535,7 +535,7 @@ function Flow({ view }: { view: string }) {
       </div>
       {d.notes.map((n) => <p key={n} className="oflow-note muted">{n}</p>)}
       {view === "board" ? <FlowBoard d={d} /> : <Depth d={d} />}
-      <p className="muted oflow-method">How it is worked out: change against the previous close; open interest summed over the current and next futures contract against their previous close; VWAP is the day's average traded price; pivots are the classic floor pivots from the previous session's high, low and close. Facts: open interest rose with the move, price on the move's side of VWAP, price beyond R1 or S1, open interest changed 5% or more, price in the top or bottom quarter of the day's range. Source: exchange prices and open interest through Dhan, FinLit's daily prices.</p>
+      <details className="oflow-how"><summary>How it is worked out</summary><p className="muted oflow-method">Change against the previous close; open interest summed over the current and next futures contract against their previous close; VWAP is the day's average traded price; pivots are the classic floor pivots from the previous session's high, low and close. Facts: open interest rose with the move, price on the move's side of VWAP, price beyond R1 or S1, open interest changed 5% or more, price in the top or bottom quarter of the day's range. Source: exchange prices and open interest through Dhan, FinLit's daily prices.</p></details>
     </TipLayer>
   );
 }
@@ -552,15 +552,14 @@ export function OrderFlowPage() {
       <section className="pagehead"><div className="aurora" style={{ opacity: 0.6 }} /><div className="wrap">
         <div className="eyebrow"><Link to="/lab">Trading Lab</Link></div>
         <h1 className="ui-title">Order Flow</h1>
-        <p>How every NSE F&O stock is moving, from prices and futures open interest, refreshed every few minutes in market hours.</p></div></section>
+        <p>Every NSE F&O stock, live in market hours.</p></div></section>
       <section className="sec" style={{ paddingTop: 16 }}><div className="wrap tlab oflow">
         {(!ready || q.isPending) && <div className="skeleton" style={{ height: 160 }} aria-label="Checking your access" />}
         {q.isError && <div className="formerr" role="alert">Your access could not be checked right now. Reload the page in a moment.</div>}
         {a && !a.access && <LabGate reason={a.reason === "sign_in" ? "sign_in" : "not_granted"} next="/lab/flow" />}
         {a?.access && <>
-          <nav className="oflow-tabs" aria-label="Order Flow views">{FLOW_TABS.map((t) => t.ready
-            ? <Link key={t.id} to={t.id === "depth" ? "/lab/flow" : `/lab/flow?view=${t.id}`} className="oflow-tab" aria-current={view === t.id ? "page" : undefined}>{t.name}</Link>
-            : <span key={t.id} className="oflow-tab" aria-disabled="true" title="Being built">{t.name}<small>Soon</small></span>)}</nav>
+          <nav className="oflow-tabs" aria-label="Order Flow views">{FLOW_TABS.filter((t) => t.ready).map((t) =>
+            <Link key={t.id} to={t.id === "depth" ? "/lab/flow" : `/lab/flow?view=${t.id}`} className="oflow-tab" aria-current={view === t.id ? "page" : undefined}>{t.name}</Link>)}</nav>
           <Flow view={view} />
         </>}
         <div className="pdisc tlab-disc" role="note" aria-labelledby="oflow-disc-h"><h2 id="oflow-disc-h">Disclaimer</h2><p>{DISCLAIMER}</p></div>

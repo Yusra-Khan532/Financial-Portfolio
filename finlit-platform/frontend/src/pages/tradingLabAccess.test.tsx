@@ -3,7 +3,7 @@
 // access, an invitation message otherwise; the menu entry appears only with the granted feature; the admin panel grants by email and removes.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { hasLab, hasSignals } from "../lib/lab";
 
@@ -39,38 +39,27 @@ describe("Trading Lab page", () => {
     wrap(<TradingLabPage />); await settle();
     expect(screen.getByRole("link", { name: "Sign in" }).getAttribute("href")).toBe("/login?next=/lab");
   });
-  it("a granted member sees the tools and until when the access lasts", async () => {
-    answer = () => json(200, { access: true, reason: "granted", expiresAt: "2026-12-25T10:00:00Z" });
-    wrap(<TradingLabPage />); await settle();
-    for (const t of ["Time Machine", "Strategy backtest", "Setup scanner", "Price structure layer", "Paper journal", "Risk read-out", "Case for and case against"]) expect(screen.getByRole("heading", { name: t })).toBeTruthy();
-    expect(screen.getByText(/You have access until 25 December 2026/)).toBeTruthy();
+  it("a member with access goes straight to the working tools (founder, 26 Nov 2026: only working things, no plans)", async () => {
+    for (const reason of ["granted", "admin"]) {
+      answer = () => json(200, { access: true, reason, expiresAt: null, signals: reason === "admin" });
+      render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={["/lab"]}>
+        <Routes><Route path="/lab" element={<TradingLabPage />} /><Route path="/lab/flow" element={<p>Order Flow page</p>} /></Routes></MemoryRouter></QueryClientProvider>);
+      await settle();
+      expect(screen.getByText("Order Flow page")).toBeTruthy();
+      for (const t of ["Time Machine", "Strategy backtest", "Signals desk", "Rating: Buy, Hold or Sell"]) expect(screen.queryByRole("heading", { name: t })).toBeNull();
+      expect(screen.queryByText(/Planned|Being built/)).toBeNull();
+      cleanup();
+    }
   });
-  it("no banned advice word in the page's own text (describe, never advise)", async () => {
-    answer = () => json(200, { access: true, reason: "admin", expiresAt: null });
+  it("no banned advice word on the page a visitor sees (describe, never advise)", async () => {
+    answer = () => json(200, { access: false, reason: "sign_in", expiresAt: null });
     wrap(<TradingLabPage />); await settle();
-    const text = document.body.textContent!.toLowerCase().replace("does not tell anyone to buy, sell or hold", "").replace("not a list of stocks to buy", "");
+    const text = document.body.textContent!.toLowerCase().replace("does not tell anyone to buy, sell or hold", "");
     for (const w of [" buy ", " sell ", " hold ", "target", " best ", "multibagger", "top pick", "accumulate"]) expect(text.includes(w), w).toBe(false);
   });
 });
 
-describe("Signals desk (founder, 25 Nov 2026: an internal test outside the describe-only wording)", () => {
-  it("is hidden unless the member's signals are on", async () => {
-    answer = () => json(200, { access: true, reason: "granted", expiresAt: null, signals: false });
-    wrap(<TradingLabPage />); await settle();
-    expect(screen.queryByRole("heading", { name: "Signals desk" })).toBeNull();
-    expect(screen.queryByRole("heading", { name: "Rating: Buy, Hold or Sell" })).toBeNull();
-    expect(screen.queryByText(/does give trade calls/)).toBeNull();
-    expect(screen.getByRole("list", { name: "How the Lab works" }).querySelectorAll("li").length).toBe(4);
-  });
-  it("shows the rating, the trader's plan and the trade-size debate with an internal-test label when on", async () => {
-    answer = () => json(200, { access: true, reason: "granted", expiresAt: null, signals: true });
-    wrap(<TradingLabPage />); await settle();
-    expect(screen.getByRole("heading", { name: "Signals desk" })).toBeTruthy();
-    expect(screen.getByText("Signals on · internal test")).toBeTruthy();
-    for (const t of ["Rating: Buy, Hold or Sell", "Trader's plan", "Trade-size debate"]) expect(screen.getByRole("heading", { name: t })).toBeTruthy();
-    expect(screen.getByText(/does not tell anyone to buy, sell or hold/)).toBeTruthy();      // the Lab's disclaimer stays
-    expect(screen.getByText(/The Signals desk, switched on for your account by an administrator, does give trade calls/)).toBeTruthy();   // and says what the desk is
-  });
+describe("Signals switch", () => {
   it("hasSignals reads the feature the server lists", () => {
     expect(hasSignals(["trading_lab"])).toBe(false);
     expect(hasSignals(["trading_lab", "trading_lab_signals"])).toBe(true);
