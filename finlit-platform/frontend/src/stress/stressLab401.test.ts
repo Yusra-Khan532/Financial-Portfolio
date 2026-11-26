@@ -33,3 +33,49 @@ describe("Stress Lab #401: the financial results are unchanged by the redesign",
     expect(txt(root, "#every td")).toMatchSnapshot();
   });
 });
+
+describe("Stress Lab #401: the redesigned controls", () => {
+  it("1. the section bar: seven numbered buttons, no arrows, each with a 'Jump to' tip; a click marks it at once", () => {
+    const { root } = draw(P("gold"));
+    const btns = [...root.querySelectorAll<HTMLElement>(".sb-c")];
+    expect(btns.map((b) => b.textContent)).toEqual(["1Company", "2Choose a shock", "3The result", "4Why it moves", "5Every scenario", "6History", "7Assumptions"]);
+    expect(root.querySelectorAll(".sb-ar").length).toBe(0);
+    expect(btns.map((b) => b.getAttribute("title"))).toEqual(["Jump to Company", "Jump to Choose a shock", "Jump to The result", "Jump to Why it moves", "Jump to Every scenario", "Jump to History", "Jump to Assumptions"]);
+    expect(btns[5].getAttribute("aria-label")).toBe("6. History: jump to this section");
+    btns[5].click();
+    expect(root.querySelectorAll(".sb-c.on").length).toBe(1);
+    expect(root.querySelector(".sb-c.on")!.textContent).toBe("6History");
+    expect(root.querySelector(".sb-c.on")!.getAttribute("aria-current")).toBe("location");
+  });
+  it("4. choose a shock: the ready-made scenarios and your own in two labelled groups, the same eight chips", () => {
+    const { root } = draw(P("gold"));
+    const groups = [...root.querySelectorAll<HTMLElement>("#chips .chg")];
+    expect(groups.map((g) => g.querySelector(".chgl")!.textContent)).toEqual(["Ready-made scenarios", "Your own"]);
+    expect(txt(root, "#chips .chg.own .chip")).toEqual(["Custom"]);
+    expect(root.querySelectorAll(".chip").length).toBe(8);
+  });
+  it("6. what stands out: a one-line explanation while closed, the full detail when opened", () => {
+    const { root } = draw(P("gold"));
+    const c = root.querySelector<HTMLElement>("#calls .call")!;
+    const ln = c.querySelector<HTMLElement>(".ln")!;
+    expect(ln.hidden).toBe(false);
+    expect(ln.textContent!.length).toBeGreaterThan(5);
+    expect(c.querySelector<HTMLElement>(".d")!.hidden).toBe(true);
+    c.querySelector<HTMLElement>("[data-cx]")!.click();
+    expect(ln.hidden).toBe(true);
+    expect(c.querySelector<HTMLElement>(".d")!.hidden).toBe(false);
+  });
+  it("10. every scenario: a row opens in place to show its shocks, without switching the scenario", () => {
+    const { root } = draw(P("gold"));
+    const before = root.querySelector(".chip[aria-pressed=true]")!.getAttribute("data-scen");
+    const x = root.querySelector<HTMLElement>('[data-xr="2020"]')!;
+    expect(x.getAttribute("aria-expanded")).toBe("false");
+    x.click();
+    const open = root.querySelector<HTMLElement>('[data-xr="2020"]')!;
+    expect(open.getAttribute("aria-expanded")).toBe("true");
+    expect(root.querySelectorAll("#xr-2020 .shock").length).toBeGreaterThan(2);
+    expect(root.querySelector(".chip[aria-pressed=true]")!.getAttribute("data-scen")).toBe(before);
+    open.click();
+    expect(root.getElementById("xr-2020")).toBeNull();
+  });
+});
