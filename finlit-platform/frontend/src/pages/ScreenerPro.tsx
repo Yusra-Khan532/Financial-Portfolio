@@ -257,6 +257,8 @@ export function ScreenerPro() {
     setF(norm({})); setOrder([]); setFrom(null); setQ("");
     if (ratios.some((r) => r.op !== "none")) setRatios(ratios.map((r) => (r.op === "none" ? r : { ...r, op: "none" as const })));
   };
+  // task #402: the filter list's checkbox: its column, with every company's figure (no range); unticking takes the rule and its column off
+  const showRule = (m: MetricInfo) => { setOrder((o) => (o.includes(m.key) ? o : [...o, m.key])); toast(`${m.label} is shown as a column with every company's figure. Open its arrow to set a range.`); };
   // "Added · Edit" in the filter list (task #144): close the list, open the rules panel, bring that rule's card into view and put the cursor in its From box
   const goToRule = (m: MetricInfo) => {
     setPicker(false); setRulesOpen(true);
@@ -442,7 +444,10 @@ export function ScreenerPro() {
                   <p className="ssr-say">{byKey.get(r.num)?.label ?? r.num} ÷ {byKey.get(r.den)?.label ?? r.den} · {valueText(r)}</p>
                   {stepOf(r.id) && <p className="ssr-cnt">keeps <b>{nf(stepOf(r.id)!.after, 0)}</b> of {nf(stepOf(r.id)!.before, 0)}</p>}</div>)}
                 <p className="srt-total"><b>{nf(nFilters, 0)} filters</b> in {numGroups.length} groups</p>
-                <RuleTopics groups={numGroups} q={find} has={(k) => rules.includes(k) || !!F.ranges[k]} add={addRule} go={goToRule} ask={ask} />
+                <RuleTopics groups={numGroups} q={find} has={(k) => rules.includes(k) || !!F.ranges[k]} show={showRule} hide={(m) => removeRule(m.key)} ask={ask}
+                  range={(m) => { const rk = ruleKey(m), cur = byKey.get(rk) ?? m;
+                    return <RuleCard m={m} cur={cur} r={F.ranges[rk] || {}} set={(r) => setRange(rk, r)} remove={() => removeRule(m.key)} ask={ask}
+                      period={periodOf(m)} setPeriod={(p) => setPeriod((x) => ({ ...x, [m.key]: p }))} count={stepOf(rk)} />; }} />
                 <button type="button" className="btn ssw-add" onClick={() => setPicker({ q: find })}>+ Add a rule</button>
                 <form className="ssw-typed" onSubmit={(e) => { e.preventDefault(); const r = parseRules(typed, (k) => byKey.has(k)); setTypedErr(r.errors); const ok = Object.entries(r.ranges).filter(([k]) => !byKey.get(k)?.locked);
                   const lockedOnes = Object.keys(r.ranges).filter((k) => byKey.get(k)?.locked); if (lockedOnes.length) setTypedErr((x) => [...x, `${lockedOnes.map((k) => byKey.get(k)!.label).join(", ")}: part of a higher plan.`]);
