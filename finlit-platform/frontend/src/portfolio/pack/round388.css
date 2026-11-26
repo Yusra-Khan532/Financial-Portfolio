@@ -124,6 +124,10 @@ button.eq8p-seg { cursor: pointer; }
 /* task #388 (developer file 38, F5, T7): the same 6px as a real box, a page-coloured top border on the stuck row, which sticks 6px higher and gives the 6px
    back from its top margin, so nothing moves; a shadow paints over rows for the eye but leaves them on top for a click and for the table check */
 .eq #pf-shares:not(.eqs-full) .pfx-tools.pfh.stuck { top: calc(var(--eq-bar-b, var(--top-h, 63px)) - 6px); margin-top: 10px; border-top: 6px solid var(--bg); box-shadow: var(--ui-row-shadow); }
+/* Audit of 26 Nov (file 38): only the one-line stuck row sticks. The open row (Find, the five filters, the sector chips, Open all, Columns: 386 px on a
+   phone in By sector) is not sticky, so it no longer stays over the pinned heading, nor 6 px under the section bar with rows showing between; it scrolls
+   away and comes back as one row that scrolls sideways (.stuck). Enlarge keeps its own sticky row (eq385.css). */
+.eq #pf-shares:not(.eqs-full) .pfx-tools.pfh:not(.stuck) { position: relative; top: auto; }
 /* The same 6px over Against their peers: its column headings (.eq8p-rh) and, on a phone, its group headings (.eq8p-gh) stick at --eq-bar-b too. Each
    paints the 6px above itself. The shadow shows only while the heading is stuck: at rest it would fall outside its own box, which clips (the table's
    overflow: clip, and its group's, below), because each heading is the first row of that box. */
@@ -146,3 +150,7 @@ button.eq8p-seg { cursor: pointer; }
   .eq .eqt-bar.eqt-scr > .x-sw .x-sw-vm b { max-width: none; }
   .eq .eqt-bar.eqt-scr > .eqt-steps { flex: 1 1 0; min-width: 0; }
 }
+/* Audit of 26 Nov (file 38, F6 in every column set): a long label on two set lines (SharesTable twoLines), never a third */
+#pf-shares .pfx-table thead .pfx-l2 { white-space: nowrap; }
+/* the chip groups of the stuck row (By sector levels, Open all / Close all) stay on its one line too; the row scrolls sideways */
+.eq #pf-shares .pfx-tools.pfh.stuck > .pfx-chipsrow { flex: none; flex-wrap: nowrap; }

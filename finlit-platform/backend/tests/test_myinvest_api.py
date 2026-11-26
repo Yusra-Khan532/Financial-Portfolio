@@ -162,3 +162,9 @@ async def test_391_f1_f2_a_fund_in_two_accounts_and_an_etf_without_a_quantity(ap
     assert not any("MON100" in x["via"] for x in b["companies"])                                       # weight 0: nothing is held through it
     k = b["risk"]["kinds"]
     assert all("bandKey" in v and "swingWindow" in v for v in k.values()) and "swingWindows" in b["risk"]
+    # developer file 41 v4, A4: MON100 is left out of the ETFs' beta for having no quantity, not for its history (it has the same years as NIFTYBEES)
+    assert k["etfs"]["betaWindow"]["noQty"] == ["MON100"] and k["etfs"]["betaWindow"]["short"] == []
+    assert b["etfs"][1]["beta"] is not None                                                            # its own beta: a full year of prices
+    # A1: each kind's prices; the ETFs' close is the ETF portfolio's own (the same row and date it shows)
+    etf_page = (await c.get("/api/me/etf-portfolio")).json()
+    assert b["sources"]["etfsTo"] == max(e["priceDate"] for e in etf_page["items"] if e.get("priceDate")) and b["sources"]["sharesAt"] is None and b["sources"]["sharesTo"] is None

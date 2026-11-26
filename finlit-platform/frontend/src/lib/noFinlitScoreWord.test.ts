@@ -21,6 +21,7 @@ describe("'FinLit score' is 'FinLit IQ' everywhere a person can read it", () => 
         if (/FinLit scores describe a co/.test(src.slice(m.index ?? 0, (m.index ?? 0) + 30))) continue;       // the one line under every screener table, worded by the team (13 Nov 2026 handover)
         if (/FinLit's score for the company, 0 to 100, from its filed statements and prices\./.test(src.slice(m.index ?? 0, (m.index ?? 0) + 90))) continue;   // the Basic screener's FinLit IQ line, worded by the team (14 Nov 2026, N-26)
         if (/View FinLit scores for listed companies/.test(src.slice((m.index ?? 0) - 5, (m.index ?? 0) + 40)) && /(platformTools\.ts|ExploreTools\.test\.tsx)$/.test(f)) continue;   // the Browser Extension card on the landing page, worded by the team (task #176), as the extension's own pages say it (#94)
+        if (/FinLit scores/.test(m[0]) && f.endsWith("landing/GoLiveMarkup.tsx")) continue;   // task #407: the go-live pack's section label for Prism and the Mutual Fund Score together
         hits.push(`${f.replace(ROOT, "")}: ${around.replace(/\s+/g, " ")}`);
       }
     }

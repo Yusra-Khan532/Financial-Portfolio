@@ -19,6 +19,7 @@ import { LabGate } from "./TradingLab";
 import { ChartZoom } from "../components/ChartZoom";
 import { OptionPulse } from "../components/lab/OptionPulse";
 import { GlobalCues } from "../components/lab/GlobalCues";
+import { StockZones } from "../components/lab/StockZones";
 import { BucketPop, Candles, DirectionPop, SectorPop, StockPop, TipLayer, tiltHandlers, useTip } from "../components/lab/FlowTips";
 import "../styles/portfolio-disc.css";
 import "../styles/tradinglab.css";
@@ -30,7 +31,7 @@ export const FLOW_TABS = [
   { id: "money", name: "Money Flow", ready: true },
   { id: "options", name: "Option Pulse", ready: true },
   { id: "global", name: "Global cues", ready: true },
-  { id: "zones", name: "Stock zones", ready: false },
+  { id: "zones", name: "Stock zones", ready: true },
   { id: "journal", name: "Trading journal", ready: false },
 ];
 
@@ -639,6 +640,7 @@ function Depth({ d }: { d: Ready }) {
 function Flow({ view }: { view: string }) {
   if (view === "options") return <TipLayer><OptionPulse /></TipLayer>;   // its own data (the option chain), not the Order Flow snapshot
   if (view === "global") return <TipLayer><GlobalCues /></TipLayer>;      // its own data (FRED series and the international ETFs on NSE)
+  if (view === "zones") return <TipLayer><StockZones /></TipLayer>;       // its own data (5-minute candles of one stock)
   return <FlowSnapshotView view={view} />;
 }
 

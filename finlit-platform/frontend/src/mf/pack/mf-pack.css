@@ -115,7 +115,7 @@ html[data-theme="dark"] .mff-num.m, html[data-theme="dark"] .mff-chip.m, html[da
 .mfm-tot b { display: block; } .mfm-tot small { display: block; font-size: var(--fs-12); color: var(--sp-mute); }
 .mfm-bar { display: block; height: 4px; margin: 3px 0; border-radius: var(--ui-r-pill); background: var(--s2); } .mfm-bar u { display: block; height: 100%; border-radius: var(--ui-r-mark); background: #b8892f; }
 .mfm-g tfoot td, .mfm-g tfoot th { font-size: var(--fs-12); font-weight: 400; } .mfm-all { margin-top: 8px; }
-.mfm-reads { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 6px 0 12px; }
+.mfm-reads { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 6px 0 12px; }   /* audit of 26 Nov (file 40, SP7): 12 between the reading cards (was 10) */
 .mfm-read, .mfm-card { padding: 12px 14px; border: 1px solid var(--sp-line); border-radius: var(--r-ctl); background: var(--sp-panel); }
 .mfm-read p, .mfm-card p { margin: 0; } .mfm-rw { margin: 4px 0 !important; font-size: var(--fs-13); color: var(--sp-mute); } .mfm-rw b { font: 600 var(--fs-20)/1.2 var(--serif); color: var(--sp-ink); margin-right: 4px; }
 .mfm-rl { font-size: var(--fs-13); line-height: 1.45; color: var(--sp-mute); }
@@ -292,3 +292,8 @@ a.mfm-chip.mfm-chip-a:focus-visible { outline: 2px solid var(--gold); outline-of
   .mfp .mfm-gn thead th:first-child, .mfp .mfm-gn tbody th { width: 118px; min-width: 118px; max-width: 118px; }
   .mfp .mfm-gn td.mfm-c, .mfp .mfm-gn thead th:not(:first-child):not(:last-child) { min-width: 150px; width: 150px; }
 }
+/* Audit of 26 Nov (files 39, 40): a slice label that does not fit drops its word, then its percent (FitStack); never cut mid-word */
+.mfm-stack > i[data-fit="pct"] :is(small, .mfm-w), .etp-bar > i[data-fit="pct"] :is(small, .mfm-w) { display: none; }
+.mfm-stack > i[data-fit="none"] > *, .etp-bar > i[data-fit="none"] > * { display: none; }
+/* the label of a thin bar is one line: its word and its percent side by side (two spans since FitStack drops the word on its own) */
+.mfm-stack:not(.big) > i { flex-direction: row; justify-content: flex-start; align-items: center; gap: .3em; }

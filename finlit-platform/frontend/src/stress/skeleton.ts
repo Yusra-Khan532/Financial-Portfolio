@@ -9,7 +9,7 @@ export function fxSourceWords(src?: string | null): string {
   return "FBIL reference rate, published by the RBI";
 }
 
-const HOW = (fx: string, basis: string) => `<details class="fold" style="border-top:0;margin-top:0;padding-top:0"><summary style="font:600 20px/1.3 'Source Serif 4',Georgia,serif;color:var(--ink)">How the model works, and what it leaves out</summary>
+const HOW = (fx: string, basis: string) => `<details class="fold" style="border-top:0;margin-top:0;padding-top:0"><summary style="font:var(--ui-fw-semibold) var(--fs-16)/1.35 Inter,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--ink)">How the model works, and what it leaves out</summary>
 <div class="how" style="margin-top:12px">
 <h3>What it does</h3>
 <p>Stress Lab starts from the company's last four reported quarters. It applies one shock, held for 12 months, and works through what it does to volumes, costs, prices, interest and tax, then to earnings per share, interest cover and an earnings-based value.</p>

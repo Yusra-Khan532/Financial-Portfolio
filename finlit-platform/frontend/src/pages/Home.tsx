@@ -1,50 +1,17 @@
-import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { Icon } from "../lib/icons";
 import { useDocTitle } from "../lib/title";
 import { useAuthMaybe } from "../lib/auth";
-import { ExploreTools, OPEN_EXPLORE } from "../components/ExploreTools";
-import { PrismShowcase } from "../components/PrismShowcase";
-import { MfScoreShowcase } from "../components/MfScoreShowcase";
-import { tourLook, tourMedia, type Look } from "../lib/tourTheme";
+import { apiGet, type SearchIndex } from "../lib/api";
+import { GoLiveMarkup } from "../landing/GoLiveMarkup";
+import { initGoLive } from "../landing/golive";
 import "../styles/human-home.css";
-
-const TOUR = "Advanced screener · Company report · FinLit Prism · Sector Pulse · Sector Rotation · Mutual Fund Score · Portfolio";
-const reduced = () => typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-/** The page's theme, kept up to date when the visitor switches it. */
-function useSiteLook(): Look {
-  const get = (): Look => (document.documentElement.dataset.theme === "dark" ? "dark" : "light");
-  const [look, setLook] = useState<Look>(get);
-  useEffect(() => { const o = new MutationObserver(() => setLook(get())); o.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] }); setLook(get()); return () => o.disconnect(); }, []);
-  return look;
-}
-
-/** The product tour in a browser-style frame (surface --s1, border --border), recorded in the page's own theme so it looks like the site the visitor lands on
- *  (task #310 H; task #152 removed the Show in Light / Dark buttons). When the visitor switches the site's theme the video and its poster follow without a reload
- *  and keep their place. It starts by itself, muted and looping, with controls so anyone can pause it; people who ask their device for less motion get the
- *  still poster, the FinLit Prism report card. Only 720p files are shipped, so phones never download a large one. */
-export function Tour() {
-  const v = useRef<HTMLVideoElement>(null);
-  const site = useSiteLook();
-  const look = tourLook(site);
-  const media = tourMedia(look, import.meta.env.BASE_URL);
-  const at = useRef(0);
-  const was = useRef(look);
-  if (was.current !== look) { at.current = v.current?.currentTime ?? 0; was.current = look; }   // the site's theme changed: keep the place in the video
-  useEffect(() => { if (reduced()) v.current?.pause(); }, []);
-  const resume = () => { const el = v.current; if (!el) return; if (at.current > 0 && Number.isFinite(at.current)) { el.currentTime = Math.min(at.current, Math.max(0, (el.duration || at.current) - 0.1)); at.current = 0; } if (!reduced()) void el.play().catch(() => undefined); };
-  return (
-    <figure className="hh-tour" id="tour" data-look={look}>
-      <div className="hh-frame" aria-hidden="true"><i /><i /><i /><span>finlitventures.com</span></div>
-      <video ref={v} key={look} className="hh-video" src={media.video} poster={media.poster} onLoadedMetadata={resume}
-        autoPlay={!reduced()} muted loop playsInline controls preload="metadata" width={1280} height={720} aria-label={`A tour of FinLit in ${look} mode: screeners, company report, FinLit Prism, sector pages, fund health score and portfolio`} />
-      <figcaption>
-        <div className="hh-cap"><b>Product tour</b><span>{TOUR}</span></div>
-      </figcaption>
-    </figure>
-  );
-}
+import "../styles/explore-tools.css";
+import "../styles/prism-showcase.css";
+import "../styles/mf-showcase.css";
+import "../landing/golive.css";
 
 /** On a phone (mobile-app.css shows it under 860px only): the landing's first doors. A member sees "Continue to your dashboard" first; everyone sees
  *  the three places people start most (Markets today, a company, the screener). Owner, 25 Nov 2026: open on the landing, go on from there. */
@@ -62,37 +29,30 @@ function PhoneDoors() {
   );
 }
 
+type QuoteRows = { fields: string[]; rows: (string | number | null)[][] };
+
+/** Task #407: the landing page from the team's go-live pack (finlit-landing-golive-26nov.zip, 26 Nov 2026): hero with a company check and the product
+ *  tour, "Six areas. 40 tools.", FinLit Scores (Prism and Mutual Fund Score), "Where would you like to begin?", the plans and the closing line. The
+ *  markup is in landing/GoLiveMarkup.tsx; its interactive parts are run by landing/golive.js on the site's own data. */
 export function Home() {
   useDocTitle("Research deeper. Invest with clarity.", "Explore statistical scoring models, customizable analytical tools, comprehensive company reports, sector insights and much more for every listed Indian company, all in one platform. Information only, not investment advice.");
-  return (
-    <div className="hh">
-      <section className="hh-top" aria-labelledby="hh-title"><div className="wrap">
-        <PhoneDoors />
-        <p className="hh-strip"><span>Quantify the market</span><i aria-hidden="true">×</i><span>Research deeper</span><i aria-hidden="true">×</i><em>Track what matters.</em></p>
-        <div className="hh-top-cols">
-          <div>
-            <h1 id="hh-title" className="ui-title ui-title--marketing">Research deeper.<br /><em>Invest with clarity.</em></h1>
-            <p className="hh-lede">Explore statistical scoring models, customizable analytical tools, comprehensive company reports, sector insights and much more—all in one platform.</p>
-            <div className="cta-row">
-              <a className="btn lg hh-go" href="#platform" onClick={() => dispatchEvent(new Event(OPEN_EXPLORE))}>Explore the platform <Icon name="arrow" /></a>
-              <Link className="btn lg hh-ghost" to="/stocks/RELIANCE"><Icon name="building" />See a sample company report</Link>
-            </div>
-            <ul className="hh-trust" aria-label="Why start here">
-              <li><Icon name="check" />No card needed</li>
-              <li><Icon name="check" />Every listed company</li>
-              <li><Icon name="check" />Scores that show their working</li>
-            </ul>
-            <p className="hh-fine">Information only. Not investment advice.</p>
-          </div>
-          <Tour />
-        </div>
-      </div>
-      </section>
-
-      <ExploreTools />
-      <PrismShowcase />
-      <MfScoreShowcase />
-      {/* Task #295 (21 Nov 2026): the plans band is off the landing page for now; plans stay on /plans, which every upgrade link uses. */}
-    </div>
-  );
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  // the tour for the theme the page opens in, so only one recording loads (the pack: the dark recording on the light page, the light one on the dark)
+  const [tour] = useState(() => (typeof document !== "undefined" && document.documentElement.dataset.theme === "dark"
+    ? { src: "/landing/finlit-tour-light-720p.mp4", poster: "/landing/golive/tour-poster.jpg" }
+    : { src: "/landing/finlit-tour-dark-720p.mp4", poster: "/landing/golive/tour-dark-poster.jpg" }));
+  useEffect(() => initGoLive({
+    navigate: (to: string) => { void navigate(to); },
+    // the same cached list as the header search (lib/api useSearchIndex)
+    searchIndex: () => qc.fetchQuery({ queryKey: ["search-index"], queryFn: () => apiGet<SearchIndex>("/api/stocks/search-index"), staleTime: 3_600_000 }),
+    quote: async (symbol: string) => {
+      const q = await apiGet<QuoteRows>(`/api/search/quotes?symbols=${encodeURIComponent(symbol)}`);
+      const row = q.rows.find((r) => r[q.fields.indexOf("symbol")] === symbol);
+      if (!row) return null;
+      const at = (f: string) => row[q.fields.indexOf(f)];
+      return { price: (at("price") as number | null) ?? null, changePct: (at("changePct") as number | null) ?? null, priceDate: (at("priceDate") as string | null) ?? null };
+    },
+  }), [navigate, qc]);
+  return <GoLiveMarkup doors={<PhoneDoors />} tour={tour} />;
 }

@@ -109,6 +109,20 @@ Steps (one PR each):
    and loss, best and worst day, streak, daily heatmap; private to the member.
 
 
+### Stock zones (built 26 Nov 2026)
+
+Tab `/lab/flow?view=zones`, route `GET /api/lab/zones/{symbol}` (Lab members only; `backend/finlit/lab/zones.py`). It reads the stock's 5-minute
+candles of the last five sessions through `intraday.load(..., "5D")`, so it shares the stock page's Redis copy, Dhan pacing and daily cap: no new
+Dhan calls for a stock someone already looked at in the last minute. The chart shows the latest two sessions. Every area is a fixed rule:
+
+* Order block: the last candle against the move when, within three candles, price closes beyond it by at least twice the average range of the 20
+  candles up to it. Untested, tested (price came back into it) or broken (a close through its far side).
+* Fair-value gap: three candles where the third's low is above the first's high (or its high below the first's low), at least 0.1% wide. Open,
+  part filled or filled.
+* Previous day high, low and close; opening range (first 15 minutes); VWAP; floor pivots.
+
+Describe-only: the tab says where prices traded and whether price came back, never what to do.
+
 ## Ideas from the MarketPulse video (founder, 26 Nov 2026)
 
 The founder shared a second reference video (a "MarketPulse" dashboard). What fits FinLit, built one at a time after the Order Flow pages,

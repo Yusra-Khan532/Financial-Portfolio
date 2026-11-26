@@ -12,9 +12,10 @@
 import { holdingShort } from "./holdingName";
 import { BETA_RANGE_WORD } from "../portfolio/shared/words";
 import { countOf } from "../portfolio/shared/words";
-import { KIND_LOWER, SCORE_NAME, joinWords, kindsHeld, pctOf, rupees, type AllInvestments, type Kind, type KindRisk, type NamedHolding, type Tab } from "./myInvest";
+import { KIND_LOWER, SCORE_NAME, dateShort, joinWords, kindsHeld, pctOf, rupees, type AllInvestments, type Kind, type KindRisk, type NamedHolding, type Tab } from "./myInvest";
 import { namesUpTo } from "../portfolio/shared/words";
 import { nf } from "./format";
+import { priceStamp } from "../portfolio/pack/EqTop";
 
 // ------------------------------------------------------------------------------------------------ the seven stops
 export type MiStep = { id: string; n: number; label: string; secs: string[] };
@@ -89,7 +90,7 @@ export function riskSays(line: string | null | undefined, word: string | null | 
 export const coLabel = (c: { symbol?: string | null; name?: string | null }) => holdingShort(c.name && c.name !== c.symbol ? c.name : null, c.symbol ?? "") || c.name || c.symbol || "";
 
 // ------------------------------------------------------------------------------------------------ the four calm cards
-export type ViewCard = { id: Tab; k: string; v: string; x: string };
+export type ViewCard = { id: Tab; k: string; v: string; x: string; /** task #391 (developer file 41 v4, A3): what the figures are weighted by, under them */ b?: string };
 const VIEW_K: Record<Tab, string> = { all: "All together", equity: "Equity", mf: "Mutual funds", etf: "ETFs" };
 const TAB_KIND: Record<Exclude<Tab, "all">, Kind> = { equity: "shares", mf: "funds", etf: "etfs" };
 /** One card: its name, one figure and the line under it (the phone shows the name and the figure only). */
@@ -116,8 +117,10 @@ export function viewCard(t: Tab, d: AllInvestments): ViewCard {
       x: `${countOf(c.count, "fund")}${mv ? ` · ${mv} the Nifty 500` : ""}` };
   }
   const types = c.types ?? [];
+  // A3: the cost and the beta are weighted by value over the ETFs with a quantity (the ETF page may weigh each the same), so the card says its basis
   return { id: t, k, v: join(c.ter != null ? `${pctOf(c.ter, 2)} a year` : "Cost not published", mv),
-    x: `${countOf(c.count, "ETF")}${types.length ? ": " + types.map((x) => x.label.toLowerCase()).join(", ") : ""}` };
+    x: `${countOf(c.count, "ETF")}${types.length ? ": " + types.map((x) => x.label.toLowerCase()).join(", ") : ""}`,
+    b: c.valued ? `by value · ${nf(c.counted ?? c.count, 0)} of ${countOf(c.of ?? c.count, "ETF")}` : `each counts the same · ${countOf(c.count, "ETF")}` };
 }
 
 /** The kinds that count as an equal part (no quantity at all): the server's `missing` while it is not by value, the kinds held otherwise none. */
@@ -148,10 +151,69 @@ export function miSince(visit: string | null, fresh: number): { lead: string; re
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 /** "23 Nov" (with the year when `year`). */
 export const dayMon = (iso: string | null | undefined, year = false) => { if (!iso) return ""; const [y, m, dd] = iso.slice(0, 10).split("-"); return `${+dd} ${MON[+m - 1]}${year ? ` ${y}` : ""}`; };
+// ------------------------------------------------------------------------------------------------ which prices each kind uses (developer file 41 v4, A1)
+/** One kind's prices, read through the Equity page's own rule (portfolio/pack/EqTop priceStamp: a trade time inside the session is a live price, the
+ *  last minute of the session or a date alone is that day's close; India time): {time: "10:16" or null for a close, day: "26 Nov"}. */
+export type PriceWhen = { time: string | null; day: string };
+export function priceWhen(iso: string | null | undefined): PriceWhen | null {
+  const s = priceStamp(iso);
+  const m = s ? /^Prices at (close|\d\d:\d\d) · (.+)$/.exec(s) : null;
+  return m ? { time: m[1] === "close" ? null : m[1], day: m[2] } : null;
+}
+/** The shares' prices: their latest quote time (A1), else their latest date; an older answer without them gives the one date of all prices. */
+const sharesWhen = (d: AllInvestments) => priceWhen(d.sources.sharesAt ?? d.sources.sharesTo ?? (d.sources.etfsTo === undefined ? d.sources.pricesTo : null));
+const etfsWhen = (d: AllInvestments) => priceWhen(d.sources.etfsTo ?? (d.sources.sharesTo === undefined ? d.sources.pricesTo : null));
+const todayIst = () => new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
+const whenWord = (w: PriceWhen) => (w.time ? `at ${w.time}${w.day === todayIst() ? "" : ` on ${w.day}`}` : `close of ${w.day}`);
+
+/** The header's stamp, as the Equity page prints it: "Prices at 10:16 · 26 Nov" inside the session, "Prices at close · 25 Nov" after it. The shares'
+ *  quote when there are shares (the newest prices on the page), else the ETFs' close; none with funds only (they have a NAV, said in Data as of). */
+export function headerStamp(d: AllInvestments): string | null {
+  const w = (d.counts.shares ? sharesWhen(d) : null) ?? (d.counts.etfs ? etfsWhen(d) : null);
+  return w ? (w.time ? `Prices at ${w.time} · ${w.day}` : `Prices at close · ${w.day}`) : null;
+}
+
+/** Data as of, "Prices": one reading when every kind is on the same close ("close of 25 Nov"); otherwise each kind its own: "Shares at 10:16 · funds NAV
+ *  24 Nov · ETFs close of 23 Nov" (file 41 v4, A1: the header said "close" at 10:22, and the kinds were on different days). */
+export function pricesPart(d: AllInvestments): string | null {
+  const sh = d.counts.shares ? sharesWhen(d) : null, et = d.counts.etfs ? etfsWhen(d) : null;
+  const nav = d.counts.funds && d.sources.navsTo ? dayMon(d.sources.navsTo) : null;
+  const priced = [sh, et].filter((x): x is PriceWhen => !!x);
+  if (!priced.length && !nav) return null;
+  const one = priced.length > 0 && priced.every((w) => !w.time && w.day === priced[0].day) && (!nav || nav === priced[0].day);
+  if (one) return `close of ${priced[0].day}`;
+  if (priced.length === 1 && !nav) return priced[0].time ? `at ${priced[0].time} · ${priced[0].day}` : `close of ${priced[0].day}`;
+  // shares and ETFs on one close, the funds' NAV on another day: "Shares and ETFs close of 14 Nov · funds NAV 13 Nov"
+  if (sh && et && !sh.time && !et.time && sh.day === et.day) return `Shares and ETFs close of ${sh.day} · funds NAV ${nav}`;
+  const parts = [sh ? `Shares ${whenWord(sh)}` : "", nav ? `funds NAV ${nav}` : "", et ? `ETFs ${whenWord(et)}` : ""].filter(Boolean);
+  return parts.join(" · ").replace(/^./, (c) => c.toUpperCase());
+}
+
+/** The sources line at the foot (file 41 v4, E3): the funds' part only when there are funds, with their NAV date; each kind's prices as Data as of reads
+ *  them. "Shares and ETFs: NSE closing prices to 25 Nov 2026." when they share one close. */
+export function sourcesLine(d: AllInvestments): string {
+  const sh = d.counts.shares ? sharesWhen(d) : null, et = d.counts.etfs ? etfsWhen(d) : null;
+  const shTo = d.sources.sharesTo ?? d.sources.pricesTo, etTo = d.sources.etfsTo ?? d.sources.pricesTo;
+  const close = (k: string, iso: string | null | undefined) => `${k}: NSE closing prices to ${iso ? dateShort(iso) : "—"}.`;
+  const out: string[] = [];
+  if (sh && et && !sh.time && !et.time && sh.day === et.day) out.push(close("Shares and ETFs", shTo));
+  else {
+    if (sh) out.push(sh.time ? `Shares: NSE prices, the latest at ${sh.time} on ${sh.day}.` : close("Shares", shTo));
+    if (et) out.push(close("ETFs", etTo));
+  }
+  const f = d.sources.filesFrom, t = d.sources.filesTo;
+  const files = t ? ` (${f === t || !f ? dateShort(t) : `${dateShort(f)} to ${dateShort(t)}`})` : "";
+  if (d.counts.funds) out.push(`Funds: NAVs and costs from AMFI${d.sources.navsTo ? ` to ${dateShort(d.sources.navsTo)}` : ", no NAV date yet"}; holdings from each fund house's monthly portfolio file${files}.`);
+  else if (d.counts.etfs) out.push(`ETF holdings from each fund house's monthly portfolio file${files}.`);
+  out.push("Nifty 500 from NSE. Mutual fund investments are subject to market risks; read all scheme-related documents carefully. Past figures do not guarantee future returns. Information only, not investment advice.");
+  return out.join(" ");
+}
+
 /** Data as of: Prices close of 23 Nov · Fund and ETF holdings each file of 31 Oct 2026 · Filings the last 90 days · Risk weekly prices, past year. */
 export function asOfParts(d: AllInvestments, filingDays: number | null): [string, string][] {
   const out: [string, string][] = [];
-  if (d.sources.pricesTo) out.push(["Prices", `close of ${dayMon(d.sources.pricesTo)}`]);
+  const p = pricesPart(d);
+  if (p) out.push(["Prices", p]);
   const f = d.sources.filesFrom, t = d.sources.filesTo;
   if ((d.counts.funds || d.counts.etfs) && t) out.push([d.counts.funds && d.counts.etfs ? "Fund and ETF holdings" : d.counts.funds ? "Fund holdings" : "ETF holdings",
     f && f !== t ? `files of ${dayMon(f, true)} to ${dayMon(t, true)}` : `each file of ${dayMon(t, true)}`]);

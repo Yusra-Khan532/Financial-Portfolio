@@ -127,3 +127,7 @@ html.eqv-noscroll, html.eqv-noscroll body { overflow: hidden; }
 .eq .eqd-sheat-big tbody th button { font-size: var(--fs-13); }
 .eq .eqd-sheat-big thead :is(td, th):first-child { position: sticky; left: 0; top: 0; z-index: 3; background: var(--s1); }
 .eq .eqv-rest .v small.eqv-vw { margin-left: 4px; font: 400 var(--fs-12)/1 var(--sans); color: var(--muted); }
+/* Audit of 26 Nov (file 38, Part D): the inner gaps. The two pair cards ("Different macro sectors, moving together", "Most independent") 12 px apart
+   (was 10); the "By what you own now · Equal amounts" switch 18 px above the score card and 18 px under the picture above it (was 14 and 14) */
+.eq .eqd-pairs { margin-bottom: 12px; }
+.eq .eqv-sw, .eq .eqv-pc { margin-bottom: 18px; }
