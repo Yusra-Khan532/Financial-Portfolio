@@ -85,7 +85,7 @@ function Header({ onSearch }: { onSearch: () => void }) {
   return (
     <header className={"top" + (tool ? " top--tool" : "")}>
       <div className="wrap">
-        <Link className="logo" to="/" aria-label="FinLit home"><span className="lg-mark" role="img" aria-label="FinLit" /></Link>
+        <Link className="logo" to="/" aria-label="FinLit home"><span className="lg-mark" role="img" aria-label="FinLit Ventures" /></Link>
         {tool ? <><div className="grow" />{find}<div className="grow" />{wod}{ai}</> : <>
         <nav className="topnav" aria-label="Site">
           {sections.map((m) => <Menu key={m.id} m={m} open={open === m.id} setOpen={setOpen} path={loc.pathname} />)}
@@ -169,7 +169,7 @@ function SlimFooter() {
     <footer className="band foot-slim">
       <div className="wrap">
         <div className="fslim">
-          <div><span className="lg-mark" role="img" aria-label="FinLit" /><h2>Follow the numbers, not the noise.</h2></div>
+          <div><span className="lg-mark" role="img" aria-label="FinLit Ventures" /><h2>Follow the numbers, not the noise.</h2></div>
           <nav aria-label="Footer"><Link to="/about">About</Link><Link to="/plans">Pricing</Link><Link to="/blog">Blog</Link><Link to="/faq">FAQs</Link><Link to="/browser-extension">Browser extension</Link><Link to="/contact">Contact</Link><Link to="/legal/terms">Terms</Link><Link to="/legal/privacy">Privacy</Link><Link to="/legal/disclosures">Disclosures</Link><Link to="/status">Status</Link></nav>
         </div>
         <PhoneFootLinks />
@@ -189,7 +189,7 @@ function Footer() {
     <footer className="band">
       <div className="wrap">
         <div className="fcta">
-          <div><span className="lg-mark" role="img" aria-label="FinLit" style={{ marginBottom: 18 }} /><h2>Follow the numbers, not the noise.</h2>{!user && <p>Open a free account to follow stocks, set alerts and read the research reports we have built so far.</p>}</div>
+          <div><span className="lg-mark" role="img" aria-label="FinLit Ventures" style={{ marginBottom: 18 }} /><h2>Follow the numbers, not the noise.</h2>{!user && <p>Open a free account to follow stocks, set alerts and read the research reports we have built so far.</p>}</div>
           <div className="cta-row">{!user && <Link className="btn primary" to="/login?mode=signup">Create free account</Link>}<button className="btn" onClick={() => enquire()}>Talk to the team</button><HelpActions className="btn foot-help" /></div>
         </div>
         <div className="fcols fcols5">

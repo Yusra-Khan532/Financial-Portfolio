@@ -134,8 +134,8 @@ a { color: inherit; }
 .top .wrap { display: flex; align-items: center; gap: 12px; height: 62px; }
 .logo { display: inline-flex; align-items: center; text-decoration: none; flex: none; line-height: 0; }
 /* Logo from the brand image (temporary until the SVG arrives): dark-background version by default, light version in the light header */
-.lg-mark { display: block; height: 52px; aspect-ratio: 439 / 285; background: url("/brand/finlit-logo-on-dark.png") center / contain no-repeat; }
-:root[data-theme="light"] .top .lg-mark { background-image: url("/brand/finlit-logo-on-light.png"); }
+.lg-mark { display: block; height: 52px; aspect-ratio: 320 / 156; background: url("/brand/finlit-ventures-wordmark-on-dark.png") center / contain no-repeat; }   /* task #400: the FinLit Ventures logo; "VENTURES" is left out at header size, where it would be about 6px tall */
+:root[data-theme="light"] .top .lg-mark { background-image: url("/brand/finlit-ventures-wordmark-on-light.png"); }
 .fcta .lg-mark { height: 64px; }
 .topnav { display: flex; gap: 2px; margin-left: 8px; }
 .topnav a { text-decoration: none; font-size: var(--fs-14); font-weight: 500; color: var(--muted); padding: 8px 10px; border-radius: var(--r-ctl); transition: color .15s, background-color .15s; white-space: nowrap; }
