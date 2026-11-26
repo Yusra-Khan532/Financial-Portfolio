@@ -940,7 +940,7 @@ export const PAGE_FAQS: PageFaq[] = [
    },
    {
     "q": "What does \"Need a second look\" count?",
-    "a": "The cards over the table name the stocks worth a second look: a share price far ahead of the business score (or the other way round), most of the list in one industry, and stocks with no peer tag yet. They describe the figures; they are not advice."
+    "a": "The cards over the table name the stocks worth a second look: a share price far ahead of the business score (or the other way round), most of the list in one industry, and stocks with no peer label yet. They describe the figures; they are not advice."
    },
    {
     "q": "Can I set an alert from here?",

@@ -51,16 +51,19 @@ def message(row: Dict[str, Any]) -> Tuple[str, str]:
 
 
 async def changes(conn) -> Tuple[Optional[Any], List[Dict[str, Any]]]:
-    """The stocks whose published label changed in the latest weekly run, with the label they had before. A stock seen for the first time has no 'before'
-    and is not a change."""
-    as_of = await conn.fetchval("SELECT max(as_of) FROM leadership")
-    if as_of is None:
+    """Task #409: the stocks whose label changed in the latest weekly run, from the weekly record (peerlabels.py): rows with changed = true of the
+    latest current run, written by a real weekly run (source 'run'). The one-time rebuild's rows never alert. 'before' is the label of the stock's
+    previous stored row. A stock seen for the first time is never 'changed'."""
+    week = await conn.fetchval("SELECT max(week_end) FROM peer_label_run WHERE status = 'current'")
+    if week is None:
         return None, []
     rows = await conn.fetch(
-        "SELECT l.symbol, l.name, l.label, l.rank, l.ranked, l.group_short, l.group_name, l.as_of, "
-        "(SELECT h.label FROM leadership_history h WHERE h.symbol = l.symbol AND h.run_date < l.as_of AND h.label IS NOT NULL ORDER BY h.run_date DESC LIMIT 1) AS before "
-        "FROM leadership l WHERE l.as_of = $1 AND l.label_since = $1 AND l.label IS NOT NULL", as_of)
-    return as_of, [dict(r) for r in rows if r["before"] and r["before"] != r["label"] and r["label"] in WORD and r["before"] in WORD]
+        "SELECT w.symbol, l.name, w.label, w.rank, w.ranked, l.group_short, l.group_name, w.week_end AS as_of, "
+        "(SELECT p.label FROM peer_label_week p JOIN peer_label_run pr ON pr.run_id = p.run_id AND pr.status = 'current' "
+        " WHERE p.symbol = w.symbol AND p.week_end < w.week_end ORDER BY p.week_end DESC LIMIT 1) AS before "
+        "FROM peer_label_week w JOIN peer_label_run r ON r.run_id = w.run_id AND r.status = 'current' LEFT JOIN leadership l ON l.symbol = w.symbol "
+        "WHERE w.week_end = $1 AND w.changed AND w.source = 'run'", week)
+    return week, [dict(r) for r in rows if r["before"] and r["before"] != r["label"] and r["label"] in WORD and r["before"] in WORD]
 
 
 async def auto_label_alerts(pool, mailer: Mailer, site_url: str) -> int:

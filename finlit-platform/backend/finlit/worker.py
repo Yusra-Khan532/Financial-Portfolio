@@ -1185,6 +1185,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_ld.add_argument("--backfill-from", default=None, help="YYYY-MM-DD: also compute every 4th Friday back to this date, so the rank-history chart starts with points")
     p_ld.add_argument("--as-of", default=None, help="YYYY-MM-DD: the Friday to compute (default: the latest)")
     p_ld.add_argument("--if-stale", action="store_true", help="skip when the latest Friday is already done (a redeploy must not repeat the weekly run)")
+    sub.add_parser("rebuild-peer-labels", help="one time (task #409): build the weekly peer-label record from the stored weekly readings with the two-run rule; does nothing once it has rows")
     p_sl = sub.add_parser("refresh-scores-live", help="within minutes of a company's results being stored: recalculate its FinLit Prism rating (queued by refresh-results), one at a time, bounded (docs/REALTIME-SCORES.md)")
     p_sl.add_argument("--limit", type=int, default=0, help="companies per run (default RT_PRISM_PER_RUN, 20)")
     p_sl.add_argument("--max-minutes", type=float, default=12.0)
@@ -1704,6 +1705,10 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                     raise SystemExit("--shard must look like 0/2 (part/of, part below of)")
                 shard = (int(part), int(of))
             print(await prism.precompute(store, settings, limit=args.limit, max_minutes=args.max_minutes, days=args.days, shard=shard, stale_not_rated=args.stale_not_rated))
+            return 0
+        if args.cmd == "rebuild-peer-labels":
+            from . import peerlabels
+            print(json.dumps(await peerlabels.rebuild(store), default=str))
             return 0
         if args.cmd in ("refresh-leadership", "backtest-leadership"):
             from datetime import date as _date

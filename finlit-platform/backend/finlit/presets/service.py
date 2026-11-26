@@ -36,6 +36,22 @@ def nse_industries() -> Dict[str, str]:
     return _NSE
 
 
+async def _record_labels(store, reading) -> Optional[Dict[str, Optional[str]]]:
+    """symbol -> the weekly record's label in words, for the companies of the sector reading; None when the record has no rows yet (the sector
+    build's labels then stay) or cannot be read. Read after the weekly run has committed: the record only ever holds whole runs."""
+    if not reading or not reading.get("by"):
+        return None
+    try:
+        from .. import peerlabels
+        async with store.pool.acquire() as conn:
+            if not await peerlabels.has_rows(conn):
+                return None
+            return await peerlabels.label_words(conn, list(reading["by"]))
+    except Exception:
+        log.warning("the weekly peer-label record was not read for the sector screens; the sector build's labels are used tonight", exc_info=True)
+        return None
+
+
 async def build_frame(store, persist: bool = False, now: Optional[datetime] = None) -> engine.Frame:
     now = now or datetime.now(timezone.utc)
     expected = expected_session(now)
@@ -56,6 +72,7 @@ async def build_frame(store, persist: bool = False, now: Optional[datetime] = No
     for sym, f in (await _recent_results(store, as_of)).items():
         prism.setdefault(sym, {}).update(f)
     reading = sectorread.load()          # task #243 (pack v4): the Sector reading, from the live Sector Pulse and Rotation release (the job runs on weekend nights)
+    sectorread.apply_labels(reading, await _record_labels(store, reading))   # task #409: the peer label from the weekly record, as on every page
     sectorread.mark(prism, reading)
     clean = ind_mod.derive(zip(table.symbols, table.industry), overrides)
     nse = nse_industries()

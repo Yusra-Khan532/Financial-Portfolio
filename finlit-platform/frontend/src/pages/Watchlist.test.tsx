@@ -110,7 +110,7 @@ describe("Watchlists, as the pack draws it", () => {
   it("shows Price and business disagree with each stock's two ranks and the gap to its sector index", () => {
     open();
     const sec = screen.getByRole("heading", { name: /Price and business disagree/ }).closest("section") as HTMLElement;
-    expect(within(sec).getByText("The peer tag is about the share price. The business score ranks the company's results and balance sheet within the same group.")).toBeTruthy();
+    expect(within(sec).getByText("The peer label is about the share price. The business score ranks the company's results and balance sheet within the same group.")).toBeTruthy();
     expect(within(sec).getByText("When the price is far ahead of the business, the market may be expecting a lot. It is a prompt to read the report, not a call to act.")).toBeTruthy();
     expect(within(sec).getByText("2 of 20")).toBeTruthy(); expect(within(sec).getByText("16 of 20")).toBeTruthy();
     expect(within(sec).getByText("3 of 20")).toBeTruthy(); expect(within(sec).getByText("18 of 20")).toBeTruthy();

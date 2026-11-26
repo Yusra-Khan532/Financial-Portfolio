@@ -41,7 +41,7 @@ describe("the insight cards", () => {
     expect(cards.map((c) => [c.kind, c.title])).toEqual([["watch", "Price leads, the business lags"], ["warning", "Two of three stocks in one industry"], ["insight", "LOTUSDEV has under a year of prices"]]);
     expect(cards[0].text).toBe("WHEELS and SSWL are 2nd and 3rd of 20 Auto Parts: OEM companies on price, but 16th and 18th on the business score. Worth reading their reports to see why.");
     expect(cards[1].text).toBe("A downturn in the Auto Components industry would hit most of this list at once.");
-    expect(cards[2].text).toBe("With less than a year of share prices, it has no peer tag yet. It gets one once it has a full year of prices.");
+    expect(cards[2].text).toBe("With less than a year of share prices, it has no peer label yet. It gets one once it has a full year of prices.");
   });
   it("name a business ahead of its price, and stocks in different groups one by one", () => {
     const b: Item = { ...PACK[0], lead: { ...(PACK[0].lead as Extract<ListLead, { available: true }>), label: "laggard", rank: 17, fundamentalRank: 3, fundamentalNote: "stronger_than_price" } };

@@ -25,7 +25,7 @@ export const HELP = {
   prism: "FinLit Prism. FinLit's advanced rating of the company's financial health, from 0 to 100.",
   target: "Target. A price you set as a reminder for yourself. It is not a prediction.",
 };
-export const DISAGREE_SUB = "The peer tag is about the share price. The business score ranks the company's results and balance sheet within the same group.";
+export const DISAGREE_SUB = "The peer label is about the share price. The business score ranks the company's results and balance sheet within the same group.";
 export const DISAGREE_WHY = "When the price is far ahead of the business, the market may be expecting a lot. It is a prompt to read the report, not a call to act.";
 export const PAGE_DESC = "The companies you follow: how they are doing, against their peers, and what to look at next.";
 export const PLAIN = "lists, notes and targets are saved in this browser. Targets are your own reminders, not predictions; FinLit does not tell you when to buy or sell.";
@@ -103,7 +103,7 @@ export function concentrationTile(items: Item[]): { value: string; sub: string; 
 }
 
 /** The insight cards over the table: price ahead of the business (Watch out), the business ahead of the price (Insight), most of the list in one industry
- *  (Warning), and stocks with no peer tag because they have under a year of prices (Insight). */
+ *  (Warning), and stocks with no peer label because they have under a year of prices (Insight). */
 export function listCards(items: Item[]): Card[] {
   const out: Card[] = [];
   const ahead = items.filter((i) => { const l = lead(i); return l && l.fundamentalNote === "below_peers" && l.fundamentalRank != null; });
@@ -113,7 +113,7 @@ export function listCards(items: Item[]): Card[] {
   const c = concentrationTile(items);
   if (c.top && items.length >= 2 && c.n / items.length >= 0.5) out.push({ kind: "warning", title: `${cap1(c.n === items.length ? (items.length === 2 ? "both" : "all " + inWords(c.n)) : inWords(c.n) + " of " + inWords(items.length))} stocks in one industry`, text: `A downturn in the ${c.top} industry would hit ${c.n === items.length ? "all" : "most"} of this list at once.` });
   const young = items.filter((i) => i.lead && !i.lead.available && i.lead.reason === "history");
-  if (young.length) out.push({ kind: "insight", title: `${andList(young.slice(0, 3).map((i) => i.symbol))}${young.length > 3 ? ` and ${young.length - 3} more` : ""} ${young.length === 1 ? "has" : "have"} under a year of prices`, text: `With less than a year of share prices, ${young.length === 1 ? "it has" : "they have"} no peer tag yet. ${young.length === 1 ? "It gets one" : "Each gets one"} once ${young.length === 1 ? "it has" : "it has"} a full year of prices.` });
+  if (young.length) out.push({ kind: "insight", title: `${andList(young.slice(0, 3).map((i) => i.symbol))}${young.length > 3 ? ` and ${young.length - 3} more` : ""} ${young.length === 1 ? "has" : "have"} under a year of prices`, text: `With less than a year of share prices, ${young.length === 1 ? "it has" : "they have"} no peer label yet. ${young.length === 1 ? "It gets one" : "Each gets one"} once ${young.length === 1 ? "it has" : "it has"} a full year of prices.` });
   return out;
 }
 

@@ -82,6 +82,13 @@ async def _labels(conn, symbol: str, before: str, after: str, friday: date) -> N
                        "VALUES ($1, 'Reliance Industries Ltd', $2, 'Oil & gas', 'Oil & gas', 12, 11, $3, $3, $2)", symbol, friday, after)
     await conn.execute("INSERT INTO leadership_history (symbol, run_date, rank, ranked, label) VALUES ($1, $2, 6, 12, $3), ($1, $4, 11, 12, $5)",
                        symbol, friday - timedelta(days=7), before, friday, after)
+    # task #409: the alerts read the weekly record: last week's run with the old label, this week's run (a real one) where it changed
+    await conn.execute("DELETE FROM peer_label_week WHERE symbol = $1", symbol)
+    for wk, lab, ch in ((friday - timedelta(days=7), before, False), (friday, after, True)):
+        rid = f"run-test-{wk.isoformat()}"
+        await conn.execute("INSERT INTO peer_label_run (run_id, week_end, status, source) VALUES ($1, $2, 'current', 'run') ON CONFLICT (run_id) DO NOTHING", rid, wk)
+        await conn.execute("INSERT INTO peer_label_week (symbol, week_end, run_id, ranked, rank, reading, label, label_since, changed, rule_version, source) "
+                           "VALUES ($1, $2, $3, 12, $4, $5, $5, $2, $6, 'two-runs-v1', 'run')", symbol, wk, rid, 6 if not ch else 11, lab, ch)
 
 
 async def test_label_change_alerts_follow_each_lists_choice_once_per_week(app):  # noqa: F811
@@ -120,5 +127,6 @@ async def test_label_change_alerts_follow_each_lists_choice_once_per_week(app): 
     # a stock seen for the first time, or one whose label stayed the same, is not a change
     async with app.state.store.pool.acquire() as conn:
         await conn.execute("DELETE FROM leadership_history WHERE symbol = 'RELIANCE' AND run_date < '2026-11-13'")
+        await conn.execute("DELETE FROM peer_label_week WHERE symbol = 'RELIANCE' AND week_end < '2026-11-13'")   # task #409: the record is what the alerts read
         await conn.execute("DELETE FROM auto_alert_sent WHERE kind = 'label_change'")
     assert await la.auto_label_alerts(pool, mailer, "http://test") == 0
