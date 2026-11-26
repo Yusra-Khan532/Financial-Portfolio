@@ -1244,6 +1244,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_di.add_argument("--max-age-hours", type=float, default=None, help="skip when this ran fine in the last N hours")
     p_lf = sub.add_parser("refresh-lab-flow", help="every 3 minutes in market hours: the Trading Lab's Order Flow snapshot of every F&O stock (one Dhan quote call; lab/flow.py)")
     p_lf.add_argument("--history-seconds", type=float, default=90.0, help="at most this long filling missing previous-session open interest from Dhan's daily history")
+    p_lr = sub.add_parser("refresh-lab-rsi", help="every 15 minutes in market hours: the Trading Lab's RSI heatmap of every F&O stock (5-minute candles from Dhan, daily closes from price_daily; lab/rsi.py)")
+    p_lr.add_argument("--max-minutes", type=float, default=6.0, help="stop starting Dhan calls after this long; stocks not reached keep their stored candles")
     p_cm = sub.add_parser("refresh-commodities", help="commodity prices: MCX futures from Dhan and international prices from metals.dev / MetalpriceAPI into Redis (--loop: keeps running)")
     p_cm.add_argument("--loop", action="store_true")
     p_hp = sub.add_parser("history-probe", help="how many yearly statements each source holds for a few old companies (recorded at /api/mf/status, run:history-probe)")
@@ -1503,6 +1505,21 @@ async def main(argv: Optional[List[str]] = None, settings: Optional[Settings] = 
                     return 1
                 try:
                     result = await lab_flow.refresh(store, dc, history_seconds=args.history_seconds)
+                except DhanError as e:
+                    result = {"status": "failed", "error": str(e)}
+            await record_run(store, args.cmd, result)
+            print(result)
+            return 0 if result["status"] == "ok" else 1
+        if args.cmd == "refresh-lab-rsi":
+            from .dhan import DhanClient, DhanError
+            from .lab import rsi as lab_rsi
+            from .mf import record_run
+            async with DhanClient(settings, store.redis) as dc:
+                if not dc.configured:
+                    print({"status": "failed", "error": "Dhan is not set up (DHAN_CLIENT_ID empty)"})
+                    return 1
+                try:
+                    result = await lab_rsi.refresh(store, dc, max_minutes=args.max_minutes)
                 except DhanError as e:
                     result = {"status": "failed", "error": str(e)}
             await record_run(store, args.cmd, result)

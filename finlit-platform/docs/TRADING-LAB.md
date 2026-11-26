@@ -123,6 +123,37 @@ Dhan calls for a stock someone already looked at in the last minute. The chart s
 
 Describe-only: the tab says where prices traded and whether price came back, never what to do.
 
+### RSI heatmap (built 26 Nov 2026)
+
+Tab `/lab/flow?view=rsi`, route `GET /api/lab/rsi` (Lab members only, `no-store`; `backend/finlit/lab/rsi.py`). RSI(14) by Wilder's method
+(`analytics.indicators.rsi`, the same code as the company report's technicals) for every F&O stock on four timeframes:
+
+* 5 minutes: Dhan's 5-minute candles. Only the closes are kept, in Redis `lab:rsi:c5:{SYMBOL}` (about 30 calendar days, TTL 3 days).
+* 15 minutes and 1 hour: grouped from those candles from 09:15 IST, a bar's close being its last 5-minute close. Hourly bars are 09:15, 10:15 ...
+  14:15 and a short last bar 15:15 to 15:30.
+* 1 day: FinLit's daily closes (`price_daily`), with today's latest price as today's close until today's daily row is stored (never twice). No Dhan call.
+
+A value is shown from 50 bars; with fewer it is null with the reason. Bands are names only: 30 or less "oversold band", above 30 and below 40
+"weak", 40 to 60 "middle", above 60 and below 70 "strong", 70 or more "overbought band". The page says "RSI is a fixed formula on past closes; it is
+not a forecast." The grid (`lab:rsi:latest`, TTL 7 days) holds per stock the four values, the value one bar before, the band, the bar count, whether
+the latest bar is still forming and the bar times; per sector the average of each timeframe; per timeframe the count of stocks in each band. The
+route adds `asOf` and `stale` (older than 30 minutes in market hours, or 80 hours outside them).
+
+The page: band-count bars per timeframe (choosing a part filters the list to it), then the stocks by sector (each sector closes and opens, with its
+average row), cells 5m | 15m | 1h | 1D coloured by band; sort by name or by a timeframe's value, band, sector and search filters; a hover card on every
+cell (name, sector, price, the four values and bands, the value before and the change, the bar times, "includes the bar still forming"). On a
+phone (560px or less): a timeframe chooser and compact tiles, no sideways scroll. "How it is worked out" gives the formula.
+
+Job `lab-rsi` (`refresh-lab-rsi --max-minutes 6`, limit 9 minutes): every 15 minutes in market hours plus a closing pass at 15:45 on weekdays, only
+when Dhan is set up. The first fill of a stock asks 30 calendar days of 5-minute candles in one call; later runs ask only from the last stored bar
+and merge (no duplicates, trimmed to 30 days); a stock whose stored candles already end with the session's last bar, fetched after the close, is not
+asked again before the next session opens. Stocks fetched longest ago go first. Every call takes a slot of the shared Dhan Data API pacer
+(`intraday.slot(..., share=True)`: a second's slot only when no other call used that second, so the job makes at most one call a second and
+visitors keep the rest of the allowance) and counts against the 90,000-a-day cap. At its deadline the run stops starting calls and builds the grid
+from what is stored; stocks not reached keep their candles and go first next run. Budget: about 27 runs a weekday × 210 stocks ≈ 5,700 calls a
+day, about 6% of the cap. To check live: the 60-minute grouping is ours (from 5-minute bars), so it does not depend on how Dhan aligns its own
+60-minute candles; compare a stock's hourly value with a charting site that anchors hourly bars at 09:15.
+
 ## Ideas from the MarketPulse video (founder, 26 Nov 2026)
 
 The founder shared a second reference video (a "MarketPulse" dashboard). What fits FinLit, built one at a time after the Order Flow pages,
