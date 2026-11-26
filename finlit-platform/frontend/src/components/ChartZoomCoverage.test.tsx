@@ -19,6 +19,7 @@ const ZOOM = [
   "pages/MarketsToday.tsx",   // the Nifty 50 line (docs/MOBILE-APP.md)
   "pages/OrderFlow.tsx",      // Trading Lab > Order Flow: the market depth curve and the flow board
   "components/lab/OptionPulse.tsx",   // Trading Lab > Order Flow > Option Pulse: the OI ladder and the max pain curve
+  "components/lab/StockZones.tsx",    // Trading Lab > Order Flow > Stock zones: the candles with their zones and levels
   // company page
   "charts/MiniBars.tsx", "charts/PriceChart.tsx", "charts/IntradayChart.tsx", "charts/FinChart.tsx", "charts/LineChart.tsx", "charts/RoeLines.tsx", "charts/Waterfall.tsx", "charts/Radar.tsx", "charts/OutlookChart.tsx",
   "stock/Sections.tsx", "stock/Sections2.tsx", "stock/Sections3.tsx", "stock/ChartLab.tsx", "stock/SegmentMix.tsx", "stock/ProfitReality.tsx", "stock/RevenueCash.tsx",
@@ -58,6 +59,7 @@ const EXEMPT: Record<string, string> = {
   "portfolio/kit/KitSection.tsx": "the Hide button's eye icon (task #276); no data",
   "portfolio/kit/ViewCards.tsx": "the view cards' check and arrow icons (task #276); no data",
   "stock/IndustryCard.tsx": "section 05's Against its industry card (task #222): small bullet bars and table bars read with their printed figures, as the owner's pack draws them; no enlarge arrow in the pack",
+  "landing/GoLiveMarkup.tsx": "the landing page from the go-live pack (task #407): pictures of the Prism and Mutual Fund Score cards (rings and part bars, each with its printed figure) and small icons; a sample, not a chart to study",
   "components/MfScoreShowcase.tsx": "the landing page's Mutual Fund Score card (task #239): small score rings and part bars, each read with its printed figure, as the Prism card above it; a sample, not a chart to study",
   "components/AnswerText.tsx": "a small sketch of a series inside a FinLit AI answer (task #201); every figure is also in the answer's own text, so enlarging adds nothing",
   "components/ExploreTools.tsx": "decorative corner art on the six platform group cards; no data",

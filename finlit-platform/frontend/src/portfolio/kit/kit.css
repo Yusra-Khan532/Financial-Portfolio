@@ -328,3 +328,12 @@ a.ptk-chipl:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px;
 .ptk-bar::before, .ptk-bar::after, .ptk-frow.stuck::before, .ptk-frow.stuck::after { content: ""; position: absolute; inset: -1px; z-index: -1; pointer-events: none; }
 .ptk-bar::before, .ptk-frow.stuck::before { background: var(--bg); }
 .ptk-bar::after, .ptk-frow.stuck::after { background: inherit; border: inherit; border-radius: inherit; }
+/* Audit of 26 Nov (MF M4, ETF T4): the frame (.tw) bleeds to the card edge by the card's padding (F1) but the stuck filter row sits inside that padding,
+   so rows showed in the strip beside it (24 px at 1440, 16 at 390). The card's padding is now one value, --card-pad (24, 14 on a phone): the frame
+   bleeds by it and the stuck row's cover reaches as far, like the equity tools row (T10). The covers take the pointer, so what is under them is hidden
+   from a point test as well as from the eye. */
+.sp-sec:has(.ptk-frow) { --card-pad: 24px; }
+.sp-sec:has(.ptk-frow) .tw { --tw-pad: var(--card-pad); }
+.ptk-frow.stuck::before { left: calc(-1 * var(--card-pad, 24px)); right: calc(-1 * var(--card-pad, 24px)); }
+.ptk-bar::before, .ptk-frow.stuck::before { pointer-events: auto; }
+@media (max-width: 760px) { .sp-sec:has(.ptk-frow) { --card-pad: 14px; } }

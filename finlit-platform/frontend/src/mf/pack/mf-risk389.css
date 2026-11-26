@@ -71,3 +71,7 @@
 .mfr-so-more { padding: 0; border: 0; background: none; font: 600 var(--fs-13)/1.35 var(--sans); color: var(--text); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .mfr-so-more:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 .mfr-each .eqr-chip { white-space: nowrap; }
+/* Audit of 26 Nov (files 39, 40; SHARED.md spacing rule): the six beta ranges sit 12 px apart side by side and 18 px apart when they wrap, with 18 px
+   above them (under "Tap a fund below…") and 18 px below them (was 8 / 10 / 14); the MF and ETF pages both */
+.mfp .eqr-ranges.mfr-ranges { gap: 18px 12px; margin-bottom: 18px; }
+.mfp .eqr-hint { margin-bottom: 18px; }
