@@ -43,6 +43,7 @@ const OWN: { file: string; needle: RegExp; why: string }[] = [
 
 /** Drawings with nothing to enlarge: sparklines, gauges and rings that show one figure, decorative art, icons, tiny inline bars. */
 const EXEMPT: Record<string, string> = {
+  "stock/ProfitCharts.tsx": "Financials' profit and loss walk and ₹100 chart (developer file 42): drawn inside stock/MoreCharts.tsx's Card, whose ChartZoom carries the enlarge arrow",
   "components/lab/FlowTips.tsx": "the small day's path inside an Order Flow hover card (founder, 26 Nov 2026); the card follows the pointer, so it cannot hold an arrow, and the full chart is on the page",
   "components/AskChatMenu.tsx": "only the pin mark on a pinned FinLit AI chat (owner, 25 Nov 2026); no data",
   "components/mobile/MobileApp.tsx": "icons only: the Menu sheet's close mark and the Tools button's plus (docs/MOBILE-APP.md)",

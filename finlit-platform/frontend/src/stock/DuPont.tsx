@@ -96,9 +96,12 @@ export function DuPont({ symbol, lender, head }: { symbol: string; lender: boole
             </details>
           )}
           {summary && <p className="dp-sum1"><span className="dp-bulb"><Icon name="spark" /></span><span>{summary}</span></p>}
-          {d.words.slice(2).map((t, i) => <p className="dp-say faint" key={i}>{t}</p>)}
           {flagged.map((y) => <p className="dp-find" key={y.period}><Icon name="alert" /><span><b>Unusual year, {fy(y.period)}:</b> {y.flag}</span></p>)}
-          <p className="faint dp-note">Worked out from the company's own statements, using each year-end balance sheet. Net profit is the part that belongs to the company's shareholders. Information only, not investment advice.</p>
+          {/* founder, 26 Nov 2026: "too much blank space" beside the summary. The summary runs the card's width, and its notes sit side by side under it */}
+          <div className="dp-foot2">
+            {d.words.slice(2).map((t, i) => <p className="dp-say faint" key={i}>{t}</p>)}
+            <p className="faint dp-note">Worked out from the company's own statements, using each year-end balance sheet. Net profit is the part that belongs to the company's shareholders. Information only, not investment advice.</p>
+          </div>
           <DecodeRoe pl={f.data?.yearly.pl} bs={f.data?.yearly.bs} lender={lender} said={d.words} />
         </div>
       )}

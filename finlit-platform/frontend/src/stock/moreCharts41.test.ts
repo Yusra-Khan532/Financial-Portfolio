@@ -22,8 +22,9 @@ describe("the moved cards take their section's colour (Chart lab drew them all i
   it("the price statistics' label shows its plan, as the section headings and the Momentum card do", () => {
     expect(read("stock/Sections.tsx")).toContain('<p className="label rp-more-h">Price statistics <TierChip tier={PLAN_FOR_REPORT_EXTRAS} /></p>');
   });
-  it("the cash bridge (four steps) and the profit steps are drawn at the box's width when each step has room, so a phone sees the whole bridge", () => {
-    expect(more.match(/<Waterfall steps=\{steps\} fmt=\{crf\}( height=\{250\})? fit \/>/g)).toHaveLength(2);
+  it("the cash bridge (four steps) is drawn at the box's width when each step has room, so a phone sees the whole bridge", () => {
+    // developer file 42: the profit steps are rows now (stock/ProfitCharts.tsx ProfitBridge), so only the cash bridge is a waterfall
+    expect(more.match(/<Waterfall steps=\{steps\} fmt=\{crf\}( height=\{250\})? fit \/>/g)).toHaveLength(1);
   });
 });
 

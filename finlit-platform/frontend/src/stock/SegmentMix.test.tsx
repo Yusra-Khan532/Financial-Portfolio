@@ -19,11 +19,11 @@ const mk = (periods: string[], rows: Record<string, (number | null)[]>): Segment
 });
 
 describe("segment card with history", () => {
-  it("keeps the latest-year strip and tiles and adds the chart, table and insights", () => {
+  it("keeps the latest year's rows (developer file 42: ranked rows in place of the strip and tiles) and adds the chart, table and insights", () => {
     const html = card(LARGE);
     expect(html).toContain("Revenue by business segment");
-    expect(html).toContain('class="rib"');
-    expect(html).toContain("seg-l2");
+    expect(html).toContain('class="sgr"');
+    expect(html).not.toContain('class="rib"');
     expect(html).toContain("How the mix has changed");
     expect(html).toContain("Segment trends");
     expect(html).toContain("Revenue (₹ Cr)");
@@ -39,9 +39,9 @@ describe("segment card with history", () => {
     expect(html).toContain("Discontinued") ;                                       // not-reported rows are explained
     expect(html).toContain("Not reported in FY26");
   });
-  it("uses the same colour for a segment in the tile, the legend and the table", () => {
+  it("uses the same colour for a segment in its row, the legend and the table (developer file 42: one row in place of the strip and the tile)", () => {
     const html = card(LARGE);
-    expect(html.match(/--bc:var\(--k1\)/g)!.length).toBeGreaterThanOrEqual(3);   // tile, table row (and the strip)
+    expect(html.match(/--bc:var\(--k1\)/g)!.length).toBeGreaterThanOrEqual(2);   // tile, table row (and the strip)
     expect(html).toContain("background:var(--k1)");                                // legend + chart swatches
   });
   it("renders the real recorded data with its definition-change warning", () => {

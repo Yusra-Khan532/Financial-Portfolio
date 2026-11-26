@@ -13,6 +13,7 @@ import { MINUS, cr, dateIN, nf, signed } from "../lib/format";
 import { useBasis, setBasis, wasAutomatic, wasChosen, type Basis } from "../lib/basis";
 import { useIntraday, usePrice, useSection, type ApiError, type Financials, type Intraday, type IntradayRange, type Ratios, type Summary, type Table } from "../lib/api";
 import { barSpan, changePct, istDay, status as intradayStatus } from "../lib/intraday";
+import { hasOhlc } from "../lib/candles";
 import { useAuth } from "../lib/auth";
 import { finTiles, yoy } from "./derive";
 import { PL_INFO, PL_LABEL, plCell } from "./plDefinitions";
@@ -66,10 +67,18 @@ const RANGES = ["1M", "6M", "1Y", "3Y", "5Y", "MAX"];
 /** Intraday ranges (Dhan) and the plan each needs; every one needs a signed-in account, except on the free example company. */
 const INTRA: [IntradayRange, Plan][] = [["1D", "basic"], ["5D", PLAN_FOR_REPORT_EXTRAS], ["1M", PLAN_FOR_REPORT_EXTRAS]];
 const CAP: React.CSSProperties = { fontSize: "var(--fs-12)", padding: "0 6px 0 8px", alignSelf: "center", whiteSpace: "nowrap" };
+/** Developer file 42 (founder, 26 Nov 2026): the chart's two views, the close line and candles; every range and plan has both. */
+export type PriceView = "line" | "candles";
+/** The legend's swatches for candles: green closed at or above its open, red below; volume in the candle's own colour. */
+export function CandleKey() {
+  return <><span><i style={{ background: "var(--gain)" }} />Closed higher</span><span><i style={{ background: "var(--loss)" }} />Closed lower</span></>;
+}
+const VOL_KEY = (view: PriceView) => <span><i style={view === "candles" ? { background: "linear-gradient(90deg, var(--gain) 50%, var(--loss) 50%)", opacity: 0.45 } : { background: "var(--c4)", opacity: 0.6 }} />Volume</span>;
 export function PriceSection({ s, symbol, ratios }: { s: Summary; symbol: string; ratios?: Ratios }) {
   const [range, setRange] = useState("1Y"), [from, setFrom] = useState<number | undefined>();
   const [intra, setIntra] = useState<IntradayRange | null>(null);
   const [ind, setInd] = useState({ e50: true, e200: false, vol: true });
+  const [view, setView] = useState<PriceView>("line");
   const { has, upgrade } = useUI();
   const { user } = useAuth();
   const open = useContext(OpenAccess);
@@ -81,6 +90,8 @@ export function PriceSection({ s, symbol, ratios }: { s: Summary; symbol: string
   const t = data?.technical, series = data?.series, c = series?.c || [];
   const chg = intra ? (idata?.series ? changePct(idata) : null) : c.length > 1 ? (c[c.length - 1] / c[0] - 1) * 100 : null;
   const gold = has("gold"), e = (k: string, on: boolean) => gold ? on : k === "e50" ? true : k === "vol";
+  // candles need the open, high and low: intraday bars always have them; a daily or weekly range from an older server may send closes only
+  const ohlc = intra ? true : series ? hasOhlc(series) : true, candles = view === "candles" && ohlc;
   const pickIntra = (r: IntradayRange, tier: Plan) => {
     if (mayIntra(tier)) { setIntra(r); setFrom(undefined); return; }
     upgrade(tier, tier === "basic" ? "Intraday charts come with a free account." : "The 5D and 1M intraday charts are part of Silver.");
@@ -98,6 +109,7 @@ export function PriceSection({ s, symbol, ratios }: { s: Summary; symbol: string
           <ChartZoom label="Price chart" className="cz-r">
           <div className="tools">
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, minWidth: 0, maxWidth: "100%" }}>
+              <div className="seg" role="group" aria-label="Chart view">{([["line", "Line"], ["candles", "Candles"]] as const).map(([k, lab]) => <button key={k} aria-pressed={view === k} disabled={k === "candles" && !ohlc} title={k === "candles" && !ohlc ? "This range has closing prices only" : undefined} onClick={() => setView(k)}>{lab}</button>)}</div>
               <div className="seg" role="group" aria-label="Intraday range"><span className="faint" style={CAP}>Intraday</span>{INTRA.map(([r, tier]) => { const ok = mayIntra(tier); return <button key={r} aria-pressed={intra === r} aria-label={ok ? `${r} intraday` : `${r} intraday (${tier === "basic" ? "sign in" : "Paid plans"})`} onClick={() => pickIntra(r, tier)}>{!ok && <Icon name="lock" />}{r}</button>; })}</div>
               <div className="seg" role="group" aria-label="Range"><span className="faint" style={CAP}>Daily</span>{RANGES.map((r) => <button key={r} aria-pressed={!intra && !from && range === r} onClick={() => { setRange(r); setFrom(undefined); setIntra(null); }}>{r}</button>)}</div>
               <label className="faint" style={{ fontSize: "var(--fs-12)" }}>From year <select aria-label="From year" value={intra ? "" : from ?? ""} onChange={(e) => { setFrom(e.target.value ? Number(e.target.value) : undefined); setIntra(null); }}><option value="">Any</option>{fromYears().map((y) => <option key={y} value={y}>{y}</option>)}</select></label><ChartHelp id="price-section" /></div>
@@ -105,12 +117,12 @@ export function PriceSection({ s, symbol, ratios }: { s: Summary; symbol: string
               {!intra && <><button aria-pressed={ind.e50} onClick={() => setInd((x) => ({ ...x, e50: !x.e50 }))}>EMA 50</button><button aria-pressed={ind.e200} onClick={() => setInd((x) => ({ ...x, e200: !x.e200 }))}>EMA 200</button></>}<button aria-pressed={ind.vol} onClick={() => setInd((x) => ({ ...x, vol: !x.vol }))}>Volume</button></div>
               : <span className="tier gold" style={{ cursor: "pointer" }} onClick={() => upgrade("gold", "More indicators come with Gold.")}>More indicators in Gold</span>}
           </div>
-          {intra ? <IntradayBody q={iq} data={idata} showVol={e("vol", ind.vol)} chg={chg} /> : <>
+          {intra ? <IntradayBody q={iq} data={idata} showVol={e("vol", ind.vol)} chg={chg} view={candles ? "candles" : "line"} /> : <>
           {isLoading && <div className="skeleton" style={{ height: 340 }} />}
           {isError && <p className="muted">Price history is unavailable right now.</p>}
-          {data && series && c.length > 1 && <PriceChart data={data} showEma50={e("e50", ind.e50)} showEma200={e("e200", ind.e200)} showVol={e("vol", ind.vol)} />}
+          {data && series && c.length > 1 && <PriceChart data={data} showEma50={e("e50", ind.e50)} showEma200={e("e200", ind.e200)} showVol={e("vol", ind.vol)} candles={candles} />}
           {data && !data.complete && <p className="faint" style={{ fontSize: "var(--fs-12)", margin: "10px 0 0" }}>History for this company starts {data.startsAt ? dateIN(data.startsAt, { month: "short", year: "numeric" }) : "later"}, so this range is shorter than {range}.</p>}
-          {data && <div className="legend"><span className={"chip " + ((chg ?? 0) >= 0 ? "up" : "down")}>{signed(chg)} over the period</span><span><i className="ln" style={{ background: "var(--line)" }} />Close</span>{e("e50", ind.e50) && <span><i className="ln" style={{ background: "var(--c2)" }} />EMA 50</span>}{e("e200", ind.e200) && <span><i className="ln" style={{ background: "var(--c3)" }} />EMA 200</span>}{e("vol", ind.vol) && <span><i style={{ background: "var(--c4)", opacity: 0.6 }} />Volume</span>}{data.provisionalLastBar && <span className="faint">Latest bar is the live quote</span>}</div>}
+          {data && <div className="legend"><span className={"chip " + ((chg ?? 0) >= 0 ? "up" : "down")}>{signed(chg)} over the period</span>{candles ? <CandleKey /> : <span><i className="ln" style={{ background: "var(--line)" }} />Close</span>}{e("e50", ind.e50) && <span><i className="ln" style={{ background: "var(--c2)" }} />EMA 50</span>}{e("e200", ind.e200) && <span><i className="ln" style={{ background: "var(--c3)" }} />EMA 200</span>}{e("vol", ind.vol) && VOL_KEY(candles ? "candles" : "line")}{data.provisionalLastBar && <span className="faint">Latest bar is the live quote</span>}</div>}
           </>}
           </ChartZoom>
         </div>
@@ -134,7 +146,7 @@ export function PriceSection({ s, symbol, ratios }: { s: Summary; symbol: string
 const noop = () => {};
 
 /** The intraday chart with what it shows (session, source, as-of time), or why it cannot be shown. */
-function IntradayBody({ q, data, showVol, chg }: { q: { isPending: boolean; isError: boolean; error: ApiError | null }; data?: Intraday; showVol: boolean; chg: number | null }) {
+function IntradayBody({ q, data, showVol, chg, view }: { q: { isPending: boolean; isError: boolean; error: ApiError | null }; data?: Intraday; showVol: boolean; chg: number | null; view: PriceView }) {
   if (!data && q.isError) return <p className="muted">{q.error?.body.detail || "Intraday prices are unavailable right now."}</p>;
   if (!data) return <div className="skeleton" style={{ height: 340 }} />;
   const st = intradayStatus(data), sr = data.series, n = sr?.t.length ?? 0;
@@ -143,9 +155,9 @@ function IntradayBody({ q, data, showVol, chg }: { q: { isPending: boolean; isEr
       <div className="faint" style={{ fontSize: "var(--fs-12)", margin: "0 0 10px", display: "flex", flexWrap: "wrap", gap: "2px 12px" }}><b style={{ color: "var(--text)", fontWeight: 600 }}>{st.title}</b><span>{st.asOf}</span></div>
       {st.note && <p className={data.stale ? "neg" : "faint"} style={{ fontSize: "var(--fs-12)", margin: "0 0 10px" }}>{st.note}</p>}
       {!data.available && <p className="muted">{data.detail || "No recent trades."}</p>}
-      {sr && n > 1 && <IntradayChart data={data} showVol={showVol} />}
+      {sr && n > 1 && <IntradayChart data={data} showVol={showVol} candles={view === "candles"} />}
       {sr && n === 1 && <p className="muted">One price bar so far in this session: ₹{nf(sr.c[0])}, {barSpan(sr.t[0], data.interval)} IST.</p>}
-      {sr && n > 0 && <div className="legend"><span className={"chip " + ((chg ?? 0) >= 0 ? "up" : "down")}>{signed(chg)} since the open</span><span><i className="ln" style={{ background: "var(--line)" }} />Close</span>{showVol && <span><i style={{ background: "var(--c4)", opacity: 0.6 }} />Volume</span>}<span className="faint">Times are Indian (IST)</span></div>}
+      {sr && n > 0 && <div className="legend"><span className={"chip " + ((chg ?? 0) >= 0 ? "up" : "down")}>{signed(chg)} since the open</span>{view === "candles" && n > 1 ? <CandleKey /> : <span><i className="ln" style={{ background: "var(--line)" }} />Close</span>}{showVol && VOL_KEY(view === "candles" && n > 1 ? "candles" : "line")}<span className="faint">Times are Indian (IST)</span></div>}
     </>
   );
 }

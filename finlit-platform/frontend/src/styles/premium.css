@@ -244,8 +244,8 @@ tr.tot td { border-top: 1px solid var(--text); font-weight: 600; }
 .dcol i { background: var(--gold); }
 .cb { background: var(--oc); }
 .speed u { background: var(--gold); }
-.pt-bar, .kbar, .pin-bar, .dq-bar, .sl-bar, .ot-bar { border-radius: var(--ui-r-mark); }
-.pt-bar i, .kbar b, .pin-bar b, .dq-bar b, .sl-bar span, .ot-bar b { border-radius: var(--ui-r-mark); }
+.pt-bar, .kbar, .pin-bar, .dq-bar, .ot-bar { border-radius: var(--ui-r-mark); }
+.pt-bar i, .kbar b, .pin-bar b, .dq-bar b, .ot-bar b { border-radius: var(--ui-r-mark); }
 
 /* ---- plans / pricing ---- */
 .plan, .plan.feat { border: 1px solid var(--border-strong); background: var(--s1) !important; box-shadow: none; animation: none; }

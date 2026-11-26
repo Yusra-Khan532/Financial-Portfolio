@@ -28,10 +28,10 @@ export const CHART_HELP: Record<string, ChartHelpEntry> = {
   /* ---------------------------------------------------------------- stock page: price */
   "price-section": {
     title: "Price over time",
-    what: "The closing price of the share over the range you pick, with the 50-day and 200-day averages and trading volume as optional extras.",
+    what: "The closing price of the share over the range you pick, with the 50-day and 200-day averages and trading volume as optional extras. Candles draws each bar's open, high, low and close instead of the close alone.",
     x: "Date. Daily closes up to one year, weekly closes for longer ranges. The intraday ranges show Indian time: one bar a minute for 1D, every 5 minutes for 5D and every hour for 1M.",
     y: "Closing share price in rupees (right-hand scale). Bars along the bottom are shares traded, scaled to the busiest day.",
-    read: "A line climbing from left to right means the price has risen over the period. The averages smooth out day-to-day noise, so price above them points to an upward trend and below them to a downward one.",
+    read: "A line climbing from left to right means the price has risen over the period. The averages smooth out day-to-day noise, so price above them points to an upward trend and below them to a downward one. A candle is green when the price closed at or above where it opened and red when it closed below; its box runs from the open to the close and its thin line from the high to the low. When the range has more bars than the chart has room for, each candle covers a week, a month or a quarter (or 5 to 60 minutes, or a whole session, intraday), and the note under the chart says which.",
     why: "It puts today's price in context against where it has been, which is the starting point for judging whether a move is unusual.",
   },
   "monthly-returns": {
@@ -78,18 +78,18 @@ export const CHART_HELP: Record<string, ChartHelpEntry> = {
   /* ---------------------------------------------------------------- stock page: profit and loss */
   "pl-waterfall": {
     title: "From revenue to net profit",
-    what: "A step-by-step walk from the latest year's revenue down to the profit left for shareholders, showing every cost taken off along the way.",
-    x: "The steps in order: revenue, expenses, operating profit, other income, interest, depreciation, any one-offs, profit before tax, tax and net profit.",
-    y: "Amount in rupees crore for the latest financial year.",
-    read: "Blue bars are totals, green bars add to profit and red bars take away from it. The bigger the red step, the more of each rupee of revenue that cost uses up.",
+    what: "A step-by-step walk from the latest year's revenue down to the net profit that belongs to the company's shareholders. Every step adds up: each total is the one before it plus and minus the steps in between.",
+    x: "The steps in order, one row each: revenue, operating costs, operating profit, other income, interest, depreciation, any one-offs, profit before tax, tax, minority and other, and net profit. Operating costs are revenue less operating profit; the statement's \"Total expenses\" also holds interest and depreciation, which have their own rows here.",
+    y: "Each row's amount in rupees crore, and the same amount for every ₹100 of revenue. Minority and other is the difference between profit after tax and the net profit reported; for a group it is mostly the share of minority shareholders in its subsidiaries and its share of associates' results.",
+    read: "Blue rows are totals, green adds to profit and red takes away. Revenue and operating costs are far larger than the later steps, so their bars are cut short (a slanted break) and the scale fits the steps after them; their full amounts are in the ₹ Crore column. The bigger a red bar, the more of the revenue that cost uses up.",
     why: "It shows exactly which costs shrink the profit, rather than just the final number.",
   },
   "pl-margin-split": {
-    title: "Where each ₹100 of revenue goes",
-    what: "Each year's revenue split into expenses, interest, depreciation, tax and the net profit that remains. The columns are scaled to ₹100 of revenue.",
+    title: "Where each ₹100 of income goes",
+    what: "Each year's income (revenue plus other income) split into what it paid for: operating costs, interest, depreciation, tax, the share of minority shareholders and other items, and the net profit that remains. Every column is ₹100.",
     x: "Financial year (April to March).",
-    y: "Per cent of that year's revenue.",
-    read: "The green slice at the bottom is the profit kept from every ₹100 of sales. A green slice that grows from year to year means the business keeps more of each sale.",
+    y: "Rupees out of every ₹100 of income. Operating costs take most of it, so their part is cut short at the top (a slanted break) and the scale below the break shows the smaller parts.",
+    read: "The green part at the bottom is the profit kept from every ₹100. A green part that grows from year to year means the business keeps more of each rupee it takes in. Point at a year to read all its parts. Because income includes other income, the profit here is a little lower than the net margin on revenue.",
     why: "It shows whether profits are growing because sales are growing, or because the company is keeping more of each rupee it earns.",
   },
   eps: {

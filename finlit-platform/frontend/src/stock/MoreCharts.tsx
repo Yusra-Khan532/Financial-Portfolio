@@ -13,6 +13,8 @@ import { TabGroup } from "../components/TabGroup";
 import { ChartHelp } from "../components/ChartHelp";
 import { ChartZoom } from "../components/ChartZoom";
 import { PLAN_FOR_REPORT_EXTRAS } from "../lib/planGates";
+import { HundredChart, ProfitBridge } from "./ProfitCharts";
+import { bridge, type PlRows } from "./plBridge";
 
 type N = number | null;
 export type Stats = {
@@ -96,24 +98,19 @@ export function PriceStats({ symbol }: { symbol: string }) {
 export function PlCharts({ f }: { f?: Financials }) {
   const pl = f?.yearly.pl;
   if (!pl || pl.periods.length < 2) return <Soon>Profit and loss history is not available yet.</Soon>;
-  const n = pl.periods.length, last = n - 1, r = (k: string) => row(pl, k);
-  const rev = r("revenue"), exp = r("expenses"), op = r("operating_profit"), oi = r("other_income"), fin = r("finance_costs"), dep = r("depreciation"), ex = r("exceptional_items"), pbt = r("profit_before_tax"), tax = r("tax"), np = r("net_profit"), eps = r("eps");
-  const v = (a: N[]) => a[last] ?? 0;
-  const steps: Step[] = [{ label: "Revenue", value: v(rev), total: true }, { label: "Expenses", value: -Math.abs(v(exp)) }, { label: "Operating profit", value: v(op), total: true }, { label: "Other income", value: v(oi) },
-    { label: "Interest", value: -Math.abs(v(fin)) }, { label: "Depreciation", value: -Math.abs(v(dep)) }, ...(Math.abs(v(ex)) > 0.5 ? [{ label: "One-offs", value: v(ex) }] : []), { label: "Profit before tax", value: v(pbt), total: true }, { label: "Tax", value: -Math.abs(v(tax)) }, { label: "Net profit", value: v(np), total: true }];
-  const share = (a: N[]) => a.map((x, i) => (x != null && rev[i] ? (Math.abs(x) / (rev[i] as number)) * 100 : null));
+  const n = pl.periods.length, last = n - 1, r = (k: string) => row(pl, k), rows = pl.rows as PlRows;
+  const rev = r("revenue"), exp = r("expenses"), op = r("operating_profit"), oi = r("other_income"), fin = r("finance_costs"), dep = r("depreciation"), pbt = r("profit_before_tax"), tax = r("tax"), np = r("net_profit"), eps = r("eps");
+  // developer file 42: the steps add up (plBridge: operating costs are revenue less operating profit; "expenses" is total expenses)
+  const steps = bridge(rows, last);
   const chg = (a: N[]) => a.map((x, i) => (i && x != null && a[i - 1] ? ((x - (a[i - 1] as number)) / Math.abs(a[i - 1] as number)) * 100 : null)).slice(1);
-  const growth: [string, N[]][] = [["Revenue", rev], ["Expenses", exp], ["Operating profit", op], ["Other income", oi], ["Interest", fin], ["Depreciation", dep], ["Profit before tax", pbt], ["Tax", tax], ["Net profit", np], ["EPS", eps]];
+  const growth: [string, N[]][] = [["Revenue", rev], ["Total expenses", exp], ["Operating profit", op], ["Other income", oi], ["Interest", fin], ["Depreciation", dep], ["Profit before tax", pbt], ["Tax", tax], ["Net profit", np], ["EPS", eps]];
   return (
     <div className="cl-grid">
-      <Card ac="--p-growth" help="pl-waterfall" title={`From ${pl.periods[last]} revenue to net profit`} sub={`₹ Crore · ${pl.periods[last]}`} icon="profit" full note="Blue bars are totals, green adds to profit and red takes away. The steps show exactly where each rupee of revenue goes before it becomes profit.">
-        <Waterfall steps={steps} fmt={crf} fit />
+      <Card ac="--p-growth" help="pl-waterfall" title={`From ${pl.periods[last]} revenue to net profit`} sub={`₹ Crore · ${pl.periods[last]}`} icon="profit" full note="Blue rows are totals, green adds to profit and red takes away. Revenue and operating costs are much larger than the later steps, so their bars are cut short (the slanted break) and the scale fits the steps after them; their full amounts are on the right.">
+        {steps ? <ProfitBridge steps={steps} year={pl.periods[last]} /> : <Soon>A figure this walk needs is missing for {pl.periods[last]}.</Soon>}
       </Card>
-      <Card ac="--p-growth" help="pl-margin-split" title="Where each ₹100 of revenue goes" sub="Share of revenue by year" icon="pie" full note="The green slice is what is left as profit. A growing green slice means the business keeps more of each sale.">
-        <MiniBars fit mode="stack" labels={pl.periods} fmt={(x) => nf(x, 0) + "%"} height={230} dim={false} series={[
-          { key: "np", label: "Net profit", values: share(np).map((x) => (x != null ? Math.max(0, x) : x)), color: "var(--gain)" }, { key: "tax", label: "Tax", values: share(tax), color: C(4) },
-          { key: "dep", label: "Depreciation", values: share(dep), color: C(3) }, { key: "fin", label: "Interest", values: share(fin), color: C(5) }, { key: "exp", label: "Expenses", values: share(exp).map((x, i) => (x != null && rev[i] ? Math.min(x, 100) : x)), color: C(1) }]} />
-        <div className="clg"><span><i style={{ background: "var(--gain)" }} />Net profit</span><span><i style={{ background: C(4) }} />Tax</span><span><i style={{ background: C(3) }} />Depreciation</span><span><i style={{ background: C(5) }} />Interest</span><span><i style={{ background: C(1) }} />Expenses</span></div>
+      <Card ac="--p-growth" help="pl-margin-split" title="Where each ₹100 of income goes" sub="Revenue plus other income, by year" icon="pie" full note="Operating costs take most of every ₹100, so their part is cut short (the slanted break) and the scale below it shows the rest: interest, depreciation, tax and the net profit left (green). Point at a year to read all its parts. Income here includes other income, so the profit share is a little lower than the net margin on revenue in the walk above.">
+        <HundredChart periods={pl.periods} rows={rows} />
       </Card>
       <Card ac="--p-growth" help="yoy-growth" title="Year-on-year growth by line" sub="Percent change on the year before" icon="growth" full note="Green is growth, red is decline. For costs (expenses, interest, tax) green means the cost rose, which can be fine when revenue rose faster.">
         <HeatGrid cols={pl.periods.slice(1)} cap={40} fmt={(x) => sg(x, 0)} label="Year on year growth by line item" rows={growth.map(([label, a]) => ({ label, values: chg(a) }))} />
