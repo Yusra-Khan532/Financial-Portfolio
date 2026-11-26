@@ -50,9 +50,11 @@ describe("Order Flow: hover detail cards on Market depth", () => {
     const t = pop()!;
     expect(t).toBeTruthy();
     expect(within(t).getByText("POLICYBZR")).toBeTruthy();
-    expect(within(t).getByText("5 of 5 facts agree")).toBeTruthy();
-    for (const label of ["Open interest", "OI change", "VWAP", "Day range", "Zone", "Lot"]) expect(within(t).getByText(label)).toBeTruthy();
-    expect(within(t).getByLabelText(/^Pivots from 2026-11-24: S2 ₹92\.00, S1 ₹96\.00, P ₹100\.00, R1 ₹104\.00, R2 ₹108\.00; price ₹106\.48$/)).toBeTruthy();
+    for (const label of ["Rank", "OI", "OI change", "VWAP", "S1 / S2", "R1 / R2", "Zone", "Day range", "Facts", "Lot"]) expect(within(t).getByText(label)).toBeTruthy();
+    expect(within(t).getByText("96 / 92")).toBeTruthy();                          // S1 / S2 of the pivots
+    expect(within(t).getByText("104 / 108")).toBeTruthy();                        // R1 / R2
+    expect(within(t).getByText("Between R1 and R2")).toBeTruthy();
+    expect(within(t).getByText(/5 of 5/)).toBeTruthy();
     expect(card.className).toMatch(/oflow-3d/);
     fireEvent.pointerLeave(card);
     expect(pop()).toBeNull();
@@ -65,7 +67,7 @@ describe("Order Flow: hover detail cards on Market depth", () => {
   it("the curve, a band, a build-up tile and a sector each show their own detail", async () => {
     wrap(); await settle();
     point(screen.getByRole("img", { name: /Change of 4 F&O stocks/ }));
-    expect(within(pop()!).getByText("facts agree", { exact: false })).toBeTruthy();
+    expect(within(pop()!).getByText("Facts")).toBeTruthy();
     point(within(screen.getByRole("list", { name: "Stocks by band of the day's change" })).getAllByRole("listitem")[3]);
     expect(within(pop()!).getByText("Change above 5%")).toBeTruthy();
     expect(within(pop()!).getByText("POLICYBZR")).toBeTruthy();
@@ -86,7 +88,8 @@ describe("Order Flow: hover detail cards on the Flow board", () => {
   it("a line, a sector box, a build-up box and a direction bar each show their own detail", async () => {
     wrap("/lab/flow?view=board"); await settle();
     point(document.querySelectorAll(".oflow-lines path")[0]);
-    expect(within(pop()!).getByText("facts agree", { exact: false })).toBeTruthy();
+    expect(within(pop()!).getByText("Facts")).toBeTruthy();
+    expect(within(pop()!).getByText(/^#1 of 2 (rising|falling)$/)).toBeTruthy();   // its rank among the stocks moving its way
     point(screen.getByRole("button", { name: "Metals & Mining: 0 rising, 2 falling" }));
     expect(within(pop()!).getByText("2 F&O stocks")).toBeTruthy();
     point(screen.getByRole("button", { name: "Long build-up: 1 stocks" }));
@@ -94,11 +97,13 @@ describe("Order Flow: hover detail cards on the Flow board", () => {
     point(screen.getByRole("button", { name: "Rising: 2 stocks" }));
     expect(within(pop()!).getByText("Rising")).toBeTruthy();
   });
-  it("keeps one path per stock, with a % grid and big count badges", async () => {
+  it("keeps one path per stock, with a % grid, the rising and falling counts, and a box for every stock that moved", async () => {
     wrap("/lab/flow?view=board"); await settle();
     expect(document.querySelectorAll(".oflow-lines path").length).toBe(4);
     expect(document.querySelectorAll(".oflow-gridg text").length).toBeGreaterThanOrEqual(2);
-    expect([...document.querySelectorAll(".oflow-badge text")].map((t) => t.textContent)).toEqual(["2 rising", "2 falling"]);
+    expect([...document.querySelectorAll(".oflow-tlbl-t")].map((t) => t.textContent)).toEqual(["2 rising", "2 falling"]);
+    expect(document.querySelectorAll(".oflow-tile").length).toBe(4);
+    expect(document.querySelectorAll(".oflow-tile.big").length).toBe(4);         // two a side: both are among the three largest moves
   });
   it("the layout gives the % ticks of the lines area", () => {
     const b = layout(SNAP.stocks as never, SNAP.lines, ["Financial Services", "Metals & Mining"]);

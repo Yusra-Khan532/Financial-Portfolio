@@ -449,3 +449,28 @@ a.oflow-tab:hover:not([aria-current]) { background: color-mix(in srgb, var(--gol
 .oflow-tile-s { font-size: var(--fs-13); } .oflow-tile-p { font-size: var(--fs-14); }
 @media (max-width: 1240px) { .oflow-mapgrid { grid-template-columns: 180px minmax(0, 1fr); } .oflow-feat { display: flex; } .oflow-feat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 900px) { .oflow-mapgrid { grid-template-columns: minmax(0, 1fr); } .oflow-feat-row { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---- Boxes sized by the move, the three largest as big cards; the richer hover card (founder, 26 Nov 2026) ---- */
+.oflow-pop { width: min(440px, calc(100vw - 16px)); }
+.oflow-pop-t { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 14px; margin: 0; padding: 8px 10px; border-radius: var(--r-ctl); background: color-mix(in srgb, var(--text) 4%, transparent);
+  font-size: var(--fs-12); font-variant-numeric: tabular-nums; }
+.oflow-pop-t > div { display: flex; justify-content: space-between; gap: 8px; min-width: 0; }
+.oflow-pop-t dt { color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+.oflow-pop-t dd { margin: 0; font-weight: 600; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.oflow-pop-fd { display: inline-flex; align-items: center; gap: 3px; } .oflow-pop-fd i { width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--border); }
+.oflow-pop-fd i.on.gain { background: var(--gain); border-color: var(--gain); } .oflow-pop-fd i.on.loss { background: var(--loss); border-color: var(--loss); } .oflow-pop-fd i.unk { border-style: dashed; }
+.oflow-pop .oflow-candles { padding: 4px; }
+.oflow-zoneband.gain { fill: color-mix(in srgb, var(--gain) 12%, transparent); } .oflow-zoneband.loss { fill: color-mix(in srgb, var(--loss) 12%, transparent); }
+.oflow-pop-facts li { font-size: var(--fs-12); }
+.oflow-tile-s.sm { font-size: var(--fs-12); } .oflow-tile-p.sm { font-size: var(--fs-12); }
+.oflow-tile.big .oflow-tile-bg { stroke-width: 1.4; filter: drop-shadow(0 8px 16px color-mix(in srgb, var(--text) 26%, transparent)); }
+.oflow-tile.big:hover, .oflow-tile.big.lit { transform: scale(1.02); }
+.oflow-big-s { font-size: var(--fs-18); font-weight: 700; fill: var(--text); }
+.oflow-big-sec { font-size: var(--fs-12); fill: var(--muted); }
+.oflow-big-p { font-size: var(--fs-32); font-weight: 700; font-variant-numeric: tabular-nums; } .oflow-big-p.gain { fill: var(--gain); } .oflow-big-p.loss { fill: var(--loss); }
+.oflow-big-px { font-size: var(--fs-13); fill: var(--text); font-variant-numeric: tabular-nums; }
+.oflow-big-bu { font-size: var(--fs-12); font-weight: 600; fill: currentColor; }
+.oflow-big-l { font-size: var(--fs-12); fill: var(--muted); font-variant-numeric: tabular-nums; }
+.oflow-tring .oflow-ring-bg, .oflow-tring .oflow-ring-fg { stroke-width: 4; } .oflow-tring.gain .oflow-ring-fg { stroke: var(--gain); } .oflow-tring.loss .oflow-ring-fg { stroke: var(--loss); }
+.oflow-tile .oflow-candles { overflow: visible; }
+.oflow-tile-path .a { fill: currentColor; fill-opacity: 0.12; } .oflow-tile-path .l { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-opacity: 0.8; }

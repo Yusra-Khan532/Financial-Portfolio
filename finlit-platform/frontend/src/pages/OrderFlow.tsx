@@ -265,7 +265,7 @@ function FeatureCard({ s, lines, onHot }: { s: FlowStock; lines: FlowLines; onHo
   const b = s.buildup ? BUILDUP[s.buildup] : null, up = (s.changePct ?? 0) >= 0, pv = s.pivots;
   const r = 15, c = 2 * Math.PI * r, share = s.agreement.of ? s.agreement.score / s.agreement.of : 0;
   return (
-    <article className={`card oflow-feat-c oflow-3d ${up ? "up" : "down"}`} aria-labelledby={`oflow-f-${s.symbol}`}
+    <article className={`card oflow-feat-c oflow-3d ${up ? "up" : "down"}`} aria-label={`${s.symbol}, one of the largest ${up ? "rises" : "falls"}`}
       onPointerMove={(e) => { tilt.onPointerMove(e); onHot(s.symbol); tip.show(e, <StockPop s={s} lines={lines} />); }}
       onPointerLeave={(e) => { tilt.onPointerLeave(e); onHot(null); tip.hide(); }}>
       <header>
@@ -297,7 +297,7 @@ export function FlowBoard({ d }: { d: Ready }) {
   const order = useMemo(() => d.summary.sectors.map((s) => s.sector), [d]);
   const board = useMemo(() => layout(d.stocks, d.lines, order), [d, order]);
   const [every, setEvery] = useState(false);
-  const map = useMemo(() => flowMap(d.stocks, d.lines, { W: 1000, cols: 5, perSide: every ? Infinity : 25, tileH: 54 }), [d, every]);
+  const map = useMemo(() => flowMap(d.stocks, d.lines, { W: 1200, H: 1320, perSide: every ? 40 : 24 }), [d, every]);
   const [hot, setHot] = useState<Focus | null>(null);
   const [hotSym, setHotSym] = useState<string | null>(null);
   const [pick, setPick] = useState<Focus | null>(null);
@@ -319,13 +319,18 @@ export function FlowBoard({ d }: { d: Ready }) {
     onClick: () => choose(x), onKeyDown: (e: React.KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); choose(x); } },
   });
   const stockHover = (sym: string) => ({
-    onPointerMove: (e: React.PointerEvent) => { setHotSym(sym); tip.show(e, <StockPop s={bySym.get(sym)!} lines={d.lines} />); },
+    onPointerMove: (e: React.PointerEvent) => { setHotSym(sym); tip.show(e, <StockPop s={bySym.get(sym)!} lines={d.lines} rank={rankOf(sym)} />); },
     onPointerLeave: () => { setHotSym(null); tip.hide(); },
   });
+  const rankOf = (sym: string) => {   // where the stock stands by its change among the stocks moving its way
+    const s = bySym.get(sym)!, upS = (s.changePct ?? 0) > 0;
+    const side = d.stocks.filter((x) => x.changePct && ((x.changePct as number) > 0) === upS).sort((a, b) => Math.abs(b.changePct as number) - Math.abs(a.changePct as number));
+    return `#${side.findIndex((x) => x.symbol === sym) + 1} of ${side.length} ${upS ? "rising" : "falling"}`;
+  };
   const chosen = pick ? d.stocks.filter((s) => s.changePct && (!pick.sector || (s.sector || "Other") === pick.sector) && (pick.up == null || ((s.changePct as number) > 0) === pick.up) && (!pick.bucket || bucketOf(s) === pick.bucket)) : [];
   const B = board, cut = B.W * 0.47, M = map;
   const avgOf = new Map(d.summary.sectors.map((x) => [x.sector, x.avgChangePct]));
-  const feat = (up: boolean) => d.stocks.filter((s) => s.changePct && ((s.changePct as number) > 0) === up).slice(0, 3);
+  const feat = (up: boolean) => d.stocks.filter((s) => s.changePct && ((s.changePct as number) > 0) === up).sort((a, b) => Math.abs(b.changePct as number) - Math.abs(a.changePct as number)).slice(0, 3);
   const bucketChips = (
     <div className="oflow-bchips" role="group" aria-label="Build-ups">{B.buckets.map((b) => (
       <button key={b.bucket} type="button" className={`oflow-bchip ${bucketTone(b.bucket)}`} aria-pressed={pick?.bucket === b.bucket} aria-label={`${BUCKET_NAME[b.bucket]}: ${b.count} stocks`}
@@ -361,6 +366,8 @@ export function FlowBoard({ d }: { d: Ready }) {
       <defs>
         <linearGradient id="oflow-tile-gain" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="color-mix(in srgb, var(--gain) 22%, var(--s1))" /><stop offset="1" stopColor="color-mix(in srgb, var(--gain) 8%, var(--s1))" /></linearGradient>
         <linearGradient id="oflow-tile-loss" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="color-mix(in srgb, var(--loss) 22%, var(--s1))" /><stop offset="1" stopColor="color-mix(in srgb, var(--loss) 8%, var(--s1))" /></linearGradient>
+        <linearGradient id="oflow-tile-gain-big" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stopColor="color-mix(in srgb, var(--gain) 30%, var(--s1))" /><stop offset="1" stopColor="color-mix(in srgb, var(--gain) 10%, var(--s1))" /></linearGradient>
+        <linearGradient id="oflow-tile-loss-big" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stopColor="color-mix(in srgb, var(--loss) 30%, var(--s1))" /><stop offset="1" stopColor="color-mix(in srgb, var(--loss) 10%, var(--s1))" /></linearGradient>
         <linearGradient id="oflow-tower-gain" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="color-mix(in srgb, var(--gain) 30%, transparent)" /><stop offset="1" stopColor="color-mix(in srgb, var(--gain) 6%, transparent)" /></linearGradient>
         <linearGradient id="oflow-tower-loss" x1="0" x2="0" y1="1" y2="0"><stop offset="0" stopColor="color-mix(in srgb, var(--loss) 30%, transparent)" /><stop offset="1" stopColor="color-mix(in srgb, var(--loss) 6%, transparent)" /></linearGradient>
       </defs>
@@ -379,25 +386,49 @@ export function FlowBoard({ d }: { d: Ready }) {
         </g>))}
       <line x1={M.tower.x - 6} x2={M.W - 14} y1={M.split} y2={M.split} className="oflow-zero" />
       <g className="oflow-tiles">{M.tiles.map((t) => {
-        const s = bySym.get(t.symbol)!, b = s.buildup ? BUILDUP[s.buildup] : null;
-        const path = (d.lines.change[t.symbol] ?? []).map((v, i) => [i, v] as const).filter((p): p is readonly [number, number] => p[1] != null);
-        const T = Math.max(1, (d.lines.change[t.symbol] ?? []).length - 1), vs = path.map((p) => p[1]), lo = Math.min(0, ...vs), hi = Math.max(0, ...vs), sp = hi - lo || 1;
-        const spark = path.length > 1 ? path.map(([i, v], k) => `${k ? "L" : "M"}${(t.x + 4 + (i / T) * (t.w - 8)).toFixed(1)},${(t.y + t.h - 3 - ((v - lo) / sp) * 14).toFixed(1)}`).join("") : "";
+        const s = bySym.get(t.symbol)!, b = s.buildup ? BUILDUP[s.buildup] : null, pv = s.pivots;
+        const go = () => window.location.assign(`/stocks/${encodeURIComponent(t.symbol)}`);
+        const short = b ? ({ long_buildup: "Long BU", short_buildup: "Short BU", short_covering: "Covering", long_unwinding: "Unwinding" } as Record<string, string>)[s.buildup as string] : "—";
+        const sym = (max: number) => (t.symbol.length > max ? t.symbol.slice(0, max - 1) + "…" : t.symbol);
+        const fitChars = Math.max(3, Math.floor((t.w - 14) / 8.5));
+        const r = 13, c = 2 * Math.PI * r, share = s.agreement.of ? s.agreement.score / s.agreement.of : 0;
         return (
-          <g key={t.symbol} className={`oflow-tile ${t.up ? "gain" : "loss"}${state(t.symbol)}`} role="link" tabIndex={0} aria-label={`${t.symbol} ${pct(s.changePct)}, ${b ? b.name : "no build-up"}, ${s.agreement.score} of ${s.agreement.of} facts`}
-            onClick={() => { window.location.assign(`/stocks/${encodeURIComponent(t.symbol)}`); }} onKeyDown={(e) => { if (e.key === "Enter") window.location.assign(`/stocks/${encodeURIComponent(t.symbol)}`); }}
-            {...stockHover(t.symbol)} onFocus={() => setHotSym(t.symbol)} onBlur={() => setHotSym(null)}>
-            <rect x={t.x} y={t.y} width={t.w} height={t.h} rx="6" fill={`url(#oflow-tile-${t.up ? "gain" : "loss"})`} className="oflow-tile-bg" />
-            <rect x={t.x} y={t.y} width="3" height={t.h} className="oflow-tile-edge" />
-            {spark && <path d={spark} className="oflow-tile-sp" />}
-            <text x={t.x + 8} y={t.y + 14} className="oflow-tile-s">{t.symbol.length > 9 ? t.symbol.slice(0, 8) + "…" : t.symbol}</text>
-            <text x={t.x + t.w - 5} y={t.y + 13} textAnchor="end" className="oflow-tile-r">{String(t.rank).padStart(2, "0")}</text>
-            <text x={t.x + 8} y={t.y + 31} className={`oflow-tile-p ${tone(s.changePct)}`}>{pct(s.changePct)}</text>
-            <text x={t.x + t.w - 6} y={t.y + t.h - 5} textAnchor="end" className="oflow-tile-b">{b ? ({ long_buildup: "Long BU", short_buildup: "Short BU", short_covering: "Covering", long_unwinding: "Unwinding" } as Record<string, string>)[s.buildup as string] : "—"}</text>
-            {Array.from({ length: s.agreement.of }, (_, k) => <circle key={k} cx={t.x + 10 + k * 7} cy={t.y + t.h - 9} r="2.4" className={k < s.agreement.score ? "oflow-tile-dot on" : "oflow-tile-dot"} />)}
+          <g key={t.symbol} className={`oflow-tile ${t.up ? "gain" : "loss"}${t.big ? " big" : ""}${state(t.symbol)}`} role="link" tabIndex={0}
+            aria-label={`${t.symbol} ${pct(s.changePct)}, ${b ? b.name : "no build-up"}, ${s.agreement.score} of ${s.agreement.of} facts`}
+            onClick={go} onKeyDown={(e) => { if (e.key === "Enter") go(); }} {...stockHover(t.symbol)} onFocus={() => setHotSym(t.symbol)} onBlur={() => setHotSym(null)}>
+            <rect x={t.x} y={t.y} width={t.w} height={t.h} rx={t.big ? 10 : 5} fill={`url(#oflow-tile-${t.up ? "gain" : "loss"}${t.big ? "-big" : ""})`} className="oflow-tile-bg" />
+            <rect x={t.x} y={t.y} width={t.big ? 4 : 3} height={t.h} className="oflow-tile-edge" />
+            {t.big ? <>
+              <text x={t.x + 14} y={t.y + 24} className="oflow-big-s">{sym(12)}</text>
+              <text x={t.x + 14} y={t.y + 40} className="oflow-big-sec">{(s.sector ?? "").slice(0, 22)}</text>
+              <g transform={`translate(${t.x + t.w - 22},${t.y + 22})`} className={`oflow-tring ${t.up ? "gain" : "loss"}`}><circle r={r} className="oflow-ring-bg" /><circle r={r} className="oflow-ring-fg" strokeDasharray={`${(share * c).toFixed(1)} ${c.toFixed(1)}`} transform="rotate(-90)" />
+                <text y="4" textAnchor="middle" className="oflow-ring-t">{s.agreement.score}/{s.agreement.of}</text></g>
+              <text x={t.x + 14} y={t.y + 76} className={`oflow-big-p ${tone(s.changePct)}`}>{pct(s.changePct)}</text>
+              <text x={t.x + 14} y={t.y + 96} className="oflow-big-px">{inr(s.price)} {s.change == null ? "" : `${s.change > 0 ? "+" : ""}${s.change.toFixed(2)}`}</text>
+              <text x={t.x + 14} y={t.y + 114} className="oflow-big-bu">{b ? b.name : "No build-up"} · OI {pct(s.oiChangePct, 1)}</text>
+              {t.h >= 196 ? <Candles s={s} lines={d.lines} h={140} at={{ x: t.x + 8, y: t.y + 122, w: t.w - 16, h: t.h - 150 }} /> : <Candles s={s} lines={d.lines} h={150} at={{ x: t.x + t.w * 0.54, y: t.y + 42, w: t.w * 0.46 - 8, h: t.h - 66 }} />}
+              <text x={t.x + 14} y={t.y + t.h - 10} className="oflow-big-l">{pv ? `S1 ${pv.s1.toLocaleString("en-IN", { maximumFractionDigits: 1 })}   ·   R1 ${pv.r1.toLocaleString("en-IN", { maximumFractionDigits: 1 })}   ·   ${s.zone ? ZONE[s.zone] : ""}` : "Pivots not available"}</text>
+            </> : t.h >= 42 && t.w >= 66 ? <>
+              <text x={t.x + 7} y={t.y + 14} className="oflow-tile-s">{sym(fitChars)}</text>
+              <text x={t.x + t.w - 5} y={t.y + 13} textAnchor="end" className="oflow-tile-r">{t.w >= 110 && t.symbol.length <= 8 ? String(t.rank).padStart(2, "0") : ""}</text>
+              <text x={t.x + 7} y={t.y + 30} className={`oflow-tile-p ${tone(s.changePct)}`}>{pct(s.changePct)}</text>
+              {t.h >= 70 && (() => {   // the day's path inside the box, between the figures and the build-up
+                const v = (d.lines.change[t.symbol] ?? []).map((x, i) => [i, x] as const).filter((p): p is readonly [number, number] => p[1] != null);
+                if (v.length < 2) return null;
+                const T = Math.max(1, (d.lines.change[t.symbol] ?? []).length - 1), lo = Math.min(0, ...v.map((p) => p[1])), hi = Math.max(0, ...v.map((p) => p[1])), sp = hi - lo || 1;
+                const top = t.y + 38, hh = t.h - 38 - 20, xx = (i: number) => t.x + 6 + (i / T) * (t.w - 12), yy = (c: number) => top + ((hi - c) / sp) * hh;
+                const dd = v.map(([i, c], k) => `${k ? "L" : "M"}${xx(i).toFixed(1)},${yy(c).toFixed(1)}`).join("");
+                return <g className="oflow-tile-path"><path d={`${dd}L${xx(v[v.length - 1][0]).toFixed(1)},${yy(0).toFixed(1)}L${xx(v[0][0]).toFixed(1)},${yy(0).toFixed(1)}Z`} className="a" /><path d={dd} className="l" /></g>;
+              })()}
+              {t.h >= 52 && <text x={t.x + 7} y={t.y + t.h - 7} className="oflow-tile-b">{short}</text>}
+              {t.h >= 52 && t.w >= 110 && Array.from({ length: s.agreement.of }, (_, k) => <circle key={k} cx={t.x + t.w - 38 + k * 7} cy={t.y + t.h - 10} r="2.2" className={k < s.agreement.score ? "oflow-tile-dot on" : "oflow-tile-dot"} />)}
+            </> : <>
+              <text x={t.x + 6} y={t.y + Math.min(t.h / 2 + 4, 14)} className="oflow-tile-s sm">{sym(Math.max(3, Math.floor((t.w - 10) / 7)))}</text>
+              {t.h >= 26 && <text x={t.x + 6} y={t.y + 25} className={`oflow-tile-p sm ${tone(s.changePct)}`}>{pct(s.changePct, 1)}</text>}
+            </>}
           </g>);
       })}</g>
-      {(M.more.up > 0 || M.more.down > 0) && <text x={M.W - 14} y={M.H - 3} textAnchor="end" className="oflow-t">{M.more.up + M.more.down} more stocks on the tower; "Show every stock" lists them all</text>}
+      {(M.more.up > 0 || M.more.down > 0) && <text x={M.W - 14} y={M.H - 1} textAnchor="end" className="oflow-t">Boxes: the {M.tiles.filter((t) => t.up).length} largest rises and {M.tiles.filter((t) => !t.up).length} largest falls, sized by the move; {M.more.up + M.more.down} more on the tower</text>}
     </svg>
   );
   return (
@@ -408,18 +439,18 @@ export function FlowBoard({ d }: { d: Ready }) {
       {narrow ? <>
         <div className="oflow-dirs" role="group" aria-label="Direction">{[{ up: true, n: B.rising.count, name: "rising" }, { up: false, n: B.falling.count, name: "falling" }].map((x) => (
           <button key={x.name} type="button" className={`oflow-bchip ${x.up ? "gain" : "loss"}`} aria-pressed={pick?.up === x.up && !pick.sector && !pick.bucket} onClick={() => choose({ up: x.up })}><b>{x.n}</b> {x.name}</button>))}</div>
-        {phoneLines}{sectorRows}{bucketChips}</>
+        {phoneLines}{sectorRows}{bucketChips}
+        <section className="oflow-feat" aria-label="Largest moves">
+          {[true, false].map((up) => <div key={String(up)} className="oflow-feat-g"><h4 className={`oflow-side ${up ? "gain" : "loss"}`}><Icon name={up ? "growth" : "decline"} /> {up ? "Largest rises" : "Largest falls"}</h4>
+            <div className="oflow-feat-row">{feat(up).map((s) => <FeatureCard key={s.symbol} s={s} lines={d.lines} onHot={setHotSym} />)}</div></div>)}
+        </section></>
         : <>{bucketChips}
           <div className="oflow-mapgrid">
             <aside className="oflow-msec" aria-label="Sectors">{sectorRows}</aside>
             <div className="oflow-mapmain"><ChartZoom label="Flow board"><div className="oflow-board-wrap">{mapSvg}</div></ChartZoom>
-              <button type="button" className="chip oflow-every" aria-pressed={every} onClick={() => setEvery((v) => !v)}>{every ? "Show the 25 a side with the most facts" : "Show every stock as a tile"}</button></div>
+              <button type="button" className="chip oflow-every" aria-pressed={every} onClick={() => setEvery((v) => !v)}>{every ? "Show the 24 largest moves a side" : "Show 40 a side"}</button></div>
           </div>
-          <section className="oflow-feat" aria-label="Most facts lined up">
-            <h3>Most facts lined up</h3>
-            {[true, false].map((up) => <div key={String(up)} className="oflow-feat-g"><h4 className={`oflow-side ${up ? "gain" : "loss"}`}><Icon name={up ? "growth" : "decline"} /> {up ? "Rising" : "Falling"}</h4>
-              <div className="oflow-feat-row">{feat(up).map((s) => <FeatureCard key={s.symbol} s={s} lines={d.lines} onHot={setHotSym} />)}</div></div>)}
-          </section></>}
+</>}
       <div className="oflow-legend muted">
         <span><i className="sw gain" />Rising</span><span><i className="sw loss" />Falling</span>
         <span>Tiles: change, build-up, and a dot for each of five facts that agree with the move; the number is its rank by facts lined up</span>

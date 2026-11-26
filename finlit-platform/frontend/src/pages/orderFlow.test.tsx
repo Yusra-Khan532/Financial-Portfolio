@@ -124,7 +124,7 @@ describe("Order Flow > Flow board", () => {
     expect(document.querySelectorAll(".oflow-lines path.dim").length).toBe(2);
     fireEvent.click(metals);
     expect(screen.queryByRole("article", { name: "TATASTEEL" })).toBeNull();
-    fireEvent.keyDown(screen.getByRole("button", { name: "Long build-up: 1 stocks" }), { key: "Enter" });
+    fireEvent.click(screen.getByRole("button", { name: "Long build-up: 1 stocks" }));
     expect(screen.getByRole("heading", { name: "Long build-up: 1 stock" })).toBeTruthy();
     expect(screen.getByRole("article", { name: "POLICYBZR" })).toBeTruthy();
   });

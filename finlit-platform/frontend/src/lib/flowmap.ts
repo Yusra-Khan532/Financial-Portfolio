@@ -5,7 +5,7 @@ import type { FlowLines, FlowStock } from "./flow";
 
 export type MapLine = { symbol: string; up: boolean; d: string };
 export type Tick = { symbol: string; up: boolean; y: number; len: number };
-export type Tile = { symbol: string; up: boolean; x: number; y: number; w: number; h: number; rank: number };
+export type Tile = { symbol: string; up: boolean; x: number; y: number; w: number; h: number; rank: number; big: boolean };
 export type Link = { symbol: string; up: boolean; d: string };
 export type FlowMap = {
   W: number; H: number; lines: MapLine[]; ticks: Tick[]; tiles: Tile[]; links: Link[];
@@ -14,23 +14,52 @@ export type FlowMap = {
   more: { up: number; down: number };
 };
 
-const cmp = (a: FlowStock, b: FlowStock) => b.agreement.score - a.agreement.score || Math.abs(b.oiChangePct ?? 0) - Math.abs(a.oiChangePct ?? 0) || Math.abs(b.changePct ?? 0) - Math.abs(a.changePct ?? 0);
 
-/** `perSide`: how many tiles each side shows (most facts lined up first); Infinity shows every stock. */
-export function flowMap(stocks: FlowStock[], lines: FlowLines, opts: { W?: number; cols?: number; perSide?: number; tileH?: number } = {}): FlowMap {
-  const W = opts.W ?? 1000, cols = opts.cols ?? 5, perSide = opts.perSide ?? 30, TH = opts.tileH ?? 46, GAP = 6, PAD = 14;
+/** Lays one side's stocks out as boxes sized by how far they moved: the smallest moves in narrow columns on the left, larger ones to the right,
+ *  and the three largest as big cards in the last column (founder, 26 Nov 2026, from the reference video: "if there is a big gain, a big box"). */
+export function sizedBoxes(list: FlowStock[], x0: number, x1: number, y0: number, y1: number, up: boolean, opts: { bigCount?: number; minH?: number; gap?: number } = {}): Tile[] {
+  const GAP = opts.gap ?? 5, minH = opts.minH ?? 20, nb = Math.min(opts.bigCount ?? 3, list.length);
+  const wt = (s: FlowStock) => Math.max(0.05, Math.abs(s.changePct ?? 0));
+  const sorted = [...list].sort((a, b) => wt(b) - wt(a));                    // largest move first
+  const big = sorted.slice(0, nb), rest = sorted.slice(nb);
+  const H = y1 - y0, W = x1 - x0;
+  // columns from the right: the big column, then columns holding more and smaller boxes the further left they go
+  const cols: FlowStock[][] = [];
+  let i = 0, count = 4;
+  while (i < rest.length) { cols.push(rest.slice(i, i + count)); i += count; count = Math.min(count + 1, Math.max(4, Math.floor(H / (minH + GAP)))); }
+  const colWeight = cols.map((c) => c.reduce((a, s) => a + wt(s), 0) / c.length);
+  const bigW = big.length ? Math.max(W * 0.46, 330) : 0;
+  const restW = W - bigW - (big.length && cols.length ? GAP * 2 : 0) - Math.max(0, cols.length - 1) * GAP;
+  const totalCW = colWeight.reduce((a, b) => a + b, 0) || 1;
+  const widths = colWeight.map((w) => Math.max(58, (w / totalCW) * restW));
+  const scale = restW / (widths.reduce((a, b) => a + b, 0) || 1);
+  const out: Tile[] = [];
+  const stack = (items: FlowStock[], x: number, w: number, isBig: boolean) => {
+    const avail = H - GAP * (items.length - 1);
+    const ex = isBig ? 0.35 : 1.3;   // the three big cards stay close in height (each needs room for its chart); the small boxes follow the move strongly
+    let hs = items.map((s) => Math.max(isBig ? 196 : minH, (Math.pow(wt(s), ex) / items.reduce((a, x) => a + Math.pow(wt(x), ex), 0)) * avail));
+    const k = avail / hs.reduce((a, b) => a + b, 0); hs = hs.map((h) => h * k);
+    let y = y0;
+    items.forEach((s, j) => { out.push({ symbol: s.symbol, up, x, y, w, h: hs[j], rank: sorted.indexOf(s) + 1, big: isBig }); y += hs[j] + GAP; });
+  };
+  // left to right: the smallest column first
+  let x = x0;
+  for (let c = cols.length - 1; c >= 0; c--) { const w = widths[c] * scale; stack(cols[c], x, w, false); x += w + GAP; }
+  if (big.length) stack(big, x1 - bigW, bigW, true);
+  return out;
+}
+
+/** `perSide`: how many stocks each side shows as boxes (the largest moves); the rest are on the tower only. */
+export function flowMap(stocks: FlowStock[], lines: FlowLines, opts: { W?: number; H?: number; perSide?: number } = {}): FlowMap {
+  const W = opts.W ?? 1000, H = opts.H ?? 1000, perSide = opts.perSide ?? 24, PAD = 14, SPLIT = 34;
   const S = stocks.filter((s) => s.changePct != null && s.changePct !== 0);
   const up = S.filter((s) => (s.changePct as number) > 0).sort((a, b) => (b.changePct as number) - (a.changePct as number));
   const down = S.filter((s) => (s.changePct as number) < 0).sort((a, b) => (b.changePct as number) - (a.changePct as number));
-  const tUp = [...up].sort(cmp).slice(0, perSide), tDown = [...down].sort(cmp).slice(0, perSide);
-  const rowsUp = Math.ceil(tUp.length / cols), rowsDown = Math.ceil(tDown.length / cols);
-  const SPLIT = 34;                                     // the gap between the rising and the falling half (it holds the zero mark)
-  const tilesH = (rowsUp + rowsDown) * (TH + GAP) + SPLIT;
-  const H = Math.max(440, tilesH + 2 * PAD);
+  const tUp = [...up].sort((a, b) => (b.changePct as number) - (a.changePct as number)).slice(0, perSide);
+  const tDown = [...down].sort((a, b) => (a.changePct as number) - (b.changePct as number)).slice(0, perSide);
 
-  // Columns: lines | tower | links | tiles
-  const L0 = PAD + 34, L1 = W * 0.34, TX = W * 0.37, TW = W * 0.045, GX = W * 0.5, GW = W - GX - PAD, TWD = (GW - (cols - 1) * GAP) / cols;
-  // tower: every stock one tick, rising from the top down to the middle split, falling from the split down
+  // Columns: lines | tower | links | boxes
+  const L0 = PAD + 34, L1 = W * 0.27, TX = W * 0.29, TW = W * 0.035, GX = W * 0.38, GR = W - PAD;
   const n = Math.max(1, S.length), avail = H - 2 * PAD - SPLIT, unit = avail / n;
   const top = PAD, mid = top + up.length * unit, bottom = mid + SPLIT + down.length * unit;
   const maxAbs = Math.max(0.01, ...S.map((s) => Math.abs(s.changePct as number)));
@@ -40,7 +69,6 @@ export function flowMap(stocks: FlowStock[], lines: FlowLines, opts: { W?: numbe
   ];
   const tickOf = new Map(ticks.map((t) => [t.symbol, t]));
 
-  // lines of the day, each ending in its tick
   const vals = S.flatMap((s) => (lines.change[s.symbol] ?? []).filter((v): v is number => v != null)).concat(S.map((s) => s.changePct as number), [0]);
   const lo = Math.min(...vals), hi = Math.max(...vals), span = hi - lo || 1;
   const T = Math.max(1, lines.times.length - 1);
@@ -53,12 +81,10 @@ export function flowMap(stocks: FlowStock[], lines: FlowLines, opts: { W?: numbe
     return { symbol: s.symbol, up: (s.changePct as number) > 0, d };
   });
 
-  // tiles: rising rows from the top, falling rows below the split (centred in the board's height)
-  const y0 = (H - tilesH) / 2;
-  const place = (list: FlowStock[], startY: number, isUp: boolean): Tile[] => list.map((s, i) => ({
-    symbol: s.symbol, up: isUp, rank: i + 1, w: TWD, h: TH, x: GX + (i % cols) * (TWD + GAP), y: startY + Math.floor(i / cols) * (TH + GAP),
-  }));
-  const tiles = [...place(tUp, y0, true), ...place(tDown, y0 + rowsUp * (TH + GAP) + SPLIT, false)];
+  // boxes: the rising half above the split and the falling half below, each at least 30% of the height so a one-sided day still reads
+  const usable = H - 2 * PAD - SPLIT, share = Math.min(0.56, Math.max(0.44, up.length / Math.max(1, up.length + down.length)));
+  const upH = tUp.length && tDown.length ? usable * share : tUp.length ? usable : 0;
+  const tiles = [...sizedBoxes(tUp, GX, GR, PAD, PAD + upH, true), ...sizedBoxes(tDown, GX, GR, PAD + upH + SPLIT, H - PAD, false)];
   const links: Link[] = tiles.map((tl) => {
     const t = tickOf.get(tl.symbol)!, x0 = TX + TW + 4, x1 = tl.x, y1 = tl.y + tl.h / 2, cx = (x0 + x1) / 2;
     return { symbol: tl.symbol, up: tl.up, d: `M${x0.toFixed(1)},${t.y.toFixed(1)}C${cx.toFixed(1)},${t.y.toFixed(1)} ${cx.toFixed(1)},${y1.toFixed(1)} ${x1.toFixed(1)},${y1.toFixed(1)}` };
@@ -69,7 +95,7 @@ export function flowMap(stocks: FlowStock[], lines: FlowLines, opts: { W?: numbe
   for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) grid.push({ y: ly(v), label: `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(step < 1 ? 1 : 0)}%` });
   const times = lines.times.length ? [0, Math.floor(T / 2), T].filter((v, i, a) => a.indexOf(v) === i).map((i) => ({ x: lx(i), label: lines.times[i] })) : [];
   return { W, H, lines: mapLines, ticks, tiles, links, tower: { x: TX, w: TW, top, mid, bottom, up: up.length, down: down.length }, grid, times, zeroY: ly(0),
-    split: mid + SPLIT / 2, more: { up: up.length - tUp.length, down: down.length - tDown.length } };
+    split: PAD + upH + SPLIT / 2, more: { up: up.length - tUp.length, down: down.length - tDown.length } };
 }
 
 /** 15-minute bars from the 3-minute snapshots of one stock, in rupees: open, high, low, close of the snapshots inside each 15 minutes.

@@ -54,7 +54,7 @@ function Path({ values, up }: { values: (number | null)[] | undefined; up: boole
 
 /** 15-minute candles from the day's 3-minute snapshots, with the pivot levels (S2 to R2) and VWAP drawn across, and the last price marked.
  *  Used in the hover card and on the Flow board's feature cards. */
-export function Candles({ s, lines, h = 132, levels = true }: { s: FlowStock; lines: FlowLines; h?: number; levels?: boolean }) {
+export function Candles({ s, lines, h = 132, levels = true, at }: { s: FlowStock; lines: FlowLines; h?: number; levels?: boolean; at?: { x: number; y: number; w: number; h: number } }) {
   const b = bars(lines.change[s.symbol], lines.times, s.previousClose);
   if (b.length < 2) return <Path values={lines.change[s.symbol]} up={(s.changePct ?? 0) >= 0} />;
   const W = 300, PADR = 66, PADY = 8, pv = s.pivots;
@@ -66,7 +66,13 @@ export function Candles({ s, lines, h = 132, levels = true }: { s: FlowStock; li
   const y = (v: number) => PADY + ((hi - v) / sp) * (h - 2 * PADY - 12);
   const bw = (W - PADR) / b.length;
   return (
-    <svg className="oflow-candles" viewBox={`0 0 ${W} ${h}`} role="img" aria-label={`${s.symbol}: ${b.length} bars of 15 minutes from ${b[0].t} to ${b[b.length - 1].t}${pv ? `, pivots S2 ${inr(pv.s2)} to R2 ${inr(pv.r2)}` : ""}`}>
+    <svg className="oflow-candles" viewBox={`0 0 ${W} ${h}`} {...(at ? { x: at.x, y: at.y, width: at.w, height: at.h, preserveAspectRatio: "xMidYMid meet" } : {})} role="img" aria-label={`${s.symbol}: ${b.length} bars of 15 minutes from ${b[0].t} to ${b[b.length - 1].t}${pv ? `, pivots S2 ${inr(pv.s2)} to R2 ${inr(pv.r2)}` : ""}`}>
+      {(() => {   // the zone the price sits in: shaded between the nearest level below and above it
+        const all = pv ? ([["S2", pv.s2], ["S1", pv.s1], ["P", pv.p], ["R1", pv.r1], ["R2", pv.r2]] as [string, number][]) : [];
+        const below = all.filter(([, v]) => v <= s.price).pop(), above = all.find(([, v]) => v > s.price);
+        if (!levels || !below || !above || !lv.some((x) => x[0] === below[0]) || !lv.some((x) => x[0] === above[0])) return null;
+        return <rect x="0" width={W - PADR + 4} y={y(above[1])} height={Math.max(1, y(below[1]) - y(above[1]))} className={`oflow-zoneband ${(s.changePct ?? 0) >= 0 ? "gain" : "loss"}`} />;
+      })()}
       {lv.map(([k, v]) => <g key={k} className={`oflow-lvl ${k[0]}`}><line x1="0" x2={W - PADR + 4} y1={y(v)} y2={y(v)} /><text x={W - PADR + 8} y={y(v) + 4}>{k} {v.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</text></g>)}
       {s.vwap != null && s.vwap >= bl - reach && s.vwap <= bh + reach && <line className="oflow-lvl-vw" x1="0" x2={W - PADR + 4} y1={y(s.vwap)} y2={y(s.vwap)} />}
       {b.map((x, i) => {
@@ -79,55 +85,36 @@ export function Candles({ s, lines, h = 132, levels = true }: { s: FlowStock; li
   );
 }
 
-/** S2 to R2 on one line, with the price and VWAP marked where they sit. */
-function Ladder({ s }: { s: FlowStock }) {
-  const pv = s.pivots;
-  if (!pv) return <p className="oflow-pop-na">Pivots: {s.notes.find((x) => x.startsWith("pivots:"))?.slice(8) ?? "not available"}</p>;
-  const lv = [["S2", pv.s2], ["S1", pv.s1], ["P", pv.p], ["R1", pv.r1], ["R2", pv.r2]] as const;
-  const lo = Math.min(pv.s2, s.price, s.vwap ?? pv.s2), hi = Math.max(pv.r2, s.price, s.vwap ?? pv.r2), sp = hi - lo || 1;
-  const at = (v: number) => `${((v - lo) / sp) * 100}%`;
-  return (
-    <div className="oflow-ladder" aria-label={`Pivots from ${s.pivotsFrom}: ${lv.map(([k, v]) => `${k} ${inr(v)}`).join(", ")}; price ${inr(s.price)}`}>
-      <div className="oflow-ladder-rail">
-        {lv.map(([k, v]) => <span key={k} className={`lv ${k[0]}`} style={{ left: at(v) }}><i /><small>{k}</small></span>)}
-        {s.vwap != null && <span className="vw" style={{ left: at(s.vwap) }} title={`VWAP ${inr(s.vwap)}`} />}
-        <span className={`px ${s.direction >= 0 ? "gain" : "loss"}`} style={{ left: at(s.price) }}><b>{inr(s.price)}</b></span>
-      </div>
-      <div className="oflow-ladder-v">{lv.map(([k, v]) => <span key={k}>{v.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>)}</div>
-      {s.vwap != null && <p className="oflow-ladder-k"><i aria-hidden="true" />VWAP {inr(s.vwap)} · pivots from the session of {s.pivotsFrom}</p>}
-    </div>
-  );
-}
-
 const big = (n: number | null) => (n == null ? "—" : Math.abs(n) >= 1e7 ? `${(n / 1e7).toFixed(2)} cr` : Math.abs(n) >= 1e5 ? `${(n / 1e5).toFixed(2)} lakh` : n.toLocaleString("en-IN"));
 
-export function StockPop({ s, lines }: { s: FlowStock; lines: FlowLines }) {
+export function StockPop({ s, lines, rank }: { s: FlowStock; lines: FlowLines; rank?: string }) {
   const b = s.buildup ? BUILDUP[s.buildup] : null;
-  const up = s.direction >= 0;
+  const up = s.direction >= 0, pv = s.pivots, n2 = (v: number) => v.toLocaleString("en-IN", { maximumFractionDigits: v >= 1000 ? 0 : 1 });
+  const rows: [string, React.ReactNode][] = [
+    ["Rank", rank ?? "—"],
+    ["OI", <>{pct(s.oiChangePct, 1)} · {b ? b.name : "no build-up"}</>],
+    ["OI change", s.oiChange == null ? "—" : `${s.oiChange > 0 ? "+" : ""}${big(s.oiChange)}`],
+    ["VWAP", s.vwap == null ? "—" : <>{n2(s.vwap)} · <span className={tone(s.vwapGapPct)}>{(s.vwapGapPct ?? 0) >= 0 ? "above" : "below"}</span></>],
+    ["S1 / S2", pv ? `${n2(pv.s1)} / ${n2(pv.s2)}` : "—"],
+    ["R1 / R2", pv ? `${n2(pv.r1)} / ${n2(pv.r2)}` : "—"],
+    ["Zone", s.zone ? ZONE[s.zone] : "—"],
+    ["Day range", s.low == null || s.high == null ? "—" : `${n2(s.low)} – ${n2(s.high)}`],
+    ["Facts", <span className="oflow-pop-fd">{s.agreement.score} of {s.agreement.of} {FACTS.map((f) => { const v = s.agreement.facts[f.key]; return <i key={f.key} className={v ? (up ? "on gain" : "on loss") : v == null ? "unk" : ""} />; })}</span>],
+    ["Lot", s.lot ?? "—"],
+  ];
   return (
     <>
       <header className="oflow-pop-h">
         <div><b>{s.symbol}</b><small>{s.name}{s.sector ? ` · ${s.sector}` : ""}</small></div>
-        <div className="r"><b>{inr(s.price)}</b><span className={tone(s.changePct)}>{pct(s.changePct)}</span></div>
+        <div className="r"><b>{inr(s.price)}</b><span className={tone(s.changePct)}>{pct(s.changePct)} · {s.change == null ? "" : `${s.change > 0 ? "+" : ""}${s.change.toFixed(2)}`}</span></div>
       </header>
-      <Candles s={s} lines={lines} />
-      <p className="oflow-pop-na">15-minute bars from the 3-minute snapshots · dashed lines: S2 to R2 · gold: VWAP</p>
-      <div className="oflow-pop-bu">
-        {b ? <><span className={`oflow-pill ${b.tone}`}>{b.name}</span><small>{b.what}</small></> : <><span className="oflow-pill">No build-up</span><small>{s.notes.find((n) => n.startsWith("oi:"))?.slice(4) ?? "Price and open interest did not both move."}</small></>}
-      </div>
-      <dl className="oflow-pop-g">
-        <div><dt>Open interest</dt><dd>{big(s.oi)}</dd></div>
-        <div><dt>OI change</dt><dd>{s.oiChange == null ? "—" : `${s.oiChange > 0 ? "+" : ""}${big(s.oiChange)} (${pct(s.oiChangePct)})`}</dd></div>
-        <div><dt>VWAP</dt><dd>{inr(s.vwap)} <span className={tone(s.vwapGapPct)}>{s.vwap == null ? "" : pct(s.vwapGapPct)}</span></dd></div>
-        <div><dt>Day range</dt><dd>{inr(s.low)} – {inr(s.high)}</dd></div>
-        <div><dt>Zone</dt><dd>{s.zone ? ZONE[s.zone] : "—"}</dd></div>
-        <div><dt>Lot</dt><dd>{s.lot ?? "—"}</dd></div>
-      </dl>
-      <Ladder s={s} />
+      <dl className="oflow-pop-t">{rows.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
+      <Candles s={s} lines={lines} h={170} />
+      <p className="oflow-pop-na">15-minute bars from the 3-minute snapshots · dashed: pivot levels · shaded: the zone the price is in · gold: VWAP{pv ? ` · pivots from ${s.pivotsFrom}` : ""}</p>
       <div className="oflow-pop-facts">
-        <b>{s.agreement.score} of {s.agreement.of} facts agree</b>
         <ul>{FACTS.map((f) => { const v = s.agreement.facts[f.key]; return <li key={f.key} className={v ? (up ? "y gain" : "y loss") : v == null ? "u" : "n"}><i aria-hidden="true">{v ? "✓" : v == null ? "?" : "✕"}</i>{up ? f.up : f.down}</li>; })}</ul>
       </div>
+      {b && <p className="oflow-pop-what">{b.name}: {b.what}</p>}
     </>
   );
 }
