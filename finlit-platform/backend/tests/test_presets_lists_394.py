@@ -367,3 +367,49 @@ async def test_the_holiday_list_is_removed_and_spells_move_to_the_session_before
             await conn.execute("DELETE FROM screen_runs WHERE preset_id = 'zz-hol'")
             await conn.execute("DELETE FROM screen_snapshots WHERE preset_id = 'zz-hol'")
             await conn.execute("DELETE FROM screen_spells WHERE preset_id = 'zz-hol'")
+
+
+@pytest.mark.asyncio
+async def test_the_lists_are_rebuilt_once_the_candles_hold_a_newer_list_day(store):  # noqa: F811
+    """26 Nov 2026: the 25 Nov candles came in the morning, the charts moved to 25 Nov, the lists (built at 01:57 IST) still said 23 Nov until the
+    next night. The presets probe says there is work when the candles' list day is newer than the lists', found the way the job finds it."""
+    import json
+    from datetime import datetime, timezone
+    from finlit.jobs import probes
+    from finlit.jobs.registry import by_name
+    from finlit.prism_candles import expected_session
+    assert by_name()["presets"].probe == "presets" and by_name()["presets"].min_gap_min >= 60
+    now = datetime.now(timezone.utc)
+    expected = expected_session(now)
+    older = expected - timedelta(days=1)
+    while older.weekday() >= 5:
+        older -= timedelta(days=1)
+
+    async def put(day, n):
+        async with store.pool.acquire() as conn:
+            await conn.executemany("INSERT INTO daily_candles (symbol, day, open, high, low, close, volume, exch) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT DO NOTHING",
+                                   [(f"ZZL{i:03d}", day, 10.0, 11.0, 9.0, 10.5, 1000, "NSE") for i in range(n)])
+
+    async def built(day):
+        async with store.pool.acquire() as conn:
+            await conn.execute("INSERT INTO preset_meta (key, value) VALUES ('last_run', $1::jsonb) ON CONFLICT (key) DO UPDATE SET value=$1::jsonb",
+                               json.dumps({"asOf": day.isoformat()}))
+
+    probe = probes.build(store)["presets"]
+    async with store.pool.acquire() as conn:
+        await conn.execute("DELETE FROM daily_candles WHERE day > current_date - 30")
+        await conn.execute("DELETE FROM preset_meta WHERE key = 'last_run'")
+    try:
+        await put(older, 80)
+        await built(older)
+        assert await probe() is False                 # the lists are on the candles' newest session
+        await put(expected, 20)
+        assert await probe() is False                 # a day still loading (20 of 80 companies) is not a session yet
+        await put(expected, 80)
+        assert await probe() is True                  # the new session is in: the lists must move with the charts
+        await built(expected)
+        assert await probe() is False                 # rebuilt
+    finally:
+        async with store.pool.acquire() as conn:
+            await conn.execute("DELETE FROM daily_candles WHERE symbol LIKE 'ZZL%'")
+            await conn.execute("DELETE FROM preset_meta WHERE key = 'last_run'")
