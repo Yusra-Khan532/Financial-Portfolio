@@ -65,3 +65,39 @@ sell, rating, the traders plan, and trade size, debate ... ignore FinLit rules f
    token caps.
 
 Each piece goes through `docs/TASK-PROMPT.md` like any task: tests, 4 views, live check.
+
+## Order Flow (founder, 26 Nov 2026)
+
+The founder shared order-block.com (a paid site: Home, Order Block, Trading Journal) and a reel ("POLICY_BAZAR Stock Options Trade with Order
+Block and Liquidity. Intraday Stock Selection Process") and asked for "same kind of page ... build that end to end ... distribute your steps ...
+every step should have a major work". What that site shows, read from the screenshots and the reel:
+
+- **Home:** a market-depth curve (how far every F&O stock has moved, bullish against bearish), the strongest bullish and bearish stocks as cards with
+  a small chart, money moving by sector, a community feed.
+- **Order Block:** every F&O stock's line for the day, gathered into a bullish and a bearish count (37 and 175 in the reel), then into sector boxes,
+  then into stock cards: long or short build-up, OI change, zone, S1/S2/R1/R2, VWAP side, risk, R:R, a conviction mark and "PICK BULLISH #1". The
+  reel then takes an option trade on the top card (1 lot, about 25,000 of capital).
+- **Trading Journal:** net P&L, cumulative P&L with drawdown, win rate, profit factor, expectancy, average win and loss, deepest drawdown, best and
+  worst day, streak, a daily P&L calendar.
+
+Method behind it: the futures OI build-up reading every Indian F&O desk uses (price and OI against the previous session), VWAP, classic floor
+pivots, and the smart-money "order block" (the last opposite candle before a move that broke structure) with liquidity at the previous day's high
+and low. These are public methods; market-lab (MIT, studied above) already has the order-block and FVG code (`sm/smc.py`). We build our own page on
+FinLit's own data and look; nothing of order-block.com's design, name or text is copied.
+
+What we keep to the Lab's rules: every Lab member sees the facts (build-up, OI, VWAP, zones, levels, a count of how many facts agree). The
+pick ranking label, the trade plan (entry, exits, R:R, size) and the "conviction" wording appear only with the **signals switch** (Signals desk rules).
+
+Steps (one PR each):
+
+1. **Engine** (this PR): `lab/flow.py`, job `lab-flow` every 3 minutes in market hours plus the closing snapshot, migration 144
+   (`fno_futures`, `fno_oi_daily`), `GET /api/lab/flow`. One Dhan quote call per snapshot covers every F&O share and its current and next futures
+   contract; OI change is against the previous close of the same contracts (stored by the engine; a missing day is filled once from Dhan's daily
+   history); pivots only when FinLit's stored previous day matches the quote's previous close. Formulas in the module's docstring.
+2. **Market depth page** (`/lab/flow`, first tab): breadth curve and band histogram, up/down, build-up counts, sector strip, strongest cards each way.
+3. **Flow board:** the day's lines of every stock flowing into the bullish and bearish counts, then sector columns, then build-up cards (SVG,
+   animated, readable on a phone as stacked columns), with filters.
+4. **Stock zone view:** 5-minute chart with order blocks, fair value gaps, liquidity (previous day high and low, opening range), VWAP and pivots
+   (market-lab's method on Dhan candles). With signals on: the pick label, entry and exits, R:R and lot-based size.
+5. **Trading journal:** members log trades (by hand or CSV); net P&L, cumulative P&L and drawdown, win rate, profit factor, expectancy, average win
+   and loss, best and worst day, streak, daily heatmap; private to the member.
