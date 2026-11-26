@@ -11,6 +11,7 @@ import { BAND_NAME, bandVar } from "../lib/scoreBands";
 import { dateIN } from "../lib/format";
 import { GROWTH_SCORE_LABEL, PLAN_SCORE_NOTE, scoreReason } from "../lib/mf";
 import { ScoreBreakdown } from "./ScoreBreakdown";
+import { ScoreHighLow } from "./ScoreHighLow";
 import { PEER_KIND_WORD, type CategoryMedian } from "../lib/mfScoreUp";
 import { ScoreAlertButton } from "./ScoreAlertButton";
 import { ScoreHistoryCard } from "./ScoreHistory";
@@ -31,7 +32,7 @@ export function ScoreRing({ score, label, size = 132 }: { score: number | null; 
 }
 
 function Pillars({ s }: { s: FundScore }) {
-  return (
+  return (<>
     <ul className="mfs-pillars" aria-label="The four parts of the score, each out of 100 and in words">
       {s.pillars.map((p) => {
         const word = p.reading || "Not scored", band = wordBand(word), pts = p.points ?? null;
@@ -47,7 +48,8 @@ function Pillars({ s }: { s: FundScore }) {
           </li>);
       })}
     </ul>
-  );
+    <ScoreHighLow />
+  </>);
 }
 
 const ETF_ONLY = new Set(["ETF_LIQUIDITY", "ETF_PREMIUM"]);
