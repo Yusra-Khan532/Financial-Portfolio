@@ -18,7 +18,7 @@ Written 17 Nov 2026 from a full read of the repository, the team workspace and t
   - Everything stays free.
   - Secrets live only in `/opt/finlit/.env.aws`.
   - No model names in commits or code.
-- Design: the "FinLit final pages" pack (`docs/design/finlit-final-pages/`) is the final design for the pages it shows. The landing page follows its own tasks (#118–#121).
+- Design: the "FinLit final pages" pack (`docs/design/finlit-final-pages/`) is the final design for the pages it shows. The landing page follows its own tasks (#118–#121). Since task #407 (26 Nov 2026) it is the team's go-live pack: markup `landing/GoLiveMarkup.tsx`, interactive parts `landing/golive.js` (the pack's scripts, ported), data `landing/goliveData.js` (areas, tools, plans and their prices, recordings: change prices there only), styles `landing/golive.css`, media `public/landing/golive/`; the hero's company check reads the search index and `/api/search/quotes`.
 - Shipping:
   - Work goes on a branch, then a PR on `Yusra-Khan532/Financial-Portfolio`, squash-merged when every check passes.
   - `main` reaches the live site by itself in about 10 minutes.
